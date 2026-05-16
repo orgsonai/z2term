@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.Z2Term" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@color/zts_bg_primary</item>
+        <item name="android:navigationBarColor">@color/zts_bg_primary</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">@color/zts_bg_primary</item>
+    </style>
+
+    <!-- スプラッシュ用（Android 12+ SplashScreen API） -->
+    <style name="Theme.Z2Term.Splash" parent="Theme.Z2Term">
+        <item name="android:windowSplashScreenBackground">@color/zts_bg_primary</item>
+        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/ic_splash</item>
+    </style>
+</resources>

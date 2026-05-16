@@ -1,0 +1,44 @@
+# Android Studio / IntelliJ
+*.iml
+.idea/
+.gradle/
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Build outputs
+build/
+app/build/
+release/
+*.apk
+*.aab
+
+# Native build
+.cxx/
+**/cmake-build-*/
+
+# Lint
+lint/
+
+# Keystore
+*.jks
+*.keystore
+keystore.properties
+
+# OS
+.DS_Store
+Thumbs.db
+*~
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# rootfs アーカイブ（手動配置、リポジトリには含めない）
+app/src/main/assets/alpine-minirootfs-*.tar.gz
+
+# proot バイナリ（手動配置）
+app/src/main/jniLibs/arm64-v8a/libproot.so
+app/src/main/jniLibs/arm64-v8a/libproot_loader.so
+app/src/main/jniLibs/armeabi-v7a/libproot.so
+app/src/main/jniLibs/armeabi-v7a/libproot_loader.so

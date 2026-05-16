@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ZTS グリーン（アクセント） -->
+    <color name="zts_green">#22c55e</color>
+    <color name="zts_green_bright">#4ade80</color>
+    <color name="zts_green_dim">#16a34a</color>
+
+    <!-- 背景 -->
+    <color name="zts_bg_primary">#0a0a0a</color>
+    <color name="zts_bg_secondary">#171717</color>
+    <color name="zts_bg_card">#1f1f1f</color>
+    <color name="zts_border">#2a2a2a</color>
+
+    <!-- テキスト -->
+    <color name="zts_text_primary">#fafafa</color>
+    <color name="zts_text_secondary">#a3a3a3</color>
+    <color name="zts_text_tertiary">#737373</color>
+
+    <!-- ステータス -->
+    <color name="zts_error">#ef4444</color>
+    <color name="zts_warning">#f59e0b</color>
+    <color name="zts_info">#3b82f6</color>
+
+    <!-- ANSI 16色 (ZTS Theme ターミナル配色) -->
+    <color name="ansi_black">#1f1f1f</color>
+    <color name="ansi_red">#ef4444</color>
+    <color name="ansi_green">#22c55e</color>
+    <color name="ansi_yellow">#f59e0b</color>
+    <color name="ansi_blue">#3b82f6</color>
+    <color name="ansi_magenta">#a855f7</color>
+    <color name="ansi_cyan">#06b6d4</color>
+    <color name="ansi_white">#fafafa</color>
+    <color name="ansi_bright_black">#525252</color>
+    <color name="ansi_bright_red">#f87171</color>
+    <color name="ansi_bright_green">#4ade80</color>
+    <color name="ansi_bright_yellow">#fbbf24</color>
+    <color name="ansi_bright_blue">#60a5fa</color>
+    <color name="ansi_bright_magenta">#c084fc</color>
+    <color name="ansi_bright_cyan">#22d3ee</color>
+    <color name="ansi_bright_white">#ffffff</color>
+</resources>

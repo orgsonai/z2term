@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Z2Term</string>
+    <string name="app_tagline">Zero 2 Terminal</string>
+    <string name="distro_alpine">Alpine Linux</string>
+    <string name="status_initializing">Initializing…</string>
+    <string name="status_extracting">Extracting rootfs…</string>
+    <string name="status_ready">Ready</string>
+    <string name="status_running">Running</string>
+    <string name="error_setup">Setup failed</string>
+    <string name="action_restart">Restart</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_close">Close</string>
+    <string name="prompt_label">Prompt</string>
+</resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- M1 段階ではクラウドバックアップ無効 -->
+    </cloud-backup>
+    <device-transfer>
+        <!-- M1 段階ではデバイス間転送無効 -->
+    </device-transfer>
+</data-extraction-rules>
