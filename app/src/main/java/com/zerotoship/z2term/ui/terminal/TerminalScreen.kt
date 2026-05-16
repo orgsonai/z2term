@@ -2,17 +2,16 @@ package com.zerotoship.z2term.ui.terminal
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,11 +20,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -38,24 +37,22 @@ import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import com.zerotoship.z2term.ui.theme.ZtsTextTertiary
+import kotlin.math.roundToInt
 
 /**
- * Z2Term M1 ターミナル画面。
+ * Z2Term M2 ターミナル画面。
  *
  * 構成:
- * ┌──────────────────────────────┐
- * │ TopBar: タイトル + ステータス + 再起動 │
- * ├──────────────────────────────┤
- * │                              │
- * │  ターミナル出力エリア          │
- * │  (append-only)                │
- * │                              │
- * ├──────────────────────────────┤
- * │ 特殊キーバー                   │
- * │ [ESC][TAB][^C][^D][↑][↓][←][→] │
- * ├──────────────────────────────┤
- * │ 入力欄 + 送信ボタン            │
- * └──────────────────────────────┘
+ *   ┌────────────────────────────────────┐
+ *   │ TopBar: Z2Term + ステータス + Clear/再起動  │
+ *   ├────────────────────────────────────┤
+ *   │ TerminalRenderer (Compose Canvas)            │
+ *   │   ・縦ドラッグでスクロールバック閲覧         │
+ *   ├────────────────────────────────────┤
+ *   │ 特殊キーバー                                │
+ *   ├────────────────────────────────────┤
+ *   │ 入力欄                                      │
+ *   └────────────────────────────────────┘
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,9 +60,10 @@ fun TerminalScreen(
     viewModel: TerminalViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val redrawTick by viewModel.redrawTick.collectAsState()
+    val scrollOffset by viewModel.scrollOffset.collectAsState()
     var inputText by rememberSaveable { mutableStateOf("") }
 
-    // 初回起動
     LaunchedEffect(Unit) {
         if (uiState.state == TerminalViewModel.TerminalState.IDLE) {
             viewModel.startTerminal()
@@ -87,15 +85,11 @@ fun TerminalScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.clearOutput() }) {
-                        Text(
-                            text = "Clear",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = ZtsTextSecondary
-                        )
+                    TextButton(onClick = { viewModel.clearOutput() }) {
+                        Text("Clear", color = ZtsTextSecondary, fontSize = 12.sp)
                     }
                     IconButton(onClick = { viewModel.restart() }) {
-                        androidx.compose.material3.Icon(
+                        Icon(
                             imageVector = Icons.Outlined.Refresh,
                             contentDescription = "再起動",
                             tint = ZtsTextSecondary
@@ -115,21 +109,32 @@ fun TerminalScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // ターミナル出力エリア
-            TerminalOutputArea(
-                output = uiState.output,
+            // ターミナル本体
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-            )
+            ) {
+                TerminalCanvasArea(
+                    viewModel = viewModel,
+                    redrawTick = redrawTick,
+                    scrollOffset = scrollOffset
+                )
 
-            // 特殊キーバー
+                // スクロールバック閲覧中: 最下部へ戻るボタン
+                if (scrollOffset > 0) {
+                    JumpToBottomButton(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 12.dp, bottom = 12.dp),
+                        onClick = { viewModel.jumpToBottom() }
+                    )
+                }
+            }
+
             HorizontalDivider(color = ZtsBorder, thickness = 1.dp)
-            SpecialKeyBar(
-                onKey = { viewModel.sendSpecialKey(it) }
-            )
+            SpecialKeyBar(onKey = { viewModel.sendSpecialKey(it) })
 
-            // 入力欄
             HorizontalDivider(color = ZtsBorder, thickness = 1.dp)
             InputBar(
                 value = inputText,
@@ -145,6 +150,52 @@ fun TerminalScreen(
                 enabled = uiState.state == TerminalViewModel.TerminalState.RUNNING
             )
         }
+    }
+}
+
+@Composable
+private fun TerminalCanvasArea(
+    viewModel: TerminalViewModel,
+    redrawTick: Int,
+    scrollOffset: Int
+) {
+    val density = LocalDensity.current
+    // 縦ドラッグでスクロールバック閲覧
+    val dragModifier = Modifier.pointerInput(Unit) {
+        detectDragGestures { _, dragAmount ->
+            // 上スワイプ (dragAmount.y < 0) で履歴方向へ
+            val lineHeightPx = with(density) { 18.sp.toPx() }
+            val deltaLines = (-dragAmount.y / lineHeightPx).roundToInt()
+            if (deltaLines != 0) viewModel.scrollBy(deltaLines)
+        }
+    }
+
+    TerminalRenderer(
+        emulator = viewModel.emulatorRef,
+        fontSize = 13.sp,
+        fontFamily = TerminalFontFamily,
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ZtsBgPrimary)
+            .then(dragModifier),
+        onSizeChanged = { rows, cols -> viewModel.onTerminalResize(rows, cols) },
+        redrawTrigger = redrawTick,
+        scrollOffset = scrollOffset
+    )
+}
+
+@Composable
+private fun JumpToBottomButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
+    SmallFloatingActionButton(
+        onClick = onClick,
+        containerColor = ZtsBgSecondary,
+        contentColor = ZtsGreen,
+        modifier = modifier
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.KeyboardArrowDown,
+            contentDescription = "最下部へ"
+        )
     }
 }
 
@@ -168,31 +219,6 @@ private fun StatusBadge(state: TerminalViewModel.TerminalState, mode: String) {
             style = MaterialTheme.typography.labelMedium,
             color = color,
             fontSize = 11.sp
-        )
-    }
-}
-
-@Composable
-private fun TerminalOutputArea(output: String, modifier: Modifier = Modifier) {
-    val scrollState = rememberScrollState()
-    LaunchedEffect(output) {
-        // 出力追加時に最下部へスクロール
-        scrollState.animateScrollTo(scrollState.maxValue)
-    }
-    Box(
-        modifier = modifier
-            .background(ZtsBgPrimary)
-            .verticalScroll(scrollState)
-            .padding(12.dp)
-    ) {
-        Text(
-            text = if (output.isEmpty()) "Z2Term v0.1.0-alpha\n初回起動中…\n" else output,
-            style = TextStyle(
-                fontFamily = TerminalFontFamily,
-                fontSize = 13.sp,
-                color = ZtsTextPrimary,
-                lineHeight = 18.sp
-            )
         )
     }
 }
