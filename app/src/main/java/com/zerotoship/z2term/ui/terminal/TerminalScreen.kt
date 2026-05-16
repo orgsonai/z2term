@@ -10,7 +10,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import android.widget.Toast
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
@@ -22,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -74,6 +78,13 @@ fun TerminalScreen(
         }
     }
 
+    val ctx = LocalContext.current
+    LaunchedEffect(Unit) {
+        viewModel.toastEvents.collect { msg ->
+            Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -89,6 +100,20 @@ fun TerminalScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.copyAllToClipboard() }) {
+                        Icon(
+                            imageVector = Icons.Outlined.ContentCopy,
+                            contentDescription = "全文コピー",
+                            tint = ZtsTextSecondary
+                        )
+                    }
+                    IconButton(onClick = { viewModel.pasteFromClipboard() }) {
+                        Icon(
+                            imageVector = Icons.Outlined.ContentPaste,
+                            contentDescription = "ペースト",
+                            tint = ZtsTextSecondary
+                        )
+                    }
                     TextButton(onClick = { viewModel.clearOutput() }) {
                         Text("Clear", color = ZtsTextSecondary, fontSize = 12.sp)
                     }

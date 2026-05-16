@@ -1,6 +1,9 @@
 package com.zerotoship.z2term.ui.terminal
 
 import android.app.Application
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,9 +16,11 @@ import com.zerotoship.z2term.pty.PtyProcess
 import com.zerotoship.z2term.settings.AppSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -49,6 +54,12 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
 
     private val _scrollOffset = MutableStateFlow(0)
     val scrollOffset: StateFlow<Int> = _scrollOffset.asStateFlow()
+
+    /** 短期通知 (Toast) 用イベント */
+    private val _toastEvents = MutableSharedFlow<String>(
+        replay = 0, extraBufferCapacity = 4
+    )
+    val toastEvents = _toastEvents.asSharedFlow()
 
     private val installer = DistroInstaller(application)
     private val launcher = ProotLauncher(application)
@@ -273,6 +284,42 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
 
     fun jumpToBottom() {
         _scrollOffset.value = 0
+    }
+
+    /**
+     * バッファ全文 (スクロールバック + スクリーン) をクリップボードにコピー。
+     * 結果メッセージは ToastEvent としてフローに流す。
+     */
+    fun copyAllToClipboard() {
+        val text = emulator.buffer.getAllText(includeScrollback = true).trimEnd()
+        if (text.isEmpty()) {
+            _toastEvents.tryEmit("コピーするテキストがありません")
+            return
+        }
+        val cm = getApplication<Application>()
+            .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
+        _toastEvents.tryEmit("${text.length} 文字をコピーしました")
+    }
+
+    /** クリップボードのテキストを PTY にペースト */
+    fun pasteFromClipboard() {
+        val cm = getApplication<Application>()
+            .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = cm.primaryClip ?: run {
+            _toastEvents.tryEmit("クリップボードが空です")
+            return
+        }
+        if (clip.itemCount == 0) {
+            _toastEvents.tryEmit("クリップボードが空です")
+            return
+        }
+        val text = clip.getItemAt(0).coerceToText(getApplication()).toString()
+        if (text.isEmpty()) {
+            _toastEvents.tryEmit("クリップボードが空です")
+            return
+        }
+        writeToPty(text.toByteArray(Charsets.UTF_8))
     }
 
     private fun writeToPty(bytes: ByteArray) {

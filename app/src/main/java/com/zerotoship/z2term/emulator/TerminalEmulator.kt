@@ -61,6 +61,9 @@ class TerminalEmulator(
     }
     private var state = State.GROUND
 
+    // --- UTF-8 デコーダ (Ground 状態の非 ASCII バイト用) ---
+    private val utf8 = Utf8Decoder()
+
     // --- CSI パラメータバッファ ---
     private val csiParams = mutableListOf<Int>()
     private var csiCurrentParam = -1   // -1 = まだ何も入力されていない
@@ -103,42 +106,39 @@ class TerminalEmulator(
     }
 
     private fun processGround(b: Int) {
-        when (b) {
-            0x07 -> { /* BEL */ }
-            0x08 -> {
-                // BS: カーソル左へ
-                if (cursorCol > 0) cursorCol--
+        // ASCII 範囲: デコーダ状態を破棄して既存処理 (制御コードや ESC を優先)
+        if (b < 0x80) {
+            utf8.reset()
+            when (b) {
+                0x07 -> { /* BEL */ }
+                0x08 -> { if (cursorCol > 0) cursorCol-- }
+                0x09 -> {
+                    cursorCol = ((cursorCol / 8) + 1) * 8
+                    if (cursorCol >= buffer.columns) cursorCol = buffer.columns - 1
+                }
+                0x0A, 0x0B, 0x0C -> lineFeed()
+                0x0D -> cursorCol = 0
+                0x0E, 0x0F -> { /* SO/SI: 無視 */ }
+                0x1B -> state = State.ESCAPE
+                in 0x20..0x7E -> putChar(b.toChar())
+                else -> { /* その他制御文字は無視 */ }
             }
-            0x09 -> {
-                // HT (Tab): 次の 8 の倍数へ
-                cursorCol = ((cursorCol / 8) + 1) * 8
-                if (cursorCol >= buffer.columns) cursorCol = buffer.columns - 1
-            }
-            0x0A, 0x0B, 0x0C -> {
-                // LF / VT / FF: 改行
-                lineFeed()
-            }
-            0x0D -> {
-                // CR: 行頭へ
-                cursorCol = 0
-            }
-            0x0E, 0x0F -> { /* SO/SI: キャラクタセット切替 (無視) */ }
-            0x1B -> {
-                // ESC: エスケープ開始
-                state = State.ESCAPE
-            }
-            in 0x20..0x7E -> {
-                // 表示可能 ASCII
-                putChar(b.toChar())
-            }
-            in 0x80..0xFF -> {
-                // UTF-8 multi-byte の先頭か継続バイト
-                // 簡易実装: byte をそのまま char に
-                putChar(b.toChar())
-            }
-            else -> {
-                // その他制御文字は無視
-            }
+        } else {
+            // 0x80-0xFF: UTF-8 デコーダに供給。完成したらコードポイントを put
+            val cp = utf8.feed(b) ?: return
+            putCodepoint(cp)
+        }
+    }
+
+    private fun putCodepoint(cp: Int) {
+        if (cp <= 0xFFFF) {
+            putChar(cp.toChar())
+        } else {
+            // BMP 範囲外 → サロゲートペアで 2 セル消費
+            val highSurrogate = ((cp - 0x10000) shr 10) + 0xD800
+            val lowSurrogate = ((cp - 0x10000) and 0x3FF) + 0xDC00
+            putChar(highSurrogate.toChar())
+            putChar(lowSurrogate.toChar())
         }
     }
 
