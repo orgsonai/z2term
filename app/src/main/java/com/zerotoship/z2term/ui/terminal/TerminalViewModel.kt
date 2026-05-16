@@ -208,20 +208,34 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
             SpecialKey.DOWN -> emulator.cursorKeyBytes(TerminalEmulator.CursorKey.DOWN)
             SpecialKey.RIGHT -> emulator.cursorKeyBytes(TerminalEmulator.CursorKey.RIGHT)
             SpecialKey.LEFT -> emulator.cursorKeyBytes(TerminalEmulator.CursorKey.LEFT)
+            SpecialKey.CTRL_A -> byteArrayOf(0x01)
             SpecialKey.CTRL_C -> byteArrayOf(0x03)
             SpecialKey.CTRL_D -> byteArrayOf(0x04)
+            SpecialKey.CTRL_E -> byteArrayOf(0x05)
+            SpecialKey.CTRL_K -> byteArrayOf(0x0b)
             SpecialKey.CTRL_L -> byteArrayOf(0x0c)
+            SpecialKey.CTRL_R -> byteArrayOf(0x12)
+            SpecialKey.CTRL_U -> byteArrayOf(0x15)
+            SpecialKey.CTRL_W -> byteArrayOf(0x17)
             SpecialKey.CTRL_Z -> byteArrayOf(0x1a)
+            SpecialKey.HOME -> ESC_BRACKET + 'H'.code.toByte()
+            SpecialKey.END -> ESC_BRACKET + 'F'.code.toByte()
+            SpecialKey.PAGE_UP -> ESC_BRACKET + "5~".toByteArray()
+            SpecialKey.PAGE_DOWN -> ESC_BRACKET + "6~".toByteArray()
+            SpecialKey.F1 -> ESC_O + 'P'.code.toByte()
+            SpecialKey.F2 -> ESC_O + 'Q'.code.toByte()
+            SpecialKey.F3 -> ESC_O + 'R'.code.toByte()
+            SpecialKey.F4 -> ESC_O + 'S'.code.toByte()
+            SpecialKey.F5 -> ESC_BRACKET + "15~".toByteArray()
+            SpecialKey.F6 -> ESC_BRACKET + "17~".toByteArray()
+            SpecialKey.F7 -> ESC_BRACKET + "18~".toByteArray()
+            SpecialKey.F8 -> ESC_BRACKET + "19~".toByteArray()
+            SpecialKey.F9 -> ESC_BRACKET + "20~".toByteArray()
+            SpecialKey.F10 -> ESC_BRACKET + "21~".toByteArray()
+            SpecialKey.F11 -> ESC_BRACKET + "23~".toByteArray()
+            SpecialKey.F12 -> ESC_BRACKET + "24~".toByteArray()
         }
         writeToPty(bytes)
-    }
-
-    /** Ctrl + キー (a-z) — 0x01〜0x1A を送信 */
-    fun sendCtrl(letter: Char) {
-        val lower = letter.lowercaseChar()
-        if (lower in 'a'..'z') {
-            writeToPty(byteArrayOf((lower.code - 'a'.code + 1).toByte()))
-        }
     }
 
     /** クリア (内部バッファ含めて) */
@@ -294,10 +308,14 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     enum class SpecialKey {
         ENTER, TAB, ESC, BACKSPACE,
         UP, DOWN, LEFT, RIGHT,
-        CTRL_C, CTRL_D, CTRL_L, CTRL_Z
+        CTRL_A, CTRL_C, CTRL_D, CTRL_E, CTRL_K, CTRL_L, CTRL_R, CTRL_U, CTRL_W, CTRL_Z,
+        HOME, END, PAGE_UP, PAGE_DOWN,
+        F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12
     }
 
     companion object {
         private const val TAG = "TerminalViewModel"
+        private val ESC_BRACKET = byteArrayOf(0x1B, '['.code.toByte())
+        private val ESC_O = byteArrayOf(0x1B, 'O'.code.toByte())
     }
 }

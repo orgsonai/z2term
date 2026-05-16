@@ -246,7 +246,9 @@ private fun StatusBadge(state: TerminalViewModel.TerminalState, mode: String) {
 
 @Composable
 private fun SpecialKeyBar(onKey: (TerminalViewModel.SpecialKey) -> Unit) {
-    val keys = listOf(
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    val primary = listOf(
         "ESC" to TerminalViewModel.SpecialKey.ESC,
         "TAB" to TerminalViewModel.SpecialKey.TAB,
         "^C" to TerminalViewModel.SpecialKey.CTRL_C,
@@ -257,17 +259,61 @@ private fun SpecialKeyBar(onKey: (TerminalViewModel.SpecialKey) -> Unit) {
         "↑" to TerminalViewModel.SpecialKey.UP,
         "→" to TerminalViewModel.SpecialKey.RIGHT
     )
-    val scrollState = rememberScrollState()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(ZtsBgSecondary)
-            .horizontalScroll(scrollState)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        keys.forEach { (label, key) ->
-            SpecialKeyButton(label = label, onClick = { onKey(key) })
+    val extra = listOf(
+        "^A" to TerminalViewModel.SpecialKey.CTRL_A,
+        "^E" to TerminalViewModel.SpecialKey.CTRL_E,
+        "^K" to TerminalViewModel.SpecialKey.CTRL_K,
+        "^R" to TerminalViewModel.SpecialKey.CTRL_R,
+        "^U" to TerminalViewModel.SpecialKey.CTRL_U,
+        "^W" to TerminalViewModel.SpecialKey.CTRL_W,
+        "^Z" to TerminalViewModel.SpecialKey.CTRL_Z,
+        "Home" to TerminalViewModel.SpecialKey.HOME,
+        "End" to TerminalViewModel.SpecialKey.END,
+        "PgUp" to TerminalViewModel.SpecialKey.PAGE_UP,
+        "PgDn" to TerminalViewModel.SpecialKey.PAGE_DOWN,
+        "F1" to TerminalViewModel.SpecialKey.F1,
+        "F2" to TerminalViewModel.SpecialKey.F2,
+        "F3" to TerminalViewModel.SpecialKey.F3,
+        "F4" to TerminalViewModel.SpecialKey.F4,
+        "F5" to TerminalViewModel.SpecialKey.F5,
+        "F6" to TerminalViewModel.SpecialKey.F6,
+        "F7" to TerminalViewModel.SpecialKey.F7,
+        "F8" to TerminalViewModel.SpecialKey.F8,
+        "F9" to TerminalViewModel.SpecialKey.F9,
+        "F10" to TerminalViewModel.SpecialKey.F10,
+        "F11" to TerminalViewModel.SpecialKey.F11,
+        "F12" to TerminalViewModel.SpecialKey.F12
+    )
+
+    Column(modifier = Modifier.background(ZtsBgSecondary)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            primary.forEach { (label, key) ->
+                SpecialKeyButton(label = label, onClick = { onKey(key) })
+            }
+            SpecialKeyButton(
+                label = if (expanded) "▾" else "▸",
+                onClick = { expanded = !expanded }
+            )
+        }
+        if (expanded) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                extra.forEach { (label, key) ->
+                    SpecialKeyButton(label = label, onClick = { onKey(key) })
+                }
+            }
         }
     }
 }

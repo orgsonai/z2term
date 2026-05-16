@@ -138,6 +138,22 @@ private fun DrawScope.drawTerminal(
             style = Stroke(width = 2f)
         )
     }
+
+    // スクロールバー (履歴がある場合のみ右端に表示)
+    val totalBacklog = buffer.scrollbackSize
+    if (totalBacklog > 0) {
+        val barWidth = 3f
+        val barX = size.width - barWidth
+        // 全体に対する現在位置: 上に行くほど offset 大
+        val totalRows = totalBacklog + viewRows
+        val thumbHeight = (size.height * viewRows / totalRows).coerceAtLeast(12f)
+        val thumbTop = size.height * (totalBacklog - offset) / totalRows
+        drawRect(
+            color = argbToColor(colors.cursorColor).copy(alpha = 0.35f),
+            topLeft = Offset(barX, thumbTop),
+            size = Size(barWidth, thumbHeight)
+        )
+    }
 }
 
 /**
