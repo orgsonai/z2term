@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zerotoship.z2term.ui.settings.SettingsSheet
 import com.zerotoship.z2term.ui.theme.AnsiGreen
 import com.zerotoship.z2term.ui.theme.TerminalFontFamily
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
@@ -62,7 +64,9 @@ fun TerminalScreen(
     val uiState by viewModel.uiState.collectAsState()
     val redrawTick by viewModel.redrawTick.collectAsState()
     val scrollOffset by viewModel.scrollOffset.collectAsState()
+    val settings by viewModel.settingsFlow.collectAsState()
     var inputText by rememberSaveable { mutableStateOf("") }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (uiState.state == TerminalViewModel.TerminalState.IDLE) {
@@ -87,6 +91,13 @@ fun TerminalScreen(
                 actions = {
                     TextButton(onClick = { viewModel.clearOutput() }) {
                         Text("Clear", color = ZtsTextSecondary, fontSize = 12.sp)
+                    }
+                    IconButton(onClick = { showSettings = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Settings,
+                            contentDescription = "設定",
+                            tint = ZtsTextSecondary
+                        )
                     }
                     IconButton(onClick = { viewModel.restart() }) {
                         Icon(
@@ -118,7 +129,8 @@ fun TerminalScreen(
                 TerminalCanvasArea(
                     viewModel = viewModel,
                     redrawTick = redrawTick,
-                    scrollOffset = scrollOffset
+                    scrollOffset = scrollOffset,
+                    fontSizeSp = settings.fontSizeSp
                 )
 
                 // スクロールバック閲覧中: 最下部へ戻るボタン
@@ -151,20 +163,29 @@ fun TerminalScreen(
             )
         }
     }
+
+    if (showSettings) {
+        SettingsSheet(
+            snapshot = settings,
+            onThemeChange = { viewModel.updateTheme(it) },
+            onFontSizeChange = { viewModel.updateFontSize(it) },
+            onScrollbackChange = { viewModel.updateScrollbackLines(it) },
+            onDismiss = { showSettings = false }
+        )
+    }
 }
 
 @Composable
 private fun TerminalCanvasArea(
     viewModel: TerminalViewModel,
     redrawTick: Int,
-    scrollOffset: Int
+    scrollOffset: Int,
+    fontSizeSp: Float
 ) {
     val density = LocalDensity.current
-    // 縦ドラッグでスクロールバック閲覧
     val dragModifier = Modifier.pointerInput(Unit) {
         detectDragGestures { _, dragAmount ->
-            // 上スワイプ (dragAmount.y < 0) で履歴方向へ
-            val lineHeightPx = with(density) { 18.sp.toPx() }
+            val lineHeightPx = with(density) { fontSizeSp.sp.toPx() }
             val deltaLines = (-dragAmount.y / lineHeightPx).roundToInt()
             if (deltaLines != 0) viewModel.scrollBy(deltaLines)
         }
@@ -172,7 +193,7 @@ private fun TerminalCanvasArea(
 
     TerminalRenderer(
         emulator = viewModel.emulatorRef,
-        fontSize = 13.sp,
+        fontSize = fontSizeSp.sp,
         fontFamily = TerminalFontFamily,
         modifier = Modifier
             .fillMaxSize()

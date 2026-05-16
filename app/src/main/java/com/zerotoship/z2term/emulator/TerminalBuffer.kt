@@ -13,8 +13,15 @@ package com.zerotoship.z2term.emulator
 class TerminalBuffer(
     initialRows: Int,
     initialColumns: Int,
-    private val scrollbackCapacity: Int = 5000
+    scrollbackCapacity: Int = 5000
 ) {
+    /** スクロールバック上限行数 (実行時変更可) */
+    var scrollbackCapacity: Int = scrollbackCapacity
+        set(value) {
+            field = value.coerceAtLeast(0)
+            // 既に超過していたら詰める
+            while (scrollback.size > field) scrollback.removeFirst()
+        }
     var rows: Int = initialRows
         private set
     var columns: Int = initialColumns

@@ -5,14 +5,19 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zerotoship.z2term.distro.DistroInstaller
+import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.emulator.TerminalEmulator
+import com.zerotoship.z2term.emulator.ZtsTheme
 import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.pty.PtyProcess
+import com.zerotoship.z2term.settings.AppSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -47,6 +52,13 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
 
     private val installer = DistroInstaller(application)
     private val launcher = ProotLauncher(application)
+    private val settings = AppSettings(application)
+
+    val settingsFlow: StateFlow<AppSettings.Snapshot> = settings.flow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = AppSettings.Snapshot()
+    )
 
     private val emulator = TerminalEmulator(
         output = { bytes -> writeToPty(bytes) },
@@ -57,6 +69,30 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
 
     private var ptyProcess: PtyProcess? = null
     private var readJob: Job? = null
+
+    init {
+        // 設定変更を監視: テーマ + スクロールバック容量をエミュレータに反映
+        viewModelScope.launch {
+            settingsFlow.collect { snapshot ->
+                val theme = AvailableThemes.firstOrNull { it.name == snapshot.themeName } ?: ZtsTheme
+                emulator.colors.applyTheme(theme)
+                emulator.buffer.scrollbackCapacity = snapshot.scrollbackLines
+                bumpRedraw()
+            }
+        }
+    }
+
+    fun updateTheme(name: String) {
+        viewModelScope.launch { settings.setTheme(name) }
+    }
+
+    fun updateFontSize(sp: Float) {
+        viewModelScope.launch { settings.setFontSize(sp) }
+    }
+
+    fun updateScrollbackLines(lines: Int) {
+        viewModelScope.launch { settings.setScrollbackLines(lines) }
+    }
 
     fun startTerminal() {
         if (_uiState.value.state == TerminalState.RUNNING) {
