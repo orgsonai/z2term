@@ -46,6 +46,8 @@ import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.ui.settings.SettingsSheet
 import com.zerotoship.z2term.ui.theme.AnsiGreen
 import com.zerotoship.z2term.ui.theme.TerminalFontFamily
+import com.zerotoship.z2term.ui.theme.TerminalFontOptions
+import com.zerotoship.z2term.ui.theme.rememberTerminalFontFamily
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
@@ -176,13 +178,15 @@ fun TerminalScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                // 1.activeSession が切替わると key で再構築 → focus 等もリセット
+                val fontFamily = rememberTerminalFontFamily(TerminalFontOptions.byId(settings.fontId))
+                // activeSession が切替わると key で再構築 → focus 等もリセット
                 androidx.compose.runtime.key(activeSession.id) {
                     TerminalCanvasArea(
                         viewModel = viewModel,
                         redrawTick = redrawTick,
                         scrollOffset = scrollOffset,
                         fontSizeSp = settings.fontSizeSp,
+                        fontFamily = fontFamily,
                         selection = selection
                     )
                 }
@@ -250,6 +254,7 @@ fun TerminalScreen(
             onFontSizeChange = { viewModel.updateFontSize(it) },
             onScrollbackChange = { viewModel.updateScrollbackLines(it) },
             onDistroChange = { viewModel.updateDistro(it) },
+            onFontIdChange = { viewModel.updateFontId(it) },
             onDismiss = { showSettings = false }
         )
     }
@@ -261,6 +266,7 @@ private fun TerminalCanvasArea(
     redrawTick: Int,
     scrollOffset: Int,
     fontSizeSp: Float,
+    fontFamily: androidx.compose.ui.text.font.FontFamily,
     selection: TerminalViewModel.Selection?
 ) {
     val density = LocalDensity.current
@@ -308,7 +314,7 @@ private fun TerminalCanvasArea(
     TerminalRenderer(
         emulator = viewModel.emulatorRef,
         fontSize = fontSizeSp.sp,
-        fontFamily = TerminalFontFamily,
+        fontFamily = fontFamily,
         modifier = Modifier
             .fillMaxSize()
             .background(ZtsBgPrimary)

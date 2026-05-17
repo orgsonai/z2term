@@ -103,6 +103,7 @@ class TerminalSession(
     fun setFontSize(sp: Float) { scope.launch { settings.setFontSize(sp) } }
     fun setScrollbackLines(lines: Int) { scope.launch { settings.setScrollbackLines(lines) } }
     fun setDistro(id: String) { scope.launch { settings.setDistro(id) } }
+    fun setFontId(id: String) { scope.launch { settings.setFontId(id) } }
 
     /** 設定で選ばれているディストロを使って起動。明示的指定があればそれを優先 */
     fun startTerminal(distroOverride: DistroSpec? = null) {

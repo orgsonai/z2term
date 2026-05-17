@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.zerotoship.z2term.MainActivity
@@ -23,6 +24,8 @@ import com.zerotoship.z2term.core.SessionManager
  * - 通知から STOP アクションを発火すると、セッションを終了して自身を停止。
  */
 class TerminalService : Service() {
+
+    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -50,12 +53,32 @@ class TerminalService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
+        acquireWakeLock()
     }
 
     private fun stopSessionAndSelf() {
+        releaseWakeLock()
         SessionManager.shutdown()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+    }
+
+    private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        val wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "z2term:session")
+        wl.setReferenceCounted(false)
+        wl.acquire(MAX_WAKELOCK_MILLIS)
+        wakeLock = wl
+        Log.i(TAG, "Partial WakeLock acquired")
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.let { wl ->
+            if (wl.isHeld) wl.release()
+            Log.i(TAG, "Partial WakeLock released")
+        }
+        wakeLock = null
     }
 
     private fun ensureChannel() {
@@ -104,6 +127,7 @@ class TerminalService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        releaseWakeLock()
         Log.i(TAG, "TerminalService destroyed")
     }
 
@@ -111,6 +135,8 @@ class TerminalService : Service() {
         private const val TAG = "TerminalService"
         private const val CHANNEL_ID = "z2term_session"
         private const val NOTIFICATION_ID = 1001
+        /** WakeLock の絶対上限 (8 時間)。超えると自動解放 */
+        private const val MAX_WAKELOCK_MILLIS = 8L * 60 * 60 * 1000
         const val ACTION_STOP = "com.zerotoship.z2term.STOP"
 
         fun start(context: Context) {

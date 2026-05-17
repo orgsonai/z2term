@@ -12,10 +12,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.ui.theme.TerminalFontFamily
+import com.zerotoship.z2term.ui.theme.TerminalFontOptions
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
@@ -39,6 +41,7 @@ fun SettingsSheet(
     onFontSizeChange: (Float) -> Unit,
     onScrollbackChange: (Int) -> Unit,
     onDistroChange: (String) -> Unit,
+    onFontIdChange: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -69,6 +72,11 @@ fun SettingsSheet(
             ThemeSection(
                 current = snapshot.themeName,
                 onSelect = onThemeChange
+            )
+
+            FontSection(
+                currentId = snapshot.fontId,
+                onSelect = onFontIdChange
             )
 
             FontSizeSection(
@@ -174,6 +182,55 @@ private fun ThemeSection(current: String, onSelect: (String) -> Unit) {
                 ColorSwatch(argb = theme.red)
                 Spacer(Modifier.width(4.dp))
                 ColorSwatch(argb = theme.blue)
+            }
+        }
+    }
+}
+
+@Composable
+private fun FontSection(currentId: String, onSelect: (String) -> Unit) {
+    val context = LocalContext.current
+    SectionHeader("フォント")
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        TerminalFontOptions.ALL.forEach { option ->
+            val available = TerminalFontOptions.isAvailable(context, option)
+            val selected = option.id == currentId
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(
+                        width = 1.dp,
+                        color = if (selected) ZtsGreen else ZtsBorder,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .background(ZtsBgPrimary)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = selected,
+                    onClick = { if (available) onSelect(option.id) },
+                    enabled = available,
+                    colors = RadioButtonDefaults.colors(
+                        selectedColor = ZtsGreen,
+                        unselectedColor = ZtsTextSecondary
+                    )
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = option.displayName,
+                        color = if (available) ZtsTextPrimary else ZtsTextSecondary,
+                        fontFamily = TerminalFontFamily,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = if (available) (option.assetFile ?: "システムフォント") else "assets/fonts/${option.assetFile} 未配置",
+                        color = ZtsTextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
             }
         }
     }

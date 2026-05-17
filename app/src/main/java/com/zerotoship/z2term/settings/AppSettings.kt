@@ -24,7 +24,8 @@ class AppSettings(private val context: Context) {
         val themeName: String = DEFAULT_THEME,
         val fontSizeSp: Float = DEFAULT_FONT_SIZE_SP,
         val scrollbackLines: Int = DEFAULT_SCROLLBACK_LINES,
-        val distroId: String = DEFAULT_DISTRO
+        val distroId: String = DEFAULT_DISTRO,
+        val fontId: String = DEFAULT_FONT
     )
 
     val flow: Flow<Snapshot> = context.dataStore.data.map { p ->
@@ -32,12 +33,17 @@ class AppSettings(private val context: Context) {
             themeName = p[KEY_THEME_NAME] ?: DEFAULT_THEME,
             fontSizeSp = p[KEY_FONT_SIZE] ?: DEFAULT_FONT_SIZE_SP,
             scrollbackLines = p[KEY_SCROLLBACK] ?: DEFAULT_SCROLLBACK_LINES,
-            distroId = p[KEY_DISTRO_ID] ?: DEFAULT_DISTRO
+            distroId = p[KEY_DISTRO_ID] ?: DEFAULT_DISTRO,
+            fontId = p[KEY_FONT_ID] ?: DEFAULT_FONT
         )
     }
 
     suspend fun setDistro(id: String) {
         context.dataStore.edit { it[KEY_DISTRO_ID] = id }
+    }
+
+    suspend fun setFontId(id: String) {
+        context.dataStore.edit { it[KEY_FONT_ID] = id }
     }
 
     suspend fun setTheme(name: String) {
@@ -59,6 +65,7 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_FONT_SIZE_SP = 13f
         const val DEFAULT_SCROLLBACK_LINES = 5000
         const val DEFAULT_DISTRO = "alpine"
+        const val DEFAULT_FONT = "monospace"
 
         const val MIN_FONT_SIZE_SP = 8f
         const val MAX_FONT_SIZE_SP = 32f
@@ -69,5 +76,6 @@ class AppSettings(private val context: Context) {
         private val KEY_FONT_SIZE = floatPreferencesKey("font_size_sp")
         private val KEY_SCROLLBACK = intPreferencesKey("scrollback_lines")
         private val KEY_DISTRO_ID = stringPreferencesKey("distro_id")
+        private val KEY_FONT_ID = stringPreferencesKey("font_id")
     }
 }

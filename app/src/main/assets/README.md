@@ -1,7 +1,7 @@
 # Z2Term assets ディレクトリ
 
-このディレクトリにはディストロ rootfs アーカイブを配置します。
-M3 以降は複数ディストロに対応しています。
+このディレクトリにはディストロ rootfs アーカイブ + ターミナル用フォントを
+配置します。M3 以降は複数ディストロ、M4 以降はカスタムフォントに対応。
 
 ## 必要なファイル
 
@@ -68,3 +68,23 @@ sha256sum -c alpine-minirootfs-3.21.0-aarch64.tar.gz.sha256
 - `ubuntu-minirootfs-armv7.tar.gz`
 
 バージョン管理は別途、ディストロ内の `/etc/os-release` で確認してください。
+
+## カスタムフォント (M4)
+
+`assets/fonts/` ディレクトリにフォント TTF/OTF ファイルを配置すると、設定画面の
+フォントセクションで選択可能になります。
+
+| ファイル名 | 入手元 |
+|---|---|
+| `IBMPlexMono-Regular.ttf` | https://github.com/IBM/plex/tree/master/IBM-Plex-Mono/fonts/complete/ttf |
+| `JetBrainsMono-Regular.ttf` | https://github.com/JetBrains/JetBrainsMono/releases |
+| `FiraCode-Regular.ttf` | https://github.com/tonsky/FiraCode/releases |
+
+未配置のフォント候補は設定画面でグレーアウトされ、選択しても System Monospace に
+フォールバックします。
+
+```bash
+mkdir -p app/src/main/assets/fonts
+curl -L -o app/src/main/assets/fonts/IBMPlexMono-Regular.ttf \
+  https://github.com/IBM/plex/raw/master/IBM-Plex-Mono/fonts/complete/ttf/IBMPlexMono-Regular.ttf
+```
