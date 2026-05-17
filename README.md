@@ -9,39 +9,35 @@
 
 ## 現在のバージョン
 
-**0.4.0-alpha (M4: マルチセッション + 国際化対応)**
+**0.5.0-alpha (M5: SSH + ジェスチャ + 配布準備)**
 
-Milestone 4 でマルチタブ・全角文字対応・IME 連動入力・カスタムフォント・WakeLock を実装。
+Milestone 5 で SSH クライアント・ピンチ操作・OSC 拡張・配布パイプラインを実装。
 
-### M4 で追加された機能
+### M5 で追加された機能
 
-- **East Asian Width**: CJK / 絵文字を 2 セル幅で描画 (`wideCont` セル制御)
-- **マルチタブ / 複数同時セッション**: タブバーで Alpine と sh を並行運用、+ ボタンで追加
-- **IME 連動入力 (リアルタイムモード)**: ⚡ トグルで IME 確定ごとに自動送出
-- **カスタムフォント**: assets/fonts に TTF を置くと自動検出 (IBM Plex Mono / JetBrains Mono / Fira Code)
-- **WakeLock**: フォアグラウンドサービス稼働中だけ partial WakeLock を保持
+- **SSH クライアント** (JSch): プロファイル保存、パスワード認証、xterm-256color 接続
+- **ピンチでフォントサイズ変更** + 二本指ドラッグでスクロールバック閲覧
+- **OSC 拡張**: 4 (palette set) / 10/11/12 (default fg/bg/cursor) / 52 (clipboard)
+- **EAW Ambiguous 切替**: 罫線・矢印を CJK ロケール向けに wide 扱いするトグル
+- **配布パイプライン**: GitHub Actions CI + Release signing + ProGuard + F-Droid metadata
 
-### M3 までの機能
+### M4 以前の機能
 
-- 代替スクリーン (DECSET 1049/1047/47) — vim/htop 終了時に通常画面復帰
-- フォアグラウンドサービスによるバックグラウンド維持と永続通知
-- 物理キーボード (Bluetooth) 対応 — Ctrl/Alt 修飾と F-key・矢印
-- 長押し → ドラッグでの範囲選択モード
-- マルチディストロ (Alpine + Ubuntu) と設定画面切替
-- VT100/xterm エスケープシーケンス (色・装飾・スクロール領域・SGR 256色/RGB)
-- Compose Canvas 独自レンダラ + 属性連続セル一括描画
-- 6 テーマ (ZTS/Solarized/Dracula/Gruvbox/Nord/Tokyo Night)
-- スクロールバック (500〜50,000 行) + 縦ドラッグ閲覧 + 最下部 FAB
-- 特殊キーバー (Ctrl 系 / Home/End / PgUp/PgDn / F1〜F12)
-- DataStore 永続設定 / 全文コピー / クリップボードペースト / UTF-8 デコード
+- East Asian Width / マルチタブ / IME 連動 / カスタムフォント / WakeLock (M4)
+- 代替スクリーン / フォアグラウンドサービス / 物理キーボード / 範囲選択 /
+  マルチディストロ (Alpine + Ubuntu) (M3)
+- VT100/xterm エミュレータ / 6 テーマ / スクロールバック /
+  クリップボード / UTF-8 (M2)
+- PRoot + Alpine の PoC (M1)
 
-### M4 でまだ対応していないこと (M5 以降で対応予定)
+### M5 でまだ対応していないこと (M6 以降で対応予定)
 
-- F-Droid / Play Store への配布パイプライン
-- 公開鍵管理・署名 (Release APK / Bundle)
-- リモート接続 (SSH クライアント機能)
-- スクリプト自動起動 (起動時に特定コマンドを実行)
-- ジェスチャ拡張 (ピンチでフォントサイズ変更など)
+- SSH 公開鍵認証 + Android Keystore でのパスワード暗号化
+- known_hosts 永続化 + ホスト鍵検証
+- 起動時自動コマンド (init スクリプト)
+- F-Droid 用 FOSS ビルドバリアント (assets 抜き)
+- OSC 7 (current directory) / OSC 8 (hyperlinks)
+- ローカルポートフォワーディング / リバース SSH
 
 ## ビルド要件
 
@@ -104,16 +100,18 @@ z2term/
 │       ├── java/com/zerotoship/z2term/
 │       │   ├── Z2TermApplication.kt
 │       │   ├── MainActivity.kt
-│       │   ├── core/                ← TerminalSession + SessionManager (M3)
+│       │   ├── channel/             ← ProcessChannel / SshChannel (M5)
+│       │   ├── core/                ← TerminalSession + SessionManager
 │       │   ├── pty/                 ← PTY 抽象化
 │       │   ├── proot/               ← PRoot 起動
-│       │   ├── distro/              ← rootfs 展開 (Alpine + Ubuntu, M3)
-│       │   ├── emulator/            ← VT100/xterm エミュレータコア (M2)
-│       │   ├── settings/            ← DataStore 永続化 (M2-3)
-│       │   ├── service/             ← TerminalService (foreground, M3)
+│       │   ├── distro/              ← rootfs 展開 (Alpine + Ubuntu)
+│       │   ├── emulator/            ← VT100/xterm エミュレータコア
+│       │   ├── settings/            ← DataStore 永続化
+│       │   ├── service/             ← TerminalService (foreground + WakeLock)
 │       │   └── ui/
-│       │       ├── theme/           ← ZTS Theme
-│       │       ├── settings/        ← 設定 UI (M2)
+│       │       ├── theme/           ← ZTS Theme + カスタムフォント
+│       │       ├── settings/        ← 設定 UI
+│       │       ├── ssh/             ← SSH プロファイル UI (M5)
 │       │       └── terminal/        ← ターミナル UI + Renderer + キーマッパー
 │       ├── jniLibs/                 ← proot バイナリを配置
 │       └── res/                     ← リソース
@@ -122,11 +120,14 @@ z2term/
 ├── gradle/
 │   ├── libs.versions.toml
 │   └── wrapper/
-└── docs/
-    ├── M1-HANDOFF.md
-    ├── M2-HANDOFF.md
-    ├── M3-HANDOFF.md
-    └── M4-HANDOFF.md
+├── docs/
+│   ├── M1-HANDOFF.md
+│   ├── M2-HANDOFF.md
+│   ├── M3-HANDOFF.md
+│   ├── M4-HANDOFF.md
+│   └── M5-HANDOFF.md
+├── metadata/                     ← F-Droid メタデータ (M5)
+└── .github/workflows/build.yml   ← CI (M5)
 ```
 
 ## 動作確認の流れ
