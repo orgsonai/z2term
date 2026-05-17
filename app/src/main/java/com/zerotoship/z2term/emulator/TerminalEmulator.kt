@@ -73,12 +73,21 @@ class TerminalEmulator(
     // --- OSC バッファ ---
     private val oscBuffer = StringBuilder()
 
-    // --- カーソル保存 ---
+    // --- カーソル保存 (DECSC / DECRC、Primary/Alternate それぞれ用) ---
     private var savedCursorRow = 0
     private var savedCursorCol = 0
     private var savedFg = SgrAttribute.DEFAULT
     private var savedBg = SgrAttribute.DEFAULT
     private var savedFlags = 0
+
+    // --- ?1049 用: Primary 退避領域 (alt 切替前の状態を保存) ---
+    private var altSavedCursorRow = 0
+    private var altSavedCursorCol = 0
+    private var altSavedFg = SgrAttribute.DEFAULT
+    private var altSavedBg = SgrAttribute.DEFAULT
+    private var altSavedFlags = 0
+    private var altSavedScrollTop = 0
+    private var altSavedScrollBottom = 0
 
     /**
      * 入力バイト列を処理する。
@@ -487,8 +496,60 @@ class TerminalEmulator(
                 }
                 7 -> autoWrap = set  // DECAWM
                 25 -> cursorVisible = set  // DECTCEM
-                1049, 47, 1047 -> {
-                    // 代替スクリーン (簡易: 無視。完全実装は M3 以降)
+                1049 -> {
+                    // DECSET 1049: カーソル + 属性 + スクロール領域を退避 → Alt 切替 (クリア)
+                    // DECRST 1049: Alt → Primary、退避していた状態を復元
+                    if (set) {
+                        if (buffer.primaryActive) {
+                            altSavedCursorRow = cursorRow
+                            altSavedCursorCol = cursorCol
+                            altSavedFg = currentFg
+                            altSavedBg = currentBg
+                            altSavedFlags = currentFlags
+                            altSavedScrollTop = scrollTop
+                            altSavedScrollBottom = scrollBottom
+                            buffer.switchToAlternate(clear = true, fg = currentFg, bg = currentBg)
+                            cursorRow = 0
+                            cursorCol = 0
+                        }
+                    } else {
+                        if (!buffer.primaryActive) {
+                            buffer.switchToPrimary()
+                            cursorRow = altSavedCursorRow
+                            cursorCol = altSavedCursorCol
+                            currentFg = altSavedFg
+                            currentBg = altSavedBg
+                            currentFlags = altSavedFlags
+                            scrollTop = altSavedScrollTop
+                            scrollBottom = altSavedScrollBottom
+                        }
+                    }
+                }
+                1047 -> {
+                    // DECSET 1047: Alt 切替 (クリア)、カーソル退避なし
+                    // DECRST 1047: Primary 復帰 (Alt 内容はクリア)
+                    if (set) {
+                        if (buffer.primaryActive) {
+                            buffer.switchToAlternate(clear = true, fg = currentFg, bg = currentBg)
+                        }
+                    } else {
+                        if (!buffer.primaryActive) {
+                            buffer.clearScreen(currentFg, currentBg)
+                            buffer.switchToPrimary()
+                        }
+                    }
+                }
+                47 -> {
+                    // DECSET 47: Alt 切替 (クリアなし、カーソル退避なし)
+                    if (set) {
+                        if (buffer.primaryActive) {
+                            buffer.switchToAlternate(clear = false, fg = currentFg, bg = currentBg)
+                        }
+                    } else {
+                        if (!buffer.primaryActive) {
+                            buffer.switchToPrimary()
+                        }
+                    }
                 }
                 2004 -> {
                     // bracketed paste (無視)
@@ -656,6 +717,9 @@ class TerminalEmulator(
         originMode = false
         insertMode = false
         cursorVisible = true
+        utf8.reset()
+        // Alt → Primary に戻して両方クリア
+        if (!buffer.primaryActive) buffer.switchToPrimary()
         buffer.clearScreen()
         buffer.clearScrollback()
     }
