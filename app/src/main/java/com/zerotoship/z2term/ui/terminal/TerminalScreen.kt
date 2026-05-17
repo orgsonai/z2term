@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -55,6 +56,7 @@ import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import com.zerotoship.z2term.ui.theme.ZtsTextTertiary
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -297,6 +299,23 @@ private fun TerminalCanvasArea(
         }
     }
 
+    // ピンチで fontSize、2 本指縦パンでスクロールバック閲覧
+    val transformModifier = Modifier.pointerInput(Unit) {
+        detectTransformGestures(panZoomLock = false) { _, pan, zoom, _ ->
+            if (abs(zoom - 1f) > 0.005f) {
+                val current = fontSizeSp
+                val target = (current * zoom).coerceIn(8f, 32f)
+                if (abs(target - current) >= 0.5f) {
+                    viewModel.updateFontSize(target)
+                }
+            }
+            if (charHeightPx > 0f && abs(pan.y) >= charHeightPx) {
+                val deltaLines = (-pan.y / charHeightPx).roundToInt()
+                if (deltaLines != 0) viewModel.scrollBy(deltaLines)
+            }
+        }
+    }
+
     val selectionDragModifier = Modifier.pointerInput(Unit) {
         detectDragGesturesAfterLongPress(
             onDragStart = { pos ->
@@ -328,6 +347,7 @@ private fun TerminalCanvasArea(
                     true
                 } else false
             }
+            .then(transformModifier)
             .then(selectionDragModifier)
             .then(scrollDragModifier),
         onSizeChanged = { rows, cols -> viewModel.onTerminalResize(rows, cols) },
