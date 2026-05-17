@@ -153,6 +153,7 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     fun updateScrollbackLines(lines: Int) = session.setScrollbackLines(lines)
     fun updateDistro(id: String) = session.setDistro(id)
     fun updateFontId(id: String) = session.setFontId(id)
+    fun updateAmbiguousAsWide(v: Boolean) = session.setAmbiguousAsWide(v)
 
     fun stopAndExit() { TerminalService.stop(getApplication()) }
 

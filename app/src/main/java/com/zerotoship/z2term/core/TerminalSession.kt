@@ -102,6 +102,7 @@ class TerminalSession(
                 val theme = AvailableThemes.firstOrNull { it.name == snapshot.themeName } ?: ZtsTheme
                 emulator.colors.applyTheme(theme)
                 emulator.buffer.scrollbackCapacity = snapshot.scrollbackLines
+                emulator.ambiguousAsWide = snapshot.ambiguousAsWide
                 bumpRedraw()
             }
         }
@@ -112,6 +113,7 @@ class TerminalSession(
     fun setScrollbackLines(lines: Int) { scope.launch { settings.setScrollbackLines(lines) } }
     fun setDistro(id: String) { scope.launch { settings.setDistro(id) } }
     fun setFontId(id: String) { scope.launch { settings.setFontId(id) } }
+    fun setAmbiguousAsWide(v: Boolean) { scope.launch { settings.setAmbiguousAsWide(v) } }
 
     /** 設定で選ばれているディストロを使って起動。明示的指定があればそれを優先 */
     fun startTerminal(distroOverride: DistroSpec? = null) {

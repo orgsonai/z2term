@@ -255,6 +255,7 @@ fun TerminalScreen(
             onScrollbackChange = { viewModel.updateScrollbackLines(it) },
             onDistroChange = { viewModel.updateDistro(it) },
             onFontIdChange = { viewModel.updateFontId(it) },
+            onAmbiguousAsWideChange = { viewModel.updateAmbiguousAsWide(it) },
             onDismiss = { showSettings = false }
         )
     }

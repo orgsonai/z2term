@@ -55,6 +55,9 @@ class TerminalEmulator(
     private var insertMode = false  // IRM
     private var applicationCursorKeys = false  // DECCKM
 
+    /** EAW Ambiguous を wide 扱いするか (CJK ロケール向け) */
+    var ambiguousAsWide: Boolean = false
+
     // --- 状態機械 ---
     private enum class State {
         GROUND,
@@ -144,7 +147,7 @@ class TerminalEmulator(
     }
 
     private fun putCodepoint(cp: Int) {
-        val wide = EastAsianWidth.isWide(cp)
+        val wide = EastAsianWidth.isWide(cp, ambiguousAsWide)
         if (cp <= 0xFFFF) {
             if (wide) putWideChar(cp.toChar()) else putChar(cp.toChar())
         } else {

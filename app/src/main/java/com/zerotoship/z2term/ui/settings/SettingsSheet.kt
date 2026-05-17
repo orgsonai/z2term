@@ -42,6 +42,7 @@ fun SettingsSheet(
     onScrollbackChange: (Int) -> Unit,
     onDistroChange: (String) -> Unit,
     onFontIdChange: (String) -> Unit,
+    onAmbiguousAsWideChange: (Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -87,6 +88,11 @@ fun SettingsSheet(
             ScrollbackSection(
                 current = snapshot.scrollbackLines,
                 onChange = onScrollbackChange
+            )
+
+            AmbiguousWidthSection(
+                value = snapshot.ambiguousAsWide,
+                onChange = onAmbiguousAsWideChange
             )
 
             Spacer(Modifier.height(8.dp))
@@ -266,6 +272,41 @@ private fun ScrollbackSection(current: Int, onChange: (Int) -> Unit) {
             inactiveTrackColor = ZtsBorder
         )
     )
+}
+
+@Composable
+private fun AmbiguousWidthSection(value: Boolean, onChange: (Boolean) -> Unit) {
+    SectionHeader("EAW Ambiguous を 2 セル幅で扱う")
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp))
+            .background(ZtsBgPrimary)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "罫線素片・矢印などを wide 表示",
+                color = ZtsTextPrimary,
+                fontSize = 13.sp
+            )
+            Text(
+                text = "CJK ロケール (日本語/中国語/韓国語) では ON 推奨",
+                color = ZtsTextSecondary,
+                fontSize = 11.sp
+            )
+        }
+        Switch(
+            checked = value,
+            onCheckedChange = onChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = ZtsGreen,
+                checkedTrackColor = ZtsGreen.copy(alpha = 0.4f)
+            )
+        )
+    }
 }
 
 @Composable
