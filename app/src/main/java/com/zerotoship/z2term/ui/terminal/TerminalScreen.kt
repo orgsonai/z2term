@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.ui.settings.SettingsSheet
+import com.zerotoship.z2term.ui.ssh.HostKeyVerificationDialog
 import com.zerotoship.z2term.ui.ssh.SshProfilesSheet
 import com.zerotoship.z2term.ui.theme.AnsiGreen
 import com.zerotoship.z2term.ui.theme.TerminalFontFamily
@@ -259,6 +260,9 @@ fun TerminalScreen(
             )
         }
     }
+
+    // ホスト鍵検証ダイアログ (active 時のみ表示)
+    HostKeyVerificationDialog()
 
     if (showSshSheet) {
         SshProfilesSheet(

@@ -202,7 +202,9 @@ class TerminalSession(
             _uiState.update { it.copy(state = TerminalState.STARTING) }
             try {
                 val (rows, cols) = currentSize()
-                val ch = withContext(Dispatchers.IO) { SshChannel.connect(profile, rows, cols) }
+                val ch = withContext(Dispatchers.IO) {
+                    SshChannel.connect(profile, rows, cols, appContext)
+                }
                 channel = ch
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "ssh") }
                 _label.value = "ssh:${profile.name.ifEmpty { profile.host }}"

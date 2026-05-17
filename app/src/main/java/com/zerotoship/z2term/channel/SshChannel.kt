@@ -1,9 +1,11 @@
 package com.zerotoship.z2term.channel
 
+import android.content.Context
 import android.util.Log
 import com.jcraft.jsch.ChannelShell
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
+import com.jcraft.jsch.UserInfo
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.Properties
@@ -13,10 +15,10 @@ import java.util.Properties
  *
  * 接続: `connect(profile)` で同期接続。失敗時は例外。
  *
- * 注意 (M5 基礎部分のスコープ):
- * - 公開鍵認証は未実装 (パスワードのみ)
- * - ホスト鍵検証は no (本番運用時は要厳格化)
- * - known_hosts 永続化は未対応
+ * M6 で追加された挙動:
+ * - PUBLIC_KEY 認証 (秘密鍵 PEM + 任意 passphrase)
+ * - DataStoreHostKeyRepository による known_hosts 検証
+ * - StrictHostKeyChecking=ask + UserInfo で未知ホストは UI に確認
  */
 class SshChannel private constructor(
     private val session: Session,
@@ -53,9 +55,10 @@ class SshChannel private constructor(
          * プロファイルに従って同期接続。
          * 呼び出し元は IO Dispatcher で実行すること。
          */
-        fun connect(profile: SshProfile, rows: Int, cols: Int): SshChannel {
+        fun connect(profile: SshProfile, rows: Int, cols: Int, context: Context): SshChannel {
             val jsch = JSch()
-            // 鍵認証: PEM テキストを匿名 identity として登録
+            jsch.hostKeyRepository = KnownHostsHolder.repository(context)
+
             if (profile.authType == SshProfile.AuthType.PUBLIC_KEY && profile.privateKey.isNotBlank()) {
                 val keyBytes = profile.privateKey.toByteArray(Charsets.UTF_8)
                 val passphrase = profile.keyPassphrase.takeIf { it.isNotEmpty() }
@@ -67,9 +70,8 @@ class SshChannel private constructor(
             if (profile.authType == SshProfile.AuthType.PASSWORD && profile.password.isNotEmpty()) {
                 session.setPassword(profile.password)
             }
-            // 簡易設定: 既知 host 検証は無効 (M6 で known_hosts 対応)
             session.setConfig(Properties().apply {
-                put("StrictHostKeyChecking", "no")
+                put("StrictHostKeyChecking", "ask")
                 put(
                     "PreferredAuthentications",
                     if (profile.authType == SshProfile.AuthType.PUBLIC_KEY)
@@ -78,6 +80,7 @@ class SshChannel private constructor(
                         "password,keyboard-interactive,publickey"
                 )
             })
+            session.userInfo = VerifyingUserInfo(profile)
             session.connect(CONNECT_TIMEOUT_MS)
 
             val channel = session.openChannel("shell") as ChannelShell
@@ -89,5 +92,58 @@ class SshChannel private constructor(
         }
 
         private const val CONNECT_TIMEOUT_MS = 15_000
+    }
+}
+
+/**
+ * JSch UserInfo の最小実装。
+ *
+ * - パスフレーズ要求は profile.keyPassphrase を返す
+ * - パスワード要求は profile.password を返す (PASSWORD 認証時に呼ばれる場合もある)
+ * - promptYesNo は known_hosts の確認 → [HostKeyVerifier] 経由で UI に問い合わせ
+ *
+ * JSch がメッセージ文字列で何を聞いているかを解釈する必要があるが、
+ * 多くの場合 "authenticity of host" / "key fingerprint" などのキーワードで判別可能。
+ */
+private class VerifyingUserInfo(private val profile: SshProfile) : UserInfo {
+
+    private var passwordTried = false
+    private var passphraseTried = false
+
+    override fun getPassphrase(): String? = profile.keyPassphrase.takeIf { it.isNotEmpty() }
+    override fun getPassword(): String? = profile.password.takeIf { it.isNotEmpty() }
+
+    override fun promptPassword(message: String?): Boolean {
+        return if (!passwordTried) { passwordTried = true; profile.password.isNotEmpty() } else false
+    }
+
+    override fun promptPassphrase(message: String?): Boolean {
+        return if (!passphraseTried) { passphraseTried = true; profile.keyPassphrase.isNotEmpty() } else false
+    }
+
+    override fun promptYesNo(message: String?): Boolean {
+        val msg = message ?: return false
+        val fingerprint = extractFingerprint(msg)
+        val keyType = extractKeyType(msg)
+        return HostKeyVerifier.requestVerify(
+            HostKeyVerifier.Prompt(
+                host = "${profile.user}@${profile.host}:${profile.port}",
+                keyType = keyType,
+                fingerprint = fingerprint,
+                message = msg
+            )
+        )
+    }
+
+    override fun showMessage(message: String?) { /* no-op (TerminalSession には流さない) */ }
+
+    private fun extractFingerprint(msg: String): String {
+        val re = Regex("""key fingerprint is\s+([^\s\n.]+)""", RegexOption.IGNORE_CASE)
+        return re.find(msg)?.groupValues?.get(1) ?: "(unknown)"
+    }
+
+    private fun extractKeyType(msg: String): String {
+        val re = Regex("""(RSA|DSA|ECDSA|ED25519)\s+key fingerprint""", RegexOption.IGNORE_CASE)
+        return re.find(msg)?.groupValues?.get(1)?.uppercase() ?: "(unknown)"
     }
 }
