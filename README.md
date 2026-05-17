@@ -9,25 +9,32 @@
 
 ## 現在のバージョン
 
-**0.1.0-alpha (M1: PoC)**
+**0.2.0-alpha (M2: 実用ターミナル)**
 
-このバージョンは Milestone 1 のPoC実装です。
+Milestone 2 で「実用ターミナル」相当の機能を実装。
 
-### M1 で動くこと
+### M2 で動くこと
 
-- Android 標準シェル (`/system/bin/sh`) の起動と入出力
-- assets に Alpine rootfs を配置すれば、PRoot 経由で Alpine の起動
-- 基本的なターミナル表示（生テキスト）
-- 特殊キー入力 (ESC, TAB, Ctrl-C, Ctrl-D, Ctrl-L, 矢印キー)
-- ZTS Theme (ダーク + ZTS グリーン #22c55e)
+- VT100 / xterm 互換のエスケープシーケンス処理 (色・装飾・カーソル制御・スクロール領域・SGR 256色 / RGB)
+- Compose Canvas による独自レンダラ (`TerminalRenderer`) ・属性連続セルを 1 描画にまとめる最適化
+- 6 種類の同梱テーマ: ZTS / Solarized Dark / Dracula / Gruvbox Dark / Nord / Tokyo Night
+- 動的端末サイズ (画面サイズ + フォントメトリクスから rows/cols を逆算)
+- 5,000 行 (設定で 500〜50,000 まで可変) のスクロールバック
+- 縦ドラッグでスクロールバック閲覧 + 右端インジケータ + 最下部へ戻る FAB
+- 特殊キーバー強化: Ctrl 系 (^A/^C/^D/^E/^K/^L/^R/^U/^W/^Z)、Home/End、PgUp/PgDn、F1〜F12
+- 設定画面 (ModalBottomSheet): テーマ・フォントサイズ・スクロールバック行数を DataStore で永続化
+- 全文コピー / クリップボードペースト
+- UTF-8 マルチバイト入出力 (日本語などをセル単位で正しく表示)
 
-### M1 で動かないこと（M2 以降で対応）
+### M2 でまだ対応していないこと (M3 以降で対応予定)
 
-- ANSI エスケープシーケンスの解釈（色付き表示など）
-- マルチタブ
-- バックグラウンド維持
-- マルチディストロ
-- `apt` / `pacman` で外部パッケージインストール（PRoot + Alpine 環境下なら `apk add` は動く可能性あり）
+- 代替スクリーン (vim/htop 終了時に画面が消えない問題)
+- マルチタブ / セッション切替
+- バックグラウンド維持 (foreground service)
+- マルチディストロ (Ubuntu / Arch / Kali)
+- 範囲選択モード (タップ&ドラッグでテキスト選択)
+- 物理キーボード入力 (Ctrl + 任意キーの組み合わせ)
+- IBM Plex Mono / Outfit などのカスタムフォント同梱
 
 ## ビルド要件
 
@@ -78,7 +85,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ## プロジェクト構造
 
 ```
-z2term-m1/
+z2term/
 ├── app/
 │   ├── build.gradle.kts
 │   └── src/main/
@@ -93,10 +100,13 @@ z2term-m1/
 │       │   ├── pty/                 ← PTY 抽象化
 │       │   ├── proot/               ← PRoot 起動
 │       │   ├── distro/              ← rootfs 展開
+│       │   ├── emulator/            ← VT100/xterm エミュレータコア (M2)
+│       │   ├── settings/            ← DataStore 永続化 (M2)
 │       │   ├── service/             ← (M3) バックグラウンド維持
 │       │   └── ui/
 │       │       ├── theme/           ← ZTS Theme
-│       │       └── terminal/        ← ターミナル UI
+│       │       ├── settings/        ← 設定 UI (M2)
+│       │       └── terminal/        ← ターミナル UI + Renderer
 │       ├── jniLibs/                 ← proot バイナリを配置
 │       └── res/                     ← リソース
 ├── build.gradle.kts
@@ -105,7 +115,8 @@ z2term-m1/
 │   ├── libs.versions.toml
 │   └── wrapper/
 └── docs/
-    └── M1-HANDOFF.md
+    ├── M1-HANDOFF.md
+    └── M2-HANDOFF.md
 ```
 
 ## 動作確認の流れ
