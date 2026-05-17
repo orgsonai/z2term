@@ -1,0 +1,40 @@
+Categories:
+  - System
+License: GPL-3.0-only
+WebSite: https://zero-to-ship-app.vercel.app
+SourceCode: https://github.com/orgsonai/z2term
+IssueTracker: https://github.com/orgsonai/z2term/issues
+
+AutoName: Z2Term
+Summary: Android terminal with PRoot Linux & SSH
+Description: |-
+  Z2Term (ズィートゥーターム) は Android 端末上で動作する独自実装の
+  ターミナルアプリです。
+
+  特徴:
+  - PRoot 経由で Alpine / Ubuntu を起動 (rootless)
+  - VT100 / xterm 互換のエスケープシーケンス処理
+  - 6 種類の同梱テーマ + カスタムフォント
+  - 代替スクリーン (vim/htop) / 5,000 行スクロールバック
+  - マルチタブ / フォアグラウンドサービスでバックグラウンド維持
+  - 物理キーボード + IME 連動入力
+  - SSH クライアント (リモートシェル)
+  - 完全オフラインで動作、ローカルだけで完結 (テレメトリ・通信なし)
+
+  Zero to Ship Project の第 5 作目。
+
+RepoType: git
+Repo: https://github.com/orgsonai/z2term
+
+Builds:
+  - versionName: 0.5.0-alpha
+    versionCode: 5
+    commit: v0.5.0-alpha
+    subdir: app
+    gradle:
+      - yes
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 0.5.0-alpha
+CurrentVersionCode: 5

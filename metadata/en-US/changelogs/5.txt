@@ -1,0 +1,7 @@
+0.5.0-alpha (M5)
+
+- Pinch-to-zoom and two-finger scrollback gestures
+- OSC 4 / 10 / 11 / 12 (palette + default colors) and OSC 52 (clipboard)
+- EAW Ambiguous width toggle (CJK locale)
+- SSH client (JSch) with profile management
+- Distribution pipeline (GitHub Actions, ProGuard, release signing)
