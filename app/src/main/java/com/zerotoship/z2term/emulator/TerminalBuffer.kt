@@ -204,7 +204,7 @@ class TerminalBuffer(
         return sb.toString()
     }
 
-    /** 指定範囲 (行・列、両端含む) のテキストを取得 */
+    /** 指定範囲 (行・列、両端含む) のテキストを取得 (wide-cont セルはスキップ) */
     fun getRangeText(startRow: Int, startCol: Int, endRow: Int, endCol: Int): String {
         if (startRow > endRow || startRow !in 0 until totalRows) return ""
         val sb = StringBuilder()
@@ -213,7 +213,8 @@ class TerminalBuffer(
             val from = if (r == startRow) startCol else 0
             val to = if (r == endRow) endCol + 1 else row.columns
             for (c in from.coerceAtLeast(0) until to.coerceAtMost(row.columns)) {
-                sb.append(row.getCell(c).char)
+                val cell = row.getCell(c)
+                if (!cell.wideCont) sb.append(cell.char)
             }
             if (r < endRow) sb.append('\n')
         }

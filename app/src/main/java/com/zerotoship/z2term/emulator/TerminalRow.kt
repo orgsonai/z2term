@@ -30,11 +30,12 @@ class TerminalRow(initialColumns: Int) {
         return cells[col]
     }
 
-    fun setChar(col: Int, ch: Char, fg: Int, bg: Int) {
+    fun setChar(col: Int, ch: Char, fg: Int, bg: Int, wideCont: Boolean = false) {
         if (col !in cells.indices) return
         cells[col].char = ch
         cells[col].fgAttr = fg
         cells[col].bgAttr = bg
+        cells[col].wideCont = wideCont
         dirty = true
     }
 
@@ -81,14 +82,17 @@ class TerminalRow(initialColumns: Int) {
 
     /**
      * 行の表示用文字列を返す (デバッグ・コピー用)。
-     * 末尾の空白は除去する。
+     * 末尾の空白は除去し、wide-cont セルは出力しない (左セルが本体の文字を持つ)。
      */
     fun toText(): String {
         var end = cells.size - 1
-        while (end >= 0 && cells[end].char == ' ') end--
+        while (end >= 0 && cells[end].char == ' ' && !cells[end].wideCont) end--
         if (end < 0) return ""
         return buildString(end + 1) {
-            for (i in 0..end) append(cells[i].char)
+            for (i in 0..end) {
+                val c = cells[i]
+                if (!c.wideCont) append(c.char)
+            }
         }
     }
 

@@ -55,23 +55,28 @@ object SgrAttribute {
 data class TerminalCell(
     var char: Char = ' ',
     var fgAttr: Int = SgrAttribute.DEFAULT,
-    var bgAttr: Int = SgrAttribute.DEFAULT
+    var bgAttr: Int = SgrAttribute.DEFAULT,
+    /** Wide 文字 (CJK / 絵文字) の右半分セルか — true なら描画・テキスト抽出ではスキップ */
+    var wideCont: Boolean = false
 ) {
     fun copyFrom(other: TerminalCell) {
         char = other.char
         fgAttr = other.fgAttr
         bgAttr = other.bgAttr
+        wideCont = other.wideCont
     }
 
     fun clear() {
         char = ' '
         fgAttr = SgrAttribute.DEFAULT
         bgAttr = SgrAttribute.DEFAULT
+        wideCont = false
     }
 
     fun setClearedWith(fg: Int, bg: Int) {
         char = ' '
         fgAttr = fg
         bgAttr = bg
+        wideCont = false
     }
 }

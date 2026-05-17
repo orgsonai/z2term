@@ -140,14 +140,58 @@ class TerminalEmulator(
     }
 
     private fun putCodepoint(cp: Int) {
+        val wide = EastAsianWidth.isWide(cp)
         if (cp <= 0xFFFF) {
-            putChar(cp.toChar())
+            if (wide) putWideChar(cp.toChar()) else putChar(cp.toChar())
         } else {
-            // BMP 範囲外 → サロゲートペアで 2 セル消費
-            val highSurrogate = ((cp - 0x10000) shr 10) + 0xD800
-            val lowSurrogate = ((cp - 0x10000) and 0x3FF) + 0xDC00
-            putChar(highSurrogate.toChar())
-            putChar(lowSurrogate.toChar())
+            // BMP 範囲外 (絵文字 / CJK Ext B-G 等) はサロゲートペア + 2 セル
+            val high = (((cp - 0x10000) shr 10) + 0xD800).toChar()
+            val low = (((cp - 0x10000) and 0x3FF) + 0xDC00).toChar()
+            putSurrogatePair(high, low)
+        }
+    }
+
+    private fun putWideChar(c: Char) {
+        ensureRoomFor(width = 2)
+        if (cursorCol >= buffer.columns - 1) {
+            // 退避: 1 セルしか残っていない場合は narrow として置く
+            putChar(c)
+            return
+        }
+        val fg = currentFg or currentFlags
+        val bg = currentBg
+        val row = buffer.getScreenRow(cursorRow)
+        if (insertMode) row.insertChars(cursorCol, 2, fg, bg)
+        // 左セルに文字本体、右セルに wideCont マーカー (描画/コピー時に飛ばされる)
+        row.setChar(cursorCol, c, fg, bg, wideCont = false)
+        row.setChar(cursorCol + 1, ' ', fg, bg, wideCont = true)
+        cursorCol += 2
+    }
+
+    private fun putSurrogatePair(high: Char, low: Char) {
+        ensureRoomFor(width = 2)
+        if (cursorCol >= buffer.columns - 1) {
+            // 退避: narrow として高サロゲートだけ書く (実用上ほぼ来ない経路)
+            putChar(high)
+            return
+        }
+        val fg = currentFg or currentFlags
+        val bg = currentBg
+        val row = buffer.getScreenRow(cursorRow)
+        if (insertMode) row.insertChars(cursorCol, 2, fg, bg)
+        row.setChar(cursorCol, high, fg, bg, wideCont = false)
+        row.setChar(cursorCol + 1, low, fg, bg, wideCont = true)
+        cursorCol += 2
+    }
+
+    /** 幅 width セル分の領域を確保する (必要なら自動折り返し) */
+    private fun ensureRoomFor(width: Int) {
+        if (cursorCol + width > buffer.columns) {
+            if (autoWrap) {
+                cursorCol = 0
+                lineFeed()
+                buffer.getScreenRow(cursorRow).wrapped = true
+            }
         }
     }
 

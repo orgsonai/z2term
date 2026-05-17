@@ -308,7 +308,10 @@ private fun extractText(
     from: Int,
     toExclusive: Int
 ): String = buildString(toExclusive - from) {
-    for (i in from until toExclusive) append(row.getCell(i).char)
+    for (i in from until toExclusive) {
+        val cell = row.getCell(i)
+        if (!cell.wideCont) append(cell.char)
+    }
 }
 
 private fun resolveColor(attr: Int, colors: TerminalColors, isFg: Boolean): Int = when {
