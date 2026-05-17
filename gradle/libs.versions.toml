@@ -15,6 +15,9 @@ composeBom = "2025.01.00"
 # DataStore
 datastorePreferences = "1.1.2"
 
+# SSH client (M5)
+jsch = "0.2.21"
+
 # Testing
 junit = "4.13.2"
 androidxJunit = "1.2.1"
@@ -36,6 +39,9 @@ androidx-material-icons-extended = { group = "androidx.compose.material", name =
 
 # DataStore
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
+
+# SSH (mwiede fork — BouncyCastle 不要、軽量)
+jsch = { group = "com.github.mwiede", name = "jsch", version.ref = "jsch" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

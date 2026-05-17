@@ -4,13 +4,16 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.util.Log
+import com.zerotoship.z2term.channel.LocalPtyChannel
+import com.zerotoship.z2term.channel.ProcessChannel
+import com.zerotoship.z2term.channel.SshChannel
+import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.distro.DistroInstaller
 import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.emulator.TerminalEmulator
 import com.zerotoship.z2term.emulator.ZtsTheme
 import com.zerotoship.z2term.proot.ProotLauncher
-import com.zerotoship.z2term.pty.PtyProcess
 import com.zerotoship.z2term.settings.AppSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -91,7 +94,7 @@ class TerminalSession(
         scope = scope, started = SharingStarted.Eagerly, initialValue = AppSettings.Snapshot()
     )
 
-    private var ptyProcess: PtyProcess? = null
+    private var channel: ProcessChannel? = null
     private var readJob: Job? = null
 
     val isRunning: Boolean get() = _uiState.value.state == TerminalState.RUNNING
@@ -160,10 +163,11 @@ class TerminalSession(
 
                 val (rows, cols) = currentSize()
                 val pty = launcher.launch(spec.id, "/bin/sh", rows, cols)
-                ptyProcess = pty
+                val ch = LocalPtyChannel(pty)
+                channel = ch
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }
                 _label.value = spec.id
-                startReadLoop(pty)
+                startReadLoop(ch)
 
             } catch (e: Throwable) {
                 Log.e(TAG, "Failed to start terminal", e)
@@ -178,10 +182,11 @@ class TerminalSession(
         try {
             val (rows, cols) = currentSize()
             val pty = launcher.launchAndroidSh(rows, cols)
-            ptyProcess = pty
+            val ch = LocalPtyChannel(pty)
+            channel = ch
             _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "android-sh") }
             _label.value = "sh"
-            startReadLoop(pty)
+            startReadLoop(ch)
         } catch (e: Throwable) {
             Log.e(TAG, "Even Android sh failed", e)
             writeBanner("致命的エラー: ${e.message}")
@@ -189,13 +194,34 @@ class TerminalSession(
         }
     }
 
-    private fun startReadLoop(pty: PtyProcess) {
+    /** SSH 接続を開始 */
+    fun startSsh(profile: SshProfile) {
+        if (_uiState.value.state == TerminalState.RUNNING) return
+        scope.launch {
+            writeBanner("🔌 SSH 接続中: ${profile.user}@${profile.host}:${profile.port}…")
+            _uiState.update { it.copy(state = TerminalState.STARTING) }
+            try {
+                val (rows, cols) = currentSize()
+                val ch = withContext(Dispatchers.IO) { SshChannel.connect(profile, rows, cols) }
+                channel = ch
+                _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "ssh") }
+                _label.value = "ssh:${profile.name.ifEmpty { profile.host }}"
+                startReadLoop(ch)
+            } catch (e: Throwable) {
+                Log.e(TAG, "SSH connect failed", e)
+                writeBanner("✗ SSH 接続失敗: ${e.message}")
+                _uiState.update { it.copy(state = TerminalState.ERROR) }
+            }
+        }
+    }
+
+    private fun startReadLoop(ch: ProcessChannel) {
         readJob?.cancel()
         readJob = scope.launch(Dispatchers.IO) {
             val buffer = ByteArray(4096)
             try {
-                while (pty.isAlive) {
-                    val read = pty.reader.read(buffer)
+                while (ch.isAlive) {
+                    val read = ch.reader.read(buffer)
                     if (read < 0) break
                     if (read > 0) {
                         emulator.processBytes(buffer, read)
@@ -206,7 +232,7 @@ class TerminalSession(
                 Log.w(TAG, "Read loop ended: ${e.message}")
             } finally {
                 _uiState.update { it.copy(state = TerminalState.EXITED) }
-                writeBanner("[プロセス終了 exitCode=${pty.exitCode ?: -1}]")
+                writeBanner("[プロセス終了 exitCode=${ch.exitCode ?: -1}]")
             }
         }
     }
@@ -214,7 +240,7 @@ class TerminalSession(
     fun writeBytes(bytes: ByteArray) = writeToPty(bytes)
 
     fun onResize(rows: Int, cols: Int) {
-        ptyProcess?.resize(rows, cols)
+        channel?.resize(rows, cols)
         bumpRedraw()
     }
 
@@ -237,8 +263,8 @@ class TerminalSession(
     }
 
     fun restart() {
-        ptyProcess?.close()
-        ptyProcess = null
+        channel?.close()
+        channel = null
         readJob?.cancel()
         emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
         _uiState.update { UiState() }
@@ -250,14 +276,14 @@ class TerminalSession(
 
     /** セッションを終了 (PTY を閉じてジョブをキャンセル) */
     fun shutdown() {
-        ptyProcess?.close()
-        ptyProcess = null
+        channel?.close()
+        channel = null
         readJob?.cancel()
         scope.cancel()
     }
 
     private fun writeToPty(bytes: ByteArray) {
-        val pty = ptyProcess ?: return
+        val pty = channel ?: return
         scope.launch(Dispatchers.IO) {
             try {
                 pty.writer.write(bytes)

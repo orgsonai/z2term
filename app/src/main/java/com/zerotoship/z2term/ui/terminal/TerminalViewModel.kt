@@ -6,6 +6,8 @@ import android.content.ClipboardManager
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.zerotoship.z2term.channel.SshProfile
+import com.zerotoship.z2term.channel.SshProfileStore
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.emulator.TerminalEmulator
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 /**
  * UI 層から TerminalSession 群を扱うための ViewModel。
@@ -31,6 +34,22 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
 
     init {
         SessionManager.ensureFirst(application)
+    }
+
+    private val sshStore = SshProfileStore(application)
+    val sshProfiles: StateFlow<List<SshProfile>> = sshStore.profiles.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = emptyList()
+    )
+
+    fun saveSshProfile(p: SshProfile) = viewModelScope.launch { sshStore.upsert(p) }
+    fun deleteSshProfile(id: String) = viewModelScope.launch { sshStore.delete(id) }
+
+    fun openSshSession(profile: SshProfile) {
+        TerminalService.start(getApplication())
+        val s = SessionManager.openNew(getApplication())
+        s.startSsh(profile)
     }
 
     val sessions: StateFlow<List<TerminalSession>> = SessionManager.sessions

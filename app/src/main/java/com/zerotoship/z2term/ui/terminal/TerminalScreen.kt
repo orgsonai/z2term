@@ -36,6 +36,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -45,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.ui.settings.SettingsSheet
+import com.zerotoship.z2term.ui.ssh.SshProfilesSheet
 import com.zerotoship.z2term.ui.theme.AnsiGreen
 import com.zerotoship.z2term.ui.theme.TerminalFontFamily
 import com.zerotoship.z2term.ui.theme.TerminalFontOptions
@@ -90,6 +92,8 @@ fun TerminalScreen(
     var inputField by remember { mutableStateOf(TextFieldValue("")) }
     var realtimeMode by rememberSaveable { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showSshSheet by rememberSaveable { mutableStateOf(false) }
+    val sshProfiles by viewModel.sshProfiles.collectAsState()
 
     LaunchedEffect(Unit) {
         if (uiState.state == TerminalSession.TerminalState.IDLE) {
@@ -130,6 +134,13 @@ fun TerminalScreen(
                         Icon(
                             imageVector = Icons.Outlined.ContentPaste,
                             contentDescription = "ペースト",
+                            tint = ZtsTextSecondary
+                        )
+                    }
+                    IconButton(onClick = { showSshSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Cloud,
+                            contentDescription = "SSH",
                             tint = ZtsTextSecondary
                         )
                     }
@@ -247,6 +258,19 @@ fun TerminalScreen(
                 enabled = uiState.state == TerminalSession.TerminalState.RUNNING
             )
         }
+    }
+
+    if (showSshSheet) {
+        SshProfilesSheet(
+            profiles = sshProfiles,
+            onSave = { viewModel.saveSshProfile(it) },
+            onDelete = { viewModel.deleteSshProfile(it) },
+            onConnect = {
+                viewModel.openSshSession(it)
+                showSshSheet = false
+            },
+            onDismiss = { showSshSheet = false }
+        )
     }
 
     if (showSettings) {

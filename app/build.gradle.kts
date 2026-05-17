@@ -99,6 +99,9 @@ dependencies {
     // DataStore（設定永続化）
     implementation(libs.androidx.datastore.preferences)
 
+    // SSH クライアント (M5)
+    implementation(libs.jsch)
+
     // Debug
     debugImplementation(libs.androidx.ui.tooling)
 
