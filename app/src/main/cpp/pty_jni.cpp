@@ -109,7 +109,7 @@ extern "C" {
  * 戻り値: fd と pid をパックした jlong。上位 32bit が fd、下位 32bit が pid。
  */
 JNIEXPORT jlong JNICALL
-Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeCreate(
+Java_com_zerotoship_z2term_pty_PtyProcess_nativeCreate(
         JNIEnv* env,
         jobject /* companion */,
         jstring jcmd,
@@ -141,7 +141,7 @@ Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeCreate(
         env->ReleaseStringUTFChars(jcwd, cwd);
         free_string_array(argv);
         free_string_array(envp);
-        return ((jlong)(-1) << 32) | (jlong)0xFFFFFFFF;
+        return (jlong) 0xFFFFFFFFFFFFFFFFULL;  // fd=-1, pid=-1 をパック
     }
 
     if (pid == 0) {
@@ -189,7 +189,7 @@ Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeCreate(
 }
 
 JNIEXPORT void JNICALL
-Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeResize(
+Java_com_zerotoship_z2term_pty_PtyProcess_nativeResize(
         JNIEnv* /* env */,
         jobject /* companion */,
         jint fd,
@@ -206,7 +206,7 @@ Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeResize(
 }
 
 JNIEXPORT void JNICALL
-Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeSendSignal(
+Java_com_zerotoship_z2term_pty_PtyProcess_nativeSendSignal(
         JNIEnv* /* env */,
         jobject /* companion */,
         jint pid,
@@ -217,7 +217,7 @@ Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeSendSignal(
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeIsAlive(
+Java_com_zerotoship_z2term_pty_PtyProcess_nativeIsAlive(
         JNIEnv* /* env */,
         jobject /* companion */,
         jint pid) {
@@ -229,7 +229,7 @@ Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeIsAlive(
 }
 
 JNIEXPORT jint JNICALL
-Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeGetExitCode(
+Java_com_zerotoship_z2term_pty_PtyProcess_nativeGetExitCode(
         JNIEnv* /* env */,
         jobject /* companion */,
         jint pid) {
@@ -246,7 +246,7 @@ Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeGetExitCode(
 }
 
 JNIEXPORT jint JNICALL
-Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeWaitFor(
+Java_com_zerotoship_z2term_pty_PtyProcess_nativeWaitFor(
         JNIEnv* /* env */,
         jobject /* companion */,
         jint pid) {
@@ -260,7 +260,7 @@ Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeWaitFor(
 }
 
 JNIEXPORT void JNICALL
-Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeClose(
+Java_com_zerotoship_z2term_pty_PtyProcess_nativeClose(
         JNIEnv* /* env */,
         jobject /* companion */,
         jint fd,
@@ -287,7 +287,7 @@ Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_nativeClose(
  * リフレクションで private コンストラクタを叩く。
  */
 JNIEXPORT jobject JNICALL
-Java_com_zerotoship_z2term_pty_PtyProcess_00024Companion_createFileDescriptor(
+Java_com_zerotoship_z2term_pty_PtyProcess_createFileDescriptor(
         JNIEnv* env,
         jobject /* companion */,
         jint fd) {
