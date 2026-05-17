@@ -23,7 +23,11 @@ import android.util.Log
 class TerminalEmulator(
     private val output: (ByteArray) -> Unit,
     initialRows: Int = 24,
-    initialColumns: Int = 80
+    initialColumns: Int = 80,
+    /** OSC 52 (clipboard write) のハンドラ。null なら無視。 */
+    private val clipboardWriter: ((String) -> Unit)? = null,
+    /** OSC 0/1/2 (window title) のハンドラ。null なら無視。 */
+    private val titleSetter: ((String) -> Unit)? = null
 ) {
     val buffer = TerminalBuffer(initialRows, initialColumns)
     val colors = TerminalColors()
@@ -676,19 +680,52 @@ class TerminalEmulator(
     }
 
     private fun dispatchOsc() {
-        // OSC コードを解釈 (タイトル設定など)
         val s = oscBuffer.toString()
         val sep = s.indexOf(';')
         if (sep < 0) return
         val code = s.substring(0, sep).toIntOrNull() ?: return
         val arg = s.substring(sep + 1)
         when (code) {
-            0, 1, 2 -> {
-                // ウィンドウタイトル設定 (UI 側に通知できるようにフックは作るが現状は無視)
-                // titleListener?.invoke(arg)
-            }
+            0, 1, 2 -> titleSetter?.invoke(arg)
+            4 -> handleOscPalette(arg)
+            10 -> ColorSpec.parse(arg)?.let { colors.setDefaultForeground(it) }
+            11 -> ColorSpec.parse(arg)?.let { colors.setDefaultBackground(it) }
+            12 -> ColorSpec.parse(arg)?.let { colors.setCursorColor(it) }
+            52 -> handleOscClipboard(arg)
             else -> {}
         }
+    }
+
+    /** OSC 4 ; idx ; spec[; idx; spec ...] — palette set */
+    private fun handleOscPalette(arg: String) {
+        val parts = arg.split(';')
+        var i = 0
+        while (i + 1 < parts.size) {
+            val idx = parts[i].toIntOrNull()
+            val color = ColorSpec.parse(parts[i + 1])
+            if (idx != null && color != null) colors.setColor(idx, color)
+            i += 2
+        }
+    }
+
+    /**
+     * OSC 52 ; selectorChars ; payload
+     *   payload = "?" のとき: 問い合わせ (現状は無応答 = security デフォルト)
+     *   payload = base64(text): クリップボードへ書き込み
+     */
+    private fun handleOscClipboard(arg: String) {
+        val sep = arg.indexOf(';')
+        if (sep < 0) return
+        val payload = arg.substring(sep + 1)
+        if (payload == "?" || payload.isEmpty()) return  // クエリは未対応
+        val writer = clipboardWriter ?: return
+        val decoded = try {
+            android.util.Base64.decode(payload, android.util.Base64.DEFAULT)
+        } catch (e: IllegalArgumentException) {
+            return
+        }
+        val text = String(decoded, Charsets.UTF_8)
+        writer(text)
     }
 
     private fun eraseInLine(mode: Int) {

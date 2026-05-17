@@ -1,5 +1,7 @@
 package com.zerotoship.z2term.core
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.util.Log
 import com.zerotoship.z2term.distro.DistroInstaller
@@ -64,7 +66,13 @@ class TerminalSession(
     val emulator = TerminalEmulator(
         output = { bytes -> writeToPty(bytes) },
         initialRows = 24,
-        initialColumns = 80
+        initialColumns = 80,
+        clipboardWriter = { text ->
+            val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
+            _toastEvents.tryEmit("リモートからコピー (${text.length} 文字)")
+        },
+        titleSetter = { title -> if (title.isNotBlank()) _label.value = title.take(20) }
     )
 
     private val _uiState = MutableStateFlow(UiState())

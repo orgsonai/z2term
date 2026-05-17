@@ -84,6 +84,15 @@ class TerminalColors {
         if (index in 0 until NUM_INDEXED_COLORS) colors[index] = color
     }
 
+    /** 既定前景色を上書き (OSC 10) */
+    fun setDefaultForeground(color: Int) { defaultForeground = color }
+
+    /** 既定背景色を上書き (OSC 11) */
+    fun setDefaultBackground(color: Int) { defaultBackground = color }
+
+    /** カーソル色を上書き (OSC 12) */
+    fun setCursorColor(color: Int) { cursorColor = color }
+
     fun toComposeColor(argb: Int): Color = Color(argb.toLong() or 0xFF000000)
 
     companion object {
