@@ -34,9 +34,11 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -81,7 +83,8 @@ fun TerminalScreen(
     val sessionList by viewModel.sessions.collectAsState()
     val activeSessionId by viewModel.activeId.collectAsState()
     val activeSession by viewModel.activeSession.collectAsState()
-    var inputText by rememberSaveable { mutableStateOf("") }
+    var inputField by remember { mutableStateOf(TextFieldValue("")) }
+    var realtimeMode by rememberSaveable { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -208,16 +211,33 @@ fun TerminalScreen(
 
             HorizontalDivider(color = ZtsBorder, thickness = 1.dp)
             InputBar(
-                value = inputText,
-                onValueChange = { inputText = it },
+                value = inputField,
+                onValueChange = { newValue ->
+                    if (realtimeMode) {
+                        // composition (IME 確定前) は preedit として表示維持
+                        if (newValue.composition != null) {
+                            inputField = newValue
+                        } else if (newValue.text.isNotEmpty()) {
+                            // 確定したら PTY へ即送出してフィールドをクリア
+                            viewModel.sendInput(newValue.text)
+                            inputField = TextFieldValue("")
+                        } else {
+                            inputField = newValue
+                        }
+                    } else {
+                        inputField = newValue
+                    }
+                },
                 onSend = {
-                    if (inputText.isNotEmpty()) {
-                        viewModel.sendInput(inputText + "\n")
-                        inputText = ""
+                    if (inputField.text.isNotEmpty()) {
+                        viewModel.sendInput(inputField.text + "\n")
+                        inputField = TextFieldValue("")
                     } else {
                         viewModel.sendSpecialKey(TerminalViewModel.SpecialKey.ENTER)
                     }
                 },
+                realtimeMode = realtimeMode,
+                onToggleRealtime = { realtimeMode = !realtimeMode },
                 enabled = uiState.state == TerminalSession.TerminalState.RUNNING
             )
         }
@@ -572,9 +592,11 @@ private fun SpecialKeyButton(label: String, onClick: () -> Unit) {
 
 @Composable
 private fun InputBar(
-    value: String,
-    onValueChange: (String) -> Unit,
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
     onSend: () -> Unit,
+    realtimeMode: Boolean,
+    onToggleRealtime: () -> Unit,
     enabled: Boolean
 ) {
     Row(
@@ -606,7 +628,7 @@ private fun InputBar(
             ),
             cursorBrush = SolidColor(ZtsGreen),
             keyboardOptions = KeyboardOptions(
-                imeAction = ImeAction.Send,
+                imeAction = if (realtimeMode) ImeAction.Default else ImeAction.Send,
                 autoCorrectEnabled = false,
                 capitalization = KeyboardCapitalization.None
             ),
@@ -616,20 +638,31 @@ private fun InputBar(
                 .padding(end = 8.dp)
         )
 
-        Button(
-            onClick = onSend,
-            enabled = enabled,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = ZtsGreen,
-                contentColor = ZtsBgPrimary,
-                disabledContainerColor = ZtsBorder
-            ),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = "送信",
-                style = MaterialTheme.typography.labelMedium
+        // リアルタイム送信トグル
+        IconButton(onClick = onToggleRealtime, modifier = Modifier.size(36.dp)) {
+            Icon(
+                imageVector = Icons.Outlined.Bolt,
+                contentDescription = if (realtimeMode) "リアルタイム ON" else "リアルタイム OFF",
+                tint = if (realtimeMode) ZtsGreen else ZtsTextTertiary
             )
+        }
+
+        if (!realtimeMode) {
+            Button(
+                onClick = onSend,
+                enabled = enabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ZtsGreen,
+                    contentColor = ZtsBgPrimary,
+                    disabledContainerColor = ZtsBorder
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "送信",
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
         }
     }
 }
