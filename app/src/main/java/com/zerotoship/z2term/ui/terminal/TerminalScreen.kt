@@ -38,6 +38,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.ui.settings.SettingsSheet
 import com.zerotoship.z2term.ui.theme.AnsiGreen
 import com.zerotoship.z2term.ui.theme.TerminalFontFamily
@@ -79,7 +80,7 @@ fun TerminalScreen(
     var showSettings by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        if (uiState.state == TerminalViewModel.TerminalState.IDLE) {
+        if (uiState.state == TerminalSession.TerminalState.IDLE) {
             viewModel.startTerminal()
         }
     }
@@ -199,7 +200,7 @@ fun TerminalScreen(
                         viewModel.sendSpecialKey(TerminalViewModel.SpecialKey.ENTER)
                     }
                 },
-                enabled = uiState.state == TerminalViewModel.TerminalState.RUNNING
+                enabled = uiState.state == TerminalSession.TerminalState.RUNNING
             )
         }
     }
@@ -341,14 +342,14 @@ private fun JumpToBottomButton(modifier: Modifier = Modifier, onClick: () -> Uni
 }
 
 @Composable
-private fun StatusBadge(state: TerminalViewModel.TerminalState, mode: String) {
+private fun StatusBadge(state: TerminalSession.TerminalState, mode: String) {
     val (label, color) = when (state) {
-        TerminalViewModel.TerminalState.IDLE -> "待機中" to ZtsTextTertiary
-        TerminalViewModel.TerminalState.INSTALLING -> "セットアップ中" to ZtsTextSecondary
-        TerminalViewModel.TerminalState.STARTING -> "起動中" to ZtsTextSecondary
-        TerminalViewModel.TerminalState.RUNNING -> (if (mode.isNotEmpty()) mode else "稼働中") to ZtsGreen
-        TerminalViewModel.TerminalState.EXITED -> "終了" to ZtsTextTertiary
-        TerminalViewModel.TerminalState.ERROR -> "エラー" to androidx.compose.ui.graphics.Color.Red
+        TerminalSession.TerminalState.IDLE -> "待機中" to ZtsTextTertiary
+        TerminalSession.TerminalState.INSTALLING -> "セットアップ中" to ZtsTextSecondary
+        TerminalSession.TerminalState.STARTING -> "起動中" to ZtsTextSecondary
+        TerminalSession.TerminalState.RUNNING -> (if (mode.isNotEmpty()) mode else "稼働中") to ZtsGreen
+        TerminalSession.TerminalState.EXITED -> "終了" to ZtsTextTertiary
+        TerminalSession.TerminalState.ERROR -> "エラー" to androidx.compose.ui.graphics.Color.Red
     }
     Box(
         modifier = Modifier

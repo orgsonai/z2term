@@ -1,0 +1,253 @@
+package com.zerotoship.z2term.core
+
+import android.content.Context
+import android.util.Log
+import com.zerotoship.z2term.distro.DistroInstaller
+import com.zerotoship.z2term.emulator.AvailableThemes
+import com.zerotoship.z2term.emulator.TerminalEmulator
+import com.zerotoship.z2term.emulator.ZtsTheme
+import com.zerotoship.z2term.proot.ProotLauncher
+import com.zerotoship.z2term.pty.PtyProcess
+import com.zerotoship.z2term.settings.AppSettings
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/**
+ * Terminal セッション本体。
+ *
+ * UI (ViewModel) と切り離されたライフサイクルで生存する。
+ * フォアグラウンドサービスから参照されることで、Activity が破棄されても
+ * PTY プロセスとエミュレータ状態を維持できる。
+ *
+ * すべての状態 (emulator, PTY, flows, ジョブ) はこのクラスが所有。
+ */
+class TerminalSession(private val appContext: Context) {
+
+    enum class TerminalState { IDLE, INSTALLING, STARTING, RUNNING, EXITED, ERROR }
+
+    data class UiState(
+        val state: TerminalState = TerminalState.IDLE,
+        val mode: String = ""
+    )
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private val installer = DistroInstaller(appContext)
+    private val launcher = ProotLauncher(appContext)
+    private val settings = AppSettings(appContext)
+
+    val emulator = TerminalEmulator(
+        output = { bytes -> writeToPty(bytes) },
+        initialRows = 24,
+        initialColumns = 80
+    )
+
+    private val _uiState = MutableStateFlow(UiState())
+    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+    private val _redrawTick = MutableStateFlow(0)
+    val redrawTick: StateFlow<Int> = _redrawTick.asStateFlow()
+
+    private val _scrollOffset = MutableStateFlow(0)
+    val scrollOffset: StateFlow<Int> = _scrollOffset.asStateFlow()
+
+    private val _toastEvents = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 4)
+    val toastEvents = _toastEvents.asSharedFlow()
+
+    val settingsFlow: StateFlow<AppSettings.Snapshot> = settings.flow.stateIn(
+        scope = scope, started = SharingStarted.Eagerly, initialValue = AppSettings.Snapshot()
+    )
+
+    private var ptyProcess: PtyProcess? = null
+    private var readJob: Job? = null
+
+    val isRunning: Boolean get() = _uiState.value.state == TerminalState.RUNNING
+
+    init {
+        scope.launch {
+            settingsFlow.collect { snapshot ->
+                val theme = AvailableThemes.firstOrNull { it.name == snapshot.themeName } ?: ZtsTheme
+                emulator.colors.applyTheme(theme)
+                emulator.buffer.scrollbackCapacity = snapshot.scrollbackLines
+                bumpRedraw()
+            }
+        }
+    }
+
+    fun setThemeName(name: String) { scope.launch { settings.setTheme(name) } }
+    fun setFontSize(sp: Float) { scope.launch { settings.setFontSize(sp) } }
+    fun setScrollbackLines(lines: Int) { scope.launch { settings.setScrollbackLines(lines) } }
+
+    fun startTerminal(distroId: String = "alpine") {
+        if (_uiState.value.state == TerminalState.RUNNING) return
+
+        scope.launch {
+            try {
+                if (!launcher.isProotAvailable()) {
+                    writeBanner("⚠ PRoot バイナリが見つかりません。Android sh モードで起動します。")
+                    fallbackToAndroidSh()
+                    return@launch
+                }
+
+                if (!launcher.isDistroReady(distroId)) {
+                    writeBanner("📦 $distroId を初回展開しています…")
+                    _uiState.update { it.copy(state = TerminalState.INSTALLING) }
+
+                    var installError: Throwable? = null
+                    withContext(Dispatchers.IO) {
+                        installer.installAlpine().collect { progress ->
+                            when (progress) {
+                                is DistroInstaller.Progress.Started -> writeBanner("   展開開始…")
+                                is DistroInstaller.Progress.Extracting -> Unit
+                                is DistroInstaller.Progress.Configuring -> writeBanner("   設定中…")
+                                is DistroInstaller.Progress.Completed -> writeBanner("✓ $distroId 展開完了")
+                                is DistroInstaller.Progress.Failed -> installError = progress.error
+                            }
+                        }
+                    }
+
+                    if (installError != null) {
+                        writeBanner("✗ $distroId 展開失敗: ${installError?.message}")
+                        writeBanner("Android sh モードにフォールバックします。")
+                        fallbackToAndroidSh()
+                        return@launch
+                    }
+                }
+
+                _uiState.update { it.copy(state = TerminalState.STARTING) }
+                writeBanner("🚀 $distroId を起動中…")
+
+                val (rows, cols) = currentSize()
+                val pty = launcher.launch(distroId, "/bin/sh", rows, cols)
+                ptyProcess = pty
+                _uiState.update { it.copy(state = TerminalState.RUNNING, mode = distroId) }
+                startReadLoop(pty)
+
+            } catch (e: Throwable) {
+                Log.e(TAG, "Failed to start terminal", e)
+                writeBanner("✗ 起動失敗: ${e.message}")
+                writeBanner("Android sh モードにフォールバックします。")
+                fallbackToAndroidSh()
+            }
+        }
+    }
+
+    private fun fallbackToAndroidSh() {
+        try {
+            val (rows, cols) = currentSize()
+            val pty = launcher.launchAndroidSh(rows, cols)
+            ptyProcess = pty
+            _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "android-sh") }
+            startReadLoop(pty)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Even Android sh failed", e)
+            writeBanner("致命的エラー: ${e.message}")
+            _uiState.update { it.copy(state = TerminalState.ERROR) }
+        }
+    }
+
+    private fun startReadLoop(pty: PtyProcess) {
+        readJob?.cancel()
+        readJob = scope.launch(Dispatchers.IO) {
+            val buffer = ByteArray(4096)
+            try {
+                while (pty.isAlive) {
+                    val read = pty.reader.read(buffer)
+                    if (read < 0) break
+                    if (read > 0) {
+                        emulator.processBytes(buffer, read)
+                        bumpRedraw()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Read loop ended: ${e.message}")
+            } finally {
+                _uiState.update { it.copy(state = TerminalState.EXITED) }
+                writeBanner("[プロセス終了 exitCode=${pty.exitCode ?: -1}]")
+            }
+        }
+    }
+
+    fun writeBytes(bytes: ByteArray) = writeToPty(bytes)
+
+    fun onResize(rows: Int, cols: Int) {
+        ptyProcess?.resize(rows, cols)
+        bumpRedraw()
+    }
+
+    fun setScrollOffset(offset: Int) { _scrollOffset.value = offset.coerceAtLeast(0) }
+
+    fun scrollBy(delta: Int) {
+        val newOffset = (_scrollOffset.value + delta).coerceIn(0, emulator.buffer.scrollbackSize)
+        _scrollOffset.value = newOffset
+    }
+
+    fun jumpToBottom() { _scrollOffset.value = 0 }
+
+    fun clearOutput() {
+        emulator.processBytes(byteArrayOf(
+            0x1B, '['.code.toByte(), '2'.code.toByte(), 'J'.code.toByte(),
+            0x1B, '['.code.toByte(), '3'.code.toByte(), 'J'.code.toByte(),
+            0x1B, '['.code.toByte(), 'H'.code.toByte()
+        ))
+        bumpRedraw()
+    }
+
+    fun restart(distroId: String = "alpine") {
+        ptyProcess?.close()
+        ptyProcess = null
+        readJob?.cancel()
+        emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
+        _uiState.update { UiState() }
+        _scrollOffset.value = 0
+        startTerminal(distroId)
+    }
+
+    fun emitToast(message: String) { _toastEvents.tryEmit(message) }
+
+    /** セッションを終了 (PTY を閉じてジョブをキャンセル) */
+    fun shutdown() {
+        ptyProcess?.close()
+        ptyProcess = null
+        readJob?.cancel()
+        scope.cancel()
+    }
+
+    private fun writeToPty(bytes: ByteArray) {
+        val pty = ptyProcess ?: return
+        scope.launch(Dispatchers.IO) {
+            try {
+                pty.writer.write(bytes)
+                pty.writer.flush()
+            } catch (e: Exception) {
+                Log.w(TAG, "Write failed: ${e.message}")
+            }
+        }
+    }
+
+    private fun writeBanner(text: String) {
+        emulator.processBytes(("$text\r\n").toByteArray(Charsets.UTF_8))
+        bumpRedraw()
+    }
+
+    private fun bumpRedraw() { _redrawTick.update { it + 1 } }
+
+    private fun currentSize(): Pair<Int, Int> = emulator.buffer.rows to emulator.buffer.columns
+
+    companion object {
+        private const val TAG = "TerminalSession"
+    }
+}

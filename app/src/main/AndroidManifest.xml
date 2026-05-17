@@ -41,8 +41,7 @@
             </intent-filter>
         </activity>
 
-        <!-- M3 で実装する Terminal Service の宣言（雛形） -->
-        <!--
+        <!-- Terminal Foreground Service: バックグラウンドで PTY を維持 -->
         <service
             android:name=".service.TerminalService"
             android:foregroundServiceType="specialUse"
@@ -51,6 +50,5 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="terminal_session_persistence" />
         </service>
-        -->
     </application>
 </manifest>
