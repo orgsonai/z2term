@@ -25,6 +25,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusTarget
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -222,6 +226,11 @@ private fun TerminalCanvasArea(
     val density = LocalDensity.current
     var charWidthPx by remember { mutableFloatStateOf(0f) }
     var charHeightPx by remember { mutableFloatStateOf(0f) }
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        // 物理キーボードからの入力を拾うため focus を要求
+        runCatching { focusRequester.requestFocus() }
+    }
 
     fun pointerToCell(offset: androidx.compose.ui.geometry.Offset): Pair<Int, Int>? {
         if (charWidthPx <= 0f || charHeightPx <= 0f) return null
@@ -263,6 +272,15 @@ private fun TerminalCanvasArea(
         modifier = Modifier
             .fillMaxSize()
             .background(ZtsBgPrimary)
+            .focusRequester(focusRequester)
+            .focusTarget()
+            .onKeyEvent { event ->
+                val bytes = PhysicalKeyMapper.map(event)
+                if (bytes != null) {
+                    viewModel.sendRawBytes(bytes)
+                    true
+                } else false
+            }
             .then(selectionDragModifier)
             .then(scrollDragModifier),
         onSizeChanged = { rows, cols -> viewModel.onTerminalResize(rows, cols) },

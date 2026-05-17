@@ -262,6 +262,11 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         writeToPty(text.toByteArray(Charsets.UTF_8))
     }
 
+    /** 任意バイト列を PTY へ送信 (物理キーマッパー等から呼ばれる) */
+    fun sendRawBytes(bytes: ByteArray) {
+        writeToPty(bytes)
+    }
+
     /** 特殊キーを送信 */
     fun sendSpecialKey(key: SpecialKey) {
         val bytes = when (key) {
