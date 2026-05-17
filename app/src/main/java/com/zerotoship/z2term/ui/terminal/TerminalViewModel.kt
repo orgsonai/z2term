@@ -61,6 +61,60 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     )
     val toastEvents = _toastEvents.asSharedFlow()
 
+    /**
+     * 選択範囲。null なら選択モードオフ。
+     * (anchorRow, anchorCol) と (cursorRow, cursorCol) は両者ともバッファの絶対座標
+     * (スクロールバックを含む 0..totalRows-1)。
+     */
+    data class Selection(
+        val anchorRow: Int,
+        val anchorCol: Int,
+        val focusRow: Int,
+        val focusCol: Int
+    ) {
+        /** 正規化した (startRow, startCol, endRow, endCol) */
+        fun normalized(): IntArray {
+            val (sr, sc, er, ec) = if (anchorRow < focusRow || (anchorRow == focusRow && anchorCol <= focusCol)) {
+                listOf(anchorRow, anchorCol, focusRow, focusCol)
+            } else {
+                listOf(focusRow, focusCol, anchorRow, anchorCol)
+            }
+            return intArrayOf(sr, sc, er, ec)
+        }
+    }
+
+    private val _selection = MutableStateFlow<Selection?>(null)
+    val selection: StateFlow<Selection?> = _selection.asStateFlow()
+
+    fun beginSelection(row: Int, col: Int) {
+        _selection.value = Selection(row, col, row, col)
+    }
+
+    fun updateSelection(row: Int, col: Int) {
+        val s = _selection.value ?: return
+        _selection.value = s.copy(focusRow = row, focusCol = col)
+    }
+
+    fun cancelSelection() {
+        _selection.value = null
+    }
+
+    fun copySelectionToClipboard() {
+        val s = _selection.value ?: return
+        val n = s.normalized()
+        val text = emulator.buffer.getRangeText(n[0], n[1], n[2], n[3]).trimEnd()
+        if (text.isEmpty()) {
+            _toastEvents.tryEmit("選択範囲が空です")
+            _selection.value = null
+            return
+        }
+        val cm = getApplication<Application>()
+            .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
+        _toastEvents.tryEmit("${text.length} 文字をコピーしました")
+        _selection.value = null
+    }
+
     private val installer = DistroInstaller(application)
     private val launcher = ProotLauncher(application)
     private val settings = AppSettings(application)

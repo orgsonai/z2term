@@ -3,6 +3,7 @@ package com.zerotoship.z2term.ui.terminal
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -69,6 +70,7 @@ fun TerminalScreen(
     val redrawTick by viewModel.redrawTick.collectAsState()
     val scrollOffset by viewModel.scrollOffset.collectAsState()
     val settings by viewModel.settingsFlow.collectAsState()
+    val selection by viewModel.selection.collectAsState()
     var inputText by rememberSaveable { mutableStateOf("") }
     var showSettings by rememberSaveable { mutableStateOf(false) }
 
@@ -155,11 +157,20 @@ fun TerminalScreen(
                     viewModel = viewModel,
                     redrawTick = redrawTick,
                     scrollOffset = scrollOffset,
-                    fontSizeSp = settings.fontSizeSp
+                    fontSizeSp = settings.fontSizeSp,
+                    selection = selection
                 )
 
-                // スクロールバック閲覧中: 最下部へ戻るボタン
-                if (scrollOffset > 0) {
+                // 選択モード中: コピー / キャンセルボタン
+                if (selection != null) {
+                    SelectionActionBar(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 12.dp),
+                        onCopy = { viewModel.copySelectionToClipboard() },
+                        onCancel = { viewModel.cancelSelection() }
+                    )
+                } else if (scrollOffset > 0) {
                     JumpToBottomButton(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
@@ -205,10 +216,24 @@ private fun TerminalCanvasArea(
     viewModel: TerminalViewModel,
     redrawTick: Int,
     scrollOffset: Int,
-    fontSizeSp: Float
+    fontSizeSp: Float,
+    selection: TerminalViewModel.Selection?
 ) {
     val density = LocalDensity.current
-    val dragModifier = Modifier.pointerInput(Unit) {
+    var charWidthPx by remember { mutableFloatStateOf(0f) }
+    var charHeightPx by remember { mutableFloatStateOf(0f) }
+
+    fun pointerToCell(offset: androidx.compose.ui.geometry.Offset): Pair<Int, Int>? {
+        if (charWidthPx <= 0f || charHeightPx <= 0f) return null
+        val buffer = viewModel.emulatorRef.buffer
+        val col = (offset.x / charWidthPx).toInt().coerceIn(0, buffer.columns - 1)
+        val viewRow = (offset.y / charHeightPx).toInt().coerceIn(0, buffer.rows - 1)
+        val startRowIndex = buffer.scrollbackSize - scrollOffset.coerceIn(0, buffer.scrollbackSize)
+        return Pair((startRowIndex + viewRow).coerceAtLeast(0), col)
+    }
+
+    val scrollDragModifier = Modifier.pointerInput(selection != null) {
+        if (selection != null) return@pointerInput
         detectDragGestures { _, dragAmount ->
             val lineHeightPx = with(density) { fontSizeSp.sp.toPx() }
             val deltaLines = (-dragAmount.y / lineHeightPx).roundToInt()
@@ -216,6 +241,21 @@ private fun TerminalCanvasArea(
         }
     }
 
+    val selectionDragModifier = Modifier.pointerInput(Unit) {
+        detectDragGesturesAfterLongPress(
+            onDragStart = { pos ->
+                pointerToCell(pos)?.let { (r, c) -> viewModel.beginSelection(r, c) }
+            },
+            onDrag = { change, _ ->
+                pointerToCell(change.position)?.let { (r, c) -> viewModel.updateSelection(r, c) }
+                change.consume()
+            },
+            onDragEnd = { /* 選択は維持、アクションバーで確定 */ },
+            onDragCancel = { /* 維持 */ }
+        )
+    }
+
+    val sel = selection
     TerminalRenderer(
         emulator = viewModel.emulatorRef,
         fontSize = fontSizeSp.sp,
@@ -223,11 +263,48 @@ private fun TerminalCanvasArea(
         modifier = Modifier
             .fillMaxSize()
             .background(ZtsBgPrimary)
-            .then(dragModifier),
+            .then(selectionDragModifier)
+            .then(scrollDragModifier),
         onSizeChanged = { rows, cols -> viewModel.onTerminalResize(rows, cols) },
+        onCharSizeChanged = { w, h -> charWidthPx = w; charHeightPx = h },
         redrawTrigger = redrawTick,
-        scrollOffset = scrollOffset
+        scrollOffset = scrollOffset,
+        selectionStartRow = sel?.anchorRow ?: -1,
+        selectionStartCol = sel?.anchorCol ?: -1,
+        selectionEndRow = sel?.focusRow ?: -1,
+        selectionEndCol = sel?.focusCol ?: -1
     )
+}
+
+@Composable
+private fun SelectionActionBar(
+    modifier: Modifier = Modifier,
+    onCopy: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(24.dp))
+            .background(ZtsBgSecondary)
+            .border(1.dp, ZtsBorder, RoundedCornerShape(24.dp))
+            .padding(horizontal = 6.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(onClick = onCancel) {
+            Text("キャンセル", color = ZtsTextSecondary, fontSize = 13.sp)
+        }
+        Button(
+            onClick = onCopy,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = ZtsGreen,
+                contentColor = ZtsBgPrimary
+            ),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+        ) {
+            Text("コピー", fontSize = 13.sp)
+        }
+    }
 }
 
 @Composable

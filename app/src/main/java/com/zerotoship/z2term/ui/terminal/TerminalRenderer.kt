@@ -46,8 +46,13 @@ fun TerminalRenderer(
     fontFamily: FontFamily = FontFamily.Monospace,
     modifier: Modifier = Modifier,
     onSizeChanged: (rows: Int, cols: Int) -> Unit = { _, _ -> },
+    onCharSizeChanged: (widthPx: Float, heightPx: Float) -> Unit = { _, _ -> },
     redrawTrigger: Int = 0,
-    scrollOffset: Int = 0
+    scrollOffset: Int = 0,
+    selectionStartRow: Int = -1,
+    selectionStartCol: Int = -1,
+    selectionEndRow: Int = -1,
+    selectionEndCol: Int = -1
 ) {
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
@@ -73,6 +78,9 @@ fun TerminalRenderer(
             emulator.resize(rows, cols)
             sizeCallback(rows, cols)
         }
+        LaunchedEffect(charSize) {
+            onCharSizeChanged(charSize.width, charSize.height)
+        }
 
         // redrawTrigger を Canvas のキャプチャに巻き込み、recomposition を発生させる
         @Suppress("UNUSED_EXPRESSION") redrawTrigger
@@ -85,7 +93,56 @@ fun TerminalRenderer(
                 baseStyle = baseStyle,
                 scrollOffset = scrollOffset
             )
+            if (selectionStartRow >= 0 && selectionEndRow >= 0) {
+                drawSelectionOverlay(
+                    emulator = emulator,
+                    charSize = charSize,
+                    scrollOffset = scrollOffset,
+                    sRow = selectionStartRow, sCol = selectionStartCol,
+                    eRow = selectionEndRow, eCol = selectionEndCol
+                )
+            }
         }
+    }
+}
+
+private fun DrawScope.drawSelectionOverlay(
+    emulator: TerminalEmulator,
+    charSize: Size,
+    scrollOffset: Int,
+    sRow: Int, sCol: Int,
+    eRow: Int, eCol: Int
+) {
+    // 正規化
+    val (startRow, startCol, endRow, endCol) = if (
+        sRow < eRow || (sRow == eRow && sCol <= eCol)
+    ) listOf(sRow, sCol, eRow, eCol) else listOf(eRow, eCol, sRow, sCol)
+
+    val buffer = emulator.buffer
+    val viewRows = buffer.rows
+    val startRowIndex = buffer.scrollbackSize - scrollOffset.coerceIn(0, buffer.scrollbackSize)
+
+    // 画面上の表示行範囲
+    val viewStart = startRow - startRowIndex
+    val viewEnd = endRow - startRowIndex
+
+    if (viewEnd < 0 || viewStart >= viewRows) return  // 表示範囲外
+
+    val selColor = androidx.compose.ui.graphics.Color(
+        emulator.colors.cursorColor.toLong() or 0xFF000000
+    ).copy(alpha = 0.30f)
+
+    for (r in viewStart.coerceAtLeast(0)..viewEnd.coerceAtMost(viewRows - 1)) {
+        val absRow = r + startRowIndex
+        val cols = buffer.columns
+        val from = if (absRow == startRow) startCol.coerceIn(0, cols) else 0
+        val toExclusive = if (absRow == endRow) (endCol + 1).coerceIn(0, cols) else cols
+        if (toExclusive <= from) continue
+        drawRect(
+            color = selColor,
+            topLeft = Offset(from * charSize.width, r * charSize.height),
+            size = Size((toExclusive - from) * charSize.width, charSize.height)
+        )
     }
 }
 
