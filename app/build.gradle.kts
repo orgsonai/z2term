@@ -26,6 +26,20 @@ android {
         }
     }
 
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("full") {
+            dimension = "distribution"
+            buildConfigField("boolean", "IS_FOSS", "false")
+        }
+        create("foss") {
+            dimension = "distribution"
+            applicationIdSuffix = ".foss"
+            versionNameSuffix = "-foss"
+            buildConfigField("boolean", "IS_FOSS", "true")
+        }
+    }
+
     defaultConfig {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10

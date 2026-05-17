@@ -40,20 +40,31 @@ jobs:
           restore-keys: gradle-${{ runner.os }}-
 
       - name: Lint
-        run: ./gradlew lintDebug --stacktrace
+        run: ./gradlew lintFullDebug --stacktrace
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+      - name: Build Full Debug APK
+        run: ./gradlew assembleFullDebug --stacktrace
+
+      - name: Build FOSS Debug APK
+        run: ./gradlew assembleFossDebug --stacktrace
 
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest --stacktrace
+        run: ./gradlew testFullDebugUnitTest testFossDebugUnitTest --stacktrace
 
-      - name: Upload debug APK
+      - name: Upload full debug APK
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: z2term-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: z2term-full-debug-apk
+          path: app/build/outputs/apk/full/debug/app-full-debug.apk
+          retention-days: 14
+
+      - name: Upload foss debug APK
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: z2term-foss-debug-apk
+          path: app/build/outputs/apk/foss/debug/app-foss-debug.apk
           retention-days: 14
 
   release:
@@ -93,12 +104,19 @@ jobs:
       - name: Grant gradlew exec permission
         run: chmod +x ./gradlew
 
-      - name: Build Release Bundle
-        run: ./gradlew bundleRelease --stacktrace
+      - name: Build Release Bundles (full + foss)
+        run: ./gradlew bundleFullRelease bundleFossRelease --stacktrace
 
-      - name: Upload release bundle
+      - name: Upload full release bundle
         uses: actions/upload-artifact@v4
         with:
-          name: z2term-release-aab
-          path: app/build/outputs/bundle/release/app-release.aab
+          name: z2term-full-release-aab
+          path: app/build/outputs/bundle/fullRelease/app-full-release.aab
+          retention-days: 90
+
+      - name: Upload foss release bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: z2term-foss-release-aab
+          path: app/build/outputs/bundle/fossRelease/app-foss-release.aab
           retention-days: 90
