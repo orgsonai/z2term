@@ -55,12 +55,28 @@ class SshChannel private constructor(
          */
         fun connect(profile: SshProfile, rows: Int, cols: Int): SshChannel {
             val jsch = JSch()
+            // 鍵認証: PEM テキストを匿名 identity として登録
+            if (profile.authType == SshProfile.AuthType.PUBLIC_KEY && profile.privateKey.isNotBlank()) {
+                val keyBytes = profile.privateKey.toByteArray(Charsets.UTF_8)
+                val passphrase = profile.keyPassphrase.takeIf { it.isNotEmpty() }
+                    ?.toByteArray(Charsets.UTF_8)
+                jsch.addIdentity(profile.id, keyBytes, null, passphrase)
+            }
+
             val session = jsch.getSession(profile.user, profile.host, profile.port)
-            session.setPassword(profile.password)
+            if (profile.authType == SshProfile.AuthType.PASSWORD && profile.password.isNotEmpty()) {
+                session.setPassword(profile.password)
+            }
             // 簡易設定: 既知 host 検証は無効 (M6 で known_hosts 対応)
             session.setConfig(Properties().apply {
                 put("StrictHostKeyChecking", "no")
-                put("PreferredAuthentications", "password,keyboard-interactive,publickey")
+                put(
+                    "PreferredAuthentications",
+                    if (profile.authType == SshProfile.AuthType.PUBLIC_KEY)
+                        "publickey,password,keyboard-interactive"
+                    else
+                        "password,keyboard-interactive,publickey"
+                )
             })
             session.connect(CONNECT_TIMEOUT_MS)
 

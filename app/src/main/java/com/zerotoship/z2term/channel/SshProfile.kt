@@ -14,9 +14,11 @@ import org.json.JSONObject
 /**
  * SSH 接続プロファイル。
  *
- * セキュリティ注意 (M5):
- * - パスワードは DataStore に平文保存 (M6 で Android Keystore + 暗号化)
- * - 公開鍵認証は未対応
+ * - PASSWORD 認証: password フィールドを使う
+ * - PUBLIC_KEY 認証: privateKey (PEM テキスト) + 任意の keyPassphrase
+ *
+ * 永続化時、password / privateKey / keyPassphrase は [KeystoreCrypt] で
+ * AES-GCM 暗号化されてから DataStore に書かれる。
  */
 data class SshProfile(
     val id: String,
@@ -24,15 +26,28 @@ data class SshProfile(
     val host: String,
     val port: Int = 22,
     val user: String,
-    val password: String = ""
+    val authType: AuthType = AuthType.PASSWORD,
+    /** PASSWORD 認証時のパスワード (平文。永続化時に暗号化) */
+    val password: String = "",
+    /** PUBLIC_KEY 認証時の秘密鍵 PEM (平文。永続化時に暗号化) */
+    val privateKey: String = "",
+    /** 鍵にパスフレーズがある場合 (平文。永続化時に暗号化) */
+    val keyPassphrase: String = ""
 ) {
+
+    enum class AuthType { PASSWORD, PUBLIC_KEY }
+
+    /** 永続化用 JSON: 機密フィールドは Keystore 暗号化される */
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)
         put("name", name)
         put("host", host)
         put("port", port)
         put("user", user)
-        put("password", password)
+        put("authType", authType.name)
+        put("password", KeystoreCrypt.encrypt(password))
+        put("privateKey", KeystoreCrypt.encrypt(privateKey))
+        put("keyPassphrase", KeystoreCrypt.encrypt(keyPassphrase))
     }
 
     companion object {
@@ -42,23 +57,22 @@ data class SshProfile(
             host = o.optString("host"),
             port = o.optInt("port", 22),
             user = o.optString("user"),
-            password = o.optString("password")
+            authType = runCatching {
+                AuthType.valueOf(o.optString("authType", AuthType.PASSWORD.name))
+            }.getOrDefault(AuthType.PASSWORD),
+            password = runCatching { KeystoreCrypt.decrypt(o.optString("password")) }.getOrDefault(""),
+            privateKey = runCatching { KeystoreCrypt.decrypt(o.optString("privateKey")) }.getOrDefault(""),
+            keyPassphrase = runCatching { KeystoreCrypt.decrypt(o.optString("keyPassphrase")) }.getOrDefault("")
         )
     }
 }
 
 private val Context.sshDataStore: DataStore<Preferences> by preferencesDataStore(name = "z2term_ssh")
 
-/**
- * SSH プロファイルの永続ストア。
- * 配列を JSON 文字列にエンコードして 1 つの Preferences key に格納する簡易方式。
- */
 class SshProfileStore(private val context: Context) {
 
     val profiles: Flow<List<SshProfile>> = context.sshDataStore.data.map { p ->
-        val raw = p[KEY] ?: return@map emptyList()
-        val arr = try { JSONArray(raw) } catch (e: Exception) { return@map emptyList() }
-        List(arr.length()) { SshProfile.fromJson(arr.getJSONObject(it)) }
+        readList(p[KEY])
     }
 
     suspend fun upsert(profile: SshProfile) {

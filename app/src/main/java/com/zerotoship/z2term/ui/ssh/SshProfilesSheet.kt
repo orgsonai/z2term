@@ -184,7 +184,10 @@ private fun ProfileEditorDialog(
     var host by remember { mutableStateOf(initial.host) }
     var port by remember { mutableStateOf(initial.port.toString()) }
     var user by remember { mutableStateOf(initial.user) }
+    var authType by remember { mutableStateOf(initial.authType) }
     var password by remember { mutableStateOf(initial.password) }
+    var privateKey by remember { mutableStateOf(initial.privateKey) }
+    var passphrase by remember { mutableStateOf(initial.keyPassphrase) }
 
     AlertDialog(
         onDismissRequest = onCancel,
@@ -196,7 +199,37 @@ private fun ProfileEditorDialog(
                 EditorField("ホスト", host) { host = it }
                 EditorField("ポート", port, keyboardType = KeyboardType.Number) { port = it }
                 EditorField("ユーザー", user) { user = it }
-                EditorField("パスワード", password, password = true) { password = it }
+
+                // 認証タイプ切替
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SshProfile.AuthType.entries.forEach { t ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(end = 12.dp)
+                        ) {
+                            RadioButton(
+                                selected = authType == t,
+                                onClick = { authType = t },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = ZtsGreen,
+                                    unselectedColor = ZtsTextSecondary
+                                )
+                            )
+                            Text(
+                                text = if (t == SshProfile.AuthType.PASSWORD) "パスワード" else "公開鍵",
+                                color = ZtsTextPrimary,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+
+                if (authType == SshProfile.AuthType.PASSWORD) {
+                    EditorField("パスワード", password, password = true) { password = it }
+                } else {
+                    EditorField("秘密鍵 (PEM 全文)", privateKey, multiLine = true) { privateKey = it }
+                    EditorField("パスフレーズ (任意)", passphrase, password = true) { passphrase = it }
+                }
             }
         },
         confirmButton = {
@@ -207,7 +240,10 @@ private fun ProfileEditorDialog(
                         host = host.trim(),
                         port = port.toIntOrNull() ?: 22,
                         user = user.trim(),
-                        password = password
+                        authType = authType,
+                        password = if (authType == SshProfile.AuthType.PASSWORD) password else "",
+                        privateKey = if (authType == SshProfile.AuthType.PUBLIC_KEY) privateKey else "",
+                        keyPassphrase = if (authType == SshProfile.AuthType.PUBLIC_KEY) passphrase else ""
                     )
                 )
             }) {
@@ -228,6 +264,7 @@ private fun EditorField(
     value: String,
     keyboardType: KeyboardType = KeyboardType.Text,
     password: Boolean = false,
+    multiLine: Boolean = false,
     onChange: (String) -> Unit
 ) {
     Column {
@@ -236,10 +273,11 @@ private fun EditorField(
         BasicTextField(
             value = value,
             onValueChange = onChange,
-            singleLine = true,
+            singleLine = !multiLine,
+            maxLines = if (multiLine) 6 else 1,
             textStyle = TextStyle(
                 fontFamily = TerminalFontFamily,
-                fontSize = 14.sp,
+                fontSize = if (multiLine) 11.sp else 14.sp,
                 color = ZtsTextPrimary
             ),
             cursorBrush = SolidColor(ZtsGreen),
