@@ -12,6 +12,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.ui.theme.TerminalFontFamily
@@ -37,6 +38,7 @@ fun SettingsSheet(
     onThemeChange: (String) -> Unit,
     onFontSizeChange: (Float) -> Unit,
     onScrollbackChange: (Int) -> Unit,
+    onDistroChange: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -59,6 +61,11 @@ fun SettingsSheet(
                 fontWeight = FontWeight.SemiBold
             )
 
+            DistroSection(
+                current = snapshot.distroId,
+                onSelect = onDistroChange
+            )
+
             ThemeSection(
                 current = snapshot.themeName,
                 onSelect = onThemeChange
@@ -75,6 +82,52 @@ fun SettingsSheet(
             )
 
             Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun DistroSection(current: String, onSelect: (String) -> Unit) {
+    SectionHeader("ディストロ (再起動後に反映)")
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        DistroSpec.ALL.forEach { spec ->
+            val selected = spec.id == current
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(
+                        width = 1.dp,
+                        color = if (selected) ZtsGreen else ZtsBorder,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .background(ZtsBgPrimary)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = selected,
+                    onClick = { onSelect(spec.id) },
+                    colors = RadioButtonDefaults.colors(
+                        selectedColor = ZtsGreen,
+                        unselectedColor = ZtsTextSecondary
+                    )
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = spec.displayName,
+                        color = ZtsTextPrimary,
+                        fontFamily = TerminalFontFamily,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = "${spec.id} · ${spec.packageManagerHint}",
+                        color = ZtsTextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+            }
         }
     }
 }

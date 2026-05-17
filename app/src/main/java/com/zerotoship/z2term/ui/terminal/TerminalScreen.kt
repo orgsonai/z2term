@@ -211,6 +211,7 @@ fun TerminalScreen(
             onThemeChange = { viewModel.updateTheme(it) },
             onFontSizeChange = { viewModel.updateFontSize(it) },
             onScrollbackChange = { viewModel.updateScrollbackLines(it) },
+            onDistroChange = { viewModel.updateDistro(it) },
             onDismiss = { showSettings = false }
         )
     }

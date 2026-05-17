@@ -3,6 +3,7 @@ package com.zerotoship.z2term.core
 import android.content.Context
 import android.util.Log
 import com.zerotoship.z2term.distro.DistroInstaller
+import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.emulator.TerminalEmulator
 import com.zerotoship.z2term.emulator.ZtsTheme
@@ -90,11 +91,16 @@ class TerminalSession(private val appContext: Context) {
     fun setThemeName(name: String) { scope.launch { settings.setTheme(name) } }
     fun setFontSize(sp: Float) { scope.launch { settings.setFontSize(sp) } }
     fun setScrollbackLines(lines: Int) { scope.launch { settings.setScrollbackLines(lines) } }
+    fun setDistro(id: String) { scope.launch { settings.setDistro(id) } }
 
-    fun startTerminal(distroId: String = "alpine") {
+    /** 設定で選ばれているディストロを使って起動。明示的指定があればそれを優先 */
+    fun startTerminal(distroOverride: DistroSpec? = null) {
         if (_uiState.value.state == TerminalState.RUNNING) return
 
         scope.launch {
+            val spec = distroOverride
+                ?: DistroSpec.byId(settingsFlow.value.distroId)
+                ?: DistroSpec.ALPINE
             try {
                 if (!launcher.isProotAvailable()) {
                     writeBanner("⚠ PRoot バイナリが見つかりません。Android sh モードで起動します。")
@@ -102,25 +108,25 @@ class TerminalSession(private val appContext: Context) {
                     return@launch
                 }
 
-                if (!launcher.isDistroReady(distroId)) {
-                    writeBanner("📦 $distroId を初回展開しています…")
+                if (!launcher.isDistroReady(spec.id)) {
+                    writeBanner("📦 ${spec.displayName} を初回展開しています…")
                     _uiState.update { it.copy(state = TerminalState.INSTALLING) }
 
                     var installError: Throwable? = null
                     withContext(Dispatchers.IO) {
-                        installer.installAlpine().collect { progress ->
+                        installer.install(spec).collect { progress ->
                             when (progress) {
                                 is DistroInstaller.Progress.Started -> writeBanner("   展開開始…")
                                 is DistroInstaller.Progress.Extracting -> Unit
                                 is DistroInstaller.Progress.Configuring -> writeBanner("   設定中…")
-                                is DistroInstaller.Progress.Completed -> writeBanner("✓ $distroId 展開完了")
+                                is DistroInstaller.Progress.Completed -> writeBanner("✓ ${spec.displayName} 展開完了")
                                 is DistroInstaller.Progress.Failed -> installError = progress.error
                             }
                         }
                     }
 
                     if (installError != null) {
-                        writeBanner("✗ $distroId 展開失敗: ${installError?.message}")
+                        writeBanner("✗ ${spec.displayName} 展開失敗: ${installError?.message}")
                         writeBanner("Android sh モードにフォールバックします。")
                         fallbackToAndroidSh()
                         return@launch
@@ -128,12 +134,12 @@ class TerminalSession(private val appContext: Context) {
                 }
 
                 _uiState.update { it.copy(state = TerminalState.STARTING) }
-                writeBanner("🚀 $distroId を起動中…")
+                writeBanner("🚀 ${spec.displayName} を起動中…")
 
                 val (rows, cols) = currentSize()
-                val pty = launcher.launch(distroId, "/bin/sh", rows, cols)
+                val pty = launcher.launch(spec.id, "/bin/sh", rows, cols)
                 ptyProcess = pty
-                _uiState.update { it.copy(state = TerminalState.RUNNING, mode = distroId) }
+                _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }
                 startReadLoop(pty)
 
             } catch (e: Throwable) {
@@ -206,14 +212,14 @@ class TerminalSession(private val appContext: Context) {
         bumpRedraw()
     }
 
-    fun restart(distroId: String = "alpine") {
+    fun restart() {
         ptyProcess?.close()
         ptyProcess = null
         readJob?.cancel()
         emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
         _uiState.update { UiState() }
         _scrollOffset.value = 0
-        startTerminal(distroId)
+        startTerminal()
     }
 
     fun emitToast(message: String) { _toastEvents.tryEmit(message) }

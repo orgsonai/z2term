@@ -1,52 +1,70 @@
 # Z2Term assets ディレクトリ
 
-このディレクトリには Alpine Linux の rootfs アーカイブを配置します。
+このディレクトリにはディストロ rootfs アーカイブを配置します。
+M3 以降は複数ディストロに対応しています。
 
 ## 必要なファイル
+
+### Alpine Linux (デフォルト)
 
 | ファイル名 | アーキテクチャ | 入手元 |
 |---|---|---|
 | `alpine-minirootfs-aarch64.tar.gz` | arm64-v8a (64bit ARM) | https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/ |
 | `alpine-minirootfs-armv7.tar.gz` | armeabi-v7a (32bit ARM) | https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/armv7/ |
 
-## ダウンロード手順
+### Ubuntu (オプション)
 
-最新バージョンの URL は Alpine 公式サイト (https://alpinelinux.org/downloads/) で確認してください。
+| ファイル名 | アーキテクチャ | 入手元 |
+|---|---|---|
+| `ubuntu-minirootfs-aarch64.tar.gz` | arm64-v8a | https://cloud-images.ubuntu.com/minimal/releases/noble/release/ |
+| `ubuntu-minirootfs-armv7.tar.gz` | armeabi-v7a | 同上 (armhf) |
+
+Ubuntu 公式 cloud-image の `*-arm64-root.tar.xz` を取得し、`tar.gz` に再圧縮して配置します:
 
 ```bash
-# 64bit ARM 用（最新版を確認して URL を調整）
+# 例: 24.04 LTS noble の arm64 base
+curl -o ubuntu.tar.xz \
+  https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-arm64-root.tar.xz
+xz -d ubuntu.tar.xz
+gzip ubuntu.tar
+mv ubuntu.tar.gz ubuntu-minirootfs-aarch64.tar.gz
+```
+
+## ダウンロード手順 (Alpine)
+
+```bash
 wget -O alpine-minirootfs-aarch64.tar.gz \
   https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.0-aarch64.tar.gz
 
-# 32bit ARM 用
 wget -O alpine-minirootfs-armv7.tar.gz \
   https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/armv7/alpine-minirootfs-3.21.0-armv7.tar.gz
 ```
 
-## SHA256 検証（推奨）
-
-各バージョンのチェックサムは Alpine 公式から取得して検証してください。
+## SHA256 検証 (推奨)
 
 ```bash
-# チェックサムファイルを取得
 wget https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.0-aarch64.tar.gz.sha256
-
-# 検証
 sha256sum -c alpine-minirootfs-3.21.0-aarch64.tar.gz.sha256
 ```
 
 ## サイズの目安
 
-- 圧縮済み: 約 3MB
-- 展開後: 約 7-8MB
+| ディストロ | 圧縮済み | 展開後 |
+|---|---|---|
+| Alpine | 約 3MB | 約 7-8MB |
+| Ubuntu | 約 30MB | 約 80MB |
 
-APK 内には両アーキテクチャ分を入れるので、合計約 6MB ほど増えます。
+両ディストロ + 両アーキテクチャ全部入れると APK サイズが ~70MB 膨らみます。
+必要なものだけ配置することを推奨。
 
-## ファイル名について
+## ファイル名規約
 
-DistroInstaller.kt は以下のファイル名を期待しています。リネームしてから配置してください:
+`DistroInstaller.kt` は以下のファイル名を期待しています。バージョン番号は含めず、
+固定名にリネームしてから配置してください:
 
-- `alpine-minirootfs-aarch64.tar.gz` (バージョン番号を含めない)
-- `alpine-minirootfs-armv7.tar.gz` (同上)
+- `alpine-minirootfs-aarch64.tar.gz`
+- `alpine-minirootfs-armv7.tar.gz`
+- `ubuntu-minirootfs-aarch64.tar.gz`
+- `ubuntu-minirootfs-armv7.tar.gz`
 
-バージョン管理は別途行います（rootfs ZIP 内の `/etc/alpine-release` を参照すれば確認可能）。
+バージョン管理は別途、ディストロ内の `/etc/os-release` で確認してください。

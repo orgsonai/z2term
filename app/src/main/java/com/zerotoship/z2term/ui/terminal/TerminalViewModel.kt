@@ -96,6 +96,7 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     fun updateTheme(name: String) = session.setThemeName(name)
     fun updateFontSize(sp: Float) = session.setFontSize(sp)
     fun updateScrollbackLines(lines: Int) = session.setScrollbackLines(lines)
+    fun updateDistro(id: String) = session.setDistro(id)
 
     fun stopAndExit() {
         TerminalService.stop(getApplication())
