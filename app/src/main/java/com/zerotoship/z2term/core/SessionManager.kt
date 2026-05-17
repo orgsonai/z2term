@@ -1,34 +1,73 @@
 package com.zerotoship.z2term.core
 
 import android.content.Context
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * プロセス全体で 1 つの [TerminalSession] を共有するためのシングルトン。
+ * プロセス全体で複数の [TerminalSession] を保持するシングルトン。
  *
- * UI ViewModel もフォアグラウンドサービスもこの object を経由してセッションに
- * アクセスする。サービスが強参照を保持する間、Activity 破棄でもセッションは
+ * - `sessions` : 開いているセッションの順序付きリスト
+ * - `activeId` : 現在 UI が表示しているセッション ID
+ *
+ * UI ViewModel もフォアグラウンドサービスもこの object 経由でセッションに
+ * アクセスする。サービスが強参照を保持する間、Activity 破棄でも全セッションは
  * 維持される。
  */
 object SessionManager {
 
-    @Volatile
-    private var instance: TerminalSession? = null
+    private val lock = Any()
+    private val mutableSessions = mutableListOf<TerminalSession>()
 
-    fun get(context: Context): TerminalSession {
-        instance?.let { return it }
-        synchronized(this) {
-            instance?.let { return it }
-            val s = TerminalSession(context.applicationContext)
-            instance = s
-            return s
+    private val _sessions = MutableStateFlow<List<TerminalSession>>(emptyList())
+    val sessions: StateFlow<List<TerminalSession>> = _sessions.asStateFlow()
+
+    private val _activeId = MutableStateFlow<String?>(null)
+    val activeId: StateFlow<String?> = _activeId.asStateFlow()
+
+    /** 0 件なら新規生成、それ以外は既存のアクティブを返す */
+    fun ensureFirst(context: Context): TerminalSession = synchronized(lock) {
+        active() ?: openNew(context)
+    }
+
+    /** 新しいセッションを開き、アクティブにする */
+    fun openNew(context: Context): TerminalSession = synchronized(lock) {
+        val s = TerminalSession(context.applicationContext)
+        mutableSessions.add(s)
+        _sessions.value = mutableSessions.toList()
+        _activeId.value = s.id
+        s
+    }
+
+    /** 指定セッションを終了 (アクティブが消えたら次を選ぶ) */
+    fun close(id: String) = synchronized(lock) {
+        val s = mutableSessions.firstOrNull { it.id == id } ?: return@synchronized
+        s.shutdown()
+        mutableSessions.remove(s)
+        _sessions.value = mutableSessions.toList()
+        if (_activeId.value == id) {
+            _activeId.value = mutableSessions.firstOrNull()?.id
         }
     }
 
-    /** セッションを破棄してインスタンスを開放 */
-    fun shutdown() {
-        synchronized(this) {
-            instance?.shutdown()
-            instance = null
+    /** アクティブを切り替える */
+    fun setActive(id: String) = synchronized(lock) {
+        if (mutableSessions.any { it.id == id }) {
+            _activeId.value = id
         }
+    }
+
+    /** 全セッション終了 (サービス停止時に呼ばれる) */
+    fun shutdown() = synchronized(lock) {
+        mutableSessions.forEach { it.shutdown() }
+        mutableSessions.clear()
+        _sessions.value = emptyList()
+        _activeId.value = null
+    }
+
+    fun active(): TerminalSession? = synchronized(lock) {
+        val id = _activeId.value ?: return@synchronized null
+        mutableSessions.firstOrNull { it.id == id }
     }
 }

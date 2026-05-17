@@ -33,9 +33,20 @@ import kotlinx.coroutines.withContext
  * フォアグラウンドサービスから参照されることで、Activity が破棄されても
  * PTY プロセスとエミュレータ状態を維持できる。
  *
- * すべての状態 (emulator, PTY, flows, ジョブ) はこのクラスが所有。
+ * M4 からは [SessionManager] が複数の [TerminalSession] を持ち、UI 側で
+ * タブとして切替可能。`id` は不変、`label` は表示用のラベル (PTY モードが
+ * 確定したタイミングで自動更新するが、ユーザー編集も可)。
  */
-class TerminalSession(private val appContext: Context) {
+class TerminalSession(
+    private val appContext: Context,
+    val id: String = java.util.UUID.randomUUID().toString(),
+    initialLabel: String = "session"
+) {
+
+    /** タブ表示名 (RUNNING になったら mode を反映、それ以前は "session") */
+    private val _label = MutableStateFlow(initialLabel)
+    val label: StateFlow<String> = _label.asStateFlow()
+    fun setLabel(s: String) { _label.value = s }
 
     enum class TerminalState { IDLE, INSTALLING, STARTING, RUNNING, EXITED, ERROR }
 
@@ -140,6 +151,7 @@ class TerminalSession(private val appContext: Context) {
                 val pty = launcher.launch(spec.id, "/bin/sh", rows, cols)
                 ptyProcess = pty
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }
+                _label.value = spec.id
                 startReadLoop(pty)
 
             } catch (e: Throwable) {
@@ -157,6 +169,7 @@ class TerminalSession(private val appContext: Context) {
             val pty = launcher.launchAndroidSh(rows, cols)
             ptyProcess = pty
             _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "android-sh") }
+            _label.value = "sh"
             startReadLoop(pty)
         } catch (e: Throwable) {
             Log.e(TAG, "Even Android sh failed", e)

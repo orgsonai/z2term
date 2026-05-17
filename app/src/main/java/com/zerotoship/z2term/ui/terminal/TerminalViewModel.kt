@@ -5,35 +5,91 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.emulator.TerminalEmulator
 import com.zerotoship.z2term.service.TerminalService
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
 
 /**
- * UI 層から TerminalSession を扱うための薄いラッパー ViewModel。
+ * UI 層から TerminalSession 群を扱うための ViewModel。
  *
- * セッション本体 (PtyProcess / emulator / IO ループ) は [TerminalSession] が所有し、
- * [SessionManager] のシングルトンとして Activity ライフサイクルを越えて生存する。
- * フォアグラウンドサービス [TerminalService] が起動している間は OS による回収から
- * 守られる。
- *
- * UI ローカルな状態 (選択範囲) のみ ViewModel が保持する。
+ * - SessionManager が複数の [TerminalSession] を保持
+ * - VM は「現在アクティブな」セッションへの参照を再公開
+ * - UI 操作は基本的に active session へ委譲する
+ * - 選択範囲 (Selection) は UI ローカルなので VM 保持
  */
 class TerminalViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val session: TerminalSession = SessionManager.get(application)
+    init {
+        SessionManager.ensureFirst(application)
+    }
+
+    val sessions: StateFlow<List<TerminalSession>> = SessionManager.sessions
+    val activeId: StateFlow<String?> = SessionManager.activeId
+
+    /** 現在アクティブな TerminalSession (起動直後は ensureFirst で必ず 1 つある) */
+    val activeSession: StateFlow<TerminalSession> = combine(sessions, activeId) { list, id ->
+        list.firstOrNull { it.id == id } ?: list.first()
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = SessionManager.active()!!
+    )
+
+    private val session: TerminalSession get() = activeSession.value
 
     val emulatorRef: TerminalEmulator get() = session.emulator
 
-    val uiState: StateFlow<TerminalSession.UiState> = session.uiState
-    val redrawTick: StateFlow<Int> = session.redrawTick
-    val scrollOffset: StateFlow<Int> = session.scrollOffset
-    val toastEvents = session.toastEvents
-    val settingsFlow = session.settingsFlow
+    // active session が切替わるたびに内側 flow を張り直す
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<TerminalSession.UiState> =
+        activeSession.flatMapLatest { it.uiState }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, session.uiState.value)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val redrawTick: StateFlow<Int> =
+        activeSession.flatMapLatest { it.redrawTick }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val scrollOffset: StateFlow<Int> =
+        activeSession.flatMapLatest { it.scrollOffset }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val toastEvents = activeSession.flatMapLatest { it.toastEvents }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val settingsFlow =
+        activeSession.flatMapLatest { it.settingsFlow }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, session.settingsFlow.value)
+
+    // ───────── タブ操作 ─────────
+
+    fun openNewSession() {
+        TerminalService.start(getApplication())
+        val s = SessionManager.openNew(getApplication())
+        s.startTerminal()
+    }
+
+    fun selectSession(id: String) = SessionManager.setActive(id)
+
+    fun closeSession(id: String) {
+        SessionManager.close(id)
+        // 全部閉じたらフォアグラウンドサービスも停止
+        if (SessionManager.sessions.value.isEmpty()) {
+            TerminalService.stop(getApplication())
+        }
+    }
 
     // ───────── 選択範囲 (UI ローカル) ─────────
 
@@ -76,10 +132,9 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         _selection.value = null
     }
 
-    // ───────── セッション操作 (TerminalSession へ委譲) ─────────
+    // ───────── セッション操作 (アクティブへ委譲) ─────────
 
     fun startTerminal() {
-        // 初回起動時にフォアグラウンドサービスも開始
         TerminalService.start(getApplication())
         session.startTerminal()
     }
@@ -98,9 +153,7 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     fun updateScrollbackLines(lines: Int) = session.setScrollbackLines(lines)
     fun updateDistro(id: String) = session.setDistro(id)
 
-    fun stopAndExit() {
-        TerminalService.stop(getApplication())
-    }
+    fun stopAndExit() { TerminalService.stop(getApplication()) }
 
     fun sendSpecialKey(key: SpecialKey) {
         val bytes = when (key) {
@@ -142,8 +195,6 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         session.writeBytes(bytes)
     }
 
-    // ───────── クリップボード ─────────
-
     fun copyAllToClipboard() {
         val text = emulatorRef.buffer.getAllText(includeScrollback = true).trimEnd()
         if (text.isEmpty()) {
@@ -169,9 +220,6 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
             .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
     }
-
-    // ViewModel 破棄 = Activity 破棄。セッションは生かしたままにする。
-    // セッションを終了するには stopAndExit() を呼ぶ (通知の停止ボタンと同等)。
 
     enum class SpecialKey {
         ENTER, TAB, ESC, BACKSPACE,

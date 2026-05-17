@@ -13,6 +13,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
@@ -76,6 +78,9 @@ fun TerminalScreen(
     val scrollOffset by viewModel.scrollOffset.collectAsState()
     val settings by viewModel.settingsFlow.collectAsState()
     val selection by viewModel.selection.collectAsState()
+    val sessionList by viewModel.sessions.collectAsState()
+    val activeSessionId by viewModel.activeId.collectAsState()
+    val activeSession by viewModel.activeSession.collectAsState()
     var inputText by rememberSaveable { mutableStateOf("") }
     var showSettings by rememberSaveable { mutableStateOf(false) }
 
@@ -152,19 +157,32 @@ fun TerminalScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // タブバー (セッションが 1 つでも + ボタンが必要なので常時表示)
+            TabBar(
+                sessions = sessionList,
+                activeId = activeSessionId,
+                onSelect = { viewModel.selectSession(it) },
+                onClose = { viewModel.closeSession(it) },
+                onAdd = { viewModel.openNewSession() }
+            )
+            HorizontalDivider(color = ZtsBorder, thickness = 1.dp)
+
             // ターミナル本体
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                TerminalCanvasArea(
-                    viewModel = viewModel,
-                    redrawTick = redrawTick,
-                    scrollOffset = scrollOffset,
-                    fontSizeSp = settings.fontSizeSp,
-                    selection = selection
-                )
+                // 1.activeSession が切替わると key で再構築 → focus 等もリセット
+                androidx.compose.runtime.key(activeSession.id) {
+                    TerminalCanvasArea(
+                        viewModel = viewModel,
+                        redrawTick = redrawTick,
+                        scrollOffset = scrollOffset,
+                        fontSizeSp = settings.fontSizeSp,
+                        selection = selection
+                    )
+                }
 
                 // 選択モード中: コピー / キャンセルボタン
                 if (selection != null) {
@@ -294,6 +312,93 @@ private fun TerminalCanvasArea(
         selectionEndRow = sel?.focusRow ?: -1,
         selectionEndCol = sel?.focusCol ?: -1
     )
+}
+
+@Composable
+private fun TabBar(
+    sessions: List<TerminalSession>,
+    activeId: String?,
+    onSelect: (String) -> Unit,
+    onClose: (String) -> Unit,
+    onAdd: () -> Unit
+) {
+    val scrollState = rememberScrollState()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ZtsBgSecondary)
+            .horizontalScroll(scrollState)
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        sessions.forEachIndexed { index, s ->
+            val label by s.label.collectAsState()
+            val selected = s.id == activeId
+            TabChip(
+                index = index + 1,
+                label = label,
+                selected = selected,
+                showClose = sessions.size > 1,
+                onClick = { onSelect(s.id) },
+                onClose = { onClose(s.id) }
+            )
+        }
+        IconButton(onClick = onAdd, modifier = Modifier.size(36.dp)) {
+            Icon(
+                imageVector = Icons.Outlined.Add,
+                contentDescription = "新規セッション",
+                tint = ZtsGreen
+            )
+        }
+    }
+}
+
+@Composable
+private fun TabChip(
+    index: Int,
+    label: String,
+    selected: Boolean,
+    showClose: Boolean,
+    onClick: () -> Unit,
+    onClose: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .border(
+                width = 1.dp,
+                color = if (selected) ZtsGreen else ZtsBorder,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .background(if (selected) ZtsBgPrimary else ZtsBgSecondary)
+            .padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TextButton(
+            onClick = onClick,
+            contentPadding = PaddingValues(0.dp),
+            modifier = Modifier.defaultMinSize(minWidth = 0.dp, minHeight = 0.dp)
+        ) {
+            Text(
+                text = "$index:$label",
+                color = if (selected) ZtsGreen else ZtsTextSecondary,
+                fontFamily = TerminalFontFamily,
+                fontSize = 12.sp,
+                maxLines = 1
+            )
+        }
+        if (showClose) {
+            IconButton(onClick = onClose, modifier = Modifier.size(24.dp)) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = "閉じる",
+                    tint = ZtsTextTertiary,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+    }
 }
 
 @Composable
