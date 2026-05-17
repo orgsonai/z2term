@@ -27,8 +27,13 @@ class TerminalEmulator(
     /** OSC 52 (clipboard write) のハンドラ。null なら無視。 */
     private val clipboardWriter: ((String) -> Unit)? = null,
     /** OSC 0/1/2 (window title) のハンドラ。null なら無視。 */
-    private val titleSetter: ((String) -> Unit)? = null
+    private val titleSetter: ((String) -> Unit)? = null,
+    /** OSC 7 (current working directory) のハンドラ。null なら無視。 */
+    private val cwdSetter: ((String) -> Unit)? = null
 ) {
+
+    /** OSC 8 で設定された現在のハイパーリンク URI (アクティブな間に書かれるセルに付与) */
+    private var currentLink: String? = null
     val buffer = TerminalBuffer(initialRows, initialColumns)
     val colors = TerminalColors()
 
@@ -170,8 +175,8 @@ class TerminalEmulator(
         val row = buffer.getScreenRow(cursorRow)
         if (insertMode) row.insertChars(cursorCol, 2, fg, bg)
         // 左セルに文字本体、右セルに wideCont マーカー (描画/コピー時に飛ばされる)
-        row.setChar(cursorCol, c, fg, bg, wideCont = false)
-        row.setChar(cursorCol + 1, ' ', fg, bg, wideCont = true)
+        row.setChar(cursorCol, c, fg, bg, wideCont = false, link = currentLink)
+        row.setChar(cursorCol + 1, ' ', fg, bg, wideCont = true, link = currentLink)
         cursorCol += 2
     }
 
@@ -186,8 +191,8 @@ class TerminalEmulator(
         val bg = currentBg
         val row = buffer.getScreenRow(cursorRow)
         if (insertMode) row.insertChars(cursorCol, 2, fg, bg)
-        row.setChar(cursorCol, high, fg, bg, wideCont = false)
-        row.setChar(cursorCol + 1, low, fg, bg, wideCont = true)
+        row.setChar(cursorCol, high, fg, bg, wideCont = false, link = currentLink)
+        row.setChar(cursorCol + 1, low, fg, bg, wideCont = true, link = currentLink)
         cursorCol += 2
     }
 
@@ -691,12 +696,44 @@ class TerminalEmulator(
         when (code) {
             0, 1, 2 -> titleSetter?.invoke(arg)
             4 -> handleOscPalette(arg)
+            7 -> handleOscCwd(arg)
+            8 -> handleOscHyperlink(arg)
             10 -> ColorSpec.parse(arg)?.let { colors.setDefaultForeground(it) }
             11 -> ColorSpec.parse(arg)?.let { colors.setDefaultBackground(it) }
             12 -> ColorSpec.parse(arg)?.let { colors.setCursorColor(it) }
             52 -> handleOscClipboard(arg)
             else -> {}
         }
+    }
+
+    /**
+     * OSC 7 ; file://host/path — current working directory 通知。
+     * URI から path 部分を取り出して setter に渡す。
+     */
+    private fun handleOscCwd(arg: String) {
+        val setter = cwdSetter ?: return
+        val path = if (arg.startsWith("file://")) {
+            // file://host/path から path 部分のみ
+            val rest = arg.substring("file://".length)
+            val slash = rest.indexOf('/')
+            if (slash >= 0) {
+                // URL デコード (簡易)
+                try { java.net.URLDecoder.decode(rest.substring(slash), "UTF-8") }
+                catch (e: Exception) { rest.substring(slash) }
+            } else arg
+        } else arg
+        setter(path)
+    }
+
+    /**
+     * OSC 8 ; params ; URI — ハイパーリンク開始 (URI 空ならリンク終了)。
+     * params は id=xxx 等のセミコロン区切り。今回は URI 部分のみ使う。
+     */
+    private fun handleOscHyperlink(arg: String) {
+        // arg = "params;URI"
+        val sep = arg.indexOf(';')
+        val uri = if (sep >= 0) arg.substring(sep + 1) else ""
+        currentLink = uri.takeIf { it.isNotEmpty() }
     }
 
     /** OSC 4 ; idx ; spec[; idx; spec ...] — palette set */
@@ -759,7 +796,7 @@ class TerminalEmulator(
         if (insertMode) {
             buffer.getScreenRow(cursorRow).insertChars(cursorCol, 1, fgWithFlags, bgWithFlags)
         }
-        buffer.getScreenRow(cursorRow).setChar(cursorCol, c, fgWithFlags, bgWithFlags)
+        buffer.getScreenRow(cursorRow).setChar(cursorCol, c, fgWithFlags, bgWithFlags, link = currentLink)
         cursorCol++
     }
 

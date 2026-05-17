@@ -30,12 +30,13 @@ class TerminalRow(initialColumns: Int) {
         return cells[col]
     }
 
-    fun setChar(col: Int, ch: Char, fg: Int, bg: Int, wideCont: Boolean = false) {
+    fun setChar(col: Int, ch: Char, fg: Int, bg: Int, wideCont: Boolean = false, link: String? = null) {
         if (col !in cells.indices) return
         cells[col].char = ch
         cells[col].fgAttr = fg
         cells[col].bgAttr = bg
         cells[col].wideCont = wideCont
+        cells[col].link = link
         dirty = true
     }
 

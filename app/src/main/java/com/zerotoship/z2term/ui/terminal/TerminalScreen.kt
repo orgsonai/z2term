@@ -2,8 +2,11 @@ package com.zerotoship.z2term.ui.terminal
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -327,6 +330,27 @@ private fun TerminalCanvasArea(
         }
     }
 
+    // OSC 8 リンクタップ: セル座標を計算して link が付いていれば Intent.ACTION_VIEW
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val tapLinkModifier = Modifier.pointerInput(Unit) {
+        detectTapGestures(onTap = { pos ->
+            if (charWidthPx <= 0f || charHeightPx <= 0f) return@detectTapGestures
+            val buffer = viewModel.emulatorRef.buffer
+            val col = (pos.x / charWidthPx).toInt().coerceIn(0, buffer.columns - 1)
+            val viewRow = (pos.y / charHeightPx).toInt().coerceIn(0, buffer.rows - 1)
+            val startRowIndex = buffer.scrollbackSize - scrollOffset.coerceIn(0, buffer.scrollbackSize)
+            val absRow = (startRowIndex + viewRow).coerceAtLeast(0)
+            val row = runCatching { buffer.getRow(absRow) }.getOrNull() ?: return@detectTapGestures
+            val cell = runCatching { row.getCell(col) }.getOrNull() ?: return@detectTapGestures
+            val uri = cell.link ?: return@detectTapGestures
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+            } catch (_: Exception) { /* ignore unsupported scheme */ }
+        })
+    }
+
     // ピンチで fontSize、2 本指縦パンでスクロールバック閲覧
     val transformModifier = Modifier.pointerInput(Unit) {
         detectTransformGestures(panZoomLock = false) { _, pan, zoom, _ ->
@@ -376,6 +400,7 @@ private fun TerminalCanvasArea(
                 } else false
             }
             .then(transformModifier)
+            .then(tapLinkModifier)
             .then(selectionDragModifier)
             .then(scrollDragModifier),
         onSizeChanged = { rows, cols -> viewModel.onTerminalResize(rows, cols) },

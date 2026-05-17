@@ -57,13 +57,16 @@ data class TerminalCell(
     var fgAttr: Int = SgrAttribute.DEFAULT,
     var bgAttr: Int = SgrAttribute.DEFAULT,
     /** Wide 文字 (CJK / 絵文字) の右半分セルか — true なら描画・テキスト抽出ではスキップ */
-    var wideCont: Boolean = false
+    var wideCont: Boolean = false,
+    /** OSC 8 ハイパーリンク URI (null なら通常テキスト) */
+    var link: String? = null
 ) {
     fun copyFrom(other: TerminalCell) {
         char = other.char
         fgAttr = other.fgAttr
         bgAttr = other.bgAttr
         wideCont = other.wideCont
+        link = other.link
     }
 
     fun clear() {
@@ -71,6 +74,7 @@ data class TerminalCell(
         fgAttr = SgrAttribute.DEFAULT
         bgAttr = SgrAttribute.DEFAULT
         wideCont = false
+        link = null
     }
 
     fun setClearedWith(fg: Int, bg: Int) {
@@ -78,5 +82,6 @@ data class TerminalCell(
         fgAttr = fg
         bgAttr = bg
         wideCont = false
+        link = null
     }
 }

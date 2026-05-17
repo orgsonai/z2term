@@ -66,6 +66,9 @@ class TerminalSession(
     private val launcher = ProotLauncher(appContext)
     private val settings = AppSettings(appContext)
 
+    private val _cwd = MutableStateFlow("")
+    val cwd: StateFlow<String> = _cwd.asStateFlow()
+
     val emulator = TerminalEmulator(
         output = { bytes -> writeToPty(bytes) },
         initialRows = 24,
@@ -75,7 +78,8 @@ class TerminalSession(
             cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
             _toastEvents.tryEmit("リモートからコピー (${text.length} 文字)")
         },
-        titleSetter = { title -> if (title.isNotBlank()) _label.value = title.take(20) }
+        titleSetter = { title -> if (title.isNotBlank()) _label.value = title.take(20) },
+        cwdSetter = { path -> _cwd.value = path }
     )
 
     private val _uiState = MutableStateFlow(UiState())

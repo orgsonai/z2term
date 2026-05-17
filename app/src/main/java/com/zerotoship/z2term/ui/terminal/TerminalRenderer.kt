@@ -275,6 +275,18 @@ private fun DrawScope.drawRow(
             drawText(layout, topLeft = Offset(x, y))
         }
 
+        // OSC 8 ハイパーリンク: 自動下線 (色は cyan に寄せる)
+        val linkPresent = startCell.link != null
+        if (linkPresent) {
+            val uy = y + charSize.height - 1f
+            drawLine(
+                color = androidx.compose.ui.graphics.Color(0xFF06B6D4),
+                start = Offset(x, uy),
+                end = Offset(x + spanWidth, uy),
+                strokeWidth = 1.5f
+            )
+        }
+
         // 下線
         if (SgrAttribute.hasFlag(startFg, SgrAttribute.FLAG_UNDERLINE)) {
             val uy = y + charSize.height - 1f
