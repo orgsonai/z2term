@@ -1,0 +1,10 @@
+0.6.0-alpha (M6)
+
+- SSH public-key auth (PEM with optional passphrase)
+- Android Keystore (AES-256/GCM) encryption for SSH credentials
+- known_hosts persistence + host-key verification dialog (MITM detection)
+- OSC 7 (current working directory)
+- OSC 8 (hyperlinks) — underlined, tap to open in browser/mail/etc.
+- Startup init command (global + per-SSH-profile, e.g. "tmux attach")
+- FOSS build flavor for F-Droid (no prebuilt binaries; runtime download)
+- DistroDownloader for fetching Alpine rootfs over HTTPS with SHA-256 check

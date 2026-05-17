@@ -9,35 +9,36 @@
 
 ## 現在のバージョン
 
-**0.5.0-alpha (M5: SSH + ジェスチャ + 配布準備)**
+**0.6.0-alpha (M6: SSH 強化 + FOSS フレーバー + リンク対応)**
 
-Milestone 5 で SSH クライアント・ピンチ操作・OSC 拡張・配布パイプラインを実装。
+Milestone 6 で SSH のセキュリティ強化、OSC 7/8、起動コマンド、FOSS フレーバーを実装。
 
-### M5 で追加された機能
+### M6 で追加された機能
 
-- **SSH クライアント** (JSch): プロファイル保存、パスワード認証、xterm-256color 接続
-- **ピンチでフォントサイズ変更** + 二本指ドラッグでスクロールバック閲覧
-- **OSC 拡張**: 4 (palette set) / 10/11/12 (default fg/bg/cursor) / 52 (clipboard)
-- **EAW Ambiguous 切替**: 罫線・矢印を CJK ロケール向けに wide 扱いするトグル
-- **配布パイプライン**: GitHub Actions CI + Release signing + ProGuard + F-Droid metadata
+- **SSH 公開鍵認証** + Android Keystore (AES-256/GCM) で機密フィールドを暗号化
+- **known_hosts 永続化**: 初回接続時のフィンガープリント確認ダイアログ、MITM 検知
+- **OSC 7 (cwd)**: シェルの current directory を `session.cwd` に反映
+- **OSC 8 (hyperlinks)**: リンク領域に下線、タップで `Intent.ACTION_VIEW` 起動
+- **起動時 init コマンド**: グローバル + SSH プロファイル別、RUNNING 400ms 後に自動送出
+- **FOSS ビルドフレーバー**: F-Droid 適合 (assets / prebuilt なし)、`DistroDownloader` で
+  公式 URL から tar.gz を取得 + SHA-256 検証
 
-### M4 以前の機能
+### M5 以前の機能
 
+- SSH 基礎 / ピンチ / OSC 4/10/11/12/52 / EAW Ambiguous / 配布パイプライン (M5)
 - East Asian Width / マルチタブ / IME 連動 / カスタムフォント / WakeLock (M4)
 - 代替スクリーン / フォアグラウンドサービス / 物理キーボード / 範囲選択 /
-  マルチディストロ (Alpine + Ubuntu) (M3)
-- VT100/xterm エミュレータ / 6 テーマ / スクロールバック /
-  クリップボード / UTF-8 (M2)
+  マルチディストロ (M3)
+- VT100/xterm エミュレータ / 6 テーマ / スクロールバック / UTF-8 (M2)
 - PRoot + Alpine の PoC (M1)
 
-### M5 でまだ対応していないこと (M6 以降で対応予定)
+### M6 でまだ対応していないこと (M7 以降で対応予定)
 
-- SSH 公開鍵認証 + Android Keystore でのパスワード暗号化
-- known_hosts 永続化 + ホスト鍵検証
-- 起動時自動コマンド (init スクリプト)
-- F-Droid 用 FOSS ビルドバリアント (assets 抜き)
-- OSC 7 (current directory) / OSC 8 (hyperlinks)
-- ローカルポートフォワーディング / リバース SSH
+- ローカルポートフォワーディング (-L) / リバース転送 (-R)
+- SFTP ファイル転送
+- mosh プロトコル対応 (UDP ベース)
+- 端末セッション分離 (each tab = independent emulator + buffer state)
+- リバース DNS / IPv6 接続のリトライ強化
 
 ## ビルド要件
 
@@ -125,9 +126,22 @@ z2term/
 │   ├── M2-HANDOFF.md
 │   ├── M3-HANDOFF.md
 │   ├── M4-HANDOFF.md
-│   └── M5-HANDOFF.md
-├── metadata/                     ← F-Droid メタデータ (M5)
-└── .github/workflows/build.yml   ← CI (M5)
+│   ├── M5-HANDOFF.md
+│   └── M6-HANDOFF.md
+├── metadata/                     ← F-Droid メタデータ
+└── .github/workflows/build.yml   ← CI (full + foss 両ビルド)
+```
+
+## ビルドバリアント
+
+| Flavor | 用途 | 同梱内容 |
+|---|---|---|
+| `full` | 内部/Play Store 配布 | assets と prebuilt バイナリを含む (各自配置が必要) |
+| `foss` | F-Droid 配布 | prebuilt 一切なし。`DistroDownloader` でランタイム取得 |
+
+```bash
+./gradlew assembleFullDebug   # 通常開発
+./gradlew assembleFossDebug   # F-Droid 適合確認
 ```
 
 ## 動作確認の流れ
