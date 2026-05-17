@@ -43,6 +43,7 @@ fun SettingsSheet(
     onDistroChange: (String) -> Unit,
     onFontIdChange: (String) -> Unit,
     onAmbiguousAsWideChange: (Boolean) -> Unit,
+    onInitCommandChange: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -93,6 +94,11 @@ fun SettingsSheet(
             AmbiguousWidthSection(
                 value = snapshot.ambiguousAsWide,
                 onChange = onAmbiguousAsWideChange
+            )
+
+            InitCommandSection(
+                value = snapshot.initCommand,
+                onChange = onInitCommandChange
             )
 
             Spacer(Modifier.height(8.dp))
@@ -271,6 +277,33 @@ private fun ScrollbackSection(current: Int, onChange: (Int) -> Unit) {
             activeTrackColor = ZtsGreen,
             inactiveTrackColor = ZtsBorder
         )
+    )
+}
+
+@Composable
+private fun InitCommandSection(value: String, onChange: (String) -> Unit) {
+    SectionHeader("起動後に自動実行するコマンド (空なら無し)")
+    androidx.compose.foundation.text.BasicTextField(
+        value = value,
+        onValueChange = onChange,
+        singleLine = true,
+        textStyle = androidx.compose.ui.text.TextStyle(
+            fontFamily = TerminalFontFamily,
+            fontSize = 14.sp,
+            color = ZtsTextPrimary
+        ),
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(ZtsGreen),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+            .background(ZtsBgPrimary)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    )
+    Text(
+        text = "例: tmux attach || tmux new",
+        color = ZtsTextSecondary,
+        fontSize = 11.sp
     )
 }
 

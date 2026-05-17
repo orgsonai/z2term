@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -121,6 +122,7 @@ class TerminalSession(
     fun setDistro(id: String) { scope.launch { settings.setDistro(id) } }
     fun setFontId(id: String) { scope.launch { settings.setFontId(id) } }
     fun setAmbiguousAsWide(v: Boolean) { scope.launch { settings.setAmbiguousAsWide(v) } }
+    fun setInitCommand(value: String) { scope.launch { settings.setInitCommand(value) } }
 
     /** 設定で選ばれているディストロを使って起動。明示的指定があればそれを優先 */
     fun startTerminal(distroOverride: DistroSpec? = null) {
@@ -172,6 +174,7 @@ class TerminalSession(
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }
                 _label.value = spec.id
                 startReadLoop(ch)
+                scheduleInitCommand(settingsFlow.value.initCommand)
 
             } catch (e: Throwable) {
                 Log.e(TAG, "Failed to start terminal", e)
@@ -191,6 +194,7 @@ class TerminalSession(
             _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "android-sh") }
             _label.value = "sh"
             startReadLoop(ch)
+            scheduleInitCommand(settingsFlow.value.initCommand)
         } catch (e: Throwable) {
             Log.e(TAG, "Even Android sh failed", e)
             writeBanner("致命的エラー: ${e.message}")
@@ -213,6 +217,8 @@ class TerminalSession(
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "ssh") }
                 _label.value = "ssh:${profile.name.ifEmpty { profile.host }}"
                 startReadLoop(ch)
+                val cmd = profile.initCommand.ifEmpty { settingsFlow.value.initCommand }
+                scheduleInitCommand(cmd)
             } catch (e: Throwable) {
                 Log.e(TAG, "SSH connect failed", e)
                 writeBanner("✗ SSH 接続失敗: ${e.message}")
@@ -244,6 +250,15 @@ class TerminalSession(
     }
 
     fun writeBytes(bytes: ByteArray) = writeToPty(bytes)
+
+    /** RUNNING になった後、シェルプロンプトが出る頃を見計らって init コマンドを送る */
+    private fun scheduleInitCommand(command: String) {
+        if (command.isBlank()) return
+        scope.launch {
+            delay(INIT_DELAY_MS)
+            writeBytes((command + "\n").toByteArray(Charsets.UTF_8))
+        }
+    }
 
     fun onResize(rows: Int, cols: Int) {
         channel?.resize(rows, cols)
@@ -311,5 +326,7 @@ class TerminalSession(
 
     companion object {
         private const val TAG = "TerminalSession"
+        /** init コマンド送出までの待機 (シェルプロンプト表示待ち) */
+        private const val INIT_DELAY_MS = 400L
     }
 }

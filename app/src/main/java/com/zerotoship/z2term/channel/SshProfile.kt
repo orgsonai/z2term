@@ -32,7 +32,9 @@ data class SshProfile(
     /** PUBLIC_KEY 認証時の秘密鍵 PEM (平文。永続化時に暗号化) */
     val privateKey: String = "",
     /** 鍵にパスフレーズがある場合 (平文。永続化時に暗号化) */
-    val keyPassphrase: String = ""
+    val keyPassphrase: String = "",
+    /** 接続後に自動実行するコマンド (空なら何もしない) */
+    val initCommand: String = ""
 ) {
 
     enum class AuthType { PASSWORD, PUBLIC_KEY }
@@ -48,6 +50,7 @@ data class SshProfile(
         put("password", KeystoreCrypt.encrypt(password))
         put("privateKey", KeystoreCrypt.encrypt(privateKey))
         put("keyPassphrase", KeystoreCrypt.encrypt(keyPassphrase))
+        put("initCommand", initCommand)
     }
 
     companion object {
@@ -62,7 +65,8 @@ data class SshProfile(
             }.getOrDefault(AuthType.PASSWORD),
             password = runCatching { KeystoreCrypt.decrypt(o.optString("password")) }.getOrDefault(""),
             privateKey = runCatching { KeystoreCrypt.decrypt(o.optString("privateKey")) }.getOrDefault(""),
-            keyPassphrase = runCatching { KeystoreCrypt.decrypt(o.optString("keyPassphrase")) }.getOrDefault("")
+            keyPassphrase = runCatching { KeystoreCrypt.decrypt(o.optString("keyPassphrase")) }.getOrDefault(""),
+            initCommand = o.optString("initCommand")
         )
     }
 }

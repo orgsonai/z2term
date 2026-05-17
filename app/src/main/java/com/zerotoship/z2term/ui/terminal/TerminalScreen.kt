@@ -289,6 +289,7 @@ fun TerminalScreen(
             onDistroChange = { viewModel.updateDistro(it) },
             onFontIdChange = { viewModel.updateFontId(it) },
             onAmbiguousAsWideChange = { viewModel.updateAmbiguousAsWide(it) },
+            onInitCommandChange = { viewModel.updateInitCommand(it) },
             onDismiss = { showSettings = false }
         )
     }

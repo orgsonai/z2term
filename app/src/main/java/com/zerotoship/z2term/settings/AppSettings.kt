@@ -27,7 +27,8 @@ class AppSettings(private val context: Context) {
         val scrollbackLines: Int = DEFAULT_SCROLLBACK_LINES,
         val distroId: String = DEFAULT_DISTRO,
         val fontId: String = DEFAULT_FONT,
-        val ambiguousAsWide: Boolean = DEFAULT_AMBIGUOUS_AS_WIDE
+        val ambiguousAsWide: Boolean = DEFAULT_AMBIGUOUS_AS_WIDE,
+        val initCommand: String = ""
     )
 
     val flow: Flow<Snapshot> = context.dataStore.data.map { p ->
@@ -37,8 +38,13 @@ class AppSettings(private val context: Context) {
             scrollbackLines = p[KEY_SCROLLBACK] ?: DEFAULT_SCROLLBACK_LINES,
             distroId = p[KEY_DISTRO_ID] ?: DEFAULT_DISTRO,
             fontId = p[KEY_FONT_ID] ?: DEFAULT_FONT,
-            ambiguousAsWide = p[KEY_AMBIGUOUS_WIDE] ?: DEFAULT_AMBIGUOUS_AS_WIDE
+            ambiguousAsWide = p[KEY_AMBIGUOUS_WIDE] ?: DEFAULT_AMBIGUOUS_AS_WIDE,
+            initCommand = p[KEY_INIT_COMMAND] ?: ""
         )
+    }
+
+    suspend fun setInitCommand(value: String) {
+        context.dataStore.edit { it[KEY_INIT_COMMAND] = value }
     }
 
     suspend fun setAmbiguousAsWide(value: Boolean) {
@@ -86,5 +92,6 @@ class AppSettings(private val context: Context) {
         private val KEY_DISTRO_ID = stringPreferencesKey("distro_id")
         private val KEY_FONT_ID = stringPreferencesKey("font_id")
         private val KEY_AMBIGUOUS_WIDE = booleanPreferencesKey("ambiguous_as_wide")
+        private val KEY_INIT_COMMAND = stringPreferencesKey("init_command")
     }
 }

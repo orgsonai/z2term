@@ -188,6 +188,7 @@ private fun ProfileEditorDialog(
     var password by remember { mutableStateOf(initial.password) }
     var privateKey by remember { mutableStateOf(initial.privateKey) }
     var passphrase by remember { mutableStateOf(initial.keyPassphrase) }
+    var initCmd by remember { mutableStateOf(initial.initCommand) }
 
     AlertDialog(
         onDismissRequest = onCancel,
@@ -230,6 +231,8 @@ private fun ProfileEditorDialog(
                     EditorField("秘密鍵 (PEM 全文)", privateKey, multiLine = true) { privateKey = it }
                     EditorField("パスフレーズ (任意)", passphrase, password = true) { passphrase = it }
                 }
+
+                EditorField("接続後に実行 (任意)", initCmd) { initCmd = it }
             }
         },
         confirmButton = {
@@ -243,7 +246,8 @@ private fun ProfileEditorDialog(
                         authType = authType,
                         password = if (authType == SshProfile.AuthType.PASSWORD) password else "",
                         privateKey = if (authType == SshProfile.AuthType.PUBLIC_KEY) privateKey else "",
-                        keyPassphrase = if (authType == SshProfile.AuthType.PUBLIC_KEY) passphrase else ""
+                        keyPassphrase = if (authType == SshProfile.AuthType.PUBLIC_KEY) passphrase else "",
+                        initCommand = initCmd
                     )
                 )
             }) {

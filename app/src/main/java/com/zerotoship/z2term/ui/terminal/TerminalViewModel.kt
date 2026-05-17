@@ -173,6 +173,7 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     fun updateDistro(id: String) = session.setDistro(id)
     fun updateFontId(id: String) = session.setFontId(id)
     fun updateAmbiguousAsWide(v: Boolean) = session.setAmbiguousAsWide(v)
+    fun updateInitCommand(value: String) = session.setInitCommand(value)
 
     fun stopAndExit() { TerminalService.stop(getApplication()) }
 
