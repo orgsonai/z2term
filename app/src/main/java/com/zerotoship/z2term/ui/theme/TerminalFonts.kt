@@ -6,21 +6,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.Typeface as ComposeTypeface
 
 /**
  * ターミナル用フォントの選択肢。
  *
- * - `monospace` : Android 標準 `FontFamily.Monospace`
- * - `assets/fonts/*.ttf` を配置すると追加候補として認識される
+ * - monospace : Android 標準 FontFamily.Monospace
+ * - assets/fonts/ 配下に TTF を置くと追加候補として認識される
  *
- * カスタムフォントは [TerminalFontOption.assetFile] が assets 内に存在するかを
+ * カスタムフォントは TerminalFontOption.assetFile が assets 内に存在するかを
  * チェックし、ある場合のみ実体を返す。なければ Monospace にフォールバック。
  */
 data class TerminalFontOption(
     val id: String,
     val displayName: String,
-    /** null なら system Monospace、それ以外は assets/fonts/<assetFile> を読む */
     val assetFile: String? = null
 )
 
@@ -50,8 +48,8 @@ fun rememberTerminalFontFamily(option: TerminalFontOption): FontFamily {
     return remember(option.id) {
         val file = option.assetFile ?: return@remember FontFamily.Monospace
         try {
-            val tf = Typeface.createFromAsset(context.assets, "fonts/$file")
-            FontFamily(ComposeTypeface(tf))
+            val tf: Typeface = Typeface.createFromAsset(context.assets, "fonts/$file")
+            FontFamily(tf)
         } catch (e: Exception) {
             FontFamily.Monospace
         }
