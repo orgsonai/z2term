@@ -12,6 +12,42 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
+ * ローカルポート転送 (ssh -L) 1 件分の設定。
+ *
+ * bindAddress を 127.0.0.1 に固定すると端末上の他アプリだけがアクセス可能、
+ * 0.0.0.0 にすると同 Wi-Fi 上の他デバイスからもアクセス可能 (注意)。
+ *
+ * 例: `localPort=8080, remoteHost=localhost, remotePort=80` で
+ * リモートホスト上の HTTP サーバを端末の 127.0.0.1:8080 にトンネルする。
+ */
+data class PortForward(
+    /** 端末側で listen するアドレス (既定: 127.0.0.1) */
+    val bindAddress: String = "127.0.0.1",
+    /** 端末側で listen するポート (1〜65535) */
+    val localPort: Int,
+    /** リモートホストから見た接続先 (localhost や内部 IP など) */
+    val remoteHost: String,
+    /** リモートホストから見た接続先ポート */
+    val remotePort: Int
+) {
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("bindAddress", bindAddress)
+        put("localPort", localPort)
+        put("remoteHost", remoteHost)
+        put("remotePort", remotePort)
+    }
+
+    companion object {
+        fun fromJson(o: JSONObject): PortForward = PortForward(
+            bindAddress = o.optString("bindAddress", "127.0.0.1"),
+            localPort = o.optInt("localPort"),
+            remoteHost = o.optString("remoteHost"),
+            remotePort = o.optInt("remotePort")
+        )
+    }
+}
+
+/**
  * SSH 接続プロファイル。
  *
  * - PASSWORD 認証: password フィールドを使う
@@ -19,6 +55,8 @@ import org.json.JSONObject
  *
  * 永続化時、password / privateKey / keyPassphrase は [KeystoreCrypt] で
  * AES-GCM 暗号化されてから DataStore に書かれる。
+ *
+ * M7 で [forwards] を追加 (-L ローカルポート転送)。
  */
 data class SshProfile(
     val id: String,
@@ -34,7 +72,9 @@ data class SshProfile(
     /** 鍵にパスフレーズがある場合 (平文。永続化時に暗号化) */
     val keyPassphrase: String = "",
     /** 接続後に自動実行するコマンド (空なら何もしない) */
-    val initCommand: String = ""
+    val initCommand: String = "",
+    /** -L ローカルポート転送のリスト (空なら何もしない) */
+    val forwards: List<PortForward> = emptyList()
 ) {
 
     enum class AuthType { PASSWORD, PUBLIC_KEY }
@@ -51,6 +91,9 @@ data class SshProfile(
         put("privateKey", KeystoreCrypt.encrypt(privateKey))
         put("keyPassphrase", KeystoreCrypt.encrypt(keyPassphrase))
         put("initCommand", initCommand)
+        put("forwards", JSONArray().also { arr ->
+            forwards.forEach { arr.put(it.toJson()) }
+        })
     }
 
     companion object {
@@ -66,7 +109,11 @@ data class SshProfile(
             password = runCatching { KeystoreCrypt.decrypt(o.optString("password")) }.getOrDefault(""),
             privateKey = runCatching { KeystoreCrypt.decrypt(o.optString("privateKey")) }.getOrDefault(""),
             keyPassphrase = runCatching { KeystoreCrypt.decrypt(o.optString("keyPassphrase")) }.getOrDefault(""),
-            initCommand = o.optString("initCommand")
+            initCommand = o.optString("initCommand"),
+            forwards = runCatching {
+                val arr = o.optJSONArray("forwards") ?: return@runCatching emptyList()
+                List(arr.length()) { PortForward.fromJson(arr.getJSONObject(it)) }
+            }.getOrDefault(emptyList())
         )
     }
 }

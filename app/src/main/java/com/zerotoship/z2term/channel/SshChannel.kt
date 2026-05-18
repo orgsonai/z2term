@@ -22,7 +22,9 @@ import java.util.Properties
  */
 class SshChannel private constructor(
     private val session: Session,
-    private val channel: ChannelShell
+    private val channel: ChannelShell,
+    /** 接続時に確立できたポート転送の人間可読サマリ (UI バナー用) */
+    val forwardSummary: List<String> = emptyList()
 ) : ProcessChannel {
 
     override val reader: InputStream = channel.inputStream
@@ -83,12 +85,28 @@ class SshChannel private constructor(
             session.userInfo = VerifyingUserInfo(profile)
             session.connect(CONNECT_TIMEOUT_MS)
 
+            // M7: -L ローカルポート転送をセッション開通直後に設定。
+            // 失敗した転送は警告ログに留め、確立できたものはサマリを返す。
+            val summary = mutableListOf<String>()
+            for (fwd in profile.forwards) {
+                try {
+                    val assigned = session.setPortForwardingL(
+                        fwd.bindAddress, fwd.localPort, fwd.remoteHost, fwd.remotePort
+                    )
+                    summary += "${fwd.bindAddress}:${assigned} → ${fwd.remoteHost}:${fwd.remotePort}"
+                    Log.i(TAG, "PortForwardL: ${fwd.bindAddress}:$assigned → ${fwd.remoteHost}:${fwd.remotePort}")
+                } catch (e: Exception) {
+                    Log.w(TAG, "PortForwardL failed for $fwd: ${e.message}")
+                    summary += "✗ ${fwd.bindAddress}:${fwd.localPort} (${e.message})"
+                }
+            }
+
             val channel = session.openChannel("shell") as ChannelShell
             channel.setPtyType("xterm-256color")
             channel.setPtySize(cols, rows, cols * 8, rows * 16)
             channel.connect(CONNECT_TIMEOUT_MS)
             Log.i(TAG, "SSH connected to ${profile.user}@${profile.host}:${profile.port}")
-            return SshChannel(session, channel)
+            return SshChannel(session, channel, summary)
         }
 
         private const val CONNECT_TIMEOUT_MS = 15_000
