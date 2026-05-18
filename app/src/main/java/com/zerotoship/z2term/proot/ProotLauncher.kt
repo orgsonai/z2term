@@ -101,11 +101,18 @@ class ProotLauncher(private val context: Context) {
     /**
      * フォールバック: PRoot を使わずに Android の /system/bin/sh を起動。
      *
-     * これは M1 開発時の動作確認用。
-     * PRoot 整備前でもターミナルが動くことを確認できる。
+     * Android mksh は /system/etc/mkshrc を強制的に読み込み、複雑な多行 PS1
+     * (exit code 付き、cwd 全文、場合により改行入り) を設定する。
+     * これがキーストロークごとのライン再描画と相まって、入力が「縦に積まれた
+     * バラバラの行」に見える原因になる。
+     *
+     * 対策として、我々の制御下にある mkshrc.local を filesDir に書き出し、
+     * `ENV=<path>` で mksh に読ませる。mkshrc.local は /system/etc/mkshrc の
+     * 後で評価されるので、ここで設定する PS1 が最終値として採用される。
      */
     fun launchAndroidSh(rows: Int = 24, cols: Int = 80): PtyProcess {
         Log.i(TAG, "Launching Android /system/bin/sh (fallback mode)")
+        val rcFile = ensureCleanShellRc()
         return PtyProcess.create(
             command = "/system/bin/sh",
             args = arrayOf("sh"),
@@ -114,12 +121,37 @@ class ProotLauncher(private val context: Context) {
                 "TERM=xterm-256color",
                 "PATH=/system/bin:/system/xbin:/vendor/bin",
                 "TMPDIR=${context.cacheDir.absolutePath}",
-                "PS1=z2term:android $ "
+                // mksh が interactive 起動時に source する rc ファイル。
+                // ここで PS1 をクリーンな 1 行プロンプトに固定する。
+                "ENV=${rcFile.absolutePath}",
+                "PS1=$ ",
+                "PS2=> "
             ),
             cwd = context.filesDir.absolutePath,
             rows = rows,
             cols = cols
         )
+    }
+
+    /**
+     * mksh 用 rc を filesDir に毎回書き出す (バージョン更新時の確実反映を兼ねて)。
+     * 単一行 PS1 + シンプル PS2 + シェルが余計な color/format を吐かないよう
+     * stty も整える。
+     */
+    private fun ensureCleanShellRc(): java.io.File {
+        val rc = java.io.File(context.filesDir, ".z2term_mkshrc")
+        rc.writeText(
+            """
+            # z2term auto-generated mkshrc — keep prompt minimal so the terminal
+            # emulator can render typing on a single line without re-flow.
+            export PS1='$ '
+            export PS2='> '
+            # disable mksh emacs-style line redraw escapes that confuse simple
+            # emulators (best-effort; the actual flag varies between builds).
+            set +o multiline 2>/dev/null
+            """.trimIndent() + "\n"
+        )
+        return rc
     }
 
     /** ディストロが展開済みか確認 */

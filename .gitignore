@@ -31,6 +31,9 @@ keystore.properties
 Thumbs.db
 *~
 
+# logcat 抜粋・実機デバッグ用ログ
+*.log
+
 # Claude Code local settings
 .claude/settings.local.json
 

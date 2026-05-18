@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -31,6 +32,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Terminal セッション本体。
@@ -62,6 +65,14 @@ class TerminalSession(
     )
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    // PTY 読込 + emulator 状態更新を 1 本のシリアル executor 上で実行する。
+    // Compose 側は emulator buffer を Main で読むため、書き手側の競合を 1 スレッドに
+    // 寄せつつ、StateFlow 通知経由でメモリ可視性を確保する。
+    private val emulatorExecutor = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "z2term-emu-${id.take(8)}").apply { isDaemon = true }
+    }
+    private val emulatorDispatcher = emulatorExecutor.asCoroutineDispatcher()
 
     private val installer = DistroInstaller(appContext)
     private val launcher = ProotLauncher(appContext)
@@ -134,7 +145,9 @@ class TerminalSession(
                 ?: DistroSpec.ALPINE
             try {
                 if (!launcher.isProotAvailable()) {
-                    writeBanner("⚠ PRoot バイナリが見つかりません。Android sh モードで起動します。")
+                    // PRoot 未配置時は警告を出さず、無言で android-sh にフォールバック。
+                    // バナーを出すと毎回画面が汚れて UX を損ねるため。
+                    Log.i(TAG, "PRoot binary not present; falling back to android-sh")
                     fallbackToAndroidSh()
                     return@launch
                 }
@@ -216,6 +229,12 @@ class TerminalSession(
                 channel = ch
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "ssh") }
                 _label.value = "ssh:${profile.name.ifEmpty { profile.host }}"
+                // ポート転送が定義されていれば結果をバナーに出す (UX)
+                if (ch.forwardSummary.isNotEmpty()) {
+                    ch.forwardSummary.forEach { line ->
+                        writeBanner("🔀 forward $line")
+                    }
+                }
                 startReadLoop(ch)
                 val cmd = profile.initCommand.ifEmpty { settingsFlow.value.initCommand }
                 scheduleInitCommand(cmd)
@@ -229,14 +248,34 @@ class TerminalSession(
 
     private fun startReadLoop(ch: ProcessChannel) {
         readJob?.cancel()
+        // PTY blocking read は IO で行い、emulator 処理は専用シリアルスレッドに hand off。
+        // これで clearOutput / restart など他経路の emulator 操作も同じスレッド上で
+        // 直列化でき、UI スレッドとのレースを完全に排除できる。
         readJob = scope.launch(Dispatchers.IO) {
-            val buffer = ByteArray(4096)
+            val buffer = ByteArray(8192)
             try {
                 while (ch.isAlive) {
                     val read = ch.reader.read(buffer)
                     if (read < 0) break
                     if (read > 0) {
-                        emulator.processBytes(buffer, read)
+                        val chunk = buffer.copyOf(read)
+                        // ユーザーが手動スクロール中 (scrollOffset > 0) は、新規行が
+                        // 追加されても視点を固定する。emulator が scrollback に
+                        // 押し出した行数だけ scrollOffset を増やして相殺。
+                        // scrollOffset = 0 (張り付き mode) ではそのまま最新が下端。
+                        val deltaScrollback = withContext(emulatorDispatcher) {
+                            val before = emulator.buffer.scrollbackSize
+                            emulator.processBytes(chunk, chunk.size)
+                            emulator.buffer.scrollbackSize - before
+                        }
+                        if (deltaScrollback > 0) {
+                            val current = _scrollOffset.value
+                            if (current > 0) {
+                                _scrollOffset.value =
+                                    (current + deltaScrollback)
+                                        .coerceAtMost(emulator.buffer.scrollbackSize)
+                            }
+                        }
                         bumpRedraw()
                     }
                 }
@@ -249,7 +288,17 @@ class TerminalSession(
         }
     }
 
-    fun writeBytes(bytes: ByteArray) = writeToPty(bytes)
+    fun writeBytes(bytes: ByteArray) {
+        // ユーザー入力時は必ず最下行へジャンプ。
+        // スクロールバック中に typing 結果が見えなくなる事故を防ぐ。
+        _scrollOffset.value = 0
+        // 診断ログ: 実際に PTY へ送るバイト列を hex で残す。
+        // `adb logcat -s TerminalSession` で確認可能。
+        if (Log.isLoggable(TAG, Log.DEBUG) || true) {
+            Log.d(TAG, "writeBytes (${bytes.size}B): ${bytes.joinToString(" ") { "%02X".format(it) }}")
+        }
+        writeToPty(bytes)
+    }
 
     /** RUNNING になった後、シェルプロンプトが出る頃を見計らって init コマンドを送る */
     private fun scheduleInitCommand(command: String) {
@@ -261,6 +310,10 @@ class TerminalSession(
     }
 
     fun onResize(rows: Int, cols: Int) {
+        // emulator buffer の resize は他の processBytes と排他するため emulator スレッドへ。
+        scope.launch(emulatorDispatcher) {
+            emulator.resize(rows, cols)
+        }
         channel?.resize(rows, cols)
         bumpRedraw()
     }
@@ -275,19 +328,23 @@ class TerminalSession(
     fun jumpToBottom() { _scrollOffset.value = 0 }
 
     fun clearOutput() {
-        emulator.processBytes(byteArrayOf(
-            0x1B, '['.code.toByte(), '2'.code.toByte(), 'J'.code.toByte(),
-            0x1B, '['.code.toByte(), '3'.code.toByte(), 'J'.code.toByte(),
-            0x1B, '['.code.toByte(), 'H'.code.toByte()
-        ))
-        bumpRedraw()
+        scope.launch(emulatorDispatcher) {
+            emulator.processBytes(byteArrayOf(
+                0x1B, '['.code.toByte(), '2'.code.toByte(), 'J'.code.toByte(),
+                0x1B, '['.code.toByte(), '3'.code.toByte(), 'J'.code.toByte(),
+                0x1B, '['.code.toByte(), 'H'.code.toByte()
+            ))
+            bumpRedraw()
+        }
     }
 
     fun restart() {
         channel?.close()
         channel = null
         readJob?.cancel()
-        emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
+        scope.launch(emulatorDispatcher) {
+            emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
+        }
         _uiState.update { UiState() }
         _scrollOffset.value = 0
         startTerminal()
@@ -301,10 +358,14 @@ class TerminalSession(
         channel = null
         readJob?.cancel()
         scope.cancel()
+        // 専用スレッドも片付ける (FG service 終了時のリーク防止)
+        runCatching { emulatorDispatcher.close() }
+        runCatching { emulatorExecutor.shutdownNow() }
     }
 
     private fun writeToPty(bytes: ByteArray) {
         val pty = channel ?: return
+        // PTY 書込みは IO で十分 (emulator buffer に触れないため)
         scope.launch(Dispatchers.IO) {
             try {
                 pty.writer.write(bytes)
@@ -316,11 +377,26 @@ class TerminalSession(
     }
 
     private fun writeBanner(text: String) {
-        emulator.processBytes(("$text\r\n").toByteArray(Charsets.UTF_8))
-        bumpRedraw()
+        val bytes = ("$text\r\n").toByteArray(Charsets.UTF_8)
+        scope.launch(emulatorDispatcher) {
+            emulator.processBytes(bytes, bytes.size)
+            bumpRedraw()
+        }
     }
 
-    private fun bumpRedraw() { _redrawTick.update { it + 1 } }
+    // redraw 通知のコアレッシング:
+    // - bumpRedraw が連打されても、Main へ届くのは ~16ms 間隔に間引かれる。
+    // - これにより echo 1 文字 × N 回でも recomposition が 60fps 程度に抑えられる。
+    private val redrawScheduled = AtomicBoolean(false)
+    private fun bumpRedraw() {
+        if (redrawScheduled.compareAndSet(false, true)) {
+            scope.launch {
+                delay(REDRAW_INTERVAL_MS)
+                redrawScheduled.set(false)
+                _redrawTick.update { it + 1 }
+            }
+        }
+    }
 
     private fun currentSize(): Pair<Int, Int> = emulator.buffer.rows to emulator.buffer.columns
 
@@ -328,5 +404,7 @@ class TerminalSession(
         private const val TAG = "TerminalSession"
         /** init コマンド送出までの待機 (シェルプロンプト表示待ち) */
         private const val INIT_DELAY_MS = 400L
+        /** redraw 通知の最短間隔 (~60fps) */
+        private const val REDRAW_INTERVAL_MS = 16L
     }
 }
