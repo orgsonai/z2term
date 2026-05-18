@@ -1,341 +1,271 @@
 package com.zerotoship.z2term.ui.terminal
 
+import android.graphics.Paint
+import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.TextMeasurer
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.emulator.SgrAttribute
 import com.zerotoship.z2term.emulator.TerminalColors
-import com.zerotoship.z2term.emulator.TerminalEmulator
-import com.zerotoship.z2term.emulator.TerminalRow
+import com.zerotoship.z2term.ui.theme.TerminalFontOptions
 
 /**
- * TerminalEmulator のバッファを Compose Canvas で描画する。
+ * エミュレータバッファをネイティブ Canvas に描く。
  *
- * - `BoxWithConstraints` で利用可能領域を取得
- * - `TextMeasurer` で 1 文字 (FullWidth ASCII の "M") の幅・高さを測り、cols/rows を逆算
- * - rows/cols が変わったら `emulator.resize()` + `onSizeChanged` を発火
- * - 同じ属性が並ぶセルをまとめて 1 回の `drawText` で描画 (最適化)
- * - `redrawTrigger` を読むことで recomposition を強制
- * - `scrollOffset` で表示開始行をずらす (スクロールバック閲覧)
+ * 設計:
+ * - `BoxWithConstraints` で利用領域を測り、フォントメトリクスから rows/cols を逆算して
+ *   `session.onResize(rows, cols)` を発火。
+ * - 描画は「絶対行 (scrollback + 画面) インデックス」で行うことで、emulator.resize 非同期
+ *   反映中でも「最新行が常に canvas 下端」になる (handoff §D 参照)。
+ * - 同 SGR 属性が続くセルは 1 回の `drawText` にまとめ、塗りつぶしは矩形 1 つで処理。
+ * - 全角文字は `wideCont` セルをスキップして 1 文字を 2 セル幅で描く。
+ * - カーソルは前景・背景を反転 (cursorColor を背景に、defaultBackground を文字色に)。
+ * - ハイパーリンク (`cell.link`) はアンダーラインで視覚化 (Phase 1 は描画のみ、tap は後続)。
+ *
+ * 入力イベントは取らない。タップは親 (TerminalScreen) で IME 起動に変換する。
  */
 @Composable
 fun TerminalRenderer(
-    emulator: TerminalEmulator,
-    fontSize: TextUnit = 13.sp,
-    fontFamily: FontFamily = FontFamily.Monospace,
-    modifier: Modifier = Modifier,
-    onSizeChanged: (rows: Int, cols: Int) -> Unit = { _, _ -> },
-    onCharSizeChanged: (widthPx: Float, heightPx: Float) -> Unit = { _, _ -> },
-    redrawTrigger: Int = 0,
-    scrollOffset: Int = 0,
-    selectionStartRow: Int = -1,
-    selectionStartCol: Int = -1,
-    selectionEndRow: Int = -1,
-    selectionEndCol: Int = -1
+    session: TerminalSession,
+    modifier: Modifier = Modifier
 ) {
+    val redrawTick by session.redrawTick.collectAsState()
+    val scrollOffset by session.scrollOffset.collectAsState()
+    val settings by session.settingsFlow.collectAsState()
+
     val density = LocalDensity.current
-    val textMeasurer = rememberTextMeasurer()
+    val context = LocalContext.current
 
-    val baseStyle = remember(fontSize, fontFamily) {
-        TextStyle(fontFamily = fontFamily, fontSize = fontSize)
+    val fontOption = remember(settings.fontId) { TerminalFontOptions.byId(settings.fontId) }
+    val typeface = remember(fontOption.id) {
+        val asset = fontOption.assetFile
+        if (asset != null) {
+            try {
+                Typeface.createFromAsset(context.assets, "fonts/$asset")
+            } catch (_: Exception) {
+                Typeface.MONOSPACE
+            }
+        } else {
+            Typeface.MONOSPACE
+        }
     }
-    val charSize = remember(baseStyle) {
-        // モノスペースなので "M" の幅で代用 (CJK は別途半角扱い、M2 範囲)
-        val r = textMeasurer.measure("M", baseStyle)
-        Size(r.size.width.toFloat(), r.size.height.toFloat())
+
+    val fontSizePx = with(density) { settings.fontSizeSp.sp.toPx() }
+    val textPaint = remember(typeface, fontSizePx) {
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.typeface = typeface
+            textSize = fontSizePx
+            isSubpixelText = true
+        }
+    }
+    val bgPaint = remember { Paint() }
+    val underlinePaint = remember(fontSizePx) {
+        Paint().apply { strokeWidth = (fontSizePx / 14f).coerceAtLeast(1f) }
     }
 
-    val sizeCallback by rememberUpdatedState(onSizeChanged)
+    val metrics = textPaint.fontMetrics
+    val lineHeight = (metrics.descent - metrics.ascent + metrics.leading).coerceAtLeast(1f)
+    val cellW = textPaint.measureText("M").coerceAtLeast(1f)
+    val baselineOffset = -metrics.ascent
 
-    BoxWithConstraints(modifier) {
-        val widthPx = with(density) { maxWidth.toPx() }
-        val heightPx = with(density) { maxHeight.toPx() }
-        val cols = (widthPx / charSize.width).toInt().coerceAtLeast(1)
-        val rows = (heightPx / charSize.height).toInt().coerceAtLeast(1)
+    BoxWithConstraints(modifier = modifier) {
+        val canvasWPx = with(density) { maxWidth.toPx() }
+        val canvasHPx = with(density) { maxHeight.toPx() }
+        val cols = (canvasWPx / cellW).toInt().coerceAtLeast(1)
+        val rows = (canvasHPx / lineHeight).toInt().coerceAtLeast(1)
 
         LaunchedEffect(rows, cols) {
-            emulator.resize(rows, cols)
-            sizeCallback(rows, cols)
-        }
-        LaunchedEffect(charSize) {
-            onCharSizeChanged(charSize.width, charSize.height)
+            session.onResize(rows, cols)
         }
 
-        // redrawTrigger を Canvas のキャプチャに巻き込み、recomposition を発生させる
-        @Suppress("UNUSED_EXPRESSION") redrawTrigger
-
-        Canvas(Modifier.fillMaxSize()) {
-            drawTerminal(
-                emulator = emulator,
-                charSize = charSize,
-                textMeasurer = textMeasurer,
-                baseStyle = baseStyle,
-                scrollOffset = scrollOffset
-            )
-            if (selectionStartRow >= 0 && selectionEndRow >= 0) {
-                drawSelectionOverlay(
-                    emulator = emulator,
-                    charSize = charSize,
-                    scrollOffset = scrollOffset,
-                    sRow = selectionStartRow, sCol = selectionStartCol,
-                    eRow = selectionEndRow, eCol = selectionEndCol
+        Canvas(modifier = Modifier.matchParentSize()) {
+            // closure が redrawTick を読むことで recomposition → draw 再実行
+            @Suppress("UNUSED_VARIABLE")
+            val tick = redrawTick
+            drawIntoCanvas { canvas ->
+                drawBuffer(
+                    nativeCanvas = canvas.nativeCanvas,
+                    session = session,
+                    textPaint = textPaint,
+                    bgPaint = bgPaint,
+                    underlinePaint = underlinePaint,
+                    cellW = cellW,
+                    lineHeight = lineHeight,
+                    baselineOffset = baselineOffset,
+                    canvasRows = rows,
+                    canvasCols = cols,
+                    scrollOffset = scrollOffset
                 )
             }
         }
     }
 }
 
-private fun DrawScope.drawSelectionOverlay(
-    emulator: TerminalEmulator,
-    charSize: Size,
-    scrollOffset: Int,
-    sRow: Int, sCol: Int,
-    eRow: Int, eCol: Int
-) {
-    // 正規化
-    val (startRow, startCol, endRow, endCol) = if (
-        sRow < eRow || (sRow == eRow && sCol <= eCol)
-    ) listOf(sRow, sCol, eRow, eCol) else listOf(eRow, eCol, sRow, sCol)
-
-    val buffer = emulator.buffer
-    val viewRows = buffer.rows
-    val startRowIndex = buffer.scrollbackSize - scrollOffset.coerceIn(0, buffer.scrollbackSize)
-
-    // 画面上の表示行範囲
-    val viewStart = startRow - startRowIndex
-    val viewEnd = endRow - startRowIndex
-
-    if (viewEnd < 0 || viewStart >= viewRows) return  // 表示範囲外
-
-    val selColor = androidx.compose.ui.graphics.Color(
-        emulator.colors.cursorColor.toLong() or 0xFF000000
-    ).copy(alpha = 0.30f)
-
-    for (r in viewStart.coerceAtLeast(0)..viewEnd.coerceAtMost(viewRows - 1)) {
-        val absRow = r + startRowIndex
-        val cols = buffer.columns
-        val from = if (absRow == startRow) startCol.coerceIn(0, cols) else 0
-        val toExclusive = if (absRow == endRow) (endCol + 1).coerceIn(0, cols) else cols
-        if (toExclusive <= from) continue
-        drawRect(
-            color = selColor,
-            topLeft = Offset(from * charSize.width, r * charSize.height),
-            size = Size((toExclusive - from) * charSize.width, charSize.height)
-        )
-    }
-}
-
-private fun DrawScope.drawTerminal(
-    emulator: TerminalEmulator,
-    charSize: Size,
-    textMeasurer: TextMeasurer,
-    baseStyle: TextStyle,
+private fun drawBuffer(
+    nativeCanvas: android.graphics.Canvas,
+    session: TerminalSession,
+    textPaint: Paint,
+    bgPaint: Paint,
+    underlinePaint: Paint,
+    cellW: Float,
+    lineHeight: Float,
+    baselineOffset: Float,
+    canvasRows: Int,
+    canvasCols: Int,
     scrollOffset: Int
 ) {
-    val colors = emulator.colors
-    val buffer = emulator.buffer
+    val emu = session.emulator
+    val buf = emu.buffer
+    val colors = emu.colors
 
-    // 背景全塗り
-    drawRect(color = argbToColor(colors.defaultBackground), size = size)
+    // 全面を default 背景でクリア
+    bgPaint.color = colors.defaultBackground
+    nativeCanvas.drawRect(
+        0f, 0f,
+        cellW * canvasCols, lineHeight * canvasRows,
+        bgPaint
+    )
 
-    val viewRows = buffer.rows
-    val viewCols = buffer.columns
+    // 描画範囲の計算 (絶対行 = scrollback + screen の連結インデックス)。
+    //
+    // - 手動スクロール中 (scrollOffset > 0): ユーザーが固定した視点を保つ。
+    //   bottom はバッファ最下行から scrollOffset 行ぶん上がった位置。
+    // - 張り付き mode (scrollOffset == 0): カーソルを必ず canvas 内に収めるよう
+    //   bottom はカーソル行と「最初に画面が埋まる行 (canvasRows-1)」のうち大きい方。
+    //   これにより fresh shell (cursorRow=0, buf.rows=51, canvasRows=25 等) でも
+    //   プロンプトが top に表示され、シェルが output で進むに従い canvas 下端に張り付く。
+    val cursorAbsRow = buf.scrollbackSize + emu.cursorRow
+    val bottomAbsRow = if (scrollOffset == 0) {
+        cursorAbsRow.coerceAtLeast(buf.scrollbackSize + canvasRows - 1)
+    } else {
+        buf.scrollbackSize + buf.rows - 1 - scrollOffset
+    }
+    val topAbsRow = bottomAbsRow - canvasRows + 1
 
-    // スクロールオフセットの正規化:
-    //   0 = 通常 (スクリーン表示)
-    //   N > 0 = N 行スクロールバックを表示
-    val maxOffset = buffer.scrollbackSize
-    val offset = scrollOffset.coerceIn(0, maxOffset)
-    val startRowIndex = buffer.scrollbackSize - offset  // getRow に渡す開始 index
+    val totalRows = buf.totalRows
+    val sb = StringBuilder(canvasCols)
 
-    for (rowOnScreen in 0 until viewRows) {
-        val absoluteIndex = startRowIndex + rowOnScreen
-        if (absoluteIndex < 0 || absoluteIndex >= buffer.totalRows) continue
-        val row = buffer.getRow(absoluteIndex)
-        drawRow(
-            row = row,
-            screenRow = rowOnScreen,
-            cols = viewCols,
-            charSize = charSize,
-            colors = colors,
-            textMeasurer = textMeasurer,
-            baseStyle = baseStyle
-        )
+    for (i in 0 until canvasRows) {
+        val abs = topAbsRow + i
+        if (abs < 0 || abs >= totalRows) continue
+        val row = buf.getRow(abs)
+        val y = i * lineHeight
+        val baseline = y + baselineOffset
+        val rowCols = minOf(row.columns, canvasCols)
+
+        var c = 0
+        while (c < rowCols) {
+            val cell = row.getCell(c)
+            if (cell.wideCont) { c++; continue }
+
+            val fg = cell.fgAttr
+            val bg = cell.bgAttr
+            val flags = (fg and (SgrAttribute.FLAG_BOLD or
+                SgrAttribute.FLAG_UNDERLINE or
+                SgrAttribute.FLAG_INVERSE or
+                SgrAttribute.FLAG_STRIKE))
+            val startCol = c
+
+            sb.setLength(0)
+            sb.append(cell.char)
+            val firstWide = c + 1 < rowCols && row.getCell(c + 1).wideCont
+            c += if (firstWide) 2 else 1
+
+            // 同 SGR 連続セルを集める
+            while (c < rowCols) {
+                val n = row.getCell(c)
+                if (n.wideCont) { c++; continue }
+                val nFlags = (n.fgAttr and (SgrAttribute.FLAG_BOLD or
+                    SgrAttribute.FLAG_UNDERLINE or
+                    SgrAttribute.FLAG_INVERSE or
+                    SgrAttribute.FLAG_STRIKE))
+                if (n.fgAttr != fg || n.bgAttr != bg || nFlags != flags) break
+                sb.append(n.char)
+                val nextWide = c + 1 < rowCols && row.getCell(c + 1).wideCont
+                c += if (nextWide) 2 else 1
+            }
+
+            val inverse = (flags and SgrAttribute.FLAG_INVERSE) != 0
+            val fgArgb = resolveColor(colors, fg, isFg = true)
+            val bgArgb = resolveColor(colors, bg, isFg = false)
+            val drawFg = if (inverse) bgArgb else fgArgb
+            val drawBg = if (inverse) fgArgb else bgArgb
+
+            if (drawBg != colors.defaultBackground) {
+                bgPaint.color = drawBg
+                nativeCanvas.drawRect(
+                    startCol * cellW, y,
+                    c * cellW, y + lineHeight,
+                    bgPaint
+                )
+            }
+
+            textPaint.color = drawFg
+            textPaint.isFakeBoldText = (flags and SgrAttribute.FLAG_BOLD) != 0
+            nativeCanvas.drawText(sb, 0, sb.length, startCol * cellW, baseline, textPaint)
+
+            if ((flags and SgrAttribute.FLAG_UNDERLINE) != 0) {
+                underlinePaint.color = drawFg
+                val uy = y + lineHeight - underlinePaint.strokeWidth
+                nativeCanvas.drawLine(startCol * cellW, uy, c * cellW, uy, underlinePaint)
+            }
+            if ((flags and SgrAttribute.FLAG_STRIKE) != 0) {
+                underlinePaint.color = drawFg
+                val sy = y + lineHeight * 0.55f
+                nativeCanvas.drawLine(startCol * cellW, sy, c * cellW, sy, underlinePaint)
+            }
+        }
     }
 
-    // カーソル描画 (スクロールバック閲覧中は非表示)
-    if (offset == 0 && emulator.cursorVisible) {
-        val cx = emulator.cursorCol * charSize.width
-        val cy = emulator.cursorRow * charSize.height
-        drawRect(
-            color = argbToColor(colors.cursorColor).copy(alpha = 0.6f),
-            topLeft = Offset(cx, cy),
-            size = charSize,
-            style = Stroke(width = 2f)
-        )
-    }
-
-    // スクロールバー (履歴がある場合のみ右端に表示)
-    val totalBacklog = buffer.scrollbackSize
-    if (totalBacklog > 0) {
-        val barWidth = 3f
-        val barX = size.width - barWidth
-        // 全体に対する現在位置: 上に行くほど offset 大
-        val totalRows = totalBacklog + viewRows
-        val thumbHeight = (size.height * viewRows / totalRows).coerceAtLeast(12f)
-        val thumbTop = size.height * (totalBacklog - offset) / totalRows
-        drawRect(
-            color = argbToColor(colors.cursorColor).copy(alpha = 0.35f),
-            topLeft = Offset(barX, thumbTop),
-            size = Size(barWidth, thumbHeight)
-        )
-    }
-}
-
-/**
- * 1 行を描画。同じ fg/bg/flags が連続するセルを 1 つの span にまとめて drawText する。
- * 空白だけ続く span は文字描画をスキップ (背景塗りは行う)。
- */
-private fun DrawScope.drawRow(
-    row: TerminalRow,
-    screenRow: Int,
-    cols: Int,
-    charSize: Size,
-    colors: TerminalColors,
-    textMeasurer: TextMeasurer,
-    baseStyle: TextStyle
-) {
-    val y = screenRow * charSize.height
-    val rowCols = row.columns.coerceAtMost(cols)
-
-    var col = 0
-    while (col < rowCols) {
-        val startCell = row.getCell(col)
-        val startFg = startCell.fgAttr
-        val startBg = startCell.bgAttr
-
-        // 同じ属性が続く範囲を探索
-        var end = col + 1
-        while (end < rowCols) {
-            val c = row.getCell(end)
-            if (c.fgAttr != startFg || c.bgAttr != startBg) break
-            end++
+    // カーソル (Primary/Alt 共に絶対行で表現)
+    if (emu.cursorVisible) {
+        val absCursorRow = buf.scrollbackSize + emu.cursorRow
+        val canvasRow = absCursorRow - topAbsRow
+        if (canvasRow in 0 until canvasRows && emu.cursorCol in 0 until canvasCols) {
+            val y = canvasRow * lineHeight
+            val cx = emu.cursorCol * cellW
+            val row = buf.getRow(absCursorRow)
+            val cellW2 = run {
+                val isWide = emu.cursorCol + 1 < row.columns && row.getCell(emu.cursorCol + 1).wideCont
+                if (isWide) cellW * 2f else cellW
+            }
+            bgPaint.color = colors.cursorColor
+            nativeCanvas.drawRect(cx, y, cx + cellW2, y + lineHeight, bgPaint)
+            if (emu.cursorCol < row.columns) {
+                val cell = row.getCell(emu.cursorCol)
+                if (cell.char != ' ' || cell.wideCont) {
+                    textPaint.color = colors.defaultBackground
+                    textPaint.isFakeBoldText = false
+                    nativeCanvas.drawText(
+                        cell.char.toString(),
+                        cx, y + baselineOffset, textPaint
+                    )
+                }
+            }
         }
-
-        val inverse = SgrAttribute.hasFlag(startFg, SgrAttribute.FLAG_INVERSE)
-        val fgArgb = resolveColor(startFg, colors, isFg = true)
-        val bgArgb = resolveColor(startBg, colors, isFg = false)
-        val effectiveFg = if (inverse) bgArgb else fgArgb
-        val effectiveBg = if (inverse) fgArgb else bgArgb
-
-        val x = col * charSize.width
-        val spanWidth = (end - col) * charSize.width
-
-        // 背景: デフォルト背景以外なら塗る (デフォルトは既に塗り済み)
-        if (effectiveBg != colors.defaultBackground || inverse) {
-            drawRect(
-                color = argbToColor(effectiveBg),
-                topLeft = Offset(x, y),
-                size = Size(spanWidth, charSize.height)
-            )
-        }
-
-        // 文字 (全部空白ならスキップ)
-        val text = extractText(row, col, end)
-        if (text.isNotBlank()) {
-            val style = baseStyle.copy(
-                color = argbToColor(effectiveFg),
-                fontWeight = if (SgrAttribute.hasFlag(startFg, SgrAttribute.FLAG_BOLD))
-                    FontWeight.Bold else FontWeight.Normal,
-                fontStyle = if (SgrAttribute.hasFlag(startFg, SgrAttribute.FLAG_ITALIC))
-                    FontStyle.Italic else FontStyle.Normal
-            )
-            val layout = textMeasurer.measure(text, style)
-            drawText(layout, topLeft = Offset(x, y))
-        }
-
-        // OSC 8 ハイパーリンク: 自動下線 (色は cyan に寄せる)
-        val linkPresent = startCell.link != null
-        if (linkPresent) {
-            val uy = y + charSize.height - 1f
-            drawLine(
-                color = androidx.compose.ui.graphics.Color(0xFF06B6D4),
-                start = Offset(x, uy),
-                end = Offset(x + spanWidth, uy),
-                strokeWidth = 1.5f
-            )
-        }
-
-        // 下線
-        if (SgrAttribute.hasFlag(startFg, SgrAttribute.FLAG_UNDERLINE)) {
-            val uy = y + charSize.height - 1f
-            drawLine(
-                color = argbToColor(effectiveFg),
-                start = Offset(x, uy),
-                end = Offset(x + spanWidth, uy),
-                strokeWidth = 1f
-            )
-        }
-
-        // 取り消し線
-        if (SgrAttribute.hasFlag(startFg, SgrAttribute.FLAG_STRIKE)) {
-            val sy = y + charSize.height / 2f
-            drawLine(
-                color = argbToColor(effectiveFg),
-                start = Offset(x, sy),
-                end = Offset(x + spanWidth, sy),
-                strokeWidth = 1f
-            )
-        }
-
-        col = end
-    }
-
-    row.dirty = false
-}
-
-private fun extractText(
-    row: TerminalRow,
-    from: Int,
-    toExclusive: Int
-): String = buildString(toExclusive - from) {
-    for (i in from until toExclusive) {
-        val cell = row.getCell(i)
-        if (!cell.wideCont) append(cell.char)
     }
 }
 
-private fun resolveColor(attr: Int, colors: TerminalColors, isFg: Boolean): Int = when {
-    SgrAttribute.isDefault(attr) ->
-        if (isFg) colors.defaultForeground else colors.defaultBackground
-    SgrAttribute.isIndexed(attr) -> colors.getColor(SgrAttribute.getIndex(attr))
-    SgrAttribute.isRgb(attr) ->
-        (0xFF shl 24) or
-            (SgrAttribute.getR(attr) shl 16) or
-            (SgrAttribute.getG(attr) shl 8) or
-            SgrAttribute.getB(attr)
-    else -> if (isFg) colors.defaultForeground else colors.defaultBackground
+private fun resolveColor(colors: TerminalColors, attr: Int, isFg: Boolean): Int {
+    return when {
+        SgrAttribute.isDefault(attr) ->
+            if (isFg) colors.defaultForeground else colors.defaultBackground
+        SgrAttribute.isIndexed(attr) ->
+            colors.getColor(SgrAttribute.getIndex(attr))
+        SgrAttribute.isRgb(attr) ->
+            0xFF000000.toInt() or (attr and SgrAttribute.COLOR_MASK)
+        else ->
+            if (isFg) colors.defaultForeground else colors.defaultBackground
+    }
 }
-
-private fun argbToColor(argb: Int): Color = Color(argb.toLong() or 0xFF000000)

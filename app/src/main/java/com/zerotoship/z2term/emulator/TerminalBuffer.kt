@@ -141,9 +141,18 @@ class TerminalBuffer(
         for (row in screen) row.clear(fg = fg, bg = bg)
     }
 
-    /** リサイズ (両スクリーン + スクロールバックを揃える) */
-    fun resize(newRows: Int, newColumns: Int) {
-        if (newRows == rows && newColumns == columns) return
+    /**
+     * リサイズ (両スクリーン + スクロールバックを揃える)。
+     *
+     * 縮小時はカーソル行 [cursorRow] を必ず保持するため、まず「カーソル行より下の
+     * 空行」を捨て、足りなければ「カーソル行より上の行」を scrollback に押し出す。
+     *
+     * @param cursorRow 縮小時にこの行を残すヒント (≥0)。範囲外なら 0 扱い。
+     * @return primary 縮小で scrollback に push された行数 (emulator がカーソルを
+     *         同量シフトするのに使う)。拡大・unchanged では 0。
+     */
+    fun resize(newRows: Int, newColumns: Int, cursorRow: Int = 0): Int {
+        if (newRows == rows && newColumns == columns) return 0
 
         if (newColumns != columns) {
             for (row in primary) row.resize(newColumns)
@@ -151,20 +160,55 @@ class TerminalBuffer(
             for (row in scrollback) row.resize(newColumns)
         }
 
-        primary = resizeScreen(primary, newRows, newColumns, pushToScrollback = primaryActive)
-        alternate = resizeScreen(alternate, newRows, newColumns, pushToScrollback = false)
+        val pushed = resizePrimaryWithCursor(newRows, newColumns, cursorRow)
+        alternate = resizeScreenSimple(alternate, newRows, newColumns)
         screen = if (primaryActive) primary else alternate
 
         rows = newRows
         columns = newColumns
         markAllDirty()
+        return pushed
     }
 
-    private fun resizeScreen(
-        old: Array<TerminalRow>,
+    /**
+     * Primary スクリーンを縮小・拡大する。
+     * 縮小時はカーソル行を残し、まず下方の空行を、足りなければ上方を scrollback に出す。
+     * 戻り値は scrollback に push した行数 (拡大・unchanged では 0)。
+     */
+    private fun resizePrimaryWithCursor(
         newRows: Int,
         newColumns: Int,
-        pushToScrollback: Boolean
+        cursorRowHint: Int
+    ): Int {
+        val old = primary
+        if (newRows == old.size) return 0
+        if (newRows > old.size) {
+            primary = Array(newRows) { i ->
+                if (i < old.size) old[i] else TerminalRow(newColumns)
+            }
+            return 0
+        }
+        val removed = old.size - newRows
+        val cursor = cursorRowHint.coerceIn(0, old.size - 1)
+        // カーソル行より下に何行あるか
+        val belowCursor = (old.size - 1 - cursor).coerceAtLeast(0)
+        val bottomDrop = minOf(removed, belowCursor)
+        val topDrop = removed - bottomDrop
+        if (primaryActive && topDrop > 0) {
+            for (i in 0 until topDrop) {
+                if (scrollback.size >= scrollbackCapacity) scrollback.removeFirst()
+                scrollback.addLast(old[i])
+            }
+        }
+        primary = Array(newRows) { i -> old[i + topDrop] }
+        return if (primaryActive) topDrop else 0
+    }
+
+    /** Alternate スクリーン用の素直な resize (scrollback 影響なし、上下どちらを捨てるか) */
+    private fun resizeScreenSimple(
+        old: Array<TerminalRow>,
+        newRows: Int,
+        newColumns: Int
     ): Array<TerminalRow> {
         if (newRows == old.size) return old
         return if (newRows > old.size) {
@@ -172,14 +216,8 @@ class TerminalBuffer(
                 if (i < old.size) old[i] else TerminalRow(newColumns)
             }
         } else {
-            val removed = old.size - newRows
-            if (pushToScrollback) {
-                for (i in 0 until removed) {
-                    if (scrollback.size >= scrollbackCapacity) scrollback.removeFirst()
-                    scrollback.addLast(old[i])
-                }
-            }
-            Array(newRows) { i -> old[i + removed] }
+            // alt は vim/htop 等が直後に全再描画するため、単純に末尾を切る
+            Array(newRows) { i -> old[i] }
         }
     }
 
