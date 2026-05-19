@@ -1,78 +1,62 @@
 # Z2Term assets ディレクトリ
 
-このディレクトリにはディストロ rootfs アーカイブ + ターミナル用フォントを
-配置します。M3 以降は複数ディストロ、M4 以降はカスタムフォントに対応。
+このディレクトリには **同梱用** ディストロ rootfs と、ターミナル用フォントを配置します。
 
-## 必要なファイル
+## ⚠️ 自動生成: `scripts/build-bundle.sh` を使ってください
 
-### Alpine Linux (デフォルト)
-
-| ファイル名 | アーキテクチャ | 入手元 |
-|---|---|---|
-| `alpine-minirootfs-aarch64.tar.gz` | arm64-v8a (64bit ARM) | https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/ |
-| `alpine-minirootfs-armv7.tar.gz` | armeabi-v7a (32bit ARM) | https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/armv7/ |
-
-### Ubuntu (オプション)
-
-| ファイル名 | アーキテクチャ | 入手元 |
-|---|---|---|
-| `ubuntu-minirootfs-aarch64.tar.gz` | arm64-v8a | https://cloud-images.ubuntu.com/minimal/releases/noble/release/ |
-| `ubuntu-minirootfs-armv7.tar.gz` | armeabi-v7a | 同上 (armhf) |
-
-Ubuntu 公式 cloud-image の `*-arm64-root.tar.xz` を取得し、`tar.gz` に再圧縮して配置します:
+M7 同梱方針への移行に伴い、Alpine rootfs は **`scripts/build-bundle.sh`** で
+カスタマイズ済みのものを APK に同梱します。手動配置は推奨されません。
 
 ```bash
-# 例: 24.04 LTS noble の arm64 base
-curl -o ubuntu.tar.xz \
-  https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-arm64-root.tar.xz
-xz -d ubuntu.tar.xz
-gzip ubuntu.tar
-mv ubuntu.tar.gz ubuntu-minirootfs-aarch64.tar.gz
+bash scripts/build-bundle.sh        # PRoot + Alpine 両方
+# 出力:
+#   app/src/main/jniLibs/arm64-v8a/libproot.so       (Termux 由来)
+#   app/src/main/jniLibs/arm64-v8a/libproot_loader.so
+#   app/src/main/assets/alpine-minirootfs-aarch64.tgz  (zsh/bash/openssh/screen 込)
 ```
 
-## ダウンロード手順 (Alpine)
+## 同梱パッケージ一覧
 
-```bash
-wget -O alpine-minirootfs-aarch64.tar.gz \
-  https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.0-aarch64.tar.gz
-
-wget -O alpine-minirootfs-armv7.tar.gz \
-  https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/armv7/alpine-minirootfs-3.21.0-armv7.tar.gz
-```
-
-## SHA256 検証 (推奨)
-
-```bash
-wget https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.0-aarch64.tar.gz.sha256
-sha256sum -c alpine-minirootfs-3.21.0-aarch64.tar.gz.sha256
-```
-
-## サイズの目安
-
-| ディストロ | 圧縮済み | 展開後 |
-|---|---|---|
-| Alpine | 約 3MB | 約 7-8MB |
-| Ubuntu | 約 30MB | 約 80MB |
-
-両ディストロ + 両アーキテクチャ全部入れると APK サイズが ~70MB 膨らみます。
-必要なものだけ配置することを推奨。
+`scripts/alpine-packages.txt` を参照。M7 既定は Tier 0+1+2 の 32 パッケージ
+(約 12MB 圧縮)。zsh / bash / openssh / screen に加え coreutils / findutils /
+grep / sed / gawk / less / shadow / procps-ng まで含む。
 
 ## ファイル名規約
 
-`DistroInstaller.kt` は以下のファイル名を期待しています。バージョン番号は含めず、
-固定名にリネームしてから配置してください:
+`DistroInstaller.kt` (DistroSpec.ALPINE) は以下を期待:
 
-- `alpine-minirootfs-aarch64.tar.gz`
-- `alpine-minirootfs-armv7.tar.gz`
-- `ubuntu-minirootfs-aarch64.tar.gz`
-- `ubuntu-minirootfs-armv7.tar.gz`
+- `alpine-minirootfs-aarch64.tgz`  (arm64-v8a 用、必須)
+- `alpine-minirootfs-armv7.tgz`     (armv7 用、ABI 32bit ビルド時)
 
-バージョン管理は別途、ディストロ内の `/etc/os-release` で確認してください。
+**`.tar.gz` ではなく `.tgz`** にしているのは、aapt が `.tar.gz` を「すでに圧縮済み
+コンテンツ」と判定して assets 内で自動解凍 → `.tar` にリネーム保存してしまうため。
+ランタイムから `assets.open("...tar.gz")` が見つからない事故を避けるため
+`.tgz` (aapt の特別扱い対象外) を使う。
 
-## カスタムフォント (M4)
+## 手動 DL する場合 (FOSS 配布用)
 
-`assets/fonts/` ディレクトリにフォント TTF/OTF ファイルを配置すると、設定画面の
-フォントセクションで選択可能になります。
+`DistroDownloader` がランタイムで取得する場合の URL は以下:
+
+| ファイル名 | アーキテクチャ | 入手元 |
+|---|---|---|
+| `alpine-minirootfs-aarch64.tgz` | arm64-v8a | https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/ |
+| `alpine-minirootfs-armv7.tgz`    | armeabi-v7a | https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/armv7/ |
+
+公式 `alpine-minirootfs-X.tar.gz` を取得して `.tgz` にリネームすると最小構成
+(zsh など無し) で動く。`build-bundle.sh` 経由ならパッケージ込で生成される。
+
+## サイズ目安
+
+| 構成 | 圧縮 | 展開後 |
+|---|---|---|
+| Alpine minirootfs (公式そのまま) | 約 3MB | 約 7MB |
+| Alpine + Tier 0+1+2 (Z2Term 既定) | 約 12MB | 約 40MB |
+| Alpine + Tier 0..4 (フル) | 約 35MB | 約 110MB |
+
+## カスタムフォント
+
+`assets/fonts/` ディレクトリに TTF/OTF を置くと設定画面で選択可能。
+詳細は `app/src/main/java/com/zerotoship/z2term/ui/theme/TerminalFonts.kt`。
 
 | ファイル名 | 入手元 |
 |---|---|
@@ -82,9 +66,3 @@ sha256sum -c alpine-minirootfs-3.21.0-aarch64.tar.gz.sha256
 
 未配置のフォント候補は設定画面でグレーアウトされ、選択しても System Monospace に
 フォールバックします。
-
-```bash
-mkdir -p app/src/main/assets/fonts
-curl -L -o app/src/main/assets/fonts/IBMPlexMono-Regular.ttf \
-  https://github.com/IBM/plex/raw/master/IBM-Plex-Mono/fonts/complete/ttf/IBMPlexMono-Regular.ttf
-```

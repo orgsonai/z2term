@@ -1,21 +1,27 @@
 # jniLibs ディレクトリ
 
-このディレクトリには、各アーキテクチャ向けのネイティブバイナリを配置します。
+このディレクトリには PRoot バイナリを **`lib*.so` 命名規約** で配置します。
 
-## 必要なファイル
+## ⚠️ 自動取得: `scripts/build-proot.sh` を使ってください
 
-### proot バイナリ
+M7 同梱方針:
 
-Termux プロジェクトのプリビルド版を使用します。
+```bash
+bash scripts/build-proot.sh         # Termux 公式パッケージから取得 (arm64 のみ)
+# 出力:
+#   arm64-v8a/libproot.so        (Termux proot バイナリ)
+#   arm64-v8a/libproot_loader.so (proot 用 loader)
+```
 
-| 配置先 | 元バイナリ | ファイル名 |
-|---|---|---|
-| `arm64-v8a/libproot.so` | proot (aarch64) | リネームして配置 |
-| `arm64-v8a/libproot_loader.so` | loader (aarch64) | リネームして配置 |
-| `armeabi-v7a/libproot.so` | proot (armv7) | リネームして配置 |
-| `armeabi-v7a/libproot_loader.so` | loader (armv7) | リネームして配置 |
+スクリプトは `https://packages.termux.dev/apt/termux-main/pool/main/p/proot/` から
+最新の `proot_<version>_aarch64.deb` を取得し、内部の `usr/bin/proot` と
+`usr/libexec/proot/loader` を `libproot.so` / `libproot_loader.so` にリネームして
+配置します。
 
-### なぜ `lib*.so` にリネームするのか
+クロスビルド方式 (proot-me/proot からの make build) は talloc 依存で
+NDK ビルドが通らないため採用していません。
+
+## なぜ `lib*.so` にリネームするのか
 
 Android 10 以降、APK 同梱の実行ファイルは原則として実行禁止です。
 唯一の例外が **`jniLibs/<abi>/lib*.so`** に配置されたファイルで、これらは
@@ -23,66 +29,19 @@ APK インストール時に `nativeLibraryDir` に展開され、実行可能�
 
 つまり、`proot` のような実行ファイルを APK に同梱して動かすには、
 拡張子を `.so` にリネームして jniLibs に置く以外の方法はありません。
+Termux も含む全ての類似アプリで使われている標準テクニックです。
 
-これは Termux も含む全ての類似アプリで使われている標準テクニックです。
+## 配置先
 
-## proot バイナリ入手方法
+| 配置先 | 元バイナリ |
+|---|---|
+| `arm64-v8a/libproot.so`        | proot (aarch64) |
+| `arm64-v8a/libproot_loader.so` | loader (aarch64) |
 
-### 方法 A: Termux プロジェクトのプリビルド版を使う（推奨）
+armv7 (32bit) は M7 同梱方針では生成しません。`build.gradle.kts` の
+`abiFilters` も `arm64-v8a` のみ。
 
-Termux の `proot` パッケージから抽出します:
+## サイズ目安
 
-```bash
-# Termux 端末で実行
-pkg install proot
-which proot
-# /data/data/com.termux/files/usr/bin/proot
-
-# adb 経由で取得
-adb pull /data/data/com.termux/files/usr/bin/proot
-adb pull /data/data/com.termux/files/usr/libexec/proot/loader
-```
-
-### 方法 B: GitHub の termux-packages から取得
-
-```bash
-# Termux のビルド済みパッケージリポジトリから
-# https://packages.termux.dev/apt/termux-main/pool/main/p/proot/
-# proot_5.4.0_aarch64.deb 等をダウンロードして展開
-```
-
-### 方法 C: ソースからクロスコンパイル
-
-```bash
-git clone https://github.com/proot-me/proot
-cd proot
-# Android NDK でクロスコンパイル
-make -C src loader.elf loader-m32.elf build.h
-make -C src proot
-```
-
-## 配置手順
-
-```bash
-# 例: aarch64 用
-cp /path/to/proot       arm64-v8a/libproot.so
-cp /path/to/loader      arm64-v8a/libproot_loader.so
-
-# 例: armv7 用
-cp /path/to/proot.armv7 armeabi-v7a/libproot.so
-cp /path/to/loader.armv7 armeabi-v7a/libproot_loader.so
-```
-
-## サイズの目安
-
-- proot: 約 1-2MB（圧縮済み）
-- loader: 約 50KB
-
-両アーキテクチャ合わせて APK サイズに約 4-5MB 追加されます。
-
-## ライセンス
-
-proot は **GPL-2.0** ライセンスです。
-Z2Term 全体は **GPL-3.0** で配布するため、ライセンス互換性に問題ありません。
-
-ライセンス表記をアプリ内の「About」画面に必ず含めてください（M7 で実装予定）。
+- libproot.so:        約 210KB
+- libproot_loader.so: 約 18KB

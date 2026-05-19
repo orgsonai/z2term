@@ -50,9 +50,10 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            // 32bit/64bit ARM 両対応（M1）
+            // M7 同梱方針: Alpine rootfs + PRoot は arm64-v8a のみ同梱する。
+            // 32bit デバイスは現代の Android では希少なので非対応。
             //noinspection ChromeOsAbiSupport
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            abiFilters += listOf("arm64-v8a")
         }
 
         externalNativeBuild {
@@ -108,9 +109,28 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
         jniLibs {
-            // proot バイナリは .so にリネームして jniLibs に置く（推奨手法）
-            useLegacyPackaging = false
+            // ⚠️ M7: PRoot を実ファイルとして実行する必要があるため legacy packaging に。
+            //
+            // useLegacyPackaging = false (modern default) では .so は APK 内に
+            // 非圧縮 mmap 用に格納され、nativeLibraryDir に「実体ファイル」は
+            // 配置されない (dlopen 経由で APK から直接マップする最適化)。
+            // PtyProcess.create で実ファイルパスから execve を呼ぶ Z2Term では
+            // `File.exists()` が false になり PRoot 未検出になる。
+            //
+            // true にすると install 時に /data/app/.../lib/<abi>/ に展開され、
+            // applicationInfo.nativeLibraryDir 配下に通常のファイルとして
+            // 存在するようになる。APK インストール直後の最初の起動はやや遅くなる
+            // が、execve できないと話にならないのでこちらが必須。
+            useLegacyPackaging = true
         }
+    }
+
+    androidResources {
+        // AGP/aapt は assets 内の `.gz` 拡張子付きファイルを「サーバから配信前提で
+        // 解凍して APK 内に格納し直す」最適化をかける (e.g. foo.tar.gz → foo.tar)。
+        // これだと `assets.open("alpine-minirootfs-aarch64.tar.gz")` が失敗するので
+        // tar.gz と tar を no-compress 指定で素通しに。
+        noCompress += listOf("tar.gz", "tar")
     }
 }
 

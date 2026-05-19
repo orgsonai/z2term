@@ -1,0 +1,44 @@
+# Z2Term 同梱 Alpine パッケージリスト
+#
+# Tier 0 + 1 + 2 推奨セット (約 15MB 圧縮、約 40MB 展開後)
+# 1 行 1 パッケージ。`#` で始まる行と空行は無視。
+# scripts/build-alpine-rootfs.sh から読まれる。
+
+# ===== Tier 0: Alpine コア (約 6MB) =====
+alpine-base
+alpine-baselayout
+alpine-keys
+apk-tools
+busybox
+busybox-suid
+musl
+musl-utils
+ca-certificates
+ca-certificates-bundle
+libcrypto3
+libssl3
+ncurses
+ncurses-terminfo-base
+readline
+zlib
+
+# ===== Tier 1: ユーザー指定 (約 4MB) =====
+bash
+bash-completion
+zsh
+zsh-vcs
+openssh-client
+openssh-server
+screen
+
+# ===== Tier 2: 実用コマンド (約 5MB) =====
+coreutils
+findutils
+grep
+sed
+gawk
+less
+shadow
+procps-ng
+sudo
+which
