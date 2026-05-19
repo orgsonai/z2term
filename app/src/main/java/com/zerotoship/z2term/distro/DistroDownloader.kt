@@ -36,7 +36,7 @@ class DistroDownloader(private val context: Context) {
         try {
             val url = officialUrlFor(spec, abi)
                 ?: throw IllegalStateException("No official URL for ${spec.id} / $abi")
-            val outFile = File(cacheDir().apply { mkdirs() }, "${spec.id}-$abi.tar.gz")
+            val outFile = File(cacheDir().apply { mkdirs() }, "${spec.id}-$abi.tgz")
             if (outFile.exists()) outFile.delete()
 
             val conn = (URL(url).openConnection() as HttpURLConnection).apply {
@@ -85,8 +85,11 @@ class DistroDownloader(private val context: Context) {
     }.flowOn(Dispatchers.IO)
 
     fun resolveLocalArchive(spec: DistroSpec, abi: String): File? {
-        val f = File(cacheDir(), "${spec.id}-$abi.tar.gz")
-        return if (f.exists()) f else null
+        // 旧拡張子 (.tar.gz) と新拡張子 (.tgz) の双方を確認
+        val tgz = File(cacheDir(), "${spec.id}-$abi.tgz")
+        if (tgz.exists()) return tgz
+        val legacy = File(cacheDir(), "${spec.id}-$abi.tar.gz")
+        return if (legacy.exists()) legacy else null
     }
 
     private fun cacheDir(): File = File(context.cacheDir, "distros")

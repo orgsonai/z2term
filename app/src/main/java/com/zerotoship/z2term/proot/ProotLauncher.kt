@@ -2,6 +2,7 @@ package com.zerotoship.z2term.proot
 
 import android.content.Context
 import android.util.Log
+import com.zerotoship.z2term.distro.DistroBundle
 import com.zerotoship.z2term.pty.PtyProcess
 import java.io.File
 
@@ -33,6 +34,33 @@ class ProotLauncher(private val context: Context) {
         get() = File(context.applicationInfo.nativeLibraryDir, "libproot.so")
 
     /**
+     * proot が動的リンクする libtalloc を、SONAME 通り `libtalloc.so.2` で
+     * 配置するディレクトリ。jniLibs は `lib<name>.so` 規約しか扱えないため、
+     * 実行時にコピーして提供する。`LD_LIBRARY_PATH` でこのパスを通す。
+     */
+    private val prootLibsDir: File
+        get() = File(context.filesDir, "proot-libs")
+
+    /** jniLibs の libtalloc.so を SONAME 名 (libtalloc.so.2) で展開 */
+    private fun ensureProotLibs() {
+        val src = File(context.applicationInfo.nativeLibraryDir, "libtalloc.so")
+        if (!src.exists()) {
+            Log.w(TAG, "libtalloc.so not in nativeLibraryDir — proot will fail to link")
+            return
+        }
+        prootLibsDir.mkdirs()
+        val dst = File(prootLibsDir, "libtalloc.so.2")
+        val needsCopy = !dst.exists() || dst.length() != src.length() ||
+            dst.lastModified() < src.lastModified()
+        if (needsCopy) {
+            src.copyTo(dst, overwrite = true)
+            dst.setReadable(true, false)
+            dst.setExecutable(true, false)
+            Log.i(TAG, "Provisioned libtalloc.so.2 at ${dst.absolutePath}")
+        }
+    }
+
+    /**
      * 指定ディストロを PRoot で起動。
      *
      * @param distroId ディストロ識別子（"alpine", "ubuntu" 等）
@@ -54,8 +82,9 @@ class ProotLauncher(private val context: Context) {
             throw IllegalStateException("PRoot binary not found: ${prootBinary.absolutePath}")
         }
 
-        // 共有ホーム作成
+        // 共有ホーム作成 + libtalloc 配置
         sharedHomeDir.mkdirs()
+        ensureProotLibs()
 
         // PRoot 引数の組み立て
         val args = mutableListOf<String>().apply {
@@ -80,6 +109,9 @@ class ProotLauncher(private val context: Context) {
             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
             "TMPDIR=/tmp",
             "SHELL=$command",
+            // proot は libtalloc.so.2 にリンクされている (Termux RUNPATH 由来)。
+            // ensureProotLibs() で展開した SONAME 通りのファイルパスを LD_LIBRARY_PATH に追加。
+            "LD_LIBRARY_PATH=${prootLibsDir.absolutePath}",
             // PRoot 自身の動作用
             "PROOT_TMP_DIR=${context.cacheDir.absolutePath}",
             "PROOT_LOADER=${File(context.applicationInfo.nativeLibraryDir, "libproot_loader.so").absolutePath}"
@@ -154,10 +186,35 @@ class ProotLauncher(private val context: Context) {
         return rc
     }
 
-    /** ディストロが展開済みか確認 */
+    /**
+     * ディストロが展開済みか確認。
+     *
+     * `/bin/sh` は `/bin/busybox` への **絶対パス** シンボリックリンク
+     * (rootfs 内では正解だが host から見ると壊れリンク) になっており、
+     * `File("bin/sh").exists()` は常に false を返す → 毎回再展開してしまう。
+     * 実体ファイルである busybox を見ることで正しく検出する。
+     *
+     * 加えて `.z2term-version` マーカーを比較し、APK 同梱版より古ければ
+     * not-ready 扱いにして自動再展開を促す ([DistroBundle.ROOTFS_VERSION])。
+     */
     fun isDistroReady(distroId: String): Boolean {
         val rootfs = File(distrosDir, distroId)
-        return rootfs.exists() && File(rootfs, "bin/sh").exists()
+        if (!rootfs.exists()) return false
+        val hasBinaries = File(rootfs, "bin/busybox").exists() ||
+            File(rootfs, "bin/bash").exists() ||
+            File(rootfs, "usr/bin/busybox").exists()
+        if (!hasBinaries) return false
+
+        val versionFile = File(rootfs, DistroBundle.VERSION_MARKER)
+        // バージョンマーカーが無い旧式 install は古いと判定 → 再展開させる
+        val installed = if (versionFile.exists()) {
+            versionFile.readText().trim().toIntOrNull() ?: 0
+        } else 0
+        if (installed < DistroBundle.ROOTFS_VERSION) {
+            Log.i(TAG, "Distro $distroId is outdated: installed=$installed vs bundled=${DistroBundle.ROOTFS_VERSION}")
+            return false
+        }
+        return true
     }
 
     /** proot バイナリが配置されているか確認 */

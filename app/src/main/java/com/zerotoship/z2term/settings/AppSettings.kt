@@ -28,7 +28,9 @@ class AppSettings(private val context: Context) {
         val distroId: String = DEFAULT_DISTRO,
         val fontId: String = DEFAULT_FONT,
         val ambiguousAsWide: Boolean = DEFAULT_AMBIGUOUS_AS_WIDE,
-        val initCommand: String = ""
+        val initCommand: String = "",
+        val keyboardStyleId: String = DEFAULT_KEYBOARD_STYLE,
+        val loginShell: String = DEFAULT_LOGIN_SHELL
     )
 
     val flow: Flow<Snapshot> = context.dataStore.data.map { p ->
@@ -39,8 +41,18 @@ class AppSettings(private val context: Context) {
             distroId = p[KEY_DISTRO_ID] ?: DEFAULT_DISTRO,
             fontId = p[KEY_FONT_ID] ?: DEFAULT_FONT,
             ambiguousAsWide = p[KEY_AMBIGUOUS_WIDE] ?: DEFAULT_AMBIGUOUS_AS_WIDE,
-            initCommand = p[KEY_INIT_COMMAND] ?: ""
+            initCommand = p[KEY_INIT_COMMAND] ?: "",
+            keyboardStyleId = p[KEY_KEYBOARD_STYLE] ?: DEFAULT_KEYBOARD_STYLE,
+            loginShell = p[KEY_LOGIN_SHELL] ?: DEFAULT_LOGIN_SHELL
         )
+    }
+
+    suspend fun setKeyboardStyleId(id: String) {
+        context.dataStore.edit { it[KEY_KEYBOARD_STYLE] = id }
+    }
+
+    suspend fun setLoginShell(shell: String) {
+        context.dataStore.edit { it[KEY_LOGIN_SHELL] = shell }
     }
 
     suspend fun setInitCommand(value: String) {
@@ -80,6 +92,10 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_DISTRO = "alpine"
         const val DEFAULT_FONT = "monospace"
         const val DEFAULT_AMBIGUOUS_AS_WIDE = false
+        const val DEFAULT_KEYBOARD_STYLE = "compact"
+        /** Alpine 同梱で zsh が利用可能なので既定 zsh。`-l` でログインシェル動作。 */
+        const val DEFAULT_LOGIN_SHELL = "/bin/zsh"
+        val AVAILABLE_SHELLS = listOf("/bin/zsh", "/bin/bash", "/bin/sh")
 
         const val MIN_FONT_SIZE_SP = 8f
         const val MAX_FONT_SIZE_SP = 32f
@@ -93,5 +109,7 @@ class AppSettings(private val context: Context) {
         private val KEY_FONT_ID = stringPreferencesKey("font_id")
         private val KEY_AMBIGUOUS_WIDE = booleanPreferencesKey("ambiguous_as_wide")
         private val KEY_INIT_COMMAND = stringPreferencesKey("init_command")
+        private val KEY_KEYBOARD_STYLE = stringPreferencesKey("keyboard_style")
+        private val KEY_LOGIN_SHELL = stringPreferencesKey("login_shell")
     }
 }

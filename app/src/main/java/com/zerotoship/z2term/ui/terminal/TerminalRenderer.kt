@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.sp
+import com.zerotoship.z2term.core.CellMetrics
+import com.zerotoship.z2term.core.TerminalSelection
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.emulator.SgrAttribute
 import com.zerotoship.z2term.emulator.TerminalColors
@@ -23,17 +25,17 @@ import com.zerotoship.z2term.ui.theme.TerminalFontOptions
 /**
  * エミュレータバッファをネイティブ Canvas に描く。
  *
- * 設計:
- * - `BoxWithConstraints` で利用領域を測り、フォントメトリクスから rows/cols を逆算して
- *   `session.onResize(rows, cols)` を発火。
- * - 描画は「絶対行 (scrollback + 画面) インデックス」で行うことで、emulator.resize 非同期
- *   反映中でも「最新行が常に canvas 下端」になる (handoff §D 参照)。
- * - 同 SGR 属性が続くセルは 1 回の `drawText` にまとめ、塗りつぶしは矩形 1 つで処理。
+ * 設計ポイント:
+ * - **セル単位 drawText**: 同 SGR の文字列をまとめて drawText すると、フォントの
+ *   実 advance と cellW (= measureText("M")) のサブピクセル誤差が累積し、
+ *   行末に向かってカーソルとの間が広がる症状になる。各セルを `c * cellW` で
+ *   個別 drawText することで厳密にグリッドへ吸着させる。
+ * - **CellMetrics 公開**: InputView がピクセル → セル変換に使えるよう
+ *   `session.updateCellMetrics` で寸法を流す。
+ * - **選択ハイライト**: background ペイント → selection 半透明オーバーレイ →
+ *   テキスト の順で描き、選択中の文字も読める色を保つ。
  * - 全角文字は `wideCont` セルをスキップして 1 文字を 2 セル幅で描く。
  * - カーソルは前景・背景を反転 (cursorColor を背景に、defaultBackground を文字色に)。
- * - ハイパーリンク (`cell.link`) はアンダーラインで視覚化 (Phase 1 は描画のみ、tap は後続)。
- *
- * 入力イベントは取らない。タップは親 (TerminalScreen) で IME 起動に変換する。
  */
 @Composable
 fun TerminalRenderer(
@@ -43,6 +45,7 @@ fun TerminalRenderer(
     val redrawTick by session.redrawTick.collectAsState()
     val scrollOffset by session.scrollOffset.collectAsState()
     val settings by session.settingsFlow.collectAsState()
+    val selection by session.selection.collectAsState()
 
     val density = LocalDensity.current
     val context = LocalContext.current
@@ -88,11 +91,24 @@ fun TerminalRenderer(
         LaunchedEffect(rows, cols) {
             session.onResize(rows, cols)
         }
+        LaunchedEffect(cellW, lineHeight, rows, cols) {
+            session.updateCellMetrics(
+                CellMetrics(
+                    cellW = cellW,
+                    lineHeight = lineHeight,
+                    canvasRows = rows,
+                    canvasCols = cols
+                )
+            )
+        }
 
         Canvas(modifier = Modifier.matchParentSize()) {
-            // closure が redrawTick を読むことで recomposition → draw 再実行
             @Suppress("UNUSED_VARIABLE")
             val tick = redrawTick
+            @Suppress("UNUSED_VARIABLE")
+            val so = scrollOffset
+            @Suppress("UNUSED_VARIABLE")
+            val sel = selection
             drawIntoCanvas { canvas ->
                 drawBuffer(
                     nativeCanvas = canvas.nativeCanvas,
@@ -105,12 +121,17 @@ fun TerminalRenderer(
                     baselineOffset = baselineOffset,
                     canvasRows = rows,
                     canvasCols = cols,
-                    scrollOffset = scrollOffset
+                    scrollOffset = scrollOffset,
+                    selection = selection
                 )
             }
         }
     }
 }
+
+private const val SELECTION_OVERLAY_ARGB: Int = 0x6622C55E.toInt() // ZtsGreen translucent
+private const val HANDLE_FILL_ARGB: Int = 0xFF22C55E.toInt()
+private const val HANDLE_BORDER_ARGB: Int = 0xFF0A0A0A.toInt()
 
 private fun drawBuffer(
     nativeCanvas: android.graphics.Canvas,
@@ -123,7 +144,8 @@ private fun drawBuffer(
     baselineOffset: Float,
     canvasRows: Int,
     canvasCols: Int,
-    scrollOffset: Int
+    scrollOffset: Int,
+    selection: TerminalSelection?
 ) {
     val emu = session.emulator
     val buf = emu.buffer
@@ -137,14 +159,6 @@ private fun drawBuffer(
         bgPaint
     )
 
-    // 描画範囲の計算 (絶対行 = scrollback + screen の連結インデックス)。
-    //
-    // - 手動スクロール中 (scrollOffset > 0): ユーザーが固定した視点を保つ。
-    //   bottom はバッファ最下行から scrollOffset 行ぶん上がった位置。
-    // - 張り付き mode (scrollOffset == 0): カーソルを必ず canvas 内に収めるよう
-    //   bottom はカーソル行と「最初に画面が埋まる行 (canvasRows-1)」のうち大きい方。
-    //   これにより fresh shell (cursorRow=0, buf.rows=51, canvasRows=25 等) でも
-    //   プロンプトが top に表示され、シェルが output で進むに従い canvas 下端に張り付く。
     val cursorAbsRow = buf.scrollbackSize + emu.cursorRow
     val bottomAbsRow = if (scrollOffset == 0) {
         cursorAbsRow.coerceAtLeast(buf.scrollbackSize + canvasRows - 1)
@@ -154,7 +168,6 @@ private fun drawBuffer(
     val topAbsRow = bottomAbsRow - canvasRows + 1
 
     val totalRows = buf.totalRows
-    val sb = StringBuilder(canvasCols)
 
     for (i in 0 until canvasRows) {
         val abs = topAbsRow + i
@@ -164,72 +177,73 @@ private fun drawBuffer(
         val baseline = y + baselineOffset
         val rowCols = minOf(row.columns, canvasCols)
 
+        // --- Pass 1: 背景 (セル毎、default 背景はスキップ) ---
         var c = 0
         while (c < rowCols) {
             val cell = row.getCell(c)
             if (cell.wideCont) { c++; continue }
-
-            val fg = cell.fgAttr
-            val bg = cell.bgAttr
-            val flags = (fg and (SgrAttribute.FLAG_BOLD or
-                SgrAttribute.FLAG_UNDERLINE or
-                SgrAttribute.FLAG_INVERSE or
-                SgrAttribute.FLAG_STRIKE))
-            val startCol = c
-
-            sb.setLength(0)
-            sb.append(cell.char)
-            val firstWide = c + 1 < rowCols && row.getCell(c + 1).wideCont
-            c += if (firstWide) 2 else 1
-
-            // 同 SGR 連続セルを集める
-            while (c < rowCols) {
-                val n = row.getCell(c)
-                if (n.wideCont) { c++; continue }
-                val nFlags = (n.fgAttr and (SgrAttribute.FLAG_BOLD or
-                    SgrAttribute.FLAG_UNDERLINE or
-                    SgrAttribute.FLAG_INVERSE or
-                    SgrAttribute.FLAG_STRIKE))
-                if (n.fgAttr != fg || n.bgAttr != bg || nFlags != flags) break
-                sb.append(n.char)
-                val nextWide = c + 1 < rowCols && row.getCell(c + 1).wideCont
-                c += if (nextWide) 2 else 1
-            }
-
-            val inverse = (flags and SgrAttribute.FLAG_INVERSE) != 0
-            val fgArgb = resolveColor(colors, fg, isFg = true)
-            val bgArgb = resolveColor(colors, bg, isFg = false)
-            val drawFg = if (inverse) bgArgb else fgArgb
+            val isWide = c + 1 < rowCols && row.getCell(c + 1).wideCont
+            val span = if (isWide) 2 else 1
+            val flags = cell.fgAttr and SgrAttribute.FLAG_INVERSE
+            val inverse = flags != 0
+            val fgArgb = resolveColor(colors, cell.fgAttr, isFg = true)
+            val bgArgb = resolveColor(colors, cell.bgAttr, isFg = false)
             val drawBg = if (inverse) fgArgb else bgArgb
-
             if (drawBg != colors.defaultBackground) {
                 bgPaint.color = drawBg
-                nativeCanvas.drawRect(
-                    startCol * cellW, y,
-                    c * cellW, y + lineHeight,
-                    bgPaint
-                )
+                nativeCanvas.drawRect(c * cellW, y, (c + span) * cellW, y + lineHeight, bgPaint)
             }
+            c += span
+        }
 
-            textPaint.color = drawFg
-            textPaint.isFakeBoldText = (flags and SgrAttribute.FLAG_BOLD) != 0
-            nativeCanvas.drawText(sb, 0, sb.length, startCol * cellW, baseline, textPaint)
+        // --- Pass 2: 選択ハイライト (半透明) ---
+        if (selection != null && selection.contains(abs)) {
+            val (from, to) = selection.colRangeFor(abs, rowCols)
+            if (from < to) {
+                bgPaint.color = SELECTION_OVERLAY_ARGB
+                nativeCanvas.drawRect(from * cellW, y, to * cellW, y + lineHeight, bgPaint)
+            }
+        }
 
+        // --- Pass 3: 文字 + 下線/取り消し線 (セル単位 drawText でグリッド吸着) ---
+        c = 0
+        while (c < rowCols) {
+            val cell = row.getCell(c)
+            if (cell.wideCont) { c++; continue }
+            val isWide = c + 1 < rowCols && row.getCell(c + 1).wideCont
+            val span = if (isWide) 2 else 1
+            val flags = cell.fgAttr and (
+                SgrAttribute.FLAG_BOLD or
+                    SgrAttribute.FLAG_UNDERLINE or
+                    SgrAttribute.FLAG_INVERSE or
+                    SgrAttribute.FLAG_STRIKE
+                )
+            val inverse = (flags and SgrAttribute.FLAG_INVERSE) != 0
+            val fgArgb = resolveColor(colors, cell.fgAttr, isFg = true)
+            val bgArgb = resolveColor(colors, cell.bgAttr, isFg = false)
+            val drawFg = if (inverse) bgArgb else fgArgb
+
+            if (cell.char != ' ') {
+                textPaint.color = drawFg
+                textPaint.isFakeBoldText = (flags and SgrAttribute.FLAG_BOLD) != 0
+                nativeCanvas.drawText(cell.char.toString(), c * cellW, baseline, textPaint)
+            }
             if ((flags and SgrAttribute.FLAG_UNDERLINE) != 0) {
                 underlinePaint.color = drawFg
                 val uy = y + lineHeight - underlinePaint.strokeWidth
-                nativeCanvas.drawLine(startCol * cellW, uy, c * cellW, uy, underlinePaint)
+                nativeCanvas.drawLine(c * cellW, uy, (c + span) * cellW, uy, underlinePaint)
             }
             if ((flags and SgrAttribute.FLAG_STRIKE) != 0) {
                 underlinePaint.color = drawFg
                 val sy = y + lineHeight * 0.55f
-                nativeCanvas.drawLine(startCol * cellW, sy, c * cellW, sy, underlinePaint)
+                nativeCanvas.drawLine(c * cellW, sy, (c + span) * cellW, sy, underlinePaint)
             }
+            c += span
         }
     }
 
-    // カーソル (Primary/Alt 共に絶対行で表現)
-    if (emu.cursorVisible) {
+    // --- カーソル (選択中は描かない: 選択時はカーソル要らない、選択 UI が主) ---
+    if (emu.cursorVisible && selection == null) {
         val absCursorRow = buf.scrollbackSize + emu.cursorRow
         val canvasRow = absCursorRow - topAbsRow
         if (canvasRow in 0 until canvasRows && emu.cursorCol in 0 until canvasCols) {
@@ -255,6 +269,42 @@ private fun drawBuffer(
             }
         }
     }
+
+    // --- 選択ハンドル (start, end の cell 角に小さな円を描く) ---
+    if (selection != null) {
+        val handleRadius = lineHeight * 0.35f
+        val borderWidth = (lineHeight * 0.06f).coerceAtLeast(1f)
+        val startCanvasRow = selection.startAbsRow - topAbsRow
+        if (startCanvasRow in 0 until canvasRows) {
+            val sx = selection.startCol * cellW
+            val sy = startCanvasRow * lineHeight + lineHeight
+            drawHandle(nativeCanvas, bgPaint, sx, sy, handleRadius, borderWidth)
+        }
+        val endCanvasRow = selection.endAbsRow - topAbsRow
+        if (endCanvasRow in 0 until canvasRows) {
+            val ex = (selection.endCol + 1) * cellW
+            val ey = endCanvasRow * lineHeight + lineHeight
+            drawHandle(nativeCanvas, bgPaint, ex, ey, handleRadius, borderWidth)
+        }
+    }
+}
+
+private fun drawHandle(
+    canvas: android.graphics.Canvas,
+    paint: Paint,
+    cx: Float,
+    cy: Float,
+    radius: Float,
+    borderWidth: Float
+) {
+    paint.style = Paint.Style.FILL
+    paint.color = HANDLE_FILL_ARGB
+    canvas.drawCircle(cx, cy, radius, paint)
+    paint.style = Paint.Style.STROKE
+    paint.strokeWidth = borderWidth
+    paint.color = HANDLE_BORDER_ARGB
+    canvas.drawCircle(cx, cy, radius, paint)
+    paint.style = Paint.Style.FILL
 }
 
 private fun resolveColor(colors: TerminalColors, attr: Int, isFg: Boolean): Int {

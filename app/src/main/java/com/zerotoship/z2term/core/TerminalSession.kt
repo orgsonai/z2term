@@ -103,6 +103,39 @@ class TerminalSession(
     private val _scrollOffset = MutableStateFlow(0)
     val scrollOffset: StateFlow<Int> = _scrollOffset.asStateFlow()
 
+    private val _cellMetrics = MutableStateFlow(CellMetrics())
+    val cellMetrics: StateFlow<CellMetrics> = _cellMetrics.asStateFlow()
+
+    private val _selection = MutableStateFlow<TerminalSelection?>(null)
+    val selection: StateFlow<TerminalSelection?> = _selection.asStateFlow()
+
+    fun updateCellMetrics(metrics: CellMetrics) { _cellMetrics.value = metrics }
+    fun setSelection(s: TerminalSelection?) { _selection.value = s }
+    fun clearSelection() { _selection.value = null }
+
+    /** 現在の選択範囲をクリップボードへコピーし、Toast を発火する。 */
+    fun copySelectionToClipboard() {
+        val sel = _selection.value ?: return
+        val text = emulator.buffer.getRangeText(
+            sel.startAbsRow, sel.startCol, sel.endAbsRow, sel.endCol
+        )
+        if (text.isEmpty()) {
+            _toastEvents.tryEmit("選択範囲が空です")
+            return
+        }
+        val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
+        _toastEvents.tryEmit("コピー (${text.length} 文字)")
+    }
+
+    /** クリップボードのテキストをペースト (PTY へ送出)。 */
+    fun pasteFromClipboard() {
+        val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val text = cm.primaryClip?.getItemAt(0)?.coerceToText(appContext)?.toString() ?: return
+        if (text.isEmpty()) return
+        writeBytes(text.replace('\n', '\r').toByteArray(Charsets.UTF_8))
+    }
+
     private val _toastEvents = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 4)
     val toastEvents = _toastEvents.asSharedFlow()
 
@@ -134,10 +167,15 @@ class TerminalSession(
     fun setFontId(id: String) { scope.launch { settings.setFontId(id) } }
     fun setAmbiguousAsWide(v: Boolean) { scope.launch { settings.setAmbiguousAsWide(v) } }
     fun setInitCommand(value: String) { scope.launch { settings.setInitCommand(value) } }
+    fun setKeyboardStyleId(id: String) { scope.launch { settings.setKeyboardStyleId(id) } }
+    fun setLoginShell(shell: String) { scope.launch { settings.setLoginShell(shell) } }
 
     /** 設定で選ばれているディストロを使って起動。明示的指定があればそれを優先 */
     fun startTerminal(distroOverride: DistroSpec? = null) {
-        if (_uiState.value.state == TerminalState.RUNNING) return
+        // IDLE 以外なら起動済み/起動中なので何もしない。
+        // SSH と PTY の二重起動レースを防ぐため、STARTING 含めて弾く。
+        if (_uiState.value.state != TerminalState.IDLE) return
+        _uiState.update { it.copy(state = TerminalState.STARTING) }
 
         scope.launch {
             val spec = distroOverride
@@ -145,15 +183,23 @@ class TerminalSession(
                 ?: DistroSpec.ALPINE
             try {
                 if (!launcher.isProotAvailable()) {
-                    // PRoot 未配置時は警告を出さず、無言で android-sh にフォールバック。
-                    // バナーを出すと毎回画面が汚れて UX を損ねるため。
-                    Log.i(TAG, "PRoot binary not present; falling back to android-sh")
+                    // M7 同梱方針: PRoot は APK の jniLibs/<abi>/libproot.so に同梱されている
+                    // 前提なので、未配置はビルド事故。ユーザーに分かるよう警告を出してから
+                    // android-sh に退避する (起動不能で真っ黒画面より UX 良)。
+                    Log.w(TAG, "PRoot binary not present; falling back to android-sh")
+                    writeBanner("⚠️ PRoot バイナリが見つかりません — scripts/build-proot.sh を実行して再ビルドしてください。Android sh で起動します。")
                     fallbackToAndroidSh()
                     return@launch
                 }
 
                 if (!launcher.isDistroReady(spec.id)) {
-                    writeBanner("📦 ${spec.displayName} を初回展開しています…")
+                    // 初回 / バージョン更新どちらの経路でも同じバナーで案内
+                    val rootfsExists = java.io.File(appContext.filesDir, "distros/${spec.id}").exists()
+                    val banner = if (rootfsExists)
+                        "📦 ${spec.displayName} を更新展開しています…"
+                    else
+                        "📦 ${spec.displayName} を初回展開しています…"
+                    writeBanner(banner)
                     _uiState.update { it.copy(state = TerminalState.INSTALLING) }
 
                     var installError: Throwable? = null
@@ -181,7 +227,8 @@ class TerminalSession(
                 writeBanner("🚀 ${spec.displayName} を起動中…")
 
                 val (rows, cols) = currentSize()
-                val pty = launcher.launch(spec.id, "/bin/sh", rows, cols)
+                val shell = settingsFlow.value.loginShell.ifBlank { "/bin/zsh" }
+                val pty = launcher.launch(spec.id, shell, rows, cols)
                 val ch = LocalPtyChannel(pty)
                 channel = ch
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }
@@ -217,10 +264,10 @@ class TerminalSession(
 
     /** SSH 接続を開始 */
     fun startSsh(profile: SshProfile) {
-        if (_uiState.value.state == TerminalState.RUNNING) return
+        if (_uiState.value.state != TerminalState.IDLE) return
+        _uiState.update { it.copy(state = TerminalState.STARTING) }
         scope.launch {
             writeBanner("🔌 SSH 接続中: ${profile.user}@${profile.host}:${profile.port}…")
-            _uiState.update { it.copy(state = TerminalState.STARTING) }
             try {
                 val (rows, cols) = currentSize()
                 val ch = withContext(Dispatchers.IO) {
@@ -348,6 +395,32 @@ class TerminalSession(
         _uiState.update { UiState() }
         _scrollOffset.value = 0
         startTerminal()
+    }
+
+    /**
+     * 現在のディストロ rootfs を完全削除して再展開する。
+     *
+     * 用途:
+     *  - APK 更新で同梱 rootfs が新しくなったが、既存展開分が古いまま
+     *  - rootfs を壊してしまったので一からやり直したい
+     *
+     * 注意: 展開先 (filesDir/distros/<id>) の中身は全部消える。
+     */
+    fun reinstallDistro() {
+        channel?.close()
+        channel = null
+        readJob?.cancel()
+        scope.launch {
+            val distroId = settingsFlow.value.distroId
+            val rootfs = java.io.File(appContext.filesDir, "distros/$distroId")
+            if (rootfs.exists()) rootfs.deleteRecursively()
+            withContext(emulatorDispatcher) {
+                emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
+            }
+            _uiState.update { UiState() }
+            _scrollOffset.value = 0
+            startTerminal()
+        }
     }
 
     fun emitToast(message: String) { _toastEvents.tryEmit(message) }

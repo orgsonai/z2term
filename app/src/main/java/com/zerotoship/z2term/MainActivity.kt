@@ -38,7 +38,8 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermissionIfNeeded()
         TerminalService.start(applicationContext)
 
-        val session = SessionManager.ensureFirst(applicationContext)
+        // 最初のセッションを必ず確保 (TerminalScreen は SessionManager を直接観測)
+        SessionManager.ensureFirst(applicationContext)
 
         setContent {
             Z2TermTheme {
@@ -46,7 +47,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = ZtsBgPrimary
                 ) {
-                    TerminalScreen(session = session)
+                    TerminalScreen()
                 }
             }
         }
