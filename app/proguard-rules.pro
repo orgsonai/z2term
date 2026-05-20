@@ -33,10 +33,18 @@
 # JZlib は JSch から optional に呼ばれる
 -dontwarn com.jcraft.jzlib.**
 
+# ───────── XZ (DL distro の .tar.xz 解凍) ─────────
+-dontwarn org.tukaani.xz.**
+
+# ───────── SAF DocumentsProvider ─────────
+# Manifest 参照クラスは AGP が自動 keep するが念のため明示
+-keep class com.zerotoship.z2term.saf.Z2TermDocumentsProvider { *; }
+
 # ───────── Data classes ─────────
-# JSON シリアライズで使う data class
+# JSON シリアライズ / 永続化で使う data class
 -keepclassmembers class com.zerotoship.z2term.channel.SshProfile { *; }
 -keepclassmembers class com.zerotoship.z2term.distro.DistroSpec { *; }
+-keepclassmembers class com.zerotoship.z2term.snippets.Snippet { *; }
 
 # ───────── Crash logs ─────────
 # Stack trace に行番号を残す
