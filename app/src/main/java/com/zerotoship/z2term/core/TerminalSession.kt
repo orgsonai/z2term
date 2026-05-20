@@ -525,7 +525,17 @@ class TerminalSession(
     }
 
     private fun writeBanner(text: String) {
-        val bytes = ("$text\r\n").toByteArray(Charsets.UTF_8)
+        // 先頭マーカーで ANSI 色を付け、起動メッセージを見やすくする。
+        // ([..m は SGR、末尾で必ずリセット。CR+LF で改行崩れを防ぐ)
+        val color = when {
+            text.startsWith("✓") -> "[32m"           // 成功: 緑
+            text.startsWith("✗") || text.startsWith("致命") -> "[31m"  // 失敗: 赤
+            text.startsWith("⚠") -> "[33m"            // 警告: 黄
+            text.startsWith("📦") || text.startsWith("⬇") || text.startsWith("🚀") -> "[36m"  // 進行: シアン
+            else -> ""
+        }
+        val line = if (color.isEmpty()) "$text\r\n" else "$color$text[0m\r\n"
+        val bytes = line.toByteArray(Charsets.UTF_8)
         scope.launch(emulatorDispatcher) {
             emulator.processBytes(bytes, bytes.size)
             bumpRedraw()

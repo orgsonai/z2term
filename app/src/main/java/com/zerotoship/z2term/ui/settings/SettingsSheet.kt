@@ -46,7 +46,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.core.TerminalSession
+import com.zerotoship.z2term.distro.DistroBundle
 import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.emulator.TerminalTheme
@@ -251,7 +253,58 @@ fun SettingsSheet(
                     onClick = { session.reinstallDistro() }
                 )
             }
+
+            AppInfoSection(distroId = settings.distroId)
         }
+    }
+}
+
+/**
+ * アプリ情報セクション (設定末尾)。
+ * バージョン / フレーバー / applicationId / ROOTFS_VERSION / 現在の distro と
+ * その os-release を表示する。
+ */
+@Composable
+private fun AppInfoSection(distroId: String) {
+    val context = LocalContext.current
+    // os-release の PRETTY_NAME を rootfs から 1 度だけ読む (軽量なファイル read)
+    val osPretty = remember(distroId) {
+        runCatching {
+            val f = java.io.File(context.filesDir, "distros/$distroId/etc/os-release")
+            if (!f.exists()) return@runCatching null
+            f.readLines().firstOrNull { it.startsWith("PRETTY_NAME=") }
+                ?.substringAfter('=')?.trim('"', ' ')
+        }.getOrNull()
+    }
+    Section(title = "アプリ情報") {
+        InfoRow("バージョン", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+        InfoRow("フレーバー", if (BuildConfig.IS_FOSS) "FOSS" else "Full")
+        InfoRow("パッケージ", BuildConfig.APPLICATION_ID)
+        InfoRow("rootfs 世代", DistroBundle.ROOTFS_VERSION.toString())
+        InfoRow("ディストロ", osPretty ?: distroId)
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = label,
+            color = ZtsTextSecondary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Box(modifier = Modifier.weight(1f))
+        Text(
+            text = value,
+            color = ZtsTextPrimary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1
+        )
     }
 }
 

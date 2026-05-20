@@ -275,6 +275,78 @@ val TokyoNightTheme = TerminalTheme(
     brightWhite = 0xFFC0CAF5.toInt()
 )
 
+/** Catppuccin Mocha (ダーク) */
+val CatppuccinMochaTheme = TerminalTheme(
+    name = "Catppuccin Mocha",
+    foreground = 0xFFCDD6F4.toInt(),
+    background = 0xFF1E1E2E.toInt(),
+    cursor = 0xFFF5E0DC.toInt(),
+    black = 0xFF45475A.toInt(),
+    red = 0xFFF38BA8.toInt(),
+    green = 0xFFA6E3A1.toInt(),
+    yellow = 0xFFF9E2AF.toInt(),
+    blue = 0xFF89B4FA.toInt(),
+    magenta = 0xFFF5C2E7.toInt(),
+    cyan = 0xFF94E2D5.toInt(),
+    white = 0xFFBAC2DE.toInt(),
+    brightBlack = 0xFF585B70.toInt(),
+    brightRed = 0xFFF38BA8.toInt(),
+    brightGreen = 0xFFA6E3A1.toInt(),
+    brightYellow = 0xFFF9E2AF.toInt(),
+    brightBlue = 0xFF89B4FA.toInt(),
+    brightMagenta = 0xFFF5C2E7.toInt(),
+    brightCyan = 0xFF94E2D5.toInt(),
+    brightWhite = 0xFFA6ADC8.toInt()
+)
+
+/** Catppuccin Latte (ライト) */
+val CatppuccinLatteTheme = TerminalTheme(
+    name = "Catppuccin Latte",
+    foreground = 0xFF4C4F69.toInt(),
+    background = 0xFFEFF1F5.toInt(),
+    cursor = 0xFFDC8A78.toInt(),
+    black = 0xFF5C5F77.toInt(),
+    red = 0xFFD20F39.toInt(),
+    green = 0xFF40A02B.toInt(),
+    yellow = 0xFFDF8E1D.toInt(),
+    blue = 0xFF1E66F5.toInt(),
+    magenta = 0xFFEA76CB.toInt(),
+    cyan = 0xFF179299.toInt(),
+    white = 0xFFACB0BE.toInt(),
+    brightBlack = 0xFF6C6F85.toInt(),
+    brightRed = 0xFFD20F39.toInt(),
+    brightGreen = 0xFF40A02B.toInt(),
+    brightYellow = 0xFFDF8E1D.toInt(),
+    brightBlue = 0xFF1E66F5.toInt(),
+    brightMagenta = 0xFFEA76CB.toInt(),
+    brightCyan = 0xFF179299.toInt(),
+    brightWhite = 0xFFBCC0CC.toInt()
+)
+
+/** Monokai */
+val MonokaiTheme = TerminalTheme(
+    name = "Monokai",
+    foreground = 0xFFF8F8F2.toInt(),
+    background = 0xFF272822.toInt(),
+    cursor = 0xFFF8F8F0.toInt(),
+    black = 0xFF272822.toInt(),
+    red = 0xFFF92672.toInt(),
+    green = 0xFFA6E22E.toInt(),
+    yellow = 0xFFF4BF75.toInt(),
+    blue = 0xFF66D9EF.toInt(),
+    magenta = 0xFFAE81FF.toInt(),
+    cyan = 0xFFA1EFE4.toInt(),
+    white = 0xFFF8F8F2.toInt(),
+    brightBlack = 0xFF75715E.toInt(),
+    brightRed = 0xFFF92672.toInt(),
+    brightGreen = 0xFFA6E22E.toInt(),
+    brightYellow = 0xFFF4BF75.toInt(),
+    brightBlue = 0xFF66D9EF.toInt(),
+    brightMagenta = 0xFFAE81FF.toInt(),
+    brightCyan = 0xFFA1EFE4.toInt(),
+    brightWhite = 0xFFF9F8F5.toInt()
+)
+
 /** 同梱テーマ一覧 */
 val AvailableThemes = listOf(
     ZtsTheme,
@@ -282,5 +354,8 @@ val AvailableThemes = listOf(
     DraculaTheme,
     GruvboxDarkTheme,
     NordTheme,
-    TokyoNightTheme
+    TokyoNightTheme,
+    CatppuccinMochaTheme,
+    CatppuccinLatteTheme,
+    MonokaiTheme
 )
