@@ -197,27 +197,26 @@ private fun detectIpv4Addresses(): List<String> {
 }
 
 /**
- * Alpine 内で sshd を起動するためのワンライナースクリプト。
- *  - 必要ディレクトリ作成
- *  - ホスト鍵が無ければ生成
- *  - sshd_config を root password 認証 OK に書き換え
- *  - 既存 sshd を一旦止めてから指定ポートで起動
- *  - 起動結果をユーザーに表示
+ * Alpine 内で dropbear (SSH サーバ) を起動するワンライナースクリプト。
+ *
+ * OpenSSH sshd は proot 環境で権限分離 (privsep) に失敗して接続が即 reset
+ * されるため、proot 下でも安定動作する dropbear を使う。
+ *  - ホスト鍵が無ければ dropbearkey で生成 (ed25519 / rsa)
+ *  - 既存 dropbear を止めてから指定ポートで起動 (-R 自動鍵, パスワード認証 OK)
+ *  - root にパスワードが無ければ警告 (dropbear は空パスワード接続を拒否する)
  */
 private fun buildSshdSetupScript(port: Int): String = """
     {
-      mkdir -p /var/empty /run
-      [ -f /etc/ssh/ssh_host_rsa_key ] || ssh-keygen -A 2>/dev/null
-      sed -i \
-        -e 's/^#*PermitRootLogin.*/PermitRootLogin yes/' \
-        -e 's/^#*PasswordAuthentication.*/PasswordAuthentication yes/' \
-        /etc/ssh/sshd_config
-      pkill -x sshd 2>/dev/null
-      /usr/sbin/sshd -p $port -E /tmp/sshd.log && \
-        echo "✅ sshd listening on :$port (root @ $(ip -4 addr show | grep -oE 'inet [0-9.]+' | awk '{print ${'$'}2}' | grep -v '^127' | head -n1))" || \
-        echo "❌ sshd 起動失敗 (/tmp/sshd.log を確認)"
+      mkdir -p /etc/dropbear
+      [ -f /etc/dropbear/dropbear_ed25519_host_key ] || dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key 2>/dev/null
+      [ -f /etc/dropbear/dropbear_rsa_host_key ] || dropbearkey -t rsa -s 2048 -f /etc/dropbear/dropbear_rsa_host_key 2>/dev/null
+      pkill -x dropbear 2>/dev/null
+      # -p ポート / -R 鍵自動 / -E stderr ログ。root ログイン・パスワード認証は既定で許可。
+      dropbear -p $port -R -E 2>/tmp/dropbear.log && \
+        echo "✅ dropbear listening on :$port (root @ $(ip -4 addr show 2>/dev/null | grep -oE 'inet [0-9.]+' | awk '{print ${'$'}2}' | grep -v '^127' | head -n1))" || \
+        echo "❌ dropbear 起動失敗 (/tmp/dropbear.log を確認)"
       [ "${'$'}(grep -c '^root:[^!*]' /etc/shadow 2>/dev/null)" = 0 ] && \
-        echo "⚠️ root パスワード未設定です。'passwd' で設定してください。"
+        echo "⚠️ root パスワード未設定です。'passwd' で設定してから接続してください。"
     }
 
 """.trimIndent()

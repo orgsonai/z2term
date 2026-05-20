@@ -59,6 +59,11 @@ tar
 gzip
 xz
 
+# ===== Tier 3.5: dropbear (PC → 端末 の SSH サーバ) =====
+# OpenSSH sshd は proot で privsep が破綻 (permanently_set_uid) して接続が切れる。
+# dropbear は proot 下で問題なく動くため、SSH ヘルパーはこちらを起動する。
+dropbear
+
 # ===== Tier 4: mosh (UDP ローミングシェル) =====
 # mosh-client は通常の UDP ソケットを使うため PRoot 配下でも動作する
 # (ping/ip の raw socket/netlink とは異なり許可される)。
