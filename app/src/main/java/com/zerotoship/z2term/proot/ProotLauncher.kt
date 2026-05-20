@@ -237,14 +237,19 @@ class ProotLauncher(private val context: Context) {
             File(rootfs, "usr/bin/bash").exists()
         if (!hasBinaries) return false
 
-        // ROOTFS_VERSION 比較は同梱 distro (Alpine) のみに適用する。
-        // 非同梱 (DL) distro まで version で弾くと、Alpine の bump 毎に
-        // Ubuntu/Arch/Kali を再ダウンロードさせてしまうため。
+        // バージョンマーカーは postInstall の最後に書かれる = 「設定完了」の証。
+        // 無い場合は展開途中 or postInstall 失敗の半端な状態なので再展開させる
+        // (非同梱 distro はキャッシュ済みアーカイブから再展開され再 DL は不要)。
+        val versionFile = File(rootfs, DistroBundle.VERSION_MARKER)
+        if (!versionFile.exists()) {
+            Log.i(TAG, "Distro $distroId has no version marker (incomplete install) -> not ready")
+            return false
+        }
+
+        // ROOTFS_VERSION 比較は同梱 distro (Alpine) のみ。非同梱 (DL) まで version で
+        // 弾くと Alpine の bump 毎に Ubuntu/Arch/Kali を再 DL させてしまうため。
         if (distroId == DistroBundle.BUNDLED_DISTRO_ID) {
-            val versionFile = File(rootfs, DistroBundle.VERSION_MARKER)
-            val installed = if (versionFile.exists()) {
-                versionFile.readText().trim().toIntOrNull() ?: 0
-            } else 0
+            val installed = versionFile.readText().trim().toIntOrNull() ?: 0
             if (installed < DistroBundle.ROOTFS_VERSION) {
                 Log.i(TAG, "Distro $distroId is outdated: installed=$installed vs bundled=${DistroBundle.ROOTFS_VERSION}")
                 return false
