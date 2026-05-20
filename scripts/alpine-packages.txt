@@ -58,3 +58,12 @@ iproute2
 tar
 gzip
 xz
+
+# ===== Tier 4: mosh (UDP ローミングシェル) =====
+# mosh-client は通常の UDP ソケットを使うため PRoot 配下でも動作する
+# (ping/ip の raw socket/netlink とは異なり許可される)。
+# mosh の launcher は perl 製なので perl が依存で入る (サイズ大)。
+# musl-locales は mosh が要求する UTF-8 ロケール検出のために同梱。
+mosh
+musl-locales
+musl-locales-lang

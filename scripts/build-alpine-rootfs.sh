@@ -160,7 +160,10 @@ EOF
     cat >"${rootfs_dir}/etc/profile.d/z2term.sh" <<'EOF'
 # Z2Term auto-generated profile (bundled with the APK)
 export TERM="${TERM:-xterm-256color}"
+# mosh など UTF-8 native locale を要求するツール向け。musl は C.UTF-8 で
+# nl_langinfo(CODESET)="UTF-8" を返すため mosh-client の locale チェックを満たす。
 export LANG="${LANG:-C.UTF-8}"
+export LC_ALL="${LC_ALL:-C.UTF-8}"
 export EDITOR="${EDITOR:-vi}"
 export PAGER="${PAGER:-less}"
 alias ll='ls -alF'

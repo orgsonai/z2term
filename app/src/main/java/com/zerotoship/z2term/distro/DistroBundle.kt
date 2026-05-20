@@ -17,9 +17,10 @@ package com.zerotoship.z2term.distro
  *  - 3: 2026-05-20 sudo / which を追加
  *  - 4: 2026-05-20 Tier 3 追加 (curl/wget/git/vim/tmux/htop/jq/rsync 等)
  *       + setUnixMode owner-only 修正 (sudo world-writable 解消) の再展開
+ *  - 5: 2026-05-20 Tier 4: mosh + musl-locales + LC_ALL=C.UTF-8
  */
 object DistroBundle {
-    const val ROOTFS_VERSION = 4
+    const val ROOTFS_VERSION = 5
 
     /** rootfs に書き込む version マーカーファイル名 (rootfs 直下) */
     const val VERSION_MARKER = ".z2term-version"
