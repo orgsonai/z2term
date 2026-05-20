@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         requestNotificationPermissionIfNeeded()
-        TerminalService.start(applicationContext)
+        // 常駐サービスの起動/停止は設定 (keepAliveService) に従い TerminalScreen 側で制御する。
 
         // 最初のセッションを必ず確保 (TerminalScreen は SessionManager を直接観測)
         SessionManager.ensureFirst(applicationContext)

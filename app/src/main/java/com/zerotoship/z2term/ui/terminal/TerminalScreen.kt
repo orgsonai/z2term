@@ -3,8 +3,7 @@ package com.zerotoship.z2term.ui.terminal
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,7 +42,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.core.TerminalSession
+import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.ui.settings.SettingsSheet
+import com.zerotoship.z2term.ui.snippets.SnippetsSheet
 import com.zerotoship.z2term.ui.ssh.HostKeyVerificationDialog
 import com.zerotoship.z2term.ui.ssh.SshProfilesSheet
 import com.zerotoship.z2term.ui.terminal.components.SpecialKeyBar
@@ -61,21 +62,15 @@ import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 /** キーボードモード。CUSTOM=独自キーボード、SYSTEM=OS IME + 特殊キーバー */
 enum class KeyboardMode { CUSTOM, SYSTEM }
 
-/** スプリッタを介してキーボード領域の高さを保持する状態 */
-private const val DEFAULT_KEYBOARD_HEIGHT_DP = 240f
-private const val MIN_KEYBOARD_HEIGHT_DP = 80f
-// spacious 4 フリックは naturalHeight 320dp 必要。余裕を持って 520dp まで許容。
-private const val MAX_KEYBOARD_HEIGHT_DP = 520f
-
 /**
  * アプリ全体のターミナル画面。
  *
  * 構造:
- *   TopBar           ← セッションラベル / 状態 / IME 切替
+ *   TopBar           ← セッションラベル / 状態 / 貼付 (長押しで IME 切替)
  *   TabBar           ← 全セッション + 「+」
  *   コンテンツ領域    ← Renderer + InputView + Floating overlays
- *   Splitter         ← クリックでキーボード折り畳み、ドラッグで高さ調整
- *   キーボード領域    ← CUSTOM=独自、SYSTEM=SpecialKeyBar
+ *   Toggle bar       ← タップでキーボード表示/非表示 (高さ可変は廃止)
+ *   キーボード領域    ← CUSTOM=独自 (style.naturalHeight 固定)、SYSTEM=SpecialKeyBar
  */
 @Composable
 fun TerminalScreen(modifier: Modifier = Modifier) {
@@ -90,13 +85,35 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         return
     }
 
+    val settings by active.settingsFlow.collectAsState()
     var ctrlSticky by remember { mutableStateOf(false) }
     var keyboardMode by remember { mutableStateOf(KeyboardMode.CUSTOM) }
     var inputViewRef by remember { mutableStateOf<TerminalInputView?>(null) }
     var keyboardCollapsed by remember { mutableStateOf(false) }
-    var keyboardHeightDp by remember { mutableStateOf(DEFAULT_KEYBOARD_HEIGHT_DP) }
     var settingsOpen by remember { mutableStateOf(false) }
     var sshSheetOpen by remember { mutableStateOf(false) }
+    var snippetsSheetOpen by remember { mutableStateOf(false) }
+
+    // 起動時に保存されたキーボードモードを 1 度だけ復元 (毎回 OS IME に切替える手間を省く)
+    var restoredMode by remember { mutableStateOf(false) }
+    LaunchedEffect(settings.keyboardMode) {
+        if (!restoredMode) {
+            keyboardMode = if (settings.keyboardMode == "system")
+                KeyboardMode.SYSTEM else KeyboardMode.CUSTOM
+            restoredMode = true
+        }
+    }
+
+    // 常駐サービスの起動/停止を設定に追従させる。
+    // 設定変更で即反映され、ON 復帰時に再度フォアグラウンド化する。
+    LaunchedEffect(settings.keepAliveService) {
+        if (settings.keepAliveService) {
+            TerminalService.start(context)
+        } else {
+            // セッションは殺さず常駐解除のみ (背景で OS に殺されてもよい挙動)
+            TerminalService.detach(context)
+        }
+    }
 
     LaunchedEffect(active.id) {
         // IDLE 状態のセッションだけ自動的にローカル PTY を立ち上げる。
@@ -122,12 +139,16 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         TopBar(
             session = active,
             keyboardMode = keyboardMode,
+            onPaste = { active.pasteFromClipboard() },
             onToggleKeyboardMode = {
-                keyboardMode = if (keyboardMode == KeyboardMode.CUSTOM)
+                val next = if (keyboardMode == KeyboardMode.CUSTOM)
                     KeyboardMode.SYSTEM else KeyboardMode.CUSTOM
+                keyboardMode = next
+                active.setKeyboardMode(if (next == KeyboardMode.SYSTEM) "system" else "custom")
             },
             onOpenSettings = { settingsOpen = true },
-            onOpenSsh = { sshSheetOpen = true }
+            onOpenSsh = { sshSheetOpen = true },
+            onOpenSnippets = { snippetsSheetOpen = true }
         )
 
         TabBar(
@@ -160,47 +181,34 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             ScrollIndicators(session = active, modifier = Modifier.fillMaxSize())
         }
 
-        SplitterBar(
+        KeyboardToggleBar(
             collapsed = keyboardCollapsed,
-            onToggleCollapse = { keyboardCollapsed = !keyboardCollapsed },
-            onDragDeltaDp = { delta ->
-                if (keyboardCollapsed && delta < -4f) {
-                    // 折り畳み中に上ドラッグで開く
-                    keyboardCollapsed = false
-                }
-                if (!keyboardCollapsed) {
-                    // delta は dp 単位、上ドラッグで高さ増、下ドラッグで減
-                    keyboardHeightDp = (keyboardHeightDp - delta)
-                        .coerceIn(MIN_KEYBOARD_HEIGHT_DP, MAX_KEYBOARD_HEIGHT_DP)
-                }
-            }
+            onToggle = { keyboardCollapsed = !keyboardCollapsed }
         )
 
         if (!keyboardCollapsed) {
             when (keyboardMode) {
                 KeyboardMode.CUSTOM -> {
-                    val settings by active.settingsFlow.collectAsState()
                     val style = KeyboardStyle.byId(settings.keyboardStyleId)
-                    // スタイル切替で必要な naturalHeight 未満なら自動で広げる
-                    LaunchedEffect(style.id) {
-                        val needed = style.naturalHeight.value
-                        if (keyboardHeightDp < needed) keyboardHeightDp = needed
-                    }
+                    // 高さはスタイルの naturalHeight 固定。これでキーサイズと領域高さが
+                    // 常に一致する (旧: 高さ可変でキーサイズが追従せずズレていた)。
                     Box(modifier = Modifier
                         .fillMaxWidth()
-                        .height(keyboardHeightDp.dp)
+                        .height(style.naturalHeight)
                     ) {
                         TerminalKeyboard(
                             onBytes = { active.writeBytes(it) },
                             onCursorKey = { key -> active.writeBytes(active.emulator.cursorKeyBytes(key)) },
-                            onRequestSystemKeyboard = { keyboardMode = KeyboardMode.SYSTEM },
+                            onRequestSystemKeyboard = {
+                                keyboardMode = KeyboardMode.SYSTEM
+                                active.setKeyboardMode("system")
+                            },
                             style = style
                         )
                     }
                 }
                 KeyboardMode.SYSTEM -> {
                     // OS IME はシステムが描画するため、こちらは SpecialKeyBar の高さだけ。
-                    // 240dp 固定 Box にすると上に空白が出てしまうので wrap-content。
                     SpecialKeyBar(
                         session = active,
                         ctrlSticky = ctrlSticky,
@@ -226,6 +234,14 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             }
         )
     }
+    if (snippetsSheetOpen) {
+        SnippetsSheet(
+            onDismiss = { snippetsSheetOpen = false },
+            onRun = { command ->
+                active.writeBytes(command.toByteArray(Charsets.UTF_8))
+            }
+        )
+    }
     // ホスト鍵検証はワーカースレッドからブロッキングで呼ばれるため、
     // SSH UI の表示状態に関わらずルートに常駐させる。
     HostKeyVerificationDialog()
@@ -235,9 +251,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
 private fun TopBar(
     session: TerminalSession,
     keyboardMode: KeyboardMode,
+    onPaste: () -> Unit,
     onToggleKeyboardMode: () -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenSsh: () -> Unit
+    onOpenSsh: () -> Unit,
+    onOpenSnippets: () -> Unit
 ) {
     val label by session.label.collectAsState()
     val cwd by session.cwd.collectAsState()
@@ -278,9 +296,14 @@ private fun TopBar(
         }
         Box(modifier = Modifier.weight(1f))
 
+        TopBarIconButton(label = "📋", onClick = onOpenSnippets)
         TopBarIconButton(label = "🔌", onClick = onOpenSsh)
         TopBarIconButton(label = "⚙", onClick = onOpenSettings)
-        KeyboardToggleButton(keyboardMode, onToggleKeyboardMode)
+        PasteImeButton(
+            imeActive = keyboardMode == KeyboardMode.SYSTEM,
+            onPaste = onPaste,
+            onToggleIme = onToggleKeyboardMode
+        )
 
         Text(
             text = ui.state.name,
@@ -311,28 +334,40 @@ private fun TopBarIconButton(label: String, onClick: () -> Unit) {
     }
 }
 
+/**
+ * 貼付ボタン (旧「Aあ」IME 切替ボタンの置き換え)。
+ *  - タップ: クリップボードの内容をターミナルへ貼り付け (独自キーボードに貼付手段が無いため)
+ *  - 長押し: OS IME (SYSTEM キーボード) のオン/オフをトグル
+ *
+ * IME が有効な間は緑でハイライトし、状態が分かるようにする。
+ */
 @Composable
-private fun KeyboardToggleButton(
-    mode: KeyboardMode,
-    onClick: () -> Unit
+private fun PasteImeButton(
+    imeActive: Boolean,
+    onPaste: () -> Unit,
+    onToggleIme: () -> Unit
 ) {
-    val label = if (mode == KeyboardMode.CUSTOM) "Aあ" else "z2"
-    val bg = if (mode == KeyboardMode.SYSTEM) ZtsGreen else ZtsBgCard
-    val fg = if (mode == KeyboardMode.SYSTEM) Color.Black else ZtsTextPrimary
-    val border = if (mode == KeyboardMode.SYSTEM) ZtsGreen else ZtsBorder
+    val bg = if (imeActive) ZtsGreen else ZtsBgCard
+    val fg = if (imeActive) Color.Black else ZtsTextPrimary
+    val border = if (imeActive) ZtsGreen else ZtsBorder
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
             .border(1.dp, border, RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onPaste() },
+                    onLongPress = { onToggleIme() }
+                )
+            }
             .padding(horizontal = 10.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = label,
+            text = "貼",
             color = fg,
-            fontSize = 11.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             fontFamily = FontFamily.Monospace
         )
@@ -443,61 +478,31 @@ private fun TabChip(
 }
 
 /**
- * ターミナル / キーボード間のスプリッタバー。
- *  - クリック (タップ): キーボード折り畳みトグル
- *  - ドラッグ: キーボード高さを変更 (折り畳み中に上ドラッグで開く)
+ * ターミナル / キーボード間のトグルバー。
+ *
+ * タップでキーボードの表示/非表示を切り替えるだけ (高さ可変ドラッグは廃止)。
+ * ドラッグ処理を無くしたことで「ウニョウニョ動く」不安定さが解消される。
+ * 折り畳み中はハンドルを緑にして「タップで開く」ことを示す。
  */
 @Composable
-private fun SplitterBar(
+private fun KeyboardToggleBar(
     collapsed: Boolean,
-    onToggleCollapse: () -> Unit,
-    onDragDeltaDp: (Float) -> Unit
+    onToggle: () -> Unit
 ) {
-    val density = LocalDensity.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(14.dp)
+            .height(16.dp)
             .background(ZtsBgSecondary)
             .border(width = 1.dp, color = ZtsBorder)
-            .pointerInput(Unit) {
-                val slop = viewConfiguration.touchSlop
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    var dragged = false
-                    var lastY = down.position.y
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        val dy = change.position.y - lastY
-                        if (!dragged) {
-                            val totalDy = change.position.y - down.position.y
-                            if (kotlin.math.abs(totalDy) > slop) {
-                                dragged = true
-                            }
-                        }
-                        if (dragged && dy != 0f) {
-                            val deltaDp = with(density) { dy.toDp().value }
-                            onDragDeltaDp(deltaDp)
-                            change.consume()
-                            lastY = change.position.y
-                        }
-                        if (!change.pressed) {
-                            if (!dragged) onToggleCollapse()
-                            break
-                        }
-                    }
-                }
-            },
+            .clickable(onClick = onToggle),
         contentAlignment = Alignment.Center
     ) {
-        // ハンドルを示すバー
-        Box(
-            modifier = Modifier
-                .width(40.dp)
-                .height(3.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(if (collapsed) ZtsGreen else ZtsBorder)
+        Text(
+            text = if (collapsed) "▴ キーボード" else "▾",
+            color = if (collapsed) ZtsGreen else ZtsBorder,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
         )
     }
 }

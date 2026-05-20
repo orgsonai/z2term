@@ -42,3 +42,19 @@ shadow
 procps-ng
 sudo
 which
+
+# ===== Tier 3: 開発 / 運用ツール (約 20〜30MB) =====
+curl
+wget
+git
+vim
+nano
+tmux
+htop
+jq
+rsync
+tree
+iproute2
+tar
+gzip
+xz

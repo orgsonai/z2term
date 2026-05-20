@@ -10,11 +10,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
@@ -95,6 +98,8 @@ fun SettingsSheet(
         containerColor = ZtsBgPrimary,
         contentColor = ZtsTextPrimary,
         scrimColor = Color.Black.copy(alpha = 0.55f),
+        // ステータスバーの下で留める (シートがステータスバー裏まで伸びるのを防ぐ)
+        contentWindowInsets = { WindowInsets.statusBars },
         dragHandle = {
             Box(
                 modifier = Modifier
@@ -109,6 +114,8 @@ fun SettingsSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                // 縦スクロール可能に (項目が画面高を超えても一番下まで到達できる)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
@@ -183,6 +190,13 @@ fun SettingsSheet(
                 description = "CJK ロケール向け (PowerLine 記号などに有効)",
                 checked = settings.ambiguousAsWide,
                 onChange = { session.setAmbiguousAsWide(it) }
+            )
+
+            ToggleField(
+                title = "バックグラウンド常駐",
+                description = "ON: アプリを閉じてもセッション維持 (通知が出ます)。OFF: 閉じると終了。",
+                checked = settings.keepAliveService,
+                onChange = { session.setKeepAliveService(it) }
             )
 
             TextField(

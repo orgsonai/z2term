@@ -55,6 +55,8 @@ class TerminalInputView(context: Context) : View(context) {
     private var selectionAnchorRow = 0
     private var selectionAnchorCol = 0
     private var initialFontSizeSp: Float = 13f
+    private var initialSpan: Float = 0f
+    private var lastAppliedFontSp: Float = 0f
     private var scrollAccumDy: Float = 0f
 
     private val scaleDetector = ScaleGestureDetector(
@@ -62,13 +64,25 @@ class TerminalInputView(context: Context) : View(context) {
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
                 initialFontSizeSp = session?.settingsFlow?.value?.fontSizeSp ?: 13f
+                // ピンチ開始時の指間距離を基準にする。以降は currentSpan/initialSpan の
+                // 累積比でサイズを決める。旧実装は detector.scaleFactor (前イベント比) を
+                // initial に掛けていたため、ほぼ 1.0 の値が揺れて「ウニョウニョ」していた。
+                initialSpan = detector.currentSpan
+                lastAppliedFontSp = initialFontSizeSp
                 return true
             }
 
             override fun onScale(detector: ScaleGestureDetector): Boolean {
                 val sess = session ?: return false
-                val newSize = (initialFontSizeSp * detector.scaleFactor).coerceIn(8f, 32f)
-                sess.setFontSize(newSize)
+                if (initialSpan <= 0f) return false
+                val ratio = detector.currentSpan / initialSpan
+                // 0.5sp 単位に量子化。微小変化での resize 連打 (重い) を防ぎ滑らかに。
+                val raw = (initialFontSizeSp * ratio).coerceIn(8f, 32f)
+                val quantized = Math.round(raw * 2f) / 2f
+                if (quantized != lastAppliedFontSp) {
+                    lastAppliedFontSp = quantized
+                    sess.setFontSize(quantized)
+                }
                 return true
             }
         }
@@ -129,9 +143,14 @@ class TerminalInputView(context: Context) : View(context) {
 
             override fun onSingleTapUp(e: MotionEvent): Boolean {
                 val sess = session ?: return false
-                // 選択中ならタップで解除
+                // 選択中ならタップで解除 (マウスモードでも選択操作を優先)
                 if (sess.selection.value != null) {
                     sess.clearSelection()
+                    return true
+                }
+                // マウスモード有効ならボタン 1 の press+release を PTY に送る。
+                // 失敗 (scrollback 表示中 / オフスクリーン) なら通常の focus/IME 経路にフォールバック。
+                if (sess.emulator.mouseEnabled && sendMouseClick(e.x, e.y, sess)) {
                     return true
                 }
                 if (!isFocused) requestFocus()
@@ -272,6 +291,38 @@ class TerminalInputView(context: Context) : View(context) {
             if (dx * dx + dy * dy <= r2) return Handle.END
         }
         return null
+    }
+
+    /**
+     * マウスクリックをエミュレータに送る。
+     *
+     * 動作:
+     *  - タップ位置 → セル座標 (画面内 row/col)
+     *  - emulator.encodeMouseEvent(button=0) で press + release のバイト列を作り PTY へ
+     *
+     * 制約:
+     *  - scrollback 表示中 (scrollOffset > 0) でタップ位置が画面外なら送らない
+     *  - 画面サイズが 0 や cellMetrics 未計測の場合も送らない
+     *
+     * @return 実際に PTY 送信したら true
+     */
+    private fun sendMouseClick(x: Float, y: Float, sess: TerminalSession): Boolean {
+        val cell = pixelToAbsCell(x, y) ?: return false
+        val emu = sess.emulator
+        val screenRow = cell.first - emu.buffer.scrollbackSize
+        if (screenRow !in 0 until emu.buffer.rows) return false
+        val col = cell.second.coerceIn(0, emu.buffer.columns - 1)
+        val press = emu.encodeMouseEvent(
+            button = com.zerotoship.z2term.emulator.TerminalEmulator.MOUSE_BTN_LEFT,
+            col0 = col, row0 = screenRow, press = true
+        ) ?: return false
+        sess.writeBytes(press)
+        val release = emu.encodeMouseEvent(
+            button = com.zerotoship.z2term.emulator.TerminalEmulator.MOUSE_BTN_LEFT,
+            col0 = col, row0 = screenRow, press = false
+        )
+        if (release != null) sess.writeBytes(release)
+        return true
     }
 
     private fun pixelToAbsCell(x: Float, y: Float): Pair<Int, Int>? {

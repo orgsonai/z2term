@@ -30,7 +30,11 @@ class AppSettings(private val context: Context) {
         val ambiguousAsWide: Boolean = DEFAULT_AMBIGUOUS_AS_WIDE,
         val initCommand: String = "",
         val keyboardStyleId: String = DEFAULT_KEYBOARD_STYLE,
-        val loginShell: String = DEFAULT_LOGIN_SHELL
+        val loginShell: String = DEFAULT_LOGIN_SHELL,
+        /** 直近のキーボードモード ("custom" / "system")。次回起動時に復元 */
+        val keyboardMode: String = DEFAULT_KEYBOARD_MODE,
+        /** フォアグラウンド常駐サービスを使うか (Activity 破棄後もセッション維持) */
+        val keepAliveService: Boolean = DEFAULT_KEEP_ALIVE
     )
 
     val flow: Flow<Snapshot> = context.dataStore.data.map { p ->
@@ -43,8 +47,18 @@ class AppSettings(private val context: Context) {
             ambiguousAsWide = p[KEY_AMBIGUOUS_WIDE] ?: DEFAULT_AMBIGUOUS_AS_WIDE,
             initCommand = p[KEY_INIT_COMMAND] ?: "",
             keyboardStyleId = p[KEY_KEYBOARD_STYLE] ?: DEFAULT_KEYBOARD_STYLE,
-            loginShell = p[KEY_LOGIN_SHELL] ?: DEFAULT_LOGIN_SHELL
+            loginShell = p[KEY_LOGIN_SHELL] ?: DEFAULT_LOGIN_SHELL,
+            keyboardMode = p[KEY_KEYBOARD_MODE] ?: DEFAULT_KEYBOARD_MODE,
+            keepAliveService = p[KEY_KEEP_ALIVE] ?: DEFAULT_KEEP_ALIVE
         )
+    }
+
+    suspend fun setKeyboardMode(mode: String) {
+        context.dataStore.edit { it[KEY_KEYBOARD_MODE] = mode }
+    }
+
+    suspend fun setKeepAliveService(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_KEEP_ALIVE] = enabled }
     }
 
     suspend fun setKeyboardStyleId(id: String) {
@@ -93,6 +107,8 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_FONT = "monospace"
         const val DEFAULT_AMBIGUOUS_AS_WIDE = false
         const val DEFAULT_KEYBOARD_STYLE = "compact"
+        const val DEFAULT_KEYBOARD_MODE = "custom"
+        const val DEFAULT_KEEP_ALIVE = true
         /** Alpine 同梱で zsh が利用可能なので既定 zsh。`-l` でログインシェル動作。 */
         const val DEFAULT_LOGIN_SHELL = "/bin/zsh"
         val AVAILABLE_SHELLS = listOf("/bin/zsh", "/bin/bash", "/bin/sh")
@@ -111,5 +127,7 @@ class AppSettings(private val context: Context) {
         private val KEY_INIT_COMMAND = stringPreferencesKey("init_command")
         private val KEY_KEYBOARD_STYLE = stringPreferencesKey("keyboard_style")
         private val KEY_LOGIN_SHELL = stringPreferencesKey("login_shell")
+        private val KEY_KEYBOARD_MODE = stringPreferencesKey("keyboard_mode")
+        private val KEY_KEEP_ALIVE = booleanPreferencesKey("keep_alive_service")
     }
 }

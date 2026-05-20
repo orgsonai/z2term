@@ -50,5 +50,18 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="terminal_session_persistence" />
         </service>
+
+        <!-- SAF DocumentsProvider: rootfs / HOME を他のファイラーから開けるようにする。
+             permission=MANAGE_DOCUMENTS でシステム (DocumentsUI) からのみアクセス可能。 -->
+        <provider
+            android:name=".saf.Z2TermDocumentsProvider"
+            android:authorities="${applicationId}.documents"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
     </application>
 </manifest>

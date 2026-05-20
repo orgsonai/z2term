@@ -15,9 +15,11 @@ package com.zerotoship.z2term.distro
  *  - 1: 2026-05-19 初版 (alpine + tier 0+1+2 32pkg)
  *  - 2: 2026-05-20 etc passwd の root シェルを zsh に
  *  - 3: 2026-05-20 sudo / which を追加
+ *  - 4: 2026-05-20 Tier 3 追加 (curl/wget/git/vim/tmux/htop/jq/rsync 等)
+ *       + setUnixMode owner-only 修正 (sudo world-writable 解消) の再展開
  */
 object DistroBundle {
-    const val ROOTFS_VERSION = 3
+    const val ROOTFS_VERSION = 4
 
     /** rootfs に書き込む version マーカーファイル名 (rootfs 直下) */
     const val VERSION_MARKER = ".z2term-version"

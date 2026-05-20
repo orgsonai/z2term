@@ -36,6 +36,15 @@ class TerminalService : Service() {
                 stopSessionAndSelf()
                 return START_NOT_STICKY
             }
+            ACTION_DETACH -> {
+                // 常駐 OFF: フォアグラウンド解除 + 通知撤去のみ。セッションは生かしたまま。
+                // (プロセスが背景でいつ殺されてもよい = ユーザーが望んだ非常駐挙動)
+                Log.i(TAG, "Detach action received (foreground off, sessions kept)")
+                releaseWakeLock()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                return START_NOT_STICKY
+            }
             else -> startForegroundInternal()
         }
         return START_STICKY
@@ -116,7 +125,7 @@ class TerminalService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Z2Term 稼働中")
             .setContentText("ターミナルセッションが実行中です")
-            .setSmallIcon(R.drawable.ic_splash)
+            .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
             .setSilent(true)
             .setContentIntent(tapPendingIntent)
@@ -138,6 +147,7 @@ class TerminalService : Service() {
         /** WakeLock の絶対上限 (8 時間)。超えると自動解放 */
         private const val MAX_WAKELOCK_MILLIS = 8L * 60 * 60 * 1000
         const val ACTION_STOP = "com.zerotoship.z2term.STOP"
+        const val ACTION_DETACH = "com.zerotoship.z2term.DETACH"
 
         fun start(context: Context) {
             val intent = Intent(context, TerminalService::class.java)
@@ -148,8 +158,15 @@ class TerminalService : Service() {
             }
         }
 
+        /** 完全停止: セッションを終了して常駐解除 (通知の「停止」ボタン用) */
         fun stop(context: Context) {
             val intent = Intent(context, TerminalService::class.java).setAction(ACTION_STOP)
+            context.startService(intent)
+        }
+
+        /** 常駐解除のみ: セッションは生かしたままフォアグラウンド/通知を外す (常駐 OFF トグル用) */
+        fun detach(context: Context) {
+            val intent = Intent(context, TerminalService::class.java).setAction(ACTION_DETACH)
             context.startService(intent)
         }
     }

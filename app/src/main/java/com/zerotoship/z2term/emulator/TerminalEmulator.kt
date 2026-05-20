@@ -63,6 +63,18 @@ class TerminalEmulator(
     /** EAW Ambiguous を wide 扱いするか (CJK ロケール向け) */
     var ambiguousAsWide: Boolean = false
 
+    // --- マウスレポーティング (xterm-mouse) ---
+    /** 現在のマウスプロトコル。ボタン/モーションの報告ルールを決める。 */
+    var mouseProtocol: MouseProtocol = MouseProtocol.OFF
+        private set
+
+    /** マウスレポートのエンコーディング (LEGACY=X10 互換、SGR=1006、URXVT=1015) */
+    var mouseEncoding: MouseEncoding = MouseEncoding.LEGACY
+        private set
+
+    /** マウスレポートが有効か (UI 側のジェスチャ振り分けに使う) */
+    val mouseEnabled: Boolean get() = mouseProtocol != MouseProtocol.OFF
+
     // --- 状態機械 ---
     private enum class State {
         GROUND,
@@ -551,7 +563,34 @@ class TerminalEmulator(
                     cursorCol = 0
                 }
                 7 -> autoWrap = set  // DECAWM
+                9 -> {
+                    // X10 mouse: ボタン押下のみ報告
+                    mouseProtocol = if (set) MouseProtocol.X10 else MouseProtocol.OFF
+                }
                 25 -> cursorVisible = set  // DECTCEM
+                1000 -> {
+                    // Normal mouse: press + release
+                    mouseProtocol = if (set) MouseProtocol.NORMAL else MouseProtocol.OFF
+                }
+                1002 -> {
+                    // Button-event tracking: press/release + held-motion
+                    mouseProtocol = if (set) MouseProtocol.BUTTON_EVENT else MouseProtocol.OFF
+                }
+                1003 -> {
+                    // Any-event tracking: press/release + 常時 motion
+                    mouseProtocol = if (set) MouseProtocol.ANY_EVENT else MouseProtocol.OFF
+                }
+                1005 -> {
+                    // UTF-8 encoding (未対応)。SGR/URXVT に倒すアプリが多いので無視。
+                }
+                1006 -> {
+                    // SGR encoding (xterm 1006)
+                    mouseEncoding = if (set) MouseEncoding.SGR else MouseEncoding.LEGACY
+                }
+                1015 -> {
+                    // URxvt encoding
+                    mouseEncoding = if (set) MouseEncoding.URXVT else MouseEncoding.LEGACY
+                }
                 1049 -> {
                     // DECSET 1049: カーソル + 属性 + スクロール領域を退避 → Alt 切替 (クリア)
                     // DECRST 1049: Alt → Primary、退避していた状態を復元
@@ -698,9 +737,15 @@ class TerminalEmulator(
             4 -> handleOscPalette(arg)
             7 -> handleOscCwd(arg)
             8 -> handleOscHyperlink(arg)
-            10 -> ColorSpec.parse(arg)?.let { colors.setDefaultForeground(it) }
-            11 -> ColorSpec.parse(arg)?.let { colors.setDefaultBackground(it) }
-            12 -> ColorSpec.parse(arg)?.let { colors.setCursorColor(it) }
+            10 -> handleOscColor(code = 10, arg = arg, currentArgb = colors.defaultForeground) {
+                colors.setDefaultForeground(it)
+            }
+            11 -> handleOscColor(code = 11, arg = arg, currentArgb = colors.defaultBackground) {
+                colors.setDefaultBackground(it)
+            }
+            12 -> handleOscColor(code = 12, arg = arg, currentArgb = colors.cursorColor) {
+                colors.setCursorColor(it)
+            }
             52 -> handleOscClipboard(arg)
             else -> {}
         }
@@ -734,6 +779,30 @@ class TerminalEmulator(
         val sep = arg.indexOf(';')
         val uri = if (sep >= 0) arg.substring(sep + 1) else ""
         currentLink = uri.takeIf { it.isNotEmpty() }
+    }
+
+    /**
+     * OSC 10/11/12 共通ハンドラ。
+     *
+     * `?` の場合は現在値を `rgb:RRRR/GGGG/BBBB` (16bit ヘックス × 3) で返信する。
+     * 終端は BEL (0x07) を使う (xterm/iTerm/foot 等は ST/BEL どちらでも受ける)。
+     * 通常の色指定 (rgb:.. / #RRGGBB) ならパースして setter を呼ぶ。
+     */
+    private fun handleOscColor(code: Int, arg: String, currentArgb: Int, setter: (Int) -> Unit) {
+        val trimmed = arg.trim()
+        if (trimmed == "?") {
+            val r = (currentArgb shr 16) and 0xFF
+            val g = (currentArgb shr 8) and 0xFF
+            val b = currentArgb and 0xFF
+            // 8bit → 16bit へ展開 (0xRR → 0xRRRR)。xterm 互換。
+            val reply = String.format(
+                "]%d;rgb:%02x%02x/%02x%02x/%02x%02x",
+                code, r, r, g, g, b, b
+            )
+            output(reply.toByteArray(Charsets.US_ASCII))
+            return
+        }
+        ColorSpec.parse(trimmed)?.let(setter)
     }
 
     /** OSC 4 ; idx ; spec[; idx; spec ...] — palette set */
@@ -873,7 +942,85 @@ class TerminalEmulator(
 
     enum class CursorKey { UP, DOWN, LEFT, RIGHT }
 
+    /**
+     * xterm マウス報告プロトコル。
+     *  - X10 (DECSET 9): ボタン押下のみ報告
+     *  - NORMAL (1000): 押下 + 離した時の報告
+     *  - BUTTON_EVENT (1002): NORMAL + 押下中の motion 報告
+     *  - ANY_EVENT (1003): NORMAL + 押下していなくても常時 motion 報告
+     */
+    enum class MouseProtocol { OFF, X10, NORMAL, BUTTON_EVENT, ANY_EVENT }
+
+    /**
+     * マウスレポートのエンコーディング。
+     *  - LEGACY: `ESC [ M Cb Cx Cy` (各 +32 オフセット、char 単位 = 7bit safe)
+     *  - SGR (1006): `ESC [ < button ; col ; row M|m` (現代的、座標範囲制限なし)
+     *  - URXVT (1015): `ESC [ Cb ; col ; row M` (Cb は +32)
+     */
+    enum class MouseEncoding { LEGACY, SGR, URXVT }
+
+    /**
+     * マウスイベントを現在の [mouseProtocol] / [mouseEncoding] でバイト列に変換して PTY に書き戻す。
+     *
+     * @param button 基底ボタンコード: 0=左 / 1=中 / 2=右 / 3=リリース(legacy) / 64=ホイール上 / 65=ホイール下
+     * @param col0   0-based カラム
+     * @param row0   0-based 行 (画面上の row、scrollback は無視)
+     * @param press  true=押下イベント、false=リリースイベント (X10 では無視される)
+     * @param motion true=motion イベント (BUTTON_EVENT/ANY_EVENT 以外では送られない)
+     * @return       プロトコルでブロックされた場合 null。送るべきバイト列なら non-null。
+     */
+    fun encodeMouseEvent(
+        button: Int,
+        col0: Int,
+        row0: Int,
+        press: Boolean,
+        motion: Boolean = false
+    ): ByteArray? {
+        val proto = mouseProtocol
+        if (proto == MouseProtocol.OFF) return null
+        // X10 はリリース/motion を送らない
+        if (proto == MouseProtocol.X10 && (!press || motion)) return null
+        // NORMAL は motion を送らない
+        if (proto == MouseProtocol.NORMAL && motion) return null
+        // BUTTON_EVENT は「ボタン押下中の motion」のみ。リリース後の motion は送らない (呼び出し側で判定)。
+        val isWheel = button == 64 || button == 65
+        val col = (col0 + 1).coerceAtLeast(1)
+        val row = (row0 + 1).coerceAtLeast(1)
+
+        return when (mouseEncoding) {
+            MouseEncoding.SGR -> {
+                val cb = button or (if (motion) 32 else 0)
+                val terminator = if (press || isWheel) 'M' else 'm'
+                "[<$cb;$col;$row$terminator".toByteArray(Charsets.US_ASCII)
+            }
+            MouseEncoding.URXVT -> {
+                val baseCb = if (press || isWheel) button else 3
+                val cb = (baseCb or (if (motion) 32 else 0)) + 32
+                "[$cb;$col;${row}M".toByteArray(Charsets.US_ASCII)
+            }
+            MouseEncoding.LEGACY -> {
+                val baseCb = if (press || isWheel) button else 3
+                val cb = (baseCb or (if (motion) 32 else 0)) + 32
+                // 各座標は +32 オフセット。範囲 (32..255) を超えると壊れるが xterm 仕様通り。
+                val cxByte = (col + 32).coerceAtMost(255)
+                val cyByte = (row + 32).coerceAtMost(255)
+                byteArrayOf(
+                    0x1B, '['.code.toByte(), 'M'.code.toByte(),
+                    cb.coerceAtMost(255).toByte(), cxByte.toByte(), cyByte.toByte()
+                )
+            }
+        }
+    }
+
     companion object {
         private const val TAG = "TerminalEmulator"
+
+        /** マウスボタンコード定数 (SGR/URxvt/Legacy 共通の基底値) */
+        const val MOUSE_BTN_LEFT = 0
+        const val MOUSE_BTN_MIDDLE = 1
+        const val MOUSE_BTN_RIGHT = 2
+        const val MOUSE_BTN_RELEASE_LEGACY = 3
+        const val MOUSE_BTN_WHEEL_UP = 64
+        const val MOUSE_BTN_WHEEL_DOWN = 65
     }
 }
