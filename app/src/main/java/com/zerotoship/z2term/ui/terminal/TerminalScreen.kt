@@ -299,10 +299,12 @@ private fun TopBar(
         TopBarIconButton(label = "📋", onClick = onOpenSnippets)
         TopBarIconButton(label = "🔌", onClick = onOpenSsh)
         TopBarIconButton(label = "⚙", onClick = onOpenSettings)
-        PasteImeButton(
+        // 貼付ボタン (タップ = クリップボード貼り付けのみ)
+        TopBarIconButton(label = "貼", onClick = onPaste)
+        // キーボード切替ボタン (タップ = OS IME ⇄ 独自キーボード)
+        KeyboardToggleButton(
             imeActive = keyboardMode == KeyboardMode.SYSTEM,
-            onPaste = onPaste,
-            onToggleIme = onToggleKeyboardMode
+            onClick = onToggleKeyboardMode
         )
 
         Text(
@@ -335,17 +337,13 @@ private fun TopBarIconButton(label: String, onClick: () -> Unit) {
 }
 
 /**
- * 貼付ボタン (旧「Aあ」IME 切替ボタンの置き換え)。
- *  - タップ: クリップボードの内容をターミナルへ貼り付け (独自キーボードに貼付手段が無いため)
- *  - 長押し: OS IME (SYSTEM キーボード) のオン/オフをトグル
- *
- * IME が有効な間は緑でハイライトし、状態が分かるようにする。
+ * キーボード切替ボタン (タップのみで OS IME ⇄ 独自キーボードをトグル)。
+ * IME (SYSTEM) が有効な間は緑でハイライト。表示は「あ」(OS IME へ) / 独自時は枠のみ。
  */
 @Composable
-private fun PasteImeButton(
+private fun KeyboardToggleButton(
     imeActive: Boolean,
-    onPaste: () -> Unit,
-    onToggleIme: () -> Unit
+    onClick: () -> Unit
 ) {
     val bg = if (imeActive) ZtsGreen else ZtsBgCard
     val fg = if (imeActive) Color.Black else ZtsTextPrimary
@@ -355,17 +353,12 @@ private fun PasteImeButton(
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
             .border(1.dp, border, RoundedCornerShape(6.dp))
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { onPaste() },
-                    onLongPress = { onToggleIme() }
-                )
-            }
+            .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "貼",
+            text = "あ",
             color = fg,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,

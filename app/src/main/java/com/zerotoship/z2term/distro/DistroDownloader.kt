@@ -34,8 +34,8 @@ class DistroDownloader(private val context: Context) {
 
     fun download(spec: DistroSpec, abi: String, expectedSha256: String? = null): Flow<Progress> = flow {
         try {
-            val url = officialUrlFor(spec, abi)
-                ?: throw IllegalStateException("No official URL for ${spec.id} / $abi")
+            val url = resolveDownloadUrl(spec, abi)
+                ?: throw IllegalStateException("No download URL for ${spec.id} / $abi")
             val outFile = File(cacheDir().apply { mkdirs() }, "${spec.id}-$abi.tgz")
             if (outFile.exists()) outFile.delete()
 
@@ -106,10 +106,17 @@ class DistroDownloader(private val context: Context) {
         return md.digest().joinToString("") { "%02x".format(it) }
     }
 
-    private fun officialUrlFor(spec: DistroSpec, abi: String): String? {
-        // spec が DL URL を持つならそれを使う (Ubuntu / Arch / Kali)。
+    /**
+     * spec から実際のダウンロード URL を決定する。
+     *  1. 直接 URL (downloadUrlArm64) があればそれ
+     *  2. index URL (indexUrlArm64) があれば、ディレクトリを取得して
+     *     最新のタイムスタンプ付きサブディレクトリ + indexFileName を組み立てる
+     *     (linuxcontainers の Arch arm64 など)
+     *  3. 同梱 distro (Alpine) を FOSS で DL する場合の公式 URL
+     */
+    private fun resolveDownloadUrl(spec: DistroSpec, abi: String): String? {
         spec.downloadUrl(abi)?.let { return it }
-        // 同梱 distro (Alpine) を FOSS フレーバーで DL する場合のフォールバック URL。
+        spec.indexUrl(abi)?.let { return resolveFromIndex(it, spec.indexFileName) }
         return when (spec.id) {
             "alpine" -> when (abi) {
                 "arm64-v8a" -> "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.0-aarch64.tar.gz"
@@ -117,6 +124,29 @@ class DistroDownloader(private val context: Context) {
             }
             else -> null
         }
+    }
+
+    /**
+     * ディレクトリ index (HTML) を取得し、`YYYYMMDD_HH%3AMM/` 形式の最新サブ
+     * ディレクトリを選んで `<index><latest><fileName>` を返す。
+     * linuxcontainers のイメージツリー (有効 HTTPS) を想定。
+     */
+    private fun resolveFromIndex(indexUrl: String, fileName: String): String? {
+        val conn = (URL(indexUrl).openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 15_000
+            readTimeout = 30_000
+            instanceFollowRedirects = true
+            setRequestProperty("User-Agent", "z2term")
+        }
+        val html = conn.inputStream.use { it.readBytes().toString(Charsets.UTF_8) }
+        // href="20260520_04%3A18/" のようなエントリを全て拾い、辞書順最大 = 最新
+        val dirs = Regex("""href="(\d{8}_\d{2}%3A\d{2}/)"""")
+            .findAll(html).map { it.groupValues[1] }.toList()
+        val latest = dirs.maxOrNull()
+            ?: throw IllegalStateException("index に最新ディレクトリが見つかりません: $indexUrl")
+        val base = if (indexUrl.endsWith("/")) indexUrl else "$indexUrl/"
+        return "$base$latest$fileName"
     }
 
     companion object {

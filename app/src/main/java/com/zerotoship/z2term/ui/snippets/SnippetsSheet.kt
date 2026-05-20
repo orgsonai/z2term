@@ -109,7 +109,12 @@ fun SnippetsSheet(
         ) {
             val currentEdit = editing
             if (currentEdit == null) {
-                ListHeader(onNew = { editing = newSnippet() })
+                ListHeader(
+                    onNew = { editing = newSnippet() },
+                    onLoadPreset = {
+                        scope.launch { recommendedSnippets().forEach { store.upsert(it) } }
+                    }
+                )
                 if (snippets.isEmpty()) {
                     EmptyState()
                 } else {
@@ -159,8 +164,32 @@ private fun newSnippet() = Snippet(
     command = ""
 )
 
+/**
+ * おすすめプリセット。PRoot 制約で動かないもの (ip/ping/nmap -sS) は避け、
+ * 動く代替 (nmap -sT / ss) を入れている。挿入のみなので Enter は手動。
+ */
+private fun recommendedSnippets(): List<Snippet> = listOf(
+    "ls -la --color=auto" to "ls -la --color=auto",
+    "ディスク使用量" to "df -h",
+    "メモリ" to "free -h",
+    "プロセス" to "ps aux",
+    "OS 情報" to "cat /etc/os-release",
+    "パッケージ更新" to "apk update && apk upgrade",
+    "パッケージ追加" to "apk add ",
+    "巨大ファイル探索" to "du -sh * | sort -h",
+    "再帰 grep" to "grep -rn '' .",
+    "圧縮(tar.gz)" to "tar czf out.tgz ",
+    "展開(tar)" to "tar xf ",
+    "ダウンロード" to "curl -LO ",
+    "開放ポート" to "ss -tlnp",
+    "TCP スキャン(SYNでなく)" to "nmap -sT ",
+    "git 状態" to "git status",
+    "tmux 開始/復帰" to "tmux a || tmux new -s main",
+    "sshd 起動" to "service sshd start || /usr/sbin/sshd"
+).map { (label, cmd) -> Snippet(id = UUID.randomUUID().toString(), label = label, command = cmd) }
+
 @Composable
-private fun ListHeader(onNew: () -> Unit) {
+private fun ListHeader(onNew: () -> Unit, onLoadPreset: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -175,6 +204,22 @@ private fun ListHeader(onNew: () -> Unit) {
             fontFamily = FontFamily.Monospace
         )
         Box(modifier = Modifier.weight(1f))
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(ZtsBgCard)
+                .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp))
+                .clickable(onClick = onLoadPreset)
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "おすすめ",
+                color = ZtsTextPrimary,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        Spacer(modifier = Modifier.width(6.dp))
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
@@ -206,7 +251,7 @@ private fun EmptyState() {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "未登録。「+ 新規」から追加してください。",
+            text = "未登録。「おすすめ」で定番を一括追加、または「+ 新規」で個別追加。",
             color = ZtsTextSecondary,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace
