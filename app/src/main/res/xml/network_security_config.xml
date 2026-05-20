@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Z2Term ネットワークセキュリティ設定。
+
+  - cleartext (平文 HTTP) を全面禁止。distro rootfs のダウンロードは全て HTTPS、
+    SSH (JSch) は HTTP の枠外なので影響しない。
+  - 信頼アンカーはシステム CA のみ (ユーザー追加 CA を使わない = MITM 耐性)。
+
+  targetSdk 28+ の既定も no-cleartext だが、配布物として方針を明示しておく。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

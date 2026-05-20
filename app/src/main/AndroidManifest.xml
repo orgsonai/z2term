@@ -27,6 +27,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Z2Term"
         android:enableOnBackInvokedCallback="true"
+        android:largeHeap="true"
+        android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="35">
 
         <activity
