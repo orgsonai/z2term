@@ -96,6 +96,10 @@ class ProotLauncher(private val context: Context) {
             add("proot")                                  // argv[0]
             add("--kill-on-exit")
             add("-0")                                     // fake root
+            // ハードリンクを symlink でエミュレート。Android のアプリ内ストレージは
+            // link() を拒否する (EACCES) ため、これが無いと dpkg が status-old の
+            // バックリンク作成に失敗し apt install が壊れる (Ubuntu/Kali)。
+            add("--link2symlink")
             add("-r"); add(rootfs.absolutePath)           // rootfs
             add("-b"); add("/dev")
             add("-b"); add("/proc")
