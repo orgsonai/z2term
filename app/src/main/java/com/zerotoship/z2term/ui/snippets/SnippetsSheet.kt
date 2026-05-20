@@ -111,8 +111,8 @@ fun SnippetsSheet(
             if (currentEdit == null) {
                 ListHeader(
                     onNew = { editing = newSnippet() },
-                    onLoadPreset = {
-                        scope.launch { recommendedSnippets().forEach { store.upsert(it) } }
+                    onLoadPreset = { tier ->
+                        scope.launch { presetFor(tier).forEach { store.upsert(it) } }
                     }
                 )
                 if (snippets.isEmpty()) {
@@ -164,78 +164,119 @@ private fun newSnippet() = Snippet(
     command = ""
 )
 
-/**
- * おすすめプリセット。PRoot 制約で動かないもの (ip/ping/nmap -sS) は避け、
- * 動く代替 (nmap -sT / ss) を入れている。挿入のみなので Enter は手動。
- */
-private fun recommendedSnippets(): List<Snippet> = listOf(
-    "ls -la --color=auto" to "ls -la --color=auto",
+/** プリセット規模 */
+private enum class PresetTier { SMALL, MEDIUM, LARGE }
+
+// 各段は (ラベル, コマンド)。PRoot 制約で動かないもの (ip / ping / nmap -sS) は避け、
+// 動く代替 (nmap -sT / ss) を採用。id は "preset:<command>" で安定化し、
+// 再投入しても重複しない (upsert される)。
+private val PRESET_SMALL = listOf(
+    "一覧 (詳細)" to "ls -la --color=auto",
     "ディスク使用量" to "df -h",
     "メモリ" to "free -h",
     "プロセス" to "ps aux",
     "OS 情報" to "cat /etc/os-release",
     "パッケージ更新" to "apk update && apk upgrade",
-    "パッケージ追加" to "apk add ",
+    "パッケージ追加" to "apk add "
+)
+private val PRESET_MEDIUM_ADD = listOf(
     "巨大ファイル探索" to "du -sh * | sort -h",
     "再帰 grep" to "grep -rn '' .",
-    "圧縮(tar.gz)" to "tar czf out.tgz ",
-    "展開(tar)" to "tar xf ",
+    "ファイル検索" to "find . -name ",
+    "圧縮 (tar.gz)" to "tar czf out.tgz ",
+    "展開 (tar)" to "tar xf ",
     "ダウンロード" to "curl -LO ",
     "開放ポート" to "ss -tlnp",
-    "TCP スキャン(SYNでなく)" to "nmap -sT ",
-    "git 状態" to "git status",
-    "tmux 開始/復帰" to "tmux a || tmux new -s main",
+    "TCP スキャン (SYN 不使用)" to "nmap -sT ",
     "sshd 起動" to "service sshd start || /usr/sbin/sshd"
-).map { (label, cmd) -> Snippet(id = UUID.randomUUID().toString(), label = label, command = cmd) }
+)
+private val PRESET_LARGE_ADD = listOf(
+    "git 状態" to "git status",
+    "git ログ (グラフ)" to "git log --oneline --graph --all",
+    "git クローン" to "git clone ",
+    "tmux 開始/復帰" to "tmux a || tmux new -s main",
+    "htop" to "htop",
+    "jq 整形" to "jq '.' ",
+    "rsync 同期" to "rsync -av src/ dst/",
+    "監視実行" to "watch -n1 "
+)
+
+private fun presetFor(tier: PresetTier): List<Snippet> {
+    val pairs = when (tier) {
+        PresetTier.SMALL -> PRESET_SMALL
+        PresetTier.MEDIUM -> PRESET_SMALL + PRESET_MEDIUM_ADD
+        PresetTier.LARGE -> PRESET_SMALL + PRESET_MEDIUM_ADD + PRESET_LARGE_ADD
+    }
+    return pairs.map { (label, cmd) -> Snippet(id = "preset:$cmd", label = label, command = cmd) }
+}
 
 @Composable
-private fun ListHeader(onNew: () -> Unit, onLoadPreset: () -> Unit) {
-    Row(
+private fun ListHeader(onNew: () -> Unit, onLoadPreset: (PresetTier) -> Unit) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 4.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "スニペット",
+                color = ZtsGreen,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = FontFamily.Monospace
+            )
+            Box(modifier = Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(ZtsGreen.copy(alpha = 0.18f))
+                    .border(1.dp, ZtsGreen, RoundedCornerShape(8.dp))
+                    .clickable(onClick = onNew)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "+ 新規",
+                    color = ZtsGreen,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "おすすめ投入:",
+                color = ZtsTextSecondary,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            PresetChip("小 (7)") { onLoadPreset(PresetTier.SMALL) }
+            Spacer(modifier = Modifier.width(6.dp))
+            PresetChip("中 (16)") { onLoadPreset(PresetTier.MEDIUM) }
+            Spacer(modifier = Modifier.width(6.dp))
+            PresetChip("大 (24)") { onLoadPreset(PresetTier.LARGE) }
+        }
+    }
+}
+
+@Composable
+private fun PresetChip(label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(ZtsBgCard)
+            .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Text(
-            text = "スニペット",
-            color = ZtsGreen,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
+            text = label,
+            color = ZtsTextPrimary,
+            fontSize = 11.sp,
             fontFamily = FontFamily.Monospace
         )
-        Box(modifier = Modifier.weight(1f))
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(ZtsBgCard)
-                .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp))
-                .clickable(onClick = onLoadPreset)
-                .padding(horizontal = 12.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = "おすすめ",
-                color = ZtsTextPrimary,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace
-            )
-        }
-        Spacer(modifier = Modifier.width(6.dp))
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(ZtsGreen.copy(alpha = 0.18f))
-                .border(1.dp, ZtsGreen, RoundedCornerShape(8.dp))
-                .clickable(onClick = onNew)
-                .padding(horizontal = 12.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = "+ 新規",
-                color = ZtsGreen,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                fontFamily = FontFamily.Monospace
-            )
-        }
     }
 }
 
@@ -251,7 +292,7 @@ private fun EmptyState() {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "未登録。「おすすめ」で定番を一括追加、または「+ 新規」で個別追加。",
+            text = "未登録。「おすすめ投入」の 小/中/大 で定番を一括追加、または「+ 新規」で個別追加。",
             color = ZtsTextSecondary,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace
@@ -272,7 +313,7 @@ private fun HintBlock() {
         Text(
             text = "▸ 行をタップ → ターミナルに挿入 (Enter は付けない)\n" +
                 "▸ ↑↓ で並べ替え / ✎ 編集 / ✕ 削除\n" +
-                "▸ ラベル空欄ならコマンド先頭が表示される",
+                "▸ 小⊂中⊂大。再投入しても重複しません",
             color = ZtsTextSecondary,
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace
@@ -282,7 +323,8 @@ private fun HintBlock() {
 
 /**
  * スニペット 1 行。
- *  - 左側のラベル領域をタップ → 挿入 (onRun)。挿入ボタンは廃止。
+ *  - 左側のテキスト領域をタップ → 挿入 (onRun)。コマンドそのものを主表示する
+ *    (名前だけだと分かりにくいため)。ラベルがあれば上に小さく薄く添える。
  *  - 右側に ↑ ↓ (並べ替え) / ✎ (編集) / ✕ (削除) の小アイコン。
  */
 @Composable
@@ -296,9 +338,6 @@ private fun SnippetRow(
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit
 ) {
-    val displayLabel = snippet.label.ifBlank {
-        snippet.command.take(48).ifBlank { "(空)" }
-    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -307,18 +346,30 @@ private fun SnippetRow(
             .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp)),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // ラベル部分 = 挿入ボタン (行タップで挿入)
-        Text(
-            text = displayLabel,
-            color = ZtsTextPrimary,
-            fontSize = 13.sp,
-            fontFamily = FontFamily.Monospace,
-            maxLines = 1,
+        // テキスト領域 = 挿入ボタン (行タップで挿入)。コマンドを主表示。
+        Column(
             modifier = Modifier
                 .weight(1f)
                 .clickable(onClick = onRun)
-                .padding(horizontal = 12.dp, vertical = 10.dp)
-        )
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            if (snippet.label.isNotBlank()) {
+                Text(
+                    text = snippet.label,
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1
+                )
+            }
+            Text(
+                text = snippet.command.ifBlank { "(空)" },
+                color = ZtsTextPrimary,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1
+            )
+        }
         IconCell(label = "↑", enabled = !isFirst, onClick = onMoveUp)
         IconCell(label = "↓", enabled = !isLast, onClick = onMoveDown)
         IconCell(label = "✎", onClick = onEdit)
