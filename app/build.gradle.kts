@@ -161,6 +161,9 @@ dependencies {
     // SSH クライアント (M5)
     implementation(libs.jsch)
 
+    // XZ 解凍 (DL distro の .tar.xz、例: Kali rootfs)
+    implementation(libs.xz)
+
     // Debug
     debugImplementation(libs.androidx.ui.tooling)
 

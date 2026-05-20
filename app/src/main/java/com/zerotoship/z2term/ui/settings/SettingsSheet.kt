@@ -157,12 +157,27 @@ fun SettingsSheet(
                 onChange = { session.setScrollbackLines(it.toInt()) }
             )
 
-            Section(title = "ディストロ") {
+            Section(title = "ディストロ (切替で現在のセッションを再起動)") {
                 ChipRow(
                     options = DistroSpec.ALL.map { it.id },
-                    labels = DistroSpec.ALL.associate { it.id to it.displayName },
+                    labels = DistroSpec.ALL.associate {
+                        it.id to (it.displayName + (it.approxDownload?.let { s -> " ⬇$s" } ?: ""))
+                    },
                     selected = settings.distroId,
-                    onSelect = { session.setDistro(it) }
+                    onSelect = { id ->
+                        if (id != settings.distroId) {
+                            // 切替を保存して override 付きで再起動 (settingsFlow 反映待ちの
+                            // race を回避)。非同梱なら起動時に DL → 展開が走る。
+                            session.switchDistro(id)
+                            onDismiss()
+                        }
+                    }
+                )
+                Text(
+                    text = "Alpine は同梱。Ubuntu / Arch / Kali は初回切替時に自動ダウンロード (Wi-Fi 推奨)。",
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
                 )
             }
 

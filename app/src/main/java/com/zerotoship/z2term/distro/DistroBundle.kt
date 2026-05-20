@@ -24,4 +24,7 @@ object DistroBundle {
 
     /** rootfs に書き込む version マーカーファイル名 (rootfs 直下) */
     const val VERSION_MARKER = ".z2term-version"
+
+    /** APK に同梱されている distro の id。これだけ ROOTFS_VERSION 比較の対象。 */
+    const val BUNDLED_DISTRO_ID = "alpine"
 }

@@ -72,7 +72,8 @@ class ProotLauncher(private val context: Context) {
         distroId: String = "alpine",
         command: String = "/bin/sh",
         rows: Int = 24,
-        cols: Int = 80
+        cols: Int = 80,
+        fallbackShell: String = "/bin/sh"
     ): PtyProcess {
         val rootfs = File(distrosDir, distroId)
         if (!rootfs.exists()) {
@@ -81,6 +82,10 @@ class ProotLauncher(private val context: Context) {
         if (!prootBinary.exists()) {
             throw IllegalStateException("PRoot binary not found: ${prootBinary.absolutePath}")
         }
+
+        // 指定シェルが rootfs に存在しなければ fallback → /bin/sh の順に解決。
+        // (Ubuntu base に zsh が無い、等で起動不能になるのを防ぐ)
+        val resolvedCommand = resolveShell(rootfs, command, fallbackShell)
 
         // 共有ホーム作成 + libtalloc 配置
         sharedHomeDir.mkdirs()
@@ -98,17 +103,17 @@ class ProotLauncher(private val context: Context) {
             add("-b"); add("${sharedHomeDir.absolutePath}:/root")
             add("-w"); add("/root")                       // working dir
             // command
-            add(command)
+            add(resolvedCommand)
         }
 
         // 環境変数
         val env = arrayOf(
             "HOME=/root",
             "TERM=xterm-256color",
-            "LANG=en_US.UTF-8",
+            "LANG=C.UTF-8",
             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
             "TMPDIR=/tmp",
-            "SHELL=$command",
+            "SHELL=$resolvedCommand",
             // proot は libtalloc.so.2 にリンクされている (Termux RUNPATH 由来)。
             // ensureProotLibs() で展開した SONAME 通りのファイルパスを LD_LIBRARY_PATH に追加。
             "LD_LIBRARY_PATH=${prootLibsDir.absolutePath}",
@@ -117,7 +122,7 @@ class ProotLauncher(private val context: Context) {
             "PROOT_LOADER=${File(context.applicationInfo.nativeLibraryDir, "libproot_loader.so").absolutePath}"
         )
 
-        Log.i(TAG, "Launching PRoot: distro=$distroId, command=$command")
+        Log.i(TAG, "Launching PRoot: distro=$distroId, command=$resolvedCommand (requested=$command)")
         Log.d(TAG, "Args: ${args.joinToString(" ")}")
 
         return PtyProcess.create(
@@ -128,6 +133,32 @@ class ProotLauncher(private val context: Context) {
             rows = rows,
             cols = cols
         )
+    }
+
+    /**
+     * 指定シェルが rootfs 内に実体として存在するか確認し、無ければ
+     * fallbackShell → /bin/sh の順に解決する。
+     *
+     * `/bin` が `usr/bin` への symlink (Ubuntu の usrmerge) のケースを考慮し、
+     * `<rootfs><path>` と `<rootfs>/usr<path>` の双方を見る。
+     */
+    private fun resolveShell(rootfs: File, requested: String, fallbackShell: String): String {
+        for (candidate in listOf(requested, fallbackShell, "/bin/sh", "/bin/bash")) {
+            if (candidate.isBlank()) continue
+            if (shellExists(rootfs, candidate)) return candidate
+        }
+        // どれも見つからなければ要求値のまま (proot 側でエラーにさせる)
+        return requested
+    }
+
+    private fun shellExists(rootfs: File, absPath: String): Boolean {
+        val rel = absPath.trimStart('/')
+        if (File(rootfs, rel).exists()) return true
+        // usrmerge: /bin/bash → /usr/bin/bash
+        if (rel.startsWith("bin/") || rel.startsWith("sbin/")) {
+            if (File(rootfs, "usr/$rel").exists()) return true
+        }
+        return false
     }
 
     /**
@@ -202,17 +233,22 @@ class ProotLauncher(private val context: Context) {
         if (!rootfs.exists()) return false
         val hasBinaries = File(rootfs, "bin/busybox").exists() ||
             File(rootfs, "bin/bash").exists() ||
-            File(rootfs, "usr/bin/busybox").exists()
+            File(rootfs, "usr/bin/busybox").exists() ||
+            File(rootfs, "usr/bin/bash").exists()
         if (!hasBinaries) return false
 
-        val versionFile = File(rootfs, DistroBundle.VERSION_MARKER)
-        // バージョンマーカーが無い旧式 install は古いと判定 → 再展開させる
-        val installed = if (versionFile.exists()) {
-            versionFile.readText().trim().toIntOrNull() ?: 0
-        } else 0
-        if (installed < DistroBundle.ROOTFS_VERSION) {
-            Log.i(TAG, "Distro $distroId is outdated: installed=$installed vs bundled=${DistroBundle.ROOTFS_VERSION}")
-            return false
+        // ROOTFS_VERSION 比較は同梱 distro (Alpine) のみに適用する。
+        // 非同梱 (DL) distro まで version で弾くと、Alpine の bump 毎に
+        // Ubuntu/Arch/Kali を再ダウンロードさせてしまうため。
+        if (distroId == DistroBundle.BUNDLED_DISTRO_ID) {
+            val versionFile = File(rootfs, DistroBundle.VERSION_MARKER)
+            val installed = if (versionFile.exists()) {
+                versionFile.readText().trim().toIntOrNull() ?: 0
+            } else 0
+            if (installed < DistroBundle.ROOTFS_VERSION) {
+                Log.i(TAG, "Distro $distroId is outdated: installed=$installed vs bundled=${DistroBundle.ROOTFS_VERSION}")
+                return false
+            }
         }
         return true
     }

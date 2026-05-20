@@ -19,6 +19,9 @@ datastorePreferences = "1.1.2"
 # SSH client (M5)
 jsch = "0.2.21"
 
+# XZ 解凍 (DL distro の .tar.xz 用、pure-Java 軽量)
+xz = "1.10"
+
 # Testing
 junit = "4.13.2"
 androidxJunit = "1.2.1"
@@ -44,6 +47,9 @@ androidx-datastore-preferences = { group = "androidx.datastore", name = "datasto
 
 # SSH (mwiede fork — BouncyCastle 不要、軽量)
 jsch = { group = "com.github.mwiede", name = "jsch", version.ref = "jsch" }
+
+# XZ 解凍 (org.tukaani:xz)
+xz = { group = "org.tukaani", name = "xz", version.ref = "xz" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

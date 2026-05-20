@@ -106,14 +106,17 @@ class DistroDownloader(private val context: Context) {
         return md.digest().joinToString("") { "%02x".format(it) }
     }
 
-    private fun officialUrlFor(spec: DistroSpec, abi: String): String? = when (spec.id) {
-        "alpine" -> when (abi) {
-            "arm64-v8a" -> "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.0-aarch64.tar.gz"
-            "armeabi-v7a" -> "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/armv7/alpine-minirootfs-3.21.0-armv7.tar.gz"
+    private fun officialUrlFor(spec: DistroSpec, abi: String): String? {
+        // spec が DL URL を持つならそれを使う (Ubuntu / Arch / Kali)。
+        spec.downloadUrl(abi)?.let { return it }
+        // 同梱 distro (Alpine) を FOSS フレーバーで DL する場合のフォールバック URL。
+        return when (spec.id) {
+            "alpine" -> when (abi) {
+                "arm64-v8a" -> "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.0-aarch64.tar.gz"
+                else -> null
+            }
             else -> null
         }
-        // Ubuntu の公式は xz 圧縮で配布なので、当面は手動配置をドキュメントで案内
-        else -> null
     }
 
     companion object {

@@ -8,6 +8,7 @@ import com.zerotoship.z2term.channel.LocalPtyChannel
 import com.zerotoship.z2term.channel.ProcessChannel
 import com.zerotoship.z2term.channel.SshChannel
 import com.zerotoship.z2term.channel.SshProfile
+import com.zerotoship.z2term.distro.DistroDownloader
 import com.zerotoship.z2term.distro.DistroInstaller
 import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.emulator.AvailableThemes
@@ -75,6 +76,7 @@ class TerminalSession(
     private val emulatorDispatcher = emulatorExecutor.asCoroutineDispatcher()
 
     private val installer = DistroInstaller(appContext)
+    private val downloader = DistroDownloader(appContext)
     private val launcher = ProotLauncher(appContext)
     private val settings = AppSettings(appContext)
 
@@ -204,6 +206,18 @@ class TerminalSession(
                     writeBanner(banner)
                     _uiState.update { it.copy(state = TerminalState.INSTALLING) }
 
+                    // 非同梱 distro (Ubuntu/Arch/Kali) で rootfs アーカイブが未取得なら
+                    // まずダウンロードする。同梱 (Alpine) は assets から直接展開される。
+                    if (!spec.bundled && downloader.resolveLocalArchive(spec, detectAbiId()) == null) {
+                        val dlError = downloadDistroArchive(spec)
+                        if (dlError != null) {
+                            writeBanner("✗ ${spec.displayName} のダウンロード失敗: ${dlError.message}")
+                            writeBanner("ネットワークと URL を確認してください。Alpine に戻すには設定からディストロを切替えてください。")
+                            _uiState.update { it.copy(state = TerminalState.ERROR) }
+                            return@launch
+                        }
+                    }
+
                     var installError: Throwable? = null
                     withContext(Dispatchers.IO) {
                         installer.install(spec).collect { progress ->
@@ -229,8 +243,10 @@ class TerminalSession(
                 writeBanner("🚀 ${spec.displayName} を起動中…")
 
                 val (rows, cols) = currentSize()
-                val shell = settingsFlow.value.loginShell.ifBlank { "/bin/zsh" }
-                val pty = launcher.launch(spec.id, shell, rows, cols)
+                val shell = settingsFlow.value.loginShell.ifBlank { spec.defaultShell }
+                // launcher 側で、指定シェルが rootfs に無ければ spec.defaultShell → /bin/sh に
+                // フォールバックする (Ubuntu base に zsh が無い、等のケース)。
+                val pty = launcher.launch(spec.id, shell, rows, cols, spec.defaultShell)
                 val ch = LocalPtyChannel(pty)
                 channel = ch
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }
@@ -245,6 +261,42 @@ class TerminalSession(
                 fallbackToAndroidSh()
             }
         }
+    }
+
+    /** SUPPORTED_ABIS の先頭。DistroDownloader/Installer と同じ判定。 */
+    private fun detectAbiId(): String =
+        android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
+
+    /**
+     * 非同梱 distro の rootfs アーカイブをダウンロードする。
+     * 進捗はバナーに % で出す。成功なら null、失敗なら例外を返す。
+     */
+    private suspend fun downloadDistroArchive(spec: DistroSpec): Throwable? {
+        val abi = detectAbiId()
+        val sizeHint = spec.approxDownload?.let { " ($it)" } ?: ""
+        writeBanner("⬇️ ${spec.displayName} をダウンロード中$sizeHint…")
+        var error: Throwable? = null
+        var lastPct = -1
+        withContext(Dispatchers.IO) {
+            downloader.download(spec, abi).collect { p ->
+                when (p) {
+                    is DistroDownloader.Progress.Downloading -> {
+                        if (p.total > 0) {
+                            val pct = (p.received * 100 / p.total).toInt()
+                            if (pct >= lastPct + 10) {  // 10% 刻みでバナー更新
+                                lastPct = pct
+                                writeBanner("   $pct% (${p.received / 1024 / 1024}MB)")
+                            }
+                        }
+                    }
+                    is DistroDownloader.Progress.Verifying -> writeBanner("   検証中…")
+                    is DistroDownloader.Progress.Completed -> writeBanner("✓ ダウンロード完了")
+                    is DistroDownloader.Progress.Failed -> error = p.error
+                    else -> Unit
+                }
+            }
+        }
+        return error
     }
 
     private fun fallbackToAndroidSh() {
@@ -385,6 +437,27 @@ class TerminalSession(
             ))
             bumpRedraw()
         }
+    }
+
+    /**
+     * ディストロを切り替えて再起動する。
+     *
+     * 設定への永続化は非同期なので、startTerminal には spec を直接 override 渡しして
+     * settingsFlow の反映待ちレースを避ける。非同梱 distro なら startTerminal 内で
+     * ダウンロード → 展開が走る。
+     */
+    fun switchDistro(id: String) {
+        setDistro(id)
+        val spec = DistroSpec.byId(id) ?: DistroSpec.ALPINE
+        channel?.close()
+        channel = null
+        readJob?.cancel()
+        scope.launch(emulatorDispatcher) {
+            emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
+        }
+        _uiState.update { UiState() }
+        _scrollOffset.value = 0
+        startTerminal(spec)
     }
 
     fun restart() {
