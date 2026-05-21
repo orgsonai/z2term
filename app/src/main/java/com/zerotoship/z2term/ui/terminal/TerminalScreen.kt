@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,7 +48,6 @@ import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.ui.settings.SettingsSheet
 import com.zerotoship.z2term.ui.snippets.SnippetsSheet
 import com.zerotoship.z2term.ui.ssh.HostKeyVerificationDialog
-import com.zerotoship.z2term.ui.ssh.SshProfilesSheet
 import com.zerotoship.z2term.ui.terminal.components.SpecialKeyBar
 import com.zerotoship.z2term.ui.terminal.input.TerminalInputView
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
@@ -92,8 +92,16 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     var inputViewRef by remember { mutableStateOf<TerminalInputView?>(null) }
     var keyboardCollapsed by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
-    var sshSheetOpen by remember { mutableStateOf(false) }
     var snippetsSheetOpen by remember { mutableStateOf(false) }
+    // 画面消灯ロック (ディスプレイが自動で消えないようにする)。
+    // FLAG_KEEP_SCREEN_ON 相当を Compose ルート View に付与するだけ (権限不要、
+    // フォアグラウンド中のみ有効、CPU は握らないので WakeLock より安全)。
+    // 既定 OFF (放置でのバッテリ消費を避ける。アプリ再起動でリセット)。
+    var keepScreenOn by remember { mutableStateOf(false) }
+    val rootView = LocalView.current
+    LaunchedEffect(keepScreenOn) {
+        rootView.keepScreenOn = keepScreenOn
+    }
 
     // 起動時に保存されたキーボードモードを 1 度だけ復元 (毎回 OS IME に切替える手間を省く)
     var restoredMode by remember { mutableStateOf(false) }
@@ -150,7 +158,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 active.setKeyboardMode(if (next == KeyboardMode.SYSTEM) "system" else "custom")
             },
             onOpenSettings = { settingsOpen = true },
-            onOpenSsh = { sshSheetOpen = true },
+            keepScreenOn = keepScreenOn,
+            onToggleKeepScreenOn = { keepScreenOn = !keepScreenOn },
             onOpenSnippets = { snippetsSheetOpen = true }
         )
 
@@ -224,15 +233,6 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onDismiss = { settingsOpen = false }
         )
     }
-    if (sshSheetOpen) {
-        SshProfilesSheet(
-            onDismiss = { sshSheetOpen = false },
-            onConnect = { profile ->
-                val newSession = SessionManager.openNew(context)
-                newSession.startSsh(profile)
-            }
-        )
-    }
     if (snippetsSheetOpen) {
         SnippetsSheet(
             onDismiss = { snippetsSheetOpen = false },
@@ -253,7 +253,8 @@ private fun TopBar(
     onPaste: () -> Unit,
     onToggleKeyboardMode: () -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenSsh: () -> Unit,
+    keepScreenOn: Boolean,
+    onToggleKeepScreenOn: () -> Unit,
     onOpenSnippets: () -> Unit
 ) {
     val label by session.label.collectAsState()
@@ -295,11 +296,12 @@ private fun TopBar(
         }
         Box(modifier = Modifier.weight(1f))
 
-        // 並び (左→右): 貼付 / コマンド一覧 / SSH / キーボード切替 / 設定
+        // 並び (左→右): 貼付 / コマンド一覧 / 画面消灯ロック / キーボード切替 / 設定
         // 貼付ボタン (タップ = クリップボード貼り付けのみ)
         TopBarIconButton(label = "貼", onClick = onPaste)
         TopBarIconButton(label = "📋", onClick = onOpenSnippets)
-        TopBarIconButton(label = "🔌", onClick = onOpenSsh)
+        // 画面消灯ロック (タップで ON/OFF。ON 中は画面が自動消灯しない)
+        KeepScreenOnButton(active = keepScreenOn, onClick = onToggleKeepScreenOn)
         // キーボード切替ボタン (タップ = OS IME ⇄ 独自キーボード)
         KeyboardToggleButton(
             imeActive = keyboardMode == KeyboardMode.SYSTEM,
@@ -331,6 +333,38 @@ private fun TopBarIconButton(label: String, onClick: () -> Unit) {
             text = label,
             color = ZtsTextPrimary,
             fontSize = 13.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+/**
+ * 画面消灯ロックボタン (タップで ON/OFF をトグル)。
+ * ON の間は画面が自動で消灯しない (`View.keepScreenOn`)。ON 中は緑でハイライト。
+ * 表示は ON=💡 (点灯) / OFF=🔅 (暗) の電球で状態を示す。
+ */
+@Composable
+private fun KeepScreenOnButton(
+    active: Boolean,
+    onClick: () -> Unit
+) {
+    val bg = if (active) ZtsGreen else ZtsBgCard
+    val fg = if (active) Color.Black else ZtsTextPrimary
+    val border = if (active) ZtsGreen else ZtsBorder
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(6.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = if (active) "💡" else "🔅",
+            color = fg,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
             fontFamily = FontFamily.Monospace
         )
     }
