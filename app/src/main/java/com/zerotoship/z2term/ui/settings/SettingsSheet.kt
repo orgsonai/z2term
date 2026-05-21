@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.ui.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,6 +26,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -34,6 +36,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +56,7 @@ import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.emulator.TerminalTheme
 import com.zerotoship.z2term.settings.AppSettings
+import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.theme.TerminalFontOption
 import com.zerotoship.z2term.ui.theme.TerminalFontOptions
@@ -65,6 +69,8 @@ import com.zerotoship.z2term.ui.theme.ZtsError
 import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
+import com.zerotoship.z2term.ui.theme.ZtsWarning
+import kotlinx.coroutines.launch
 
 /**
  * 設定シート (ModalBottomSheet)。
@@ -90,9 +96,24 @@ fun SettingsSheet(
     session: TerminalSession,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val settings by session.settingsFlow.collectAsState()
     val context = LocalContext.current
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    // ハンドルタップ等の明示的クローズは常に許可するためのフラグ。
+    var forceClose by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        // スクロール途中の下スワイプ/フリングで誤って閉じるのを防ぐ。
+        // 内容が最上部 (scrollState.value == 0) のときだけスワイプ閉じを許可する。
+        confirmValueChange = { target ->
+            if (target == SheetValue.Hidden) forceClose || scrollState.value == 0 else true
+        }
+    )
+    val closeSheet: () -> Unit = {
+        forceClose = true
+        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -102,22 +123,16 @@ fun SettingsSheet(
         scrimColor = Color.Black.copy(alpha = 0.55f),
         // ステータスバーの下で留める (シートがステータスバー裏まで伸びるのを防ぐ)
         contentWindowInsets = { WindowInsets.statusBars },
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 8.dp, bottom = 4.dp)
-                    .width(40.dp)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(ZtsBorder)
-            )
-        }
+        dragHandle = { Z2TermDragHandle(onClose = closeSheet) }
     ) {
+        // 戻るキーはスクロール位置に関わらず常にアニメ付きで閉じる
+        // (confirmValueChange でスワイプ閉じを最上部限定にしている分の補完)。
+        BackHandler(onBack = closeSheet)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 // 縦スクロール可能に (項目が画面高を超えても一番下まで到達できる)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
@@ -184,11 +199,48 @@ fun SettingsSheet(
             }
 
             Section(title = "ログインシェル (次回セッション以降に反映)") {
+                // 現ディストロの rootfs に各シェルバイナリが実在するか調べる。
+                // 未インストールのシェルを選んでも反映されず、起動時に既定シェル →
+                // /bin/sh へ自動フォールバックするため、その旨を明示する。
+                // rootfs 未展開 (DL 中など) は判定不能なので警告を出さない。
+                val rootfsReady = remember(settings.distroId) {
+                    java.io.File(context.filesDir, "distros/${settings.distroId}/bin").exists()
+                }
+                val shellInstalled = remember(settings.distroId) {
+                    AppSettings.AVAILABLE_SHELLS.associateWith { shell ->
+                        java.io.File(
+                            context.filesDir,
+                            "distros/${settings.distroId}/${shell.trimStart('/')}"
+                        ).exists()
+                    }
+                }
                 ChipRow(
                     options = AppSettings.AVAILABLE_SHELLS,
+                    labels = AppSettings.AVAILABLE_SHELLS.associateWith { shell ->
+                        if (rootfsReady && shellInstalled[shell] == false) "$shell (未インストール)"
+                        else shell
+                    },
                     selected = settings.loginShell,
                     onSelect = { session.setLoginShell(it) }
                 )
+                if (rootfsReady && shellInstalled[settings.loginShell] == false) {
+                    Text(
+                        text = "⚠ ${settings.loginShell} はこのディストロに未インストールです。" +
+                            "インストールするまで反映されず、起動時に既定シェル → /bin/sh へ" +
+                            "自動フォールバックします (例: apk add zsh / apt install zsh)。",
+                        color = ZtsWarning,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                } else {
+                    Text(
+                        text = "未インストールのシェルは反映されず自動フォールバックします。" +
+                            "ディストロ側でインストール後に有効になります。",
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
 
             SshAccessHelper(session = session)

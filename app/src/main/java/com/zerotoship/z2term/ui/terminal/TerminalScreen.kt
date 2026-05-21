@@ -52,6 +52,9 @@ import com.zerotoship.z2term.ui.terminal.components.SpecialKeyBar
 import com.zerotoship.z2term.ui.terminal.input.TerminalInputView
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
+import com.zerotoship.z2term.emulator.AvailableThemes
+import com.zerotoship.z2term.emulator.ZtsTheme
+import com.zerotoship.z2term.ui.theme.AppColors
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -87,6 +90,15 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     }
 
     val settings by active.settingsFlow.collectAsState()
+
+    // 選択テーマをアプリ全体のカラーパレットへ反映 (TopBar / タブ / 各シート /
+    // キーボードまで)。AppColors は global な snapshot state なので、ここを更新すると
+    // ルートの Z2TermTheme を含む Zts* 参照 Composable がすべて再コンポーズされ追従する。
+    LaunchedEffect(settings.themeName) {
+        val theme = AvailableThemes.firstOrNull { it.name == settings.themeName } ?: ZtsTheme
+        AppColors.applyFrom(theme)
+    }
+
     var ctrlSticky by remember { mutableStateOf(false) }
     var keyboardMode by remember { mutableStateOf(KeyboardMode.CUSTOM) }
     var inputViewRef by remember { mutableStateOf<TerminalInputView?>(null) }

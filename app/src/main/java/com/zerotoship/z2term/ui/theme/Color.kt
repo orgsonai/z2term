@@ -2,26 +2,31 @@ package com.zerotoship.z2term.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
+// === アプリ UI 配色 ===
+// これらは選択中テーマから導出される動的パレット ([AppColors]) を読む getter。
+// 値そのものを定数で持たないことで、テーマ変更時にアプリ全体の配色が追従する
+// (Composable から読めば AppColors の snapshot state を購読し再コンポーズされる)。
+
 // === ZTS グリーン（アクセント） ===
-val ZtsGreen = Color(0xFF22C55E)
-val ZtsGreenBright = Color(0xFF4ADE80)
-val ZtsGreenDim = Color(0xFF16A34A)
+val ZtsGreen: Color get() = AppColors.accent
+val ZtsGreenBright: Color get() = AppColors.accentBright
+val ZtsGreenDim: Color get() = AppColors.accentDim
 
 // === 背景 ===
-val ZtsBgPrimary = Color(0xFF0A0A0A)
-val ZtsBgSecondary = Color(0xFF171717)
-val ZtsBgCard = Color(0xFF1F1F1F)
-val ZtsBorder = Color(0xFF2A2A2A)
+val ZtsBgPrimary: Color get() = AppColors.bgPrimary
+val ZtsBgSecondary: Color get() = AppColors.bgSecondary
+val ZtsBgCard: Color get() = AppColors.bgCard
+val ZtsBorder: Color get() = AppColors.border
 
 // === テキスト ===
-val ZtsTextPrimary = Color(0xFFFAFAFA)
-val ZtsTextSecondary = Color(0xFFA3A3A3)
-val ZtsTextTertiary = Color(0xFF737373)
+val ZtsTextPrimary: Color get() = AppColors.textPrimary
+val ZtsTextSecondary: Color get() = AppColors.textSecondary
+val ZtsTextTertiary: Color get() = AppColors.textTertiary
 
 // === ステータス ===
-val ZtsError = Color(0xFFEF4444)
-val ZtsWarning = Color(0xFFF59E0B)
-val ZtsInfo = Color(0xFF3B82F6)
+val ZtsError: Color get() = AppColors.error
+val ZtsWarning: Color get() = AppColors.warning
+val ZtsInfo: Color get() = AppColors.info
 
 // === ANSI 16 (ターミナル配色) ===
 val AnsiBlack = Color(0xFF1F1F1F)

@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.ui.ssh
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,10 +13,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -42,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.channel.PortForward
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.channel.SshProfileStore
+import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -70,9 +75,21 @@ fun SshProfilesSheet(
     onDismiss: () -> Unit,
     onConnect: (SshProfile) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
+    var forceClose by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        // スクロール途中の下スワイプで誤って閉じないよう、最上部のときだけスワイプ閉じを許可。
+        confirmValueChange = { target ->
+            if (target == SheetValue.Hidden) forceClose || scrollState.value == 0 else true
+        }
+    )
+    val closeSheet: () -> Unit = {
+        forceClose = true
+        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+    }
     val store = remember { SshProfileStore(context.applicationContext) }
     val profilesFlow = remember(store) {
         store.profiles.stateIn(scope, SharingStarted.Eagerly, emptyList())
@@ -86,20 +103,13 @@ fun SshProfilesSheet(
         containerColor = ZtsBgPrimary,
         contentColor = ZtsTextPrimary,
         scrimColor = Color.Black.copy(alpha = 0.55f),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 8.dp, bottom = 4.dp)
-                    .width(40.dp)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(ZtsBorder)
-            )
-        }
+        dragHandle = { Z2TermDragHandle(onClose = closeSheet) }
     ) {
+        BackHandler(onBack = closeSheet)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
