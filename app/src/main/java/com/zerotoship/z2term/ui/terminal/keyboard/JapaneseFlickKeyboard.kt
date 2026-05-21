@@ -66,7 +66,13 @@ import kotlin.math.abs
  *   ◀   た   な  は   ▶
  *   カナ ま   や  ら   ␣
  *   ABC  小゛゜ わ  、。  ⏎
+ *
+ * 両端の列 (ESC/◀/カナ/ABC と ⌫/▶/␣/⏎) は [JP_EDGE_WEIGHT] で幅を狭め、
+ * 中央 3 列のかな (フリック) を広く取って打ちやすくしている。
  */
+// 両端 (機能キー) 列の幅。中央のかな列 (1f) より狭くする。
+private const val JP_EDGE_WEIGHT = 0.7f
+
 @Composable
 fun JapaneseFlickKeyboard(
     onBytes: (ByteArray) -> Unit,
@@ -114,37 +120,37 @@ fun JapaneseFlickKeyboard(
     ) {
         // Row 1: ESC  あ  か  さ  ⌫
         JpRow(rowSpacing) {
-            JpKey("ESC", style, fontScale = 0.7f) { onBytes(byteArrayOf(0x1B)); lastKana = null }
+            JpKey("ESC", style, fontScale = 0.7f, weight = JP_EDGE_WEIGHT) { onBytes(byteArrayOf(0x1B)); lastKana = null }
             JpFlickKey(KANA_A, style, katakana, ::emitKana)
             JpFlickKey(KANA_KA, style, katakana, ::emitKana)
             JpFlickKey(KANA_SA, style, katakana, ::emitKana)
-            JpKey("⌫", style, repeatable = true) { onBytes(byteArrayOf(0x7F)); lastKana = null }
+            JpKey("⌫", style, repeatable = true, weight = JP_EDGE_WEIGHT) { onBytes(byteArrayOf(0x7F)); lastKana = null }
         }
         // Row 2: ◀  た  な  は  ▶
         JpRow(rowSpacing) {
-            JpKey("◀", style, repeatable = true) { onCursorKey(TerminalEmulator.CursorKey.LEFT); lastKana = null }
+            JpKey("◀", style, repeatable = true, weight = JP_EDGE_WEIGHT) { onCursorKey(TerminalEmulator.CursorKey.LEFT); lastKana = null }
             JpFlickKey(KANA_TA, style, katakana, ::emitKana)
             JpFlickKey(KANA_NA, style, katakana, ::emitKana)
             JpFlickKey(KANA_HA, style, katakana, ::emitKana)
-            JpKey("▶", style, repeatable = true) { onCursorKey(TerminalEmulator.CursorKey.RIGHT); lastKana = null }
+            JpKey("▶", style, repeatable = true, weight = JP_EDGE_WEIGHT) { onCursorKey(TerminalEmulator.CursorKey.RIGHT); lastKana = null }
         }
         // Row 3: カナ(かな⇄カタカナ切替)  ま  や  ら  ␣
         JpRow(rowSpacing) {
-            JpKey(if (katakana) "かな" else "カナ", style, fontScale = 0.7f, accent = katakana) {
+            JpKey(if (katakana) "かな" else "カナ", style, fontScale = 0.7f, accent = katakana, weight = JP_EDGE_WEIGHT) {
                 katakana = !katakana
             }
             JpFlickKey(KANA_MA, style, katakana, ::emitKana)
             JpFlickKey(KANA_YA, style, katakana, ::emitKana)
             JpFlickKey(KANA_RA, style, katakana, ::emitKana)
-            JpKey("␣", style, repeatable = true) { onBytes(byteArrayOf(0x20)); lastKana = null }
+            JpKey("␣", style, repeatable = true, weight = JP_EDGE_WEIGHT) { onBytes(byteArrayOf(0x20)); lastKana = null }
         }
         // Row 4: ABC(英字へ)  小゛゜  わ  、。  ⏎
         JpRow(rowSpacing) {
-            JpKey("ABC", style, fontScale = 0.7f, accent = true, onClick = onSwitchToAscii)
+            JpKey("ABC", style, fontScale = 0.7f, accent = true, weight = JP_EDGE_WEIGHT, onClick = onSwitchToAscii)
             JpKey("小゛゜", style, fontScale = 0.6f) { cycleDakuten() }
             JpFlickKey(KANA_WA, style, katakana, ::emitKana)
             JpFlickKey(PUNCT, style, katakana, ::emitPlain)
-            JpKey("⏎", style) { onBytes(byteArrayOf(0x0D)); lastKana = null }
+            JpKey("⏎", style, weight = JP_EDGE_WEIGHT) { onBytes(byteArrayOf(0x0D)); lastKana = null }
         }
     }
 }
@@ -166,6 +172,7 @@ private fun RowScope.JpKey(
     fontScale: Float = 1f,
     accent: Boolean = false,
     repeatable: Boolean = false,
+    weight: Float = 1f,
     onClick: () -> Unit
 ) {
     val bg = if (accent) ZtsGreen else ZtsBgCard
@@ -180,7 +187,7 @@ private fun RowScope.JpKey(
     }
     Box(
         modifier = Modifier
-            .weight(1f)
+            .weight(weight)
             .fillMaxHeight()
             .clip(RoundedCornerShape(6.dp))
             .background(bg)

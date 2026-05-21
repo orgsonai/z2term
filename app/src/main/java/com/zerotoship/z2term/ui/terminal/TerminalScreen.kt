@@ -309,9 +309,11 @@ private fun TopBar(
         Box(modifier = Modifier.weight(1f))
 
         // 並び (左→右): 貼付 / コマンド一覧 / 画面消灯ロック / キーボード切替 / 設定
-        // 貼付ボタン (タップ = クリップボード貼り付けのみ)
-        TopBarIconButton(label = "貼", onClick = onPaste)
-        TopBarIconButton(label = "📋", onClick = onOpenSnippets)
+        // 貼付ボタン (タップ = クリップボード貼り付けのみ)。
+        // 📋 クリップボードアイコン = 貼り付け、の方が直感的なため漢字「貼」から変更。
+        TopBarIconButton(label = "📋", onClick = onPaste)
+        // コマンド一覧 (スニペット)。"CMD" テキストで明示。
+        TopBarIconButton(label = "CMD", onClick = onOpenSnippets)
         // 画面消灯ロック (タップで ON/OFF。ON 中は画面が自動消灯しない)
         KeepScreenOnButton(active = keepScreenOn, onClick = onToggleKeepScreenOn)
         // キーボード切替ボタン (タップ = OS IME ⇄ 独自キーボード)
