@@ -13,10 +13,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -133,8 +134,10 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxSize()
             .background(ZtsBgPrimary)
-            .systemBarsPadding()
-            .imePadding()
+            // safeDrawing = systemBars ∪ ime ∪ displayCutout を 1 つの inset で適用。
+            // systemBarsPadding().imePadding() の連鎖は消費順序の都合で 3 ボタンナビ
+            // (下部) の inset が効かずキーボード最下段が被ることがあったため統一。
+            .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
         TopBar(
             session = active,
@@ -199,10 +202,6 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         TerminalKeyboard(
                             onBytes = { active.writeBytes(it) },
                             onCursorKey = { key -> active.writeBytes(active.emulator.cursorKeyBytes(key)) },
-                            onRequestSystemKeyboard = {
-                                keyboardMode = KeyboardMode.SYSTEM
-                                active.setKeyboardMode("system")
-                            },
                             style = style
                         )
                     }
@@ -296,16 +295,17 @@ private fun TopBar(
         }
         Box(modifier = Modifier.weight(1f))
 
-        TopBarIconButton(label = "📋", onClick = onOpenSnippets)
-        TopBarIconButton(label = "🔌", onClick = onOpenSsh)
-        TopBarIconButton(label = "⚙", onClick = onOpenSettings)
+        // 並び (左→右): 貼付 / コマンド一覧 / SSH / キーボード切替 / 設定
         // 貼付ボタン (タップ = クリップボード貼り付けのみ)
         TopBarIconButton(label = "貼", onClick = onPaste)
+        TopBarIconButton(label = "📋", onClick = onOpenSnippets)
+        TopBarIconButton(label = "🔌", onClick = onOpenSsh)
         // キーボード切替ボタン (タップ = OS IME ⇄ 独自キーボード)
         KeyboardToggleButton(
             imeActive = keyboardMode == KeyboardMode.SYSTEM,
             onClick = onToggleKeyboardMode
         )
+        TopBarIconButton(label = "⚙", onClick = onOpenSettings)
 
         Text(
             text = ui.state.name,

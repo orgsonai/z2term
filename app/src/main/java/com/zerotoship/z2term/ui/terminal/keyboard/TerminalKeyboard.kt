@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,15 +61,16 @@ import kotlin.math.abs
  * レイアウト:
  *   Row 1: ESC  1〜0 (or 記号)                              ⌫(長押し連打 / ←=C-W / →=C-U)
  *   Row 2: TAB  q w e r t y u i o p
- *   Row 3: ⌨   a s d f g h j k l                            ⏎
+ *   Row 3: あ   a s d f g h j k l                            ⏎   (あ=日本語フリックへ)
  *   Row 4: ⇧   z x c v b n m , . /
  *   Row 5: CTL  ?#  ALT  SPACE                              ← ↓ ↑ →
+ *
+ * 各英字キーの下フリック = そのローマ字の大文字 (ヒント非表示)。
  */
 @Composable
 fun TerminalKeyboard(
     onBytes: (ByteArray) -> Unit,
     onCursorKey: (TerminalEmulator.CursorKey) -> Unit,
-    onRequestSystemKeyboard: () -> Unit,
     style: KeyboardStyle = KeyboardStyle.COMPACT,
     modifier: Modifier = Modifier
 ) {
@@ -76,6 +78,19 @@ fun TerminalKeyboard(
     var ctrl by remember { mutableStateOf(false) }
     var alt by remember { mutableStateOf(false) }
     var sym by remember { mutableStateOf(false) }
+    // 日本語フリックモード (⌨ → あ キーで切替)。ON の間は内蔵かなキーボードを描画。
+    var jpMode by remember { mutableStateOf(false) }
+
+    if (jpMode) {
+        JapaneseFlickKeyboard(
+            onBytes = onBytes,
+            onCursorKey = onCursorKey,
+            onSwitchToAscii = { jpMode = false },
+            style = style,
+            modifier = modifier
+        )
+        return
+    }
 
     fun cycleShift() {
         shift = when (shift) {
@@ -135,27 +150,41 @@ fun TerminalKeyboard(
     val r3FlickUp = listOf('-', '_', '+', '=', '|', '\\', '/', '[', ']')
     val r4FlickUp = listOf('`', '~', '\'', '"', '<', '>', '?', ':', ';', '{')
 
-    // 4 方向フリック (spacious 用) — Row 2 のみ 4 方向、Row 3/4 は up のみ
+    // 4 方向フリック (spacious 用) — Row 2 の up/left/right に記号を割当。
+    // down は下フリック=大文字 (flickFor で動的に上書き) のため未指定。
     val r2Flick4 = listOf(
-        FlickMap(up = '!', down = '1', left = '`', right = '~'),
-        FlickMap(up = '@', down = '2', left = '\'', right = '"'),
-        FlickMap(up = '#', down = '3', left = '(', right = ')'),
-        FlickMap(up = '$', down = '4', left = '[', right = ']'),
-        FlickMap(up = '%', down = '5', left = '{', right = '}'),
-        FlickMap(up = '^', down = '6', left = '<', right = '>'),
-        FlickMap(up = '&', down = '7', left = ':', right = ';'),
-        FlickMap(up = '*', down = '8', left = ',', right = '.'),
-        FlickMap(up = '(', down = '9', left = '/', right = '\\'),
-        FlickMap(up = ')', down = '0', left = '|', right = '?')
+        FlickMap(up = '!', left = '`', right = '~'),
+        FlickMap(up = '@', left = '\'', right = '"'),
+        FlickMap(up = '#', left = '(', right = ')'),
+        FlickMap(up = '$', left = '[', right = ']'),
+        FlickMap(up = '%', left = '{', right = '}'),
+        FlickMap(up = '^', left = '<', right = '>'),
+        FlickMap(up = '&', left = ':', right = ';'),
+        FlickMap(up = '*', left = ',', right = '.'),
+        FlickMap(up = '(', left = '/', right = '\\'),
+        FlickMap(up = ')', left = '|', right = '?')
     )
+
+    // 下フリック = そのキーのローマ字大文字 (英字キーのみ)。数字は廃止。
+    fun downUpperOf(rowIdx: Int, colIdx: Int): Char? {
+        val list = when (rowIdx) { 2 -> r2Labels; 3 -> r3Labels; 4 -> r4Labels; else -> return null }
+        return list.getOrNull(colIdx)?.firstOrNull()?.takeIf { it.isLetter() }?.uppercaseChar()
+    }
 
     fun flickFor(rowIdx: Int, colIdx: Int): FlickMap? {
         if (sym) return null
+        val down = downUpperOf(rowIdx, colIdx)
         return when (rowIdx) {
-            2 -> if (style.fourDirectionFlick) r2Flick4.getOrNull(colIdx)
-                 else r2FlickUp.getOrNull(colIdx)?.let { FlickMap(up = it) }
-            3 -> r3FlickUp.getOrNull(colIdx)?.let { FlickMap(up = it) }
-            4 -> r4FlickUp.getOrNull(colIdx)?.let { FlickMap(up = it) }
+            2 -> if (style.fourDirectionFlick) r2Flick4.getOrNull(colIdx)?.copy(down = down)
+                 else r2FlickUp.getOrNull(colIdx)?.let { FlickMap(up = it, down = down) }
+            3 -> {
+                val up = r3FlickUp.getOrNull(colIdx)
+                if (up == null && down == null) null else FlickMap(up = up, down = down)
+            }
+            4 -> {
+                val up = r4FlickUp.getOrNull(colIdx)
+                if (up == null && down == null) null else FlickMap(up = up, down = down)
+            }
             else -> null
         }
     }
@@ -175,7 +204,7 @@ fun TerminalKeyboard(
                 emitSpecial(byteArrayOf(0x1B))
             }
             r1Labels.forEach { s ->
-                BasicKey(s, weight = 1f, fontSp = style.keyFontSp, style = style) { emitChar(s[0]) }
+                BasicKey(s, weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) { emitChar(s[0]) }
             }
             BackspaceKey(
                 weight = 1.4f,
@@ -202,9 +231,9 @@ fun TerminalKeyboard(
                 )
             }
         }
-        // Row 3 (旧 CTRL の位置を ⌨ に変更)
+        // Row 3 左端: 日本語フリックキーボードへ切替える「あ」キー
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-            BasicKey("⌨", weight = 1.4f, fontSp = style.keyFontSp, style = style, onClick = onRequestSystemKeyboard)
+            BasicKey("あ", weight = 1.4f, fontSp = style.keyFontSp, style = style) { jpMode = true }
             r3Labels.forEachIndexed { idx, s ->
                 val display = if (!sym && shift != ShiftState.OFF && s[0].isLetter()) s.uppercase() else s
                 FlickKey(
@@ -259,10 +288,10 @@ fun TerminalKeyboard(
                 style = style
             ) { alt = !alt }
             SpaceKey(weight = 4f, style = style) { emitChar(' ') }
-            BasicKey("←", weight = 1f, fontSp = style.keyFontSp, style = style) { emitCursor(TerminalEmulator.CursorKey.LEFT) }
-            BasicKey("↓", weight = 1f, fontSp = style.keyFontSp, style = style) { emitCursor(TerminalEmulator.CursorKey.DOWN) }
-            BasicKey("↑", weight = 1f, fontSp = style.keyFontSp, style = style) { emitCursor(TerminalEmulator.CursorKey.UP) }
-            BasicKey("→", weight = 1f, fontSp = style.keyFontSp, style = style) { emitCursor(TerminalEmulator.CursorKey.RIGHT) }
+            BasicKey("←", weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) { emitCursor(TerminalEmulator.CursorKey.LEFT) }
+            BasicKey("↓", weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) { emitCursor(TerminalEmulator.CursorKey.DOWN) }
+            BasicKey("↑", weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) { emitCursor(TerminalEmulator.CursorKey.UP) }
+            BasicKey("→", weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) { emitCursor(TerminalEmulator.CursorKey.RIGHT) }
         }
     }
 }
@@ -273,12 +302,20 @@ private fun RowScope.BasicKey(
     weight: Float,
     fontSp: Float,
     active: Boolean = false,
+    repeatable: Boolean = false,
     style: KeyboardStyle,
     onClick: () -> Unit
 ) {
     val bg = if (active) ZtsGreen else ZtsBgCard
     val fg = if (active) Color.Black else ZtsTextPrimary
     val border = if (active) ZtsGreen else ZtsBorder
+    val scope = rememberCoroutineScope()
+    val currentOnClick by rememberUpdatedState(onClick)
+    val tapModifier = if (repeatable) {
+        Modifier.pointerInput(Unit) { detectTapWithRepeat(scope) { currentOnClick() } }
+    } else {
+        Modifier.clickable(onClick = onClick)
+    }
     Box(
         modifier = Modifier
             .weight(weight)
@@ -286,7 +323,7 @@ private fun RowScope.BasicKey(
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
             .border(1.dp, border, RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick),
+            .then(tapModifier),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -345,9 +382,10 @@ private fun RowScope.ShiftKey(
  * 4 方向フリック対応キー (compact 時は up のみ、spacious 時は up/down/left/right)。
  *
  * 視覚レイアウト:
- *  - 主文字は Column 内で中央配置。上下フリックが定義されているときは
- *    Column の上/下端にヒントを並べて **主文字と重ならない** ようにする。
+ *  - 主文字は Column 内で中央配置。上フリックが定義されているときは
+ *    Column の上端にヒントを並べて **主文字と重ならない** ようにする。
  *  - 左右フリックは Box overlay で中央左端/中央右端に置く (Column と直交)。
+ *  - 下フリック (= ローマ字大文字) はヒントを出さない (隠し動作)。
  *  - ヒント色は `ZtsGreenBright` で主文字 (白) と明確に区別。
  *
  * インタラクション:
@@ -363,6 +401,9 @@ private fun RowScope.FlickKey(
     onTap: () -> Unit,
     onFlick: (Char) -> Unit
 ) {
+    val scope = rememberCoroutineScope()
+    val currentOnTap by rememberUpdatedState(onTap)
+    val currentOnFlick by rememberUpdatedState(onFlick)
     Box(
         modifier = Modifier
             .weight(weight)
@@ -377,13 +418,24 @@ private fun RowScope.FlickKey(
                         val down = awaitFirstDown(requireUnconsumed = false)
                         val startX = down.position.x
                         val startY = down.position.y
-                        var resolved = false
+                        var resolved = false  // フリック発火済み
+                        var repeated = false  // 長押し連打開始済み
+                        // 押しっぱなしで連打 (フリックされたらキャンセル)
+                        val repeatJob = scope.launch {
+                            delay(KEY_REPEAT_INITIAL_MS)
+                            if (!resolved) {
+                                repeated = true
+                                while (isActive) { currentOnTap(); delay(KEY_REPEAT_INTERVAL_MS) }
+                            }
+                        }
                         while (true) {
                             val event = awaitPointerEvent(PointerEventPass.Main)
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
                             val dx = change.position.x - startX
                             val dy = change.position.y - startY
-                            if (!resolved && flick != null && (abs(dx) > flickThreshold || abs(dy) > flickThreshold)) {
+                            if (!resolved && !repeated && flick != null &&
+                                (abs(dx) > flickThreshold || abs(dy) > flickThreshold)
+                            ) {
                                 val ch = if (abs(dx) > abs(dy)) {
                                     if (dx < 0) flick.left else flick.right
                                 } else {
@@ -391,24 +443,26 @@ private fun RowScope.FlickKey(
                                 }
                                 if (ch != null) {
                                     resolved = true
-                                    onFlick(ch)
+                                    repeatJob.cancel()
+                                    currentOnFlick(ch)
                                     change.consume()
                                 }
                             }
                             if (!change.pressed) {
-                                if (!resolved) onTap()
+                                repeatJob.cancel()
+                                if (!resolved && !repeated) currentOnTap()
                                 break
                             }
                         }
+                        repeatJob.cancel()
                     }
                 }
             }
     ) {
-        // Column で 上/主/下 を縦に並べる:
+        // Column で 上/主 を縦に並べる:
         //   - up hint: 自然サイズ (wrap)
         //   - main: weight(1f) で残りを取得し中央寄せ → 主文字は必ず可視
-        //   - down hint: 自然サイズ (wrap)
-        // こうすると Compose 既定の line-leading 由来のはみ出しが起きない。
+        // 下フリック (大文字) はヒントを出さない (緑文字の補助は付けない方針)。
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -432,9 +486,6 @@ private fun RowScope.FlickKey(
                     fontWeight = FontWeight.Medium,
                     fontFamily = FontFamily.Monospace
                 )
-            }
-            if (flick?.down != null) {
-                HintText(flick.down.toString(), style)
             }
         }
         // 左右ヒントは Box overlay (Column と独立)
@@ -481,6 +532,9 @@ private fun RowScope.BackspaceKey(
     onFlickRight: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val currentOnTap by rememberUpdatedState(onTap)
+    val currentOnFlickLeft by rememberUpdatedState(onFlickLeft)
+    val currentOnFlickRight by rememberUpdatedState(onFlickRight)
     Box(
         modifier = Modifier
             .weight(weight)
@@ -503,10 +557,10 @@ private fun RowScope.BackspaceKey(
                             delay(500)
                             if (!resolved) {
                                 repeatStarted = true
-                                onTap()
+                                currentOnTap()
                                 while (isActive) {
                                     delay(60)
-                                    onTap()
+                                    currentOnTap()
                                 }
                             }
                         }
@@ -521,12 +575,12 @@ private fun RowScope.BackspaceKey(
                             ) {
                                 resolved = true
                                 repeatJob.cancel()
-                                if (dx < 0) onFlickLeft() else onFlickRight()
+                                if (dx < 0) currentOnFlickLeft() else currentOnFlickRight()
                                 change.consume()
                             }
                             if (!change.pressed) {
                                 repeatJob.cancel()
-                                if (!resolved && !repeatStarted) onTap()
+                                if (!resolved && !repeatStarted) currentOnTap()
                                 break
                             }
                         }
@@ -551,6 +605,8 @@ private fun RowScope.BackspaceKey(
 
 @Composable
 private fun RowScope.SpaceKey(weight: Float, style: KeyboardStyle, onClick: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val currentOnClick by rememberUpdatedState(onClick)
     Box(
         modifier = Modifier
             .weight(weight)
@@ -558,7 +614,7 @@ private fun RowScope.SpaceKey(weight: Float, style: KeyboardStyle, onClick: () -
             .clip(RoundedCornerShape(6.dp))
             .background(ZtsBgCard)
             .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick),
+            .pointerInput(Unit) { detectTapWithRepeat(scope) { currentOnClick() } },
         contentAlignment = Alignment.Center
     ) {
         Text(
