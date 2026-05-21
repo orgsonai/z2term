@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.proot.Z2TERM_SSHD_PORT
-import com.zerotoship.z2term.proot.dropbearBootstrapScript
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
@@ -59,11 +58,14 @@ import java.net.NetworkInterface
 fun SshAccessHelper(session: TerminalSession) {
     val context = LocalContext.current
     var ips by remember { mutableStateOf<List<String>>(emptyList()) }
+    // 表示用ポートは sshd_config の Port を反映 (無ければ既定 2222)。`sshd` コマンドと一致。
+    var sshdPort by remember { mutableStateOf(Z2TERM_SSHD_PORT) }
     LaunchedEffect(Unit) {
         ips = withContext(Dispatchers.IO) { detectIpv4Addresses() }
+        sshdPort = withContext(Dispatchers.IO) { readConfiguredSshdPort(context, session) }
     }
     val primaryIp = ips.firstOrNull() ?: "<端末IP>"
-    val sshCmd = "ssh -p $Z2TERM_SSHD_PORT root@$primaryIp"
+    val sshCmd = "ssh -p $sshdPort root@$primaryIp"
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
@@ -129,11 +131,9 @@ fun SshAccessHelper(session: TerminalSession) {
                 label = "sshd 起動",
                 accent = true,
                 onClick = {
-                    // スクリプトは rootfs (= /root) にファイルとして書き出し、`sh` で実行する。
-                    // 端末へ複数行スクリプトを直接打鍵すると zsh がコメント(#)を
-                    // 「command not found」にしたり継続プロンプト(cursh>)で崩れるため。
-                    writeSshdScript(context, Z2TERM_SSHD_PORT)
-                    session.writeBytes("sh \"\$HOME/.z2term-sshd.sh\"\n".toByteArray(Charsets.UTF_8))
+                    // `sshd` = /usr/local/sbin/sshd ラッパー (ProotLauncher が配置)。
+                    // sshd_config の Port を読んで dropbear を起動する。
+                    session.writeBytes("sshd\n".toByteArray(Charsets.UTF_8))
                 }
             )
             HelperButton(
@@ -148,8 +148,8 @@ fun SshAccessHelper(session: TerminalSession) {
             )
         }
         Text(
-            text = "端末で `sshd` と打つだけでも起動できます (OpenSSH の /usr/sbin/sshd は\n" +
-                "proot で privsep 破綻のため使えません → dropbear を使用)。\n" +
+            text = "端末で `sshd` でも起動可 (ポートは sshd_config の Port、`-p` 指定も可)。\n" +
+                "OpenSSH の /usr/sbin/sshd は proot で privsep 破綻のため使えません → dropbear。\n" +
                 "詳細は docs/SSH-INTO-Z2TERM.md を参照",
             color = ZtsTextSecondary.copy(alpha = 0.6f),
             fontSize = 10.sp,
@@ -264,14 +264,19 @@ private fun detectIpv4Addresses(): List<String> {
 }
 
 /**
- * dropbear 起動スクリプト ([dropbearBootstrapScript]) を rootfs (= /root) に
- * ファイルとして書き出す。`sh <file>` で実行されるため、コメントや複数行・
- * パイプが安全に使える (端末への直接打鍵だと zsh がコメントを誤実行する)。
- * (端末では `sshd` コマンド = /usr/local/sbin/sshd でも同じ処理が走る)
+ * 実行中 distro の `/etc/ssh/sshd_config` から `Port` を読む。
+ * `sshd` コマンド (dropbear ラッパー) と同じ優先順 (config の Port、無ければ既定)。
+ * コメント行や `PortForwarding` 等の別ディレクティブは無視する。
  */
-private fun writeSshdScript(context: Context, port: Int): java.io.File {
-    val dir = java.io.File(context.filesDir, "shared_home").apply { mkdirs() }
-    val file = java.io.File(dir, ".z2term-sshd.sh")
-    file.writeText(dropbearBootstrapScript(port))
-    return file
+private fun readConfiguredSshdPort(context: Context, session: TerminalSession): Int {
+    val distroId = session.settingsFlow.value.distroId
+    val cfg = java.io.File(context.filesDir, "distros/$distroId/etc/ssh/sshd_config")
+    if (!cfg.isFile) return Z2TERM_SSHD_PORT
+    return runCatching {
+        cfg.readLines().firstNotNullOfOrNull { line ->
+            val parts = line.trim().split(Regex("\\s+"))
+            if (parts.size >= 2 && parts[0].equals("Port", ignoreCase = true)) parts[1].toIntOrNull()
+            else null
+        }
+    }.getOrNull() ?: Z2TERM_SSHD_PORT
 }

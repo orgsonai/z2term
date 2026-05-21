@@ -1,30 +1,72 @@
 package com.zerotoship.z2term.proot
 
-/** PC から端末へ SSH 接続するときの待受ポート (1024 未満は Android kernel が拒否)。 */
+/**
+ * `sshd` が設定/引数が無いときに使う既定ポート。
+ * 1024 未満は proot(非root) で bind できないため高ポートを既定にする。
+ * (sshd_config の Port や `-p` 指定があればそちらが優先)
+ */
 const val Z2TERM_SSHD_PORT = 2222
 
 /**
- * dropbear (SSH サーバ) を起動する POSIX sh スクリプト。
+ * `sshd` 互換ラッパースクリプト (バックエンドは dropbear)。
  *
  * OpenSSH の `/usr/sbin/sshd` は proot 環境で **権限分離 (privsep) に失敗**し、
  * さらに新しめの OpenSSH では `sshd_config` の `UsePrivilegeSeparation` が
  * 「Bad configuration option」になって起動すらできない。よって proot 下でも
  * 安定動作する dropbear を使う。
  *
- * この内容を `/usr/local/sbin/sshd` に配置する (ProotLauncher) ことで、端末から
- * `sshd` と打つだけで dropbear が立ち上がる (PATH 上 /usr/local/sbin が優先)。
+ * これを `/usr/local/sbin/sshd` に配置 (ProotLauncher) することで、端末から
+ * `sshd` と打つと **通常の sshd のように振る舞う**:
+ *  - ポートは `-p` / `-o Port=N` 指定 → なければ `/etc/ssh/sshd_config` の `Port`
+ *    → それも無ければ既定 ([Z2TERM_SSHD_PORT]) の優先順で決定
+ *  - `-f <config>` で別の設定ファイルを参照、`-D`/`-d` で前景起動、`-t` で設定確認
+ *  - dropbear 未導入なら自動 install、既存 dropbear を確実に停止してから起動
  *
- *  - dropbear 未導入なら distro のパッケージマネージャで自動 install
- *  - 既存 dropbear を pkill / pidof / pidfile / /proc 走査で確実に停止 (ポート競合回避)
- *  - ホスト鍵が無ければ生成、pidfile のプロセス生存で起動判定、失敗時はログ表示
- *  - root にパスワードが無ければ警告 (dropbear は空パスワード接続を拒否)
+ * 注: dropbear が解釈できるのは実質 Port のみ。sshd_config のそれ以外のディレクティブ
+ * (PermitRootLogin 等) は反映されない (dropbear 既定: root ログイン・パスワード認証許可)。
  */
-fun dropbearBootstrapScript(port: Int = Z2TERM_SSHD_PORT): String {
+fun dropbearBootstrapScript(defaultPort: Int = Z2TERM_SSHD_PORT): String {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
     return """
         |#!/bin/sh
-        |# z2term: dropbear (SSH server) 起動スクリプト (OpenSSH sshd は proot 不可)
-        |PORT=$port
+        |# z2term: sshd 互換ラッパー (バックエンド dropbear。OpenSSH sshd は proot 不可)
+        |DEFAULT_PORT=$defaultPort
+        |CONFIG=/etc/ssh/sshd_config
+        |PORT=""
+        |FOREGROUND=""
+        |TESTONLY=""
+        |
+        |# sshd 互換の主要オプションを解釈する。
+        |while [ ${d}# -gt 0 ]; do
+        |  case "${d}1" in
+        |    -p) PORT="${d}2"; shift 2 ;;
+        |    -p?*) PORT="${d}{1#-p}"; shift ;;
+        |    -f) CONFIG="${d}2"; shift 2 ;;
+        |    -f?*) CONFIG="${d}{1#-f}"; shift ;;
+        |    -o) case "${d}2" in [Pp]ort*) PORT=${d}(printf '%s' "${d}2" | tr -cd '0-9') ;; esac; shift 2 ;;
+        |    -D|-d) FOREGROUND=1; shift ;;
+        |    -t|-T) TESTONLY=1; shift ;;
+        |    -h) shift 2 ;;
+        |    -h?*) shift ;;
+        |    --) shift; break ;;
+        |    *) shift ;;
+        |  esac
+        |done
+        |
+        |# ポート決定: -p / -o Port=N  →  sshd_config の Port  →  既定
+        |if [ -z "${d}PORT" ] && [ -r "${d}CONFIG" ]; then
+        |  PORT=${d}(awk 'tolower(${d}1)=="port" && ${d}2 ~ /^[0-9]+${d}/ {print ${d}2; exit}' "${d}CONFIG")
+        |fi
+        |[ -z "${d}PORT" ] && PORT=${d}DEFAULT_PORT
+        |
+        |case "${d}PORT" in
+        |  ''|*[!0-9]*) echo "❌ ポート番号が不正です: '${d}PORT'"; exit 1 ;;
+        |esac
+        |
+        |if [ -n "${d}TESTONLY" ]; then
+        |  echo "sshd(dropbear) 設定 OK: port=${d}PORT (config: ${d}CONFIG)"
+        |  exit 0
+        |fi
         |
         |if ! command -v dropbear >/dev/null 2>&1; then
         |  echo "📦 dropbear が無いので導入します…"
@@ -40,7 +82,6 @@ fun dropbearBootstrapScript(port: Int = Z2TERM_SSHD_PORT): String {
         |    zypper --non-interactive install dropbear
         |  fi
         |fi
-        |
         |if ! command -v dropbear >/dev/null 2>&1; then
         |  echo "❌ dropbear を導入できませんでした。ネットワーク接続とパッケージ名を確認してください。"
         |  exit 1
@@ -64,9 +105,17 @@ fun dropbearBootstrapScript(port: Int = Z2TERM_SSHD_PORT): String {
         |rm -f /tmp/dropbear.pid /tmp/dropbear.log
         |sleep 1
         |
+        |if [ "${d}PORT" -lt 1024 ]; then
+        |  echo "⚠️ ポート ${d}PORT は特権ポート。proot(非root)では bind できない可能性が高いです (1024 以上推奨)。"
+        |fi
+        |
+        |if [ -n "${d}FOREGROUND" ]; then
+        |  echo "▶ dropbear をフォアグラウンド起動 (Ctrl-C で停止): port ${d}PORT"
+        |  exec dropbear -F -p "${d}PORT" -R -E
+        |fi
+        |
         |dropbear -p "${d}PORT" -R -E -P /tmp/dropbear.pid 2>>/tmp/dropbear.log
         |sleep 1
-        |
         |if [ -s /tmp/dropbear.pid ] && kill -0 "${d}(cat /tmp/dropbear.pid)" 2>/dev/null; then
         |  IP=${d}(ip -4 addr show 2>/dev/null | grep -oE 'inet [0-9.]+' | awk '{print ${d}2}' | grep -v '^127' | head -n1)
         |  echo "✅ dropbear listening on :${d}PORT  (root @ ${d}{IP:-端末IP})"
