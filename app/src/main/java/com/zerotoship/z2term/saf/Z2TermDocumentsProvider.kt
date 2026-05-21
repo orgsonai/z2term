@@ -26,19 +26,31 @@ import java.io.FileNotFoundException
  *    SAF からは素の Linux と同じ解釈になるため一部リンク先は辿れないが、
  *    これは Termux でも同じ制約。実ファイル/ディレクトリの操作は問題ない。
  *
- * 公開ルート (インストール済み distro ごとに 2 つ):
- *  - "<distro> ホーム" → distros/<distro>/root  (= root ユーザーの ~)
- *  - "<distro> ルート" → distros/<distro>       (= rootfs 全体 /)
+ * 公開ルート:
+ *  - "ホーム (共有)" → shared_home  (端末が /root にマウントしている実体。
+ *    これにより端末の ~ とファイラーで見えるフォルダが **一致** する)
+ *  - インストール済み distro ごとに "ルート (/)" → distros/<distro>  (= rootfs 全体)
+ *
+ * 旧実装は distros/<distro>/root を「ホーム」として公開していたが、端末側は
+ * shared_home を /root にバインドしているため両者がズレていた。それを修正。
  *
  * documentId はファイルの絶対パスをそのまま使う。安全のため、解決後の
- * canonical パスが [baseDir] 配下に無いリクエストは拒否する (パストラバーサル防止)。
+ * canonical パスが許可ルート ([allowedRoots]) 配下に無いリクエストは拒否する
+ * (パストラバーサル防止)。
  */
 class Z2TermDocumentsProvider : DocumentsProvider() {
 
-    private val baseDir: File
+    private fun ctx() = context ?: error("Provider context is null")
+
+    private val distrosDir: File
         get() = File(ctx().filesDir, "distros")
 
-    private fun ctx() = context ?: error("Provider context is null")
+    private val sharedHomeDir: File
+        get() = File(ctx().filesDir, "shared_home")
+
+    /** SAF からアクセスを許可するサブツリー (これ以外は traversal として拒否)。 */
+    private val allowedRoots: List<File>
+        get() = listOf(sharedHomeDir, distrosDir)
 
     override fun onCreate(): Boolean = true
 
@@ -46,16 +58,18 @@ class Z2TermDocumentsProvider : DocumentsProvider() {
 
     override fun queryRoots(projection: Array<out String>?): Cursor {
         val result = MatrixCursor(projection ?: DEFAULT_ROOT_PROJECTION)
-        val distros = baseDir.listFiles { f -> f.isDirectory }?.sortedBy { it.name } ?: emptyList()
+        // 共有ホーム = 端末の /root と同一実体。常に公開 (無ければ作る)。
+        val home = sharedHomeDir.apply { if (!exists()) mkdirs() }
+        addRoot(
+            result,
+            rootId = "home-shared",
+            title = "Z2Term ホーム",
+            summary = "共有ホーム (~ = 端末の /root)",
+            dir = home
+        )
+        // 各 distro の rootfs 全体 (/) も公開。
+        val distros = distrosDir.listFiles { f -> f.isDirectory }?.sortedBy { it.name } ?: emptyList()
         for (distro in distros) {
-            val home = File(distro, "root").let { if (it.isDirectory) it else distro }
-            addRoot(
-                result,
-                rootId = "${distro.name}-home",
-                title = "Z2Term ${distro.name}",
-                summary = "ホーム (~)",
-                dir = home
-            )
             addRoot(
                 result,
                 rootId = "${distro.name}-rootfs",
@@ -158,14 +172,15 @@ class Z2TermDocumentsProvider : DocumentsProvider() {
 
     // ---- Helpers ------------------------------------------------------------
 
-    /** documentId (= 絶対パス) を File へ。baseDir 配下でなければ拒否 (traversal 防止)。 */
+    /** documentId (= 絶対パス) を File へ。許可ルート配下でなければ拒否 (traversal 防止)。 */
     private fun resolveDoc(documentId: String): File {
         val file = File(documentId)
         val canonical = file.canonicalPath
-        val base = baseDir.canonicalPath
-        if (canonical != base && !canonical.startsWith("$base${File.separator}")) {
-            throw FileNotFoundException("アクセス範囲外: $documentId")
+        val ok = allowedRoots.any { root ->
+            val base = root.canonicalPath
+            canonical == base || canonical.startsWith("$base${File.separator}")
         }
+        if (!ok) throw FileNotFoundException("アクセス範囲外: $documentId")
         return file
     }
 

@@ -193,6 +193,8 @@ fun SettingsSheet(
 
             SshAccessHelper(session = session)
 
+            StorageAccessHelper()
+
             Section(title = "独自キーボードスタイル") {
                 ChipRow(
                     options = KeyboardStyle.ALL.map { it.id },
