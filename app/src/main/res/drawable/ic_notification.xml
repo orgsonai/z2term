@@ -13,8 +13,8 @@
     <path
         android:fillColor="#FFFFFFFF"
         android:pathData="M3,5 L12,5 L12,8 L7,14 L12,14 L12,17 L3,17 L3,14 L8,8 L3,8 Z" />
-    <!-- 2 (右) ブロック体 -->
+    <!-- 2 (右) ブロック体: 上バー→右上縦→中バー→左下縦→下バー -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M14,5 L21,5 L21,11 L17,11 L17,12 L21,12 L21,19 L14,19 L14,16 L18,16 L18,15 L14,15 L14,9 L18,9 L18,8 L14,8 Z" />
+        android:pathData="M14,5 L21,5 L21,14 L17,14 L17,16 L21,16 L21,19 L14,19 L14,11 L18,11 L18,8 L14,8 Z" />
 </vector>
