@@ -73,7 +73,8 @@ import java.util.UUID
 @Composable
 fun SshProfilesSheet(
     onDismiss: () -> Unit,
-    onConnect: (SshProfile) -> Unit
+    onConnect: (SshProfile) -> Unit,
+    onSftp: (SshProfile) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -125,6 +126,10 @@ fun SshProfilesSheet(
                             profile = p,
                             onConnect = {
                                 onConnect(p)
+                                onDismiss()
+                            },
+                            onSftp = {
+                                onSftp(p)
                                 onDismiss()
                             },
                             onEdit = { editing = p },
@@ -217,6 +222,7 @@ private fun EmptyState() {
 private fun ProfileRow(
     profile: SshProfile,
     onConnect: () -> Unit,
+    onSftp: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -247,6 +253,7 @@ private fun ProfileRow(
         Spacer(modifier = Modifier.height(4.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             SmallButton(label = "接続", accent = true, onClick = onConnect)
+            SmallButton(label = "SFTP", onClick = onSftp)
             SmallButton(label = "編集", onClick = onEdit)
             Box(modifier = Modifier.weight(1f))
             SmallButton(label = "削除", danger = true, onClick = onDelete)

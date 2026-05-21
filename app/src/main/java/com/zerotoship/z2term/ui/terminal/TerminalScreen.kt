@@ -45,8 +45,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.service.TerminalService
+import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.ui.settings.SettingsSheet
+import com.zerotoship.z2term.ui.sftp.SftpSheet
 import com.zerotoship.z2term.ui.snippets.SnippetsSheet
+import com.zerotoship.z2term.ui.ssh.SshProfilesSheet
 import com.zerotoship.z2term.ui.ssh.HostKeyVerificationDialog
 import com.zerotoship.z2term.ui.terminal.components.SpecialKeyBar
 import com.zerotoship.z2term.ui.terminal.input.TerminalInputView
@@ -105,6 +108,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     var keyboardCollapsed by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
     var snippetsSheetOpen by remember { mutableStateOf(false) }
+    var sshSheetOpen by remember { mutableStateOf(false) }
+    // SFTP ファイルブラウザ対象のプロファイル (非 null の間シートを表示)
+    var sftpProfile by remember { mutableStateOf<SshProfile?>(null) }
     // 画面消灯ロック (ディスプレイが自動で消えないようにする)。
     // FLAG_KEEP_SCREEN_ON 相当を Compose ルート View に付与するだけ (権限不要、
     // フォアグラウンド中のみ有効、CPU は握らないので WakeLock より安全)。
@@ -242,7 +248,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     if (settingsOpen) {
         SettingsSheet(
             session = active,
-            onDismiss = { settingsOpen = false }
+            onDismiss = { settingsOpen = false },
+            onOpenSsh = {
+                settingsOpen = false
+                sshSheetOpen = true
+            }
         )
     }
     if (snippetsSheetOpen) {
@@ -251,6 +261,19 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onRun = { command ->
                 active.writeBytes(command.toByteArray(Charsets.UTF_8))
             }
+        )
+    }
+    if (sshSheetOpen) {
+        SshProfilesSheet(
+            onDismiss = { sshSheetOpen = false },
+            onConnect = { profile -> active.startSsh(profile) },
+            onSftp = { profile -> sftpProfile = profile }
+        )
+    }
+    sftpProfile?.let { profile ->
+        SftpSheet(
+            profile = profile,
+            onDismiss = { sftpProfile = null }
         )
     }
     // ホスト鍵検証はワーカースレッドからブロッキングで呼ばれるため、

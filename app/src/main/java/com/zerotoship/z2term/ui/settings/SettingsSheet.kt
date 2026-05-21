@@ -94,7 +94,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsSheet(
     session: TerminalSession,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onOpenSsh: () -> Unit = {}
 ) {
     val settings by session.settingsFlow.collectAsState()
     val context = LocalContext.current
@@ -244,6 +245,19 @@ fun SettingsSheet(
             }
 
             SshAccessHelper(session = session)
+
+            Section(title = "リモート (端末 → 他ホスト)") {
+                ActionButton(
+                    label = "SSH / SFTP プロファイル…",
+                    onClick = onOpenSsh
+                )
+                Text(
+                    text = "保存した SSH 接続先へシェル接続、または SFTP でファイル転送 (一覧 / DL / UL / 削除 / 名前変更)。",
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
 
             StorageAccessHelper()
 
