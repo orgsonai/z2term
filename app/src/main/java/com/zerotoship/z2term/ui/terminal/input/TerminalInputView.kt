@@ -14,6 +14,9 @@ import android.view.inputmethod.InputMethodManager
 import com.zerotoship.z2term.core.TerminalSelection
 import com.zerotoship.z2term.core.TerminalSession
 
+/** 選択ドラッグが画面端にある間、自動スクロールを繰り返す間隔。 */
+private const val AUTO_SCROLL_INTERVAL_MS = 45L
+
 /**
  * ターミナル入力専用 View。
  *
@@ -58,6 +61,22 @@ class TerminalInputView(context: Context) : View(context) {
     private var initialSpan: Float = 0f
     private var lastAppliedFontSp: Float = 0f
     private var scrollAccumDy: Float = 0f
+
+    // --- 選択 UX 補助 (拡大鏡 / 端で自動スクロール) ---
+    private var magnifier: android.widget.Magnifier? = null
+    private var lastTouchX: Float = 0f
+    private var lastTouchY: Float = 0f
+    private var autoScrollDir: Int = 0  // -1=最新へ / +1=過去へ / 0=停止
+    private val autoScrollRunnable = object : Runnable {
+        override fun run() {
+            val sess = session ?: return
+            if (autoScrollDir == 0 || touchMode == TouchMode.NONE) return
+            sess.scrollBy(autoScrollDir)
+            applySelectionAt(lastTouchX, lastTouchY)
+            showMagnifierAt(lastTouchX, lastTouchY)
+            postDelayed(this, AUTO_SCROLL_INTERVAL_MS)
+        }
+    }
 
     private val scaleDetector = ScaleGestureDetector(
         context,
@@ -105,6 +124,9 @@ class TerminalInputView(context: Context) : View(context) {
                 sess.setSelection(
                     TerminalSelection.of(cell.first, cell.second, cell.first, cell.second)
                 )
+                lastTouchX = e.x
+                lastTouchY = e.y
+                showMagnifierAt(e.x, e.y)
                 // Haptic feedback (lightweight)
                 performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
             }
@@ -117,16 +139,7 @@ class TerminalInputView(context: Context) : View(context) {
             ): Boolean {
                 val sess = session ?: return false
                 if (scaleDetector.isInProgress) return false
-                if (touchMode == TouchMode.SELECTING) {
-                    val cell = pixelToAbsCell(e2.x, e2.y) ?: return false
-                    sess.setSelection(
-                        TerminalSelection.of(
-                            selectionAnchorRow, selectionAnchorCol,
-                            cell.first, cell.second
-                        )
-                    )
-                    return true
-                }
+                // 選択中のドラッグは onTouchEvent 側で直接処理するためここには来ない。
                 // 通常のドラッグはターミナルをスクロール
                 val m = sess.cellMetrics.value
                 if (m.lineHeight <= 0f) return false
@@ -210,34 +223,18 @@ class TerminalInputView(context: Context) : View(context) {
             }
         }
 
-        // ADJUSTING 中は detectors を通さず直接処理
-        if (touchMode == TouchMode.ADJUSTING_START || touchMode == TouchMode.ADJUSTING_END) {
+        // 選択中 (長押し選択 / ハンドル調整) は detectors を通さず直接処理する。
+        // GestureDetector は onLongPress 後 onScroll を送らない (mInLongPress) ため、
+        // SELECTING のドラッグ追従もここで生 MOTION_MOVE から処理する。
+        if (touchMode != TouchMode.NONE) {
             when (action) {
                 MotionEvent.ACTION_MOVE -> {
-                    val sess = session
-                    val sel = sess?.selection?.value
-                    if (sess != null && sel != null) {
-                        val cell = pixelToAbsCell(event.x, event.y)
-                        if (cell != null) {
-                            val newSel = when (touchMode) {
-                                TouchMode.ADJUSTING_START ->
-                                    TerminalSelection.of(
-                                        cell.first, cell.second,
-                                        sel.endAbsRow, sel.endCol
-                                    )
-                                TouchMode.ADJUSTING_END ->
-                                    TerminalSelection.of(
-                                        sel.startAbsRow, sel.startCol,
-                                        cell.first, cell.second
-                                    )
-                                else -> sel
-                            }
-                            sess.setSelection(newSel)
-                        }
-                    }
+                    applySelectionAt(event.x, event.y)
+                    updateEdgeAutoScroll(event.x, event.y)
+                    showMagnifierAt(event.x, event.y)
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    touchMode = TouchMode.NONE
+                    endSelectionGesture()
                 }
             }
             return true
@@ -247,14 +244,94 @@ class TerminalInputView(context: Context) : View(context) {
         if (!scaleDetector.isInProgress) {
             gestureDetector.onTouchEvent(event)
         }
-
-        if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
-            // SELECTING はジェスチャ完了で抜ける (選択結果は維持)
-            if (touchMode == TouchMode.SELECTING) {
-                touchMode = TouchMode.NONE
-            }
-        }
         return true
+    }
+
+    /** 現在の touchMode に応じて (x,y) のセルへ選択を反映する。 */
+    private fun applySelectionAt(x: Float, y: Float) {
+        val sess = session ?: return
+        lastTouchX = x
+        lastTouchY = y
+        val cell = pixelToAbsCell(x, y) ?: return
+        val sel = sess.selection.value
+        val newSel = when (touchMode) {
+            TouchMode.SELECTING ->
+                TerminalSelection.of(selectionAnchorRow, selectionAnchorCol, cell.first, cell.second)
+            TouchMode.ADJUSTING_START ->
+                if (sel != null) TerminalSelection.of(cell.first, cell.second, sel.endAbsRow, sel.endCol) else null
+            TouchMode.ADJUSTING_END ->
+                if (sel != null) TerminalSelection.of(sel.startAbsRow, sel.startCol, cell.first, cell.second) else null
+            TouchMode.NONE -> null
+        } ?: return
+        sess.setSelection(newSel)
+    }
+
+    /** 指が画面上下端付近にあるとき、一定速度で自動スクロールして選択を伸ばす。 */
+    private fun updateEdgeAutoScroll(x: Float, y: Float) {
+        lastTouchX = x
+        lastTouchY = y
+        val m = session?.cellMetrics?.value ?: return
+        // 端の検知ゾーンは広め (掴みやすさ優先)。指が画面外 (y<0 / y>height) でも
+        // 端方向として扱い、画面外まで引っ張れば自動スクロールが続く。
+        val edge = (m.lineHeight * 2.5f).coerceAtLeast(80f)
+        val dir = when {
+            y < edge -> +1            // 上端 → 過去 (古い行) を表示
+            y > height - edge -> -1   // 下端 → 最新 (新しい行) を表示
+            else -> 0
+        }
+        if (dir != autoScrollDir) {
+            autoScrollDir = dir
+            removeCallbacks(autoScrollRunnable)
+            if (dir != 0) post(autoScrollRunnable)
+        }
+    }
+
+    /** 選択ジェスチャ終了: 自動スクロール停止 + 拡大鏡を消す (選択結果は保持)。 */
+    private fun endSelectionGesture() {
+        touchMode = TouchMode.NONE
+        autoScrollDir = 0
+        removeCallbacks(autoScrollRunnable)
+        dismissMagnifier()
+    }
+
+    // ---- 拡大鏡 (Magnifier) -------------------------------------------------
+
+    /**
+     * 端末を描画している View (Compose の AndroidComposeView) を拡大対象にする。
+     * この View 自身は透明オーバーレイで文字を描かないため、親方向へ辿って
+     * 実際に端末を描く View を探す。
+     */
+    private fun terminalDrawingView(): View {
+        var p = parent
+        while (p is View) {
+            if (p.javaClass.simpleName.contains("AndroidComposeView")) return p
+            p = p.parent
+        }
+        return rootView
+    }
+
+    private fun showMagnifierAt(x: Float, y: Float) {
+        runCatching {
+            val drawView = terminalDrawingView()
+            val mag = magnifier ?: android.widget.Magnifier(drawView).also { magnifier = it }
+            // この View 座標 → 拡大対象 View 座標へ変換
+            val mine = IntArray(2); getLocationInWindow(mine)
+            val theirs = IntArray(2); drawView.getLocationInWindow(theirs)
+            val sx = x + (mine[0] - theirs[0])
+            val sy = y + (mine[1] - theirs[1])
+            mag.show(sx, sy)
+        }
+    }
+
+    private fun dismissMagnifier() {
+        magnifier?.dismiss()
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        removeCallbacks(autoScrollRunnable)
+        magnifier?.dismiss()
+        magnifier = null
     }
 
     override fun performClick(): Boolean {
@@ -264,6 +341,11 @@ class TerminalInputView(context: Context) : View(context) {
 
     private enum class Handle { START, END }
 
+    /**
+     * 選択端ハンドルの当たり判定。掴みやすいよう判定半径を広く取り (≒ 3 セル分)、
+     * 「ハンドルそのもの」でなく **末端付近をドラッグ** すれば調整に入れるようにする。
+     * 両端が範囲内なら近い方を選ぶ。左端 (col 0) でも掴めるよう x はクランプしない。
+     */
     private fun hitTestHandle(x: Float, y: Float): Handle? {
         val sess = session ?: return null
         val sel = sess.selection.value ?: return null
@@ -271,26 +353,29 @@ class TerminalInputView(context: Context) : View(context) {
         if (m.cellW <= 0f || m.lineHeight <= 0f) return null
 
         val topAbsRow = currentTopAbsRow(sess, m) ?: return null
-        val radius = m.lineHeight * 0.65f
+        // 半径は行高 2.2 倍と 96px の大きい方。指の腹で確実に掴めるサイズ。
+        val radius = (m.lineHeight * 2.2f).coerceAtLeast(96f)
         val r2 = radius * radius
 
+        var startD = Float.MAX_VALUE
         val startCanvasRow = sel.startAbsRow - topAbsRow
         if (startCanvasRow in 0 until m.canvasRows) {
             val sx = sel.startCol * m.cellW
             val sy = (startCanvasRow + 1) * m.lineHeight
-            val dx = x - sx
-            val dy = y - sy
-            if (dx * dx + dy * dy <= r2) return Handle.START
+            startD = (x - sx) * (x - sx) + (y - sy) * (y - sy)
         }
+        var endD = Float.MAX_VALUE
         val endCanvasRow = sel.endAbsRow - topAbsRow
         if (endCanvasRow in 0 until m.canvasRows) {
             val ex = (sel.endCol + 1) * m.cellW
             val ey = (endCanvasRow + 1) * m.lineHeight
-            val dx = x - ex
-            val dy = y - ey
-            if (dx * dx + dy * dy <= r2) return Handle.END
+            endD = (x - ex) * (x - ex) + (y - ey) * (y - ey)
         }
-        return null
+        return when {
+            startD > r2 && endD > r2 -> null
+            startD <= endD -> Handle.START
+            else -> Handle.END
+        }
     }
 
     /**

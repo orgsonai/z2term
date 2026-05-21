@@ -272,8 +272,8 @@ private fun drawBuffer(
 
     // --- 選択ハンドル (start, end の cell 角に小さな円を描く) ---
     if (selection != null) {
-        val handleRadius = lineHeight * 0.35f
-        val borderWidth = (lineHeight * 0.06f).coerceAtLeast(1f)
+        val handleRadius = lineHeight * 0.5f
+        val borderWidth = (lineHeight * 0.07f).coerceAtLeast(1.5f)
         val startCanvasRow = selection.startAbsRow - topAbsRow
         if (startCanvasRow in 0 until canvasRows) {
             val sx = selection.startCol * cellW
