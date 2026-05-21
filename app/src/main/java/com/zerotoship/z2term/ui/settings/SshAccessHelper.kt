@@ -3,6 +3,11 @@ package com.zerotoship.z2term.ui.settings
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +34,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.core.TerminalSession
+import com.zerotoship.z2term.proot.Z2TERM_SSHD_PORT
+import com.zerotoship.z2term.proot.dropbearBootstrapScript
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
@@ -39,9 +46,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.Inet4Address
 import java.net.NetworkInterface
-
-/** ssh で待ち受けるポート (1024 未満は Android kernel が拒否するため 2222) */
-private const val Z2TERM_SSHD_PORT = 2222
 
 /**
  * 設定シートに埋め込む「PC からの SSH 接続」ヘルパー。
@@ -125,8 +129,11 @@ fun SshAccessHelper(session: TerminalSession) {
                 label = "sshd 起動",
                 accent = true,
                 onClick = {
-                    val script = buildSshdSetupScript(Z2TERM_SSHD_PORT)
-                    session.writeBytes(script.toByteArray(Charsets.UTF_8))
+                    // スクリプトは rootfs (= /root) にファイルとして書き出し、`sh` で実行する。
+                    // 端末へ複数行スクリプトを直接打鍵すると zsh がコメント(#)を
+                    // 「command not found」にしたり継続プロンプト(cursh>)で崩れるため。
+                    writeSshdScript(context, Z2TERM_SSHD_PORT)
+                    session.writeBytes("sh \"\$HOME/.z2term-sshd.sh\"\n".toByteArray(Charsets.UTF_8))
                 }
             )
             HelperButton(
@@ -141,11 +148,71 @@ fun SshAccessHelper(session: TerminalSession) {
             )
         }
         Text(
-            text = "詳細は docs/SSH-INTO-Z2TERM.md を参照",
+            text = "端末で `sshd` と打つだけでも起動できます (OpenSSH の /usr/sbin/sshd は\n" +
+                "proot で privsep 破綻のため使えません → dropbear を使用)。\n" +
+                "詳細は docs/SSH-INTO-Z2TERM.md を参照",
             color = ZtsTextSecondary.copy(alpha = 0.6f),
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace
         )
+    }
+}
+
+/**
+ * 端末から Android 共有ストレージ (/sdcard) を読み書きするための権限ヘルパー。
+ *
+ * proot は `/sdcard` に `/storage/emulated/0` をバインドしているが、全ファイル
+ * アクセス権が無いと中身が見えない (EACCES)。ここから許可画面へ誘導する。
+ * 権限付与後は `cd /sdcard` で Download や写真などへ移動できる。
+ */
+@Composable
+fun StorageAccessHelper() {
+    val context = LocalContext.current
+    val granted = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Environment.isExternalStorageManager()
+        else true  // API 29 は requestLegacyExternalStorage で従来権限が効く
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = "ストレージアクセス (cd /sdcard)",
+            color = ZtsTextSecondary,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Text(
+            text = if (granted)
+                "✅ 許可済み。端末から `cd /sdcard` で共有ストレージへ移動できます。\n" +
+                    "   権限不要のアプリ専用領域は `/storage/app` です。"
+            else
+                "未許可。`cd /sdcard` の中身は見えません。下のボタンで全ファイル\n" +
+                    "アクセスを許可してください。(`/storage/app` は許可不要で使えます)",
+            color = if (granted) ZtsGreen else ZtsTextPrimary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        if (!granted) {
+            Row {
+                HelperButton(
+                    label = "ストレージ全体を許可",
+                    accent = true,
+                    onClick = {
+                        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                data = Uri.parse("package:${context.packageName}")
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                        } else {
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.parse("package:${context.packageName}")
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                        }
+                        runCatching { context.startActivity(intent) }
+                    }
+                )
+            }
+        }
     }
 }
 
@@ -197,26 +264,14 @@ private fun detectIpv4Addresses(): List<String> {
 }
 
 /**
- * Alpine 内で dropbear (SSH サーバ) を起動するワンライナースクリプト。
- *
- * OpenSSH sshd は proot 環境で権限分離 (privsep) に失敗して接続が即 reset
- * されるため、proot 下でも安定動作する dropbear を使う。
- *  - ホスト鍵が無ければ dropbearkey で生成 (ed25519 / rsa)
- *  - 既存 dropbear を止めてから指定ポートで起動 (-R 自動鍵, パスワード認証 OK)
- *  - root にパスワードが無ければ警告 (dropbear は空パスワード接続を拒否する)
+ * dropbear 起動スクリプト ([dropbearBootstrapScript]) を rootfs (= /root) に
+ * ファイルとして書き出す。`sh <file>` で実行されるため、コメントや複数行・
+ * パイプが安全に使える (端末への直接打鍵だと zsh がコメントを誤実行する)。
+ * (端末では `sshd` コマンド = /usr/local/sbin/sshd でも同じ処理が走る)
  */
-private fun buildSshdSetupScript(port: Int): String = """
-    {
-      mkdir -p /etc/dropbear
-      [ -f /etc/dropbear/dropbear_ed25519_host_key ] || dropbearkey -t ed25519 -f /etc/dropbear/dropbear_ed25519_host_key 2>/dev/null
-      [ -f /etc/dropbear/dropbear_rsa_host_key ] || dropbearkey -t rsa -s 2048 -f /etc/dropbear/dropbear_rsa_host_key 2>/dev/null
-      pkill -x dropbear 2>/dev/null
-      # -p ポート / -R 鍵自動 / -E stderr ログ。root ログイン・パスワード認証は既定で許可。
-      dropbear -p $port -R -E 2>/tmp/dropbear.log && \
-        echo "✅ dropbear listening on :$port (root @ $(ip -4 addr show 2>/dev/null | grep -oE 'inet [0-9.]+' | awk '{print ${'$'}2}' | grep -v '^127' | head -n1))" || \
-        echo "❌ dropbear 起動失敗 (/tmp/dropbear.log を確認)"
-      [ "${'$'}(grep -c '^root:[^!*]' /etc/shadow 2>/dev/null)" = 0 ] && \
-        echo "⚠️ root パスワード未設定です。'passwd' で設定してから接続してください。"
-    }
-
-""".trimIndent()
+private fun writeSshdScript(context: Context, port: Int): java.io.File {
+    val dir = java.io.File(context.filesDir, "shared_home").apply { mkdirs() }
+    val file = java.io.File(dir, ".z2term-sshd.sh")
+    file.writeText(dropbearBootstrapScript(port))
+    return file
+}

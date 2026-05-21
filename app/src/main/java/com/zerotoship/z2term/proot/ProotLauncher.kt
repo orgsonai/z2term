@@ -90,6 +90,14 @@ class ProotLauncher(private val context: Context) {
         // 共有ホーム作成 + libtalloc 配置
         sharedHomeDir.mkdirs()
         ensureProotLibs()
+        // 再起動後もコマンド履歴を辿れるよう、shell rc に履歴設定を流し込む。
+        ensureShellHistoryConfig(rootfs)
+        // `sshd` コマンドで dropbear が立ち上がるよう wrapper を配置 (OpenSSH sshd は
+        // proot で privsep 破綻 / sshd_config の UsePrivilegeSeparation で起動不可)。
+        ensureSshdWrapper(rootfs)
+        // Android 外部ストレージを cd できるようマウント先を用意。
+        File(rootfs, "sdcard").mkdirs()
+        File(rootfs, "storage/app").mkdirs()
 
         // PRoot 引数の組み立て
         val args = mutableListOf<String>().apply {
@@ -105,6 +113,11 @@ class ProotLauncher(private val context: Context) {
             add("-b"); add("/proc")
             add("-b"); add("/sys")
             add("-b"); add("${sharedHomeDir.absolutePath}:/root")
+            // Android 外部ストレージを /sdcard にマウント (cd /sdcard で OS 共有領域へ)。
+            // 全ファイルアクセス権が無い場合は中身が読めないが、設定画面から許可できる。
+            for ((src, dst) in externalStorageBinds()) {
+                add("-b"); add("$src:$dst")
+            }
             add("-w"); add("/root")                       // working dir
             // command
             add(resolvedCommand)
@@ -118,6 +131,14 @@ class ProotLauncher(private val context: Context) {
             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
             "TMPDIR=/tmp",
             "SHELL=$resolvedCommand",
+            // コマンド履歴を充実化。bash は PROMPT_COMMAND='history -a' で 1 コマンド毎に
+            // 即 .bash_history へ追記 → proot が SIGKILL されても履歴が残る。
+            // (zsh 用の INC_APPEND_HISTORY 等は ensureShellHistoryConfig が rc に書く)
+            "HISTSIZE=10000",
+            "HISTFILESIZE=20000",
+            "SAVEHIST=10000",
+            "HISTCONTROL=ignoredups",
+            "PROMPT_COMMAND=history -a",
             // proot は libtalloc.so.2 にリンクされている (Termux RUNPATH 由来)。
             // ensureProotLibs() で展開した SONAME 通りのファイルパスを LD_LIBRARY_PATH に追加。
             "LD_LIBRARY_PATH=${prootLibsDir.absolutePath}",
@@ -163,6 +184,93 @@ class ProotLauncher(private val context: Context) {
             if (File(rootfs, "usr/$rel").exists()) return true
         }
         return false
+    }
+
+    /**
+     * Android 外部ストレージを proot 内へバインドするための (src, dst) ペアを返す。
+     *  - 端末の共有ストレージ全体 (/storage/emulated/0) → /sdcard
+     *    (全ファイルアクセス権が無いと中身は EACCES だが、設定で許可すれば読める)
+     *  - アプリ専用外部領域 (権限不要・常に読み書き可) → /storage/app
+     */
+    private fun externalStorageBinds(): List<Pair<String, String>> {
+        val binds = mutableListOf<Pair<String, String>>()
+        runCatching {
+            val ext = android.os.Environment.getExternalStorageDirectory()
+            if (ext != null && ext.exists()) binds += ext.absolutePath to "/sdcard"
+        }
+        runCatching {
+            val appExt = context.getExternalFilesDir(null)
+            if (appExt != null) { appExt.mkdirs(); binds += appExt.absolutePath to "/storage/app" }
+        }
+        return binds
+    }
+
+    /**
+     * shell の rc に履歴設定を流し込む (再起動後も履歴を辿れるように)。
+     * マーカーで二重書き込みを防ぐ idempotent な処理。launch 毎に呼ばれるので
+     * 既存インストールの distro にも後付けで効く。
+     *
+     *  - bash: /etc/bash.bashrc に histappend + PROMPT_COMMAND='history -a'
+     *  - zsh : /etc/zsh/zshrc に INC_APPEND_HISTORY 等 (+ HISTFILE)
+     */
+    private fun ensureShellHistoryConfig(rootfs: File) {
+        val marker = "# >>> z2term history >>>"
+
+        val bashBlock = """
+            |$marker
+            |if [ -n "${'$'}BASH_VERSION" ]; then
+            |  export HISTSIZE=10000
+            |  export HISTFILESIZE=20000
+            |  export HISTCONTROL=ignoredups:erasedups
+            |  shopt -s histappend 2>/dev/null
+            |  case ":${'$'}PROMPT_COMMAND:" in
+            |    *"history -a"*) ;;
+            |    *) PROMPT_COMMAND="history -a${'$'}{PROMPT_COMMAND:+; ${'$'}PROMPT_COMMAND}" ;;
+            |  esac
+            |fi
+            |# <<< z2term history <<<
+        """.trimMargin()
+
+        val zshBlock = """
+            |$marker
+            |export HISTFILE="${'$'}HOME/.zsh_history"
+            |export HISTSIZE=10000
+            |export SAVEHIST=10000
+            |setopt INC_APPEND_HISTORY SHARE_HISTORY HIST_IGNORE_DUPS 2>/dev/null
+            |# <<< z2term history <<<
+        """.trimMargin()
+
+        // bash: /etc/bash.bashrc (Arch/Debian/Ubuntu/Kali が interactive で source)
+        appendOnceWithMarker(File(rootfs, "etc/bash.bashrc"), marker, bashBlock)
+        // zsh: /etc/zsh/zshrc (Alpine 等)。zsh が無い distro でも無害。
+        appendOnceWithMarker(File(rootfs, "etc/zsh/zshrc"), marker, zshBlock)
+    }
+
+    /**
+     * `/usr/local/sbin/sshd` に dropbear 起動 wrapper を配置する。
+     * PATH 上 /usr/local/sbin が /usr/sbin より優先されるので、端末で `sshd` と
+     * 打つと OpenSSH ではなく dropbear (proot で動く) が立ち上がる。launch 毎に
+     * 上書きするので内容は常に最新。
+     */
+    private fun ensureSshdWrapper(rootfs: File) {
+        runCatching {
+            val dir = File(rootfs, "usr/local/sbin").apply { mkdirs() }
+            val f = File(dir, "sshd")
+            f.writeText(dropbearBootstrapScript())
+            f.setReadable(true, false)
+            f.setExecutable(true, false)
+        }.onFailure { Log.w(TAG, "sshd wrapper 配置失敗", it) }
+    }
+
+    /** marker を含まなければ block を追記。親 dir が無ければ作る。失敗は握り潰す。 */
+    private fun appendOnceWithMarker(file: File, marker: String, block: String) {
+        runCatching {
+            file.parentFile?.mkdirs()
+            val existing = if (file.exists()) file.readText() else ""
+            if (existing.contains(marker)) return
+            val sep = if (existing.isEmpty() || existing.endsWith("\n")) "" else "\n"
+            file.appendText("$sep\n$block\n")
+        }.onFailure { Log.w(TAG, "history rc 書込失敗: ${file.absolutePath}", it) }
     }
 
     /**

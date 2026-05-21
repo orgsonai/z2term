@@ -188,7 +188,7 @@ private val PRESET_MEDIUM_ADD = listOf(
     "ダウンロード" to "curl -LO ",
     "開放ポート" to "ss -tlnp",
     "TCP スキャン (SYN 不使用)" to "nmap -sT ",
-    "sshd 起動" to "service sshd start || /usr/sbin/sshd"
+    "SSH(dropbear) 起動" to "sshd"
 )
 private val PRESET_LARGE_ADD = listOf(
     "git 状態" to "git status",
