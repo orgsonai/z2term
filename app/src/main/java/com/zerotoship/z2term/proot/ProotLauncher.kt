@@ -95,6 +95,8 @@ class ProotLauncher(private val context: Context) {
         // `sshd` コマンドで dropbear が立ち上がるよう wrapper を配置 (OpenSSH sshd は
         // proot で privsep 破綻 / sshd_config の UsePrivilegeSeparation で起動不可)。
         ensureSshdWrapper(rootfs)
+        // `z2gui` で Linux GUI (Xvnc + WM) を起動できるよう launcher を配置。
+        ensureGuiScript(rootfs)
         // Android 外部ストレージを cd できるようマウント先を用意。
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
@@ -260,6 +262,21 @@ class ProotLauncher(private val context: Context) {
             f.setReadable(true, false)
             f.setExecutable(true, false)
         }.onFailure { Log.w(TAG, "sshd wrapper 配置失敗", it) }
+    }
+
+    /**
+     * `/usr/local/bin/z2gui` に Linux GUI ランチャを配置する (PATH 上で使える)。
+     * 端末や GUI セッションから `z2gui start [WxH]` で Xvnc + openbox + アプリが立ち上がる。
+     * launch 毎に上書きするので内容は常に最新。
+     */
+    private fun ensureGuiScript(rootfs: File) {
+        runCatching {
+            val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
+            val f = File(dir, "z2gui")
+            f.writeText(z2guiScript())
+            f.setReadable(true, false)
+            f.setExecutable(true, false)
+        }.onFailure { Log.w(TAG, "z2gui script 配置失敗", it) }
     }
 
     /** marker を含まなければ block を追記。親 dir が無ければ作る。失敗は握り潰す。 */
