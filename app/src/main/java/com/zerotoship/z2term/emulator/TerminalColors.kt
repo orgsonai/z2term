@@ -1,6 +1,7 @@
 package com.zerotoship.z2term.emulator
 
 import androidx.compose.ui.graphics.Color
+import org.json.JSONObject
 
 /**
  * ターミナル配色テーブル。ANSI 16色 + 256色拡張 + RGB 24bit対応。
@@ -358,4 +359,65 @@ val AvailableThemes = listOf(
     CatppuccinMochaTheme,
     CatppuccinLatteTheme,
     MonokaiTheme
+)
+
+/** ユーザー独自テーマの既定名 (新規作成時の初期値) */
+const val DEFAULT_CUSTOM_THEME_NAME = "マイテーマ"
+
+/**
+ * 名前からテーマを解決する。同梱テーマ → ユーザー独自テーマ ([custom]) →
+ * 既定 ([ZtsTheme]) の順。`TerminalSession` (エミュレータ) と UI (AppColors) の
+ * 両方がこの関数で解決し、結果を一致させる。
+ */
+fun resolveTheme(name: String, custom: TerminalTheme?): TerminalTheme =
+    AvailableThemes.firstOrNull { it.name == name }
+        ?: custom?.takeIf { it.name == name }
+        ?: ZtsTheme
+
+/** TerminalTheme を JSON 化 (ARGB int をそのまま格納)。永続化用。 */
+fun TerminalTheme.toJson(): JSONObject = JSONObject().apply {
+    put("name", name)
+    put("foreground", foreground)
+    put("background", background)
+    put("cursor", cursor)
+    put("black", black)
+    put("red", red)
+    put("green", green)
+    put("yellow", yellow)
+    put("blue", blue)
+    put("magenta", magenta)
+    put("cyan", cyan)
+    put("white", white)
+    put("brightBlack", brightBlack)
+    put("brightRed", brightRed)
+    put("brightGreen", brightGreen)
+    put("brightYellow", brightYellow)
+    put("brightBlue", brightBlue)
+    put("brightMagenta", brightMagenta)
+    put("brightCyan", brightCyan)
+    put("brightWhite", brightWhite)
+}
+
+/** JSON から TerminalTheme を復元。欠損キーは [ZtsTheme] の値で補う。 */
+fun terminalThemeFromJson(o: JSONObject): TerminalTheme = TerminalTheme(
+    name = o.optString("name", DEFAULT_CUSTOM_THEME_NAME),
+    foreground = o.optInt("foreground", ZtsTheme.foreground),
+    background = o.optInt("background", ZtsTheme.background),
+    cursor = o.optInt("cursor", ZtsTheme.cursor),
+    black = o.optInt("black", ZtsTheme.black),
+    red = o.optInt("red", ZtsTheme.red),
+    green = o.optInt("green", ZtsTheme.green),
+    yellow = o.optInt("yellow", ZtsTheme.yellow),
+    blue = o.optInt("blue", ZtsTheme.blue),
+    magenta = o.optInt("magenta", ZtsTheme.magenta),
+    cyan = o.optInt("cyan", ZtsTheme.cyan),
+    white = o.optInt("white", ZtsTheme.white),
+    brightBlack = o.optInt("brightBlack", ZtsTheme.brightBlack),
+    brightRed = o.optInt("brightRed", ZtsTheme.brightRed),
+    brightGreen = o.optInt("brightGreen", ZtsTheme.brightGreen),
+    brightYellow = o.optInt("brightYellow", ZtsTheme.brightYellow),
+    brightBlue = o.optInt("brightBlue", ZtsTheme.brightBlue),
+    brightMagenta = o.optInt("brightMagenta", ZtsTheme.brightMagenta),
+    brightCyan = o.optInt("brightCyan", ZtsTheme.brightCyan),
+    brightWhite = o.optInt("brightWhite", ZtsTheme.brightWhite)
 )

@@ -28,6 +28,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,8 +56,10 @@ import com.zerotoship.z2term.ui.terminal.components.SpecialKeyBar
 import com.zerotoship.z2term.ui.terminal.input.TerminalInputView
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
-import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.emulator.ZtsTheme
+import com.zerotoship.z2term.emulator.resolveTheme
+import com.zerotoship.z2term.settings.CustomThemeStore
+import com.zerotoship.z2term.ui.settings.CustomThemeSheet
 import com.zerotoship.z2term.ui.theme.AppColors
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
@@ -65,6 +68,7 @@ import com.zerotoship.z2term.ui.theme.ZtsBorder
 import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
+import kotlinx.coroutines.launch
 
 /** キーボードモード。CUSTOM=独自キーボード、SYSTEM=OS IME + 特殊キーバー */
 enum class KeyboardMode { CUSTOM, SYSTEM }
@@ -82,6 +86,7 @@ enum class KeyboardMode { CUSTOM, SYSTEM }
 @Composable
 fun TerminalScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val sessions by SessionManager.sessions.collectAsState()
     val activeId by SessionManager.activeId.collectAsState()
     val active = sessions.firstOrNull { it.id == activeId }
@@ -93,13 +98,14 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     }
 
     val settings by active.settingsFlow.collectAsState()
+    val customTheme by CustomThemeStore.theme.collectAsState()
 
     // 選択テーマをアプリ全体のカラーパレットへ反映 (TopBar / タブ / 各シート /
     // キーボードまで)。AppColors は global な snapshot state なので、ここを更新すると
     // ルートの Z2TermTheme を含む Zts* 参照 Composable がすべて再コンポーズされ追従する。
-    LaunchedEffect(settings.themeName) {
-        val theme = AvailableThemes.firstOrNull { it.name == settings.themeName } ?: ZtsTheme
-        AppColors.applyFrom(theme)
+    // 独自テーマ編集 (customTheme 変化) でも選択中なら即反映される。
+    LaunchedEffect(settings.themeName, customTheme) {
+        AppColors.applyFrom(resolveTheme(settings.themeName, customTheme))
     }
 
     var ctrlSticky by remember { mutableStateOf(false) }
@@ -111,6 +117,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     var sshSheetOpen by remember { mutableStateOf(false) }
     // SFTP ファイルブラウザ対象のプロファイル (非 null の間シートを表示)
     var sftpProfile by remember { mutableStateOf<SshProfile?>(null) }
+    var customThemeEditorOpen by remember { mutableStateOf(false) }
     // 画面消灯ロック (ディスプレイが自動で消えないようにする)。
     // FLAG_KEEP_SCREEN_ON 相当を Compose ルート View に付与するだけ (権限不要、
     // フォアグラウンド中のみ有効、CPU は握らないので WakeLock より安全)。
@@ -252,7 +259,32 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onOpenSsh = {
                 settingsOpen = false
                 sshSheetOpen = true
-            }
+            },
+            onEditCustomTheme = { customThemeEditorOpen = true }
+        )
+    }
+    if (customThemeEditorOpen) {
+        CustomThemeSheet(
+            base = resolveTheme(settings.themeName, customTheme),
+            existing = customTheme,
+            onSave = { theme ->
+                customThemeEditorOpen = false
+                scope.launch {
+                    CustomThemeStore.save(theme)
+                    active.setThemeName(theme.name)
+                }
+            },
+            onDelete = {
+                customThemeEditorOpen = false
+                scope.launch {
+                    CustomThemeStore.save(null)
+                    // 独自テーマを選択中だったら既定へ戻す
+                    if (settings.themeName == customTheme?.name) {
+                        active.setThemeName(ZtsTheme.name)
+                    }
+                }
+            },
+            onDismiss = { customThemeEditorOpen = false }
         )
     }
     if (snippetsSheetOpen) {

@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.service.TerminalService
+import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.ui.terminal.TerminalScreen
 import com.zerotoship.z2term.ui.theme.Z2TermTheme
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
@@ -37,6 +38,9 @@ class MainActivity : ComponentActivity() {
 
         requestNotificationPermissionIfNeeded()
         // 常駐サービスの起動/停止は設定 (keepAliveService) に従い TerminalScreen 側で制御する。
+
+        // ユーザー独自テーマを DataStore から読み込む (テーマ解決前に反映)
+        CustomThemeStore.ensureLoaded(applicationContext)
 
         // 最初のセッションを必ず確保 (TerminalScreen は SessionManager を直接観測)
         SessionManager.ensureFirst(applicationContext)

@@ -11,9 +11,9 @@ import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.distro.DistroDownloader
 import com.zerotoship.z2term.distro.DistroInstaller
 import com.zerotoship.z2term.distro.DistroSpec
-import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.emulator.TerminalEmulator
-import com.zerotoship.z2term.emulator.ZtsTheme
+import com.zerotoship.z2term.emulator.resolveTheme
+import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.settings.AppSettings
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -151,9 +152,14 @@ class TerminalSession(
     val isRunning: Boolean get() = _uiState.value.state == TerminalState.RUNNING
 
     init {
+        CustomThemeStore.ensureLoaded(appContext)
         scope.launch {
-            settingsFlow.collect { snapshot ->
-                val theme = AvailableThemes.firstOrNull { it.name == snapshot.themeName } ?: ZtsTheme
+            // 設定 (themeName 等) と ユーザー独自テーマを併せて監視。独自テーマ編集でも
+            // 選択中なら即エミュレータへ反映される。
+            combine(settingsFlow, CustomThemeStore.theme) { snapshot, custom ->
+                snapshot to custom
+            }.collect { (snapshot, custom) ->
+                val theme = resolveTheme(snapshot.themeName, custom)
                 emulator.colors.applyTheme(theme)
                 emulator.buffer.scrollbackCapacity = snapshot.scrollbackLines
                 emulator.ambiguousAsWide = snapshot.ambiguousAsWide

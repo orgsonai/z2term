@@ -56,6 +56,7 @@ import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.emulator.TerminalTheme
 import com.zerotoship.z2term.settings.AppSettings
+import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.theme.TerminalFontOption
@@ -95,7 +96,8 @@ import kotlinx.coroutines.launch
 fun SettingsSheet(
     session: TerminalSession,
     onDismiss: () -> Unit,
-    onOpenSsh: () -> Unit = {}
+    onOpenSsh: () -> Unit = {},
+    onEditCustomTheme: () -> Unit = {}
 ) {
     val settings by session.settingsFlow.collectAsState()
     val context = LocalContext.current
@@ -141,10 +143,22 @@ fun SettingsSheet(
             SettingsHeader()
 
             Section(title = "テーマ") {
+                val customTheme by CustomThemeStore.theme.collectAsState()
                 ThemeChipRow(
-                    themes = AvailableThemes,
+                    themes = AvailableThemes + listOfNotNull(customTheme),
                     selectedName = settings.themeName,
                     onSelect = { session.setThemeName(it) }
+                )
+                ActionButton(
+                    label = if (customTheme == null) "独自テーマを作成…" else "独自テーマを編集…",
+                    onClick = onEditCustomTheme
+                )
+                Text(
+                    text = "色を自分で選んだテーマを 1 つ作れます。背景/前景/アクセント等が" +
+                        "アプリ全体に反映されます。",
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
                 )
             }
 
