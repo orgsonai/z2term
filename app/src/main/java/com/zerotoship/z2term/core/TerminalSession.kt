@@ -353,6 +353,25 @@ class TerminalSession(
         }
     }
 
+    /**
+     * 現在のセッション (ローカルシェル等) を閉じて SSH 接続へ切り替える。
+     *
+     * [startSsh] は IDLE でないと早期 return するため、稼働中タブからでも SSH できるよう
+     * [restart] と同じ要領で一旦リセット (画面クリア + state=IDLE) してから接続する。
+     * 既存のローカルシェルは終了する (別タブを残したい場合は新規タブで接続すること)。
+     */
+    fun connectSsh(profile: SshProfile) {
+        channel?.close()
+        channel = null
+        readJob?.cancel()
+        scope.launch(emulatorDispatcher) {
+            emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
+        }
+        _uiState.update { UiState() }
+        _scrollOffset.value = 0
+        startSsh(profile)
+    }
+
     private fun startReadLoop(ch: ProcessChannel) {
         readJob?.cancel()
         // PTY blocking read は IO で行い、emulator 処理は専用シリアルスレッドに hand off。

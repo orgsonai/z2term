@@ -298,7 +298,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     if (sshSheetOpen) {
         SshProfilesSheet(
             onDismiss = { sshSheetOpen = false },
-            onConnect = { profile -> active.startSsh(profile) },
+            onConnect = { profile -> active.connectSsh(profile) },
             onSftp = { profile -> sftpProfile = profile }
         )
     }
