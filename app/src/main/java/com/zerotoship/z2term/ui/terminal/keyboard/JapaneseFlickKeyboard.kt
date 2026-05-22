@@ -78,35 +78,27 @@ fun JapaneseFlickKeyboard(
     onBytes: (ByteArray) -> Unit,
     onCursorKey: (TerminalEmulator.CursorKey) -> Unit,
     onSwitchToAscii: () -> Unit,
+    composing: ComposingState,
     style: KeyboardStyle,
     modifier: Modifier = Modifier
 ) {
-    // 直前に確定したかな (濁点キーの変換対象)。フリック/タップで更新される。
-    var lastKana by remember { mutableStateOf<Char?>(null) }
-    // カタカナモード (ON のとき、かなをカタカナで出力・表示する)。
-    var katakana by remember { mutableStateOf(false) }
+    // 入力中のひらがなを確定して PTY へ流す (composing が空なら何もしない)。
+    fun flush() { composing.commitRaw() }
 
-    // フリックマップはひらがなで定義されているので、出力時にモードに応じて変換する。
-    fun emitKana(baseHira: Char) {
-        val out = toKana(baseHira, katakana)
-        onBytes(out.toString().toByteArray(Charsets.UTF_8))
-        lastKana = out
-    }
+    // かなは composing に積む (変換前バッファ)。予測候補が随時更新される。
+    fun emitKana(hira: Char) { composing.append(hira) }
 
+    // 記号は確定 → そのまま送出 (変換対象外)。
     fun emitPlain(ch: Char) {
+        flush()
         onBytes(ch.toString().toByteArray(Charsets.UTF_8))
-        lastKana = null  // 記号は濁点変換の対象外
     }
 
-    // 「小゛゜」: 直前のかなを次の形へ。端末へ DEL + 変換後を送る。
-    // 循環表はひらがな基準なので、カタカナの場合は一旦ひらがなへ戻して引く。
+    // 「小゛゜」: composing 末尾のかなを 濁点→半濁点→小書き→元 の順に循環。
     fun cycleDakuten() {
-        val cur = lastKana ?: return
-        val (forms, idx) = CYCLE_INDEX[toHira(cur)] ?: return
-        val nextHira = forms[(idx + 1) % forms.size]
-        val next = toKana(nextHira, katakana)
-        onBytes(byteArrayOf(0x7F) + next.toString().toByteArray(Charsets.UTF_8))
-        lastKana = next
+        val cur = composing.text.lastOrNull() ?: return
+        val (forms, idx) = CYCLE_INDEX[cur] ?: return
+        composing.replaceLast(forms[(idx + 1) % forms.size])
     }
 
     val rowSpacing = if (style.keyHeight >= 56.dp) 4.dp else 3.dp
@@ -120,37 +112,43 @@ fun JapaneseFlickKeyboard(
     ) {
         // Row 1: ESC  あ  か  さ  ⌫
         JpRow(rowSpacing) {
-            JpKey("ESC", style, fontScale = 0.7f, weight = JP_EDGE_WEIGHT) { onBytes(byteArrayOf(0x1B)); lastKana = null }
-            JpFlickKey(KANA_A, style, katakana, ::emitKana)
-            JpFlickKey(KANA_KA, style, katakana, ::emitKana)
-            JpFlickKey(KANA_SA, style, katakana, ::emitKana)
-            JpKey("⌫", style, repeatable = true, weight = JP_EDGE_WEIGHT) { onBytes(byteArrayOf(0x7F)); lastKana = null }
+            JpKey("ESC", style, fontScale = 0.7f, weight = JP_EDGE_WEIGHT) {
+                if (composing.isActive) composing.reset() else onBytes(byteArrayOf(0x1B))
+            }
+            JpFlickKey(KANA_A, style, ::emitKana)
+            JpFlickKey(KANA_KA, style, ::emitKana)
+            JpFlickKey(KANA_SA, style, ::emitKana)
+            JpKey("⌫", style, repeatable = true, weight = JP_EDGE_WEIGHT) {
+                if (!composing.backspace()) onBytes(byteArrayOf(0x7F))
+            }
         }
         // Row 2: ◀  た  な  は  ▶
         JpRow(rowSpacing) {
-            JpKey("◀", style, repeatable = true, weight = JP_EDGE_WEIGHT) { onCursorKey(TerminalEmulator.CursorKey.LEFT); lastKana = null }
-            JpFlickKey(KANA_TA, style, katakana, ::emitKana)
-            JpFlickKey(KANA_NA, style, katakana, ::emitKana)
-            JpFlickKey(KANA_HA, style, katakana, ::emitKana)
-            JpKey("▶", style, repeatable = true, weight = JP_EDGE_WEIGHT) { onCursorKey(TerminalEmulator.CursorKey.RIGHT); lastKana = null }
+            JpKey("◀", style, repeatable = true, weight = JP_EDGE_WEIGHT) { flush(); onCursorKey(TerminalEmulator.CursorKey.LEFT) }
+            JpFlickKey(KANA_TA, style, ::emitKana)
+            JpFlickKey(KANA_NA, style, ::emitKana)
+            JpFlickKey(KANA_HA, style, ::emitKana)
+            JpKey("▶", style, repeatable = true, weight = JP_EDGE_WEIGHT) { flush(); onCursorKey(TerminalEmulator.CursorKey.RIGHT) }
         }
-        // Row 3: カナ(かな⇄カタカナ切替)  ま  や  ら  ␣
+        // Row 3: ␣  ま  や  ら  変換
         JpRow(rowSpacing) {
-            JpKey(if (katakana) "かな" else "カナ", style, fontScale = 0.7f, accent = katakana, weight = JP_EDGE_WEIGHT) {
-                katakana = !katakana
+            JpKey("␣", style, repeatable = true, weight = JP_EDGE_WEIGHT) { flush(); onBytes(byteArrayOf(0x20)) }
+            JpFlickKey(KANA_MA, style, ::emitKana)
+            JpFlickKey(KANA_YA, style, ::emitKana)
+            JpFlickKey(KANA_RA, style, ::emitKana)
+            JpKey("変換", style, fontScale = 0.65f, accent = composing.isActive, weight = JP_EDGE_WEIGHT) {
+                composing.convert()
             }
-            JpFlickKey(KANA_MA, style, katakana, ::emitKana)
-            JpFlickKey(KANA_YA, style, katakana, ::emitKana)
-            JpFlickKey(KANA_RA, style, katakana, ::emitKana)
-            JpKey("␣", style, repeatable = true, weight = JP_EDGE_WEIGHT) { onBytes(byteArrayOf(0x20)); lastKana = null }
         }
         // Row 4: ABC(英字へ)  小゛゜  わ  、。  ⏎
         JpRow(rowSpacing) {
-            JpKey("ABC", style, fontScale = 0.7f, accent = true, weight = JP_EDGE_WEIGHT, onClick = onSwitchToAscii)
+            JpKey("ABC", style, fontScale = 0.7f, accent = true, weight = JP_EDGE_WEIGHT) { flush(); onSwitchToAscii() }
             JpKey("小゛゜", style, fontScale = 0.6f) { cycleDakuten() }
-            JpFlickKey(KANA_WA, style, katakana, ::emitKana)
-            JpFlickKey(PUNCT, style, katakana, ::emitPlain)
-            JpKey("⏎", style, weight = JP_EDGE_WEIGHT) { onBytes(byteArrayOf(0x0D)); lastKana = null }
+            JpFlickKey(KANA_WA, style, ::emitKana)
+            JpFlickKey(PUNCT, style, ::emitPlain)
+            JpKey("⏎", style, weight = JP_EDGE_WEIGHT) {
+                if (!composing.commitRaw()) onBytes(byteArrayOf(0x0D))
+            }
         }
     }
 }
@@ -213,7 +211,6 @@ private fun RowScope.JpKey(
 private fun RowScope.JpFlickKey(
     km: KanaFlick,
     style: KeyboardStyle,
-    katakana: Boolean,
     onEmit: (Char) -> Unit
 ) {
     val currentOnEmit by rememberUpdatedState(onEmit)
@@ -256,20 +253,20 @@ private fun RowScope.JpFlickKey(
                 }
             }
     ) {
-        // 中央のかな (カタカナモードならカタカナ表示)
+        // 中央のかな
         Text(
-            text = toKana(km.center, katakana).toString(),
+            text = km.center.toString(),
             color = ZtsTextPrimary,
             fontSize = style.keyFontSp.sp,
             fontWeight = FontWeight.Medium,
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.align(Alignment.Center)
         )
-        // フリックヒント (灰色、四隅/端。カタカナモードならカタカナ表示)
-        km.up?.let { Hint(toKana(it, katakana), style, Modifier.align(Alignment.TopCenter)) }
-        km.down?.let { Hint(toKana(it, katakana), style, Modifier.align(Alignment.BottomCenter)) }
-        km.left?.let { Hint(toKana(it, katakana), style, Modifier.align(Alignment.CenterStart).padding(start = 2.dp)) }
-        km.right?.let { Hint(toKana(it, katakana), style, Modifier.align(Alignment.CenterEnd).padding(end = 2.dp)) }
+        // フリックヒント (灰色、四隅/端)
+        km.up?.let { Hint(it, style, Modifier.align(Alignment.TopCenter)) }
+        km.down?.let { Hint(it, style, Modifier.align(Alignment.BottomCenter)) }
+        km.left?.let { Hint(it, style, Modifier.align(Alignment.CenterStart).padding(start = 2.dp)) }
+        km.right?.let { Hint(it, style, Modifier.align(Alignment.CenterEnd).padding(end = 2.dp)) }
     }
 }
 
@@ -284,14 +281,6 @@ private fun Hint(ch: Char, style: KeyboardStyle, modifier: Modifier) {
         modifier = modifier
     )
 }
-
-// ひらがな (U+3041..U+3096) ⇄ カタカナ (U+30A1..U+30F6) は +0x60 のオフセット。
-// 「ー」「〜」や記号 (、。？！「」…) は範囲外なので変換しない。
-private fun toKana(ch: Char, katakana: Boolean): Char =
-    if (katakana && ch in 'ぁ'..'ゖ') ch + 0x60 else ch
-
-private fun toHira(ch: Char): Char =
-    if (ch in 'ァ'..'ヶ') ch - 0x60 else ch
 
 /** かなフリック割り当て (中央=タップ、なければ中央を送る)。 */
 private data class KanaFlick(
@@ -318,13 +307,14 @@ private val PUNCT = KanaFlick('、', '。', '？', '！', '…')
 
 /**
  * 濁点/半濁点/小書きの循環グループ。各かなを「次の形」へ回す。
- * 例: は → ば → ぱ → は、つ → づ → っ → つ。
+ * 順番は base → 小書き → 濁点 → 半濁点。
+ * 例: つ → っ → づ → つ、う → ぅ → ゔ → う、は → ば → ぱ → は。
  */
 private val CYCLE_GROUPS: List<List<Char>> = listOf(
-    listOf('あ', 'ぁ'), listOf('い', 'ぃ'), listOf('う', 'ゔ', 'ぅ'), listOf('え', 'ぇ'), listOf('お', 'ぉ'),
+    listOf('あ', 'ぁ'), listOf('い', 'ぃ'), listOf('う', 'ぅ', 'ゔ'), listOf('え', 'ぇ'), listOf('お', 'ぉ'),
     listOf('か', 'が'), listOf('き', 'ぎ'), listOf('く', 'ぐ'), listOf('け', 'げ'), listOf('こ', 'ご'),
     listOf('さ', 'ざ'), listOf('し', 'じ'), listOf('す', 'ず'), listOf('せ', 'ぜ'), listOf('そ', 'ぞ'),
-    listOf('た', 'だ'), listOf('ち', 'ぢ'), listOf('つ', 'づ', 'っ'), listOf('て', 'で'), listOf('と', 'ど'),
+    listOf('た', 'だ'), listOf('ち', 'ぢ'), listOf('つ', 'っ', 'づ'), listOf('て', 'で'), listOf('と', 'ど'),
     listOf('は', 'ば', 'ぱ'), listOf('ひ', 'び', 'ぴ'), listOf('ふ', 'ぶ', 'ぷ'), listOf('へ', 'べ', 'ぺ'), listOf('ほ', 'ぼ', 'ぽ'),
     listOf('や', 'ゃ'), listOf('ゆ', 'ゅ'), listOf('よ', 'ょ'), listOf('わ', 'ゎ')
 )

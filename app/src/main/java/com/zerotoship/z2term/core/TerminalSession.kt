@@ -523,6 +523,35 @@ class TerminalSession(
         }
     }
 
+    /**
+     * ディストロを「クリーン再インストール」する。
+     *
+     * [reinstallDistro] は rootfs だけ消すため、ダウンロード済みアーカイブの
+     * キャッシュは残る。ダウンロードが途中で失敗して壊れた .tgz がキャッシュに
+     * 残ると、再展開でもそれを使い続けて失敗を繰り返す。
+     *
+     * これは rootfs に加えて **ダウンロードキャッシュも削除** し、非同梱 distro なら
+     * 必ず再ダウンロードからやり直す。ダウンロード失敗で詰まった状態を、アプリを
+     * 削除せずに復旧するための手段。
+     */
+    fun cleanReinstallDistro() {
+        channel?.close()
+        channel = null
+        readJob?.cancel()
+        scope.launch {
+            val distroId = settingsFlow.value.distroId
+            val rootfs = java.io.File(appContext.filesDir, "distros/$distroId")
+            if (rootfs.exists()) rootfs.deleteRecursively()
+            downloader.deleteCachedArchive(distroId, detectAbiId())
+            withContext(emulatorDispatcher) {
+                emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
+            }
+            _uiState.update { UiState() }
+            _scrollOffset.value = 0
+            startTerminal()
+        }
+    }
+
     fun emitToast(message: String) { _toastEvents.tryEmit(message) }
 
     /** セッションを終了 (PTY を閉じてジョブをキャンセル) */

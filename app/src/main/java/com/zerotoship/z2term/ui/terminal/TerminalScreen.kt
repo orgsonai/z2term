@@ -54,6 +54,8 @@ import com.zerotoship.z2term.ui.ssh.SshProfilesSheet
 import com.zerotoship.z2term.ui.ssh.HostKeyVerificationDialog
 import com.zerotoship.z2term.ui.terminal.components.SpecialKeyBar
 import com.zerotoship.z2term.ui.terminal.input.TerminalInputView
+import com.zerotoship.z2term.ui.terminal.keyboard.ComposingState
+import com.zerotoship.z2term.ui.terminal.keyboard.KanaKanjiConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
 import com.zerotoship.z2term.emulator.ZtsTheme
@@ -128,6 +130,15 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         rootView.keepScreenOn = keepScreenOn
     }
 
+    // かな漢字変換: 入力中ひらがな(composing)と候補を保持。確定で PTY へ送出。
+    val composing = remember(active.id) {
+        ComposingState(onCommit = { active.writeBytes(it.toByteArray(Charsets.UTF_8)) })
+    }
+    // 辞書はアプリ起動後にバックグラウンドで 1 度だけ読み込む。
+    LaunchedEffect(Unit) { KanaKanjiConverter.ensureLoaded(context) }
+    // キーボードモード変更時は変換中バッファを破棄 (OS IME と二重表示を防ぐ)。
+    LaunchedEffect(keyboardMode, keyboardCollapsed) { composing.reset() }
+
     // 起動時に保存されたキーボードモードを 1 度だけ復元 (毎回 OS IME に切替える手間を省く)
     var restoredMode by remember { mutableStateOf(false) }
     LaunchedEffect(settings.keyboardMode) {
@@ -200,7 +211,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .weight(1f)
         ) {
-            TerminalRenderer(session = active, modifier = Modifier.fillMaxSize())
+            TerminalRenderer(session = active, composingText = composing.text, modifier = Modifier.fillMaxSize())
             AndroidView(
                 factory = { ctx ->
                     TerminalInputView(ctx).also { v ->
@@ -216,6 +227,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxSize()
             )
             ScrollIndicators(session = active, modifier = Modifier.fillMaxSize())
+            // 変換候補バー: キーボードの上に浮かせて表示 (キーボード本体の高さは変えない)
+            CandidateBar(
+                composing = composing,
+                modifier = Modifier.align(Alignment.BottomStart)
+            )
         }
 
         KeyboardToggleBar(
@@ -236,6 +252,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         TerminalKeyboard(
                             onBytes = { active.writeBytes(it) },
                             onCursorKey = { key -> active.writeBytes(active.emulator.cursorKeyBytes(key)) },
+                            composing = composing,
                             style = style
                         )
                     }
@@ -604,6 +621,69 @@ private fun KeyboardToggleBar(
 }
 
 /**
+ * かな漢字変換の候補バー。キーボードの上に重ねて浮かせる (端末画面の下端にかぶせる)。
+ * これによりキーボード本体の高さ・キーサイズは一切変わらない。
+ *
+ * 左端: 入力中ひらがな (タップで生のまま確定)。続いて変換/予測候補 (タップで確定)。
+ * composing が空のときは何も描かない。
+ */
+@Composable
+private fun CandidateBar(
+    composing: ComposingState,
+    modifier: Modifier = Modifier
+) {
+    if (!composing.isActive) return
+    val candidates = composing.candidates
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .background(ZtsBgSecondary)
+            .border(width = 1.dp, color = ZtsBorder)
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        // 入力中ひらがな (タップで生のまま確定)
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(ZtsBgCard)
+                .border(1.dp, ZtsGreen, RoundedCornerShape(6.dp))
+                .clickable { composing.commitRaw() }
+                .padding(horizontal = 10.dp, vertical = 5.dp)
+        ) {
+            Text(
+                text = composing.text,
+                color = ZtsGreen,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        // 変換 / 予測候補 (タップで確定)
+        candidates.forEach { cand ->
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(ZtsBgCard)
+                    .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+                    .clickable { composing.commit(cand) }
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    text = cand,
+                    color = ZtsTextPrimary,
+                    fontSize = 15.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+    }
+}
+
+/**
  * 選択コピー / 最新位置へ戻るボタンなどのフローティング表示。
  */
 @Composable
@@ -638,6 +718,22 @@ private fun ScrollIndicators(
                 )
             }
         } else if (scrollOffset > 0) {
+            // スクロール位置インジケータ (右上、小、半透明)。今どれだけ遡っているか。
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(end = 8.dp, top = 4.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(ZtsBgCard.copy(alpha = 0.75f))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = "↑${scrollOffset}行",
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
             // 「最新へ↓」薄ボタン (右下)
             Box(
                 modifier = Modifier

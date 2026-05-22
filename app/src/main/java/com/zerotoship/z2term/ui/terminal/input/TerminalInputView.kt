@@ -16,6 +16,8 @@ import com.zerotoship.z2term.core.TerminalSession
 
 /** 選択ドラッグが画面端にある間、自動スクロールを繰り返す間隔。 */
 private const val AUTO_SCROLL_INTERVAL_MS = 45L
+/** フリング(慣性スクロール)の減衰係数。1 フレーム(約16ms)ごとに速度へ乗算。 */
+private const val FLING_DECELERATION = 0.90f
 
 /**
  * ターミナル入力専用 View。
@@ -67,14 +69,34 @@ class TerminalInputView(context: Context) : View(context) {
     private var lastTouchX: Float = 0f
     private var lastTouchY: Float = 0f
     private var autoScrollDir: Int = 0  // -1=最新へ / +1=過去へ / 0=停止
+    private var autoScrollRowsPerTick: Int = 1  // 端から離れるほど増やす
     private val autoScrollRunnable = object : Runnable {
         override fun run() {
             val sess = session ?: return
             if (autoScrollDir == 0 || touchMode == TouchMode.NONE) return
-            sess.scrollBy(autoScrollDir)
+            repeat(autoScrollRowsPerTick) { sess.scrollBy(autoScrollDir) }
             applySelectionAt(lastTouchX, lastTouchY)
             showMagnifierAt(lastTouchX, lastTouchY)
             postDelayed(this, AUTO_SCROLL_INTERVAL_MS)
+        }
+    }
+
+    // --- フリング(慣性スクロール) ---
+    // 正 = 過去へ / 負 = 最新へ。1 フレームあたりに進める行数 (小数)。
+    private var flingVelocityRows: Float = 0f
+    private val flingRunnable = object : Runnable {
+        override fun run() {
+            val sess = session ?: return
+            // 選択中・速度ほぼ0 で停止
+            if (touchMode != TouchMode.NONE) { flingVelocityRows = 0f; return }
+            if (flingVelocityRows > -0.5f && flingVelocityRows < 0.5f) { flingVelocityRows = 0f; return }
+            val delta = if (flingVelocityRows > 0)
+                flingVelocityRows.toInt().coerceAtLeast(1)
+            else
+                flingVelocityRows.toInt().coerceAtMost(-1)
+            sess.scrollBy(delta)
+            flingVelocityRows *= FLING_DECELERATION
+            postDelayed(this, 16)
         }
     }
 
@@ -111,12 +133,34 @@ class TerminalInputView(context: Context) : View(context) {
         context,
         object : GestureDetector.SimpleOnGestureListener() {
             override fun onDown(e: MotionEvent): Boolean {
+                // 走行中のフリングを止める (タップで即停止)
+                flingVelocityRows = 0f
+                removeCallbacks(flingRunnable)
                 scrollAccumDy = 0f
+                return true
+            }
+
+            override fun onFling(
+                e1: MotionEvent?,
+                e2: MotionEvent,
+                velocityX: Float,
+                velocityY: Float
+            ): Boolean {
+                if (scaleDetector.isInProgress) return false
+                val m = session?.cellMetrics?.value ?: return false
+                if (m.lineHeight <= 0f) return false
+                // velocityY > 0 (指を下へ振る) = 過去へ。/30 で 1 フレームあたり行数へ。
+                flingVelocityRows = velocityY / m.lineHeight / 30f
+                removeCallbacks(flingRunnable)
+                post(flingRunnable)
                 return true
             }
 
             override fun onLongPress(e: MotionEvent) {
                 val sess = session ?: return
+                // 慣性スクロール中に長押し選択へ移る場合は止める
+                flingVelocityRows = 0f
+                removeCallbacks(flingRunnable)
                 val cell = pixelToAbsCell(e.x, e.y) ?: return
                 selectionAnchorRow = cell.first
                 selectionAnchorCol = cell.second
@@ -266,24 +310,36 @@ class TerminalInputView(context: Context) : View(context) {
         sess.setSelection(newSel)
     }
 
-    /** 指が画面上下端付近にあるとき、一定速度で自動スクロールして選択を伸ばす。 */
+    /**
+     * 指が画面上下端付近にあるとき、距離に応じた速度で自動スクロールして選択を伸ばす。
+     * 画面外へ引っ張るほど速くなる (端内=1行, 画面外近=2, 中=3, 遠=5 行/tick)。
+     * 大量スクロールバックでも端の外へ引っ張れば一気に遡れる。
+     */
     private fun updateEdgeAutoScroll(x: Float, y: Float) {
         lastTouchX = x
         lastTouchY = y
         val m = session?.cellMetrics?.value ?: return
-        // 端の検知ゾーンは広め (掴みやすさ優先)。指が画面外 (y<0 / y>height) でも
-        // 端方向として扱い、画面外まで引っ張れば自動スクロールが続く。
         val edge = (m.lineHeight * 2.5f).coerceAtLeast(80f)
-        val dir = when {
-            y < edge -> +1            // 上端 → 過去 (古い行) を表示
-            y > height - edge -> -1   // 下端 → 最新 (新しい行) を表示
-            else -> 0
+        val (dir, rows) = when {
+            y < 0 -> +1 to speedForDistance(-y, m.lineHeight)
+            y < edge -> +1 to 1
+            y > height -> -1 to speedForDistance(y - height, m.lineHeight)
+            y > height - edge -> -1 to 1
+            else -> 0 to 1
         }
+        autoScrollRowsPerTick = rows
         if (dir != autoScrollDir) {
             autoScrollDir = dir
             removeCallbacks(autoScrollRunnable)
             if (dir != 0) post(autoScrollRunnable)
         }
+    }
+
+    /** 画面外へのはみ出し距離 [dist] (px) を 1tick あたりの行数へ。 */
+    private fun speedForDistance(dist: Float, lineHeight: Float): Int = when {
+        dist < lineHeight * 2 -> 2
+        dist < lineHeight * 5 -> 3
+        else -> 5
     }
 
     /** 選択ジェスチャ終了: 自動スクロール停止 + 拡大鏡を消す (選択結果は保持)。 */
@@ -327,9 +383,21 @@ class TerminalInputView(context: Context) : View(context) {
         magnifier?.dismiss()
     }
 
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        // 画面左右端のシステム「戻る」ジェスチャ領域を除外し、端ぴったりでも
+        // 長押し選択を開始できるようにする (API 29+)。端の縦帯のみ対象。
+        val strip = (40 * resources.displayMetrics.density).toInt()
+        systemGestureExclusionRects = listOf(
+            android.graphics.Rect(0, 0, strip, height),
+            android.graphics.Rect(width - strip, 0, width, height)
+        )
+    }
+
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         removeCallbacks(autoScrollRunnable)
+        removeCallbacks(flingRunnable)
         magnifier?.dismiss()
         magnifier = null
     }
@@ -357,17 +425,18 @@ class TerminalInputView(context: Context) : View(context) {
         val radius = (m.lineHeight * 2.2f).coerceAtLeast(96f)
         val r2 = radius * radius
 
+        val hPad = m.horizontalPaddingPx
         var startD = Float.MAX_VALUE
         val startCanvasRow = sel.startAbsRow - topAbsRow
         if (startCanvasRow in 0 until m.canvasRows) {
-            val sx = sel.startCol * m.cellW
+            val sx = sel.startCol * m.cellW + hPad
             val sy = (startCanvasRow + 1) * m.lineHeight
             startD = (x - sx) * (x - sx) + (y - sy) * (y - sy)
         }
         var endD = Float.MAX_VALUE
         val endCanvasRow = sel.endAbsRow - topAbsRow
         if (endCanvasRow in 0 until m.canvasRows) {
-            val ex = (sel.endCol + 1) * m.cellW
+            val ex = (sel.endCol + 1) * m.cellW + hPad
             val ey = (endCanvasRow + 1) * m.lineHeight
             endD = (x - ex) * (x - ex) + (y - ey) * (y - ey)
         }
@@ -416,7 +485,8 @@ class TerminalInputView(context: Context) : View(context) {
         if (m.cellW <= 0f || m.lineHeight <= 0f) return null
         val topAbsRow = currentTopAbsRow(sess, m) ?: return null
         val canvasRow = (y / m.lineHeight).toInt().coerceIn(0, m.canvasRows - 1)
-        val canvasCol = (x / m.cellW).toInt().coerceIn(0, m.canvasCols - 1)
+        // 描画は hPad 分右へずらしているので、タッチ x から余白を引いて列へ変換。
+        val canvasCol = ((x - m.horizontalPaddingPx) / m.cellW).toInt().coerceIn(0, m.canvasCols - 1)
         return (topAbsRow + canvasRow) to canvasCol
     }
 

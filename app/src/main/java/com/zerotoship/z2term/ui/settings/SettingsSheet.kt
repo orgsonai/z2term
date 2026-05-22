@@ -334,7 +334,20 @@ fun SettingsSheet(
                     danger = true,
                     onClick = { session.reinstallDistro() }
                 )
+                ActionButton(
+                    label = "クリーン再インストール",
+                    danger = true,
+                    onClick = { session.cleanReinstallDistro() }
+                )
             }
+            Text(
+                text = "再展開: rootfs を消して展開し直す。クリーン再インストール: " +
+                    "ダウンロード済みデータも消して最初から取得し直す (DL 失敗で壊れたときの復旧用、" +
+                    "非同梱ディストロは再ダウンロードが走るので Wi-Fi 推奨)。",
+                color = ZtsTextSecondary,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
 
             AppInfoSection(distroId = settings.distroId)
         }

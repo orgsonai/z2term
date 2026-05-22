@@ -10,7 +10,8 @@ data class CellMetrics(
     val cellW: Float = 0f,
     val lineHeight: Float = 0f,
     val canvasRows: Int = 0,
-    val canvasCols: Int = 0
+    val canvasCols: Int = 0,
+    val horizontalPaddingPx: Float = 0f
 )
 
 /**

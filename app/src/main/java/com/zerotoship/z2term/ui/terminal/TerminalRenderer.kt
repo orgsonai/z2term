@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -40,6 +41,7 @@ import com.zerotoship.z2term.ui.theme.TerminalFontOptions
 @Composable
 fun TerminalRenderer(
     session: TerminalSession,
+    composingText: String = "",
     modifier: Modifier = Modifier
 ) {
     val redrawTick by session.redrawTick.collectAsState()
@@ -85,10 +87,16 @@ fun TerminalRenderer(
     BoxWithConstraints(modifier = modifier) {
         val canvasWPx = with(density) { maxWidth.toPx() }
         val canvasHPx = with(density) { maxHeight.toPx() }
-        val cols = (canvasWPx / cellW).toInt().coerceAtLeast(1)
+        // 左右に余白を設け、文字が画面端で見切れないようにする (選択も端までしやすく)。
+        val hPadPx = H_PAD_DP * density.density
+        val cols = ((canvasWPx - 2 * hPadPx) / cellW).toInt().coerceAtLeast(1)
         val rows = (canvasHPx / lineHeight).toInt().coerceAtLeast(1)
 
         LaunchedEffect(rows, cols) {
+            // ピンチ中はフォントサイズが連続変化し rows/cols が高速に変わる。
+            // 120ms 待って「最後の値」だけで resize することで、連打 resize による
+            // バッファ再構築で文字が一瞬消える症状を防ぐ。
+            delay(120)
             session.onResize(rows, cols)
         }
         LaunchedEffect(cellW, lineHeight, rows, cols) {
@@ -97,7 +105,8 @@ fun TerminalRenderer(
                     cellW = cellW,
                     lineHeight = lineHeight,
                     canvasRows = rows,
-                    canvasCols = cols
+                    canvasCols = cols,
+                    horizontalPaddingPx = hPadPx
                 )
             )
         }
@@ -110,8 +119,14 @@ fun TerminalRenderer(
             @Suppress("UNUSED_VARIABLE")
             val sel = selection
             drawIntoCanvas { canvas ->
+                val nc = canvas.nativeCanvas
+                // パディング部分も含め全面を背景色で塗ってから、中身を右へずらして描く。
+                bgPaint.color = session.emulator.colors.defaultBackground
+                nc.drawRect(0f, 0f, canvasWPx, lineHeight * rows, bgPaint)
+                nc.save()
+                nc.translate(hPadPx, 0f)
                 drawBuffer(
-                    nativeCanvas = canvas.nativeCanvas,
+                    nativeCanvas = nc,
                     session = session,
                     textPaint = textPaint,
                     bgPaint = bgPaint,
@@ -122,16 +137,20 @@ fun TerminalRenderer(
                     canvasRows = rows,
                     canvasCols = cols,
                     scrollOffset = scrollOffset,
-                    selection = selection
+                    selection = selection,
+                    composingText = composingText
                 )
+                nc.restore()
             }
         }
     }
 }
 
+private const val H_PAD_DP = 4f  // 端末描画の左右余白 (dp)
 private const val SELECTION_OVERLAY_ARGB: Int = 0x6622C55E.toInt() // ZtsGreen translucent
 private const val HANDLE_FILL_ARGB: Int = 0xFF22C55E.toInt()
 private const val HANDLE_BORDER_ARGB: Int = 0xFF0A0A0A.toInt()
+private const val PREEDIT_BG_ARGB: Int = 0x3322C55E // 変換中プリエディットの背景 (薄緑)
 
 private fun drawBuffer(
     nativeCanvas: android.graphics.Canvas,
@@ -145,7 +164,8 @@ private fun drawBuffer(
     canvasRows: Int,
     canvasCols: Int,
     scrollOffset: Int,
-    selection: TerminalSelection?
+    selection: TerminalSelection?,
+    composingText: String = ""
 ) {
     val emu = session.emulator
     val buf = emu.buffer
@@ -242,8 +262,8 @@ private fun drawBuffer(
         }
     }
 
-    // --- カーソル (選択中は描かない: 選択時はカーソル要らない、選択 UI が主) ---
-    if (emu.cursorVisible && selection == null) {
+    // --- カーソル (選択中・変換中は描かない: 変換中はプリエディットが位置を示す) ---
+    if (emu.cursorVisible && selection == null && composingText.isEmpty()) {
         val absCursorRow = buf.scrollbackSize + emu.cursorRow
         val canvasRow = absCursorRow - topAbsRow
         if (canvasRow in 0 until canvasRows && emu.cursorCol in 0 until canvasCols) {
@@ -267,6 +287,30 @@ private fun drawBuffer(
                     )
                 }
             }
+        }
+    }
+
+    // --- 変換中プリエディット (確定前の文字をカーソル位置に下線付きで重ねる) ---
+    // 最新画面表示中 (scrollOffset==0) のみ。確定したら PTY へ書き込まれ通常文字になる。
+    if (composingText.isNotEmpty() && scrollOffset == 0) {
+        val absCursorRow = buf.scrollbackSize + emu.cursorRow
+        var canvasRow = absCursorRow - topAbsRow
+        var col = emu.cursorCol
+        for (ch in composingText) {
+            val span = 2  // 全角かなは 2 セル幅
+            if (col + span > canvasCols) { col = 0; canvasRow++ }
+            if (canvasRow !in 0 until canvasRows) break
+            val x = col * cellW
+            val y = canvasRow * lineHeight
+            bgPaint.color = PREEDIT_BG_ARGB
+            nativeCanvas.drawRect(x, y, x + span * cellW, y + lineHeight, bgPaint)
+            textPaint.color = colors.defaultForeground
+            textPaint.isFakeBoldText = false
+            nativeCanvas.drawText(ch.toString(), x, y + baselineOffset, textPaint)
+            underlinePaint.color = colors.defaultForeground
+            val uy = y + lineHeight - underlinePaint.strokeWidth
+            nativeCanvas.drawLine(x, uy, x + span * cellW, uy, underlinePaint)
+            col += span
         }
     }
 

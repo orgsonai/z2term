@@ -71,6 +71,7 @@ import kotlin.math.abs
 fun TerminalKeyboard(
     onBytes: (ByteArray) -> Unit,
     onCursorKey: (TerminalEmulator.CursorKey) -> Unit,
+    composing: ComposingState,
     style: KeyboardStyle = KeyboardStyle.COMPACT,
     modifier: Modifier = Modifier
 ) {
@@ -85,7 +86,8 @@ fun TerminalKeyboard(
         JapaneseFlickKeyboard(
             onBytes = onBytes,
             onCursorKey = onCursorKey,
-            onSwitchToAscii = { jpMode = false },
+            onSwitchToAscii = { composing.commitRaw(); jpMode = false },
+            composing = composing,
             style = style,
             modifier = modifier
         )

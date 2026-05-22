@@ -33,10 +33,10 @@ class DistroDownloader(private val context: Context) {
     }
 
     fun download(spec: DistroSpec, abi: String, expectedSha256: String? = null): Flow<Progress> = flow {
+        val outFile = File(cacheDir().apply { mkdirs() }, "${spec.id}-$abi.tgz")
         try {
             val url = resolveDownloadUrl(spec, abi)
                 ?: throw IllegalStateException("No download URL for ${spec.id} / $abi")
-            val outFile = File(cacheDir().apply { mkdirs() }, "${spec.id}-$abi.tgz")
             if (outFile.exists()) outFile.delete()
 
             val conn = (URL(url).openConnection() as HttpURLConnection).apply {
@@ -80,6 +80,9 @@ class DistroDownloader(private val context: Context) {
             Log.i(TAG, "Downloaded ${spec.id} / $abi -> ${outFile.absolutePath}")
         } catch (e: Throwable) {
             Log.e(TAG, "Download failed", e)
+            // 途中まで書いた壊れたファイルを消す。残すと次回 resolveLocalArchive が
+            // これを「取得済み」とみなし、展開失敗を繰り返す原因になる。
+            runCatching { if (outFile.exists()) outFile.delete() }
             emit(Progress.Failed(e))
         }
     }.flowOn(Dispatchers.IO)
@@ -90,6 +93,12 @@ class DistroDownloader(private val context: Context) {
         if (tgz.exists()) return tgz
         val legacy = File(cacheDir(), "${spec.id}-$abi.tar.gz")
         return if (legacy.exists()) legacy else null
+    }
+
+    /** キャッシュ済みアーカイブ (.tgz / 旧 .tar.gz) を削除。クリーン再インストール用。 */
+    fun deleteCachedArchive(distroId: String, abi: String) {
+        runCatching { File(cacheDir(), "$distroId-$abi.tgz").delete() }
+        runCatching { File(cacheDir(), "$distroId-$abi.tar.gz").delete() }
     }
 
     private fun cacheDir(): File = File(context.cacheDir, "distros")
