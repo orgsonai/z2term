@@ -15,14 +15,34 @@ class TerminalRow(initialColumns: Int) {
 
     val columns: Int get() = cells.size
 
-    /** 列幅変更時の再構成 */
+    /**
+     * 列幅変更時の再構成。
+     *
+     * 縮小時は「行末の実内容より右側の余白」だけを捨て、文字の入ったセルは保持する。
+     * これにより、ピンチで一度幅を狭めて元に戻したときに、右端へはみ出した文字が
+     * 消えずに復活する (描画側は表示幅でクリップするだけ)。内容が新幅に収まる行は
+     * 通常どおり新幅まで縮める。
+     */
     fun resize(newColumns: Int) {
         if (newColumns == cells.size) return
-        val newCells = Array(newColumns) { i ->
+        if (newColumns < cells.size) {
+            val keep = contentWidth().coerceAtLeast(newColumns)
+            if (keep == cells.size) return  // 捨てられる余白なし → そのまま保持
+            cells = Array(keep) { cells[it] }
+            dirty = true
+            return
+        }
+        cells = Array(newColumns) { i ->
             if (i < cells.size) cells[i] else TerminalCell()
         }
-        cells = newCells
         dirty = true
+    }
+
+    /** 末尾の空白を除いた実内容の列数 (wide-cont セルは内容として扱う) */
+    private fun contentWidth(): Int {
+        var end = cells.size - 1
+        while (end >= 0 && cells[end].char == ' ' && !cells[end].wideCont) end--
+        return end + 1
     }
 
     fun getCell(col: Int): TerminalCell {

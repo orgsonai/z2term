@@ -916,8 +916,9 @@ class TerminalEmulator(
 
     fun resize(rows: Int, columns: Int) {
         // buffer 側でカーソル行を残すよう下方の空行を先に捨て、足りなければ
-        // 上方を scrollback に押し出す。push された行数だけ cursorRow を
-        // シフトすることで画面上のカーソル位置を保つ。
+        // 上方を scrollback に押し出す。拡大時は逆に scrollback から行を戻す。
+        // その補正量 (push は正・pull は負) を cursorRow に反映し、画面上の
+        // カーソル位置を保つ。
         val pushed = buffer.resize(rows, columns, cursorRow)
         scrollTop = scrollTop.coerceAtMost(rows - 1)
         scrollBottom = (if (scrollBottom == 0) rows - 1 else scrollBottom).coerceAtMost(rows - 1)

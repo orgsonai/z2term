@@ -147,9 +147,13 @@ class TerminalBuffer(
      * 縮小時はカーソル行 [cursorRow] を必ず保持するため、まず「カーソル行より下の
      * 空行」を捨て、足りなければ「カーソル行より上の行」を scrollback に押し出す。
      *
+     * 拡大時は逆に、縮小で scrollback に押し出した行を可能な範囲で画面上部へ戻す
+     * (ピンチで一度小さくして戻したとき、上へスクロールアウトした内容を復帰させる)。
+     *
      * @param cursorRow 縮小時にこの行を残すヒント (≥0)。範囲外なら 0 扱い。
-     * @return primary 縮小で scrollback に push された行数 (emulator がカーソルを
-     *         同量シフトするのに使う)。拡大・unchanged では 0。
+     * @return カーソル行の補正量。縮小で scrollback に push した行数は正、拡大で
+     *         scrollback から pull した行数は負で返す。emulator はこれを引いて
+     *         画面上のカーソル位置を保つ。変化なしは 0。
      */
     fun resize(newRows: Int, newColumns: Int, cursorRow: Int = 0): Int {
         if (newRows == rows && newColumns == columns) return 0
@@ -173,7 +177,9 @@ class TerminalBuffer(
     /**
      * Primary スクリーンを縮小・拡大する。
      * 縮小時はカーソル行を残し、まず下方の空行を、足りなければ上方を scrollback に出す。
-     * 戻り値は scrollback に push した行数 (拡大・unchanged では 0)。
+     * 拡大時はまず scrollback の末尾 (新しい履歴) を画面上部へ戻し、足りない分だけ
+     * 下部に空行を足す。
+     * 戻り値はカーソル補正量 (縮小 push は正、拡大 pull は負、unchanged は 0)。
      */
     private fun resizePrimaryWithCursor(
         newRows: Int,
@@ -183,10 +189,19 @@ class TerminalBuffer(
         val old = primary
         if (newRows == old.size) return 0
         if (newRows > old.size) {
+            // 拡大: 縮小で scrollback へ押し出した行を、可能な範囲で上部へ戻す。
+            val grow = newRows - old.size
+            val pulled = if (primaryActive) minOf(grow, scrollback.size) else 0
             primary = Array(newRows) { i ->
-                if (i < old.size) old[i] else TerminalRow(newColumns)
+                when {
+                    i < pulled -> scrollback[scrollback.size - pulled + i]
+                    i - pulled < old.size -> old[i - pulled]
+                    else -> TerminalRow(newColumns)
+                }
             }
-            return 0
+            repeat(pulled) { scrollback.removeLast() }
+            // 上に pulled 行戻したぶんカーソルは下へずれる → 負の補正量で表現。
+            return -pulled
         }
         val removed = old.size - newRows
         val cursor = cursorRowHint.coerceIn(0, old.size - 1)
