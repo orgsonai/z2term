@@ -54,6 +54,16 @@
             </intent-filter>
         </activity>
 
+        <!-- M8-2 検証用: Linux GUI 表示 (RFB) の単独 Activity。debug ビルドのみ動作
+             (release では onCreate で即 finish)。adb am start で起動して画面表示を確認する。
+             正式なタブ統合は M8-4。 -->
+        <activity
+            android:name=".gui.GuiActivity"
+            android:exported="true"
+            android:label="z2term GUI"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|density|fontScale|uiMode"
+            android:theme="@style/Theme.Z2Term" />
+
         <!-- Terminal Foreground Service: バックグラウンドで PTY を維持 -->
         <service
             android:name=".service.TerminalService"

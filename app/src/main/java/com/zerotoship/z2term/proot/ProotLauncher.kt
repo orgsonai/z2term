@@ -67,13 +67,17 @@ class ProotLauncher(private val context: Context) {
      * @param command 実行コマンド（デフォルトは /bin/sh）
      * @param rows 端末行数
      * @param cols 端末列数
+     * @param extraArgs command に続けて proot へ渡す追加引数。
+     *        GUI ランチャを `command="/usr/local/bin/z2gui", extraArgs=["start","1280x720"]`
+     *        のように引数付きで起動するために使う（command は単一トークンなので別枠で渡す）。
      */
     fun launch(
         distroId: String = "alpine",
         command: String = "/bin/sh",
         rows: Int = 24,
         cols: Int = 80,
-        fallbackShell: String = "/bin/sh"
+        fallbackShell: String = "/bin/sh",
+        extraArgs: List<String> = emptyList()
     ): PtyProcess {
         val rootfs = File(distrosDir, distroId)
         if (!rootfs.exists()) {
@@ -121,8 +125,9 @@ class ProotLauncher(private val context: Context) {
                 add("-b"); add("$src:$dst")
             }
             add("-w"); add("/root")                       // working dir
-            // command
+            // command (+ 追加引数: GUI ランチャの "start 1280x720" 等)
             add(resolvedCommand)
+            extraArgs.forEach { add(it) }
         }
 
         // 環境変数
