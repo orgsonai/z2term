@@ -113,6 +113,11 @@ fun z2guiScript(
         |  openbox >/tmp/z2gui-wm.log 2>&1 &
         |  has xterm && (xterm >/dev/null 2>&1 &)
         |  echo "✅ GUI 準備完了。z2term の GUI タブから 127.0.0.1:${d}RFBPORT に接続してください。"
+        |  # proot --kill-on-exit 対策: ここでブロックし続けることで Xvnc/WM を生かす。
+        |  # GUI セッションは launch(command="z2gui start WxH") で起動するため、ここで
+        |  # 即 return すると proot が終了し Xvnc も道連れに殺される。z2gui stop で殺されるか
+        |  # proot 自体が終了するまで待機する。
+        |  wait
         |}
         |
         |ACTION="${d}{1:-start}"
