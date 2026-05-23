@@ -90,6 +90,10 @@ class ProotLauncher(private val context: Context) {
         // 指定シェルが rootfs に存在しなければ fallback → /bin/sh の順に解決。
         // (Ubuntu base に zsh が無い、等で起動不能になるのを防ぐ)
         val resolvedCommand = resolveShell(rootfs, command, fallbackShell)
+        // 環境変数 SHELL は必ず「実体シェル」を指すようにする。command が z2gui の
+        // ようにシェル以外だと、子プロセス (xterm 等) が $SHELL を起動して再帰・誤動作
+        // する (M8-3 で Xvnc が即死した罠の真因)。command がシェルならそのまま使う。
+        val shellForEnv = resolveLoginShell(rootfs, resolvedCommand, fallbackShell)
 
         // 共有ホーム作成 + libtalloc 配置
         sharedHomeDir.mkdirs()
@@ -137,7 +141,7 @@ class ProotLauncher(private val context: Context) {
             "LANG=C.UTF-8",
             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
             "TMPDIR=/tmp",
-            "SHELL=$resolvedCommand",
+            "SHELL=$shellForEnv",
             // コマンド履歴を充実化。bash は PROMPT_COMMAND='history -a' で 1 コマンド毎に
             // 即 .bash_history へ追記 → proot が SIGKILL されても履歴が残る。
             // (zsh 用の INC_APPEND_HISTORY 等は ensureShellHistoryConfig が rc に書く)
@@ -182,6 +186,33 @@ class ProotLauncher(private val context: Context) {
         // どれも見つからなければ要求値のまま (proot 側でエラーにさせる)
         return requested
     }
+
+    /**
+     * 環境変数 SHELL に入れる「実体シェル」を解決する。
+     *
+     * SHELL は xterm 等の子プロセスが「ユーザのログインシェル」として起動する値
+     * なので、必ず本物のシェルを指していなければならない。command がシェル
+     * (sh/bash/ash/zsh ...) ならそのまま使い、z2gui のようにシェルでなければ
+     * fallbackShell → /bin/bash → /bin/ash → /bin/sh の順で rootfs に在るシェルへ
+     * 振り替える。
+     *
+     * (M8-3 の罠の恒久対応: command="/usr/local/bin/z2gui" のとき SHELL=z2gui に
+     *  なり、xterm が $SHELL=z2gui を起動 → z2gui start が再帰 → 動作中の Xvnc を
+     *  kill して即死する、という問題を ProotLauncher 側で断つ。)
+     */
+    private fun resolveLoginShell(rootfs: File, resolvedCommand: String, fallbackShell: String): String {
+        if (isShellPath(resolvedCommand)) return resolvedCommand
+        for (candidate in listOf(fallbackShell, "/bin/bash", "/bin/ash", "/bin/sh")) {
+            if (candidate.isNotBlank() && isShellPath(candidate) && shellExists(rootfs, candidate)) {
+                return candidate
+            }
+        }
+        return "/bin/sh"
+    }
+
+    /** パスの basename が既知のシェル名なら true。 */
+    private fun isShellPath(path: String): Boolean =
+        path.substringAfterLast('/') in KNOWN_SHELLS
 
     private fun shellExists(rootfs: File, absPath: String): Boolean {
         val rel = absPath.trimStart('/')
@@ -397,5 +428,8 @@ class ProotLauncher(private val context: Context) {
 
     companion object {
         private const val TAG = "ProotLauncher"
+
+        /** SHELL に採用してよい既知のシェル basename (これ以外は実体シェルへ振り替える)。 */
+        private val KNOWN_SHELLS = setOf("sh", "bash", "ash", "dash", "zsh", "ksh", "mksh")
     }
 }
