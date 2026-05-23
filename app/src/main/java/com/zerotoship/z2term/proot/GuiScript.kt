@@ -51,6 +51,13 @@ fun z2guiScript(
         |export DISPLAY="${d}DISP"
         |export HOME="${d}{HOME:-/root}"
         |
+        |# 重要: GUI 起動時 ProotLauncher は command=z2gui に合わせて SHELL=<このスクリプト> を
+        |# 渡してくる。その状態で xterm などが ${d}SHELL を起動すると **z2gui 自身が再帰起動**し、
+        |# 再帰側の start_x → stop_x が**動作中の Xvnc を停止**して GUI 全体が落ちる。
+        |# GUI 配下のシェルは必ず本物のシェルにするため、ここで SHELL を実体のシェルへ上書きする。
+        |for _sh in /bin/bash /bin/ash /bin/sh; do [ -x "${d}_sh" ] && { SHELL="${d}_sh"; break; }; done
+        |export SHELL
+        |
         |has() { command -v "${d}1" >/dev/null 2>&1; }
         |
         |install_pkgs() {
@@ -67,6 +74,15 @@ fun z2guiScript(
         |}
         |
         |x_running() { [ -e "/tmp/.X11-unix/X${d}{DISPLAY_NUM}" ]; }
+        |
+        |# Xvnc プロセスが実際に生きているか (ソケットが stale に残っただけの状態と区別する)。
+        |x_alive() {
+        |  for c in /proc/[0-9]*/comm; do
+        |    [ -r "${d}c" ] || continue
+        |    case "${d}(cat "${d}c" 2>/dev/null)" in Xvnc|Xtigervnc) return 0 ;; esac
+        |  done
+        |  return 1
+        |}
         |
         |stop_x() {
         |  if has vncserver; then vncserver -kill "${d}DISP" >/dev/null 2>&1; fi
@@ -97,11 +113,21 @@ fun z2guiScript(
         |  esac
         |  ensure_pkgs || exit 1
         |  if ! has Xvnc; then echo "❌ Xvnc がありません (tigervnc 未導入)"; exit 1; fi
+        |  # 再入ガード: Xvnc が実際に生きているなら stop_x で**動作中のセッションを壊さない**。
+        |  # (z2gui が誤って再起動された場合の安全網。本来の再帰起動は上の SHELL 上書きで防ぐ。
+        |  #  stale ソケットだけ残った状態では x_alive=false となり下の stop_x で掃除される。)
+        |  if x_alive; then
+        |    echo "✅ GUI は既に起動中 (DISPLAY=${d}DISP, RFB 127.0.0.1:${d}RFBPORT)"
+        |    exec "${d}{SHELL:-/bin/sh}"
+        |  fi
         |  stop_x
         |  mkdir -p /tmp/.X11-unix 2>/dev/null
         |  chmod 1777 /tmp/.X11-unix 2>/dev/null
         |  echo "▶ Xvnc 起動: ${d}GEOM @ ${d}DISP (RFB 127.0.0.1:${d}RFBPORT)"
-        |  Xvnc "${d}DISP" -geometry "${d}GEOM" -depth 24 -SecurityTypes None -localhost -rfbport "${d}RFBPORT" >/tmp/z2gui-xvnc.log 2>&1 &
+        |  # GUI 配下のプロセスは launcher の制御端末 (アプリ側 PtyProcess が握る PTY) から
+        |  # setsid で切り離して起動する (GUI プロセスが端末を共有する必要はない)。
+        |  # stdin は /dev/null に向ける。
+        |  setsid Xvnc "${d}DISP" -geometry "${d}GEOM" -depth 24 -SecurityTypes None -localhost -rfbport "${d}RFBPORT" -noreset </dev/null >/tmp/z2gui-xvnc.log 2>&1 &
         |  i=0
         |  while [ ${d}i -lt 50 ]; do
         |    x_running && break
@@ -110,14 +136,13 @@ fun z2guiScript(
         |  if ! x_running; then
         |    echo "❌ Xvnc 起動失敗。ログ:"; cat /tmp/z2gui-xvnc.log 2>/dev/null; exit 1
         |  fi
-        |  openbox >/tmp/z2gui-wm.log 2>&1 &
-        |  has xterm && (xterm >/dev/null 2>&1 &)
+        |  setsid openbox </dev/null >/tmp/z2gui-wm.log 2>&1 &
+        |  has xterm && setsid xterm </dev/null >/dev/null 2>&1 &
         |  echo "✅ GUI 準備完了。z2term の GUI タブから 127.0.0.1:${d}RFBPORT に接続してください。"
         |  # proot --kill-on-exit 対策: ここでブロックし続けることで Xvnc/WM を生かす。
-        |  # GUI セッションは launch(command="z2gui start WxH") で起動するため、ここで
-        |  # 即 return すると proot が終了し Xvnc も道連れに殺される。z2gui stop で殺されるか
-        |  # proot 自体が終了するまで待機する。
-        |  wait
+        |  # setsid したプロセスはジョブ制御から外れるため wait では待てない。X ソケットの
+        |  # 存在を監視し、Xvnc が生きている限り z2gui (= proot のルート) をブロックさせる。
+        |  while x_running; do sleep 2; done
         |}
         |
         |ACTION="${d}{1:-start}"

@@ -12,16 +12,19 @@ import java.io.DataOutputStream
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 
 /**
- * RFB (VNC) 3.8 クライアント。M8-2 段階は **表示のみ**（None 認証 + Raw/CopyRect デコード）。
+ * RFB (VNC) 3.8 クライアント。表示 (M8-2) + 入力 (M8-3) に対応（None 認証 + Raw/CopyRect デコード）。
  *
  * 127.0.0.1:5901 の Xvnc (z2gui が起動) に接続し、フレームバッファを ARGB_8888 [Bitmap] に描く。
  * 受信ループ [run] は呼び出し側 (GuiSession) が IO コルーチンで回す。再描画は [redraw] StateFlow
  * で Compose に伝える（端末の redrawTick と同じ方式）。
  *
  * - PixelFormat は 32bpp little-endian truecolor を要求し、各ピクセルを 0xAARRGGBB へ直変換。
- * - 入力 (ポインタ/キー) は M8-3。ここでは送らない。
+ * - 入力 (M8-3): [sendPointerEvent] (type 5) / [sendKeyEvent] (type 4)。送信は [writeLock] で直列化し、
+ *   受信ループ側の `FramebufferUpdateRequest` 送出と混線しないようにする。
  * - ZRLE/Tight は M8-4。ここでは Raw + CopyRect のみ（loopback なので帯域は問題にならない）。
  */
 class RfbClient(
@@ -52,6 +55,14 @@ class RfbClient(
     private var socket: Socket? = null
     private var input: DataInputStream? = null
     private var output: DataOutputStream? = null
+
+    /** [output] への書き込みを直列化する。受信ループの FB 要求と入力送信が混ざらないように。 */
+    private val writeLock = Any()
+
+    /** 入力送信専用の単一スレッド。main でのソケット書き込み(StrictMode 違反)を避け、順序も保つ。 */
+    private val sender = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "rfb-sender").apply { isDaemon = true }
+    }
 
     @Volatile
     private var closed = false
@@ -130,7 +141,7 @@ class RfbClient(
         return ByteArray(len).also { inp.readFully(it) }.toString(Charsets.UTF_8)
     }
 
-    private fun setPixelFormat(out: DataOutputStream) {
+    private fun setPixelFormat(out: DataOutputStream) = synchronized(writeLock) {
         out.writeByte(MSG_SET_PIXEL_FORMAT)
         out.write(byteArrayOf(0, 0, 0)) // padding
         // PIXEL_FORMAT (16 bytes)
@@ -148,7 +159,7 @@ class RfbClient(
         out.flush()
     }
 
-    private fun setEncodings(out: DataOutputStream, encs: IntArray) {
+    private fun setEncodings(out: DataOutputStream, encs: IntArray) = synchronized(writeLock) {
         out.writeByte(MSG_SET_ENCODINGS)
         out.writeByte(0) // padding
         out.writeShort(encs.size)
@@ -156,7 +167,7 @@ class RfbClient(
         out.flush()
     }
 
-    private fun sendFramebufferUpdateRequest(out: DataOutputStream, incremental: Boolean) {
+    private fun sendFramebufferUpdateRequest(out: DataOutputStream, incremental: Boolean) = synchronized(writeLock) {
         out.writeByte(MSG_FB_UPDATE_REQUEST)
         out.writeByte(if (incremental) 1 else 0)
         out.writeShort(0)      // x
@@ -164,6 +175,70 @@ class RfbClient(
         out.writeShort(width)
         out.writeShort(height)
         out.flush()
+    }
+
+    /**
+     * ポインタイベント (RFB type 5) を送る。**UI スレッドから呼んでよい**。
+     * 実際のソケット書き込みは [sender]（単一スレッド）へ退避する（main でのネットワーク禁止 + 順序保証）。
+     *
+     * @param buttonMask ボタン状態のビットマスク。bit0=左, bit1=中, bit2=右, bit3=ホイール上, bit4=ホイール下。
+     * @param x,y フレームバッファ座標（呼び出し側で表示→FB 変換済み。範囲外はクランプ）。
+     */
+    fun sendPointerEvent(buttonMask: Int, x: Int, y: Int) {
+        if (closed) return
+        val cx = x.coerceIn(0, (width - 1).coerceAtLeast(0))
+        val cy = y.coerceIn(0, (height - 1).coerceAtLeast(0))
+        submitWrite {
+            val out = output ?: return@submitWrite
+            synchronized(writeLock) {
+                out.writeByte(MSG_POINTER_EVENT)
+                out.writeByte(buttonMask and 0xFF)
+                out.writeShort(cx)
+                out.writeShort(cy)
+                out.flush()
+            }
+        }
+    }
+
+    /**
+     * キーイベント (RFB type 4) を送る。**UI スレッドから呼んでよい**（書き込みは [sender] に退避）。
+     * keysym は X11 の値（[com.zerotoship.z2term.gui.GuiKeyMapper] で変換）。
+     */
+    fun sendKeyEvent(keysym: Int, down: Boolean) {
+        if (closed || keysym == 0) return
+        submitWrite {
+            val out = output ?: return@submitWrite
+            synchronized(writeLock) {
+                out.writeByte(MSG_KEY_EVENT)
+                out.writeByte(if (down) 1 else 0)
+                out.writeShort(0) // padding
+                out.writeInt(keysym)
+                out.flush()
+            }
+        }
+    }
+
+    /** 入力送信を [sender] スレッドで実行する。IOException は接続断とみなして握り潰す。 */
+    private fun submitWrite(block: () -> Unit) {
+        if (closed) return
+        try {
+            sender.execute {
+                if (closed) return@execute
+                try {
+                    block()
+                } catch (e: IOException) {
+                    if (!closed) Log.w(TAG, "入力送信失敗", e)
+                }
+            }
+        } catch (_: RejectedExecutionException) {
+            // close 後。無視。
+        }
+    }
+
+    /** keysym を down→up でまとめて送る（タップ入力や文字確定で使う）。 */
+    fun tapKey(keysym: Int) {
+        sendKeyEvent(keysym, down = true)
+        sendKeyEvent(keysym, down = false)
     }
 
     /**
@@ -289,6 +364,7 @@ class RfbClient(
     fun close() {
         closed = true
         _connected.value = false
+        runCatching { sender.shutdownNow() }
         runCatching { input?.close() }
         runCatching { output?.close() }
         runCatching { socket?.close() }
@@ -304,6 +380,15 @@ class RfbClient(
         private const val MSG_SET_PIXEL_FORMAT = 0
         private const val MSG_SET_ENCODINGS = 2
         private const val MSG_FB_UPDATE_REQUEST = 3
+        private const val MSG_KEY_EVENT = 4
+        private const val MSG_POINTER_EVENT = 5
+
+        // pointer button masks (RFB)
+        const val BTN_LEFT = 1 shl 0
+        const val BTN_MIDDLE = 1 shl 1
+        const val BTN_RIGHT = 1 shl 2
+        const val BTN_WHEEL_UP = 1 shl 3
+        const val BTN_WHEEL_DOWN = 1 shl 4
 
         // server→client message types
         private const val SRV_FB_UPDATE = 0

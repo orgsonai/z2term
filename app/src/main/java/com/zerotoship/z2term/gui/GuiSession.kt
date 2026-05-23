@@ -15,8 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.net.InetSocketAddress
-import java.net.Socket
+import java.net.ConnectException
 
 /**
  * Linux GUI セッションのライフサイクル (M8-2: 表示のみ)。
@@ -65,15 +64,18 @@ class GuiSession(private val context: Context) {
                 // z2gui の出力はログへ排出（PTY バッファが詰まってブロックしないように）。
                 scope.launch { drainPty(p) }
 
+                _state.value = State.CONNECTING
                 _message.value = "Xvnc を待機中…"
-                if (!waitForPort(Z2TERM_VNC_PORT, timeoutMs = 60_000)) {
-                    fail("Xvnc がポート $Z2TERM_VNC_PORT で待ち受けません (タイムアウト)")
+                // Xvnc の起動待ちと接続を 1 本化する。捨て socket でポート疎通だけ
+                // 確認すると「接続して即切断するクライアント」と見なされ、TigerVNC が
+                // 最初のクライアント切断 (1→0) で server shutdown してしまい、本物の
+                // 接続前に Xvnc が落ちる。そこで本物の RFB 接続を、接続拒否 (ポート
+                // 未起動) の間だけリトライする。拒否された接続は Xvnc に届かないので
+                // 安全で、確立後はそのまま持続接続になり 0 クライアントに落ちない。
+                if (!connectWithRetry(timeoutMs = 60_000)) {
+                    fail("Xvnc に接続できません (タイムアウト)")
                     return@launch
                 }
-
-                _state.value = State.CONNECTING
-                _message.value = "VNC 接続中…"
-                rfb.connect()
                 _state.value = State.CONNECTED
                 _message.value = "${rfb.width}x${rfb.height}  ${rfb.desktopName}"
                 rxJob = scope.launch { rfb.run() }
@@ -103,14 +105,21 @@ class GuiSession(private val context: Context) {
         }
     }
 
-    private suspend fun waitForPort(port: Int, timeoutMs: Long): Boolean {
+    /**
+     * Xvnc が立ち上がるまで本物の RFB 接続をリトライする。
+     * ポート未起動による接続拒否 ([ConnectException]) のみ再試行し、それ以外の
+     * 失敗 (ハンドシェイク異常等) は呼び出し側へ伝播させて ERROR にする。
+     * 捨て socket での疎通確認をしないのは、接続→即切断が TigerVNC の
+     * last-client-disconnect 挙動で Xvnc を落としてしまうため。
+     */
+    private suspend fun connectWithRetry(timeoutMs: Long): Boolean {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
             try {
-                Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), 500) }
+                rfb.connect()
                 return true
-            } catch (_: Exception) {
-                delay(300)
+            } catch (_: ConnectException) {
+                delay(300) // ポート未起動 (接続拒否) → 少し待って再試行
             }
         }
         return false
