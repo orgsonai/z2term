@@ -50,13 +50,13 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class TerminalSession(
     private val appContext: Context,
-    val id: String = java.util.UUID.randomUUID().toString(),
+    override val id: String = java.util.UUID.randomUUID().toString(),
     initialLabel: String = "session"
-) {
+) : AppSession {
 
     /** タブ表示名 (RUNNING になったら mode を反映、それ以前は "session") */
     private val _label = MutableStateFlow(initialLabel)
-    val label: StateFlow<String> = _label.asStateFlow()
+    override val label: StateFlow<String> = _label.asStateFlow()
     fun setLabel(s: String) { _label.value = s }
 
     enum class TerminalState { IDLE, INSTALLING, STARTING, RUNNING, EXITED, ERROR }
@@ -555,7 +555,7 @@ class TerminalSession(
     fun emitToast(message: String) { _toastEvents.tryEmit(message) }
 
     /** セッションを終了 (PTY を閉じてジョブをキャンセル) */
-    fun shutdown() {
+    override fun shutdown() {
         channel?.close()
         channel = null
         readJob?.cancel()

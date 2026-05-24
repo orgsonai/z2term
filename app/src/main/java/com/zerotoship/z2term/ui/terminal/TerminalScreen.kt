@@ -43,8 +43,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.zerotoship.z2term.core.AppSession
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.core.TerminalSession
+import com.zerotoship.z2term.gui.GuiScreen
+import com.zerotoship.z2term.gui.GuiSession
 import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.ui.settings.SettingsSheet
@@ -91,8 +94,16 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
     val sessions by SessionManager.sessions.collectAsState()
     val activeId by SessionManager.activeId.collectAsState()
-    val active = sessions.firstOrNull { it.id == activeId }
+    val activeSession = sessions.firstOrNull { it.id == activeId }
 
+    // GUI タブがアクティブなら GUI 画面を描いて終わり (端末 UI は出さない)。
+    // タブバーは GuiTabScreen 側にも置くので端末↔GUI の切替はできる。
+    if (activeSession is GuiSession) {
+        GuiTabScreen(sessions = sessions, activeId = activeId, modifier = modifier)
+        return
+    }
+
+    val active = activeSession as? TerminalSession
     if (active == null) {
         // セッション未生成時のプレースホルダ (通常 ensureFirst で 1 つ存在する)
         Box(modifier.fillMaxSize().background(ZtsBgPrimary))
@@ -204,7 +215,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             activeId = activeId,
             onSelect = { SessionManager.setActive(it) },
             onClose = { SessionManager.close(it) },
-            onNew = { SessionManager.openNew(context) }
+            onNew = { SessionManager.openNew(context) },
+            onNewGui = { SessionManager.openNewGui(context) }
         )
 
         Box(modifier = Modifier
@@ -328,6 +340,51 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // ホスト鍵検証はワーカースレッドからブロッキングで呼ばれるため、
     // SSH UI の表示状態に関わらずルートに常駐させる。
     HostKeyVerificationDialog()
+}
+
+/**
+ * GUI タブの画面。上部に (端末と共通の) タブバー、その下にリモート GUI を表示する。
+ * 初回表示で Xvnc を起動する (解像度は画面実サイズ。[GuiSession.start] は再入ガード済み)。
+ * タブ切替で離れても [GuiSession] は SessionManager が保持し続けるので動き続ける
+ * (停止はタブを × で閉じたときのみ)。
+ */
+@Composable
+private fun GuiTabScreen(
+    sessions: List<AppSession>,
+    activeId: String?,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val gui = sessions.firstOrNull { it.id == activeId } as? GuiSession ?: return
+
+    LaunchedEffect(gui.id) {
+        val dm = context.resources.displayMetrics
+        val w = dm.widthPixels.coerceIn(320, 4096)
+        val h = dm.heightPixels.coerceIn(320, 4096)
+        gui.start(w, h)
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(ZtsBgPrimary)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    ) {
+        TabBar(
+            sessions = sessions,
+            activeId = activeId,
+            onSelect = { SessionManager.setActive(it) },
+            onClose = { SessionManager.close(it) },
+            onNew = { SessionManager.openNew(context) },
+            onNewGui = { SessionManager.openNewGui(context) }
+        )
+        Box(modifier = Modifier
+            .fillMaxWidth()
+            .weight(1f)
+        ) {
+            GuiScreen(session = gui, modifier = Modifier.fillMaxSize())
+        }
+    }
 }
 
 @Composable
@@ -489,11 +546,12 @@ private fun KeyboardToggleButton(
 
 @Composable
 private fun TabBar(
-    sessions: List<TerminalSession>,
+    sessions: List<AppSession>,
     activeId: String?,
     onSelect: (String) -> Unit,
     onClose: (String) -> Unit,
-    onNew: () -> Unit
+    onNew: () -> Unit,
+    onNewGui: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -514,28 +572,36 @@ private fun TabBar(
                 onClose = { onClose(sess.id) }
             )
         }
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
-                .background(ZtsBgCard)
-                .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
-                .clickable(onClick = onNew)
-                .padding(horizontal = 12.dp, vertical = 5.dp)
-        ) {
-            Text(
-                text = "+",
-                color = ZtsTextPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
-            )
-        }
+        // 新規端末タブ
+        NewTabButton(label = "+", onClick = onNew)
+        // 新規 GUI タブ (Xvnc + RFB)。端末用「+」の隣に並べる。
+        NewTabButton(label = "🖥", onClick = onNewGui)
+    }
+}
+
+@Composable
+private fun NewTabButton(label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(ZtsBgCard)
+            .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 5.dp)
+    ) {
+        Text(
+            text = label,
+            color = ZtsTextPrimary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace
+        )
     }
 }
 
 @Composable
 private fun TabChip(
-    session: TerminalSession,
+    session: AppSession,
     active: Boolean,
     canClose: Boolean,
     onSelect: () -> Unit,

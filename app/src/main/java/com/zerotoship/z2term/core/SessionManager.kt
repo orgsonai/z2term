@@ -1,14 +1,15 @@
 package com.zerotoship.z2term.core
 
 import android.content.Context
+import com.zerotoship.z2term.gui.GuiSession
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * プロセス全体で複数の [TerminalSession] を保持するシングルトン。
+ * プロセス全体で複数の [AppSession] (端末 / GUI) を保持するシングルトン。
  *
- * - `sessions` : 開いているセッションの順序付きリスト
+ * - `sessions` : 開いているセッションの順序付きリスト (端末タブと GUI タブが混在)
  * - `activeId` : 現在 UI が表示しているセッション ID
  *
  * UI ViewModel もフォアグラウンドサービスもこの object 経由でセッションに
@@ -18,22 +19,31 @@ import kotlinx.coroutines.flow.asStateFlow
 object SessionManager {
 
     private val lock = Any()
-    private val mutableSessions = mutableListOf<TerminalSession>()
+    private val mutableSessions = mutableListOf<AppSession>()
 
-    private val _sessions = MutableStateFlow<List<TerminalSession>>(emptyList())
-    val sessions: StateFlow<List<TerminalSession>> = _sessions.asStateFlow()
+    private val _sessions = MutableStateFlow<List<AppSession>>(emptyList())
+    val sessions: StateFlow<List<AppSession>> = _sessions.asStateFlow()
 
     private val _activeId = MutableStateFlow<String?>(null)
     val activeId: StateFlow<String?> = _activeId.asStateFlow()
 
-    /** 0 件なら新規生成、それ以外は既存のアクティブを返す */
-    fun ensureFirst(context: Context): TerminalSession = synchronized(lock) {
+    /** 0 件なら新規端末を生成、それ以外は既存のアクティブを返す */
+    fun ensureFirst(context: Context): AppSession = synchronized(lock) {
         active() ?: openNew(context)
     }
 
-    /** 新しいセッションを開き、アクティブにする */
+    /** 新しい端末セッションを開き、アクティブにする */
     fun openNew(context: Context): TerminalSession = synchronized(lock) {
         val s = TerminalSession(context.applicationContext)
+        mutableSessions.add(s)
+        _sessions.value = mutableSessions.toList()
+        _activeId.value = s.id
+        s
+    }
+
+    /** 新しい GUI セッション (Xvnc + RFB) を開き、アクティブにする */
+    fun openNewGui(context: Context): GuiSession = synchronized(lock) {
+        val s = GuiSession(context.applicationContext)
         mutableSessions.add(s)
         _sessions.value = mutableSessions.toList()
         _activeId.value = s.id
@@ -43,7 +53,7 @@ object SessionManager {
     /** 指定セッションを終了 (アクティブが消えたら次を選ぶ) */
     fun close(id: String) = synchronized(lock) {
         val s = mutableSessions.firstOrNull { it.id == id } ?: return@synchronized
-        s.shutdown()
+        s.shutdown()  // AppSession.shutdown (端末=PTY 停止 / GUI=Xvnc 停止)
         mutableSessions.remove(s)
         _sessions.value = mutableSessions.toList()
         if (_activeId.value == id) {
@@ -66,7 +76,7 @@ object SessionManager {
         _activeId.value = null
     }
 
-    fun active(): TerminalSession? = synchronized(lock) {
+    fun active(): AppSession? = synchronized(lock) {
         val id = _activeId.value ?: return@synchronized null
         mutableSessions.firstOrNull { it.id == id }
     }

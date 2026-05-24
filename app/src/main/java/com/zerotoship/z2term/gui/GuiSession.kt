@@ -28,12 +28,19 @@ import java.net.ConnectException
  *
  * 入力（ポインタ/キー）は M8-3、タブ統合・ズーム/パン等は M8-4。
  */
-class GuiSession(private val context: Context) {
+class GuiSession(
+    private val context: Context,
+    override val id: String = java.util.UUID.randomUUID().toString()
+) : com.zerotoship.z2term.core.AppSession {
 
     enum class State { IDLE, STARTING, CONNECTING, CONNECTED, ERROR, STOPPED }
 
     private val _state = MutableStateFlow(State.IDLE)
     val state: StateFlow<State> = _state.asStateFlow()
+
+    /** タブ表示名 (常に "GUI")。 */
+    private val _label = MutableStateFlow("GUI")
+    override val label: StateFlow<String> = _label.asStateFlow()
 
     private val _message = MutableStateFlow("")
     val message: StateFlow<String> = _message.asStateFlow()
@@ -125,16 +132,40 @@ class GuiSession(private val context: Context) {
         return false
     }
 
+    /** [com.zerotoship.z2term.core.AppSession] 実装。タブクローズ時に呼ばれる。 */
+    override fun shutdown() = stop()
+
     fun stop() {
         scope.launch {
             runCatching { rfb.close() }
             runCatching { rxJob?.cancel() }
-            // PtyProcess を閉じると proot が終了 → --kill-on-exit で Xvnc/openbox も停止する。
+            // Xvnc は proot の ptrace 対象。pty.close() は proot に SIGHUP を送るだけで、
+            // シグナルで proot が死ぬとカーネルがトレースを外すため --kill-on-exit が
+            // 効かず Xvnc が生き残る (5901 リーク)。さらに z2gui は GUI を setsid で
+            // 切り離している。確実に止めるため、別 proot で `z2gui stop` を流して
+            // Xvnc/WM を明示的に kill してから PTY を閉じる。
+            runCatching { runGuiStop() }
             runCatching { pty?.close() }
             pty = null
             _state.value = State.STOPPED
             _message.value = "停止しました"
         }
+    }
+
+    /**
+     * 別 proot で `z2gui stop` を実行し、最初の proot が立てた Xvnc/openbox/xterm を停止する。
+     * `/proc` は proot に実体バインドされ全 proot が同一 Android uid なので、別インスタンスからでも
+     * pid を走査して kill できる (GuiScript の stop_x)。EOF まで読んで完了を待つ。
+     */
+    private fun runGuiStop() {
+        val p = ProotLauncher(context).launch(
+            distroId = "alpine",
+            command = "/usr/local/bin/z2gui",
+            extraArgs = listOf("stop"),
+        )
+        val buf = ByteArray(1024)
+        try { while (p.reader.read(buf) >= 0) { /* stop_x 完了 (EOF) まで待つ */ } } catch (_: Exception) {}
+        runCatching { p.close() }
     }
 
     companion object {

@@ -54,12 +54,13 @@
             </intent-filter>
         </activity>
 
-        <!-- M8-2 検証用: Linux GUI 表示 (RFB) の単独 Activity。debug ビルドのみ動作
-             (release では onCreate で即 finish)。adb am start で起動して画面表示を確認する。
-             正式なタブ統合は M8-4。 -->
+        <!-- M8-4 で正式タブ統合済 (タブバーの 🖥 ボタンで GUI タブを開く)。
+             この単独 Activity は debug 専用の検証ツールとして残置 (release では
+             onCreate で即 finish)。exported=false にして外部 (adb am start 含む) からは
+             起動できないようにした。アプリ内部から起動する用途のみ。 -->
         <activity
             android:name=".gui.GuiActivity"
-            android:exported="true"
+            android:exported="false"
             android:label="z2term GUI"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|density|fontScale|uiMode"
             android:theme="@style/Theme.Z2Term" />
