@@ -9,21 +9,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 
 /**
@@ -32,15 +27,28 @@ import androidx.compose.ui.viewinterop.AndroidView
  * [RfbClient][com.zerotoship.z2term.gui.rfb.RfbClient] が更新する Bitmap を、アスペクト比を保ったまま
  * 中央にフィット表示する。再描画は `rfb.redraw` の collect で発火（端末 TerminalRenderer と同方式）。
  * CONNECTED 後は [GuiInputView] を上に重ねてタッチ/キー入力を RFB へ送る（座標フィット計算は
- * GuiInputView 側と一致させてある）。ピンチ/パン・回転対応は M8-4。
+ * GuiInputView 側と一致させてある）。
+ *
+ * キーボードは端末と共通の「ツールバー仕様」を [GuiTabScreen][com.zerotoship.z2term.ui.terminal] 側で
+ * GUI に**上乗せ**表示する（この画面の解像度・フィットは変えない）。この画面は表示とポインタ、
+ * および SYSTEM モード時の OS IME 表示制御だけを担う。
+ *
+ * @param imeVisible    SYSTEM キーボードモードで OS ソフト IME を出すか。
+ * @param ctrlSticky    SYSTEM モードの sticky Ctrl。OS IME 確定文字へ Ctrl を付ける。
+ * @param onCtrlConsumed sticky Ctrl を 1 文字に適用したとき呼ばれる（呼び出し側で解除）。
  */
 @Composable
-fun GuiScreen(session: GuiSession, modifier: Modifier = Modifier) {
+fun GuiScreen(
+    session: GuiSession,
+    imeVisible: Boolean = false,
+    ctrlSticky: Boolean = false,
+    onCtrlConsumed: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     val state by session.state.collectAsState()
     val message by session.message.collectAsState()
     val tick by session.rfb.redraw.collectAsState()
     val vrev by session.viewport.rev.collectAsState()
-    var inputView by remember { mutableStateOf<GuiInputView?>(null) }
 
     Box(
         modifier = modifier
@@ -68,28 +76,25 @@ fun GuiScreen(session: GuiSession, modifier: Modifier = Modifier) {
         }
 
         if (state == GuiSession.State.CONNECTED) {
-            // 透明オーバーレイ: タッチ/キー → RFB 入力。
+            // 透明オーバーレイ: タッチ/キー → RFB 入力。OS IME 表示はキーボードモードに追従。
             AndroidView(
                 factory = { ctx ->
                     GuiInputView(ctx).also {
                         it.rfb = session.rfb
                         it.viewport = session.viewport
-                        inputView = it
+                        it.ctrlSticky = ctrlSticky
+                        it.onCtrlConsumed = onCtrlConsumed
                     }
                 },
-                update = { it.rfb = session.rfb; it.viewport = session.viewport },
+                update = {
+                    it.rfb = session.rfb
+                    it.viewport = session.viewport
+                    it.ctrlSticky = ctrlSticky
+                    it.onCtrlConsumed = onCtrlConsumed
+                    if (imeVisible) it.showIme() else it.hideIme()
+                },
                 modifier = Modifier.fillMaxSize(),
             )
-            // キーボード表示トグル。
-            FloatingActionButton(
-                onClick = { inputView?.toggleKeyboard() },
-                containerColor = Color(0xFF22C55E),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(20.dp),
-            ) {
-                Text("⌨", fontSize = 22.sp, color = Color.Black)
-            }
         }
 
         if (state != GuiSession.State.CONNECTED) {

@@ -55,6 +55,7 @@ import com.zerotoship.z2term.distro.DistroBundle
 import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.emulator.TerminalTheme
+import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
@@ -281,6 +282,22 @@ fun SettingsSheet(
                     labels = KeyboardStyle.ALL.associate { it.id to it.displayName },
                     selected = settings.keyboardStyleId,
                     onSelect = { session.setKeyboardStyleId(it) }
+                )
+            }
+
+            Section(title = "GUI のターミナル (次回 GUI 起動から反映)") {
+                ChipRow(
+                    options = GuiTerminal.ALL.map { it.id },
+                    labels = GuiTerminal.ALL.associate { it.id to it.displayName },
+                    selected = settings.guiTerminalId,
+                    onSelect = { session.setGuiTerminal(it) }
+                )
+                Text(
+                    text = "🖥 GUI タブで開くターミナル。未導入なら初回 GUI 起動時に自動導入されます" +
+                        "（Konsole は KDE 系で初回ダウンロードが大きめ・Wi-Fi 推奨）。",
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
                 )
             }
 

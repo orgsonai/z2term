@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,8 +48,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.zerotoship.z2term.core.AppSession
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.core.TerminalSession
+import com.zerotoship.z2term.gui.GuiKeyMapper
 import com.zerotoship.z2term.gui.GuiScreen
 import com.zerotoship.z2term.gui.GuiSession
+import com.zerotoship.z2term.gui.rfb.RfbClient
+import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.ui.settings.SettingsSheet
@@ -343,10 +348,16 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
 }
 
 /**
- * GUI タブの画面。上部に (端末と共通の) タブバー、その下にリモート GUI を表示する。
- * 初回表示で Xvnc を起動する (解像度は画面実サイズ。[GuiSession.start] は再入ガード済み)。
- * タブ切替で離れても [GuiSession] は SessionManager が保持し続けるので動き続ける
- * (停止はタブを × で閉じたときのみ)。
+ * GUI タブの画面。端末画面と同じ枠組み (TopBar + タブバー + キーボード) を持つ。
+ *
+ *  - **TopBar は残す**。端末専用ボタン (📋貼付 / CMD) はグレーアウト、共通の💡/⌨切替/⚙は有効。
+ *  - **キーボードは端末と同一仕様** (独自キーボード CUSTOM / SpecialKeyBar SYSTEM)。押下は
+ *    keysym へ橋渡しして RFB へ送る ([GuiKeyMapper.sendBytes] / [GuiSpecialKeyBar])。
+ *  - キーボードは GUI に**上乗せ** (BottomStart オーバーレイ)。コンテンツ Box は常にフル高なので
+ *    **GUI のフィット解像度は変わらない**。SYSTEM 時の OS IME は imePadding で特殊キーバーを上げる。
+ *
+ * 初回表示で Xvnc を起動 (解像度は画面実サイズ。[GuiSession.start] は再入ガード済み)。タブ切替で
+ * 離れても [GuiSession] は SessionManager が保持し続けるので動き続ける (停止はタブ × のときのみ)。
  */
 @Composable
 private fun GuiTabScreen(
@@ -355,7 +366,17 @@ private fun GuiTabScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val gui = sessions.firstOrNull { it.id == activeId } as? GuiSession ?: return
+
+    // GUI タブには TerminalSession が無いので、設定は AppSettings を直接購読する。
+    val appSettings = remember { AppSettings(context.applicationContext) }
+    val settings by appSettings.flow.collectAsState(initial = AppSettings.Snapshot())
+    val customTheme by CustomThemeStore.theme.collectAsState()
+    LaunchedEffect(settings.themeName, customTheme) {
+        AppColors.applyFrom(resolveTheme(settings.themeName, customTheme))
+    }
+    LaunchedEffect(Unit) { KanaKanjiConverter.ensureLoaded(context) }
 
     LaunchedEffect(gui.id) {
         val dm = context.resources.displayMetrics
@@ -364,12 +385,60 @@ private fun GuiTabScreen(
         gui.start(w, h)
     }
 
+    var keyboardMode by remember { mutableStateOf(KeyboardMode.CUSTOM) }
+    var keyboardCollapsed by remember { mutableStateOf(false) }
+    var ctrlSticky by remember { mutableStateOf(false) }
+    var keepScreenOn by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
+
+    val rootView = LocalView.current
+    LaunchedEffect(keepScreenOn) { rootView.keepScreenOn = keepScreenOn }
+
+    // 起動時に保存済みキーボードモードを 1 度だけ復元 (端末と挙動を揃える)。
+    var restoredMode by remember { mutableStateOf(false) }
+    LaunchedEffect(settings.keyboardMode) {
+        if (!restoredMode) {
+            keyboardMode = if (settings.keyboardMode == "system")
+                KeyboardMode.SYSTEM else KeyboardMode.CUSTOM
+            restoredMode = true
+        }
+    }
+
+    // かな漢字変換: 確定文字列は keysym で GUI へ送る (端末はバイト送出、GUI は keysym 経路)。
+    val composing = remember(gui.id) {
+        ComposingState(onCommit = { GuiKeyMapper.sendText(gui.rfb, it) })
+    }
+    LaunchedEffect(keyboardMode, keyboardCollapsed) { composing.reset() }
+
+    // 設定シートは TerminalSession を要求するので、開いている端末タブを 1 つ借りる。
+    // GUI だけのときは ⚙ をグレーアウト (端末タブを開けば設定できる)。
+    val terminalForSettings = sessions.firstOrNull { it is TerminalSession } as? TerminalSession
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(ZtsBgPrimary)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
+            // GUI はキーボード表示で解像度を変えない方針 → ime を含めない systemBars のみ。
+            // (OS IME / 独自キーボードはコンテンツ Box に上乗せする)
+            .windowInsetsPadding(WindowInsets.systemBars)
     ) {
+        GuiTopBar(
+            session = gui,
+            keyboardMode = keyboardMode,
+            onToggleKeyboardMode = {
+                val next = if (keyboardMode == KeyboardMode.CUSTOM)
+                    KeyboardMode.SYSTEM else KeyboardMode.CUSTOM
+                keyboardMode = next
+                scope.launch {
+                    appSettings.setKeyboardMode(if (next == KeyboardMode.SYSTEM) "system" else "custom")
+                }
+            },
+            keepScreenOn = keepScreenOn,
+            onToggleKeepScreenOn = { keepScreenOn = !keepScreenOn },
+            settingsEnabled = terminalForSettings != null,
+            onOpenSettings = { settingsOpen = true }
+        )
+
         TabBar(
             sessions = sessions,
             activeId = activeId,
@@ -378,12 +447,180 @@ private fun GuiTabScreen(
             onNew = { SessionManager.openNew(context) },
             onNewGui = { SessionManager.openNewGui(context) }
         )
+
         Box(modifier = Modifier
             .fillMaxWidth()
             .weight(1f)
         ) {
-            GuiScreen(session = gui, modifier = Modifier.fillMaxSize())
+            GuiScreen(
+                session = gui,
+                imeVisible = keyboardMode == KeyboardMode.SYSTEM && !keyboardCollapsed,
+                ctrlSticky = ctrlSticky,
+                onCtrlConsumed = { ctrlSticky = false },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // キーボードを GUI に上乗せ (解像度は変えない)。SYSTEM 時は OS IME の上に出すため imePadding。
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .imePadding()
+            ) {
+                CandidateBar(composing = composing)
+                KeyboardToggleBar(
+                    collapsed = keyboardCollapsed,
+                    onToggle = { keyboardCollapsed = !keyboardCollapsed }
+                )
+                if (!keyboardCollapsed) {
+                    when (keyboardMode) {
+                        KeyboardMode.CUSTOM -> {
+                            val style = KeyboardStyle.byId(settings.keyboardStyleId)
+                            Box(modifier = Modifier
+                                .fillMaxWidth()
+                                .height(style.naturalHeight)
+                            ) {
+                                TerminalKeyboard(
+                                    onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
+                                    onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) },
+                                    composing = composing,
+                                    style = style
+                                )
+                            }
+                        }
+                        KeyboardMode.SYSTEM -> {
+                            GuiSpecialKeyBar(
+                                rfb = gui.rfb,
+                                ctrlSticky = ctrlSticky,
+                                onCtrlToggle = { ctrlSticky = !ctrlSticky }
+                            )
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    if (settingsOpen && terminalForSettings != null) {
+        SettingsSheet(
+            session = terminalForSettings,
+            onDismiss = { settingsOpen = false },
+            // GUI からは SSH / 独自テーマ編集の各シートまでは開かない (端末タブで)。
+            onOpenSsh = { settingsOpen = false },
+            onEditCustomTheme = { }
+        )
+    }
+}
+
+/**
+ * GUI タブ用 TopBar。端末の [TopBar] と同じ並び・見た目を保ちつつ、端末専用ボタン
+ * (📋貼付 / CMD スニペット) はグレーアウトする。💡画面消灯ロック / ⌨キーボード切替 /
+ * ⚙設定 は GUI でも使えるので有効。
+ */
+@Composable
+private fun GuiTopBar(
+    session: GuiSession,
+    keyboardMode: KeyboardMode,
+    onToggleKeyboardMode: () -> Unit,
+    keepScreenOn: Boolean,
+    onToggleKeepScreenOn: () -> Unit,
+    settingsEnabled: Boolean,
+    onOpenSettings: () -> Unit
+) {
+    val label by session.label.collectAsState()
+    val state by session.state.collectAsState()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ZtsBgSecondary)
+            .border(width = 1.dp, color = ZtsBorder)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = label,
+            color = ZtsGreen,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            fontFamily = FontFamily.Monospace
+        )
+        Box(modifier = Modifier.weight(1f))
+
+        // 並びは端末 TopBar と同じ。GUI で使えないボタンはグレーアウト。
+        TopBarIconButton(label = "📋", enabled = false) {}   // 貼付は端末向け
+        TopBarIconButton(label = "CMD", enabled = false) {}  // スニペットは端末向け
+        KeepScreenOnButton(active = keepScreenOn, onClick = onToggleKeepScreenOn)
+        KeyboardToggleButton(
+            imeActive = keyboardMode == KeyboardMode.SYSTEM,
+            onClick = onToggleKeyboardMode
+        )
+        TopBarIconButton(label = "⚙", enabled = settingsEnabled, onClick = onOpenSettings)
+
+        Text(
+            text = state.name,
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+/**
+ * GUI 用の特殊キーバー (端末 [com.zerotoship.z2term.ui.terminal.components.SpecialKeyBar] の keysym 版)。
+ * SYSTEM キーボードモードで OS IME と一緒に出す。送出はバイトでなく X keysym。
+ */
+@Composable
+private fun GuiSpecialKeyBar(
+    rfb: RfbClient,
+    ctrlSticky: Boolean,
+    onCtrlToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(ZtsBgSecondary)
+            .padding(horizontal = 4.dp, vertical = 6.dp)
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        GuiSpecialKey("ESC") { rfb.tapKey(GuiKeyMapper.XK_Escape) }
+        GuiSpecialKey("TAB") { rfb.tapKey(GuiKeyMapper.XK_Tab) }
+        GuiSpecialKey("CTRL", active = ctrlSticky, onClick = onCtrlToggle)
+        GuiSpecialKey("←") { rfb.tapKey(GuiKeyMapper.XK_Left) }
+        GuiSpecialKey("↓") { rfb.tapKey(GuiKeyMapper.XK_Down) }
+        GuiSpecialKey("↑") { rfb.tapKey(GuiKeyMapper.XK_Up) }
+        GuiSpecialKey("→") { rfb.tapKey(GuiKeyMapper.XK_Right) }
+        GuiSpecialKey("⏎") { rfb.tapKey(GuiKeyMapper.XK_Return) }
+        GuiSpecialKey("C-C") { GuiKeyMapper.sendCtrlCombo(rfb, 'c'.code) }
+        GuiSpecialKey("C-D") { GuiKeyMapper.sendCtrlCombo(rfb, 'd'.code) }
+        GuiSpecialKey("C-L") { GuiKeyMapper.sendCtrlCombo(rfb, 'l'.code) }
+    }
+}
+
+@Composable
+private fun GuiSpecialKey(label: String, active: Boolean = false, onClick: () -> Unit) {
+    val bg = if (active) ZtsGreen else ZtsBgCard
+    val fg = if (active) Color.Black else ZtsTextPrimary
+    val border = if (active) ZtsGreen else ZtsBorder
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = fg,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            fontFamily = FontFamily.Monospace
+        )
     }
 }
 
@@ -462,19 +699,23 @@ private fun TopBar(
 }
 
 @Composable
-private fun TopBarIconButton(label: String, onClick: () -> Unit) {
+private fun TopBarIconButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    // 無効時はグレーアウト (GUI タブで端末専用ボタンを残しつつ押せなくする)。
+    val bg = if (enabled) ZtsBgCard else ZtsBgCard.copy(alpha = 0.35f)
+    val border = if (enabled) ZtsBorder else ZtsBorder.copy(alpha = 0.35f)
+    val fg = if (enabled) ZtsTextPrimary else ZtsTextSecondary.copy(alpha = 0.4f)
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(ZtsBgCard)
-            .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick)
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(6.dp))
+            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 10.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
-            color = ZtsTextPrimary,
+            color = fg,
             fontSize = 13.sp,
             fontFamily = FontFamily.Monospace
         )

@@ -10,7 +10,7 @@ const val Z2TERM_VNC_PORT = 5901
 /** 仮想 X ディスプレイ番号 (`Xvnc :1`)。 */
 const val Z2TERM_VNC_DISPLAY = 1
 
-/** GUI 起動に必要な Alpine パッケージ (オンデマンド `apk add`)。 */
+/** （参考）Alpine の GUI パッケージ。実際の導入は [z2guiScript] が distro 判定して切替える。 */
 const val Z2TERM_GUI_PACKAGES = "tigervnc openbox xterm font-noto ttf-dejavu"
 
 /**
@@ -22,11 +22,18 @@ const val Z2TERM_GUI_PACKAGES = "tigervnc openbox xterm font-noto ttf-dejavu"
  *
  * これを `/usr/local/bin/z2gui` に配置 (ProotLauncher.ensureGuiScript) することで、
  * 端末から、または z2term の GUI セッションから次のように使える:
- *  - `z2gui` / `z2gui start [WxH]` … Xvnc + openbox + xterm を起動 (未導入なら自動 apk add)
+ *  - `z2gui` / `z2gui start [WxH]` … Xvnc + openbox + ターミナルを起動 (未導入なら自動導入)
  *  - `z2gui 1080x2160`             … 解像度を直接指定して起動
  *  - `z2gui stop`                  … Xvnc/WM を停止
  *  - `z2gui status`               … 起動状態を表示
  *  - `z2gui install`              … GUI 一式を導入するだけ
+ *
+ * **distro 非依存**: スクリプト内でパッケージマネージャ (apk / apt-get / pacman) を判定し、
+ * その distro のパッケージ名・X サーバ名 (Xvnc または Xtigervnc) を使う。選択中の OS で
+ * そのまま GUI が立ち上がる（HANDOFF「選択中のOSで立ち上げ」要望）。
+ *
+ * [terminalBinary] / [terminalPackage]: GUI 内で起動するターミナル。設定 ([GuiTerminal]) から
+ * z2term が渡す。ここに来る端末のパッケージ名は apk/apt/pacman で同名。
  *
  * RFB は `-SecurityTypes None -localhost` で認証なし・loopback 限定。z2term は
  * 127.0.0.1:[Z2TERM_VNC_PORT] へ接続する。
@@ -34,20 +41,22 @@ const val Z2TERM_GUI_PACKAGES = "tigervnc openbox xterm font-noto ttf-dejavu"
 fun z2guiScript(
     rfbPort: Int = Z2TERM_VNC_PORT,
     display: Int = Z2TERM_VNC_DISPLAY,
-    packages: String = Z2TERM_GUI_PACKAGES,
+    terminalBinary: String = "xterm",
+    terminalPackage: String = "xterm",
     defaultGeometry: String = "1280x720"
 ): String {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
     return """
         |#!/bin/sh
-        |# z2term: Linux GUI ランチャ (Xvnc + openbox + アプリ)。
+        |# z2term: Linux GUI ランチャ (Xvnc + openbox + ターミナル)。distro 非依存。
         |# RFB は 127.0.0.1 のみで待ち受け (z2term 内蔵クライアントが接続)。外部公開しない。
         |#   使い方: z2gui [start [WxH] | stop | status | install]
         |DISPLAY_NUM=$display
         |DISP=":$display"
         |RFBPORT=$rfbPort
         |DEFAULT_GEOM="$defaultGeometry"
-        |PKGS="$packages"
+        |GUI_TERM_BIN="$terminalBinary"
+        |GUI_TERM_PKG="$terminalPackage"
         |export DISPLAY="${d}DISP"
         |export HOME="${d}{HOME:-/root}"
         |
@@ -60,16 +69,38 @@ fun z2guiScript(
         |
         |has() { command -v "${d}1" >/dev/null 2>&1; }
         |
-        |install_pkgs() {
-        |  if ! has apk; then
-        |    echo "❌ apk が見つかりません (現状 Alpine のみ対応)。"; return 1
+        |# X サーバの実体名を解決 (TigerVNC は distro により Xvnc または Xtigervnc)。
+        |xbin() { for b in Xvnc Xtigervnc; do has "${d}b" && { echo "${d}b"; return 0; }; done; return 1; }
+        |
+        |# パッケージマネージャと、その distro のサーバ/WM/フォントのパッケージ名を決める。
+        |#  端末パッケージ (GUI_TERM_PKG) は apk/apt/pacman で同名なので共通で末尾に足す。
+        |PM=""; INSTALL=""; SRV_PKGS=""
+        |detect_pm() {
+        |  if has apk; then
+        |    PM=apk;    SRV_PKGS="tigervnc openbox font-noto ttf-dejavu"
+        |  elif has apt-get; then
+        |    PM=apt;    SRV_PKGS="tigervnc-standalone-server openbox fonts-noto-core fonts-dejavu"
+        |  elif has pacman; then
+        |    PM=pacman; SRV_PKGS="tigervnc openbox noto-fonts ttf-dejavu"
+        |  else
+        |    PM=""
         |  fi
-        |  echo "📦 GUI 一式を導入します: ${d}PKGS"
-        |  apk update && apk add --no-cache ${d}PKGS
+        |}
+        |
+        |install_pkgs() {
+        |  detect_pm
+        |  PKGS="${d}SRV_PKGS ${d}GUI_TERM_PKG"
+        |  echo "📦 GUI 一式を導入します (${d}PM): ${d}PKGS"
+        |  case "${d}PM" in
+        |    apk)    apk update && apk add --no-cache ${d}PKGS ;;
+        |    apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}PKGS ;;
+        |    pacman) pacman -Sy --noconfirm ${d}PKGS ;;
+        |    *) echo "❌ 対応パッケージマネージャ (apk/apt-get/pacman) が見つかりません。"; return 1 ;;
+        |  esac
         |}
         |
         |ensure_pkgs() {
-        |  if has Xvnc && has openbox; then return 0; fi
+        |  if xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN"; then return 0; fi
         |  install_pkgs
         |}
         |
@@ -90,7 +121,7 @@ fun z2guiScript(
         |  for c in /proc/[0-9]*/comm; do
         |    [ -r "${d}c" ] || continue
         |    case "${d}(cat "${d}c" 2>/dev/null)" in
-        |      Xvnc|Xtigervnc|openbox|xterm)
+        |      Xvnc|Xtigervnc|openbox|xterm|urxvt|lxterminal|konsole)
         |        pid=${d}{c#/proc/}; pid=${d}{pid%/comm}; kill "${d}pid" 2>/dev/null ;;
         |    esac
         |  done
@@ -112,7 +143,7 @@ fun z2guiScript(
         |    *) echo "❌ 解像度の形式が不正: '${d}GEOM' (例 1280x720)"; exit 1 ;;
         |  esac
         |  ensure_pkgs || exit 1
-        |  if ! has Xvnc; then echo "❌ Xvnc がありません (tigervnc 未導入)"; exit 1; fi
+        |  XSERVER=${d}(xbin) || { echo "❌ Xvnc/Xtigervnc がありません (tigervnc 未導入)"; exit 1; }
         |  # 再入ガード: Xvnc が実際に生きているなら stop_x で**動作中のセッションを壊さない**。
         |  # (z2gui が誤って再起動された場合の安全網。本来の再帰起動は上の SHELL 上書きで防ぐ。
         |  #  stale ソケットだけ残った状態では x_alive=false となり下の stop_x で掃除される。)
@@ -123,11 +154,11 @@ fun z2guiScript(
         |  stop_x
         |  mkdir -p /tmp/.X11-unix 2>/dev/null
         |  chmod 1777 /tmp/.X11-unix 2>/dev/null
-        |  echo "▶ Xvnc 起動: ${d}GEOM @ ${d}DISP (RFB 127.0.0.1:${d}RFBPORT)"
+        |  echo "▶ ${d}XSERVER 起動: ${d}GEOM @ ${d}DISP (RFB 127.0.0.1:${d}RFBPORT)"
         |  # GUI 配下のプロセスは launcher の制御端末 (アプリ側 PtyProcess が握る PTY) から
         |  # setsid で切り離して起動する (GUI プロセスが端末を共有する必要はない)。
         |  # stdin は /dev/null に向ける。
-        |  setsid Xvnc "${d}DISP" -geometry "${d}GEOM" -depth 24 -SecurityTypes None -localhost -rfbport "${d}RFBPORT" -noreset </dev/null >/tmp/z2gui-xvnc.log 2>&1 &
+        |  setsid "${d}XSERVER" "${d}DISP" -geometry "${d}GEOM" -depth 24 -SecurityTypes None -localhost -rfbport "${d}RFBPORT" -noreset </dev/null >/tmp/z2gui-xvnc.log 2>&1 &
         |  i=0
         |  while [ ${d}i -lt 50 ]; do
         |    x_running && break
@@ -137,7 +168,11 @@ fun z2guiScript(
         |    echo "❌ Xvnc 起動失敗。ログ:"; cat /tmp/z2gui-xvnc.log 2>/dev/null; exit 1
         |  fi
         |  setsid openbox </dev/null >/tmp/z2gui-wm.log 2>&1 &
-        |  has xterm && setsid xterm </dev/null >/dev/null 2>&1 &
+        |  if has "${d}GUI_TERM_BIN"; then
+        |    setsid "${d}GUI_TERM_BIN" </dev/null >/tmp/z2gui-term.log 2>&1 &
+        |  else
+        |    echo "⚠ 端末 ${d}GUI_TERM_BIN が見つかりません (導入失敗?)。openbox のみ起動。"
+        |  fi
         |  echo "✅ GUI 準備完了。z2term の GUI タブから 127.0.0.1:${d}RFBPORT に接続してください。"
         |  # proot --kill-on-exit 対策: ここでブロックし続けることで Xvnc/WM を生かす。
         |  # setsid したプロセスはジョブ制御から外れるため wait では待てない。X ソケットの

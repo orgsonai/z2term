@@ -1,6 +1,8 @@
 package com.zerotoship.z2term.gui
 
 import android.view.KeyEvent
+import com.zerotoship.z2term.emulator.TerminalEmulator
+import com.zerotoship.z2term.gui.rfb.RfbClient
 
 /**
  * Android の入力 → **X11 keysym** 変換テーブル（GUI = VNC 用）。
@@ -95,5 +97,68 @@ object GuiKeyMapper {
         val unicode = event.unicodeChar
         if (unicode != 0) return keysymForCodePoint(unicode)
         return 0
+    }
+
+    /** カーソルキー (端末用 enum) → keysym。GUI の独自キーボード矢印で使う。 */
+    fun keysymForCursor(key: TerminalEmulator.CursorKey): Int = when (key) {
+        TerminalEmulator.CursorKey.UP -> XK_Up
+        TerminalEmulator.CursorKey.DOWN -> XK_Down
+        TerminalEmulator.CursorKey.LEFT -> XK_Left
+        TerminalEmulator.CursorKey.RIGHT -> XK_Right
+    }
+
+    /** 確定文字列を 1 コードポイントずつ keysym で送る（かな漢字変換の確定・OS IME 確定で使う）。 */
+    fun sendText(rfb: RfbClient, text: String) {
+        var i = 0
+        while (i < text.length) {
+            val cp = text.codePointAt(i)
+            val ks = keysymForCodePoint(cp)
+            if (ks != 0) rfb.tapKey(ks)
+            i += Character.charCount(cp)
+        }
+    }
+
+    /** keysym を Control 修飾付きで送る（Control_L 押下 → tap → Control_L 解放）。 */
+    fun sendKeysymWithCtrl(rfb: RfbClient, keysym: Int) {
+        rfb.sendKeyEvent(XK_Control_L, down = true)
+        rfb.tapKey(keysym)
+        rfb.sendKeyEvent(XK_Control_L, down = false)
+    }
+
+    /** コードポイントを Ctrl 修飾付きで送る（特殊キーバーの C-C / C-D / C-L など）。 */
+    fun sendCtrlCombo(rfb: RfbClient, codePoint: Int) =
+        sendKeysymWithCtrl(rfb, keysymForCodePoint(codePoint))
+
+    /**
+     * 端末用キーボード ([com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard]) が `onBytes` で
+     * 吐く **VT バイト列**を、GUI(RFB) 用の **keysym 入力**へ橋渡しする。これで独自キーボード・
+     * 日本語フリック・記号などを丸ごと GUI でも使える（HANDOFF「キーボードもGUIもCUIも同じ」要望）。
+     *
+     * 対応:
+     *  - 先頭 ESC(0x1B) + 後続 = Alt 修飾 → Alt_L 押下のまま後続を再帰送出
+     *  - 単独 ESC / Tab / Enter(CR/LF) / BackSpace(BS/DEL) → 専用 keysym
+     *  - 制御文字 0x01–0x1A = Ctrl+英字 → Control 修飾付きでその英字を送出
+     *  - それ以外 = 印字 UTF-8 → コードポイントごとに keysym（かな等は Unicode keysym）
+     */
+    fun sendBytes(rfb: RfbClient, bytes: ByteArray) {
+        if (bytes.isEmpty()) return
+        // Alt 修飾 (ESC プレフィックス + 後続 1 文字以上)
+        if (bytes.size >= 2 && (bytes[0].toInt() and 0xFF) == 0x1B) {
+            rfb.sendKeyEvent(XK_Alt_L, down = true)
+            sendBytes(rfb, bytes.copyOfRange(1, bytes.size))
+            rfb.sendKeyEvent(XK_Alt_L, down = false)
+            return
+        }
+        if (bytes.size == 1) {
+            val b = bytes[0].toInt() and 0xFF
+            when {
+                b == 0x1B -> { rfb.tapKey(XK_Escape); return }
+                b == 0x09 -> { rfb.tapKey(XK_Tab); return }
+                b == 0x0D || b == 0x0A -> { rfb.tapKey(XK_Return); return }
+                b == 0x08 || b == 0x7F -> { rfb.tapKey(XK_BackSpace); return }
+                b in 0x01..0x1A -> { sendCtrlCombo(rfb, b + 0x60); return } // 0x01->'a'
+            }
+        }
+        sendText(rfb, String(bytes, Charsets.UTF_8))
     }
 }

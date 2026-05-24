@@ -34,7 +34,9 @@ class AppSettings(private val context: Context) {
         /** 直近のキーボードモード ("custom" / "system")。次回起動時に復元 */
         val keyboardMode: String = DEFAULT_KEYBOARD_MODE,
         /** フォアグラウンド常駐サービスを使うか (Activity 破棄後もセッション維持) */
-        val keepAliveService: Boolean = DEFAULT_KEEP_ALIVE
+        val keepAliveService: Boolean = DEFAULT_KEEP_ALIVE,
+        /** GUI セッションで起動するターミナル ([com.zerotoship.z2term.proot.GuiTerminal] の id) */
+        val guiTerminalId: String = DEFAULT_GUI_TERMINAL
     )
 
     val flow: Flow<Snapshot> = context.dataStore.data.map { p ->
@@ -49,8 +51,13 @@ class AppSettings(private val context: Context) {
             keyboardStyleId = p[KEY_KEYBOARD_STYLE] ?: DEFAULT_KEYBOARD_STYLE,
             loginShell = p[KEY_LOGIN_SHELL] ?: DEFAULT_LOGIN_SHELL,
             keyboardMode = p[KEY_KEYBOARD_MODE] ?: DEFAULT_KEYBOARD_MODE,
-            keepAliveService = p[KEY_KEEP_ALIVE] ?: DEFAULT_KEEP_ALIVE
+            keepAliveService = p[KEY_KEEP_ALIVE] ?: DEFAULT_KEEP_ALIVE,
+            guiTerminalId = p[KEY_GUI_TERMINAL] ?: DEFAULT_GUI_TERMINAL
         )
+    }
+
+    suspend fun setGuiTerminal(id: String) {
+        context.dataStore.edit { it[KEY_GUI_TERMINAL] = id }
     }
 
     suspend fun setKeyboardMode(mode: String) {
@@ -109,6 +116,8 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_KEYBOARD_STYLE = "compact"
         const val DEFAULT_KEYBOARD_MODE = "custom"
         const val DEFAULT_KEEP_ALIVE = true
+        /** GUI ターミナルの既定 ([com.zerotoship.z2term.proot.GuiTerminal.XTERM] の id) */
+        const val DEFAULT_GUI_TERMINAL = "xterm"
         /** Alpine 同梱で zsh が利用可能なので既定 zsh。`-l` でログインシェル動作。 */
         const val DEFAULT_LOGIN_SHELL = "/bin/zsh"
         val AVAILABLE_SHELLS = listOf("/bin/zsh", "/bin/bash", "/bin/sh")
@@ -129,5 +138,6 @@ class AppSettings(private val context: Context) {
         private val KEY_LOGIN_SHELL = stringPreferencesKey("login_shell")
         private val KEY_KEYBOARD_MODE = stringPreferencesKey("keyboard_mode")
         private val KEY_KEEP_ALIVE = booleanPreferencesKey("keep_alive_service")
+        private val KEY_GUI_TERMINAL = stringPreferencesKey("gui_terminal")
     }
 }

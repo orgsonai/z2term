@@ -77,7 +77,8 @@ class ProotLauncher(private val context: Context) {
         rows: Int = 24,
         cols: Int = 80,
         fallbackShell: String = "/bin/sh",
-        extraArgs: List<String> = emptyList()
+        extraArgs: List<String> = emptyList(),
+        guiTerminal: GuiTerminal = GuiTerminal.XTERM
     ): PtyProcess {
         val rootfs = File(distrosDir, distroId)
         if (!rootfs.exists()) {
@@ -104,7 +105,8 @@ class ProotLauncher(private val context: Context) {
         // proot で privsep 破綻 / sshd_config の UsePrivilegeSeparation で起動不可)。
         ensureSshdWrapper(rootfs)
         // `z2gui` で Linux GUI (Xvnc + WM) を起動できるよう launcher を配置。
-        ensureGuiScript(rootfs)
+        // GUI 内ターミナルは設定由来 (GuiSession が渡す)。端末起動では既定 xterm のまま。
+        ensureGuiScript(rootfs, guiTerminal)
         // Android 外部ストレージを cd できるようマウント先を用意。
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
@@ -305,11 +307,16 @@ class ProotLauncher(private val context: Context) {
      * 端末や GUI セッションから `z2gui start [WxH]` で Xvnc + openbox + アプリが立ち上がる。
      * launch 毎に上書きするので内容は常に最新。
      */
-    private fun ensureGuiScript(rootfs: File) {
+    private fun ensureGuiScript(rootfs: File, guiTerminal: GuiTerminal) {
         runCatching {
             val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
             val f = File(dir, "z2gui")
-            f.writeText(z2guiScript())
+            f.writeText(
+                z2guiScript(
+                    terminalBinary = guiTerminal.binary,
+                    terminalPackage = guiTerminal.packageName
+                )
+            )
             f.setReadable(true, false)
             f.setExecutable(true, false)
         }.onFailure { Log.w(TAG, "z2gui script 配置失敗", it) }

@@ -42,6 +42,12 @@ class GuiInputView(context: Context) : View(context) {
     /** ズーム/パンの表示変換 (GuiScreen と共有)。null の間は等倍フィット相当。 */
     var viewport: GuiViewport? = null
 
+    /** SYSTEM キーボード時の sticky Ctrl。ON の間、OS IME 確定文字を Ctrl 修飾付きで送る。 */
+    var ctrlSticky: Boolean = false
+
+    /** sticky Ctrl を 1 文字に適用したら呼ぶ (呼び出し側でトグル解除する)。 */
+    var onCtrlConsumed: (() -> Unit)? = null
+
     private var imeShown: Boolean = false
 
     // --- 仮想カーソル（トラックパッド式の相対移動）---
@@ -301,17 +307,21 @@ class GuiInputView(context: Context) : View(context) {
 
     // ---- キーボード -------------------------------------------------------
 
-    /** ソフトキーボードを出す / 引っ込めるをトグル（GuiScreen のボタンから呼ぶ）。 */
-    fun toggleKeyboard() {
+    /** OS ソフト IME を表示する (SYSTEM キーボードモードで使う)。冪等。 */
+    fun showIme() {
+        if (imeShown) return
+        if (!isFocused) requestFocus()
         val imm = context.getSystemService(InputMethodManager::class.java)
-        if (imeShown) {
-            imm?.hideSoftInputFromWindow(windowToken, 0)
-            imeShown = false
-        } else {
-            if (!isFocused) requestFocus()
-            imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
-            imeShown = true
-        }
+        imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
+        imeShown = true
+    }
+
+    /** OS ソフト IME を隠す。冪等。 */
+    fun hideIme() {
+        if (!imeShown) return
+        val imm = context.getSystemService(InputMethodManager::class.java)
+        imm?.hideSoftInputFromWindow(windowToken, 0)
+        imeShown = false
     }
 
     override fun onCheckIsTextEditor(): Boolean = true
@@ -393,7 +403,14 @@ class GuiInputView(context: Context) : View(context) {
             while (i < s.length) {
                 val cp = s.codePointAt(i)
                 val keysym = GuiKeyMapper.keysymForCodePoint(cp)
-                if (keysym != 0) c.tapKey(keysym)
+                if (keysym != 0) {
+                    if (view.ctrlSticky) {
+                        GuiKeyMapper.sendKeysymWithCtrl(c, keysym)
+                        view.onCtrlConsumed?.invoke()
+                    } else {
+                        c.tapKey(keysym)
+                    }
+                }
                 i += Character.charCount(cp)
             }
         }

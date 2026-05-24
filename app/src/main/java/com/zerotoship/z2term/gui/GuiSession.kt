@@ -3,9 +3,11 @@ package com.zerotoship.z2term.gui
 import android.content.Context
 import android.util.Log
 import com.zerotoship.z2term.gui.rfb.RfbClient
+import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.proot.Z2TERM_VNC_PORT
 import com.zerotoship.z2term.pty.PtyProcess
+import com.zerotoship.z2term.settings.AppSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -14,6 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.net.ConnectException
 
@@ -54,6 +57,9 @@ class GuiSession(
     private var pty: PtyProcess? = null
     private var rxJob: Job? = null
 
+    /** 起動した distro。停止 (runGuiStop) でも同じ distro を使うため start で確定させる。 */
+    private var distroId: String = "alpine"
+
     fun start(width: Int, height: Int) {
         when (_state.value) {
             State.STARTING, State.CONNECTING, State.CONNECTED -> return
@@ -63,12 +69,24 @@ class GuiSession(
         _message.value = "GUI を起動中… (${width}x$height)"
         scope.launch {
             try {
-                val p = ProotLauncher(context).launch(
-                    distroId = "alpine",
+                // 選択中の OS とターミナルで起動する (HANDOFF「選択中のOSで立ち上げ」要望)。
+                val snap = AppSettings(context).flow.first()
+                distroId = snap.distroId
+                val guiTerminal = GuiTerminal.byId(snap.guiTerminalId)
+                // rootfs が未展開だと launch が例外になるので、先に分かりやすく案内する。
+                // (未展開 distro をここで勝手にダウンロードはしない。端末タブで起動して導入させる。)
+                val launcher = ProotLauncher(context)
+                if (!launcher.isDistroReady(distroId)) {
+                    fail("「$distroId」がまだ展開されていません。先に端末タブでこの OS を起動してください。")
+                    return@launch
+                }
+                val p = launcher.launch(
+                    distroId = distroId,
                     command = "/usr/local/bin/z2gui",
                     rows = 24,
                     cols = 80,
                     extraArgs = listOf("start", "${width}x$height"),
+                    guiTerminal = guiTerminal,
                 )
                 pty = p
                 // z2gui の出力はログへ排出（PTY バッファが詰まってブロックしないように）。
@@ -162,7 +180,7 @@ class GuiSession(
      */
     private fun runGuiStop() {
         val p = ProotLauncher(context).launch(
-            distroId = "alpine",
+            distroId = distroId,
             command = "/usr/local/bin/z2gui",
             extraArgs = listOf("stop"),
         )
