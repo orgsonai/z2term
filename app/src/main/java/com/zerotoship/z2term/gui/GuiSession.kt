@@ -57,6 +57,13 @@ class GuiSession(
     private var pty: PtyProcess? = null
     private var rxJob: Job? = null
 
+    /**
+     * z2gui (proot) の PTY が閉じた = z2gui が終了した (パッケージ導入失敗で exit 等)。
+     * Xvnc がもう立たない状態なので、接続待ちを最後まで粘らず即打ち切るために監視する。
+     */
+    @Volatile
+    private var ptyClosed = false
+
     /** 起動した distro。停止 (runGuiStop) でも同じ distro を使うため start で確定させる。 */
     private var distroId: String = "alpine"
 
@@ -93,15 +100,23 @@ class GuiSession(
                 scope.launch { drainPty(p) }
 
                 _state.value = State.CONNECTING
-                _message.value = "Xvnc を待機中…"
+                _message.value = "GUI を準備中… (初回はパッケージ取得で数分かかることがあります)"
                 // Xvnc の起動待ちと接続を 1 本化する。捨て socket でポート疎通だけ
                 // 確認すると「接続して即切断するクライアント」と見なされ、TigerVNC が
                 // 最初のクライアント切断 (1→0) で server shutdown してしまい、本物の
                 // 接続前に Xvnc が落ちる。そこで本物の RFB 接続を、接続拒否 (ポート
                 // 未起動) の間だけリトライする。拒否された接続は Xvnc に届かないので
                 // 安全で、確立後はそのまま持続接続になり 0 クライアントに落ちない。
-                if (!connectWithRetry(timeoutMs = 60_000)) {
-                    fail("Xvnc に接続できません (タイムアウト)")
+                //
+                // タイムアウトは初回のパッケージ導入 (apk/apt/pacman) を含むため長めに取る
+                // (Alpine の apk は十数秒だが Arch の pacman は数分かかる)。ただし z2gui が
+                // 途中で終了 (導入失敗) した場合は connectWithRetry が PTY クローズを検知して
+                // 即座に false を返すので、最大時間まで無駄に待たされることはない。
+                if (!connectWithRetry(timeoutMs = 300_000)) {
+                    fail(
+                        if (ptyClosed) "GUI の起動に失敗しました (z2gui が終了)。端末タブで z2gui を実行してログを確認してください。"
+                        else "Xvnc に接続できません (タイムアウト)"
+                    )
                     return@launch
                 }
                 _state.value = State.CONNECTED
@@ -130,6 +145,10 @@ class GuiSession(
             }
         } catch (_: Exception) {
             // PTY クローズ時に例外 → 無視
+        } finally {
+            // EOF/例外いずれも z2gui (proot) の終了。これ以上 Xvnc は立たないので
+            // 接続待ち (connectWithRetry) を即打ち切らせる。
+            ptyClosed = true
         }
     }
 
@@ -143,6 +162,8 @@ class GuiSession(
     private suspend fun connectWithRetry(timeoutMs: Long): Boolean {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
+            // z2gui (proot) が終了したら Xvnc はもう立たない → 待たずに失敗扱い。
+            if (ptyClosed) return false
             try {
                 rfb.connect()
                 return true

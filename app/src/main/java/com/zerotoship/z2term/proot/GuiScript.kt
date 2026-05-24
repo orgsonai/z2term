@@ -75,13 +75,16 @@ fun z2guiScript(
         |# パッケージマネージャと、その distro のサーバ/WM/フォントのパッケージ名を決める。
         |#  端末パッケージ (GUI_TERM_PKG) は apk/apt/pacman で同名なので共通で末尾に足す。
         |PM=""; INSTALL=""; SRV_PKGS=""
+        |# フォント: コア(ビットマップ)フォントパッケージも入れておく (xterm 以外のコアフォント
+        |# 利用アプリ向けの保険)。ただし xterm 自体は下の start_x で Xft(-fa) を使い、コアフォント
+        |# 'fixed' 依存を回避する (distro により misc-fixed の Unicode 版が無く起動失敗するため)。
         |detect_pm() {
         |  if has apk; then
         |    PM=apk;    SRV_PKGS="tigervnc openbox font-noto ttf-dejavu"
         |  elif has apt-get; then
-        |    PM=apt;    SRV_PKGS="tigervnc-standalone-server openbox fonts-noto-core fonts-dejavu"
+        |    PM=apt;    SRV_PKGS="tigervnc-standalone-server openbox xfonts-base fonts-noto-core fonts-dejavu"
         |  elif has pacman; then
-        |    PM=pacman; SRV_PKGS="tigervnc openbox noto-fonts ttf-dejavu"
+        |    PM=pacman; SRV_PKGS="tigervnc openbox xorg-fonts-misc noto-fonts ttf-dejavu"
         |  else
         |    PM=""
         |  fi
@@ -168,8 +171,16 @@ fun z2guiScript(
         |    echo "❌ Xvnc 起動失敗。ログ:"; cat /tmp/z2gui-xvnc.log 2>/dev/null; exit 1
         |  fi
         |  setsid openbox </dev/null >/tmp/z2gui-wm.log 2>&1 &
+        |  # xterm はコア(ビットマップ)フォント 'fixed' を要求し、distro により (例: Arch) その
+        |  # Unicode 版が無くて起動失敗する。Xft(TrueType/fontconfig) フォントを明示すると
+        |  # ttf-dejavu/noto 等を使い、コアフォント依存を回避できる (distro 非依存)。
+        |  # "monospace" は fontconfig の汎用エイリアス (空白を含まないので語分割で壊れない)。
+        |  TERM_ARGS=""
+        |  case "${d}GUI_TERM_BIN" in
+        |    xterm) TERM_ARGS="-fa monospace -fs 11" ;;
+        |  esac
         |  if has "${d}GUI_TERM_BIN"; then
-        |    setsid "${d}GUI_TERM_BIN" </dev/null >/tmp/z2gui-term.log 2>&1 &
+        |    setsid "${d}GUI_TERM_BIN" ${d}TERM_ARGS </dev/null >/tmp/z2gui-term.log 2>&1 &
         |  else
         |    echo "⚠ 端末 ${d}GUI_TERM_BIN が見つかりません (導入失敗?)。openbox のみ起動。"
         |  fi
