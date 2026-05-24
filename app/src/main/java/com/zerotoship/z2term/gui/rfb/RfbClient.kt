@@ -25,7 +25,8 @@ import java.util.concurrent.RejectedExecutionException
  * - PixelFormat は 32bpp little-endian truecolor を要求し、各ピクセルを 0xAARRGGBB へ直変換。
  * - 入力 (M8-3): [sendPointerEvent] (type 5) / [sendKeyEvent] (type 4)。送信は [writeLock] で直列化し、
  *   受信ループ側の `FramebufferUpdateRequest` 送出と混線しないようにする。
- * - ZRLE/Tight は M8-4。ここでは Raw + CopyRect のみ（loopback なので帯域は問題にならない）。
+ * - エンコーディング: Raw / CopyRect / **ZRLE** (M8-4 で追加。タイル+zlib)。Tight は未対応。
+ *   描画は更新矩形の外接範囲だけ `setPixels` する (全画面転送を避ける)。
  */
 class RfbClient(
     private val host: String = "127.0.0.1",
@@ -132,8 +133,9 @@ class RfbClient(
 
         // 6. SetPixelFormat: 32bpp little-endian truecolor (ARGB_8888 互換)
         setPixelFormat(out)
-        // 7. SetEncodings: Raw + CopyRect
-        setEncodings(out, intArrayOf(ENC_RAW, ENC_COPYRECT))
+        // 7. SetEncodings: 優先順 ZRLE → CopyRect → Raw。ZRLE はタイル+zlib で
+        //    更新矩形が小さくなり、差分 setPixels と相性が良い。Raw は常に保険で残す。
+        setEncodings(out, intArrayOf(ENC_ZRLE, ENC_COPYRECT, ENC_RAW))
     }
 
     private fun readReason(inp: DataInputStream): String {
@@ -270,6 +272,10 @@ class RfbClient(
     private fun handleFramebufferUpdate(inp: DataInputStream, out: DataOutputStream) {
         inp.readByte() // padding
         val numRects = inp.readUnsignedShort()
+        // 更新された矩形の外接 (バウンディング) 範囲。ここだけ Bitmap へ転送する
+        // (毎フレーム全画面 setPixels を避ける = 体感の軽量化)。
+        var dirty = false
+        var minX = Int.MAX_VALUE; var minY = Int.MAX_VALUE; var maxX = 0; var maxY = 0
         for (r in 0 until numRects) {
             val x = inp.readUnsignedShort()
             val y = inp.readUnsignedShort()
@@ -278,10 +284,23 @@ class RfbClient(
             when (val enc = inp.readInt()) {
                 ENC_RAW -> readRaw(inp, x, y, w, h)
                 ENC_COPYRECT -> readCopyRect(inp, x, y, w, h)
+                ENC_ZRLE -> {
+                    readZrle(inp, x, y, w, h)
+                    if (!zrleSeen) { zrleSeen = true; Log.i(TAG, "ZRLE デコード稼働中") }
+                }
                 else -> throw IOException("未対応エンコーディング=$enc (rect $x,$y ${w}x$h)")
             }
+            val rx0 = x.coerceIn(0, width); val ry0 = y.coerceIn(0, height)
+            val rx1 = (x + w).coerceIn(0, width); val ry1 = (y + h).coerceIn(0, height)
+            if (rx1 > rx0 && ry1 > ry0) {
+                dirty = true
+                if (rx0 < minX) minX = rx0
+                if (ry0 < minY) minY = ry0
+                if (rx1 > maxX) maxX = rx1
+                if (ry1 > maxY) maxY = ry1
+            }
         }
-        pushFrame()
+        if (dirty) pushFrame(minX, minY, maxX - minX, maxY - minY)
         // 次の更新を要求 (incremental)
         sendFramebufferUpdateRequest(out, incremental = true)
     }
@@ -327,10 +346,136 @@ class RfbClient(
         System.arraycopy(pixels, sy * width + sx, pixels, dy * width + dx, w)
     }
 
-    private fun pushFrame() {
+    // ---- ZRLE デコード -----------------------------------------------------
+    // RFB ZRLE: rect は U32 長 + zlib 圧縮データ。zlib ストリームは**セッション全体で
+    // 連続**するので [inflater] は使い回す (rect 毎に reset しない)。展開後は 64x64
+    // タイル列 (左→右, 上→下)。各タイルは subencoding バイトで raw/solid/palette/RLE を切替。
+    // ピクセルは CPIXEL=3byte (32bpp/depth24 で最上位バイト未使用 → B,G,R の 3byte)。
+    private val inflater = java.util.zip.Inflater()
+    private val zInflateBuf = ByteArray(1 shl 16)
+    private var zdata: ByteArray = ByteArray(0)
+    private var zpos = 0
+    @Volatile private var zrleSeen = false
+
+    private fun zU8(): Int = zdata[zpos++].toInt() and 0xFF
+    private fun zCpixel(): Int {
+        val b = zdata[zpos].toInt() and 0xFF
+        val g = zdata[zpos + 1].toInt() and 0xFF
+        val r = zdata[zpos + 2].toInt() and 0xFF
+        zpos += 3
+        return ALPHA or (r shl 16) or (g shl 8) or b
+    }
+
+    private fun readZrle(inp: DataInputStream, x: Int, y: Int, w: Int, h: Int) {
+        val len = inp.readInt()
+        if (len < 0) throw IOException("ZRLE 長さ異常=$len")
+        val comp = ByteArray(len)
+        inp.readFully(comp)
+        if (w <= 0 || h <= 0) return
+        inflater.setInput(comp)
+        val out = java.io.ByteArrayOutputStream(len * 4)
+        try {
+            while (!inflater.needsInput()) {
+                val n = inflater.inflate(zInflateBuf)
+                if (n > 0) out.write(zInflateBuf, 0, n) else break
+            }
+        } catch (e: java.util.zip.DataFormatException) {
+            throw IOException("ZRLE 展開失敗", e)
+        }
+        zdata = out.toByteArray()
+        zpos = 0
+        decodeZrleTiles(x, y, w, h)
+    }
+
+    private fun decodeZrleTiles(rx: Int, ry: Int, rw: Int, rh: Int) {
+        var ty = 0
+        while (ty < rh) {
+            val th = minOf(64, rh - ty)
+            var tx = 0
+            while (tx < rw) {
+                val tw = minOf(64, rw - tx)
+                val sub = zU8()
+                when {
+                    sub == 0 -> // raw
+                        for (j in 0 until th) for (i in 0 until tw)
+                            zSet(rx + tx + i, ry + ty + j, zCpixel())
+                    sub == 1 -> { // solid
+                        val p = zCpixel()
+                        for (j in 0 until th) for (i in 0 until tw) zSet(rx + tx + i, ry + ty + j, p)
+                    }
+                    sub in 2..16 -> { // packed palette
+                        val palette = IntArray(sub) { zCpixel() }
+                        val bpp = if (sub == 2) 1 else if (sub <= 4) 2 else 4
+                        val mask = (1 shl bpp) - 1
+                        for (j in 0 until th) {
+                            var bitPos = 0
+                            var cur = 0
+                            for (i in 0 until tw) {
+                                if (bitPos == 0) { cur = zU8(); bitPos = 8 }
+                                bitPos -= bpp
+                                zSet(rx + tx + i, ry + ty + j, palette[(cur ushr bitPos) and mask])
+                            }
+                            // 行は byte 境界へパディング (端数ビットは破棄 = 次行は新 byte)
+                        }
+                    }
+                    sub == 128 -> { // plain RLE
+                        val total = tw * th
+                        var count = 0
+                        while (count < total) {
+                            val p = zCpixel()
+                            var run = 1
+                            var b: Int
+                            do { b = zU8(); run += b } while (b == 255)
+                            zFillRun(rx + tx, ry + ty, tw, count, run, p)
+                            count += run
+                        }
+                    }
+                    sub in 130..255 -> { // palette RLE (palette size = sub-128)
+                        val palette = IntArray(sub - 128) { zCpixel() }
+                        val total = tw * th
+                        var count = 0
+                        while (count < total) {
+                            val idx = zU8()
+                            var run = 1
+                            val p: Int
+                            if (idx and 0x80 != 0) {
+                                p = palette[idx and 0x7F]
+                                var b: Int
+                                do { b = zU8(); run += b } while (b == 255)
+                            } else {
+                                p = palette[idx]
+                            }
+                            zFillRun(rx + tx, ry + ty, tw, count, run, p)
+                            count += run
+                        }
+                    }
+                    else -> throw IOException("ZRLE 未対応 subencoding=$sub")
+                }
+                tx += 64
+            }
+            ty += 64
+        }
+    }
+
+    /** タイル内 linear 位置 [start] から [run] 個を行優先で [color] 埋め。tileX0/tileY0 はタイル左上の FB 座標。 */
+    private fun zFillRun(tileX0: Int, tileY0: Int, tw: Int, start: Int, run: Int, color: Int) {
+        for (k in 0 until run) {
+            val pos = start + k
+            zSet(tileX0 + (pos % tw), tileY0 + (pos / tw), color)
+        }
+    }
+
+    private fun zSet(px: Int, py: Int, color: Int) {
+        if (px in 0 until width && py in 0 until height) pixels[py * width + px] = color
+    }
+    // ---- /ZRLE ------------------------------------------------------------
+
+    private fun pushFrame(rx: Int, ry: Int, rw: Int, rh: Int) {
+        if (rw <= 0 || rh <= 0) return
         val bmp = frame ?: return
         synchronized(frameLock) {
-            bmp.setPixels(pixels, 0, width, 0, 0, width, height)
+            // pixels の (rx,ry) 起点・stride=width の部分矩形だけを Bitmap へ転送。
+            bmp.setPixels(pixels, ry * width + rx, width, rx, ry, rw, rh)
         }
         _redraw.value = _redraw.value + 1
     }
@@ -365,6 +510,7 @@ class RfbClient(
         closed = true
         _connected.value = false
         runCatching { sender.shutdownNow() }
+        runCatching { inflater.end() }
         runCatching { input?.close() }
         runCatching { output?.close() }
         runCatching { socket?.close() }
@@ -399,5 +545,6 @@ class RfbClient(
         // encodings
         private const val ENC_RAW = 0
         private const val ENC_COPYRECT = 1
+        private const val ENC_ZRLE = 16
     }
 }
