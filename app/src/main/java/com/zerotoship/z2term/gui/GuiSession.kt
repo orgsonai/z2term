@@ -47,6 +47,9 @@ class GuiSession(
 
     val rfb = RfbClient(port = Z2TERM_VNC_PORT)
 
+    /** ズーム/パンの表示変換。GuiScreen(描画) と GuiInputView(入力) で共有。タブ切替・回転でも保持。 */
+    val viewport = GuiViewport()
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pty: PtyProcess? = null
     private var rxJob: Job? = null

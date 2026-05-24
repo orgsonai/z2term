@@ -39,6 +39,7 @@ fun GuiScreen(session: GuiSession, modifier: Modifier = Modifier) {
     val state by session.state.collectAsState()
     val message by session.message.collectAsState()
     val tick by session.rfb.redraw.collectAsState()
+    val vrev by session.viewport.rev.collectAsState()
     var inputView by remember { mutableStateOf<GuiInputView?>(null) }
 
     Box(
@@ -48,16 +49,17 @@ fun GuiScreen(session: GuiSession, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            @Suppress("UNUSED_EXPRESSION") tick // recompose / redraw トリガ
+            @Suppress("UNUSED_EXPRESSION") run { tick; vrev } // FB 更新 / ズーム・パン変更で再描画
             val bmp = session.rfb.frame ?: return@Canvas
             val bw = bmp.width.toFloat()
             val bh = bmp.height.toFloat()
             if (bw <= 0f || bh <= 0f) return@Canvas
-            val scale = minOf(size.width / bw, size.height / bh)
-            val dw = bw * scale
-            val dh = bh * scale
-            val left = (size.width - dw) / 2f
-            val top = (size.height - dh) / 2f
+            // フィット倍率 × ユーザーズーム。中央フィット + パン (GuiInputView の toFb と一致)。
+            val eff = minOf(size.width / bw, size.height / bh) * session.viewport.scale
+            val dw = bw * eff
+            val dh = bh * eff
+            val left = (size.width - dw) / 2f + session.viewport.panX
+            val top = (size.height - dh) / 2f + session.viewport.panY
             drawIntoCanvas { canvas ->
                 synchronized(session.rfb.frameLock) {
                     canvas.nativeCanvas.drawBitmap(bmp, null, RectF(left, top, left + dw, top + dh), null)
@@ -68,8 +70,14 @@ fun GuiScreen(session: GuiSession, modifier: Modifier = Modifier) {
         if (state == GuiSession.State.CONNECTED) {
             // 透明オーバーレイ: タッチ/キー → RFB 入力。
             AndroidView(
-                factory = { ctx -> GuiInputView(ctx).also { it.rfb = session.rfb; inputView = it } },
-                update = { it.rfb = session.rfb },
+                factory = { ctx ->
+                    GuiInputView(ctx).also {
+                        it.rfb = session.rfb
+                        it.viewport = session.viewport
+                        inputView = it
+                    }
+                },
+                update = { it.rfb = session.rfb; it.viewport = session.viewport },
                 modifier = Modifier.fillMaxSize(),
             )
             // キーボード表示トグル。
