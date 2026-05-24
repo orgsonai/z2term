@@ -50,7 +50,7 @@ fun z2guiScript(
         |#!/bin/sh
         |# z2term: Linux GUI ランチャ (Xvnc + openbox + ターミナル)。distro 非依存。
         |# RFB は 127.0.0.1 のみで待ち受け (z2term 内蔵クライアントが接続)。外部公開しない。
-        |#   使い方: z2gui [start [WxH] | stop | status | install]
+        |#   使い方: z2gui [start [WxH] | stop | status | install | check]
         |DISPLAY_NUM=$display
         |DISP=":$display"
         |RFBPORT=$rfbPort
@@ -105,6 +105,16 @@ fun z2guiScript(
         |ensure_pkgs() {
         |  if xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN"; then return 0; fi
         |  install_pkgs
+        |}
+        |
+        |# GUI 一式 (Xvnc + openbox + 選択端末) が導入済みかを判定し、app が事前にダウンロード確認を
+        |# 出せるよう "GUI_INSTALLED" / "GUI_MISSING" を 1 行で出す (M8-6 T7)。
+        |check_pkgs() {
+        |  if xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN"; then
+        |    echo "GUI_INSTALLED"
+        |  else
+        |    echo "GUI_MISSING"
+        |  fi
         |}
         |
         |x_running() { [ -e "/tmp/.X11-unix/X${d}{DISPLAY_NUM}" ]; }
@@ -197,8 +207,9 @@ fun z2guiScript(
         |  stop)    stop_x; echo "⏹ 停止しました" ;;
         |  status)  status_x ;;
         |  install) install_pkgs ;;
+        |  check)   check_pkgs ;;
         |  *[0-9]x[0-9]*) start_x "${d}ACTION" ;;
-        |  *) echo "使い方: z2gui [start [WxH] | stop | status | install]" ;;
+        |  *) echo "使い方: z2gui [start [WxH] | stop | status | install | check]" ;;
         |esac
     """.trimMargin() + "\n"
 }

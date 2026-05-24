@@ -58,6 +58,7 @@ import com.zerotoship.z2term.emulator.TerminalTheme
 import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.CustomThemeStore
+import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.theme.TerminalFontOption
@@ -106,6 +107,8 @@ fun SettingsSheet(
     val scope = rememberCoroutineScope()
     // ハンドルタップ等の明示的クローズは常に許可するためのフラグ。
     var forceClose by remember { mutableStateOf(false) }
+    // distro 切替でダウンロードが要るとき、確認ダイアログの対象 spec を保持 (M8-6 T7)。
+    var pendingDistroSwitch by remember { mutableStateOf<DistroSpec?>(null) }
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         // スクロール途中の下スワイプ/フリングで誤って閉じるのを防ぐ。
@@ -199,10 +202,20 @@ fun SettingsSheet(
                     selected = settings.distroId,
                     onSelect = { id ->
                         if (id != settings.distroId) {
-                            // 切替を保存して override 付きで再起動 (settingsFlow 反映待ちの
-                            // race を回避)。非同梱なら起動時に DL → 展開が走る。
-                            session.switchDistro(id)
-                            onDismiss()
+                            val spec = DistroSpec.byId(id)
+                            val extracted = java.io.File(
+                                context.filesDir, "distros/$id/bin"
+                            ).exists()
+                            // 非同梱 distro が未展開なら初回切替でネットから DL が走る。
+                            val needsDownload = spec != null && !spec.bundled && !extracted
+                            if (needsDownload && settings.confirmBeforeDownload) {
+                                pendingDistroSwitch = spec   // 確認ダイアログを出す
+                            } else {
+                                // 切替を保存して override 付きで再起動 (settingsFlow 反映待ちの
+                                // race を回避)。同梱/展開済みなら DL は走らない。
+                                session.switchDistro(id)
+                                onDismiss()
+                            }
                         }
                     }
                 )
@@ -315,6 +328,13 @@ fun SettingsSheet(
                 onChange = { session.setKeepAliveService(it) }
             )
 
+            ToggleField(
+                title = "ダウンロード前に確認",
+                description = "ON: distro / GUI のダウンロード前に確認を出す。OFF: 確認なしで取得。",
+                checked = settings.confirmBeforeDownload,
+                onChange = { session.setConfirmBeforeDownload(it) }
+            )
+
             TextField(
                 title = "起動時 init コマンド",
                 placeholder = "例: zsh -l",
@@ -368,6 +388,24 @@ fun SettingsSheet(
 
             AppInfoSection(distroId = settings.distroId)
         }
+    }
+
+    // distro 切替の DL 確認 (M8-6 T7)。OK で switchDistro → 起動時に DL/展開、シートを閉じる。
+    pendingDistroSwitch?.let { spec ->
+        DownloadConfirmDialog(
+            title = "${spec.displayName} をダウンロード",
+            message = "${spec.displayName} を初回ダウンロードします" +
+                (spec.approxDownload?.let { " ($it)" } ?: "") +
+                "。Wi-Fi 推奨。続けますか?",
+            confirmLabel = "ダウンロードして切替",
+            onConfirm = {
+                val id = spec.id
+                pendingDistroSwitch = null
+                session.switchDistro(id)
+                onDismiss()
+            },
+            onCancel = { pendingDistroSwitch = null }
+        )
     }
 }
 

@@ -60,7 +60,10 @@ import com.zerotoship.z2term.gui.GuiKeyMapper
 import com.zerotoship.z2term.gui.GuiScreen
 import com.zerotoship.z2term.gui.GuiSession
 import com.zerotoship.z2term.gui.rfb.RfbClient
+import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.settings.AppSettings
+import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
+import kotlinx.coroutines.flow.first
 import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.ui.settings.SettingsSheet
@@ -418,11 +421,20 @@ private fun GuiTabScreen(
     }
     LaunchedEffect(Unit) { KanaKanjiConverter.ensureLoaded(context) }
 
+    // GUI 一式が未導入で「ダウンロード前に確認」が ON のとき、確認待ちの解像度 (w,h) を保持 (M8-6 T7)。
+    var pendingGuiDownload by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     LaunchedEffect(gui.id) {
         val dm = context.resources.displayMetrics
         val w = dm.widthPixels.coerceIn(320, 4096)
         val h = dm.heightPixels.coerceIn(320, 4096)
-        gui.start(w, h)
+        // 設定は最新を読む (初期 Snapshot の取りこぼし回避)。GUI 未導入 & 確認 ON のときだけ
+        // ダイアログ。導入済み or 確認 OFF はそのまま起動 (= 従来挙動)。
+        val snap = appSettings.flow.first()
+        val installed = guiPackagesInstalled(
+            context, snap.distroId, GuiTerminal.byId(snap.guiTerminalId).binary
+        )
+        if (snap.confirmBeforeDownload && !installed) pendingGuiDownload = w to h
+        else gui.start(w, h)
     }
 
     var keyboardMode by remember { mutableStateOf(KeyboardMode.CUSTOM) }
@@ -566,6 +578,30 @@ private fun GuiTabScreen(
             onRun = { command -> GuiKeyMapper.sendText(gui.rfb, command) }
         )
     }
+    // GUI 一式の初回ダウンロード確認 (M8-6 T7)。OK で起動 (= apk/apt/pacman add が走る)、
+    // やめる→タブを閉じる (パッケージ無しでは表示できないため)。
+    pendingGuiDownload?.let { (w, h) ->
+        DownloadConfirmDialog(
+            title = "GUI 一式をダウンロード",
+            message = "GUI (Linux デスクトップ) の初回起動には表示用パッケージの取得が必要です " +
+                "(数十〜数百MB)。Wi-Fi 推奨。続けますか?",
+            confirmLabel = "ダウンロードして起動",
+            onConfirm = { pendingGuiDownload = null; gui.start(w, h) },
+            onCancel = { pendingGuiDownload = null; SessionManager.close(gui.id) }
+        )
+    }
+}
+
+/**
+ * GUI 一式 (X サーバ + WM + 選択端末) が選択中 distro に導入済みかを、rootfs のバイナリ有無で判定する
+ * (M8-6 T7 のダウンロード確認ゲート用)。z2gui の `check` と同じ条件を Android 側から軽量に判定する。
+ */
+private fun guiPackagesInstalled(context: Context, distroId: String, terminalBinary: String): Boolean {
+    val base = java.io.File(context.filesDir, "distros/$distroId")
+    fun hasBin(name: String) =
+        java.io.File(base, "usr/bin/$name").exists() || java.io.File(base, "bin/$name").exists()
+    val xserver = hasBin("Xvnc") || hasBin("Xtigervnc")
+    return xserver && hasBin("openbox") && hasBin(terminalBinary)
 }
 
 /**

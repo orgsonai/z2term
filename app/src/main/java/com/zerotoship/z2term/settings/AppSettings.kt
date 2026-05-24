@@ -36,7 +36,9 @@ class AppSettings(private val context: Context) {
         /** フォアグラウンド常駐サービスを使うか (Activity 破棄後もセッション維持) */
         val keepAliveService: Boolean = DEFAULT_KEEP_ALIVE,
         /** GUI セッションで起動するターミナル ([com.zerotoship.z2term.proot.GuiTerminal] の id) */
-        val guiTerminalId: String = DEFAULT_GUI_TERMINAL
+        val guiTerminalId: String = DEFAULT_GUI_TERMINAL,
+        /** 通信を伴うダウンロード (distro / GUI パッケージ) の前に確認ダイアログを出すか */
+        val confirmBeforeDownload: Boolean = DEFAULT_CONFIRM_DOWNLOAD
     )
 
     val flow: Flow<Snapshot> = context.dataStore.data.map { p ->
@@ -52,8 +54,13 @@ class AppSettings(private val context: Context) {
             loginShell = p[KEY_LOGIN_SHELL] ?: DEFAULT_LOGIN_SHELL,
             keyboardMode = p[KEY_KEYBOARD_MODE] ?: DEFAULT_KEYBOARD_MODE,
             keepAliveService = p[KEY_KEEP_ALIVE] ?: DEFAULT_KEEP_ALIVE,
-            guiTerminalId = p[KEY_GUI_TERMINAL] ?: DEFAULT_GUI_TERMINAL
+            guiTerminalId = p[KEY_GUI_TERMINAL] ?: DEFAULT_GUI_TERMINAL,
+            confirmBeforeDownload = p[KEY_CONFIRM_DOWNLOAD] ?: DEFAULT_CONFIRM_DOWNLOAD
         )
+    }
+
+    suspend fun setConfirmBeforeDownload(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_CONFIRM_DOWNLOAD] = enabled }
     }
 
     suspend fun setGuiTerminal(id: String) {
@@ -116,6 +123,8 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_KEYBOARD_STYLE = "compact"
         const val DEFAULT_KEYBOARD_MODE = "custom"
         const val DEFAULT_KEEP_ALIVE = true
+        /** ダウンロード前確認は既定 ON (勝手に通信しない方針)。 */
+        const val DEFAULT_CONFIRM_DOWNLOAD = true
         /** GUI ターミナルの既定 ([com.zerotoship.z2term.proot.GuiTerminal.XTERM] の id) */
         const val DEFAULT_GUI_TERMINAL = "xterm"
         /** Alpine 同梱で zsh が利用可能なので既定 zsh。`-l` でログインシェル動作。 */
@@ -139,5 +148,6 @@ class AppSettings(private val context: Context) {
         private val KEY_KEYBOARD_MODE = stringPreferencesKey("keyboard_mode")
         private val KEY_KEEP_ALIVE = booleanPreferencesKey("keep_alive_service")
         private val KEY_GUI_TERMINAL = stringPreferencesKey("gui_terminal")
+        private val KEY_CONFIRM_DOWNLOAD = booleanPreferencesKey("confirm_before_download")
     }
 }
