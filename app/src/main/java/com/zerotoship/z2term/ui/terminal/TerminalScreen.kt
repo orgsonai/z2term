@@ -1,8 +1,10 @@
 package com.zerotoship.z2term.ui.terminal
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -840,6 +842,7 @@ private fun NewTabButton(label: String, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TabChip(
     session: AppSession,
@@ -852,48 +855,26 @@ private fun TabChip(
     val bg = if (active) ZtsBgCard else ZtsBgPrimary
     val border = if (active) ZtsGreen else ZtsBorder
     val fg = if (active) ZtsGreen else ZtsTextSecondary
-    Row(
+    // 単タップ=アクティブ化 / ダブルタップ=閉じる。× ボタンは廃止 (誤タップ防止 M8-6 T8)。
+    // 最後の 1 枚 (canClose=false) はダブルタップでも閉じない。
+    Box(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
-            .border(1.dp, border, RoundedCornerShape(6.dp)),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // ラベル部分のみクリックでアクティブ化 (× と衝突しないよう独立 clickable)
-        Box(
-            modifier = Modifier
-                .clickable(onClick = onSelect)
-                .padding(
-                    start = 10.dp,
-                    end = if (canClose) 4.dp else 10.dp,
-                    top = 5.dp,
-                    bottom = 5.dp
-                )
-        ) {
-            Text(
-                text = label,
-                color = fg,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
-                maxLines = 1
+            .border(1.dp, border, RoundedCornerShape(6.dp))
+            .combinedClickable(
+                onClick = onSelect,
+                onDoubleClick = if (canClose) onClose else null
             )
-        }
-        if (canClose) {
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onClose),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "×",
-                    color = ZtsTextSecondary,
-                    fontSize = 14.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-        }
+            .padding(horizontal = 10.dp, vertical = 5.dp)
+    ) {
+        Text(
+            text = label,
+            color = fg,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1
+        )
     }
 }
 

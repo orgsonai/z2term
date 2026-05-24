@@ -15,6 +15,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -53,6 +54,9 @@ fun GuiScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
+            // ズーム/パンで Bitmap がこの領域より大きく描かれても、上の TabBar/TopBar へは
+            // はみ出さないよう描画をクリップ (M8-6 T2)。FB 解像度・入力座標 (toFb) は不変。
+            .clipToBounds()
             .background(Color.Black),
         contentAlignment = Alignment.Center,
     ) {
