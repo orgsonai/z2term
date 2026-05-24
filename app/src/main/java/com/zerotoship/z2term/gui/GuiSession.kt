@@ -1,6 +1,10 @@
 package com.zerotoship.z2term.gui
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.zerotoship.z2term.gui.rfb.RfbClient
 import com.zerotoship.z2term.proot.GuiTerminal
@@ -48,7 +52,10 @@ class GuiSession(
     private val _message = MutableStateFlow("")
     val message: StateFlow<String> = _message.asStateFlow()
 
-    val rfb = RfbClient(port = Z2TERM_VNC_PORT)
+    val rfb = RfbClient(port = Z2TERM_VNC_PORT).also { client ->
+        // GUI (xterm 等) で選択/コピーしたテキストを Android クリップボードへ反映 (M8-6 T6)。
+        client.onServerCutText = { text -> copyToAndroidClipboard(text) }
+    }
 
     /** ズーム/パンの表示変換。GuiScreen(描画) と GuiInputView(入力) で共有。タブ切替・回転でも保持。 */
     val viewport = GuiViewport()
@@ -132,6 +139,17 @@ class GuiSession(
         Log.w(TAG, msg)
         _message.value = msg
         _state.value = State.ERROR
+    }
+
+    /** ServerCutText を Android クリップボードへ。RFB 受信スレッドから呼ばれるのでメインに渡す。 */
+    private fun copyToAndroidClipboard(text: String) {
+        if (text.isEmpty()) return
+        Handler(Looper.getMainLooper()).post {
+            runCatching {
+                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText("z2term GUI", text))
+            }
+        }
     }
 
     private fun drainPty(p: PtyProcess) {

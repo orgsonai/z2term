@@ -53,6 +53,12 @@ class RfbClient(
     private val _connected = MutableStateFlow(false)
     val connected: StateFlow<Boolean> = _connected.asStateFlow()
 
+    /**
+     * サーバ (xterm 等) が選択/コピーしたテキストを受け取るコールバック (M8-6 T6)。
+     * 受信ループ (IO スレッド) から呼ばれる。Android クリップボードへ反映するのは呼び出し側 ([GuiSession])。
+     */
+    var onServerCutText: ((String) -> Unit)? = null
+
     private var socket: Socket? = null
     private var input: DataInputStream? = null
     private var output: DataOutputStream? = null
@@ -489,8 +495,14 @@ class RfbClient(
 
     private fun handleServerCutText(inp: DataInputStream) {
         inp.readByte(); inp.readByte(); inp.readByte() // padding
-        val len = inp.readInt().toLong()
-        skipFully(inp, len)
+        val len = inp.readInt().toLong() and 0xFFFFFFFFL // CARD32 (符号なし)
+        if (len == 0L) return
+        // ペースト爆弾対策に上限を設け、超過分は読み捨てる。RFB の cut-text は Latin-1。
+        val cap = minOf(len, MAX_CUT_TEXT.toLong()).toInt()
+        val body = ByteArray(cap)
+        inp.readFully(body)
+        if (len > cap) skipFully(inp, len - cap)
+        runCatching { onServerCutText?.invoke(String(body, Charsets.ISO_8859_1)) }
     }
 
     private fun skipFully(inp: DataInputStream, n: Long) {
@@ -519,6 +531,9 @@ class RfbClient(
     companion object {
         private const val TAG = "RfbClient"
         private const val ALPHA = 0xFF shl 24
+
+        /** ServerCutText の取り込み上限 (byte)。これを超える分は読み捨てる。 */
+        private const val MAX_CUT_TEXT = 256 * 1024
 
         private const val SEC_NONE = 1
 

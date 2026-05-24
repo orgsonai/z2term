@@ -1,5 +1,11 @@
 package com.zerotoship.z2term.ui.terminal
 
+import android.app.Activity
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.ContextWrapper
+import android.view.View
+import android.view.WindowManager
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -86,6 +92,39 @@ import kotlinx.coroutines.launch
 enum class KeyboardMode { CUSTOM, SYSTEM }
 
 /**
+ * 画面消灯ロックの状態 (M8-6 T9)。端末タブと GUI タブで別々の `remember` を持つと、
+ * タブ種別を跨いだ瞬間に新画面側が false で初期化されフラグを落としてしまう。
+ * そこで**単一の状態**にして画面跨ぎでも維持する。既定 OFF・プロセス再起動でリセット。
+ */
+private object ScreenAwake {
+    val enabled = mutableStateOf(false)
+}
+
+/** ContextWrapper の連鎖を辿って Activity を取り出す (Compose の Context は wrapper のことがある)。 */
+private fun Context.findActivity(): Activity? {
+    var c: Context = this
+    while (c is ContextWrapper) {
+        if (c is Activity) return c
+        c = c.baseContext
+    }
+    return null
+}
+
+/**
+ * 画面消灯ロックを適用する。View 単位の `keepScreenOn` は OEM の省電力で取りこぼすことがあるため、
+ * 可能ならウィンドウ直付け (FLAG_KEEP_SCREEN_ON) にする。Activity が取れなければ View にフォールバック。
+ */
+private fun applyKeepScreenOn(context: Context, fallbackView: View, on: Boolean) {
+    val window = context.findActivity()?.window
+    if (window != null) {
+        if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    } else {
+        fallbackView.keepScreenOn = on
+    }
+}
+
+/**
  * アプリ全体のターミナル画面。
  *
  * 構造:
@@ -138,14 +177,13 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // SFTP ファイルブラウザ対象のプロファイル (非 null の間シートを表示)
     var sftpProfile by remember { mutableStateOf<SshProfile?>(null) }
     var customThemeEditorOpen by remember { mutableStateOf(false) }
-    // 画面消灯ロック (ディスプレイが自動で消えないようにする)。
-    // FLAG_KEEP_SCREEN_ON 相当を Compose ルート View に付与するだけ (権限不要、
-    // フォアグラウンド中のみ有効、CPU は握らないので WakeLock より安全)。
+    // 画面消灯ロック (ディスプレイが自動で消えないようにする)。権限不要・フォアグラウンド中のみ
+    // 有効・CPU は握らないので WakeLock より安全。状態は端末/GUI 共通の [ScreenAwake] (画面跨ぎで維持)。
     // 既定 OFF (放置でのバッテリ消費を避ける。アプリ再起動でリセット)。
-    var keepScreenOn by remember { mutableStateOf(false) }
+    val keepScreenOn = ScreenAwake.enabled.value
     val rootView = LocalView.current
     LaunchedEffect(keepScreenOn) {
-        rootView.keepScreenOn = keepScreenOn
+        applyKeepScreenOn(context, rootView, keepScreenOn)
     }
 
     // かな漢字変換: 入力中ひらがな(composing)と候補を保持。確定で PTY へ送出。
@@ -213,7 +251,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             },
             onOpenSettings = { settingsOpen = true },
             keepScreenOn = keepScreenOn,
-            onToggleKeepScreenOn = { keepScreenOn = !keepScreenOn },
+            onToggleKeepScreenOn = { ScreenAwake.enabled.value = !ScreenAwake.enabled.value },
             onOpenSnippets = { snippetsSheetOpen = true }
         )
 
@@ -390,11 +428,13 @@ private fun GuiTabScreen(
     var keyboardMode by remember { mutableStateOf(KeyboardMode.CUSTOM) }
     var keyboardCollapsed by remember { mutableStateOf(false) }
     var ctrlSticky by remember { mutableStateOf(false) }
-    var keepScreenOn by remember { mutableStateOf(false) }
+    // 画面消灯ロックは端末タブと共通の単一状態 (画面跨ぎで維持。M8-6 T9)。
+    val keepScreenOn = ScreenAwake.enabled.value
     var settingsOpen by remember { mutableStateOf(false) }
+    var snippetsSheetOpen by remember { mutableStateOf(false) }
 
     val rootView = LocalView.current
-    LaunchedEffect(keepScreenOn) { rootView.keepScreenOn = keepScreenOn }
+    LaunchedEffect(keepScreenOn) { applyKeepScreenOn(context, rootView, keepScreenOn) }
 
     // 起動時に保存済みキーボードモードを 1 度だけ復元 (端末と挙動を揃える)。
     var restoredMode by remember { mutableStateOf(false) }
@@ -427,6 +467,13 @@ private fun GuiTabScreen(
         GuiTopBar(
             session = gui,
             keyboardMode = keyboardMode,
+            onPaste = {
+                // Android クリップボードのテキストを keysym 橋渡しで GUI へタイプする。
+                val cm = context.getSystemService(ClipboardManager::class.java)
+                val text = cm?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
+                if (!text.isNullOrEmpty()) GuiKeyMapper.sendText(gui.rfb, text)
+            },
+            onOpenSnippets = { snippetsSheetOpen = true },
             onToggleKeyboardMode = {
                 val next = if (keyboardMode == KeyboardMode.CUSTOM)
                     KeyboardMode.SYSTEM else KeyboardMode.CUSTOM
@@ -436,7 +483,7 @@ private fun GuiTabScreen(
                 }
             },
             keepScreenOn = keepScreenOn,
-            onToggleKeepScreenOn = { keepScreenOn = !keepScreenOn },
+            onToggleKeepScreenOn = { ScreenAwake.enabled.value = !ScreenAwake.enabled.value },
             settingsEnabled = terminalForSettings != null,
             onOpenSettings = { settingsOpen = true }
         )
@@ -512,6 +559,13 @@ private fun GuiTabScreen(
             onEditCustomTheme = { }
         )
     }
+    if (snippetsSheetOpen) {
+        SnippetsSheet(
+            onDismiss = { snippetsSheetOpen = false },
+            // 端末は writeBytes だが GUI は keysym 橋渡しで送る (M8-6 T1)。
+            onRun = { command -> GuiKeyMapper.sendText(gui.rfb, command) }
+        )
+    }
 }
 
 /**
@@ -523,6 +577,8 @@ private fun GuiTabScreen(
 private fun GuiTopBar(
     session: GuiSession,
     keyboardMode: KeyboardMode,
+    onPaste: () -> Unit,
+    onOpenSnippets: () -> Unit,
     onToggleKeyboardMode: () -> Unit,
     keepScreenOn: Boolean,
     onToggleKeepScreenOn: () -> Unit,
@@ -549,9 +605,9 @@ private fun GuiTopBar(
         )
         Box(modifier = Modifier.weight(1f))
 
-        // 並びは端末 TopBar と同じ。GUI で使えないボタンはグレーアウト。
-        TopBarIconButton(label = "📋", enabled = false) {}   // 貼付は端末向け
-        TopBarIconButton(label = "CMD", enabled = false) {}  // スニペットは端末向け
+        // 並びは端末 TopBar と同じ。📋/CMD は keysym 橋渡しで GUI へタイプする (M8-6 T1)。
+        TopBarIconButton(label = "📋", onClick = onPaste)    // Android クリップボードを GUI へ貼付
+        TopBarIconButton(label = "CMD", onClick = onOpenSnippets) // スニペットを GUI へ送出
         KeepScreenOnButton(active = keepScreenOn, onClick = onToggleKeepScreenOn)
         KeyboardToggleButton(
             imeActive = keyboardMode == KeyboardMode.SYSTEM,
