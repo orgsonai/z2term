@@ -220,7 +220,22 @@ fun z2guiScript(
         |  if ! x_running; then
         |    echo "❌ Xvnc 起動失敗。ログ:"; cat /tmp/z2gui-xvnc.log 2>/dev/null; exit 1
         |  fi
-        |  setsid openbox </dev/null >/tmp/z2gui-wm.log 2>&1 &
+        |  # openbox に「全ウィンドウを左上 (0,0) に強制配置」させる設定を書く。端末ごとに
+        |  # -geometry の書式が違う (xterm/urxvt は対応, konsole/lxterminal は別系統) ため、
+        |  # 位置は WM 側で一律に固定する (ユーザー要望: GUI ターミナルは全て 0,0)。
+        |  OBRC="/tmp/z2-openbox-rc.xml"
+        |  cat > "${d}OBRC" <<'OBEOF'
+        |<?xml version="1.0" encoding="UTF-8"?>
+        |<openbox_config xmlns="http://openbox.org/3.4/rc">
+        |  <placement><policy>UnderMouse</policy><center>no</center></placement>
+        |  <applications>
+        |    <application class="*">
+        |      <position force="yes"><x>0</x><y>0</y></position>
+        |    </application>
+        |  </applications>
+        |</openbox_config>
+        |OBEOF
+        |  setsid openbox --config-file "${d}OBRC" </dev/null >/tmp/z2gui-wm.log 2>&1 &
         |  # ターミナルは画面左上 (0,0) に、画面に対して控えめなサイズで開く (大きすぎ対策)。
         |  # 画面 (GEOM) の約 60% 幅 × 約 45% 高さ。文字セルは monospace fs 11 で概算 7x20px。
         |  # もっと大きくしたい時は WM (openbox) のタイトルバーや最大化ボタンで広げられる。

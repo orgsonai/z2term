@@ -19,9 +19,11 @@ package com.zerotoship.z2term.distro
  *       + setUnixMode owner-only 修正 (sudo world-writable 解消) の再展開
  *  - 5: 2026-05-20 Tier 4: mosh + musl-locales + LC_ALL=C.UTF-8
  *  - 6: 2026-05-21 dropbear 追加 (PC→端末 SSH。OpenSSH sshd は proot で privsep 破綻)
+ *  - 7: 2026-05-26 Tier 3.6 追加 (zip/unzip/openssl/bind-tools/file/diffutils/patch/bc)
+ *  - 8: 2026-05-26 hardlink 展開の mode 修正で再展開 (zsh が hardlink で実行ビット欠落→起動不能の修正)
  */
 object DistroBundle {
-    const val ROOTFS_VERSION = 6
+    const val ROOTFS_VERSION = 8
 
     /** rootfs に書き込む version マーカーファイル名 (rootfs 直下) */
     const val VERSION_MARKER = ".z2term-version"
