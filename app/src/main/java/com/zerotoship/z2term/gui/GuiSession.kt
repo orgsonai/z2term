@@ -74,13 +74,20 @@ class GuiSession(
     /** 起動した distro。停止 (runGuiStop) でも同じ distro を使うため start で確定させる。 */
     private var distroId: String = "alpine"
 
-    fun start(width: Int, height: Int) {
+    /**
+     * GUI を起動する。
+     *
+     * @param clean true なら z2gui に `clean` を渡し、GUI パッケージをキャッシュごと
+     *   入れ直す (ダウンロード/解凍失敗で詰まった状態からの救済)。
+     */
+    fun start(width: Int, height: Int, clean: Boolean = false) {
         when (_state.value) {
             State.STARTING, State.CONNECTING, State.CONNECTED -> return
             else -> {}
         }
         _state.value = State.STARTING
-        _message.value = "GUI を起動中… (${width}x$height)"
+        _message.value = if (clean) "GUI をクリーンインストール中… (${width}x$height)"
+                         else "GUI を起動中… (${width}x$height)"
         scope.launch {
             try {
                 // 選択中の OS とターミナルで起動する (HANDOFF「選択中のOSで立ち上げ」要望)。
@@ -94,12 +101,15 @@ class GuiSession(
                     fail("「$distroId」がまだ展開されていません。先に端末タブでこの OS を起動してください。")
                     return@launch
                 }
+                // start [WxH] [clean]: clean フラグが立っていれば 3 番目の引数で渡す。
+                val startArgs = mutableListOf("start", "${width}x$height")
+                if (clean) startArgs.add("clean")
                 val p = launcher.launch(
                     distroId = distroId,
                     command = "/usr/local/bin/z2gui",
                     rows = 24,
                     cols = 80,
-                    extraArgs = listOf("start", "${width}x$height"),
+                    extraArgs = startArgs,
                     guiTerminal = guiTerminal,
                 )
                 pty = p
@@ -159,7 +169,16 @@ class GuiSession(
                 val n = p.reader.read(buf)
                 if (n < 0) break
                 val s = String(buf, 0, n).trim()
-                if (s.isNotEmpty()) Log.d(TAG, "z2gui: $s")
+                if (s.isNotEmpty()) {
+                    Log.d(TAG, "z2gui: $s")
+                    // 接続が確立する前 (パッケージ取得・Xvnc 起動中) は、z2gui の最新出力を
+                    // そのまま画面に出して「今なにをしているか」を見えるようにする (進捗表示)。
+                    // apk/apt/pacman の取得・展開ログがここに流れる。
+                    if (_state.value == State.STARTING || _state.value == State.CONNECTING) {
+                        val latest = s.lineSequence().lastOrNull { it.isNotBlank() }
+                        if (latest != null) _message.value = latest.take(200)
+                    }
+                }
             }
         } catch (_: Exception) {
             // PTY クローズ時に例外 → 無視

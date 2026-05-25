@@ -181,6 +181,8 @@ class TerminalSession(
     fun setKeepAliveService(enabled: Boolean) { scope.launch { settings.setKeepAliveService(enabled) } }
     fun setConfirmBeforeDownload(enabled: Boolean) { scope.launch { settings.setConfirmBeforeDownload(enabled) } }
     fun setGuiTerminal(id: String) { scope.launch { settings.setGuiTerminal(id) } }
+    fun setGuiMagnification(value: Float) { scope.launch { settings.setGuiMagnification(value) } }
+    fun setCleanInstallGuiArmed(armed: Boolean) { scope.launch { settings.setCleanInstallGuiArmed(armed) } }
 
     /** 設定で選ばれているディストロを使って起動。明示的指定があればそれを優先 */
     fun startTerminal(distroOverride: DistroSpec? = null) {
@@ -500,57 +502,33 @@ class TerminalSession(
     }
 
     /**
-     * 現在のディストロ rootfs を完全削除して再展開する。
+     * 指定ディストロを「クリーンインストール」して切り替え・再起動する。
      *
-     * 用途:
-     *  - APK 更新で同梱 rootfs が新しくなったが、既存展開分が古いまま
-     *  - rootfs を壊してしまったので一からやり直したい
+     * rootfs (filesDir/distros/<id>) を完全削除し、**ダウンロード済みアーカイブの
+     * キャッシュも削除** してから最初から取得・展開し直す。ダウンロード/解凍が途中で
+     * 失敗して壊れた状態 (壊れた .tgz が残って毎回失敗する等) を、アプリを削除せずに
+     * 復旧するための手段。同梱 (Alpine) は assets から再展開されるのでネット不要、
+     * 非同梱 (Ubuntu/Arch/Kali) は必ず再ダウンロードからやり直す。
      *
-     * 注意: 展開先 (filesDir/distros/<id>) の中身は全部消える。
+     * 設定の「ディストロ切替 + クリーンインストール」チェックから呼ばれる。永続化は
+     * 非同期なので startTerminal には spec を直接 override 渡しして反映待ちレースを避ける。
      */
-    fun reinstallDistro() {
+    fun cleanInstallDistro(id: String) {
+        setDistro(id)
+        val spec = DistroSpec.byId(id) ?: DistroSpec.ALPINE
         channel?.close()
         channel = null
         readJob?.cancel()
         scope.launch {
-            val distroId = settingsFlow.value.distroId
-            val rootfs = java.io.File(appContext.filesDir, "distros/$distroId")
+            val rootfs = java.io.File(appContext.filesDir, "distros/$id")
             if (rootfs.exists()) rootfs.deleteRecursively()
+            downloader.deleteCachedArchive(id, detectAbiId())
             withContext(emulatorDispatcher) {
                 emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
             }
             _uiState.update { UiState() }
             _scrollOffset.value = 0
-            startTerminal()
-        }
-    }
-
-    /**
-     * ディストロを「クリーン再インストール」する。
-     *
-     * [reinstallDistro] は rootfs だけ消すため、ダウンロード済みアーカイブの
-     * キャッシュは残る。ダウンロードが途中で失敗して壊れた .tgz がキャッシュに
-     * 残ると、再展開でもそれを使い続けて失敗を繰り返す。
-     *
-     * これは rootfs に加えて **ダウンロードキャッシュも削除** し、非同梱 distro なら
-     * 必ず再ダウンロードからやり直す。ダウンロード失敗で詰まった状態を、アプリを
-     * 削除せずに復旧するための手段。
-     */
-    fun cleanReinstallDistro() {
-        channel?.close()
-        channel = null
-        readJob?.cancel()
-        scope.launch {
-            val distroId = settingsFlow.value.distroId
-            val rootfs = java.io.File(appContext.filesDir, "distros/$distroId")
-            if (rootfs.exists()) rootfs.deleteRecursively()
-            downloader.deleteCachedArchive(distroId, detectAbiId())
-            withContext(emulatorDispatcher) {
-                emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
-            }
-            _uiState.update { UiState() }
-            _scrollOffset.value = 0
-            startTerminal()
+            startTerminal(spec)
         }
     }
 

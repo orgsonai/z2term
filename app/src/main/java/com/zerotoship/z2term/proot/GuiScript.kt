@@ -23,10 +23,12 @@ const val Z2TERM_GUI_PACKAGES = "tigervnc openbox xterm font-noto ttf-dejavu"
  * これを `/usr/local/bin/z2gui` に配置 (ProotLauncher.ensureGuiScript) することで、
  * 端末から、または z2term の GUI セッションから次のように使える:
  *  - `z2gui` / `z2gui start [WxH]` … Xvnc + openbox + ターミナルを起動 (未導入なら自動導入)
+ *  - `z2gui start [WxH] clean`     … キャッシュごと GUI を入れ直して起動 (救済)
  *  - `z2gui 1080x2160`             … 解像度を直接指定して起動
  *  - `z2gui stop`                  … Xvnc/WM を停止
  *  - `z2gui status`               … 起動状態を表示
  *  - `z2gui install`              … GUI 一式を導入するだけ
+ *  - `z2gui clean`                … GUI 一式をキャッシュごと入れ直すだけ
  *
  * **distro 非依存**: スクリプト内でパッケージマネージャ (apk / apt-get / pacman) を判定し、
  * その distro のパッケージ名・X サーバ名 (Xvnc または Xtigervnc) を使う。選択中の OS で
@@ -90,14 +92,50 @@ fun z2guiScript(
         |  fi
         |}
         |
+        |# パッケージマネージャの stale ロックを除去する。前回の導入が途中で失敗 (ネット切れ等) すると
+        |# pacman の db.lck / apt の各 lock が残り、以降の導入が「unable to lock database」等で
+        |# 永久に失敗する。proot は単一ユーザーで同時実行も無いので、残ったロックは安全に消してよい。
+        |# (これが無いと konsole 等の大物が一度失敗すると二度と入れ直せなくなる。)
+        |clear_pm_locks() {
+        |  rm -f /var/lib/pacman/db.lck 2>/dev/null
+        |  rm -f /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend \
+        |        /var/cache/apt/archives/lock /var/lib/apt/lists/lock 2>/dev/null
+        |  return 0
+        |}
+        |
         |install_pkgs() {
         |  detect_pm
+        |  clear_pm_locks
         |  PKGS="${d}SRV_PKGS ${d}GUI_TERM_PKG"
         |  echo "📦 GUI 一式を導入します (${d}PM): ${d}PKGS"
         |  case "${d}PM" in
         |    apk)    apk update && apk add --no-cache ${d}PKGS ;;
         |    apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}PKGS ;;
         |    pacman) pacman -Sy --noconfirm ${d}PKGS ;;
+        |    *) echo "❌ 対応パッケージマネージャ (apk/apt-get/pacman) が見つかりません。"; return 1 ;;
+        |  esac
+        |}
+        |
+        |# クリーンインストール: パッケージマネージャのキャッシュを消してから取り直し、
+        |# GUI 一式を強制的に入れ直す。ダウンロード/解凍が途中で失敗して壊れた状態
+        |# (毎回同じ所で失敗する等) からの復旧用 (端末側のクリーンインストールと同思想)。
+        |clean_pkgs() {
+        |  detect_pm
+        |  clear_pm_locks
+        |  PKGS="${d}SRV_PKGS ${d}GUI_TERM_PKG"
+        |  echo "🧹 GUI をクリーンインストールします (${d}PM): ロック/キャッシュ削除 + 再取得"
+        |  case "${d}PM" in
+        |    apk)
+        |      rm -rf /var/cache/apk/* 2>/dev/null
+        |      apk update && apk add --no-cache ${d}PKGS && apk fix ${d}PKGS 2>/dev/null ;;
+        |    apt)
+        |      apt-get clean
+        |      rm -rf /var/lib/apt/lists/* 2>/dev/null
+        |      dpkg --configure -a 2>/dev/null
+        |      apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --reinstall ${d}PKGS ;;
+        |    pacman)
+        |      rm -rf /var/cache/pacman/pkg/* 2>/dev/null
+        |      pacman -Syy --noconfirm && pacman -S --noconfirm ${d}PKGS ;;
         |    *) echo "❌ 対応パッケージマネージャ (apk/apt-get/pacman) が見つかりません。"; return 1 ;;
         |  esac
         |}
@@ -151,11 +189,13 @@ fun z2guiScript(
         |
         |start_x() {
         |  GEOM="${d}{1:-${d}DEFAULT_GEOM}"
+        |  CLEAN="${d}2"
         |  case "${d}GEOM" in
         |    *[0-9]x[0-9]*) : ;;
         |    *) echo "❌ 解像度の形式が不正: '${d}GEOM' (例 1280x720)"; exit 1 ;;
         |  esac
-        |  ensure_pkgs || exit 1
+        |  # 第2引数が clean のときはキャッシュごと入れ直す (救済)。それ以外は通常導入。
+        |  if [ "${d}CLEAN" = "clean" ]; then clean_pkgs || exit 1; else ensure_pkgs || exit 1; fi
         |  XSERVER=${d}(xbin) || { echo "❌ Xvnc/Xtigervnc がありません (tigervnc 未導入)"; exit 1; }
         |  # 再入ガード: Xvnc が実際に生きているなら stop_x で**動作中のセッションを壊さない**。
         |  # (z2gui が誤って再起動された場合の安全網。本来の再帰起動は上の SHELL 上書きで防ぐ。
@@ -181,13 +221,24 @@ fun z2guiScript(
         |    echo "❌ Xvnc 起動失敗。ログ:"; cat /tmp/z2gui-xvnc.log 2>/dev/null; exit 1
         |  fi
         |  setsid openbox </dev/null >/tmp/z2gui-wm.log 2>&1 &
+        |  # ターミナルは画面左上 (0,0) に、画面に対して控えめなサイズで開く (大きすぎ対策)。
+        |  # 画面 (GEOM) の約 60% 幅 × 約 45% 高さ。文字セルは monospace fs 11 で概算 7x20px。
+        |  # もっと大きくしたい時は WM (openbox) のタイトルバーや最大化ボタンで広げられる。
+        |  GW="${d}{GEOM%x*}"; GH="${d}{GEOM#*x}"
+        |  COLS=${d}(( ${d}{GW:-1280} * 6 / 10 / 7 ))
+        |  ROWS=${d}(( ${d}{GH:-720} * 45 / 100 / 20 ))
+        |  [ "${d}COLS" -ge 24 ] 2>/dev/null || COLS=24
+        |  [ "${d}ROWS" -ge 8 ] 2>/dev/null || ROWS=8
         |  # xterm はコア(ビットマップ)フォント 'fixed' を要求し、distro により (例: Arch) その
         |  # Unicode 版が無くて起動失敗する。Xft(TrueType/fontconfig) フォントを明示すると
         |  # ttf-dejavu/noto 等を使い、コアフォント依存を回避できる (distro 非依存)。
         |  # "monospace" は fontconfig の汎用エイリアス (空白を含まないので語分割で壊れない)。
+        |  # -geometry COLSxROWS+0+0 で左上に配置 (xterm/urxvt はこの書式、lxterminal は別書式)。
         |  TERM_ARGS=""
         |  case "${d}GUI_TERM_BIN" in
-        |    xterm) TERM_ARGS="-fa monospace -fs 11" ;;
+        |    xterm) TERM_ARGS="-fa monospace -fs 11 -geometry ${d}{COLS}x${d}{ROWS}+0+0" ;;
+        |    urxvt) TERM_ARGS="-geometry ${d}{COLS}x${d}{ROWS}+0+0" ;;
+        |    lxterminal) TERM_ARGS="--geometry=${d}{COLS}x${d}{ROWS}" ;;
         |  esac
         |  if has "${d}GUI_TERM_BIN"; then
         |    setsid "${d}GUI_TERM_BIN" ${d}TERM_ARGS </dev/null >/tmp/z2gui-term.log 2>&1 &
@@ -203,13 +254,14 @@ fun z2guiScript(
         |
         |ACTION="${d}{1:-start}"
         |case "${d}ACTION" in
-        |  start)   start_x "${d}2" ;;
+        |  start)   start_x "${d}2" "${d}3" ;;
         |  stop)    stop_x; echo "⏹ 停止しました" ;;
         |  status)  status_x ;;
         |  install) install_pkgs ;;
+        |  clean)   clean_pkgs ;;
         |  check)   check_pkgs ;;
-        |  *[0-9]x[0-9]*) start_x "${d}ACTION" ;;
-        |  *) echo "使い方: z2gui [start [WxH] | stop | status | install | check]" ;;
+        |  *[0-9]x[0-9]*) start_x "${d}ACTION" "${d}2" ;;
+        |  *) echo "使い方: z2gui [start [WxH] [clean] | stop | status | install | clean | check]" ;;
         |esac
     """.trimMargin() + "\n"
 }

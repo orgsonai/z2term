@@ -40,16 +40,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -391,16 +394,17 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
 }
 
 /**
- * GUI タブの画面。端末画面と同じ枠組み (TopBar + タブバー + キーボード) を持つ。
+ * GUI タブの画面。端末画面と同じ TopBar + タブバー + キーボードを持つ。
  *
- *  - **TopBar は残す**。端末専用ボタン (📋貼付 / CMD) はグレーアウト、共通の💡/⌨切替/⚙は有効。
- *  - **キーボードは端末と同一仕様** (独自キーボード CUSTOM / SpecialKeyBar SYSTEM)。押下は
- *    keysym へ橋渡しして RFB へ送る ([GuiKeyMapper.sendBytes] / [GuiSpecialKeyBar])。
- *  - キーボードは GUI に**上乗せ** (BottomStart オーバーレイ)。コンテンツ Box は常にフル高なので
- *    **GUI のフィット解像度は変わらない**。SYSTEM 時の OS IME は imePadding で特殊キーバーを上げる。
+ *  - **TopBar は残す**。端末専用ボタン (📋貼付 / CMD) は keysym 橋渡しで GUI へタイプ。💡/⌨/⚙ 有効。
+ *  - **キーボードは端末と同一仕様** (CUSTOM=独自 / SYSTEM=OS IME + 特殊キーバー)。GUI に**上乗せ**
+ *    (オーバーレイ) なので解像度・領域は変わらず、▾ で折りたためば GUI を広く使える。
+ *  - **GUI 領域に枠線**を付け、どこからどこが GUI か分かるようにする。枠の内側の実寸を測り、
+ *    その px を **表示倍率**で割った解像度で Xvnc を起動する → 中央フィットで左右に黒帯が出ず
+ *    **画面幅をフル活用**、かつ倍率で「細かすぎ」を緩和できる。
  *
- * 初回表示で Xvnc を起動 (解像度は画面実サイズ。[GuiSession.start] は再入ガード済み)。タブ切替で
- * 離れても [GuiSession] は SessionManager が保持し続けるので動き続ける (停止はタブ × のときのみ)。
+ * 表示領域の実寸が確定してから Xvnc を起動 (解像度を倍率で決めるため寸法が要る)。タブ切替で離れても
+ * [GuiSession] は SessionManager が保持し続けるので動き続ける (停止はタブ × のときのみ)。
  */
 @Composable
 private fun GuiTabScreen(
@@ -421,22 +425,13 @@ private fun GuiTabScreen(
     }
     LaunchedEffect(Unit) { KanaKanjiConverter.ensureLoaded(context) }
 
-    // GUI 一式が未導入で「ダウンロード前に確認」が ON のとき、確認待ちの解像度 (w,h) を保持 (M8-6 T7)。
-    var pendingGuiDownload by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    LaunchedEffect(gui.id) {
-        val dm = context.resources.displayMetrics
-        val w = dm.widthPixels.coerceIn(320, 4096)
-        val h = dm.heightPixels.coerceIn(320, 4096)
-        // 設定は最新を読む (初期 Snapshot の取りこぼし回避)。GUI 未導入 & 確認 ON のときだけ
-        // ダイアログ。導入済み or 確認 OFF はそのまま起動 (= 従来挙動)。
-        val snap = appSettings.flow.first()
-        val installed = guiPackagesInstalled(
-            context, snap.distroId, GuiTerminal.byId(snap.guiTerminalId).binary
-        )
-        if (snap.confirmBeforeDownload && !installed) pendingGuiDownload = w to h
-        else gui.start(w, h)
-    }
+    // 枠線の内側 (= 実際に GUI を描く領域) の実測 px。これを倍率で割って Xvnc 解像度を決める。
+    var guiAreaPx by remember(gui.id) { mutableStateOf(IntSize.Zero) }
+    // 起動確認待ち (初回 DL or クリーンインストール)。Triple(w, h, clean)。
+    var pendingGuiStart by remember(gui.id) { mutableStateOf<Triple<Int, Int, Boolean>?>(null) }
 
+    // キーボードは端末タブと同一仕様 (CUSTOM=独自 / SYSTEM=OS IME + 特殊キーバー)。GUI に上乗せ
+    // (オーバーレイ) で出すので解像度は変えない。▾ で折りたたんで GUI を広く使うこともできる。
     var keyboardMode by remember { mutableStateOf(KeyboardMode.CUSTOM) }
     var keyboardCollapsed by remember { mutableStateOf(false) }
     var ctrlSticky by remember { mutableStateOf(false) }
@@ -464,6 +459,35 @@ private fun GuiTabScreen(
     }
     LaunchedEffect(keyboardMode, keyboardCollapsed) { composing.reset() }
 
+    // 表示領域の実寸が確定したら Xvnc を起動する (倍率で解像度を決めるため寸法が要る)。
+    // key は gui.id だけ。サイズは snapshotFlow で待つ。
+    // ※ guiAreaPx を key にすると、寸法が数フレームで確定する間に suspend 中の本コルーチンが
+    //   毎回キャンセルされ、起動もダイアログも走らないまま IDLE で固まる (特にクリーンは
+    //   DataStore 書込の suspend が挟まり再現性が高い)。最初の非ゼロ寸法で 1 度だけ起動する。
+    LaunchedEffect(gui.id) {
+        val size = snapshotFlow { guiAreaPx }.first { it.width > 0 && it.height > 0 }
+        // 設定は最新を読む (初期 Snapshot の取りこぼし回避)。
+        val snap = appSettings.flow.first()
+        val mag = snap.guiMagnification.coerceIn(
+            AppSettings.MIN_GUI_MAGNIFICATION, AppSettings.MAX_GUI_MAGNIFICATION
+        )
+        val w = (size.width / mag).toInt().coerceIn(320, 4096)
+        val h = (size.height / mag).toInt().coerceIn(320, 4096)
+        val clean = snap.cleanInstallGuiArmed
+        // クリーンインストール予約は起動と同時に必ず消化する (チェックを確実に外す)。
+        if (clean) appSettings.setCleanInstallGuiArmed(false)
+        val installed = guiPackagesInstalled(
+            context, snap.distroId, GuiTerminal.byId(snap.guiTerminalId).binary
+        )
+        // 確認 ON かつ (クリーン or 未導入 = 通信が走る) のときだけダイアログ。
+        // 導入済み & 非クリーン or 確認 OFF はそのまま起動 (= 従来挙動)。
+        if (snap.confirmBeforeDownload && (clean || !installed)) {
+            pendingGuiStart = Triple(w, h, clean)
+        } else {
+            gui.start(w, h, clean)
+        }
+    }
+
     // 設定シートは TerminalSession を要求するので、開いている端末タブを 1 つ借りる。
     // GUI だけのときは ⚙ をグレーアウト (端末タブを開けば設定できる)。
     val terminalForSettings = sessions.firstOrNull { it is TerminalSession } as? TerminalSession
@@ -472,8 +496,7 @@ private fun GuiTabScreen(
         modifier = modifier
             .fillMaxSize()
             .background(ZtsBgPrimary)
-            // GUI はキーボード表示で解像度を変えない方針 → ime を含めない systemBars のみ。
-            // (OS IME / 独自キーボードはコンテンツ Box に上乗せする)
+            // OS IME はオーバーレイで出すので解像度に影響させない → systemBars のみ。
             .windowInsetsPadding(WindowInsets.systemBars)
     ) {
         GuiTopBar(
@@ -509,9 +532,15 @@ private fun GuiTabScreen(
             onNewGui = { SessionManager.openNewGui(context) }
         )
 
-        Box(modifier = Modifier
-            .fillMaxWidth()
-            .weight(1f)
+        // GUI 領域を枠線で囲って範囲を明示し、内側の実寸 (onSizeChanged) で解像度を決める。
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(4.dp)
+                .border(2.dp, ZtsGreen)
+                .padding(2.dp)
+                .onSizeChanged { guiAreaPx = it }
         ) {
             GuiScreen(
                 session = gui,
@@ -521,7 +550,8 @@ private fun GuiTabScreen(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // キーボードを GUI に上乗せ (解像度は変えない)。SYSTEM 時は OS IME の上に出すため imePadding。
+            // キーボードを GUI に上乗せ (オーバーレイ。解像度は変えない)。▾ で折りたためる。
+            // SYSTEM 時は OS IME の上に出すため imePadding。
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -578,16 +608,19 @@ private fun GuiTabScreen(
             onRun = { command -> GuiKeyMapper.sendText(gui.rfb, command) }
         )
     }
-    // GUI 一式の初回ダウンロード確認 (M8-6 T7)。OK で起動 (= apk/apt/pacman add が走る)、
-    // やめる→タブを閉じる (パッケージ無しでは表示できないため)。
-    pendingGuiDownload?.let { (w, h) ->
+    // GUI 起動確認 (初回 DL / クリーンインストール)。OK で起動、やめる→タブを閉じる
+    // (パッケージ無しでは表示できないため)。
+    pendingGuiStart?.let { (w, h, clean) ->
         DownloadConfirmDialog(
-            title = "GUI 一式をダウンロード",
-            message = "GUI (Linux デスクトップ) の初回起動には表示用パッケージの取得が必要です " +
-                "(数十〜数百MB)。Wi-Fi 推奨。続けますか?",
-            confirmLabel = "ダウンロードして起動",
-            onConfirm = { pendingGuiDownload = null; gui.start(w, h) },
-            onCancel = { pendingGuiDownload = null; SessionManager.close(gui.id) }
+            title = if (clean) "GUI をクリーンインストール" else "GUI 一式をダウンロード",
+            message = if (clean)
+                "GUI 表示用パッケージをキャッシュごと消して入れ直します (数十〜数百MB)。Wi-Fi 推奨。続けますか?"
+            else
+                "GUI (Linux デスクトップ) の初回起動には表示用パッケージの取得が必要です " +
+                    "(数十〜数百MB)。Wi-Fi 推奨。続けますか?",
+            confirmLabel = if (clean) "クリーンインストール" else "ダウンロードして起動",
+            onConfirm = { pendingGuiStart = null; gui.start(w, h, clean) },
+            onCancel = { pendingGuiStart = null; SessionManager.close(gui.id) }
         )
     }
 }

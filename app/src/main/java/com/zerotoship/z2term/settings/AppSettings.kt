@@ -38,8 +38,28 @@ class AppSettings(private val context: Context) {
         /** GUI セッションで起動するターミナル ([com.zerotoship.z2term.proot.GuiTerminal] の id) */
         val guiTerminalId: String = DEFAULT_GUI_TERMINAL,
         /** 通信を伴うダウンロード (distro / GUI パッケージ) の前に確認ダイアログを出すか */
-        val confirmBeforeDownload: Boolean = DEFAULT_CONFIRM_DOWNLOAD
+        val confirmBeforeDownload: Boolean = DEFAULT_CONFIRM_DOWNLOAD,
+        /**
+         * GUI の表示倍率。1.0 = 端末画素そのまま (最も精細)、大きいほど低解像度＝表示が大きい。
+         * Xvnc の仮想画面解像度 = 表示領域px / 倍率 で決まる (次回 GUI 起動から反映)。
+         */
+        val guiMagnification: Float = DEFAULT_GUI_MAGNIFICATION,
+        /**
+         * 次に開く GUI タブでクリーンインストール (GUI パッケージをキャッシュごと入れ直す) を行うか。
+         * 起動時に消化して false に戻す (チェックは確実に外れる)。distro 側はシート内ローカル状態で扱う。
+         */
+        val cleanInstallGuiArmed: Boolean = false
     )
+
+    suspend fun setGuiMagnification(value: Float) {
+        context.dataStore.edit {
+            it[KEY_GUI_MAGNIFICATION] = value.coerceIn(MIN_GUI_MAGNIFICATION, MAX_GUI_MAGNIFICATION)
+        }
+    }
+
+    suspend fun setCleanInstallGuiArmed(armed: Boolean) {
+        context.dataStore.edit { it[KEY_CLEAN_INSTALL_GUI] = armed }
+    }
 
     val flow: Flow<Snapshot> = context.dataStore.data.map { p ->
         Snapshot(
@@ -55,7 +75,9 @@ class AppSettings(private val context: Context) {
             keyboardMode = p[KEY_KEYBOARD_MODE] ?: DEFAULT_KEYBOARD_MODE,
             keepAliveService = p[KEY_KEEP_ALIVE] ?: DEFAULT_KEEP_ALIVE,
             guiTerminalId = p[KEY_GUI_TERMINAL] ?: DEFAULT_GUI_TERMINAL,
-            confirmBeforeDownload = p[KEY_CONFIRM_DOWNLOAD] ?: DEFAULT_CONFIRM_DOWNLOAD
+            confirmBeforeDownload = p[KEY_CONFIRM_DOWNLOAD] ?: DEFAULT_CONFIRM_DOWNLOAD,
+            guiMagnification = p[KEY_GUI_MAGNIFICATION] ?: DEFAULT_GUI_MAGNIFICATION,
+            cleanInstallGuiArmed = p[KEY_CLEAN_INSTALL_GUI] ?: false
         )
     }
 
@@ -127,6 +149,11 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_CONFIRM_DOWNLOAD = true
         /** GUI ターミナルの既定 ([com.zerotoship.z2term.proot.GuiTerminal.XTERM] の id) */
         const val DEFAULT_GUI_TERMINAL = "xterm"
+        /** GUI 表示倍率の既定。1.5 = 解像度を 2/3 にして表示を一回り大きく (細かすぎ対策)。 */
+        const val DEFAULT_GUI_MAGNIFICATION = 1.5f
+        /** 0.5 = 仮想画面を 2 倍解像度にして縮小表示 (より細かく・広く)。1.0 が等倍。 */
+        const val MIN_GUI_MAGNIFICATION = 0.5f
+        const val MAX_GUI_MAGNIFICATION = 3.0f
         /** Alpine 同梱で zsh が利用可能なので既定 zsh。`-l` でログインシェル動作。 */
         const val DEFAULT_LOGIN_SHELL = "/bin/zsh"
         val AVAILABLE_SHELLS = listOf("/bin/zsh", "/bin/bash", "/bin/sh")
@@ -149,5 +176,7 @@ class AppSettings(private val context: Context) {
         private val KEY_KEEP_ALIVE = booleanPreferencesKey("keep_alive_service")
         private val KEY_GUI_TERMINAL = stringPreferencesKey("gui_terminal")
         private val KEY_CONFIRM_DOWNLOAD = booleanPreferencesKey("confirm_before_download")
+        private val KEY_GUI_MAGNIFICATION = floatPreferencesKey("gui_magnification")
+        private val KEY_CLEAN_INSTALL_GUI = booleanPreferencesKey("clean_install_gui_armed")
     }
 }

@@ -88,8 +88,10 @@ import kotlinx.coroutines.launch
  *  - 起動時に流す init コマンド
  *
  * アクションボタン:
- *  - 端末リセット (current session.clearOutput + restart)
- *  - クリップボード貼り付け
+ *  - 端末リセット (画面クリア + 再起動)。画面クリア単体は CTRL+L で行える。
+ *
+ * クリーンインストールは distro / GUI 各「切替」セクションのチェックへ統合した
+ * (チェック ON → 対象を選ぶ/GUI を開く で入れ直す。起動・再起動でチェックは外れる)。
  *
  * 値は変更と同時に `session.set*` を呼び DataStore に書き込まれる。
  */
@@ -109,6 +111,10 @@ fun SettingsSheet(
     var forceClose by remember { mutableStateOf(false) }
     // distro 切替でダウンロードが要るとき、確認ダイアログの対象 spec を保持 (M8-6 T7)。
     var pendingDistroSwitch by remember { mutableStateOf<DistroSpec?>(null) }
+    // 確認ダイアログがクリーンインストール (rootfs + DLキャッシュ削除) かどうか。
+    var pendingCleanInstall by remember { mutableStateOf(false) }
+    // 「クリーンインストール」チェック。ON のまま OS を選ぶとその OS を入れ直す (シート内ローカル)。
+    var distroCleanArmed by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         // スクロール途中の下スワイプ/フリングで誤って閉じるのを防ぐ。
@@ -201,8 +207,19 @@ fun SettingsSheet(
                     },
                     selected = settings.distroId,
                     onSelect = { id ->
-                        if (id != settings.distroId) {
-                            val spec = DistroSpec.byId(id)
+                        val spec = DistroSpec.byId(id)
+                        if (distroCleanArmed && spec != null) {
+                            // クリーンインストール: rootfs + DL キャッシュを消して入れ直す。
+                            // 非同梱 distro は再 DL が走るので確認 ON なら先にダイアログ。
+                            if (!spec.bundled && settings.confirmBeforeDownload) {
+                                pendingDistroSwitch = spec
+                                pendingCleanInstall = true
+                            } else {
+                                distroCleanArmed = false
+                                session.cleanInstallDistro(id)
+                                onDismiss()
+                            }
+                        } else if (id != settings.distroId) {
                             val extracted = java.io.File(
                                 context.filesDir, "distros/$id/bin"
                             ).exists()
@@ -210,6 +227,7 @@ fun SettingsSheet(
                             val needsDownload = spec != null && !spec.bundled && !extracted
                             if (needsDownload && settings.confirmBeforeDownload) {
                                 pendingDistroSwitch = spec   // 確認ダイアログを出す
+                                pendingCleanInstall = false
                             } else {
                                 // 切替を保存して override 付きで再起動 (settingsFlow 反映待ちの
                                 // race を回避)。同梱/展開済みなら DL は走らない。
@@ -219,8 +237,16 @@ fun SettingsSheet(
                         }
                     }
                 )
+                ToggleField(
+                    title = "クリーンインストール",
+                    description = "ON にして OS を選ぶと、その OS を rootfs もダウンロード済みデータも" +
+                        "消して最初から入れ直します (DL/解凍失敗で詰まったときの復旧用)。",
+                    checked = distroCleanArmed,
+                    onChange = { distroCleanArmed = it }
+                )
                 Text(
-                    text = "Alpine は同梱。Ubuntu / Arch / Kali は初回切替時に自動ダウンロード (Wi-Fi 推奨)。",
+                    text = "Alpine は同梱。Ubuntu / Arch / Kali は初回切替・クリーンインストール時に" +
+                        "自動ダウンロード (Wi-Fi 推奨)。",
                     color = ZtsTextSecondary,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
@@ -305,6 +331,13 @@ fun SettingsSheet(
                     selected = settings.guiTerminalId,
                     onSelect = { session.setGuiTerminal(it) }
                 )
+                ToggleField(
+                    title = "クリーンインストール",
+                    description = "ON にして GUI タブを開くと、GUI 表示用パッケージをキャッシュごと" +
+                        "入れ直します (DL/解凍失敗の復旧用)。起動時にチェックは自動で外れます。",
+                    checked = settings.cleanInstallGuiArmed,
+                    onChange = { session.setCleanInstallGuiArmed(it) }
+                )
                 Text(
                     text = "🖥 GUI タブで開くターミナル。未導入なら初回 GUI 起動時に自動導入されます" +
                         "（Konsole は KDE 系で初回ダウンロードが大きめ・Wi-Fi 推奨）。",
@@ -313,6 +346,15 @@ fun SettingsSheet(
                     fontFamily = FontFamily.Monospace
                 )
             }
+
+            SliderField(
+                title = "GUI 表示倍率 (次回 GUI 起動から反映)",
+                value = settings.guiMagnification,
+                range = AppSettings.MIN_GUI_MAGNIFICATION..AppSettings.MAX_GUI_MAGNIFICATION,
+                steps = 4,  // 0.5 / 1.0 / 1.5 / 2.0 / 2.5 / 3.0 の 6 段階 (内部 4 ステップ)
+                valueLabel = { "%.1f×".format(it) },
+                onChange = { session.setGuiMagnification(it) }
+            )
 
             ToggleField(
                 title = "全角曖昧文字を 2 セル幅扱い",
@@ -344,67 +386,45 @@ fun SettingsSheet(
 
             Spacer(modifier = Modifier.height(4.dp))
 
+            // 端末リセット (画面クリア + 再起動)。画面クリア単体は CTRL+L で行える。
+            // ディストロ/GUI のクリーンインストールは各「切替」セクションのチェックへ移動。
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                ActionButton(
-                    label = "ペースト",
-                    onClick = { session.pasteFromClipboard() }
-                )
-                ActionButton(
-                    label = "画面クリア",
-                    onClick = { session.clearOutput() }
-                )
                 ActionButton(
                     label = "端末リセット",
                     danger = true,
                     onClick = { session.restart() }
                 )
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ActionButton(
-                    label = "ディストロ再展開",
-                    danger = true,
-                    onClick = { session.reinstallDistro() }
-                )
-                ActionButton(
-                    label = "クリーン再インストール",
-                    danger = true,
-                    onClick = { session.cleanReinstallDistro() }
-                )
-            }
-            Text(
-                text = "再展開: rootfs を消して展開し直す。クリーン再インストール: " +
-                    "ダウンロード済みデータも消して最初から取得し直す (DL 失敗で壊れたときの復旧用、" +
-                    "非同梱ディストロは再ダウンロードが走るので Wi-Fi 推奨)。",
-                color = ZtsTextSecondary,
-                fontSize = 10.sp,
-                fontFamily = FontFamily.Monospace
-            )
 
             AppInfoSection(distroId = settings.distroId)
         }
     }
 
-    // distro 切替の DL 確認 (M8-6 T7)。OK で switchDistro → 起動時に DL/展開、シートを閉じる。
+    // distro 切替 / クリーンインストールの DL 確認 (M8-6 T7)。OK で起動時に DL/展開、シートを閉じる。
     pendingDistroSwitch?.let { spec ->
+        val clean = pendingCleanInstall
         DownloadConfirmDialog(
-            title = "${spec.displayName} をダウンロード",
-            message = "${spec.displayName} を初回ダウンロードします" +
-                (spec.approxDownload?.let { " ($it)" } ?: "") +
-                "。Wi-Fi 推奨。続けますか?",
-            confirmLabel = "ダウンロードして切替",
+            title = if (clean) "${spec.displayName} をクリーンインストール"
+                    else "${spec.displayName} をダウンロード",
+            message = if (clean)
+                "${spec.displayName} を rootfs もダウンロード済みデータも消して最初から取得し直します" +
+                    (spec.approxDownload?.let { " ($it)" } ?: "") + "。Wi-Fi 推奨。続けますか?"
+            else
+                "${spec.displayName} を初回ダウンロードします" +
+                    (spec.approxDownload?.let { " ($it)" } ?: "") + "。Wi-Fi 推奨。続けますか?",
+            confirmLabel = if (clean) "クリーンインストール" else "ダウンロードして切替",
             onConfirm = {
                 val id = spec.id
                 pendingDistroSwitch = null
-                session.switchDistro(id)
+                pendingCleanInstall = false
+                distroCleanArmed = false
+                if (clean) session.cleanInstallDistro(id) else session.switchDistro(id)
                 onDismiss()
             },
-            onCancel = { pendingDistroSwitch = null }
+            onCancel = { pendingDistroSwitch = null; pendingCleanInstall = false }
         )
     }
 }
