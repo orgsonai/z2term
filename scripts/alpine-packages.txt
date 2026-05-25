@@ -59,6 +59,18 @@ tar
 gzip
 xz
 
+# ===== Tier 3.6: 追加ユーティリティ (汎用性向上, 約 3〜4MB) =====
+# zip/unzip=ZIP 解凍作成, openssl=暗号/証明書 CLI, bind-tools=dig/nslookup/host,
+# file=ファイル種別判定, diffutils=本物の diff, patch=パッチ当て, bc=計算。
+zip
+unzip
+openssl
+bind-tools
+file
+diffutils
+patch
+bc
+
 # ===== Tier 3.5: dropbear (PC → 端末 の SSH サーバ) =====
 # OpenSSH sshd は proot で privsep が破綻 (permanently_set_uid) して接続が切れる。
 # dropbear は proot 下で問題なく動くため、SSH ヘルパーはこちらを起動する。

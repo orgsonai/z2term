@@ -3,6 +3,7 @@ package com.zerotoship.z2term.snippets
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -43,12 +44,29 @@ private val Context.snippetDataStore: DataStore<Preferences> by preferencesDataS
 /**
  * スニペット永続化。SshProfileStore と同じパターン (JSONArray を 1 つの String キーに保存)。
  *
- * 初回起動時のシード値は持たず空リスト。ユーザーが「+ 新規」で 0 件から積み上げる。
+ * 初回のみサンプル 1 件 (`ls -la --color=auto`) をシードする ([ensureSeeded])。
+ * 以降はユーザーが「+ 新規」で積み上げ。ユーザーが全削除してもシードは復活しない。
  */
 class SnippetStore(private val context: Context) {
 
     val snippets: Flow<List<Snippet>> = context.snippetDataStore.data.map { p ->
         readList(p[KEY])
+    }
+
+    /**
+     * 初回だけサンプルスニペットを投入する (冪等)。`SEEDED` フラグで二度目以降は何もしない
+     * → ユーザーが消したサンプルが再出現しない。既存スニペットがあれば上書きもしない。
+     */
+    suspend fun ensureSeeded() {
+        context.snippetDataStore.edit { p ->
+            if (p[SEEDED] == true) return@edit
+            p[SEEDED] = true
+            if (p[KEY] == null) {
+                p[KEY] = serialize(
+                    listOf(Snippet(id = "sample:ls", label = "一覧 (詳細)", command = "ls -la --color=auto"))
+                )
+            }
+        }
     }
 
     suspend fun upsert(snippet: Snippet) {
@@ -67,18 +85,9 @@ class SnippetStore(private val context: Context) {
         }
     }
 
-    /**
-     * [from] のスニペットを [to] の位置へ移動 (並び替え用)。
-     * インデックスが範囲外なら無視。
-     */
-    suspend fun reorder(from: Int, to: Int) {
-        context.snippetDataStore.edit { p ->
-            val list = readList(p[KEY]).toMutableList()
-            if (from !in list.indices || to !in list.indices || from == to) return@edit
-            val item = list.removeAt(from)
-            list.add(to, item)
-            p[KEY] = serialize(list)
-        }
+    /** リスト全体を指定順で保存する (ドラッグ並べ替えの確定用)。 */
+    suspend fun replaceAll(list: List<Snippet>) {
+        context.snippetDataStore.edit { p -> p[KEY] = serialize(list) }
     }
 
     private fun readList(raw: String?): List<Snippet> {
@@ -95,5 +104,6 @@ class SnippetStore(private val context: Context) {
 
     companion object {
         private val KEY = stringPreferencesKey("snippets")
+        private val SEEDED = booleanPreferencesKey("seeded")
     }
 }

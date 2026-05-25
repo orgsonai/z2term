@@ -4,17 +4,18 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -25,8 +26,10 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -36,12 +39,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.zerotoship.z2term.snippets.Snippet
 import com.zerotoship.z2term.snippets.SnippetStore
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
@@ -96,6 +103,17 @@ fun SnippetsSheet(
     val snippets by snippetsFlow.collectAsState()
     var editing by remember { mutableStateOf<Snippet?>(null) }
 
+    // 初回だけサンプル (ls -la --color=auto) を投入。
+    LaunchedEffect(Unit) { store.ensureSeeded() }
+
+    // ドラッグ並べ替え: 表示順はローカル [order] を真実とし、ドラッグ中は flow 更新で上書きしない。
+    var draggingId by remember { mutableStateOf<String?>(null) }
+    var dragDy by remember { mutableStateOf(0f) }
+    var order by remember { mutableStateOf<List<Snippet>>(emptyList()) }
+    LaunchedEffect(snippets, draggingId) { if (draggingId == null) order = snippets }
+    // 1 行ぶんのピッチ (行高 + Column の spacedBy 10dp)。これを超えて動かしたら隣と入れ替える。
+    val rowPitchPx = with(LocalDensity.current) { (SNIPPET_ROW_HEIGHT + 10.dp).toPx() }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -116,35 +134,49 @@ fun SnippetsSheet(
         ) {
             val currentEdit = editing
             if (currentEdit == null) {
-                ListHeader(
-                    onNew = { editing = newSnippet() },
-                    onLoadPreset = { tier ->
-                        scope.launch { presetFor(tier).forEach { store.upsert(it) } }
-                    }
-                )
-                if (snippets.isEmpty()) {
+                ListHeader(onNew = { editing = newSnippet() })
+                if (order.isEmpty()) {
                     EmptyState()
                 } else {
-                    snippets.forEachIndexed { idx, s ->
-                        SnippetRow(
-                            snippet = s,
-                            isFirst = idx == 0,
-                            isLast = idx == snippets.lastIndex,
-                            onRun = {
-                                onRun(s.command)
-                                onDismiss()
-                            },
-                            onEdit = { editing = s },
-                            onDelete = {
-                                scope.launch { store.delete(s.id) }
-                            },
-                            onMoveUp = {
-                                scope.launch { store.reorder(idx, idx - 1) }
-                            },
-                            onMoveDown = {
-                                scope.launch { store.reorder(idx, idx + 1) }
-                            }
-                        )
+                    // key(s.id) でノード identity を固定 → 並べ替え中も掴んだ行に
+                    // ポインタ(ドラッグ)が追従する (Column でも item が移動できる)。
+                    order.forEach { s ->
+                        key(s.id) {
+                            val dragging = s.id == draggingId
+                            SnippetRow(
+                                snippet = s,
+                                dragging = dragging,
+                                dragOffsetY = if (dragging) dragDy else 0f,
+                                onRun = {
+                                    onRun(s.command)
+                                    onDismiss()
+                                },
+                                onEdit = { editing = s },
+                                onDelete = { scope.launch { store.delete(s.id) } },
+                                onDragStart = { draggingId = s.id; dragDy = 0f },
+                                onDrag = { dy ->
+                                    dragDy += dy
+                                    val cur = order.indexOfFirst { it.id == draggingId }
+                                    if (cur >= 0) {
+                                        if (dragDy > rowPitchPx && cur < order.lastIndex) {
+                                            order = order.toMutableList()
+                                                .also { it.add(cur + 1, it.removeAt(cur)) }
+                                            dragDy -= rowPitchPx
+                                        } else if (dragDy < -rowPitchPx && cur > 0) {
+                                            order = order.toMutableList()
+                                                .also { it.add(cur - 1, it.removeAt(cur)) }
+                                            dragDy += rowPitchPx
+                                        }
+                                    }
+                                },
+                                onDragEnd = {
+                                    val finalOrder = order
+                                    draggingId = null
+                                    dragDy = 0f
+                                    scope.launch { store.replaceAll(finalOrder) }
+                                }
+                            )
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
@@ -171,119 +203,41 @@ private fun newSnippet() = Snippet(
     command = ""
 )
 
-/** プリセット規模 */
-private enum class PresetTier { SMALL, MEDIUM, LARGE }
-
-// 各段は (ラベル, コマンド)。PRoot 制約で動かないもの (ip / ping / nmap -sS) は避け、
-// 動く代替 (nmap -sT / ss) を採用。id は "preset:<command>" で安定化し、
-// 再投入しても重複しない (upsert される)。
-private val PRESET_SMALL = listOf(
-    "一覧 (詳細)" to "ls -la --color=auto",
-    "ディスク使用量" to "df -h",
-    "メモリ" to "free -h",
-    "プロセス" to "ps aux",
-    "OS 情報" to "cat /etc/os-release",
-    "パッケージ更新" to "apk update && apk upgrade",
-    "パッケージ追加" to "apk add "
-)
-private val PRESET_MEDIUM_ADD = listOf(
-    "巨大ファイル探索" to "du -sh * | sort -h",
-    "再帰 grep" to "grep -rn '' .",
-    "ファイル検索" to "find . -name ",
-    "圧縮 (tar.gz)" to "tar czf out.tgz ",
-    "展開 (tar)" to "tar xf ",
-    "ダウンロード" to "curl -LO ",
-    "開放ポート" to "ss -tlnp",
-    "TCP スキャン (SYN 不使用)" to "nmap -sT ",
-    "SSH(dropbear) 起動" to "sshd"
-)
-private val PRESET_LARGE_ADD = listOf(
-    "git 状態" to "git status",
-    "git ログ (グラフ)" to "git log --oneline --graph --all",
-    "git クローン" to "git clone ",
-    "tmux 開始/復帰" to "tmux a || tmux new -s main",
-    "htop" to "htop",
-    "jq 整形" to "jq '.' ",
-    "rsync 同期" to "rsync -av src/ dst/",
-    "監視実行" to "watch -n1 "
-)
-
-private fun presetFor(tier: PresetTier): List<Snippet> {
-    val pairs = when (tier) {
-        PresetTier.SMALL -> PRESET_SMALL
-        PresetTier.MEDIUM -> PRESET_SMALL + PRESET_MEDIUM_ADD
-        PresetTier.LARGE -> PRESET_SMALL + PRESET_MEDIUM_ADD + PRESET_LARGE_ADD
-    }
-    return pairs.map { (label, cmd) -> Snippet(id = "preset:$cmd", label = label, command = cmd) }
-}
+/** スニペット 1 行の固定高さ。ドラッグ並べ替えのピッチ計算に使うため固定にする。 */
+private val SNIPPET_ROW_HEIGHT = 52.dp
 
 @Composable
-private fun ListHeader(onNew: () -> Unit, onLoadPreset: (PresetTier) -> Unit) {
-    Column(
+private fun ListHeader(onNew: () -> Unit) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 4.dp, bottom = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "スニペット",
-                color = ZtsGreen,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                fontFamily = FontFamily.Monospace
-            )
-            Box(modifier = Modifier.weight(1f))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(ZtsGreen.copy(alpha = 0.18f))
-                    .border(1.dp, ZtsGreen, RoundedCornerShape(8.dp))
-                    .clickable(onClick = onNew)
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    text = "+ 新規",
-                    color = ZtsGreen,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "おすすめ投入:",
-                color = ZtsTextSecondary,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            PresetChip("小 (7)") { onLoadPreset(PresetTier.SMALL) }
-            Spacer(modifier = Modifier.width(6.dp))
-            PresetChip("中 (16)") { onLoadPreset(PresetTier.MEDIUM) }
-            Spacer(modifier = Modifier.width(6.dp))
-            PresetChip("大 (24)") { onLoadPreset(PresetTier.LARGE) }
-        }
-    }
-}
-
-@Composable
-private fun PresetChip(label: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(ZtsBgCard)
-            .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = label,
-            color = ZtsTextPrimary,
-            fontSize = 11.sp,
+            text = "スニペット",
+            color = ZtsGreen,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold,
             fontFamily = FontFamily.Monospace
         )
+        Box(modifier = Modifier.weight(1f))
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(ZtsGreen.copy(alpha = 0.18f))
+                .border(1.dp, ZtsGreen, RoundedCornerShape(8.dp))
+                .clickable(onClick = onNew)
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = "+ 新規",
+                color = ZtsGreen,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = FontFamily.Monospace
+            )
+        }
     }
 }
 
@@ -299,7 +253,7 @@ private fun EmptyState() {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "未登録。「おすすめ投入」の 小/中/大 で定番を一括追加、または「+ 新規」で個別追加。",
+            text = "未登録。「+ 新規」でコマンドを追加してください。",
             color = ZtsTextSecondary,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace
@@ -319,8 +273,8 @@ private fun HintBlock() {
     ) {
         Text(
             text = "▸ 行をタップ → ターミナルに挿入 (Enter は付けない)\n" +
-                "▸ ↑↓ で並べ替え / ✎ 編集 / ✕ 削除\n" +
-                "▸ 小⊂中⊂大。再投入しても重複しません",
+                "▸ ≡ を掴んで上下ドラッグで並べ替え\n" +
+                "▸ ✎ 編集 / ✕ 削除",
             color = ZtsTextSecondary,
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace
@@ -329,36 +283,42 @@ private fun HintBlock() {
 }
 
 /**
- * スニペット 1 行。
- *  - 左側のテキスト領域をタップ → 挿入 (onRun)。コマンドそのものを主表示する
- *    (名前だけだと分かりにくいため)。ラベルがあれば上に小さく薄く添える。
- *  - 右側に ↑ ↓ (並べ替え) / ✎ (編集) / ✕ (削除) の小アイコン。
+ * スニペット 1 行 (固定高 [SNIPPET_ROW_HEIGHT])。
+ *  - 左側のテキスト領域をタップ → 挿入 (onRun)。コマンドを主表示、ラベルは上に薄く添える。
+ *  - 右側に ≡ (ドラッグして並べ替え) / ✎ (編集) / ✕ (削除)。
+ *  - ドラッグ中は緑枠 + 前面 (zIndex) + 指追従 (translationY) で表示。
  */
 @Composable
 private fun SnippetRow(
     snippet: Snippet,
-    isFirst: Boolean,
-    isLast: Boolean,
+    dragging: Boolean,
+    dragOffsetY: Float,
     onRun: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(SNIPPET_ROW_HEIGHT)
+            .zIndex(if (dragging) 1f else 0f)
+            .graphicsLayer { translationY = dragOffsetY }
             .clip(RoundedCornerShape(8.dp))
             .background(ZtsBgCard)
-            .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp)),
+            .border(1.dp, if (dragging) ZtsGreen else ZtsBorder, RoundedCornerShape(8.dp)),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // テキスト領域 = 挿入ボタン (行タップで挿入)。コマンドを主表示。
         Column(
             modifier = Modifier
                 .weight(1f)
+                .fillMaxHeight()
                 .clickable(onClick = onRun)
-                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .padding(horizontal = 12.dp),
+            verticalArrangement = Arrangement.Center
         ) {
             if (snippet.label.isNotBlank()) {
                 Text(
@@ -377,8 +337,31 @@ private fun SnippetRow(
                 maxLines = 1
             )
         }
-        IconCell(label = "↑", enabled = !isFirst, onClick = onMoveUp)
-        IconCell(label = "↓", enabled = !isLast, onClick = onMoveDown)
+        // ドラッグハンドル (≡)。ここを掴んで上下に動かすと並べ替え。
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .pointerInput(snippet.id) {
+                    detectDragGestures(
+                        onDragStart = { onDragStart() },
+                        onDragEnd = { onDragEnd() },
+                        onDragCancel = { onDragEnd() },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            onDrag(dragAmount.y)
+                        }
+                    )
+                }
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "≡",
+                color = if (dragging) ZtsGreen else ZtsTextSecondary,
+                fontSize = 18.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
         IconCell(label = "✎", onClick = onEdit)
         IconCell(label = "✕", danger = true, onClick = onDelete)
     }
