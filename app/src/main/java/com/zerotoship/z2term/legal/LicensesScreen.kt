@@ -32,10 +32,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zerotoship.z2term.R
 
 /**
  * OSS ライセンス一覧 Dialog (設定 → 「OSS ライセンス」をタップしたとき開く)。
@@ -70,14 +72,14 @@ fun LicensesDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "OSS ライセンス / 対応ソース",
+                        text = stringResource(R.string.licenses_dialog_title),
                         color = accent,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = FontFamily.Monospace,
                     )
                     Box(modifier = Modifier.weight(1f))
-                    TextButton(onClick = onDismiss) { Text("閉じる", color = textPrimary) }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close_dialog), color = textPrimary) }
                 }
                 Column(
                     modifier = Modifier
@@ -118,7 +120,7 @@ fun LicensesSection(
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            text = "同梱 OSS のライセンス / 対応ソース URL。タップで全文を表示。",
+            text = stringResource(R.string.licenses_section_summary),
             color = textSecondary,
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace,
@@ -192,7 +194,7 @@ private fun LicenseRow(
             fontFamily = FontFamily.Monospace,
         )
         Text(
-            text = "ソース: ${component.sourceUrl}",
+            text = stringResource(R.string.licenses_source_line, component.sourceUrl),
             color = textSecondary,
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace,
@@ -220,16 +222,16 @@ private fun LicenseFullTextDialog(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(text = component.copyright, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                Text(text = "ソース: ${component.sourceUrl}", fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                Text(text = stringResource(R.string.licenses_source_line, component.sourceUrl), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                 Text(text = "—", fontSize = 11.sp)
                 Text(text = body, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
             }
         },
         confirmButton = {
-            TextButton(onClick = onOpenSource) { Text("ソースを開く") }
+            TextButton(onClick = onOpenSource) { Text(stringResource(R.string.action_open_source)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("閉じる") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close_dialog)) }
         },
     )
 }
@@ -242,8 +244,7 @@ private fun readLicenseText(context: Context, licenseId: String): String =
     runCatching {
         context.assets.open("licenses/$licenseId.txt").use { it.readBytes().toString(Charsets.UTF_8) }
     }.getOrElse {
-        "（このライセンスの全文は同梱されていません。SPDX: $licenseId\n" +
-            "公式テキスト: https://spdx.org/licenses/$licenseId.html を参照してください。）"
+        context.getString(R.string.licenses_full_text_missing, licenseId)
     }
 
 private fun openUrl(context: Context, url: String) {

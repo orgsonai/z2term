@@ -272,14 +272,12 @@ fun SettingsSheet(
                 )
                 ToggleField(
                     title = stringResource(R.string.settings_clean_install),
-                    description = "ON にして OS を選ぶと、その OS を rootfs もダウンロード済みデータも" +
-                        "消して最初から入れ直します (DL/解凍失敗で詰まったときの復旧用)。",
+                    description = stringResource(R.string.settings_clean_install_desc),
                     checked = distroCleanArmed,
                     onChange = { distroCleanArmed = it }
                 )
                 Text(
-                    text = "Alpine は同梱。Ubuntu / Arch / Kali は初回切替・クリーンインストール時に" +
-                        "自動ダウンロード (Wi-Fi 推奨)。",
+                    text = stringResource(R.string.settings_distro_note),
                     color = ZtsTextSecondary,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
@@ -446,16 +444,16 @@ fun SettingsSheet(
     // distro 切替 / クリーンインストールの DL 確認 (M8-6 T7)。OK で起動時に DL/展開、シートを閉じる。
     pendingDistroSwitch?.let { spec ->
         val clean = pendingCleanInstall
+        val sizeHint = spec.approxDownload?.let { " ($it)" } ?: ""
         DownloadConfirmDialog(
-            title = if (clean) "${spec.displayName} をクリーンインストール"
-                    else "${spec.displayName} をダウンロード",
+            title = if (clean) stringResource(R.string.confirm_clean_install_title, spec.displayName)
+                    else stringResource(R.string.confirm_download_title, spec.displayName),
             message = if (clean)
-                "${spec.displayName} を rootfs もダウンロード済みデータも消して最初から取得し直します" +
-                    (spec.approxDownload?.let { " ($it)" } ?: "") + "。Wi-Fi 推奨。続けますか?"
+                stringResource(R.string.confirm_clean_install_msg, spec.displayName, sizeHint)
             else
-                "${spec.displayName} を初回ダウンロードします" +
-                    (spec.approxDownload?.let { " ($it)" } ?: "") + "。Wi-Fi 推奨。続けますか?",
-            confirmLabel = if (clean) "クリーンインストール" else "ダウンロードして切替",
+                stringResource(R.string.confirm_download_msg, spec.displayName, sizeHint),
+            confirmLabel = if (clean) stringResource(R.string.action_clean_install)
+                           else stringResource(R.string.action_download_and_switch),
             onConfirm = {
                 val id = spec.id
                 pendingDistroSwitch = null
@@ -487,15 +485,15 @@ private fun AppInfoSection(distroId: String) {
         }.getOrNull()
     }
     Section(title = stringResource(R.string.settings_section_app_info)) {
-        InfoRow("バージョン", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
-        InfoRow("フレーバー", if (BuildConfig.IS_FOSS) "FOSS" else "Full")
-        InfoRow("パッケージ", BuildConfig.APPLICATION_ID)
-        InfoRow("rootfs 世代", DistroBundle.ROOTFS_VERSION.toString())
-        InfoRow("ディストロ", osPretty ?: distroId)
+        InfoRow(stringResource(R.string.appinfo_version), "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+        InfoRow(stringResource(R.string.appinfo_flavor), if (BuildConfig.IS_FOSS) "FOSS" else "Full")
+        InfoRow(stringResource(R.string.appinfo_package), BuildConfig.APPLICATION_ID)
+        InfoRow(stringResource(R.string.appinfo_rootfs_generation), DistroBundle.ROOTFS_VERSION.toString())
+        InfoRow(stringResource(R.string.appinfo_distro), osPretty ?: distroId)
     }
     // 設定シート内にずらりと並べると視認性が悪いので、タップで開く Dialog に切り出す。
     var showLicensesDialog by remember { mutableStateOf(false) }
-    Section(title = "OSS ライセンス / 対応ソース") {
+    Section(title = stringResource(R.string.settings_section_licenses)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -507,7 +505,7 @@ private fun AppInfoSection(distroId: String) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "同梱 OSS の一覧を開く",
+                text = stringResource(R.string.licenses_open_button),
                 color = ZtsTextPrimary,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
@@ -521,7 +519,7 @@ private fun AppInfoSection(distroId: String) {
             )
         }
         Text(
-            text = "ライセンス全文・著作権表示・対応ソース URL をまとめて表示。",
+            text = stringResource(R.string.licenses_summary),
             color = ZtsTextSecondary,
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace,

@@ -61,4 +61,32 @@
     <string name="banner_ssh_failed">✗ SSH connect failed: %1$s</string>
     <string name="banner_start_failed">✗ start failed: %1$s</string>
     <string name="banner_fatal">fatal: %1$s</string>
+
+    <!-- License screen + confirm dialog (D3 batch 1) -->
+    <string name="action_cancel">Cancel</string>
+    <string name="action_close_dialog">Close</string>
+    <string name="action_download">Download</string>
+    <string name="action_download_and_switch">Download and switch</string>
+    <string name="action_clean_install">Clean install</string>
+    <string name="action_open_source">Open source</string>
+    <string name="settings_section_licenses">OSS licenses / corresponding source</string>
+    <string name="licenses_dialog_title">OSS licenses / corresponding source</string>
+    <string name="licenses_open_button">Open the bundled OSS list</string>
+    <string name="licenses_summary">Shows license texts, copyrights, and corresponding-source URLs in one place.</string>
+    <string name="licenses_section_summary">Bundled OSS licenses and corresponding source URLs. Tap to view the full text.</string>
+    <string name="licenses_source_line">Source: %1$s</string>
+    <string name="licenses_full_text_missing">(The full text for this license is not bundled. SPDX: %1$s\nSee the official text at https://spdx.org/licenses/%1$s.html.)</string>
+    <string name="confirm_clean_install_title">Clean install %1$s</string>
+    <string name="confirm_download_title">Download %1$s</string>
+    <string name="confirm_clean_install_msg">%1$s will be wiped (rootfs and any downloaded data) and re-fetched from scratch%2$s. Wi-Fi recommended. Continue?</string>
+    <string name="confirm_download_msg">%1$s will be downloaded for the first time%2$s. Wi-Fi recommended. Continue?</string>
+    <string name="settings_clean_install_desc">Turn ON and pick an OS to wipe its rootfs and downloaded data and reinstall from scratch (recovery for stuck DL/extraction).</string>
+    <string name="settings_distro_note">Alpine is bundled. Ubuntu / Arch / Kali are downloaded on first switch or clean install (Wi-Fi recommended).</string>
+
+    <!-- App info row labels (D3 batch 1) -->
+    <string name="appinfo_version">Version</string>
+    <string name="appinfo_flavor">Flavor</string>
+    <string name="appinfo_package">Package</string>
+    <string name="appinfo_rootfs_generation">rootfs generation</string>
+    <string name="appinfo_distro">Distro</string>
 </resources>

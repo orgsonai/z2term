@@ -61,4 +61,32 @@
     <string name="banner_ssh_failed">✗ SSH 接続失敗: %1$s</string>
     <string name="banner_start_failed">✗ 起動失敗: %1$s</string>
     <string name="banner_fatal">致命的エラー: %1$s</string>
+
+    <!-- ライセンス画面 + 確認ダイアログ (D3 バッチ 1) -->
+    <string name="action_cancel">やめる</string>
+    <string name="action_close_dialog">閉じる</string>
+    <string name="action_download">ダウンロード</string>
+    <string name="action_download_and_switch">ダウンロードして切替</string>
+    <string name="action_clean_install">クリーンインストール</string>
+    <string name="action_open_source">ソースを開く</string>
+    <string name="settings_section_licenses">OSS ライセンス / 対応ソース</string>
+    <string name="licenses_dialog_title">OSS ライセンス / 対応ソース</string>
+    <string name="licenses_open_button">同梱 OSS の一覧を開く</string>
+    <string name="licenses_summary">ライセンス全文・著作権表示・対応ソース URL をまとめて表示。</string>
+    <string name="licenses_section_summary">同梱 OSS のライセンス / 対応ソース URL。タップで全文を表示。</string>
+    <string name="licenses_source_line">ソース: %1$s</string>
+    <string name="licenses_full_text_missing">（このライセンスの全文は同梱されていません。SPDX: %1$s\n公式テキスト: https://spdx.org/licenses/%1$s.html を参照してください。）</string>
+    <string name="confirm_clean_install_title">%1$s をクリーンインストール</string>
+    <string name="confirm_download_title">%1$s をダウンロード</string>
+    <string name="confirm_clean_install_msg">%1$s を rootfs もダウンロード済みデータも消して最初から取得し直します%2$s。Wi-Fi 推奨。続けますか?</string>
+    <string name="confirm_download_msg">%1$s を初回ダウンロードします%2$s。Wi-Fi 推奨。続けますか?</string>
+    <string name="settings_clean_install_desc">ON にして OS を選ぶと、その OS を rootfs もダウンロード済みデータも消して最初から入れ直します (DL/解凍失敗で詰まったときの復旧用)。</string>
+    <string name="settings_distro_note">Alpine は同梱。Ubuntu / Arch / Kali は初回切替・クリーンインストール時に自動ダウンロード (Wi-Fi 推奨)。</string>
+
+    <!-- アプリ情報セクションの行ラベル (D3 バッチ 1) -->
+    <string name="appinfo_version">バージョン</string>
+    <string name="appinfo_flavor">フレーバー</string>
+    <string name="appinfo_package">パッケージ</string>
+    <string name="appinfo_rootfs_generation">rootfs 世代</string>
+    <string name="appinfo_distro">ディストロ</string>
 </resources>
