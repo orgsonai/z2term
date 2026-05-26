@@ -249,7 +249,20 @@ fun z2guiScript(
         |        apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}NEED ;;
         |        pacman) pacman -Sy --noconfirm ${d}NEED ;;
         |      esac
-        |      # 直後検証: libQt6QuickWidgets.so.6 が実在しなければユーザーに分かるよう警告。
+        |      # 直後検証: libQt6QuickWidgets.so.6 が実在しなければ強制再展開を試みる。
+        |      # proot 環境では chown/chmod 失敗でファイル展開が静かに抜ける事があるため
+        |      # (pacman は "installed" と記録しているが /usr/lib に物が無い)。
+        |      if [ ! -f /usr/lib/libQt6QuickWidgets.so.6 ]; then
+        |        echo "🔁 libQt6QuickWidgets.so.6 が不在 — 強制再展開を試行"
+        |        clear_pm_locks
+        |        case "${d}PM" in
+        |          # apk fix --reinstall: 既導入パッケージのファイルを取り直す
+        |          apk)    apk fix --reinstall ${d}NEED 2>/dev/null || apk add --no-cache --force-overwrite ${d}NEED ;;
+        |          apt)    apt-get install --reinstall -y ${d}NEED ;;
+        |          # pacman --overwrite '*': 既存ファイルとの衝突を無視して上書き展開 (proot 取りこぼし救済)
+        |          pacman) pacman -S --overwrite '*' --noconfirm ${d}NEED ;;
+        |        esac
+        |      fi
         |      if [ ! -f /usr/lib/libQt6QuickWidgets.so.6 ]; then
         |        echo "⚠️ libQt6QuickWidgets.so.6 still missing after install — konsole will not launch."
         |        echo "   調査用: 'find / -name libQt6QuickWidgets.so.6 2>/dev/null' でパス確認、"
