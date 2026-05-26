@@ -219,31 +219,26 @@ fun z2guiScript(
         |  if ! ( xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN" ); then
         |    install_pkgs; return ${d}?
         |  fi
-        |  # Konsole 選択時は dbus + Qt6 ランタイムが必須。導入済みでも依存欠落で起動しない事例
-        |  # (例: Alpine の konsole が qt6-qtdeclarative を引かない) を救うため、不足する物だけ
-        |  # 追加導入する (フル再インストールは避ける)。
+        |  # Konsole 選択時は dbus + Qt6 ランタイムが必須。Alpine の konsole は
+        |  # qt6-qtdeclarative などを hard-dep に引かないため、binary が居ても起動できない事例が
+        |  # ある (例: libQt6QuickWidgets.so.6 不在)。apk は冪等なので「不足候補を毎回 add」で安全。
+        |  # ldd 探索より単純で確実 (Alpine では ldd 自体が musl-utils 別パッケージで不在の事も)。
         |  if [ "${d}GUI_TERM_BIN" = "konsole" ]; then
-        |    NEED=""
-        |    # 1) DBus 系
-        |    if ! has dbus-daemon && ! has dbus-launch; then
-        |      detect_pm
-        |      case "${d}PM" in
-        |        apk)    NEED="${d}NEED dbus dbus-x11" ;;
-        |        apt)    NEED="${d}NEED dbus dbus-x11" ;;
-        |        pacman) NEED="${d}NEED dbus" ;;
-        |      esac
-        |    fi
-        |    # 2) Qt6 ランタイム: konsole の動的依存を ldd で見て "not found" があれば追加。
-        |    #    ldd が無い (busybox) 環境では実行→失敗を即時検知できないため、Alpine では予防的に
-        |    #    qt6-qtdeclarative / qt6-qtbase-x11 を追加候補に積む (既に入っていれば apk は no-op)。
         |    detect_pm
-        |    if has ldd && ldd "${d}(command -v konsole)" 2>/dev/null | grep -q "not found"; then
-        |      case "${d}PM" in
-        |        apk)    NEED="${d}NEED qt6-qtbase-x11 qt6-qtdeclarative qt6-qt5compat" ;;
-        |        apt)    NEED="${d}NEED libqt6quickwidgets6 libqt6declarative6" ;;
-        |        pacman) NEED="${d}NEED qt6-declarative qt6-5compat" ;;
-        |      esac
-        |    fi
+        |    NEED=""
+        |    case "${d}PM" in
+        |      apk)
+        |        # DBus は dbus + dbus-x11 (dbus-launch 用)。Qt6 は declarative (QuickWidgets) と
+        |        # 5compat (KF6 経由で必要)、X11 platform 用に qt6-qtbase-x11。フォントは既存。
+        |        [ ! -x /usr/bin/dbus-launch ] && NEED="${d}NEED dbus dbus-x11"
+        |        NEED="${d}NEED qt6-qtbase-x11 qt6-qtdeclarative qt6-qt5compat" ;;
+        |      apt)
+        |        ! has dbus-launch && NEED="${d}NEED dbus dbus-x11"
+        |        # Debian/Ubuntu konsole は依存解決される事が多いが、保険で QuickWidgets を追加。
+        |        NEED="${d}NEED libqt6quickwidgets6" ;;
+        |      pacman)
+        |        ! has dbus-daemon && NEED="${d}NEED dbus" ;;
+        |    esac
         |    if [ -n "${d}NEED" ]; then
         |      clear_pm_locks
         |      echo "📦 Konsole の追加依存を導入: ${d}NEED"
