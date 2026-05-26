@@ -53,6 +53,7 @@ import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.distro.DistroBundle
 import com.zerotoship.z2term.distro.DistroSpec
+import com.zerotoship.z2term.legal.LicensesDialog
 import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.emulator.TerminalTheme
 import com.zerotoship.z2term.proot.GuiTerminal
@@ -452,6 +453,50 @@ private fun AppInfoSection(distroId: String) {
         InfoRow("パッケージ", BuildConfig.APPLICATION_ID)
         InfoRow("rootfs 世代", DistroBundle.ROOTFS_VERSION.toString())
         InfoRow("ディストロ", osPretty ?: distroId)
+    }
+    // 設定シート内にずらりと並べると視認性が悪いので、タップで開く Dialog に切り出す。
+    var showLicensesDialog by remember { mutableStateOf(false) }
+    Section(title = "OSS ライセンス / 対応ソース") {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(4.dp))
+                .clickable { showLicensesDialog = true }
+                .background(ZtsBgCard)
+                .border(width = 1.dp, color = ZtsBorder, shape = RoundedCornerShape(4.dp))
+                .padding(horizontal = 10.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "同梱 OSS の一覧を開く",
+                color = ZtsTextPrimary,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+            Box(modifier = Modifier.weight(1f))
+            Text(
+                text = "›",
+                color = ZtsTextSecondary,
+                fontSize = 14.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
+        Text(
+            text = "ライセンス全文・著作権表示・対応ソース URL をまとめて表示。",
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace,
+        )
+    }
+    if (showLicensesDialog) {
+        LicensesDialog(
+            onDismiss = { showLicensesDialog = false },
+            textPrimary = ZtsTextPrimary,
+            textSecondary = ZtsTextSecondary,
+            accent = ZtsGreen,
+            border = ZtsBorder,
+            background = ZtsBgPrimary,
+        )
     }
 }
 

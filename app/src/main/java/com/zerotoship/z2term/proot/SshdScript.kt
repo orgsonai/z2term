@@ -22,19 +22,30 @@ const val Z2TERM_SSHD_PORT = 2222
  *  - `-f <config>` で別の設定ファイルを参照、`-D`/`-d` で前景起動、`-t` で設定確認
  *  - dropbear 未導入なら自動 install、既存 dropbear を確実に停止してから起動
  *
+ * **既定の安全側設定 (法的対応パッチ):**
+ *  - **`127.0.0.1` のみで bind** (LAN/WAN に公開しない)。端末の他アプリ間 SSH に限定。
+ *  - **空パスワードでの root ログイン禁止** (`-g`)。
+ *  - **パスワード認証を全面禁止** (`-s`)。`~/.ssh/authorized_keys` への鍵登録のみ可。
+ *  - LAN/WAN 公開を望むときだけ `--lan` 引数または `Z2_SSHD_LAN=1` env で明示有効化
+ *    (この場合は鍵認証必須 + 強い警告メッセージを出す)。
+ *
  * 注: dropbear が解釈できるのは実質 Port のみ。sshd_config のそれ以外のディレクティブ
- * (PermitRootLogin 等) は反映されない (dropbear 既定: root ログイン・パスワード認証許可)。
+ * (PermitRootLogin 等) は反映されない。安全側の制御は本スクリプト引数で完結させる。
  */
 fun dropbearBootstrapScript(defaultPort: Int = Z2TERM_SSHD_PORT): String {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
     return """
         |#!/bin/sh
         |# z2term: sshd 互換ラッパー (バックエンド dropbear。OpenSSH sshd は proot 不可)
+        |# 既定で安全側 (127.0.0.1 のみ bind / パスワード認証禁止 / 空パスワード root 禁止)。
+        |# LAN/WAN 公開したい場合は `sshd --lan` または env Z2_SSHD_LAN=1 で明示有効化。
         |DEFAULT_PORT=$defaultPort
         |CONFIG=/etc/ssh/sshd_config
         |PORT=""
         |FOREGROUND=""
         |TESTONLY=""
+        |# LAN/WAN 公開モード (env または --lan 引数で有効化)。既定は loopback 限定。
+        |LAN_EXPOSE="${d}{Z2_SSHD_LAN:-0}"
         |
         |# sshd 互換の主要オプションを解釈する。
         |while [ ${d}# -gt 0 ]; do
@@ -46,6 +57,8 @@ fun dropbearBootstrapScript(defaultPort: Int = Z2TERM_SSHD_PORT): String {
         |    -o) case "${d}2" in [Pp]ort*) PORT=${d}(printf '%s' "${d}2" | tr -cd '0-9') ;; esac; shift 2 ;;
         |    -D|-d) FOREGROUND=1; shift ;;
         |    -t|-T) TESTONLY=1; shift ;;
+        |    --lan) LAN_EXPOSE=1; shift ;;
+        |    --loopback) LAN_EXPOSE=0; shift ;;
         |    -h) shift 2 ;;
         |    -h?*) shift ;;
         |    --) shift; break ;;
@@ -109,22 +122,47 @@ fun dropbearBootstrapScript(defaultPort: Int = Z2TERM_SSHD_PORT): String {
         |  echo "⚠️ ポート ${d}PORT は特権ポート。proot(非root)では bind できない可能性が高いです (1024 以上推奨)。"
         |fi
         |
-        |if [ -n "${d}FOREGROUND" ]; then
-        |  echo "▶ dropbear をフォアグラウンド起動 (Ctrl-C で停止): port ${d}PORT"
-        |  exec dropbear -F -p "${d}PORT" -R -E
+        |# bind アドレスとセキュリティフラグを既定の安全側で組み立てる:
+        |#   -s : パスワード認証禁止 (鍵認証のみ)
+        |#   -g : root の空パスワードログイン禁止 (空パスワードでも蹴る)
+        |#   -p [addr:]port : LAN_EXPOSE=0 なら 127.0.0.1:port、=1 なら addr 省略で全 NIC
+        |SEC_FLAGS="-s -g"
+        |if [ "${d}LAN_EXPOSE" = "1" ]; then
+        |  BIND_SPEC="${d}PORT"
+        |  echo "⚠️ LAN/WAN 公開モード: 0.0.0.0:${d}PORT で待受 — 鍵認証必須、強い鍵を使うこと。"
+        |  if ! [ -s /root/.ssh/authorized_keys ] && ! [ -s ~/.ssh/authorized_keys ]; then
+        |    echo "⛔ ~/.ssh/authorized_keys が未設定です。LAN 公開での起動を中止します。"
+        |    echo "   公開鍵を ~/.ssh/authorized_keys に登録してから再実行してください。"
+        |    exit 2
+        |  fi
+        |else
+        |  BIND_SPEC="127.0.0.1:${d}PORT"
+        |  echo "🔒 loopback 限定 (127.0.0.1:${d}PORT) で起動。LAN 公開は --lan か Z2_SSHD_LAN=1。"
         |fi
         |
-        |dropbear -p "${d}PORT" -R -E -P /tmp/dropbear.pid 2>>/tmp/dropbear.log
+        |if [ -n "${d}FOREGROUND" ]; then
+        |  echo "▶ dropbear をフォアグラウンド起動 (Ctrl-C で停止): ${d}BIND_SPEC"
+        |  exec dropbear -F -p "${d}BIND_SPEC" -R -E ${d}SEC_FLAGS
+        |fi
+        |
+        |dropbear -p "${d}BIND_SPEC" -R -E ${d}SEC_FLAGS -P /tmp/dropbear.pid 2>>/tmp/dropbear.log
         |sleep 1
         |if [ -s /tmp/dropbear.pid ] && kill -0 "${d}(cat /tmp/dropbear.pid)" 2>/dev/null; then
-        |  IP=${d}(ip -4 addr show 2>/dev/null | grep -oE 'inet [0-9.]+' | awk '{print ${d}2}' | grep -v '^127' | head -n1)
-        |  echo "✅ dropbear listening on :${d}PORT  (root @ ${d}{IP:-端末IP})"
+        |  if [ "${d}LAN_EXPOSE" = "1" ]; then
+        |    IP=${d}(ip -4 addr show 2>/dev/null | grep -oE 'inet [0-9.]+' | awk '{print ${d}2}' | grep -v '^127' | head -n1)
+        |    echo "✅ dropbear listening on :${d}PORT  (root @ ${d}{IP:-端末IP}, 鍵認証のみ)"
+        |  else
+        |    echo "✅ dropbear listening on 127.0.0.1:${d}PORT  (root, 鍵認証のみ, loopback 限定)"
+        |  fi
         |else
         |  echo "❌ dropbear 起動失敗。ログ:"
         |  cat /tmp/dropbear.log 2>/dev/null
         |fi
         |
-        |grep -q '^root:[^!*:]' /etc/shadow 2>/dev/null || \
-        |  echo "⚠️ root パスワード未設定です。'passwd' で設定してから接続してください。"
+        |# 鍵認証必須なので、authorized_keys が空なら接続できない旨を案内する (パスワードログインは禁止済み)。
+        |if ! [ -s /root/.ssh/authorized_keys ] && ! [ -s ~/.ssh/authorized_keys ]; then
+        |  echo "ℹ ~/.ssh/authorized_keys が未設定です。クライアントの公開鍵を登録すると接続できます。"
+        |  echo "   例: cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+        |fi
     """.trimMargin() + "\n"
 }

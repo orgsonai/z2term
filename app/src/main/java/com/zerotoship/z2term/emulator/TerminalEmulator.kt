@@ -920,12 +920,12 @@ class TerminalEmulator(
         // その補正量 (push は正・pull は負) を cursorRow に反映し、画面上の
         // カーソル位置を保つ。
         val pushed = buffer.resize(rows, columns, cursorRow)
-        scrollTop = scrollTop.coerceAtMost(rows - 1)
-        scrollBottom = (if (scrollBottom == 0) rows - 1 else scrollBottom).coerceAtMost(rows - 1)
-        if (scrollBottom <= scrollTop) {
-            scrollTop = 0
-            scrollBottom = rows - 1
-        }
+        // scroll region は無条件にフルリセット。TUI アプリ (vim/less/htop) は
+        // SIGWINCH 受信後すぐ DECSTBM を再送するが、その隙間に届くバイトが
+        // 旧 scrollBottom で流れると「同じ行に重ね書き → 文章が複数表示」
+        // という崩れを起こす。再送までの不整合を消すためここで 0..rows-1 に戻す。
+        scrollTop = 0
+        scrollBottom = rows - 1
         cursorRow = (cursorRow - pushed).coerceIn(0, rows - 1)
         cursorCol = cursorCol.coerceIn(0, columns - 1)
     }

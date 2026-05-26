@@ -19,6 +19,19 @@ interface AppSession {
     /** タブ表示名 (StateFlow なので変化が UI に追従する)。 */
     val label: StateFlow<String>
 
+    /**
+     * このセッションに紐づく仮想 X ディスプレイ番号 (`:N`)。RFB ポートは `5900+display`。
+     *
+     * 端末タブと GUI タブで同じ番号を共有することで「この端末タブ ↔ この GUI タブ」のペアを表す
+     * (P3 = CUI⇄GUI 連動)。端末タブは proot 環境変数 `DISPLAY=:N` / `Z2_DISPLAY=N` を受け取り、
+     * その中で `z2run <gui-app>` を打つと同じ :N の Xvnc が立ち上がり、対応する GUI タブが
+     * z2term 側で自動的に開く / 前面化される。
+     *
+     * [SessionManager] が払い出し、close 時は他に同じ番号を使うセッションが残っていなければ
+     * pool に返却する (1:1 でも 1:多 でも面倒なく扱えるよう参照カウント風に管理)。
+     */
+    val display: Int
+
     /** セッション終了 (リソース解放)。SessionManager.close から呼ばれる。 */
     fun shutdown()
 }

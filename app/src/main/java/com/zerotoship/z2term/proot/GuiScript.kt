@@ -53,13 +53,16 @@ fun z2guiScript(
         |# z2term: Linux GUI ランチャ (Xvnc + openbox + ターミナル)。distro 非依存。
         |# RFB は 127.0.0.1 のみで待ち受け (z2term 内蔵クライアントが接続)。外部公開しない。
         |#   使い方: z2gui [start [WxH] | stop | status | install | check]
-        |DISPLAY_NUM=$display
-        |DISP=":$display"
-        |RFBPORT=$rfbPort
+        |# ディスプレイ番号と RFB ポートは z2term が環境変数 Z2_DISPLAY / Z2_RFBPORT で渡す
+        |# (GUI タブごとに :1/5901, :2/5902 … と別ポートで並走するため)。未指定なら既定値。
+        |DISPLAY_NUM="${d}{Z2_DISPLAY:-$display}"
+        |DISP=":${d}DISPLAY_NUM"
+        |RFBPORT="${d}{Z2_RFBPORT:-$rfbPort}"
         |DEFAULT_GEOM="$defaultGeometry"
         |GUI_TERM_BIN="$terminalBinary"
         |GUI_TERM_PKG="$terminalPackage"
-        |export DISPLAY="${d}DISP"
+        |# DISPLAY は start_x の中だけで export する。ここで全体に export すると `z2gui stop` の
+        |# プロセス自身が DISPLAY=:N を持ち、stop_x のディスプレイ単位 kill が自分を巻き込む。
         |export HOME="${d}{HOME:-/root}"
         |
         |# 重要: GUI 起動時 ProotLauncher は command=z2gui に合わせて SHELL=<このスクリプト> を
@@ -157,26 +160,49 @@ fun z2guiScript(
         |
         |x_running() { [ -e "/tmp/.X11-unix/X${d}{DISPLAY_NUM}" ]; }
         |
-        |# Xvnc プロセスが実際に生きているか (ソケットが stale に残っただけの状態と区別する)。
+        |# このディスプレイで起動したプロセス (Xvnc/WM/端末) の PID を控えるファイル。
+        |# 複数 GUI 並走時に「他ディスプレイのプロセスを巻き込まず :N だけ」止めるために使う。
+        |PIDFILE="/tmp/z2gui-${d}{DISPLAY_NUM}.pids"
+        |
+        |# X サーバ (:N) の PID。X は起動時に /tmp/.X<N>-lock へ自分の PID を空白詰めで書くので、
+        |# それを数字だけ取り出して使う (cmdline/environ の NUL 解析が要らず最小 rootfs でも堅い)。
+        |x_pid() {
+        |  [ -r "/tmp/.X${d}{DISPLAY_NUM}-lock" ] || return 1
+        |  tr -dc '0-9' < "/tmp/.X${d}{DISPLAY_NUM}-lock" 2>/dev/null
+        |}
+        |
+        |# このディスプレイの Xvnc が実際に生きているか (stale ソケットだけの状態と区別する)。
+        |# lock の PID が Xvnc/Xtigervnc として生存していれば true。他ディスプレイは誤検知しない。
         |x_alive() {
-        |  for c in /proc/[0-9]*/comm; do
-        |    [ -r "${d}c" ] || continue
-        |    case "${d}(cat "${d}c" 2>/dev/null)" in Xvnc|Xtigervnc) return 0 ;; esac
-        |  done
+        |  p=${d}(x_pid); [ -n "${d}p" ] || return 1
+        |  [ -r "/proc/${d}p/comm" ] || return 1
+        |  case "${d}(cat "/proc/${d}p/comm" 2>/dev/null)" in Xvnc|Xtigervnc) return 0 ;; esac
         |  return 1
         |}
         |
+        |# このディスプレイ (:N) だけを停止する。他の GUI タブ (:他) は一切触らない。
+        |# kill 前に必ず comm を確認し、PID 再利用で無関係プロセスを殺さないようにする。
+        |is_gui_proc() {  # ${d}1=pid : 既知の GUI プロセス種別なら 0
+        |  [ -r "/proc/${d}1/comm" ] || return 1
+        |  case "${d}(cat "/proc/${d}1/comm" 2>/dev/null)" in
+        |    Xvnc|Xtigervnc|openbox|xterm|urxvt|lxterminal|konsole) return 0 ;;
+        |  esac
+        |  return 1
+        |}
         |stop_x() {
         |  if has vncserver; then vncserver -kill "${d}DISP" >/dev/null 2>&1; fi
-        |  # pkill/pidof が無い最小 rootfs でも効くよう /proc を直接走査して停止。
-        |  for c in /proc/[0-9]*/comm; do
-        |    [ -r "${d}c" ] || continue
-        |    case "${d}(cat "${d}c" 2>/dev/null)" in
-        |      Xvnc|Xtigervnc|openbox|xterm|urxvt|lxterminal|konsole)
-        |        pid=${d}{c#/proc/}; pid=${d}{pid%/comm}; kill "${d}pid" 2>/dev/null ;;
-        |    esac
-        |  done
-        |  rm -f "/tmp/.X${d}{DISPLAY_NUM}-lock" "/tmp/.X11-unix/X${d}{DISPLAY_NUM}" 2>/dev/null
+        |  # 1) start_x が控えた :N の既知プロセス (Xvnc/WM/端末) を pidfile から停止。
+        |  #    pidfile は :N 専用なので他ディスプレイは巻き込まない。comm 確認で PID 再利用も安全。
+        |  if [ -r "${d}PIDFILE" ]; then
+        |    while read p; do
+        |      [ -n "${d}p" ] || continue
+        |      is_gui_proc "${d}p" && kill "${d}p" 2>/dev/null
+        |    done < "${d}PIDFILE"
+        |  fi
+        |  # 2) 念のため X ロックの PID (= Xvnc 本体) も止める。Xvnc が死ねば配下の
+        |  #    openbox/端末/GUI アプリは X 切断で自動終了する (取りこぼしの保険)。
+        |  xp=${d}(x_pid); [ -n "${d}xp" ] && is_gui_proc "${d}xp" && kill "${d}xp" 2>/dev/null
+        |  rm -f "${d}PIDFILE" "/tmp/.X${d}{DISPLAY_NUM}-lock" "/tmp/.X11-unix/X${d}{DISPLAY_NUM}" 2>/dev/null
         |}
         |
         |status_x() {
@@ -205,25 +231,30 @@ fun z2guiScript(
         |    exec "${d}{SHELL:-/bin/sh}"
         |  fi
         |  stop_x
+        |  # この start_x 配下の子プロセス (openbox/端末/GUI アプリ) に DISPLAY を渡す。
+        |  # 全体ではなく start_x 内だけで export する (stop の自己巻き込み回避。冒頭コメント参照)。
+        |  export DISPLAY="${d}DISP"
+        |  : > "${d}PIDFILE" 2>/dev/null   # このディスプレイの PID 控えを初期化
         |  mkdir -p /tmp/.X11-unix 2>/dev/null
         |  chmod 1777 /tmp/.X11-unix 2>/dev/null
         |  echo "▶ ${d}XSERVER 起動: ${d}GEOM @ ${d}DISP (RFB 127.0.0.1:${d}RFBPORT)"
         |  # GUI 配下のプロセスは launcher の制御端末 (アプリ側 PtyProcess が握る PTY) から
         |  # setsid で切り離して起動する (GUI プロセスが端末を共有する必要はない)。
         |  # stdin は /dev/null に向ける。
-        |  setsid "${d}XSERVER" "${d}DISP" -geometry "${d}GEOM" -depth 24 -SecurityTypes None -localhost -rfbport "${d}RFBPORT" -noreset </dev/null >/tmp/z2gui-xvnc.log 2>&1 &
+        |  setsid "${d}XSERVER" "${d}DISP" -geometry "${d}GEOM" -depth 24 -SecurityTypes None -localhost -rfbport "${d}RFBPORT" -noreset </dev/null >"/tmp/z2gui-xvnc-${d}{DISPLAY_NUM}.log" 2>&1 &
+        |  echo ${d}! >> "${d}PIDFILE" 2>/dev/null
         |  i=0
         |  while [ ${d}i -lt 50 ]; do
         |    x_running && break
         |    i=${d}((i+1)); sleep 0.1
         |  done
         |  if ! x_running; then
-        |    echo "❌ Xvnc 起動失敗。ログ:"; cat /tmp/z2gui-xvnc.log 2>/dev/null; exit 1
+        |    echo "❌ Xvnc 起動失敗。ログ:"; cat "/tmp/z2gui-xvnc-${d}{DISPLAY_NUM}.log" 2>/dev/null; exit 1
         |  fi
         |  # openbox に「全ウィンドウを左上 (0,0) に強制配置」させる設定を書く。端末ごとに
         |  # -geometry の書式が違う (xterm/urxvt は対応, konsole/lxterminal は別系統) ため、
         |  # 位置は WM 側で一律に固定する (ユーザー要望: GUI ターミナルは全て 0,0)。
-        |  OBRC="/tmp/z2-openbox-rc.xml"
+        |  OBRC="/tmp/z2-openbox-rc-${d}{DISPLAY_NUM}.xml"
         |  cat > "${d}OBRC" <<'OBEOF'
         |<?xml version="1.0" encoding="UTF-8"?>
         |<openbox_config xmlns="http://openbox.org/3.4/rc">
@@ -235,7 +266,8 @@ fun z2guiScript(
         |  </applications>
         |</openbox_config>
         |OBEOF
-        |  setsid openbox --config-file "${d}OBRC" </dev/null >/tmp/z2gui-wm.log 2>&1 &
+        |  setsid openbox --config-file "${d}OBRC" </dev/null >"/tmp/z2gui-wm-${d}{DISPLAY_NUM}.log" 2>&1 &
+        |  echo ${d}! >> "${d}PIDFILE" 2>/dev/null
         |  # ターミナルは画面左上 (0,0) に、画面に対して控えめなサイズで開く (大きすぎ対策)。
         |  # 画面 (GEOM) の約 60% 幅 × 約 45% 高さ。文字セルは monospace fs 11 で概算 7x20px。
         |  # もっと大きくしたい時は WM (openbox) のタイトルバーや最大化ボタンで広げられる。
@@ -255,8 +287,14 @@ fun z2guiScript(
         |    urxvt) TERM_ARGS="-geometry ${d}{COLS}x${d}{ROWS}+0+0" ;;
         |    lxterminal) TERM_ARGS="--geometry=${d}{COLS}x${d}{ROWS}" ;;
         |  esac
-        |  if has "${d}GUI_TERM_BIN"; then
-        |    setsid "${d}GUI_TERM_BIN" ${d}TERM_ARGS </dev/null >/tmp/z2gui-term.log 2>&1 &
+        |  # Z2_NO_TERM=1 のときは端末 (xterm 等) を起動しない (P3 = z2run 経由用)。
+        |  # z2run は「ユーザーが指定した GUI アプリだけ」を出したいので、xterm が同時に出ると邪魔。
+        |  # 🖥 ボタンの通常起動 (Z2_NO_TERM 未設定) では従来どおり端末も起動して操作起点にする。
+        |  if [ "${d}{Z2_NO_TERM:-0}" = "1" ]; then
+        |    echo "ℹ Z2_NO_TERM=1: 端末を起動せず Xvnc+openbox のみ。"
+        |  elif has "${d}GUI_TERM_BIN"; then
+        |    setsid "${d}GUI_TERM_BIN" ${d}TERM_ARGS </dev/null >"/tmp/z2gui-term-${d}{DISPLAY_NUM}.log" 2>&1 &
+        |    echo ${d}! >> "${d}PIDFILE" 2>/dev/null
         |  else
         |    echo "⚠ 端末 ${d}GUI_TERM_BIN が見つかりません (導入失敗?)。openbox のみ起動。"
         |  fi

@@ -56,18 +56,50 @@ class SnippetStore(private val context: Context) {
     /**
      * 初回だけサンプルスニペットを投入する (冪等)。`SEEDED` フラグで二度目以降は何もしない
      * → ユーザーが消したサンプルが再出現しない。既存スニペットがあれば上書きもしない。
+     *
+     * 既に `SEEDED=true` で過去にシード済みのユーザーには、別フラグ [SEEDED_APK] で
+     * Alpine の apk サンプルだけ後追い投入する (既存スニペットに「追記」のみ、上書きしない)。
      */
     suspend fun ensureSeeded() {
         context.snippetDataStore.edit { p ->
-            if (p[SEEDED] == true) return@edit
-            p[SEEDED] = true
-            if (p[KEY] == null) {
-                p[KEY] = serialize(
-                    listOf(Snippet(id = "sample:ls", label = "一覧 (詳細)", command = "ls -la --color=auto"))
-                )
+            val firstTime = p[SEEDED] != true
+            if (firstTime) {
+                p[SEEDED] = true
+                if (p[KEY] == null) {
+                    p[KEY] = serialize(defaultSeeds())
+                }
+            } else if (p[SEEDED_APK] != true) {
+                // 過去にシード済みのユーザーへ apk サンプルを追記投入 (1 回だけ)。
+                val list = readList(p[KEY]).toMutableList()
+                for (s in apkSeeds()) {
+                    if (list.none { it.id == s.id }) list.add(s)
+                }
+                p[KEY] = serialize(list)
             }
+            p[SEEDED_APK] = true
         }
     }
+
+    /** 初回シードに投入するサンプル一覧。 */
+    private fun defaultSeeds(): List<Snippet> = buildList {
+        add(Snippet(id = "sample:ls", label = "一覧 (詳細)", command = "ls -la --color=auto"))
+        addAll(apkSeeds())
+    }
+
+    /** Alpine 用 apk サンプル。pacman/apt は対象外 (Alpine 専用)。 */
+    private fun apkSeeds(): List<Snippet> = listOf(
+        Snippet(
+            id = "sample:apk-update",
+            label = "apk: 更新 (index 取得)",
+            command = "apk update",
+        ),
+        Snippet(
+            id = "sample:apk-add",
+            // command 末尾を半角スペースで止めてユーザーがパッケージ名を追記できる形に。
+            label = "apk: 追加 (パッケージ名を追記)",
+            command = "apk add ",
+        ),
+    )
 
     suspend fun upsert(snippet: Snippet) {
         context.snippetDataStore.edit { p ->
@@ -105,5 +137,6 @@ class SnippetStore(private val context: Context) {
     companion object {
         private val KEY = stringPreferencesKey("snippets")
         private val SEEDED = booleanPreferencesKey("seeded")
+        private val SEEDED_APK = booleanPreferencesKey("seeded_apk")
     }
 }

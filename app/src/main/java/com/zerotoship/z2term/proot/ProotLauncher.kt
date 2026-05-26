@@ -78,7 +78,20 @@ class ProotLauncher(private val context: Context) {
         cols: Int = 80,
         fallbackShell: String = "/bin/sh",
         extraArgs: List<String> = emptyList(),
-        guiTerminal: GuiTerminal = GuiTerminal.XTERM
+        guiTerminal: GuiTerminal = GuiTerminal.XTERM,
+        /**
+         * 非 null なら GUI 用の `Z2_DISPLAY` / `Z2_RFBPORT` を環境変数に追加する。
+         * z2gui はこれを読んで `:N` / `5900+N` で Xvnc を起動するので、GUI タブごとに
+         * 別ディスプレイ・別ポートで並走できる (null のときは z2gui の既定 :1/5901)。
+         */
+        display: Int? = null,
+        /**
+         * true なら `DISPLAY=:N` も環境変数に追加する (P3 = CUI⇄GUI 連動)。端末用に使う。
+         * これで端末から起動した X クライアント (xclock, `z2run python gui.py` 等) が即座に
+         * その :N の Xvnc へ繋がる。GUI 起動 (z2gui) では false にしておかないと、`z2gui stop` の
+         * environ 走査が自身を巻き込む恐れがある (詳細は下の displayEnv コメント / GuiScript)。
+         */
+        exportDisplay: Boolean = false
     ): PtyProcess {
         val rootfs = File(distrosDir, distroId)
         if (!rootfs.exists()) {
@@ -107,6 +120,9 @@ class ProotLauncher(private val context: Context) {
         // `z2gui` で Linux GUI (Xvnc + WM) を起動できるよう launcher を配置。
         // GUI 内ターミナルは設定由来 (GuiSession が渡す)。端末起動では既定 xterm のまま。
         ensureGuiScript(rootfs, guiTerminal)
+        // `z2run` ランチャ (P3): 端末で `z2run <gui-app>` を打つと、Z2_DISPLAY=:N の Xvnc を
+        // 自動起動 + z2term に「OPEN N」を通知 → 該当 GUI タブが自動的に開く / 前面化する。
+        ensureZ2RunScript(rootfs)
         // Android 外部ストレージを cd できるようマウント先を用意。
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
@@ -136,8 +152,23 @@ class ProotLauncher(private val context: Context) {
             extraArgs.forEach { add(it) }
         }
 
+        // GUI ディスプレイ指定 (非 null のとき)。z2gui がこの番号で Xvnc を立てる。
+        // 端末/SSH 起動では null なので何も足さず、従来挙動 (z2gui 既定 :1) のまま。
+        // 注意: `exportDisplay=false` のときは DISPLAY を入れない。`z2gui stop` も同じ launch を通る
+        // ため、DISPLAY=:N を持たせると stop_x のディスプレイ単位 kill が **自分自身を巻き込む**。
+        // GUI 配下の子プロセス (openbox/端末/アプリ) には z2gui の start_x が DISPLAY を export する。
+        // 端末/SSH (`exportDisplay=true`) は z2gui 経由ではないので DISPLAY=:N を直接渡してよく、これにより
+        // 端末で `z2run <app>` を打つと同じ :N の Xvnc / GUI タブが自動連動する (P3)。
+        val displayEnv: List<String> = if (display != null) {
+            buildList {
+                add("Z2_DISPLAY=$display")
+                add("Z2_RFBPORT=${5900 + display}")
+                if (exportDisplay) add("DISPLAY=:$display")
+            }
+        } else emptyList()
+
         // 環境変数
-        val env = arrayOf(
+        val env = (listOf(
             "HOME=/root",
             "TERM=xterm-256color",
             "LANG=C.UTF-8",
@@ -158,7 +189,7 @@ class ProotLauncher(private val context: Context) {
             // PRoot 自身の動作用
             "PROOT_TMP_DIR=${context.cacheDir.absolutePath}",
             "PROOT_LOADER=${File(context.applicationInfo.nativeLibraryDir, "libproot_loader.so").absolutePath}"
-        )
+        ) + displayEnv).toTypedArray()
 
         Log.i(TAG, "Launching PRoot: distro=$distroId, command=$resolvedCommand (requested=$command)")
         Log.d(TAG, "Args: ${args.joinToString(" ")}")
@@ -320,6 +351,22 @@ class ProotLauncher(private val context: Context) {
             f.setReadable(true, false)
             f.setExecutable(true, false)
         }.onFailure { Log.w(TAG, "z2gui script 配置失敗", it) }
+    }
+
+    /**
+     * `/usr/local/bin/z2run` ランチャを配置する (P3 = CUI⇄GUI 連動)。
+     * `z2run <gui-app...>` で「:N の Xvnc 確保 → z2term へ OPEN 通知 → app exec」を一気通貫で実行。
+     * 端末タブの proot env (`DISPLAY=:N`/`Z2_DISPLAY=N`) と組み合わせて使う前提。launch 毎に
+     * 上書きするので内容は常に最新。
+     */
+    private fun ensureZ2RunScript(rootfs: File) {
+        runCatching {
+            val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
+            val f = File(dir, "z2run")
+            f.writeText(z2runScript())
+            f.setReadable(true, false)
+            f.setExecutable(true, false)
+        }.onFailure { Log.w(TAG, "z2run script 配置失敗", it) }
     }
 
     /** marker を含まなければ block を追記。親 dir が無ければ作る。失敗は握り潰す。 */

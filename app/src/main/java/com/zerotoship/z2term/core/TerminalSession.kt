@@ -51,7 +51,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 class TerminalSession(
     private val appContext: Context,
     override val id: String = java.util.UUID.randomUUID().toString(),
-    initialLabel: String = "session"
+    initialLabel: String = "session",
+    /**
+     * このタブが所有する仮想 X ディスプレイ番号 (`:N`)。proot 起動時に環境変数
+     * `DISPLAY=:N` / `Z2_DISPLAY=N` が注入され、端末内で `z2run <gui-app>` を実行すると
+     * 同じ :N の Xvnc が自動起動・対応する GUI タブが z2term 側で開く (P3 = CUI⇄GUI 連動)。
+     * [SessionManager.openNew] が払い出すので、既存の単独 GUI タブ (🖥 ボタン) と被らない。
+     */
+    override val display: Int = 1
 ) : AppSession {
 
     /** タブ表示名 (RUNNING になったら mode を反映、それ以前は "session") */
@@ -256,7 +263,18 @@ class TerminalSession(
                 val shell = settingsFlow.value.loginShell.ifBlank { spec.defaultShell }
                 // launcher 側で、指定シェルが rootfs に無ければ spec.defaultShell → /bin/sh に
                 // フォールバックする (Ubuntu base に zsh が無い、等のケース)。
-                val pty = launcher.launch(spec.id, shell, rows, cols, spec.defaultShell)
+                // P3 (CUI⇄GUI 連動): このタブの display 番号を proot env に渡す。
+                // exportDisplay=true で `DISPLAY=:N` も付与され、端末内 `z2run <gui-app>` が同じ
+                // :N の Xvnc を起動 → 対応する GUI タブが z2term 側で自動的に開く。
+                val pty = launcher.launch(
+                    distroId = spec.id,
+                    command = shell,
+                    rows = rows,
+                    cols = cols,
+                    fallbackShell = spec.defaultShell,
+                    display = display,
+                    exportDisplay = true,
+                )
                 val ch = LocalPtyChannel(pty)
                 channel = ch
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }
@@ -441,11 +459,13 @@ class TerminalSession(
 
     fun onResize(rows: Int, cols: Int) {
         // emulator buffer の resize は他の processBytes と排他するため emulator スレッドへ。
+        // resize 完了直後に bumpRedrawImmediate で coalesce を飛ばして即 tick を進め、
+        // 「リサイズしたのに数フレーム古いバッファが残って見える」状態を消す。
         scope.launch(emulatorDispatcher) {
             emulator.resize(rows, cols)
+            bumpRedrawImmediate()
         }
         channel?.resize(rows, cols)
-        bumpRedraw()
     }
 
     fun setScrollOffset(offset: Int) { _scrollOffset.value = offset.coerceAtLeast(0) }
@@ -588,6 +608,16 @@ class TerminalSession(
                 _redrawTick.update { it + 1 }
             }
         }
+    }
+
+    /**
+     * 即時 redraw tick。bumpRedraw の 16ms coalesce をスキップする。
+     * リサイズ完了直後など「次フレームに古いバッファを見せたくない」局面で使う。
+     * 既にスケジュール済みの coalesce が後追いで 1 tick 余計に発火する可能性は
+     * あるが、recomposition 1 回ぶんで無害なため何もしない。
+     */
+    private fun bumpRedrawImmediate() {
+        _redrawTick.update { it + 1 }
     }
 
     private fun currentSize(): Pair<Int, Int> = emulator.buffer.rows to emulator.buffer.columns

@@ -9,7 +9,7 @@ import android.util.Log
 import com.zerotoship.z2term.gui.rfb.RfbClient
 import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.proot.ProotLauncher
-import com.zerotoship.z2term.proot.Z2TERM_VNC_PORT
+import com.zerotoship.z2term.proot.Z2TERM_VNC_DISPLAY
 import com.zerotoship.z2term.pty.PtyProcess
 import com.zerotoship.z2term.settings.AppSettings
 import kotlinx.coroutines.CoroutineScope
@@ -37,22 +37,32 @@ import java.net.ConnectException
  */
 class GuiSession(
     private val context: Context,
+    /**
+     * この GUI セッションが使う仮想 X ディスプレイ番号 (`:N`)。RFB ポートは `5900 + display`。
+     * [SessionManager.openNewGui] が空き番号を払い出して渡すので、複数 GUI タブが
+     * **別ポート・別画面**で並走できる (既定 1 = 従来互換)。
+     * P3 (CUI⇄GUI 連動) では同番号の端末タブとペアになり、`z2run` 経由で開いた GUI タブもここに入る。
+     */
+    override val display: Int = Z2TERM_VNC_DISPLAY,
     override val id: String = java.util.UUID.randomUUID().toString()
 ) : com.zerotoship.z2term.core.AppSession {
 
     enum class State { IDLE, STARTING, CONNECTING, CONNECTED, ERROR, STOPPED }
 
+    /** RFB ポート = 5900 + ディスプレイ番号 (VNC 標準慣例。:1→5901, :2→5902 …)。 */
+    private val rfbPort: Int = 5900 + display
+
     private val _state = MutableStateFlow(State.IDLE)
     val state: StateFlow<State> = _state.asStateFlow()
 
-    /** タブ表示名 (常に "GUI")。 */
-    private val _label = MutableStateFlow("GUI")
+    /** タブ表示名。ディスプレイ番号付きで複数 GUI タブを区別できるようにする (例 "GUI:2")。 */
+    private val _label = MutableStateFlow(if (display == Z2TERM_VNC_DISPLAY) "GUI" else "GUI:$display")
     override val label: StateFlow<String> = _label.asStateFlow()
 
     private val _message = MutableStateFlow("")
     val message: StateFlow<String> = _message.asStateFlow()
 
-    val rfb = RfbClient(port = Z2TERM_VNC_PORT).also { client ->
+    val rfb = RfbClient(port = rfbPort).also { client ->
         // GUI (xterm 等) で選択/コピーしたテキストを Android クリップボードへ反映 (M8-6 T6)。
         client.onServerCutText = { text -> copyToAndroidClipboard(text) }
     }
@@ -111,6 +121,7 @@ class GuiSession(
                     cols = 80,
                     extraArgs = startArgs,
                     guiTerminal = guiTerminal,
+                    display = display,  // z2gui へ Z2_DISPLAY/Z2_RFBPORT として渡す (このタブ専用の :N)
                 )
                 pty = p
                 // z2gui の出力はログへ排出（PTY バッファが詰まってブロックしないように）。
@@ -241,6 +252,7 @@ class GuiSession(
             distroId = distroId,
             command = "/usr/local/bin/z2gui",
             extraArgs = listOf("stop"),
+            display = display,  // このタブの :N だけを停止 (他の GUI タブを巻き込まない)
         )
         val buf = ByteArray(1024)
         try { while (p.reader.read(buf) >= 0) { /* stop_x 完了 (EOF) まで待つ */ } } catch (_: Exception) {}

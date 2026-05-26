@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.safeDrawing
@@ -52,6 +53,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -659,9 +661,10 @@ private fun GuiTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(48.dp)  // 端末 TopBar と同じく高さ固定 (折り返しで縦に伸びるのを防ぐ)
             .background(ZtsBgSecondary)
             .border(width = 1.dp, color = ZtsBorder)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -670,7 +673,10 @@ private fun GuiTopBar(
             color = ZtsGreen,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 140.dp)
         )
         Box(modifier = Modifier.weight(1f))
 
@@ -768,9 +774,12 @@ private fun TopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            // 高さを固定。以前はラベル(タブ名)が長いと折り返して Row が縦に伸び、
+            // 右端のステータスも押し出されて見えなくなっていた。固定高 + 各テキスト 1 行で防ぐ。
+            .height(48.dp)
             .background(ZtsBgSecondary)
             .border(width = 1.dp, color = ZtsBorder)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -779,7 +788,11 @@ private fun TopBar(
             color = ZtsGreen,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace
+            fontFamily = FontFamily.Monospace,
+            // 長いタブ名で折り返さない/横幅を食い潰さないよう 1 行 + 省略 + 上限幅。
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 140.dp)
         )
         if (ui.mode.isNotEmpty()) {
             Text(
@@ -998,7 +1011,10 @@ private fun TabChip(
             color = fg,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
-            maxLines = 1
+            // タブ名が長くてもチップが横に伸びすぎないよう上限幅 + 省略。
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 96.dp)
         )
     }
 }

@@ -159,7 +159,58 @@ z2term/
 
 ## ライセンス
 
-GPL-3.0
+本アプリ本体 (`app/src/main/java/com/zerotoship/z2term/**`) のライセンスは **GPL-3.0** です。
+同梱バイナリ・rootfs・フォント等のライセンスは下記「同梱 OSS と対応ソース」を参照。
+
+## 同梱 OSS と対応ソース（GPL/LGPL 頒布要件）
+
+`full` フレーバーの APK には以下の prebuilt が含まれます。各成果物の**対応ソース**は
+下記 URL から取得可能（GPL v2 §3 / GPL v3 §6 / LGPL v3 §4 への対応）。
+
+| 同梱物 | ライセンス | 対応ソース取得方法 |
+|---|---|---|
+| `libproot.so` / `libproot_loader.so` | GPL-2.0 | [termux/proot](https://github.com/termux/proot) / `scripts/build-proot.sh` が DL する Termux パッケージのバージョン参照 |
+| `libtalloc.so` | LGPL-3.0 | [Samba talloc](https://gitlab.com/samba-team/samba/-/tree/master/lib/talloc) / 同上 |
+| `alpine-minirootfs-*.tgz` 内の各パッケージ | 個別 (GPL-2.0 / GPL-3.0 / MIT / BSD 他) | [Alpine aports](https://gitlab.alpinelinux.org/alpine/aports) — `scripts/alpine-packages.txt` の各パッケージ名で参照 |
+| Fira Code / IBM Plex Mono / JetBrains Mono | OFL-1.1 | [tonsky/FiraCode](https://github.com/tonsky/FiraCode) / [IBM/plex](https://github.com/IBM/plex) / [JetBrains/JetBrainsMono](https://github.com/JetBrains/JetBrainsMono) |
+
+設定画面 →「OSS ライセンス / 対応ソース」から、上記情報をアプリ内でも一覧/全文表示できます
+（`assets/licenses/` にライセンス全文を配置）。
+
+### 対応ソースの取得手順 (例)
+
+```sh
+# PRoot 同等のソース取得 (Termux パッケージ)
+git clone https://github.com/termux/proot.git
+
+# talloc 同等のソース取得
+git clone https://gitlab.com/samba-team/samba.git
+ls samba/lib/talloc
+
+# Alpine rootfs に入っている bash 等のソース
+curl -O https://gitlab.alpinelinux.org/alpine/aports/-/archive/master/aports-master.tar.gz
+```
+
+z2term 自身のビルド時にどのバージョンが取得されるかは `scripts/build-proot.sh` /
+`scripts/build-alpine-rootfs.sh` の `PROOT_VER_AARCH64` / `ALPINE_VERSION` を参照。
+
+## 配布方針
+
+| チャネル | フレーバー | 状況 |
+|---|---|---|
+| **GitHub Releases / 直接 APK 配布** | `full` (prebuilt 同梱) | 主たる配布経路。APK 単体で動作完結 |
+| **F-Droid** | `foss` (prebuilt 除外) | 適合化進行中。`src/full/` への物理移動 + F-Droid metadata 提出が必要 (詳細は `z2term-patch/方針書.md` §法的対応) |
+| **Google Play** | — | proot による外部コード実行が DPA §4.4 に抵触する可能性が高く、**配布予定なし** |
+
+## SSH サーバ (sshd) の既定挙動
+
+端末内 `sshd` コマンドは既定で **127.0.0.1 限定 bind + 鍵認証のみ** で起動します
+（dropbear wrapper、`SshdScript.kt`）。LAN/WAN 公開する場合は明示的に:
+
+```sh
+sshd --lan          # 全 NIC bind、~/.ssh/authorized_keys が空だと起動拒否
+Z2_SSHD_LAN=1 sshd  # env でも可
+```
 
 ## 関連
 

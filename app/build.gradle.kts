@@ -40,6 +40,39 @@ android {
         }
     }
 
+    /**
+     * F-Droid 適合化 (法的対応パッチ):
+     *
+     * F-Droid は **prebuilt バイナリの同梱を禁止** している。`full` フレーバーは
+     * APK 完結のため Alpine rootfs と PRoot/talloc バイナリを APK に同梱するが、
+     * `foss` フレーバーはこれらを APK から完全に外し、ユーザー実行時にダウンロード
+     * (DistroDownloader) して動作させる必要がある。
+     *
+     * 実現方法: 大型 prebuilt は `src/full/...` 配下に置き、`src/main/` には共通の
+     * Kotlin / リソースだけを残す。これにより `assembleFossDebug` ではバイナリが
+     * APK に入らない。**ファイルの物理移動が必要** (方針書 §法的対応 §F-Droid 参照)。
+     *
+     * 移動先パス:
+     *  - `src/main/jniLibs/`                              → `src/full/jniLibs/`
+     *  - `src/main/assets/alpine-minirootfs-*.tgz`        → `src/full/assets/`
+     *  - `src/main/assets/fonts/` (OFL) は **共通** なので src/main に残す
+     *  - `src/main/assets/z2dict.txt` は **共通**
+     *  - `src/main/assets/licenses/` (本パッチ追加) は **共通**
+     */
+    sourceSets {
+        getByName("full") {
+            jniLibs.srcDirs("src/main/jniLibs", "src/full/jniLibs")
+            assets.srcDirs("src/main/assets", "src/full/assets")
+        }
+        getByName("foss") {
+            // foss は src/main/ の共通アセット (フォント / 辞書 / ライセンス) のみ。
+            // src/main/jniLibs と src/main/assets/alpine-* が物理的に存在すると Full のままに
+            // なるため、foss ビルドを実際に行う前に上記 src/full/ への移動が必須。
+            jniLibs.srcDirs("src/foss/jniLibs")
+            assets.srcDirs("src/main/assets", "src/foss/assets")
+        }
+    }
+
     defaultConfig {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10

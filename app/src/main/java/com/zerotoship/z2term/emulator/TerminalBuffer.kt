@@ -219,7 +219,15 @@ class TerminalBuffer(
         return if (primaryActive) topDrop else 0
     }
 
-    /** Alternate スクリーン用の素直な resize (scrollback 影響なし、上下どちらを捨てるか) */
+    /**
+     * Alternate スクリーン用 resize (scrollback には影響しない)。
+     *
+     * 拡大時は下に空行を追加。
+     * 縮小時は **下行 (カーソル付近) を残して上行を捨てる**。vim/htop 等は
+     * SIGWINCH 受信後すぐ全再描画するが、その redraw が到着するまでの数フレームで
+     * カーソル付近が消えると「画面下半分が無くなる」崩れに見える。下を残すことで
+     * 再描画到着までの見た目の崩れを最小限にする (旧実装は上を残して下を捨てていた)。
+     */
     private fun resizeScreenSimple(
         old: Array<TerminalRow>,
         newRows: Int,
@@ -231,8 +239,8 @@ class TerminalBuffer(
                 if (i < old.size) old[i] else TerminalRow(newColumns)
             }
         } else {
-            // alt は vim/htop 等が直後に全再描画するため、単純に末尾を切る
-            Array(newRows) { i -> old[i] }
+            val drop = old.size - newRows
+            Array(newRows) { i -> old[i + drop] }
         }
     }
 

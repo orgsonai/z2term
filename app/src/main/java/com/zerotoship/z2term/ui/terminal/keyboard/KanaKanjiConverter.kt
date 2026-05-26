@@ -13,10 +13,14 @@ import kotlinx.coroutines.withContext
  * 辞書はアセット `z2dict.txt` (UTF-8)。1 行 = "よみ /候補1/候補2/.../"。
  * 行は見出し(よみ)の Unicode 順にソート済みなので二分探索で引ける。
  *
- * - [convert]  : よみに完全一致する候補 (= 変換)
- * - [predict]  : よみで前方一致する見出しの候補を集める (= 予測変換)
+ * - [convert]         : よみに完全一致する候補 (= 変換)
+ * - [predict]         : よみで前方一致する見出しの候補を集める (= 予測変換)
+ * - [okuriForms]      : 送り仮名活用 (つくって→作って など。連用形見出しから語幹を流用)
+ * - [segment]         : 文節分割の合成 (複数語フレーズ)
+ * - [convertFlexible] : 上記をまとめた「柔軟な変換」(キーボードはこれを使う)
  *
- * 文節分割や送り仮名活用は行わない。単語・連語単位の変換のみ。
+ * 厳密な形態素解析ではなく辞書ベースの best-effort。送り仮名/文節は候補を補助的に増やすだけで、
+ * 生のかな・カタカナは常に確定候補として残す。
  */
 object KanaKanjiConverter {
     @Volatile private var lines: List<String> = emptyList()
@@ -91,6 +95,110 @@ object KanaKanjiConverter {
         }
         return out.toList()
     }
+
+    // ---- ここから「柔軟な変換」(送り仮名活用 + 文節分割) ----------------------------
+    // 元の辞書は SKK の送り仮名なし形式 (読み→候補) で、`つくる /作る/` のような動詞終止形や
+    // 活用エントリを持たない。そこで「連用形の見出し (例 つくり /作り/) から漢字語幹を取り出し、
+    // ユーザーが打った送り仮名を付け直す」ことで、つくって→作って のような活用変換を補う。
+    // 厳密な形態素解析ではないため候補は補助的に追加するだけで、生のかな/カタカナは常に残す。
+
+    private fun isHira(c: Char): Boolean = c in 'ぁ'..'ゖ' || c == 'ー' || c == 'ゔ'
+    private fun isKanjiChar(c: Char): Boolean =
+        c.code in 0x4E00..0x9FFF || c.code in 0x3400..0x4DBF || c == '々' || c == '〆'
+
+    /**
+     * 送り仮名活用による候補。読みを「語幹 + 送り仮名」に分け、辞書の連用形見出し
+     * (語幹 + ひらがな1文字 → 漢字 + 同じひらがな) から漢字語幹を得て、打った送り仮名を付け直す。
+     * 例: 読み「つくって」→ 語幹「つく」+送り「って」、辞書「つくり /作り/造り/」→ 作って/造って。
+     * 長い語幹を優先し、最初にヒットした語幹長で確定する (短い語幹由来のノイズを抑える)。
+     */
+    fun okuriForms(reading: String, limit: Int = 6): List<String> {
+        if (reading.length < 2 || lines.isEmpty()) return emptyList()
+        val out = LinkedHashSet<String>()
+        for (stemLen in reading.length - 1 downTo 1) {
+            val stem = reading.substring(0, stemLen)
+            val okuri = reading.substring(stemLen)
+            var idx = searchIndex(stem); if (idx < 0) idx = -idx - 1
+            var i = idx
+            var foundAtThisLen = false
+            while (i < lines.size) {
+                val head = headOf(lines[i])
+                if (!head.startsWith(stem)) break
+                // 見出し = 語幹 + ひらがな1文字 (= 辞書の送り仮名) のみ対象。
+                if (head.length == stemLen + 1 && isHira(head[stemLen])) {
+                    val v = head[stemLen]
+                    for (c in candidatesOf(lines[i])) {
+                        // 候補が「漢字語幹 + 同じ送り仮名 v」で終わるものだけ採用。
+                        if (c.length >= 2 && c.last() == v) {
+                            val kStem = c.dropLast(1)
+                            if (kStem.isNotEmpty() && kStem.any { isKanjiChar(it) }) {
+                                out.add(kStem + okuri)
+                                foundAtThisLen = true
+                                if (out.size >= limit) return out.toList()
+                            }
+                        }
+                    }
+                }
+                i++
+            }
+            if (foundAtThisLen) break
+        }
+        return out.toList()
+    }
+
+    /**
+     * 文節分割による合成変換。読みを左から「最長一致の見出し」で食べ進め、各文節の第1候補を
+     * 連結する (例: きょうのてんき → 今日の天気 のような複数語フレーズ)。最後の文節は送り仮名
+     * 活用も試す。辞書ヒットが 2 文節以上のときだけ結果を返す (単語+かなのノイズを避ける)。
+     */
+    fun segment(reading: String, maxSeg: Int = 12): String? {
+        if (reading.length < 2 || lines.isEmpty()) return null
+        val sb = StringBuilder()
+        var pos = 0
+        var seg = 0
+        var dictSegs = 0
+        while (pos < reading.length && seg < maxSeg) {
+            var matched = false
+            var end = reading.length
+            while (end > pos) {
+                val sub = reading.substring(pos, end)
+                val cands = convert(sub)
+                if (cands.isNotEmpty()) {
+                    sb.append(cands[0]); pos = end; dictSegs++; matched = true; break
+                }
+                end--
+            }
+            if (!matched) {
+                val ok = okuriForms(reading.substring(pos), 1)
+                if (ok.isNotEmpty()) { sb.append(ok[0]); pos = reading.length; dictSegs++ }
+                else { sb.append(reading[pos]); pos++ }  // 変換不能な1文字はかなのまま
+            }
+            seg++
+        }
+        if (pos < reading.length) sb.append(reading.substring(pos))
+        val res = sb.toString()
+        return if (dictSegs >= 2 && res != reading) res else null
+    }
+
+    /**
+     * 柔軟な変換候補。優先順:
+     *  1. 完全一致 ([convert])
+     *  2. 送り仮名活用 ([okuriForms]) — 単語+活用/助動詞
+     *  3. 文節分割の合成 ([segment]) — 複数語フレーズ
+     *  4. 前方一致の予測 ([predict]) で補完
+     */
+    fun convertFlexible(reading: String, limit: Int = 16): List<String> {
+        if (reading.isEmpty() || lines.isEmpty()) return emptyList()
+        val out = LinkedHashSet<String>()
+        out.addAll(convert(reading))
+        out.addAll(okuriForms(reading))
+        segment(reading)?.let { out.add(it) }
+        for (c in predict(reading, limit)) {
+            out.add(c)
+            if (out.size >= limit) break
+        }
+        return out.toList().take(limit)
+    }
 }
 
 /** ひらがな文字列をカタカナへ。 */
@@ -137,10 +245,10 @@ class ComposingState(
         return true
     }
 
-    /** 変換キー: 完全一致の候補を前に出す。 */
+    /** 変換キー: 完全一致 + 送り仮名活用 + 文節分割を含む柔軟な候補を出す。 */
     fun convert() {
         if (text.isEmpty()) return
-        candidates = buildList(KanaKanjiConverter.convert(text))
+        candidates = buildList(KanaKanjiConverter.convertFlexible(text))
     }
 
     /** 候補を確定して PTY へ。 */
@@ -163,7 +271,7 @@ class ComposingState(
     }
 
     private fun refreshPredict() {
-        candidates = buildList(KanaKanjiConverter.predict(text))
+        candidates = buildList(KanaKanjiConverter.convertFlexible(text))
     }
 
     /** 辞書候補にカタカナを加えた表示用リスト (生ひらがなはバー左のラベルで確定する)。 */
