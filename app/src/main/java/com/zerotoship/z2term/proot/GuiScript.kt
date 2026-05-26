@@ -154,11 +154,12 @@ fun z2guiScript(
         |  else
         |    PM=""
         |  fi
-        |  # Konsole は DBus セッション必須。dbus-launch / dbus-daemon を入れる
-        |  # (Debian は dbus-launch が dbus-x11 に分離されているので両方追加)。
+        |  # Konsole は DBus セッション必須 + Qt6 QuickWidgets/x11 プラグインが必要。Alpine の
+        |  # `konsole` パッケージは qt6-qtdeclarative を hard-dep に引かないため、ここで明示追加する
+        |  # (Debian/Arch は konsole 本体が依存解決するので dbus 系のみで足りる)。
         |  if [ "${d}GUI_TERM_BIN" = "konsole" ]; then
         |    case "${d}PM" in
-        |      apk)    SRV_PKGS="${d}SRV_PKGS dbus dbus-x11" ;;
+        |      apk)    SRV_PKGS="${d}SRV_PKGS dbus dbus-x11 qt6-qtbase-x11 qt6-qtdeclarative qt6-qt5compat" ;;
         |      apt)    SRV_PKGS="${d}SRV_PKGS dbus dbus-x11" ;;
         |      pacman) SRV_PKGS="${d}SRV_PKGS dbus" ;;
         |    esac
@@ -218,16 +219,40 @@ fun z2guiScript(
         |  if ! ( xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN" ); then
         |    install_pkgs; return ${d}?
         |  fi
-        |  # Konsole 選択時は dbus も必須。既存ユーザーが「konsole は入っているが dbus が無い」
-        |  # 状態に陥っているとここでだけ追加導入する (フル再インストールは避ける)。
-        |  if [ "${d}GUI_TERM_BIN" = "konsole" ] && ! has dbus-daemon && ! has dbus-launch; then
+        |  # Konsole 選択時は dbus + Qt6 ランタイムが必須。導入済みでも依存欠落で起動しない事例
+        |  # (例: Alpine の konsole が qt6-qtdeclarative を引かない) を救うため、不足する物だけ
+        |  # 追加導入する (フル再インストールは避ける)。
+        |  if [ "${d}GUI_TERM_BIN" = "konsole" ]; then
+        |    NEED=""
+        |    # 1) DBus 系
+        |    if ! has dbus-daemon && ! has dbus-launch; then
+        |      detect_pm
+        |      case "${d}PM" in
+        |        apk)    NEED="${d}NEED dbus dbus-x11" ;;
+        |        apt)    NEED="${d}NEED dbus dbus-x11" ;;
+        |        pacman) NEED="${d}NEED dbus" ;;
+        |      esac
+        |    fi
+        |    # 2) Qt6 ランタイム: konsole の動的依存を ldd で見て "not found" があれば追加。
+        |    #    ldd が無い (busybox) 環境では実行→失敗を即時検知できないため、Alpine では予防的に
+        |    #    qt6-qtdeclarative / qt6-qtbase-x11 を追加候補に積む (既に入っていれば apk は no-op)。
         |    detect_pm
-        |    clear_pm_locks
-        |    case "${d}PM" in
-        |      apk)    apk add --no-cache dbus dbus-x11 ;;
-        |      apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y dbus dbus-x11 ;;
-        |      pacman) pacman -Sy --noconfirm dbus ;;
-        |    esac
+        |    if has ldd && ldd "${d}(command -v konsole)" 2>/dev/null | grep -q "not found"; then
+        |      case "${d}PM" in
+        |        apk)    NEED="${d}NEED qt6-qtbase-x11 qt6-qtdeclarative qt6-qt5compat" ;;
+        |        apt)    NEED="${d}NEED libqt6quickwidgets6 libqt6declarative6" ;;
+        |        pacman) NEED="${d}NEED qt6-declarative qt6-5compat" ;;
+        |      esac
+        |    fi
+        |    if [ -n "${d}NEED" ]; then
+        |      clear_pm_locks
+        |      echo "📦 Konsole の追加依存を導入: ${d}NEED"
+        |      case "${d}PM" in
+        |        apk)    apk add --no-cache ${d}NEED ;;
+        |        apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}NEED ;;
+        |        pacman) pacman -Sy --noconfirm ${d}NEED ;;
+        |      esac
+        |    fi
         |  fi
         |  return 0
         |}
