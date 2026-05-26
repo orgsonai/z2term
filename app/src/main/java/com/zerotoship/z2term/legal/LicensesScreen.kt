@@ -182,7 +182,7 @@ private fun LicenseRow(
             )
         }
         Text(
-            text = component.purpose,
+            text = stringResource(component.purposeRes),
             color = textSecondary,
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace,

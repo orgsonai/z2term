@@ -166,4 +166,68 @@
     <string name="sftp_action_delete">Delete</string>
     <string name="sftp_action_download">Download</string>
     <string name="sftp_action_rename">Rename</string>
+
+    <!-- OSS component purposes (D3 batch 4) -->
+    <string name="oss_purpose_proot">User-space chroot/ptrace runtime for running Linux distros</string>
+    <string name="oss_purpose_talloc">Memory management library dynamically linked by PRoot</string>
+    <string name="oss_purpose_alpine_base">Base system (alpine-base, baselayout, keys)</string>
+    <string name="oss_purpose_musl_libc">C standard library used by Alpine</string>
+    <string name="oss_purpose_busybox">Major UNIX tools for Alpine (sh/ls/cp/...)</string>
+    <string name="oss_purpose_bash">Interactive shell (from alpine-packages.txt)</string>
+    <string name="oss_purpose_zsh">Interactive shell</string>
+    <string name="oss_purpose_openssh">SSH client (sshd inside proot uses Dropbear)</string>
+    <string name="oss_purpose_dropbear">proot-compatible SSH server (started by z2term\'s sshd wrapper)</string>
+    <string name="oss_purpose_coreutils">GNU ls/cp/mv etc. (from alpine-packages.txt)</string>
+    <string name="oss_purpose_gnu_textutils">Text processing / file search</string>
+    <string name="oss_purpose_git">Version control</string>
+    <string name="oss_purpose_openssl">TLS / cryptography library</string>
+    <string name="oss_purpose_ncurses_readline">Terminal control / line editing (readline is also GPL-3.0)</string>
+    <string name="oss_purpose_vim">Text editor</string>
+    <string name="oss_purpose_tmux_screen">Terminal multiplexer</string>
+    <string name="oss_purpose_mosh">Roaming SSH alternative</string>
+    <string name="oss_purpose_androidx_compose">UI / lifecycle / DataStore</string>
+    <string name="oss_purpose_kotlin_stdlib">Kotlin runtime</string>
+    <string name="oss_purpose_jsch">SSH client library</string>
+    <string name="oss_purpose_xz_java">XZ (LZMA2) decompression (Kali rootfs .tar.xz etc.)</string>
+    <string name="oss_purpose_fira_code">Monospaced terminal font (with ligatures)</string>
+    <string name="oss_purpose_ibm_plex_mono">Monospaced terminal font</string>
+    <string name="oss_purpose_jetbrains_mono">Monospaced terminal font</string>
+
+    <!-- Remaining settings sheet supplementary text (D3 batch 4) -->
+    <string name="settings_create_custom_theme">Create custom theme…</string>
+    <string name="settings_edit_custom_theme">Edit custom theme…</string>
+    <string name="settings_custom_theme_note">Create one theme of your own. The chosen background / foreground / accent etc. apply to the whole app.</string>
+    <string name="settings_shell_uninstalled_suffix">%1$s (not installed)</string>
+    <string name="settings_shell_warning">⚠ %1$s is not installed for this distro. Until it is installed it has no effect; the launcher falls back to the default shell → /bin/sh (e.g. apk add zsh / apt install zsh).</string>
+    <string name="settings_shell_info">Shells that are not installed fall back automatically. They become effective once you install them in the distro.</string>
+    <string name="settings_ssh_sftp_open">SSH / SFTP profiles…</string>
+    <string name="settings_ssh_sftp_note">Connect a saved SSH host as a shell, or use SFTP for file transfer (list / DL / UL / delete / rename).</string>
+    <string name="settings_gui_clean_install_desc">Turn ON and open the GUI tab to reinstall the GUI-display packages (cache and all) — recovery for stuck DL/extraction. The check clears automatically on launch.</string>
+    <string name="settings_gui_terminal_note">🖥 The terminal to open inside the GUI tab. If not installed yet it is auto-installed on first GUI start (Konsole, in KDE, has a large initial download — Wi-Fi recommended).</string>
+
+    <!-- Custom theme editor (D3 batch 4) -->
+    <string name="theme_color_background">Background</string>
+    <string name="theme_color_foreground">Foreground</string>
+    <string name="theme_color_cursor">Cursor</string>
+    <string name="theme_color_black">Black</string>
+    <string name="theme_color_red">Red</string>
+    <string name="theme_color_green">Green (accent)</string>
+    <string name="theme_color_yellow">Yellow</string>
+    <string name="theme_color_blue">Blue</string>
+    <string name="theme_color_magenta">Magenta</string>
+    <string name="theme_color_cyan">Cyan</string>
+    <string name="theme_color_white">White</string>
+    <string name="theme_color_bright_black">Bright black</string>
+    <string name="theme_color_bright_red">Bright red</string>
+    <string name="theme_color_bright_green">Bright green</string>
+    <string name="theme_color_bright_yellow">Bright yellow</string>
+    <string name="theme_color_bright_blue">Bright blue</string>
+    <string name="theme_color_bright_magenta">Bright magenta</string>
+    <string name="theme_color_bright_cyan">Bright cyan</string>
+    <string name="theme_color_bright_white">Bright white</string>
+    <string name="theme_title_new">Create custom theme</string>
+    <string name="theme_title_edit">Edit custom theme</string>
+    <string name="theme_action_save_apply">Save and apply</string>
+    <string name="theme_hint">#RRGGBB format. Invalid values are saved with the original color unchanged.</string>
+    <string name="theme_preview_cursor">Cursor</string>
 </resources>

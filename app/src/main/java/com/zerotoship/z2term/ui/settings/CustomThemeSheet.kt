@@ -37,11 +37,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zerotoship.z2term.R
 import com.zerotoship.z2term.emulator.DEFAULT_CUSTOM_THEME_NAME
 import com.zerotoship.z2term.emulator.TerminalTheme
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
@@ -54,27 +56,27 @@ import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import kotlinx.coroutines.launch
 
-/** 編集対象の色スロット (key は TerminalTheme のフィールド名) */
+/** 編集対象の色スロット (key は TerminalTheme のフィールド名, ラベルは R.string で言語追従) */
 private val COLOR_SLOTS = listOf(
-    "background" to "背景",
-    "foreground" to "前景",
-    "cursor" to "カーソル",
-    "black" to "黒",
-    "red" to "赤",
-    "green" to "緑 (アクセント)",
-    "yellow" to "黄",
-    "blue" to "青",
-    "magenta" to "マゼンタ",
-    "cyan" to "シアン",
-    "white" to "白",
-    "brightBlack" to "明 黒",
-    "brightRed" to "明 赤",
-    "brightGreen" to "明 緑",
-    "brightYellow" to "明 黄",
-    "brightBlue" to "明 青",
-    "brightMagenta" to "明 マゼンタ",
-    "brightCyan" to "明 シアン",
-    "brightWhite" to "明 白"
+    "background" to com.zerotoship.z2term.R.string.theme_color_background,
+    "foreground" to com.zerotoship.z2term.R.string.theme_color_foreground,
+    "cursor" to com.zerotoship.z2term.R.string.theme_color_cursor,
+    "black" to com.zerotoship.z2term.R.string.theme_color_black,
+    "red" to com.zerotoship.z2term.R.string.theme_color_red,
+    "green" to com.zerotoship.z2term.R.string.theme_color_green,
+    "yellow" to com.zerotoship.z2term.R.string.theme_color_yellow,
+    "blue" to com.zerotoship.z2term.R.string.theme_color_blue,
+    "magenta" to com.zerotoship.z2term.R.string.theme_color_magenta,
+    "cyan" to com.zerotoship.z2term.R.string.theme_color_cyan,
+    "white" to com.zerotoship.z2term.R.string.theme_color_white,
+    "brightBlack" to com.zerotoship.z2term.R.string.theme_color_bright_black,
+    "brightRed" to com.zerotoship.z2term.R.string.theme_color_bright_red,
+    "brightGreen" to com.zerotoship.z2term.R.string.theme_color_bright_green,
+    "brightYellow" to com.zerotoship.z2term.R.string.theme_color_bright_yellow,
+    "brightBlue" to com.zerotoship.z2term.R.string.theme_color_bright_blue,
+    "brightMagenta" to com.zerotoship.z2term.R.string.theme_color_bright_magenta,
+    "brightCyan" to com.zerotoship.z2term.R.string.theme_color_bright_cyan,
+    "brightWhite" to com.zerotoship.z2term.R.string.theme_color_bright_white
 )
 
 /**
@@ -145,7 +147,8 @@ fun CustomThemeSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = if (existing == null) "独自テーマを作成" else "独自テーマを編集",
+                text = if (existing == null) stringResource(R.string.theme_title_new)
+                       else stringResource(R.string.theme_title_edit),
                 color = ZtsGreen,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -155,7 +158,7 @@ fun CustomThemeSheet(
             // 名前
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "名前", color = ZtsTextSecondary, fontSize = 11.sp,
+                    stringResource(R.string.ssh_field_name), color = ZtsTextSecondary, fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace, modifier = Modifier.width(80.dp)
                 )
                 EditBox(value = name, onChange = { name = it }, modifier = Modifier.weight(1f))
@@ -165,9 +168,9 @@ fun CustomThemeSheet(
             ThemePreview(buildTheme())
 
             // 色入力
-            COLOR_SLOTS.forEach { (key, label) ->
+            COLOR_SLOTS.forEach { (key, labelRes) ->
                 HexField(
-                    label = label,
+                    label = stringResource(labelRes),
                     value = hex[key] ?: "",
                     onChange = { hex[key] = it }
                 )
@@ -175,17 +178,17 @@ fun CustomThemeSheet(
 
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PillButton("保存して適用", accent = true) {
+                PillButton(stringResource(R.string.theme_action_save_apply), accent = true) {
                     onSave(buildTheme())
                 }
                 if (existing != null) {
-                    PillButton("削除", danger = true, onClick = onDelete)
+                    PillButton(stringResource(R.string.ssh_action_delete), danger = true, onClick = onDelete)
                 }
                 Box(Modifier.weight(1f))
-                PillButton("キャンセル", onClick = closeSheet)
+                PillButton(stringResource(R.string.action_cancel), onClick = closeSheet)
             }
             Text(
-                text = "#RRGGBB 形式。無効な値は元の色のまま保存されます。",
+                text = stringResource(R.string.theme_hint),
                 color = ZtsTextSecondary,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace
@@ -213,7 +216,7 @@ private fun ThemePreview(theme: TerminalTheme) {
             Text("warn", color = Color(theme.yellow), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("カーソル", color = Color(theme.foreground), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            Text(stringResource(R.string.theme_preview_cursor), color = Color(theme.foreground), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
             Spacer(Modifier.width(6.dp))
             Box(Modifier.size(width = 8.dp, height = 14.dp).background(Color(theme.cursor)))
         }

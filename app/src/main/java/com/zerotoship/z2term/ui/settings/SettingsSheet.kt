@@ -193,12 +193,12 @@ fun SettingsSheet(
                     onSelect = { session.setThemeName(it) }
                 )
                 ActionButton(
-                    label = if (customTheme == null) "独自テーマを作成…" else "独自テーマを編集…",
+                    label = if (customTheme == null) stringResource(R.string.settings_create_custom_theme)
+                            else stringResource(R.string.settings_edit_custom_theme),
                     onClick = onEditCustomTheme
                 )
                 Text(
-                    text = "色を自分で選んだテーマを 1 つ作れます。背景/前景/アクセント等が" +
-                        "アプリ全体に反映されます。",
+                    text = stringResource(R.string.settings_custom_theme_note),
                     color = ZtsTextSecondary,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
@@ -303,7 +303,8 @@ fun SettingsSheet(
                 ChipRow(
                     options = AppSettings.AVAILABLE_SHELLS,
                     labels = AppSettings.AVAILABLE_SHELLS.associateWith { shell ->
-                        if (rootfsReady && shellInstalled[shell] == false) "$shell (未インストール)"
+                        if (rootfsReady && shellInstalled[shell] == false)
+                            stringResource(R.string.settings_shell_uninstalled_suffix, shell)
                         else shell
                     },
                     selected = settings.loginShell,
@@ -311,17 +312,14 @@ fun SettingsSheet(
                 )
                 if (rootfsReady && shellInstalled[settings.loginShell] == false) {
                     Text(
-                        text = "⚠ ${settings.loginShell} はこのディストロに未インストールです。" +
-                            "インストールするまで反映されず、起動時に既定シェル → /bin/sh へ" +
-                            "自動フォールバックします (例: apk add zsh / apt install zsh)。",
+                        text = stringResource(R.string.settings_shell_warning, settings.loginShell),
                         color = ZtsWarning,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )
                 } else {
                     Text(
-                        text = "未インストールのシェルは反映されず自動フォールバックします。" +
-                            "ディストロ側でインストール後に有効になります。",
+                        text = stringResource(R.string.settings_shell_info),
                         color = ZtsTextSecondary,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
@@ -333,11 +331,11 @@ fun SettingsSheet(
 
             Section(title = stringResource(R.string.settings_section_remote)) {
                 ActionButton(
-                    label = "SSH / SFTP プロファイル…",
+                    label = stringResource(R.string.settings_ssh_sftp_open),
                     onClick = onOpenSsh
                 )
                 Text(
-                    text = "保存した SSH 接続先へシェル接続、または SFTP でファイル転送 (一覧 / DL / UL / 削除 / 名前変更)。",
+                    text = stringResource(R.string.settings_ssh_sftp_note),
                     color = ZtsTextSecondary,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
@@ -363,15 +361,13 @@ fun SettingsSheet(
                     onSelect = { session.setGuiTerminal(it) }
                 )
                 ToggleField(
-                    title = "クリーンインストール",
-                    description = "ON にして GUI タブを開くと、GUI 表示用パッケージをキャッシュごと" +
-                        "入れ直します (DL/解凍失敗の復旧用)。起動時にチェックは自動で外れます。",
+                    title = stringResource(R.string.settings_clean_install),
+                    description = stringResource(R.string.settings_gui_clean_install_desc),
                     checked = settings.cleanInstallGuiArmed,
                     onChange = { session.setCleanInstallGuiArmed(it) }
                 )
                 Text(
-                    text = "🖥 GUI タブで開くターミナル。未導入なら初回 GUI 起動時に自動導入されます" +
-                        "（Konsole は KDE 系で初回ダウンロードが大きめ・Wi-Fi 推奨）。",
+                    text = stringResource(R.string.settings_gui_terminal_note),
                     color = ZtsTextSecondary,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace

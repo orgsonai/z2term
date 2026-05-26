@@ -166,4 +166,68 @@
     <string name="sftp_action_delete">削除</string>
     <string name="sftp_action_download">ダウンロード</string>
     <string name="sftp_action_rename">名前変更</string>
+
+    <!-- OSS コンポーネント用途 (D3 バッチ 4) -->
+    <string name="oss_purpose_proot">ユーザー空間 chroot/ptrace で Linux ディストロを動作させる中核</string>
+    <string name="oss_purpose_talloc">PRoot が動的リンクするメモリ管理ライブラリ</string>
+    <string name="oss_purpose_alpine_base">ベースシステム (alpine-base, baselayout, keys)</string>
+    <string name="oss_purpose_musl_libc">Alpine の C 標準ライブラリ</string>
+    <string name="oss_purpose_busybox">Alpine の主要 UNIX ツール (sh/ls/cp/...)</string>
+    <string name="oss_purpose_bash">対話シェル (alpine-packages.txt より)</string>
+    <string name="oss_purpose_zsh">対話シェル</string>
+    <string name="oss_purpose_openssh">SSH クライアント (proot 内サーバは Dropbear を利用)</string>
+    <string name="oss_purpose_dropbear">proot 互換 SSH サーバ (z2term の sshd ラッパー実装で起動)</string>
+    <string name="oss_purpose_coreutils">ls/cp/mv 等の GNU 版 (alpine-packages.txt より)</string>
+    <string name="oss_purpose_gnu_textutils">テキスト処理 / ファイル検索</string>
+    <string name="oss_purpose_git">バージョン管理</string>
+    <string name="oss_purpose_openssl">TLS / 暗号ライブラリ</string>
+    <string name="oss_purpose_ncurses_readline">端末制御 / 行編集 (readline は GPL-3.0 の別ライセンスでもある)</string>
+    <string name="oss_purpose_vim">テキストエディタ</string>
+    <string name="oss_purpose_tmux_screen">端末多重化</string>
+    <string name="oss_purpose_mosh">ローミング SSH 代替</string>
+    <string name="oss_purpose_androidx_compose">UI / ライフサイクル / DataStore</string>
+    <string name="oss_purpose_kotlin_stdlib">Kotlin ランタイム</string>
+    <string name="oss_purpose_jsch">SSH クライアントライブラリ</string>
+    <string name="oss_purpose_xz_java">XZ (LZMA2) 解凍 (Kali rootfs などの .tar.xz)</string>
+    <string name="oss_purpose_fira_code">ターミナル用等幅フォント (合字対応)</string>
+    <string name="oss_purpose_ibm_plex_mono">ターミナル用等幅フォント</string>
+    <string name="oss_purpose_jetbrains_mono">ターミナル用等幅フォント</string>
+
+    <!-- 設定シート残り補足テキスト (D3 バッチ 4) -->
+    <string name="settings_create_custom_theme">独自テーマを作成…</string>
+    <string name="settings_edit_custom_theme">独自テーマを編集…</string>
+    <string name="settings_custom_theme_note">色を自分で選んだテーマを 1 つ作れます。背景/前景/アクセント等がアプリ全体に反映されます。</string>
+    <string name="settings_shell_uninstalled_suffix">%1$s (未インストール)</string>
+    <string name="settings_shell_warning">⚠ %1$s はこのディストロに未インストールです。インストールするまで反映されず、起動時に既定シェル → /bin/sh へ自動フォールバックします (例: apk add zsh / apt install zsh)。</string>
+    <string name="settings_shell_info">未インストールのシェルは反映されず自動フォールバックします。ディストロ側でインストール後に有効になります。</string>
+    <string name="settings_ssh_sftp_open">SSH / SFTP プロファイル…</string>
+    <string name="settings_ssh_sftp_note">保存した SSH 接続先へシェル接続、または SFTP でファイル転送 (一覧 / DL / UL / 削除 / 名前変更)。</string>
+    <string name="settings_gui_clean_install_desc">ON にして GUI タブを開くと、GUI 表示用パッケージをキャッシュごと入れ直します (DL/解凍失敗の復旧用)。起動時にチェックは自動で外れます。</string>
+    <string name="settings_gui_terminal_note">🖥 GUI タブで開くターミナル。未導入なら初回 GUI 起動時に自動導入されます（Konsole は KDE 系で初回ダウンロードが大きめ・Wi-Fi 推奨）。</string>
+
+    <!-- 独自テーマエディタ (D3 バッチ 4) -->
+    <string name="theme_color_background">背景</string>
+    <string name="theme_color_foreground">前景</string>
+    <string name="theme_color_cursor">カーソル</string>
+    <string name="theme_color_black">黒</string>
+    <string name="theme_color_red">赤</string>
+    <string name="theme_color_green">緑 (アクセント)</string>
+    <string name="theme_color_yellow">黄</string>
+    <string name="theme_color_blue">青</string>
+    <string name="theme_color_magenta">マゼンタ</string>
+    <string name="theme_color_cyan">シアン</string>
+    <string name="theme_color_white">白</string>
+    <string name="theme_color_bright_black">明 黒</string>
+    <string name="theme_color_bright_red">明 赤</string>
+    <string name="theme_color_bright_green">明 緑</string>
+    <string name="theme_color_bright_yellow">明 黄</string>
+    <string name="theme_color_bright_blue">明 青</string>
+    <string name="theme_color_bright_magenta">明 マゼンタ</string>
+    <string name="theme_color_bright_cyan">明 シアン</string>
+    <string name="theme_color_bright_white">明 白</string>
+    <string name="theme_title_new">独自テーマを作成</string>
+    <string name="theme_title_edit">独自テーマを編集</string>
+    <string name="theme_action_save_apply">保存して適用</string>
+    <string name="theme_hint">#RRGGBB 形式。無効な値は元の色のまま保存されます。</string>
+    <string name="theme_preview_cursor">カーソル</string>
 </resources>
