@@ -17,12 +17,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.HostKeyVerifier
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -47,6 +50,7 @@ import com.zerotoship.z2term.ui.theme.ZtsWarning
 fun HostKeyVerificationDialog() {
     val prompt by HostKeyVerifier.flow.collectAsState()
     val current = prompt ?: return
+    val context = LocalContext.current
 
     Dialog(
         onDismissRequest = { HostKeyVerifier.resolve(false) },
@@ -64,7 +68,7 @@ fun HostKeyVerificationDialog() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "⚠️  ホスト鍵の検証",
+                text = stringResource(R.string.hostkey_title),
                 color = ZtsWarning,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -72,19 +76,19 @@ fun HostKeyVerificationDialog() {
             )
             Text(
                 text = current.message.ifEmpty {
-                    "ホスト ${current.host} の鍵が known_hosts にありません。"
+                    context.getString(R.string.hostkey_not_in_known_hosts, current.host)
                 },
                 color = ZtsTextPrimary,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace
             )
 
-            FingerprintRow(label = "ホスト", value = current.host)
-            FingerprintRow(label = "鍵タイプ", value = current.keyType)
+            FingerprintRow(label = stringResource(R.string.hostkey_field_host), value = current.host)
+            FingerprintRow(label = stringResource(R.string.hostkey_field_keytype), value = current.keyType)
             FingerprintRow(label = "fingerprint", value = current.fingerprint)
 
             Text(
-                text = "信頼できるホストか必ず確認してください。\n中間者攻撃 (MITM) の可能性があります。",
+                text = stringResource(R.string.hostkey_warning),
                 color = ZtsTextSecondary,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace
@@ -96,11 +100,11 @@ fun HostKeyVerificationDialog() {
             ) {
                 Box(modifier = Modifier.weight(1f))
                 DialogButton(
-                    label = "キャンセル",
+                    label = stringResource(R.string.action_cancel),
                     onClick = { HostKeyVerifier.resolve(false) }
                 )
                 DialogButton(
-                    label = "信頼して接続",
+                    label = stringResource(R.string.hostkey_action_trust),
                     accent = true,
                     onClick = { HostKeyVerifier.resolve(true) }
                 )

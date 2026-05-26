@@ -43,12 +43,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.zerotoship.z2term.R
 import com.zerotoship.z2term.snippets.Snippet
 import com.zerotoship.z2term.snippets.SnippetStore
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
@@ -215,7 +217,7 @@ private fun ListHeader(onNew: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "スニペット",
+            text = stringResource(R.string.snippets_title),
             color = ZtsGreen,
             fontSize = 18.sp,
             fontWeight = FontWeight.SemiBold,
@@ -231,7 +233,7 @@ private fun ListHeader(onNew: () -> Unit) {
                 .padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
             Text(
-                text = "+ 新規",
+                text = stringResource(R.string.snippets_new),
                 color = ZtsGreen,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
@@ -253,7 +255,7 @@ private fun EmptyState() {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "未登録。「+ 新規」でコマンドを追加してください。",
+            text = stringResource(R.string.snippets_empty),
             color = ZtsTextSecondary,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace
@@ -272,9 +274,7 @@ private fun HintBlock() {
             .padding(10.dp)
     ) {
         Text(
-            text = "▸ 行をタップ → ターミナルに挿入 (Enter は付けない)\n" +
-                "▸ ≡ を掴んで上下ドラッグで並べ替え\n" +
-                "▸ ✎ 編集 / ✕ 削除",
+            text = stringResource(R.string.snippets_hint),
             color = ZtsTextSecondary,
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace
@@ -330,7 +330,7 @@ private fun SnippetRow(
                 )
             }
             Text(
-                text = snippet.command.ifBlank { "(空)" },
+                text = snippet.command.ifBlank { stringResource(R.string.snippets_empty_command) },
                 color = ZtsTextPrimary,
                 fontSize = 13.sp,
                 fontFamily = FontFamily.Monospace,
@@ -404,7 +404,10 @@ private fun EditForm(
     var command by remember(initial.id) { mutableStateOf(initial.command) }
 
     Text(
-        text = if (initial.label.isEmpty() && initial.command.isEmpty()) "新規スニペット" else "編集",
+        text = if (initial.label.isEmpty() && initial.command.isEmpty())
+            stringResource(R.string.snippets_new_entry_title)
+        else
+            stringResource(R.string.snippets_edit_entry_title),
         color = ZtsGreen,
         fontSize = 16.sp,
         fontWeight = FontWeight.SemiBold,
@@ -412,13 +415,13 @@ private fun EditForm(
     )
 
     Field(
-        label = "ラベル (空なら command 先頭が表示)",
+        label = stringResource(R.string.snippets_label_field),
         value = label,
         onChange = { label = it },
-        placeholder = "ls (詳細)"
+        placeholder = stringResource(R.string.snippets_label_placeholder)
     )
     Field(
-        label = "コマンド",
+        label = stringResource(R.string.snippets_command_field),
         value = command,
         onChange = { command = it },
         placeholder = "ls -la --color=auto",
@@ -429,10 +432,10 @@ private fun EditForm(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        SmallButton(label = "キャンセル", onClick = onCancel)
+        SmallButton(label = stringResource(R.string.action_cancel), onClick = onCancel)
         Box(modifier = Modifier.weight(1f))
         SmallButton(
-            label = "保存",
+            label = stringResource(R.string.action_save),
             accent = true,
             onClick = {
                 if (command.isNotBlank()) {

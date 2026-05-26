@@ -41,8 +41,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.PortForward
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.channel.SshProfileStore
@@ -172,7 +174,7 @@ private fun ListHeader(onNew: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "SSH プロファイル",
+            text = stringResource(R.string.ssh_title),
             color = ZtsGreen,
             fontSize = 18.sp,
             fontWeight = FontWeight.SemiBold,
@@ -188,7 +190,7 @@ private fun ListHeader(onNew: () -> Unit) {
                 .padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
             Text(
-                text = "+ 新規",
+                text = stringResource(R.string.ssh_new),
                 color = ZtsGreen,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
@@ -210,7 +212,7 @@ private fun EmptyState() {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "プロファイル未登録。「+ 新規」から追加してください。",
+            text = stringResource(R.string.ssh_empty),
             color = ZtsTextSecondary,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace
@@ -236,7 +238,7 @@ private fun ProfileRow(
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(
-            text = profile.name.ifEmpty { "(無名)" },
+            text = profile.name.ifEmpty { stringResource(R.string.ssh_unnamed) },
             color = ZtsTextPrimary,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
@@ -252,11 +254,11 @@ private fun ProfileRow(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            SmallButton(label = "接続", accent = true, onClick = onConnect)
+            SmallButton(label = stringResource(R.string.ssh_action_connect), accent = true, onClick = onConnect)
             SmallButton(label = "SFTP", onClick = onSftp)
-            SmallButton(label = "編集", onClick = onEdit)
+            SmallButton(label = stringResource(R.string.ssh_action_edit), onClick = onEdit)
             Box(modifier = Modifier.weight(1f))
-            SmallButton(label = "削除", danger = true, onClick = onDelete)
+            SmallButton(label = stringResource(R.string.ssh_action_delete), danger = true, onClick = onDelete)
         }
     }
 }
@@ -279,43 +281,46 @@ private fun EditForm(
     var forwards by remember(initial.id) { mutableStateOf(initial.forwards) }
 
     Text(
-        text = if (initial.name.isEmpty() && initial.host.isEmpty()) "新規プロファイル" else "編集: ${initial.name.ifEmpty { initial.host }}",
+        text = if (initial.name.isEmpty() && initial.host.isEmpty())
+            stringResource(R.string.ssh_new_profile_title)
+        else
+            stringResource(R.string.ssh_edit_profile_title, initial.name.ifEmpty { initial.host }),
         color = ZtsGreen,
         fontSize = 16.sp,
         fontWeight = FontWeight.SemiBold,
         fontFamily = FontFamily.Monospace
     )
 
-    Field(label = "名前", value = name, onChange = { name = it }, placeholder = "my-server")
-    Field(label = "ホスト", value = host, onChange = { host = it }, placeholder = "example.com or 192.168.0.10")
+    Field(label = stringResource(R.string.ssh_field_name), value = name, onChange = { name = it }, placeholder = "my-server")
+    Field(label = stringResource(R.string.ssh_field_host), value = host, onChange = { host = it }, placeholder = "example.com or 192.168.0.10")
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(modifier = Modifier.weight(1f)) {
             Field(
-                label = "ポート",
+                label = stringResource(R.string.ssh_field_port),
                 value = port,
                 onChange = { port = it.filter { ch -> ch.isDigit() } },
                 placeholder = "22"
             )
         }
         Box(modifier = Modifier.weight(2f)) {
-            Field(label = "ユーザー", value = user, onChange = { user = it }, placeholder = "ubuntu")
+            Field(label = stringResource(R.string.ssh_field_user), value = user, onChange = { user = it }, placeholder = "ubuntu")
         }
     }
 
     Text(
-        text = "認証方式",
+        text = stringResource(R.string.ssh_auth_method),
         color = ZtsTextSecondary,
         fontSize = 12.sp,
         fontFamily = FontFamily.Monospace
     )
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         AuthChip(
-            label = "パスワード",
+            label = stringResource(R.string.ssh_auth_password),
             selected = auth == SshProfile.AuthType.PASSWORD,
             onSelect = { auth = SshProfile.AuthType.PASSWORD }
         )
         AuthChip(
-            label = "公開鍵",
+            label = stringResource(R.string.ssh_auth_publickey),
             selected = auth == SshProfile.AuthType.PUBLIC_KEY,
             onSelect = { auth = SshProfile.AuthType.PUBLIC_KEY }
         )
@@ -323,22 +328,22 @@ private fun EditForm(
 
     when (auth) {
         SshProfile.AuthType.PASSWORD -> {
-            Field(label = "パスワード", value = password, onChange = { password = it }, placeholder = "********", secret = true)
+            Field(label = stringResource(R.string.ssh_field_password), value = password, onChange = { password = it }, placeholder = "********", secret = true)
         }
         SshProfile.AuthType.PUBLIC_KEY -> {
             Field(
-                label = "秘密鍵 (PEM)",
+                label = stringResource(R.string.ssh_field_private_key),
                 value = privateKey,
                 onChange = { privateKey = it },
                 placeholder = "-----BEGIN OPENSSH PRIVATE KEY-----\n...",
                 multiline = true
             )
-            Field(label = "パスフレーズ (鍵に設定されていれば)", value = keyPassphrase, onChange = { keyPassphrase = it }, secret = true)
+            Field(label = stringResource(R.string.ssh_field_passphrase), value = keyPassphrase, onChange = { keyPassphrase = it }, secret = true)
         }
     }
 
     Field(
-        label = "init コマンド (接続後に自動実行、任意)",
+        label = stringResource(R.string.ssh_field_init_cmd),
         value = initCmd,
         onChange = { initCmd = it },
         placeholder = "tmux a || tmux"
@@ -353,10 +358,10 @@ private fun EditForm(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        SmallButton(label = "キャンセル", onClick = onCancel)
+        SmallButton(label = stringResource(R.string.action_cancel), onClick = onCancel)
         Box(modifier = Modifier.weight(1f))
         SmallButton(
-            label = "保存",
+            label = stringResource(R.string.action_save),
             accent = true,
             onClick = {
                 val portNum = port.toIntOrNull()?.coerceIn(1, 65535) ?: 22
@@ -394,7 +399,7 @@ private fun PortForwardSection(
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "ポート転送 (-L)",
+                text = stringResource(R.string.ssh_port_forward),
                 color = ZtsTextSecondary,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace
@@ -416,7 +421,7 @@ private fun PortForwardSection(
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "+ 追加",
+                    text = stringResource(R.string.ssh_port_forward_add),
                     color = ZtsGreen,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace
@@ -425,7 +430,7 @@ private fun PortForwardSection(
         }
         if (forwards.isEmpty()) {
             Text(
-                text = "未設定。「+ 追加」で localhost:N → remote:M を作成。",
+                text = stringResource(R.string.ssh_port_forward_empty),
                 color = ZtsTextSecondary.copy(alpha = 0.65f),
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace

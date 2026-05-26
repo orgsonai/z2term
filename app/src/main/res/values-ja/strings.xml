@@ -89,4 +89,50 @@
     <string name="appinfo_package">パッケージ</string>
     <string name="appinfo_rootfs_generation">rootfs 世代</string>
     <string name="appinfo_distro">ディストロ</string>
+
+    <!-- スニペットシート (D3 バッチ 2) -->
+    <string name="snippets_title">スニペット</string>
+    <string name="snippets_new">+ 新規</string>
+    <string name="snippets_empty">未登録。「+ 新規」でコマンドを追加してください。</string>
+    <string name="snippets_hint">▸ 行をタップ → ターミナルに挿入 (Enter は付けない)\n▸ ≡ を掴んで上下ドラッグで並べ替え\n▸ ✎ 編集 / ✕ 削除</string>
+    <string name="snippets_empty_command">(空)</string>
+    <string name="snippets_new_entry_title">新規スニペット</string>
+    <string name="snippets_edit_entry_title">編集</string>
+    <string name="snippets_label_field">ラベル (空なら command 先頭が表示)</string>
+    <string name="snippets_label_placeholder">ls (詳細)</string>
+    <string name="snippets_command_field">コマンド</string>
+    <string name="action_save">保存</string>
+
+    <!-- SSH プロファイル シート (D3 バッチ 2) -->
+    <string name="ssh_title">SSH プロファイル</string>
+    <string name="ssh_new">+ 新規</string>
+    <string name="ssh_empty">プロファイル未登録。「+ 新規」から追加してください。</string>
+    <string name="ssh_unnamed">(無名)</string>
+    <string name="ssh_action_connect">接続</string>
+    <string name="ssh_action_edit">編集</string>
+    <string name="ssh_action_delete">削除</string>
+    <string name="ssh_new_profile_title">新規プロファイル</string>
+    <string name="ssh_edit_profile_title">編集: %1$s</string>
+    <string name="ssh_field_name">名前</string>
+    <string name="ssh_field_host">ホスト</string>
+    <string name="ssh_field_port">ポート</string>
+    <string name="ssh_field_user">ユーザー</string>
+    <string name="ssh_auth_method">認証方式</string>
+    <string name="ssh_auth_password">パスワード</string>
+    <string name="ssh_auth_publickey">公開鍵</string>
+    <string name="ssh_field_password">パスワード</string>
+    <string name="ssh_field_private_key">秘密鍵 (PEM)</string>
+    <string name="ssh_field_passphrase">パスフレーズ (鍵に設定されていれば)</string>
+    <string name="ssh_field_init_cmd">init コマンド (接続後に自動実行、任意)</string>
+    <string name="ssh_port_forward">ポート転送 (-L)</string>
+    <string name="ssh_port_forward_add">+ 追加</string>
+    <string name="ssh_port_forward_empty">未設定。「+ 追加」で localhost:N → remote:M を作成。</string>
+
+    <!-- ホスト鍵検証ダイアログ (D3 バッチ 2) -->
+    <string name="hostkey_title">⚠️  ホスト鍵の検証</string>
+    <string name="hostkey_not_in_known_hosts">ホスト %1$s の鍵が known_hosts にありません。</string>
+    <string name="hostkey_field_host">ホスト</string>
+    <string name="hostkey_field_keytype">鍵タイプ</string>
+    <string name="hostkey_warning">信頼できるホストか必ず確認してください。\n中間者攻撃 (MITM) の可能性があります。</string>
+    <string name="hostkey_action_trust">信頼して接続</string>
 </resources>

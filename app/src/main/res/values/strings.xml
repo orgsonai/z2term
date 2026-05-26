@@ -89,4 +89,50 @@
     <string name="appinfo_package">Package</string>
     <string name="appinfo_rootfs_generation">rootfs generation</string>
     <string name="appinfo_distro">Distro</string>
+
+    <!-- Snippets sheet (D3 batch 2) -->
+    <string name="snippets_title">Snippets</string>
+    <string name="snippets_new">+ New</string>
+    <string name="snippets_empty">No entries. Tap "+ New" to add a command.</string>
+    <string name="snippets_hint">▸ Tap a row → inserted into the terminal (no Enter)\n▸ Hold ≡ and drag up/down to reorder\n▸ ✎ edit / ✕ delete</string>
+    <string name="snippets_empty_command">(empty)</string>
+    <string name="snippets_new_entry_title">New snippet</string>
+    <string name="snippets_edit_entry_title">Edit</string>
+    <string name="snippets_label_field">Label (if empty, the first part of the command is shown)</string>
+    <string name="snippets_label_placeholder">ls (detail)</string>
+    <string name="snippets_command_field">Command</string>
+    <string name="action_save">Save</string>
+
+    <!-- SSH profile sheet (D3 batch 2) -->
+    <string name="ssh_title">SSH profiles</string>
+    <string name="ssh_new">+ New</string>
+    <string name="ssh_empty">No profiles. Tap "+ New" to add one.</string>
+    <string name="ssh_unnamed">(unnamed)</string>
+    <string name="ssh_action_connect">Connect</string>
+    <string name="ssh_action_edit">Edit</string>
+    <string name="ssh_action_delete">Delete</string>
+    <string name="ssh_new_profile_title">New profile</string>
+    <string name="ssh_edit_profile_title">Edit: %1$s</string>
+    <string name="ssh_field_name">Name</string>
+    <string name="ssh_field_host">Host</string>
+    <string name="ssh_field_port">Port</string>
+    <string name="ssh_field_user">User</string>
+    <string name="ssh_auth_method">Auth method</string>
+    <string name="ssh_auth_password">Password</string>
+    <string name="ssh_auth_publickey">Public key</string>
+    <string name="ssh_field_password">Password</string>
+    <string name="ssh_field_private_key">Private key (PEM)</string>
+    <string name="ssh_field_passphrase">Passphrase (if set on the key)</string>
+    <string name="ssh_field_init_cmd">init command (run automatically on connect, optional)</string>
+    <string name="ssh_port_forward">Port forwarding (-L)</string>
+    <string name="ssh_port_forward_add">+ Add</string>
+    <string name="ssh_port_forward_empty">None. Tap "+ Add" to create localhost:N → remote:M.</string>
+
+    <!-- Host key verification dialog (D3 batch 2) -->
+    <string name="hostkey_title">⚠️  Host key verification</string>
+    <string name="hostkey_not_in_known_hosts">The host key for %1$s is not in known_hosts.</string>
+    <string name="hostkey_field_host">Host</string>
+    <string name="hostkey_field_keytype">Key type</string>
+    <string name="hostkey_warning">Confirm this is a trusted host.\nA man-in-the-middle attack (MITM) is possible.</string>
+    <string name="hostkey_action_trust">Trust and connect</string>
 </resources>
