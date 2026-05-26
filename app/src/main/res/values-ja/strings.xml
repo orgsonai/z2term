@@ -269,4 +269,23 @@
     <string name="gui_terminal_konsole_desc">KDE 系・初回導入が大きい</string>
     <string name="keyboard_style_compact">コンパクト</string>
     <string name="keyboard_style_spacious">ゆったり (4 方向フリック)</string>
+
+    <!-- SAF DocumentsProvider (D3 バッチ 7) -->
+    <string name="saf_home_title">Z2Term ホーム</string>
+    <string name="saf_home_summary">共有ホーム (~ = 端末の /root)</string>
+    <string name="saf_rootfs_summary">ルート (/) — rootfs 全体</string>
+    <string name="saf_error_mkdir_failed">ディレクトリ作成失敗: %1$s</string>
+    <string name="saf_error_create_failed">ファイル作成失敗: %1$s</string>
+    <string name="saf_error_create_failed_msg">作成に失敗: %1$s</string>
+    <string name="saf_error_delete_failed">削除に失敗: %1$s</string>
+    <string name="saf_error_no_parent">親なし</string>
+    <string name="saf_error_rename_failed">リネーム失敗: %1$s</string>
+    <string name="saf_error_out_of_scope">アクセス範囲外: %1$s</string>
+
+    <!-- 残置の小物 (D3 バッチ 7) -->
+    <string name="scroll_offset_indicator">↑%1$d行</string>
+    <string name="default_custom_theme_name">マイテーマ</string>
+    <string name="snippet_sample_ls_label">一覧 (詳細)</string>
+    <string name="snippet_sample_apk_update_label">apk: 更新 (index 取得)</string>
+    <string name="snippet_sample_apk_add_label">apk: 追加 (パッケージ名を追記)</string>
 </resources>

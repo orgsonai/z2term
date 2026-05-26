@@ -80,9 +80,13 @@ class SnippetStore(private val context: Context) {
         }
     }
 
-    /** 初回シードに投入するサンプル一覧。 */
+    /** 初回シードに投入するサンプル一覧 (ラベルは投入時点のアプリ言語に追従)。 */
     private fun defaultSeeds(): List<Snippet> = buildList {
-        add(Snippet(id = "sample:ls", label = "一覧 (詳細)", command = "ls -la --color=auto"))
+        add(Snippet(
+            id = "sample:ls",
+            label = context.getString(com.zerotoship.z2term.R.string.snippet_sample_ls_label),
+            command = "ls -la --color=auto"
+        ))
         addAll(apkSeeds())
     }
 
@@ -90,13 +94,13 @@ class SnippetStore(private val context: Context) {
     private fun apkSeeds(): List<Snippet> = listOf(
         Snippet(
             id = "sample:apk-update",
-            label = "apk: 更新 (index 取得)",
+            label = context.getString(com.zerotoship.z2term.R.string.snippet_sample_apk_update_label),
             command = "apk update",
         ),
         Snippet(
             id = "sample:apk-add",
             // command 末尾を半角スペースで止めてユーザーがパッケージ名を追記できる形に。
-            label = "apk: 追加 (パッケージ名を追記)",
+            label = context.getString(com.zerotoship.z2term.R.string.snippet_sample_apk_add_label),
             command = "apk add ",
         ),
     )

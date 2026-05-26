@@ -32,7 +32,73 @@ const val Z2TERM_SSHD_PORT = 2222
  * 注: dropbear が解釈できるのは実質 Port のみ。sshd_config のそれ以外のディレクティブ
  * (PermitRootLogin 等) は反映されない。安全側の制御は本スクリプト引数で完結させる。
  */
-fun dropbearBootstrapScript(defaultPort: Int = Z2TERM_SSHD_PORT): String {
+/**
+ * sshd wrapper が echo する各種メッセージ。アプリ内言語スイッチに追従させる。
+ * 生成時 ([dropbearBootstrapScript]) に外から差し込む。
+ */
+data class SshdScriptStrings(
+    val invalidPort: String,
+    val configOk: String,
+    val installingDropbear: String,
+    val dropbearInstallFailed: String,
+    val privilegedPortWarn: String,
+    val lanExposeWarn: String,
+    val noAuthorizedKeys: String,
+    val noAuthorizedKeysHint: String,
+    val loopbackBind: String,
+    val foregroundStart: String,
+    val listeningLan: String,
+    val listeningLoopback: String,
+    val startupFailed: String,
+    val deviceIp: String,
+    val authKeysHint: String,
+    val authKeysExample: String
+) {
+    companion object {
+        fun ja(): SshdScriptStrings = SshdScriptStrings(
+            invalidPort = "❌ ポート番号が不正です",
+            configOk = "sshd(dropbear) 設定 OK",
+            installingDropbear = "📦 dropbear が無いので導入します…",
+            dropbearInstallFailed = "❌ dropbear を導入できませんでした。ネットワーク接続とパッケージ名を確認してください。",
+            privilegedPortWarn = "⚠️ 特権ポート。proot(非root)では bind できない可能性が高いです (1024 以上推奨)。",
+            lanExposeWarn = "⚠️ LAN/WAN 公開モード: 鍵認証必須、強い鍵を使うこと。",
+            noAuthorizedKeys = "⛔ ~/.ssh/authorized_keys が未設定です。LAN 公開での起動を中止します。",
+            noAuthorizedKeysHint = "   公開鍵を ~/.ssh/authorized_keys に登録してから再実行してください。",
+            loopbackBind = "🔒 loopback 限定で起動。LAN 公開は --lan か Z2_SSHD_LAN=1。",
+            foregroundStart = "▶ dropbear をフォアグラウンド起動 (Ctrl-C で停止)",
+            listeningLan = "✅ dropbear listening (root, 鍵認証のみ)",
+            listeningLoopback = "✅ dropbear listening (root, 鍵認証のみ, loopback 限定)",
+            startupFailed = "❌ dropbear 起動失敗。ログ:",
+            deviceIp = "端末IP",
+            authKeysHint = "ℹ ~/.ssh/authorized_keys が未設定です。クライアントの公開鍵を登録すると接続できます。",
+            authKeysExample = "   例: cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+        )
+        fun en(): SshdScriptStrings = SshdScriptStrings(
+            invalidPort = "❌ Invalid port number",
+            configOk = "sshd(dropbear) config OK",
+            installingDropbear = "📦 dropbear is not installed — installing…",
+            dropbearInstallFailed = "❌ Could not install dropbear. Check network and package names.",
+            privilegedPortWarn = "⚠️ Privileged port; proot (non-root) likely cannot bind (use 1024+).",
+            lanExposeWarn = "⚠️ LAN/WAN expose mode: key auth required, use a strong key.",
+            noAuthorizedKeys = "⛔ ~/.ssh/authorized_keys is empty. Aborting LAN-expose startup.",
+            noAuthorizedKeysHint = "   Register your public key in ~/.ssh/authorized_keys and retry.",
+            loopbackBind = "🔒 loopback-only. To expose to LAN, pass --lan or set Z2_SSHD_LAN=1.",
+            foregroundStart = "▶ dropbear in foreground (Ctrl-C to stop)",
+            listeningLan = "✅ dropbear listening (root, key auth only)",
+            listeningLoopback = "✅ dropbear listening (root, key auth only, loopback)",
+            startupFailed = "❌ dropbear startup failed. Log:",
+            deviceIp = "device-ip",
+            authKeysHint = "ℹ ~/.ssh/authorized_keys is empty. Register a client public key to connect.",
+            authKeysExample = "   e.g. cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+        )
+        fun forLang(lang: String): SshdScriptStrings = if (lang == "en") en() else ja()
+    }
+}
+
+fun dropbearBootstrapScript(
+    defaultPort: Int = Z2TERM_SSHD_PORT,
+    strings: SshdScriptStrings = SshdScriptStrings.ja()
+): String {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
     return """
         |#!/bin/sh
@@ -73,16 +139,16 @@ fun dropbearBootstrapScript(defaultPort: Int = Z2TERM_SSHD_PORT): String {
         |[ -z "${d}PORT" ] && PORT=${d}DEFAULT_PORT
         |
         |case "${d}PORT" in
-        |  ''|*[!0-9]*) echo "❌ ポート番号が不正です: '${d}PORT'"; exit 1 ;;
+        |  ''|*[!0-9]*) echo "${strings.invalidPort}: '${d}PORT'"; exit 1 ;;
         |esac
         |
         |if [ -n "${d}TESTONLY" ]; then
-        |  echo "sshd(dropbear) 設定 OK: port=${d}PORT (config: ${d}CONFIG)"
+        |  echo "${strings.configOk}: port=${d}PORT (config: ${d}CONFIG)"
         |  exit 0
         |fi
         |
         |if ! command -v dropbear >/dev/null 2>&1; then
-        |  echo "📦 dropbear が無いので導入します…"
+        |  echo "${strings.installingDropbear}"
         |  if command -v pacman >/dev/null 2>&1; then
         |    pacman -Sy --noconfirm dropbear
         |  elif command -v apt-get >/dev/null 2>&1; then
@@ -96,7 +162,7 @@ fun dropbearBootstrapScript(defaultPort: Int = Z2TERM_SSHD_PORT): String {
         |  fi
         |fi
         |if ! command -v dropbear >/dev/null 2>&1; then
-        |  echo "❌ dropbear を導入できませんでした。ネットワーク接続とパッケージ名を確認してください。"
+        |  echo "${strings.dropbearInstallFailed}"
         |  exit 1
         |fi
         |
@@ -119,7 +185,7 @@ fun dropbearBootstrapScript(defaultPort: Int = Z2TERM_SSHD_PORT): String {
         |sleep 1
         |
         |if [ "${d}PORT" -lt 1024 ]; then
-        |  echo "⚠️ ポート ${d}PORT は特権ポート。proot(非root)では bind できない可能性が高いです (1024 以上推奨)。"
+        |  echo "${strings.privilegedPortWarn} (port=${d}PORT)"
         |fi
         |
         |# bind アドレスとセキュリティフラグを既定の安全側で組み立てる:
@@ -129,19 +195,19 @@ fun dropbearBootstrapScript(defaultPort: Int = Z2TERM_SSHD_PORT): String {
         |SEC_FLAGS="-s -g"
         |if [ "${d}LAN_EXPOSE" = "1" ]; then
         |  BIND_SPEC="${d}PORT"
-        |  echo "⚠️ LAN/WAN 公開モード: 0.0.0.0:${d}PORT で待受 — 鍵認証必須、強い鍵を使うこと。"
+        |  echo "${strings.lanExposeWarn} (0.0.0.0:${d}PORT)"
         |  if ! [ -s /root/.ssh/authorized_keys ] && ! [ -s ~/.ssh/authorized_keys ]; then
-        |    echo "⛔ ~/.ssh/authorized_keys が未設定です。LAN 公開での起動を中止します。"
-        |    echo "   公開鍵を ~/.ssh/authorized_keys に登録してから再実行してください。"
+        |    echo "${strings.noAuthorizedKeys}"
+        |    echo "${strings.noAuthorizedKeysHint}"
         |    exit 2
         |  fi
         |else
         |  BIND_SPEC="127.0.0.1:${d}PORT"
-        |  echo "🔒 loopback 限定 (127.0.0.1:${d}PORT) で起動。LAN 公開は --lan か Z2_SSHD_LAN=1。"
+        |  echo "${strings.loopbackBind} (127.0.0.1:${d}PORT)"
         |fi
         |
         |if [ -n "${d}FOREGROUND" ]; then
-        |  echo "▶ dropbear をフォアグラウンド起動 (Ctrl-C で停止): ${d}BIND_SPEC"
+        |  echo "${strings.foregroundStart}: ${d}BIND_SPEC"
         |  exec dropbear -F -p "${d}BIND_SPEC" -R -E ${d}SEC_FLAGS
         |fi
         |
@@ -150,19 +216,19 @@ fun dropbearBootstrapScript(defaultPort: Int = Z2TERM_SSHD_PORT): String {
         |if [ -s /tmp/dropbear.pid ] && kill -0 "${d}(cat /tmp/dropbear.pid)" 2>/dev/null; then
         |  if [ "${d}LAN_EXPOSE" = "1" ]; then
         |    IP=${d}(ip -4 addr show 2>/dev/null | grep -oE 'inet [0-9.]+' | awk '{print ${d}2}' | grep -v '^127' | head -n1)
-        |    echo "✅ dropbear listening on :${d}PORT  (root @ ${d}{IP:-端末IP}, 鍵認証のみ)"
+        |    echo "${strings.listeningLan} on :${d}PORT (${d}{IP:-${strings.deviceIp}})"
         |  else
-        |    echo "✅ dropbear listening on 127.0.0.1:${d}PORT  (root, 鍵認証のみ, loopback 限定)"
+        |    echo "${strings.listeningLoopback} on 127.0.0.1:${d}PORT"
         |  fi
         |else
-        |  echo "❌ dropbear 起動失敗。ログ:"
+        |  echo "${strings.startupFailed}"
         |  cat /tmp/dropbear.log 2>/dev/null
         |fi
         |
         |# 鍵認証必須なので、authorized_keys が空なら接続できない旨を案内する (パスワードログインは禁止済み)。
         |if ! [ -s /root/.ssh/authorized_keys ] && ! [ -s ~/.ssh/authorized_keys ]; then
-        |  echo "ℹ ~/.ssh/authorized_keys が未設定です。クライアントの公開鍵を登録すると接続できます。"
-        |  echo "   例: cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+        |  echo "${strings.authKeysHint}"
+        |  echo "${strings.authKeysExample}"
         |fi
     """.trimMargin() + "\n"
 }

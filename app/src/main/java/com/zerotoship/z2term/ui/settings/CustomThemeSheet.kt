@@ -109,7 +109,10 @@ fun CustomThemeSheet(
         scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
     }
 
-    var name by remember { mutableStateOf(existing?.name ?: DEFAULT_CUSTOM_THEME_NAME) }
+    // 新規作成時の初期テーマ名 (= "マイテーマ"/"My theme") は言語設定に追従させる。
+    // 編集モードでは保存済みの name を使う。空欄保存時もここに戻す。
+    val defaultName = stringResource(R.string.default_custom_theme_name)
+    var name by remember { mutableStateOf(existing?.name ?: defaultName) }
     val hex = remember {
         mutableStateMapOf<String, String>().apply {
             COLOR_SLOTS.forEach { (key, _) -> put(key, colorToHex(initial.componentOf(key))) }
@@ -118,7 +121,7 @@ fun CustomThemeSheet(
 
     fun parse(key: String): Int = hexToColorOrNull(hex[key] ?: "") ?: initial.componentOf(key)
     fun buildTheme(): TerminalTheme = TerminalTheme(
-        name = name.ifBlank { DEFAULT_CUSTOM_THEME_NAME },
+        name = name.ifBlank { defaultName },
         foreground = parse("foreground"), background = parse("background"), cursor = parse("cursor"),
         black = parse("black"), red = parse("red"), green = parse("green"), yellow = parse("yellow"),
         blue = parse("blue"), magenta = parse("magenta"), cyan = parse("cyan"), white = parse("white"),

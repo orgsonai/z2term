@@ -1167,7 +1167,7 @@ private fun ScrollIndicators(
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text(
-                    text = "↑${scrollOffset}行",
+                    text = stringResource(R.string.scroll_offset_indicator, scrollOffset),
                     color = ZtsTextSecondary,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace

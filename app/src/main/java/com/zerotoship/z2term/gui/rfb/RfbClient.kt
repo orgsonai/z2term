@@ -110,10 +110,10 @@ class RfbClient(
 
         // 2. Security types (3.7+: U8 個数 + リスト)
         val count = inp.readUnsignedByte()
-        if (count == 0) throw IOException("VNC security 失敗: ${readReason(inp)}")
+        if (count == 0) throw IOException("VNC security negotiation failed: ${readReason(inp)}")
         val types = ByteArray(count).also { inp.readFully(it) }
         if (types.none { it.toInt() == SEC_NONE }) {
-            throw IOException("VNC: None(1) 認証が無い (types=${types.joinToString { it.toInt().toString() }})")
+            throw IOException("VNC: no None(1) security type advertised (types=${types.joinToString { it.toInt().toString() }})")
         }
         out.writeByte(SEC_NONE)
         out.flush()
@@ -134,7 +134,7 @@ class RfbClient(
         desktopName = ByteArray(nameLen.coerceAtLeast(0)).also { inp.readFully(it) }.toString(Charsets.UTF_8)
 
         if (width <= 0 || height <= 0 || width > 8192 || height > 8192) {
-            throw IOException("不正な画面サイズ: ${width}x$height")
+            throw IOException("invalid screen size: ${width}x$height")
         }
 
         // 6. SetPixelFormat: 32bpp little-endian truecolor (ARGB_8888 互換)
@@ -235,7 +235,7 @@ class RfbClient(
                 try {
                     block()
                 } catch (e: IOException) {
-                    if (!closed) Log.w(TAG, "入力送信失敗", e)
+                    if (!closed) Log.w(TAG, "input send failed", e)
                 }
             }
         } catch (_: RejectedExecutionException) {
@@ -265,11 +265,11 @@ class RfbClient(
                     SRV_SET_COLOUR_MAP -> handleSetColourMap(inp)
                     SRV_BELL -> { /* 本体なし */ }
                     SRV_CUT_TEXT -> handleServerCutText(inp)
-                    else -> throw IOException("未知のサーバメッセージ type=$type")
+                    else -> throw IOException("unknown server message type=$type")
                 }
             }
         } catch (e: Exception) {
-            if (!closed) Log.w(TAG, "RFB 受信ループ終了", e)
+            if (!closed) Log.w(TAG, "RFB receive loop ended", e)
         } finally {
             _connected.value = false
         }
@@ -292,9 +292,9 @@ class RfbClient(
                 ENC_COPYRECT -> readCopyRect(inp, x, y, w, h)
                 ENC_ZRLE -> {
                     readZrle(inp, x, y, w, h)
-                    if (!zrleSeen) { zrleSeen = true; Log.i(TAG, "ZRLE デコード稼働中") }
+                    if (!zrleSeen) { zrleSeen = true; Log.i(TAG, "ZRLE decoding active") }
                 }
-                else -> throw IOException("未対応エンコーディング=$enc (rect $x,$y ${w}x$h)")
+                else -> throw IOException("unsupported encoding=$enc (rect $x,$y ${w}x$h)")
             }
             val rx0 = x.coerceIn(0, width); val ry0 = y.coerceIn(0, height)
             val rx1 = (x + w).coerceIn(0, width); val ry1 = (y + h).coerceIn(0, height)
@@ -374,7 +374,7 @@ class RfbClient(
 
     private fun readZrle(inp: DataInputStream, x: Int, y: Int, w: Int, h: Int) {
         val len = inp.readInt()
-        if (len < 0) throw IOException("ZRLE 長さ異常=$len")
+        if (len < 0) throw IOException("ZRLE invalid length=$len")
         val comp = ByteArray(len)
         inp.readFully(comp)
         if (w <= 0 || h <= 0) return
@@ -386,7 +386,7 @@ class RfbClient(
                 if (n > 0) out.write(zInflateBuf, 0, n) else break
             }
         } catch (e: java.util.zip.DataFormatException) {
-            throw IOException("ZRLE 展開失敗", e)
+            throw IOException("ZRLE decompression failed", e)
         }
         zdata = out.toByteArray()
         zpos = 0
@@ -455,7 +455,7 @@ class RfbClient(
                             count += run
                         }
                     }
-                    else -> throw IOException("ZRLE 未対応 subencoding=$sub")
+                    else -> throw IOException("ZRLE unsupported subencoding=$sub")
                 }
                 tx += 64
             }

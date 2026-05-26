@@ -361,8 +361,12 @@ val AvailableThemes = listOf(
     MonokaiTheme
 )
 
-/** ユーザー独自テーマの既定名 (新規作成時の初期値) */
-const val DEFAULT_CUSTOM_THEME_NAME = "マイテーマ"
+/**
+ * ユーザー独自テーマの既定名 (JSON 復元時の fallback)。
+ * UI から新規作成する初期値は CustomThemeSheet 側で `stringResource(R.string.default_custom_theme_name)`
+ * を使う (アプリ言語スイッチ追従)。この const は壊れた永続化データへのバックストップ専用。
+ */
+const val DEFAULT_CUSTOM_THEME_NAME = "My theme"
 
 /**
  * 名前からテーマを解決する。同梱テーマ → ユーザー独自テーマ ([custom]) →

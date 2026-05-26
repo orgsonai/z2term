@@ -63,8 +63,8 @@ class Z2TermDocumentsProvider : DocumentsProvider() {
         addRoot(
             result,
             rootId = "home-shared",
-            title = "Z2Term ホーム",
-            summary = "共有ホーム (~ = 端末の /root)",
+            title = ctx().getString(R.string.saf_home_title),
+            summary = ctx().getString(R.string.saf_home_summary),
             dir = home
         )
         // 各 distro の rootfs 全体 (/) も公開。
@@ -74,7 +74,7 @@ class Z2TermDocumentsProvider : DocumentsProvider() {
                 result,
                 rootId = "${distro.name}-rootfs",
                 title = "Z2Term ${distro.name}",
-                summary = "ルート (/) — rootfs 全体",
+                summary = ctx().getString(R.string.saf_rootfs_summary),
                 dir = distro
             )
         }
@@ -147,12 +147,12 @@ class Z2TermDocumentsProvider : DocumentsProvider() {
         val target = uniqueFile(parent, displayName)
         try {
             if (Document.MIME_TYPE_DIR == mimeType) {
-                if (!target.mkdir()) throw FileNotFoundException("ディレクトリ作成失敗: ${target.path}")
+                if (!target.mkdir()) throw FileNotFoundException(ctx().getString(R.string.saf_error_mkdir_failed, target.path))
             } else {
-                if (!target.createNewFile()) throw FileNotFoundException("ファイル作成失敗: ${target.path}")
+                if (!target.createNewFile()) throw FileNotFoundException(ctx().getString(R.string.saf_error_create_failed, target.path))
             }
         } catch (e: Exception) {
-            throw FileNotFoundException("作成に失敗: ${e.message}")
+            throw FileNotFoundException(ctx().getString(R.string.saf_error_create_failed_msg, e.message ?: ""))
         }
         return docIdOf(target)
     }
@@ -160,13 +160,13 @@ class Z2TermDocumentsProvider : DocumentsProvider() {
     override fun deleteDocument(documentId: String) {
         val file = resolveDoc(documentId)
         val ok = if (file.isDirectory) file.deleteRecursively() else file.delete()
-        if (!ok) throw FileNotFoundException("削除に失敗: ${file.path}")
+        if (!ok) throw FileNotFoundException(ctx().getString(R.string.saf_error_delete_failed, file.path))
     }
 
     override fun renameDocument(documentId: String, displayName: String): String {
         val file = resolveDoc(documentId)
-        val dest = uniqueFile(file.parentFile ?: throw FileNotFoundException("親なし"), displayName)
-        if (!file.renameTo(dest)) throw FileNotFoundException("リネーム失敗: ${file.path}")
+        val dest = uniqueFile(file.parentFile ?: throw FileNotFoundException(ctx().getString(R.string.saf_error_no_parent)), displayName)
+        if (!file.renameTo(dest)) throw FileNotFoundException(ctx().getString(R.string.saf_error_rename_failed, file.path))
         return docIdOf(dest)
     }
 
@@ -180,7 +180,7 @@ class Z2TermDocumentsProvider : DocumentsProvider() {
             val base = root.canonicalPath
             canonical == base || canonical.startsWith("$base${File.separator}")
         }
-        if (!ok) throw FileNotFoundException("アクセス範囲外: $documentId")
+        if (!ok) throw FileNotFoundException(ctx().getString(R.string.saf_error_out_of_scope, documentId))
         return file
     }
 

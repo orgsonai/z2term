@@ -269,4 +269,23 @@
     <string name="gui_terminal_konsole_desc">KDE-based / heavy first-time install</string>
     <string name="keyboard_style_compact">Compact</string>
     <string name="keyboard_style_spacious">Spacious (4-way flick)</string>
+
+    <!-- SAF DocumentsProvider (D3 batch 7) -->
+    <string name="saf_home_title">Z2Term Home</string>
+    <string name="saf_home_summary">Shared home (~ = terminal\'s /root)</string>
+    <string name="saf_rootfs_summary">Root (/) — full rootfs</string>
+    <string name="saf_error_mkdir_failed">Failed to create directory: %1$s</string>
+    <string name="saf_error_create_failed">Failed to create file: %1$s</string>
+    <string name="saf_error_create_failed_msg">Creation failed: %1$s</string>
+    <string name="saf_error_delete_failed">Failed to delete: %1$s</string>
+    <string name="saf_error_no_parent">No parent</string>
+    <string name="saf_error_rename_failed">Rename failed: %1$s</string>
+    <string name="saf_error_out_of_scope">Out of access scope: %1$s</string>
+
+    <!-- Misc residuals (D3 batch 7) -->
+    <string name="scroll_offset_indicator">↑%1$d lines</string>
+    <string name="default_custom_theme_name">My theme</string>
+    <string name="snippet_sample_ls_label">list (long)</string>
+    <string name="snippet_sample_apk_update_label">apk: update (fetch index)</string>
+    <string name="snippet_sample_apk_add_label">apk: add (append package name)</string>
 </resources>

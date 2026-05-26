@@ -52,7 +52,7 @@ object GuiEventWatcher {
         // /storage/app は proot 内のバインド先。Android 側実体は getExternalFilesDir(null)。
         val dir = appCtx.getExternalFilesDir(null)
         if (dir == null) {
-            Log.w(TAG, "external files dir 未取得 — Watcher を起動できません")
+            Log.w(TAG, "external files dir unavailable — cannot start Watcher")
             return
         }
         if (!dir.exists()) dir.mkdirs()
@@ -60,7 +60,7 @@ object GuiEventWatcher {
         try {
             if (!file.exists()) file.createNewFile()
         } catch (e: Exception) {
-            Log.w(TAG, "$FILENAME を作成できません", e); return
+            Log.w(TAG, "cannot create $FILENAME", e); return
         }
         watchedFile = file
         // 過去分を消化しないよう、起動時はファイル末尾までシーク (アプリ再起動跨ぎで OPEN が
@@ -105,7 +105,7 @@ object GuiEventWatcher {
                 offset = raf.filePointer
             }
         } catch (e: Exception) {
-            Log.w(TAG, "events 読み出し失敗", e)
+            Log.w(TAG, "events read failed", e)
         }
     }
 
@@ -114,11 +114,11 @@ object GuiEventWatcher {
         // 形式: "OPEN <display>" のみサポート。空白区切りで素朴に解析する。
         val parts = line.split(Regex("\\s+"))
         if (parts.size < 2 || parts[0] != "OPEN") {
-            Log.d(TAG, "未知の event: $line"); return
+            Log.d(TAG, "unknown event: $line"); return
         }
         val display = parts[1].toIntOrNull()
         if (display == null || display <= 0) {
-            Log.w(TAG, "不正な display 番号: $line"); return
+            Log.w(TAG, "invalid display number: $line"); return
         }
         Log.i(TAG, "OPEN display=$display")
         // SessionManager 操作 (StateFlow 更新) はメインで実行。Compose 側は collectAsState で
@@ -127,7 +127,7 @@ object GuiEventWatcher {
             try {
                 SessionManager.openGuiForDisplay(context, display)
             } catch (e: Exception) {
-                Log.w(TAG, "GUI タブ作成失敗 (display=$display)", e)
+                Log.w(TAG, "GUI tab creation failed (display=$display)", e)
             }
         }
     }

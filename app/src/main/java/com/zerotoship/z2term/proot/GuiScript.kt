@@ -40,12 +40,73 @@ const val Z2TERM_GUI_PACKAGES = "tigervnc openbox xterm font-noto ttf-dejavu"
  * RFB は `-SecurityTypes None -localhost` で認証なし・loopback 限定。z2term は
  * 127.0.0.1:[Z2TERM_VNC_PORT] へ接続する。
  */
+/**
+ * z2gui スクリプトが echo する各種メッセージ。アプリ内言語スイッチに追従させるため、
+ * 生成時 ([z2guiScript]) に外から差し込む。English モードでは英語版が埋め込まれる。
+ */
+data class GuiScriptStrings(
+    val installing: String,           // "📦 GUI 一式を導入します ({PM}): {PKGS}"
+    val cleanInstalling: String,      // "🧹 GUI をクリーンインストールします ({PM})..."
+    val noPackageManager: String,     // "❌ 対応パッケージマネージャ ... が見つかりません"
+    val invalidGeometry: String,      // "❌ 解像度の形式が不正: '{GEOM}' (例 1280x720)"
+    val noXvnc: String,               // "❌ Xvnc/Xtigervnc がありません ..."
+    val alreadyRunning: String,       // "✅ GUI は既に起動中 (DISPLAY={DISP}, RFB ...)"
+    val startingXvnc: String,         // "▶ {XSERVER} 起動: {GEOM} @ {DISP} ..."
+    val xvncFailed: String,           // "❌ Xvnc 起動失敗。ログ:"
+    val noTermFlag: String,           // "ℹ Z2_NO_TERM=1: 端末を起動せず Xvnc+openbox のみ。"
+    val terminalNotFound: String,     // "⚠ 端末 {BIN} が見つかりません ..."
+    val ready: String,                // "✅ GUI 準備完了。z2term の GUI タブから ..."
+    val running: String,              // "✅ GUI 起動中 (DISPLAY=..., RFB ...)"
+    val stopped: String,              // "⏹ GUI は停止中"
+    val stoppedMsg: String,           // "⏹ 停止しました"
+    val usage: String                  // "使い方: z2gui [start [WxH] [clean] | stop | status | ...]"
+) {
+    companion object {
+        fun ja(): GuiScriptStrings = GuiScriptStrings(
+            installing = "📦 GUI 一式を導入します",
+            cleanInstalling = "🧹 GUI をクリーンインストールします",
+            noPackageManager = "❌ 対応パッケージマネージャ (apk/apt-get/pacman) が見つかりません。",
+            invalidGeometry = "❌ 解像度の形式が不正",
+            noXvnc = "❌ Xvnc/Xtigervnc がありません (tigervnc 未導入)",
+            alreadyRunning = "✅ GUI は既に起動中",
+            startingXvnc = "▶ 起動",
+            xvncFailed = "❌ Xvnc 起動失敗。ログ:",
+            noTermFlag = "ℹ Z2_NO_TERM=1: 端末を起動せず Xvnc+openbox のみ。",
+            terminalNotFound = "⚠ 端末が見つかりません (導入失敗?)。openbox のみ起動。",
+            ready = "✅ GUI 準備完了。z2term の GUI タブから接続してください。",
+            running = "✅ GUI 起動中",
+            stopped = "⏹ GUI は停止中",
+            stoppedMsg = "⏹ 停止しました",
+            usage = "使い方: z2gui [start [WxH] [clean] | stop | status | install | clean | check]"
+        )
+        fun en(): GuiScriptStrings = GuiScriptStrings(
+            installing = "📦 Installing GUI stack",
+            cleanInstalling = "🧹 Clean-installing the GUI stack",
+            noPackageManager = "❌ No supported package manager (apk/apt-get/pacman) found.",
+            invalidGeometry = "❌ Invalid geometry",
+            noXvnc = "❌ Xvnc/Xtigervnc not present (tigervnc is not installed)",
+            alreadyRunning = "✅ GUI already running",
+            startingXvnc = "▶ Starting",
+            xvncFailed = "❌ Xvnc startup failed. Log:",
+            noTermFlag = "ℹ Z2_NO_TERM=1: no terminal, only Xvnc+openbox.",
+            terminalNotFound = "⚠ terminal not found (install failed?). Starting openbox only.",
+            ready = "✅ GUI ready. Connect from a z2term GUI tab.",
+            running = "✅ GUI running",
+            stopped = "⏹ GUI is stopped",
+            stoppedMsg = "⏹ Stopped",
+            usage = "Usage: z2gui [start [WxH] [clean] | stop | status | install | clean | check]"
+        )
+        fun forLang(lang: String): GuiScriptStrings = if (lang == "en") en() else ja()
+    }
+}
+
 fun z2guiScript(
     rfbPort: Int = Z2TERM_VNC_PORT,
     display: Int = Z2TERM_VNC_DISPLAY,
     terminalBinary: String = "xterm",
     terminalPackage: String = "xterm",
-    defaultGeometry: String = "1280x720"
+    defaultGeometry: String = "1280x720",
+    strings: GuiScriptStrings = GuiScriptStrings.ja()
 ): String {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
     return """
@@ -110,12 +171,12 @@ fun z2guiScript(
         |  detect_pm
         |  clear_pm_locks
         |  PKGS="${d}SRV_PKGS ${d}GUI_TERM_PKG"
-        |  echo "📦 GUI 一式を導入します (${d}PM): ${d}PKGS"
+        |  echo "${strings.installing} (${d}PM): ${d}PKGS"
         |  case "${d}PM" in
         |    apk)    apk update && apk add --no-cache ${d}PKGS ;;
         |    apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}PKGS ;;
         |    pacman) pacman -Sy --noconfirm ${d}PKGS ;;
-        |    *) echo "❌ 対応パッケージマネージャ (apk/apt-get/pacman) が見つかりません。"; return 1 ;;
+        |    *) echo "${strings.noPackageManager}"; return 1 ;;
         |  esac
         |}
         |
@@ -126,7 +187,7 @@ fun z2guiScript(
         |  detect_pm
         |  clear_pm_locks
         |  PKGS="${d}SRV_PKGS ${d}GUI_TERM_PKG"
-        |  echo "🧹 GUI をクリーンインストールします (${d}PM): ロック/キャッシュ削除 + 再取得"
+        |  echo "${strings.cleanInstalling} (${d}PM)"
         |  case "${d}PM" in
         |    apk)
         |      rm -rf /var/cache/apk/* 2>/dev/null
@@ -139,7 +200,7 @@ fun z2guiScript(
         |    pacman)
         |      rm -rf /var/cache/pacman/pkg/* 2>/dev/null
         |      pacman -Syy --noconfirm && pacman -S --noconfirm ${d}PKGS ;;
-        |    *) echo "❌ 対応パッケージマネージャ (apk/apt-get/pacman) が見つかりません。"; return 1 ;;
+        |    *) echo "${strings.noPackageManager}"; return 1 ;;
         |  esac
         |}
         |
@@ -207,9 +268,9 @@ fun z2guiScript(
         |
         |status_x() {
         |  if x_running; then
-        |    echo "✅ GUI 起動中 (DISPLAY=${d}DISP, RFB 127.0.0.1:${d}RFBPORT)"
+        |    echo "${strings.running} (DISPLAY=${d}DISP, RFB 127.0.0.1:${d}RFBPORT)"
         |  else
-        |    echo "⏹ GUI は停止中"
+        |    echo "${strings.stopped}"
         |  fi
         |}
         |
@@ -218,16 +279,16 @@ fun z2guiScript(
         |  CLEAN="${d}2"
         |  case "${d}GEOM" in
         |    *[0-9]x[0-9]*) : ;;
-        |    *) echo "❌ 解像度の形式が不正: '${d}GEOM' (例 1280x720)"; exit 1 ;;
+        |    *) echo "${strings.invalidGeometry}: '${d}GEOM' (e.g. 1280x720)"; exit 1 ;;
         |  esac
         |  # 第2引数が clean のときはキャッシュごと入れ直す (救済)。それ以外は通常導入。
         |  if [ "${d}CLEAN" = "clean" ]; then clean_pkgs || exit 1; else ensure_pkgs || exit 1; fi
-        |  XSERVER=${d}(xbin) || { echo "❌ Xvnc/Xtigervnc がありません (tigervnc 未導入)"; exit 1; }
+        |  XSERVER=${d}(xbin) || { echo "${strings.noXvnc}"; exit 1; }
         |  # 再入ガード: Xvnc が実際に生きているなら stop_x で**動作中のセッションを壊さない**。
         |  # (z2gui が誤って再起動された場合の安全網。本来の再帰起動は上の SHELL 上書きで防ぐ。
         |  #  stale ソケットだけ残った状態では x_alive=false となり下の stop_x で掃除される。)
         |  if x_alive; then
-        |    echo "✅ GUI は既に起動中 (DISPLAY=${d}DISP, RFB 127.0.0.1:${d}RFBPORT)"
+        |    echo "${strings.alreadyRunning} (DISPLAY=${d}DISP, RFB 127.0.0.1:${d}RFBPORT)"
         |    exec "${d}{SHELL:-/bin/sh}"
         |  fi
         |  stop_x
@@ -237,7 +298,7 @@ fun z2guiScript(
         |  : > "${d}PIDFILE" 2>/dev/null   # このディスプレイの PID 控えを初期化
         |  mkdir -p /tmp/.X11-unix 2>/dev/null
         |  chmod 1777 /tmp/.X11-unix 2>/dev/null
-        |  echo "▶ ${d}XSERVER 起動: ${d}GEOM @ ${d}DISP (RFB 127.0.0.1:${d}RFBPORT)"
+        |  echo "${strings.startingXvnc} ${d}XSERVER: ${d}GEOM @ ${d}DISP (RFB 127.0.0.1:${d}RFBPORT)"
         |  # GUI 配下のプロセスは launcher の制御端末 (アプリ側 PtyProcess が握る PTY) から
         |  # setsid で切り離して起動する (GUI プロセスが端末を共有する必要はない)。
         |  # stdin は /dev/null に向ける。
@@ -249,7 +310,7 @@ fun z2guiScript(
         |    i=${d}((i+1)); sleep 0.1
         |  done
         |  if ! x_running; then
-        |    echo "❌ Xvnc 起動失敗。ログ:"; cat "/tmp/z2gui-xvnc-${d}{DISPLAY_NUM}.log" 2>/dev/null; exit 1
+        |    echo "${strings.xvncFailed}"; cat "/tmp/z2gui-xvnc-${d}{DISPLAY_NUM}.log" 2>/dev/null; exit 1
         |  fi
         |  # openbox に「全ウィンドウを左上 (0,0) に強制配置」させる設定を書く。端末ごとに
         |  # -geometry の書式が違う (xterm/urxvt は対応, konsole/lxterminal は別系統) ため、
@@ -291,14 +352,14 @@ fun z2guiScript(
         |  # z2run は「ユーザーが指定した GUI アプリだけ」を出したいので、xterm が同時に出ると邪魔。
         |  # 🖥 ボタンの通常起動 (Z2_NO_TERM 未設定) では従来どおり端末も起動して操作起点にする。
         |  if [ "${d}{Z2_NO_TERM:-0}" = "1" ]; then
-        |    echo "ℹ Z2_NO_TERM=1: 端末を起動せず Xvnc+openbox のみ。"
+        |    echo "${strings.noTermFlag}"
         |  elif has "${d}GUI_TERM_BIN"; then
         |    setsid "${d}GUI_TERM_BIN" ${d}TERM_ARGS </dev/null >"/tmp/z2gui-term-${d}{DISPLAY_NUM}.log" 2>&1 &
         |    echo ${d}! >> "${d}PIDFILE" 2>/dev/null
         |  else
-        |    echo "⚠ 端末 ${d}GUI_TERM_BIN が見つかりません (導入失敗?)。openbox のみ起動。"
+        |    echo "${strings.terminalNotFound} (${d}GUI_TERM_BIN)"
         |  fi
-        |  echo "✅ GUI 準備完了。z2term の GUI タブから 127.0.0.1:${d}RFBPORT に接続してください。"
+        |  echo "${strings.ready} (RFB 127.0.0.1:${d}RFBPORT)"
         |  # proot --kill-on-exit 対策: ここでブロックし続けることで Xvnc/WM を生かす。
         |  # setsid したプロセスはジョブ制御から外れるため wait では待てない。X ソケットの
         |  # 存在を監視し、Xvnc が生きている限り z2gui (= proot のルート) をブロックさせる。
@@ -308,13 +369,13 @@ fun z2guiScript(
         |ACTION="${d}{1:-start}"
         |case "${d}ACTION" in
         |  start)   start_x "${d}2" "${d}3" ;;
-        |  stop)    stop_x; echo "⏹ 停止しました" ;;
+        |  stop)    stop_x; echo "${strings.stoppedMsg}" ;;
         |  status)  status_x ;;
         |  install) install_pkgs ;;
         |  clean)   clean_pkgs ;;
         |  check)   check_pkgs ;;
         |  *[0-9]x[0-9]*) start_x "${d}ACTION" "${d}2" ;;
-        |  *) echo "使い方: z2gui [start [WxH] [clean] | stop | status | install | clean | check]" ;;
+        |  *) echo "${strings.usage}" ;;
         |esac
     """.trimMargin() + "\n"
 }

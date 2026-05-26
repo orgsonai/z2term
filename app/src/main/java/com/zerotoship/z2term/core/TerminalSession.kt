@@ -591,7 +591,7 @@ class TerminalSession(
         // ([..m は SGR、末尾で必ずリセット。CR+LF で改行崩れを防ぐ)
         val color = when {
             text.startsWith("✓") -> "[32m"           // 成功: 緑
-            text.startsWith("✗") || text.startsWith("致命") -> "[31m"  // 失敗: 赤
+            text.startsWith("✗") || text.startsWith("致命") || text.startsWith("fatal") -> "[31m"  // 失敗: 赤
             text.startsWith("⚠") -> "[33m"            // 警告: 黄
             text.startsWith("📦") || text.startsWith("⬇") || text.startsWith("🚀") -> "[36m"  // 進行: シアン
             else -> ""

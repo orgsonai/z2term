@@ -24,8 +24,13 @@ package com.zerotoship.z2term.proot
  * - 失敗時の握り潰しは最小限。echo の `>>` 失敗 (権限) だけは握り潰す (端末側で permission denied が
  *   ノイズになるため)。Xvnc 起動失敗は z2gui 側ログ (`/tmp/z2gui-xvnc-N.log`) で追える。
  */
-fun z2runScript(): String {
+fun z2runScript(lang: String = "ja"): String {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
+    // Xvnc 起動失敗時のエラー文 (z2run は 1 行しかメッセージを出さないので簡易切替)
+    val errMsg = if (lang == "en")
+        "z2run: Xvnc :${d}{DISPLAY_NUM} did not start. See /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log."
+    else
+        "z2run: Xvnc :${d}{DISPLAY_NUM} が起動しませんでした。/tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log を確認してください。"
     return """
         |#!/bin/sh
         |# z2term: CUI⇄GUI 連動ランチャ (端末から GUI アプリを起動すると GUI タブが自動で開く)。
@@ -65,7 +70,7 @@ fun z2runScript(): String {
         |    sleep 0.1; i=${d}((i+1))
         |  done
         |  if [ ! -e "${d}XSOCK" ]; then
-        |    echo "z2run: Xvnc :${d}{DISPLAY_NUM} が起動しませんでした。/tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log を確認してください。" >&2
+        |    echo "$errMsg" >&2
         |    [ ${d}# -gt 0 ] || exit 1
         |    # 引数がある場合はそのまま exec する (X 接続失敗のエラーは GUI アプリ側で出る)。
         |  fi

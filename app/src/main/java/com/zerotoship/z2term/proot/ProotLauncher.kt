@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.zerotoship.z2term.distro.DistroBundle
 import com.zerotoship.z2term.pty.PtyProcess
+import com.zerotoship.z2term.settings.LocaleHelper
 import java.io.File
 
 /**
@@ -327,7 +328,9 @@ class ProotLauncher(private val context: Context) {
         runCatching {
             val dir = File(rootfs, "usr/local/sbin").apply { mkdirs() }
             val f = File(dir, "sshd")
-            f.writeText(dropbearBootstrapScript())
+            f.writeText(dropbearBootstrapScript(
+                strings = SshdScriptStrings.forLang(LocaleHelper.language(context))
+            ))
             f.setReadable(true, false)
             f.setExecutable(true, false)
         }.onFailure { Log.w(TAG, "sshd wrapper 配置失敗", it) }
@@ -345,7 +348,10 @@ class ProotLauncher(private val context: Context) {
             f.writeText(
                 z2guiScript(
                     terminalBinary = guiTerminal.binary,
-                    terminalPackage = guiTerminal.packageName
+                    terminalPackage = guiTerminal.packageName,
+                    // proot 内 z2gui の echo メッセージをアプリ言語設定に追従させる。
+                    // launch 毎に書き直されるので、言語切替後の次回起動で反映される。
+                    strings = GuiScriptStrings.forLang(LocaleHelper.language(context))
                 )
             )
             f.setReadable(true, false)
@@ -363,7 +369,7 @@ class ProotLauncher(private val context: Context) {
         runCatching {
             val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
             val f = File(dir, "z2run")
-            f.writeText(z2runScript())
+            f.writeText(z2runScript(lang = LocaleHelper.language(context)))
             f.setReadable(true, false)
             f.setExecutable(true, false)
         }.onFailure { Log.w(TAG, "z2run script 配置失敗", it) }
