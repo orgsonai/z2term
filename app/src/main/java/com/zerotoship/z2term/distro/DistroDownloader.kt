@@ -32,7 +32,16 @@ class DistroDownloader(private val context: Context) {
         data class Failed(val error: Throwable) : Progress()
     }
 
-    fun download(spec: DistroSpec, abi: String, expectedSha256: String? = null): Flow<Progress> = flow {
+    fun download(
+        spec: DistroSpec,
+        abi: String,
+        expectedSha256: String? = null,
+        /**
+         * HTTP read timeout (ms)。設定「インストールのタイムアウトを無効化」ON のとき呼び出し側で
+         * 長めの値を渡す。0 だと完全無期限で詰まりやすいので、無効化時も上限は付けて広げる方針。
+         */
+        readTimeoutMs: Int = 30_000
+    ): Flow<Progress> = flow {
         val outFile = File(cacheDir().apply { mkdirs() }, "${spec.id}-$abi.tgz")
         try {
             val url = resolveDownloadUrl(spec, abi)
@@ -42,7 +51,7 @@ class DistroDownloader(private val context: Context) {
             val conn = (URL(url).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 15_000
-                readTimeout = 30_000
+                readTimeout = readTimeoutMs
                 instanceFollowRedirects = true
                 setRequestProperty("User-Agent", "z2term/${spec.id}")
             }

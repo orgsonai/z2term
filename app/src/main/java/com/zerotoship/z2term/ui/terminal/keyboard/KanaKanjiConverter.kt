@@ -182,17 +182,35 @@ object KanaKanjiConverter {
 
     /**
      * 柔軟な変換候補。優先順:
-     *  1. 完全一致 ([convert])
-     *  2. 送り仮名活用 ([okuriForms]) — 単語+活用/助動詞
-     *  3. 文節分割の合成 ([segment]) — 複数語フレーズ
-     *  4. 前方一致の予測 ([predict]) で補完
+     *  1. 学習履歴: 完全一致 reading の確定済み単語 ([ImeHistoryStore.historyFor]) ← 最上位
+     *  2. 完全一致 ([convert])
+     *  3. 送り仮名活用 ([okuriForms]) — 単語+活用/助動詞
+     *  4. 文節分割の合成 ([segment]) — 複数語フレーズ
+     *  5. 学習履歴: 前方一致 ([ImeHistoryStore.predictHistory]) — 「打ち慣れた語」予測
+     *  6. 前方一致の予測 ([predict]) で補完
      */
     fun convertFlexible(reading: String, limit: Int = 16): List<String> {
-        if (reading.isEmpty() || lines.isEmpty()) return emptyList()
+        if (reading.isEmpty()) return emptyList()
         val out = LinkedHashSet<String>()
+        // 1. 学習履歴 (完全一致) は最優先で上位表示。loaded 前は空。
+        for (h in ImeHistoryStore.historyFor(reading, limit = 4)) {
+            out.add(h)
+            if (out.size >= limit) return out.toList()
+        }
+        if (lines.isEmpty()) {
+            // 辞書未ロードでも履歴と前方一致履歴は出す。
+            for (h in ImeHistoryStore.predictHistory(reading, limit = limit)) {
+                out.add(h); if (out.size >= limit) break
+            }
+            return out.toList()
+        }
         out.addAll(convert(reading))
         out.addAll(okuriForms(reading))
         segment(reading)?.let { out.add(it) }
+        // 5. 学習履歴 (前方一致) を辞書の前方一致予測より先に。
+        for (h in ImeHistoryStore.predictHistory(reading, limit = 6)) {
+            out.add(h); if (out.size >= limit) break
+        }
         for (c in predict(reading, limit)) {
             out.add(c)
             if (out.size >= limit) break
@@ -251,15 +269,17 @@ class ComposingState(
         candidates = buildList(KanaKanjiConverter.convertFlexible(text))
     }
 
-    /** 候補を確定して PTY へ。 */
+    /** 候補を確定して PTY へ。学習履歴 ([ImeHistoryStore]) にも記録する。 */
     fun commit(candidate: String) {
+        ImeHistoryStore.record(text, candidate)
         onCommit(candidate)
         reset()
     }
 
-    /** 生のひらがなを確定。空なら false。 */
+    /** 生のひらがなを確定。空なら false。生かなも履歴に残し「次は予測上位」化する。 */
     fun commitRaw(): Boolean {
         if (text.isEmpty()) return false
+        ImeHistoryStore.record(text, text)
         onCommit(text)
         reset()
         return true

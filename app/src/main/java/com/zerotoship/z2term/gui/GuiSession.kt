@@ -140,7 +140,10 @@ class GuiSession(
                 // (Alpine の apk は十数秒だが Arch の pacman は数分かかる)。ただし z2gui が
                 // 途中で終了 (導入失敗) した場合は connectWithRetry が PTY クローズを検知して
                 // 即座に false を返すので、最大時間まで無駄に待たされることはない。
-                if (!connectWithRetry(timeoutMs = 300_000)) {
+                // 設定で noInstallTimeout = true なら無期限待ち (停止は GUI タブの ✕ で手動)。
+                val timeoutMs: Long? = if (snap.noInstallTimeout) null
+                                       else AppSettings.DEFAULT_GUI_CONNECT_TIMEOUT_MS
+                if (!connectWithRetry(timeoutMs = timeoutMs)) {
                     fail(
                         if (ptyClosed) "GUI の起動に失敗しました (z2gui が終了)。端末タブで z2gui を実行してログを確認してください。"
                         else "Xvnc に接続できません (タイムアウト)"
@@ -186,8 +189,7 @@ class GuiSession(
                     // そのまま画面に出して「今なにをしているか」を見えるようにする (進捗表示)。
                     // apk/apt/pacman の取得・展開ログがここに流れる。
                     if (_state.value == State.STARTING || _state.value == State.CONNECTING) {
-                        val latest = s.lineSequence().lastOrNull { it.isNotBlank() }
-                        if (latest != null) _message.value = latest.take(200)
+                        sanitizeProgressLine(s)?.let { _message.value = it }
                     }
                 }
             }
@@ -201,15 +203,51 @@ class GuiSession(
     }
 
     /**
+     * PTY 出力チャンクを「画面上部の進捗表示として 1 行で見せられる文字列」へ整形する。
+     * apk/apt/pacman の出力には ANSI 色制御・CR で同一行上書き・退避用制御文字が混ざり、
+     * Compose の `Text` にそのまま流すと「`[33mFetched`」のような未解釈エスケープが
+     * バラバラと並んでバグって見えるため、ここで剥がして人間が読める素の 1 行にする。
+     *
+     * - ANSI CSI (`ESC [ ... letter`) と OSC (`ESC ] ... BEL` または `ESC \`) を除去。
+     * - 各「論理行」を `\r` で区切られた最終セグメントだけ採用 (進捗バーの最新状態)。
+     * - 非表示制御文字 (TAB/SPACE 以外の `< 0x20` と DEL) を削除。
+     * - `(x/y) Installing pkg` のようなパッケージ進行行があれば最優先で採用。
+     * - それ以外は最後の非空行を最大 [MAX_PROGRESS_CHARS] 字まで。
+     * 何も拾えなければ null (= 既存表示維持)。
+     */
+    private fun sanitizeProgressLine(raw: String): String? {
+        // 1) ANSI CSI / OSC をまとめて剥がす。OSC は BEL または ESC\\ で終端。
+        val noAnsi = ANSI_REGEX.replace(raw, "")
+        // 2) 物理改行 `\n` で分割した各論理行について、`\r` で上書きされた末尾のみ残す。
+        val logicalLines = noAnsi.split('\n').asSequence()
+            .map { line ->
+                val lastCr = line.lastIndexOf('\r')
+                if (lastCr >= 0) line.substring(lastCr + 1) else line
+            }
+            // 3) 残った制御文字 (TAB/SPACE 以外) を削除して trim。
+            .map { CONTROL_REGEX.replace(it, "").trim() }
+            .filter { it.isNotEmpty() }
+            .toList()
+        if (logicalLines.isEmpty()) return null
+        // 4) パッケージ進行行 (`(1/9) Installing ...` 等) を優先。最後にヒットしたものを採用。
+        val pkgProgress = logicalLines.lastOrNull { PKG_PROGRESS_REGEX.containsMatchIn(it) }
+        val picked = pkgProgress ?: logicalLines.last()
+        return picked.take(MAX_PROGRESS_CHARS)
+    }
+
+    /**
      * Xvnc が立ち上がるまで本物の RFB 接続をリトライする。
      * ポート未起動による接続拒否 ([ConnectException]) のみ再試行し、それ以外の
      * 失敗 (ハンドシェイク異常等) は呼び出し側へ伝播させて ERROR にする。
      * 捨て socket での疎通確認をしないのは、接続→即切断が TigerVNC の
      * last-client-disconnect 挙動で Xvnc を落としてしまうため。
+     *
+     * @param timeoutMs null なら無期限 (設定でタイムアウト無効化時)。z2gui の終了 (ptyClosed)
+     *                  は無期限でも即座に検知して打ち切るので、停止できなくなる事はない。
      */
-    private suspend fun connectWithRetry(timeoutMs: Long): Boolean {
-        val deadline = System.currentTimeMillis() + timeoutMs
-        while (System.currentTimeMillis() < deadline) {
+    private suspend fun connectWithRetry(timeoutMs: Long?): Boolean {
+        val deadline = timeoutMs?.let { System.currentTimeMillis() + it }
+        while (deadline == null || System.currentTimeMillis() < deadline) {
             // z2gui (proot) が終了したら Xvnc はもう立たない → 待たずに失敗扱い。
             if (ptyClosed) return false
             try {
@@ -261,5 +299,12 @@ class GuiSession(
 
     companion object {
         private const val TAG = "GuiSession"
+        private const val MAX_PROGRESS_CHARS = 160
+        // ESC [ ... <letter> (CSI: SGR/カーソル等) と ESC ] ... (BEL|ESC\) (OSC: タイトル等) を剥がす。
+        private val ANSI_REGEX = Regex("\\[[0-?]*[ -/]*[@-~]|\\][^]*(|\\\\)")
+        // 表示可能でない C0 制御 (0x00-0x1F のうち TAB/SPACE 以外) と DEL を消す。
+        private val CONTROL_REGEX = Regex("[ --]")
+        // apk/apt/pacman 共通の進行表現。 "(1/9) Installing ..." "[1/9]" "Get:1 ..." 等。
+        private val PKG_PROGRESS_REGEX = Regex("""[(\[]\s*\d+\s*/\s*\d+\s*[)\]]|^Get:\d+\s""")
     }
 }

@@ -190,6 +190,7 @@ class TerminalSession(
     fun setGuiTerminal(id: String) { scope.launch { settings.setGuiTerminal(id) } }
     fun setGuiMagnification(value: Float) { scope.launch { settings.setGuiMagnification(value) } }
     fun setCleanInstallGuiArmed(armed: Boolean) { scope.launch { settings.setCleanInstallGuiArmed(armed) } }
+    fun setNoInstallTimeout(enabled: Boolean) { scope.launch { settings.setNoInstallTimeout(enabled) } }
 
     /** 設定で選ばれているディストロを使って起動。明示的指定があればそれを優先 */
     fun startTerminal(distroOverride: DistroSpec? = null) {
@@ -305,8 +306,14 @@ class TerminalSession(
         writeBanner("⬇️ ${spec.displayName} をダウンロード中$sizeHint…")
         var error: Throwable? = null
         var lastPct = -1
+        // 「インストールのタイムアウトを無効化」ON なら HTTP read timeout を長めにする
+        // (完全 0 だと回線断時に詰まりやすいので 5 分上限)。
+        val readTimeout = if (settingsFlow.value.noInstallTimeout)
+            AppSettings.EXTENDED_DOWNLOAD_READ_TIMEOUT_MS
+        else
+            AppSettings.DEFAULT_DOWNLOAD_READ_TIMEOUT_MS
         withContext(Dispatchers.IO) {
-            downloader.download(spec, abi).collect { p ->
+            downloader.download(spec, abi, readTimeoutMs = readTimeout).collect { p ->
                 when (p) {
                     is DistroDownloader.Progress.Downloading -> {
                         if (p.total > 0) {

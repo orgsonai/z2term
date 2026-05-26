@@ -378,6 +378,15 @@ fun SettingsSheet(
                 onChange = { session.setConfirmBeforeDownload(it) }
             )
 
+            ToggleField(
+                title = "インストールのタイムアウトを無効化",
+                description = "ON: GUI 一式 (apk/apt/pacman) や OS rootfs の取得を最後まで待つ (邪魔な" +
+                    "途中エラーなし)。途中で止めたい時は GUI タブの ✕ ボタンで停止。" +
+                    "OFF (既定): 約 5 分で打ち切る。",
+                checked = settings.noInstallTimeout,
+                onChange = { session.setNoInstallTimeout(it) }
+            )
+
             TextField(
                 title = "起動時 init コマンド",
                 placeholder = "例: zsh -l",

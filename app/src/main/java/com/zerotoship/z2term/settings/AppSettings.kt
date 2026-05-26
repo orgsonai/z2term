@@ -48,7 +48,14 @@ class AppSettings(private val context: Context) {
          * 次に開く GUI タブでクリーンインストール (GUI パッケージをキャッシュごと入れ直す) を行うか。
          * 起動時に消化して false に戻す (チェックは確実に外れる)。distro 側はシート内ローカル状態で扱う。
          */
-        val cleanInstallGuiArmed: Boolean = false
+        val cleanInstallGuiArmed: Boolean = false,
+        /**
+         * インストール (GUI 一式の apk/apt/pacman・distro rootfs ダウンロード) のタイムアウトを
+         * 無効化するか。ON のとき GUI 起動は VNC へ接続できるまで無期限に待ち、distro DL の
+         * HTTP read timeout は長め (5 分) になる。遅い回線や Arch 等の大物導入を最後まで
+         * 待ちたいときに使う。停止は GUI タブの「✕」(stop) で手動キャンセル可能。
+         */
+        val noInstallTimeout: Boolean = DEFAULT_NO_INSTALL_TIMEOUT
     )
 
     suspend fun setGuiMagnification(value: Float) {
@@ -77,8 +84,13 @@ class AppSettings(private val context: Context) {
             guiTerminalId = p[KEY_GUI_TERMINAL] ?: DEFAULT_GUI_TERMINAL,
             confirmBeforeDownload = p[KEY_CONFIRM_DOWNLOAD] ?: DEFAULT_CONFIRM_DOWNLOAD,
             guiMagnification = p[KEY_GUI_MAGNIFICATION] ?: DEFAULT_GUI_MAGNIFICATION,
-            cleanInstallGuiArmed = p[KEY_CLEAN_INSTALL_GUI] ?: false
+            cleanInstallGuiArmed = p[KEY_CLEAN_INSTALL_GUI] ?: false,
+            noInstallTimeout = p[KEY_NO_INSTALL_TIMEOUT] ?: DEFAULT_NO_INSTALL_TIMEOUT
         )
+    }
+
+    suspend fun setNoInstallTimeout(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_NO_INSTALL_TIMEOUT] = enabled }
     }
 
     suspend fun setConfirmBeforeDownload(enabled: Boolean) {
@@ -147,6 +159,14 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_KEEP_ALIVE = true
         /** ダウンロード前確認は既定 ON (勝手に通信しない方針)。 */
         const val DEFAULT_CONFIRM_DOWNLOAD = true
+        /** タイムアウト無効化は既定 OFF (従来通り 5 分・30s で打ち切り、明示的に解除させる)。 */
+        const val DEFAULT_NO_INSTALL_TIMEOUT = false
+        /** GUI 接続待ちの既定タイムアウト (ms)。Arch の pacman も込みで 5 分。 */
+        const val DEFAULT_GUI_CONNECT_TIMEOUT_MS = 300_000L
+        /** distro DL の既定 read timeout (ms)。HTTP 単一 read の上限。 */
+        const val DEFAULT_DOWNLOAD_READ_TIMEOUT_MS = 30_000
+        /** タイムアウト無効化 ON のときに使う長め read timeout (ms)。完全 0 にすると無期限で詰まりやすいので 5 分。 */
+        const val EXTENDED_DOWNLOAD_READ_TIMEOUT_MS = 300_000
         /** GUI ターミナルの既定 ([com.zerotoship.z2term.proot.GuiTerminal.XTERM] の id) */
         const val DEFAULT_GUI_TERMINAL = "xterm"
         /** GUI 表示倍率の既定。1.5 = 解像度を 2/3 にして表示を一回り大きく (細かすぎ対策)。 */
@@ -178,5 +198,6 @@ class AppSettings(private val context: Context) {
         private val KEY_CONFIRM_DOWNLOAD = booleanPreferencesKey("confirm_before_download")
         private val KEY_GUI_MAGNIFICATION = floatPreferencesKey("gui_magnification")
         private val KEY_CLEAN_INSTALL_GUI = booleanPreferencesKey("clean_install_gui_armed")
+        private val KEY_NO_INSTALL_TIMEOUT = booleanPreferencesKey("no_install_timeout")
     }
 }

@@ -19,8 +19,13 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.foundation.layout.widthIn
 
 /**
  * GUI セッションのリモート画面 (M8-2 表示 + M8-3 入力)。
@@ -110,9 +115,21 @@ fun GuiScreen(
                 if (state == GuiSession.State.STARTING || state == GuiSession.State.CONNECTING) {
                     CircularProgressIndicator(color = Color(0xFF22C55E))
                 }
+                // 進捗テキストはパッケージ取得ログがそのまま流れることがあり、
+                // 端末横幅を超える長い行や複数情報が混じる。横にはみ出して右端ステータスや
+                // タブ名を押し出すのを防ぐため、画面幅の 80% を上限・最大 4 行で省略する。
+                // フォントは monospace (進捗の "(1/9)" 等が読みやすい)。
                 Text(
                     text = message.ifBlank { state.name },
                     color = if (state == GuiSession.State.ERROR) Color(0xFFEF4444) else Color.White,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontFamily = FontFamily.Monospace,
+                    textAlign = TextAlign.Center,
+                    softWrap = true,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 360.dp),
                 )
             }
         }
