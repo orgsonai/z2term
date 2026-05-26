@@ -370,28 +370,54 @@ fun z2guiScript(
         |    xterm) TERM_ARGS="-fa monospace -fs 11 -geometry ${d}{COLS}x${d}{ROWS}+0+0" ;;
         |    urxvt) TERM_ARGS="-geometry ${d}{COLS}x${d}{ROWS}+0+0" ;;
         |    lxterminal) TERM_ARGS="--geometry=${d}{COLS}x${d}{ROWS}" ;;
-        |    # Konsole は DBus セッション必須 (--separate なしで他インスタンスへの IPC を試みる)。
-        |    # proot 内には KDE デーモン群が居ないため、`--separate` で IPC を回避し、
-        |    # `--noclose` で起動失敗時もウィンドウを残す。`-e ${d}SHELL` で内部シェルも指定。
-        |    konsole) TERM_ARGS="--separate --hide-tabbar --hide-menubar -e ${d}{SHELL:-/bin/sh}" ;;
+        |    # Konsole は DBus session が必須。`--separate` で IPC fallback を回避し、
+        |    # `--nofork` で foreground 起動 (setsid のため backgrounded 状態を維持)、
+        |    # `-e ${d}SHELL` で実行シェルを明示。`--hide-*` は古い konsole で arg parse 失敗のため省略。
+        |    konsole) TERM_ARGS="--separate --nofork -e ${d}{SHELL:-/bin/sh}" ;;
         |  esac
-        |  # Konsole は DBus session bus が無いと「Cannot connect to dbus」で起動失敗するため、
-        |  # ここで使い捨ての dbus-launch を仕込む (KDE が無い proot rootfs でも動くように)。
-        |  # dbus-launch / dbus-daemon どちらかが入っていれば DBUS_SESSION_BUS_ADDRESS を export する。
+        |  # Konsole/KDE 系は DBus session bus と XDG_RUNTIME_DIR を要求する。proot rootfs には
+        |  # systemd の user instance が無いので、自前で session bus を立てて環境変数を export する。
+        |  # ログ: /tmp/z2gui-dbus-{DISPLAY_NUM}.log。失敗しても konsole 側 log で更に診断可能。
         |  if [ "${d}GUI_TERM_BIN" = "konsole" ]; then
-        |    if [ -z "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ] && has dbus-launch; then
-        |      eval "${d}(dbus-launch --sh-syntax --exit-with-session 2>/dev/null)"
-        |      export DBUS_SESSION_BUS_ADDRESS DBUS_SESSION_BUS_PID
-        |    elif [ -z "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ] && has dbus-daemon; then
-        |      mkdir -p /tmp/z2gui-dbus
-        |      DBUS_SOCK="/tmp/z2gui-dbus/sess-${d}{DISPLAY_NUM}"
-        |      rm -f "${d}DBUS_SOCK" 2>/dev/null
-        |      setsid dbus-daemon --session --address="unix:path=${d}DBUS_SOCK" --nofork </dev/null \
-        |        >"/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.log" 2>&1 &
-        |      echo ${d}! >> "${d}PIDFILE" 2>/dev/null
-        |      sleep 0.5
-        |      export DBUS_SESSION_BUS_ADDRESS="unix:path=${d}DBUS_SOCK"
+        |    # XDG_RUNTIME_DIR が未設定だと Qt が警告し挙動が不安定。dbus の socket もここに置く。
+        |    if [ -z "${d}{XDG_RUNTIME_DIR:-}" ]; then
+        |      export XDG_RUNTIME_DIR="/tmp/z2gui-xdg-${d}{DISPLAY_NUM}"
+        |      mkdir -p "${d}XDG_RUNTIME_DIR"; chmod 0700 "${d}XDG_RUNTIME_DIR" 2>/dev/null
         |    fi
+        |    if [ -z "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ] && has dbus-launch; then
+        |      # dbus-launch は `bus_address=...; bus_pid=...` 形式で env を返す → 行を eval。
+        |      DBUS_OUT=${d}(dbus-launch --sh-syntax 2>"/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.log")
+        |      if [ -n "${d}DBUS_OUT" ]; then
+        |        eval "${d}DBUS_OUT"
+        |        export DBUS_SESSION_BUS_ADDRESS DBUS_SESSION_BUS_PID
+        |        echo "${d}{DBUS_SESSION_BUS_PID:-0}" >> "${d}PIDFILE" 2>/dev/null
+        |      fi
+        |    fi
+        |    if [ -z "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ] && has dbus-daemon; then
+        |      DBUS_SOCK="${d}XDG_RUNTIME_DIR/dbus.sock"
+        |      rm -f "${d}DBUS_SOCK" 2>/dev/null
+        |      setsid dbus-daemon --session --address="unix:path=${d}DBUS_SOCK" --fork \
+        |        --print-pid=/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.pid \
+        |        </dev/null >"/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.log" 2>&1
+        |      # socket が出来るまで最大 3 秒待つ。fork 直後で間に合わないことがあるため。
+        |      j=0
+        |      while [ ${d}j -lt 30 ] && [ ! -S "${d}DBUS_SOCK" ]; do sleep 0.1; j=${d}((j+1)); done
+        |      if [ -S "${d}DBUS_SOCK" ]; then
+        |        export DBUS_SESSION_BUS_ADDRESS="unix:path=${d}DBUS_SOCK"
+        |        [ -f "/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.pid" ] && cat "/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.pid" >> "${d}PIDFILE" 2>/dev/null
+        |      fi
+        |    fi
+        |    # Qt の X11 backend を明示 (Wayland 無し環境で迷わせない)。
+        |    export QT_QPA_PLATFORM=xcb
+        |    # 起動診断: 最終 env と konsole バージョンを log 先頭に残す → ユーザーが見やすい。
+        |    {
+        |      echo "=== konsole launch diagnostic ==="
+        |      echo "DISPLAY=${d}DISPLAY  DBUS_SESSION_BUS_ADDRESS=${d}{DBUS_SESSION_BUS_ADDRESS:-(unset)}"
+        |      echo "XDG_RUNTIME_DIR=${d}XDG_RUNTIME_DIR"
+        |      konsole --version 2>&1 | head -1
+        |      echo "TERM_ARGS=${d}TERM_ARGS"
+        |      echo "=================================="
+        |    } > "/tmp/z2gui-term-${d}{DISPLAY_NUM}.log"
         |  fi
         |  # Z2_NO_TERM=1 のときは端末 (xterm 等) を起動しない (P3 = z2run 経由用)。
         |  # z2run は「ユーザーが指定した GUI アプリだけ」を出したいので、xterm が同時に出ると邪魔。
@@ -399,7 +425,12 @@ fun z2guiScript(
         |  if [ "${d}{Z2_NO_TERM:-0}" = "1" ]; then
         |    echo "${strings.noTermFlag}"
         |  elif has "${d}GUI_TERM_BIN"; then
-        |    setsid "${d}GUI_TERM_BIN" ${d}TERM_ARGS </dev/null >"/tmp/z2gui-term-${d}{DISPLAY_NUM}.log" 2>&1 &
+        |    # konsole の場合は事前 diagnostic を上書きしないよう `>>` で append。他端末は `>` truncate。
+        |    if [ "${d}GUI_TERM_BIN" = "konsole" ]; then
+        |      setsid "${d}GUI_TERM_BIN" ${d}TERM_ARGS </dev/null >>"/tmp/z2gui-term-${d}{DISPLAY_NUM}.log" 2>&1 &
+        |    else
+        |      setsid "${d}GUI_TERM_BIN" ${d}TERM_ARGS </dev/null >"/tmp/z2gui-term-${d}{DISPLAY_NUM}.log" 2>&1 &
+        |    fi
         |    echo ${d}! >> "${d}PIDFILE" 2>/dev/null
         |  else
         |    echo "${strings.terminalNotFound} (${d}GUI_TERM_BIN)"
