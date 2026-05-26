@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +51,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.BuildConfig
+import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.distro.DistroBundle
 import com.zerotoship.z2term.distro.DistroSpec
@@ -59,6 +61,7 @@ import com.zerotoship.z2term.emulator.TerminalTheme
 import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.CustomThemeStore
+import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
@@ -153,7 +156,36 @@ fun SettingsSheet(
         ) {
             SettingsHeader()
 
-            Section(title = "テーマ") {
+            // 言語スイッチ。アプリ内で「日本語/English」を切替える (OS Locale ではなく独自管理)。
+                // 変更時は Activity を recreate() してリソース解決をやり直す (文字列・キーボードに即反映)。
+                Section(title = stringResource(R.string.settings_section_language)) {
+                    val currentLang = remember { mutableStateOf(LocaleHelper.language(context)) }
+                    ChipRow(
+                        options = listOf(LocaleHelper.LANG_JA, LocaleHelper.LANG_EN),
+                        labels = mapOf(
+                            LocaleHelper.LANG_JA to "日本語",
+                            LocaleHelper.LANG_EN to "English"
+                        ),
+                        selected = currentLang.value,
+                        onSelect = { lang ->
+                            if (lang != currentLang.value) {
+                                LocaleHelper.setLanguage(context, lang)
+                                currentLang.value = lang
+                                // 反映には Activity の再生成が必要。
+                                val activity = context as? android.app.Activity
+                                activity?.recreate()
+                            }
+                        }
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_section_language_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+            Section(title = stringResource(R.string.settings_section_theme)) {
                 val customTheme by CustomThemeStore.theme.collectAsState()
                 ThemeChipRow(
                     themes = AvailableThemes + listOfNotNull(customTheme),
@@ -173,7 +205,7 @@ fun SettingsSheet(
                 )
             }
 
-            Section(title = "フォントファミリー") {
+            Section(title = stringResource(R.string.settings_section_font_family)) {
                 FontChipRow(
                     options = TerminalFontOptions.ALL,
                     selectedId = settings.fontId,
@@ -183,7 +215,7 @@ fun SettingsSheet(
             }
 
             SliderField(
-                title = "フォントサイズ",
+                title = stringResource(R.string.settings_section_font_size),
                 value = settings.fontSizeSp,
                 range = AppSettings.MIN_FONT_SIZE_SP..AppSettings.MAX_FONT_SIZE_SP,
                 steps = 23,  // 8..32 を 1sp 刻み = 24 値 = 23 steps
@@ -192,7 +224,7 @@ fun SettingsSheet(
             )
 
             SliderField(
-                title = "スクロールバック行数",
+                title = stringResource(R.string.settings_section_scrollback),
                 value = settings.scrollbackLines.toFloat(),
                 range = AppSettings.MIN_SCROLLBACK_LINES.toFloat()..AppSettings.MAX_SCROLLBACK_LINES.toFloat(),
                 steps = 49,  // 500..50000 を 1000 刻みで 50 値
@@ -200,7 +232,7 @@ fun SettingsSheet(
                 onChange = { session.setScrollbackLines(it.toInt()) }
             )
 
-            Section(title = "ディストロ (切替で現在のセッションを再起動)") {
+            Section(title = stringResource(R.string.settings_section_distro)) {
                 ChipRow(
                     options = DistroSpec.ALL.map { it.id },
                     labels = DistroSpec.ALL.associate {
@@ -239,7 +271,7 @@ fun SettingsSheet(
                     }
                 )
                 ToggleField(
-                    title = "クリーンインストール",
+                    title = stringResource(R.string.settings_clean_install),
                     description = "ON にして OS を選ぶと、その OS を rootfs もダウンロード済みデータも" +
                         "消して最初から入れ直します (DL/解凍失敗で詰まったときの復旧用)。",
                     checked = distroCleanArmed,
@@ -254,7 +286,7 @@ fun SettingsSheet(
                 )
             }
 
-            Section(title = "ログインシェル (次回セッション以降に反映)") {
+            Section(title = stringResource(R.string.settings_section_login_shell)) {
                 // 現ディストロの rootfs に各シェルバイナリが実在するか調べる。
                 // 未インストールのシェルを選んでも反映されず、起動時に既定シェル →
                 // /bin/sh へ自動フォールバックするため、その旨を明示する。
@@ -301,7 +333,7 @@ fun SettingsSheet(
 
             SshAccessHelper(session = session)
 
-            Section(title = "リモート (端末 → 他ホスト)") {
+            Section(title = stringResource(R.string.settings_section_remote)) {
                 ActionButton(
                     label = "SSH / SFTP プロファイル…",
                     onClick = onOpenSsh
@@ -316,7 +348,7 @@ fun SettingsSheet(
 
             StorageAccessHelper()
 
-            Section(title = "独自キーボードスタイル") {
+            Section(title = stringResource(R.string.settings_section_keyboard_style)) {
                 ChipRow(
                     options = KeyboardStyle.ALL.map { it.id },
                     labels = KeyboardStyle.ALL.associate { it.id to it.displayName },
@@ -325,7 +357,7 @@ fun SettingsSheet(
                 )
             }
 
-            Section(title = "GUI のターミナル (次回 GUI 起動から反映)") {
+            Section(title = stringResource(R.string.settings_section_gui_terminal)) {
                 ChipRow(
                     options = GuiTerminal.ALL.map { it.id },
                     labels = GuiTerminal.ALL.associate { it.id to it.displayName },
@@ -349,7 +381,7 @@ fun SettingsSheet(
             }
 
             SliderField(
-                title = "GUI 表示倍率 (次回 GUI 起動から反映)",
+                title = stringResource(R.string.settings_gui_magnification),
                 value = settings.guiMagnification,
                 range = AppSettings.MIN_GUI_MAGNIFICATION..AppSettings.MAX_GUI_MAGNIFICATION,
                 steps = 4,  // 0.5 / 1.0 / 1.5 / 2.0 / 2.5 / 3.0 の 6 段階 (内部 4 ステップ)
@@ -358,38 +390,36 @@ fun SettingsSheet(
             )
 
             ToggleField(
-                title = "全角曖昧文字を 2 セル幅扱い",
-                description = "CJK ロケール向け (PowerLine 記号などに有効)",
+                title = stringResource(R.string.settings_ambiguous_width),
+                description = stringResource(R.string.settings_ambiguous_width_desc),
                 checked = settings.ambiguousAsWide,
                 onChange = { session.setAmbiguousAsWide(it) }
             )
 
             ToggleField(
-                title = "バックグラウンド常駐",
-                description = "ON: アプリを閉じてもセッション維持 (通知が出ます)。OFF: 閉じると終了。",
+                title = stringResource(R.string.settings_keep_alive),
+                description = stringResource(R.string.settings_keep_alive_desc),
                 checked = settings.keepAliveService,
                 onChange = { session.setKeepAliveService(it) }
             )
 
             ToggleField(
-                title = "ダウンロード前に確認",
-                description = "ON: distro / GUI のダウンロード前に確認を出す。OFF: 確認なしで取得。",
+                title = stringResource(R.string.settings_confirm_download),
+                description = stringResource(R.string.settings_confirm_download_desc),
                 checked = settings.confirmBeforeDownload,
                 onChange = { session.setConfirmBeforeDownload(it) }
             )
 
             ToggleField(
-                title = "インストールのタイムアウトを無効化",
-                description = "ON: GUI 一式 (apk/apt/pacman) や OS rootfs の取得を最後まで待つ (邪魔な" +
-                    "途中エラーなし)。途中で止めたい時は GUI タブの ✕ ボタンで停止。" +
-                    "OFF (既定): 約 5 分で打ち切る。",
+                title = stringResource(R.string.settings_no_install_timeout),
+                description = stringResource(R.string.settings_no_install_timeout_desc),
                 checked = settings.noInstallTimeout,
                 onChange = { session.setNoInstallTimeout(it) }
             )
 
             TextField(
-                title = "起動時 init コマンド",
-                placeholder = "例: zsh -l",
+                title = stringResource(R.string.settings_init_command),
+                placeholder = stringResource(R.string.settings_init_command_placeholder),
                 value = settings.initCommand,
                 onChange = { session.setInitCommand(it) }
             )
@@ -403,7 +433,7 @@ fun SettingsSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ActionButton(
-                    label = "端末リセット",
+                    label = stringResource(R.string.settings_reset_terminal),
                     danger = true,
                     onClick = { session.restart() }
                 )
@@ -456,7 +486,7 @@ private fun AppInfoSection(distroId: String) {
                 ?.substringAfter('=')?.trim('"', ' ')
         }.getOrNull()
     }
-    Section(title = "アプリ情報") {
+    Section(title = stringResource(R.string.settings_section_app_info)) {
         InfoRow("バージョン", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
         InfoRow("フレーバー", if (BuildConfig.IS_FOSS) "FOSS" else "Full")
         InfoRow("パッケージ", BuildConfig.APPLICATION_ID)
@@ -542,7 +572,7 @@ private fun SettingsHeader() {
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = "Z2Term 設定",
+            text = stringResource(R.string.settings_header),
             color = ZtsGreen,
             fontSize = 18.sp,
             fontWeight = FontWeight.SemiBold,

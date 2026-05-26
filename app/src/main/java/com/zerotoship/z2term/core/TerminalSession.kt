@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.util.Log
+import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.LocalPtyChannel
 import com.zerotoship.z2term.channel.ProcessChannel
 import com.zerotoship.z2term.channel.SshChannel
@@ -209,7 +210,7 @@ class TerminalSession(
                     // 前提なので、未配置はビルド事故。ユーザーに分かるよう警告を出してから
                     // android-sh に退避する (起動不能で真っ黒画面より UX 良)。
                     Log.w(TAG, "PRoot binary not present; falling back to android-sh")
-                    writeBanner("⚠️ PRoot バイナリが見つかりません — scripts/build-proot.sh を実行して再ビルドしてください。Android sh で起動します。")
+                    writeBanner(appContext.getString(R.string.banner_proot_missing))
                     fallbackToAndroidSh()
                     return@launch
                 }
@@ -218,9 +219,9 @@ class TerminalSession(
                     // 初回 / バージョン更新どちらの経路でも同じバナーで案内
                     val rootfsExists = java.io.File(appContext.filesDir, "distros/${spec.id}").exists()
                     val banner = if (rootfsExists)
-                        "📦 ${spec.displayName} を更新展開しています…"
+                        appContext.getString(R.string.banner_extracting_update, spec.displayName)
                     else
-                        "📦 ${spec.displayName} を初回展開しています…"
+                        appContext.getString(R.string.banner_extracting_first, spec.displayName)
                     writeBanner(banner)
                     _uiState.update { it.copy(state = TerminalState.INSTALLING) }
 
@@ -229,8 +230,8 @@ class TerminalSession(
                     if (!spec.bundled && downloader.resolveLocalArchive(spec, detectAbiId()) == null) {
                         val dlError = downloadDistroArchive(spec)
                         if (dlError != null) {
-                            writeBanner("✗ ${spec.displayName} のダウンロード失敗: ${dlError.message}")
-                            writeBanner("ネットワークと URL を確認してください。Alpine に戻すには設定からディストロを切替えてください。")
+                            writeBanner(appContext.getString(R.string.banner_download_failed, spec.displayName, dlError.message))
+                            writeBanner(appContext.getString(R.string.banner_check_network))
                             _uiState.update { it.copy(state = TerminalState.ERROR) }
                             return@launch
                         }
@@ -240,25 +241,25 @@ class TerminalSession(
                     withContext(Dispatchers.IO) {
                         installer.install(spec).collect { progress ->
                             when (progress) {
-                                is DistroInstaller.Progress.Started -> writeBanner("   展開開始…")
+                                is DistroInstaller.Progress.Started -> writeBanner(appContext.getString(R.string.banner_extraction_start))
                                 is DistroInstaller.Progress.Extracting -> Unit
-                                is DistroInstaller.Progress.Configuring -> writeBanner("   設定中…")
-                                is DistroInstaller.Progress.Completed -> writeBanner("✓ ${spec.displayName} 展開完了")
+                                is DistroInstaller.Progress.Configuring -> writeBanner(appContext.getString(R.string.banner_extraction_configuring))
+                                is DistroInstaller.Progress.Completed -> writeBanner(appContext.getString(R.string.banner_extraction_complete, spec.displayName))
                                 is DistroInstaller.Progress.Failed -> installError = progress.error
                             }
                         }
                     }
 
                     if (installError != null) {
-                        writeBanner("✗ ${spec.displayName} 展開失敗: ${installError?.message}")
-                        writeBanner("Android sh モードにフォールバックします。")
+                        writeBanner(appContext.getString(R.string.banner_extraction_failed, spec.displayName, installError?.message ?: ""))
+                        writeBanner(appContext.getString(R.string.banner_extraction_fallback))
                         fallbackToAndroidSh()
                         return@launch
                     }
                 }
 
                 _uiState.update { it.copy(state = TerminalState.STARTING) }
-                writeBanner("🚀 ${spec.displayName} を起動中…")
+                writeBanner(appContext.getString(R.string.banner_distro_starting, spec.displayName))
 
                 val (rows, cols) = currentSize()
                 val shell = settingsFlow.value.loginShell.ifBlank { spec.defaultShell }
@@ -285,8 +286,8 @@ class TerminalSession(
 
             } catch (e: Throwable) {
                 Log.e(TAG, "Failed to start terminal", e)
-                writeBanner("✗ 起動失敗: ${e.message}")
-                writeBanner("Android sh モードにフォールバックします。")
+                writeBanner(appContext.getString(R.string.banner_start_failed, e.message ?: ""))
+                writeBanner(appContext.getString(R.string.banner_extraction_fallback))
                 fallbackToAndroidSh()
             }
         }
@@ -303,7 +304,7 @@ class TerminalSession(
     private suspend fun downloadDistroArchive(spec: DistroSpec): Throwable? {
         val abi = detectAbiId()
         val sizeHint = spec.approxDownload?.let { " ($it)" } ?: ""
-        writeBanner("⬇️ ${spec.displayName} をダウンロード中$sizeHint…")
+        writeBanner(appContext.getString(R.string.banner_download_start, spec.displayName, sizeHint))
         var error: Throwable? = null
         var lastPct = -1
         // 「インストールのタイムアウトを無効化」ON なら HTTP read timeout を長めにする
@@ -320,12 +321,12 @@ class TerminalSession(
                             val pct = (p.received * 100 / p.total).toInt()
                             if (pct >= lastPct + 10) {  // 10% 刻みでバナー更新
                                 lastPct = pct
-                                writeBanner("   $pct% (${p.received / 1024 / 1024}MB)")
+                                writeBanner(appContext.getString(R.string.banner_download_progress, pct, (p.received / 1024 / 1024).toInt()))
                             }
                         }
                     }
-                    is DistroDownloader.Progress.Verifying -> writeBanner("   検証中…")
-                    is DistroDownloader.Progress.Completed -> writeBanner("✓ ダウンロード完了")
+                    is DistroDownloader.Progress.Verifying -> writeBanner(appContext.getString(R.string.banner_download_verifying))
+                    is DistroDownloader.Progress.Completed -> writeBanner(appContext.getString(R.string.banner_download_complete))
                     is DistroDownloader.Progress.Failed -> error = p.error
                     else -> Unit
                 }
@@ -346,7 +347,7 @@ class TerminalSession(
             scheduleInitCommand(settingsFlow.value.initCommand)
         } catch (e: Throwable) {
             Log.e(TAG, "Even Android sh failed", e)
-            writeBanner("致命的エラー: ${e.message}")
+            writeBanner(appContext.getString(R.string.banner_fatal, e.message ?: ""))
             _uiState.update { it.copy(state = TerminalState.ERROR) }
         }
     }
@@ -356,7 +357,7 @@ class TerminalSession(
         if (_uiState.value.state != TerminalState.IDLE) return
         _uiState.update { it.copy(state = TerminalState.STARTING) }
         scope.launch {
-            writeBanner("🔌 SSH 接続中: ${profile.user}@${profile.host}:${profile.port}…")
+            writeBanner(appContext.getString(R.string.banner_ssh_connecting, profile.user, profile.host, profile.port))
             try {
                 val (rows, cols) = currentSize()
                 val ch = withContext(Dispatchers.IO) {
@@ -376,7 +377,7 @@ class TerminalSession(
                 scheduleInitCommand(cmd)
             } catch (e: Throwable) {
                 Log.e(TAG, "SSH connect failed", e)
-                writeBanner("✗ SSH 接続失敗: ${e.message}")
+                writeBanner(appContext.getString(R.string.banner_ssh_failed, e.message ?: ""))
                 _uiState.update { it.copy(state = TerminalState.ERROR) }
             }
         }

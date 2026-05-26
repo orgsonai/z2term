@@ -12,4 +12,53 @@
     <string name="action_clear">クリア</string>
     <string name="action_close">閉じる</string>
     <string name="prompt_label">プロンプト</string>
+
+    <!-- 設定シート (D2 バッチ) -->
+    <string name="settings_header">Z2Term 設定</string>
+    <string name="settings_section_language">言語 / Language</string>
+    <string name="settings_section_language_desc">アプリ内の表示言語を切替えます (OS 設定とは別)。English を選ぶと未翻訳の箇所は日本語のままです (順次翻訳予定)。日本語フリックキーボードは English モードでは非表示になります。</string>
+    <string name="settings_section_theme">テーマ</string>
+    <string name="settings_section_font_family">フォントファミリー</string>
+    <string name="settings_section_font_size">フォントサイズ</string>
+    <string name="settings_section_scrollback">スクロールバック行数</string>
+    <string name="settings_section_distro">ディストロ (切替で現在のセッションを再起動)</string>
+    <string name="settings_section_login_shell">ログインシェル (次回セッション以降に反映)</string>
+    <string name="settings_section_remote">リモート (端末 → 他ホスト)</string>
+    <string name="settings_section_keyboard_style">独自キーボードスタイル</string>
+    <string name="settings_section_gui_terminal">GUI ターミナル</string>
+    <string name="settings_gui_magnification">GUI 表示倍率 (次回 GUI 起動から反映)</string>
+    <string name="settings_clean_install">クリーンインストール</string>
+    <string name="settings_ambiguous_width">全角曖昧文字を 2 セル幅扱い</string>
+    <string name="settings_ambiguous_width_desc">CJK ロケール向け (PowerLine 記号などに有効)</string>
+    <string name="settings_keep_alive">バックグラウンド常駐</string>
+    <string name="settings_keep_alive_desc">ON: アプリを閉じてもセッション維持 (通知が出ます)。OFF: 閉じると終了。</string>
+    <string name="settings_confirm_download">ダウンロード前に確認</string>
+    <string name="settings_confirm_download_desc">ON: distro / GUI のダウンロード前に確認を出す。OFF: 確認なしで取得。</string>
+    <string name="settings_no_install_timeout">インストールのタイムアウトを無効化</string>
+    <string name="settings_no_install_timeout_desc">ON: GUI 一式 (apk/apt/pacman) や OS rootfs の取得を最後まで待つ (邪魔な途中エラーなし)。途中で止めたい時は GUI タブの ✕ ボタンで停止。OFF (既定): 約 5 分で打ち切る。</string>
+    <string name="settings_init_command">起動時 init コマンド</string>
+    <string name="settings_init_command_placeholder">例: zsh -l</string>
+    <string name="settings_reset_terminal">端末リセット</string>
+    <string name="settings_section_app_info">アプリ情報</string>
+
+    <!-- distro / GUI 導入時のバナー (D2 バッチ) -->
+    <string name="banner_proot_missing">⚠️ PRoot バイナリが見つかりません — scripts/build-proot.sh を実行して再ビルドしてください。Android sh で起動します。</string>
+    <string name="banner_extracting_first">📦 %1$s を初回展開しています…</string>
+    <string name="banner_extracting_update">📦 %1$s を更新展開しています…</string>
+    <string name="banner_extraction_start">   展開開始…</string>
+    <string name="banner_extraction_configuring">   設定中…</string>
+    <string name="banner_extraction_complete">✓ %1$s 展開完了</string>
+    <string name="banner_extraction_failed">✗ %1$s 展開失敗: %2$s</string>
+    <string name="banner_extraction_fallback">Android sh モードにフォールバックします。</string>
+    <string name="banner_download_start">⬇️ %1$s をダウンロード中%2$s…</string>
+    <string name="banner_download_progress">   %1$d%% (%2$dMB)</string>
+    <string name="banner_download_verifying">   検証中…</string>
+    <string name="banner_download_complete">✓ ダウンロード完了</string>
+    <string name="banner_distro_starting">🚀 %1$s を起動中…</string>
+    <string name="banner_download_failed">✗ %1$s のダウンロード失敗: %2$s</string>
+    <string name="banner_check_network">ネットワークと URL を確認してください。Alpine に戻すには設定からディストロを切替えてください。</string>
+    <string name="banner_ssh_connecting">🔌 SSH 接続中: %1$s@%2$s:%3$d…</string>
+    <string name="banner_ssh_failed">✗ SSH 接続失敗: %1$s</string>
+    <string name="banner_start_failed">✗ 起動失敗: %1$s</string>
+    <string name="banner_fatal">致命的エラー: %1$s</string>
 </resources>

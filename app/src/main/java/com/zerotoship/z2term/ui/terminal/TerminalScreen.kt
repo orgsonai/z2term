@@ -79,6 +79,7 @@ import com.zerotoship.z2term.ui.ssh.HostKeyVerificationDialog
 import com.zerotoship.z2term.ui.terminal.components.SpecialKeyBar
 import com.zerotoship.z2term.ui.terminal.input.TerminalInputView
 import com.zerotoship.z2term.ui.terminal.keyboard.ComposingState
+import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
 import com.zerotoship.z2term.ui.terminal.keyboard.KanaKanjiConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
@@ -321,7 +322,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                             onBytes = { active.writeBytes(it) },
                             onCursorKey = { key -> active.writeBytes(active.emulator.cursorKeyBytes(key)) },
                             composing = composing,
-                            style = style
+                            style = style,
+                            // English モードでは日本語フリックボタンを隠す。
+                            showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA
                         )
                     }
                 }
@@ -581,7 +584,8 @@ private fun GuiTabScreen(
                                     onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
                                     onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) },
                                     composing = composing,
-                                    style = style
+                                    style = style,
+                                    showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA
                                 )
                             }
                         }

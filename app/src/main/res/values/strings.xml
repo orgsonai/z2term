@@ -12,4 +12,53 @@
     <string name="action_clear">Clear</string>
     <string name="action_close">Close</string>
     <string name="prompt_label">Prompt</string>
+
+    <!-- Settings sheet (D2 batch) -->
+    <string name="settings_header">Z2Term Settings</string>
+    <string name="settings_section_language">Language / 言語</string>
+    <string name="settings_section_language_desc">Switches the in-app display language (independent of the OS setting). When English is selected, untranslated parts remain in Japanese (more translation coming). The Japanese flick keyboard is hidden in English mode.</string>
+    <string name="settings_section_theme">Theme</string>
+    <string name="settings_section_font_family">Font family</string>
+    <string name="settings_section_font_size">Font size</string>
+    <string name="settings_section_scrollback">Scrollback lines</string>
+    <string name="settings_section_distro">Distro (switching restarts the current session)</string>
+    <string name="settings_section_login_shell">Login shell (applies from the next session)</string>
+    <string name="settings_section_remote">Remote (terminal → other host)</string>
+    <string name="settings_section_keyboard_style">Keyboard style</string>
+    <string name="settings_section_gui_terminal">GUI terminal</string>
+    <string name="settings_gui_magnification">GUI magnification (applies from next GUI start)</string>
+    <string name="settings_clean_install">Clean install</string>
+    <string name="settings_ambiguous_width">Treat ambiguous-width chars as 2 cells</string>
+    <string name="settings_ambiguous_width_desc">For CJK locales (works for PowerLine glyphs etc.)</string>
+    <string name="settings_keep_alive">Background service</string>
+    <string name="settings_keep_alive_desc">ON: keep the session alive after closing the app (a notification appears). OFF: terminate when closed.</string>
+    <string name="settings_confirm_download">Confirm before download</string>
+    <string name="settings_confirm_download_desc">ON: prompt before downloading a distro or GUI package. OFF: download without confirmation.</string>
+    <string name="settings_no_install_timeout">Disable install timeout</string>
+    <string name="settings_no_install_timeout_desc">ON: wait until the GUI stack (apk/apt/pacman) or OS rootfs download finishes (no annoying mid-way error). To cancel, tap the ✕ button on the GUI tab. OFF (default): give up after about 5 minutes.</string>
+    <string name="settings_init_command">Startup init command</string>
+    <string name="settings_init_command_placeholder">e.g. zsh -l</string>
+    <string name="settings_reset_terminal">Reset terminal</string>
+    <string name="settings_section_app_info">App info</string>
+
+    <!-- Banners shown during distro / GUI install (D2 batch) -->
+    <string name="banner_proot_missing">⚠️ PRoot binary not found — run scripts/build-proot.sh and rebuild. Falling back to Android sh.</string>
+    <string name="banner_extracting_first">📦 Initial extraction of %1$s…</string>
+    <string name="banner_extracting_update">📦 Updating %1$s…</string>
+    <string name="banner_extraction_start">   extracting…</string>
+    <string name="banner_extraction_configuring">   configuring…</string>
+    <string name="banner_extraction_complete">✓ %1$s extracted</string>
+    <string name="banner_extraction_failed">✗ %1$s extraction failed: %2$s</string>
+    <string name="banner_extraction_fallback">Falling back to Android sh mode.</string>
+    <string name="banner_download_start">⬇️ Downloading %1$s%2$s…</string>
+    <string name="banner_download_progress">   %1$d%% (%2$dMB)</string>
+    <string name="banner_download_verifying">   verifying…</string>
+    <string name="banner_download_complete">✓ download complete</string>
+    <string name="banner_distro_starting">🚀 Starting %1$s…</string>
+    <string name="banner_download_failed">✗ %1$s download failed: %2$s</string>
+    <string name="banner_check_network">Check network and URL. To revert to Alpine, switch distro in settings.</string>
+    <string name="banner_ssh_connecting">🔌 SSH connecting: %1$s@%2$s:%3$d…</string>
+    <string name="banner_ssh_failed">✗ SSH connect failed: %1$s</string>
+    <string name="banner_start_failed">✗ start failed: %1$s</string>
+    <string name="banner_fatal">fatal: %1$s</string>
 </resources>

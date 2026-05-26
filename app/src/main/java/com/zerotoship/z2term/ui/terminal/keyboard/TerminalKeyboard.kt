@@ -73,6 +73,12 @@ fun TerminalKeyboard(
     onCursorKey: (TerminalEmulator.CursorKey) -> Unit,
     composing: ComposingState,
     style: KeyboardStyle = KeyboardStyle.COMPACT,
+    /**
+     * 日本語フリックキーボード切替キー (「あ」) を表示するか。English モードでは false で
+     * 隠す (Locale=en のとき呼出し側で false を渡す)。false のときは Row 3 左端を別ラベル
+     * (例: TAB-) に振替えず空きスペースとして詰める。
+     */
+    showJapaneseKeyboard: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     var shift by remember { mutableStateOf(ShiftState.OFF) }
@@ -233,9 +239,15 @@ fun TerminalKeyboard(
                 )
             }
         }
-        // Row 3 左端: 日本語フリックキーボードへ切替える「あ」キー
+        // Row 3 左端: 日本語フリックキーボードへ切替える「あ」キー。English モードでは
+        // 隠して同じ重みのスペーサ (見えない空白) で配置を保つ。
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-            BasicKey("あ", weight = 1.4f, fontSp = style.keyFontSp, style = style) { jpMode = true }
+            if (showJapaneseKeyboard) {
+                BasicKey("あ", weight = 1.4f, fontSp = style.keyFontSp, style = style) { jpMode = true }
+            } else {
+                // 不可視スペーサ: weight=1.4f を維持して右側のキー位置を変えないようにする。
+                Box(modifier = Modifier.weight(1.4f).height(style.keyHeight))
+            }
             r3Labels.forEachIndexed { idx, s ->
                 val display = if (!sym && shift != ShiftState.OFF && s[0].isLetter()) s.uppercase() else s
                 FlickKey(

@@ -1,8 +1,10 @@
 package com.zerotoship.z2term
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
 import com.zerotoship.z2term.gui.GuiEventWatcher
+import com.zerotoship.z2term.settings.LocaleHelper
 
 /**
  * Z2Term アプリケーション本体。
@@ -14,6 +16,15 @@ import com.zerotoship.z2term.gui.GuiEventWatcher
  * `z2run` から飛んでくる `OPEN N` 通知を受け取り、対応する GUI タブを開く / 前面化する。
  */
 class Z2TermApplication : Application() {
+
+    /**
+     * アプリ全体の Context にも [LocaleHelper] を反映 (Toast / Service など Activity 外で
+     * 取得する文字列の Locale を揃えるため)。Activity 側は [MainActivity.attachBaseContext]
+     * でさらに同じ扱いをするので二重適用になるが、結果は同じ Locale なので無害。
+     */
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(LocaleHelper.applyLocale(base))
+    }
 
     override fun onCreate() {
         super.onCreate()
