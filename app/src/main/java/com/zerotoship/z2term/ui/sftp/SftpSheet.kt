@@ -51,10 +51,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.SftpClient
 import com.zerotoship.z2term.channel.SftpEntry
 import com.zerotoship.z2term.channel.SshProfile
@@ -142,7 +144,7 @@ fun SftpSheet(
         loading = true
         runCatching { c.list(currentPath) }
             .onSuccess { entries = it }
-            .onFailure { toast("一覧取得に失敗: ${it.message}") }
+            .onFailure { toast(context.getString(R.string.sftp_toast_list_failed, it.message ?: "")) }
         loading = false
     }
 
@@ -163,10 +165,10 @@ fun SftpSheet(
                     withContext(Dispatchers.IO) {
                         context.contentResolver.openOutputStream(uri)?.use { os ->
                             client?.download(remote, os)
-                        } ?: error("保存先を開けません")
+                        } ?: error(context.getString(R.string.sftp_toast_save_target_unavailable))
                     }
-                }.onSuccess { toast("ダウンロード完了: ${entry.name}") }
-                    .onFailure { toast("ダウンロード失敗: ${it.message}") }
+                }.onSuccess { toast(context.getString(R.string.sftp_toast_download_complete, entry.name)) }
+                    .onFailure { toast(context.getString(R.string.sftp_toast_download_failed, it.message ?: "")) }
             }
         }
     }
@@ -182,11 +184,11 @@ fun SftpSheet(
                     withContext(Dispatchers.IO) {
                         context.contentResolver.openInputStream(uri)?.use { ins ->
                             client?.upload(ins, remote)
-                        } ?: error("ファイルを開けません")
+                        } ?: error(context.getString(R.string.sftp_toast_open_file_failed))
                     }
                     name
-                }.onSuccess { toast("アップロード完了: $it"); refreshTick++ }
-                    .onFailure { toast("アップロード失敗: ${it.message}") }
+                }.onSuccess { toast(context.getString(R.string.sftp_toast_upload_complete, it)); refreshTick++ }
+                    .onFailure { toast(context.getString(R.string.sftp_toast_upload_failed, it.message ?: "")) }
             }
         }
     }
@@ -233,7 +235,7 @@ fun SftpSheet(
                     )
                     Spacer(Modifier.width(8.dp))
                 }
-                PillButton("↑上へ", enabled = client != null && currentPath != "/") {
+                PillButton(stringResource(R.string.sftp_button_up), enabled = client != null && currentPath != "/") {
                     currentPath = SftpClient.resolve(currentPath, "..")
                 }
                 Spacer(Modifier.width(6.dp))
@@ -241,8 +243,8 @@ fun SftpSheet(
             }
 
             when {
-                connecting -> CenterStatus("接続中…")
-                connError != null -> CenterStatus("接続失敗: $connError", isError = true)
+                connecting -> CenterStatus(stringResource(R.string.sftp_status_connecting))
+                connError != null -> CenterStatus(stringResource(R.string.sftp_status_connect_failed, connError ?: ""), isError = true)
                 else -> {
                     LazyColumn(
                         state = listState,
@@ -270,7 +272,7 @@ fun SftpSheet(
                         if (entries.isEmpty() && !loading) {
                             item {
                                 Text(
-                                    "(空のディレクトリ)",
+                                    stringResource(R.string.sftp_status_empty_dir),
                                     color = ZtsTextSecondary,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
@@ -282,10 +284,10 @@ fun SftpSheet(
 
                     Spacer(Modifier.height(2.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PillButton("⬆ アップロード", enabled = client != null) {
+                        PillButton(stringResource(R.string.sftp_button_upload), enabled = client != null) {
                             uploadLauncher.launch(arrayOf("*/*"))
                         }
-                        PillButton("＋ 新規フォルダ", enabled = client != null) {
+                        PillButton(stringResource(R.string.sftp_button_new_folder), enabled = client != null) {
                             mkdirOpen = true
                         }
                     }
@@ -297,9 +299,9 @@ fun SftpSheet(
     // 名前変更ダイアログ
     renameTarget?.let { target ->
         InputDialog(
-            title = "名前変更",
+            title = stringResource(R.string.sftp_dialog_rename_title),
             initial = target.name,
-            confirmLabel = "変更",
+            confirmLabel = stringResource(R.string.sftp_dialog_rename_confirm),
             onConfirm = { newName ->
                 renameTarget = null
                 if (newName.isNotBlank() && newName != target.name) {
@@ -307,8 +309,8 @@ fun SftpSheet(
                     val to = SftpClient.resolve(currentPath, newName)
                     scope.launch {
                         runCatching { client?.rename(from, to) }
-                            .onSuccess { toast("変更しました"); refreshTick++ }
-                            .onFailure { toast("失敗: ${it.message}") }
+                            .onSuccess { toast(context.getString(R.string.sftp_toast_renamed)); refreshTick++ }
+                            .onFailure { toast(context.getString(R.string.sftp_toast_failed, it.message ?: "")) }
                     }
                 }
             },
@@ -319,17 +321,17 @@ fun SftpSheet(
     // 新規フォルダダイアログ
     if (mkdirOpen) {
         InputDialog(
-            title = "新規フォルダ",
+            title = stringResource(R.string.sftp_dialog_new_folder_title),
             initial = "",
-            confirmLabel = "作成",
+            confirmLabel = stringResource(R.string.sftp_dialog_new_folder_confirm),
             onConfirm = { name ->
                 mkdirOpen = false
                 if (name.isNotBlank()) {
                     val path = SftpClient.resolve(currentPath, name)
                     scope.launch {
                         runCatching { client?.mkdir(path) }
-                            .onSuccess { toast("作成しました"); refreshTick++ }
-                            .onFailure { toast("失敗: ${it.message}") }
+                            .onSuccess { toast(context.getString(R.string.sftp_toast_created)); refreshTick++ }
+                            .onFailure { toast(context.getString(R.string.sftp_toast_failed, it.message ?: "")) }
                     }
                 }
             },
@@ -344,11 +346,16 @@ fun SftpSheet(
             containerColor = ZtsBgCard,
             titleContentColor = ZtsTextPrimary,
             textContentColor = ZtsTextSecondary,
-            title = { Text("削除", fontFamily = FontFamily.Monospace) },
+            title = { Text(stringResource(R.string.sftp_dialog_delete_title), fontFamily = FontFamily.Monospace) },
             text = {
+                val label = stringResource(
+                    if (target.isDir) R.string.sftp_dialog_delete_dir_label
+                    else R.string.sftp_dialog_delete_file_label
+                )
+                val main = stringResource(R.string.sftp_dialog_delete_msg, label, target.name)
+                val note = if (target.isDir) stringResource(R.string.sftp_dialog_delete_dir_note) else ""
                 Text(
-                    "${if (target.isDir) "フォルダ" else "ファイル"} \"${target.name}\" を削除しますか?" +
-                        if (target.isDir) "\n(空でないと失敗します)" else "",
+                    main + note,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp
                 )
@@ -361,14 +368,14 @@ fun SftpSheet(
                         runCatching {
                             if (target.isDir) client?.rmdir(path) else client?.rm(path)
                         }
-                            .onSuccess { toast("削除しました"); refreshTick++ }
-                            .onFailure { toast("失敗: ${it.message}") }
+                            .onSuccess { toast(context.getString(R.string.sftp_toast_deleted)); refreshTick++ }
+                            .onFailure { toast(context.getString(R.string.sftp_toast_failed, it.message ?: "")) }
                     }
-                }) { Text("削除", color = ZtsError, fontFamily = FontFamily.Monospace) }
+                }) { Text(stringResource(R.string.sftp_action_delete), color = ZtsError, fontFamily = FontFamily.Monospace) }
             },
             dismissButton = {
                 TextButton(onClick = { deleteTarget = null }) {
-                    Text("キャンセル", color = ZtsTextSecondary, fontFamily = FontFamily.Monospace)
+                    Text(stringResource(R.string.action_cancel), color = ZtsTextSecondary, fontFamily = FontFamily.Monospace)
                 }
             }
         )
@@ -439,16 +446,16 @@ private fun SftpRow(
                 ) {
                     if (!entry.isDir) {
                         DropdownMenuItem(
-                            text = { Text("ダウンロード", fontFamily = FontFamily.Monospace, fontSize = 13.sp) },
+                            text = { Text(stringResource(R.string.sftp_action_download), fontFamily = FontFamily.Monospace, fontSize = 13.sp) },
                             onClick = { menuOpen = false; onDownload() }
                         )
                     }
                     DropdownMenuItem(
-                        text = { Text("名前変更", fontFamily = FontFamily.Monospace, fontSize = 13.sp) },
+                        text = { Text(stringResource(R.string.sftp_action_rename), fontFamily = FontFamily.Monospace, fontSize = 13.sp) },
                         onClick = { menuOpen = false; onRename() }
                     )
                     DropdownMenuItem(
-                        text = { Text("削除", color = ZtsError, fontFamily = FontFamily.Monospace, fontSize = 13.sp) },
+                        text = { Text(stringResource(R.string.sftp_action_delete), color = ZtsError, fontFamily = FontFamily.Monospace, fontSize = 13.sp) },
                         onClick = { menuOpen = false; onDelete() }
                     )
                 }
@@ -528,7 +535,7 @@ private fun InputDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("キャンセル", color = ZtsTextSecondary, fontFamily = FontFamily.Monospace)
+                Text(stringResource(R.string.action_cancel), color = ZtsTextSecondary, fontFamily = FontFamily.Monospace)
             }
         }
     )

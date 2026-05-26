@@ -135,4 +135,35 @@
     <string name="hostkey_field_keytype">Key type</string>
     <string name="hostkey_warning">Confirm this is a trusted host.\nA man-in-the-middle attack (MITM) is possible.</string>
     <string name="hostkey_action_trust">Trust and connect</string>
+
+    <!-- SFTP sheet (D3 batch 3) -->
+    <string name="sftp_toast_list_failed">List failed: %1$s</string>
+    <string name="sftp_toast_save_target_unavailable">Cannot open save target</string>
+    <string name="sftp_toast_download_complete">Download complete: %1$s</string>
+    <string name="sftp_toast_download_failed">Download failed: %1$s</string>
+    <string name="sftp_toast_open_file_failed">Cannot open file</string>
+    <string name="sftp_toast_upload_complete">Upload complete: %1$s</string>
+    <string name="sftp_toast_upload_failed">Upload failed: %1$s</string>
+    <string name="sftp_button_up">↑ Up</string>
+    <string name="sftp_status_connecting">Connecting…</string>
+    <string name="sftp_status_connect_failed">Connection failed: %1$s</string>
+    <string name="sftp_status_empty_dir">(empty directory)</string>
+    <string name="sftp_button_upload">⬆ Upload</string>
+    <string name="sftp_button_new_folder">＋ New folder</string>
+    <string name="sftp_dialog_rename_title">Rename</string>
+    <string name="sftp_dialog_rename_confirm">Rename</string>
+    <string name="sftp_toast_renamed">Renamed</string>
+    <string name="sftp_toast_failed">Failed: %1$s</string>
+    <string name="sftp_dialog_new_folder_title">New folder</string>
+    <string name="sftp_dialog_new_folder_confirm">Create</string>
+    <string name="sftp_toast_created">Created</string>
+    <string name="sftp_dialog_delete_title">Delete</string>
+    <string name="sftp_dialog_delete_dir_label">folder</string>
+    <string name="sftp_dialog_delete_file_label">file</string>
+    <string name="sftp_dialog_delete_msg">Delete %1$s "%2$s"?</string>
+    <string name="sftp_dialog_delete_dir_note">\n(fails if the directory is not empty)</string>
+    <string name="sftp_toast_deleted">Deleted</string>
+    <string name="sftp_action_delete">Delete</string>
+    <string name="sftp_action_download">Download</string>
+    <string name="sftp_action_rename">Rename</string>
 </resources>

@@ -135,4 +135,35 @@
     <string name="hostkey_field_keytype">鍵タイプ</string>
     <string name="hostkey_warning">信頼できるホストか必ず確認してください。\n中間者攻撃 (MITM) の可能性があります。</string>
     <string name="hostkey_action_trust">信頼して接続</string>
+
+    <!-- SFTP シート (D3 バッチ 3) -->
+    <string name="sftp_toast_list_failed">一覧取得に失敗: %1$s</string>
+    <string name="sftp_toast_save_target_unavailable">保存先を開けません</string>
+    <string name="sftp_toast_download_complete">ダウンロード完了: %1$s</string>
+    <string name="sftp_toast_download_failed">ダウンロード失敗: %1$s</string>
+    <string name="sftp_toast_open_file_failed">ファイルを開けません</string>
+    <string name="sftp_toast_upload_complete">アップロード完了: %1$s</string>
+    <string name="sftp_toast_upload_failed">アップロード失敗: %1$s</string>
+    <string name="sftp_button_up">↑上へ</string>
+    <string name="sftp_status_connecting">接続中…</string>
+    <string name="sftp_status_connect_failed">接続失敗: %1$s</string>
+    <string name="sftp_status_empty_dir">(空のディレクトリ)</string>
+    <string name="sftp_button_upload">⬆ アップロード</string>
+    <string name="sftp_button_new_folder">＋ 新規フォルダ</string>
+    <string name="sftp_dialog_rename_title">名前変更</string>
+    <string name="sftp_dialog_rename_confirm">変更</string>
+    <string name="sftp_toast_renamed">変更しました</string>
+    <string name="sftp_toast_failed">失敗: %1$s</string>
+    <string name="sftp_dialog_new_folder_title">新規フォルダ</string>
+    <string name="sftp_dialog_new_folder_confirm">作成</string>
+    <string name="sftp_toast_created">作成しました</string>
+    <string name="sftp_dialog_delete_title">削除</string>
+    <string name="sftp_dialog_delete_dir_label">フォルダ</string>
+    <string name="sftp_dialog_delete_file_label">ファイル</string>
+    <string name="sftp_dialog_delete_msg">%1$s "%2$s" を削除しますか?</string>
+    <string name="sftp_dialog_delete_dir_note">\n(空でないと失敗します)</string>
+    <string name="sftp_toast_deleted">削除しました</string>
+    <string name="sftp_action_delete">削除</string>
+    <string name="sftp_action_download">ダウンロード</string>
+    <string name="sftp_action_rename">名前変更</string>
 </resources>
