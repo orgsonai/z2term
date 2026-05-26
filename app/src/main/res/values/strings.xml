@@ -252,4 +252,21 @@
     <string name="keyboard_show_button">▴ Keyboard</string>
     <string name="keyboard_hide_button">▾</string>
     <string name="terminal_action_copy">Copy</string>
+
+    <!-- Foreground service notification / toasts / GUI terminal display names (D3 batch 6) -->
+    <string name="service_channel_name">Z2Term session</string>
+    <string name="service_channel_desc">Keeps the terminal session running in the background</string>
+    <string name="service_notification_title">Z2Term running</string>
+    <string name="service_notification_text">A terminal session is running</string>
+    <string name="service_action_stop">Stop</string>
+    <string name="toast_copy_from_remote">Copied from remote (%1$d chars)</string>
+    <string name="toast_selection_empty">Selection is empty</string>
+    <string name="toast_copy">Copied (%1$d chars)</string>
+    <string name="banner_process_exited">[process exited exitCode=%1$d]</string>
+    <string name="gui_terminal_xterm_desc">Lightest / standard for all distros</string>
+    <string name="gui_terminal_urxvt_desc">Light / Japanese-capable</string>
+    <string name="gui_terminal_lxterminal_desc">Light GTK</string>
+    <string name="gui_terminal_konsole_desc">KDE-based / heavy first-time install</string>
+    <string name="keyboard_style_compact">Compact</string>
+    <string name="keyboard_style_spacious">Spacious (4-way flick)</string>
 </resources>

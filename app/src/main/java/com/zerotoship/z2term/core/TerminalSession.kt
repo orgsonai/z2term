@@ -99,7 +99,7 @@ class TerminalSession(
         clipboardWriter = { text ->
             val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
-            _toastEvents.tryEmit("リモートからコピー (${text.length} 文字)")
+            _toastEvents.tryEmit(appContext.getString(R.string.toast_copy_from_remote, text.length))
         },
         titleSetter = { title -> if (title.isNotBlank()) _label.value = title.take(20) },
         cwdSetter = { path -> _cwd.value = path }
@@ -131,12 +131,12 @@ class TerminalSession(
             sel.startAbsRow, sel.startCol, sel.endAbsRow, sel.endCol
         )
         if (text.isEmpty()) {
-            _toastEvents.tryEmit("選択範囲が空です")
+            _toastEvents.tryEmit(appContext.getString(R.string.toast_selection_empty))
             return
         }
         val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
-        _toastEvents.tryEmit("コピー (${text.length} 文字)")
+        _toastEvents.tryEmit(appContext.getString(R.string.toast_copy, text.length))
     }
 
     /** クリップボードのテキストをペースト (PTY へ送出)。 */
@@ -439,7 +439,7 @@ class TerminalSession(
                 Log.w(TAG, "Read loop ended: ${e.message}")
             } finally {
                 _uiState.update { it.copy(state = TerminalState.EXITED) }
-                writeBanner("[プロセス終了 exitCode=${ch.exitCode ?: -1}]")
+                writeBanner(appContext.getString(R.string.banner_process_exited, ch.exitCode ?: -1))
             }
         }
     }

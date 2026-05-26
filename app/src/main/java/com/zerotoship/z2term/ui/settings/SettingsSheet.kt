@@ -347,7 +347,7 @@ fun SettingsSheet(
             Section(title = stringResource(R.string.settings_section_keyboard_style)) {
                 ChipRow(
                     options = KeyboardStyle.ALL.map { it.id },
-                    labels = KeyboardStyle.ALL.associate { it.id to it.displayName },
+                    labels = KeyboardStyle.ALL.associate { it.id to stringResource(it.displayNameRes) },
                     selected = settings.keyboardStyleId,
                     onSelect = { session.setKeyboardStyleId(it) }
                 )

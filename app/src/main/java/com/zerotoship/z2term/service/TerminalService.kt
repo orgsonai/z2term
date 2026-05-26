@@ -96,10 +96,10 @@ class TerminalService : Service() {
             if (nm.getNotificationChannel(CHANNEL_ID) == null) {
                 val channel = NotificationChannel(
                     CHANNEL_ID,
-                    "Z2Term セッション",
+                    getString(R.string.service_channel_name),
                     NotificationManager.IMPORTANCE_LOW
                 ).apply {
-                    description = "ターミナルセッションをバックグラウンドで維持"
+                    description = getString(R.string.service_channel_desc)
                     setShowBadge(false)
                 }
                 nm.createNotificationChannel(channel)
@@ -123,13 +123,13 @@ class TerminalService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Z2Term 稼働中")
-            .setContentText("ターミナルセッションが実行中です")
+            .setContentTitle(getString(R.string.service_notification_title))
+            .setContentText(getString(R.string.service_notification_text))
             .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
             .setSilent(true)
             .setContentIntent(tapPendingIntent)
-            .addAction(0, "停止", stopPendingIntent)
+            .addAction(0, getString(R.string.service_action_stop), stopPendingIntent)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
     }

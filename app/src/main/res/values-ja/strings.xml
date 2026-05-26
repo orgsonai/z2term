@@ -252,4 +252,21 @@
     <string name="keyboard_show_button">▴ キーボード</string>
     <string name="keyboard_hide_button">▾</string>
     <string name="terminal_action_copy">コピー</string>
+
+    <!-- フォアグラウンドサービス通知 / Toast / GUI ターミナル表示名 (D3 バッチ 6) -->
+    <string name="service_channel_name">Z2Term セッション</string>
+    <string name="service_channel_desc">ターミナルセッションをバックグラウンドで維持</string>
+    <string name="service_notification_title">Z2Term 稼働中</string>
+    <string name="service_notification_text">ターミナルセッションが実行中です</string>
+    <string name="service_action_stop">停止</string>
+    <string name="toast_copy_from_remote">リモートからコピー (%1$d 文字)</string>
+    <string name="toast_selection_empty">選択範囲が空です</string>
+    <string name="toast_copy">コピー (%1$d 文字)</string>
+    <string name="banner_process_exited">[プロセス終了 exitCode=%1$d]</string>
+    <string name="gui_terminal_xterm_desc">最軽量・全 distro 標準</string>
+    <string name="gui_terminal_urxvt_desc">軽量・日本語表示可</string>
+    <string name="gui_terminal_lxterminal_desc">軽量 GTK</string>
+    <string name="gui_terminal_konsole_desc">KDE 系・初回導入が大きい</string>
+    <string name="keyboard_style_compact">コンパクト</string>
+    <string name="keyboard_style_spacious">ゆったり (4 方向フリック)</string>
 </resources>

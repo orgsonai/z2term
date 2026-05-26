@@ -1,16 +1,19 @@
 package com.zerotoship.z2term.ui.terminal.keyboard
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.zerotoship.z2term.R
 
 /**
  * Z2Term 独自キーボードの見た目・挙動プリセット。
  *
  * 各スタイルはキー高さ・フォントサイズ・フリック方向数 (1 or 4) を持つ。
+ * [displayNameRes] は言語追従用の文字列リソース。
  */
 data class KeyboardStyle(
     val id: String,
-    val displayName: String,
+    @StringRes val displayNameRes: Int,
     /** 普通キーの高さ */
     val keyHeight: Dp,
     /** 通常ラベルのフォントサイズ (sp) */
@@ -28,7 +31,7 @@ data class KeyboardStyle(
     companion object {
         val COMPACT = KeyboardStyle(
             id = "compact",
-            displayName = "コンパクト",
+            displayNameRes = R.string.keyboard_style_compact,
             keyHeight = 44.dp,
             keyFontSp = 14f,
             flickHintFontSp = 9f,
@@ -38,7 +41,7 @@ data class KeyboardStyle(
         )
         val SPACIOUS = KeyboardStyle(
             id = "spacious",
-            displayName = "ゆったり (4 方向フリック)",
+            displayNameRes = R.string.keyboard_style_spacious,
             keyHeight = 60.dp,
             keyFontSp = 19f,
             flickHintFontSp = 13f,
