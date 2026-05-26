@@ -230,4 +230,26 @@
     <string name="theme_action_save_apply">保存して適用</string>
     <string name="theme_hint">#RRGGBB 形式。無効な値は元の色のまま保存されます。</string>
     <string name="theme_preview_cursor">カーソル</string>
+
+    <!-- SSH アクセスヘルパー / ストレージアクセス (D3 バッチ 5) -->
+    <string name="sshaccess_title">PC からの SSH 接続</string>
+    <string name="sshaccess_wifi_unavailable">Wi-Fi に接続して下さい (IP 未検出)</string>
+    <string name="sshaccess_from_pc_header">\nPC から:</string>
+    <string name="sshaccess_copy_ssh_cmd">ssh コマンドをコピー</string>
+    <string name="sshaccess_note">端末で `sshd` でも起動可 (ポートは sshd_config の Port、`-p` 指定も可)。\nOpenSSH の /usr/sbin/sshd は proot で privsep 破綻のため使えません → dropbear。\n詳細は docs/SSH-INTO-Z2TERM.md を参照</string>
+    <string name="storage_access_title">ストレージアクセス (cd /sdcard)</string>
+    <string name="storage_access_granted">✅ 許可済み。端末から `cd /sdcard` で共有ストレージへ移動できます。\n   権限不要のアプリ専用領域は `/storage/app` です。</string>
+    <string name="storage_access_denied">未許可。`cd /sdcard` の中身は見えません。下のボタンで全ファイル\nアクセスを許可してください。(`/storage/app` は許可不要で使えます)</string>
+    <string name="storage_access_grant_button">ストレージ全体を許可</string>
+
+    <!-- TerminalScreen 残置文字列 (D3 バッチ 5) -->
+    <string name="gui_confirm_clean_install_title">GUI をクリーンインストール</string>
+    <string name="gui_confirm_download_title">GUI 一式をダウンロード</string>
+    <string name="gui_confirm_clean_install_msg">GUI 表示用パッケージをキャッシュごと消して入れ直します (数十〜数百MB)。Wi-Fi 推奨。続けますか?</string>
+    <string name="gui_confirm_download_msg">GUI (Linux デスクトップ) の初回起動には表示用パッケージの取得が必要です (数十〜数百MB)。Wi-Fi 推奨。続けますか?</string>
+    <string name="gui_confirm_clean_install_action">クリーンインストール</string>
+    <string name="gui_confirm_download_action">ダウンロードして起動</string>
+    <string name="keyboard_show_button">▴ キーボード</string>
+    <string name="keyboard_hide_button">▾</string>
+    <string name="terminal_action_copy">コピー</string>
 </resources>

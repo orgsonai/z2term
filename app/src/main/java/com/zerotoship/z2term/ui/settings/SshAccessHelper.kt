@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.proot.Z2TERM_SSHD_PORT
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
@@ -69,7 +71,7 @@ fun SshAccessHelper(session: TerminalSession) {
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            text = "PC からの SSH 接続",
+            text = stringResource(R.string.sshaccess_title),
             color = ZtsTextSecondary,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace
@@ -87,7 +89,7 @@ fun SshAccessHelper(session: TerminalSession) {
         ) {
             if (ips.isEmpty()) {
                 Text(
-                    text = "Wi-Fi に接続して下さい (IP 未検出)",
+                    text = stringResource(R.string.sshaccess_wifi_unavailable),
                     color = ZtsTextSecondary,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace
@@ -109,7 +111,7 @@ fun SshAccessHelper(session: TerminalSession) {
                 }
             }
             Text(
-                text = "\nPC から:",
+                text = stringResource(R.string.sshaccess_from_pc_header),
                 color = ZtsTextSecondary,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace
@@ -143,14 +145,12 @@ fun SshAccessHelper(session: TerminalSession) {
                 }
             )
             HelperButton(
-                label = "ssh コマンドをコピー",
+                label = stringResource(R.string.sshaccess_copy_ssh_cmd),
                 onClick = { copyToClipboard(context, "z2term ssh", sshCmd) }
             )
         }
         Text(
-            text = "端末で `sshd` でも起動可 (ポートは sshd_config の Port、`-p` 指定も可)。\n" +
-                "OpenSSH の /usr/sbin/sshd は proot で privsep 破綻のため使えません → dropbear。\n" +
-                "詳細は docs/SSH-INTO-Z2TERM.md を参照",
+            text = stringResource(R.string.sshaccess_note),
             color = ZtsTextSecondary.copy(alpha = 0.6f),
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace
@@ -175,18 +175,14 @@ fun StorageAccessHelper() {
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            text = "ストレージアクセス (cd /sdcard)",
+            text = stringResource(R.string.storage_access_title),
             color = ZtsTextSecondary,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace
         )
         Text(
-            text = if (granted)
-                "✅ 許可済み。端末から `cd /sdcard` で共有ストレージへ移動できます。\n" +
-                    "   権限不要のアプリ専用領域は `/storage/app` です。"
-            else
-                "未許可。`cd /sdcard` の中身は見えません。下のボタンで全ファイル\n" +
-                    "アクセスを許可してください。(`/storage/app` は許可不要で使えます)",
+            text = if (granted) stringResource(R.string.storage_access_granted)
+                   else stringResource(R.string.storage_access_denied),
             color = if (granted) ZtsGreen else ZtsTextPrimary,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace
@@ -194,7 +190,7 @@ fun StorageAccessHelper() {
         if (!granted) {
             Row {
                 HelperButton(
-                    label = "ストレージ全体を許可",
+                    label = stringResource(R.string.storage_access_grant_button),
                     accent = true,
                     onClick = {
                         val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

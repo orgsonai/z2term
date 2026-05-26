@@ -230,4 +230,26 @@
     <string name="theme_action_save_apply">Save and apply</string>
     <string name="theme_hint">#RRGGBB format. Invalid values are saved with the original color unchanged.</string>
     <string name="theme_preview_cursor">Cursor</string>
+
+    <!-- SSH access helper / Storage access (D3 batch 5) -->
+    <string name="sshaccess_title">SSH access from a PC</string>
+    <string name="sshaccess_wifi_unavailable">Connect to Wi-Fi (no IP detected)</string>
+    <string name="sshaccess_from_pc_header">\nFrom your PC:</string>
+    <string name="sshaccess_copy_ssh_cmd">Copy ssh command</string>
+    <string name="sshaccess_note">`sshd` can also be launched from the terminal (port comes from sshd_config\'s Port, or `-p`).\nOpenSSH /usr/sbin/sshd breaks privsep under proot → we use dropbear.\nSee docs/SSH-INTO-Z2TERM.md for details</string>
+    <string name="storage_access_title">Storage access (cd /sdcard)</string>
+    <string name="storage_access_granted">✅ Granted. From the terminal you can `cd /sdcard` to the shared storage.\n   `/storage/app` is the app-private area and needs no permission.</string>
+    <string name="storage_access_denied">Not granted. `cd /sdcard` will look empty. Use the button below to grant all-files\naccess. (`/storage/app` works without permission.)</string>
+    <string name="storage_access_grant_button">Grant access to all storage</string>
+
+    <!-- TerminalScreen residuals (D3 batch 5) -->
+    <string name="gui_confirm_clean_install_title">Clean-install the GUI stack</string>
+    <string name="gui_confirm_download_title">Download the GUI stack</string>
+    <string name="gui_confirm_clean_install_msg">Wipe the GUI display packages (cache and all) and reinstall (tens to hundreds of MB). Wi-Fi recommended. Continue?</string>
+    <string name="gui_confirm_download_msg">The first GUI (Linux desktop) launch requires display packages to be downloaded (tens to hundreds of MB). Wi-Fi recommended. Continue?</string>
+    <string name="gui_confirm_clean_install_action">Clean install</string>
+    <string name="gui_confirm_download_action">Download and launch</string>
+    <string name="keyboard_show_button">▴ Keyboard</string>
+    <string name="keyboard_hide_button">▾</string>
+    <string name="terminal_action_copy">Copy</string>
 </resources>

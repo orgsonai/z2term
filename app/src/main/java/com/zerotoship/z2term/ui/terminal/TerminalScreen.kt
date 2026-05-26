@@ -58,6 +58,8 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.res.stringResource
+import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.AppSession
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.core.TerminalSession
@@ -622,13 +624,12 @@ private fun GuiTabScreen(
     // (パッケージ無しでは表示できないため)。
     pendingGuiStart?.let { (w, h, clean) ->
         DownloadConfirmDialog(
-            title = if (clean) "GUI をクリーンインストール" else "GUI 一式をダウンロード",
-            message = if (clean)
-                "GUI 表示用パッケージをキャッシュごと消して入れ直します (数十〜数百MB)。Wi-Fi 推奨。続けますか?"
-            else
-                "GUI (Linux デスクトップ) の初回起動には表示用パッケージの取得が必要です " +
-                    "(数十〜数百MB)。Wi-Fi 推奨。続けますか?",
-            confirmLabel = if (clean) "クリーンインストール" else "ダウンロードして起動",
+            title = if (clean) stringResource(R.string.gui_confirm_clean_install_title)
+                    else stringResource(R.string.gui_confirm_download_title),
+            message = if (clean) stringResource(R.string.gui_confirm_clean_install_msg)
+                      else stringResource(R.string.gui_confirm_download_msg),
+            confirmLabel = if (clean) stringResource(R.string.gui_confirm_clean_install_action)
+                           else stringResource(R.string.gui_confirm_download_action),
             onConfirm = { pendingGuiStart = null; gui.start(w, h, clean) },
             onCancel = { pendingGuiStart = null; SessionManager.close(gui.id) }
         )
@@ -1049,7 +1050,8 @@ private fun KeyboardToggleBar(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = if (collapsed) "▴ キーボード" else "▾",
+            text = if (collapsed) stringResource(R.string.keyboard_show_button)
+                   else stringResource(R.string.keyboard_hide_button),
             color = if (collapsed) ZtsGreen else ZtsBorder,
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace
@@ -1147,7 +1149,7 @@ private fun ScrollIndicators(
                     .padding(horizontal = 18.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = "コピー",
+                    text = stringResource(R.string.terminal_action_copy),
                     color = Color.Black,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
