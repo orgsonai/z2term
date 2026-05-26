@@ -275,7 +275,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onSelect = { SessionManager.setActive(it) },
             onClose = { SessionManager.close(it) },
             onNew = { SessionManager.openNew(context) },
-            onNewGui = { SessionManager.openNewGui(context) }
+            onNewGui = { SessionManager.openLinkedGui(context) }
         )
 
         Box(modifier = Modifier
@@ -540,7 +540,7 @@ private fun GuiTabScreen(
             onSelect = { SessionManager.setActive(it) },
             onClose = { SessionManager.close(it) },
             onNew = { SessionManager.openNew(context) },
-            onNewGui = { SessionManager.openNewGui(context) }
+            onNewGui = { SessionManager.openLinkedGui(context) }
         )
 
         // GUI 領域を枠線で囲って範囲を明示し、内側の実寸 (onSizeChanged) で解像度を決める。

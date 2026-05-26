@@ -74,9 +74,36 @@ object SessionManager {
     }
 
     /**
-     * 新しい GUI セッション (Xvnc + RFB) を開き、アクティブにする。
-     * 空きディスプレイ番号を払い出して渡すので、2 枚目以降は `:2`/5902, `:3`/5903 … と
-     * **別ポート・別画面**で起動する (従来は :1/5901 固定で全タブ同一画面だった)。
+     * 「アクティブな端末と紐づく GUI タブ」を開く (P3 = CUI⇄GUI 連動の表ボタン経路)。
+     *
+     * アクティブが [TerminalSession] のときは、その端末と**同じ display 番号** で GUI を開く
+     * (端末:N ↔ GUI:N ペア成立)。同じ番号の GUI タブが既にあれば前面化のみ (二重起動防止)。
+     * アクティブが GUI/未存在のときは、端末との紐付けが取れないので空きディスプレイを払い出して
+     * **独立 GUI** として開く (従来 [openNewGui] と等価)。
+     *
+     * これにより 🖥 ボタンの自然な意味が「今いる端末用の GUI を開く」になり、`z2run` を知らない
+     * ユーザーでも端末と GUI が連番でペアになる (例: alpine タブが :1 なら 🖥 で `GUI` :1)。
+     */
+    fun openLinkedGui(context: Context): GuiSession = synchronized(lock) {
+        val activeSession = active()
+        val display = if (activeSession is TerminalSession) activeSession.display else allocateDisplay()
+        // 同じ display の GUI が既に居れば前面化のみ (端末 ↔ GUI 1:1 を保つ)。
+        val existing = mutableSessions.firstOrNull { it is GuiSession && it.display == display } as? GuiSession
+        if (existing != null) {
+            _activeId.value = existing.id
+            return@synchronized existing
+        }
+        reserveDisplay(display)
+        val s = GuiSession(context.applicationContext, display = display)
+        mutableSessions.add(s)
+        _sessions.value = mutableSessions.toList()
+        _activeId.value = s.id
+        s
+    }
+
+    /**
+     * 端末と独立した新規 GUI セッションを開く (空きディスプレイ番号を払い出す)。
+     * 2 枚目以降は `:2`/5902, `:3`/5903 … と別ポート・別画面で起動する。
      */
     fun openNewGui(context: Context): GuiSession = synchronized(lock) {
         val display = allocateDisplay()

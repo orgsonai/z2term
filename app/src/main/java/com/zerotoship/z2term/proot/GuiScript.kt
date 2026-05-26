@@ -154,6 +154,15 @@ fun z2guiScript(
         |  else
         |    PM=""
         |  fi
+        |  # Konsole は DBus セッション必須。dbus-launch / dbus-daemon を入れる
+        |  # (Debian は dbus-launch が dbus-x11 に分離されているので両方追加)。
+        |  if [ "${d}GUI_TERM_BIN" = "konsole" ]; then
+        |    case "${d}PM" in
+        |      apk)    SRV_PKGS="${d}SRV_PKGS dbus dbus-x11" ;;
+        |      apt)    SRV_PKGS="${d}SRV_PKGS dbus dbus-x11" ;;
+        |      pacman) SRV_PKGS="${d}SRV_PKGS dbus" ;;
+        |    esac
+        |  fi
         |}
         |
         |# パッケージマネージャの stale ロックを除去する。前回の導入が途中で失敗 (ネット切れ等) すると
@@ -205,8 +214,22 @@ fun z2guiScript(
         |}
         |
         |ensure_pkgs() {
-        |  if xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN"; then return 0; fi
-        |  install_pkgs
+        |  # 基本セット (Xvnc + openbox + 選択端末) が全部入っているかを確認。
+        |  if ! ( xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN" ); then
+        |    install_pkgs; return ${d}?
+        |  fi
+        |  # Konsole 選択時は dbus も必須。既存ユーザーが「konsole は入っているが dbus が無い」
+        |  # 状態に陥っているとここでだけ追加導入する (フル再インストールは避ける)。
+        |  if [ "${d}GUI_TERM_BIN" = "konsole" ] && ! has dbus-daemon && ! has dbus-launch; then
+        |    detect_pm
+        |    clear_pm_locks
+        |    case "${d}PM" in
+        |      apk)    apk add --no-cache dbus dbus-x11 ;;
+        |      apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y dbus dbus-x11 ;;
+        |      pacman) pacman -Sy --noconfirm dbus ;;
+        |    esac
+        |  fi
+        |  return 0
         |}
         |
         |# GUI 一式 (Xvnc + openbox + 選択端末) が導入済みかを判定し、app が事前にダウンロード確認を
@@ -347,7 +370,29 @@ fun z2guiScript(
         |    xterm) TERM_ARGS="-fa monospace -fs 11 -geometry ${d}{COLS}x${d}{ROWS}+0+0" ;;
         |    urxvt) TERM_ARGS="-geometry ${d}{COLS}x${d}{ROWS}+0+0" ;;
         |    lxterminal) TERM_ARGS="--geometry=${d}{COLS}x${d}{ROWS}" ;;
+        |    # Konsole は DBus セッション必須 (--separate なしで他インスタンスへの IPC を試みる)。
+        |    # proot 内には KDE デーモン群が居ないため、`--separate` で IPC を回避し、
+        |    # `--noclose` で起動失敗時もウィンドウを残す。`-e ${d}SHELL` で内部シェルも指定。
+        |    konsole) TERM_ARGS="--separate --hide-tabbar --hide-menubar -e ${d}{SHELL:-/bin/sh}" ;;
         |  esac
+        |  # Konsole は DBus session bus が無いと「Cannot connect to dbus」で起動失敗するため、
+        |  # ここで使い捨ての dbus-launch を仕込む (KDE が無い proot rootfs でも動くように)。
+        |  # dbus-launch / dbus-daemon どちらかが入っていれば DBUS_SESSION_BUS_ADDRESS を export する。
+        |  if [ "${d}GUI_TERM_BIN" = "konsole" ]; then
+        |    if [ -z "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ] && has dbus-launch; then
+        |      eval "${d}(dbus-launch --sh-syntax --exit-with-session 2>/dev/null)"
+        |      export DBUS_SESSION_BUS_ADDRESS DBUS_SESSION_BUS_PID
+        |    elif [ -z "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ] && has dbus-daemon; then
+        |      mkdir -p /tmp/z2gui-dbus
+        |      DBUS_SOCK="/tmp/z2gui-dbus/sess-${d}{DISPLAY_NUM}"
+        |      rm -f "${d}DBUS_SOCK" 2>/dev/null
+        |      setsid dbus-daemon --session --address="unix:path=${d}DBUS_SOCK" --nofork </dev/null \
+        |        >"/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.log" 2>&1 &
+        |      echo ${d}! >> "${d}PIDFILE" 2>/dev/null
+        |      sleep 0.5
+        |      export DBUS_SESSION_BUS_ADDRESS="unix:path=${d}DBUS_SOCK"
+        |    fi
+        |  fi
         |  # Z2_NO_TERM=1 のときは端末 (xterm 等) を起動しない (P3 = z2run 経由用)。
         |  # z2run は「ユーザーが指定した GUI アプリだけ」を出したいので、xterm が同時に出ると邪魔。
         |  # 🖥 ボタンの通常起動 (Z2_NO_TERM 未設定) では従来どおり端末も起動して操作起点にする。
