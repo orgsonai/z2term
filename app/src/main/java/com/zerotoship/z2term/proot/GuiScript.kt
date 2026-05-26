@@ -160,8 +160,8 @@ fun z2guiScript(
         |  if [ "${d}GUI_TERM_BIN" = "konsole" ]; then
         |    case "${d}PM" in
         |      apk)    SRV_PKGS="${d}SRV_PKGS dbus dbus-x11 qt6-qtbase-x11 qt6-qtdeclarative qt6-qt5compat" ;;
-        |      apt)    SRV_PKGS="${d}SRV_PKGS dbus dbus-x11" ;;
-        |      pacman) SRV_PKGS="${d}SRV_PKGS dbus" ;;
+        |      apt)    SRV_PKGS="${d}SRV_PKGS dbus dbus-x11 libqt6quickwidgets6" ;;
+        |      pacman) SRV_PKGS="${d}SRV_PKGS dbus qt6-declarative qt6-5compat" ;;
         |    esac
         |  fi
         |}
@@ -228,16 +228,18 @@ fun z2guiScript(
         |    NEED=""
         |    case "${d}PM" in
         |      apk)
-        |        # DBus は dbus + dbus-x11 (dbus-launch 用)。Qt6 は declarative (QuickWidgets) と
-        |        # 5compat (KF6 経由で必要)、X11 platform 用に qt6-qtbase-x11。フォントは既存。
+        |        # Alpine: konsole が qt6-qtdeclarative を hard-dep に引かない事例あり。
         |        [ ! -x /usr/bin/dbus-launch ] && NEED="${d}NEED dbus dbus-x11"
         |        NEED="${d}NEED qt6-qtbase-x11 qt6-qtdeclarative qt6-qt5compat" ;;
         |      apt)
         |        ! has dbus-launch && NEED="${d}NEED dbus dbus-x11"
-        |        # Debian/Ubuntu konsole は依存解決される事が多いが、保険で QuickWidgets を追加。
         |        NEED="${d}NEED libqt6quickwidgets6" ;;
         |      pacman)
-        |        ! has dbus-daemon && NEED="${d}NEED dbus" ;;
+        |        # Arch: pacman -Sy で konsole を入れても、proot 環境では依存解決が不完全になり
+        |        # qt6-declarative や qt6-5compat が落ちる事例あり (libQt6QuickWidgets.so.6 不在)。
+        |        # pacman は冪等 (既導入なら "reinstalling" となるだけ) なので毎回 NEED に積んで安全。
+        |        ! has dbus-daemon && NEED="${d}NEED dbus"
+        |        NEED="${d}NEED qt6-declarative qt6-5compat" ;;
         |    esac
         |    if [ -n "${d}NEED" ]; then
         |      clear_pm_locks
@@ -247,6 +249,12 @@ fun z2guiScript(
         |        apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}NEED ;;
         |        pacman) pacman -Sy --noconfirm ${d}NEED ;;
         |      esac
+        |      # 直後検証: libQt6QuickWidgets.so.6 が実在しなければユーザーに分かるよう警告。
+        |      if [ ! -f /usr/lib/libQt6QuickWidgets.so.6 ]; then
+        |        echo "⚠️ libQt6QuickWidgets.so.6 still missing after install — konsole will not launch."
+        |        echo "   調査用: 'find / -name libQt6QuickWidgets.so.6 2>/dev/null' でパス確認、"
+        |        echo "         または 'pacman -Q | grep qt6 / apk list -I | grep qt6' で導入状況確認。"
+        |      fi
         |    fi
         |  fi
         |  return 0
