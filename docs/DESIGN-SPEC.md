@@ -185,14 +185,14 @@
 
 ### 4.11 UI 詳細 (`ui/`)
 
-- `terminal/TerminalScreen.kt`: 全体レイアウト。TopBar / TabBar / 描画領域 / キーボードトグル / キーボード領域。`KeyboardMode = CUSTOM | SYSTEM`。
+- `terminal/TerminalScreen.kt`: 全体レイアウト。TopBar / TabBar / 描画領域 / キーボードトグル / キーボード領域。`KeyboardMode = CUSTOM | SYSTEM`。**横画面**は `LocalView.OnLayoutChangeListener` で向きを検知し、`landscapeKeyboardPosition`/`Width`/`Height` 設定に従って Row レイアウト (`SideKeyboardColumn`) に切替。`landscapeScaledStyle()` で keyHeight/font が横画面高さに比例拡縮。
 - `terminal/TerminalRenderer.kt`: ネイティブ Canvas に **セル単位 drawText** (advance≠cellW のサブピクセル誤差累積を回避)。背景→選択ハイライト→文字→カーソル→選択ハンドルの順。
 - `terminal/input/TerminalInputView.kt` (AndroidView): 物理キー/OS IME 入力、ジェスチャ (タップ/長押し選択/ドラッグスクロール/ピンチ拡縮/マウスクリック送出)。選択は[§6.5](#65-テキスト選択-ux)。
 - `terminal/keyboard/`:
-  - `TerminalKeyboard.kt`: 5 行独自キーボード。3 状態 Shift、フリック、全キー長押し連打。
-  - `JapaneseFlickKeyboard.kt`: 内蔵 日本語/カタカナ フリック。
-  - `KeyboardStyle.kt`: COMPACT(44dp) / SPACIOUS(60dp、4 方向フリック)。`naturalHeight`。
-  - `KeyGestures.kt`: タップ + 長押し連打の共通ジェスチャ。
+  - `TerminalKeyboard.kt`: 5 行独自キーボード。3 状態 Shift、フリック、全キー長押し連打。**押下時にキー背景を明るい緑に**、**フリック中はしきい値超えた方向のヒントを太字 + 1.6 倍拡大** (中央文字は不変)。
+  - `JapaneseFlickKeyboard.kt`: 内蔵 日本語/カタカナ フリック。同じプレス/フリック視覚フィードバック。
+  - `KeyboardStyle.kt`: COMPACT(44dp) / SPACIOUS(60dp、4 方向フリック)。`naturalHeight`。`.copy()` で横画面用に拡縮済 style を作る。
+  - `KeyGestures.kt`: タップ + 長押し連打の共通ジェスチャ (`onPressedChange` コールバックで press 状態を Composable に伝える)。
   - `components/SpecialKeyBar.kt`: OS IME 時の特殊キー列。
 - `settings/SettingsSheet.kt` + `SshAccessHelper.kt`: 設定モーダル + SSH/ストレージ ヘルパー。
 - `ssh/SshProfilesSheet.kt` + `HostKeyVerificationDialog.kt`: SSH プロファイル UI + 鍵検証。
@@ -301,7 +301,13 @@ TerminalScreen: active が IDLE なら startTerminal()
 | ログインシェル | loginShell | "/bin/zsh" | /bin/zsh, /bin/bash, /bin/sh |
 | キーボードスタイル | keyboardStyleId | "compact" | compact / spacious |
 | キーボードモード | keyboardMode | "custom" | custom / system |
+| 横画面キーボード位置 | landscapeKeyboardPosition | "bottom" | left / bottom / right |
+| 横画面サイドKB幅 | landscapeKeyboardWidthDp | 420 | 280–700 dp |
+| 横画面キーボード高さ | landscapeKeyboardHeightDp | 320 | 200–500 dp |
+| インストールタイムアウト無効化 | noInstallTimeout | false | true/false |
+| ダウンロード前確認 | confirmBeforeDownload | true | true/false |
 | 常駐サービス | keepAliveService | true | true/false |
+| 言語 | (専用 SharedPrefs `z2term_locale`) | OS 既定 | ja / en |
 
 SSH プロファイルは別 DataStore (`z2term_ssh`) に JSON で保存。
 

@@ -9,21 +9,34 @@
 
 ## 現在のバージョン
 
-**0.6.0-alpha (M6: SSH 強化 + FOSS フレーバー + リンク対応)**
+**0.7.0-alpha (M10: 横画面キーボード / Konsole 動作 / プレス可視化 / オフライン起動)**
 
-Milestone 6 で SSH のセキュリティ強化、OSC 7/8、起動コマンド、FOSS フレーバーを実装。
+Milestone 7〜10 で SFTP、GUI (Xvnc+VNC)、複数 GUI タブ、IME 学習、英語 UI、横画面キーボードなどを実装。
 
-### M6 で追加された機能
+### M10 で追加された機能
 
-- **SSH 公開鍵認証** + Android Keystore (AES-256/GCM) で機密フィールドを暗号化
-- **known_hosts 永続化**: 初回接続時のフィンガープリント確認ダイアログ、MITM 検知
-- **OSC 7 (cwd)**: シェルの current directory を `session.cwd` に反映
-- **OSC 8 (hyperlinks)**: リンク領域に下線、タップで `Intent.ACTION_VIEW` 起動
-- **起動時 init コマンド**: グローバル + SSH プロファイル別、RUNNING 400ms 後に自動送出
-- **FOSS ビルドフレーバー**: F-Droid 適合 (assets / prebuilt なし)、`DistroDownloader` で
-  公式 URL から tar.gz を取得 + SHA-256 検証
+- **Konsole on Arch 起動修正** (4 段階フォールバック → ローカル cache のみで再構成)
+- **横画面のキーボード位置** を 左 / 下 / 右 から選択可、**幅・高さもスライダー**で可変
+- **押下時に背景強調 + フリック方向ヒント拡大** で「どこを押した / どこに飛ばす」が見える
+- **通常 🖥 起動の完全オフライン化**: クリーンインストール以外でネットを叩かない
+- **アプリ内 言語スイッチ** (日本語 / English) + 多数の UI 翻訳
+- **インストールタイムアウト無効化** トグル
+- **IME 学習履歴** で予測変換が頻度・直近 7 日でランキング
 
-### M5 以前の機能
+### M7〜M9 の主な追加
+
+- **SFTP ファイル転送** (M7)
+- **GUI (Xvnc + 内蔵 RFB クライアント) + Linux デスクトップ起動** (M8)
+- **GUI を複数タブで並走** + IME 連動 + 端末タブと GUI タブをペアリング (M8-4〜6)
+- **アプリ内テーマエディタ** + **OSC 4/10/11/12** 反映 (M9)
+- **送り仮名活用** + **柔軟漢字変換** (M9)
+
+### M6 以前の機能
+
+- **SSH 公開鍵認証** + Android Keystore (AES-256/GCM) で機密フィールドを暗号化 (M6)
+- **known_hosts 永続化**: 初回接続時のフィンガープリント確認ダイアログ、MITM 検知 (M6)
+- **OSC 7 (cwd)** / **OSC 8 (hyperlinks)** (M6)
+- **FOSS ビルドフレーバー**: F-Droid 適合、`DistroDownloader` で SHA-256 検証 (M6)
 
 - SSH 基礎 / ピンチ / OSC 4/10/11/12/52 / EAW Ambiguous / 配布パイプライン (M5)
 - East Asian Width / マルチタブ / IME 連動 / カスタムフォント / WakeLock (M4)
@@ -32,13 +45,13 @@ Milestone 6 で SSH のセキュリティ強化、OSC 7/8、起動コマンド�
 - VT100/xterm エミュレータ / 6 テーマ / スクロールバック / UTF-8 (M2)
 - PRoot + Alpine の PoC (M1)
 
-### M6 でまだ対応していないこと (M7 以降で対応予定)
+### 未対応 / 今後の検討
 
 - ローカルポートフォワーディング (-L) / リバース転送 (-R)
-- SFTP ファイル転送
 - mosh プロトコル対応 (UDP ベース)
-- 端末セッション分離 (each tab = independent emulator + buffer state)
 - リバース DNS / IPv6 接続のリトライ強化
+- F-Droid 公開 (FOSS フレーバー整備済、メタデータ準備中)
+- IME 学習履歴のリセット UI / バックアップ
 
 ## ビルド要件
 
