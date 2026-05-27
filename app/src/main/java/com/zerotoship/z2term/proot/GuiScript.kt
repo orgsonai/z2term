@@ -188,6 +188,7 @@ fun z2guiScript(
         |    pacman) pacman -Sy --noconfirm ${d}PKGS ;;
         |    *) echo "${strings.noPackageManager}"; return 1 ;;
         |  esac
+        |  ensure_konsole_qt6
         |}
         |
         |# クリーンインストール: パッケージマネージャのキャッシュを消してから取り直し、
@@ -212,66 +213,119 @@ fun z2guiScript(
         |      pacman -Syy --noconfirm && pacman -S --noconfirm ${d}PKGS ;;
         |    *) echo "${strings.noPackageManager}"; return 1 ;;
         |  esac
+        |  ensure_konsole_qt6
+        |}
+        |
+        |# Konsole 用 Qt6 ランタイムを「ある事」まで確実にする (binary は別経路で導入済前提)。
+        |# install_pkgs / clean_pkgs / ensure_pkgs のどれを通ったあとでも、最後にこれを呼べば
+        |# libQt6QuickWidgets.so.6 が /usr/lib に居る (もしくは PySide6 系から LD_LIBRARY_PATH で
+        |# 持って行く) ように 4 段階フォールバックで頑張る。
+        |ensure_konsole_qt6() {
+        |  [ "${d}GUI_TERM_BIN" = "konsole" ] || return 0
+        |  detect_pm
+        |  NEED=""
+        |  case "${d}PM" in
+        |    apk)
+        |      # Alpine: konsole が qt6-qtdeclarative を hard-dep に引かない事例あり。
+        |      [ ! -x /usr/bin/dbus-launch ] && NEED="${d}NEED dbus dbus-x11"
+        |      NEED="${d}NEED qt6-qtbase-x11 qt6-qtdeclarative qt6-qt5compat" ;;
+        |    apt)
+        |      ! has dbus-launch && NEED="${d}NEED dbus dbus-x11"
+        |      NEED="${d}NEED libqt6quickwidgets6" ;;
+        |    pacman)
+        |      # Arch: pacman -Sy で konsole を入れても、proot 環境では依存解決が不完全になり
+        |      # qt6-declarative や qt6-5compat が落ちる事例あり (libQt6QuickWidgets.so.6 不在)。
+        |      # pacman は冪等 (既導入なら "reinstalling" となるだけ) なので毎回 NEED に積んで安全。
+        |      ! has dbus-daemon && NEED="${d}NEED dbus"
+        |      NEED="${d}NEED qt6-declarative qt6-5compat" ;;
+        |  esac
+        |  [ -z "${d}NEED" ] && return 0
+        |  clear_pm_locks
+        |  echo "📦 Konsole の追加依存を導入: ${d}NEED"
+        |  case "${d}PM" in
+        |    apk)    apk add --no-cache ${d}NEED ;;
+        |    apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}NEED ;;
+        |    pacman) pacman -Sy --noconfirm ${d}NEED ;;
+        |  esac
+        |  # 段階1: PM 標準の reinstall / --overwrite
+        |  if [ ! -f /usr/lib/libQt6QuickWidgets.so.6 ]; then
+        |    echo "🔁 libQt6QuickWidgets.so.6 が不在 — 強制再展開を試行 (段階1: PM reinstall)"
+        |    clear_pm_locks
+        |    case "${d}PM" in
+        |      apk)    apk fix --reinstall ${d}NEED 2>/dev/null || apk add --no-cache --force-overwrite ${d}NEED ;;
+        |      apt)    apt-get install --reinstall -y ${d}NEED ;;
+        |      pacman) pacman -S --overwrite '*' --noconfirm ${d}NEED ;;
+        |    esac
+        |  fi
+        |  # 段階2: パッケージファイルを bsdtar で直接展開 (pacman の chown/chmod 経路を回避)。
+        |  # proot 内では pacman の post-install スクリプトや権限変更でファイルが静かに落ちる事が
+        |  # 多数報告されている。bsdtar は素朴にアーカイブを展開するだけ＝chown 失敗で打ち切られず、
+        |  # /usr/lib にファイルが確実に出る (pacman の DB と乖離するが Konsole 動作には十分)。
+        |  if [ ! -f /usr/lib/libQt6QuickWidgets.so.6 ]; then
+        |    echo "🔁 libQt6QuickWidgets.so.6 が不在 — 強制再展開を試行 (段階2: bsdtar 直接展開)"
+        |    clear_pm_locks
+        |    case "${d}PM" in
+        |      pacman)
+        |        # キャッシュにパッケージファイルがあればそれを使う。無ければ -Sw で取り直す。
+        |        for p in qt6-declarative qt6-5compat qt6-base; do
+        |          if ! ls /var/cache/pacman/pkg/${d}p-*.pkg.tar.zst >/dev/null 2>&1; then
+        |            pacman -Sw --noconfirm "${d}p" 2>/dev/null || true
+        |          fi
+        |        done
+        |        for pkg in /var/cache/pacman/pkg/qt6-declarative-*.pkg.tar.zst \
+        |                   /var/cache/pacman/pkg/qt6-5compat-*.pkg.tar.zst \
+        |                   /var/cache/pacman/pkg/qt6-base-*.pkg.tar.zst; do
+        |          [ -f "${d}pkg" ] || continue
+        |          echo "📦 bsdtar 展開: ${d}pkg"
+        |          if has bsdtar; then
+        |            bsdtar -xf "${d}pkg" -C / --no-same-owner --no-same-permissions 2>/dev/null
+        |          else
+        |            tar --use-compress-program=unzstd -xf "${d}pkg" -C / --no-same-owner --no-same-permissions 2>/dev/null \
+        |              || ( unzstd -c "${d}pkg" 2>/dev/null | tar -xf - -C / --no-same-owner --no-same-permissions 2>/dev/null )
+        |          fi
+        |        done ;;
+        |      apk)
+        |        for pkg in /etc/apk/cache/qt6-qtdeclarative-*.apk \
+        |                   /etc/apk/cache/qt6-qt5compat-*.apk \
+        |                   /etc/apk/cache/qt6-qtbase-x11-*.apk; do
+        |          [ -f "${d}pkg" ] || continue
+        |          echo "📦 tar -xzf 展開: ${d}pkg"
+        |          tar -xzf "${d}pkg" -C / --no-same-owner 2>/dev/null
+        |        done ;;
+        |      apt)
+        |        for pkg in /var/cache/apt/archives/libqt6quickwidgets6_*.deb; do
+        |          [ -f "${d}pkg" ] || continue
+        |          echo "📦 dpkg -x 展開: ${d}pkg"
+        |          dpkg -x "${d}pkg" / 2>/dev/null
+        |        done ;;
+        |    esac
+        |  fi
+        |  if [ ! -f /usr/lib/libQt6QuickWidgets.so.6 ]; then
+        |    echo "⚠️ libQt6QuickWidgets.so.6 still missing after install — launch-time LD_LIBRARY_PATH fallback will be attempted."
+        |    echo "   調査用: 'find / -name libQt6QuickWidgets.so.6 2>/dev/null' でパス確認、"
+        |    echo "         または 'pacman -Q | grep qt6 / apk list -I | grep qt6' で導入状況確認。"
+        |  else
+        |    echo "✅ libQt6QuickWidgets.so.6 を /usr/lib に展開済"
+        |  fi
+        |  return 0
         |}
         |
         |ensure_pkgs() {
         |  # 基本セット (Xvnc + openbox + 選択端末) が全部入っているかを確認。
         |  if ! ( xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN" ); then
-        |    install_pkgs; return ${d}?
+        |    install_pkgs
+        |    rc=${d}?
+        |    [ ${d}rc -eq 0 ] && ensure_konsole_qt6
+        |    return ${d}rc
         |  fi
         |  # Konsole 選択時は dbus + Qt6 ランタイムが必須。Alpine の konsole は
         |  # qt6-qtdeclarative などを hard-dep に引かないため、binary が居ても起動できない事例が
         |  # ある (例: libQt6QuickWidgets.so.6 不在)。apk は冪等なので「不足候補を毎回 add」で安全。
         |  # ldd 探索より単純で確実 (Alpine では ldd 自体が musl-utils 別パッケージで不在の事も)。
-        |  if [ "${d}GUI_TERM_BIN" = "konsole" ]; then
-        |    detect_pm
-        |    NEED=""
-        |    case "${d}PM" in
-        |      apk)
-        |        # Alpine: konsole が qt6-qtdeclarative を hard-dep に引かない事例あり。
-        |        [ ! -x /usr/bin/dbus-launch ] && NEED="${d}NEED dbus dbus-x11"
-        |        NEED="${d}NEED qt6-qtbase-x11 qt6-qtdeclarative qt6-qt5compat" ;;
-        |      apt)
-        |        ! has dbus-launch && NEED="${d}NEED dbus dbus-x11"
-        |        NEED="${d}NEED libqt6quickwidgets6" ;;
-        |      pacman)
-        |        # Arch: pacman -Sy で konsole を入れても、proot 環境では依存解決が不完全になり
-        |        # qt6-declarative や qt6-5compat が落ちる事例あり (libQt6QuickWidgets.so.6 不在)。
-        |        # pacman は冪等 (既導入なら "reinstalling" となるだけ) なので毎回 NEED に積んで安全。
-        |        ! has dbus-daemon && NEED="${d}NEED dbus"
-        |        NEED="${d}NEED qt6-declarative qt6-5compat" ;;
-        |    esac
-        |    if [ -n "${d}NEED" ]; then
-        |      clear_pm_locks
-        |      echo "📦 Konsole の追加依存を導入: ${d}NEED"
-        |      case "${d}PM" in
-        |        apk)    apk add --no-cache ${d}NEED ;;
-        |        apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}NEED ;;
-        |        pacman) pacman -Sy --noconfirm ${d}NEED ;;
-        |      esac
-        |      # 直後検証: libQt6QuickWidgets.so.6 が実在しなければ強制再展開を試みる。
-        |      # proot 環境では chown/chmod 失敗でファイル展開が静かに抜ける事があるため
-        |      # (pacman は "installed" と記録しているが /usr/lib に物が無い)。
-        |      if [ ! -f /usr/lib/libQt6QuickWidgets.so.6 ]; then
-        |        echo "🔁 libQt6QuickWidgets.so.6 が不在 — 強制再展開を試行"
-        |        clear_pm_locks
-        |        case "${d}PM" in
-        |          # apk fix --reinstall: 既導入パッケージのファイルを取り直す
-        |          apk)    apk fix --reinstall ${d}NEED 2>/dev/null || apk add --no-cache --force-overwrite ${d}NEED ;;
-        |          apt)    apt-get install --reinstall -y ${d}NEED ;;
-        |          # pacman --overwrite '*': 既存ファイルとの衝突を無視して上書き展開 (proot 取りこぼし救済)
-        |          pacman) pacman -S --overwrite '*' --noconfirm ${d}NEED ;;
-        |        esac
-        |      fi
-        |      if [ ! -f /usr/lib/libQt6QuickWidgets.so.6 ]; then
-        |        echo "⚠️ libQt6QuickWidgets.so.6 still missing after install — konsole will not launch."
-        |        echo "   調査用: 'find / -name libQt6QuickWidgets.so.6 2>/dev/null' でパス確認、"
-        |        echo "         または 'pacman -Q | grep qt6 / apk list -I | grep qt6' で導入状況確認。"
-        |      fi
-        |    fi
-        |  fi
+        |  ensure_konsole_qt6
         |  return 0
         |}
+        |
         |
         |# GUI 一式 (Xvnc + openbox + 選択端末) が導入済みかを判定し、app が事前にダウンロード確認を
         |# 出せるよう "GUI_INSTALLED" / "GUI_MISSING" を 1 行で出す (M8-6 T7)。
@@ -450,11 +504,42 @@ fun z2guiScript(
         |    fi
         |    # Qt の X11 backend を明示 (Wayland 無し環境で迷わせない)。
         |    export QT_QPA_PLATFORM=xcb
+        |    # 最終救済: ensure_pkgs で /usr/lib に展開できなかった場合に備え、
+        |    # PySide6 / 他経路で持ち込まれた libQt6QuickWidgets.so.6 を LD_LIBRARY_PATH に積む。
+        |    # ABI 不一致のリスクはあるが、何も入っていない状態より起動成功率が上がるので試す価値あり。
+        |    # 候補パス: PySide6 venv, Anaconda 等の Qt6 同梱 (FOSS app 外で利用者が入れている可能性)
+        |    if [ ! -f /usr/lib/libQt6QuickWidgets.so.6 ]; then
+        |      QT_FALLBACK=""
+        |      for cand in /root/venv/lib/python*/site-packages/PySide6/Qt/lib \
+        |                  /root/.venv/lib/python*/site-packages/PySide6/Qt/lib \
+        |                  /usr/lib/python*/site-packages/PySide6/Qt/lib \
+        |                  /opt/*/lib/python*/site-packages/PySide6/Qt/lib \
+        |                  /home/*/.venv*/lib/python*/site-packages/PySide6/Qt/lib; do
+        |        [ -d "${d}cand" ] || continue
+        |        if [ -f "${d}cand/libQt6QuickWidgets.so.6" ]; then
+        |          QT_FALLBACK="${d}cand"; break
+        |        fi
+        |      done
+        |      if [ -n "${d}QT_FALLBACK" ]; then
+        |        echo "📚 PySide6 同梱 Qt6 を LD_LIBRARY_PATH に追加 (Konsole 救済): ${d}QT_FALLBACK"
+        |        export LD_LIBRARY_PATH="${d}QT_FALLBACK:${d}{LD_LIBRARY_PATH:-}"
+        |      else
+        |        # find は遅いが最後の手段。範囲を /usr と /opt と /root に限定。
+        |        FOUND=${d}(find /usr /opt /root -maxdepth 8 -name 'libQt6QuickWidgets.so.6' -print 2>/dev/null | head -1)
+        |        if [ -n "${d}FOUND" ]; then
+        |          QT_FALLBACK_DIR=${d}(dirname "${d}FOUND")
+        |          echo "📚 任意の libQt6QuickWidgets.so.6 を発見 → LD_LIBRARY_PATH に追加: ${d}QT_FALLBACK_DIR"
+        |          export LD_LIBRARY_PATH="${d}QT_FALLBACK_DIR:${d}{LD_LIBRARY_PATH:-}"
+        |        fi
+        |      fi
+        |    fi
         |    # 起動診断: 最終 env と konsole バージョンを log 先頭に残す → ユーザーが見やすい。
         |    {
         |      echo "=== konsole launch diagnostic ==="
         |      echo "DISPLAY=${d}DISPLAY  DBUS_SESSION_BUS_ADDRESS=${d}{DBUS_SESSION_BUS_ADDRESS:-(unset)}"
         |      echo "XDG_RUNTIME_DIR=${d}XDG_RUNTIME_DIR"
+        |      echo "LD_LIBRARY_PATH=${d}{LD_LIBRARY_PATH:-(unset)}"
+        |      echo "libQt6QuickWidgets.so.6 in /usr/lib: ${d}([ -f /usr/lib/libQt6QuickWidgets.so.6 ] && echo yes || echo no)"
         |      konsole --version 2>&1 | head -1
         |      echo "TERM_ARGS=${d}TERM_ARGS"
         |      echo "=================================="
