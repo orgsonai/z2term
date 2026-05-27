@@ -222,6 +222,14 @@ fun z2guiScript(
         |# LD_LIBRARY_PATH で持って行く) ように複数段階のフォールバックで頑張る。
         |ensure_konsole_qt6() {
         |  [ "${d}GUI_TERM_BIN" = "konsole" ] || return 0
+        |  # Fast path: 全部すでに揃っているなら何もしないで即 return。
+        |  # 通常起動 (毎回の `🖥`) で不要な `pacman -Sy ...` / `apk add ...` を回さないためのガード。
+        |  # 必要な物: konsole バイナリ・libQt6QuickWidgets.so.6・dbus-launch (Alpine では dbus-daemon でも可)
+        |  if has konsole \
+        |     && [ -e /usr/lib/libQt6QuickWidgets.so.6 ] \
+        |     && ( has dbus-launch || has dbus-daemon ); then
+        |    return 0
+        |  fi
         |  detect_pm
         |  # 段階0: Konsole バイナリ自体が無ければ最優先で入れる
         |  # (pacman のトランザクションが qt6-declarative の "could not create database entry" で
