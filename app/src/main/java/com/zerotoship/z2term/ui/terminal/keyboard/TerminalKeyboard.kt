@@ -320,6 +320,7 @@ private fun RowScope.BasicKey(
     style: KeyboardStyle,
     onClick: () -> Unit
 ) {
+    // タップ中は背景を明るい緑に変えて「ここを押した」が見えるようにする (`active` は別系統)。
     var pressed by remember { mutableStateOf(false) }
     val bg = when {
         pressed -> ZtsGreenBright
@@ -441,7 +442,7 @@ private fun RowScope.FlickKey(
     val scope = rememberCoroutineScope()
     val currentOnTap by rememberUpdatedState(onTap)
     val currentOnFlick by rememberUpdatedState(onFlick)
-    // 現在押されているか / 押し中に向かっているフリック方向の文字。null = まだしきい値未到達 (= タップ予定)
+    // 押し中か / 押し中に向かっているフリック方向の文字。null = しきい値未到達 (= タップ予定)
     var pressed by remember { mutableStateOf(false) }
     var flickPreview by remember { mutableStateOf<Char?>(null) }
     val bg = if (pressed) ZtsGreenBright else ZtsBgCard
@@ -508,8 +509,7 @@ private fun RowScope.FlickKey(
                 }
             }
     ) {
-        // 中央は常に主文字のまま表示し、フリック方向の強調はヒント側だけで行う
-        // (中央の文字を飛ばし先に差し替えるとヒントと同じ文字が二重に出て見づらいので撤回)。
+        // 中央は常に主文字、背景色も不変。フリック方向の強調はヒント側 (四隅) だけで行う。
         Column(
             modifier = Modifier
                 .fillMaxSize()
