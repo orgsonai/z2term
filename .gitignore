@@ -35,8 +35,9 @@ Thumbs.db
 # logcat 抜粋・実機デバッグ用ログ
 *.log
 
-# Claude Code local settings
+# Claude Code local settings / runtime state
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # rootfs アーカイブ（scripts/build-alpine-rootfs.sh で生成、リポジトリには含めない）
 app/src/main/assets/alpine-minirootfs-*.tar.gz

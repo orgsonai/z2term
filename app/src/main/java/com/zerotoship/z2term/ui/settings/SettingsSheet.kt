@@ -375,6 +375,14 @@ fun SettingsSheet(
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
+                SliderField(
+                    title = stringResource(R.string.settings_landscape_kb_width),
+                    value = settings.landscapeKeyboardWidthDp,
+                    range = AppSettings.MIN_LANDSCAPE_KB_WIDTH_DP..AppSettings.MAX_LANDSCAPE_KB_WIDTH_DP,
+                    steps = 13,  // 280 → 700 を 30dp 刻み (15 段)
+                    valueLabel = { "%.0fdp".format(it) },
+                    onChange = { session.setLandscapeKeyboardWidthDp(it) }
+                )
             }
 
             Section(title = stringResource(R.string.settings_section_gui_terminal)) {

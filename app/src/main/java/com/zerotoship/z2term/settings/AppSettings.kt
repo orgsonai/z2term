@@ -60,7 +60,12 @@ class AppSettings(private val context: Context) {
          * 横画面時のキーボード配置 ("left" / "bottom" / "right")。
          * 縦画面のときはこの値に関わらず常に下に出る。
          */
-        val landscapeKeyboardPosition: String = DEFAULT_LANDSCAPE_KEYBOARD_POSITION
+        val landscapeKeyboardPosition: String = DEFAULT_LANDSCAPE_KEYBOARD_POSITION,
+        /**
+         * 横画面で左/右配置にしたときのキーボード列の幅 (dp)。大きいほどキーが押しやすく、
+         * その分端末/GUI 領域が狭くなる。下/縦画面では使われない。
+         */
+        val landscapeKeyboardWidthDp: Float = DEFAULT_LANDSCAPE_KEYBOARD_WIDTH_DP
     )
 
     suspend fun setGuiMagnification(value: Float) {
@@ -91,7 +96,8 @@ class AppSettings(private val context: Context) {
             guiMagnification = p[KEY_GUI_MAGNIFICATION] ?: DEFAULT_GUI_MAGNIFICATION,
             cleanInstallGuiArmed = p[KEY_CLEAN_INSTALL_GUI] ?: false,
             noInstallTimeout = p[KEY_NO_INSTALL_TIMEOUT] ?: DEFAULT_NO_INSTALL_TIMEOUT,
-            landscapeKeyboardPosition = p[KEY_LANDSCAPE_KB_POS] ?: DEFAULT_LANDSCAPE_KEYBOARD_POSITION
+            landscapeKeyboardPosition = p[KEY_LANDSCAPE_KB_POS] ?: DEFAULT_LANDSCAPE_KEYBOARD_POSITION,
+            landscapeKeyboardWidthDp = p[KEY_LANDSCAPE_KB_WIDTH] ?: DEFAULT_LANDSCAPE_KEYBOARD_WIDTH_DP
         )
     }
 
@@ -101,6 +107,12 @@ class AppSettings(private val context: Context) {
             else -> DEFAULT_LANDSCAPE_KEYBOARD_POSITION
         }
         context.dataStore.edit { it[KEY_LANDSCAPE_KB_POS] = normalized }
+    }
+
+    suspend fun setLandscapeKeyboardWidthDp(value: Float) {
+        context.dataStore.edit {
+            it[KEY_LANDSCAPE_KB_WIDTH] = value.coerceIn(MIN_LANDSCAPE_KB_WIDTH_DP, MAX_LANDSCAPE_KB_WIDTH_DP)
+        }
     }
 
     suspend fun setNoInstallTimeout(enabled: Boolean) {
@@ -214,6 +226,7 @@ class AppSettings(private val context: Context) {
         private val KEY_CLEAN_INSTALL_GUI = booleanPreferencesKey("clean_install_gui_armed")
         private val KEY_NO_INSTALL_TIMEOUT = booleanPreferencesKey("no_install_timeout")
         private val KEY_LANDSCAPE_KB_POS = stringPreferencesKey("landscape_kb_position")
+        private val KEY_LANDSCAPE_KB_WIDTH = floatPreferencesKey("landscape_kb_width_dp")
 
         /** 横画面時のキーボード配置の選択肢 */
         const val LANDSCAPE_KB_LEFT = "left"
@@ -221,5 +234,12 @@ class AppSettings(private val context: Context) {
         const val LANDSCAPE_KB_RIGHT = "right"
         /** 既定: 横画面でも下 (従来挙動と同じ) */
         const val DEFAULT_LANDSCAPE_KEYBOARD_POSITION = LANDSCAPE_KB_BOTTOM
+
+        /** 横画面サイド配置のキーボード列の幅 (dp)。10 キー幅で 1 キー = 幅/10 dp。 */
+        const val DEFAULT_LANDSCAPE_KEYBOARD_WIDTH_DP = 420f
+        /** 最小幅: 1 キー = 28dp (タップしづらいが許容) */
+        const val MIN_LANDSCAPE_KB_WIDTH_DP = 280f
+        /** 最大幅: 端末/GUI を残したいので 700dp で打ち止め */
+        const val MAX_LANDSCAPE_KB_WIDTH_DP = 700f
     }
 }

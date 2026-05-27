@@ -316,6 +316,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     style = kbStyle,
                     composing = composing,
                     showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                    widthDp = settings.landscapeKeyboardWidthDp,
                     onBytes = { active.writeBytes(it) },
                     onCursorKey = { key -> active.writeBytes(active.emulator.cursorKeyBytes(key)) }
                 )
@@ -351,6 +352,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     style = kbStyle,
                     composing = composing,
                     showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                    widthDp = settings.landscapeKeyboardWidthDp,
                     onBytes = { active.writeBytes(it) },
                     onCursorKey = { key -> active.writeBytes(active.emulator.cursorKeyBytes(key)) }
                 )
@@ -627,6 +629,7 @@ private fun GuiTabScreen(
                     style = kbStyleGui,
                     composing = composing,
                     showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                    widthDp = settings.landscapeKeyboardWidthDp,
                     onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
                     onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) }
                 )
@@ -697,6 +700,7 @@ private fun GuiTabScreen(
                     style = kbStyleGui,
                     composing = composing,
                     showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                    widthDp = settings.landscapeKeyboardWidthDp,
                     onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
                     onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) }
                 )
@@ -1162,22 +1166,22 @@ private fun KeyboardToggleBar(
 /**
  * 横画面時に左右どちらかに出すサイドキーボード列。
  *
- * 幅は [KeyboardStyle.naturalHeight] (= 240/324dp) と一致させ、行内の左/右にぴたりとはまる。
- * 高さは Row 内で fillMaxHeight。キーボード本体は上端に揃え、下に余白が出る分は背景色で塗る。
- * ([TerminalKeyboard] 自体は 5 行×10 列の比率で描かれ、利用可能な幅でキーが等分される。
- *  240dp 幅では 1 キー ~24dp と細めだが、Spacious スタイルに切替えると ~32dp で快適)
+ * 幅は [widthDp] (設定 `landscapeKeyboardWidthDp`、既定 420dp、可動 280-700dp) で可変。
+ * 1 キー = widthDp/10dp 相当 (例: 420dp → 42dp/key)。Spacious スタイルでさらに高さも増える。
+ * 高さは Row 内で fillMaxHeight、キーボード本体は上端に揃え、下に余白が出る分は背景色で塗る。
  */
 @Composable
 private fun SideKeyboardColumn(
     style: KeyboardStyle,
     composing: ComposingState,
     showJapaneseKeyboard: Boolean,
+    widthDp: Float,
     onBytes: (ByteArray) -> Unit,
     onCursorKey: (com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey) -> Unit
 ) {
     Column(
         modifier = Modifier
-            .width(style.naturalHeight)
+            .width(widthDp.dp)
             .fillMaxHeight()
             .background(ZtsBgPrimary)
             .border(width = 1.dp, color = ZtsBorder)

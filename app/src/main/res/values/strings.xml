@@ -41,6 +41,7 @@
     <string name="settings_landscape_kb_left">Left</string>
     <string name="settings_landscape_kb_bottom">Bottom</string>
     <string name="settings_landscape_kb_right">Right</string>
+    <string name="settings_landscape_kb_width">Side keyboard width (landscape)</string>
     <string name="settings_init_command">Startup init command</string>
     <string name="settings_init_command_placeholder">e.g. zsh -l</string>
     <string name="settings_reset_terminal">Reset terminal</string>

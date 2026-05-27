@@ -41,6 +41,7 @@
     <string name="settings_landscape_kb_left">左</string>
     <string name="settings_landscape_kb_bottom">下</string>
     <string name="settings_landscape_kb_right">右</string>
+    <string name="settings_landscape_kb_width">サイドキーボード幅 (横画面)</string>
     <string name="settings_init_command">起動時 init コマンド</string>
     <string name="settings_init_command_placeholder">例: zsh -l</string>
     <string name="settings_reset_terminal">端末リセット</string>
