@@ -23,11 +23,13 @@ internal const val KEY_REPEAT_INTERVAL_MS = 55L
  */
 internal suspend fun PointerInputScope.detectTapWithRepeat(
     scope: CoroutineScope,
+    onPressedChange: (Boolean) -> Unit = {},
     onTap: () -> Unit
 ) {
     awaitPointerEventScope {
         while (true) {
             val down = awaitFirstDown(requireUnconsumed = false)
+            onPressedChange(true)
             var repeated = false
             val repeatJob = scope.launch {
                 delay(KEY_REPEAT_INITIAL_MS)
@@ -44,6 +46,7 @@ internal suspend fun PointerInputScope.detectTapWithRepeat(
                 if (!change.pressed) break
             }
             repeatJob.cancel()
+            onPressedChange(false)
             if (!repeated) onTap()
         }
     }

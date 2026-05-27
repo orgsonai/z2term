@@ -305,7 +305,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             && (landscapePos == AppSettings.LANDSCAPE_KB_LEFT || landscapePos == AppSettings.LANDSCAPE_KB_RIGHT)
             && !keyboardCollapsed
             && keyboardMode == KeyboardMode.CUSTOM
-        val kbStyle = KeyboardStyle.byId(settings.keyboardStyleId)
+        val baseStyle = KeyboardStyle.byId(settings.keyboardStyleId)
+        val kbStyle = if (isLandscape) landscapeScaledStyle(baseStyle, settings.landscapeKeyboardHeightDp) else baseStyle
 
         Row(modifier = Modifier
             .fillMaxWidth()
@@ -618,7 +619,8 @@ private fun GuiTabScreen(
             && (landscapePosGui == AppSettings.LANDSCAPE_KB_LEFT || landscapePosGui == AppSettings.LANDSCAPE_KB_RIGHT)
             && !keyboardCollapsed
             && keyboardMode == KeyboardMode.CUSTOM
-        val kbStyleGui = KeyboardStyle.byId(settings.keyboardStyleId)
+        val baseStyleGui = KeyboardStyle.byId(settings.keyboardStyleId)
+        val kbStyleGui = if (isLandscapeGui) landscapeScaledStyle(baseStyleGui, settings.landscapeKeyboardHeightDp) else baseStyleGui
 
         Row(modifier = Modifier
             .fillMaxWidth()
@@ -1161,6 +1163,23 @@ private fun KeyboardToggleBar(
             fontFamily = FontFamily.Monospace
         )
     }
+}
+
+/**
+ * 横画面用に [KeyboardStyle] を縦方向だけ拡縮する。
+ * 5 行 × 1 行 = 5*keyHeight + α なので、naturalHeight を [targetHeightDp] にそろえて
+ * keyHeight も比例拡縮する。フォントサイズはやや控えめに同方向にスケール (0.85〜1.4 倍に丸め)。
+ */
+private fun landscapeScaledStyle(base: KeyboardStyle, targetHeightDp: Float): KeyboardStyle {
+    val baseNat = base.naturalHeight.value
+    val scale = (targetHeightDp / baseNat).coerceIn(0.6f, 2.5f)
+    val fontScale = scale.coerceIn(0.85f, 1.4f)
+    return base.copy(
+        keyHeight = (base.keyHeight.value * scale).dp,
+        keyFontSp = base.keyFontSp * fontScale,
+        flickHintFontSp = base.flickHintFontSp * fontScale,
+        naturalHeight = targetHeightDp.dp
+    )
 }
 
 /**

@@ -320,15 +320,38 @@ private fun RowScope.BasicKey(
     style: KeyboardStyle,
     onClick: () -> Unit
 ) {
-    val bg = if (active) ZtsGreen else ZtsBgCard
-    val fg = if (active) Color.Black else ZtsTextPrimary
-    val border = if (active) ZtsGreen else ZtsBorder
+    var pressed by remember { mutableStateOf(false) }
+    val bg = when {
+        pressed -> ZtsGreenBright
+        active -> ZtsGreen
+        else -> ZtsBgCard
+    }
+    val fg = if (active || pressed) Color.Black else ZtsTextPrimary
+    val border = if (active || pressed) ZtsGreen else ZtsBorder
     val scope = rememberCoroutineScope()
     val currentOnClick by rememberUpdatedState(onClick)
     val tapModifier = if (repeatable) {
-        Modifier.pointerInput(Unit) { detectTapWithRepeat(scope) { currentOnClick() } }
+        Modifier.pointerInput(Unit) {
+            detectTapWithRepeat(scope, onPressedChange = { pressed = it }) { currentOnClick() }
+        }
     } else {
-        Modifier.clickable(onClick = onClick)
+        Modifier.pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    pressed = true
+                    var fired = false
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Main)
+                        val change = event.changes.firstOrNull { it.id == down.id }
+                        if (change == null) break
+                        if (!change.pressed) { fired = true; break }
+                    }
+                    pressed = false
+                    if (fired) currentOnClick()
+                }
+            }
+        }
     }
     Box(
         modifier = Modifier
@@ -418,26 +441,33 @@ private fun RowScope.FlickKey(
     val scope = rememberCoroutineScope()
     val currentOnTap by rememberUpdatedState(onTap)
     val currentOnFlick by rememberUpdatedState(onFlick)
+    // 現在押されているか / 押し中に向かっているフリック方向の文字。null = まだしきい値未到達 (= タップ予定)
+    var pressed by remember { mutableStateOf(false) }
+    var flickPreview by remember { mutableStateOf<Char?>(null) }
+    val bg = if (pressed) ZtsGreenBright else ZtsBgCard
+    val fg = if (pressed) Color.Black else ZtsTextPrimary
+    val border = if (pressed) ZtsGreen else ZtsBorder
     Box(
         modifier = Modifier
             .weight(weight)
             .height(style.keyHeight)
             .clip(RoundedCornerShape(6.dp))
-            .background(ZtsBgCard)
-            .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(6.dp))
             .pointerInput(label, flick) {
                 val flickThreshold = viewConfiguration.touchSlop * 1.4f
                 awaitPointerEventScope {
                     while (true) {
                         val down = awaitFirstDown(requireUnconsumed = false)
+                        pressed = true
+                        flickPreview = null
                         val startX = down.position.x
                         val startY = down.position.y
-                        var resolved = false  // フリック発火済み
                         var repeated = false  // 長押し連打開始済み
                         // 押しっぱなしで連打 (フリックされたらキャンセル)
                         val repeatJob = scope.launch {
                             delay(KEY_REPEAT_INITIAL_MS)
-                            if (!resolved) {
+                            if (flickPreview == null) {
                                 repeated = true
                                 while (isActive) { currentOnTap(); delay(KEY_REPEAT_INTERVAL_MS) }
                             }
@@ -447,7 +477,8 @@ private fun RowScope.FlickKey(
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
                             val dx = change.position.x - startX
                             val dy = change.position.y - startY
-                            if (!resolved && !repeated && flick != null &&
+                            // 移動量に応じてプレビューを更新 (確定はしない)
+                            if (!repeated && flick != null &&
                                 (abs(dx) > flickThreshold || abs(dy) > flickThreshold)
                             ) {
                                 val ch = if (abs(dx) > abs(dy)) {
@@ -455,36 +486,44 @@ private fun RowScope.FlickKey(
                                 } else {
                                     if (dy < 0) flick.up else flick.down
                                 }
-                                if (ch != null) {
-                                    resolved = true
-                                    repeatJob.cancel()
-                                    currentOnFlick(ch)
-                                    change.consume()
-                                }
+                                flickPreview = ch  // null でもよい (該当方向に割当無し)
+                            } else {
+                                flickPreview = null
                             }
                             if (!change.pressed) {
                                 repeatJob.cancel()
-                                if (!resolved && !repeated) currentOnTap()
+                                val committed = flickPreview
+                                if (!repeated) {
+                                    if (committed != null) currentOnFlick(committed) else currentOnTap()
+                                }
+                                pressed = false
+                                flickPreview = null
                                 break
                             }
                         }
                         repeatJob.cancel()
+                        pressed = false
+                        flickPreview = null
                     }
                 }
             }
     ) {
-        // Column で 上/主 を縦に並べる:
-        //   - up hint: 自然サイズ (wrap)
-        //   - main: weight(1f) で残りを取得し中央寄せ → 主文字は必ず可視
-        // 下フリック (大文字) はヒントを出さない (緑文字の補助は付けない方針)。
+        // 押し中のフリックプレビューが乗っていれば主文字をそれに差し替えて表示。
+        // (例: a キーを押して左に動かすと中央に左フリック文字が大きく出る)
+        val centralText = flickPreview?.toString() ?: label
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(vertical = 1.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // 上ヒント (フリック中で上が選ばれているなら大きく強調)
             if (flick?.up != null) {
-                HintText(flick.up.toString(), style)
+                HintText(
+                    flick.up.toString(),
+                    style,
+                    emphasized = flickPreview == flick.up
+                )
             }
             Box(
                 modifier = Modifier
@@ -493,11 +532,11 @@ private fun RowScope.FlickKey(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = label,
-                    color = ZtsTextPrimary,
+                    text = centralText,
+                    color = fg,
                     fontSize = style.keyFontSp.sp,
                     lineHeight = style.keyFontSp.sp,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.Bold.takeIf { flickPreview != null } ?: FontWeight.Medium,
                     fontFamily = FontFamily.Monospace
                 )
             }
@@ -507,6 +546,7 @@ private fun RowScope.FlickKey(
             HintText(
                 flick.left.toString(),
                 style,
+                emphasized = flickPreview == flick.left,
                 modifier = Modifier.align(Alignment.CenterStart).padding(start = 3.dp)
             )
         }
@@ -514,6 +554,7 @@ private fun RowScope.FlickKey(
             HintText(
                 flick.right.toString(),
                 style,
+                emphasized = flickPreview == flick.right,
                 modifier = Modifier.align(Alignment.CenterEnd).padding(end = 3.dp)
             )
         }
@@ -521,14 +562,19 @@ private fun RowScope.FlickKey(
 }
 
 @Composable
-private fun HintText(text: String, style: KeyboardStyle, modifier: Modifier = Modifier) {
+private fun HintText(
+    text: String,
+    style: KeyboardStyle,
+    emphasized: Boolean = false,
+    modifier: Modifier = Modifier
+) {
     Text(
         text = text,
-        color = ZtsGreenBright,
-        fontSize = style.flickHintFontSp.sp,
-        lineHeight = style.flickHintFontSp.sp,
+        color = if (emphasized) Color.Black else ZtsGreenBright,
+        fontSize = (if (emphasized) style.flickHintFontSp * 1.6f else style.flickHintFontSp).sp,
+        lineHeight = (if (emphasized) style.flickHintFontSp * 1.6f else style.flickHintFontSp).sp,
         fontFamily = FontFamily.Monospace,
-        fontWeight = FontWeight.Medium,
+        fontWeight = if (emphasized) FontWeight.Bold else FontWeight.Medium,
         modifier = modifier
     )
 }

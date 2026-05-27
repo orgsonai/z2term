@@ -38,6 +38,7 @@ import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
 import com.zerotoship.z2term.ui.theme.ZtsGreen
+import com.zerotoship.z2term.ui.theme.ZtsGreenBright
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import kotlinx.coroutines.delay
@@ -173,15 +174,38 @@ private fun RowScope.JpKey(
     weight: Float = 1f,
     onClick: () -> Unit
 ) {
-    val bg = if (accent) ZtsGreen else ZtsBgCard
-    val fg = if (accent) Color.Black else ZtsTextPrimary
-    val border = if (accent) ZtsGreen else ZtsBorder
+    var pressed by remember { mutableStateOf(false) }
+    val bg = when {
+        pressed -> ZtsGreenBright
+        accent -> ZtsGreen
+        else -> ZtsBgCard
+    }
+    val fg = if (accent || pressed) Color.Black else ZtsTextPrimary
+    val border = if (accent || pressed) ZtsGreen else ZtsBorder
     val scope = rememberCoroutineScope()
     val currentOnClick by rememberUpdatedState(onClick)
     val tap = if (repeatable) {
-        Modifier.pointerInput(Unit) { detectTapWithRepeat(scope) { currentOnClick() } }
+        Modifier.pointerInput(Unit) {
+            detectTapWithRepeat(scope, onPressedChange = { pressed = it }) { currentOnClick() }
+        }
     } else {
-        Modifier.clickable(onClick = onClick)
+        Modifier.pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    pressed = true
+                    var fired = false
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Main)
+                        val change = event.changes.firstOrNull { it.id == down.id }
+                        if (change == null) break
+                        if (!change.pressed) { fired = true; break }
+                    }
+                    pressed = false
+                    if (fired) currentOnClick()
+                }
+            }
+        }
     }
     Box(
         modifier = Modifier
@@ -214,70 +238,84 @@ private fun RowScope.JpFlickKey(
     onEmit: (Char) -> Unit
 ) {
     val currentOnEmit by rememberUpdatedState(onEmit)
+    var pressed by remember { mutableStateOf(false) }
+    var flickPreview by remember { mutableStateOf<Char?>(null) }
+    val bg = if (pressed) ZtsGreenBright else ZtsBgCard
+    val fg = if (pressed) Color.Black else ZtsTextPrimary
+    val border = if (pressed) ZtsGreen else ZtsBorder
     Box(
         modifier = Modifier
             .weight(1f)
             .fillMaxHeight()
             .clip(RoundedCornerShape(6.dp))
-            .background(ZtsBgCard)
-            .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(6.dp))
             .pointerInput(km) {
                 val flickThreshold = viewConfiguration.touchSlop * 1.4f
                 awaitPointerEventScope {
                     while (true) {
                         val down = awaitFirstDown(requireUnconsumed = false)
+                        pressed = true
+                        flickPreview = null
                         val startX = down.position.x
                         val startY = down.position.y
-                        var resolved = false
                         while (true) {
                             val event = awaitPointerEvent(PointerEventPass.Main)
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
                             val dx = change.position.x - startX
                             val dy = change.position.y - startY
-                            if (!resolved && (abs(dx) > flickThreshold || abs(dy) > flickThreshold)) {
+                            // プレビュー: 移動量に応じてフリック方向の文字を表示 (確定はしない)
+                            if (abs(dx) > flickThreshold || abs(dy) > flickThreshold) {
                                 val ch = if (abs(dx) > abs(dy)) {
                                     if (dx < 0) km.left else km.right
                                 } else {
                                     if (dy < 0) km.up else km.down
                                 }
-                                resolved = true
-                                currentOnEmit(ch ?: km.center)
-                                change.consume()
+                                flickPreview = ch
+                            } else {
+                                flickPreview = null
                             }
                             if (!change.pressed) {
-                                if (!resolved) currentOnEmit(km.center)
+                                val committed = flickPreview ?: km.center
+                                pressed = false
+                                flickPreview = null
+                                currentOnEmit(committed)
                                 break
                             }
                         }
+                        pressed = false
+                        flickPreview = null
                     }
                 }
             }
     ) {
-        // 中央のかな
+        // 中央のかな (フリック中はプレビュー文字を強調表示)
         Text(
-            text = km.center.toString(),
-            color = ZtsTextPrimary,
+            text = (flickPreview ?: km.center).toString(),
+            color = fg,
             fontSize = style.keyFontSp.sp,
-            fontWeight = FontWeight.Medium,
+            fontWeight = if (flickPreview != null) FontWeight.Bold else FontWeight.Medium,
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.align(Alignment.Center)
         )
-        // フリックヒント (灰色、四隅/端)
-        km.up?.let { Hint(it, style, Modifier.align(Alignment.TopCenter)) }
-        km.down?.let { Hint(it, style, Modifier.align(Alignment.BottomCenter)) }
-        km.left?.let { Hint(it, style, Modifier.align(Alignment.CenterStart).padding(start = 2.dp)) }
-        km.right?.let { Hint(it, style, Modifier.align(Alignment.CenterEnd).padding(end = 2.dp)) }
+        // フリックヒント (灰色、四隅/端) — プレビュー対象は大きく強調
+        km.up?.let { Hint(it, style, flickPreview == it, Modifier.align(Alignment.TopCenter)) }
+        km.down?.let { Hint(it, style, flickPreview == it, Modifier.align(Alignment.BottomCenter)) }
+        km.left?.let { Hint(it, style, flickPreview == it, Modifier.align(Alignment.CenterStart).padding(start = 2.dp)) }
+        km.right?.let { Hint(it, style, flickPreview == it, Modifier.align(Alignment.CenterEnd).padding(end = 2.dp)) }
     }
 }
 
 @Composable
-private fun Hint(ch: Char, style: KeyboardStyle, modifier: Modifier) {
+private fun Hint(ch: Char, style: KeyboardStyle, emphasized: Boolean = false, modifier: Modifier = Modifier) {
+    val sz = if (emphasized) (style.flickHintFontSp + 1f) * 1.7f else (style.flickHintFontSp + 1f)
     Text(
         text = ch.toString(),
-        color = ZtsTextSecondary,
-        fontSize = (style.flickHintFontSp + 1f).sp,
-        lineHeight = (style.flickHintFontSp + 1f).sp,
+        color = if (emphasized) Color.Black else ZtsTextSecondary,
+        fontSize = sz.sp,
+        lineHeight = sz.sp,
         fontFamily = FontFamily.Monospace,
+        fontWeight = if (emphasized) FontWeight.Bold else FontWeight.Medium,
         modifier = modifier
     )
 }

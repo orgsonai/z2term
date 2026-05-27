@@ -383,6 +383,14 @@ fun SettingsSheet(
                     valueLabel = { "%.0fdp".format(it) },
                     onChange = { session.setLandscapeKeyboardWidthDp(it) }
                 )
+                SliderField(
+                    title = stringResource(R.string.settings_landscape_kb_height),
+                    value = settings.landscapeKeyboardHeightDp,
+                    range = AppSettings.MIN_LANDSCAPE_KB_HEIGHT_DP..AppSettings.MAX_LANDSCAPE_KB_HEIGHT_DP,
+                    steps = 14,  // 200 → 500 を 20dp 刻み (16 段)
+                    valueLabel = { "%.0fdp".format(it) },
+                    onChange = { session.setLandscapeKeyboardHeightDp(it) }
+                )
             }
 
             Section(title = stringResource(R.string.settings_section_gui_terminal)) {
