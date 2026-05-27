@@ -55,7 +55,12 @@ class AppSettings(private val context: Context) {
          * HTTP read timeout は長め (5 分) になる。遅い回線や Arch 等の大物導入を最後まで
          * 待ちたいときに使う。停止は GUI タブの「✕」(stop) で手動キャンセル可能。
          */
-        val noInstallTimeout: Boolean = DEFAULT_NO_INSTALL_TIMEOUT
+        val noInstallTimeout: Boolean = DEFAULT_NO_INSTALL_TIMEOUT,
+        /**
+         * 横画面時のキーボード配置 ("left" / "bottom" / "right")。
+         * 縦画面のときはこの値に関わらず常に下に出る。
+         */
+        val landscapeKeyboardPosition: String = DEFAULT_LANDSCAPE_KEYBOARD_POSITION
     )
 
     suspend fun setGuiMagnification(value: Float) {
@@ -85,8 +90,17 @@ class AppSettings(private val context: Context) {
             confirmBeforeDownload = p[KEY_CONFIRM_DOWNLOAD] ?: DEFAULT_CONFIRM_DOWNLOAD,
             guiMagnification = p[KEY_GUI_MAGNIFICATION] ?: DEFAULT_GUI_MAGNIFICATION,
             cleanInstallGuiArmed = p[KEY_CLEAN_INSTALL_GUI] ?: false,
-            noInstallTimeout = p[KEY_NO_INSTALL_TIMEOUT] ?: DEFAULT_NO_INSTALL_TIMEOUT
+            noInstallTimeout = p[KEY_NO_INSTALL_TIMEOUT] ?: DEFAULT_NO_INSTALL_TIMEOUT,
+            landscapeKeyboardPosition = p[KEY_LANDSCAPE_KB_POS] ?: DEFAULT_LANDSCAPE_KEYBOARD_POSITION
         )
+    }
+
+    suspend fun setLandscapeKeyboardPosition(value: String) {
+        val normalized = when (value) {
+            LANDSCAPE_KB_LEFT, LANDSCAPE_KB_BOTTOM, LANDSCAPE_KB_RIGHT -> value
+            else -> DEFAULT_LANDSCAPE_KEYBOARD_POSITION
+        }
+        context.dataStore.edit { it[KEY_LANDSCAPE_KB_POS] = normalized }
     }
 
     suspend fun setNoInstallTimeout(enabled: Boolean) {
@@ -199,5 +213,13 @@ class AppSettings(private val context: Context) {
         private val KEY_GUI_MAGNIFICATION = floatPreferencesKey("gui_magnification")
         private val KEY_CLEAN_INSTALL_GUI = booleanPreferencesKey("clean_install_gui_armed")
         private val KEY_NO_INSTALL_TIMEOUT = booleanPreferencesKey("no_install_timeout")
+        private val KEY_LANDSCAPE_KB_POS = stringPreferencesKey("landscape_kb_position")
+
+        /** 横画面時のキーボード配置の選択肢 */
+        const val LANDSCAPE_KB_LEFT = "left"
+        const val LANDSCAPE_KB_BOTTOM = "bottom"
+        const val LANDSCAPE_KB_RIGHT = "right"
+        /** 既定: 横画面でも下 (従来挙動と同じ) */
+        const val DEFAULT_LANDSCAPE_KEYBOARD_POSITION = LANDSCAPE_KB_BOTTOM
     }
 }

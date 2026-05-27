@@ -192,6 +192,7 @@ class TerminalSession(
     fun setGuiMagnification(value: Float) { scope.launch { settings.setGuiMagnification(value) } }
     fun setCleanInstallGuiArmed(armed: Boolean) { scope.launch { settings.setCleanInstallGuiArmed(armed) } }
     fun setNoInstallTimeout(enabled: Boolean) { scope.launch { settings.setNoInstallTimeout(enabled) } }
+    fun setLandscapeKeyboardPosition(value: String) { scope.launch { settings.setLandscapeKeyboardPosition(value) } }
 
     /** 設定で選ばれているディストロを使って起動。明示的指定があればそれを優先 */
     fun startTerminal(distroOverride: DistroSpec? = null) {

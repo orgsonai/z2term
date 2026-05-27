@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.res.Configuration
 import android.view.View
 import android.view.WindowManager
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -278,31 +281,64 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onNewGui = { SessionManager.openLinkedGui(context) }
         )
 
-        Box(modifier = Modifier
+        // 横画面 + 左/右配置 + 独自キーボード + 折りたたまれていない時のみ、サイド配置に切替。
+        // (OS IME=SYSTEM モードは OS が下端に描くので無条件で下配置)
+        val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val landscapePos = settings.landscapeKeyboardPosition
+        val isSideKB = isLandscape
+            && (landscapePos == AppSettings.LANDSCAPE_KB_LEFT || landscapePos == AppSettings.LANDSCAPE_KB_RIGHT)
+            && !keyboardCollapsed
+            && keyboardMode == KeyboardMode.CUSTOM
+        val kbStyle = KeyboardStyle.byId(settings.keyboardStyleId)
+
+        Row(modifier = Modifier
             .fillMaxWidth()
             .weight(1f)
         ) {
-            TerminalRenderer(session = active, composingText = composing.text, modifier = Modifier.fillMaxSize())
-            AndroidView(
-                factory = { ctx ->
-                    TerminalInputView(ctx).also { v ->
+            if (isSideKB && landscapePos == AppSettings.LANDSCAPE_KB_LEFT) {
+                SideKeyboardColumn(
+                    style = kbStyle,
+                    composing = composing,
+                    showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                    onBytes = { active.writeBytes(it) },
+                    onCursorKey = { key -> active.writeBytes(active.emulator.cursorKeyBytes(key)) }
+                )
+            }
+            Box(modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+            ) {
+                TerminalRenderer(session = active, composingText = composing.text, modifier = Modifier.fillMaxSize())
+                AndroidView(
+                    factory = { ctx ->
+                        TerminalInputView(ctx).also { v ->
+                            v.session = active
+                            v.imeEnabled = (keyboardMode == KeyboardMode.SYSTEM)
+                            inputViewRef = v
+                        }
+                    },
+                    update = { v ->
                         v.session = active
-                        v.imeEnabled = (keyboardMode == KeyboardMode.SYSTEM)
-                        inputViewRef = v
-                    }
-                },
-                update = { v ->
-                    v.session = active
-                    v.ctrlSticky = ctrlSticky
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-            ScrollIndicators(session = active, modifier = Modifier.fillMaxSize())
-            // 変換候補バー: キーボードの上に浮かせて表示 (キーボード本体の高さは変えない)
-            CandidateBar(
-                composing = composing,
-                modifier = Modifier.align(Alignment.BottomStart)
-            )
+                        v.ctrlSticky = ctrlSticky
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+                ScrollIndicators(session = active, modifier = Modifier.fillMaxSize())
+                // 変換候補バー: キーボードの上に浮かせて表示 (キーボード本体の高さは変えない)
+                CandidateBar(
+                    composing = composing,
+                    modifier = Modifier.align(Alignment.BottomStart)
+                )
+            }
+            if (isSideKB && landscapePos == AppSettings.LANDSCAPE_KB_RIGHT) {
+                SideKeyboardColumn(
+                    style = kbStyle,
+                    composing = composing,
+                    showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                    onBytes = { active.writeBytes(it) },
+                    onCursorKey = { key -> active.writeBytes(active.emulator.cursorKeyBytes(key)) }
+                )
+            }
         }
 
         KeyboardToggleBar(
@@ -313,21 +349,22 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         if (!keyboardCollapsed) {
             when (keyboardMode) {
                 KeyboardMode.CUSTOM -> {
-                    val style = KeyboardStyle.byId(settings.keyboardStyleId)
-                    // 高さはスタイルの naturalHeight 固定。これでキーサイズと領域高さが
-                    // 常に一致する (旧: 高さ可変でキーサイズが追従せずズレていた)。
-                    Box(modifier = Modifier
-                        .fillMaxWidth()
-                        .height(style.naturalHeight)
-                    ) {
-                        TerminalKeyboard(
-                            onBytes = { active.writeBytes(it) },
-                            onCursorKey = { key -> active.writeBytes(active.emulator.cursorKeyBytes(key)) },
-                            composing = composing,
-                            style = style,
-                            // English モードでは日本語フリックボタンを隠す。
-                            showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA
-                        )
+                    if (!isSideKB) {
+                        // 高さはスタイルの naturalHeight 固定。これでキーサイズと領域高さが
+                        // 常に一致する (旧: 高さ可変でキーサイズが追従せずズレていた)。
+                        Box(modifier = Modifier
+                            .fillMaxWidth()
+                            .height(kbStyle.naturalHeight)
+                        ) {
+                            TerminalKeyboard(
+                                onBytes = { active.writeBytes(it) },
+                                onCursorKey = { key -> active.writeBytes(active.emulator.cursorKeyBytes(key)) },
+                                composing = composing,
+                                style = kbStyle,
+                                // English モードでは日本語フリックボタンを隠す。
+                                showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA
+                            )
+                        }
                     }
                 }
                 KeyboardMode.SYSTEM -> {
@@ -543,63 +580,99 @@ private fun GuiTabScreen(
             onNewGui = { SessionManager.openLinkedGui(context) }
         )
 
-        // GUI 領域を枠線で囲って範囲を明示し、内側の実寸 (onSizeChanged) で解像度を決める。
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(4.dp)
-                .border(2.dp, ZtsGreen)
-                .padding(2.dp)
-                .onSizeChanged { guiAreaPx = it }
-        ) {
-            GuiScreen(
-                session = gui,
-                imeVisible = keyboardMode == KeyboardMode.SYSTEM && !keyboardCollapsed,
-                ctrlSticky = ctrlSticky,
-                onCtrlConsumed = { ctrlSticky = false },
-                modifier = Modifier.fillMaxSize()
-            )
+        // 横画面 + 左/右配置 + 独自キーボード + 折りたたまれていない時のみ、サイド配置に切替。
+        // (GUI 領域は onSizeChanged で実寸を測って VNC 解像度を決めるので、サイド配置で
+        //  Box が縮めば自動的に GUI もその領域に再ネゴしてフィットする)
+        val isLandscapeGui = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val landscapePosGui = settings.landscapeKeyboardPosition
+        val isSideKBGui = isLandscapeGui
+            && (landscapePosGui == AppSettings.LANDSCAPE_KB_LEFT || landscapePosGui == AppSettings.LANDSCAPE_KB_RIGHT)
+            && !keyboardCollapsed
+            && keyboardMode == KeyboardMode.CUSTOM
+        val kbStyleGui = KeyboardStyle.byId(settings.keyboardStyleId)
 
-            // キーボードを GUI に上乗せ (オーバーレイ。解像度は変えない)。▾ で折りたためる。
-            // SYSTEM 時は OS IME の上に出すため imePadding。
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .imePadding()
-            ) {
-                CandidateBar(composing = composing)
-                KeyboardToggleBar(
-                    collapsed = keyboardCollapsed,
-                    onToggle = { keyboardCollapsed = !keyboardCollapsed }
+        Row(modifier = Modifier
+            .fillMaxWidth()
+            .weight(1f)
+        ) {
+            if (isSideKBGui && landscapePosGui == AppSettings.LANDSCAPE_KB_LEFT) {
+                SideKeyboardColumn(
+                    style = kbStyleGui,
+                    composing = composing,
+                    showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                    onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
+                    onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) }
                 )
-                if (!keyboardCollapsed) {
-                    when (keyboardMode) {
-                        KeyboardMode.CUSTOM -> {
-                            val style = KeyboardStyle.byId(settings.keyboardStyleId)
-                            Box(modifier = Modifier
-                                .fillMaxWidth()
-                                .height(style.naturalHeight)
-                            ) {
-                                TerminalKeyboard(
-                                    onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
-                                    onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) },
-                                    composing = composing,
-                                    style = style,
-                                    showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA
+            }
+            // GUI 領域を枠線で囲って範囲を明示し、内側の実寸 (onSizeChanged) で解像度を決める。
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(4.dp)
+                    .border(2.dp, ZtsGreen)
+                    .padding(2.dp)
+                    .onSizeChanged { guiAreaPx = it }
+            ) {
+                GuiScreen(
+                    session = gui,
+                    imeVisible = keyboardMode == KeyboardMode.SYSTEM && !keyboardCollapsed,
+                    ctrlSticky = ctrlSticky,
+                    onCtrlConsumed = { ctrlSticky = false },
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // キーボードを GUI に上乗せ (オーバーレイ。解像度は変えない)。▾ で折りたためる。
+                // SYSTEM 時は OS IME の上に出すため imePadding。
+                // サイド配置 (横画面 左/右) のときはここに本体は出さない (Row の左/右にある)。
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .imePadding()
+                ) {
+                    CandidateBar(composing = composing)
+                    KeyboardToggleBar(
+                        collapsed = keyboardCollapsed,
+                        onToggle = { keyboardCollapsed = !keyboardCollapsed }
+                    )
+                    if (!keyboardCollapsed) {
+                        when (keyboardMode) {
+                            KeyboardMode.CUSTOM -> {
+                                if (!isSideKBGui) {
+                                    Box(modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(kbStyleGui.naturalHeight)
+                                    ) {
+                                        TerminalKeyboard(
+                                            onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
+                                            onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) },
+                                            composing = composing,
+                                            style = kbStyleGui,
+                                            showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA
+                                        )
+                                    }
+                                }
+                            }
+                            KeyboardMode.SYSTEM -> {
+                                GuiSpecialKeyBar(
+                                    rfb = gui.rfb,
+                                    ctrlSticky = ctrlSticky,
+                                    onCtrlToggle = { ctrlSticky = !ctrlSticky }
                                 )
                             }
                         }
-                        KeyboardMode.SYSTEM -> {
-                            GuiSpecialKeyBar(
-                                rfb = gui.rfb,
-                                ctrlSticky = ctrlSticky,
-                                onCtrlToggle = { ctrlSticky = !ctrlSticky }
-                            )
-                        }
                     }
                 }
+            }
+            if (isSideKBGui && landscapePosGui == AppSettings.LANDSCAPE_KB_RIGHT) {
+                SideKeyboardColumn(
+                    style = kbStyleGui,
+                    composing = composing,
+                    showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                    onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
+                    onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) }
+                )
             }
         }
     }
@@ -1056,6 +1129,44 @@ private fun KeyboardToggleBar(
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace
         )
+    }
+}
+
+/**
+ * 横画面時に左右どちらかに出すサイドキーボード列。
+ *
+ * 幅は [KeyboardStyle.naturalHeight] (= 240/324dp) と一致させ、行内の左/右にぴたりとはまる。
+ * 高さは Row 内で fillMaxHeight。キーボード本体は上端に揃え、下に余白が出る分は背景色で塗る。
+ * ([TerminalKeyboard] 自体は 5 行×10 列の比率で描かれ、利用可能な幅でキーが等分される。
+ *  240dp 幅では 1 キー ~24dp と細めだが、Spacious スタイルに切替えると ~32dp で快適)
+ */
+@Composable
+private fun SideKeyboardColumn(
+    style: KeyboardStyle,
+    composing: ComposingState,
+    showJapaneseKeyboard: Boolean,
+    onBytes: (ByteArray) -> Unit,
+    onCursorKey: (com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(style.naturalHeight)
+            .fillMaxHeight()
+            .background(ZtsBgPrimary)
+            .border(width = 1.dp, color = ZtsBorder)
+    ) {
+        Box(modifier = Modifier
+            .fillMaxWidth()
+            .height(style.naturalHeight)
+        ) {
+            TerminalKeyboard(
+                onBytes = onBytes,
+                onCursorKey = onCursorKey,
+                composing = composing,
+                style = style,
+                showJapaneseKeyboard = showJapaneseKeyboard
+            )
+        }
     }
 }
 

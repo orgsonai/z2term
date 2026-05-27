@@ -36,6 +36,11 @@
     <string name="settings_confirm_download_desc">ON: distro / GUI のダウンロード前に確認を出す。OFF: 確認なしで取得。</string>
     <string name="settings_no_install_timeout">インストールのタイムアウトを無効化</string>
     <string name="settings_no_install_timeout_desc">ON: GUI 一式 (apk/apt/pacman) や OS rootfs の取得を最後まで待つ (邪魔な途中エラーなし)。途中で止めたい時は GUI タブの ✕ ボタンで停止。OFF (既定): 約 5 分で打ち切る。</string>
+    <string name="settings_section_landscape_keyboard">キーボード位置 (横画面)</string>
+    <string name="settings_landscape_keyboard_desc">横画面のときにキーボードを画面のどこに出すか。縦画面は常に下に出る。</string>
+    <string name="settings_landscape_kb_left">左</string>
+    <string name="settings_landscape_kb_bottom">下</string>
+    <string name="settings_landscape_kb_right">右</string>
     <string name="settings_init_command">起動時 init コマンド</string>
     <string name="settings_init_command_placeholder">例: zsh -l</string>
     <string name="settings_reset_terminal">端末リセット</string>

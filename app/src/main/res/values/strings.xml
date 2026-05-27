@@ -36,6 +36,11 @@
     <string name="settings_confirm_download_desc">ON: prompt before downloading a distro or GUI package. OFF: download without confirmation.</string>
     <string name="settings_no_install_timeout">Disable install timeout</string>
     <string name="settings_no_install_timeout_desc">ON: wait until the GUI stack (apk/apt/pacman) or OS rootfs download finishes (no annoying mid-way error). To cancel, tap the ✕ button on the GUI tab. OFF (default): give up after about 5 minutes.</string>
+    <string name="settings_section_landscape_keyboard">Keyboard position (landscape)</string>
+    <string name="settings_landscape_keyboard_desc">Where to place the on-screen keyboard when the screen is in landscape. Portrait always uses Bottom.</string>
+    <string name="settings_landscape_kb_left">Left</string>
+    <string name="settings_landscape_kb_bottom">Bottom</string>
+    <string name="settings_landscape_kb_right">Right</string>
     <string name="settings_init_command">Startup init command</string>
     <string name="settings_init_command_placeholder">e.g. zsh -l</string>
     <string name="settings_reset_terminal">Reset terminal</string>

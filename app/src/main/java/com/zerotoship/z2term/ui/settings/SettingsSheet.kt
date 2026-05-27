@@ -353,6 +353,30 @@ fun SettingsSheet(
                 )
             }
 
+            Section(title = stringResource(R.string.settings_section_landscape_keyboard)) {
+                val posOptions = listOf(
+                    AppSettings.LANDSCAPE_KB_LEFT,
+                    AppSettings.LANDSCAPE_KB_BOTTOM,
+                    AppSettings.LANDSCAPE_KB_RIGHT
+                )
+                ChipRow(
+                    options = posOptions,
+                    labels = mapOf(
+                        AppSettings.LANDSCAPE_KB_LEFT to stringResource(R.string.settings_landscape_kb_left),
+                        AppSettings.LANDSCAPE_KB_BOTTOM to stringResource(R.string.settings_landscape_kb_bottom),
+                        AppSettings.LANDSCAPE_KB_RIGHT to stringResource(R.string.settings_landscape_kb_right)
+                    ),
+                    selected = settings.landscapeKeyboardPosition,
+                    onSelect = { session.setLandscapeKeyboardPosition(it) }
+                )
+                Text(
+                    text = stringResource(R.string.settings_landscape_keyboard_desc),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+
             Section(title = stringResource(R.string.settings_section_gui_terminal)) {
                 ChipRow(
                     options = GuiTerminal.ALL.map { it.id },
