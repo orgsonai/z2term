@@ -216,13 +216,50 @@ fun z2guiScript(
         |  ensure_konsole_qt6
         |}
         |
-        |# Konsole 用 Qt6 ランタイムを「ある事」まで確実にする (binary は別経路で導入済前提)。
-        |# install_pkgs / clean_pkgs / ensure_pkgs のどれを通ったあとでも、最後にこれを呼べば
-        |# libQt6QuickWidgets.so.6 が /usr/lib に居る (もしくは PySide6 系から LD_LIBRARY_PATH で
-        |# 持って行く) ように 4 段階フォールバックで頑張る。
+        |# Konsole 本体 + Qt6 ランタイムを「ある事」まで確実にする。
+        |# install_pkgs / clean_pkgs / ensure_pkgs のどこを通ったあとでも、最後にこれを呼べば
+        |# /usr/bin/konsole と libQt6QuickWidgets.so.6 が居る (もしくは PySide6 系から
+        |# LD_LIBRARY_PATH で持って行く) ように複数段階のフォールバックで頑張る。
         |ensure_konsole_qt6() {
         |  [ "${d}GUI_TERM_BIN" = "konsole" ] || return 0
         |  detect_pm
+        |  # 段階0: Konsole バイナリ自体が無ければ最優先で入れる
+        |  # (pacman のトランザクションが qt6-declarative の "could not create database entry" で
+        |  #  ロールバックして konsole まで届いていない事例があるため、明示的に再導入する)
+        |  if ! has konsole; then
+        |    echo "📦 Konsole バイナリが不在 — 単独で再導入"
+        |    clear_pm_locks
+        |    case "${d}PM" in
+        |      apk)    apk add --no-cache konsole ;;
+        |      apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y konsole ;;
+        |      pacman)
+        |        # pacman --overwrite '*': 既存ファイル衝突を許容 (qt6-* が部分展開済の可能性)
+        |        pacman -Sy --overwrite '*' --noconfirm konsole 2>/dev/null \
+        |          || pacman -Sy --noconfirm konsole ;;
+        |    esac
+        |    # それでも入らなければキャッシュから bsdtar 直接展開
+        |    if ! has konsole && [ "${d}PM" = "pacman" ]; then
+        |      echo "🔁 Konsole も bsdtar 直接展開を試行"
+        |      if ! ls /var/cache/pacman/pkg/konsole-*.pkg.tar.zst >/dev/null 2>&1; then
+        |        pacman -Sw --noconfirm konsole 2>/dev/null || true
+        |      fi
+        |      for pkg in /var/cache/pacman/pkg/konsole-*.pkg.tar.zst; do
+        |        [ -f "${d}pkg" ] || continue
+        |        echo "📦 bsdtar 展開: ${d}pkg"
+        |        if has bsdtar; then
+        |          bsdtar -xf "${d}pkg" -C / --no-same-owner --no-same-permissions 2>/dev/null
+        |        else
+        |          tar --use-compress-program=unzstd -xf "${d}pkg" -C / --no-same-owner --no-same-permissions 2>/dev/null \
+        |            || ( unzstd -c "${d}pkg" 2>/dev/null | tar -xf - -C / --no-same-owner --no-same-permissions 2>/dev/null )
+        |        fi
+        |      done
+        |    fi
+        |    if has konsole; then
+        |      echo "✅ Konsole バイナリを導入済"
+        |    else
+        |      echo "⚠️ Konsole バイナリの導入に失敗 — 続行するが起動できません"
+        |    fi
+        |  fi
         |  NEED=""
         |  case "${d}PM" in
         |    apk)

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -36,6 +37,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -283,7 +285,21 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
 
         // 横画面 + 左/右配置 + 独自キーボード + 折りたたまれていない時のみ、サイド配置に切替。
         // (OS IME=SYSTEM モードは OS が下端に描くので無条件で下配置)
-        val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+        // 向きは View.OnLayoutChangeListener で実寸を監視して State に流す
+        // (configChanges を declare 済の Activity では LocalConfiguration が即座に
+        //  再評価されない事例が報告されているため、Compose に確実に届く経路で更新する)。
+        val rootView = LocalView.current
+        var isLandscape by remember { mutableStateOf(rootView.width > rootView.height) }
+        DisposableEffect(rootView) {
+            val listener = android.view.View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+                val landscape = v.width > v.height
+                if (landscape != isLandscape) isLandscape = landscape
+            }
+            rootView.addOnLayoutChangeListener(listener)
+            // 初期値の補正 (factory 直後で 0×0 だったケース)
+            isLandscape = rootView.width > rootView.height
+            onDispose { rootView.removeOnLayoutChangeListener(listener) }
+        }
         val landscapePos = settings.landscapeKeyboardPosition
         val isSideKB = isLandscape
             && (landscapePos == AppSettings.LANDSCAPE_KB_LEFT || landscapePos == AppSettings.LANDSCAPE_KB_RIGHT)
@@ -583,7 +599,18 @@ private fun GuiTabScreen(
         // 横画面 + 左/右配置 + 独自キーボード + 折りたたまれていない時のみ、サイド配置に切替。
         // (GUI 領域は onSizeChanged で実寸を測って VNC 解像度を決めるので、サイド配置で
         //  Box が縮めば自動的に GUI もその領域に再ネゴしてフィットする)
-        val isLandscapeGui = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+        // 向きは View.OnLayoutChangeListener 経由で State 化 (§端末タブと同方針)
+        val rootViewGui = LocalView.current
+        var isLandscapeGui by remember { mutableStateOf(rootViewGui.width > rootViewGui.height) }
+        DisposableEffect(rootViewGui) {
+            val listener = android.view.View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+                val landscape = v.width > v.height
+                if (landscape != isLandscapeGui) isLandscapeGui = landscape
+            }
+            rootViewGui.addOnLayoutChangeListener(listener)
+            isLandscapeGui = rootViewGui.width > rootViewGui.height
+            onDispose { rootViewGui.removeOnLayoutChangeListener(listener) }
+        }
         val landscapePosGui = settings.landscapeKeyboardPosition
         val isSideKBGui = isLandscapeGui
             && (landscapePosGui == AppSettings.LANDSCAPE_KB_LEFT || landscapePosGui == AppSettings.LANDSCAPE_KB_RIGHT)
