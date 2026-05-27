@@ -508,16 +508,14 @@ private fun RowScope.FlickKey(
                 }
             }
     ) {
-        // 押し中のフリックプレビューが乗っていれば主文字をそれに差し替えて表示。
-        // (例: a キーを押して左に動かすと中央に左フリック文字が大きく出る)
-        val centralText = flickPreview?.toString() ?: label
+        // 中央は常に主文字のまま表示し、フリック方向の強調はヒント側だけで行う
+        // (中央の文字を飛ばし先に差し替えるとヒントと同じ文字が二重に出て見づらいので撤回)。
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(vertical = 1.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 上ヒント (フリック中で上が選ばれているなら大きく強調)
             if (flick?.up != null) {
                 HintText(
                     flick.up.toString(),
@@ -532,11 +530,11 @@ private fun RowScope.FlickKey(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = centralText,
+                    text = label,
                     color = fg,
                     fontSize = style.keyFontSp.sp,
                     lineHeight = style.keyFontSp.sp,
-                    fontWeight = FontWeight.Bold.takeIf { flickPreview != null } ?: FontWeight.Medium,
+                    fontWeight = FontWeight.Medium,
                     fontFamily = FontFamily.Monospace
                 )
             }

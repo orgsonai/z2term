@@ -289,12 +289,12 @@ private fun RowScope.JpFlickKey(
                 }
             }
     ) {
-        // 中央のかな (フリック中はプレビュー文字を強調表示)
+        // 中央のかなは常に主文字のまま (二重表示防止)。フリック方向はヒント側だけで強調する。
         Text(
-            text = (flickPreview ?: km.center).toString(),
+            text = km.center.toString(),
             color = fg,
             fontSize = style.keyFontSp.sp,
-            fontWeight = if (flickPreview != null) FontWeight.Bold else FontWeight.Medium,
+            fontWeight = FontWeight.Medium,
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.align(Alignment.Center)
         )
