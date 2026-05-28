@@ -213,6 +213,8 @@ class TerminalSession(
     fun setLandscapeKeyboardWidthDp(value: Float) { scope.launch { settings.setLandscapeKeyboardWidthDp(value) } }
     fun setLandscapeKeyboardHeightDp(value: Float) { scope.launch { settings.setLandscapeKeyboardHeightDp(value) } }
     fun setPortraitKeyboardHeightDp(value: Float) { scope.launch { settings.setPortraitKeyboardHeightDp(value) } }
+    fun setRootChrootUnlocked(value: Boolean) { scope.launch { settings.setRootChrootUnlocked(value) } }
+    fun setExecutionEngine(value: String) { scope.launch { settings.setExecutionEngine(value) } }
 
     /** 設定で選ばれているディストロを使って起動。明示的指定があればそれを優先 */
     fun startTerminal(distroOverride: DistroSpec? = null) {
@@ -293,15 +295,42 @@ class TerminalSession(
                 // P3 (CUI⇄GUI 連動): このタブの display 番号を proot env に渡す。
                 // exportDisplay=true で `DISPLAY=:N` も付与され、端末内 `z2run <gui-app>` が同じ
                 // :N の Xvnc を起動 → 対応する GUI タブが z2term 側で自動的に開く。
-                val pty = launcher.launch(
-                    distroId = spec.id,
-                    command = shell,
-                    rows = rows,
-                    cols = cols,
-                    fallbackShell = spec.defaultShell,
-                    display = display,
-                    exportDisplay = true,
-                )
+                val s = settingsFlow.value
+                val useChroot = s.executionEngine == AppSettings.ENGINE_CHROOT && s.rootChrootUnlocked
+                val pty = if (useChroot) {
+                    // 裏機能: root で実 chroot 起動。失敗時は PRoot へフォールバック。
+                    runCatching {
+                        launcher.launchChroot(
+                            distroId = spec.id,
+                            command = shell,
+                            rows = rows,
+                            cols = cols,
+                            fallbackShell = spec.defaultShell,
+                            display = display,
+                        )
+                    }.getOrElse { e ->
+                        Log.w(TAG, "chroot launch failed, falling back to proot", e)
+                        launcher.launch(
+                            distroId = spec.id,
+                            command = shell,
+                            rows = rows,
+                            cols = cols,
+                            fallbackShell = spec.defaultShell,
+                            display = display,
+                            exportDisplay = true,
+                        )
+                    }
+                } else {
+                    launcher.launch(
+                        distroId = spec.id,
+                        command = shell,
+                        rows = rows,
+                        cols = cols,
+                        fallbackShell = spec.defaultShell,
+                        display = display,
+                        exportDisplay = true,
+                    )
+                }
                 val ch = LocalPtyChannel(pty)
                 channel = ch
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }

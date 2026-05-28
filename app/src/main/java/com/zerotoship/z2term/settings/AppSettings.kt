@@ -70,7 +70,17 @@ class AppSettings(private val context: Context) {
          * 画面の向きが変わると自動でそれぞれの値が適用される (毎回スライダーを直す手間をなくす)。
          * 既定 320dp / 範囲 200-460dp。
          */
-        val portraitKeyboardHeightDp: Float = DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP
+        val portraitKeyboardHeightDp: Float = DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP,
+        /**
+         * 裏機能「root で chroot 実行」の解放フラグ。設定のバージョンを7回タップ + セルフテスト
+         * 成功で true になる (Android 開発者モードと同作法)。false の間はエンジン選択 UI を出さない。
+         */
+        val rootChrootUnlocked: Boolean = false,
+        /**
+         * 端末セッションの実行エンジン。"proot"(既定・非root) / "chroot"(root)。
+         * chroot は [rootChrootUnlocked] が true のときだけ有効 (それ以外は proot 扱い)。
+         */
+        val executionEngine: String = ENGINE_PROOT
     )
 
     suspend fun setGuiMagnification(value: Float) {
@@ -103,8 +113,19 @@ class AppSettings(private val context: Context) {
             landscapeKeyboardPosition = p[KEY_LANDSCAPE_KB_POS] ?: DEFAULT_LANDSCAPE_KEYBOARD_POSITION,
             landscapeKeyboardWidthDp = p[KEY_LANDSCAPE_KB_WIDTH] ?: DEFAULT_LANDSCAPE_KEYBOARD_WIDTH_DP,
             landscapeKeyboardHeightDp = p[KEY_LANDSCAPE_KB_HEIGHT] ?: DEFAULT_LANDSCAPE_KEYBOARD_HEIGHT_DP,
-            portraitKeyboardHeightDp = p[KEY_PORTRAIT_KB_HEIGHT] ?: DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP
+            portraitKeyboardHeightDp = p[KEY_PORTRAIT_KB_HEIGHT] ?: DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP,
+            rootChrootUnlocked = p[KEY_ROOT_UNLOCKED] ?: false,
+            executionEngine = p[KEY_ENGINE] ?: ENGINE_PROOT
         )
+    }
+
+    suspend fun setRootChrootUnlocked(value: Boolean) {
+        context.dataStore.edit { it[KEY_ROOT_UNLOCKED] = value }
+    }
+
+    suspend fun setExecutionEngine(value: String) {
+        val normalized = if (value == ENGINE_CHROOT) ENGINE_CHROOT else ENGINE_PROOT
+        context.dataStore.edit { it[KEY_ENGINE] = normalized }
     }
 
     suspend fun setLandscapeKeyboardHeightDp(value: Float) {
@@ -197,6 +218,11 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_KEYBOARD_STYLE = "spacious"
         const val DEFAULT_KEYBOARD_MODE = "custom"
         const val DEFAULT_KEEP_ALIVE = true
+
+        /** 実行エンジン: 非 root の PRoot (既定) */
+        const val ENGINE_PROOT = "proot"
+        /** 実行エンジン: root で実 chroot (裏機能・要解放) */
+        const val ENGINE_CHROOT = "chroot"
         /** ダウンロード前確認は既定 ON (勝手に通信しない方針)。 */
         const val DEFAULT_CONFIRM_DOWNLOAD = true
         /** GUI ターミナルの既定 ([com.zerotoship.z2term.proot.GuiTerminal.XTERM] の id) */
@@ -234,6 +260,8 @@ class AppSettings(private val context: Context) {
         private val KEY_LANDSCAPE_KB_WIDTH = floatPreferencesKey("landscape_kb_width_dp")
         private val KEY_LANDSCAPE_KB_HEIGHT = floatPreferencesKey("landscape_kb_height_dp")
         private val KEY_PORTRAIT_KB_HEIGHT = floatPreferencesKey("portrait_kb_height_dp")
+        private val KEY_ROOT_UNLOCKED = booleanPreferencesKey("root_chroot_unlocked")
+        private val KEY_ENGINE = stringPreferencesKey("execution_engine")
 
         /** 横画面時のキーボード配置の選択肢 */
         const val LANDSCAPE_KB_LEFT = "left"

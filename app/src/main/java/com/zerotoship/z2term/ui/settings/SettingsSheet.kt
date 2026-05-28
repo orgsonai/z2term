@@ -63,6 +63,9 @@ import com.zerotoship.z2term.legal.LicensesDialog
 import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.emulator.TerminalTheme
 import com.zerotoship.z2term.proot.GuiTerminal
+import android.widget.Toast
+import com.zerotoship.z2term.proot.ProotLauncher
+import com.zerotoship.z2term.proot.RootProbe
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
@@ -560,7 +563,54 @@ fun SettingsSheet(
                 )
             }
 
-            AppInfoSection(distroId = settings.distroId)
+            // 裏機能で解放されたときだけ「実行エンジン」を表示 (proot / chroot)。
+            if (settings.rootChrootUnlocked) {
+                Section(title = stringResource(R.string.settings_section_engine)) {
+                    ChipRow(
+                        options = listOf(AppSettings.ENGINE_PROOT, AppSettings.ENGINE_CHROOT),
+                        selected = settings.executionEngine,
+                        labels = mapOf(
+                            AppSettings.ENGINE_PROOT to stringResource(R.string.settings_engine_proot),
+                            AppSettings.ENGINE_CHROOT to stringResource(R.string.settings_engine_chroot),
+                        ),
+                        onSelect = { session.setExecutionEngine(it) }
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_engine_desc),
+                        color = ZtsWarning,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+
+            AppInfoSection(
+                distroId = settings.distroId,
+                rootUnlocked = settings.rootChrootUnlocked,
+                onUnlock = {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.settings_root_unlock_checking),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            ProotLauncher(context).probeRootChroot()
+                        }
+                        val msg = when (result) {
+                            is RootProbe.Ok -> {
+                                session.setRootChrootUnlocked(true)
+                                context.getString(R.string.settings_root_unlock_ok)
+                            }
+                            is RootProbe.NoRoot ->
+                                context.getString(R.string.settings_root_unlock_no_root)
+                            is RootProbe.ChrootBlocked ->
+                                context.getString(R.string.settings_root_unlock_blocked)
+                        }
+                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                    }
+                }
+            )
         }
     }
 
@@ -616,8 +666,10 @@ fun SettingsSheet(
  * その os-release を表示する。
  */
 @Composable
-private fun AppInfoSection(distroId: String) {
+private fun AppInfoSection(distroId: String, rootUnlocked: Boolean, onUnlock: () -> Unit) {
     val context = LocalContext.current
+    // 裏機能: バージョン行を 7 回タップで chroot エンジンを解放 (Android 開発者モードと同作法)。
+    var tapCount by remember { mutableStateOf(0) }
     // os-release の PRETTY_NAME を rootfs から 1 度だけ読む (軽量なファイル read)
     val osPretty = remember(distroId) {
         runCatching {
@@ -627,8 +679,26 @@ private fun AppInfoSection(distroId: String) {
                 ?.substringAfter('=')?.trim('"', ' ')
         }.getOrNull()
     }
+    val versionClick: (() -> Unit)? = if (rootUnlocked) null else {
+        {
+            tapCount++
+            val remaining = 7 - tapCount
+            when {
+                remaining <= 0 -> { tapCount = 0; onUnlock() }
+                remaining in 1..3 -> Toast.makeText(
+                    context,
+                    context.getString(R.string.settings_root_unlock_countdown, remaining),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
     Section(title = stringResource(R.string.settings_section_app_info)) {
-        InfoRow(stringResource(R.string.appinfo_version), "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+        InfoRow(
+            stringResource(R.string.appinfo_version),
+            "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+            onClick = versionClick
+        )
         InfoRow(stringResource(R.string.appinfo_flavor), if (BuildConfig.IS_FOSS) "FOSS" else "Full")
         InfoRow(stringResource(R.string.appinfo_package), BuildConfig.APPLICATION_ID)
         InfoRow(stringResource(R.string.appinfo_rootfs_generation), DistroBundle.ROOTFS_VERSION.toString())
@@ -681,9 +751,11 @@ private fun AppInfoSection(distroId: String) {
 }
 
 @Composable
-private fun InfoRow(label: String, value: String) {
+private fun InfoRow(label: String, value: String, onClick: (() -> Unit)? = null) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .let { if (onClick != null) it.clickable { onClick() } else it },
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(

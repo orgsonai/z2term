@@ -57,6 +57,17 @@
     <string name="settings_reset_terminal">Reset terminal</string>
     <string name="settings_section_app_info">App info</string>
 
+    <!-- Hidden root chroot engine (unlocked by tapping the version 7x) -->
+    <string name="settings_section_engine">Execution engine (experimental)</string>
+    <string name="settings_engine_proot">PRoot (default)</string>
+    <string name="settings_engine_chroot">chroot (root)</string>
+    <string name="settings_engine_desc">chroot runs natively as real root. Requires a rooted device; new tabs use the selected engine.</string>
+    <string name="settings_root_unlock_checking">Checking root / chroot…</string>
+    <string name="settings_root_unlock_ok">Root execution unlocked. Pick the engine below.</string>
+    <string name="settings_root_unlock_no_root">Root (su) is not available on this device.</string>
+    <string name="settings_root_unlock_blocked">Root works but chroot exec was blocked (likely SELinux / this root method).</string>
+    <string name="settings_root_unlock_countdown">%1$d more taps to unlock root execution</string>
+
     <!-- Banners shown during distro / GUI install (D2 batch) -->
     <string name="banner_proot_missing">⚠️ PRoot binary not found — run scripts/build-proot.sh and rebuild. Falling back to Android sh.</string>
     <string name="banner_extracting_first">📦 Initial extraction of %1$s…</string>

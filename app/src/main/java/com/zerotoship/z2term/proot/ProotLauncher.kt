@@ -7,6 +7,16 @@ import com.zerotoship.z2term.pty.PtyProcess
 import com.zerotoship.z2term.settings.LocaleHelper
 import java.io.File
 
+/** [ProotLauncher.probeRootChroot] のセルフテスト結果。 */
+sealed class RootProbe {
+    /** root + chroot exec 成功 (chroot エンジン利用可)。 */
+    object Ok : RootProbe()
+    /** su が無い / 許可されない (= 未 root)。 */
+    object NoRoot : RootProbe()
+    /** root はあるが chroot exec が拒否された (SELinux 等)。detail は端末からの出力。 */
+    data class ChrootBlocked(val detail: String) : RootProbe()
+}
+
 /**
  * PRoot プロセスを起動するためのマネージャ。
  *
@@ -208,6 +218,120 @@ class ProotLauncher(private val context: Context) {
             cols = cols
         )
     }
+
+    /**
+     * 裏機能: root 端末で実 `chroot` 起動する。[launch] (PRoot) の代替経路。
+     *
+     * rootfs・スクリプト注入 (履歴/OSC7/sshd/gui/z2run/z2-api) は PRoot 経路と共通で流用し、
+     * proot バイナリの代わりに `su -c` でブートストラップ (bind mount → chroot → login shell) を起動する。
+     * libtalloc/proot loader は不要。未 root (su 解決不可) なら例外を投げる (呼び出し側で proot へフォールバック)。
+     */
+    fun launchChroot(
+        distroId: String = "alpine",
+        command: String = "/bin/sh",
+        rows: Int = 24,
+        cols: Int = 80,
+        fallbackShell: String = "/bin/sh",
+        guiTerminal: GuiTerminal = GuiTerminal.XTERM,
+        display: Int? = null
+    ): PtyProcess {
+        val rootfs = File(distrosDir, distroId)
+        if (!rootfs.exists()) throw IllegalStateException("Rootfs not found: ${rootfs.absolutePath}")
+        val su = resolveSu() ?: throw IllegalStateException("su not found (device not rooted)")
+
+        // PRoot 経路と同じ rootfs セットアップ (proot libs / loader は chroot では不要)。
+        sharedHomeDir.mkdirs()
+        ensureShellHistoryConfig(rootfs)
+        ensureOsc7CwdConfig(rootfs)
+        ensureSshdWrapper(rootfs)
+        ensureGuiScript(rootfs, guiTerminal)
+        ensureZ2RunScript(rootfs)
+        ensureZ2ApiScripts(rootfs)
+        File(rootfs, "sdcard").mkdirs()
+        File(rootfs, "storage/app").mkdirs()
+
+        val resolvedShell = resolveShell(rootfs, command, fallbackShell)
+        val script = chrootBootstrap(rootfs.absolutePath, sharedHomeDir.absolutePath, resolvedShell, display)
+
+        Log.i(TAG, "Launching chroot: distro=$distroId, su=$su, shell=$resolvedShell")
+        return PtyProcess.create(
+            command = su,
+            args = arrayOf("su", "-c", script),
+            env = arrayOf(
+                "PATH=/system/bin:/system/xbin:/vendor/bin",
+                "HOME=${context.filesDir.absolutePath}",
+                "TERM=xterm-256color"
+            ),
+            cwd = context.filesDir.absolutePath,
+            rows = rows,
+            cols = cols
+        )
+    }
+
+    /**
+     * root + chroot exec が使えるかをセルフテストする (裏機能解放時に1回呼ぶ)。
+     * 1) `su -c id` で uid=0 を確認 (初回は root マネージャの許可ダイアログが出る)。
+     * 2) `su -c "chroot <rootfs> /bin/sh -c echo"` で app_data_file の root exec が
+     *    SELinux 等に弾かれないかを確認する。
+     */
+    fun probeRootChroot(distroId: String = DistroBundle.BUNDLED_DISTRO_ID): RootProbe {
+        val su = resolveSu() ?: return RootProbe.NoRoot
+        val id = runSuCapture(su, "id", 10_000L) ?: return RootProbe.NoRoot
+        if (!id.contains("uid=0")) return RootProbe.NoRoot
+        val rootfs = File(distrosDir, distroId).takeIf { it.exists() }
+            ?: distrosDir.listFiles()?.firstOrNull {
+                File(it, "bin/sh").exists() || File(it, "bin/busybox").exists()
+            }
+            ?: return RootProbe.ChrootBlocked("rootfs not ready")
+        val test = runSuCapture(su, "chroot ${shq(rootfs.absolutePath)} /bin/sh -c 'echo Z2OK'", 10_000L)
+        return if (test != null && test.contains("Z2OK")) RootProbe.Ok
+        else RootProbe.ChrootBlocked((test ?: "").trim().take(200))
+    }
+
+    /** PATH 上の su を絶対パスで解決する (Magisk 等は実ファイルが固定パスに無いため `command -v` で探す)。 */
+    private fun resolveSu(): String? = runCatching {
+        val p = ProcessBuilder("/system/bin/sh", "-c", "command -v su").redirectErrorStream(true).start()
+        val out = p.inputStream.bufferedReader().readText()
+        p.waitFor()
+        out.lineSequence().map { it.trim() }.firstOrNull { it.startsWith("/") }
+    }.getOrNull()
+
+    /** `su -c <cmd>` を timeout 付きで実行し、stdout+stderr を返す (失敗/timeout は null)。 */
+    private fun runSuCapture(su: String, cmd: String, timeoutMs: Long): String? = runCatching {
+        val p = ProcessBuilder(su, "-c", cmd).redirectErrorStream(true).start()
+        val finished = p.waitFor(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+        if (!finished) { p.destroy(); return@runCatching null }
+        p.inputStream.bufferedReader().readText()
+    }.getOrNull()
+
+    /** chroot ブートストラップ (root で実行)。bind mount → env -i で login shell を chroot 起動。 */
+    private fun chrootBootstrap(rootfs: String, sharedHome: String, shell: String, display: Int?): String {
+        val rfs = shq(rootfs)
+        val home = shq(sharedHome)
+        val sh = shq(shell)
+        val displayEnv = if (display != null) " DISPLAY=:$display Z2_DISPLAY=$display Z2_RFBPORT=${5900 + display}" else ""
+        return buildString {
+            append("export PATH=/system/bin:/system/xbin:/vendor/bin:\$PATH\n")
+            append("RFS=").append(rfs).append('\n')
+            append("SHOME=").append(home).append('\n')
+            // 前回 chroot が残したマウントを掃除 (リーク回収)。
+            append("for m in dev/pts dev proc sys root sdcard; do umount -l \"\$RFS/\$m\" 2>/dev/null; done\n")
+            append("mkdir -p \"\$RFS/dev\" \"\$RFS/dev/pts\" \"\$RFS/proc\" \"\$RFS/sys\" \"\$RFS/root\" \"\$RFS/sdcard\" \"\$RFS/tmp\"\n")
+            append("mount -o bind /dev \"\$RFS/dev\"\n")
+            append("mount -o bind /dev/pts \"\$RFS/dev/pts\" 2>/dev/null\n")
+            append("mount -o bind /proc \"\$RFS/proc\"\n")
+            append("mount -o bind /sys \"\$RFS/sys\"\n")
+            append("mount -o bind \"\$SHOME\" \"\$RFS/root\"\n")
+            append("mount -o bind /sdcard \"\$RFS/sdcard\" 2>/dev/null\n")
+            append("exec chroot \"\$RFS\" /usr/bin/env -i HOME=/root TERM=xterm-256color LANG=C.UTF-8 ")
+            append("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin TMPDIR=/tmp")
+            append(displayEnv)
+            append(" SHELL=").append(sh).append(' ').append(sh).append(" -l\n")
+        }
+    }
+
+    /** shell 用シングルクォート。 */
+    private fun shq(s: String): String = "'" + s.replace("'", "'\\''") + "'"
 
     /**
      * 指定シェルが rootfs 内に実体として存在するか確認し、無ければ
