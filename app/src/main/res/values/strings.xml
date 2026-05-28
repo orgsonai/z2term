@@ -34,15 +34,24 @@
     <string name="settings_keep_alive_desc">ON: keep the session alive after closing the app (a notification appears). OFF: terminate when closed.</string>
     <string name="settings_confirm_download">Confirm before download</string>
     <string name="settings_confirm_download_desc">ON: prompt before downloading a distro or GUI package. OFF: download without confirmation.</string>
-    <string name="settings_no_install_timeout">Disable install timeout</string>
-    <string name="settings_no_install_timeout_desc">ON: wait until the GUI stack (apk/apt/pacman) or OS rootfs download finishes (no annoying mid-way error). To cancel, tap the ✕ button on the GUI tab. OFF (default): give up after about 5 minutes.</string>
     <string name="settings_section_landscape_keyboard">Keyboard position (landscape)</string>
     <string name="settings_landscape_keyboard_desc">Where to place the on-screen keyboard when the screen is in landscape. Portrait always uses Bottom.</string>
     <string name="settings_landscape_kb_left">Left</string>
     <string name="settings_landscape_kb_bottom">Bottom</string>
     <string name="settings_landscape_kb_right">Right</string>
     <string name="settings_landscape_kb_width">Side keyboard width (landscape)</string>
-    <string name="settings_landscape_kb_height">Keyboard height (landscape)</string>
+    <string name="settings_section_keyboard_size">Keyboard size</string>
+    <string name="settings_kb_height_portrait">Keyboard height (portrait)</string>
+    <string name="settings_kb_height_landscape">Keyboard height (landscape)</string>
+    <string name="settings_kb_height_desc">Portrait and landscape heights are remembered separately and switch automatically with the screen orientation.</string>
+    <string name="settings_section_delete_os">Delete OS data (free storage)</string>
+    <string name="settings_delete_os_desc">Delete data for OS images you don\'t use to free up space. Deleting removes all packages, settings and files inside that OS.</string>
+    <string name="settings_delete_os_empty">No OS data to delete yet.</string>
+    <string name="settings_delete_os_button">Delete</string>
+    <string name="settings_delete_os_in_use">In use (can\'t delete)</string>
+    <string name="confirm_delete_os_title">Delete %1$s data?</string>
+    <string name="confirm_delete_os_msg">All packages, settings and files inside %1$s will be erased. This cannot be undone. Delete anyway?</string>
+    <string name="action_delete_os">Delete</string>
     <string name="settings_init_command">Startup init command</string>
     <string name="settings_init_command_placeholder">e.g. zsh -l</string>
     <string name="settings_reset_terminal">Reset terminal</string>
@@ -295,4 +304,24 @@
     <string name="snippet_sample_ls_label">list (long)</string>
     <string name="snippet_sample_apk_update_label">apk: update (fetch index)</string>
     <string name="snippet_sample_apk_add_label">apk: add (append package name)</string>
+
+    <!-- IME learning history management (keyboard patch) -->
+    <string name="settings_section_ime_history">Japanese IME learning history</string>
+    <string name="settings_ime_history_count">%1$d learned entries</string>
+    <string name="settings_ime_history_open">Manage history</string>
+    <string name="ime_history_title">Learning history</string>
+    <string name="ime_history_empty">No learning history yet. Entries are recorded when you confirm a conversion in the Japanese keyboard.</string>
+    <string name="ime_history_clear_confirm">Clear all learning history? This cannot be undone.</string>
+    <string name="ime_history_count_badge">×%1$d</string>
+
+    <!-- Android API bridge (z2-* helpers) -->
+    <string name="api_channel_name">Terminal API</string>
+    <string name="api_channel_desc">Notifications posted by z2-notify from the terminal.</string>
+
+    <!-- Scrollback search (search patch) -->
+    <string name="search_hint">Search output</string>
+    <string name="search_count">%1$d/%2$d</string>
+    <string name="search_prev">↑</string>
+    <string name="search_next">↓</string>
+    <string name="search_close">✕</string>
 </resources>

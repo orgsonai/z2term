@@ -2,7 +2,6 @@ package com.zerotoship.z2term.ui.terminal.keyboard
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,10 +29,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import com.zerotoship.z2term.emulator.TerminalEmulator
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -40,35 +44,33 @@ import com.zerotoship.z2term.ui.theme.ZtsBorder
 import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsGreenBright
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
-import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 /**
  * 内蔵の日本語フリックキーボード (ひらがな直接入力)。標準的な 12 キー配列。
  *
- * OS IME に頼らず、端末へ直接ひらがな (UTF-8) を送る。漢字変換は行わない
- * (辞書エンジンが必要なため範囲外) が、ファイル名やコメント等のかな入力には十分。
+ * OS IME に頼らず、端末へ直接ひらがな (UTF-8) を送る。「変換」キーで
+ * かな漢字変換 (スプリット変換 + 候補サイクル) に入り、◀ / ▶ で範囲調整、
+ * 候補をタップ or `⏎` で確定すると次のブロックへ自動でフォーカスが移る。
+ * composing が空のときに `変換` を押すと、直前 commit を呼び戻す **再変換** が走る
+ * (端末側に DEL バイトを送って確定済みテキストを消し、composing に戻して再度変換)。
  *
  * フリック規約 (一般的な日本語 12 キーと同じ):
  *   タップ = あ段 / 左 = い段 / 上 = う段 / 右 = え段 / 下 = お段
- * 各かなキーには 4 方向のフリック先を小さく表示する (見本の市販 IME と同様)。
+ * 押下中はキーの真上に四角いポップアップが浮き、今選ばれているかなを大きく示す。
+ * 同じかなを [CYCLE_REPEAT_WINDOW_MS] 以内に連打すると、composing 末尾を
+ * 濁点→半濁点→小書きへ自動循環する (`小゛゜` キーを押す手間を省く)。
  *
  * 「小゛゜」キーは **直前に入力したかな** を 濁点→半濁点→小書き→元 の順に
- * 循環させる (端末へ DEL を送ってから変換後の文字を送り直す)。
- *
- * 「カナ」キーで かな ⇄ カタカナ を切替える (カタカナモードでは出力も表示も
- * カタカナになる)。「ABC」で英字 (QWERTY) キーボードへ戻る。
+ * 循環させる (連打サイクルの手動版、フリックや空打ちのあとに使うフォールバック)。
  *
  * 配列 (5 列 × 4 行、画面高さを充填):
  *   ESC  あ   か  さ   ⌫
  *   ◀   た   な  は   ▶
- *   カナ ま   や  ら   ␣
+ *   ␣    ま   や  ら   変換
  *   ABC  小゛゜ わ  、。  ⏎
  *
- * 両端の列 (ESC/◀/カナ/ABC と ⌫/▶/␣/⏎) は [JP_EDGE_WEIGHT] で幅を狭め、
+ * 両端の列 (ESC/◀/␣/ABC と ⌫/▶/変換/⏎) は [JP_EDGE_WEIGHT] で幅を狭め、
  * 中央 3 列のかな (フリック) を広く取って打ちやすくしている。
  */
 // 両端 (機能キー) 列の幅。中央のかな列 (1f) より狭くする。
@@ -86,20 +88,50 @@ fun JapaneseFlickKeyboard(
     // 入力中のひらがなを確定して PTY へ流す (composing が空なら何もしない)。
     fun flush() { composing.commitRaw() }
 
-    // かなは composing に積む (変換前バッファ)。予測候補が随時更新される。
-    fun emitKana(hira: Char) { composing.append(hira) }
+    // かなは composing に積む (連打サイクル含む)。予測候補が随時更新される。
+    fun emitKana(hira: Char) { composing.emitKana(hira) }
 
-    // 記号は確定 → そのまま送出 (変換対象外)。
+    // 記号 (、。？！…): 入力中のかなを **強制確定しない** で、composing に積むだけ。
+    //   - composing が空のときだけ直接 PTY へ送る (= 1 タップで完結)。
+    //   - composing がある場合は append して未確定のまま続行できる。
+    //     例: 「わたしは、がっこうへ」と打って ⏎ や 変換 でまとめて変換確定する流れに対応。
     fun emitPlain(ch: Char) {
-        flush()
-        onBytes(ch.toString().toByteArray(Charsets.UTF_8))
+        if (composing.isActive) {
+            composing.append(ch)
+        } else {
+            onBytes(ch.toString().toByteArray(Charsets.UTF_8))
+        }
     }
 
     // 「小゛゜」: composing 末尾のかなを 濁点→半濁点→小書き→元 の順に循環。
+    //   連打サイクル ([ComposingState.emitKana]) のフォールバック (フリック後や空打ち後)。
     fun cycleDakuten() {
         val cur = composing.text.lastOrNull() ?: return
         val (forms, idx) = CYCLE_INDEX[cur] ?: return
         composing.replaceLast(forms[(idx + 1) % forms.size])
+    }
+
+    // 変換キーの挙動:
+    //   1. composing が空 ∧ 直前 commit が残っている → **再変換**:
+    //      端末側へ 0x7F を直前出力のコードポイント数だけ送って消し、composing を復元 → convert。
+    //   2. composing が active → 通常の [ComposingState.convert]
+    //      (1 回目: スプリット起動 / 2 回目以降: 候補サイクル)。
+    //   3. それ以外 (空 ∧ 直前なし) → 何もしない。
+    fun handleConvert() {
+        if (composing.isActive) {
+            composing.convert()
+            return
+        }
+        if (composing.canReconvert) {
+            val toErase = composing.restoreLastCommit()
+            if (toErase > 0) {
+                // 端末読み出し側 (シェル readline 等) は 0x7F を「1 文字削除」として扱う想定。
+                // UTF-8 マルチバイト文字も bash/zsh の readline では 1 押下 = 1 コードポイント削除になる。
+                // 生 PTY モード (vim 等) では削除されないことがある (= 再変換は実質シェル文脈のみ)。
+                onBytes(ByteArray(toErase) { 0x7F.toByte() })
+            }
+            composing.convert()
+        }
     }
 
     val rowSpacing = if (style.keyHeight >= 56.dp) 4.dp else 3.dp
@@ -124,21 +156,36 @@ fun JapaneseFlickKeyboard(
             }
         }
         // Row 2: ◀  た  な  は  ▶
+        //   スプリット変換中は ◀ ▶ をフォーカス範囲調整に流用 (左 = 縮める / 右 = 広げる)。
+        //   非変換中は従来通りカーソルキー送信。
         JpRow(rowSpacing) {
-            JpKey("◀", style, repeatable = true, weight = JP_EDGE_WEIGHT) { flush(); onCursorKey(TerminalEmulator.CursorKey.LEFT) }
+            JpKey("◀", style, repeatable = true, accent = composing.isSplitMode, weight = JP_EDGE_WEIGHT) {
+                if (composing.isSplitMode) composing.shrinkSplitHead()
+                else { flush(); onCursorKey(TerminalEmulator.CursorKey.LEFT) }
+            }
             JpFlickKey(KANA_TA, style, ::emitKana)
             JpFlickKey(KANA_NA, style, ::emitKana)
             JpFlickKey(KANA_HA, style, ::emitKana)
-            JpKey("▶", style, repeatable = true, weight = JP_EDGE_WEIGHT) { flush(); onCursorKey(TerminalEmulator.CursorKey.RIGHT) }
+            JpKey("▶", style, repeatable = true, accent = composing.isSplitMode, weight = JP_EDGE_WEIGHT) {
+                if (composing.isSplitMode) composing.extendSplitHead()
+                else { flush(); onCursorKey(TerminalEmulator.CursorKey.RIGHT) }
+            }
         }
         // Row 3: ␣  ま  や  ら  変換
+        //   ␣ も composing がある間は **強制確定しない** で空白を append (記号と同じ方針)。
         JpRow(rowSpacing) {
-            JpKey("␣", style, repeatable = true, weight = JP_EDGE_WEIGHT) { flush(); onBytes(byteArrayOf(0x20)) }
+            JpKey("␣", style, repeatable = true, weight = JP_EDGE_WEIGHT) {
+                if (composing.isActive) composing.append(' ')
+                else onBytes(byteArrayOf(0x20))
+            }
             JpFlickKey(KANA_MA, style, ::emitKana)
             JpFlickKey(KANA_YA, style, ::emitKana)
             JpFlickKey(KANA_RA, style, ::emitKana)
-            JpKey("変換", style, fontScale = 0.65f, accent = composing.isActive, weight = JP_EDGE_WEIGHT) {
-                composing.convert()
+            // 変換キー: composing 空 ∧ 再変換可なら label を「再変換」に切替えてユーザーへ示す。
+            val convertLabel = if (!composing.isActive && composing.canReconvert) "再変換" else "変換"
+            val convertAccent = composing.isActive || composing.canReconvert
+            JpKey(convertLabel, style, fontScale = 0.65f, accent = convertAccent, weight = JP_EDGE_WEIGHT) {
+                handleConvert()
             }
         }
         // Row 4: ABC(英字へ)  小゛゜  わ  、。  ⏎
@@ -229,7 +276,11 @@ private fun RowScope.JpKey(
 
 /**
  * かな用 4 方向フリックキー。中央=タップ、左/上/右/下 で い/う/え/お 段。
- * 4 方向のフリック先を四隅(端)に小さく表示する (市販 IME と同様の見た目)。
+ *
+ * キー本体には中央のかなだけを表示する (フリック先文字はキー上には出さない)。
+ * 押下中はキーの真上に正方形のポップアップが浮き、5 マス (中央+4 方向) に
+ * 各かなを並べる。今フリック中の方向のマスが緑でハイライトされ、どの文字が
+ * 確定対象かが一目でわかる。指を離すとそのマスのかなを [onEmit] へ送る。
  */
 @Composable
 private fun RowScope.JpFlickKey(
@@ -289,7 +340,8 @@ private fun RowScope.JpFlickKey(
                 }
             }
     ) {
-        // 中央のかなは常に主文字のまま (二重表示防止)。フリック方向はヒント側だけで強調する。
+        // キー本体: 中央のかなだけ。フリック先文字はキー上に表示しない (押下時の
+        //   ポップアップで全方向を見せる)。
         Text(
             text = km.center.toString(),
             color = fg,
@@ -298,26 +350,89 @@ private fun RowScope.JpFlickKey(
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.align(Alignment.Center)
         )
-        // フリックヒント (灰色、四隅/端) — プレビュー対象は大きく強調
-        km.up?.let { Hint(it, style, flickPreview == it, Modifier.align(Alignment.TopCenter)) }
-        km.down?.let { Hint(it, style, flickPreview == it, Modifier.align(Alignment.BottomCenter)) }
-        km.left?.let { Hint(it, style, flickPreview == it, Modifier.align(Alignment.CenterStart).padding(start = 2.dp)) }
-        km.right?.let { Hint(it, style, flickPreview == it, Modifier.align(Alignment.CenterEnd).padding(end = 2.dp)) }
+        // 押下中: キーの真上にポップアップ (5 マスの十字レイアウト)。
+        //   現在フリックしている方向のマスを緑でハイライト。
+        if (pressed) {
+            FlickPopup(
+                km = km,
+                current = flickPreview ?: km.center,
+                style = style
+            )
+        }
+    }
+}
+
+/**
+ * フリックキー押下時にキー直上へ浮かべる正方形ポップアップ。
+ * 中央+4 方向 (上 / 下 / 左 / 右) の 5 マスに、それぞれ割り当て文字を並べる。
+ * 現在選ばれている文字のマスが緑色で強調される (= 指を離すとこの文字が送出される)。
+ *
+ * Popup を使うとキー本体の境界を越えて画面上方へ描けるので、キーボードの最上段でも
+ * 端末画面側に重ねて表示できる。
+ */
+@Composable
+private fun FlickPopup(
+    km: KanaFlick,
+    current: Char?,
+    style: KeyboardStyle
+) {
+    val density = LocalDensity.current
+    // ポップアップ寸法: キーフォント sp に対して比例 (compact ≒ 76dp、spacious ≒ 100dp)。
+    val cellSize = (style.keyFontSp * 1.85f).dp
+    val popupSize = cellSize * 3
+    val gap = 6.dp
+    val offsetY = with(density) { -(popupSize + gap).roundToPx() }
+    Popup(
+        alignment = Alignment.TopCenter,
+        offset = IntOffset(0, offsetY),
+        properties = PopupProperties(focusable = false, clippingEnabled = true)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(popupSize, popupSize)
+                .clip(RoundedCornerShape(10.dp))
+                .background(ZtsBgCard)
+                .border(2.dp, ZtsGreen, RoundedCornerShape(10.dp))
+        ) {
+            FlickCell(km.up, current == km.up && km.up != null, style, cellSize,
+                Modifier.align(Alignment.TopCenter))
+            FlickCell(km.left, current == km.left && km.left != null, style, cellSize,
+                Modifier.align(Alignment.CenterStart))
+            FlickCell(km.center, current == km.center, style, cellSize,
+                Modifier.align(Alignment.Center))
+            FlickCell(km.right, current == km.right && km.right != null, style, cellSize,
+                Modifier.align(Alignment.CenterEnd))
+            FlickCell(km.down, current == km.down && km.down != null, style, cellSize,
+                Modifier.align(Alignment.BottomCenter))
+        }
     }
 }
 
 @Composable
-private fun Hint(ch: Char, style: KeyboardStyle, emphasized: Boolean = false, modifier: Modifier = Modifier) {
-    val sz = if (emphasized) (style.flickHintFontSp + 1f) * 1.7f else (style.flickHintFontSp + 1f)
-    Text(
-        text = ch.toString(),
-        color = if (emphasized) Color.Black else ZtsTextSecondary,
-        fontSize = sz.sp,
-        lineHeight = sz.sp,
-        fontFamily = FontFamily.Monospace,
-        fontWeight = if (emphasized) FontWeight.Bold else FontWeight.Medium,
+private fun FlickCell(
+    ch: Char?,
+    active: Boolean,
+    style: KeyboardStyle,
+    cellSize: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier
+) {
+    Box(
         modifier = modifier
-    )
+            .size(cellSize, cellSize)
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (active) ZtsGreen else Color.Transparent),
+        contentAlignment = Alignment.Center
+    ) {
+        if (ch != null) {
+            Text(
+                text = ch.toString(),
+                color = if (active) Color.Black else ZtsTextPrimary,
+                fontSize = (style.keyFontSp * (if (active) 1.15f else 0.95f)).sp,
+                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
 }
 
 /** かなフリック割り当て (中央=タップ、なければ中央を送る)。 */
@@ -340,26 +455,5 @@ private val KANA_MA = KanaFlick('ま', 'み', 'む', 'め', 'も')
 private val KANA_YA = KanaFlick('や', '「', 'ゆ', '」', 'よ')
 private val KANA_RA = KanaFlick('ら', 'り', 'る', 'れ', 'ろ')
 private val KANA_WA = KanaFlick('わ', 'を', 'ん', 'ー', '〜')
-// 記号キー: 、。？！…
+// 記号キー: 、。?!…
 private val PUNCT = KanaFlick('、', '。', '？', '！', '…')
-
-/**
- * 濁点/半濁点/小書きの循環グループ。各かなを「次の形」へ回す。
- * 順番は base → 小書き → 濁点 → 半濁点。
- * 例: つ → っ → づ → つ、う → ぅ → ゔ → う、は → ば → ぱ → は。
- */
-private val CYCLE_GROUPS: List<List<Char>> = listOf(
-    listOf('あ', 'ぁ'), listOf('い', 'ぃ'), listOf('う', 'ぅ', 'ゔ'), listOf('え', 'ぇ'), listOf('お', 'ぉ'),
-    listOf('か', 'が'), listOf('き', 'ぎ'), listOf('く', 'ぐ'), listOf('け', 'げ'), listOf('こ', 'ご'),
-    listOf('さ', 'ざ'), listOf('し', 'じ'), listOf('す', 'ず'), listOf('せ', 'ぜ'), listOf('そ', 'ぞ'),
-    listOf('た', 'だ'), listOf('ち', 'ぢ'), listOf('つ', 'っ', 'づ'), listOf('て', 'で'), listOf('と', 'ど'),
-    listOf('は', 'ば', 'ぱ'), listOf('ひ', 'び', 'ぴ'), listOf('ふ', 'ぶ', 'ぷ'), listOf('へ', 'べ', 'ぺ'), listOf('ほ', 'ぼ', 'ぽ'),
-    listOf('や', 'ゃ'), listOf('ゆ', 'ゅ'), listOf('よ', 'ょ'), listOf('わ', 'ゎ')
-)
-
-/** char → (グループ, そのグループ内 index)。濁点キーの循環に使う。 */
-private val CYCLE_INDEX: Map<Char, Pair<List<Char>, Int>> = buildMap {
-    for (group in CYCLE_GROUPS) {
-        for ((i, c) in group.withIndex()) put(c, group to i)
-    }
-}

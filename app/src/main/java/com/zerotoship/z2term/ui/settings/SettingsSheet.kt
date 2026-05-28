@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.ui.settings
 
+import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,9 +33,11 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -43,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -77,7 +81,9 @@ import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import com.zerotoship.z2term.ui.theme.ZtsWarning
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * 設定シート (ModalBottomSheet)。
@@ -119,6 +125,24 @@ fun SettingsSheet(
     var pendingCleanInstall by remember { mutableStateOf(false) }
     // 「クリーンインストール」チェック。ON のまま OS を選ぶとその OS を入れ直す (シート内ローカル)。
     var distroCleanArmed by remember { mutableStateOf(false) }
+    // IME 学習履歴の管理シート。非 null の間 [ImeHistorySheet] を表示する (キーボードパッチ)。
+    var imeHistoryOpen by remember { mutableStateOf(false) }
+    // 画面の向き。キーボード高さスライダーを縦/横で自動切替するために監視する
+    // (configChanges 宣言済みの Activity でも確実に届くよう View の実寸で判定)。
+    val rootView = LocalView.current
+    var isLandscape by remember { mutableStateOf(rootView.width > rootView.height) }
+    DisposableEffect(rootView) {
+        val listener = android.view.View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            val landscape = v.width > v.height
+            if (landscape != isLandscape) isLandscape = landscape
+        }
+        rootView.addOnLayoutChangeListener(listener)
+        isLandscape = rootView.width > rootView.height
+        onDispose { rootView.removeOnLayoutChangeListener(listener) }
+    }
+    // OS データ削除: 再スキャン用カウンタ + 削除確認ダイアログ対象 distro id。
+    var osDataRefresh by remember { mutableStateOf(0) }
+    var pendingOsDelete by remember { mutableStateOf<String?>(null) }
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         // スクロール途中の下スワイプ/フリングで誤って閉じるのを防ぐ。
@@ -284,6 +308,37 @@ fun SettingsSheet(
                 )
             }
 
+            // OS データ削除 (ストレージ解放)。rootfs を持つ OS を列挙し、不要なものを削除できる。
+            // 使用中の OS は壊れた稼働状態を避けるため削除不可 (入れ直しはクリーンインストールで)。
+            val installedOs by produceState(emptyList<InstalledOs>(), osDataRefresh) {
+                value = withContext(Dispatchers.IO) { scanInstalledOs(context) }
+            }
+            Section(title = stringResource(R.string.settings_section_delete_os)) {
+                Text(
+                    text = stringResource(R.string.settings_delete_os_desc),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                if (installedOs.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.settings_delete_os_empty),
+                        color = ZtsTextSecondary,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                } else {
+                    installedOs.forEach { os ->
+                        OsDataRow(
+                            name = os.displayName,
+                            sizeLabel = formatStorageSize(os.bytes),
+                            isActive = os.id == settings.distroId,
+                            onDelete = { pendingOsDelete = os.id }
+                        )
+                    }
+                }
+            }
+
             Section(title = stringResource(R.string.settings_section_login_shell)) {
                 // 現ディストロの rootfs に各シェルバイナリが実在するか調べる。
                 // 未インストールのシェルを選んでも反映されず、起動時に既定シェル →
@@ -353,44 +408,83 @@ fun SettingsSheet(
                 )
             }
 
-            Section(title = stringResource(R.string.settings_section_landscape_keyboard)) {
-                val posOptions = listOf(
-                    AppSettings.LANDSCAPE_KB_LEFT,
-                    AppSettings.LANDSCAPE_KB_BOTTOM,
-                    AppSettings.LANDSCAPE_KB_RIGHT
+            // IME 学習履歴 (キーボードパッチ): 件数表示 + 管理ボタン (シートを開く)
+            Section(title = stringResource(R.string.settings_section_ime_history)) {
+                val historyVersion by com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore.versionFlow.collectAsState()
+                // approximateCount は version 変化のたびに再評価される (collectAsState 経由)
+                val count = remember(historyVersion) {
+                    com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore.approximateCount()
+                }
+                Text(
+                    text = stringResource(R.string.settings_ime_history_count, count),
+                    color = ZtsTextSecondary,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
                 )
-                ChipRow(
-                    options = posOptions,
-                    labels = mapOf(
-                        AppSettings.LANDSCAPE_KB_LEFT to stringResource(R.string.settings_landscape_kb_left),
-                        AppSettings.LANDSCAPE_KB_BOTTOM to stringResource(R.string.settings_landscape_kb_bottom),
-                        AppSettings.LANDSCAPE_KB_RIGHT to stringResource(R.string.settings_landscape_kb_right)
+                ActionButton(
+                    label = stringResource(R.string.settings_ime_history_open),
+                    onClick = { imeHistoryOpen = true }
+                )
+            }
+
+            Section(title = stringResource(R.string.settings_section_keyboard_size)) {
+                // キーボードの高さは縦画面・横画面で別々に保持し、向きに合わせて自動で切り替わる。
+                SliderField(
+                    title = stringResource(
+                        if (isLandscape) R.string.settings_kb_height_landscape
+                        else R.string.settings_kb_height_portrait
                     ),
-                    selected = settings.landscapeKeyboardPosition,
-                    onSelect = { session.setLandscapeKeyboardPosition(it) }
+                    value = if (isLandscape) settings.landscapeKeyboardHeightDp
+                            else settings.portraitKeyboardHeightDp,
+                    range = if (isLandscape)
+                        AppSettings.MIN_LANDSCAPE_KB_HEIGHT_DP..AppSettings.MAX_LANDSCAPE_KB_HEIGHT_DP
+                    else
+                        AppSettings.MIN_PORTRAIT_KB_HEIGHT_DP..AppSettings.MAX_PORTRAIT_KB_HEIGHT_DP,
+                    steps = if (isLandscape) 14 else 12,  // 20dp 刻み
+                    valueLabel = { "%.0fdp".format(it) },
+                    onChange = {
+                        if (isLandscape) session.setLandscapeKeyboardHeightDp(it)
+                        else session.setPortraitKeyboardHeightDp(it)
+                    }
                 )
                 Text(
-                    text = stringResource(R.string.settings_landscape_keyboard_desc),
+                    text = stringResource(R.string.settings_kb_height_desc),
                     color = ZtsTextSecondary,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
-                SliderField(
-                    title = stringResource(R.string.settings_landscape_kb_width),
-                    value = settings.landscapeKeyboardWidthDp,
-                    range = AppSettings.MIN_LANDSCAPE_KB_WIDTH_DP..AppSettings.MAX_LANDSCAPE_KB_WIDTH_DP,
-                    steps = 13,  // 280 → 700 を 30dp 刻み (15 段)
-                    valueLabel = { "%.0fdp".format(it) },
-                    onChange = { session.setLandscapeKeyboardWidthDp(it) }
-                )
-                SliderField(
-                    title = stringResource(R.string.settings_landscape_kb_height),
-                    value = settings.landscapeKeyboardHeightDp,
-                    range = AppSettings.MIN_LANDSCAPE_KB_HEIGHT_DP..AppSettings.MAX_LANDSCAPE_KB_HEIGHT_DP,
-                    steps = 14,  // 200 → 500 を 20dp 刻み (16 段)
-                    valueLabel = { "%.0fdp".format(it) },
-                    onChange = { session.setLandscapeKeyboardHeightDp(it) }
-                )
+                // 配置 (左/下/右) とサイドキーボード幅は横画面でのみ意味があるので横画面の時だけ出す。
+                if (isLandscape) {
+                    val posOptions = listOf(
+                        AppSettings.LANDSCAPE_KB_LEFT,
+                        AppSettings.LANDSCAPE_KB_BOTTOM,
+                        AppSettings.LANDSCAPE_KB_RIGHT
+                    )
+                    ChipRow(
+                        options = posOptions,
+                        labels = mapOf(
+                            AppSettings.LANDSCAPE_KB_LEFT to stringResource(R.string.settings_landscape_kb_left),
+                            AppSettings.LANDSCAPE_KB_BOTTOM to stringResource(R.string.settings_landscape_kb_bottom),
+                            AppSettings.LANDSCAPE_KB_RIGHT to stringResource(R.string.settings_landscape_kb_right)
+                        ),
+                        selected = settings.landscapeKeyboardPosition,
+                        onSelect = { session.setLandscapeKeyboardPosition(it) }
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_landscape_keyboard_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    SliderField(
+                        title = stringResource(R.string.settings_landscape_kb_width),
+                        value = settings.landscapeKeyboardWidthDp,
+                        range = AppSettings.MIN_LANDSCAPE_KB_WIDTH_DP..AppSettings.MAX_LANDSCAPE_KB_WIDTH_DP,
+                        steps = 13,  // 280 → 700 を 30dp 刻み (15 段)
+                        valueLabel = { "%.0fdp".format(it) },
+                        onChange = { session.setLandscapeKeyboardWidthDp(it) }
+                    )
+                }
             }
 
             Section(title = stringResource(R.string.settings_section_gui_terminal)) {
@@ -444,13 +538,6 @@ fun SettingsSheet(
                 onChange = { session.setConfirmBeforeDownload(it) }
             )
 
-            ToggleField(
-                title = stringResource(R.string.settings_no_install_timeout),
-                description = stringResource(R.string.settings_no_install_timeout_desc),
-                checked = settings.noInstallTimeout,
-                onChange = { session.setNoInstallTimeout(it) }
-            )
-
             TextField(
                 title = stringResource(R.string.settings_init_command),
                 placeholder = stringResource(R.string.settings_init_command_placeholder),
@@ -500,6 +587,26 @@ fun SettingsSheet(
             },
             onCancel = { pendingDistroSwitch = null; pendingCleanInstall = false }
         )
+    }
+
+    // OS データ削除の確認。削除すると元に戻せない旨を再確認させる。
+    pendingOsDelete?.let { id ->
+        val name = DistroSpec.byId(id)?.displayName ?: id
+        DownloadConfirmDialog(
+            title = stringResource(R.string.confirm_delete_os_title, name),
+            message = stringResource(R.string.confirm_delete_os_msg, name),
+            confirmLabel = stringResource(R.string.action_delete_os),
+            onConfirm = {
+                session.deleteDistroData(id) { osDataRefresh++ }
+                pendingOsDelete = null
+            },
+            onCancel = { pendingOsDelete = null }
+        )
+    }
+
+    // IME 学習履歴の管理シート (キーボードパッチ)。設定シートと**重ねて**開く。
+    if (imeHistoryOpen) {
+        ImeHistorySheet(onDismiss = { imeHistoryOpen = false })
     }
 }
 
@@ -972,5 +1079,97 @@ private fun ActionButton(
             fontWeight = FontWeight.Medium,
             fontFamily = FontFamily.Monospace
         )
+    }
+}
+
+/** ストレージ上に rootfs を持つ OS 1 件分のメタ (削除 UI 用)。 */
+private data class InstalledOs(val id: String, val displayName: String, val bytes: Long)
+
+/**
+ * filesDir/distros/<id> 配下に展開済みの OS を列挙し、おおよその使用量を付けて返す。
+ * symlink は辿らず実ファイルのみ加算する (rootfs 内の循環 symlink で詰まらないように)。
+ * ファイル走査があるので IO スレッドから呼ぶこと。
+ */
+private fun scanInstalledOs(context: Context): List<InstalledOs> {
+    val distrosDir = java.io.File(context.filesDir, "distros")
+    val dirs = distrosDir.listFiles()?.filter { it.isDirectory } ?: return emptyList()
+    return dirs.map { dir ->
+        InstalledOs(
+            id = dir.name,
+            displayName = DistroSpec.byId(dir.name)?.displayName ?: dir.name,
+            bytes = approxDirSize(dir)
+        )
+    }.sortedByDescending { it.bytes }
+}
+
+private fun approxDirSize(dir: java.io.File): Long {
+    var total = 0L
+    dir.walkTopDown()
+        // symlink のディレクトリには入らない (循環・二重計上を防ぐ)
+        .onEnter { !java.nio.file.Files.isSymbolicLink(it.toPath()) }
+        .forEach { f ->
+            if (f.isFile && !java.nio.file.Files.isSymbolicLink(f.toPath())) total += f.length()
+        }
+    return total
+}
+
+private fun formatStorageSize(bytes: Long): String {
+    val mb = bytes / (1024.0 * 1024.0)
+    return if (mb >= 1024) "%.1f GB".format(mb / 1024.0) else "%.0f MB".format(mb)
+}
+
+/** OS データ削除セクションの 1 行: 名前 + 使用量 + 削除ボタン (使用中は削除不可)。 */
+@Composable
+private fun OsDataRow(
+    name: String,
+    sizeLabel: String,
+    isActive: Boolean,
+    onDelete: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = name,
+                color = ZtsTextPrimary,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = sizeLabel,
+                color = ZtsTextSecondary,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        if (isActive) {
+            Text(
+                text = stringResource(R.string.settings_delete_os_in_use),
+                color = ZtsTextSecondary,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(ZtsBgSecondary)
+                    .border(1.dp, ZtsError, RoundedCornerShape(8.dp))
+                    .clickable(onClick = onDelete)
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_delete_os_button),
+                    color = ZtsError,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
     }
 }

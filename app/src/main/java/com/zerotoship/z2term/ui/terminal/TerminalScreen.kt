@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,7 +38,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -194,6 +205,24 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // SFTP ファイルブラウザ対象のプロファイル (非 null の間シートを表示)
     var sftpProfile by remember { mutableStateOf<SshProfile?>(null) }
     var customThemeEditorOpen by remember { mutableStateOf(false) }
+    // スクロールバック検索: 検索バーの開閉 / クエリ / ヒット一覧 / 現在ヒット位置。タブ毎にリセット。
+    var searchOpen by remember(active.id) { mutableStateOf(false) }
+    var searchQuery by remember(active.id) { mutableStateOf("") }
+    var searchMatches by remember(active.id) { mutableStateOf<List<SearchMatch>>(emptyList()) }
+    var currentMatchIndex by remember(active.id) { mutableStateOf(0) }
+    // クエリ確定 / 検索バー開閉でヒットを再計算し、先頭ヒットへジャンプする。
+    // (実行中コマンドで scrollback が伸びると absRow がずれるが、追従は v2。再入力で再計算される)
+    LaunchedEffect(searchOpen, searchQuery) {
+        if (searchOpen && searchQuery.isNotEmpty()) {
+            val ms = SearchEngine.search(active.emulator.buffer, searchQuery)
+            searchMatches = ms
+            currentMatchIndex = 0
+            if (ms.isNotEmpty()) active.scrollToAbsRow(ms[0].absRow)
+        } else {
+            searchMatches = emptyList()
+            currentMatchIndex = 0
+        }
+    }
     // 画面消灯ロック (ディスプレイが自動で消えないようにする)。権限不要・フォアグラウンド中のみ
     // 有効・CPU は握らないので WakeLock より安全。状態は端末/GUI 共通の [ScreenAwake] (画面跨ぎで維持)。
     // 既定 OFF (放置でのバッテリ消費を避ける。アプリ再起動でリセット)。
@@ -271,7 +300,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onOpenSettings = { settingsOpen = true },
             keepScreenOn = keepScreenOn,
             onToggleKeepScreenOn = { ScreenAwake.enabled.value = !ScreenAwake.enabled.value },
-            onOpenSnippets = { snippetsSheetOpen = true }
+            onOpenSnippets = { snippetsSheetOpen = true },
+            searchActive = searchOpen,
+            onToggleSearch = { searchOpen = !searchOpen }
         )
 
         TabBar(
@@ -306,7 +337,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             && !keyboardCollapsed
             && keyboardMode == KeyboardMode.CUSTOM
         val baseStyle = KeyboardStyle.byId(settings.keyboardStyleId)
-        val kbStyle = if (isLandscape) landscapeScaledStyle(baseStyle, settings.landscapeKeyboardHeightDp) else baseStyle
+        // キーボード高さは縦/横で別々の設定値を使う (向きが変わると自動で切り替わる)。
+        val kbStyle = scaledKeyboardStyle(
+            baseStyle,
+            if (isLandscape) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp
+        )
 
         Row(modifier = Modifier
             .fillMaxWidth()
@@ -326,7 +361,13 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 .weight(1f)
                 .fillMaxHeight()
             ) {
-                TerminalRenderer(session = active, composingText = composing.text, modifier = Modifier.fillMaxSize())
+                TerminalRenderer(
+                    session = active,
+                    composingText = composing.text,
+                    searchMatches = if (searchOpen) searchMatches else emptyList(),
+                    currentMatch = if (searchOpen) searchMatches.getOrNull(currentMatchIndex) else null,
+                    modifier = Modifier.fillMaxSize()
+                )
                 AndroidView(
                     factory = { ctx ->
                         TerminalInputView(ctx).also { v ->
@@ -347,6 +388,30 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     composing = composing,
                     modifier = Modifier.align(Alignment.BottomStart)
                 )
+                // スクロールバック検索バー (端末領域の上端にオーバーレイ)
+                if (searchOpen) {
+                    SearchBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        matchCount = searchMatches.size,
+                        currentIndex = currentMatchIndex,
+                        onPrev = {
+                            if (searchMatches.isNotEmpty()) {
+                                currentMatchIndex =
+                                    (currentMatchIndex - 1 + searchMatches.size) % searchMatches.size
+                                active.scrollToAbsRow(searchMatches[currentMatchIndex].absRow)
+                            }
+                        },
+                        onNext = {
+                            if (searchMatches.isNotEmpty()) {
+                                currentMatchIndex = (currentMatchIndex + 1) % searchMatches.size
+                                active.scrollToAbsRow(searchMatches[currentMatchIndex].absRow)
+                            }
+                        },
+                        onClose = { searchOpen = false },
+                        modifier = Modifier.align(Alignment.TopStart)
+                    )
+                }
             }
             if (isSideKB && landscapePos == AppSettings.LANDSCAPE_KB_RIGHT) {
                 SideKeyboardColumn(
@@ -620,7 +685,10 @@ private fun GuiTabScreen(
             && !keyboardCollapsed
             && keyboardMode == KeyboardMode.CUSTOM
         val baseStyleGui = KeyboardStyle.byId(settings.keyboardStyleId)
-        val kbStyleGui = if (isLandscapeGui) landscapeScaledStyle(baseStyleGui, settings.landscapeKeyboardHeightDp) else baseStyleGui
+        val kbStyleGui = scaledKeyboardStyle(
+            baseStyleGui,
+            if (isLandscapeGui) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp
+        )
 
         Row(modifier = Modifier
             .fillMaxWidth()
@@ -881,7 +949,9 @@ private fun TopBar(
     onOpenSettings: () -> Unit,
     keepScreenOn: Boolean,
     onToggleKeepScreenOn: () -> Unit,
-    onOpenSnippets: () -> Unit
+    onOpenSnippets: () -> Unit,
+    searchActive: Boolean = false,
+    onToggleSearch: () -> Unit = {}
 ) {
     val label by session.label.collectAsState()
     val cwd by session.cwd.collectAsState()
@@ -929,7 +999,9 @@ private fun TopBar(
         }
         Box(modifier = Modifier.weight(1f))
 
-        // 並び (左→右): 貼付 / コマンド一覧 / 画面消灯ロック / キーボード切替 / 設定
+        // 並び (左→右): 検索 / 貼付 / コマンド一覧 / 画面消灯ロック / キーボード切替 / 設定
+        // スクロールバック検索 (タップで検索バーをトグル。ON 中は緑ハイライト)。
+        SearchToggleButton(active = searchActive, onClick = onToggleSearch)
         // 貼付ボタン (タップ = クリップボード貼り付けのみ)。
         // 📋 クリップボードアイコン = 貼り付け、の方が直感的なため漢字「貼」から変更。
         TopBarIconButton(label = "📋", onClick = onPaste)
@@ -974,6 +1046,110 @@ private fun TopBarIconButton(label: String, enabled: Boolean = true, onClick: ()
             fontSize = 13.sp,
             fontFamily = FontFamily.Monospace
         )
+    }
+}
+
+/**
+ * スクロールバック検索トグル (🔍)。検索バー表示中は緑でハイライトする。
+ */
+@Composable
+private fun SearchToggleButton(active: Boolean, onClick: () -> Unit) {
+    val bg = if (active) ZtsGreen else ZtsBgCard
+    val fg = if (active) Color.Black else ZtsTextPrimary
+    val border = if (active) ZtsGreen else ZtsBorder
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(6.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "🔍",
+            color = fg,
+            fontSize = 13.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+/**
+ * スクロールバック検索バー。端末領域の上端にオーバーレイする。
+ * 入力フィールド + 件数 (現在/総数) + ↑(前) + ↓(次) + ✕(閉じる)。
+ */
+@Composable
+private fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    matchCount: Int,
+    currentIndex: Int,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val focusRequester = remember { FocusRequester() }
+    // 開いた直後にフォーカスを当てて OS IME を出す (検索語の入力用)。
+    LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .background(ZtsBgSecondary)
+            .border(width = 1.dp, color = ZtsBorder)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(6.dp))
+                .background(ZtsBgCard)
+                .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            if (query.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.search_hint),
+                    color = ZtsTextSecondary,
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                singleLine = true,
+                textStyle = TextStyle(
+                    color = ZtsTextPrimary,
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace
+                ),
+                cursorBrush = SolidColor(ZtsGreen),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onNext() }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
+            )
+        }
+        Text(
+            text = stringResource(
+                R.string.search_count,
+                if (matchCount == 0) 0 else currentIndex + 1,
+                matchCount
+            ),
+            color = ZtsTextSecondary,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        TopBarIconButton(label = stringResource(R.string.search_prev), onClick = onPrev)
+        TopBarIconButton(label = stringResource(R.string.search_next), onClick = onNext)
+        TopBarIconButton(label = stringResource(R.string.search_close), onClick = onClose)
     }
 }
 
@@ -1166,11 +1342,11 @@ private fun KeyboardToggleBar(
 }
 
 /**
- * 横画面用に [KeyboardStyle] を縦方向だけ拡縮する。
+ * [KeyboardStyle] を縦方向だけ拡縮して総高さを [targetHeightDp] にそろえる (縦画面・横画面共通)。
  * 5 行 × 1 行 = 5*keyHeight + α なので、naturalHeight を [targetHeightDp] にそろえて
  * keyHeight も比例拡縮する。フォントサイズはやや控えめに同方向にスケール (0.85〜1.4 倍に丸め)。
  */
-private fun landscapeScaledStyle(base: KeyboardStyle, targetHeightDp: Float): KeyboardStyle {
+private fun scaledKeyboardStyle(base: KeyboardStyle, targetHeightDp: Float): KeyboardStyle {
     val baseNat = base.naturalHeight.value
     val scale = (targetHeightDp / baseNat).coerceIn(0.6f, 2.5f)
     val fontScale = scale.coerceIn(0.85f, 1.4f)
@@ -1224,7 +1400,12 @@ private fun SideKeyboardColumn(
  * かな漢字変換の候補バー。キーボードの上に重ねて浮かせる (端末画面の下端にかぶせる)。
  * これによりキーボード本体の高さ・キーサイズは一切変わらない。
  *
- * 左端: 入力中ひらがな (タップで生のまま確定)。続いて変換/予測候補 (タップで確定)。
+ * 通常モード (スプリット未起動):
+ *   左端: 入力中ひらがな全体 (タップで生のまま確定)。続いて変換/予測候補 (タップで確定)。
+ * スプリット変換モード (`変換` キー押下後):
+ *   左端: フォーカス中のセグメント (緑塗りで強調) + 残りのひらがな (薄色)。
+ *   続いて当該セグメントに対する候補 (タップで確定 → 自動で次のセグメントへ)。
+ *   ◀ / ▶ キーでフォーカス範囲を縮小 / 拡大できる。
  * composing が空のときは何も描かない。
  */
 @Composable
@@ -1234,48 +1415,101 @@ private fun CandidateBar(
 ) {
     if (!composing.isActive) return
     val candidates = composing.candidates
-    Row(
+    val isSplit = composing.isSplitMode
+    // 候補サイクル選択 index: -1 なら「生かな (head)」が選択中、0+ なら候補配列の index。
+    // 変換キー連打でこの index が循環し、選択中のピルが緑塗りでハイライトされる。
+    val selIdx = composing.selectedCandidateIndex
+    val rawSelected = selIdx == -1
+    val tail = if (isSplit) composing.splitTail else ""
+    val hasTail = isSplit && tail.isNotEmpty()
+    // LazyRow のアイテム並び (オートスクロールのため index を厳密に管理する):
+    //   0            = head ピル (生かな / スプリット頭)
+    //   1            = tail ラベル (hasTail のときのみ)
+    //   base + i     = 候補 i        (base = 1 + (hasTail ? 1 : 0))
+    val base = 1 + (if (hasTail) 1 else 0)
+    val listState = rememberLazyListState()
+    // 候補サイクルで選択が変わるたび、その項目が見えるよう横スクロールで追従させる。
+    // selIdx == -1 (生かな) のときは head (index 0) を、候補選択中は base+selIdx を表示。
+    LaunchedEffect(selIdx, candidates.size) {
+        val target = if (selIdx < 0) 0 else base + selIdx
+        if (target in 0 until (base + candidates.size)) {
+            listState.animateScrollToItem(target)
+        }
+    }
+    LazyRow(
+        state = listState,
         modifier = modifier
             .fillMaxWidth()
             .height(40.dp)
             .background(ZtsBgSecondary)
             .border(width = 1.dp, color = ZtsBorder)
-            .horizontalScroll(rememberScrollState())
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        // 入力中ひらがな (タップで生のまま確定)
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
-                .background(ZtsBgCard)
-                .border(1.dp, ZtsGreen, RoundedCornerShape(6.dp))
-                .clickable { composing.commitRaw() }
-                .padding(horizontal = 10.dp, vertical = 5.dp)
-        ) {
-            Text(
-                text = composing.text,
-                color = ZtsGreen,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
-            )
-        }
-        // 変換 / 予測候補 (タップで確定)
-        candidates.forEach { cand ->
+        // head ピル (スプリット頭 or 通常の入力中ひらがな全体)。タップで生確定。
+        item(key = "__head__") {
+            val headBg = if (isSplit && !rawSelected) ZtsBgCard else if (rawSelected) ZtsGreen else ZtsBgCard
+            val headFg = if (rawSelected) Color.Black else ZtsGreen
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
-                    .background(ZtsBgCard)
-                    .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+                    .background(headBg)
+                    .border(1.dp, ZtsGreen, RoundedCornerShape(6.dp))
+                    .clickable { composing.commitRaw() }
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    text = if (isSplit) composing.splitHead else composing.text,
+                    color = headFg,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+        // tail ラベル (スプリット中の残りかな。薄色、タップ不可)。
+        if (hasTail) {
+            item(key = "__tail__") {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(ZtsBgCard)
+                        .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        text = tail,
+                        color = ZtsTextSecondary,
+                        fontSize = 15.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+        // 変換 / 予測候補 (タップで確定; スプリット中はセグメントのみ確定して次のブロックへ進む)。
+        //   候補サイクルで選択中の候補は緑塗りでハイライト → ⏎ でその候補が確定される。
+        itemsIndexed(
+            items = candidates,
+            key = { i, cand -> "c$i:$cand" }
+        ) { i, cand ->
+            val selected = (i == selIdx)
+            val candBg = if (selected) ZtsGreen else ZtsBgCard
+            val candFg = if (selected) Color.Black else ZtsTextPrimary
+            val candBorder = if (selected) ZtsGreen else ZtsBorder
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(candBg)
+                    .border(1.dp, candBorder, RoundedCornerShape(6.dp))
                     .clickable { composing.commit(cand) }
                     .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = cand,
-                    color = ZtsTextPrimary,
+                    color = candFg,
                     fontSize = 15.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                     fontFamily = FontFamily.Monospace
                 )
             }

@@ -217,6 +217,18 @@ object KanaKanjiConverter {
         }
         return out.toList().take(limit)
     }
+
+    /**
+     * スプリットモードで「最初の文節」の自動分割長を返す。辞書に完全一致するもっとも長い
+     * プレフィックス長 (>=2) を返し、見つからなければ文字列全体の長さを返す。
+     */
+    fun autoSplitHeadLen(reading: String): Int {
+        if (reading.isEmpty()) return 0
+        for (end in reading.length downTo 2) {
+            if (convert(reading.substring(0, end)).isNotEmpty()) return end
+        }
+        return reading.length
+    }
 }
 
 /** ひらがな文字列をカタカナへ。 */
@@ -225,12 +237,60 @@ fun hiraganaToKatakana(s: String): String =
         for (ch in s) append(if (ch in 'ぁ'..'ゖ') ch + 0x60 else ch)
     }
 
+// ----------------------------------------------------------------------------
+// 濁点/半濁点/小書き循環テーブル (JapaneseFlickKeyboard の `小゛゜` キーと
+// ComposingState の連打サイクルの両方が参照)。
+// 順番は base → 小書き → 濁点 → 半濁点。
+// 例: つ → っ → づ → つ、う → ぅ → ゔ → う、は → ば → ぱ → は。
+// ----------------------------------------------------------------------------
+internal val CYCLE_GROUPS: List<List<Char>> = listOf(
+    listOf('あ', 'ぁ'), listOf('い', 'ぃ'), listOf('う', 'ぅ', 'ゔ'), listOf('え', 'ぇ'), listOf('お', 'ぉ'),
+    listOf('か', 'が'), listOf('き', 'ぎ'), listOf('く', 'ぐ'), listOf('け', 'げ'), listOf('こ', 'ご'),
+    listOf('さ', 'ざ'), listOf('し', 'じ'), listOf('す', 'ず'), listOf('せ', 'ぜ'), listOf('そ', 'ぞ'),
+    listOf('た', 'だ'), listOf('ち', 'ぢ'), listOf('つ', 'っ', 'づ'), listOf('て', 'で'), listOf('と', 'ど'),
+    listOf('は', 'ば', 'ぱ'), listOf('ひ', 'び', 'ぴ'), listOf('ふ', 'ぶ', 'ぷ'), listOf('へ', 'べ', 'ぺ'), listOf('ほ', 'ぼ', 'ぽ'),
+    listOf('や', 'ゃ'), listOf('ゆ', 'ゅ'), listOf('よ', 'ょ'), listOf('わ', 'ゎ')
+)
+
+/** char → (グループ, そのグループ内 index)。`小゛゜` 循環と連打サイクルで共有。 */
+internal val CYCLE_INDEX: Map<Char, Pair<List<Char>, Int>> = buildMap {
+    for (group in CYCLE_GROUPS) {
+        for ((i, c) in group.withIndex()) put(c, group to i)
+    }
+}
+
+/** 連打サイクルの「同一キー」判定の時間窓 (ms)。これを超えたら別タップ扱い。 */
+private const val CYCLE_REPEAT_WINDOW_MS = 1100L
+
 /**
  * 変換の入力状態 (composing) を保持するホルダ。
  *
- * キーボード(かな入力)が [append] で積み、候補バーが [candidates] を表示し、
- * 確定で [onCommit] により PTY へ送出する。Compose state なので
- * 変化すると関係する Composable が再描画される。
+ * キーボード(かな入力)が [emitKana] / [append] で積み、候補バーが [candidates] を表示し、
+ * 確定で [onCommit] により PTY へ送出する。Compose state なので変化すると関係する
+ * Composable が再描画される。
+ *
+ * **スプリット変換モード**:
+ *   [convert] を呼ぶと [splitHeadLen] が >0 になり、`text` の先頭 [splitHeadLen] 文字が
+ *   「現在変換中のセグメント」となる。`◀ ▶` で範囲を [shrinkSplitHead] / [extendSplitHead]
+ *   で調整できる。セグメントを確定 ([commit] / [commitRaw]) すると、その分を PTY へ送出し、
+ *   残りに対して自動でつぎの分割長を決め、フォーカスを次のブロックへ移す。残り 0 文字で抜ける。
+ *   候補 ([candidates]) はスプリット中はセグメント分のみ参照する。
+ *
+ * **候補サイクル**:
+ *   スプリット中に [convert] を続けて押すと [selectedCandidateIndex] が -1 → 0 → 1 → ... →
+ *   末尾 → -1 と循環する。-1 = 生のかな (頭セグメント) を確定対象とする状態。⏎ ([commitRaw])
+ *   は 「現在選択中の対象」を確定する (生かな or 選択中の候補)。
+ *
+ * **連打サイクル**:
+ *   [emitKana] で同じかなが [CYCLE_REPEAT_WINDOW_MS] 以内に再度入ると、composing 末尾を
+ *   [CYCLE_INDEX] の次の形へ循環させる (例: は→ば→ぱ→は、つ→っ→づ→つ)。`小゛゜` を別途
+ *   押す手間を省く。
+ *
+ * **再変換**:
+ *   composing が空の状態で [restoreLastCommit] を呼ぶと、直前 [commit] / [commitRaw] した
+ *   読みを composing に戻し、確定文字数 (= 端末から削除すべきコードポイント数) を返す。
+ *   呼び出し側はその数だけ 0x7F (DEL) を送って端末の確定済みテキストを消し、続けて
+ *   [convert] で再度変換を始める想定。
  */
 class ComposingState(
     private val onCommit: (String) -> Unit
@@ -240,67 +300,271 @@ class ComposingState(
     var candidates by mutableStateOf<List<String>>(emptyList())
         private set
 
-    val isActive: Boolean get() = text.isNotEmpty()
+    /** スプリットモード: 0 なら未起動。1..text.length なら先頭 splitHeadLen 文字がフォーカス。 */
+    var splitHeadLen by mutableStateOf(0)
+        private set
 
-    /** かな 1 文字を積む。予測候補を更新。 */
-    fun append(ch: Char) {
+    /** 候補サイクル: -1 = 生かな (頭セグメント) 選択中、0..candidates.size-1 = 候補選択中。 */
+    var selectedCandidateIndex by mutableStateOf(-1)
+        private set
+
+    /** 直前 commit の読み (再変換用)。次の commit や restore で更新/クリア。 */
+    var lastCommittedReading by mutableStateOf<String?>(null)
+        private set
+    /** 直前 commit で PTY へ送った文字列 (端末から消すべき長さの算出用)。 */
+    var lastCommittedOutput by mutableStateOf<String?>(null)
+        private set
+
+    /** 連打サイクル: 直前 emit したかな文字とそのタイムスタンプ。 */
+    private var lastEmitChar: Char? = null
+    private var lastEmitTimeMs: Long = 0L
+
+    val isActive: Boolean get() = text.isNotEmpty()
+    val isSplitMode: Boolean get() = splitHeadLen > 0
+    /** スプリット中のフォーカス文字列 (先頭セグメント)。非スプリット中は text 全体を返す。 */
+    val splitHead: String
+        get() = if (isSplitMode) text.substring(0, splitHeadLen.coerceAtMost(text.length)) else text
+    /** スプリット中のフォーカス外 (尾側)。非スプリット中は空文字列。 */
+    val splitTail: String
+        get() = if (isSplitMode && splitHeadLen < text.length) text.substring(splitHeadLen) else ""
+    /** 再変換可能か (composing が空 ∧ 直前 commit が残っている)。 */
+    val canReconvert: Boolean
+        get() = text.isEmpty() && !lastCommittedReading.isNullOrEmpty()
+
+    /**
+     * かな 1 文字をタップ入力する。
+     *   - 直前と同じかな かつ [CYCLE_REPEAT_WINDOW_MS] 以内 かつ末尾が循環グループ内
+     *     → composing 末尾を **次の形に循環** ([CYCLE_INDEX] に基づき濁点/半濁点/小書き)。
+     *   - それ以外は通常 append。
+     * フリック方向の文字 (い段〜お段) は通常 append (循環対象外、ただし同じ文字を連続
+     * フリックすると循環は発動し得る)。
+     */
+    fun emitKana(ch: Char) {
+        val now = System.currentTimeMillis()
+        val within = (now - lastEmitTimeMs) < CYCLE_REPEAT_WINDOW_MS
+        val sameKey = lastEmitChar == ch
+        val last = text.lastOrNull()
+        val entry = if (within && sameKey && last != null) CYCLE_INDEX[last] else null
+        if (entry != null && entry.first.contains(ch)) {
+            // 連打サイクル: 末尾を次の形に置換 (lastEmitChar はそのまま保持して続けてサイクル)
+            val (forms, idx) = entry
+            val nextCh = forms[(idx + 1) % forms.size]
+            if (isSplitMode) splitHeadLen = 0
+            text = text.dropLast(1) + nextCh
+            selectedCandidateIndex = -1
+            lastEmitTimeMs = now
+            refreshPredict()
+            return
+        }
+        // 通常 append
+        if (isSplitMode) splitHeadLen = 0
         text += ch
+        lastEmitChar = ch
+        lastEmitTimeMs = now
+        selectedCandidateIndex = -1
         refreshPredict()
     }
 
-    /** 直前の文字を [s] (濁点等) に置換。 */
+    /**
+     * 任意の 1 文字を composing に積む (記号 ／ プログラム経由)。連打サイクルの履歴は
+     * リセットされる (次に同じかなが来ても循環しない)。
+     */
+    fun append(ch: Char) {
+        if (isSplitMode) splitHeadLen = 0
+        text += ch
+        lastEmitChar = null
+        lastEmitTimeMs = 0
+        selectedCandidateIndex = -1
+        refreshPredict()
+    }
+
+    /** 直前の文字を [s] (濁点等) に置換。スプリット中なら抜けてから置換する。 */
     fun replaceLast(s: Char) {
         if (text.isEmpty()) return
+        if (isSplitMode) splitHeadLen = 0
         text = text.dropLast(1) + s
+        lastEmitChar = null
+        lastEmitTimeMs = 0
+        selectedCandidateIndex = -1
         refreshPredict()
     }
 
-    /** composing 末尾を 1 文字削除。消費したら true。 */
+    /**
+     * ⌫。スプリット中はまずスプリットを抜ける (取消) だけで文字は消さない。
+     * 非スプリット時のみ末尾 1 文字を削除する。消費したら true。
+     */
     fun backspace(): Boolean {
         if (text.isEmpty()) return false
+        if (isSplitMode) {
+            splitHeadLen = 0
+            selectedCandidateIndex = -1
+            refreshPredict()
+            return true
+        }
         text = text.dropLast(1)
+        lastEmitChar = null
+        lastEmitTimeMs = 0
+        selectedCandidateIndex = -1
         if (text.isEmpty()) candidates = emptyList() else refreshPredict()
         return true
     }
 
-    /** 変換キー: 完全一致 + 送り仮名活用 + 文節分割を含む柔軟な候補を出す。 */
+    /**
+     * 変換キー。未スプリットなら [KanaKanjiConverter.autoSplitHeadLen] で先頭セグメント長を
+     * 自動決定してスプリットモードへ入る。すでにスプリット中なら**候補サイクル**:
+     * `-1 (生かな) → 0 → 1 → ... → 末尾 → -1` を巡る。
+     */
     fun convert() {
         if (text.isEmpty()) return
-        candidates = buildList(KanaKanjiConverter.convertFlexible(text))
+        if (!isSplitMode) {
+            splitHeadLen = KanaKanjiConverter.autoSplitHeadLen(text)
+                .coerceAtLeast(1).coerceAtMost(text.length)
+            selectedCandidateIndex = -1
+            refreshPredict()
+        } else {
+            val n = candidates.size
+            if (n == 0) {
+                selectedCandidateIndex = -1
+                return
+            }
+            selectedCandidateIndex =
+                if (selectedCandidateIndex >= n - 1) -1 else selectedCandidateIndex + 1
+        }
     }
 
-    /** 候補を確定して PTY へ。学習履歴 ([ImeHistoryStore]) にも記録する。 */
+    /** スプリット中: フォーカスを 1 文字広げる (末尾までで止まる)。候補選択はリセット。 */
+    fun extendSplitHead() {
+        if (!isSplitMode) return
+        if (splitHeadLen < text.length) {
+            splitHeadLen++
+            selectedCandidateIndex = -1
+            refreshPredict()
+        }
+    }
+
+    /** スプリット中: フォーカスを 1 文字縮める (最小 1 文字)。候補選択はリセット。 */
+    fun shrinkSplitHead() {
+        if (!isSplitMode) return
+        if (splitHeadLen > 1) {
+            splitHeadLen--
+            selectedCandidateIndex = -1
+            refreshPredict()
+        }
+    }
+
+    /**
+     * 候補を確定。スプリット中は現在セグメントだけを送り、残りに対して次のセグメントを自動分割。
+     * 残り 0 ならスプリットを終了する。学習履歴 ([ImeHistoryStore]) にも記録し、
+     * [lastCommittedReading] / [lastCommittedOutput] を更新する (再変換用)。
+     */
     fun commit(candidate: String) {
-        ImeHistoryStore.record(text, candidate)
+        if (text.isEmpty()) return
+        val key = if (isSplitMode) splitHead else text
+        ImeHistoryStore.record(key, candidate)
         onCommit(candidate)
-        reset()
+        lastCommittedReading = key
+        lastCommittedOutput = candidate
+        advanceSegmentOrReset()
     }
 
-    /** 生のひらがなを確定。空なら false。生かなも履歴に残し「次は予測上位」化する。 */
+    /**
+     * ⏎ などの「現在選択中を確定」。候補サイクル中なら選択候補を、そうでなければ生かな
+     * (スプリット中はセグメントのみ) を確定する。空なら false。
+     */
     fun commitRaw(): Boolean {
         if (text.isEmpty()) return false
-        ImeHistoryStore.record(text, text)
-        onCommit(text)
-        reset()
+        // 候補サイクル中なら、その候補を確定 (commit 経由で学習履歴と再変換情報も更新される)
+        if (selectedCandidateIndex in candidates.indices) {
+            commit(candidates[selectedCandidateIndex])
+            return true
+        }
+        val toCommit = if (isSplitMode) splitHead else text
+        ImeHistoryStore.record(toCommit, toCommit)
+        onCommit(toCommit)
+        lastCommittedReading = toCommit
+        lastCommittedOutput = toCommit
+        advanceSegmentOrReset()
         return true
     }
 
     fun reset() {
         text = ""
         candidates = emptyList()
+        splitHeadLen = 0
+        selectedCandidateIndex = -1
+        lastEmitChar = null
+        lastEmitTimeMs = 0
+        // 注意: lastCommittedReading / lastCommittedOutput は意図的に残す
+        //   (再変換は composing が空でも使える機能)。
+    }
+
+    /**
+     * 再変換: 直前 commit した読みを composing に復元する。返り値は端末側で消すべき
+     * **コードポイント数** (= 直前 PTY 出力の長さ)。0 なら復元不可。
+     * 呼び出し側はその数だけ 0x7F (DEL) を送って端末を整える想定。
+     */
+    fun restoreLastCommit(): Int {
+        if (text.isNotEmpty()) return 0
+        val r = lastCommittedReading ?: return 0
+        val o = lastCommittedOutput ?: return 0
+        text = r
+        splitHeadLen = 0
+        selectedCandidateIndex = -1
+        lastEmitChar = null
+        lastEmitTimeMs = 0
+        val cps = o.codePointCount(0, o.length)
+        lastCommittedReading = null
+        lastCommittedOutput = null
+        refreshPredict()
+        return cps
+    }
+
+    /** スプリット中: 確定後の処理。残りに対して次の分割を行うか、無ければ全リセット。 */
+    private fun advanceSegmentOrReset() {
+        if (isSplitMode) {
+            val remaining = splitTail
+            if (remaining.isEmpty()) {
+                text = ""
+                candidates = emptyList()
+                splitHeadLen = 0
+                selectedCandidateIndex = -1
+                lastEmitChar = null
+                lastEmitTimeMs = 0
+            } else {
+                text = remaining
+                splitHeadLen = KanaKanjiConverter.autoSplitHeadLen(remaining)
+                    .coerceAtLeast(1).coerceAtMost(remaining.length)
+                selectedCandidateIndex = -1
+                refreshPredict()
+            }
+        } else {
+            text = ""
+            candidates = emptyList()
+            splitHeadLen = 0
+            selectedCandidateIndex = -1
+            lastEmitChar = null
+            lastEmitTimeMs = 0
+        }
     }
 
     private fun refreshPredict() {
-        candidates = buildList(KanaKanjiConverter.convertFlexible(text))
+        val key = if (isSplitMode) splitHead else text
+        if (key.isEmpty()) {
+            candidates = emptyList()
+            selectedCandidateIndex = -1
+            return
+        }
+        candidates = buildList(KanaKanjiConverter.convertFlexible(key), key)
+        if (selectedCandidateIndex >= candidates.size) selectedCandidateIndex = -1
     }
 
     /** 辞書候補にカタカナを加えた表示用リスト (生ひらがなはバー左のラベルで確定する)。 */
-    private fun buildList(dict: List<String>): List<String> {
+    private fun buildList(dict: List<String>, reading: String): List<String> {
         val out = LinkedHashSet<String>()
         out.addAll(dict)
-        val kata = hiraganaToKatakana(text)
-        if (kata != text) out.add(kata)
-        out.remove(text)
+        val kata = hiraganaToKatakana(reading)
+        if (kata != reading) out.add(kata)
+        out.remove(reading)
         return out.toList()
     }
 }

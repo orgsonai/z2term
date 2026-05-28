@@ -115,6 +115,8 @@ class ProotLauncher(private val context: Context) {
         ensureProotLibs()
         // 再起動後もコマンド履歴を辿れるよう、shell rc に履歴設定を流し込む。
         ensureShellHistoryConfig(rootfs)
+        // セッション復元の cwd 用に、プロンプト毎 OSC 7 (cwd 通知) を出すフックを仕込む。
+        ensureOsc7CwdConfig(rootfs)
         // `sshd` コマンドで dropbear が立ち上がるよう wrapper を配置 (OpenSSH sshd は
         // proot で privsep 破綻 / sshd_config の UsePrivilegeSeparation で起動不可)。
         ensureSshdWrapper(rootfs)
@@ -124,6 +126,8 @@ class ProotLauncher(private val context: Context) {
         // `z2run` ランチャ (P3): 端末で `z2run <gui-app>` を打つと、Z2_DISPLAY=:N の Xvnc を
         // 自動起動 + z2term に「OPEN N」を通知 → 該当 GUI タブが自動的に開く / 前面化する。
         ensureZ2RunScript(rootfs)
+        // Android API ブリッジのヘルパー (`z2-notify` 等) を配置 (Termux:API 相当)。
+        ensureZ2ApiScripts(rootfs)
         // Android 外部ストレージを cd できるようマウント先を用意。
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
@@ -319,6 +323,43 @@ class ProotLauncher(private val context: Context) {
     }
 
     /**
+     * cwd を OSC 7 でアプリへ通知するシェルフックを rootfs に仕込む (セッション復元の cwd 用)。
+     *
+     * 多くの distro はプロンプト毎に OSC 7 を出さないため `cd` しても cwd を捕捉できず、
+     * セッション復元で作業ディレクトリが戻らない。bash の PROMPT_COMMAND / zsh の precmd で
+     * 「ESC ] 7 ; file://host$PWD BEL」を出すフックを足し、各プロンプトで cwd を
+     * [com.zerotoship.z2term.emulator.TerminalEmulator] へ届けて [com.zerotoship.z2term.core.SessionStore]
+     * に保存させる。履歴設定とは別マーカーにして、既に履歴ブロックを持つ既存 rootfs にも後付けされるようにする。
+     */
+    private fun ensureOsc7CwdConfig(rootfs: File) {
+        val marker = "# >>> z2term osc7 >>>"
+
+        val bashBlock = """
+            |$marker
+            |if [ -n "${'$'}BASH_VERSION" ]; then
+            |  __z2term_osc7() { printf '\033]7;file://%s%s\a' "${'$'}{HOSTNAME:-localhost}" "${'$'}PWD"; }
+            |  case ":${'$'}PROMPT_COMMAND:" in
+            |    *__z2term_osc7*) ;;
+            |    *) PROMPT_COMMAND="__z2term_osc7${'$'}{PROMPT_COMMAND:+; ${'$'}PROMPT_COMMAND}" ;;
+            |  esac
+            |fi
+            |# <<< z2term osc7 <<<
+        """.trimMargin()
+
+        val zshBlock = """
+            |$marker
+            |if [ -n "${'$'}ZSH_VERSION" ]; then
+            |  __z2term_osc7() { printf '\033]7;file://%s%s\a' "${'$'}{HOST:-localhost}" "${'$'}PWD"; }
+            |  autoload -Uz add-zsh-hook 2>/dev/null && add-zsh-hook precmd __z2term_osc7
+            |fi
+            |# <<< z2term osc7 <<<
+        """.trimMargin()
+
+        appendOnceWithMarker(File(rootfs, "etc/bash.bashrc"), marker, bashBlock)
+        appendOnceWithMarker(File(rootfs, "etc/zsh/zshrc"), marker, zshBlock)
+    }
+
+    /**
      * `/usr/local/sbin/sshd` に dropbear 起動 wrapper を配置する。
      * PATH 上 /usr/local/sbin が /usr/sbin より優先されるので、端末で `sshd` と
      * 打つと OpenSSH ではなく dropbear (proot で動く) が立ち上がる。launch 毎に
@@ -373,6 +414,23 @@ class ProotLauncher(private val context: Context) {
             f.setReadable(true, false)
             f.setExecutable(true, false)
         }.onFailure { Log.w(TAG, "z2run script 配置失敗", it) }
+    }
+
+    /**
+     * Android API ブリッジのヘルパー群 (`z2api` + `z2-notify`/`z2-clip`/…) を `/usr/local/bin`
+     * へ配置する。端末から `z2-notify "done"` 等で Android 機能を呼べる (Termux:API 相当)。
+     * 受け手は [com.zerotoship.z2term.service.Z2ApiBridge]。launch 毎に上書きするので常に最新。
+     */
+    private fun ensureZ2ApiScripts(rootfs: File) {
+        runCatching {
+            val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
+            z2ApiScripts().forEach { (name, body) ->
+                val f = File(dir, name)
+                f.writeText(body)
+                f.setReadable(true, false)
+                f.setExecutable(true, false)
+            }
+        }.onFailure { Log.w(TAG, "z2api scripts 配置失敗", it) }
     }
 
     /** marker を含まなければ block を追記。親 dir が無ければ作る。失敗は握り潰す。 */

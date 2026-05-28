@@ -136,18 +136,13 @@ class GuiSession(
                 // 未起動) の間だけリトライする。拒否された接続は Xvnc に届かないので
                 // 安全で、確立後はそのまま持続接続になり 0 クライアントに落ちない。
                 //
-                // タイムアウトは初回のパッケージ導入 (apk/apt/pacman) を含むため長めに取る
-                // (Alpine の apk は十数秒だが Arch の pacman は数分かかる)。ただし z2gui が
-                // 途中で終了 (導入失敗) した場合は connectWithRetry が PTY クローズを検知して
-                // 即座に false を返すので、最大時間まで無駄に待たされることはない。
-                // 設定で noInstallTimeout = true なら無期限待ち (停止は GUI タブの ✕ で手動)。
-                val timeoutMs: Long? = if (snap.noInstallTimeout) null
-                                       else AppSettings.DEFAULT_GUI_CONNECT_TIMEOUT_MS
-                if (!connectWithRetry(timeoutMs = timeoutMs)) {
-                    fail(
-                        if (ptyClosed) "GUI の起動に失敗しました (z2gui が終了)。端末タブで z2gui を実行してログを確認してください。"
-                        else "Xvnc に接続できません (タイムアウト)"
-                    )
+                // VNC ポートが開くまで本物の RFB 接続を無期限にリトライする (タイムアウトなし)。
+                // 初回のパッケージ導入 (apk/apt/pacman) は Arch/Konsole 等だと数分以上かかるが、
+                // 途中で打ち切らず最後まで待つ。z2gui が途中終了 (導入失敗) した場合は
+                // connectWithRetry が PTY クローズを検知して即 false を返すので無限ループにはならない。
+                // 途中で止めたいときは GUI タブの ✕ (stop) で手動キャンセルできる。
+                if (!connectWithRetry()) {
+                    fail("GUI の起動に失敗しました (z2gui が終了)。端末タブで z2gui を実行してログを確認してください。")
                     return@launch
                 }
                 _state.value = State.CONNECTED
@@ -236,20 +231,18 @@ class GuiSession(
     }
 
     /**
-     * Xvnc が立ち上がるまで本物の RFB 接続をリトライする。
+     * Xvnc が立ち上がるまで本物の RFB 接続を無期限にリトライする (タイムアウトなし)。
      * ポート未起動による接続拒否 ([ConnectException]) のみ再試行し、それ以外の
      * 失敗 (ハンドシェイク異常等) は呼び出し側へ伝播させて ERROR にする。
      * 捨て socket での疎通確認をしないのは、接続→即切断が TigerVNC の
      * last-client-disconnect 挙動で Xvnc を落としてしまうため。
      *
-     * @param timeoutMs null なら無期限 (設定でタイムアウト無効化時)。z2gui の終了 (ptyClosed)
-     *                  は無期限でも即座に検知して打ち切るので、停止できなくなる事はない。
+     * z2gui の終了 (ptyClosed) は即座に検知して false を返すので、Xvnc が二度と
+     * 立たない状況でも無限に待ち続けることはない (停止できなくなる事はない)。
      */
-    private suspend fun connectWithRetry(timeoutMs: Long?): Boolean {
-        val deadline = timeoutMs?.let { System.currentTimeMillis() + it }
-        while (deadline == null || System.currentTimeMillis() < deadline) {
-            // z2gui (proot) が終了したら Xvnc はもう立たない → 待たずに失敗扱い。
-            if (ptyClosed) return false
+    private suspend fun connectWithRetry(): Boolean {
+        // z2gui (proot) が終了したら Xvnc はもう立たない → 待たずに失敗扱い。
+        while (!ptyClosed) {
             try {
                 rfb.connect()
                 return true

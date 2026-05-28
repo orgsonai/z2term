@@ -2,9 +2,15 @@ package com.zerotoship.z2term.core
 
 import android.content.Context
 import com.zerotoship.z2term.gui.GuiSession
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * プロセス全体で複数の [AppSession] (端末 / GUI) を保持するシングルトン。
@@ -51,9 +57,86 @@ object SessionManager {
     private val _activeId = MutableStateFlow<String?>(null)
     val activeId: StateFlow<String?> = _activeId.asStateFlow()
 
-    /** 0 件なら新規端末を生成、それ以外は既存のアクティブを返す */
+    // --- セッション復元 (タブ構成の永続化) ---
+    @Volatile private var appContext: Context? = null
+    private val persistScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    /** 各端末セッションの label/cwd/distro 変化を監視して再保存を促すジョブ (id -> Job)。 */
+    private val sessionJobs = mutableMapOf<String, Job>()
+    /** 保存のデバウンス用ジョブ (短時間に連続する変化を 1 回にまとめる)。 */
+    @Volatile private var persistJob: Job? = null
+    /** 保存デバウンス時間 (cd 連打や起動直後の label 確定をまとめる)。 */
+    private const val PERSIST_DEBOUNCE_MS = 500L
+
+    /**
+     * 端末タブの label/cwd/distro 変化を監視し、変化があれば再保存を促す。
+     * StateFlow は collect 開始時に現在値を即流すので、追加直後に 1 回保存が走る。
+     */
+    private fun trackTerminal(s: TerminalSession) {
+        sessionJobs[s.id]?.cancel()
+        sessionJobs[s.id] = persistScope.launch {
+            launch { s.label.collect { schedulePersist() } }
+            launch { s.cwd.collect { schedulePersist() } }
+            launch { s.distroId.collect { schedulePersist() } }
+        }
+    }
+
+    /** 端末タブ構成 + activeId をデバウンスして DataStore に保存する。 */
+    private fun schedulePersist() {
+        val ctx = appContext ?: return
+        persistJob?.cancel()
+        persistJob = persistScope.launch {
+            delay(PERSIST_DEBOUNCE_MS)
+            val entries = synchronized(lock) {
+                mutableSessions.filterIsInstance<TerminalSession>().map { ts ->
+                    SessionStore.Entry(
+                        id = ts.id,
+                        label = ts.label.value,
+                        distro = ts.distroId.value,
+                        cwd = ts.cwd.value
+                    )
+                }
+            }
+            SessionStore.save(ctx, entries, _activeId.value)
+        }
+    }
+
+    /** 保存済みタブ構成から端末セッション群を再生成する (synchronized(lock) 内で呼ぶこと)。 */
+    private fun restoreFrom(context: Context, saved: SessionStore.Saved) {
+        saved.entries.forEach { e ->
+            // display 番号は GUI ペアリング (P3) 用で復元対象外。新しく払い出す。
+            val display = allocateDisplay()
+            val s = TerminalSession(
+                context.applicationContext,
+                id = e.id,
+                initialLabel = e.label.ifBlank { "session" },
+                display = display,
+                restoreDistroId = e.distro,
+                restoreCwd = e.cwd.ifBlank { null }
+            )
+            mutableSessions.add(s)
+            trackTerminal(s)
+        }
+        _sessions.value = mutableSessions.toList()
+        val savedActive = saved.activeId
+        _activeId.value = if (savedActive != null && mutableSessions.any { it.id == savedActive })
+            savedActive else mutableSessions.firstOrNull()?.id
+    }
+
+    /**
+     * 0 件なら「保存済みタブを復元」→ それも無ければ新規端末を生成。既にセッションが
+     * あれば既存のアクティブを返す。
+     */
     fun ensureFirst(context: Context): AppSession = synchronized(lock) {
-        active() ?: openNew(context)
+        appContext = context.applicationContext
+        active()?.let { return@synchronized it }
+        if (mutableSessions.isEmpty()) {
+            val saved = SessionStore.loadBlocking(context.applicationContext)
+            if (saved.entries.isNotEmpty()) {
+                restoreFrom(context, saved)
+                active()?.let { return@synchronized it }
+            }
+        }
+        openNew(context)
     }
 
     /**
@@ -65,11 +148,14 @@ object SessionManager {
      * 番号が被らないよう同じ pool から最小空きを払い出す。
      */
     fun openNew(context: Context): TerminalSession = synchronized(lock) {
+        appContext = context.applicationContext
         val display = allocateDisplay()
         val s = TerminalSession(context.applicationContext, display = display)
         mutableSessions.add(s)
+        trackTerminal(s)
         _sessions.value = mutableSessions.toList()
         _activeId.value = s.id
+        schedulePersist()
         s
     }
 
@@ -149,6 +235,7 @@ object SessionManager {
         val displayBeforeRemove = s.display
         s.shutdown()  // AppSession.shutdown (端末=PTY 停止 / GUI=Xvnc 停止)
         mutableSessions.remove(s)
+        sessionJobs.remove(id)?.cancel()
         // 残っているセッションが同じ display を使っていなければ pool に返却。
         if (mutableSessions.none { it.display == displayBeforeRemove }) {
             usedDisplays.remove(displayBeforeRemove)
@@ -157,22 +244,31 @@ object SessionManager {
         if (_activeId.value == id) {
             _activeId.value = mutableSessions.firstOrNull()?.id
         }
+        schedulePersist()
     }
 
     /** アクティブを切り替える */
     fun setActive(id: String) = synchronized(lock) {
         if (mutableSessions.any { it.id == id }) {
             _activeId.value = id
+            schedulePersist()
         }
     }
 
-    /** 全セッション終了 (サービス停止時に呼ばれる) */
+    /**
+     * 全セッション終了 (サービス停止 = ユーザーが明示的に「停止」したとき)。
+     * 明示停止なので保存済みタブ構成もクリアする (次回起動で勝手に復元されないように)。
+     */
     fun shutdown() = synchronized(lock) {
         mutableSessions.forEach { it.shutdown() }
         mutableSessions.clear()
+        sessionJobs.values.forEach { it.cancel() }
+        sessionJobs.clear()
         usedDisplays.clear()
         _sessions.value = emptyList()
         _activeId.value = null
+        persistJob?.cancel()
+        appContext?.let { ctx -> persistScope.launch { SessionStore.save(ctx, emptyList(), null) } }
     }
 
     fun active(): AppSession? = synchronized(lock) {

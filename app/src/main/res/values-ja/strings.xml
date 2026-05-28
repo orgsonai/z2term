@@ -34,15 +34,24 @@
     <string name="settings_keep_alive_desc">ON: アプリを閉じてもセッション維持 (通知が出ます)。OFF: 閉じると終了。</string>
     <string name="settings_confirm_download">ダウンロード前に確認</string>
     <string name="settings_confirm_download_desc">ON: distro / GUI のダウンロード前に確認を出す。OFF: 確認なしで取得。</string>
-    <string name="settings_no_install_timeout">インストールのタイムアウトを無効化</string>
-    <string name="settings_no_install_timeout_desc">ON: GUI 一式 (apk/apt/pacman) や OS rootfs の取得を最後まで待つ (邪魔な途中エラーなし)。途中で止めたい時は GUI タブの ✕ ボタンで停止。OFF (既定): 約 5 分で打ち切る。</string>
     <string name="settings_section_landscape_keyboard">キーボード位置 (横画面)</string>
     <string name="settings_landscape_keyboard_desc">横画面のときにキーボードを画面のどこに出すか。縦画面は常に下に出る。</string>
     <string name="settings_landscape_kb_left">左</string>
     <string name="settings_landscape_kb_bottom">下</string>
     <string name="settings_landscape_kb_right">右</string>
     <string name="settings_landscape_kb_width">サイドキーボード幅 (横画面)</string>
-    <string name="settings_landscape_kb_height">キーボード高さ (横画面)</string>
+    <string name="settings_section_keyboard_size">キーボードの大きさ</string>
+    <string name="settings_kb_height_portrait">キーボードの高さ（縦画面）</string>
+    <string name="settings_kb_height_landscape">キーボードの高さ（横画面）</string>
+    <string name="settings_kb_height_desc">縦画面と横画面で別々の高さを記憶し、画面の向きに合わせて自動で切り替わる。</string>
+    <string name="settings_section_delete_os">OS データの削除（ストレージ解放）</string>
+    <string name="settings_delete_os_desc">使わない OS のデータを削除して空き容量を増やせる。削除すると、その OS に入れたパッケージ・設定・ファイルはすべて消える。</string>
+    <string name="settings_delete_os_empty">削除できる OS データはまだありません。</string>
+    <string name="settings_delete_os_button">削除</string>
+    <string name="settings_delete_os_in_use">使用中（削除不可）</string>
+    <string name="confirm_delete_os_title">%1$s のデータを削除しますか？</string>
+    <string name="confirm_delete_os_msg">%1$s に入れたパッケージ・設定・ファイルがすべて消えます。この操作は元に戻せません。本当に削除しますか？</string>
+    <string name="action_delete_os">削除する</string>
     <string name="settings_init_command">起動時 init コマンド</string>
     <string name="settings_init_command_placeholder">例: zsh -l</string>
     <string name="settings_reset_terminal">端末リセット</string>
@@ -295,4 +304,24 @@
     <string name="snippet_sample_ls_label">一覧 (詳細)</string>
     <string name="snippet_sample_apk_update_label">apk: 更新 (index 取得)</string>
     <string name="snippet_sample_apk_add_label">apk: 追加 (パッケージ名を追記)</string>
+
+    <!-- IME 学習履歴管理 (キーボードパッチ) -->
+    <string name="settings_section_ime_history">日本語 IME 学習履歴</string>
+    <string name="settings_ime_history_count">%1$d 件の単語を学習済み</string>
+    <string name="settings_ime_history_open">履歴を管理</string>
+    <string name="ime_history_title">学習履歴</string>
+    <string name="ime_history_empty">学習履歴はまだありません。日本語キーボードで変換確定すると、ここに記録されます。</string>
+    <string name="ime_history_clear_confirm">学習履歴をすべて消去しますか? この操作は取り消せません。</string>
+    <string name="ime_history_count_badge">×%1$d</string>
+
+    <!-- Android API ブリッジ (z2-* ヘルパー) -->
+    <string name="api_channel_name">端末 API</string>
+    <string name="api_channel_desc">端末から z2-notify で送られた通知。</string>
+
+    <!-- スクロールバック検索 (検索パッチ) -->
+    <string name="search_hint">出力を検索</string>
+    <string name="search_count">%1$d/%2$d</string>
+    <string name="search_prev">↑</string>
+    <string name="search_next">↓</string>
+    <string name="search_close">✕</string>
 </resources>

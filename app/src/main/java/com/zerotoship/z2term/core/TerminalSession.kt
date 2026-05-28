@@ -59,13 +59,31 @@ class TerminalSession(
      * 同じ :N の Xvnc が自動起動・対応する GUI タブが z2term 側で開く (P3 = CUI⇄GUI 連動)。
      * [SessionManager.openNew] が払い出すので、既存の単独 GUI タブ (🖥 ボタン) と被らない。
      */
-    override val display: Int = 1
+    override val display: Int = 1,
+    /**
+     * セッション復元 (v1) 用。アプリ kill 後の再起動でこのタブを復元するとき、保存されていた
+     * distro / cwd を渡す。初回起動 (新規タブ) では null。startTerminal の最初の 1 回だけ
+     * 消費し、それ以降の restart 等では通常の設定 (distro) に従う。
+     */
+    restoreDistroId: String? = null,
+    restoreCwd: String? = null
 ) : AppSession {
 
     /** タブ表示名 (RUNNING になったら mode を反映、それ以前は "session") */
     private val _label = MutableStateFlow(initialLabel)
     override val label: StateFlow<String> = _label.asStateFlow()
     fun setLabel(s: String) { _label.value = s }
+
+    /**
+     * このタブが実際に起動した distro の id (proot 起動成功時に確定)。セッション復元の
+     * 保存対象。未起動 / android-sh フォールバック中は復元値 (or null) のまま。
+     */
+    private val _distroId = MutableStateFlow(restoreDistroId)
+    val distroId: StateFlow<String?> = _distroId.asStateFlow()
+
+    // 復元値は startTerminal で 1 度だけ消費する (consume 後は null)。
+    private var pendingRestoreDistroId: String? = restoreDistroId
+    private var pendingRestoreCwd: String? = restoreCwd
 
     enum class TerminalState { IDLE, INSTALLING, STARTING, RUNNING, EXITED, ERROR }
 
@@ -191,10 +209,10 @@ class TerminalSession(
     fun setGuiTerminal(id: String) { scope.launch { settings.setGuiTerminal(id) } }
     fun setGuiMagnification(value: Float) { scope.launch { settings.setGuiMagnification(value) } }
     fun setCleanInstallGuiArmed(armed: Boolean) { scope.launch { settings.setCleanInstallGuiArmed(armed) } }
-    fun setNoInstallTimeout(enabled: Boolean) { scope.launch { settings.setNoInstallTimeout(enabled) } }
     fun setLandscapeKeyboardPosition(value: String) { scope.launch { settings.setLandscapeKeyboardPosition(value) } }
     fun setLandscapeKeyboardWidthDp(value: Float) { scope.launch { settings.setLandscapeKeyboardWidthDp(value) } }
     fun setLandscapeKeyboardHeightDp(value: Float) { scope.launch { settings.setLandscapeKeyboardHeightDp(value) } }
+    fun setPortraitKeyboardHeightDp(value: Float) { scope.launch { settings.setPortraitKeyboardHeightDp(value) } }
 
     /** 設定で選ばれているディストロを使って起動。明示的指定があればそれを優先 */
     fun startTerminal(distroOverride: DistroSpec? = null) {
@@ -204,7 +222,11 @@ class TerminalSession(
         _uiState.update { it.copy(state = TerminalState.STARTING) }
 
         scope.launch {
+            // セッション復元: 明示 override が無い初回のみ、保存されていた distro を優先する。
+            val restoreDistro = if (distroOverride == null) pendingRestoreDistroId else null
+            pendingRestoreDistroId = null
             val spec = distroOverride
+                ?: restoreDistro?.let { DistroSpec.byId(it) }
                 ?: DistroSpec.byId(settingsFlow.value.distroId)
                 ?: DistroSpec.ALPINE
             try {
@@ -284,8 +306,12 @@ class TerminalSession(
                 channel = ch
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }
                 _label.value = spec.id
+                _distroId.value = spec.id
+                // 復元 cwd は起動成功時に 1 度だけ消費する。
+                val cwdToRestore = pendingRestoreCwd
+                pendingRestoreCwd = null
                 startReadLoop(ch)
-                scheduleInitCommand(settingsFlow.value.initCommand)
+                scheduleStartupCommands(cwdToRestore, settingsFlow.value.initCommand)
 
             } catch (e: Throwable) {
                 Log.e(TAG, "Failed to start terminal", e)
@@ -310,14 +336,11 @@ class TerminalSession(
         writeBanner(appContext.getString(R.string.banner_download_start, spec.displayName, sizeHint))
         var error: Throwable? = null
         var lastPct = -1
-        // 「インストールのタイムアウトを無効化」ON なら HTTP read timeout を長めにする
-        // (完全 0 だと回線断時に詰まりやすいので 5 分上限)。
-        val readTimeout = if (settingsFlow.value.noInstallTimeout)
-            AppSettings.EXTENDED_DOWNLOAD_READ_TIMEOUT_MS
-        else
-            AppSettings.DEFAULT_DOWNLOAD_READ_TIMEOUT_MS
+        // OS rootfs のダウンロードはタイムアウトしない (read timeout 0 = 無期限)。
+        // 大物・低速回線でも最後まで待ち、途中打ち切りで最初からやり直す無駄をなくす。
+        // 中断したいときは端末リセット (設定 → 端末リセット) でやり直せる。
         withContext(Dispatchers.IO) {
-            downloader.download(spec, abi, readTimeoutMs = readTimeout).collect { p ->
+            downloader.download(spec, abi, readTimeoutMs = 0).collect { p ->
                 when (p) {
                     is DistroDownloader.Progress.Downloading -> {
                         if (p.total > 0) {
@@ -468,6 +491,26 @@ class TerminalSession(
         }
     }
 
+    /**
+     * セッション復元の起動直後シーケンス。プロンプトが出る頃に `cd <cwd>` (ベストエフォート)
+     * → init コマンド の順で 1 本のコルーチンで送る (2 本に分けると順序が保証されないため)。
+     */
+    private fun scheduleStartupCommands(restoreCwd: String?, initCommand: String) {
+        if (restoreCwd.isNullOrBlank() && initCommand.isBlank()) return
+        scope.launch {
+            delay(INIT_DELAY_MS)
+            if (!restoreCwd.isNullOrBlank()) {
+                writeBytes(("cd " + singleQuote(restoreCwd) + "\n").toByteArray(Charsets.UTF_8))
+            }
+            if (initCommand.isNotBlank()) {
+                writeBytes((initCommand + "\n").toByteArray(Charsets.UTF_8))
+            }
+        }
+    }
+
+    /** シェルに安全に渡せるよう単一引用符でエスケープする (パスに空白や記号があっても壊れない)。 */
+    private fun singleQuote(s: String): String = "'" + s.replace("'", "'\\''") + "'"
+
     fun onResize(rows: Int, cols: Int) {
         // emulator buffer の resize は他の processBytes と排他するため emulator スレッドへ。
         // resize 完了直後に bumpRedrawImmediate で coalesce を飛ばして即 tick を進め、
@@ -487,6 +530,23 @@ class TerminalSession(
     }
 
     fun jumpToBottom() { _scrollOffset.value = 0 }
+
+    /**
+     * 指定した絶対行 (0 = scrollback 最古) が画面中央付近に来るようスクロールする。
+     * スクロールバック検索のヒットへジャンプするのに使う。
+     *
+     * 描画 (TerminalRenderer) は scrollOffset>0 のとき topAbsRow = scrollbackSize - scrollOffset
+     * なので、絶対行を中央 (topAbsRow = absRow - rows/2) に置くには
+     *   scrollOffset = scrollbackSize - (absRow - rows/2)
+     * とする。0..scrollbackSize にクランプ (0=最新/下端、最大=最古)。
+     */
+    fun scrollToAbsRow(absRow: Int) {
+        val rows = emulator.buffer.rows
+        val target = (emulator.buffer.scrollbackSize - (absRow - rows / 2))
+            .coerceIn(0, emulator.buffer.scrollbackSize)
+        _scrollOffset.value = target
+        bumpRedrawImmediate()
+    }
 
     fun clearOutput() {
         scope.launch(emulatorDispatcher) {
@@ -560,6 +620,24 @@ class TerminalSession(
             _uiState.update { UiState() }
             _scrollOffset.value = 0
             startTerminal(spec)
+        }
+    }
+
+    /**
+     * 指定ディストロの rootfs (filesDir/distros/<id>) とダウンロード済みアーカイブを
+     * **完全削除**する (再インストールはしない)。不要な OS データを消してストレージを
+     * 空けるための手段。使用中の OS の削除は壊れた稼働状態を避けるため UI 側で禁止する。
+     *
+     * @param onComplete 削除完了後にメインスレッドで 1 度だけ呼ぶ (設定 UI の一覧再読込用)。
+     */
+    fun deleteDistroData(id: String, onComplete: () -> Unit = {}) {
+        scope.launch {
+            withContext(Dispatchers.IO) {
+                val rootfs = java.io.File(appContext.filesDir, "distros/$id")
+                if (rootfs.exists()) rootfs.deleteRecursively()
+                runCatching { downloader.deleteCachedArchive(id, detectAbiId()) }
+            }
+            onComplete()
         }
     }
 

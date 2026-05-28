@@ -7,6 +7,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -30,6 +34,9 @@ import java.io.File
  *
  * スコア式: `count * 1.0 + recencyBoost`。recencyBoost は最近 7 日内なら最大 +5、それ以前は 0。
  * これにより「最近使った語」と「沢山使う語」の双方が候補上位に来る。
+ *
+ * 履歴管理 UI (設定 → 学習履歴) からは [snapshot] / [deleteEntry] / [clearAll] を使う。
+ * UI 側は変化通知 [versionFlow] を購読しておけば、別経路で学習が増えた場合も自動で再描画できる。
  */
 object ImeHistoryStore {
     private const val TAG = "ImeHistoryStore"
@@ -41,6 +48,14 @@ object ImeHistoryStore {
     private const val RECENT_WINDOW_MS = 7L * 24 * 60 * 60 * 1000  // 直近 7 日
     private const val MAX_RECENCY_BOOST = 5.0
 
+    /** UI へ公開する 1 エントリの値オブジェクト (内部 Entry とは別: 不変)。 */
+    data class HistoryItem(
+        val reading: String,
+        val word: String,
+        val count: Int,
+        val lastUsedAt: Long
+    )
+
     private data class Entry(val word: String, var count: Int, var lastUsedAt: Long)
 
     /** reading → 候補単語リスト。同一 reading で複数候補を別 Entry として保持。 */
@@ -50,6 +65,10 @@ object ImeHistoryStore {
     private var saveJob: Job? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var contextRef: Context? = null
+
+    /** 履歴の世代カウンタ。record / delete / clearAll で increment。UI はこれで再フェッチ判断。 */
+    private val _versionFlow = MutableStateFlow(0)
+    val versionFlow: StateFlow<Int> = _versionFlow.asStateFlow()
 
     /** 起動時 (TerminalScreen) から呼ぶ。読み込みは IO で 1 度だけ。 */
     suspend fun ensureLoaded(context: Context) {
@@ -63,6 +82,7 @@ object ImeHistoryStore {
             }
             loaded = true
         }
+        _versionFlow.update { it + 1 }
     }
 
     /**
@@ -87,6 +107,7 @@ object ImeHistoryStore {
                 // 件数上限を超えたら最下位スコアから切り詰める (mutex 内で実行)。
                 ensureCapacityLocked()
             }
+            _versionFlow.update { it + 1 }
             scheduleSave()
         }
     }
@@ -120,6 +141,58 @@ object ImeHistoryStore {
             if (out.add(e.word) && out.size >= limit) break
         }
         return out.toList()
+    }
+
+    /**
+     * UI 用: 学習済み全エントリのスナップショットを score 降順で返す。
+     * mutex で排他してから ArrayList へコピーするのでスレッド安全。
+     */
+    suspend fun snapshot(): List<HistoryItem> = mutex.withLock {
+        if (!loaded) return@withLock emptyList()
+        val out = ArrayList<HistoryItem>()
+        val now = System.currentTimeMillis()
+        for ((r, entries) in byReading) {
+            for (e in entries) out.add(HistoryItem(r, e.word, e.count, e.lastUsedAt))
+        }
+        out.sortByDescending {
+            val ageMs = (now - it.lastUsedAt).coerceAtLeast(0)
+            val recency = if (ageMs >= RECENT_WINDOW_MS) 0.0
+                          else MAX_RECENCY_BOOST * (1.0 - ageMs.toDouble() / RECENT_WINDOW_MS)
+            it.count.toDouble() + recency
+        }
+        out
+    }
+
+    /** UI 用: 概算件数 (mutex 取らずに best-effort で読む。表示更新用なので OK)。 */
+    fun approximateCount(): Int {
+        if (!loaded) return 0
+        var n = 0
+        try {
+            for ((_, l) in byReading) n += l.size
+        } catch (_: ConcurrentModificationException) {
+            // 同時記録中の場合は再試行せず古い値を返す (表示なので不正確で OK)。
+        }
+        return n
+    }
+
+    /** UI 用: 1 件削除 (reading + word の完全一致)。永続化は debounce save に乗せる。 */
+    suspend fun deleteEntry(reading: String, word: String) {
+        if (!loaded) return
+        mutex.withLock {
+            val list = byReading[reading] ?: return@withLock
+            list.removeAll { it.word == word }
+            if (list.isEmpty()) byReading.remove(reading)
+        }
+        _versionFlow.update { it + 1 }
+        scheduleSave()
+    }
+
+    /** UI 用: 学習履歴を全削除。ファイルも空で上書きされる (debounce save 経由)。 */
+    suspend fun clearAll() {
+        if (!loaded) return
+        mutex.withLock { byReading.clear() }
+        _versionFlow.update { it + 1 }
+        scheduleSave()
     }
 
     private fun score(e: Entry, now: Long): Double {

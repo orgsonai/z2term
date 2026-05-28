@@ -42,6 +42,8 @@ import com.zerotoship.z2term.ui.theme.TerminalFontOptions
 fun TerminalRenderer(
     session: TerminalSession,
     composingText: String = "",
+    searchMatches: List<SearchMatch> = emptyList(),
+    currentMatch: SearchMatch? = null,
     modifier: Modifier = Modifier
 ) {
     val redrawTick by session.redrawTick.collectAsState()
@@ -138,7 +140,9 @@ fun TerminalRenderer(
                     canvasCols = cols,
                     scrollOffset = scrollOffset,
                     selection = selection,
-                    composingText = composingText
+                    composingText = composingText,
+                    searchMatches = searchMatches,
+                    currentMatch = currentMatch
                 )
                 nc.restore()
             }
@@ -151,6 +155,8 @@ private const val SELECTION_OVERLAY_ARGB: Int = 0x6622C55E.toInt() // ZtsGreen t
 private const val HANDLE_FILL_ARGB: Int = 0xFF22C55E.toInt()
 private const val HANDLE_BORDER_ARGB: Int = 0xFF0A0A0A.toInt()
 private const val PREEDIT_BG_ARGB: Int = 0x3322C55E // 変換中プリエディットの背景 (薄緑)
+private const val SEARCH_MATCH_ARGB: Int = 0x66FFD54F.toInt()   // 検索ヒット (薄い琥珀)
+private const val SEARCH_CURRENT_ARGB: Int = 0xCCFF9800.toInt() // 現在ヒット (濃いオレンジ)
 
 private fun drawBuffer(
     nativeCanvas: android.graphics.Canvas,
@@ -165,11 +171,16 @@ private fun drawBuffer(
     canvasCols: Int,
     scrollOffset: Int,
     selection: TerminalSelection?,
-    composingText: String = ""
+    composingText: String = "",
+    searchMatches: List<SearchMatch> = emptyList(),
+    currentMatch: SearchMatch? = null
 ) {
     val emu = session.emulator
     val buf = emu.buffer
     val colors = emu.colors
+    // 検索ヒットを行ごとに引けるようにしておく (可視行ループでの線形走査を避ける)。
+    val matchesByRow: Map<Int, List<SearchMatch>> =
+        if (searchMatches.isEmpty()) emptyMap() else searchMatches.groupBy { it.absRow }
 
     // 全面を default 背景でクリア
     bgPaint.color = colors.defaultBackground
@@ -221,6 +232,20 @@ private fun drawBuffer(
             val (from, to) = selection.colRangeFor(abs, rowCols)
             if (from < to) {
                 bgPaint.color = SELECTION_OVERLAY_ARGB
+                nativeCanvas.drawRect(from * cellW, y, to * cellW, y + lineHeight, bgPaint)
+            }
+        }
+
+        // --- Pass 2.5: 検索ヒットのハイライト (現在ヒットは濃色、他は薄色) ---
+        // 文字描画 (Pass 3) より前に塗るので、文字はハイライトの上に読める。
+        matchesByRow[abs]?.forEach { m ->
+            val from = m.colStart.coerceIn(0, canvasCols)
+            val to = m.colEnd.coerceIn(0, canvasCols)
+            if (from < to) {
+                val isCurrent = currentMatch != null &&
+                    m.absRow == currentMatch.absRow &&
+                    m.colStart == currentMatch.colStart
+                bgPaint.color = if (isCurrent) SEARCH_CURRENT_ARGB else SEARCH_MATCH_ARGB
                 nativeCanvas.drawRect(from * cellW, y, to * cellW, y + lineHeight, bgPaint)
             }
         }

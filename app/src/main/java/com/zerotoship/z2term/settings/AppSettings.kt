@@ -50,13 +50,6 @@ class AppSettings(private val context: Context) {
          */
         val cleanInstallGuiArmed: Boolean = false,
         /**
-         * インストール (GUI 一式の apk/apt/pacman・distro rootfs ダウンロード) のタイムアウトを
-         * 無効化するか。ON のとき GUI 起動は VNC へ接続できるまで無期限に待ち、distro DL の
-         * HTTP read timeout は長め (5 分) になる。遅い回線や Arch 等の大物導入を最後まで
-         * 待ちたいときに使う。停止は GUI タブの「✕」(stop) で手動キャンセル可能。
-         */
-        val noInstallTimeout: Boolean = DEFAULT_NO_INSTALL_TIMEOUT,
-        /**
          * 横画面時のキーボード配置 ("left" / "bottom" / "right")。
          * 縦画面のときはこの値に関わらず常に下に出る。
          */
@@ -71,7 +64,13 @@ class AppSettings(private val context: Context) {
          * 大きいほどキーが押しやすいが、その分端末/GUI 領域が狭くなる。
          * 既定 320dp / 範囲 200-500dp。
          */
-        val landscapeKeyboardHeightDp: Float = DEFAULT_LANDSCAPE_KEYBOARD_HEIGHT_DP
+        val landscapeKeyboardHeightDp: Float = DEFAULT_LANDSCAPE_KEYBOARD_HEIGHT_DP,
+        /**
+         * 縦画面でのキーボード総高さ (dp)。横画面の [landscapeKeyboardHeightDp] とは別に保持し、
+         * 画面の向きが変わると自動でそれぞれの値が適用される (毎回スライダーを直す手間をなくす)。
+         * 既定 320dp / 範囲 200-460dp。
+         */
+        val portraitKeyboardHeightDp: Float = DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP
     )
 
     suspend fun setGuiMagnification(value: Float) {
@@ -101,16 +100,22 @@ class AppSettings(private val context: Context) {
             confirmBeforeDownload = p[KEY_CONFIRM_DOWNLOAD] ?: DEFAULT_CONFIRM_DOWNLOAD,
             guiMagnification = p[KEY_GUI_MAGNIFICATION] ?: DEFAULT_GUI_MAGNIFICATION,
             cleanInstallGuiArmed = p[KEY_CLEAN_INSTALL_GUI] ?: false,
-            noInstallTimeout = p[KEY_NO_INSTALL_TIMEOUT] ?: DEFAULT_NO_INSTALL_TIMEOUT,
             landscapeKeyboardPosition = p[KEY_LANDSCAPE_KB_POS] ?: DEFAULT_LANDSCAPE_KEYBOARD_POSITION,
             landscapeKeyboardWidthDp = p[KEY_LANDSCAPE_KB_WIDTH] ?: DEFAULT_LANDSCAPE_KEYBOARD_WIDTH_DP,
-            landscapeKeyboardHeightDp = p[KEY_LANDSCAPE_KB_HEIGHT] ?: DEFAULT_LANDSCAPE_KEYBOARD_HEIGHT_DP
+            landscapeKeyboardHeightDp = p[KEY_LANDSCAPE_KB_HEIGHT] ?: DEFAULT_LANDSCAPE_KEYBOARD_HEIGHT_DP,
+            portraitKeyboardHeightDp = p[KEY_PORTRAIT_KB_HEIGHT] ?: DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP
         )
     }
 
     suspend fun setLandscapeKeyboardHeightDp(value: Float) {
         context.dataStore.edit {
             it[KEY_LANDSCAPE_KB_HEIGHT] = value.coerceIn(MIN_LANDSCAPE_KB_HEIGHT_DP, MAX_LANDSCAPE_KB_HEIGHT_DP)
+        }
+    }
+
+    suspend fun setPortraitKeyboardHeightDp(value: Float) {
+        context.dataStore.edit {
+            it[KEY_PORTRAIT_KB_HEIGHT] = value.coerceIn(MIN_PORTRAIT_KB_HEIGHT_DP, MAX_PORTRAIT_KB_HEIGHT_DP)
         }
     }
 
@@ -126,10 +131,6 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit {
             it[KEY_LANDSCAPE_KB_WIDTH] = value.coerceIn(MIN_LANDSCAPE_KB_WIDTH_DP, MAX_LANDSCAPE_KB_WIDTH_DP)
         }
-    }
-
-    suspend fun setNoInstallTimeout(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_NO_INSTALL_TIMEOUT] = enabled }
     }
 
     suspend fun setConfirmBeforeDownload(enabled: Boolean) {
@@ -193,19 +194,11 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_DISTRO = "alpine"
         const val DEFAULT_FONT = "monospace"
         const val DEFAULT_AMBIGUOUS_AS_WIDE = false
-        const val DEFAULT_KEYBOARD_STYLE = "compact"
+        const val DEFAULT_KEYBOARD_STYLE = "spacious"
         const val DEFAULT_KEYBOARD_MODE = "custom"
         const val DEFAULT_KEEP_ALIVE = true
         /** ダウンロード前確認は既定 ON (勝手に通信しない方針)。 */
         const val DEFAULT_CONFIRM_DOWNLOAD = true
-        /** タイムアウト無効化は既定 OFF (従来通り 5 分・30s で打ち切り、明示的に解除させる)。 */
-        const val DEFAULT_NO_INSTALL_TIMEOUT = false
-        /** GUI 接続待ちの既定タイムアウト (ms)。Arch の pacman も込みで 5 分。 */
-        const val DEFAULT_GUI_CONNECT_TIMEOUT_MS = 300_000L
-        /** distro DL の既定 read timeout (ms)。HTTP 単一 read の上限。 */
-        const val DEFAULT_DOWNLOAD_READ_TIMEOUT_MS = 30_000
-        /** タイムアウト無効化 ON のときに使う長め read timeout (ms)。完全 0 にすると無期限で詰まりやすいので 5 分。 */
-        const val EXTENDED_DOWNLOAD_READ_TIMEOUT_MS = 300_000
         /** GUI ターミナルの既定 ([com.zerotoship.z2term.proot.GuiTerminal.XTERM] の id) */
         const val DEFAULT_GUI_TERMINAL = "xterm"
         /** GUI 表示倍率の既定。1.5 = 解像度を 2/3 にして表示を一回り大きく (細かすぎ対策)。 */
@@ -237,10 +230,10 @@ class AppSettings(private val context: Context) {
         private val KEY_CONFIRM_DOWNLOAD = booleanPreferencesKey("confirm_before_download")
         private val KEY_GUI_MAGNIFICATION = floatPreferencesKey("gui_magnification")
         private val KEY_CLEAN_INSTALL_GUI = booleanPreferencesKey("clean_install_gui_armed")
-        private val KEY_NO_INSTALL_TIMEOUT = booleanPreferencesKey("no_install_timeout")
         private val KEY_LANDSCAPE_KB_POS = stringPreferencesKey("landscape_kb_position")
         private val KEY_LANDSCAPE_KB_WIDTH = floatPreferencesKey("landscape_kb_width_dp")
         private val KEY_LANDSCAPE_KB_HEIGHT = floatPreferencesKey("landscape_kb_height_dp")
+        private val KEY_PORTRAIT_KB_HEIGHT = floatPreferencesKey("portrait_kb_height_dp")
 
         /** 横画面時のキーボード配置の選択肢 */
         const val LANDSCAPE_KB_LEFT = "left"
@@ -260,5 +253,10 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_LANDSCAPE_KEYBOARD_HEIGHT_DP = 320f
         const val MIN_LANDSCAPE_KB_HEIGHT_DP = 200f
         const val MAX_LANDSCAPE_KB_HEIGHT_DP = 500f
+
+        /** 縦画面でのキーボード総高さ (dp)。横画面とは独立して保持し、向きで自動切替。 */
+        const val DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP = 320f
+        const val MIN_PORTRAIT_KB_HEIGHT_DP = 200f
+        const val MAX_PORTRAIT_KB_HEIGHT_DP = 460f
     }
 }

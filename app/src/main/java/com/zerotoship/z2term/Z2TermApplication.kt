@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.util.Log
 import com.zerotoship.z2term.gui.GuiEventWatcher
+import com.zerotoship.z2term.service.Z2ApiBridge
 import com.zerotoship.z2term.settings.LocaleHelper
 
 /**
@@ -32,6 +33,8 @@ class Z2TermApplication : Application() {
         // proot 内 `/storage/app/z2gui.events` (= 外部 files dir の同名ファイル) を監視開始。
         // 二重 start しても idempotent。Activity/Service ライフサイクルから独立して常駐する。
         GuiEventWatcher.start(this)
+        // Android API ブリッジ (`z2-notify` 等) のリクエスト監視を開始 (Termux:API 相当)。
+        Z2ApiBridge.start(this)
     }
 
     companion object {
