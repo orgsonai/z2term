@@ -162,7 +162,14 @@ class TerminalSession(
         val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val text = cm.primaryClip?.getItemAt(0)?.coerceToText(appContext)?.toString() ?: return
         if (text.isEmpty()) return
-        writeBytes(text.replace('\n', '\r').toByteArray(Charsets.UTF_8))
+        val body = text.replace('\n', '\r').toByteArray(Charsets.UTF_8)
+        // Bracketed paste (DECSET 2004) が有効なら 200~/201~ で囲んで送る。
+        // これで bash/zsh/vim が「貼り付け」と認識し、各行の即時実行や自動インデント連鎖を防ぐ。
+        if (emulator.bracketedPasteMode) {
+            writeBytes(BRACKET_PASTE_START + body + BRACKET_PASTE_END)
+        } else {
+            writeBytes(body)
+        }
     }
 
     private val _toastEvents = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 4)
@@ -746,5 +753,9 @@ class TerminalSession(
         private const val INIT_DELAY_MS = 400L
         /** redraw 通知の最短間隔 (~60fps) */
         private const val REDRAW_INTERVAL_MS = 16L
+        /** Bracketed paste 開始シーケンス ESC [ 200 ~ */
+        private val BRACKET_PASTE_START = byteArrayOf(0x1B, '['.code.toByte(), '2'.code.toByte(), '0'.code.toByte(), '0'.code.toByte(), '~'.code.toByte())
+        /** Bracketed paste 終了シーケンス ESC [ 201 ~ */
+        private val BRACKET_PASTE_END = byteArrayOf(0x1B, '['.code.toByte(), '2'.code.toByte(), '0'.code.toByte(), '1'.code.toByte(), '~'.code.toByte())
     }
 }

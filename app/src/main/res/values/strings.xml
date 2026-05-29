@@ -34,6 +34,13 @@
     <string name="settings_keep_alive_desc">ON: keep the session alive after closing the app (a notification appears). OFF: terminate when closed.</string>
     <string name="settings_confirm_download">Confirm before download</string>
     <string name="settings_confirm_download_desc">ON: prompt before downloading a distro or GUI package. OFF: download without confirmation.</string>
+    <string name="settings_section_process_guard">Background process protection</string>
+    <string name="settings_battery_opt_toggle">Exclude from battery optimization</string>
+    <string name="settings_battery_opt_toggle_desc">ON: the OS is less likely to kill the session and its running processes in the background. Turning OFF opens system settings (Android does not allow apps to re-enable optimization directly).</string>
+    <string name="settings_phantom_title">If processes still get killed (Android 12/13)</string>
+    <string name="settings_phantom_desc">Android 12/13 may kill the \"phantom processes\" that proot spawns. This cannot be changed inside the app — run the following from a PC via adb, then reboot the device. Android 14+ is usually relaxed already.</string>
+    <string name="settings_phantom_copy">Copy adb command</string>
+    <string name="settings_phantom_copied">Copied the adb command</string>
     <string name="settings_section_landscape_keyboard">Keyboard position (landscape)</string>
     <string name="settings_landscape_keyboard_desc">Where to place the on-screen keyboard when the screen is in landscape. Portrait always uses Bottom.</string>
     <string name="settings_landscape_kb_left">Left</string>

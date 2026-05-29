@@ -87,6 +87,9 @@ import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.debounce
 import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.ui.settings.SettingsSheet
@@ -233,8 +236,16 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     }
 
     // かな漢字変換: 入力中ひらがな(composing)と候補を保持。確定で PTY へ送出。
+    // ただし検索バーを開いて独自キーボード使用中は、確定文字を PTY ではなく検索クエリへ流す
+    // (システムキーボードとの二重入力を避ける。詳細は onKeyboardBytes 付近)。
     val composing = remember(active.id) {
-        ComposingState(onCommit = { active.writeBytes(it.toByteArray(Charsets.UTF_8)) })
+        ComposingState(onCommit = { text ->
+            if (searchOpen && keyboardMode == KeyboardMode.CUSTOM) {
+                searchQuery += text
+            } else {
+                active.writeBytes(text.toByteArray(Charsets.UTF_8))
+            }
+        })
     }
     // 辞書はアプリ起動後にバックグラウンドで 1 度だけ読み込む。
     LaunchedEffect(Unit) { KanaKanjiConverter.ensureLoaded(context) }
@@ -343,6 +354,32 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             if (isLandscape) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp
         )
 
+        // 検索バー入力のルーティング:
+        //   検索バーを開いて独自(内蔵)キーボード使用中は、キーボード出力を PTY ではなく検索クエリへ流す。
+        //   システムキーボード時は OS IME が直接 BasicTextField に入力するので対象外。
+        //   これで「検索バー(OS IME) と 画面下(内蔵キーボード) が二重に出る」状態を解消する (要望)。
+        val searchTyping = searchOpen && keyboardMode == KeyboardMode.CUSTOM
+        fun routeSearchBytes(bytes: ByteArray) {
+            for (ch in String(bytes, Charsets.UTF_8)) {
+                when (ch) {
+                    '\u007F', '\b' -> if (searchQuery.isNotEmpty()) searchQuery = searchQuery.dropLast(1)
+                    '\r', '\n' -> if (searchMatches.isNotEmpty()) {
+                        currentMatchIndex = (currentMatchIndex + 1) % searchMatches.size
+                        active.scrollToAbsRow(searchMatches[currentMatchIndex].absRow)
+                    }
+                    '\u001B' -> searchOpen = false                       // ESC で検索を閉じる
+                    else -> if (ch.code >= 0x20 && ch.code != 0x7F) searchQuery += ch
+                }
+            }
+        }
+        val onKeyboardBytes: (ByteArray) -> Unit = { bytes ->
+            if (searchTyping) routeSearchBytes(bytes) else active.writeBytes(bytes)
+        }
+        val onKeyboardCursor: (com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey) -> Unit = { key ->
+            // 検索入力中はカーソルキーを PTY へ送らない (シェル側を乱さない)。
+            if (!searchTyping) active.writeBytes(active.emulator.cursorKeyBytes(key))
+        }
+
         Row(modifier = Modifier
             .fillMaxWidth()
             .weight(1f)
@@ -353,8 +390,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     composing = composing,
                     showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
                     widthDp = settings.landscapeKeyboardWidthDp,
-                    onBytes = { active.writeBytes(it) },
-                    onCursorKey = { key -> active.writeBytes(active.emulator.cursorKeyBytes(key)) }
+                    onBytes = onKeyboardBytes,
+                    onCursorKey = onKeyboardCursor
                 )
             }
             Box(modifier = Modifier
@@ -379,6 +416,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     update = { v ->
                         v.session = active
                         v.ctrlSticky = ctrlSticky
+                        // システムキーボードで内蔵 CTRL を 1 文字に適用したら sticky を解除 (ワンショット)。
+                        v.onCtrlConsumed = { ctrlSticky = false }
                     },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -393,6 +432,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     SearchBar(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
+                        // システムキーボード使用時だけ OS IME を出す。独自キーボード時は
+                        // 内蔵キーボードで検索語を入力する (二重キーボード回避・要望)。
+                        systemKeyboard = keyboardMode == KeyboardMode.SYSTEM,
                         matchCount = searchMatches.size,
                         currentIndex = currentMatchIndex,
                         onPrev = {
@@ -419,8 +461,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     composing = composing,
                     showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
                     widthDp = settings.landscapeKeyboardWidthDp,
-                    onBytes = { active.writeBytes(it) },
-                    onCursorKey = { key -> active.writeBytes(active.emulator.cursorKeyBytes(key)) }
+                    onBytes = onKeyboardBytes,
+                    onCursorKey = onKeyboardCursor
                 )
             }
         }
@@ -441,8 +483,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                             .height(kbStyle.naturalHeight)
                         ) {
                             TerminalKeyboard(
-                                onBytes = { active.writeBytes(it) },
-                                onCursorKey = { key -> active.writeBytes(active.emulator.cursorKeyBytes(key)) },
+                                onBytes = onKeyboardBytes,
+                                onCursorKey = onKeyboardCursor,
                                 composing = composing,
                                 style = kbStyle,
                                 // English モードでは日本語フリックボタンを隠す。
@@ -618,6 +660,30 @@ private fun GuiTabScreen(
         } else {
             gui.start(w, h, clean)
         }
+    }
+
+    // 回転・分割で GUI 領域の実寸が変わったら、接続後に Xvnc へ解像度を再ネゴする (P-横画面)。
+    // 横画面では幅広の解像度を要求し直すので「縦画面を横に引き伸ばした窮屈な表示」を避け、
+    // 枠全体を使える。初回 (起動時サイズ) は rfb と同寸なので RfbClient 側で無視される。
+    // 連続するレイアウト確定を debounce で 1 回にまとめる。
+    val guiState by gui.state.collectAsState()
+    LaunchedEffect(gui.id) {
+        snapshotFlow {
+            val px = guiAreaPx
+            if (guiState != GuiSession.State.CONNECTED || px.width <= 0 || px.height <= 0) {
+                null
+            } else {
+                val mag = settings.guiMagnification.coerceIn(
+                    AppSettings.MIN_GUI_MAGNIFICATION, AppSettings.MAX_GUI_MAGNIFICATION
+                )
+                (px.width / mag).toInt().coerceIn(320, 4096) to
+                    (px.height / mag).toInt().coerceIn(320, 4096)
+            }
+        }
+            .filterNotNull()
+            .distinctUntilChanged()
+            .debounce(350)
+            .collect { (w, h) -> gui.requestResize(w, h) }
     }
 
     // 設定シートは TerminalSession を要求するので、開いている端末タブを 1 つ借りる。
@@ -840,7 +906,6 @@ private fun GuiTopBar(
     onOpenSettings: () -> Unit
 ) {
     val label by session.label.collectAsState()
-    val state by session.state.collectAsState()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -872,13 +937,7 @@ private fun GuiTopBar(
             onClick = onToggleKeyboardMode
         )
         TopBarIconButton(label = "⚙", enabled = settingsEnabled, onClick = onOpenSettings)
-
-        Text(
-            text = state.name,
-            color = ZtsTextSecondary,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace
-        )
+        // 状態名 (CONNECTED 等) は表示しない: 幅が狭いと崩れる & 実用上見ないため (要望で削除)。
     }
 }
 
@@ -968,25 +1027,19 @@ private fun TopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        // タブ名 (シェルのタイトル等) は出さず、OS 識別子だけを固定字数で表示する (要望)。
+        // これでラベルが伸びて右側のボタンを押し出す事故が無くなり、ボタンが必ず収まる。
+        val osLabel = ui.mode.ifBlank { label }.take(10)
         Text(
-            text = label,
+            text = osLabel,
             color = ZtsGreen,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             fontFamily = FontFamily.Monospace,
-            // 長いタブ名で折り返さない/横幅を食い潰さないよう 1 行 + 省略 + 上限幅。
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 140.dp)
+            modifier = Modifier.widthIn(max = 96.dp)
         )
-        if (ui.mode.isNotEmpty()) {
-            Text(
-                text = "[${ui.mode}]",
-                color = ZtsTextSecondary,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace
-            )
-        }
         if (cwd.isNotEmpty()) {
             Text(
                 text = cwd,
@@ -1015,13 +1068,7 @@ private fun TopBar(
             onClick = onToggleKeyboardMode
         )
         TopBarIconButton(label = "⚙", onClick = onOpenSettings)
-
-        Text(
-            text = ui.state.name,
-            color = ZtsTextSecondary,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace
-        )
+        // 状態名 (RUNNING 等) は表示しない: 幅が狭いと崩れる & 実用上見ないため (要望で削除)。
     }
 }
 
@@ -1083,6 +1130,7 @@ private fun SearchToggleButton(active: Boolean, onClick: () -> Unit) {
 private fun SearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
+    systemKeyboard: Boolean,
     matchCount: Int,
     currentIndex: Int,
     onPrev: () -> Unit,
@@ -1091,8 +1139,12 @@ private fun SearchBar(
     modifier: Modifier = Modifier
 ) {
     val focusRequester = remember { FocusRequester() }
-    // 開いた直後にフォーカスを当てて OS IME を出す (検索語の入力用)。
-    LaunchedEffect(Unit) { runCatching { focusRequester.requestFocus() } }
+    // システムキーボード使用時のみ、開いた直後にフォーカスを当てて OS IME を出す。
+    // 独自(内蔵)キーボード時は OS IME を出さず、内蔵キーボードからの入力を受ける
+    // (検索バーの OS IME と画面下の内蔵キーボードが二重に出るのを防ぐ・要望)。
+    LaunchedEffect(systemKeyboard) {
+        if (systemKeyboard) runCatching { focusRequester.requestFocus() }
+    }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -1124,6 +1176,9 @@ private fun SearchBar(
                 value = query,
                 onValueChange = onQueryChange,
                 singleLine = true,
+                // 独自キーボード時は readOnly にして OS IME を開かせない (タップしても出ない)。
+                // 検索語は内蔵キーボード経由で query に流し込まれる。
+                readOnly = !systemKeyboard,
                 textStyle = TextStyle(
                     color = ZtsTextPrimary,
                     fontSize = 14.sp,
@@ -1230,19 +1285,28 @@ private fun TabBar(
             .fillMaxWidth()
             .background(ZtsBgPrimary)
             .border(width = 1.dp, color = ZtsBorder)
-            .padding(horizontal = 4.dp, vertical = 4.dp)
-            .horizontalScroll(rememberScrollState()),
+            .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        sessions.forEach { sess ->
-            TabChip(
-                session = sess,
-                active = sess.id == activeId,
-                canClose = sessions.size > 1,
-                onSelect = { onSelect(sess.id) },
-                onClose = { onClose(sess.id) }
-            )
+        // タブ一覧は横スクロール領域 (残り幅) に収め、新規タブボタン (+ / 🖥) は右端に固定する。
+        // これでタブが多くても/タブ名が長くてもボタンが押し出されず必ず表示される (要望)。
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(rememberScrollState()),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            sessions.forEach { sess ->
+                TabChip(
+                    session = sess,
+                    active = sess.id == activeId,
+                    canClose = sessions.size > 1,
+                    onSelect = { onSelect(sess.id) },
+                    onClose = { onClose(sess.id) }
+                )
+            }
         }
         // 新規端末タブ
         NewTabButton(label = "+", onClick = onNew)
@@ -1298,14 +1362,15 @@ private fun TabChip(
             .padding(horizontal = 10.dp, vertical = 5.dp)
     ) {
         Text(
-            text = label,
+            // タブ名は最大固定字数で切り詰める (要望)。チップが伸びて新規タブボタンを
+            // 押し出さないよう、字数制限 + 上限幅 + 省略を併用する。
+            text = label.take(12),
             color = fg,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
-            // タブ名が長くてもチップが横に伸びすぎないよう上限幅 + 省略。
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 96.dp)
+            modifier = Modifier.widthIn(max = 84.dp)
         )
     }
 }

@@ -60,6 +60,15 @@ class TerminalEmulator(
     private var insertMode = false  // IRM
     private var applicationCursorKeys = false  // DECCKM
 
+    /**
+     * Bracketed paste (DECSET 2004)。ON のときペーストは `ESC[200~ … ESC[201~` で囲んで
+     * 送るべき (UI 側 [com.zerotoship.z2term.core.TerminalSession.pasteFromClipboard] が参照)。
+     * これにより bash/zsh の readline や vim が「貼り付け」と認識し、各行の即時実行や
+     * 自動インデントの連鎖を防ぐ。
+     */
+    var bracketedPasteMode: Boolean = false
+        private set
+
     /** EAW Ambiguous を wide 扱いするか (CJK ロケール向け) */
     var ambiguousAsWide: Boolean = false
 
@@ -647,7 +656,8 @@ class TerminalEmulator(
                     }
                 }
                 2004 -> {
-                    // bracketed paste (無視)
+                    // bracketed paste mode。ペースト送出時に 200~/201~ で囲むか決める。
+                    bracketedPasteMode = set
                 }
                 else -> {}
             }
@@ -907,6 +917,7 @@ class TerminalEmulator(
         originMode = false
         insertMode = false
         cursorVisible = true
+        bracketedPasteMode = false
         utf8.reset()
         // Alt → Primary に戻して両方クリア
         if (!buffer.primaryActive) buffer.switchToPrimary()

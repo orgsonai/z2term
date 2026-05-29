@@ -136,6 +136,10 @@ class ProotLauncher(private val context: Context) {
         // `z2run` ランチャ (P3): 端末で `z2run <gui-app>` を打つと、Z2_DISPLAY=:N の Xvnc を
         // 自動起動 + z2term に「OPEN N」を通知 → 該当 GUI タブが自動的に開く / 前面化する。
         ensureZ2RunScript(rootfs)
+        // `z2-autogui` (P-自動GUI): GUI アプリを起動しただけで (z2run を打たなくても) GUI タブが
+        // 自動で開くよう、判定ヘルパーを配置し、interactive shell の preexec フックを仕込む。
+        ensureZ2AutoGuiScript(rootfs)
+        ensureAutoGuiHook(rootfs)
         // Android API ブリッジのヘルパー (`z2-notify` 等) を配置 (Termux:API 相当)。
         ensureZ2ApiScripts(rootfs)
         // Android 外部ストレージを cd できるようマウント先を用意。
@@ -246,6 +250,8 @@ class ProotLauncher(private val context: Context) {
         ensureSshdWrapper(rootfs)
         ensureGuiScript(rootfs, guiTerminal)
         ensureZ2RunScript(rootfs)
+        ensureZ2AutoGuiScript(rootfs)
+        ensureAutoGuiHook(rootfs)
         ensureZ2ApiScripts(rootfs)
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
@@ -538,6 +544,32 @@ class ProotLauncher(private val context: Context) {
             f.setReadable(true, false)
             f.setExecutable(true, false)
         }.onFailure { Log.w(TAG, "z2run script 配置失敗", it) }
+    }
+
+    /**
+     * `/usr/local/bin/z2-autogui` (P-自動GUI) を配置する。端末で GUI アプリを起動しただけで
+     * GUI タブが自動で開くよう、preexec フック ([ensureAutoGuiHook]) から呼ばれる判定ヘルパー。
+     * launch 毎に上書きするので内容は常に最新。
+     */
+    private fun ensureZ2AutoGuiScript(rootfs: File) {
+        runCatching {
+            val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
+            val f = File(dir, "z2-autogui")
+            f.writeText(z2AutoGuiScript())
+            f.setReadable(true, false)
+            f.setExecutable(true, false)
+        }.onFailure { Log.w(TAG, "z2-autogui script 配置失敗", it) }
+    }
+
+    /**
+     * interactive shell の rc に GUI 自動連動フック (preexec) を仕込む (P-自動GUI)。
+     * bash は DEBUG トラップ、zsh は `add-zsh-hook preexec` で、実行されるコマンドを z2-autogui に
+     * 渡す。マーカーで二重書き込みを防ぐ idempotent な処理 ([ensureShellHistoryConfig] と同方式)。
+     */
+    private fun ensureAutoGuiHook(rootfs: File) {
+        val marker = "# >>> z2term autogui >>>"
+        appendOnceWithMarker(File(rootfs, "etc/bash.bashrc"), marker, autoGuiBashHookBlock(marker))
+        appendOnceWithMarker(File(rootfs, "etc/zsh/zshrc"), marker, autoGuiZshHookBlock(marker))
     }
 
     /**

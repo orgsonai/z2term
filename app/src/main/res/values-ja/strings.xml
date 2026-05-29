@@ -34,6 +34,13 @@
     <string name="settings_keep_alive_desc">ON: アプリを閉じてもセッション維持 (通知が出ます)。OFF: 閉じると終了。</string>
     <string name="settings_confirm_download">ダウンロード前に確認</string>
     <string name="settings_confirm_download_desc">ON: distro / GUI のダウンロード前に確認を出す。OFF: 確認なしで取得。</string>
+    <string name="settings_section_process_guard">バックグラウンドのプロセス保護</string>
+    <string name="settings_battery_opt_toggle">電池最適化から除外する</string>
+    <string name="settings_battery_opt_toggle_desc">ON: バックグラウンドでセッションや実行中プロセスが OS に kill されにくくなります。OFF にするとシステム設定を開きます (除外の解除はアプリから直接できないため)。</string>
+    <string name="settings_phantom_title">それでも消える場合 (Android 12/13)</string>
+    <string name="settings_phantom_desc">Android 12/13 は proot が生む「phantom process」を kill することがあります。アプリ内からは変更できないため、PC から adb で以下を実行し端末を再起動してください。Android 14+ は既定で緩和済みのことが多いです。</string>
+    <string name="settings_phantom_copy">adb コマンドをコピー</string>
+    <string name="settings_phantom_copied">adb コマンドをコピーしました</string>
     <string name="settings_section_landscape_keyboard">キーボード位置 (横画面)</string>
     <string name="settings_landscape_keyboard_desc">横画面のときにキーボードを画面のどこに出すか。縦画面は常に下に出る。</string>
     <string name="settings_landscape_kb_left">左</string>

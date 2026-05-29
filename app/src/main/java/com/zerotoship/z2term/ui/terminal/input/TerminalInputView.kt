@@ -44,6 +44,9 @@ class TerminalInputView(context: Context) : View(context) {
 
     var ctrlSticky: Boolean = false
 
+    /** sticky Ctrl を確定文字へ 1 回適用したとき呼ばれる (呼び出し側で解除＝ワンショット)。 */
+    var onCtrlConsumed: (() -> Unit)? = null
+
     var imeEnabled: Boolean = false
         set(value) {
             if (field == value) return
@@ -210,7 +213,17 @@ class TerminalInputView(context: Context) : View(context) {
                 if (sess.emulator.mouseEnabled && sendMouseClick(e.x, e.y, sess)) {
                     return true
                 }
+                val wasFocused = isFocused
                 if (!isFocused) requestFocus()
+                // 既にフォーカス済みのタップが URL / OSC8 リンク上なら開く。
+                // フォーカス目的の初回タップでは開かない (誤爆防止)。
+                if (wasFocused) {
+                    val cell = pixelToAbsCell(e.x, e.y)
+                    if (cell != null) {
+                        val url = UrlFinder.urlAt(sess.emulator.buffer, cell.first, cell.second)
+                        if (url != null && openUri(url)) return true
+                    }
+                }
                 if (imeEnabled) requestKeyboard()
                 performClick()
                 return true
@@ -460,6 +473,14 @@ class TerminalInputView(context: Context) : View(context) {
      *
      * @return 実際に PTY 送信したら true
      */
+    /** URL / OSC8 リンクを外部アプリ (ブラウザ等) で開く。開けたら true。 */
+    private fun openUri(raw: String): Boolean {
+        val uri = runCatching { android.net.Uri.parse(raw) }.getOrNull() ?: return false
+        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        return runCatching { context.startActivity(intent); true }.getOrDefault(false)
+    }
+
     private fun sendMouseClick(x: Float, y: Float, sess: TerminalSession): Boolean {
         val cell = pixelToAbsCell(x, y) ?: return false
         val emu = sess.emulator
@@ -558,8 +579,27 @@ private class TerminalInputConnection(
     private fun flushEditable() {
         val editable = editable ?: return
         if (editable.isEmpty()) return
-        val text = editable.toString().replace('\n', '\r')
-        session?.writeBytes(text.toByteArray(Charsets.UTF_8))
+        val raw = editable.toString()
         editable.clear()
+        val sess = session ?: return
+        // sticky Ctrl が ON のときは、OS IME の確定文字を制御コードに変換して送る。
+        // (システムキーボードでも内蔵 CTRL ボタン → c で Ctrl+C が効くようにする。
+        //  GUI 側 GuiInputConnection.sendAsKeysyms と同じワンショット方式。)
+        if (targetView.ctrlSticky) {
+            val out = ArrayList<Byte>(raw.length)
+            for (ch in raw) {
+                val cb = AndroidKeyMapper.controlByteFor(ch)
+                if (cb != null) {
+                    out.add(cb)
+                } else {
+                    val s = if (ch == '\n') "\r" else ch.toString()
+                    s.toByteArray(Charsets.UTF_8).forEach { out.add(it) }
+                }
+            }
+            sess.writeBytes(out.toByteArray())
+            targetView.onCtrlConsumed?.invoke()
+            return
+        }
+        sess.writeBytes(raw.replace('\n', '\r').toByteArray(Charsets.UTF_8))
     }
 }

@@ -58,11 +58,10 @@ import kotlin.math.abs
  * フリック規約 (一般的な日本語 12 キーと同じ):
  *   タップ = あ段 / 左 = い段 / 上 = う段 / 右 = え段 / 下 = お段
  * 押下中はキーの真上に四角いポップアップが浮き、今選ばれているかなを大きく示す。
- * 同じかなを [CYCLE_REPEAT_WINDOW_MS] 以内に連打すると、composing 末尾を
- * 濁点→半濁点→小書きへ自動循環する (`小゛゜` キーを押す手間を省く)。
+ * 同じかなを連打したときは循環させず素直に重ねる (「つつ」が「っ」にならないように)。
  *
  * 「小゛゜」キーは **直前に入力したかな** を 濁点→半濁点→小書き→元 の順に
- * 循環させる (連打サイクルの手動版、フリックや空打ちのあとに使うフォールバック)。
+ * 循環させる (小書き・濁点はこのキーで付ける)。
  *
  * 配列 (5 列 × 4 行、画面高さを充填):
  *   ESC  あ   か  さ   ⌫
@@ -157,18 +156,26 @@ fun JapaneseFlickKeyboard(
         }
         // Row 2: ◀  た  な  は  ▶
         //   スプリット変換中は ◀ ▶ をフォーカス範囲調整に流用 (左 = 縮める / 右 = 広げる)。
-        //   非変換中は従来通りカーソルキー送信。
+        //   composing 中で未スプリットなら、◀ ▶ は **変換キーを押したのと同じ** 扱いで
+        //   スプリット変換へ突入する (ユーザー要望: 変換を押さず左右でブロック範囲変更に入る)。
+        //   composing が空のときだけ従来どおりカーソルキー送信。
         JpRow(rowSpacing) {
-            JpKey("◀", style, repeatable = true, accent = composing.isSplitMode, weight = JP_EDGE_WEIGHT) {
-                if (composing.isSplitMode) composing.shrinkSplitHead()
-                else { flush(); onCursorKey(TerminalEmulator.CursorKey.LEFT) }
+            JpKey("◀", style, repeatable = true, accent = composing.isActive, weight = JP_EDGE_WEIGHT) {
+                when {
+                    composing.isSplitMode -> composing.shrinkSplitHead()
+                    composing.isActive -> composing.convert()   // 変換キー相当: スプリット突入
+                    else -> { flush(); onCursorKey(TerminalEmulator.CursorKey.LEFT) }
+                }
             }
             JpFlickKey(KANA_TA, style, ::emitKana)
             JpFlickKey(KANA_NA, style, ::emitKana)
             JpFlickKey(KANA_HA, style, ::emitKana)
-            JpKey("▶", style, repeatable = true, accent = composing.isSplitMode, weight = JP_EDGE_WEIGHT) {
-                if (composing.isSplitMode) composing.extendSplitHead()
-                else { flush(); onCursorKey(TerminalEmulator.CursorKey.RIGHT) }
+            JpKey("▶", style, repeatable = true, accent = composing.isActive, weight = JP_EDGE_WEIGHT) {
+                when {
+                    composing.isSplitMode -> composing.extendSplitHead()
+                    composing.isActive -> composing.convert()   // 変換キー相当: スプリット突入
+                    else -> { flush(); onCursorKey(TerminalEmulator.CursorKey.RIGHT) }
+                }
             }
         }
         // Row 3: ␣  ま  や  ら  変換
@@ -340,46 +347,63 @@ private fun RowScope.JpFlickKey(
                 }
             }
     ) {
-        // キー本体: 中央のかなだけ。フリック先文字はキー上に表示しない (押下時の
-        //   ポップアップで全方向を見せる)。
+        // キー本体: フリック割り当ての全文字を「ミニ十字」で常時表示する (デフォルト表示)。
+        //   中央 = タップ文字を大きく、上 / 下 / 左 / 右の各段を小さく周囲に並べる。
+        //   (旧: 中央のかなだけ表示し、押下ポップアップで全方向を見せる構成。
+        //    ユーザー要望でデフォルトとポップアップの役割を反転した。)
+        val hintColor = fg.copy(alpha = 0.6f)
         Text(
             text = km.center.toString(),
             color = fg,
             fontSize = style.keyFontSp.sp,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.align(Alignment.Center)
         )
-        // 押下中: キーの真上にポップアップ (5 マスの十字レイアウト)。
-        //   現在フリックしている方向のマスを緑でハイライト。
+        km.up?.let {
+            Text(it.toString(), color = hintColor, fontSize = style.flickHintFontSp.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.align(Alignment.TopCenter))
+        }
+        km.down?.let {
+            Text(it.toString(), color = hintColor, fontSize = style.flickHintFontSp.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.align(Alignment.BottomCenter))
+        }
+        km.left?.let {
+            Text(it.toString(), color = hintColor, fontSize = style.flickHintFontSp.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.align(Alignment.CenterStart).padding(start = 2.dp))
+        }
+        km.right?.let {
+            Text(it.toString(), color = hintColor, fontSize = style.flickHintFontSp.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 2.dp))
+        }
+        // 押下中: キー直上のポップアップに「今このまま離すと確定する 1 文字」だけを
+        //   大きく表示する (緑地に黒文字でハイライト)。
         if (pressed) {
-            FlickPopup(
-                km = km,
-                current = flickPreview ?: km.center,
-                style = style
-            )
+            FlickCommitPopup(ch = flickPreview ?: km.center, style = style)
         }
     }
 }
 
 /**
- * フリックキー押下時にキー直上へ浮かべる正方形ポップアップ。
- * 中央+4 方向 (上 / 下 / 左 / 右) の 5 マスに、それぞれ割り当て文字を並べる。
- * 現在選ばれている文字のマスが緑色で強調される (= 指を離すとこの文字が送出される)。
+ * フリックキー押下時にキー直上へ浮かべる確定文字ポップアップ。
  *
- * Popup を使うとキー本体の境界を越えて画面上方へ描けるので、キーボードの最上段でも
+ * 「今このまま指を離すと送出される 1 文字」だけを大きく表示する (緑地に黒文字)。
+ * フリック方向を変えると [ch] が差し替わり、何が確定するか一目で分かる。
+ * Popup を使うことでキー本体の境界を越えて画面上方へ描けるので、最上段のキーでも
  * 端末画面側に重ねて表示できる。
  */
 @Composable
-private fun FlickPopup(
-    km: KanaFlick,
-    current: Char?,
+private fun FlickCommitPopup(
+    ch: Char,
     style: KeyboardStyle
 ) {
     val density = LocalDensity.current
-    // ポップアップ寸法: キーフォント sp に対して比例 (compact ≒ 76dp、spacious ≒ 100dp)。
-    val cellSize = (style.keyFontSp * 1.85f).dp
-    val popupSize = cellSize * 3
+    // 1 文字を大きく見せる正方形 (キーフォント sp に比例)。
+    val popupSize = (style.keyFontSp * 2.7f).dp
     val gap = 6.dp
     val offsetY = with(density) { -(popupSize + gap).roundToPx() }
     Popup(
@@ -391,44 +415,15 @@ private fun FlickPopup(
             modifier = Modifier
                 .size(popupSize, popupSize)
                 .clip(RoundedCornerShape(10.dp))
-                .background(ZtsBgCard)
-                .border(2.dp, ZtsGreen, RoundedCornerShape(10.dp))
+                .background(ZtsGreen)
+                .border(2.dp, ZtsGreenBright, RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center
         ) {
-            FlickCell(km.up, current == km.up && km.up != null, style, cellSize,
-                Modifier.align(Alignment.TopCenter))
-            FlickCell(km.left, current == km.left && km.left != null, style, cellSize,
-                Modifier.align(Alignment.CenterStart))
-            FlickCell(km.center, current == km.center, style, cellSize,
-                Modifier.align(Alignment.Center))
-            FlickCell(km.right, current == km.right && km.right != null, style, cellSize,
-                Modifier.align(Alignment.CenterEnd))
-            FlickCell(km.down, current == km.down && km.down != null, style, cellSize,
-                Modifier.align(Alignment.BottomCenter))
-        }
-    }
-}
-
-@Composable
-private fun FlickCell(
-    ch: Char?,
-    active: Boolean,
-    style: KeyboardStyle,
-    cellSize: androidx.compose.ui.unit.Dp,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .size(cellSize, cellSize)
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (active) ZtsGreen else Color.Transparent),
-        contentAlignment = Alignment.Center
-    ) {
-        if (ch != null) {
             Text(
                 text = ch.toString(),
-                color = if (active) Color.Black else ZtsTextPrimary,
-                fontSize = (style.keyFontSp * (if (active) 1.15f else 0.95f)).sp,
-                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                color = Color.Black,
+                fontSize = (style.keyFontSp * 1.5f).sp,
+                fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
             )
         }

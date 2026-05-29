@@ -253,6 +253,18 @@ class GuiSession(
         return false
     }
 
+    /**
+     * 端末枠 (回転や分割サイズ変更) に合わせて GUI 解像度を再ネゴする (P-横画面)。
+     * 接続済みのときだけ SetDesktopSize を送る。サーバ (TigerVNC) が応答すると
+     * ExtendedDesktopSize 矩形で [RfbClient] 側が frame を作り直し、GuiScreen が新サイズで描画する。
+     * 連続呼び出しを抑えるため、現在サイズと同じなら [RfbClient] 側で無視される。
+     */
+    fun requestResize(width: Int, height: Int) {
+        if (_state.value != State.CONNECTED) return
+        if (width <= 0 || height <= 0) return
+        rfb.requestDesktopSize(width, height)
+    }
+
     /** [com.zerotoship.z2term.core.AppSession] 実装。タブクローズ時に呼ばれる。 */
     override fun shutdown() = stop()
 

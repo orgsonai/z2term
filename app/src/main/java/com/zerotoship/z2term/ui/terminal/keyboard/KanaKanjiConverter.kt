@@ -35,7 +35,10 @@ object KanaKanjiConverter {
             context.assets.open("z2dict.txt").bufferedReader(Charsets.UTF_8).use { r ->
                 r.forEachLine { if (it.isNotEmpty() && it[0] != ';') result.add(it) }
             }
-            lines = result
+            // 元辞書 (SKK 送り仮名なし) は常用動詞・形容詞の終止形/活用をほぼ持たず、押す/入る/
+            // 出る/食べる… が変換できない。内蔵の常用語テーブルから活用形を生成し、見出し順に
+            // マージして「直接 convert で引ける」状態にする (okuri 推測のノイズに頼らない)。
+            lines = mergeDict(result, buildSupplement())
             loaded = true
         }
     }
@@ -229,6 +232,383 @@ object KanaKanjiConverter {
         }
         return reading.length
     }
+
+    // ========================================================================
+    // 常用語の活用補完 (動詞 / 形容詞 / サ変 / カ変)
+    //
+    // 元の z2dict (SKK の送り仮名なし形式) は動詞・形容詞の終止形や活用形をほとんど持たない
+    // (例: たべる/はしる/でる/いれる が無い、はいる は「配流」のみで「入る」が無い)。そのため
+    // 「押して」「入る」「出ません」のような日常語が変換候補に出ず実用にならなかった。
+    //
+    // ここでは主要な常用語を「終止形 + 主要活用形 (て/た/ます/ません/ない/ば/意志/連用…)」へ
+    // 展開して見出し行を作り、起動時に元辞書へマージする ([mergeDict])。これにより
+    // convert("おして") が直接「押して」を返せる (okuriForms の推測に頼らず確実)。
+    // ========================================================================
+
+    /** 活用種別。GODAN_IKU は「行く」型 (て/た形が促音便: 行って/行った の例外)。 */
+    private enum class Vk { ICHIDAN, GODAN, GODAN_IKU, SURU, KURU, ADJ }
+
+    // 五段活用の語尾母音変換 (い段 / あ段 / え段 / お段)。未知の文字はそのまま返す。
+    private fun iRow(c: Char): Char = when (c) {
+        'う' -> 'い'; 'く' -> 'き'; 'ぐ' -> 'ぎ'; 'す' -> 'し'; 'つ' -> 'ち'
+        'ぬ' -> 'に'; 'ぶ' -> 'び'; 'む' -> 'み'; 'る' -> 'り'; else -> c
+    }
+    private fun aRow(c: Char): Char = when (c) {
+        'う' -> 'わ'; 'く' -> 'か'; 'ぐ' -> 'が'; 'す' -> 'さ'; 'つ' -> 'た'
+        'ぬ' -> 'な'; 'ぶ' -> 'ば'; 'む' -> 'ま'; 'る' -> 'ら'; else -> c
+    }
+    private fun eRow(c: Char): Char = when (c) {
+        'う' -> 'え'; 'く' -> 'け'; 'ぐ' -> 'げ'; 'す' -> 'せ'; 'つ' -> 'て'
+        'ぬ' -> 'ね'; 'ぶ' -> 'べ'; 'む' -> 'め'; 'る' -> 'れ'; else -> c
+    }
+    private fun oRow(c: Char): Char = when (c) {
+        'う' -> 'お'; 'く' -> 'こ'; 'ぐ' -> 'ご'; 'す' -> 'そ'; 'つ' -> 'と'
+        'ぬ' -> 'の'; 'ぶ' -> 'ぼ'; 'む' -> 'も'; 'る' -> 'ろ'; else -> c
+    }
+    /** 五段の て形語尾 (音便)。う/つ/る→って、ぬ/ぶ/む→んで、く→いて、ぐ→いで、す→して。 */
+    private fun godanTe(c: Char): String = when (c) {
+        'う', 'つ', 'る' -> "って"; 'ぬ', 'ぶ', 'む' -> "んで"
+        'く' -> "いて"; 'ぐ' -> "いで"; 'す' -> "して"; else -> "て"
+    }
+    /** て形 → た形 (て→た / で→だ)。 */
+    private fun teToTa(te: String): String = when {
+        te.endsWith("で") -> te.dropLast(1) + "だ"
+        te.endsWith("て") -> te.dropLast(1) + "た"
+        else -> te
+    }
+
+    /** 1 語の主要活用形を [add](よみ, 漢字) で吐き出す。 */
+    private fun generateForms(r: String, k: String, vk: Vk, add: (String, String) -> Unit) {
+        when (vk) {
+            Vk.GODAN -> {
+                if (r.length < 2 || k.isEmpty()) { add(r, k); return }
+                val rc = r.last()
+                val rs = r.dropLast(1)              // よみ語幹
+                val ks = k.dropLast(1)              // 漢字語幹 (送り仮名を落とす)
+                val i = iRow(rc); val a = aRow(rc); val e = eRow(rc); val o = oRow(rc)
+                val te = godanTe(rc); val ta = teToTa(te)
+                add(r, k)                                          // 終止/連体  押す
+                add(rs + te, ks + te)                              // て形       押して
+                add(rs + ta, ks + ta)                              // た形       押した
+                add(rs + i, ks + i)                                // 連用       押し
+                add(rs + i + "ます", ks + i + "ます")
+                add(rs + i + "ません", ks + i + "ません")
+                add(rs + i + "ました", ks + i + "ました")
+                add(rs + i + "たい", ks + i + "たい")
+                add(rs + a + "ない", ks + a + "ない")
+                add(rs + a + "なかった", ks + a + "なかった")
+                add(rs + e + "ば", ks + e + "ば")
+                add(rs + o + "う", ks + o + "う")                  // 意志       押そう
+            }
+            Vk.GODAN_IKU -> {                                      // 行く型 (て/た形のみ促音便)
+                if (r.length < 2 || k.isEmpty()) { add(r, k); return }
+                val rs = r.dropLast(1); val ks = k.dropLast(1)     // いく→い / 行く→行
+                add(r, k)                                          // 行く
+                add(rs + "って", ks + "って")                      // 行って (例外)
+                add(rs + "った", ks + "った")                      // 行った (例外)
+                add(rs + "き", ks + "き")                          // 連用 行き
+                add(rs + "きます", ks + "きます")
+                add(rs + "きません", ks + "きません")
+                add(rs + "きました", ks + "きました")
+                add(rs + "きたい", ks + "きたい")
+                add(rs + "かない", ks + "かない")
+                add(rs + "かなかった", ks + "かなかった")
+                add(rs + "けば", ks + "けば")
+                add(rs + "こう", ks + "こう")
+            }
+            Vk.ICHIDAN -> {
+                if (!r.endsWith("る") || k.isEmpty()) { add(r, k); return }
+                val rs = r.dropLast(1); val ks = k.dropLast(1)
+                add(r, k)                                          // 食べる
+                add(rs + "て", ks + "て")
+                add(rs + "た", ks + "た")
+                add(rs, ks)                                        // 連用       食べ
+                add(rs + "ます", ks + "ます")
+                add(rs + "ません", ks + "ません")
+                add(rs + "ました", ks + "ました")
+                add(rs + "たい", ks + "たい")
+                add(rs + "ない", ks + "ない")
+                add(rs + "なかった", ks + "なかった")
+                add(rs + "れば", ks + "れば")
+                add(rs + "よう", ks + "よう")
+            }
+            Vk.SURU -> {
+                if (!r.endsWith("する") || k.isEmpty()) { add(r, k); return }
+                val rs = r.dropLast(2); val ks = k.dropLast(2)
+                add(rs + "する", ks + "する")
+                add(rs + "して", ks + "して")
+                add(rs + "した", ks + "した")
+                add(rs + "します", ks + "します")
+                add(rs + "しません", ks + "しません")
+                add(rs + "しました", ks + "しました")
+                add(rs + "したい", ks + "したい")
+                add(rs + "しない", ks + "しない")
+                add(rs + "すれば", ks + "すれば")
+                add(rs + "しよう", ks + "しよう")
+            }
+            Vk.KURU -> {                                            // 来る (固定: 漢字は常に「来」)
+                add("くる", "来る"); add("きて", "来て"); add("きた", "来た")
+                add("きます", "来ます"); add("きません", "来ません"); add("きました", "来ました")
+                add("こない", "来ない"); add("こなかった", "来なかった")
+                add("くれば", "来れば"); add("こよう", "来よう"); add("きたい", "来たい")
+            }
+            Vk.ADJ -> {
+                if (!r.endsWith("い") || k.isEmpty()) { add(r, k); return }
+                val rs = r.dropLast(1); val ks = k.dropLast(1)
+                add(r, k)                                          // 高い
+                add(rs + "くて", ks + "くて")
+                add(rs + "く", ks + "く")
+                add(rs + "くない", ks + "くない")
+                add(rs + "かった", ks + "かった")
+                add(rs + "くなかった", ks + "くなかった")
+                add(rs + "ければ", ks + "ければ")
+            }
+        }
+    }
+
+    /** 常用語テーブルを活用展開し、見出し順にソートした辞書行 ("よみ /漢字/…") を返す。 */
+    private fun buildSupplement(): List<String> {
+        val map = LinkedHashMap<String, LinkedHashSet<String>>()
+        val add: (String, String) -> Unit = { reading, kanji ->
+            if (reading.isNotEmpty() && kanji.isNotEmpty()) {
+                map.getOrPut(reading) { LinkedHashSet() }.add(kanji)
+            }
+        }
+        for ((r, k, vk) in SUPPLEMENT_WORDS) generateForms(r, k, vk, add)
+        return map.entries
+            .sortedBy { it.key }
+            .map { (r, ks) -> "$r /" + ks.joinToString("/") + "/" }
+    }
+
+    /**
+     * 見出し順ソート済みの [base] (元辞書) と [extra] (補完辞書) を、見出しでマージする。
+     * 同じ見出しは候補を結合し、補完候補を先頭に置く (補完語を優先表示)。結果も見出し順を保つので
+     * 二分探索 ([searchIndex]) がそのまま使える。
+     */
+    private fun mergeDict(base: List<String>, extra: List<String>): List<String> {
+        if (extra.isEmpty()) return base
+        val out = ArrayList<String>(base.size + extra.size)
+        var i = 0
+        var j = 0
+        while (i < base.size && j < extra.size) {
+            val hb = headOf(base[i])
+            val he = headOf(extra[j])
+            val c = hb.compareTo(he)
+            when {
+                c < 0 -> { out.add(base[i]); i++ }
+                c > 0 -> { out.add(extra[j]); j++ }
+                else -> {
+                    val combined = LinkedHashSet<String>()
+                    combined.addAll(candidatesOf(extra[j]))   // 補完候補を優先
+                    combined.addAll(candidatesOf(base[i]))
+                    out.add("$he /" + combined.joinToString("/") + "/")
+                    i++; j++
+                }
+            }
+        }
+        while (i < base.size) { out.add(base[i]); i++ }
+        while (j < extra.size) { out.add(extra[j]); j++ }
+        return out
+    }
+
+    /**
+     * 内蔵の常用語テーブル (よみ終止形, 漢字終止形, 活用種別)。
+     * 日常でよく使う動詞・形容詞・サ変・カ変を中心に厳選。ここに無い語は従来どおり
+     * okuriForms / segment の推測でカバーする。読みが重複するもの (きる=切る/着る 等) は
+     * [buildSupplement] が候補を結合する。
+     */
+    private val SUPPLEMENT_WORDS: List<Triple<String, String, Vk>> = listOf(
+        // ---- 五段動詞 ----
+        Triple("おす", "押す", Vk.GODAN),
+        Triple("はいる", "入る", Vk.GODAN),
+        Triple("とる", "取る", Vk.GODAN),
+        Triple("わかる", "分かる", Vk.GODAN),
+        Triple("つくる", "作る", Vk.GODAN),
+        Triple("のる", "乗る", Vk.GODAN),
+        Triple("うる", "売る", Vk.GODAN),
+        Triple("きる", "切る", Vk.GODAN),
+        Triple("しる", "知る", Vk.GODAN),
+        Triple("いる", "要る", Vk.GODAN),
+        Triple("まつ", "待つ", Vk.GODAN),
+        Triple("もつ", "持つ", Vk.GODAN),
+        Triple("かつ", "勝つ", Vk.GODAN),
+        Triple("たつ", "立つ", Vk.GODAN),
+        Triple("かう", "買う", Vk.GODAN),
+        Triple("いう", "言う", Vk.GODAN),
+        Triple("あう", "会う", Vk.GODAN),
+        Triple("すう", "吸う", Vk.GODAN),
+        Triple("つかう", "使う", Vk.GODAN),
+        Triple("おもう", "思う", Vk.GODAN),
+        Triple("ならう", "習う", Vk.GODAN),
+        Triple("てつだう", "手伝う", Vk.GODAN),
+        Triple("かく", "書く", Vk.GODAN),
+        Triple("きく", "聞く", Vk.GODAN),
+        Triple("なく", "泣く", Vk.GODAN),
+        Triple("あるく", "歩く", Vk.GODAN),
+        Triple("うごく", "動く", Vk.GODAN),
+        Triple("はたらく", "働く", Vk.GODAN),
+        Triple("つく", "付く", Vk.GODAN),
+        Triple("ひく", "引く", Vk.GODAN),
+        Triple("おく", "置く", Vk.GODAN),
+        Triple("およぐ", "泳ぐ", Vk.GODAN),
+        Triple("いそぐ", "急ぐ", Vk.GODAN),
+        Triple("ぬぐ", "脱ぐ", Vk.GODAN),
+        Triple("はなす", "話す", Vk.GODAN),
+        Triple("だす", "出す", Vk.GODAN),
+        Triple("かえす", "返す", Vk.GODAN),
+        Triple("けす", "消す", Vk.GODAN),
+        Triple("わたす", "渡す", Vk.GODAN),
+        Triple("さがす", "探す", Vk.GODAN),
+        Triple("ためす", "試す", Vk.GODAN),
+        Triple("なおす", "直す", Vk.GODAN),
+        Triple("しぬ", "死ぬ", Vk.GODAN),
+        Triple("あそぶ", "遊ぶ", Vk.GODAN),
+        Triple("よぶ", "呼ぶ", Vk.GODAN),
+        Triple("とぶ", "飛ぶ", Vk.GODAN),
+        Triple("えらぶ", "選ぶ", Vk.GODAN),
+        Triple("はこぶ", "運ぶ", Vk.GODAN),
+        Triple("のむ", "飲む", Vk.GODAN),
+        Triple("よむ", "読む", Vk.GODAN),
+        Triple("やすむ", "休む", Vk.GODAN),
+        Triple("すむ", "住む", Vk.GODAN),
+        Triple("すすむ", "進む", Vk.GODAN),
+        Triple("たのむ", "頼む", Vk.GODAN),
+        Triple("こむ", "込む", Vk.GODAN),
+        Triple("いく", "行く", Vk.GODAN_IKU),
+        Triple("なる", "成る", Vk.GODAN),
+        Triple("わる", "割る", Vk.GODAN),
+        Triple("ふる", "降る", Vk.GODAN),
+        Triple("かえる", "帰る", Vk.GODAN),
+        Triple("はしる", "走る", Vk.GODAN),
+        Triple("しまる", "閉まる", Vk.GODAN),
+        Triple("はじまる", "始まる", Vk.GODAN),
+        Triple("おわる", "終わる", Vk.GODAN),
+        Triple("かわる", "変わる", Vk.GODAN),
+        Triple("まわる", "回る", Vk.GODAN),
+        Triple("のこる", "残る", Vk.GODAN),
+        Triple("すわる", "座る", Vk.GODAN),
+        Triple("おくる", "送る", Vk.GODAN),
+        Triple("まもる", "守る", Vk.GODAN),
+        Triple("とまる", "止まる", Vk.GODAN),
+        Triple("きまる", "決まる", Vk.GODAN),
+        Triple("あつまる", "集まる", Vk.GODAN),
+        Triple("みつかる", "見つかる", Vk.GODAN),
+        Triple("もどる", "戻る", Vk.GODAN),
+        Triple("のぼる", "登る", Vk.GODAN),
+        Triple("くばる", "配る", Vk.GODAN),
+        Triple("がんばる", "頑張る", Vk.GODAN),
+        Triple("へる", "減る", Vk.GODAN),
+        // ---- 一段動詞 ----
+        Triple("たべる", "食べる", Vk.ICHIDAN),
+        Triple("みる", "見る", Vk.ICHIDAN),
+        Triple("でる", "出る", Vk.ICHIDAN),
+        Triple("いれる", "入れる", Vk.ICHIDAN),
+        Triple("あける", "開ける", Vk.ICHIDAN),
+        Triple("しめる", "閉める", Vk.ICHIDAN),
+        Triple("つける", "付ける", Vk.ICHIDAN),
+        Triple("きめる", "決める", Vk.ICHIDAN),
+        Triple("はじめる", "始める", Vk.ICHIDAN),
+        Triple("とめる", "止める", Vk.ICHIDAN),
+        Triple("あつめる", "集める", Vk.ICHIDAN),
+        Triple("みつける", "見つける", Vk.ICHIDAN),
+        Triple("うける", "受ける", Vk.ICHIDAN),
+        Triple("かける", "掛ける", Vk.ICHIDAN),
+        Triple("わける", "分ける", Vk.ICHIDAN),
+        Triple("あげる", "上げる", Vk.ICHIDAN),
+        Triple("さげる", "下げる", Vk.ICHIDAN),
+        Triple("なげる", "投げる", Vk.ICHIDAN),
+        Triple("にげる", "逃げる", Vk.ICHIDAN),
+        Triple("たすける", "助ける", Vk.ICHIDAN),
+        Triple("かんがえる", "考える", Vk.ICHIDAN),
+        Triple("おしえる", "教える", Vk.ICHIDAN),
+        Triple("おぼえる", "覚える", Vk.ICHIDAN),
+        Triple("こたえる", "答える", Vk.ICHIDAN),
+        Triple("かえる", "変える", Vk.ICHIDAN),
+        Triple("ふえる", "増える", Vk.ICHIDAN),
+        Triple("きえる", "消える", Vk.ICHIDAN),
+        Triple("みえる", "見える", Vk.ICHIDAN),
+        Triple("ねる", "寝る", Vk.ICHIDAN),
+        Triple("でかける", "出かける", Vk.ICHIDAN),
+        Triple("わすれる", "忘れる", Vk.ICHIDAN),
+        Triple("なれる", "慣れる", Vk.ICHIDAN),
+        Triple("うまれる", "生まれる", Vk.ICHIDAN),
+        Triple("つかれる", "疲れる", Vk.ICHIDAN),
+        Triple("きる", "着る", Vk.ICHIDAN),
+        Triple("かりる", "借りる", Vk.ICHIDAN),
+        Triple("おりる", "降りる", Vk.ICHIDAN),
+        Triple("すぎる", "過ぎる", Vk.ICHIDAN),
+        Triple("とじる", "閉じる", Vk.ICHIDAN),
+        Triple("かんじる", "感じる", Vk.ICHIDAN),
+        Triple("しんじる", "信じる", Vk.ICHIDAN),
+        Triple("できる", "出来る", Vk.ICHIDAN),
+        // ---- カ変 (来る) ----
+        Triple("くる", "来る", Vk.KURU),
+        // ---- サ変 (名詞 + する) ----
+        Triple("べんきょうする", "勉強する", Vk.SURU),
+        Triple("りょうりする", "料理する", Vk.SURU),
+        Triple("そうじする", "掃除する", Vk.SURU),
+        Triple("せんたくする", "洗濯する", Vk.SURU),
+        Triple("うんどうする", "運動する", Vk.SURU),
+        Triple("でんわする", "電話する", Vk.SURU),
+        Triple("よやくする", "予約する", Vk.SURU),
+        Triple("せつめいする", "説明する", Vk.SURU),
+        Triple("じゅんびする", "準備する", Vk.SURU),
+        Triple("かくにんする", "確認する", Vk.SURU),
+        Triple("れんしゅうする", "練習する", Vk.SURU),
+        Triple("しょくじする", "食事する", Vk.SURU),
+        Triple("さんぽする", "散歩する", Vk.SURU),
+        Triple("けんきゅうする", "研究する", Vk.SURU),
+        Triple("りようする", "利用する", Vk.SURU),
+        Triple("せいりする", "整理する", Vk.SURU),
+        Triple("へんじする", "返事する", Vk.SURU),
+        Triple("せっていする", "設定する", Vk.SURU),
+        // ---- い形容詞 ----
+        Triple("たかい", "高い", Vk.ADJ),
+        Triple("やすい", "安い", Vk.ADJ),
+        Triple("ひくい", "低い", Vk.ADJ),
+        Triple("おおきい", "大きい", Vk.ADJ),
+        Triple("ちいさい", "小さい", Vk.ADJ),
+        Triple("あたらしい", "新しい", Vk.ADJ),
+        Triple("ふるい", "古い", Vk.ADJ),
+        Triple("よい", "良い", Vk.ADJ),
+        Triple("たのしい", "楽しい", Vk.ADJ),
+        Triple("うれしい", "嬉しい", Vk.ADJ),
+        Triple("かなしい", "悲しい", Vk.ADJ),
+        Triple("さびしい", "寂しい", Vk.ADJ),
+        Triple("いそがしい", "忙しい", Vk.ADJ),
+        Triple("やさしい", "優しい", Vk.ADJ),
+        Triple("むずかしい", "難しい", Vk.ADJ),
+        Triple("あつい", "暑い", Vk.ADJ),
+        Triple("さむい", "寒い", Vk.ADJ),
+        Triple("すずしい", "涼しい", Vk.ADJ),
+        Triple("あたたかい", "暖かい", Vk.ADJ),
+        Triple("つめたい", "冷たい", Vk.ADJ),
+        Triple("とおい", "遠い", Vk.ADJ),
+        Triple("ちかい", "近い", Vk.ADJ),
+        Triple("はやい", "早い", Vk.ADJ),
+        Triple("おそい", "遅い", Vk.ADJ),
+        Triple("ながい", "長い", Vk.ADJ),
+        Triple("みじかい", "短い", Vk.ADJ),
+        Triple("ひろい", "広い", Vk.ADJ),
+        Triple("せまい", "狭い", Vk.ADJ),
+        Triple("おもい", "重い", Vk.ADJ),
+        Triple("かるい", "軽い", Vk.ADJ),
+        Triple("つよい", "強い", Vk.ADJ),
+        Triple("よわい", "弱い", Vk.ADJ),
+        Triple("あかるい", "明るい", Vk.ADJ),
+        Triple("くらい", "暗い", Vk.ADJ),
+        Triple("うつくしい", "美しい", Vk.ADJ),
+        Triple("あぶない", "危ない", Vk.ADJ),
+        Triple("いたい", "痛い", Vk.ADJ),
+        Triple("ほしい", "欲しい", Vk.ADJ),
+        Triple("おいしい", "美味しい", Vk.ADJ),
+        Triple("わかい", "若い", Vk.ADJ),
+        Triple("あまい", "甘い", Vk.ADJ),
+        Triple("からい", "辛い", Vk.ADJ),
+        Triple("おおい", "多い", Vk.ADJ),
+        Triple("すくない", "少ない", Vk.ADJ),
+        Triple("ただしい", "正しい", Vk.ADJ),
+    )
 }
 
 /** ひらがな文字列をカタカナへ。 */
@@ -259,9 +639,6 @@ internal val CYCLE_INDEX: Map<Char, Pair<List<Char>, Int>> = buildMap {
     }
 }
 
-/** 連打サイクルの「同一キー」判定の時間窓 (ms)。これを超えたら別タップ扱い。 */
-private const val CYCLE_REPEAT_WINDOW_MS = 1100L
-
 /**
  * 変換の入力状態 (composing) を保持するホルダ。
  *
@@ -281,10 +658,10 @@ private const val CYCLE_REPEAT_WINDOW_MS = 1100L
  *   末尾 → -1 と循環する。-1 = 生のかな (頭セグメント) を確定対象とする状態。⏎ ([commitRaw])
  *   は 「現在選択中の対象」を確定する (生かな or 選択中の候補)。
  *
- * **連打サイクル**:
- *   [emitKana] で同じかなが [CYCLE_REPEAT_WINDOW_MS] 以内に再度入ると、composing 末尾を
- *   [CYCLE_INDEX] の次の形へ循環させる (例: は→ば→ぱ→は、つ→っ→づ→つ)。`小゛゜` を別途
- *   押す手間を省く。
+ * **小書き/濁点**:
+ *   [CYCLE_INDEX] の循環 (例: は→ば→ぱ→は、つ→っ→づ→つ) は `小゛゜` キー
+ *   ([JapaneseFlickKeyboard] の `cycleDakuten`) だけが使う。かなの連打は循環させず素直に
+ *   重ねる (「つつ」が「っ」にならないように)。
  *
  * **再変換**:
  *   composing が空の状態で [restoreLastCommit] を呼ぶと、直前 [commit] / [commitRaw] した
@@ -332,35 +709,18 @@ class ComposingState(
         get() = text.isEmpty() && !lastCommittedReading.isNullOrEmpty()
 
     /**
-     * かな 1 文字をタップ入力する。
-     *   - 直前と同じかな かつ [CYCLE_REPEAT_WINDOW_MS] 以内 かつ末尾が循環グループ内
-     *     → composing 末尾を **次の形に循環** ([CYCLE_INDEX] に基づき濁点/半濁点/小書き)。
-     *   - それ以外は通常 append。
-     * フリック方向の文字 (い段〜お段) は通常 append (循環対象外、ただし同じ文字を連続
-     * フリックすると循環は発動し得る)。
+     * かな 1 文字をタップ入力する。常に通常 append する。
+     *
+     * 以前は「同じかなを短時間に連打すると末尾を濁点/半濁点/小書きへ
+     * 循環」していたが、これだと「つつ」が打てず「っ」になってしまう。小書き・濁点は専用の
+     * `小゛゜` キー ([JapaneseFlickKeyboard] の `cycleDakuten`) があるので、連打は循環させず
+     * 素直に同じ文字を重ねる (ユーザー要望)。
      */
     fun emitKana(ch: Char) {
-        val now = System.currentTimeMillis()
-        val within = (now - lastEmitTimeMs) < CYCLE_REPEAT_WINDOW_MS
-        val sameKey = lastEmitChar == ch
-        val last = text.lastOrNull()
-        val entry = if (within && sameKey && last != null) CYCLE_INDEX[last] else null
-        if (entry != null && entry.first.contains(ch)) {
-            // 連打サイクル: 末尾を次の形に置換 (lastEmitChar はそのまま保持して続けてサイクル)
-            val (forms, idx) = entry
-            val nextCh = forms[(idx + 1) % forms.size]
-            if (isSplitMode) splitHeadLen = 0
-            text = text.dropLast(1) + nextCh
-            selectedCandidateIndex = -1
-            lastEmitTimeMs = now
-            refreshPredict()
-            return
-        }
-        // 通常 append
         if (isSplitMode) splitHeadLen = 0
         text += ch
         lastEmitChar = ch
-        lastEmitTimeMs = now
+        lastEmitTimeMs = System.currentTimeMillis()
         selectedCandidateIndex = -1
         refreshPredict()
     }

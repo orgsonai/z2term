@@ -16,6 +16,10 @@
     <!-- バックグラウンド維持強化（M3 で利用） -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- 電池最適化からの除外要求 (L1: バックグラウンドでの kill 頻度低減)。
+         Play 非配布アプリのため直接要求を許容する。 -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <!-- Android API ブリッジ: z2-vibrate 用 (通常権限・実行時要求不要) -->
     <uses-permission android:name="android.permission.VIBRATE" />
 

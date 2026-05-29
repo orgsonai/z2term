@@ -32,9 +32,11 @@ class RfbClient(
     private val host: String = "127.0.0.1",
     private val port: Int = 5901,
 ) {
-    /** ServerInit で受け取る画面サイズ。connect 後に有効。 */
+    /** ServerInit で受け取る画面サイズ。connect 後に有効。ExtendedDesktopSize で動的に変わる。 */
+    @Volatile
     var width = 0
         private set
+    @Volatile
     var height = 0
         private set
     var desktopName = ""
@@ -76,6 +78,12 @@ class RfbClient(
 
     /** width*height の ARGB バッファ。rect デコードはここに書き、まとめて Bitmap へ流す。 */
     private var pixels: IntArray = IntArray(0)
+
+    /** ExtendedDesktopSize で得た 1 番目のスクリーン ID。SetDesktopSize 要求で再利用する。 */
+    @Volatile private var screenId = 0
+    @Volatile private var hasScreenId = false
+    /** 解像度変更直後の 1 回だけ全画面 (non-incremental) を要求するためのフラグ。 */
+    @Volatile private var pendingFullRequest = false
 
     /**
      * 同期接続 + RFB 3.8 ハンドシェイク。**IO スレッドで呼ぶこと**。失敗時は例外を投げる。
@@ -141,7 +149,9 @@ class RfbClient(
         setPixelFormat(out)
         // 7. SetEncodings: 優先順 ZRLE → CopyRect → Raw。ZRLE はタイル+zlib で
         //    更新矩形が小さくなり、差分 setPixels と相性が良い。Raw は常に保険で残す。
-        setEncodings(out, intArrayOf(ENC_ZRLE, ENC_COPYRECT, ENC_RAW))
+        //    擬似エンコーディング ExtendedDesktopSize を併せて通知し、サーバ側の解像度変更
+        //    (回転時の再ネゴ) と、クライアントからの SetDesktopSize 要求を有効にする。
+        setEncodings(out, intArrayOf(ENC_ZRLE, ENC_COPYRECT, ENC_RAW, ENC_EXT_DESKTOP_SIZE))
     }
 
     private fun readReason(inp: DataInputStream): String {
@@ -287,28 +297,100 @@ class RfbClient(
             val y = inp.readUnsignedShort()
             val w = inp.readUnsignedShort()
             val h = inp.readUnsignedShort()
-            when (val enc = inp.readInt()) {
+            val enc = inp.readInt()
+            when (enc) {
                 ENC_RAW -> readRaw(inp, x, y, w, h)
                 ENC_COPYRECT -> readCopyRect(inp, x, y, w, h)
                 ENC_ZRLE -> {
                     readZrle(inp, x, y, w, h)
                     if (!zrleSeen) { zrleSeen = true; Log.i(TAG, "ZRLE decoding active") }
                 }
+                ENC_EXT_DESKTOP_SIZE -> handleExtendedDesktopSize(inp, x, w, h)
                 else -> throw IOException("unsupported encoding=$enc (rect $x,$y ${w}x$h)")
             }
-            val rx0 = x.coerceIn(0, width); val ry0 = y.coerceIn(0, height)
-            val rx1 = (x + w).coerceIn(0, width); val ry1 = (y + h).coerceIn(0, height)
-            if (rx1 > rx0 && ry1 > ry0) {
-                dirty = true
-                if (rx0 < minX) minX = rx0
-                if (ry0 < minY) minY = ry0
-                if (rx1 > maxX) maxX = rx1
-                if (ry1 > maxY) maxY = ry1
+            // 擬似エンコーディング (解像度変更) は描画矩形ではないのでバウンディング対象外。
+            if (enc != ENC_EXT_DESKTOP_SIZE) {
+                val rx0 = x.coerceIn(0, width); val ry0 = y.coerceIn(0, height)
+                val rx1 = (x + w).coerceIn(0, width); val ry1 = (y + h).coerceIn(0, height)
+                if (rx1 > rx0 && ry1 > ry0) {
+                    dirty = true
+                    if (rx0 < minX) minX = rx0
+                    if (ry0 < minY) minY = ry0
+                    if (rx1 > maxX) maxX = rx1
+                    if (ry1 > maxY) maxY = ry1
+                }
             }
         }
         if (dirty) pushFrame(minX, minY, maxX - minX, maxY - minY)
-        // 次の更新を要求 (incremental)
-        sendFramebufferUpdateRequest(out, incremental = true)
+        // 解像度が変わった直後は全画面 (non-incremental) を要求し直す。それ以外は差分。
+        val full = pendingFullRequest
+        pendingFullRequest = false
+        sendFramebufferUpdateRequest(out, incremental = !full)
+    }
+
+    /**
+     * ExtendedDesktopSize 擬似矩形 (-308) を処理する。矩形ヘッダの幅/高さが新しい
+     * デスクトップ解像度、x-position が変更理由 (0=サーバ/他クライアント, 1=本クライアントの
+     * SetDesktopSize 応答)。本体は number-of-screens + 各スクリーン定義 (16byte)。
+     * 1 番目のスクリーン ID を控え、こちらからの [requestDesktopSize] で再利用する。
+     */
+    private fun handleExtendedDesktopSize(inp: DataInputStream, reason: Int, newW: Int, newH: Int) {
+        val numScreens = inp.readUnsignedByte()
+        inp.readByte(); inp.readByte(); inp.readByte() // padding
+        for (i in 0 until numScreens) {
+            val id = inp.readInt()
+            inp.readUnsignedShort() // x
+            inp.readUnsignedShort() // y
+            inp.readUnsignedShort() // width
+            inp.readUnsignedShort() // height
+            inp.readInt()           // flags
+            if (i == 0) { screenId = id; hasScreenId = true }
+        }
+        if (newW in 1..8192 && newH in 1..8192 && (newW != width || newH != height)) {
+            resizeFramebuffer(newW, newH)
+            Log.i(TAG, "ExtendedDesktopSize: ${newW}x$newH (reason=$reason, screens=$numScreens)")
+        }
+    }
+
+    /** フレームバッファ (pixels/Bitmap) を作り直し、次回の全画面要求を予約する。受信ループから呼ぶ。 */
+    private fun resizeFramebuffer(newW: Int, newH: Int) {
+        synchronized(frameLock) {
+            width = newW
+            height = newH
+            pixels = IntArray(newW * newH)
+            frame = Bitmap.createBitmap(newW, newH, Bitmap.Config.ARGB_8888)
+        }
+        pendingFullRequest = true
+        _redraw.value = _redraw.value + 1
+    }
+
+    /**
+     * クライアントから解像度変更を要求する (SetDesktopSize, type 251)。**UI スレッドから呼んでよい**。
+     * 1 スクリーン構成 (0,0 起点) で要求する。サーバが対応していれば ExtendedDesktopSize 矩形で応答が返る。
+     */
+    fun requestDesktopSize(reqW: Int, reqH: Int) {
+        if (closed || reqW !in 1..8192 || reqH !in 1..8192) return
+        if (reqW == width && reqH == height) return
+        val id = if (hasScreenId) screenId else 1
+        submitWrite {
+            val out = output ?: return@submitWrite
+            synchronized(writeLock) {
+                out.writeByte(MSG_SET_DESKTOP_SIZE)
+                out.writeByte(0)            // padding
+                out.writeShort(reqW)
+                out.writeShort(reqH)
+                out.writeByte(1)            // number-of-screens
+                out.writeByte(0)            // padding
+                // screen[0]
+                out.writeInt(id)
+                out.writeShort(0)           // x
+                out.writeShort(0)           // y
+                out.writeShort(reqW)
+                out.writeShort(reqH)
+                out.writeInt(0)             // flags
+                out.flush()
+            }
+        }
     }
 
     private fun readRaw(inp: DataInputStream, x: Int, y: Int, w: Int, h: Int) {
@@ -543,6 +625,7 @@ class RfbClient(
         private const val MSG_FB_UPDATE_REQUEST = 3
         private const val MSG_KEY_EVENT = 4
         private const val MSG_POINTER_EVENT = 5
+        private const val MSG_SET_DESKTOP_SIZE = 251
 
         // pointer button masks (RFB)
         const val BTN_LEFT = 1 shl 0
@@ -561,5 +644,7 @@ class RfbClient(
         private const val ENC_RAW = 0
         private const val ENC_COPYRECT = 1
         private const val ENC_ZRLE = 16
+        // pseudo-encoding: 解像度変更 (TigerVNC/RFB ExtendedDesktopSize)
+        private const val ENC_EXT_DESKTOP_SIZE = -308
     }
 }

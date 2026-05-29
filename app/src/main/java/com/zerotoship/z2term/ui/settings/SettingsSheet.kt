@@ -67,6 +67,7 @@ import android.widget.Toast
 import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.proot.RootProbe
 import com.zerotoship.z2term.settings.AppSettings
+import com.zerotoship.z2term.settings.BatteryGuard
 import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
@@ -146,6 +147,19 @@ fun SettingsSheet(
     // OS データ削除: 再スキャン用カウンタ + 削除確認ダイアログ対象 distro id。
     var osDataRefresh by remember { mutableStateOf(0) }
     var pendingOsDelete by remember { mutableStateOf<String?>(null) }
+    // L1: 電池最適化の除外状態。システム設定から戻った時 (ON_RESUME) に再判定して
+    // トグル表示を実態に同期させる (除外の追加/解除はシステム UI 側で行われるため)。
+    var batteryIgnoring by remember { mutableStateOf(BatteryGuard.isIgnoring(context)) }
+    DisposableEffect(context) {
+        val owner = context as? androidx.lifecycle.LifecycleOwner
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                batteryIgnoring = BatteryGuard.isIgnoring(context)
+            }
+        }
+        owner?.lifecycle?.addObserver(obs)
+        onDispose { owner?.lifecycle?.removeObserver(obs) }
+    }
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         // スクロール途中の下スワイプ/フリングで誤って閉じるのを防ぐ。
@@ -533,6 +547,57 @@ fun SettingsSheet(
                 checked = settings.keepAliveService,
                 onChange = { session.setKeepAliveService(it) }
             )
+
+            // L1: バックグラウンドでのプロセス kill 対策。電池最適化の除外トグル +
+            // Android 12/13 の phantom process killing 無効化手順 (adb) の案内。
+            Section(title = stringResource(R.string.settings_section_process_guard)) {
+                ToggleField(
+                    title = stringResource(R.string.settings_battery_opt_toggle),
+                    description = stringResource(R.string.settings_battery_opt_toggle_desc),
+                    checked = batteryIgnoring,
+                    // 実際の除外追加/解除はシステム UI で行う。トグル状態は ON_RESUME で同期。
+                    onChange = { wantOn ->
+                        if (wantOn) BatteryGuard.requestExemption(context)
+                        else BatteryGuard.openOptimizationSettings(context)
+                    }
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.settings_phantom_title),
+                    color = ZtsTextPrimary,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    text = stringResource(R.string.settings_phantom_desc),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    text = BatteryGuard.PHANTOM_DISABLE_ADB,
+                    color = ZtsGreen,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                ActionButton(
+                    label = stringResource(R.string.settings_phantom_copy),
+                    onClick = {
+                        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                            as? android.content.ClipboardManager
+                        cm?.setPrimaryClip(
+                            android.content.ClipData.newPlainText(
+                                "adb", BatteryGuard.PHANTOM_DISABLE_ADB
+                            )
+                        )
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.settings_phantom_copied),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                )
+            }
 
             ToggleField(
                 title = stringResource(R.string.settings_confirm_download),
