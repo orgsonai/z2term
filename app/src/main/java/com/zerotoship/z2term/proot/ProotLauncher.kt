@@ -142,6 +142,8 @@ class ProotLauncher(private val context: Context) {
         ensureAutoGuiHook(rootfs)
         // Android API ブリッジのヘルパー (`z2-notify` 等) を配置 (Termux:API 相当)。
         ensureZ2ApiScripts(rootfs)
+        // GUI 動画対策: mpv の既定をソフトウェア出力 (vo=x11) にする設定を配置。
+        ensureMpvConfig(rootfs)
         // Android 外部ストレージを cd できるようマウント先を用意。
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
@@ -202,6 +204,10 @@ class ProotLauncher(private val context: Context) {
             "SAVEHIST=10000",
             "HISTCONTROL=ignoredups",
             "PROMPT_COMMAND=history -a",
+            // GUI は Xvnc = GPU/DRI 無しのソフトウェア画面。OpenGL アプリ (mpv/SMPlayer の gpu 出力,
+            // ブラウザ等) が実機の pvr 等ハードドライバを掴もうとして "failed to load driver" で
+            // 映像が出ない/化ける。Mesa を強制的にソフトウェア (llvmpipe/swrast) に倒して回避する。
+            "LIBGL_ALWAYS_SOFTWARE=1",
             // proot は libtalloc.so.2 にリンクされている (Termux RUNPATH 由来)。
             // ensureProotLibs() で展開した SONAME 通りのファイルパスを LD_LIBRARY_PATH に追加。
             "LD_LIBRARY_PATH=${prootLibsDir.absolutePath}",
@@ -253,6 +259,7 @@ class ProotLauncher(private val context: Context) {
         ensureZ2AutoGuiScript(rootfs)
         ensureAutoGuiHook(rootfs)
         ensureZ2ApiScripts(rootfs)
+        ensureMpvConfig(rootfs)
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
 
@@ -559,6 +566,31 @@ class ProotLauncher(private val context: Context) {
             f.setReadable(true, false)
             f.setExecutable(true, false)
         }.onFailure { Log.w(TAG, "z2-autogui script 配置失敗", it) }
+    }
+
+    /**
+     * mpv の既定設定 `/etc/mpv/mpv.conf` を配置する (GUI 動画対策)。GUI は Xvnc = GPU 無しの
+     * ソフトウェア画面なので、mpv 既定の gpu 出力 / ハードデコードは失敗し、映像が化ける・半分
+     * しか出ない。出力を x11 (ソフト RGB)・デコードを CPU に倒すと正常に再生できる
+     * (SMPlayer も mpv バックエンド経由でこの既定に従う)。
+     * ユーザーが自分の設定 (`~/.config/mpv/mpv.conf` が優先) や独自の `/etc/mpv/mpv.conf` を
+     * 置いている場合は尊重し、**既存ファイルがあるときは触らない**。
+     */
+    private fun ensureMpvConfig(rootfs: File) {
+        runCatching {
+            val dir = File(rootfs, "etc/mpv").apply { mkdirs() }
+            val f = File(dir, "mpv.conf")
+            if (f.exists()) return
+            f.writeText(
+                """
+                # z2term default: GUI は Xvnc (GPU 無し) のため映像はソフトウェア出力にする。
+                # 個人設定 (~/.config/mpv/mpv.conf) があればそちらが優先される。
+                vo=x11
+                hwdec=no
+                """.trimIndent() + "\n"
+            )
+            f.setReadable(true, false)
+        }.onFailure { Log.w(TAG, "mpv.conf 配置失敗", it) }
     }
 
     /**
