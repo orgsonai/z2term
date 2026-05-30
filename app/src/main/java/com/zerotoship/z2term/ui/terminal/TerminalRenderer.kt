@@ -21,6 +21,7 @@ import com.zerotoship.z2term.core.TerminalSelection
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.emulator.SgrAttribute
 import com.zerotoship.z2term.emulator.TerminalColors
+import com.zerotoship.z2term.ui.terminal.input.UrlFinder
 import com.zerotoship.z2term.ui.theme.TerminalFontOptions
 
 /**
@@ -250,6 +251,9 @@ private fun drawBuffer(
             }
         }
 
+        // URL / OSC8 リンクのセル (下線でタップ可能と分かるように)。
+        val linkMarks = UrlFinder.linkedColumns(buf, abs, rowCols)
+
         // --- Pass 3: 文字 + 下線/取り消し線 (セル単位 drawText でグリッド吸着) ---
         c = 0
         while (c < rowCols) {
@@ -273,7 +277,8 @@ private fun drawBuffer(
                 textPaint.isFakeBoldText = (flags and SgrAttribute.FLAG_BOLD) != 0
                 nativeCanvas.drawText(cell.char.toString(), c * cellW, baseline, textPaint)
             }
-            if ((flags and SgrAttribute.FLAG_UNDERLINE) != 0) {
+            val isLinkCell = linkMarks != null && c < linkMarks.size && linkMarks[c]
+            if ((flags and SgrAttribute.FLAG_UNDERLINE) != 0 || isLinkCell) {
                 underlinePaint.color = drawFg
                 val uy = y + lineHeight - underlinePaint.strokeWidth
                 nativeCanvas.drawLine(c * cellW, uy, (c + span) * cellW, uy, underlinePaint)
