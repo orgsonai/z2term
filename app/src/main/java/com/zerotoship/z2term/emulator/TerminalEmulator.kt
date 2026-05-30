@@ -104,7 +104,9 @@ class TerminalEmulator(
     private var csiIntermediate: Char = 0.toChar()
 
     // --- OSC バッファ ---
-    private val oscBuffer = StringBuilder()
+    // 生バイトで貯めて終端時に UTF-8 デコードする (b.toChar() だと日本語タイトル/パスが
+    // Latin-1 扱いになり文字化けするため)。ASCII(OSC 4/7/8/52 等)はそのまま通る。
+    private val oscBuffer = java.io.ByteArrayOutputStream()
 
     // --- カーソル保存 (DECSC / DECRC、Primary/Alternate それぞれ用) ---
     private var savedCursorRow = 0
@@ -240,7 +242,7 @@ class TerminalEmulator(
             }
             ']' -> {
                 state = State.OSC
-                oscBuffer.clear()
+                oscBuffer.reset()
             }
             '(', ')', '*', '+' -> {
                 state = State.CHARSET
@@ -339,8 +341,8 @@ class TerminalEmulator(
                 state = State.GROUND
             }
             else -> {
-                if (oscBuffer.length < 1024) {
-                    oscBuffer.append(b.toChar())
+                if (oscBuffer.size() < 1024) {
+                    oscBuffer.write(b)
                 }
             }
         }
@@ -738,7 +740,7 @@ class TerminalEmulator(
     }
 
     private fun dispatchOsc() {
-        val s = oscBuffer.toString()
+        val s = String(oscBuffer.toByteArray(), Charsets.UTF_8)
         val sep = s.indexOf(';')
         if (sep < 0) return
         val code = s.substring(0, sep).toIntOrNull() ?: return
