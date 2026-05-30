@@ -64,6 +64,9 @@
     <string name="settings_init_command">起動時 init コマンド</string>
     <string name="settings_init_command_placeholder">例: zsh -l</string>
     <string name="settings_reset_terminal">端末リセット</string>
+    <string name="settings_clear_cache">キャッシュ削除</string>
+    <string name="settings_clear_cache_done">キャッシュを削除しました（%1$s 解放）</string>
+    <string name="settings_clear_cache_empty">削除するキャッシュはありません</string>
     <string name="settings_section_app_info">アプリ情報</string>
 
     <!-- 裏機能: root chroot エンジン (バージョン7回タップで解放) -->

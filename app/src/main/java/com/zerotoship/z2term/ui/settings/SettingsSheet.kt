@@ -162,10 +162,11 @@ fun SettingsSheet(
     }
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
-        // スクロール途中の下スワイプ/フリングで誤って閉じるのを防ぐ。
-        // 内容が最上部 (scrollState.value == 0) のときだけスワイプ閉じを許可する。
+        // 下スワイプ/フリングがスクロールと競合してシート全体が動く/誤って閉じるのを防ぐ。
+        // ドラッグでは一切閉じない。閉じるのは: ドラッグハンドルのタップ / 戻るキー /
+        // シート外 (スクリム) タップ — のいずれかに限定する (要望)。
         confirmValueChange = { target ->
-            if (target == SheetValue.Hidden) forceClose || scrollState.value == 0 else true
+            if (target == SheetValue.Hidden) forceClose else true
         }
     )
     val closeSheet: () -> Unit = {
@@ -196,35 +197,6 @@ fun SettingsSheet(
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             SettingsHeader()
-
-            // 言語スイッチ。アプリ内で「日本語/English」を切替える (OS Locale ではなく独自管理)。
-                // 変更時は Activity を recreate() してリソース解決をやり直す (文字列・キーボードに即反映)。
-                Section(title = stringResource(R.string.settings_section_language)) {
-                    val currentLang = remember { mutableStateOf(LocaleHelper.language(context)) }
-                    ChipRow(
-                        options = listOf(LocaleHelper.LANG_JA, LocaleHelper.LANG_EN),
-                        labels = mapOf(
-                            LocaleHelper.LANG_JA to "日本語",
-                            LocaleHelper.LANG_EN to "English"
-                        ),
-                        selected = currentLang.value,
-                        onSelect = { lang ->
-                            if (lang != currentLang.value) {
-                                LocaleHelper.setLanguage(context, lang)
-                                currentLang.value = lang
-                                // 反映には Activity の再生成が必要。
-                                val activity = context as? android.app.Activity
-                                activity?.recreate()
-                            }
-                        }
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_section_language_desc),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
 
             Section(title = stringResource(R.string.settings_section_theme)) {
                 val customTheme by CustomThemeStore.theme.collectAsState()
@@ -272,6 +244,77 @@ fun SettingsSheet(
                 valueLabel = { "${it.toInt()} 行" },
                 onChange = { session.setScrollbackLines(it.toInt()) }
             )
+
+            // キーボードサイズ (高さ) は頻繁に調整するため表示設定の近く (上部) に置く。
+            Section(title = stringResource(R.string.settings_section_keyboard_size)) {
+                // キーボードの高さは縦画面・横画面で別々に保持し、向きに合わせて自動で切り替わる。
+                SliderField(
+                    title = stringResource(
+                        if (isLandscape) R.string.settings_kb_height_landscape
+                        else R.string.settings_kb_height_portrait
+                    ),
+                    value = if (isLandscape) settings.landscapeKeyboardHeightDp
+                            else settings.portraitKeyboardHeightDp,
+                    range = if (isLandscape)
+                        AppSettings.MIN_LANDSCAPE_KB_HEIGHT_DP..AppSettings.MAX_LANDSCAPE_KB_HEIGHT_DP
+                    else
+                        AppSettings.MIN_PORTRAIT_KB_HEIGHT_DP..AppSettings.MAX_PORTRAIT_KB_HEIGHT_DP,
+                    steps = if (isLandscape) 14 else 12,  // 20dp 刻み
+                    valueLabel = { "%.0fdp".format(it) },
+                    onChange = {
+                        if (isLandscape) session.setLandscapeKeyboardHeightDp(it)
+                        else session.setPortraitKeyboardHeightDp(it)
+                    }
+                )
+                Text(
+                    text = stringResource(R.string.settings_kb_height_desc),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                // 配置 (左/下/右) とサイドキーボード幅は横画面でのみ意味があるので横画面の時だけ出す。
+                if (isLandscape) {
+                    val posOptions = listOf(
+                        AppSettings.LANDSCAPE_KB_LEFT,
+                        AppSettings.LANDSCAPE_KB_BOTTOM,
+                        AppSettings.LANDSCAPE_KB_RIGHT
+                    )
+                    ChipRow(
+                        options = posOptions,
+                        labels = mapOf(
+                            AppSettings.LANDSCAPE_KB_LEFT to stringResource(R.string.settings_landscape_kb_left),
+                            AppSettings.LANDSCAPE_KB_BOTTOM to stringResource(R.string.settings_landscape_kb_bottom),
+                            AppSettings.LANDSCAPE_KB_RIGHT to stringResource(R.string.settings_landscape_kb_right)
+                        ),
+                        selected = settings.landscapeKeyboardPosition,
+                        onSelect = { session.setLandscapeKeyboardPosition(it) }
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_landscape_keyboard_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    SliderField(
+                        title = stringResource(R.string.settings_landscape_kb_width),
+                        value = settings.landscapeKeyboardWidthDp,
+                        range = AppSettings.MIN_LANDSCAPE_KB_WIDTH_DP..AppSettings.MAX_LANDSCAPE_KB_WIDTH_DP,
+                        steps = 13,  // 280 → 700 を 30dp 刻み (15 段)
+                        valueLabel = { "%.0fdp".format(it) },
+                        onChange = { session.setLandscapeKeyboardWidthDp(it) }
+                    )
+                }
+            }
+
+            // キーボードスタイル (配列) も入力系なので表示設定の近くに置く。
+            Section(title = stringResource(R.string.settings_section_keyboard_style)) {
+                ChipRow(
+                    options = KeyboardStyle.ALL.map { it.id },
+                    labels = KeyboardStyle.ALL.associate { it.id to stringResource(it.displayNameRes) },
+                    selected = settings.keyboardStyleId,
+                    onSelect = { session.setKeyboardStyleId(it) }
+                )
+            }
 
             Section(title = stringResource(R.string.settings_section_distro)) {
                 ChipRow(
@@ -416,15 +459,6 @@ fun SettingsSheet(
 
             StorageAccessHelper()
 
-            Section(title = stringResource(R.string.settings_section_keyboard_style)) {
-                ChipRow(
-                    options = KeyboardStyle.ALL.map { it.id },
-                    labels = KeyboardStyle.ALL.associate { it.id to stringResource(it.displayNameRes) },
-                    selected = settings.keyboardStyleId,
-                    onSelect = { session.setKeyboardStyleId(it) }
-                )
-            }
-
             // IME 学習履歴 (キーボードパッチ): 件数表示 + 管理ボタン (シートを開く)
             Section(title = stringResource(R.string.settings_section_ime_history)) {
                 val historyVersion by com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore.versionFlow.collectAsState()
@@ -442,66 +476,6 @@ fun SettingsSheet(
                     label = stringResource(R.string.settings_ime_history_open),
                     onClick = { imeHistoryOpen = true }
                 )
-            }
-
-            Section(title = stringResource(R.string.settings_section_keyboard_size)) {
-                // キーボードの高さは縦画面・横画面で別々に保持し、向きに合わせて自動で切り替わる。
-                SliderField(
-                    title = stringResource(
-                        if (isLandscape) R.string.settings_kb_height_landscape
-                        else R.string.settings_kb_height_portrait
-                    ),
-                    value = if (isLandscape) settings.landscapeKeyboardHeightDp
-                            else settings.portraitKeyboardHeightDp,
-                    range = if (isLandscape)
-                        AppSettings.MIN_LANDSCAPE_KB_HEIGHT_DP..AppSettings.MAX_LANDSCAPE_KB_HEIGHT_DP
-                    else
-                        AppSettings.MIN_PORTRAIT_KB_HEIGHT_DP..AppSettings.MAX_PORTRAIT_KB_HEIGHT_DP,
-                    steps = if (isLandscape) 14 else 12,  // 20dp 刻み
-                    valueLabel = { "%.0fdp".format(it) },
-                    onChange = {
-                        if (isLandscape) session.setLandscapeKeyboardHeightDp(it)
-                        else session.setPortraitKeyboardHeightDp(it)
-                    }
-                )
-                Text(
-                    text = stringResource(R.string.settings_kb_height_desc),
-                    color = ZtsTextSecondary,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-                // 配置 (左/下/右) とサイドキーボード幅は横画面でのみ意味があるので横画面の時だけ出す。
-                if (isLandscape) {
-                    val posOptions = listOf(
-                        AppSettings.LANDSCAPE_KB_LEFT,
-                        AppSettings.LANDSCAPE_KB_BOTTOM,
-                        AppSettings.LANDSCAPE_KB_RIGHT
-                    )
-                    ChipRow(
-                        options = posOptions,
-                        labels = mapOf(
-                            AppSettings.LANDSCAPE_KB_LEFT to stringResource(R.string.settings_landscape_kb_left),
-                            AppSettings.LANDSCAPE_KB_BOTTOM to stringResource(R.string.settings_landscape_kb_bottom),
-                            AppSettings.LANDSCAPE_KB_RIGHT to stringResource(R.string.settings_landscape_kb_right)
-                        ),
-                        selected = settings.landscapeKeyboardPosition,
-                        onSelect = { session.setLandscapeKeyboardPosition(it) }
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_landscape_keyboard_desc),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    SliderField(
-                        title = stringResource(R.string.settings_landscape_kb_width),
-                        value = settings.landscapeKeyboardWidthDp,
-                        range = AppSettings.MIN_LANDSCAPE_KB_WIDTH_DP..AppSettings.MAX_LANDSCAPE_KB_WIDTH_DP,
-                        steps = 13,  // 280 → 700 を 30dp 刻み (15 段)
-                        valueLabel = { "%.0fdp".format(it) },
-                        onChange = { session.setLandscapeKeyboardWidthDp(it) }
-                    )
-                }
             }
 
             Section(title = stringResource(R.string.settings_section_gui_terminal)) {
@@ -619,6 +593,35 @@ fun SettingsSheet(
                 onChange = { session.setInitCommand(it) }
             )
 
+            // 言語スイッチ。アプリ内で「日本語/English」を切替える (OS Locale ではなく独自管理)。
+            // 一度決めれば滅多に変えないため下部に配置。変更時は Activity を recreate() する。
+            Section(title = stringResource(R.string.settings_section_language)) {
+                val currentLang = remember { mutableStateOf(LocaleHelper.language(context)) }
+                ChipRow(
+                    options = listOf(LocaleHelper.LANG_JA, LocaleHelper.LANG_EN),
+                    labels = mapOf(
+                        LocaleHelper.LANG_JA to "日本語",
+                        LocaleHelper.LANG_EN to "English"
+                    ),
+                    selected = currentLang.value,
+                    onSelect = { lang ->
+                        if (lang != currentLang.value) {
+                            LocaleHelper.setLanguage(context, lang)
+                            currentLang.value = lang
+                            // 反映には Activity の再生成が必要。
+                            val activity = context as? android.app.Activity
+                            activity?.recreate()
+                        }
+                    }
+                )
+                Text(
+                    text = stringResource(R.string.settings_section_language_desc),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+
             Spacer(modifier = Modifier.height(4.dp))
 
             // 端末リセット (画面クリア + 再起動)。画面クリア単体は CTRL+L で行える。
@@ -631,6 +634,20 @@ fun SettingsSheet(
                     label = stringResource(R.string.settings_reset_terminal),
                     danger = true,
                     onClick = { session.restart() }
+                )
+                // キャッシュ削除 (cacheDir 配下のみ。rootfs / 設定は消えない)。
+                ActionButton(
+                    label = stringResource(R.string.settings_clear_cache),
+                    onClick = {
+                        scope.launch {
+                            val freed = withContext(Dispatchers.IO) { clearAppCache(context) }
+                            val msg = if (freed > 0)
+                                context.getString(R.string.settings_clear_cache_done, formatStorageSize(freed))
+                            else
+                                context.getString(R.string.settings_clear_cache_empty)
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 )
             }
 
@@ -750,17 +767,23 @@ private fun AppInfoSection(distroId: String, rootUnlocked: Boolean, onUnlock: ()
                 ?.substringAfter('=')?.trim('"', ' ')
         }.getOrNull()
     }
+    // 連打したとき、前のトーストが消えるのを待たず即座に次の文言へ差し替える
+    // (cancel しないと Android がトーストをキューイングして表示が大幅に遅延する)。
+    var lastToast by remember { mutableStateOf<Toast?>(null) }
     val versionClick: (() -> Unit)? = if (rootUnlocked) null else {
         {
             tapCount++
             val remaining = 7 - tapCount
             when {
-                remaining <= 0 -> { tapCount = 0; onUnlock() }
-                remaining in 1..3 -> Toast.makeText(
-                    context,
-                    context.getString(R.string.settings_root_unlock_countdown, remaining),
-                    Toast.LENGTH_SHORT
-                ).show()
+                remaining <= 0 -> { tapCount = 0; lastToast?.cancel(); onUnlock() }
+                remaining in 1..3 -> {
+                    lastToast?.cancel()
+                    lastToast = Toast.makeText(
+                        context,
+                        context.getString(R.string.settings_root_unlock_countdown, remaining),
+                        Toast.LENGTH_SHORT
+                    ).also { it.show() }
+                }
             }
         }
     }
@@ -1254,6 +1277,21 @@ private fun approxDirSize(dir: java.io.File): Long {
             if (f.isFile && !java.nio.file.Files.isSymbolicLink(f.toPath())) total += f.length()
         }
     return total
+}
+
+/**
+ * アプリのキャッシュ (cacheDir 配下: distro ダウンロードキャッシュ等の一時ファイル) を
+ * 削除し、解放したバイト数を返す。rootfs(filesDir) や設定(datastore) は一切触らない。
+ * ファイル走査と削除があるので IO スレッドから呼ぶこと。
+ */
+private fun clearAppCache(context: Context): Long {
+    val dir = context.cacheDir ?: return 0L
+    var freed = 0L
+    dir.listFiles()?.forEach { child ->
+        freed += approxDirSize(child)
+        child.deleteRecursively()
+    }
+    return freed
 }
 
 private fun formatStorageSize(bytes: Long): String {

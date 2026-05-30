@@ -64,6 +64,9 @@
     <string name="settings_init_command">Startup init command</string>
     <string name="settings_init_command_placeholder">e.g. zsh -l</string>
     <string name="settings_reset_terminal">Reset terminal</string>
+    <string name="settings_clear_cache">Clear cache</string>
+    <string name="settings_clear_cache_done">Cache cleared (%1$s freed)</string>
+    <string name="settings_clear_cache_empty">No cache to clear</string>
     <string name="settings_section_app_info">App info</string>
 
     <!-- Hidden root chroot engine (unlocked by tapping the version 7x) -->
