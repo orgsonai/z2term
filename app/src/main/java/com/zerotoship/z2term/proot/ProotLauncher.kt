@@ -351,7 +351,15 @@ class ProotLauncher(private val context: Context) {
             append("exec chroot \"\$RFS\" /usr/bin/env -i HOME=/root TERM=xterm-256color LANG=C.UTF-8 ")
             append("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin TMPDIR=/tmp")
             append(displayEnv)
-            append(" SHELL=").append(sh).append(' ').append(sh).append(" -l\n")
+            // 制御端末を取り直してジョブ制御 / Ctrl+C を効かせる。
+            // chroot は su(magiskd)経由で起動するため root shell が PTY を制御端末として
+            // 所有できず "no job control" になり、Ctrl+C(VINTR)の SIGINT が走行中コマンドへ
+            // 届かない。login shell を setsid -c で起動して PTY を制御端末に握り直す。
+            // setsid -w(util-linux)が無い環境(busybox 等)は従来どおり素のシェル(回帰なし)。
+            append(" SHELL=").append(sh).append(' ').append(sh).append(" -c '")
+            append("if command -v setsid >/dev/null 2>&1 && setsid --help 2>&1 | grep -q -- \"-w\"; ")
+            append("then exec setsid -w -c \"\$SHELL\" -l; else exec \"\$SHELL\" -l; fi")
+            append("'\n")
         }
     }
 
