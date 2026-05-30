@@ -162,11 +162,11 @@ fun SettingsSheet(
     }
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
-        // 下スワイプ/フリングがスクロールと競合してシート全体が動く/誤って閉じるのを防ぐ。
-        // ドラッグでは一切閉じない。閉じるのは: ドラッグハンドルのタップ / 戻るキー /
-        // シート外 (スクリム) タップ — のいずれかに限定する (要望)。
+        // スクロール途中の下スワイプで誤って閉じるのは防ぎつつ、最上部まで戻った状態で
+        // さらに下へプルダウンしたら閉じる (要望)。内容が最上部 (scrollState.value == 0)
+        // のときだけスワイプ閉じを許可する。ハンドルタップ/戻る/シート外タップでも閉じる。
         confirmValueChange = { target ->
-            if (target == SheetValue.Hidden) forceClose else true
+            if (target == SheetValue.Hidden) forceClose || scrollState.value == 0 else true
         }
     )
     val closeSheet: () -> Unit = {
