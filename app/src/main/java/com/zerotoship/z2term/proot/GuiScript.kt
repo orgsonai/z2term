@@ -343,6 +343,8 @@ fun z2guiScript(
         |  # 2) 念のため X ロックの PID (= Xvnc 本体) も止める。Xvnc が死ねば配下の
         |  #    openbox/端末/GUI アプリは X 切断で自動終了する (取りこぼしの保険)。
         |  xp=${d}(x_pid); [ -n "${d}xp" ] && is_gui_proc "${d}xp" && kill "${d}xp" 2>/dev/null
+        |  # GUI 音声を立てていれば (この :N 専用 PA を) 一緒に止める。立てていなければ no-op。
+        |  stop_audio
         |  rm -f "${d}PIDFILE" "/tmp/.X${d}{DISPLAY_NUM}-lock" "/tmp/.X11-unix/X${d}{DISPLAY_NUM}" 2>/dev/null
         |}
         |
@@ -352,6 +354,69 @@ fun z2guiScript(
         |  else
         |    echo "${strings.stopped}"
         |  fi
+        |}
+        |
+        |# GUI 音声 (オプトイン): Z2_AUDIO=1 のときだけ proot 内に PulseAudio を起こし、null-sink (z2sink)
+        |# の monitor を module-simple-protocol-tcp で 127.0.0.1:Z2_AUDIO_PORT へ s16le/48k/2ch で流す。
+        |# Android 側 AudioBridge が受けて端末スピーカーで鳴らす。Z2_AUDIO 未設定なら**一切何もしない**(依存ゼロ)。
+        |# XDG_RUNTIME_DIR はディスプレイ毎に分離するので、複数 GUI が別 PA・別ポートで並走できる。
+        |start_audio() {
+        |  [ "${d}{Z2_AUDIO:-0}" = "1" ] || return 0
+        |  APORT="${d}{Z2_AUDIO_PORT:-0}"
+        |  [ "${d}APORT" -gt 0 ] 2>/dev/null || return 0
+        |  # pulseaudio / pactl が無ければ導入する。GUI 音声トグル ON がユーザー同意なのでここは取得してよい。
+        |  if ! has pulseaudio || ! has pactl; then
+        |    detect_pm
+        |    clear_pm_locks
+        |    echo "🔊 GUI 音声: PulseAudio を導入します (${d}PM)"
+        |    case "${d}PM" in
+        |      apk)    apk add --no-cache pulseaudio pulseaudio-utils ;;
+        |      apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y pulseaudio pulseaudio-utils ;;
+        |      pacman) pacman -Sy --noconfirm --needed pulseaudio ;;
+        |      *) echo "${strings.noPackageManager}"; return 0 ;;
+        |    esac
+        |  fi
+        |  has pulseaudio || { echo "⚠️ GUI 音声: pulseaudio が無いため無音で継続"; return 0; }
+        |  has pactl || { echo "⚠️ GUI 音声: pactl が無いため無音で継続"; return 0; }
+        |  # 実行時ディレクトリを :N 専用にして PA をディスプレイ毎に分離する。
+        |  export XDG_RUNTIME_DIR="${d}{XDG_RUNTIME_DIR:-/tmp/z2gui-xdg-${d}{DISPLAY_NUM}}"
+        |  mkdir -p "${d}XDG_RUNTIME_DIR"; chmod 0700 "${d}XDG_RUNTIME_DIR" 2>/dev/null
+        |  # proot/Android では shm/自動起動が不安定なので、設定で無効化して堅く起動させる。
+        |  PA_CFG="${d}HOME/.config/pulse"
+        |  mkdir -p "${d}PA_CFG" 2>/dev/null
+        |  [ -f "${d}PA_CFG/daemon.conf" ] || printf 'enable-shm = no\nexit-idle-time = -1\nflat-volumes = no\n' > "${d}PA_CFG/daemon.conf" 2>/dev/null
+        |  [ -f "${d}PA_CFG/client.conf" ] || printf 'autospawn = no\nenable-shm = no\n' > "${d}PA_CFG/client.conf" 2>/dev/null
+        |  # 既に起動済みなら起こし直さない (start_x 再入や複数アプリ起動でも 1 つに保つ)。
+        |  if ! pactl info >/dev/null 2>&1; then
+        |    pulseaudio --start --exit-idle-time=-1 --disallow-exit \
+        |      --log-target="file:/tmp/z2gui-audio-${d}{DISPLAY_NUM}.log" >/dev/null 2>&1
+        |    k=0
+        |    while [ ${d}k -lt 30 ] && ! pactl info >/dev/null 2>&1; do sleep 0.1; k=${d}((k+1)); done
+        |  fi
+        |  if ! pactl info >/dev/null 2>&1; then
+        |    echo "⚠️ GUI 音声: PulseAudio 起動失敗 (log: /tmp/z2gui-audio-${d}{DISPLAY_NUM}.log)"; return 0
+        |  fi
+        |  # null-sink (z2sink) を既定 sink にし、その monitor を TCP で出す。二重ロードは避ける。
+        |  pactl list short sinks 2>/dev/null | grep -q z2sink || \
+        |    pactl load-module module-null-sink sink_name=z2sink rate=48000 channels=2 \
+        |      sink_properties=device.description=z2term >/dev/null 2>&1
+        |  pactl set-default-sink z2sink 2>/dev/null
+        |  pactl list short modules 2>/dev/null | grep -q "port=${d}APORT" || \
+        |    pactl load-module module-simple-protocol-tcp record=true source=z2sink.monitor \
+        |      format=s16le rate=48000 channels=2 listen=127.0.0.1 port=${d}APORT >/dev/null 2>&1
+        |  # ALSA アプリ (mpv 等) も PulseAudio 経由で z2sink へ流す。SDL も pulse 既定に。
+        |  [ -e /etc/asound.conf ] || printf 'pcm.!default pulse\nctl.!default pulse\n' > /etc/asound.conf 2>/dev/null
+        |  export PULSE_SINK=z2sink
+        |  export SDL_AUDIODRIVER=pulseaudio
+        |  echo "🔊 GUI 音声: z2sink.monitor → 127.0.0.1:${d}APORT (s16le/48k/2ch)"
+        |}
+        |
+        |# この :N の音声を止める。XDG_RUNTIME_DIR が :N 専用なので他ディスプレイの PA には影響しない。
+        |stop_audio() {
+        |  has pactl || return 0
+        |  export XDG_RUNTIME_DIR="${d}{XDG_RUNTIME_DIR:-/tmp/z2gui-xdg-${d}{DISPLAY_NUM}}"
+        |  pactl info >/dev/null 2>&1 || return 0
+        |  pactl exit >/dev/null 2>&1   # このディスプレイ専用 PA daemon を終了 (sink/module ごと片付く)。
         |}
         |
         |start_x() {
@@ -392,6 +457,8 @@ fun z2guiScript(
         |  if ! x_running; then
         |    echo "${strings.xvncFailed}"; cat "/tmp/z2gui-xvnc-${d}{DISPLAY_NUM}.log" 2>/dev/null; exit 1
         |  fi
+        |  # GUI 音声 (Z2_AUDIO=1 のときだけ)。X とは独立だが Xvnc 起動確認後に立てる。失敗しても続行。
+        |  start_audio
         |  # openbox に「全ウィンドウを左上 (0,0) に強制配置」させる設定を書く。端末ごとに
         |  # -geometry の書式が違う (xterm/urxvt は対応, konsole/lxterminal は別系統) ため、
         |  # 位置は WM 側で一律に固定する (ユーザー要望: GUI ターミナルは全て 0,0)。

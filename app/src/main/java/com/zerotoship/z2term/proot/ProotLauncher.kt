@@ -102,7 +102,14 @@ class ProotLauncher(private val context: Context) {
          * その :N の Xvnc へ繋がる。GUI 起動 (z2gui) では false にしておかないと、`z2gui stop` の
          * environ 走査が自身を巻き込む恐れがある (詳細は下の displayEnv コメント / GuiScript)。
          */
-        exportDisplay: Boolean = false
+        exportDisplay: Boolean = false,
+        /**
+         * 非 null なら GUI 音声ブリッジ用に `Z2_AUDIO=1` / `Z2_AUDIO_PORT=<port>` を環境変数へ追加する。
+         * z2gui はこれを見て proot 内に PulseAudio (null-sink + simple-protocol-tcp) を起動し、その
+         * monitor を 127.0.0.1:<port> へ流す。null (既定) のときは一切起動しない (依存ゼロ)。
+         * 設定「GUI 音声」が ON のときだけ [com.zerotoship.z2term.gui.GuiSession] が渡す。
+         */
+        guiAudioPort: Int? = null
     ): PtyProcess {
         val rootfs = File(distrosDir, distroId)
         if (!rootfs.exists()) {
@@ -185,6 +192,11 @@ class ProotLauncher(private val context: Context) {
                 add("Z2_DISPLAY=$display")
                 add("Z2_RFBPORT=${5900 + display}")
                 if (exportDisplay) add("DISPLAY=:$display")
+                // GUI 音声 (オプトイン)。設定 ON のときだけ port が渡る。z2gui が PulseAudio を起動する。
+                if (guiAudioPort != null) {
+                    add("Z2_AUDIO=1")
+                    add("Z2_AUDIO_PORT=$guiAudioPort")
+                }
             }
         } else emptyList()
 

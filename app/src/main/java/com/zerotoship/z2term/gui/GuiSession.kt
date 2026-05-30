@@ -11,6 +11,7 @@ import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.proot.Z2TERM_VNC_DISPLAY
 import com.zerotoship.z2term.pty.PtyProcess
+import com.zerotoship.z2term.service.AudioBridge
 import com.zerotoship.z2term.settings.AppSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -84,6 +85,9 @@ class GuiSession(
     /** 起動した distro。停止 (runGuiStop) でも同じ distro を使うため start で確定させる。 */
     private var distroId: String = "alpine"
 
+    /** GUI 音声ブリッジ (設定 ON のときだけ生成)。CONNECTED で start、stop で停止する。 */
+    private var audioBridge: AudioBridge? = null
+
     /**
      * GUI を起動する。
      *
@@ -104,6 +108,8 @@ class GuiSession(
                 val snap = AppSettings(context).flow.first()
                 distroId = snap.distroId
                 val guiTerminal = GuiTerminal.byId(snap.guiTerminalId)
+                // GUI 音声 (オプトイン): 設定 ON のときだけ port を払い出し z2gui へ PulseAudio を起こさせる。
+                val audioPort = if (snap.guiAudioEnabled) AudioBridge.portForDisplay(display) else null
                 // rootfs が未展開だと launch が例外になるので、先に分かりやすく案内する。
                 // (未展開 distro をここで勝手にダウンロードはしない。端末タブで起動して導入させる。)
                 val launcher = ProotLauncher(context)
@@ -122,6 +128,7 @@ class GuiSession(
                     extraArgs = startArgs,
                     guiTerminal = guiTerminal,
                     display = display,  // z2gui へ Z2_DISPLAY/Z2_RFBPORT として渡す (このタブ専用の :N)
+                    guiAudioPort = audioPort,  // 設定 ON のときだけ非 null。z2gui が PulseAudio を起こす。
                 )
                 pty = p
                 // z2gui の出力はログへ排出（PTY バッファが詰まってブロックしないように）。
@@ -148,6 +155,11 @@ class GuiSession(
                 _state.value = State.CONNECTED
                 _message.value = "${rfb.width}x${rfb.height}  ${rfb.desktopName}"
                 rxJob = scope.launch { rfb.run() }
+                // GUI 音声 ON のとき: PulseAudio の TCP 出力 (127.0.0.1:audioPort) を AudioTrack で再生開始。
+                // PulseAudio 側の起動より先でも接続拒否はリトライするので、ここで張っておいて問題ない。
+                if (audioPort != null) {
+                    audioBridge = AudioBridge(audioPort).also { it.start() }
+                }
             } catch (e: Exception) {
                 fail("起動失敗: ${e.message}")
             }
@@ -270,6 +282,8 @@ class GuiSession(
 
     fun stop() {
         scope.launch {
+            runCatching { audioBridge?.stop() }
+            audioBridge = null
             runCatching { rfb.close() }
             runCatching { rxJob?.cancel() }
             // Xvnc は proot の ptrace 対象。pty.close() は proot に SIGHUP を送るだけで、

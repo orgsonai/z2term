@@ -28,6 +28,8 @@
     <string name="settings_section_gui_terminal">GUI terminal</string>
     <string name="settings_gui_magnification">GUI magnification (applies from next GUI start)</string>
     <string name="settings_clean_install">Clean install</string>
+    <string name="settings_gui_audio">GUI audio</string>
+    <string name="settings_gui_audio_desc">ON: play sound from GUI apps on this device. PulseAudio is installed into the Linux side on first use (downloads a few MB). OFF: no audio, no extra packages.</string>
     <string name="settings_ambiguous_width">Treat ambiguous-width chars as 2 cells</string>
     <string name="settings_ambiguous_width_desc">For CJK locales (works for PowerLine glyphs etc.)</string>
     <string name="settings_keep_alive">Background service</string>

@@ -517,6 +517,12 @@ fun SettingsSheet(
                     checked = settings.cleanInstallGuiArmed,
                     onChange = { session.setCleanInstallGuiArmed(it) }
                 )
+                ToggleField(
+                    title = stringResource(R.string.settings_gui_audio),
+                    description = stringResource(R.string.settings_gui_audio_desc),
+                    checked = settings.guiAudioEnabled,
+                    onChange = { session.setGuiAudioEnabled(it) }
+                )
                 Text(
                     text = stringResource(R.string.settings_gui_terminal_note),
                     color = ZtsTextSecondary,

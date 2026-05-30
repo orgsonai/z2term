@@ -213,6 +213,7 @@ class TerminalSession(
     fun setKeyboardMode(mode: String) { scope.launch { settings.setKeyboardMode(mode) } }
     fun setKeepAliveService(enabled: Boolean) { scope.launch { settings.setKeepAliveService(enabled) } }
     fun setConfirmBeforeDownload(enabled: Boolean) { scope.launch { settings.setConfirmBeforeDownload(enabled) } }
+    fun setGuiAudioEnabled(enabled: Boolean) { scope.launch { settings.setGuiAudioEnabled(enabled) } }
     fun setGuiTerminal(id: String) { scope.launch { settings.setGuiTerminal(id) } }
     fun setGuiMagnification(value: Float) { scope.launch { settings.setGuiMagnification(value) } }
     fun setCleanInstallGuiArmed(armed: Boolean) { scope.launch { settings.setCleanInstallGuiArmed(armed) } }

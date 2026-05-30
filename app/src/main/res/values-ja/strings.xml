@@ -28,6 +28,8 @@
     <string name="settings_section_gui_terminal">GUI ターミナル</string>
     <string name="settings_gui_magnification">GUI 表示倍率 (次回 GUI 起動から反映)</string>
     <string name="settings_clean_install">クリーンインストール</string>
+    <string name="settings_gui_audio">GUI 音声</string>
+    <string name="settings_gui_audio_desc">ON: GUI アプリの音をこの端末で鳴らします。初回 ON 時に Linux 側へ PulseAudio を導入します (数 MB 取得)。OFF: 音は鳴らさず追加パッケージも入れません。</string>
     <string name="settings_ambiguous_width">全角曖昧文字を 2 セル幅扱い</string>
     <string name="settings_ambiguous_width_desc">CJK ロケール向け (PowerLine 記号などに有効)</string>
     <string name="settings_keep_alive">バックグラウンド常駐</string>
