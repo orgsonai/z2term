@@ -53,32 +53,42 @@ class AudioBridge(private val port: Int) {
         val minBuf = AudioTrack.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, ENCODING)
         // 余裕を持たせて再生バッファ詰まりを避ける (目安: getMinBufferSize * 4)。
         val bufSize = (if (minBuf > 0) minBuf * 4 else SAMPLE_RATE * BYTES_PER_FRAME).coerceAtLeast(8192)
+        Log.i(TAG, "loop start minBuf=$minBuf bufSize=$bufSize")
         while (running) {
             var socket: Socket? = null
             try {
-                socket = Socket().apply {
-                    connect(InetSocketAddress("127.0.0.1", port), CONNECT_TIMEOUT_MS)
-                    tcpNoDelay = true
-                }
-                val input = socket.getInputStream()
+                // 注意: Socket().apply { connect(InetSocketAddress("127.0.0.1", port)) } は不可。
+                // apply 内では this=Socket となり `port` が Socket.getPort()(未接続=0) に解決され、
+                // 127.0.0.1:0 へ繋ぎにいって ECONNREFUSED になる。フィールドの port を明示参照する。
+                val s = Socket()
+                s.connect(InetSocketAddress("127.0.0.1", port), CONNECT_TIMEOUT_MS)
+                s.tcpNoDelay = true
+                socket = s
+                val input = s.getInputStream()
                 val t = buildTrack(bufSize)
                 track = t
                 t.play()
+                Log.i(TAG, "connected 127.0.0.1:$port trackState=${t.state} playState=${t.playState}")
                 val buf = ByteArray(bufSize)
+                var total = 0L
+                var logged = false
                 while (running) {
                     val n = input.read(buf)
-                    if (n < 0) break          // PulseAudio 側が切断 → 再接続へ
+                    if (n < 0) { Log.w(TAG, "EOF from PulseAudio (total=$total)"); break }
                     var off = 0
                     while (off < n && running) {
                         val w = t.write(buf, off, n - off)
-                        if (w <= 0) break     // ERROR / 一時停止 → このセッションを畳んで再接続
+                        if (w <= 0) { Log.w(TAG, "AudioTrack.write rc=$w"); break }
                         off += w
                     }
+                    total += n
+                    if (!logged && total > 0) { Log.i(TAG, "first audio written ($total bytes)"); logged = true }
                 }
             } catch (_: InterruptedException) {
                 break
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 // 接続拒否 (PulseAudio 未起動) / リセット等 → running の間はリトライ。
+                Log.w(TAG, "connect/read error on :$port — ${e.javaClass.simpleName}: ${e.message}")
             } finally {
                 runCatching { socket?.close() }
                 releaseTrack()
@@ -87,6 +97,7 @@ class AudioBridge(private val port: Int) {
                 try { Thread.sleep(RETRY_DELAY_MS) } catch (_: InterruptedException) { break }
             }
         }
+        Log.i(TAG, "loop end (running=$running)")
     }
 
     private fun buildTrack(bufSize: Int): AudioTrack {

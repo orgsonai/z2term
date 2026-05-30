@@ -388,7 +388,13 @@ fun z2guiScript(
         |  [ -f "${d}PA_CFG/client.conf" ] || printf 'autospawn = no\nenable-shm = no\n' > "${d}PA_CFG/client.conf" 2>/dev/null
         |  # 既に起動済みなら起こし直さない (start_x 再入や複数アプリ起動でも 1 つに保つ)。
         |  if ! pactl info >/dev/null 2>&1; then
-        |    pulseaudio --start --exit-idle-time=-1 --disallow-exit \
+        |    # 重要: 既定 /etc/pulse/default.pa は module-udev-detect / module-alsa 等のハード検出を
+        |    # load するが、proot では inotify/ALSA が無く「Daemon startup failed」で起動ごと落ちる。
+        |    # `-n` で既定スクリプトを読まず、必要なモジュールだけ明示 load した最小構成で起こす。
+        |    pulseaudio -n --daemonize=yes --exit-idle-time=-1 \
+        |      --load="module-native-protocol-unix" \
+        |      --load="module-null-sink sink_name=z2sink rate=48000 channels=2 sink_properties=device.description=z2term" \
+        |      --load="module-simple-protocol-tcp record=true source=z2sink.monitor format=s16le rate=48000 channels=2 listen=127.0.0.1 port=${d}APORT" \
         |      --log-target="file:/tmp/z2gui-audio-${d}{DISPLAY_NUM}.log" >/dev/null 2>&1
         |    k=0
         |    while [ ${d}k -lt 30 ] && ! pactl info >/dev/null 2>&1; do sleep 0.1; k=${d}((k+1)); done
