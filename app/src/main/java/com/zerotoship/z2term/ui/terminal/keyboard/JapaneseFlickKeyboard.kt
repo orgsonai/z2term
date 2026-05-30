@@ -45,6 +45,10 @@ import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsGreenBright
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import kotlin.math.abs
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 /**
  * 内蔵の日本語フリックキーボード (ひらがな直接入力)。標準的な 12 キー配列。
@@ -150,9 +154,15 @@ fun JapaneseFlickKeyboard(
             JpFlickKey(KANA_A, style, ::emitKana)
             JpFlickKey(KANA_KA, style, ::emitKana)
             JpFlickKey(KANA_SA, style, ::emitKana)
-            JpKey("⌫", style, repeatable = true, weight = JP_EDGE_WEIGHT) {
-                if (!composing.backspace()) onBytes(byteArrayOf(0x7F))
-            }
+            // ⌫: タップ=1文字削除、長押し連打、左フリック=単語削除(Ctrl+W)、
+            //     右フリック=全削除(Ctrl+U)。英字キーボードの BackspaceKey と挙動を統一。
+            JpBackspaceKey(
+                style = style,
+                weight = JP_EDGE_WEIGHT,
+                onTap = { if (!composing.backspace()) onBytes(byteArrayOf(0x7F)) },
+                onFlickLeft = { if (composing.isActive) composing.reset() else onBytes(byteArrayOf(0x17)) },
+                onFlickRight = { if (composing.isActive) composing.reset() else onBytes(byteArrayOf(0x15)) }
+            )
         }
         // Row 2: ◀  た  な  は  ▶
         //   スプリット変換中は ◀ ▶ をフォーカス範囲調整に流用 (左 = 縮める / 右 = 広げる)。
@@ -275,6 +285,93 @@ private fun RowScope.JpKey(
             text = label,
             color = fg,
             fontSize = (style.keyFontSp * fontScale).sp,
+            fontWeight = FontWeight.Medium,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+/**
+ * 日本語キーボードの ⌫ 専用キー (英字キーボードの BackspaceKey と挙動を統一)。
+ * タップ=単発削除、長押し=連打 (500ms 後 60ms 間隔)、
+ * 左フリック=[onFlickLeft] (単語削除 Ctrl+W)、右フリック=[onFlickRight] (全削除 Ctrl+U)。
+ */
+@Composable
+private fun RowScope.JpBackspaceKey(
+    style: KeyboardStyle,
+    weight: Float,
+    onTap: () -> Unit,
+    onFlickLeft: () -> Unit,
+    onFlickRight: () -> Unit
+) {
+    var pressed by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val currentOnTap by rememberUpdatedState(onTap)
+    val currentOnFlickLeft by rememberUpdatedState(onFlickLeft)
+    val currentOnFlickRight by rememberUpdatedState(onFlickRight)
+    val bg = if (pressed) ZtsGreenBright else ZtsBgCard
+    val fg = if (pressed) Color.Black else ZtsTextPrimary
+    val border = if (pressed) ZtsGreen else ZtsBorder
+    Box(
+        modifier = Modifier
+            .weight(weight)
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(6.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(6.dp))
+            .pointerInput(Unit) {
+                val flickThreshold = viewConfiguration.touchSlop * 1.4f
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        pressed = true
+                        val startX = down.position.x
+                        val startY = down.position.y
+                        var resolved = false       // フリック発火済み
+                        var repeatStarted = false  // 長押し連打開始
+                        var repeatJob: Job? = null
+
+                        repeatJob = scope.launch {
+                            delay(500)
+                            if (!resolved) {
+                                repeatStarted = true
+                                currentOnTap()
+                                while (isActive) {
+                                    delay(60)
+                                    currentOnTap()
+                                }
+                            }
+                        }
+
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Main)
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            val dx = change.position.x - startX
+                            val dy = change.position.y - startY
+                            if (!resolved && !repeatStarted &&
+                                abs(dx) > flickThreshold && abs(dx) > abs(dy)
+                            ) {
+                                resolved = true
+                                repeatJob.cancel()
+                                if (dx < 0) currentOnFlickLeft() else currentOnFlickRight()
+                                change.consume()
+                            }
+                            if (!change.pressed) {
+                                repeatJob.cancel()
+                                if (!resolved && !repeatStarted) currentOnTap()
+                                break
+                            }
+                        }
+                        pressed = false
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "⌫",
+            color = fg,
+            fontSize = style.keyFontSp.sp,
             fontWeight = FontWeight.Medium,
             fontFamily = FontFamily.Monospace
         )
