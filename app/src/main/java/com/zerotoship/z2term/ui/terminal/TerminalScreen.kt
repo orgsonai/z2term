@@ -62,9 +62,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -121,8 +118,6 @@ import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 
 /** キーボードモード。CUSTOM=独自キーボード、SYSTEM=OS IME + 特殊キーバー */
 enum class KeyboardMode { CUSTOM, SYSTEM }
@@ -789,21 +784,6 @@ private fun GuiTabScreen(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // アプリ内スクロール用の明示ボタン (2本指スクロールが分かりにくいため右端中央に常駐)。
-                // 押しっぱなしで連続スクロール。GUI アプリへホイール上/下を送る。
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .padding(end = 6.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(ZtsBgSecondary.copy(alpha = 0.66f))
-                        .border(1.dp, ZtsBorder, RoundedCornerShape(18.dp)),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    GuiScrollButton("▲") { gui.rfb.scrollWheel(up = true, notches = 2) }
-                    GuiScrollButton("▼") { gui.rfb.scrollWheel(up = false, notches = 2) }
-                }
-
                 // キーボードを GUI に上乗せ (オーバーレイ。解像度は変えない)。▾ で折りたためる。
                 // SYSTEM 時は OS IME の上に出すため imePadding。
                 // サイド配置 (横画面 左/右) のときはここに本体は出さない (Row の左/右にある)。
@@ -1107,46 +1087,6 @@ private fun TopBarIconButton(label: String, enabled: Boolean = true, onClick: ()
             text = label,
             color = fg,
             fontSize = 13.sp,
-            fontFamily = FontFamily.Monospace
-        )
-    }
-}
-
-/**
- * GUI 用スクロールボタン (▲/▼)。タップで 1 回、押しっぱなしで連続スクロール。
- */
-@Composable
-private fun GuiScrollButton(label: String, onScroll: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    val current by rememberUpdatedState(onScroll)
-    Box(
-        modifier = Modifier
-            .size(width = 44.dp, height = 38.dp)
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        current()  // 押した瞬間に 1 回
-                        val job = scope.launch {
-                            delay(350)
-                            while (isActive) { current(); delay(90) }
-                        }
-                        while (true) {
-                            val ev = awaitPointerEvent(PointerEventPass.Main)
-                            val ch = ev.changes.firstOrNull { it.id == down.id }
-                            if (ch == null || !ch.pressed) break
-                        }
-                        job.cancel()
-                    }
-                }
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            color = ZtsTextPrimary,
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace
         )
     }

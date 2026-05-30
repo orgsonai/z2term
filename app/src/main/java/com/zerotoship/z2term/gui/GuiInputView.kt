@@ -82,7 +82,11 @@ class GuiInputView(context: Context) : View(context) {
     private var prevSpan = 0f
     private var prevCx = 0f
     private var prevCy = 0f
-    private var scrollAccumY = 0f        // 等倍時のホイール用 (画面 px 蓄積)
+    private var scrollAccumY = 0f        // ホイール用 (画面 px 蓄積)
+    // --- 3 本指ジェスチャ (アプリ内スクロール) ---
+    private var scrollGesture = false    // 一度 3 本指になったら全指が離れるまでスクロール扱い
+    private var prevCx3 = 0f
+    private var prevCy3 = 0f
 
     init {
         isFocusable = true
@@ -205,13 +209,16 @@ class GuiInputView(context: Context) : View(context) {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val action = event.actionMasked
 
-        // 2 本指: ピンチ=ズーム / ドラッグ=ズーム中はパン・等倍時はホイール（gesture には渡さない）
+        // 2 本指: ピンチ=ズーム / ドラッグ=ズーム中はパン・等倍時はホイール
+        // 3 本指: アプリ内スクロール (縦移動をホイールへ。ズーム/パンはしない)
         if (event.pointerCount >= 2) {
             if (dragHeld) releaseDrag() // 1→2 本指に増えたらドラッグ保持を解除
             if (pendingRightClick) {    // 2 本指へ移行 → 保留中の右クリック判定は破棄 (T3)
                 cancelRightClickTimer()
                 pendingRightClick = false
             }
+            // 一度でも 3 本指になったら、指が 2 本に減っても全部離すまでスクロール扱い。
+            if (event.pointerCount >= 3) scrollGesture = true
             if (!twoFingerActive) {
                 // 保留中のタップ/ダブルタップ判定を gesture からも捨てる (T3 の保険)。
                 val cancel = MotionEvent.obtain(event)
@@ -221,14 +228,17 @@ class GuiInputView(context: Context) : View(context) {
                 twoFingerActive = true
                 prevSpan = spanOf(event)
                 val c = centroidOf(event); prevCx = c.first; prevCy = c.second
+                val a = avgCentroid(event); prevCx3 = a.first; prevCy3 = a.second
                 scrollAccumY = 0f
             } else if (action == MotionEvent.ACTION_MOVE) {
-                handleTwoFingerTransform(event)
+                if (scrollGesture) handleThreeFingerScroll(event)
+                else handleTwoFingerTransform(event)
             }
             twoFinger = true
             return true
         }
         twoFingerActive = false
+        scrollGesture = false
 
         if (twoFinger) {
             // 2→1 本指へ戻った直後。全指が離れるまでクリック等を起こさない。
@@ -301,6 +311,24 @@ class GuiInputView(context: Context) : View(context) {
         prevSpan = span
         prevCx = cx
         prevCy = cy
+    }
+
+    /** 全ポインタの重心 (3 本指スクロール用)。 */
+    private fun avgCentroid(e: MotionEvent): Pair<Float, Float> {
+        val n = e.pointerCount
+        if (n <= 0) return e.x to e.y
+        var sx = 0f; var sy = 0f
+        for (i in 0 until n) { sx += e.getX(i); sy += e.getY(i) }
+        return (sx / n) to (sy / n)
+    }
+
+    /** 3 本指の縦移動をホイールに変換 (アプリ内スクロール)。ズーム/パンはしない。 */
+    private fun handleThreeFingerScroll(event: MotionEvent) {
+        val (cx, cy) = avgCentroid(event)
+        val dy = cy - prevCy3
+        prevCx3 = cx
+        prevCy3 = cy
+        accumulateWheel(dy, cx, cy)
     }
 
     private fun spanOf(e: MotionEvent): Float {

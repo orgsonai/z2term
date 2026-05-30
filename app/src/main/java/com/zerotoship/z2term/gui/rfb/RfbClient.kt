@@ -219,19 +219,6 @@ class RfbClient(
     }
 
     /**
-     * ホイールスクロールを [notches] ノッチ送る (アプリ内スクロール用)。
-     * 位置は省略時 FB 中央。UI のスクロールボタンから呼ぶ。
-     */
-    fun scrollWheel(up: Boolean, notches: Int = 1, x: Int = width / 2, y: Int = height / 2) {
-        if (closed || width <= 0 || height <= 0) return
-        val btn = if (up) BTN_WHEEL_UP else BTN_WHEEL_DOWN
-        repeat(notches.coerceAtLeast(1)) {
-            sendPointerEvent(btn, x, y)
-            sendPointerEvent(0, x, y)
-        }
-    }
-
-    /**
      * キーイベント (RFB type 4) を送る。**UI スレッドから呼んでよい**（書き込みは [sender] に退避）。
      * keysym は X11 の値（[com.zerotoship.z2term.gui.GuiKeyMapper] で変換）。
      */
