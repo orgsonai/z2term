@@ -221,9 +221,10 @@ class TerminalEmulator(
     private fun ensureRoomFor(width: Int) {
         if (cursorCol + width > buffer.columns) {
             if (autoWrap) {
+                // 折り返し「元」の行に印を付ける (消費側 UrlFinder/getAllText の規約に合わせる)。
+                buffer.getScreenRow(cursorRow).wrapped = true
                 cursorCol = 0
                 lineFeed()
-                buffer.getScreenRow(cursorRow).wrapped = true
             }
         }
     }
@@ -860,9 +861,10 @@ class TerminalEmulator(
     private fun putChar(c: Char) {
         if (cursorCol >= buffer.columns) {
             if (autoWrap) {
+                // 折り返し「元」の行に印を付ける (消費側 UrlFinder/getAllText の規約に合わせる)。
+                buffer.getScreenRow(cursorRow).wrapped = true
                 cursorCol = 0
                 lineFeed()
-                buffer.getScreenRow(cursorRow).wrapped = true
             } else {
                 cursorCol = buffer.columns - 1
             }
