@@ -62,6 +62,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -118,6 +121,8 @@ import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 /** キーボードモード。CUSTOM=独自キーボード、SYSTEM=OS IME + 特殊キーバー */
 enum class KeyboardMode { CUSTOM, SYSTEM }
@@ -254,14 +259,13 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // キーボードモード変更時は変換中バッファを破棄 (OS IME と二重表示を防ぐ)。
     LaunchedEffect(keyboardMode, keyboardCollapsed) { composing.reset() }
 
-    // 起動時に保存されたキーボードモードを 1 度だけ復元 (毎回 OS IME に切替える手間を省く)
-    var restoredMode by remember { mutableStateOf(false) }
+    // 保存されたキーボードモードに常に追従する。keyboardMode を変えるのはトグル
+    // (= setKeyboardMode で settings に永続化) だけなので、settings に追従しても競合しない。
+    // 一度きりの復元だと settingsFlow の初期値 (既定=custom) を先に拾って固定され、
+    // CUI/GUI の不一致 (GUI で内蔵+SYS 二重) や再起動時に SYS へ戻らない不具合になる。
     LaunchedEffect(settings.keyboardMode) {
-        if (!restoredMode) {
-            keyboardMode = if (settings.keyboardMode == "system")
-                KeyboardMode.SYSTEM else KeyboardMode.CUSTOM
-            restoredMode = true
-        }
+        keyboardMode = if (settings.keyboardMode == "system")
+            KeyboardMode.SYSTEM else KeyboardMode.CUSTOM
     }
 
     // 常駐サービスの起動/停止を設定に追従させる。
@@ -617,14 +621,11 @@ private fun GuiTabScreen(
     val rootView = LocalView.current
     LaunchedEffect(keepScreenOn) { applyKeepScreenOn(context, rootView, keepScreenOn) }
 
-    // 起動時に保存済みキーボードモードを 1 度だけ復元 (端末と挙動を揃える)。
-    var restoredMode by remember { mutableStateOf(false) }
+    // 保存済みキーボードモードに常に追従 (端末と同一仕様)。一度きりの復元だと
+    // settingsFlow の初期値を先に拾って固定され「GUI で内蔵+SYS 二重表示」になるため。
     LaunchedEffect(settings.keyboardMode) {
-        if (!restoredMode) {
-            keyboardMode = if (settings.keyboardMode == "system")
-                KeyboardMode.SYSTEM else KeyboardMode.CUSTOM
-            restoredMode = true
-        }
+        keyboardMode = if (settings.keyboardMode == "system")
+            KeyboardMode.SYSTEM else KeyboardMode.CUSTOM
     }
 
     // かな漢字変換: 確定文字列は keysym で GUI へ送る (端末はバイト送出、GUI は keysym 経路)。
@@ -787,6 +788,21 @@ private fun GuiTabScreen(
                     onCtrlConsumed = { ctrlSticky = false },
                     modifier = Modifier.fillMaxSize()
                 )
+
+                // アプリ内スクロール用の明示ボタン (2本指スクロールが分かりにくいため右端中央に常駐)。
+                // 押しっぱなしで連続スクロール。GUI アプリへホイール上/下を送る。
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 6.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(ZtsBgSecondary.copy(alpha = 0.66f))
+                        .border(1.dp, ZtsBorder, RoundedCornerShape(18.dp)),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    GuiScrollButton("▲") { gui.rfb.scrollWheel(up = true, notches = 2) }
+                    GuiScrollButton("▼") { gui.rfb.scrollWheel(up = false, notches = 2) }
+                }
 
                 // キーボードを GUI に上乗せ (オーバーレイ。解像度は変えない)。▾ で折りたためる。
                 // SYSTEM 時は OS IME の上に出すため imePadding。
@@ -1091,6 +1107,46 @@ private fun TopBarIconButton(label: String, enabled: Boolean = true, onClick: ()
             text = label,
             color = fg,
             fontSize = 13.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+/**
+ * GUI 用スクロールボタン (▲/▼)。タップで 1 回、押しっぱなしで連続スクロール。
+ */
+@Composable
+private fun GuiScrollButton(label: String, onScroll: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val current by rememberUpdatedState(onScroll)
+    Box(
+        modifier = Modifier
+            .size(width = 44.dp, height = 38.dp)
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        current()  // 押した瞬間に 1 回
+                        val job = scope.launch {
+                            delay(350)
+                            while (isActive) { current(); delay(90) }
+                        }
+                        while (true) {
+                            val ev = awaitPointerEvent(PointerEventPass.Main)
+                            val ch = ev.changes.firstOrNull { it.id == down.id }
+                            if (ch == null || !ch.pressed) break
+                        }
+                        job.cancel()
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = ZtsTextPrimary,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace
         )
     }
