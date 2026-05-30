@@ -1,10 +1,10 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-05-21 / 対象バージョン: 0.6.0-alpha (M7)
+最終更新: 2026-05-31 / 対象バージョン: 0.8.3-alpha (versionCode 11, M12)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/HANDBOOK.md` を参照。
-> セッション間の進捗引き継ぎは `docs/M7-HANDOFF.md` を参照。
+> セッション間の進捗引き継ぎは `docs/M12-HANDOFF.md`（最新）および各 `M*-HANDOFF.md` を参照。
 
 ---
 
@@ -34,6 +34,8 @@
 - **自前の UI / キーボード**: Jetpack Compose。独自フリックキーボード (英字 + 日本語/カタカナ) と OS IME を切替可能。
 - **SSH 両方向**: 端末から外部へ (JSch クライアント)、PC から端末へ (dropbear サーバ)。
 - **ファイル連携**: SAF DocumentsProvider で他アプリから rootfs/ホームを R/W、proot 内から Android 共有ストレージへ `cd`。
+- **GUI デスクトップ**: distro 内で Xvnc + 軽量 WM/アプリを起動し、内蔵 RFB(VNC) クライアントで表示（`gui/` パッケージ）。動画はソフト描画、音声はオプトインで PulseAudio→TCP→AudioTrack ブリッジ（`AudioBridge`）。
+- **実行エンジン**: 既定は PRoot。**root 端末では裏設定で「実 chroot」エンジン**に切替可（`su` 経由 bind mount + `chroot`。`executionEngine`）。
 
 対応 ABI は **arm64-v8a のみ**。最低 Android 10 (API 29)、ターゲット API 35。
 
@@ -99,8 +101,9 @@
 
 **ライフサイクル設計の要点**:
 - `TerminalSession` は **UI から独立**して生存 (`SessionManager` が保持)。Activity 破棄でも PTY/emulator 状態を維持。
-- `TerminalService` (フォアグラウンドサービス) が常駐化を担い、バックグラウンドでも PTY を維持する。
+- `TerminalService` (フォアグラウンドサービス) が常駐化を担い、バックグラウンドでも PTY を維持する。`AudioBridge`(GUI 音声) も同サービス系で扱う。
 - emulator の状態更新は **専用シングルスレッド** (`z2term-emu-*`) に集約し、Compose は `StateFlow` 経由で読む。
+- **GUI デスクトップ**は別 Activity (`GuiActivity`) として起動し、distro 内 Xvnc に内蔵 RFB クライアントで接続する（[§4.12](#412-gui-デスクトップ-gui)）。実行エンジンは PRoot 既定、root 端末のみ裏設定で chroot に切替（[§4.3](#43-proot-実行-prootprootlauncherkt-prootsshdscriptkt)）。
 
 ---
 
@@ -128,8 +131,15 @@
 - **共有ホーム**: `filesDir/shared_home` を全 distro 共通で `/root` にバインド (← 端末の `~` の実体)。
 - `resolveShell`: 指定シェルが rootfs に無ければ `defaultShell → /bin/sh` にフォールバック (usrmerge 考慮)。
 - `isDistroReady`: `bin/busybox|bin/bash` 等の実体 + `.z2term-version` マーカー (同梱 distro のみ `ROOTFS_VERSION` 比較)。
-- 起動毎に冪等で注入: `ensureShellHistoryConfig` (履歴 rc)、`ensureSshdWrapper` (`/usr/local/sbin/sshd` = dropbear ラッパー)。
+- 起動毎に冪等で注入: `ensureShellHistoryConfig` (履歴 rc)、`ensureSshdWrapper` (`/usr/local/sbin/sshd` = dropbear ラッパー)、`ensureOsc7CwdConfig` (cwd 復元用 OSC7 フック)、`ensureZ2ApiScripts` (`z2-*` ブリッジ)、GUI/z2run スクリプト。
 - `launchAndroidSh`: proot 不可時のフォールバック (`/system/bin/sh` + 最小 mkshrc)。
+
+**実行エンジン chroot (裏機能・要 root)**: `executionEngine = "chroot"` のとき `launchChroot()` を使う。
+
+- `probeRootChroot()`: `su -c id`(uid=0) + `su -c "chroot <rootfs> /bin/sh -c echo"` のセルフテスト。OK のときだけ設定で解放（バージョン 7 回タップ → `rootChrootUnlocked=true`）。結果は `RootProbe`(Ok/NoRoot/ChrootBlocked)。
+- `launchChroot()`: `su -c` で bind mount(/dev,/dev/pts,/proc,/sys,/root,/sdcard) → `chroot` → login shell。`ensure*`(z2-*/OSC7/履歴/sshd/gui/z2run) は proot 経路と共通で流用。
+- **Ctrl+C / ジョブ制御**: su 経由だと制御端末を所有できないため、login shell を **`setsid -c` 経由**で起動して有効化。
+- chroot 起動失敗時は proot へ自動フォールバック（`TerminalSession.startTerminal`）。SELinux Enforcing 下の root 端末(moto g13/Magisk)で end-to-end 検証済み。`full` フレーバー専用。
 
 ### 4.4 ディストロ管理 (`distro/`)
 
@@ -147,8 +157,11 @@
   - 文字幅: East Asian Width 対応 (`ambiguousAsWide` 設定で曖昧幅を 2 セル化)。サロゲートペア対応。
   - SGR: 太字/下線/反転/取消線、16/256/RGB(truecolor)。
   - DEC モード: 代替画面、カーソルキー (DECCKM)、**マウスレポート** (X10/Normal/Button/Any × Legacy/SGR/urxvt)。
-  - OSC: 7(cwd)/8(hyperlink)/10-12(前景/背景/カーソル色、`?` で query 応答)/52(クリップボード)/palette。
+  - OSC: 7(cwd)/8(hyperlink)/10-12(前景/背景/カーソル色、`?` で query 応答)/52(クリップボード)/palette。OSC タイトルは UTF-8 デコード（日本語タブ名の文字化け防止）。
+  - **URL/OSC8 リンクのセルに下線表示**。長い URL は折り返し元の行に wrapped フラグを持たせて検出（タップで開く）。
+  - bracketed paste (DECSET 2004) 対応。
   - `cursorKeyBytes`, `encodeMouseEvent`, `resize`(cursor-aware), scrollback。
+- `SearchEngine` (M11): スクロールバック全文検索。🔍 → 文字入力 → ↑↓ で前後ジャンプ。CJK は **セル列**でハイライト位置を計算。
 - `TerminalBuffer`/`TerminalRow`/`TerminalCell`/`SgrAttribute`: セル格納とスクロールバック。
 - `TerminalColors`/`AvailableThemes`: 9 テーマ (ZTS / Solarized Dark / Dracula / Gruvbox Dark / Nord / Tokyo Night / Catppuccin Mocha / Catppuccin Latte / Monokai)。
 
@@ -159,6 +172,7 @@
   - emulator 専用 dispatcher、PTY 読みループ、`writeBytes`、resize、`startTerminal`/`switchDistro`/`restart`/`reinstallDistro`/`startSsh`。
   - `StateFlow`: uiState / redrawTick(≈60fps コアレッシング) / scrollOffset / cellMetrics / selection / cwd / label / settingsFlow。
 - `TerminalSelection` / `CellMetrics`: 選択範囲 (絶対行) と 1 セル寸法。
+- `SessionStore`/`SessionManager` (M11): タブ構成 `{id,label,distro,cwd}` + activeId を DataStore に保存し、OS kill 後の再起動で復元（GUI タブは対象外）。各タブは新規 PTY で起動し `cd <cwd>` をベストエフォートで流す。**cwd は OSC7 でのみ捕捉**（`ensureOsc7CwdConfig` が bash/zsh のプロンプトフックで OSC7 を吐かせる）。「通知の停止」では空保存して復元しない。
 
 ### 4.7 通信チャネル (`channel/`)
 
@@ -197,6 +211,19 @@
 - `settings/SettingsSheet.kt` + `SshAccessHelper.kt`: 設定モーダル + SSH/ストレージ ヘルパー。
 - `ssh/SshProfilesSheet.kt` + `HostKeyVerificationDialog.kt`: SSH プロファイル UI + 鍵検証。
 - `snippets/SnippetsSheet.kt`: コマンドスニペット (1 行タップで挿入、並替/編集)。
+
+### 4.12 GUI デスクトップ (`gui/`)
+
+- distro 内で **Xvnc**(VNC サーバ) + 軽量 WM/アプリを起動（`proot/GuiScript.kt` が冪等で配置・起動。GUI 自動起動 / 横画面対応）。
+- `GuiSession`/`GuiActivity`/`GuiScreen`/`GuiViewport`/`GuiInputView`/`GuiKeyMapper`/`GuiEventWatcher` + `gui/rfb/RfbClient.kt`(内蔵 RFB クライアント)。端末タブと GUI タブをペアリングし IME 連動。
+- **入力**: `GuiInputView` のジェスチャ — **2 本指 = ピンチ(ズーム/パン)**、**3 本指縦移動 = ホイール上/下スクロール**（一度 3 本指になったら全指が離れるまでスクロール扱い）。旧スクロールボタンと `RfbClient.scrollWheel` は撤去。
+- **動画**: GPU 無し端末で `gpu` 出力が失敗するため、mpv を **`vo=x11` 既定 + `LIBGL_ALWAYS_SOFTWARE`** でソフト描画させて正常再生。
+- **音声 (`service/AudioBridge.kt`)**: **オプトイン**（設定「GUI 音声」`guiAudioEnabled` ON 時のみ）。distro 内 PulseAudio(`-n` 方式で起動) → TCP → Android `AudioTrack` でブリッジ。
+
+### 4.13 Android API ブリッジ (`Z2ApiBridge` / `Z2ApiScript`)
+
+- 端末から Android 機能を叩くコマンド群: `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip (set/get)` / `z2-battery` / `z2-vibrate`。
+- `ProotLauncher.ensureZ2ApiScripts` が launch 毎に `/usr/local/bin` へ書き出す。req/resp は `getExternalFilesDir/z2api` を `FileObserver` で監視、引数は base64、atomic rename。
 
 ---
 
@@ -299,17 +326,22 @@ TerminalScreen: active が IDLE なら startTerminal()
 | 曖昧幅を全角 | ambiguousAsWide | false | true/false |
 | 初期コマンド | initCommand | "" | 任意 |
 | ログインシェル | loginShell | "/bin/zsh" | /bin/zsh, /bin/bash, /bin/sh |
-| キーボードスタイル | keyboardStyleId | "compact" | compact / spacious |
+| キーボードスタイル | keyboardStyleId | "spacious" | compact / spacious |
 | キーボードモード | keyboardMode | "custom" | custom / system |
 | 横画面キーボード位置 | landscapeKeyboardPosition | "bottom" | left / bottom / right |
 | 横画面サイドKB幅 | landscapeKeyboardWidthDp | 420 | 280–700 dp |
 | 横画面キーボード高さ | landscapeKeyboardHeightDp | 320 | 200–500 dp |
-| インストールタイムアウト無効化 | noInstallTimeout | false | true/false |
+| 縦画面キーボード高さ | portraitKeyboardHeightDp | 320 | 200–500 dp |
+| GUI ターミナル | guiTerminalId | "xterm" | GUI 内で起動するターミナル |
+| GUI 音声 | guiAudioEnabled | false | true/false（オプトイン PulseAudio ブリッジ） |
+| GUI 拡大率 | guiMagnification | 1.5 | 0.5–3.0 |
 | ダウンロード前確認 | confirmBeforeDownload | true | true/false |
 | 常駐サービス | keepAliveService | true | true/false |
+| 実行エンジン (裏設定) | executionEngine | "proot" | proot / chroot（root 解放時のみ） |
+| chroot 解放フラグ (裏設定) | rootChrootUnlocked | false | バージョン 7 回タップで true |
 | 言語 | (専用 SharedPrefs `z2term_locale`) | OS 既定 | ja / en |
 
-SSH プロファイルは別 DataStore (`z2term_ssh`) に JSON で保存。
+`noInstallTimeout`（インストールタイムアウト無効化）・`cleanInstallGuiArmed`（GUI クリーン再展開フラグ）等も DataStore (`z2term_settings`) に保持。SSH プロファイルは別 DataStore (`z2term_ssh`) に JSON で保存。
 
 ---
 
@@ -358,6 +390,10 @@ adb install -r app/build/outputs/apk/foss/debug/app-foss-debug.apk
 - KDoc 内に `*/`(例: `*.tgz`) を書くとコメント早閉じ。
 - `setUnixMode` は owner-only 必須 (world-writable だと sudo 拒否)。
 - proot launch で固定 `/bin/sh` だと busybox ash が走り zsh 機能が使えない → `resolveShell`。
+- **chroot エンジンは su 経由だと制御端末を所有できず Ctrl+C/ジョブ制御が効かない** → login shell を `setsid -c` 経由で起動。
+- **GUI 動画**: GPU 無し端末で mpv の `gpu` 出力は化け/半分描画になる → `vo=x11` 既定 + `LIBGL_ALWAYS_SOFTWARE`。
+- **GUI 音声**: PulseAudio は `-n` 方式で起動しないと既存設定と競合。`AudioBridge` の接続先 port を 0 のまま渡すと無音（既定ポートを明示）。
+- **折り返し URL の検出**: wrapped フラグは「継続行」でなく「折り返し元の行」に持たせる（逆だと長 URL がタップできない）。
 
 ---
 

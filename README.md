@@ -9,9 +9,21 @@
 
 ## 現在のバージョン
 
-**0.7.0-alpha (M10: 横画面キーボード / Konsole 動作 / プレス可視化 / オフライン起動)**
+**0.8.3-alpha (versionCode 11) — M11/M12: スクロールバック検索 / セッション復元 / Android API ブリッジ / root chroot 裏機能 / GUI 音声・動画 / URL 下線 / 三本指スクロール**
 
-Milestone 7〜10 で SFTP、GUI (Xvnc+VNC)、複数 GUI タブ、IME 学習、英語 UI、横画面キーボードなどを実装。
+Milestone 7〜12 で SFTP、GUI (Xvnc+VNC)、複数 GUI タブ、IME 学習、英語 UI、横画面キーボード、スクロールバック検索、セッション復元、root 端末向け chroot エンジン、GUI 音声/動画再生などを実装。
+
+### M11〜M12 で追加された機能
+
+- **スクロールバック検索** (`SearchEngine.kt`): 🔍 → 文字入力 → ↑↓ で前後ジャンプ、CJK セル列でハイライト位置を計算
+- **セッション復元** (`SessionStore.kt`): OS kill 後の再起動でタブ構成 + cwd を復元（cwd は OSC7 で捕捉）
+- **Android API ブリッジ**: 端末から `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip` / `z2-battery` / `z2-vibrate`
+- **root chroot 裏機能** (full フレーバー・要 root): バージョン 7 回タップで「実行エンジン (proot / chroot)」を解放。実 root 端末で検証済み
+- **GUI 動画/音声**: mpv をソフト描画で正常再生、PulseAudio→TCP→AudioTrack の **GUI 音声ブリッジ**（オプトイン）
+- **URL/OSC8 リンクに下線表示**、折り返し長 URL の検出修正
+- **三本指スクロール**: 画面内スクロールボタンを廃止し三本指ドラッグに統一
+- **日本語 IME 強化**: ⌫ 左右フリックで単語/全削除、フリック表記反転、活用辞書、かな連打循環の廃止
+- **OSC タイトル UTF-8 デコード**でタブ名の日本語文字化けを解消
 
 ### M10 で追加された機能
 
@@ -121,7 +133,9 @@ z2term/
 │       │   ├── distro/              ← rootfs 展開 (Alpine + Ubuntu)
 │       │   ├── emulator/            ← VT100/xterm エミュレータコア
 │       │   ├── settings/            ← DataStore 永続化
-│       │   ├── service/             ← TerminalService (foreground + WakeLock)
+│       │   ├── service/             ← TerminalService / AudioBridge (foreground + WakeLock)
+│       │   ├── gui/                  ← GUI (Xvnc + 内蔵 RFB クライアント / GuiSession)
+│       │   ├── saf/                  ← SAF DocumentsProvider
 │       │   └── ui/
 │       │       ├── theme/           ← ZTS Theme + カスタムフォント
 │       │       ├── settings/        ← 設定 UI
@@ -135,12 +149,12 @@ z2term/
 │   ├── libs.versions.toml
 │   └── wrapper/
 ├── docs/
-│   ├── M1-HANDOFF.md
-│   ├── M2-HANDOFF.md
-│   ├── M3-HANDOFF.md
-│   ├── M4-HANDOFF.md
-│   ├── M5-HANDOFF.md
-│   └── M6-HANDOFF.md
+│   ├── DESIGN-SPEC.md             ← 設計書 兼 仕様書（技術文書）
+│   ├── HANDBOOK.md                ← 利用者向けハンドブック
+│   ├── RELEASE.md                 ← リリース手順
+│   ├── SSH-INTO-Z2TERM.md
+│   ├── GUI-REWRITE-HANDOFF.md
+│   └── M1-HANDOFF.md 〜 M12-HANDOFF.md  ← マイルストーン引き継ぎ
 ├── metadata/                     ← F-Droid メタデータ
 └── .github/workflows/build.yml   ← CI (full + foss 両ビルド)
 ```
