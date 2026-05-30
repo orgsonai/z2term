@@ -77,8 +77,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.8.1-alpha"
+        versionCode = 10
+        versionName = "0.8.2-alpha"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
