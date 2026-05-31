@@ -187,6 +187,7 @@ z2term/
 ## ライセンス
 
 本アプリ本体 (`app/src/main/java/com/zerotoship/z2term/**`) のライセンスは **GPL-3.0** です。
+Copyright (c) 2026 Zero to Ship。対応ソース（GPL v3 §6）: <https://github.com/orgsonai/z2term>（ルートの `LICENSE` に全文）。
 同梱バイナリ・rootfs・フォント等のライセンスは下記「同梱 OSS と対応ソース」を参照。
 
 ## 同梱 OSS と対応ソース（GPL/LGPL 頒布要件）

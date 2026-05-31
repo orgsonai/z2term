@@ -207,6 +207,7 @@
     <string name="sftp_action_rename">Rename</string>
 
     <!-- OSS component purposes (D3 batch 4) -->
+    <string name="oss_purpose_z2term">This app itself (terminal UI, session/SSH/SFTP, settings)</string>
     <string name="oss_purpose_proot">User-space chroot/ptrace runtime for running Linux distros</string>
     <string name="oss_purpose_talloc">Memory management library dynamically linked by PRoot</string>
     <string name="oss_purpose_alpine_base">Base system (alpine-base, baselayout, keys)</string>

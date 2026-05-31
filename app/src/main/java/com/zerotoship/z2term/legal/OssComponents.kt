@@ -39,6 +39,15 @@ object OssComponents {
      * (d) フォント、の順で並べる。
      */
     private val all: List<OssComponent> = listOf(
+        // ===== 本アプリ本体 (全フレーバー共通・先頭固定) =====
+        OssComponent(
+            name = "z2term（本アプリ本体）",
+            licenseId = "GPL-3.0",
+            copyright = "Copyright (c) 2026 Zero to Ship",
+            sourceUrl = "https://github.com/orgsonai/z2term",
+            purposeRes = R.string.oss_purpose_z2term,
+        ),
+
         // ===== (a) ネイティブ実行物 (jniLibs に同梱) =====
         OssComponent(
             name = "PRoot",

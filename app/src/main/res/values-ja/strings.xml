@@ -207,6 +207,7 @@
     <string name="sftp_action_rename">名前変更</string>
 
     <!-- OSS コンポーネント用途 (D3 バッチ 4) -->
+    <string name="oss_purpose_z2term">本アプリ本体（ターミナル UI・セッション/SSH/SFTP・設定）</string>
     <string name="oss_purpose_proot">ユーザー空間 chroot/ptrace で Linux ディストロを動作させる中核</string>
     <string name="oss_purpose_talloc">PRoot が動的リンクするメモリ管理ライブラリ</string>
     <string name="oss_purpose_alpine_base">ベースシステム (alpine-base, baselayout, keys)</string>
