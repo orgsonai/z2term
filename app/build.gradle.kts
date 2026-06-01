@@ -11,6 +11,18 @@ val keystoreProps: Properties? = if (keystorePropsFile.exists()) {
     Properties().apply { keystorePropsFile.inputStream().use { load(it) } }
 } else null
 
+// local.properties (環境ごと・git 管理外) から任意設定を読む。
+// `ndk.version` を書いておくと、その NDK を使う。書かなければ AGP 既定に任せる。
+// PC (x86_64) と スマホ z2term の PRoot (ARM64) で必要な NDK が違うため、
+// build.gradle.kts には直書きせず、各環境の local.properties で切り替える。
+//   PC      : sdk.dir=/opt/android-sdk            (ndk.version は不要 = 既定)
+//   z2term  : sdk.dir=/root/android-sdk
+//             ndk.version=29.0.14206865           (termux-ndk r29, ARM64 ホスト用)
+val localProps: Properties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }
+        ?.inputStream()?.use { load(it) }
+}
+
 android {
     namespace = "com.zerotoship.z2term"
     compileSdk = 35
@@ -71,6 +83,12 @@ android {
             jniLibs.srcDirs("src/foss/jniLibs")
             assets.srcDirs("src/main/assets", "src/foss/assets")
         }
+    }
+
+    // local.properties に ndk.version があればそれを使う (環境ごとに切替)。
+    // 無ければ設定せず AGP 既定 NDK に任せる (= PC では普段どおり)。
+    localProps.getProperty("ndk.version")?.takeIf { it.isNotBlank() }?.let {
+        ndkVersion = it
     }
 
     defaultConfig {
