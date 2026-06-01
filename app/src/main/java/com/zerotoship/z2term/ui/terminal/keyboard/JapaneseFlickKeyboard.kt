@@ -170,7 +170,7 @@ fun JapaneseFlickKeyboard(
         //   スプリット変換へ突入する (ユーザー要望: 変換を押さず左右でブロック範囲変更に入る)。
         //   composing が空のときだけ従来どおりカーソルキー送信。
         JpRow(rowSpacing) {
-            JpKey("◀", style, repeatable = true, accent = composing.isActive, weight = JP_EDGE_WEIGHT) {
+            JpKey("◀", style, repeatable = true, weight = JP_EDGE_WEIGHT) {
                 when {
                     composing.isSplitMode -> composing.shrinkSplitHead()
                     composing.isActive -> composing.convert()   // 変換キー相当: スプリット突入
@@ -180,7 +180,7 @@ fun JapaneseFlickKeyboard(
             JpFlickKey(KANA_TA, style, ::emitKana)
             JpFlickKey(KANA_NA, style, ::emitKana)
             JpFlickKey(KANA_HA, style, ::emitKana)
-            JpKey("▶", style, repeatable = true, accent = composing.isActive, weight = JP_EDGE_WEIGHT) {
+            JpKey("▶", style, repeatable = true, weight = JP_EDGE_WEIGHT) {
                 when {
                     composing.isSplitMode -> composing.extendSplitHead()
                     composing.isActive -> composing.convert()   // 変換キー相当: スプリット突入
@@ -199,8 +199,9 @@ fun JapaneseFlickKeyboard(
             JpFlickKey(KANA_YA, style, ::emitKana)
             JpFlickKey(KANA_RA, style, ::emitKana)
             // 変換キー: composing 空 ∧ 再変換可なら label を「再変換」に切替えてユーザーへ示す。
+            // 未確定 (composing 中) は背景を緑にせず静かにする。緑にするのは「再変換」ヒント時のみ。
             val convertLabel = if (!composing.isActive && composing.canReconvert) "再変換" else "変換"
-            val convertAccent = composing.isActive || composing.canReconvert
+            val convertAccent = composing.canReconvert
             JpKey(convertLabel, style, fontScale = 0.65f, accent = convertAccent, weight = JP_EDGE_WEIGHT) {
                 handleConvert()
             }

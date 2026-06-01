@@ -154,7 +154,7 @@ object KanaKanjiConverter {
      * 独立セグメントとして含めるので長文の構造を保ったまま返せる。辞書ヒットが 2 文節未満なら
      * 空 (= 単語 1 個 + かな羅列の誤検出を避ける)。
      *
-     * 使い道は [multiSegmentVariants] と長文時の予測変換生成。
+     * 使い道は [ComposingState] の自動ブロック分割判定 (長文かどうか)。
      */
     fun segmentParts(reading: String, maxSeg: Int = 12): List<Pair<String, List<String>>> {
         if (reading.length < 2 || lines.isEmpty()) return emptyList()
@@ -182,45 +182,6 @@ object KanaKanjiConverter {
             }
         }
         return if (dictSegs >= 2) parts else emptyList()
-    }
-
-    /**
-     * 長文の合成変換バリエーション。[segmentParts] を使い:
-     *  1. 全セグメント第1候補連結 ([segment] と同等)
-     *  2. 各セグメントを第2/第3候補に差し替えた案 (1セグメントずつ)
-     *  3. 末尾セグメントだけ「かな残し」案 (3 文節以上のとき)
-     * を返す。`reading` と一致するものや重複は除外。最大 [limit] 件。
-     */
-    fun multiSegmentVariants(reading: String, limit: Int = 6): List<String> {
-        val parts = segmentParts(reading)
-        if (parts.size < 2) return emptyList()
-        val out = LinkedHashSet<String>()
-        fun joinAt(replaceIdx: Int, alt: String): String = buildString {
-            for ((i, p) in parts.withIndex()) {
-                append(if (i == replaceIdx) alt else (p.second.firstOrNull() ?: p.first))
-            }
-        }
-        // 1. 全セグメント第1候補連結
-        val base = joinAt(-1, "")
-        if (base.isNotEmpty() && base != reading) out.add(base)
-        // 2. 各セグメント 1 個ずつを第2/第3候補で差し替え
-        for ((i, p) in parts.withIndex()) {
-            for (alt in p.second.drop(1).take(2)) {
-                val v = joinAt(i, alt)
-                if (v != reading) out.add(v)
-                if (out.size >= limit) return out.toList()
-            }
-        }
-        // 3. 末尾セグメントだけかな残し (例: 「…ですね」末尾はかな確定が自然なケース)
-        if (parts.size >= 3) {
-            val v = buildString {
-                for ((i, p) in parts.withIndex()) {
-                    append(if (i == parts.size - 1) p.first else (p.second.firstOrNull() ?: p.first))
-                }
-            }
-            if (v != reading) out.add(v)
-        }
-        return out.toList().take(limit)
     }
 
     /**
@@ -262,11 +223,13 @@ object KanaKanjiConverter {
      *  1. 学習履歴: 完全一致 reading の確定済み単語 ([ImeHistoryStore.historyFor]) ← 最上位
      *  2. 完全一致 ([convert])
      *  3. 送り仮名活用 ([okuriForms]) — 単語+活用/助動詞
-     *  4. 文節分割の合成 ([segment]) — 複数語フレーズ
-     *  4-b. 長文 (>=4 文字) のとき、文節分割の複数バリエーション ([multiSegmentVariants])
-     *       — 単語/接続詞/助詞をブロック分けして候補を増やし「予測変換」として並べる
+     *  4. 文節分割の合成 ([segment]) — 各ブロックの第1候補を連結した「文まるごと」候補
      *  5. 学習履歴: 前方一致 ([ImeHistoryStore.predictHistory]) — 「打ち慣れた語」予測
      *  6. 前方一致の予測 ([predict]) で補完
+     *
+     * 注: かつての「長文を文節分割した複数バリエーション ([multiSegmentVariants])」は、組み換え案が
+     * ほぼ使われない (ごちゃまぜ) ため廃止。長文は [ComposingState] が自動でブロック分割して
+     * ブロック毎に予測し、文全体は [segment] による 1 つの一括候補だけを出す。
      */
     fun convertFlexible(reading: String, limit: Int = 16): List<String> {
         if (reading.isEmpty()) return emptyList()
@@ -286,12 +249,6 @@ object KanaKanjiConverter {
         out.addAll(convert(reading))
         out.addAll(okuriForms(reading))
         segment(reading)?.let { out.add(it) }
-        // 4-b. 長文時のブロック分け予測 (単語/接続詞/助詞境界の複数案)
-        if (reading.length >= 4) {
-            for (v in multiSegmentVariants(reading, limit = 6)) {
-                out.add(v); if (out.size >= limit) break
-            }
-        }
         // 5. 学習履歴 (前方一致) を辞書の前方一致予測より先に。
         for (h in ImeHistoryStore.predictHistory(reading, limit = 6)) {
             out.add(h); if (out.size >= limit) break
@@ -759,6 +716,14 @@ class ComposingState(
     var candidates by mutableStateOf<List<String>>(emptyList())
         private set
 
+    /**
+     * 長文の「一括予測」候補。スプリット中で後続 (tail) が残っているとき、全体をブロック分割して
+     * 各ブロックの第1候補を連結した「文まるごと」変換 ([KanaKanjiConverter.segment])。null なら無し。
+     * 候補バーで専用ピルとして出し、タップ ([commitFull]) で全文を一括確定する。
+     */
+    var fullPrediction by mutableStateOf<String?>(null)
+        private set
+
     /** スプリットモード: 0 なら未起動。1..text.length なら先頭 splitHeadLen 文字がフォーカス。 */
     var splitHeadLen by mutableStateOf(0)
         private set
@@ -777,6 +742,12 @@ class ComposingState(
     /** 連打サイクル: 直前 emit したかな文字とそのタイムスタンプ。 */
     private var lastEmitChar: Char? = null
     private var lastEmitTimeMs: Long = 0L
+
+    /**
+     * 現在のスプリットが「長文の自動分割」由来か (true) / 「変換キーによる手動分割」由来か (false)。
+     * 自動分割中は ⌫ で素直に 1 文字消す (手動分割中は ⌫ でまず分割取消) ように分岐するために持つ。
+     */
+    private var autoSplit: Boolean = false
 
     val isActive: Boolean get() = text.isNotEmpty()
     val isSplitMode: Boolean get() = splitHeadLen > 0
@@ -799,12 +770,13 @@ class ComposingState(
      * 素直に同じ文字を重ねる (ユーザー要望)。
      */
     fun emitKana(ch: Char) {
-        if (isSplitMode) splitHeadLen = 0
+        splitHeadLen = 0
+        autoSplit = false
         text += ch
         lastEmitChar = ch
         lastEmitTimeMs = System.currentTimeMillis()
         selectedCandidateIndex = -1
-        refreshPredict()
+        reevaluateAutoSplit()
     }
 
     /**
@@ -812,23 +784,25 @@ class ComposingState(
      * リセットされる (次に同じかなが来ても循環しない)。
      */
     fun append(ch: Char) {
-        if (isSplitMode) splitHeadLen = 0
+        splitHeadLen = 0
+        autoSplit = false
         text += ch
         lastEmitChar = null
         lastEmitTimeMs = 0
         selectedCandidateIndex = -1
-        refreshPredict()
+        reevaluateAutoSplit()
     }
 
     /** 直前の文字を [s] (濁点等) に置換。スプリット中なら抜けてから置換する。 */
     fun replaceLast(s: Char) {
         if (text.isEmpty()) return
-        if (isSplitMode) splitHeadLen = 0
+        splitHeadLen = 0
+        autoSplit = false
         text = text.dropLast(1) + s
         lastEmitChar = null
         lastEmitTimeMs = 0
         selectedCandidateIndex = -1
-        refreshPredict()
+        reevaluateAutoSplit()
     }
 
     /**
@@ -837,17 +811,21 @@ class ComposingState(
      */
     fun backspace(): Boolean {
         if (text.isEmpty()) return false
-        if (isSplitMode) {
+        // 手動スプリット (変換キーで入った) 中は、まずスプリット取消だけで文字は消さない。
+        if (isSplitMode && !autoSplit) {
             splitHeadLen = 0
             selectedCandidateIndex = -1
             refreshPredict()
             return true
         }
+        // 自動スプリット中 or 非スプリット: 末尾 1 文字を削除して長文判定をやり直す。
+        splitHeadLen = 0
+        autoSplit = false
         text = text.dropLast(1)
         lastEmitChar = null
         lastEmitTimeMs = 0
         selectedCandidateIndex = -1
-        if (text.isEmpty()) candidates = emptyList() else refreshPredict()
+        if (text.isEmpty()) candidates = emptyList() else reevaluateAutoSplit()
         return true
     }
 
@@ -861,6 +839,7 @@ class ComposingState(
         if (!isSplitMode) {
             splitHeadLen = KanaKanjiConverter.autoSplitHeadLen(text)
                 .coerceAtLeast(1).coerceAtMost(text.length)
+            autoSplit = false   // 変換キーによる手動分割
             selectedCandidateIndex = -1
             refreshPredict()
         } else {
@@ -910,6 +889,28 @@ class ComposingState(
     }
 
     /**
+     * 長文の一括予測 ([fullPrediction]) を確定する。現在の composing 全体 (head + tail) を
+     * まとめて送り、composing をリセットする。[fullPrediction] が無ければ何もせず false。
+     */
+    fun commitFull(): Boolean {
+        val full = fullPrediction ?: return false
+        if (text.isEmpty()) return false
+        ImeHistoryStore.record(text, full)
+        onCommit(full)
+        lastCommittedReading = text
+        lastCommittedOutput = full
+        text = ""
+        candidates = emptyList()
+        fullPrediction = null
+        splitHeadLen = 0
+        autoSplit = false
+        selectedCandidateIndex = -1
+        lastEmitChar = null
+        lastEmitTimeMs = 0
+        return true
+    }
+
+    /**
      * ⏎ などの「現在選択中を確定」。候補サイクル中なら選択候補を、そうでなければ生かな
      * (スプリット中はセグメントのみ) を確定する。空なら false。
      */
@@ -932,7 +933,9 @@ class ComposingState(
     fun reset() {
         text = ""
         candidates = emptyList()
+        fullPrediction = null
         splitHeadLen = 0
+        autoSplit = false
         selectedCandidateIndex = -1
         lastEmitChar = null
         lastEmitTimeMs = 0
@@ -951,13 +954,14 @@ class ComposingState(
         val o = lastCommittedOutput ?: return 0
         text = r
         splitHeadLen = 0
+        autoSplit = false
         selectedCandidateIndex = -1
         lastEmitChar = null
         lastEmitTimeMs = 0
         val cps = o.codePointCount(0, o.length)
         lastCommittedReading = null
         lastCommittedOutput = null
-        refreshPredict()
+        reevaluateAutoSplit()
         return cps
     }
 
@@ -968,7 +972,9 @@ class ComposingState(
             if (remaining.isEmpty()) {
                 text = ""
                 candidates = emptyList()
+                fullPrediction = null
                 splitHeadLen = 0
+                autoSplit = false
                 selectedCandidateIndex = -1
                 lastEmitChar = null
                 lastEmitTimeMs = 0
@@ -982,11 +988,33 @@ class ComposingState(
         } else {
             text = ""
             candidates = emptyList()
+            fullPrediction = null
             splitHeadLen = 0
+            autoSplit = false
             selectedCandidateIndex = -1
             lastEmitChar = null
             lastEmitTimeMs = 0
         }
+    }
+
+    /**
+     * text を変更したあとに呼ぶ。文が長く「辞書ブロックが 2 つ以上に分かれる」ときは、変換キーを
+     * 押さなくても自動で先頭ブロックにスプリットし ([autoSplitHeadLen])、ブロックごとの予測候補を
+     * 出す (= 長文を「明日の / 天気は / …」のように区切って予測)。単語 1 個程度 (ブロック 1 つ) の
+     * ときは従来どおり全体予測 (スプリットなし) に戻す。判定は [KanaKanjiConverter.segmentParts]
+     * (辞書ヒット 2 文節以上のときだけ非空を返す) に委ねるので、打ちかけの 1 語ではスプリットしない。
+     */
+    private fun reevaluateAutoSplit() {
+        if (text.length >= 2 && KanaKanjiConverter.segmentParts(text).isNotEmpty()) {
+            autoSplit = true
+            splitHeadLen = KanaKanjiConverter.autoSplitHeadLen(text)
+                .coerceAtLeast(1).coerceAtMost(text.length)
+        } else {
+            autoSplit = false
+            splitHeadLen = 0
+        }
+        selectedCandidateIndex = -1
+        refreshPredict()
     }
 
     private fun refreshPredict() {
@@ -994,10 +1022,16 @@ class ComposingState(
         if (key.isEmpty()) {
             candidates = emptyList()
             selectedCandidateIndex = -1
+            fullPrediction = null
             return
         }
         candidates = buildList(KanaKanjiConverter.convertFlexible(key), key)
         if (selectedCandidateIndex >= candidates.size) selectedCandidateIndex = -1
+        // 長文の一括予測: スプリット中で後続 (tail) が残っているとき、全体を文節分割して各ブロックの
+        // 第1候補を連結した「文まるごと」候補を 1 つ作る (組み換えバリエーションは出さない)。
+        fullPrediction = if (isSplitMode && splitTail.isNotEmpty())
+            KanaKanjiConverter.segment(text)?.takeIf { it != text }
+        else null
     }
 
     /** 辞書候補にカタカナを加えた表示用リスト (生ひらがなはバー左のラベルで確定する)。 */

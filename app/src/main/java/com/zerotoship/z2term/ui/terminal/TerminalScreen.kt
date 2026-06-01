@@ -115,6 +115,7 @@ import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
 import com.zerotoship.z2term.ui.theme.ZtsGreen
+import com.zerotoship.z2term.ui.theme.ZtsGreenDim
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import kotlinx.coroutines.launch
@@ -1483,11 +1484,15 @@ private fun CandidateBar(
     val rawSelected = selIdx == -1
     val tail = if (isSplit) composing.splitTail else ""
     val hasTail = isSplit && tail.isNotEmpty()
+    // 長文の一括予測 (各ブロック第1候補を連結した「文まるごと」候補)。tail があるときのみ出す。
+    val full = composing.fullPrediction
+    val hasFull = full != null
     // LazyRow のアイテム並び (オートスクロールのため index を厳密に管理する):
     //   0            = head ピル (生かな / スプリット頭)
     //   1            = tail ラベル (hasTail のときのみ)
-    //   base + i     = 候補 i        (base = 1 + (hasTail ? 1 : 0))
-    val base = 1 + (if (hasTail) 1 else 0)
+    //   (次)         = 一括予測ピル (hasFull のときのみ)
+    //   base + i     = 候補 i        (base = 1 + (hasTail ? 1 : 0) + (hasFull ? 1 : 0))
+    val base = 1 + (if (hasTail) 1 else 0) + (if (hasFull) 1 else 0)
     val listState = rememberLazyListState()
     // 候補サイクルで選択が変わるたび、その項目が見えるよう横スクロールで追従させる。
     // selIdx == -1 (生かな) のときは head (index 0) を、候補選択中は base+selIdx を表示。
@@ -1543,6 +1548,28 @@ private fun CandidateBar(
                         text = tail,
                         color = ZtsTextSecondary,
                         fontSize = 15.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+        // 長文の一括予測ピル (各ブロックを変換して連結した「文まるごと」候補)。タップで全文を一括確定。
+        // ブロックごとの候補と区別できるよう、薄緑塗りで強調する。
+        if (full != null) {
+            item(key = "__full__") {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(ZtsGreenDim)
+                        .border(1.dp, ZtsGreen, RoundedCornerShape(6.dp))
+                        .clickable { composing.commitFull() }
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        text = full,
+                        color = Color.Black,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
                 }
