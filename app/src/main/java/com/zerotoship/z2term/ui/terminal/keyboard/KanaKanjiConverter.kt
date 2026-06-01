@@ -110,6 +110,31 @@ object KanaKanjiConverter {
         c.code in 0x4E00..0x9FFF || c.code in 0x3400..0x4DBF || c == '々' || c == '〆'
 
     /**
+     * 単独で現れたとき漢字化せず「かなのまま」残す助詞ひらがな ([segment] で使用)。
+     * 多くが単漢字エントリ (の→野, は→葉, が→…) を持つため、文節結合で野/葉に化けるのを防ぐ。
+     */
+    private val PARTICLES: Set<Char> =
+        setOf('の', 'は', 'が', 'を', 'に', 'へ', 'と', 'も', 'や', 'か', 'ね', 'よ', 'わ', 'で', 'ば', 'な', 'ぞ', 'さ')
+
+    /**
+     * 文末の助動詞・接続表現の「かな塊」([segment] で使用)。辞書はこれらにも単漢字/熟語を当てるため
+     * (でしょう→賞, ました→増田, です→鱒…)、文節結合では塊ごとかなで残す。長い順に前方一致で消費。
+     * ※単独で `しょうか` 等を打って 消化 が欲しい場合は [convert] が直接候補を出すので損は無い。
+     */
+    private val AUX_KANA: List<String> = listOf(
+        "でしょうか", "でしょう", "ましょうか", "ましょう", "ませんでした", "ませんか", "ません",
+        "ましたか", "ました", "ますか", "ます", "でしたら", "でした", "ですか", "ですね", "です",
+        "なかった", "ない", "たい", "たく", "ています", "ている", "ていた", "てます", "てる",
+        "ください", "だろうか", "だろう", "だった", "ながら", "けれど", "けど", "ので", "のに", "から"
+    ).sortedByDescending { it.length }
+
+    /** [reading] の位置 [pos] から最長一致する [AUX_KANA] の長さ。無ければ 0。 */
+    private fun matchAuxKana(reading: String, pos: Int): Int {
+        for (a in AUX_KANA) if (reading.startsWith(a, pos)) return a.length
+        return 0
+    }
+
+    /**
      * 送り仮名活用による候補。読みを「語幹 + 送り仮名」に分け、辞書の連用形見出し
      * (語幹 + ひらがな1文字 → 漢字 + 同じひらがな) から漢字語幹を得て、打った送り仮名を付け直す。
      * 例: 読み「つくって」→ 語幹「つく」+送り「って」、辞書「つくり /作り/造り/」→ 作って/造って。
@@ -187,7 +212,10 @@ object KanaKanjiConverter {
     /**
      * 文節分割による合成変換。読みを左から「最長一致の見出し」で食べ進め、各文節の第1候補を
      * 連結する (例: きょうのてんき → 今日の天気 のような複数語フレーズ)。最後の文節は送り仮名
-     * 活用も試す。辞書ヒットが 2 文節以上のときだけ結果を返す (単語+かなのノイズを避ける)。
+     * 活用も試す。辞書ヒットが 1 文節以上 ∧ 漢字を含むときに返す。
+     *
+     * 単独の助詞ひらがな (の/は/が…) は漢字 (野/葉/…) に化けさせず、かなのまま残す
+     * (きょうの → 今日の。今日野 にしない)。
      */
     fun segment(reading: String, maxSeg: Int = 12): String? {
         if (reading.length < 2 || lines.isEmpty()) return null
@@ -196,10 +224,17 @@ object KanaKanjiConverter {
         var seg = 0
         var dictSegs = 0
         while (pos < reading.length && seg < maxSeg) {
+            // 0. 文末助動詞の塊 (でしょう/ました/です…) はかなのまま消費する。
+            val aux = matchAuxKana(reading, pos)
+            if (aux > 0) {
+                sb.append(reading, pos, pos + aux); pos += aux; seg++; continue
+            }
             var matched = false
             var end = reading.length
             while (end > pos) {
                 val sub = reading.substring(pos, end)
+                // 単独の助詞は漢字化しない (かなで残す)。長さ 2 以上の見出しは通常どおり変換。
+                if (sub.length == 1 && sub[0] in PARTICLES) { end--; continue }
                 val cands = convert(sub)
                 if (cands.isNotEmpty()) {
                     sb.append(cands[0]); pos = end; dictSegs++; matched = true; break
@@ -207,15 +242,22 @@ object KanaKanjiConverter {
                 end--
             }
             if (!matched) {
-                val ok = okuriForms(reading.substring(pos), 1)
-                if (ok.isNotEmpty()) { sb.append(ok[0]); pos = reading.length; dictSegs++ }
-                else { sb.append(reading[pos]); pos++ }  // 変換不能な1文字はかなのまま
+                val ch = reading[pos]
+                if (ch in PARTICLES) { sb.append(ch); pos++ }   // 助詞はかなのまま
+                else {
+                    val ok = okuriForms(reading.substring(pos), 1)
+                    if (ok.isNotEmpty()) { sb.append(ok[0]); pos = reading.length; dictSegs++ }
+                    else { sb.append(ch); pos++ }  // 変換不能な1文字はかなのまま
+                }
             }
             seg++
         }
         if (pos < reading.length) sb.append(reading.substring(pos))
         val res = sb.toString()
-        return if (dictSegs >= 2 && res != reading) res else null
+        // 辞書ヒットが 1 文節でも返す (例: きょうの → 今日 + 助詞の = 今日の)。漢字 1 つも無い
+        // (= 純粋なかな羅列) や reading と同一は除外してノイズを抑える。
+        val hasKanji = res.any { isKanjiChar(it) }
+        return if (dictSegs >= 1 && hasKanji && res != reading) res else null
     }
 
     /**
@@ -261,15 +303,32 @@ object KanaKanjiConverter {
     }
 
     /**
-     * スプリットモードで「最初の文節」の自動分割長を返す。辞書に完全一致するもっとも長い
-     * プレフィックス長 (>=2) を返し、見つからなければ文字列全体の長さを返す。
+     * スプリットモードで「最初の文節」の自動分割長を返す。
+     *
+     * 「文節 = 内容語 + 後続の助詞/送り仮名」になるよう、辞書に完全一致する最長プレフィックス
+     * (内容語, 長さ>=2) を取り、その後ろに続くひらがなを「次の内容語が始まるまで」取り込む。
+     * 例: きょうのてんき → 「きょうの」(今日の) で区切る (の は助詞として今日に付き、てんき=天気
+     * は次ブロック)。辞書一致が無ければ全体を 1 ブロックとして返す。
      */
     fun autoSplitHeadLen(reading: String): Int {
         if (reading.isEmpty()) return 0
+        // 1. 先頭の最長辞書一致 (内容語)。
+        var headLen = -1
         for (end in reading.length downTo 2) {
-            if (convert(reading.substring(0, end)).isNotEmpty()) return end
+            if (convert(reading.substring(0, end)).isNotEmpty()) { headLen = end; break }
         }
-        return reading.length
+        if (headLen < 0) return reading.length          // 変換不能 → 全体で 1 ブロック
+        // 2. 内容語の後ろのひらがな(助詞/送り)を、次の内容語(長さ>=2の辞書語)が始まるまで取り込む。
+        var end = headLen
+        while (end < reading.length && isHira(reading[end])) {
+            var nextContent = false
+            for (e in reading.length downTo end + 2) {
+                if (convert(reading.substring(end, e)).isNotEmpty()) { nextContent = true; break }
+            }
+            if (nextContent) break
+            end++
+        }
+        return end
     }
 
     // ========================================================================
