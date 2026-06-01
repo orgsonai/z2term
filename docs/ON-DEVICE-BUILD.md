@@ -88,12 +88,12 @@ mkdir -p /root/android-sdk/{ndk,build-tools,platforms,platform-tools,cmake}
 ### 2-C. NDK (termux-ndk r29 ARM64) ※ native コードがある場合のみ必須
 
 公式 NDK は ARM64 ホスト用が無いので termux-ndk を使う。
-（リリース URL は `github.com/lzhiyong/termux-ndk/releases` で最新を確認）
+（URL は `github.com/lzhiyong/termux-ndk/releases` で最新を確認。2026-06 時点は下記）
 
 ```bash
 cd /root
-wget -O ndk.zip "https://github.com/lzhiyong/termux-ndk/releases/download/<tag>/android-ndk-r29-aarch64.zip"
-unzip -q ndk.zip
+wget -O ndk.7z "https://github.com/lzhiyong/termux-ndk/releases/download/android-ndk/android-ndk-r29-aarch64.7z"
+7z x ndk.7z
 # 展開先のディレクトリ名を local.properties の ndk.version と一致させる
 mv android-ndk-r29* /root/android-sdk/ndk/29.0.14206865
 ```
@@ -103,14 +103,20 @@ mv android-ndk-r29* /root/android-sdk/ndk/29.0.14206865
 
 ### 2-D. build-tools / platforms (termux-sdk aarch64)
 
+termux-sdk aarch64 には cmake 4.2.1 / ninja / build-tools 35.0.0 / platform-tools 35.0.2 が入る。
+
 ```bash
 cd /root
-wget -O sdk-tools.7z "https://github.com/lzhiyong/termux-ndk/releases/download/<tag>/android-sdk-aarch64.7z"
+wget -O sdk-tools.7z "https://github.com/lzhiyong/termux-ndk/releases/download/android-sdk/android-sdk-aarch64.7z"
 7z x sdk-tools.7z
 # 必要な版を SDK 配下へ (プロジェクトの compileSdk / buildToolsVersion に合わせる)
 cp -r android-sdk/build-tools/35.0.0 /root/android-sdk/build-tools/35.0.0
 cp -r android-sdk/platforms/android-35 /root/android-sdk/platforms/android-35
 ```
+
+platforms（`android-35` などの `android.jar`）が termux-sdk に無い場合は、
+PC 側 SDK の `platforms/android-35` をコピーするか、`cmdline-tools` の `sdkmanager`
+（公式の platforms は中身がアーキ非依存の jar なので ARM64 でも使える）で入れる。
 
 > プロジェクトによって必要な `compileSdk` / build-tools 版が違う。
 > 足りない版が出たら、その版だけ同じ要領で追加配置すればよい。
