@@ -1,0 +1,29 @@
+かな漢字変換アセット (kkc_lex.tsv / kkc_matrix.bin) について
+============================================================
+
+これらは IPADIC (mecab-ipadic 2.7.0-20070801) を加工して作成した、
+かな漢字「文」変換 (Viterbi/最小コスト経路) 用のデータです。
+
+- kkc_lex.tsv    : IPADIC の語彙 (表層形・左右文脈ID・単語コスト・読み) を
+                   読み(ひらがな)索引に並べ替えたもの。固有名詞/人名/地名/組織は
+                   軽量化と誤変換抑制のため除外している。
+- kkc_matrix.bin : IPADIC の品詞接続コスト行列 (matrix.bin)。
+
+IPADIC 著作権表示 (mecab-ipadic COPYING より):
+
+  Copyright (c) 2001-2007, Nara Institute of Science and Technology.
+  All Rights Reserved.
+
+  Use, reproduction, and distribution of this software is permitted.
+  Any copy of this software, whether in its original form or modified,
+  must include both the above copyright notice and the end of this paragraph.
+  Nara Institute of Science and Technology (NAIST), the copyright holders,
+  disclaims all warranties with regard to this software, including all
+  implied warranties of merchantability and fitness, in no event shall
+  NAIST be liable for any special, indirect or consequential damages or
+  any damages whatsoever resulting from loss of use, data or profits,
+  whether in an action of contract, negligence or other tortuous action,
+  arising out of or in connection with the use or performance of this
+  software.
+
+出典: https://github.com/taku910/mecab (mecab-ipadic)

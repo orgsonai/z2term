@@ -16,10 +16,10 @@ import kotlinx.coroutines.withContext
  * - [convert]         : よみに完全一致する候補 (= 変換)
  * - [predict]         : よみで前方一致する見出しの候補を集める (= 予測変換)
  * - [okuriForms]      : 送り仮名活用 (つくって→作って など。連用形見出しから語幹を流用)
- * - [segment]         : 文節分割の合成 (複数語フレーズ)
- * - [convertFlexible] : 上記をまとめた「柔軟な変換」(キーボードはこれを使う)
+ * - [convertFlexible] : 上記 + [KkcConverter] の文まるごと最尤変換をまとめた候補 (キーボードはこれを使う)
  *
- * 厳密な形態素解析ではなく辞書ベースの best-effort。送り仮名/文節は候補を補助的に増やすだけで、
+ * 厳密な形態素解析ではなく辞書ベースの best-effort。単語の別表記候補や前方一致予測を担い、
+ * 「文まるごと」の最尤変換 (文節分割) は [KkcConverter] (Viterbi/IPADIC) に委ねる。
  * 生のかな・カタカナは常に確定候補として残す。
  */
 object KanaKanjiConverter {
@@ -110,31 +110,6 @@ object KanaKanjiConverter {
         c.code in 0x4E00..0x9FFF || c.code in 0x3400..0x4DBF || c == '々' || c == '〆'
 
     /**
-     * 単独で現れたとき漢字化せず「かなのまま」残す助詞ひらがな ([segment] で使用)。
-     * 多くが単漢字エントリ (の→野, は→葉, が→…) を持つため、文節結合で野/葉に化けるのを防ぐ。
-     */
-    private val PARTICLES: Set<Char> =
-        setOf('の', 'は', 'が', 'を', 'に', 'へ', 'と', 'も', 'や', 'か', 'ね', 'よ', 'わ', 'で', 'ば', 'な', 'ぞ', 'さ')
-
-    /**
-     * 文末の助動詞・接続表現の「かな塊」([segment] で使用)。辞書はこれらにも単漢字/熟語を当てるため
-     * (でしょう→賞, ました→増田, です→鱒…)、文節結合では塊ごとかなで残す。長い順に前方一致で消費。
-     * ※単独で `しょうか` 等を打って 消化 が欲しい場合は [convert] が直接候補を出すので損は無い。
-     */
-    private val AUX_KANA: List<String> = listOf(
-        "でしょうか", "でしょう", "ましょうか", "ましょう", "ませんでした", "ませんか", "ません",
-        "ましたか", "ました", "ますか", "ます", "でしたら", "でした", "ですか", "ですね", "です",
-        "なかった", "ない", "たい", "たく", "ています", "ている", "ていた", "てます", "てる",
-        "ください", "だろうか", "だろう", "だった", "ながら", "けれど", "けど", "ので", "のに", "から"
-    ).sortedByDescending { it.length }
-
-    /** [reading] の位置 [pos] から最長一致する [AUX_KANA] の長さ。無ければ 0。 */
-    private fun matchAuxKana(reading: String, pos: Int): Int {
-        for (a in AUX_KANA) if (reading.startsWith(a, pos)) return a.length
-        return 0
-    }
-
-    /**
      * 送り仮名活用による候補。読みを「語幹 + 送り仮名」に分け、辞書の連用形見出し
      * (語幹 + ひらがな1文字 → 漢字 + 同じひらがな) から漢字語幹を得て、打った送り仮名を付け直す。
      * 例: 読み「つくって」→ 語幹「つく」+送り「って」、辞書「つくり /作り/造り/」→ 作って/造って。
@@ -175,103 +150,12 @@ object KanaKanjiConverter {
     }
 
     /**
-     * 文節分割で各セグメントの (よみ, 候補リスト) を返す。1 文字単独 (助詞・接続詞・変換不能) も
-     * 独立セグメントとして含めるので長文の構造を保ったまま返せる。辞書ヒットが 2 文節未満なら
-     * 空 (= 単語 1 個 + かな羅列の誤検出を避ける)。
-     *
-     * 使い道は [ComposingState] の自動ブロック分割判定 (長文かどうか)。
-     */
-    fun segmentParts(reading: String, maxSeg: Int = 12): List<Pair<String, List<String>>> {
-        if (reading.length < 2 || lines.isEmpty()) return emptyList()
-        val parts = ArrayList<Pair<String, List<String>>>()
-        var pos = 0
-        var dictSegs = 0
-        while (pos < reading.length && parts.size < maxSeg) {
-            var matched = false
-            var end = reading.length
-            while (end > pos + 1) {  // 最低2文字の見出しから探す (1文字は単独セグメント扱い)
-                val sub = reading.substring(pos, end)
-                val cands = convert(sub)
-                if (cands.isNotEmpty()) {
-                    parts.add(sub to cands)
-                    pos = end; dictSegs++; matched = true; break
-                }
-                end--
-            }
-            if (!matched) {
-                // 1 文字: 助詞・接続詞・かな残り。辞書に単漢字があれば候補も少し付ける。
-                val ch = reading[pos].toString()
-                val singleCands = convert(ch).take(2)
-                parts.add(ch to singleCands)
-                pos++
-            }
-        }
-        return if (dictSegs >= 2) parts else emptyList()
-    }
-
-    /**
-     * 文節分割による合成変換。読みを左から「最長一致の見出し」で食べ進め、各文節の第1候補を
-     * 連結する (例: きょうのてんき → 今日の天気 のような複数語フレーズ)。最後の文節は送り仮名
-     * 活用も試す。辞書ヒットが 1 文節以上 ∧ 漢字を含むときに返す。
-     *
-     * 単独の助詞ひらがな (の/は/が…) は漢字 (野/葉/…) に化けさせず、かなのまま残す
-     * (きょうの → 今日の。今日野 にしない)。
-     */
-    fun segment(reading: String, maxSeg: Int = 12): String? {
-        if (reading.length < 2 || lines.isEmpty()) return null
-        val sb = StringBuilder()
-        var pos = 0
-        var seg = 0
-        var dictSegs = 0
-        while (pos < reading.length && seg < maxSeg) {
-            // 0. 文末助動詞の塊 (でしょう/ました/です…) はかなのまま消費する。
-            val aux = matchAuxKana(reading, pos)
-            if (aux > 0) {
-                sb.append(reading, pos, pos + aux); pos += aux; seg++; continue
-            }
-            var matched = false
-            var end = reading.length
-            while (end > pos) {
-                val sub = reading.substring(pos, end)
-                // 単独の助詞は漢字化しない (かなで残す)。長さ 2 以上の見出しは通常どおり変換。
-                if (sub.length == 1 && sub[0] in PARTICLES) { end--; continue }
-                val cands = convert(sub)
-                if (cands.isNotEmpty()) {
-                    sb.append(cands[0]); pos = end; dictSegs++; matched = true; break
-                }
-                end--
-            }
-            if (!matched) {
-                val ch = reading[pos]
-                if (ch in PARTICLES) { sb.append(ch); pos++ }   // 助詞はかなのまま
-                else {
-                    val ok = okuriForms(reading.substring(pos), 1)
-                    if (ok.isNotEmpty()) { sb.append(ok[0]); pos = reading.length; dictSegs++ }
-                    else { sb.append(ch); pos++ }  // 変換不能な1文字はかなのまま
-                }
-            }
-            seg++
-        }
-        if (pos < reading.length) sb.append(reading.substring(pos))
-        val res = sb.toString()
-        // 辞書ヒットが 1 文節でも返す (例: きょうの → 今日 + 助詞の = 今日の)。漢字 1 つも無い
-        // (= 純粋なかな羅列) や reading と同一は除外してノイズを抑える。
-        val hasKanji = res.any { isKanjiChar(it) }
-        return if (dictSegs >= 1 && hasKanji && res != reading) res else null
-    }
-
-    /**
      * 柔軟な変換候補。優先順:
      *  1. 学習履歴: 完全一致 reading の確定済み単語 ([ImeHistoryStore.historyFor]) ← 最上位
-     *  2. 完全一致 ([convert])
-     *  3. 送り仮名活用 ([okuriForms]) — 単語+活用/助動詞
-     *  4. 文節分割の合成 ([segment]) — 各ブロックの第1候補を連結した「文まるごと」候補
-     *  5. 学習履歴: 前方一致 ([ImeHistoryStore.predictHistory]) — 「打ち慣れた語」予測
-     *  6. 前方一致の予測 ([predict]) で補完
-     *
-     * 注: かつての「長文を文節分割した複数バリエーション ([multiSegmentVariants])」は、組み換え案が
-     * ほぼ使われない (ごちゃまぜ) ため廃止。長文は [ComposingState] が自動でブロック分割して
-     * ブロック毎に予測し、文全体は [segment] による 1 つの一括候補だけを出す。
+     *  2. 文まるごと最尤変換 ([KkcConverter.convert]) — 読み全体を Viterbi で一発変換
+     *  3. 完全一致 ([convert]) / 送り仮名活用 ([okuriForms]) — 単語の別表記候補
+     *  4. 学習履歴: 前方一致 ([ImeHistoryStore.predictHistory]) — 「打ち慣れた語」予測
+     *  5. 前方一致の予測 ([predict]) で補完
      */
     fun convertFlexible(reading: String, limit: Int = 16): List<String> {
         if (reading.isEmpty()) return emptyList()
@@ -281,8 +165,13 @@ object KanaKanjiConverter {
             out.add(h)
             if (out.size >= limit) return out.toList()
         }
+        // 2. 文まるごとの最尤変換 (Viterbi/IPADIC)。読み全体を最尤の単語列へ一発変換する。
+        //    旧「最長一致の文節合成 (segment)」は稀語・姓を拾うゴミ変換になるため置換。
+        KkcConverter.convert(reading)?.let {
+            out.add(it); if (out.size >= limit) return out.toList()
+        }
         if (lines.isEmpty()) {
-            // 辞書未ロードでも履歴と前方一致履歴は出す。
+            // z2dict 未ロードでも履歴と前方一致履歴は出す。
             for (h in ImeHistoryStore.predictHistory(reading, limit = limit)) {
                 out.add(h); if (out.size >= limit) break
             }
@@ -290,7 +179,6 @@ object KanaKanjiConverter {
         }
         out.addAll(convert(reading))
         out.addAll(okuriForms(reading))
-        segment(reading)?.let { out.add(it) }
         // 5. 学習履歴 (前方一致) を辞書の前方一致予測より先に。
         for (h in ImeHistoryStore.predictHistory(reading, limit = 6)) {
             out.add(h); if (out.size >= limit) break
@@ -305,20 +193,19 @@ object KanaKanjiConverter {
     /**
      * スプリットモードで「最初の文節」の自動分割長を返す。
      *
-     * 「文節 = 内容語 + 後続の助詞/送り仮名」になるよう、辞書に完全一致する最長プレフィックス
-     * (内容語, 長さ>=2) を取り、その後ろに続くひらがなを「次の内容語が始まるまで」取り込む。
-     * 例: きょうのてんき → 「きょうの」(今日の) で区切る (の は助詞として今日に付き、てんき=天気
-     * は次ブロック)。辞書一致が無ければ全体を 1 ブロックとして返す。
+     * 文節境界は [KkcConverter] (Viterbi) の文節分割に委ねる (例: きょうのてんき → 先頭 きょうの)。
+     * Kkc 未ロード時のみ、最長辞書一致 + 後続ひらがな取り込みのフォールバックを使う。
      */
     fun autoSplitHeadLen(reading: String): Int {
         if (reading.isEmpty()) return 0
-        // 1. 先頭の最長辞書一致 (内容語)。
+        val h = KkcConverter.headBunsetsuLen(reading)
+        if (h in 1..reading.length) return h
+        // フォールバック (Kkc 未ロード): 先頭の最長辞書一致 + 後続ひらがな。
         var headLen = -1
         for (end in reading.length downTo 2) {
             if (convert(reading.substring(0, end)).isNotEmpty()) { headLen = end; break }
         }
-        if (headLen < 0) return reading.length          // 変換不能 → 全体で 1 ブロック
-        // 2. 内容語の後ろのひらがな(助詞/送り)を、次の内容語(長さ>=2の辞書語)が始まるまで取り込む。
+        if (headLen < 0) return reading.length
         var end = headLen
         while (end < reading.length && isHira(reading[end])) {
             var nextContent = false
@@ -776,8 +663,8 @@ class ComposingState(
         private set
 
     /**
-     * 長文の「一括予測」候補。スプリット中で後続 (tail) が残っているとき、全体をブロック分割して
-     * 各ブロックの第1候補を連結した「文まるごと」変換 ([KanaKanjiConverter.segment])。null なら無し。
+     * 長文の「一括予測」候補。スプリット中で後続 (tail) が残っているとき、読み全体の最尤変換
+     * ([KkcConverter.convert] = Viterbi)。null なら無し。
      * 候補バーで専用ピルとして出し、タップ ([commitFull]) で全文を一括確定する。
      */
     var fullPrediction by mutableStateOf<String?>(null)
@@ -1057,17 +944,15 @@ class ComposingState(
     }
 
     /**
-     * text を変更したあとに呼ぶ。文が長く「辞書ブロックが 2 つ以上に分かれる」ときは、変換キーを
-     * 押さなくても自動で先頭ブロックにスプリットし ([autoSplitHeadLen])、ブロックごとの予測候補を
-     * 出す (= 長文を「明日の / 天気は / …」のように区切って予測)。単語 1 個程度 (ブロック 1 つ) の
-     * ときは従来どおり全体予測 (スプリットなし) に戻す。判定は [KanaKanjiConverter.segmentParts]
-     * (辞書ヒット 2 文節以上のときだけ非空を返す) に委ねるので、打ちかけの 1 語ではスプリットしない。
+     * text を変更したあとに呼ぶ。文が 2 文節以上に分かれるとき ([KkcConverter.bunsetsu]) は、変換キーを
+     * 押さなくても自動で先頭文節にスプリットし、ブロックごとの予測候補を出す (= 長文を「明日の /
+     * 天気は / …」のように区切って予測)。単語 1 個程度 (文節 1 つ) のときは全体予測 (スプリットなし)。
      */
     private fun reevaluateAutoSplit() {
-        if (text.length >= 2 && KanaKanjiConverter.segmentParts(text).isNotEmpty()) {
+        val b = if (text.length >= 2) KkcConverter.bunsetsu(text) else emptyList()
+        if (b.size >= 2) {
             autoSplit = true
-            splitHeadLen = KanaKanjiConverter.autoSplitHeadLen(text)
-                .coerceAtLeast(1).coerceAtMost(text.length)
+            splitHeadLen = b[0].first.length.coerceAtLeast(1).coerceAtMost(text.length)
         } else {
             autoSplit = false
             splitHeadLen = 0
@@ -1086,10 +971,10 @@ class ComposingState(
         }
         candidates = buildList(KanaKanjiConverter.convertFlexible(key), key)
         if (selectedCandidateIndex >= candidates.size) selectedCandidateIndex = -1
-        // 長文の一括予測: スプリット中で後続 (tail) が残っているとき、全体を文節分割して各ブロックの
-        // 第1候補を連結した「文まるごと」候補を 1 つ作る (組み換えバリエーションは出さない)。
+        // 長文の一括予測: スプリット中で後続 (tail) が残っているとき、読み全体の最尤変換 (Viterbi)
+        // を「文まるごと」候補として 1 つ出す。
         fullPrediction = if (isSplitMode && splitTail.isNotEmpty())
-            KanaKanjiConverter.segment(text)?.takeIf { it != text }
+            KkcConverter.convert(text)?.takeIf { it != text }
         else null
     }
 

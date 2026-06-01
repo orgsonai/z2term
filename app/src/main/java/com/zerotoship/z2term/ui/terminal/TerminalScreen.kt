@@ -103,6 +103,7 @@ import com.zerotoship.z2term.ui.terminal.keyboard.ComposingState
 import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
 import com.zerotoship.z2term.ui.terminal.keyboard.KanaKanjiConverter
+import com.zerotoship.z2term.ui.terminal.keyboard.KkcConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
 import com.zerotoship.z2term.emulator.ZtsTheme
@@ -250,6 +251,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     }
     // 辞書はアプリ起動後にバックグラウンドで 1 度だけ読み込む。
     LaunchedEffect(Unit) { KanaKanjiConverter.ensureLoaded(context) }
+    LaunchedEffect(Unit) { KkcConverter.ensureLoaded(context) }
     // IME 学習履歴 (確定済み読み→単語) も同タイミングで読み込み、変換候補のランキングに使う。
     LaunchedEffect(Unit) { ImeHistoryStore.ensureLoaded(context) }
     // キーボードモード変更時は変換中バッファを破棄 (OS IME と二重表示を防ぐ)。
@@ -597,6 +599,7 @@ private fun GuiTabScreen(
         AppColors.applyFrom(resolveTheme(settings.themeName, customTheme))
     }
     LaunchedEffect(Unit) { KanaKanjiConverter.ensureLoaded(context) }
+    LaunchedEffect(Unit) { KkcConverter.ensureLoaded(context) }
     LaunchedEffect(Unit) { ImeHistoryStore.ensureLoaded(context) }
 
     // 枠線の内側 (= 実際に GUI を描く領域) の実測 px。これを倍率で割って Xvnc 解像度を決める。
