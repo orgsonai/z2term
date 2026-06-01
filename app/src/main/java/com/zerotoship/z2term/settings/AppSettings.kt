@@ -85,7 +85,24 @@ class AppSettings(private val context: Context) {
          * 端末セッションの実行エンジン。"proot"(既定・非root) / "chroot"(root)。
          * chroot は [rootChrootUnlocked] が true のときだけ有効 (それ以外は proot 扱い)。
          */
-        val executionEngine: String = ENGINE_PROOT
+        val executionEngine: String = ENGINE_PROOT,
+        /**
+         * 外部 SD カード (`/storage/XXXX-XXXX`) を proot 内へ認識させるか。
+         * ON のとき [com.zerotoship.z2term.storage.ExternalStorageDetector] が検出した
+         * 物理ボリュームを `/sdcard_ext` (および同一の `/storage/XXXX-XXXX`) として
+         * bind mount する。OFF (既定) では一切マウントしない (従来挙動と同じ)。
+         */
+        val externalStorageEnabled: Boolean = DEFAULT_EXTERNAL_STORAGE,
+        /**
+         * Android ホストの `/system` `/apex` を proot / chroot 内に bind するか (実験的)。
+         * ON のとき proot に `-b /system -b /apex` を追加 (chroot 経路では `mount --bind` 相当) し、
+         * PRoot 内から Android のリンカ (`/system/bin/linker64`) と ART ライブラリが見える状態になる。
+         * これにより `lzhiyong/termux-ndk` の build-tools (aapt2/zipalign/aidl) のような
+         * `INTERP=/system/bin/linker64` を要求する ARM aarch64 ELF が proot 内で動かせる
+         * (= 端末内で Android アプリをビルドできる)。OFF (既定) では一切 bind せず従来挙動と同じ。
+         * セキュリティ上の影響を理解した上で有効化すること。
+         */
+        val androidHostBindEnabled: Boolean = DEFAULT_ANDROID_HOST_BIND
     )
 
     suspend fun setGuiMagnification(value: Float) {
@@ -121,7 +138,9 @@ class AppSettings(private val context: Context) {
             landscapeKeyboardHeightDp = p[KEY_LANDSCAPE_KB_HEIGHT] ?: DEFAULT_LANDSCAPE_KEYBOARD_HEIGHT_DP,
             portraitKeyboardHeightDp = p[KEY_PORTRAIT_KB_HEIGHT] ?: DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP,
             rootChrootUnlocked = p[KEY_ROOT_UNLOCKED] ?: false,
-            executionEngine = p[KEY_ENGINE] ?: ENGINE_PROOT
+            executionEngine = p[KEY_ENGINE] ?: ENGINE_PROOT,
+            externalStorageEnabled = p[KEY_EXTERNAL_STORAGE] ?: DEFAULT_EXTERNAL_STORAGE,
+            androidHostBindEnabled = p[KEY_ANDROID_HOST_BIND] ?: DEFAULT_ANDROID_HOST_BIND
         )
     }
 
@@ -132,6 +151,14 @@ class AppSettings(private val context: Context) {
     suspend fun setExecutionEngine(value: String) {
         val normalized = if (value == ENGINE_CHROOT) ENGINE_CHROOT else ENGINE_PROOT
         context.dataStore.edit { it[KEY_ENGINE] = normalized }
+    }
+
+    suspend fun setExternalStorageEnabled(value: Boolean) {
+        context.dataStore.edit { it[KEY_EXTERNAL_STORAGE] = value }
+    }
+
+    suspend fun setAndroidHostBindEnabled(value: Boolean) {
+        context.dataStore.edit { it[KEY_ANDROID_HOST_BIND] = value }
     }
 
     suspend fun setLandscapeKeyboardHeightDp(value: Float) {
@@ -275,6 +302,13 @@ class AppSettings(private val context: Context) {
         private val KEY_PORTRAIT_KB_HEIGHT = floatPreferencesKey("portrait_kb_height_dp")
         private val KEY_ROOT_UNLOCKED = booleanPreferencesKey("root_chroot_unlocked")
         private val KEY_ENGINE = stringPreferencesKey("execution_engine")
+        private val KEY_EXTERNAL_STORAGE = booleanPreferencesKey("external_storage_enabled")
+        private val KEY_ANDROID_HOST_BIND = booleanPreferencesKey("android_host_bind_enabled")
+
+        /** 外部 SD 認識は既定 OFF (オプトイン)。OFF の間は検出処理も走らない。 */
+        const val DEFAULT_EXTERNAL_STORAGE = false
+        /** Android ホスト bind は既定 OFF (オプトイン)。OFF では proot / chroot に何も追加しない。 */
+        const val DEFAULT_ANDROID_HOST_BIND = false
 
         /** 横画面時のキーボード配置の選択肢 */
         const val LANDSCAPE_KB_LEFT = "left"

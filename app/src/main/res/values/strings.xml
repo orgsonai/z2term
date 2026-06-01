@@ -242,6 +242,20 @@
     <string name="settings_shell_info">Shells that are not installed fall back automatically. They become effective once you install them in the distro.</string>
     <string name="settings_ssh_sftp_open">SSH / SFTP profiles…</string>
     <string name="settings_ssh_sftp_note">Connect a saved SSH host as a shell, or use SFTP for file transfer (list / DL / UL / delete / rename).</string>
+
+    <!-- External storage (SD card) recognition toggle -->
+    <string name="settings_section_external_storage">External storage (SD card)</string>
+    <string name="settings_external_storage_toggle">Recognize external storage</string>
+    <string name="settings_external_storage_toggle_desc">When ON, mount physical SD volumes (/storage/XXXX-XXXX) inside the terminal as /sdcard_ext. Takes effect on the next session restart.</string>
+    <string name="settings_external_storage_detected">Detected paths:</string>
+    <string name="settings_external_storage_none">No external storage detected. Insert an SD card or grant All Files Access in system settings.</string>
+    <string name="settings_external_storage_disabled">Turn ON to detect external paths.</string>
+
+    <!-- Experimental: Android host bind (R1 / on-device build support) -->
+    <string name="settings_section_experimental">Experimental / developer</string>
+    <string name="settings_android_host_bind_toggle">Android host bind (/system, /apex)</string>
+    <string name="settings_android_host_bind_toggle_desc">When ON, mount Android\'s /system and /apex inside PRoot/chroot. The Android linker (/system/bin/linker64) becomes visible, allowing aarch64 ELFs that require it (e.g. termux-ndk\'s aapt2/zipalign) to run inside z2term — needed for on-device Android app builds. Takes effect on the next session restart.</string>
+    <string name="settings_android_host_bind_warning">⚠ This makes Android system directories visible inside the terminal. Understand the security implications before enabling.</string>
     <string name="settings_gui_clean_install_desc">Turn ON and open the GUI tab to reinstall the GUI-display packages (cache and all) — recovery for stuck DL/extraction. The check clears automatically on launch.</string>
     <string name="settings_gui_terminal_note">🖥 The terminal to open inside the GUI tab. If not installed yet it is auto-installed on first GUI start (Konsole, in KDE, has a large initial download — Wi-Fi recommended).</string>
 

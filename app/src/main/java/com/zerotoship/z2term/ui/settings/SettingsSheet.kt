@@ -459,6 +459,73 @@ fun SettingsSheet(
 
             StorageAccessHelper()
 
+            // 外部 SD カードを proot 内へ認識させる ON/OFF + 検出されたパスの表示。
+            // ON のときだけ ExternalStorageDetector を呼ぶ (OFF 時はゼロコスト)。
+            // マウントの実反映は次のセッション再起動時 (proot 起動引数として渡すため)。
+            Section(title = stringResource(R.string.settings_section_external_storage)) {
+                ToggleField(
+                    title = stringResource(R.string.settings_external_storage_toggle),
+                    description = stringResource(R.string.settings_external_storage_toggle_desc),
+                    checked = settings.externalStorageEnabled,
+                    onChange = { session.setExternalStorageEnabled(it) }
+                )
+                if (settings.externalStorageEnabled) {
+                    val volumes = remember(settings.externalStorageEnabled) {
+                        com.zerotoship.z2term.storage.ExternalStorageDetector.detect(context)
+                    }
+                    if (volumes.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.settings_external_storage_none),
+                            color = ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.settings_external_storage_detected),
+                            color = ZtsTextSecondary,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        volumes.forEach { vol ->
+                            Text(
+                                text = vol,
+                                color = ZtsTextPrimary,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = stringResource(R.string.settings_external_storage_disabled),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+
+            // 実験的: Android ホスト bind (/system /apex を proot/chroot 内に晒す)。
+            // 端末内で aapt2 等の ARM aarch64 ELF (Android リンカ要求) を動かすための活路。
+            // 反映は次のセッション再起動時 (ProotLauncher が起動引数に追加するため)。
+            Section(title = stringResource(R.string.settings_section_experimental)) {
+                ToggleField(
+                    title = stringResource(R.string.settings_android_host_bind_toggle),
+                    description = stringResource(R.string.settings_android_host_bind_toggle_desc),
+                    checked = settings.androidHostBindEnabled,
+                    onChange = { session.setAndroidHostBindEnabled(it) }
+                )
+                if (settings.androidHostBindEnabled) {
+                    Text(
+                        text = stringResource(R.string.settings_android_host_bind_warning),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+
             // IME 学習履歴 (キーボードパッチ): 件数表示 + 管理ボタン (シートを開く)
             Section(title = stringResource(R.string.settings_section_ime_history)) {
                 val historyVersion by com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore.versionFlow.collectAsState()

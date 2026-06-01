@@ -150,6 +150,80 @@ object KanaKanjiConverter {
     }
 
     /**
+     * 文節分割で各セグメントの (よみ, 候補リスト) を返す。1 文字単独 (助詞・接続詞・変換不能) も
+     * 独立セグメントとして含めるので長文の構造を保ったまま返せる。辞書ヒットが 2 文節未満なら
+     * 空 (= 単語 1 個 + かな羅列の誤検出を避ける)。
+     *
+     * 使い道は [multiSegmentVariants] と長文時の予測変換生成。
+     */
+    fun segmentParts(reading: String, maxSeg: Int = 12): List<Pair<String, List<String>>> {
+        if (reading.length < 2 || lines.isEmpty()) return emptyList()
+        val parts = ArrayList<Pair<String, List<String>>>()
+        var pos = 0
+        var dictSegs = 0
+        while (pos < reading.length && parts.size < maxSeg) {
+            var matched = false
+            var end = reading.length
+            while (end > pos + 1) {  // 最低2文字の見出しから探す (1文字は単独セグメント扱い)
+                val sub = reading.substring(pos, end)
+                val cands = convert(sub)
+                if (cands.isNotEmpty()) {
+                    parts.add(sub to cands)
+                    pos = end; dictSegs++; matched = true; break
+                }
+                end--
+            }
+            if (!matched) {
+                // 1 文字: 助詞・接続詞・かな残り。辞書に単漢字があれば候補も少し付ける。
+                val ch = reading[pos].toString()
+                val singleCands = convert(ch).take(2)
+                parts.add(ch to singleCands)
+                pos++
+            }
+        }
+        return if (dictSegs >= 2) parts else emptyList()
+    }
+
+    /**
+     * 長文の合成変換バリエーション。[segmentParts] を使い:
+     *  1. 全セグメント第1候補連結 ([segment] と同等)
+     *  2. 各セグメントを第2/第3候補に差し替えた案 (1セグメントずつ)
+     *  3. 末尾セグメントだけ「かな残し」案 (3 文節以上のとき)
+     * を返す。`reading` と一致するものや重複は除外。最大 [limit] 件。
+     */
+    fun multiSegmentVariants(reading: String, limit: Int = 6): List<String> {
+        val parts = segmentParts(reading)
+        if (parts.size < 2) return emptyList()
+        val out = LinkedHashSet<String>()
+        fun joinAt(replaceIdx: Int, alt: String): String = buildString {
+            for ((i, p) in parts.withIndex()) {
+                append(if (i == replaceIdx) alt else (p.second.firstOrNull() ?: p.first))
+            }
+        }
+        // 1. 全セグメント第1候補連結
+        val base = joinAt(-1, "")
+        if (base.isNotEmpty() && base != reading) out.add(base)
+        // 2. 各セグメント 1 個ずつを第2/第3候補で差し替え
+        for ((i, p) in parts.withIndex()) {
+            for (alt in p.second.drop(1).take(2)) {
+                val v = joinAt(i, alt)
+                if (v != reading) out.add(v)
+                if (out.size >= limit) return out.toList()
+            }
+        }
+        // 3. 末尾セグメントだけかな残し (例: 「…ですね」末尾はかな確定が自然なケース)
+        if (parts.size >= 3) {
+            val v = buildString {
+                for ((i, p) in parts.withIndex()) {
+                    append(if (i == parts.size - 1) p.first else (p.second.firstOrNull() ?: p.first))
+                }
+            }
+            if (v != reading) out.add(v)
+        }
+        return out.toList().take(limit)
+    }
+
+    /**
      * 文節分割による合成変換。読みを左から「最長一致の見出し」で食べ進め、各文節の第1候補を
      * 連結する (例: きょうのてんき → 今日の天気 のような複数語フレーズ)。最後の文節は送り仮名
      * 活用も試す。辞書ヒットが 2 文節以上のときだけ結果を返す (単語+かなのノイズを避ける)。
@@ -189,6 +263,8 @@ object KanaKanjiConverter {
      *  2. 完全一致 ([convert])
      *  3. 送り仮名活用 ([okuriForms]) — 単語+活用/助動詞
      *  4. 文節分割の合成 ([segment]) — 複数語フレーズ
+     *  4-b. 長文 (>=4 文字) のとき、文節分割の複数バリエーション ([multiSegmentVariants])
+     *       — 単語/接続詞/助詞をブロック分けして候補を増やし「予測変換」として並べる
      *  5. 学習履歴: 前方一致 ([ImeHistoryStore.predictHistory]) — 「打ち慣れた語」予測
      *  6. 前方一致の予測 ([predict]) で補完
      */
@@ -210,6 +286,12 @@ object KanaKanjiConverter {
         out.addAll(convert(reading))
         out.addAll(okuriForms(reading))
         segment(reading)?.let { out.add(it) }
+        // 4-b. 長文時のブロック分け予測 (単語/接続詞/助詞境界の複数案)
+        if (reading.length >= 4) {
+            for (v in multiSegmentVariants(reading, limit = 6)) {
+                out.add(v); if (out.size >= limit) break
+            }
+        }
         // 5. 学習履歴 (前方一致) を辞書の前方一致予測より先に。
         for (h in ImeHistoryStore.predictHistory(reading, limit = 6)) {
             out.add(h); if (out.size >= limit) break

@@ -223,6 +223,8 @@ class TerminalSession(
     fun setPortraitKeyboardHeightDp(value: Float) { scope.launch { settings.setPortraitKeyboardHeightDp(value) } }
     fun setRootChrootUnlocked(value: Boolean) { scope.launch { settings.setRootChrootUnlocked(value) } }
     fun setExecutionEngine(value: String) { scope.launch { settings.setExecutionEngine(value) } }
+    fun setExternalStorageEnabled(value: Boolean) { scope.launch { settings.setExternalStorageEnabled(value) } }
+    fun setAndroidHostBindEnabled(value: Boolean) { scope.launch { settings.setAndroidHostBindEnabled(value) } }
 
     /** 設定で選ばれているディストロを使って起動。明示的指定があればそれを優先 */
     fun startTerminal(distroOverride: DistroSpec? = null) {

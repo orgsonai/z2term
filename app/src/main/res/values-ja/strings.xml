@@ -242,6 +242,20 @@
     <string name="settings_shell_info">未インストールのシェルは反映されず自動フォールバックします。ディストロ側でインストール後に有効になります。</string>
     <string name="settings_ssh_sftp_open">SSH / SFTP プロファイル…</string>
     <string name="settings_ssh_sftp_note">保存した SSH 接続先へシェル接続、または SFTP でファイル転送 (一覧 / DL / UL / 削除 / 名前変更)。</string>
+
+    <!-- 外部ストレージ (SD カード) 認識トグル -->
+    <string name="settings_section_external_storage">外部ストレージ (SD カード)</string>
+    <string name="settings_external_storage_toggle">外部ストレージ認識</string>
+    <string name="settings_external_storage_toggle_desc">ON にすると物理 SD のボリューム (/storage/XXXX-XXXX) を端末内の /sdcard_ext としてマウントします。反映は次のセッション再起動時。</string>
+    <string name="settings_external_storage_detected">検出されたパス:</string>
+    <string name="settings_external_storage_none">外部ストレージは検出されませんでした。SD カードを挿すか、システム設定で「すべてのファイルへのアクセス」を許可してください。</string>
+    <string name="settings_external_storage_disabled">ON にすると検出された外部パスを表示します。</string>
+
+    <!-- 実験的: Android ホスト bind (R1 / 端末内ビルド対応) -->
+    <string name="settings_section_experimental">実験的 / 開発者向け</string>
+    <string name="settings_android_host_bind_toggle">Android ホスト bind (/system, /apex)</string>
+    <string name="settings_android_host_bind_toggle_desc">ON にすると Android の /system と /apex を PRoot / chroot 内へ bind します。Android のリンカ (/system/bin/linker64) が見えるようになり、それを必要とする aarch64 ELF (termux-ndk の aapt2 / zipalign など) が z2term 内で実行できる = 端末内で Android アプリをビルド可能になります。反映は次のセッション再起動時。</string>
+    <string name="settings_android_host_bind_warning">⚠ Android のシステムディレクトリが端末内から見える状態になります。セキュリティ上の影響を理解した上で有効化してください。</string>
     <string name="settings_gui_clean_install_desc">ON にして GUI タブを開くと、GUI 表示用パッケージをキャッシュごと入れ直します (DL/解凍失敗の復旧用)。起動時にチェックは自動で外れます。</string>
     <string name="settings_gui_terminal_note">🖥 GUI タブで開くターミナル。未導入なら初回 GUI 起動時に自動導入されます（Konsole は KDE 系で初回ダウンロードが大きめ・Wi-Fi 推奨）。</string>
 

@@ -4,8 +4,12 @@ import android.content.Context
 import android.util.Log
 import com.zerotoship.z2term.distro.DistroBundle
 import com.zerotoship.z2term.pty.PtyProcess
+import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.LocaleHelper
+import com.zerotoship.z2term.storage.ExternalStorageDetector
 import java.io.File
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 /** [ProotLauncher.probeRootChroot] のセルフテスト結果。 */
 sealed class RootProbe {
@@ -154,6 +158,21 @@ class ProotLauncher(private val context: Context) {
         // Android 外部ストレージを cd できるようマウント先を用意。
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
+        // 設定で外部 SD 認識が ON のときだけ、検出した物理ボリュームのマウント先も作る。
+        // OFF のときは検出も binds 追加も走らず、従来挙動と同じ。
+        val externalEnabled = isExternalStorageEnabled()
+        val externalVolumes = if (externalEnabled) ExternalStorageDetector.detect(context) else emptyList()
+        if (externalVolumes.isNotEmpty()) {
+            File(rootfs, "sdcard_ext").mkdirs()
+            for (vol in externalVolumes) File(rootfs, vol.trimStart('/')).mkdirs()
+        }
+        // Android ホスト bind (実験的): ON のとき rootfs 内に /system /apex のマウント先を作る。
+        // OFF (既定) は何もしない。
+        val androidHostBind = isAndroidHostBindEnabled()
+        if (androidHostBind) {
+            File(rootfs, "system").mkdirs()
+            File(rootfs, "apex").mkdirs()
+        }
 
         // PRoot 引数の組み立て
         val args = mutableListOf<String>().apply {
@@ -171,8 +190,16 @@ class ProotLauncher(private val context: Context) {
             add("-b"); add("${sharedHomeDir.absolutePath}:/root")
             // Android 外部ストレージを /sdcard にマウント (cd /sdcard で OS 共有領域へ)。
             // 全ファイルアクセス権が無い場合は中身が読めないが、設定画面から許可できる。
-            for ((src, dst) in externalStorageBinds()) {
+            for ((src, dst) in externalStorageBinds(externalVolumes)) {
                 add("-b"); add("$src:$dst")
+            }
+            // Android ホスト bind (実験的): /system /apex を proot 内へ晒す。Android のリンカ
+            // (/system/bin/linker64) と ART ライブラリが見えるようになり、`lzhiyong/termux-ndk`
+            // の build-tools (aapt2 等) のように INTERP=/system/bin/linker64 を要求する
+            // ARM aarch64 ELF が proot 内で動かせるようになる (= 端末内ビルドの活路)。
+            if (androidHostBind) {
+                add("-b"); add("/system")
+                add("-b"); add("/apex")
             }
             add("-w"); add("/root")                       // working dir
             // command (+ 追加引数: GUI ランチャの "start 1280x720" 等)
@@ -274,9 +301,23 @@ class ProotLauncher(private val context: Context) {
         ensureMpvConfig(rootfs)
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
+        val externalEnabled = isExternalStorageEnabled()
+        val externalVolumes = if (externalEnabled) ExternalStorageDetector.detect(context) else emptyList()
+        if (externalVolumes.isNotEmpty()) {
+            File(rootfs, "sdcard_ext").mkdirs()
+            for (vol in externalVolumes) File(rootfs, vol.trimStart('/')).mkdirs()
+        }
+        val androidHostBind = isAndroidHostBindEnabled()
+        if (androidHostBind) {
+            File(rootfs, "system").mkdirs()
+            File(rootfs, "apex").mkdirs()
+        }
 
         val resolvedShell = resolveShell(rootfs, command, fallbackShell)
-        val script = chrootBootstrap(rootfs.absolutePath, sharedHomeDir.absolutePath, resolvedShell, display)
+        val script = chrootBootstrap(
+            rootfs.absolutePath, sharedHomeDir.absolutePath, resolvedShell,
+            display, externalVolumes, androidHostBind
+        )
 
         Log.i(TAG, "Launching chroot: distro=$distroId, su=$su, shell=$resolvedShell")
         return PtyProcess.create(
@@ -330,7 +371,14 @@ class ProotLauncher(private val context: Context) {
     }.getOrNull()
 
     /** chroot ブートストラップ (root で実行)。bind mount → env -i で login shell を chroot 起動。 */
-    private fun chrootBootstrap(rootfs: String, sharedHome: String, shell: String, display: Int?): String {
+    private fun chrootBootstrap(
+        rootfs: String,
+        sharedHome: String,
+        shell: String,
+        display: Int?,
+        externalVolumes: List<String> = emptyList(),
+        androidHostBind: Boolean = false
+    ): String {
         val rfs = shq(rootfs)
         val home = shq(sharedHome)
         val sh = shq(shell)
@@ -339,8 +387,14 @@ class ProotLauncher(private val context: Context) {
             append("export PATH=/system/bin:/system/xbin:/vendor/bin:\$PATH\n")
             append("RFS=").append(rfs).append('\n')
             append("SHOME=").append(home).append('\n')
-            // 前回 chroot が残したマウントを掃除 (リーク回収)。
-            append("for m in dev/pts dev proc sys root sdcard; do umount -l \"\$RFS/\$m\" 2>/dev/null; done\n")
+            // 前回 chroot が残したマウントを掃除 (リーク回収)。外部 SD のマウント先も掃除対象に含める。
+            // androidHostBind ON のときは /system /apex も掃除対象に。OFF でも掃除を試みるのは
+            // 「前回 ON で起動 → OFF に切替 → 再起動」のときマウントが残ったままになるのを防ぐため。
+            append("for m in dev/pts dev proc sys root sdcard sdcard_ext system apex")
+            for (vol in externalVolumes) {
+                append(' ').append(shq(vol.trimStart('/')))
+            }
+            append("; do umount -l \"\$RFS/\$m\" 2>/dev/null; done\n")
             append("mkdir -p \"\$RFS/dev\" \"\$RFS/dev/pts\" \"\$RFS/proc\" \"\$RFS/sys\" \"\$RFS/root\" \"\$RFS/sdcard\" \"\$RFS/tmp\"\n")
             append("mount -o bind /dev \"\$RFS/dev\"\n")
             append("mount -o bind /dev/pts \"\$RFS/dev/pts\" 2>/dev/null\n")
@@ -348,6 +402,25 @@ class ProotLauncher(private val context: Context) {
             append("mount -o bind /sys \"\$RFS/sys\"\n")
             append("mount -o bind \"\$SHOME\" \"\$RFS/root\"\n")
             append("mount -o bind /sdcard \"\$RFS/sdcard\" 2>/dev/null\n")
+            // 外部 SD カード (設定で ON のときだけ呼び出し側が渡す)。
+            // /sdcard_ext は最初の1つのエイリアス。proot 経路と同じ取り扱いに揃える。
+            for ((i, vol) in externalVolumes.withIndex()) {
+                val srcQ = shq(vol)
+                val rel = vol.trimStart('/')
+                append("mkdir -p \"\$RFS/").append(rel).append("\" 2>/dev/null\n")
+                append("mount -o bind ").append(srcQ).append(" \"\$RFS/").append(rel).append("\" 2>/dev/null\n")
+                if (i == 0) {
+                    append("mkdir -p \"\$RFS/sdcard_ext\" 2>/dev/null\n")
+                    append("mount -o bind ").append(srcQ).append(" \"\$RFS/sdcard_ext\" 2>/dev/null\n")
+                }
+            }
+            // Android ホスト bind (実験的): /system /apex を chroot 内に晒す。proot 経路と同じ目的で、
+            // Android リンカ + ART ライブラリを使う ARM aarch64 ELF (aapt2 等) を chroot 内で実行可能にする。
+            if (androidHostBind) {
+                append("mkdir -p \"\$RFS/system\" \"\$RFS/apex\" 2>/dev/null\n")
+                append("mount -o bind /system \"\$RFS/system\" 2>/dev/null\n")
+                append("mount -o bind /apex \"\$RFS/apex\" 2>/dev/null\n")
+            }
             append("exec chroot \"\$RFS\" /usr/bin/env -i HOME=/root TERM=xterm-256color LANG=C.UTF-8 ")
             append("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin TMPDIR=/tmp")
             append(displayEnv)
@@ -424,8 +497,10 @@ class ProotLauncher(private val context: Context) {
      *  - 端末の共有ストレージ全体 (/storage/emulated/0) → /sdcard
      *    (全ファイルアクセス権が無いと中身は EACCES だが、設定で許可すれば読める)
      *  - アプリ専用外部領域 (権限不要・常に読み書き可) → /storage/app
+     *  - 外部 SD カード (検出済みボリューム) → 同名 + 最初の1つは /sdcard_ext エイリアス。
+     *    設定で「外部ストレージ認識」が ON のときだけ呼び出し側から渡される。
      */
-    private fun externalStorageBinds(): List<Pair<String, String>> {
+    private fun externalStorageBinds(externalVolumes: List<String>): List<Pair<String, String>> {
         val binds = mutableListOf<Pair<String, String>>()
         runCatching {
             val ext = android.os.Environment.getExternalStorageDirectory()
@@ -435,8 +510,30 @@ class ProotLauncher(private val context: Context) {
             val appExt = context.getExternalFilesDir(null)
             if (appExt != null) { appExt.mkdirs(); binds += appExt.absolutePath to "/storage/app" }
         }
+        for ((i, vol) in externalVolumes.withIndex()) {
+            binds += vol to vol
+            if (i == 0) binds += vol to "/sdcard_ext"
+        }
         return binds
     }
+
+    /**
+     * 設定「外部ストレージ認識」の現在値を同期的に読む。
+     * proot 起動は I/O を伴うのでブロッキング読み出しで OK (Worker スレッド前提)。
+     * 失敗 (DataStore 初期化前など) は false に倒して従来挙動を維持。
+     */
+    private fun isExternalStorageEnabled(): Boolean = runCatching {
+        runBlocking { AppSettings(context).flow.first().externalStorageEnabled }
+    }.getOrDefault(false)
+
+    /**
+     * 設定「Android ホスト bind (実験的)」の現在値を同期的に読む。
+     * [isExternalStorageEnabled] と同じ理由でブロッキング読み出し可。失敗時は false に倒し、
+     * 「設定が壊れていれば従来挙動」という安全側に倒す。
+     */
+    private fun isAndroidHostBindEnabled(): Boolean = runCatching {
+        runBlocking { AppSettings(context).flow.first().androidHostBindEnabled }
+    }.getOrDefault(false)
 
     /**
      * shell の rc に履歴設定を流し込む (再起動後も履歴を辿れるように)。
