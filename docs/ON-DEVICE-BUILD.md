@@ -1,12 +1,18 @@
 # スマホの z2term で Android アプリをビルドする (PRoot ビルド環境ガイド)
 
-最終更新: 2026-06-01 / 対象 z2term version: 0.8.4-alpha (12) 以降
+最終更新: 2026-06-02 / 対象 z2term version: 0.8.4-alpha (12) 以降
+状態: **実機検証済み**（moto g66j / 非 root / proot で z2term 自身を `assembleFullDebug` →
+`BUILD SUCCESSFUL` を確認）
 
 スマホの z2term（PRoot 内 Arch Linux ARM64）で **任意の Android / Gradle プロジェクト**を
 ビルドするための環境構築ガイド。z2term 自身に限らず使い回せる。
 
 > ポイント: **環境構築（§2）は PRoot に対して 1 回やれば全プロジェクト共通**。
 > プロジェクトごとに変わるのは「ソースの場所」と「`local.properties`」だけ（§3）。
+
+> 貼り付けの注意: 設定ファイルを作るとき **heredoc（`<<'PROPS' … PROPS`）は使わない**。
+> SSH 等でインデント付き貼り付けをすると終端行が認識されず固まる。
+> 本ガイドは全部 **`printf` で 1 行書き込み**にしてある。
 
 ---
 
@@ -26,12 +32,15 @@ Android アプリのビルドには `aapt2` / `zipalign` などの **build-tools
   termux 系 build-tools が PRoot 内で動く。**これが端末内ビルドの肝**で、
   どのプロジェクトをビルドする場合でも共通の前提。
 
+> 補足: 実行時に `WARNING: linker: ... /linkerconfig/ld.config.txt` が出ることがあるが、
+> これは無害（フォールバックして正常動作する）。
+
 ### 全体フロー
 
 ```
 [1回だけ] z2term の設定 → 「実験的 / 開発者向け」→「Android ホスト bind」ON → 再起動
         ↓
-[1回だけ] PRoot 内に JDK / SDK / NDK / build-tools を構築 (§2)
+[1回だけ] PRoot 内に JDK / SDK / NDK / build-tools を構築 + aapt2 の罠対策 (§2)
         ↓
 [プロジェクトごと] ソースを置く + local.properties を書く + ./gradlew (§3)
 ```
@@ -67,15 +76,24 @@ android {
 
 z2term の PRoot シェル（Arch Linux ARM64）に入ってから実行する。
 
+### 2-0. 前提: 「Android ホスト bind」を ON にして bind を確認
+
+z2term 設定 → 「実験的 / 開発者向け」→「Android ホスト bind (/system, /apex)」ON →
+**z2term を再起動**。proot シェルで確認:
+
+```bash
+ls /system/bin/linker64       # ファイルが見えれば bind 成功 (見えなければ ON / 再起動を確認)
+```
+
 ### 2-A. ベースのツール
 
 ```bash
 pacman -Syu --noconfirm
 pacman -S --noconfirm jdk17-openjdk cmake git unzip p7zip wget which
 
-# JAVA_HOME を通す (再起動後も効くよう .bashrc にも追記)
+# JAVA_HOME を通す (使っているシェルの rc に追記。zsh なら ~/.zshrc, bash なら ~/.bashrc)
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
-echo 'export JAVA_HOME=/usr/lib/jvm/java-17-openjdk' >> ~/.bashrc
+echo 'export JAVA_HOME=/usr/lib/jvm/java-17-openjdk' >> ~/.zshrc
 java -version   # openjdk 17 が出れば OK
 ```
 
@@ -87,52 +105,88 @@ mkdir -p /root/android-sdk/{ndk,build-tools,platforms,platform-tools,cmake}
 
 ### 2-C. NDK (termux-ndk r29 ARM64) ※ native コードがある場合のみ必須
 
-公式 NDK は ARM64 ホスト用が無いので termux-ndk を使う。
+公式 NDK は ARM64 ホスト用が無いので termux-ndk を使う（拡張子は **.7z**）。
 （URL は `github.com/lzhiyong/termux-ndk/releases` で最新を確認。2026-06 時点は下記）
 
 ```bash
 cd /root
-wget -O ndk.7z "https://github.com/lzhiyong/termux-ndk/releases/download/android-ndk/android-ndk-r29-aarch64.7z"
+wget -c -O ndk.7z "https://github.com/lzhiyong/termux-ndk/releases/download/android-ndk/android-ndk-r29-aarch64.7z"
 7z x ndk.7z
-# 展開先のディレクトリ名を local.properties の ndk.version と一致させる
+ls -d android-ndk*    # 展開フォルダ名を確認 (例: android-ndk-r29)
+# ディレクトリ名を local.properties の ndk.version と一致させて配置
 mv android-ndk-r29* /root/android-sdk/ndk/29.0.14206865
 ```
 
+> **7z の「Dangerous link path was ignored」警告に注意。** 7z は上位階層へ辿る
+> シンボリックリンクを安全のため**スキップ**する。NDK では `clang++ → clang` が
+> スキップされる（これは C++ ビルドに必須）ので、手動で作り直す:
+
+```bash
+cd /root/android-sdk/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin
+ln -sf clang clang++
+./clang --version    # "aarch64-unknown-linux-musl" の clang 21 が出れば OK
+```
+
+> （`simpleperf`(x86_64) / `lldb` 関連のスキップはビルドに不要なので無視してよい）
 > 重要: `/root/android-sdk/ndk/<名前>` の**ディレクトリ名**を
 > 各プロジェクトの `local.properties` の `ndk.version` と**完全一致**させること。
 
-### 2-D. build-tools / platforms (termux-sdk aarch64)
+### 2-D. build-tools / platforms / cmake (termux-sdk aarch64)
 
-termux-sdk aarch64 には cmake 4.2.1 / ninja / build-tools 35.0.0 / platform-tools 35.0.2 が入る。
+termux-sdk aarch64 には **build-tools 34/35/36・platforms android-34/35/36・cmake 3.22.1・
+cmdline-tools・platform-tools** が一式入っている。**`/root` で展開すると `/root/android-sdk`
+にそのまま合流する**（§2-B で作った土台＋§2-C の NDK と同じ場所にマージされる）。
 
 ```bash
 cd /root
-wget -O sdk-tools.7z "https://github.com/lzhiyong/termux-ndk/releases/download/android-sdk/android-sdk-aarch64.7z"
-7z x sdk-tools.7z
-# 必要な版を SDK 配下へ (プロジェクトの compileSdk / buildToolsVersion に合わせる)
-cp -r android-sdk/build-tools/35.0.0 /root/android-sdk/build-tools/35.0.0
-cp -r android-sdk/platforms/android-35 /root/android-sdk/platforms/android-35
+wget -c -O sdk-tools.7z "https://github.com/lzhiyong/termux-ndk/releases/download/android-sdk/android-sdk-aarch64.7z"
+7z x sdk-tools.7z      # 上書き確認が出たら A (Always) を選ぶ
+# 確認
+ls /root/android-sdk/build-tools     # 34.0.0 35.0.0 36.0.0
+ls /root/android-sdk/platforms       # android-34 android-35 android-36
 ```
 
-platforms（`android-35` などの `android.jar`）が termux-sdk に無い場合は、
-PC 側 SDK の `platforms/android-35` をコピーするか、`cmdline-tools` の `sdkmanager`
-（公式の platforms は中身がアーキ非依存の jar なので ARM64 でも使える）で入れる。
+> プロジェクトの `compileSdk` に合う platform / build-tools がここに含まれていれば追加作業不要。
+> 足りない版だけ後から個別配置すればよい。
 
-> プロジェクトによって必要な `compileSdk` / build-tools 版が違う。
-> 足りない版が出たら、その版だけ同じ要領で追加配置すればよい。
+### 2-E. ★ aapt2 の罠対策（**最重要・これが無いと必ず失敗する**）
 
-これらの aapt2 等は `/system/bin/linker64` を要求するので、
-**「Android ホスト bind」が ON でセッション再起動済み**であることが前提。確認:
+落とし穴が 2 つある。両方つぶす。
+
+**(1) 選択された build-tools の aapt2 が壊れている/無い場合がある**
+AGP はインストール済みの**最も新しい** build-tools（例: 36.0.0）を選ぶ。termux-sdk の
+36.0.0 は `aapt2` が**ダミーのシンボリックリンク**になっていることがあり「corrupted」と
+判定される。確実に動く 35.0.0 の実バイナリで差し替える:
 
 ```bash
-ls /system/bin/linker64                              # 見えれば bind 成功
-/root/android-sdk/build-tools/35.0.0/aapt2 version   # 動けば OK
+rm -f /root/android-sdk/build-tools/36.0.0/aapt2
+cp /root/android-sdk/build-tools/35.0.0/aapt2 /root/android-sdk/build-tools/36.0.0/aapt2
+chmod +x /root/android-sdk/build-tools/36.0.0/aapt2
+/root/android-sdk/build-tools/36.0.0/aapt2 version   # "aapt2 2.19-..." が出れば OK
 ```
 
-### 2-E. CMake を gradle が見つけられるように ※ CMake を使うプロジェクトのみ
+**(2) AGP は既定で Maven から x86_64 版 aapt2 を落として使う**
+そのままだと `AAPT2 aapt2-x.x.x-linux Daemon startup failed`（x86_64 が動かない）で落ちる。
+**`android.aapt2FromMavenOverride`** で ARM64 版に強制する。`~/.gradle/gradle.properties`
+に置けば**全プロジェクト共通**で効く（git 管理外）:
+
+```bash
+mkdir -p ~/.gradle
+printf 'android.aapt2FromMavenOverride=/root/android-sdk/build-tools/35.0.0/aapt2\norg.gradle.jvmargs=-Xmx3g\n' > ~/.gradle/gradle.properties
+cat ~/.gradle/gradle.properties
+```
+
+> 出力が 2 行（override と jvmargs）になっていること。
+> この設定を変えたら `sh ./gradlew --stop` で daemon を再起動してからビルドする
+> （gradle.properties は起動時にしか読まれない）。
+
+### 2-F. CMake の symlink ※ 通常は不要
+
+termux-sdk に cmake 3.22.1 が含まれるので普通は不要。CMake が見つからないと言われたら:
 
 ```bash
 ln -sf /usr/bin/cmake /root/android-sdk/cmake/3.22.1/bin/cmake 2>/dev/null || true
+# または local.properties に cmake.dir=/root/android-sdk/cmake/3.22.1 を追記
 ```
 
 ---
@@ -140,15 +194,13 @@ ln -sf /usr/bin/cmake /root/android-sdk/cmake/3.22.1/bin/cmake 2>/dev/null || tr
 ## 3. プロジェクトごとの手順（これだけ毎回やる）
 
 ```bash
-# 1. ソースを PRoot から触れる場所に置く
-cp -r /sdcard/.../<your-project> ~/myapp
-cd ~/myapp
+# 1. ソースを PRoot から触れる場所に置く (git clone でも /sdcard からコピーでも可)
+cd /root && git clone https://github.com/<you>/<your-project>.git myapp && cd myapp
+# (private で clone できない時は cp -r /sdcard/.../<project> ~/myapp)
 
-# 2. local.properties を PRoot 用に書く
-cat > local.properties <<'PROPS'
-sdk.dir=/root/android-sdk
-ndk.version=29.0.14206865
-PROPS
+# 2. local.properties を PRoot 用に書く (heredoc を使わず printf で)
+printf 'sdk.dir=/root/android-sdk\nndk.version=29.0.14206865\n' > local.properties
+cat local.properties
 
 # 3. (native ありプロジェクト) CMake/NDK キャッシュをクリア
 rm -rf app/.cxx app/build/intermediates/cxx
@@ -161,7 +213,7 @@ sh ./gradlew assembleDebug      # フレーバーがあれば assemble<Flavor>De
 成果物: `app/build/outputs/apk/.../*.apk`
 
 > `ndk.version` の行は native コード（CMake/JNI）が無いプロジェクトでは不要。
-> その場合 §2-C / §2-E もスキップしてよい。
+> その場合 §2-C / §2-F もスキップしてよい（§2-E の aapt2 対策は native の有無に関係なく必須）。
 
 ---
 
@@ -169,25 +221,25 @@ sh ./gradlew assembleDebug      # フレーバーがあれば assemble<Flavor>De
 
 | 症状 | 原因 / 対処 |
 |---|---|
-| `aapt2: no such file` / `linker64 not found` | 「Android ホスト bind」OFF か再起動忘れ。ON にして z2term を再起動 |
+| `AAPT2 aapt2-x.x.x-linux Daemon startup failed` | Maven の x86_64 aapt2 が使われている。§2-E (2) の `aapt2FromMavenOverride` が未設定/未反映。`~/.gradle/gradle.properties` を確認し `--stop` 後に再ビルド |
+| `Installed Build Tools revision X is corrupted` / `missing AAPT2` | 選択された build-tools の `aapt2` がダミーリンク。§2-E (1) で実バイナリに差し替え |
+| `aapt2: no such file` / `linker64 not found` | 「Android ホスト bind」OFF か再起動忘れ。ON にして z2term を再起動（§2-0） |
+| 7z 展開時 `Dangerous link path was ignored` | 7z が symlink をスキップしただけ。NDK の `clang++ → clang` だけ手動再作成（§2-C） |
+| heredoc で `heredoc>` のまま固まる | インデント付き貼り付けで終端行が認識されない。Ctrl+C で抜けて `printf` 版を使う |
 | `NDK did not have a source.properties` | `ndk.version` の値とディレクトリ名が不一致。`/root/android-sdk/ndk/<名前>` と揃える |
-| `Failed to find Build Tools revision X` | その版を §2-D の要領で `/root/android-sdk/build-tools/X` に配置 |
-| `CMake ... not found` | §2-E の symlink、または `cmake.dir` を local.properties に追記 |
-| x86_64 の aapt2 が呼ばれて落ちる | `/root/android-sdk/build-tools/` に termux 版(ARM64)を上書き配置。Maven 経由の x86_64 版が混ざっていないか確認 |
-| daemon が不安定 / OOM | `sh ./gradlew --stop` で daemon を落として再実行。メモリの少ない端末は `org.gradle.jvmargs` を絞る |
+| `CMake ... not found` | §2-F の symlink、または `cmake.dir` を local.properties に追記 |
+| daemon が不安定 / OOM | `sh ./gradlew --stop` で daemon を落として再実行。メモリの少ない端末は `~/.gradle/gradle.properties` の `org.gradle.jvmargs` を `-Xmx2g` 等に絞る |
 
 ---
 
-## 5. 付録: z2term 自身をビルドする場合（具体例）
+## 5. 付録: z2term 自身をビルドする場合（検証済みの具体例）
 
 z2term は native コード（PRoot/talloc, CMake）ありなので §2 を全部やる。
 
 ```bash
-cp -r /sdcard/.../05_z2term ~/z2term && cd ~/z2term
-cat > local.properties <<'PROPS'
-sdk.dir=/root/android-sdk
-ndk.version=29.0.14206865
-PROPS
+cd /root && git clone https://github.com/orgsonai/z2term.git && cd z2term
+# (既にコピーがあるなら) cd ~/tmp/app_project/05_z2term && git pull origin main
+printf 'sdk.dir=/root/android-sdk\nndk.version=29.0.14206865\n' > local.properties
 rm -rf app/.cxx app/build/intermediates/cxx
 sh ./gradlew --stop
 sh ./gradlew assembleFullDebug
