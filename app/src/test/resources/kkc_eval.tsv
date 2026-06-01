@@ -1,0 +1,202 @@
+# z2term IME 評価セット (Phase 0 第1版)
+#
+# 形式: <reading>\t<expected>\t<tag1,tag2,...>
+# 期待値は「Google 日本語入力 / ATOK など商用 IME が標準で出す出力」を基準にする
+# (= z2term の現状ではない)。Phase 0 はこのギャップを定量化することが目的。
+#
+# タグ: 集計でカテゴリ別正解率を出すために使う。複数付与可。
+#   short      1-2 文節
+#   medium     3-4 文節
+#   long       5+ 文節
+#   proper     固有名詞含む
+#   katakana   外来語/カタカナ含む
+#   homophone  同音異義語の選択が要点
+#   verb       動詞活用
+#   adj        形容詞
+#   particle   助詞の処理が要点
+#   number     数詞・数量
+#   greeting   挨拶定型
+#   business   ビジネス/フォーマル
+#   daily      日常会話
+#
+# ============================================================
+# short — 1-2 文節
+# ============================================================
+きょうは	今日は	short,daily
+てんきは	天気は	short,daily
+わたしは	私は	short,daily
+なまえは	名前は	short,daily
+ありがとう	ありがとう	short,greeting
+おはよう	おはよう	short,greeting
+こんにちは	こんにちは	short,greeting
+すみません	すみません	short,greeting
+だいじょうぶ	大丈夫	short,daily
+がっこうへ	学校へ	short,daily,particle
+かいしゃに	会社に	short,daily,particle
+でんしゃで	電車で	short,daily,particle
+ほんをよむ	本を読む	short,verb,particle
+みずをのむ	水を飲む	short,verb,particle
+おちゃをのむ	お茶を飲む	short,daily,verb
+
+# ============================================================
+# medium — 3-4 文節
+# ============================================================
+きょうのてんきは	今日の天気は	medium,daily
+わたしのなまえは	私の名前は	medium,daily
+あしたのよてい	明日の予定	medium,daily
+にほんごのべんきょう	日本語の勉強	medium,daily
+たかいビルがある	高いビルがある	medium,adj,katakana
+えきまであるく	駅まで歩く	medium,verb,particle
+かれはせんせいです	彼は先生です	medium,daily
+かのじょはがくせい	彼女は学生	medium,daily
+これはほんです	これは本です	medium,daily
+それはなんですか	それは何ですか	medium,daily
+ともだちにあいに	友達に会いに	medium,verb
+へやをかたづける	部屋を片付ける	medium,verb
+あめがふっている	雨が降っている	medium,verb
+ながいかいだんを	長い階段を	medium,adj
+かわいいいぬですね	かわいい犬ですね	medium,adj,daily
+
+# ============================================================
+# long — 5+ 文節
+# ============================================================
+わたしのなまえはなかのです	私の名前は中野です	long,daily
+きょうのてんきははれです	今日の天気は晴れです	long,daily
+あしたはあめがふるでしょう	明日は雨が降るでしょう	long,daily,verb
+とうきょうとにすんでいます	東京都に住んでいます	long,proper,daily
+にほんごをべんきょうしています	日本語を勉強しています	long,verb,daily
+ぎんこうでおかねをおろします	銀行でお金を下ろします	long,verb,daily
+やまだせんせいはしんせつです	山田先生は親切です	long,proper,daily
+きのうのよるはやくねました	昨日の夜早く寝ました	long,verb,daily
+あめのひはいえですごします	雨の日は家で過ごします	long,daily,verb
+こうえんでこどもがあそんでいる	公園で子供が遊んでいる	long,verb,daily
+このほんはとてもおもしろい	この本はとても面白い	long,adj,daily
+まいあさはちじにおきます	毎朝八時に起きます	long,number,verb,daily
+きょうのてんきははれのちくもり	今日の天気は晴れのち曇り	long,daily
+せんしゅうのきんようびにあった	先週の金曜日に会った	long,verb,daily
+たなかさんはえいごのせんせいです	田中さんは英語の先生です	long,proper,daily
+
+# ============================================================
+# proper — 固有名詞
+# ============================================================
+とうきょうへいきます	東京へ行きます	short,proper,verb
+おおさかしゅっしんです	大阪出身です	short,proper
+にほんのきょうとし	日本の京都市	medium,proper
+やまだたろうです	山田太郎です	short,proper
+ふじさんにのぼる	富士山に登る	short,proper,verb
+ほっかいどうへりょこう	北海道へ旅行	medium,proper
+あおもりはりんごがゆうめい	青森はりんごが有名	long,proper
+おきなわのうみはきれい	沖縄の海は綺麗	medium,proper,adj
+
+# ============================================================
+# katakana / loanword
+# ============================================================
+こーひーをのむ	コーヒーを飲む	short,katakana,verb
+ぱそこんをつかう	パソコンを使う	short,katakana,verb
+いんたーねっとで	インターネットで	short,katakana
+あぷりをいれる	アプリを入れる	short,katakana,verb
+でーたをほぞん	データを保存	short,katakana
+めーるをおくる	メールを送る	short,katakana,verb
+すまほをみる	スマホを見る	short,katakana,verb
+ぶろぐをかく	ブログを書く	short,katakana,verb
+あいすくりーむがすき	アイスクリームが好き	medium,katakana,daily
+
+# ============================================================
+# homophone — 同音異義語
+# ============================================================
+はしをわたる	橋を渡る	short,homophone,verb
+はしをとる	箸を取る	short,homophone,verb
+かみをきる	髪を切る	short,homophone,verb
+かみにかく	紙に書く	short,homophone,verb
+あめがふる	雨が降る	short,homophone,verb
+あめをたべる	飴を食べる	short,homophone,verb
+いがいとおおい	意外と多い	short,homophone,adj
+きしゃできしゃする	帰社で記者する	short,homophone
+はなをみる	花を見る	short,homophone,verb
+はなをかむ	鼻をかむ	short,homophone,verb
+くもがでてきた	雲が出てきた	medium,homophone,verb
+くもがいた	蜘蛛がいた	short,homophone
+
+# ============================================================
+# verb — 動詞活用
+# ============================================================
+たべました	食べました	short,verb
+いきたいです	行きたいです	short,verb
+かいてください	書いてください	short,verb
+まってください	待ってください	short,verb
+やすんでいます	休んでいます	short,verb
+はなしましょう	話しましょう	short,verb
+でかけました	出かけました	short,verb
+かんがえています	考えています	short,verb
+おしえてもらった	教えてもらった	short,verb
+できませんでした	できませんでした	short,verb
+よんでみたい	読んでみたい	short,verb
+かえってきた	帰ってきた	short,verb
+わすれてしまった	忘れてしまった	short,verb
+はしっていく	走っていく	short,verb
+
+# ============================================================
+# adj — 形容詞
+# ============================================================
+うつくしいけしき	美しい景色	short,adj
+たのしいいちにち	楽しい一日	short,adj
+むずかしいもんだい	難しい問題	short,adj
+やさしいひと	優しい人	short,adj
+あたらしいくるま	新しい車	short,adj
+たかいやま	高い山	short,adj
+おもしろいほん	面白い本	short,adj
+さむいひがつづく	寒い日が続く	medium,adj,verb
+おおきなかばん	大きなかばん	short,adj
+ちいさなこども	小さな子供	short,adj
+
+# ============================================================
+# particle — 助詞処理
+# ============================================================
+いえからえきまで	家から駅まで	short,particle
+ともだちとあう	友達と会う	short,particle,verb
+かいしゃにいく	会社に行く	short,particle,verb
+へやのなか	部屋の中	short,particle
+つくえのうえ	机の上	short,particle
+いすのよこ	椅子の横	short,particle
+あなたのために	あなたのために	short,particle
+ちちといっしょに	父と一緒に	short,particle
+
+# ============================================================
+# number — 数詞・カウンタ
+# ============================================================
+さんじからかいぎ	三時から会議	medium,number,business
+ふたつください	二つください	short,number,daily
+いちまんえんです	一万円です	short,number
+にちようびに	日曜日に	short,number
+にせんにじゅうろくねん	二千二十六年	short,number
+ごじはん	五時半	short,number
+にじゅっぷんまえ	二十分前	short,number
+はちじゅっぷんかかる	八十分かかる	short,number,verb
+ななひゃくえん	七百円	short,number
+
+# ============================================================
+# business / formal
+# ============================================================
+かいぎがあります	会議があります	short,business
+しりょうをおくります	資料を送ります	short,business,verb
+かくにんおねがいします	確認お願いします	medium,business
+せつめいさせていただきます	説明させていただきます	long,business
+ごれんらくください	ご連絡ください	short,business
+たいへんおせわになりました	大変お世話になりました	long,business
+おつかれさまでした	お疲れ様でした	short,business,greeting
+よろしくおねがいします	よろしくお願いします	short,business,greeting
+うけたまわりました	承りました	short,business
+
+# ============================================================
+# daily — 日常表現
+# ============================================================
+ごはんをたべる	ご飯を食べる	short,daily,verb
+ふろにはいる	風呂に入る	short,daily,verb
+てがみをかく	手紙を書く	short,daily,verb
+でんわをかける	電話をかける	short,daily,verb
+せんたくをする	洗濯をする	short,daily,verb
+そうじをする	掃除をする	short,daily,verb
+かいものにいく	買い物に行く	short,daily,verb
+えいがをみにいく	映画を見に行く	medium,daily,verb
+ともだちとしょくじ	友達と食事	short,daily
+こうえんをさんぽする	公園を散歩する	short,daily,verb

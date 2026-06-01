@@ -3,6 +3,8 @@ package com.zerotoship.z2term.ui.terminal.keyboard
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.BufferedReader
+import java.io.InputStream
 import java.nio.ByteOrder
 
 /**
@@ -39,35 +41,45 @@ object KkcConverter {
         if (loaded) return
         withContext(Dispatchers.IO) {
             if (loaded) return@withContext
-            // 接続行列
-            context.assets.open("kkc_matrix.bin").use { ins ->
-                val bytes = ins.readBytes()
-                val bb = java.nio.ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
-                lsize = bb.short.toInt() and 0xFFFF
-                val rsize = bb.short.toInt() and 0xFFFF
-                val arr = ShortArray(lsize * rsize)
-                bb.asShortBuffer().get(arr)
-                matrix = arr
-            }
-            // 語彙 (読み順ソート済み TSV)
-            val map = HashMap<String, ArrayList<Entry>>(120_000)
-            context.assets.open("kkc_lex.tsv").bufferedReader(Charsets.UTF_8).useLines { lines ->
-                for (line in lines) {
-                    val t1 = line.indexOf('\t'); if (t1 < 0) continue
-                    val t2 = line.indexOf('\t', t1 + 1); if (t2 < 0) continue
-                    val t3 = line.indexOf('\t', t2 + 1); if (t3 < 0) continue
-                    val t4 = line.indexOf('\t', t3 + 1); if (t4 < 0) continue
-                    val reading = line.substring(0, t1)
-                    val surface = line.substring(t1 + 1, t2)
-                    val lc = line.substring(t2 + 1, t3).toIntOrNull() ?: continue
-                    val rc = line.substring(t3 + 1, t4).toIntOrNull() ?: continue
-                    val cost = line.substring(t4 + 1).toIntOrNull() ?: continue
-                    map.getOrPut(reading) { ArrayList(2) }.add(Entry(surface, lc, rc, cost))
+            context.assets.open("kkc_matrix.bin").use { ms ->
+                context.assets.open("kkc_lex.tsv").bufferedReader(Charsets.UTF_8).use { lr ->
+                    loadFromStreams(ms, lr)
                 }
             }
-            lex = map
-            loaded = true
         }
+    }
+
+    /**
+     * Android Context を介さずに直接ロードする (JVM ユニットテスト用)。
+     * [matrixStream] = kkc_matrix.bin、[lexReader] = kkc_lex.tsv (UTF-8)。
+     * 呼び出し側はストリームの close を行うこと。
+     */
+    fun loadFromStreams(matrixStream: InputStream, lexReader: BufferedReader) {
+        val bytes = matrixStream.readBytes()
+        val bb = java.nio.ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+        lsize = bb.short.toInt() and 0xFFFF
+        val rsize = bb.short.toInt() and 0xFFFF
+        val arr = ShortArray(lsize * rsize)
+        bb.asShortBuffer().get(arr)
+        matrix = arr
+
+        val map = HashMap<String, ArrayList<Entry>>(120_000)
+        lexReader.useLines { lines ->
+            for (line in lines) {
+                val t1 = line.indexOf('\t'); if (t1 < 0) continue
+                val t2 = line.indexOf('\t', t1 + 1); if (t2 < 0) continue
+                val t3 = line.indexOf('\t', t2 + 1); if (t3 < 0) continue
+                val t4 = line.indexOf('\t', t3 + 1); if (t4 < 0) continue
+                val reading = line.substring(0, t1)
+                val surface = line.substring(t1 + 1, t2)
+                val lc = line.substring(t2 + 1, t3).toIntOrNull() ?: continue
+                val rc = line.substring(t3 + 1, t4).toIntOrNull() ?: continue
+                val cost = line.substring(t4 + 1).toIntOrNull() ?: continue
+                map.getOrPut(reading) { ArrayList(2) }.add(Entry(surface, lc, rc, cost))
+            }
+        }
+        lex = map
+        loaded = true
     }
 
     /** 接続コスト。左ノードの右文脈 [leftRc] → 右ノードの左文脈 [rightLc]。 */
