@@ -53,17 +53,25 @@ import kotlin.math.abs
  * Z2Term 独自キーボード。
  *
  * 主な仕様:
- *  - Row 5 左下に CTRL を配置 (PC ライクなレイアウト)
+ *  - 左下 (Row 5 左) は「あ」= 日本語フリックキーボードへ切替
  *  - Shift は OFF / ONESHOT / LOCKED の 3 状態 (タップ毎に循環)
  *  - ⌫ 長押しで連打、左フリックで `Ctrl+W` (単語削除)、右フリックで `Ctrl+U` (行頭まで削除)
  *  - 各英字キー: スタイルに応じて 1 方向 (compact) or 4 方向 (spacious) フリック
  *
- * レイアウト:
- *   Row 1: ESC  1〜0 (or 記号)                              ⌫(長押し連打 / ←=C-W / →=C-U)
+ * レイアウト (spacious):
+ *   Row 1: ESC  1〜0 (or 記号)                              ⌫
  *   Row 2: TAB  q w e r t y u i o p
- *   Row 3: あ   a s d f g h j k l                            ⏎   (あ=日本語フリックへ)
- *   Row 4: ⇧   z x c v b n m , . /
- *   Row 5: CTL  ?#  ALT  SPACE                              ← ↓ ↑ →
+ *   Row 3: ⇧    a s d f g h j k l                            ⏎
+ *   Row 4: CTRL z x c v b n m , . /
+ *   Row 5: あ   ?#  ALT  SPACE                              ← ↓ ↑ →
+ *
+ * レイアウト (compact, 特殊キーを上に追い出して主キー幅を広く):
+ *   Top  : [ ESC ][ TAB ][ ⇧ ][ CTRL ]
+ *   Row 1: 1〜0                                              ⌫
+ *   Row 2: q w e r t y u i o p
+ *   Row 3: a s d f g h j k l                                 ⏎
+ *   Row 4: z x c v b n m , . /
+ *   Row 5: あ   ?#  ALT  SPACE                              ← ↓ ↑ →
  *
  * 各英字キーの下フリック = そのローマ字の大文字 (ヒント非表示)。
  */
@@ -198,6 +206,8 @@ fun TerminalKeyboard(
     }
 
     val rowSpacing = if (style.keyHeight >= 56.dp) 4.dp else 3.dp
+    val isCompact = style.id == "compact"
+    val smallFont = (style.keyFontSp - 3f).coerceAtLeast(10f)
 
     Column(
         modifier = modifier
@@ -206,10 +216,32 @@ fun TerminalKeyboard(
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(rowSpacing)
     ) {
-        // Row 1: ESC + 数字行 + ⌫
+        // Compact 限定: 特殊キー (ESC/TAB/⇧/CTRL) を主キー領域の上に追い出すバー。
+        // 主行の左 1.4f 列を解放することで英字キーが少しずつ広くなる。
+        if (isCompact) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
+                BasicKey("ESC", weight = 1f, fontSp = smallFont, style = style) {
+                    emitSpecial(byteArrayOf(0x1B))
+                }
+                BasicKey("TAB", weight = 1f, fontSp = smallFont, style = style) {
+                    emitSpecial(byteArrayOf(0x09))
+                }
+                ShiftKey(weight = 1f, state = shift, style = style, onCycle = { cycleShift() })
+                BasicKey(
+                    label = "CTRL",
+                    weight = 1f,
+                    fontSp = smallFont,
+                    active = ctrl,
+                    style = style
+                ) { ctrl = !ctrl }
+            }
+        }
+        // Row 1: (spacious のみ ESC) + 数字行 + ⌫
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-            BasicKey("ESC", weight = 1.4f, fontSp = (style.keyFontSp - 3f).coerceAtLeast(10f), style = style) {
-                emitSpecial(byteArrayOf(0x1B))
+            if (!isCompact) {
+                BasicKey("ESC", weight = 1.4f, fontSp = smallFont, style = style) {
+                    emitSpecial(byteArrayOf(0x1B))
+                }
             }
             r1Labels.forEach { s ->
                 BasicKey(s, weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) { emitChar(s[0]) }
@@ -222,10 +254,12 @@ fun TerminalKeyboard(
                 onFlickRight = { emitSpecial(byteArrayOf(0x15)) }  // Ctrl+U: 行頭まで削除
             )
         }
-        // Row 2
+        // Row 2: (spacious のみ TAB) + qwerty
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-            BasicKey("TAB", weight = 1.4f, fontSp = (style.keyFontSp - 3f).coerceAtLeast(10f), style = style) {
-                emitSpecial(byteArrayOf(0x09))
+            if (!isCompact) {
+                BasicKey("TAB", weight = 1.4f, fontSp = smallFont, style = style) {
+                    emitSpecial(byteArrayOf(0x09))
+                }
             }
             r2Labels.forEachIndexed { idx, s ->
                 val display = if (!sym && shift != ShiftState.OFF && s[0].isLetter()) s.uppercase() else s
@@ -239,14 +273,10 @@ fun TerminalKeyboard(
                 )
             }
         }
-        // Row 3 左端: 日本語フリックキーボードへ切替える「あ」キー。English モードでは
-        // 隠して同じ重みのスペーサ (見えない空白) で配置を保つ。
+        // Row 3: spacious では左に ⇧、compact では左キー無しで a- から
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-            if (showJapaneseKeyboard) {
-                BasicKey("あ", weight = 1.4f, fontSp = style.keyFontSp, style = style) { jpMode = true }
-            } else {
-                // 不可視スペーサ: weight=1.4f を維持して右側のキー位置を変えないようにする。
-                Box(modifier = Modifier.weight(1.4f).height(style.keyHeight))
+            if (!isCompact) {
+                ShiftKey(weight = 1.4f, state = shift, style = style, onCycle = { cycleShift() })
             }
             r3Labels.forEachIndexed { idx, s ->
                 val display = if (!sym && shift != ShiftState.OFF && s[0].isLetter()) s.uppercase() else s
@@ -263,9 +293,17 @@ fun TerminalKeyboard(
                 emitSpecial(byteArrayOf(0x0D))
             }
         }
-        // Row 4
+        // Row 4: spacious では左に CTRL、compact では左キー無し
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-            ShiftKey(weight = 1.4f, state = shift, style = style, onCycle = { cycleShift() })
+            if (!isCompact) {
+                BasicKey(
+                    label = "CTRL",
+                    weight = 1.4f,
+                    fontSp = smallFont,
+                    active = ctrl,
+                    style = style
+                ) { ctrl = !ctrl }
+            }
             r4Labels.forEachIndexed { idx, s ->
                 val display = if (!sym && shift != ShiftState.OFF && s[0].isLetter()) s.uppercase() else s
                 FlickKey(
@@ -278,26 +316,24 @@ fun TerminalKeyboard(
                 )
             }
         }
-        // Row 5: 左下を CTRL に
+        // Row 5: 左下 = 「あ」(日本語フリックへ切替)、English モードでは不可視スペーサで詰める
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-            BasicKey(
-                label = "CTRL",
-                weight = 1.4f,
-                fontSp = (style.keyFontSp - 3f).coerceAtLeast(10f),
-                active = ctrl,
-                style = style
-            ) { ctrl = !ctrl }
+            if (showJapaneseKeyboard) {
+                BasicKey("あ", weight = 1.4f, fontSp = style.keyFontSp, style = style) { jpMode = true }
+            } else {
+                Box(modifier = Modifier.weight(1.4f).height(style.keyHeight))
+            }
             BasicKey(
                 label = if (sym) "ABC" else "?#",
                 weight = 1.2f,
-                fontSp = (style.keyFontSp - 3f).coerceAtLeast(10f),
+                fontSp = smallFont,
                 active = sym,
                 style = style
             ) { sym = !sym }
             BasicKey(
                 label = "ALT",
                 weight = 1.2f,
-                fontSp = (style.keyFontSp - 3f).coerceAtLeast(10f),
+                fontSp = smallFont,
                 active = alt,
                 style = style
             ) { alt = !alt }

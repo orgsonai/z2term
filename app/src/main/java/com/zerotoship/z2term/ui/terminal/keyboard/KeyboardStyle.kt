@@ -36,8 +36,8 @@ data class KeyboardStyle(
             keyFontSp = 14f,
             flickHintFontSp = 9f,
             fourDirectionFlick = false,
-            // 5*44 + 4*3 + 8 ≒ 240
-            naturalHeight = 240.dp
+            // 6 行構成 (上に ESC/TAB/⇧/CTRL の特殊キーバー + 主 5 行): 6*44 + 5*3 + 8 ≒ 287
+            naturalHeight = 287.dp
         )
         val SPACIOUS = KeyboardStyle(
             id = "spacious",
