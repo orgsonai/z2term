@@ -316,6 +316,14 @@ fun SettingsSheet(
                 )
             }
 
+            // バックグラウンド常駐はよく使うため distro 切替の直上に置く。
+            ToggleField(
+                title = stringResource(R.string.settings_keep_alive),
+                description = stringResource(R.string.settings_keep_alive_desc),
+                checked = settings.keepAliveService,
+                onChange = { session.setKeepAliveService(it) }
+            )
+
             Section(title = stringResource(R.string.settings_section_distro)) {
                 ChipRow(
                     options = DistroSpec.ALL.map { it.id },
@@ -586,13 +594,6 @@ fun SettingsSheet(
                 description = stringResource(R.string.settings_ambiguous_width_desc),
                 checked = settings.ambiguousAsWide,
                 onChange = { session.setAmbiguousAsWide(it) }
-            )
-
-            ToggleField(
-                title = stringResource(R.string.settings_keep_alive),
-                description = stringResource(R.string.settings_keep_alive_desc),
-                checked = settings.keepAliveService,
-                onChange = { session.setKeepAliveService(it) }
             )
 
             // L1: バックグラウンドでのプロセス kill 対策。電池最適化の除外トグル +

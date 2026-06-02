@@ -1,7 +1,5 @@
 package com.zerotoship.z2term.ui.settings
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -49,12 +47,12 @@ import java.net.Inet4Address
 import java.net.NetworkInterface
 
 /**
- * 設定シートに埋め込む「PC からの SSH 接続」ヘルパー。
+ * 設定シートに埋め込む「PC からの SSH 接続」ヘルパー (情報表示のみ)。
  *
  *  - 端末 IPv4 (Wi-Fi / Cellular など) を NetworkInterface から自動列挙
- *  - 「sshd を起動」ボタンで Alpine 内に必要な準備 → /usr/sbin/sshd 起動を 1 タップ
- *  - 「ssh コマンドをコピー」でクリップボードへ `ssh -p 2222 root@<ip>` を送る
- *  - 「passwd を実行」で `passwd` をターミナルへ送って対話入力を促す
+ *  - PC から接続するための `ssh -p <port> root@<ip>` を表示
+ *
+ * sshd 起動・passwd 等はターミナルからコマンドで行うため、操作ボタンは置かない。
  */
 @Composable
 fun SshAccessHelper(session: TerminalSession) {
@@ -125,30 +123,6 @@ fun SshAccessHelper(session: TerminalSession) {
             )
         }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            HelperButton(
-                label = "sshd 起動",
-                accent = true,
-                onClick = {
-                    // `sshd` = /usr/local/sbin/sshd ラッパー (ProotLauncher が配置)。
-                    // sshd_config の Port を読んで dropbear を起動する。
-                    session.writeBytes("sshd\n".toByteArray(Charsets.UTF_8))
-                }
-            )
-            HelperButton(
-                label = "passwd 実行",
-                onClick = {
-                    session.writeBytes("passwd\n".toByteArray(Charsets.UTF_8))
-                }
-            )
-            HelperButton(
-                label = stringResource(R.string.sshaccess_copy_ssh_cmd),
-                onClick = { copyToClipboard(context, "z2term ssh", sshCmd) }
-            )
-        }
         Text(
             text = stringResource(R.string.sshaccess_note),
             color = ZtsTextSecondary.copy(alpha = 0.6f),
@@ -236,11 +210,6 @@ private fun HelperButton(
             fontFamily = FontFamily.Monospace
         )
     }
-}
-
-private fun copyToClipboard(context: Context, label: String, text: String) {
-    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    cm.setPrimaryClip(ClipData.newPlainText(label, text))
 }
 
 /**
