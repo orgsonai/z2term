@@ -50,6 +50,10 @@ object KkcConverter {
      */
     private const val KATAKANA_DUP_PENALTY = 4000
 
+    /** Phase 4 共起 (コロケーション) 集合。`kkc_colloc.bloom` から読込。未配置なら null。 */
+    @Volatile var collocationFilter: ExistenceFilter? = null
+        private set
+
     suspend fun ensureLoaded(context: Context) {
         if (loaded) return
         withContext(Dispatchers.IO) {
@@ -58,6 +62,14 @@ object KkcConverter {
                 context.assets.open("kkc_lex.tsv").bufferedReader(Charsets.UTF_8).use { lr ->
                     loadFromStreams(ms, lr)
                 }
+            }
+            runCatching {
+                context.assets.open("kkc_colloc.bloom").use { collocationFilter = ExistenceFilter.load(it) }
+            }
+            // 学習リランカー (HistoryReranker) がまだ載っていなければ共起リランカーを既定で入れる。
+            // ImeHistoryStore.ensureLoaded は CompositeReranker で上書きするので順序非依存。
+            if (reranker === IdentityReranker && collocationFilter != null) {
+                reranker = CollocationReranker({ collocationFilter })
             }
         }
     }

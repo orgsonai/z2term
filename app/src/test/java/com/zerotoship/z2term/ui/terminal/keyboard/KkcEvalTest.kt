@@ -45,6 +45,9 @@ class KkcEvalTest {
         }
     }
 
+    private fun loadCollocationFilter(): ExistenceFilter =
+        locate("src/main/assets/kkc_colloc.bloom").inputStream().use { ExistenceFilter.load(it) }
+
     @Test
     fun evaluateAndReport() {
         val cases = loadEval()
@@ -105,6 +108,7 @@ class KkcEvalTest {
      */
     @Test
     fun evaluateNbestCoverage() {
+        KkcConverter.reranker = KkcConverter.IdentityReranker  // ベースライン: リランクなし
         val cases = loadEval()
         assertTrue("eval cases must be non-empty", cases.isNotEmpty())
         val k = 5
@@ -138,6 +142,50 @@ class KkcEvalTest {
         val text = sb.toString()
         println(text)
         File("build/kkc-nbest-report.txt").apply { parentFile?.mkdirs(); writeText(text) }
+    }
+
+    /**
+     * Phase 4: 共起 (コロケーション) リランカーを N-best 段に載せたときの TOP1/cov を計測する。
+     * cov は経路集合が同じなので Phase 1 と不変だが、TOP1 が共起で底上げされるのが狙い。
+     * 計測後は他テストへ影響しないよう IdentityReranker に戻す。
+     */
+    @Test
+    fun evaluateCollocationRerank() {
+        val filter = loadCollocationFilter()
+        val prev = KkcConverter.reranker
+        KkcConverter.reranker = CollocationReranker({ filter })
+        try {
+            val cases = loadEval()
+            val k = 5
+            var top1 = 0
+            var covered = 0
+            val tagT = LinkedHashMap<String, Int>()
+            val tagOk = LinkedHashMap<String, Int>()
+            for (c in cases) {
+                val surfaces = KkcConverter.nbest(c.reading, k).map { it.surface }
+                if (surfaces.firstOrNull() == c.expected) top1++
+                val hit = c.expected in surfaces
+                if (hit) covered++
+                for (t in c.tags) {
+                    tagT[t] = (tagT[t] ?: 0) + 1
+                    if (surfaces.firstOrNull() == c.expected) tagOk[t] = (tagOk[t] ?: 0) + 1
+                }
+            }
+            val sb = StringBuilder()
+            sb.appendLine("=== KKC collocation rerank (Phase 4, k=$k, bonus=${CollocationReranker.DEFAULT_BONUS}) ===")
+            sb.appendLine("colloc pairs (bloom n): ${filter.size}")
+            sb.appendLine("TOP1 (reranked) : ${pct(top1, cases.size)}  ($top1 / ${cases.size})")
+            sb.appendLine("TOP$k cov       : ${pct(covered, cases.size)}  ($covered / ${cases.size})")
+            sb.appendLine("--- TOP1 by tag ---")
+            for (t in tagT.keys.sorted()) {
+                sb.appendLine("  ${t.padEnd(9)} : ${pct(tagOk[t] ?: 0, tagT[t]!!)}  (${tagOk[t] ?: 0} / ${tagT[t]})")
+            }
+            val text = sb.toString()
+            println(text)
+            File("build/kkc-colloc-report.txt").apply { parentFile?.mkdirs(); writeText(text) }
+        } finally {
+            KkcConverter.reranker = prev
+        }
     }
 
     /**

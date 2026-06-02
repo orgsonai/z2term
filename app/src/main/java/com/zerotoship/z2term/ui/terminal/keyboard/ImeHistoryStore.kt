@@ -92,8 +92,14 @@ object ImeHistoryStore {
             }
             loaded = true
         }
-        // 学習済み bigram を Kkc の N-best リランク段へ接続する (Phase 2)。
-        KkcConverter.reranker = HistoryReranker(::bigramBonus)
+        // N-best リランク段を構成する: 共起 (Phase 4) → ユーザ確定 bigram (Phase 2) の順。
+        // 共起で同音語を整え、ユーザの明示的選択 (履歴) を最終的に優先させる。
+        KkcConverter.reranker = CompositeReranker(
+            listOf(
+                CollocationReranker({ KkcConverter.collocationFilter }),
+                HistoryReranker(::bigramBonus),
+            ),
+        )
         _versionFlow.update { it + 1 }
     }
 
