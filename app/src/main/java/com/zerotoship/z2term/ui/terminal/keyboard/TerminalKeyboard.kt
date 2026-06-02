@@ -53,17 +53,19 @@ import kotlin.math.abs
  * Z2Term 独自キーボード。
  *
  * 主な仕様:
- *  - 左下 (Row 5 左) は「あ」= 日本語フリックキーボードへ切替
+ *  - 日本語ロケールのみ「あ」キー (= 日本語フリックキーボードへ切替) を出す
  *  - Shift は OFF / ONESHOT / LOCKED の 3 状態 (タップ毎に循環)
  *  - ⌫ 長押しで連打、左フリックで `Ctrl+W` (単語削除)、右フリックで `Ctrl+U` (行頭まで削除)
  *  - 各英字キー: スタイルに応じて 1 方向 (compact) or 4 方向 (spacious) フリック
  *
- * レイアウト (spacious):
+ * レイアウト (spacious / 日本語ロケール = 従来どおり):
  *   Row 1: ESC  1〜0 (or 記号)                              ⌫
  *   Row 2: TAB  q w e r t y u i o p
  *   Row 3: ⇧    a s d f g h j k l                            ⏎
  *   Row 4: CTRL z x c v b n m , . /
  *   Row 5: あ   ?#  ALT  SPACE                              ← ↓ ↑ →
+ *   英語ロケールのみ ⇧/CTRL を 1 段下げ、Row 3 左を空けて Row 5 左を CTRL にする
+ *   (「あ」が無い分の左下の空きを埋める)。
  *
  * レイアウト (compact, 特殊キーを上に追い出して主キー幅を広く):
  *   Top  : [ ESC ][ TAB ][ ⇧ ][ CTRL ]
@@ -71,7 +73,7 @@ import kotlin.math.abs
  *   Row 2: q w e r t y u i o p
  *   Row 3: a s d f g h j k l                                 ⏎
  *   Row 4: z x c v b n m , . /
- *   Row 5: あ   ?#  ALT  SPACE                              ← ↓ ↑ →
+ *   Row 5: あ(JP) / CTRL(英語)  ?#  ALT  SPACE              ← ↓ ↑ →
  *
  * 各英字キーの下フリック = そのローマ字の大文字 (ヒント非表示)。
  */
@@ -273,10 +275,15 @@ fun TerminalKeyboard(
                 )
             }
         }
-        // Row 3: spacious では左に ⇧、compact では左キー無しで a- から
+        // Row 3: spacious 左端。日本語ロケールは従来どおり ⇧ (配置は変えない)。
+        //        英語ロケールのみ ⇧ を Row 4 へ 1 段下げるため、ここは不可視スペーサで a 行頭を空ける。
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
             if (!isCompact) {
-                ShiftKey(weight = 1.4f, state = shift, style = style, onCycle = { cycleShift() })
+                if (showJapaneseKeyboard) {
+                    ShiftKey(weight = 1.4f, state = shift, style = style, onCycle = { cycleShift() })
+                } else {
+                    Box(modifier = Modifier.weight(1.4f).height(style.keyHeight))
+                }
             }
             r3Labels.forEachIndexed { idx, s ->
                 val display = if (!sym && shift != ShiftState.OFF && s[0].isLetter()) s.uppercase() else s
@@ -293,16 +300,20 @@ fun TerminalKeyboard(
                 emitSpecial(byteArrayOf(0x0D))
             }
         }
-        // Row 4: spacious では左に CTRL、compact では左キー無し
+        // Row 4: spacious 左端。日本語ロケールは CTRL (従来どおり)、英語ロケールは ⇧ を 1 段下げてここへ。
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
             if (!isCompact) {
-                BasicKey(
-                    label = "CTRL",
-                    weight = 1.4f,
-                    fontSp = smallFont,
-                    active = ctrl,
-                    style = style
-                ) { ctrl = !ctrl }
+                if (showJapaneseKeyboard) {
+                    BasicKey(
+                        label = "CTRL",
+                        weight = 1.4f,
+                        fontSp = smallFont,
+                        active = ctrl,
+                        style = style
+                    ) { ctrl = !ctrl }
+                } else {
+                    ShiftKey(weight = 1.4f, state = shift, style = style, onCycle = { cycleShift() })
+                }
             }
             r4Labels.forEachIndexed { idx, s ->
                 val display = if (!sym && shift != ShiftState.OFF && s[0].isLetter()) s.uppercase() else s
@@ -316,12 +327,14 @@ fun TerminalKeyboard(
                 )
             }
         }
-        // Row 5: 左下 = 「あ」(日本語フリックへ切替)、English モードでは不可視スペーサで詰める
+        // Row 5: 最下段の左端 = 日本語ロケールは「あ」(かなフリックへ切替)、英語ロケールは CTRL。
+        //   英語時は「あ」が無い分の左下の空きを CTRL で埋める
+        //   (spacious は ⇧/CTRL を 1 段下げた結果として、compact は上部バーとは別にここへ)。
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
             if (showJapaneseKeyboard) {
                 BasicKey("あ", weight = 1.4f, fontSp = style.keyFontSp, style = style) { jpMode = true }
             } else {
-                Box(modifier = Modifier.weight(1.4f).height(style.keyHeight))
+                BasicKey("CTRL", weight = 1.4f, fontSp = smallFont, active = ctrl, style = style) { ctrl = !ctrl }
             }
             BasicKey(
                 label = if (sym) "ABC" else "?#",

@@ -169,10 +169,18 @@ object KanaKanjiConverter {
         //    N-best を取り、直前確定語 [prevSurface] による履歴 bigram リランク (Phase 2) を
         //    通した 1 位を使う (学習が無ければ Viterbi 1-best と一致)。
         val ctx = KkcConverter.KkcContext(prevSurface)
-        val whole = KkcConverter.nbest(reading, 8, ctx).firstOrNull()?.surface
-            ?: KkcConverter.convert(reading)
-        whole?.let {
-            out.add(it); if (out.size >= limit) return out.toList()
+        // Viterbi/N-best の上位を複数候補に出す。1 位が稀語 (例 うって→討手) でも、正解
+        // (打って 等) が 2 位以降に必ず候補へ並ぶようにする。一度選べば学習で次回 1 位に上がる。
+        val nb = KkcConverter.nbest(reading, 8, ctx)
+        if (nb.isNotEmpty()) {
+            for (cand in nb.take(6)) {
+                out.add(cand.surface)
+                if (out.size >= limit) return out.toList()
+            }
+        } else {
+            KkcConverter.convert(reading)?.let {
+                out.add(it); if (out.size >= limit) return out.toList()
+            }
         }
         if (lines.isEmpty()) {
             // z2dict 未ロードでも履歴と前方一致履歴は出す。
@@ -409,6 +417,42 @@ object KanaKanjiConverter {
     private val SUPPLEMENT_WORDS: List<Triple<String, String, Vk>> = listOf(
         // ---- 五段動詞 ----
         Triple("おす", "押す", Vk.GODAN),
+        // --- 追加常用語 (打つ 等の抜け補完 + 端末でよく使うサ変) ---
+        Triple("うつ", "打つ", Vk.GODAN),
+        Triple("あらう", "洗う", Vk.GODAN),
+        Triple("わらう", "笑う", Vk.GODAN),
+        Triple("はらう", "払う", Vk.GODAN),
+        Triple("うたう", "歌う", Vk.GODAN),
+        Triple("ひろう", "拾う", Vk.GODAN),
+        Triple("とおる", "通る", Vk.GODAN),
+        Triple("わたる", "渡る", Vk.GODAN),
+        Triple("ふむ", "踏む", Vk.GODAN),
+        Triple("つつむ", "包む", Vk.GODAN),
+        Triple("さわる", "触る", Vk.GODAN),
+        Triple("まがる", "曲がる", Vk.GODAN),
+        Triple("こまる", "困る", Vk.GODAN),
+        Triple("おこる", "怒る", Vk.GODAN),
+        Triple("よろこぶ", "喜ぶ", Vk.GODAN),
+        Triple("かざる", "飾る", Vk.GODAN),
+        Triple("いのる", "祈る", Vk.GODAN),
+        Triple("しらべる", "調べる", Vk.ICHIDAN),
+        Triple("くらべる", "比べる", Vk.ICHIDAN),
+        Triple("そだてる", "育てる", Vk.ICHIDAN),
+        Triple("すてる", "捨てる", Vk.ICHIDAN),
+        Triple("まける", "負ける", Vk.ICHIDAN),
+        Triple("みせる", "見せる", Vk.ICHIDAN),
+        Triple("いきる", "生きる", Vk.ICHIDAN),
+        Triple("たてる", "立てる", Vk.ICHIDAN),
+        Triple("あびる", "浴びる", Vk.ICHIDAN),
+        Triple("おもしろい", "面白い", Vk.ADJ),
+        Triple("すごい", "凄い", Vk.ADJ),
+        Triple("きたない", "汚い", Vk.ADJ),
+        Triple("ほぞんする", "保存する", Vk.SURU),
+        Triple("さくじょする", "削除する", Vk.SURU),
+        Triple("じっこうする", "実行する", Vk.SURU),
+        Triple("きどうする", "起動する", Vk.SURU),
+        Triple("へんこうする", "変更する", Vk.SURU),
+        Triple("ついかする", "追加する", Vk.SURU),
         Triple("はいる", "入る", Vk.GODAN),
         Triple("とる", "取る", Vk.GODAN),
         Triple("わかる", "分かる", Vk.GODAN),

@@ -378,8 +378,13 @@ fun SettingsSheet(
 
             // OS データ削除 (ストレージ解放)。rootfs を持つ OS を列挙し、不要なものを削除できる。
             // 使用中の OS は壊れた稼働状態を避けるため削除不可 (入れ直しはクリーンインストールで)。
-            val installedOs by produceState(emptyList<InstalledOs>(), osDataRefresh) {
-                value = withContext(Dispatchers.IO) { scanInstalledOs(context) }
+            //
+            // OS 一覧はディレクトリ列挙だけで即座に確定させ (行数=セクション高さを最初から固定)、
+            // 重い使用量計算 (rootfs 全走査) だけを後から非同期で埋める。こうしないと、
+            // スクロール中に数秒後の集計完了で行数が増え、表示位置が勝手にずれてしまう。
+            val installedOs = remember(osDataRefresh) { listInstalledOs(context) }
+            val osSizes by produceState(emptyMap<String, Long>(), osDataRefresh, installedOs) {
+                value = withContext(Dispatchers.IO) { computeOsSizes(installedOs, context) }
             }
             Section(title = stringResource(R.string.settings_section_delete_os)) {
                 Text(
@@ -399,7 +404,8 @@ fun SettingsSheet(
                     installedOs.forEach { os ->
                         OsDataRow(
                             name = os.displayName,
-                            sizeLabel = formatStorageSize(os.bytes),
+                            // 集計前は "…"。文字数は変わっても 1 行高は不変なので位置ずれは起きない。
+                            sizeLabel = osSizes[os.id]?.let { formatStorageSize(it) } ?: "…",
                             isActive = os.id == settings.distroId,
                             onDelete = { pendingOsDelete = os.id }
                         )
@@ -1316,24 +1322,30 @@ private fun ActionButton(
     }
 }
 
-/** ストレージ上に rootfs を持つ OS 1 件分のメタ (削除 UI 用)。 */
-private data class InstalledOs(val id: String, val displayName: String, val bytes: Long)
+/** ストレージ上に rootfs を持つ OS 1 件分のメタ (削除 UI 用)。使用量は別途 [computeOsSizes] で。 */
+private data class InstalledOs(val id: String, val displayName: String)
 
 /**
- * filesDir/distros/<id> 配下に展開済みの OS を列挙し、おおよその使用量を付けて返す。
- * symlink は辿らず実ファイルのみ加算する (rootfs 内の循環 symlink で詰まらないように)。
- * ファイル走査があるので IO スレッドから呼ぶこと。
+ * filesDir/distros/<id> 配下に展開済みの OS を **ディレクトリ列挙だけ** で列挙する (使用量は付けない)。
+ * これは軽いので合成中 (メインスレッド) に呼んでも問題ない。表示順は名前で安定させ、
+ * 後から使用量が判明しても行が並べ替わらないようにする (位置ずれ防止)。
  */
-private fun scanInstalledOs(context: Context): List<InstalledOs> {
+private fun listInstalledOs(context: Context): List<InstalledOs> {
     val distrosDir = java.io.File(context.filesDir, "distros")
     val dirs = distrosDir.listFiles()?.filter { it.isDirectory } ?: return emptyList()
     return dirs.map { dir ->
-        InstalledOs(
-            id = dir.name,
-            displayName = DistroSpec.byId(dir.name)?.displayName ?: dir.name,
-            bytes = approxDirSize(dir)
-        )
-    }.sortedByDescending { it.bytes }
+        InstalledOs(id = dir.name, displayName = DistroSpec.byId(dir.name)?.displayName ?: dir.name)
+    }.sortedBy { it.displayName }
+}
+
+/**
+ * [listInstalledOs] で得た各 OS の rootfs 使用量 (id → bytes) を集計する。
+ * symlink は辿らず実ファイルのみ加算する (rootfs 内の循環 symlink で詰まらないように)。
+ * ファイル全走査があるので IO スレッドから呼ぶこと。
+ */
+private fun computeOsSizes(list: List<InstalledOs>, context: Context): Map<String, Long> {
+    val distrosDir = java.io.File(context.filesDir, "distros")
+    return list.associate { it.id to approxDirSize(java.io.File(distrosDir, it.id)) }
 }
 
 private fun approxDirSize(dir: java.io.File): Long {

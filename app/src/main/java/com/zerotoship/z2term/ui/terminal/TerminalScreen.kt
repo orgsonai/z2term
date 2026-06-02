@@ -19,9 +19,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -52,6 +49,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -930,7 +928,7 @@ private fun GuiTopBar(
 
         // 並びは端末 TopBar と同じ。📋/CMD は keysym 橋渡しで GUI へタイプする (M8-6 T1)。
         TopBarIconButton(label = "📋", onClick = onPaste)    // Android クリップボードを GUI へ貼付
-        TopBarIconButton(label = "CMD", onClick = onOpenSnippets) // スニペットを GUI へ送出
+        TopBarIconButton(label = "📜", onClick = onOpenSnippets) // スニペットを GUI へ送出
         KeepScreenOnButton(active = keepScreenOn, onClick = onToggleKeepScreenOn)
         KeyboardToggleButton(
             imeActive = keyboardMode == KeyboardMode.SYSTEM,
@@ -1056,8 +1054,8 @@ private fun TopBar(
         // 貼付ボタン (タップ = クリップボード貼り付けのみ)。
         // 📋 クリップボードアイコン = 貼り付け、の方が直感的なため漢字「貼」から変更。
         TopBarIconButton(label = "📋", onClick = onPaste)
-        // コマンド一覧 (スニペット)。"CMD" テキストで明示。
-        TopBarIconButton(label = "CMD", onClick = onOpenSnippets)
+        // コマンド一覧 (スニペット)。巻物アイコンで明示。
+        TopBarIconButton(label = "📜", onClick = onOpenSnippets)
         // 画面消灯ロック (タップで ON/OFF。ON 中は画面が自動消灯しない)
         KeepScreenOnButton(active = keepScreenOn, onClick = onToggleKeepScreenOn)
         // スクロールバック検索 (タップで検索バーをトグル。ON 中は緑ハイライト)。
@@ -1242,7 +1240,8 @@ private fun KeepScreenOnButton(
 
 /**
  * キーボード切替ボタン (タップのみで OS IME ⇄ 独自キーボードをトグル)。
- * IME (SYSTEM) が有効な間は緑でハイライト。表示は「あ」(OS IME へ) / 独自時は枠のみ。
+ * IME (SYSTEM) が有効な間は緑でハイライト。表示は言語非依存の「⌨」アイコン
+ * (英語ロケールで「あ」が残らないように。OS IME 有効時は緑ハイライトで状態を示す)。
  */
 @Composable
 private fun KeyboardToggleButton(
@@ -1262,7 +1261,7 @@ private fun KeyboardToggleButton(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "あ",
+            text = "⌨",
             color = fg,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
@@ -1490,119 +1489,135 @@ private fun CandidateBar(
     // 長文の一括予測 (各ブロック第1候補を連結した「文まるごと」候補)。tail があるときのみ出す。
     val full = composing.fullPrediction
     val hasFull = full != null
-    // LazyRow のアイテム並び (オートスクロールのため index を厳密に管理する):
-    //   0            = head ピル (生かな / スプリット頭)
-    //   1            = tail ラベル (hasTail のときのみ)
-    //   (次)         = 一括予測ピル (hasFull のときのみ)
-    //   base + i     = 候補 i        (base = 1 + (hasTail ? 1 : 0) + (hasFull ? 1 : 0))
+    //   通し index: 0=head, [1=tail], [full], base+i=候補 i
     val base = 1 + (if (hasTail) 1 else 0) + (if (hasFull) 1 else 0)
-    val listState = rememberLazyListState()
-    // 候補サイクルで選択が変わるたび、その項目が見えるよう横スクロールで追従させる。
-    // selIdx == -1 (生かな) のときは head (index 0) を、候補選択中は base+selIdx を表示。
-    LaunchedEffect(selIdx, candidates.size) {
+    // 上下 2 段の候補バー。各行は独立に左詰め (開始位置は揃わなくてよい) しつつ、両行を含む
+    // 内側 Column を **1 つの horizontalScroll** で動かす。これで上下は必ず同じ量だけスクロールし、
+    // ズレ (ドリフト) が起きない。列を揃えないので短い候補に無駄な隙間も出ない。
+    //   even index = 上段 / odd index = 下段。
+    val scrollState = rememberScrollState()
+    val itemWidths = remember { mutableStateMapOf<Int, Int>() }
+    val gapPx = with(LocalDensity.current) { 4.dp.roundToPx() }
+    // 候補サイクルで選択が変わったら、その候補が属する段で手前ピル幅を積んで x を求め、見える位置へ。
+    LaunchedEffect(selIdx, candidates.size, itemWidths.size) {
         val target = if (selIdx < 0) 0 else base + selIdx
         if (target in 0 until (base + candidates.size)) {
-            listState.animateScrollToItem(target)
+            var x = 0
+            var i = target % 2
+            while (i < target) { x += (itemWidths[i] ?: 0) + gapPx; i += 2 }
+            scrollState.animateScrollTo((x - gapPx).coerceAtLeast(0))
         }
     }
-    LazyRow(
-        state = listState,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(40.dp)
-            .background(ZtsBgSecondary)
-            .border(width = 1.dp, color = ZtsBorder)
-            .padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        // head ピル (スプリット頭 or 通常の入力中ひらがな全体)。タップで生確定。
-        item(key = "__head__") {
-            val headBg = if (isSplit && !rawSelected) ZtsBgCard else if (rawSelected) ZtsGreen else ZtsBgCard
-            val headFg = if (rawSelected) Color.Black else ZtsGreen
+
+    // 描画順に通し index を採番してピルを作る (even=上段, odd=下段)。
+    val pills = ArrayList<Pair<Int, @Composable () -> Unit>>()
+    var nextIdx = 0
+    // head ピル。スプリット頭 or 入力中ひらがな全体。タップで生確定。
+    run {
+        val myIdx = nextIdx++
+        pills.add(myIdx to {
             Box(
                 modifier = Modifier
+                    .onSizeChanged { itemWidths[myIdx] = it.width }
                     .clip(RoundedCornerShape(6.dp))
-                    .background(headBg)
+                    .background(if (rawSelected) ZtsGreen else ZtsBgCard)
                     .border(1.dp, ZtsGreen, RoundedCornerShape(6.dp))
                     .clickable { composing.commitRaw() }
                     .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = if (isSplit) composing.splitHead else composing.text,
-                    color = headFg,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
+                    color = if (rawSelected) Color.Black else ZtsGreen,
+                    fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace
                 )
             }
-        }
-        // tail ラベル (スプリット中の残りかな。薄色、タップ不可)。
-        if (hasTail) {
-            item(key = "__tail__") {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(ZtsBgCard)
-                        .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                ) {
-                    Text(
-                        text = tail,
-                        color = ZtsTextSecondary,
-                        fontSize = 15.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            }
-        }
-        // 長文の一括予測ピル (各ブロックを変換して連結した「文まるごと」候補)。タップで全文を一括確定。
-        // ブロックごとの候補と区別できるよう、薄緑塗りで強調する。
-        if (full != null) {
-            item(key = "__full__") {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(ZtsGreenDim)
-                        .border(1.dp, ZtsGreen, RoundedCornerShape(6.dp))
-                        .clickable { composing.commitFull() }
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                ) {
-                    Text(
-                        text = full,
-                        color = Color.Black,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            }
-        }
-        // 変換 / 予測候補 (タップで確定; スプリット中はセグメントのみ確定して次のブロックへ進む)。
-        //   候補サイクルで選択中の候補は緑塗りでハイライト → ⏎ でその候補が確定される。
-        itemsIndexed(
-            items = candidates,
-            key = { i, cand -> "c$i:$cand" }
-        ) { i, cand ->
-            val selected = (i == selIdx)
-            val candBg = if (selected) ZtsGreen else ZtsBgCard
-            val candFg = if (selected) Color.Black else ZtsTextPrimary
-            val candBorder = if (selected) ZtsGreen else ZtsBorder
+        })
+    }
+    // tail ラベル。スプリット中の残りかな。薄色、タップ不可。
+    if (hasTail) {
+        val myIdx = nextIdx++
+        pills.add(myIdx to {
             Box(
                 modifier = Modifier
+                    .onSizeChanged { itemWidths[myIdx] = it.width }
                     .clip(RoundedCornerShape(6.dp))
-                    .background(candBg)
-                    .border(1.dp, candBorder, RoundedCornerShape(6.dp))
+                    .background(ZtsBgCard)
+                    .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text(text = tail, color = ZtsTextSecondary, fontSize = 15.sp, fontFamily = FontFamily.Monospace)
+            }
+        })
+    }
+    // 長文の一括予測ピル。各ブロック第1候補を連結した「文まるごと」候補。タップで全文確定。
+    if (full != null) {
+        val myIdx = nextIdx++
+        pills.add(myIdx to {
+            Box(
+                modifier = Modifier
+                    .onSizeChanged { itemWidths[myIdx] = it.width }
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(ZtsGreenDim)
+                    .border(1.dp, ZtsGreen, RoundedCornerShape(6.dp))
+                    .clickable { composing.commitFull() }
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text(text = full, color = Color.Black, fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+            }
+        })
+    }
+    // 変換 / 予測候補。選択中は緑塗りでハイライト → ⏎ で確定。
+    candidates.forEachIndexed { i, cand ->
+        val myIdx = base + i
+        val selected = (i == selIdx)
+        pills.add(myIdx to {
+            Box(
+                modifier = Modifier
+                    .onSizeChanged { itemWidths[myIdx] = it.width }
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (selected) ZtsGreen else ZtsBgCard)
+                    .border(1.dp, if (selected) ZtsGreen else ZtsBorder, RoundedCornerShape(6.dp))
                     .clickable { composing.commit(cand) }
                     .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = cand,
-                    color = candFg,
+                    color = if (selected) Color.Black else ZtsTextPrimary,
                     fontSize = 15.sp,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                     fontFamily = FontFamily.Monospace
                 )
+            }
+        })
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(76.dp)
+            .background(ZtsBgSecondary)
+            .border(width = 1.dp, color = ZtsBorder)
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .horizontalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                pills.forEach { (i, content) -> if (i % 2 == 0) content() }
+            }
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                pills.forEach { (i, content) -> if (i % 2 == 1) content() }
             }
         }
     }

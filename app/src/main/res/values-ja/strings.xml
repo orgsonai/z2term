@@ -321,7 +321,7 @@
     <string name="gui_terminal_urxvt_desc">軽量・日本語表示可</string>
     <string name="gui_terminal_lxterminal_desc">軽量 GTK</string>
     <string name="gui_terminal_konsole_desc">KDE 系・初回導入が大きい</string>
-    <string name="keyboard_style_compact">コンパクト</string>
+    <string name="keyboard_style_compact">シンプル</string>
     <string name="keyboard_style_spacious">ゆったり (4 方向フリック)</string>
 
     <!-- SAF DocumentsProvider (D3 バッチ 7) -->
