@@ -37,6 +37,19 @@ object KkcConverter {
     /** 未知かな (辞書に無い読み) 1 文字を残すときのコスト。実語より十分高くしておく。 */
     private const val UNK_COST = 17000
 
+    /**
+     * 「読みを単純にカタカナへ写しただけの表層」(surface == カタカナ(reading)) に課す生起コスト
+     * ペナルティ (Phase 3, G4 カタカナ化抑止)。
+     *
+     * IPADIC は擬音語/記号的名詞にカタカナ表層を低コストで持つため (例 ほん→ホン 3692 < 本 5947)、
+     * そのままだと一般のかな漢字変換で過剰にカタカナ化する。対応する漢字/かな語があればそちらに
+     * 負けるだけのペナルティを足す。
+     *
+     * ただし読みに長音符「ー」を含むものは正当な外来語 (コーヒー/データ/メール) なので除外する。
+     * ネイティブ語の読みに「ー」は出ないため、これで外来語のカタカナ表記を壊さずに済む。
+     */
+    private const val KATAKANA_DUP_PENALTY = 4000
+
     suspend fun ensureLoaded(context: Context) {
         if (loaded) return
         withContext(Dispatchers.IO) {
@@ -75,7 +88,14 @@ object KkcConverter {
                 val lc = line.substring(t2 + 1, t3).toIntOrNull() ?: continue
                 val rc = line.substring(t3 + 1, t4).toIntOrNull() ?: continue
                 val cost = line.substring(t4 + 1).toIntOrNull() ?: continue
-                map.getOrPut(reading) { ArrayList(2) }.add(Entry(surface, lc, rc, cost))
+                // 読みの単純カタカナ写し表層はペナルティを足して過剰なカタカナ化を抑える。
+                // 長音符を含む読み (=外来語) は除外し、正当なカタカナ表記を守る。
+                val adjCost = if ('ー' !in reading && surface == hiraganaToKatakana(reading)) {
+                    cost + KATAKANA_DUP_PENALTY
+                } else {
+                    cost
+                }
+                map.getOrPut(reading) { ArrayList(2) }.add(Entry(surface, lc, rc, adjCost))
             }
         }
         lex = map
