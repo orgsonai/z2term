@@ -36,7 +36,7 @@ data class KeyboardStyle(
             displayNameRes = R.string.keyboard_style_compact,
             keyHeight = 44.dp,
             keyFontSp = 14f,
-            mainKeyFontSp = 22f,
+            mainKeyFontSp = 20f,
             flickHintFontSp = 9f,
             fourDirectionFlick = false,
             // 6 行構成 (上に ESC/TAB/⇧/CTRL の特殊キーバー + 主 5 行): 6*44 + 5*3 + 8 ≒ 287

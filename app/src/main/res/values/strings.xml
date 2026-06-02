@@ -322,7 +322,7 @@
     <string name="gui_terminal_lxterminal_desc">Light GTK</string>
     <string name="gui_terminal_konsole_desc">KDE-based / heavy first-time install</string>
     <string name="keyboard_style_compact">Simple</string>
-    <string name="keyboard_style_spacious">Spacious (4-way flick)</string>
+    <string name="keyboard_style_spacious">4-way flick</string>
 
     <!-- SAF DocumentsProvider (D3 batch 7) -->
     <string name="saf_home_title">Z2Term Home</string>
