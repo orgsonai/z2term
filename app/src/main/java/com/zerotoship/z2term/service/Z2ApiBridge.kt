@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.service
 
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.ClipData
@@ -162,6 +163,8 @@ object Z2ApiBridge {
 
     // --- 各機能 ---
 
+    // POST_NOTIFICATIONS 未許可は下の runCatching で握って Log に流すので、lint の権限チェックは抑止する。
+    @SuppressLint("MissingPermission")
     private fun doNotify(context: Context, titleArg: String, textArg: String) {
         // 引数が 1 つだけなら本文として扱い、タイトルはアプリ名にする。
         val title = if (textArg.isBlank()) context.getString(R.string.app_name) else titleArg
