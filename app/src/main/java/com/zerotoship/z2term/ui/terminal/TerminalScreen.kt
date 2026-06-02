@@ -967,9 +967,9 @@ private fun GuiSpecialKeyBar(
         GuiSpecialKey("↑") { rfb.tapKey(GuiKeyMapper.XK_Up) }
         GuiSpecialKey("→") { rfb.tapKey(GuiKeyMapper.XK_Right) }
         GuiSpecialKey("⏎") { rfb.tapKey(GuiKeyMapper.XK_Return) }
-        GuiSpecialKey("C-C") { GuiKeyMapper.sendCtrlCombo(rfb, 'c'.code) }
-        GuiSpecialKey("C-D") { GuiKeyMapper.sendCtrlCombo(rfb, 'd'.code) }
-        GuiSpecialKey("C-L") { GuiKeyMapper.sendCtrlCombo(rfb, 'l'.code) }
+        GuiSpecialKey("^C") { GuiKeyMapper.sendCtrlCombo(rfb, 'c'.code) }
+        GuiSpecialKey("^D") { GuiKeyMapper.sendCtrlCombo(rfb, 'd'.code) }
+        GuiSpecialKey("^L") { GuiKeyMapper.sendCtrlCombo(rfb, 'l'.code) }
     }
 }
 
@@ -1417,6 +1417,7 @@ private fun scaledKeyboardStyle(base: KeyboardStyle, targetHeightDp: Float): Key
     return base.copy(
         keyHeight = (base.keyHeight.value * scale).dp,
         keyFontSp = base.keyFontSp * fontScale,
+        mainKeyFontSp = base.mainKeyFontSp * fontScale,
         flickHintFontSp = base.flickHintFontSp * fontScale,
         naturalHeight = targetHeightDp.dp
     )

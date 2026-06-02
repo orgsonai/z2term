@@ -66,9 +66,9 @@ fun SpecialKeyBar(
         Key("↑") { session.writeBytes(emulator.cursorKeyBytes(TerminalEmulator.CursorKey.UP)) }
         Key("→") { session.writeBytes(emulator.cursorKeyBytes(TerminalEmulator.CursorKey.RIGHT)) }
         Key("⏎") { session.writeBytes(byteArrayOf(0x0D)) }
-        Key("C-C") { session.writeBytes(byteArrayOf(0x03)) }
-        Key("C-D") { session.writeBytes(byteArrayOf(0x04)) }
-        Key("C-L") { session.writeBytes(byteArrayOf(0x0C)) }
+        Key("^C") { session.writeBytes(byteArrayOf(0x03)) }
+        Key("^D") { session.writeBytes(byteArrayOf(0x04)) }
+        Key("^L") { session.writeBytes(byteArrayOf(0x0C)) }
     }
 }
 

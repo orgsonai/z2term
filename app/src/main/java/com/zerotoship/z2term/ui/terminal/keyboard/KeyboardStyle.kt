@@ -16,8 +16,10 @@ data class KeyboardStyle(
     @StringRes val displayNameRes: Int,
     /** 普通キーの高さ */
     val keyHeight: Dp,
-    /** 通常ラベルのフォントサイズ (sp) */
+    /** 通常ラベルのフォントサイズ (sp) — ESC/TAB/⇧/矢印 等の機能キー */
     val keyFontSp: Float,
+    /** 主キー (qwerty / 数字) のラベルフォントサイズ (sp)。機能キーより大きめにできる。 */
+    val mainKeyFontSp: Float,
     /** フリックヒントのフォントサイズ (sp) */
     val flickHintFontSp: Float,
     /** Row 2-4 で 4 方向フリック (true) か 上方向のみ (false) か */
@@ -34,6 +36,7 @@ data class KeyboardStyle(
             displayNameRes = R.string.keyboard_style_compact,
             keyHeight = 44.dp,
             keyFontSp = 14f,
+            mainKeyFontSp = 17f,
             flickHintFontSp = 9f,
             fourDirectionFlick = false,
             // 6 行構成 (上に ESC/TAB/⇧/CTRL の特殊キーバー + 主 5 行): 6*44 + 5*3 + 8 ≒ 287
@@ -44,6 +47,7 @@ data class KeyboardStyle(
             displayNameRes = R.string.keyboard_style_spacious,
             keyHeight = 60.dp,
             keyFontSp = 19f,
+            mainKeyFontSp = 21f,
             flickHintFontSp = 13f,
             fourDirectionFlick = true,
             // 5*60 + 4*4 + 8 ≒ 324

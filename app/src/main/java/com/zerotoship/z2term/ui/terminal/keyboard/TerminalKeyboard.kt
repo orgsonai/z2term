@@ -246,7 +246,7 @@ fun TerminalKeyboard(
                 }
             }
             r1Labels.forEach { s ->
-                BasicKey(s, weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) { emitChar(s[0]) }
+                BasicKey(s, weight = 1f, fontSp = style.mainKeyFontSp, repeatable = true, style = style) { emitChar(s[0]) }
             }
             BackspaceKey(
                 weight = 1.4f,
@@ -581,8 +581,8 @@ private fun RowScope.FlickKey(
                 Text(
                     text = label,
                     color = fg,
-                    fontSize = style.keyFontSp.sp,
-                    lineHeight = style.keyFontSp.sp,
+                    fontSize = style.mainKeyFontSp.sp,
+                    lineHeight = style.mainKeyFontSp.sp,
                     fontWeight = FontWeight.Medium,
                     fontFamily = FontFamily.Monospace
                 )
