@@ -59,6 +59,45 @@
 | business | 40.00% | 4/10 |
 | daily | 40.00% | 18/45 |
 
+## Phase 1 結果 (2026-06-02, N-best ラティス + リランカー土台)
+
+`KkcConverter.nbest(reading, k)` を追加 (ラティス + 後ろ向き A*)。`segments()`/`convert()`
+は不変。新メトリクスを `KkcEvalTest.evaluateNbestCoverage` (`build/kkc-nbest-report.txt`)
+で計測。
+
+| メトリクス | 値 | 内訳 |
+|---|---:|---:|
+| convert() OVERALL (回帰ガード) | 37.31% | 50/134 (ベースライン維持) |
+| **N-best TOP1** | **42.54%** | 57/134 |
+| **N-best TOP5 cov** | **68.66%** | 92/134 |
+
+- **TOP5 cov − TOP1 = 約 26pt** が「リランカー (Phase 2 以降) で回収できる伸びしろ」。
+  正解は大半が上位 5 件のラティス内に存在するが、Viterbi 単発コストでは 1 位に上がらない。
+- TOP1 (42.54%) が convert() (37.31%) を上回るのは、ラティスでは未知かなノードを
+  lc=rc=0 の通常ノードとして接続コスト込みで扱う一方、`segments()` の UNK は接続コスト 0 で
+  透過させる差による (辞書語のみの読みでは両者一致)。convert() 本体は意図的に据え置き。
+- 回帰ガード `convertDoesNotRegressBelowBaseline` を追加 (convert() の正解数 < 50 で失敗)。
+- **先頭文節正解率は未導入**: 期待値側の文節境界アノテーションが要るため Phase 5 で導入予定
+  (本ファイル「既知の制限」参照)。
+
+## Phase 2 結果 (2026-06-02, ユーザ確定 bigram 学習)
+
+`ImeHistoryStore` に bigram テーブル (前確定語→当語) を追加し、Phase 1 の `KkcReranker` を
+`KkcContext(prevSurface)` 付きに拡張。`HistoryReranker` が「直前確定→当候補」が学習済み
+bigram にあればコストボーナス (1500〜2750) を引いて昇格させる。実機では `ComposingState` の
+確定連鎖で `recordBigram`、`convertFlexible`/`fullPrediction` が context 付き `nbest` 経由。
+
+- **固定評価セットでは測定不可**: 履歴が空のため `HistoryReranker` は素通り (IdentityReranker と
+  同値)。よって `KkcEvalTest` の数値 (TOP1 42.54% / TOP5 68.66%) は Phase 1 から不変で、回帰ガード
+  `convertDoesNotRegressBelowBaseline` も維持。これは本ファイル「既知の制限」(convertFlexible は
+  学習履歴依存で再現性が低く評価外) と整合。
+- **検証は専用ユニットテスト** `HistoryRerankerTest`:
+  1. 学習済み bigram の候補がボーナスでトップへ昇格する
+  2. 前語コンテキスト null では Viterbi 順のまま
+  3. N-best 経路に組込んだとき、下位候補が context で 1 位へ入れ替わる (end-to-end)
+- **次の評価強化**: 学習注入版の評価セット (確定列をシミュレートして bigram を仕込み、2 回目の
+  正解率を測る) は将来課題。現状は単体テストで配線の正しさを担保。
+
 ## 失敗パターンの分類
 
 ベースライン失敗 84 件を観察した結果、主な誤りは次の 5 系統に分類できる。括弧内は

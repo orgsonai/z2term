@@ -41,12 +41,18 @@ import java.io.File
 object ImeHistoryStore {
     private const val TAG = "ImeHistoryStore"
     private const val FILE_NAME = "ime_history.json"
-    private const val VERSION = 1
+    private const val VERSION = 2           // v2: bigram テーブルを追加 (v1 = unigram のみ、読込互換)
     private const val MAX_ENTRIES = 4000
+    private const val MAX_BIGRAMS = 8000
     private const val MIN_WORD_LEN = 2     // 1 文字確定 (単打ひらがな等) は学習しない
     private const val SAVE_DEBOUNCE_MS = 1000L
     private const val RECENT_WINDOW_MS = 7L * 24 * 60 * 60 * 1000  // 直近 7 日
     private const val MAX_RECENCY_BOOST = 5.0
+
+    // bigram (直前確定 → 当語) のコストボーナス。Viterbi コスト(数百〜数千)に対し十分強く効かせる。
+    private const val BIGRAM_BASE_BONUS = 1500   // count=1 の基本ボーナス
+    private const val BIGRAM_COUNT_STEP = 250    // count が増えるごとの加算 (上限 +750)
+    private const val BIGRAM_RECENT_BONUS = 500  // 直近 7 日内の追加 (線形減衰)
 
     /** UI へ公開する 1 エントリの値オブジェクト (内部 Entry とは別: 不変)。 */
     data class HistoryItem(
@@ -57,9 +63,13 @@ object ImeHistoryStore {
     )
 
     private data class Entry(val word: String, var count: Int, var lastUsedAt: Long)
+    private data class BiEntry(val next: String, var count: Int, var lastUsedAt: Long)
 
     /** reading → 候補単語リスト。同一 reading で複数候補を別 Entry として保持。 */
     private val byReading: HashMap<String, MutableList<Entry>> = HashMap()
+
+    /** 前確定語の表層 → 続いて確定された語の表層リスト (UserHistory bigram 相当)。 */
+    private val bigram: HashMap<String, MutableList<BiEntry>> = HashMap()
     private val mutex = Mutex()
     @Volatile private var loaded = false
     private var saveJob: Job? = null
@@ -82,6 +92,8 @@ object ImeHistoryStore {
             }
             loaded = true
         }
+        // 学習済み bigram を Kkc の N-best リランク段へ接続する (Phase 2)。
+        KkcConverter.reranker = HistoryReranker(::bigramBonus)
         _versionFlow.update { it + 1 }
     }
 
@@ -110,6 +122,47 @@ object ImeHistoryStore {
             _versionFlow.update { it + 1 }
             scheduleSave()
         }
+    }
+
+    /**
+     * 「直前確定語 [prev] → 当語 [next]」の連接を学習する (UserHistoryPredictor の bigram 相当)。
+     * 連続して確定された 2 語のペアを覚え、次回以降の変換リランクで当語を昇格させる。
+     * prev/next が空・同一はスキップ。書き込みは debounce save に乗せる。
+     */
+    fun recordBigram(prev: String, next: String) {
+        if (!loaded) return
+        if (prev.isEmpty() || next.isEmpty() || prev == next) return
+        scope.launch {
+            mutex.withLock {
+                val now = System.currentTimeMillis()
+                val list = bigram.getOrPut(prev) { mutableListOf() }
+                val existing = list.firstOrNull { it.next == next }
+                if (existing != null) {
+                    existing.count += 1
+                    existing.lastUsedAt = now
+                } else {
+                    list.add(BiEntry(next, 1, now))
+                }
+                ensureBigramCapacityLocked()
+            }
+            scheduleSave()
+        }
+    }
+
+    /**
+     * 「[prev] → [next]」が学習済みなら正のコストボーナスを返す (大きいほど強く昇格)。
+     * 未学習なら 0。頻度 (count) と直近性 (recency) でスケールする。リランカーから参照。
+     */
+    fun bigramBonus(prev: String, next: String): Int {
+        if (!loaded || prev.isEmpty() || next.isEmpty()) return 0
+        val list = bigram[prev] ?: return 0
+        val e = list.firstOrNull { it.next == next } ?: return 0
+        val now = System.currentTimeMillis()
+        val ageMs = (now - e.lastUsedAt).coerceAtLeast(0)
+        val recency = if (ageMs >= RECENT_WINDOW_MS) 0
+                      else (BIGRAM_RECENT_BONUS * (1.0 - ageMs.toDouble() / RECENT_WINDOW_MS)).toInt()
+        val freq = BIGRAM_BASE_BONUS + BIGRAM_COUNT_STEP * (e.count.coerceAtMost(4) - 1)
+        return freq + recency
     }
 
     /** 完全一致 reading の候補を score 降順で返す (履歴ヒットのみ。辞書とは別経路)。 */
@@ -190,7 +243,7 @@ object ImeHistoryStore {
     /** UI 用: 学習履歴を全削除。ファイルも空で上書きされる (debounce save 経由)。 */
     suspend fun clearAll() {
         if (!loaded) return
-        mutex.withLock { byReading.clear() }
+        mutex.withLock { byReading.clear(); bigram.clear() }
         _versionFlow.update { it + 1 }
         scheduleSave()
     }
@@ -221,6 +274,29 @@ object ImeHistoryStore {
         }
     }
 
+    private fun ensureBigramCapacityLocked() {
+        var total = 0
+        for ((_, l) in bigram) total += l.size
+        if (total <= MAX_BIGRAMS) return
+        val now = System.currentTimeMillis()
+        data class Ref(val prev: String, val entry: BiEntry, val s: Double)
+        val all = ArrayList<Ref>(total)
+        for ((p, entries) in bigram) for (e in entries) {
+            val ageMs = (now - e.lastUsedAt).coerceAtLeast(0)
+            val rec = if (ageMs >= RECENT_WINDOW_MS) 0.0
+                      else MAX_RECENCY_BOOST * (1.0 - ageMs.toDouble() / RECENT_WINDOW_MS)
+            all.add(Ref(p, e, e.count + rec))
+        }
+        all.sortBy { it.s }
+        val drop = (total - MAX_BIGRAMS) + total / 10
+        for (i in 0 until drop.coerceAtMost(all.size)) {
+            val ref = all[i]
+            val list = bigram[ref.prev] ?: continue
+            list.remove(ref.entry)
+            if (list.isEmpty()) bigram.remove(ref.prev)
+        }
+    }
+
     private fun scheduleSave() {
         saveJob?.cancel()
         saveJob = scope.launch {
@@ -239,7 +315,8 @@ object ImeHistoryStore {
         val f = fileOf(context)
         if (!f.exists()) return
         val obj = JSONObject(f.readText(Charsets.UTF_8))
-        if (obj.optInt("version", 0) != VERSION) return
+        val ver = obj.optInt("version", 0)
+        if (ver < 1 || ver > VERSION) return   // v1(unigram のみ)/v2(+bigram) を読込互換
         val arr = obj.optJSONArray("entries") ?: return
         for (i in 0 until arr.length()) {
             val e = arr.optJSONObject(i) ?: continue
@@ -250,6 +327,16 @@ object ImeHistoryStore {
             val t = e.optLong("t", 0L)
             val list = byReading.getOrPut(r) { mutableListOf() }
             list.add(Entry(w, c, t))
+        }
+        val barr = obj.optJSONArray("bigrams") ?: return  // v1 には無い
+        for (i in 0 until barr.length()) {
+            val e = barr.optJSONObject(i) ?: continue
+            val p = e.optString("p")
+            val nx = e.optString("n")
+            if (p.isEmpty() || nx.isEmpty()) continue
+            val c = e.optInt("c", 1).coerceAtLeast(1)
+            val t = e.optLong("t", 0L)
+            bigram.getOrPut(p) { mutableListOf() }.add(BiEntry(nx, c, t))
         }
     }
 
@@ -265,9 +352,21 @@ object ImeHistoryStore {
                 arr.put(o)
             }
         }
+        val barr = JSONArray()
+        for ((p, entries) in bigram) {
+            for (e in entries) {
+                val o = JSONObject()
+                o.put("p", p)
+                o.put("n", e.next)
+                o.put("c", e.count)
+                o.put("t", e.lastUsedAt)
+                barr.put(o)
+            }
+        }
         val obj = JSONObject().apply {
             put("version", VERSION)
             put("entries", arr)
+            put("bigrams", barr)
         }
         val tmp = File(context.filesDir, "$FILE_NAME.tmp")
         tmp.writeText(obj.toString(), Charsets.UTF_8)

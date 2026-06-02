@@ -97,6 +97,60 @@ class KkcEvalTest {
         report.writeText(text)
     }
 
+    /**
+     * Phase 1: N-best (`KkcConverter.nbest`) のカバレッジを計測する。
+     * - TOP1   : 1 位が期待値と一致した率 (≒ convert() の OVERALL)。
+     * - TOPk cov: 上位 k 件のどれかに期待値が含まれる率。
+     * TOP1 と TOPk cov の差が「リランカー (Phase 2 以降) で回収できる伸びしろ」。
+     */
+    @Test
+    fun evaluateNbestCoverage() {
+        val cases = loadEval()
+        assertTrue("eval cases must be non-empty", cases.isNotEmpty())
+        val k = 5
+        var top1 = 0
+        var covered = 0
+        val tagTotal = LinkedHashMap<String, Int>()
+        val tagCovered = LinkedHashMap<String, Int>()
+        for (c in cases) {
+            val surfaces = KkcConverter.nbest(c.reading, k).map { it.surface }
+            if (surfaces.firstOrNull() == c.expected) top1++
+            val hit = c.expected in surfaces
+            if (hit) covered++
+            for (t in c.tags) {
+                tagTotal[t] = (tagTotal[t] ?: 0) + 1
+                if (hit) tagCovered[t] = (tagCovered[t] ?: 0) + 1
+            }
+        }
+        val sb = StringBuilder()
+        sb.appendLine("=== KKC N-best coverage (Phase 1, k=$k) ===")
+        sb.appendLine("cases: ${cases.size}")
+        sb.appendLine()
+        sb.appendLine("TOP1      : ${pct(top1, cases.size)}  ($top1 / ${cases.size})")
+        sb.appendLine("TOP$k cov  : ${pct(covered, cases.size)}  ($covered / ${cases.size})")
+        sb.appendLine()
+        sb.appendLine("--- TOP$k cov by tag ---")
+        for (t in tagTotal.keys.sorted()) {
+            val tot = tagTotal[t]!!
+            val ok = tagCovered[t] ?: 0
+            sb.appendLine("  ${t.padEnd(9)} : ${pct(ok, tot)}  ($ok / $tot)")
+        }
+        val text = sb.toString()
+        println(text)
+        File("build/kkc-nbest-report.txt").apply { parentFile?.mkdirs(); writeText(text) }
+    }
+
+    /**
+     * 回帰ガード: convert() の OVERALL 正解数が Phase 0 ベースライン (50/134 = 37.31%) を
+     * 下回ったら失敗。Phase 1 以降の変更で 1-best 品質が劣化していないことを保証する。
+     */
+    @Test
+    fun convertDoesNotRegressBelowBaseline() {
+        val cases = loadEval()
+        val pass = cases.count { KkcConverter.convert(it.reading) == it.expected }
+        assertTrue("convert() OVERALL regressed below baseline: $pass < 50", pass >= 50)
+    }
+
     private fun loadEval(): List<Case> {
         val stream = javaClass.classLoader!!.getResourceAsStream("kkc_eval.tsv")
             ?: error("kkc_eval.tsv not found in test resources")

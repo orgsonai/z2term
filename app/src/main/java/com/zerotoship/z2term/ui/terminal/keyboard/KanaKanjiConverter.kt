@@ -157,7 +157,7 @@ object KanaKanjiConverter {
      *  4. 学習履歴: 前方一致 ([ImeHistoryStore.predictHistory]) — 「打ち慣れた語」予測
      *  5. 前方一致の予測 ([predict]) で補完
      */
-    fun convertFlexible(reading: String, limit: Int = 16): List<String> {
+    fun convertFlexible(reading: String, limit: Int = 16, prevSurface: String? = null): List<String> {
         if (reading.isEmpty()) return emptyList()
         val out = LinkedHashSet<String>()
         // 1. 学習履歴 (完全一致) は最優先で上位表示。loaded 前は空。
@@ -166,8 +166,12 @@ object KanaKanjiConverter {
             if (out.size >= limit) return out.toList()
         }
         // 2. 文まるごとの最尤変換 (Viterbi/IPADIC)。読み全体を最尤の単語列へ一発変換する。
-        //    旧「最長一致の文節合成 (segment)」は稀語・姓を拾うゴミ変換になるため置換。
-        KkcConverter.convert(reading)?.let {
+        //    N-best を取り、直前確定語 [prevSurface] による履歴 bigram リランク (Phase 2) を
+        //    通した 1 位を使う (学習が無ければ Viterbi 1-best と一致)。
+        val ctx = KkcConverter.KkcContext(prevSurface)
+        val whole = KkcConverter.nbest(reading, 8, ctx).firstOrNull()?.surface
+            ?: KkcConverter.convert(reading)
+        whole?.let {
             out.add(it); if (out.size >= limit) return out.toList()
         }
         if (lines.isEmpty()) {
@@ -690,6 +694,12 @@ class ComposingState(
     private var lastEmitTimeMs: Long = 0L
 
     /**
+     * 直前に確定した語/文節の表層 (bigram 学習・リランクの前語コンテキスト)。
+     * セグメント/全文の確定で更新し、composing を明示リセット ([reset]) したらクリアする。
+     */
+    private var prevCommitSurface: String? = null
+
+    /**
      * 現在のスプリットが「長文の自動分割」由来か (true) / 「変換キーによる手動分割」由来か (false)。
      * 自動分割中は ⌫ で素直に 1 文字消す (手動分割中は ⌫ でまず分割取消) ように分岐するために持つ。
      */
@@ -828,6 +838,8 @@ class ComposingState(
         if (text.isEmpty()) return
         val key = if (isSplitMode) splitHead else text
         ImeHistoryStore.record(key, candidate)
+        prevCommitSurface?.let { ImeHistoryStore.recordBigram(it, candidate) }
+        prevCommitSurface = candidate
         onCommit(candidate)
         lastCommittedReading = key
         lastCommittedOutput = candidate
@@ -842,6 +854,8 @@ class ComposingState(
         val full = fullPrediction ?: return false
         if (text.isEmpty()) return false
         ImeHistoryStore.record(text, full)
+        prevCommitSurface?.let { ImeHistoryStore.recordBigram(it, full) }
+        prevCommitSurface = full
         onCommit(full)
         lastCommittedReading = text
         lastCommittedOutput = full
@@ -869,6 +883,8 @@ class ComposingState(
         }
         val toCommit = if (isSplitMode) splitHead else text
         ImeHistoryStore.record(toCommit, toCommit)
+        prevCommitSurface?.let { ImeHistoryStore.recordBigram(it, toCommit) }
+        prevCommitSurface = toCommit
         onCommit(toCommit)
         lastCommittedReading = toCommit
         lastCommittedOutput = toCommit
@@ -885,6 +901,8 @@ class ComposingState(
         selectedCandidateIndex = -1
         lastEmitChar = null
         lastEmitTimeMs = 0
+        // composing を明示的に閉じたら bigram の前語コンテキストもクリア (文の流れが切れる)。
+        prevCommitSurface = null
         // 注意: lastCommittedReading / lastCommittedOutput は意図的に残す
         //   (再変換は composing が空でも使える機能)。
     }
@@ -969,12 +987,13 @@ class ComposingState(
             fullPrediction = null
             return
         }
-        candidates = buildList(KanaKanjiConverter.convertFlexible(key), key)
+        candidates = buildList(KanaKanjiConverter.convertFlexible(key, prevSurface = prevCommitSurface), key)
         if (selectedCandidateIndex >= candidates.size) selectedCandidateIndex = -1
         // 長文の一括予測: スプリット中で後続 (tail) が残っているとき、読み全体の最尤変換 (Viterbi)
-        // を「文まるごと」候補として 1 つ出す。
+        // を「文まるごと」候補として 1 つ出す。直前確定語による履歴 bigram リランクも通す。
         fullPrediction = if (isSplitMode && splitTail.isNotEmpty())
-            KkcConverter.convert(text)?.takeIf { it != text }
+            KkcConverter.nbest(text, 8, KkcConverter.KkcContext(prevCommitSurface))
+                .firstOrNull()?.surface?.takeIf { it != text }
         else null
     }
 

@@ -137,6 +137,137 @@ object KkcConverter {
         return out
     }
 
+    // ---------------------------------------------------------------------
+    // Phase 1: N-best ラティス + リランカー土台
+    //
+    // segments()/convert() の 1-best Viterbi は据え置き (ベースライン保持)。
+    // ここで「ラティスを陽に組んで後ろ向き A* で N-best を取り出す」段を足す。
+    // mozc の NBestGenerator と同じ構造 (forward Viterbi → backward A*)。
+    // Phase 2 以降の学習/共起 rerank は [reranker] 差し替えで載せる。
+    // ---------------------------------------------------------------------
+
+    /** N-best 変換候補。[segments]=(読み,表層) の列、[cost]=経路総コスト(小さいほど良い)。 */
+    class Candidate(
+        val surface: String,
+        val segments: List<Pair<String, String>>,
+        val cost: Int,
+    )
+
+    /**
+     * 変換の文脈。Phase 2 以降のリランカーが参照する。
+     * [prevSurface] = 直前に確定した語/文節の表層 (bigram の前語)。無ければ null。
+     */
+    class KkcContext(val prevSurface: String?) {
+        companion object { val EMPTY = KkcContext(null) }
+    }
+
+    /** N-best 候補列の並べ替え器。Phase 2 以降 (履歴 bigram/共起) を差し込む拡張点。 */
+    fun interface KkcReranker {
+        fun rerank(reading: String, candidates: List<Candidate>, context: KkcContext): List<Candidate>
+    }
+
+    /** 既定: 何もしない (Viterbi コスト順のまま返す)。 */
+    val IdentityReranker = KkcReranker { _, c, _ -> c }
+
+    @Volatile var reranker: KkcReranker = IdentityReranker
+
+    /** ラティスのノード。BOS/EOS は surface/reading 空・cost 0 で表す。 */
+    private class Node(
+        val begin: Int, val end: Int,
+        val surface: String, val reading: String,
+        val lc: Int, val rc: Int, val cost: Int,
+    )
+
+    /**
+     * ラティス + 後ろ向き A* で N-best 候補を返す。表層ユニークで最大 [k] 件、コスト昇順。
+     * 1 位は [segments] と同じコストモデル (BOS 接続あり / EOS 接続コスト 0) なので
+     * 辞書語のみで構成されるケースでは convert() と一致する。
+     * 未ロード/変換不能なら空。最後に [reranker] を通す。
+     */
+    fun nbest(reading: String, k: Int, context: KkcContext = KkcContext.EMPTY): List<Candidate> {
+        if (reading.isEmpty() || !loaded || k <= 0) return emptyList()
+        val n = reading.length
+        val INF = Int.MAX_VALUE / 4
+
+        // --- ラティス構築 ---
+        val startsAt = Array(n) { ArrayList<Node>() }
+        val endsAt = Array(n + 1) { ArrayList<Node>() }
+        val bos = Node(0, 0, "", "", 0, 0, 0)
+        val eos = Node(n, n, "", "", 0, 0, 0)
+        endsAt[0].add(bos)
+        for (i in 0 until n) {
+            for (j in i + 1..n) {
+                val r = reading.substring(i, j)
+                val entries = lex[r] ?: continue
+                for (e in entries) {
+                    val nd = Node(i, j, e.surface, r, e.lc, e.rc, e.cost)
+                    startsAt[i].add(nd); endsAt[j].add(nd)
+                }
+            }
+            // 未知かな 1 文字 (lc=rc=0 = BOS/EOS 文脈で近似。本体は UNK_COST が支配的)。
+            val r1 = reading.substring(i, i + 1)
+            val unk = Node(i, i + 1, r1, r1, 0, 0, UNK_COST)
+            startsAt[i].add(unk); endsAt[i + 1].add(unk)
+        }
+
+        // --- 前向き最小コスト forward[node] (BOS から node を含めた最小)。EOS 接続は 0。 ---
+        val forward = HashMap<Node, Int>()
+        forward[bos] = 0
+        for (i in 0 until n) {
+            for (nd in startsAt[i]) {
+                var bestPrev = INF
+                for (prev in endsAt[i]) {
+                    val f = forward[prev] ?: continue
+                    if (f >= INF) continue
+                    val c = f + conn(prev.rc, nd.lc)
+                    if (c < bestPrev) bestPrev = c
+                }
+                forward[nd] = if (bestPrev >= INF) INF else bestPrev + nd.cost
+            }
+        }
+        var fEos = INF
+        for (prev in endsAt[n]) {
+            val f = forward[prev] ?: continue
+            if (f < fEos) fEos = f   // EOS 接続コスト 0
+        }
+        if (fEos >= INF) return emptyList()
+        forward[eos] = fEos
+
+        // --- 後ろ向き A*。優先度 f = g(部分,最左=node) + forward[node] - node.cost (exact 下界)。 ---
+        class PP(val node: Node, val g: Int, val tail: PP?)
+        val pq = java.util.PriorityQueue<PP>(compareBy { it.g + (forward[it.node] ?: INF) - it.node.cost })
+        pq.add(PP(eos, 0, null))
+
+        val out = ArrayList<Candidate>()
+        val seen = HashSet<String>()
+        var pops = 0
+        val popLimit = 50_000
+        while (pq.isNotEmpty() && out.size < k && pops < popLimit) {
+            val p = pq.poll() ?: break; pops++
+            val cur = p.node
+            if (cur === bos) {
+                val segs = ArrayList<Pair<String, String>>()
+                var t = p.tail
+                while (t != null && t.node !== eos) {
+                    segs.add(t.node.reading to t.node.surface)
+                    t = t.tail
+                }
+                val surf = segs.joinToString("") { it.second }
+                if (surf.isNotEmpty() && seen.add(surf)) {
+                    out.add(Candidate(surf, segs, p.g))
+                }
+                continue
+            }
+            for (left in endsAt[cur.begin]) {
+                val fLeft = forward[left] ?: continue
+                if (fLeft >= INF) continue
+                val connCost = if (cur === eos) 0 else conn(left.rc, cur.lc)
+                pq.add(PP(left, p.g + connCost + left.cost, p))
+            }
+        }
+        return reranker.rerank(reading, out, context)
+    }
+
     /** 読み全体の最尤変換 (文まるごと)。変換不能なら null。 */
     fun convert(reading: String): String? {
         val segs = segments(reading)
