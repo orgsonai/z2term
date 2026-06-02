@@ -17,7 +17,11 @@ composeBom = "2025.01.00"
 datastorePreferences = "1.1.2"
 
 # SSH client (M5)
-jsch = "0.2.21"
+jsch = "0.2.26"
+# BouncyCastle — JSch(mwiede) が Android 上で ed25519 / curve25519 / mlkem を扱うのに必須。
+# Android は jsch の JCE(JDK15+ MR-jar) 実装を取り込めず、JCE にも Ed25519 が無いため、
+# BouncyCastle が無いと「ssh-ed25519 is not available」で公開鍵認証が失敗する。
+bouncycastle = "1.84"
 
 # XZ 解凍 (DL distro の .tar.xz 用、pure-Java 軽量)
 xz = "1.10"
@@ -45,8 +49,10 @@ androidx-material-icons-extended = { group = "androidx.compose.material", name =
 # DataStore
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
 
-# SSH (mwiede fork — BouncyCastle 不要、軽量)
+# SSH (mwiede fork)
 jsch = { group = "com.github.mwiede", name = "jsch", version.ref = "jsch" }
+# BouncyCastle — JSch の ed25519/curve25519/mlkem を Android で有効化
+bouncycastle = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
 
 # XZ 解凍 (org.tukaani:xz)
 xz = { group = "org.tukaani", name = "xz", version.ref = "xz" }

@@ -32,6 +32,10 @@
 -dontwarn com.jcraft.jsch.**
 # JZlib は JSch から optional に呼ばれる
 -dontwarn com.jcraft.jzlib.**
+# BouncyCastle — JSch の bc バックエンド (ed25519/curve25519/mlkem) が参照。
+# reflection 経由で解決されるため R8 に消されないよう keep する。
+-keep class org.bouncycastle.** { *; }
+-dontwarn org.bouncycastle.**
 
 # ───────── XZ (DL distro の .tar.xz 解凍) ─────────
 -dontwarn org.tukaani.xz.**

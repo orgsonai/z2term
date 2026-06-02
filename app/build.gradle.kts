@@ -95,8 +95,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 18
-        versionName = "0.8.10-alpha"
+        versionCode = 19
+        versionName = "0.8.11-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -217,6 +217,7 @@ dependencies {
 
     // SSH クライアント (M5)
     implementation(libs.jsch)
+    implementation(libs.bouncycastle)
 
     // XZ 解凍 (DL distro の .tar.xz、例: Kali rootfs)
     implementation(libs.xz)
