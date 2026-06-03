@@ -62,11 +62,10 @@ class TerminalSession(
     override val display: Int = 1,
     /**
      * セッション復元 (v1) 用。アプリ kill 後の再起動でこのタブを復元するとき、保存されていた
-     * distro / cwd を渡す。初回起動 (新規タブ) では null。startTerminal の最初の 1 回だけ
+     * distro を渡す。初回起動 (新規タブ) では null。startTerminal の最初の 1 回だけ
      * 消費し、それ以降の restart 等では通常の設定 (distro) に従う。
      */
-    restoreDistroId: String? = null,
-    restoreCwd: String? = null
+    restoreDistroId: String? = null
 ) : AppSession {
 
     /** タブ表示名 (RUNNING になったら mode を反映、それ以前は "session") */
@@ -83,7 +82,6 @@ class TerminalSession(
 
     // 復元値は startTerminal で 1 度だけ消費する (consume 後は null)。
     private var pendingRestoreDistroId: String? = restoreDistroId
-    private var pendingRestoreCwd: String? = restoreCwd
 
     enum class TerminalState { IDLE, INSTALLING, STARTING, RUNNING, EXITED, ERROR }
 
@@ -346,11 +344,8 @@ class TerminalSession(
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }
                 _label.value = spec.id
                 _distroId.value = spec.id
-                // 復元 cwd は起動成功時に 1 度だけ消費する。
-                val cwdToRestore = pendingRestoreCwd
-                pendingRestoreCwd = null
                 startReadLoop(ch)
-                scheduleStartupCommands(cwdToRestore, settingsFlow.value.initCommand)
+                scheduleStartupCommands(settingsFlow.value.initCommand)
 
             } catch (e: Throwable) {
                 Log.e(TAG, "Failed to start terminal", e)
@@ -531,24 +526,15 @@ class TerminalSession(
     }
 
     /**
-     * セッション復元の起動直後シーケンス。プロンプトが出る頃に `cd <cwd>` (ベストエフォート)
-     * → init コマンド の順で 1 本のコルーチンで送る (2 本に分けると順序が保証されないため)。
+     * 起動直後シーケンス。プロンプトが出る頃に init コマンドを送る。
      */
-    private fun scheduleStartupCommands(restoreCwd: String?, initCommand: String) {
-        if (restoreCwd.isNullOrBlank() && initCommand.isBlank()) return
+    private fun scheduleStartupCommands(initCommand: String) {
+        if (initCommand.isBlank()) return
         scope.launch {
             delay(INIT_DELAY_MS)
-            if (!restoreCwd.isNullOrBlank()) {
-                writeBytes(("cd " + singleQuote(restoreCwd) + "\n").toByteArray(Charsets.UTF_8))
-            }
-            if (initCommand.isNotBlank()) {
-                writeBytes((initCommand + "\n").toByteArray(Charsets.UTF_8))
-            }
+            writeBytes((initCommand + "\n").toByteArray(Charsets.UTF_8))
         }
     }
-
-    /** シェルに安全に渡せるよう単一引用符でエスケープする (パスに空白や記号があっても壊れない)。 */
-    private fun singleQuote(s: String): String = "'" + s.replace("'", "'\\''") + "'"
 
     fun onResize(rows: Int, cols: Int) {
         // emulator buffer の resize は他の processBytes と排他するため emulator スレッドへ。

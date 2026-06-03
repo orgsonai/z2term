@@ -110,8 +110,7 @@ object SessionManager {
                 id = e.id,
                 initialLabel = e.label.ifBlank { "session" },
                 display = display,
-                restoreDistroId = e.distro,
-                restoreCwd = e.cwd.ifBlank { null }
+                restoreDistroId = e.distro
             )
             mutableSessions.add(s)
             trackTerminal(s)
