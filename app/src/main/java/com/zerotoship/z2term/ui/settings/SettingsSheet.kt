@@ -13,25 +13,25 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -71,7 +71,6 @@ import com.zerotoship.z2term.settings.BatteryGuard
 import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
-import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.theme.TerminalFontOption
 import com.zerotoship.z2term.ui.theme.TerminalFontOptions
@@ -90,7 +89,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * 設定シート (ModalBottomSheet)。
+ * 設定ページ (全画面)。従来は下から重なる ModalBottomSheet だったが、「別ページ」として
+ * 全画面に表示する (要望)。戻る矢印 / システムバックで前の画面へ戻る。
  *
  * 公開する設定項目:
  *  - ターミナルテーマ (AvailableThemes)
@@ -120,8 +120,6 @@ fun SettingsSheet(
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
-    // ハンドルタップ等の明示的クローズは常に許可するためのフラグ。
-    var forceClose by remember { mutableStateOf(false) }
     // distro 切替でダウンロードが要るとき、確認ダイアログの対象 spec を保持 (M8-6 T7)。
     var pendingDistroSwitch by remember { mutableStateOf<DistroSpec?>(null) }
     // 確認ダイアログがクリーンインストール (rootfs + DLキャッシュ削除) かどうか。
@@ -159,43 +157,28 @@ fun SettingsSheet(
         owner?.lifecycle?.addObserver(obs)
         onDispose { owner?.lifecycle?.removeObserver(obs) }
     }
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true,
-        // スクロール途中の下スワイプで誤って閉じるのは防ぎつつ、最上部まで戻った状態で
-        // さらに下へプルダウンしたら閉じる (要望)。内容が最上部 (scrollState.value == 0)
-        // のときだけスワイプ閉じを許可する。ハンドルタップ/戻る/シート外タップでも閉じる。
-        confirmValueChange = { target ->
-            if (target == SheetValue.Hidden) forceClose || scrollState.value == 0 else true
-        }
-    )
-    val closeSheet: () -> Unit = {
-        forceClose = true
-        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = ZtsBgPrimary,
-        contentColor = ZtsTextPrimary,
-        scrimColor = Color.Black.copy(alpha = 0.55f),
-        // ステータスバーの下で留める (シートがステータスバー裏まで伸びるのを防ぐ)
-        contentWindowInsets = { WindowInsets.statusBars },
-        dragHandle = { Z2TermDragHandle(onClose = closeSheet) }
+    // 全画面の「別ページ」として表示する。背景はバー裏まで塗りつつ、中身はシステムバー
+    // (上=ステータス / 下=ナビゲーション) の内側に収める。戻る矢印 / システムバックで前へ戻る。
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.systemBars),
+        color = ZtsBgPrimary,
+        contentColor = ZtsTextPrimary
     ) {
-        // 戻るキーはスクロール位置に関わらず常にアニメ付きで閉じる
-        // (confirmValueChange でスワイプ閉じを最上部限定にしている分の補完)。
-        BackHandler(onBack = closeSheet)
+        BackHandler(onBack = onDismiss)
+        Column(modifier = Modifier.fillMaxSize()) {
+        SettingsTopBar(onBack = onDismiss)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // 縦スクロール可能に (項目が画面高を超えても一番下まで到達できる)
+                // 上部バーの下を縦スクロール可能に (項目が画面高を超えても一番下まで到達できる)
+                .weight(1f)
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            SettingsHeader()
 
             Section(title = stringResource(R.string.settings_section_theme)) {
                 val customTheme by CustomThemeStore.theme.collectAsState()
@@ -760,6 +743,7 @@ fun SettingsSheet(
                 }
             )
         }
+        }
     }
 
     // distro 切替 / クリーンインストールの DL 確認 (M8-6 T7)。OK で起動時に DL/展開、シートを閉じる。
@@ -929,15 +913,35 @@ private fun InfoRow(label: String, value: String, onClick: (() -> Unit)? = null)
     }
 }
 
+/**
+ * 設定ページの上部バー。左に戻る矢印 (←)、その横にタイトル。タブバーと同じ枠線で
+ * 「ページの見出し」であることを示し、下のスクロール領域とは分離する。
+ */
 @Composable
-private fun SettingsHeader() {
+private fun SettingsTopBar(onBack: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .background(ZtsBgPrimary)
+            .border(width = 1.dp, color = ZtsBorder)
+            .padding(horizontal = 8.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .clickable(onClick = onBack)
+                .padding(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = "←",
+                color = ZtsGreen,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+        }
         Text(
             text = stringResource(R.string.settings_header),
             color = ZtsGreen,
@@ -945,7 +949,6 @@ private fun SettingsHeader() {
             fontWeight = FontWeight.SemiBold,
             fontFamily = FontFamily.Monospace
         )
-        Box(modifier = Modifier.weight(1f))
     }
 }
 

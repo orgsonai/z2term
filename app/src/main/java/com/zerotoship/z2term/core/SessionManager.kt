@@ -232,7 +232,9 @@ object SessionManager {
     fun close(id: String) = synchronized(lock) {
         val s = mutableSessions.firstOrNull { it.id == id } ?: return@synchronized
         val displayBeforeRemove = s.display
-        s.shutdown()  // AppSession.shutdown (端末=PTY 停止 / GUI=Xvnc 停止)
+        // 先に UI からタブを外して即座に消す。実際の停止 (端末=PTY 停止 / GUI=Xvnc 停止) は
+        // ネットワークやプロセス kill で時間がかかりメインスレッドを固める (タブが消えるのが遅い)
+        // ため、リストから外した後にバックグラウンドで行う (要望: できるだけ早く消す)。
         mutableSessions.remove(s)
         sessionJobs.remove(id)?.cancel()
         // 残っているセッションが同じ display を使っていなければ pool に返却。
@@ -243,6 +245,21 @@ object SessionManager {
         if (_activeId.value == id) {
             _activeId.value = mutableSessions.firstOrNull()?.id
         }
+        schedulePersist()
+        persistScope.launch { runCatching { s.shutdown() } }
+    }
+
+    /**
+     * タブの並びを入れ替える (ドラッグ並べ替え)。`fromIndex` / `toIndex` は `sessions` の index。
+     * 端末タブの順序は DataStore に保存されるので、入れ替え後は再保存を促す。
+     */
+    fun moveSession(fromIndex: Int, toIndex: Int) = synchronized(lock) {
+        if (fromIndex !in mutableSessions.indices) return@synchronized
+        val to = toIndex.coerceIn(0, mutableSessions.size - 1)
+        if (fromIndex == to) return@synchronized
+        val s = mutableSessions.removeAt(fromIndex)
+        mutableSessions.add(to, s)
+        _sessions.value = mutableSessions.toList()
         schedulePersist()
     }
 

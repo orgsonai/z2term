@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +50,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
@@ -73,6 +76,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.zIndex
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.AppSession
 import com.zerotoship.z2term.core.SessionManager
@@ -1269,6 +1273,37 @@ private fun TabBar(
     onNew: () -> Unit,
     onNewGui: () -> Unit
 ) {
+    // ドラッグ並べ替え (要望): タブを長押ししてから左右にドラッグすると並びを入れ替えられる。
+    // 各タブの実測幅 (id -> px) を覚えておき、ドラッグ中のタブが隣のタブの中心を越えたら
+    // SessionManager.moveSession で即スワップし、その分だけ dragOffset を戻して連続移動を続ける。
+    val tabWidths = remember { mutableStateMapOf<String, Int>() }
+    val draggingId = remember { mutableStateOf<String?>(null) }
+    val dragOffset = remember { mutableStateOf(0f) }
+    val gapPx = with(LocalDensity.current) { 4.dp.roundToPx() }
+
+    // ドラッグ量に応じて隣とスワップ。並びの最新値は SessionManager から読む (クロージャの陳腐化回避)。
+    fun trySwap() {
+        val id = draggingId.value ?: return
+        val live = SessionManager.sessions.value
+        val idx = live.indexOfFirst { it.id == id }
+        if (idx < 0) return
+        if (idx < live.size - 1) {
+            val nextW = (tabWidths[live[idx + 1].id] ?: 0) + gapPx
+            if (nextW > gapPx && dragOffset.value > nextW / 2f) {
+                SessionManager.moveSession(idx, idx + 1)
+                dragOffset.value -= nextW
+                return
+            }
+        }
+        if (idx > 0) {
+            val prevW = (tabWidths[live[idx - 1].id] ?: 0) + gapPx
+            if (prevW > gapPx && dragOffset.value < -prevW / 2f) {
+                SessionManager.moveSession(idx, idx - 1)
+                dragOffset.value += prevW
+            }
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1287,14 +1322,26 @@ private fun TabBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            // key(sess.id): 並べ替えで順序が変わっても各タブの合成 (とドラッグ中の
+            // pointerInput) を同一視して保持する。これが無いと位置ベースのキーになり、
+            // 1 回スワップするたびにドラッグジェスチャが切れて連続移動できない (要望)。
             sessions.forEach { sess ->
-                TabChip(
-                    session = sess,
-                    active = sess.id == activeId,
-                    canClose = sessions.size > 1,
-                    onSelect = { onSelect(sess.id) },
-                    onClose = { onClose(sess.id) }
-                )
+                key(sess.id) {
+                    val isDragging = draggingId.value == sess.id
+                    TabChip(
+                        session = sess,
+                        active = sess.id == activeId,
+                        canClose = sessions.size > 1,
+                        dragging = isDragging,
+                        dragOffsetX = if (isDragging) dragOffset.value else 0f,
+                        onWidth = { tabWidths[sess.id] = it },
+                        onSelect = { onSelect(sess.id) },
+                        onClose = { onClose(sess.id) },
+                        onDragStart = { draggingId.value = sess.id; dragOffset.value = 0f },
+                        onDrag = { dx -> dragOffset.value += dx; trySwap() },
+                        onDragEnd = { draggingId.value = null; dragOffset.value = 0f }
+                    )
+                }
             }
         }
         // 新規端末タブ
@@ -1330,17 +1377,28 @@ private fun TabChip(
     session: AppSession,
     active: Boolean,
     canClose: Boolean,
+    dragging: Boolean,
+    dragOffsetX: Float,
+    onWidth: (Int) -> Unit,
     onSelect: () -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit
 ) {
     val label by session.label.collectAsState()
-    val bg = if (active) ZtsBgCard else ZtsBgPrimary
-    val border = if (active) ZtsGreen else ZtsBorder
+    val bg = if (dragging) ZtsBgSecondary else if (active) ZtsBgCard else ZtsBgPrimary
+    // ドラッグ中は緑枠で「掴んでいる」ことを示す。
+    val border = if (dragging || active) ZtsGreen else ZtsBorder
     val fg = if (active) ZtsGreen else ZtsTextSecondary
     // 単タップ=アクティブ化 / ダブルタップ=閉じる。× ボタンは廃止 (誤タップ防止 M8-6 T8)。
     // 最後の 1 枚 (canClose=false) はダブルタップでも閉じない。
+    // 長押し→左右ドラッグ=並べ替え (要望)。ドラッグ中のタブは前面 (zIndex) + 平行移動で追従。
     Box(
         modifier = Modifier
+            .onSizeChanged { onWidth(it.width) }
+            .zIndex(if (dragging) 1f else 0f)
+            .graphicsLayer { translationX = dragOffsetX }
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
             .border(1.dp, border, RoundedCornerShape(6.dp))
@@ -1348,6 +1406,14 @@ private fun TabChip(
                 onClick = onSelect,
                 onDoubleClick = if (canClose) onClose else null
             )
+            .pointerInput(session.id) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { onDragStart() },
+                    onDrag = { change, amount -> change.consume(); onDrag(amount.x) },
+                    onDragEnd = { onDragEnd() },
+                    onDragCancel = { onDragEnd() }
+                )
+            }
             .padding(horizontal = 10.dp, vertical = 5.dp)
     ) {
         Text(
