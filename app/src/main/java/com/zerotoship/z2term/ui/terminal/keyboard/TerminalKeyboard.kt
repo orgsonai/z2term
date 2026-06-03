@@ -104,7 +104,7 @@ fun TerminalKeyboard(
             onCursorKey = onCursorKey,
             onSwitchToAscii = { composing.commitRaw(); jpMode = false },
             composing = composing,
-            style = style,
+            selectedStyle = style,
             modifier = modifier
         )
         return

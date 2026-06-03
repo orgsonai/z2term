@@ -85,9 +85,27 @@ fun JapaneseFlickKeyboard(
     onCursorKey: (TerminalEmulator.CursorKey) -> Unit,
     onSwitchToAscii: () -> Unit,
     composing: ComposingState,
-    style: KeyboardStyle,
+    selectedStyle: KeyboardStyle,
     modifier: Modifier = Modifier
 ) {
+    // 日本語キーボードは「シンプル / 4 方向フリック」どちらを選んでも、文字の見やすさ
+    // (フォントサイズ) を **4 方向フリック (SPACIOUS) に統一** する (ユーザー要望)。
+    //   - シンプル(COMPACT) はかなが小さく見えていたので、選択スタイルに関係なく
+    //     SPACIOUS のフォント設定を基準にする。
+    //   - 高さは選択スタイルのまま。キーボード高さ設定に応じた拡縮も維持したいので、
+    //     scaledKeyboardStyle が naturalHeight に入れた「目標総高さ」に合わせて
+    //     SPACIOUS の素のフォント値を同じ比率でスケールする (= scaledKeyboardStyle と同じ計算)。
+    val style = run {
+        val ref = KeyboardStyle.SPACIOUS
+        val scale = (selectedStyle.naturalHeight.value / ref.naturalHeight.value).coerceIn(0.6f, 2.5f)
+        val fontScale = scale.coerceIn(0.85f, 1.4f)
+        selectedStyle.copy(
+            keyFontSp = ref.keyFontSp * fontScale,
+            mainKeyFontSp = ref.mainKeyFontSp * fontScale,
+            flickHintFontSp = ref.flickHintFontSp * fontScale
+        )
+    }
+
     // 入力中のひらがなを確定して PTY へ流す (composing が空なら何もしない)。
     fun flush() { composing.commitRaw() }
 
