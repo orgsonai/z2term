@@ -93,7 +93,6 @@ import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.ui.settings.SettingsSheet
 import com.zerotoship.z2term.ui.sftp.SftpSheet
 import com.zerotoship.z2term.ui.snippets.SnippetsSheet
-import com.zerotoship.z2term.ui.ssh.SshProfilesSheet
 import com.zerotoship.z2term.ui.ssh.HostKeyVerificationDialog
 import com.zerotoship.z2term.ui.terminal.components.SpecialKeyBar
 import com.zerotoship.z2term.ui.terminal.input.TerminalInputView
@@ -204,7 +203,6 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     var keyboardCollapsed by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
     var snippetsSheetOpen by remember { mutableStateOf(false) }
-    var sshSheetOpen by remember { mutableStateOf(false) }
     // SFTP ファイルブラウザ対象のプロファイル (非 null の間シートを表示)
     var sftpProfile by remember { mutableStateOf<SshProfile?>(null) }
     var customThemeEditorOpen by remember { mutableStateOf(false) }
@@ -509,10 +507,6 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         SettingsSheet(
             session = active,
             onDismiss = { settingsOpen = false },
-            onOpenSsh = {
-                settingsOpen = false
-                sshSheetOpen = true
-            },
             onEditCustomTheme = { customThemeEditorOpen = true }
         )
     }
@@ -545,12 +539,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onDismiss = { snippetsSheetOpen = false },
             onRun = { command ->
                 active.writeBytes(command.toByteArray(Charsets.UTF_8))
-            }
-        )
-    }
-    if (sshSheetOpen) {
-        SshProfilesSheet(
-            onDismiss = { sshSheetOpen = false },
+            },
             onConnect = { profile -> active.connectSsh(profile) },
             onSftp = { profile -> sftpProfile = profile }
         )
@@ -846,8 +835,7 @@ private fun GuiTabScreen(
         SettingsSheet(
             session = terminalForSettings,
             onDismiss = { settingsOpen = false },
-            // GUI からは SSH / 独自テーマ編集の各シートまでは開かない (端末タブで)。
-            onOpenSsh = { settingsOpen = false },
+            // GUI からは独自テーマ編集シートまでは開かない (端末タブで)。
             onEditCustomTheme = { }
         )
     }
@@ -855,7 +843,9 @@ private fun GuiTabScreen(
         SnippetsSheet(
             onDismiss = { snippetsSheetOpen = false },
             // 端末は writeBytes だが GUI は keysym 橋渡しで送る (M8-6 T1)。
-            onRun = { command -> GuiKeyMapper.sendText(gui.rfb, command) }
+            onRun = { command -> GuiKeyMapper.sendText(gui.rfb, command) },
+            // GUI タブからは SSH 接続の概念が無いのでスニペットタブのみ表示する。
+            showSshTab = false
         )
     }
     // GUI 起動確認 (初回 DL / クリーンインストール)。OK で起動、やめる→タブを閉じる

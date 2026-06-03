@@ -1,6 +1,5 @@
 package com.zerotoship.z2term.ui.ssh
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,15 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -33,7 +26,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -48,7 +40,6 @@ import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.PortForward
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.channel.SshProfileStore
-import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -63,7 +54,10 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 /**
- * SSH プロファイル管理シート。
+ * SSH プロファイル一覧本体 (タブのコンテンツ)。
+ *
+ * ツールシート ([com.zerotoship.z2term.ui.snippets.SnippetsSheet]) の「SSH / SFTP」タブから
+ * 呼ばれる。スクロール / シート開閉は呼び出し側が持つので、ここは Column の中身だけを描く。
  *
  * リスト表示 → 追加/編集/削除/接続。
  * 接続時は [onConnect] (TerminalScreen 側で新規セッション作成 + startSsh) に委譲。
@@ -71,28 +65,13 @@ import java.util.UUID
  * SshProfileStore は本コンポーザブル内で直接インスタンス化する (DataStore 自体が
  * プロセスシングルトンなのでデータの一貫性は保たれる)。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SshProfilesSheet(
-    onDismiss: () -> Unit,
+fun SshProfilesBody(
     onConnect: (SshProfile) -> Unit,
     onSftp: (SshProfile) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val scrollState = rememberScrollState()
-    var forceClose by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true,
-        // スクロール途中の下スワイプで誤って閉じないよう、最上部のときだけスワイプ閉じを許可。
-        confirmValueChange = { target ->
-            if (target == SheetValue.Hidden) forceClose || scrollState.value == 0 else true
-        }
-    )
-    val closeSheet: () -> Unit = {
-        forceClose = true
-        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-    }
     val store = remember { SshProfileStore(context.applicationContext) }
     val profilesFlow = remember(store) {
         store.profiles.stateIn(scope, SharingStarted.Eagerly, emptyList())
@@ -100,59 +79,39 @@ fun SshProfilesSheet(
     val profiles by profilesFlow.collectAsState()
     var editing by remember { mutableStateOf<SshProfile?>(null) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = ZtsBgPrimary,
-        contentColor = ZtsTextPrimary,
-        scrimColor = Color.Black.copy(alpha = 0.55f),
-        dragHandle = { Z2TermDragHandle(onClose = closeSheet) }
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        BackHandler(onBack = closeSheet)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            val currentEdit = editing
-            if (currentEdit == null) {
-                ListHeader(onNew = { editing = newProfile() })
-                if (profiles.isEmpty()) {
-                    EmptyState()
-                } else {
-                    profiles.forEach { p ->
-                        ProfileRow(
-                            profile = p,
-                            onConnect = {
-                                onConnect(p)
-                                onDismiss()
-                            },
-                            onSftp = {
-                                onSftp(p)
-                                onDismiss()
-                            },
-                            onEdit = { editing = p },
-                            onDelete = {
-                                scope.launch { store.delete(p.id) }
-                            }
-                        )
-                    }
-                }
+        val currentEdit = editing
+        if (currentEdit == null) {
+            ListHeader(onNew = { editing = newProfile() })
+            if (profiles.isEmpty()) {
+                EmptyState()
             } else {
-                EditForm(
-                    initial = currentEdit,
-                    onSave = { saved ->
-                        scope.launch {
-                            store.upsert(saved)
-                            editing = null
+                profiles.forEach { p ->
+                    ProfileRow(
+                        profile = p,
+                        onConnect = { onConnect(p) },
+                        onSftp = { onSftp(p) },
+                        onEdit = { editing = p },
+                        onDelete = {
+                            scope.launch { store.delete(p.id) }
                         }
-                    },
-                    onCancel = { editing = null }
-                )
+                    )
+                }
             }
+        } else {
+            EditForm(
+                initial = currentEdit,
+                onSave = { saved ->
+                    scope.launch {
+                        store.upsert(saved)
+                        editing = null
+                    }
+                },
+                onCancel = { editing = null }
+            )
         }
     }
 }

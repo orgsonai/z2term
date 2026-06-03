@@ -114,7 +114,6 @@ import kotlinx.coroutines.withContext
 fun SettingsSheet(
     session: TerminalSession,
     onDismiss: () -> Unit,
-    onOpenSsh: () -> Unit = {},
     onEditCustomTheme: () -> Unit = {}
 ) {
     val settings by session.settingsFlow.collectAsState()
@@ -457,19 +456,6 @@ fun SettingsSheet(
             }
 
             SshAccessHelper(session = session)
-
-            Section(title = stringResource(R.string.settings_section_remote)) {
-                ActionButton(
-                    label = stringResource(R.string.settings_ssh_sftp_open),
-                    onClick = onOpenSsh
-                )
-                Text(
-                    text = stringResource(R.string.settings_ssh_sftp_note),
-                    color = ZtsTextSecondary,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
 
             StorageAccessHelper()
 

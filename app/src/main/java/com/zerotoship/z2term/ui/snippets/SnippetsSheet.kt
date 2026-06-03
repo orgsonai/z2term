@@ -51,9 +51,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.snippets.Snippet
 import com.zerotoship.z2term.snippets.SnippetStore
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
+import com.zerotoship.z2term.ui.ssh.SshProfilesBody
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -67,23 +69,29 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
 
+/** ツールシートのタブ。スニペット一覧と SSH/SFTP プロファイル一覧を 1 枚にまとめる。 */
+private enum class ToolsTab { SNIPPETS, SSH }
+
 /**
- * よく使うコマンド (スニペット) 管理シート。
+ * ツールシート (ツールバーの 📜 から開く)。
  *
- * - リスト表示: 各行をタップすると [onRun] で command 文字列をターミナルへ挿入する
- *   (Enter は付けない、ユーザーが必要なら手動で確定)。
- * - 「編集」: 編集モードに切替えて name / command を編集、削除も可能。
- * - 「+ 新規」: 空エントリで編集モードに入る。
+ * 上部のタブで「スニペット」と「SSH / SFTP」を切替える。
+ *  - スニペット: よく使うコマンドを挿入 ([onRun])。並べ替え / 編集 / 削除可。
+ *  - SSH / SFTP: 保存したホストへ接続 ([onConnect]) / SFTP で開く ([onSftp])。
  *
- * 永続化は [SnippetStore] (DataStore Preferences + JSON 直列化)。
+ * GUI タブからは SSH 接続の概念が無いので [showSshTab] = false でスニペットのみ表示する。
+ *
+ * 永続化はそれぞれ [SnippetStore] / SshProfileStore (DataStore)。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SnippetsSheet(
     onDismiss: () -> Unit,
-    onRun: (String) -> Unit
+    onRun: (String) -> Unit,
+    onConnect: (SshProfile) -> Unit = {},
+    onSftp: (SshProfile) -> Unit = {},
+    showSshTab: Boolean = true
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
     var forceClose by remember { mutableStateOf(false) }
@@ -98,23 +106,9 @@ fun SnippetsSheet(
         forceClose = true
         scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
     }
-    val store = remember { SnippetStore(context.applicationContext) }
-    val snippetsFlow = remember(store) {
-        store.snippets.stateIn(scope, SharingStarted.Eagerly, emptyList())
-    }
-    val snippets by snippetsFlow.collectAsState()
-    var editing by remember { mutableStateOf<Snippet?>(null) }
-
-    // 初回だけサンプル (ls -la --color=auto) を投入。
-    LaunchedEffect(Unit) { store.ensureSeeded() }
-
-    // ドラッグ並べ替え: 表示順はローカル [order] を真実とし、ドラッグ中は flow 更新で上書きしない。
-    var draggingId by remember { mutableStateOf<String?>(null) }
-    var dragDy by remember { mutableStateOf(0f) }
-    var order by remember { mutableStateOf<List<Snippet>>(emptyList()) }
-    LaunchedEffect(snippets, draggingId) { if (draggingId == null) order = snippets }
-    // 1 行ぶんのピッチ (行高 + Column の spacedBy 10dp)。これを超えて動かしたら隣と入れ替える。
-    val rowPitchPx = with(LocalDensity.current) { (SNIPPET_ROW_HEIGHT + 10.dp).toPx() }
+    var tab by remember { mutableStateOf(ToolsTab.SNIPPETS) }
+    // タブ切替時はスクロールを先頭へ戻す (前のタブの位置を引き継がない)。
+    LaunchedEffect(tab) { scrollState.scrollTo(0) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -134,67 +128,170 @@ fun SnippetsSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            val currentEdit = editing
-            if (currentEdit == null) {
-                ListHeader(onNew = { editing = newSnippet() })
-                if (order.isEmpty()) {
-                    EmptyState()
-                } else {
-                    // key(s.id) でノード identity を固定 → 並べ替え中も掴んだ行に
-                    // ポインタ(ドラッグ)が追従する (Column でも item が移動できる)。
-                    order.forEach { s ->
-                        key(s.id) {
-                            val dragging = s.id == draggingId
-                            SnippetRow(
-                                snippet = s,
-                                dragging = dragging,
-                                dragOffsetY = if (dragging) dragDy else 0f,
-                                onRun = {
-                                    onRun(s.command)
-                                    onDismiss()
-                                },
-                                onEdit = { editing = s },
-                                onDelete = { scope.launch { store.delete(s.id) } },
-                                onDragStart = { draggingId = s.id; dragDy = 0f },
-                                onDrag = { dy ->
-                                    dragDy += dy
-                                    val cur = order.indexOfFirst { it.id == draggingId }
-                                    if (cur >= 0) {
-                                        if (dragDy > rowPitchPx && cur < order.lastIndex) {
-                                            order = order.toMutableList()
-                                                .also { it.add(cur + 1, it.removeAt(cur)) }
-                                            dragDy -= rowPitchPx
-                                        } else if (dragDy < -rowPitchPx && cur > 0) {
-                                            order = order.toMutableList()
-                                                .also { it.add(cur - 1, it.removeAt(cur)) }
-                                            dragDy += rowPitchPx
-                                        }
-                                    }
-                                },
-                                onDragEnd = {
-                                    val finalOrder = order
-                                    draggingId = null
-                                    dragDy = 0f
-                                    scope.launch { store.replaceAll(finalOrder) }
-                                }
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                HintBlock()
-            } else {
-                EditForm(
-                    initial = currentEdit,
-                    onSave = { saved ->
-                        scope.launch {
-                            store.upsert(saved)
-                            editing = null
-                        }
-                    },
-                    onCancel = { editing = null }
+            if (showSshTab) {
+                ToolsTabBar(selected = tab, onSelect = { tab = it })
+            }
+            when (tab) {
+                ToolsTab.SNIPPETS -> SnippetsBody(onRun = onRun, onDismiss = onDismiss)
+                ToolsTab.SSH -> SshProfilesBody(
+                    onConnect = { p -> onConnect(p); onDismiss() },
+                    onSftp = { p -> onSftp(p); onDismiss() }
                 )
             }
+        }
+    }
+}
+
+/** スニペット / SSH・SFTP を切替えるセグメントタブ。 */
+@Composable
+private fun ToolsTabBar(selected: ToolsTab, onSelect: (ToolsTab) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        TabChip(
+            label = stringResource(R.string.tools_tab_snippets),
+            selected = selected == ToolsTab.SNIPPETS,
+            modifier = Modifier.weight(1f),
+            onSelect = { onSelect(ToolsTab.SNIPPETS) }
+        )
+        TabChip(
+            label = stringResource(R.string.tools_tab_ssh),
+            selected = selected == ToolsTab.SSH,
+            modifier = Modifier.weight(1f),
+            onSelect = { onSelect(ToolsTab.SSH) }
+        )
+    }
+}
+
+@Composable
+private fun TabChip(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onSelect: () -> Unit
+) {
+    val bg = if (selected) ZtsGreen.copy(alpha = 0.18f) else ZtsBgCard
+    val border = if (selected) ZtsGreen else ZtsBorder
+    val fg = if (selected) ZtsGreen else ZtsTextPrimary
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(8.dp))
+            .clickable(onClick = onSelect)
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = fg,
+            fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+/**
+ * スニペット一覧本体 (タブのコンテンツ)。スクロールは呼び出し側 ([SnippetsSheet]) が持つ。
+ *
+ * - リスト表示: 各行をタップすると [onRun] で command 文字列をターミナルへ挿入する
+ *   (Enter は付けない、ユーザーが必要なら手動で確定)。
+ * - 「編集」: 編集モードに切替えて name / command を編集、削除も可能。
+ * - 「+ 新規」: 空エントリで編集モードに入る。
+ */
+@Composable
+private fun SnippetsBody(
+    onRun: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val store = remember { SnippetStore(context.applicationContext) }
+    val snippetsFlow = remember(store) {
+        store.snippets.stateIn(scope, SharingStarted.Eagerly, emptyList())
+    }
+    val snippets by snippetsFlow.collectAsState()
+    var editing by remember { mutableStateOf<Snippet?>(null) }
+
+    // 初回だけサンプル (ls -la --color=auto) を投入。
+    LaunchedEffect(Unit) { store.ensureSeeded() }
+
+    // ドラッグ並べ替え: 表示順はローカル [order] を真実とし、ドラッグ中は flow 更新で上書きしない。
+    var draggingId by remember { mutableStateOf<String?>(null) }
+    var dragDy by remember { mutableStateOf(0f) }
+    var order by remember { mutableStateOf<List<Snippet>>(emptyList()) }
+    LaunchedEffect(snippets, draggingId) { if (draggingId == null) order = snippets }
+    // 1 行ぶんのピッチ (行高 + Column の spacedBy 10dp)。これを超えて動かしたら隣と入れ替える。
+    val rowPitchPx = with(LocalDensity.current) { (SNIPPET_ROW_HEIGHT + 10.dp).toPx() }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        val currentEdit = editing
+        if (currentEdit == null) {
+            ListHeader(onNew = { editing = newSnippet() })
+            if (order.isEmpty()) {
+                EmptyState()
+            } else {
+                // key(s.id) でノード identity を固定 → 並べ替え中も掴んだ行に
+                // ポインタ(ドラッグ)が追従する (Column でも item が移動できる)。
+                order.forEach { s ->
+                    key(s.id) {
+                        val dragging = s.id == draggingId
+                        SnippetRow(
+                            snippet = s,
+                            dragging = dragging,
+                            dragOffsetY = if (dragging) dragDy else 0f,
+                            onRun = {
+                                onRun(s.command)
+                                onDismiss()
+                            },
+                            onEdit = { editing = s },
+                            onDelete = { scope.launch { store.delete(s.id) } },
+                            onDragStart = { draggingId = s.id; dragDy = 0f },
+                            onDrag = { dy ->
+                                dragDy += dy
+                                val cur = order.indexOfFirst { it.id == draggingId }
+                                if (cur >= 0) {
+                                    if (dragDy > rowPitchPx && cur < order.lastIndex) {
+                                        order = order.toMutableList()
+                                            .also { it.add(cur + 1, it.removeAt(cur)) }
+                                        dragDy -= rowPitchPx
+                                    } else if (dragDy < -rowPitchPx && cur > 0) {
+                                        order = order.toMutableList()
+                                            .also { it.add(cur - 1, it.removeAt(cur)) }
+                                        dragDy += rowPitchPx
+                                    }
+                                }
+                            },
+                            onDragEnd = {
+                                val finalOrder = order
+                                draggingId = null
+                                dragDy = 0f
+                                scope.launch { store.replaceAll(finalOrder) }
+                            }
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            HintBlock()
+        } else {
+            EditForm(
+                initial = currentEdit,
+                onSave = { saved ->
+                    scope.launch {
+                        store.upsert(saved)
+                        editing = null
+                    }
+                },
+                onCancel = { editing = null }
+            )
         }
     }
 }

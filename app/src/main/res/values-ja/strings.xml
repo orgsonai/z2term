@@ -23,7 +23,6 @@
     <string name="settings_section_scrollback">スクロールバック行数</string>
     <string name="settings_section_distro">ディストロ (切替で現在のセッションを再起動)</string>
     <string name="settings_section_login_shell">ログインシェル (次回セッション以降に反映)</string>
-    <string name="settings_section_remote">リモート (端末 → 他ホスト)</string>
     <string name="settings_section_keyboard_style">独自キーボードスタイル</string>
     <string name="settings_section_gui_terminal">GUI ターミナル</string>
     <string name="settings_gui_magnification">GUI 表示倍率 (次回 GUI 起動から反映)</string>
@@ -128,6 +127,10 @@
     <string name="appinfo_package">パッケージ</string>
     <string name="appinfo_rootfs_generation">rootfs 世代</string>
     <string name="appinfo_distro">ディストロ</string>
+
+    <!-- ツールシートのタブ -->
+    <string name="tools_tab_snippets">スニペット</string>
+    <string name="tools_tab_ssh">SSH / SFTP</string>
 
     <!-- スニペットシート (D3 バッチ 2) -->
     <string name="snippets_title">スニペット</string>
@@ -240,8 +243,6 @@
     <string name="settings_shell_uninstalled_suffix">%1$s (未インストール)</string>
     <string name="settings_shell_warning">⚠ %1$s はこのディストロに未インストールです。インストールするまで反映されず、起動時に既定シェル → /bin/sh へ自動フォールバックします (例: apk add zsh / apt install zsh)。</string>
     <string name="settings_shell_info">未インストールのシェルは反映されず自動フォールバックします。ディストロ側でインストール後に有効になります。</string>
-    <string name="settings_ssh_sftp_open">SSH / SFTP プロファイル…</string>
-    <string name="settings_ssh_sftp_note">保存した SSH 接続先へシェル接続、または SFTP でファイル転送 (一覧 / DL / UL / 削除 / 名前変更)。</string>
 
     <!-- 外部ストレージ (SD カード) 認識トグル -->
     <string name="settings_section_external_storage">外部ストレージ (SD カード)</string>

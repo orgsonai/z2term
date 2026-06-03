@@ -23,7 +23,6 @@
     <string name="settings_section_scrollback">Scrollback lines</string>
     <string name="settings_section_distro">Distro (switching restarts the current session)</string>
     <string name="settings_section_login_shell">Login shell (applies from the next session)</string>
-    <string name="settings_section_remote">Remote (terminal → other host)</string>
     <string name="settings_section_keyboard_style">Keyboard style</string>
     <string name="settings_section_gui_terminal">GUI terminal</string>
     <string name="settings_gui_magnification">GUI magnification (applies from next GUI start)</string>
@@ -128,6 +127,10 @@
     <string name="appinfo_package">Package</string>
     <string name="appinfo_rootfs_generation">rootfs generation</string>
     <string name="appinfo_distro">Distro</string>
+
+    <!-- Tools sheet tabs -->
+    <string name="tools_tab_snippets">Snippets</string>
+    <string name="tools_tab_ssh">SSH / SFTP</string>
 
     <!-- Snippets sheet (D3 batch 2) -->
     <string name="snippets_title">Snippets</string>
@@ -240,8 +243,6 @@
     <string name="settings_shell_uninstalled_suffix">%1$s (not installed)</string>
     <string name="settings_shell_warning">⚠ %1$s is not installed for this distro. Until it is installed it has no effect; the launcher falls back to the default shell → /bin/sh (e.g. apk add zsh / apt install zsh).</string>
     <string name="settings_shell_info">Shells that are not installed fall back automatically. They become effective once you install them in the distro.</string>
-    <string name="settings_ssh_sftp_open">SSH / SFTP profiles…</string>
-    <string name="settings_ssh_sftp_note">Connect a saved SSH host as a shell, or use SFTP for file transfer (list / DL / UL / delete / rename).</string>
 
     <!-- External storage (SD card) recognition toggle -->
     <string name="settings_section_external_storage">External storage (SD card)</string>
