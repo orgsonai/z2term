@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-05-31 / 対象バージョン: 0.8.3-alpha (versionCode 11, M12)
+最終更新: 2026-06-03 / 対象バージョン: 0.8.14-alpha (versionCode 22)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/HANDBOOK.md` を参照。
@@ -167,12 +167,12 @@
 
 ### 4.6 ドメイン (`core/`)
 
-- `SessionManager` (object): `TerminalSession` のリスト + active を `StateFlow` で公開。`ensureFirst`/`openNew`/`close`/`setActive`。
+- `SessionManager` (object): `TerminalSession` のリスト + active を `StateFlow` で公開。`ensureFirst`/`openNew`/`close`/`setActive`/`moveSession`（タブのドラッグ並べ替え）。`close` は先に UI からタブを外し、停止処理 (PTY/SSH 切断・GUI=Xvnc 停止) は裏で実行してタブ消去のもたつきを防ぐ。
 - `TerminalSession`: 状態機械 `IDLE→INSTALLING→STARTING→RUNNING→EXITED/ERROR`。
   - emulator 専用 dispatcher、PTY 読みループ、`writeBytes`、resize、`startTerminal`/`switchDistro`/`restart`/`reinstallDistro`/`startSsh`。
   - `StateFlow`: uiState / redrawTick(≈60fps コアレッシング) / scrollOffset / cellMetrics / selection / cwd / label / settingsFlow。
 - `TerminalSelection` / `CellMetrics`: 選択範囲 (絶対行) と 1 セル寸法。
-- `SessionStore`/`SessionManager` (M11): タブ構成 `{id,label,distro,cwd}` + activeId を DataStore に保存し、OS kill 後の再起動で復元（GUI タブは対象外）。各タブは新規 PTY で起動し `cd <cwd>` をベストエフォートで流す。**cwd は OSC7 でのみ捕捉**（`ensureOsc7CwdConfig` が bash/zsh のプロンプトフックで OSC7 を吐かせる）。「通知の停止」では空保存して復元しない。
+- `SessionStore`/`SessionManager` (M11): タブ構成 `{id,label,distro,cwd}` + activeId を DataStore に保存し、OS kill 後の再起動でタブ構成 (順序含む) を復元（GUI タブは対象外）。各タブは新規 PTY で起動する。**cwd は OSC7 で捕捉**（`ensureOsc7CwdConfig` が bash/zsh のプロンプトフックで OSC7 を吐かせる）が、**起動時の `cd <cwd>` 自動注入は 0.8.13 で廃止**（ユーザーの意図しない移動を避けるため、復元タブもシェル既定の cwd で起動する）。「通知の停止」では空保存して復元しない。
 
 ### 4.7 通信チャネル (`channel/`)
 
@@ -323,7 +323,8 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 
 ### 6.8 その他 UI
 
-- タブ複数化、ピンチでフォント拡縮 (8–32sp)、スクロール + 最新へ戻る ↓、スニペット、テーマ/フォント実プレビュー。
+- タブ複数化（**長押し→左右ドラッグで並べ替え**、ダブルタップで閉じる）、ピンチでフォント拡縮 (8–32sp)、スクロール + 最新へ戻る ↓、スニペット、テーマ/フォント実プレビュー。
+- 設定 (`SettingsSheet`): 0.8.14 で従来の下から重なるボトムシートをやめ、**全画面の「別ページ」**として表示（上部に戻る矢印 ← + システムバック対応）。
 
 ---
 
