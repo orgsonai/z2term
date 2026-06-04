@@ -45,3 +45,19 @@ armv7 (32bit) は M7 同梱方針では生成しません。`build.gradle.kts` �
 
 - libproot.so:        約 210KB
 - libproot_loader.so: 約 18KB
+
+## z2root (FOSS フェーズ2・自前 proot 互換エンジン)
+
+外部ライセンス表記の完全ゼロ化に向け、proot/talloc を自前コード(GPL-3.0)で
+置き換える取り組み (`docs/FOSS-PURE-HANDOFF.md` §5)。ソースは
+`app/src/main/cpp/z2root/z2root.c`。
+
+```bash
+ANDROID_NDK_HOME=/path/to/ndk bash scripts/build-z2root.sh
+# 出力:
+#   arm64-v8a/libz2root.so   (自前 ptrace エンジン。proot 互換 argv subset)
+```
+
+proot と同じ「`lib*.so` 名で jniLibs に置いて `nativeLibraryDir` から execve」
+方式。`.so` 自体はビルド成果物のため git 管理外 (上記 proot 同様)。`libz2root.so`
+は現状アプリ未配線で、`build.gradle.kts` の CMake にも未登録 (= APK には未同梱)。
