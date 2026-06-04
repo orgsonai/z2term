@@ -7,6 +7,15 @@
 > Zero to Ship プロジェクトの第5作目です。
 > ブログ: https://zero-to-ship-app.vercel.app
 
+## スクリーンショット
+
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="docs/images/cui-terminal.png" width="280" alt="CUI: Alpine 端末と独自キーボード"><br><sub>CUI — Alpine 端末 + 独自キーボード</sub></td>
+    <td align="center" width="50%"><img src="docs/images/gui-thunderbird.png" width="280" alt="GUI: Xvnc 上で動く Thunderbird"><br><sub>GUI — Xvnc 上で動く Thunderbird</sub></td>
+  </tr>
+</table>
+
 ## ダウンロード
 
 **最新の APK は GitHub Releases から直接ダウンロードできます**（ビルド不要）:
