@@ -260,9 +260,10 @@ class TerminalSession(
                     writeBanner(banner)
                     _uiState.update { it.copy(state = TerminalState.INSTALLING) }
 
-                    // 非同梱 distro (Ubuntu/Arch/Kali) で rootfs アーカイブが未取得なら
-                    // まずダウンロードする。同梱 (Alpine) は assets から直接展開される。
-                    if (!spec.bundled && downloader.resolveLocalArchive(spec, detectAbiId()) == null) {
+                    // 非同梱 distro (Ubuntu/Arch/Kali、および foss の Alpine) で rootfs
+                    // アーカイブが未取得ならまずダウンロードする。full の同梱 Alpine は
+                    // effectivelyBundled=true なのでスキップし assets から直接展開される。
+                    if (!spec.effectivelyBundled && downloader.resolveLocalArchive(spec, detectAbiId()) == null) {
                         val dlError = downloadDistroArchive(spec)
                         if (dlError != null) {
                             writeBanner(appContext.getString(R.string.banner_download_failed, spec.displayName, dlError.message))
@@ -374,7 +375,9 @@ class TerminalSession(
         // 大物・低速回線でも最後まで待ち、途中打ち切りで最初からやり直す無駄をなくす。
         // 中断したいときは端末リセット (設定 → 端末リセット) でやり直せる。
         withContext(Dispatchers.IO) {
-            downloader.download(spec, abi, readTimeoutMs = 0).collect { p ->
+            // 固定 URL の distro (foss Alpine) は SHA-256 を検証する。index 解決の
+            // distro は spec.sha256 が null なので従来どおり HTTPS のみ。
+            downloader.download(spec, abi, expectedSha256 = spec.sha256(abi), readTimeoutMs = 0).collect { p ->
                 when (p) {
                     is DistroDownloader.Progress.Downloading -> {
                         if (p.total > 0) {

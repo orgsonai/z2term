@@ -23,19 +23,20 @@ and lets you install any command through package managers like `pacman` / `apt`.
 **You can download the latest APK directly from GitHub Releases** (no build needed):
 
 - Go to the latest: **<https://github.com/orgsonai/z2term/releases/latest>**
-- 0.8.17-alpha direct link: [z2term-0.8.17-alpha.apk](https://github.com/orgsonai/z2term/releases/download/v0.8.17-alpha/z2term-0.8.17-alpha.apk)
+- 0.8.18-alpha direct link: [z2term-0.8.18-alpha.apk](https://github.com/orgsonai/z2term/releases/download/v0.8.18-alpha/z2term-0.8.18-alpha.apk)
 
 Tap the APK on your Android device → allow "Install from unknown sources" to install.
 (The `full` flavor bundles prebuilts, so the APK works standalone. Not distributed on Google Play.)
 
 ## Current version
 
-**0.8.17-alpha (versionCode 25) — auto-fetch the GUI stack when missing (fixes launch failures) + META key at the left of the English keyboard**
+**0.8.18-alpha (versionCode 26) — the `foss` flavor no longer bundles the Alpine rootfs (fetched at runtime, SHA-256 verified), to minimize third-party license notices**
 
 Milestones 7–12 implemented SFTP, GUI (Xvnc+VNC), multiple GUI tabs, IME learning, English UI, landscape keyboard, scrollback search, session restore, a chroot engine for rooted devices, and GUI audio/video playback. 0.8.4 strengthened Japanese kana-kanji conversion for long sentences. Since 0.8.5, small UI/keyboard improvements and various fixes have continued.
 
-### Added/changed in 0.8.5–0.8.17
+### Added/changed in 0.8.5–0.8.18
 
+- **`foss` flavor drops the bundled Alpine rootfs** (0.8.18): to minimize third-party license notices, the `foss` APK no longer ships the ~49 MB Alpine rootfs. It is downloaded from the official Alpine CDN at first launch (SHA-256 verified), so **the `foss` build cannot start offline on first run**. `proot`/`talloc` must stay in the APK (W^X requires execution from `nativeLibraryDir`), so they are still bundled and now shown on the OSS-license screen in both flavors. The `full` flavor is unchanged (rootfs bundled, starts offline instantly).
 - **Auto-fetch the GUI stack when missing** (0.8.17): fixed the 🖥 launch failing every time when the GUI terminal (or Xvnc/openbox) wasn't installed. If installed, it still launches instantly with no network; only when something is missing does it fetch the missing pieces (after the consent dialog when download confirmation is ON).
 - **META key at the left of the English keyboard** (0.8.17): filled the gap that was left to the left of `a` in the English UI's custom keyboard (4-direction flick) with a META key (= the same ESC-prefix modifier as Alt). The Japanese keyboard and the simple layout are unchanged.
 - **More reliable long-press selection** (0.8.16): turned OFF `ScaleGestureDetector`'s quick scale (single-finger double-tap + drag to zoom). When enabled, long-press fired intermittently (recovering only after a pinch). Two-finger pinch still works.
@@ -213,8 +214,8 @@ z2term/
 
 | Flavor | Purpose | Bundled content |
 |---|---|---|
-| `full` | Internal / Play Store distribution | includes assets and prebuilt binaries (you must place them) |
-| `foss` | F-Droid distribution | no prebuilts at all; fetched at runtime by `DistroDownloader` |
+| `full` | Internal / Play Store distribution | includes assets and prebuilt binaries (you must place them); rootfs lives in `src/full/assets` |
+| `foss` | F-Droid / sideload | **no rootfs** (downloaded at runtime by `DistroDownloader`, SHA-256 verified). `proot`/`talloc` are still bundled because W^X requires running them from `nativeLibraryDir` |
 
 ```bash
 ./gradlew assembleFullDebug   # normal development
@@ -242,15 +243,17 @@ For the licenses of the bundled binaries, rootfs, fonts, etc., see "Bundled OSS 
 
 ## Bundled OSS and corresponding source (GPL/LGPL distribution requirements)
 
-The `full` flavor APK includes the following prebuilts. The **corresponding source** for each
+The APK includes the following prebuilts. The **corresponding source** for each
 is obtainable from the URLs below (for GPL v2 §3 / GPL v3 §6 / LGPL v3 §4).
+The "In `foss`" column shows whether the `foss` flavor also ships it (the rootfs is `full`-only;
+`foss` downloads it at runtime). The in-app OSS-license screen filters its list to match per flavor.
 
-| Bundled item | License | How to get the corresponding source |
-|---|---|---|
-| `libproot.so` / `libproot_loader.so` | GPL-2.0 | [termux/proot](https://github.com/termux/proot) / see the Termux package version downloaded by `scripts/build-proot.sh` |
-| `libtalloc.so` | LGPL-3.0 | [Samba talloc](https://gitlab.com/samba-team/samba/-/tree/master/lib/talloc) / same as above |
-| each package in `alpine-minirootfs-*.tgz` | individual (GPL-2.0 / GPL-3.0 / MIT / BSD, etc.) | [Alpine aports](https://gitlab.alpinelinux.org/alpine/aports) — look up each package name in `scripts/alpine-packages.txt` |
-| Fira Code / IBM Plex Mono / JetBrains Mono | OFL-1.1 | [tonsky/FiraCode](https://github.com/tonsky/FiraCode) / [IBM/plex](https://github.com/IBM/plex) / [JetBrains/JetBrainsMono](https://github.com/JetBrains/JetBrainsMono) |
+| Bundled item | License | In `foss`? | How to get the corresponding source |
+|---|---|---|---|
+| `libproot.so` / `libproot_loader.so` | GPL-2.0 | yes | [termux/proot](https://github.com/termux/proot) / see the Termux package version downloaded by `scripts/build-proot.sh` |
+| `libtalloc.so` | LGPL-3.0 | yes | [Samba talloc](https://gitlab.com/samba-team/samba/-/tree/master/lib/talloc) / same as above |
+| each package in `alpine-minirootfs-*.tgz` | individual (GPL-2.0 / GPL-3.0 / MIT / BSD, etc.) | no (runtime DL) | [Alpine aports](https://gitlab.alpinelinux.org/alpine/aports) — look up each package name in `scripts/alpine-packages.txt` |
+| Fira Code / IBM Plex Mono / JetBrains Mono | OFL-1.1 | yes | [tonsky/FiraCode](https://github.com/tonsky/FiraCode) / [IBM/plex](https://github.com/IBM/plex) / [JetBrains/JetBrainsMono](https://github.com/JetBrains/JetBrainsMono) |
 
 From the settings screen → "OSS licenses / corresponding source", you can also browse/show this in-app
 (license full texts are placed in `assets/licenses/`).
@@ -277,7 +280,7 @@ For which versions z2term fetches at build time, see `PROOT_VER_AARCH64` / `ALPI
 | Channel | Flavor | Status |
 |---|---|---|
 | **GitHub Releases / direct APK** | `full` (prebuilts bundled) | Primary channel. The APK works standalone |
-| **F-Droid** | `foss` (prebuilts excluded) | Compliance in progress. Needs a physical move to `src/full/` + F-Droid metadata submission |
+| **F-Droid** | `foss` (rootfs excluded) | Rootfs now removed from `foss` (moved to `src/full/`, DL'd at runtime). Full F-Droid compliance still pending: `proot`/`talloc` remain prebuilt binaries (see the FOSS handoff phase 2 = self-built proot), plus F-Droid metadata submission |
 | **Google Play** | — | proot's execution of external code likely conflicts with DPA §4.4, so **no distribution planned** |
 
 ## Default behavior of the SSH server (sshd)

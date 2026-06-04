@@ -29,6 +29,8 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 On first launch, **Alpine Linux is set up automatically** (wait a moment and a `#` prompt appears).
 That's all the setup you need.
 
+> ℹ️ The `foss` build (for F-Droid / sideload) does not bundle Alpine itself, so it **needs a network connection on the first launch only** (it auto-downloads from the official site). The `full` build bundles it, so it starts instantly even offline.
+
 ---
 
 ## 3. Reading the screen

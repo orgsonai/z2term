@@ -12,8 +12,10 @@ import com.zerotoship.z2term.R
  * OSS ライセンス画面 ([LicensesScreen]) でこのリストを一覧表示する。
  *
  * - 追加方針: APK の **実体に含まれる** ものだけ列挙する。設定で OFF にできる依存も実体は同梱しているため列挙対象。
- * - FOSS フレーバー: prebuilt バイナリ (proot/talloc/Alpine rootfs) が APK から除外される構成 (build.gradle.kts) では
- *   そのエントリを表示しない (実体に含まれていないものを「ライセンス対象」と表示すると却って誤解を招く)。
+ * - FOSS フレーバー: Alpine rootfs (パッケージ群) は APK から除外されるためそのエントリを表示しない
+ *   ([onlyFullFlavor] = true)。一方 PRoot / talloc は foss でも nativeLibraryDir に同梱が必須なので
+ *   **両フレーバーで表示**する (GPL/LGPL の告知義務)。フォント (OFL) も両フレーバー同梱なので表示維持。
+ *   実体に含まれていないものを表示すると誤解を招き、含まれるのに隠すと告知義務に反するため実態に揃える。
  *
  * `purposeRes` は `R.string.oss_purpose_*` で言語スイッチに追従する。
  */
@@ -49,13 +51,14 @@ object OssComponents {
         ),
 
         // ===== (a) ネイティブ実行物 (jniLibs に同梱) =====
+        // PRoot / talloc は nativeLibraryDir からの実行が必須 (W^X 制約) で foss でも
+        // APK 同梱する。よって onlyFullFlavor は付けず両フレーバーで表示する。
         OssComponent(
             name = "PRoot",
             licenseId = "GPL-2.0",
             copyright = "Copyright (c) 2010-2024 STMicroelectronics, INRIA and contributors",
             sourceUrl = "https://github.com/termux/proot",
             purposeRes = R.string.oss_purpose_proot,
-            onlyFullFlavor = true,
         ),
         OssComponent(
             name = "talloc",
@@ -63,7 +66,6 @@ object OssComponents {
             copyright = "Copyright (c) Andrew Tridgell and the Samba Team",
             sourceUrl = "https://gitlab.com/samba-team/samba/-/tree/master/lib/talloc",
             purposeRes = R.string.oss_purpose_talloc,
-            onlyFullFlavor = true,
         ),
 
         // ===== (b) Alpine minirootfs (assets/alpine-minirootfs-*.tgz) — 個別パッケージ =====

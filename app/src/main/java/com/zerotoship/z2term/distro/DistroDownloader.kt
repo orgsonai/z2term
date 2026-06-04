@@ -127,21 +127,15 @@ class DistroDownloader(private val context: Context) {
     /**
      * spec から実際のダウンロード URL を決定する。
      *  1. 直接 URL (downloadUrlArm64) があればそれ
+     *     (Alpine の foss 実行時 DL もこの固定 URL を使う)
      *  2. index URL (indexUrlArm64) があれば、ディレクトリを取得して
      *     最新のタイムスタンプ付きサブディレクトリ + indexFileName を組み立てる
      *     (linuxcontainers の Arch arm64 など)
-     *  3. 同梱 distro (Alpine) を FOSS で DL する場合の公式 URL
      */
     private fun resolveDownloadUrl(spec: DistroSpec, abi: String): String? {
         spec.downloadUrl(abi)?.let { return it }
         spec.indexUrl(abi)?.let { return resolveFromIndex(it, spec.indexFileName) }
-        return when (spec.id) {
-            "alpine" -> when (abi) {
-                "arm64-v8a" -> "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.0-aarch64.tar.gz"
-                else -> null
-            }
-            else -> null
-        }
+        return null
     }
 
     /**

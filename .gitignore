@@ -40,8 +40,11 @@ Thumbs.db
 .claude/scheduled_tasks.lock
 
 # rootfs アーカイブ（scripts/build-alpine-rootfs.sh で生成、リポジトリには含めない）
+# full フレーバーは src/full/assets に同梱（foss は実行時 DL のため非同梱）
 app/src/main/assets/alpine-minirootfs-*.tar.gz
 app/src/main/assets/alpine-minirootfs-*.tgz
+app/src/full/assets/alpine-minirootfs-*.tar.gz
+app/src/full/assets/alpine-minirootfs-*.tgz
 
 # proot バイナリ + 依存ライブラリ（scripts/build-proot.sh で取得、含めない）
 app/src/main/jniLibs/arm64-v8a/libproot.so

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-06-04 / Target version: 0.8.17-alpha (versionCode 25)
+Last updated: 2026-06-05 / Target version: 0.8.18-alpha (versionCode 26)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -43,8 +43,12 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 
 | Flavor | applicationId | Purpose |
 |---|---|---|
-| `full` | `com.zerotoship.z2term` | Normal distribution (assets bundled) |
-| `foss` | `com.zerotoship.z2term.foss` | F-Droid / sideload |
+| `full` | `com.zerotoship.z2term` | Normal distribution. Alpine rootfs bundled in `src/full/assets`, starts offline instantly |
+| `foss` | `com.zerotoship.z2term.foss` | F-Droid / sideload. **Rootfs not bundled** (downloaded at runtime, SHA-256 verified). `proot`/`talloc` stay bundled in both flavors (W^X requires execution from `nativeLibraryDir`) |
+
+- Implementation: AGP always adds `src/main` to every flavor. Only the rootfs (`alpine-minirootfs-*.tgz`) is placed under `src/full/assets` to keep it `full`-only; `proot`/`talloc` (`src/main/jniLibs`) ship in both flavors.
+- `foss` cannot start offline on first run (rootfs must be downloaded). `full` is unchanged (offline instant start).
+- The branch is decided by `DistroSpec.effectivelyBundled` (false = DL target when `BuildConfig.IS_FOSS && id==alpine`).
 
 `debug` builds additionally carry a `.debug` suffix.
 
@@ -62,7 +66,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 | SSH client | JSch (mwiede fork) | 0.2.21 (BouncyCastle not required) |
 | Decompression | org.tukaani:xz | 1.10 (the downloaded distro's `.tar.xz`). gzip is JDK standard |
 | Linux runtime | PRoot + libtalloc | `.so` bundled in jniLibs (from a Termux build) |
-| Bundled OS | Alpine Linux ARM minirootfs | `.tgz` bundled in assets |
+| Bundled OS | Alpine Linux ARM minirootfs | `full`: `.tgz` in `src/full/assets` / `foss`: downloaded at runtime |
 
 ---
 
@@ -144,8 +148,9 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 ### 4.4 Distro management (`distro/`)
 
 - `DistroBundle`: `ROOTFS_VERSION` (=6), `VERSION_MARKER`, `BUNDLED_DISTRO_ID="alpine"`.
-- `DistroSpec`: id / display name / package manager / bundleable / asset name / DL URL or index URL / default shell / approx. DL size.
-  - Alpine = bundled (`alpine-minirootfs-aarch64.tgz`, zsh). Ubuntu/Arch/Kali = resolve the latest `rootfs.tar.xz` at runtime from the linuxcontainers index and download (bash).
+- `DistroSpec`: id / display name / package manager / bundleable / asset name / DL URL or index URL / SHA-256 / default shell / approx. DL size / `effectivelyBundled`.
+  - Alpine = bundled in `full` (`alpine-minirootfs-aarch64.tgz`, zsh); in `foss` it is downloaded from a fixed URL (Alpine's pinned `3.21.0` CDN release) and verified against `sha256Arm64`. Ubuntu/Arch/Kali = resolve the latest `rootfs.tar.xz` at runtime from the linuxcontainers index and download (bash; SHA not pinned since the file changes each time).
+  - `effectivelyBundled` = `bundled && !(IS_FOSS && id==alpine)`. The startup sequence and settings UI use this to decide whether a download is needed (no longer reading the raw `bundled` flag).
 - `DistroInstaller`: a dependency-free hand-written tar parser (ustar/GNU `L`/PAX `x`/`g`, symlink/hardlink). `decompress` detects gzip/xz by magic bytes.
   - `postInstallSetup`: resolv.conf/hosts, `pacman.conf` (disable sandbox/DownloadUser), apt Sandbox::User=root, write the version marker.
   - Permissions are **owner-only** (`setUnixMode(ownerOnly=true)`). world-writable makes sudo refuse.
@@ -383,8 +388,9 @@ bash scripts/build-bundle.sh          # generate all bundled assets at once
 adb install -r app/build/outputs/apk/foss/debug/app-foss-debug.apk
 ```
 
-- Bundled: `jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc}.so`, `assets/alpine-minirootfs-aarch64.tgz`, `assets/fonts/*.ttf`.
-- **The rootfs in assets uses the `.tgz` extension** (with `.tar.gz`, aapt decompresses and renames it).
+- Bundled: `src/main/jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc}.so` (both flavors), `src/full/assets/alpine-minirootfs-aarch64.tgz` (`full` only), `src/main/assets/fonts/*.ttf` (both flavors).
+- **The rootfs in assets uses the `.tgz` extension** (with `.tar.gz`, aapt decompresses and renames it). `foss` does not bundle the rootfs (runtime DL).
+- ⚠ After moving the file, the first build may keep the stale rootfs because `mergeFossReleaseAssets` is UP-TO-DATE. Re-merge with `--rerun-tasks` or by deleting `app/build/intermediates/assets/foss*`.
 - **`useLegacyPackaging=true` is required** (so the `.so` files that get execve'd are placed as real files in nativeLibraryDir).
 - When the rootfs composition changes: edit `scripts/alpine-packages.txt` → bump `DistroBundle.ROOTFS_VERSION` by +1 → `FORCE=1 build-alpine-rootfs.sh` → assemble (users auto-redeploy by swapping the APK).
 

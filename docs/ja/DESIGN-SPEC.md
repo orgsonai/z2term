@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-04 / 対象バージョン: 0.8.17-alpha (versionCode 25)
+最終更新: 2026-06-05 / 対象バージョン: 0.8.18-alpha (versionCode 26)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -44,8 +44,12 @@
 
 | フレーバー | applicationId | 用途 |
 |---|---|---|
-| `full` | `com.zerotoship.z2term` | 通常配布 (assets 同梱想定) |
-| `foss` | `com.zerotoship.z2term.foss` | F-Droid / サイドロード向け |
+| `full` | `com.zerotoship.z2term` | 通常配布。Alpine rootfs を `src/full/assets` に同梱しオフライン即起動 |
+| `foss` | `com.zerotoship.z2term.foss` | F-Droid / サイドロード向け。**rootfs 非同梱**（実行時 DL・SHA-256 検証）。`proot`/`talloc` は W^X 制約で同梱必須のため両フレーバー共通 |
+
+- 同梱の実装: AGP は `src/main` を全フレーバーに加算する。rootfs (`alpine-minirootfs-*.tgz`) だけを `src/full/assets` に置き `full` 限定にする。`proot`/`talloc` (`src/main/jniLibs`) は両フレーバー同梱。
+- `foss` は初回オフライン起動不可（rootfs 未取得時に DL 必須）。`full` は従来どおりオフライン即起動で挙動不変。
+- 分岐は `DistroSpec.effectivelyBundled`（`BuildConfig.IS_FOSS && id==alpine` のとき false = DL 対象）で判定する。
 
 `debug` ビルドは更に `.debug` サフィックスが付く。
 
@@ -63,7 +67,7 @@
 | SSH クライアント | JSch (mwiede fork) | 0.2.21 (BouncyCastle 不要) |
 | 解凍 | org.tukaani:xz | 1.10 (DL distro の `.tar.xz`)。gzip は JDK 標準 |
 | Linux 実行 | PRoot + libtalloc | jniLibs に `.so` 同梱 (Termux ビルド由来) |
-| 同梱 OS | Alpine Linux ARM minirootfs | assets に `.tgz` 同梱 |
+| 同梱 OS | Alpine Linux ARM minirootfs | `full` は `src/full/assets` に `.tgz` 同梱 / `foss` は実行時 DL |
 
 ---
 
@@ -145,8 +149,9 @@
 ### 4.4 ディストロ管理 (`distro/`)
 
 - `DistroBundle`: `ROOTFS_VERSION`(=6)、`VERSION_MARKER`、`BUNDLED_DISTRO_ID="alpine"`。
-- `DistroSpec`: id/表示名/パッケージマネージャ/同梱可否/asset 名/DL URL or index URL/既定シェル/DL サイズ目安。
-  - Alpine = 同梱 (`alpine-minirootfs-aarch64.tgz`, zsh)。Ubuntu/Arch/Kali = linuxcontainers の index から最新 `rootfs.tar.xz` を実行時解決して DL (bash)。
+- `DistroSpec`: id/表示名/パッケージマネージャ/同梱可否/asset 名/DL URL or index URL/SHA-256/既定シェル/DL サイズ目安/`effectivelyBundled`。
+  - Alpine = `full` 同梱 (`alpine-minirootfs-aarch64.tgz`, zsh) / `foss` は固定 URL（Alpine 公式 CDN の pinned `3.21.0`）から DL し `sha256Arm64` で検証。Ubuntu/Arch/Kali = linuxcontainers の index から最新 `rootfs.tar.xz` を実行時解決して DL (bash, SHA は毎回変わるため未固定)。
+  - `effectivelyBundled` = `bundled && !(IS_FOSS && id==alpine)`。起動シーケンスと設定 UI はこれで DL 要否を判定（`bundled` フラグ直読みをやめた）。
 - `DistroInstaller`: 依存無しの手書き tar パーサ (ustar/GNU `L`/PAX `x`/`g`、symlink/hardlink)。`decompress` がマジックバイトで gzip/xz 判定。
   - `postInstallSetup`: resolv.conf/hosts、`pacman.conf` (sandbox/DownloadUser 無効化)、apt の Sandbox::User=root、version マーカー書込。
   - パーミッションは **owner-only** (`setUnixMode(ownerOnly=true)`)。world-writable だと sudo が拒否する。
@@ -384,8 +389,9 @@ bash scripts/build-bundle.sh          # 同梱物一括生成
 adb install -r app/build/outputs/apk/foss/debug/app-foss-debug.apk
 ```
 
-- 同梱: `jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc}.so`、`assets/alpine-minirootfs-aarch64.tgz`、`assets/fonts/*.ttf`。
-- **assets の rootfs は `.tgz` 拡張子**で置く (`.tar.gz` だと aapt が解凍リネームする)。
+- 同梱: `src/main/jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc}.so`（両フレーバー）、`src/full/assets/alpine-minirootfs-aarch64.tgz`（`full` のみ）、`src/main/assets/fonts/*.ttf`（両フレーバー）。
+- **assets の rootfs は `.tgz` 拡張子**で置く (`.tar.gz` だと aapt が解凍リネームする)。`foss` では rootfs を同梱しない（実行時 DL）。
+- ⚠ ファイル移動後の初回ビルドは `mergeFossReleaseAssets` が UP-TO-DATE で古い rootfs を残すことがある。`--rerun-tasks` か `app/build/intermediates/assets/foss*` 削除で再マージする。
 - **`useLegacyPackaging=true` 必須** (execve する .so を nativeLibraryDir に実体配置するため)。
 - rootfs 構成変更時: `scripts/alpine-packages.txt` 編集 → `DistroBundle.ROOTFS_VERSION` を +1 → `FORCE=1 build-alpine-rootfs.sh` → assemble (利用者は APK 入替で自動再展開)。
 

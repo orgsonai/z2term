@@ -317,8 +317,9 @@ fun SettingsSheet(
                         val spec = DistroSpec.byId(id)
                         if (distroCleanArmed && spec != null) {
                             // クリーンインストール: rootfs + DL キャッシュを消して入れ直す。
-                            // 非同梱 distro は再 DL が走るので確認 ON なら先にダイアログ。
-                            if (!spec.bundled && settings.confirmBeforeDownload) {
+                            // 非同梱 distro は再 DL が走るので確認 ON なら先にダイアログ
+                            // (foss の Alpine も effectivelyBundled=false で DL 対象)。
+                            if (!spec.effectivelyBundled && settings.confirmBeforeDownload) {
                                 pendingDistroSwitch = spec
                                 pendingCleanInstall = true
                             } else {
@@ -330,8 +331,9 @@ fun SettingsSheet(
                             val extracted = java.io.File(
                                 context.filesDir, "distros/$id/bin"
                             ).exists()
-                            // 非同梱 distro が未展開なら初回切替でネットから DL が走る。
-                            val needsDownload = spec != null && !spec.bundled && !extracted
+                            // 非同梱 distro が未展開なら初回切替でネットから DL が走る
+                            // (foss の Alpine も effectivelyBundled=false で DL 対象)。
+                            val needsDownload = spec != null && !spec.effectivelyBundled && !extracted
                             if (needsDownload && settings.confirmBeforeDownload) {
                                 pendingDistroSwitch = spec   // 確認ダイアログを出す
                                 pendingCleanInstall = false
