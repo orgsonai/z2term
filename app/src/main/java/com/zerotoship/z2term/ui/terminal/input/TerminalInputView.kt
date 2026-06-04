@@ -234,6 +234,12 @@ class TerminalInputView(context: Context) : View(context) {
     init {
         isFocusable = true
         isFocusableInTouchMode = true
+        // quick scale (1本指ダブルタップ+ドラッグでズーム) は OFF。有効だと
+        // ScaleGestureDetector が単指 DOWN を内部の double-tap 監視に取り込み、
+        // GestureDetector.onLongPress が間欠的に発火しなくなる (2本指ピンチ後に
+        // 直るのはその状態機械がリセットされるため)。本アプリは 2 本指ピンチのみ
+        // 使うので影響なし。
+        scaleDetector.isQuickScaleEnabled = false
     }
 
     override fun onCheckIsTextEditor(): Boolean = imeEnabled

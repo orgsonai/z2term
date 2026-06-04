@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-03 / 対象バージョン: 0.8.14-alpha (versionCode 22)
+最終更新: 2026-06-04 / 対象バージョン: 0.8.16-alpha (versionCode 24)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/HANDBOOK.md` を参照。
@@ -286,7 +286,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 - **文節分割合成 (`segment`)**: 内容語(最長辞書一致) + 後続の助詞/送り仮名を 1 文節として連結 (例: きょうの → 今日の)。**助詞** (の/は/が…) と**文末助動詞** (でしょう/ました/です…) は単漢字エントリ (野/葉/増田…) を持つため**かなのまま残す** (`PARTICLES` / `AUX_KANA`)。辞書ヒット 1 文節以上 ∧ 漢字を含むときに返す。
 - **スプリット変換**: 変換キー (または ◀▶) で先頭文節にフォーカス (`autoSplitHeadLen` = 内容語 + 後続助詞を文節として取り込む)。◀▶ でブロック範囲を伸縮、候補タップ/⏎ で確定すると次ブロックへ自動で進む。変換キー連打で候補をサイクル。
 - **長文の自動ブロック分割**: 辞書ブロックが 2 文節以上に分かれる長文は、変換キーを押さなくても自動で先頭文節にスプリットしブロック毎に予測する (`segmentParts` で判定)。例: あしたのてんきは… → 明日の / 天気は / …。打ちかけの 1 語では分割しない。
-- **文まるごと一括予測** (`fullPrediction`): スプリット中で後続 (tail) が残るとき、各ブロックを連結した「文まるごと」候補 (`segment`) を候補バーに薄緑ピルで 1 つ出す。タップ (`commitFull`) で全文を一括確定。※旧「文節組み換えバリエーション (`multiSegmentVariants`)」は使われない候補ばかりのため 0.8.4 で廃止。
+- **文まるごと一括予測** (`fullPrediction`): スプリット中で後続 (tail) が残るとき、**先頭ブロックの最尤候補 (= `candidates` 先頭) + 残りかなの Viterbi 1-best** を連結した「文まるごと」候補を候補バーに薄緑ピルで 1 つ出す。タップ (`commitFull`) で全文を一括確定。**◀▶ で `splitHeadLen` が動くと `refreshPredict` 経由で再構築され、境界変更に追従して再フローする** (0.8.16)。残りかなの Viterbi では先頭表層を文脈にして bigram リランクを通す。※旧「読み全体の Viterbi 1-best (境界非依存)」は ◀▶ で薄字が動かないので 0.8.16 で差し替え。旧「文節組み換えバリエーション (`multiSegmentVariants`)」は使われない候補ばかりのため 0.8.4 で廃止。
 - **再変換**: 確定直後 (composing 空) に変換キー=「再変換」で直前確定を読みに戻す (`restoreLastCommit`)。
 - **キー背景**: 未確定中は ◀▶・変換キーの背景を緑にせず静かに保つ (緑は「再変換」ヒント時の変換キーのみ)。
 
@@ -397,6 +397,7 @@ adb install -r app/build/outputs/apk/foss/debug/app-foss-debug.apk
 - 複数行スクリプトを端末に直接打鍵すると **zsh が `#` コメントを誤実行/継続プロンプトで崩れる** → ファイル化して `sh` 実行。
 - dropbear を kill せず再起動すると "Address already in use"。
 - `GestureDetector` は **onLongPress 後 onScroll を送らない** → 長押し選択は生 MOTION_MOVE で。
+- `ScaleGestureDetector` の **quick scale (1本指ダブルタップ+ドラッグでズーム) が有効**だと、単指 DOWN が内部の double-tap 監視に取り込まれて `GestureDetector.onLongPress` が間欠的に発火しなくなる（2本指ピンチ後にだけ直る症状）。本アプリは 2 本指ピンチのみ使うので `isQuickScaleEnabled = false` で OFF にする (0.8.16)。
 - Compose `BasicTextField` で realtime PTY 入力は IME 同期破綻 → `TerminalInputView` + 自前 InputConnection。
 - AndroidView の factory で `requestFocus` すると IME が勝手に出る。
 - Mozc は `FORCE_ASCII` を無視する (日本語 IME で ASCII 入力は保証されない)。

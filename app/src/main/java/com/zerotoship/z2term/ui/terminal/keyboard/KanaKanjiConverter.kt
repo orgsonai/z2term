@@ -1033,12 +1033,20 @@ class ComposingState(
         }
         candidates = buildList(KanaKanjiConverter.convertFlexible(key, prevSurface = prevCommitSurface), key)
         if (selectedCandidateIndex >= candidates.size) selectedCandidateIndex = -1
-        // 長文の一括予測: スプリット中で後続 (tail) が残っているとき、読み全体の最尤変換 (Viterbi)
-        // を「文まるごと」候補として 1 つ出す。直前確定語による履歴 bigram リランクも通す。
-        fullPrediction = if (isSplitMode && splitTail.isNotEmpty())
-            KkcConverter.nbest(text, 8, KkcConverter.KkcContext(prevCommitSurface))
-                .firstOrNull()?.surface?.takeIf { it != text }
-        else null
+        // 長文の一括予測: スプリット中で後続 (tail) が残っているとき、
+        //   「先頭ブロックの最尤候補 + 残りかなの最尤」を組み合わせた「文まるごと」候補を出す。
+        // 以前は読み全体 (composing.text) の Viterbi 1-best を使っていたため、◀▶ で
+        // splitHeadLen を動かしても一括予測ピル (薄緑) が変わらなかった (ユーザー要望)。
+        // 先頭は candidates 先頭 (= 履歴/Viterbi/辞書を統合した最尤) を使い、残りは
+        // 先頭表層を文脈にして tail を Viterbi で 1-best 変換する。
+        fullPrediction = if (isSplitMode && splitTail.isNotEmpty()) {
+            val headSurface = candidates.firstOrNull() ?: splitHead
+            val tailSurface = KkcConverter.nbest(splitTail, 1, KkcConverter.KkcContext(headSurface))
+                .firstOrNull()?.surface
+                ?: KkcConverter.convert(splitTail)
+                ?: splitTail
+            (headSurface + tailSurface).takeIf { it != text }
+        } else null
     }
 
     /** 辞書候補にカタカナを加えた表示用リスト (生ひらがなはバー左のラベルで確定する)。 */
