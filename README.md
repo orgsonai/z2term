@@ -1,160 +1,162 @@
 # Z2Term — Zero 2 Terminal
 
-**Z2Term** (ズィートゥーターム) は Android 端末上で動作する独自実装のターミナルアプリです。
-複数の Linux ディストリビューション (Alpine / Ubuntu / Arch / Kali) を PRoot 経由で動作させ、
-`pacman` / `apt` などのパッケージマネージャ経由で任意のコマンドをインストール可能にします。
+**English** ・ [日本語](README.ja.md)
 
-> Zero to Ship プロジェクトの第5作目です。
-> ブログ: https://zero-to-ship-app.vercel.app
+**Z2Term** is a custom-built terminal app that runs on Android.
+It runs several Linux distributions (Alpine / Ubuntu / Arch / Kali) via PRoot,
+and lets you install any command through package managers like `pacman` / `apt`.
 
-## スクリーンショット
+> The 5th project of the Zero to Ship initiative.
+> Blog: https://zero-to-ship-app.vercel.app
+
+## Screenshots
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="docs/images/cui-terminal.png" width="280" alt="CUI: Alpine 端末と独自キーボード"><br><sub>CUI — Alpine 端末 + 独自キーボード</sub></td>
-    <td align="center" width="50%"><img src="docs/images/gui-thunderbird.png" width="280" alt="GUI: Xvnc 上で動く Thunderbird"><br><sub>GUI — Xvnc 上で動く Thunderbird</sub></td>
+    <td align="center" width="50%"><img src="docs/images/cui-terminal.png" width="280" alt="CUI: Alpine terminal with the custom keyboard"><br><sub>CUI — Alpine terminal + custom keyboard</sub></td>
+    <td align="center" width="50%"><img src="docs/images/gui-thunderbird.png" width="280" alt="GUI: Thunderbird running on Xvnc"><br><sub>GUI — Thunderbird running on Xvnc</sub></td>
   </tr>
 </table>
 
-## ダウンロード
+## Download
 
-**最新の APK は GitHub Releases から直接ダウンロードできます**（ビルド不要）:
+**You can download the latest APK directly from GitHub Releases** (no build needed):
 
-- 最新版に飛ぶ: **<https://github.com/orgsonai/z2term/releases/latest>**
-- 0.8.17-alpha 直リンク: [z2term-0.8.17-alpha.apk](https://github.com/orgsonai/z2term/releases/download/v0.8.17-alpha/z2term-0.8.17-alpha.apk)
+- Go to the latest: **<https://github.com/orgsonai/z2term/releases/latest>**
+- 0.8.17-alpha direct link: [z2term-0.8.17-alpha.apk](https://github.com/orgsonai/z2term/releases/download/v0.8.17-alpha/z2term-0.8.17-alpha.apk)
 
-Android 端末で APK をタップ → 「提供元不明のアプリ」のインストールを許可するとインストールできます。
-(`full` フレーバー・prebuilt 同梱で APK 単体で動作完結。Google Play では配布していません)
+Tap the APK on your Android device → allow "Install from unknown sources" to install.
+(The `full` flavor bundles prebuilts, so the APK works standalone. Not distributed on Google Play.)
 
-## 現在のバージョン
+## Current version
 
-**0.8.17-alpha (versionCode 25) — GUI 一式の未導入時に自動取得（起動失敗の解消）+ 英語キーボードの左端を META キーに**
+**0.8.17-alpha (versionCode 25) — auto-fetch the GUI stack when missing (fixes launch failures) + META key at the left of the English keyboard**
 
-Milestone 7〜12 で SFTP、GUI (Xvnc+VNC)、複数 GUI タブ、IME 学習、英語 UI、横画面キーボード、スクロールバック検索、セッション復元、root 端末向け chroot エンジン、GUI 音声/動画再生などを実装。0.8.4 で日本語かな漢字変換を長文向けに強化。0.8.5 以降で UI/キーボードの細かな改善と各種修正を継続。
+Milestones 7–12 implemented SFTP, GUI (Xvnc+VNC), multiple GUI tabs, IME learning, English UI, landscape keyboard, scrollback search, session restore, a chroot engine for rooted devices, and GUI audio/video playback. 0.8.4 strengthened Japanese kana-kanji conversion for long sentences. Since 0.8.5, small UI/keyboard improvements and various fixes have continued.
 
-### 0.8.5〜0.8.17 で追加・変更された機能
+### Added/changed in 0.8.5–0.8.17
 
-- **GUI 一式の未導入時に自動取得** (0.8.17): GUI ターミナル（や Xvnc/openbox）が未導入のとき 🖥 起動が毎回失敗していたのを修正。導入済みなら従来どおり無通信で即起動、未導入のときだけ不足分を取得する（ダウンロード確認 ON なら同意ダイアログ後に取得）
-- **英語キーボードの左端を META キーに** (0.8.17): English UI の独自キーボード（4 方向フリック）で `a` の左に空いていた隙間を META キー（= Alt 相当の ESC プレフィックス修飾）で埋めた。日本語キーボード・シンプル配列は変更なし
-- **長押し選択の信頼性向上** (0.8.16): `ScaleGestureDetector` の quick scale (1本指ダブルタップ+ドラッグでズーム) を OFF。これが有効だと長押しが間欠的に発火しない症状（ピンチ後に直る）が出ていた。2本指ピンチは引き続き有効
-- **一括予測がブロック境界に追従** (0.8.16): スプリット変換中に ◀ ▶ で先頭ブロックの境界を動かすと、候補バーの薄緑「文まるごと」ピル（一括予測）も「先頭ブロック最尤 + 残りかな最尤」に組み直されて再フローする
-- **日本語キーボードのフォント統一** (0.8.15): 「シンプル」「4 方向フリック」どちらを選んでも、かな文字のサイズが 4 方向フリック基準でそろうように（キーボード高さに応じた拡縮は維持）
-- **タブのドラッグ並べ替え** (0.8.14): タブを長押し→左右ドラッグで CUI/GUI タブを並べ替え。1 操作で端から端まで移動可。タブを閉じるのはダブルタップ（停止処理は裏で行い即座に消える）
-- **設定の全画面ページ化** (0.8.14): 従来の下から重なるボトムシートをやめ、戻る矢印 + システムバック対応の「別ページ」に
-- **起動時の `cd` 自動注入を廃止** (0.8.13): セッション復元時にユーザーの意図しない作業ディレクトリ移動を起こさないよう、復元タブもシェル既定の cwd で起動
-- **ツールバーのスニペットを📜タブ化** (0.8.12): スニペットと **SSH 接続 / SFTP** を 1 つのシートにタブ統合、設定からは SSH プロファイル項目を削除
-- **SSH ed25519 公開鍵認証の修正** (0.8.11): Android で `Auth fail publickey` になる問題を BouncyCastle 追加で解消
-- **独自キーボードの主キー拡大 + スタイル名整理** (0.8.7〜0.8.10): qwerty/数字キーのフォント拡大、特殊キー表記 `C-C`→`^C`、スタイル名を「シンプル / 4 方向フリック」に
-- **CI 修正** (0.8.6): `gradle.properties` の絶対 `java.home` 撤去 + lint エラー解消
-- **キーボード/候補バー改善 + IME 強化** (0.8.5): 候補バー 2 行化、設定スクロール修正、N-best 複数候補・常用語追加
+- **Auto-fetch the GUI stack when missing** (0.8.17): fixed the 🖥 launch failing every time when the GUI terminal (or Xvnc/openbox) wasn't installed. If installed, it still launches instantly with no network; only when something is missing does it fetch the missing pieces (after the consent dialog when download confirmation is ON).
+- **META key at the left of the English keyboard** (0.8.17): filled the gap that was left to the left of `a` in the English UI's custom keyboard (4-direction flick) with a META key (= the same ESC-prefix modifier as Alt). The Japanese keyboard and the simple layout are unchanged.
+- **More reliable long-press selection** (0.8.16): turned OFF `ScaleGestureDetector`'s quick scale (single-finger double-tap + drag to zoom). When enabled, long-press fired intermittently (recovering only after a pinch). Two-finger pinch still works.
+- **Batch prediction follows the block boundary** (0.8.16): when you move the leading block's boundary with ◀ ▶ during split conversion, the candidate bar's light-green "whole-sentence" pill (batch prediction) is rebuilt as "leading block's top candidate + best of the remaining kana" and re-flows.
+- **Unified Japanese keyboard font** (0.8.15): whichever you pick — "Simple" or "4-direction flick" — kana characters are sized consistently to the 4-direction flick baseline (height-based scaling is kept).
+- **Drag to reorder tabs** (0.8.14): long-press a tab → drag left/right to reorder CUI/GUI tabs. Movable edge to edge in one gesture. Close a tab by double-tapping (teardown runs in the background so it disappears instantly).
+- **Settings as a full-screen page** (0.8.14): replaced the old bottom sheet stacking from below with a "separate page" (back arrow + system-back support).
+- **Removed automatic `cd` injection at launch** (0.8.13): to avoid unintended working-directory moves on session restore, restored tabs also launch at the shell's default cwd.
+- **Toolbar snippets moved to the 📜 tab** (0.8.12): merged snippets and **SSH connect / SFTP** into one sheet via tabs; removed the SSH profile item from settings.
+- **Fixed SSH ed25519 public-key auth** (0.8.11): resolved `Auth fail publickey` on Android by adding BouncyCastle.
+- **Larger main keys + tidied style names** (0.8.7–0.8.10): bigger fonts for qwerty/number keys, special-key notation `C-C`→`^C`, style names changed to "Simple / 4-direction flick".
+- **CI fix** (0.8.6): removed the absolute `java.home` from `gradle.properties` + fixed lint errors.
+- **Keyboard/candidate bar improvements + IME enhancements** (0.8.5): 2-row candidate bar, settings scroll fix, N-best multiple candidates, common-word additions.
 
-### 0.8.4 (M13) で追加された機能
+### Added in 0.8.4 (M13)
 
-- **日本語・長文の自動ブロック分割**: 長い文を打つと変換キーを押さなくても先頭のかたまりから予測。ブロック毎に確定して次へ自動で進む
-- **文まるごと一括予測**: 各ブロックを変換して連結した「一文まるごと」候補を候補バーに薄緑ピルで提示、タップで一括確定（使われない文節組み換え候補は廃止）
-- **外部ストレージ(SDカード)認識**（オプトイン）: `/storage/XXXX-XXXX` を proot/chroot へ bind
-- **Android ホスト bind（実験的）**: `/system` `/apex` を bind し端末内ビルド等の活路に
-- 未確定中の **◀▶・変換キーの背景強調を停止**（静かな表示）
+- **Automatic block splitting for long Japanese sentences**: typing a long sentence predicts from the leading chunk without pressing the convert key. Each block is confirmed and it auto-advances to the next.
+- **Whole-sentence batch prediction**: presents a "whole-sentence" candidate (each block converted and concatenated) as a light-green pill in the candidate bar; tap to confirm at once (unused bunsetsu-rearrangement candidates were removed).
+- **External storage (SD card) recognition** (opt-in): binds `/storage/XXXX-XXXX` into proot/chroot.
+- **Android host bind (experimental)**: binds `/system` `/apex` to open up things like on-device builds.
+- **Stopped highlighting the ◀▶ / convert key backgrounds while composing** (quieter display).
 
-### M11〜M12 で追加された機能
+### Added in M11–M12
 
-- **スクロールバック検索** (`SearchEngine.kt`): 🔍 → 文字入力 → ↑↓ で前後ジャンプ、CJK セル列でハイライト位置を計算
-- **セッション復元** (`SessionStore.kt`): OS kill 後の再起動でタブ構成 + cwd を復元（cwd は OSC7 で捕捉）
-- **Android API ブリッジ**: 端末から `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip` / `z2-battery` / `z2-vibrate`
-- **root chroot 裏機能** (full フレーバー・要 root): バージョン 7 回タップで「実行エンジン (proot / chroot)」を解放。実 root 端末で検証済み
-- **GUI 動画/音声**: mpv をソフト描画で正常再生、PulseAudio→TCP→AudioTrack の **GUI 音声ブリッジ**（オプトイン）
-- **URL/OSC8 リンクに下線表示**、折り返し長 URL の検出修正
-- **三本指スクロール**: 画面内スクロールボタンを廃止し三本指ドラッグに統一
-- **日本語 IME 強化**: ⌫ 左右フリックで単語/全削除、フリック表記反転、活用辞書、かな連打循環の廃止
-- **OSC タイトル UTF-8 デコード**でタブ名の日本語文字化けを解消
+- **Scrollback search** (`SearchEngine.kt`): 🔍 → type → ↑↓ to jump back/forward; highlight position computed in CJK cell columns.
+- **Session restore** (`SessionStore.kt`): restores tab layout + cwd after an OS kill and restart (cwd captured via OSC7).
+- **Android API bridge**: from the terminal, `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip` / `z2-battery` / `z2-vibrate`.
+- **root chroot hidden feature** (full flavor, requires root): tap the version 7 times to unlock the "execution engine (proot / chroot)". Verified on a real rooted device.
+- **GUI video/audio**: mpv plays correctly with software rendering; a **GUI audio bridge** (PulseAudio→TCP→AudioTrack, opt-in).
+- **Underline on URL/OSC8 links**, fixed detection of wrapped long URLs.
+- **Three-finger scroll**: removed on-screen scroll buttons in favor of three-finger drag.
+- **Japanese IME enhancements**: ⌫ left/right flick for word/whole delete, flipped flick labels, a conjugation dictionary, removed kana repeat-cycling.
+- **OSC title UTF-8 decode** to fix mojibake in Japanese tab names.
 
-### M10 で追加された機能
+### Added in M10
 
-- **Konsole on Arch 起動修正** (4 段階フォールバック → ローカル cache のみで再構成)
-- **横画面のキーボード位置** を 左 / 下 / 右 から選択可、**幅・高さもスライダー**で可変
-- **押下時に背景強調 + フリック方向ヒント拡大** で「どこを押した / どこに飛ばす」が見える
-- **通常 🖥 起動の完全オフライン化**: クリーンインストール以外でネットを叩かない
-- **アプリ内 言語スイッチ** (日本語 / English) + 多数の UI 翻訳
-- **インストールタイムアウト無効化** トグル
-- **IME 学習履歴** で予測変換が頻度・直近 7 日でランキング
+- **Konsole-on-Arch launch fix** (4-stage fallback → reconstructs from local cache only)
+- **Landscape keyboard position** selectable from left / bottom / right, with **width/height sliders** too
+- **Background highlight on press + enlarged flick-direction hints** so you can see "what you pressed / where it'll go"
+- **Fully offline normal 🖥 launch**: doesn't hit the network except for clean install
+- **In-app language switch** (Japanese / English) + many UI translations
+- **Disable install timeout** toggle
+- **IME learning history** ranks prediction by frequency and recency (last 7 days)
 
-### M7〜M9 の主な追加
+### Main additions in M7–M9
 
-- **SFTP ファイル転送** (M7)
-- **GUI (Xvnc + 内蔵 RFB クライアント) + Linux デスクトップ起動** (M8)
-- **GUI を複数タブで並走** + IME 連動 + 端末タブと GUI タブをペアリング (M8-4〜6)
-- **アプリ内テーマエディタ** + **OSC 4/10/11/12** 反映 (M9)
-- **送り仮名活用** + **柔軟漢字変換** (M9)
+- **SFTP file transfer** (M7)
+- **GUI (Xvnc + built-in RFB client) + Linux desktop launch** (M8)
+- **Run multiple GUIs in parallel tabs** + IME linkage + pairing terminal tabs with GUI tabs (M8-4–6)
+- **In-app theme editor** + **OSC 4/10/11/12** support (M9)
+- **Okurigana conjugation** + **flexible kanji conversion** (M9)
 
-### M6 以前の機能
+### Features in M6 and earlier
 
-- **SSH 公開鍵認証** + Android Keystore (AES-256/GCM) で機密フィールドを暗号化 (M6)
-- **known_hosts 永続化**: 初回接続時のフィンガープリント確認ダイアログ、MITM 検知 (M6)
+- **SSH public-key auth** + encrypting secret fields with the Android Keystore (AES-256/GCM) (M6)
+- **known_hosts persistence**: fingerprint confirmation dialog on first connect, MITM detection (M6)
 - **OSC 7 (cwd)** / **OSC 8 (hyperlinks)** (M6)
-- **FOSS ビルドフレーバー**: F-Droid 適合、`DistroDownloader` で SHA-256 検証 (M6)
+- **FOSS build flavor**: F-Droid compliance, SHA-256 verification in `DistroDownloader` (M6)
 
-- SSH 基礎 / ピンチ / OSC 4/10/11/12/52 / EAW Ambiguous / 配布パイプライン (M5)
-- East Asian Width / マルチタブ / IME 連動 / カスタムフォント / WakeLock (M4)
-- 代替スクリーン / フォアグラウンドサービス / 物理キーボード / 範囲選択 /
-  マルチディストロ (M3)
-- VT100/xterm エミュレータ / 6 テーマ / スクロールバック / UTF-8 (M2)
-- PRoot + Alpine の PoC (M1)
+- SSH basics / pinch / OSC 4/10/11/12/52 / EAW Ambiguous / distribution pipeline (M5)
+- East Asian Width / multi-tab / IME linkage / custom fonts / WakeLock (M4)
+- Alternate screen / foreground service / physical keyboard / range selection /
+  multi-distro (M3)
+- VT100/xterm emulator / 6 themes / scrollback / UTF-8 (M2)
+- PRoot + Alpine PoC (M1)
 
-### 未対応 / 今後の検討
+### Not yet supported / under consideration
 
-- ローカルポートフォワーディング (-L) / リバース転送 (-R)
-- mosh プロトコル対応 (UDP ベース)
-- リバース DNS / IPv6 接続のリトライ強化
-- F-Droid 公開 (FOSS フレーバー整備済、メタデータ準備中)
-- IME 学習履歴のリセット UI / バックアップ
+- Local port forwarding (-L) / reverse forwarding (-R)
+- mosh protocol support (UDP-based)
+- Reverse DNS / stronger IPv6 connection retry
+- F-Droid release (FOSS flavor ready, metadata in preparation)
+- IME learning-history reset UI / backup
 
-## ビルド要件
+## Build requirements
 
-| 項目 | バージョン |
+| Item | Version |
 |---|---|
-| Android Studio | Ladybug 2024.3.1 以上 |
+| Android Studio | Ladybug 2024.3.1 or later |
 | AGP | 9.1.1 |
-| Kotlin | 2.2.10 (AGP 内蔵) |
+| Kotlin | 2.2.10 (bundled with AGP) |
 | Gradle | 9.3.1 |
 | NDK | 27.0+ |
 | CMake | 3.22.1+ |
-| 最小 SDK | 29 (Android 10) |
-| ターゲット SDK | 35 (Android 15) |
+| Min SDK | 29 (Android 10) |
+| Target SDK | 35 (Android 15) |
 
-## セットアップ
+## Setup
 
-### 1. 依存バイナリを配置
+### 1. Place the dependency binaries
 
-ビルド前に以下を手動配置する必要があります（リポジトリには含まれていません）:
+Before building, you must place the following manually (not included in the repository):
 
 **Alpine rootfs** → `app/src/main/assets/`
 - `alpine-minirootfs-aarch64.tar.gz`
 - `alpine-minirootfs-armv7.tar.gz`
 
-詳細: [app/src/main/assets/README.md](app/src/main/assets/README.md)
+Details: [app/src/main/assets/README.md](app/src/main/assets/README.md)
 
-**PRoot バイナリ** → `app/src/main/jniLibs/`
-- `arm64-v8a/libproot.so` (および `libproot_loader.so`)
-- `armeabi-v7a/libproot.so` (および `libproot_loader.so`)
+**PRoot binaries** → `app/src/main/jniLibs/`
+- `arm64-v8a/libproot.so` (and `libproot_loader.so`)
+- `armeabi-v7a/libproot.so` (and `libproot_loader.so`)
 
-詳細: [app/src/main/jniLibs/README.md](app/src/main/jniLibs/README.md)
+Details: [app/src/main/jniLibs/README.md](app/src/main/jniLibs/README.md)
 
-### 2. ビルド
+### 2. Build
 
 ```bash
 # Debug APK
 ./gradlew assembleDebug
 
-# 出力: app/build/outputs/apk/debug/app-debug.apk
+# Output: app/build/outputs/apk/debug/app-debug.apk
 ```
 
-### 3. インストール
+### 3. Install
 
 ```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## プロジェクト構造
+## Project structure
 
 ```
 z2term/
@@ -162,8 +164,8 @@ z2term/
 │   ├── build.gradle.kts
 │   └── src/main/
 │       ├── AndroidManifest.xml
-│       ├── assets/                  ← Alpine rootfs を配置
-│       ├── cpp/                     ← JNI ネイティブコード
+│       ├── assets/                  ← place the Alpine rootfs here
+│       ├── cpp/                     ← JNI native code
 │       │   ├── CMakeLists.txt
 │       │   └── pty_jni.cpp
 │       ├── java/com/zerotoship/z2term/
@@ -171,126 +173,126 @@ z2term/
 │       │   ├── MainActivity.kt
 │       │   ├── channel/             ← ProcessChannel / SshChannel (M5)
 │       │   ├── core/                ← TerminalSession + SessionManager
-│       │   ├── pty/                 ← PTY 抽象化
-│       │   ├── proot/               ← PRoot 起動
-│       │   ├── distro/              ← rootfs 展開 (Alpine + Ubuntu)
-│       │   ├── emulator/            ← VT100/xterm エミュレータコア
-│       │   ├── settings/            ← DataStore 永続化
+│       │   ├── pty/                 ← PTY abstraction
+│       │   ├── proot/               ← PRoot launch
+│       │   ├── distro/              ← rootfs deployment (Alpine + Ubuntu)
+│       │   ├── emulator/            ← VT100/xterm emulator core
+│       │   ├── settings/            ← DataStore persistence
 │       │   ├── service/             ← TerminalService / AudioBridge (foreground + WakeLock)
-│       │   ├── gui/                  ← GUI (Xvnc + 内蔵 RFB クライアント / GuiSession)
+│       │   ├── gui/                  ← GUI (Xvnc + built-in RFB client / GuiSession)
 │       │   ├── saf/                  ← SAF DocumentsProvider
 │       │   └── ui/
-│       │       ├── theme/           ← ZTS Theme + カスタムフォント
-│       │       ├── settings/        ← 設定 UI
-│       │       ├── ssh/             ← SSH プロファイル UI (M5)
-│       │       └── terminal/        ← ターミナル UI + Renderer + キーマッパー
-│       ├── jniLibs/                 ← proot バイナリを配置
-│       └── res/                     ← リソース
+│       │       ├── theme/           ← ZTS Theme + custom fonts
+│       │       ├── settings/        ← settings UI
+│       │       ├── ssh/             ← SSH profile UI (M5)
+│       │       └── terminal/        ← terminal UI + Renderer + key mapper
+│       ├── jniLibs/                 ← place the proot binaries here
+│       └── res/                     ← resources
 ├── build.gradle.kts
 ├── settings.gradle.kts
 ├── gradle/
 │   ├── libs.versions.toml
 │   └── wrapper/
 ├── docs/
-│   ├── ja/                        ← 日本語ドキュメント
-│   │   ├── DESIGN-SPEC.md         ← 設計書 兼 仕様書（技術文書）
-│   │   └── HANDBOOK.md            ← 利用者向けハンドブック
+│   ├── ja/                        ← Japanese documentation
+│   │   ├── DESIGN-SPEC.md         ← design & specification (technical)
+│   │   └── HANDBOOK.md            ← user handbook
 │   ├── en/                        ← English documentation
 │   │   ├── DESIGN-SPEC.md         ← design & specification
 │   │   └── HANDBOOK.md            ← getting started handbook
-│   ├── images/                    ← スクリーンショット等（共通）
-│   ├── RELEASE.md                 ← リリース手順
+│   ├── images/                    ← screenshots etc. (shared)
+│   ├── RELEASE.md                 ← release steps
 │   ├── SSH-INTO-Z2TERM.md
 │   ├── GUI-REWRITE-HANDOFF.md
-│   └── M1-HANDOFF.md 〜 M13-HANDOFF.md  ← マイルストーン引き継ぎ
-├── metadata/                     ← F-Droid メタデータ
-└── .github/workflows/build.yml   ← CI (full + foss 両ビルド)
+│   └── M1-HANDOFF.md … M13-HANDOFF.md  ← milestone handoffs
+├── metadata/                     ← F-Droid metadata
+└── .github/workflows/build.yml   ← CI (builds both full + foss)
 ```
 
-## ビルドバリアント
+## Build variants
 
-| Flavor | 用途 | 同梱内容 |
+| Flavor | Purpose | Bundled content |
 |---|---|---|
-| `full` | 内部/Play Store 配布 | assets と prebuilt バイナリを含む (各自配置が必要) |
-| `foss` | F-Droid 配布 | prebuilt 一切なし。`DistroDownloader` でランタイム取得 |
+| `full` | Internal / Play Store distribution | includes assets and prebuilt binaries (you must place them) |
+| `foss` | F-Droid distribution | no prebuilts at all; fetched at runtime by `DistroDownloader` |
 
 ```bash
-./gradlew assembleFullDebug   # 通常開発
-./gradlew assembleFossDebug   # F-Droid 適合確認
+./gradlew assembleFullDebug   # normal development
+./gradlew assembleFossDebug   # check F-Droid compliance
 ```
 
-## 動作確認の流れ
+## Smoke-test flow
 
-1. proot バイナリも Alpine rootfs もない状態でビルド・インストール
-   → Android `/system/bin/sh` フォールバックで動作するはず
-   → `ls /system/bin` などを試して動作確認
+1. Build & install with neither the proot binaries nor the Alpine rootfs
+   → it should fall back to Android `/system/bin/sh`
+   → try `ls /system/bin` etc. to confirm it works
 
-2. Alpine rootfs を assets に配置してビルド・インストール
-   → 「PRoot バイナリが見つかりません」警告でフォールバックするはず
+2. Place the Alpine rootfs in assets, then build & install
+   → it should fall back with a "PRoot binary not found" warning
 
-3. proot バイナリも jniLibs に配置してビルド・インストール
-   → Alpine Linux が起動するはず
-   → `apk update && apk add zsh` を試す
+3. Place the proot binaries in jniLibs too, then build & install
+   → Alpine Linux should start
+   → try `apk update && apk add zsh`
 
-## ライセンス
+## License
 
-本アプリ本体 (`app/src/main/java/com/zerotoship/z2term/**`) のライセンスは **GPL-3.0** です。
-Copyright (c) 2026 Zero to Ship。対応ソース（GPL v3 §6）: <https://github.com/orgsonai/z2term>（ルートの `LICENSE` に全文）。
-同梱バイナリ・rootfs・フォント等のライセンスは下記「同梱 OSS と対応ソース」を参照。
+The license of the app itself (`app/src/main/java/com/zerotoship/z2term/**`) is **GPL-3.0**.
+Copyright (c) 2026 Zero to Ship. Corresponding source (GPL v3 §6): <https://github.com/orgsonai/z2term> (full text in the root `LICENSE`).
+For the licenses of the bundled binaries, rootfs, fonts, etc., see "Bundled OSS and corresponding source" below.
 
-## 同梱 OSS と対応ソース（GPL/LGPL 頒布要件）
+## Bundled OSS and corresponding source (GPL/LGPL distribution requirements)
 
-`full` フレーバーの APK には以下の prebuilt が含まれます。各成果物の**対応ソース**は
-下記 URL から取得可能（GPL v2 §3 / GPL v3 §6 / LGPL v3 §4 への対応）。
+The `full` flavor APK includes the following prebuilts. The **corresponding source** for each
+is obtainable from the URLs below (for GPL v2 §3 / GPL v3 §6 / LGPL v3 §4).
 
-| 同梱物 | ライセンス | 対応ソース取得方法 |
+| Bundled item | License | How to get the corresponding source |
 |---|---|---|
-| `libproot.so` / `libproot_loader.so` | GPL-2.0 | [termux/proot](https://github.com/termux/proot) / `scripts/build-proot.sh` が DL する Termux パッケージのバージョン参照 |
-| `libtalloc.so` | LGPL-3.0 | [Samba talloc](https://gitlab.com/samba-team/samba/-/tree/master/lib/talloc) / 同上 |
-| `alpine-minirootfs-*.tgz` 内の各パッケージ | 個別 (GPL-2.0 / GPL-3.0 / MIT / BSD 他) | [Alpine aports](https://gitlab.alpinelinux.org/alpine/aports) — `scripts/alpine-packages.txt` の各パッケージ名で参照 |
+| `libproot.so` / `libproot_loader.so` | GPL-2.0 | [termux/proot](https://github.com/termux/proot) / see the Termux package version downloaded by `scripts/build-proot.sh` |
+| `libtalloc.so` | LGPL-3.0 | [Samba talloc](https://gitlab.com/samba-team/samba/-/tree/master/lib/talloc) / same as above |
+| each package in `alpine-minirootfs-*.tgz` | individual (GPL-2.0 / GPL-3.0 / MIT / BSD, etc.) | [Alpine aports](https://gitlab.alpinelinux.org/alpine/aports) — look up each package name in `scripts/alpine-packages.txt` |
 | Fira Code / IBM Plex Mono / JetBrains Mono | OFL-1.1 | [tonsky/FiraCode](https://github.com/tonsky/FiraCode) / [IBM/plex](https://github.com/IBM/plex) / [JetBrains/JetBrainsMono](https://github.com/JetBrains/JetBrainsMono) |
 
-設定画面 →「OSS ライセンス / 対応ソース」から、上記情報をアプリ内でも一覧/全文表示できます
-（`assets/licenses/` にライセンス全文を配置）。
+From the settings screen → "OSS licenses / corresponding source", you can also browse/show this in-app
+(license full texts are placed in `assets/licenses/`).
 
-### 対応ソースの取得手順 (例)
+### How to obtain the corresponding source (examples)
 
 ```sh
-# PRoot 同等のソース取得 (Termux パッケージ)
+# Get the PRoot-equivalent source (Termux package)
 git clone https://github.com/termux/proot.git
 
-# talloc 同等のソース取得
+# Get the talloc-equivalent source
 git clone https://gitlab.com/samba-team/samba.git
 ls samba/lib/talloc
 
-# Alpine rootfs に入っている bash 等のソース
+# Source of bash etc. in the Alpine rootfs
 curl -O https://gitlab.alpinelinux.org/alpine/aports/-/archive/master/aports-master.tar.gz
 ```
 
-z2term 自身のビルド時にどのバージョンが取得されるかは `scripts/build-proot.sh` /
-`scripts/build-alpine-rootfs.sh` の `PROOT_VER_AARCH64` / `ALPINE_VERSION` を参照。
+For which versions z2term fetches at build time, see `PROOT_VER_AARCH64` / `ALPINE_VERSION` in
+`scripts/build-proot.sh` / `scripts/build-alpine-rootfs.sh`.
 
-## 配布方針
+## Distribution policy
 
-| チャネル | フレーバー | 状況 |
+| Channel | Flavor | Status |
 |---|---|---|
-| **GitHub Releases / 直接 APK 配布** | `full` (prebuilt 同梱) | 主たる配布経路。APK 単体で動作完結 |
-| **F-Droid** | `foss` (prebuilt 除外) | 適合化進行中。`src/full/` への物理移動 + F-Droid metadata 提出が必要 |
-| **Google Play** | — | proot による外部コード実行が DPA §4.4 に抵触する可能性が高く、**配布予定なし** |
+| **GitHub Releases / direct APK** | `full` (prebuilts bundled) | Primary channel. The APK works standalone |
+| **F-Droid** | `foss` (prebuilts excluded) | Compliance in progress. Needs a physical move to `src/full/` + F-Droid metadata submission |
+| **Google Play** | — | proot's execution of external code likely conflicts with DPA §4.4, so **no distribution planned** |
 
-## SSH サーバ (sshd) の既定挙動
+## Default behavior of the SSH server (sshd)
 
-端末内 `sshd` コマンドは既定で **127.0.0.1 限定 bind + 鍵認証のみ** で起動します
-（dropbear wrapper、`SshdScript.kt`）。LAN/WAN 公開する場合は明示的に:
+The in-terminal `sshd` command starts by default with **127.0.0.1-only bind + key auth only**
+(dropbear wrapper, `SshdScript.kt`). To expose it on LAN/WAN, explicitly:
 
 ```sh
-sshd --lan          # 全 NIC bind、~/.ssh/authorized_keys が空だと起動拒否
-Z2_SSHD_LAN=1 sshd  # env でも可
+sshd --lan          # bind all NICs; refuses to start if ~/.ssh/authorized_keys is empty
+Z2_SSHD_LAN=1 sshd  # also works via env
 ```
 
-## 関連
+## Related
 
 - [Zero to Ship Project](https://github.com/orgsonai)
-- [Termux](https://github.com/termux/termux-app) - 参考実装
-- [PRoot](https://proot-me.github.io/) - ユーザランド chroot
-- [Alpine Linux](https://alpinelinux.org/) - メインディストロ
+- [Termux](https://github.com/termux/termux-app) - reference implementation
+- [PRoot](https://proot-me.github.io/) - userland chroot
+- [Alpine Linux](https://alpinelinux.org/) - main distro
