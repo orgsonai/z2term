@@ -64,8 +64,8 @@ import kotlin.math.abs
  *   Row 3: ⇧    a s d f g h j k l                            ⏎
  *   Row 4: CTRL z x c v b n m , . /
  *   Row 5: あ   ?#  ALT  SPACE                              ← ↓ ↑ →
- *   英語ロケールのみ ⇧/CTRL を 1 段下げ、Row 3 左を空けて Row 5 左を CTRL にする
- *   (「あ」が無い分の左下の空きを埋める)。
+ *   英語ロケールのみ ⇧/CTRL を 1 段下げ、Row 3 左を META (= Alt 相当)、Row 5 左を CTRL にする
+ *   (「あ」が無い分の縦 1 列を META/⇧/CTRL で埋め、a 行頭の空きをなくす)。
  *
  * レイアウト (compact, 特殊キーを上に追い出して主キー幅を広く):
  *   Top  : [ ESC ][ TAB ][ ⇧ ][ CTRL ]
@@ -85,8 +85,8 @@ fun TerminalKeyboard(
     style: KeyboardStyle = KeyboardStyle.COMPACT,
     /**
      * 日本語フリックキーボード切替キー (「あ」) を表示するか。English モードでは false で
-     * 隠す (Locale=en のとき呼出し側で false を渡す)。false のときは Row 3 左端を別ラベル
-     * (例: TAB-) に振替えず空きスペースとして詰める。
+     * 隠す (Locale=en のとき呼出し側で false を渡す)。false のときは Row 3 左端を META キー
+     * (= Alt 相当の ESC プレフィックス修飾) にして a 行頭の空きをなくす。
      */
     showJapaneseKeyboard: Boolean = true,
     modifier: Modifier = Modifier
@@ -276,13 +276,19 @@ fun TerminalKeyboard(
             }
         }
         // Row 3: spacious 左端。日本語ロケールは従来どおり ⇧ (配置は変えない)。
-        //        英語ロケールのみ ⇧ を Row 4 へ 1 段下げるため、ここは不可視スペーサで a 行頭を空ける。
+        //        英語ロケールのみ ⇧ を Row 4 へ 1 段下げ、ここは META キー (= Alt と同じ ESC プレフィックス修飾)。
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
             if (!isCompact) {
                 if (showJapaneseKeyboard) {
                     ShiftKey(weight = 1.4f, state = shift, style = style, onCycle = { cycleShift() })
                 } else {
-                    Box(modifier = Modifier.weight(1.4f).height(style.keyHeight))
+                    BasicKey(
+                        label = "META",
+                        weight = 1.4f,
+                        fontSp = smallFont,
+                        active = alt,
+                        style = style
+                    ) { alt = !alt }
                 }
             }
             r3Labels.forEachIndexed { idx, s ->

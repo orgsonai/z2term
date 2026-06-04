@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-04 / 対象バージョン: 0.8.16-alpha (versionCode 24)
+最終更新: 2026-06-04 / 対象バージョン: 0.8.17-alpha (versionCode 25)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -216,6 +216,7 @@
 ### 4.12 GUI デスクトップ (`gui/`)
 
 - distro 内で **Xvnc**(VNC サーバ) + 軽量 WM/アプリを起動（`proot/GuiScript.kt` が冪等で配置・起動。GUI 自動起動 / 横画面対応）。
+- **GUI 一式の導入 (`ensure_pkgs`)**: Xvnc / openbox / 選択ターミナルが揃っていれば**無通信で即起動**（導入済みを毎回 update/再取得しないポリシー）。**未導入のときだけ**不足分を `install_pkgs`（apk add / apt install / pacman -S）で取得し、取れなければ明確に案内して失敗する。app 側 (`TerminalScreen`) のダウンロード確認ゲート (`confirmBeforeDownload`) が同意を取ってから走る。`clean` 指定時のみ cache を消して入れ直す (`clean_pkgs`、破損状態の救済)。
 - `GuiSession`/`GuiActivity`/`GuiScreen`/`GuiViewport`/`GuiInputView`/`GuiKeyMapper`/`GuiEventWatcher` + `gui/rfb/RfbClient.kt`(内蔵 RFB クライアント)。端末タブと GUI タブをペアリングし IME 連動。
 - **入力**: `GuiInputView` のジェスチャ — **2 本指 = ピンチ(ズーム/パン)**、**3 本指縦移動 = ホイール上/下スクロール**（一度 3 本指になったら全指が離れるまでスクロール扱い）。旧スクロールボタンと `RfbClient.scrollWheel` は撤去。
 - **動画**: GPU 無し端末で `gpu` 出力が失敗するため、mpv を **`vo=x11` 既定 + `LIBGL_ALWAYS_SOFTWARE`** でソフト描画させて正常再生。
@@ -263,6 +264,7 @@ TerminalScreen: active が IDLE なら startTerminal()
 - **フリック**: 英字キーの **下フリック = ローマ字大文字**。上/左右 = 記号 (緑ヒント表示、下フリックはヒント無し)。COMPACT は上 + 下、SPACIOUS は 4 方向 + 下。
 - **長押し連打**: 数字 / 矢印 / space / 英字キーは押しっぱなしで連打 (初回 400ms→55ms)。⌫ は 500ms→60ms、左右フリックで Ctrl+W / Ctrl+U。修飾キーは連打対象外。
 - 「あ」キー → 内蔵 日本語フリックへ切替。TopBar「あ」 → OS IME 切替 (別系統)。
+- **英語ロケール (`showJapaneseKeyboard=false`)**: 「あ」キーが無いぶん SPACIOUS では ⇧/CTRL を 1 段下げ、`a` の左端を **META キー** (= Alt と同じ ESC プレフィックス修飾) にして a 行頭の空きをなくす。Row 5 左は CTRL。COMPACT は元々ホーム行に左キーが無いため変更なし。
 
 ### 6.2 日本語 フリックキーボード
 

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-06-04 / Target version: 0.8.16-alpha (versionCode 24)
+Last updated: 2026-06-04 / Target version: 0.8.17-alpha (versionCode 25)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -215,6 +215,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 ### 4.12 GUI desktop (`gui/`)
 
 - Inside the distro, launches **Xvnc** (VNC server) + a lightweight WM/app (`proot/GuiScript.kt` idempotently places and launches them; GUI auto-start / landscape support).
+- **GUI stack install (`ensure_pkgs`)**: if Xvnc / openbox / the selected terminal are all present, it **starts immediately with no network** (policy: don't update/re-fetch an existing install). **Only when something is missing** does it fetch the missing pieces via `install_pkgs` (apk add / apt install / pacman -S); if it still can't, it fails with a clear message. It runs after the app-side download-confirm gate (`confirmBeforeDownload`) takes consent. Only `clean` wipes the cache and reinstalls (`clean_pkgs`, for corrupted-state recovery).
 - `GuiSession`/`GuiActivity`/`GuiScreen`/`GuiViewport`/`GuiInputView`/`GuiKeyMapper`/`GuiEventWatcher` + `gui/rfb/RfbClient.kt` (built-in RFB client). Pairs a terminal tab with a GUI tab with IME linkage.
 - **Input**: `GuiInputView` gestures — **2 fingers = pinch (zoom/pan)**, **3-finger vertical move = wheel up/down scroll** (once it becomes 3 fingers, it's treated as scroll until all fingers lift). The old scroll buttons and `RfbClient.scrollWheel` were removed.
 - **Video**: because `gpu` output fails on GPU-less devices, mpv plays correctly with **`vo=x11` default + `LIBGL_ALWAYS_SOFTWARE`** software rendering.
@@ -262,6 +263,7 @@ On failure: fall back to launchAndroidSh
 - **Flick**: on letter keys, **flick down = uppercase Latin**. Up/left/right = symbols (green hints; flick down has no hint). COMPACT has up + down, SPACIOUS has 4 directions + down.
 - **Long-press repeat**: numbers / arrows / space / letter keys repeat while held (first 400ms→55ms). ⌫ is 500ms→60ms, with left/right flick = Ctrl+W / Ctrl+U. Modifier keys don't repeat.
 - The "あ" key → switches to the built-in Japanese flick. The TopBar "あ" → switches the OS IME (a separate path).
+- **English locale (`showJapaneseKeyboard=false`)**: with no "あ" key, SPACIOUS drops ⇧/CTRL down one row and puts a **META key** (= the same ESC-prefix modifier as Alt) at the left of `a`, removing the gap at the home-row start. Row 5 left is CTRL. COMPACT has no left key on the home row to begin with, so it is unchanged.
 
 ### 6.2 Japanese flick keyboard
 

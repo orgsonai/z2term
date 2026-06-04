@@ -276,16 +276,24 @@ fun z2guiScript(
         |}
         |
         |ensure_pkgs() {
-        |  # 基本セット (Xvnc + openbox + 選択端末) が揃っているかを確認するだけ。
-        |  # **ネットワークは一切叩かない** (パッケージマネージャ呼出しは clean_pkgs だけが行う)。
-        |  if ! ( xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN" ); then
-        |    echo "❌ GUI 一式 (Xvnc / openbox / ${d}GUI_TERM_BIN) が未導入です。"
-        |    echo "   設定で「クリーンインストール」を ON にして 🖥 を押すと自動取得します。"
-        |    return 1
+        |  # 基本セット (Xvnc + openbox + 選択端末) が揃っていれば **ネットワークを叩かず** 即 return する
+        |  # (通常起動の高速パス。導入済みを毎回 update / 再取得しないユーザーポリシー)。
+        |  if xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN"; then
+        |    # Konsole 選択時は dbus + Qt6 ランタイムの不足をローカル cache から補修する (NO NETWORK)。
+        |    ensure_konsole_qt6
+        |    return 0
         |  fi
-        |  # Konsole 選択時は dbus + Qt6 ランタイムの不足をローカル cache から補修する (NO NETWORK)。
-        |  ensure_konsole_qt6
-        |  return 0
+        |  # 未導入 (初回、または GUI ターミナルを未導入のものへ変更した場合) → 通常インストールで取得する。
+        |  # app 側のダウンロード確認ゲート (設定 ON 時) で同意済みなので、ここで取得してよい。clean 指定の
+        |  # ように cache を消さず、不足分だけを apk add / apt install / pacman -S で足す。
+        |  install_pkgs
+        |  # 取得後に再判定。まだ揃っていなければ (ネット無し / PM 無し / 取得失敗) 明確に案内して失敗する。
+        |  if xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN"; then
+        |    return 0
+        |  fi
+        |  echo "❌ GUI 一式 (Xvnc / openbox / ${d}GUI_TERM_BIN) を導入できませんでした。"
+        |  echo "   ネットワーク接続を確認するか、設定で「クリーンインストール」を ON にして 🖥 を押してください。"
+        |  return 1
         |}
         |
         |
