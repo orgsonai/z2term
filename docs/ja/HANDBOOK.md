@@ -1,7 +1,8 @@
 # Z2Term はじめてのハンドブック
 
 これは Z2Term を**はじめて使う人**向けの、やさしい説明書です。
-むずかしい技術の話は `docs/DESIGN-SPEC.md` に分けてあります。
+むずかしい技術の話は `docs/ja/DESIGN-SPEC.md` に分けてあります。
+（English version: `docs/en/HANDBOOK.md`）
 
 ---
 
@@ -226,5 +227,5 @@ Z2Term には **アプリ専用のキーボード**が入っています。
 ---
 
 困ったことや「こうしてほしい」があれば、開発者に伝えてください。
-もっと詳しい中身を知りたい人は `docs/DESIGN-SPEC.md` をどうぞ。
+もっと詳しい中身を知りたい人は `docs/ja/DESIGN-SPEC.md` をどうぞ。
 ```

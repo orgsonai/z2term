@@ -3,8 +3,9 @@
 最終更新: 2026-06-04 / 対象バージョン: 0.8.16-alpha (versionCode 24)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
-> 利用者向けのやさしい説明は `docs/HANDBOOK.md` を参照。
+> 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
 > セッション間の進捗引き継ぎは `docs/M12-HANDOFF.md`（最新）および各 `M*-HANDOFF.md` を参照。
+> English version: `docs/en/DESIGN-SPEC.md`.
 
 ---
 

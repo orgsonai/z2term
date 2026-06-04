@@ -181,8 +181,13 @@ z2term/
 │   ├── libs.versions.toml
 │   └── wrapper/
 ├── docs/
-│   ├── DESIGN-SPEC.md             ← 設計書 兼 仕様書（技術文書）
-│   ├── HANDBOOK.md                ← 利用者向けハンドブック
+│   ├── ja/                        ← 日本語ドキュメント
+│   │   ├── DESIGN-SPEC.md         ← 設計書 兼 仕様書（技術文書）
+│   │   └── HANDBOOK.md            ← 利用者向けハンドブック
+│   ├── en/                        ← English documentation
+│   │   ├── DESIGN-SPEC.md         ← design & specification
+│   │   └── HANDBOOK.md            ← getting started handbook
+│   ├── images/                    ← スクリーンショット等（共通）
 │   ├── RELEASE.md                 ← リリース手順
 │   ├── SSH-INTO-Z2TERM.md
 │   ├── GUI-REWRITE-HANDOFF.md
