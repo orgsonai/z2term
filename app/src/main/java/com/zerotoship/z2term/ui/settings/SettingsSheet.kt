@@ -696,14 +696,21 @@ fun SettingsSheet(
                 )
             }
 
-            // 裏機能で解放されたときだけ「実行エンジン」を表示 (proot / chroot)。
-            if (settings.rootChrootUnlocked) {
+            // 裏機能で解放されたときだけ「実行エンジン」を表示。proot / z2root は非 root で選べ、
+            // chroot は root セルフテスト成功 (rootChrootUnlocked) のときだけ選択肢に出す。
+            if (settings.engineSelectorUnlocked) {
                 Section(title = stringResource(R.string.settings_section_engine)) {
+                    val engineOptions = buildList {
+                        add(AppSettings.ENGINE_PROOT)
+                        add(AppSettings.ENGINE_Z2ROOT)
+                        if (settings.rootChrootUnlocked) add(AppSettings.ENGINE_CHROOT)
+                    }
                     ChipRow(
-                        options = listOf(AppSettings.ENGINE_PROOT, AppSettings.ENGINE_CHROOT),
+                        options = engineOptions,
                         selected = settings.executionEngine,
                         labels = mapOf(
                             AppSettings.ENGINE_PROOT to stringResource(R.string.settings_engine_proot),
+                            AppSettings.ENGINE_Z2ROOT to stringResource(R.string.settings_engine_z2root),
                             AppSettings.ENGINE_CHROOT to stringResource(R.string.settings_engine_chroot),
                         ),
                         onSelect = { session.setExecutionEngine(it) }
@@ -719,28 +726,29 @@ fun SettingsSheet(
 
             AppInfoSection(
                 distroId = settings.distroId,
-                rootUnlocked = settings.rootChrootUnlocked,
+                engineUnlocked = settings.engineSelectorUnlocked,
                 onUnlock = {
+                    // 7タップ: まずエンジン選択 (proot / z2root) を解放する (root 不要)。
+                    session.setEngineSelectorUnlocked(true)
                     Toast.makeText(
                         context,
-                        context.getString(R.string.settings_root_unlock_checking),
+                        context.getString(R.string.settings_engine_unlock_ok),
                         Toast.LENGTH_SHORT
                     ).show()
+                    // 続けて root セルフテストを試み、成功したときだけ chroot も選択肢に追加する。
+                    // 非 root / SELinux で塞がれている場合は追加トーストを出さない (engine selector は解放済み)。
                     scope.launch {
                         val result = withContext(Dispatchers.IO) {
                             ProotLauncher(context).probeRootChroot()
                         }
-                        val msg = when (result) {
-                            is RootProbe.Ok -> {
-                                session.setRootChrootUnlocked(true)
-                                context.getString(R.string.settings_root_unlock_ok)
-                            }
-                            is RootProbe.NoRoot ->
-                                context.getString(R.string.settings_root_unlock_no_root)
-                            is RootProbe.ChrootBlocked ->
-                                context.getString(R.string.settings_root_unlock_blocked)
+                        if (result is RootProbe.Ok) {
+                            session.setRootChrootUnlocked(true)
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.settings_root_unlock_ok),
+                                Toast.LENGTH_LONG
+                            ).show()
                         }
-                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                     }
                 }
             )
@@ -800,9 +808,9 @@ fun SettingsSheet(
  * その os-release を表示する。
  */
 @Composable
-private fun AppInfoSection(distroId: String, rootUnlocked: Boolean, onUnlock: () -> Unit) {
+private fun AppInfoSection(distroId: String, engineUnlocked: Boolean, onUnlock: () -> Unit) {
     val context = LocalContext.current
-    // 裏機能: バージョン行を 7 回タップで chroot エンジンを解放 (Android 開発者モードと同作法)。
+    // 裏機能: バージョン行を 7 回タップでエンジン選択 (proot / z2root) を解放 (Android 開発者モードと同作法)。
     var tapCount by remember { mutableStateOf(0) }
     // os-release の PRETTY_NAME を rootfs から 1 度だけ読む (軽量なファイル read)
     val osPretty = remember(distroId) {
@@ -816,7 +824,7 @@ private fun AppInfoSection(distroId: String, rootUnlocked: Boolean, onUnlock: ()
     // 連打したとき、前のトーストが消えるのを待たず即座に次の文言へ差し替える
     // (cancel しないと Android がトーストをキューイングして表示が大幅に遅延する)。
     var lastToast by remember { mutableStateOf<Toast?>(null) }
-    val versionClick: (() -> Unit)? = if (rootUnlocked) null else {
+    val versionClick: (() -> Unit)? = if (engineUnlocked) null else {
         {
             tapCount++
             val remaining = 7 - tapCount

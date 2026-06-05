@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-05 / 対象バージョン: 0.8.18-alpha (versionCode 26)
+最終更新: 2026-06-05 / 対象バージョン: 0.8.19-alpha (versionCode 27)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -36,7 +36,7 @@
 - **SSH 両方向**: 端末から外部へ (JSch クライアント)、PC から端末へ (dropbear サーバ)。
 - **ファイル連携**: SAF DocumentsProvider で他アプリから rootfs/ホームを R/W、proot 内から Android 共有ストレージへ `cd`。
 - **GUI デスクトップ**: distro 内で Xvnc + 軽量 WM/アプリを起動し、内蔵 RFB(VNC) クライアントで表示（`gui/` パッケージ）。動画はソフト描画、音声はオプトインで PulseAudio→TCP→AudioTrack ブリッジ（`AudioBridge`）。
-- **実行エンジン**: 既定は PRoot。**root 端末では裏設定で「実 chroot」エンジン**に切替可（`su` 経由 bind mount + `chroot`。`executionEngine`）。
+- **実行エンジン**: 既定は PRoot。裏設定（バージョン 7 タップ）で **非 root の自前 ptrace エンジン「z2root」**（実験的）に切替可。さらに root 端末では root セルフテスト成功時に **「実 chroot」エンジン**も選択可（`su` 経由 bind mount + `chroot`。`executionEngine`）。
 
 対応 ABI は **arm64-v8a のみ**。最低 Android 10 (API 29)、ターゲット API 35。
 
@@ -44,12 +44,8 @@
 
 | フレーバー | applicationId | 用途 |
 |---|---|---|
-| `full` | `com.zerotoship.z2term` | 通常配布。Alpine rootfs を `src/full/assets` に同梱しオフライン即起動 |
-| `foss` | `com.zerotoship.z2term.foss` | F-Droid / サイドロード向け。**rootfs 非同梱**（実行時 DL・SHA-256 検証）。`proot`/`talloc` は W^X 制約で同梱必須のため両フレーバー共通 |
-
-- 同梱の実装: AGP は `src/main` を全フレーバーに加算する。rootfs (`alpine-minirootfs-*.tgz`) だけを `src/full/assets` に置き `full` 限定にする。`proot`/`talloc` (`src/main/jniLibs`) は両フレーバー同梱。
-- `foss` は初回オフライン起動不可（rootfs 未取得時に DL 必須）。`full` は従来どおりオフライン即起動で挙動不変。
-- 分岐は `DistroSpec.effectivelyBundled`（`BuildConfig.IS_FOSS && id==alpine` のとき false = DL 対象）で判定する。
+| `full` | `com.zerotoship.z2term` | 通常配布 (rootfs/proot 同梱・初回オフライン起動可) |
+| `foss` | `com.zerotoship.z2term.foss` | 外部ライセンス表記の最小化。Alpine rootfs を APK から外し起動時 DL (proot/talloc は同梱継続・初回オフライン起動不可) |
 
 `debug` ビルドは更に `.debug` サフィックスが付く。
 
@@ -67,7 +63,7 @@
 | SSH クライアント | JSch (mwiede fork) | 0.2.21 (BouncyCastle 不要) |
 | 解凍 | org.tukaani:xz | 1.10 (DL distro の `.tar.xz`)。gzip は JDK 標準 |
 | Linux 実行 | PRoot + libtalloc | jniLibs に `.so` 同梱 (Termux ビルド由来) |
-| 同梱 OS | Alpine Linux ARM minirootfs | `full` は `src/full/assets` に `.tgz` 同梱 / `foss` は実行時 DL |
+| 同梱 OS | Alpine Linux ARM minirootfs | full は `src/full/assets` に `.tgz` 同梱。foss は非同梱で公式 CDN から起動時 DL |
 
 ---
 
@@ -108,7 +104,7 @@
 - `TerminalSession` は **UI から独立**して生存 (`SessionManager` が保持)。Activity 破棄でも PTY/emulator 状態を維持。
 - `TerminalService` (フォアグラウンドサービス) が常駐化を担い、バックグラウンドでも PTY を維持する。`AudioBridge`(GUI 音声) も同サービス系で扱う。
 - emulator の状態更新は **専用シングルスレッド** (`z2term-emu-*`) に集約し、Compose は `StateFlow` 経由で読む。
-- **GUI デスクトップ**は別 Activity (`GuiActivity`) として起動し、distro 内 Xvnc に内蔵 RFB クライアントで接続する（[§4.12](#412-gui-デスクトップ-gui)）。実行エンジンは PRoot 既定、root 端末のみ裏設定で chroot に切替（[§4.3](#43-proot-実行-prootprootlauncherkt-prootsshdscriptkt)）。
+- **GUI デスクトップ**は別 Activity (`GuiActivity`) として起動し、distro 内 Xvnc に内蔵 RFB クライアントで接続する（[§4.12](#412-gui-デスクトップ-gui)）。実行エンジンは PRoot 既定、裏設定で z2root（非 root・実験的）、root 端末ではさらに chroot に切替可（[§4.3](#43-proot-実行-prootprootlauncherkt-prootsshdscriptkt)）。
 
 ---
 
@@ -139,9 +135,12 @@
 - 起動毎に冪等で注入: `ensureShellHistoryConfig` (履歴 rc)、`ensureSshdWrapper` (`/usr/local/sbin/sshd` = dropbear ラッパー)、`ensureOsc7CwdConfig` (cwd 復元用 OSC7 フック)、`ensureZ2ApiScripts` (`z2-*` ブリッジ)、GUI/z2run スクリプト。
 - `launchAndroidSh`: proot 不可時のフォールバック (`/system/bin/sh` + 最小 mkshrc)。
 
+**実行エンジン z2root (裏機能・非 root・実験的)**: `executionEngine = "z2root"` のとき、`launch()` がバイナリを `nativeLibraryDir/libz2root.so`（自前 ptrace エンジン）に差し替える。proot 互換 argv subset を受けるので引数・env はそのまま流用（`PROOT_*`/talloc は z2root が無視）。`libz2root.so` 未同梱（`scripts/build-z2root.sh` 未実行）の場合は proot へフォールバック。フェーズ2（FOSS の外部表記ゼロ化）の実体で、詳細は `docs/FOSS-PURE-HANDOFF.md` §5。
+
 **実行エンジン chroot (裏機能・要 root)**: `executionEngine = "chroot"` のとき `launchChroot()` を使う。
 
-- `probeRootChroot()`: `su -c id`(uid=0) + `su -c "chroot <rootfs> /bin/sh -c echo"` のセルフテスト。OK のときだけ設定で解放（バージョン 7 回タップ → `rootChrootUnlocked=true`）。結果は `RootProbe`(Ok/NoRoot/ChrootBlocked)。
+- **エンジン選択の解放**: 設定のバージョンを 7 回タップで `engineSelectorUnlocked=true`（非 root でも可。proot / z2root が選べる）。続けて `probeRootChroot()` のセルフテストが成功した場合のみ `rootChrootUnlocked=true` となり chroot も選択肢に加わる。
+- `probeRootChroot()`: `su -c id`(uid=0) + `su -c "chroot <rootfs> /bin/sh -c echo"` のセルフテスト。結果は `RootProbe`(Ok/NoRoot/ChrootBlocked)。
 - `launchChroot()`: `su -c` で bind mount(/dev,/dev/pts,/proc,/sys,/root,/sdcard) → `chroot` → login shell。`ensure*`(z2-*/OSC7/履歴/sshd/gui/z2run) は proot 経路と共通で流用。
 - **Ctrl+C / ジョブ制御**: su 経由だと制御端末を所有できないため、login shell を **`setsid -c` 経由**で起動して有効化。
 - chroot 起動失敗時は proot へ自動フォールバック（`TerminalSession.startTerminal`）。SELinux Enforcing 下の root 端末(moto g13/Magisk)で end-to-end 検証済み。`full` フレーバー専用。
@@ -149,9 +148,8 @@
 ### 4.4 ディストロ管理 (`distro/`)
 
 - `DistroBundle`: `ROOTFS_VERSION`(=6)、`VERSION_MARKER`、`BUNDLED_DISTRO_ID="alpine"`。
-- `DistroSpec`: id/表示名/パッケージマネージャ/同梱可否/asset 名/DL URL or index URL/SHA-256/既定シェル/DL サイズ目安/`effectivelyBundled`。
-  - Alpine = `full` 同梱 (`alpine-minirootfs-aarch64.tgz`, zsh) / `foss` は固定 URL（Alpine 公式 CDN の pinned `3.21.0`）から DL し `sha256Arm64` で検証。Ubuntu/Arch/Kali = linuxcontainers の index から最新 `rootfs.tar.xz` を実行時解決して DL (bash, SHA は毎回変わるため未固定)。
-  - `effectivelyBundled` = `bundled && !(IS_FOSS && id==alpine)`。起動シーケンスと設定 UI はこれで DL 要否を判定（`bundled` フラグ直読みをやめた）。
+- `DistroSpec`: id/表示名/パッケージマネージャ/同梱可否/asset 名/DL URL or index URL/既定シェル/DL サイズ目安。
+  - Alpine = 同梱 (`alpine-minirootfs-aarch64.tgz`, zsh)。Ubuntu/Arch/Kali = linuxcontainers の index から最新 `rootfs.tar.xz` を実行時解決して DL (bash)。
 - `DistroInstaller`: 依存無しの手書き tar パーサ (ustar/GNU `L`/PAX `x`/`g`、symlink/hardlink)。`decompress` がマジックバイトで gzip/xz 判定。
   - `postInstallSetup`: resolv.conf/hosts、`pacman.conf` (sandbox/DownloadUser 無効化)、apt の Sandbox::User=root、version マーカー書込。
   - パーミッションは **owner-only** (`setUnixMode(ownerOnly=true)`)。world-writable だと sudo が拒否する。
@@ -359,8 +357,9 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 | GUI 拡大率 | guiMagnification | 1.5 | 0.5–3.0 |
 | ダウンロード前確認 | confirmBeforeDownload | true | true/false |
 | 常駐サービス | keepAliveService | true | true/false |
-| 実行エンジン (裏設定) | executionEngine | "proot" | proot / chroot（root 解放時のみ） |
-| chroot 解放フラグ (裏設定) | rootChrootUnlocked | false | バージョン 7 回タップで true |
+| 実行エンジン (裏設定) | executionEngine | "proot" | proot / z2root / chroot（chroot は root 解放時のみ） |
+| エンジン選択解放 (裏設定) | engineSelectorUnlocked | false | バージョン 7 回タップで true（root 不要） |
+| chroot 解放フラグ (裏設定) | rootChrootUnlocked | false | 7 タップ時の root セルフテスト成功で true |
 | 言語 | (専用 SharedPrefs `z2term_locale`) | OS 既定 | ja / en |
 
 `noInstallTimeout`（インストールタイムアウト無効化）・`cleanInstallGuiArmed`（GUI クリーン再展開フラグ）等も DataStore (`z2term_settings`) に保持。SSH プロファイルは別 DataStore (`z2term_ssh`) に JSON で保存。
@@ -385,13 +384,14 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 ```bash
 bash scripts/build-bundle.sh          # 同梱物一括生成
 # 個別: build-proot.sh / build-alpine-rootfs.sh aarch64 / fetch-fonts.sh
-./gradlew :app:assembleFossDebug      # APK
-adb install -r app/build/outputs/apk/foss/debug/app-foss-debug.apk
+./gradlew :app:assembleFullDebug      # APK (full = rootfs 同梱)
+./gradlew :app:assembleFossDebug      # APK (foss = rootfs 非同梱・起動時 DL)
+adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 ```
 
-- 同梱: `src/main/jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc}.so`（両フレーバー）、`src/full/assets/alpine-minirootfs-aarch64.tgz`（`full` のみ）、`src/main/assets/fonts/*.ttf`（両フレーバー）。
-- **assets の rootfs は `.tgz` 拡張子**で置く (`.tar.gz` だと aapt が解凍リネームする)。`foss` では rootfs を同梱しない（実行時 DL）。
-- ⚠ ファイル移動後の初回ビルドは `mergeFossReleaseAssets` が UP-TO-DATE で古い rootfs を残すことがある。`--rerun-tasks` か `app/build/intermediates/assets/foss*` 削除で再マージする。
+- full の同梱: `jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc}.so`(両フレーバー共通)、`src/full/assets/alpine-minirootfs-aarch64.tgz`(full のみ)、`assets/fonts/*.ttf`(共通)。
+- foss は rootfs を含めず、`DistroSpec.ALPINE` の公式 CDN URL + SHA-256 で起動時に取得 (`DistroSpec.bundledInApk` が false)。proot/talloc は W^X 制約で同梱必須。
+- **assets の rootfs は `.tgz` 拡張子**で置く (`.tar.gz` だと aapt が解凍リネームする)。
 - **`useLegacyPackaging=true` 必須** (execve する .so を nativeLibraryDir に実体配置するため)。
 - rootfs 構成変更時: `scripts/alpine-packages.txt` 編集 → `DistroBundle.ROOTFS_VERSION` を +1 → `FORCE=1 build-alpine-rootfs.sh` → assemble (利用者は APK 入替で自動再展開)。
 

@@ -77,13 +77,20 @@ class AppSettings(private val context: Context) {
          */
         val portraitKeyboardHeightDp: Float = DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP,
         /**
-         * 裏機能「root で chroot 実行」の解放フラグ。設定のバージョンを7回タップ + セルフテスト
-         * 成功で true になる (Android 開発者モードと同作法)。false の間はエンジン選択 UI を出さない。
+         * 裏機能「エンジン選択」の解放フラグ。設定のバージョンを7回タップで true になる
+         * (Android 開発者モードと同作法)。false の間はエンジン選択 UI を出さない。
+         * これ自体は root 不要 (非 root で proot⇄z2root を切替えるため)。chroot を選べるかは
+         * 別途 [rootChrootUnlocked] (root セルフテスト成功) が要る。
+         */
+        val engineSelectorUnlocked: Boolean = false,
+        /**
+         * 裏機能「root で chroot 実行」の解放フラグ。7タップ時の root セルフテスト成功で true。
+         * false の間は chroot エンジンを選択肢に出さない。
          */
         val rootChrootUnlocked: Boolean = false,
         /**
-         * 端末セッションの実行エンジン。"proot"(既定・非root) / "chroot"(root)。
-         * chroot は [rootChrootUnlocked] が true のときだけ有効 (それ以外は proot 扱い)。
+         * 端末セッションの実行エンジン。"proot"(既定・非root) / "z2root"(非root・自前 ptrace) /
+         * "chroot"(root)。chroot は [rootChrootUnlocked] が true のときだけ有効 (それ以外は proot 扱い)。
          */
         val executionEngine: String = ENGINE_PROOT,
         /**
@@ -137,6 +144,7 @@ class AppSettings(private val context: Context) {
             landscapeKeyboardWidthDp = p[KEY_LANDSCAPE_KB_WIDTH] ?: DEFAULT_LANDSCAPE_KEYBOARD_WIDTH_DP,
             landscapeKeyboardHeightDp = p[KEY_LANDSCAPE_KB_HEIGHT] ?: DEFAULT_LANDSCAPE_KEYBOARD_HEIGHT_DP,
             portraitKeyboardHeightDp = p[KEY_PORTRAIT_KB_HEIGHT] ?: DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP,
+            engineSelectorUnlocked = p[KEY_ENGINE_UNLOCKED] ?: false,
             rootChrootUnlocked = p[KEY_ROOT_UNLOCKED] ?: false,
             executionEngine = p[KEY_ENGINE] ?: ENGINE_PROOT,
             externalStorageEnabled = p[KEY_EXTERNAL_STORAGE] ?: DEFAULT_EXTERNAL_STORAGE,
@@ -144,12 +152,20 @@ class AppSettings(private val context: Context) {
         )
     }
 
+    suspend fun setEngineSelectorUnlocked(value: Boolean) {
+        context.dataStore.edit { it[KEY_ENGINE_UNLOCKED] = value }
+    }
+
     suspend fun setRootChrootUnlocked(value: Boolean) {
         context.dataStore.edit { it[KEY_ROOT_UNLOCKED] = value }
     }
 
     suspend fun setExecutionEngine(value: String) {
-        val normalized = if (value == ENGINE_CHROOT) ENGINE_CHROOT else ENGINE_PROOT
+        val normalized = when (value) {
+            ENGINE_CHROOT -> ENGINE_CHROOT
+            ENGINE_Z2ROOT -> ENGINE_Z2ROOT
+            else -> ENGINE_PROOT
+        }
         context.dataStore.edit { it[KEY_ENGINE] = normalized }
     }
 
@@ -258,6 +274,8 @@ class AppSettings(private val context: Context) {
 
         /** 実行エンジン: 非 root の PRoot (既定) */
         const val ENGINE_PROOT = "proot"
+        /** 実行エンジン: 非 root の自前 ptrace エンジン z2root (裏機能・実験的) */
+        const val ENGINE_Z2ROOT = "z2root"
         /** 実行エンジン: root で実 chroot (裏機能・要解放) */
         const val ENGINE_CHROOT = "chroot"
         /** ダウンロード前確認は既定 ON (勝手に通信しない方針)。 */
@@ -300,6 +318,7 @@ class AppSettings(private val context: Context) {
         private val KEY_LANDSCAPE_KB_WIDTH = floatPreferencesKey("landscape_kb_width_dp")
         private val KEY_LANDSCAPE_KB_HEIGHT = floatPreferencesKey("landscape_kb_height_dp")
         private val KEY_PORTRAIT_KB_HEIGHT = floatPreferencesKey("portrait_kb_height_dp")
+        private val KEY_ENGINE_UNLOCKED = booleanPreferencesKey("engine_selector_unlocked")
         private val KEY_ROOT_UNLOCKED = booleanPreferencesKey("root_chroot_unlocked")
         private val KEY_ENGINE = stringPreferencesKey("execution_engine")
         private val KEY_EXTERNAL_STORAGE = booleanPreferencesKey("external_storage_enabled")

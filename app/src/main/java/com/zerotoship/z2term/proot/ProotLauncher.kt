@@ -49,6 +49,15 @@ class ProotLauncher(private val context: Context) {
         get() = File(context.applicationInfo.nativeLibraryDir, "libproot.so")
 
     /**
+     * z2root バイナリのパス (自前 ptrace エンジン)。proot 互換 argv subset を受けるので
+     * [launch] の引数・env はそのまま流用できる (PROOT_* / libtalloc は z2root が無視する)。
+     * APK に未同梱 (build-z2root.sh でビルドした .so を jniLibs に置いていない) の場合は
+     * 存在チェックで proot へフォールバックする。
+     */
+    private val z2rootBinary: File
+        get() = File(context.applicationInfo.nativeLibraryDir, "libz2root.so")
+
+    /**
      * proot が動的リンクする libtalloc を、SONAME 通り `libtalloc.so.2` で
      * 配置するディレクトリ。jniLibs は `lib<name>.so` 規約しか扱えないため、
      * 実行時にコピーして提供する。`LD_LIBRARY_PATH` でこのパスを通す。
@@ -119,8 +128,12 @@ class ProotLauncher(private val context: Context) {
         if (!rootfs.exists()) {
             throw IllegalStateException("Rootfs not found: ${rootfs.absolutePath}")
         }
-        if (!prootBinary.exists()) {
-            throw IllegalStateException("PRoot binary not found: ${prootBinary.absolutePath}")
+        // エンジン選択: 裏設定で z2root が選ばれ、かつ libz2root.so が同梱されていれば z2root を使う。
+        // 未同梱 (build-z2root.sh 未実行) の場合は proot へ素直にフォールバック。
+        val useZ2root = isZ2rootEngineSelected() && z2rootBinary.exists()
+        val engineBinary = if (useZ2root) z2rootBinary else prootBinary
+        if (!engineBinary.exists()) {
+            throw IllegalStateException("Engine binary not found: ${engineBinary.absolutePath}")
         }
 
         // 指定シェルが rootfs に存在しなければ fallback → /bin/sh の順に解決。
@@ -131,9 +144,9 @@ class ProotLauncher(private val context: Context) {
         // する (M8-3 で Xvnc が即死した罠の真因)。command がシェルならそのまま使う。
         val shellForEnv = resolveLoginShell(rootfs, resolvedCommand, fallbackShell)
 
-        // 共有ホーム作成 + libtalloc 配置
+        // 共有ホーム作成 + libtalloc 配置 (talloc/loader は proot 専用。z2root では不要なので省く)
         sharedHomeDir.mkdirs()
-        ensureProotLibs()
+        if (!useZ2root) ensureProotLibs()
         // 再起動後もコマンド履歴を辿れるよう、shell rc に履歴設定を流し込む。
         ensureShellHistoryConfig(rootfs)
         // セッション復元の cwd 用に、プロンプト毎 OSC 7 (cwd 通知) を出すフックを仕込む。
@@ -255,11 +268,12 @@ class ProotLauncher(private val context: Context) {
             "PROOT_LOADER=${File(context.applicationInfo.nativeLibraryDir, "libproot_loader.so").absolutePath}"
         ) + displayEnv).toTypedArray()
 
-        Log.i(TAG, "Launching PRoot: distro=$distroId, command=$resolvedCommand (requested=$command)")
+        val engineName = if (useZ2root) "z2root" else "PRoot"
+        Log.i(TAG, "Launching $engineName: distro=$distroId, command=$resolvedCommand (requested=$command)")
         Log.d(TAG, "Args: ${args.joinToString(" ")}")
 
         return PtyProcess.create(
-            command = prootBinary.absolutePath,
+            command = engineBinary.absolutePath,
             args = args.toTypedArray(),
             env = env,
             cwd = context.filesDir.absolutePath,
@@ -533,6 +547,14 @@ class ProotLauncher(private val context: Context) {
      */
     private fun isAndroidHostBindEnabled(): Boolean = runCatching {
         runBlocking { AppSettings(context).flow.first().androidHostBindEnabled }
+    }.getOrDefault(false)
+
+    /**
+     * 設定「実行エンジン」が z2root を指しているかを同期的に読む ([isExternalStorageEnabled] と同方式)。
+     * 失敗時は false に倒して proot 既定へ。chroot は別経路 ([launchChroot]) なのでここでは扱わない。
+     */
+    private fun isZ2rootEngineSelected(): Boolean = runCatching {
+        runBlocking { AppSettings(context).flow.first().executionEngine == AppSettings.ENGINE_Z2ROOT }
     }.getOrDefault(false)
 
     /**

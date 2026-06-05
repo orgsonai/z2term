@@ -68,16 +68,15 @@
     <string name="settings_clear_cache_empty">No cache to clear</string>
     <string name="settings_section_app_info">App info</string>
 
-    <!-- Hidden root chroot engine (unlocked by tapping the version 7x) -->
+    <!-- Hidden execution engine selector (unlocked by tapping the version 7x) -->
     <string name="settings_section_engine">Execution engine (experimental)</string>
     <string name="settings_engine_proot">PRoot (default)</string>
+    <string name="settings_engine_z2root">z2root (no root)</string>
     <string name="settings_engine_chroot">chroot (root)</string>
-    <string name="settings_engine_desc">chroot runs natively as real root. Requires a rooted device; new tabs use the selected engine.</string>
-    <string name="settings_root_unlock_checking">Checking root / chroot…</string>
-    <string name="settings_root_unlock_ok">Root execution unlocked. Pick the engine below.</string>
-    <string name="settings_root_unlock_no_root">Root (su) is not available on this device.</string>
-    <string name="settings_root_unlock_blocked">Root works but chroot exec was blocked (likely SELinux / this root method).</string>
-    <string name="settings_root_unlock_countdown">%1$d more taps to unlock root execution</string>
+    <string name="settings_engine_desc">z2root is our own ptrace engine (no root, experimental); falls back to PRoot if not bundled. chroot runs natively as real root and needs a rooted device. New tabs use the selected engine.</string>
+    <string name="settings_engine_unlock_ok">Engine selector unlocked. Pick the engine below.</string>
+    <string name="settings_root_unlock_ok">Root unlocked — chroot is now available too.</string>
+    <string name="settings_root_unlock_countdown">%1$d more taps to unlock the engine selector</string>
 
     <!-- Banners shown during distro / GUI install (D2 batch) -->
     <string name="banner_proot_missing">⚠️ PRoot binary not found — run scripts/build-proot.sh and rebuild. Falling back to Android sh.</string>

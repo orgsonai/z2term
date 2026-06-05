@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-06-05 / Target version: 0.8.18-alpha (versionCode 26)
+Last updated: 2026-06-05 / Target version: 0.8.19-alpha (versionCode 27)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -35,7 +35,7 @@ Last updated: 2026-06-05 / Target version: 0.8.18-alpha (versionCode 26)
 - **Bidirectional SSH**: from the terminal to the outside (JSch client), and from a PC into the terminal (dropbear server).
 - **File integration**: SAF DocumentsProvider lets other apps R/W the rootfs/home; from inside proot you can `cd` into Android shared storage.
 - **GUI desktop**: inside the distro, Xvnc + a lightweight WM/app launches and is displayed by the built-in RFB (VNC) client (`gui/` package). Video uses software rendering; audio is an opt-in PulseAudio→TCP→AudioTrack bridge (`AudioBridge`).
-- **Execution engine**: PRoot by default. **On rooted devices, a hidden setting can switch to a "real chroot" engine** (`su`-based bind mounts + `chroot`; `executionEngine`).
+- **Execution engine**: PRoot by default. A hidden setting (tap the version 7×) can switch to **"z2root", our own no-root ptrace engine** (experimental). On rooted devices, when the root self-test passes, a **"real chroot" engine** also becomes selectable (`su`-based bind mounts + `chroot`; `executionEngine`).
 
 Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 
@@ -43,12 +43,8 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 
 | Flavor | applicationId | Purpose |
 |---|---|---|
-| `full` | `com.zerotoship.z2term` | Normal distribution. Alpine rootfs bundled in `src/full/assets`, starts offline instantly |
-| `foss` | `com.zerotoship.z2term.foss` | F-Droid / sideload. **Rootfs not bundled** (downloaded at runtime, SHA-256 verified). `proot`/`talloc` stay bundled in both flavors (W^X requires execution from `nativeLibraryDir`) |
-
-- Implementation: AGP always adds `src/main` to every flavor. Only the rootfs (`alpine-minirootfs-*.tgz`) is placed under `src/full/assets` to keep it `full`-only; `proot`/`talloc` (`src/main/jniLibs`) ship in both flavors.
-- `foss` cannot start offline on first run (rootfs must be downloaded). `full` is unchanged (offline instant start).
-- The branch is decided by `DistroSpec.effectivelyBundled` (false = DL target when `BuildConfig.IS_FOSS && id==alpine`).
+| `full` | `com.zerotoship.z2term` | Normal distribution (rootfs/proot bundled; offline first run) |
+| `foss` | `com.zerotoship.z2term.foss` | Minimizes third-party license notices. Alpine rootfs excluded from the APK and downloaded at runtime (proot/talloc stay bundled; no offline first run) |
 
 `debug` builds additionally carry a `.debug` suffix.
 
@@ -66,7 +62,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 | SSH client | JSch (mwiede fork) | 0.2.21 (BouncyCastle not required) |
 | Decompression | org.tukaani:xz | 1.10 (the downloaded distro's `.tar.xz`). gzip is JDK standard |
 | Linux runtime | PRoot + libtalloc | `.so` bundled in jniLibs (from a Termux build) |
-| Bundled OS | Alpine Linux ARM minirootfs | `full`: `.tgz` in `src/full/assets` / `foss`: downloaded at runtime |
+| Bundled OS | Alpine Linux ARM minirootfs | full bundles `.tgz` under `src/full/assets`. foss excludes it and downloads from the official CDN at runtime |
 
 ---
 
@@ -107,7 +103,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 - `TerminalSession` lives **independently of the UI** (held by `SessionManager`). PTY/emulator state survives Activity destruction.
 - `TerminalService` (foreground service) handles keep-alive, maintaining the PTY in the background. `AudioBridge` (GUI audio) is handled in the same service family.
 - emulator state updates are concentrated on a **dedicated single thread** (`z2term-emu-*`); Compose reads via `StateFlow`.
-- The **GUI desktop** launches as a separate Activity (`GuiActivity`) and connects to the in-distro Xvnc with the built-in RFB client ([§4.12](#412-gui-desktop-gui)). The execution engine defaults to PRoot, with chroot available only on rooted devices via a hidden setting ([§4.3](#43-proot-execution-prootprootlauncherkt-prootsshdscriptkt)).
+- The **GUI desktop** launches as a separate Activity (`GuiActivity`) and connects to the in-distro Xvnc with the built-in RFB client ([§4.12](#412-gui-desktop-gui)). The execution engine defaults to PRoot, with z2root (no-root, experimental) and chroot (rooted devices) selectable via a hidden setting ([§4.3](#43-proot-execution-prootprootlauncherkt-prootsshdscriptkt)).
 
 ---
 
@@ -138,9 +134,12 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 - Idempotently injected on every launch: `ensureShellHistoryConfig` (history rc), `ensureSshdWrapper` (`/usr/local/sbin/sshd` = dropbear wrapper), `ensureOsc7CwdConfig` (OSC7 hook for cwd restore), `ensureZ2ApiScripts` (`z2-*` bridge), GUI/z2run scripts.
 - `launchAndroidSh`: fallback when proot isn't possible (`/system/bin/sh` + minimal mkshrc).
 
+**Execution engine z2root (hidden feature, no root, experimental)**: when `executionEngine = "z2root"`, `launch()` swaps the binary to `nativeLibraryDir/libz2root.so` (our own ptrace engine). It accepts a proot-compatible argv subset, so the args/env are reused as-is (`PROOT_*`/talloc are ignored by z2root). If `libz2root.so` is not bundled (`scripts/build-z2root.sh` not run), it falls back to PRoot. This is the concrete deliverable of phase 2 (zeroing FOSS third-party notices); see `docs/FOSS-PURE-HANDOFF.md` §5.
+
 **Execution engine chroot (hidden feature, requires root)**: when `executionEngine = "chroot"`, `launchChroot()` is used.
 
-- `probeRootChroot()`: a self-test of `su -c id` (uid=0) + `su -c "chroot <rootfs> /bin/sh -c echo"`. Only when it passes is the setting unlocked (tap the version 7 times → `rootChrootUnlocked=true`). The result is `RootProbe` (Ok/NoRoot/ChrootBlocked).
+- **Unlocking the selector**: tap the version 7 times → `engineSelectorUnlocked=true` (works without root; proot / z2root become selectable). If `probeRootChroot()` then passes, `rootChrootUnlocked=true` is also set and chroot joins the options.
+- `probeRootChroot()`: a self-test of `su -c id` (uid=0) + `su -c "chroot <rootfs> /bin/sh -c echo"`. The result is `RootProbe` (Ok/NoRoot/ChrootBlocked).
 - `launchChroot()`: via `su -c`, bind mount (/dev, /dev/pts, /proc, /sys, /root, /sdcard) → `chroot` → login shell. The `ensure*` helpers (z2-*/OSC7/history/sshd/gui/z2run) are shared with the proot path.
 - **Ctrl+C / job control**: because the controlling terminal can't be owned via `su`, the login shell is launched **through `setsid -c`** to enable it.
 - On chroot launch failure, it auto-falls back to proot (`TerminalSession.startTerminal`). End-to-end verified on a rooted device under SELinux Enforcing (moto g13 / Magisk). `full` flavor only.
@@ -148,9 +147,8 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 ### 4.4 Distro management (`distro/`)
 
 - `DistroBundle`: `ROOTFS_VERSION` (=6), `VERSION_MARKER`, `BUNDLED_DISTRO_ID="alpine"`.
-- `DistroSpec`: id / display name / package manager / bundleable / asset name / DL URL or index URL / SHA-256 / default shell / approx. DL size / `effectivelyBundled`.
-  - Alpine = bundled in `full` (`alpine-minirootfs-aarch64.tgz`, zsh); in `foss` it is downloaded from a fixed URL (Alpine's pinned `3.21.0` CDN release) and verified against `sha256Arm64`. Ubuntu/Arch/Kali = resolve the latest `rootfs.tar.xz` at runtime from the linuxcontainers index and download (bash; SHA not pinned since the file changes each time).
-  - `effectivelyBundled` = `bundled && !(IS_FOSS && id==alpine)`. The startup sequence and settings UI use this to decide whether a download is needed (no longer reading the raw `bundled` flag).
+- `DistroSpec`: id / display name / package manager / bundleable / asset name / DL URL or index URL / default shell / approx. DL size.
+  - Alpine = bundled (`alpine-minirootfs-aarch64.tgz`, zsh). Ubuntu/Arch/Kali = resolve the latest `rootfs.tar.xz` at runtime from the linuxcontainers index and download (bash).
 - `DistroInstaller`: a dependency-free hand-written tar parser (ustar/GNU `L`/PAX `x`/`g`, symlink/hardlink). `decompress` detects gzip/xz by magic bytes.
   - `postInstallSetup`: resolv.conf/hosts, `pacman.conf` (disable sandbox/DownloadUser), apt Sandbox::User=root, write the version marker.
   - Permissions are **owner-only** (`setUnixMode(ownerOnly=true)`). world-writable makes sudo refuse.
@@ -358,8 +356,9 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 | GUI magnification | guiMagnification | 1.5 | 0.5–3.0 |
 | Confirm before download | confirmBeforeDownload | true | true/false |
 | Keep-alive service | keepAliveService | true | true/false |
-| Execution engine (hidden) | executionEngine | "proot" | proot / chroot (only when root is unlocked) |
-| chroot unlock flag (hidden) | rootChrootUnlocked | false | true after tapping the version 7 times |
+| Execution engine (hidden) | executionEngine | "proot" | proot / z2root / chroot (chroot only when root is unlocked) |
+| Engine selector unlock (hidden) | engineSelectorUnlocked | false | true after tapping the version 7 times (no root needed) |
+| chroot unlock flag (hidden) | rootChrootUnlocked | false | true when the 7-tap root self-test passes |
 | Language | (dedicated SharedPrefs `z2term_locale`) | OS default | ja / en |
 
 `noInstallTimeout` (disable install timeout), `cleanInstallGuiArmed` (GUI clean re-deploy flag), etc. are also kept in DataStore (`z2term_settings`). SSH profiles are saved as JSON in a separate DataStore (`z2term_ssh`).
@@ -384,13 +383,14 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 ```bash
 bash scripts/build-bundle.sh          # generate all bundled assets at once
 # individually: build-proot.sh / build-alpine-rootfs.sh aarch64 / fetch-fonts.sh
-./gradlew :app:assembleFossDebug      # APK
-adb install -r app/build/outputs/apk/foss/debug/app-foss-debug.apk
+./gradlew :app:assembleFullDebug      # APK (full = rootfs bundled)
+./gradlew :app:assembleFossDebug      # APK (foss = rootfs excluded, runtime DL)
+adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 ```
 
-- Bundled: `src/main/jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc}.so` (both flavors), `src/full/assets/alpine-minirootfs-aarch64.tgz` (`full` only), `src/main/assets/fonts/*.ttf` (both flavors).
-- **The rootfs in assets uses the `.tgz` extension** (with `.tar.gz`, aapt decompresses and renames it). `foss` does not bundle the rootfs (runtime DL).
-- ⚠ After moving the file, the first build may keep the stale rootfs because `mergeFossReleaseAssets` is UP-TO-DATE. Re-merge with `--rerun-tasks` or by deleting `app/build/intermediates/assets/foss*`.
+- full bundle: `jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc}.so` (both flavors), `src/full/assets/alpine-minirootfs-aarch64.tgz` (full only), `assets/fonts/*.ttf` (shared).
+- foss excludes the rootfs and fetches it at startup via `DistroSpec.ALPINE`'s official CDN URL + SHA-256 (`DistroSpec.bundledInApk` returns false). proot/talloc must stay bundled due to the W^X constraint.
+- **The rootfs in assets uses the `.tgz` extension** (with `.tar.gz`, aapt decompresses and renames it).
 - **`useLegacyPackaging=true` is required** (so the `.so` files that get execve'd are placed as real files in nativeLibraryDir).
 - When the rootfs composition changes: edit `scripts/alpine-packages.txt` → bump `DistroBundle.ROOTFS_VERSION` by +1 → `FORCE=1 build-alpine-rootfs.sh` → assemble (users auto-redeploy by swapping the APK).
 
