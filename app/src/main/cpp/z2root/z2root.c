@@ -14,8 +14,9 @@
 //    canonicalize(パス内 symlink 解決 + . / .. 畳み) / cwd 相対パス絶対化(/proc/<pid>/cwd) /
 //    dirfd 相対パスの非変換(*at の dirfd 委譲) / 2パス syscall(rename/link/symlink) /
 //    相対 exec パス解決 / fakeroot(-0) uid-gid 偽装(get*id→0 / getgroups→0個 /
-//    set*id・chown 失敗の成功偽装 / stat の uid-gid→0)。
-// 残り難所(link2symlink / readlinkat 戻り値逆変換 / /proc 偽装 /
+//    set*id・chown 失敗の成功偽装 / stat の uid-gid→0) /
+//    link2symlink(linkat→symlinkat。Android FS の link() EACCES を symlink で回避)。
+// 残り難所(readlinkat 戻り値逆変換 / /proc 偽装 /
 //    マルチスレッド境界の厳密化)は TODO で明示。実機で小さく逐次検証して育てる。
 
 #define _GNU_SOURCE
@@ -52,7 +53,7 @@ struct config {
     char cwd[PATH_MAX_Z];             // -w <dir>   (ゲスト視点の作業ディレクトリ)
     int fake_root;                    // -0
     int kill_on_exit;                 // --kill-on-exit
-    int link2symlink;                 // --link2symlink (受理のみ。TODO: 実装)
+    int link2symlink;                 // --link2symlink (linkat→symlinkat エミュレート)
     struct bind_entry binds[MAX_BINDS];
     int nbinds;
     char *const *command;             // 残りの argv (ゲスト視点のコマンド + 引数)
@@ -132,6 +133,17 @@ static int get_regs(pid_t pid, struct user_pt_regs *regs) {
 static int set_regs(pid_t pid, struct user_pt_regs *regs) {
     struct iovec iov = { regs, sizeof(*regs) };
     return ptrace(PTRACE_SETREGSET, pid, (void *)NT_PRSTATUS, &iov);
+}
+
+#ifndef NT_ARM_SYSTEM_CALL
+#define NT_ARM_SYSTEM_CALL 0x404
+#endif
+// syscall-entry で実際に dispatch される syscall 番号を変更する(aarch64)。
+// 注意: aarch64 では regs[8] を書き換えるだけでは dispatch 先は変わらない。
+// NT_ARM_SYSTEM_CALL regset を書く必要がある(link2symlink で linkat→symlinkat に化かす)。
+static void set_syscall_nr(pid_t pid, int nr) {
+    struct iovec iov = { &nr, sizeof(nr) };
+    ptrace(PTRACE_SETREGSET, pid, (void *)NT_ARM_SYSTEM_CALL, &iov);
 }
 
 // ---- パス変換 ------------------------------------------------------------------
@@ -657,10 +669,82 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
     }
 }
 
+// --link2symlink: linkat(ハードリンク)を symlinkat へ化かし、target に「元ファイルの
+// ゲスト絶対パス」を入れた symlink でエミュレートする。Android のアプリ内ストレージは
+// link() を EACCES で拒否するため、これが無いと dpkg/apt の status-old バックリンク等が
+// 壊れる(proot の --link2symlink 相当)。aarch64 に素の link は無く linkat(37)→symlinkat(36)。
+// target をゲスト絶対パスで持つのは、z2root の canonicalize がアクセス時に symlink 中身を
+// ゲスト視点で再解決し、最終的にホスト実パスへ畳むため(rootfs 内の絶対 symlink と同じ扱い)。
+// 戻り値: 1=変換した, 0=変換せず(呼び出し側で通常 linkat 変換にフォールバック)。
+static int rewrite_link2symlink(const struct config *cfg, pid_t pid, struct user_pt_regs *regs) {
+    long olddirfd = (long)(int)regs->regs[0];
+    unsigned long old_addr = regs->regs[1];
+    long newdirfd = (long)(int)regs->regs[2];
+    unsigned long new_addr = regs->regs[3];
+    if (old_addr == 0 || new_addr == 0) return 0;
+
+    char oldp[PATH_MAX_Z], newp[PATH_MAX_Z];
+    if (read_tracee_str(pid, old_addr, oldp, sizeof(oldp)) < 0) return 0;
+    if (read_tracee_str(pid, new_addr, newp, sizeof(newp)) < 0) return 0;
+
+    // target = oldpath のゲスト絶対パス(symlink の中身)。
+    char target[PATH_MAX_Z];
+    if (oldp[0] == '/') {
+        snprintf(target, sizeof(target), "%s", oldp);
+    } else {
+        // 相対 oldpath は基準 dir(cwd または dirfd)を /proc 経由でゲスト絶対化する。
+        char proc[64], host_dir[PATH_MAX_Z], guest_dir[PATH_MAX_Z];
+        if (olddirfd == AT_FDCWD)
+            snprintf(proc, sizeof(proc), "/proc/%d/cwd", (int)pid);
+        else
+            snprintf(proc, sizeof(proc), "/proc/%d/fd/%d", (int)pid, (int)olddirfd);
+        ssize_t n = readlink(proc, host_dir, sizeof(host_dir) - 1);
+        if (n < 0) return 0;
+        host_dir[n] = '\0';
+        host_to_guest(cfg, host_dir, guest_dir, sizeof(guest_dir));
+        snprintf(target, sizeof(target), "%s/%s", guest_dir, oldp);
+    }
+
+    // linkpath(symlink を作る場所) = newpath を host 実パスへ。fd 相対は dirfd に委ねる。
+    char host_new[PATH_MAX_Z];
+    const char *linkpath;
+    long eff_newdirfd;
+    if (host_path_for(cfg, pid, newp, 0, newdirfd, host_new, sizeof(host_new)) == 0) {
+        linkpath = host_new;
+        eff_newdirfd = AT_FDCWD;
+    } else {
+        linkpath = newp;       // fd 相対(変換不要) — dirfd 基準のまま作る
+        eff_newdirfd = newdirfd;
+    }
+
+    // target と linkpath を tracee スタック下スクラッチへ連続配置。
+    size_t tlen = strlen(target) + 1;
+    size_t llen = strlen(linkpath) + 1;
+    size_t total = ((tlen + 7) & ~7UL) + ((llen + 7) & ~7UL);
+    unsigned long base = (regs->sp - SCRATCH_OFFSET - total) & ~15UL;
+    unsigned long tptr = base;
+    unsigned long lptr = base + ((tlen + 7) & ~7UL);
+    if (write_tracee_mem(pid, tptr, target, tlen) != 0) return 0;
+    if (write_tracee_mem(pid, lptr, linkpath, llen) != 0) return 0;
+
+    // symlinkat(x0=target, x1=newdirfd, x2=linkpath)。
+    regs->regs[0] = tptr;
+    regs->regs[1] = (unsigned long)eff_newdirfd;
+    regs->regs[2] = lptr;
+    regs->regs[8] = 36;  // 表示用。実 dispatch は NT_ARM_SYSTEM_CALL で変える。
+    set_regs(pid, regs);
+    set_syscall_nr(pid, 36);
+    return 1;
+}
+
 static void maybe_rewrite_path(const struct config *cfg, pid_t pid, struct user_pt_regs *regs) {
     long nr = (long)regs->regs[8];
     if (nr == 221) { rewrite_execve(cfg, pid, regs, 0); return; }  // execve
     if (nr == 281) { rewrite_execve(cfg, pid, regs, 1); return; }  // execveat
+    if (nr == 37 && cfg->link2symlink) {                          // linkat → symlinkat
+        if (rewrite_link2symlink(cfg, pid, regs)) return;
+        // 変換できなければ通常の linkat パス変換にフォールバック。
+    }
 
     struct sc_paths sp;
     if (!syscall_paths(nr, &sp)) return;

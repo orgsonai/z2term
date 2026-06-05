@@ -30,7 +30,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.23-alpha (versionCode 31) — 自前 ptrace エンジン「z2root」が bind 配下の `getcwd` 結果も逆変換するように。これまで bind 配下（アプリは `<shared_home>:/root` を bind）で `pwd` するとホスト実パスが露出していたが、`host_to_guest()` でゲストパスを正しく返すようにした。前版では fakeroot（`-0`）偽装を実装＝`getuid`/`getgid` 系を 0 に、`getgroups` でホストアプリの gid を隠し（`id` が `groups=0(root)` だけ）、失敗する `set*id`/`chown` を成功扱いに、stat の `uid`/`gid` を 0 に。開発環境で検証済み。エンジンは引き続き実験的で、裏のエンジン選択（バージョン 7 タップ）から選べる（未同梱時は PRoot にフォールバック）。FOSS フレーバーは引き続き Alpine rootfs を APK から外し、起動時に公式 minirootfs を DL する**
+**0.8.24-alpha (versionCode 32) — 自前 ptrace エンジン「z2root」を APK 内・実機 SELinux 下で初めて検証し、成功した（nativeLibraryDir からの execve+ptrace / 動的 ELF の musl ローダ書き換え / 絶対 symlink 解決 / fakeroot `-0` / `getcwd` 逆変換が実機で通過。`ls -l` や `stat` の所有者が `root` に偽装されることも実機で確認）。あわせて `--link2symlink` を実装＝Android のアプリ内ストレージが `link()` を `EACCES` で拒否する問題を、ハードリンクを symlink に化かして回避する（`apt`/`dpkg`/一部 `apk` 対策。aarch64 では `linkat`→`symlinkat` を `NT_ARM_SYSTEM_CALL` で差し替え）。実機で `ln a b` が通ることを確認。エンジンは引き続き実験的で、裏のエンジン選択（バージョン 7 タップ）から選べる（未同梱時は PRoot にフォールバック）。FOSS フレーバーは引き続き Alpine rootfs を APK から外し、起動時に公式 minirootfs を DL する**
 
 Milestone 7〜12 で SFTP、GUI (Xvnc+VNC)、複数 GUI タブ、IME 学習、英語 UI、横画面キーボード、スクロールバック検索、セッション復元、root 端末向け chroot エンジン、GUI 音声/動画再生などを実装。0.8.4 で日本語かな漢字変換を長文向けに強化。0.8.5 以降で UI/キーボードの細かな改善と各種修正を継続。
 

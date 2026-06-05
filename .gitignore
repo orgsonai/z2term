@@ -53,6 +53,9 @@ app/src/main/jniLibs/arm64-v8a/libtalloc.so
 app/src/main/jniLibs/armeabi-v7a/libproot.so
 app/src/main/jniLibs/armeabi-v7a/libproot_loader.so
 
+# z2root 自前エンジン（scripts/build-z2root.sh で生成、含めない）
+app/src/main/jniLibs/arm64-v8a/libz2root.so
+
 # プログラミングフォント（scripts/fetch-fonts.sh で取得、含めない）
 app/src/main/assets/fonts/*.ttf
 app/src/main/assets/fonts/*.otf
