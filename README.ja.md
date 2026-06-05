@@ -30,7 +30,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.20-alpha (versionCode 28) — 自前 ptrace エンジン「z2root」が `#!` シバンスクリプトを解決するように（rootfs 内のインタプリタを、必要なら動的ローダ経由で起動）。これで sh/awk/env スクリプトが正しく動く。エンジンは引き続き実験的で、裏のエンジン選択（バージョン 7 タップ）から選べる（未同梱時は PRoot にフォールバック）。FOSS フレーバーは引き続き Alpine rootfs を APK から外し、起動時に公式 minirootfs を DL する**
+**0.8.21-alpha (versionCode 29) — 自前 ptrace エンジン「z2root」のパス変換を proot 相当に刷新。rootfs 内のパス途中シンボリックリンクを解決し（絶対シンボリックリンクがホスト `/` へ抜けない）、cwd 相対パスを `/proc/<tid>/cwd` で絶対化しつつ `dirfd` 相対パスはカーネルに委ね、2 パス系コール（`renameat2`/`linkat`/`symlinkat`）の両パスを変換し、相対 exec パスも解決する。開発環境で PRoot と挙動一致を確認済み。エンジンは引き続き実験的で、裏のエンジン選択（バージョン 7 タップ）から選べる（未同梱時は PRoot にフォールバック）。FOSS フレーバーは引き続き Alpine rootfs を APK から外し、起動時に公式 minirootfs を DL する**
 
 Milestone 7〜12 で SFTP、GUI (Xvnc+VNC)、複数 GUI タブ、IME 学習、英語 UI、横画面キーボード、スクロールバック検索、セッション復元、root 端末向け chroot エンジン、GUI 音声/動画再生などを実装。0.8.4 で日本語かな漢字変換を長文向けに強化。0.8.5 以降で UI/キーボードの細かな改善と各種修正を継続。
 
