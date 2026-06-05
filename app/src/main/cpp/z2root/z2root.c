@@ -19,9 +19,11 @@
 //    rootfs/bind.host の起動時 realpath 正規化(アプリの mount namespace は
 //    /data/user/0/<pkg> を /data/data/<pkg> へ解決するため、chdir 後 getcwd が返す
 //    canonical 形と bind.host(context.filesDir 由来の /data/user/0 形)が食い違い、
-//    pwd / 相対 ls がホスト cwd を露出していた。両者を realpath で揃えて解消)。
-// 残り難所(readlinkat 戻り値逆変換 / /proc 偽装 /
-//    マルチスレッド境界の厳密化)は TODO で明示。実機で小さく逐次検証して育てる。
+//    pwd / 相対 ls がホスト cwd を露出していた。両者を realpath で揃えて解消) /
+//    /proc 偽装(fakeroot -0: /proc/<pid>/status の read を傍受し Uid:/Gid: 行を 0・
+//    Groups: 行を空白に書き換え。get*id syscall 偽装と一貫した root の見え方にする)。
+// 残り難所(readlinkat 戻り値逆変換 / マルチスレッド境界の厳密化 /
+//    status の Cap* 行・loginuid 偽装)は TODO で明示。実機で小さく逐次検証して育てる。
 
 #define _GNU_SOURCE
 #include <errno.h>
@@ -75,6 +77,7 @@ struct config {
 // pid(tid) 単位で保持する。TODO: スレッド境界の厳密化。
 
 #define MAP_CAP 256
+#define STATUS_FD_MAX 16    // 同時に追跡する /proc/.../status fd の上限(超過分は非追跡)
 struct pid_state {
     pid_t pid;
     int at_exit;            // 0: 次は syscall-entry, 1: 次は syscall-exit
@@ -82,6 +85,8 @@ struct pid_state {
     int started;            // 0: まだ最初の停止(TRACEFORK 由来の初期 SIGSTOP)を消化していない
     long entry_nr;          // entry で記録した syscall 番号 (exit 時の戻り値逆変換用)
     unsigned long aux_addr; // getcwd 等の対象バッファアドレス
+    int pending_status_open;// fakeroot: openat entry で /proc/.../status を検出したら 1(exit で fd を採取)
+    int status_fds[STATUS_FD_MAX]; // fakeroot: /proc/.../status を指す fd 群(read で Uid/Gid を偽装), -1=空
 };
 static struct pid_state g_map[MAP_CAP];
 
@@ -96,6 +101,8 @@ static struct pid_state *state_for(pid_t pid) {
     g_map[free_slot].pid = pid;
     g_map[free_slot].at_exit = 0;
     g_map[free_slot].started = 0;
+    g_map[free_slot].pending_status_open = 0;
+    for (int k = 0; k < STATUS_FD_MAX; k++) g_map[free_slot].status_fds[k] = -1;
     return &g_map[free_slot];
 }
 
@@ -713,6 +720,92 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
     }
 }
 
+// fakeroot(-0) の /proc 偽装: get*id syscall を 0 に偽装しても、ゲストが
+// /proc/self/status(や /proc/<pid>/status)を直接読むとホストのアプリ uid/gid が
+// テキストで露出する(id -a / dpkg / apt の一部・各種スクリプトが参照)。read() の
+// 戻りバッファをスキャンし、Uid: / Gid: 行の各数値を 0、Groups: 行の数値を空白に
+// 書き換えて root 一貫の見え方にする。length は保存する(数値を「右詰め 0 + 前空白」
+// に置換)ため read の戻り値もバッファ後続も崩さない。
+// TODO: Cap* 行のフル化 / loginuid 偽装 / read 分割でヘッダがチャンク跨ぎの場合。
+
+// guest パスが /proc/<...>/status 形か(self / <pid> / task/<tid> いずれも末尾 /status)。
+static int is_proc_status_path(const char *p) {
+    if (strncmp(p, "/proc/", 6) != 0) return 0;
+    size_t n = strlen(p);
+    return n >= 7 && strcmp(p + (n - 7), "/status") == 0;
+}
+
+static void status_fd_add(struct pid_state *st, int fd) {
+    if (fd < 0) return;
+    for (int i = 0; i < STATUS_FD_MAX; i++) if (st->status_fds[i] == fd) return;
+    for (int i = 0; i < STATUS_FD_MAX; i++) if (st->status_fds[i] < 0) { st->status_fds[i] = fd; return; }
+    // 満杯: 追跡を諦める(この status は非偽装。実害は uid 露出のみ)。
+}
+
+static void status_fd_remove(struct pid_state *st, int fd) {
+    for (int i = 0; i < STATUS_FD_MAX; i++) if (st->status_fds[i] == fd) { st->status_fds[i] = -1; return; }
+}
+
+static int status_fd_known(const struct pid_state *st, int fd) {
+    if (fd < 0) return 0;
+    for (int i = 0; i < STATUS_FD_MAX; i++) if (st->status_fds[i] == fd) return 1;
+    return 0;
+}
+
+// openat entry: 開こうとしている guest パスが /proc/.../status なら pending を立てる。
+// (maybe_rewrite_path がパス引数を host へ書き換える前に呼ぶこと=元の guest パスを見る)
+static void note_status_open(pid_t pid, const struct user_pt_regs *regs, struct pid_state *st) {
+    st->pending_status_open = 0;
+    unsigned long path_addr = regs->regs[1];  // openat(dirfd, pathname, ...)
+    if (path_addr == 0) return;
+    char p[PATH_MAX_Z];
+    if (read_tracee_str(pid, path_addr, p, sizeof(p)) < 0) return;
+    if (is_proc_status_path(p)) st->pending_status_open = 1;
+}
+
+// status バッファ内の Uid:/Gid: 行の数値を 0(前空白詰めで length 保存)、Groups: 行の
+// 数値を空白に書き換える。行頭ラベルでのみ反応する。
+static void fake_status_buf(char *b, size_t len) {
+    size_t i = 0;
+    while (i < len) {
+        size_t ls = i, le = i;
+        while (le < len && b[le] != '\n') le++;
+        size_t llen = le - ls;
+        if (llen >= 4 && (memcmp(b + ls, "Uid:", 4) == 0 || memcmp(b + ls, "Gid:", 4) == 0)) {
+            size_t j = ls + 4;
+            while (j < le) {
+                if (b[j] >= '0' && b[j] <= '9') {
+                    size_t k = j;
+                    while (k < le && b[k] >= '0' && b[k] <= '9') k++;
+                    for (size_t m = j; m + 1 < k; m++) b[m] = ' ';  // 上位桁を空白
+                    b[k - 1] = '0';                                  // 末尾を 0
+                    j = k;
+                } else j++;
+            }
+        } else if (llen >= 7 && memcmp(b + ls, "Groups:", 7) == 0) {
+            for (size_t j = ls + 7; j < le; j++)
+                if (b[j] >= '0' && b[j] <= '9') b[j] = ' ';
+        }
+        i = le + 1;  // 改行をスキップ(末尾改行無しでも len で終端)
+    }
+}
+
+// read() exit: status fd からの読み取りバッファ(buf, ret バイト)を root 偽装する。
+static void fake_proc_status_on_read(pid_t pid, unsigned long buf) {
+    struct user_pt_regs regs;
+    if (get_regs(pid, &regs) != 0) return;
+    long ret = (long)regs.regs[0];
+    if (ret <= 0 || buf == 0) return;
+    size_t len = (size_t)ret;
+    if (len > PATH_MAX_Z) len = PATH_MAX_Z;  // ヘッダ部(Uid/Gid/Groups)は先頭側に集中
+    char b[PATH_MAX_Z];
+    struct iovec lo = { b, len };
+    struct iovec re = { (void *)buf, len };
+    if (process_vm_readv(pid, &lo, 1, &re, 1, 0) != (ssize_t)len) return;
+    fake_status_buf(b, len);
+    write_tracee_mem(pid, buf, b, len);
+}
+
 // --link2symlink: linkat(ハードリンク)を symlinkat へ化かし、target に「元ファイルの
 // ゲスト絶対パス」を入れた symlink でエミュレートする。Android のアプリ内ストレージは
 // link() を EACCES で拒否するため、これが無いと dpkg/apt の status-old バックリンク等が
@@ -991,10 +1084,15 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                         st->entry_nr = (long)regs.regs[8];
                         unsigned long aux = 0;
                         if (st->entry_nr == 17) aux = regs.regs[0];  // getcwd buf
-                        else if (cfg->fake_root) switch (st->entry_nr) {  // stat 出力バッファ
-                            case 80:  aux = regs.regs[1]; break;  // fstat
+                        else if (cfg->fake_root) switch (st->entry_nr) {
+                            case 80:  aux = regs.regs[1]; break;  // fstat: stat 出力バッファ
                             case 79:  aux = regs.regs[2]; break;  // newfstatat
                             case 291: aux = regs.regs[4]; break;  // statx
+                            case 56:  note_status_open(pid, &regs, st); break;  // openat: /proc/.../status 検出
+                            case 57:  status_fd_remove(st, (int)regs.regs[0]); break;  // close: fd 追跡解除
+                            case 63:  // read: status fd なら buf を控えて exit で偽装
+                                if (status_fd_known(st, (int)regs.regs[0])) aux = regs.regs[1];
+                                break;
                         }
                         st->aux_addr = aux;
                         maybe_rewrite_path(cfg, pid, &regs);
@@ -1005,7 +1103,17 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                     if (st->entry_nr == 17 && st->aux_addr) {
                         rewrite_getcwd_result(cfg, pid, st->aux_addr);
                     } else if (cfg->fake_root) {
-                        fake_root_on_exit(pid, st->entry_nr, st->aux_addr);
+                        if (st->entry_nr == 56 && st->pending_status_open) {
+                            // openat 成功なら戻り fd を status fd として追跡。
+                            struct user_pt_regs r;
+                            if (get_regs(pid, &r) == 0 && (long)r.regs[0] >= 0)
+                                status_fd_add(st, (int)r.regs[0]);
+                            st->pending_status_open = 0;
+                        } else if (st->entry_nr == 63 && st->aux_addr) {
+                            fake_proc_status_on_read(pid, st->aux_addr);
+                        } else {
+                            fake_root_on_exit(pid, st->entry_nr, st->aux_addr);
+                        }
                     }
                     st->at_exit = 0;
                 }
