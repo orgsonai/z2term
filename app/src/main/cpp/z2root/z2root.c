@@ -10,8 +10,9 @@
 // 対応: aarch64 (arm64-v8a) のみ。Android API29+ の W^X 制約のため、本バイナリ自体は
 //       nativeLibraryDir に lib*.so 名で同梱して execve する (proot と同じ前提)。
 //
-// ⚠️ 未ビルド・未検証のスケルトン。難所(getcwd 逆変換 / 2パス syscall / link2symlink /
-//    /proc 偽装 / マルチスレッド)は TODO で明示。実機で小さく逐次検証して育てる。
+// 実装済: execve ローダ差し替え / getcwd 逆変換 / #! シバン解決(1段)。
+// 残り難所(2パス syscall / link2symlink / readlinkat 逆変換 / /proc 偽装 /
+//    fakeroot uid-gid / マルチスレッド)は TODO で明示。実機で小さく逐次検証して育てる。
 
 #define _GNU_SOURCE
 #include <errno.h>
@@ -256,7 +257,123 @@ static int path_arg_index(long nr) {
 // レッドゾーン確保のため sp から十分下げた所をスクラッチ基点にする。
 #define SCRATCH_OFFSET 2048
 
-// tracee の execve/execveat を傍受し、動的バイナリならローダ経由の起動へ書き換える。
+// host_path 先頭を読み、"#!" スクリプトならシバン行のインタプリタ(ゲスト視点絶対パス)を
+// interp へ、オプション引数(あれば 1 個)を arg へ。
+// 戻り値: 1=スクリプト(interp 有), 0=非スクリプト, -1=読めない。
+static int read_script_shebang(const char *host_path, char *interp, size_t icap,
+                               char *arg, size_t acap) {
+    int fd = open(host_path, O_RDONLY | O_CLOEXEC);
+    if (fd < 0) return -1;
+    char line[256];
+    ssize_t n = read(fd, line, sizeof(line) - 1);
+    close(fd);
+    if (n < 2 || line[0] != '#' || line[1] != '!') return 0;
+    line[n] = '\0';
+    char *nl = memchr(line, '\n', (size_t)n);
+    if (nl) *nl = '\0';
+    char *p = line + 2;
+    while (*p == ' ' || *p == '\t') p++;
+    char *istart = p;
+    while (*p && *p != ' ' && *p != '\t') p++;
+    if (p == istart) return 0;
+    char saved = *p;
+    *p = '\0';
+    snprintf(interp, icap, "%s", istart);
+    arg[0] = '\0';
+    if (saved) {
+        p++;
+        while (*p == ' ' || *p == '\t') p++;
+        if (*p) {
+            char *end = p + strlen(p);
+            while (end > p && (end[-1] == ' ' || end[-1] == '\t')) *--end = '\0';
+            snprintf(arg, acap, "%s", p);
+        }
+    }
+    return 1;
+}
+
+// 実行計画: ゲストのプログラムを実際に exec するための最終形を組み立てる。
+// 動的 ELF(ローダ経由) / 静的 ELF / #! スクリプト(1段) を統一して扱う。
+//   target     : execve に渡すホスト実パス
+//   prefix[]   : 合成した先頭 argv 群 (argv0 含む)
+//   orig_start : 元 argv のこの index 以降を prefix の後ろに連結する
+// 最終 argv = prefix[0..nprefix-1] + orig_argv[orig_start..]
+#define PLAN_MAX_PREFIX 8
+struct exec_plan {
+    char target[PATH_MAX_Z];
+    char prefix[PLAN_MAX_PREFIX][PATH_MAX_Z];
+    int nprefix;
+    int orig_start;
+};
+
+static void plan_push(struct exec_plan *plan, const char *s) {
+    if (plan->nprefix < PLAN_MAX_PREFIX)
+        snprintf(plan->prefix[plan->nprefix++], PATH_MAX_Z, "%s", s);
+}
+
+// guest_prog を resolve し host 実パスへ。orig_argv0 は ELF バイナリ起動時の argv0。
+static int plan_exec(const struct config *cfg, const char *guest_prog,
+                     const char *orig_argv0, struct exec_plan *plan) {
+    plan->nprefix = 0;
+    plan->orig_start = 1;  // 元 argv0 は prefix で置換するため常に [1..] を連結
+
+    char real_guest[PATH_MAX_Z];
+    resolve_guest_symlink(cfg, guest_prog, real_guest, sizeof(real_guest));
+    char host_prog[PATH_MAX_Z];
+    if (!translate_abs(cfg, real_guest, host_prog, sizeof(host_prog)))
+        snprintf(host_prog, sizeof(host_prog), "%s", real_guest);
+
+    // 1) #! スクリプト: シバンのインタプリタを起動し、スクリプトを引数に渡す。
+    char sb_interp[PATH_MAX_Z], sb_arg[PATH_MAX_Z];
+    if (read_script_shebang(host_prog, sb_interp, sizeof(sb_interp),
+                            sb_arg, sizeof(sb_arg)) == 1) {
+        char interp_real[PATH_MAX_Z];
+        resolve_guest_symlink(cfg, sb_interp, interp_real, sizeof(interp_real));
+        char host_interp[PATH_MAX_Z];
+        if (!translate_abs(cfg, interp_real, host_interp, sizeof(host_interp)))
+            snprintf(host_interp, sizeof(host_interp), "%s", interp_real);
+        char interp_loader[PATH_MAX_Z];
+        int idyn = read_elf_interp(host_interp, interp_loader, sizeof(interp_loader));
+        if (idyn == 1) {
+            char host_loader[PATH_MAX_Z];
+            if (!translate_abs(cfg, interp_loader, host_loader, sizeof(host_loader)))
+                snprintf(host_loader, sizeof(host_loader), "%s", interp_loader);
+            snprintf(plan->target, sizeof(plan->target), "%s", host_loader);
+            plan_push(plan, host_loader);
+            plan_push(plan, "--argv0");
+            plan_push(plan, sb_interp);   // インタプリタの argv0 はシバン表記どおり
+            plan_push(plan, host_interp);
+        } else {
+            snprintf(plan->target, sizeof(plan->target), "%s", host_interp);
+            plan_push(plan, sb_interp);   // argv0
+        }
+        if (sb_arg[0]) plan_push(plan, sb_arg);
+        // スクリプトパスは元のゲストパスを渡す(open 時に変換される / $0 もゲスト表記)。
+        plan_push(plan, guest_prog);
+        return 0;
+    }
+
+    // 2) 動的 ELF: rootfs 内のローダ経由で起動。
+    char interp[PATH_MAX_Z];
+    if (read_elf_interp(host_prog, interp, sizeof(interp)) == 1) {
+        char host_loader[PATH_MAX_Z];
+        if (!translate_abs(cfg, interp, host_loader, sizeof(host_loader)))
+            snprintf(host_loader, sizeof(host_loader), "%s", interp);
+        snprintf(plan->target, sizeof(plan->target), "%s", host_loader);
+        plan_push(plan, host_loader);
+        plan_push(plan, "--argv0");
+        plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : real_guest);
+        plan_push(plan, host_prog);
+        return 0;
+    }
+
+    // 3) 静的 ELF / その他: パスだけ host へ、argv0 はそのまま。
+    snprintf(plan->target, sizeof(plan->target), "%s", host_prog);
+    plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : real_guest);
+    return 0;
+}
+
+// tracee の execve/execveat を傍受し、ローダ差し替え / シバン解決を適用する。
 // path_idx: パス引数のレジスタ index (execve=0, execveat=1)。argv は +1, envp は +2。
 static void rewrite_execve(const struct config *cfg, pid_t pid,
                            struct user_pt_regs *regs, int path_idx) {
@@ -265,31 +382,6 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
 
     char guest_prog[PATH_MAX_Z];
     if (read_tracee_str(pid, path_addr, guest_prog, sizeof(guest_prog)) < 0) return;
-
-    char real_guest[PATH_MAX_Z];
-    resolve_guest_symlink(cfg, guest_prog, real_guest, sizeof(real_guest));
-    char host_prog[PATH_MAX_Z];
-    if (!translate_abs(cfg, real_guest, host_prog, sizeof(host_prog)))
-        snprintf(host_prog, sizeof(host_prog), "%s", real_guest);
-
-    char interp[PATH_MAX_Z];
-    int dyn = read_elf_interp(host_prog, interp, sizeof(interp));
-
-    if (dyn != 1) {
-        // 静的 ELF / スクリプト等: パス引数だけをホスト実パスへ差し替える。
-        // (#! スクリプトのインタプリタ書き換えは未対応 = TODO)
-        unsigned long scratch = regs->sp - SCRATCH_OFFSET;
-        size_t len = strlen(host_prog) + 1;
-        if (write_tracee_mem(pid, scratch, host_prog, len) == 0) {
-            regs->regs[path_idx] = scratch;
-            set_regs(pid, regs);
-        }
-        return;
-    }
-
-    char host_loader[PATH_MAX_Z];
-    if (!translate_abs(cfg, interp, host_loader, sizeof(host_loader)))
-        snprintf(host_loader, sizeof(host_loader), "%s", interp);
 
     // 元 argv を tracee から読む。
     unsigned long argv_addr = regs->regs[path_idx + 1];
@@ -309,44 +401,46 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
         }
     }
 
-    // 新 argv: [host_loader, "--argv0", <元argv0>, host_prog, <元args[1..]>]
-    // busybox は argv0 の basename で applet を判定するため、--argv0 で元 argv0 を保つ。
-    const char *parts[MAX_ARGS + 4];
-    int pc = 0;
-    parts[pc++] = host_loader;
-    parts[pc++] = "--argv0";
-    parts[pc++] = (n > 0) ? args[0] : real_guest;
-    parts[pc++] = host_prog;
-    for (int j = 1; j < n && pc < MAX_ARGS + 3; j++) parts[pc++] = args[j];
+    struct exec_plan plan;
+    plan_exec(cfg, guest_prog, (n > 0) ? args[0] : guest_prog, &plan);
 
-    // tracee スタック下に [文字列 blob][8B align][ポインタ配列 + NULL] を配置。
+    // 最終 argv = plan.prefix[..] + args[plan.orig_start..]
+    const char *parts[MAX_ARGS + PLAN_MAX_PREFIX];
+    int pc = 0;
+    for (int j = 0; j < plan.nprefix && pc < (int)(MAX_ARGS + PLAN_MAX_PREFIX); j++)
+        parts[pc++] = plan.prefix[j];
+    for (int j = plan.orig_start; j < n && pc < (int)(MAX_ARGS + PLAN_MAX_PREFIX); j++)
+        parts[pc++] = args[j];
+
+    // tracee スタック下に [target 文字列][argv blob][8B align][ポインタ配列 + NULL] を配置。
+    size_t target_len = strlen(plan.target) + 1;
     size_t blob_sz = 0;
     for (int j = 0; j < pc; j++) blob_sz += strlen(parts[j]) + 1;
-    size_t total = blob_sz + 8 + (size_t)(pc + 1) * 8;
+    size_t total = target_len + blob_sz + 8 + (size_t)(pc + 1) * 8;
     unsigned long base = (regs->sp - SCRATCH_OFFSET - total) & ~15UL;
 
     char blob[8192];
     if (blob_sz <= sizeof(blob)) {
-        unsigned long ptrs[MAX_ARGS + 4];
+        unsigned long blob_base = base + target_len;
+        unsigned long ptrs[MAX_ARGS + PLAN_MAX_PREFIX];
         size_t boff = 0;
         for (int j = 0; j < pc; j++) {
             size_t l = strlen(parts[j]) + 1;
             memcpy(blob + boff, parts[j], l);
-            ptrs[j] = base + boff;
+            ptrs[j] = blob_base + boff;
             boff += l;
         }
-        unsigned long arr = (base + boff + 7) & ~7UL;
+        unsigned long arr = (blob_base + boff + 7) & ~7UL;
         unsigned long nullp = 0;
-        if (write_tracee_mem(pid, base, blob, boff) == 0) {
-            int ok = 1;
-            for (int j = 0; j < pc && ok; j++)
-                ok = (write_tracee_mem(pid, arr + (unsigned long)j * 8, &ptrs[j], 8) == 0);
-            if (ok) ok = (write_tracee_mem(pid, arr + (unsigned long)pc * 8, &nullp, 8) == 0);
-            if (ok) {
-                regs->regs[path_idx] = ptrs[0];
-                regs->regs[path_idx + 1] = arr;
-                set_regs(pid, regs);
-            }
+        int ok = (write_tracee_mem(pid, base, plan.target, target_len) == 0);
+        if (ok) ok = (write_tracee_mem(pid, blob_base, blob, boff) == 0);
+        for (int j = 0; j < pc && ok; j++)
+            ok = (write_tracee_mem(pid, arr + (unsigned long)j * 8, &ptrs[j], 8) == 0);
+        if (ok) ok = (write_tracee_mem(pid, arr + (unsigned long)pc * 8, &nullp, 8) == 0);
+        if (ok) {
+            regs->regs[path_idx] = base;
+            regs->regs[path_idx + 1] = arr;
+            set_regs(pid, regs);
         }
     }
 
@@ -475,37 +569,30 @@ static int run_child(const struct config *cfg) {
     }
 
     // 最初の execve はトレーサがまだ傍受していない(このプロセス自身の呼び出し)ので、
-    // ローダ差し替えを自前で行う。動的バイナリは PT_INTERP(ローダ)を rootfs 内へ
-    // 向けて明示起動しないと、カーネルがホスト / からローダを解決して ENOENT になる。
-    const char *guest_cmd = cfg->command[0];
-    char real_guest[PATH_MAX_Z];
-    resolve_guest_symlink(cfg, guest_cmd, real_guest, sizeof(real_guest));
-    char host_cmd[PATH_MAX_Z];
-    if (!translate_abs(cfg, real_guest, host_cmd, sizeof(host_cmd)))
-        snprintf(host_cmd, sizeof(host_cmd), "%s", real_guest);
+    // ローダ差し替え / シバン解決を自前で行う。動的バイナリは PT_INTERP(ローダ)を
+    // rootfs 内へ向けて明示起動しないと、カーネルがホスト / からローダを解決して ENOENT。
+    int n = 0;
+    while (cfg->command[n]) n++;
 
-    char interp[PATH_MAX_Z];
-    if (read_elf_interp(host_cmd, interp, sizeof(interp)) == 1) {
-        char host_loader[PATH_MAX_Z];
-        if (!translate_abs(cfg, interp, host_loader, sizeof(host_loader)))
-            snprintf(host_loader, sizeof(host_loader), "%s", interp);
-        int n = 0;
-        while (cfg->command[n]) n++;
-        // [loader, "--argv0", <元argv0>, host_cmd, <元args[1..]>, NULL]
-        char **nv = malloc((size_t)(n + 5) * sizeof(char *));
+    struct exec_plan plan;
+    if (plan_exec(cfg, cfg->command[0], cfg->command[0], &plan) == 0) {
+        // [prefix..., <元args[orig_start..]>, NULL]
+        char **nv = malloc((size_t)(plan.nprefix + n + 1) * sizeof(char *));
         if (nv) {
             int k = 0;
-            nv[k++] = host_loader;
-            nv[k++] = "--argv0";
-            nv[k++] = (char *)cfg->command[0];
-            nv[k++] = host_cmd;
-            for (int j = 1; j < n; j++) nv[k++] = (char *)cfg->command[j];
+            for (int j = 0; j < plan.nprefix; j++) nv[k++] = plan.prefix[j];
+            for (int j = plan.orig_start; j < n; j++) nv[k++] = (char *)cfg->command[j];
             nv[k] = NULL;
-            execve(host_loader, nv, environ);
+            execve(plan.target, nv, environ);
             free(nv);  // execve 失敗時のみ到達
         }
     }
-    // 静的バイナリ or ローダ起動失敗時のフォールバック。
+    // フォールバック: パスだけ host へ変換して素直に exec。
+    char real_guest[PATH_MAX_Z];
+    resolve_guest_symlink(cfg, cfg->command[0], real_guest, sizeof(real_guest));
+    char host_cmd[PATH_MAX_Z];
+    if (!translate_abs(cfg, real_guest, host_cmd, sizeof(host_cmd)))
+        snprintf(host_cmd, sizeof(host_cmd), "%s", real_guest);
     execve(host_cmd, cfg->command, environ);
     fprintf(stderr, "z2root: execve(%s) failed: %s\n", host_cmd, strerror(errno));
     return 127;
