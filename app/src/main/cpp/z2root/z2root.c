@@ -31,6 +31,9 @@
 #include <sys/uio.h>
 #include <sys/user.h>
 #include <sys/wait.h>
+#include <sys/mman.h>    // mmap / mprotect (自前ローダ)
+#include <sys/auxv.h>    // getauxval (自前ローダの auxv 構築)
+#include <alloca.h>      // alloca (自前ローダの初期スタック構築)
 #include <asm/ptrace.h>  // struct user_pt_regs (aarch64 uapi)
 #include <linux/elf.h>   // NT_PRSTATUS
 
@@ -57,6 +60,8 @@ struct config {
     struct bind_entry binds[MAX_BINDS];
     int nbinds;
     char *const *command;             // 残りの argv (ゲスト視点のコマンド + 引数)
+    int use_loader;                   // 1: rootfs ELF を自前ローダ(--loader)経由で起動
+    char self_path[PATH_MAX_Z];       // /proc/self/exe (nativeLibraryDir の libz2root.so)
 };
 
 // ---- pid -> syscall entry/exit トグル の簡易マップ ----------------------------
@@ -452,7 +457,7 @@ static int read_script_shebang(const char *host_path, char *interp, size_t icap,
 //   prefix[]   : 合成した先頭 argv 群 (argv0 含む)
 //   orig_start : 元 argv のこの index 以降を prefix の後ろに連結する
 // 最終 argv = prefix[0..nprefix-1] + orig_argv[orig_start..]
-#define PLAN_MAX_PREFIX 8
+#define PLAN_MAX_PREFIX 12   // ローダ包み(["z2root","--loader",<elf>])で先頭に +3 するため余裕を持つ
 struct exec_plan {
     char target[PATH_MAX_Z];
     char prefix[PLAN_MAX_PREFIX][PATH_MAX_Z];
@@ -463,6 +468,35 @@ struct exec_plan {
 static void plan_push(struct exec_plan *plan, const char *s) {
     if (plan->nprefix < PLAN_MAX_PREFIX)
         snprintf(plan->prefix[plan->nprefix++], PATH_MAX_Z, "%s", s);
+}
+
+// use_loader 時: 実際に exec する rootfs ELF を、execve せず nativeLibraryDir 常駐の
+// 自前ローダ(libz2root.so の --loader モード)経由で起動するよう plan を包む。
+// Android の untrusted_app は app data 領域のファイルを execve できない(W^X)ため、
+// 許可されている nativeLibraryDir の libz2root.so だけを execve し、その中で対象 ELF を
+// 匿名 PROT_EXEC メモリへ手動マップして jump する(proot の libproot_loader 相当)。
+//   変換: target=<elf>, prefix=[a0,a1,...]
+//      →  target=<self libz2root.so>, prefix=["z2root","--loader",<elf>, a0,a1,...]
+static void wrap_with_loader(const struct config *cfg, struct exec_plan *plan) {
+    if (!cfg->use_loader || cfg->self_path[0] == '\0') return;
+
+    char elf[PATH_MAX_Z];
+    snprintf(elf, sizeof(elf), "%s", plan->target);
+
+    char saved[PLAN_MAX_PREFIX][PATH_MAX_Z];
+    int saved_n = plan->nprefix;
+    if (saved_n > PLAN_MAX_PREFIX) saved_n = PLAN_MAX_PREFIX;
+    for (int i = 0; i < saved_n; i++)
+        snprintf(saved[i], PATH_MAX_Z, "%s", plan->prefix[i]);
+
+    plan->nprefix = 0;
+    plan_push(plan, "z2root");      // ローダの argv0 (中身不問)
+    plan_push(plan, "--loader");
+    plan_push(plan, elf);           // 匿名メモリへマップして jump する ELF
+    for (int i = 0; i < saved_n; i++)
+        plan_push(plan, saved[i]);  // マップ先 ELF へ渡す argv (argv0 含む)
+
+    snprintf(plan->target, sizeof(plan->target), "%s", cfg->self_path);
 }
 
 // guest_prog を resolve し host 実パスへ。orig_argv0 は ELF バイナリ起動時の argv0。
@@ -508,6 +542,7 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
         if (sb_arg[0]) plan_push(plan, sb_arg);
         // スクリプトパスは元のゲストパスを渡す(open 時に変換される / $0 もゲスト表記)。
         plan_push(plan, guest_prog);
+        wrap_with_loader(cfg, plan);
         return 0;
     }
 
@@ -522,12 +557,14 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
         plan_push(plan, "--argv0");
         plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : guest_prog);
         plan_push(plan, host_prog);
+        wrap_with_loader(cfg, plan);
         return 0;
     }
 
     // 3) 静的 ELF / その他: パスだけ host へ、argv0 はそのまま。
     snprintf(plan->target, sizeof(plan->target), "%s", host_prog);
     plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : guest_prog);
+    wrap_with_loader(cfg, plan);
     return 0;
 }
 
@@ -973,10 +1010,246 @@ static int run_tracer(const struct config *cfg, pid_t child) {
     return exit_code;
 }
 
+// ---- nativeLibraryDir 常駐の自前 ELF ローダ (--loader モード) -----------------
+// Android API29+ の untrusted_app は app data 領域のファイルを execve できない(W^X /
+// SELinux)。そこで execve できるのは nativeLibraryDir 常駐の本バイナリ(libz2root.so)
+// 自身だけ。--loader モードでは、対象 ELF をファイルから読んで匿名 PROT_EXEC メモリへ
+// 手動マップし、初期スタック(argc/argv/envp/auxv)を組んで entry へ jump する。
+// execve も file-backed PROT_EXEC も使わないため W^X を回避できる(proot の
+// libproot_loader 相当を自前 GPL-3.0 コードで実装)。
+//
+// マップ対象は「PT_INTERP を持たない ELF」に限る = 動的ローダ本体(ld-musl / ld.so。
+// 自己再配置 PIE)か、静的 ELF。動的プログラムは plan_exec が ld 本体を target にする
+// ため、ここでマップするのは常に ld 本体で、その後の共有ライブラリ群は ld が
+// file-backed PROT_EXEC で mmap する(file-backed PROT_EXEC は untrusted_app でも許可。
+// execve / execute だけが W^X で禁止される)。
+
+#define PT_LOAD_Z   1
+#define PT_PHDR_Z   6
+#define PF_X_Z 1
+#define PF_W_Z 2
+#define PF_R_Z 4
+
+#define AT_NULL_Z   0
+#define AT_PHDR_Z   3
+#define AT_PHENT_Z  4
+#define AT_PHNUM_Z  5
+#define AT_PAGESZ_Z 6
+#define AT_BASE_Z   7
+#define AT_FLAGS_Z  8
+#define AT_ENTRY_Z  9
+#define AT_UID_Z    11
+#define AT_EUID_Z   12
+#define AT_GID_Z    13
+#define AT_EGID_Z   14
+#define AT_HWCAP_Z  16
+#define AT_CLKTCK_Z 17
+#define AT_SECURE_Z 23
+#define AT_RANDOM_Z 25
+#define AT_HWCAP2_Z 26
+#define AT_EXECFN_Z 31
+#define AT_SYSINFO_EHDR_Z 33
+
+__attribute__((noreturn))
+static void loader_fail(const char *msg, const char *path) {
+    fprintf(stderr, "z2root loader: %s(%s): %s\n", msg, path, strerror(errno));
+    _exit(127);
+}
+
+// path の ELF(PT_INTERP 無し)を匿名 PROT_EXEC メモリへマップし、
+// child_argv / child_envp で entry へ jump する。成功すれば戻らない。
+__attribute__((noreturn))
+static void load_elf_and_jump(const char *path, char **child_argv, char **child_envp) {
+    int fd = open(path, O_RDONLY | O_CLOEXEC);
+    if (fd < 0) loader_fail("open", path);
+
+    unsigned char eh[64];
+    if (pread(fd, eh, sizeof(eh), 0) != (ssize_t)sizeof(eh)) loader_fail("read ehdr", path);
+    if (memcmp(eh, "\x7f""ELF", 4) != 0) loader_fail("not ELF", path);
+    // 64bit LE / aarch64 前提(既存方針)。
+    unsigned long e_entry, e_phoff;
+    unsigned short e_phentsize, e_phnum, e_type;
+    memcpy(&e_type,      eh + 0x10, 2);
+    memcpy(&e_entry,     eh + 0x18, 8);
+    memcpy(&e_phoff,     eh + 0x20, 8);
+    memcpy(&e_phentsize, eh + 0x36, 2);
+    memcpy(&e_phnum,     eh + 0x38, 2);
+
+    long pagesz = sysconf(_SC_PAGESIZE);
+    if (pagesz <= 0) pagesz = 4096;
+    unsigned long pmask = (unsigned long)pagesz - 1;
+
+    // プログラムヘッダを読む(最大 MAX_PH 個)。
+    #define MAX_PH 64
+    static unsigned char ph[MAX_PH][56];
+    if (e_phnum > MAX_PH) e_phnum = MAX_PH;
+    for (unsigned i = 0; i < e_phnum; i++) {
+        if (pread(fd, ph[i], 56, (off_t)(e_phoff + (unsigned long)i * e_phentsize)) != 56)
+            loader_fail("read phdr", path);
+    }
+
+    // PT_LOAD の vaddr 範囲と PT_PHDR を求める。
+    unsigned long min_va = ~0UL, max_va = 0, pt_phdr_va = 0;
+    int has_pt_phdr = 0;
+    for (unsigned i = 0; i < e_phnum; i++) {
+        unsigned int p_type; memcpy(&p_type, ph[i], 4);
+        if (p_type == PT_PHDR_Z) { memcpy(&pt_phdr_va, ph[i] + 16, 8); has_pt_phdr = 1; }
+        if (p_type != PT_LOAD_Z) continue;
+        unsigned long p_vaddr, p_memsz;
+        memcpy(&p_vaddr, ph[i] + 16, 8);
+        memcpy(&p_memsz, ph[i] + 40, 8);
+        if (p_vaddr < min_va) min_va = p_vaddr;
+        if (p_vaddr + p_memsz > max_va) max_va = p_vaddr + p_memsz;
+    }
+    if (min_va == ~0UL) loader_fail("no PT_LOAD", path);
+
+    // ET_DYN(PIE)は連続領域を予約してから各セグメントを MAP_FIXED で埋める。
+    // ET_EXEC は p_vaddr をそのまま使う(base=0)。
+    unsigned long base = 0;
+    if (e_type == 3 /* ET_DYN */) {
+        unsigned long span = ((max_va + pmask) & ~pmask) - (min_va & ~pmask);
+        void *resv = mmap(NULL, span, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (resv == MAP_FAILED) loader_fail("reserve", path);
+        base = (unsigned long)resv - (min_va & ~pmask);
+    }
+
+    for (unsigned i = 0; i < e_phnum; i++) {
+        unsigned int p_type, p_flags;
+        memcpy(&p_type, ph[i], 4);
+        if (p_type != PT_LOAD_Z) continue;
+        memcpy(&p_flags, ph[i] + 4, 4);
+        unsigned long p_offset, p_vaddr, p_filesz, p_memsz;
+        memcpy(&p_offset, ph[i] + 8,  8);
+        memcpy(&p_vaddr,  ph[i] + 16, 8);
+        memcpy(&p_filesz, ph[i] + 32, 8);
+        memcpy(&p_memsz,  ph[i] + 40, 8);
+
+        unsigned long seg_start = (base + p_vaddr) & ~pmask;
+        unsigned long seg_end   = (base + p_vaddr + p_memsz + pmask) & ~pmask;
+        unsigned long off_in_pg = (base + p_vaddr) - seg_start;
+
+        // file-backed PROT_EXEC は W^X で不可。匿名 RW で確保→中身を read→本来の保護へ。
+        void *seg = mmap((void *)seg_start, seg_end - seg_start,
+                         PROT_READ | PROT_WRITE,
+                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+        if (seg == MAP_FAILED) loader_fail("mmap seg", path);
+        if (p_filesz > 0 &&
+            pread(fd, (char *)seg_start + off_in_pg, p_filesz, (off_t)p_offset)
+                != (ssize_t)p_filesz)
+            loader_fail("read seg", path);
+        int prot = ((p_flags & PF_R_Z) ? PROT_READ : 0) |
+                   ((p_flags & PF_W_Z) ? PROT_WRITE : 0) |
+                   ((p_flags & PF_X_Z) ? PROT_EXEC : 0);
+        if (mprotect((void *)seg_start, seg_end - seg_start, prot) != 0)
+            loader_fail("mprotect", path);
+    }
+    close(fd);
+
+    unsigned long entry    = base + e_entry;
+    unsigned long phdr_mem = has_pt_phdr ? (base + pt_phdr_va) : (base + e_phoff);
+
+    int dbg = (getenv("Z2ROOT_LOADER_DEBUG") != NULL);
+    if (dbg) {
+        fprintf(stderr, "z2root loader: type=%u base=%lx e_entry=%lx entry=%lx "
+                "phdr=%lx phnum=%u phent=%u has_ptphdr=%d\n",
+                e_type, base, e_entry, entry, phdr_mem, e_phnum, e_phentsize, has_pt_phdr);
+        fflush(stderr);
+    }
+
+    // ---- 初期スタックを現スタック上に構築して sp を切替え jump ----
+    // 対象 ELF は PT_INTERP を持たない(ld 本体 or 静的)ので、カーネルが ld を直接
+    // exec したのと同じ auxv を作る: AT_PHDR/ENTRY=この ELF 自身、AT_BASE=0。
+    // これで musl/glibc の ld は "コマンドとして起動された" と判定し argv からプログラムを
+    // 読み込む(argv は plan_exec が ["--argv0", <prog>, ...] を組んでいる)。
+    int argc_n = 0; while (child_argv[argc_n]) argc_n++;
+    int envc_n = 0; while (child_envp[envc_n]) envc_n++;
+
+    unsigned long av[][2] = {
+        { AT_PHDR_Z,   phdr_mem },
+        { AT_PHENT_Z,  e_phentsize },
+        { AT_PHNUM_Z,  e_phnum },
+        { AT_PAGESZ_Z, (unsigned long)pagesz },
+        { AT_BASE_Z,   0 },
+        { AT_FLAGS_Z,  0 },
+        { AT_ENTRY_Z,  entry },
+        { AT_UID_Z,    getauxval(AT_UID_Z) },
+        { AT_EUID_Z,   getauxval(AT_EUID_Z) },
+        { AT_GID_Z,    getauxval(AT_GID_Z) },
+        { AT_EGID_Z,   getauxval(AT_EGID_Z) },
+        { AT_SECURE_Z, 0 },
+        { AT_RANDOM_Z, getauxval(AT_RANDOM_Z) },
+        { AT_HWCAP_Z,  getauxval(AT_HWCAP_Z) },
+        { AT_HWCAP2_Z, getauxval(AT_HWCAP2_Z) },
+        { AT_CLKTCK_Z, getauxval(AT_CLKTCK_Z) },
+        { AT_SYSINFO_EHDR_Z, getauxval(AT_SYSINFO_EHDR_Z) },
+        { AT_EXECFN_Z, (unsigned long)child_argv[0] },
+    };
+    int naux = (int)(sizeof(av) / sizeof(av[0]));
+
+    // ワード数: argc + (argv..+NULL) + (envp..+NULL) + (auxv..*2 + AT_NULL ペア)
+    int words = 1 + (argc_n + 1) + (envc_n + 1) + (naux * 2 + 2);
+
+    // 現スタック下端に領域を確保(jump 後はこのフレームの直下=より低位へ伸びる)。
+    // 16B 整列のため上方向に丸める(確保領域内に収める)。
+    unsigned long ap = (unsigned long)alloca((size_t)words * 8 + 16);
+    unsigned long *sp = (unsigned long *)((ap + 15) & ~15UL);
+
+    unsigned long *w = sp;
+    *w++ = (unsigned long)argc_n;
+    for (int i = 0; i < argc_n; i++) *w++ = (unsigned long)child_argv[i];
+    *w++ = 0;
+    for (int i = 0; i < envc_n; i++) *w++ = (unsigned long)child_envp[i];
+    *w++ = 0;
+    for (int i = 0; i < naux; i++) { *w++ = av[i][0]; *w++ = av[i][1]; }
+    *w++ = AT_NULL_Z; *w++ = 0;
+
+    if (dbg) {
+        fprintf(stderr, "z2root loader: argc=%d envc=%d words=%d sp=%p JUMPING\n",
+                argc_n, envc_n, words, (void *)sp);
+        fflush(stderr);
+    }
+
+    // sp を新フレームへ、x0=0(rtld_fini) で entry へ分岐。戻らない。
+    __asm__ volatile(
+        "mov sp, %0\n"
+        "mov x0, #0\n"
+        "br  %1\n"
+        : : "r"(sp), "r"(entry) : "memory", "x0");
+    __builtin_unreachable();
+}
+
+// --loader <elf> <argv0> [args...]: 自前ローダのエントリ。戻らない(失敗時のみ _exit)。
+__attribute__((noreturn))
+static void loader_main(int argc, char **argv) {
+    if (getenv("Z2ROOT_LOADER_DEBUG")) {
+        char b[256];
+        int l = snprintf(b, sizeof(b), "z2root loader_main: argc=%d a1=%s a2=%s a3=%s\n",
+                         argc, argc>1?argv[1]:"-", argc>2?argv[2]:"-", argc>3?argv[3]:"-");
+        write(2, b, l);
+    }
+    if (argc < 4) {
+        fprintf(stderr, "z2root loader: usage: --loader <elf> <argv0> [args...]\n");
+        _exit(2);
+    }
+    load_elf_and_jump(argv[2], &argv[3], environ);
+}
+
 int main(int argc, char **argv) {
+    // --loader モード(自分自身を nativeLibraryDir から execve して入る)を最優先で分岐。
+    if (argc >= 2 && strcmp(argv[1], "--loader") == 0) loader_main(argc, argv);
+
     struct config cfg;
     char *const *command = parse_args(argc, argv, &cfg);
     cfg.command = command;
+
+    // 自前ローダ経路: 自分(libz2root.so, nativeLibraryDir 常駐)の実パスを得る。
+    // 取得できれば use_loader=1。Z2ROOT_NO_LOADER=1 で旧来の直接 execve 経路へ退避可。
+    cfg.use_loader = 0;
+    cfg.self_path[0] = '\0';
+    if (!getenv("Z2ROOT_NO_LOADER")) {
+        ssize_t sl = readlink("/proc/self/exe", cfg.self_path, sizeof(cfg.self_path) - 1);
+        if (sl > 0) { cfg.self_path[sl] = '\0'; cfg.use_loader = 1; }
+    }
 
     pid_t child = fork();
     if (child < 0) { perror("fork"); return 1; }

@@ -30,7 +30,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.24-alpha (versionCode 32) — 自前 ptrace エンジン「z2root」に `--link2symlink` を実装（ハードリンクを symlink に化かして Android アプリ内ストレージの `link()` `EACCES` を回避。`apt`/`dpkg`/一部 `apk` 対策。aarch64 では `linkat`→`symlinkat` を `NT_ARM_SYSTEM_CALL` で差し替え）。また実機（実アプリ）で z2root を初めて起動確認した結果、**配線（エンジン選択→ `libz2root.so` 起動・引数受け渡し）は動くが、実アプリ（`untrusted_app`）では自分の data 領域のファイルを `execve` できない（W^X / SELinux）ため、rootfs 内ローダを `execve` する現方式では起動できない**ことが判明（PRoot は `libproot_loader` でこれを回避済み）。z2root の次の本丸は nativeLibraryDir 常駐の自前ローダ（ELF を匿名実行メモリへマップ）。エンジンは引き続き実験的で、裏のエンジン選択（バージョン 7 タップ）から選べる（既定・実用は PRoot）。FOSS フレーバーは引き続き Alpine rootfs を APK から外し、起動時に公式 minirootfs を DL する**
+**0.8.25-alpha (versionCode 33) — z2root の次の本丸＝nativeLibraryDir 常駐の自前 ELF ローダ（`--loader` モード）に着手。ELF を匿名実行メモリへ手動マップして jump することで、`untrusted_app` が W^X / SELinux で禁じる「自分の data 領域のファイルの `execve`」を一切使わない方式（0.8.24 で判明した詰まりの解決策）。**WIP・まだ動かない**: `libz2root.so` を `-static-pie` でビルドすることで第1の実機クラッシュ（ptrace 配下で bionic リンカの `/proc/self/exe` 解決がトレーサのパス変換に壊される件）は解消したが、ローダが自身のエントリ到達前に segfault する（原因調査中・static-PIE bionic の起動ランタイムを疑う）。既定・実用エンジンは引き続き PRoot、z2root は裏のエンジン選択（バージョン 7 タップ）の実験機能のまま。FOSS フレーバーは引き続き Alpine rootfs を APK から外し、起動時に公式 minirootfs を DL する**
 
 Milestone 7〜12 で SFTP、GUI (Xvnc+VNC)、複数 GUI タブ、IME 学習、英語 UI、横画面キーボード、スクロールバック検索、セッション復元、root 端末向け chroot エンジン、GUI 音声/動画再生などを実装。0.8.4 で日本語かな漢字変換を長文向けに強化。0.8.5 以降で UI/キーボードの細かな改善と各種修正を継続。
 

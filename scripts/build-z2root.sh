@@ -47,9 +47,12 @@ mkdir -p "${OUT_DIR}"
 OUT="${OUT_DIR}/libz2root.so"
 
 echo "[info] building z2root (aarch64, API ${API}) ..."
+# -static-pie 必須: --loader モード(自前 ELF ローダ)では本バイナリ自体がローダ子として
+# ptrace 配下で起動するが、動的リンクだと bionic リンカの /proc/self/exe 解決が
+# トレーサのパス変換に壊され SIGABRT する。静的化して bionic リンカ自体を無くすことで回避。
 "${CC}" \
     -std=c11 -O2 -Wall -Wextra \
-    -fPIE -pie \
+    -static-pie \
     -o "${OUT}" \
     "${SRC}"
 
