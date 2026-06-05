@@ -13,8 +13,9 @@
 // 実装済: execve ローダ差し替え / getcwd 逆変換 / #! シバン解決(1段) /
 //    canonicalize(パス内 symlink 解決 + . / .. 畳み) / cwd 相対パス絶対化(/proc/<pid>/cwd) /
 //    dirfd 相対パスの非変換(*at の dirfd 委譲) / 2パス syscall(rename/link/symlink) /
-//    相対 exec パス解決。
-// 残り難所(link2symlink / readlinkat 戻り値逆変換 / /proc 偽装 / fakeroot uid-gid /
+//    相対 exec パス解決 / fakeroot(-0) uid-gid 偽装(get*id→0 / getgroups→0個 /
+//    set*id・chown 失敗の成功偽装 / stat の uid-gid→0)。
+// 残り難所(link2symlink / readlinkat 戻り値逆変換 / /proc 偽装 /
 //    マルチスレッド境界の厳密化)は TODO で明示。実機で小さく逐次検証して育てる。
 
 #define _GNU_SOURCE
@@ -617,6 +618,47 @@ static void rewrite_getcwd_result(const struct config *cfg, pid_t pid, unsigned 
     }
 }
 
+// fakeroot(-0): syscall-exit で uid/gid 関連の戻り値・構造体を root(0) に偽装する。
+// proot の -0 相当。ホストのアプリ uid/gid がゲストへ露出するのを防ぎ、root 前提の
+// パッケージ操作(apk/apt の chown 等)が EPERM で失敗しないよう成功に見せる。
+//   - getuid/geteuid/getgid/getegid → 0
+//   - getgroups → 補助グループ 0 個(ホスト gid の露出を消す。id の groups が root だけになる)
+//   - set*id / fchownat / fchown が EPERM 等で失敗したら成功(0)に握りつぶす
+//   - newfstatat/fstat/statx の結果は st_uid/st_gid を 0 に上書き(所有者を root に見せる)
+// buf は entry で記録した stat 系の出力バッファアドレス(stat 以外では未使用)。
+static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
+    struct user_pt_regs regs;
+    if (get_regs(pid, &regs) != 0) return;
+    long ret = (long)regs.regs[0];
+
+    switch (nr) {
+        case 174: case 175: case 176: case 177:  // getuid/geteuid/getgid/getegid
+            regs.regs[0] = 0; set_regs(pid, &regs); return;
+        case 158:  // getgroups: 補助グループ 0 個に偽装(ホスト gid を隠す)
+            if (ret >= 0) { regs.regs[0] = 0; set_regs(pid, &regs); }
+            return;
+        // set*id / chown 系: 失敗(EPERM 等)を成功(0)へ。ホスト権限は実際には変わらない。
+        case 143: case 144: case 145: case 146: case 147: case 149:
+        case 151: case 152: case 159: case 54: case 55:
+            if (ret < 0) { regs.regs[0] = 0; set_regs(pid, &regs); }
+            return;
+        case 79: case 80: {  // newfstatat / fstat: struct stat の st_uid(off24)/st_gid(off28)
+            unsigned int zero = 0;
+            if (ret != 0 || buf == 0) return;
+            write_tracee_mem(pid, buf + 24, &zero, 4);
+            write_tracee_mem(pid, buf + 28, &zero, 4);
+            return;
+        }
+        case 291: {  // statx: stx_uid(off20)/stx_gid(off24)
+            unsigned int zero = 0;
+            if (ret != 0 || buf == 0) return;
+            write_tracee_mem(pid, buf + 20, &zero, 4);
+            write_tracee_mem(pid, buf + 24, &zero, 4);
+            return;
+        }
+    }
+}
+
 static void maybe_rewrite_path(const struct config *cfg, pid_t pid, struct user_pt_regs *regs) {
     long nr = (long)regs->regs[8];
     if (nr == 221) { rewrite_execve(cfg, pid, regs, 0); return; }  // execve
@@ -807,15 +849,23 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                     struct user_pt_regs regs;
                     if (get_regs(pid, &regs) == 0) {
                         st->entry_nr = (long)regs.regs[8];
-                        st->aux_addr = (st->entry_nr == 17) ? regs.regs[0] : 0;  // getcwd buf
+                        unsigned long aux = 0;
+                        if (st->entry_nr == 17) aux = regs.regs[0];  // getcwd buf
+                        else if (cfg->fake_root) switch (st->entry_nr) {  // stat 出力バッファ
+                            case 80:  aux = regs.regs[1]; break;  // fstat
+                            case 79:  aux = regs.regs[2]; break;  // newfstatat
+                            case 291: aux = regs.regs[4]; break;  // statx
+                        }
+                        st->aux_addr = aux;
                         maybe_rewrite_path(cfg, pid, &regs);
                     }
                     st->at_exit = 1;
                 } else if (st) {
-                    // syscall-exit: 戻り値の逆変換。
-                    // TODO: readlinkat のリンク先逆変換もここに足す。
+                    // syscall-exit: 戻り値・構造体の逆変換 / 偽装。
                     if (st->entry_nr == 17 && st->aux_addr) {
                         rewrite_getcwd_result(cfg, pid, st->aux_addr);
+                    } else if (cfg->fake_root) {
+                        fake_root_on_exit(pid, st->entry_nr, st->aux_addr);
                     }
                     st->at_exit = 0;
                 }
