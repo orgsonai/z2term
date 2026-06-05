@@ -15,7 +15,11 @@
 //    dirfd 相対パスの非変換(*at の dirfd 委譲) / 2パス syscall(rename/link/symlink) /
 //    相対 exec パス解決 / fakeroot(-0) uid-gid 偽装(get*id→0 / getgroups→0個 /
 //    set*id・chown 失敗の成功偽装 / stat の uid-gid→0) /
-//    link2symlink(linkat→symlinkat。Android FS の link() EACCES を symlink で回避)。
+//    link2symlink(linkat→symlinkat。Android FS の link() EACCES を symlink で回避) /
+//    rootfs/bind.host の起動時 realpath 正規化(アプリの mount namespace は
+//    /data/user/0/<pkg> を /data/data/<pkg> へ解決するため、chdir 後 getcwd が返す
+//    canonical 形と bind.host(context.filesDir 由来の /data/user/0 形)が食い違い、
+//    pwd / 相対 ls がホスト cwd を露出していた。両者を realpath で揃えて解消)。
 // 残り難所(readlinkat 戻り値逆変換 / /proc 偽装 /
 //    マルチスレッド境界の厳密化)は TODO で明示。実機で小さく逐次検証して育てる。
 
@@ -842,6 +846,17 @@ static void usage_die(const char *me) {
     exit(2);
 }
 
+// ホスト実パスを正規化(realpath)して in-place 置換する。存在しなければ据え置き。
+// 理由: Android の app data は /data/user/0/<pkg> が /data/data/<pkg> への symlink。
+//   chdir 後に /proc/<pid>/cwd が返すのは「正規化後」のホストパス(/data/data/...)
+//   だが、ProotLauncher が渡す bind.host / rootfs は非正規パス(/data/user/0/...)の
+//   ことがある。揃えておかないと host_to_guest の照合が外れ、pwd や相対パス(ls .)が
+//   ホスト実パスを露出する(getcwd 逆変換が効かず、相対 . の stat が rootfs+host で ENOENT)。
+static void canon_host_inplace(char *path, size_t cap) {
+    char resolved[PATH_MAX_Z];
+    if (realpath(path, resolved)) snprintf(path, cap, "%s", resolved);
+}
+
 static void add_bind(struct config *cfg, const char *spec) {
     if (cfg->nbinds >= MAX_BINDS) return;
     struct bind_entry *b = &cfg->binds[cfg->nbinds];
@@ -857,6 +872,7 @@ static void add_bind(struct config *cfg, const char *spec) {
         snprintf(b->host, sizeof(b->host), "%s", spec);
         snprintf(b->guest, sizeof(b->guest), "%s", spec);
     }
+    canon_host_inplace(b->host, sizeof(b->host));  // /proc/<pid>/cwd と照合できる正規パスへ
     b->guest_len = strlen(b->guest);
     cfg->nbinds++;
 }
@@ -880,6 +896,7 @@ static char *const *parse_args(int argc, char **argv, struct config *cfg) {
         else { /* 未知オプションは無視 (proot 互換のため寛容に) */ }
     }
     if (cfg->rootfs[0] == '\0' || i >= argc) usage_die(argv[0]);
+    canon_host_inplace(cfg->rootfs, sizeof(cfg->rootfs));  // bind と同様 /proc/<pid>/cwd と揃える
     cfg->rootfs_len = strlen(cfg->rootfs);
     // 末尾の "/" は剥がす (二重スラッシュ防止)。
     while (cfg->rootfs_len > 1 && cfg->rootfs[cfg->rootfs_len - 1] == '/') {
