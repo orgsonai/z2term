@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-06-05 / Target version: 0.8.20-alpha (versionCode 28)
+Last updated: 2026-06-05 / Target version: 0.8.21-alpha (versionCode 29)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -134,7 +134,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 - Idempotently injected on every launch: `ensureShellHistoryConfig` (history rc), `ensureSshdWrapper` (`/usr/local/sbin/sshd` = dropbear wrapper), `ensureOsc7CwdConfig` (OSC7 hook for cwd restore), `ensureZ2ApiScripts` (`z2-*` bridge), GUI/z2run scripts.
 - `launchAndroidSh`: fallback when proot isn't possible (`/system/bin/sh` + minimal mkshrc).
 
-**Execution engine z2root (hidden feature, no root, experimental)**: when `executionEngine = "z2root"`, `launch()` swaps the binary to `nativeLibraryDir/libz2root.so` (our own ptrace engine). It accepts a proot-compatible argv subset, so the args/env are reused as-is (`PROOT_*`/talloc are ignored by z2root). If `libz2root.so` is not bundled (`scripts/build-z2root.sh` not run), it falls back to PRoot. This is the concrete deliverable of phase 2 (zeroing FOSS third-party notices); see `docs/FOSS-PURE-HANDOFF.md` §5.
+**Execution engine z2root (hidden feature, no root, experimental)**: when `executionEngine = "z2root"`, `launch()` swaps the binary to `nativeLibraryDir/libz2root.so` (our own ptrace engine). It accepts a proot-compatible argv subset, so the args/env are reused as-is (`PROOT_*`/talloc are ignored by z2root). If `libz2root.so` is not bundled (`scripts/build-z2root.sh` not run), it falls back to PRoot. Path translation is hardened to be proot-equivalent (canonicalization of in-path symlinks / absolutizing cwd-relative paths via `/proc/<tid>/cwd` / leaving `dirfd`-relative paths untranslated / two-pass translation for `renameat2`/`linkat`/`symlinkat` / execve loader swap and `#!` shebang resolution). This is the concrete deliverable of phase 2 (zeroing FOSS third-party notices); see `docs/FOSS-PURE-HANDOFF.md` §5.
 
 **Execution engine chroot (hidden feature, requires root)**: when `executionEngine = "chroot"`, `launchChroot()` is used.
 

@@ -23,14 +23,14 @@ and lets you install any command through package managers like `pacman` / `apt`.
 **You can download the latest APK directly from GitHub Releases** (no build needed):
 
 - Go to the latest: **<https://github.com/orgsonai/z2term/releases/latest>**
-- 0.8.20-alpha direct link: [z2term-0.8.20-alpha.apk](https://github.com/orgsonai/z2term/releases/download/v0.8.20-alpha/z2term-0.8.20-alpha.apk)
+- 0.8.21-alpha direct link: [z2term-0.8.21-alpha.apk](https://github.com/orgsonai/z2term/releases/download/v0.8.21-alpha/z2term-0.8.21-alpha.apk)
 
 Tap the APK on your Android device → allow "Install from unknown sources" to install.
 (The `full` flavor bundles prebuilts, so the APK works standalone. Not distributed on Google Play.)
 
 ## Current version
 
-**0.8.20-alpha (versionCode 28) — The in-house ptrace engine "z2root" now resolves `#!` shebang scripts (it execs the interpreter from the rootfs, via the dynamic loader when needed) so shell/awk/env scripts run correctly. The engine is still experimental and selectable from the hidden engine selector (tap the version 7x); it falls back to PRoot when not bundled. FOSS flavor still excludes the Alpine rootfs from the APK and downloads the upstream minirootfs at runtime.**
+**0.8.21-alpha (versionCode 29) — The in-house ptrace engine "z2root" gained proot-style path canonicalization: it now resolves symlinks inside paths within the rootfs (so absolute symlinks no longer escape to the host `/`), absolutizes cwd-relative paths via `/proc/<tid>/cwd` while leaving `dirfd`-relative paths to the kernel, translates both paths of two-pass syscalls (`renameat2`/`linkat`/`symlinkat`), and resolves relative exec paths. Verified against PRoot in the dev environment. The engine is still experimental and selectable from the hidden engine selector (tap the version 7x); it falls back to PRoot when not bundled. FOSS flavor still excludes the Alpine rootfs from the APK and downloads the upstream minirootfs at runtime.**
 
 Milestones 7–12 implemented SFTP, GUI (Xvnc+VNC), multiple GUI tabs, IME learning, English UI, landscape keyboard, scrollback search, session restore, a chroot engine for rooted devices, and GUI audio/video playback. 0.8.4 strengthened Japanese kana-kanji conversion for long sentences. Since 0.8.5, small UI/keyboard improvements and various fixes have continued.
 

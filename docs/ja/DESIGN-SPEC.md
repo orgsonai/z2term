@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-05 / 対象バージョン: 0.8.20-alpha (versionCode 28)
+最終更新: 2026-06-05 / 対象バージョン: 0.8.21-alpha (versionCode 29)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -135,7 +135,7 @@
 - 起動毎に冪等で注入: `ensureShellHistoryConfig` (履歴 rc)、`ensureSshdWrapper` (`/usr/local/sbin/sshd` = dropbear ラッパー)、`ensureOsc7CwdConfig` (cwd 復元用 OSC7 フック)、`ensureZ2ApiScripts` (`z2-*` ブリッジ)、GUI/z2run スクリプト。
 - `launchAndroidSh`: proot 不可時のフォールバック (`/system/bin/sh` + 最小 mkshrc)。
 
-**実行エンジン z2root (裏機能・非 root・実験的)**: `executionEngine = "z2root"` のとき、`launch()` がバイナリを `nativeLibraryDir/libz2root.so`（自前 ptrace エンジン）に差し替える。proot 互換 argv subset を受けるので引数・env はそのまま流用（`PROOT_*`/talloc は z2root が無視）。`libz2root.so` 未同梱（`scripts/build-z2root.sh` 未実行）の場合は proot へフォールバック。フェーズ2（FOSS の外部表記ゼロ化）の実体で、詳細は `docs/FOSS-PURE-HANDOFF.md` §5。
+**実行エンジン z2root (裏機能・非 root・実験的)**: `executionEngine = "z2root"` のとき、`launch()` がバイナリを `nativeLibraryDir/libz2root.so`（自前 ptrace エンジン）に差し替える。proot 互換 argv subset を受けるので引数・env はそのまま流用（`PROOT_*`/talloc は z2root が無視）。`libz2root.so` 未同梱（`scripts/build-z2root.sh` 未実行）の場合は proot へフォールバック。パス変換は proot 相当に強化済み（パス内 symlink の canonicalize / `/proc/<tid>/cwd` による cwd 相対パス絶対化 / `dirfd` 相対は非変換 / `renameat2`・`linkat`・`symlinkat` の2パス変換 / execve ローダ差し替え・`#!` シバン解決）。フェーズ2（FOSS の外部表記ゼロ化）の実体で、詳細は `docs/FOSS-PURE-HANDOFF.md` §5。
 
 **実行エンジン chroot (裏機能・要 root)**: `executionEngine = "chroot"` のとき `launchChroot()` を使う。
 

@@ -10,9 +10,12 @@
 // 対応: aarch64 (arm64-v8a) のみ。Android API29+ の W^X 制約のため、本バイナリ自体は
 //       nativeLibraryDir に lib*.so 名で同梱して execve する (proot と同じ前提)。
 //
-// 実装済: execve ローダ差し替え / getcwd 逆変換 / #! シバン解決(1段)。
-// 残り難所(2パス syscall / link2symlink / readlinkat 逆変換 / /proc 偽装 /
-//    fakeroot uid-gid / マルチスレッド)は TODO で明示。実機で小さく逐次検証して育てる。
+// 実装済: execve ローダ差し替え / getcwd 逆変換 / #! シバン解決(1段) /
+//    canonicalize(パス内 symlink 解決 + . / .. 畳み) / cwd 相対パス絶対化(/proc/<pid>/cwd) /
+//    dirfd 相対パスの非変換(*at の dirfd 委譲) / 2パス syscall(rename/link/symlink) /
+//    相対 exec パス解決。
+// 残り難所(link2symlink / readlinkat 戻り値逆変換 / /proc 偽装 / fakeroot uid-gid /
+//    マルチスレッド境界の厳密化)は TODO で明示。実機で小さく逐次検証して育てる。
 
 #define _GNU_SOURCE
 #include <errno.h>
@@ -156,6 +159,127 @@ static int translate_abs(const struct config *cfg, const char *guest_path, char 
     return 1;
 }
 
+// ホスト実パス host を、ゲスト視点の絶対パスへ逆変換して buf へ。
+//  1) bind.host 配下 → bind.guest + 残り。 2) rootfs 配下 → 残り。
+//  3) いずれでもない → そのまま(ホスト=ゲストとみなす)。戻り値は buf。
+static const char *host_to_guest(const struct config *cfg, const char *host,
+                                 char *buf, size_t cap) {
+    for (int i = 0; i < cfg->nbinds; i++) {
+        const struct bind_entry *b = &cfg->binds[i];
+        size_t hl = strlen(b->host);
+        if (strncmp(host, b->host, hl) == 0 && (host[hl] == '/' || host[hl] == '\0')) {
+            snprintf(buf, cap, "%s%s", b->guest, host + hl);
+            return buf;
+        }
+    }
+    if (strncmp(host, cfg->rootfs, cfg->rootfs_len) == 0 &&
+        (host[cfg->rootfs_len] == '/' || host[cfg->rootfs_len] == '\0')) {
+        const char *g = host + cfg->rootfs_len;
+        snprintf(buf, cap, "%s", g[0] ? g : "/");
+        return buf;
+    }
+    snprintf(buf, cap, "%s", host);
+    return buf;
+}
+
+// ゲスト絶対パス in を、proot 相当に「正規化(. / .. を畳む)＋パス内 symlink を
+// rootfs 内で逐次解決」して、ゲスト絶対パス out(symlink を含まない)を返す。
+// deref_final=1 なら最終コンポーネントの symlink も辿る(open/stat 等)。0 なら
+// 最終要素はそのまま残す(lstat/unlinkat/readlinkat/新規作成名など)。
+// これを通すと openat 等に渡るホストパスが symlink を一切含まなくなり、絶対
+// symlink がホスト "/" を指して ENOENT になる問題(Alpine の /bin 等)を防ぐ。
+static void canonicalize_guest(const struct config *cfg, const char *in,
+                               int deref_final, char *out, size_t cap) {
+    char result[PATH_MAX_Z];   // 構築中のゲスト絶対パス(末尾 "/" 無し。"" は "/")
+    char pending[PATH_MAX_Z];  // 未処理の残りパス
+    result[0] = '\0';
+    snprintf(pending, sizeof(pending), "%s", in);
+
+    size_t pi = 0;
+    while (pending[pi] == '/') pi++;
+    int guard = 0;
+    while (pending[pi] != '\0') {
+        if (++guard > 512) break;  // symlink ループ保護
+
+        char comp[PATH_MAX_Z];
+        size_t ci = 0;
+        while (pending[pi] != '/' && pending[pi] != '\0' && ci < sizeof(comp) - 1)
+            comp[ci++] = pending[pi++];
+        comp[ci] = '\0';
+        while (pending[pi] == '/') pi++;
+        int is_last = (pending[pi] == '\0');
+
+        if (comp[0] == '\0' || strcmp(comp, ".") == 0) continue;
+        if (strcmp(comp, "..") == 0) {
+            char *s = strrchr(result, '/');
+            if (s) *s = '\0'; else result[0] = '\0';
+            continue;
+        }
+
+        char cand[PATH_MAX_Z];
+        snprintf(cand, sizeof(cand), "%s/%s", result, comp);
+
+        if (!is_last || deref_final) {
+            char host[PATH_MAX_Z];
+            if (translate_abs(cfg, cand, host, sizeof(host))) {
+                char link[PATH_MAX_Z];
+                ssize_t ln = readlink(host, link, sizeof(link) - 1);
+                if (ln >= 0) {
+                    link[ln] = '\0';
+                    char rest[PATH_MAX_Z];
+                    snprintf(rest, sizeof(rest), "%s", pending + pi);
+                    // 絶対 symlink: ルートから。相対 symlink: 親(=現 result)基準。
+                    if (link[0] == '/') result[0] = '\0';
+                    if (rest[0])
+                        snprintf(pending, sizeof(pending), "%s/%s", link, rest);
+                    else
+                        snprintf(pending, sizeof(pending), "%s", link);
+                    pi = 0;
+                    while (pending[pi] == '/') pi++;
+                    continue;
+                }
+            }
+        }
+        snprintf(result, sizeof(result), "%s", cand);
+    }
+    if (result[0] == '\0') snprintf(out, cap, "/");
+    else snprintf(out, cap, "%s", result);
+}
+
+// tracee の syscall パス引数(絶対 or cwd 相対)を、symlink 解決込みのホスト実パスへ。
+// 相対パスは /proc/<tid>/cwd(ホスト実パス)をゲスト cwd へ逆変換して絶対化する。
+// 戻り値: 0=変換した(host_out 有効), -1=変換不要/不可(既に rootfs 配下/空 等)。
+// dirfd: パスの基準となる *at の dirfd(無い syscall は AT_FDCWD を渡す)。
+// 相対パスは dirfd==AT_FDCWD のときだけ cwd 基準で絶対化する。実 fd 基準
+// (dirfd != AT_FDCWD)の相対パスは触らない(絶対化すると dirfd が無視され壊れる)。
+static int host_path_for(const struct config *cfg, pid_t pid, const char *in_path,
+                         int deref_final, long dirfd, char *host_out, size_t cap) {
+    if (in_path[0] == '\0') return -1;
+    // 自前で書いた scratch(既にホスト rootfs 配下)を二重変換しない。
+    if (strncmp(in_path, cfg->rootfs, cfg->rootfs_len) == 0) return -1;
+
+    char guest_abs[PATH_MAX_Z];
+    if (in_path[0] == '/') {
+        snprintf(guest_abs, sizeof(guest_abs), "%s", in_path);
+    } else {
+        if (dirfd != AT_FDCWD) return -1;  // fd 相対は dirfd に委ねる
+        char proc[64], host_cwd[PATH_MAX_Z];
+        snprintf(proc, sizeof(proc), "/proc/%d/cwd", (int)pid);
+        ssize_t n = readlink(proc, host_cwd, sizeof(host_cwd) - 1);
+        if (n < 0) return -1;
+        host_cwd[n] = '\0';
+        char guest_cwd[PATH_MAX_Z];
+        host_to_guest(cfg, host_cwd, guest_cwd, sizeof(guest_cwd));
+        snprintf(guest_abs, sizeof(guest_abs), "%s/%s", guest_cwd, in_path);
+    }
+
+    char resolved[PATH_MAX_Z];
+    canonicalize_guest(cfg, guest_abs, deref_final, resolved, sizeof(resolved));
+    if (!translate_abs(cfg, resolved, host_out, cap))
+        snprintf(host_out, cap, "%s", resolved);
+    return 0;
+}
+
 // ---- execve ローダ差し替え (FOSS フェーズ2 §5-2(b)) ----------------------------
 // 動的 ELF はカーネルが PT_INTERP(動的ローダ)を「ホストの /」から解決するため、
 // rootfs 内の musl/glibc ローダが見つからず ENOENT になる。proot と同様に
@@ -228,28 +352,45 @@ static void resolve_guest_symlink(const struct config *cfg, const char *guest_in
     snprintf(out, cap, "%s", cur);
 }
 
-// syscall 番号 -> パス引数のレジスタindex。複数パス syscall は TODO (最小版は1パスのみ)。
-// aarch64 は open/stat/access の素の形を持たず *at が中心。x0=arg0 ... x5=arg5。
-static int path_arg_index(long nr) {
+// syscall のパス引数記述子。aarch64 は open/stat/access の素の形を持たず *at が中心。
+// x0=arg0 ... x5=arg5。2 パス syscall(rename/link/symlink)は最大 2 要素。
+//   idx      : パス文字列を指すレジスタ index
+//   dirfd_reg: そのパスの基準 dirfd レジスタ index(-1=dirfd 無し=常に cwd 基準)
+//   deref    : 最終コンポーネントの symlink を辿るか(1=follow, 0=最終はそのまま)
+//   flag_reg : AT_SYMLINK_* で deref が動的に決まる場合のフラグレジスタ index(無ければ -1)
+//   flag_follow_bit / flag_nofollow_bit: 立っていれば follow/非follow に倒すビット
+struct path_arg { int idx; int dirfd_reg; int deref; int flag_reg; int flag_follow_bit; int flag_nofollow_bit; };
+struct sc_paths { struct path_arg a[2]; int n; };
+
+// nr のパス引数記述を out へ。対象外なら 0、対象なら 1。
+static int syscall_paths(long nr, struct sc_paths *out) {
+    out->n = 0;
+    struct path_arg *p = out->a;
     switch (nr) {
-        case 56:  return 1;  // openat       (dirfd, path, ...)
-        case 437: return 1;  // openat2
-        case 79:  return 1;  // newfstatat   (dirfd, path, ...)
-        case 291: return 1;  // statx        (dirfd, path, ...)
-        case 48:  return 1;  // faccessat
-        case 439: return 1;  // faccessat2
-        case 78:  return 1;  // readlinkat   (TODO: 戻り値のシンボリックリンク先逆変換)
-        case 35:  return 1;  // unlinkat
-        case 34:  return 1;  // mkdirat
-        case 33:  return 1;  // mknodat
-        case 53:  return 1;  // fchmodat
-        case 54:  return 1;  // fchownat
-        case 281: return 1;  // execveat
-        case 221: return 0;  // execve       (path, argv, envp)
-        case 49:  return 0;  // chdir        (path)   ※ getcwd 逆変換は未実装(TODO)
-        case 43:  return 0;  // statfs
-        default:  return -1;
+        case 56:  case 437: p[out->n++] = (struct path_arg){1, 0, 1, -1, 0, 0}; break;    // openat/openat2
+        case 79:  p[out->n++] = (struct path_arg){1, 0, 1, 3, 0, 0x100}; break;           // newfstatat (flags arg3)
+        case 291: p[out->n++] = (struct path_arg){1, 0, 1, 2, 0, 0x100}; break;           // statx (flags arg2)
+        case 48:  case 439: p[out->n++] = (struct path_arg){1, 0, 1, 3, 0, 0x100}; break; // faccessat/2 (flags arg3)
+        case 78:  p[out->n++] = (struct path_arg){1, 0, 0, -1, 0, 0}; break;              // readlinkat (最終は辿らない)
+        case 35:  p[out->n++] = (struct path_arg){1, 0, 0, -1, 0, 0}; break;              // unlinkat
+        case 34:  p[out->n++] = (struct path_arg){1, 0, 0, -1, 0, 0}; break;              // mkdirat (新規名)
+        case 33:  p[out->n++] = (struct path_arg){1, 0, 0, -1, 0, 0}; break;              // mknodat (新規名)
+        case 53:  p[out->n++] = (struct path_arg){1, 0, 1, 3, 0, 0x100}; break;           // fchmodat (flags arg3)
+        case 54:  p[out->n++] = (struct path_arg){1, 0, 1, 4, 0, 0x100}; break;           // fchownat (flags arg4)
+        case 49:  p[out->n++] = (struct path_arg){0, -1, 1, -1, 0, 0}; break;             // chdir (dirfd 無し)
+        case 43:  p[out->n++] = (struct path_arg){0, -1, 1, -1, 0, 0}; break;             // statfs (dirfd 無し)
+        case 36:  p[out->n++] = (struct path_arg){2, 1, 0, -1, 0, 0}; break;              // symlinkat (linkpath arg2, dirfd arg1。target は非変換)
+        case 37:  // linkat(olddir, old, newdir, new, flags) flags&AT_SYMLINK_FOLLOW(0x400)
+            p[out->n++] = (struct path_arg){1, 0, 0, 4, 0x400, 0};
+            p[out->n++] = (struct path_arg){3, 2, 0, -1, 0, 0};
+            break;
+        case 38:  case 276:  // renameat / renameat2 (olddir, old, newdir, new[, flags])
+            p[out->n++] = (struct path_arg){1, 0, 0, -1, 0, 0};
+            p[out->n++] = (struct path_arg){3, 2, 0, -1, 0, 0};
+            break;
+        default: return 0;
     }
+    return 1;
 }
 
 // syscall-entry で、必要ならパス引数をホスト実パスへ書き換える。
@@ -312,16 +453,20 @@ static void plan_push(struct exec_plan *plan, const char *s) {
 }
 
 // guest_prog を resolve し host 実パスへ。orig_argv0 は ELF バイナリ起動時の argv0。
-static int plan_exec(const struct config *cfg, const char *guest_prog,
+// pid は相対 exec パスを /proc/<pid>/cwd で絶対化するため(run_child は自身の pid)。
+static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog,
                      const char *orig_argv0, struct exec_plan *plan) {
     plan->nprefix = 0;
     plan->orig_start = 1;  // 元 argv0 は prefix で置換するため常に [1..] を連結
 
-    char real_guest[PATH_MAX_Z];
-    resolve_guest_symlink(cfg, guest_prog, real_guest, sizeof(real_guest));
+    // 相対 exec パスも /proc/<pid>/cwd で絶対化し、symlink 解決込みの host 実パスへ。
     char host_prog[PATH_MAX_Z];
-    if (!translate_abs(cfg, real_guest, host_prog, sizeof(host_prog)))
-        snprintf(host_prog, sizeof(host_prog), "%s", real_guest);
+    if (host_path_for(cfg, pid, guest_prog, 1, AT_FDCWD, host_prog, sizeof(host_prog)) != 0) {
+        char real_guest[PATH_MAX_Z];
+        resolve_guest_symlink(cfg, guest_prog, real_guest, sizeof(real_guest));
+        if (!translate_abs(cfg, real_guest, host_prog, sizeof(host_prog)))
+            snprintf(host_prog, sizeof(host_prog), "%s", real_guest);
+    }
 
     // 1) #! スクリプト: シバンのインタプリタを起動し、スクリプトを引数に渡す。
     char sb_interp[PATH_MAX_Z], sb_arg[PATH_MAX_Z];
@@ -362,14 +507,14 @@ static int plan_exec(const struct config *cfg, const char *guest_prog,
         snprintf(plan->target, sizeof(plan->target), "%s", host_loader);
         plan_push(plan, host_loader);
         plan_push(plan, "--argv0");
-        plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : real_guest);
+        plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : guest_prog);
         plan_push(plan, host_prog);
         return 0;
     }
 
     // 3) 静的 ELF / その他: パスだけ host へ、argv0 はそのまま。
     snprintf(plan->target, sizeof(plan->target), "%s", host_prog);
-    plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : real_guest);
+    plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : guest_prog);
     return 0;
 }
 
@@ -402,7 +547,7 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
     }
 
     struct exec_plan plan;
-    plan_exec(cfg, guest_prog, (n > 0) ? args[0] : guest_prog, &plan);
+    plan_exec(cfg, pid, guest_prog, (n > 0) ? args[0] : guest_prog, &plan);
 
     // 最終 argv = plan.prefix[..] + args[plan.orig_start..]
     const char *parts[MAX_ARGS + PLAN_MAX_PREFIX];
@@ -477,25 +622,49 @@ static void maybe_rewrite_path(const struct config *cfg, pid_t pid, struct user_
     if (nr == 221) { rewrite_execve(cfg, pid, regs, 0); return; }  // execve
     if (nr == 281) { rewrite_execve(cfg, pid, regs, 1); return; }  // execveat
 
-    int idx = path_arg_index(nr);
-    if (idx < 0) return;
+    struct sc_paths sp;
+    if (!syscall_paths(nr, &sp)) return;
 
-    unsigned long path_addr = regs->regs[idx];
-    if (path_addr == 0) return;
+    // 各パス引数を host 実パスへ変換し、まとめてスタック下スクラッチに置く。
+    char hosts[2][PATH_MAX_Z];
+    int hidx[2];
+    int hn = 0;
+    for (int i = 0; i < sp.n; i++) {
+        struct path_arg *pa = &sp.a[i];
+        unsigned long addr = regs->regs[pa->idx];
+        if (addr == 0) continue;
+        char guest[PATH_MAX_Z];
+        if (read_tracee_str(pid, addr, guest, sizeof(guest)) < 0) continue;
 
-    char guest[PATH_MAX_Z];
-    if (read_tracee_str(pid, path_addr, guest, sizeof(guest)) < 0) return;
+        int deref = pa->deref;
+        if (pa->flag_reg >= 0) {
+            unsigned long fl = regs->regs[pa->flag_reg];
+            if (pa->flag_follow_bit && (fl & (unsigned long)pa->flag_follow_bit)) deref = 1;
+            if (pa->flag_nofollow_bit && (fl & (unsigned long)pa->flag_nofollow_bit)) deref = 0;
+        }
+        long dirfd = (pa->dirfd_reg < 0) ? AT_FDCWD : (long)(int)regs->regs[pa->dirfd_reg];
+        if (host_path_for(cfg, pid, guest, deref, dirfd, hosts[hn], sizeof(hosts[hn])) != 0)
+            continue;
+        hidx[hn] = pa->idx;
+        hn++;
+    }
+    if (hn == 0) return;
 
-    char host[PATH_MAX_Z];
-    if (!translate_abs(cfg, guest, host, sizeof(host))) return;
-
-    // スタック下のスクラッチ領域へ書き、レジスタを差し替える。syscall 実行中は
+    // スタック下に各 host 文字列を連続配置(下方向に確保)。syscall 実行中は
     // カーネルがユーザスタックを使わないため sp 直下への書き込みは安全。
-    unsigned long scratch = regs->sp - SCRATCH_OFFSET;
-    size_t len = strlen(host) + 1;
-    if (write_tracee_mem(pid, scratch, host, len) != 0) return;
-    regs->regs[idx] = scratch;
-    set_regs(pid, regs);
+    size_t total = 0;
+    for (int i = 0; i < hn; i++) total += ((strlen(hosts[i]) + 1 + 7) & ~7UL);
+    unsigned long base = (regs->sp - SCRATCH_OFFSET - total) & ~15UL;
+    unsigned long off = 0;
+    int wrote = 0;
+    for (int i = 0; i < hn; i++) {
+        size_t len = strlen(hosts[i]) + 1;
+        if (write_tracee_mem(pid, base + off, hosts[i], len) != 0) continue;
+        regs->regs[hidx[i]] = base + off;
+        off += (len + 7) & ~7UL;
+        wrote = 1;
+    }
+    if (wrote) set_regs(pid, regs);
 }
 
 // ---- argv パース --------------------------------------------------------------
@@ -575,7 +744,7 @@ static int run_child(const struct config *cfg) {
     while (cfg->command[n]) n++;
 
     struct exec_plan plan;
-    if (plan_exec(cfg, cfg->command[0], cfg->command[0], &plan) == 0) {
+    if (plan_exec(cfg, getpid(), cfg->command[0], cfg->command[0], &plan) == 0) {
         // [prefix..., <元args[orig_start..]>, NULL]
         char **nv = malloc((size_t)(plan.nprefix + n + 1) * sizeof(char *));
         if (nv) {
