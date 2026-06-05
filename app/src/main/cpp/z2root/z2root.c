@@ -409,6 +409,7 @@ static int syscall_paths(long nr, struct sc_paths *out) {
         case 33:  p[out->n++] = (struct path_arg){1, 0, 0, -1, 0, 0}; break;              // mknodat (新規名)
         case 53:  p[out->n++] = (struct path_arg){1, 0, 1, 3, 0, 0x100}; break;           // fchmodat (flags arg3)
         case 54:  p[out->n++] = (struct path_arg){1, 0, 1, 4, 0, 0x100}; break;           // fchownat (flags arg4)
+        case 88:  p[out->n++] = (struct path_arg){1, 0, 1, 3, 0, 0x100}; break;           // utimensat (path arg1, flags arg3。dpkg の mtime 設定)
         case 49:  p[out->n++] = (struct path_arg){0, -1, 1, -1, 0, 0}; break;             // chdir (dirfd 無し)
         case 43:  p[out->n++] = (struct path_arg){0, -1, 1, -1, 0, 0}; break;             // statfs (dirfd 無し)
         case 36:  p[out->n++] = (struct path_arg){2, 1, 0, -1, 0, 0}; break;              // symlinkat (linkpath arg2, dirfd arg1。target は非変換)
@@ -513,8 +514,22 @@ static void wrap_with_loader(const struct config *cfg, struct exec_plan *plan) {
     snprintf(plan->target, sizeof(plan->target), "%s", cfg->self_path);
 }
 
+// host_prog 先頭が ELF マジックか。開けない(存在しない PATH 候補)/非ELF なら 0。
+// loader 包みするか「素の execve でカーネルに任せるか」を分ける判定に使う。
+static int file_is_elf(const char *path) {
+    int fd = open(path, O_RDONLY | O_CLOEXEC);
+    if (fd < 0) return 0;
+    unsigned char m[4];
+    ssize_t r = read(fd, m, sizeof(m));
+    close(fd);
+    return (r == 4 && m[0] == 0x7f && m[1] == 'E' && m[2] == 'L' && m[3] == 'F');
+}
+
 // guest_prog を resolve し host 実パスへ。orig_argv0 は ELF バイナリ起動時の argv0。
 // pid は相対 exec パスを /proc/<pid>/cwd で絶対化するため(run_child は自身の pid)。
+// 戻り値: 0 = loader 包み済み(plan->target/prefix 有効) / 1 = passthrough
+//   (host_prog が非ELF。loader を噛ませず素の execve をカーネルに通し、
+//    ENOENT/ENOEXEC を呼び出し側 execvp に返させる。plan->target に host_prog のみ)。
 static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog,
                      const char *orig_argv0, struct exec_plan *plan) {
     plan->nprefix = 0;
@@ -575,6 +590,16 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
         return 0;
     }
 
+    // host_prog が ELF でない(開けない=存在しない PATH 候補 / 非実行ファイル)なら
+    // loader を噛ませない。execvp は PATH を順に execve して ENOENT なら次候補へ進むが、
+    // loader 包みすると「execve 成功 → loader が open 失敗で _exit(127)」となり子が 127 で
+    // 即死し、呼び出し側(dpkg の execvp 等)が次候補を試せず失敗する。素の execve を通して
+    // カーネルに ENOENT/ENOEXEC を返させる(rewrite_execve 側で path だけ host へ変換)。
+    if (!file_is_elf(host_prog)) {
+        snprintf(plan->target, sizeof(plan->target), "%s", host_prog);
+        return 1;
+    }
+
     // 3) 静的 ELF / その他: パスだけ host へ、argv0 はそのまま。
     snprintf(plan->target, sizeof(plan->target), "%s", host_prog);
     plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : guest_prog);
@@ -611,7 +636,20 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
     }
 
     struct exec_plan plan;
-    plan_exec(cfg, pid, guest_prog, (n > 0) ? args[0] : guest_prog, &plan);
+    int rc = plan_exec(cfg, pid, guest_prog, (n > 0) ? args[0] : guest_prog, &plan);
+
+    if (rc == 1) {
+        // passthrough: loader を噛ませず path レジスタを host パスへ変換するだけ。
+        // 非ELF/存在しないパスはカーネルが ENOENT/ENOEXEC を返し、execvp が次候補へ進める。
+        size_t plen = strlen(plan.target) + 1;
+        unsigned long base = (regs->sp - SCRATCH_OFFSET - plen) & ~15UL;
+        if (write_tracee_mem(pid, base, plan.target, plen) == 0) {
+            regs->regs[path_idx] = base;
+            set_regs(pid, regs);
+        }
+        for (int j = 0; j < n; j++) free(args[j]);
+        return;
+    }
 
     // 最終 argv = plan.prefix[..] + args[plan.orig_start..]
     const char *parts[MAX_ARGS + PLAN_MAX_PREFIX];
