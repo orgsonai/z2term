@@ -37,7 +37,7 @@ That's all the setup you need.
 
 ```
 ┌───────────────────────────────────────────────┐
-│ hostname [mode]      📋 📜 🔅 🔍 ⌨ ⚙        │ ← top bar (toolbar)
+│ hostname [mode]   📋 📜 🔅 🔒 🔍 ⌨ ⚙       │ ← top bar (toolbar)
 ├───────────────────────────────────────────────┤
 │ [ archlinux ] [ + ] [ 🖥 ]                      │ ← tabs (switch between terminals / GUIs)
 ├───────────────────────────────────────────────┤
@@ -58,9 +58,12 @@ That's all the setup you need.
 | 📋 | Paste text from the clipboard |
 | 📜 | Command list (tap a frequently used command to type it) + **SSH connect / SFTP** (switch with tabs) |
 | 🔅 | Screen-on lock (when ON, the screen won't auto-dim; the icon changes to 💡 while ON) |
+| 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF) |
 | 🔍 | Search the on-screen text (jump back/forward with ↑↓) |
 | ⌨ | Switch between the phone's standard keyboard ⇄ the in-app keyboard |
 | ⚙ | Settings |
+
+> **Reorder the buttons**: **long-press** a toolbar button to **drag it left/right and reorder**. A short description pops up above the button while held. The order is remembered.
 
 ---
 
@@ -85,6 +88,7 @@ Z2Term comes with its **own in-app keyboard**.
 ### Japanese / kana-kanji conversion
 - Press the **"あ" key** on the left side of the keyboard to switch to the built-in **Japanese flick keyboard**.
 - Flick rules: **tap = あ / left = い / up = う / right = え / down = お** (same as the common 12-key phone layout).
+- **Cursor up/down keys**: just **below** ◀ ▶ are **▼** (left = down) and **▲** (right = up) — all four ◀▶▼▲ are the same size. Use them to walk command history or move the cursor.
 - **The "小゛゜" key** changes the previous character like `か→が→か`, `は→ば→ぱ→は`, `つ→づ→っ→つ`.
 - While typing (unconfirmed), a **candidate bar** appears at the top so you can convert to kanji.
   - With the **"変換" (convert) key** or **◀ ▶**, convert from the leading chunk (block). Tap a candidate or press ⏎ to confirm, and it automatically advances to the next chunk.
@@ -186,7 +190,6 @@ Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←**
 | Language / 言語 | Japanese / English (switches instantly) |
 | Disable install timeout | Wait for OS / GUI downloads to finish completely |
 | Confirm before downloading | Show a confirmation dialog before fetching a distro / GUI |
-| Keep-alive service | Keep the terminal running even after you close the screen |
 | SSH connection helper | Steps for connecting from a PC, with the IP shown |
 | Storage access | Permission to use `/sdcard` |
 
@@ -204,7 +207,7 @@ Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←**
 → Long-press first, then drag with your finger. To reach the edge, move your finger toward the top/bottom edge of the screen and it auto-scrolls. Drag near the end of the selection to change its range.
 
 **Q. The terminal stops when I close the app**
-→ Turn ON "Keep-alive service" in ⚙ Settings.
+→ Turn ON the **🔒 (background keep-alive)** button on the toolbar (🔒 = ON).
 
 **Q. I can't see anything with `cd /sdcard`**
 → Turn ON the permission with "Allow all storage" in ⚙ Settings.

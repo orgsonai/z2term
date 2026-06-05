@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-06-06 / Target version: 0.8.28-alpha (versionCode 36)
+Last updated: 2026-06-06 / Target version: 0.8.29-alpha (versionCode 37)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -71,7 +71,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 ```
 ┌───────────────────────────── UI layer (Compose) ─────────────────────────┐
 │ MainActivity → TerminalScreen                                              │
-│  ├ TopBar (paste/📋/🔌/あ(IME)/⚙) ├ TabBar ├ TerminalRenderer(Canvas)      │
+│  ├ TopBar (📋/📜/💡/🔒keep-alive/🔍/⌨/⚙ reorderable) ├ TabBar ├ Renderer    │
 │  ├ TerminalInputView(AndroidView: gestures/IME/selection) ├ ScrollIndic.  │
 │  ├ TerminalKeyboard(custom) / JapaneseFlickKeyboard / SpecialKeyBar       │
 │  └ SettingsSheet / SshProfilesSheet / SnippetsSheet / HostKeyDialog        │
@@ -203,6 +203,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 ### 4.11 UI details (`ui/`)
 
 - `terminal/TerminalScreen.kt`: overall layout. TopBar / TabBar / render area / keyboard toggle / keyboard area. `KeyboardMode = CUSTOM | SYSTEM`. In **landscape**, orientation is detected via `LocalView.OnLayoutChangeListener`, switching to a Row layout (`SideKeyboardColumn`) per the `landscapeKeyboardPosition`/`Width`/`Height` settings. `landscapeScaledStyle()` scales keyHeight/font proportionally to landscape height.
+  - **Toolbar (`ReorderableToolbar`)**: 📋 paste / 📜 commands / 💡 screen-on lock / 🔒 background keep-alive / 🔍 search / ⌨ keyboard toggle / ⚙ settings, drawn from a list of `ToolbarItem`. **Plain tap = the action; long-press drag reorders** (`detectDragGesturesAfterLongPress` + swap on crossing a neighbor's center). A `ToolbarTooltip` Popup shows a short description while held. The order persists in `AppSettings.toolbarOrder` (comma-separated ids), merged with the default via `mergeToolbarOrder` so adding/removing buttons never breaks it. The keep-alive lock defaults to the right of the screen-on lock. The GUI tab (`GuiTopBar`) shares the same `ReorderableToolbar` (no search; 📋/📜 bridge via keysyms).
 - `terminal/TerminalRenderer.kt`: **per-cell drawText** on a native Canvas (avoids subpixel error accumulation when advance≠cellW). Order: background → selection highlight → text → cursor → selection handles.
 - `terminal/input/TerminalInputView.kt` (AndroidView): physical key/OS IME input, gestures (tap/long-press selection/drag scroll/pinch zoom/mouse click emission). Selection is in [§6.5](#65-text-selection-ux).
 - `terminal/keyboard/`:
@@ -272,11 +273,15 @@ On failure: fall back to launchAndroidSh
 
 - Standard 12-key layout (5 columns × 4 rows, with hints):
   ```
-  ESC  あ   か  さ   ⌫
-  ◀   た   な  は   ▶
-  ␣    ま   や  ら   変換
-  ABC  小゛゜ わ  、。  ⏎    ← ABC = back to Latin
+  ESC      あ   か  さ   ⌫
+  ◀/▼     た   な  は   ▶/▲
+  ␣       ま   や  ら   変換
+  ABC      小゛゜ わ  、。  ⏎    ← ABC = back to Latin
   ```
+  Row 2's edges stack the cursor keys directly under the left/right keys, half a row each
+  (`JpEdgeStack`, 1:1), so ◀ ▶ ▼ ▲ are all the same size: ▼ under ◀ (left, down), ▲ under ▶
+  (right, up). They `flush()` then send cursor up/down. Space / convert stay full-height in Row 3
+  (kept easy to press).
 - Flick rules: tap = あ row / left = い / up = う / right = え / down = お.
 - **Dakuten key (小゛゜)**: cycles the previous kana through dakuten→handakuten→small→original (the cycle table is hiragana-based). Repeated kana aren't cycled but stack naturally ("つつ" doesn't become "っ").
 - **⌫**: flick left = delete word (Ctrl+W) / flick right = delete to line start (Ctrl+U).
@@ -290,7 +295,7 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 - **Learning history** (`ImeHistoryStore`): ranks confirmed words by frequency and recency (last 7 days) and surfaces them near the top.
 - **Bunsetsu-split synthesis (`segment`)**: joins a content word (longest dictionary match) + following particles/okurigana into one bunsetsu (e.g. きょうの → 今日の). **Particles** (の/は/が…) and **sentence-ending auxiliaries** (でしょう/ました/です…) have single-kanji entries (野/葉/増田…), so they are **left in kana** (`PARTICLES` / `AUX_KANA`). Returned when there is ≥1 dictionary-hit bunsetsu ∧ it contains kanji.
 - **Split conversion**: the convert key (or ◀▶) focuses the leading bunsetsu (`autoSplitHeadLen` = takes the content word + following particle as a bunsetsu). ◀▶ expands/shrinks the block range; tapping a candidate / ⏎ confirms and auto-advances to the next block. Repeating the convert key cycles candidates.
-- **Automatic block splitting for long sentences**: long sentences whose dictionary block splits into ≥2 bunsetsu auto-split to the leading bunsetsu and predict per block without pressing the convert key (decided by `segmentParts`). e.g. あしたのてんきは… → 明日の / 天気は / …. A single in-progress word isn't split.
+- **Automatic block splitting for long sentences**: long sentences that split into ≥2 bunsetsu auto-split to the leading bunsetsu and predict per block without pressing the convert key (decided by `KkcConverter.bunsetsu`). e.g. あしたのてんきは… → 明日の / 天気は / …. A single in-progress word isn't split. **The bunsetsu boundary uses the exact lattice shortest path (`nbest` #1)** (0.8.29): the position-DP `segments` keeps only a single right-context and could mis-split depending on connection costs (e.g. おねがいします → 尾根が/医師ます, locking the leading block to "おねが" and hiding the correct "お願いします"). With `nbest` #1 this collapses to a single bunsetsu "お願いします" and isn't auto-split, so it surfaces as the top candidate as expected.
 - **Whole-sentence batch prediction** (`fullPrediction`): when a tail remains during split, a single "whole-sentence" candidate is shown as a light-green pill, concatenating the **leading block's top candidate (= head of `candidates`) + the Viterbi 1-best of the remaining kana**. Tapping it (`commitFull`) confirms the whole sentence at once. **When `splitHeadLen` moves with ◀▶, it is rebuilt via `refreshPredict`, re-flowing to follow the boundary change** (0.8.16). The remaining-kana Viterbi uses the leading surface form as context for bigram re-ranking. Note: the old "Viterbi 1-best over the whole reading (boundary-independent)" didn't move the light-green text with ◀▶, so it was replaced in 0.8.16. The old "bunsetsu rearrangement variations (`multiSegmentVariants`)" produced mostly unused candidates and were removed in 0.8.4.
 - **Reconversion**: right after confirming (composing empty), the convert key = "reconvert" returns the last confirmation to its reading (`restoreLastCommit`).
 - **Key background**: during composing, the ◀▶ / convert key backgrounds stay quiet (not green); green is only for the convert key as a "reconvert" hint.
@@ -355,7 +360,8 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 | GUI audio | guiAudioEnabled | false | true/false (opt-in PulseAudio bridge) |
 | GUI magnification | guiMagnification | 1.5 | 0.5–3.0 |
 | Confirm before download | confirmBeforeDownload | true | true/false |
-| Keep-alive service | keepAliveService | true | true/false |
+| Keep-alive service | keepAliveService | true | true/false (**toggled from the toolbar 🔒 lock, not the settings page**) |
+| Toolbar order | toolbarOrder | "" (default order) | comma-separated ids; updated by long-press drag |
 | Execution engine (hidden) | executionEngine | "proot" | proot / z2root / chroot (chroot only when root is unlocked) |
 | Engine selector unlock (hidden) | engineSelectorUnlocked | false | true after tapping the version 7 times (no root needed) |
 | chroot unlock flag (hidden) | rootChrootUnlocked | false | true when the 7-tap root self-test passes |

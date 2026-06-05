@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-06 / 対象バージョン: 0.8.28-alpha (versionCode 36)
+最終更新: 2026-06-06 / 対象バージョン: 0.8.29-alpha (versionCode 37)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -72,7 +72,7 @@
 ```
 ┌───────────────────────────── UI 層 (Compose) ─────────────────────────────┐
 │ MainActivity → TerminalScreen                                              │
-│  ├ TopBar (貼/📋/🔌/あ(IME)/⚙) ├ TabBar ├ TerminalRenderer(Canvas)         │
+│  ├ TopBar (📋/📜/💡/🔒常駐/🔍/⌨/⚙ 並べ替え可) ├ TabBar ├ Renderer(Canvas)   │
 │  ├ TerminalInputView(AndroidView: ジェスチャ/IME/選択) ├ ScrollIndicators │
 │  ├ TerminalKeyboard(独自) / JapaneseFlickKeyboard / SpecialKeyBar          │
 │  └ SettingsSheet / SshProfilesSheet / SnippetsSheet / HostKeyDialog        │
@@ -204,6 +204,7 @@
 ### 4.11 UI 詳細 (`ui/`)
 
 - `terminal/TerminalScreen.kt`: 全体レイアウト。TopBar / TabBar / 描画領域 / キーボードトグル / キーボード領域。`KeyboardMode = CUSTOM | SYSTEM`。**横画面**は `LocalView.OnLayoutChangeListener` で向きを検知し、`landscapeKeyboardPosition`/`Width`/`Height` 設定に従って Row レイアウト (`SideKeyboardColumn`) に切替。`landscapeScaledStyle()` で keyHeight/font が横画面高さに比例拡縮。
+  - **ツールバー (`ReorderableToolbar`)**: 📋貼付 / 📜コマンド / 💡画面消灯ロック / 🔒バックグラウンド常駐 / 🔍検索 / ⌨キーボード切替 / ⚙設定 を `ToolbarItem` のリストで描く。**通常タップ=動作、長押しドラッグで並べ替え** (`detectDragGesturesAfterLongPress` + 隣との中心越えで `order` 入替)。長押し中は `ToolbarTooltip` で簡易説明を Popup 表示。並びは `AppSettings.toolbarOrder` (カンマ区切り id) に永続化し、`mergeToolbarOrder` で既存順とマージするのでボタン追加/削除でも壊れない。🔒常駐は既定で 💡 の右。GUI タブ (`GuiTopBar`) も同 `ReorderableToolbar` を共有 (検索なし・📋/📜 は keysym 橋渡し)。
 - `terminal/TerminalRenderer.kt`: ネイティブ Canvas に **セル単位 drawText** (advance≠cellW のサブピクセル誤差累積を回避)。背景→選択ハイライト→文字→カーソル→選択ハンドルの順。
 - `terminal/input/TerminalInputView.kt` (AndroidView): 物理キー/OS IME 入力、ジェスチャ (タップ/長押し選択/ドラッグスクロール/ピンチ拡縮/マウスクリック送出)。選択は[§6.5](#65-テキスト選択-ux)。
 - `terminal/keyboard/`:
@@ -273,11 +274,14 @@ TerminalScreen: active が IDLE なら startTerminal()
 
 - 標準 12 キー配列 (5 列 × 4 行、ヒント表示):
   ```
-  ESC  あ   か  さ   ⌫
-  ◀   た   な  は   ▶
-  ␣    ま   や  ら   変換
-  ABC  小゛゜ わ  、。  ⏎    ← ABC=英字へ
+  ESC      あ   か  さ   ⌫
+  ◀/▼     た   な  は   ▶/▲
+  ␣       ま   や  ら   変換
+  ABC      小゛゜ わ  、。  ⏎    ← ABC=英字へ
   ```
+  Row 2 の両端は左右キーの真下に上下キーを半行ずつ積み (`JpEdgeStack`、1:1)、◀ ▶ ▼ ▲ を
+  全て同じサイズに揃える。◀ の下 (左) に ▼ (下)、▶ の下 (右) に ▲ (上)。打鍵で `flush()` 後に
+  カーソル上下を送出。スペース/変換は Row 3 で 1 行のまま (押しやすさ優先)。
 - フリック規約: タップ=あ段 / 左=い / 上=う / 右=え / 下=お。
 - **濁点キー (小゛゜)**: 直前のかなを 濁点→半濁点→小書き→元 に循環 (循環表はひらがな基準)。かなの連打は循環させず素直に重ねる (「つつ」が「っ」にならない)。
 - **⌫**: 左フリック=単語削除 (Ctrl+W) / 右フリック=行頭まで削除 (Ctrl+U)。
@@ -291,7 +295,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 - **学習履歴** (`ImeHistoryStore`): 確定語を頻度・直近 7 日でランキングし上位に出す。
 - **文節分割合成 (`segment`)**: 内容語(最長辞書一致) + 後続の助詞/送り仮名を 1 文節として連結 (例: きょうの → 今日の)。**助詞** (の/は/が…) と**文末助動詞** (でしょう/ました/です…) は単漢字エントリ (野/葉/増田…) を持つため**かなのまま残す** (`PARTICLES` / `AUX_KANA`)。辞書ヒット 1 文節以上 ∧ 漢字を含むときに返す。
 - **スプリット変換**: 変換キー (または ◀▶) で先頭文節にフォーカス (`autoSplitHeadLen` = 内容語 + 後続助詞を文節として取り込む)。◀▶ でブロック範囲を伸縮、候補タップ/⏎ で確定すると次ブロックへ自動で進む。変換キー連打で候補をサイクル。
-- **長文の自動ブロック分割**: 辞書ブロックが 2 文節以上に分かれる長文は、変換キーを押さなくても自動で先頭文節にスプリットしブロック毎に予測する (`segmentParts` で判定)。例: あしたのてんきは… → 明日の / 天気は / …。打ちかけの 1 語では分割しない。
+- **長文の自動ブロック分割**: 文が 2 文節以上に分かれる長文は、変換キーを押さなくても自動で先頭文節にスプリットしブロック毎に予測する (`KkcConverter.bunsetsu` で判定)。例: あしたのてんきは… → 明日の / 天気は / …。打ちかけの 1 語では分割しない。**文節境界は正確なラティス最短経路 (`nbest` 1 位) の分割を使う** (0.8.29)。位置 DP の `segments` は単一右文脈しか持たない近似で、接続コスト次第で経路がずれて誤分割していた (例: おねがいします → 尾根が/医師ます と切れて先頭「おねが」でブロック固定し、正解の「お願いします」が候補に出なかった)。`nbest` 1 位ではこれが 1 文節「お願いします」にまとまり自動分割されない＝正しく候補先頭に出る。
 - **文まるごと一括予測** (`fullPrediction`): スプリット中で後続 (tail) が残るとき、**先頭ブロックの最尤候補 (= `candidates` 先頭) + 残りかなの Viterbi 1-best** を連結した「文まるごと」候補を候補バーに薄緑ピルで 1 つ出す。タップ (`commitFull`) で全文を一括確定。**◀▶ で `splitHeadLen` が動くと `refreshPredict` 経由で再構築され、境界変更に追従して再フローする** (0.8.16)。残りかなの Viterbi では先頭表層を文脈にして bigram リランクを通す。※旧「読み全体の Viterbi 1-best (境界非依存)」は ◀▶ で薄字が動かないので 0.8.16 で差し替え。旧「文節組み換えバリエーション (`multiSegmentVariants`)」は使われない候補ばかりのため 0.8.4 で廃止。
 - **再変換**: 確定直後 (composing 空) に変換キー=「再変換」で直前確定を読みに戻す (`restoreLastCommit`)。
 - **キー背景**: 未確定中は ◀▶・変換キーの背景を緑にせず静かに保つ (緑は「再変換」ヒント時の変換キーのみ)。
@@ -356,7 +360,8 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 | GUI 音声 | guiAudioEnabled | false | true/false（オプトイン PulseAudio ブリッジ） |
 | GUI 拡大率 | guiMagnification | 1.5 | 0.5–3.0 |
 | ダウンロード前確認 | confirmBeforeDownload | true | true/false |
-| 常駐サービス | keepAliveService | true | true/false |
+| 常駐サービス | keepAliveService | true | true/false（**設定画面ではなくツールバーの 🔒 ロックで ON/OFF**） |
+| ツールバー並び順 | toolbarOrder | ""（既定順） | カンマ区切り id。長押しドラッグで更新 |
 | 実行エンジン (裏設定) | executionEngine | "proot" | proot / z2root / chroot（chroot は root 解放時のみ） |
 | エンジン選択解放 (裏設定) | engineSelectorUnlocked | false | バージョン 7 回タップで true（root 不要） |
 | chroot 解放フラグ (裏設定) | rootChrootUnlocked | false | 7 タップ時の root セルフテスト成功で true |

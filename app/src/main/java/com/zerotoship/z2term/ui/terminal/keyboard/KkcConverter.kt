@@ -314,7 +314,13 @@ object KkcConverter {
      * Viterbi の単語セグメントを「漢字/カタカナで始まる語 → 続くひらがな語を吸収」でまとめる。
      */
     fun bunsetsu(reading: String): List<Pair<String, String>> {
-        val segs = segments(reading)
+        // 自動ブロック分割は **正確なラティス最短経路** ([nbest] の 1 位) の分割を使う。
+        // 位置 DP の [segments] は単一右文脈しか持たない近似で、接続コスト次第で経路が
+        // ずれる (例: おねがいします → 尾根が/医師ます と誤分割し「おねが」でブロック固定、
+        // 正解の「お願いします」が候補に出ない)。k=1 の nbest は reranker を通しても
+        // 候補 1 件なので順不同、純粋なコスト最小経路 = 自動分割の基準として正しい。
+        val segs = nbest(reading, 1, KkcContext.EMPTY).firstOrNull()?.segments
+            ?: segments(reading)   // nbest が空 (未ロード等) のときだけ近似へフォールバック
         if (segs.isEmpty()) return emptyList()
         val out = ArrayList<Pair<String, String>>()
         var curR = StringBuilder(); var curS = StringBuilder()

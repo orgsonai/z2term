@@ -362,4 +362,14 @@
     <string name="search_prev">↑</string>
     <string name="search_next">↓</string>
     <string name="search_close">✕</string>
+
+    <!-- Toolbar action descriptions (long-press tooltip) -->
+    <string name="tb_paste">Paste clipboard</string>
+    <string name="tb_snippets">Command list</string>
+    <string name="tb_screen_on">Keep screen on</string>
+    <string name="tb_keep_alive">Keep running in background</string>
+    <string name="tb_search">Search scrollback</string>
+    <string name="tb_keyboard">Switch keyboard</string>
+    <string name="tb_settings">Settings</string>
+    <string name="tb_reorder_hint">Long-press to reorder</string>
 </resources>

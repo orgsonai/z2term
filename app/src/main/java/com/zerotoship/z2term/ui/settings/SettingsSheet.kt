@@ -298,13 +298,8 @@ fun SettingsSheet(
                 )
             }
 
-            // バックグラウンド常駐はよく使うため distro 切替の直上に置く。
-            ToggleField(
-                title = stringResource(R.string.settings_keep_alive),
-                description = stringResource(R.string.settings_keep_alive_desc),
-                checked = settings.keepAliveService,
-                onChange = { session.setKeepAliveService(it) }
-            )
+            // バックグラウンド常駐トグルはツールバーの 🔒 ロックアイコンへ移動した (要望)。
+            // 設定からは出さない (ツールバーで ON/OFF する)。
 
             Section(title = stringResource(R.string.settings_section_distro)) {
                 ChipRow(
@@ -934,6 +929,8 @@ private fun SettingsTopBar(onBack: () -> Unit) {
             .fillMaxWidth()
             .background(ZtsBgPrimary)
             .border(width = 1.dp, color = ZtsBorder)
+            // バー全体をタップしても戻れるようにする (左上の矢印だけでなく上の設定バー全体・要望)。
+            .clickable(onClick = onBack)
             .padding(horizontal = 8.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)

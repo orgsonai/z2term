@@ -109,8 +109,18 @@ class AppSettings(private val context: Context) {
          * (= 端末内で Android アプリをビルドできる)。OFF (既定) では一切 bind せず従来挙動と同じ。
          * セキュリティ上の影響を理解した上で有効化すること。
          */
-        val androidHostBindEnabled: Boolean = DEFAULT_ANDROID_HOST_BIND
+        val androidHostBindEnabled: Boolean = DEFAULT_ANDROID_HOST_BIND,
+        /**
+         * ツールバー (端末上部バー) のアイコン並び順。アクション id をカンマ区切りで保持する。
+         * 空文字 = 既定順 (ReorderableToolbar 側で既定を補完)。長押しドラッグの並べ替えで更新。
+         * 未知/欠落 id は表示側で既定順とマージするので、ボタン追加・削除があっても壊れない。
+         */
+        val toolbarOrder: String = ""
     )
+
+    suspend fun setToolbarOrder(csv: String) {
+        context.dataStore.edit { it[KEY_TOOLBAR_ORDER] = csv }
+    }
 
     suspend fun setGuiMagnification(value: Float) {
         context.dataStore.edit {
@@ -148,7 +158,8 @@ class AppSettings(private val context: Context) {
             rootChrootUnlocked = p[KEY_ROOT_UNLOCKED] ?: false,
             executionEngine = p[KEY_ENGINE] ?: ENGINE_PROOT,
             externalStorageEnabled = p[KEY_EXTERNAL_STORAGE] ?: DEFAULT_EXTERNAL_STORAGE,
-            androidHostBindEnabled = p[KEY_ANDROID_HOST_BIND] ?: DEFAULT_ANDROID_HOST_BIND
+            androidHostBindEnabled = p[KEY_ANDROID_HOST_BIND] ?: DEFAULT_ANDROID_HOST_BIND,
+            toolbarOrder = p[KEY_TOOLBAR_ORDER] ?: ""
         )
     }
 
@@ -323,6 +334,7 @@ class AppSettings(private val context: Context) {
         private val KEY_ENGINE = stringPreferencesKey("execution_engine")
         private val KEY_EXTERNAL_STORAGE = booleanPreferencesKey("external_storage_enabled")
         private val KEY_ANDROID_HOST_BIND = booleanPreferencesKey("android_host_bind_enabled")
+        private val KEY_TOOLBAR_ORDER = stringPreferencesKey("toolbar_order")
 
         /** 外部 SD 認識は既定 OFF (オプトイン)。OFF の間は検出処理も走らない。 */
         const val DEFAULT_EXTERNAL_STORAGE = false

@@ -51,6 +51,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,10 +72,13 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.zIndex
 import com.zerotoship.z2term.R
@@ -313,6 +317,10 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onOpenSettings = { settingsOpen = true },
             keepScreenOn = keepScreenOn,
             onToggleKeepScreenOn = { ScreenAwake.enabled.value = !ScreenAwake.enabled.value },
+            keepAlive = settings.keepAliveService,
+            onToggleKeepAlive = { active.setKeepAliveService(!settings.keepAliveService) },
+            toolbarOrder = settings.toolbarOrder,
+            onReorderToolbar = { active.setToolbarOrder(it) },
             onOpenSnippets = { snippetsSheetOpen = true },
             searchActive = searchOpen,
             onToggleSearch = { searchOpen = !searchOpen }
@@ -708,6 +716,10 @@ private fun GuiTabScreen(
             },
             keepScreenOn = keepScreenOn,
             onToggleKeepScreenOn = { ScreenAwake.enabled.value = !ScreenAwake.enabled.value },
+            keepAlive = settings.keepAliveService,
+            onToggleKeepAlive = { scope.launch { appSettings.setKeepAliveService(!settings.keepAliveService) } },
+            toolbarOrder = settings.toolbarOrder,
+            onReorderToolbar = { scope.launch { appSettings.setToolbarOrder(it) } },
             settingsEnabled = terminalForSettings != null,
             onOpenSettings = { settingsOpen = true }
         )
@@ -894,6 +906,10 @@ private fun GuiTopBar(
     onToggleKeyboardMode: () -> Unit,
     keepScreenOn: Boolean,
     onToggleKeepScreenOn: () -> Unit,
+    keepAlive: Boolean,
+    onToggleKeepAlive: () -> Unit,
+    toolbarOrder: String,
+    onReorderToolbar: (String) -> Unit,
     settingsEnabled: Boolean,
     onOpenSettings: () -> Unit
 ) {
@@ -920,15 +936,20 @@ private fun GuiTopBar(
         )
         Box(modifier = Modifier.weight(1f))
 
-        // 並びは端末 TopBar と同じ。📋/CMD は keysym 橋渡しで GUI へタイプする (M8-6 T1)。
-        TopBarIconButton(label = "📋", onClick = onPaste)    // Android クリップボードを GUI へ貼付
-        TopBarIconButton(label = "📜", onClick = onOpenSnippets) // スニペットを GUI へ送出
-        KeepScreenOnButton(active = keepScreenOn, onClick = onToggleKeepScreenOn)
-        KeyboardToggleButton(
-            imeActive = keyboardMode == KeyboardMode.SYSTEM,
-            onClick = onToggleKeyboardMode
+        // 端末 TopBar と同じ並べ替え可能ツールバー。GUI は検索が無く、📋/📜 は keysym 橋渡しで
+        // GUI へタイプする (M8-6 T1)。⚙ は端末セッションが無いと押せない (settingsEnabled)。
+        ReorderableToolbar(
+            items = listOf(
+                ToolbarItem(TB_PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste),
+                ToolbarItem(TB_SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
+                ToolbarItem(TB_SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
+                ToolbarItem(TB_KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
+                ToolbarItem(TB_KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode),
+                ToolbarItem(TB_SETTINGS, "⚙", stringResource(R.string.tb_settings), enabled = settingsEnabled, onClick = onOpenSettings)
+            ),
+            savedOrder = toolbarOrder,
+            onReorder = onReorderToolbar
         )
-        TopBarIconButton(label = "⚙", enabled = settingsEnabled, onClick = onOpenSettings)
         // 状態名 (CONNECTED 等) は表示しない: 幅が狭いと崩れる & 実用上見ないため (要望で削除)。
     }
 }
@@ -1000,6 +1021,10 @@ private fun TopBar(
     onOpenSettings: () -> Unit,
     keepScreenOn: Boolean,
     onToggleKeepScreenOn: () -> Unit,
+    keepAlive: Boolean,
+    onToggleKeepAlive: () -> Unit,
+    toolbarOrder: String,
+    onReorderToolbar: (String) -> Unit,
     onOpenSnippets: () -> Unit,
     searchActive: Boolean = false,
     onToggleSearch: () -> Unit = {}
@@ -1044,23 +1069,193 @@ private fun TopBar(
         }
         Box(modifier = Modifier.weight(1f))
 
-        // 並び (左→右): 貼付 / コマンド一覧 / 画面消灯ロック / 検索 / キーボード切替 / 設定 (要望)
-        // 貼付ボタン (タップ = クリップボード貼り付けのみ)。
-        // 📋 クリップボードアイコン = 貼り付け、の方が直感的なため漢字「貼」から変更。
-        TopBarIconButton(label = "📋", onClick = onPaste)
-        // コマンド一覧 (スニペット)。巻物アイコンで明示。
-        TopBarIconButton(label = "📜", onClick = onOpenSnippets)
-        // 画面消灯ロック (タップで ON/OFF。ON 中は画面が自動消灯しない)
-        KeepScreenOnButton(active = keepScreenOn, onClick = onToggleKeepScreenOn)
-        // スクロールバック検索 (タップで検索バーをトグル。ON 中は緑ハイライト)。
-        SearchToggleButton(active = searchActive, onClick = onToggleSearch)
-        // キーボード切替ボタン (タップ = OS IME ⇄ 独自キーボード)
-        KeyboardToggleButton(
-            imeActive = keyboardMode == KeyboardMode.SYSTEM,
-            onClick = onToggleKeyboardMode
+        // 既定の並び (左→右): 貼付 / コマンド一覧 / 画面消灯ロック / 常駐ロック / 検索 / キーボード切替 / 設定。
+        // 常駐ロック (バックグラウンド常駐トグル) は画面消灯ロックの右に置く (要望)。
+        // 各ボタンは長押しドラッグで並べ替え可・長押し中は簡易説明をポップアップ表示する。
+        ReorderableToolbar(
+            items = listOf(
+                ToolbarItem(TB_PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste),
+                ToolbarItem(TB_SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
+                ToolbarItem(TB_SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
+                ToolbarItem(TB_KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
+                ToolbarItem(TB_SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
+                ToolbarItem(TB_KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode),
+                ToolbarItem(TB_SETTINGS, "⚙", stringResource(R.string.tb_settings), onClick = onOpenSettings)
+            ),
+            savedOrder = toolbarOrder,
+            onReorder = onReorderToolbar
         )
-        TopBarIconButton(label = "⚙", onClick = onOpenSettings)
         // 状態名 (RUNNING 等) は表示しない: 幅が狭いと崩れる & 実用上見ないため (要望で削除)。
+    }
+}
+
+// ツールバーのアクション id (並び順の永続化キーに使う・[ReorderableToolbar])。
+private const val TB_PASTE = "paste"
+private const val TB_SNIPPETS = "snippets"
+private const val TB_SCREEN_ON = "screen_on"
+private const val TB_KEEP_ALIVE = "keep_alive"
+private const val TB_SEARCH = "search"
+private const val TB_KEYBOARD = "keyboard"
+private const val TB_SETTINGS = "settings"
+
+/** ツールバーの 1 ボタン。[id] は並び順の保存キー、[active] は緑ハイライト、[description] は長押し説明。 */
+private class ToolbarItem(
+    val id: String,
+    val icon: String,
+    val description: String,
+    val active: Boolean = false,
+    val enabled: Boolean = true,
+    val onClick: () -> Unit
+)
+
+/**
+ * 保存済み並び [saved] と現在表示すべき [present] をマージする。
+ * 保存順のうち present に在るものを優先採用し、保存に無い (新規追加された) ボタンを
+ * present の既定順で末尾に補う。これでボタンの追加・削除があっても並びが壊れない。
+ */
+private fun mergeToolbarOrder(saved: List<String>, present: List<String>): List<String> {
+    val kept = saved.filter { it in present }
+    val rest = present.filter { it !in kept }
+    return kept + rest
+}
+
+/**
+ * 並べ替え可能なツールバー (要望)。
+ *  - 通常タップ = そのボタンの動作。
+ *  - 長押し = つかんで左右ドラッグで並べ替え + 簡易説明ポップアップを表示。
+ * 並びは [savedOrder] (カンマ区切り id) から復元し、変更を [onReorder] で永続化する。
+ */
+@Composable
+private fun ReorderableToolbar(
+    items: List<ToolbarItem>,
+    savedOrder: String,
+    onReorder: (String) -> Unit
+) {
+    val present = items.map { it.id }
+    val byId = items.associateBy { it.id }
+    val order = remember { mutableStateListOf<String>() }
+    var dragging by remember { mutableStateOf<String?>(null) }
+    // 保存順 / ボタン構成が変わったら並びを作り直す。ドラッグ中だけは触らない
+    // (確定時は order をローカル更新済 → 直後の savedOrder 反映で同じ並びに収束しちらつかない)。
+    LaunchedEffect(savedOrder, present) {
+        if (dragging == null) {
+            val merged = mergeToolbarOrder(
+                savedOrder.split(',').map { it.trim() }.filter { it.isNotEmpty() },
+                present
+            )
+            order.clear(); order.addAll(merged)
+        }
+    }
+    val widths = remember { mutableStateMapOf<String, Int>() }
+    var dragOffset by remember { mutableStateOf(0f) }
+    val gapPx = with(LocalDensity.current) { 8.dp.roundToPx() }
+
+    // ドラッグ量が隣ボタンの中心を越えたら order を入れ替え、その分 offset を戻して連続移動。
+    fun trySwap() {
+        val id = dragging ?: return
+        val idx = order.indexOf(id)
+        if (idx < 0) return
+        if (idx < order.size - 1) {
+            val w = (widths[order[idx + 1]] ?: 0) + gapPx
+            if (w > gapPx && dragOffset > w / 2f) {
+                order.add(idx + 1, order.removeAt(idx)); dragOffset -= w; return
+            }
+        }
+        if (idx > 0) {
+            val w = (widths[order[idx - 1]] ?: 0) + gapPx
+            if (w > gapPx && dragOffset < -w / 2f) {
+                order.add(idx - 1, order.removeAt(idx)); dragOffset += w; return
+            }
+        }
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        order.forEach { id ->
+            val item = byId[id] ?: return@forEach
+            key(id) {
+                val isDrag = dragging == id
+                Box(
+                    modifier = Modifier
+                        .onSizeChanged { widths[id] = it.width }
+                        .zIndex(if (isDrag) 1f else 0f)
+                        .graphicsLayer { translationX = if (isDrag) dragOffset else 0f }
+                        .pointerInput(id) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { dragging = id; dragOffset = 0f },
+                                onDragEnd = { dragging = null; dragOffset = 0f; onReorder(order.joinToString(",")) },
+                                onDragCancel = { dragging = null; dragOffset = 0f; onReorder(order.joinToString(",")) },
+                                onDrag = { change, amount -> change.consume(); dragOffset += amount.x; trySwap() }
+                            )
+                        }
+                ) {
+                    ToolbarChip(icon = item.icon, active = item.active, enabled = item.enabled, onClick = item.onClick)
+                    if (isDrag) ToolbarTooltip(item.description)
+                }
+            }
+        }
+    }
+}
+
+/** ツールバー 1 ボタンの見た目 (active=緑ハイライト / enabled=false でグレーアウト)。 */
+@Composable
+private fun ToolbarChip(icon: String, active: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    val bg = when {
+        !enabled -> ZtsBgCard.copy(alpha = 0.35f)
+        active -> ZtsGreen
+        else -> ZtsBgCard
+    }
+    val fg = when {
+        !enabled -> ZtsTextSecondary.copy(alpha = 0.4f)
+        active -> Color.Black
+        else -> ZtsTextPrimary
+    }
+    val border = when {
+        !enabled -> ZtsBorder.copy(alpha = 0.35f)
+        active -> ZtsGreen
+        else -> ZtsBorder
+    }
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(6.dp))
+            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = icon, color = fg, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+    }
+}
+
+/** 長押し中にボタンの真上へ出す簡易説明ポップアップ。 */
+@Composable
+private fun ToolbarTooltip(text: String) {
+    val density = LocalDensity.current
+    val offsetY = with(density) { -(40.dp).roundToPx() }
+    Popup(
+        alignment = Alignment.TopCenter,
+        offset = IntOffset(0, offsetY),
+        properties = PopupProperties(focusable = false, clippingEnabled = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(ZtsGreen)
+                .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = text,
+                color = Color.Black,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1
+            )
+        }
     }
 }
 
@@ -1081,32 +1276,6 @@ private fun TopBarIconButton(label: String, enabled: Boolean = true, onClick: ()
     ) {
         Text(
             text = label,
-            color = fg,
-            fontSize = 13.sp,
-            fontFamily = FontFamily.Monospace
-        )
-    }
-}
-
-/**
- * スクロールバック検索トグル (🔍)。検索バー表示中は緑でハイライトする。
- */
-@Composable
-private fun SearchToggleButton(active: Boolean, onClick: () -> Unit) {
-    val bg = if (active) ZtsGreen else ZtsBgCard
-    val fg = if (active) Color.Black else ZtsTextPrimary
-    val border = if (active) ZtsGreen else ZtsBorder
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(bg)
-            .border(1.dp, border, RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "🔍",
             color = fg,
             fontSize = 13.sp,
             fontFamily = FontFamily.Monospace
@@ -1197,70 +1366,6 @@ private fun SearchBar(
         TopBarIconButton(label = stringResource(R.string.search_prev), onClick = onPrev)
         TopBarIconButton(label = stringResource(R.string.search_next), onClick = onNext)
         TopBarIconButton(label = stringResource(R.string.search_close), onClick = onClose)
-    }
-}
-
-/**
- * 画面消灯ロックボタン (タップで ON/OFF をトグル)。
- * ON の間は画面が自動で消灯しない (`View.keepScreenOn`)。ON 中は緑でハイライト。
- * 表示は ON=💡 (点灯) / OFF=🔅 (暗) の電球で状態を示す。
- */
-@Composable
-private fun KeepScreenOnButton(
-    active: Boolean,
-    onClick: () -> Unit
-) {
-    val bg = if (active) ZtsGreen else ZtsBgCard
-    val fg = if (active) Color.Black else ZtsTextPrimary
-    val border = if (active) ZtsGreen else ZtsBorder
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(bg)
-            .border(1.dp, border, RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = if (active) "💡" else "🔅",
-            color = fg,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace
-        )
-    }
-}
-
-/**
- * キーボード切替ボタン (タップのみで OS IME ⇄ 独自キーボードをトグル)。
- * IME (SYSTEM) が有効な間は緑でハイライト。表示は言語非依存の「⌨」アイコン
- * (英語ロケールで「あ」が残らないように。OS IME 有効時は緑ハイライトで状態を示す)。
- */
-@Composable
-private fun KeyboardToggleButton(
-    imeActive: Boolean,
-    onClick: () -> Unit
-) {
-    val bg = if (imeActive) ZtsGreen else ZtsBgCard
-    val fg = if (imeActive) Color.Black else ZtsTextPrimary
-    val border = if (imeActive) ZtsGreen else ZtsBorder
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(bg)
-            .border(1.dp, border, RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "⌨",
-            color = fg,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace
-        )
     }
 }
 

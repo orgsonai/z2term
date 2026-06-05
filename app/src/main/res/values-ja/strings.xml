@@ -362,4 +362,14 @@
     <string name="search_prev">↑</string>
     <string name="search_next">↓</string>
     <string name="search_close">✕</string>
+
+    <!-- ツールバー操作の簡易説明 (長押しポップアップ) -->
+    <string name="tb_paste">クリップボードを貼り付け</string>
+    <string name="tb_snippets">コマンド一覧</string>
+    <string name="tb_screen_on">画面消灯ロック</string>
+    <string name="tb_keep_alive">バックグラウンド常駐</string>
+    <string name="tb_search">スクロールバック検索</string>
+    <string name="tb_keyboard">キーボード切替</string>
+    <string name="tb_settings">設定</string>
+    <string name="tb_reorder_hint">長押しで並べ替え</string>
 </resources>

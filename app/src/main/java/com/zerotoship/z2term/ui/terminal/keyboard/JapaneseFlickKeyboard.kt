@@ -68,13 +68,16 @@ import kotlinx.coroutines.launch
  * 循環させる (小書き・濁点はこのキーで付ける)。
  *
  * 配列 (5 列 × 4 行、画面高さを充填):
- *   ESC  あ   か  さ   ⌫
- *   ◀   た   な  は   ▶
- *   ␣    ま   や  ら   変換
- *   ABC  小゛゜ わ  、。  ⏎
+ *   ESC      あ   か  さ   ⌫
+ *   ◀/▼     た   な  は   ▶/▲
+ *   ␣       ま   や  ら   変換
+ *   ABC      小゛゜ わ  、。  ⏎
  *
- * 両端の列 (ESC/◀/␣/ABC と ⌫/▶/変換/⏎) は [JP_EDGE_WEIGHT] で幅を狭め、
+ * 両端の列 (ESC/◀▼/␣/ABC と ⌫/▶▲/変換/⏎) は [JP_EDGE_WEIGHT] で幅を狭め、
  * 中央 3 列のかな (フリック) を広く取って打ちやすくしている。
+ * Row 2 の両端は左右キーの真下に上下キーを半行ずつ積み ([JpEdgeStack])、◀ ▶ ▼ ▲ を
+ * 全て同じサイズに揃える: ◀ の下 (左) に ▼ (下)、▶ の下 (右) に ▲ (上)。
+ * スペース/変換は Row 3 で 1 行のまま (押しやすさ優先)。
  */
 // 両端 (機能キー) 列の幅。中央のかな列 (1f) より狭くする。
 private const val JP_EDGE_WEIGHT = 0.7f
@@ -182,31 +185,53 @@ fun JapaneseFlickKeyboard(
                 onFlickRight = { if (composing.isActive) composing.reset() else onBytes(byteArrayOf(0x15)) }
             )
         }
-        // Row 2: ◀  た  な  は  ▶
+        // Row 2: [◀ / ▼]  た  な  は  [▶ / ▲]
+        //   左右キー (◀ ▶) の真下に上下キー (▼ ▲) を半行ずつ積み、◀ ▶ ▼ ▲ を全て同じサイズに揃える。
+        //   ◀ の下に ▼ (下)、▶ の下に ▲ (上)。スペース/変換は Row 3 で 1 行のまま (押しやすさ優先)。
         //   スプリット変換中は ◀ ▶ をフォーカス範囲調整に流用 (左 = 縮める / 右 = 広げる)。
         //   composing 中で未スプリットなら、◀ ▶ は **変換キーを押したのと同じ** 扱いで
         //   スプリット変換へ突入する (ユーザー要望: 変換を押さず左右でブロック範囲変更に入る)。
         //   composing が空のときだけ従来どおりカーソルキー送信。
         JpRow(rowSpacing) {
-            JpKey("◀", style, repeatable = true, weight = JP_EDGE_WEIGHT) {
-                when {
-                    composing.isSplitMode -> composing.shrinkSplitHead()
-                    composing.isActive -> composing.convert()   // 変換キー相当: スプリット突入
-                    else -> { flush(); onCursorKey(TerminalEmulator.CursorKey.LEFT) }
+            JpEdgeStack(
+                weight = JP_EDGE_WEIGHT, spacing = rowSpacing,
+                top = {
+                    JpFuncKey("◀", style, modifier = Modifier.fillMaxSize(), repeatable = true) {
+                        when {
+                            composing.isSplitMode -> composing.shrinkSplitHead()
+                            composing.isActive -> composing.convert()   // 変換キー相当: スプリット突入
+                            else -> { flush(); onCursorKey(TerminalEmulator.CursorKey.LEFT) }
+                        }
+                    }
+                },
+                bottom = {
+                    JpFuncKey("▼", style, modifier = Modifier.fillMaxSize(), repeatable = true) {
+                        flush(); onCursorKey(TerminalEmulator.CursorKey.DOWN)
+                    }
                 }
-            }
+            )
             JpFlickKey(KANA_TA, style, ::emitKana)
             JpFlickKey(KANA_NA, style, ::emitKana)
             JpFlickKey(KANA_HA, style, ::emitKana)
-            JpKey("▶", style, repeatable = true, weight = JP_EDGE_WEIGHT) {
-                when {
-                    composing.isSplitMode -> composing.extendSplitHead()
-                    composing.isActive -> composing.convert()   // 変換キー相当: スプリット突入
-                    else -> { flush(); onCursorKey(TerminalEmulator.CursorKey.RIGHT) }
+            JpEdgeStack(
+                weight = JP_EDGE_WEIGHT, spacing = rowSpacing,
+                top = {
+                    JpFuncKey("▶", style, modifier = Modifier.fillMaxSize(), repeatable = true) {
+                        when {
+                            composing.isSplitMode -> composing.extendSplitHead()
+                            composing.isActive -> composing.convert()   // 変換キー相当: スプリット突入
+                            else -> { flush(); onCursorKey(TerminalEmulator.CursorKey.RIGHT) }
+                        }
+                    }
+                },
+                bottom = {
+                    JpFuncKey("▲", style, modifier = Modifier.fillMaxSize(), repeatable = true) {
+                        flush(); onCursorKey(TerminalEmulator.CursorKey.UP)
+                    }
                 }
-            }
+            )
         }
-        // Row 3: ␣  ま  や  ら  変換
+        // Row 3: ␣  ま  や  ら  変換   (スペース/変換は 1 行のまま = 押しやすさ優先)
         //   ␣ も composing がある間は **強制確定しない** で空白を append (記号と同じ方針)。
         JpRow(rowSpacing) {
             JpKey("␣", style, repeatable = true, weight = JP_EDGE_WEIGHT) {
@@ -257,6 +282,54 @@ private fun RowScope.JpKey(
     weight: Float = 1f,
     onClick: () -> Unit
 ) {
+    JpFuncKey(
+        label = label,
+        style = style,
+        modifier = Modifier.weight(weight).fillMaxHeight(),
+        fontScale = fontScale,
+        accent = accent,
+        repeatable = repeatable,
+        onClick = onClick
+    )
+}
+
+/**
+ * 縦に「機能キー (上) + カーソルキー (下)」を積むエッジ列 (要望)。
+ * ◀ ▶ の真下 (Row 3 の両端) に置き、上の `␣` / `変換` を薄くして下に ↓ / ↑ を生やす。
+ * [topWeight] / [bottomWeight] で上下の高さ比を決める (上を薄く = topWeight を小さめに)。
+ */
+@Composable
+private fun RowScope.JpEdgeStack(
+    weight: Float,
+    spacing: androidx.compose.ui.unit.Dp,
+    topWeight: Float = 1f,
+    bottomWeight: Float = 1f,
+    top: @Composable () -> Unit,
+    bottom: @Composable () -> Unit
+) {
+    Column(
+        modifier = Modifier.weight(weight).fillMaxHeight(),
+        verticalArrangement = Arrangement.spacedBy(spacing)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth().weight(topWeight)) { top() }
+        Box(modifier = Modifier.fillMaxWidth().weight(bottomWeight)) { bottom() }
+    }
+}
+
+/**
+ * 機能キーの見た目 + タップ/連打ジェスチャ本体。[modifier] にサイズ (weight + fill) を
+ * 渡すことで Row 直下でも Column ([JpEdgeStack]) の中でも使える。
+ */
+@Composable
+private fun JpFuncKey(
+    label: String,
+    style: KeyboardStyle,
+    modifier: Modifier,
+    fontScale: Float = 1f,
+    accent: Boolean = false,
+    repeatable: Boolean = false,
+    onClick: () -> Unit
+) {
     var pressed by remember { mutableStateOf(false) }
     val bg = when {
         pressed -> ZtsGreenBright
@@ -291,9 +364,7 @@ private fun RowScope.JpKey(
         }
     }
     Box(
-        modifier = Modifier
-            .weight(weight)
-            .fillMaxHeight()
+        modifier = modifier
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
             .border(1.dp, border, RoundedCornerShape(6.dp))
