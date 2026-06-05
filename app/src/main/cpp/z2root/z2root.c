@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>      // siginfo_t / SIGTSTP 等 (ジョブ制御の group-stop 判定)
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -74,6 +75,7 @@ struct pid_state {
     pid_t pid;
     int at_exit;            // 0: 次は syscall-entry, 1: 次は syscall-exit
     int used;
+    int started;            // 0: まだ最初の停止(TRACEFORK 由来の初期 SIGSTOP)を消化していない
     long entry_nr;          // entry で記録した syscall 番号 (exit 時の戻り値逆変換用)
     unsigned long aux_addr; // getcwd 等の対象バッファアドレス
 };
@@ -89,6 +91,7 @@ static struct pid_state *state_for(pid_t pid) {
     g_map[free_slot].used = 1;
     g_map[free_slot].pid = pid;
     g_map[free_slot].at_exit = 0;
+    g_map[free_slot].started = 0;
     return &g_map[free_slot];
 }
 
@@ -940,7 +943,8 @@ static int run_tracer(const struct config *cfg, pid_t child) {
     if (cfg->kill_on_exit) opts |= PTRACE_O_EXITKILL;
     ptrace(PTRACE_SETOPTIONS, child, 0, (void *)(long)opts);
 
-    state_for(child);
+    struct pid_state *cst = state_for(child);
+    if (cst) cst->started = 1;  // 親子の最初の exec トラップは上の waitpid で消化済み
     ptrace(PTRACE_SYSCALL, child, 0, 0);
 
     int exit_code = 0;
@@ -1001,7 +1005,49 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                 ptrace(PTRACE_SYSCALL, pid, 0, 0);
                 continue;
             }
-            // それ以外のシグナルはそのまま転送 (group-stop 等)。
+            // TRACEFORK で生まれた新規子は、最初に SIGSTOP で停止する(アタッチ由来の
+            // 人工的な停止)。これは「ジョブ制御の停止」ではないので握り潰して(配送せず)
+            // 再開する。これをしないと SIGSTOP が group-stop に化け、下の group-stop 処理が
+            // 再開を拒否して子が永久に停止し、シェルが wait でハングする
+            // (対話 zsh で外部コマンドが実行できない根因)。
+            {
+                struct pid_state *nst = state_for(pid);
+                if (nst && nst->started == 0) {
+                    nst->started = 1;
+                    int d = (sig == SIGSTOP || sig == SIGTRAP) ? 0 : sig;
+                    ptrace(PTRACE_SYSCALL, pid, 0, (void *)(long)d);
+                    continue;
+                }
+            }
+            // 停止シグナル(SIGSTOP/SIGTSTP/SIGTTIN/SIGTTOU)は「signal-delivery-stop」と
+            // 「group-stop」の2段で通知される。group-stop は PTRACE_GETSIGINFO が EINVAL を
+            // 返すことで判別できる。group-stop でうっかり PTRACE_SYSCALL すると停止を解除して
+            // しまい、シェルのジョブ制御(Ctrl+Z / tcsetpgrp に伴う SIGTTOU 等)が壊れる
+            // (対話 zsh が起動時に死ぬ / ジョブが即 suspended になる)。group-stop なら再開
+            // させず停止を尊重し、SIGCONT で起こされたとき(新たな停止通知)に再開する。
+            if (sig == SIGSTOP || sig == SIGTSTP || sig == SIGTTIN || sig == SIGTTOU) {
+                siginfo_t si;
+                if (ptrace(PTRACE_GETSIGINFO, pid, 0, &si) < 0) {
+                    // group-stop: 再開しない (停止したまま次のイベントを待つ)。
+                    continue;
+                }
+            }
+            // Android の seccomp フィルタは untrusted_app に許可されない syscall
+            // (setfsuid/setfsgid 等の権限系) に SIGSYS(31) を送ってプロセスを殺す。
+            // proot 互換の fakeroot(-0) で uid=0 に見えるゲスト(zsh 等)は起動時に
+            // これらを呼ぶため、握り潰さないとアプリ文脈で即死する。seccomp は既に
+            // 当該 syscall の実行をブロック済みなので、SIGSYS を配送せず返り値を 0
+            // (成功偽装) にして継続する (fakeroot の「権限操作は成功扱い」方針と一致)。
+            if (sig == SIGSYS) {
+                struct user_pt_regs regs;
+                if (get_regs(pid, &regs) == 0) {
+                    regs.regs[0] = 0;  // 成功(0)を返したことにする
+                    set_regs(pid, &regs);
+                }
+                ptrace(PTRACE_SYSCALL, pid, 0, 0);  // SIGSYS は配送しない
+                continue;
+            }
+            // それ以外(signal-delivery-stop / 通常シグナル)はそのまま転送する。
             int deliver = (sig == SIGTRAP) ? 0 : sig;
             ptrace(PTRACE_SYSCALL, pid, 0, (void *)(long)deliver);
             continue;

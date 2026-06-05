@@ -47,12 +47,14 @@ mkdir -p "${OUT_DIR}"
 OUT="${OUT_DIR}/libz2root.so"
 
 echo "[info] building z2root (aarch64, API ${API}) ..."
-# -static-pie 必須: --loader モード(自前 ELF ローダ)では本バイナリ自体がローダ子として
-# ptrace 配下で起動するが、動的リンクだと bionic リンカの /proc/self/exe 解決が
-# トレーサのパス変換に壊され SIGABRT する。静的化して bionic リンカ自体を無くすことで回避。
+# -static (非PIE ET_EXEC) 必須: --loader モード(自前 ELF ローダ)では本バイナリ自体が
+# ローダ子として ptrace 配下で起動するが、動的リンクだと bionic リンカの /proc/self/exe
+# 解決がトレーサのパス変換に壊され SIGABRT する。静的化して bionic リンカ自体を無くすことで回避。
+# なお bionic の -static-pie は NDK r28c では C ランタイムの自己再配置が main 到達前に
+# SIGSEGV する(実機 ZY32LNFX2B で確認)。非PIE の -static は健全に起動するため -static を使う。
 "${CC}" \
     -std=c11 -O2 -Wall -Wextra \
-    -static-pie \
+    -static \
     -o "${OUT}" \
     "${SRC}"
 
