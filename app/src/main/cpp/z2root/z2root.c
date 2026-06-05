@@ -594,8 +594,8 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
 }
 
 // syscall-exit で getcwd(17) の戻りバッファに入ったホスト実パスをゲストパスへ逆変換する。
-// (未実装だと cwd がホストパス /<rootfs>/... を露出し、$PWD やプロンプトが壊れる)
-// bind の逆変換は最小版では未対応 = TODO。
+// (未実装だと cwd がホストパス /<rootfs>/... や bind の host パスを露出し、$PWD やプロンプトが壊れる)
+// rootfs 配下だけでなく bind 配下(例: -b <host home>:/root)も host_to_guest() で逆変換する。
 static void rewrite_getcwd_result(const struct config *cfg, pid_t pid, unsigned long buf) {
     struct user_pt_regs regs;
     if (get_regs(pid, &regs) != 0) return;
@@ -604,12 +604,10 @@ static void rewrite_getcwd_result(const struct config *cfg, pid_t pid, unsigned 
 
     char host[PATH_MAX_Z];
     if (read_tracee_str(pid, buf, host, sizeof(host)) < 0) return;
-    if (strncmp(host, cfg->rootfs, cfg->rootfs_len) != 0) return;
 
-    const char *guest = host + cfg->rootfs_len;
     char g[PATH_MAX_Z];
-    if (guest[0] == '\0') snprintf(g, sizeof(g), "/");
-    else snprintf(g, sizeof(g), "%s", guest);
+    host_to_guest(cfg, host, g, sizeof(g));
+    if (strcmp(g, host) == 0) return;  // bind/rootfs いずれにも該当せず=変換不要
 
     size_t len = strlen(g) + 1;
     if (write_tracee_mem(pid, buf, g, len) == 0) {
