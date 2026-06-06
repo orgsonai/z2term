@@ -102,7 +102,10 @@ fun TerminalRenderer(
             delay(120)
             session.onResize(rows, cols)
         }
-        LaunchedEffect(cellW, lineHeight, rows, cols) {
+        // session.id をキーに含めないと、同寸の新規タブへ切り替えたとき再実行されず、
+        // 新 session の cellMetrics が初期値(0)のままになる。すると pixelToAbsCell() が
+        // null を返し、ピンチで resize するまで長押し選択が効かない。
+        LaunchedEffect(session.id, cellW, lineHeight, rows, cols) {
             session.updateCellMetrics(
                 CellMetrics(
                     cellW = cellW,

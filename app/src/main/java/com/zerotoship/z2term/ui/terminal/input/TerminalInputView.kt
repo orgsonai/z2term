@@ -394,7 +394,13 @@ class TerminalInputView(context: Context) : View(context) {
             val theirs = IntArray(2); drawView.getLocationInWindow(theirs)
             val sx = x + (mine[0] - theirs[0])
             val sy = y + (mine[1] - theirs[1])
-            mag.show(sx, sy)
+            // 拡大鏡ウィンドウを指の真上へ固定オフセットで出す。2 引数版は OEM 既定の
+            // 位置任せで「バラバラ」になり、指で隠れることがあるため 4 引数版(API 29+)で
+            // 拡大鏡中心を明示する。表示元(sx,sy)はそのまま、ウィンドウだけ上へずらす。
+            val density = resources.displayMetrics.density
+            val lift = mag.height / 2f + 24f * density
+            val magCenterY = (sy - lift).coerceAtLeast(mag.height / 2f)
+            mag.show(sx, sy, sx, magCenterY)
         }
     }
 

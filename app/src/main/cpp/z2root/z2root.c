@@ -772,7 +772,7 @@ static void rewrite_getcwd_result(const struct config *cfg, pid_t pid, unsigned 
 // パッケージ操作(apk/apt の chown 等)が EPERM で失敗しないよう成功に見せる。
 //   - getuid/geteuid/getgid/getegid → 0
 //   - getgroups → 補助グループ 0 個(ホスト gid の露出を消す。id の groups が root だけになる)
-//   - set*id / fchownat / fchown が EPERM 等で失敗したら成功(0)に握りつぶす
+//   - set*id / fchownat / fchown / fchmod / fchmodat が EPERM 等で失敗したら成功(0)に握りつぶす
 //   - newfstatat/fstat/statx の結果は st_uid/st_gid を 0 に上書き(所有者を root に見せる)
 // buf は entry で記録した stat 系の出力バッファアドレス(stat 以外では未使用)。
 static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
@@ -786,9 +786,12 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
         case 158:  // getgroups: 補助グループ 0 個に偽装(ホスト gid を隠す)
             if (ret >= 0) { regs.regs[0] = 0; set_regs(pid, &regs); }
             return;
-        // set*id / chown 系: 失敗(EPERM 等)を成功(0)へ。ホスト権限は実際には変わらない。
+        // set*id / chown / chmod 系: 失敗(EPERM 等)を成功(0)へ。ホスト権限は実際には
+        // 変わらない。chmod(52/53) は dropbear が SSH PTY 確立時に chmod(/dev/pts/N) を
+        // 呼ぶが、untrusted_app は pts を chmod できず EPERM → dropbear がセッションを
+        // 即終了(接続リセット)するため、root と同じく成功に見せる必要がある。
         case 143: case 144: case 145: case 146: case 147: case 149:
-        case 151: case 152: case 159: case 54: case 55:
+        case 151: case 152: case 159: case 54: case 55: case 52: case 53:
             if (ret < 0) { regs.regs[0] = 0; set_regs(pid, &regs); }
             return;
         case 79: case 80: {  // newfstatat / fstat: struct stat の st_uid(off24)/st_gid(off28)
@@ -1424,7 +1427,8 @@ static int syscall_needs_exit(const struct config *cfg, const struct pid_state *
         case 57: return 0;                            // close: entry で追跡解除のみ
         case 174: case 175: case 176: case 177: case 158:
         case 143: case 144: case 145: case 146: case 147: case 149:
-        case 151: case 152: case 159: case 54: case 55: return 1;  // 戻り値を 0(成功)へ
+        case 151: case 152: case 159: case 54: case 55:
+        case 52: case 53: return 1;  // 戻り値を 0(成功)へ(chmod/chown/set*id の EPERM 偽装)
         default: return 0;                            // パス変換のみ(execve/unlinkat 等)
     }
 }
