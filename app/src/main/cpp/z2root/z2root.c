@@ -44,6 +44,18 @@
 #include <alloca.h>      // alloca (自前ローダの初期スタック構築)
 #include <asm/ptrace.h>  // struct user_pt_regs (aarch64 uapi)
 #include <linux/elf.h>   // NT_PRSTATUS
+#include <sys/prctl.h>   // prctl (PR_SET_NO_NEW_PRIVS / PR_SET_SECCOMP)
+#include <linux/seccomp.h>  // SECCOMP_MODE_FILTER / SECCOMP_RET_*
+#include <linux/filter.h>   // struct sock_filter / sock_fprog (BPF)
+#include <linux/audit.h>    // AUDIT_ARCH_AARCH64
+#include <stddef.h>      // offsetof (seccomp_data フィールド)
+
+#ifndef PTRACE_EVENT_SECCOMP
+#define PTRACE_EVENT_SECCOMP 7
+#endif
+#ifndef PTRACE_O_TRACESECCOMP
+#define PTRACE_O_TRACESECCOMP 0x00000080
+#endif
 
 extern char **environ;
 
@@ -1102,6 +1114,76 @@ static char *const *parse_args(int argc, char **argv, struct config *cfg) {
     return &argv[i];
 }
 
+// ---- seccomp-bpf フィルタ (高速化の要) ---------------------------------------
+// 旧実装は PTRACE_SYSCALL で「全 syscall を entry/exit の2回」トラップしていた=
+// fork/exec/read/write の多い対話シェルや apt が proot(seccomp 併用)比で 20〜25倍
+// 遅かった。ここで「パス変換・fakeroot 偽装・getcwd 逆変換・/proc status 偽装に
+// 必要な syscall だけ」を SECCOMP_RET_TRACE に、残りを SECCOMP_RET_ALLOW にする
+// BPF フィルタを子に入れる。トレーサは PTRACE_O_TRACESECCOMP + 既定 PTRACE_CONT で、
+// フィルタ該当 syscall のときだけ PTRACE_EVENT_SECCOMP(=entry)で止まる。残りは
+// カーネル内で素通り=ネイティブ速度。これで proot 同等の速さになる。
+//
+// 注意: Android は untrusted_app に既に seccomp フィルタを入れている。フィルタは
+// 重畳評価され「より重い action が勝つ」(RET_TRAP > RET_TRACE > RET_ALLOW)。よって
+// 本フィルタの RET_TRACE は Android の ALLOW に勝ち(=狙った syscall を捕捉でき)、
+// Android が権限系 syscall に出す RET_TRAP(SIGSYS) は本フィルタの指定に勝つ(=従来
+// どおり SIGSYS として握り潰す)。NO_NEW_PRIVS を立てれば非特権でも導入できる。
+
+// トレース対象 syscall(aarch64 番号)。パス変換が要るもの + fd 追跡(openat/close/read)。
+static const int kTraceSyscallsBase[] = {
+    17,                       // getcwd (戻り値逆変換)
+    56, 437,                  // openat / openat2
+    79, 291,                  // newfstatat / statx
+    48, 439,                  // faccessat / faccessat2
+    78,                       // readlinkat
+    35, 34, 33,               // unlinkat / mkdirat / mknodat
+    53, 88,                   // fchmodat / utimensat
+    49, 43,                   // chdir / statfs
+    36, 37, 38, 276,          // symlinkat / linkat / renameat / renameat2
+    221, 281,                 // execve / execveat
+    57, 63,                   // close / read (fd 追跡・status/loginuid 偽装)
+};
+// fakeroot(-0) のとき追加でトレースする syscall(戻り値/構造体を root に偽装)。
+static const int kTraceSyscallsFakeroot[] = {
+    174, 175, 176, 177,       // getuid / geteuid / getgid / getegid
+    158,                      // getgroups
+    143, 144, 145, 146, 147, 149, 151, 152, 159, 54, 55, 80,
+    // setregid/setgid/setreuid/setuid/setresuid/setresgid/setfsuid/setfsgid/
+    // setgroups/fchownat/fchown/fstat(=fake_root_on_exit の対象)
+};
+
+// プロセスへ seccomp フィルタを導入する。成功 0 / 失敗 -1。
+static int install_seccomp_filter(const struct config *cfg) {
+    int nrs[64];
+    int n = 0;
+    for (size_t i = 0; i < sizeof(kTraceSyscallsBase)/sizeof(int); i++) nrs[n++] = kTraceSyscallsBase[i];
+    if (cfg->fake_root)
+        for (size_t i = 0; i < sizeof(kTraceSyscallsFakeroot)/sizeof(int); i++) nrs[n++] = kTraceSyscallsFakeroot[i];
+
+    // BPF プログラムを組む。レイアウト:
+    //   [0] LD arch
+    //   [1] arch != AARCH64 → ALLOW
+    //   [2] LD nr
+    //   [3 .. 3+C-1] nr 比較 C 個(一致で TRACE へ、不一致で次へ)
+    //   [3+C] ALLOW
+    //   [4+C] TRACE
+    int C = n;
+    struct sock_filter prog[5 + 64];
+    int p = 0;
+    prog[p++] = (struct sock_filter)BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, arch));
+    prog[p++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, AUDIT_ARCH_AARCH64, 0, (__u8)(1 + C));
+    prog[p++] = (struct sock_filter)BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr));
+    for (int i = 0; i < C; i++)
+        prog[p++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, (unsigned)nrs[i], (__u8)(C - i), 0);
+    prog[p++] = (struct sock_filter)BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW);
+    prog[p++] = (struct sock_filter)BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE);
+
+    struct sock_fprog fprog = { .len = (unsigned short)p, .filter = prog };
+    if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) return -1;
+    if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &fprog, 0, 0) != 0) return -1;
+    return 0;
+}
+
 // ---- 子プロセス: TRACEME してゲストコマンドを exec ----------------------------
 
 static int run_child(const struct config *cfg) {
@@ -1109,7 +1191,12 @@ static int run_child(const struct config *cfg) {
         perror("PTRACE_TRACEME");
         return 127;
     }
+    // トレーサと握手する。先に SIGSTOP で止まり、トレーサが PTRACE_O_TRACESECCOMP を
+    // 立ててから seccomp フィルタを入れて execve する。これをしないと「フィルタ導入
+    // 済みだがトレーサが TRACESECCOMP 未設定」の窓で最初の execve が ENOSYS になる。
+    raise(SIGSTOP);
     // ゲスト視点の cwd へ移動 (ホスト実パスへ変換してから chdir)。
+    // (フィルタ導入前に済ませる=この chdir はトレーサに翻訳させない)
     char host_cwd[PATH_MAX_Z];
     if (translate_abs(cfg, cfg->cwd, host_cwd, sizeof(host_cwd))) {
         if (chdir(host_cwd) != 0) chdir(cfg->rootfs);
@@ -1118,9 +1205,14 @@ static int run_child(const struct config *cfg) {
     // 最初の execve はトレーサがまだ傍受していない(このプロセス自身の呼び出し)ので、
     // ローダ差し替え / シバン解決を自前で行う。動的バイナリは PT_INTERP(ローダ)を
     // rootfs 内へ向けて明示起動しないと、カーネルがホスト / からローダを解決して ENOENT。
+    // 重要: plan_exec / フォールバック解決は openat/read/readlink 等を呼ぶ。これらは
+    // seccomp フィルタの対象なので、フィルタ導入「前」に済ませておく(導入後に呼ぶと
+    // トレーサがブートストラップ準備の syscall を翻訳してしまう)。
     int n = 0;
     while (cfg->command[n]) n++;
 
+    char **primary_argv = NULL;
+    const char *primary_target = NULL;
     struct exec_plan plan;
     if (plan_exec(cfg, getpid(), cfg->command[0], cfg->command[0], &plan) == 0) {
         // [prefix..., <元args[orig_start..]>, NULL]
@@ -1130,16 +1222,24 @@ static int run_child(const struct config *cfg) {
             for (int j = 0; j < plan.nprefix; j++) nv[k++] = plan.prefix[j];
             for (int j = plan.orig_start; j < n; j++) nv[k++] = (char *)cfg->command[j];
             nv[k] = NULL;
-            execve(plan.target, nv, environ);
-            free(nv);  // execve 失敗時のみ到達
+            primary_argv = nv;
+            primary_target = plan.target;
         }
     }
-    // フォールバック: パスだけ host へ変換して素直に exec。
+    // フォールバック: パスだけ host へ変換して素直に exec(これも事前解決しておく)。
     char real_guest[PATH_MAX_Z];
     resolve_guest_symlink(cfg, cfg->command[0], real_guest, sizeof(real_guest));
     char host_cmd[PATH_MAX_Z];
     if (!translate_abs(cfg, real_guest, host_cmd, sizeof(host_cmd)))
         snprintf(host_cmd, sizeof(host_cmd), "%s", real_guest);
+
+    // seccomp フィルタを導入(失敗してもフォールバックで続行=トレーサが全 syscall を
+    // PTRACE_SYSCALL で見る旧挙動になるだけ。Z2ROOT_NO_SECCOMP=1 で明示無効化も可)。
+    // この後は execve 以外の syscall を呼ばない(ブートストラップ execve を最初の
+    // PTRACE_EVENT_SECCOMP にして、トレーサ側のブートストラップ判定を成立させる)。
+    if (!getenv("Z2ROOT_NO_SECCOMP")) install_seccomp_filter(cfg);
+
+    if (primary_target) execve(primary_target, primary_argv, environ);
     execve(host_cmd, cfg->command, environ);
     fprintf(stderr, "z2root: execve(%s) failed: %s\n", host_cmd, strerror(errno));
     return 127;
@@ -1147,20 +1247,94 @@ static int run_child(const struct config *cfg) {
 
 // ---- 親プロセス: ptrace ループ ------------------------------------------------
 
+// この traced syscall は exit-stop での後処理(戻り値/構造体の偽装・逆変換)が要るか。
+// seccomp モードでは「要らない」syscall は entry の PTRACE_EVENT_SECCOMP 後すぐ
+// PTRACE_CONT して exit を取らない=ストップ回数を半減できる。
+static int syscall_needs_exit(const struct config *cfg, const struct pid_state *st) {
+    long nr = st->entry_nr;
+    if (nr == 17) return 1;                          // getcwd: 戻りバッファ逆変換
+    if (!cfg->fake_root) return 0;                   // fakeroot 系/ fd 追跡は -0 配下のみ
+    switch (nr) {
+        case 79: case 80: case 291: return 1;        // stat 系: st_uid/st_gid 偽装
+        case 56: return st->pending_open_kind != PROC_FD_NONE;  // openat: status/loginuid fd 追跡
+        case 63: return st->aux_kind != PROC_FD_NONE;           // read: 追跡 fd のバッファ偽装
+        case 57: return 0;                            // close: entry で追跡解除のみ
+        case 174: case 175: case 176: case 177: case 158:
+        case 143: case 144: case 145: case 146: case 147: case 149:
+        case 151: case 152: case 159: case 54: case 55: return 1;  // 戻り値を 0(成功)へ
+        default: return 0;                            // パス変換のみ(execve/unlinkat 等)
+    }
+}
+
+// syscall-entry 時の処理(パス変換・fd 追跡・偽装対象の控え)。need_exit を返す。
+static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_state *st) {
+    struct user_pt_regs regs;
+    if (get_regs(pid, &regs) != 0) { st->entry_nr = -1; return 0; }
+    st->entry_nr = (long)regs.regs[8];
+    st->aux_kind = PROC_FD_NONE;
+    unsigned long aux = 0;
+    if (st->entry_nr == 17) aux = regs.regs[0];      // getcwd buf
+    else if (cfg->fake_root) switch (st->entry_nr) {
+        case 80:  aux = regs.regs[1]; break;         // fstat: stat 出力バッファ
+        case 79:  aux = regs.regs[2]; break;         // newfstatat
+        case 291: aux = regs.regs[4]; break;         // statx
+        case 56:  note_proc_open(pid, &regs, st); break;  // openat: /proc status・loginuid 検出
+        case 57:  status_fd_remove(st, (int)regs.regs[0]); break;  // close: fd 追跡解除
+        case 63:  // read: 追跡 fd なら buf を控えて exit で偽装
+            st->aux_kind = status_fd_kind_of(st, (int)regs.regs[0]);
+            if (st->aux_kind != PROC_FD_NONE) aux = regs.regs[1];
+            break;
+    }
+    st->aux_addr = aux;
+    maybe_rewrite_path(cfg, pid, &regs);
+    return syscall_needs_exit(cfg, st);
+}
+
+// syscall-exit 時の処理(戻り値・構造体の逆変換 / 偽装)。
+static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_state *st) {
+    if (st->entry_nr == 17 && st->aux_addr) {
+        rewrite_getcwd_result(cfg, pid, st->aux_addr);
+    } else if (cfg->fake_root) {
+        if (st->entry_nr == 56 && st->pending_open_kind != PROC_FD_NONE) {
+            struct user_pt_regs r;  // openat 成功なら戻り fd を種別付きで追跡
+            if (get_regs(pid, &r) == 0 && (long)r.regs[0] >= 0)
+                status_fd_add(st, (int)r.regs[0], st->pending_open_kind);
+            st->pending_open_kind = PROC_FD_NONE;
+        } else if (st->entry_nr == 63 && st->aux_addr) {
+            fake_proc_on_read(pid, st->aux_addr, st->aux_kind);
+        } else {
+            fake_root_on_exit(pid, st->entry_nr, st->aux_addr);
+        }
+    }
+}
+
+// 再開ヘルパー。seccomp モードでは「exit 待ち(at_exit)」のときだけ PTRACE_SYSCALL、
+// それ以外は PTRACE_CONT(=次の seccomp イベント/シグナルまで素通り)。seccomp 不使用
+// (フォールバック)では従来どおり全 syscall を PTRACE_SYSCALL で見る。
+static void z_resume(pid_t pid, int seccomp_on, const struct pid_state *st, long sig) {
+    long req;
+    if (seccomp_on != 1) req = PTRACE_SYSCALL;
+    else req = (st && st->at_exit) ? PTRACE_SYSCALL : PTRACE_CONT;
+    ptrace(req, pid, 0, (void *)sig);
+}
+
 static int run_tracer(const struct config *cfg, pid_t child) {
     int status;
-    // 最初の停止 (exec トラップ) を待つ。
+    // 最初の停止 = 子の raise(SIGSTOP)(握手)。
     if (waitpid(child, &status, 0) < 0) { perror("waitpid"); return 1; }
 
     int opts = PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK |
-               PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE;
+               PTRACE_O_TRACEVFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACESECCOMP;
     if (cfg->kill_on_exit) opts |= PTRACE_O_EXITKILL;
     ptrace(PTRACE_SETOPTIONS, child, 0, (void *)(long)opts);
 
     struct pid_state *cst = state_for(child);
-    if (cst) cst->started = 1;  // 親子の最初の exec トラップは上の waitpid で消化済み
-    ptrace(PTRACE_SYSCALL, child, 0, 0);
+    if (cst) cst->started = 1;  // 握手の SIGSTOP は消化済み
+    // 子を再開。以降 chdir(導入前=native)→フィルタ導入→execve と進む。
+    ptrace(PTRACE_CONT, child, 0, 0);
 
+    int seccomp_mode = -1;   // -1: 未判定 / 0: seccomp 無効(フォールバック) / 1: 有効
+    int boot_done = 0;       // ブートストラップ execve(子の最初の execve)を消化したか
     int exit_code = 0;
     int alive = 1;
     while (alive > 0) {
@@ -1176,112 +1350,100 @@ static int run_tracer(const struct config *cfg, pid_t child) {
             if (pid == child) alive = 0;
             continue;
         }
+        if (!WIFSTOPPED(status)) continue;
 
-        if (WIFSTOPPED(status)) {
-            int sig = WSTOPSIG(status);
-            // syscall stop (TRACESYSGOOD なら SIGTRAP|0x80)
-            if (sig == (SIGTRAP | 0x80)) {
-                struct pid_state *st = state_for(pid);
-                if (st && st->at_exit == 0) {
-                    struct user_pt_regs regs;
-                    if (get_regs(pid, &regs) == 0) {
-                        st->entry_nr = (long)regs.regs[8];
-                        unsigned long aux = 0;
-                        if (st->entry_nr == 17) aux = regs.regs[0];  // getcwd buf
-                        else if (cfg->fake_root) switch (st->entry_nr) {
-                            case 80:  aux = regs.regs[1]; break;  // fstat: stat 出力バッファ
-                            case 79:  aux = regs.regs[2]; break;  // newfstatat
-                            case 291: aux = regs.regs[4]; break;  // statx
-                            case 56:  note_proc_open(pid, &regs, st); break;  // openat: /proc/.../status・loginuid 検出
-                            case 57:  status_fd_remove(st, (int)regs.regs[0]); break;  // close: fd 追跡解除
-                            case 63:  // read: 追跡 fd なら buf を控えて exit で種別に応じ偽装
-                                st->aux_kind = status_fd_kind_of(st, (int)regs.regs[0]);
-                                if (st->aux_kind != PROC_FD_NONE) aux = regs.regs[1];
-                                break;
-                        }
-                        st->aux_addr = aux;
-                        maybe_rewrite_path(cfg, pid, &regs);
-                    }
-                    st->at_exit = 1;
-                } else if (st) {
-                    // syscall-exit: 戻り値・構造体の逆変換 / 偽装。
-                    if (st->entry_nr == 17 && st->aux_addr) {
-                        rewrite_getcwd_result(cfg, pid, st->aux_addr);
-                    } else if (cfg->fake_root) {
-                        if (st->entry_nr == 56 && st->pending_open_kind != PROC_FD_NONE) {
-                            // openat 成功なら戻り fd を種別付きで追跡。
-                            struct user_pt_regs r;
-                            if (get_regs(pid, &r) == 0 && (long)r.regs[0] >= 0)
-                                status_fd_add(st, (int)r.regs[0], st->pending_open_kind);
-                            st->pending_open_kind = PROC_FD_NONE;
-                        } else if (st->entry_nr == 63 && st->aux_addr) {
-                            fake_proc_on_read(pid, st->aux_addr, st->aux_kind);
-                        } else {
-                            fake_root_on_exit(pid, st->entry_nr, st->aux_addr);
-                        }
-                    }
-                    st->at_exit = 0;
-                }
-                ptrace(PTRACE_SYSCALL, pid, 0, 0);
+        int sig = WSTOPSIG(status);
+        int event = (status >> 16) & 0xff;
+
+        // seccomp イベント(=フィルタ該当 syscall の entry)。seccomp モード確定。
+        if (event == PTRACE_EVENT_SECCOMP) {
+            seccomp_mode = 1;
+            struct pid_state *st = state_for(pid);
+            if (!st) { ptrace(PTRACE_CONT, pid, 0, 0); continue; }
+            if (pid == child && !boot_done) {
+                // ブートストラップ execve(run_child が既に host 解決済み)。翻訳しない。
+                boot_done = 1;
+                st->entry_nr = 221; st->at_exit = 0;
+                ptrace(PTRACE_CONT, pid, 0, 0);
                 continue;
             }
-            // fork/clone/exec イベント。新規子は自動で停止しているので継続再開。
-            int event = (status >> 16) & 0xff;
-            if (event == PTRACE_EVENT_FORK || event == PTRACE_EVENT_VFORK ||
-                event == PTRACE_EVENT_CLONE) {
-                unsigned long newpid = 0;
-                ptrace(PTRACE_GETEVENTMSG, pid, 0, &newpid);
-                state_for((pid_t)newpid);
-                ptrace(PTRACE_SYSCALL, pid, 0, 0);
-                continue;
-            }
-            // TRACEFORK で生まれた新規子は、最初に SIGSTOP で停止する(アタッチ由来の
-            // 人工的な停止)。これは「ジョブ制御の停止」ではないので握り潰して(配送せず)
-            // 再開する。これをしないと SIGSTOP が group-stop に化け、下の group-stop 処理が
-            // 再開を拒否して子が永久に停止し、シェルが wait でハングする
-            // (対話 zsh で外部コマンドが実行できない根因)。
-            {
-                struct pid_state *nst = state_for(pid);
-                if (nst && nst->started == 0) {
-                    nst->started = 1;
-                    int d = (sig == SIGSTOP || sig == SIGTRAP) ? 0 : sig;
-                    ptrace(PTRACE_SYSCALL, pid, 0, (void *)(long)d);
-                    continue;
-                }
-            }
-            // 停止シグナル(SIGSTOP/SIGTSTP/SIGTTIN/SIGTTOU)は「signal-delivery-stop」と
-            // 「group-stop」の2段で通知される。group-stop は PTRACE_GETSIGINFO が EINVAL を
-            // 返すことで判別できる。group-stop でうっかり PTRACE_SYSCALL すると停止を解除して
-            // しまい、シェルのジョブ制御(Ctrl+Z / tcsetpgrp に伴う SIGTTOU 等)が壊れる
-            // (対話 zsh が起動時に死ぬ / ジョブが即 suspended になる)。group-stop なら再開
-            // させず停止を尊重し、SIGCONT で起こされたとき(新たな停止通知)に再開する。
-            if (sig == SIGSTOP || sig == SIGTSTP || sig == SIGTTIN || sig == SIGTTOU) {
-                siginfo_t si;
-                if (ptrace(PTRACE_GETSIGINFO, pid, 0, &si) < 0) {
-                    // group-stop: 再開しない (停止したまま次のイベントを待つ)。
-                    continue;
-                }
-            }
-            // Android の seccomp フィルタは untrusted_app に許可されない syscall
-            // (setfsuid/setfsgid 等の権限系) に SIGSYS(31) を送ってプロセスを殺す。
-            // proot 互換の fakeroot(-0) で uid=0 に見えるゲスト(zsh 等)は起動時に
-            // これらを呼ぶため、握り潰さないとアプリ文脈で即死する。seccomp は既に
-            // 当該 syscall の実行をブロック済みなので、SIGSYS を配送せず返り値を 0
-            // (成功偽装) にして継続する (fakeroot の「権限操作は成功扱い」方針と一致)。
-            if (sig == SIGSYS) {
-                struct user_pt_regs regs;
-                if (get_regs(pid, &regs) == 0) {
-                    regs.regs[0] = 0;  // 成功(0)を返したことにする
-                    set_regs(pid, &regs);
-                }
-                ptrace(PTRACE_SYSCALL, pid, 0, 0);  // SIGSYS は配送しない
-                continue;
-            }
-            // それ以外(signal-delivery-stop / 通常シグナル)はそのまま転送する。
-            int deliver = (sig == SIGTRAP) ? 0 : sig;
-            ptrace(PTRACE_SYSCALL, pid, 0, (void *)(long)deliver);
+            int need_exit = handle_syscall_entry(cfg, pid, st);
+            st->at_exit = need_exit ? 1 : 0;
+            ptrace(need_exit ? PTRACE_SYSCALL : PTRACE_CONT, pid, 0, 0);
             continue;
         }
+
+        // syscall-stop (TRACESYSGOOD: SIGTRAP|0x80)。
+        if (sig == (SIGTRAP | 0x80)) {
+            struct pid_state *st = state_for(pid);
+            if (seccomp_mode == 1) {
+                // seccomp モードでは PTRACE_SYSCALL で取った exit のみ来る。
+                if (st) { handle_syscall_exit(cfg, pid, st); st->at_exit = 0; }
+                z_resume(pid, 1, st, 0);
+            } else {
+                // フォールバック(全 syscall トレース): entry/exit トグル。
+                if (st && st->at_exit == 0) { handle_syscall_entry(cfg, pid, st); st->at_exit = 1; }
+                else if (st) { handle_syscall_exit(cfg, pid, st); st->at_exit = 0; }
+                ptrace(PTRACE_SYSCALL, pid, 0, 0);
+            }
+            continue;
+        }
+
+        // fork/clone/vfork イベント。新規子を登録して再開。
+        if (event == PTRACE_EVENT_FORK || event == PTRACE_EVENT_VFORK ||
+            event == PTRACE_EVENT_CLONE) {
+            unsigned long newpid = 0;
+            ptrace(PTRACE_GETEVENTMSG, pid, 0, &newpid);
+            state_for((pid_t)newpid);
+            z_resume(pid, seccomp_mode, state_for(pid), 0);
+            continue;
+        }
+
+        // TRACEFORK で生まれた新規子の最初の SIGSTOP(アタッチ由来の人工停止)。
+        // 握り潰して再開しないと group-stop に化けてシェルの wait がハングする。
+        {
+            struct pid_state *nst = state_for(pid);
+            if (nst && nst->started == 0) {
+                nst->started = 1;
+                // 新規子にもオプションを設定(継承されない環境への保険)。
+                ptrace(PTRACE_SETOPTIONS, pid, 0, (void *)(long)opts);
+                long d = (sig == SIGSTOP || sig == SIGTRAP) ? 0 : sig;
+                z_resume(pid, seccomp_mode, nst, d);
+                continue;
+            }
+        }
+
+        // 子の最初の通常 SIGTRAP(=ブートストラップ execve の exec-stop)。seccomp が
+        // 効いていれば既に EVENT_SECCOMP 経由で boot_done 済み。ここに -1 で来たら
+        // seccomp 不発=フォールバック(全 syscall トレース)へ切り替える。
+        if (seccomp_mode == -1 && pid == child && sig == SIGTRAP) {
+            seccomp_mode = 0;
+            boot_done = 1;
+            struct pid_state *st = state_for(pid);
+            if (st) st->at_exit = 0;
+            ptrace(PTRACE_SYSCALL, pid, 0, 0);
+            continue;
+        }
+
+        // group-stop(SIGSTOP/TSTP/TTIN/TTOU の 2 段目)は PTRACE_GETSIGINFO が EINVAL。
+        // 尊重して再開しない(ジョブ制御 Ctrl+Z / tcsetpgrp の SIGTTOU を壊さない)。
+        if (sig == SIGSTOP || sig == SIGTSTP || sig == SIGTTIN || sig == SIGTTOU) {
+            siginfo_t si;
+            if (ptrace(PTRACE_GETSIGINFO, pid, 0, &si) < 0) continue;
+        }
+
+        // Android seccomp が untrusted_app に禁ずる権限系 syscall(setfsuid 等)の
+        // SIGSYS。配送せず戻り値 0(成功偽装)にして継続(fakeroot 方針)。
+        if (sig == SIGSYS) {
+            struct user_pt_regs regs;
+            if (get_regs(pid, &regs) == 0) { regs.regs[0] = 0; set_regs(pid, &regs); }
+            z_resume(pid, seccomp_mode, state_for(pid), 0);
+            continue;
+        }
+
+        // それ以外(signal-delivery-stop / 通常シグナル)はそのまま転送。
+        long deliver = (sig == SIGTRAP) ? 0 : sig;
+        z_resume(pid, seccomp_mode, state_for(pid), deliver);
     }
     return exit_code;
 }
