@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-06 / 対象バージョン: 0.8.33-alpha (versionCode 41)
+最終更新: 2026-06-06 / 対象バージョン: 0.8.34-alpha (versionCode 42)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -135,7 +135,7 @@
 - 起動毎に冪等で注入: `ensureShellHistoryConfig` (履歴 rc)、`ensureSshdWrapper` (`/usr/local/sbin/sshd` = dropbear ラッパー)、`ensureOsc7CwdConfig` (cwd 復元用 OSC7 フック)、`ensureZ2ApiScripts` (`z2-*` ブリッジ)、GUI/z2run スクリプト。
 - `launchAndroidSh`: proot 不可時のフォールバック (`/system/bin/sh` + 最小 mkshrc)。
 
-**実行エンジン z2root (裏機能・非 root・実験的)**: `executionEngine = "z2root"` のとき、`launch()` がバイナリを `nativeLibraryDir/libz2root.so`（自前 ptrace エンジン）に差し替える。proot 互換 argv subset を受けるので引数・env はそのまま流用（`PROOT_*`/talloc は z2root が無視）。`libz2root.so` 未同梱（`scripts/build-z2root.sh` 未実行）の場合は proot へフォールバック。パス変換は proot 相当に強化済み（パス内 symlink の canonicalize / `/proc/<tid>/cwd` による cwd 相対パス絶対化 / `dirfd` 相対は非変換 / `renameat2`・`linkat`・`symlinkat` の2パス変換 / `utimensat` のパス変換 / execve ローダ差し替え・`#!` シバン解決 / 非 ELF・存在しない PATH 候補は loader を噛ませず素の execve でカーネルに `ENOENT`/`ENOEXEC` を返させる passthrough）。実機 Ubuntu 24.04 で `apt install hello` が end-to-end 成功（`Unpacking`→`Setting up`→`Hello, world!` 実行）まで確認済み (0.8.30)。0.8.32 で **seccomp-bpf による高速化**を導入＝従来は `PTRACE_SYSCALL` で全 syscall を 2 回トラップしていたのを、パス変換・fakeroot 偽装・getcwd 逆変換・/proc 偽装に必要な syscall だけ `SECCOMP_RET_TRACE` で捕捉し残りはネイティブ実行にした（proot と同方式）。実機ベンチで fork/exec 約2.3倍・read 約3倍・実 IO は proot の約2倍以内、FS 走査は proot より高速。フェーズ2（FOSS の外部表記ゼロ化）の実体で、詳細は `docs/FOSS-PURE-HANDOFF.md` §5。
+**実行エンジン z2root (裏機能・非 root・実験的)**: `executionEngine = "z2root"` のとき、`launch()` がバイナリを `nativeLibraryDir/libz2root.so`（自前 ptrace エンジン）に差し替える。proot 互換 argv subset を受けるので引数・env はそのまま流用（`PROOT_*`/talloc は z2root が無視）。`libz2root.so` 未同梱（`scripts/build-z2root.sh` 未実行）の場合は proot へフォールバック。パス変換は proot 相当に強化済み（パス内 symlink の canonicalize / `/proc/<tid>/cwd` による cwd 相対パス絶対化 / `dirfd` 相対は非変換 / `renameat2`・`linkat`・`symlinkat` の2パス変換 / `utimensat` のパス変換 / execve ローダ差し替え・`#!` シバン解決 / 非 ELF・存在しない PATH 候補は loader を噛ませず素の execve でカーネルに `ENOENT`/`ENOEXEC` を返させる passthrough）。実機 Ubuntu 24.04 で `apt install hello` が end-to-end 成功（`Unpacking`→`Setting up`→`Hello, world!` 実行）まで確認済み (0.8.30)。0.8.32 で **seccomp-bpf による高速化**を導入＝従来は `PTRACE_SYSCALL` で全 syscall を 2 回トラップしていたのを、パス変換・fakeroot 偽装・getcwd 逆変換・/proc 偽装に必要な syscall だけ `SECCOMP_RET_TRACE` で捕捉し残りはネイティブ実行にした（proot と同方式）。実機ベンチで fork/exec 約2.3倍・read 約3倍・実 IO は proot の約2倍以内、FS 走査は proot より高速。0.8.34 で **read 非トレース化（`Z2ROOT_READFREE=1` の opt-in）**を追加＝seccomp 化後も `/proc/<pid>/status`・`loginuid` の偽装のために `read`/`close` を捕捉し続けるコストが残り、小 read 連打（`dd bs=1` 等）が proot 比約9倍だった。read-free では偽装を `openat` の瞬間に行う＝偽装済み内容を rootfs 内の使い捨て temp に書き出し `openat` のパスをそこへ差し替える（直後に unlink＝open-then-unlink）。以後の read は通常ファイルへの読み取りなので `read`/`close` を seccomp 対象から外せる（ネイティブ速）。既定 OFF（実機未検証）。フェーズ2（FOSS の外部表記ゼロ化）の実体で、詳細は `docs/FOSS-PURE-HANDOFF.md` §5。
 
 **実行エンジン chroot (裏機能・要 root)**: `executionEngine = "chroot"` のとき `launchChroot()` を使う。
 

@@ -82,6 +82,7 @@ struct config {
     char *const *command;             // 残りの argv (ゲスト視点のコマンド + 引数)
     int use_loader;                   // 1: rootfs ELF を自前ローダ(--loader)経由で起動
     char self_path[PATH_MAX_Z];       // /proc/self/exe (nativeLibraryDir の libz2root.so)
+    int readfree;                     // Z2ROOT_READFREE: /proc 偽装を openat 時 temp 差し替えにし read/close をトレース対象から外す(高速化)
 };
 
 // ---- pid -> syscall entry/exit トグル の簡易マップ ----------------------------
@@ -91,6 +92,7 @@ struct config {
 
 #define MAP_CAP 256
 #define STATUS_FD_MAX 16    // 同時に追跡する /proc 偽装 fd の上限(超過分は非追跡)
+#define STATUS_BUF_MAX 16384 // /proc status/loginuid を読み込む temp 用バッファ上限(status は通常 ~2KB)
 // proc 偽装 fd の種別(read 時にどの偽装を当てるか)。
 #define PROC_FD_NONE     0
 #define PROC_FD_STATUS   1  // /proc/.../status (Uid/Gid/Groups/Cap* を root 一貫に)
@@ -106,6 +108,7 @@ struct pid_state {
     int pending_open_kind;  // fakeroot: openat entry で偽装対象 proc パスを検出した種別(exit で fd を採取)
     int status_fds[STATUS_FD_MAX];      // fakeroot: 偽装対象 proc を指す fd 群, -1=空
     int status_fd_kind[STATUS_FD_MAX];  // 上記 fd の種別(PROC_FD_*), status_fds と添字対応
+    int subst_active;       // readfree: openat で /proc を temp 差し替え中(exit で temp を unlink)
 };
 static struct pid_state g_map[MAP_CAP];
 
@@ -122,6 +125,7 @@ static struct pid_state *state_for(pid_t pid) {
     g_map[free_slot].started = 0;
     g_map[free_slot].pending_open_kind = PROC_FD_NONE;
     g_map[free_slot].aux_kind = PROC_FD_NONE;
+    g_map[free_slot].subst_active = 0;
     for (int k = 0; k < STATUS_FD_MAX; k++) {
         g_map[free_slot].status_fds[k] = -1;
         g_map[free_slot].status_fd_kind[k] = PROC_FD_NONE;
@@ -922,6 +926,84 @@ static void fake_proc_on_read(pid_t pid, unsigned long buf, int kind) {
     write_tracee_mem(pid, buf, b, len);
 }
 
+// readfree モード: openat 時に /proc 偽装を「temp ファイル差し替え」で行う。
+// 従来は status/loginuid を指す fd を追跡し read() exit ごとにバッファを書き換えていたが、
+// それには read(と close)を seccomp トレース対象に残す必要があり、対話シェルや dd の
+// 大量 read が proot 比で遅かった。ここでは openat の瞬間に偽装済み内容を rootfs 内の
+// temp へ書き出し、openat のパス引数をその temp(ホスト実パス)へ差し替える。以後ゲストは
+// 通常ファイルを read するだけなので read/close をトレース対象から外せる(= proot 同等速)。
+// temp は openat-exit で unlink する(ゲストは fd を保持済み=open-unlink で内容は生きる)。
+
+// /proc/self/... や /proc/thread-self/... の "self" をトレーシ tid(pid)へ解決して
+// 実ホストパスを得る(/proc は -b /proc で host /proc に 1:1。ゲスト pid == host pid)。
+static void resolve_proc_self(const char *g, pid_t pid, char *out, size_t cap) {
+    const char *rest = g + 6;  // "/proc/" の後ろ
+    if (strncmp(rest, "self/", 5) == 0)
+        snprintf(out, cap, "/proc/%d/%s", (int)pid, rest + 5);
+    else if (strncmp(rest, "thread-self/", 12) == 0)
+        snprintf(out, cap, "/proc/%d/%s", (int)pid, rest + 12);
+    else
+        snprintf(out, cap, "%s", g);
+}
+
+// readfree モードの temp 差し替え本体。戻り値 1=差し替えた(呼び出し側は
+// maybe_rewrite_path をスキップし openat-exit で temp を unlink)、0=非対象/失敗
+// (通常 openat にフォールバック)。失敗時に uid 露出する可能性はあるが稀。
+static int try_subst_proc_open(const struct config *cfg, pid_t pid,
+                               struct user_pt_regs *regs, struct pid_state *st) {
+    unsigned long path_addr = regs->regs[1];  // openat(dirfd, pathname, ...)
+    if (path_addr == 0) return 0;
+    char g[PATH_MAX_Z];
+    if (read_tracee_str(pid, path_addr, g, sizeof(g)) < 0) return 0;
+    int kind = proc_open_kind(g);
+    if (kind == PROC_FD_NONE) return 0;
+
+    // 実 /proc ファイルを読む(self/thread-self は tid へ解決)。読めなければ非差し替え。
+    char real[PATH_MAX_Z];
+    resolve_proc_self(g, pid, real, sizeof(real));
+    int rfd = open(real, O_RDONLY | O_CLOEXEC);
+    if (rfd < 0) return 0;
+    char buf[STATUS_BUF_MAX];
+    size_t total = 0;
+    ssize_t n;
+    while (total < sizeof(buf) && (n = read(rfd, buf + total, sizeof(buf) - total)) > 0)
+        total += (size_t)n;
+    close(rfd);
+
+    // 偽装を当てる(read 経路と同じ書き換え)。
+    if (kind == PROC_FD_LOGINUID) fake_loginuid_buf(buf, total);
+    else                          fake_status_buf(buf, total);
+
+    // rootfs 内 temp(tid 名)へ書き出す。同 tid の openat entry→exit は直列なので
+    // 同名の衝突は起きない(超える前に exit で unlink される)。
+    char tmp[PATH_MAX_Z];
+    snprintf(tmp, sizeof(tmp), "%s/.z2subst.%d", cfg->rootfs, (int)pid);
+    int wfd = open(tmp, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+    if (wfd < 0) return 0;
+    if (total > 0 && write(wfd, buf, total) != (ssize_t)total) { close(wfd); unlink(tmp); return 0; }
+    close(wfd);
+
+    // openat のパス引数を temp のホスト実パスへ差し替える(スタック下スクラッチ)。
+    // tmp は cfg->rootfs 配下=host_path_for の二重変換ガードに掛かるが、呼び出し側で
+    // maybe_rewrite_path 自体をスキップするので確実に素通しになる。
+    size_t len = strlen(tmp) + 1;
+    unsigned long base = (regs->sp - SCRATCH_OFFSET - ((len + 7) & ~7UL)) & ~15UL;
+    if (write_tracee_mem(pid, base, tmp, len) != 0) { unlink(tmp); return 0; }
+    regs->regs[1] = base;
+    set_regs(pid, regs);
+    st->subst_active = 1;
+    return 1;
+}
+
+// openat-exit: readfree の temp 差し替えで作った temp を消す(ゲストは fd 保持済み)。
+static void subst_on_exit(const struct config *cfg, pid_t pid, struct pid_state *st) {
+    if (!st->subst_active) return;
+    char tmp[PATH_MAX_Z];
+    snprintf(tmp, sizeof(tmp), "%s/.z2subst.%d", cfg->rootfs, (int)pid);
+    unlink(tmp);
+    st->subst_active = 0;
+}
+
 // --link2symlink: linkat(ハードリンク)を symlinkat へ化かし、target に「元ファイルの
 // ゲスト絶対パス」を入れた symlink でエミュレートする。Android のアプリ内ストレージは
 // link() を EACCES で拒否するため、これが無いと dpkg/apt の status-old バックリンク等が
@@ -1104,6 +1186,7 @@ static char *const *parse_args(int argc, char **argv, struct config *cfg) {
         else if (a[0] != '-') { break; }  // ここからコマンド
         else { /* 未知オプションは無視 (proot 互換のため寛容に) */ }
     }
+    cfg->readfree = (getenv("Z2ROOT_READFREE") != NULL);  // /proc 偽装の read 非トレース化(opt-in)
     if (cfg->rootfs[0] == '\0' || i >= argc) usage_die(argv[0]);
     canon_host_inplace(cfg->rootfs, sizeof(cfg->rootfs));  // bind と同様 /proc/<pid>/cwd と揃える
     cfg->rootfs_len = strlen(cfg->rootfs);
@@ -1156,7 +1239,13 @@ static const int kTraceSyscallsFakeroot[] = {
 static int install_seccomp_filter(const struct config *cfg) {
     int nrs[64];
     int n = 0;
-    for (size_t i = 0; i < sizeof(kTraceSyscallsBase)/sizeof(int); i++) nrs[n++] = kTraceSyscallsBase[i];
+    for (size_t i = 0; i < sizeof(kTraceSyscallsBase)/sizeof(int); i++) {
+        int s = kTraceSyscallsBase[i];
+        // readfree: /proc 偽装は openat 時 temp 差し替えで完結=read/close の追跡が不要。
+        // 大量に呼ばれる read(63)/close(57) を捕捉しないことで native 速度に近づける。
+        if (cfg->readfree && (s == 63 || s == 57)) continue;
+        nrs[n++] = s;
+    }
     if (cfg->fake_root)
         for (size_t i = 0; i < sizeof(kTraceSyscallsFakeroot)/sizeof(int); i++) nrs[n++] = kTraceSyscallsFakeroot[i];
 
@@ -1278,11 +1367,18 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
         case 80:  aux = regs.regs[1]; break;         // fstat: stat 出力バッファ
         case 79:  aux = regs.regs[2]; break;         // newfstatat
         case 291: aux = regs.regs[4]; break;         // statx
-        case 56:  note_proc_open(pid, &regs, st); break;  // openat: /proc status・loginuid 検出
-        case 57:  status_fd_remove(st, (int)regs.regs[0]); break;  // close: fd 追跡解除
-        case 63:  // read: 追跡 fd なら buf を控えて exit で偽装
-            st->aux_kind = status_fd_kind_of(st, (int)regs.regs[0]);
-            if (st->aux_kind != PROC_FD_NONE) aux = regs.regs[1];
+        case 56:  // openat: /proc status・loginuid 検出
+            // readfree: temp 差し替えに成功したらパスは確定済み=以降のパス変換は不要。
+            if (cfg->readfree && try_subst_proc_open(cfg, pid, &regs, st))
+                return 1;  // exit で temp を unlink するため need_exit
+            note_proc_open(pid, &regs, st);
+            break;
+        case 57:  if (!cfg->readfree) status_fd_remove(st, (int)regs.regs[0]); break;  // close: fd 追跡解除
+        case 63:  // read: 追跡 fd なら buf を控えて exit で偽装(readfree では read を追跡しない)
+            if (!cfg->readfree) {
+                st->aux_kind = status_fd_kind_of(st, (int)regs.regs[0]);
+                if (st->aux_kind != PROC_FD_NONE) aux = regs.regs[1];
+            }
             break;
     }
     st->aux_addr = aux;
@@ -1295,7 +1391,9 @@ static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_
     if (st->entry_nr == 17 && st->aux_addr) {
         rewrite_getcwd_result(cfg, pid, st->aux_addr);
     } else if (cfg->fake_root) {
-        if (st->entry_nr == 56 && st->pending_open_kind != PROC_FD_NONE) {
+        if (st->entry_nr == 56 && st->subst_active) {
+            subst_on_exit(cfg, pid, st);  // readfree: 差し替えた temp を unlink
+        } else if (st->entry_nr == 56 && st->pending_open_kind != PROC_FD_NONE) {
             struct user_pt_regs r;  // openat 成功なら戻り fd を種別付きで追跡
             if (get_regs(pid, &r) == 0 && (long)r.regs[0] >= 0)
                 status_fd_add(st, (int)r.regs[0], st->pending_open_kind);
