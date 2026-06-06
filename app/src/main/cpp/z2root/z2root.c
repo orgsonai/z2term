@@ -38,6 +38,8 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/user.h>
+#include <sys/socket.h>  // sockaddr / AF_UNIX (bind/connect の unix ソケットパス翻訳)
+#include <sys/un.h>      // struct sockaddr_un
 #include <sys/wait.h>
 #include <sys/mman.h>    // mmap / mprotect (自前ローダ)
 #include <sys/auxv.h>    // getauxval (自前ローダの auxv 構築)
@@ -1079,8 +1081,57 @@ static int rewrite_link2symlink(const struct config *cfg, pid_t pid, struct user
     return 1;
 }
 
+// AF_UNIX の pathname ソケット (bind/connect) の sun_path をホスト実パスへ書き換える。
+// proot は connect/bind の sockaddr を翻訳するが z2root は未対応だった = Xvnc が作る
+// /tmp/.X11-unix/X1 や dbus/pulseaudio の unix ソケットが「ホストの実 /tmp」を指して
+// ENOENT で失敗し、Linux GUI (z2gui) がサーバを立てられず/接続できなかった。
+// abstract ソケット (sun_path[0]=='\0') は名前空間上の名前でファイルではないため翻訳しない
+// (共有 netns なのでそのまま通り、X クライアントの abstract 接続は元から動く)。
+static void maybe_rewrite_sockaddr(const struct config *cfg, pid_t pid, struct user_pt_regs *regs) {
+    unsigned long addr = regs->regs[1];
+    unsigned long addrlen = regs->regs[2];
+    const size_t path_off = offsetof(struct sockaddr_un, sun_path);
+    if (addr == 0 || addrlen <= path_off) return;
+
+    struct sockaddr_un un;
+    memset(&un, 0, sizeof(un));
+    size_t rd = addrlen > sizeof(un) ? sizeof(un) : addrlen;
+    struct iovec local = { &un, rd };
+    struct iovec remote = { (void *)addr, rd };
+    if (process_vm_readv(pid, &local, 1, &remote, 1, 0) != (ssize_t)rd) return;
+    if (un.sun_family != AF_UNIX) return;
+    if (un.sun_path[0] == '\0') return;  // abstract ソケットは翻訳しない
+
+    // sun_path は最大 108B で必ずしも null 終端されない。読めた範囲で長さを確定する。
+    size_t pathcap = rd - path_off;
+    if (pathcap > sizeof(un.sun_path)) pathcap = sizeof(un.sun_path);
+    size_t pl = strnlen(un.sun_path, pathcap);
+    char guest[sizeof(un.sun_path) + 1];
+    memcpy(guest, un.sun_path, pl);
+    guest[pl] = '\0';
+    if (guest[0] != '/') return;  // 相対ソケットパスは非対象
+
+    char host[PATH_MAX_Z];
+    // ソケット自体 (最終要素) は symlink を辿らない。deref=0。
+    if (host_path_for(cfg, pid, guest, 0, AT_FDCWD, host, sizeof(host)) != 0) return;
+    size_t hl = strlen(host);
+    if (hl >= sizeof(un.sun_path)) return;  // 108B に収まらなければ据え置き (安全側)
+
+    struct sockaddr_un nun;
+    memset(&nun, 0, sizeof(nun));
+    nun.sun_family = AF_UNIX;
+    memcpy(nun.sun_path, host, hl);  // null 終端は memset 済み
+    socklen_t nlen = (socklen_t)(path_off + hl + 1);
+    unsigned long base = (regs->sp - SCRATCH_OFFSET - sizeof(nun)) & ~15UL;
+    if (write_tracee_mem(pid, base, &nun, nlen) != 0) return;
+    regs->regs[1] = base;
+    regs->regs[2] = nlen;
+    set_regs(pid, regs);
+}
+
 static void maybe_rewrite_path(const struct config *cfg, pid_t pid, struct user_pt_regs *regs) {
     long nr = (long)regs->regs[8];
+    if (nr == 200 || nr == 203) { maybe_rewrite_sockaddr(cfg, pid, regs); return; }  // bind / connect
     if (nr == 221) { rewrite_execve(cfg, pid, regs, 0); return; }  // execve
     if (nr == 281) { rewrite_execve(cfg, pid, regs, 1); return; }  // execveat
     if (nr == 37 && cfg->link2symlink) {                          // linkat → symlinkat
@@ -1233,6 +1284,7 @@ static const int kTraceSyscallsBase[] = {
     221, 281,                 // execve / execveat
     57, 63,                   // close / read (fd 追跡・status/loginuid 偽装)
     29,                       // ioctl (glibc termios2 → legacy termios へ書換。isatty 回避)
+    200, 203,                 // bind / connect (AF_UNIX pathname ソケットのパス翻訳。GUI/dbus/pulse)
 };
 // fakeroot(-0) のとき追加でトレースする syscall(戻り値/構造体を root に偽装)。
 static const int kTraceSyscallsFakeroot[] = {
