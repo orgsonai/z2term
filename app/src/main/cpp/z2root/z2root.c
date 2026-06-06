@@ -321,7 +321,21 @@ static int host_path_for(const struct config *cfg, pid_t pid, const char *in_pat
 
     char guest_abs[PATH_MAX_Z];
     if (in_path[0] == '/') {
-        snprintf(guest_abs, sizeof(guest_abs), "%s", in_path);
+        // /proc/self・/proc/thread-self を tracee の pid へ展開する。これらの magic
+        // symlink を canonicalize_guest がそのまま readlink するとトレーサ(z2root 親)
+        // 自身の pid に解決され、/proc/self/fd/N が tracee でなくトレーサの fd を指す。
+        // 結果 musl の ttyname()(openpty の名前解決)が壊れ、dropbear の SSH PTY
+        // セッションが "ttyname fails for openpty device" で即切断する。スレッドと
+        // プロセスは fd/cwd/root テーブルを共有するので self/thread-self とも tid で可。
+        const char *tail = NULL;
+        if (strncmp(in_path, "/proc/self", 10) == 0 &&
+            (in_path[10] == '/' || in_path[10] == '\0'))
+            tail = in_path + 10;
+        else if (strncmp(in_path, "/proc/thread-self", 17) == 0 &&
+                 (in_path[17] == '/' || in_path[17] == '\0'))
+            tail = in_path + 17;
+        if (tail) snprintf(guest_abs, sizeof(guest_abs), "/proc/%d%s", (int)pid, tail);
+        else snprintf(guest_abs, sizeof(guest_abs), "%s", in_path);
     } else {
         if (dirfd != AT_FDCWD) return -1;  // fd 相対は dirfd に委ねる
         char proc[64], host_cwd[PATH_MAX_Z];
