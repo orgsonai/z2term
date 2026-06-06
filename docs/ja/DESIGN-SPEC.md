@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-06 / 対象バージョン: 0.8.32-alpha (versionCode 40)
+最終更新: 2026-06-06 / 対象バージョン: 0.8.33-alpha (versionCode 41)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -139,7 +139,7 @@
 
 **実行エンジン chroot (裏機能・要 root)**: `executionEngine = "chroot"` のとき `launchChroot()` を使う。
 
-- **エンジン選択の解放**: 設定のバージョンを 7 回タップで `engineSelectorUnlocked=true`（非 root でも可。proot / z2root が選べる）。続けて `probeRootChroot()` のセルフテストが成功した場合のみ `rootChrootUnlocked=true` となり chroot も選択肢に加わる。
+- **エンジン選択の解放/解除（トグル）**: 設定のバージョンを 7 回タップで `engineSelectorUnlocked` をトグルする（非 root でも可）。解放時は `true`（proot / z2root が選べる）になり、続けて `probeRootChroot()` のセルフテストが成功した場合のみ `rootChrootUnlocked=true` となり chroot も選択肢に加わる。解放済みの状態でさらに 7 回タップすると `false` に戻し、同時に `executionEngine` を既定の proot へリセットして「表示前の状態」へ復帰する（0.8.33 で双方向トグル化）。
 - `probeRootChroot()`: `su -c id`(uid=0) + `su -c "chroot <rootfs> /bin/sh -c echo"` のセルフテスト。結果は `RootProbe`(Ok/NoRoot/ChrootBlocked)。
 - `launchChroot()`: `su -c` で bind mount(/dev,/dev/pts,/proc,/sys,/root,/sdcard) → `chroot` → login shell。`ensure*`(z2-*/OSC7/履歴/sshd/gui/z2run) は proot 経路と共通で流用。
 - **Ctrl+C / ジョブ制御**: su 経由だと制御端末を所有できないため、login shell を **`setsid -c` 経由**で起動して有効化。
@@ -363,7 +363,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 | 常駐サービス | keepAliveService | true | true/false（**設定画面ではなくツールバーの 🔒 ロックで ON/OFF**） |
 | ツールバー並び順 | toolbarOrder | ""（既定順） | カンマ区切り id。長押しドラッグで更新 |
 | 実行エンジン (裏設定) | executionEngine | "proot" | proot / z2root / chroot（chroot は root 解放時のみ） |
-| エンジン選択解放 (裏設定) | engineSelectorUnlocked | false | バージョン 7 回タップで true（root 不要） |
+| エンジン選択解放 (裏設定) | engineSelectorUnlocked | false | バージョン 7 回タップでトグル（root 不要・解除時は proot へリセット） |
 | chroot 解放フラグ (裏設定) | rootChrootUnlocked | false | 7 タップ時の root セルフテスト成功で true |
 | 言語 | (専用 SharedPrefs `z2term_locale`) | OS 既定 | ja / en |
 

@@ -722,27 +722,39 @@ fun SettingsSheet(
             AppInfoSection(
                 distroId = settings.distroId,
                 engineUnlocked = settings.engineSelectorUnlocked,
-                onUnlock = {
-                    // 7タップ: まずエンジン選択 (proot / z2root) を解放する (root 不要)。
-                    session.setEngineSelectorUnlocked(true)
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.settings_engine_unlock_ok),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    // 続けて root セルフテストを試み、成功したときだけ chroot も選択肢に追加する。
-                    // 非 root / SELinux で塞がれている場合は追加トーストを出さない (engine selector は解放済み)。
-                    scope.launch {
-                        val result = withContext(Dispatchers.IO) {
-                            ProotLauncher(context).probeRootChroot()
-                        }
-                        if (result is RootProbe.Ok) {
-                            session.setRootChrootUnlocked(true)
-                            Toast.makeText(
-                                context,
-                                context.getString(R.string.settings_root_unlock_ok),
-                                Toast.LENGTH_LONG
-                            ).show()
+                onToggle = {
+                    // 7タップでエンジン選択 (proot / z2root) の表示をトグルする (root 不要)。
+                    if (settings.engineSelectorUnlocked) {
+                        // 解除: 選択を隠し、既定 (proot) へ戻す = 表示前の状態へ復帰。
+                        session.setExecutionEngine(AppSettings.ENGINE_PROOT)
+                        session.setEngineSelectorUnlocked(false)
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.settings_engine_lock_ok),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        // 解放: まずエンジン選択を表示する。
+                        session.setEngineSelectorUnlocked(true)
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.settings_engine_unlock_ok),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        // 続けて root セルフテストを試み、成功したときだけ chroot も選択肢に追加する。
+                        // 非 root / SELinux で塞がれている場合は追加トーストを出さない (engine selector は解放済み)。
+                        scope.launch {
+                            val result = withContext(Dispatchers.IO) {
+                                ProotLauncher(context).probeRootChroot()
+                            }
+                            if (result is RootProbe.Ok) {
+                                session.setRootChrootUnlocked(true)
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.settings_root_unlock_ok),
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
                         }
                     }
                 }
@@ -803,9 +815,10 @@ fun SettingsSheet(
  * その os-release を表示する。
  */
 @Composable
-private fun AppInfoSection(distroId: String, engineUnlocked: Boolean, onUnlock: () -> Unit) {
+private fun AppInfoSection(distroId: String, engineUnlocked: Boolean, onToggle: () -> Unit) {
     val context = LocalContext.current
-    // 裏機能: バージョン行を 7 回タップでエンジン選択 (proot / z2root) を解放 (Android 開発者モードと同作法)。
+    // 裏機能: バージョン行を 7 回タップでエンジン選択 (proot / z2root) の表示をトグル
+    // (Android 開発者モードと同作法)。解放済みでも 7 タップで隠して既定へ戻せる。
     var tapCount by remember { mutableStateOf(0) }
     // os-release の PRETTY_NAME を rootfs から 1 度だけ読む (軽量なファイル read)
     val osPretty = remember(distroId) {
@@ -819,20 +832,19 @@ private fun AppInfoSection(distroId: String, engineUnlocked: Boolean, onUnlock: 
     // 連打したとき、前のトーストが消えるのを待たず即座に次の文言へ差し替える
     // (cancel しないと Android がトーストをキューイングして表示が大幅に遅延する)。
     var lastToast by remember { mutableStateOf<Toast?>(null) }
-    val versionClick: (() -> Unit)? = if (engineUnlocked) null else {
-        {
-            tapCount++
-            val remaining = 7 - tapCount
-            when {
-                remaining <= 0 -> { tapCount = 0; lastToast?.cancel(); onUnlock() }
-                remaining in 1..3 -> {
-                    lastToast?.cancel()
-                    lastToast = Toast.makeText(
-                        context,
-                        context.getString(R.string.settings_root_unlock_countdown, remaining),
-                        Toast.LENGTH_SHORT
-                    ).also { it.show() }
-                }
+    // 解放済み・未解放のどちらでも 7 タップで反応させる (解放後に隠せなくなる問題の解消)。
+    val versionClick: (() -> Unit) = {
+        tapCount++
+        val remaining = 7 - tapCount
+        when {
+            remaining <= 0 -> { tapCount = 0; lastToast?.cancel(); onToggle() }
+            remaining in 1..3 -> {
+                lastToast?.cancel()
+                lastToast = Toast.makeText(
+                    context,
+                    context.getString(R.string.settings_root_unlock_countdown, remaining),
+                    Toast.LENGTH_SHORT
+                ).also { it.show() }
             }
         }
     }

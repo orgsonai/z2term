@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-06-06 / Target version: 0.8.32-alpha (versionCode 40)
+Last updated: 2026-06-06 / Target version: 0.8.33-alpha (versionCode 41)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -138,7 +138,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 
 **Execution engine chroot (hidden feature, requires root)**: when `executionEngine = "chroot"`, `launchChroot()` is used.
 
-- **Unlocking the selector**: tap the version 7 times → `engineSelectorUnlocked=true` (works without root; proot / z2root become selectable). If `probeRootChroot()` then passes, `rootChrootUnlocked=true` is also set and chroot joins the options.
+- **Toggling the selector**: tap the version 7 times to toggle `engineSelectorUnlocked` (works without root). Unlocking sets it `true` (proot / z2root become selectable); if `probeRootChroot()` then passes, `rootChrootUnlocked=true` is also set and chroot joins the options. Tapping 7 more times while unlocked sets it back to `false` and resets `executionEngine` to the default proot, returning to the pre-unlock state (two-way toggle as of 0.8.33).
 - `probeRootChroot()`: a self-test of `su -c id` (uid=0) + `su -c "chroot <rootfs> /bin/sh -c echo"`. The result is `RootProbe` (Ok/NoRoot/ChrootBlocked).
 - `launchChroot()`: via `su -c`, bind mount (/dev, /dev/pts, /proc, /sys, /root, /sdcard) → `chroot` → login shell. The `ensure*` helpers (z2-*/OSC7/history/sshd/gui/z2run) are shared with the proot path.
 - **Ctrl+C / job control**: because the controlling terminal can't be owned via `su`, the login shell is launched **through `setsid -c`** to enable it.
@@ -363,7 +363,7 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 | Keep-alive service | keepAliveService | true | true/false (**toggled from the toolbar 🔒 lock, not the settings page**) |
 | Toolbar order | toolbarOrder | "" (default order) | comma-separated ids; updated by long-press drag |
 | Execution engine (hidden) | executionEngine | "proot" | proot / z2root / chroot (chroot only when root is unlocked) |
-| Engine selector unlock (hidden) | engineSelectorUnlocked | false | true after tapping the version 7 times (no root needed) |
+| Engine selector unlock (hidden) | engineSelectorUnlocked | false | toggled by tapping the version 7 times (no root needed; locking resets engine to proot) |
 | chroot unlock flag (hidden) | rootChrootUnlocked | false | true when the 7-tap root self-test passes |
 | Language | (dedicated SharedPrefs `z2term_locale`) | OS default | ja / en |
 
