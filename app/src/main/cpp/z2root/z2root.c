@@ -612,7 +612,14 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
         plan_push(plan, host_loader);
         plan_push(plan, "--argv0");
         plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : guest_prog);
-        plan_push(plan, host_prog);
+        // ld.so が開く実プログラムは「ゲストパス」を渡す。ld.so の open() は
+        // tracee として傍受・翻訳されるため、host_prog(=ホスト実パス)を渡すと
+        // bind 配下(例: -b <home>:/root の /root/a.out)で「ゲストパス扱い→rootfs
+        // 前置」され ENOENT になる(rootfs 配下のみ二重変換抑止で偶然動いていた)。
+        // host_prog をゲスト視点へ逆変換して渡せば rootfs/bind の両方で正しく開ける。
+        char guest_real[PATH_MAX_Z];
+        host_to_guest(cfg, host_prog, guest_real, sizeof(guest_real));
+        plan_push(plan, guest_real);
         wrap_with_loader(cfg, plan);
         return 0;
     }
