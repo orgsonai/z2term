@@ -461,7 +461,12 @@ fun z2guiScript(
         |  # GUI 配下のプロセスは launcher の制御端末 (アプリ側 PtyProcess が握る PTY) から
         |  # setsid で切り離して起動する (GUI プロセスが端末を共有する必要はない)。
         |  # stdin は /dev/null に向ける。
-        |  setsid "${d}XSERVER" "${d}DISP" -geometry "${d}GEOM" -depth 24 -SecurityTypes None -localhost -rfbport "${d}RFBPORT" -noreset </dev/null >"/tmp/z2gui-xvnc-${d}{DISPLAY_NUM}.log" 2>&1 &
+        |  # MIT-SHM (X 共有メモリ画像転送) は無効化する。クライアント (mpv 等) が ShmAttach を
+        |  # 試みると、z2root エンジンでは SysV 共有メモリの相乗りが通らず X が BadAccess を返し、
+        |  # その非同期エラーで mpv 等が segfault する (proot では shmget が失敗してアプリ側が自動で
+        |  # 非 SHM 描画に落ちるため顕在化しなかった)。VNC はローカルなので SHM の利点はほぼ無く、
+        |  # 拡張ごと切れば全クライアントが確実に通常描画にフォールバックする (両エンジンで安全)。
+        |  setsid "${d}XSERVER" "${d}DISP" -geometry "${d}GEOM" -depth 24 -SecurityTypes None -localhost -rfbport "${d}RFBPORT" -extension MIT-SHM -noreset </dev/null >"/tmp/z2gui-xvnc-${d}{DISPLAY_NUM}.log" 2>&1 &
         |  echo ${d}! >> "${d}PIDFILE" 2>/dev/null
         |  i=0
         |  while [ ${d}i -lt 50 ]; do
