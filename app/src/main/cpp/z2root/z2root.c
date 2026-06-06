@@ -82,7 +82,7 @@ struct config {
     char *const *command;             // 残りの argv (ゲスト視点のコマンド + 引数)
     int use_loader;                   // 1: rootfs ELF を自前ローダ(--loader)経由で起動
     char self_path[PATH_MAX_Z];       // /proc/self/exe (nativeLibraryDir の libz2root.so)
-    int readfree;                     // Z2ROOT_READFREE: /proc 偽装を openat 時 temp 差し替えにし read/close をトレース対象から外す(高速化)
+    int readfree;                     // /proc 偽装を openat 時 temp 差し替えにし read/close をトレース対象から外す(高速化・既定 ON・Z2ROOT_NO_READFREE で無効化)
 };
 
 // ---- pid -> syscall entry/exit トグル の簡易マップ ----------------------------
@@ -1186,7 +1186,7 @@ static char *const *parse_args(int argc, char **argv, struct config *cfg) {
         else if (a[0] != '-') { break; }  // ここからコマンド
         else { /* 未知オプションは無視 (proot 互換のため寛容に) */ }
     }
-    cfg->readfree = (getenv("Z2ROOT_READFREE") != NULL);  // /proc 偽装の read 非トレース化(opt-in)
+    cfg->readfree = (getenv("Z2ROOT_NO_READFREE") == NULL);  // /proc 偽装の read 非トレース化(既定 ON・Z2ROOT_NO_READFREE で無効化)
     if (cfg->rootfs[0] == '\0' || i >= argc) usage_die(argv[0]);
     canon_host_inplace(cfg->rootfs, sizeof(cfg->rootfs));  // bind と同様 /proc/<pid>/cwd と揃える
     cfg->rootfs_len = strlen(cfg->rootfs);
