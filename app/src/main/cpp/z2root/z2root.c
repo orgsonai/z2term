@@ -1225,6 +1225,7 @@ static const int kTraceSyscallsBase[] = {
     36, 37, 38, 276,          // symlinkat / linkat / renameat / renameat2
     221, 281,                 // execve / execveat
     57, 63,                   // close / read (fd 追跡・status/loginuid 偽装)
+    29,                       // ioctl (glibc termios2 → legacy termios へ書換。isatty 回避)
 };
 // fakeroot(-0) のとき追加でトレースする syscall(戻り値/構造体を root に偽装)。
 static const int kTraceSyscallsFakeroot[] = {
@@ -1356,11 +1357,36 @@ static int syscall_needs_exit(const struct config *cfg, const struct pid_state *
 }
 
 // syscall-entry 時の処理(パス変換・fd 追跡・偽装対象の控え)。need_exit を返す。
+// glibc 2.42+ の tcgetattr/tcsetattr は termios2 ABI(TCGETS2/TCSETS2…)で ioctl する。
+// しかし Android の untrusted_app は pty への TCGETS2 系 ioctl を拒否(EACCES)するため、
+// glibc 製ゲスト(Arch/Ubuntu 等)では isatty() が失敗 → bash/zsh が「端末でない」と判断し
+// 非対話で起動 → プロンプトが出ない(固まって見える)。musl(Alpine)は旧 TCGETS を使うので無事。
+// proot と同様、entry で termios2 ioctl を legacy(TCGETS/TCSETS…)へ書き換えて回避する。
+// 先頭の struct termios 部分は termios2 と同レイアウトで、通常 baud では c_ispeed/c_ospeed を
+// 使わない(速度は c_cflag の CBAUD から解決)ため実害なく動く。
+static void maybe_rewrite_ioctl(pid_t pid, struct user_pt_regs *regs) {
+    unsigned long legacy;
+    switch (regs->regs[1]) {                 // regs[1] = ioctl request 番号
+        case 0x802c542aUL: legacy = 0x5401; break;  // TCGETS2  → TCGETS
+        case 0x402c542bUL: legacy = 0x5402; break;  // TCSETS2  → TCSETS
+        case 0x402c542cUL: legacy = 0x5403; break;  // TCSETSW2 → TCSETSW
+        case 0x402c542dUL: legacy = 0x5404; break;  // TCSETSF2 → TCSETSF
+        default: return;
+    }
+    regs->regs[1] = legacy;
+    set_regs(pid, regs);
+}
+
 static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_state *st) {
     struct user_pt_regs regs;
     if (get_regs(pid, &regs) != 0) { st->entry_nr = -1; return 0; }
     st->entry_nr = (long)regs.regs[8];
     st->aux_kind = PROC_FD_NONE;
+    if (st->entry_nr == 29) {                // ioctl: termios2→legacy 書換のみ(exit 後処理不要)
+        st->aux_addr = 0;
+        maybe_rewrite_ioctl(pid, &regs);
+        return 0;
+    }
     unsigned long aux = 0;
     if (st->entry_nr == 17) aux = regs.regs[0];      // getcwd buf
     else if (cfg->fake_root) switch (st->entry_nr) {
