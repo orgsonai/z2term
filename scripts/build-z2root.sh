@@ -61,3 +61,20 @@ echo "[info] building z2root (aarch64, API ${API}) ..."
 chmod 0755 "${OUT}"
 echo "[ok] wrote ${OUT}"
 file "${OUT}" 2>/dev/null || true
+
+# --- accept→accept4 LD_PRELOAD シム (libz2accept.so) ---------------------------
+# Android の untrusted_app seccomp は accept(202) を禁止(bionic は accept4 を使う)するため、
+# musl 製サーバ(Alpine の Xvnc / dropbear 等)の accept が SIGSYS で弾かれ GUI/SSH が接続を
+# 受けられない。z2root 起動時に LD_PRELOAD し accept を accept4(...,0) へ橋渡しする極小シム。
+# libc 非依存(-nostdlib + 生 svc)で musl/glibc どちらにも効く。詳細は z2accept.c 冒頭。
+SHIM_SRC="${PROJECT_ROOT}/app/src/main/cpp/z2accept/z2accept.c"
+SHIM_OUT="${OUT_DIR}/libz2accept.so"
+echo "[info] building z2accept shim (aarch64, API ${API}) ..."
+"${CC}" \
+    -shared -nostdlib -fPIC -O2 -Wall \
+    -Wl,-soname,libz2accept.so \
+    -o "${SHIM_OUT}" \
+    "${SHIM_SRC}"
+chmod 0644 "${SHIM_OUT}"
+echo "[ok] wrote ${SHIM_OUT}"
+file "${SHIM_OUT}" 2>/dev/null || true

@@ -58,6 +58,20 @@ class ProotLauncher(private val context: Context) {
         get() = File(context.applicationInfo.nativeLibraryDir, "libz2root.so")
 
     /**
+     * accept→accept4 橋渡しシム (LD_PRELOAD 用)。Android の untrusted_app seccomp は
+     * accept(202) を禁止する (bionic は accept4 を使う) ため、musl 製サーバ (Alpine の Xvnc /
+     * dropbear 等) の accept が SIGSYS で弾かれて GUI(VNC)/SSH が接続を受けられない。
+     * このシムを z2root 起動時に LD_PRELOAD し、accept を accept4(...,0) に置き換えて回避する。
+     * libc 非依存 (生 svc) なので musl/glibc どちらにも効く。未同梱でも LD_PRELOAD 失敗は
+     * ld.so が警告して無視するだけ (非致命)。
+     */
+    private val z2acceptShim: File
+        get() = File(context.applicationInfo.nativeLibraryDir, "libz2accept.so")
+
+    /** z2root エンジンで accept シムを LD_PRELOAD する guest パス。 */
+    private val z2acceptShimGuestPath = "/usr/local/lib/libz2accept.so"
+
+    /**
      * proot が動的リンクする libtalloc を、SONAME 通り `libtalloc.so.2` で
      * 配置するディレクトリ。jniLibs は `lib<name>.so` 規約しか扱えないため、
      * 実行時にコピーして提供する。`LD_LIBRARY_PATH` でこのパスを通す。
@@ -83,6 +97,34 @@ class ProotLauncher(private val context: Context) {
             Log.i(TAG, "Provisioned libtalloc.so.2 at ${dst.absolutePath}")
         }
     }
+
+    /**
+     * accept→accept4 シム (libz2accept.so) を rootfs 内 [z2acceptShimGuestPath] へ配置する。
+     * z2root エンジンのときだけ呼ぶ。未同梱なら何もしない (LD_PRELOAD は ld.so が無視する)。
+     */
+    private fun ensureAcceptShim(rootfs: File) {
+        val src = z2acceptShim
+        if (!src.exists()) {
+            Log.w(TAG, "libz2accept.so not in nativeLibraryDir — accept()→accept4() shim unavailable")
+            return
+        }
+        val dst = File(rootfs, z2acceptShimGuestPath.trimStart('/'))
+        dst.parentFile?.mkdirs()
+        val needsCopy = !dst.exists() || dst.length() != src.length() ||
+            dst.lastModified() < src.lastModified()
+        if (needsCopy) {
+            src.copyTo(dst, overwrite = true)
+            dst.setReadable(true, false)
+            dst.setExecutable(true, false)
+            Log.i(TAG, "Provisioned accept shim at ${dst.absolutePath}")
+        }
+    }
+
+    /** z2root エンジン専用 env: accept→accept4 シムを LD_PRELOAD する。proot/chroot では空。 */
+    private fun z2rootEnv(useZ2root: Boolean): List<String> =
+        if (useZ2root && z2acceptShim.exists())
+            listOf("LD_PRELOAD=$z2acceptShimGuestPath")
+        else emptyList()
 
     /**
      * 指定ディストロを PRoot で起動。
@@ -147,6 +189,8 @@ class ProotLauncher(private val context: Context) {
         // 共有ホーム作成 + libtalloc 配置 (talloc/loader は proot 専用。z2root では不要なので省く)
         sharedHomeDir.mkdirs()
         if (!useZ2root) ensureProotLibs()
+        // z2root のときは accept→accept4 シムを rootfs に配置し、後で LD_PRELOAD する。
+        if (useZ2root) ensureAcceptShim(rootfs)
         // 再起動後もコマンド履歴を辿れるよう、shell rc に履歴設定を流し込む。
         ensureShellHistoryConfig(rootfs)
         // セッション復元の cwd 用に、プロンプト毎 OSC 7 (cwd 通知) を出すフックを仕込む。
@@ -266,7 +310,7 @@ class ProotLauncher(private val context: Context) {
             // PRoot 自身の動作用
             "PROOT_TMP_DIR=${context.cacheDir.absolutePath}",
             "PROOT_LOADER=${File(context.applicationInfo.nativeLibraryDir, "libproot_loader.so").absolutePath}"
-        ) + displayEnv).toTypedArray()
+        ) + displayEnv + z2rootEnv(useZ2root)).toTypedArray()
 
         val engineName = if (useZ2root) "z2root" else "PRoot"
         Log.i(TAG, "Launching $engineName: distro=$distroId, command=$resolvedCommand (requested=$command)")
