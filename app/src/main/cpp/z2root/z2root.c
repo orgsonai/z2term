@@ -249,7 +249,7 @@ static const char *host_to_guest(const struct config *cfg, const char *host,
 // 最終要素はそのまま残す(lstat/unlinkat/readlinkat/新規作成名など)。
 // これを通すと openat 等に渡るホストパスが symlink を一切含まなくなり、絶対
 // symlink がホスト "/" を指して ENOENT になる問題(Alpine の /bin 等)を防ぐ。
-static void canonicalize_guest(const struct config *cfg, const char *in,
+static void canonicalize_guest(const struct config *cfg, pid_t pid, const char *in,
                                int deref_final, char *out, size_t cap) {
     char result[PATH_MAX_Z];   // 構築中のゲスト絶対パス(末尾 "/" 無し。"" は "/")
     char pending[PATH_MAX_Z];  // 未処理の残りパス
@@ -279,6 +279,23 @@ static void canonicalize_guest(const struct config *cfg, const char *in,
 
         char cand[PATH_MAX_Z];
         snprintf(cand, sizeof(cand), "%s/%s", result, comp);
+
+        // /proc/self・/proc/thread-self の magic symlink は、トレーサ(z2root 親)が
+        // readlink すると「トレーサ自身の pid」へ化ける。host_path_for は先頭の
+        // /proc/self... だけ tracee へ書き換えるが、間接 symlink(/proc/net→self/net 等)
+        // で walk 途中に現れる self/thread-self は素通りしていた(EACCES の原因)。
+        // ここで tracee の pid へ明示解決する(プロセス/スレッドで fd・cwd・root 共有)。
+        if ((!is_last || deref_final) && strcmp(result, "/proc") == 0 &&
+            (strcmp(comp, "self") == 0 || strcmp(comp, "thread-self") == 0)) {
+            char rest[PATH_MAX_Z];
+            snprintf(rest, sizeof(rest), "%s", pending + pi);
+            result[0] = '\0';
+            if (rest[0]) snprintf(pending, sizeof(pending), "/proc/%d/%s", (int)pid, rest);
+            else snprintf(pending, sizeof(pending), "/proc/%d", (int)pid);
+            pi = 0;
+            while (pending[pi] == '/') pi++;
+            continue;
+        }
 
         if (!is_last || deref_final) {
             char host[PATH_MAX_Z];
@@ -349,7 +366,7 @@ static int host_path_for(const struct config *cfg, pid_t pid, const char *in_pat
     }
 
     char resolved[PATH_MAX_Z];
-    canonicalize_guest(cfg, guest_abs, deref_final, resolved, sizeof(resolved));
+    canonicalize_guest(cfg, pid, guest_abs, deref_final, resolved, sizeof(resolved));
     if (!translate_abs(cfg, resolved, host_out, cap))
         snprintf(host_out, cap, "%s", resolved);
     return 0;
@@ -1538,6 +1555,7 @@ static int run_tracer(const struct config *cfg, pid_t child) {
     int boot_done = 0;       // ブートストラップ execve(子の最初の execve)を消化したか
     int exit_code = 0;
     int alive = 1;
+    int g_trace = (getenv("Z2ROOT_TRACE") != NULL);  // [DEBUG] PTY 調査用一時トレース
     while (alive > 0) {
         pid_t pid = waitpid(-1, &status, __WALL);
         if (pid < 0) {
@@ -1546,6 +1564,9 @@ static int run_tracer(const struct config *cfg, pid_t child) {
         }
 
         if (WIFEXITED(status) || WIFSIGNALED(status)) {
+            if (g_trace) fprintf(stderr, "[z2trc] pid=%d %s code/sig=%d\n", pid,
+                WIFEXITED(status) ? "EXITED" : "KILLED",
+                WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status));
             if (pid == child) exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
             state_drop(pid);
             if (pid == child) alive = 0;
@@ -1555,6 +1576,13 @@ static int run_tracer(const struct config *cfg, pid_t child) {
 
         int sig = WSTOPSIG(status);
         int event = (status >> 16) & 0xff;
+        if (g_trace && event != PTRACE_EVENT_SECCOMP && sig != (SIGTRAP | 0x80)) {
+            const char *ev = event == PTRACE_EVENT_FORK ? "FORK" :
+                event == PTRACE_EVENT_VFORK ? "VFORK" :
+                event == PTRACE_EVENT_CLONE ? "CLONE" :
+                event == PTRACE_EVENT_EXEC ? "EXEC" : "";
+            fprintf(stderr, "[z2trc] pid=%d STOP sig=%d ev=%s\n", pid, sig, ev);
+        }
 
         // seccomp イベント(=フィルタ該当 syscall の entry)。seccomp モード確定。
         if (event == PTRACE_EVENT_SECCOMP) {
@@ -1567,6 +1595,17 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                 st->entry_nr = 221; st->at_exit = 0;
                 ptrace(PTRACE_CONT, pid, 0, 0);
                 continue;
+            }
+            if (g_trace) {
+                struct user_pt_regs r;
+                if (get_regs(pid, &r) == 0) {
+                    long nr = r.regs[8];
+                    char pbuf[160]; pbuf[0] = 0;
+                    if (nr == 29) snprintf(pbuf, sizeof pbuf, " req=0x%lx fd=%ld", (unsigned long)r.regs[1], (long)r.regs[0]);
+                    else if (nr == 56 || nr == 79 || nr == 53 || nr == 54)
+                        read_tracee_str(pid, r.regs[1], pbuf, sizeof pbuf);
+                    fprintf(stderr, "[z2trc] pid=%d SYS nr=%ld %s\n", pid, nr, pbuf);
+                }
             }
             int need_exit = handle_syscall_entry(cfg, pid, st);
             st->at_exit = need_exit ? 1 : 0;
@@ -1583,7 +1622,23 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                 z_resume(pid, 1, st, 0);
             } else {
                 // フォールバック(全 syscall トレース): entry/exit トグル。
-                if (st && st->at_exit == 0) { handle_syscall_entry(cfg, pid, st); st->at_exit = 1; }
+                if (st && st->at_exit == 0) {
+                    if (g_trace) {
+                        struct user_pt_regs r;
+                        if (get_regs(pid, &r) == 0) {
+                            long nr = r.regs[8];
+                            char pbuf[160]; pbuf[0] = 0;
+                            if (nr == 57 || nr == 63 || nr == 64)  // close/read/write
+                                snprintf(pbuf, sizeof pbuf, " fd=%ld", (long)r.regs[0]);
+                            else if (nr == 29)                     // ioctl
+                                snprintf(pbuf, sizeof pbuf, " req=0x%lx fd=%ld", (unsigned long)r.regs[1], (long)r.regs[0]);
+                            else if (nr == 56 || nr == 79)         // openat/newfstatat
+                                read_tracee_str(pid, r.regs[1], pbuf, sizeof pbuf);
+                            fprintf(stderr, "[z2trc] pid=%d SYS nr=%ld%s\n", pid, nr, pbuf);
+                        }
+                    }
+                    handle_syscall_entry(cfg, pid, st); st->at_exit = 1;
+                }
                 else if (st) { handle_syscall_exit(cfg, pid, st); st->at_exit = 0; }
                 ptrace(PTRACE_SYSCALL, pid, 0, 0);
             }
@@ -1643,6 +1698,12 @@ static int run_tracer(const struct config *cfg, pid_t child) {
         }
 
         // それ以外(signal-delivery-stop / 通常シグナル)はそのまま転送。
+        if (g_trace) {
+            siginfo_t si; memset(&si, 0, sizeof si);
+            int gr = ptrace(PTRACE_GETSIGINFO, pid, 0, &si);
+            fprintf(stderr, "[z2trc] pid=%d DELIVER sig=%d gr=%d si_code=%d si_pid=%d\n",
+                    pid, sig, gr, gr==0?si.si_code:-999, gr==0?si.si_pid:-1);
+        }
         long deliver = (sig == SIGTRAP) ? 0 : sig;
         z_resume(pid, seccomp_mode, state_for(pid), deliver);
     }
