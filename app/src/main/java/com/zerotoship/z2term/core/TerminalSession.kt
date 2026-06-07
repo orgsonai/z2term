@@ -83,6 +83,15 @@ class TerminalSession(
     // 復元値は startTerminal で 1 度だけ消費する (consume 後は null)。
     private var pendingRestoreDistroId: String? = restoreDistroId
 
+    /**
+     * このタブが**実際に**起動したエンジン名 (起動成功時に確定)。設定値ではなく実起動結果なので
+     * 「設定では z2root だが未同梱で proot に倒れた」「chroot 失敗で proot にフォールバックした」
+     * といったケースも正しく反映する。設定画面の信頼できるエンジン表示用 (未起動は null)。
+     * 値は [AppSettings.ENGINE_PROOT]/[ENGINE_Z2ROOT]/[ENGINE_CHROOT] か [ENGINE_ANDROID_SH]。
+     */
+    private val _actualEngine = MutableStateFlow<String?>(null)
+    val actualEngine: StateFlow<String?> = _actualEngine.asStateFlow()
+
     enum class TerminalState { IDLE, INSTALLING, STARTING, RUNNING, EXITED, ERROR }
 
     data class UiState(
@@ -308,9 +317,12 @@ class TerminalSession(
                 // :N の Xvnc を起動 → 対応する GUI タブが z2term 側で自動的に開く。
                 val s = settingsFlow.value
                 val useChroot = s.executionEngine == AppSettings.ENGINE_CHROOT && s.rootChrootUnlocked
+                // 実際に起動したエンジンを確定して記録する (設定値ではなく実起動結果。
+                // 設定画面の信頼できるエンジン表示用)。chroot 失敗時は proot へ倒れるので個別に設定する。
+                val engineUsed: String
                 val pty = if (useChroot) {
                     // 裏機能: root で実 chroot 起動。失敗時は PRoot へフォールバック。
-                    runCatching {
+                    val chrootPty = runCatching {
                         launcher.launchChroot(
                             distroId = spec.id,
                             command = shell,
@@ -321,6 +333,13 @@ class TerminalSession(
                         )
                     }.getOrElse { e ->
                         Log.w(TAG, "chroot launch failed, falling back to proot", e)
+                        null
+                    }
+                    if (chrootPty != null) {
+                        engineUsed = AppSettings.ENGINE_CHROOT
+                        chrootPty
+                    } else {
+                        engineUsed = launcher.resolveLaunchEngine()
                         launcher.launch(
                             distroId = spec.id,
                             command = shell,
@@ -332,6 +351,7 @@ class TerminalSession(
                         )
                     }
                 } else {
+                    engineUsed = launcher.resolveLaunchEngine()
                     launcher.launch(
                         distroId = spec.id,
                         command = shell,
@@ -342,6 +362,7 @@ class TerminalSession(
                         exportDisplay = true,
                     )
                 }
+                _actualEngine.value = engineUsed
                 val ch = LocalPtyChannel(pty)
                 channel = ch
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }
@@ -406,6 +427,7 @@ class TerminalSession(
             val pty = launcher.launchAndroidSh(rows, cols)
             val ch = LocalPtyChannel(pty)
             channel = ch
+            _actualEngine.value = AppSettings.ENGINE_ANDROID_SH
             _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "android-sh") }
             _label.value = "sh"
             startReadLoop(ch)

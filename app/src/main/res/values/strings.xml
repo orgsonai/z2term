@@ -74,6 +74,9 @@
     <string name="settings_engine_z2root">z2root (no root)</string>
     <string name="settings_engine_chroot">chroot (root)</string>
     <string name="settings_engine_desc">z2root is our own ptrace engine (no root, experimental); falls back to PRoot if not bundled. chroot runs natively as real root and needs a rooted device. New tabs use the selected engine.</string>
+    <string name="settings_engine_current">This tab is running on</string>
+    <string name="settings_engine_current_starting">starting…</string>
+    <string name="settings_engine_android_sh">Android sh (fallback)</string>
     <string name="settings_engine_unlock_ok">Engine selector unlocked. Pick the engine below.</string>
     <string name="settings_engine_lock_ok">Engine selector hidden, reset to PRoot (default).</string>
     <string name="settings_root_unlock_ok">Root unlocked — chroot is now available too.</string>

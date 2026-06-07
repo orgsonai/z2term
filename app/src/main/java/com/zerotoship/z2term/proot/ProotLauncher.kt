@@ -915,6 +915,17 @@ class ProotLauncher(private val context: Context) {
     /** proot バイナリが配置されているか確認 */
     fun isProotAvailable(): Boolean = prootBinary.exists()
 
+    /**
+     * [launch] が**実際に**使うエンジン名を返す ([AppSettings.ENGINE_PROOT] か [ENGINE_Z2ROOT])。
+     * 設定値そのものではなく、`isZ2rootEngineSelected() && z2rootBinary.exists()` の
+     * 実起動判定を反映する (設定で z2root でも `libz2root.so` 未同梱なら proot に倒れる)。
+     * chroot は別経路 ([launchChroot]) なのでここでは扱わない (呼び出し側が判定する)。
+     * 設定画面で「いま本当に動いているエンジン」を信頼できる形で出すために使う。
+     */
+    fun resolveLaunchEngine(): String =
+        if (isZ2rootEngineSelected() && z2rootBinary.exists()) AppSettings.ENGINE_Z2ROOT
+        else AppSettings.ENGINE_PROOT
+
     companion object {
         private const val TAG = "ProotLauncher"
 

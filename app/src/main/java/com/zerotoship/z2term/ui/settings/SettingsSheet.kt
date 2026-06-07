@@ -117,6 +117,8 @@ fun SettingsSheet(
     onEditCustomTheme: () -> Unit = {}
 ) {
     val settings by session.settingsFlow.collectAsState()
+    // このタブが実際に起動したエンジン (設定値ではなく実起動結果。信頼できるエンジン表示用)。
+    val actualEngine by session.actualEngine.collectAsState()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -716,6 +718,19 @@ fun SettingsSheet(
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )
+                    // 実際に動いているエンジン (設定チップは「次に起動する選択値」だが、これは
+                    // このタブが本当に起動したエンジン。未同梱で proot に倒れた等もここに出る)。
+                    val actualEngineLabel = when (actualEngine) {
+                        AppSettings.ENGINE_PROOT -> stringResource(R.string.settings_engine_proot)
+                        AppSettings.ENGINE_Z2ROOT -> stringResource(R.string.settings_engine_z2root)
+                        AppSettings.ENGINE_CHROOT -> stringResource(R.string.settings_engine_chroot)
+                        AppSettings.ENGINE_ANDROID_SH -> stringResource(R.string.settings_engine_android_sh)
+                        else -> stringResource(R.string.settings_engine_current_starting)
+                    }
+                    InfoRow(
+                        label = stringResource(R.string.settings_engine_current),
+                        value = actualEngineLabel
+                    )
                 }
             }
 
@@ -832,12 +847,23 @@ private fun AppInfoSection(distroId: String, engineUnlocked: Boolean, onToggle: 
     // 連打したとき、前のトーストが消えるのを待たず即座に次の文言へ差し替える
     // (cancel しないと Android がトーストをキューイングして表示が大幅に遅延する)。
     var lastToast by remember { mutableStateOf<Toast?>(null) }
+    // トグル発火後のクールダウン期限 (epoch ms)。7 タップ到達でトグルした直後、連打が続くと
+    // すぐ次の 7 タップに達して逆方向に切り替わってしまうため、発火後 3 秒は次のタップを無視する。
+    var toggleCooldownUntil by remember { mutableStateOf(0L) }
     // 解放済み・未解放のどちらでも 7 タップで反応させる (解放後に隠せなくなる問題の解消)。
     val versionClick: (() -> Unit) = {
+        if (System.currentTimeMillis() < toggleCooldownUntil) {
+            // クールダウン中: 連打による即時再トグルを防ぐためタップを無視する。
+        } else {
         tapCount++
         val remaining = 7 - tapCount
         when {
-            remaining <= 0 -> { tapCount = 0; lastToast?.cancel(); onToggle() }
+            remaining <= 0 -> {
+                tapCount = 0
+                lastToast?.cancel()
+                toggleCooldownUntil = System.currentTimeMillis() + 3000L
+                onToggle()
+            }
             remaining in 1..3 -> {
                 lastToast?.cancel()
                 lastToast = Toast.makeText(
@@ -846,6 +872,7 @@ private fun AppInfoSection(distroId: String, engineUnlocked: Boolean, onToggle: 
                     Toast.LENGTH_SHORT
                 ).also { it.show() }
             }
+        }
         }
     }
     Section(title = stringResource(R.string.settings_section_app_info)) {

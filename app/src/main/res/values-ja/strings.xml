@@ -74,6 +74,9 @@
     <string name="settings_engine_z2root">z2root (非 root)</string>
     <string name="settings_engine_chroot">chroot (root)</string>
     <string name="settings_engine_desc">z2root は自前の ptrace エンジンです (非 root・実験的。未同梱なら PRoot にフォールバック)。chroot は実 root でネイティブ実行し root 化端末が必要です。新しいタブから選択中のエンジンで起動します。</string>
+    <string name="settings_engine_current">このタブの実エンジン</string>
+    <string name="settings_engine_current_starting">起動中…</string>
+    <string name="settings_engine_android_sh">Android sh (フォールバック)</string>
     <string name="settings_engine_unlock_ok">エンジン選択を解放しました。下でエンジンを選べます。</string>
     <string name="settings_engine_lock_ok">エンジン選択を隠し、既定の PRoot に戻しました。</string>
     <string name="settings_root_unlock_ok">root を解放しました — chroot も選べます。</string>
