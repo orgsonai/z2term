@@ -784,6 +784,20 @@ static void rewrite_getcwd_result(const struct config *cfg, pid_t pid, unsigned 
     }
 }
 
+// [DEBUG] Z2ROOT_TRACE がパス(先頭 '/')ならそのファイル(追記)へ、それ以外(例 "1")は
+// stderr=PTY へトレースを出す。SSH PTY reset 調査用。sentinel が無ければ env 自体が来ない。
+static FILE *g_trc = NULL;
+static int  g_trc_on = 0;
+static void trc_init(void) {
+    if (g_trc_on) return;
+    const char *tv = getenv("Z2ROOT_TRACE");
+    if (!tv) return;
+    g_trc = (tv[0] == '/') ? fopen(tv, "a") : NULL;
+    if (!g_trc) g_trc = stderr;
+    setvbuf(g_trc, NULL, _IOLBF, 0);
+    g_trc_on = 1;
+}
+
 // fakeroot(-0): syscall-exit で uid/gid 関連の戻り値・構造体を root(0) に偽装する。
 // proot の -0 相当。ホストのアプリ uid/gid がゲストへ露出するのを防ぎ、root 前提の
 // パッケージ操作(apk/apt の chown 等)が EPERM で失敗しないよう成功に見せる。
@@ -809,7 +823,11 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
         // 即終了(接続リセット)するため、root と同じく成功に見せる必要がある。
         case 143: case 144: case 145: case 146: case 147: case 149:
         case 151: case 152: case 159: case 54: case 55: case 52: case 53:
-            if (ret < 0) { regs.regs[0] = 0; set_regs(pid, &regs); }
+            if (ret < 0) {
+                if (g_trc_on && (nr == 52 || nr == 53))
+                    fprintf(g_trc, "[z2trc] FAKE chmod nr=%ld ret=%ld->0 pid=%d\n", nr, ret, pid);
+                regs.regs[0] = 0; set_regs(pid, &regs);
+            }
             return;
         case 79: case 80: {  // newfstatat / fstat: struct stat の st_uid(off24)/st_gid(off28)
             unsigned int zero = 0;
@@ -1555,7 +1573,8 @@ static int run_tracer(const struct config *cfg, pid_t child) {
     int boot_done = 0;       // ブートストラップ execve(子の最初の execve)を消化したか
     int exit_code = 0;
     int alive = 1;
-    int g_trace = (getenv("Z2ROOT_TRACE") != NULL);  // [DEBUG] PTY 調査用一時トレース
+    trc_init();
+    int g_trace = g_trc_on;  // [DEBUG] PTY 調査用一時トレース(出力先は g_trc)
     while (alive > 0) {
         pid_t pid = waitpid(-1, &status, __WALL);
         if (pid < 0) {
@@ -1564,7 +1583,7 @@ static int run_tracer(const struct config *cfg, pid_t child) {
         }
 
         if (WIFEXITED(status) || WIFSIGNALED(status)) {
-            if (g_trace) fprintf(stderr, "[z2trc] pid=%d %s code/sig=%d\n", pid,
+            if (g_trace) fprintf(g_trc, "[z2trc] pid=%d %s code/sig=%d\n", pid,
                 WIFEXITED(status) ? "EXITED" : "KILLED",
                 WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status));
             if (pid == child) exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
@@ -1581,7 +1600,7 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                 event == PTRACE_EVENT_VFORK ? "VFORK" :
                 event == PTRACE_EVENT_CLONE ? "CLONE" :
                 event == PTRACE_EVENT_EXEC ? "EXEC" : "";
-            fprintf(stderr, "[z2trc] pid=%d STOP sig=%d ev=%s\n", pid, sig, ev);
+            fprintf(g_trc, "[z2trc] pid=%d STOP sig=%d ev=%s\n", pid, sig, ev);
         }
 
         // seccomp イベント(=フィルタ該当 syscall の entry)。seccomp モード確定。
@@ -1604,7 +1623,7 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                     if (nr == 29) snprintf(pbuf, sizeof pbuf, " req=0x%lx fd=%ld", (unsigned long)r.regs[1], (long)r.regs[0]);
                     else if (nr == 56 || nr == 79 || nr == 53 || nr == 54)
                         read_tracee_str(pid, r.regs[1], pbuf, sizeof pbuf);
-                    fprintf(stderr, "[z2trc] pid=%d SYS nr=%ld %s\n", pid, nr, pbuf);
+                    fprintf(g_trc, "[z2trc] pid=%d SYS nr=%ld %s\n", pid, nr, pbuf);
                 }
             }
             int need_exit = handle_syscall_entry(cfg, pid, st);
@@ -1634,7 +1653,7 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                                 snprintf(pbuf, sizeof pbuf, " req=0x%lx fd=%ld", (unsigned long)r.regs[1], (long)r.regs[0]);
                             else if (nr == 56 || nr == 79)         // openat/newfstatat
                                 read_tracee_str(pid, r.regs[1], pbuf, sizeof pbuf);
-                            fprintf(stderr, "[z2trc] pid=%d SYS nr=%ld%s\n", pid, nr, pbuf);
+                            fprintf(g_trc, "[z2trc] pid=%d SYS nr=%ld%s\n", pid, nr, pbuf);
                         }
                     }
                     handle_syscall_entry(cfg, pid, st); st->at_exit = 1;
@@ -1701,7 +1720,7 @@ static int run_tracer(const struct config *cfg, pid_t child) {
         if (g_trace) {
             siginfo_t si; memset(&si, 0, sizeof si);
             int gr = ptrace(PTRACE_GETSIGINFO, pid, 0, &si);
-            fprintf(stderr, "[z2trc] pid=%d DELIVER sig=%d gr=%d si_code=%d si_pid=%d\n",
+            fprintf(g_trc, "[z2trc] pid=%d DELIVER sig=%d gr=%d si_code=%d si_pid=%d\n",
                     pid, sig, gr, gr==0?si.si_code:-999, gr==0?si.si_pid:-1);
         }
         long deliver = (sig == SIGTRAP) ? 0 : sig;

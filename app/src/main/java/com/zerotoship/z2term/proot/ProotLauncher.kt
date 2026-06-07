@@ -121,10 +121,16 @@ class ProotLauncher(private val context: Context) {
     }
 
     /** z2root エンジン専用 env: accept→accept4 シムを LD_PRELOAD する。proot/chroot では空。 */
-    private fun z2rootEnv(useZ2root: Boolean): List<String> =
-        if (useZ2root && z2acceptShim.exists())
-            listOf("LD_PRELOAD=$z2acceptShimGuestPath")
-        else emptyList()
+    private fun z2rootEnv(useZ2root: Boolean): List<String> {
+        if (!useZ2root) return emptyList()
+        val out = mutableListOf<String>()
+        if (z2acceptShim.exists()) out.add("LD_PRELOAD=$z2acceptShimGuestPath")
+        // [DEBUG] shared_home に .z2root_trace_on があるときだけ z2root の syscall トレースを
+        // shared_home/z2root_trace.log へ出す(SSH PTY reset 調査用)。sentinel が無ければ常時 OFF。
+        if (File(sharedHomeDir, ".z2root_trace_on").exists())
+            out.add("Z2ROOT_TRACE=${File(sharedHomeDir, "z2root_trace.log").absolutePath}")
+        return out
+    }
 
     /**
      * 指定ディストロを PRoot で起動。
