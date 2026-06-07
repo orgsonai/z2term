@@ -36,6 +36,7 @@
 #include <signal.h>      // siginfo_t / SIGTSTP 等 (ジョブ制御の group-stop 判定)
 #include <sys/ptrace.h>
 #include <sys/types.h>
+#include <sys/stat.h>    // lstat/stat/struct stat (link2symlink のコピーfallback)
 #include <sys/uio.h>
 #include <sys/user.h>
 #include <sys/socket.h>  // sockaddr / AF_UNIX (bind/connect の unix ソケットパス翻訳)
@@ -111,6 +112,10 @@ struct pid_state {
     int status_fds[STATUS_FD_MAX];      // fakeroot: 偽装対象 proc を指す fd 群, -1=空
     int status_fd_kind[STATUS_FD_MAX];  // 上記 fd の種別(PROC_FD_*), status_fds と添字対応
     int subst_active;       // readfree: openat で /proc を temp 差し替え中(exit で temp を unlink)
+    int link_pending;       // link2symlink: linkat を実ハードリンクで試行中(exit で失敗ならコピーfallback)
+    int link_follow;        // 上記 linkat の AT_SYMLINK_FOLLOW(コピー時に symlink を辿るか)
+    char link_oldhost[PATH_MAX_Z];  // 同 old のホスト実パス(コピー元)
+    char link_newhost[PATH_MAX_Z];  // 同 new のホスト実パス(コピー先)
 };
 static struct pid_state g_map[MAP_CAP];
 
@@ -128,6 +133,7 @@ static struct pid_state *state_for(pid_t pid) {
     g_map[free_slot].pending_open_kind = PROC_FD_NONE;
     g_map[free_slot].aux_kind = PROC_FD_NONE;
     g_map[free_slot].subst_active = 0;
+    g_map[free_slot].link_pending = 0;
     for (int k = 0; k < STATUS_FD_MAX; k++) {
         g_map[free_slot].status_fds[k] = -1;
         g_map[free_slot].status_fd_kind[k] = PROC_FD_NONE;
@@ -188,7 +194,9 @@ static int set_regs(pid_t pid, struct user_pt_regs *regs) {
 #endif
 // syscall-entry で実際に dispatch される syscall 番号を変更する(aarch64)。
 // 注意: aarch64 では regs[8] を書き換えるだけでは dispatch 先は変わらない。
-// NT_ARM_SYSTEM_CALL regset を書く必要がある(link2symlink で linkat→symlinkat に化かす)。
+// NT_ARM_SYSTEM_CALL regset を書く必要がある。
+// (現状は未使用だが、syscall を別 syscall へ化かす基盤プリミティブなので温存する。)
+__attribute__((unused))
 static void set_syscall_nr(pid_t pid, int nr) {
     struct iovec iov = { &nr, sizeof(nr) };
     ptrace(PTRACE_SETREGSET, pid, (void *)NT_ARM_SYSTEM_CALL, &iov);
@@ -1065,72 +1073,118 @@ static void subst_on_exit(const struct config *cfg, pid_t pid, struct pid_state 
     st->subst_active = 0;
 }
 
-// --link2symlink: linkat(ハードリンク)を symlinkat へ化かし、target に「元ファイルの
-// ゲスト絶対パス」を入れた symlink でエミュレートする。Android のアプリ内ストレージは
-// link() を EACCES で拒否するため、これが無いと dpkg/apt の status-old バックリンク等が
-// 壊れる(proot の --link2symlink 相当)。aarch64 に素の link は無く linkat(37)→symlinkat(36)。
-// target をゲスト絶対パスで持つのは、z2root の canonicalize がアクセス時に symlink 中身を
-// ゲスト視点で再解決し、最終的にホスト実パスへ畳むため(rootfs 内の絶対 symlink と同じ扱い)。
-// 戻り値: 1=変換した, 0=変換せず(呼び出し側で通常 linkat 変換にフォールバック)。
-static int rewrite_link2symlink(const struct config *cfg, pid_t pid, struct user_pt_regs *regs) {
+// --link2symlink: ハードリンク linkat(37) のエミュレート。
+//
+// 旧実装は「linkat→symlinkat に化かし new を old のゲスト絶対パスへの symlink にする」
+// だったが、これは git の loose object 確定 (tmp に書く→link(tmp,final)→unlink(tmp)) で
+// 壊れた: final が直後に消える tmp を指す dangling symlink になり「not a valid object」。
+// (dpkg は old が残るので無害だっただけ。)
+//
+// 新実装は「まず実ハードリンクを試し、失敗 (Android アプリ内 FS は link を EACCES で拒否)
+// したらトレーサ側で old を new へコピーして成功 (0) を返す」。
+//   - 実ハードリンクが通る環境ではそのまま本来の共有 inode 意味論を保つ。
+//   - 通らない /data 上でも new が独立した実ファイルになり、old を後で unlink しても残る
+//     = git/coreutils/ビルド系の「リンクで原子的に確定」パターンが汎用的に動く。
+// entry で host パスへ翻訳して実 linkat を走らせ、exit で戻り値を見てコピー fallback する。
+
+// linkat 失敗時のコピー fallback (トレーサ自身がホスト実パスで実行)。成功 0 / 失敗 -1。
+static int copy_for_link(const char *src, const char *dst, int follow) {
+    struct stat stt;
+    if (lstat(src, &stt) != 0) return -1;
+    // AT_SYMLINK_FOLLOW 無しで old が symlink: ハードリンクは symlink 自体への別名なので
+    // 同じ中身の symlink を作り直す。
+    if (S_ISLNK(stt.st_mode) && !follow) {
+        char tgt[PATH_MAX_Z];
+        ssize_t n = readlink(src, tgt, sizeof(tgt) - 1);
+        if (n < 0) return -1;
+        tgt[n] = '\0';
+        return symlink(tgt, dst) == 0 ? 0 : -1;
+    }
+    if (S_ISLNK(stt.st_mode) && follow) {  // 実体へ解決
+        if (stat(src, &stt) != 0) return -1;
+    }
+    if (!S_ISREG(stt.st_mode)) return -1;  // ディレクトリ/デバイス等は捏造しない (本来の EPERM を残す)
+    int in = open(src, O_RDONLY | O_CLOEXEC);
+    if (in < 0) return -1;
+    // EXCL: new が既存なら本来 link は EEXIST。ここへは来ない想定だが安全側で上書きしない。
+    int out = open(dst, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, stt.st_mode & 07777);
+    if (out < 0) { close(in); return -1; }
+    char buf[65536];
+    int ok = 1;
+    ssize_t r;
+    while ((r = read(in, buf, sizeof(buf))) > 0) {
+        ssize_t w = 0;
+        while (w < r) {
+            ssize_t k = write(out, buf + w, (size_t)(r - w));
+            if (k < 0) { ok = 0; break; }
+            w += k;
+        }
+        if (!ok) break;
+    }
+    if (r < 0) ok = 0;
+    fchmod(out, stt.st_mode & 07777);
+    close(in);
+    close(out);
+    if (!ok) { unlink(dst); return -1; }
+    return 0;
+}
+
+// linkat entry: old/new をホスト実パスへ翻訳して実 linkat を走らせる。コピー fallback 用に
+// 翻訳後パスを控える。戻り値 1=処理した (exit でコピー fallback を見る), 0=未処理 (通常翻訳へ)。
+static int linkat_entry(const struct config *cfg, pid_t pid, struct user_pt_regs *regs,
+                        struct pid_state *st) {
     long olddirfd = (long)(int)regs->regs[0];
-    unsigned long old_addr = regs->regs[1];
     long newdirfd = (long)(int)regs->regs[2];
+    unsigned long old_addr = regs->regs[1];
     unsigned long new_addr = regs->regs[3];
+    int follow = (regs->regs[4] & (unsigned long)AT_SYMLINK_FOLLOW) ? 1 : 0;
     if (old_addr == 0 || new_addr == 0) return 0;
 
     char oldp[PATH_MAX_Z], newp[PATH_MAX_Z];
     if (read_tracee_str(pid, old_addr, oldp, sizeof(oldp)) < 0) return 0;
     if (read_tracee_str(pid, new_addr, newp, sizeof(newp)) < 0) return 0;
 
-    // target = oldpath のゲスト絶対パス(symlink の中身)。
-    char target[PATH_MAX_Z];
-    if (oldp[0] == '/') {
-        snprintf(target, sizeof(target), "%s", oldp);
-    } else {
-        // 相対 oldpath は基準 dir(cwd または dirfd)を /proc 経由でゲスト絶対化する。
-        char proc[64], host_dir[PATH_MAX_Z], guest_dir[PATH_MAX_Z];
-        if (olddirfd == AT_FDCWD)
-            snprintf(proc, sizeof(proc), "/proc/%d/cwd", (int)pid);
-        else
-            snprintf(proc, sizeof(proc), "/proc/%d/fd/%d", (int)pid, (int)olddirfd);
-        ssize_t n = readlink(proc, host_dir, sizeof(host_dir) - 1);
-        if (n < 0) return 0;
-        host_dir[n] = '\0';
-        host_to_guest(cfg, host_dir, guest_dir, sizeof(guest_dir));
-        snprintf(target, sizeof(target), "%s/%s", guest_dir, oldp);
-    }
+    char host_old[PATH_MAX_Z], host_new[PATH_MAX_Z];
+    if (host_path_for(cfg, pid, oldp, follow, olddirfd, host_old, sizeof(host_old)) != 0) return 0;
+    if (host_path_for(cfg, pid, newp, 0, newdirfd, host_new, sizeof(host_new)) != 0) return 0;
 
-    // linkpath(symlink を作る場所) = newpath を host 実パスへ。fd 相対は dirfd に委ねる。
-    char host_new[PATH_MAX_Z];
-    const char *linkpath;
-    long eff_newdirfd;
-    if (host_path_for(cfg, pid, newp, 0, newdirfd, host_new, sizeof(host_new)) == 0) {
-        linkpath = host_new;
-        eff_newdirfd = AT_FDCWD;
-    } else {
-        linkpath = newp;       // fd 相対(変換不要) — dirfd 基準のまま作る
-        eff_newdirfd = newdirfd;
-    }
+    snprintf(st->link_oldhost, sizeof(st->link_oldhost), "%s", host_old);
+    snprintf(st->link_newhost, sizeof(st->link_newhost), "%s", host_new);
+    st->link_follow = follow;
+    st->link_pending = 1;
 
-    // target と linkpath を tracee スタック下スクラッチへ連続配置。
-    size_t tlen = strlen(target) + 1;
-    size_t llen = strlen(linkpath) + 1;
-    size_t total = ((tlen + 7) & ~7UL) + ((llen + 7) & ~7UL);
+    // 翻訳済み絶対パスを tracee スタック下スクラッチへ置き、linkat(AT_FDCWD, host_old,
+    // AT_FDCWD, host_new, 0) として実行させる (follow は host_old 解決で消化済み)。
+    size_t ol = strlen(host_old) + 1, nl = strlen(host_new) + 1;
+    size_t total = ((ol + 7) & ~7UL) + ((nl + 7) & ~7UL);
     unsigned long base = (regs->sp - SCRATCH_OFFSET - total) & ~15UL;
-    unsigned long tptr = base;
-    unsigned long lptr = base + ((tlen + 7) & ~7UL);
-    if (write_tracee_mem(pid, tptr, target, tlen) != 0) return 0;
-    if (write_tracee_mem(pid, lptr, linkpath, llen) != 0) return 0;
-
-    // symlinkat(x0=target, x1=newdirfd, x2=linkpath)。
-    regs->regs[0] = tptr;
-    regs->regs[1] = (unsigned long)eff_newdirfd;
-    regs->regs[2] = lptr;
-    regs->regs[8] = 36;  // 表示用。実 dispatch は NT_ARM_SYSTEM_CALL で変える。
+    unsigned long optr = base, nptr = base + ((ol + 7) & ~7UL);
+    if (write_tracee_mem(pid, optr, host_old, ol) != 0) { st->link_pending = 0; return 0; }
+    if (write_tracee_mem(pid, nptr, host_new, nl) != 0) { st->link_pending = 0; return 0; }
+    regs->regs[0] = (unsigned long)AT_FDCWD;
+    regs->regs[1] = optr;
+    regs->regs[2] = (unsigned long)AT_FDCWD;
+    regs->regs[3] = nptr;
+    regs->regs[4] = 0;
     set_regs(pid, regs);
-    set_syscall_nr(pid, 36);
     return 1;
+}
+
+// linkat exit: 実ハードリンクが失敗していたらコピー fallback して成功 (0) に偽装する。
+static void linkat_exit(struct pid_state *st, pid_t pid) {
+    struct user_pt_regs regs;
+    if (get_regs(pid, &regs) != 0) return;
+    long ret = (long)regs.regs[0];
+    if (ret >= 0) return;  // 実ハードリンク成功 = そのまま
+    int err = (int)(-ret);
+    // link 不可由来のみコピーへ。EEXIST/ENOENT/ENOSPC 等の本物のエラーは保持する。
+    if (err != EACCES && err != EPERM && err != EXDEV &&
+        err != EMLINK && err != EROFS && err != EOPNOTSUPP && err != ENOSYS)
+        return;
+    if (copy_for_link(st->link_oldhost, st->link_newhost, st->link_follow) != 0)
+        return;  // コピー失敗 = 元のエラーを残す
+    regs.regs[0] = 0;
+    set_regs(pid, &regs);
 }
 
 // AF_UNIX の pathname ソケット (bind/connect) の sun_path をホスト実パスへ書き換える。
@@ -1186,10 +1240,9 @@ static void maybe_rewrite_path(const struct config *cfg, pid_t pid, struct user_
     if (nr == 200 || nr == 203) { maybe_rewrite_sockaddr(cfg, pid, regs); return; }  // bind / connect
     if (nr == 221) { rewrite_execve(cfg, pid, regs, 0); return; }  // execve
     if (nr == 281) { rewrite_execve(cfg, pid, regs, 1); return; }  // execveat
-    if (nr == 37 && cfg->link2symlink) {                          // linkat → symlinkat
-        if (rewrite_link2symlink(cfg, pid, regs)) return;
-        // 変換できなければ通常の linkat パス変換にフォールバック。
-    }
+    // linkat(37) の link2symlink エミュレートは handle_syscall_entry 側で entry/exit を
+    // 通して処理する (実ハードリンク試行→失敗時コピー fallback)。ここでは通常パス変換に任せる
+    // = link2symlink OFF か、entry 側の翻訳に失敗したフォールバック時のみ到達する。
 
     struct sc_paths sp;
     if (!syscall_paths(nr, &sp)) return;
@@ -1499,6 +1552,11 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
         maybe_rewrite_ioctl(pid, &regs);
         return 0;
     }
+    if (cfg->link2symlink && st->entry_nr == 37) {  // linkat: 実ハードリンク試行→exit でコピー fallback
+        st->aux_addr = 0;
+        if (linkat_entry(cfg, pid, &regs, st)) return 1;
+        st->link_pending = 0;  // 翻訳失敗 = 通常パス変換へフォールバック(コピー fallback 無し)
+    }
     unsigned long aux = 0;
     if (st->entry_nr == 17) aux = regs.regs[0];      // getcwd buf
     else if (cfg->fake_root) switch (st->entry_nr) {
@@ -1526,6 +1584,11 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
 
 // syscall-exit 時の処理(戻り値・構造体の逆変換 / 偽装)。
 static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_state *st) {
+    if (st->link_pending && st->entry_nr == 37) {  // linkat: 失敗ならコピー fallback で成功偽装
+        linkat_exit(st, pid);
+        st->link_pending = 0;
+        return;
+    }
     if (st->entry_nr == 17 && st->aux_addr) {
         rewrite_getcwd_result(cfg, pid, st->aux_addr);
     } else if (cfg->fake_root) {
