@@ -95,8 +95,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 55
-        versionName = "0.8.47-alpha"
+        versionCode = 56
+        versionName = "0.8.48-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -190,6 +190,37 @@ android {
         noCompress += listOf("tar.gz", "tar")
     }
 }
+
+// ---------------------------------------------------------------------------
+// 自前 ptrace エンジン (z2root) / accept シム (z2accept) を APK ビルド時に必ず
+// 現ソース(z2root.c / z2accept.c)から再生成する。これらは jniLibs に lib*.so 名で
+// 置く -static 実行ファイル/shim で、CMake(externalNativeBuild) では生成形態が違う
+// ため別タスクで NDK clang を直接叩く(scripts/build-z2root.sh)。
+//
+// 目的: git では z2root.c だけが同期され .so は .gitignore 対象のため、git pull 後に
+// build-z2root.sh を手動実行し忘れると古い .so が APK に同梱される事故(stale .so)が
+// 繰り返し起きていた。本タスクを jniLibs マージの前段に挟むことで `./gradlew
+// assembleX` だけで常にソースと一致した .so が再生成される(手動手順ゼロ)。
+val buildZ2rootNative = tasks.register<Exec>("buildZ2rootNative") {
+    group = "build"
+    description = "z2root.c / z2accept.c を NDK clang で jniLibs/arm64-v8a の lib*.so へ再ビルド"
+    val script = rootProject.file("scripts/build-z2root.sh")
+    // z2root.c / z2accept.c / スクリプトのいずれかが変われば再ビルド。変わらなければ up-to-date。
+    inputs.file(layout.projectDirectory.file("src/main/cpp/z2root/z2root.c"))
+    inputs.file(layout.projectDirectory.file("src/main/cpp/z2accept/z2accept.c"))
+    inputs.file(script)
+    outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2root.so"))
+    outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2accept.so"))
+    // NDK は build-z2root.sh が自己解決する(ANDROID_NDK_HOME 等の env / local.properties の
+    // sdk.dir+ndk.version / ANDROID_HOME 配下の ndk)。Exec は親 env を継承するため追加指定不要。
+    commandLine("bash", script.absolutePath)
+}
+
+// full フレーバーの jniLibs マージ前に必ず z2root を再ビルドさせる(stale .so 同梱を構造的に防ぐ)。
+// foss フレーバーは z2root を同梱しない(DistroDownloader 経由)ため対象外。
+tasks.matching {
+    it.name.startsWith("merge") && it.name.contains("Full") && it.name.endsWith("JniLibFolders")
+}.configureEach { dependsOn(buildZ2rootNative) }
 
 kotlin {
     compilerOptions {

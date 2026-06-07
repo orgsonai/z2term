@@ -26,9 +26,36 @@ API="${Z2ROOT_API:-29}"
 
 [[ -f "${SRC}" ]] || { echo "ERROR: source not found: ${SRC}" >&2; exit 1; }
 
-# NDK ルートを解決。
+# NDK ルートを解決。明示 env を最優先し、無ければ Gradle/AGP と同じ場所
+# (local.properties の sdk.dir + ndk.version / ANDROID_HOME 配下の ndk) を自動発見する。
+# これにより Gradle の buildZ2rootNative タスクが env 未指定でも解決できる
+# (= git pull だけで .so がソースと乖離する stale 事故を防ぐ自動化の土台)。
 NDK="${ANDROID_NDK_HOME:-${NDK:-${ANDROID_NDK:-${ANDROID_NDK_ROOT:-}}}}"
-[[ -n "${NDK}" ]] || { echo "ERROR: NDK パス未設定 (ANDROID_NDK_HOME を指定)" >&2; exit 1; }
+
+# local.properties から sdk.dir / ndk.version を拾うヘルパ。
+LOCAL_PROPS="${PROJECT_ROOT}/local.properties"
+prop() { [[ -f "${LOCAL_PROPS}" ]] && sed -n "s/^$1=//p" "${LOCAL_PROPS}" | head -n1 | tr -d '\r'; }
+
+if [[ -z "${NDK}" ]]; then
+    SDK_DIR="$(prop sdk.dir)"
+    SDK_DIR="${SDK_DIR:-${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}}"
+    NDK_VER="$(prop ndk.version)"
+    if [[ -n "${SDK_DIR}" && -n "${NDK_VER}" && -d "${SDK_DIR}/ndk/${NDK_VER}" ]]; then
+        NDK="${SDK_DIR}/ndk/${NDK_VER}"
+    elif [[ -n "${SDK_DIR}" && -d "${SDK_DIR}/ndk" ]]; then
+        # ndk.version 未指定(PC 既定)時は最新の NDK を選ぶ。
+        NDK="$(ls -d "${SDK_DIR}"/ndk/*/ 2>/dev/null | sort -V | tail -n1)"
+        NDK="${NDK%/}"
+    fi
+fi
+
+# termux-ndk 等は android-ndk-rNN サブディレクトリを噛ませる構成があるため吸収する。
+if [[ -n "${NDK}" && ! -d "${NDK}/toolchains" ]]; then
+    sub="$(ls -d "${NDK}"/android-ndk-*/ 2>/dev/null | head -n1)"
+    [[ -n "${sub}" ]] && NDK="${sub%/}"
+fi
+
+[[ -n "${NDK}" ]] || { echo "ERROR: NDK パス未設定 (ANDROID_NDK_HOME を指定するか local.properties に sdk.dir/ndk.version を書く)" >&2; exit 1; }
 [[ -d "${NDK}" ]] || { echo "ERROR: NDK ディレクトリが無い: ${NDK}" >&2; exit 1; }
 
 # ホスト tag (clang prebuilt の配置先) を判定。

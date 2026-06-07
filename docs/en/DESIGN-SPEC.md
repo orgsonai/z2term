@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-06-08 / Target version: 0.8.47-alpha (versionCode 55)
+Last updated: 2026-06-08 / Target version: 0.8.48-alpha (versionCode 56)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.

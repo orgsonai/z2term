@@ -53,11 +53,20 @@ armv7 (32bit) は M7 同梱方針では生成しません。`build.gradle.kts` �
 `app/src/main/cpp/z2root/z2root.c`。
 
 ```bash
-ANDROID_NDK_HOME=/path/to/ndk bash scripts/build-z2root.sh
+bash scripts/build-z2root.sh
 # 出力:
 #   arm64-v8a/libz2root.so   (自前 ptrace エンジン。proot 互換 argv subset)
+#   arm64-v8a/libz2accept.so (accept→accept4 LD_PRELOAD シム)
 ```
 
+NDK パスはスクリプトが自己解決する (環境変数 `ANDROID_NDK_HOME`/`NDK`/… か
+`local.properties` の `sdk.dir`+`ndk.version`、`$ANDROID_HOME` 配下の ndk を探索)。
+
 proot と同じ「`lib*.so` 名で jniLibs に置いて `nativeLibraryDir` から execve」
-方式。`.so` 自体はビルド成果物のため git 管理外 (上記 proot 同様)。`libz2root.so`
-は現状アプリ未配線で、`build.gradle.kts` の CMake にも未登録 (= APK には未同梱)。
+方式。`.so` 自体はビルド成果物のため git 管理外 (上記 proot 同様)。
+
+⚠️ **手動実行は通常不要**: `build.gradle.kts` の Gradle タスク `buildZ2rootNative`
+が `full` フレーバーの jniLibs マージ前に上記スクリプトを自動実行するため、
+`./gradlew assembleFull*` だけで常にソースと一致した `.so` が再生成され APK に
+同梱される (git 管理外の `.so` が古いまま同梱される "stale .so" 事故を構造的に防止)。
+`foss` フレーバーは実行時 DL のため対象外。
