@@ -54,38 +54,39 @@ fetch() {
 fetch "IBMPlexMono-Regular.ttf" \
     "https://github.com/IBM/plex/raw/master/packages/plex-mono/fonts/complete/ttf/IBMPlexMono-Regular.ttf"
 
-# JetBrains Mono (Regular)
-fetch "JetBrainsMono-Regular.ttf" \
-    "https://github.com/JetBrains/JetBrainsMono/raw/master/fonts/ttf/JetBrainsMono-Regular.ttf"
-
-# Fira Code (Regular) — リポジトリ master からは取得不可、release zip 経由で抽出
-fetch_fira_code() {
-    local out="${DEST}/FiraCode-Regular.ttf"
+# release zip 内から指定 TTF を抽出して配置する汎用関数。
+# master に個別 weight の TTF を置かなくなったフォント (JetBrains Mono / Fira Code 等)
+# はこちらで取得する。
+#   $1 out_name : 配置するファイル名 (= zip 内で探す TTF 名)
+#   $2 repo     : "owner/name" 形式の GitHub リポジトリ
+fetch_from_release_zip() {
+    local out_name="$1" repo="$2"
+    local out="${DEST}/${out_name}"
     if [[ -f "${out}" && "${FORCE}" != "1" ]]; then
-        echo "[skip] FiraCode-Regular.ttf (FORCE=1 で再取得)"
+        echo "[skip] ${out_name} (FORCE=1 で再取得)"
         return 0
     fi
     local tmp
     tmp="$(mktemp -d)"
-    local zip="${tmp}/firacode.zip"
+    local zip="${tmp}/font.zip"
     local latest_url
-    latest_url="$(curl -sL --max-time 10 \
-        "https://api.github.com/repos/tonsky/FiraCode/releases/latest" \
+    latest_url="$(curl -sL --max-time 15 \
+        "https://api.github.com/repos/${repo}/releases/latest" \
         | grep -oE '"browser_download_url":[[:space:]]*"[^"]+\.zip"' \
         | sed -E 's/.*"([^"]+)".*/\1/' | head -n1)"
     if [[ -z "${latest_url}" ]]; then
-        echo "ERROR: Fira Code release URL 取得失敗" >&2
+        echo "ERROR: ${repo} の release zip URL 取得失敗" >&2
         rm -rf "${tmp}"; return 1
     fi
-    echo "[info] fetching FiraCode-Regular.ttf <- ${latest_url}"
+    echo "[info] fetching ${out_name} <- ${latest_url}"
     curl -sL --fail -o "${zip}" "${latest_url}" || {
-        echo "ERROR: zip 取得失敗" >&2; rm -rf "${tmp}"; return 1
+        echo "ERROR: zip 取得失敗 ${latest_url}" >&2; rm -rf "${tmp}"; return 1
     }
     (cd "${tmp}" && unzip -q "${zip}")
     local found
-    found="$(find "${tmp}" -name 'FiraCode-Regular.ttf' -type f | head -n1)"
+    found="$(find "${tmp}" -name "${out_name}" -type f | head -n1)"
     [[ -n "${found}" ]] || {
-        echo "ERROR: zip 内に FiraCode-Regular.ttf 見つからず" >&2
+        echo "ERROR: zip 内に ${out_name} 見つからず" >&2
         rm -rf "${tmp}"; return 1
     }
     cp "${found}" "${out}"
@@ -94,7 +95,13 @@ fetch_fira_code() {
     sz="$(stat -c %s "${out}")"
     echo "       -> $(numfmt --to=iec-i --suffix=B "${sz}")"
 }
-fetch_fira_code
+
+# JetBrains Mono (Regular) — variable font 化により master に個別 weight TTF が
+# 無いため release zip から抽出
+fetch_from_release_zip "JetBrainsMono-Regular.ttf" "JetBrains/JetBrainsMono"
+
+# Fira Code (Regular) — リポジトリ master からは取得不可、release zip 経由で抽出
+fetch_from_release_zip "FiraCode-Regular.ttf" "tonsky/FiraCode"
 
 echo ""
 echo "[done] フォント:"

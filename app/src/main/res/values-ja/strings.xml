@@ -77,6 +77,8 @@
     <string name="settings_engine_current">このタブの実エンジン</string>
     <string name="settings_engine_current_starting">起動中…</string>
     <string name="settings_engine_android_sh">Android sh (フォールバック)</string>
+    <string name="tab_popup_engine_label">エンジン</string>
+    <string name="tab_popup_engine_gui">GUI (Linux)</string>
     <string name="settings_engine_unlock_ok">エンジン選択を解放しました。下でエンジンを選べます。</string>
     <string name="settings_engine_lock_ok">エンジン選択を隠し、既定の PRoot に戻しました。</string>
     <string name="settings_root_unlock_ok">root を解放しました — chroot も選べます。</string>

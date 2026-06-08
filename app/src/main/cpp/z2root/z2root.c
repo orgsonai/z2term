@@ -1770,20 +1770,37 @@ static int run_tracer(const struct config *cfg, pid_t child) {
             if (ptrace(PTRACE_GETSIGINFO, pid, 0, &si) < 0) continue;
         }
 
-        // Android seccomp が untrusted_app に禁ずる権限系 syscall(setfsuid 等)の
-        // SIGSYS。配送せず戻り値 0(成功偽装)にして継続(fakeroot 方針)。
-        // 例外: io_uring(setup=425/enter=426/register=427)は 0(成功)へ化かすと
-        // libuv(node)が io_uring 利用可と誤認し ring fd=0 を uv__close → assertion
-        // `fd > STDERR_FILENO' で abort し node が一切起動できなくなる。-ENOSYS を
-        // 返して「未実装」を見せ epoll へフォールバックさせる(proot は元から io_uring
-        // 不可なので動く)。SIGSYS 停止時 x8 は syscall 番号を保持している。
+        // Android seccomp が untrusted_app に禁ずる syscall の SIGSYS。配送せず
+        // ここで戻り値を作る(SIGSYS 停止時 x8 は syscall 番号を保持)。
+        //
+        // 偽装方針を 2 つに分ける:
+        //  (A) fakeroot 用の権限変更系(set*id/setgroups=143-159, chown=54/55,
+        //      chmod=52/53)だけ 0(成功)に化かす。戻り値だけで成立し、バッファ
+        //      書き換えが要らないので syscall 未実行の SIGSYS でも 0 で足りる。
+        //  (B) それ以外は全て -ENOSYS。claude(node) が使う新 syscall
+        //      (io_uring=425-427 / epoll_pwait2=441 / clone3=435 / statx=291 /
+        //      close_range=436 / faccessat2=439 等)を 0 偽装すると、libc/libuv が
+        //      「成功」と誤認してフォールバックせず、(a) epoll_pwait2 は待たず即
+        //      0 イベントでループ空回り→無反応、(b) statx は未初期化バッファを
+        //      正常な stat と誤読、(c) clone3 はスレッド未生成のまま 0 を返し
+        //      自分を子と誤認、(d) io_uring は ring fd=0 を uv__close で abort、と
+        //      いずれもハング/異常終了する。-ENOSYS を見せて既存の安全な経路
+        //      (epoll_pwait/fstatat/clone 等)へ退避させる(proot も同経路で動く)。
+        //      `claude --version' 等の即終了系は (B) のループに入らず動くが、
+        //      対話起動は (B) のループ待ちでハングする、が実機の観測と一致。
         if (sig == SIGSYS) {
             struct user_pt_regs regs;
             if (get_regs(pid, &regs) == 0) {
                 long nr = (long)regs.regs[8];
-                regs.regs[0] = (nr == 425 || nr == 426 || nr == 427)
-                    ? (unsigned long)-38L /* -ENOSYS */ : 0UL;
+                int priv = (nr == 143 || nr == 144 || nr == 145 || nr == 146 ||
+                            nr == 147 || nr == 149 || nr == 151 || nr == 152 ||
+                            nr == 159 || nr == 54  || nr == 55  || nr == 52  ||
+                            nr == 53);
+                regs.regs[0] = priv ? 0UL : (unsigned long)-38L /* -ENOSYS */;
                 set_regs(pid, &regs);
+                if (g_trc_on)
+                    fprintf(g_trc, "[z2trc] SIGSYS nr=%ld -> %s pid=%d\n",
+                            nr, priv ? "0" : "ENOSYS", pid);
             }
             z_resume(pid, seccomp_mode, state_for(pid), 0);
             continue;

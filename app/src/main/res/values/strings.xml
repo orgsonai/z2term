@@ -77,6 +77,8 @@
     <string name="settings_engine_current">This tab is running on</string>
     <string name="settings_engine_current_starting">starting…</string>
     <string name="settings_engine_android_sh">Android sh (fallback)</string>
+    <string name="tab_popup_engine_label">Engine</string>
+    <string name="tab_popup_engine_gui">GUI (Linux)</string>
     <string name="settings_engine_unlock_ok">Engine selector unlocked. Pick the engine below.</string>
     <string name="settings_engine_lock_ok">Engine selector hidden, reset to PRoot (default).</string>
     <string name="settings_root_unlock_ok">Root unlocked — chroot is now available too.</string>

@@ -95,8 +95,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 58
-        versionName = "0.8.50-alpha"
+        versionCode = 59
+        versionName = "0.8.51-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -221,6 +221,91 @@ val buildZ2rootNative = tasks.register<Exec>("buildZ2rootNative") {
 tasks.matching {
     it.name.startsWith("merge") && it.name.contains("Full") && it.name.endsWith("JniLibFolders")
 }.configureEach { dependsOn(buildZ2rootNative) }
+
+// ---------------------------------------------------------------------------
+// git 管理外の「同梱必須物」の欠落検出。
+//
+// fonts(fetch-fonts.sh) / proot バイナリ(build-proot.sh) / Alpine rootfs
+// (build-alpine-rootfs.sh) は .gitignore 対象で、clone・clean 後に消えても git
+// では復元されない。これらが欠けたまま `assembleX` するとビルドは普通に通り、
+// 「フォント無し」「PRoot 無し」の壊れた APK を黙って出荷してしまう事故が起きた。
+// 対応する merge タスクの前段で実体を検査し、欠落時は再生成スクリプト名つきの
+// メッセージでビルドを止める(緊急時は -PallowMissingBundledAssets=true で警告に格下げ)。
+// z2root の .so は上の buildZ2rootNative が常に再生成するため、ここでは検査しない。
+//
+// 実装上の注意: doLast 内で rootProject / logger 等の「Gradle script オブジェクト」を
+// 参照すると configuration cache に直列化できず失敗する。リポジトリルートと格下げフラグは
+// 構成時に File / Boolean としてローカルに捕捉し、doLast からはそれだけを使う。
+val allowMissingBundled: Boolean =
+    (project.findProperty("allowMissingBundledAssets") as String?)?.toBoolean() ?: false
+val repoRootDir: File = rootProject.projectDir
+
+// fonts は full / foss 共通(src/main/assets/fonts)。両フレーバーで検査する。
+val verifyBundledFonts = tasks.register("verifyBundledFonts") {
+    group = "verification"
+    description = "プログラミングフォント(scripts/fetch-fonts.sh)の同梱漏れを検査"
+    val root = repoRootDir
+    val allow = allowMissingBundled
+    doLast {
+        val missing = listOf(
+            "app/src/main/assets/fonts/IBMPlexMono-Regular.ttf",
+            "app/src/main/assets/fonts/JetBrainsMono-Regular.ttf",
+            "app/src/main/assets/fonts/FiraCode-Regular.ttf",
+        ).filter { !File(root, it).exists() }
+            .map { "  - $it\n      再生成: bash scripts/fetch-fonts.sh" }
+        if (missing.isNotEmpty()) {
+            val msg = "\n[fonts] git 管理外の同梱必須ファイルが見つかりません:\n" +
+                missing.joinToString("\n") +
+                "\n  → 上記スクリプトを実行してから再ビルドしてください。" +
+                "\n  → 緊急回避: ./gradlew ... -PallowMissingBundledAssets=true (警告に格下げ)"
+            if (allow) println("WARNING:$msg") else throw GradleException(msg)
+        }
+    }
+}
+
+// PRoot バイナリ + Alpine rootfs は full フレーバーのみ APK 同梱(foss は実行時 DL)。
+val verifyFullBundled = tasks.register("verifyFullBundledArtifacts") {
+    group = "verification"
+    description = "full フレーバーの PRoot バイナリ / Alpine rootfs の同梱漏れを検査"
+    val root = repoRootDir
+    val allow = allowMissingBundled
+    doLast {
+        val missing = mutableListOf<String>()
+        listOf(
+            "app/src/main/jniLibs/arm64-v8a/libproot.so",
+            "app/src/main/jniLibs/arm64-v8a/libproot_loader.so",
+            "app/src/main/jniLibs/arm64-v8a/libtalloc.so",
+        ).filter { !File(root, it).exists() }
+            .forEach { missing += "  - $it\n      再生成: bash scripts/build-proot.sh" }
+        // rootfs は build-alpine-rootfs.sh が src/main/assets に出力し、F-Droid 対応で
+        // src/full/assets へ移動する運用。full の sourceSet は両方を読むため両方を検査する。
+        val rootfsRegex = Regex("""alpine-minirootfs-.*\.(tgz|tar\.gz)""")
+        val hasRootfs = listOf("app/src/main/assets", "app/src/full/assets").any { dir ->
+            File(root, dir).listFiles { f -> f.name.matches(rootfsRegex) }?.isNotEmpty() == true
+        }
+        if (!hasRootfs) {
+            missing += "  - app/src/{main,full}/assets/alpine-minirootfs-*.tgz\n      再生成: bash scripts/build-alpine-rootfs.sh"
+        }
+        if (missing.isNotEmpty()) {
+            val msg = "\n[full prebuilt] git 管理外の同梱必須ファイルが見つかりません:\n" +
+                missing.joinToString("\n") +
+                "\n  → 上記スクリプトを実行してから再ビルドしてください。" +
+                "\n  → 緊急回避: ./gradlew ... -PallowMissingBundledAssets=true (警告に格下げ)"
+            if (allow) println("WARNING:$msg") else throw GradleException(msg)
+        }
+    }
+}
+
+// fonts は全フレーバーの assets マージ前に検査。
+tasks.matching {
+    it.name.startsWith("merge") && it.name.endsWith("Assets")
+}.configureEach { dependsOn(verifyBundledFonts) }
+
+// PRoot / rootfs は full フレーバーの jniLibs / assets マージ前に検査。
+tasks.matching {
+    it.name.startsWith("merge") && it.name.contains("Full") &&
+        (it.name.endsWith("JniLibFolders") || it.name.endsWith("Assets"))
+}.configureEach { dependsOn(verifyFullBundled) }
 
 kotlin {
     compilerOptions {

@@ -1496,6 +1496,25 @@ private fun TabChip(
     // ドラッグ中は緑枠で「掴んでいる」ことを示す。
     val border = if (dragging || active) ZtsGreen else ZtsBorder
     val fg = if (active) ZtsGreen else ZtsTextSecondary
+
+    // 長押し中だけ「タブ名 + 実行エンジン」をチップ上に出す (要望)。設定を開かなくても
+    // どのタブがどのエンジンで動いているか確認できる。長押し→ドラッグの並べ替えと併用で、
+    // 押した瞬間 (onDragStart) に表示し、離した/キャンセルで消す。
+    var showInfo by remember { mutableStateOf(false) }
+    // 実行エンジン名。端末タブは実際に起動したエンジン、GUI タブは GUI 表記。
+    val engineText: String = if (session is TerminalSession) {
+        val actual by session.actualEngine.collectAsState()
+        when (actual) {
+            AppSettings.ENGINE_PROOT -> stringResource(R.string.settings_engine_proot)
+            AppSettings.ENGINE_Z2ROOT -> stringResource(R.string.settings_engine_z2root)
+            AppSettings.ENGINE_CHROOT -> stringResource(R.string.settings_engine_chroot)
+            AppSettings.ENGINE_ANDROID_SH -> stringResource(R.string.settings_engine_android_sh)
+            else -> stringResource(R.string.settings_engine_current_starting)
+        }
+    } else {
+        stringResource(R.string.tab_popup_engine_gui)
+    }
+
     // 単タップ=アクティブ化 / ダブルタップ=閉じる。× ボタンは廃止 (誤タップ防止 M8-6 T8)。
     // 最後の 1 枚 (canClose=false) はダブルタップでも閉じない。
     // 長押し→左右ドラッグ=並べ替え (要望)。ドラッグ中のタブは前面 (zIndex) + 平行移動で追従。
@@ -1513,10 +1532,10 @@ private fun TabChip(
             )
             .pointerInput(session.id) {
                 detectDragGesturesAfterLongPress(
-                    onDragStart = { onDragStart() },
+                    onDragStart = { showInfo = true; onDragStart() },
                     onDrag = { change, amount -> change.consume(); onDrag(amount.x) },
-                    onDragEnd = { onDragEnd() },
-                    onDragCancel = { onDragEnd() }
+                    onDragEnd = { showInfo = false; onDragEnd() },
+                    onDragCancel = { showInfo = false; onDragEnd() }
                 )
             }
             .padding(horizontal = 10.dp, vertical = 5.dp)
@@ -1532,6 +1551,49 @@ private fun TabChip(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.widthIn(max = 84.dp)
         )
+
+        if (showInfo) {
+            TabInfoPopup(name = label, engine = engineText)
+        }
+    }
+}
+
+/** タブ長押し中にチップ直下へ出す「タブ名 + 実行エンジン」ポップアップ (要望)。 */
+@Composable
+private fun TabInfoPopup(name: String, engine: String) {
+    val density = LocalDensity.current
+    // チップの下端に少し被せて出す (チップ高 ≒ 28dp)。
+    val offsetY = with(density) { 26.dp.roundToPx() }
+    Popup(
+        alignment = Alignment.BottomCenter,
+        offset = IntOffset(0, offsetY),
+        properties = PopupProperties(focusable = false, clippingEnabled = false)
+    ) {
+        Column(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(ZtsBgCard)
+                .border(1.dp, ZtsGreen, RoundedCornerShape(6.dp))
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = name,
+                color = ZtsTextPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 220.dp)
+            )
+            Text(
+                text = "${stringResource(R.string.tab_popup_engine_label)}: $engine",
+                color = ZtsGreen,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1
+            )
+        }
     }
 }
 
