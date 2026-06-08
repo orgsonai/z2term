@@ -73,11 +73,14 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.zIndex
@@ -1562,11 +1565,30 @@ private fun TabChip(
 @Composable
 private fun TabInfoPopup(name: String, engine: String) {
     val density = LocalDensity.current
-    // チップの下端に少し被せて出す (チップ高 ≒ 28dp)。
-    val offsetY = with(density) { 26.dp.roundToPx() }
+    // チップの下端に少し被せて出す量と、画面端からの最小マージン。
+    val overlapPx = with(density) { 2.dp.roundToPx() }
+    val marginPx = with(density) { 4.dp.roundToPx() }
+    // チップ中央真下に出しつつ、ポップアップ全体が必ず画面内に収まるようクランプする (要望)。
+    // BottomCenter は端のタブで横にはみ出すため、自前 PositionProvider で coerce する。
+    val positionProvider = remember(overlapPx, marginPx) {
+        object : PopupPositionProvider {
+            override fun calculatePosition(
+                anchorBounds: IntRect,
+                windowSize: IntSize,
+                layoutDirection: LayoutDirection,
+                popupContentSize: IntSize
+            ): IntOffset {
+                val anchorCenterX = anchorBounds.left + anchorBounds.width / 2
+                val maxX = (windowSize.width - popupContentSize.width - marginPx).coerceAtLeast(marginPx)
+                val x = (anchorCenterX - popupContentSize.width / 2).coerceIn(marginPx, maxX)
+                val maxY = (windowSize.height - popupContentSize.height - marginPx).coerceAtLeast(marginPx)
+                val y = (anchorBounds.bottom - overlapPx).coerceIn(marginPx, maxY)
+                return IntOffset(x, y)
+            }
+        }
+    }
     Popup(
-        alignment = Alignment.BottomCenter,
-        offset = IntOffset(0, offsetY),
+        popupPositionProvider = positionProvider,
         properties = PopupProperties(focusable = false, clippingEnabled = false)
     ) {
         Column(
