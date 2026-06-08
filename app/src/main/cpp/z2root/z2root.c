@@ -1772,9 +1772,19 @@ static int run_tracer(const struct config *cfg, pid_t child) {
 
         // Android seccomp が untrusted_app に禁ずる権限系 syscall(setfsuid 等)の
         // SIGSYS。配送せず戻り値 0(成功偽装)にして継続(fakeroot 方針)。
+        // 例外: io_uring(setup=425/enter=426/register=427)は 0(成功)へ化かすと
+        // libuv(node)が io_uring 利用可と誤認し ring fd=0 を uv__close → assertion
+        // `fd > STDERR_FILENO' で abort し node が一切起動できなくなる。-ENOSYS を
+        // 返して「未実装」を見せ epoll へフォールバックさせる(proot は元から io_uring
+        // 不可なので動く)。SIGSYS 停止時 x8 は syscall 番号を保持している。
         if (sig == SIGSYS) {
             struct user_pt_regs regs;
-            if (get_regs(pid, &regs) == 0) { regs.regs[0] = 0; set_regs(pid, &regs); }
+            if (get_regs(pid, &regs) == 0) {
+                long nr = (long)regs.regs[8];
+                regs.regs[0] = (nr == 425 || nr == 426 || nr == 427)
+                    ? (unsigned long)-38L /* -ENOSYS */ : 0UL;
+                set_regs(pid, &regs);
+            }
             z_resume(pid, seccomp_mode, state_for(pid), 0);
             continue;
         }
