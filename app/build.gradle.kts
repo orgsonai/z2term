@@ -95,8 +95,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 57
-        versionName = "0.8.49-alpha"
+        versionCode = 58
+        versionName = "0.8.50-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -125,10 +125,10 @@ android {
     buildTypes {
         debug {
             isMinifyEnabled = false
-            applicationIdSuffix = ".debug"
+            applicationIdSuffix = ".debug2"
             versionNameSuffix = "-debug"
             // ランチャーで release と区別できるよう表示名を変える。
-            manifestPlaceholders["appLabel"] = "Z2Term debug"
+            manifestPlaceholders["appLabel"] = "Z2Term dbg2"
         }
         release {
             isMinifyEnabled = true
