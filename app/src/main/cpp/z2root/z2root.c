@@ -37,6 +37,7 @@
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/stat.h>    // lstat/stat/struct stat (link2symlink のコピーfallback)
+#include <sys/sysmacros.h> // major/minor/makedev (コピー fallback の inode 偽装)
 #include <sys/uio.h>
 #include <sys/user.h>
 #include <sys/socket.h>  // sockaddr / AF_UNIX (bind/connect の unix ソケットパス翻訳)
@@ -179,6 +180,13 @@ static int write_tracee_mem(pid_t pid, unsigned long addr, const void *buf, size
     struct iovec local = { (void *)buf, len };
     struct iovec remote = { (void *)addr, len };
     ssize_t n = process_vm_writev(pid, &local, 1, &remote, 1, 0);
+    return (n == (ssize_t)len) ? 0 : -1;
+}
+
+static int read_tracee_mem(pid_t pid, unsigned long addr, void *buf, size_t len) {
+    struct iovec local = { buf, len };
+    struct iovec remote = { (void *)addr, len };
+    ssize_t n = process_vm_readv(pid, &local, 1, &remote, 1, 0);
     return (n == (ssize_t)len) ? 0 : -1;
 }
 
@@ -890,6 +898,45 @@ static void trc_init(void) {
 //   - getgroups → 補助グループ 0 個(ホスト gid の露出を消す。id の groups が root だけになる)
 //   - set*id / fchownat / fchown / fchmod / fchmodat が EPERM 等で失敗したら成功(0)に握りつぶす
 //   - newfstatat/fstat/statx の結果は st_uid/st_gid を 0 に上書き(所有者を root に見せる)
+// ---- コピー fallback の inode 偽装キャッシュ -----------------------------------
+// Android(SELinux untrusted_app)は link(2) を端末全域で拒否するため linkat は常に
+// コピー fallback になる(別 inode)。git(>=2.46)は link 後に dest を lstat し src と
+// (st_dev,st_ino)を比較し、違えば "hardlink different from source" で die する。
+// そこでコピー fallback したペアを控え、直後の dest の stat 結果を src の (dev,ino)
+// へ偽装して検証を通す。git は link→即 lstat なので一度通せば十分=ヒット後に破棄し、
+// 他ツールへの inode 偽装の窓を最小化する(小リングで多重 clone にも追従)。
+#define LINKCOPY_CACHE 32
+struct linkcopy_ent {
+    int used;
+    unsigned long dest_ino;          // コピーで作った dest の実 inode(照合キー)
+    unsigned long src_dev, src_ino;  // 偽装で見せる src の (dev,ino)
+};
+static struct linkcopy_ent g_linkcopy[LINKCOPY_CACHE];
+static int g_linkcopy_next;
+static int g_linkcopy_used;          // 有効エントリ数(0 なら stat hot path で照合を省く)
+
+static void linkcopy_record(const char *src_host, const char *dest_host) {
+    struct stat ss, ds;
+    if (stat(src_host, &ss) != 0) return;
+    if (stat(dest_host, &ds) != 0) return;
+    struct linkcopy_ent *e = &g_linkcopy[g_linkcopy_next];
+    g_linkcopy_next = (g_linkcopy_next + 1) % LINKCOPY_CACHE;
+    if (!e->used) g_linkcopy_used++;
+    e->used = 1;
+    e->dest_ino = (unsigned long)ds.st_ino;
+    e->src_dev = (unsigned long)ss.st_dev;
+    e->src_ino = (unsigned long)ss.st_ino;
+}
+
+// inode で照合(小リング+ヒット後破棄のため別 fs の inode 衝突リスクは無視できる)。
+static struct linkcopy_ent *linkcopy_find(unsigned long ino) {
+    if (g_linkcopy_used == 0 || ino == 0) return NULL;
+    for (int i = 0; i < LINKCOPY_CACHE; i++)
+        if (g_linkcopy[i].used && g_linkcopy[i].dest_ino == ino)
+            return &g_linkcopy[i];
+    return NULL;
+}
+
 // buf は entry で記録した stat 系の出力バッファアドレス(stat 以外では未使用)。
 static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
     struct user_pt_regs regs;
@@ -919,6 +966,17 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
             if (ret != 0 || buf == 0) return;
             write_tracee_mem(pid, buf + 24, &zero, 4);
             write_tracee_mem(pid, buf + 28, &zero, 4);
+            // コピー fallback の dest なら (st_dev@0, st_ino@8) を src に偽装し
+            // git(>=2.46)の hardlink 検証を通す。
+            unsigned long ino = 0;
+            if (g_linkcopy_used && read_tracee_mem(pid, buf + 8, &ino, 8) == 0) {
+                struct linkcopy_ent *e = linkcopy_find(ino);
+                if (e) {
+                    write_tracee_mem(pid, buf + 0, &e->src_dev, 8);
+                    write_tracee_mem(pid, buf + 8, &e->src_ino, 8);
+                    e->used = 0; g_linkcopy_used--;  // 一度通せば十分(偽装窓を最小化)
+                }
+            }
             return;
         }
         case 291: {  // statx: stx_uid(off20)/stx_gid(off24)
@@ -926,6 +984,20 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
             if (ret != 0 || buf == 0) return;
             write_tracee_mem(pid, buf + 20, &zero, 4);
             write_tracee_mem(pid, buf + 24, &zero, 4);
+            // コピー fallback の dest なら (stx_ino@32, stx_dev_major@128/minor@132) を
+            // src に偽装(struct stat 版と同じく git の hardlink 検証対策)。
+            unsigned long ino = 0;
+            if (g_linkcopy_used && read_tracee_mem(pid, buf + 32, &ino, 8) == 0) {
+                struct linkcopy_ent *e = linkcopy_find(ino);
+                if (e) {
+                    unsigned int smaj = major((dev_t)e->src_dev);
+                    unsigned int smin = minor((dev_t)e->src_dev);
+                    write_tracee_mem(pid, buf + 32, &e->src_ino, 8);
+                    write_tracee_mem(pid, buf + 128, &smaj, 4);
+                    write_tracee_mem(pid, buf + 132, &smin, 4);
+                    e->used = 0; g_linkcopy_used--;
+                }
+            }
             return;
         }
     }
@@ -1331,6 +1403,7 @@ static void linkat_exit(struct pid_state *st, pid_t pid) {
         return;
     if (copy_for_link(st->link_oldhost, st->link_newhost, st->link_follow) != 0)
         return;  // コピー失敗 = 元のエラーを残す
+    linkcopy_record(st->link_oldhost, st->link_newhost);  // git の hardlink 検証対策
     regs.regs[0] = 0;
     set_regs(pid, &regs);
 }
