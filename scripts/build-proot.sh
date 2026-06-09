@@ -29,22 +29,22 @@ mkdir -p "${WORK_DIR}"
 
 TERMUX_REPO="https://packages.termux.dev/apt/termux-main/pool/main/p/proot/"
 TERMUX_LIBTALLOC_REPO="https://packages.termux.dev/apt/termux-main/pool/main/libt/libtalloc/"
-PROOT_VER_AARCH64="${PROOT_VERSION:-5.1.107-71}"
+PROOT_VER_AARCH64="${PROOT_VERSION:-5.1.107.77}"
 LIBTALLOC_VER_AARCH64="${LIBTALLOC_VERSION:-2.4.3}"
 
+# pool ディレクトリ一覧から最新版番号を取り出す。
+# Termux は pool に最新版しか残さないため、ピン留めした版は予告なく 404 になる。
+latest_ver() {
+    local repo="$1" prefix="$2"
+    curl -sL "${repo}" \
+        | grep -oE "${prefix}_[0-9][^\"<]*_aarch64\.deb" \
+        | sed -E "s/^${prefix}_([^_]+)_aarch64\.deb/\1/" \
+        | sort -V | tail -n1
+}
+
 if [[ "${AUTO_LATEST:-0}" == "1" ]]; then
-    PROOT_VER_AARCH64="$(
-        curl -sL "${TERMUX_REPO}" \
-            | grep -oE 'proot_[0-9][^"<]*_aarch64\.deb' \
-            | sed -E 's/^proot_([^_]+)_aarch64\.deb/\1/' \
-            | sort -V | tail -n1
-    )"
-    LIBTALLOC_VER_AARCH64="$(
-        curl -sL "${TERMUX_LIBTALLOC_REPO}" \
-            | grep -oE 'libtalloc_[0-9][^"<]*_aarch64\.deb' \
-            | sed -E 's/^libtalloc_([^_]+)_aarch64\.deb/\1/' \
-            | sort -V | tail -n1
-    )"
+    PROOT_VER_AARCH64="$(latest_ver "${TERMUX_REPO}" proot)"
+    LIBTALLOC_VER_AARCH64="$(latest_ver "${TERMUX_LIBTALLOC_REPO}" libtalloc)"
     [[ -z "${PROOT_VER_AARCH64}" || -z "${LIBTALLOC_VER_AARCH64}" ]] && { echo "ERROR: バージョン自動検出失敗" >&2; exit 1; }
     echo "[info] AUTO_LATEST: proot=${PROOT_VER_AARCH64}, libtalloc=${LIBTALLOC_VER_AARCH64}"
 fi
@@ -57,8 +57,26 @@ fetch_deb() {
         curl -sL "${repo}${deb_name}" -o "${cache}"
         [[ -s "${cache}" ]] || { echo "ERROR: 取得失敗 ${deb_name}" >&2; rm -f "${cache}"; return 1; }
     fi
+    # 404 等で curl が HTML を保存しても -s は通ってしまうため、ar で .deb 妥当性を検証する
+    # (検証漏れ時の症状: 後段の `ar x` が "file format not recognized" で落ちる)。
+    if ! ar t "${cache}" >/dev/null 2>&1; then
+        echo "ERROR: ${deb_name} は有効な .deb ではない (404/HTML 等の可能性)" >&2
+        rm -f "${cache}"; return 1
+    fi
     # Path のみ stdout に出す (caller が変数で受けるため info を混ぜない)
     printf '%s\n' "${cache}"
+}
+
+# ピン版を取得し、pool から消えていた場合は最新版へフォールバックする。
+fetch_deb_resolving() {
+    local repo="$1" prefix="$2" ver="$3" arch="$4" path
+    if path="$(fetch_deb "${repo}" "${prefix}_${ver}_${arch}.deb")"; then
+        printf '%s\n' "${path}"; return 0
+    fi
+    local latest; latest="$(latest_ver "${repo}" "${prefix}")"
+    [[ -n "${latest}" ]] || { echo "ERROR: ${prefix} の最新版検出に失敗" >&2; return 1; }
+    echo "[info] ${prefix} ${ver} が pool に無いため ${latest} を使用" >&2
+    fetch_deb "${repo}" "${prefix}_${latest}_${arch}.deb"
 }
 
 fetch_one() {
@@ -72,7 +90,7 @@ fetch_one() {
 
     # ----- proot binary + loader -----
     local proot_deb_path
-    proot_deb_path="$(fetch_deb "${TERMUX_REPO}" "proot_${proot_ver}_${termux_arch}.deb")"
+    proot_deb_path="$(fetch_deb_resolving "${TERMUX_REPO}" proot "${proot_ver}" "${termux_arch}")"
     local proot_extract="${WORK_DIR}/${abi}-proot"
     rm -rf "${proot_extract}"; mkdir -p "${proot_extract}"
     (cd "${proot_extract}" && ar x "${proot_deb_path}" && tar -xJf data.tar.xz)
@@ -95,7 +113,7 @@ fetch_one() {
     # ランタイムで filesDir/proot-libs/libtalloc.so.2 にコピーされ、proot から
     # LD_LIBRARY_PATH 経由で見えるようにする (ProotLauncher 参照)。
     local libtalloc_deb_path
-    libtalloc_deb_path="$(fetch_deb "${TERMUX_LIBTALLOC_REPO}" "libtalloc_${libtalloc_ver}_${termux_arch}.deb")"
+    libtalloc_deb_path="$(fetch_deb_resolving "${TERMUX_LIBTALLOC_REPO}" libtalloc "${libtalloc_ver}" "${termux_arch}")"
     local libtalloc_extract="${WORK_DIR}/${abi}-libtalloc"
     rm -rf "${libtalloc_extract}"; mkdir -p "${libtalloc_extract}"
     (cd "${libtalloc_extract}" && ar x "${libtalloc_deb_path}" && tar -xJf data.tar.xz)
