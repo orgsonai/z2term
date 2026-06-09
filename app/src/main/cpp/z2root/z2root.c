@@ -2255,7 +2255,29 @@ static void load_elf_and_jump(const char *path, char **child_argv, char **child_
     }
 
     unsigned long entry    = base + e_entry;
-    unsigned long phdr_mem = has_pt_phdr ? (base + pt_phdr_va) : (base + e_phoff);
+    // AT_PHDR は phdr の「仮想アドレス」。PT_PHDR があればそれを使う。無い場合、
+    // ファイルオフセット e_phoff を含む PT_LOAD を探し p_vaddr/p_offset 差で vaddr へ
+    // 変換する。ET_EXEC(p_vaddr != p_offset、例 0x400000)では e_phoff をそのまま
+    // AT_PHDR に渡すと musl/bionic の起動が phdr を 0 番地近傍と誤認して segfault する
+    // (静的 musl の apk.static 等。PT_PHDR を持たず first LOAD が vaddr 0x400000)。
+    unsigned long phdr_mem;
+    if (has_pt_phdr) {
+        phdr_mem = base + pt_phdr_va;
+    } else {
+        phdr_mem = base + e_phoff;  // フォールバック(first LOAD が offset0/vaddr0 のとき正)
+        for (unsigned i = 0; i < e_phnum; i++) {
+            unsigned int p_type; memcpy(&p_type, ph[i], 4);
+            if (p_type != PT_LOAD_Z) continue;
+            unsigned long p_offset, p_vaddr, p_filesz;
+            memcpy(&p_offset, ph[i] + 8,  8);
+            memcpy(&p_vaddr,  ph[i] + 16, 8);
+            memcpy(&p_filesz, ph[i] + 32, 8);
+            if (e_phoff >= p_offset && e_phoff < p_offset + p_filesz) {
+                phdr_mem = base + p_vaddr + (e_phoff - p_offset);
+                break;
+            }
+        }
+    }
 
     // bionic の static 起動(__libc_init_mte / __bionic_get_tls_segment)は load_bias を
     // 即値 0 と仮定し phdr->p_vaddr を絶対アドレスとして扱う(=ET_EXEC 前提)。ET_DYN
@@ -2272,12 +2294,17 @@ static void load_elf_and_jump(const char *path, char **child_argv, char **child_
         phdr_mem = (unsigned long)ph_biased;
     }
 
+    // この時点で ET_EXEC のセグメント MAP_FIXED がローダ自身の heap(0x400000 付近)を
+    // 上書きしている可能性がある。malloc を使う fprintf は壊れた arena を触り得るので、
+    // デバッグ出力は stack バッファ + write(2) で malloc-free に行う。
     int dbg = (getenv("Z2ROOT_LOADER_DEBUG") != NULL);
     if (dbg) {
-        fprintf(stderr, "z2root loader: type=%u base=%lx e_entry=%lx entry=%lx "
+        char b[256];
+        int l = snprintf(b, sizeof(b),
+                "z2root loader: type=%u base=%lx e_entry=%lx entry=%lx "
                 "phdr=%lx phnum=%u phent=%u has_ptphdr=%d\n",
                 e_type, base, e_entry, entry, phdr_mem, e_phnum, e_phentsize, has_pt_phdr);
-        fflush(stderr);
+        if (l > 0) write(2, b, (size_t)l);
     }
 
     // ---- 初期スタックを現スタック上に構築して sp を切替え jump ----
@@ -2328,9 +2355,11 @@ static void load_elf_and_jump(const char *path, char **child_argv, char **child_
     *w++ = AT_NULL_Z; *w++ = 0;
 
     if (dbg) {
-        fprintf(stderr, "z2root loader: argc=%d envc=%d words=%d sp=%p JUMPING\n",
+        char b[160];
+        int l = snprintf(b, sizeof(b),
+                "z2root loader: argc=%d envc=%d words=%d sp=%p JUMPING\n",
                 argc_n, envc_n, words, (void *)sp);
-        fflush(stderr);
+        if (l > 0) write(2, b, (size_t)l);
     }
 
     // sp を新フレームへ、x0=0(rtld_fini) で entry へ分岐。戻らない。
