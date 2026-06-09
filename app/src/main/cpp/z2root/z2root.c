@@ -2204,8 +2204,73 @@ static void load_elf_and_jump(const char *path, char **child_argv, char **child_
     }
     close(fd);
 
+    // ET_DYN(static-PIE)はカーネルもインタプリタも relocation を適用しない。
+    // bionic NDK の static-PIE crt は自己 relocation しないため、ローダが RELR/RELA の
+    // R_AARCH64_RELATIVE を肩代わり適用する(ld.so/proot loader 相当)。これで単純な
+    // static-PIE(write のみ)が動く。static 非PIE(ET_EXEC)は base==0 で素通り=退行なし。
+    if (e_type == 3 /* ET_DYN */ && base != 0) {
+        unsigned long dyn_va = 0;
+        for (unsigned i = 0; i < e_phnum; i++) {
+            unsigned int p_type; memcpy(&p_type, ph[i], 4);
+            if (p_type == 2 /* PT_DYNAMIC */) { memcpy(&dyn_va, ph[i] + 16, 8); break; }
+        }
+        if (dyn_va) {
+            unsigned long *dyn = (unsigned long *)(base + dyn_va);
+            unsigned long relr = 0, relrsz = 0, rela = 0, relasz = 0, relaent = 24;
+            for (unsigned long *d = dyn; d[0] != 0 /* DT_NULL */; d += 2) {
+                unsigned long tag = d[0], val = d[1];
+                switch (tag) {
+                    case 36: /* DT_RELR */    case 0x6fffe000: /* DT_ANDROID_RELR */    relr = val; break;
+                    case 35: /* DT_RELRSZ */  case 0x6fffe001: /* DT_ANDROID_RELRSZ */  relrsz = val; break;
+                    case 7:  /* DT_RELA */    rela = val; break;
+                    case 8:  /* DT_RELASZ */  relasz = val; break;
+                    case 9:  /* DT_RELAENT */ relaent = val; break;
+                }
+            }
+            if (rela && relaent) {
+                for (unsigned long off = 0; off + relaent <= relasz; off += relaent) {
+                    unsigned long *r = (unsigned long *)(base + rela + off);
+                    unsigned long r_offset = r[0], r_info = r[1], r_addend = r[2];
+                    if ((r_info & 0xffffffff) == 1027 /* R_AARCH64_RELATIVE */)
+                        *(unsigned long *)(base + r_offset) = base + r_addend;
+                }
+            }
+            if (relr) {
+                unsigned long *p = (unsigned long *)(base + relr);
+                unsigned long *pend = p + relrsz / 8;
+                unsigned long *where = NULL;
+                for (; p < pend; p++) {
+                    unsigned long e = *p;
+                    if ((e & 1) == 0) {
+                        where = (unsigned long *)(base + e);
+                        *where++ += base;
+                    } else {
+                        for (int i = 0; (e >>= 1) != 0; i++)
+                            if (e & 1) where[i] += base;
+                        where += 63;
+                    }
+                }
+            }
+        }
+    }
+
     unsigned long entry    = base + e_entry;
     unsigned long phdr_mem = has_pt_phdr ? (base + pt_phdr_va) : (base + e_phoff);
+
+    // bionic の static 起動(__libc_init_mte / __bionic_get_tls_segment)は load_bias を
+    // 即値 0 と仮定し phdr->p_vaddr を絶対アドレスとして扱う(=ET_EXEC 前提)。ET_DYN
+    // (static-PIE)では p_vaddr がリンク時相対のため note/TLS 走査が 0 番地近傍を触って
+    // segfault する。p_vaddr を base で事前バイアスした phdr コピーを AT_PHDR に渡し、
+    // bionic の bias=0 仮定を成立させる。
+    if (e_type == 3 /* ET_DYN */ && base != 0) {
+        static unsigned char ph_biased[MAX_PH][56];
+        for (unsigned i = 0; i < e_phnum; i++) {
+            memcpy(ph_biased[i], ph[i], 56);
+            unsigned long v; memcpy(&v, ph[i] + 16, 8); v += base;
+            memcpy(ph_biased[i] + 16, &v, 8);
+        }
+        phdr_mem = (unsigned long)ph_biased;
+    }
 
     int dbg = (getenv("Z2ROOT_LOADER_DEBUG") != NULL);
     if (dbg) {
