@@ -21,9 +21,10 @@ package com.zerotoship.z2term.distro
  *  - 6: 2026-05-21 dropbear 追加 (PC→端末 SSH。OpenSSH sshd は proot で privsep 破綻)
  *  - 7: 2026-05-26 Tier 3.6 追加 (zip/unzip/openssl/bind-tools/file/diffutils/patch/bc)
  *  - 8: 2026-05-26 hardlink 展開の mode 修正で再展開 (zsh が hardlink で実行ビット欠落→起動不能の修正)
+ *  - 9: 2026-06-09 Tier 5/5.5/6 追加 (ripgrep/fd/fzf/bat/eza・netcat-openbsd/socat/mtr・python3/py3-pip/nodejs/npm/build-base)
  */
 object DistroBundle {
-    const val ROOTFS_VERSION = 8
+    const val ROOTFS_VERSION = 9
 
     /** rootfs に書き込む version マーカーファイル名 (rootfs 直下) */
     const val VERSION_MARKER = ".z2term-version"

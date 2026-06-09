@@ -84,3 +84,27 @@ dropbear
 mosh
 musl-locales
 musl-locales-lang
+
+# ===== Tier 5: モダン CLI (初手体験向上, 約 10MB) =====
+# ripgrep=高速 grep(rg), fd=高速 find, fzf=曖昧検索, bat=シンタックス付 cat,
+# eza=モダン ls。vim/nano で足りるため neovim は見送り。
+ripgrep
+fd
+fzf
+bat
+eza
+
+# ===== Tier 5.5: ネットワーク診断 (小) =====
+# netcat-openbsd=nc, socat=多用途リレー, mtr=traceroute+ping。
+netcat-openbsd
+socat
+mtr
+
+# ===== Tier 6: 開発言語 / ビルド一式 (サイズ大, 約 60MB 超) =====
+# python3+py3-pip=Python 実行/パッケージ, nodejs+npm=JS/TS 実行/パッケージ,
+# build-base=C ビルド一式(gcc/g++/make/musl-dev 等。pip の C 拡張ビルドにも必要)。
+python3
+py3-pip
+nodejs
+npm
+build-base

@@ -36,6 +36,38 @@ if [[ ${#ARCHS[@]} -eq 0 ]]; then
     ARCHS=(aarch64)
 fi
 
+# fakeroot は SysV IPC (faked デーモン) を要求する。real root で動いている、もしくは
+# IPC 非対応で fakeroot が機能しない環境 (Android ベース等) では fakeroot を介さず
+# 直接実行する。root なら apk/tar が実 owner/mode を設定するため metadata は正しい。
+# apk-tools-static / alpine-keys は host で実行するため host の arch を自動検出する
+# (target arch とは独立。apk.static は --arch でクロス展開する)。
+HOST_ARCH="$(uname -m)"
+case "${HOST_ARCH}" in
+    x86_64|amd64)  HOST_APK_ARCH=x86_64 ;;
+    aarch64|arm64) HOST_APK_ARCH=aarch64 ;;
+    *)             HOST_APK_ARCH="${HOST_ARCH}" ;;
+esac
+echo "[info] host arch: ${HOST_ARCH} -> apk-tools-static ${HOST_APK_ARCH}"
+
+USE_FAKEROOT=1
+if [[ "$(id -u)" -eq 0 ]]; then
+    USE_FAKEROOT=0
+elif ! fakeroot -- true >/dev/null 2>&1; then
+    echo "[warn] fakeroot が機能しないため直接実行にフォールバックします" >&2
+    echo "       (非 root 環境では一部 setuid/owner が不正確になる可能性があります)" >&2
+    USE_FAKEROOT=0
+fi
+
+# fakeroot が使えるときは状態 DB を共有して wrap、使えないときはそのまま実行。
+# FR_STATE は build_one 内の local (bash の動的スコープで参照可)。
+run_maybe_fakeroot() {
+    if [[ "${USE_FAKEROOT}" -eq 1 ]]; then
+        fakeroot -i "${FR_STATE}" -s "${FR_STATE}" -- "$@"
+    else
+        "$@"
+    fi
+}
+
 WORK_DIR="${PROJECT_ROOT}/build/alpine-rootfs"
 ASSETS_DIR="${PROJECT_ROOT}/app/src/main/assets"
 mkdir -p "${WORK_DIR}" "${ASSETS_DIR}"
@@ -43,12 +75,17 @@ mkdir -p "${WORK_DIR}" "${ASSETS_DIR}"
 # ---------------------------------------------------------------------------
 # パッケージリストを配列に
 # ---------------------------------------------------------------------------
-mapfile -t PACKAGES < <(grep -vE '^\s*(#|$)' "${PKG_LIST}" | tr -d ' \t\r')
+# process substitution (/dev/fd) が使えない制約環境 (Android ベース等) でも動くよう
+# temp ファイル経由で読む。
+_PKG_TMP="$(mktemp)"
+grep -vE '^\s*(#|$)' "${PKG_LIST}" | tr -d ' \t\r' > "${_PKG_TMP}"
+mapfile -t PACKAGES < "${_PKG_TMP}"
+rm -f "${_PKG_TMP}"
 echo "[info] packages (${#PACKAGES[@]}):"
 printf '         %s\n' "${PACKAGES[@]}"
 
 # ---------------------------------------------------------------------------
-# apk-tools-static を取得 (x86_64 host バイナリ、--arch でクロス展開対応)
+# apk-tools-static を取得 (host arch バイナリ、--arch でクロス展開対応)
 # ---------------------------------------------------------------------------
 APK_STATIC_DIR="${WORK_DIR}/apk-tools-static"
 APK_STATIC="${APK_STATIC_DIR}/sbin/apk.static"
@@ -56,7 +93,7 @@ if [[ ! -x "${APK_STATIC}" ]]; then
     echo "[info] downloading apk-tools-static ..."
     mkdir -p "${APK_STATIC_DIR}"
     # 最新の apk-tools-static を fetch
-    APK_TOOLS_URL="https://dl-cdn.alpinelinux.org/alpine/${ALPINE_BRANCH}/main/x86_64/"
+    APK_TOOLS_URL="https://dl-cdn.alpinelinux.org/alpine/${ALPINE_BRANCH}/main/${HOST_APK_ARCH}/"
     apk_pkg="$(curl -sL "${APK_TOOLS_URL}" \
         | grep -oE 'apk-tools-static-[0-9][^"<]*\.apk' \
         | sort -V | tail -n1)"
@@ -75,7 +112,7 @@ KEYS_DIR="${WORK_DIR}/keys"
 if [[ ! -d "${KEYS_DIR}" || -z "$(ls -A "${KEYS_DIR}" 2>/dev/null)" ]]; then
     echo "[info] downloading alpine-keys ..."
     mkdir -p "${KEYS_DIR}"
-    ALPINE_KEYS_URL="https://dl-cdn.alpinelinux.org/alpine/${ALPINE_BRANCH}/main/x86_64/"
+    ALPINE_KEYS_URL="https://dl-cdn.alpinelinux.org/alpine/${ALPINE_BRANCH}/main/${HOST_APK_ARCH}/"
     keys_pkg="$(curl -sL "${ALPINE_KEYS_URL}" \
         | grep -oE 'alpine-keys-[0-9][^"<]*\.apk' \
         | sort -V | tail -n1)"
@@ -115,6 +152,11 @@ build_one() {
 
     echo ""
     echo "[info] === building rootfs for ${arch} ==="
+    # proot の link2symlink 下では前回 apk の hardlink が .l2s..apk.* (host 絶対
+    # パスを指す symlink + .000N 実体) に化け、rm -rf が再帰順序の都合で 1 パス目に
+    # "Directory not empty" で落ちる。2 パス目で確実に消えるため 1 回目は失敗を握り潰す
+    # (通常 host では 1 回目で消え、2 回目は no-op)。
+    rm -rf "${rootfs_dir}" 2>/dev/null || true
     rm -rf "${rootfs_dir}"
     mkdir -p "${rootfs_dir}"
 
@@ -126,7 +168,7 @@ build_one() {
     local FR_STATE="${WORK_DIR}/${arch}/fakeroot.state"
     rm -f "${FR_STATE}"
 
-    fakeroot -i "${FR_STATE}" -s "${FR_STATE}" -- \
+    run_maybe_fakeroot \
         "${APK_STATIC}" \
             --root "${rootfs_dir}" \
             --keys-dir "${KEYS_DIR}" \
@@ -205,9 +247,14 @@ EOF
 
     # tar.gz に圧縮 (POSIX ustar、所有者は root:root に正規化)
     # fakeroot で wrap して setuid/owner などの論理 metadata を tar に乗せる。
+    # proot の link2symlink 下では apk の hardlink dedup が .l2s..apk.* (host 絶対
+    # パスを指す symlink + .000N 実体) に変換され、tar が ELOOP で失敗する。これらは
+    # 余剰スキャフォールドで、被参照の正規バイナリは inode 共有で残るため除外する
+    # (GNU tar は除外された first-link の代わりに次の link を実体として保存する)。
+    # 通常 host (link2symlink 無し) では .l2s.* は存在せず no-op。
     echo "[info] packing ${out_name} ..."
-    fakeroot -i "${FR_STATE}" -s "${FR_STATE}" -- \
-        bash -c "cd '${rootfs_dir}' && tar --owner=0 --group=0 --numeric-owner --format=ustar -cf - ." \
+    run_maybe_fakeroot \
+        bash -c "cd '${rootfs_dir}' && tar --owner=0 --group=0 --numeric-owner --format=ustar --exclude='*/.l2s.*' --exclude='.l2s.*' -cf - ." \
         | gzip -9 >"${out_path}"
 
     local sz_h sz_b
