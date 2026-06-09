@@ -315,14 +315,26 @@ static void canonicalize_guest(const struct config *cfg, pid_t pid, const char *
                 ssize_t ln = readlink(host, link, sizeof(link) - 1);
                 if (ln >= 0) {
                     link[ln] = '\0';
+                    // proot/旧 z2root の --link2symlink が残したレガシー .l2s チェーンは
+                    // リンク先に「ホスト実パス」(例 .../shared_home/android-sdk/… )を格納する。
+                    // これをそのままゲストとして walk すると translate_abs が rootfs を二重
+                    // 前置して ENOENT になり、NDK の libc++_shared.so 等(.l2s 多段 symlink)を
+                    // open で辿れなかった。絶対リンク先が host(rootfs/bind の host 側)なら
+                    // ゲストへ逆変換する。host_to_guest は該当しなければ素通しなので通常の
+                    // ゲスト絶対 symlink には無害。
+                    char glink[PATH_MAX_Z];
+                    if (link[0] == '/')
+                        host_to_guest(cfg, link, glink, sizeof(glink));
+                    else
+                        snprintf(glink, sizeof(glink), "%s", link);
                     char rest[PATH_MAX_Z];
                     snprintf(rest, sizeof(rest), "%s", pending + pi);
                     // 絶対 symlink: ルートから。相対 symlink: 親(=現 result)基準。
-                    if (link[0] == '/') result[0] = '\0';
+                    if (glink[0] == '/') result[0] = '\0';
                     if (rest[0])
-                        snprintf(pending, sizeof(pending), "%s/%s", link, rest);
+                        snprintf(pending, sizeof(pending), "%s/%s", glink, rest);
                     else
-                        snprintf(pending, sizeof(pending), "%s", link);
+                        snprintf(pending, sizeof(pending), "%s", glink);
                     pi = 0;
                     while (pending[pi] == '/') pi++;
                     continue;
@@ -654,8 +666,18 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
             snprintf(host_loader, sizeof(host_loader), "%s", interp);
         snprintf(plan->target, sizeof(plan->target), "%s", host_loader);
         plan_push(plan, host_loader);
-        plan_push(plan, "--argv0");
-        plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : guest_prog);
+        // Android の bionic linker(/system/bin/linker64) は glibc/musl の ld.so と違い
+        // `--argv0 <name>` を解さず、そのまま実プログラムの argv[1] へ漏らす。Android
+        // ネイティブの build-tools(aapt2 等。interp=linker64)が "expected absolute path:
+        // --argv0" で daemon 起動失敗していた。bionic のときは --argv0 を渡さない
+        // (argv0 は実プログラムパスのままになるが Android ツールは argv0 を見ないため実害なし)。
+        const char *ib = strrchr(interp, '/');
+        ib = ib ? ib + 1 : interp;
+        int interp_is_bionic = (strcmp(ib, "linker64") == 0 || strcmp(ib, "linker") == 0);
+        if (!interp_is_bionic) {
+            plan_push(plan, "--argv0");
+            plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : guest_prog);
+        }
         // ld.so が開く実プログラムは「ゲストパス」を渡す。ld.so の open() は
         // tracee として傍受・翻訳されるため、host_prog(=ホスト実パス)を渡すと
         // bind 配下(例: -b <home>:/root の /root/a.out)で「ゲストパス扱い→rootfs
