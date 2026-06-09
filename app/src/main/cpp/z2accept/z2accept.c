@@ -14,7 +14,12 @@
 // ld.so が警告して無視するだけ (非致命) なので、accept を使わないコマンドには無害。
 
 // libc ヘッダを引かない (bionic 依存を避けるため)。型は最小限の前方宣言で足りる。
-extern int *__errno_location(void);
+// __errno_location は musl/glibc の errno 実体だが、bionic は __errno() を使い
+// このシンボルを持たない。weak にして未解決でもロードを通す＝オンデバイスビルドで
+// LD_PRELOAD が bionic 製 host ツール (aapt2 等) に漏れてもリンク不能にしない
+// (非 weak だと "cannot locate symbol __errno_location" で aapt2 が起動失敗する)。
+// weak が NULL に解決される環境では errno 設定だけ諦める (戻り値 -1 は返す)。
+extern int *__errno_location(void) __attribute__((weak));
 
 // aarch64 raw syscall: accept4(fd, addr, addrlen, flags) = __NR_accept4(242)。
 static long z2_accept4(long fd, long addr, long len, long flags) {
@@ -30,6 +35,6 @@ static long z2_accept4(long fd, long addr, long len, long flags) {
 // accept(fd, struct sockaddr *addr, socklen_t *addrlen) を accept4(...,0) で実装。
 int accept(int fd, void *addr, void *addrlen) {
     long r = z2_accept4(fd, (long)addr, (long)addrlen, 0);
-    if (r < 0) { *__errno_location() = (int)(-r); return -1; }
+    if (r < 0) { if (__errno_location) *__errno_location() = (int)(-r); return -1; }
     return (int)r;
 }

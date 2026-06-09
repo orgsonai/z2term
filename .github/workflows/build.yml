@@ -39,6 +39,20 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', 'gradle/libs.versions.toml') }}
           restore-keys: gradle-${{ runner.os }}-
 
+      # full フレーバーは git 管理外の同梱物(フォント/PRoot/Alpine rootfs)を APK に同梱する。
+      # これらは生成スクリプトの成果物で .gitignore 対象のため fresh checkout の CI には存在せず、
+      # build.gradle.kts の verifyBundledFonts / verifyFullBundledArtifacts 検査でビルドが止まる。
+      # full のビルド(lint 含む)より前に生成しておく。z2root の .so は buildZ2rootNative が
+      # runner プリインストール NDK(ANDROID_NDK_ROOT)で自動生成するためここでは不要。
+      - name: Install host tools for bundled-asset generation
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fakeroot unzip xz-utils
+
+      - name: Generate bundled assets (fonts / PRoot / Alpine rootfs)
+        run: |
+          bash scripts/fetch-fonts.sh
+          bash scripts/build-proot.sh
+          bash scripts/build-alpine-rootfs.sh
+
       - name: Lint
         run: ./gradlew lintFullDebug --stacktrace
 

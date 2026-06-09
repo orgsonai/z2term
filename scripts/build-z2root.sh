@@ -69,6 +69,32 @@ TOOLCHAIN="${NDK}/toolchains/llvm/prebuilt/${HOST_TAG}"
 CC="${TOOLCHAIN}/bin/aarch64-linux-android${API}-clang"
 [[ -x "${CC}" ]] || { echo "ERROR: clang が無い: ${CC}" >&2; exit 1; }
 
+# --- オンデバイス(z2term)自己ホストビルドのためのフォールバック判定 ----------------
+# NDK の clang(clang-21)は静的 ELF。z2root エンジン配下の自前 loader は app data 配下の
+# 静的バイナリを map できる一方、NDK clang を exec すると loader が ENOENT を返す環境がある
+# (= z2term 上でのセルフビルド)。その場合は exec 可能な rootfs の動的 clang(clang-22 等)を
+# クロスコンパイラとして使い、NDK の sysroot/静的ライブラリへ向けて GNU ld で手動リンクする。
+# NDK clang が正常に動く PC ビルドでは下の probe を通過し従来どおり NDK ツールチェーンを使う
+# (= PC の挙動は不変)。probe は exit code では判定できない(loader エラーでも 0 を返す例がある)
+# ため、--version 出力に "clang version" を含むかで判定する。
+FALLBACK=0
+if ! "${CC}" --version 2>/dev/null | grep -q 'clang version'; then
+    FALLBACK=1
+    echo "[info] NDK clang が exec 不可 → rootfs clang + GNU ld フォールバックを使用" >&2
+    SYSROOT="${TOOLCHAIN}/sysroot"
+    LIBDIR="${SYSROOT}/usr/lib/aarch64-linux-android"
+    [[ -d "${LIBDIR}/${API}" ]] || { echo "ERROR: sysroot が無い: ${LIBDIR}/${API}" >&2; exit 1; }
+    SYS_CC="${Z2ROOT_HOST_CC:-$(command -v clang || command -v clang-22 || true)}"
+    [[ -n "${SYS_CC}" ]] || { echo "ERROR: フォールバック用の system clang が見つからない (Z2ROOT_HOST_CC で指定可)" >&2; exit 1; }
+    SYS_LD="${Z2ROOT_HOST_LD:-$(command -v ld.lld || command -v ld || true)}"
+    [[ -n "${SYS_LD}" ]] || { echo "ERROR: フォールバック用の linker(ld)が見つからない (Z2ROOT_HOST_LD で指定可)" >&2; exit 1; }
+    BUILTINS="$(ls "${TOOLCHAIN}"/lib/clang/*/lib/linux/libclang_rt.builtins-aarch64-android.a 2>/dev/null | sort -V | tail -n1)"
+    [[ -n "${BUILTINS}" ]] || { echo "ERROR: libclang_rt.builtins-aarch64-android.a が無い" >&2; exit 1; }
+    STRIP="${Z2ROOT_HOST_STRIP:-$(command -v llvm-strip || command -v strip || true)}"
+    echo "[info]   SYS_CC=${SYS_CC}" >&2
+    echo "[info]   SYS_LD=${SYS_LD}" >&2
+fi
+
 OUT_DIR="${JNI_DIR}/arm64-v8a"
 mkdir -p "${OUT_DIR}"
 OUT="${OUT_DIR}/libz2root.so"
@@ -79,11 +105,28 @@ echo "[info] building z2root (aarch64, API ${API}) ..."
 # 解決がトレーサのパス変換に壊され SIGABRT する。静的化して bionic リンカ自体を無くすことで回避。
 # なお bionic の -static-pie は NDK r28c では C ランタイムの自己再配置が main 到達前に
 # SIGSEGV する(実機 ZY32LNFX2B で確認)。非PIE の -static は健全に起動するため -static を使う。
-"${CC}" \
-    -std=c11 -O2 -Wall -Wextra \
-    -static \
-    -o "${OUT}" \
-    "${SRC}"
+if [[ "${FALLBACK}" == "1" ]]; then
+    # rootfs clang でオブジェクトのみ生成(clang ドライバの自動リンクは lld 専用フラグ
+    # --use-android-relr-tags 等を渡し GNU ld が拒否するため使わない)→ GNU ld で手動リンク。
+    "${SYS_CC}" --target=aarch64-linux-android${API} --sysroot="${SYSROOT}" \
+        -std=c11 -O2 -Wall -Wextra -c "${SRC}" -o "${OUT}.o"
+    "${SYS_LD}" -EL -static -no-pie --hash-style=gnu -z noexecstack -z max-page-size=4096 \
+        -o "${OUT}" \
+        "${LIBDIR}/${API}/crtbegin_static.o" \
+        "${OUT}.o" \
+        -L"${LIBDIR}/${API}" -L"${LIBDIR}" \
+        --start-group -lc -lm -ldl --end-group \
+        "${BUILTINS}" \
+        "${LIBDIR}/${API}/crtend_android.o"
+    rm -f "${OUT}.o"
+    [[ -n "${STRIP}" ]] && "${STRIP}" "${OUT}" || true
+else
+    "${CC}" \
+        -std=c11 -O2 -Wall -Wextra \
+        -static \
+        -o "${OUT}" \
+        "${SRC}"
+fi
 
 chmod 0755 "${OUT}"
 echo "[ok] wrote ${OUT}"
@@ -97,11 +140,23 @@ file "${OUT}" 2>/dev/null || true
 SHIM_SRC="${PROJECT_ROOT}/app/src/main/cpp/z2accept/z2accept.c"
 SHIM_OUT="${OUT_DIR}/libz2accept.so"
 echo "[info] building z2accept shim (aarch64, API ${API}) ..."
-"${CC}" \
-    -shared -nostdlib -fPIC -O2 -Wall \
-    -Wl,-soname,libz2accept.so \
-    -o "${SHIM_OUT}" \
-    "${SHIM_SRC}"
+if [[ "${FALLBACK}" == "1" ]]; then
+    "${SYS_CC}" --target=aarch64-linux-android${API} --sysroot="${SYSROOT}" \
+        -fPIC -O2 -Wall -c "${SHIM_SRC}" -o "${SHIM_OUT}.o"
+    # -nostdlib 相当 = crt なしの素の共有オブジェクト。max-page-size を 4096 にしないと
+    # GNU ld 既定(64KiB)で実体わずかなシムが 64KiB に膨らむため明示する。
+    "${SYS_LD}" -EL -shared -soname libz2accept.so --hash-style=gnu -z noexecstack \
+        -z max-page-size=4096 \
+        -o "${SHIM_OUT}" "${SHIM_OUT}.o"
+    rm -f "${SHIM_OUT}.o"
+    [[ -n "${STRIP}" ]] && "${STRIP}" "${SHIM_OUT}" || true
+else
+    "${CC}" \
+        -shared -nostdlib -fPIC -O2 -Wall \
+        -Wl,-soname,libz2accept.so \
+        -o "${SHIM_OUT}" \
+        "${SHIM_SRC}"
+fi
 chmod 0644 "${SHIM_OUT}"
 echo "[ok] wrote ${SHIM_OUT}"
 file "${SHIM_OUT}" 2>/dev/null || true

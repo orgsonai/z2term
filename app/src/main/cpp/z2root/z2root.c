@@ -86,6 +86,8 @@ struct config {
     int use_loader;                   // 1: rootfs ELF を自前ローダ(--loader)経由で起動
     char self_path[PATH_MAX_Z];       // /proc/self/exe (nativeLibraryDir の libz2root.so)
     int readfree;                     // /proc 偽装を openat 時 temp 差し替えにし read/close をトレース対象から外す(高速化・既定 ON・Z2ROOT_NO_READFREE で無効化)
+    uid_t real_uid;                   // トレーサ(=Android アプリ)の実 uid。fake_root で getuid を 0 に偽装しても
+    gid_t real_gid;                   // SCM_CREDENTIALS は実 uid/gid でしか送れない(EPERM 回避)ため保持する。
 };
 
 // ---- pid -> syscall entry/exit トグル の簡易マップ ----------------------------
@@ -676,8 +678,15 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
         return 1;
     }
 
-    // 3) 静的 ELF / その他: パスだけ host へ、argv0 はそのまま。
-    snprintf(plan->target, sizeof(plan->target), "%s", host_prog);
+    // 3) 静的 ELF / その他: loader には「ゲストパス」を渡す。loader(load_elf_and_jump)の
+    //    open() も tracee として傍受・翻訳されるため、host_prog(ホスト実パス)を渡すと
+    //    bind 配下(例: -b <home>:/root の /root/.../clang-21 = NDK 静的 clang)で「ゲスト
+    //    パス扱い→rootfs 前置」され ENOENT になる(rootfs 配下は二重変換抑止で偶然動く)。
+    //    動的 ELF 経路(上記 §2)が ld.so に guest_real を渡すのと同じ理由・同じ host_to_guest
+    //    逆変換で、rootfs/bind の両方で静的バイナリを正しくマップできる。
+    char guest_static[PATH_MAX_Z];
+    host_to_guest(cfg, host_prog, guest_static, sizeof(guest_static));
+    snprintf(plan->target, sizeof(plan->target), "%s", guest_static);
     plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : guest_prog);
     wrap_with_loader(cfg, plan);
     return 0;
@@ -887,6 +896,77 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
             return;
         }
     }
+}
+
+// AF_UNIX の SCM_CREDENTIALS(ancillary)を扱う sendmsg/recvmsg の uid/gid 偽装。
+// 背景: fake_root(-0) は getuid/getgid を 0 に偽装するため、ゲスト(例: PulseAudio /
+// dbus)は SCM_CREDENTIALS に uid=0 を載せて sendmsg する。しかしカーネルは「申告 uid が
+// 実 uid/euid/suid のいずれか、または CAP_SETUID」でなければ EPERM を返す。非特権の
+// Android アプリ uid(実 uid≠0)では一致せず EPERM → ゲストの接続が即死する(PulseAudio
+// の "Connection died")。proot 同様、cred を実 uid/gid へ書き換えてカーネルに通す。
+//   - sendmsg(entry): 載っている SCM_CREDENTIALS の uid/gid を実値へ(pid は実 pid のまま)。
+//   - recvmsg(exit) : 受け取った SCM_CREDENTIALS の uid/gid を 0 へ(root の見え方を一貫)。
+// msghdr(LP64): msg_control=off32, msg_controllen=off40。cmsghdr: len(8)/level(4)/type(4)、
+// データは +16。ucred: pid(0)/uid(4)/gid(8)。
+#define Z_CMSG_CTRL_MAX 4096
+static int read_msg_control(pid_t pid, unsigned long msgp,
+                            unsigned long *ctrl, unsigned long *ctrllen) {
+    unsigned long cc[2];
+    struct iovec lo = { cc, sizeof cc };
+    struct iovec re = { (void *)(msgp + 32), sizeof cc };  // msg_control / msg_controllen
+    if (process_vm_readv(pid, &lo, 1, &re, 1, 0) != (ssize_t)sizeof cc) return -1;
+    *ctrl = cc[0];
+    *ctrllen = cc[1];
+    return 0;
+}
+// 制御バッファを走査し、SCM_CREDENTIALS の ucred.uid/gid を (new_uid,new_gid) へ。
+// 変更があれば tracee メモリへ書き戻す。
+static void patch_scm_creds(pid_t pid, unsigned long ctrl, unsigned long ctrllen,
+                            unsigned int new_uid, unsigned int new_gid) {
+    if (ctrl == 0 || ctrllen < 16 || ctrllen > Z_CMSG_CTRL_MAX) return;
+    char buf[Z_CMSG_CTRL_MAX];
+    struct iovec lo = { buf, (size_t)ctrllen };
+    struct iovec re = { (void *)ctrl, (size_t)ctrllen };
+    if (process_vm_readv(pid, &lo, 1, &re, 1, 0) != (ssize_t)ctrllen) return;
+    size_t off = 0;
+    int changed = 0;
+    while (off + 16 <= (size_t)ctrllen) {
+        unsigned long clen;
+        int level, type;
+        memcpy(&clen, buf + off, 8);
+        memcpy(&level, buf + off + 8, 4);
+        memcpy(&type, buf + off + 12, 4);
+        if (clen < 16) break;
+        if (level == SOL_SOCKET && type == SCM_CREDENTIALS && off + 16 + 12 <= (size_t)ctrllen) {
+            memcpy(buf + off + 16 + 4, &new_uid, 4);  // ucred.uid
+            memcpy(buf + off + 16 + 8, &new_gid, 4);  // ucred.gid
+            changed = 1;
+        }
+        size_t adv = (clen + 7) & ~((size_t)7);  // CMSG_ALIGN
+        if (adv == 0) break;
+        off += adv;
+    }
+    if (changed) write_tracee_mem(pid, ctrl, buf, (size_t)ctrllen);
+}
+// sendmsg(entry): SCM_CREDENTIALS の uid/gid を実値へ(EPERM 回避)。msg=regs[1]。
+static void rewrite_sendmsg_creds(const struct config *cfg, pid_t pid,
+                                  const struct user_pt_regs *regs) {
+    unsigned long msgp = regs->regs[1];
+    if (msgp == 0) return;
+    unsigned long ctrl, ctrllen;
+    if (read_msg_control(pid, msgp, &ctrl, &ctrllen) != 0) return;
+    patch_scm_creds(pid, ctrl, ctrllen, (unsigned int)cfg->real_uid, (unsigned int)cfg->real_gid);
+}
+// recvmsg(exit): 受信した SCM_CREDENTIALS の uid/gid を 0 へ(root の見え方を一貫)。
+// カーネルが msg_controllen を書き戻すので exit で読む。msg ポインタは entry で控えた値。
+static void rewrite_recvmsg_creds(pid_t pid, unsigned long msgp) {
+    struct user_pt_regs regs;
+    if (get_regs(pid, &regs) != 0) return;
+    if ((long)regs.regs[0] < 0) return;  // recvmsg 失敗
+    if (msgp == 0) return;
+    unsigned long ctrl, ctrllen;
+    if (read_msg_control(pid, msgp, &ctrl, &ctrllen) != 0) return;
+    patch_scm_creds(pid, ctrl, ctrllen, 0, 0);
 }
 
 // fakeroot(-0) の /proc 偽装: get*id syscall を 0 に偽装しても、ゲストが
@@ -1433,6 +1513,7 @@ static const int kTraceSyscallsFakeroot[] = {
     143, 144, 145, 146, 147, 149, 151, 152, 159, 54, 55, 80,
     // setregid/setgid/setreuid/setuid/setresuid/setresgid/setfsuid/setfsgid/
     // setgroups/fchownat/fchown/fstat(=fake_root_on_exit の対象)
+    211, 212,                 // sendmsg / recvmsg (AF_UNIX SCM_CREDENTIALS の uid/gid 偽装)
 };
 
 // プロセスへ seccomp フィルタを導入する。成功 0 / 失敗 -1。
@@ -1553,7 +1634,8 @@ static int syscall_needs_exit(const struct config *cfg, const struct pid_state *
         case 143: case 144: case 145: case 146: case 147: case 149:
         case 151: case 152: case 159: case 54: case 55:
         case 52: case 53: return 1;  // 戻り値を 0(成功)へ(chmod/chown/set*id の EPERM 偽装)
-        default: return 0;                            // パス変換のみ(execve/unlinkat 等)
+        case 212: return 1;          // recvmsg: 受信 SCM_CREDENTIALS の uid/gid を 0 へ
+        default: return 0;                            // パス変換のみ(execve/unlinkat/sendmsg 等)
     }
 }
 
@@ -1616,6 +1698,12 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
                 if (st->aux_kind != PROC_FD_NONE) aux = regs.regs[1];
             }
             break;
+        case 211:  // sendmsg: SCM_CREDENTIALS の uid/gid を実値へ(entry で完結)
+            rewrite_sendmsg_creds(cfg, pid, &regs);
+            break;
+        case 212:  // recvmsg: msg ポインタを控え、exit で受信 cred を 0 へ
+            aux = regs.regs[1];
+            break;
     }
     st->aux_addr = aux;
     maybe_rewrite_path(cfg, pid, &regs);
@@ -1643,6 +1731,8 @@ static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_
             st->pending_open_kind = PROC_FD_NONE;
         } else if (st->entry_nr == 63 && st->aux_addr) {
             fake_proc_on_read(pid, st->aux_addr, st->aux_kind);
+        } else if (st->entry_nr == 212 && st->aux_addr) {
+            rewrite_recvmsg_creds(pid, st->aux_addr);
         } else {
             fake_root_on_exit(pid, st->entry_nr, st->aux_addr);
         }
@@ -2092,6 +2182,12 @@ int main(int argc, char **argv) {
     struct config cfg;
     char *const *command = parse_args(argc, argv, &cfg);
     cfg.command = command;
+
+    // トレーサ自身は seccomp 偽装の対象外なので getuid/getgid は実値(=Android アプリ uid)。
+    // fake_root 下の tracee が SCM_CREDENTIALS を送る際、この実値へ書き換えてカーネルの
+    // 資格チェック(claimed uid == 実 uid or CAP_SETUID)を満たし EPERM を避ける。
+    cfg.real_uid = getuid();
+    cfg.real_gid = getgid();
 
     // 自前ローダ経路: 自分(libz2root.so, nativeLibraryDir 常駐)の実パスを得る。
     // 取得できれば use_loader=1。Z2ROOT_NO_LOADER=1 で旧来の直接 execve 経路へ退避可。

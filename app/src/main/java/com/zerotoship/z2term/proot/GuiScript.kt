@@ -399,11 +399,15 @@ fun z2guiScript(
         |    # 重要: 既定 /etc/pulse/default.pa は module-udev-detect / module-alsa 等のハード検出を
         |    # load するが、proot では inotify/ALSA が無く「Daemon startup failed」で起動ごと落ちる。
         |    # `-n` で既定スクリプトを読まず、必要なモジュールだけ明示 load した最小構成で起こす。
-        |    pulseaudio -n --daemonize=yes --exit-idle-time=-1 \
+        |    # --daemonize は使わない: PulseAudio は detach 時に /proc/self/exe を自己 re-exec するが、
+        |    # z2root では /proc/self/exe が launcher(libz2root.so)を指すため「cannot self execute」で
+        |    # daemon が立ち上がらない。setsid で新セッションへ起こし、`&` で背景化して同等にする
+        |    # (proot でも同じ起こし方で問題なく動く)。停止は stop_audio の `pactl exit`。
+        |    setsid pulseaudio -n --exit-idle-time=-1 \
         |      --load="module-native-protocol-unix" \
         |      --load="module-null-sink sink_name=z2sink rate=48000 channels=2 sink_properties=device.description=z2term" \
         |      --load="module-simple-protocol-tcp record=true source=z2sink.monitor format=s16le rate=48000 channels=2 listen=127.0.0.1 port=${d}APORT" \
-        |      --log-target="file:/tmp/z2gui-audio-${d}{DISPLAY_NUM}.log" >/dev/null 2>&1
+        |      --log-target="file:/tmp/z2gui-audio-${d}{DISPLAY_NUM}.log" </dev/null >/dev/null 2>&1 &
         |    k=0
         |    while [ ${d}k -lt 30 ] && ! pactl info >/dev/null 2>&1; do sleep 0.1; k=${d}((k+1)); done
         |  fi
