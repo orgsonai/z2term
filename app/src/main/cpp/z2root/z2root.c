@@ -915,17 +915,23 @@ static struct linkcopy_ent g_linkcopy[LINKCOPY_CACHE];
 static int g_linkcopy_next;
 static int g_linkcopy_used;          // 有効エントリ数(0 なら stat hot path で照合を省く)
 
-static void linkcopy_record(const char *src_host, const char *dest_host) {
-    struct stat ss, ds;
-    if (stat(src_host, &ss) != 0) return;
-    if (stat(dest_host, &ds) != 0) return;
+// copy_for_link が src の lstat と「生成直後の dest fd の fstat」から得た inode を
+// そのまま記録する。旧実装は dest_host を別途 stat() し直して dest_ino を得ていたが、
+// その値が tracee の newfstatat が返す inode と一致せず(または stat 失敗で)エントリが
+// 残らず、git の hardlink 検証を一度も通せていなかった(実機 0.8.61 で 200/200 不発を確認)。
+// fstat(out_fd) は生成した実体そのものの inode = tracee が見る値と必ず同一。
+static void linkcopy_record(unsigned long src_dev, unsigned long src_ino, unsigned long dest_ino) {
+    if (dest_ino == 0) return;
     struct linkcopy_ent *e = &g_linkcopy[g_linkcopy_next];
     g_linkcopy_next = (g_linkcopy_next + 1) % LINKCOPY_CACHE;
     if (!e->used) g_linkcopy_used++;
     e->used = 1;
-    e->dest_ino = (unsigned long)ds.st_ino;
-    e->src_dev = (unsigned long)ss.st_dev;
-    e->src_ino = (unsigned long)ss.st_ino;
+    e->dest_ino = dest_ino;
+    e->src_dev = src_dev;
+    e->src_ino = src_ino;
+    if (g_trc_on)
+        fprintf(g_trc, "[z2trc] linkcopy REC src(dev=%lu ino=%lu) dest_ino=%lu used=%d\n",
+                src_dev, src_ino, dest_ino, g_linkcopy_used);
 }
 
 // inode で照合(小リング+ヒット後破棄のため別 fs の inode 衝突リスクは無視できる)。
@@ -971,6 +977,9 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
             unsigned long ino = 0;
             if (g_linkcopy_used && read_tracee_mem(pid, buf + 8, &ino, 8) == 0) {
                 struct linkcopy_ent *e = linkcopy_find(ino);
+                if (g_trc_on)
+                    fprintf(g_trc, "[z2trc] linkcopy FIND nr=%ld ino=%lu used=%d -> %s\n",
+                            nr, ino, g_linkcopy_used, e ? "HIT" : "miss");
                 if (e) {
                     write_tracee_mem(pid, buf + 0, &e->src_dev, 8);
                     write_tracee_mem(pid, buf + 8, &e->src_ino, 8);
@@ -989,6 +998,9 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
             unsigned long ino = 0;
             if (g_linkcopy_used && read_tracee_mem(pid, buf + 32, &ino, 8) == 0) {
                 struct linkcopy_ent *e = linkcopy_find(ino);
+                if (g_trc_on)
+                    fprintf(g_trc, "[z2trc] linkcopy FIND statx ino=%lu used=%d -> %s\n",
+                            ino, g_linkcopy_used, e ? "HIT" : "miss");
                 if (e) {
                     unsigned int smaj = major((dev_t)e->src_dev);
                     unsigned int smin = minor((dev_t)e->src_dev);
@@ -1308,7 +1320,13 @@ static void subst_on_exit(const struct config *cfg, pid_t pid, struct pid_state 
 // entry で host パスへ翻訳して実 linkat を走らせ、exit で戻り値を見てコピー fallback する。
 
 // linkat 失敗時のコピー fallback (トレーサ自身がホスト実パスで実行)。成功 0 / 失敗 -1。
-static int copy_for_link(const char *src, const char *dst, int follow) {
+// 成功時、out_src_dev/out_src_ino に src の (dev,ino)、out_dst_ino に「生成した dest
+// 実体の inode」を返す(いずれも NULL 可)。symlink 再生成のケースは git の hardlink
+// 検証対象外なので out_dst_ino=0 を返し linkcopy 記録をスキップさせる。
+static int copy_for_link(const char *src, const char *dst, int follow,
+                         unsigned long *out_src_dev, unsigned long *out_src_ino,
+                         unsigned long *out_dst_ino) {
+    if (out_dst_ino) *out_dst_ino = 0;
     struct stat stt;
     if (lstat(src, &stt) != 0) return -1;
     // AT_SYMLINK_FOLLOW 無しで old が symlink: ハードリンクは symlink 自体への別名なので
@@ -1343,9 +1361,16 @@ static int copy_for_link(const char *src, const char *dst, int follow) {
     }
     if (r < 0) ok = 0;
     fchmod(out, stt.st_mode & 07777);
+    // 生成直後の実体 inode を fd から直接取る(別途 stat(dst) し直すと tracee の
+    // newfstatat が見る inode と一致しない/失敗する経路があった)。
+    struct stat dstt;
+    int got_dino = (fstat(out, &dstt) == 0);
     close(in);
     close(out);
     if (!ok) { unlink(dst); return -1; }
+    if (out_src_dev) *out_src_dev = (unsigned long)stt.st_dev;
+    if (out_src_ino) *out_src_ino = (unsigned long)stt.st_ino;
+    if (out_dst_ino && got_dino) *out_dst_ino = (unsigned long)dstt.st_ino;
     return 0;
 }
 
@@ -1401,9 +1426,11 @@ static void linkat_exit(struct pid_state *st, pid_t pid) {
     if (err != EACCES && err != EPERM && err != EXDEV &&
         err != EMLINK && err != EROFS && err != EOPNOTSUPP && err != ENOSYS)
         return;
-    if (copy_for_link(st->link_oldhost, st->link_newhost, st->link_follow) != 0)
+    unsigned long sdev = 0, sino = 0, dino = 0;
+    if (copy_for_link(st->link_oldhost, st->link_newhost, st->link_follow,
+                      &sdev, &sino, &dino) != 0)
         return;  // コピー失敗 = 元のエラーを残す
-    linkcopy_record(st->link_oldhost, st->link_newhost);  // git の hardlink 検証対策
+    linkcopy_record(sdev, sino, dino);  // git の hardlink 検証対策
     regs.regs[0] = 0;
     set_regs(pid, &regs);
 }
