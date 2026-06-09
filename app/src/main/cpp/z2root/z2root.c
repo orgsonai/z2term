@@ -110,6 +110,7 @@ struct pid_state {
     long entry_nr;          // entry で記録した syscall 番号 (exit 時の戻り値逆変換用)
     unsigned long aux_addr; // getcwd 等の対象バッファアドレス
     unsigned long aux_len;  // readlinkat の bufsiz(戻りバッファ逆変換でホストパス長の上限に使う)
+    char aux_path[PATH_MAX_Z]; // readlinkat 対象 symlink のホスト実パス(exit で自前 readlink し直す用, 空=未確定)
     int aux_kind;           // read entry で控えた追跡 fd の種別(PROC_FD_*, exit で偽装を分岐)
     int pending_open_kind;  // fakeroot: openat entry で偽装対象 proc パスを検出した種別(exit で fd を採取)
     int status_fds[STATUS_FD_MAX];      // fakeroot: 偽装対象 proc を指す fd 群, -1=空
@@ -831,19 +832,29 @@ static void rewrite_getcwd_result(const struct config *cfg, pid_t pid, unsigned 
 // 誤判定して即終了し、起動できない。ここで host_to_guest() してゲストパスへ戻す
 // (proot も /proc/*/cwd・exe・root の readlink を同様に逆変換する)。
 static void rewrite_readlink_result(const struct config *cfg, pid_t pid,
-                                    unsigned long buf, unsigned long bufsiz) {
+                                    const struct pid_state *st) {
+    unsigned long buf = st->aux_addr, bufsiz = st->aux_len;
     struct user_pt_regs regs;
     if (get_regs(pid, &regs) != 0) return;
     long ret = (long)regs.regs[0];
     if (ret <= 0 || buf == 0) return;             // readlink 失敗 / バッファ無し
     if ((unsigned long)ret > bufsiz) return;      // 異常値
-    if ((size_t)ret >= PATH_MAX_Z) return;
 
     char host[PATH_MAX_Z];
-    struct iovec local = { host, (size_t)ret };
-    struct iovec remote = { (void *)buf, (size_t)ret };
-    if (process_vm_readv(pid, &local, 1, &remote, 1, 0) != (ssize_t)ret) return;
-    host[ret] = '\0';                             // readlink は NUL 終端しないので補う
+    if (st->aux_path[0]) {
+        // 自前で full バッファ readlink し直す(tracee バッファは切り詰められている
+        // 可能性がある)。aux_path はホスト実パスなのでトレーサから直接読める。
+        ssize_t hn = readlink(st->aux_path, host, sizeof(host) - 1);
+        if (hn < 0) return;                       // 自前 readlink 不可=元結果のまま
+        host[hn] = '\0';
+    } else {
+        // dirfd 相対などでホストパス未確定: 従来どおり tracee バッファから読む
+        if ((size_t)ret >= PATH_MAX_Z) return;
+        struct iovec local = { host, (size_t)ret };
+        struct iovec remote = { (void *)buf, (size_t)ret };
+        if (process_vm_readv(pid, &local, 1, &remote, 1, 0) != (ssize_t)ret) return;
+        host[ret] = '\0';                         // readlink は NUL 終端しないので補う
+    }
     if (host[0] != '/') return;                   // 相対リンク先は変換不要
 
     char g[PATH_MAX_Z];
@@ -1702,6 +1713,18 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
     else if (st->entry_nr == 78) {                   // readlinkat: buf=regs[2], bufsiz=regs[3]
         aux = regs.regs[2];
         st->aux_len = regs.regs[3];
+        // 対象 symlink のホスト実パスを控える。exit で自前 full バッファ readlink
+        // し直すため(tracee の bufsiz は lstat st_size=ゲスト長基準で確保され、
+        // カーネルが書いたホストパスが途中で切れ、host_to_guest 後に更に短くなる)。
+        st->aux_path[0] = '\0';
+        unsigned long paddr = regs.regs[1];
+        char gpath[PATH_MAX_Z];
+        if (paddr && read_tracee_str(pid, paddr, gpath, sizeof(gpath)) >= 0) {
+            long rdirfd = (long)(int)regs.regs[0];
+            char rhost[PATH_MAX_Z];
+            if (host_path_for(cfg, pid, gpath, 0, rdirfd, rhost, sizeof(rhost)) == 0)
+                snprintf(st->aux_path, sizeof(st->aux_path), "%s", rhost);
+        }
     }
     else if (cfg->fake_root) switch (st->entry_nr) {
         case 80:  aux = regs.regs[1]; break;         // fstat: stat 出力バッファ
@@ -1742,7 +1765,7 @@ static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_
     if (st->entry_nr == 17 && st->aux_addr) {
         rewrite_getcwd_result(cfg, pid, st->aux_addr);
     } else if (st->entry_nr == 78 && st->aux_addr) {
-        rewrite_readlink_result(cfg, pid, st->aux_addr, st->aux_len);
+        rewrite_readlink_result(cfg, pid, st);
     } else if (cfg->fake_root) {
         if (st->entry_nr == 56 && st->subst_active) {
             subst_on_exit(cfg, pid, st);  // readfree: 差し替えた temp を unlink
