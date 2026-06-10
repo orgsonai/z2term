@@ -45,6 +45,35 @@ class ProotLauncher(private val context: Context) {
     private val sharedHomeDir: File
         get() = File(context.filesDir, "shared_home")
 
+    /** ディストリ別 HOME オーバーレイ (arch 依存物の隔離) の格納場所。 */
+    private val homeOverlayDir: File
+        get() = File(context.filesDir, "home_overlay")
+
+    /**
+     * HOME (`/root`) は全ディストリ共有 ([sharedHomeDir]) のままにしつつ、**arch 依存物が入る
+     * 一部サブディレクトリだけをディストリ別に隔離**する対象一覧。musl(Alpine)↔glibc(Arch/Ubuntu/
+     * Kali) で混在すると壊れる (例: Alpine で入れた claude/node の native が glibc 側で動かない)
+     * ため、これらは `${homeOverlayDir}/<distroId>/<sub>` を `/root/<sub>` に bind して分離する。
+     * 書類や git リポジトリなど通常ファイルは `/root` 直下のまま共有される。
+     */
+    private val isolatedHomeSubdirs: List<String> = listOf(
+        ".local", ".cache", ".npm", ".npm-global", ".nvm", ".cargo", ".rustup", ".config"
+    )
+
+    /**
+     * 指定ディストリの HOME 隔離 bind を `(ホスト実体, "/root/<sub>")` で返す。
+     * ホスト実体 (`${homeOverlayDir}/<distroId>/<sub>`) と、共有 HOME 側のマウントポイント
+     * (`${sharedHomeDir}/<sub>`) を both 作成しておく (proot/chroot どちらも実在が要るため)。
+     */
+    private fun isolatedHomeBinds(distroId: String): List<Pair<File, String>> {
+        val base = File(homeOverlayDir, distroId)
+        return isolatedHomeSubdirs.map { sub ->
+            val host = File(base, sub).apply { mkdirs() }
+            File(sharedHomeDir, sub).mkdirs()
+            host to "/root/$sub"
+        }
+    }
+
     /** proot バイナリのパス */
     private val prootBinary: File
         get() = File(context.applicationInfo.nativeLibraryDir, "libproot.so")
@@ -254,6 +283,11 @@ class ProotLauncher(private val context: Context) {
             add("-b"); add("/proc")
             add("-b"); add("/sys")
             add("-b"); add("${sharedHomeDir.absolutePath}:/root")
+            // HOME 内の arch 依存ディレクトリだけをディストリ別オーバーレイで上書き (混在破壊の防止)。
+            // /root 全体の bind の後に重ねるので、共有 HOME の上にサブディレクトリだけ差し替わる。
+            for ((src, dst) in isolatedHomeBinds(distroId)) {
+                add("-b"); add("${src.absolutePath}:$dst")
+            }
             // Android 外部ストレージを /sdcard にマウント (cd /sdcard で OS 共有領域へ)。
             // 全ファイルアクセス権が無い場合は中身が読めないが、設定画面から許可できる。
             for ((src, dst) in externalStorageBinds(externalVolumes)) {
@@ -385,7 +419,7 @@ class ProotLauncher(private val context: Context) {
         val resolvedShell = resolveShell(rootfs, command, fallbackShell)
         val script = chrootBootstrap(
             rootfs.absolutePath, sharedHomeDir.absolutePath, resolvedShell,
-            display, externalVolumes, androidHostBind
+            display, externalVolumes, androidHostBind, isolatedHomeBinds(distroId)
         )
 
         Log.i(TAG, "Launching chroot: distro=$distroId, su=$su, shell=$resolvedShell")
@@ -446,7 +480,8 @@ class ProotLauncher(private val context: Context) {
         shell: String,
         display: Int?,
         externalVolumes: List<String> = emptyList(),
-        androidHostBind: Boolean = false
+        androidHostBind: Boolean = false,
+        homeOverlayBinds: List<Pair<File, String>> = emptyList()
     ): String {
         val rfs = shq(rootfs)
         val home = shq(sharedHome)
@@ -459,7 +494,10 @@ class ProotLauncher(private val context: Context) {
             // 前回 chroot が残したマウントを掃除 (リーク回収)。外部 SD のマウント先も掃除対象に含める。
             // androidHostBind ON のときは /system /apex も掃除対象に。OFF でも掃除を試みるのは
             // 「前回 ON で起動 → OFF に切替 → 再起動」のときマウントが残ったままになるのを防ぐため。
-            append("for m in dev/pts dev proc sys root sdcard sdcard_ext system apex")
+            append("for m in dev/pts dev proc sys")
+            // HOME 隔離オーバーレイは root より先に剥がす (root の lazy umount で取り残されないよう)。
+            for ((_, dst) in homeOverlayBinds) append(' ').append(shq(dst.trimStart('/')))
+            append(" root sdcard sdcard_ext system apex")
             for (vol in externalVolumes) {
                 append(' ').append(shq(vol.trimStart('/')))
             }
@@ -470,6 +508,13 @@ class ProotLauncher(private val context: Context) {
             append("mount -o bind /proc \"\$RFS/proc\"\n")
             append("mount -o bind /sys \"\$RFS/sys\"\n")
             append("mount -o bind \"\$SHOME\" \"\$RFS/root\"\n")
+            // HOME 内の arch 依存ディレクトリだけをディストリ別オーバーレイで上書き (混在破壊の防止)。
+            for ((src, dst) in homeOverlayBinds) {
+                val rel = dst.trimStart('/')
+                append("mkdir -p \"\$RFS/").append(rel).append("\" 2>/dev/null\n")
+                append("mount -o bind ").append(shq(src.absolutePath))
+                append(" \"\$RFS/").append(rel).append("\" 2>/dev/null\n")
+            }
             append("mount -o bind /sdcard \"\$RFS/sdcard\" 2>/dev/null\n")
             // 外部 SD カード (設定で ON のときだけ呼び出し側が渡す)。
             // /sdcard_ext は最初の1つのエイリアス。proot 経路と同じ取り扱いに揃える。

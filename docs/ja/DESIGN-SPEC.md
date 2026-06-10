@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-10 / 対象バージョン: 0.8.71-alpha (versionCode 79)
+最終更新: 2026-06-10 / 対象バージョン: 0.8.72-alpha (versionCode 80)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -130,6 +130,7 @@
   - **外部ストレージ bind**: `/storage/emulated/0:/sdcard`、`getExternalFilesDir:/storage/app`
   - `-w /root`、env: `HOME=/root TERM=xterm-256color LANG=C.UTF-8 PATH=… TMPDIR=/tmp` + 履歴系 env。
 - **共有ホーム**: `filesDir/shared_home` を全 distro 共通で `/root` にバインド (← 端末の `~` の実体)。
+- **HOME のディストリ別隔離 (0.8.72)**: `/root` 全体は共有のままにしつつ、**arch 依存物が入る一部サブディレクトリだけをディストリ別オーバーレイで上書き bind** する (`isolatedHomeSubdirs` = `.local .cache .npm .npm-global .nvm .cargo .rustup .config`)。`filesDir/home_overlay/<distroId>/<sub>` を `/root/<sub>` に重ね bind し、`shared_home/<sub>` はマウントポイントとして用意する。proot は `-b <shared_home>:/root` の後に各サブディレクトリ bind を重ね、chroot も `mount -o bind <SHOME> $RFS/root` の後に同様に重ねる (掃除時は `root` より先に lazy umount)。**狙い**: musl(Alpine)↔glibc(Arch/Ubuntu/Kali) で HOME 内の native (npm global の node/claude・`~/.cache` のコンパイル済みアドオン・nvm の node 本体等) が混ざって壊れる問題 (Alpine で claude を入れると Arch で起動不能になる等) を、ディストリ別に分けて根治する。書類・git リポジトリ・`~/.claude` 等の通常ファイルは `/root` 直下のまま共有される。**移行注意**: 既存 `shared_home/<sub>` の中身はオーバーレイに覆われて各ディストリからは見えなくなる (消えてはおらず影に入るだけ)。
 - `resolveShell`: 指定シェルが rootfs に無ければ `defaultShell → /bin/sh` にフォールバック (usrmerge 考慮)。
 - `isDistroReady`: `bin/busybox|bin/bash` 等の実体 + `.z2term-version` マーカー (同梱 distro のみ `ROOTFS_VERSION` 比較)。
 - 起動毎に冪等で注入: `ensureShellHistoryConfig` (履歴 rc)、`ensureSshdWrapper` (`/usr/local/sbin/sshd` = dropbear ラッパー)、`ensureOsc7CwdConfig` (cwd 復元用 OSC7 フック)、`ensureZ2ApiScripts` (`z2-*` ブリッジ)、GUI/z2run スクリプト、`ensureVersionScript` (`/usr/local/bin/z2version`)。
