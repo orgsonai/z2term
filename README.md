@@ -205,21 +205,24 @@ Milestones 7–12 implemented SFTP, GUI (Xvnc+VNC), multiple GUI tabs, IME learn
 
 ## Setup
 
-### 1. Place the dependency binaries
+### 1. Collect the git-ignored bundled artifacts (one command)
 
-Before building, you must place the following manually (not included in the repository):
+Several artifacts are bundled into the APK but **kept out of git** (built/fetched by `scripts/`), so a fresh `clone` or a `clean` has none of them. Collect them all with a single master script — this is the only way to gather them, so every machine (PC or phone) ends up with the same set rather than each assembling a different mix:
 
-**Alpine rootfs** → `app/src/main/assets/`
-- `alpine-minirootfs-aarch64.tar.gz`
-- `alpine-minirootfs-armv7.tar.gz`
+```bash
+bash scripts/build-bundle.sh
+```
 
-Details: [app/src/main/assets/README.md](app/src/main/assets/README.md)
+It runs all four generators in order and then verifies nothing is missing:
 
-**PRoot binaries** → `app/src/main/jniLibs/`
-- `arm64-v8a/libproot.so` (and `libproot_loader.so`)
-- `armeabi-v7a/libproot.so` (and `libproot_loader.so`)
+1. `build-proot.sh` → `libproot.so` / `libproot_loader.so` / `libtalloc.so`
+2. `build-z2root.sh` → `libz2root.so` / `libz2accept.so` (needs an NDK; auto-resolved from `local.properties` `sdk.dir`+`ndk.version`)
+3. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` `-Regular.ttf`
+4. `build-alpine-rootfs.sh` → `app/src/full/assets/alpine-minirootfs-aarch64.tgz` (`full` flavor only; `foss` downloads it at runtime)
 
-Details: [app/src/main/jniLibs/README.md](app/src/main/jniLibs/README.md)
+A final manifest step prints `OK` / `MISS` per artifact and exits non-zero if anything is missing. On a host where `fakeroot` cannot build the rootfs, run `SKIP_ROOTFS=1 bash scripts/build-bundle.sh` (collect everything else) and bring the rootfs `.tgz` over from a machine that can build it.
+
+Per-artifact details: [app/src/main/assets/README.md](app/src/main/assets/README.md) · [app/src/main/jniLibs/README.md](app/src/main/jniLibs/README.md)
 
 ### 2. Build
 
