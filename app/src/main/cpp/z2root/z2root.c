@@ -121,6 +121,7 @@ struct pid_state {
     int link_follow;        // 上記 linkat の AT_SYMLINK_FOLLOW(コピー時に symlink を辿るか)
     char link_oldhost[PATH_MAX_Z];  // 同 old のホスト実パス(コピー元)
     char link_newhost[PATH_MAX_Z];  // 同 new のホスト実パス(コピー先)
+    int linkcopy_hit;       // entry で stat 対象パスがコピー先と一致した linkcopy 添字(-1=非該当)
 };
 static struct pid_state g_map[MAP_CAP];
 
@@ -180,13 +181,6 @@ static int write_tracee_mem(pid_t pid, unsigned long addr, const void *buf, size
     struct iovec local = { (void *)buf, len };
     struct iovec remote = { (void *)addr, len };
     ssize_t n = process_vm_writev(pid, &local, 1, &remote, 1, 0);
-    return (n == (ssize_t)len) ? 0 : -1;
-}
-
-static int read_tracee_mem(pid_t pid, unsigned long addr, void *buf, size_t len) {
-    struct iovec local = { buf, len };
-    struct iovec remote = { (void *)addr, len };
-    ssize_t n = process_vm_readv(pid, &local, 1, &remote, 1, 0);
     return (n == (ssize_t)len) ? 0 : -1;
 }
 
@@ -908,48 +902,50 @@ static void trc_init(void) {
 #define LINKCOPY_CACHE 32
 struct linkcopy_ent {
     int used;
-    unsigned long dest_dev, dest_ino;  // コピーで作った dest の実 (dev,ino)(照合キー)
+    char dest_host[PATH_MAX_Z];        // コピーで作った dest のホスト実パス(照合キー)
     unsigned long src_dev, src_ino;    // 偽装で見せる src の (dev,ino)
 };
 static struct linkcopy_ent g_linkcopy[LINKCOPY_CACHE];
 static int g_linkcopy_next;
 static int g_linkcopy_used;          // 有効エントリ数(0 なら stat hot path で照合を省く)
 
-// copy_for_link が src の lstat と「生成直後の dest fd の fstat」から得た inode を
-// そのまま記録する。旧実装は dest_host を別途 stat() し直して dest_ino を得ていたが、
-// その値が tracee の newfstatat が返す inode と一致せず(または stat 失敗で)エントリが
-// 残らず、git の hardlink 検証を一度も通せていなかった(実機 0.8.61 で 200/200 不発を確認)。
-// fstat(out_fd) は生成した実体そのものの (dev,ino) = tracee が見る値と必ず同一。
+// copy_for_link が成功させた「コピー先のホスト実パス」と src の (dev,ino) を記録する。
+//
+// 照合キーは dest のホスト実パス。inode 番号(+dev)で照合する旧実装は誤ヒットを起こした:
+// dest は rootfs bind 配下=ゲスト全ファイルと同じ host /data パーティション上にあるため
+// st_dev はゲスト全域で同一の固定値で、dev を条件に足しても識別力がゼロ。結果 inode 番号
+// だけの照合に等しく、Arch 起動中に init/ld が stat した無関係ファイルの inode が記録済み
+// dest_ino と衝突して st_ino を無縁の src 値へ誤偽装し、ゲストが即 exitCode=-1 で死ぬ退行を
+// 招いた(0.8.62 で記録が初成功し hot path が常時 ON 化したことで顕在化、0.8.63 の (dev,ino)
+// 厳格化でも dev 不識別ゆえ未解決)。パスで照合すれば「まさにコピーした dest を stat した
+// とき」だけ偽装でき、無関係ファイルへの誤ヒットは原理的に起きない。
 static void linkcopy_record(unsigned long src_dev, unsigned long src_ino,
-                            unsigned long dest_dev, unsigned long dest_ino) {
-    if (dest_ino == 0) return;
+                            const char *dest_host) {
+    if (!dest_host || !dest_host[0]) return;
     struct linkcopy_ent *e = &g_linkcopy[g_linkcopy_next];
     g_linkcopy_next = (g_linkcopy_next + 1) % LINKCOPY_CACHE;
     if (!e->used) g_linkcopy_used++;
     e->used = 1;
-    e->dest_dev = dest_dev;
-    e->dest_ino = dest_ino;
+    snprintf(e->dest_host, sizeof(e->dest_host), "%s", dest_host);
     e->src_dev = src_dev;
     e->src_ino = src_ino;
     if (g_trc_on)
-        fprintf(g_trc, "[z2trc] linkcopy REC src(dev=%lu ino=%lu) dest(dev=%lu ino=%lu) used=%d\n",
-                src_dev, src_ino, dest_dev, dest_ino, g_linkcopy_used);
+        fprintf(g_trc, "[z2trc] linkcopy REC src(dev=%lu ino=%lu) dest=%s used=%d\n",
+                src_dev, src_ino, dest_host, g_linkcopy_used);
 }
 
-// (dev,ino) 両方で照合する。inode 番号だけだとゲスト fs 上で番号が衝突する別ファイルを
-// 誤って dest と判定し、その st_dev/st_ino を無関係な src 値へ偽装してしまう(=Arch 起動が
-// 即 exitCode=-1 で死ぬ退行の原因)。dest は生成直後の実体で host (dev,ino) が一意なため、
-// dev も一致条件に入れれば誤ヒットは事実上起きない。
-static struct linkcopy_ent *linkcopy_find(unsigned long dev, unsigned long ino) {
-    if (g_linkcopy_used == 0 || ino == 0) return NULL;
+// stat 対象のホスト実パスが記録済み dest と一致するエントリを返す(添字)。-1=不一致。
+static int linkcopy_find_by_path(const char *host_path) {
+    if (g_linkcopy_used == 0 || !host_path || !host_path[0]) return -1;
     for (int i = 0; i < LINKCOPY_CACHE; i++)
-        if (g_linkcopy[i].used && g_linkcopy[i].dest_ino == ino && g_linkcopy[i].dest_dev == dev)
-            return &g_linkcopy[i];
-    return NULL;
+        if (g_linkcopy[i].used && strcmp(g_linkcopy[i].dest_host, host_path) == 0)
+            return i;
+    return -1;
 }
 
 // buf は entry で記録した stat 系の出力バッファアドレス(stat 以外では未使用)。
-static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
+// lc_idx は entry で「対象パス==コピー先」と判定した linkcopy エントリ添字(-1=非該当)。
+static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf, int lc_idx) {
     struct user_pt_regs regs;
     if (get_regs(pid, &regs) != 0) return;
     long ret = (long)regs.regs[0];
@@ -977,21 +973,18 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
             if (ret != 0 || buf == 0) return;
             write_tracee_mem(pid, buf + 24, &zero, 4);
             write_tracee_mem(pid, buf + 28, &zero, 4);
-            // コピー fallback の dest なら (st_dev@0, st_ino@8) を src に偽装し
-            // git(>=2.46)の hardlink 検証を通す。
-            unsigned long ino = 0, dev = 0;
-            if (g_linkcopy_used &&
-                read_tracee_mem(pid, buf + 0, &dev, 8) == 0 &&
-                read_tracee_mem(pid, buf + 8, &ino, 8) == 0) {
-                struct linkcopy_ent *e = linkcopy_find(dev, ino);
+            // entry で「対象パス==コピー先」と確定した時だけ (st_dev@0, st_ino@8) を src へ
+            // 偽装し git(>=2.46)の hardlink 検証を通す。inode 照合をやめパス照合にしたので
+            // 無関係ファイルへの誤偽装は起きない(fd ベースの fstat=80 は entry でパスを取れず
+            // lc_idx=-1=非該当のため偽装しない。git の検証は lstat=newfstatat 経路を使う)。
+            if (lc_idx >= 0) {
+                struct linkcopy_ent *e = &g_linkcopy[lc_idx];
+                write_tracee_mem(pid, buf + 0, &e->src_dev, 8);
+                write_tracee_mem(pid, buf + 8, &e->src_ino, 8);
                 if (g_trc_on)
-                    fprintf(g_trc, "[z2trc] linkcopy FIND nr=%ld dev=%lu ino=%lu used=%d -> %s\n",
-                            nr, dev, ino, g_linkcopy_used, e ? "HIT" : "miss");
-                if (e) {
-                    write_tracee_mem(pid, buf + 0, &e->src_dev, 8);
-                    write_tracee_mem(pid, buf + 8, &e->src_ino, 8);
-                    e->used = 0; g_linkcopy_used--;  // 一度通せば十分(偽装窓を最小化)
-                }
+                    fprintf(g_trc, "[z2trc] linkcopy FAKE nr=%ld dest=%s -> src(dev=%lu ino=%lu)\n",
+                            nr, e->dest_host, e->src_dev, e->src_ino);
+                e->used = 0; g_linkcopy_used--;  // 一度通せば十分(偽装窓を最小化)
             }
             return;
         }
@@ -1000,27 +993,19 @@ static void fake_root_on_exit(pid_t pid, long nr, unsigned long buf) {
             if (ret != 0 || buf == 0) return;
             write_tracee_mem(pid, buf + 20, &zero, 4);
             write_tracee_mem(pid, buf + 24, &zero, 4);
-            // コピー fallback の dest なら (stx_ino@32, stx_dev_major@128/minor@132) を
-            // src に偽装(struct stat 版と同じく git の hardlink 検証対策)。
-            unsigned long ino = 0;
-            unsigned int dmaj = 0, dmin = 0;
-            if (g_linkcopy_used &&
-                read_tracee_mem(pid, buf + 32, &ino, 8) == 0 &&
-                read_tracee_mem(pid, buf + 128, &dmaj, 4) == 0 &&
-                read_tracee_mem(pid, buf + 132, &dmin, 4) == 0) {
-                unsigned long dev = (unsigned long)makedev(dmaj, dmin);
-                struct linkcopy_ent *e = linkcopy_find(dev, ino);
+            // パス照合でコピー先 statx のときだけ (stx_ino@32, stx_dev_major@128/minor@132)
+            // を src へ偽装(struct stat 版と同じく git の hardlink 検証対策)。
+            if (lc_idx >= 0) {
+                struct linkcopy_ent *e = &g_linkcopy[lc_idx];
+                unsigned int smaj = major((dev_t)e->src_dev);
+                unsigned int smin = minor((dev_t)e->src_dev);
+                write_tracee_mem(pid, buf + 32, &e->src_ino, 8);
+                write_tracee_mem(pid, buf + 128, &smaj, 4);
+                write_tracee_mem(pid, buf + 132, &smin, 4);
                 if (g_trc_on)
-                    fprintf(g_trc, "[z2trc] linkcopy FIND statx dev=%lu ino=%lu used=%d -> %s\n",
-                            dev, ino, g_linkcopy_used, e ? "HIT" : "miss");
-                if (e) {
-                    unsigned int smaj = major((dev_t)e->src_dev);
-                    unsigned int smin = minor((dev_t)e->src_dev);
-                    write_tracee_mem(pid, buf + 32, &e->src_ino, 8);
-                    write_tracee_mem(pid, buf + 128, &smaj, 4);
-                    write_tracee_mem(pid, buf + 132, &smin, 4);
-                    e->used = 0; g_linkcopy_used--;
-                }
+                    fprintf(g_trc, "[z2trc] linkcopy FAKE statx dest=%s -> src(dev=%lu ino=%lu)\n",
+                            e->dest_host, e->src_dev, e->src_ino);
+                e->used = 0; g_linkcopy_used--;
             }
             return;
         }
@@ -1331,15 +1316,12 @@ static void subst_on_exit(const struct config *cfg, pid_t pid, struct pid_state 
 //     = git/coreutils/ビルド系の「リンクで原子的に確定」パターンが汎用的に動く。
 // entry で host パスへ翻訳して実 linkat を走らせ、exit で戻り値を見てコピー fallback する。
 
-// linkat 失敗時のコピー fallback (トレーサ自身がホスト実パスで実行)。成功 0 / 失敗 -1。
-// 成功時、out_src_dev/out_src_ino に src の (dev,ino)、out_dst_dev/out_dst_ino に「生成した
-// dest 実体の (dev,ino)」を返す(いずれも NULL 可)。symlink 再生成のケースは git の hardlink
-// 検証対象外なので out_dst_ino=0 を返し linkcopy 記録をスキップさせる。
+// linkat 失敗時のコピー fallback (トレーサ自身がホスト実パスで実行)。
+// 返り値: 0=通常ファイルをコピー生成(linkcopy 記録対象) / 1=symlink を再生成しただけ
+// (git の hardlink 検証対象外=記録不要) / -1=失敗。成功時 out_src_dev/out_src_ino に src の
+// (dev,ino) を返す(NULL 可)。
 static int copy_for_link(const char *src, const char *dst, int follow,
-                         unsigned long *out_src_dev, unsigned long *out_src_ino,
-                         unsigned long *out_dst_dev, unsigned long *out_dst_ino) {
-    if (out_dst_ino) *out_dst_ino = 0;
-    if (out_dst_dev) *out_dst_dev = 0;
+                         unsigned long *out_src_dev, unsigned long *out_src_ino) {
     struct stat stt;
     if (lstat(src, &stt) != 0) return -1;
     // AT_SYMLINK_FOLLOW 無しで old が symlink: ハードリンクは symlink 自体への別名なので
@@ -1349,7 +1331,7 @@ static int copy_for_link(const char *src, const char *dst, int follow,
         ssize_t n = readlink(src, tgt, sizeof(tgt) - 1);
         if (n < 0) return -1;
         tgt[n] = '\0';
-        return symlink(tgt, dst) == 0 ? 0 : -1;
+        return symlink(tgt, dst) == 0 ? 1 : -1;
     }
     if (S_ISLNK(stt.st_mode) && follow) {  // 実体へ解決
         if (stat(src, &stt) != 0) return -1;
@@ -1374,17 +1356,11 @@ static int copy_for_link(const char *src, const char *dst, int follow,
     }
     if (r < 0) ok = 0;
     fchmod(out, stt.st_mode & 07777);
-    // 生成直後の実体 inode を fd から直接取る(別途 stat(dst) し直すと tracee の
-    // newfstatat が見る inode と一致しない/失敗する経路があった)。
-    struct stat dstt;
-    int got_dino = (fstat(out, &dstt) == 0);
     close(in);
     close(out);
     if (!ok) { unlink(dst); return -1; }
     if (out_src_dev) *out_src_dev = (unsigned long)stt.st_dev;
     if (out_src_ino) *out_src_ino = (unsigned long)stt.st_ino;
-    if (out_dst_dev && got_dino) *out_dst_dev = (unsigned long)dstt.st_dev;
-    if (out_dst_ino && got_dino) *out_dst_ino = (unsigned long)dstt.st_ino;
     return 0;
 }
 
@@ -1440,11 +1416,11 @@ static void linkat_exit(struct pid_state *st, pid_t pid) {
     if (err != EACCES && err != EPERM && err != EXDEV &&
         err != EMLINK && err != EROFS && err != EOPNOTSUPP && err != ENOSYS)
         return;
-    unsigned long sdev = 0, sino = 0, ddev = 0, dino = 0;
-    if (copy_for_link(st->link_oldhost, st->link_newhost, st->link_follow,
-                      &sdev, &sino, &ddev, &dino) != 0)
-        return;  // コピー失敗 = 元のエラーを残す
-    linkcopy_record(sdev, sino, ddev, dino);  // git の hardlink 検証対策
+    unsigned long sdev = 0, sino = 0;
+    int rc = copy_for_link(st->link_oldhost, st->link_newhost, st->link_follow, &sdev, &sino);
+    if (rc < 0) return;  // コピー失敗 = 元のエラーを残す
+    if (rc == 0)         // 通常ファイルのコピー時のみ記録(symlink 再生成は検証対象外)
+        linkcopy_record(sdev, sino, st->link_newhost);  // git の hardlink 検証対策
     regs.regs[0] = 0;
     set_regs(pid, &regs);
 }
@@ -1812,6 +1788,7 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
     if (get_regs(pid, &regs) != 0) { st->entry_nr = -1; return 0; }
     st->entry_nr = (long)regs.regs[8];
     st->aux_kind = PROC_FD_NONE;
+    st->linkcopy_hit = -1;
     if (st->entry_nr == 29) {                // ioctl: termios2→legacy 書換のみ(exit 後処理不要)
         st->aux_addr = 0;
         maybe_rewrite_ioctl(pid, &regs);
@@ -1841,9 +1818,24 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
         }
     }
     else if (cfg->fake_root) switch (st->entry_nr) {
-        case 80:  aux = regs.regs[1]; break;         // fstat: stat 出力バッファ
-        case 79:  aux = regs.regs[2]; break;         // newfstatat
-        case 291: aux = regs.regs[4]; break;         // statx
+        case 80:  aux = regs.regs[1]; break;         // fstat: stat 出力バッファ(fd ベース=パス相関不可)
+        case 79:  aux = regs.regs[2];                // newfstatat: 出力バッファ=regs[2], path=regs[1]
+            // コピー先を stat したときだけ exit で inode を偽装するためパスを照合する。
+            if (cfg->link2symlink && g_linkcopy_used) {
+                char gpath[PATH_MAX_Z], rhost[PATH_MAX_Z];
+                if (regs.regs[1] && read_tracee_str(pid, regs.regs[1], gpath, sizeof(gpath)) >= 0 &&
+                    host_path_for(cfg, pid, gpath, 0, (long)(int)regs.regs[0], rhost, sizeof(rhost)) == 0)
+                    st->linkcopy_hit = linkcopy_find_by_path(rhost);
+            }
+            break;
+        case 291: aux = regs.regs[4];                // statx: 出力バッファ=regs[4], path=regs[1]
+            if (cfg->link2symlink && g_linkcopy_used) {
+                char gpath[PATH_MAX_Z], rhost[PATH_MAX_Z];
+                if (regs.regs[1] && read_tracee_str(pid, regs.regs[1], gpath, sizeof(gpath)) >= 0 &&
+                    host_path_for(cfg, pid, gpath, 0, (long)(int)regs.regs[0], rhost, sizeof(rhost)) == 0)
+                    st->linkcopy_hit = linkcopy_find_by_path(rhost);
+            }
+            break;
         case 56:  // openat: /proc status・loginuid 検出
             // readfree: temp 差し替えに成功したらパスは確定済み=以降のパス変換は不要。
             if (cfg->readfree && try_subst_proc_open(cfg, pid, &regs, st))
@@ -1893,7 +1885,7 @@ static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_
         } else if (st->entry_nr == 212 && st->aux_addr) {
             rewrite_recvmsg_creds(pid, st->aux_addr);
         } else {
-            fake_root_on_exit(pid, st->entry_nr, st->aux_addr);
+            fake_root_on_exit(pid, st->entry_nr, st->aux_addr, st->linkcopy_hit);
         }
     }
 }
