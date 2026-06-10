@@ -578,7 +578,9 @@ static void plan_push(struct exec_plan *plan, const char *s) {
 // 匿名 PROT_EXEC メモリへ手動マップして jump する(proot の libproot_loader 相当)。
 //   変換: target=<elf>, prefix=[a0,a1,...]
 //      →  target=<self libz2root.so>, prefix=["z2root","--loader",<elf>, a0,a1,...]
-static void wrap_with_loader(const struct config *cfg, struct exec_plan *plan) {
+// skip_reloc=1: 対象 ELF が自己 relocation する(ld.so 本体など)ため loader 側の
+//   RELATIVE/RELR 肩代わりを抑止する(二重 relocation 防止)。動的バイナリ起動経路で使う。
+static void wrap_with_loader(const struct config *cfg, struct exec_plan *plan, int skip_reloc) {
     if (!cfg->use_loader || cfg->self_path[0] == '\0') return;
 
     char elf[PATH_MAX_Z];
@@ -592,7 +594,7 @@ static void wrap_with_loader(const struct config *cfg, struct exec_plan *plan) {
 
     plan->nprefix = 0;
     plan_push(plan, "z2root");      // ローダの argv0 (中身不問)
-    plan_push(plan, "--loader");
+    plan_push(plan, skip_reloc ? "--loader-noreloc" : "--loader");
     plan_push(plan, elf);           // 匿名メモリへマップして jump する ELF
     for (int i = 0; i < saved_n; i++)
         plan_push(plan, saved[i]);  // マップ先 ELF へ渡す argv (argv0 含む)
@@ -657,7 +659,8 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
         if (sb_arg[0]) plan_push(plan, sb_arg);
         // スクリプトパスは元のゲストパスを渡す(open 時に変換される / $0 もゲスト表記)。
         plan_push(plan, guest_prog);
-        wrap_with_loader(cfg, plan);
+        // interp が動的(ld.so 経由 idyn==1)なら loader 対象は自己 relocation する ld.so 本体。
+        wrap_with_loader(cfg, plan, idyn == 1);
         return 0;
     }
 
@@ -689,7 +692,9 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
         char guest_real[PATH_MAX_Z];
         host_to_guest(cfg, host_prog, guest_real, sizeof(guest_real));
         plan_push(plan, guest_real);
-        wrap_with_loader(cfg, plan);
+        // 動的 ELF: loader 対象は ld.so 本体。ld.so は _dl_start で自己 relocation するため
+        // loader 側の RELATIVE/RELR 肩代わりを抑止(さもないと二重 relocation で SIGSEGV)。
+        wrap_with_loader(cfg, plan, 1);
         return 0;
     }
 
@@ -713,7 +718,9 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
     host_to_guest(cfg, host_prog, guest_static, sizeof(guest_static));
     snprintf(plan->target, sizeof(plan->target), "%s", guest_static);
     plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : guest_prog);
-    wrap_with_loader(cfg, plan);
+    // 静的 ELF 直接ロード: 自己 relocation しない bionic static-PIE 等のため loader 側で
+    // RELATIVE/RELR を肩代わり適用する(0.8.59 の挙動を維持)。
+    wrap_with_loader(cfg, plan, 0);
     return 0;
 }
 
@@ -833,12 +840,17 @@ static void rewrite_getcwd_result(const struct config *cfg, pid_t pid, unsigned 
 // 取る実装(Bun 製の claude code 等)はホスト実パスを掴み「working directory が無い」と
 // 誤判定して即終了し、起動できない。ここで host_to_guest() してゲストパスへ戻す
 // (proot も /proc/*/cwd・exe・root の readlink を同様に逆変換する)。
+static FILE *g_trc;       // 定義は下方(trc_init 付近)。診断ログ用に前方宣言。
+static int  g_trc_on;
 static void rewrite_readlink_result(const struct config *cfg, pid_t pid,
                                     const struct pid_state *st) {
     unsigned long buf = st->aux_addr, bufsiz = st->aux_len;
     struct user_pt_regs regs;
     if (get_regs(pid, &regs) != 0) return;
     long ret = (long)regs.regs[0];
+    if (g_trc_on)
+        fprintf(g_trc, "[z2trc] RL-rewrite pid=%d ret=%ld buf=0x%lx bufsiz=%lu aux_path='%s'\n",
+                pid, ret, buf, bufsiz, st->aux_path);
     if (ret <= 0 || buf == 0) return;             // readlink 失敗 / バッファ無し
     if ((unsigned long)ret > bufsiz) return;      // 異常値
 
@@ -847,7 +859,7 @@ static void rewrite_readlink_result(const struct config *cfg, pid_t pid,
         // 自前で full バッファ readlink し直す(tracee バッファは切り詰められている
         // 可能性がある)。aux_path はホスト実パスなのでトレーサから直接読める。
         ssize_t hn = readlink(st->aux_path, host, sizeof(host) - 1);
-        if (hn < 0) return;                       // 自前 readlink 不可=元結果のまま
+        if (hn < 0) { if (g_trc_on) fprintf(g_trc, "[z2trc] RL-rewrite self-readlink FAIL errno=%d\n", errno); return; }
         host[hn] = '\0';
     } else {
         // dirfd 相対などでホストパス未確定: 従来どおり tracee バッファから読む
@@ -857,15 +869,22 @@ static void rewrite_readlink_result(const struct config *cfg, pid_t pid,
         if (process_vm_readv(pid, &local, 1, &remote, 1, 0) != (ssize_t)ret) return;
         host[ret] = '\0';                         // readlink は NUL 終端しないので補う
     }
+    if (g_trc_on)
+        fprintf(g_trc, "[z2trc] RL-rewrite host='%s'\n", host);
     if (host[0] != '/') return;                   // 相対リンク先は変換不要
 
     char g[PATH_MAX_Z];
     host_to_guest(cfg, host, g, sizeof(g));
+    if (g_trc_on)
+        fprintf(g_trc, "[z2trc] RL-rewrite guest='%s' glen=%zu\n", g, strlen(g));
     if (strcmp(g, host) == 0) return;             // rootfs/bind 配下でない=変換不要
 
     size_t glen = strlen(g);
     if (glen > bufsiz) glen = bufsiz;             // readlink はバッファ長で切り詰める
-    if (write_tracee_mem(pid, buf, g, glen) == 0) {
+    int wr = write_tracee_mem(pid, buf, g, glen);
+    if (g_trc_on)
+        fprintf(g_trc, "[z2trc] RL-rewrite WRITE glen=%zu wr=%d -> regs0=%zu\n", glen, wr, glen);
+    if (wr == 0) {
         regs.regs[0] = (unsigned long)glen;       // readlink は書き込みバイト数(NUL含まず)を返す
         set_regs(pid, &regs);
     }
@@ -1967,6 +1986,10 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                     long nr = r.regs[8];
                     char pbuf[160]; pbuf[0] = 0;
                     if (nr == 29) snprintf(pbuf, sizeof pbuf, " req=0x%lx fd=%ld", (unsigned long)r.regs[1], (long)r.regs[0]);
+                    else if (nr == 78) {  // readlinkat: path=regs[1], bufsiz=regs[3]
+                        char rl[120]; rl[0]=0; read_tracee_str(pid, r.regs[1], rl, sizeof rl);
+                        snprintf(pbuf, sizeof pbuf, "%s bufsiz=%ld", rl, (long)r.regs[3]);
+                    }
                     else if (nr == 56 || nr == 79 || nr == 53 || nr == 54)
                         read_tracee_str(pid, r.regs[1], pbuf, sizeof pbuf);
                     fprintf(g_trc, "[z2trc] pid=%d SYS nr=%ld %s\n", pid, nr, pbuf);
@@ -1997,6 +2020,10 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                                 snprintf(pbuf, sizeof pbuf, " fd=%ld", (long)r.regs[0]);
                             else if (nr == 29)                     // ioctl
                                 snprintf(pbuf, sizeof pbuf, " req=0x%lx fd=%ld", (unsigned long)r.regs[1], (long)r.regs[0]);
+                            else if (nr == 78) {                   // readlinkat: path=regs[1], bufsiz=regs[3]
+                                char rl[120]; rl[0]=0; read_tracee_str(pid, r.regs[1], rl, sizeof rl);
+                                snprintf(pbuf, sizeof pbuf, " %s bufsiz=%ld", rl, (long)r.regs[3]);
+                            }
                             else if (nr == 56 || nr == 79)         // openat/newfstatat
                                 read_tracee_str(pid, r.regs[1], pbuf, sizeof pbuf);
                             fprintf(g_trc, "[z2trc] pid=%d SYS nr=%ld%s\n", pid, nr, pbuf);
@@ -2093,8 +2120,26 @@ static int run_tracer(const struct config *cfg, pid_t child) {
         if (g_trace) {
             siginfo_t si; memset(&si, 0, sizeof si);
             int gr = ptrace(PTRACE_GETSIGINFO, pid, 0, &si);
-            fprintf(g_trc, "[z2trc] pid=%d DELIVER sig=%d gr=%d si_code=%d si_pid=%d\n",
-                    pid, sig, gr, gr==0?si.si_code:-999, gr==0?si.si_pid:-1);
+            fprintf(g_trc, "[z2trc] pid=%d DELIVER sig=%d gr=%d si_code=%d si_pid=%d si_addr=%p\n",
+                    pid, sig, gr, gr==0?si.si_code:-999, gr==0?si.si_pid:-1,
+                    gr==0?si.si_addr:NULL);
+            // SEGV/BUS/ILL は致命的: 落ちる瞬間の guest レジスタを全ダンプして
+            // 「pc 自体が野良(call先破壊) か / 正規 pc が壊れたデータを読んだか」を切り分ける。
+            if (sig == SIGSEGV || sig == SIGBUS || sig == SIGILL) {
+                struct user_pt_regs cr;
+                if (get_regs(pid, &cr) == 0) {
+                    fprintf(g_trc, "[z2trc]   pc=0x%llx lr=0x%llx sp=0x%llx\n",
+                            (unsigned long long)cr.pc, (unsigned long long)cr.regs[30],
+                            (unsigned long long)cr.sp);
+                    for (int i = 0; i < 31; i += 4) {
+                        fprintf(g_trc, "[z2trc]   x%-2d=0x%016llx x%-2d=0x%016llx x%-2d=0x%016llx x%-2d=0x%016llx\n",
+                                i,   (unsigned long long)cr.regs[i],
+                                i+1, (unsigned long long)(i+1<31?cr.regs[i+1]:0),
+                                i+2, (unsigned long long)(i+2<31?cr.regs[i+2]:0),
+                                i+3, (unsigned long long)(i+3<31?cr.regs[i+3]:0));
+                    }
+                }
+            }
         }
         long deliver = (sig == SIGTRAP) ? 0 : sig;
         z_resume(pid, seccomp_mode, state_for(pid), deliver);
@@ -2151,7 +2196,8 @@ static void loader_fail(const char *msg, const char *path) {
 // path の ELF(PT_INTERP 無し)を匿名 PROT_EXEC メモリへマップし、
 // child_argv / child_envp で entry へ jump する。成功すれば戻らない。
 __attribute__((noreturn))
-static void load_elf_and_jump(const char *path, char **child_argv, char **child_envp) {
+static void load_elf_and_jump(const char *path, char **child_argv, char **child_envp,
+                              int skip_reloc) {
     int fd = open(path, O_RDONLY | O_CLOEXEC);
     if (fd < 0) loader_fail("open", path);
 
@@ -2241,7 +2287,13 @@ static void load_elf_and_jump(const char *path, char **child_argv, char **child_
     // bionic NDK の static-PIE crt は自己 relocation しないため、ローダが RELR/RELA の
     // R_AARCH64_RELATIVE を肩代わり適用する(ld.so/proot loader 相当)。これで単純な
     // static-PIE(write のみ)が動く。static 非PIE(ET_EXEC)は base==0 で素通り=退行なし。
-    if (e_type == 3 /* ET_DYN */ && base != 0) {
+    //
+    // ただし「自己 relocation する ELF」(glibc/musl/bionic の ld.so 本体や、自己再配置
+    // crt を持つ static-PIE プログラム)に対してローダが肩代わり適用すると、エントリ後に
+    // 本体がもう一度 RELATIVE を適用して load bias が二重加算され、全ポインタが ×2 になり
+    // SIGSEGV(blr x8 で x8=実ポインタ×2)する。動的バイナリの起動経路(plan_exec が ld.so
+    // を loader 対象に渡す case)はこれに該当するため skip_reloc=1 で肩代わりを抑止する。
+    if (!skip_reloc && e_type == 3 /* ET_DYN */ && base != 0) {
         unsigned long dyn_va = 0;
         for (unsigned i = 0; i < e_phnum; i++) {
             unsigned int p_type; memcpy(&p_type, ph[i], 4);
@@ -2404,7 +2456,9 @@ static void load_elf_and_jump(const char *path, char **child_argv, char **child_
     __builtin_unreachable();
 }
 
-// --loader <elf> <argv0> [args...]: 自前ローダのエントリ。戻らない(失敗時のみ _exit)。
+// --loader[/--loader-noreloc] <elf> <argv0> [args...]: 自前ローダのエントリ。
+// --loader-noreloc は対象 ELF が自己 relocation する(ld.so 本体など)ため、ローダ側の
+// RELATIVE/RELR 肩代わりを抑止する(二重 relocation 防止)。戻らない(失敗時のみ _exit)。
 __attribute__((noreturn))
 static void loader_main(int argc, char **argv) {
     if (getenv("Z2ROOT_LOADER_DEBUG")) {
@@ -2414,15 +2468,17 @@ static void loader_main(int argc, char **argv) {
         write(2, b, l);
     }
     if (argc < 4) {
-        fprintf(stderr, "z2root loader: usage: --loader <elf> <argv0> [args...]\n");
+        fprintf(stderr, "z2root loader: usage: --loader[/--loader-noreloc] <elf> <argv0> [args...]\n");
         _exit(2);
     }
-    load_elf_and_jump(argv[2], &argv[3], environ);
+    int skip_reloc = (strcmp(argv[1], "--loader-noreloc") == 0);
+    load_elf_and_jump(argv[2], &argv[3], environ, skip_reloc);
 }
 
 int main(int argc, char **argv) {
     // --loader モード(自分自身を nativeLibraryDir から execve して入る)を最優先で分岐。
-    if (argc >= 2 && strcmp(argv[1], "--loader") == 0) loader_main(argc, argv);
+    if (argc >= 2 && (strcmp(argv[1], "--loader") == 0 ||
+                      strcmp(argv[1], "--loader-noreloc") == 0)) loader_main(argc, argv);
 
     struct config cfg;
     char *const *command = parse_args(argc, argv, &cfg);
