@@ -85,6 +85,7 @@ import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import com.zerotoship.z2term.ui.theme.ZtsWarning
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -847,21 +848,24 @@ private fun AppInfoSection(distroId: String, engineUnlocked: Boolean, onToggle: 
     // 連打したとき、前のトーストが消えるのを待たず即座に次の文言へ差し替える
     // (cancel しないと Android がトーストをキューイングして表示が大幅に遅延する)。
     var lastToast by remember { mutableStateOf<Toast?>(null) }
-    // トグル発火後のクールダウン期限 (epoch ms)。7 タップ到達でトグルした直後、連打が続くと
-    // すぐ次の 7 タップに達して逆方向に切り替わってしまうため、発火後 3 秒は次のタップを無視する。
-    var toggleCooldownUntil by remember { mutableStateOf(0L) }
+    // トグル発火後のクールダウン。7 タップ到達でトグルした直後、連打が続くとすぐ次の 7 タップに
+    // 達して逆方向に切り替わってしまうため、発火後 3 秒はバージョン行自体を**タップ不可**にする
+    // (従来は反応するのにタップが無視されて不自然だった)。
+    var inCooldown by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     // 解放済み・未解放のどちらでも 7 タップで反応させる (解放後に隠せなくなる問題の解消)。
     val versionClick: (() -> Unit) = {
-        if (System.currentTimeMillis() < toggleCooldownUntil) {
-            // クールダウン中: 連打による即時再トグルを防ぐためタップを無視する。
-        } else {
         tapCount++
         val remaining = 7 - tapCount
         when {
             remaining <= 0 -> {
                 tapCount = 0
                 lastToast?.cancel()
-                toggleCooldownUntil = System.currentTimeMillis() + 3000L
+                inCooldown = true
+                scope.launch {
+                    delay(3000L)
+                    inCooldown = false
+                }
                 onToggle()
             }
             remaining in 1..3 -> {
@@ -873,13 +877,13 @@ private fun AppInfoSection(distroId: String, engineUnlocked: Boolean, onToggle: 
                 ).also { it.show() }
             }
         }
-        }
     }
     Section(title = stringResource(R.string.settings_section_app_info)) {
         InfoRow(
             stringResource(R.string.appinfo_version),
             "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-            onClick = versionClick
+            // クールダウン中は onClick=null で行を非タップ化 (ripple も出ない＝押せないことが分かる)。
+            onClick = if (inCooldown) null else versionClick
         )
         InfoRow(stringResource(R.string.appinfo_flavor), if (BuildConfig.IS_FOSS) "FOSS" else "Full")
         InfoRow(stringResource(R.string.appinfo_package), BuildConfig.APPLICATION_ID)

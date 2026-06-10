@@ -2,6 +2,7 @@ package com.zerotoship.z2term.proot
 
 import android.content.Context
 import android.util.Log
+import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.distro.DistroBundle
 import com.zerotoship.z2term.pty.PtyProcess
 import com.zerotoship.z2term.settings.AppSettings
@@ -210,6 +211,8 @@ class ProotLauncher(private val context: Context) {
         // `z2run` ランチャ (P3): 端末で `z2run <gui-app>` を打つと、Z2_DISPLAY=:N の Xvnc を
         // 自動起動 + z2term に「OPEN N」を通知 → 該当 GUI タブが自動的に開く / 前面化する。
         ensureZ2RunScript(rootfs)
+        // `z2version` で端末からアプリ本体の版数を確認できるようにする (版数不一致の切り分け用)。
+        ensureVersionScript(rootfs, if (useZ2root) "z2root" else "proot")
         // `z2-autogui` (P-自動GUI): GUI アプリを起動しただけで (z2run を打たなくても) GUI タブが
         // 自動で開くよう、判定ヘルパーを配置し、interactive shell の preexec フックを仕込む。
         ensureZ2AutoGuiScript(rootfs)
@@ -359,6 +362,8 @@ class ProotLauncher(private val context: Context) {
         ensureSshdWrapper(rootfs)
         ensureGuiScript(rootfs, guiTerminal)
         ensureZ2RunScript(rootfs)
+        // `z2version` で端末からアプリ本体の版数を確認できるようにする (版数不一致の切り分け用)。
+        ensureVersionScript(rootfs, "chroot")
         ensureZ2AutoGuiScript(rootfs)
         ensureAutoGuiHook(rootfs)
         ensureZ2ApiScripts(rootfs)
@@ -740,6 +745,37 @@ class ProotLauncher(private val context: Context) {
             f.setReadable(true, false)
             f.setExecutable(true, false)
         }.onFailure { Log.w(TAG, "z2run script 配置失敗", it) }
+    }
+
+    /**
+     * `/usr/local/bin/z2version` を配置する。端末から `z2version` でアプリ本体の版数を確認できる
+     * (proot/z2root どちらの実行エンジンでも同じ)。launch 毎に書き直すので、表示は常に「今まさに
+     * 走っているアプリ」の版数＝APK とゲスト側の版数不一致を即座に切り分けられる。
+     */
+    private fun ensureVersionScript(rootfs: File, engine: String) {
+        runCatching {
+            val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
+            val flavor = if (BuildConfig.IS_FOSS) "FOSS" else "Full"
+            val f = File(dir, "z2version")
+            // 値は全てビルド定数 (外部入力なし)。`--short` は版数のみを 1 行で返す (スクリプト用)。
+            f.writeText(
+                """
+                #!/bin/sh
+                # z2term app version (launch 毎にアプリが再生成)
+                if [ "${'$'}1" = "--short" ]; then
+                  echo "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
+                  exit 0
+                fi
+                echo "z2term ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
+                echo "flavor : $flavor"
+                echo "package: ${BuildConfig.APPLICATION_ID}"
+                echo "engine : $engine"
+                echo "rootfs : gen ${DistroBundle.ROOTFS_VERSION}"
+                """.trimIndent() + "\n"
+            )
+            f.setReadable(true, false)
+            f.setExecutable(true, false)
+        }.onFailure { Log.w(TAG, "z2version script 配置失敗", it) }
     }
 
     /**

@@ -7,16 +7,15 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * 端末タブ構成の永続化 (セッション復元 v1)。
+ * 端末タブ構成の永続化 (書き込みのみ)。
  *
- * アプリが OS に kill された後の再起動で「開いていた端末タブ」を復元するために、
  * タブ構成 `{id, label, distro, cwd}` のリスト + activeId を DataStore に保存する。
+ * **起動時の自動復元は現在無効** (ユーザー要望で常に新規 1 タブ起動)。save は将来の復元 UI や
+ * デバッグのために残しているが、読み戻す経路は持たない。
  *
  * **割り切り (v1)**:
  *  - 復元するのは **タブ構成のみ**。シェルのプロセス状態・scrollback・作業ディレクトリは
@@ -44,8 +43,6 @@ object SessionStore {
         val cwd: String
     )
 
-    data class Saved(val entries: List<Entry>, val activeId: String?)
-
     private val KEY_SESSIONS = stringPreferencesKey("sessions")
     private val KEY_ACTIVE = stringPreferencesKey("active_id")
 
@@ -65,41 +62,5 @@ object SessionStore {
                 if (activeId != null) p[KEY_ACTIVE] = activeId else p.remove(KEY_ACTIVE)
             }
         }.onFailure { Log.w(TAG, "session save failed", it) }
-    }
-
-    /**
-     * 起動時に 1 度だけ同期読み込みする。DataStore の単発読み出しは短時間なので、
-     * setContent 前 (= タブ構成が確定している必要がある) に runBlocking で取得する。
-     * 失敗時は空 (= 従来どおり 1 タブ起動)。
-     */
-    fun loadBlocking(context: Context): Saved = runCatching {
-        runBlocking {
-            val p = context.sessionDataStore.data.first()
-            parse(p[KEY_SESSIONS], p[KEY_ACTIVE])
-        }
-    }.getOrElse {
-        Log.w(TAG, "session load failed", it)
-        Saved(emptyList(), null)
-    }
-
-    private fun parse(json: String?, activeId: String?): Saved {
-        if (json.isNullOrBlank()) return Saved(emptyList(), activeId)
-        val arr = runCatching { JSONArray(json) }.getOrNull() ?: return Saved(emptyList(), activeId)
-        val list = ArrayList<Entry>(arr.length())
-        for (i in 0 until arr.length()) {
-            val o = arr.optJSONObject(i) ?: continue
-            val id = o.optString("id", "")
-            if (id.isBlank()) continue
-            val distro = if (o.isNull("distro")) null else o.optString("distro", "").ifBlank { null }
-            list.add(
-                Entry(
-                    id = id,
-                    label = o.optString("label", "session"),
-                    distro = distro,
-                    cwd = o.optString("cwd", "")
-                )
-            )
-        }
-        return Saved(list, activeId)
     }
 }

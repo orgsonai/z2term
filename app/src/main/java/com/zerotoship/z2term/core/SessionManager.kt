@@ -100,41 +100,16 @@ object SessionManager {
         }
     }
 
-    /** 保存済みタブ構成から端末セッション群を再生成する (synchronized(lock) 内で呼ぶこと)。 */
-    private fun restoreFrom(context: Context, saved: SessionStore.Saved) {
-        saved.entries.forEach { e ->
-            // display 番号は GUI ペアリング (P3) 用で復元対象外。新しく払い出す。
-            val display = allocateDisplay()
-            val s = TerminalSession(
-                context.applicationContext,
-                id = e.id,
-                initialLabel = e.label.ifBlank { "session" },
-                display = display,
-                restoreDistroId = e.distro
-            )
-            mutableSessions.add(s)
-            trackTerminal(s)
-        }
-        _sessions.value = mutableSessions.toList()
-        val savedActive = saved.activeId
-        _activeId.value = if (savedActive != null && mutableSessions.any { it.id == savedActive })
-            savedActive else mutableSessions.firstOrNull()?.id
-    }
-
     /**
-     * 0 件なら「保存済みタブを復元」→ それも無ければ新規端末を生成。既にセッションが
-     * あれば既存のアクティブを返す。
+     * 既にアクティブなセッションがあればそれを返し、無ければ新規端末を 1 つだけ開く。
+     *
+     * 以前は前回終了時のタブ構成を全復元していたが、起動の度に複数タブが開く挙動を避けるため、
+     * 起動時は常に新規 1 タブのみとする (ユーザー要望)。タブ状態の save は [schedulePersist] で
+     * 続けるが、起動時に読み戻すことはしない。
      */
     fun ensureFirst(context: Context): AppSession = synchronized(lock) {
         appContext = context.applicationContext
         active()?.let { return@synchronized it }
-        if (mutableSessions.isEmpty()) {
-            val saved = SessionStore.loadBlocking(context.applicationContext)
-            if (saved.entries.isNotEmpty()) {
-                restoreFrom(context, saved)
-                active()?.let { return@synchronized it }
-            }
-        }
         openNew(context)
     }
 
