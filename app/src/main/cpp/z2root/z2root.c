@@ -2369,7 +2369,12 @@ static void load_elf_and_jump(const char *path, char **child_argv, char **child_
     // (static-PIE)では p_vaddr がリンク時相対のため note/TLS 走査が 0 番地近傍を触って
     // segfault する。p_vaddr を base で事前バイアスした phdr コピーを AT_PHDR に渡し、
     // bionic の bias=0 仮定を成立させる。
-    if (e_type == 3 /* ET_DYN */ && base != 0) {
+    // ただし skip_reloc(=自己再配置するローダ ld.so を case 2 でロードする経路)では
+    // バイアスしてはならない。musl ld.so は AT_PHDR の PT_PHDR.p_vaddr から自身の
+    // load base を逆算するため、事前バイアスすると base を二重に算入して SIGSEGV する
+    // (Alpine 起動 exitCode=-1 の真因)。glibc ld.so は GOT 相対ブートストラップで
+    // AT_PHDR に非依存のため顕在化しなかった。bionic static-PIE のみ(skip_reloc=0)に限定。
+    if (!skip_reloc && e_type == 3 /* ET_DYN */ && base != 0) {
         static unsigned char ph_biased[MAX_PH][56];
         for (unsigned i = 0; i < e_phnum; i++) {
             memcpy(ph_biased[i], ph[i], 56);
