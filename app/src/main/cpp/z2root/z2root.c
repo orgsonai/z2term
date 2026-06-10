@@ -2241,6 +2241,41 @@ static void load_elf_and_jump(const char *path, char **child_argv, char **child_
     }
     if (min_va == ~0UL) loader_fail("no PT_LOAD", path);
 
+    // ローダの RELATIVE/RELR 肩代わり＋phdr バイアスは「自己 relocation しない bionic
+    // (Android NDK)の static-PIE crt」専用の救済。glibc/musl の ld.so や static-PIE は
+    // 自身で relocation するため肩代わりすると二重適用になり、さらに phdr バイアスで
+    // PT_DYNAMIC.p_vaddr が base 分二重算入されて musl の base 自己算出
+    // (base = 実行時 &_DYNAMIC − PT_DYNAMIC.p_vaddr)が 0 になり SIGSEGV する。
+    // bionic ELF のみが PT_NOTE に ".note.android.ident"(owner="Android")を持つので
+    // これで両者を判別し、肩代わりを bionic に限定する。
+    // (Alpine 起動退行の真因: ld-musl を直接 exec すると PT_INTERP 非保持ゆえ case 3=
+    //  skip_reloc=0 に落ち、glibc/musl なのに肩代わりされていた)
+    int is_bionic = 0;
+    for (unsigned i = 0; i < e_phnum && !is_bionic; i++) {
+        unsigned int p_type; memcpy(&p_type, ph[i], 4);
+        if (p_type != 4 /* PT_NOTE */) continue;
+        unsigned long n_off, n_sz;
+        memcpy(&n_off, ph[i] + 8,  8);
+        memcpy(&n_sz,  ph[i] + 32, 8);
+        if (n_sz == 0 || n_sz > 4096) continue;
+        unsigned char nbuf[4096];
+        if (pread(fd, nbuf, n_sz, (off_t)n_off) != (ssize_t)n_sz) continue;
+        unsigned long p = 0;
+        while (p + 12 <= n_sz) {
+            unsigned int namesz, descsz;
+            memcpy(&namesz, nbuf + p,     4);
+            memcpy(&descsz, nbuf + p + 4, 4);
+            unsigned long name_off = p + 12;
+            if (namesz == 8 && name_off + 8 <= n_sz &&
+                memcmp(nbuf + name_off, "Android", 8) == 0) { is_bionic = 1; break; }
+            unsigned long adv = 12 + ((namesz + 3UL) & ~3UL) + ((descsz + 3UL) & ~3UL);
+            if (adv <= 12) break;
+            p += adv;
+        }
+    }
+    // skip_reloc(case 2 の ld.so) でなく、かつ bionic ELF のときだけ肩代わりする。
+    int apply_loader_reloc = (!skip_reloc && is_bionic);
+
     // ET_DYN(PIE)は連続領域を予約してから各セグメントを MAP_FIXED で埋める。
     // ET_EXEC は p_vaddr をそのまま使う(base=0)。
     unsigned long base = 0;
@@ -2288,12 +2323,12 @@ static void load_elf_and_jump(const char *path, char **child_argv, char **child_
     // R_AARCH64_RELATIVE を肩代わり適用する(ld.so/proot loader 相当)。これで単純な
     // static-PIE(write のみ)が動く。static 非PIE(ET_EXEC)は base==0 で素通り=退行なし。
     //
-    // ただし「自己 relocation する ELF」(glibc/musl/bionic の ld.so 本体や、自己再配置
-    // crt を持つ static-PIE プログラム)に対してローダが肩代わり適用すると、エントリ後に
-    // 本体がもう一度 RELATIVE を適用して load bias が二重加算され、全ポインタが ×2 になり
-    // SIGSEGV(blr x8 で x8=実ポインタ×2)する。動的バイナリの起動経路(plan_exec が ld.so
-    // を loader 対象に渡す case)はこれに該当するため skip_reloc=1 で肩代わりを抑止する。
-    if (!skip_reloc && e_type == 3 /* ET_DYN */ && base != 0) {
+    // ただし「自己 relocation する ELF」(glibc/musl の ld.so 本体や、自己再配置 crt を持つ
+    // static-PIE プログラム)に対してローダが肩代わり適用すると、エントリ後に本体がもう一度
+    // RELATIVE を適用して load bias が二重加算され、全ポインタが ×2 になり SIGSEGV(blr x8 で
+    // x8=実ポインタ×2)する。case 2(ld.so 経由の動的起動)は skip_reloc=1 で、case 3 に落ちる
+    // glibc/musl 系(bionic note 無し)は is_bionic=0 で、いずれも apply_loader_reloc=0 になり抑止。
+    if (apply_loader_reloc && e_type == 3 /* ET_DYN */ && base != 0) {
         unsigned long dyn_va = 0;
         for (unsigned i = 0; i < e_phnum; i++) {
             unsigned int p_type; memcpy(&p_type, ph[i], 4);
@@ -2369,12 +2404,12 @@ static void load_elf_and_jump(const char *path, char **child_argv, char **child_
     // (static-PIE)では p_vaddr がリンク時相対のため note/TLS 走査が 0 番地近傍を触って
     // segfault する。p_vaddr を base で事前バイアスした phdr コピーを AT_PHDR に渡し、
     // bionic の bias=0 仮定を成立させる。
-    // ただし skip_reloc(=自己再配置するローダ ld.so を case 2 でロードする経路)では
-    // バイアスしてはならない。musl ld.so は AT_PHDR の PT_PHDR.p_vaddr から自身の
-    // load base を逆算するため、事前バイアスすると base を二重に算入して SIGSEGV する
-    // (Alpine 起動 exitCode=-1 の真因)。glibc ld.so は GOT 相対ブートストラップで
-    // AT_PHDR に非依存のため顕在化しなかった。bionic static-PIE のみ(skip_reloc=0)に限定。
-    if (!skip_reloc && e_type == 3 /* ET_DYN */ && base != 0) {
+    // ただし glibc/musl(bionic note 無し)ではバイアスしてはならない。musl ld.so は AT_PHDR
+    // の PT_DYNAMIC.p_vaddr から自身の load base を逆算(base = 実行時 &_DYNAMIC −
+    // PT_DYNAMIC.p_vaddr)するため、事前バイアスすると base が二重算入で 0 になり SIGSEGV する
+    // (Alpine 起動 exitCode=-1 の真因)。glibc ld.so は GOT 相対ブートストラップで AT_PHDR に
+    // 非依存のため顕在化しなかった。apply_loader_reloc(=bionic かつ非 skip_reloc)に限定。
+    if (apply_loader_reloc && e_type == 3 /* ET_DYN */ && base != 0) {
         static unsigned char ph_biased[MAX_PH][56];
         for (unsigned i = 0; i < e_phnum; i++) {
             memcpy(ph_biased[i], ph[i], 56);
