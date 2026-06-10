@@ -94,6 +94,7 @@ Z2Term comes with its **own in-app keyboard**.
   - With the **"変換" (convert) key** or **◀ ▶**, convert from the leading chunk (block). Tap a candidate or press ⏎ to confirm, and it automatically advances to the next chunk.
   - When you type a **long sentence**, predictions appear **automatically per chunk** without pressing "変換" (e.g. あしたのてんきは… → 明日の / 天気は / …; particles and endings like "です・ました" stay in kana).
   - The **light-green chunk** in the candidate bar is the "whole-sentence" conversion (e.g. 明日の天気はいかがでしょうか). Tap it to confirm the entire sentence at once. **Moving the boundary of the leading chunk with ◀ ▶ also rebuilds the light-green chunk to match the new boundary.**
+  - **Chunk boundaries are learned too**: e.g. if こまんど first splits into 「こ」「まんど」, merge it into 「こまんど」 with ◀ ▶ and confirm — from the next time it's auto-recognized as a single chunk (コマンド). The more often you use a reading-chunk, the higher its priority.
   - For **katakana**, tap the katakana candidate in the candidate bar.
 - The "ABC" key returns to the Latin keyboard.
 - **Flicking the ⌫ (delete) key**: flick left to **delete the previous word at once**, flick right to **delete the entire line being typed**.

@@ -54,6 +54,12 @@ object ImeHistoryStore {
     private const val BIGRAM_COUNT_STEP = 250    // count が増えるごとの加算 (上限 +750)
     private const val BIGRAM_RECENT_BONUS = 500  // 直近 7 日内の追加 (線形減衰)
 
+    // 学習ブロック (動的ブロック分割) のコスト下げ幅。カタカナ化ペナルティ(4000)+接続コストを
+    // 1〜2 回の確定で上回れる強さにし、頻用読みを自動で 1 ブロックへまとめる。
+    private const val BLOCK_BASE_BONUS = 3000    // count=1 の基本下げ幅
+    private const val BLOCK_COUNT_STEP = 1500    // count が増えるごとの加算 (count 上限 4 で +4500)
+    private const val BLOCK_RECENT_BONUS = 1000  // 直近 7 日内の追加 (線形減衰)
+
     /** UI へ公開する 1 エントリの値オブジェクト (内部 Entry とは別: 不変)。 */
     data class HistoryItem(
         val reading: String,
@@ -100,6 +106,8 @@ object ImeHistoryStore {
                 HistoryReranker(::bigramBonus),
             ),
         )
+        // 動的ブロック分割: ラティスから学習ブロックを参照させる (頻用読みを 1 ブロックへ)。
+        KkcConverter.learnedBlock = ::learnedBlock
         _versionFlow.update { it + 1 }
     }
 
@@ -169,6 +177,29 @@ object ImeHistoryStore {
                       else (BIGRAM_RECENT_BONUS * (1.0 - ageMs.toDouble() / RECENT_WINDOW_MS)).toInt()
         val freq = BIGRAM_BASE_BONUS + BIGRAM_COUNT_STEP * (e.count.coerceAtMost(4) - 1)
         return freq + recency
+    }
+
+    /**
+     * 動的ブロック分割用: 完全一致 reading をユーザーが確定したことがあれば
+     * `(最頻表層, コスト下げ幅)` を返す。未学習 / 1 文字 reading は null。
+     * [KkcConverter.learnedBlock] から変換のホットパスで参照されるため、mutex は取らず
+     * best-effort で読む (同時記録中の CME は runCatching で握りつぶし null 扱い)。
+     */
+    fun learnedBlock(reading: String): Pair<String, Int>? {
+        if (!loaded || reading.length < 2) return null
+        return runCatching {
+            val list = byReading[reading] ?: return@runCatching null
+            var best: Entry? = null
+            for (e in list) if (best == null || e.count > best.count) best = e
+            val e = best ?: return@runCatching null
+            if (e.count <= 0) return@runCatching null
+            val now = System.currentTimeMillis()
+            val ageMs = (now - e.lastUsedAt).coerceAtLeast(0)
+            val recency = if (ageMs >= RECENT_WINDOW_MS) 0
+                          else (BLOCK_RECENT_BONUS * (1.0 - ageMs.toDouble() / RECENT_WINDOW_MS)).toInt()
+            val freq = BLOCK_BASE_BONUS + BLOCK_COUNT_STEP * (e.count.coerceAtMost(4) - 1)
+            e.word to (freq + recency)
+        }.getOrNull()
     }
 
     /** 完全一致 reading の候補を score 降順で返す (履歴ヒットのみ。辞書とは別経路)。 */

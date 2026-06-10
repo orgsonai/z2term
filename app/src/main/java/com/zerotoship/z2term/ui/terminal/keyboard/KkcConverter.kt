@@ -203,6 +203,16 @@ object KkcConverter {
 
     @Volatile var reranker: KkcReranker = IdentityReranker
 
+    /**
+     * 学習ブロック参照 (動的ブロック分割)。完全一致 reading をユーザーが確定したことがあれば
+     * `(優先表層, コスト下げ幅)` を返し、未学習なら null。[ImeHistoryStore] が配線する。
+     *
+     * これにより「こまんど → コマンド」のように一度まとめて確定した読みは、次回以降ラティスで
+     * その読み全体のノードコストが下がり、自動分割で 1 ブロックに繋ぎ止められる (頻度で強化)。
+     * 辞書に無い読みでも学習表層で合成ノードを足すので、任意の「良く使う読みの塊」を覚えられる。
+     */
+    @Volatile var learnedBlock: ((String) -> Pair<String, Int>?)? = null
+
     /** ラティスのノード。BOS/EOS は surface/reading 空・cost 0 で表す。 */
     private class Node(
         val begin: Int, val end: Int,
@@ -227,12 +237,25 @@ object KkcConverter {
         val bos = Node(0, 0, "", "", 0, 0, 0)
         val eos = Node(n, n, "", "", 0, 0, 0)
         endsAt[0].add(bos)
+        val blockFn = learnedBlock
         for (i in 0 until n) {
             for (j in i + 1..n) {
                 val r = reading.substring(i, j)
-                val entries = lex[r] ?: continue
-                for (e in entries) {
-                    val nd = Node(i, j, e.surface, r, e.lc, e.rc, e.cost)
+                // 学習ブロック (2 文字以上): 該当読みのノードコストを下げて 1 ブロックに繋ぎ止める。
+                val learned = if (j - i >= 2) blockFn?.invoke(r) else null
+                val bonus = learned?.second ?: 0
+                val entries = lex[r]
+                if (entries != null) {
+                    for (e in entries) {
+                        val c = if (bonus > 0) (e.cost - bonus).coerceAtLeast(1) else e.cost
+                        val nd = Node(i, j, e.surface, r, e.lc, e.rc, c)
+                        startsAt[i].add(nd); endsAt[j].add(nd)
+                    }
+                }
+                // 辞書に無い学習ブロックは学習表層で合成ノードを足す (lc=rc=0 で BOS/EOS 文脈近似)。
+                if (learned != null && (entries == null || entries.none { it.surface == learned.first })) {
+                    val c = (UNK_COST * (j - i) - bonus).coerceAtLeast(1)
+                    val nd = Node(i, j, learned.first, r, 0, 0, c)
                     startsAt[i].add(nd); endsAt[j].add(nd)
                 }
             }
