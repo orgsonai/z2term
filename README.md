@@ -30,7 +30,9 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 ## Current version
 
-**0.8.74-alpha (versionCode 82) — 端末の絵文字表示と日本語 IME 予測変換の改善.** (1) 端末描画: BMP 外の絵文字 (😀 等) は左セルに高サロゲート・右セル (`wideCont`) に低サロゲートを分けて持つが、描画/コピーで右セルを捨てて孤立サロゲート＝豆腐(?)になっていたのを、両セルを結合して 1 グリフで出すよう修正。カーソル重畳・選択コピー・行テキスト抽出も同様。 (2) IME: 長文の一括予測確定 (`commitFull`) を「文全体 1 キー」学習からブロック単位 (`(読み→表層)` + ブロック間 bigram) 学習へ変更し、頻用ブロックが別の文でも再利用されるように。 (3) IME: 学習ブロックのコスト割引が同じ読みの全表層へ一律に効いて辞書最小コストの別表層が勝っていた問題を、ユーザーが確定した表層だけに効かせるよう修正 (例: きく→聴く を学習しても 聞く が出続ける現象を解消)。
+**0.8.75-alpha (versionCode 83) — z2root の最長一致 bind 修正 (項目4 再発の根治).** 0.8.73 で `.claude/downloads` を per-distro 隔離したが、**z2root エンジンでは隔離が効かず**、Alpine で musl 版 claude を入れると Arch の glibc 本体まで上書きされ双方起動不可になる現象が再発していた。真因は `z2root.c` のパス変換 (`translate_abs`/`host_to_guest`) が bind を**登録順の最初一致**で解決しており、先に登録される親 bind `/root` が子 bind `/root/.claude/downloads` を覆い隠していたこと (proot は最長一致なので効いていた engine 差)。両変換関数を**最長一致 (最も具体的＝guest_len 最長の bind 優先)** に修正。
+
+Previously (0.8.74-alpha, versionCode 82) — 端末の絵文字表示と日本語 IME 予測変換の改善.** (1) 端末描画: BMP 外の絵文字 (😀 等) は左セルに高サロゲート・右セル (`wideCont`) に低サロゲートを分けて持つが、描画/コピーで右セルを捨てて孤立サロゲート＝豆腐(?)になっていたのを、両セルを結合して 1 グリフで出すよう修正。カーソル重畳・選択コピー・行テキスト抽出も同様。 (2) IME: 長文の一括予測確定 (`commitFull`) を「文全体 1 キー」学習からブロック単位 (`(読み→表層)` + ブロック間 bigram) 学習へ変更し、頻用ブロックが別の文でも再利用されるように。 (3) IME: 学習ブロックのコスト割引が同じ読みの全表層へ一律に効いて辞書最小コストの別表層が勝っていた問題を、ユーザーが確定した表層だけに効かせるよう修正 (例: きく→聴く を学習しても 聞く が出続ける現象を解消)。
 
 Previously (0.8.73-alpha, versionCode 81) — `.claude/downloads` も per-distro 隔離に追加 (項目4 の真因修正).** Claude Code の native 本体は `~/.claude/downloads/claude` (数百 MB の ELF) に入り arch 依存。`.claude` 直下の認証 (`.credentials.json`)・設定・projects は共有したまま、`downloads` サブだけを隔離する。これを共有すると musl(Alpine) と glibc(Arch) が同じ本体を上書き合い、`Not a valid dynamic program` で双方起動不可になっていた (= 旧版で Alpine の claude が動かず、起動を試みると Arch まで巻き込まれて壊れる現象の真因)。移行: 各ディストリで一度 `claude` を入れ直すと、その native 本体がディストリ別オーバーレイに収まり互いに干渉しなくなる。
 

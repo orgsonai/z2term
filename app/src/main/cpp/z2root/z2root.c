@@ -221,14 +221,21 @@ static int translate_abs(const struct config *cfg, const char *guest_path, char 
     // 二重変換防止: 既にホスト rootfs を指していれば触らない。
     if (strncmp(guest_path, cfg->rootfs, cfg->rootfs_len) == 0) return 0;
 
-    // bind 優先。長い guest_len から照合したいが最小版は登録順で十分。
+    // bind 優先。重なり合う bind (例: /root と /root/.claude/downloads) では
+    // 最長一致 = 最も具体的な bind を採用する。登録順の最初一致だと先に登録した
+    // 親 bind (/root) が子 bind (/root/.claude/downloads) を覆い隠し、distro 別の
+    // 隔離オーバーレイが効かず musl↔glibc の本体上書きが起きる (項目4 再発の真因)。
+    const struct bind_entry *best = NULL;
     for (int i = 0; i < cfg->nbinds; i++) {
         const struct bind_entry *b = &cfg->binds[i];
         if (strncmp(guest_path, b->guest, b->guest_len) == 0 &&
             (guest_path[b->guest_len] == '/' || guest_path[b->guest_len] == '\0')) {
-            snprintf(out, cap, "%s%s", b->host, guest_path + b->guest_len);
-            return 1;
+            if (best == NULL || b->guest_len > best->guest_len) best = b;
         }
+    }
+    if (best != NULL) {
+        snprintf(out, cap, "%s%s", best->host, guest_path + best->guest_len);
+        return 1;
     }
     snprintf(out, cap, "%s%s", cfg->rootfs, guest_path);
     return 1;
@@ -239,13 +246,20 @@ static int translate_abs(const struct config *cfg, const char *guest_path, char 
 //  3) いずれでもない → そのまま(ホスト=ゲストとみなす)。戻り値は buf。
 static const char *host_to_guest(const struct config *cfg, const char *host,
                                  char *buf, size_t cap) {
+    // 逆変換も最長一致。重なり合う host 側 prefix で最も具体的な bind を選ぶ
+    // (translate_abs と対称。隔離オーバーレイの host 実体を正しくゲストへ戻すため)。
+    const struct bind_entry *best = NULL;
+    size_t best_hl = 0;
     for (int i = 0; i < cfg->nbinds; i++) {
         const struct bind_entry *b = &cfg->binds[i];
         size_t hl = strlen(b->host);
         if (strncmp(host, b->host, hl) == 0 && (host[hl] == '/' || host[hl] == '\0')) {
-            snprintf(buf, cap, "%s%s", b->guest, host + hl);
-            return buf;
+            if (best == NULL || hl > best_hl) { best = b; best_hl = hl; }
         }
+    }
+    if (best != NULL) {
+        snprintf(buf, cap, "%s%s", best->guest, host + best_hl);
+        return buf;
     }
     if (strncmp(host, cfg->rootfs, cfg->rootfs_len) == 0 &&
         (host[cfg->rootfs_len] == '/' || host[cfg->rootfs_len] == '\0')) {
