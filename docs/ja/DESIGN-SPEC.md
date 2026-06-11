@@ -392,6 +392,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 ```bash
 bash scripts/build-bundle.sh          # 同梱物一括生成
 # 個別: build-proot.sh / build-alpine-rootfs.sh aarch64 / fetch-fonts.sh
+sh scripts/z2root-cmdtest.sh          # z2root の難所を踏む壊れやすいコマンド群を横断テスト(全10グループ・未導入はskip・末尾に非ゼロ一覧。SKIP_NET/SKIP_BUILD/RUN_SSHD/RUN_PRIV)
 ./gradlew :app:assembleFullDebug      # APK (full = rootfs 同梱)
 ./gradlew :app:assembleFossDebug      # APK (foss = rootfs 非同梱・起動時 DL)
 adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk

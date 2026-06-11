@@ -392,6 +392,7 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 ```bash
 bash scripts/build-bundle.sh          # generate all bundled assets at once
 # individually: build-proot.sh / build-alpine-rootfs.sh aarch64 / fetch-fonts.sh
+sh scripts/z2root-cmdtest.sh          # cross-test fragile commands that hit z2root's hard paths (10 groups; skips missing cmds; trailing non-zero summary. SKIP_NET/SKIP_BUILD/RUN_SSHD/RUN_PRIV)
 ./gradlew :app:assembleFullDebug      # APK (full = rootfs bundled)
 ./gradlew :app:assembleFossDebug      # APK (foss = rootfs excluded, runtime DL)
 adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk

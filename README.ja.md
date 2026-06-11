@@ -234,6 +234,39 @@ z2term/
    → Alpine Linux が起動するはず
    → `apk update && apk add zsh` を試す
 
+### z2root コマンド群テスト（`scripts/z2root-cmdtest.sh`）
+
+「今後も *壊れやすいコマンド* がエラーなく動く」ことを確認する回帰スモーク。
+z2root の難所（ptrace/seccomp・fakeroot 偽装・パス変換・/proc 偽装・pty・大量
+fork/exec・ld.so reloc）を踏むコマンドに絞り、cd/ls のような自明系は入れない。
+狙いは「systemic な退行を *多数のコマンドが一斉に落ちる* 形で一発検知し、コマンド
+ごとの後追い修正をやらないで済む」こと。z2root タブのゲスト内でそのまま実行:
+
+```sh
+sh scripts/z2root-cmdtest.sh              # 標準（ネット/ビルド込み）
+SKIP_NET=1   sh scripts/z2root-cmdtest.sh # ネット/パッケージ系をスキップ
+SKIP_BUILD=1 sh scripts/z2root-cmdtest.sh # cc コンパイル等をスキップ
+RUN_SSHD=1   sh scripts/z2root-cmdtest.sh # dropbear ループバック ssh（z2root 単独だとセッションが落ちる可能性）
+RUN_PRIV=1   sh scripts/z2root-cmdtest.sh # losetup/mount など真に root が要る操作も実行（非 root では EPERM が正常）
+```
+
+POSIX sh／busybox ash 互換で、**未導入コマンドは fail でなく skip** するので
+どのディストリでも同じに走る＝各ゲストで回して「非ゼロ終了一覧が空」になれば
+OS 差なく健全、と読める。10 グループ: ①ランタイム実起動（claude headless と
+`--version` の対比・node spawn・python venv/mp/ssl・ripgrep）②VCS 重い操作
+（clone/gc/checkout＝hardlink/pack/rename）③パッケージ管理（apt/apk/dnf/pacman・
+pip/venv・npm）④pty/端末（script/tmux/stty・`/dev/pts`・任意で dropbear）
+⑤/proc・fakeroot 境界 ⑥ビルド（cc execve chain＋ld.so reloc）⑦パス変換/symlink
+canonicalize ⑧ディスク/FS（dd・mkfs・parted をファイル相手に。root 系は
+`RUN_PRIV`）⑨IPC/特殊 syscall（AF_UNIX・FIFO・flock・inotify・xattr・
+copy_file_range・nested ptrace(strace/gdb)・Go 生 syscall・sqlite3・rsync）
+⑩名前解決/TLS（getent・curl TLS・nslookup）。出力は画面と
+`/tmp/z2root-cmdtest-<時刻>.log`、末尾に非ゼロ終了一覧。proot タブで同じものを
+流せば対照ログが取れる。
+
+注: `io_uring`（ptrace/seccomp を丸ごとバイパス）や `statx`/`openat2` のフック漏れ
+はコマンドテストでは捕まらない＝seccomp フィルタ側で確認すること。
+
 ## ライセンス
 
 本アプリ本体 (`app/src/main/java/com/zerotoship/z2term/**`) のライセンスは **GPL-3.0** です。

@@ -319,6 +319,42 @@ z2term/
    → Alpine Linux should start
    → try `apk update && apk add zsh`
 
+### z2root command-group test (`scripts/z2root-cmdtest.sh`)
+
+A regression smoke test for confirming that **fragile commands keep working
+going forward** on the z2root engine — focused on the hard paths (ptrace/seccomp,
+fakeroot fakery, path translation, `/proc` fakery, pty, heavy fork/exec, ld.so
+reloc), not trivial `cd`/`ls`. The point is to catch a systemic z2root regression
+as "many commands fail at once" instead of discovering each broken command later.
+Run it inside a started guest (any distro) on the z2root tab:
+
+```sh
+sh scripts/z2root-cmdtest.sh              # standard (incl. network/build)
+SKIP_NET=1   sh scripts/z2root-cmdtest.sh # skip network/package steps
+SKIP_BUILD=1 sh scripts/z2root-cmdtest.sh # skip cc compile etc.
+RUN_SSHD=1   sh scripts/z2root-cmdtest.sh # dropbear loopback ssh (may reset the session under z2root!)
+RUN_PRIV=1   sh scripts/z2root-cmdtest.sh # also run truly-root ops (losetup/mount); EPERM is normal on non-root z2root
+```
+
+It is POSIX `sh` / busybox-ash compatible and **skips missing commands rather than
+failing**, so it runs identically across distros — run it on each guest and a
+healthy engine yields an empty "non-zero exit" summary everywhere. 10 groups:
+① runtime real-launch (`claude` headless vs `--version`, node spawn, python
+venv/multiprocessing/ssl, ripgrep), ② heavy VCS (git clone/gc/checkout =
+hardlink/pack/rename), ③ package managers (apt/apk/dnf/pacman, pip/venv, npm =
+fakeroot/fork-exec/symlink), ④ pty/terminal (script/tmux/stty, `/dev/pts`,
+optional dropbear loopback), ⑤ `/proc`/fakeroot boundary, ⑥ build (cc execve
+chain + ld.so reloc), ⑦ path translation / symlink canonicalization, ⑧ disk/FS
+(dd, mkfs, parted on file images; root ops behind `RUN_PRIV`), ⑨ IPC / special
+syscalls (AF_UNIX, FIFO, flock, inotify, xattr, copy_file_range, nested ptrace
+via strace/gdb, Go raw syscalls, sqlite3, rsync), ⑩ name resolution / TLS
+(getent, curl TLS, nslookup). Output goes to the screen and
+`/tmp/z2root-cmdtest-<timestamp>.log`; a trailing summary lists any non-zero
+exits. Run the same script on the proot tab for a reference log.
+
+Note: `io_uring` (bypasses ptrace/seccomp entirely) and `statx`/`openat2` hook
+gaps can't be caught by command tests — verify those at the seccomp-filter level.
+
 ## License
 
 The license of the app itself (`app/src/main/java/com/zerotoship/z2term/**`) is **GPL-3.0**.
