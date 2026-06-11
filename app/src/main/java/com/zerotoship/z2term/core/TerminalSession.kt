@@ -9,6 +9,7 @@ import com.zerotoship.z2term.channel.LocalPtyChannel
 import com.zerotoship.z2term.channel.ProcessChannel
 import com.zerotoship.z2term.channel.SshChannel
 import com.zerotoship.z2term.channel.SshProfile
+import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.distro.DistroDownloader
 import com.zerotoship.z2term.distro.DistroInstaller
 import com.zerotoship.z2term.distro.DistroSpec
@@ -124,6 +125,7 @@ class TerminalSession(
         clipboardWriter = { text ->
             val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
+            ClipboardHistoryStore.record(text)
             _toastEvents.tryEmit(appContext.getString(R.string.toast_copy_from_remote, text.length))
         },
         titleSetter = { title -> if (title.isNotBlank()) _label.value = title.take(20) },
@@ -161,6 +163,7 @@ class TerminalSession(
         }
         val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
+        ClipboardHistoryStore.record(text)
         _toastEvents.tryEmit(appContext.getString(R.string.toast_copy, text.length))
     }
 
@@ -168,7 +171,17 @@ class TerminalSession(
     fun pasteFromClipboard() {
         val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val text = cm.primaryClip?.getItemAt(0)?.coerceToText(appContext)?.toString() ?: return
+        pasteText(text)
+    }
+
+    /**
+     * 任意のテキストをペーストする (クリップボード履歴シートからの選択で使う)。
+     * 選んだ本文をシステムクリップボードにも反映して以後の貼り付けと揃える。
+     */
+    fun pasteText(text: String) {
         if (text.isEmpty()) return
+        val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
         val body = text.replace('\n', '\r').toByteArray(Charsets.UTF_8)
         // Bracketed paste (DECSET 2004) が有効なら 200~/201~ で囲んで送る。
         // これで bash/zsh/vim が「貼り付け」と認識し、各行の即時実行や自動インデント連鎖を防ぐ。

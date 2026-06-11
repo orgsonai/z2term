@@ -821,6 +821,12 @@ class ProotLauncher(private val context: Context) {
                 echo "package: ${BuildConfig.APPLICATION_ID}"
                 echo "engine : $engine"
                 echo "rootfs : gen ${DistroBundle.ROOTFS_VERSION}"
+                # 実行中の OS (ゲスト distro) と kernel。/etc/os-release はゲスト自身のファイルを
+                # サブシェルで読むだけ (PRETTY_NAME を取り出す)。uname はゲストから見えるカーネル。
+                if [ -r /etc/os-release ]; then
+                  echo "os     : ${'$'}(. /etc/os-release 2>/dev/null; echo "${'$'}PRETTY_NAME")"
+                fi
+                echo "kernel : ${'$'}(uname -srm 2>/dev/null)"
                 """.trimIndent() + "\n"
             )
             f.setReadable(true, false)

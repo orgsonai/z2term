@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -31,6 +32,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -94,6 +96,7 @@ import com.zerotoship.z2term.gui.GuiSession
 import com.zerotoship.z2term.gui.rfb.RfbClient
 import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.settings.AppSettings
+import com.zerotoship.z2term.ui.clipboard.ClipboardHistorySheet
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.filterNotNull
@@ -128,6 +131,7 @@ import com.zerotoship.z2term.ui.theme.ZtsGreenDim
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /** キーボードモード。CUSTOM=独自キーボード、SYSTEM=OS IME + 特殊キーバー */
 enum class KeyboardMode { CUSTOM, SYSTEM }
@@ -214,6 +218,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     var keyboardCollapsed by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
     var snippetsSheetOpen by remember { mutableStateOf(false) }
+    var clipHistoryOpen by remember { mutableStateOf(false) }
     // SFTP ファイルブラウザ対象のプロファイル (非 null の間シートを表示)
     var sftpProfile by remember { mutableStateOf<SshProfile?>(null) }
     var customThemeEditorOpen by remember { mutableStateOf(false) }
@@ -311,6 +316,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             session = active,
             keyboardMode = keyboardMode,
             onPaste = { active.pasteFromClipboard() },
+            onPasteHistory = { clipHistoryOpen = true },
             onToggleKeyboardMode = {
                 val next = if (keyboardMode == KeyboardMode.CUSTOM)
                     KeyboardMode.SYSTEM else KeyboardMode.CUSTOM
@@ -434,6 +440,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     },
                     modifier = Modifier.fillMaxSize()
                 )
+                TerminalScrollbar(session = active, modifier = Modifier.fillMaxSize())
                 ScrollIndicators(session = active, modifier = Modifier.fillMaxSize())
                 // 変換候補バー: キーボードの上に浮かせて表示 (キーボード本体の高さは変えない)
                 CandidateBar(
@@ -559,6 +566,12 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onSftp = { profile -> sftpProfile = profile }
         )
     }
+    if (clipHistoryOpen) {
+        ClipboardHistorySheet(
+            onDismiss = { clipHistoryOpen = false },
+            onSelect = { text -> active.pasteText(text) }
+        )
+    }
     sftpProfile?.let { profile ->
         SftpSheet(
             profile = profile,
@@ -618,6 +631,7 @@ private fun GuiTabScreen(
     val keepScreenOn = ScreenAwake.enabled.value
     var settingsOpen by remember { mutableStateOf(false) }
     var snippetsSheetOpen by remember { mutableStateOf(false) }
+    var clipHistoryOpen by remember { mutableStateOf(false) }
 
     val rootView = LocalView.current
     LaunchedEffect(keepScreenOn) { applyKeepScreenOn(context, rootView, keepScreenOn) }
@@ -708,6 +722,7 @@ private fun GuiTabScreen(
                 val text = cm?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
                 if (!text.isNullOrEmpty()) GuiKeyMapper.sendText(gui.rfb, text)
             },
+            onPasteHistory = { clipHistoryOpen = true },
             onOpenSnippets = { snippetsSheetOpen = true },
             onToggleKeyboardMode = {
                 val next = if (keyboardMode == KeyboardMode.CUSTOM)
@@ -867,6 +882,17 @@ private fun GuiTabScreen(
             showSshTab = false
         )
     }
+    if (clipHistoryOpen) {
+        ClipboardHistorySheet(
+            onDismiss = { clipHistoryOpen = false },
+            // GUI では選んだ本文を keysym 橋渡しでタイプし、システムクリップボードにも反映する。
+            onSelect = { text ->
+                context.getSystemService(ClipboardManager::class.java)
+                    ?.setPrimaryClip(android.content.ClipData.newPlainText("z2term", text))
+                GuiKeyMapper.sendText(gui.rfb, text)
+            }
+        )
+    }
     // GUI 起動確認 (初回 DL / クリーンインストール)。OK で起動、やめる→タブを閉じる
     // (パッケージ無しでは表示できないため)。
     pendingGuiStart?.let { (w, h, clean) ->
@@ -905,6 +931,7 @@ private fun GuiTopBar(
     session: GuiSession,
     keyboardMode: KeyboardMode,
     onPaste: () -> Unit,
+    onPasteHistory: () -> Unit,
     onOpenSnippets: () -> Unit,
     onToggleKeyboardMode: () -> Unit,
     keepScreenOn: Boolean,
@@ -943,7 +970,7 @@ private fun GuiTopBar(
         // GUI へタイプする (M8-6 T1)。⚙ は端末セッションが無いと押せない (settingsEnabled)。
         ReorderableToolbar(
             items = listOf(
-                ToolbarItem(TB_PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste),
+                ToolbarItem(TB_PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
                 ToolbarItem(TB_SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
                 ToolbarItem(TB_SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
                 ToolbarItem(TB_KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
@@ -1020,6 +1047,7 @@ private fun TopBar(
     session: TerminalSession,
     keyboardMode: KeyboardMode,
     onPaste: () -> Unit,
+    onPasteHistory: () -> Unit,
     onToggleKeyboardMode: () -> Unit,
     onOpenSettings: () -> Unit,
     keepScreenOn: Boolean,
@@ -1077,7 +1105,7 @@ private fun TopBar(
         // 各ボタンは長押しドラッグで並べ替え可・長押し中は簡易説明をポップアップ表示する。
         ReorderableToolbar(
             items = listOf(
-                ToolbarItem(TB_PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste),
+                ToolbarItem(TB_PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
                 ToolbarItem(TB_SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
                 ToolbarItem(TB_SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
                 ToolbarItem(TB_KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
@@ -1108,7 +1136,9 @@ private class ToolbarItem(
     val description: String,
     val active: Boolean = false,
     val enabled: Boolean = true,
-    val onClick: () -> Unit
+    val onClick: () -> Unit,
+    // 設定時のみ有効化されるダブルタップ動作 (📋 貼付ボタンでクリップボード履歴を開く等)。
+    val onDoubleClick: (() -> Unit)? = null
 )
 
 /**
@@ -1194,7 +1224,13 @@ private fun ReorderableToolbar(
                             )
                         }
                 ) {
-                    ToolbarChip(icon = item.icon, active = item.active, enabled = item.enabled, onClick = item.onClick)
+                    ToolbarChip(
+                        icon = item.icon,
+                        active = item.active,
+                        enabled = item.enabled,
+                        onClick = item.onClick,
+                        onDoubleClick = item.onDoubleClick
+                    )
                     if (isDrag) ToolbarTooltip(item.description)
                 }
             }
@@ -1203,8 +1239,15 @@ private fun ReorderableToolbar(
 }
 
 /** ツールバー 1 ボタンの見た目 (active=緑ハイライト / enabled=false でグレーアウト)。 */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ToolbarChip(icon: String, active: Boolean, enabled: Boolean, onClick: () -> Unit) {
+private fun ToolbarChip(
+    icon: String,
+    active: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    onDoubleClick: (() -> Unit)? = null
+) {
     val bg = when {
         !enabled -> ZtsBgCard.copy(alpha = 0.35f)
         active -> ZtsGreen
@@ -1225,7 +1268,16 @@ private fun ToolbarChip(icon: String, active: Boolean, enabled: Boolean, onClick
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
             .border(1.dp, border, RoundedCornerShape(6.dp))
-            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(
+                when {
+                    !enabled -> Modifier
+                    onDoubleClick != null -> Modifier.combinedClickable(
+                        onClick = onClick,
+                        onDoubleClick = onDoubleClick
+                    )
+                    else -> Modifier.clickable(onClick = onClick)
+                }
+            )
             .padding(horizontal = 10.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -1866,6 +1918,76 @@ private fun CandidateBar(
                 pills.forEach { (i, content) -> if (i % 2 == 1) content() }
             }
         }
+    }
+}
+
+/**
+ * 端末右端の掴めるスクロールバー (要望)。scrollback がある時だけ出す。
+ *
+ * スクロール位置は [TerminalSession.scrollOffset] が真実 (0=最新/最下端、scrollbackSize=最古/最上端)。
+ * つまみの縦位置 thumbTop は「画面より上にある履歴の割合」に比例させる:
+ *   frac = (scrollbackSize - scrollOffset) / scrollbackSize   (0=最下端, 1=最上端)
+ * つまみを掴んでドラッグしたら、その縦位置を frac に戻して scrollOffset を逆算する。
+ * バッファは StateFlow でないため [TerminalSession.redrawTick] と scrollOffset の変化で再評価する。
+ */
+@Composable
+private fun TerminalScrollbar(
+    session: TerminalSession,
+    modifier: Modifier = Modifier
+) {
+    val scrollOffset by session.scrollOffset.collectAsState()
+    val redraw by session.redrawTick.collectAsState()
+    val selection by session.selection.collectAsState()
+    // buffer 値はバッファ更新 (redraw) / スクロールのたびに読み直す。
+    val scrollbackSize = remember(redraw, scrollOffset) { session.emulator.buffer.scrollbackSize }
+    val rows = remember(redraw) { session.emulator.buffer.rows.coerceAtLeast(1) }
+    // 履歴が無い / 選択中 (ハンドル操作と干渉させない) は出さない。
+    if (scrollbackSize <= 0 || selection != null) return
+
+    val density = LocalDensity.current
+    val barWidth = 8.dp
+    val minThumbPx = with(density) { 36.dp.toPx() }
+
+    BoxWithConstraints(modifier = modifier) {
+        val trackH = constraints.maxHeight.toFloat()
+        if (trackH <= 0f) return@BoxWithConstraints
+        val totalRows = (scrollbackSize + rows).toFloat()
+        val thumbH = (trackH * rows / totalRows).coerceIn(minThumbPx.coerceAtMost(trackH), trackH)
+        val maxThumbTop = (trackH - thumbH).coerceAtLeast(0f)
+        val frac = (scrollbackSize - scrollOffset).toFloat() / scrollbackSize
+        val thumbTop = (maxThumbTop * frac).coerceIn(0f, maxThumbTop)
+
+        fun applyThumbTop(newTop: Float) {
+            if (maxThumbTop <= 0f) return
+            val f = (newTop / maxThumbTop).coerceIn(0f, 1f)
+            // frac=0 → offset=scrollbackSize(最上端)、frac=1 → offset=0(最下端)。
+            val newOffset = (scrollbackSize * (1f - f)).roundToInt()
+            session.setScrollOffset(newOffset.coerceIn(0, scrollbackSize))
+        }
+
+        // つまみ。掴んで上下ドラッグで scrollback を移動できる。
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset { IntOffset(0, thumbTop.roundToInt()) }
+                .padding(end = 2.dp)
+                .width(barWidth)
+                .height(with(density) { thumbH.toDp() })
+                .clip(RoundedCornerShape(4.dp))
+                .background(ZtsGreen.copy(alpha = 0.55f))
+                .pointerInput(scrollbackSize, trackH, thumbH) {
+                    detectDragGestures(
+                        onDrag = { change, amount ->
+                            change.consume()
+                            // ドラッグ中の現在つまみ位置 (= frac から再計算) に移動量を足す。
+                            val curTop = (maxThumbTop *
+                                ((scrollbackSize - session.scrollOffset.value).toFloat() / scrollbackSize))
+                                .coerceIn(0f, maxThumbTop)
+                            applyThumbTop(curTop + amount.y)
+                        }
+                    )
+                }
+        )
     }
 }
 

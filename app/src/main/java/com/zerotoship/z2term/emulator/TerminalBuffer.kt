@@ -269,17 +269,25 @@ class TerminalBuffer(
     fun getRangeText(startRow: Int, startCol: Int, endRow: Int, endCol: Int): String {
         if (startRow > endRow || startRow !in 0 until totalRows) return ""
         val sb = StringBuilder()
-        for (r in startRow..endRow.coerceAtMost(totalRows - 1)) {
+        val lastRow = endRow.coerceAtMost(totalRows - 1)
+        for (r in startRow..lastRow) {
             val row = getRow(r)
             val from = if (r == startRow) startCol else 0
             val to = if (r == endRow) endCol + 1 else row.columns
+            val lineStart = sb.length
             for (c in from.coerceAtLeast(0) until to.coerceAtMost(row.columns)) {
                 val cell = row.getCell(c)
                 // wide-cont セルは通常スキップするが、絵文字/CJK 拡張は右セルに低サロゲートを
                 // 持つため、それは出力する (スキップすると孤立サロゲートで文字が壊れる)。
                 if (!cell.wideCont || cell.char.isLowSurrogate()) sb.append(cell.char)
             }
-            if (r < endRow) sb.append('\n')
+            // ソフト折り返し行 (row.wrapped) は視覚的に次行へ続く 1 論理行なので、改行を入れず
+            // そのまま連結する。ハード行は端末がセルを空白で右端まで埋めるため、行末スペースを
+            // 削ってから改行を付ける (これをしないとコピー結果が空白だらけで改行が埋もれる)。
+            if (!row.wrapped) {
+                while (sb.length > lineStart && sb[sb.length - 1] == ' ') sb.deleteCharAt(sb.length - 1)
+                if (r < lastRow) sb.append('\n')
+            }
         }
         return sb.toString()
     }

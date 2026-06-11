@@ -55,7 +55,7 @@ That's all the setup you need.
 
 | Button | What it does |
 |---|---|
-| 📋 | Paste text from the clipboard |
+| 📋 | Paste text from the clipboard (**double-tap to open the clipboard history** and pick from it) |
 | 📜 | Command list (tap a frequently used command to type it) + **SSH connect / SFTP** (switch with tabs) |
 | 🔅 | Screen-on lock (when ON, the screen won't auto-dim; the icon changes to 💡 while ON) |
 | 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF) |
@@ -109,17 +109,17 @@ Z2Term comes with its **own in-app keyboard**.
 
 | What you want | How |
 |---|---|
-| Copy text | **Long-press** the screen → drag with your finger to select → "Copy" button |
+| Copy text | **Long-press** the screen → drag with your finger to select → "Copy" button (trailing blanks are trimmed and each row gets a **line break**) |
 | Magnify while selecting | While selecting, a **magnifier** appears above your finger |
 | Select beyond the screen | While selecting, move your **finger to the top/bottom edge** → it auto-scrolls so you can keep selecting |
-| Paste | The **paste** button in the toolbar |
-| Scroll up/down | Drag with one finger. Use **↓** at the bottom-right to return to the latest |
+| Paste | The **📋** button in the toolbar. **Double-tap** it to open the **clipboard history** and pick a past copy to paste (synced with the system clipboard) |
+| Scroll up/down | Drag with one finger. You can also **grab the scrollbar on the right edge**. Use **↓** at the bottom-right to return to the latest |
 | Make text bigger/smaller | **Pinch** with two fingers (spread/squeeze) |
 | Add a terminal | The tab **+** (terminal) / **🖥** (GUI desktop) |
 | Remove a terminal | **Double-tap** that tab (the last remaining one won't be removed) |
 | Reorder tabs | **Long-press** a tab then **drag** left/right (you can move it edge to edge in one gesture) |
 | See tab info | **Long-press** a tab to pop up its name and the **engine it's running on** (PRoot / z2root / chroot / Android sh, or GUI for GUI tabs) — no need to open Settings; it shares the same long-press as reorder |
-| Check the app version | Type **`z2version`** in the terminal to print the running app's version, execution engine, etc. (`z2version --short` for just the version) |
+| Check the app version | Type **`z2version`** in the terminal to print the running app's version, execution engine, the **running OS (distro) and kernel**, etc. (`z2version --short` for just the version) |
 | Past commands | The **↑ key** (history persists even after restarting the app) |
 
 > When you launch the app it **always opens a single terminal tab** (previously open tabs are not auto-restored).

@@ -137,6 +137,12 @@
     <string name="tools_tab_snippets">Snippets</string>
     <string name="tools_tab_ssh">SSH / SFTP</string>
 
+    <!-- Clipboard history sheet (double-tap the 📋 paste button) -->
+    <string name="clip_history_title">Clipboard history</string>
+    <string name="clip_history_clear">Clear</string>
+    <string name="clip_history_empty">No history yet. Copies are captured automatically.</string>
+    <string name="clip_history_hint">▸ Tap a row → pasted into the terminal\n▸ Synced with the system clipboard (captured on copy / when the app comes to the foreground)\n▸ ✕ delete</string>
+
     <!-- Snippets sheet (D3 batch 2) -->
     <string name="snippets_title">Snippets</string>
     <string name="snippets_new">+ New</string>

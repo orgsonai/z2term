@@ -137,6 +137,12 @@
     <string name="tools_tab_snippets">スニペット</string>
     <string name="tools_tab_ssh">SSH / SFTP</string>
 
+    <!-- クリップボード履歴シート (📋 貼付ボタンをダブルタップで開く) -->
+    <string name="clip_history_title">クリップボード履歴</string>
+    <string name="clip_history_clear">クリア</string>
+    <string name="clip_history_empty">履歴はまだありません。コピーすると自動で取り込みます。</string>
+    <string name="clip_history_hint">▸ 行をタップ → ターミナルに貼り付け\n▸ システムクリップボードと同期 (コピー時 / アプリ前面復帰時に取り込み)\n▸ ✕ 削除</string>
+
     <!-- スニペットシート (D3 バッチ 2) -->
     <string name="snippets_title">スニペット</string>
     <string name="snippets_new">+ 新規</string>

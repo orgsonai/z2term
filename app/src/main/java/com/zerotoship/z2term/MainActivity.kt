@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.settings.CustomThemeStore
@@ -66,6 +67,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 前面復帰時に現在のシステムクリップボードを履歴へ取り込む。Android 10+ は
+        // フォーカス中のみ読取が許可されるため、裏で他アプリがコピーした内容はここで拾う。
+        ClipboardHistoryStore.captureCurrent(this)
     }
 
     private fun requestNotificationPermissionIfNeeded() {
