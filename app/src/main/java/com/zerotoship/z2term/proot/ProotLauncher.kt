@@ -57,7 +57,12 @@ class ProotLauncher(private val context: Context) {
      * 書類や git リポジトリなど通常ファイルは `/root` 直下のまま共有される。
      */
     private val isolatedHomeSubdirs: List<String> = listOf(
-        ".local", ".cache", ".npm", ".npm-global", ".nvm", ".cargo", ".rustup", ".config"
+        ".local", ".cache", ".npm", ".npm-global", ".nvm", ".cargo", ".rustup", ".config",
+        // claude の native 本体 (`~/.claude/downloads/claude`, 数百 MB の ELF) は arch 依存。
+        // `.claude` 直下の認証 (`.credentials.json`)・設定・projects は共有したいので、
+        // downloads サブのみ隔離する。これを共有すると musl(Alpine)↔glibc(Arch) で本体が
+        // 上書き合い「Not a valid dynamic program」で双方起動不可になる (項目4 の真因)。
+        ".claude/downloads"
     )
 
     /**
