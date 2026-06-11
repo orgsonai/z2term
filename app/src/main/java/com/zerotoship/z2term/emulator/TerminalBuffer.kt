@@ -275,7 +275,9 @@ class TerminalBuffer(
             val to = if (r == endRow) endCol + 1 else row.columns
             for (c in from.coerceAtLeast(0) until to.coerceAtMost(row.columns)) {
                 val cell = row.getCell(c)
-                if (!cell.wideCont) sb.append(cell.char)
+                // wide-cont セルは通常スキップするが、絵文字/CJK 拡張は右セルに低サロゲートを
+                // 持つため、それは出力する (スキップすると孤立サロゲートで文字が壊れる)。
+                if (!cell.wideCont || cell.char.isLowSurrogate()) sb.append(cell.char)
             }
             if (r < endRow) sb.append('\n')
         }

@@ -247,7 +247,13 @@ object KkcConverter {
                 val entries = lex[r]
                 if (entries != null) {
                     for (e in entries) {
-                        val c = if (bonus > 0) (e.cost - bonus).coerceAtLeast(1) else e.cost
+                        // 学習ボーナスは「ユーザーが実際に確定した表層」だけに効かせる。
+                        // 同じ読みの全表層へ一律に掛けると、塊 (ブロック) は維持できても辞書最小
+                        // コストの別表層が勝ち、ユーザーが選んだ漢字が反映されない (例: きく→聴く を
+                        // 学習しても 聞く が出続ける)。学習表層へ集中させることで「打ち慣れた変換」が
+                        // 文中でも勝つようにする。
+                        val applies = bonus > 0 && e.surface == learned?.first
+                        val c = if (applies) (e.cost - bonus).coerceAtLeast(1) else e.cost
                         val nd = Node(i, j, e.surface, r, e.lc, e.rc, c)
                         startsAt[i].add(nd); endsAt[j].add(nd)
                     }

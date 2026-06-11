@@ -112,7 +112,8 @@ class TerminalRow(initialColumns: Int) {
         return buildString(end + 1) {
             for (i in 0..end) {
                 val c = cells[i]
-                if (!c.wideCont) append(c.char)
+                // wide-cont でも低サロゲート (絵文字/CJK 拡張の右半分) は出力する。
+                if (!c.wideCont || c.char.isLowSurrogate()) append(c.char)
             }
         }
     }

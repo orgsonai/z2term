@@ -718,6 +718,13 @@ class ComposingState(
     var fullPrediction by mutableStateOf<String?>(null)
         private set
 
+    /**
+     * [fullPrediction] を構成する文節ブロックの (読み, 表層) 内訳。一括確定 ([commitFull]) 時に
+     * ブロック単位で学習させるため保持する。文全体を 1 キーで学習すると、その読みが丸ごと再来した
+     * ときしか効かず、頻用ブロック (今日の / 天気は …) の再利用が効かない。
+     */
+    private var fullPredictionBlocks: List<Pair<String, String>> = emptyList()
+
     /** スプリットモード: 0 なら未起動。1..text.length なら先頭 splitHeadLen 文字がフォーカス。 */
     var splitHeadLen by mutableStateOf(0)
         private set
@@ -897,8 +904,22 @@ class ComposingState(
     fun commitFull(): Boolean {
         val full = fullPrediction ?: return false
         if (text.isEmpty()) return false
-        ImeHistoryStore.record(text, full)
-        prevCommitSurface?.let { ImeHistoryStore.recordBigram(it, full) }
+        // ブロック単位で学習する: 文全体を 1 キーで覚えると同じ読みが丸ごと再来したときしか効かず、
+        // 頻用ブロック (今日の / 天気は …) が別の文で再利用されない。各ブロックの (読み→表層) と
+        // ブロック間の bigram を記録し、次回以降は文中でも打ち慣れたブロックが優先されるようにする。
+        val blocks = fullPredictionBlocks
+        if (blocks.size >= 2 && blocks.joinToString("") { it.second } == full) {
+            var prev = prevCommitSurface
+            for ((r, s) in blocks) {
+                ImeHistoryStore.record(r, s)
+                prev?.let { ImeHistoryStore.recordBigram(it, s) }
+                prev = s
+            }
+        } else {
+            // 内訳が取れない/不整合なら従来どおり文全体を 1 エントリで学習。
+            ImeHistoryStore.record(text, full)
+            prevCommitSurface?.let { ImeHistoryStore.recordBigram(it, full) }
+        }
         prevCommitSurface = full
         onCommit(full)
         lastCommittedReading = text
@@ -906,6 +927,7 @@ class ComposingState(
         text = ""
         candidates = emptyList()
         fullPrediction = null
+        fullPredictionBlocks = emptyList()
         splitHeadLen = 0
         autoSplit = false
         selectedCandidateIndex = -1
@@ -940,6 +962,7 @@ class ComposingState(
         text = ""
         candidates = emptyList()
         fullPrediction = null
+        fullPredictionBlocks = emptyList()
         splitHeadLen = 0
         autoSplit = false
         selectedCandidateIndex = -1
@@ -1045,8 +1068,17 @@ class ComposingState(
                 .firstOrNull()?.surface
                 ?: KkcConverter.convert(splitTail)
                 ?: splitTail
+            // 一括確定時にブロック単位で学習できるよう内訳を控える (先頭ブロック + tail の各文節)。
+            // 文全体を 1 キーで覚えると頻用ブロックの再利用が効かないため。
+            fullPredictionBlocks = buildList {
+                add(splitHead to headSurface)
+                addAll(KkcConverter.bunsetsu(splitTail))
+            }
             (headSurface + tailSurface).takeIf { it != text }
-        } else null
+        } else {
+            fullPredictionBlocks = emptyList()
+            null
+        }
     }
 
     /** 辞書候補にカタカナを加えた表示用リスト (生ひらがなはバー左のラベルで確定する)。 */

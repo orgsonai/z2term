@@ -21,6 +21,7 @@ import com.zerotoship.z2term.core.TerminalSelection
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.emulator.SgrAttribute
 import com.zerotoship.z2term.emulator.TerminalColors
+import com.zerotoship.z2term.emulator.TerminalRow
 import com.zerotoship.z2term.ui.terminal.input.UrlFinder
 import com.zerotoship.z2term.ui.theme.TerminalFontOptions
 
@@ -154,6 +155,20 @@ fun TerminalRenderer(
     }
 }
 
+/**
+ * セル (col) の描画文字列を返す。BMP 外 (絵文字 / CJK Ext) は高サロゲートを左セルに、
+ * 低サロゲートを右セル (wideCont) に分けて持つため、結合して 1 グリフとして渡す。
+ * 孤立した高サロゲートを単独で drawText すると豆腐/? になるのを防ぐ。
+ */
+private fun glyphAt(row: TerminalRow, col: Int): String {
+    val ch = row.getCell(col).char
+    if (ch.isHighSurrogate() && col + 1 < row.columns) {
+        val next = row.getCell(col + 1)
+        if (next.wideCont && next.char.isLowSurrogate()) return "$ch${next.char}"
+    }
+    return ch.toString()
+}
+
 private const val H_PAD_DP = 4f  // 端末描画の左右余白 (dp)
 private const val SELECTION_OVERLAY_ARGB: Int = 0x6622C55E.toInt() // ZtsGreen translucent
 private const val HANDLE_FILL_ARGB: Int = 0xFF22C55E.toInt()
@@ -278,7 +293,7 @@ private fun drawBuffer(
             if (cell.char != ' ') {
                 textPaint.color = drawFg
                 textPaint.isFakeBoldText = (flags and SgrAttribute.FLAG_BOLD) != 0
-                nativeCanvas.drawText(cell.char.toString(), c * cellW, baseline, textPaint)
+                nativeCanvas.drawText(glyphAt(row, c), c * cellW, baseline, textPaint)
             }
             val isLinkCell = linkMarks != null && c < linkMarks.size && linkMarks[c]
             if ((flags and SgrAttribute.FLAG_UNDERLINE) != 0 || isLinkCell) {
@@ -315,7 +330,7 @@ private fun drawBuffer(
                     textPaint.color = colors.defaultBackground
                     textPaint.isFakeBoldText = false
                     nativeCanvas.drawText(
-                        cell.char.toString(),
+                        glyphAt(row, emu.cursorCol),
                         cx, y + baselineOffset, textPaint
                     )
                 }
