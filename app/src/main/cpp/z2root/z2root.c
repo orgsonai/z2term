@@ -521,6 +521,11 @@ static int syscall_paths(long nr, struct sc_paths *out) {
             p[out->n++] = (struct path_arg){1, 0, 0, -1, 0, 0};
             p[out->n++] = (struct path_arg){3, 2, 0, -1, 0, 0};
             break;
+        case 45:  p[out->n++] = (struct path_arg){0, -1, 1, -1, 0, 0}; break;             // truncate (path arg0, dirfd 無し, follow。ftruncate(46) は fd なので対象外)
+        case 5: case 8: case 11: case 14:   // setxattr/getxattr/listxattr/removexattr (path arg0, follow)
+            p[out->n++] = (struct path_arg){0, -1, 1, -1, 0, 0}; break;
+        case 6: case 9: case 12: case 15:   // lsetxattr/lgetxattr/llistxattr/lremovexattr (path arg0, no-follow)
+            p[out->n++] = (struct path_arg){0, -1, 0, -1, 0, 0}; break;
         default: return 0;
     }
     return 1;
@@ -1688,6 +1693,8 @@ static const int kTraceSyscallsBase[] = {
     78,                       // readlinkat
     35, 34, 33,               // unlinkat / mkdirat / mknodat
     53, 88,                   // fchmodat / utimensat
+    45,                       // truncate (path 版。ftruncate(46) は fd なので非対象)
+    5, 6, 8, 9, 11, 12, 14, 15, // *setxattr/*getxattr/*listxattr/*removexattr の path 版(l*=no-follow)。f* は fd
     49, 43,                   // chdir / statfs
     36, 37, 38, 276,          // symlinkat / linkat / renameat / renameat2
     221, 281,                 // execve / execveat
