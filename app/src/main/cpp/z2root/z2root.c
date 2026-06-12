@@ -1705,6 +1705,19 @@ static const int kTraceSyscallsFakeroot[] = {
     211, 212,                 // sendmsg / recvmsg (AF_UNIX SCM_CREDENTIALS の uid/gid 偽装)
 };
 
+// トレースではなく ENOSYS で明示拒否する syscall。io_uring は submission ring 経由で
+// openat/read/write 等を非同期実行し、ptrace/seccomp の per-call トラップを丸ごと
+// 素通りする(=パス変換も fakeroot 偽装も効かない最危険経路)。従来は外側の Android
+// untrusted_app seccomp が io_uring を SIGSYS で弾き、トレーサが SIGSYS を ENOSYS へ
+// 化かして安全な旧経路(epoll/openat 等)へ倒していた(z2root.c の SIGSYS ハンドラ)が、
+// それは Android フィルタ依存だった。ここで z2root 自前のフィルタでも ENOSYS を返し、
+// Android がトラップしないコンテキストでも確実にフォールバックさせる(防御の多層化)。
+// 注: Android が io_uring を RET_TRAP する現行端末では action 優先順(TRAP>ERRNO)で
+// 従来どおり SIGSYS 経路を通る=挙動不変。Android が弾かない場合だけ本 ERRNO が効く。
+static const int kDenySyscalls[] = {
+    425, 426, 427,            // io_uring_setup / io_uring_enter / io_uring_register
+};
+
 // プロセスへ seccomp フィルタを導入する。成功 0 / 失敗 -1。
 static int install_seccomp_filter(const struct config *cfg) {
     int nrs[64];
@@ -1719,23 +1732,33 @@ static int install_seccomp_filter(const struct config *cfg) {
     if (cfg->fake_root)
         for (size_t i = 0; i < sizeof(kTraceSyscallsFakeroot)/sizeof(int); i++) nrs[n++] = kTraceSyscallsFakeroot[i];
 
+    int dnrs[16];
+    int d = 0;
+    for (size_t i = 0; i < sizeof(kDenySyscalls)/sizeof(int); i++) dnrs[d++] = kDenySyscalls[i];
+
     // BPF プログラムを組む。レイアウト:
     //   [0] LD arch
     //   [1] arch != AARCH64 → ALLOW
     //   [2] LD nr
-    //   [3 .. 3+C-1] nr 比較 C 個(一致で TRACE へ、不一致で次へ)
-    //   [3+C] ALLOW
-    //   [4+C] TRACE
+    //   [3 .. 3+D-1]     deny 比較 D 個(一致で DENY=ENOSYS へ、不一致で次へ)
+    //   [3+D .. 3+D+C-1] trace 比較 C 個(一致で TRACE へ、不一致で次へ)
+    //   [3+D+C] ALLOW
+    //   [4+D+C] TRACE
+    //   [5+D+C] DENY (RET_ERRNO ENOSYS)
     int C = n;
-    struct sock_filter prog[5 + 64];
+    int D = d;
+    struct sock_filter prog[8 + 64];
     int p = 0;
     prog[p++] = (struct sock_filter)BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, arch));
-    prog[p++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, AUDIT_ARCH_AARCH64, 0, (__u8)(1 + C));
+    prog[p++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, AUDIT_ARCH_AARCH64, 0, (__u8)(1 + D + C));
     prog[p++] = (struct sock_filter)BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr));
+    for (int i = 0; i < D; i++)
+        prog[p++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, (unsigned)dnrs[i], (__u8)(1 + D + C - i), 0);
     for (int i = 0; i < C; i++)
         prog[p++] = (struct sock_filter)BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, (unsigned)nrs[i], (__u8)(C - i), 0);
     prog[p++] = (struct sock_filter)BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW);
     prog[p++] = (struct sock_filter)BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_TRACE);
+    prog[p++] = (struct sock_filter)BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | (38u & SECCOMP_RET_DATA)); // ENOSYS
 
     struct sock_fprog fprog = { .len = (unsigned short)p, .filter = prog };
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) return -1;
