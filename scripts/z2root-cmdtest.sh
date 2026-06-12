@@ -130,11 +130,16 @@ optc rg 'rg --version | head -1; rg -n claude "'"$WORK"'" 2>/dev/null | head -1;
 banner "2. VCS の重い操作（hardlink / pack / rename / mmap）"
 # ---------------------------------------------------------------------------
 # git --version では出ない。clone→pack→gc→checkout で hardlink/rename を踏む。
-run git --version
-runc 'git init -q r && cd r && git -c user.email=a@b -c user.name=t commit -q --allow-empty -m c0 && for i in 1 2 3; do echo $i>f$i; git add f$i; git -c user.email=a@b -c user.name=t commit -q -m c$i; done && git gc -q && git log --oneline | wc -l && git checkout -q HEAD~1 && git status -s; echo "[git heavy exit=$?]"'
-if [ "${SKIP_NET:-0}" != "1" ]; then
-	# clone は hardlink を多用（既知の z2root 難所）。clone 後にビルド/参照まで。
-	runc 'git clone --depth 1 https://github.com/octocat/Hello-World.git "'"$WORK"'/HW" 2>&1 | tail -2 && git -C "'"$WORK"'/HW" log --oneline | head -1; echo "[git clone exit=$?]"'
+# git 未導入は skip（他コマンド同様）。末尾 echo を付けず実 rc を一覧へ反映する。
+if have git; then
+	run git --version
+	runc 'git init -q r && cd r && git -c user.email=a@b -c user.name=t commit -q --allow-empty -m c0 && for i in 1 2 3; do echo $i>f$i; git add f$i; git -c user.email=a@b -c user.name=t commit -q -m c$i; done && git gc -q && git log --oneline | wc -l && git checkout -q HEAD~1 && git status -s'
+	if [ "${SKIP_NET:-0}" != "1" ]; then
+		# clone は hardlink を多用（既知の z2root 難所）。clone 後に参照まで。
+		runc 'git clone --depth 1 https://github.com/octocat/Hello-World.git "'"$WORK"'/HW" 2>&1 | tail -2 && git -C "'"$WORK"'/HW" log --oneline | head -1'
+	fi
+else
+	skip "git 未インストール"
 fi
 
 # ---------------------------------------------------------------------------

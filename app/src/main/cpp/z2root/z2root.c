@@ -627,6 +627,19 @@ static int file_is_elf(const char *path) {
     return (r == 4 && m[0] == 0x7f && m[1] == 'E' && m[2] == 'L' && m[3] == 'F');
 }
 
+// ELF の e_type を返す(2=ET_EXEC, 3=ET_DYN)。非ELF/読めない場合 -1。
+// 動的 ET_EXEC を musl ld.so の明示起動不可問題向けの loader-exec 経路へ振り分ける判定用。
+static int elf_e_type(const char *path) {
+    int fd = open(path, O_RDONLY | O_CLOEXEC);
+    if (fd < 0) return -1;
+    unsigned char e[18];
+    ssize_t r = pread(fd, e, sizeof(e), 0);
+    close(fd);
+    if (r != (ssize_t)sizeof(e) || memcmp(e, "\x7f""ELF", 4) != 0) return -1;
+    unsigned short t; memcpy(&t, e + 0x10, 2);
+    return (int)t;
+}
+
 // guest_prog を resolve し host 実パスへ。orig_argv0 は ELF バイナリ起動時の argv0。
 // pid は相対 exec パスを /proc/<pid>/cwd で絶対化するため(run_child は自身の pid)。
 // 戻り値: 0 = loader 包み済み(plan->target/prefix 有効) / 1 = passthrough
@@ -684,6 +697,26 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
         char host_loader[PATH_MAX_Z];
         if (!translate_abs(cfg, interp, host_loader, sizeof(host_loader)))
             snprintf(host_loader, sizeof(host_loader), "%s", interp);
+
+        // ET_EXEC(非PIE)動的 + musl ld.so: musl は ET_EXEC を「コマンドとして明示起動」
+        // できない(`Not a valid dynamic program`)。本体と ld.so を両方マップし、カーネルが
+        // PT_INTERP 経由で起動したのと同じ auxv(AT_BASE=ld.so の base, AT_PHDR/ENTRY=本体)を
+        // 組む loader-exec 経路へ回す。glibc ld.so は明示起動で ET_EXEC を受けるため非対象に
+        // して既存経路(Arch claude 等)を温存する。loader 無効時は従来経路へフォールバック。
+        if (cfg->use_loader && cfg->self_path[0] != '\0') {
+            const char *lb = strrchr(interp, '/'); lb = lb ? lb + 1 : interp;
+            if (strncmp(lb, "ld-musl", 7) == 0 && elf_e_type(host_prog) == 2 /* ET_EXEC */) {
+                snprintf(plan->target, sizeof(plan->target), "%s", cfg->self_path);
+                plan->nprefix = 0;
+                plan_push(plan, "z2root");
+                plan_push(plan, "--loader-exec");
+                plan_push(plan, host_loader);  // ld.so 本体(host)
+                plan_push(plan, host_prog);    // ET_EXEC 本体(host)
+                plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : guest_prog);
+                return 0;
+            }
+        }
+
         snprintf(plan->target, sizeof(plan->target), "%s", host_loader);
         plan_push(plan, host_loader);
         // Android の bionic linker(/system/bin/linker64) は glibc/musl の ld.so と違い
@@ -2510,6 +2543,183 @@ static void load_elf_and_jump(const char *path, char **child_argv, char **child_
     __builtin_unreachable();
 }
 
+// PT_LOAD を匿名 PROT_EXEC メモリへマップし base/entry/phdr を返す(自己 relocation する
+// ld.so 本体と、ld.so が再配置する ET_EXEC 本体専用。ローダ側 relocation 肩代わりは行わない)。
+// 成功 0 / 失敗 -1。load_exec_via_interp が本体・ld.so を各 1 回マップするのに使う。
+struct img_map { unsigned long base, entry, phdr, phent, phnum; };
+static int map_img(const char *path, struct img_map *out) {
+    int fd = open(path, O_RDONLY | O_CLOEXEC);
+    if (fd < 0) return -1;
+    unsigned char eh[64];
+    if (pread(fd, eh, sizeof(eh), 0) != (ssize_t)sizeof(eh)) { close(fd); return -1; }
+    if (memcmp(eh, "\x7f""ELF", 4) != 0) { close(fd); return -1; }
+    unsigned long e_entry, e_phoff;
+    unsigned short e_phentsize, e_phnum, e_type;
+    memcpy(&e_type,      eh + 0x10, 2);
+    memcpy(&e_entry,     eh + 0x18, 8);
+    memcpy(&e_phoff,     eh + 0x20, 8);
+    memcpy(&e_phentsize, eh + 0x36, 2);
+    memcpy(&e_phnum,     eh + 0x38, 2);
+
+    long pagesz = sysconf(_SC_PAGESIZE);
+    if (pagesz <= 0) pagesz = 4096;
+    unsigned long pmask = (unsigned long)pagesz - 1;
+
+    unsigned char ph[MAX_PH][56];
+    if (e_phnum > MAX_PH) e_phnum = MAX_PH;
+    for (unsigned i = 0; i < e_phnum; i++)
+        if (pread(fd, ph[i], 56, (off_t)(e_phoff + (unsigned long)i * e_phentsize)) != 56) {
+            close(fd); return -1;
+        }
+
+    unsigned long min_va = ~0UL, max_va = 0, pt_phdr_va = 0;
+    int has_pt_phdr = 0;
+    for (unsigned i = 0; i < e_phnum; i++) {
+        unsigned int p_type; memcpy(&p_type, ph[i], 4);
+        if (p_type == PT_PHDR_Z) { memcpy(&pt_phdr_va, ph[i] + 16, 8); has_pt_phdr = 1; }
+        if (p_type != PT_LOAD_Z) continue;
+        unsigned long p_vaddr, p_memsz;
+        memcpy(&p_vaddr, ph[i] + 16, 8);
+        memcpy(&p_memsz, ph[i] + 40, 8);
+        if (p_vaddr < min_va) min_va = p_vaddr;
+        if (p_vaddr + p_memsz > max_va) max_va = p_vaddr + p_memsz;
+    }
+    if (min_va == ~0UL) { close(fd); return -1; }
+
+    // ET_DYN(ld.so)は連続領域を予約して base を決める。ET_EXEC(本体)は p_vaddr そのまま(base=0)。
+    unsigned long base = 0;
+    if (e_type == 3 /* ET_DYN */) {
+        unsigned long span = ((max_va + pmask) & ~pmask) - (min_va & ~pmask);
+        void *resv = mmap(NULL, span, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (resv == MAP_FAILED) { close(fd); return -1; }
+        base = (unsigned long)resv - (min_va & ~pmask);
+    }
+
+    for (unsigned i = 0; i < e_phnum; i++) {
+        unsigned int p_type, p_flags;
+        memcpy(&p_type, ph[i], 4);
+        if (p_type != PT_LOAD_Z) continue;
+        memcpy(&p_flags, ph[i] + 4, 4);
+        unsigned long p_offset, p_vaddr, p_filesz, p_memsz;
+        memcpy(&p_offset, ph[i] + 8,  8);
+        memcpy(&p_vaddr,  ph[i] + 16, 8);
+        memcpy(&p_filesz, ph[i] + 32, 8);
+        memcpy(&p_memsz,  ph[i] + 40, 8);
+        unsigned long seg_start = (base + p_vaddr) & ~pmask;
+        unsigned long seg_end   = (base + p_vaddr + p_memsz + pmask) & ~pmask;
+        unsigned long off_in_pg = (base + p_vaddr) - seg_start;
+        void *seg = mmap((void *)seg_start, seg_end - seg_start,
+                         PROT_READ | PROT_WRITE,
+                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+        if (seg == MAP_FAILED) { close(fd); return -1; }
+        if (p_filesz > 0 &&
+            pread(fd, (char *)seg_start + off_in_pg, p_filesz, (off_t)p_offset) != (ssize_t)p_filesz) {
+            close(fd); return -1;
+        }
+        int prot = ((p_flags & PF_R_Z) ? PROT_READ : 0) |
+                   ((p_flags & PF_W_Z) ? PROT_WRITE : 0) |
+                   ((p_flags & PF_X_Z) ? PROT_EXEC : 0);
+        if (mprotect((void *)seg_start, seg_end - seg_start, prot) != 0) { close(fd); return -1; }
+    }
+    close(fd);
+
+    unsigned long phdr_mem;
+    if (has_pt_phdr) {
+        phdr_mem = base + pt_phdr_va;
+    } else {
+        phdr_mem = base + e_phoff;
+        for (unsigned i = 0; i < e_phnum; i++) {
+            unsigned int p_type; memcpy(&p_type, ph[i], 4);
+            if (p_type != PT_LOAD_Z) continue;
+            unsigned long p_offset, p_vaddr, p_filesz;
+            memcpy(&p_offset, ph[i] + 8,  8);
+            memcpy(&p_vaddr,  ph[i] + 16, 8);
+            memcpy(&p_filesz, ph[i] + 32, 8);
+            if (e_phoff >= p_offset && e_phoff < p_offset + p_filesz) {
+                phdr_mem = base + p_vaddr + (e_phoff - p_offset);
+                break;
+            }
+        }
+    }
+    out->base  = base;
+    out->entry = base + e_entry;
+    out->phdr  = phdr_mem;
+    out->phent = e_phentsize;
+    out->phnum = e_phnum;
+    return 0;
+}
+
+// 動的 ET_EXEC(非PIE)本体を ld.so 経由で起動する。musl ld.so は ET_EXEC の「コマンド明示
+// 起動」を拒否する(`Not a valid dynamic program`)ため、本体と ld.so を両方マップし、カーネルが
+// PT_INTERP 経由で exec したのと同じ初期スタックを組む: AT_PHDR/ENTRY=本体, AT_BASE=ld.so の
+// load base。これで musl は「インタプリタとして起動された」と判定し、本体を relocation して
+// 起動する(proot loader 相当)。child_argv は本体に渡す argv([argv0, args...])。戻らない。
+__attribute__((noreturn))
+static void load_exec_via_interp(const char *interp_path, const char *prog_path,
+                                 char **child_argv, char **child_envp) {
+    struct img_map prog, interp;
+    if (map_img(prog_path, &prog) != 0)     loader_fail("map prog", prog_path);
+    if (map_img(interp_path, &interp) != 0) loader_fail("map interp", interp_path);
+
+    long pagesz = sysconf(_SC_PAGESIZE);
+    if (pagesz <= 0) pagesz = 4096;
+
+    int dbg = (getenv("Z2ROOT_LOADER_DEBUG") != NULL);
+    if (dbg) {
+        char b[256];
+        int l = snprintf(b, sizeof(b),
+                "z2root loader-exec: prog entry=%lx phdr=%lx phnum=%lu  interp base=%lx entry=%lx\n",
+                prog.entry, prog.phdr, prog.phnum, interp.base, interp.entry);
+        if (l > 0) write(2, b, (size_t)l);
+    }
+
+    int argc_n = 0; while (child_argv[argc_n]) argc_n++;
+    int envc_n = 0; while (child_envp[envc_n]) envc_n++;
+
+    unsigned long av[][2] = {
+        { AT_PHDR_Z,   prog.phdr },     // 本体の phdr(ld.so はこれを見て「自分はインタプリタ」と判定)
+        { AT_PHENT_Z,  prog.phent },
+        { AT_PHNUM_Z,  prog.phnum },
+        { AT_PAGESZ_Z, (unsigned long)pagesz },
+        { AT_BASE_Z,   interp.base },   // ld.so の load base(非0=インタプリタ起動の目印)
+        { AT_FLAGS_Z,  0 },
+        { AT_ENTRY_Z,  prog.entry },    // 本体(ET_EXEC)のエントリ。ld.so が relocation 後にここへ飛ぶ
+        { AT_UID_Z,    getauxval(AT_UID_Z) },
+        { AT_EUID_Z,   getauxval(AT_EUID_Z) },
+        { AT_GID_Z,    getauxval(AT_GID_Z) },
+        { AT_EGID_Z,   getauxval(AT_EGID_Z) },
+        { AT_SECURE_Z, 0 },
+        { AT_RANDOM_Z, getauxval(AT_RANDOM_Z) },
+        { AT_HWCAP_Z,  getauxval(AT_HWCAP_Z) },
+        { AT_HWCAP2_Z, getauxval(AT_HWCAP2_Z) },
+        { AT_CLKTCK_Z, getauxval(AT_CLKTCK_Z) },
+        { AT_SYSINFO_EHDR_Z, getauxval(AT_SYSINFO_EHDR_Z) },
+        { AT_EXECFN_Z, (unsigned long)child_argv[0] },
+    };
+    int naux = (int)(sizeof(av) / sizeof(av[0]));
+
+    int words = 1 + (argc_n + 1) + (envc_n + 1) + (naux * 2 + 2);
+    unsigned long ap = (unsigned long)alloca((size_t)words * 8 + 16);
+    unsigned long *sp = (unsigned long *)((ap + 15) & ~15UL);
+
+    unsigned long *w = sp;
+    *w++ = (unsigned long)argc_n;
+    for (int i = 0; i < argc_n; i++) *w++ = (unsigned long)child_argv[i];
+    *w++ = 0;
+    for (int i = 0; i < envc_n; i++) *w++ = (unsigned long)child_envp[i];
+    *w++ = 0;
+    for (int i = 0; i < naux; i++) { *w++ = av[i][0]; *w++ = av[i][1]; }
+    *w++ = AT_NULL_Z; *w++ = 0;
+
+    // ld.so の entry へ分岐(ld.so が自己 relocation→本体 relocation→AT_ENTRY へ飛ぶ)。
+    __asm__ volatile(
+        "mov sp, %0\n"
+        "mov x0, #0\n"
+        "br  %1\n"
+        : : "r"(sp), "r"(interp.entry) : "memory", "x0");
+    __builtin_unreachable();
+}
+
 // --loader[/--loader-noreloc] <elf> <argv0> [args...]: 自前ローダのエントリ。
 // --loader-noreloc は対象 ELF が自己 relocation する(ld.so 本体など)ため、ローダ側の
 // RELATIVE/RELR 肩代わりを抑止する(二重 relocation 防止)。戻らない(失敗時のみ _exit)。
@@ -2520,6 +2730,14 @@ static void loader_main(int argc, char **argv) {
         int l = snprintf(b, sizeof(b), "z2root loader_main: argc=%d a1=%s a2=%s a3=%s\n",
                          argc, argc>1?argv[1]:"-", argc>2?argv[2]:"-", argc>3?argv[3]:"-");
         write(2, b, l);
+    }
+    // --loader-exec <ld.so> <prog> <argv0> [args...]: 動的 ET_EXEC を ld.so 経由で起動。
+    if (strcmp(argv[1], "--loader-exec") == 0) {
+        if (argc < 5) {
+            fprintf(stderr, "z2root loader: usage: --loader-exec <ld.so> <prog> <argv0> [args...]\n");
+            _exit(2);
+        }
+        load_exec_via_interp(argv[2], argv[3], &argv[4], environ);
     }
     if (argc < 4) {
         fprintf(stderr, "z2root loader: usage: --loader[/--loader-noreloc] <elf> <argv0> [args...]\n");
@@ -2532,7 +2750,8 @@ static void loader_main(int argc, char **argv) {
 int main(int argc, char **argv) {
     // --loader モード(自分自身を nativeLibraryDir から execve して入る)を最優先で分岐。
     if (argc >= 2 && (strcmp(argv[1], "--loader") == 0 ||
-                      strcmp(argv[1], "--loader-noreloc") == 0)) loader_main(argc, argv);
+                      strcmp(argv[1], "--loader-noreloc") == 0 ||
+                      strcmp(argv[1], "--loader-exec") == 0)) loader_main(argc, argv);
 
     struct config cfg;
     char *const *command = parse_args(argc, argv, &cfg);
