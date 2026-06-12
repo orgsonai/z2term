@@ -605,12 +605,31 @@ class ProotLauncher(private val context: Context) {
 
     private fun shellExists(rootfs: File, absPath: String): Boolean {
         val rel = absPath.trimStart('/')
-        if (File(rootfs, rel).exists()) return true
+        if (pathPresent(File(rootfs, rel))) return true
         // usrmerge: /bin/bash → /usr/bin/bash
         if (rel.startsWith("bin/") || rel.startsWith("sbin/")) {
-            if (File(rootfs, "usr/$rel").exists()) return true
+            if (pathPresent(File(rootfs, "usr/$rel"))) return true
         }
         return false
+    }
+
+    /**
+     * パスが実体 (通常ファイル) または symlink として存在するか。
+     *
+     * Alpine minirootfs の `/bin/sh -> /bin/busybox` の様な **絶対 symlink** は、
+     * File.exists() がリンク先をホストの filesystem root 起点で解決するため
+     * (ゲストの rootfs ではなく host:/bin/busybox を見にいく) 常に false になり、
+     * resolveShell のフォールバックが全滅して bogus な要求値 (例 /bin/zsh) が
+     * そのまま execve され ENOENT で起動失敗していた。ゲスト名前空間ではリンクが
+     * 正しく解決されるので、ここでは NOFOLLOW でリンク自体の存在だけを見る。
+     */
+    private fun pathPresent(f: File): Boolean {
+        if (f.exists()) return true
+        return try {
+            java.nio.file.Files.exists(f.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)
+        } catch (_: Exception) {
+            false
+        }
     }
 
     /**
