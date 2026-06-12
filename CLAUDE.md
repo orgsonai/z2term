@@ -17,3 +17,10 @@
 - `git push` はユーザーの明示指示があるまで禁止。
 - `--no-verify` は禁止（フック失敗は原因を直す）。
 - 署名鍵（`*.jks`, `keystore.properties`）, `local.properties` はコミットしない。
+
+## ビルド運用
+
+- ⛔ **ビルドは CPU を論理コアの「半分」だけ使う。** 端末の他作業/発熱を確保するため。
+  - `scripts/gw.sh` 経由でビルドすれば、`nproc` の半分を `--max-workers` に自動設定する（端末ごとのコア数に追従）。
+  - 直接 `./gradlew` を叩く場合も `--max-workers=$(($(nproc)/2))` を付ける。
+  - 明示的に `--max-workers` / `--no-parallel` を渡した場合はそれを尊重する（gw.sh は上書きしない）。

@@ -49,6 +49,10 @@ android {
             applicationIdSuffix = ".foss"
             versionNameSuffix = "-foss"
             buildConfigField("boolean", "IS_FOSS", "true")
+            // full と別 applicationId で共存するので、ランチャー表示名も分けて見分けられるようにする。
+            // release: "Z2Term FOSS" (full は "Z2Term")。debug は buildType が "Z2Term dbg2" に
+            // 上書きする (placeholder 優先順位: buildType > flavor) ので foss debug もそれを使う。
+            manifestPlaceholders["appLabel"] = "Z2Term FOSS"
         }
     }
 
@@ -60,26 +64,26 @@ android {
      * `foss` フレーバーはこれらを APK から完全に外し、ユーザー実行時にダウンロード
      * (DistroDownloader) して動作させる必要がある。
      *
-     * 実現方法: 大型 prebuilt は `src/full/...` 配下に置き、`src/main/` には共通の
-     * Kotlin / リソースだけを残す。これにより `assembleFossDebug` ではバイナリが
-     * APK に入らない。**ファイルの物理移動が必要** (方針書 §法的対応 §F-Droid 参照)。
+     * 実現方法: third-party prebuilt (PRoot/talloc) と Alpine rootfs は `src/full/...`
+     * 配下に置き、`src/main/` には共通の Kotlin / リソースと、**ソースから再生成される**
+     * z2root/z2accept (build-z2root.sh) だけを残す。AGP の main sourceSet (`src/main/jniLibs`)
+     * は全 variant に寄与するため、foss でも z2root は同梱されるが proot は同梱されない。
      *
-     * 移動先パス:
-     *  - `src/main/jniLibs/`                              → `src/full/jniLibs/`
-     *  - `src/main/assets/alpine-minirootfs-*.tgz`        → `src/full/assets/`
-     *  - `src/main/assets/fonts/` (OFL) は **共通** なので src/main に残す
-     *  - `src/main/assets/z2dict.txt` は **共通**
-     *  - `src/main/assets/licenses/` (本パッチ追加) は **共通**
+     * 配置:
+     *  - PRoot/talloc prebuilt          → `src/full/jniLibs/`   (full のみ。F-Droid 非適合)
+     *  - z2root/z2accept (source build) → `src/main/jniLibs/`   (full+foss 共通。F-Droid 適合)
+     *  - `src/main/assets/alpine-minirootfs-*.tgz` → `src/full/assets/` (full のみ。foss は実行時 DL)
+     *  - `src/main/assets/fonts/` (OFL) / `z2dict.txt` / `licenses/` は **共通** (src/main 据置)
      */
     sourceSets {
         getByName("full") {
-            jniLibs.srcDirs("src/main/jniLibs", "src/full/jniLibs")
+            // src/main/jniLibs (z2root) は main から自動寄与。full は proot を追加するのみ。
+            jniLibs.srcDirs("src/full/jniLibs")
             assets.srcDirs("src/main/assets", "src/full/assets")
         }
         getByName("foss") {
-            // foss は src/main/ の共通アセット (フォント / 辞書 / ライセンス) のみ。
-            // src/main/jniLibs と src/main/assets/alpine-* が物理的に存在すると Full のままに
-            // なるため、foss ビルドを実際に行う前に上記 src/full/ への移動が必須。
+            // foss は main の jniLibs (z2root/z2accept のみ) と共通アセットを使う。
+            // proot prebuilt と alpine rootfs は src/full にあるため foss には入らない。
             jniLibs.srcDirs("src/foss/jniLibs")
             assets.srcDirs("src/main/assets", "src/foss/assets")
         }
@@ -95,8 +99,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 86
-        versionName = "0.8.78-alpha"
+        versionCode = 87
+        versionName = "0.8.79-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -216,10 +220,11 @@ val buildZ2rootNative = tasks.register<Exec>("buildZ2rootNative") {
     commandLine("bash", script.absolutePath)
 }
 
-// full フレーバーの jniLibs マージ前に必ず z2root を再ビルドさせる(stale .so 同梱を構造的に防ぐ)。
-// foss フレーバーは z2root を同梱しない(DistroDownloader 経由)ため対象外。
+// 全フレーバーの jniLibs マージ前に必ず z2root を再ビルドさせる(stale .so 同梱を構造的に防ぐ)。
+// z2root/z2accept は src/main/jniLibs に出力し full/foss 共通で同梱される(ソースビルドのため
+// F-Droid 適合)。foss の実行エンジンは proot ではなくこの z2root。
 tasks.matching {
-    it.name.startsWith("merge") && it.name.contains("Full") && it.name.endsWith("JniLibFolders")
+    it.name.startsWith("merge") && it.name.endsWith("JniLibFolders")
 }.configureEach { dependsOn(buildZ2rootNative) }
 
 // ---------------------------------------------------------------------------
@@ -272,9 +277,9 @@ val verifyFullBundled = tasks.register("verifyFullBundledArtifacts") {
     doLast {
         val missing = mutableListOf<String>()
         listOf(
-            "app/src/main/jniLibs/arm64-v8a/libproot.so",
-            "app/src/main/jniLibs/arm64-v8a/libproot_loader.so",
-            "app/src/main/jniLibs/arm64-v8a/libtalloc.so",
+            "app/src/full/jniLibs/arm64-v8a/libproot.so",
+            "app/src/full/jniLibs/arm64-v8a/libproot_loader.so",
+            "app/src/full/jniLibs/arm64-v8a/libtalloc.so",
         ).filter { !File(root, it).exists() }
             .forEach { missing += "  - $it\n      再生成: bash scripts/build-proot.sh" }
         // rootfs は build-alpine-rootfs.sh が src/main/assets に出力し、F-Droid 対応で

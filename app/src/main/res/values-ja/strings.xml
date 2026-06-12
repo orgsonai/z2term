@@ -363,6 +363,9 @@
     <string name="ime_history_empty">学習履歴はまだありません。日本語キーボードで変換確定すると、ここに記録されます。</string>
     <string name="ime_history_clear_confirm">学習履歴をすべて消去しますか? この操作は取り消せません。</string>
     <string name="ime_history_count_badge">×%1$d</string>
+    <string name="ime_history_search_hint">読み / 単語で検索…</string>
+    <string name="ime_history_search_empty">検索に一致する項目がありません。</string>
+    <string name="ime_history_count_filtered">%1$d / %2$d 件</string>
 
     <!-- Android API ブリッジ (z2-* ヘルパー) -->
     <string name="api_channel_name">端末 API</string>

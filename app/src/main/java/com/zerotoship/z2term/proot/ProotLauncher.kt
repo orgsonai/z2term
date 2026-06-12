@@ -213,7 +213,9 @@ class ProotLauncher(private val context: Context) {
         }
         // エンジン選択: 裏設定で z2root が選ばれ、かつ libz2root.so が同梱されていれば z2root を使う。
         // 未同梱 (build-z2root.sh 未実行) の場合は proot へ素直にフォールバック。
-        val useZ2root = isZ2rootEngineSelected() && z2rootBinary.exists()
+        // foss は proot prebuilt を同梱しない (F-Droid 適合) ため、z2root が同梱されていれば
+        // 設定に関わらず z2root を既定エンジンとする。
+        val useZ2root = (BuildConfig.IS_FOSS || isZ2rootEngineSelected()) && z2rootBinary.exists()
         val engineBinary = if (useZ2root) z2rootBinary else prootBinary
         if (!engineBinary.exists()) {
             throw IllegalStateException("Engine binary not found: ${engineBinary.absolutePath}")
@@ -1010,8 +1012,13 @@ class ProotLauncher(private val context: Context) {
         return true
     }
 
-    /** proot バイナリが配置されているか確認 */
-    fun isProotAvailable(): Boolean = prootBinary.exists()
+    /**
+     * 実行エンジンのバイナリが配置されているか確認 (起動可否ゲート)。
+     * foss は proot を同梱しないため z2root の有無で判定する。full は proot を見る
+     * (full でも z2root は別経路で使えるが、同梱保証されるのは proot 側)。
+     */
+    fun isProotAvailable(): Boolean =
+        if (BuildConfig.IS_FOSS) z2rootBinary.exists() else prootBinary.exists()
 
     /**
      * [launch] が**実際に**使うエンジン名を返す ([AppSettings.ENGINE_PROOT] か [ENGINE_Z2ROOT])。
@@ -1021,7 +1028,7 @@ class ProotLauncher(private val context: Context) {
      * 設定画面で「いま本当に動いているエンジン」を信頼できる形で出すために使う。
      */
     fun resolveLaunchEngine(): String =
-        if (isZ2rootEngineSelected() && z2rootBinary.exists()) AppSettings.ENGINE_Z2ROOT
+        if ((BuildConfig.IS_FOSS || isZ2rootEngineSelected()) && z2rootBinary.exists()) AppSettings.ENGINE_Z2ROOT
         else AppSettings.ENGINE_PROOT
 
     companion object {

@@ -272,6 +272,12 @@ class TerminalInputView(context: Context) : View(context) {
         imm?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
     }
 
+    /** OS ソフトキーボードを明示的に隠す (設定シートを開くときなど)。 */
+    fun hideKeyboard() {
+        val imm = context.getSystemService(InputMethodManager::class.java)
+        imm?.hideSoftInputFromWindow(windowToken, 0)
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val action = event.actionMasked
 

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-12 / 対象バージョン: 0.8.78-alpha (versionCode 86)
+最終更新: 2026-06-12 / 対象バージョン: 0.8.79-alpha (versionCode 87)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -45,7 +45,7 @@
 | フレーバー | applicationId | 用途 |
 |---|---|---|
 | `full` | `com.zerotoship.z2term` | 通常配布 (rootfs/proot 同梱・初回オフライン起動可) |
-| `foss` | `com.zerotoship.z2term.foss` | 外部ライセンス表記の最小化。Alpine rootfs を APK から外し起動時 DL (proot/talloc は同梱継続・初回オフライン起動不可) |
+| `foss` | `com.zerotoship.z2term.foss` | F-Droid 適合。third-party prebuilt (proot/talloc) と Alpine rootfs を APK から外し、実行エンジンは同梱ソースからビルドする z2root、rootfs は起動時 DL (初回オフライン起動不可) |
 
 `debug` ビルドは更に `.debug` サフィックスが付く。
 
@@ -399,7 +399,7 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 ```
 
 - full の同梱: `jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc}.so`(両フレーバー共通)、`src/full/assets/alpine-minirootfs-aarch64.tgz`(full のみ)、`assets/fonts/*.ttf`(共通)。
-- foss は rootfs を含めず、`DistroSpec.ALPINE` の公式 CDN URL + SHA-256 で起動時に取得 (`DistroSpec.bundledInApk` が false)。proot/talloc は W^X 制約で同梱必須。
+- foss は rootfs を含めず、`DistroSpec.ALPINE` の公式 CDN URL + SHA-256 で起動時に取得 (`DistroSpec.bundledInApk` が false)。proot/talloc prebuilt は F-Droid 非適合のため foss から除外し、実行エンジンは同梱ソースからビルドする z2root を使う。
 - **assets の rootfs は `.tgz` 拡張子**で置く (`.tar.gz` だと aapt が解凍リネームする)。
 - **`useLegacyPackaging=true` 必須** (execve する .so を nativeLibraryDir に実体配置するため)。
 - rootfs 構成変更時: `scripts/alpine-packages.txt` 編集 → `DistroBundle.ROOTFS_VERSION` を +1 → `FORCE=1 build-alpine-rootfs.sh` → assemble (利用者は APK 入替で自動再展開)。

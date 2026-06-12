@@ -322,8 +322,8 @@ class TerminalSession(
                 writeBanner(appContext.getString(R.string.banner_distro_starting, spec.displayName))
 
                 val (rows, cols) = currentSize()
-                val shell = settingsFlow.value.loginShell.ifBlank { spec.defaultShell }
-                // launcher 側で、指定シェルが rootfs に無ければ spec.defaultShell → /bin/sh に
+                val shell = settingsFlow.value.loginShell.ifBlank { spec.effectiveDefaultShell }
+                // launcher 側で、指定シェルが rootfs に無ければ spec.effectiveDefaultShell → /bin/sh に
                 // フォールバックする (Ubuntu base に zsh が無い、等のケース)。
                 // P3 (CUI⇄GUI 連動): このタブの display 番号を proot env に渡す。
                 // exportDisplay=true で `DISPLAY=:N` も付与され、端末内 `z2run <gui-app>` が同じ
@@ -341,7 +341,7 @@ class TerminalSession(
                             command = shell,
                             rows = rows,
                             cols = cols,
-                            fallbackShell = spec.defaultShell,
+                            fallbackShell = spec.effectiveDefaultShell,
                             display = display,
                         )
                     }.getOrElse { e ->
@@ -358,7 +358,7 @@ class TerminalSession(
                             command = shell,
                             rows = rows,
                             cols = cols,
-                            fallbackShell = spec.defaultShell,
+                            fallbackShell = spec.effectiveDefaultShell,
                             display = display,
                             exportDisplay = true,
                         )
@@ -370,7 +370,7 @@ class TerminalSession(
                         command = shell,
                         rows = rows,
                         cols = cols,
-                        fallbackShell = spec.defaultShell,
+                        fallbackShell = spec.effectiveDefaultShell,
                         display = display,
                         exportDisplay = true,
                     )
@@ -391,6 +391,23 @@ class TerminalSession(
                 fallbackToAndroidSh()
             }
         }
+    }
+
+    /**
+     * 自動起動 (startTerminal) がそのまま走るとネットワーク DL が発生する場合、その対象
+     * spec を返す。確認不要 (確認 OFF / 同梱 / 導入済み / アーカイブ取得済み) なら null。
+     * UI 側はこれが非 null のとき先にダウンロード確認ダイアログを出す (foss の初回起動など)。
+     * pendingRestoreDistroId は消費せず peek するだけ (実際の消費は startTerminal が行う)。
+     */
+    fun downloadOnStartSpec(): DistroSpec? {
+        if (!settingsFlow.value.confirmBeforeDownload) return null
+        val spec = pendingRestoreDistroId?.let { DistroSpec.byId(it) }
+            ?: DistroSpec.byId(settingsFlow.value.distroId)
+            ?: DistroSpec.ALPINE
+        if (spec.effectivelyBundled) return null
+        if (launcher.isDistroReady(spec.id)) return null
+        if (downloader.resolveLocalArchive(spec, detectAbiId()) != null) return null
+        return spec
     }
 
     /** SUPPORTED_ABIS の先頭。DistroDownloader/Installer と同じ判定。 */

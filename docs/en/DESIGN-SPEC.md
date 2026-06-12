@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-06-12 / Target version: 0.8.78-alpha (versionCode 86)
+Last updated: 2026-06-12 / Target version: 0.8.79-alpha (versionCode 87)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -44,7 +44,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 | Flavor | applicationId | Purpose |
 |---|---|---|
 | `full` | `com.zerotoship.z2term` | Normal distribution (rootfs/proot bundled; offline first run) |
-| `foss` | `com.zerotoship.z2term.foss` | Minimizes third-party license notices. Alpine rootfs excluded from the APK and downloaded at runtime (proot/talloc stay bundled; no offline first run) |
+| `foss` | `com.zerotoship.z2term.foss` | F-Droid compliant. Third-party prebuilts (proot/talloc) and the Alpine rootfs are excluded from the APK; the execution engine is z2root built from bundled source, and the rootfs is downloaded at runtime (no offline first run) |
 
 `debug` builds additionally carry a `.debug` suffix.
 
@@ -399,7 +399,7 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 ```
 
 - full bundle: `jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc}.so` (both flavors), `src/full/assets/alpine-minirootfs-aarch64.tgz` (full only), `assets/fonts/*.ttf` (shared).
-- foss excludes the rootfs and fetches it at startup via `DistroSpec.ALPINE`'s official CDN URL + SHA-256 (`DistroSpec.bundledInApk` returns false). proot/talloc must stay bundled due to the W^X constraint.
+- foss excludes the rootfs and fetches it at startup via `DistroSpec.ALPINE`'s official CDN URL + SHA-256 (`DistroSpec.bundledInApk` returns false). foss also excludes the proot/talloc prebuilts (F-Droid non-compliant) and runs on z2root built from bundled source instead.
 - **The rootfs in assets uses the `.tgz` extension** (with `.tar.gz`, aapt decompresses and renames it).
 - **`useLegacyPackaging=true` is required** (so the `.so` files that get execve'd are placed as real files in nativeLibraryDir).
 - When the rootfs composition changes: edit `scripts/alpine-packages.txt` → bump `DistroBundle.ROOTFS_VERSION` by +1 → `FORCE=1 build-alpine-rootfs.sh` → assemble (users auto-redeploy by swapping the APK).

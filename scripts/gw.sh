@@ -90,10 +90,25 @@ build_shim() {
     fi
 }
 
+# CPU 使用率を抑えるため、ビルドは論理コアの「半分」だけ使う(端末の他作業/発熱を確保)。
+# 端末ごとにコア数が違う(PC / オンデバイス)ので nproc から動的に算出する。
+# 呼び出し側が明示的に --max-workers / --no-parallel を渡した場合はそれを尊重する。
+GRADLE_ARGS=("$@")
+case " $* " in
+    *" --max-workers"*|*" --no-parallel "*) : ;;  # 明示指定あり→上書きしない
+    *)
+        nproc_n="$(nproc 2>/dev/null || echo 2)"
+        half=$(( nproc_n / 2 ))
+        [ "$half" -lt 1 ] && half=1
+        GRADLE_ARGS=(--max-workers="$half" "$@")
+        log "CPU 半分でビルド: --max-workers=$half (nproc=$nproc_n)"
+        ;;
+esac
+
 if need_shim; then
     build_shim
     log "libc accept() が ENOSYS → LD_PRELOAD=$SHIM_SO でビルド"
-    exec env LD_PRELOAD="${LD_PRELOAD:+$LD_PRELOAD:}$SHIM_SO" "$GRADLEW" "$@"
+    exec env LD_PRELOAD="${LD_PRELOAD:+$LD_PRELOAD:}$SHIM_SO" "$GRADLEW" "${GRADLE_ARGS[@]}"
 else
-    exec "$GRADLEW" "$@"
+    exec "$GRADLEW" "${GRADLE_ARGS[@]}"
 fi

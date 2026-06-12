@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Termux の公式リポジトリから PRoot バイナリと libtalloc を取得し、
-# app/src/main/jniLibs/<abi>/lib*.so にリネームして配置する。
+# app/src/full/jniLibs/<abi>/lib*.so にリネームして配置する。
+#
+# PRoot は third-party prebuilt のため F-Droid 非適合。よって full フレーバー専用の
+# src/full/jniLibs に置き、foss フレーバー (src/main/jniLibs しか読まない) には同梱
+# しない。foss の実行エンジンはソースビルドの z2root (build-z2root.sh)。
 #
 # 履歴: 当初は proot-me/proot のソースをクロスビルドする方針だったが、
 # proot は talloc ライブラリに依存し NDK にも Termux 以外のクロス
@@ -8,9 +12,9 @@
 # Termux パッケージは Android で実機動作確認済みなのでこちらを採用。
 #
 # 出力:
-#   app/src/main/jniLibs/arm64-v8a/libproot.so
-#   app/src/main/jniLibs/arm64-v8a/libproot_loader.so
-#   app/src/main/jniLibs/arm64-v8a/libtalloc.so         (proot の依存)
+#   app/src/full/jniLibs/arm64-v8a/libproot.so
+#   app/src/full/jniLibs/arm64-v8a/libproot_loader.so
+#   app/src/full/jniLibs/arm64-v8a/libtalloc.so         (proot の依存)
 #
 # 使い方:
 #   bash scripts/build-proot.sh
@@ -23,7 +27,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-JNI_DIR="${PROJECT_ROOT}/app/src/main/jniLibs"
+JNI_DIR="${PROJECT_ROOT}/app/src/full/jniLibs"
 WORK_DIR="${PROJECT_ROOT}/build/proot-fetch"
 mkdir -p "${WORK_DIR}"
 

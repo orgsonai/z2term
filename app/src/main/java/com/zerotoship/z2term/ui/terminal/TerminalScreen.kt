@@ -90,6 +90,7 @@ import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.AppSession
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.core.TerminalSession
+import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.gui.GuiKeyMapper
 import com.zerotoship.z2term.gui.GuiScreen
 import com.zerotoship.z2term.gui.GuiSession
@@ -217,6 +218,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     var inputViewRef by remember { mutableStateOf<TerminalInputView?>(null) }
     var keyboardCollapsed by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
+    // 自動起動前に DL 確認が要る spec (foss 初回など)。非 null の間ダイアログを出す。
+    var pendingInitialDownload by remember(active.id) { mutableStateOf<DistroSpec?>(null) }
     var snippetsSheetOpen by remember { mutableStateOf(false) }
     var clipHistoryOpen by remember { mutableStateOf(false) }
     // SFTP ファイルブラウザ対象のプロファイル (非 null の間シートを表示)
@@ -293,7 +296,14 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         // IDLE 状態のセッションだけ自動的にローカル PTY を立ち上げる。
         // SSH などで外部から STARTING に進められたセッションは触らない。
         if (active.uiState.value.state == com.zerotoship.z2term.core.TerminalSession.TerminalState.IDLE) {
-            active.startTerminal()
+            // 確認 ON かつ初回 DL が走る非同梱 distro (foss の Alpine 等) は、先にダウンロード
+            // 確認ダイアログを出してからユーザー同意で起動する。それ以外はそのまま起動。
+            val dlSpec = active.downloadOnStartSpec()
+            if (dlSpec != null) {
+                pendingInitialDownload = dlSpec
+            } else {
+                active.startTerminal()
+            }
         }
     }
     LaunchedEffect(keyboardMode, inputViewRef, active.id) {
@@ -301,6 +311,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         v.session = active
         v.imeEnabled = (keyboardMode == KeyboardMode.SYSTEM)
         if (keyboardMode == KeyboardMode.SYSTEM) v.requestKeyboard()
+    }
+    // 設定シートを開いたら OS ソフトキーボードを隠す (キーボードを出したまま設定に
+    // 入ると、シートとキーボードが重なって操作しづらいため)。
+    LaunchedEffect(settingsOpen) {
+        if (settingsOpen) inputViewRef?.hideKeyboard()
     }
 
     Column(
@@ -581,6 +596,17 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // ホスト鍵検証はワーカースレッドからブロッキングで呼ばれるため、
     // SSH UI の表示状態に関わらずルートに常駐させる。
     HostKeyVerificationDialog()
+
+    // 自動起動前の DL 確認 (foss 初回など)。OK で起動 (DL→展開)、やめる→IDLE のまま。
+    pendingInitialDownload?.let { spec ->
+        val sizeHint = spec.approxDownload?.let { " ($it)" } ?: ""
+        DownloadConfirmDialog(
+            title = stringResource(R.string.confirm_download_title, spec.displayName),
+            message = stringResource(R.string.confirm_download_msg, spec.displayName, sizeHint),
+            onConfirm = { pendingInitialDownload = null; active.startTerminal() },
+            onCancel = { pendingInitialDownload = null }
+        )
+    }
 }
 
 /**
@@ -803,7 +829,8 @@ private fun GuiTabScreen(
             ) {
                 GuiScreen(
                     session = gui,
-                    imeVisible = keyboardMode == KeyboardMode.SYSTEM && !keyboardCollapsed,
+                    // 設定シートを開いている間は OS IME を隠す (シートと重ならないように)。
+                    imeVisible = keyboardMode == KeyboardMode.SYSTEM && !keyboardCollapsed && !settingsOpen,
                     ctrlSticky = ctrlSticky,
                     onCtrlConsumed = { ctrlSticky = false },
                     modifier = Modifier.fillMaxSize()

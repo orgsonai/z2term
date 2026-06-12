@@ -363,6 +363,9 @@
     <string name="ime_history_empty">No learning history yet. Entries are recorded when you confirm a conversion in the Japanese keyboard.</string>
     <string name="ime_history_clear_confirm">Clear all learning history? This cannot be undone.</string>
     <string name="ime_history_count_badge">×%1$d</string>
+    <string name="ime_history_search_hint">Search by reading or word…</string>
+    <string name="ime_history_search_empty">No entries match your search.</string>
+    <string name="ime_history_count_filtered">%1$d / %2$d entries</string>
 
     <!-- Android API bridge (z2-* helpers) -->
     <string name="api_channel_name">Terminal API</string>

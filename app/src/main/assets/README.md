@@ -9,10 +9,10 @@ M7 同梱方針への移行に伴い、Alpine rootfs は **`scripts/build-bundle
 
 ```bash
 bash scripts/build-bundle.sh        # PRoot + Alpine 両方
-# 出力:
-#   app/src/main/jniLibs/arm64-v8a/libproot.so       (Termux 由来)
-#   app/src/main/jniLibs/arm64-v8a/libproot_loader.so
-#   app/src/main/assets/alpine-minirootfs-aarch64.tgz  (zsh/bash/openssh/screen 込)
+# 出力 (full フレーバー専用。foss は同梱せず実行時 DL):
+#   app/src/full/jniLibs/arm64-v8a/libproot.so       (Termux 由来)
+#   app/src/full/jniLibs/arm64-v8a/libproot_loader.so
+#   app/src/full/assets/alpine-minirootfs-aarch64.tgz  (zsh/bash/openssh/screen 込)
 ```
 
 ## 同梱パッケージ一覧
