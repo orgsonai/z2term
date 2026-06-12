@@ -526,6 +526,11 @@ static int syscall_paths(long nr, struct sc_paths *out) {
             p[out->n++] = (struct path_arg){0, -1, 1, -1, 0, 0}; break;
         case 6: case 9: case 12: case 15:   // lsetxattr/lgetxattr/llistxattr/lremovexattr (path arg0, no-follow)
             p[out->n++] = (struct path_arg){0, -1, 0, -1, 0, 0}; break;
+        case 264:  // name_to_handle_at(dirfd, path, handle, mnt_id, flags) path arg1, dirfd arg0
+            // 既定は最終 symlink を辿らない。AT_SYMLINK_FOLLOW(0x400) 指定時のみ follow(linkat 同様)。
+            // open_by_handle_at(265) は path ではなく不透明 file_handle を取るため変換不可。
+            // かつ CAP_DAC_READ_SEARCH 必須=untrusted_app では EPERM で弾かれるため非対象。
+            p[out->n++] = (struct path_arg){1, 0, 0, 4, 0x400, 0}; break;
         default: return 0;
     }
     return 1;
@@ -1695,6 +1700,7 @@ static const int kTraceSyscallsBase[] = {
     53, 88,                   // fchmodat / utimensat
     45,                       // truncate (path 版。ftruncate(46) は fd なので非対象)
     5, 6, 8, 9, 11, 12, 14, 15, // *setxattr/*getxattr/*listxattr/*removexattr の path 版(l*=no-follow)。f* は fd
+    264,                      // name_to_handle_at (path 版。open_by_handle_at(265) は handle で path 無=非対象)
     49, 43,                   // chdir / statfs
     36, 37, 38, 276,          // symlinkat / linkat / renameat / renameat2
     221, 281,                 // execve / execveat
