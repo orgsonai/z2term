@@ -257,6 +257,8 @@ class ProotLauncher(private val context: Context) {
         ensureZ2ApiScripts(rootfs)
         // `z2adb` (セルフ adb): 端末自身の adb (ワイヤレスデバッグ) に localhost で繋ぐヘルパー。
         ensureZ2AdbScript(rootfs)
+        // `z2help` / `z2term`: 独自 `z2*` コマンドの早見表 (z2term は当面 z2help のエイリアス)。
+        ensureZ2HelpScript(rootfs)
         // GUI 動画対策: mpv の既定をソフトウェア出力 (vo=x11) にする設定を配置。
         ensureMpvConfig(rootfs)
         // Android 外部ストレージを cd できるようマウント先を用意。
@@ -412,6 +414,8 @@ class ProotLauncher(private val context: Context) {
         ensureZ2ApiScripts(rootfs)
         // `z2adb` (セルフ adb): 端末自身の adb (ワイヤレスデバッグ) に localhost で繋ぐヘルパー。
         ensureZ2AdbScript(rootfs)
+        // `z2help` / `z2term`: 独自 `z2*` コマンドの早見表 (z2term は当面 z2help のエイリアス)。
+        ensureZ2HelpScript(rootfs)
         ensureMpvConfig(rootfs)
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
@@ -872,6 +876,26 @@ class ProotLauncher(private val context: Context) {
             f.setReadable(true, false)
             f.setExecutable(true, false)
         }.onFailure { Log.w(TAG, "z2adb script 配置失敗", it) }
+    }
+
+    /**
+     * `/usr/local/bin/z2help` (独自コマンド早見表) と、その薄いエイリアス `/usr/local/bin/z2term`
+     * を配置する。端末から `z2help` / `z2term` で `z2*` コマンド一覧を引ける。launch 毎に上書き。
+     * `z2term` は当面 `z2help` のエイリアス (予約コマンド)。将来別用途に使うときは
+     * [z2termAliasScript] を差し替える。
+     */
+    private fun ensureZ2HelpScript(rootfs: File) {
+        runCatching {
+            val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
+            val help = File(dir, "z2help")
+            help.writeText(z2helpScript(lang = LocaleHelper.language(context)))
+            help.setReadable(true, false)
+            help.setExecutable(true, false)
+            val term = File(dir, "z2term")
+            term.writeText(z2termAliasScript())
+            term.setReadable(true, false)
+            term.setExecutable(true, false)
+        }.onFailure { Log.w(TAG, "z2help script 配置失敗", it) }
     }
 
     /**

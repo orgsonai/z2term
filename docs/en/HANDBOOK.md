@@ -252,7 +252,49 @@ Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←**
 
 ---
 
-## 11. Friendly glossary
+## 11. Z2Term's own commands (quick reference, `z2*`)
+
+These are "Z2Term-only" commands that Z2Term automatically installs into every distro. Just type them in the terminal (they're on your PATH, so the location doesn't matter). They are rewritten to the latest version every time the app launches.
+
+### Version / info
+| Command | What it does |
+|---|---|
+| `z2version` | Shows the running app's version, execution engine, OS (distro) and kernel. `z2version --short` prints just the version on one line |
+
+### Call phone features
+| Command | What it does |
+|---|---|
+| `z2-notify "title" "text"` | Post a notification (text optional) |
+| `z2-toast "message"` | Toast (short message at the bottom of the screen) |
+| `z2-share "text"` | Hand text to Android's share sheet |
+| `z2-open <URL or path>` | Open a URL or file in the default app |
+| `z2-clip get` / `z2-clip set [text]` | Get / set the clipboard (set reads stdin if no argument) |
+| `z2-battery` | Show battery level / charging state (JSON) |
+| `z2-vibrate [ms]` | Vibrate (default 200ms) |
+
+### Graphical (GUI) apps
+| Command | What it does |
+|---|---|
+| `z2gui start [WxH]` / `stop` / `status` | Start / stop / status of the Linux desktop (e.g. `z2gui start 1280x720`) |
+| `z2run <GUI app>` | Launching a GUI app also opens the GUI tab automatically |
+
+### Connecting
+| Command | What it does |
+|---|---|
+| `z2adb …` | `adb` to this phone itself (no PC) → see **§7.5** |
+| `sshd` | Start an SSH server → see **§7** (defaults to "this device only" + key auth only) |
+
+### Help
+| Command | What it does |
+|---|---|
+| `z2help` | Prints this `z2*` quick reference in the terminal (with the app version at the top) |
+| `z2term` | For now an alias of `z2help` (a reserved command that prints the same list). The name is reserved so `z2term` can be repurposed later |
+
+> Note: the execution engine (proot / z2root / chroot) is shown on the `engine:` line of `z2version`.
+
+---
+
+## 12. Friendly glossary
 
 | Term | Meaning |
 |---|---|
