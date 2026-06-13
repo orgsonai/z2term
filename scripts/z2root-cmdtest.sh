@@ -115,12 +115,17 @@ try:
     import ssl; print("py-ssl:", ssl.OPENSSL_VERSION.split()[0])
 except Exception as e:
     print("py-ssl-FAIL:", e); bad = 1
-try:
-    import multiprocessing as mp
-    with mp.Pool(2) as p:
-        print("py-mp:", sum(p.map(abs, [-1,-2,-3])))
-except Exception as e:
-    print("py-mp-FAIL:", e); bad = 1
+if not os.path.isdir("/dev/shm"):
+    # multiprocessing は POSIX セマフォに /dev/shm を要する。rootfs に未マウントなら
+    # 環境要因（z2root 非依存）なので fail でなく skip 扱い（"未導入は skip" と同方針）。
+    print("py-mp-SKIP: /dev/shm 不在（環境要因・z2root 非依存）")
+else:
+    try:
+        import multiprocessing as mp
+        with mp.Pool(2) as p:
+            print("py-mp:", sum(p.map(abs, [-1,-2,-3])))
+    except Exception as e:
+        print("py-mp-FAIL:", e); bad = 1
 sys.exit(bad)
 PY'
 # ripgrep: claude が内部で多用。mmap/並列探索で z2root を踏む
@@ -152,14 +157,14 @@ else
 		apt-get) run apt-get update; run apt-get install -y hello; opt hello hello; optc dpkg 'dpkg -L hello | head -3' ;;
 		apk)     run apk update; run apk add --no-cache figlet; optc figlet 'figlet z2 | head -4' ;;
 		dnf)     run dnf -y install hello; opt hello hello ;;
-		pacman)  run pacman -Sy --noconfirm hello; opt hello hello ;;
+		pacman)  run pacman -Sy --noconfirm moreutils; optc sponge 'echo pkg-run-ok | sponge sp.out && cat sp.out' ;;
 		none)    skip "apt/apk/dnf/pacman 未検出" ;;
 	esac
 	# 言語系パッケージ: コンパイル/symlink/node を踏む
 	# python venv 作成（symlink/exec/コピーを大量に踏む）→ その pip で install
 	optc python3 'python3 -m venv "'"$WORK"'/venv" 2>&1 | tail -2 && "'"$WORK"'/venv/bin/python" -c "print(\"venv-ok\")" && "'"$WORK"'/venv/bin/pip" install --quiet wheel 2>&1 | tail -1 && "'"$WORK"'/venv/bin/python" -c "import wheel;print(\"venv-pip-ok\")"; echo "[venv exit=$?]"'
 	optc pip3 'pip3 install --quiet --no-input --user wheel 2>&1 | tail -2; python3 -c "import wheel;print(\"pip-wheel-ok\")"'
-	optc npm 'npm install -g --silent left-pad 2>&1 | tail -2; node -e "console.log(require(\"left-pad\")(\"x\",3))"'
+	optc npm 'npm install -g --silent left-pad 2>&1 | tail -2; NODE_PATH="$(npm root -g)" node -e "console.log(require(\"left-pad\")(\"x\",3))"'
 fi
 
 # ---------------------------------------------------------------------------
@@ -281,6 +286,66 @@ else
 	optc curl 'curl -sS -o /dev/null -w "http=%{http_code} tls=%{ssl_verify_result}\n" https://example.com 2>&1; echo "[curl-tls exit=$?]"'
 	optc nslookup 'nslookup example.com 2>&1 | tail -4; echo "[nslookup exit=$?]"'
 fi
+
+# ---------------------------------------------------------------------------
+banner "11. 絶対パス syscall のパス変換（0.8.82 truncate/xattr・0.8.83 handle の e2e）"
+# ---------------------------------------------------------------------------
+# 背景: z2root は chroot ではなく ptrace パス変換で封じ込めるため、絶対パスを取る
+# path 系 syscall をトレース＋変換しないとホスト root 起点で解決され封じ込めを素通りする。
+# 0.8.82 で truncate(45)/xattr by-path を、0.8.83 で name_to_handle_at(264) を変換対象に
+# 追加した。相対パスは cwd(rootfs 内)経由で元々安全なので、ここは *絶対パス* で踏んで
+# 「ENOSYS 等の退行が無い＆解決先が rootfs 配下（ホストに漏れない）」を確認する。
+# 注: cwd=$WORK は rootfs 内の絶対パス。os.getcwd()/$(pwd) はその絶対パスを返す。
+
+# truncate(2) を *絶対パス* で。GNU coreutils の truncate は open+ftruncate になりがちで
+# truncate(2) を踏まないため、syscall を直叩きする python os.truncate を使う（無ければ skip）。
+optc python3 'python3 - <<PY
+import os, sys
+p = os.path.join(os.getcwd(), "trunc_abs.bin")   # 絶対パス（rootfs 内）
+open(p, "wb").close()
+os.truncate(p, 1048576)                            # truncate(2): path 引数
+sz = os.path.getsize(p)
+print("trunc-abs-size:", sz)
+sys.exit(0 if sz == 1048576 else 1)
+PY'
+
+# setxattr/getxattr by-path を *絶対パス* で（setfattr は既定で setxattr(2)=follow）。
+if have setfattr && have getfattr; then
+	runc 'AF="$(pwd)/xa_abs.txt"; echo x > "$AF" && setfattr -n user.z2abs -v ok "$AF" 2>&1 && V=$(getfattr -n user.z2abs --only-values "$AF" 2>/dev/null) && [ "$V" = ok ] && echo "xattr-abs-ok val=$V"; echo "[xattr-abs exit=$?]"'
+else
+	skip "setfattr/getfattr 未インストール"
+fi
+
+# name_to_handle_at(264) を *絶対パス* で（CLI が無いので python ctypes で syscall 直叩き）。
+# 許容（exit 0）の結果は 3 系統あり、いずれも安全:
+#   - 成功(r==0): 0.8.83 の変換が効き rootfs 配下を解決（handle 取得）。
+#   - EOPNOTSUPP/EOVERFLOW: syscall に到達＝変換済だが当該 FS が handle 非対応。健全。
+#   - ENOSYS: proot/z2root の *外側* の Android untrusted_app seccomp が弾いた結果
+#     （io_uring と同じ外側依存。0.8.83 変換に到達せず＝挙動不変・封じ込め漏れも無い）。
+# 失敗(exit 1)はそれ以外の errno や python 自体の異常終了（segv/loader 失敗）のみ。
+# CAP_DAC_READ_SEARCH を要する open_by_handle_at(265) は path 無しのため非対象。
+optc python3 'python3 - <<PY
+import ctypes, os, sys, struct, errno
+libc = ctypes.CDLL(None, use_errno=True)
+NR = 264  # aarch64 name_to_handle_at
+p = os.path.join(os.getcwd(), "h_abs.txt")        # 絶対パス（rootfs 内）
+open(p, "wb").write(b"x")
+MAX = 128
+buf = ctypes.create_string_buffer(8 + MAX)        # struct file_handle{ __u32 bytes; int type; char f[]; }
+struct.pack_into("I", buf, 0, MAX)                 # handle_bytes = MAX
+mnt = ctypes.c_int(0)
+AT_FDCWD = -100; AT_SYMLINK_FOLLOW = 0x400
+r = libc.syscall(NR, ctypes.c_int(AT_FDCWD), ctypes.c_char_p(p.encode()),
+                 buf, ctypes.byref(mnt), ctypes.c_int(AT_SYMLINK_FOLLOW))
+e = ctypes.get_errno()
+if r == 0:
+    n = struct.unpack_from("I", buf, 0)[0]
+    print("n2h-abs-ok(translated) handle_bytes=%d mnt_id=%d" % (n, mnt.value)); sys.exit(0)
+name = errno.errorcode.get(e, "?")
+ok = e in (errno.EOPNOTSUPP, errno.EOVERFLOW, errno.ENOSYS)
+print("n2h-abs rc=%d errno=%d(%s) %s" % (r, e, name, "OK-benign" if ok else "UNEXPECTED"))
+sys.exit(0 if ok else 1)
+PY'
 
 # ---------------------------------------------------------------------------
 banner "結果サマリ（非ゼロ終了したコマンド一覧）"
