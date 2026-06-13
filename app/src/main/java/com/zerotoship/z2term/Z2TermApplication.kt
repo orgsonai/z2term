@@ -30,6 +30,9 @@ class Z2TermApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // 間欠的な起動クラッシュを adb 無しで採取するため、最初にクラッシュロガーを張る
+        // (以降の初期化中に落ちても filesDir/crash/ にトレースが残る)。
+        CrashLogger.install(this)
         Log.i(TAG, "Z2Term application starting (version=${BuildConfig.VERSION_NAME})")
         // proot 内 `/storage/app/z2gui.events` (= 外部 files dir の同名ファイル) を監視開始。
         // 二重 start しても idempotent。Activity/Service ライフサイクルから独立して常駐する。
