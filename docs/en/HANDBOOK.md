@@ -162,6 +162,36 @@ You can turn your phone into an SSH server and log in from a PC.
 
 ---
 
+## 7.5. Using `adb` without a PC (`z2adb`)
+
+You can run `adb` against this phone itself — no PC, no USB. `z2adb` helps with this.
+
+1. **Enable Wireless debugging**: Settings → Developer options → turn on "Wireless debugging" (Android 11+).
+   - If Developer options is hidden, tap "Settings → About phone → Build number" 7 times to reveal it.
+2. In the terminal run **`z2adb setup`** to install `adb` (auto-detected for your distro).
+3. Open **"Pair device with pairing code"** under Wireless debugging, and use the shown
+   **port** and **6-digit code**:
+   ```
+   z2adb pair <port> <code>
+   ```
+4. Use the **connect port** shown directly under the "Wireless debugging" screen:
+   ```
+   z2adb connect <port>
+   ```
+   The first time, an "Allow this device?" prompt appears on screen — **allow** it.
+5. Once connected, it's just regular `adb`:
+   ```
+   z2adb shell        # shell into your own phone
+   z2adb logcat       # view logs
+   z2adb status       # list connected devices (adb devices -l)
+   ```
+
+> Tip: the ports change every time. If you type `z2adb pair` / `z2adb connect` with **just a number**,
+> you'll be asked for the port on the spot. Anything you'd write as `adb …` works as `z2adb …` too —
+> `z2adb` passes it straight through to `adb` (`z2adb shell` ≈ `adb shell`).
+
+---
+
 ## 8. Exchanging files
 
 ### Viewing inside Z2Term from another app (file manager)

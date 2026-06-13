@@ -255,6 +255,8 @@ class ProotLauncher(private val context: Context) {
         ensureAutoGuiHook(rootfs)
         // Android API ブリッジのヘルパー (`z2-notify` 等) を配置 (Termux:API 相当)。
         ensureZ2ApiScripts(rootfs)
+        // `z2adb` (セルフ adb): 端末自身の adb (ワイヤレスデバッグ) に localhost で繋ぐヘルパー。
+        ensureZ2AdbScript(rootfs)
         // GUI 動画対策: mpv の既定をソフトウェア出力 (vo=x11) にする設定を配置。
         ensureMpvConfig(rootfs)
         // Android 外部ストレージを cd できるようマウント先を用意。
@@ -408,6 +410,8 @@ class ProotLauncher(private val context: Context) {
         ensureZ2AutoGuiScript(rootfs)
         ensureAutoGuiHook(rootfs)
         ensureZ2ApiScripts(rootfs)
+        // `z2adb` (セルフ adb): 端末自身の adb (ワイヤレスデバッグ) に localhost で繋ぐヘルパー。
+        ensureZ2AdbScript(rootfs)
         ensureMpvConfig(rootfs)
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
@@ -853,6 +857,21 @@ class ProotLauncher(private val context: Context) {
             f.setReadable(true, false)
             f.setExecutable(true, false)
         }.onFailure { Log.w(TAG, "z2version script 配置失敗", it) }
+    }
+
+    /**
+     * `/usr/local/bin/z2adb` を配置する (セルフ adb)。端末自身の adb デーモン
+     * (Android のワイヤレスデバッグ) に `localhost` で繋ぐためのヘルパー。PC・USB・root 不要。
+     * `z2adb setup`/`pair`/`connect`/`status` の他は素の adb へ passthrough。launch 毎に上書き。
+     */
+    private fun ensureZ2AdbScript(rootfs: File) {
+        runCatching {
+            val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
+            val f = File(dir, "z2adb")
+            f.writeText(z2adbScript(lang = LocaleHelper.language(context)))
+            f.setReadable(true, false)
+            f.setExecutable(true, false)
+        }.onFailure { Log.w(TAG, "z2adb script 配置失敗", it) }
     }
 
     /**

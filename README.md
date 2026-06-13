@@ -30,7 +30,9 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 ## Current version
 
-**0.8.87-alpha (versionCode 95) — OSS ライセンス一覧に BouncyCastle を追加 (告知漏れの補完).** `org.bouncycastle:bcprov-jdk18on` は JSch の ed25519/curve25519 等を Android で有効化するため両フレーバーに同梱しているが、`OssComponents` の一覧から抜けていた。MIT (BouncyCastle License は MIT X11 の改変版) として両言語の用途文言とともに追加。FOSS 版に残る表記 (AndroidX/Compose・Kotlin・JSch・XZ・BouncyCastle・フォント) はすべて自由ライセンスの Maven 依存またはデータで、F-Droid 適合。
+**0.8.88-alpha (versionCode 96) — `z2adb` ヘルパーを追加 (PC なしで端末自身の adb に繋ぐ「セルフ adb」).** 端末で「adb が無くて不便」を解消するため、`/usr/local/bin/z2adb` を起動毎に注入 (proot/z2root/chroot 全経路)。Android 11+ の開発者オプション → ワイヤレスデバッグを ON にすれば、`z2adb setup` で distro に adb クライアントを導入 (apk: `android-tools` / apt: `adb` / pacman: `android-tools` を自動判定)、`z2adb pair <ポート> [6桁コード]` でペアリング、`z2adb connect <ポート>` で接続でき、以降は `z2adb shell` / `pm` / `logcat` 等を**自端末**に対して実行できる (LADB 相当)。宛先はポートのみなら `127.0.0.1` を補い、`setup`/`pair`/`connect`/`status`/`help` 以外はそのまま adb へ passthrough。PRoot/z2root は TCP を素通しする (dropbear/SSH と同経路) ため localhost に届き、root も USB も不要。
+
+Previously (0.8.87-alpha, versionCode 95) — OSS ライセンス一覧に BouncyCastle を追加 (告知漏れの補完).** `org.bouncycastle:bcprov-jdk18on` は JSch の ed25519/curve25519 等を Android で有効化するため両フレーバーに同梱しているが、`OssComponents` の一覧から抜けていた。MIT (BouncyCastle License は MIT X11 の改変版) として両言語の用途文言とともに追加。FOSS 版に残る表記 (AndroidX/Compose・Kotlin・JSch・XZ・BouncyCastle・フォント) はすべて自由ライセンスの Maven 依存またはデータで、F-Droid 適合。
 
 Previously (0.8.86-alpha, versionCode 94) — 間欠的な起動クラッシュ採取用のクラッシュロガーを追加.** 「たまにアプリ立ち上げた瞬間落ちる」を adb 無しで切り分けるため、`Application.onCreate` 冒頭で `Thread.setDefaultUncaughtExceptionHandler` を張る (`CrashLogger`)。落ちる直前にスタックトレース (版数/フレーバー/端末/スレッド付き) を `filesDir/crash/crash-<時刻>.txt` と `crash-last.txt` へ同期書き込みし、既存ハンドラへ必ずチェーンするので OS のクラッシュ挙動は不変。再起動後に端末タブから `cat <filesDir>/crash/crash-last.txt` で読める (古いログは 20 件で間引き)。
 

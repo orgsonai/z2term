@@ -30,6 +30,8 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
+**0.8.88-alpha (versionCode 96) — `z2adb` ヘルパーを追加 (PC なしで端末自身の adb に繋ぐ「セルフ adb」).** Android 11+ の開発者オプション → ワイヤレスデバッグを ON にすれば、端末から `z2adb setup`（adb クライアント導入・apk/apt/pacman 自動判定）→ `z2adb pair <ポート> [6桁コード]` → `z2adb connect <ポート>` で**自端末**に adb 接続でき、以降 `z2adb shell` / `pm` / `logcat` 等を実行できる（LADB 相当・root も USB も不要）。`/usr/local/bin/z2adb` を起動毎に注入（proot/z2root/chroot 全経路）。`setup`/`pair`/`connect`/`status`/`help` 以外はそのまま adb へ passthrough。**
+
 **0.8.25-alpha (versionCode 33) — z2root の次の本丸＝nativeLibraryDir 常駐の自前 ELF ローダ（`--loader` モード）に着手。ELF を匿名実行メモリへ手動マップして jump することで、`untrusted_app` が W^X / SELinux で禁じる「自分の data 領域のファイルの `execve`」を一切使わない方式（0.8.24 で判明した詰まりの解決策）。**WIP・まだ動かない**: `libz2root.so` を `-static-pie` でビルドすることで第1の実機クラッシュ（ptrace 配下で bionic リンカの `/proc/self/exe` 解決がトレーサのパス変換に壊される件）は解消したが、ローダが自身のエントリ到達前に segfault する（原因調査中・static-PIE bionic の起動ランタイムを疑う）。既定・実用エンジンは引き続き PRoot、z2root は裏のエンジン選択（バージョン 7 タップ）の実験機能のまま。FOSS フレーバーは引き続き Alpine rootfs を APK から外し、起動時に公式 minirootfs を DL する**
 
 Milestone 7〜12 で SFTP、GUI (Xvnc+VNC)、複数 GUI タブ、IME 学習、英語 UI、横画面キーボード、スクロールバック検索、セッション復元、root 端末向け chroot エンジン、GUI 音声/動画再生などを実装。0.8.4 で日本語かな漢字変換を長文向けに強化。0.8.5 以降で UI/キーボードの細かな改善と各種修正を継続。
