@@ -242,6 +242,7 @@
     <string name="oss_purpose_androidx_compose">UI / lifecycle / DataStore</string>
     <string name="oss_purpose_kotlin_stdlib">Kotlin runtime</string>
     <string name="oss_purpose_jsch">SSH client library</string>
+    <string name="oss_purpose_bouncycastle">Crypto provider (ed25519/curve25519 for JSch)</string>
     <string name="oss_purpose_xz_java">XZ (LZMA2) decompression (Kali rootfs .tar.xz etc.)</string>
     <string name="oss_purpose_fira_code">Monospaced terminal font (with ligatures)</string>
     <string name="oss_purpose_ibm_plex_mono">Monospaced terminal font</string>

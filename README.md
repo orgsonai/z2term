@@ -30,7 +30,9 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 ## Current version
 
-**0.8.86-alpha (versionCode 94) — 間欠的な起動クラッシュ採取用のクラッシュロガーを追加.** 「たまにアプリ立ち上げた瞬間落ちる」を adb 無しで切り分けるため、`Application.onCreate` 冒頭で `Thread.setDefaultUncaughtExceptionHandler` を張る (`CrashLogger`)。落ちる直前にスタックトレース (版数/フレーバー/端末/スレッド付き) を `filesDir/crash/crash-<時刻>.txt` と `crash-last.txt` へ同期書き込みし、既存ハンドラへ必ずチェーンするので OS のクラッシュ挙動は不変。再起動後に端末タブから `cat <filesDir>/crash/crash-last.txt` で読める (古いログは 20 件で間引き)。
+**0.8.87-alpha (versionCode 95) — OSS ライセンス一覧に BouncyCastle を追加 (告知漏れの補完).** `org.bouncycastle:bcprov-jdk18on` は JSch の ed25519/curve25519 等を Android で有効化するため両フレーバーに同梱しているが、`OssComponents` の一覧から抜けていた。MIT (BouncyCastle License は MIT X11 の改変版) として両言語の用途文言とともに追加。FOSS 版に残る表記 (AndroidX/Compose・Kotlin・JSch・XZ・BouncyCastle・フォント) はすべて自由ライセンスの Maven 依存またはデータで、F-Droid 適合。
+
+Previously (0.8.86-alpha, versionCode 94) — 間欠的な起動クラッシュ採取用のクラッシュロガーを追加.** 「たまにアプリ立ち上げた瞬間落ちる」を adb 無しで切り分けるため、`Application.onCreate` 冒頭で `Thread.setDefaultUncaughtExceptionHandler` を張る (`CrashLogger`)。落ちる直前にスタックトレース (版数/フレーバー/端末/スレッド付き) を `filesDir/crash/crash-<時刻>.txt` と `crash-last.txt` へ同期書き込みし、既存ハンドラへ必ずチェーンするので OS のクラッシュ挙動は不変。再起動後に端末タブから `cat <filesDir>/crash/crash-last.txt` で読める (古いログは 20 件で間引き)。
 
 Previously (0.8.85-alpha, versionCode 93) — IME: 結合読みを 1 語コスト基準にし、連続確定 run を結合ブロックとして学習 (頻用の外来語/塊が 1 ブロックに繋ぎ止まる).** 動的ブロック分割学習 (0.8.71/0.8.74) の続き。①学習ブロックの合成ノードコストを長さ比例の未知かな (`UNK_COST × 文字数`) ではなく **1 語分の `UNK_COST` 基準** にした。辞書外の外来語 (`びるど`→`ビルド`。`びるど` は lex に無い) が `UNK_COST×3` で辞書分割に頻度ボーナスを足しても勝てず 1 ブロックにまとまらなかったのを、1 語基準で「使うほど下がる」ボーナスが分割コストを越えるようにした (`BlockLearningTest` で検証)。②自動分割で割れた語は全体読みが履歴に入らなかったため、`ComposingState` が同一スプリット run の連続確定を `committedRun` に貯め、run が尽きた時と一括確定時に結合読み→結合表層を `ImeHistoryStore` へ記録 (読み長 2〜6 に限定)。これで「びる」「ど」と割れて確定した塊も次回 ① の対象になり 1 ブロックへ繋ぎ止まる。
 

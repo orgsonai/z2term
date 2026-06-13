@@ -242,6 +242,7 @@
     <string name="oss_purpose_androidx_compose">UI / ライフサイクル / DataStore</string>
     <string name="oss_purpose_kotlin_stdlib">Kotlin ランタイム</string>
     <string name="oss_purpose_jsch">SSH クライアントライブラリ</string>
+    <string name="oss_purpose_bouncycastle">暗号プロバイダ (JSch の ed25519/curve25519 等)</string>
     <string name="oss_purpose_xz_java">XZ (LZMA2) 解凍 (Kali rootfs などの .tar.xz)</string>
     <string name="oss_purpose_fira_code">ターミナル用等幅フォント (合字対応)</string>
     <string name="oss_purpose_ibm_plex_mono">ターミナル用等幅フォント</string>

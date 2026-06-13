@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-06-13 / Target version: 0.8.86-alpha (versionCode 94)
+Last updated: 2026-06-13 / Target version: 0.8.87-alpha (versionCode 95)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -59,7 +59,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 | UI | Jetpack Compose | BOM 2025.01.00 + Material3 |
 | Native | C++ (forkpty JNI) | NDK 28, CMake 3.22.1, `c++_shared`, android-29 |
 | Persistence | DataStore Preferences | 1.1.2 (settings / SSH profiles) |
-| SSH client | JSch (mwiede fork) | 0.2.21 (BouncyCastle not required) |
+| SSH client | JSch (mwiede fork) | 0.2.26 (+ BouncyCastle 1.84 enables ed25519/curve25519) |
 | Decompression | org.tukaani:xz | 1.10 (the downloaded distro's `.tar.xz`). gzip is JDK standard |
 | Linux runtime | PRoot + libtalloc | `.so` bundled in jniLibs (from a Termux build) |
 | Bundled OS | Alpine Linux ARM minirootfs | full bundles `.tgz` under `src/full/assets`. foss excludes it and downloads from the official CDN at runtime |

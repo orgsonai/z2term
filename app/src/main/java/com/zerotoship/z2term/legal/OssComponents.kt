@@ -216,6 +216,14 @@ object OssComponents {
             purposeRes = R.string.oss_purpose_jsch,
         ),
         OssComponent(
+            // BouncyCastle License は MIT X11 ライセンスの改変版のため SPDX 代表は MIT。
+            name = "Bouncy Castle",
+            licenseId = "MIT",
+            copyright = "Copyright (c) 2000-2024 The Legion of the Bouncy Castle Inc.",
+            sourceUrl = "https://github.com/bcgit/bc-java",
+            purposeRes = R.string.oss_purpose_bouncycastle,
+        ),
+        OssComponent(
             name = "XZ for Java",
             licenseId = "0BSD",  // 実質 Public Domain 相当
             copyright = "Authors: Lasse Collin and others (public domain)",

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-13 / 対象バージョン: 0.8.86-alpha (versionCode 94)
+最終更新: 2026-06-13 / 対象バージョン: 0.8.87-alpha (versionCode 95)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -60,7 +60,7 @@
 | UI | Jetpack Compose | BOM 2025.01.00 + Material3 |
 | ネイティブ | C++ (forkpty JNI) | NDK 28、CMake 3.22.1、`c++_shared`、android-29 |
 | 永続化 | DataStore Preferences | 1.1.2 (設定 / SSH プロファイル) |
-| SSH クライアント | JSch (mwiede fork) | 0.2.21 (BouncyCastle 不要) |
+| SSH クライアント | JSch (mwiede fork) | 0.2.26 (+ BouncyCastle 1.84 で ed25519/curve25519 を有効化) |
 | 解凍 | org.tukaani:xz | 1.10 (DL distro の `.tar.xz`)。gzip は JDK 標準 |
 | Linux 実行 | PRoot + libtalloc | jniLibs に `.so` 同梱 (Termux ビルド由来) |
 | 同梱 OS | Alpine Linux ARM minirootfs | full は `src/full/assets` に `.tgz` 同梱。foss は非同梱で公式 CDN から起動時 DL |
