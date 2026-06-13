@@ -40,6 +40,10 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2adb pair/connect/shell ...   adb to this phone itself, no PC  (z2adb help)
         |  sshd [-p N]                    SSH server (default: 127.0.0.1 only, key auth)
         |
+        |[Security]
+        |  z2scan self                    Self-check this device/localhost (z2scan help)
+        |  z2scan net|host|cve            nmap/lynis/trivy on localhost (remote needs opt-in)
+        |
         |[Help]
         |  z2help | z2term                This list
         |
@@ -64,6 +68,10 @@ fun z2helpScript(lang: String = "ja"): String {
         |[つなぐ]
         |  z2adb pair/connect/shell ...   このスマホ自身に adb(PC 不要)  (z2adb help)
         |  sshd [-p N]                    SSH サーバ(既定 127.0.0.1 のみ・鍵認証)
+        |
+        |[セキュリティ]
+        |  z2scan self                    自端末/localhost の自己診断(z2scan help)
+        |  z2scan net|host|cve            localhost に nmap/lynis/trivy(外部は明示許可制)
         |
         |[ヘルプ]
         |  z2help | z2term                この一覧

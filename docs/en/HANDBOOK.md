@@ -284,6 +284,17 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2adb …` | `adb` to this phone itself (no PC) → see **§7.5** |
 | `sshd` | Start an SSH server → see **§7** (defaults to "this device only" + key auth only) |
 
+### Security (vulnerability testing)
+| Command | What it does |
+|---|---|
+| `z2scan self` | Self-check this device/localhost (open ports, sshd config, SSH key perms, world-writable/SUID, PATH). No external tools |
+| `z2scan setup` | Install scanners (`nmap`/`lynis`) from your distro's official packages |
+| `z2scan net [--allow-remote] [target]` | `nmap` TCP scan. Target defaults to `127.0.0.1`. A non-local target requires `--allow-remote` + a warning |
+| `z2scan host` | Host audit via `lynis` (falls back to `self` if absent) |
+| `z2scan cve` | Known-CVE scan of the rootfs via `trivy`/`grype` if present |
+
+> Note: results stay local (nothing is sent out). **Only scan systems you are explicitly authorized to test.**
+
 ### Help
 | Command | What it does |
 |---|---|

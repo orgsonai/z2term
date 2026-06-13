@@ -284,6 +284,17 @@ Z2Term がどのディストロにも自動で入れてくれる「Z2Term 専用
 | `z2adb …` | このスマホ自身に `adb`（PC 不要）→ 詳しくは **§7.5** |
 | `sshd` | SSH サーバを立てる → 詳しくは **§7**（既定は「自分の中だけ」・鍵認証のみで安全側） |
 
+### セキュリティ（脆弱性試験）
+| コマンド | できること |
+|---|---|
+| `z2scan self` | 自端末/localhost の自己診断（公開ポート・sshd 設定・SSH 鍵の権限・world-writable/SUID・PATH）。外部ツール不要 |
+| `z2scan setup` | スキャナ（`nmap`/`lynis`）を distro 公式パッケージで導入 |
+| `z2scan net [--allow-remote] [対象]` | `nmap` の TCP スキャン。対象の既定は `127.0.0.1`。localhost 以外は `--allow-remote` 必須＋警告 |
+| `z2scan host` | `lynis` でホスト監査（無ければ `self` にフォールバック） |
+| `z2scan cve` | `trivy`/`grype` があれば rootfs の既知 CVE をスキャン |
+
+> 注意: 結果はローカル出力のみ（外部送信なし）。**明示的に試験を許可された対象のみ**をスキャンしてください。
+
 ### ヘルプ
 | コマンド | できること |
 |---|---|

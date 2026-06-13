@@ -259,6 +259,8 @@ class ProotLauncher(private val context: Context) {
         ensureZ2AdbScript(rootfs)
         // `z2help` / `z2term`: 独自 `z2*` コマンドの早見表 (z2term は当面 z2help のエイリアス)。
         ensureZ2HelpScript(rootfs)
+        // `z2scan`: 自端末/localhost 限定の脆弱性試験 (自己診断 + nmap/lynis ラッパー)。
+        ensureZ2ScanScript(rootfs)
         // GUI 動画対策: mpv の既定をソフトウェア出力 (vo=x11) にする設定を配置。
         ensureMpvConfig(rootfs)
         // Android 外部ストレージを cd できるようマウント先を用意。
@@ -416,6 +418,8 @@ class ProotLauncher(private val context: Context) {
         ensureZ2AdbScript(rootfs)
         // `z2help` / `z2term`: 独自 `z2*` コマンドの早見表 (z2term は当面 z2help のエイリアス)。
         ensureZ2HelpScript(rootfs)
+        // `z2scan`: 自端末/localhost 限定の脆弱性試験 (自己診断 + nmap/lynis ラッパー)。
+        ensureZ2ScanScript(rootfs)
         ensureMpvConfig(rootfs)
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
@@ -896,6 +900,21 @@ class ProotLauncher(private val context: Context) {
             term.setReadable(true, false)
             term.setExecutable(true, false)
         }.onFailure { Log.w(TAG, "z2help script 配置失敗", it) }
+    }
+
+    /**
+     * `/usr/local/bin/z2scan` (自端末/localhost 限定の脆弱性試験) を配置する。内蔵の自己診断
+     * (`self`) と、distro 公式パッケージの nmap/lynis/trivy を導入して叩くラッパーから成る。
+     * ネットワークスキャンは既定 localhost 固定・外部対象は明示フラグ必須。launch 毎に上書き。
+     */
+    private fun ensureZ2ScanScript(rootfs: File) {
+        runCatching {
+            val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
+            val f = File(dir, "z2scan")
+            f.writeText(z2scanScript(lang = LocaleHelper.language(context)))
+            f.setReadable(true, false)
+            f.setExecutable(true, false)
+        }.onFailure { Log.w(TAG, "z2scan script 配置失敗", it) }
     }
 
     /**
