@@ -418,8 +418,6 @@ static int host_path_for(const struct config *cfg, pid_t pid, const char *in_pat
 //   execve(<rootfs のローダ>, ["--argv0", <元argv0>, <実プログラム>, <元args...>])
 // へ書き換えてローダを明示起動する。これで rootfs 内の動的バイナリが動く。
 
-#define MAX_ARGS 256
-
 // host_path の ELF を読み、PT_INTERP(ゲスト視点の絶対パス文字列)を interp へ。
 // 戻り値: 1=動的(interp 有), 0=非動的/非ELF(静的・スクリプト等), -1=読めない。
 static int read_elf_interp(const char *host_path, char *interp, size_t cap) {
@@ -791,17 +789,24 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
     char guest_prog[PATH_MAX_Z];
     if (read_tracee_str(pid, path_addr, guest_prog, sizeof(guest_prog)) < 0) return;
 
-    // 元 argv を tracee から読む。
+    // 元 argv を tracee から読む。個数上限を設けず動的確保で全件読む
+    // (固定長で切ると dpkg の byte-compile 等 argv の多い exec が壊れる)。
     unsigned long argv_addr = regs->regs[path_idx + 1];
-    char *args[MAX_ARGS];
-    int n = 0;
+    char **args = NULL;
+    int n = 0, cap = 0;
     if (argv_addr) {
-        for (; n < MAX_ARGS; n++) {
+        for (;; n++) {
             unsigned long p = 0;
             struct iovec lo = { &p, 8 };
             struct iovec re = { (void *)(argv_addr + (unsigned long)n * 8), 8 };
             if (process_vm_readv(pid, &lo, 1, &re, 1, 0) != 8) break;
             if (p == 0) break;
+            if (n == cap) {
+                int ncap = cap ? cap * 2 : 32;
+                char **na = realloc(args, (size_t)ncap * sizeof(*na));
+                if (!na) break;
+                args = na; cap = ncap;
+            }
             char *s = malloc(PATH_MAX_Z);
             if (!s) break;
             if (read_tracee_str(pid, p, s, PATH_MAX_Z) < 0) s[0] = '\0';
@@ -822,28 +827,31 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
             set_regs(pid, regs);
         }
         for (int j = 0; j < n; j++) free(args[j]);
+        free(args);
         return;
     }
 
     // 最終 argv = plan.prefix[..] + args[plan.orig_start..]
-    const char *parts[MAX_ARGS + PLAN_MAX_PREFIX];
+    int maxparts = plan.nprefix + n + 1;
+    const char **parts = malloc((size_t)maxparts * sizeof(*parts));
+    if (!parts) { for (int j = 0; j < n; j++) free(args[j]); free(args); return; }
     int pc = 0;
-    for (int j = 0; j < plan.nprefix && pc < (int)(MAX_ARGS + PLAN_MAX_PREFIX); j++)
-        parts[pc++] = plan.prefix[j];
-    for (int j = plan.orig_start; j < n && pc < (int)(MAX_ARGS + PLAN_MAX_PREFIX); j++)
-        parts[pc++] = args[j];
+    for (int j = 0; j < plan.nprefix; j++) parts[pc++] = plan.prefix[j];
+    for (int j = plan.orig_start; j < n; j++) parts[pc++] = args[j];
 
     // tracee スタック下に [target 文字列][argv blob][8B align][ポインタ配列 + NULL] を配置。
+    // blob/ptrs は argv サイズに応じて動的確保する(固定 8KB だと大きい argv で書き換えを
+    // 取りこぼし、ゲストパスのまま execve され ENOENT になっていた)。
     size_t target_len = strlen(plan.target) + 1;
     size_t blob_sz = 0;
     for (int j = 0; j < pc; j++) blob_sz += strlen(parts[j]) + 1;
     size_t total = target_len + blob_sz + 8 + (size_t)(pc + 1) * 8;
     unsigned long base = (regs->sp - SCRATCH_OFFSET - total) & ~15UL;
 
-    char blob[8192];
-    if (blob_sz <= sizeof(blob)) {
+    char *blob = malloc(blob_sz ? blob_sz : 1);
+    unsigned long *ptrs = malloc((size_t)(pc + 1) * sizeof(*ptrs));
+    if (blob && ptrs) {
         unsigned long blob_base = base + target_len;
-        unsigned long ptrs[MAX_ARGS + PLAN_MAX_PREFIX];
         size_t boff = 0;
         for (int j = 0; j < pc; j++) {
             size_t l = strlen(parts[j]) + 1;
@@ -865,7 +873,11 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
         }
     }
 
+    free(blob);
+    free(ptrs);
+    free(parts);
     for (int j = 0; j < n; j++) free(args[j]);
+    free(args);
 }
 
 // syscall-exit で getcwd(17) の戻りバッファに入ったホスト実パスをゲストパスへ逆変換する。
