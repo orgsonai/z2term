@@ -756,6 +756,15 @@ class ComposingState(
      */
     private var autoSplit: Boolean = false
 
+    /**
+     * 同一スプリット run 中に連続確定したブロックの (読み, 表層)。run が尽きたとき (または
+     * 一括確定時) に「結合読み → 結合表層」を [ImeHistoryStore] へ記録し、頻用の塊
+     * (びる+ド → ビルド 等) を次回以降 1 ブロックへ繋ぎ止める材料にする ([KkcConverter.learnedBlock])。
+     * これが無いと、自動分割で割れた語は常に各ブロック単体でしか学習されず、何度使っても
+     * 「びるど」全体が履歴に入らないため分割が解消しなかった。
+     */
+    private val committedRun = ArrayList<Pair<String, String>>()
+
     val isActive: Boolean get() = text.isNotEmpty()
     val isSplitMode: Boolean get() = splitHeadLen > 0
     /** スプリット中のフォーカス文字列 (先頭セグメント)。非スプリット中は text 全体を返す。 */
@@ -891,6 +900,7 @@ class ComposingState(
         ImeHistoryStore.record(key, candidate)
         prevCommitSurface?.let { ImeHistoryStore.recordBigram(it, candidate) }
         prevCommitSurface = candidate
+        if (isSplitMode) committedRun.add(key to candidate)
         onCommit(candidate)
         lastCommittedReading = key
         lastCommittedOutput = candidate
@@ -915,12 +925,16 @@ class ComposingState(
                 prev?.let { ImeHistoryStore.recordBigram(it, s) }
                 prev = s
             }
+            // ブロック単体に加え、短い結合読みは「結合ブロック」としても学習する。これで
+            // 一括確定 (ビルド 等) でも全体読みが履歴に入り、次回 1 ブロックへ繋ぎ止まる。
+            if (text.length in 2..MERGE_MAX_READING_LEN) ImeHistoryStore.record(text, full)
         } else {
             // 内訳が取れない/不整合なら従来どおり文全体を 1 エントリで学習。
             ImeHistoryStore.record(text, full)
             prevCommitSurface?.let { ImeHistoryStore.recordBigram(it, full) }
         }
         prevCommitSurface = full
+        committedRun.clear()
         onCommit(full)
         lastCommittedReading = text
         lastCommittedOutput = full
@@ -951,6 +965,7 @@ class ComposingState(
         ImeHistoryStore.record(toCommit, toCommit)
         prevCommitSurface?.let { ImeHistoryStore.recordBigram(it, toCommit) }
         prevCommitSurface = toCommit
+        if (isSplitMode) committedRun.add(toCommit to toCommit)
         onCommit(toCommit)
         lastCommittedReading = toCommit
         lastCommittedOutput = toCommit
@@ -968,6 +983,7 @@ class ComposingState(
         selectedCandidateIndex = -1
         lastEmitChar = null
         lastEmitTimeMs = 0
+        committedRun.clear()
         // composing を明示的に閉じたら bigram の前語コンテキストもクリア (文の流れが切れる)。
         prevCommitSurface = null
         // 注意: lastCommittedReading / lastCommittedOutput は意図的に残す
@@ -996,11 +1012,28 @@ class ComposingState(
         return cps
     }
 
+    /**
+     * 連続確定した run ([committedRun]) を「結合ブロック」として学習させる。読みが短い
+     * (≤ [MERGE_MAX_READING_LEN]) 2 ブロック以上のときだけ、結合読み → 結合表層を記録する。
+     * 長文 (今日の天気は…) まで丸ごと 1 ブロック化しないよう長さで絞る。記録後 run はクリア。
+     */
+    private fun learnMergedRun() {
+        if (committedRun.size >= 2) {
+            val mergedReading = committedRun.joinToString("") { it.first }
+            val mergedSurface = committedRun.joinToString("") { it.second }
+            if (mergedReading.length in 2..MERGE_MAX_READING_LEN && mergedSurface.isNotEmpty()) {
+                ImeHistoryStore.record(mergedReading, mergedSurface)
+            }
+        }
+        committedRun.clear()
+    }
+
     /** スプリット中: 確定後の処理。残りに対して次の分割を行うか、無ければ全リセット。 */
     private fun advanceSegmentOrReset() {
         if (isSplitMode) {
             val remaining = splitTail
             if (remaining.isEmpty()) {
+                learnMergedRun()
                 text = ""
                 candidates = emptyList()
                 fullPrediction = null
@@ -1034,6 +1067,9 @@ class ComposingState(
      * 天気は / …」のように区切って予測)。単語 1 個程度 (文節 1 つ) のときは全体予測 (スプリットなし)。
      */
     private fun reevaluateAutoSplit() {
+        // text が編集された = 確定 run の連続性が切れたので結合学習用の蓄積を捨てる
+        // (segment 確定は advanceSegmentOrReset→refreshPredict 経由で、ここは通らない)。
+        committedRun.clear()
         val b = if (text.length >= 2) KkcConverter.bunsetsu(text) else emptyList()
         if (b.size >= 2) {
             autoSplit = true
@@ -1089,5 +1125,10 @@ class ComposingState(
         if (kata != reading) out.add(kata)
         out.remove(reading)
         return out.toList()
+    }
+
+    private companion object {
+        /** 結合ブロック学習で許す結合読みの最大長 (これより長い文は丸ごと 1 ブロック化しない)。 */
+        const val MERGE_MAX_READING_LEN = 6
     }
 }

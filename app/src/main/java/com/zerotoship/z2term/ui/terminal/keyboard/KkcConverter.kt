@@ -259,8 +259,14 @@ object KkcConverter {
                     }
                 }
                 // 辞書に無い学習ブロックは学習表層で合成ノードを足す (lc=rc=0 で BOS/EOS 文脈近似)。
+                // ユーザーが実際に確定した塊は「1 つの語彙単位」なので、長さ分の未知かな
+                // (UNK_COST * 文字数) ではなく **1 語分** の UNK_COST を基準にする。こうしないと
+                // 辞書外の外来語 (びるど→ビルド 等。びるど は lex に無い) で UNK_COST×3=51000 になり、
+                // 辞書分割 (びる+ど ≈ 12000) に頻度ボーナスを足しても絶対に勝てず、何度使っても
+                // 1 ブロックへ繋ぎ止まらなかった。1 語基準にすることで「使うほど (count↑) 下がる」
+                // ボーナスが分割コストを越え、頻用の塊が自動で 1 ブロックにまとまる。
                 if (learned != null && (entries == null || entries.none { it.surface == learned.first })) {
-                    val c = (UNK_COST * (j - i) - bonus).coerceAtLeast(1)
+                    val c = (UNK_COST - bonus).coerceAtLeast(1)
                     val nd = Node(i, j, learned.first, r, 0, 0, c)
                     startsAt[i].add(nd); endsAt[j].add(nd)
                 }
