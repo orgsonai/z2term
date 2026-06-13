@@ -80,6 +80,27 @@ fun z2adbScript(lang: String = "ja"): String {
         |
         |has() { command -v "${d}1" >/dev/null 2>&1; }
         |
+        |# adb サーバが TCP LISTEN しているかを adb クライアントを起動せずに判定する
+        |# (port は /proc/net/tcp* 上は16進・state 0A=LISTEN)。
+        |server_up() {
+        |  hex=${d}(printf '%04X' "${d}{1:-5037}")
+        |  grep -qE ":${d}hex [0-9A-F]+:[0-9A-F]+ 0A" /proc/net/tcp /proc/net/tcp6 2>/dev/null
+        |}
+        |
+        |# adb サーバを先に立てる。z2root は /proc/self/exe を APK 内 .so として返すため、
+        |# adb クライアントが daemon を自己 exec (execl 自パス) しようとすると ENOENT で失敗する。
+        |# 自己 exec しない `nodaemon server` を background で立てておけば、以降のクライアントは
+        |# fork せず既存サーバに接続できる (LADB 相当のセルフ adb が z2root/proot で成立する)。
+        |start_server() {
+        |  port="${d}{ADB_SERVER_SOCKET##*:}"
+        |  case "${d}port" in ''|*[!0-9]*) port=5037 ;; esac
+        |  server_up "${d}port" && return 0
+        |  (adb -L "tcp:${d}port" nodaemon server >/dev/null 2>&1 &)
+        |  i=0
+        |  while [ "${d}i" -lt 30 ]; do server_up "${d}port" && return 0; sleep 0.2; i=${d}((i+1)); done
+        |  return 0
+        |}
+        |
         |# パッケージマネージャと adb パッケージ名を判定 (apk/apt/pacman で名前が違う)。
         |detect_pm() {
         |  if has apk; then PM=apk; ADB_PKG="android-tools"
@@ -99,11 +120,13 @@ fun z2adbScript(lang: String = "ja"): String {
         |  esac
         |}
         |
-        |# adb が無ければ一度だけ導入を試みる。導入できなければ非ゼロで返す。
+        |# adb が無ければ一度だけ導入を試み、その後サーバを先行起動する。
         |ensure_adb() {
-        |  has adb && return 0
-        |  install_adb
-        |  if ! has adb; then echo "$mInstallFail" >&2; return 1; fi
+        |  if ! has adb; then
+        |    install_adb
+        |    if ! has adb; then echo "$mInstallFail" >&2; return 1; fi
+        |  fi
+        |  start_server
         |}
         |
         |# "port" だけなら HOST を補い、"host:port" ならそのまま。
