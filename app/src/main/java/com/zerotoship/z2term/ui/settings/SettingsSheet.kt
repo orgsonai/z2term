@@ -699,13 +699,21 @@ fun SettingsSheet(
             if (settings.engineSelectorUnlocked) {
                 Section(title = stringResource(R.string.settings_section_engine)) {
                     val engineOptions = buildList {
-                        add(AppSettings.ENGINE_PROOT)
+                        // foss は proot prebuilt を同梱せず常に z2root 実走なので、選べても無意味な
+                        // PRoot チップは出さない (full のみ proot を選択肢に出す)。
+                        if (!BuildConfig.IS_FOSS) add(AppSettings.ENGINE_PROOT)
                         add(AppSettings.ENGINE_Z2ROOT)
                         if (settings.rootChrootUnlocked) add(AppSettings.ENGINE_CHROOT)
                     }
+                    // foss で既定値が proot のままだとどのチップも選択表示されないため、
+                    // 表示上は z2root を選択済みとして扱う (実走エンジンと一致)。
+                    val selectedEngine =
+                        if (BuildConfig.IS_FOSS && settings.executionEngine == AppSettings.ENGINE_PROOT)
+                            AppSettings.ENGINE_Z2ROOT
+                        else settings.executionEngine
                     ChipRow(
                         options = engineOptions,
-                        selected = settings.executionEngine,
+                        selected = selectedEngine,
                         labels = mapOf(
                             AppSettings.ENGINE_PROOT to stringResource(R.string.settings_engine_proot),
                             AppSettings.ENGINE_Z2ROOT to stringResource(R.string.settings_engine_z2root),

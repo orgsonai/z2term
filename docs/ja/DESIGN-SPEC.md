@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-14 / 対象バージョン: 0.8.92-alpha (versionCode 100)
+最終更新: 2026-06-14 / 対象バージョン: 0.8.93-alpha (versionCode 101)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -36,7 +36,7 @@
 - **SSH 両方向**: 端末から外部へ (JSch クライアント)、PC から端末へ (dropbear サーバ)。
 - **ファイル連携**: SAF DocumentsProvider で他アプリから rootfs/ホームを R/W、proot 内から Android 共有ストレージへ `cd`。
 - **GUI デスクトップ**: distro 内で Xvnc + 軽量 WM/アプリを起動し、内蔵 RFB(VNC) クライアントで表示（`gui/` パッケージ）。動画はソフト描画、音声はオプトインで PulseAudio→TCP→AudioTrack ブリッジ（`AudioBridge`）。
-- **実行エンジン**: 既定は PRoot。裏設定（設定→アプリ情報のバージョン行を 7 タップ）で **非 root の自前 ptrace エンジン「z2root」**（実験的）に切替可。さらに root 端末では root セルフテスト成功時に **「実 chroot」エンジン**も選択可（`su` 経由 bind mount + `chroot`。`executionEngine`）。トグル発火後 3 秒はバージョン行を**タップ不可**にして連打による即時再トグルを防ぐ（0.8.70。従来はタップを受けるが無視で不自然だった）。
+- **実行エンジン**: 既定は PRoot。裏設定（設定→アプリ情報のバージョン行を 7 タップ）で **非 root の自前 ptrace エンジン「z2root」**（実験的）に切替可。さらに root 端末では root セルフテスト成功時に **「実 chroot」エンジン**も選択可（`su` 経由 bind mount + `chroot`。`executionEngine`）。トグル発火後 3 秒はバージョン行を**タップ不可**にして連打による即時再トグルを防ぐ（0.8.70。従来はタップを受けるが無視で不自然だった）。**foss は proot prebuilt を同梱せず常に z2root 実走**のため、エンジン選択肢に PRoot チップを出さない（z2root / root 解放時 chroot のみ。0.8.93。従来は選べても z2root に倒れる見せかけだった）。
 
 対応 ABI は **arm64-v8a のみ**。最低 Android 10 (API 29)、ターゲット API 35。
 
