@@ -69,11 +69,11 @@
     <string name="settings_section_app_info">アプリ情報</string>
 
     <!-- 裏機能: 実行エンジン選択 (バージョン7回タップで解放) -->
-    <string name="settings_section_engine">実行エンジン (実験的)</string>
+    <string name="settings_section_engine">実行エンジン</string>
     <string name="settings_engine_proot">PRoot (既定)</string>
     <string name="settings_engine_z2root">z2root (非 root)</string>
     <string name="settings_engine_chroot">chroot (root)</string>
-    <string name="settings_engine_desc">z2root は自前の ptrace エンジンです (非 root・実験的。未同梱なら PRoot にフォールバック)。chroot は実 root でネイティブ実行し root 化端末が必要です。新しいタブから選択中のエンジンで起動します。</string>
+    <string name="settings_engine_desc">z2root は非 root の自前 ptrace エンジンです。chroot は実 root でネイティブ実行し root 化端末が必要です。新しいタブから選択中のエンジンで起動します。</string>
     <string name="settings_engine_current">このタブの実エンジン</string>
     <string name="settings_engine_current_starting">起動中…</string>
     <string name="settings_engine_android_sh">Android sh (フォールバック)</string>

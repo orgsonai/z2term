@@ -69,11 +69,11 @@
     <string name="settings_section_app_info">App info</string>
 
     <!-- Hidden execution engine selector (unlocked by tapping the version 7x) -->
-    <string name="settings_section_engine">Execution engine (experimental)</string>
+    <string name="settings_section_engine">Execution engine</string>
     <string name="settings_engine_proot">PRoot (default)</string>
     <string name="settings_engine_z2root">z2root (no root)</string>
     <string name="settings_engine_chroot">chroot (root)</string>
-    <string name="settings_engine_desc">z2root is our own ptrace engine (no root, experimental); falls back to PRoot if not bundled. chroot runs natively as real root and needs a rooted device. New tabs use the selected engine.</string>
+    <string name="settings_engine_desc">z2root is our own no-root ptrace engine. chroot runs natively as real root and needs a rooted device. New tabs use the selected engine.</string>
     <string name="settings_engine_current">This tab is running on</string>
     <string name="settings_engine_current_starting">starting…</string>
     <string name="settings_engine_android_sh">Android sh (fallback)</string>

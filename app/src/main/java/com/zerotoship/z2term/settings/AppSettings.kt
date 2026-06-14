@@ -285,7 +285,7 @@ class AppSettings(private val context: Context) {
 
         /** 実行エンジン: 非 root の PRoot (既定) */
         const val ENGINE_PROOT = "proot"
-        /** 実行エンジン: 非 root の自前 ptrace エンジン z2root (裏機能・実験的) */
+        /** 実行エンジン: 非 root の自前 ptrace エンジン z2root (裏機能。foss の既定エンジン) */
         const val ENGINE_Z2ROOT = "z2root"
         /** 実行エンジン: root で実 chroot (裏機能・要解放) */
         const val ENGINE_CHROOT = "chroot"

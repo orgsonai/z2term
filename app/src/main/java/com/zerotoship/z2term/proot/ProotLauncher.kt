@@ -212,9 +212,10 @@ class ProotLauncher(private val context: Context) {
             throw IllegalStateException("Rootfs not found: ${rootfs.absolutePath}")
         }
         // エンジン選択: 裏設定で z2root が選ばれ、かつ libz2root.so が同梱されていれば z2root を使う。
-        // 未同梱 (build-z2root.sh 未実行) の場合は proot へ素直にフォールバック。
         // foss は proot prebuilt を同梱しない (F-Droid 適合) ため、z2root が同梱されていれば
-        // 設定に関わらず z2root を既定エンジンとする。
+        // 設定に関わらず z2root を既定エンジンとする (z2root は full/foss 共通で常に同梱)。
+        // full のみ: z2root 未同梱 (build-z2root.sh 未実行) なら proot へフォールバックする。
+        // foss には倒す先の proot が無いため、z2root 欠落時は下の exists チェックで明確に停止する。
         val useZ2root = (BuildConfig.IS_FOSS || isZ2rootEngineSelected()) && z2rootBinary.exists()
         val engineBinary = if (useZ2root) z2rootBinary else prootBinary
         if (!engineBinary.exists()) {
