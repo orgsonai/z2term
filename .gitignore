@@ -27,6 +27,9 @@ lint/
 *.keystore
 keystore.properties
 
+# Secrets (GitHub token for release upload)
+.gh-token
+
 # OS
 .DS_Store
 Thumbs.db
