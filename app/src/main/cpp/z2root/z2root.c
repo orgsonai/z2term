@@ -243,7 +243,8 @@ static int translate_abs(const struct config *cfg, const char *guest_path, char 
 
 // ホスト実パス host を、ゲスト視点の絶対パスへ逆変換して buf へ。
 //  1) bind.host 配下 → bind.guest + 残り。 2) rootfs 配下 → 残り。
-//  3) いずれでもない → そのまま(ホスト=ゲストとみなす)。戻り値は buf。
+//  3) /files/distros/<name>/ パターンからゲストパスを復元(stale prefix 救済)。
+//  4) いずれでもない → そのまま(ホスト=ゲストとみなす)。戻り値は buf。
 static const char *host_to_guest(const struct config *cfg, const char *host,
                                  char *buf, size_t cap) {
     // 逆変換も最長一致。重なり合う host 側 prefix で最も具体的な bind を選ぶ
@@ -267,6 +268,30 @@ static const char *host_to_guest(const struct config *cfg, const char *host,
         snprintf(buf, cap, "%s", g[0] ? g : "/");
         return buf;
     }
+
+    // proot --link2symlink が残した .l2s symlink は作成時のホスト絶対パスを
+    // 保持する。Android OS のメジャーバージョンアップ(例 15→16)で data
+    // ディレクトリの絶対 prefix 正規化(/data/data ↔ /data/user/0 等)が変わると、
+    // .l2s が抱える絶対 prefix が現在の rootfs と食い違い、上の rootfs/bind 直接
+    // 照合が外れる。stale な絶対パスを素通し→translate_abs が rootfs を二重前置
+    // →ENOENT となり、shell やライブラリ(.l2s 多段 symlink)が "cannot open
+    // shared object file" で起動不能になる(OS 15→16 で zsh が起動不能の実機報告)。
+    // host の中の rootfs ディレクトリ構造マーカー "/files/distros/<name>/" を
+    // 手掛かりに、prefix に依らずゲストパスを復元する。realpath は dangling な
+    // stale パスには効かず、かつ syscall walk で重いので用いない。これは純粋な
+    // 文字列処理で、該当しなければ下の素通しへ落ちる。
+    {
+        const char *marker = strstr(host, "/files/distros/");
+        if (marker) {
+            const char *after = marker + 15;       // strlen("/files/distros/")
+            const char *slash = strchr(after, '/'); // <name> の直後
+            if (slash) {
+                snprintf(buf, cap, "%s", slash);
+                return buf;
+            }
+        }
+    }
+
     snprintf(buf, cap, "%s", host);
     return buf;
 }
