@@ -243,9 +243,7 @@ static int translate_abs(const struct config *cfg, const char *guest_path, char 
 
 // ホスト実パス host を、ゲスト視点の絶対パスへ逆変換して buf へ。
 //  1) bind.host 配下 → bind.guest + 残り。 2) rootfs 配下 → 残り。
-//  3) realpath で正規化して 1)2) を再試行(symlink alias 吸収)。
-//  4) /files/distros/ パターンからゲストパスを復元(完全に stale な旧パス向け)。
-//  5) いずれでもない → そのまま(ホスト=ゲストとみなす)。戻り値は buf。
+//  3) いずれでもない → そのまま(ホスト=ゲストとみなす)。戻り値は buf。
 static const char *host_to_guest(const struct config *cfg, const char *host,
                                  char *buf, size_t cap) {
     // 逆変換も最長一致。重なり合う host 側 prefix で最も具体的な bind を選ぶ
@@ -269,54 +267,6 @@ static const char *host_to_guest(const struct config *cfg, const char *host,
         snprintf(buf, cap, "%s", g[0] ? g : "/");
         return buf;
     }
-
-    // proot --link2symlink が残した .l2s symlink は作成時のホスト絶対パスを保持する。
-    // z2root は rootfs を realpath で正規化するため、proot が使った非正規パス
-    // (/data/user/0/... 等) や OS アップデートで変わった prefix と食い違い、上の
-    // 直接照合が外れる。以下の 2 段 fallback で吸収する。
-
-    // Fallback 1: realpath で正規化して bind/rootfs を再照合。
-    // /data/user/0/<pkg> ↔ /data/data/<pkg> のような symlink alias を吸収する。
-    {
-        char resolved[PATH_MAX_Z];
-        if (realpath(host, resolved) && strcmp(resolved, host) != 0) {
-            best = NULL; best_hl = 0;
-            for (int i = 0; i < cfg->nbinds; i++) {
-                const struct bind_entry *b = &cfg->binds[i];
-                size_t hl = strlen(b->host);
-                if (strncmp(resolved, b->host, hl) == 0 &&
-                    (resolved[hl] == '/' || resolved[hl] == '\0')) {
-                    if (best == NULL || hl > best_hl) { best = b; best_hl = hl; }
-                }
-            }
-            if (best != NULL) {
-                snprintf(buf, cap, "%s%s", best->guest, resolved + best_hl);
-                return buf;
-            }
-            if (strncmp(resolved, cfg->rootfs, cfg->rootfs_len) == 0 &&
-                (resolved[cfg->rootfs_len] == '/' || resolved[cfg->rootfs_len] == '\0')) {
-                const char *g = resolved + cfg->rootfs_len;
-                snprintf(buf, cap, "%s", g[0] ? g : "/");
-                return buf;
-            }
-        }
-    }
-
-    // Fallback 2: ホスト prefix が完全に失われている場合(ファイルが存在しない等で
-    // realpath も不可)、rootfs ディレクトリ構造のパターン /files/distros/<name>/ を
-    // 手掛かりにゲストパスを復元する。
-    {
-        const char *marker = strstr(host, "/files/distros/");
-        if (marker) {
-            const char *after = marker + 15;
-            const char *slash = strchr(after, '/');
-            if (slash) {
-                snprintf(buf, cap, "%s", slash);
-                return buf;
-            }
-        }
-    }
-
     snprintf(buf, cap, "%s", host);
     return buf;
 }
