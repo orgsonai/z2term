@@ -155,6 +155,66 @@ class ProotLauncher(private val context: Context) {
         }
     }
 
+    /**
+     * proot --link2symlink が残した stale symlink を修復し、相対リンクに変換する。
+     * .l2s symlink はホスト絶対パスをリンク先に保持するため、Android OS アップデートで
+     * パス正規化が変わると壊れる(z2root は rootfs を realpath するが、proot が使った
+     * 非正規パスが .l2s に残り host_to_guest の照合が外れる)。相対リンクに変換すれば
+     * 今後のパス変化に免疫を持つ。マーカーファイルで修復済みを記録し再実行を防ぐ。
+     */
+    private fun repairStaleL2sSymlinks(rootfs: File) {
+        val canonical = try { rootfs.canonicalPath } catch (_: Exception) { rootfs.absolutePath }
+        val marker = File(rootfs, ".l2s_repaired")
+        if (marker.exists() && marker.readText().trim() == canonical) return
+
+        Log.i(TAG, "Scanning for stale link2symlink artifacts in $canonical")
+        var repaired = 0
+        try {
+            val proc = ProcessBuilder("find", canonical, "-type", "l")
+                .redirectErrorStream(true).start()
+            proc.inputStream.bufferedReader().useLines { lines ->
+                for (path in lines) {
+                    if (path.isBlank()) continue
+                    val linkPath = try {
+                        java.nio.file.Paths.get(path)
+                    } catch (_: Exception) { continue }
+                    val target = try {
+                        java.nio.file.Files.readSymbolicLink(linkPath).toString()
+                    } catch (_: Exception) { continue }
+                    if (!target.startsWith("/data/")) continue
+                    if (target.startsWith("$canonical/")) continue
+
+                    val resolvedTarget = if (File(target).exists()) {
+                        try { File(target).canonicalPath } catch (_: Exception) { continue }
+                    } else {
+                        val idx = target.indexOf("/files/distros/")
+                        if (idx < 0) continue
+                        val rest = target.substring(idx + 15)
+                        val slash = rest.indexOf('/')
+                        if (slash < 0) continue
+                        "$canonical${rest.substring(slash)}"
+                    }
+                    if (!File(resolvedTarget).exists()) continue
+
+                    val linkDir = linkPath.parent ?: continue
+                    try {
+                        val relative = linkDir.relativize(java.nio.file.Paths.get(resolvedTarget))
+                        java.nio.file.Files.delete(linkPath)
+                        java.nio.file.Files.createSymbolicLink(linkPath, relative)
+                        repaired++
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to repair symlink: $path", e)
+                    }
+                }
+            }
+            proc.waitFor()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error in link2symlink repair", e)
+        }
+        if (repaired > 0) Log.i(TAG, "Repaired $repaired stale symlinks → relative")
+        try { marker.writeText(canonical) } catch (_: Exception) {}
+    }
+
     /** z2root エンジン専用 env: accept→accept4 シムを LD_PRELOAD する。proot/chroot では空。 */
     private fun z2rootEnv(useZ2root: Boolean): List<String> {
         if (!useZ2root) return emptyList()
@@ -235,6 +295,9 @@ class ProotLauncher(private val context: Context) {
         if (!useZ2root) ensureProotLibs()
         // z2root のときは accept→accept4 シムを rootfs に配置し、後で LD_PRELOAD する。
         if (useZ2root) ensureAcceptShim(rootfs)
+        // proot --link2symlink が残した .l2s symlink のホスト絶対パスが stale なら相対へ変換。
+        // OS アップデート後の初回のみ走る(マーカーファイルで以後スキップ)。
+        if (useZ2root) repairStaleL2sSymlinks(rootfs)
         // 再起動後もコマンド履歴を辿れるよう、shell rc に履歴設定を流し込む。
         ensureShellHistoryConfig(rootfs)
         // セッション復元の cwd 用に、プロンプト毎 OSC 7 (cwd 通知) を出すフックを仕込む。
