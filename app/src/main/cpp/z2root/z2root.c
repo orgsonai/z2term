@@ -177,11 +177,41 @@ static ssize_t read_tracee_str(pid_t pid, unsigned long addr, char *buf, size_t 
     return (ssize_t)off;
 }
 
+// process_vm_writev が EFAULT した時のフォールバック。PTRACE_POKEDATA は kernel の
+// __access_remote_vm 経由で、vma が無ければ expand_stack() を呼んでスタックを grow して
+// から書く。一方 process_vm_writev(GUP) は grow しないため、sp 直下でも sp がページ境界
+// 付近に来た起動初期では未 grow の下位ページで EFAULT になる(間欠 cannot-open / ZLE 未ロード)。
+// word 境界外の端バイトは PEEKDATA で読み戻してマージし保全する。
+static int poke_write_tracee_mem(pid_t pid, unsigned long addr, const void *buf, size_t len) {
+    const unsigned long WS = sizeof(long);
+    const unsigned char *src = (const unsigned char *)buf;
+    unsigned long start = addr & ~(WS - 1);
+    unsigned long stop  = (addr + len + WS - 1) & ~(WS - 1);
+    for (unsigned long a = start; a < stop; a += WS) {
+        unsigned long word = 0;
+        if (a < addr || a + WS > addr + len) {   // 端ワード: 未書込バイトを既存内容で埋める
+            errno = 0;
+            long peek = ptrace(PTRACE_PEEKDATA, pid, (void *)a, (void *)0);
+            if (peek == -1 && errno != 0) return -1;
+            word = (unsigned long)peek;
+        }
+        unsigned char *wb = (unsigned char *)&word;
+        for (unsigned long i = 0; i < WS; i++) {
+            unsigned long cur = a + i;
+            if (cur >= addr && cur < addr + len) wb[i] = src[cur - addr];
+        }
+        if (ptrace(PTRACE_POKEDATA, pid, (void *)a, (void *)word) != 0) return -1;
+    }
+    return 0;
+}
+
 static int write_tracee_mem(pid_t pid, unsigned long addr, const void *buf, size_t len) {
     struct iovec local = { (void *)buf, len };
     struct iovec remote = { (void *)addr, len };
     ssize_t n = process_vm_writev(pid, &local, 1, &remote, 1, 0);
-    return (n == (ssize_t)len) ? 0 : -1;
+    if (n == (ssize_t)len) return 0;
+    // 速い経路(process_vm_writev)が未 grow 下位ページ等で失敗 → POKEDATA で grow しつつ書く。
+    return poke_write_tracee_mem(pid, addr, buf, len);
 }
 
 // ---- レジスタ取得/設定 (aarch64) ----------------------------------------------
@@ -561,24 +591,22 @@ static int syscall_paths(long nr, struct sc_paths *out) {
 
 // syscall-entry で、必要ならパス引数をホスト実パスへ書き換える。
 // 書き換えたパス文字列はトレーシのスタック下(sp 直下)へ置き、該当レジスタを差し替える。
-// ⚠ sp から大きく下げてはいけない: process_vm_writev はリモート書込時にスタックを
-//    grow しない(kernel 6.x)。sp を含む present ページの境界を越えて未 grow の下位
-//    ページに base が落ちると EFAULT になり、変換済みパスを書き戻せず、起動初期
-//    (スタック low-water≒sp) でローダが "cannot open shared object file" で間欠的に
-//    落ちる。sp 直下(同一 present ページ内)へ置けば確実。長いパスで 1 ページに収まらない
-//    時のみ下位ページに掛かるが、その場合は write_tracee_mem が失敗し呼び出し側が
-//    レジスタ据え置き(安全側=ゲストパスのまま)になる。
+// scratch は sp 直下に置く。process_vm_writev はリモート書込時にスタックを grow しない
+// (kernel 6.x)ため、sp がページ境界付近に来た起動初期は base が未 grow の下位ページへ
+// 落ちて EFAULT になり得る(間欠 "cannot open shared object file" / zsh ZLE 未ロード)。
+// その救済は write_tracee_mem の POKEDATA フォールバック(expand_stack で grow)が担う。
+// scratch_base のページ境界クランプは「速い経路 process_vm_writev のヒット率」を上げる
+// 最適化で、外れても POKEDATA が確実に書く(sp 境界丁度=救済不能だった残ケースも解消)。
 #define SCRATCH_OFFSET 16
 
 // sp を含む present ページのサイズ。main で sysconf により設定(4K/16K 端末差に追従)。
 static unsigned long g_pagesize = 4096;
 
 // scratch 文字列(total バイト)を置く tracee アドレスを返す。
-// 既定は sp 直下 (sp - SCRATCH_OFFSET - total)。ただし base が sp を含む present ページの
-// 境界を割ると、process_vm_writev は未 grow の下位ページへ書けず(kernel 6.x)EFAULT になる。
-// present ページに total が収まるなら base をページ境界へ引き上げ、確実に書ける位置へ寄せる。
-// 収まらない場合のみ下位ページへ落ちる base を返す(=write_tracee_mem 失敗→呼び出し側が
-// レジスタ据え置き=ゲストパスのまま=安全側)。
+// 既定は sp 直下 (sp - SCRATCH_OFFSET - total)。base が present ページ境界を割ると速い経路
+// (process_vm_writev)は EFAULT になるので、total が収まるならページ境界へ引き上げて
+// process_vm_writev のヒット率を上げる(最適化)。収まらず下位ページへ落ちても
+// write_tracee_mem が POKEDATA でフォールバックして確実に書く。
 static unsigned long scratch_base(unsigned long sp, size_t total) {
     unsigned long floor = sp & ~(g_pagesize - 1);
     unsigned long base = (sp - SCRATCH_OFFSET - total) & ~15UL;
