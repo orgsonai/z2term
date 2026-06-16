@@ -85,6 +85,10 @@
     <string name="settings_engine_unlock_ok">Engine selector unlocked. Pick the engine below.</string>
     <string name="settings_engine_lock_ok">Engine selector hidden, reset to PRoot (default).</string>
     <string name="settings_root_unlock_ok">Root unlocked — chroot is now available too.</string>
+    <string name="settings_root_unlock_failed">Root was not granted. On a rooted device, tap "Grant" on the superuser prompt.</string>
+    <string name="settings_root_retry_hint">chroot appears once you grant root on a rooted device. Even if you deny it once, you can retry anytime with the button below.</string>
+    <string name="settings_root_retry_button">Enable chroot (check root)</string>
+    <string name="settings_root_retry_probing">Checking root…</string>
     <string name="settings_root_unlock_countdown">%1$d more taps to toggle the engine selector</string>
 
     <!-- Banners shown during distro / GUI install (D2 batch) -->

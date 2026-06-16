@@ -160,6 +160,35 @@ fun SettingsSheet(
         owner?.lifecycle?.addObserver(obs)
         onDispose { owner?.lifecycle?.removeObserver(obs) }
     }
+    // root セルフテスト実行中フラグ (連打防止 + ボタン表記切替)。
+    var rootProbing by remember { mutableStateOf(false) }
+    // root セルフテストを (再)実行する共通処理。成功で chroot を解放する。
+    // 元の挙動では 7タップ解放の瞬間に 1 度だけ走り、su 許可を拒否すると二度と
+    // chroot を選べなくなっていた。明示ボタンからも呼べるようにして、拒否後でも
+    // 何度でも再試行できるようにする (explicit=true のときだけ失敗をトーストで通知)。
+    val runRootProbe: (Boolean) -> Unit = run@{ explicit ->
+        if (rootProbing) return@run
+        rootProbing = true
+        scope.launch {
+            val result = withContext(Dispatchers.IO) { ProotLauncher(context).probeRootChroot() }
+            rootProbing = false
+            when {
+                result is RootProbe.Ok -> {
+                    session.setRootChrootUnlocked(true)
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.settings_root_unlock_ok),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                explicit -> Toast.makeText(
+                    context,
+                    context.getString(R.string.settings_root_unlock_failed),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
     // 全画面の「別ページ」として表示する。背景はバー裏まで塗りつつ、中身はシステムバー
     // (上=ステータス / 下=ナビゲーション) の内側に収める。戻る矢印 / システムバックで前へ戻る。
     Surface(
@@ -740,6 +769,24 @@ fun SettingsSheet(
                         label = stringResource(R.string.settings_engine_current),
                         value = actualEngineLabel
                     )
+                    // chroot 未解放 (root セルフテスト未成功) のときは、再試行ボタンを出す。
+                    // su 許可を一度拒否しても、ここから何度でも root 確認をやり直せる
+                    // (拒否すると二度と chroot を選べなくなる問題の解消)。
+                    if (!settings.rootChrootUnlocked) {
+                        Text(
+                            text = stringResource(R.string.settings_root_retry_hint),
+                            color = ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        ActionButton(
+                            label = if (rootProbing)
+                                stringResource(R.string.settings_root_retry_probing)
+                            else
+                                stringResource(R.string.settings_root_retry_button),
+                            onClick = { runRootProbe(true) }
+                        )
+                    }
                     // 開発者用: z2root の syscall トレースログ ON/OFF。既定 OFF。ログは膨大で
                     // すぐ容量を圧迫するため、一般ユーザーは使わないよう警告を添える。
                     // エンジン選択と同じ 7タップ裏機能内に置く (解放済みのときだけ見える)。
@@ -782,19 +829,8 @@ fun SettingsSheet(
                         ).show()
                         // 続けて root セルフテストを試み、成功したときだけ chroot も選択肢に追加する。
                         // 非 root / SELinux で塞がれている場合は追加トーストを出さない (engine selector は解放済み)。
-                        scope.launch {
-                            val result = withContext(Dispatchers.IO) {
-                                ProotLauncher(context).probeRootChroot()
-                            }
-                            if (result is RootProbe.Ok) {
-                                session.setRootChrootUnlocked(true)
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.settings_root_unlock_ok),
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        }
+                        // 失敗しても、エンジン選択内の再試行ボタン (runRootProbe(true)) からやり直せる。
+                        runRootProbe(false)
                     }
                 }
             )
