@@ -76,6 +76,9 @@
     <string name="settings_engine_desc">z2root は非 root の自前 ptrace エンジンです。chroot は実 root でネイティブ実行し root 化端末が必要です。新しいタブから選択中のエンジンで起動します。</string>
     <string name="settings_engine_current">このタブの実エンジン</string>
     <string name="settings_engine_current_starting">起動中…</string>
+    <string name="settings_trace_log_toggle">トレースログ (開発用)</string>
+    <string name="settings_trace_log_toggle_desc">z2root の全 syscall を z2root_trace.log に記録します。</string>
+    <string name="settings_trace_log_warning">⚠ 開発・障害調査専用です。ログが膨大になり端末の空き容量をすぐに圧迫するため、通常は OFF のまま使用しないでください。</string>
     <string name="settings_engine_android_sh">Android sh (フォールバック)</string>
     <string name="tab_popup_engine_label">エンジン</string>
     <string name="tab_popup_engine_gui">GUI (Linux)</string>

@@ -30,7 +30,7 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 ## Current version
 
-**0.8.104-alpha (versionCode 112).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.105-alpha (versionCode 113).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
@@ -80,7 +80,7 @@ bash scripts/build-bundle.sh
 
 It runs all four generators in order and then verifies nothing is missing:
 
-1. `build-proot.sh` → `libproot.so` / `libproot_loader.so` / `libtalloc.so`
+1. `build-proot.sh` → `libproot.so` / `libproot_loader.so` / `libtalloc.so` / `libandroid-shmem.so`
 2. `build-z2root.sh` → `libz2root.so` / `libz2accept.so` (needs an NDK; auto-resolved from `local.properties` `sdk.dir`+`ndk.version`)
 3. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` `-Regular.ttf`
 4. `build-alpine-rootfs.sh` → `app/src/full/assets/alpine-minirootfs-aarch64.tgz` (`full` flavor only; `foss` downloads it at runtime)
@@ -233,6 +233,7 @@ is obtainable from the URLs below (for GPL v2 §3 / GPL v3 §6 / LGPL v3 §4).
 |---|---|---|
 | `libproot.so` / `libproot_loader.so` | GPL-2.0 | [termux/proot](https://github.com/termux/proot) / see the Termux package version downloaded by `scripts/build-proot.sh` |
 | `libtalloc.so` | LGPL-3.0 | [Samba talloc](https://gitlab.com/samba-team/samba/-/tree/master/lib/talloc) / same as above |
+| `libandroid-shmem.so` | MIT | [termux/android-shmem](https://github.com/termux/android-shmem) / Termux package downloaded by `scripts/build-proot.sh` (proot links it for SysV shared memory) |
 | each package in `alpine-minirootfs-*.tgz` | individual (GPL-2.0 / GPL-3.0 / MIT / BSD, etc.) | [Alpine aports](https://gitlab.alpinelinux.org/alpine/aports) — look up each package name in `scripts/alpine-packages.txt` |
 | Fira Code / IBM Plex Mono / JetBrains Mono | OFL-1.1 | [tonsky/FiraCode](https://github.com/tonsky/FiraCode) / [IBM/plex](https://github.com/IBM/plex) / [JetBrains/JetBrainsMono](https://github.com/JetBrains/JetBrainsMono) |
 

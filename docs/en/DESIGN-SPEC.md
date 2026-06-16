@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-06-16 / Target version: 0.8.104-alpha (versionCode 112)
+Last updated: 2026-06-17 / Target version: 0.8.105-alpha (versionCode 113)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -35,7 +35,7 @@ Last updated: 2026-06-16 / Target version: 0.8.104-alpha (versionCode 112)
 - **Bidirectional SSH**: from the terminal to the outside (JSch client), and from a PC into the terminal (dropbear server).
 - **File integration**: SAF DocumentsProvider lets other apps R/W the rootfs/home; from inside proot you can `cd` into Android shared storage.
 - **GUI desktop**: inside the distro, Xvnc + a lightweight WM/app launches and is displayed by the built-in RFB (VNC) client (`gui/` package). Video uses software rendering; audio is an opt-in PulseAudio→TCP→AudioTrack bridge (`AudioBridge`).
-- **Execution engine**: PRoot by default. A hidden setting (tap the version row 7×) can switch to **"z2root", our own no-root ptrace engine**. On rooted devices, when the root self-test passes, a **"real chroot" engine** also becomes selectable (`su`-based bind mounts + `chroot`; `executionEngine`). For 3s after the toggle fires, the version row becomes **non-tappable** to prevent rapid re-toggling (0.8.70; previously taps were accepted but ignored, which felt unnatural). **foss bundles no proot prebuilt and always runs z2root**, so the engine selector does not show the PRoot chip (only z2root / chroot when root-unlocked; 0.8.93; previously PRoot was selectable but silently fell back to z2root).
+- **Execution engine**: PRoot by default. A hidden setting (tap the version row 7×) can switch to **"z2root", our own no-root ptrace engine**. On rooted devices, when the root self-test passes, a **"real chroot" engine** also becomes selectable (`su`-based bind mounts + `chroot`; `executionEngine`). For 3s after the toggle fires, the version row becomes **non-tappable** to prevent rapid re-toggling (0.8.70; previously taps were accepted but ignored, which felt unnatural). **foss bundles no proot prebuilt and always runs z2root**, so the engine selector does not show the PRoot chip (only z2root / chroot when root-unlocked; 0.8.93; previously PRoot was selectable but silently fell back to z2root). The same 7-tap unlock area also hosts a **z2root trace-log ON/OFF toggle** (developer-only, default OFF, `traceLogEnabled`). When ON, every z2root syscall is logged to `shared_home/z2root_trace.log` — useful for diagnostics but the log grows huge and quickly fills device storage, so the UI carries a "leave OFF / do not use in normal operation" warning (0.8.105; previously only the `.z2root_trace_on` sentinel file could toggle it; the sentinel still works for backward compatibility).
 
 Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 
@@ -61,7 +61,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 | Persistence | DataStore Preferences | 1.1.2 (settings / SSH profiles) |
 | SSH client | JSch (mwiede fork) | 0.2.26 (+ BouncyCastle 1.84 enables ed25519/curve25519) |
 | Decompression | org.tukaani:xz | 1.10 (the downloaded distro's `.tar.xz`). gzip is JDK standard |
-| Linux runtime | PRoot + libtalloc | `.so` bundled in jniLibs (from a Termux build) |
+| Linux runtime | PRoot + libtalloc + libandroid-shmem | `.so` bundled in jniLibs (from a Termux build) |
 | Bundled OS | Alpine Linux ARM minirootfs | full bundles `.tgz` under `src/full/assets`. foss excludes it and downloads from the official CDN at runtime |
 
 ---
@@ -123,7 +123,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 
 ### 4.3 PRoot execution (`proot/ProotLauncher.kt`, `proot/SshdScript.kt`)
 
-- The binary is `nativeLibraryDir/libproot.so` (+ `libproot_loader.so`). `libtalloc.so` is extracted as `libtalloc.so.2` per its SONAME and put on `LD_LIBRARY_PATH`.
+- The binary is `nativeLibraryDir/libproot.so` (+ `libproot_loader.so`). `libtalloc.so` is extracted as `libtalloc.so.2` per its SONAME and put on `LD_LIBRARY_PATH`. Newer Termux proot also links `libandroid-shmem.so` (SysV shared memory), so it is extracted into the same `proot-libs` and put on the path too (without it proot dies immediately with `library "libandroid-shmem.so" not found`).
 - `launch(distroId, command, rows, cols, fallbackShell)` assembles proot arguments and calls `PtyProcess.create`:
   - `--kill-on-exit -0 --link2symlink -r <rootfs> -b /dev -b /proc -b /sys -b <shared_home>:/root`
   - **External storage bind**: `/storage/emulated/0:/sdcard`, `getExternalFilesDir:/storage/app`
@@ -165,6 +165,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
   - Character width: East Asian Width aware (the `ambiguousAsWide` setting makes ambiguous width 2 cells). Non-BMP characters (emoji 😀 / CJK extensions) are stored across 2 cells as a surrogate pair — high surrogate in the left cell, low surrogate in the right (`wideCont`) cell. **Rendering (`TerminalRenderer.glyphAt`), selection copy (`getRangeText`), and row text (`toText`) recombine both cells into a single glyph** (0.8.74). Previously the right cell was dropped and the lone high surrogate was drawn/emitted, producing a tofu (?) box.
   - SGR: bold/underline/inverse/strikethrough, 16/256/RGB (truecolor).
   - DEC modes: alternate screen, cursor keys (DECCKM), **mouse reporting** (X10/Normal/Button/Any × Legacy/SGR/urxvt).
+  - **Scroll region (DECSTBM)**: line-feed scrolling (`lineFeed`/IND) only pushes the top line into scrollback when the region spans the whole screen; when `DECSTBM` sets a custom region it **scrolls within the region only**, leaving lines outside it untouched and not pushing to scrollback (0.8.105; previously it ignored the region and always called the full-screen scrollUp, so when vim etc. pinned a bottom status/command line — line numbers / ruler — and kept inserting newlines, that fixed line was pushed up one row each time, producing the "line numbers burned into every row" bug. Locked down by `ScrollRegionLineFeedTest`). `IL`/`DL`/`SU`/`SD`/`RI` already respected the region.
   - OSC: 7 (cwd) / 8 (hyperlink) / 10–12 (fg/bg/cursor color, replies to `?` queries) / 52 (clipboard) / palette. OSC titles are UTF-8 decoded (prevents mojibake in Japanese tab names).
   - **Cells of URL/OSC8 links are underlined.** Long URLs carry a wrapped flag on their wrap-origin row for detection (tap to open).
   - bracketed paste (DECSET 2004) supported.
@@ -178,6 +179,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 - `SessionManager` (object): exposes the list of `TerminalSession` + active via `StateFlow`. `ensureFirst`/`openNew`/`close`/`setActive`/`moveSession` (tab drag reorder). `close` first removes the tab from the UI and runs teardown (PTY/SSH disconnect, GUI=Xvnc stop) in the background to avoid sluggish tab removal.
 - `TerminalSession`: state machine `IDLE→INSTALLING→STARTING→RUNNING→EXITED/ERROR`.
   - dedicated emulator dispatcher, PTY read loop, `writeBytes`, resize, `startTerminal`/`switchDistro`/`restart`/`reinstallDistro`/`startSsh`.
+  - **Startup distro awaits the persisted value to avoid a race**: `settingsFlow` is `stateIn(Eagerly)` whose initial value is the default Snapshot (`distroId=alpine`), so if `startTerminal` runs before DataStore's first emission lands (right after an app update or device reboot), it would launch the default Alpine instead of the selected OS (the "occasionally Alpine boots" symptom). `startTerminal` now awaits `settings.flow.first()` before choosing the distro, so the selected OS is launched reliably (0.8.105).
   - `StateFlow`: uiState / redrawTick (≈60fps coalescing) / scrollOffset / cellMetrics / selection / cwd / label / settingsFlow.
 - `TerminalSelection` / `CellMetrics`: selection range (absolute rows) and 1-cell dimensions.
 - `SessionStore`/`SessionManager` (M11): saves tab layout `{id,label,distro,cwd}` + activeId to DataStore (write-only). **0.8.70 disables startup restore**: to avoid multiple tabs reopening on every launch, `ensureFirst` always opens just one fresh tab (user request). `save` is kept for a future restore UI / debugging but has no read-back path. **cwd is captured via OSC7** (`ensureOsc7CwdConfig` makes bash/zsh emit OSC7 in the prompt hook).
@@ -401,7 +403,7 @@ sh scripts/z2root-cmdtest.sh          # cross-test fragile commands that hit z2r
 adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 ```
 
-- full bundle: `jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc}.so` (both flavors), `src/full/assets/alpine-minirootfs-aarch64.tgz` (full only), `assets/fonts/*.ttf` (shared).
+- full bundle: `src/full/jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc,libandroid-shmem}.so` (full flavor only), `src/full/assets/alpine-minirootfs-aarch64.tgz` (full only), `assets/fonts/*.ttf` (shared).
 - foss excludes the rootfs and fetches it at startup via `DistroSpec.ALPINE`'s official CDN URL + SHA-256 (`DistroSpec.bundledInApk` returns false). foss also excludes the proot/talloc prebuilts (F-Droid non-compliant) and runs on z2root built from bundled source instead.
 - **The rootfs in assets uses the `.tgz` extension** (with `.tar.gz`, aapt decompresses and renames it).
 - **`useLegacyPackaging=true` is required** (so the `.so` files that get execve'd are placed as real files in nativeLibraryDir).

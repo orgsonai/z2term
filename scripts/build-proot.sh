@@ -14,7 +14,8 @@
 # 出力:
 #   app/src/full/jniLibs/arm64-v8a/libproot.so
 #   app/src/full/jniLibs/arm64-v8a/libproot_loader.so
-#   app/src/full/jniLibs/arm64-v8a/libtalloc.so         (proot の依存)
+#   app/src/full/jniLibs/arm64-v8a/libtalloc.so          (proot の依存)
+#   app/src/full/jniLibs/arm64-v8a/libandroid-shmem.so   (proot の依存・新)
 #
 # 使い方:
 #   bash scripts/build-proot.sh
@@ -33,8 +34,10 @@ mkdir -p "${WORK_DIR}"
 
 TERMUX_REPO="https://packages.termux.dev/apt/termux-main/pool/main/p/proot/"
 TERMUX_LIBTALLOC_REPO="https://packages.termux.dev/apt/termux-main/pool/main/libt/libtalloc/"
+TERMUX_SHMEM_REPO="https://packages.termux.dev/apt/termux-main/pool/main/liba/libandroid-shmem/"
 PROOT_VER_AARCH64="${PROOT_VERSION:-5.1.107.77}"
 LIBTALLOC_VER_AARCH64="${LIBTALLOC_VERSION:-2.4.3}"
+LIBSHMEM_VER_AARCH64="${LIBSHMEM_VERSION:-0.7}"
 
 # pool ディレクトリ一覧から最新版番号を取り出す。
 # Termux は pool に最新版しか残さないため、ピン留めした版は予告なく 404 になる。
@@ -49,8 +52,9 @@ latest_ver() {
 if [[ "${AUTO_LATEST:-0}" == "1" ]]; then
     PROOT_VER_AARCH64="$(latest_ver "${TERMUX_REPO}" proot)"
     LIBTALLOC_VER_AARCH64="$(latest_ver "${TERMUX_LIBTALLOC_REPO}" libtalloc)"
-    [[ -z "${PROOT_VER_AARCH64}" || -z "${LIBTALLOC_VER_AARCH64}" ]] && { echo "ERROR: バージョン自動検出失敗" >&2; exit 1; }
-    echo "[info] AUTO_LATEST: proot=${PROOT_VER_AARCH64}, libtalloc=${LIBTALLOC_VER_AARCH64}"
+    LIBSHMEM_VER_AARCH64="$(latest_ver "${TERMUX_SHMEM_REPO}" libandroid-shmem)"
+    [[ -z "${PROOT_VER_AARCH64}" || -z "${LIBTALLOC_VER_AARCH64}" || -z "${LIBSHMEM_VER_AARCH64}" ]] && { echo "ERROR: バージョン自動検出失敗" >&2; exit 1; }
+    echo "[info] AUTO_LATEST: proot=${PROOT_VER_AARCH64}, libtalloc=${LIBTALLOC_VER_AARCH64}, libandroid-shmem=${LIBSHMEM_VER_AARCH64}"
 fi
 
 fetch_deb() {
@@ -88,6 +92,7 @@ fetch_one() {
     local termux_arch="$2"    # aarch64    | arm
     local proot_ver="$3"
     local libtalloc_ver="$4"
+    local libshmem_ver="$5"
 
     local out_dst="${JNI_DIR}/${abi}"
     mkdir -p "${out_dst}"
@@ -130,13 +135,32 @@ fetch_one() {
 
     cp -v "${libtalloc_real}" "${out_dst}/libtalloc.so"
     chmod 0755 "${out_dst}/libtalloc.so"
+
+    # ----- libandroid-shmem.so (proot の依存・新) -----
+    # 新しい Termux proot は SysV 共有メモリのために libandroid-shmem.so にリンクされる。
+    # 不在だと起動時に `CANNOT LINK EXECUTABLE "proot": library "libandroid-shmem.so"
+    # not found` で即落ちする。SONAME は無印 (libandroid-shmem.so) なので jniLibs 規約
+    # (lib*.so) にそのまま合致する。実体を libandroid-shmem.so として配置し、ランタイムで
+    # libtalloc 同様 LD_LIBRARY_PATH (proot-libs) から見えるようにする (ProotLauncher 参照)。
+    local libshmem_deb_path
+    libshmem_deb_path="$(fetch_deb_resolving "${TERMUX_SHMEM_REPO}" libandroid-shmem "${libshmem_ver}" "${termux_arch}")"
+    local libshmem_extract="${WORK_DIR}/${abi}-libshmem"
+    rm -rf "${libshmem_extract}"; mkdir -p "${libshmem_extract}"
+    (cd "${libshmem_extract}" && ar x "${libshmem_deb_path}" && tar -xJf data.tar.xz)
+
+    local libshmem_real
+    libshmem_real="$(find "${libshmem_extract}" -name 'libandroid-shmem.so' -type f | head -n1)"
+    [[ -n "${libshmem_real}" ]] || { echo "ERROR: libandroid-shmem.so が deb 内に見つからない (${abi})" >&2; return 1; }
+
+    cp -v "${libshmem_real}" "${out_dst}/libandroid-shmem.so"
+    chmod 0755 "${out_dst}/libandroid-shmem.so"
 }
 
 # arm64 (現在 Z2Term は arm64 のみ同梱方針)
-fetch_one arm64-v8a aarch64 "${PROOT_VER_AARCH64}" "${LIBTALLOC_VER_AARCH64}"
+fetch_one arm64-v8a aarch64 "${PROOT_VER_AARCH64}" "${LIBTALLOC_VER_AARCH64}" "${LIBSHMEM_VER_AARCH64}"
 
 echo ""
-echo "[done] jniLibs に PRoot + libtalloc 配置完了:"
-find "${JNI_DIR}" -type f \( -name 'libproot*.so' -o -name 'libtalloc.so' \) -exec ls -la {} \;
+echo "[done] jniLibs に PRoot + libtalloc + libandroid-shmem 配置完了:"
+find "${JNI_DIR}" -type f \( -name 'libproot*.so' -o -name 'libtalloc.so' -o -name 'libandroid-shmem.so' \) -exec ls -la {} \;
 echo ""
 echo "次は ./gradlew :app:assembleFossDebug でリビルドしてください。"

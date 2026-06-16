@@ -116,20 +116,31 @@ class ProotLauncher(private val context: Context) {
 
     /** jniLibs の libtalloc.so を SONAME 名 (libtalloc.so.2) で展開 */
     private fun ensureProotLibs() {
-        val src = File(context.applicationInfo.nativeLibraryDir, "libtalloc.so")
+        // libtalloc は SONAME が libtalloc.so.2 だが jniLibs に置けるのは lib*.so 形式のみ
+        // なので、jniLibs の libtalloc.so → proot-libs/libtalloc.so.2 にリネーム展開する。
+        provisionProotLib(srcName = "libtalloc.so", sonameFile = "libtalloc.so.2")
+        // libandroid-shmem は SONAME が無印 (libandroid-shmem.so) なのでリネーム不要。
+        // 新しい Termux proot がこれにリンクするようになったため (不在だと
+        // `library "libandroid-shmem.so" not found` で proot が即落ちする) 同様に展開する。
+        provisionProotLib(srcName = "libandroid-shmem.so", sonameFile = "libandroid-shmem.so")
+    }
+
+    /** nativeLibraryDir の [srcName] を proot-libs/[sonameFile] へ (必要時のみ) コピーする。 */
+    private fun provisionProotLib(srcName: String, sonameFile: String) {
+        val src = File(context.applicationInfo.nativeLibraryDir, srcName)
         if (!src.exists()) {
-            Log.w(TAG, "libtalloc.so not in nativeLibraryDir — proot will fail to link")
+            Log.w(TAG, "$srcName not in nativeLibraryDir — proot may fail to link")
             return
         }
         prootLibsDir.mkdirs()
-        val dst = File(prootLibsDir, "libtalloc.so.2")
+        val dst = File(prootLibsDir, sonameFile)
         val needsCopy = !dst.exists() || dst.length() != src.length() ||
             dst.lastModified() < src.lastModified()
         if (needsCopy) {
             src.copyTo(dst, overwrite = true)
             dst.setReadable(true, false)
             dst.setExecutable(true, false)
-            Log.i(TAG, "Provisioned libtalloc.so.2 at ${dst.absolutePath}")
+            Log.i(TAG, "Provisioned $sonameFile at ${dst.absolutePath}")
         }
     }
 
@@ -160,9 +171,10 @@ class ProotLauncher(private val context: Context) {
         if (!useZ2root) return emptyList()
         val out = mutableListOf<String>()
         if (z2acceptShim.exists()) out.add("LD_PRELOAD=$z2acceptShimGuestPath")
-        // [DEBUG] shared_home に .z2root_trace_on があるときだけ z2root の syscall トレースを
-        // shared_home/z2root_trace.log へ出す(SSH PTY reset 調査用)。sentinel が無ければ常時 OFF。
-        if (File(sharedHomeDir, ".z2root_trace_on").exists())
+        // [DEBUG] 設定「トレースログ」(エンジン選択と同じ 7タップ裏機能内) が ON のときだけ
+        // z2root の全 syscall を shared_home/z2root_trace.log へ出す。既定 OFF。ログは膨大で
+        // 容量を圧迫するため一般ユーザーは使わない。旧来の .z2root_trace_on sentinel でも有効化できる。
+        if (isTraceLogEnabled() || File(sharedHomeDir, ".z2root_trace_on").exists())
             out.add("Z2ROOT_TRACE=${File(sharedHomeDir, "z2root_trace.log").absolutePath}")
         return out
     }
@@ -694,6 +706,14 @@ class ProotLauncher(private val context: Context) {
      */
     private fun isZ2rootEngineSelected(): Boolean = runCatching {
         runBlocking { AppSettings(context).flow.first().executionEngine == AppSettings.ENGINE_Z2ROOT }
+    }.getOrDefault(false)
+
+    /**
+     * 設定「トレースログ」(開発者用) が ON かを同期的に読む ([isExternalStorageEnabled] と同方式)。
+     * 失敗時は false に倒して「壊れていればトレースしない」安全側へ。
+     */
+    private fun isTraceLogEnabled(): Boolean = runCatching {
+        runBlocking { AppSettings(context).flow.first().traceLogEnabled }
     }.getOrDefault(false)
 
     /**

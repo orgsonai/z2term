@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -247,6 +248,7 @@ class TerminalSession(
     fun setExecutionEngine(value: String) { scope.launch { settings.setExecutionEngine(value) } }
     fun setExternalStorageEnabled(value: Boolean) { scope.launch { settings.setExternalStorageEnabled(value) } }
     fun setAndroidHostBindEnabled(value: Boolean) { scope.launch { settings.setAndroidHostBindEnabled(value) } }
+    fun setTraceLogEnabled(value: Boolean) { scope.launch { settings.setTraceLogEnabled(value) } }
 
     /** 設定で選ばれているディストロを使って起動。明示的指定があればそれを優先 */
     fun startTerminal(distroOverride: DistroSpec? = null) {
@@ -259,9 +261,14 @@ class TerminalSession(
             // セッション復元: 明示 override が無い初回のみ、保存されていた distro を優先する。
             val restoreDistro = if (distroOverride == null) pendingRestoreDistroId else null
             pendingRestoreDistroId = null
+            // settingsFlow は stateIn(Eagerly) の初期値が既定 Snapshot (distroId=alpine) なので、
+            // アプリ更新・端末再起動直後など DataStore の初回 emit がまだ届いていないタイミングで
+            // ここを通ると、選択中の OS ではなく既定 alpine で起動してしまうレースがある
+            // (「希に alpine が立ち上がる」現象の正体)。確実に永続値を await してから決める。
+            val persisted = settings.flow.first()
             val spec = distroOverride
                 ?: restoreDistro?.let { DistroSpec.byId(it) }
-                ?: DistroSpec.byId(settingsFlow.value.distroId)
+                ?: DistroSpec.byId(persisted.distroId)
                 ?: DistroSpec.ALPINE
             try {
                 if (!launcher.isProotAvailable()) {

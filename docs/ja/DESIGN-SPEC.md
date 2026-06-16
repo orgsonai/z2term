@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-16 / 対象バージョン: 0.8.104-alpha (versionCode 112)
+最終更新: 2026-06-17 / 対象バージョン: 0.8.105-alpha (versionCode 113)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -36,7 +36,7 @@
 - **SSH 両方向**: 端末から外部へ (JSch クライアント)、PC から端末へ (dropbear サーバ)。
 - **ファイル連携**: SAF DocumentsProvider で他アプリから rootfs/ホームを R/W、proot 内から Android 共有ストレージへ `cd`。
 - **GUI デスクトップ**: distro 内で Xvnc + 軽量 WM/アプリを起動し、内蔵 RFB(VNC) クライアントで表示（`gui/` パッケージ）。動画はソフト描画、音声はオプトインで PulseAudio→TCP→AudioTrack ブリッジ（`AudioBridge`）。
-- **実行エンジン**: 既定は PRoot。裏設定（設定→アプリ情報のバージョン行を 7 タップ）で **非 root の自前 ptrace エンジン「z2root」**に切替可。さらに root 端末では root セルフテスト成功時に **「実 chroot」エンジン**も選択可（`su` 経由 bind mount + `chroot`。`executionEngine`）。トグル発火後 3 秒はバージョン行を**タップ不可**にして連打による即時再トグルを防ぐ（0.8.70。従来はタップを受けるが無視で不自然だった）。**foss は proot prebuilt を同梱せず常に z2root 実走**のため、エンジン選択肢に PRoot チップを出さない（z2root / root 解放時 chroot のみ。0.8.93。従来は選べても z2root に倒れる見せかけだった）。
+- **実行エンジン**: 既定は PRoot。裏設定（設定→アプリ情報のバージョン行を 7 タップ）で **非 root の自前 ptrace エンジン「z2root」**に切替可。さらに root 端末では root セルフテスト成功時に **「実 chroot」エンジン**も選択可（`su` 経由 bind mount + `chroot`。`executionEngine`）。トグル発火後 3 秒はバージョン行を**タップ不可**にして連打による即時再トグルを防ぐ（0.8.70。従来はタップを受けるが無視で不自然だった）。**foss は proot prebuilt を同梱せず常に z2root 実走**のため、エンジン選択肢に PRoot チップを出さない（z2root / root 解放時 chroot のみ。0.8.93。従来は選べても z2root に倒れる見せかけだった）。同じ 7 タップ解放枠内に **z2root トレースログ ON/OFF トグル**（開発者用・既定 OFF・`traceLogEnabled`）を置く。ON で z2root の全 syscall を `shared_home/z2root_trace.log` へ記録する＝障害調査用だがログが膨大で端末容量をすぐ圧迫するため、UI に「通常は OFF のまま使用しない」警告を添える（0.8.105。従来は `.z2root_trace_on` sentinel ファイルでしか切替できなかった。sentinel も後方互換で有効）。
 
 対応 ABI は **arm64-v8a のみ**。最低 Android 10 (API 29)、ターゲット API 35。
 
@@ -62,7 +62,7 @@
 | 永続化 | DataStore Preferences | 1.1.2 (設定 / SSH プロファイル) |
 | SSH クライアント | JSch (mwiede fork) | 0.2.26 (+ BouncyCastle 1.84 で ed25519/curve25519 を有効化) |
 | 解凍 | org.tukaani:xz | 1.10 (DL distro の `.tar.xz`)。gzip は JDK 標準 |
-| Linux 実行 | PRoot + libtalloc | jniLibs に `.so` 同梱 (Termux ビルド由来) |
+| Linux 実行 | PRoot + libtalloc + libandroid-shmem | jniLibs に `.so` 同梱 (Termux ビルド由来) |
 | 同梱 OS | Alpine Linux ARM minirootfs | full は `src/full/assets` に `.tgz` 同梱。foss は非同梱で公式 CDN から起動時 DL |
 
 ---
@@ -124,7 +124,7 @@
 
 ### 4.3 PRoot 実行 (`proot/ProotLauncher.kt`, `proot/SshdScript.kt`)
 
-- バイナリは `nativeLibraryDir/libproot.so` (+ `libproot_loader.so`)。`libtalloc.so` を SONAME 通り `libtalloc.so.2` に展開し `LD_LIBRARY_PATH` に通す。
+- バイナリは `nativeLibraryDir/libproot.so` (+ `libproot_loader.so`)。`libtalloc.so` を SONAME 通り `libtalloc.so.2` に展開し `LD_LIBRARY_PATH` に通す。新しい Termux proot は `libandroid-shmem.so`(SysV 共有メモリ)にもリンクされるため、これも同じ `proot-libs` に展開して通す(不在だと `library "libandroid-shmem.so" not found` で proot が即落ちする)。
 - `launch(distroId, command, rows, cols, fallbackShell)` が proot 引数を組み立てて `PtyProcess.create`:
   - `--kill-on-exit -0 --link2symlink -r <rootfs> -b /dev -b /proc -b /sys -b <shared_home>:/root`
   - **外部ストレージ bind**: `/storage/emulated/0:/sdcard`、`getExternalFilesDir:/storage/app`
@@ -166,6 +166,7 @@
   - 文字幅: East Asian Width 対応 (`ambiguousAsWide` 設定で曖昧幅を 2 セル化)。BMP 外 (絵文字 😀 / CJK 拡張) はサロゲートペアを左セル=高サロゲート・右セル (`wideCont`)=低サロゲートに分けて 2 セル格納する。**描画 (`TerminalRenderer.glyphAt`)・選択コピー (`getRangeText`)・行テキスト (`toText`) では左右セルを結合して 1 グリフとして扱う** (0.8.74)。以前は右セルを捨てて高サロゲート単独を描画/出力し、孤立サロゲート＝豆腐(?)になっていた。
   - SGR: 太字/下線/反転/取消線、16/256/RGB(truecolor)。
   - DEC モード: 代替画面、カーソルキー (DECCKM)、**マウスレポート** (X10/Normal/Button/Any × Legacy/SGR/urxvt)。
+  - **スクロール領域 (DECSTBM)**: 改行スクロール (`lineFeed`/IND) は、領域が画面全体のときだけ最上行を scrollback へ送る通常スクロール、`DECSTBM` でカスタム領域が設定されているときは**領域内だけをスクロール**し領域外の固定行は動かさない・scrollback にも送らない（0.8.105。従来は領域を無視して全画面 scrollUp を呼んでいたため、vim 等が下部のステータス/コマンド行＝行番号やルーラ表示を固定して改行を続けると、固定行が毎回 1 行ずつ押し上げられ「毎行に行番号が焼き付く」不具合になっていた。`ScrollRegionLineFeedTest` で回帰を固定）。`IL`/`DL`/`SU`/`SD`/`RI` は元から領域対応済み。
   - OSC: 7(cwd)/8(hyperlink)/10-12(前景/背景/カーソル色、`?` で query 応答)/52(クリップボード)/palette。OSC タイトルは UTF-8 デコード（日本語タブ名の文字化け防止）。
   - **URL/OSC8 リンクのセルに下線表示**。長い URL は折り返し元の行に wrapped フラグを持たせて検出（タップで開く）。
   - bracketed paste (DECSET 2004) 対応。
@@ -179,6 +180,7 @@
 - `SessionManager` (object): `TerminalSession` のリスト + active を `StateFlow` で公開。`ensureFirst`/`openNew`/`close`/`setActive`/`moveSession`（タブのドラッグ並べ替え）。`close` は先に UI からタブを外し、停止処理 (PTY/SSH 切断・GUI=Xvnc 停止) は裏で実行してタブ消去のもたつきを防ぐ。
 - `TerminalSession`: 状態機械 `IDLE→INSTALLING→STARTING→RUNNING→EXITED/ERROR`。
   - emulator 専用 dispatcher、PTY 読みループ、`writeBytes`、resize、`startTerminal`/`switchDistro`/`restart`/`reinstallDistro`/`startSsh`。
+  - **起動 distro はレース回避のため永続値を await**: `settingsFlow` は `stateIn(Eagerly)` の初期値が既定 Snapshot (`distroId=alpine`) なので、アプリ更新・端末再起動直後など DataStore の初回 emit が届く前に `startTerminal` が走ると、選択中の OS ではなく既定 Alpine で起動してしまうレースがあった（「希に Alpine が立ち上がる」現象）。`startTerminal` 内で `settings.flow.first()` を await してから distro を決定し、確実に選択中の OS を起動する（0.8.105）。
   - `StateFlow`: uiState / redrawTick(≈60fps コアレッシング) / scrollOffset / cellMetrics / selection / cwd / label / settingsFlow。
 - `TerminalSelection` / `CellMetrics`: 選択範囲 (絶対行) と 1 セル寸法。
 - `SessionStore`/`SessionManager` (M11): タブ構成 `{id,label,distro,cwd}` + activeId を DataStore に保存する（書き込みのみ）。**0.8.70 で起動時の自動復元を無効化**＝起動の度に複数タブが開く挙動を避けるため、`ensureFirst` は常に新規 1 タブだけを開く（ユーザー要望）。`save` は将来の復元 UI / デバッグ用に残すが読み戻し経路は持たない。**cwd は OSC7 で捕捉**（`ensureOsc7CwdConfig` が bash/zsh のプロンプトフックで OSC7 を吐かせる）。
@@ -401,7 +403,7 @@ sh scripts/z2root-cmdtest.sh          # z2root の難所を踏む壊れやすい
 adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 ```
 
-- full の同梱: `jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc}.so`(両フレーバー共通)、`src/full/assets/alpine-minirootfs-aarch64.tgz`(full のみ)、`assets/fonts/*.ttf`(共通)。
+- full の同梱: `src/full/jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc,libandroid-shmem}.so`(full フレーバー専用)、`src/full/assets/alpine-minirootfs-aarch64.tgz`(full のみ)、`assets/fonts/*.ttf`(共通)。
 - foss は rootfs を含めず、`DistroSpec.ALPINE` の公式 CDN URL + SHA-256 で起動時に取得 (`DistroSpec.bundledInApk` が false)。proot/talloc prebuilt は F-Droid 非適合のため foss から除外し、実行エンジンは同梱ソースからビルドする z2root を使う。
 - **assets の rootfs は `.tgz` 拡張子**で置く (`.tar.gz` だと aapt が解凍リネームする)。
 - **`useLegacyPackaging=true` 必須** (execve する .so を nativeLibraryDir に実体配置するため)。

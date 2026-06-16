@@ -54,6 +54,7 @@ app/src/full/assets/alpine-minirootfs-*.tgz
 app/src/full/jniLibs/arm64-v8a/libproot.so
 app/src/full/jniLibs/arm64-v8a/libproot_loader.so
 app/src/full/jniLibs/arm64-v8a/libtalloc.so
+app/src/full/jniLibs/arm64-v8a/libandroid-shmem.so
 app/src/full/jniLibs/armeabi-v7a/libproot.so
 app/src/full/jniLibs/armeabi-v7a/libproot_loader.so
 

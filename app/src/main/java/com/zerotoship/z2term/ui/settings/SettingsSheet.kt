@@ -740,6 +740,21 @@ fun SettingsSheet(
                         label = stringResource(R.string.settings_engine_current),
                         value = actualEngineLabel
                     )
+                    // 開発者用: z2root の syscall トレースログ ON/OFF。既定 OFF。ログは膨大で
+                    // すぐ容量を圧迫するため、一般ユーザーは使わないよう警告を添える。
+                    // エンジン選択と同じ 7タップ裏機能内に置く (解放済みのときだけ見える)。
+                    ToggleField(
+                        title = stringResource(R.string.settings_trace_log_toggle),
+                        description = stringResource(R.string.settings_trace_log_toggle_desc),
+                        checked = settings.traceLogEnabled,
+                        onChange = { session.setTraceLogEnabled(it) }
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_trace_log_warning),
+                        color = ZtsWarning,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
                 }
             }
 

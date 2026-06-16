@@ -115,7 +115,14 @@ class AppSettings(private val context: Context) {
          * 空文字 = 既定順 (ReorderableToolbar 側で既定を補完)。長押しドラッグの並べ替えで更新。
          * 未知/欠落 id は表示側で既定順とマージするので、ボタン追加・削除があっても壊れない。
          */
-        val toolbarOrder: String = ""
+        val toolbarOrder: String = "",
+        /**
+         * z2root エンジンの syscall トレースログを出すか (開発者用・既定 OFF)。
+         * ON のとき shared_home/z2root_trace.log に全 syscall を記録する。ログは膨大で
+         * 容量を圧迫するため一般ユーザーは使わない。エンジン選択 (7タップ解放) と同じ場所に
+         * トグルを置き、解放済みのときだけ表示する。
+         */
+        val traceLogEnabled: Boolean = DEFAULT_TRACE_LOG
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -159,8 +166,13 @@ class AppSettings(private val context: Context) {
             executionEngine = p[KEY_ENGINE] ?: ENGINE_PROOT,
             externalStorageEnabled = p[KEY_EXTERNAL_STORAGE] ?: DEFAULT_EXTERNAL_STORAGE,
             androidHostBindEnabled = p[KEY_ANDROID_HOST_BIND] ?: DEFAULT_ANDROID_HOST_BIND,
-            toolbarOrder = p[KEY_TOOLBAR_ORDER] ?: ""
+            toolbarOrder = p[KEY_TOOLBAR_ORDER] ?: "",
+            traceLogEnabled = p[KEY_TRACE_LOG] ?: DEFAULT_TRACE_LOG
         )
+    }
+
+    suspend fun setTraceLogEnabled(value: Boolean) {
+        context.dataStore.edit { it[KEY_TRACE_LOG] = value }
     }
 
     suspend fun setEngineSelectorUnlocked(value: Boolean) {
@@ -337,6 +349,10 @@ class AppSettings(private val context: Context) {
         private val KEY_EXTERNAL_STORAGE = booleanPreferencesKey("external_storage_enabled")
         private val KEY_ANDROID_HOST_BIND = booleanPreferencesKey("android_host_bind_enabled")
         private val KEY_TOOLBAR_ORDER = stringPreferencesKey("toolbar_order")
+        private val KEY_TRACE_LOG = booleanPreferencesKey("trace_log_enabled")
+
+        /** z2root syscall トレースログは既定 OFF (開発者用。ログが膨大で容量を圧迫する)。 */
+        const val DEFAULT_TRACE_LOG = false
 
         /** 外部 SD 認識は既定 OFF (オプトイン)。OFF の間は検出処理も走らない。 */
         const val DEFAULT_EXTERNAL_STORAGE = false
