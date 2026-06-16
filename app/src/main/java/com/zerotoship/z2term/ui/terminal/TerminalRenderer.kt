@@ -210,11 +210,14 @@ private fun drawBuffer(
     )
 
     val cursorAbsRow = buf.scrollbackSize + emu.cursorRow
-    val bottomAbsRow = if (scrollOffset == 0) {
-        cursorAbsRow.coerceAtLeast(buf.scrollbackSize + canvasRows - 1)
-    } else {
-        buf.scrollbackSize + buf.rows - 1 - scrollOffset
-    }
+    // 下端 (張り付き = scrollOffset 0) の絶対行。表示行数 canvasRows を基準にして
+    // 画面いっぱいに敷き詰める。scrollOffset 分だけここから上へずらす。
+    //   旧実装は scrollOffset>0 のとき buf.rows を基準にしていたため、初回オープンで
+    //   buf.rows (emulator) と canvasRows (表示) が未同期の間、scrollOffset 0→1 の瞬間に
+    //   (buf.rows - canvasRows) 行ぶん下端が飛び、キーボードとの間に隙間が出ていた。
+    //   両者を canvasRows に一本化し、resize 同期前でも自己整合させる (飛び/隙間を根治)。
+    val bottomAtRest = cursorAbsRow.coerceAtLeast(buf.scrollbackSize + canvasRows - 1)
+    val bottomAbsRow = bottomAtRest - scrollOffset
     val topAbsRow = bottomAbsRow - canvasRows + 1
 
     val totalRows = buf.totalRows

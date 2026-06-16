@@ -419,14 +419,16 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             .weight(1f)
         ) {
             if (isSideKB && landscapePos == AppSettings.LANDSCAPE_KB_LEFT) {
-                SideKeyboardColumn(
-                    style = kbStyle,
-                    composing = composing,
-                    showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
-                    widthDp = settings.landscapeKeyboardWidthDp,
-                    onBytes = onKeyboardBytes,
-                    onCursorKey = onKeyboardCursor
-                )
+                key(active.id) {
+                    SideKeyboardColumn(
+                        style = kbStyle,
+                        composing = composing,
+                        showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                        widthDp = settings.landscapeKeyboardWidthDp,
+                        onBytes = onKeyboardBytes,
+                        onCursorKey = onKeyboardCursor
+                    )
+                }
             }
             Box(modifier = Modifier
                 .weight(1f)
@@ -491,14 +493,16 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 }
             }
             if (isSideKB && landscapePos == AppSettings.LANDSCAPE_KB_RIGHT) {
-                SideKeyboardColumn(
-                    style = kbStyle,
-                    composing = composing,
-                    showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
-                    widthDp = settings.landscapeKeyboardWidthDp,
-                    onBytes = onKeyboardBytes,
-                    onCursorKey = onKeyboardCursor
-                )
+                key(active.id) {
+                    SideKeyboardColumn(
+                        style = kbStyle,
+                        composing = composing,
+                        showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                        widthDp = settings.landscapeKeyboardWidthDp,
+                        onBytes = onKeyboardBytes,
+                        onCursorKey = onKeyboardCursor
+                    )
+                }
             }
         }
 
@@ -517,14 +521,19 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                             .fillMaxWidth()
                             .height(kbStyle.naturalHeight)
                         ) {
-                            TerminalKeyboard(
-                                onBytes = onKeyboardBytes,
-                                onCursorKey = onKeyboardCursor,
-                                composing = composing,
-                                style = kbStyle,
-                                // English モードでは日本語フリックボタンを隠す。
-                                showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA
-                            )
+                            // タブ切替でキーボードのサブツリーを作り直す。pointerInput など
+                            // 内部 remember 状態が前のタブの composing/session を掴んだまま残り、
+                            // 入力がターミナルへ届かなくなる退行を防ぐ (あ⇄ABC 手動切替と同じ効果)。
+                            key(active.id) {
+                                TerminalKeyboard(
+                                    onBytes = onKeyboardBytes,
+                                    onCursorKey = onKeyboardCursor,
+                                    composing = composing,
+                                    style = kbStyle,
+                                    // English モードでは日本語フリックボタンを隠す。
+                                    showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA
+                                )
+                            }
                         }
                     }
                 }
