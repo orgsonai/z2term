@@ -181,11 +181,17 @@ fun SettingsSheet(
                         Toast.LENGTH_LONG
                     ).show()
                 }
-                explicit -> Toast.makeText(
-                    context,
-                    context.getString(R.string.settings_root_unlock_failed),
-                    Toast.LENGTH_LONG
-                ).show()
+                explicit -> {
+                    // 失敗理由を切り分けて伝える。NoRoot = su 未許可/未検出 (許可ダイアログを許可)。
+                    // ChrootBlocked = root は取れたが chroot 実行が SELinux/rootfs 等で失敗 (detail を表示)。
+                    val msg = when (result) {
+                        is RootProbe.ChrootBlocked ->
+                            context.getString(R.string.settings_root_chroot_blocked, result.detail)
+                        else ->
+                            context.getString(R.string.settings_root_unlock_failed)
+                    }
+                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
