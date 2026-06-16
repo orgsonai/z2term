@@ -85,9 +85,9 @@
     <string name="settings_engine_unlock_ok">Engine selector unlocked. Pick the engine below.</string>
     <string name="settings_engine_lock_ok">Engine selector hidden, reset to PRoot (default).</string>
     <string name="settings_root_unlock_ok">Root unlocked — chroot is now available too.</string>
-    <string name="settings_root_unlock_failed">Root was not granted. On a rooted device, tap "Grant" on the superuser prompt (su missing or denied).</string>
+    <string name="settings_root_unlock_failed">Root was not granted. If no prompt appears, set Z2Term to "Grant" in your root manager (e.g. Magisk) and tap this button again (Magisk remembers a "Deny" and won\'t prompt again).</string>
     <string name="settings_root_chroot_blocked">Root works but the chroot test failed (possibly SELinux/rootfs): %1$s</string>
-    <string name="settings_root_retry_hint">chroot appears once you grant root on a rooted device. Even if you deny it once, you can retry anytime with the button below.</string>
+    <string name="settings_root_retry_hint">chroot appears once you grant root on a rooted device. Re-check with the button below. After a "Deny" the prompt stops appearing, so set Z2Term back to "Grant" in your root manager (e.g. Magisk) first.</string>
     <string name="settings_root_retry_button">Enable chroot (check root)</string>
     <string name="settings_root_retry_probing">Checking root…</string>
     <string name="settings_root_unlock_countdown">%1$d more taps to toggle the engine selector</string>

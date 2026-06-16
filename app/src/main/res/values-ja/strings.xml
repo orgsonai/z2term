@@ -85,9 +85,9 @@
     <string name="settings_engine_unlock_ok">エンジン選択を解放しました。下でエンジンを選べます。</string>
     <string name="settings_engine_lock_ok">エンジン選択を隠し、既定の PRoot に戻しました。</string>
     <string name="settings_root_unlock_ok">root を解放しました — chroot も選べます。</string>
-    <string name="settings_root_unlock_failed">root 許可が得られませんでした。root 端末で許可ダイアログを「許可」してください（su が無い/拒否された）。</string>
+    <string name="settings_root_unlock_failed">root 許可が得られませんでした。許可ダイアログが出ないときは、Magisk 等の root 管理アプリで Z2Term の root を「許可」に変えてから、もう一度このボタンを押してください（一度「拒否」すると Magisk が記憶し再表示しません）。</string>
     <string name="settings_root_chroot_blocked">root は使えますが chroot 実行に失敗しました（SELinux/rootfs 等の可能性）: %1$s</string>
-    <string name="settings_root_retry_hint">chroot は root 端末で root を許可すると選べます。一度拒否しても、下のボタンから何度でも試せます。</string>
+    <string name="settings_root_retry_hint">chroot は root 端末で root を許可すると選べます。下のボタンで再確認できます。一度「拒否」した後はダイアログが出なくなるので、Magisk 等で Z2Term の root を「許可」に戻してから押してください。</string>
     <string name="settings_root_retry_button">chroot を有効化（root を確認）</string>
     <string name="settings_root_retry_probing">root を確認中…</string>
     <string name="settings_root_unlock_countdown">エンジン選択の切替まであと %1$d 回</string>

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-17 / 対象バージョン: 0.8.107-alpha (versionCode 115)
+最終更新: 2026-06-17 / 対象バージョン: 0.8.108-alpha (versionCode 116)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -36,7 +36,7 @@
 - **SSH 両方向**: 端末から外部へ (JSch クライアント)、PC から端末へ (dropbear サーバ)。
 - **ファイル連携**: SAF DocumentsProvider で他アプリから rootfs/ホームを R/W、proot 内から Android 共有ストレージへ `cd`。
 - **GUI デスクトップ**: distro 内で Xvnc + 軽量 WM/アプリを起動し、内蔵 RFB(VNC) クライアントで表示（`gui/` パッケージ）。動画はソフト描画、音声はオプトインで PulseAudio→TCP→AudioTrack ブリッジ（`AudioBridge`）。
-- **実行エンジン**: 既定は PRoot。裏設定（設定→アプリ情報のバージョン行を 7 タップ）で **非 root の自前 ptrace エンジン「z2root」**に切替可。さらに root 端末では root セルフテスト成功時に **「実 chroot」エンジン**も選択可（`su` 経由 bind mount + `chroot`。`executionEngine`）。root セルフテスト（`probeRootChroot`）は **7 タップ解放の瞬間だけでなく、エンジン選択内の「chroot を有効化（root を確認）」ボタンからも再実行できる**（0.8.106）。従来は解放時に 1 度だけ走り、su 許可ダイアログを拒否すると `rootChrootUnlocked` が false のまま二度と chroot を選べなくなっていた（再解放には再ロック→再解放の二重 7 タップが必要で気付けなかった）。`rootChrootUnlocked` が false の間はこのボタンと案内文を表示し、拒否後でも何度でも再試行できる（成功で chroot 解放＋トースト、ボタン経由の失敗時のみ理由をトースト）。トグル発火後 3 秒はバージョン行を**タップ不可**にして連打による即時再トグルを防ぐ（0.8.70。従来はタップを受けるが無視で不自然だった）。**foss は proot prebuilt を同梱せず常に z2root 実走**のため、エンジン選択肢に PRoot チップを出さない（z2root / root 解放時 chroot のみ。0.8.93。従来は選べても z2root に倒れる見せかけだった）。同じ 7 タップ解放枠内に **z2root トレースログ ON/OFF トグル**（開発者用・既定 OFF・`traceLogEnabled`）を置く。ON で z2root の全 syscall を `shared_home/z2root_trace.log` へ記録する＝障害調査用だがログが膨大で端末容量をすぐ圧迫するため、UI に「普段は OFF のままにする」警告を添える（0.8.105。0.8.107 で警告文を「OFF のまま使用しない」という矛盾表現から非矛盾表現へ修正。従来は `.z2root_trace_on` sentinel ファイルでしか切替できなかった。sentinel も後方互換で有効）。
+- **実行エンジン**: 既定は PRoot。裏設定（設定→アプリ情報のバージョン行を 7 タップ）で **非 root の自前 ptrace エンジン「z2root」**に切替可。さらに root 端末では root セルフテスト成功時に **「実 chroot」エンジン**も選択可（`su` 経由 bind mount + `chroot`。`executionEngine`）。root セルフテスト（`probeRootChroot`）は **7 タップ解放の瞬間だけでなく、エンジン選択内の「chroot を有効化（root を確認）」ボタンからも再実行できる**（0.8.106）。従来は解放時に 1 度だけ走り、su 許可ダイアログを拒否すると `rootChrootUnlocked` が false のまま二度と chroot を選べなくなっていた（再解放には再ロック→再解放の二重 7 タップが必要で気付けなかった）。`rootChrootUnlocked` が false の間はこのボタンと案内文を表示し、ボタンから何度でも再試行できる（成功で chroot 解放＋トースト、ボタン経由の失敗時のみ理由をトースト）。失敗は `RootProbe.NoRoot`(su 無し/拒否)と `RootProbe.ChrootBlocked(detail)`(root は取れたが chroot 実行が SELinux/rootfs 等で失敗)を切り分けて表示する（0.8.107）。**ただし Magisk 等の root 管理アプリは一度「拒否」を記憶すると以後 su 許可ダイアログを再表示せず即拒否を返すため、アプリ内ボタンだけでは復帰できない**（アプリから他アプリの root 権限は変更不可）。この場合 Magisk 側で Z2Term の root を「許可」に戻す必要がある旨を NoRoot トースト/案内文で誘導する（0.8.108）。トグル発火後 3 秒はバージョン行を**タップ不可**にして連打による即時再トグルを防ぐ（0.8.70。従来はタップを受けるが無視で不自然だった）。**foss は proot prebuilt を同梱せず常に z2root 実走**のため、エンジン選択肢に PRoot チップを出さない（z2root / root 解放時 chroot のみ。0.8.93。従来は選べても z2root に倒れる見せかけだった）。同じ 7 タップ解放枠内に **z2root トレースログ ON/OFF トグル**（開発者用・既定 OFF・`traceLogEnabled`）を置く。ON で z2root の全 syscall を `shared_home/z2root_trace.log` へ記録する＝障害調査用だがログが膨大で端末容量をすぐ圧迫するため、UI に「普段は OFF のままにする」警告を添える（0.8.105。0.8.107 で警告文を「OFF のまま使用しない」という矛盾表現から非矛盾表現へ修正。従来は `.z2root_trace_on` sentinel ファイルでしか切替できなかった。sentinel も後方互換で有効）。
 
 対応 ABI は **arm64-v8a のみ**。最低 Android 10 (API 29)、ターゲット API 35。
 
