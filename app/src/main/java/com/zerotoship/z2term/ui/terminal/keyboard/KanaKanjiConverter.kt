@@ -1116,9 +1116,18 @@ class ComposingState(
         // 先頭は candidates 先頭 (= 履歴/Viterbi/辞書を統合した最尤) を使い、残りは
         // 先頭表層を文脈にして tail を Viterbi で 1-best 変換する。
         fullPrediction = if (isSplitMode && splitTail.isNotEmpty()) {
-            val headSurface = candidates.firstOrNull() ?: splitHead
-            val tailSurface = KkcConverter.nbest(splitTail, 1, KkcConverter.KkcContext(headSurface))
-                .firstOrNull()?.surface
+            // 先頭ブロックの表層は「学習履歴 (完全一致) の頻度 1 位」を最優先する。これは平仮名表層
+            // (例 して→して) も含む。candidates は buildList が「読みと同一＝平仮名」を除外するため、
+            // candidates.first() を使うと学習済みの平仮名が拾えず常に漢字 (仕手 等) になっていた
+            // (= 何度平仮名で確定しても長文予測の先頭が漢字のまま)。履歴を直接見て平仮名も土俵に乗せる。
+            val headSurface = ImeHistoryStore.historyFor(splitHead, 1).firstOrNull()
+                ?: candidates.firstOrNull() ?: splitHead
+            // 残りかなも同様に、全体一致の学習履歴 (平仮名含む) があればそれを最優先する。
+            // 無ければ従来どおり Viterbi (KANA_PREFERRED 等のコストモデル込み) の 1-best。
+            val learnedTail = ImeHistoryStore.historyFor(splitTail, 1).firstOrNull()
+            val tailSurface = learnedTail
+                ?: KkcConverter.nbest(splitTail, 1, KkcConverter.KkcContext(headSurface))
+                    .firstOrNull()?.surface
                 ?: KkcConverter.convert(splitTail)
                 ?: splitTail
             // 被り除去: 過去に短いブロックへ長い表層が学習されている等で headSurface が
@@ -1131,9 +1140,12 @@ class ComposingState(
             }
             // 一括確定時にブロック単位で学習できるよう内訳を控える (先頭ブロック + tail の各文節)。
             // 文全体を 1 キーで覚えると頻用ブロックの再利用が効かないため。
+            // ★内訳は「表示している表層」と一致させる: 表示が平仮名なのに裏で bunsetsu の漢字を
+            //   再学習すると、commitFull のたびに漢字 count が増え平仮名が永遠に勝てなくなるため。
             fullPredictionBlocks = buildList {
                 add(splitHead to headSurface)
-                addAll(KkcConverter.bunsetsu(splitTail))
+                if (learnedTail != null) add(splitTail to learnedTail)
+                else addAll(KkcConverter.bunsetsu(splitTail))
             }
             full.takeIf { it != text }
         } else {

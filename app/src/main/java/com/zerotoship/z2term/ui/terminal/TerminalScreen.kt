@@ -1100,7 +1100,6 @@ private fun TopBar(
     onToggleSearch: () -> Unit = {}
 ) {
     val label by session.label.collectAsState()
-    val cwd by session.cwd.collectAsState()
     val ui by session.uiState.collectAsState()
     Row(
         modifier = Modifier
@@ -1127,16 +1126,6 @@ private fun TopBar(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.widthIn(max = 96.dp)
         )
-        if (cwd.isNotEmpty()) {
-            Text(
-                text = cwd,
-                color = ZtsTextPrimary,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier.weight(1f, fill = false),
-                maxLines = 1
-            )
-        }
         // 残り幅をすべて取る Box に収め、右寄せ。低解像度端末でボタン総幅が画面を超えると
         // 横スクロールで全ボタンに到達できる (はみ出して押せなくなるのを防ぐ・要望)。
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
