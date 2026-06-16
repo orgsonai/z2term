@@ -570,6 +570,22 @@ static int syscall_paths(long nr, struct sc_paths *out) {
 //    レジスタ据え置き(安全側=ゲストパスのまま)になる。
 #define SCRATCH_OFFSET 16
 
+// sp を含む present ページのサイズ。main で sysconf により設定(4K/16K 端末差に追従)。
+static unsigned long g_pagesize = 4096;
+
+// scratch 文字列(total バイト)を置く tracee アドレスを返す。
+// 既定は sp 直下 (sp - SCRATCH_OFFSET - total)。ただし base が sp を含む present ページの
+// 境界を割ると、process_vm_writev は未 grow の下位ページへ書けず(kernel 6.x)EFAULT になる。
+// present ページに total が収まるなら base をページ境界へ引き上げ、確実に書ける位置へ寄せる。
+// 収まらない場合のみ下位ページへ落ちる base を返す(=write_tracee_mem 失敗→呼び出し側が
+// レジスタ据え置き=ゲストパスのまま=安全側)。
+static unsigned long scratch_base(unsigned long sp, size_t total) {
+    unsigned long floor = sp & ~(g_pagesize - 1);
+    unsigned long base = (sp - SCRATCH_OFFSET - total) & ~15UL;
+    if (base < floor && (sp - floor) >= total) base = floor;
+    return base;
+}
+
 // host_path 先頭を読み、"#!" スクリプトならシバン行のインタプリタ(ゲスト視点絶対パス)を
 // interp へ、オプション引数(あれば 1 個)を arg へ。
 // 戻り値: 1=スクリプト(interp 有), 0=非スクリプト, -1=読めない。
@@ -852,7 +868,7 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
         // passthrough: loader を噛ませず path レジスタを host パスへ変換するだけ。
         // 非ELF/存在しないパスはカーネルが ENOENT/ENOEXEC を返し、execvp が次候補へ進める。
         size_t plen = strlen(plan.target) + 1;
-        unsigned long base = (regs->sp - SCRATCH_OFFSET - plen) & ~15UL;
+        unsigned long base = scratch_base(regs->sp, plen);
         if (write_tracee_mem(pid, base, plan.target, plen) == 0) {
             regs->regs[path_idx] = base;
             set_regs(pid, regs);
@@ -877,7 +893,7 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
     size_t blob_sz = 0;
     for (int j = 0; j < pc; j++) blob_sz += strlen(parts[j]) + 1;
     size_t total = target_len + blob_sz + 8 + (size_t)(pc + 1) * 8;
-    unsigned long base = (regs->sp - SCRATCH_OFFSET - total) & ~15UL;
+    unsigned long base = scratch_base(regs->sp, total);
 
     char *blob = malloc(blob_sz ? blob_sz : 1);
     unsigned long *ptrs = malloc((size_t)(pc + 1) * sizeof(*ptrs));
@@ -1404,7 +1420,7 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
     // tmp は cfg->rootfs 配下=host_path_for の二重変換ガードに掛かるが、呼び出し側で
     // maybe_rewrite_path 自体をスキップするので確実に素通しになる。
     size_t len = strlen(tmp) + 1;
-    unsigned long base = (regs->sp - SCRATCH_OFFSET - ((len + 7) & ~7UL)) & ~15UL;
+    unsigned long base = scratch_base(regs->sp, (len + 7) & ~7UL);
     if (write_tracee_mem(pid, base, tmp, len) != 0) { unlink(tmp); return 0; }
     regs->regs[1] = base;
     set_regs(pid, regs);
@@ -1511,7 +1527,7 @@ static int linkat_entry(const struct config *cfg, pid_t pid, struct user_pt_regs
     // AT_FDCWD, host_new, 0) として実行させる (follow は host_old 解決で消化済み)。
     size_t ol = strlen(host_old) + 1, nl = strlen(host_new) + 1;
     size_t total = ((ol + 7) & ~7UL) + ((nl + 7) & ~7UL);
-    unsigned long base = (regs->sp - SCRATCH_OFFSET - total) & ~15UL;
+    unsigned long base = scratch_base(regs->sp, total);
     unsigned long optr = base, nptr = base + ((ol + 7) & ~7UL);
     if (write_tracee_mem(pid, optr, host_old, ol) != 0) { st->link_pending = 0; return 0; }
     if (write_tracee_mem(pid, nptr, host_new, nl) != 0) { st->link_pending = 0; return 0; }
@@ -1585,7 +1601,7 @@ static void maybe_rewrite_sockaddr(const struct config *cfg, pid_t pid, struct u
     nun.sun_family = AF_UNIX;
     memcpy(nun.sun_path, host, hl);  // null 終端は memset 済み
     socklen_t nlen = (socklen_t)(path_off + hl + 1);
-    unsigned long base = (regs->sp - SCRATCH_OFFSET - sizeof(nun)) & ~15UL;
+    unsigned long base = scratch_base(regs->sp, sizeof(nun));
     if (write_tracee_mem(pid, base, &nun, nlen) != 0) return;
     regs->regs[1] = base;
     regs->regs[2] = nlen;
@@ -1637,7 +1653,7 @@ static void maybe_rewrite_path(const struct config *cfg, pid_t pid, struct user_
     // カーネルがユーザスタックを使わないため sp 直下への書き込みは安全。
     size_t total = 0;
     for (int i = 0; i < hn; i++) total += ((strlen(hosts[i]) + 1 + 7) & ~7UL);
-    unsigned long base = (regs->sp - SCRATCH_OFFSET - total) & ~15UL;
+    unsigned long base = scratch_base(regs->sp, total);
     unsigned long off = 0;
     int wrote = 0;
     for (int i = 0; i < hn; i++) {
@@ -2841,6 +2857,9 @@ int main(int argc, char **argv) {
     if (argc >= 2 && (strcmp(argv[1], "--loader") == 0 ||
                       strcmp(argv[1], "--loader-noreloc") == 0 ||
                       strcmp(argv[1], "--loader-exec") == 0)) loader_main(argc, argv);
+
+    long pgsz = sysconf(_SC_PAGESIZE);
+    if (pgsz > 0) g_pagesize = (unsigned long)pgsz;
 
     struct config cfg;
     char *const *command = parse_args(argc, argv, &cfg);
