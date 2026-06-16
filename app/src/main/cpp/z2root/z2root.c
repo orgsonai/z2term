@@ -560,9 +560,15 @@ static int syscall_paths(long nr, struct sc_paths *out) {
 }
 
 // syscall-entry で、必要ならパス引数をホスト実パスへ書き換える。
-// 書き換えたパス文字列はトレーシのスタック下(sp - SCRATCH)へ置き、該当レジスタを差し替える。
-// レッドゾーン確保のため sp から十分下げた所をスクラッチ基点にする。
-#define SCRATCH_OFFSET 2048
+// 書き換えたパス文字列はトレーシのスタック下(sp 直下)へ置き、該当レジスタを差し替える。
+// ⚠ sp から大きく下げてはいけない: process_vm_writev はリモート書込時にスタックを
+//    grow しない(kernel 6.x)。sp を含む present ページの境界を越えて未 grow の下位
+//    ページに base が落ちると EFAULT になり、変換済みパスを書き戻せず、起動初期
+//    (スタック low-water≒sp) でローダが "cannot open shared object file" で間欠的に
+//    落ちる。sp 直下(同一 present ページ内)へ置けば確実。長いパスで 1 ページに収まらない
+//    時のみ下位ページに掛かるが、その場合は write_tracee_mem が失敗し呼び出し側が
+//    レジスタ据え置き(安全側=ゲストパスのまま)になる。
+#define SCRATCH_OFFSET 16
 
 // host_path 先頭を読み、"#!" スクリプトならシバン行のインタプリタ(ゲスト視点絶対パス)を
 // interp へ、オプション引数(あれば 1 個)を arg へ。
@@ -1616,7 +1622,11 @@ static void maybe_rewrite_path(const struct config *cfg, pid_t pid, struct user_
             if (pa->flag_nofollow_bit && (fl & (unsigned long)pa->flag_nofollow_bit)) deref = 0;
         }
         long dirfd = (pa->dirfd_reg < 0) ? AT_FDCWD : (long)(int)regs->regs[pa->dirfd_reg];
-        if (host_path_for(cfg, pid, guest, deref, dirfd, hosts[hn], sizeof(hosts[hn])) != 0)
+        int hrc = host_path_for(cfg, pid, guest, deref, dirfd, hosts[hn], sizeof(hosts[hn]));
+        if (g_trc_on)
+            fprintf(g_trc, "[z2trc] xlat pid=%d nr=%ld guest='%s' rc=%d host='%s'\n",
+                    pid, nr, guest, hrc, hrc == 0 ? hosts[hn] : "");
+        if (hrc != 0)
             continue;
         hidx[hn] = pa->idx;
         hn++;
@@ -1632,7 +1642,13 @@ static void maybe_rewrite_path(const struct config *cfg, pid_t pid, struct user_
     int wrote = 0;
     for (int i = 0; i < hn; i++) {
         size_t len = strlen(hosts[i]) + 1;
-        if (write_tracee_mem(pid, base + off, hosts[i], len) != 0) continue;
+        errno = 0;
+        int wr = write_tracee_mem(pid, base + off, hosts[i], len);
+        if (g_trc_on)
+            fprintf(g_trc, "[z2trc] scratch pid=%d sp=0x%llx base=0x%lx off=%lu len=%zu wr=%d errno=%d(%s)\n",
+                    pid, (unsigned long long)regs->sp, base, off, len, wr,
+                    errno, wr ? strerror(errno) : "ok");
+        if (wr != 0) continue;
         regs->regs[hidx[i]] = base + off;
         off += (len + 7) & ~7UL;
         wrote = 1;
