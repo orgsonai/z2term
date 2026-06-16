@@ -991,22 +991,25 @@ private fun GuiTopBar(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.widthIn(max = 140.dp)
         )
-        Box(modifier = Modifier.weight(1f))
-
-        // 端末 TopBar と同じ並べ替え可能ツールバー。GUI は検索が無く、📋/📜 は keysym 橋渡しで
-        // GUI へタイプする (M8-6 T1)。⚙ は端末セッションが無いと押せない (settingsEnabled)。
-        ReorderableToolbar(
-            items = listOf(
-                ToolbarItem(TB_PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
-                ToolbarItem(TB_SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
-                ToolbarItem(TB_SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
-                ToolbarItem(TB_KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
-                ToolbarItem(TB_KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode),
-                ToolbarItem(TB_SETTINGS, "⚙", stringResource(R.string.tb_settings), enabled = settingsEnabled, onClick = onOpenSettings)
-            ),
-            savedOrder = toolbarOrder,
-            onReorder = onReorderToolbar
-        )
+        // 残り幅をすべて取る Box に収め、右寄せ。低解像度端末でボタン総幅が画面を超えると
+        // 横スクロールで全ボタンに到達できる (はみ出して押せなくなるのを防ぐ・要望)。
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+            // 端末 TopBar と同じ並べ替え可能ツールバー。GUI は検索が無く、📋/📜 は keysym 橋渡しで
+            // GUI へタイプする (M8-6 T1)。⚙ は端末セッションが無いと押せない (settingsEnabled)。
+            ReorderableToolbar(
+                items = listOf(
+                    ToolbarItem(TB_PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
+                    ToolbarItem(TB_SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
+                    ToolbarItem(TB_SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
+                    ToolbarItem(TB_KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
+                    ToolbarItem(TB_KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode),
+                    ToolbarItem(TB_SETTINGS, "⚙", stringResource(R.string.tb_settings), enabled = settingsEnabled, onClick = onOpenSettings)
+                ),
+                savedOrder = toolbarOrder,
+                onReorder = onReorderToolbar,
+                modifier = Modifier.horizontalScroll(rememberScrollState())
+            )
+        }
         // 状態名 (CONNECTED 等) は表示しない: 幅が狭いと崩れる & 実用上見ないため (要望で削除)。
     }
 }
@@ -1125,24 +1128,27 @@ private fun TopBar(
                 maxLines = 1
             )
         }
-        Box(modifier = Modifier.weight(1f))
-
-        // 既定の並び (左→右): 貼付 / コマンド一覧 / 画面消灯ロック / 常駐ロック / 検索 / キーボード切替 / 設定。
-        // 常駐ロック (バックグラウンド常駐トグル) は画面消灯ロックの右に置く (要望)。
-        // 各ボタンは長押しドラッグで並べ替え可・長押し中は簡易説明をポップアップ表示する。
-        ReorderableToolbar(
-            items = listOf(
-                ToolbarItem(TB_PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
-                ToolbarItem(TB_SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
-                ToolbarItem(TB_SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
-                ToolbarItem(TB_KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
-                ToolbarItem(TB_SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
-                ToolbarItem(TB_KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode),
-                ToolbarItem(TB_SETTINGS, "⚙", stringResource(R.string.tb_settings), onClick = onOpenSettings)
-            ),
-            savedOrder = toolbarOrder,
-            onReorder = onReorderToolbar
-        )
+        // 残り幅をすべて取る Box に収め、右寄せ。低解像度端末でボタン総幅が画面を超えると
+        // 横スクロールで全ボタンに到達できる (はみ出して押せなくなるのを防ぐ・要望)。
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+            // 既定の並び (左→右): 貼付 / コマンド一覧 / 画面消灯ロック / 常駐ロック / 検索 / キーボード切替 / 設定。
+            // 常駐ロック (バックグラウンド常駐トグル) は画面消灯ロックの右に置く (要望)。
+            // 各ボタンは長押しドラッグで並べ替え可・長押し中は簡易説明をポップアップ表示する。
+            ReorderableToolbar(
+                items = listOf(
+                    ToolbarItem(TB_PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
+                    ToolbarItem(TB_SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
+                    ToolbarItem(TB_SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
+                    ToolbarItem(TB_KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
+                    ToolbarItem(TB_SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
+                    ToolbarItem(TB_KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode),
+                    ToolbarItem(TB_SETTINGS, "⚙", stringResource(R.string.tb_settings), onClick = onOpenSettings)
+                ),
+                savedOrder = toolbarOrder,
+                onReorder = onReorderToolbar,
+                modifier = Modifier.horizontalScroll(rememberScrollState())
+            )
+        }
         // 状態名 (RUNNING 等) は表示しない: 幅が狭いと崩れる & 実用上見ないため (要望で削除)。
     }
 }
@@ -1189,7 +1195,8 @@ private fun mergeToolbarOrder(saved: List<String>, present: List<String>): List<
 private fun ReorderableToolbar(
     items: List<ToolbarItem>,
     savedOrder: String,
-    onReorder: (String) -> Unit
+    onReorder: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val present = items.map { it.id }
     val byId = items.associateBy { it.id }
@@ -1230,6 +1237,7 @@ private fun ReorderableToolbar(
     }
 
     Row(
+        modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {

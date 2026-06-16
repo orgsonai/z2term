@@ -50,6 +50,55 @@ object KkcConverter {
      */
     private const val KATAKANA_DUP_PENALTY = 4000
 
+    /**
+     * 「平仮名で書くのが普通なのに漢字が勝つ」和語に課す生起コストペナルティ。
+     *
+     * 補助動詞 (ある・いる・なる・する・くださる・いただく) や形式名詞 (こと・もの・ところ・
+     * ため・ほど) は現代表記でほぼ平仮名で書くが、IPADIC は漢字表層 (在り / 居る / 下さい /
+     * 事 / 物 …) を平仮名表層より低コストで持つため、平仮名で打っても漢字が勝つ
+     * (例: もんだいありません → 問題在りません, してください → して下さい)。
+     * 該当「読み → 漢字」だけにペナルティを足し、平仮名表層が勝つようにする。漢字側は候補一覧の
+     * 下位に残るので、本当に漢字で書きたい時は選べる (選べば学習で昇格)。
+     */
+    private const val KANA_PREFERRED_PENALTY = 4000
+
+    /**
+     * ペナルティ対象の「読み → その読みで抑制したい漢字 (表層の先頭字)」。
+     *
+     * 読みで厳密に絞ることで、同じ漢字でも別語・別読み (有名=ゆう / 入れ=いれ→入 / 鳴る=なる→鳴 /
+     * 仕事=しごと / 時間=じかん …) を巻き込まない。表層の先頭字が対応集合に在るときだけ加点する。
+     */
+    private val KANA_PREFERRED: Map<String, Set<Char>> = run {
+        val aru = setOf('在', '有', '或')
+        val iru = setOf('居')
+        val naru = setOf('成')
+        val suru = setOf('為')
+        val kudasaru = setOf('下')
+        val itadaku = setOf('頂')
+        mapOf(
+            // 存在動詞 ある
+            "ある" to aru, "あり" to aru, "あら" to aru, "あろ" to aru, "あれ" to aru, "あっ" to aru,
+            // 補助動詞 いる
+            "いる" to iru, "いれ" to iru, "いろ" to iru, "いよ" to iru, "いた" to iru,
+            // 補助動詞 なる (〜になる)
+            "なる" to naru, "なり" to naru, "なら" to naru, "なれ" to naru, "なろ" to naru, "なっ" to naru,
+            // 補助動詞 する (為る)
+            "する" to suru, "すれ" to suru, "せよ" to suru,
+            // 補助動詞 くださる / ください (〜してください)
+            "ください" to kudasaru, "くださる" to kudasaru, "くださり" to kudasaru,
+            "くださっ" to kudasaru, "くださら" to kudasaru, "くだされ" to kudasaru,
+            // 補助動詞 いただく
+            "いただく" to itadaku, "いただき" to itadaku, "いただい" to itadaku,
+            "いただけ" to itadaku, "いただか" to itadaku, "いただこ" to itadaku,
+            // 形式名詞
+            "こと" to setOf('事'),
+            "もの" to setOf('物', '者'),
+            "ところ" to setOf('所'),
+            "ため" to setOf('為'),
+            "ほど" to setOf('程'),
+        )
+    }
+
     /** Phase 4 共起 (コロケーション) 集合。`kkc_colloc.bloom` から読込。未配置なら null。 */
     @Volatile var collocationFilter: ExistenceFilter? = null
         private set
@@ -102,10 +151,16 @@ object KkcConverter {
                 val cost = line.substring(t4 + 1).toIntOrNull() ?: continue
                 // 読みの単純カタカナ写し表層はペナルティを足して過剰なカタカナ化を抑える。
                 // 長音符を含む読み (=外来語) は除外し、正当なカタカナ表記を守る。
-                val adjCost = if ('ー' !in reading && surface == hiraganaToKatakana(reading)) {
+                var adjCost = if ('ー' !in reading && surface == hiraganaToKatakana(reading)) {
                     cost + KATAKANA_DUP_PENALTY
                 } else {
                     cost
+                }
+                // 平仮名で書くのが普通な和語 (補助動詞/形式名詞) の漢字表層は平仮名表層に負ける
+                // ようペナルティを足す (平仮名で打ったのに 在り/下さい/事 等が勝つのを防ぐ)。
+                // 「読み → 抑制したい漢字」の対応で別語・別読みは巻き込まない。
+                if (surface.isNotEmpty() && KANA_PREFERRED[reading]?.contains(surface[0]) == true) {
+                    adjCost += KANA_PREFERRED_PENALTY
                 }
                 map.getOrPut(reading) { ArrayList(2) }.add(Entry(surface, lc, rc, adjCost))
             }

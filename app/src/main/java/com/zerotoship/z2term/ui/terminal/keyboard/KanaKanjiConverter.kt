@@ -157,7 +157,12 @@ object KanaKanjiConverter {
      *  4. 学習履歴: 前方一致 ([ImeHistoryStore.predictHistory]) — 「打ち慣れた語」予測
      *  5. 前方一致の予測 ([predict]) で補完
      */
-    fun convertFlexible(reading: String, limit: Int = 16, prevSurface: String? = null): List<String> {
+    fun convertFlexible(
+        reading: String,
+        limit: Int = 16,
+        prevSurface: String? = null,
+        allowPrediction: Boolean = true,
+    ): List<String> {
         if (reading.isEmpty()) return emptyList()
         val out = LinkedHashSet<String>()
         // 1. 学習履歴 (完全一致) は最優先で上位表示。loaded 前は空。
@@ -183,21 +188,26 @@ object KanaKanjiConverter {
             }
         }
         if (lines.isEmpty()) {
-            // z2dict 未ロードでも履歴と前方一致履歴は出す。
-            for (h in ImeHistoryStore.predictHistory(reading, limit = limit)) {
-                out.add(h); if (out.size >= limit) break
+            // z2dict 未ロードでも履歴と前方一致履歴は出す (予測抑止時を除く)。
+            if (allowPrediction) {
+                for (h in ImeHistoryStore.predictHistory(reading, limit = limit)) {
+                    out.add(h); if (out.size >= limit) break
+                }
             }
             return out.toList()
         }
         out.addAll(convert(reading))
         out.addAll(okuriForms(reading))
-        // 5. 学習履歴 (前方一致) を辞書の前方一致予測より先に。
-        for (h in ImeHistoryStore.predictHistory(reading, limit = 6)) {
-            out.add(h); if (out.size >= limit) break
-        }
-        for (c in predict(reading, limit)) {
-            out.add(c)
-            if (out.size >= limit) break
+        // 4/5. 前方一致の予測 (読みより長い補完)。後続ブロックがある分割の先頭ブロックでは
+        //   抑止する: 補完が tail と重なって「して下さい + 下さい」のような被り長文予測を生むため。
+        if (allowPrediction) {
+            for (h in ImeHistoryStore.predictHistory(reading, limit = 6)) {
+                out.add(h); if (out.size >= limit) break
+            }
+            for (c in predict(reading, limit)) {
+                out.add(c)
+                if (out.size >= limit) break
+            }
         }
         return out.toList().take(limit)
     }
@@ -1090,7 +1100,14 @@ class ComposingState(
             fullPrediction = null
             return
         }
-        candidates = buildList(KanaKanjiConverter.convertFlexible(key, prevSurface = prevCommitSurface), key)
+        // 後続 (tail) が残る先頭ブロックでは前方一致予測 (読みより長い補完) を抑止する。
+        // 補完が tail と重なると「して下さい」+「下さい」のような被り長文予測になるため、
+        // 各ブロックは自分の読みぴったりの変換だけを出す。
+        val hasTail = isSplitMode && splitTail.isNotEmpty()
+        candidates = buildList(
+            KanaKanjiConverter.convertFlexible(key, prevSurface = prevCommitSurface, allowPrediction = !hasTail),
+            key,
+        )
         if (selectedCandidateIndex >= candidates.size) selectedCandidateIndex = -1
         // 長文の一括予測: スプリット中で後続 (tail) が残っているとき、
         //   「先頭ブロックの最尤候補 + 残りかなの最尤」を組み合わせた「文まるごと」候補を出す。
@@ -1104,13 +1121,21 @@ class ComposingState(
                 .firstOrNull()?.surface
                 ?: KkcConverter.convert(splitTail)
                 ?: splitTail
+            // 被り除去: 過去に短いブロックへ長い表層が学習されている等で headSurface が
+            // 既に tailSurface を末尾に含む場合 (例 headSurface=「して下さい」, tailSurface=「下さい」)、
+            // そのまま連結すると「して下さい下さい」と二重になる。重なる分を落として 1 つにする。
+            val full = if (tailSurface.isNotEmpty() && headSurface.endsWith(tailSurface)) {
+                headSurface
+            } else {
+                headSurface + tailSurface
+            }
             // 一括確定時にブロック単位で学習できるよう内訳を控える (先頭ブロック + tail の各文節)。
             // 文全体を 1 キーで覚えると頻用ブロックの再利用が効かないため。
             fullPredictionBlocks = buildList {
                 add(splitHead to headSurface)
                 addAll(KkcConverter.bunsetsu(splitTail))
             }
-            (headSurface + tailSurface).takeIf { it != text }
+            full.takeIf { it != text }
         } else {
             fullPredictionBlocks = emptyList()
             null

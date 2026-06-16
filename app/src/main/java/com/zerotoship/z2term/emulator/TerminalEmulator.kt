@@ -224,7 +224,15 @@ class TerminalEmulator(
         if (cursorCol + width > buffer.columns) {
             if (autoWrap) {
                 // 折り返し「元」の行に印を付ける (消費側 UrlFinder/getAllText の規約に合わせる)。
-                buffer.getScreenRow(cursorRow).wrapped = true
+                val row = buffer.getScreenRow(cursorRow)
+                row.wrapped = true
+                // wide 文字 (全角/絵文字) が右端の残りセルに収まらず折り返す場合、その余りセルは
+                // 表示上の埋め草でしかない。素の空白のままだと wrapped 行はコピー時にトリムされない
+                // ため、折り返し境界に余白 1 文字が紛れ込み「2 行に渡るワンライン」が 1 行で
+                // コピーできなくなる。コピー/描画で飛ばす wideCont 印を付けて埋め草を無害化する。
+                for (c in cursorCol until buffer.columns) {
+                    row.setChar(c, ' ', currentFg or currentFlags, currentBg, wideCont = true, link = currentLink)
+                }
                 cursorCol = 0
                 lineFeed()
             }
