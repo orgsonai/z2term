@@ -213,24 +213,34 @@ object ImeHistoryStore {
     }
 
     /**
-     * 前方一致 prefix の reading を持つ履歴を score 降順で返す (予測補強)。
-     * 同一 word は重複排除。
+     * 前方一致 prefix の reading を持つ履歴を score 降順で返す (予測変換)。同一 word は重複排除。
+     * 「打った読みで始まる学習済みの語句」を出す本来の予測変換 (例: 「お」→「お願いします」)。
      */
-    fun predictHistory(prefix: String, limit: Int = 8): List<String> {
+    fun predictHistory(prefix: String, limit: Int = 8): List<String> =
+        predictHistoryWithReading(prefix, limit).map { it.second }
+
+    /**
+     * [predictHistory] と同じだが、各候補の「実際の読み (履歴上の見出し)」を伴って返す。
+     * 確定時に「打った接頭辞」ではなく実際の読みで学習させるために使う
+     * ([ComposingState.commit])。同一 word は最上位 score の読みだけを残す。
+     */
+    fun predictHistoryWithReading(prefix: String, limit: Int = 8): List<Pair<String, String>> {
         if (!loaded || prefix.isEmpty()) return emptyList()
         val now = System.currentTimeMillis()
-        val out = LinkedHashSet<String>()
         // HashMap なので走査になるが、エントリ数は MAX_ENTRIES=4000 と小さくラグなし。
-        val flat = ArrayList<Pair<Entry, Long>>()
+        val flat = ArrayList<Triple<String, Entry, Double>>()
         for ((r, entries) in byReading) {
             if (!r.startsWith(prefix)) continue
-            for (e in entries) flat.add(e to score(e, now).toLong())
+            for (e in entries) flat.add(Triple(r, e, score(e, now)))
         }
-        flat.sortByDescending { it.second }
-        for ((e, _) in flat) {
-            if (out.add(e.word) && out.size >= limit) break
+        flat.sortByDescending { it.third }
+        val seen = HashSet<String>()
+        val out = ArrayList<Pair<String, String>>()
+        for ((r, e, _) in flat) {
+            if (seen.add(e.word)) out.add(r to e.word)
+            if (out.size >= limit) break
         }
-        return out.toList()
+        return out
     }
 
     /**

@@ -99,6 +99,42 @@ object KanaKanjiConverter {
         return out.toList()
     }
 
+    /** [predict] と同じ前方一致だが、各候補の見出し (読み) を伴って返す。予測の読み逆引き用。 */
+    fun predictWithReading(reading: String, limit: Int = 16): List<Pair<String, String>> {
+        if (reading.isEmpty() || lines.isEmpty()) return emptyList()
+        var idx = searchIndex(reading); if (idx < 0) idx = -idx - 1
+        val out = ArrayList<Pair<String, String>>()
+        var i = idx
+        while (i < lines.size && out.size < limit) {
+            val line = lines[i]
+            val head = headOf(line)
+            if (!head.startsWith(reading)) break
+            for (c in candidatesOf(line)) {
+                out.add(head to c)
+                if (out.size >= limit) break
+            }
+            i++
+        }
+        return out
+    }
+
+    /**
+     * 前方一致の予測候補について「表層 → 実際の読み」を返す (接頭辞より長い読みのものだけ)。
+     * 確定時に、打った接頭辞ではなく実際の読みで学習させるために [ComposingState.commit] が参照する。
+     * 学習履歴を優先し、辞書見出しで補う。同一表層は最初の読みを採る。
+     */
+    fun predictionReadingMap(prefix: String): Map<String, String> {
+        if (prefix.isEmpty()) return emptyMap()
+        val map = LinkedHashMap<String, String>()
+        for ((r, w) in ImeHistoryStore.predictHistoryWithReading(prefix, limit = 8)) {
+            if (r != prefix) map.putIfAbsent(w, r)
+        }
+        for ((r, w) in predictWithReading(prefix)) {
+            if (r != prefix) map.putIfAbsent(w, r)
+        }
+        return map
+    }
+
     // ---- ここから「柔軟な変換」(送り仮名活用 + 文節分割) ----------------------------
     // 元の辞書は SKK の送り仮名なし形式 (読み→候補) で、`つくる /作る/` のような動詞終止形や
     // 活用エントリを持たない。そこで「連用形の見出し (例 つくり /作り/) から漢字語幹を取り出し、
@@ -152,9 +188,9 @@ object KanaKanjiConverter {
     /**
      * 柔軟な変換候補。優先順:
      *  1. 学習履歴: 完全一致 reading の確定済み単語 ([ImeHistoryStore.historyFor]) ← 最上位
-     *  2. 文まるごと最尤変換 ([KkcConverter.convert]) — 読み全体を Viterbi で一発変換
-     *  3. 完全一致 ([convert]) / 送り仮名活用 ([okuriForms]) — 単語の別表記候補
-     *  4. 学習履歴: 前方一致 ([ImeHistoryStore.predictHistory]) — 「打ち慣れた語」予測
+     *  2. 学習履歴: 前方一致 ([ImeHistoryStore.predictHistory]) — 打った読みで始まる学習済み語句の予測変換
+     *  3. 文まるごと最尤変換 ([KkcConverter.convert]) — 読み全体を Viterbi で一発変換
+     *  4. 完全一致 ([convert]) / 送り仮名活用 ([okuriForms]) — 単語の別表記候補
      *  5. 前方一致の予測 ([predict]) で補完
      */
     fun convertFlexible(
@@ -170,7 +206,14 @@ object KanaKanjiConverter {
             out.add(h)
             if (out.size >= limit) return out.toList()
         }
-        // 2. 文まるごとの最尤変換 (Viterbi/IPADIC)。読み全体を最尤の単語列へ一発変換する。
+        // 2. 学習履歴 (前方一致) = 本来の予測変換。打った読みで始まる学習済みの語句を変換より先に出す。
+        if (allowPrediction) {
+            for (h in ImeHistoryStore.predictHistory(reading, limit = 6)) {
+                out.add(h)
+                if (out.size >= limit) return out.toList()
+            }
+        }
+        // 3. 文まるごとの最尤変換 (Viterbi/IPADIC)。読み全体を最尤の単語列へ一発変換する。
         //    N-best を取り、直前確定語 [prevSurface] による履歴 bigram リランク (Phase 2) を
         //    通した 1 位を使う (学習が無ければ Viterbi 1-best と一致)。
         val ctx = KkcConverter.KkcContext(prevSurface)
@@ -188,7 +231,7 @@ object KanaKanjiConverter {
             }
         }
         if (lines.isEmpty()) {
-            // z2dict 未ロードでも履歴と前方一致履歴は出す (予測抑止時を除く)。
+            // z2dict 未ロード時は前方一致履歴を上限まで埋める (ステップ2は6件まで)。
             if (allowPrediction) {
                 for (h in ImeHistoryStore.predictHistory(reading, limit = limit)) {
                     out.add(h); if (out.size >= limit) break
@@ -198,12 +241,9 @@ object KanaKanjiConverter {
         }
         out.addAll(convert(reading))
         out.addAll(okuriForms(reading))
-        // 4/5. 前方一致の予測 (読みより長い補完)。後続ブロックがある分割の先頭ブロックでは
+        // 5. 辞書の前方一致予測 (読みより長い補完) で補う。後続ブロックがある分割の先頭ブロックでは
         //   抑止する: 補完が tail と重なって「して下さい + 下さい」のような被り長文予測を生むため。
         if (allowPrediction) {
-            for (h in ImeHistoryStore.predictHistory(reading, limit = 6)) {
-                out.add(h); if (out.size >= limit) break
-            }
             for (c in predict(reading, limit)) {
                 out.add(c)
                 if (out.size >= limit) break
@@ -775,6 +815,14 @@ class ComposingState(
      */
     private val committedRun = ArrayList<Pair<String, String>>()
 
+    /**
+     * 現在の候補のうち「前方一致予測 (打った読みより長い読みを持つ語)」の 表層 → 実際の読み。
+     * 確定時に、打った接頭辞ではなく実際の読みで学習させるために参照する。
+     * 例: 「お」と打って予測「お願いします」を選ぶと、履歴は「お→お願いします」ではなく
+     *     「おねがいします→お願いします」として加算される。[refreshPredict] で都度更新。
+     */
+    private var predictionReadings: Map<String, String> = emptyMap()
+
     val isActive: Boolean get() = text.isNotEmpty()
     val isSplitMode: Boolean get() = splitHeadLen > 0
     /** スプリット中のフォーカス文字列 (先頭セグメント)。非スプリット中は text 全体を返す。 */
@@ -906,13 +954,18 @@ class ComposingState(
      */
     fun commit(candidate: String) {
         if (text.isEmpty()) return
-        val key = if (isSplitMode) splitHead else text
-        ImeHistoryStore.record(key, candidate)
+        val typedKey = if (isSplitMode) splitHead else text
+        // 前方一致予測を選んだ場合は、打った接頭辞でなく実際の読みで学習する
+        // (「お」→「お願いします」を「おねがいします→お願いします」として加算)。
+        val recordKey = predictionReadings[candidate]?.takeIf { it != typedKey } ?: typedKey
+        val isPrefixPrediction = recordKey != typedKey
+        ImeHistoryStore.record(recordKey, candidate)
         prevCommitSurface?.let { ImeHistoryStore.recordBigram(it, candidate) }
         prevCommitSurface = candidate
-        if (isSplitMode) committedRun.add(key to candidate)
+        // 予測は打った読み 1 文節に収まらない (表層が接頭辞より長い) ので結合学習には積まない。
+        if (isSplitMode && !isPrefixPrediction) committedRun.add(typedKey to candidate)
         onCommit(candidate)
-        lastCommittedReading = key
+        lastCommittedReading = recordKey
         lastCommittedOutput = candidate
         advanceSegmentOrReset()
     }
@@ -994,6 +1047,7 @@ class ComposingState(
         lastEmitChar = null
         lastEmitTimeMs = 0
         committedRun.clear()
+        predictionReadings = emptyMap()
         // composing を明示的に閉じたら bigram の前語コンテキストもクリア (文の流れが切れる)。
         prevCommitSurface = null
         // 注意: lastCommittedReading / lastCommittedOutput は意図的に残す
@@ -1098,6 +1152,7 @@ class ComposingState(
             candidates = emptyList()
             selectedCandidateIndex = -1
             fullPrediction = null
+            predictionReadings = emptyMap()
             return
         }
         // 後続 (tail) が残る先頭ブロックでは前方一致予測 (読みより長い補完) を抑止する。
@@ -1108,6 +1163,8 @@ class ComposingState(
             KanaKanjiConverter.convertFlexible(key, prevSurface = prevCommitSurface, allowPrediction = !hasTail),
             key,
         )
+        // 予測候補の実際の読みを控える (確定時に接頭辞でなく読みで学習するため)。予測抑止時は空。
+        predictionReadings = if (hasTail) emptyMap() else KanaKanjiConverter.predictionReadingMap(key)
         if (selectedCandidateIndex >= candidates.size) selectedCandidateIndex = -1
         // 長文の一括予測: スプリット中で後続 (tail) が残っているとき、
         //   「先頭ブロックの最尤候補 + 残りかなの最尤」を組み合わせた「文まるごと」候補を出す。
