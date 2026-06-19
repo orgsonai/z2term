@@ -45,7 +45,7 @@ That's all the setup you need.
 │        the terminal itself (where text shows)  │
 │                                                │
 ├───────────────────────────────────────────────┤
-│ ▾  (tap to open/close the keyboard)            │
+│ ▾  (tap to open/close; drags over 24dp do nothing) │
 ├───────────────────────────────────────────────┤
 │            keyboard                            │
 └───────────────────────────────────────────────┘

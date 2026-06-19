@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-06-17 / Target version: 0.8.108-alpha (versionCode 116)
+Last updated: 2026-06-20 / Target version: 0.8.109-alpha (versionCode 117)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -210,6 +210,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 ### 4.11 UI details (`ui/`)
 
 - `terminal/TerminalScreen.kt`: overall layout. TopBar / TabBar / render area / keyboard toggle / keyboard area. `KeyboardMode = CUSTOM | SYSTEM`. In **landscape**, orientation is detected via `LocalView.OnLayoutChangeListener`, switching to a Row layout (`SideKeyboardColumn`) per the `landscapeKeyboardPosition`/`Width`/`Height` settings. `landscapeScaledStyle()` scales keyHeight/font proportionally to landscape height.
+  - **Keyboard toggle bar (`KeyboardToggleBar`)**: a 16dp tall strip whose tap shows/hides the keyboard. `.clickable`'s touch slop (~8dp) alone was not enough — during flick input a finger occasionally grazed the bar and accidentally hid the keyboard — so a custom `pointerInput` gesture is used instead: **if the cumulative movement from `down` exceeds 24dp, `onToggle` is suppressed**, so only a clean tap (< 24dp) toggles (0.8.109; previously, while `.clickable` would not fire past touch slop, short drags could still slip into tap detection and hide the keyboard).
   - **Toolbar (`ReorderableToolbar`)**: 📋 paste / 📜 commands / 💡 screen-on lock / 🔒 background keep-alive / 🔍 search / ⌨ keyboard toggle / ⚙ settings, drawn from a list of `ToolbarItem`. **Plain tap = the action; long-press drag reorders** (`detectDragGesturesAfterLongPress` + swap on crossing a neighbor's center). A `ToolbarTooltip` Popup shows a short description while held. The order persists in `AppSettings.toolbarOrder` (comma-separated ids), merged with the default via `mergeToolbarOrder` so adding/removing buttons never breaks it. The keep-alive lock defaults to the right of the screen-on lock. The GUI tab (`GuiTopBar`) shares the same `ReorderableToolbar` (no search; 📋/📜 bridge via keysyms).
 - `terminal/TerminalRenderer.kt`: **per-cell drawText** on a native Canvas (avoids subpixel error accumulation when advance≠cellW). Order: background → selection highlight → text → cursor → selection handles.
 - `terminal/input/TerminalInputView.kt` (AndroidView): physical key/OS IME input, gestures (tap/long-press selection/drag scroll/pinch zoom/mouse click emission). Selection is in [§6.5](#65-text-selection-ux).

@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -1707,8 +1708,8 @@ private fun TabInfoPopup(name: String, engine: String) {
 /**
  * ターミナル / キーボード間のトグルバー。
  *
- * タップでキーボードの表示/非表示を切り替えるだけ (高さ可変ドラッグは廃止)。
- * ドラッグ処理を無くしたことで「ウニョウニョ動く」不安定さが解消される。
+ * タップ (移動量 24dp 未満) でキーボードの表示/非表示を切り替える。
+ * フリック入力中に指がバーに掠めても誤動作しないよう、24dp 超のドラッグは無視する。
  * 折り畳み中はハンドルを緑にして「タップで開く」ことを示す。
  */
 @Composable
@@ -1722,7 +1723,29 @@ private fun KeyboardToggleBar(
             .height(16.dp)
             .background(ZtsBgSecondary)
             .border(width = 1.dp, color = ZtsBorder)
-            .clickable(onClick = onToggle),
+            .pointerInput(Unit) {
+                val slopPx = 24.dp.toPx()
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val startPos = down.position
+                        var dragged = false
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            val dx = change.position.x - startPos.x
+                            val dy = change.position.y - startPos.y
+                            if (kotlin.math.hypot(dx.toDouble(), dy.toDouble()) > slopPx) {
+                                dragged = true
+                            }
+                            if (!change.pressed) {
+                                if (!dragged) onToggle()
+                                break
+                            }
+                        }
+                    }
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         Text(
