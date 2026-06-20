@@ -122,6 +122,8 @@ struct pid_state {
     char link_oldhost[PATH_MAX_Z];  // 同 old のホスト実パス(コピー元)
     char link_newhost[PATH_MAX_Z];  // 同 new のホスト実パス(コピー先)
     int linkcopy_hit;       // entry で stat 対象パスがコピー先と一致した linkcopy 添字(-1=非該当)
+    char exe_guest[PATH_MAX_Z];  // /proc/<pid>/exe をゲスト視点で返すための execve 済みプログラム(ゲスト絶対)
+    int aux_is_self_exe;    // readlinkat entry で「対象が /proc/<own>/exe」と判定したフラグ(exit で exe_guest を返す)
 };
 static struct pid_state g_map[MAP_CAP];
 
@@ -140,11 +142,21 @@ static struct pid_state *state_for(pid_t pid) {
     g_map[free_slot].aux_kind = PROC_FD_NONE;
     g_map[free_slot].subst_active = 0;
     g_map[free_slot].link_pending = 0;
+    g_map[free_slot].exe_guest[0] = '\0';
+    g_map[free_slot].aux_is_self_exe = 0;
     for (int k = 0; k < STATUS_FD_MAX; k++) {
         g_map[free_slot].status_fds[k] = -1;
         g_map[free_slot].status_fd_kind[k] = PROC_FD_NONE;
     }
     return &g_map[free_slot];
+}
+
+// 既存スロットの検索のみ(無ければ NULL)。host_path_for のパス変換ホットパスから
+// 呼ぶための非破壊版。state_for は free スロットを掴んでしまうので使えない。
+static struct pid_state *state_lookup(pid_t pid) {
+    for (int i = 0; i < MAP_CAP; i++)
+        if (g_map[i].used && g_map[i].pid == pid) return &g_map[i];
+    return NULL;
 }
 
 static void state_drop(pid_t pid) {
@@ -448,6 +460,24 @@ static int host_path_for(const struct config *cfg, pid_t pid, const char *in_pat
             tail = in_path + 17;
         if (tail) snprintf(guest_abs, sizeof(guest_abs), "/proc/%d%s", (int)pid, tail);
         else snprintf(guest_abs, sizeof(guest_abs), "%s", in_path);
+
+        // /proc/<own pid>/exe(self/exe・thread-self/exe は上の self→pid 展開後にここへ来る)は
+        // カーネルの実 symlink がトレーシ自身が execve した ELF ではなく、z2root のローダ
+        // (libz2root.so) や ホスト側ローダを指している。Go ランタイム等が起動時に
+        // /proc/self/exe を open/stat/readlink して libbacktrace 用に自プログラムへ辿るが、
+        // libz2root.so をそのまま返すと open は ENOENT(host_to_guest で rootfs+host 二重前置)に
+        // なり、Go は "libbacktrace could not find executable to open" で panic する(/proc/self/cwd
+        // と同じ思想の修正。cwd は §host_path_for で対応済)。execve 時に記録した exe_guest
+        // (ゲスト絶対パス)へ差し替えて、open/stat/readlink を本来のプログラムへ向ける。
+        {
+            char self_exe_pat[64];
+            snprintf(self_exe_pat, sizeof(self_exe_pat), "/proc/%d/exe", (int)pid);
+            if (strcmp(guest_abs, self_exe_pat) == 0) {
+                struct pid_state *st = state_lookup(pid);
+                if (st && st->exe_guest[0])
+                    snprintf(guest_abs, sizeof(guest_abs), "%s", st->exe_guest);
+            }
+        }
     } else {
         if (dirfd != AT_FDCWD) return -1;  // fd 相対は dirfd に委ねる
         char proc[64], host_cwd[PATH_MAX_Z];
@@ -854,6 +884,42 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
     return 0;
 }
 
+static FILE *g_trc;       // 定義は下方(trc_init 付近)。診断ログ用に前方宣言。
+static int  g_trc_on;
+
+// execve(at) 時に「ゲスト視点でどのプログラムを実行するか」を per-tracee に記録する。
+// /proc/<pid>/exe の readlink/open はカーネルの実 symlink(z2root のローダ=libz2root.so 等)を
+// 返すため、Go ランタイム/libbacktrace 等が起動時に自プログラムを開けず即 panic する。
+// ここで記録した exe_guest を host_path_for と rewrite_readlink_result で返す。
+// 入力 guest_prog は execve に渡された(ゲスト視点の)プログラム文字列。相対パスは
+// /proc/<pid>/cwd を逆変換して絶対化する。execveat の fd 基準相対は省略(稀)。
+// 失敗は静かに無視(以後の /proc/self/exe は従来挙動=ローダ露出に戻るだけ)。
+static void record_exec_guest(const struct config *cfg, pid_t pid, struct pid_state *st,
+                              const char *guest_prog, long dirfd) {
+    if (!st || !guest_prog || !guest_prog[0]) return;
+    char guest_abs[PATH_MAX_Z];
+    if (guest_prog[0] == '/') {
+        snprintf(guest_abs, sizeof(guest_abs), "%s", guest_prog);
+    } else if (dirfd == AT_FDCWD) {
+        char proc[64], host_cwd[PATH_MAX_Z];
+        snprintf(proc, sizeof(proc), "/proc/%d/cwd", (int)pid);
+        ssize_t n = readlink(proc, host_cwd, sizeof(host_cwd) - 1);
+        if (n < 0) return;
+        host_cwd[n] = '\0';
+        char guest_cwd[PATH_MAX_Z];
+        host_to_guest(cfg, host_cwd, guest_cwd, sizeof(guest_cwd));
+        snprintf(guest_abs, sizeof(guest_abs), "%s/%s", guest_cwd, guest_prog);
+    } else {
+        return;  // execveat の fd 基準相対は対象外
+    }
+    char resolved[PATH_MAX_Z];
+    canonicalize_guest(cfg, pid, guest_abs, 1, resolved, sizeof(resolved));
+    snprintf(st->exe_guest, sizeof(st->exe_guest), "%s", resolved);
+    if (g_trc_on)
+        fprintf(g_trc, "[z2trc] EXE-record pid=%d guest_prog='%s' -> exe_guest='%s'\n",
+                pid, guest_prog, st->exe_guest);
+}
+
 // tracee の execve/execveat を傍受し、ローダ差し替え / シバン解決を適用する。
 // path_idx: パス引数のレジスタ index (execve=0, execveat=1)。argv は +1, envp は +2。
 static void rewrite_execve(const struct config *cfg, pid_t pid,
@@ -863,6 +929,15 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
 
     char guest_prog[PATH_MAX_Z];
     if (read_tracee_str(pid, path_addr, guest_prog, sizeof(guest_prog)) < 0) return;
+
+    // /proc/<pid>/exe をゲスト視点で返すため、execve 直前のゲストプログラムパスを
+    // 控える。エントリ時点での記録なので失敗 execve では古い値が残るが、次に成功した
+    // execve で上書きされるため実害は限定的(fork-exec の子は exec 失敗時に exit する)。
+    {
+        struct pid_state *st = state_lookup(pid);
+        long ed = (path_idx == 1) ? (long)(int)regs->regs[0] : (long)AT_FDCWD;
+        record_exec_guest(cfg, pid, st, guest_prog, ed);
+    }
 
     // 元 argv を tracee から読む。個数上限を設けず動的確保で全件読む
     // (固定長で切ると dpkg の byte-compile 等 argv の多い exec が壊れる)。
@@ -984,8 +1059,6 @@ static void rewrite_getcwd_result(const struct config *cfg, pid_t pid, unsigned 
 // 取る実装(Bun 製の claude code 等)はホスト実パスを掴み「working directory が無い」と
 // 誤判定して即終了し、起動できない。ここで host_to_guest() してゲストパスへ戻す
 // (proot も /proc/*/cwd・exe・root の readlink を同様に逆変換する)。
-static FILE *g_trc;       // 定義は下方(trc_init 付近)。診断ログ用に前方宣言。
-static int  g_trc_on;
 static void rewrite_readlink_result(const struct config *cfg, pid_t pid,
                                     const struct pid_state *st) {
     unsigned long buf = st->aux_addr, bufsiz = st->aux_len;
@@ -993,8 +1066,24 @@ static void rewrite_readlink_result(const struct config *cfg, pid_t pid,
     if (get_regs(pid, &regs) != 0) return;
     long ret = (long)regs.regs[0];
     if (g_trc_on)
-        fprintf(g_trc, "[z2trc] RL-rewrite pid=%d ret=%ld buf=0x%lx bufsiz=%lu aux_path='%s'\n",
-                pid, ret, buf, bufsiz, st->aux_path);
+        fprintf(g_trc, "[z2trc] RL-rewrite pid=%d ret=%ld buf=0x%lx bufsiz=%lu aux_path='%s' self_exe=%d\n",
+                pid, ret, buf, bufsiz, st->aux_path, st->aux_is_self_exe);
+    // /proc/<own>/exe(self/exe・thread-self/exe を含む)は記録済みゲスト exe を直接返す。
+    // カーネル側の readlinkat は host_path_for の差し替えで exe_guest のホスト実パス(通常
+    // ファイル)へ向くため -EINVAL を返しているが、ここで成功(glen)に偽装してバッファを
+    // 上書きする(getcwd/chmod 系の失敗→0 偽装と同様)。
+    if (st->aux_is_self_exe && st->exe_guest[0] && buf && bufsiz) {
+        size_t glen = strlen(st->exe_guest);
+        if (glen > bufsiz) glen = bufsiz;
+        if (write_tracee_mem(pid, buf, st->exe_guest, glen) == 0) {
+            regs.regs[0] = (unsigned long)glen;   // readlink は書き込みバイト数(NUL含まず)
+            set_regs(pid, &regs);
+            if (g_trc_on)
+                fprintf(g_trc, "[z2trc] RL-rewrite SELF-EXE -> '%s' glen=%zu\n",
+                        st->exe_guest, glen);
+        }
+        return;
+    }
     if (ret <= 0 || buf == 0) return;             // readlink 失敗 / バッファ無し
     if ((unsigned long)ret > bufsiz) return;      // 異常値
 
@@ -1988,6 +2077,7 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
     st->entry_nr = (long)regs.regs[8];
     st->aux_kind = PROC_FD_NONE;
     st->linkcopy_hit = -1;
+    st->aux_is_self_exe = 0;
     if (st->entry_nr == 29) {                // ioctl: termios2→legacy 書換のみ(exit 後処理不要)
         st->aux_addr = 0;
         maybe_rewrite_ioctl(pid, &regs);
@@ -2014,6 +2104,14 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
             char rhost[PATH_MAX_Z];
             if (host_path_for(cfg, pid, gpath, 0, rdirfd, rhost, sizeof(rhost)) == 0)
                 snprintf(st->aux_path, sizeof(st->aux_path), "%s", rhost);
+            // /proc/<own>/exe(self/exe・thread-self/exe・/proc/<own pid>/exe)を識別。
+            // 該当時は exit で exe_guest を直接返す(カーネルが見せる libz2root.so を覆い隠す)。
+            char pid_exe[64];
+            snprintf(pid_exe, sizeof(pid_exe), "/proc/%d/exe", (int)pid);
+            if (strcmp(gpath, "/proc/self/exe") == 0 ||
+                strcmp(gpath, "/proc/thread-self/exe") == 0 ||
+                strcmp(gpath, pid_exe) == 0)
+                st->aux_is_self_exe = 1;
         }
     }
     else if (cfg->fake_root) switch (st->entry_nr) {
@@ -2157,6 +2255,9 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                 // ブートストラップ execve(run_child が既に host 解決済み)。翻訳しない。
                 boot_done = 1;
                 st->entry_nr = 221; st->at_exit = 0;
+                // 初期プログラムも /proc/<pid>/exe で見える必要があるので seed する
+                // (rewrite_execve は呼ばないため、ここで明示的に記録)。
+                record_exec_guest(cfg, pid, st, cfg->command[0], AT_FDCWD);
                 ptrace(PTRACE_CONT, pid, 0, 0);
                 continue;
             }
@@ -2222,7 +2323,12 @@ static int run_tracer(const struct config *cfg, pid_t child) {
             event == PTRACE_EVENT_CLONE) {
             unsigned long newpid = 0;
             ptrace(PTRACE_GETEVENTMSG, pid, 0, &newpid);
-            state_for((pid_t)newpid);
+            struct pid_state *nst = state_for((pid_t)newpid);
+            struct pid_state *pst = state_lookup(pid);
+            // 親の exe_guest を子へ継承する(fork/clone は exec しない限り親と同じ ELF)。
+            // execve した時点で子側 record_exec_guest が上書きするので二重指定の害は無い。
+            if (nst && pst && pst->exe_guest[0])
+                snprintf(nst->exe_guest, sizeof(nst->exe_guest), "%s", pst->exe_guest);
             z_resume(pid, seccomp_mode, state_for(pid), 0);
             continue;
         }
@@ -2248,7 +2354,11 @@ static int run_tracer(const struct config *cfg, pid_t child) {
             seccomp_mode = 0;
             boot_done = 1;
             struct pid_state *st = state_for(pid);
-            if (st) st->at_exit = 0;
+            if (st) {
+                st->at_exit = 0;
+                // seccomp フォールバック経路でも初期 exe を seed する。
+                record_exec_guest(cfg, pid, st, cfg->command[0], AT_FDCWD);
+            }
             ptrace(PTRACE_SYSCALL, pid, 0, 0);
             continue;
         }
