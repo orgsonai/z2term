@@ -99,10 +99,14 @@ struct config {
 #define MAP_CAP 256
 #define STATUS_FD_MAX 16    // 同時に追跡する /proc 偽装 fd の上限(超過分は非追跡)
 #define STATUS_BUF_MAX 16384 // /proc status/loginuid を読み込む temp 用バッファ上限(status は通常 ~2KB)
+#define CMDLINE_MAX 4096    // /proc/<pid>/cmdline 控え上限(NUL 連結 argv。カーネルも arg_end-arg_start 制限あり)
+#define TASK_COMM_LEN 16    // /proc/<pid>/comm の上限(カーネル定数 = 15 文字 + NUL)
 // proc 偽装 fd の種別(read 時にどの偽装を当てるか)。
 #define PROC_FD_NONE     0
-#define PROC_FD_STATUS   1  // /proc/.../status (Uid/Gid/Groups/Cap* を root 一貫に)
+#define PROC_FD_STATUS   1  // /proc/.../status (Uid/Gid/Groups/Cap*/Name を root 一貫 + argv0 basename に)
 #define PROC_FD_LOGINUID 2  // /proc/.../loginuid (監査ログイン uid を 0 に)
+#define PROC_FD_CMDLINE  3  // /proc/.../cmdline (ローダラッパー漏れを元 argv へ差し替え)
+#define PROC_FD_COMM     4  // /proc/.../comm (libz2root.so 漏れを argv0 basename へ差し替え)
 struct pid_state {
     pid_t pid;
     int at_exit;            // 0: 次は syscall-entry, 1: 次は syscall-exit
@@ -124,6 +128,9 @@ struct pid_state {
     int linkcopy_hit;       // entry で stat 対象パスがコピー先と一致した linkcopy 添字(-1=非該当)
     char exe_guest[PATH_MAX_Z];  // /proc/<pid>/exe をゲスト視点で返すための execve 済みプログラム(ゲスト絶対)
     int aux_is_self_exe;    // readlinkat entry で「対象が /proc/<own>/exe」と判定したフラグ(exit で exe_guest を返す)
+    char proc_cmdline[CMDLINE_MAX]; // /proc/<pid>/cmdline 用に控えた元 argv(NUL 連結。length 保存・NUL 終端不要)
+    size_t proc_cmdline_len;        // proc_cmdline の有効バイト数(0=未記録)
+    char proc_comm[TASK_COMM_LEN];  // /proc/<pid>/comm 用 argv0 basename(NUL 終端、最大 15 文字)
 };
 static struct pid_state g_map[MAP_CAP];
 
@@ -144,6 +151,8 @@ static struct pid_state *state_for(pid_t pid) {
     g_map[free_slot].link_pending = 0;
     g_map[free_slot].exe_guest[0] = '\0';
     g_map[free_slot].aux_is_self_exe = 0;
+    g_map[free_slot].proc_cmdline_len = 0;
+    g_map[free_slot].proc_comm[0] = '\0';
     for (int k = 0; k < STATUS_FD_MAX; k++) {
         g_map[free_slot].status_fds[k] = -1;
         g_map[free_slot].status_fd_kind[k] = PROC_FD_NONE;
@@ -887,6 +896,42 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
 static FILE *g_trc;       // 定義は下方(trc_init 付近)。診断ログ用に前方宣言。
 static int  g_trc_on;
 
+// execve(at) 時に元 argv と argv0 basename を per-tracee に控える。
+// /proc/<pid>/cmdline・/proc/<pid>/comm・/proc/<pid>/status:Name を本来の(ローダ包み前の)
+// 表記で返すため。argv が NULL/空のときは guest_prog 単体で控える。
+static void record_exec_argv(struct pid_state *st, const char *guest_prog,
+                             char *const *argv, int argc) {
+    if (!st) return;
+    size_t off = 0;
+    if (argv && argc > 0) {
+        for (int i = 0; i < argc; i++) {
+            const char *a = argv[i] ? argv[i] : "";
+            size_t l = strlen(a) + 1;
+            if (off + l > sizeof(st->proc_cmdline)) break;  // 上限到達=以降切り捨て
+            memcpy(st->proc_cmdline + off, a, l);
+            off += l;
+        }
+    } else {
+        const char *a = guest_prog ? guest_prog : "";
+        size_t l = strlen(a) + 1;
+        if (l <= sizeof(st->proc_cmdline)) {
+            memcpy(st->proc_cmdline, a, l);
+            off = l;
+        }
+    }
+    st->proc_cmdline_len = off;
+
+    // /proc/<pid>/comm はカーネルが exec した実行ファイル basename を使う(TASK_COMM_LEN=16)。
+    // 同じ規則で guest_prog の basename(最大 15 文字)を入れる。ps/pgrep が拾うのはここ。
+    const char *src = (guest_prog && guest_prog[0]) ? guest_prog : "z2root";
+    const char *slash = strrchr(src, '/');
+    const char *bn = slash ? slash + 1 : src;
+    size_t bl = strlen(bn);
+    if (bl >= TASK_COMM_LEN) bl = TASK_COMM_LEN - 1;
+    memcpy(st->proc_comm, bn, bl);
+    st->proc_comm[bl] = '\0';
+}
+
 // execve(at) 時に「ゲスト視点でどのプログラムを実行するか」を per-tracee に記録する。
 // /proc/<pid>/exe の readlink/open はカーネルの実 symlink(z2root のローダ=libz2root.so 等)を
 // 返すため、Go ランタイム/libbacktrace 等が起動時に自プログラムを開けず即 panic する。
@@ -962,6 +1007,13 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
             if (read_tracee_str(pid, p, s, PATH_MAX_Z) < 0) s[0] = '\0';
             args[n] = s;
         }
+    }
+
+    // 元 argv/comm を per-tracee に控える(plan_exec / wrap_with_loader が argv を書き換える
+    // 前の値=本来の guest argv)。/proc/<pid>/{cmdline,comm,status:Name} 偽装で使う。
+    {
+        struct pid_state *st = state_lookup(pid);
+        record_exec_argv(st, guest_prog, args, n);
     }
 
     struct exec_plan plan;
@@ -1360,11 +1412,42 @@ static int is_proc_loginuid_path(const char *p) {
     return n >= 9 && strcmp(p + (n - 9), "/loginuid") == 0;
 }
 
+// guest パスが /proc/<...>/cmdline 形か(/proc/self/cmdline・/proc/<pid>/cmdline・
+// /proc/<pid>/task/<tid>/cmdline いずれも末尾照合で拾える)。
+static int is_proc_cmdline_path(const char *p) {
+    if (strncmp(p, "/proc/", 6) != 0) return 0;
+    size_t n = strlen(p);
+    return n >= 8 && strcmp(p + (n - 8), "/cmdline") == 0;
+}
+
+// guest パスが /proc/<...>/comm 形か。
+static int is_proc_comm_path(const char *p) {
+    if (strncmp(p, "/proc/", 6) != 0) return 0;
+    size_t n = strlen(p);
+    return n >= 5 && strcmp(p + (n - 5), "/comm") == 0;
+}
+
 // 開こうとしている proc パスの偽装種別を返す(非対象は PROC_FD_NONE)。
 static int proc_open_kind(const char *p) {
     if (is_proc_status_path(p)) return PROC_FD_STATUS;
     if (is_proc_loginuid_path(p)) return PROC_FD_LOGINUID;
+    if (is_proc_cmdline_path(p)) return PROC_FD_CMDLINE;
+    if (is_proc_comm_path(p)) return PROC_FD_COMM;
     return PROC_FD_NONE;
+}
+
+// /proc/<pid>/... または /proc/self/... を解析して対象 pid を返す(0=不明/非数値)。
+// self/thread-self は呼び出し側のトレーシ pid(self)へ解決。task/<tid>/... は主スレッド
+// (=ファイルを開いた pid からたどる)で代表させる(マルチスレッドの個別 comm は本実装では
+// 区別せず main の controlling argv0 をそのまま見せる=ps/pgrep の主目的に十分)。
+static pid_t proc_path_pid(const char *p, pid_t self) {
+    if (strncmp(p, "/proc/", 6) != 0) return 0;
+    const char *r = p + 6;
+    if (strcmp(r, "self") == 0 || strncmp(r, "self/", 5) == 0) return self;
+    if (strncmp(r, "thread-self/", 12) == 0 || strcmp(r, "thread-self") == 0) return self;
+    pid_t v = 0;
+    while (*r >= '0' && *r <= '9') { v = v * 10 + (pid_t)(*r - '0'); r++; }
+    return v;
 }
 
 static void status_fd_add(struct pid_state *st, int fd, int kind) {
@@ -1459,21 +1542,70 @@ static void fake_loginuid_buf(char *b, size_t len) {
         if (b[i] >= '0' && b[i] <= '9') b[i] = '0';
 }
 
+// status バッファ先頭の "Name:\t<comm>" 行を name へ書き換える(length 保存=
+// 後続行のオフセットを崩さない。新 name が短ければ末尾を空白で埋める)。
+// 行が無い/短すぎる場合は何もしない。z2root では comm がカーネル設定の "libz2root.so"
+// 漏れになるので、ここで argv0 basename へ差し替えて ps/pgrep の見た目を整える。
+static void fake_status_name(char *b, size_t len, const char *name) {
+    if (!name || !name[0]) return;
+    if (len < 6 || memcmp(b, "Name:", 5) != 0) return;
+    size_t le = 5;
+    while (le < len && b[le] != '\n') le++;
+    if (le >= len || le < 6) return;
+    b[5] = '\t';
+    size_t nl = strlen(name);
+    if (nl > le - 6) nl = le - 6;
+    memcpy(b + 6, name, nl);
+    for (size_t j = 6 + nl; j < le; j++) b[j] = ' ';
+}
+
 // read() exit: 追跡 fd からの読み取りバッファ(buf, ret バイト)を種別に応じて root 偽装する。
-static void fake_proc_on_read(pid_t pid, unsigned long buf, int kind) {
+// st は status の Name: 行 / cmdline / comm 偽装で argv 控えを引くため。
+// 非 readfree(Z2ROOT_NO_READFREE=1)経路の補完。readfree 既定 ON では openat-time 差し替えが
+// 先に走るためここは通らない。
+static void fake_proc_on_read(pid_t pid, unsigned long buf, int kind,
+                              const struct pid_state *st) {
     struct user_pt_regs regs;
     if (get_regs(pid, &regs) != 0) return;
     long ret = (long)regs.regs[0];
     if (ret <= 0 || buf == 0) return;
     size_t len = (size_t)ret;
     if (len > PATH_MAX_Z) len = PATH_MAX_Z;  // status は read 1 回で全体が収まる前提
-    char b[PATH_MAX_Z];
-    struct iovec lo = { b, len };
-    struct iovec re = { (void *)buf, len };
-    if (process_vm_readv(pid, &lo, 1, &re, 1, 0) != (ssize_t)len) return;
-    if (kind == PROC_FD_LOGINUID) fake_loginuid_buf(b, len);
-    else                          fake_status_buf(b, len);
-    write_tracee_mem(pid, buf, b, len);
+
+    if (kind == PROC_FD_LOGINUID || kind == PROC_FD_STATUS) {
+        // length 保存タイプ(in-place 偽装→そのまま書き戻し)。
+        char b[PATH_MAX_Z];
+        struct iovec lo = { b, len };
+        struct iovec re = { (void *)buf, len };
+        if (process_vm_readv(pid, &lo, 1, &re, 1, 0) != (ssize_t)len) return;
+        if (kind == PROC_FD_LOGINUID) {
+            fake_loginuid_buf(b, len);
+        } else {
+            fake_status_buf(b, len);
+            if (st && st->proc_comm[0]) fake_status_name(b, len, st->proc_comm);
+        }
+        write_tracee_mem(pid, buf, b, len);
+    } else if (kind == PROC_FD_COMM) {
+        if (!st || !st->proc_comm[0]) return;
+        char out[TASK_COMM_LEN + 1];
+        size_t cl = strlen(st->proc_comm);
+        memcpy(out, st->proc_comm, cl);
+        out[cl] = '\n';
+        size_t want = cl + 1;
+        if (want > len) want = len;            // user バッファ超は切り詰め(カーネル ret 上限)
+        if (write_tracee_mem(pid, buf, out, want) == 0) {
+            regs.regs[0] = (unsigned long)want;    // 長さが変わるので read 戻り値も調整
+            set_regs(pid, &regs);
+        }
+    } else if (kind == PROC_FD_CMDLINE) {
+        if (!st || st->proc_cmdline_len == 0) return;
+        size_t want = st->proc_cmdline_len;
+        if (want > len) want = len;
+        if (write_tracee_mem(pid, buf, st->proc_cmdline, want) == 0) {
+            regs.regs[0] = (unsigned long)want;
+            set_regs(pid, &regs);
+        }
+    }
 }
 
 // readfree モード: openat 時に /proc 偽装を「temp ファイル差し替え」で行う。
@@ -1508,21 +1640,46 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
     int kind = proc_open_kind(g);
     if (kind == PROC_FD_NONE) return 0;
 
-    // 実 /proc ファイルを読む(self/thread-self は tid へ解決)。読めなければ非差し替え。
-    char real[PATH_MAX_Z];
-    resolve_proc_self(g, pid, real, sizeof(real));
-    int rfd = open(real, O_RDONLY | O_CLOEXEC);
-    if (rfd < 0) return 0;
+    // 対象 pid のトレース状態(cmdline/comm 偽装の元データ用)。非トレース pid は
+    // 通常 /proc 経由で素通しさせる(ホスト Android プロセスの cmdline/comm はそのまま=
+    // ps が PID 1 の init 等を見られる)。
+    pid_t target = proc_path_pid(g, pid);
+    struct pid_state *tst = (target > 0) ? state_lookup(target) : NULL;
+
     char buf[STATUS_BUF_MAX];
     size_t total = 0;
-    ssize_t n;
-    while (total < sizeof(buf) && (n = read(rfd, buf + total, sizeof(buf) - total)) > 0)
-        total += (size_t)n;
-    close(rfd);
 
-    // 偽装を当てる(read 経路と同じ書き換え)。
-    if (kind == PROC_FD_LOGINUID) fake_loginuid_buf(buf, total);
-    else                          fake_status_buf(buf, total);
+    if (kind == PROC_FD_CMDLINE) {
+        if (!tst || tst->proc_cmdline_len == 0) return 0;          // 控え無し=実 /proc
+        if (tst->proc_cmdline_len > sizeof(buf)) return 0;          // 上限超(まず起きない)
+        memcpy(buf, tst->proc_cmdline, tst->proc_cmdline_len);
+        total = tst->proc_cmdline_len;
+    } else if (kind == PROC_FD_COMM) {
+        if (!tst || !tst->proc_comm[0]) return 0;
+        size_t cl = strlen(tst->proc_comm);
+        memcpy(buf, tst->proc_comm, cl);
+        buf[cl] = '\n';                                             // /proc/<pid>/comm はカーネルが末尾 \n を付ける
+        total = cl + 1;
+    } else {
+        // 実 /proc ファイルを読む(self/thread-self は tid へ解決)。読めなければ非差し替え。
+        char real[PATH_MAX_Z];
+        resolve_proc_self(g, pid, real, sizeof(real));
+        int rfd = open(real, O_RDONLY | O_CLOEXEC);
+        if (rfd < 0) return 0;
+        ssize_t n;
+        while (total < sizeof(buf) && (n = read(rfd, buf + total, sizeof(buf) - total)) > 0)
+            total += (size_t)n;
+        close(rfd);
+
+        // 偽装を当てる(read 経路と同じ書き換え)。
+        if (kind == PROC_FD_LOGINUID) {
+            fake_loginuid_buf(buf, total);
+        } else {  // PROC_FD_STATUS
+            fake_status_buf(buf, total);
+            // Name: 行は本来カーネル設定の "libz2root.so" が漏れるので argv0 basename へ。
+            if (tst && tst->proc_comm[0]) fake_status_name(buf, total, tst->proc_comm);
+        }
+    }
 
     // rootfs 内 temp(tid 名)へ書き出す。同 tid の openat entry→exit は直列なので
     // 同名の衝突は起きない(超える前に exit で unlink される)。
@@ -2178,7 +2335,7 @@ static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_
                 status_fd_add(st, (int)r.regs[0], st->pending_open_kind);
             st->pending_open_kind = PROC_FD_NONE;
         } else if (st->entry_nr == 63 && st->aux_addr) {
-            fake_proc_on_read(pid, st->aux_addr, st->aux_kind);
+            fake_proc_on_read(pid, st->aux_addr, st->aux_kind, st);
         } else if (st->entry_nr == 212 && st->aux_addr) {
             rewrite_recvmsg_creds(pid, st->aux_addr);
         } else {
@@ -2258,6 +2415,10 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                 // 初期プログラムも /proc/<pid>/exe で見える必要があるので seed する
                 // (rewrite_execve は呼ばないため、ここで明示的に記録)。
                 record_exec_guest(cfg, pid, st, cfg->command[0], AT_FDCWD);
+                // 同様に cmdline/comm も cfg->command 全体から seed。
+                int argc0 = 0;
+                while (cfg->command[argc0]) argc0++;
+                record_exec_argv(st, cfg->command[0], (char *const *)cfg->command, argc0);
                 ptrace(PTRACE_CONT, pid, 0, 0);
                 continue;
             }
@@ -2329,6 +2490,12 @@ static int run_tracer(const struct config *cfg, pid_t child) {
             // execve した時点で子側 record_exec_guest が上書きするので二重指定の害は無い。
             if (nst && pst && pst->exe_guest[0])
                 snprintf(nst->exe_guest, sizeof(nst->exe_guest), "%s", pst->exe_guest);
+            // cmdline/comm も同様に継承(execve まで親と同じ argv を見せる)。
+            if (nst && pst && pst->proc_cmdline_len) {
+                memcpy(nst->proc_cmdline, pst->proc_cmdline, pst->proc_cmdline_len);
+                nst->proc_cmdline_len = pst->proc_cmdline_len;
+                memcpy(nst->proc_comm, pst->proc_comm, sizeof(nst->proc_comm));
+            }
             z_resume(pid, seccomp_mode, state_for(pid), 0);
             continue;
         }
@@ -2358,6 +2525,9 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                 st->at_exit = 0;
                 // seccomp フォールバック経路でも初期 exe を seed する。
                 record_exec_guest(cfg, pid, st, cfg->command[0], AT_FDCWD);
+                int argc0 = 0;
+                while (cfg->command[argc0]) argc0++;
+                record_exec_argv(st, cfg->command[0], (char *const *)cfg->command, argc0);
             }
             ptrace(PTRACE_SYSCALL, pid, 0, 0);
             continue;

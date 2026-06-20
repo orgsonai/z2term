@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-20 / 対象バージョン: 0.8.111-alpha (versionCode 119)
+最終更新: 2026-06-20 / 対象バージョン: 0.8.112-alpha (versionCode 120)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -433,6 +433,7 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 - **chroot エンジンは su 経由だと制御端末を所有できず Ctrl+C/ジョブ制御が効かない** → login shell を `setsid -c` 経由で起動。
 - **GUI 動画**: GPU 無し端末で mpv の `gpu` 出力は化け/半分描画になる → `vo=x11` 既定 + `LIBGL_ALWAYS_SOFTWARE`。
 - **GUI 音声**: PulseAudio は `-n` 方式で起動しないと既存設定と競合。`AudioBridge` の接続先 port を 0 のまま渡すと無音（既定ポートを明示）。**z2root 配下では** `--daemonize` が `/proc/self/exe`（=ランチャ）の自己 re-exec で失敗する→`setsid …&` で背景化。AF_UNIX の `SCM_CREDENTIALS` は fake_root の uid=0 だとカーネルが `sendmsg` を `EPERM`→z2root が `sendmsg`/`recvmsg`(211/212) の ucred を実 uid へ書換（0.8.53）。
+- **z2root の `/proc/<pid>/cmdline`・`comm`・`status:Name` をローダ漏れから復元 (0.8.112)**: z2root は Android の W^X 制約上 `execve(libz2root.so)` でローダラッパー(`z2root --loader-noreloc <ld.so> <ld.so> --argv0 <argv0> <prog> ...`)を通すため、カーネルが `/proc/<pid>/cmdline` にラッパー argv を、`comm`/`status:Name` に `libz2root.so` を記録してしまう。結果 `ps -ef` / `pgrep <name>` / `pidof` / `top` がゲスト全プロセスで壊れる(proot は ld.so 経由経路で argv が原型保持されるため起きない)。**修正**: execve 傍受時に元の argv(と guest_prog basename)を per-tracee に控え、`/proc/<pid>/cmdline` / `/comm` 用に PROC_FD 種別を 2 つ追加して openat-time temp 差し替え(readfree 既定)に乗せた。`/proc/<pid>/status` の `Name:` 行は length 保存で argv0 basename へ in-place 書換(`fake_status_buf` の隣に `fake_status_name` を追加)。fork/clone は親の控えを子へ継承、execve 成功時に上書き。非 readfree(`Z2ROOT_NO_READFREE=1`)経路の `fake_proc_on_read` も同分岐に対応(cmdline/comm は長さが変わるため `regs[0]` も併せて調整)。
 - **z2root の `/proc/self/exe` をゲスト視点へ書換 (0.8.111)**: `/proc/<tid>/exe` のカーネル symlink は execve 経路上 `libz2root.so`（または自前ローダ）を指すため、ゲストが `readlink("/proc/self/exe")` でホスト実パスを掴み、`open("/proc/self/exe")` も `ENOENT` で失敗していた。**症状**: Go ランタイムが起動段階で libbacktrace 用に `/proc/self/exe` を開けず `libbacktrace could not find executable to open` で即 panic（`go version` / `go build` 双方が走らない）。同じ経路で adb の `execl(自パス)` 系統や `--daemonize` 自己 re-exec も壊れる。proot は同等の hijack を持っていたため起きず、z2root のみの劣化。**修正**: execve(at)/ブートストラップ exec のタイミングでゲスト視点の絶対プログラムパスを per-tracee に控え、`host_path_for` の `/proc/<own pid>/exe` 検出時にそのパスへ差し替え、`readlinkat` exit で同じく返す。fork/clone は親の控えを子へ継承。`/proc/self/cwd` の逆変換（旧 0.8.60 で claude code の起動不能を直したもの）と同思想の追加対応。
 - **折り返し URL の検出**: wrapped フラグは「継続行」でなく「折り返し元の行」に持たせる（逆だと長 URL がタップできない）。
 
