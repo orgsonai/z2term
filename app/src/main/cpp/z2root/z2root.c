@@ -107,6 +107,8 @@ struct config {
 #define PROC_FD_LOGINUID 2  // /proc/.../loginuid (監査ログイン uid を 0 に)
 #define PROC_FD_CMDLINE  3  // /proc/.../cmdline (ローダラッパー漏れを元 argv へ差し替え)
 #define PROC_FD_COMM     4  // /proc/.../comm (libz2root.so 漏れを argv0 basename へ差し替え)
+#define PROC_FD_STAT     5  // /proc/<pid>/stat の field 2 "(libz2root.so)" を argv0 basename へ
+                            // (busybox ps 等は速度のため status/comm でなく stat field 2 を読む)
 struct pid_state {
     pid_t pid;
     int at_exit;            // 0: 次は syscall-entry, 1: 次は syscall-exit
@@ -1427,12 +1429,22 @@ static int is_proc_comm_path(const char *p) {
     return n >= 5 && strcmp(p + (n - 5), "/comm") == 0;
 }
 
+// guest パスが /proc/<pid>/stat または /proc/<pid>/task/<tid>/stat 形か。
+// 全体統計の /proc/stat(n==10)は除外する(中身は cpu/intr/ctxt 等で comm 文字列無し)。
+static int is_proc_stat_path(const char *p) {
+    if (strncmp(p, "/proc/", 6) != 0) return 0;
+    size_t n = strlen(p);
+    if (n <= 10) return 0;  // "/proc/stat" 以下の長さは対象外(per-pid stat は最短 /proc/N/stat=12)
+    return strcmp(p + (n - 5), "/stat") == 0;
+}
+
 // 開こうとしている proc パスの偽装種別を返す(非対象は PROC_FD_NONE)。
 static int proc_open_kind(const char *p) {
     if (is_proc_status_path(p)) return PROC_FD_STATUS;
     if (is_proc_loginuid_path(p)) return PROC_FD_LOGINUID;
     if (is_proc_cmdline_path(p)) return PROC_FD_CMDLINE;
     if (is_proc_comm_path(p)) return PROC_FD_COMM;
+    if (is_proc_stat_path(p)) return PROC_FD_STAT;
     return PROC_FD_NONE;
 }
 
@@ -1542,6 +1554,31 @@ static void fake_loginuid_buf(char *b, size_t len) {
         if (b[i] >= '0' && b[i] <= '9') b[i] = '0';
 }
 
+// /proc/<pid>/stat の field 2 "(<comm>)" を name へ書き換え(length 保存)。
+// カーネル形式: "<pid> (<comm>) <state> <ppid> ..." (改行 1 行)。comm 自身に '('/')' を
+// 含み得るため右端探索(最後の ") ")で閉じ位置を取る(/proc/<pid>/stat 互換パーサと同流儀)。
+// 新 name が中身より短ければ空白埋め=後続フィールドのオフセットを崩さない。
+static void fake_stat_comm(char *b, size_t len, const char *name) {
+    if (!name || !name[0] || len < 4) return;
+    size_t lp = 0;
+    while (lp < len && b[lp] != '(') lp++;
+    if (lp >= len) return;
+    size_t line_end = 0;
+    while (line_end < len && b[line_end] != '\n') line_end++;
+    size_t rp = len;
+    if (line_end > lp + 2) {
+        for (size_t i = line_end - 1; i > lp; i--)
+            if (b[i] == ' ' && b[i - 1] == ')') { rp = i - 1; break; }
+    }
+    if (rp >= len) return;
+    size_t inner = rp - (lp + 1);
+    if (inner == 0) return;
+    size_t nl = strlen(name);
+    if (nl > inner) nl = inner;
+    memcpy(b + lp + 1, name, nl);
+    for (size_t j = lp + 1 + nl; j < rp; j++) b[j] = ' ';
+}
+
 // status バッファ先頭の "Name:\t<comm>" 行を name へ書き換える(length 保存=
 // 後続行のオフセットを崩さない。新 name が短ければ末尾を空白で埋める)。
 // 行が無い/短すぎる場合は何もしない。z2root では comm がカーネル設定の "libz2root.so"
@@ -1572,7 +1609,7 @@ static void fake_proc_on_read(pid_t pid, unsigned long buf, int kind,
     size_t len = (size_t)ret;
     if (len > PATH_MAX_Z) len = PATH_MAX_Z;  // status は read 1 回で全体が収まる前提
 
-    if (kind == PROC_FD_LOGINUID || kind == PROC_FD_STATUS) {
+    if (kind == PROC_FD_LOGINUID || kind == PROC_FD_STATUS || kind == PROC_FD_STAT) {
         // length 保存タイプ(in-place 偽装→そのまま書き戻し)。
         char b[PATH_MAX_Z];
         struct iovec lo = { b, len };
@@ -1580,6 +1617,8 @@ static void fake_proc_on_read(pid_t pid, unsigned long buf, int kind,
         if (process_vm_readv(pid, &lo, 1, &re, 1, 0) != (ssize_t)len) return;
         if (kind == PROC_FD_LOGINUID) {
             fake_loginuid_buf(b, len);
+        } else if (kind == PROC_FD_STAT) {
+            if (st && st->proc_comm[0]) fake_stat_comm(b, len, st->proc_comm);
         } else {
             fake_status_buf(b, len);
             if (st && st->proc_comm[0]) fake_status_name(b, len, st->proc_comm);
@@ -1661,7 +1700,8 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
         buf[cl] = '\n';                                             // /proc/<pid>/comm はカーネルが末尾 \n を付ける
         total = cl + 1;
     } else {
-        // 実 /proc ファイルを読む(self/thread-self は tid へ解決)。読めなければ非差し替え。
+        // STATUS / LOGINUID / STAT: 実 /proc ファイルを読み、種別に応じた偽装を当てる。
+        // self/thread-self は tid へ解決。読めなければ非差し替え。
         char real[PATH_MAX_Z];
         resolve_proc_self(g, pid, real, sizeof(real));
         int rfd = open(real, O_RDONLY | O_CLOEXEC);
@@ -1671,9 +1711,11 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
             total += (size_t)n;
         close(rfd);
 
-        // 偽装を当てる(read 経路と同じ書き換え)。
         if (kind == PROC_FD_LOGINUID) {
             fake_loginuid_buf(buf, total);
+        } else if (kind == PROC_FD_STAT) {
+            // busybox/procps の ps は速度のため stat field 2 (<comm>) を読む。control。
+            if (tst && tst->proc_comm[0]) fake_stat_comm(buf, total, tst->proc_comm);
         } else {  // PROC_FD_STATUS
             fake_status_buf(buf, total);
             // Name: 行は本来カーネル設定の "libz2root.so" が漏れるので argv0 basename へ。
