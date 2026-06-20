@@ -18,6 +18,8 @@ import com.zerotoship.z2term.core.TerminalSession
 private const val AUTO_SCROLL_INTERVAL_MS = 45L
 /** フリング(慣性スクロール)の減衰係数。1 フレーム(約16ms)ごとに速度へ乗算。 */
 private const val FLING_DECELERATION = 0.90f
+/** マウスレポーティング有効時、スワイプを 1 ホイールノッチに換算するピクセル量。 */
+private const val MOUSE_WHEEL_STEP_PX = 40f
 
 /**
  * ターミナル入力専用 View。
@@ -66,6 +68,7 @@ class TerminalInputView(context: Context) : View(context) {
     private var initialSpan: Float = 0f
     private var lastAppliedFontSp: Float = 0f
     private var scrollAccumDy: Float = 0f
+    private var mouseWheelAccumDy: Float = 0f
 
     // --- 選択 UX 補助 (拡大鏡 / 端で自動スクロール) ---
     private var magnifier: android.widget.Magnifier? = null
@@ -140,6 +143,7 @@ class TerminalInputView(context: Context) : View(context) {
                 flingVelocityRows = 0f
                 removeCallbacks(flingRunnable)
                 scrollAccumDy = 0f
+                mouseWheelAccumDy = 0f
                 return true
             }
 
@@ -150,6 +154,10 @@ class TerminalInputView(context: Context) : View(context) {
                 velocityY: Float
             ): Boolean {
                 if (scaleDetector.isInProgress) return false
+                // マウスモード中はホイールイベントを onScroll 内で逐次送る方式に絞り、
+                // 慣性スクロール(scrollback) は走らせない。読み物 TUI 等のページ送りで
+                // フリング後に scrollback が一気に動いてしまうのを防ぐ。
+                if (session?.emulator?.mouseEnabled == true) return true
                 val m = session?.cellMetrics?.value ?: return false
                 if (m.lineHeight <= 0f) return false
                 // velocityY > 0 (指を下へ振る) = 過去へ。/30 で 1 フレームあたり行数へ。
@@ -187,6 +195,12 @@ class TerminalInputView(context: Context) : View(context) {
                 val sess = session ?: return false
                 if (scaleDetector.isInProgress) return false
                 // 選択中のドラッグは onTouchEvent 側で直接処理するためここには来ない。
+                // マウスレポーティング有効時はスワイプをホイールイベントに変換し、
+                // scrollback ではなく TUI 側に送る (less / nvlg などのページ送り用)。
+                if (sess.emulator.mouseEnabled) {
+                    sendMouseWheelFromSwipe(e2.x, e2.y, distanceY, sess)
+                    return true
+                }
                 // 通常のドラッグはターミナルをスクロール
                 val m = sess.cellMetrics.value
                 if (m.lineHeight <= 0f) return false
@@ -497,6 +511,48 @@ class TerminalInputView(context: Context) : View(context) {
         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         return runCatching { context.startActivity(intent); true }.getOrDefault(false)
+    }
+
+    /**
+     * マウスレポーティング有効時のスワイプを SGR ホイールイベントへ変換して PTY へ送る。
+     *
+     * GestureDetector.onScroll の distanceY は「直前イベントから上方向にスクロールした量」
+     * なので distanceY > 0 = 指が上に動いた = ユーザーから見て「次へ進めたい」操作。
+     * これを wheel-down (button 65) にマップする。逆向きは wheel-up (button 64)。
+     *
+     * [MOUSE_WHEEL_STEP_PX] ぶんスワイプするごとに 1 ノッチ送る (長いスワイプ = 多行送り)。
+     * 端数は [mouseWheelAccumDy] に持ち越し、向きが変わったら符号差ぶん減算される。
+     */
+    private fun sendMouseWheelFromSwipe(
+        x: Float,
+        y: Float,
+        distanceY: Float,
+        sess: TerminalSession
+    ) {
+        mouseWheelAccumDy += distanceY
+        val steps = (mouseWheelAccumDy / MOUSE_WHEEL_STEP_PX).toInt()
+        if (steps == 0) return
+        val button = if (steps > 0) {
+            com.zerotoship.z2term.emulator.TerminalEmulator.MOUSE_BTN_WHEEL_DOWN
+        } else {
+            com.zerotoship.z2term.emulator.TerminalEmulator.MOUSE_BTN_WHEEL_UP
+        }
+        // 座標は画面内セルに丸める。pixelToAbsCell は absolute row を返すので
+        // 画面 row へ落とす (scrollback 表示中でも画面内 0..rows-1 に収まるよう coerce)。
+        val emu = sess.emulator
+        val buf = emu.buffer
+        val cell = pixelToAbsCell(x, y)
+        val screenRow0 = if (cell != null) {
+            (cell.first - buf.scrollbackSize).coerceIn(0, (buf.rows - 1).coerceAtLeast(0))
+        } else 0
+        val col0 = cell?.second?.coerceIn(0, (buf.columns - 1).coerceAtLeast(0)) ?: 0
+        repeat(kotlin.math.abs(steps)) {
+            val bytes = emu.encodeMouseEvent(
+                button = button, col0 = col0, row0 = screenRow0, press = true
+            ) ?: return@repeat
+            sess.writeBytes(bytes)
+        }
+        mouseWheelAccumDy -= steps * MOUSE_WHEEL_STEP_PX
     }
 
     private fun sendMouseClick(x: Float, y: Float, sess: TerminalSession): Boolean {
