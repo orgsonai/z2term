@@ -154,12 +154,13 @@ class TerminalInputView(context: Context) : View(context) {
                 velocityY: Float
             ): Boolean {
                 if (scaleDetector.isInProgress) return false
-                // マウスモード中はホイールイベントを onScroll 内で逐次送る方式に絞り、
-                // 慣性スクロール(scrollback) は走らせない。読み物 TUI 等のページ送りで
-                // フリング後に scrollback が一気に動いてしまうのを防ぐ。
-                if (session?.emulator?.mouseEnabled == true) return true
                 val m = session?.cellMetrics?.value ?: return false
                 if (m.lineHeight <= 0f) return false
+                // マウスモード中の「上方向フリング (=次へ進む方向)」は onScroll で wheel-down
+                // イベントを送り済みなので、scrollback の慣性は走らせない。
+                // 「下方向フリング (=過去を見る)」は TUI 側が無視する設計なので scrollback
+                // 慣性で過去ログをたぐれるよう従来通り走らせる (nvlg/less ともこの想定)。
+                if (session?.emulator?.mouseEnabled == true && velocityY < 0f) return true
                 // velocityY > 0 (指を下へ振る) = 過去へ。/30 で 1 フレームあたり行数へ。
                 flingVelocityRows = velocityY / m.lineHeight / 30f
                 removeCallbacks(flingRunnable)
@@ -195,15 +196,17 @@ class TerminalInputView(context: Context) : View(context) {
                 val sess = session ?: return false
                 if (scaleDetector.isInProgress) return false
                 // 選択中のドラッグは onTouchEvent 側で直接処理するためここには来ない。
-                // マウスレポーティング有効時はスワイプをホイールイベントに変換し、
-                // scrollback ではなく TUI 側に送る (less / nvlg などのページ送り用)。
-                if (sess.emulator.mouseEnabled) {
+                val m = sess.cellMetrics.value
+                if (m.lineHeight <= 0f) return false
+                // マウスレポーティング有効時、指を上に動かす方向 (distanceY > 0 = TUI で
+                // 次へ進めたい) は wheel-down イベントを PTY に送る。逆方向 (指を下=過去)
+                // は nvlg/less などが「端末の scrollback に任せる」設計で wheel-up を
+                // 無視するため、scrollback 操作にフォールバックする (既存挙動)。
+                if (sess.emulator.mouseEnabled && distanceY > 0f) {
                     sendMouseWheelFromSwipe(e2.x, e2.y, distanceY, sess)
                     return true
                 }
-                // 通常のドラッグはターミナルをスクロール
-                val m = sess.cellMetrics.value
-                if (m.lineHeight <= 0f) return false
+                // 通常のドラッグ / マウスモードでも下方向はターミナルをスクロール
                 scrollAccumDy += distanceY
                 val rowDelta = (scrollAccumDy / m.lineHeight).toInt()
                 if (rowDelta != 0) {
@@ -514,14 +517,17 @@ class TerminalInputView(context: Context) : View(context) {
     }
 
     /**
-     * マウスレポーティング有効時のスワイプを SGR ホイールイベントへ変換して PTY へ送る。
+     * マウスレポーティング有効時の「次へ進める方向のスワイプ」を SGR ホイールイベント
+     * (wheel-down, button 65) へ変換して PTY へ送る。
      *
-     * GestureDetector.onScroll の distanceY は「直前イベントから上方向にスクロールした量」
-     * なので distanceY > 0 = 指が上に動いた = ユーザーから見て「次へ進めたい」操作。
-     * これを wheel-down (button 65) にマップする。逆向きは wheel-up (button 64)。
+     * GestureDetector.onScroll の distanceY は「直前イベントから上方向に動いた量」で、
+     * distanceY > 0 = 指が上に動いた = ユーザーから見て「次へ進めたい」操作。呼び出し元で
+     * 正方向だけ通している前提。逆方向 (指を下) は呼び出し元で scrollback 操作にフォール
+     * バックさせる (nvlg / less などが evScrollUp = wheel-up を「端末 scrollback に任せる」
+     * 設計で無視するため。ここで wheel-up を送っても何も起きない)。
      *
      * [MOUSE_WHEEL_STEP_PX] ぶんスワイプするごとに 1 ノッチ送る (長いスワイプ = 多行送り)。
-     * 端数は [mouseWheelAccumDy] に持ち越し、向きが変わったら符号差ぶん減算される。
+     * 端数は [mouseWheelAccumDy] に持ち越す。
      */
     private fun sendMouseWheelFromSwipe(
         x: Float,
@@ -529,14 +535,10 @@ class TerminalInputView(context: Context) : View(context) {
         distanceY: Float,
         sess: TerminalSession
     ) {
+        if (distanceY <= 0f) return
         mouseWheelAccumDy += distanceY
-        val steps = (mouseWheelAccumDy / MOUSE_WHEEL_STEP_PX).toInt()
-        if (steps == 0) return
-        val button = if (steps > 0) {
-            com.zerotoship.z2term.emulator.TerminalEmulator.MOUSE_BTN_WHEEL_DOWN
-        } else {
-            com.zerotoship.z2term.emulator.TerminalEmulator.MOUSE_BTN_WHEEL_UP
-        }
+        val notches = (mouseWheelAccumDy / MOUSE_WHEEL_STEP_PX).toInt()
+        if (notches <= 0) return
         // 座標は画面内セルに丸める。pixelToAbsCell は absolute row を返すので
         // 画面 row へ落とす (scrollback 表示中でも画面内 0..rows-1 に収まるよう coerce)。
         val emu = sess.emulator
@@ -546,13 +548,14 @@ class TerminalInputView(context: Context) : View(context) {
             (cell.first - buf.scrollbackSize).coerceIn(0, (buf.rows - 1).coerceAtLeast(0))
         } else 0
         val col0 = cell?.second?.coerceIn(0, (buf.columns - 1).coerceAtLeast(0)) ?: 0
-        repeat(kotlin.math.abs(steps)) {
+        repeat(notches) {
             val bytes = emu.encodeMouseEvent(
-                button = button, col0 = col0, row0 = screenRow0, press = true
+                button = com.zerotoship.z2term.emulator.TerminalEmulator.MOUSE_BTN_WHEEL_DOWN,
+                col0 = col0, row0 = screenRow0, press = true
             ) ?: return@repeat
             sess.writeBytes(bytes)
         }
-        mouseWheelAccumDy -= steps * MOUSE_WHEEL_STEP_PX
+        mouseWheelAccumDy -= notches * MOUSE_WHEEL_STEP_PX
     }
 
     private fun sendMouseClick(x: Float, y: Float, sess: TerminalSession): Boolean {
