@@ -1698,8 +1698,36 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
                                struct user_pt_regs *regs, struct pid_state *st) {
     unsigned long path_addr = regs->regs[1];  // openat(dirfd, pathname, ...)
     if (path_addr == 0) return 0;
-    char g[PATH_MAX_Z];
-    if (read_tracee_str(pid, path_addr, g, sizeof(g)) < 0) return 0;
+    char raw[PATH_MAX_Z];
+    if (read_tracee_str(pid, path_addr, raw, sizeof(raw)) < 0) return 0;
+
+    // procps-ng の readproctab2 は `opendir("/proc")` で取った dirfd に対し
+    // `openat(dirfd, "<pid>/stat", ...)` のような**相対**パス openat で /proc 配下を読む。
+    // 絶対 /proc/ 始まりだけ判定すると ps/pgrep/pidof/top が素通り=元の libz2root.so 表示
+    // のままになる。dirfd != AT_FDCWD かつパスが相対なら、`/proc/<self>/fd/<dirfd>` の
+    // readlink で dirfd の指すホスト実パスを取り、`<dirpath>/<raw>` に正規化してから
+    // proc_open_kind 判定する。dirpath が /proc 配下でないなら非対象として素通し。
+    char absbuf[PATH_MAX_Z];
+    const char *g = raw;
+    int from_dirfd = 0;
+    if (raw[0] != '/') {
+        long dirfd = (long)(int)regs->regs[0];
+        if (dirfd == AT_FDCWD) return 0;  // cwd 相対は対象外
+        char fdlink[64];
+        snprintf(fdlink, sizeof(fdlink), "/proc/%d/fd/%d", (int)pid, (int)dirfd);
+        char dirpath[PATH_MAX_Z];
+        ssize_t ll = readlink(fdlink, dirpath, sizeof(dirpath) - 1);
+        if (ll <= 0) return 0;
+        dirpath[ll] = '\0';
+        // dirpath が /proc or /proc/... のみ続行。それ以外の dirfd 相対 openat は無関係。
+        if (strncmp(dirpath, "/proc", 5) != 0 ||
+            (dirpath[5] != '\0' && dirpath[5] != '/')) return 0;
+        if (snprintf(absbuf, sizeof(absbuf), "%s/%s", dirpath, raw) >= (int)sizeof(absbuf))
+            return 0;
+        g = absbuf;
+        from_dirfd = 1;
+    }
+
     int kind = proc_open_kind(g);
     if (kind == PROC_FD_NONE) return 0;
 
@@ -1765,6 +1793,9 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
     unsigned long base = scratch_base(regs->sp, (len + 7) & ~7UL);
     if (write_tracee_mem(pid, base, tmp, len) != 0) { unlink(tmp); return 0; }
     regs->regs[1] = base;
+    // 元が dirfd 相対の場合は dirfd を AT_FDCWD に倒す(tmp は絶対パスなので dirfd 無関係。
+    // 残しておくと procfd 経由の openat と認識され続けて意図しない挙動になり得る)。
+    if (from_dirfd) regs->regs[0] = (unsigned long)(unsigned int)AT_FDCWD;
     set_regs(pid, regs);
     st->subst_active = 1;
     return 1;
