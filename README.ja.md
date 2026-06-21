@@ -88,16 +88,16 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 ### 2. ビルド
 
 ```bash
-# Debug APK
-./gradlew assembleDebug
-
-# 出力: app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleFullRelease
+# 出力: app/build/outputs/apk/full/release/app-full-release.apk
 ```
+
+(fork 側で署名鍵が無くても OK — `build.gradle.kts` は `keystore.properties` 不在時 debug 鍵にフォールバックします)
 
 ### 3. インストール
 
 ```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/full/release/app-full-release.apk
 ```
 
 ## プロジェクト構造

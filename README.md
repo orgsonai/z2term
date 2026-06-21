@@ -91,16 +91,16 @@ Per-artifact details: [app/src/main/assets/README.md](app/src/main/assets/README
 ### 2. Build
 
 ```bash
-# Debug APK
-./gradlew assembleDebug
-
-# Output: app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleFullRelease
+# Output: app/build/outputs/apk/full/release/app-full-release.apk
 ```
+
+(No signing key required for forks — `build.gradle.kts` falls back to the debug key when `keystore.properties` is absent.)
 
 ### 3. Install
 
 ```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/full/release/app-full-release.apk
 ```
 
 ## Project structure
