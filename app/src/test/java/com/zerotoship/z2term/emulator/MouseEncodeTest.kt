@@ -12,7 +12,7 @@ import org.junit.Test
  *
  * 主眼:
  *  - SGR / URXVT / LEGACY 各エンコーディングの先頭 ESC (0x1B) と本体バイト列が
- *    xterm 仕様どおりに並ぶこと (ESC が抜けると nvlg/less が CSI として認識しない)。
+ *    xterm 仕様どおりに並ぶこと (ESC が抜けると TUI 側が CSI として認識しない)。
  *  - wheel up/down (button 64/65) と left click (button 0) の press/release が正しく
  *    出ること。
  *

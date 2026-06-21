@@ -154,13 +154,17 @@ class TerminalInputView(context: Context) : View(context) {
                 velocityY: Float
             ): Boolean {
                 if (scaleDetector.isInProgress) return false
-                val m = session?.cellMetrics?.value ?: return false
+                val sess = session ?: return false
+                val m = sess.cellMetrics.value
                 if (m.lineHeight <= 0f) return false
-                // マウスモード中の「上方向フリング (=次へ進む方向)」は onScroll で wheel-down
-                // イベントを送り済みなので、scrollback の慣性は走らせない。
-                // 「下方向フリング (=過去を見る)」は TUI 側が無視する設計なので scrollback
-                // 慣性で過去ログをたぐれるよう従来通り走らせる (nvlg/less ともこの想定)。
-                if (session?.emulator?.mouseEnabled == true && velocityY < 0f) return true
+                // マウスモード中の「上方向フリング (=次へ進む方向)」は scrollback==0 の
+                // ときだけ no-op (もう過去側に戻る余地が無く、wheel イベントは onScroll で
+                // 送り済みなので空回りさせない)。scrollback > 0 のときは scrollback fling
+                // で最新側へ慣性スクロール、下方向フリングも従来通り scrollback 慣性。
+                if (sess.emulator.mouseEnabled
+                    && velocityY < 0f
+                    && sess.scrollOffset.value == 0
+                ) return true
                 // velocityY > 0 (指を下へ振る) = 過去へ。/30 で 1 フレームあたり行数へ。
                 flingVelocityRows = velocityY / m.lineHeight / 30f
                 removeCallbacks(flingRunnable)
@@ -198,15 +202,21 @@ class TerminalInputView(context: Context) : View(context) {
                 // 選択中のドラッグは onTouchEvent 側で直接処理するためここには来ない。
                 val m = sess.cellMetrics.value
                 if (m.lineHeight <= 0f) return false
-                // マウスレポーティング有効時、指を上に動かす方向 (distanceY > 0 = TUI で
-                // 次へ進めたい) は wheel-down イベントを PTY に送る。逆方向 (指を下=過去)
-                // は nvlg/less などが「端末の scrollback に任せる」設計で wheel-up を
-                // 無視するため、scrollback 操作にフォールバックする (既存挙動)。
-                if (sess.emulator.mouseEnabled && distanceY > 0f) {
+                // マウスレポーティング有効時、指を上方向 (distanceY > 0 = TUI で次へ進めたい)
+                // **かつ scrollback の最下端 (scrollOffset == 0)** のときだけ wheel-down を
+                // PTY へ送る。scrollback で過去ログを見ている途中 (scrollOffset > 0) は、
+                // 上方向を scrollback の「最新側へ戻る」操作として吸収する。これをしないと
+                // wheel 送信の writeBytes が scrollback を 0 にリセットして「いきなり最下端
+                // へジャンプ」する違和感の原因になる (TerminalSession.writeBytes 参照)。
+                // 下方向 (distanceY < 0 = 過去を見たい) は多くの読み物系 TUI が wheel-up を
+                // 端末 scrollback に任せる設計なので、常に scrollback 操作にフォールバック。
+                val atBottom = sess.scrollOffset.value == 0
+                if (sess.emulator.mouseEnabled && distanceY > 0f && atBottom) {
                     sendMouseWheelFromSwipe(e2.x, e2.y, distanceY, sess)
                     return true
                 }
-                // 通常のドラッグ / マウスモードでも下方向はターミナルをスクロール
+                // 通常のドラッグ / scrollback で過去を見ている間 / マウスモードでも下方向は
+                // ターミナルをスクロール。
                 scrollAccumDy += distanceY
                 val rowDelta = (scrollAccumDy / m.lineHeight).toInt()
                 if (rowDelta != 0) {
@@ -523,8 +533,8 @@ class TerminalInputView(context: Context) : View(context) {
      * GestureDetector.onScroll の distanceY は「直前イベントから上方向に動いた量」で、
      * distanceY > 0 = 指が上に動いた = ユーザーから見て「次へ進めたい」操作。呼び出し元で
      * 正方向だけ通している前提。逆方向 (指を下) は呼び出し元で scrollback 操作にフォール
-     * バックさせる (nvlg / less などが evScrollUp = wheel-up を「端末 scrollback に任せる」
-     * 設計で無視するため。ここで wheel-up を送っても何も起きない)。
+     * バックさせる (多くの読み物系 TUI が wheel-up を「端末 scrollback に任せる」設計で
+     * 無視するため、ここで wheel-up を送っても何も起きない)。
      *
      * [MOUSE_WHEEL_STEP_PX] ぶんスワイプするごとに 1 ノッチ送る (長いスワイプ = 多行送り)。
      * 端数は [mouseWheelAccumDy] に持ち越す。
