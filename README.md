@@ -23,7 +23,6 @@ and lets you install any command through package managers like `pacman` / `apt`.
 **You can download the latest APK directly from GitHub Releases** (no build needed):
 
 - Go to the latest: **<https://github.com/orgsonai/z2term/releases/latest>**
-- v0.8.90-alpha direct links: [full APK](https://github.com/orgsonai/z2term/releases/download/v0.8.90-alpha/app-full-release.apk) / [foss APK](https://github.com/orgsonai/z2term/releases/download/v0.8.90-alpha/app-foss-release.apk)
 
 Tap the APK on your Android device → allow "Install from unknown sources" to install.
 (The `full` flavor bundles prebuilts, so the APK works standalone. Not distributed on Google Play.)

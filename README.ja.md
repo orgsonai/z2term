@@ -23,7 +23,6 @@
 **最新の APK は GitHub Releases から直接ダウンロードできます**（ビルド不要）:
 
 - 最新版に飛ぶ: **<https://github.com/orgsonai/z2term/releases/latest>**
-- v0.8.90-alpha 直リンク: [full APK](https://github.com/orgsonai/z2term/releases/download/v0.8.90-alpha/app-full-release.apk) / [foss APK](https://github.com/orgsonai/z2term/releases/download/v0.8.90-alpha/app-foss-release.apk)
 
 Android 端末で APK をタップ → 「提供元不明のアプリ」のインストールを許可するとインストールできます。
 (`full` フレーバー・prebuilt 同梱で APK 単体で動作完結。Google Play では配布していません)
