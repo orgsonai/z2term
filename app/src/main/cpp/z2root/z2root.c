@@ -1554,15 +1554,17 @@ static void fake_loginuid_buf(char *b, size_t len) {
         if (b[i] >= '0' && b[i] <= '9') b[i] = '0';
 }
 
-// /proc/<pid>/stat の field 2 "(<comm>)" を name へ書き換え(length 保存)。
+// /proc/<pid>/stat の field 2 "(<comm>)" を name へ書き換え、新 name が中身より短い場合は
+// 後続フィールドを左シフトしてバッファを縮める。length 保存(空白埋め)だと procps-ng の
+// pgrep/pidof が「bash + 末尾空白」を完全一致比較で外す + top が COMMAND 列を
+// "libz2root+" 等と途切らせるため、必ず詰めて返す。戻り値=新しいバッファ長(<= 入力 len)。
 // カーネル形式: "<pid> (<comm>) <state> <ppid> ..." (改行 1 行)。comm 自身に '('/')' を
 // 含み得るため右端探索(最後の ") ")で閉じ位置を取る(/proc/<pid>/stat 互換パーサと同流儀)。
-// 新 name が中身より短ければ空白埋め=後続フィールドのオフセットを崩さない。
-static void fake_stat_comm(char *b, size_t len, const char *name) {
-    if (!name || !name[0] || len < 4) return;
+static size_t fake_stat_comm(char *b, size_t len, const char *name) {
+    if (!name || !name[0] || len < 4) return len;
     size_t lp = 0;
     while (lp < len && b[lp] != '(') lp++;
-    if (lp >= len) return;
+    if (lp >= len) return len;
     size_t line_end = 0;
     while (line_end < len && b[line_end] != '\n') line_end++;
     size_t rp = len;
@@ -1570,30 +1572,46 @@ static void fake_stat_comm(char *b, size_t len, const char *name) {
         for (size_t i = line_end - 1; i > lp; i--)
             if (b[i] == ' ' && b[i - 1] == ')') { rp = i - 1; break; }
     }
-    if (rp >= len) return;
+    if (rp >= len) return len;
     size_t inner = rp - (lp + 1);
-    if (inner == 0) return;
+    if (inner == 0) return len;
     size_t nl = strlen(name);
-    if (nl > inner) nl = inner;
+    if (nl >= inner) {
+        // 同長以上: 同長で in-place 上書き(まず起きない=元 "libz2root.so" は 12 文字)。
+        if (nl > inner) nl = inner;
+        memcpy(b + lp + 1, name, nl);
+        return len;
+    }
+    // 短縮: comm を書き換え→閉じ ')' 以降を左シフトしてバッファを短縮。
+    size_t shift = inner - nl;
     memcpy(b + lp + 1, name, nl);
-    for (size_t j = lp + 1 + nl; j < rp; j++) b[j] = ' ';
+    memmove(b + lp + 1 + nl, b + rp, len - rp);
+    return len - shift;
 }
 
-// status バッファ先頭の "Name:\t<comm>" 行を name へ書き換える(length 保存=
-// 後続行のオフセットを崩さない。新 name が短ければ末尾を空白で埋める)。
-// 行が無い/短すぎる場合は何もしない。z2root では comm がカーネル設定の "libz2root.so"
-// 漏れになるので、ここで argv0 basename へ差し替えて ps/pgrep の見た目を整える。
-static void fake_status_name(char *b, size_t len, const char *name) {
-    if (!name || !name[0]) return;
-    if (len < 6 || memcmp(b, "Name:", 5) != 0) return;
+// status バッファ先頭の "Name:\t<comm>" 行を name へ書き換え、新 name が短い場合は
+// 後続行を左シフトして詰める(length 保存だと末尾空白が混じり grep/pgrep の名前比較を
+// 壊すため。fake_status_buf より先に呼ばれる前提=Uid/Gid/Cap*/Groups は触らない)。
+// 戻り値=新しいバッファ長(<= 入力 len)。行が無い/短すぎる場合は無変更で len を返す。
+static size_t fake_status_name(char *b, size_t len, const char *name) {
+    if (!name || !name[0]) return len;
+    if (len < 6 || memcmp(b, "Name:", 5) != 0) return len;
     size_t le = 5;
     while (le < len && b[le] != '\n') le++;
-    if (le >= len || le < 6) return;
+    if (le >= len || le < 6) return len;
     b[5] = '\t';
+    size_t inner = le - 6;
+    if (inner == 0) return len;
     size_t nl = strlen(name);
-    if (nl > le - 6) nl = le - 6;
+    if (nl >= inner) {
+        if (nl > inner) nl = inner;
+        memcpy(b + 6, name, nl);
+        return len;
+    }
+    size_t shift = inner - nl;
     memcpy(b + 6, name, nl);
-    for (size_t j = 6 + nl; j < le; j++) b[j] = ' ';
+    memmove(b + 6 + nl, b + le, len - le);
+    return len - shift;
 }
 
 // read() exit: 追跡 fd からの読み取りバッファ(buf, ret バイト)を種別に応じて root 偽装する。
@@ -1618,12 +1636,18 @@ static void fake_proc_on_read(pid_t pid, unsigned long buf, int kind,
         if (kind == PROC_FD_LOGINUID) {
             fake_loginuid_buf(b, len);
         } else if (kind == PROC_FD_STAT) {
-            if (st && st->proc_comm[0]) fake_stat_comm(b, len, st->proc_comm);
+            // 短縮されると Name 列の末尾空白が消えて pgrep/pidof/top が argv0 で拾える。
+            if (st && st->proc_comm[0]) len = fake_stat_comm(b, len, st->proc_comm);
         } else {
+            // Name 行は length 保存しない fake_status_name を先に当てる(後続行の
+            // Uid/Gid/Cap*/Groups は length 保存なのでオフセット崩しは Name のみ)。
+            if (st && st->proc_comm[0]) len = fake_status_name(b, len, st->proc_comm);
             fake_status_buf(b, len);
-            if (st && st->proc_comm[0]) fake_status_name(b, len, st->proc_comm);
         }
-        write_tracee_mem(pid, buf, b, len);
+        if (write_tracee_mem(pid, buf, b, len) == 0 && len != (size_t)ret) {
+            regs.regs[0] = (unsigned long)len;
+            set_regs(pid, &regs);
+        }
     } else if (kind == PROC_FD_COMM) {
         if (!st || !st->proc_comm[0]) return;
         char out[TASK_COMM_LEN + 1];
@@ -1714,12 +1738,14 @@ static int try_subst_proc_open(const struct config *cfg, pid_t pid,
         if (kind == PROC_FD_LOGINUID) {
             fake_loginuid_buf(buf, total);
         } else if (kind == PROC_FD_STAT) {
-            // busybox/procps の ps は速度のため stat field 2 (<comm>) を読む。control。
-            if (tst && tst->proc_comm[0]) fake_stat_comm(buf, total, tst->proc_comm);
+            // busybox/procps の ps は速度のため stat field 2 (<comm>) を読む。短縮で
+            // 末尾空白を残さない=pgrep/pidof/top が argv0 で拾える。
+            if (tst && tst->proc_comm[0]) total = fake_stat_comm(buf, total, tst->proc_comm);
         } else {  // PROC_FD_STATUS
+            // Name 行は length 保存しない fake_status_name を先に当てる(後続行は
+            // length 保存なので Name のみ短縮で全体が前にずれる)。
+            if (tst && tst->proc_comm[0]) total = fake_status_name(buf, total, tst->proc_comm);
             fake_status_buf(buf, total);
-            // Name: 行は本来カーネル設定の "libz2root.so" が漏れるので argv0 basename へ。
-            if (tst && tst->proc_comm[0]) fake_status_name(buf, total, tst->proc_comm);
         }
     }
 
