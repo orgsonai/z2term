@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-21 / 対象バージョン: 0.8.118-alpha (versionCode 126)
+最終更新: 2026-06-22 / 対象バージョン: 0.8.118-alpha (versionCode 126)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -21,7 +21,8 @@
 8. [パーミッション](#8-パーミッション)
 9. [ビルド / 同梱物](#9-ビルド--同梱物)
 10. [既知の制約と設計上の罠](#10-既知の制約と設計上の罠)
-11. [用語集](#11-用語集)
+11. [l2s 制約と native passthrough](#11-l2s-制約と-native-passthrough)
+12. [用語集](#12-用語集)
 
 ---
 
@@ -445,7 +446,76 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 
 ---
 
-## 11. 用語集
+## 11. l2s 制約と native passthrough
+
+> **設計予約**: 真因と方向性を確定するための章。実装はまだ着手しない（2026-06-22 起票）。
+
+Z2Term は `/root` 配下を **l2s（link2symlink overlay）** で見せている。proot の `--link2symlink` 由来で、`link(2)` を許さない Android アプリ FS 上で hardlink 意味論を擬装するための仕組み。実体は `pack-<sha>.pack → .l2s.tmp_pack_XXXX → .l2s.tmp_pack_XXXX.0001`（chain 末端 `.0001` が本物のデータ）のような多段 symlink 群で、`ls -la` の `-rw-` 表示や `[ -L ]` テストは当てにならない。z2root もこの形式を踏襲する。
+
+### 11.1 症状: git 受け側（bare repo 等）が必ず壊れる
+
+z2term 上に bare repo を置いて push を受けると、以下のエラーで壊れる:
+
+```
+fatal: unpack should have generated <sha>, but I can't find it
+fatal: index-pack abnormal exit
+```
+
+- **ソフト無関係**: Gitea / Forgejo / GitLab も内部で `git receive-pack` を呼ぶので同症状。
+- **プロトコル無関係**: SSH / HTTPS どちらでも壊れる。
+- **設定で直らない（2026-06-18 検証済み）**: `core.fsync=all` / `core.fsyncMethod=fsync` / `receive.unpackLimit=1`（unpack 経路にしても同じ rename を通る）はいずれも無効。
+
+同じ機序で **sqlite WAL** や **lockfile を atomic rename で確定するソフト全般**もリスクを抱える。
+
+### 11.2 真因: l2s の `rename(2)` が POSIX atomic を満たさない
+
+`git receive-pack` は強制で隔離一時 dir `tmp_objdir-incoming-*`（quarantine）にオブジェクト/pack を書き、検証 OK 後に **atomic rename** で `objects/pack/` 配下へ本設置する。quarantine 無効化設定は存在しない（git 内部の挙動）。
+
+l2s 上ではこの rename が **「存在しない一時ファイルへの symlink」に化ける**。具体的には、宛先に張るべき symlink チェーン末端（`.0001`）の張り直しが追従せず、**dangling symlink** がリモートに残る。`receive-pack` は本設置後に pack を読み戻して検証するため、ここで `can't find it` になる。
+
+→ git 側の問題ではなく **l2s の rename セマンティクス欠落**が唯一の根因。
+
+### 11.3 やってはいけないこと
+
+`.l2s.tmp_*` をゴミとして一括削除しない。**これらはデータ本体**（chain 末端 `.0001` が実体）。掃除してよいのは `find -xtype l -delete`（完全に dangling な symlink のみ）。
+
+### 11.4 現状の運用回避
+
+- **受け側を l2s 外に置く**: PC をリポジトリサーバ化（採用済み・推奨）。
+- **どうしても z2term 上を受け側にする場合のみ**: pre-push フックで `pack-objects → index-pack → update-ref` を直接設置（quarantine を通さない）。導入済み。
+
+### 11.5 根治設計の方針
+
+| 案 | 内容 | 評価 |
+|---|---|---|
+| **A 案** | l2s の `rename(2)` を POSIX atomic セマンティクスに合わせて修正（chain 末端を入れ替える実装） | 命名規約とロック設計を全部把握した上で書く必要があり**回帰リスクが高い**。中長期で取り組む。 |
+| **B 案** | **l2s をバイパスする native 領域**を z2root が提供。bare repo / sqlite / lockfile 系をそこに置けるようにする | **短期実装としてはこちらが現実的**。bare repo 以外の atomic rename 依存ソフト全般に効く。先行で入れる。 |
+
+#### 11.5.1 B 案: native passthrough 領域（先行実装候補）
+
+- **ゲスト側のパス**: `/var/lib/native/`（仮）。書き込み内容を l2s に通さず、ホストの ext4 上にそのまま反映する領域。
+- **ホスト実体**: `filesDir/native/` のような専用ディレクトリを root に bind。l2s 由来のいかなる symlink 変換も挟まない経路を z2root / proot 両エンジンで通す。
+- **既定の用途**:
+  - `git` の bare repo（`/var/lib/native/git/<name>.git`）
+  - SQLite の DB と WAL（journald・各種ローカル DB）
+  - lockfile（`flock` / `fcntl` ベース）
+- **API**:
+  - 環境変数 `Z2TERM_NATIVE_DIR=/var/lib/native` を全 distro launch（proot / z2root / chroot）で注入。
+  - `z2help` に「native パスとは何か／何を置くべきか」のエントリを追加。
+- **互換性**: hardlink は実 `link(2)` が使えない端末上では当該領域でも擬装が必要。最低限 atomic rename が通れば bare repo は救えるので、まず rename 経路だけを l2s バイパスにして hardlink 擬装の挙動は後追いで決める。
+- **テスト方針**:
+  - bare repo に対する `git push` の receive-pack 完走（quarantine→本設置の atomic rename）。
+  - sqlite WAL の `BEGIN; INSERT; COMMIT;` 連打でジャーナルが破綻しないこと。
+  - 既存 `/root` 配下の l2s 領域は無影響であること（既存ユーザの `.l2s.tmp_*` チェーンに退行なし）。
+
+### 11.6 関連
+
+- `.l2s` がホスト絶対パスを抱え OS メジャーアップで stale 化する別問題は `docs/Z2ROOT-L2S-RELATIVE-HANDOFF.md`（本件 = rename 非 atomic とは独立した l2s 制約）。
+- §10 末尾に散在する「z2root: ...」群（0.8.43〜0.8.118）は個別 syscall の翻訳バグで、本件の rename 非 atomic とは別レイヤ。
+
+---
+
+## 12. 用語集
 
 | 用語 | 意味 |
 |---|---|

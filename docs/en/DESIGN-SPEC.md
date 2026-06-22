@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-06-21 / Target version: 0.8.118-alpha (versionCode 126)
+Last updated: 2026-06-22 / Target version: 0.8.118-alpha (versionCode 126)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -21,7 +21,8 @@ Last updated: 2026-06-21 / Target version: 0.8.118-alpha (versionCode 126)
 8. [Permissions](#8-permissions)
 9. [Build / bundled assets](#9-build--bundled-assets)
 10. [Known constraints and design pitfalls](#10-known-constraints-and-design-pitfalls)
-11. [Glossary](#11-glossary)
+11. [l2s constraint and native passthrough](#11-l2s-constraint-and-native-passthrough)
+12. [Glossary](#12-glossary)
 
 ---
 
@@ -445,7 +446,76 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 
 ---
 
-## 11. Glossary
+## 11. l2s constraint and native passthrough
+
+> **Design reservation**: this chapter pins down the root cause and direction; no implementation is started yet (filed 2026-06-22).
+
+Z2Term exposes `/root` over **l2s (link2symlink overlay)**, inherited from proot's `--link2symlink`, which fakes hardlink semantics on Android's app FS where `link(2)` is forbidden. The real layout is a multi-step symlink chain such as `pack-<sha>.pack → .l2s.tmp_pack_XXXX → .l2s.tmp_pack_XXXX.0001` (chain end `.0001` holds the real data). The `-rw-` shown by `ls -la` and `[ -L ]` checks are not reliable indicators. z2root inherits the same on-disk format.
+
+### 11.1 Symptom: git receivers (e.g. bare repos) always break
+
+Hosting a bare repo on z2term and accepting a push fails with:
+
+```
+fatal: unpack should have generated <sha>, but I can't find it
+fatal: index-pack abnormal exit
+```
+
+- **Software-agnostic**: Gitea / Forgejo / GitLab all call `git receive-pack` internally — same failure.
+- **Protocol-agnostic**: SSH and HTTPS both break.
+- **Settings cannot fix it (verified 2026-06-18)**: `core.fsync=all` / `core.fsyncMethod=fsync` / `receive.unpackLimit=1` (which routes through unpack instead of index-pack but still goes through the same rename) are all ineffective.
+
+The same mechanism also threatens **SQLite WAL** and any software that finalizes via **atomic rename of a lockfile**.
+
+### 11.2 Root cause: l2s `rename(2)` is not POSIX-atomic
+
+`git receive-pack` always writes objects / packs into a quarantine dir (`tmp_objdir-incoming-*`), and on successful validation moves them into `objects/pack/` with an **atomic rename**. There is no setting to disable quarantine.
+
+On l2s this rename **degenerates into "a symlink pointing at a temp file that doesn't exist"**: when the chain end (`.0001`) should be swapped at the destination, the swap doesn't follow through, and a **dangling symlink** is left behind. Since `receive-pack` reads the pack back to validate after installation, this is exactly when `can't find it` triggers.
+
+→ Not a git-side bug; the single root cause is **l2s missing POSIX-atomic rename semantics**.
+
+### 11.3 What NOT to do
+
+Do not bulk-delete `.l2s.tmp_*` as "garbage". **These are the actual data** (the chain end `.0001` is the real payload). The only safe sweep is `find -xtype l -delete` (delete only fully dangling symlinks).
+
+### 11.4 Current operational workaround
+
+- **Keep the receiver outside l2s**: make a PC the canonical repo server (adopted, recommended).
+- **If you absolutely need to host the receiver on z2term**: a pre-push hook installs objects directly via `pack-objects → index-pack → update-ref`, bypassing quarantine (in place).
+
+### 11.5 Direction for a real fix
+
+| Option | Approach | Assessment |
+|---|---|---|
+| **A** | Make l2s `rename(2)` POSIX-atomic (swap the chain end correctly) | Requires full understanding of the l2s naming and locking design; **high regression risk**. Medium/long term. |
+| **B** | Provide a **native area that bypasses l2s** in z2root, so bare repos / sqlite / lockfiles can live there | **Short-term realistic option**. Helps every atomic-rename-dependent piece of software, not just bare repos. Land this first. |
+
+#### 11.5.1 Option B: native passthrough area (proposed first step)
+
+- **Guest path**: `/var/lib/native/` (tentative). Writes here are reflected directly onto the host ext4, bypassing all l2s symlink translation.
+- **Host backing**: a dedicated directory such as `filesDir/native/` bind-mounted under the same guest path, with no l2s symlink rewriting on the way through z2root or proot.
+- **Default uses**:
+  - bare git repos (`/var/lib/native/git/<name>.git`)
+  - SQLite databases and WAL (journald and other local DBs)
+  - lockfiles (`flock` / `fcntl`)
+- **API**:
+  - Inject `Z2TERM_NATIVE_DIR=/var/lib/native` into every distro launch (proot / z2root / chroot).
+  - Add a `z2help` entry explaining what the native path is and what belongs there.
+- **Compatibility**: where the device's app FS forbids real `link(2)`, hardlink semantics still need an emulation even inside the native area. Land the atomic-rename path first (enough to rescue bare repos); decide hardlink emulation later.
+- **Test plan**:
+  - End-to-end `git push` into a bare repo on the native area, including the quarantine→install atomic rename.
+  - Stress-loop `BEGIN; INSERT; COMMIT;` on SQLite WAL and confirm the journal stays consistent.
+  - No regression on existing l2s areas under `/root` (existing `.l2s.tmp_*` chains keep working).
+
+### 11.6 Related
+
+- The separate l2s problem where `.l2s` symlinks embed host absolute paths and go stale across Android OS major upgrades is covered in `docs/Z2ROOT-L2S-RELATIVE-HANDOFF.md` (independent from this rename-atomicity issue).
+- The `z2root: ...` bullets scattered at the tail of §10 (0.8.43–0.8.118) cover individual syscall-translation bugs, which are a separate layer from this rename-atomicity issue.
+
+---
+
+## 12. Glossary
 
 | Term | Meaning |
 |---|---|
