@@ -96,10 +96,19 @@ fun TerminalRenderer(
         val cols = ((canvasWPx - 2 * hPadPx) / cellW).toInt().coerceAtLeast(1)
         val rows = (canvasHPx / lineHeight).toInt().coerceAtLeast(1)
 
-        LaunchedEffect(rows, cols) {
+        LaunchedEffect(session.id, rows, cols) {
             // ピンチ中はフォントサイズが連続変化し rows/cols が高速に変わる。
             // 120ms 待って「最後の値」だけで resize することで、連打 resize による
             // バッファ再構築で文字が一瞬消える症状を防ぐ。
+            //
+            // session.id をキーに含めないと、同寸の新規タブへ切り替えたときラムダが
+            // 再評価されず、新セッションの PTY が初期値 (24x80) のまま残る。すると:
+            //  - canvas の rows/cols と PTY の rows/cols がズレ、画面下端に空行ぶんの
+            //    隙間が出る (キーボードとの間に「末端じゃない」帯)。
+            //  - PTY の cols のほうが広いと、シェルが折り返さず長行が画面外へはみ出す。
+            // pinch で fontSize が変わると rows/cols のキーが変わって onResize が再走し
+            // 「ピンチすると直る」現象になっていた。session.id をキーに足して、タブ切替
+            // 時点で必ず再走させる ([updateCellMetrics] と同じ修正パターン)。
             delay(120)
             session.onResize(rows, cols)
         }
