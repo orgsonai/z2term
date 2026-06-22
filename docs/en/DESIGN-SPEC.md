@@ -448,70 +448,64 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 
 ## 11. l2s constraint and native passthrough
 
-> **Design reservation**: this chapter pins down the root cause and direction; no implementation is started yet (filed 2026-06-22).
+> **Filed 2026-06-22; same day Phase 1 corrected the root cause from "rename(2) not POSIX-atomic" to "link2symlink × quarantine cleanup"**. Full trail in `docs/Z2ROOT-GIT-RECEIVE-HANDOFF.md`.
 
-Z2Term exposes `/root` over **l2s (link2symlink overlay)**, inherited from proot's `--link2symlink`, which fakes hardlink semantics on Android's app FS where `link(2)` is forbidden. The real layout is a multi-step symlink chain such as `pack-<sha>.pack → .l2s.tmp_pack_XXXX → .l2s.tmp_pack_XXXX.0001` (chain end `.0001` holds the real data). The `-rw-` shown by `ls -la` and `[ -L ]` checks are not reliable indicators. z2root inherits the same on-disk format.
+Z2Term exposes `/root` over **l2s (link2symlink overlay)**, inherited from proot's `--link2symlink`, which fakes hardlink semantics on Android's app FS where `link(2)` is forbidden. The real layout is a multi-step symlink chain such as `pack-<sha>.pack → .l2s.tmp_pack_XXXX → .l2s.tmp_pack_XXXX.0001` (chain end `.0001` holds the real data). The `-rw-` shown by `ls -la` and `[ -L ]` checks are not reliable indicators.
 
-### 11.1 Symptom: git receivers (e.g. bare repos) always break
+**Engine differences matter**: proot still creates new `.l2s` chains via link2symlink. z2root since 0.8.47 changed `linkat` to "try real link, copy on failure", so it **never creates `.l2s` chains anymore**. The symptom below is specific to proot receivers.
 
-Hosting a bare repo on z2term and accepting a push fails with:
+### 11.1 Symptom: git push to a proot-side bare repo always breaks
+
+A `git push` to a bare repo hosted under proot fails with:
 
 ```
-fatal: unpack should have generated <sha>, but I can't find it
-fatal: index-pack abnormal exit
+error: unpack should have generated <sha>, but I can't find it!
+remote rejected master -> master (bad pack)
 ```
 
 - **Software-agnostic**: Gitea / Forgejo / GitLab all call `git receive-pack` internally — same failure.
 - **Protocol-agnostic**: SSH and HTTPS both break.
-- **Settings cannot fix it (verified 2026-06-18)**: `core.fsync=all` / `core.fsyncMethod=fsync` / `receive.unpackLimit=1` (which routes through unpack instead of index-pack but still goes through the same rename) are all ineffective.
+- **Settings cannot fix it**: `core.fsync=all` / `core.fsyncMethod=fsync` / `receive.unpackLimit=1` (which routes through unpack instead of index-pack but still goes through the same link path) are all ineffective.
+- **z2root receivers do NOT break** (verified 2026-06-22).
 
-The same mechanism also threatens **SQLite WAL** and any software that finalizes via **atomic rename of a lockfile**.
+### 11.2 Root cause: proot's `link()` emulation points into the quarantine
 
-### 11.2 Root cause: l2s `rename(2)` is not POSIX-atomic
+`git receive-pack` writes objects into a quarantine dir (`objects/tmp_objdir-incoming-*`), then on successful validation **migrates them out one by one via `link()`** into `objects/<aa>/<sha>`, and finally rmtrees the entire quarantine dir. Quarantine cannot be disabled.
 
-`git receive-pack` always writes objects / packs into a quarantine dir (`tmp_objdir-incoming-*`), and on successful validation moves them into `objects/pack/` with an **atomic rename**. There is no setting to disable quarantine.
+Under `--link2symlink`, proot turns `link(src, dst)` into:
 
-On l2s this rename **degenerates into "a symlink pointing at a temp file that doesn't exist"**: when the chain end (`.0001`) should be swapped at the destination, the swap doesn't follow through, and a **dangling symlink** is left behind. Since `receive-pack` reads the pack back to validate after installation, this is exactly when `can't find it` triggers.
+1. Place `src`'s content at `<dst dir>/.l2s.tmp_<name>_<rand>0001` (the chain end real file).
+2. Make `dst` a **symlink pointing at the absolute path of that chain end**.
 
-→ Not a git-side bug; the single root cause is **l2s missing POSIX-atomic rename semantics**.
+When this emulation runs during the migrate step, `objects/<aa>/<sha>` becomes **a symlink pointing into the quarantine dir's `.l2s.tmp_*`**. The follow-up quarantine rmtree erases the target, leaving `objects/<aa>/<sha>` **dangling**. The next read from receive-pack itself (the validation read-back) is when `unpack should have generated …, but I can't find it!` fires.
+
+= **"rename(2) not POSIX-atomic" was a misdiagnosis**. The real combination is `link()`-via-link2symlink + quarantine cleanup.
 
 ### 11.3 What NOT to do
 
 Do not bulk-delete `.l2s.tmp_*` as "garbage". **These are the actual data** (the chain end `.0001` is the real payload). The only safe sweep is `find -xtype l -delete` (delete only fully dangling symlinks).
 
-### 11.4 Current operational workaround
+### 11.4 Current operational workarounds
 
-- **Keep the receiver outside l2s**: make a PC the canonical repo server (adopted, recommended).
-- **If you absolutely need to host the receiver on z2term**: a pre-push hook installs objects directly via `pack-objects → index-pack → update-ref`, bypassing quarantine (in place).
+- **Switch the receiver to z2root engine** (fastest fix, verified this session). z2root's modern linkat never creates `.l2s` chains, so the failure mode is structurally impossible.
+- **Keep the receiver outside l2s**: PC as canonical repo server (already adopted).
+- **Pre-push hook that bypasses quarantine**: install objects directly via `pack-objects → index-pack → update-ref` (already in place).
 
 ### 11.5 Direction for a real fix
 
 | Option | Approach | Assessment |
 |---|---|---|
-| **A** | Make l2s `rename(2)` POSIX-atomic (swap the chain end correctly) | Requires full understanding of the l2s naming and locking design; **high regression risk**. Medium/long term. |
-| **B** | Provide a **native area that bypasses l2s** in z2root, so bare repos / sqlite / lockfiles can live there | **Short-term realistic option**. Helps every atomic-rename-dependent piece of software, not just bare repos. Land this first. |
-
-#### 11.5.1 Option B: native passthrough area (proposed first step)
-
-- **Guest path**: `/var/lib/native/` (tentative). Writes here are reflected directly onto the host ext4, bypassing all l2s symlink translation.
-- **Host backing**: a dedicated directory such as `filesDir/native/` bind-mounted under the same guest path, with no l2s symlink rewriting on the way through z2root or proot.
-- **Default uses**:
-  - bare git repos (`/var/lib/native/git/<name>.git`)
-  - SQLite databases and WAL (journald and other local DBs)
-  - lockfiles (`flock` / `fcntl`)
-- **API**:
-  - Inject `Z2TERM_NATIVE_DIR=/var/lib/native` into every distro launch (proot / z2root / chroot).
-  - Add a `z2help` entry explaining what the native path is and what belongs there.
-- **Compatibility**: where the device's app FS forbids real `link(2)`, hardlink semantics still need an emulation even inside the native area. Land the atomic-rename path first (enough to rescue bare repos); decide hardlink emulation later.
-- **Test plan**:
-  - End-to-end `git push` into a bare repo on the native area, including the quarantine→install atomic rename.
-  - Stress-loop `BEGIN; INSERT; COMMIT;` on SQLite WAL and confirm the journal stays consistent.
-  - No regression on existing l2s areas under `/root` (existing `.l2s.tmp_*` chains keep working).
+| **A** (old) | Make z2root `rename(2)` POSIX-atomic | **Shelved**. The root cause is in proot's `link()` emulation, not in rename, so this would not fix it. |
+| **B** | Provide a native passthrough area (`/var/lib/native`) that bypasses l2s | Rejected by the user as "useless if it doesn't save `~/foo/.git`". |
+| **C** | Toggle proot's `--link2symlink` off via a hidden setting (`ProotLauncher.kt` L306) | OFF mode leaks EACCES into dpkg/apt-style hardlink-dependent software (same as pre-0.8.47 z2root). Cheap to implement. |
+| **D** | Fork proot prebuilt and patch link2symlink to skip emulation when the destination dir name matches `tmp_objdir-*`, honoring git's quarantine semantics | Localized fix that honors git's intent. Cost of maintaining a third-party prebuilt fork. |
+| **Ops** | Document "receivers always run on z2root, proot tabs are clients only" in HANDBOOK | **Lowest cost**. The engine boundary cleanly separates working / broken behavior. |
 
 ### 11.6 Related
 
-- The separate l2s problem where `.l2s` symlinks embed host absolute paths and go stale across Android OS major upgrades is covered in `docs/Z2ROOT-L2S-RELATIVE-HANDOFF.md` (independent from this rename-atomicity issue).
-- The `z2root: ...` bullets scattered at the tail of §10 (0.8.43–0.8.118) cover individual syscall-translation bugs, which are a separate layer from this rename-atomicity issue.
+- Phase 1 root cause confirmation: `docs/Z2ROOT-GIT-RECEIVE-HANDOFF.md`.
+- The separate l2s problem where `.l2s` symlinks embed host absolute paths and go stale across Android OS major upgrades is covered in `docs/Z2ROOT-L2S-RELATIVE-HANDOFF.md`.
+- The `z2root: ...` bullets scattered at the tail of §10 (0.8.43–0.8.118) cover individual syscall-translation bugs — a separate layer from this issue.
 
 ---
 

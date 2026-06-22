@@ -448,32 +448,38 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 
 ## 11. l2s 制約と native passthrough
 
-> **設計予約**: 真因と方向性を確定するための章。実装はまだ着手しない（2026-06-22 起票）。
+> **2026-06-22 起票・同日 Phase 1 で真因を「rename(2) 非 atomic」から「link2symlink × quarantine cleanup」へ訂正**。詳細経緯は `docs/Z2ROOT-GIT-RECEIVE-HANDOFF.md`。
 
-Z2Term は `/root` 配下を **l2s（link2symlink overlay）** で見せている。proot の `--link2symlink` 由来で、`link(2)` を許さない Android アプリ FS 上で hardlink 意味論を擬装するための仕組み。実体は `pack-<sha>.pack → .l2s.tmp_pack_XXXX → .l2s.tmp_pack_XXXX.0001`（chain 末端 `.0001` が本物のデータ）のような多段 symlink 群で、`ls -la` の `-rw-` 表示や `[ -L ]` テストは当てにならない。z2root もこの形式を踏襲する。
+Z2Term は `/root` 配下を **l2s（link2symlink overlay）** で見せている。proot の `--link2symlink` 由来で、`link(2)` を許さない Android アプリ FS 上で hardlink 意味論を擬装するための仕組み。実体は `pack-<sha>.pack → .l2s.tmp_pack_XXXX → .l2s.tmp_pack_XXXX.0001`（chain 末端 `.0001` が本物のデータ）のような多段 symlink 群で、`ls -la` の `-rw-` 表示や `[ -L ]` テストは当てにならない。
 
-### 11.1 症状: git 受け側（bare repo 等）が必ず壊れる
+**エンジン差**: proot は現在も link2symlink で `.l2s` chain を新規生成する。z2root は 0.8.47 以降 `linkat` を「実 link 試行 → 失敗時コピー fallback」に変えており、**`.l2s` chain を新規生成しない**。本症状は proot 受け側固有。
 
-z2term 上に bare repo を置いて push を受けると、以下のエラーで壊れる:
+### 11.1 症状: proot 受け側で git push が必ず壊れる
+
+proot エンジンの tab に bare repo を置いて push を受けると、以下のエラーで壊れる:
 
 ```
-fatal: unpack should have generated <sha>, but I can't find it
-fatal: index-pack abnormal exit
+error: unpack should have generated <sha>, but I can't find it!
+remote rejected master -> master (bad pack)
 ```
 
 - **ソフト無関係**: Gitea / Forgejo / GitLab も内部で `git receive-pack` を呼ぶので同症状。
 - **プロトコル無関係**: SSH / HTTPS どちらでも壊れる。
-- **設定で直らない（2026-06-18 検証済み）**: `core.fsync=all` / `core.fsyncMethod=fsync` / `receive.unpackLimit=1`（unpack 経路にしても同じ rename を通る）はいずれも無効。
+- **設定で直らない**: `core.fsync=all` / `core.fsyncMethod=fsync` / `receive.unpackLimit=1`（unpack 経路にしても同じ link 経路を通る）はいずれも無効。
+- **z2root 受け側では起きない**（2026-06-22 実証済み）。
 
-同じ機序で **sqlite WAL** や **lockfile を atomic rename で確定するソフト全般**もリスクを抱える。
+### 11.2 真因: proot の `link()` emulation が quarantine 内 chain を指す
 
-### 11.2 真因: l2s の `rename(2)` が POSIX atomic を満たさない
+`git receive-pack` は隔離一時 dir `objects/tmp_objdir-incoming-*`（quarantine）にオブジェクトを書き、検証 OK 後に quarantine → `objects/<aa>/<sha>` への **migrate を `link()` で 1 つずつ行う**。最後に quarantine dir 全体を rmtree で削除する（git 内部の挙動・無効化設定なし）。
 
-`git receive-pack` は強制で隔離一時 dir `tmp_objdir-incoming-*`（quarantine）にオブジェクト/pack を書き、検証 OK 後に **atomic rename** で `objects/pack/` 配下へ本設置する。quarantine 無効化設定は存在しない（git 内部の挙動）。
+proot は `--link2symlink` 下で `link(src, dst)` を次の通り化かす:
 
-l2s 上ではこの rename が **「存在しない一時ファイルへの symlink」に化ける**。具体的には、宛先に張るべき symlink チェーン末端（`.0001`）の張り直しが追従せず、**dangling symlink** がリモートに残る。`receive-pack` は本設置後に pack を読み戻して検証するため、ここで `can't find it` になる。
+1. `src` の内容を `<dst dir>/.l2s.tmp_<name>_<rand>0001` (chain 末端の実体) に置く
+2. `dst` を **chain 末端の絶対パスへの symlink** にする
 
-→ git 側の問題ではなく **l2s の rename セマンティクス欠落**が唯一の根因。
+quarantine からの migrate でこの emulation が走ると、 `objects/<aa>/<sha>` は **quarantine 内の `.l2s.tmp_*` を指す symlink** になる。直後の quarantine rmtree で target が消え、`objects/<aa>/<sha>` は **dangling 化** → receive-pack 自身が検証のため読み戻す時に `unpack should have generated …, but I can't find it!` 発火。
+
+= **`rename(2)` 非 atomic は誤診**。実際は `link()`-via-link2symlink + quarantine cleanup の組合せ。
 
 ### 11.3 やってはいけないこと
 
@@ -481,37 +487,25 @@ l2s 上ではこの rename が **「存在しない一時ファイルへの syml
 
 ### 11.4 現状の運用回避
 
-- **受け側を l2s 外に置く**: PC をリポジトリサーバ化（採用済み・推奨）。
-- **どうしても z2term 上を受け側にする場合のみ**: pre-push フックで `pack-objects → index-pack → update-ref` を直接設置（quarantine を通さない）。導入済み。
+- **受け側を z2root エンジンに切り替える**（最即効・本セッションで実証済み）。z2root の modern linkat は `.l2s` chain を作らないので本症状は構造的に起きない。
+- **受け側を l2s 外に置く**: PC をリポジトリサーバ化（採用済み）。
+- **pre-push フックで quarantine をバイパス**: `pack-objects → index-pack → update-ref` を直接設置（導入済み）。
 
 ### 11.5 根治設計の方針
 
 | 案 | 内容 | 評価 |
 |---|---|---|
-| **A 案** | l2s の `rename(2)` を POSIX atomic セマンティクスに合わせて修正（chain 末端を入れ替える実装） | 命名規約とロック設計を全部把握した上で書く必要があり**回帰リスクが高い**。中長期で取り組む。 |
-| **B 案** | **l2s をバイパスする native 領域**を z2root が提供。bare repo / sqlite / lockfile 系をそこに置けるようにする | **短期実装としてはこちらが現実的**。bare repo 以外の atomic rename 依存ソフト全般に効く。先行で入れる。 |
-
-#### 11.5.1 B 案: native passthrough 領域（先行実装候補）
-
-- **ゲスト側のパス**: `/var/lib/native/`（仮）。書き込み内容を l2s に通さず、ホストの ext4 上にそのまま反映する領域。
-- **ホスト実体**: `filesDir/native/` のような専用ディレクトリを root に bind。l2s 由来のいかなる symlink 変換も挟まない経路を z2root / proot 両エンジンで通す。
-- **既定の用途**:
-  - `git` の bare repo（`/var/lib/native/git/<name>.git`）
-  - SQLite の DB と WAL（journald・各種ローカル DB）
-  - lockfile（`flock` / `fcntl` ベース）
-- **API**:
-  - 環境変数 `Z2TERM_NATIVE_DIR=/var/lib/native` を全 distro launch（proot / z2root / chroot）で注入。
-  - `z2help` に「native パスとは何か／何を置くべきか」のエントリを追加。
-- **互換性**: hardlink は実 `link(2)` が使えない端末上では当該領域でも擬装が必要。最低限 atomic rename が通れば bare repo は救えるので、まず rename 経路だけを l2s バイパスにして hardlink 擬装の挙動は後追いで決める。
-- **テスト方針**:
-  - bare repo に対する `git push` の receive-pack 完走（quarantine→本設置の atomic rename）。
-  - sqlite WAL の `BEGIN; INSERT; COMMIT;` 連打でジャーナルが破綻しないこと。
-  - 既存 `/root` 配下の l2s 領域は無影響であること（既存ユーザの `.l2s.tmp_*` チェーンに退行なし）。
+| **A 案** (旧) | z2root の `rename(2)` を atomic 化 | **棚上げ**。真因が rename 側ではなく proot link() 側と判明したため適用しても直らない。 |
+| **B 案** | l2s をバイパスする native 領域 (`/var/lib/native`) を z2root が提供 | ユーザー判断で「`~/foo/.git` を救わないと意味無い」と却下済み。 |
+| **C 案** | proot 起動時の `--link2symlink` を裏設定で OFF にする (`ProotLauncher.kt` L306) | OFF にすると dpkg/apt 等の hardlink 依存ソフトで EACCES が透ける副作用あり (0.8.47 以前の z2root と同様)。実装は軽量。 |
+| **D 案** | proot prebuilt を fork して link2symlink の `dst dir` が `tmp_objdir-*` パターンを含むとき hardlink 失敗を素通させる patch を当てる | git の quarantine semantics を尊重する局所修正。third-party prebuilt の fork 維持コスト発生。 |
+| **運用** | 「受け側 = z2root」「proot タブは利用専用」と運用ルール化＋ HANDBOOK 明記 | **最低コスト**。本件は engine 差で完全に区別できる。 |
 
 ### 11.6 関連
 
-- `.l2s` がホスト絶対パスを抱え OS メジャーアップで stale 化する別問題は `docs/Z2ROOT-L2S-RELATIVE-HANDOFF.md`（本件 = rename 非 atomic とは独立した l2s 制約）。
-- §10 末尾に散在する「z2root: ...」群（0.8.43〜0.8.118）は個別 syscall の翻訳バグで、本件の rename 非 atomic とは別レイヤ。
+- 真因確定の Phase 1 詳細: `docs/Z2ROOT-GIT-RECEIVE-HANDOFF.md`
+- `.l2s` がホスト絶対パスを抱え OS メジャーアップで stale 化する別問題は `docs/Z2ROOT-L2S-RELATIVE-HANDOFF.md`。
+- §10 末尾に散在する「z2root: ...」群（0.8.43〜0.8.118）は個別 syscall の翻訳バグで、本件とは別レイヤ。
 
 ---
 
