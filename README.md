@@ -29,13 +29,13 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 ## Current version
 
-**0.8.122-alpha (versionCode 130).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.123-alpha (versionCode 131).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
 - **Terminal emulator** — VT100 / xterm, 256-color and true color, 6 themes, scrollback with search, UTF-8 and East Asian Width, alternate screen, OSC 4 / 7 / 8 / 10 / 11 / 12 / 52.
 - **Linux distributions without root** — Alpine / Ubuntu / Arch / Kali via PRoot. Install anything with `apk` / `apt` / `pacman`.
-- **Execution engines** — PRoot (default), z2root (a ptrace-based engine that needs no root), and chroot (rooted devices). The engine selector unlocks by tapping the version 7 times.
+- **Execution engines** — z2root (default; a ptrace-based engine that needs no root), PRoot, and chroot (rooted devices). The engine selector unlocks by tapping the version 7 times.
 - **Multi-tab** — CUI and GUI tabs, drag to reorder, session restore after the OS kills the app.
 - **Linux GUI** — Xvnc + openbox with a built-in RFB client; run desktop apps such as Thunderbird or mpv, with audio and video.
 - **SSH / SFTP** — public-key auth with secrets encrypted by the Android Keystore, known_hosts confirmation, file transfer, and a built-in `sshd` (dropbear) that binds to localhost only by default.

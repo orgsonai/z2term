@@ -89,10 +89,12 @@ class AppSettings(private val context: Context) {
          */
         val rootChrootUnlocked: Boolean = false,
         /**
-         * 端末セッションの実行エンジン。"proot"(既定・非root) / "z2root"(非root・自前 ptrace) /
-         * "chroot"(root)。chroot は [rootChrootUnlocked] が true のときだけ有効 (それ以外は proot 扱い)。
+         * 端末セッションの実行エンジン。"z2root"(既定・非root・自前 ptrace) / "proot"(非root・PRoot) /
+         * "chroot"(root)。chroot は [rootChrootUnlocked] が true のときだけ有効 (それ以外は既定扱い)。
+         * 既定は 0.8.123 で proot から z2root へ変更 (full 側でも z2root を常用するため。
+         * foss は元々 proot 同梱なしで常に z2root 実走)。エンジン選択は 7 タップ解放後に切替可能。
          */
-        val executionEngine: String = ENGINE_PROOT,
+        val executionEngine: String = ENGINE_Z2ROOT,
         /**
          * 外部 SD カード (`/storage/XXXX-XXXX`) を proot 内へ認識させるか。
          * ON のとき [com.zerotoship.z2term.storage.ExternalStorageDetector] が検出した
@@ -163,7 +165,7 @@ class AppSettings(private val context: Context) {
             portraitKeyboardHeightDp = p[KEY_PORTRAIT_KB_HEIGHT] ?: DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP,
             engineSelectorUnlocked = p[KEY_ENGINE_UNLOCKED] ?: false,
             rootChrootUnlocked = p[KEY_ROOT_UNLOCKED] ?: false,
-            executionEngine = p[KEY_ENGINE] ?: ENGINE_PROOT,
+            executionEngine = p[KEY_ENGINE] ?: ENGINE_Z2ROOT,
             externalStorageEnabled = p[KEY_EXTERNAL_STORAGE] ?: DEFAULT_EXTERNAL_STORAGE,
             androidHostBindEnabled = p[KEY_ANDROID_HOST_BIND] ?: DEFAULT_ANDROID_HOST_BIND,
             toolbarOrder = p[KEY_TOOLBAR_ORDER] ?: "",
