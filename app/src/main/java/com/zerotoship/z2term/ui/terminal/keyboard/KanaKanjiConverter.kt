@@ -38,7 +38,11 @@ object KanaKanjiConverter {
             // 元辞書 (SKK 送り仮名なし) は常用動詞・形容詞の終止形/活用をほぼ持たず、押す/入る/
             // 出る/食べる… が変換できない。内蔵の常用語テーブルから活用形を生成し、見出し順に
             // マージして「直接 convert で引ける」状態にする (okuri 推測のノイズに頼らない)。
-            lines = mergeDict(result, buildSupplement())
+            //
+            // さらに、SKK 辞書はカタカナ外来語の読みを英単語綴りへ落とすエントリ (こみっと→commit
+            // など) を持たないため、プログラミング/シェルでよく使う ~200 語を内蔵 [buildLoanwords]
+            // で追加する (英語小文字のみ。すべてカタカナ語の hiragana 読み)。
+            lines = mergeDict(mergeDict(result, buildSupplement()), buildLoanwords())
             loaded = true
         }
     }
@@ -411,6 +415,291 @@ object KanaKanjiConverter {
                 add(rs + "ければ", ks + "ければ")
             }
         }
+    }
+
+    /**
+     * カタカナ外来語の hiragana 読み → 英語小文字綴りを返す内蔵テーブル。
+     *
+     * SKK 辞書は「こみっと」「ぷっしゅ」のような hiragana 入力に対し英語表記の候補を持たない
+     * (持っても /OK/ 等少数で網羅性が無い)。ここではプログラミング/シェル/Git/HTTP まわりで
+     * よく使う ~200 語を内蔵し、辞書見出しと同列に merge することで `convert("こみっと")` が
+     * 直接 `commit` を返せるようにする。
+     *
+     * 方針:
+     *  - 候補はすべて英語小文字 (commit, push, file, …)。CamelCase/UPPER は学習履歴で個別に
+     *    覚えれば足りる。複数候補がある場合 (folder ↔ folder 等の音引き違い) は別エントリ。
+     *  - hiragana が日本語固有語と衝突するもの (ぼたん→button vs 牡丹、たぶ→tab vs 他部) は
+     *    UX 退行を避けるため除外。長めの確実なカタカナ語のみ採用。
+     *  - 単一字 (え, あ 等) や促音/長音だけのキーも除外。
+     */
+    private val LOANWORD_ENTRIES: List<Pair<String, List<String>>> = listOf(
+        // ---- 一般 / OK 系 ----
+        "おーけー" to listOf("ok"),
+        "おーけい" to listOf("ok"),
+        "いえす" to listOf("yes"),
+        "のー" to listOf("no"),
+        "はろー" to listOf("hello"),
+        "わーるど" to listOf("world"),
+        "ふー" to listOf("foo"),
+        "ばー" to listOf("bar"),
+        "ばず" to listOf("baz"),
+        "えんたー" to listOf("enter"),
+        "えすけーぷ" to listOf("escape"),
+
+        // ---- Git ----
+        "こみっと" to listOf("commit"),
+        "ぷっしゅ" to listOf("push"),
+        "ぷる" to listOf("pull"),
+        "ぷるりくえすと" to listOf("pullrequest"),
+        "ぷるりく" to listOf("pr"),
+        "まーじ" to listOf("merge"),
+        "ぶらんち" to listOf("branch"),
+        "りべーす" to listOf("rebase"),
+        "すたっしゅ" to listOf("stash"),
+        "ちぇっくあうと" to listOf("checkout"),
+        "ふぉーく" to listOf("fork"),
+        "くろーん" to listOf("clone"),
+        "りぽじとり" to listOf("repository", "repo"),
+        "りぽ" to listOf("repo"),
+        "いしゅー" to listOf("issue"),
+        "ふぇっち" to listOf("fetch"),
+        "ぶれーむ" to listOf("blame"),
+        "でぃふ" to listOf("diff"),
+        "すてーたす" to listOf("status"),
+        "りもーと" to listOf("remote"),
+        "おりじん" to listOf("origin"),
+        "へっど" to listOf("head"),
+        "ますたー" to listOf("master"),
+        "めいん" to listOf("main"),
+        "こんふりくと" to listOf("conflict"),
+        "ろぐ" to listOf("log"),
+        "ぎっと" to listOf("git"),
+        "ぎっとはぶ" to listOf("github"),
+        "ぎっとらぶ" to listOf("gitlab"),
+
+        // ---- Shell / Linux ----
+        "ふぁいる" to listOf("file"),
+        "でぃれくとり" to listOf("directory"),
+        "ふぉるだ" to listOf("folder"),
+        "ふぉるだー" to listOf("folder"),
+        "ぱす" to listOf("path"),
+        "りんく" to listOf("link"),
+        "しんぼりっく" to listOf("symbolic"),
+        "たーみなる" to listOf("terminal"),
+        "しぇる" to listOf("shell"),
+        "ばっしゅ" to listOf("bash"),
+        "ぜっとしぇる" to listOf("zsh"),
+        "こまんど" to listOf("command"),
+        "すくりぷと" to listOf("script"),
+        "えいりあす" to listOf("alias"),
+        "えんびろんめんと" to listOf("environment"),
+        "ぷろせす" to listOf("process"),
+        "しぐなる" to listOf("signal"),
+        "すりーぷ" to listOf("sleep"),
+        "うえいと" to listOf("wait"),
+        "ぱいぷ" to listOf("pipe"),
+        "りだいれくと" to listOf("redirect"),
+        "ぱーみっしょん" to listOf("permission"),
+        "おーなー" to listOf("owner"),
+        "ぐるーぷ" to listOf("group"),
+        "まうんと" to listOf("mount"),
+        "かーねる" to listOf("kernel"),
+        "ろぐいん" to listOf("login"),
+        "ろぐあうと" to listOf("logout"),
+        "しすてむ" to listOf("system"),
+        "でぃすく" to listOf("disk"),
+        "めもり" to listOf("memory"),
+        "しーぴーゆー" to listOf("cpu"),
+        "すれっど" to listOf("thread"),
+        "たすく" to listOf("task"),
+        "りぶーと" to listOf("reboot"),
+        "りせっと" to listOf("reset"),
+
+        // ---- Build / Code ----
+        "びるど" to listOf("build"),
+        "こんぱいる" to listOf("compile"),
+        "ぱっけーじ" to listOf("package"),
+        "いんすとーる" to listOf("install"),
+        "でぷろい" to listOf("deploy"),
+        "りりーす" to listOf("release"),
+        "てすと" to listOf("test"),
+        "でばっぐ" to listOf("debug"),
+        "りんと" to listOf("lint"),
+        "ふぉーまっと" to listOf("format"),
+        "えらー" to listOf("error"),
+        "わーにんぐ" to listOf("warning"),
+        "えくせぷしょん" to listOf("exception"),
+        "すたっく" to listOf("stack"),
+        "とれーす" to listOf("trace"),
+        "あさーと" to listOf("assert"),
+        "ばーじょん" to listOf("version"),
+        "あっぷぐれーど" to listOf("upgrade"),
+        "あっぷでーと" to listOf("update"),
+        "ふぁんくしょん" to listOf("function"),
+        "くらす" to listOf("class"),
+        "めそっど" to listOf("method"),
+        "ぱらめーた" to listOf("parameter"),
+        "ぱらめーたー" to listOf("parameter"),
+        "ぼいど" to listOf("void"),
+        "ぬる" to listOf("null"),
+        "とぅるー" to listOf("true"),
+        "ふぉるす" to listOf("false"),
+        "りすと" to listOf("list"),
+        "あれい" to listOf("array"),
+        "まっぷ" to listOf("map"),
+        "でぃくしょなり" to listOf("dictionary"),
+        "でぃくと" to listOf("dict"),
+        "せっと" to listOf("set"),
+        "きゅー" to listOf("queue"),
+        "つりー" to listOf("tree"),
+        "のーど" to listOf("node"),
+        "えっじ" to listOf("edge"),
+        "ぐらふ" to listOf("graph"),
+        "すとりんぐ" to listOf("string"),
+        "ばいと" to listOf("byte"),
+        "びっと" to listOf("bit"),
+        "ぶーる" to listOf("bool"),
+        "いんと" to listOf("int"),
+        "ふろーと" to listOf("float"),
+        "だぶる" to listOf("double"),
+        "おぶじぇくと" to listOf("object"),
+        "いんすたんす" to listOf("instance"),
+        "もじゅーる" to listOf("module"),
+        "らいぶらり" to listOf("library"),
+        "ふれーむわーく" to listOf("framework"),
+        "いんぽーと" to listOf("import"),
+        "えくすぽーと" to listOf("export"),
+        "いんでっくす" to listOf("index"),
+        "いんぷっと" to listOf("input"),
+        "あうとぷっと" to listOf("output"),
+        "いんさーと" to listOf("insert"),
+        "せれくと" to listOf("select"),
+        "おぷしょん" to listOf("option"),
+
+        // ---- Network ----
+        "さーば" to listOf("server"),
+        "さーばー" to listOf("server"),
+        "くらいあんと" to listOf("client"),
+        "ほすと" to listOf("host"),
+        "ぽーと" to listOf("port"),
+        "ゆーあーるえる" to listOf("url"),
+        "ゆーあーるあい" to listOf("uri"),
+        "あどれす" to listOf("address"),
+        "あいぴー" to listOf("ip"),
+        "どめいん" to listOf("domain"),
+        "でぃーえぬえす" to listOf("dns"),
+        "えいちてぃーてぃーぴー" to listOf("http"),
+        "えいちてぃーてぃーぴーえす" to listOf("https"),
+        "てぃーしーぴー" to listOf("tcp"),
+        "ゆーでぃーぴー" to listOf("udp"),
+        "えすえすえいち" to listOf("ssh"),
+        "えすえすえる" to listOf("ssl"),
+        "てぃーえるえす" to listOf("tls"),
+        "ぷろきし" to listOf("proxy"),
+        "げーとうぇい" to listOf("gateway"),
+        "りくえすと" to listOf("request"),
+        "れすぽんす" to listOf("response"),
+        "へっだー" to listOf("header"),
+        "ぼでぃ" to listOf("body"),
+        "じぇいそん" to listOf("json"),
+        "えっくすえむえる" to listOf("xml"),
+        "やむる" to listOf("yaml"),
+        "ぱけっと" to listOf("packet"),
+        "そけっと" to listOf("socket"),
+        "うぇぶ" to listOf("web"),
+        "えーぴーあい" to listOf("api"),
+
+        // ---- Data ----
+        "でーた" to listOf("data"),
+        "でーたべーす" to listOf("database"),
+        "でーびー" to listOf("db"),
+        "きゃっしゅ" to listOf("cache"),
+        "きー" to listOf("key"),
+        "ばりゅー" to listOf("value"),
+        "はっしゅ" to listOf("hash"),
+        "べーす" to listOf("base"),
+        "せっしょん" to listOf("session"),
+        "とーくん" to listOf("token"),
+
+        // ---- Operations ----
+        "ろーど" to listOf("load"),
+        "せーぶ" to listOf("save"),
+        "こぴー" to listOf("copy"),
+        "ぺーすと" to listOf("paste"),
+        "かっと" to listOf("cut"),
+        "でりーと" to listOf("delete"),
+        "りむーぶ" to listOf("remove"),
+        "くりえいと" to listOf("create"),
+        "えでぃっと" to listOf("edit"),
+        "びゅー" to listOf("view"),
+        "おーぷん" to listOf("open"),
+        "くろーず" to listOf("close"),
+        "すたーと" to listOf("start"),
+        "すとっぷ" to listOf("stop"),
+        "らん" to listOf("run"),
+        "いぐじっと" to listOf("exit"),
+        "ふぁいんど" to listOf("find"),
+        "さーち" to listOf("search"),
+        "りぷれーす" to listOf("replace"),
+        "そーと" to listOf("sort"),
+        "ふぃるたー" to listOf("filter"),
+
+        // ---- UI / app ----
+        "うぃんどう" to listOf("window"),
+        "すくりーん" to listOf("screen"),
+        "ぺーじ" to listOf("page"),
+        "だいあろぐ" to listOf("dialog"),
+        "いめーじ" to listOf("image"),
+        "あいこん" to listOf("icon"),
+        "あぷり" to listOf("app"),
+        "あぷりけーしょん" to listOf("application"),
+        "せってぃんぐ" to listOf("setting"),
+        "せってぃんぐす" to listOf("settings"),
+        "こんふぃぐ" to listOf("config"),
+        "めにゅー" to listOf("menu"),
+        "ゆーざ" to listOf("user"),
+        "ゆーざー" to listOf("user"),
+        "ぱすわーど" to listOf("password"),
+        "あかうんと" to listOf("account"),
+        "ぷろふぁいる" to listOf("profile"),
+        "のーと" to listOf("note"),
+        "めも" to listOf("memo"),
+        "りどみー" to listOf("readme"),
+        "どっく" to listOf("doc"),
+        "どきゅめんと" to listOf("document"),
+        "めっせーじ" to listOf("message"),
+
+        // ---- 補足 ----
+        "けーす" to listOf("case"),
+        "てんぷれーと" to listOf("template"),
+        "ぷろぐらむ" to listOf("program"),
+        "ぷろじぇくと" to listOf("project"),
+        "ぷろぱてぃ" to listOf("property"),
+        "こんてな" to listOf("container"),
+        "こんすたんと" to listOf("constant"),
+        "こんすとらくた" to listOf("constructor"),
+        "らんなー" to listOf("runner"),
+        "どらいばー" to listOf("driver"),
+        "ばっくあっぷ" to listOf("backup"),
+        "ばいなり" to listOf("binary"),
+        "ばっち" to listOf("batch"),
+        "ぶろっく" to listOf("block"),
+        "ぽいんた" to listOf("pointer"),
+        "べりあぶる" to listOf("variable"),
+    )
+
+    /** [LOANWORD_ENTRIES] を辞書行 ("よみ /英語1/英語2/") へ変換し、見出し順にソートして返す。 */
+    private fun buildLoanwords(): List<String> {
+        // 同じ読みが複数回出る (念のため) 場合は LinkedHashSet で順序を保ちつつ重複排除。
+        val map = LinkedHashMap<String, LinkedHashSet<String>>()
+        for ((r, words) in LOANWORD_ENTRIES) {
+            if (r.isEmpty() || words.isEmpty()) continue
+            val s = map.getOrPut(r) { LinkedHashSet() }
+            for (w in words) if (w.isNotEmpty()) s.add(w)
+        }
+        return map.entries
+            .sortedBy { it.key }
+            .map { (r, ws) -> "$r /" + ws.joinToString("/") + "/" }
     }
 
     /** 常用語テーブルを活用展開し、見出し順にソートした辞書行 ("よみ /漢字/…") を返す。 */
