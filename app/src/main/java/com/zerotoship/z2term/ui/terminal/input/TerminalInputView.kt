@@ -90,6 +90,13 @@ class TerminalInputView(context: Context) : View(context) {
     // --- フリング(慣性スクロール) ---
     // 正 = 過去へ / 負 = 最新へ。1 フレームあたりに進める行数 (小数)。
     private var flingVelocityRows: Float = 0f
+    // フリング開始時の指の位置 (alt screen で PTY wheel を送るときの (col,row) を、
+    // 画面中央ではなくフリング開始位置のセルに合わせるため。これがないと lazygit 等で
+    // フォーカス枠をスワイプしても、慣性に入った瞬間から画面中央 (= 多くの場合 diff/
+    // 詳細枠) に wheel が飛び続けて「フォーカス枠と右上枠が両方スクロールする」状態に
+    // なる。-1f は「未設定 → sendMouseWheelRows で画面中央フォールバック」を表す)。
+    private var flingPxX: Float = -1f
+    private var flingPxY: Float = -1f
     private val flingRunnable = object : Runnable {
         override fun run() {
             val sess = session ?: return
@@ -101,9 +108,11 @@ class TerminalInputView(context: Context) : View(context) {
             else
                 flingVelocityRows.toInt().coerceAtMost(-1)
             // alt screen + mouseEnabled は scrollback が無いので PTY ホイール送信に振る
-            // (lazygit/vim/htop で慣性スクロールが効くようにする)。
+            // (lazygit/vim/htop で慣性スクロールが効くようにする)。座標はフリング開始位置を
+            // 引き継いで「指を離したセル」へ送る (lazygit は wheel が届いたセル下のパネルだけ
+            // をスクロールするため、画面中央固定だと右上の diff 枠が無関係に動いてしまう)。
             if (sess.emulator.mouseEnabled && !sess.emulator.buffer.primaryActive) {
-                sendMouseWheelRows(delta, sess)
+                sendMouseWheelRows(delta, sess, flingPxX, flingPxY)
             } else {
                 sess.scrollBy(delta)
             }
@@ -177,6 +186,12 @@ class TerminalInputView(context: Context) : View(context) {
                 ) return true
                 // velocityY > 0 (指を下へ振る) = 過去へ。/30 で 1 フレームあたり行数へ。
                 flingVelocityRows = velocityY / m.lineHeight / 30f
+                // フリング開始位置を保存 (alt screen + mouseEnabled で PTY wheel を送るとき、
+                // フォーカス枠の上で離した位置をそのまま座標として使うため)。連続フリング時の
+                // 端数持ち越しをリセットして方向反転の取りこぼしも防ぐ。
+                flingPxX = e2.x
+                flingPxY = e2.y
+                mouseWheelAccumDy = 0f
                 removeCallbacks(flingRunnable)
                 post(flingRunnable)
                 return true
@@ -603,15 +618,23 @@ class TerminalInputView(context: Context) : View(context) {
      * フリング (慣性) を 1 フレームぶんホイールイベントとして PTY へ送るヘルパ。
      * [rowDelta] は scrollback semantics と同じく **正 = 過去方向 / 負 = 最新方向**。
      * alt screen + mouseEnabled での [flingRunnable] から呼ぶ (scrollback が無い分の代替)。
+     *
+     * [px]/[py] はフリング開始時の指のピクセル座標 ([onFling] で保存)。lazygit のように
+     * 複数ペインを持つ TUI は wheel が届いたセル位置のペインだけをスクロールするため、
+     * 慣性も「指を離したセル」へ送る必要がある。[pixelToAbsCell] が null (例: 未設定の
+     * -1f や view 外) の場合のみ画面中央へフォールバック。
      */
-    private fun sendMouseWheelRows(rowDelta: Int, sess: TerminalSession) {
+    private fun sendMouseWheelRows(rowDelta: Int, sess: TerminalSession, px: Float, py: Float) {
         if (rowDelta == 0) return
         val emu = sess.emulator
         val buf = emu.buffer
         val rows = buf.rows.coerceAtLeast(1)
         val cols = buf.columns.coerceAtLeast(1)
-        val row0 = (rows / 2).coerceIn(0, rows - 1)
-        val col0 = (cols / 2).coerceIn(0, cols - 1)
+        val cell = if (px >= 0f && py >= 0f) pixelToAbsCell(px, py) else null
+        val row0 = if (cell != null) {
+            (cell.first - buf.scrollbackSize).coerceIn(0, rows - 1)
+        } else (rows / 2).coerceIn(0, rows - 1)
+        val col0 = cell?.second?.coerceIn(0, cols - 1) ?: (cols / 2).coerceIn(0, cols - 1)
         // rowDelta > 0 (過去方向) = TUI 視点では wheel-up
         // rowDelta < 0 (最新方向) = TUI 視点では wheel-down
         val button = if (rowDelta > 0)

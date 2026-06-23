@@ -637,6 +637,11 @@ class TerminalEmulator(
                             currentFlags = altSavedFlags
                             scrollTop = altSavedScrollTop
                             scrollBottom = altSavedScrollBottom
+                            // Alt → Primary に戻るタイミングでマウスレポートを OFF に強制。
+                            // 一部 TUI (nvlg 等) が DECRST 1049 だけ送って DECRST 1000/1006 を
+                            // 送り忘れるため、primary シェルでスワイプすると stale な mouseEnabled
+                            // で `\e[<...M` が PTY に流れ readline が壊れる症状を防ぐ。
+                            mouseProtocol = MouseProtocol.OFF
                         }
                     }
                 }
@@ -651,6 +656,7 @@ class TerminalEmulator(
                         if (!buffer.primaryActive) {
                             buffer.clearScreen(currentFg, currentBg)
                             buffer.switchToPrimary()
+                            mouseProtocol = MouseProtocol.OFF
                         }
                     }
                 }
@@ -663,6 +669,7 @@ class TerminalEmulator(
                     } else {
                         if (!buffer.primaryActive) {
                             buffer.switchToPrimary()
+                            mouseProtocol = MouseProtocol.OFF
                         }
                     }
                 }

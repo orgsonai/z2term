@@ -149,4 +149,39 @@ class MouseEncodeTest {
         )
         assertNull(bytes)
     }
+
+    /**
+     * DECRST 1049 で primary に戻るとマウスレポートが OFF に戻ること。nvlg など一部 TUI が
+     * 終了時に DECRST 1000/1006 を送らずに rmcup だけ送るケースで、stale な mouseEnabled が
+     * primary シェル上のスワイプで `\e[<...M` を流出させる症状を防ぐための保険。
+     */
+    @Test
+    fun decrst1049ForcesMouseProtocolOff() {
+        val e = newEmulatorWithSgrNormal()
+        // alt screen に入る
+        e.processBytes("$ESC[?1049h".toByteArray(Charsets.US_ASCII))
+        assertTrue(e.mouseEnabled)
+        // alt screen を抜ける (rmcup 相当) — マウスは陽に切られていない
+        e.processBytes("$ESC[?1049l".toByteArray(Charsets.US_ASCII))
+        assertEquals(TerminalEmulator.MouseProtocol.OFF, e.mouseProtocol)
+        assertEquals(false, e.mouseEnabled)
+    }
+
+    @Test
+    fun decrst1047ForcesMouseProtocolOff() {
+        val e = newEmulatorWithSgrNormal()
+        e.processBytes("$ESC[?1047h".toByteArray(Charsets.US_ASCII))
+        assertTrue(e.mouseEnabled)
+        e.processBytes("$ESC[?1047l".toByteArray(Charsets.US_ASCII))
+        assertEquals(TerminalEmulator.MouseProtocol.OFF, e.mouseProtocol)
+    }
+
+    @Test
+    fun decrst47ForcesMouseProtocolOff() {
+        val e = newEmulatorWithSgrNormal()
+        e.processBytes("$ESC[?47h".toByteArray(Charsets.US_ASCII))
+        assertTrue(e.mouseEnabled)
+        e.processBytes("$ESC[?47l".toByteArray(Charsets.US_ASCII))
+        assertEquals(TerminalEmulator.MouseProtocol.OFF, e.mouseProtocol)
+    }
 }
