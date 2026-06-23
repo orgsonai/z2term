@@ -227,30 +227,22 @@ class TerminalInputView(context: Context) : View(context) {
                 // 選択中のドラッグは onTouchEvent 側で直接処理するためここには来ない。
                 val m = sess.cellMetrics.value
                 if (m.lineHeight <= 0f) return false
-                // マウスレポーティング有効時のスワイプ処理:
+                // マウスレポーティング有効時のスワイプ処理は **alt screen 限定**:
                 //  - **alt screen** (lazygit/vim/htop/btop/nano 等。`primaryActive == false`)
                 //    は scrollback が存在しないので**両方向**を PTY へ wheel として送る。
                 //    下方向に振った wheel-up を端末側 scrollback に任せる設計のままだと、
                 //    alt screen ではスクロール「下」しか効かなくなる (TUI に届かない)。
-                //  - **primary 画面** は従来通り: 指を上方向 (distanceY > 0 = 次へ進めたい)
-                //    かつ scrollback の最下端 (scrollOffset == 0) のときだけ wheel-down を
-                //    送る。scrollback で過去ログを見ている途中 (scrollOffset > 0) は、
-                //    上方向を scrollback の「最新側へ戻る」操作として吸収する (これをしないと
-                //    wheel 送信の writeBytes が scrollback を 0 にリセットして「いきなり最下端
-                //    へジャンプ」する違和感の原因になる。TerminalSession.writeBytes 参照)。
-                //    下方向 (distanceY < 0 = 過去を見たい) は多くの読み物系 TUI が wheel-up を
-                //    端末 scrollback に任せる設計なので、常に scrollback 操作にフォールバック。
-                val isAltScreen = !sess.emulator.buffer.primaryActive
-                val atBottom = sess.scrollOffset.value == 0
-                if (sess.emulator.mouseEnabled) {
-                    if (isAltScreen) {
-                        sendMouseWheelFromSwipe(e2.x, e2.y, distanceY, sess)
-                        return true
-                    }
-                    if (distanceY > 0f && atBottom) {
-                        sendMouseWheelFromSwipe(e2.x, e2.y, distanceY, sess)
-                        return true
-                    }
+                //  - **primary 画面** では `mouseEnabled` が true でも wheel を送らず常に
+                //    scrollback 操作へ倒す (0.8.125)。nvlg のような一部 TUI が exit 時に
+                //    マウス OFF を送り忘れる (DECRST 1049/1047/47 のいずれも経由しないため
+                //    emulator 側の auto-OFF も発火しない) ことが原因で、primary シェル上の
+                //    スワイプから `\e[<65;col;row M` が prompt に流れて readline が壊れる
+                //    症状を完全に断つ。primary でマウス wheel を使う TUI (mc, w3m 等の
+                //    一部設定) は事実上見ない & 被害より優先度が低いため切り捨て。click 送信
+                //    (`sendMouseClick`) は primary でも従来どおり (タップ操作は壊れない)。
+                if (sess.emulator.mouseEnabled && !sess.emulator.buffer.primaryActive) {
+                    sendMouseWheelFromSwipe(e2.x, e2.y, distanceY, sess)
+                    return true
                 }
                 // 通常のドラッグ / scrollback で過去を見ている間 / マウスモードでも下方向は
                 // ターミナルをスクロール。
