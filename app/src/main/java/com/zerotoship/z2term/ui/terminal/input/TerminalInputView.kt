@@ -91,10 +91,10 @@ class TerminalInputView(context: Context) : View(context) {
     // 正 = 過去へ / 負 = 最新へ。1 フレームあたりに進める行数 (小数)。
     private var flingVelocityRows: Float = 0f
     // フリング開始時の指の位置 (alt screen で PTY wheel を送るときの (col,row) を、
-    // 画面中央ではなくフリング開始位置のセルに合わせるため。これがないと lazygit 等で
-    // フォーカス枠をスワイプしても、慣性に入った瞬間から画面中央 (= 多くの場合 diff/
-    // 詳細枠) に wheel が飛び続けて「フォーカス枠と右上枠が両方スクロールする」状態に
-    // なる。-1f は「未設定 → sendMouseWheelRows で画面中央フォールバック」を表す)。
+    // 画面中央ではなくフリング開始位置のセルに合わせるため。複数ペインを持つ TUI は
+    // 受信したセル位置のペインだけをスクロールする設計が多く、画面中央固定だと指の
+    // 触れていないペインが慣性段階で勝手にスクロールする副作用を生む。-1f は「未設定
+    // → sendMouseWheelRows で画面中央フォールバック」を表す。
     private var flingPxX: Float = -1f
     private var flingPxY: Float = -1f
     private val flingRunnable = object : Runnable {
@@ -108,9 +108,10 @@ class TerminalInputView(context: Context) : View(context) {
             else
                 flingVelocityRows.toInt().coerceAtMost(-1)
             // alt screen + mouseEnabled は scrollback が無いので PTY ホイール送信に振る
-            // (lazygit/vim/htop で慣性スクロールが効くようにする)。座標はフリング開始位置を
-            // 引き継いで「指を離したセル」へ送る (lazygit は wheel が届いたセル下のパネルだけ
-            // をスクロールするため、画面中央固定だと右上の diff 枠が無関係に動いてしまう)。
+            // (alt screen TUI で慣性スクロール感を維持)。座標はフリング開始位置を引き継いで
+            // 「指を離したセル」へ送る (複数ペインを持つ TUI が wheel の (col,row) で対象
+            // ペインを判定する設計に対応するため。画面中央固定だと触れていないペインが
+            // 慣性段階で勝手に動く)。
             if (sess.emulator.mouseEnabled && !sess.emulator.buffer.primaryActive) {
                 sendMouseWheelRows(delta, sess, flingPxX, flingPxY)
             } else {
@@ -177,8 +178,8 @@ class TerminalInputView(context: Context) : View(context) {
                 // scrollback==0 のときだけ no-op (もう過去側に戻る余地が無く、wheel イベントは
                 // onScroll で送り済みなので空回りさせない)。scrollback > 0 のときは scrollback
                 // fling で最新側へ慣性スクロール、下方向フリングも従来通り scrollback 慣性。
-                // alt screen (lazygit/vim/htop 等) は scrollback が無いので両方向とも
-                // [flingRunnable] 内で PTY ホイールへ変換 (慣性スクロール感を維持)。
+                // alt screen は scrollback が無いので両方向とも [flingRunnable] 内で PTY
+                // ホイールへ変換 (慣性スクロール感を維持)。
                 if (sess.emulator.mouseEnabled
                     && !isAltScreen
                     && velocityY < 0f
@@ -227,22 +228,30 @@ class TerminalInputView(context: Context) : View(context) {
                 // 選択中のドラッグは onTouchEvent 側で直接処理するためここには来ない。
                 val m = sess.cellMetrics.value
                 if (m.lineHeight <= 0f) return false
-                // マウスレポーティング有効時のスワイプ処理は **alt screen 限定**:
-                //  - **alt screen** (lazygit/vim/htop/btop/nano 等。`primaryActive == false`)
-                //    は scrollback が存在しないので**両方向**を PTY へ wheel として送る。
-                //    下方向に振った wheel-up を端末側 scrollback に任せる設計のままだと、
-                //    alt screen ではスクロール「下」しか効かなくなる (TUI に届かない)。
-                //  - **primary 画面** では `mouseEnabled` が true でも wheel を送らず常に
-                //    scrollback 操作へ倒す (0.8.125)。nvlg のような一部 TUI が exit 時に
-                //    マウス OFF を送り忘れる (DECRST 1049/1047/47 のいずれも経由しないため
-                //    emulator 側の auto-OFF も発火しない) ことが原因で、primary シェル上の
-                //    スワイプから `\e[<65;col;row M` が prompt に流れて readline が壊れる
-                //    症状を完全に断つ。primary でマウス wheel を使う TUI (mc, w3m 等の
-                //    一部設定) は事実上見ない & 被害より優先度が低いため切り捨て。click 送信
-                //    (`sendMouseClick`) は primary でも従来どおり (タップ操作は壊れない)。
-                if (sess.emulator.mouseEnabled && !sess.emulator.buffer.primaryActive) {
-                    sendMouseWheelFromSwipe(e2.x, e2.y, distanceY, sess)
-                    return true
+                // マウスレポーティング有効時のスワイプ処理:
+                //  - **alt screen** (`primaryActive == false`) は scrollback が存在しないので
+                //    **両方向**を PTY へ wheel として送る。
+                //  - **primary 画面** は **前景に子プロセスが居る** (= PTY の tcgetpgrp が
+                //    シェル PID 以外を返す) ときだけ、上方向 (`distanceY > 0`) かつ scrollback
+                //    の最下端 (`scrollOffset == 0`) で wheel-down を送る。前景が対話シェル
+                //    自身に戻っている (子プロセス exit 済み) ときに `mouseEnabled` が stale で
+                //    残っていても wheel を送らず scrollback に倒し、`\e[<…M` がプロンプトに
+                //    流出するのを防ぐ。scrollback > 0 のときは上方向も scrollback で「最新側
+                //    へ戻る」操作として吸収する (writeBytes が scrollback リセットを含むため、
+                //    scrollback 表示中に wheel を流すと最下端へジャンプする違和感の原因になる)。
+                //    下方向 (`distanceY < 0`) は常に scrollback フォールバック (多くの読み物
+                //    TUI が wheel-up を端末 scrollback に任せる設計のため)。
+                val isAltScreen = !sess.emulator.buffer.primaryActive
+                val atBottom = sess.scrollOffset.value == 0
+                if (sess.emulator.mouseEnabled) {
+                    if (isAltScreen) {
+                        sendMouseWheelFromSwipe(e2.x, e2.y, distanceY, sess)
+                        return true
+                    }
+                    if (distanceY > 0f && atBottom && sess.hasForegroundChild) {
+                        sendMouseWheelFromSwipe(e2.x, e2.y, distanceY, sess)
+                        return true
+                    }
                 }
                 // 通常のドラッグ / scrollback で過去を見ている間 / マウスモードでも下方向は
                 // ターミナルをスクロール。
@@ -566,7 +575,7 @@ class TerminalInputView(context: Context) : View(context) {
      * 呼び出し元の振り分け方針:
      *  - primary 画面では「次へ」(distanceY > 0) のみここに渡す (戻り方向は scrollback に
      *    任せる方が多くの読み物 TUI の流儀に合う)。
-     *  - alt screen (lazygit/vim 等) は scrollback が無いので両方向ともここへ渡す。
+     *  - alt screen は scrollback が無いので両方向ともここへ渡す。
      *
      * [MOUSE_WHEEL_STEP_PX] ぶんスワイプするごとに 1 ノッチ送る (長いスワイプ = 多行送り)。
      * 端数は [mouseWheelAccumDy] に符号付きで持ち越す。途中で方向が反転した場合は
@@ -611,10 +620,10 @@ class TerminalInputView(context: Context) : View(context) {
      * [rowDelta] は scrollback semantics と同じく **正 = 過去方向 / 負 = 最新方向**。
      * alt screen + mouseEnabled での [flingRunnable] から呼ぶ (scrollback が無い分の代替)。
      *
-     * [px]/[py] はフリング開始時の指のピクセル座標 ([onFling] で保存)。lazygit のように
-     * 複数ペインを持つ TUI は wheel が届いたセル位置のペインだけをスクロールするため、
-     * 慣性も「指を離したセル」へ送る必要がある。[pixelToAbsCell] が null (例: 未設定の
-     * -1f や view 外) の場合のみ画面中央へフォールバック。
+     * [px]/[py] はフリング開始時の指のピクセル座標 ([onFling] で保存)。複数ペインを持つ
+     * TUI は wheel が届いたセル位置のペインだけをスクロールする設計が多いため、慣性も
+     * 「指を離したセル」へ送る必要がある。[pixelToAbsCell] が null (例: 未設定の -1f や
+     * view 外) の場合のみ画面中央へフォールバック。
      */
     private fun sendMouseWheelRows(rowDelta: Int, sess: TerminalSession, px: Float, py: Float) {
         if (rowDelta == 0) return

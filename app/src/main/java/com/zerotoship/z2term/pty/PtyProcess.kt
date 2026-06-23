@@ -41,6 +41,17 @@ class PtyProcess private constructor(
     val isAlive: Boolean
         get() = nativeIsAlive(pid)
 
+    /** forkpty() で受け取ったシェル側 PID (== セッションリーダ pgid)。 */
+    val shellPid: Int
+        get() = pid
+
+    /**
+     * PTY master fd の前景プロセスグループ ID。
+     * シェルがプロンプトで待機中はシェル自身の pgid、TUI 実行中はその TUI の pgid を返す。
+     * 取得失敗 (fd 無効 / 端末でない) は -1。
+     */
+    fun foregroundPgid(): Int = nativeForegroundPgid(fd)
+
     /** 終了コード（プロセスがまだ生きている場合は null） */
     val exitCode: Int?
         get() = if (isAlive) null else nativeGetExitCode(pid)
@@ -162,6 +173,9 @@ class PtyProcess private constructor(
 
         @JvmStatic
         private external fun nativeClose(fd: Int, pid: Int)
+
+        @JvmStatic
+        private external fun nativeForegroundPgid(fd: Int): Int
 
         @JvmStatic
         private external fun createFileDescriptor(fd: Int): FileDescriptor

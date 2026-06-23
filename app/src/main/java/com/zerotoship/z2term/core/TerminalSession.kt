@@ -205,6 +205,16 @@ class TerminalSession(
 
     val isRunning: Boolean get() = _uiState.value.state == TerminalState.RUNNING
 
+    /**
+     * いま PTY の前景プロセスグループがシェル以外か (= 何らかの子プロセスが実行中)。
+     *
+     * 用途: マウスレポート ON の TUI が exit 時にレポートを切り忘れたまま戻ってきても、
+     * シェル前景なら primary 画面のスワイプを wheel 送信ではなく scrollback に倒すための
+     * 判定。channel が判定不能 (SSH 等) なら `true` を返し従来挙動を維持する。
+     */
+    val hasForegroundChild: Boolean
+        get() = channel?.hasForegroundChild ?: true
+
     init {
         CustomThemeStore.ensureLoaded(appContext)
         scope.launch {

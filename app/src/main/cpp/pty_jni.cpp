@@ -259,6 +259,26 @@ Java_com_zerotoship_z2term_pty_PtyProcess_nativeWaitFor(
     return -1;
 }
 
+/**
+ * tcgetpgrp(fd) ラッパー。PTY master fd の前景プロセスグループ ID を返す。
+ * シェルが対話プロンプトで待機中ならシェル自身の pgid、TUI が走っているならその TUI の
+ * pgid を返す。fd が無効 / 端末でない場合は -1 (errno は無視)。
+ *
+ * 用途: 行儀の悪い TUI (nvlg 等) が exit 時にマウスレポートを切り忘れたまま戻ってきた
+ * とき、UI 層が「いまシェルが前景か / 子プロセスが前景か」を判定するために使う。
+ * mouseEnabled が stale で残っていてもシェル前景なら wheel を流さない、という分岐に
+ * 使うので、毎スワイプで 1 回呼ばれる前提 (ioctl コストは無視できる)。
+ */
+JNIEXPORT jint JNICALL
+Java_com_zerotoship_z2term_pty_PtyProcess_nativeForegroundPgid(
+        JNIEnv* /* env */,
+        jobject /* companion */,
+        jint fd) {
+    pid_t pgid = tcgetpgrp(fd);
+    if (pgid < 0) return -1;
+    return (jint) pgid;
+}
+
 JNIEXPORT void JNICALL
 Java_com_zerotoship_z2term_pty_PtyProcess_nativeClose(
         JNIEnv* /* env */,

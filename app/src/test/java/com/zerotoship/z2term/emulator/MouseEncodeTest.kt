@@ -151,9 +151,10 @@ class MouseEncodeTest {
     }
 
     /**
-     * DECRST 1049 で primary に戻るとマウスレポートが OFF に戻ること。nvlg など一部 TUI が
-     * 終了時に DECRST 1000/1006 を送らずに rmcup だけ送るケースで、stale な mouseEnabled が
-     * primary シェル上のスワイプで `\e[<...M` を流出させる症状を防ぐための保険。
+     * DECRST 1049 で primary に戻るとマウスレポートが OFF に戻ること。一部 TUI が exit 時に
+     * DECRST 1000/1006 を送らず DECRST 1049 (rmcup) だけ送るケースで、stale な mouseEnabled
+     * が primary シェル上のスワイプから `\e[<...M` を流出させる症状を端末側で吸収するための
+     * 保険。
      */
     @Test
     fun decrst1049ForcesMouseProtocolOff() {
