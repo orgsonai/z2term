@@ -142,6 +142,16 @@ class TerminalEmulator(
         if (lineHeightPx > 0f) lineHeightPxHint = lineHeightPx
     }
 
+    /**
+     * Kitty graphics `t=f`/`t=t`/`t=s` の payload 取得元 (ゲスト→ホスト変換 + 実 I/O) を
+     * 設定する。 null (既定) のときは file/temp/shm をすべて破棄し、 `a=q` も
+     * ENOTSUPPORTED を返す (opt-in)。 セッション側で AppSettings の opt-in が ON のとき
+     * のみ実体を注入する。
+     */
+    fun setKittyExternalTransfer(source: KittyGraphicsParser.ExternalTransferSource?) {
+        kittyParser.externalTransferSource = source
+    }
+
     // --- UTF-8 デコーダ (Ground 状態の非 ASCII バイト用) ---
     private val utf8 = Utf8Decoder()
 

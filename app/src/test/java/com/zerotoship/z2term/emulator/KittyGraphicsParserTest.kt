@@ -240,4 +240,116 @@ class KittyGraphicsParserTest {
         assertTrue("expected ok=true, got $r", r.ok)
         assertEquals("OK", r.message)
     }
+
+    // --- 0.8.136: file / temp / shm (`t=f`/`t=t`/`t=s`) 外部転送 ---
+
+    /**
+     * `t=f`/`t=t`/`t=s` は [KittyGraphicsParser.externalTransferSource] が **未設定**
+     * (= 既定 OFF) のとき、 従来通り Discard で、 source は呼ばれない。
+     */
+    @Test
+    fun externalTransferIsDiscardedWhenSourceNotAttached() {
+        val p = KittyGraphicsParser()
+        // base64("/tmp/img.png") = "L3RtcC9pbWcucG5n"
+        feed(p, "Ga=T,f=100,t=f;L3RtcC9pbWcucG5n")
+        val r = p.finishSequence(12f, 24f)
+        assertSame(KittyGraphicsParser.Result.Discard, r)
+    }
+
+    /**
+     * source 注入後は `t=f` で source.read(File, path, ...) が呼ばれる。 Bitmap デコード
+     * は unit test 環境では成立しない (Discard へ落ちる) が、 source への委譲は確認できる。
+     */
+    @Test
+    fun externalTransferFileDelegatesPathToSource() {
+        val calls = mutableListOf<Triple<KittyGraphicsParser.TransferKind, String, Pair<Long, Long>>>()
+        val p = KittyGraphicsParser().apply {
+            externalTransferSource = KittyGraphicsParser.ExternalTransferSource { kind, name, offset, size ->
+                calls += Triple(kind, name, offset to size)
+                byteArrayOf(0x00, 0x00, 0x00)  // PNG として不正 → 最終的に Discard だが委譲は成立
+            }
+        }
+        // base64("/tmp/foo.png") = "L3RtcC9mb28ucG5n"
+        feed(p, "Ga=T,f=100,t=f,O=4,S=128;L3RtcC9mb28ucG5n")
+        p.finishSequence(12f, 24f)
+        assertEquals(1, calls.size)
+        assertEquals(KittyGraphicsParser.TransferKind.File, calls[0].first)
+        assertEquals("/tmp/foo.png", calls[0].second)
+        assertEquals(4L to 128L, calls[0].third)
+    }
+
+    /** `t=t` は TempFile として委譲される。 */
+    @Test
+    fun externalTransferTempFileDelegatesAsTempKind() {
+        var seenKind: KittyGraphicsParser.TransferKind? = null
+        val p = KittyGraphicsParser().apply {
+            externalTransferSource = KittyGraphicsParser.ExternalTransferSource { kind, _, _, _ ->
+                seenKind = kind
+                null  // 委譲だけ確認、 続行は Discard で OK
+            }
+        }
+        // base64("/tmp/scratch") = "L3RtcC9zY3JhdGNo"
+        feed(p, "Ga=T,f=100,t=t;L3RtcC9zY3JhdGNo")
+        p.finishSequence(12f, 24f)
+        assertEquals(KittyGraphicsParser.TransferKind.TempFile, seenKind)
+    }
+
+    /** `t=s` は SharedMemory として委譲される。 */
+    @Test
+    fun externalTransferShmDelegatesAsSharedMemoryKind() {
+        var seenKind: KittyGraphicsParser.TransferKind? = null
+        var seenName: String? = null
+        val p = KittyGraphicsParser().apply {
+            externalTransferSource = KittyGraphicsParser.ExternalTransferSource { kind, name, _, _ ->
+                seenKind = kind
+                seenName = name
+                null
+            }
+        }
+        // base64("/kitty-img-1") = "L2tpdHR5LWltZy0x"
+        feed(p, "Ga=T,f=100,t=s;L2tpdHR5LWltZy0x")
+        p.finishSequence(12f, 24f)
+        assertEquals(KittyGraphicsParser.TransferKind.SharedMemory, seenKind)
+        assertEquals("/kitty-img-1", seenName)
+    }
+
+    /**
+     * `a=q,t=f` は **source 注入済みなら OK**、 未注入なら ENOTSUPPORTED。
+     * これにより TUI は実 transmit を試す前にケイパビリティを確認できる。
+     */
+    @Test
+    fun queryFileTransferReturnsOkWhenSourceAttached() {
+        val p = KittyGraphicsParser().apply {
+            externalTransferSource = KittyGraphicsParser.ExternalTransferSource { _, _, _, _ -> null }
+        }
+        feed(p, "Ga=q,i=3,f=100,t=f,s=1,v=1;")
+        val r = p.finishSequence(12f, 24f) as KittyGraphicsParser.Result.Query
+        assertTrue("expected ok=true (source attached), got $r", r.ok)
+        assertEquals("OK", r.message)
+    }
+
+    @Test
+    fun queryShmTransferReturnsErrorWithoutSource() {
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=q,i=4,f=100,t=s,s=1,v=1;")
+        val r = p.finishSequence(12f, 24f) as KittyGraphicsParser.Result.Query
+        assertTrue("expected ok=false (no source), got $r", !r.ok)
+        assertTrue(r.message.startsWith("ENOTSUPPORTED:t=s"))
+    }
+
+    /** `a=f` (animation frame) も同じく source 経由で path を読む。 */
+    @Test
+    fun frameFileTransferDelegatesToSource() {
+        var calledKind: KittyGraphicsParser.TransferKind? = null
+        val p = KittyGraphicsParser().apply {
+            externalTransferSource = KittyGraphicsParser.ExternalTransferSource { kind, _, _, _ ->
+                calledKind = kind
+                null
+            }
+        }
+        // base64("/tmp/frame1") = "L3RtcC9mcmFtZTE="
+        feed(p, "Ga=f,i=11,t=f,f=100;L3RtcC9mcmFtZTE=")
+        p.finishSequence(12f, 24f)
+        assertEquals(KittyGraphicsParser.TransferKind.File, calledKind)
+    }
 }

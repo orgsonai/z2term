@@ -227,9 +227,31 @@ class TerminalSession(
                 emulator.colors.applyTheme(theme)
                 emulator.buffer.scrollbackCapacity = snapshot.scrollbackLines
                 emulator.ambiguousAsWide = snapshot.ambiguousAsWide
+                applyKittyExternalTransferSetting(snapshot.kittyExternalFileEnabled)
                 bumpRedraw()
             }
         }
+    }
+
+    /**
+     * 起動中のセッションに紐づく rootfs root (`<filesDir>/distros/<distroId>`)。
+     * Kitty graphics の file/temp/shm 経路でゲスト→ホストパス変換に使う。
+     * 起動前 / 起動失敗時は null。
+     */
+    private var activeRootfsRoot: java.io.File? = null
+
+    /**
+     * `kittyExternalFileEnabled` (AppSettings の opt-in) と現在の rootfs から、
+     * Kitty graphics の外部転送ソースを再構築して emulator に注入する。
+     * opt-in OFF / rootfs 未確定 のときは null を入れ、 parser は file/temp/shm を破棄する。
+     */
+    private fun applyKittyExternalTransferSetting(enabled: Boolean) {
+        val root = activeRootfsRoot
+        emulator.setKittyExternalTransfer(
+            if (enabled && root != null && root.isDirectory) {
+                com.zerotoship.z2term.emulator.KittyHostTransferSource(root)
+            } else null
+        )
     }
 
     fun setThemeName(name: String) { scope.launch { settings.setTheme(name) } }
@@ -259,6 +281,7 @@ class TerminalSession(
     fun setExternalStorageEnabled(value: Boolean) { scope.launch { settings.setExternalStorageEnabled(value) } }
     fun setAndroidHostBindEnabled(value: Boolean) { scope.launch { settings.setAndroidHostBindEnabled(value) } }
     fun setTraceLogEnabled(value: Boolean) { scope.launch { settings.setTraceLogEnabled(value) } }
+    fun setKittyExternalFileEnabled(value: Boolean) { scope.launch { settings.setKittyExternalFileEnabled(value) } }
 
     /** 設定で選ばれているディストロを使って起動。明示的指定があればそれを優先 */
     fun startTerminal(distroOverride: DistroSpec? = null) {
@@ -398,6 +421,11 @@ class TerminalSession(
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }
                 _label.value = spec.id
                 _distroId.value = spec.id
+                // Kitty graphics の file/temp/shm 経路用に、 セッションの rootfs root を確定。
+                // opt-in 設定が ON ならこのタイミングで transfer source が注入される
+                // (combine 内の applyKittyExternalTransferSetting も同じ値を見る)。
+                activeRootfsRoot = java.io.File(appContext.filesDir, "distros/${spec.id}")
+                applyKittyExternalTransferSetting(settingsFlow.value.kittyExternalFileEnabled)
                 startReadLoop(ch)
                 scheduleStartupCommands(settingsFlow.value.initCommand)
 

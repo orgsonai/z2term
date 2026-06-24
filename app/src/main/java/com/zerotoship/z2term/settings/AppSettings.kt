@@ -124,7 +124,15 @@ class AppSettings(private val context: Context) {
          * 容量を圧迫するため一般ユーザーは使わない。エンジン選択 (7タップ解放) と同じ場所に
          * トグルを置き、解放済みのときだけ表示する。
          */
-        val traceLogEnabled: Boolean = DEFAULT_TRACE_LOG
+        val traceLogEnabled: Boolean = DEFAULT_TRACE_LOG,
+        /**
+         * Kitty graphics protocol の **file/temp/shm 転送** (`t=f`/`t=t`/`t=s`) を許可するか。
+         * 既定 OFF (= TUI からの任意ファイル読取を遮断)。 ON にするとセッション側で
+         * ホスト/ゲストパス変換 + 実ファイル読込 + temp の自動 unlink を行う実体を
+         * エミュレータに注入する。 OFF の間は parser が file/temp/shm をすべて破棄し
+         * `a=q` も ENOTSUPPORTED を返す。
+         */
+        val kittyExternalFileEnabled: Boolean = DEFAULT_KITTY_EXTERNAL_FILE
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -169,8 +177,13 @@ class AppSettings(private val context: Context) {
             externalStorageEnabled = p[KEY_EXTERNAL_STORAGE] ?: DEFAULT_EXTERNAL_STORAGE,
             androidHostBindEnabled = p[KEY_ANDROID_HOST_BIND] ?: DEFAULT_ANDROID_HOST_BIND,
             toolbarOrder = p[KEY_TOOLBAR_ORDER] ?: "",
-            traceLogEnabled = p[KEY_TRACE_LOG] ?: DEFAULT_TRACE_LOG
+            traceLogEnabled = p[KEY_TRACE_LOG] ?: DEFAULT_TRACE_LOG,
+            kittyExternalFileEnabled = p[KEY_KITTY_EXTERNAL_FILE] ?: DEFAULT_KITTY_EXTERNAL_FILE
         )
+    }
+
+    suspend fun setKittyExternalFileEnabled(value: Boolean) {
+        context.dataStore.edit { it[KEY_KITTY_EXTERNAL_FILE] = value }
     }
 
     suspend fun setTraceLogEnabled(value: Boolean) {
@@ -352,9 +365,16 @@ class AppSettings(private val context: Context) {
         private val KEY_ANDROID_HOST_BIND = booleanPreferencesKey("android_host_bind_enabled")
         private val KEY_TOOLBAR_ORDER = stringPreferencesKey("toolbar_order")
         private val KEY_TRACE_LOG = booleanPreferencesKey("trace_log_enabled")
+        private val KEY_KITTY_EXTERNAL_FILE = booleanPreferencesKey("kitty_external_file_enabled")
 
         /** z2root syscall トレースログは既定 OFF (開発者用。ログが膨大で容量を圧迫する)。 */
         const val DEFAULT_TRACE_LOG = false
+        /**
+         * Kitty graphics `t=f`/`t=t`/`t=s` 経由の外部ファイル読込は **既定 OFF**。
+         * TUI から任意ファイル読取を許可する経路なので、 明示 opt-in したセッションだけで
+         * ホスト/ゲスト変換 + 実 I/O を行う。
+         */
+        const val DEFAULT_KITTY_EXTERNAL_FILE = false
 
         /** 外部 SD 認識は既定 OFF (オプトイン)。OFF の間は検出処理も走らない。 */
         const val DEFAULT_EXTERNAL_STORAGE = false

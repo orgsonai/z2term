@@ -2,26 +2,29 @@ package com.zerotoship.z2term.emulator
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.util.Base64
 
 /**
  * Kitty graphics protocol (APC `ESC _ G <key=value,…> ; <base64 payload> ESC \`) パーサ。
  *
  * 仕様: https://sw.kovidgoyal.net/kitty/graphics-protocol/
  *
- * 0.8.131 までで扱うアクション・フォーマット・転送:
+ * 扱うアクション・フォーマット・転送:
  *  - アクション: `a=T` (transmit and display) / `a=t` (transmit only) / `a=p` (put existing
  *    image at cursor) / `a=d` (delete; `d=A`/`d=I`/`d=i`/`d=p` のサブを区別) / `a=q`
- *    (query)。
+ *    (query) / `a=f` (frame transmit, animation 用)。
  *  - フォーマット: `f=100` (PNG, [BitmapFactory] でデコード) / `f=24` (生 RGB, 3 bytes/px,
  *    `s=N v=N` 必須) / `f=32` (生 RGBA, 4 bytes/px, `s=N v=N` 必須)。
- *  - 転送: `t=d` (direct base64) のみ。 `t=f`/`t=t`/`t=s` (file/temp/shm) は破棄。
+ *  - 転送: `t=d` (direct base64) は常時。 `t=f`/`t=t`/`t=s` (file/temp/shm) は
+ *    [externalTransferSource] が **明示的に注入されたとき** のみ。 注入されない (= 既定 OFF)
+ *    間はすべて破棄され、`a=q` も ENOTSUPPORTED を返す (opt-in セキュリティ既定)。
  *  - チャンク連結: `m=1` 連続 + `m=0`/省略 終端で payload を結合する。 連結中はヘッダを
  *    最初の APC のものだけ使う (Kitty 仕様)。
  *  - `c=N` `r=N`: 表示セル数。 省略時は Bitmap のピクセル数を Renderer から渡された
  *    `cellWidthPx` / `lineHeightPx` で割って自動算出。
  *  - `i=N` (image id) / `p=N` (placement id): キャッシュ・配置・削除の照合。
  *  - `s=N` `v=N`: 生フォーマットの幅高 (px)。 PNG では BitmapFactory が自動取得する。
+ *  - `O=N` (offset bytes) / `S=N` (size bytes): `t=f`/`t=t`/`t=s` でファイルの一部だけ読む
+ *    レンジ指定。 省略時は 0 / 末尾まで。
  *  - `U=1` + `a=T`/`a=p`: virtual placement (Unicode placeholder と組合せる遅延配置)。
  *    通常の `a=T`/`a=p` がカーソル位置に「実 placement」を作るのに対し、`U=1` は image を
  *    grid (cellsWidth × cellsHeight) の「仮想 placement」として登録するだけで、 実際の
@@ -29,10 +32,38 @@ import android.util.Base64
  *    combining diacritic (row/col/placementId エンコード) で決まる。
  *
  * 範囲外 (静かに `Discard`):
- *  - animation frames (`a=a`), file/temp/shm 転送, composition (`a=c`), Z-index への
- *    32bit 拡張など。
+ *  - composition (`a=c`)、画像変形系の追加オプション。
  */
 class KittyGraphicsParser {
+
+    /**
+     * `t=f` (regular file) / `t=t` (temporary file, 読了後 unlink) / `t=s` (shared memory) の
+     * 種別。 [ExternalTransferSource.read] に渡してホスト側で出し分ける。
+     */
+    enum class TransferKind { File, TempFile, SharedMemory }
+
+    /**
+     * `t=f`/`t=t`/`t=s` 経路の payload 取得を担う interface。 **既定では未設定で
+     * file/temp/shm はすべて破棄**。 セッション側で opt-in 設定が ON のとき、
+     * ホスト/ゲストのパス変換 + 実ファイル/SHM 読込を実装した実体を注入する。
+     *
+     *  - `name` は TUI 側から base64 デコードして得たパス文字列 (`t=f`/`t=t` は絶対
+     *    パス相当、 `t=s` は POSIX shm 名 `/<name>` 形式)。
+     *  - `offset` / `size` は Kitty 仕様の `O=N` / `S=N`。 `size < 0` のときは末尾まで。
+     *  - 戻り値はファイル/SHM から読んだ生バイト列。 PNG なら BitmapFactory 用、生 RGB(A)
+     *    ならそのまま組立に使う。 失敗 (権限 / 不在 / 読込打ち切り) は null。
+     *  - `kind == TempFile` のときは読了後の unlink まで実装側で行う (parser からは
+     *    再度呼ばれない前提)。
+     */
+    fun interface ExternalTransferSource {
+        fun read(kind: TransferKind, name: String, offset: Long, size: Long): ByteArray?
+    }
+
+    /**
+     * `t=f`/`t=t`/`t=s` 経路の payload 取得元。 null (既定) のときはすべて Discard。
+     * セッション側で AppSettings の opt-in が ON のときに非 null を注入する。
+     */
+    var externalTransferSource: ExternalTransferSource? = null
 
     private val current = StringBuilder(2048)
     private val payload = StringBuilder(2048)
@@ -144,13 +175,52 @@ class KittyGraphicsParser {
         val format = header["f"]?.toIntOrNull() ?: 32
         val transmission = header["t"] ?: "d"
         val compression = header["o"] ?: ""
+        val externalAllowed = externalTransferSource != null
         val (ok, reason) = when {
-            transmission != "d" -> false to "ENOTSUPPORTED:t=$transmission"
+            transmission != "d" && !isExternalKind(transmission) ->
+                false to "ENOTSUPPORTED:t=$transmission"
+            transmission != "d" && !externalAllowed ->
+                false to "ENOTSUPPORTED:t=$transmission"
             format != 100 && format != 24 && format != 32 -> false to "ENOTSUPPORTED:f=$format"
             compression.isNotEmpty() && compression != "z" -> false to "ENOTSUPPORTED:o=$compression"
             else -> true to "OK"
         }
         return Result.Query(imageId = imageId, ok = ok, message = reason, quietLevel = quietLevel)
+    }
+
+    private fun isExternalKind(t: String): Boolean = t == "f" || t == "t" || t == "s"
+
+    private fun transferKindOf(t: String): TransferKind? = when (t) {
+        "f" -> TransferKind.File
+        "t" -> TransferKind.TempFile
+        "s" -> TransferKind.SharedMemory
+        else -> null
+    }
+
+    /**
+     * `t=d` または `t=f`/`t=t`/`t=s` から payload バイト列を取り出す。
+     *  - `t=d`: payload は base64 ペイロード。 デコード後、 `o=z` 指定なら inflate。
+     *  - `t=f`/`t=t`/`t=s`: payload を base64 デコードして UTF-8 パス/SHM 名に直し、
+     *    [externalTransferSource] に `(kind, name, offset, size)` で読み取り依頼。
+     *    取得結果はそのまま (透過) で扱う。 圧縮指定 (`o=z`) は file/temp/shm 経路でも
+     *    inflate に通す (Kitty 仕様で禁止されていない)。
+     *  - source 未注入 (= 既定) のときの file/temp/shm は null (= Discard) で返す。
+     */
+    private fun obtainPayloadBytes(header: Map<String, String>, payloadStr: String): ByteArray? {
+        val transmission = header["t"] ?: "d"
+        if (transmission == "d") {
+            val raw = decodeBase64(payloadStr) ?: return null
+            return maybeInflate(header, raw)
+        }
+        val kind = transferKindOf(transmission) ?: return null
+        val source = externalTransferSource ?: return null
+        val pathBytes = decodeBase64(payloadStr) ?: return null
+        val name = runCatching { String(pathBytes, Charsets.UTF_8) }.getOrNull()
+            ?.takeIf { it.isNotEmpty() } ?: return null
+        val offset = header["O"]?.toLongOrNull()?.coerceAtLeast(0L) ?: 0L
+        val size = header["S"]?.toLongOrNull() ?: -1L
+        val raw = source.read(kind, name, offset, size) ?: return null
+        return maybeInflate(header, raw)
     }
 
     /**
@@ -172,10 +242,7 @@ class KittyGraphicsParser {
         quietLevel: Int
     ): Result {
         if (imageId == 0) return Result.Discard
-        val transmission = header["t"] ?: "d"
-        if (transmission != "d") return Result.Discard
-        val decoded = decodeBase64(payloadStr) ?: return Result.Discard
-        val rawBytes = maybeInflate(header, decoded) ?: return Result.Discard
+        val rawBytes = obtainPayloadBytes(header, payloadStr) ?: return Result.Discard
         val format = header["f"]?.toIntOrNull() ?: 32
         val bitmap = when (format) {
             100 -> decodePng(rawBytes)
@@ -213,11 +280,7 @@ class KittyGraphicsParser {
         unicodePlaceholder: Boolean
     ): Result {
         val format = header["f"]?.toIntOrNull() ?: 100
-        val transmission = header["t"] ?: "d"
-        if (transmission != "d") return Result.Discard  // file/temp/shm 未対応
-
-        val decoded = decodeBase64(payloadStr) ?: return Result.Discard
-        val rawBytes = maybeInflate(header, decoded) ?: return Result.Discard
+        val rawBytes = obtainPayloadBytes(header, payloadStr) ?: return Result.Discard
         val bitmap = when (format) {
             100 -> decodePng(rawBytes)
             24 -> buildRawBitmap(rawBytes, header, hasAlpha = false)
@@ -328,7 +391,10 @@ class KittyGraphicsParser {
 
     private fun decodeBase64(s: String): ByteArray? {
         if (s.isEmpty()) return null
-        return runCatching { Base64.decode(s, Base64.DEFAULT) }.getOrNull()
+        // JVM 標準 `java.util.Base64` を使う (minSdk 29 = Java 8 同等で利用可)。 これにより
+        // unit test (Robolectric なし) でも実装が走り、 file/temp/shm 経路の path 解決を
+        // 含む parser 側ロジックを直接テストできる。 Kitty 仕様は標準 base64 なので互換。
+        return runCatching { java.util.Base64.getDecoder().decode(s) }.getOrNull()
     }
 
     /**

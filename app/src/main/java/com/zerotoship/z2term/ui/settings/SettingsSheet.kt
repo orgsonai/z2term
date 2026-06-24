@@ -542,6 +542,23 @@ fun SettingsSheet(
                         fontFamily = FontFamily.Monospace
                     )
                 }
+                // Kitty graphics の file/temp/shm 外部ファイル経路 (`t=f`/`t=t`/`t=s`)。
+                // 既定 OFF。 ON のとき rootfs 配下のファイル読込を許可する (TUI 側で
+                // base64 でパスを送る image viewer 系で必要)。 反映は即時 (combine 監視)。
+                ToggleField(
+                    title = stringResource(R.string.settings_kitty_external_file_toggle),
+                    description = stringResource(R.string.settings_kitty_external_file_toggle_desc),
+                    checked = settings.kittyExternalFileEnabled,
+                    onChange = { session.setKittyExternalFileEnabled(it) }
+                )
+                if (settings.kittyExternalFileEnabled) {
+                    Text(
+                        text = stringResource(R.string.settings_kitty_external_file_warning),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
 
             // IME 学習履歴 (キーボードパッチ): 件数表示 + 管理ボタン (シートを開く)
