@@ -90,9 +90,25 @@ class TerminalEmulator(
         ESCAPE,
         CSI,
         OSC,
-        CHARSET
+        CHARSET,
+        /**
+         * DCS (`ESC P`) / APC (`ESC _`) / PM (`ESC ^`) / SOS (`ESC X`) の
+         * 「文字列系」シーケンスを ST (`ESC \`) または BEL まで吸収する状態。
+         *
+         * 本実装はこれら 4 種をすべて **黙って破棄** する (描画しない / 応答しない)。
+         * これだけで以下の症状を止められる:
+         *  - APC 開始の `ESC _` を吸収できず Kitty graphics の `G;…\e\\` 本文や
+         *    base64 payload が画面に文字として漏れる
+         *  - DCS 内に含まれる `ESC [ … M` 等を CSI として誤解釈し、終端不一致で
+         *    続く本文がそのまま画面へ流れる (= mouse SGR 漏れの正体の 1 つ)
+         *  - 同じく DCS/APC 本文内の `\r` (0x0D) が GROUND 状態の CR として処理
+         *    されて、TUI 描画中に cursor が突然行頭に飛ぶ
+         */
+        STRING
     }
     private var state = State.GROUND
+    /** STRING 状態で直前に ESC を受けたか (次バイトが `\` なら ST=終端、それ以外なら継続 or 異常終了)。 */
+    private var stringEscSeen = false
 
     // --- UTF-8 デコーダ (Ground 状態の非 ASCII バイト用) ---
     private val utf8 = Utf8Decoder()
@@ -146,6 +162,7 @@ class TerminalEmulator(
                 // ESC ( B など、キャラクタセット指定 (無視)
                 state = State.GROUND
             }
+            State.STRING -> processString(b)
         }
     }
 
@@ -292,10 +309,45 @@ class TerminalEmulator(
             }
             '=' -> { /* DECKPAM: keypad app mode (無視) */ state = State.GROUND }
             '>' -> { /* DECKPNM: keypad numeric mode (無視) */ state = State.GROUND }
+            'P', '_', 'X', '^' -> {
+                // DCS / APC / SOS / PM。本実装は本文を破棄するだけ。
+                // ST (ESC \) または BEL まで吸収する。
+                state = State.STRING
+                stringEscSeen = false
+            }
+            '\\' -> {
+                // 単独 ST (孤立した ESC \)。STRING 状態外なので無視。
+                state = State.GROUND
+            }
             else -> {
                 Log.d(TAG, "Unhandled ESC $c (0x${b.toString(16)})")
                 state = State.GROUND
             }
+        }
+    }
+
+    /**
+     * DCS / APC / PM / SOS の本文を「読み捨てる」。終端は BEL (0x07) または
+     * ST (`ESC \` = 0x1B 0x5C) のいずれか。終端不正 (ESC + 非 `\`) は xterm 流儀で
+     * その時点で打ち切り、続くバイトは ESCAPE 状態として再解釈する。
+     */
+    private fun processString(b: Int) {
+        if (stringEscSeen) {
+            stringEscSeen = false
+            if (b == 0x5C) {
+                // ST 完成: 正常終端
+                state = State.GROUND
+            } else {
+                // ESC のあとに `\` 以外: 文字列は打ち切り、続くバイトを ESCAPE として処理
+                state = State.ESCAPE
+                processEscape(b)
+            }
+            return
+        }
+        when (b) {
+            0x07 -> state = State.GROUND  // BEL: 終端
+            0x1B -> stringEscSeen = true   // 次が `\` なら ST
+            else -> { /* 本文は破棄 */ }
         }
     }
 
