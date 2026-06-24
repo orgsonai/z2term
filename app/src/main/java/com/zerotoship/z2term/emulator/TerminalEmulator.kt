@@ -49,6 +49,13 @@ class TerminalEmulator(
     private var currentFg = SgrAttribute.DEFAULT
     private var currentBg = SgrAttribute.DEFAULT
     private var currentFlags = 0
+    /**
+     * SGR 58 で設定される underline color。
+     * 本実装ではセル描画には使わず、 Kitty graphics の Unicode placeholder セルへの
+     * image id 上位 8bit (32bit 拡張) のみで参照する。
+     * 形式は [currentFg]/[currentBg] と同じ ([SgrAttribute.makeRgb] 等)。
+     */
+    private var currentUnderlineColor = SgrAttribute.DEFAULT
 
     // --- スクロール領域 (top, bottom) inclusive ---
     private var scrollTop = 0
@@ -257,8 +264,10 @@ class TerminalEmulator(
 
     /**
      * `U+10EEEE` (Kitty Unicode placeholder) を現在カーソル位置に 1 セル幅で書く。
-     * セルの fg truecolor (`\e[38:2:R:G:B`) から image id を 24bit で抽出して
-     * [PlaceholderRef] に詰める (truecolor 未指定なら imageId=0 で「未割当 placeholder」)。
+     * セルの fg truecolor (`\e[38:2:R:G:B`) から image id 下位 24bit を抽出し、
+     * SGR 58 (underline color) の R 値を上位 8bit として OR して image id 32bit を組み立てる
+     * (Kitty 仕様: id が 24bit を越える場合に上位 8bit を underline color に詰める)。
+     * truecolor 未指定なら imageId=0 で「未割当 placeholder」。
      * 直後に来る diacritic で srcRow/srcCol/placementIdLow を順に上書きする。
      */
     private fun putKittyPlaceholder() {
@@ -273,11 +282,15 @@ class TerminalEmulator(
             }
         }
         val fg = currentFg or currentFlags
-        val imageId = if (SgrAttribute.isRgb(currentFg)) {
+        val id24 = if (SgrAttribute.isRgb(currentFg)) {
             (SgrAttribute.getR(currentFg) shl 16) or
                 (SgrAttribute.getG(currentFg) shl 8) or
                 SgrAttribute.getB(currentFg)
         } else 0
+        val id32high = if (SgrAttribute.isRgb(currentUnderlineColor)) {
+            SgrAttribute.getR(currentUnderlineColor) and 0xFF
+        } else 0
+        val imageId = (id32high shl 24) or id24
         val row = buffer.getScreenRow(cursorRow)
         if (insertMode) row.insertChars(cursorCol, 1, fg, currentBg)
         row.setPlaceholder(
@@ -1057,6 +1070,7 @@ class TerminalEmulator(
                     currentFg = SgrAttribute.DEFAULT
                     currentBg = SgrAttribute.DEFAULT
                     currentFlags = 0
+                    currentUnderlineColor = SgrAttribute.DEFAULT
                 }
                 1 -> currentFlags = currentFlags or SgrAttribute.FLAG_BOLD
                 3 -> currentFlags = currentFlags or SgrAttribute.FLAG_ITALIC
@@ -1105,6 +1119,23 @@ class TerminalEmulator(
                     }
                 }
                 49 -> currentBg = SgrAttribute.DEFAULT
+                58 -> {
+                    // Underline color (SGR 58:2:R:G:B / 58:5:idx)。 本実装は描画はせず、
+                    // Kitty graphics の Unicode placeholder セルの image id 上位 8bit 抽出にのみ使う。
+                    val mode = csiParams.getOrNull(i + 1) ?: 0
+                    if (mode == 5) {
+                        val idx = csiParams.getOrNull(i + 2) ?: 0
+                        currentUnderlineColor = SgrAttribute.makeIndexed(idx.coerceIn(0, 255))
+                        i += 2
+                    } else if (mode == 2) {
+                        val r = csiParams.getOrNull(i + 2) ?: 0
+                        val g = csiParams.getOrNull(i + 3) ?: 0
+                        val b = csiParams.getOrNull(i + 4) ?: 0
+                        currentUnderlineColor = SgrAttribute.makeRgb(r, g, b)
+                        i += 4
+                    }
+                }
+                59 -> currentUnderlineColor = SgrAttribute.DEFAULT
                 in 90..97 -> currentFg = SgrAttribute.makeIndexed(p - 90 + 8)  // bright fg
                 in 100..107 -> currentBg = SgrAttribute.makeIndexed(p - 100 + 8) // bright bg
                 else -> {}

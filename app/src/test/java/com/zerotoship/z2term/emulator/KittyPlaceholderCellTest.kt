@@ -103,6 +103,44 @@ class KittyPlaceholderCellTest {
     }
 
     @Test
+    fun underlineColorAddsUpperEightBitsOfImageId() {
+        val e = emu()
+        // fg = RGB(0x12, 0x34, 0x56) → 下位 24bit = 0x123456
+        // underline = RGB(0xAB, 0, 0) → 上位 8bit = 0xAB
+        // 期待: imageId = 0xAB123456 (Int としては負値)
+        e.feed("[38;2;18;52;86m")
+        e.feed("[58;2;171;0;0m")  // SGR 58:2:R:G:B
+        e.feed(PLACEHOLDER)
+        val ref = e.buffer.getScreenRow(0).getCell(0).placeholder
+        assertNotNull(ref)
+        assertEquals(0xAB123456.toInt(), ref!!.imageId)
+    }
+
+    @Test
+    fun sgr59ResetsUnderlineColorSoImageIdStays24bit() {
+        val e = emu()
+        e.feed("[38;2;0;0;7m")
+        e.feed("[58;2;255;0;0m")  // ひとまず上位 8bit を有効化
+        e.feed("[59m")            // underline color reset
+        e.feed(PLACEHOLDER)
+        val ref = e.buffer.getScreenRow(0).getCell(0).placeholder
+        assertNotNull(ref)
+        assertEquals(7, ref!!.imageId)
+    }
+
+    @Test
+    fun sgrResetClearsUnderlineColorToo() {
+        val e = emu()
+        e.feed("[58;2;200;0;0m")    // underline color を一旦設定
+        e.feed("[0m")               // SGR 0 = 全リセット
+        e.feed("[38;2;0;0;5m")
+        e.feed(PLACEHOLDER)
+        val ref = e.buffer.getScreenRow(0).getCell(0).placeholder
+        assertNotNull(ref)
+        assertEquals(5, ref!!.imageId)
+    }
+
+    @Test
     fun overwritingPlaceholderCellWithNormalCharClearsRef() {
         val e = emu()
         e.feed("[38;2;0;0;1m$PLACEHOLDER")
