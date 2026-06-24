@@ -210,4 +210,34 @@ class KittyGraphicsParserTest {
         val r = p.finishSequence(12f, 24f)
         assertSame(KittyGraphicsParser.Result.Discard, r)
     }
+
+    @Test
+    fun transmitWithMalformedZlibDiscards() {
+        // o=z 指定で base64 デコードは成功するが zlib stream として不正なら Discard。
+        // "AAAA" は base64 で 0x00 0x00 0x00 (3 bytes)、 zlib magic ではないので inflate 失敗。
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=T,f=32,s=1,v=1,o=z,t=d;AAAA")
+        val r = p.finishSequence(12f, 24f)
+        assertSame(KittyGraphicsParser.Result.Discard, r)
+    }
+
+    @Test
+    fun queryWithUnknownCompressionReturnsError() {
+        // o=q のような未対応圧縮は ENOTSUPPORTED 応答。
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=q,i=1,f=100,t=d,o=q,s=1,v=1;")
+        val r = p.finishSequence(12f, 24f) as KittyGraphicsParser.Result.Query
+        assertTrue("expected ok=false, got $r", !r.ok)
+        assertTrue("expected ENOTSUPPORTED:o=q, got '${r.message}'", r.message.startsWith("ENOTSUPPORTED:o="))
+    }
+
+    @Test
+    fun queryWithZlibCompressionReturnsOk() {
+        // o=z は本実装でサポート対象 → OK。
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=q,i=1,f=32,t=d,o=z,s=1,v=1;")
+        val r = p.finishSequence(12f, 24f) as KittyGraphicsParser.Result.Query
+        assertTrue("expected ok=true, got $r", r.ok)
+        assertEquals("OK", r.message)
+    }
 }

@@ -143,9 +143,11 @@ class KittyGraphicsParser {
         // format / transmission のサポート状況だけ返す (Kitty の reference 実装も同様)。
         val format = header["f"]?.toIntOrNull() ?: 32
         val transmission = header["t"] ?: "d"
+        val compression = header["o"] ?: ""
         val (ok, reason) = when {
             transmission != "d" -> false to "ENOTSUPPORTED:t=$transmission"
             format != 100 && format != 24 && format != 32 -> false to "ENOTSUPPORTED:f=$format"
+            compression.isNotEmpty() && compression != "z" -> false to "ENOTSUPPORTED:o=$compression"
             else -> true to "OK"
         }
         return Result.Query(imageId = imageId, ok = ok, message = reason, quietLevel = quietLevel)
@@ -172,7 +174,8 @@ class KittyGraphicsParser {
         if (imageId == 0) return Result.Discard
         val transmission = header["t"] ?: "d"
         if (transmission != "d") return Result.Discard
-        val rawBytes = decodeBase64(payloadStr) ?: return Result.Discard
+        val decoded = decodeBase64(payloadStr) ?: return Result.Discard
+        val rawBytes = maybeInflate(header, decoded) ?: return Result.Discard
         val format = header["f"]?.toIntOrNull() ?: 32
         val bitmap = when (format) {
             100 -> decodePng(rawBytes)
@@ -213,7 +216,8 @@ class KittyGraphicsParser {
         val transmission = header["t"] ?: "d"
         if (transmission != "d") return Result.Discard  // file/temp/shm 未対応
 
-        val rawBytes = decodeBase64(payloadStr) ?: return Result.Discard
+        val decoded = decodeBase64(payloadStr) ?: return Result.Discard
+        val rawBytes = maybeInflate(header, decoded) ?: return Result.Discard
         val bitmap = when (format) {
             100 -> decodePng(rawBytes)
             24 -> buildRawBitmap(rawBytes, header, hasAlpha = false)
@@ -327,6 +331,48 @@ class KittyGraphicsParser {
         return runCatching { Base64.decode(s, Base64.DEFAULT) }.getOrNull()
     }
 
+    /**
+     * Kitty graphics の `o=z` (zlib 圧縮) を展開する。
+     *  - 入力 [compressed]: base64 デコード済みの zlib stream
+     *  - 出力: 解凍後のバイト列 (生 RGB(A) または PNG)
+     *  - 解凍失敗 / メモリ枯渇は null を返す (呼び元で `Discard`)
+     *  - 安全のため、 展開結果が `MAX_INFLATED_BYTES` を超えると途中で打ち切って null
+     *    (悪意ある zip-bomb 対策)。
+     */
+    private fun inflateZlib(compressed: ByteArray): ByteArray? = runCatching {
+        val inflater = java.util.zip.Inflater()
+        try {
+            inflater.setInput(compressed)
+            val out = java.io.ByteArrayOutputStream(compressed.size.coerceAtLeast(64))
+            val buf = ByteArray(16 * 1024)
+            while (!inflater.finished()) {
+                val n = inflater.inflate(buf)
+                if (n == 0) {
+                    if (inflater.needsInput() || inflater.needsDictionary()) return@runCatching null
+                    break
+                }
+                out.write(buf, 0, n)
+                if (out.size() > MAX_INFLATED_BYTES) return@runCatching null
+            }
+            out.toByteArray()
+        } finally {
+            inflater.end()
+        }
+    }.getOrNull()
+
+    /**
+     * `o=z` (zlib) 指定があれば base64 デコード後のバイト列を inflate して返す。
+     * `o` 未指定 / `o=` 空 はそのまま透過。 それ以外の `o=` 値は **未対応** として null を
+     * 返す (呼び元で `Discard`)。 仕様: Kitty graphics protocol の transmission options。
+     */
+    private fun maybeInflate(header: Map<String, String>, raw: ByteArray): ByteArray? {
+        val opt = header["o"]?.takeIf { it.isNotEmpty() } ?: return raw
+        return when (opt) {
+            "z" -> inflateZlib(raw)
+            else -> null
+        }
+    }
+
     private fun estimateCells(pixels: Float, perCell: Float): Int {
         if (perCell <= 0f) return 1
         return (pixels / perCell + 0.5f).toInt().coerceAtLeast(1)
@@ -426,5 +472,7 @@ class KittyGraphicsParser {
 
     companion object {
         private const val MAX_BUFFER_BYTES = 8 * 1024 * 1024
+        /** zlib 展開後の上限 (zip-bomb 対策)。 16 MiB を越えるなら拒否。 */
+        private const val MAX_INFLATED_BYTES = 16 * 1024 * 1024
     }
 }
