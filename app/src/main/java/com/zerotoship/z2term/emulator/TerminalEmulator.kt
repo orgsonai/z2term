@@ -566,6 +566,20 @@ class TerminalEmulator(
             is KittyGraphicsParser.Result.DeletePlacement ->
                 buffer.deletePlacement(result.imageId, result.placementId)
             is KittyGraphicsParser.Result.Query -> sendKittyQueryResponse(result)
+            is KittyGraphicsParser.Result.Frame -> {
+                // 段階 7: animation frame は蓄積するだけ (描画は frame 0 を継続表示)。
+                // 再生は段階 8 で対応する。
+                buffer.addAnimationFrame(
+                    imageId = result.imageId,
+                    frame = AnimationFrame(
+                        bitmap = result.bitmap,
+                        delayMs = result.delayMs,
+                        composeMode = result.composeMode,
+                        xOffset = result.xOffset,
+                        yOffset = result.yOffset
+                    )
+                )
+            }
             is KittyGraphicsParser.Result.Continue -> {
                 /* 次のチャンク APC を待つ。 stringIsKittyApc は次の `_` で再 ON */
             }

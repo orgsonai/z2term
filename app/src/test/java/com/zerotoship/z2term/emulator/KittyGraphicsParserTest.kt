@@ -183,4 +183,31 @@ class KittyGraphicsParserTest {
         val r = p.finishSequence(12f, 24f)
         assertTrue("expected Put, got $r", r is KittyGraphicsParser.Result.Put)
     }
+
+    @Test
+    fun frameWithoutImageIdDiscards() {
+        // a=f は必ず i=N を指定する。 省略 (= imageId 0) は Discard。
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=f,f=32,s=1,v=1;AAAAAAAA")  // 1px ぶんの payload
+        val r = p.finishSequence(12f, 24f)
+        assertSame(KittyGraphicsParser.Result.Discard, r)
+    }
+
+    @Test
+    fun frameWithoutPayloadDiscards() {
+        // payload 空 → Bitmap 組立不能 → Discard。 i=N が指定されていても帰ってくる。
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=f,i=7,f=32,s=1,v=1;")
+        val r = p.finishSequence(12f, 24f)
+        assertSame(KittyGraphicsParser.Result.Discard, r)
+    }
+
+    @Test
+    fun frameWithFileTransmissionDiscards() {
+        // t=f (file) は本実装で未対応 → Discard。 t=d 以外は a=T と同じく落とす。
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=f,i=7,t=f,f=100;/etc/passwd")
+        val r = p.finishSequence(12f, 24f)
+        assertSame(KittyGraphicsParser.Result.Discard, r)
+    }
 }

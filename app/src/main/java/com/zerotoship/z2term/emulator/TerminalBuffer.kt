@@ -305,7 +305,8 @@ class TerminalBuffer(
     /**
      * Primary / Alternate / scrollback すべての行から画像参照を外す。
      * Kitty graphics の `a=d` (`d=A`) 相当。 画像キャッシュ ([imageCache]) と
-     * virtual placement 登録 ([virtualPlacements]) もクリア。
+     * virtual placement 登録 ([virtualPlacements])、 animation frame ([animations])
+     * もクリア。
      */
     fun clearAllImages() {
         for (row in primary) row.images.clear()
@@ -313,6 +314,7 @@ class TerminalBuffer(
         for (row in scrollback) row.images.clear()
         imageCache.clear()
         virtualPlacements.clear()
+        animations.clear()
     }
 
     /**
@@ -327,6 +329,7 @@ class TerminalBuffer(
         for (row in scrollback) row.images.removeAll { it.imageId == imageId }
         imageCache.remove(imageId)
         virtualPlacements.remove(imageId)
+        animations.remove(imageId)
     }
 
     /**
@@ -375,4 +378,26 @@ class TerminalBuffer(
     /** Virtual placement を引く (未登録なら null)。 imageId=0 は常に null。 */
     fun getVirtualPlacement(imageId: Int): VirtualPlacementSpec? =
         if (imageId == 0) null else virtualPlacements[imageId]
+
+    /**
+     * Kitty graphics の animation frame 蓄積。
+     * key = imageId (`i=N`、 0 は対象外)、 value = `a=f` で送られた frame の追加順リスト。
+     * 段階 7 (0.8.133) では受領・蓄積のみ。 実際の再生 (frame 切替 / delay 駆動) は段階 8 で対応。
+     */
+    private val animations: MutableMap<Int, MutableList<AnimationFrame>> = HashMap()
+
+    /**
+     * 既存の image (`imageCache` に居る原画像) に追加フレームを 1 枚追加する。
+     * `imageId == 0` の場合は無視。 同 image の最初の frame は cacheImage で登録された
+     * 原画像を「frame 0」と読み替え、 ここで追加されるのは「frame 1 以降」となる。
+     */
+    fun addAnimationFrame(imageId: Int, frame: AnimationFrame) {
+        if (imageId == 0) return
+        val list = animations.getOrPut(imageId) { ArrayList() }
+        list.add(frame)
+    }
+
+    /** Animation frame リストを取得 (未登録なら null)。 imageId=0 は常に null。 */
+    fun getAnimationFrames(imageId: Int): List<AnimationFrame>? =
+        if (imageId == 0) null else animations[imageId]
 }

@@ -60,3 +60,25 @@ class VirtualPlacementSpec(
     val placementId: Int,
     val bitmap: Bitmap
 )
+
+/**
+ * Kitty graphics の animation 1 frame ぶんのメタ。
+ *
+ *  - [bitmap]: そのフレームの bitmap (PNG/RGB(A)/RGBA から組み立て済み)。
+ *  - [delayMs]: 次のフレームへ遷移するまでの delay (ms)。 Kitty 仕様の `z=N`、 既定 40ms。
+ *  - [composeMode]: Kitty `c=N` の合成モード。 0 = 既存フレームを置き換え (replace)、
+ *    1 = α 合成で重ねる (over)。 本実装は 0/1 をそのまま保持するのみで、 実描画での
+ *    合成は段階 8 (animation 再生) で対応する。
+ *  - [xOffset] / [yOffset]: Kitty `X=N` / `Y=N` (px)。 frame の左上を image canvas 内の
+ *    どこに置くかのオフセット。 本実装は保持のみ。
+ *
+ * 注意: Kitty 仕様の `a=f` (frame transmit) は `z=N` を **Z-index ではなく delay (ms)**
+ * として解釈する。 本実装でも parser 側で action `f` のときだけ `z=N` を delay として読む。
+ */
+class AnimationFrame(
+    val bitmap: Bitmap,
+    val delayMs: Int,
+    val composeMode: Int = 0,
+    val xOffset: Int = 0,
+    val yOffset: Int = 0
+)

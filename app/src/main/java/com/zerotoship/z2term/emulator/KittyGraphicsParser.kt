@@ -75,12 +75,15 @@ class KittyGraphicsParser {
         val imageId = header["i"]?.toIntOrNull() ?: 0
         val placementId = header["p"]?.toIntOrNull() ?: 0
         val quietLevel = (header["q"]?.toIntOrNull() ?: 0).coerceIn(0, 2)
-        val zIndex = header["z"]?.toIntOrNull() ?: 0
+        // Kitty 仕様: `a=f` のときだけ `z=N` は **frame delay (ms)** を意味する。
+        // それ以外のアクションでは Z-index として読む (既定 0)。
+        val zIndex = if (action == "f") 0 else (header["z"]?.toIntOrNull() ?: 0)
 
         val unicodePlaceholder = (header["U"] ?: "0") == "1"
 
         return when (action) {
             "d" -> classifyDelete(header)
+            "f" -> handleFrame(header, payloadStr, imageId, quietLevel)
             "p" -> {
                 val cellsW = header["c"]?.toIntOrNull()
                 val cellsH = header["r"]?.toIntOrNull()
@@ -146,6 +149,52 @@ class KittyGraphicsParser {
             else -> true to "OK"
         }
         return Result.Query(imageId = imageId, ok = ok, message = reason, quietLevel = quietLevel)
+    }
+
+    /**
+     * `a=f`: Kitty animation の frame transmit。 既存 image (`imageCache` の原画像 = frame 0)
+     * に対し、 frame 1 以降の bitmap を追加する。
+     *
+     * 必須: `i=N` (image id; 0 は無効) と payload (Bitmap が組み立てられること)。
+     * 任意: `r=N` (1-based frame index; 段階 7 では「追加順 = appendix」のみで replace 未対応)、
+     * `z=N` (delay ms; 既定 40)、 `c=N` (compose; 0 = replace / 1 = α over)、
+     * `X=N` / `Y=N` (image canvas 内オフセット px)、
+     * `s=N` / `v=N` / `f=N` (生 RGB(A) のときの幅高・フォーマット)。
+     *
+     * 段階 7 (0.8.133) では受領・蓄積のみで実際の再生は段階 8 で行う。
+     */
+    private fun handleFrame(
+        header: Map<String, String>,
+        payloadStr: String,
+        imageId: Int,
+        quietLevel: Int
+    ): Result {
+        if (imageId == 0) return Result.Discard
+        val transmission = header["t"] ?: "d"
+        if (transmission != "d") return Result.Discard
+        val rawBytes = decodeBase64(payloadStr) ?: return Result.Discard
+        val format = header["f"]?.toIntOrNull() ?: 32
+        val bitmap = when (format) {
+            100 -> decodePng(rawBytes)
+            24 -> buildRawBitmap(rawBytes, header, hasAlpha = false)
+            32 -> buildRawBitmap(rawBytes, header, hasAlpha = true)
+            else -> null
+        } ?: return Result.Discard
+        val delayMs = (header["z"]?.toIntOrNull() ?: 40).coerceAtLeast(0)
+        val composeMode = header["c"]?.toIntOrNull() ?: 0
+        val xOffset = header["X"]?.toIntOrNull() ?: 0
+        val yOffset = header["Y"]?.toIntOrNull() ?: 0
+        val frameIndex = header["r"]?.toIntOrNull() ?: 0
+        return Result.Frame(
+            imageId = imageId,
+            bitmap = bitmap,
+            delayMs = delayMs,
+            composeMode = composeMode,
+            xOffset = xOffset,
+            yOffset = yOffset,
+            frameIndex = frameIndex,
+            quietLevel = quietLevel
+        )
     }
 
     private fun handleTransmit(
@@ -353,6 +402,24 @@ class KittyGraphicsParser {
             val imageId: Int,
             val ok: Boolean,
             val message: String,
+            val quietLevel: Int
+        ) : Result()
+        /**
+         * `a=f` (frame transmit): 既存 image の animation frame 追加。
+         * 呼び出し側は `TerminalBuffer.addAnimationFrame` で蓄積する。
+         * 段階 7 (0.8.133) では蓄積のみで実描画は frame 0 (`imageCache` の原画像) を継続表示。
+         * frame 切替 / delay 駆動の再生は段階 8 で対応。
+         *
+         * @property frameIndex Kitty 仕様 `r=N` (1-based)。 0 = 末尾追加 (段階 7 はこれだけ)。
+         */
+        class Frame(
+            val imageId: Int,
+            val bitmap: Bitmap,
+            val delayMs: Int,
+            val composeMode: Int,
+            val xOffset: Int,
+            val yOffset: Int,
+            val frameIndex: Int,
             val quietLevel: Int
         ) : Result()
     }
