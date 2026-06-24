@@ -277,9 +277,14 @@ class TerminalBuffer(
             val lineStart = sb.length
             for (c in from.coerceAtLeast(0) until to.coerceAtMost(row.columns)) {
                 val cell = row.getCell(c)
-                // wide-cont セルは通常スキップするが、絵文字/CJK 拡張は右セルに低サロゲートを
-                // 持つため、それは出力する (スキップすると孤立サロゲートで文字が壊れる)。
-                if (!cell.wideCont || cell.char.isLowSurrogate()) sb.append(cell.char)
+                if (cell.placeholder != null) {
+                    // Kitty Unicode placeholder セルはタイル画像なのでテキスト抽出は空白に置換。
+                    sb.append(' ')
+                } else if (!cell.wideCont || cell.char.isLowSurrogate()) {
+                    // wide-cont セルは通常スキップするが、絵文字/CJK 拡張は右セルに低サロゲートを
+                    // 持つため、それは出力する (スキップすると孤立サロゲートで文字が壊れる)。
+                    sb.append(cell.char)
+                }
             }
             // ソフト折り返し行 (row.wrapped) は視覚的に次行へ続く 1 論理行なので、改行を入れず
             // そのまま連結する。ハード行は端末がセルを空白で右端まで埋めるため、行末スペースを
@@ -299,18 +304,21 @@ class TerminalBuffer(
 
     /**
      * Primary / Alternate / scrollback すべての行から画像参照を外す。
-     * Kitty graphics の `a=d` (`d=A`) 相当。 画像キャッシュ ([imageCache]) もクリア。
+     * Kitty graphics の `a=d` (`d=A`) 相当。 画像キャッシュ ([imageCache]) と
+     * virtual placement 登録 ([virtualPlacements]) もクリア。
      */
     fun clearAllImages() {
         for (row in primary) row.images.clear()
         for (row in alternate) row.images.clear()
         for (row in scrollback) row.images.clear()
         imageCache.clear()
+        virtualPlacements.clear()
     }
 
     /**
      * 指定 [imageId] に紐づく全 placement を Primary / Alternate / scrollback から除き、
-     * 画像キャッシュからも該当エントリを消す。 Kitty graphics の `a=d,d=I,I=N`/`d=i,i=N` 相当。
+     * 画像キャッシュ・ virtual placement 登録からも該当エントリを消す。
+     * Kitty graphics の `a=d,d=I,I=N`/`d=i,i=N` 相当。
      */
     fun deleteImageById(imageId: Int) {
         if (imageId == 0) return  // id=0 は未指定扱いなので一括削除には使わない
@@ -318,16 +326,20 @@ class TerminalBuffer(
         for (row in alternate) row.images.removeAll { it.imageId == imageId }
         for (row in scrollback) row.images.removeAll { it.imageId == imageId }
         imageCache.remove(imageId)
+        virtualPlacements.remove(imageId)
     }
 
     /**
      * 指定 [imageId] / [placementId] の placement だけを除く。 画像本体 (キャッシュ) は残す。
-     * Kitty graphics の `a=d,d=p,i=N,p=N` 相当。
+     * Kitty graphics の `a=d,d=p,i=N,p=N` 相当。 該当 virtual placement があれば併せて消す。
      */
     fun deletePlacement(imageId: Int, placementId: Int) {
         for (row in primary) row.images.removeAll { it.imageId == imageId && it.placementId == placementId }
         for (row in alternate) row.images.removeAll { it.imageId == imageId && it.placementId == placementId }
         for (row in scrollback) row.images.removeAll { it.imageId == imageId && it.placementId == placementId }
+        virtualPlacements[imageId]?.let { spec ->
+            if (spec.placementId == placementId) virtualPlacements.remove(imageId)
+        }
     }
 
     /**
@@ -345,4 +357,22 @@ class TerminalBuffer(
         if (imageId == 0) return
         imageCache[imageId] = bitmap
     }
+
+    /**
+     * Kitty graphics の virtual placement (`a=p,U=1` / `a=T,U=1`) 登録。
+     * key = imageId (24bit)。 簡易実装として 1 image id に 1 placement のみ保持
+     * (同一 imageId への再登録は上書き)。 描画は本文中の Unicode placeholder セルから
+     * [getVirtualPlacement] で逆引きする。
+     */
+    private val virtualPlacements: MutableMap<Int, VirtualPlacementSpec> = HashMap()
+
+    /** Virtual placement を登録 (imageId=0 は無視)。 */
+    fun registerVirtualPlacement(imageId: Int, spec: VirtualPlacementSpec) {
+        if (imageId == 0) return
+        virtualPlacements[imageId] = spec
+    }
+
+    /** Virtual placement を引く (未登録なら null)。 imageId=0 は常に null。 */
+    fun getVirtualPlacement(imageId: Int): VirtualPlacementSpec? =
+        if (imageId == 0) null else virtualPlacements[imageId]
 }

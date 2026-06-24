@@ -74,9 +74,30 @@ class TerminalRow(initialColumns: Int) {
         cells[col].bgAttr = bg
         cells[col].wideCont = wideCont
         cells[col].link = link
+        // 通常の文字書込みでは Kitty Unicode placeholder ref は消える (上書き)。
+        cells[col].placeholder = null
         // 画像領域に文字が書かれたら被さる placement だけ無効化 (TUI が画像の上に文字を
         // 書いた = "消した" と解釈)。 [TerminalEmulator.commitKittyImage] では空白埋め →
         // image 追加の順に呼ぶので、commit 直後の画像本体が自分自身を消すことはない。
+        invalidateImagesHittingCol(col)
+        dirty = true
+    }
+
+    /**
+     * Kitty graphics の Unicode placeholder セル (`U+10EEEE`) を書く。
+     *
+     * 視覚的な 1 セル幅の高サロゲートで埋め (テキスト抽出時に placeholder と判別できる
+     * よう [KittyPlaceholder.HIGH_SURROGATE] を入れる)、 [PlaceholderRef] を直接置く。
+     * セル上書きや [clear] では他セル同様に placeholder=null へ戻る。
+     */
+    fun setPlaceholder(col: Int, ref: PlaceholderRef, fg: Int, bg: Int, link: String? = null) {
+        if (col !in cells.indices) return
+        cells[col].char = KittyPlaceholder.HIGH_SURROGATE
+        cells[col].fgAttr = fg
+        cells[col].bgAttr = bg
+        cells[col].wideCont = false
+        cells[col].link = link
+        cells[col].placeholder = ref
         invalidateImagesHittingCol(col)
         dirty = true
     }
@@ -135,6 +156,8 @@ class TerminalRow(initialColumns: Int) {
     /**
      * 行の表示用文字列を返す (デバッグ・コピー用)。
      * 末尾の空白は除去し、wide-cont セルは出力しない (左セルが本体の文字を持つ)。
+     * Kitty Unicode placeholder セルは内容が画像なのでテキスト抽出時は空白に置換する
+     * (高サロゲート 1 個だけが残ると壊れた UTF-16 になりコピー先で文字化けするため)。
      */
     fun toText(): String {
         var end = cells.size - 1
@@ -143,8 +166,12 @@ class TerminalRow(initialColumns: Int) {
         return buildString(end + 1) {
             for (i in 0..end) {
                 val c = cells[i]
-                // wide-cont でも低サロゲート (絵文字/CJK 拡張の右半分) は出力する。
-                if (!c.wideCont || c.char.isLowSurrogate()) append(c.char)
+                if (c.placeholder != null) {
+                    append(' ')
+                } else if (!c.wideCont || c.char.isLowSurrogate()) {
+                    // wide-cont でも低サロゲート (絵文字/CJK 拡張の右半分) は出力する。
+                    append(c.char)
+                }
             }
         }
     }

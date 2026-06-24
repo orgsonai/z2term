@@ -297,6 +297,8 @@ private fun drawBuffer(
                 drawImagePlacement(nativeCanvas, img, y, cellW, lineHeight)
             }
         }
+        // Kitty Unicode placeholder (U=1) のタイル描画 — z<0 のみここで。
+        drawPlaceholderTiles(nativeCanvas, buf, row, y, cellW, lineHeight, rowCols, onlyNegativeZ = true)
 
         // --- Pass 3: 文字 + 下線/取り消し線 (セル単位 drawText でグリッド吸着) ---
         c = 0
@@ -343,6 +345,8 @@ private fun drawBuffer(
                 drawImagePlacement(nativeCanvas, img, y, cellW, lineHeight)
             }
         }
+        // Kitty Unicode placeholder (U=1) のタイル描画 — z>=0 のみここで。
+        drawPlaceholderTiles(nativeCanvas, buf, row, y, cellW, lineHeight, rowCols, onlyNegativeZ = false)
     }
 
     // --- カーソル (選択中・変換中は描かない: 変換中はプリエディットが位置を示す) ---
@@ -438,6 +442,54 @@ private fun drawImagePlacement(
         android.graphics.RectF(left, top, right, bottom),
         null
     )
+}
+
+/**
+ * Kitty Unicode placeholder (`U+10EEEE` + diacritic でタイル位置を指定するセル) を
+ * 1 セル幅で描画する。 行内のセルを走査し、 [com.zerotoship.z2term.emulator.PlaceholderRef]
+ * を持つセルそれぞれについて、 buffer に登録された virtual placement spec から
+ * 元 bitmap を引き、 (srcCol / widthCells, srcRow / heightCells) の領域を 1 セル矩形へ
+ * srcRect→dstRect で切り出し描画する。
+ *
+ * [onlyNegativeZ] で z<0 / z>=0 のフィルタを受ける (テキストの下層 / 上層を分ける呼び分け)。
+ * Spec が未登録 (= まだ APC で送られていない / 削除済) の placeholder セルは描画スキップ
+ * (TUI が再送/差し替えするまで空のまま)。
+ */
+private fun drawPlaceholderTiles(
+    canvas: android.graphics.Canvas,
+    buf: com.zerotoship.z2term.emulator.TerminalBuffer,
+    row: TerminalRow,
+    y: Float,
+    cellW: Float,
+    lineHeight: Float,
+    rowCols: Int,
+    onlyNegativeZ: Boolean
+) {
+    var c = 0
+    while (c < rowCols) {
+        val cell = row.getCell(c)
+        val ref = cell.placeholder
+        if (ref == null) { c++; continue }
+        val spec = buf.getVirtualPlacement(ref.imageId)
+        if (spec == null) { c++; continue }
+        val negativeZ = spec.zIndex < 0
+        if (onlyNegativeZ != negativeZ) { c++; continue }
+        val bm = spec.bitmap
+        val gridW = spec.widthCells.coerceAtLeast(1)
+        val gridH = spec.heightCells.coerceAtLeast(1)
+        val srcRow = ref.srcRow.coerceIn(0, gridH - 1)
+        val srcCol = ref.srcCol.coerceIn(0, gridW - 1)
+        val tileWpx = bm.width.toFloat() / gridW
+        val tileHpx = bm.height.toFloat() / gridH
+        val srcLeft = (srcCol * tileWpx).toInt().coerceAtMost(bm.width - 1).coerceAtLeast(0)
+        val srcTop = (srcRow * tileHpx).toInt().coerceAtMost(bm.height - 1).coerceAtLeast(0)
+        val srcRight = ((srcCol + 1) * tileWpx).toInt().coerceAtMost(bm.width).coerceAtLeast(srcLeft + 1)
+        val srcBottom = ((srcRow + 1) * tileHpx).toInt().coerceAtMost(bm.height).coerceAtLeast(srcTop + 1)
+        val srcRect = android.graphics.Rect(srcLeft, srcTop, srcRight, srcBottom)
+        val dstRect = android.graphics.RectF(c * cellW, y, (c + 1) * cellW, y + lineHeight)
+        canvas.drawBitmap(bm, srcRect, dstRect, null)
+        c++
+    }
 }
 
 private fun drawHandle(

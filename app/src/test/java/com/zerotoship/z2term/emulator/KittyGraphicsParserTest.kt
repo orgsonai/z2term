@@ -161,4 +161,26 @@ class KittyGraphicsParserTest {
         val r = p.finishSequence(12f, 24f) as KittyGraphicsParser.Result.Put
         assertEquals(-5, r.zIndex)
     }
+
+    @Test
+    fun putWithUnicodePlaceholderReturnsVirtualPut() {
+        // a=p,U=1 は通常の Put ではなく VirtualPut へ振り分けられる。
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=p,U=1,i=7,p=2,c=4,r=3,z=1;")
+        val r = p.finishSequence(12f, 24f) as KittyGraphicsParser.Result.VirtualPut
+        assertEquals(7, r.imageId)
+        assertEquals(2, r.placementId)
+        assertEquals(4, r.cellsWidth)
+        assertEquals(3, r.cellsHeight)
+        assertEquals(1, r.zIndex)
+    }
+
+    @Test
+    fun putWithoutUnicodePlaceholderStaysAsRegularPut() {
+        // U= 省略 (= 0 扱い) は従来の Put を返す。
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=p,i=11,p=2,c=4,r=2;")
+        val r = p.finishSequence(12f, 24f)
+        assertTrue("expected Put, got $r", r is KittyGraphicsParser.Result.Put)
+    }
 }

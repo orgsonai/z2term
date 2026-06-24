@@ -59,7 +59,13 @@ data class TerminalCell(
     /** Wide 文字 (CJK / 絵文字) の右半分セルか — true なら描画・テキスト抽出ではスキップ */
     var wideCont: Boolean = false,
     /** OSC 8 ハイパーリンク URI (null なら通常テキスト) */
-    var link: String? = null
+    var link: String? = null,
+    /**
+     * Kitty graphics の Unicode placeholder セル (`U+10EEEE` + diacritic で row/col 指定)
+     * のときに「どの image の どのタイル位置 を 描画するか」を保持する。 非 placeholder では null。
+     * セル上書き ([setChar] / [clear] / [setClearedWith] / [copyFrom]) で必ずリセットする。
+     */
+    var placeholder: PlaceholderRef? = null
 ) {
     fun copyFrom(other: TerminalCell) {
         char = other.char
@@ -67,6 +73,7 @@ data class TerminalCell(
         bgAttr = other.bgAttr
         wideCont = other.wideCont
         link = other.link
+        placeholder = other.placeholder
     }
 
     fun clear() {
@@ -75,6 +82,7 @@ data class TerminalCell(
         bgAttr = SgrAttribute.DEFAULT
         wideCont = false
         link = null
+        placeholder = null
     }
 
     fun setClearedWith(fg: Int, bg: Int) {
@@ -83,5 +91,6 @@ data class TerminalCell(
         bgAttr = bg
         wideCont = false
         link = null
+        placeholder = null
     }
 }

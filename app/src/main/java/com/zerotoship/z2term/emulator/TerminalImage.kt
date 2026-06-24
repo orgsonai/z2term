@@ -41,3 +41,22 @@ class TerminalImage(
      */
     val zIndex: Int = 0
 )
+
+/**
+ * Kitty graphics の virtual placement (`a=p,U=1` または `a=T,U=1`) 1 件分の登録情報。
+ *
+ *  - [widthCells] × [heightCells]: タイル分割数。 本文中の Unicode placeholder セル
+ *    (`U+10EEEE` + diacritic で row/col 指定) 1 個が、 元画像をこのグリッドで割った
+ *    1 タイルを指す。
+ *  - [bitmap]: 元画像 (タイルは描画時に矩形で切り出す)。 削除コマンドで本 spec が
+ *    破棄されると Renderer は placeholder セルを空きとして扱う。
+ *  - [placementId]: 同一 imageId 内で別の virtual placement を区別する 8bit (将来用途)。
+ *  - [zIndex]: 通常 placement と同じ Z-index 規約 (`<0` テキスト下、 `>=0` テキスト上)。
+ */
+class VirtualPlacementSpec(
+    val widthCells: Int,
+    val heightCells: Int,
+    val zIndex: Int,
+    val placementId: Int,
+    val bitmap: Bitmap
+)

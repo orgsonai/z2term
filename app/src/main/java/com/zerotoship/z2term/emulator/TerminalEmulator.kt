@@ -217,6 +217,21 @@ class TerminalEmulator(
     }
 
     private fun putCodepoint(cp: Int) {
+        // Kitty Unicode placeholder: `U+10EEEE`。 1 セル幅の専用ルートで書く。
+        if (cp == KittyPlaceholder.CODEPOINT) {
+            putKittyPlaceholder()
+            return
+        }
+        // Kitty placeholder の直後の最大 3 個の combining diacritic は row/col/placementIdLow
+        // を表すメタ。 直前 placeholder セルの ref を更新するだけでカーソルは進めない。
+        val diIdx = KittyPlaceholder.diacriticIndex(cp)
+        if (diIdx >= 0 && placeholderStage in 0..2 && lastPlaceholderRow >= 0) {
+            applyPlaceholderDiacritic(diIdx)
+            return
+        }
+        // それ以外の通常文字書込みでは placeholder の diacritic 受付状態を必ず解除する
+        // (直前 placeholder セルにこれ以上 diacritic が来ない確定)。
+        placeholderStage = -1
         val wide = EastAsianWidth.isWide(cp, ambiguousAsWide)
         if (cp <= 0xFFFF) {
             if (wide) putWideChar(cp.toChar()) else putChar(cp.toChar())
@@ -228,7 +243,78 @@ class TerminalEmulator(
         }
     }
 
+    // --- Kitty Unicode placeholder の状態 ---
+    /** 直前に書いた placeholder セルの screen row (なければ -1)。 */
+    private var lastPlaceholderRow: Int = -1
+    /** 直前に書いた placeholder セルの screen col (なければ -1)。 */
+    private var lastPlaceholderCol: Int = -1
+    /**
+     * 直前 placeholder セルに次に来る diacritic が更新するフィールド:
+     *  -1 = 受付終了、 0 = srcRow 待ち、 1 = srcCol 待ち、 2 = placementIdLow 待ち、
+     *  3 = 全部埋まったので以降はもう受け付けない。
+     */
+    private var placeholderStage: Int = -1
+
+    /**
+     * `U+10EEEE` (Kitty Unicode placeholder) を現在カーソル位置に 1 セル幅で書く。
+     * セルの fg truecolor (`\e[38:2:R:G:B`) から image id を 24bit で抽出して
+     * [PlaceholderRef] に詰める (truecolor 未指定なら imageId=0 で「未割当 placeholder」)。
+     * 直後に来る diacritic で srcRow/srcCol/placementIdLow を順に上書きする。
+     */
+    private fun putKittyPlaceholder() {
+        // 1 セルしか使わないが、autoWrap は通常文字と同じ流儀で行う。
+        if (cursorCol >= buffer.columns) {
+            if (autoWrap) {
+                buffer.getScreenRow(cursorRow).wrapped = true
+                cursorCol = 0
+                lineFeed()
+            } else {
+                cursorCol = buffer.columns - 1
+            }
+        }
+        val fg = currentFg or currentFlags
+        val imageId = if (SgrAttribute.isRgb(currentFg)) {
+            (SgrAttribute.getR(currentFg) shl 16) or
+                (SgrAttribute.getG(currentFg) shl 8) or
+                SgrAttribute.getB(currentFg)
+        } else 0
+        val row = buffer.getScreenRow(cursorRow)
+        if (insertMode) row.insertChars(cursorCol, 1, fg, currentBg)
+        row.setPlaceholder(
+            col = cursorCol,
+            ref = PlaceholderRef(imageId = imageId),
+            fg = fg,
+            bg = currentBg,
+            link = currentLink
+        )
+        lastPlaceholderRow = cursorRow
+        lastPlaceholderCol = cursorCol
+        placeholderStage = 0
+        cursorCol++
+    }
+
+    /** 直前 placeholder セルの [PlaceholderRef] の現在 stage に [idx] を入れて stage を進める。 */
+    private fun applyPlaceholderDiacritic(idx: Int) {
+        val r = lastPlaceholderRow
+        val c = lastPlaceholderCol
+        if (r !in 0 until buffer.rows || c !in 0 until buffer.columns) {
+            placeholderStage = -1
+            return
+        }
+        val cell = buffer.getScreenRow(r).getCell(c)
+        val ref = cell.placeholder ?: run { placeholderStage = -1; return }
+        cell.placeholder = when (placeholderStage) {
+            0 -> ref.copy(srcRow = idx)
+            1 -> ref.copy(srcCol = idx)
+            2 -> ref.copy(placementIdLow = idx and 0xFF)
+            else -> ref
+        }
+        placeholderStage++
+        buffer.getScreenRow(r).dirty = true
+    }
+
     private fun putWideChar(c: Char) {
+        placeholderStage = -1
         ensureRoomFor(width = 2)
         if (cursorCol >= buffer.columns - 1) {
             // 退避: 1 セルしか残っていない場合は narrow として置く
@@ -246,6 +332,7 @@ class TerminalEmulator(
     }
 
     private fun putSurrogatePair(high: Char, low: Char) {
+        placeholderStage = -1
         ensureRoomFor(width = 2)
         if (cursorCol >= buffer.columns - 1) {
             // 退避: narrow として高サロゲートだけ書く (実用上ほぼ来ない経路)
@@ -400,14 +487,32 @@ class TerminalEmulator(
             is KittyGraphicsParser.Result.Transmit -> {
                 // imageId != 0 ならキャッシュへ登録 (a=T も a=t も)。
                 buffer.cacheImage(result.imageId, result.bitmap)
-                if (result.display) commitKittyPlacement(
-                    bitmap = result.bitmap,
-                    widthCells = result.widthCells,
-                    heightCells = result.heightCells,
-                    imageId = result.imageId,
-                    placementId = result.placementId,
-                    zIndex = result.zIndex
-                )
+                if (result.unicodePlaceholder) {
+                    // U=1: cursor 位置に描かず virtual placement だけ登録 (Unicode
+                    // placeholder セルで後から位置決め)。 imageId=0 のときは登録しない
+                    // (placeholder 側から逆引きできないため)。
+                    if (result.imageId != 0) {
+                        buffer.registerVirtualPlacement(
+                            result.imageId,
+                            VirtualPlacementSpec(
+                                widthCells = result.widthCells,
+                                heightCells = result.heightCells,
+                                zIndex = result.zIndex,
+                                placementId = result.placementId,
+                                bitmap = result.bitmap
+                            )
+                        )
+                    }
+                } else if (result.display) {
+                    commitKittyPlacement(
+                        bitmap = result.bitmap,
+                        widthCells = result.widthCells,
+                        heightCells = result.heightCells,
+                        imageId = result.imageId,
+                        placementId = result.placementId,
+                        zIndex = result.zIndex
+                    )
+                }
             }
             is KittyGraphicsParser.Result.Put -> {
                 val cached = buffer.getCachedImage(result.imageId) ?: return
@@ -422,6 +527,25 @@ class TerminalEmulator(
                     imageId = result.imageId,
                     placementId = result.placementId,
                     zIndex = result.zIndex
+                )
+            }
+            is KittyGraphicsParser.Result.VirtualPut -> {
+                val cached = buffer.getCachedImage(result.imageId) ?: return
+                val w = (result.cellsWidth
+                    ?: estimateCellsFromPixels(cached.width.toFloat(), cellWidthPxHint))
+                    .coerceAtLeast(1)
+                val h = (result.cellsHeight
+                    ?: estimateCellsFromPixels(cached.height.toFloat(), lineHeightPxHint))
+                    .coerceAtLeast(1)
+                buffer.registerVirtualPlacement(
+                    result.imageId,
+                    VirtualPlacementSpec(
+                        widthCells = w,
+                        heightCells = h,
+                        zIndex = result.zIndex,
+                        placementId = result.placementId,
+                        bitmap = cached
+                    )
                 )
             }
             is KittyGraphicsParser.Result.DeleteAll -> buffer.clearAllImages()
@@ -1111,6 +1235,9 @@ class TerminalEmulator(
 
     /** 文字を現在位置に書き込み、カーソル前進 */
     private fun putChar(c: Char) {
+        // 通常文字が書かれた時点で直前 placeholder セルの diacritic 受付は終了する
+        // (ASCII は putCodepoint を経由しないので、 個別にリセット)。
+        placeholderStage = -1
         if (cursorCol >= buffer.columns) {
             if (autoWrap) {
                 // 折り返し「元」の行に印を付ける (消費側 UrlFinder/getAllText の規約に合わせる)。

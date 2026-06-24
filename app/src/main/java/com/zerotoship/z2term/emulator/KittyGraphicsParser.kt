@@ -9,9 +9,10 @@ import android.util.Base64
  *
  * 仕様: https://sw.kovidgoyal.net/kitty/graphics-protocol/
  *
- * 0.8.129 で扱うアクション・フォーマット・転送:
+ * 0.8.131 までで扱うアクション・フォーマット・転送:
  *  - アクション: `a=T` (transmit and display) / `a=t` (transmit only) / `a=p` (put existing
- *    image at cursor) / `a=d` (delete; `d=A`/`d=I`/`d=i`/`d=p` のサブを区別)。
+ *    image at cursor) / `a=d` (delete; `d=A`/`d=I`/`d=i`/`d=p` のサブを区別) / `a=q`
+ *    (query)。
  *  - フォーマット: `f=100` (PNG, [BitmapFactory] でデコード) / `f=24` (生 RGB, 3 bytes/px,
  *    `s=N v=N` 必須) / `f=32` (生 RGBA, 4 bytes/px, `s=N v=N` 必須)。
  *  - 転送: `t=d` (direct base64) のみ。 `t=f`/`t=t`/`t=s` (file/temp/shm) は破棄。
@@ -21,10 +22,15 @@ import android.util.Base64
  *    `cellWidthPx` / `lineHeightPx` で割って自動算出。
  *  - `i=N` (image id) / `p=N` (placement id): キャッシュ・配置・削除の照合。
  *  - `s=N` `v=N`: 生フォーマットの幅高 (px)。 PNG では BitmapFactory が自動取得する。
+ *  - `U=1` + `a=T`/`a=p`: virtual placement (Unicode placeholder と組合せる遅延配置)。
+ *    通常の `a=T`/`a=p` がカーソル位置に「実 placement」を作るのに対し、`U=1` は image を
+ *    grid (cellsWidth × cellsHeight) の「仮想 placement」として登録するだけで、 実際の
+ *    描画位置はあとから本文に書かれる Unicode placeholder セル (U+10EEEE) と
+ *    combining diacritic (row/col/placementId エンコード) で決まる。
  *
  * 範囲外 (静かに `Discard`):
- *  - animation frames (`a=a`), virtual placement, Unicode placeholder, file/temp/shm 転送,
- *    composition (`a=c`), query (`a=q`), Z-index など。
+ *  - animation frames (`a=a`), file/temp/shm 転送, composition (`a=c`), Z-index への
+ *    32bit 拡張など。
  */
 class KittyGraphicsParser {
 
@@ -71,16 +77,43 @@ class KittyGraphicsParser {
         val quietLevel = (header["q"]?.toIntOrNull() ?: 0).coerceIn(0, 2)
         val zIndex = header["z"]?.toIntOrNull() ?: 0
 
+        val unicodePlaceholder = (header["U"] ?: "0") == "1"
+
         return when (action) {
             "d" -> classifyDelete(header)
-            "p" -> Result.Put(
+            "p" -> {
+                val cellsW = header["c"]?.toIntOrNull()
+                val cellsH = header["r"]?.toIntOrNull()
+                if (unicodePlaceholder) {
+                    Result.VirtualPut(
+                        imageId = imageId,
+                        placementId = placementId,
+                        cellsWidth = cellsW,
+                        cellsHeight = cellsH,
+                        zIndex = zIndex
+                    )
+                } else {
+                    Result.Put(
+                        imageId = imageId,
+                        placementId = placementId,
+                        cellsWidth = cellsW,
+                        cellsHeight = cellsH,
+                        zIndex = zIndex
+                    )
+                }
+            }
+            "T", "t" -> handleTransmit(
+                header,
+                payloadStr,
+                cellWidthPx,
+                lineHeightPx,
+                display = action == "T",
                 imageId = imageId,
                 placementId = placementId,
-                cellsWidth = header["c"]?.toIntOrNull(),
-                cellsHeight = header["r"]?.toIntOrNull(),
-                zIndex = zIndex
+                quietLevel = quietLevel,
+                zIndex = zIndex,
+                unicodePlaceholder = unicodePlaceholder
             )
-            "T", "t" -> handleTransmit(header, payloadStr, cellWidthPx, lineHeightPx, action == "T", imageId, placementId, quietLevel, zIndex)
             "q" -> classifyQuery(header, payloadStr, imageId, quietLevel)
             else -> Result.Discard
         }
@@ -124,7 +157,8 @@ class KittyGraphicsParser {
         imageId: Int,
         placementId: Int,
         quietLevel: Int,
-        zIndex: Int
+        zIndex: Int,
+        unicodePlaceholder: Boolean
     ): Result {
         val format = header["f"]?.toIntOrNull() ?: 100
         val transmission = header["t"] ?: "d"
@@ -151,7 +185,8 @@ class KittyGraphicsParser {
             placementId = placementId,
             display = display,
             quietLevel = quietLevel,
-            zIndex = zIndex
+            zIndex = zIndex,
+            unicodePlaceholder = unicodePlaceholder
         )
     }
 
@@ -263,6 +298,11 @@ class KittyGraphicsParser {
          * `a=T` (display = true) / `a=t` (display = false): 画像本体を返す。
          * 呼び出し側は [display] が true ならカーソル位置に placement、いずれにせよ
          * `imageId != 0` ならキャッシュに登録する。
+         *
+         * [unicodePlaceholder] が true (`U=1`) のときは「カーソル位置に置く」ではなく
+         * 「virtual placement として登録だけして、後段の本文に書かれる U+10EEEE +
+         * combining diacritic で位置決めする」モード。 呼び出し側は cache 登録 +
+         * virtual placement 登録のみを行い、 cursor は動かさない。
          */
         class Transmit(
             val bitmap: Bitmap,
@@ -272,7 +312,8 @@ class KittyGraphicsParser {
             val placementId: Int,
             val display: Boolean,
             val quietLevel: Int = 0,
-            val zIndex: Int = 0
+            val zIndex: Int = 0,
+            val unicodePlaceholder: Boolean = false
         ) : Result()
         /**
          * `a=p`: 既存画像 (`imageId`) をカーソル位置に配置するよう要求。
@@ -281,6 +322,22 @@ class KittyGraphicsParser {
          * cell hint から自動算出。
          */
         class Put(
+            val imageId: Int,
+            val placementId: Int,
+            val cellsWidth: Int?,
+            val cellsHeight: Int?,
+            val zIndex: Int = 0
+        ) : Result()
+        /**
+         * `a=p,U=1`: virtual placement の登録要求 (Unicode placeholder 経由の遅延描画)。
+         * 呼び出し側はキャッシュ画像を引き、(cellsWidth × cellsHeight) のタイル分割
+         * グリッドで virtual placement を登録する。 cursor は動かさず、 描画は本文に
+         * 書かれる U+10EEEE + diacritic セルから引かれる。
+         *
+         * `cellsWidth` / `cellsHeight` が null ならキャッシュ画像の native px と
+         * cell hint から自動算出。
+         */
+        class VirtualPut(
             val imageId: Int,
             val placementId: Int,
             val cellsWidth: Int?,
