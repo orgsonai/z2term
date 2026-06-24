@@ -109,6 +109,31 @@ class TerminalEmulator(
     private var state = State.GROUND
     /** STRING 状態で直前に ESC を受けたか (次バイトが `\` なら ST=終端、それ以外なら継続 or 異常終了)。 */
     private var stringEscSeen = false
+    /**
+     * 進行中の文字列系シーケンスが Kitty graphics (APC `_`) かどうか。
+     * 他 (DCS/PM/SOS) は本文を破棄するだけだが、APC はパーサに本文を流す。
+     */
+    private var stringIsKittyApc = false
+    /** Kitty graphics protocol パーサ。 lazy 初期化 (使わない端末ではアロケート無し)。 */
+    private val kittyParser: KittyGraphicsParser by lazy { KittyGraphicsParser() }
+
+    /**
+     * Renderer から渡される「現在の 1 セル幅 / 行高 (px)」のヒント。
+     * Kitty graphics の `c=N`/`r=N` 指定が無いとき、画像ピクセル数からセル数を
+     * 自動算出するのに使う。 未設定 (0) のときは `KittyGraphicsParser` 内で
+     * 1 セルにフォールバックする。
+     */
+    private var cellWidthPxHint: Float = 0f
+    private var lineHeightPxHint: Float = 0f
+
+    /**
+     * Renderer 側で 1 セルの幅/高を計算し終えたあと呼んで、画像の自動セル数算出に
+     * 反映させる。 値が変わらないときは何もしない (再描画起動を抑える)。
+     */
+    fun setCellMetricsHint(cellWidthPx: Float, lineHeightPx: Float) {
+        if (cellWidthPx > 0f) cellWidthPxHint = cellWidthPx
+        if (lineHeightPx > 0f) lineHeightPxHint = lineHeightPx
+    }
 
     // --- UTF-8 デコーダ (Ground 状態の非 ASCII バイト用) ---
     private val utf8 = Utf8Decoder()
@@ -310,10 +335,14 @@ class TerminalEmulator(
             '=' -> { /* DECKPAM: keypad app mode (無視) */ state = State.GROUND }
             '>' -> { /* DECKPNM: keypad numeric mode (無視) */ state = State.GROUND }
             'P', '_', 'X', '^' -> {
-                // DCS / APC / SOS / PM。本実装は本文を破棄するだけ。
-                // ST (ESC \) または BEL まで吸収する。
+                // DCS / APC / SOS / PM。本文の取り扱いはシーケンス種で分岐:
+                //  - `_` (APC) は Kitty graphics 用の本文をパーサへ流す
+                //  - 他は本文を破棄
+                // いずれも ST (ESC \) または BEL まで「文字列」として吸収する。
                 state = State.STRING
                 stringEscSeen = false
+                stringIsKittyApc = (c == '_')
+                if (stringIsKittyApc) kittyParser.reset()
             }
             '\\' -> {
                 // 単独 ST (孤立した ESC \)。STRING 状態外なので無視。
@@ -336,19 +365,83 @@ class TerminalEmulator(
             stringEscSeen = false
             if (b == 0x5C) {
                 // ST 完成: 正常終端
+                finalizeStringSequence()
                 state = State.GROUND
             } else {
                 // ESC のあとに `\` 以外: 文字列は打ち切り、続くバイトを ESCAPE として処理
+                finalizeStringSequence()
                 state = State.ESCAPE
                 processEscape(b)
             }
             return
         }
         when (b) {
-            0x07 -> state = State.GROUND  // BEL: 終端
+            0x07 -> {
+                finalizeStringSequence()
+                state = State.GROUND
+            }
             0x1B -> stringEscSeen = true   // 次が `\` なら ST
-            else -> { /* 本文は破棄 */ }
+            else -> {
+                // APC は Kitty graphics 用にパーサへ流す。 他は破棄。
+                if (stringIsKittyApc) kittyParser.feedByte(b)
+            }
         }
+    }
+
+    /**
+     * STRING 状態を終端する際に呼ぶ。 Kitty graphics ならパーサに完成を要求し、
+     * 画像が返ってきたら現在のカーソル行に commit する。
+     */
+    private fun finalizeStringSequence() {
+        if (!stringIsKittyApc) return
+        val result = kittyParser.finishSequence(cellWidthPxHint, lineHeightPxHint)
+        stringIsKittyApc = false
+        when (result) {
+            is KittyGraphicsParser.Result.Image -> commitKittyImage(result)
+            is KittyGraphicsParser.Result.ClearAll -> buffer.clearAllImages()
+            is KittyGraphicsParser.Result.Continue -> {
+                /* 次のチャンク APC を待つ。 stringIsKittyApc は次の `_` で再 ON */
+            }
+            is KittyGraphicsParser.Result.Discard -> { /* 無視 */ }
+        }
+    }
+
+    /**
+     * Kitty graphics の画像を現在のカーソル位置に配置する。
+     *
+     * 設計上の合意点:
+     *  - **anchor 行 = 現在のカーソル行** に `image` を持たせる (top-left)。
+     *    複数行にまたがっても anchor 行 1 つにだけ image を持たせ、Renderer は
+     *    anchor 行を描く回で `widthCells × heightCells` の矩形を一括描画する。
+     *  - **カーソルは画像の幅 (cells) ぶん右へ進める**。 高さ方向は xterm/kitty 流儀の
+     *    "C=0" 同等 (= カーソル行を動かさない)。 改行が必要なら後段の TUI が `\n` を
+     *    送る。 これで「画像の右に文字列を続ける」「`\n` を挟んで次の画像を下に置く」が
+     *    自然に書ける。
+     *  - 画像領域が右端を超える場合、最初の anchor は **そのまま** とし、Renderer 側で
+     *    描画矩形を画面右端でクリップする (cell 占有は cols 余ぶん減らす)。
+     *  - 画像内のセルは空白 (`' '`) で埋めて文字描画と被らないようにする。
+     */
+    private fun commitKittyImage(img: KittyGraphicsParser.Result.Image) {
+        val row = buffer.getScreenRow(cursorRow)
+        val anchorCol = cursorCol.coerceIn(0, buffer.columns - 1)
+        val widthCells = img.widthCells.coerceAtMost(buffer.columns - anchorCol).coerceAtLeast(1)
+        val heightCells = img.heightCells.coerceAtLeast(1)
+        // 順序が重要: 画像が占有するセルを先に空白で潰してから image を入れる。
+        // [TerminalRow.setChar] は image 領域に書込みがあれば画像を無効化する
+        // ロジックを持つので、image セット → 空白埋めの順だと commit と同時に
+        // 自分自身の画像を消してしまう。
+        for (c in anchorCol until (anchorCol + widthCells).coerceAtMost(buffer.columns)) {
+            row.setChar(c, ' ', currentFg, currentBg, wideCont = false, link = currentLink)
+        }
+        row.image = TerminalImage(
+            col = anchorCol,
+            widthCells = widthCells,
+            heightCells = heightCells,
+            bitmap = img.bitmap,
+            imageId = img.imageId
+        )
+        row.dirty = true
+        cursorCol = (anchorCol + widthCells).coerceAtMost(buffer.columns - 1)
     }
 
     private fun processCsi(b: Int) {

@@ -13,6 +13,15 @@ class TerminalRow(initialColumns: Int) {
     /** 折り返し行か (この行の末尾が次行に継続している) */
     var wrapped: Boolean = false
 
+    /**
+     * この行を anchor (top-left) とする画像 placement (Kitty graphics 等)。
+     * null の間は画像なし。 画像は `widthCells × heightCells` の矩形を占有し、
+     * Renderer は anchor 行を描く回で配下のセルへ Bitmap を一括描画する。
+     * 文字書込み・clear/insert/delete が image 占有領域に被ったときは
+     * Emulator 側で `image = null` を入れて invalidate する。
+     */
+    var image: TerminalImage? = null
+
     val columns: Int get() = cells.size
 
     /**
@@ -25,6 +34,12 @@ class TerminalRow(initialColumns: Int) {
      */
     fun resize(newColumns: Int) {
         if (newColumns == cells.size) return
+        // 画像 anchor が新列幅で範囲外になるなら破棄。 残せる場合は維持する
+        // (Kitty 仕様は resize 後の画像保証はしないが、本実装は anchor が
+        // 新範囲に収まる限り画像を保つ ≒ シンプル端末で「リサイズしても画像が
+        // ちょっと右へはみ出してもそのまま残る」のと等価)。
+        val img = image
+        if (img != null && img.col + img.widthCells > newColumns) image = null
         if (newColumns < cells.size) {
             val keep = contentWidth().coerceAtLeast(newColumns)
             if (keep == cells.size) return  // 捨てられる余白なし → そのまま保持
@@ -57,7 +72,17 @@ class TerminalRow(initialColumns: Int) {
         cells[col].bgAttr = bg
         cells[col].wideCont = wideCont
         cells[col].link = link
+        // 画像領域に文字が書かれたら画像を無効化 (TUI が画像の上に文字を書いた = "消した"
+        // と解釈する)。 [TerminalEmulator.commitKittyImage] では空白埋め→image セットの
+        // 順に呼ぶので画像本体が消えることはない。
+        invalidateImageIfHit(col)
         dirty = true
+    }
+
+    /** [col] が現在の anchor 画像の占有セル範囲に入っていたら画像を破棄する。 */
+    private fun invalidateImageIfHit(col: Int) {
+        val img = image ?: return
+        if (col >= img.col && col < img.col + img.widthCells) image = null
     }
 
     /** [from, to) を消去 */
@@ -67,6 +92,9 @@ class TerminalRow(initialColumns: Int) {
         for (i in start until end) {
             cells[i].setClearedWith(fg, bg)
         }
+        // clear 範囲に image の anchor col が含まれていたら画像も破棄。
+        val img = image
+        if (img != null && img.col in start until end) image = null
         dirty = true
     }
 
@@ -126,6 +154,7 @@ class TerminalRow(initialColumns: Int) {
             cells[i].copyFrom(other.cells[i])
         }
         wrapped = other.wrapped
+        image = other.image
         dirty = true
     }
 }

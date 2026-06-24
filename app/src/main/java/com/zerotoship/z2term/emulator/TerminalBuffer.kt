@@ -296,4 +296,14 @@ class TerminalBuffer(
     fun clearScrollback() {
         scrollback.clear()
     }
+
+    /**
+     * Primary / Alternate / scrollback すべての行から画像参照を外す。
+     * Kitty graphics の `a=d` 系のうち、id 引数なしの「全削除」相当に使う。
+     */
+    fun clearAllImages() {
+        for (row in primary) row.image = null
+        for (row in alternate) row.image = null
+        for (row in scrollback) row.image = null
+    }
 }

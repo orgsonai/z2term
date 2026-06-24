@@ -125,6 +125,9 @@ fun TerminalRenderer(
                     horizontalPaddingPx = hPadPx
                 )
             )
+            // Kitty graphics 等で `c=N`/`r=N` 省略時に画像ピクセル数から
+            // セル数を自動算出するためのヒントを emulator に伝える。
+            session.emulator.setCellMetricsHint(cellW, lineHeight)
         }
 
         Canvas(modifier = Modifier.matchParentSize()) {
@@ -283,6 +286,25 @@ private fun drawBuffer(
 
         // URL / OSC8 リンクのセル (下線でタップ可能と分かるように)。
         val linkMarks = UrlFinder.linkedColumns(buf, abs, rowCols)
+
+        // --- Pass 2.7: 画像 (Kitty graphics 等) を anchor 行で一括描画 ---
+        // anchor 行は画像の top-left を持つ行。 widthCells × heightCells の矩形を、
+        // ((col,row) → (col+w, row+h)) のキャンバス座標に Bitmap として伸縮描画する。
+        // 画像領域内のセルは Pass 3 で文字描画もスキップする (cell.char = ' ' で
+        // 埋めてあるが、空白を drawText しても表示は変わらないので明示的にスキップ)。
+        val img = row.image
+        if (img != null) {
+            val left = img.col * cellW
+            val top = y
+            val right = (img.col + img.widthCells) * cellW
+            val bottom = y + img.heightCells * lineHeight
+            nativeCanvas.drawBitmap(
+                img.bitmap,
+                null,
+                android.graphics.RectF(left, top, right, bottom),
+                null
+            )
+        }
 
         // --- Pass 3: 文字 + 下線/取り消し線 (セル単位 drawText でグリッド吸着) ---
         c = 0
