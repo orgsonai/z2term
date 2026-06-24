@@ -405,7 +405,8 @@ class TerminalEmulator(
                     widthCells = result.widthCells,
                     heightCells = result.heightCells,
                     imageId = result.imageId,
-                    placementId = result.placementId
+                    placementId = result.placementId,
+                    zIndex = result.zIndex
                 )
             }
             is KittyGraphicsParser.Result.Put -> {
@@ -419,18 +420,51 @@ class TerminalEmulator(
                     widthCells = w,
                     heightCells = h,
                     imageId = result.imageId,
-                    placementId = result.placementId
+                    placementId = result.placementId,
+                    zIndex = result.zIndex
                 )
             }
             is KittyGraphicsParser.Result.DeleteAll -> buffer.clearAllImages()
             is KittyGraphicsParser.Result.DeleteImage -> buffer.deleteImageById(result.imageId)
             is KittyGraphicsParser.Result.DeletePlacement ->
                 buffer.deletePlacement(result.imageId, result.placementId)
+            is KittyGraphicsParser.Result.Query -> sendKittyQueryResponse(result)
             is KittyGraphicsParser.Result.Continue -> {
                 /* 次のチャンク APC を待つ。 stringIsKittyApc は次の `_` で再 ON */
             }
             is KittyGraphicsParser.Result.Discard -> { /* 無視 */ }
         }
+    }
+
+    /**
+     * `a=q` の応答を `output` 経由で TUI に返す。
+     *
+     * Kitty の quiet level:
+     *  - `q=0` (既定): 成功・エラー両方を返す
+     *  - `q=1`: エラーのみ
+     *  - `q=2`: 一切返さない
+     *
+     * 応答形式: `ESC _ G i=<imageId> ; <message> ESC \`
+     * (image id 0 のときは `i=` 部分を省略するのが Kitty 仕様)。
+     */
+    private fun sendKittyQueryResponse(q: KittyGraphicsParser.Result.Query) {
+        val shouldEmit = when {
+            q.quietLevel >= 2 -> false
+            q.quietLevel == 1 -> !q.ok  // エラーのみ
+            else -> true                // q=0: 全部
+        }
+        if (!shouldEmit) return
+        val header = if (q.imageId != 0) "i=${q.imageId}" else ""
+        val body = "${q.message}"
+        // ESC _ G <header> ; <body> ESC \
+        val payload = buildString {
+            append("_G")
+            append(header)
+            append(';')
+            append(body)
+            append("\\")
+        }
+        output(payload.toByteArray(Charsets.US_ASCII))
     }
 
     /** ピクセル数 / 1 セル数 を整数セルへ。 セル数ヒントが未設定なら 1 セル扱い。 */
@@ -472,7 +506,8 @@ class TerminalEmulator(
         widthCells: Int,
         heightCells: Int,
         imageId: Int,
-        placementId: Int
+        placementId: Int,
+        zIndex: Int = 0
     ) {
         val row = buffer.getScreenRow(cursorRow)
         val anchorCol = cursorCol.coerceIn(0, buffer.columns - 1)
@@ -491,7 +526,8 @@ class TerminalEmulator(
                 heightCells = h,
                 bitmap = bitmap,
                 imageId = imageId,
-                placementId = placementId
+                placementId = placementId,
+                zIndex = zIndex
             )
         )
         row.dirty = true

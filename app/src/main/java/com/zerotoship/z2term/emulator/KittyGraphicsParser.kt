@@ -68,13 +68,51 @@ class KittyGraphicsParser {
         val action = header["a"] ?: "T"
         val imageId = header["i"]?.toIntOrNull() ?: 0
         val placementId = header["p"]?.toIntOrNull() ?: 0
+        val quietLevel = (header["q"]?.toIntOrNull() ?: 0).coerceIn(0, 2)
+        val zIndex = header["z"]?.toIntOrNull() ?: 0
 
         return when (action) {
             "d" -> classifyDelete(header)
-            "p" -> Result.Put(imageId = imageId, placementId = placementId, cellsWidth = header["c"]?.toIntOrNull(), cellsHeight = header["r"]?.toIntOrNull())
-            "T", "t" -> handleTransmit(header, payloadStr, cellWidthPx, lineHeightPx, action == "T", imageId, placementId)
+            "p" -> Result.Put(
+                imageId = imageId,
+                placementId = placementId,
+                cellsWidth = header["c"]?.toIntOrNull(),
+                cellsHeight = header["r"]?.toIntOrNull(),
+                zIndex = zIndex
+            )
+            "T", "t" -> handleTransmit(header, payloadStr, cellWidthPx, lineHeightPx, action == "T", imageId, placementId, quietLevel, zIndex)
+            "q" -> classifyQuery(header, payloadStr, imageId, quietLevel)
             else -> Result.Discard
         }
+    }
+
+    /**
+     * `a=q` (query): TUI 側からのケイパビリティ確認。 Kitty 仕様では `t=d,f=N,s=1,v=1`
+     * 等で 1px の payload を送って「parser が解釈できるか」を見る。 本実装は対応している
+     * 組み合わせなら `OK`、未対応なら `ENOTSUPPORTED:<reason>` を返す。
+     *
+     * Quiet level の扱い (Kitty 仕様):
+     *  - `q=0` (既定): success/error 両方返す
+     *  - `q=1`: error のみ
+     *  - `q=2`: 一切返さない
+     */
+    private fun classifyQuery(
+        header: Map<String, String>,
+        @Suppress("UNUSED_PARAMETER") payloadStr: String,
+        imageId: Int,
+        quietLevel: Int
+    ): Result {
+        // Kitty の query はヘッダで「parser が解釈できる組み合わせか」を聞くもの。
+        // payload は本来 base64 でも、本実装は payload の中身まで踏み込まず、
+        // format / transmission のサポート状況だけ返す (Kitty の reference 実装も同様)。
+        val format = header["f"]?.toIntOrNull() ?: 32
+        val transmission = header["t"] ?: "d"
+        val (ok, reason) = when {
+            transmission != "d" -> false to "ENOTSUPPORTED:t=$transmission"
+            format != 100 && format != 24 && format != 32 -> false to "ENOTSUPPORTED:f=$format"
+            else -> true to "OK"
+        }
+        return Result.Query(imageId = imageId, ok = ok, message = reason, quietLevel = quietLevel)
     }
 
     private fun handleTransmit(
@@ -84,7 +122,9 @@ class KittyGraphicsParser {
         lineHeightPx: Float,
         display: Boolean,
         imageId: Int,
-        placementId: Int
+        placementId: Int,
+        quietLevel: Int,
+        zIndex: Int
     ): Result {
         val format = header["f"]?.toIntOrNull() ?: 100
         val transmission = header["t"] ?: "d"
@@ -109,7 +149,9 @@ class KittyGraphicsParser {
             heightCells = cellsH.coerceAtLeast(1),
             imageId = imageId,
             placementId = placementId,
-            display = display
+            display = display,
+            quietLevel = quietLevel,
+            zIndex = zIndex
         )
     }
 
@@ -228,7 +270,9 @@ class KittyGraphicsParser {
             val heightCells: Int,
             val imageId: Int,
             val placementId: Int,
-            val display: Boolean
+            val display: Boolean,
+            val quietLevel: Int = 0,
+            val zIndex: Int = 0
         ) : Result()
         /**
          * `a=p`: 既存画像 (`imageId`) をカーソル位置に配置するよう要求。
@@ -240,7 +284,19 @@ class KittyGraphicsParser {
             val imageId: Int,
             val placementId: Int,
             val cellsWidth: Int?,
-            val cellsHeight: Int?
+            val cellsHeight: Int?,
+            val zIndex: Int = 0
+        ) : Result()
+        /**
+         * `a=q` (query): TUI 側のケイパビリティ確認。 呼び出し側は [quietLevel] に応じて
+         * `\e_Gi=<id>;<message>\e\\` を `output` 経由で返す。 `ok=false` (エラー) なら
+         * `quietLevel <= 1` で送信、`ok=true` (成功) なら `quietLevel == 0` のみ送信。
+         */
+        class Query(
+            val imageId: Int,
+            val ok: Boolean,
+            val message: String,
+            val quietLevel: Int
         ) : Result()
     }
 

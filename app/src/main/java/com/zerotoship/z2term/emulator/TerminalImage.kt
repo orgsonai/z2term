@@ -31,5 +31,13 @@ class TerminalImage(
     val heightCells: Int,
     val bitmap: Bitmap,
     val imageId: Int = 0,
-    val placementId: Int = 0
+    val placementId: Int = 0,
+    /**
+     * Kitty graphics の `z=N` (Z-index)。 既定 0。
+     * Renderer は 2 層に分けて描画する: **`zIndex < 0` の placement はテキストの下層**、
+     * **`zIndex >= 0` の placement はテキストの上層**。 同じ層内では追加順 (= 後勝ち)。
+     * これにより TUI が「画像の上に文字を読みやすく重ねる」「アイコンを文字の前面に出す」
+     * の両方を表現できる。
+     */
+    val zIndex: Int = 0
 )

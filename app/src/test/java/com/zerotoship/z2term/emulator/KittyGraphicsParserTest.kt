@@ -123,4 +123,42 @@ class KittyGraphicsParserTest {
         val r = p.finishSequence(12f, 24f)
         assertTrue("expected Discard, got $r", r is KittyGraphicsParser.Result.Discard)
     }
+
+    @Test
+    fun queryReturnsOkForSupportedFormat() {
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=q,i=99,f=100,t=d,s=1,v=1;AAAA")
+        val r = p.finishSequence(12f, 24f) as KittyGraphicsParser.Result.Query
+        assertTrue(r.ok)
+        assertEquals(99, r.imageId)
+        assertEquals("OK", r.message)
+        assertEquals(0, r.quietLevel)
+    }
+
+    @Test
+    fun queryReturnsErrorForUnsupportedTransmission() {
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=q,i=1,f=100,t=f;dHJhc2g=")
+        val r = p.finishSequence(12f, 24f) as KittyGraphicsParser.Result.Query
+        assertTrue("expected ok=false, got $r", !r.ok)
+        assertTrue("expected ENOTSUPPORTED, got '${r.message}'", r.message.startsWith("ENOTSUPPORTED:"))
+    }
+
+    @Test
+    fun queryPropagatesQuietLevel() {
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=q,i=2,q=2,f=100,t=d,s=1,v=1;")
+        val r = p.finishSequence(12f, 24f) as KittyGraphicsParser.Result.Query
+        assertEquals(2, r.quietLevel)
+    }
+
+    @Test
+    fun transmitCarriesZIndexAndQuietLevel() {
+        // 描画 (Bitmap) 自体は unit test では Discard になるので、Transmit 経由でなく
+        // 同 protocol 形式の Put 経由で z/q が parser に渡ることだけを確認する。
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=p,i=5,p=1,c=2,r=1,z=-5;")
+        val r = p.finishSequence(12f, 24f) as KittyGraphicsParser.Result.Put
+        assertEquals(-5, r.zIndex)
+    }
 }

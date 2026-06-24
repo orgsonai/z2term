@@ -287,25 +287,14 @@ private fun drawBuffer(
         // URL / OSC8 リンクのセル (下線でタップ可能と分かるように)。
         val linkMarks = UrlFinder.linkedColumns(buf, abs, rowCols)
 
-        // --- Pass 2.7: 画像 (Kitty graphics 等) を anchor 行で一括描画 ---
-        // anchor 行は画像の top-left を持つ行。 widthCells × heightCells の矩形を、
-        // ((col,row) → (col+w, row+h)) のキャンバス座標に Bitmap として伸縮描画する。
-        // 画像領域内のセルは Pass 3 で文字描画もスキップする (cell.char = ' ' で
-        // 埋めてあるが、空白を drawText しても表示は変わらないので明示的にスキップ)。
-        // 同 anchor 行に複数 placement (image id 違い / placement id 違い) が並ぶことが
-        // あるので、追加順 (= 後勝ち) でループ描画する。
+        // --- Pass 2.7: 画像 (Kitty graphics 等) のうち z<0 をテキスト下層として描画 ---
+        // anchor 行の images から zIndex < 0 のものだけを追加順に描画する。 これによって
+        // 文字を画像の「上に」読みやすく重ねる表現 (字幕付きサムネ等) ができる。 z>=0 は
+        // 後段 Pass 3.5 でテキストの上に重ねる。
         if (row.images.isNotEmpty()) {
             for (img in row.images) {
-                val left = img.col * cellW
-                val top = y
-                val right = (img.col + img.widthCells) * cellW
-                val bottom = y + img.heightCells * lineHeight
-                nativeCanvas.drawBitmap(
-                    img.bitmap,
-                    null,
-                    android.graphics.RectF(left, top, right, bottom),
-                    null
-                )
+                if (img.zIndex >= 0) continue
+                drawImagePlacement(nativeCanvas, img, y, cellW, lineHeight)
             }
         }
 
@@ -344,6 +333,15 @@ private fun drawBuffer(
                 nativeCanvas.drawLine(c * cellW, sy, (c + span) * cellW, sy, underlinePaint)
             }
             c += span
+        }
+
+        // --- Pass 3.5: 画像 (Kitty graphics 等) のうち z>=0 をテキスト上層として描画 ---
+        // アイコン重ね・吹き出し風 placement など、文字の前面に出したいケースを表現する。
+        if (row.images.isNotEmpty()) {
+            for (img in row.images) {
+                if (img.zIndex < 0) continue
+                drawImagePlacement(nativeCanvas, img, y, cellW, lineHeight)
+            }
         }
     }
 
@@ -416,6 +414,30 @@ private fun drawBuffer(
             drawHandle(nativeCanvas, bgPaint, ex, ey, handleRadius, borderWidth)
         }
     }
+}
+
+/**
+ * 1 つの [com.zerotoship.z2term.emulator.TerminalImage] を anchor 行の
+ * 矩形 (`col`, `widthCells`, `heightCells`) にあわせて Canvas に伸縮描画する。
+ * Pass 2.7 (z<0) と Pass 3.5 (z>=0) の両方から呼ばれる。
+ */
+private fun drawImagePlacement(
+    canvas: android.graphics.Canvas,
+    img: com.zerotoship.z2term.emulator.TerminalImage,
+    y: Float,
+    cellW: Float,
+    lineHeight: Float
+) {
+    val left = img.col * cellW
+    val top = y
+    val right = (img.col + img.widthCells) * cellW
+    val bottom = y + img.heightCells * lineHeight
+    canvas.drawBitmap(
+        img.bitmap,
+        null,
+        android.graphics.RectF(left, top, right, bottom),
+        null
+    )
 }
 
 private fun drawHandle(
