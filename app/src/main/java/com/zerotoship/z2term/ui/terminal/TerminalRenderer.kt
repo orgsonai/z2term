@@ -7,9 +7,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -52,6 +55,26 @@ fun TerminalRenderer(
     val scrollOffset by session.scrollOffset.collectAsState()
     val settings by session.settingsFlow.collectAsState()
     val selection by session.selection.collectAsState()
+    // Kitty graphics animation の再描画 tick。 redrawTick とは別経路で、 frame 切替が
+    // 起きた瞬間だけインクリメントする (アイドル時は idle poll で CPU を握らない)。
+    var animTick by remember { mutableIntStateOf(0) }
+
+    // Animation 再生 driver。 hasActiveAnimations が true の間だけ withFrameMillis で
+    // フレーム同期し、 advanceAnimations が state を進めたら animTick を bump して
+    // Canvas の recomposition を促す。 アイドル時は 100ms ごとに「アニメが入ってきた?」を
+    // 軽くポーリングする (HashMap.isEmpty なので無視できる cost)。
+    LaunchedEffect(session.id) {
+        val buf = session.emulator.buffer
+        while (true) {
+            while (buf.hasActiveAnimations()) {
+                withFrameMillis { /* フレーム同期 */ }
+                if (buf.advanceAnimations(System.currentTimeMillis())) {
+                    animTick++
+                }
+            }
+            delay(100)
+        }
+    }
 
     val density = LocalDensity.current
     val context = LocalContext.current
@@ -137,6 +160,8 @@ fun TerminalRenderer(
             val so = scrollOffset
             @Suppress("UNUSED_VARIABLE")
             val sel = selection
+            @Suppress("UNUSED_VARIABLE")
+            val atick = animTick  // Kitty graphics animation 駆動の再描画 tick
             drawIntoCanvas { canvas ->
                 val nc = canvas.nativeCanvas
                 // パディング部分も含め全面を背景色で塗ってから、中身を右へずらして描く。
@@ -294,7 +319,7 @@ private fun drawBuffer(
         if (row.images.isNotEmpty()) {
             for (img in row.images) {
                 if (img.zIndex >= 0) continue
-                drawImagePlacement(nativeCanvas, img, y, cellW, lineHeight)
+                drawImagePlacement(nativeCanvas, img, buf, y, cellW, lineHeight)
             }
         }
         // Kitty Unicode placeholder (U=1) のタイル描画 — z<0 のみここで。
@@ -342,7 +367,7 @@ private fun drawBuffer(
         if (row.images.isNotEmpty()) {
             for (img in row.images) {
                 if (img.zIndex < 0) continue
-                drawImagePlacement(nativeCanvas, img, y, cellW, lineHeight)
+                drawImagePlacement(nativeCanvas, img, buf, y, cellW, lineHeight)
             }
         }
         // Kitty Unicode placeholder (U=1) のタイル描画 — z>=0 のみここで。
@@ -424,20 +449,26 @@ private fun drawBuffer(
  * 1 つの [com.zerotoship.z2term.emulator.TerminalImage] を anchor 行の
  * 矩形 (`col`, `widthCells`, `heightCells`) にあわせて Canvas に伸縮描画する。
  * Pass 2.7 (z<0) と Pass 3.5 (z>=0) の両方から呼ばれる。
+ *
+ * Animation 対応: [img.imageId] が animation を持っているなら現在 frame の bitmap を引いて
+ * 差し替える。 placement 登録時の bitmap (`img.bitmap`) は frame 0 を含む source なので、
+ * 引けなかった場合 (imageId=0 / 未登録) はそのまま使う。
  */
 private fun drawImagePlacement(
     canvas: android.graphics.Canvas,
     img: com.zerotoship.z2term.emulator.TerminalImage,
+    buf: com.zerotoship.z2term.emulator.TerminalBuffer,
     y: Float,
     cellW: Float,
     lineHeight: Float
 ) {
+    val bitmap = buf.currentBitmap(img.imageId) ?: img.bitmap
     val left = img.col * cellW
     val top = y
     val right = (img.col + img.widthCells) * cellW
     val bottom = y + img.heightCells * lineHeight
     canvas.drawBitmap(
-        img.bitmap,
+        bitmap,
         null,
         android.graphics.RectF(left, top, right, bottom),
         null
@@ -474,7 +505,9 @@ private fun drawPlaceholderTiles(
         if (spec == null) { c++; continue }
         val negativeZ = spec.zIndex < 0
         if (onlyNegativeZ != negativeZ) { c++; continue }
-        val bm = spec.bitmap
+        // Animation 中なら現在 frame の bitmap を引いて差し替える。 引けなければ spec.bitmap
+        // (= 登録時の source) を使う。
+        val bm = buf.currentBitmap(ref.imageId) ?: spec.bitmap
         val gridW = spec.widthCells.coerceAtLeast(1)
         val gridH = spec.heightCells.coerceAtLeast(1)
         val srcRow = ref.srcRow.coerceIn(0, gridH - 1)

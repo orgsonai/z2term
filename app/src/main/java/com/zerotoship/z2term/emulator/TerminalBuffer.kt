@@ -315,6 +315,7 @@ class TerminalBuffer(
         imageCache.clear()
         virtualPlacements.clear()
         animations.clear()
+        animationStates.clear()
     }
 
     /**
@@ -330,6 +331,7 @@ class TerminalBuffer(
         imageCache.remove(imageId)
         virtualPlacements.remove(imageId)
         animations.remove(imageId)
+        animationStates.remove(imageId)
     }
 
     /**
@@ -382,22 +384,91 @@ class TerminalBuffer(
     /**
      * Kitty graphics の animation frame 蓄積。
      * key = imageId (`i=N`、 0 は対象外)、 value = `a=f` で送られた frame の追加順リスト。
-     * 段階 7 (0.8.133) では受領・蓄積のみ。 実際の再生 (frame 切替 / delay 駆動) は段階 8 で対応。
+     * `imageCache[imageId]` の原画像が **frame 0**、 ここに入っているのが **frame 1 以降**。
      */
     private val animations: MutableMap<Int, MutableList<AnimationFrame>> = HashMap()
 
     /**
      * 既存の image (`imageCache` に居る原画像) に追加フレームを 1 枚追加する。
-     * `imageId == 0` の場合は無視。 同 image の最初の frame は cacheImage で登録された
-     * 原画像を「frame 0」と読み替え、 ここで追加されるのは「frame 1 以降」となる。
+     * `imageId == 0` の場合は無視。 frame 0 (原画像) は [cacheImage] 経由なので、 ここで
+     * 追加されるのは frame 1 以降。
+     * 新しい frame を追加した時点で再生状態を frame 0 から振り直す ([animationStates] を
+     * 該当 imageId だけリセット) ことで「最初の frame から正しく再生される」挙動にする。
      */
     fun addAnimationFrame(imageId: Int, frame: AnimationFrame) {
         if (imageId == 0) return
         val list = animations.getOrPut(imageId) { ArrayList() }
         list.add(frame)
+        animationStates.remove(imageId)
     }
 
     /** Animation frame リストを取得 (未登録なら null)。 imageId=0 は常に null。 */
     fun getAnimationFrames(imageId: Int): List<AnimationFrame>? =
         if (imageId == 0) null else animations[imageId]
+
+    /**
+     * Animation 再生の per-image 状態。
+     *
+     *  - [currentFrame]: 0 = `imageCache` の原画像 (frame 0)、 1 以降 = `animations[id][n-1]`。
+     *  - [lastSwitchMs]: 現在 frame を表示し始めた wall-clock 時刻 (`System.currentTimeMillis`)。
+     *    次の advance で `now - lastSwitchMs >= 現在 frame の delayMs` を満たしたら次フレームへ。
+     */
+    private class AnimationPlaybackState(var currentFrame: Int, var lastSwitchMs: Long)
+
+    private val animationStates: MutableMap<Int, AnimationPlaybackState> = HashMap()
+
+    /** 動かす対象の animation が 1 件以上あるか (frame 1 以降が登録されているか)。 */
+    fun hasActiveAnimations(): Boolean {
+        for ((_, frames) in animations) if (frames.isNotEmpty()) return true
+        return false
+    }
+
+    /**
+     * 各 animation の再生状態を現在時刻に合わせて進める。
+     *  - 状態が初期化されていなければ frame 0 / `lastSwitchMs = nowMs` で作る。
+     *  - 現在 frame の delay を超えていれば次 frame へ進める (末尾の次は frame 0 へループ)。
+     *  - frame ごとの delay は frame 1+ では `AnimationFrame.delayMs`、 frame 0 は
+     *    「次の frame が来るまでの delay」として `animations[id][0].delayMs` を使う
+     *    (Kitty の TUI は frame 0 の delay を別途指定しないため frame 1 の delay で代用)。
+     *
+     * @return 状態が 1 つでも変わったら true (UI 側は invalidate を促す)。
+     */
+    fun advanceAnimations(nowMs: Long): Boolean {
+        if (animations.isEmpty()) return false
+        var anyChanged = false
+        for ((imageId, frames) in animations) {
+            if (frames.isEmpty()) continue
+            val state = animationStates.getOrPut(imageId) {
+                AnimationPlaybackState(currentFrame = 0, lastSwitchMs = nowMs)
+            }
+            val totalFrames = 1 + frames.size  // frame 0 (= source) + frame 1..N
+            // 現在 frame の delay (frame 0 は frames[0].delayMs を流用)。
+            val currentDelay = if (state.currentFrame == 0) frames[0].delayMs
+            else frames[(state.currentFrame - 1).coerceIn(0, frames.size - 1)].delayMs
+            val effectiveDelay = currentDelay.coerceAtLeast(1)
+            val elapsed = nowMs - state.lastSwitchMs
+            if (elapsed >= effectiveDelay) {
+                state.currentFrame = (state.currentFrame + 1) % totalFrames
+                state.lastSwitchMs = nowMs
+                anyChanged = true
+            }
+        }
+        return anyChanged
+    }
+
+    /**
+     * [imageId] の **現在 frame** の bitmap を返す。
+     *  - animations が無い / frame 0 を再生中 / state 未初期化 → `imageCache[imageId]` を返す
+     *  - frame 1 以降 → `animations[imageId][currentFrame - 1].bitmap`
+     *  - `imageId == 0` は常に null
+     */
+    fun currentBitmap(imageId: Int): android.graphics.Bitmap? {
+        if (imageId == 0) return null
+        val state = animationStates[imageId] ?: return imageCache[imageId]
+        if (state.currentFrame == 0) return imageCache[imageId]
+        val frames = animations[imageId] ?: return imageCache[imageId]
+        val idx = state.currentFrame - 1
+        if (idx !in frames.indices) return imageCache[imageId]
+        return frames[idx].bitmap
+    }
 }
