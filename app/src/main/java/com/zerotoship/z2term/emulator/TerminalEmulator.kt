@@ -397,13 +397,46 @@ class TerminalEmulator(
         val result = kittyParser.finishSequence(cellWidthPxHint, lineHeightPxHint)
         stringIsKittyApc = false
         when (result) {
-            is KittyGraphicsParser.Result.Image -> commitKittyImage(result)
-            is KittyGraphicsParser.Result.ClearAll -> buffer.clearAllImages()
+            is KittyGraphicsParser.Result.Transmit -> {
+                // imageId != 0 ならキャッシュへ登録 (a=T も a=t も)。
+                buffer.cacheImage(result.imageId, result.bitmap)
+                if (result.display) commitKittyPlacement(
+                    bitmap = result.bitmap,
+                    widthCells = result.widthCells,
+                    heightCells = result.heightCells,
+                    imageId = result.imageId,
+                    placementId = result.placementId
+                )
+            }
+            is KittyGraphicsParser.Result.Put -> {
+                val cached = buffer.getCachedImage(result.imageId) ?: return
+                val w = result.cellsWidth
+                    ?: estimateCellsFromPixels(cached.width.toFloat(), cellWidthPxHint)
+                val h = result.cellsHeight
+                    ?: estimateCellsFromPixels(cached.height.toFloat(), lineHeightPxHint)
+                commitKittyPlacement(
+                    bitmap = cached,
+                    widthCells = w,
+                    heightCells = h,
+                    imageId = result.imageId,
+                    placementId = result.placementId
+                )
+            }
+            is KittyGraphicsParser.Result.DeleteAll -> buffer.clearAllImages()
+            is KittyGraphicsParser.Result.DeleteImage -> buffer.deleteImageById(result.imageId)
+            is KittyGraphicsParser.Result.DeletePlacement ->
+                buffer.deletePlacement(result.imageId, result.placementId)
             is KittyGraphicsParser.Result.Continue -> {
                 /* 次のチャンク APC を待つ。 stringIsKittyApc は次の `_` で再 ON */
             }
             is KittyGraphicsParser.Result.Discard -> { /* 無視 */ }
         }
+    }
+
+    /** ピクセル数 / 1 セル数 を整数セルへ。 セル数ヒントが未設定なら 1 セル扱い。 */
+    private fun estimateCellsFromPixels(pixels: Float, perCell: Float): Int {
+        if (perCell <= 0f) return 1
+        return (pixels / perCell + 0.5f).toInt().coerceAtLeast(1)
     }
 
     /**
@@ -421,27 +454,48 @@ class TerminalEmulator(
      *    描画矩形を画面右端でクリップする (cell 占有は cols 余ぶん減らす)。
      *  - 画像内のセルは空白 (`' '`) で埋めて文字描画と被らないようにする。
      */
-    private fun commitKittyImage(img: KittyGraphicsParser.Result.Image) {
+    /**
+     * Kitty graphics の placement (`a=T` の display 部 / `a=p`) を現在のカーソル位置に
+     * 1 つ追加する。
+     *
+     * 設計上の合意点:
+     *  - **anchor 行 = 現在のカーソル行**。 anchor 行内の [`TerminalRow.images`] に
+     *    [TerminalImage] を 1 つ追加する。 同じ行にすでに別 placement があっても並列保持。
+     *  - **カーソルは画像の幅セルぶん右へ進める** (改行は TUI が `\n` で送る前提)。
+     *  - 画像領域は空白セルで先に潰してから images に追加する (`setChar` が image 領域への
+     *    書込みで placement を消す副作用に commit と同タイミングで巻き込まれないようにする)。
+     *  - 同 row 内に既に同じ `imageId`/`placementId` の placement があれば置換する
+     *    (Kitty 仕様で同一 (image id, placement id) は同位置の上書きが期待される)。
+     */
+    private fun commitKittyPlacement(
+        bitmap: android.graphics.Bitmap,
+        widthCells: Int,
+        heightCells: Int,
+        imageId: Int,
+        placementId: Int
+    ) {
         val row = buffer.getScreenRow(cursorRow)
         val anchorCol = cursorCol.coerceIn(0, buffer.columns - 1)
-        val widthCells = img.widthCells.coerceAtMost(buffer.columns - anchorCol).coerceAtLeast(1)
-        val heightCells = img.heightCells.coerceAtLeast(1)
-        // 順序が重要: 画像が占有するセルを先に空白で潰してから image を入れる。
-        // [TerminalRow.setChar] は image 領域に書込みがあれば画像を無効化する
-        // ロジックを持つので、image セット → 空白埋めの順だと commit と同時に
-        // 自分自身の画像を消してしまう。
-        for (c in anchorCol until (anchorCol + widthCells).coerceAtMost(buffer.columns)) {
+        val w = widthCells.coerceAtMost(buffer.columns - anchorCol).coerceAtLeast(1)
+        val h = heightCells.coerceAtLeast(1)
+        // 1) 占有セルを空白埋め (setChar は image 領域へのヒットで images から除外する)。
+        for (c in anchorCol until (anchorCol + w).coerceAtMost(buffer.columns)) {
             row.setChar(c, ' ', currentFg, currentBg, wideCont = false, link = currentLink)
         }
-        row.image = TerminalImage(
-            col = anchorCol,
-            widthCells = widthCells,
-            heightCells = heightCells,
-            bitmap = img.bitmap,
-            imageId = img.imageId
+        // 2) 同 row に同じ (imageId, placementId) があれば置換 (両方 0 のときも 1 つだけ保つ)。
+        row.images.removeAll { it.imageId == imageId && it.placementId == placementId }
+        row.images.add(
+            TerminalImage(
+                col = anchorCol,
+                widthCells = w,
+                heightCells = h,
+                bitmap = bitmap,
+                imageId = imageId,
+                placementId = placementId
+            )
         )
         row.dirty = true
-        cursorCol = (anchorCol + widthCells).coerceAtMost(buffer.columns - 1)
+        cursorCol = (anchorCol + w).coerceAtMost(buffer.columns - 1)
     }
 
     private fun processCsi(b: Int) {

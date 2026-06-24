@@ -5,64 +5,43 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 
 /**
- * Kitty graphics protocol (APC `ESC _ G <key=value,…> ; <base64 payload> ESC \`) の
- * 最小実装パーサ。
+ * Kitty graphics protocol (APC `ESC _ G <key=value,…> ; <base64 payload> ESC \`) パーサ。
  *
  * 仕様: https://sw.kovidgoyal.net/kitty/graphics-protocol/
  *
- * 対応範囲 (本実装):
- *  - `a=T` (transmit and display) のみ。`a=t`/`a=p`/`a=d`/`a=q` 等は破棄 (削除一括は
- *    呼び出し側で `clearAllImages` を別途呼ぶ)。
- *  - `f=100` (PNG) のみ。`f=24`/`f=32` (生 RGB/RGBA) は未対応で破棄。
- *  - `t=d` (direct, base64) のみ。`t=f`/`t=t`/`t=s` 等は破棄。
- *  - `m=1` 連続 + `m=0` 終端のチャンク連結に対応。`m` 省略は単発扱い。
- *  - 表示セル数は **最初の APC ヘッダの `c=N` / `r=N`** を使う。指定が無いときは
- *    Bitmap のピクセルサイズと呼び出し側ヒント (`cellWidthPx`/`lineHeightPx`) から
- *    自動算出する (最低 1 セル、上限なし)。
- *  - `i=N` (image id) を保持する (削除コマンドからの照合用)。
- *  - その他のキー (`p`, `q`, `z`, `X`, `Y`, `s`, `v` …) は読み飛ばす。
+ * 0.8.129 で扱うアクション・フォーマット・転送:
+ *  - アクション: `a=T` (transmit and display) / `a=t` (transmit only) / `a=p` (put existing
+ *    image at cursor) / `a=d` (delete; `d=A`/`d=I`/`d=i`/`d=p` のサブを区別)。
+ *  - フォーマット: `f=100` (PNG, [BitmapFactory] でデコード) / `f=24` (生 RGB, 3 bytes/px,
+ *    `s=N v=N` 必須) / `f=32` (生 RGBA, 4 bytes/px, `s=N v=N` 必須)。
+ *  - 転送: `t=d` (direct base64) のみ。 `t=f`/`t=t`/`t=s` (file/temp/shm) は破棄。
+ *  - チャンク連結: `m=1` 連続 + `m=0`/省略 終端で payload を結合する。 連結中はヘッダを
+ *    最初の APC のものだけ使う (Kitty 仕様)。
+ *  - `c=N` `r=N`: 表示セル数。 省略時は Bitmap のピクセル数を Renderer から渡された
+ *    `cellWidthPx` / `lineHeightPx` で割って自動算出。
+ *  - `i=N` (image id) / `p=N` (placement id): キャッシュ・配置・削除の照合。
+ *  - `s=N` `v=N`: 生フォーマットの幅高 (px)。 PNG では BitmapFactory が自動取得する。
  *
- * 本実装は最低限「画像が出る」ことを目的とし、frame 動画 / virtual placement /
- * Unicode placeholder / file 転送等は未対応。
+ * 範囲外 (静かに `Discard`):
+ *  - animation frames (`a=a`), virtual placement, Unicode placeholder, file/temp/shm 転送,
+ *    composition (`a=c`), query (`a=q`), Z-index など。
  */
 class KittyGraphicsParser {
 
-    /** APC `_` を受けてから ST/BEL を受けるまでの 1 シーケンス分の本文を貯めるバッファ。 */
     private val current = StringBuilder(2048)
-
-    /** チャンク連結中の base64 文字列 (除去済み)。 */
     private val payload = StringBuilder(2048)
-
-    /** チャンク連結中の最初のヘッダから取り出した key=value (`c`,`r`,`i` 等)。 */
     private var headerKeys: Map<String, String> = emptyMap()
-
-    /** 進行中チャンクがあるか。 */
     private var inMultiChunk = false
 
-    /**
-     * APC 本文 1 バイトを受け取り蓄積する。
-     *
-     * @param b 0x00..0xFF。本実装は ASCII 範囲しか期待しないが、APC 本文に non-ASCII が
-     *          紛れていても StringBuilder にそのまま積むだけ (どのみち最後に破棄するか
-     *          base64 デコードするので、key=value/base64 文字 outside の異物は無視される)。
-     */
     fun feedByte(b: Int) {
-        if (current.length > MAX_BUFFER_BYTES) return  // 安全上の上限 (パニック防止)
+        if (current.length > MAX_BUFFER_BYTES) return
         current.append(b.toChar())
     }
 
-    /**
-     * APC 終端 (BEL/ST) で呼ばれる。 完成画像 (`Result`) を返すか、 追加チャンク待ち
-     * (`Result.Continue`) か、不要として破棄 (`Result.Discard`) を返す。
-     *
-     * @param cellWidthPx 1 セルの幅 (px)。 `c=N` 指定なしのとき自動算出に使う。
-     * @param lineHeightPx 1 セルの高さ (px)。 `r=N` 指定なしのとき自動算出に使う。
-     */
     fun finishSequence(cellWidthPx: Float, lineHeightPx: Float): Result {
         val raw = current.toString()
         current.clear()
 
-        // APC 本文は `G<keys>;<base64>` の形。先頭 `G` でなければ Kitty graphics ではない。
         if (raw.isEmpty() || raw[0] != 'G') return Result.Discard
 
         val semi = raw.indexOf(';')
@@ -71,10 +50,7 @@ class KittyGraphicsParser {
 
         val keys = parseKeys(keysPart)
 
-        // 初回チャンクならヘッダを覚える。後続チャンクは payload 連結のみ。
         if (!inMultiChunk) headerKeys = keys
-
-        // base64 payload を蓄積 (改行・空白は base64 decode 前に取り除く)。
         payload.append(bodyPart.filter { it != '\n' && it != '\r' && it != ' ' })
 
         val moreChunks = (keys["m"] ?: "0") == "1"
@@ -83,7 +59,6 @@ class KittyGraphicsParser {
             return Result.Continue
         }
 
-        // 終端: ここで決定。
         val header = headerKeys
         val payloadStr = payload.toString()
         headerKeys = emptyMap()
@@ -91,36 +66,116 @@ class KittyGraphicsParser {
         inMultiChunk = false
 
         val action = header["a"] ?: "T"
+        val imageId = header["i"]?.toIntOrNull() ?: 0
+        val placementId = header["p"]?.toIntOrNull() ?: 0
+
+        return when (action) {
+            "d" -> classifyDelete(header)
+            "p" -> Result.Put(imageId = imageId, placementId = placementId, cellsWidth = header["c"]?.toIntOrNull(), cellsHeight = header["r"]?.toIntOrNull())
+            "T", "t" -> handleTransmit(header, payloadStr, cellWidthPx, lineHeightPx, action == "T", imageId, placementId)
+            else -> Result.Discard
+        }
+    }
+
+    private fun handleTransmit(
+        header: Map<String, String>,
+        payloadStr: String,
+        cellWidthPx: Float,
+        lineHeightPx: Float,
+        display: Boolean,
+        imageId: Int,
+        placementId: Int
+    ): Result {
         val format = header["f"]?.toIntOrNull() ?: 100
         val transmission = header["t"] ?: "d"
-        val imageId = header["i"]?.toIntOrNull() ?: 0
+        if (transmission != "d") return Result.Discard  // file/temp/shm 未対応
 
-        // a=d (delete) は全消去だけ最小対応。サブパラメータの個別 ID/Z-index 削除は未対応。
-        if (action == "d") return Result.ClearAll
-
-        // 本実装が描画対象とするのは a=T, f=100, t=d のみ。他は静かに破棄。
-        if (action != "T" || format != 100 || transmission != "d") return Result.Discard
-
-        val bytes = decodeBase64(payloadStr) ?: return Result.Discard
-        // BitmapFactory は Android framework が必要。 unit test (Robolectric なし) で
-        // 例外を吐く環境でも安全に Discard へ落ちるように runCatching で包む。
-        val bitmap = runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }
-            .getOrNull() ?: return Result.Discard
+        val rawBytes = decodeBase64(payloadStr) ?: return Result.Discard
+        val bitmap = when (format) {
+            100 -> decodePng(rawBytes)
+            24 -> buildRawBitmap(rawBytes, header, hasAlpha = false)
+            32 -> buildRawBitmap(rawBytes, header, hasAlpha = true)
+            else -> null
+        } ?: return Result.Discard
 
         val cellsW = header["c"]?.toIntOrNull()
             ?: estimateCells(bitmap.width.toFloat(), cellWidthPx)
         val cellsH = header["r"]?.toIntOrNull()
             ?: estimateCells(bitmap.height.toFloat(), lineHeightPx)
 
-        return Result.Image(
+        return Result.Transmit(
             bitmap = bitmap,
             widthCells = cellsW.coerceAtLeast(1),
             heightCells = cellsH.coerceAtLeast(1),
-            imageId = imageId
+            imageId = imageId,
+            placementId = placementId,
+            display = display
         )
     }
 
-    /** 進行中のチャンクをリセット (異常終端の救済)。 */
+    private fun classifyDelete(header: Map<String, String>): Result {
+        // `d` サブパラメータ。 省略時は "A" 扱い (Kitty 仕様)。
+        // image id は大文字 `I=N` (free / 削除対象が確実に存在する形) と小文字 `i=N`
+        // (keep / 通常照合) の両方をサポート。 削除照合上はどちらも同じ id 値として扱う。
+        val sub = header["d"] ?: "A"
+        val imageId = header["I"]?.toIntOrNull() ?: header["i"]?.toIntOrNull() ?: 0
+        val placementId = header["p"]?.toIntOrNull() ?: 0
+        return when (sub.uppercase()) {
+            "A" -> Result.DeleteAll
+            "I" -> if (imageId != 0) Result.DeleteImage(imageId) else Result.DeleteAll
+            // `d=p` は (image id, placement id) ペアでの個別削除。 両方無いと安全側で Discard。
+            "P" -> if (imageId != 0 && placementId != 0) Result.DeletePlacement(imageId, placementId)
+                   else Result.Discard
+            else -> Result.DeleteAll
+        }
+    }
+
+    private fun decodePng(bytes: ByteArray): Bitmap? =
+        runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }.getOrNull()
+
+    /**
+     * `f=24` (RGB, 3 bytes/px) または `f=32` (RGBA, 4 bytes/px) の生バイト列を
+     * [Bitmap] に組み立てる。 `s=N` `v=N` で px 幅高が必要 (どちらか欠ければ Discard)。
+     * 入力の総バイト数が `s * v * bytesPerPx` 未満なら不正と判定して null。
+     *
+     * Bitmap への変換は `ARGB_8888` に正規化する (Compose の Canvas が一番素直に扱える
+     * フォーマット)。 入力 RGB は `0xFF<RGB>` に拡張、RGBA は `aRGB` 順に並べ替える。
+     */
+    private fun buildRawBitmap(bytes: ByteArray, header: Map<String, String>, hasAlpha: Boolean): Bitmap? {
+        val w = header["s"]?.toIntOrNull() ?: return null
+        val h = header["v"]?.toIntOrNull() ?: return null
+        if (w <= 0 || h <= 0) return null
+        val bpp = if (hasAlpha) 4 else 3
+        val expected = w.toLong() * h.toLong() * bpp.toLong()
+        if (expected > Int.MAX_VALUE || bytes.size < expected) return null
+        val pixels = IntArray(w * h)
+        var src = 0
+        var dst = 0
+        if (hasAlpha) {
+            while (dst < pixels.size) {
+                val r = bytes[src].toInt() and 0xFF
+                val g = bytes[src + 1].toInt() and 0xFF
+                val b = bytes[src + 2].toInt() and 0xFF
+                val a = bytes[src + 3].toInt() and 0xFF
+                pixels[dst] = (a shl 24) or (r shl 16) or (g shl 8) or b
+                src += 4
+                dst++
+            }
+        } else {
+            while (dst < pixels.size) {
+                val r = bytes[src].toInt() and 0xFF
+                val g = bytes[src + 1].toInt() and 0xFF
+                val b = bytes[src + 2].toInt() and 0xFF
+                pixels[dst] = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+                src += 3
+                dst++
+            }
+        }
+        return runCatching {
+            Bitmap.createBitmap(pixels, w, h, Bitmap.Config.ARGB_8888)
+        }.getOrNull()
+    }
+
     fun reset() {
         current.clear()
         payload.clear()
@@ -152,23 +207,44 @@ class KittyGraphicsParser {
     }
 
     sealed class Result {
-        /** チャンク継続 (まだデータが来る)。 呼び出し側は次の APC を待つ。 */
+        /** チャンク継続。 */
         data object Continue : Result()
-        /** 破棄 (未対応 / 不正)。 呼び出し側は何もしない。 */
+        /** 未対応 / 不正。 */
         data object Discard : Result()
-        /** 画像全消去 (`a=d`)。 呼び出し側は `buffer.clearAllImages()` を呼ぶ。 */
-        data object ClearAll : Result()
-        /** 描画用画像。 呼び出し側はカーソル位置に commit する。 */
-        class Image(
+        /** `a=d,d=A`: 全画像消去 + キャッシュ全消去。 */
+        data object DeleteAll : Result()
+        /** `a=d,d=I,I=N` / `d=i,i=N`: image id 単位で削除 + キャッシュも削除。 */
+        class DeleteImage(val imageId: Int) : Result()
+        /** `a=d,d=p,i=N,p=N`: 特定 placement のみ削除 (画像キャッシュは残る)。 */
+        class DeletePlacement(val imageId: Int, val placementId: Int) : Result()
+        /**
+         * `a=T` (display = true) / `a=t` (display = false): 画像本体を返す。
+         * 呼び出し側は [display] が true ならカーソル位置に placement、いずれにせよ
+         * `imageId != 0` ならキャッシュに登録する。
+         */
+        class Transmit(
             val bitmap: Bitmap,
             val widthCells: Int,
             val heightCells: Int,
-            val imageId: Int
+            val imageId: Int,
+            val placementId: Int,
+            val display: Boolean
+        ) : Result()
+        /**
+         * `a=p`: 既存画像 (`imageId`) をカーソル位置に配置するよう要求。
+         * 呼び出し側はキャッシュから Bitmap を引き、現在位置に placement を追加する。
+         * `cellsWidth` / `cellsHeight` が null ならキャッシュ画像の native px と
+         * cell hint から自動算出。
+         */
+        class Put(
+            val imageId: Int,
+            val placementId: Int,
+            val cellsWidth: Int?,
+            val cellsHeight: Int?
         ) : Result()
     }
 
     companion object {
-        /** 1 シーケンスあたりの最大バッファ (~8MiB 相当)。これを超えると以後を捨てる。 */
         private const val MAX_BUFFER_BYTES = 8 * 1024 * 1024
     }
 }

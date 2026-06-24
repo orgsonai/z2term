@@ -292,18 +292,21 @@ private fun drawBuffer(
         // ((col,row) → (col+w, row+h)) のキャンバス座標に Bitmap として伸縮描画する。
         // 画像領域内のセルは Pass 3 で文字描画もスキップする (cell.char = ' ' で
         // 埋めてあるが、空白を drawText しても表示は変わらないので明示的にスキップ)。
-        val img = row.image
-        if (img != null) {
-            val left = img.col * cellW
-            val top = y
-            val right = (img.col + img.widthCells) * cellW
-            val bottom = y + img.heightCells * lineHeight
-            nativeCanvas.drawBitmap(
-                img.bitmap,
-                null,
-                android.graphics.RectF(left, top, right, bottom),
-                null
-            )
+        // 同 anchor 行に複数 placement (image id 違い / placement id 違い) が並ぶことが
+        // あるので、追加順 (= 後勝ち) でループ描画する。
+        if (row.images.isNotEmpty()) {
+            for (img in row.images) {
+                val left = img.col * cellW
+                val top = y
+                val right = (img.col + img.widthCells) * cellW
+                val bottom = y + img.heightCells * lineHeight
+                nativeCanvas.drawBitmap(
+                    img.bitmap,
+                    null,
+                    android.graphics.RectF(left, top, right, bottom),
+                    null
+                )
+            }
         }
 
         // --- Pass 3: 文字 + 下線/取り消し線 (セル単位 drawText でグリッド吸着) ---

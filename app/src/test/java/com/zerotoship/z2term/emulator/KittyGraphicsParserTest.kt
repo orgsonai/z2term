@@ -1,21 +1,23 @@
 package com.zerotoship.z2term.emulator
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Kitty graphics protocol (APC `ESC _ G ... ESC \`) パーサの基本動作テスト。
+ * Kitty graphics protocol パーサの基本動作テスト。
  *
- * `Image` を返すケースは [android.graphics.BitmapFactory] が unit test 環境
- * (Robolectric なし) で null を返す前提なので、本テストは:
- *  - `m=1` のチャンク継続 → `Continue`
- *  - `a=d` の全削除 → `ClearAll`
- *  - 未対応の `a=t` / `f=24` / `t=f` → `Discard`
- *  - APC `G` 以外で始まる不正本文 → `Discard`
- *  - 異常終端 (ST 不正) でも reset すれば次のシーケンスは独立に扱える
- *  - 単発で base64 が正しくても (unit test では Bitmap 化できないため) `Discard`
- * の 6 系統のみ固定する。
+ * `Transmit` (PNG) を返すケースは [android.graphics.BitmapFactory] が unit test 環境
+ * (Robolectric なし) で null を返す前提なので、ここでは:
+ *  - チャンク継続 `Continue`
+ *  - 各種 `Delete` (全体 / image / placement)
+ *  - 未対応 transmission/format の `Discard`
+ *  - 不正本文の `Discard`
+ *  - `a=p` (put) は `Put` 結果に id が正しく載ること
+ *  - 異常終端後の `reset` で次のシーケンスが独立に扱えること
+ *  - 生 RGB (`f=24`) は `s`/`v` 必須、欠ければ `Discard`
+ * を固定する。
  */
 class KittyGraphicsParserTest {
 
@@ -36,41 +38,49 @@ class KittyGraphicsParserTest {
         val p = KittyGraphicsParser()
         feed(p, "Ga=T,f=100,m=1;AAAA")
         p.finishSequence(12f, 24f)
-        // 2 番目のチャンクも m=1
         feed(p, "Gm=1;BBBB")
         val r = p.finishSequence(12f, 24f)
         assertSame(KittyGraphicsParser.Result.Continue, r)
     }
 
     @Test
-    fun deleteActionReturnsClearAll() {
+    fun deleteDefaultIsAll() {
         val p = KittyGraphicsParser()
-        feed(p, "Ga=d,d=A;")
+        feed(p, "Ga=d;")
         val r = p.finishSequence(12f, 24f)
-        assertSame(KittyGraphicsParser.Result.ClearAll, r)
+        assertSame(KittyGraphicsParser.Result.DeleteAll, r)
     }
 
     @Test
-    fun transmitOnlyActionIsDiscarded() {
-        // a=t (transmit only, no display) は本実装は描画しない → Discard。
+    fun deleteByImageId() {
         val p = KittyGraphicsParser()
-        feed(p, "Ga=t,f=100,t=d;AAAA")
-        val r = p.finishSequence(12f, 24f)
-        assertSame(KittyGraphicsParser.Result.Discard, r)
+        feed(p, "Ga=d,d=I,I=42;")
+        val r = p.finishSequence(12f, 24f) as KittyGraphicsParser.Result.DeleteImage
+        assertEquals(42, r.imageId)
     }
 
     @Test
-    fun unsupportedFormatIsDiscarded() {
-        // f=24 (生 RGB) は未対応 → Discard。
+    fun deleteByPlacement() {
         val p = KittyGraphicsParser()
-        feed(p, "Ga=T,f=24,t=d,s=10,v=10;AAAA")
-        val r = p.finishSequence(12f, 24f)
-        assertSame(KittyGraphicsParser.Result.Discard, r)
+        feed(p, "Ga=d,d=p,i=7,p=3;")
+        val r = p.finishSequence(12f, 24f) as KittyGraphicsParser.Result.DeletePlacement
+        assertEquals(7, r.imageId)
+        assertEquals(3, r.placementId)
+    }
+
+    @Test
+    fun putReturnsExistingImageReference() {
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=p,i=11,p=2,c=4,r=2;")
+        val r = p.finishSequence(12f, 24f) as KittyGraphicsParser.Result.Put
+        assertEquals(11, r.imageId)
+        assertEquals(2, r.placementId)
+        assertEquals(4, r.cellsWidth)
+        assertEquals(2, r.cellsHeight)
     }
 
     @Test
     fun unsupportedTransmissionIsDiscarded() {
-        // t=f (file) は未対応 → Discard。
         val p = KittyGraphicsParser()
         feed(p, "Ga=T,f=100,t=f;dHJhc2g=")
         val r = p.finishSequence(12f, 24f)
@@ -78,8 +88,16 @@ class KittyGraphicsParserTest {
     }
 
     @Test
+    fun rawRgbWithoutSizeIsDiscarded() {
+        // f=24 (生 RGB) は s/v が無いと組み立てられない。
+        val p = KittyGraphicsParser()
+        feed(p, "Ga=T,f=24,t=d;AAAAAA==")
+        val r = p.finishSequence(12f, 24f)
+        assertSame(KittyGraphicsParser.Result.Discard, r)
+    }
+
+    @Test
     fun nonKittyApcBodyIsDiscarded() {
-        // 先頭が `G` でない APC 本文は Kitty graphics ではない → Discard。
         val p = KittyGraphicsParser()
         feed(p, "Xnot kitty payload")
         val r = p.finishSequence(12f, 24f)
@@ -91,25 +109,18 @@ class KittyGraphicsParserTest {
         val p = KittyGraphicsParser()
         feed(p, "Ga=T,f=100,m=1;AAAA")
         p.finishSequence(12f, 24f)
-        // ここで異常終了 → reset で破棄
         p.reset()
-        // 次の単発シーケンスは独立に扱われる (前回チャンクの header を引き継がない)
         feed(p, "Ga=d;")
         val r = p.finishSequence(12f, 24f)
-        assertSame(KittyGraphicsParser.Result.ClearAll, r)
+        assertSame(KittyGraphicsParser.Result.DeleteAll, r)
     }
 
     @Test
     fun pngPayloadFallsBackToDiscardWhenBitmapCannotBeDecoded() {
-        // unit test 環境では BitmapFactory.decodeByteArray が null を返すか例外を投げる。
-        // 実装は runCatching でラップしてあるので、いずれにせよ Discard へ落ちることを保証。
+        // unit test では BitmapFactory.decodeByteArray が null を返すので Discard へ落ちる。
         val p = KittyGraphicsParser()
-        // 有効な base64 (中身は PNG ではないが decode は通る)
         feed(p, "Ga=T,f=100,t=d;aGVsbG8=")
         val r = p.finishSequence(12f, 24f)
-        assertTrue(
-            "expected Discard, got $r",
-            r is KittyGraphicsParser.Result.Discard
-        )
+        assertTrue("expected Discard, got $r", r is KittyGraphicsParser.Result.Discard)
     }
 }

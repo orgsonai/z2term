@@ -299,11 +299,50 @@ class TerminalBuffer(
 
     /**
      * Primary / Alternate / scrollback すべての行から画像参照を外す。
-     * Kitty graphics の `a=d` 系のうち、id 引数なしの「全削除」相当に使う。
+     * Kitty graphics の `a=d` (`d=A`) 相当。 画像キャッシュ ([imageCache]) もクリア。
      */
     fun clearAllImages() {
-        for (row in primary) row.image = null
-        for (row in alternate) row.image = null
-        for (row in scrollback) row.image = null
+        for (row in primary) row.images.clear()
+        for (row in alternate) row.images.clear()
+        for (row in scrollback) row.images.clear()
+        imageCache.clear()
+    }
+
+    /**
+     * 指定 [imageId] に紐づく全 placement を Primary / Alternate / scrollback から除き、
+     * 画像キャッシュからも該当エントリを消す。 Kitty graphics の `a=d,d=I,I=N`/`d=i,i=N` 相当。
+     */
+    fun deleteImageById(imageId: Int) {
+        if (imageId == 0) return  // id=0 は未指定扱いなので一括削除には使わない
+        for (row in primary) row.images.removeAll { it.imageId == imageId }
+        for (row in alternate) row.images.removeAll { it.imageId == imageId }
+        for (row in scrollback) row.images.removeAll { it.imageId == imageId }
+        imageCache.remove(imageId)
+    }
+
+    /**
+     * 指定 [imageId] / [placementId] の placement だけを除く。 画像本体 (キャッシュ) は残す。
+     * Kitty graphics の `a=d,d=p,i=N,p=N` 相当。
+     */
+    fun deletePlacement(imageId: Int, placementId: Int) {
+        for (row in primary) row.images.removeAll { it.imageId == imageId && it.placementId == placementId }
+        for (row in alternate) row.images.removeAll { it.imageId == imageId && it.placementId == placementId }
+        for (row in scrollback) row.images.removeAll { it.imageId == imageId && it.placementId == placementId }
+    }
+
+    /**
+     * 画像キャッシュ (`a=T`/`a=t` で登録された原画像)。 `a=p` で参照、`a=d` 系で削除。
+     * key = Kitty graphics の `i=N` (0 は cache 対象外)。
+     */
+    private val imageCache: MutableMap<Int, android.graphics.Bitmap> = HashMap()
+
+    /** 画像キャッシュを取得 (存在しなければ null)。 */
+    fun getCachedImage(imageId: Int): android.graphics.Bitmap? =
+        if (imageId == 0) null else imageCache[imageId]
+
+    /** 画像キャッシュへ登録 (`a=T` / `a=t` で呼ぶ)。 imageId=0 は登録しない。 */
+    fun cacheImage(imageId: Int, bitmap: android.graphics.Bitmap) {
+        if (imageId == 0) return
+        imageCache[imageId] = bitmap
     }
 }
