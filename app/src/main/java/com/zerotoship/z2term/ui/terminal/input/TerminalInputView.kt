@@ -296,11 +296,12 @@ class TerminalInputView(context: Context) : View(context) {
                     sess.clearSelection()
                     return true
                 }
-                // SGR mouse 入力 opt-in が ON + TUI が mouse capture を有効化していたら、
-                // ボタン 0 の press+release を PTY に送る (左クリック相当)。 失敗 (scrollback
-                // 表示中 / オフスクリーン) なら通常の focus/IME 経路にフォールバック。
-                // opt-in OFF (既定) ではタップは Z2Term 自身の操作 (フォーカス) に使う。
-                if (isSgrMouseInputActive(sess) && sendMouseClick(e.x, e.y, sess)) {
+                // mouse capture を有効化中の TUI なら、タップは左クリック (button 0)
+                // press+release を PTY に送る。 0.8.116〜0.8.136 と同じ挙動 (opt-in に依存しない)。
+                // 失敗 (scrollback 表示中 / オフスクリーン) なら通常の focus/IME 経路にフォールバック。
+                // ロングタップ→右クリック / 1 指 drag→motion は引き続き opt-in
+                // (sgrMouseInputEnabled) 配下なので、 単指タップだけは既定で TUI に伝わる。
+                if (sess.emulator.mouseEnabled && sendMouseClick(e.x, e.y, sess)) {
                     return true
                 }
                 val wasFocused = isFocused
