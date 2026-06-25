@@ -280,6 +280,9 @@
     <string name="settings_kitty_external_file_toggle">Kitty graphics: 外部ファイル転送</string>
     <string name="settings_kitty_external_file_toggle_desc">ON で Kitty graphics の t=f/t=t/t=s ペイロード (base64 でパスを送る方式) を受け付け、現在の rootfs 配下からファイルを読み取ります。OFF (既定) はすべて破棄。base64 ではなくパスで画像を送る image viewer 系 TUI で必要。</string>
     <string name="settings_kitty_external_file_warning">⚠ TUI が現在の distro rootfs 配下の任意ファイルを読ませられる経路です。既定は OFF。信頼できるセッションのみで有効化してください。</string>
+    <string name="settings_sgr_mouse_input_toggle">SGR mouse 送出 (タッチ→マウスイベント変換)</string>
+    <string name="settings_sgr_mouse_input_toggle_desc">ON で画面タップを TUI 側のマウスイベント (SGR `?1006`) に変換して送信します。一部の TUI (カレンダー / ファイラ / 複数ペインのフォーカス切替 等) で必要。1 指タップ=左クリック、長押し=右クリック、1 指ドラッグ=マウス移動として扱われます。OFF (既定) のときはタップは Z2Term 自身の操作 (フォーカス / テキスト選択 / スクロール) に使われます。二本指スワイプ→ホイールは opt-in に関係なく従来通り動作します。</string>
+    <string name="settings_sgr_mouse_input_warning">⚠ ON にすると 1 指でのテキスト選択 / 長押しメニューは TUI 側に持っていかれます。bash や less のように mouse capture をしない画面ではこれまで通りタップで Z2Term を操作できます。</string>
     <string name="settings_gui_clean_install_desc">ON にして GUI タブを開くと、GUI 表示用パッケージをキャッシュごと入れ直します (DL/解凍失敗の復旧用)。起動時にチェックは自動で外れます。</string>
     <string name="settings_gui_terminal_note">🖥 GUI タブで開くターミナル。未導入なら初回 GUI 起動時に自動導入されます（Konsole は KDE 系で初回ダウンロードが大きめ・Wi-Fi 推奨）。</string>
 

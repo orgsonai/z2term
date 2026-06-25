@@ -70,6 +70,14 @@ class TerminalInputView(context: Context) : View(context) {
     private var scrollAccumDy: Float = 0f
     private var mouseWheelAccumDy: Float = 0f
 
+    // --- SGR mouse 入力 (opt-in: AppSettings.sgrMouseInputEnabled) のドラッグ状態 ---
+    // ON 中 + TUI が mouse capture 有効化中の 1 指 swipe を button 0 の press → button 32 motion
+    // 連発 → button 0 release で SGR 送出する。 セル変化のたびに 1 イベントだけ出す
+    // (TUI が同じセルへの motion を 1 件として扱える前提)。 ACTION_UP/CANCEL で release。
+    private var sgrMouseDragActive = false
+    private var sgrMouseLastCol = -1
+    private var sgrMouseLastRow = -1
+
     // --- 選択 UX 補助 (拡大鏡 / 端で自動スクロール) ---
     private var magnifier: android.widget.Magnifier? = null
     private var lastTouchX: Float = 0f
@@ -203,6 +211,13 @@ class TerminalInputView(context: Context) : View(context) {
                 // 慣性スクロール中に長押し選択へ移る場合は止める
                 flingVelocityRows = 0f
                 removeCallbacks(flingRunnable)
+                // SGR mouse 入力 opt-in が ON + TUI が mouse capture 有効化中なら、
+                // ロングタップを右クリック (button 2) press+release として送り、 選択開始は
+                // しない (1 指でのテキスト選択は opt-in ON では TUI 側に持っていかれる)。
+                if (isSgrMouseInputActive(sess) && sendMouseRightClick(e.x, e.y, sess)) {
+                    performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                    return
+                }
                 val cell = pixelToAbsCell(e.x, e.y) ?: return
                 selectionAnchorRow = cell.first
                 selectionAnchorCol = cell.second
@@ -228,6 +243,14 @@ class TerminalInputView(context: Context) : View(context) {
                 // 選択中のドラッグは onTouchEvent 側で直接処理するためここには来ない。
                 val m = sess.cellMetrics.value
                 if (m.lineHeight <= 0f) return false
+                // SGR mouse 入力 opt-in が ON + TUI が mouse capture 有効化中 + 1 指 swipe なら、
+                // 1 指ドラッグを button 0 press → button 32 motion (セル変化のたび) として送る。
+                // ACTION_UP/ACTION_CANCEL で button 0 release を送るのは onTouchEvent 側。
+                // 2 指 swipe (pointerCount > 1) は wheel として既存経路に任せる。
+                if (isSgrMouseInputActive(sess) && e2.pointerCount == 1) {
+                    sendSgrMouseDrag(e2.x, e2.y, sess)
+                    return true
+                }
                 // マウスレポーティング有効時のスワイプ処理:
                 //  - **alt screen** (`primaryActive == false`) は scrollback が存在しないので
                 //    **両方向**を PTY へ wheel として送る。
@@ -273,9 +296,11 @@ class TerminalInputView(context: Context) : View(context) {
                     sess.clearSelection()
                     return true
                 }
-                // マウスモード有効ならボタン 1 の press+release を PTY に送る。
-                // 失敗 (scrollback 表示中 / オフスクリーン) なら通常の focus/IME 経路にフォールバック。
-                if (sess.emulator.mouseEnabled && sendMouseClick(e.x, e.y, sess)) {
+                // SGR mouse 入力 opt-in が ON + TUI が mouse capture を有効化していたら、
+                // ボタン 0 の press+release を PTY に送る (左クリック相当)。 失敗 (scrollback
+                // 表示中 / オフスクリーン) なら通常の focus/IME 経路にフォールバック。
+                // opt-in OFF (既定) ではタップは Z2Term 自身の操作 (フォーカス) に使う。
+                if (isSgrMouseInputActive(sess) && sendMouseClick(e.x, e.y, sess)) {
                     return true
                 }
                 val wasFocused = isFocused
@@ -378,7 +403,112 @@ class TerminalInputView(context: Context) : View(context) {
         if (!scaleDetector.isInProgress) {
             gestureDetector.onTouchEvent(event)
         }
+        // SGR mouse drag (button 32) 送信中の指離し / キャンセルは button 0 release で確定。
+        // onSingleTapUp / onLongPress のタップ系には乗らないので onTouchEvent 側で拾う。
+        if (sgrMouseDragActive &&
+            (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL)
+        ) {
+            val sess = session
+            if (sess != null) sendSgrMouseDragRelease(event.x, event.y, sess)
+            sgrMouseDragActive = false
+            sgrMouseLastCol = -1
+            sgrMouseLastRow = -1
+        }
         return true
+    }
+
+    /**
+     * SGR mouse 入力 opt-in (AppSettings.sgrMouseInputEnabled) が ON で、
+     * かつ TUI が `?1000`/`?1002`/`?1003`/`?1006` で mouse capture を有効化中か。
+     */
+    private fun isSgrMouseInputActive(sess: TerminalSession): Boolean =
+        sess.emulator.mouseEnabled &&
+            sess.settingsFlow.value.sgrMouseInputEnabled
+
+    /**
+     * SGR mouse のロングタップ→右クリック (button 2) press+release を PTY へ送る。
+     * scrollback 表示中で画面外のタップなら false を返す (呼び出し側で既存挙動へフォールバック)。
+     */
+    private fun sendMouseRightClick(x: Float, y: Float, sess: TerminalSession): Boolean {
+        val cell = pixelToAbsCell(x, y) ?: return false
+        val emu = sess.emulator
+        val screenRow = cell.first - emu.buffer.scrollbackSize
+        if (screenRow !in 0 until emu.buffer.rows) return false
+        val col = cell.second.coerceIn(0, emu.buffer.columns - 1)
+        val press = emu.encodeMouseEvent(
+            button = com.zerotoship.z2term.emulator.TerminalEmulator.MOUSE_BTN_RIGHT,
+            col0 = col, row0 = screenRow, press = true
+        ) ?: return false
+        sess.writeBytes(press)
+        val release = emu.encodeMouseEvent(
+            button = com.zerotoship.z2term.emulator.TerminalEmulator.MOUSE_BTN_RIGHT,
+            col0 = col, row0 = screenRow, press = false
+        )
+        if (release != null) sess.writeBytes(release)
+        return true
+    }
+
+    /**
+     * SGR mouse の 1 指ドラッグを PTY へ送る。
+     *
+     * 初回呼び出し時に **press** (`\x1b[<0;col;row M`) を送って drag を開始し、
+     * 2 回目以降はセルが変化したときだけ **motion** (`\x1b[<32;col;row M`) を送る。
+     * release (`\x1b[<0;col;row m`) は onTouchEvent の ACTION_UP/ACTION_CANCEL 側で送る。
+     *
+     * scrollback 表示中で画面外のセルは無視 (drag は始めない)。
+     */
+    private fun sendSgrMouseDrag(x: Float, y: Float, sess: TerminalSession) {
+        val cell = pixelToAbsCell(x, y) ?: return
+        val emu = sess.emulator
+        val screenRow = cell.first - emu.buffer.scrollbackSize
+        if (screenRow !in 0 until emu.buffer.rows) return
+        val col = cell.second.coerceIn(0, emu.buffer.columns - 1)
+        if (!sgrMouseDragActive) {
+            val press = emu.encodeMouseEvent(
+                button = com.zerotoship.z2term.emulator.TerminalEmulator.MOUSE_BTN_LEFT,
+                col0 = col, row0 = screenRow, press = true
+            ) ?: return
+            sess.writeBytes(press)
+            sgrMouseDragActive = true
+            sgrMouseLastCol = col
+            sgrMouseLastRow = screenRow
+            return
+        }
+        if (col == sgrMouseLastCol && screenRow == sgrMouseLastRow) return
+        val motion = emu.encodeMouseEvent(
+            button = com.zerotoship.z2term.emulator.TerminalEmulator.MOUSE_BTN_LEFT,
+            col0 = col, row0 = screenRow, press = true, motion = true
+        ) ?: return
+        sess.writeBytes(motion)
+        sgrMouseLastCol = col
+        sgrMouseLastRow = screenRow
+    }
+
+    /**
+     * SGR mouse drag 中の指離し / キャンセル時に button 0 release を送る。
+     * [sendSgrMouseDrag] とは違い座標が画面外でも最後の有効セル位置で送る (途中で view 外に
+     * 抜けたまま離した場合に release が抜けて TUI 側で stuck することを防ぐ)。
+     */
+    private fun sendSgrMouseDragRelease(x: Float, y: Float, sess: TerminalSession) {
+        val emu = sess.emulator
+        val cols = emu.buffer.columns.coerceAtLeast(1)
+        val rows = emu.buffer.rows.coerceAtLeast(1)
+        val cell = pixelToAbsCell(x, y)
+        val (col, screenRow) = if (cell != null) {
+            val sr = cell.first - emu.buffer.scrollbackSize
+            if (sr in 0 until rows) {
+                cell.second.coerceIn(0, cols - 1) to sr
+            } else {
+                sgrMouseLastCol.coerceIn(0, cols - 1) to sgrMouseLastRow.coerceIn(0, rows - 1)
+            }
+        } else {
+            sgrMouseLastCol.coerceIn(0, cols - 1) to sgrMouseLastRow.coerceIn(0, rows - 1)
+        }
+        val release = emu.encodeMouseEvent(
+            button = com.zerotoship.z2term.emulator.TerminalEmulator.MOUSE_BTN_LEFT,
+            col0 = col, row0 = screenRow, press = false
+        ) ?: return
+        sess.writeBytes(release)
     }
 
     /** 現在の touchMode に応じて (x,y) のセルへ選択を反映する。 */

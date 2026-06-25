@@ -132,7 +132,19 @@ class AppSettings(private val context: Context) {
          * エミュレータに注入する。 OFF の間は parser が file/temp/shm をすべて破棄し
          * `a=q` も ENOTSUPPORTED を返す。
          */
-        val kittyExternalFileEnabled: Boolean = DEFAULT_KITTY_EXTERNAL_FILE
+        val kittyExternalFileEnabled: Boolean = DEFAULT_KITTY_EXTERNAL_FILE,
+        /**
+         * 画面タップ / 1 指ドラッグ / 1 指長押しを **SGR mouse protocol** (`?1006`) として
+         * PTY へ送るか。 既定 OFF。 ON にすると TUI 側が `?1000`/`?1002`/`?1003`/`?1006` で
+         * mouse capture を有効化した状態のとき以下を SGR (`\x1b[<n;col;row>M/m`) で送出する:
+         *  - 1 指タップ → button 0 (左クリック相当) の press + release
+         *  - 1 指長押し → button 2 (右クリック相当) の press + release
+         *  - 1 指ドラッグ → button 32 (motion 修飾) を連発
+         * OFF (既定) のときはタップ/長押し/ドラッグはすべて Z2Term 自身の操作 (フォーカス /
+         * テキスト選択 / スクロール) に使う。 二本指スワイプ→ホイール (button 64/65) は
+         * opt-in に関係なく従来通り mouse capture 中なら送出する。
+         */
+        val sgrMouseInputEnabled: Boolean = DEFAULT_SGR_MOUSE_INPUT
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -178,12 +190,17 @@ class AppSettings(private val context: Context) {
             androidHostBindEnabled = p[KEY_ANDROID_HOST_BIND] ?: DEFAULT_ANDROID_HOST_BIND,
             toolbarOrder = p[KEY_TOOLBAR_ORDER] ?: "",
             traceLogEnabled = p[KEY_TRACE_LOG] ?: DEFAULT_TRACE_LOG,
-            kittyExternalFileEnabled = p[KEY_KITTY_EXTERNAL_FILE] ?: DEFAULT_KITTY_EXTERNAL_FILE
+            kittyExternalFileEnabled = p[KEY_KITTY_EXTERNAL_FILE] ?: DEFAULT_KITTY_EXTERNAL_FILE,
+            sgrMouseInputEnabled = p[KEY_SGR_MOUSE_INPUT] ?: DEFAULT_SGR_MOUSE_INPUT
         )
     }
 
     suspend fun setKittyExternalFileEnabled(value: Boolean) {
         context.dataStore.edit { it[KEY_KITTY_EXTERNAL_FILE] = value }
+    }
+
+    suspend fun setSgrMouseInputEnabled(value: Boolean) {
+        context.dataStore.edit { it[KEY_SGR_MOUSE_INPUT] = value }
     }
 
     suspend fun setTraceLogEnabled(value: Boolean) {
@@ -366,6 +383,7 @@ class AppSettings(private val context: Context) {
         private val KEY_TOOLBAR_ORDER = stringPreferencesKey("toolbar_order")
         private val KEY_TRACE_LOG = booleanPreferencesKey("trace_log_enabled")
         private val KEY_KITTY_EXTERNAL_FILE = booleanPreferencesKey("kitty_external_file_enabled")
+        private val KEY_SGR_MOUSE_INPUT = booleanPreferencesKey("sgr_mouse_input_enabled")
 
         /** z2root syscall トレースログは既定 OFF (開発者用。ログが膨大で容量を圧迫する)。 */
         const val DEFAULT_TRACE_LOG = false
@@ -375,6 +393,13 @@ class AppSettings(private val context: Context) {
          * ホスト/ゲスト変換 + 実 I/O を行う。
          */
         const val DEFAULT_KITTY_EXTERNAL_FILE = false
+        /**
+         * 画面タップ→SGR mouse 送出 (button 0/2/32) は **既定 OFF**。 ON にすると 1 指 tap/
+         * 長押し/ドラッグが mouse capture 中の TUI に届くようになり、 Z2Term 自身のテキスト
+         * 選択や long-press メニューは封じられる。 二本指スワイプ→wheel は opt-in に関係なく
+         * 従来通り送出する。
+         */
+        const val DEFAULT_SGR_MOUSE_INPUT = false
 
         /** 外部 SD 認識は既定 OFF (オプトイン)。OFF の間は検出処理も走らない。 */
         const val DEFAULT_EXTERNAL_STORAGE = false

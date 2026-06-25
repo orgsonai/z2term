@@ -46,6 +46,14 @@ class MouseEncodeTest {
         return e
     }
 
+    private fun newEmulatorWithSgrButtonEvent(): TerminalEmulator {
+        val e = TerminalEmulator(output = {}, initialRows = 24, initialColumns = 80)
+        // ESC [ ? 1 0 0 2 h → mouseProtocol = BUTTON_EVENT (押下中の motion を送る)
+        e.processBytes("$ESC[?1002h".toByteArray(Charsets.US_ASCII))
+        e.processBytes("$ESC[?1006h".toByteArray(Charsets.US_ASCII))
+        return e
+    }
+
     @Test
     fun decset1000And1006EnableNormalSgr() {
         val e = newEmulatorWithSgrNormal()
@@ -184,5 +192,94 @@ class MouseEncodeTest {
         assertTrue(e.mouseEnabled)
         e.processBytes("$ESC[?47l".toByteArray(Charsets.US_ASCII))
         assertEquals(TerminalEmulator.MouseProtocol.OFF, e.mouseProtocol)
+    }
+
+    /**
+     * SGR encoding で右クリック (button 2) の press/release を出すこと。
+     * 画面タップの長押し→右クリック変換 (TerminalInputView.sendMouseRightClick) の
+     * 中核となる encodeMouseEvent パス。
+     */
+    @Test
+    fun sgrRightClickPressAndReleaseHaveExpectedBytes() {
+        val e = newEmulatorWithSgrNormal()
+        val press = e.encodeMouseEvent(
+            button = TerminalEmulator.MOUSE_BTN_RIGHT, col0 = 9, row0 = 4, press = true
+        )!!
+        val release = e.encodeMouseEvent(
+            button = TerminalEmulator.MOUSE_BTN_RIGHT, col0 = 9, row0 = 4, press = false
+        )!!
+        // 期待: ESC [ < 2 ; 10 ; 5 M / ESC [ < 2 ; 10 ; 5 m
+        assertArrayEquals(
+            byteArrayOf(0x1B, '['.code.toByte(), '<'.code.toByte(),
+                '2'.code.toByte(), ';'.code.toByte(),
+                '1'.code.toByte(), '0'.code.toByte(), ';'.code.toByte(),
+                '5'.code.toByte(), 'M'.code.toByte()),
+            press
+        )
+        assertArrayEquals(
+            byteArrayOf(0x1B, '['.code.toByte(), '<'.code.toByte(),
+                '2'.code.toByte(), ';'.code.toByte(),
+                '1'.code.toByte(), '0'.code.toByte(), ';'.code.toByte(),
+                '5'.code.toByte(), 'm'.code.toByte()),
+            release
+        )
+    }
+
+    /**
+     * SGR encoding で 1 指ドラッグ (motion = true, button = 0) が button 32 として
+     * 'M' 終端で出ること。 SGR 仕様では motion 中の左ボタン押下は button code = 0 | 32 = 32。
+     * TerminalInputView.sendSgrMouseDrag の中核パス。
+     */
+    @Test
+    fun sgrLeftDragMotionEncodesAsButton32WithMTerminator() {
+        // motion を許可する BUTTON_EVENT (1002) で SGR エンコード
+        val e = newEmulatorWithSgrButtonEvent()
+        val drag = e.encodeMouseEvent(
+            button = TerminalEmulator.MOUSE_BTN_LEFT,
+            col0 = 19, row0 = 9, press = true, motion = true
+        )!!
+        // 期待: ESC [ < 32 ; 20 ; 10 M
+        assertArrayEquals(
+            byteArrayOf(0x1B, '['.code.toByte(), '<'.code.toByte(),
+                '3'.code.toByte(), '2'.code.toByte(), ';'.code.toByte(),
+                '2'.code.toByte(), '0'.code.toByte(), ';'.code.toByte(),
+                '1'.code.toByte(), '0'.code.toByte(),
+                'M'.code.toByte()),
+            drag
+        )
+    }
+
+    /**
+     * NORMAL (1000) は motion を送らないので drag (motion=true) は null を返すこと。
+     * BUTTON_EVENT (1002) や ANY_EVENT (1003) を有効化していない TUI に対し
+     * button 32 を流出させないことの回帰防止。
+     */
+    @Test
+    fun sgrNormalProtocolSuppressesMotionEvents() {
+        val e = newEmulatorWithSgrNormal()
+        assertEquals(TerminalEmulator.MouseProtocol.NORMAL, e.mouseProtocol)
+        val drag = e.encodeMouseEvent(
+            button = TerminalEmulator.MOUSE_BTN_LEFT,
+            col0 = 0, row0 = 0, press = true, motion = true
+        )
+        assertNull(drag)
+    }
+
+    /**
+     * BUTTON_EVENT (1002) を有効化すると motion を送れる (ドラッグ送出に必要)。
+     */
+    @Test
+    fun sgrButtonEventProtocolAllowsMotionEvents() {
+        val e = newEmulatorWithSgrButtonEvent()
+        assertEquals(TerminalEmulator.MouseProtocol.BUTTON_EVENT, e.mouseProtocol)
+        val drag = e.encodeMouseEvent(
+            button = TerminalEmulator.MOUSE_BTN_LEFT,
+            col0 = 0, row0 = 0, press = true, motion = true
+        )!!
+        // button 32 の SGR press で 'M' 終端
+        assertEquals('M'.code.toByte(), drag.last())
+        // 先頭は ESC [ <
+        assertEquals(0x1B.toByte(), drag[0])
+        assertEquals('<'.code.toByte(), drag[2])
     }
 }

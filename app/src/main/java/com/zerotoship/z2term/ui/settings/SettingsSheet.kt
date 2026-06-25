@@ -559,6 +559,23 @@ fun SettingsSheet(
                         fontFamily = FontFamily.Monospace
                     )
                 }
+                // SGR mouse 入力 (タッチ→マウスイベント変換): 既定 OFF。
+                // ON 時はカレンダー pane / ファイラ / 複数 pane 切替を伴う TUI で
+                // タップ操作が届くようになる代わりに、 1 指でのテキスト選択は封じられる。
+                ToggleField(
+                    title = stringResource(R.string.settings_sgr_mouse_input_toggle),
+                    description = stringResource(R.string.settings_sgr_mouse_input_toggle_desc),
+                    checked = settings.sgrMouseInputEnabled,
+                    onChange = { session.setSgrMouseInputEnabled(it) }
+                )
+                if (settings.sgrMouseInputEnabled) {
+                    Text(
+                        text = stringResource(R.string.settings_sgr_mouse_input_warning),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
 
             // IME 学習履歴 (キーボードパッチ): 件数表示 + 管理ボタン (シートを開く)
