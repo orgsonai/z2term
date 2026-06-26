@@ -157,6 +157,10 @@ class TerminalEmulator(
 
     // --- CSI パラメータバッファ ---
     private val csiParams = mutableListOf<Int>()
+    // csiParamIsSub[k] = true のとき csiParams[k] は直前パラメータの `:` サブパラメータ
+    // (例: SGR `4:3` の `3`)。`;` 区切りと区別して SGR の style 指定を正しく解釈するため。
+    private val csiParamIsSub = mutableListOf<Boolean>()
+    private var csiPendingSub = false  // 次に確定するパラメータが `:` サブパラメータか
     private var csiCurrentParam = -1   // -1 = まだ何も入力されていない
     private var csiPrefix: Char = 0.toChar()    // '?' や '>' などのプレフィックス
     private var csiIntermediate: Char = 0.toChar()
@@ -396,6 +400,8 @@ class TerminalEmulator(
             '[' -> {
                 state = State.CSI
                 csiParams.clear()
+                csiParamIsSub.clear()
+                csiPendingSub = false
                 csiCurrentParam = -1
                 csiPrefix = 0.toChar()
                 csiIntermediate = 0.toChar()
@@ -705,12 +711,17 @@ class TerminalEmulator(
             }
             c == ';' -> {
                 csiParams.add(if (csiCurrentParam < 0) 0 else csiCurrentParam)
+                csiParamIsSub.add(csiPendingSub)
                 csiCurrentParam = -1
+                csiPendingSub = false
             }
             c == ':' -> {
-                // SGR の : 区切り (RGB color 用)
+                // SGR の : サブパラメータ区切り (underline style `4:3` / RGB color など)。
+                // 次に確定するパラメータをサブパラメータとして印付ける。
                 csiParams.add(if (csiCurrentParam < 0) 0 else csiCurrentParam)
+                csiParamIsSub.add(csiPendingSub)
                 csiCurrentParam = -1
+                csiPendingSub = true
             }
             c == '?' || c == '>' || c == '!' || c == '<' -> {
                 csiPrefix = c
@@ -720,7 +731,10 @@ class TerminalEmulator(
             }
             c in '\u0040'..'\u007E' -> {
                 // 終端文字
-                if (csiCurrentParam >= 0) csiParams.add(csiCurrentParam)
+                if (csiCurrentParam >= 0) {
+                    csiParams.add(csiCurrentParam)
+                    csiParamIsSub.add(csiPendingSub)
+                }
                 dispatchCsi(c)
                 state = State.GROUND
             }
@@ -1098,7 +1112,22 @@ class TerminalEmulator(
                 }
                 1 -> currentFlags = currentFlags or SgrAttribute.FLAG_BOLD
                 3 -> currentFlags = currentFlags or SgrAttribute.FLAG_ITALIC
-                4 -> currentFlags = currentFlags or SgrAttribute.FLAG_UNDERLINE
+                4 -> {
+                    // `4` 単体は単線下線。`4:n` (style 付き) は n==0 で下線オフ、
+                    // それ以外 (1=単線/2=二重/3=波線/4=点線/5=破線) は下線オン。
+                    // サブパラメータを別 SGR として誤解釈しないよう必ず読み飛ばす。
+                    if (i + 1 < csiParams.size && csiParamIsSub[i + 1]) {
+                        val style = csiParams[i + 1]
+                        currentFlags = if (style == 0) {
+                            currentFlags and SgrAttribute.FLAG_UNDERLINE.inv()
+                        } else {
+                            currentFlags or SgrAttribute.FLAG_UNDERLINE
+                        }
+                        while (i + 1 < csiParams.size && csiParamIsSub[i + 1]) i++
+                    } else {
+                        currentFlags = currentFlags or SgrAttribute.FLAG_UNDERLINE
+                    }
+                }
                 5 -> currentFlags = currentFlags or SgrAttribute.FLAG_BLINK
                 7 -> currentFlags = currentFlags or SgrAttribute.FLAG_INVERSE
                 9 -> currentFlags = currentFlags or SgrAttribute.FLAG_STRIKE
