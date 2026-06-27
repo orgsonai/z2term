@@ -43,6 +43,7 @@
 #include <sys/socket.h>  // sockaddr / AF_UNIX (bind/connect の unix ソケットパス翻訳)
 #include <sys/un.h>      // struct sockaddr_un
 #include <sys/wait.h>
+#include <sys/resource.h> // getrlimit/setrlimit (自前ローダの専用スタック整合)
 #include <sys/mman.h>    // mmap / mprotect (自前ローダ)
 #include <sys/auxv.h>    // getauxval (自前ローダの auxv 構築)
 #include <alloca.h>      // alloca (自前ローダの初期スタック構築)
@@ -830,12 +831,19 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
         if (cfg->use_loader && cfg->self_path[0] != '\0') {
             const char *lb = strrchr(interp, '/'); lb = lb ? lb + 1 : interp;
             if (strncmp(lb, "ld-musl", 7) == 0 && elf_e_type(host_prog) == 2 /* ET_EXEC */) {
+                // loader-exec の map_img(open) も tracee として傍受・翻訳される。host パスを
+                // 直接渡すと translate_abs の二重変換抑止が bind.host(隔離オーバーレイ)を見ず
+                // rootfs を前置して ENOENT になる(§2 動的経路が guest_real を渡すのと同じ理由)。
+                // ld.so 本体と ET_EXEC 本体の双方をゲスト視点へ逆変換して渡す。
+                char guest_loader[PATH_MAX_Z], guest_prog_real[PATH_MAX_Z];
+                host_to_guest(cfg, host_loader, guest_loader, sizeof(guest_loader));
+                host_to_guest(cfg, host_prog, guest_prog_real, sizeof(guest_prog_real));
                 snprintf(plan->target, sizeof(plan->target), "%s", cfg->self_path);
                 plan->nprefix = 0;
                 plan_push(plan, "z2root");
                 plan_push(plan, "--loader-exec");
-                plan_push(plan, host_loader);  // ld.so 本体(host)
-                plan_push(plan, host_prog);    // ET_EXEC 本体(host)
+                plan_push(plan, guest_loader);     // ld.so 本体(ゲスト視点)
+                plan_push(plan, guest_prog_real);  // ET_EXEC 本体(ゲスト視点)
                 plan_push(plan, (orig_argv0 && orig_argv0[0]) ? orig_argv0 : guest_prog);
                 return 0;
             }
@@ -3211,8 +3219,39 @@ static void load_exec_via_interp(const char *interp_path, const char *prog_path,
     int naux = (int)(sizeof(av) / sizeof(av[0]));
 
     int words = 1 + (argc_n + 1) + (envc_n + 1) + (naux * 2 + 2);
-    unsigned long ap = (unsigned long)alloca((size_t)words * 8 + 16);
-    unsigned long *sp = (unsigned long *)((ap + 15) & ~15UL);
+    size_t block_bytes = (size_t)words * 8;
+
+    // 初期スタックをカーネルの [stack] VMA(alloca)ではなく専用の通常 anonymous mmap
+    // 領域に置く。理由: 一部ランタイム(Bun/JSC など)はスレッド初期化時に
+    // stack_bottom = stack_top - RLIMIT_STACK を一発で深くプローブしてガードを張る。
+    // この端末の kernel では [stack] の expand_stack が sp から遠い下方フォルトを救済
+    // できず(near-sp の逐次伸長は効くがバナー後の深いプローブで落ちる)、素の SIGSEGV
+    // になる。通常 anon VMA なら領域内の任意ページが touch 時に demand-fault で入るため
+    // auto-grow に依存しない。Bun の算出する stack_bottom が必ず領域内に収まるよう、
+    // 領域サイズを RLIMIT_STACK + 余白とし、RLIMIT_STACK も領域に合わせて整合させる。
+    unsigned long stack_size = 8UL << 20;  // 既定 8MB
+    struct rlimit rl;
+    if (getrlimit(RLIMIT_STACK, &rl) == 0 && rl.rlim_cur != RLIM_INFINITY &&
+        rl.rlim_cur >= (1UL << 20) && rl.rlim_cur <= (64UL << 20))
+        stack_size = (unsigned long)rl.rlim_cur;
+    unsigned long pmask = (unsigned long)pagesz - 1;
+    stack_size = (stack_size + pmask) & ~pmask;
+    unsigned long margin = 256UL << 10;    // stack_top が領域頂より下にずれる分の余白
+    unsigned long map_size = stack_size + margin;
+
+    void *stk = mmap(NULL, map_size, PROT_READ | PROT_WRITE,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (stk == MAP_FAILED) loader_fail("map stack", prog_path);
+
+    // RLIMIT_STACK を確保した領域(余白除く)へ揃え、stack_bottom 算出を領域内に収める。
+    if (getrlimit(RLIMIT_STACK, &rl) == 0) {
+        rl.rlim_cur = stack_size;
+        if (rl.rlim_max != RLIM_INFINITY && rl.rlim_max < stack_size) rl.rlim_max = stack_size;
+        setrlimit(RLIMIT_STACK, &rl);
+    }
+
+    unsigned long top = ((unsigned long)stk + map_size) & ~15UL;
+    unsigned long *sp = (unsigned long *)((top - block_bytes) & ~15UL);
 
     unsigned long *w = sp;
     *w++ = (unsigned long)argc_n;

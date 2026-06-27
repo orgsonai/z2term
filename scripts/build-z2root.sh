@@ -105,12 +105,21 @@ echo "[info] building z2root (aarch64, API ${API}) ..."
 # 解決がトレーサのパス変換に壊され SIGABRT する。静的化して bionic リンカ自体を無くすことで回避。
 # なお bionic の -static-pie は NDK r28c では C ランタイムの自己再配置が main 到達前に
 # SIGSEGV する(実機 ZY32LNFX2B で確認)。非PIE の -static は健全に起動するため -static を使う。
+#
+# IMAGE_BASE=4GB: ローダの固定ロードアドレスを既定の 0x200000 から 4GB へ退避する。
+# --loader/--loader-exec はゲスト ET_EXEC(非PIE)を本体の固定 p_vaddr へ MAP_FIXED で
+# 貼るが、ゲストのベースがローダ自身の像(既定 0x200000〜)と重なると、貼った瞬間に
+# ローダの実行中コード/データを上書きして即 SIGSEGV する。低位 ET_EXEC ゲスト(例: musl
+# ld.so 経由の大型 musl 本体。ベース ~0x200000・数百 MB)で必ず衝突する。ローダを 4GB へ
+# 逃がすと低位ゲスト全域(数百 MB)と重ならず、ゲストの brk もローダ手前まで伸ばせる。
+IMAGE_BASE=0x100000000
 if [[ "${FALLBACK}" == "1" ]]; then
     # rootfs clang でオブジェクトのみ生成(clang ドライバの自動リンクは lld 専用フラグ
     # --use-android-relr-tags 等を渡し GNU ld が拒否するため使わない)→ GNU ld で手動リンク。
     "${SYS_CC}" --target=aarch64-linux-android${API} --sysroot="${SYSROOT}" \
         -std=c11 -O2 -Wall -Wextra -c "${SRC}" -o "${OUT}.o"
-    "${SYS_LD}" -EL -static -no-pie --hash-style=gnu -z noexecstack -z max-page-size=4096 \
+    "${SYS_LD}" -EL -static -no-pie --image-base="${IMAGE_BASE}" \
+        --hash-style=gnu -z noexecstack -z max-page-size=4096 \
         -o "${OUT}" \
         "${LIBDIR}/${API}/crtbegin_static.o" \
         "${OUT}.o" \
@@ -123,7 +132,7 @@ if [[ "${FALLBACK}" == "1" ]]; then
 else
     "${CC}" \
         -std=c11 -O2 -Wall -Wextra \
-        -static \
+        -static -Wl,--image-base="${IMAGE_BASE}" \
         -o "${OUT}" \
         "${SRC}"
 fi
