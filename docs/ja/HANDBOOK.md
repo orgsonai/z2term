@@ -141,6 +141,40 @@ Z2Term には **アプリ専用のキーボード**が入っています。
 
 ---
 
+## 6.5. `claude`（Claude Code）を動かす
+
+FOSS ビルドは中身を ptrace で包む独自エンジン（z2root）で動きます。`claude` の配布物には
+**musl 版**と**glibc 版**があり、musl 版は z2root 上で起動できません（musl の ld.so は
+非PIE 実行形式を起動できないため）。なので **glibc 版**を入れて使います。
+
+**必ず glibc 系ディストロ（Arch など）のタブで**次を実行します（Alpine など musl のみの
+ディストロでは入りません）。
+
+```sh
+# 既存の(musl かもしれない)バイナリを消して、入れ直し時に種類を再判定させる
+rm -f ~/.claude/downloads/claude
+
+# 公式インストーラ（Arch では自動で glibc 版を選ぶ）
+curl -fsSL https://claude.ai/install.sh -o /tmp/ci.sh && bash /tmp/ci.sh
+
+# パスを通す（入れた場所は ~/.local/bin）
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+
+# 自動更新で musl 版に差し替わらないよう固定
+echo 'export DISABLE_AUTOUPDATER=1' >> ~/.bashrc
+```
+
+タブを開き直す（または `source ~/.bashrc`）と、あとは `claude` だけで起動します。
+
+> ポイント
+> - この導入は **タブ（ディストロ）ごとに初回 1 回**だけです。2 回目以降は `claude` だけで OK。
+> - 既に新しい版が入っているとインストーラはダウンロードを**飛ばす**ので、種類を入れ替えたい
+>   ときは上の `rm -f` を先に実行してください。
+> - 入れた中身は `~/.local/share/claude/versions/<版数>` に、`~/.local/bin/claude` はそこへの
+>   ショートカット（symlink）です。
+
+---
+
 ## 7. パソコンから Z2Term につなぐ（SSH サーバ）
 
 スマホを SSH サーバにして、PC から入れます。

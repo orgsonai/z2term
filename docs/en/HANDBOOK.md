@@ -141,6 +141,40 @@ You can switch distros in **⚙ Settings → Distro** (the first time triggers a
 
 ---
 
+## 6.5. Running `claude` (Claude Code)
+
+The FOSS build runs inside a custom ptrace-based engine (z2root). The `claude` distribution
+comes in a **musl** flavor and a **glibc** flavor, and the musl one cannot start under z2root
+(musl's ld.so cannot launch a non-PIE executable). So install and use the **glibc** flavor.
+
+Run the following **in a glibc-based distro tab (e.g. Arch)** — it will not install on a
+musl-only distro such as Alpine.
+
+```sh
+# Remove the existing (possibly musl) binary so re-install re-detects the flavor
+rm -f ~/.claude/downloads/claude
+
+# Official installer (on Arch it picks the glibc build automatically)
+curl -fsSL https://claude.ai/install.sh -o /tmp/ci.sh && bash /tmp/ci.sh
+
+# Put it on PATH (it installs into ~/.local/bin)
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+
+# Pin it so the auto-updater doesn't swap in a musl build
+echo 'export DISABLE_AUTOUPDATER=1' >> ~/.bashrc
+```
+
+Reopen the tab (or `source ~/.bashrc`), then just run `claude`.
+
+> Notes
+> - This setup is needed **once per tab (distro)** only. After that just run `claude`.
+> - If a current version is already installed the installer **skips the download**, so when you
+>   want to swap the flavor, run the `rm -f` above first.
+> - The actual files live in `~/.local/share/claude/versions/<version>`, and `~/.local/bin/claude`
+>   is a shortcut (symlink) to them.
+
+---
+
 ## 7. Connecting to Z2Term from a PC (SSH server)
 
 You can turn your phone into an SSH server and log in from a PC.
