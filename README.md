@@ -149,9 +149,7 @@ z2term/
 │   │   └── HANDBOOK.md            ← getting started handbook
 │   ├── images/                    ← screenshots etc. (shared)
 │   ├── RELEASE.md                 ← release steps
-│   ├── SSH-INTO-Z2TERM.md
-│   ├── GUI-REWRITE-HANDOFF.md
-│   └── M1-HANDOFF.md … M13-HANDOFF.md  ← milestone handoffs
+│   └── SSH-INTO-Z2TERM.md
 ├── metadata/                     ← F-Droid metadata
 └── .github/workflows/build.yml   ← CI (builds both full + foss)
 ```

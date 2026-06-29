@@ -42,6 +42,10 @@ Thumbs.db
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 
+# 引き継ぎ書は internal ブランチ専用（GitHub/main には載せない）
+# internal では追跡済みのため、追跡が gitignore より優先され通常どおり編集できる
+docs/*HANDOFF*.md
+
 # rootfs アーカイブ（scripts/build-alpine-rootfs.sh で生成、リポジトリには含めない）
 # full フレーバーは src/full/assets に同梱（foss は実行時 DL のため非同梱）
 app/src/main/assets/alpine-minirootfs-*.tar.gz

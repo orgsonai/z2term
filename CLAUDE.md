@@ -10,11 +10,20 @@
   - 「先にバージョンを上げる → それを含めて 1 コミット」の順。バージョン据え置きでコミットしない。
   - **例外: docs/README/CLAUDE.md などドキュメントのみで `app/` 配下（コード・リソース・ビルド設定）の変更を含まないコミットはバージョンを上げない。**
 - ⛔ **コミット前には関連 docs を更新してから 1 コミットにまとめる。**
-  - 対象: `README.md` / `docs/ja/DESIGN-SPEC.md`（+ 英訳 `docs/en/DESIGN-SPEC.md`）/ `docs/ja/HANDBOOK.md`（+ 英訳 `docs/en/HANDBOOK.md`）/ 該当する `docs/Mxx-HANDOFF.md` 等で、今回の変更（仕様/挙動/版数/UI/コマンド/設定）に触れている箇所。
+  - 対象: `README.md` / `docs/ja/DESIGN-SPEC.md`（+ 英訳 `docs/en/DESIGN-SPEC.md`）/ `docs/ja/HANDBOOK.md`（+ 英訳 `docs/en/HANDBOOK.md`）で、今回の変更（仕様/挙動/版数/UI/コマンド/設定）に触れている箇所。
   - 版数を上げる場合は版数表記のある docs（README / DESIGN-SPEC / HANDBOOK 等）も新版数へ揃える。
   - 「コード修正 → docs 更新 → まとめて 1 コミット」の順。docs 反映漏れに気付いた後追いコミットを増やさない。
   - 該当箇所が無い純粋な内部修正（リファクタ等）は docs 更新スキップで可。スキップ時は理由を一言コミット本文に書く。
 - `git push` はユーザーの明示指示があるまで禁止。
+
+## ブランチ運用（公開 main / 内部 internal）
+
+- ⛔ **引き継ぎ書（`docs/*HANDOFF*.md`）は `internal` ブランチ専用。`main`（= GitHub `origin`）には載せない。**
+  - 内部事情を含むため公開リポジトリに出さない。`.gitignore` で `docs/*HANDOFF*.md` を無視しているので、`main` では誤って `git add` されない（`internal` では追跡済みのため追跡が優先され通常編集できる）。
+  - `main`: 公開向けのコード・README・DESIGN-SPEC・HANDBOOK のみ。`origin` へ push する。
+  - `internal`: ローカル専用（この端末のベアリポ `~/git-server/z2term.git` 経由で他端末と同期）。引き継ぎ書の編集・追加はこのブランチで行う。**`internal` を `origin` へ push しない。**
+  - 同期の向きは **`main` → `internal` を随時 merge**（公開側の変更を internal に取り込む）。引き継ぎ書の更新は internal 側のみで完結させる。
+  - 引き継ぎ書を新規追加するときは `internal` で `git add -f docs/XXX-HANDOFF.md`（gitignore 対象のため初回のみ `-f` が必要。以降は追跡済みで不要）。
 - `--no-verify` は禁止（フック失敗は原因を直す）。
 - 署名鍵（`*.jks`, `keystore.properties`）, `local.properties` はコミットしない。
 
