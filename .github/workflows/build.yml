@@ -26,6 +26,10 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # 既定の 'tools'(廃止メタパッケージ)は emulator を引き込みダウンロード破損で失敗する。
+          # ビルド/lint/ユニットテストに emulator は不要なので platform-tools のみ入れる。
+          packages: 'platform-tools'
 
       - name: Grant gradlew exec permission
         run: chmod +x ./gradlew
@@ -100,6 +104,10 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # 既定の 'tools'(廃止メタパッケージ)は emulator を引き込みダウンロード破損で失敗する。
+          # ビルド/lint/ユニットテストに emulator は不要なので platform-tools のみ入れる。
+          packages: 'platform-tools'
 
       - name: Decode keystore
         env:
