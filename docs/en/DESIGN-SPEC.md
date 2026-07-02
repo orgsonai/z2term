@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-02 / Target version: 0.8.141-alpha (versionCode 149)
+Last updated: 2026-07-02 / Target version: 0.8.142-alpha (versionCode 150)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -155,7 +155,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 - `DistroSpec`: id / display name / package manager / bundleable / asset name / DL URL or index URL / default shell / approx. DL size.
   - Alpine = bundled (`alpine-minirootfs-aarch64.tgz`, zsh). Ubuntu/Arch/Kali = resolve the latest `rootfs.tar.xz` at runtime from the linuxcontainers index and download (bash).
 - `DistroInstaller`: a dependency-free hand-written tar parser (ustar/GNU `L`/PAX `x`/`g`, symlink/hardlink). `decompress` detects gzip/xz by magic bytes.
-  - **Zip-Slip protection (0.8.141)**: every write is confined under `outputDir.canonicalFile` (`isWithin`). Because `canonicalFile` resolves symlinks in the existing prefix and normalizes `..`, it rejects both malicious `../` entries and "write-through a planted escaping symlink." The hardlink source (`linkname`) is checked the same way to prevent reading outside the rootfs. Offending entries are skipped while their body is drained with `skipFully` to keep the stream aligned. This blocks a tampered tar from the unpinned Ubuntu/Arch/Kali downloads writing outside the app's private area (the symlink *target itself* is not restricted, since a legitimate rootfs contains many valid out-of-tree (proot-namespace) links — only the write-through is blocked).
+  - **Zip-Slip protection (0.8.141)**: every write is confined under `outputDir.canonicalFile` (`isWithin`). Because `canonicalFile` resolves symlinks in the existing prefix and normalizes `..`, it rejects both malicious `../` entries and "write-through a planted escaping symlink." The hardlink source (`linkname`) is checked the same way to prevent reading outside the rootfs. Offending entries are skipped while their body is drained with `skipFully` to keep the stream aligned. This blocks a tampered tar from the unpinned Ubuntu/Arch/Kali downloads writing outside the app's private area (the symlink *target itself* is not restricted, since a legitimate rootfs contains many valid out-of-tree (proot-namespace) links — only the write-through is blocked). Regression is guarded by `ZipSlipExtractionTest`, which feeds hand-built tars into the real `extractTar` (4 cases: normal extraction / `../` / write-through symlink / out-of-tree hardlink). `testOptions.unitTests.isReturnDefaultValues=true` makes `android.util.Log` a no-op under the JVM test.
   - `postInstallSetup`: resolv.conf/hosts, `pacman.conf` (disable sandbox/DownloadUser), apt Sandbox::User=root, write the version marker.
   - Permissions are **owner-only** (`setUnixMode(ownerOnly=true)`). world-writable makes sudo refuse.
 - `DistroDownloader`: HTTP DL + SHA256 verification, cached at `cacheDir/distros/<id>-<abi>.tgz`.
