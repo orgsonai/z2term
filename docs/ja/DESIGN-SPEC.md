@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-06-27 / 対象バージョン: 0.8.140-alpha (versionCode 148)
+最終更新: 2026-07-02 / 対象バージョン: 0.8.141-alpha (versionCode 149)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -152,10 +152,11 @@
 
 ### 4.4 ディストロ管理 (`distro/`)
 
-- `DistroBundle`: `ROOTFS_VERSION`(=6)、`VERSION_MARKER`、`BUNDLED_DISTRO_ID="alpine"`。
+- `DistroBundle`: `ROOTFS_VERSION`(=9)、`VERSION_MARKER`、`BUNDLED_DISTRO_ID="alpine"`。
 - `DistroSpec`: id/表示名/パッケージマネージャ/同梱可否/asset 名/DL URL or index URL/既定シェル/DL サイズ目安。
   - Alpine = 同梱 (`alpine-minirootfs-aarch64.tgz`, zsh)。Ubuntu/Arch/Kali = linuxcontainers の index から最新 `rootfs.tar.xz` を実行時解決して DL (bash)。
 - `DistroInstaller`: 依存無しの手書き tar パーサ (ustar/GNU `L`/PAX `x`/`g`、symlink/hardlink)。`decompress` がマジックバイトで gzip/xz 判定。
+  - **Zip-Slip 対策 (0.8.141)**: 全展開先を `outputDir.canonicalFile` 配下に封じ込める (`isWithin`)。`canonicalFile` が既存プレフィックスの symlink を解決し `..` を正規化するため、悪意ある `../` エントリと「親に仕込んだ脱出 symlink を辿る write-through」の双方を弾く。ハードリンク元 (`linkname`) も同判定で rootfs 外読み出しを防ぐ。逸脱エントリは本体を `skipFully` で読み飛ばしつつストリーム整合を保ってスキップ。SHA 未固定で DL する Ubuntu/Arch/Kali の汚染 tar でアプリ領域外へ書き込まれるのを防ぐ (symlink の *ターゲット自体* は正 rootfs に多数ある正当な域外 (proot 名前空間内) リンクを壊さないよう制限しない — 危険なのは経由書き込みで、そちらを封じる)。
   - `postInstallSetup`: resolv.conf/hosts、`pacman.conf` (sandbox/DownloadUser 無効化)、apt の Sandbox::User=root、version マーカー書込。
   - パーミッションは **owner-only** (`setUnixMode(ownerOnly=true)`)。world-writable だと sudo が拒否する。
 - `DistroDownloader`: HTTP DL + SHA256 検証、`cacheDir/distros/<id>-<abi>.tgz` にキャッシュ。
