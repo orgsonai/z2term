@@ -251,7 +251,7 @@ fun SettingsSheet(
                 title = stringResource(R.string.settings_section_font_size),
                 value = settings.fontSizeSp,
                 range = AppSettings.MIN_FONT_SIZE_SP..AppSettings.MAX_FONT_SIZE_SP,
-                steps = 23,  // 8..32 を 1sp 刻み = 24 値 = 23 steps
+                steps = 28,  // 4..32 を 1sp 刻み = 29 値 = 28 steps
                 valueLabel = { "${it.toInt()} sp" },
                 onChange = { session.setFontSize(it) }
             )
