@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-02 / Target version: 0.8.142-alpha (versionCode 150)
+Last updated: 2026-07-02 / Target version: 0.8.143-alpha (versionCode 151)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -368,7 +368,7 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 |---|---|---|---|
 | Theme | themeName | "ZTS Theme" | 9 options |
 | Font | fontId | "monospace" | System / IBM Plex / JetBrains / Fira Code |
-| Font size | fontSizeSp | 13 | 8–32 |
+| Font size | fontSizeSp | 13 | 4–32 |
 | Scrollback lines | scrollbackLines | 5000 | 500–50000 |
 | Distro | distroId | "alpine" | alpine / ubuntu / archlinux / kali |
 | Ambiguous as wide | ambiguousAsWide | false | true/false |

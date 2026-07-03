@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-02 / 対象バージョン: 0.8.142-alpha (versionCode 150)
+最終更新: 2026-07-02 / 対象バージョン: 0.8.143-alpha (versionCode 151)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -368,7 +368,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 |---|---|---|---|
 | テーマ | themeName | "ZTS Theme" | 9 種 |
 | フォント | fontId | "monospace" | System / IBM Plex / JetBrains / Fira Code |
-| フォントサイズ | fontSizeSp | 13 | 8–32 |
+| フォントサイズ | fontSizeSp | 13 | 4–32 |
 | スクロールバック行数 | scrollbackLines | 5000 | 500–50000 |
 | ディストロ | distroId | "alpine" | alpine / ubuntu / archlinux / kali |
 | 曖昧幅を全角 | ambiguousAsWide | false | true/false |

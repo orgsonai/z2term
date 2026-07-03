@@ -13,6 +13,7 @@ import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
 import com.zerotoship.z2term.core.TerminalSelection
 import com.zerotoship.z2term.core.TerminalSession
+import com.zerotoship.z2term.settings.AppSettings
 
 /** 選択ドラッグが画面端にある間、自動スクロールを繰り返す間隔。 */
 private const val AUTO_SCROLL_INTERVAL_MS = 45L
@@ -148,7 +149,8 @@ class TerminalInputView(context: Context) : View(context) {
                 if (initialSpan <= 0f) return false
                 val ratio = detector.currentSpan / initialSpan
                 // 0.5sp 単位に量子化。微小変化での resize 連打 (重い) を防ぎ滑らかに。
-                val raw = (initialFontSizeSp * ratio).coerceIn(8f, 32f)
+                val raw = (initialFontSizeSp * ratio)
+                    .coerceIn(AppSettings.MIN_FONT_SIZE_SP, AppSettings.MAX_FONT_SIZE_SP)
                 val quantized = Math.round(raw * 2f) / 2f
                 if (quantized != lastAppliedFontSp) {
                     lastAppliedFontSp = quantized

@@ -248,7 +248,7 @@ Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←**
 |---|---|
 | Theme | Color scheme (9 options) |
 | Font | Display typeface (4 options, with preview) |
-| Font size | 8–32 (also changeable by pinching) |
+| Font size | 4–32 (also changeable by pinching) |
 | Scrollback lines | How many lines you can scroll back through |
 | Distro | Alpine / Ubuntu / Arch / Kali |
 | Login shell | zsh / bash / sh |
