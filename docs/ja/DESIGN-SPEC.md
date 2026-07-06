@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-02 / 対象バージョン: 0.8.142-alpha (versionCode 150)
+最終更新: 2026-07-06 / 対象バージョン: 0.8.143-alpha (versionCode 151)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -102,7 +102,7 @@
 
 **ライフサイクル設計の要点**:
 - `TerminalSession` は **UI から独立**して生存 (`SessionManager` が保持)。Activity 破棄でも PTY/emulator 状態を維持。
-- `TerminalService` (フォアグラウンドサービス) が常駐化を担い、バックグラウンドでも PTY を維持する。`AudioBridge`(GUI 音声) も同サービス系で扱う。
+- `TerminalService` (フォアグラウンドサービス) が常駐化を担い、バックグラウンドでも PTY を維持する。`AudioBridge`(GUI 音声) も同サービス系で扱う。常駐中は CPU の `PARTIAL_WAKE_LOCK` に加え **`WifiLock` (`WIFI_MODE_FULL_HIGH_PERF`)** を握り、画面消灯/アイドルでも Wi-Fi 無線を省電力 (PSM) に落とさない。これが無いと端末上の sshd 等への LAN 着信が届かず「立てたのに繋がらない/Wi-Fi 繋ぎ直すと直る」症状が出る。常駐 OFF (detach)・停止・破棄で両ロックを解放する (0.8.143)。
 - emulator の状態更新は **専用シングルスレッド** (`z2term-emu-*`) に集約し、Compose は `StateFlow` 経由で読む。
 - **GUI デスクトップ**は別 Activity (`GuiActivity`) として起動し、distro 内 Xvnc に内蔵 RFB クライアントで接続する（[§4.12](#412-gui-デスクトップ-gui)）。実行エンジンは z2root 既定 (0.8.123)、裏設定で PRoot、root 端末ではさらに chroot に切替可（[§4.3](#43-proot-実行-prootprootlauncherkt-prootsshdscriptkt)）。
 
