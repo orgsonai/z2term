@@ -125,7 +125,7 @@ z2term/
 │       │   ├── distro/              ← rootfs deployment (Alpine + Ubuntu)
 │       │   ├── emulator/            ← VT100/xterm emulator core
 │       │   ├── settings/            ← DataStore persistence
-│       │   ├── service/             ← TerminalService / AudioBridge (foreground + WakeLock)
+│       │   ├── service/             ← TerminalService / AudioBridge (foreground + Wake/WifiLock)
 │       │   ├── gui/                  ← GUI (Xvnc + built-in RFB client / GuiSession)
 │       │   ├── saf/                  ← SAF DocumentsProvider
 │       │   └── ui/

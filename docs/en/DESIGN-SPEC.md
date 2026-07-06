@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-02 / Target version: 0.8.143-alpha (versionCode 151)
+Last updated: 2026-07-06 / Target version: 0.8.143-alpha (versionCode 151)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -101,7 +101,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 
 **Lifecycle design points**:
 - `TerminalSession` lives **independently of the UI** (held by `SessionManager`). PTY/emulator state survives Activity destruction.
-- `TerminalService` (foreground service) handles keep-alive, maintaining the PTY in the background. `AudioBridge` (GUI audio) is handled in the same service family.
+- `TerminalService` (foreground service) handles keep-alive, maintaining the PTY in the background. `AudioBridge` (GUI audio) is handled in the same service family. While keep-alive is on it holds a CPU `PARTIAL_WAKE_LOCK` plus a **`WifiLock` (`WIFI_MODE_FULL_HIGH_PERF`)** so the Wi-Fi radio does not drop into power-save (PSM) when the screen is off / device is idle. Without it, inbound LAN connections to an on-device sshd (etc.) are not delivered, producing the "started it but can't connect / reconnecting Wi-Fi fixes it" symptom. Both locks are released on detach (keep-alive off), stop and destroy (0.8.143).
 - emulator state updates are concentrated on a **dedicated single thread** (`z2term-emu-*`); Compose reads via `StateFlow`.
 - The **GUI desktop** launches as a separate Activity (`GuiActivity`) and connects to the in-distro Xvnc with the built-in RFB client ([§4.12](#412-gui-desktop-gui)). The execution engine defaults to z2root (0.8.123), with PRoot and chroot (rooted devices) selectable via a hidden setting ([§4.3](#43-proot-execution-prootprootlauncherkt-prootsshdscriptkt)).
 

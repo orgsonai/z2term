@@ -122,7 +122,7 @@ z2term/
 │       │   ├── distro/              ← rootfs 展開 (Alpine + Ubuntu)
 │       │   ├── emulator/            ← VT100/xterm エミュレータコア
 │       │   ├── settings/            ← DataStore 永続化
-│       │   ├── service/             ← TerminalService / AudioBridge (foreground + WakeLock)
+│       │   ├── service/             ← TerminalService / AudioBridge (foreground + Wake/WifiLock)
 │       │   ├── gui/                  ← GUI (Xvnc + 内蔵 RFB クライアント / GuiSession)
 │       │   ├── saf/                  ← SAF DocumentsProvider
 │       │   └── ui/

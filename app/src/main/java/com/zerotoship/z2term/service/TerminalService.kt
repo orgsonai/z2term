@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.net.wifi.WifiManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.zerotoship.z2term.MainActivity
@@ -26,6 +27,7 @@ import com.zerotoship.z2term.core.SessionManager
 class TerminalService : Service() {
 
     private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -41,6 +43,7 @@ class TerminalService : Service() {
                 // (プロセスが背景でいつ殺されてもよい = ユーザーが望んだ非常駐挙動)
                 Log.i(TAG, "Detach action received (foreground off, sessions kept)")
                 releaseWakeLock()
+                releaseWifiLock()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
@@ -63,10 +66,12 @@ class TerminalService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
         acquireWakeLock()
+        acquireWifiLock()
     }
 
     private fun stopSessionAndSelf() {
         releaseWakeLock()
+        releaseWifiLock()
         SessionManager.shutdown()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -88,6 +93,34 @@ class TerminalService : Service() {
             Log.i(TAG, "Partial WakeLock released")
         }
         wakeLock = null
+    }
+
+    /**
+     * Wi-Fi 無線を高性能モードで保持 (省電力/PSM 抑止)。
+     *
+     * CPU の [PowerManager.WakeLock] は Wi-Fi 無線を起こしたままにはしないため、
+     * これが無いと画面消灯/アイドルで Wi-Fi が省電力に入り、LAN からの着信
+     * (端末上の sshd への接続など) が届かず到達不能になる。
+     * `WIFI_MODE_FULL_HIGH_PERF` は画面消灯中でも無線をフルパワーに保つ
+     * (`WIFI_MODE_FULL_LOW_LATENCY` は前景+画面ON 時しか効かず、常駐 sshd 用途には不適)。
+     */
+    private fun acquireWifiLock() {
+        if (wifiLock?.isHeld == true) return
+        val wm = applicationContext.getSystemService(WIFI_SERVICE) as? WifiManager ?: return
+        @Suppress("DEPRECATION")
+        val wl = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "z2term:wifi")
+        wl.setReferenceCounted(false)
+        wl.acquire()
+        wifiLock = wl
+        Log.i(TAG, "WifiLock acquired (FULL_HIGH_PERF)")
+    }
+
+    private fun releaseWifiLock() {
+        wifiLock?.let { wl ->
+            if (wl.isHeld) wl.release()
+            Log.i(TAG, "WifiLock released")
+        }
+        wifiLock = null
     }
 
     private fun ensureChannel() {
@@ -137,6 +170,7 @@ class TerminalService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         releaseWakeLock()
+        releaseWifiLock()
         Log.i(TAG, "TerminalService destroyed")
     }
 
