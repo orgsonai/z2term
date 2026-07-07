@@ -37,6 +37,8 @@ class AppSettings(private val context: Context) {
         val keepAliveService: Boolean = DEFAULT_KEEP_ALIVE,
         /** 画面消灯ロック (ディスプレイを自動で消さない) の状態。次回起動時に復元 */
         val keepScreenOn: Boolean = DEFAULT_KEEP_SCREEN_ON,
+        /** キーボード表示/非表示トグルバーをキーボードの上に出すか (OFF なら ⌨ ボタンのダブルタップで切替) */
+        val keyboardToggleBar: Boolean = DEFAULT_KEYBOARD_TOGGLE_BAR,
         /** GUI セッションで起動するターミナル ([com.zerotoship.z2term.proot.GuiTerminal] の id) */
         val guiTerminalId: String = DEFAULT_GUI_TERMINAL,
         /** 通信を伴うダウンロード (distro / GUI パッケージ) の前に確認ダイアログを出すか */
@@ -177,6 +179,7 @@ class AppSettings(private val context: Context) {
             keyboardMode = p[KEY_KEYBOARD_MODE] ?: DEFAULT_KEYBOARD_MODE,
             keepAliveService = p[KEY_KEEP_ALIVE] ?: DEFAULT_KEEP_ALIVE,
             keepScreenOn = p[KEY_KEEP_SCREEN_ON] ?: DEFAULT_KEEP_SCREEN_ON,
+            keyboardToggleBar = p[KEY_KEYBOARD_TOGGLE_BAR] ?: DEFAULT_KEYBOARD_TOGGLE_BAR,
             guiTerminalId = p[KEY_GUI_TERMINAL] ?: DEFAULT_GUI_TERMINAL,
             confirmBeforeDownload = p[KEY_CONFIRM_DOWNLOAD] ?: DEFAULT_CONFIRM_DOWNLOAD,
             guiAudioEnabled = p[KEY_GUI_AUDIO] ?: DEFAULT_GUI_AUDIO,
@@ -285,6 +288,10 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_KEEP_SCREEN_ON] = enabled }
     }
 
+    suspend fun setKeyboardToggleBar(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_KEYBOARD_TOGGLE_BAR] = enabled }
+    }
+
     suspend fun setKeyboardStyleId(id: String) {
         context.dataStore.edit { it[KEY_KEYBOARD_STYLE] = id }
     }
@@ -335,6 +342,8 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_KEEP_ALIVE = true
         /** 画面消灯ロックは既定 OFF (放置でのバッテリ消費を避ける)。トグル状態は永続化して復元。 */
         const val DEFAULT_KEEP_SCREEN_ON = false
+        /** キーボードトグルバーは既定 ON (従来どおりキーボードの上に表示)。OFF で ⌨ ダブルタップ切替。 */
+        const val DEFAULT_KEYBOARD_TOGGLE_BAR = true
 
         /** 実行エンジン: 非 root の PRoot (既定) */
         const val ENGINE_PROOT = "proot"
@@ -376,6 +385,7 @@ class AppSettings(private val context: Context) {
         private val KEY_KEYBOARD_MODE = stringPreferencesKey("keyboard_mode")
         private val KEY_KEEP_ALIVE = booleanPreferencesKey("keep_alive_service")
         private val KEY_KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
+        private val KEY_KEYBOARD_TOGGLE_BAR = booleanPreferencesKey("keyboard_toggle_bar")
         private val KEY_GUI_TERMINAL = stringPreferencesKey("gui_terminal")
         private val KEY_CONFIRM_DOWNLOAD = booleanPreferencesKey("confirm_before_download")
         private val KEY_GUI_AUDIO = booleanPreferencesKey("gui_audio_enabled")

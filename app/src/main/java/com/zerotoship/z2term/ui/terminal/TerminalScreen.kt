@@ -330,6 +330,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 keyboardMode = next
                 active.setKeyboardMode(if (next == KeyboardMode.SYSTEM) "system" else "custom")
             },
+            onToggleKeyboardVisible = { keyboardCollapsed = !keyboardCollapsed },
             onOpenSettings = { settingsOpen = true },
             keepScreenOn = keepScreenOn,
             onToggleKeepScreenOn = { active.setKeepScreenOn(!settings.keepScreenOn) },
@@ -498,6 +499,15 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             }
         }
 
+        // キーボード表示/非表示バー。設定 (keyboardToggleBar) が ON のときだけ、従来どおり
+        // キーボードの「上」に置く。OFF の人は ⌨ ボタンのダブルタップで表示/非表示する。
+        if (settings.keyboardToggleBar) {
+            KeyboardToggleBar(
+                collapsed = keyboardCollapsed,
+                onToggle = { keyboardCollapsed = !keyboardCollapsed }
+            )
+        }
+
         if (!keyboardCollapsed) {
             when (keyboardMode) {
                 KeyboardMode.CUSTOM -> {
@@ -534,12 +544,6 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-
-        // トグルバーはキーボード領域の下 (画面最下段) に置く (要望)。折りたたみ時もここに残る。
-        KeyboardToggleBar(
-            collapsed = keyboardCollapsed,
-            onToggle = { keyboardCollapsed = !keyboardCollapsed }
-        )
     }
 
     if (settingsOpen) {
@@ -760,6 +764,7 @@ private fun GuiTabScreen(
                     appSettings.setKeyboardMode(if (next == KeyboardMode.SYSTEM) "system" else "custom")
                 }
             },
+            onToggleKeyboardVisible = { keyboardCollapsed = !keyboardCollapsed },
             keepScreenOn = keepScreenOn,
             onToggleKeepScreenOn = { scope.launch { appSettings.setKeepScreenOn(!settings.keepScreenOn) } },
             keepAlive = settings.keepAliveService,
@@ -848,6 +853,13 @@ private fun GuiTabScreen(
                         .imePadding()
                 ) {
                     CandidateBar(composing = composing)
+                    // キーボードの上のトグルバー。設定 (keyboardToggleBar) が ON のときだけ表示。
+                    if (settings.keyboardToggleBar) {
+                        KeyboardToggleBar(
+                            collapsed = keyboardCollapsed,
+                            onToggle = { keyboardCollapsed = !keyboardCollapsed }
+                        )
+                    }
                     if (!keyboardCollapsed) {
                         when (keyboardMode) {
                             KeyboardMode.CUSTOM -> {
@@ -875,11 +887,6 @@ private fun GuiTabScreen(
                             }
                         }
                     }
-                    // トグルバーはキーボード領域の下 (画面最下段) に置く (要望)。折りたたみ時もここに残る。
-                    KeyboardToggleBar(
-                        collapsed = keyboardCollapsed,
-                        onToggle = { keyboardCollapsed = !keyboardCollapsed }
-                    )
                 }
             }
             if (isSideKBGui && landscapePosGui == AppSettings.LANDSCAPE_KB_RIGHT) {
@@ -964,6 +971,7 @@ private fun GuiTopBar(
     onPasteHistory: () -> Unit,
     onOpenSnippets: () -> Unit,
     onToggleKeyboardMode: () -> Unit,
+    onToggleKeyboardVisible: () -> Unit,
     keepScreenOn: Boolean,
     onToggleKeepScreenOn: () -> Unit,
     keepAlive: Boolean,
@@ -1005,7 +1013,7 @@ private fun GuiTopBar(
                     ToolbarItem(TB_SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
                     ToolbarItem(TB_SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
                     ToolbarItem(TB_KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
-                    ToolbarItem(TB_KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode),
+                    ToolbarItem(TB_KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible),
                     ToolbarItem(TB_SETTINGS, "⚙", stringResource(R.string.tb_settings), enabled = settingsEnabled, onClick = onOpenSettings)
                 ),
                 savedOrder = toolbarOrder,
@@ -1082,6 +1090,7 @@ private fun TopBar(
     onPaste: () -> Unit,
     onPasteHistory: () -> Unit,
     onToggleKeyboardMode: () -> Unit,
+    onToggleKeyboardVisible: () -> Unit,
     onOpenSettings: () -> Unit,
     keepScreenOn: Boolean,
     onToggleKeepScreenOn: () -> Unit,
@@ -1133,7 +1142,7 @@ private fun TopBar(
                     ToolbarItem(TB_SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
                     ToolbarItem(TB_KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
                     ToolbarItem(TB_SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
-                    ToolbarItem(TB_KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode),
+                    ToolbarItem(TB_KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible),
                     ToolbarItem(TB_SETTINGS, "⚙", stringResource(R.string.tb_settings), onClick = onOpenSettings)
                 ),
                 savedOrder = toolbarOrder,

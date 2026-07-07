@@ -334,6 +334,12 @@ fun SettingsSheet(
                     selected = settings.keyboardStyleId,
                     onSelect = { session.setKeyboardStyleId(it) }
                 )
+                ToggleField(
+                    title = stringResource(R.string.settings_keyboard_toggle_bar),
+                    description = stringResource(R.string.settings_keyboard_toggle_bar_desc),
+                    checked = settings.keyboardToggleBar,
+                    onChange = { session.setKeyboardToggleBar(it) }
+                )
             }
 
             // バックグラウンド常駐トグルはツールバーの 🔒 ロックアイコンへ移動した (要望)。
