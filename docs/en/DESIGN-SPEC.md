@@ -368,7 +368,7 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 |---|---|---|---|
 | Theme | themeName | "ZTS Theme" | 9 options |
 | Font | fontId | "monospace" | System / IBM Plex / JetBrains / Fira Code |
-| Font size | fontSizeSp | 13 | 8–32 |
+| Font size | fontSizeSp | 13 | 4–32 |
 | Scrollback lines | scrollbackLines | 5000 | 500–50000 |
 | Distro | distroId | "alpine" | alpine / ubuntu / archlinux / kali |
 | Ambiguous as wide | ambiguousAsWide | false | true/false |

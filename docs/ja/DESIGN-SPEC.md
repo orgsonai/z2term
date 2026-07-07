@@ -368,7 +368,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 |---|---|---|---|
 | テーマ | themeName | "ZTS Theme" | 9 種 |
 | フォント | fontId | "monospace" | System / IBM Plex / JetBrains / Fira Code |
-| フォントサイズ | fontSizeSp | 13 | 8–32 |
+| フォントサイズ | fontSizeSp | 13 | 4–32 |
 | スクロールバック行数 | scrollbackLines | 5000 | 500–50000 |
 | ディストロ | distroId | "alpine" | alpine / ubuntu / archlinux / kali |
 | 曖昧幅を全角 | ambiguousAsWide | false | true/false |

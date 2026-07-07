@@ -368,7 +368,7 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_LOGIN_SHELL = "/bin/zsh"
         val AVAILABLE_SHELLS = listOf("/bin/zsh", "/bin/bash", "/bin/sh")
 
-        const val MIN_FONT_SIZE_SP = 8f
+        const val MIN_FONT_SIZE_SP = 4f
         const val MAX_FONT_SIZE_SP = 32f
         const val MIN_SCROLLBACK_LINES = 500
         const val MAX_SCROLLBACK_LINES = 50000
