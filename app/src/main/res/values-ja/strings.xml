@@ -24,6 +24,8 @@
     <string name="settings_section_distro">ディストロ (切替で現在のセッションを再起動)</string>
     <string name="settings_section_login_shell">ログインシェル (次回セッション以降に反映)</string>
     <string name="settings_section_keyboard_style">独自キーボードスタイル</string>
+    <string name="settings_keyboard_toggle_bar">キーボード表示バー</string>
+    <string name="settings_keyboard_toggle_bar_desc">キーボードの上に表示/非表示バーを出す。OFF のときは ⌨ ボタンのダブルタップで切り替え。</string>
     <string name="settings_section_gui_terminal">GUI ターミナル</string>
     <string name="settings_gui_magnification">GUI 表示倍率 (次回 GUI 起動から反映)</string>
     <string name="settings_clean_install">クリーンインストール</string>

@@ -24,6 +24,8 @@
     <string name="settings_section_distro">Distro (switching restarts the current session)</string>
     <string name="settings_section_login_shell">Login shell (applies from the next session)</string>
     <string name="settings_section_keyboard_style">Keyboard style</string>
+    <string name="settings_keyboard_toggle_bar">Keyboard toggle bar</string>
+    <string name="settings_keyboard_toggle_bar_desc">Show a show/hide bar above the keyboard. When off, double-tap the ⌨ button to toggle.</string>
     <string name="settings_section_gui_terminal">GUI terminal</string>
     <string name="settings_gui_magnification">GUI magnification (applies from next GUI start)</string>
     <string name="settings_clean_install">Clean install</string>
