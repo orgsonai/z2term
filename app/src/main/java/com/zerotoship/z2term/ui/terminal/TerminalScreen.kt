@@ -138,15 +138,6 @@ import kotlin.math.roundToInt
 /** キーボードモード。CUSTOM=独自キーボード、SYSTEM=OS IME + 特殊キーバー */
 enum class KeyboardMode { CUSTOM, SYSTEM }
 
-/**
- * 画面消灯ロックの状態 (M8-6 T9)。端末タブと GUI タブで別々の `remember` を持つと、
- * タブ種別を跨いだ瞬間に新画面側が false で初期化されフラグを落としてしまう。
- * そこで**単一の状態**にして画面跨ぎでも維持する。既定 OFF・プロセス再起動でリセット。
- */
-private object ScreenAwake {
-    val enabled = mutableStateOf(false)
-}
-
 /** ContextWrapper の連鎖を辿って Activity を取り出す (Compose の Context は wrapper のことがある)。 */
 private fun Context.findActivity(): Activity? {
     var c: Context = this
@@ -178,8 +169,8 @@ private fun applyKeepScreenOn(context: Context, fallbackView: View, on: Boolean)
  *   TopBar           ← セッションラベル / 状態 / 貼付 (長押しで IME 切替)
  *   TabBar           ← 全セッション + 「+」
  *   コンテンツ領域    ← Renderer + InputView + Floating overlays
- *   Toggle bar       ← タップでキーボード表示/非表示 (高さ可変は廃止)
  *   キーボード領域    ← CUSTOM=独自 (style.naturalHeight 固定)、SYSTEM=SpecialKeyBar
+ *   Toggle bar       ← 最下段。タップでキーボード表示/非表示 (高さ可変は廃止)
  */
 @Composable
 fun TerminalScreen(modifier: Modifier = Modifier) {
@@ -245,9 +236,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         }
     }
     // 画面消灯ロック (ディスプレイが自動で消えないようにする)。権限不要・フォアグラウンド中のみ
-    // 有効・CPU は握らないので WakeLock より安全。状態は端末/GUI 共通の [ScreenAwake] (画面跨ぎで維持)。
-    // 既定 OFF (放置でのバッテリ消費を避ける。アプリ再起動でリセット)。
-    val keepScreenOn = ScreenAwake.enabled.value
+    // 有効・CPU は握らないので WakeLock より安全。状態は設定 (keepScreenOn) に永続化し、端末/GUI
+    // 共通の単一フローで画面跨ぎでも維持・次回起動時にも復元する。既定 OFF (放置でのバッテリ消費を避ける)。
+    val keepScreenOn = settings.keepScreenOn
     val rootView = LocalView.current
     LaunchedEffect(keepScreenOn) {
         applyKeepScreenOn(context, rootView, keepScreenOn)
@@ -341,7 +332,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             },
             onOpenSettings = { settingsOpen = true },
             keepScreenOn = keepScreenOn,
-            onToggleKeepScreenOn = { ScreenAwake.enabled.value = !ScreenAwake.enabled.value },
+            onToggleKeepScreenOn = { active.setKeepScreenOn(!settings.keepScreenOn) },
             keepAlive = settings.keepAliveService,
             onToggleKeepAlive = { active.setKeepAliveService(!settings.keepAliveService) },
             toolbarOrder = settings.toolbarOrder,
@@ -507,11 +498,6 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             }
         }
 
-        KeyboardToggleBar(
-            collapsed = keyboardCollapsed,
-            onToggle = { keyboardCollapsed = !keyboardCollapsed }
-        )
-
         if (!keyboardCollapsed) {
             when (keyboardMode) {
                 KeyboardMode.CUSTOM -> {
@@ -548,6 +534,12 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
+
+        // トグルバーはキーボード領域の下 (画面最下段) に置く (要望)。折りたたみ時もここに残る。
+        KeyboardToggleBar(
+            collapsed = keyboardCollapsed,
+            onToggle = { keyboardCollapsed = !keyboardCollapsed }
+        )
     }
 
     if (settingsOpen) {
@@ -663,8 +655,8 @@ private fun GuiTabScreen(
     var keyboardMode by remember { mutableStateOf(KeyboardMode.CUSTOM) }
     var keyboardCollapsed by remember { mutableStateOf(false) }
     var ctrlSticky by remember { mutableStateOf(false) }
-    // 画面消灯ロックは端末タブと共通の単一状態 (画面跨ぎで維持。M8-6 T9)。
-    val keepScreenOn = ScreenAwake.enabled.value
+    // 画面消灯ロックは設定 (keepScreenOn) に永続化した端末タブ共通の状態 (画面跨ぎで維持・再起動で復元)。
+    val keepScreenOn = settings.keepScreenOn
     var settingsOpen by remember { mutableStateOf(false) }
     var snippetsSheetOpen by remember { mutableStateOf(false) }
     var clipHistoryOpen by remember { mutableStateOf(false) }
@@ -769,7 +761,7 @@ private fun GuiTabScreen(
                 }
             },
             keepScreenOn = keepScreenOn,
-            onToggleKeepScreenOn = { ScreenAwake.enabled.value = !ScreenAwake.enabled.value },
+            onToggleKeepScreenOn = { scope.launch { appSettings.setKeepScreenOn(!settings.keepScreenOn) } },
             keepAlive = settings.keepAliveService,
             onToggleKeepAlive = { scope.launch { appSettings.setKeepAliveService(!settings.keepAliveService) } },
             toolbarOrder = settings.toolbarOrder,
@@ -856,10 +848,6 @@ private fun GuiTabScreen(
                         .imePadding()
                 ) {
                     CandidateBar(composing = composing)
-                    KeyboardToggleBar(
-                        collapsed = keyboardCollapsed,
-                        onToggle = { keyboardCollapsed = !keyboardCollapsed }
-                    )
                     if (!keyboardCollapsed) {
                         when (keyboardMode) {
                             KeyboardMode.CUSTOM -> {
@@ -887,6 +875,11 @@ private fun GuiTabScreen(
                             }
                         }
                     }
+                    // トグルバーはキーボード領域の下 (画面最下段) に置く (要望)。折りたたみ時もここに残る。
+                    KeyboardToggleBar(
+                        collapsed = keyboardCollapsed,
+                        onToggle = { keyboardCollapsed = !keyboardCollapsed }
+                    )
                 }
             }
             if (isSideKBGui && landscapePosGui == AppSettings.LANDSCAPE_KB_RIGHT) {
@@ -1720,7 +1713,7 @@ private fun KeyboardToggleBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(16.dp)
+            .height(22.dp)
             .background(ZtsBgSecondary)
             .border(width = 1.dp, color = ZtsBorder)
             .pointerInput(Unit) {

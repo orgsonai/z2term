@@ -265,6 +265,7 @@ class TerminalSession(
     fun setLoginShell(shell: String) { scope.launch { settings.setLoginShell(shell) } }
     fun setKeyboardMode(mode: String) { scope.launch { settings.setKeyboardMode(mode) } }
     fun setKeepAliveService(enabled: Boolean) { scope.launch { settings.setKeepAliveService(enabled) } }
+    fun setKeepScreenOn(enabled: Boolean) { scope.launch { settings.setKeepScreenOn(enabled) } }
     fun setToolbarOrder(csv: String) { scope.launch { settings.setToolbarOrder(csv) } }
     fun setConfirmBeforeDownload(enabled: Boolean) { scope.launch { settings.setConfirmBeforeDownload(enabled) } }
     fun setGuiAudioEnabled(enabled: Boolean) { scope.launch { settings.setGuiAudioEnabled(enabled) } }
