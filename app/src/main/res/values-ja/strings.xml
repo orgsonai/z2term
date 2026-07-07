@@ -331,7 +331,7 @@
     <string name="gui_confirm_clean_install_action">クリーンインストール</string>
     <string name="gui_confirm_download_action">ダウンロードして起動</string>
     <string name="keyboard_show_button">▴ キーボード</string>
-    <string name="keyboard_hide_button">▾</string>
+    <string name="keyboard_hide_button">▾ キーボード</string>
     <string name="terminal_action_copy">コピー</string>
 
     <!-- フォアグラウンドサービス通知 / Toast / GUI ターミナル表示名 (D3 バッチ 6) -->
