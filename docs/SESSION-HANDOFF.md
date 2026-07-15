@@ -1,10 +1,10 @@
 # セッション引き継ぎ（現状ローリング）
 
-最終更新: 2026-07-15 / 対象版数: **0.8.148-alpha (versionCode 156)** / ブランチ: internal。
+最終更新: 2026-07-15 / 対象版数: **0.8.149-alpha (versionCode 157)** / ブランチ: internal。
 
-## 引き継ぎサマリ — 0.8.146〜148 (キャッシュ刷新 / IME 記号当て字修正 / 常駐サーバー機構、 internal 3 コミット・local へ push 済)
+## 引き継ぎサマリ — 0.8.146〜149 (キャッシュ刷新 / IME 記号当て字修正 / 常駐サーバー機構 / 通知検知、 internal コミット・local へ push)
 
-このセッションの成果は **`internal` ブランチの 3 コミット** (`local` へ push 済、 **origin/main へは未反映**)。
+このセッションの成果は **`internal` ブランチのコミット群** (`local` へ push、 **origin/main へは未反映**)。 ※ 機能は internal 限定ではなく通常機能。 main は 0.8.141 以降ずっと遅れており、 公開時に main へ昇格 → origin push が別途要る (要ユーザー判断)。
 
 - **`6b16003` 0.8.146(154) — IME「と→＆」修正 + キャッシュ削除の刷新**
   - IME: `kkc_lex.tsv` が 1 文字ひらがな読みに記号表層を低コストで持つ (と→＆ 3177 < と→と 5381、 他 に→２/ご→５/ざ→the) ため最優先候補が記号になっていた。 `KkcConverter.loadFromStreams` に `SYMBOL_READING_PENALTY`(+10000) を追加し「読み 1 文字ひらがな ∧ 表層が記号のみ」を最下位へ。 `SymbolReadingPenaltyTest` 追加。 **JVM ユニットテストで検証済み**。
@@ -20,10 +20,10 @@
 - **キーボード修正のみ JVM テスト済**。 **キャッシュ UI・常駐サーバーの実機挙動は未検証**。 この端末は既知の **aapt2/box64 問題で APK が組めない** ([[project_build_aapt2_box64_binfmt]]) ため、 確認ダイアログ描画・supervisor 起動・status 生成・BOOT_COMPLETED 自動起動は **実機 install できる環境で e2e が要る**。 `compileFossDebugKotlin` は全て成功。
 - **ブランチ**: 3 コミットは `internal` のみ。 公開したいときは **main へ昇格 → origin へ push** が別途必要 (未実施・要判断)。
 
-### 次のタスク — 通知ログ (ユーザーの本命。 z2term に入れず「別アプリ」で)
-- 方針決定: 通知の本文取得は Android の `NotificationListenerService` + OS 許可が必須で、 ターミナル/root 単独では不可。 **公開 z2term は汚さず、 別プロジェクトの最小 APK** で実装する (ユーザー原則: 個人的要望を公開アプリに仕込まない)。
-- 設計: 通知ロガー APK が `onNotificationPosted` で {時刻/アプリ/タイトル/本文} を **`/sdcard/z2term-notifications.jsonl`** に追記 → z2term ターミナルが `/sdcard` 経由で読取・自作サーバーで配信 (「通知保存サーバー常駐」)。 完全ローカル・外部送信なし・OS 明示許可で opt-in。
-- **未決定** (着手前に確認): (1) 対象アプリ = 全部 / 指定 (例 LINE のみ)、 (2) 保存先パス (`/sdcard` 直下 or サブフォルダ)。 制約: LINE 側で本文非表示だと本文は来ない、 長文は通知の切り詰めまで。
+### 通知検知 — z2term 本体に汎用機能として実装済み (0.8.149・別アプリ案は破棄)
+- **方針転換の経緯**: 当初は「別アプリ (`10_AI-ext/14_notilog`)」で進めたが、 ユーザーの真意は「**特定通知を保存する決め打ち機能**を公開アプリに入れるのがダメ」なだけで、 **「通知を検知するだけの汎用機能」を z2term に入れるのは問題ない** (その先どんなデーモンを立てるかはユーザーの自由＝個人的機能ではない)。 よって別アプリ `14_notilog` は**破棄**し、 z2term 本体へ汎用入口として実装した。 (「internal 限定機能」という区分は存在しない＝機能は通常どおり実装、 main への反映は別途リリース工程。)
+- **実装** (`4992ac5`, 0.8.149(157)): `service/NotificationLogService.kt`(`NotificationListenerService`)。 OS の「通知アクセス」許可で Android が自動常駐。 設定 `notificationCaptureEnabled` ON のとき、 届いた通知を**生のまま** `~/.z2term/notifications.jsonl`(=`filesDir/shared_home/.z2term/notifications.jsonl`) へ 1 行 1 JSON で追記。 フィルタ・保存方針・配信は**ハードコードせず**ユーザーがターミナル側で組む (z2-notify の逆)。 既定 OFF・完全ローカル。 Manifest に `BIND_NOTIFICATION_LISTENER_SERVICE` service、 設定に「通知検知」セクション追加。
+- **未検証**: 実機での通知取得・ログ追記・許可導線は APK が組めず未確認 (要 e2e)。 `compileFossDebugKotlin` 成功。
 
 ---
 
