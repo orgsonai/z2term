@@ -1,6 +1,9 @@
 package com.zerotoship.z2term.ui.settings
 
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
+import androidx.core.app.NotificationManagerCompat
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -789,6 +792,45 @@ fun SettingsSheet(
                 ActionButton(
                     label = stringResource(R.string.settings_open_servers),
                     onClick = { serversOpen = true }
+                )
+            }
+
+            // 通知検知 (汎用入口): OS の「通知アクセス」許可 + 設定 ON のとき、届いた通知を
+            // ~/.z2term/notifications.jsonl へ生ログ追記する。加工・配信はユーザーがターミナル側で自由に。
+            Section(title = stringResource(R.string.settings_section_notif)) {
+                val granted = remember(serversOpen, settings.notificationCaptureEnabled) {
+                    NotificationManagerCompat.getEnabledListenerPackages(context)
+                        .contains(context.packageName)
+                }
+                ToggleField(
+                    title = stringResource(R.string.settings_notif_capture),
+                    description = stringResource(R.string.settings_notif_capture_desc),
+                    checked = settings.notificationCaptureEnabled,
+                    onChange = { session.setNotificationCaptureEnabled(it) }
+                )
+                Text(
+                    text = if (granted) stringResource(R.string.settings_notif_access_granted)
+                    else stringResource(R.string.settings_notif_access_missing),
+                    color = if (granted) ZtsGreen else ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                ActionButton(
+                    label = stringResource(R.string.settings_notif_grant),
+                    onClick = {
+                        runCatching {
+                            context.startActivity(
+                                Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                    }
+                )
+                Text(
+                    text = stringResource(R.string.settings_notif_logpath),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
                 )
             }
 

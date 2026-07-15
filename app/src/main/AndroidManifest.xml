@@ -100,6 +100,18 @@
                 android:value="server_daemon_persistence" />
         </service>
 
+        <!-- 通知検知 (汎用入口): OS の「通知アクセス」許可を与えると Android が自動でバインド・常駐。
+             設定「通知検知」ON のとき、受け取った通知を ~/.z2term/notifications.jsonl へ生ログ追記する。 -->
+        <service
+            android:name=".service.NotificationLogService"
+            android:exported="false"
+            android:label="@string/notif_capture_service_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <!-- 端末起動時の常駐サーバー自動起動レシーバ (設定 ON かつ enabled サーバーがある時のみ動く)。 -->
         <receiver
             android:name=".service.BootReceiver"

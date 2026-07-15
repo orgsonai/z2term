@@ -372,6 +372,14 @@
     <string name="servers_command_field">起動コマンド</string>
     <string name="servers_new_entry_title">サーバーを追加</string>
     <string name="servers_edit_entry_title">サーバーを編集</string>
+    <string name="notif_capture_service_label">通知検知（ログ）</string>
+    <string name="settings_section_notif">通知検知</string>
+    <string name="settings_notif_capture">通知を検知する</string>
+    <string name="settings_notif_capture_desc">ON かつ「通知アクセス」許可があるとき、届いた通知を生のまま ~/.z2term/notifications.jsonl へ追記します。汎用の入口で、何をログ/絞り込み/配信するかはターミナル側で自由に。完全ローカル。</string>
+    <string name="settings_notif_access_granted">通知アクセス: 許可済み</string>
+    <string name="settings_notif_access_missing">通知アクセス: 未許可（下のボタンから許可）</string>
+    <string name="settings_notif_grant">通知アクセスを許可</string>
+    <string name="settings_notif_logpath">ログ: ~/.z2term/notifications.jsonl（ターミナルで tail -f 等で読めます）</string>
     <string name="toast_copy_from_remote">リモートからコピー (%1$d 文字)</string>
     <string name="toast_selection_empty">選択範囲が空です</string>
     <string name="toast_copy">コピー (%1$d 文字)</string>
