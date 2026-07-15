@@ -1,6 +1,31 @@
 # セッション引き継ぎ（現状ローリング）
 
-最終更新: 2026-06-27 / 対象版数: **0.8.140-alpha (versionCode 148)** / ブランチ: main。
+最終更新: 2026-07-15 / 対象版数: **0.8.148-alpha (versionCode 156)** / ブランチ: internal。
+
+## 引き継ぎサマリ — 0.8.146〜148 (キャッシュ刷新 / IME 記号当て字修正 / 常駐サーバー機構、 internal 3 コミット・local へ push 済)
+
+このセッションの成果は **`internal` ブランチの 3 コミット** (`local` へ push 済、 **origin/main へは未反映**)。
+
+- **`6b16003` 0.8.146(154) — IME「と→＆」修正 + キャッシュ削除の刷新**
+  - IME: `kkc_lex.tsv` が 1 文字ひらがな読みに記号表層を低コストで持つ (と→＆ 3177 < と→と 5381、 他 に→２/ご→５/ざ→the) ため最優先候補が記号になっていた。 `KkcConverter.loadFromStreams` に `SYMBOL_READING_PENALTY`(+10000) を追加し「読み 1 文字ひらがな ∧ 表層が記号のみ」を最下位へ。 `SymbolReadingPenaltyTest` 追加。 **JVM ユニットテストで検証済み**。
+  - キャッシュ: Android `cacheDir` はインストール直後に空になり実質無意味だったため、 実際に容量を食う **rootfs 内の再取得可能キャッシュ** (pacman/apt/apk・`~/.cache` + アプリ一時) を直接掃除する `settings/RootfsCacheCleaner.kt` を新設。 ワンタップ即削除を廃し **確認ダイアログで「項目名 … サイズ」を列挙**。 `/tmp`・パッケージ本体・設定・ユーザファイルには触れない。
+- **`e2f15d5` 0.8.147(155) — 常駐サーバー機構 (アプリを開かず任意サーバーを常駐)**
+  - 新規: `settings/ServerEntry.kt`(定義+プリセット, DataStore JSON) / `proot/ServerSupervisorScript.kt`(全 enabled サーバーを auto-restart ループで起動し `var/lib/z2term-servers/<token>.status` に状態出力) / `service/ServerDaemonManager.kt`(`ProotLauncher.launch` で supervisor を headless 常駐・kill=一括停止・status 読取) / `service/ServerDaemonService.kt`(専用 FG サービス) / `service/BootReceiver.kt`(RECEIVE_BOOT_COMPLETED) / `ui/settings/ServersSheet.kt`(管理 UI)。
+  - 変更: `AppSettings`(serverEntries/serversAutostartOnBoot) / `TerminalSession`(setter) / `AndroidManifest.xml`(RECEIVE_BOOT_COMPLETED + ServerDaemonService + BootReceiver) / `SettingsSheet`(「常駐サーバー」セクション) / strings。
+  - 仕組み: proot/z2root は全プロセスが 1 本のエンジンの子 → supervisor 1 本を生かして常駐、 kill で一括停止。 サーバー本体はユーザーが distro に導入する前提 (非ハードコード)。 停止は v1 で一括のみ (個別 start/stop は次段)。
+- **`c37bf28` 0.8.148(156) — 常駐サーバーの省電力モード**
+  - `serversLowPower` トグル追加。 ON で `ServerDaemonService` が WakeLock/WifiLock を握らず Doze 許可 (電池優先・画面消灯中の着信は遅延/取りこぼしうる)。 既定 OFF。 `README.ja.md` の版数更新漏れ (0.8.145→) も是正。
+
+### ⚠️ 検証状況 / 未了
+- **キーボード修正のみ JVM テスト済**。 **キャッシュ UI・常駐サーバーの実機挙動は未検証**。 この端末は既知の **aapt2/box64 問題で APK が組めない** ([[project_build_aapt2_box64_binfmt]]) ため、 確認ダイアログ描画・supervisor 起動・status 生成・BOOT_COMPLETED 自動起動は **実機 install できる環境で e2e が要る**。 `compileFossDebugKotlin` は全て成功。
+- **ブランチ**: 3 コミットは `internal` のみ。 公開したいときは **main へ昇格 → origin へ push** が別途必要 (未実施・要判断)。
+
+### 次のタスク — 通知ログ (ユーザーの本命。 z2term に入れず「別アプリ」で)
+- 方針決定: 通知の本文取得は Android の `NotificationListenerService` + OS 許可が必須で、 ターミナル/root 単独では不可。 **公開 z2term は汚さず、 別プロジェクトの最小 APK** で実装する (ユーザー原則: 個人的要望を公開アプリに仕込まない)。
+- 設計: 通知ロガー APK が `onNotificationPosted` で {時刻/アプリ/タイトル/本文} を **`/sdcard/z2term-notifications.jsonl`** に追記 → z2term ターミナルが `/sdcard` 経由で読取・自作サーバーで配信 (「通知保存サーバー常駐」)。 完全ローカル・外部送信なし・OS 明示許可で opt-in。
+- **未決定** (着手前に確認): (1) 対象アプリ = 全部 / 指定 (例 LINE のみ)、 (2) 保存先パス (`/sdcard` 直下 or サブフォルダ)。 制約: LINE 側で本文非表示だと本文は来ない、 長文は通知の切り詰めまで。
+
+---
 
 ## 引き継ぎサマリ — 0.8.140 (z2root ローダ: musl ET_EXEC 起動の 3 バグ修正、 push 済 `abe3245`)
 
