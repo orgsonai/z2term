@@ -16,6 +16,9 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.zerotoship.z2term.MainActivity
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.settings.AppSettings
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 /**
  * 常駐サーバー専用フォアグラウンドサービス。対話セッションの [TerminalService] とは独立して動き、
@@ -54,6 +57,12 @@ class ServerDaemonService : Service() {
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         stopSelf()
                     } else {
+                        // 省電力モードでなければ WakeLock/WifiLock を握って画面消灯中も LAN 到達性を保つ。
+                        // 省電力 ON のときは握らず Doze を許す (電池優先・着信は遅延/取りこぼしうる)。
+                        val lowPower = runCatching {
+                            runBlocking { AppSettings(this@ServerDaemonService).flow.first().serversLowPower }
+                        }.getOrDefault(false)
+                        if (!lowPower) acquireLocks()
                         // 稼働数を反映した通知へ更新。
                         runCatching {
                             val nm = getSystemService(NotificationManager::class.java)
@@ -74,7 +83,7 @@ class ServerDaemonService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
-        acquireLocks()
+        // ロック取得は起動処理側 (省電力モード判定後) で行う。
     }
 
     private fun ensureChannel() {
