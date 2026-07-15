@@ -66,8 +66,12 @@
     <string name="settings_init_command_placeholder">e.g. zsh -l</string>
     <string name="settings_reset_terminal">Reset terminal</string>
     <string name="settings_clear_cache">Clear cache</string>
+    <string name="settings_clear_cache_sized">Clear cache (%1$s)</string>
     <string name="settings_clear_cache_done">Cache cleared (%1$s freed)</string>
     <string name="settings_clear_cache_empty">No cache to clear</string>
+    <string name="confirm_clear_cache_title">Clear cache?</string>
+    <string name="confirm_clear_cache_msg">Delete the following re-downloadable caches (%1$s total):\n%2$s\n\nInstalled packages, settings and your files are not affected.</string>
+    <string name="confirm_clear_cache_empty_msg">No cache to clear. Package and build caches inside the OS, plus the app download cache, are all empty.</string>
     <string name="settings_section_app_info">App info</string>
 
     <!-- Hidden execution engine selector (unlocked by tapping the version 7x) -->

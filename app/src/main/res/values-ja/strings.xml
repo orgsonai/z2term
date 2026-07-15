@@ -66,8 +66,12 @@
     <string name="settings_init_command_placeholder">例: zsh -l</string>
     <string name="settings_reset_terminal">端末リセット</string>
     <string name="settings_clear_cache">キャッシュ削除</string>
+    <string name="settings_clear_cache_sized">キャッシュ削除（%1$s）</string>
     <string name="settings_clear_cache_done">キャッシュを削除しました（%1$s 解放）</string>
     <string name="settings_clear_cache_empty">削除するキャッシュはありません</string>
+    <string name="confirm_clear_cache_title">キャッシュを削除しますか？</string>
+    <string name="confirm_clear_cache_msg">次の再取得可能なキャッシュ（合計 %1$s）を削除します:\n%2$s\n\nインストール済みパッケージ・設定・作業ファイルは消えません。</string>
+    <string name="confirm_clear_cache_empty_msg">削除できるキャッシュはありません。OS 内のパッケージ/ビルドキャッシュも、アプリのダウンロード一時も空です。</string>
     <string name="settings_section_app_info">アプリ情報</string>
 
     <!-- 裏機能: 実行エンジン選択 (バージョン7回タップで解放) -->

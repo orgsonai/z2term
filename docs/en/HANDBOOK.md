@@ -262,6 +262,7 @@ Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←**
 | Confirm before downloading | Show a confirmation dialog before fetching a distro / GUI |
 | SSH connection helper | Steps for connecting from a PC, with the IP shown |
 | Storage access | Permission to use `/sdcard` |
+| Clear cache | Sweeps the package/build caches that pile up inside the OS (pacman, apt, apk, `~/.cache`, …) plus the app's temp files. Tapping it opens a confirmation that **itemizes what and how much** will be deleted. Installed packages, settings and files you made are not removed |
 
 ---
 
