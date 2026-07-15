@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -120,7 +120,7 @@ fun ImeHistorySheet(onDismiss: () -> Unit) {
         containerColor = ZtsBgPrimary,
         contentColor = ZtsTextPrimary,
         scrimColor = Color.Black.copy(alpha = 0.55f),
-        contentWindowInsets = { WindowInsets.statusBars },
+        contentWindowInsets = { WindowInsets.systemBars },
         dragHandle = { Z2TermDragHandle(onClose = closeSheet) }
     ) {
         BackHandler(onBack = closeSheet)
