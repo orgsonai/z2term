@@ -25,6 +25,9 @@
          Play 非配布アプリのため直接要求を許容する。 -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- 端末起動時に常駐サーバー (sshd/http/smb 等) をアプリを開かず自動起動するため。 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Android API ブリッジ: z2-vibrate 用 (通常権限・実行時要求不要) -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
@@ -86,6 +89,28 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="terminal_session_persistence" />
         </service>
+
+        <!-- 常駐サーバー専用フォアグラウンドサービス: 対話セッションと独立して sshd/http/smb 等を常駐。 -->
+        <service
+            android:name=".service.ServerDaemonService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="server_daemon_persistence" />
+        </service>
+
+        <!-- 端末起動時の常駐サーバー自動起動レシーバ (設定 ON かつ enabled サーバーがある時のみ動く)。 -->
+        <receiver
+            android:name=".service.BootReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
 
         <!-- SAF DocumentsProvider: rootfs / HOME を他のファイラーから開けるようにする。
              permission=MANAGE_DOCUMENTS でシステム (DocumentsUI) からのみアクセス可能。 -->

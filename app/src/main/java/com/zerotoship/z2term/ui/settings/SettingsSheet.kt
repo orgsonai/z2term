@@ -132,6 +132,7 @@ fun SettingsSheet(
     var distroCleanArmed by remember { mutableStateOf(false) }
     // IME 学習履歴の管理シート。非 null の間 [ImeHistorySheet] を表示する (キーボードパッチ)。
     var imeHistoryOpen by remember { mutableStateOf(false) }
+    var serversOpen by remember { mutableStateOf(false) }
     // 画面の向き。キーボード高さスライダーを縦/横で自動切替するために監視する
     // (configChanges 宣言済みの Activity でも確実に届くよう View の実寸で判定)。
     val rootView = LocalView.current
@@ -776,6 +777,21 @@ fun SettingsSheet(
                 )
             }
 
+            // 常駐サーバー: 任意のサーバー (sshd/http/smb 等) を起動コマンドとして登録し、
+            // アプリを開かず自動常駐させる。管理は専用シート (ServersSheet) で行う。
+            Section(title = stringResource(R.string.settings_section_servers)) {
+                Text(
+                    text = stringResource(R.string.settings_servers_desc),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                ActionButton(
+                    label = stringResource(R.string.settings_open_servers),
+                    onClick = { serversOpen = true }
+                )
+            }
+
             // 裏機能で解放されたときだけ「実行エンジン」を表示。proot / z2root は非 root で選べ、
             // chroot は root セルフテスト成功 (rootChrootUnlocked) のときだけ選択肢に出す。
             if (settings.engineSelectorUnlocked) {
@@ -967,6 +983,11 @@ fun SettingsSheet(
     // IME 学習履歴の管理シート (キーボードパッチ)。設定シートと**重ねて**開く。
     if (imeHistoryOpen) {
         ImeHistorySheet(onDismiss = { imeHistoryOpen = false })
+    }
+
+    // 常駐サーバー管理シート。設定シートと**重ねて**開く。
+    if (serversOpen) {
+        ServersSheet(session = session, onDismiss = { serversOpen = false })
     }
 }
 

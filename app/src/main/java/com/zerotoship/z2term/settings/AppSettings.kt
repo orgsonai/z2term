@@ -148,7 +148,18 @@ class AppSettings(private val context: Context) {
          * テキスト選択 / スクロール) に使う。 二本指スワイプ→ホイール (button 64/65) は
          * opt-in に関係なく従来通り mouse capture 中なら送出する。
          */
-        val sgrMouseInputEnabled: Boolean = DEFAULT_SGR_MOUSE_INPUT
+        val sgrMouseInputEnabled: Boolean = DEFAULT_SGR_MOUSE_INPUT,
+        /**
+         * 常駐サーバー定義 (JSON 配列)。[com.zerotoship.z2term.settings.ServerEntry.decode] で
+         * `List<ServerEntry>` に復元する。空文字 = 未設定。
+         */
+        val serverEntries: String = "",
+        /**
+         * 端末起動時 (BOOT_COMPLETED) に常駐サーバーを自動起動するか。ON かつ enabled な
+         * サーバーがあれば、アプリを開かずに [com.zerotoship.z2term.service.ServerDaemonService] が
+         * supervisor を立ち上げる。既定 OFF。
+         */
+        val serversAutostartOnBoot: Boolean = DEFAULT_SERVERS_AUTOSTART
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -197,8 +208,18 @@ class AppSettings(private val context: Context) {
             toolbarOrder = p[KEY_TOOLBAR_ORDER] ?: "",
             traceLogEnabled = p[KEY_TRACE_LOG] ?: DEFAULT_TRACE_LOG,
             kittyExternalFileEnabled = p[KEY_KITTY_EXTERNAL_FILE] ?: DEFAULT_KITTY_EXTERNAL_FILE,
-            sgrMouseInputEnabled = p[KEY_SGR_MOUSE_INPUT] ?: DEFAULT_SGR_MOUSE_INPUT
+            sgrMouseInputEnabled = p[KEY_SGR_MOUSE_INPUT] ?: DEFAULT_SGR_MOUSE_INPUT,
+            serverEntries = p[KEY_SERVER_ENTRIES] ?: "",
+            serversAutostartOnBoot = p[KEY_SERVERS_AUTOSTART] ?: DEFAULT_SERVERS_AUTOSTART
         )
+    }
+
+    suspend fun setServerEntries(json: String) {
+        context.dataStore.edit { it[KEY_SERVER_ENTRIES] = json }
+    }
+
+    suspend fun setServersAutostartOnBoot(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_SERVERS_AUTOSTART] = enabled }
     }
 
     suspend fun setKittyExternalFileEnabled(value: Boolean) {
@@ -404,6 +425,11 @@ class AppSettings(private val context: Context) {
         private val KEY_TRACE_LOG = booleanPreferencesKey("trace_log_enabled")
         private val KEY_KITTY_EXTERNAL_FILE = booleanPreferencesKey("kitty_external_file_enabled")
         private val KEY_SGR_MOUSE_INPUT = booleanPreferencesKey("sgr_mouse_input_enabled")
+        private val KEY_SERVER_ENTRIES = stringPreferencesKey("server_entries")
+        private val KEY_SERVERS_AUTOSTART = booleanPreferencesKey("servers_autostart_on_boot")
+
+        /** 常駐サーバーの起動時自動起動は既定 OFF (明示 opt-in)。 */
+        const val DEFAULT_SERVERS_AUTOSTART = false
 
         /** z2root syscall トレースログは既定 OFF (開発者用。ログが膨大で容量を圧迫する)。 */
         const val DEFAULT_TRACE_LOG = false
