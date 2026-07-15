@@ -199,6 +199,14 @@ fun ServersSheet(
                 onChange = { session.setServersAutostartOnBoot(it) }
             )
 
+            // 省電力モード (WakeLock/WifiLock を握らない)。次回の起動から反映。
+            ToggleRow(
+                title = stringResource(R.string.servers_low_power),
+                desc = stringResource(R.string.servers_low_power_desc),
+                checked = settings.serversLowPower,
+                onChange = { session.setServersLowPower(it) }
+            )
+
             if (entries.isEmpty()) {
                 HintBox(stringResource(R.string.servers_empty))
             } else {

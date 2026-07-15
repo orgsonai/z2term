@@ -285,6 +285,7 @@ class TerminalSession(
     fun setTraceLogEnabled(value: Boolean) { scope.launch { settings.setTraceLogEnabled(value) } }
     fun setServerEntries(json: String) { scope.launch { settings.setServerEntries(json) } }
     fun setServersAutostartOnBoot(enabled: Boolean) { scope.launch { settings.setServersAutostartOnBoot(enabled) } }
+    fun setServersLowPower(enabled: Boolean) { scope.launch { settings.setServersLowPower(enabled) } }
     fun setKittyExternalFileEnabled(value: Boolean) { scope.launch { settings.setKittyExternalFileEnabled(value) } }
     fun setSgrMouseInputEnabled(value: Boolean) { scope.launch { settings.setSgrMouseInputEnabled(value) } }
 

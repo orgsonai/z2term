@@ -277,6 +277,7 @@ Open ⚙ Settings → **Resident servers** → "Manage servers" to keep any serv
 
 Note: ports below 1024 (e.g. 80) cannot be opened without root — use a high port (e.g. 8080).
 Note: excluding the app from battery optimization makes it less likely to be killed in the background (link inside ⚙ Settings).
+Note: if battery use bothers you, turn on "**Low-power mode**" — it lets the device sleep deeply while the screen is off to save battery, but incoming connections may be delayed or dropped during that time (battery over reachability).
 
 ---
 

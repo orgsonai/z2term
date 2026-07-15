@@ -364,6 +364,8 @@
     <string name="servers_stop">Stop</string>
     <string name="servers_autostart_boot">Auto-start on boot</string>
     <string name="servers_autostart_boot_desc">Launch enabled servers right after the device boots, without opening the app.</string>
+    <string name="servers_low_power">Low-power mode</string>
+    <string name="servers_low_power_desc">Don\'t hold WakeLock/WifiLock — saves battery but incoming connections may be delayed or dropped while the screen is off. Applies on next start.</string>
     <string name="servers_no_command">(no command)</string>
     <string name="servers_preset">Preset (fills in a start command; edit freely)</string>
     <string name="servers_name_field">Name</string>

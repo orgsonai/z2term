@@ -159,7 +159,13 @@ class AppSettings(private val context: Context) {
          * サーバーがあれば、アプリを開かずに [com.zerotoship.z2term.service.ServerDaemonService] が
          * supervisor を立ち上げる。既定 OFF。
          */
-        val serversAutostartOnBoot: Boolean = DEFAULT_SERVERS_AUTOSTART
+        val serversAutostartOnBoot: Boolean = DEFAULT_SERVERS_AUTOSTART,
+        /**
+         * 常駐サーバーの **省電力モード**。ON のとき [com.zerotoship.z2term.service.ServerDaemonService] が
+         * WakeLock / WifiLock を握らず、端末の Doze (深いスリープ) を許す。電池は減りにくくなるが、
+         * 画面消灯中は外部からの着信が遅延・取りこぼすことがある (到達性より電池優先)。既定 OFF。
+         */
+        val serversLowPower: Boolean = DEFAULT_SERVERS_LOW_POWER
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -210,7 +216,8 @@ class AppSettings(private val context: Context) {
             kittyExternalFileEnabled = p[KEY_KITTY_EXTERNAL_FILE] ?: DEFAULT_KITTY_EXTERNAL_FILE,
             sgrMouseInputEnabled = p[KEY_SGR_MOUSE_INPUT] ?: DEFAULT_SGR_MOUSE_INPUT,
             serverEntries = p[KEY_SERVER_ENTRIES] ?: "",
-            serversAutostartOnBoot = p[KEY_SERVERS_AUTOSTART] ?: DEFAULT_SERVERS_AUTOSTART
+            serversAutostartOnBoot = p[KEY_SERVERS_AUTOSTART] ?: DEFAULT_SERVERS_AUTOSTART,
+            serversLowPower = p[KEY_SERVERS_LOW_POWER] ?: DEFAULT_SERVERS_LOW_POWER
         )
     }
 
@@ -220,6 +227,10 @@ class AppSettings(private val context: Context) {
 
     suspend fun setServersAutostartOnBoot(enabled: Boolean) {
         context.dataStore.edit { it[KEY_SERVERS_AUTOSTART] = enabled }
+    }
+
+    suspend fun setServersLowPower(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_SERVERS_LOW_POWER] = enabled }
     }
 
     suspend fun setKittyExternalFileEnabled(value: Boolean) {
@@ -427,9 +438,12 @@ class AppSettings(private val context: Context) {
         private val KEY_SGR_MOUSE_INPUT = booleanPreferencesKey("sgr_mouse_input_enabled")
         private val KEY_SERVER_ENTRIES = stringPreferencesKey("server_entries")
         private val KEY_SERVERS_AUTOSTART = booleanPreferencesKey("servers_autostart_on_boot")
+        private val KEY_SERVERS_LOW_POWER = booleanPreferencesKey("servers_low_power")
 
         /** 常駐サーバーの起動時自動起動は既定 OFF (明示 opt-in)。 */
         const val DEFAULT_SERVERS_AUTOSTART = false
+        /** 常駐サーバーの省電力モードは既定 OFF (既定は到達性優先で WakeLock/WifiLock を握る)。 */
+        const val DEFAULT_SERVERS_LOW_POWER = false
 
         /** z2root syscall トレースログは既定 OFF (開発者用。ログが膨大で容量を圧迫する)。 */
         const val DEFAULT_TRACE_LOG = false
