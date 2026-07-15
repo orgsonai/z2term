@@ -68,6 +68,22 @@ object KkcConverter {
      * 読みで厳密に絞ることで、同じ漢字でも別語・別読み (有名=ゆう / 入れ=いれ→入 / 鳴る=なる→鳴 /
      * 仕事=しごと / 時間=じかん …) を巻き込まない。表層の先頭字が対応集合に在るときだけ加点する。
      */
+    /**
+     * 「1 モーラの平仮名読みに、記号 (＆ ２ ５ ｔｈｅ …) の表層が低コストで付く」IPADIC 由来の
+     * 異常エントリに課すペナルティ。
+     *
+     * IPADIC は意味的な当て字 (＆=「と」= and、２=「に」、５=「ご」…) を素の平仮名表層より
+     * 低コストで持つため、そのままだと「と」を打っただけで最優先候補が「＆」になる
+     * (読み「と」: ＆ 3177 < と 5381)。端末 IME では 1 文字助詞をそのまま打ちたい場面が
+     * 圧倒的に多いので、素の平仮名/漢字に必ず負けるだけの下駄を履かせて最下位へ落とす
+     * (候補一覧には残るので、本当に記号が欲しければ選べる)。
+     */
+    private const val SYMBOL_READING_PENALTY = 10000
+
+    /** 表層が「仮名でも漢字でもない」= 記号 (全角英数含む) だけで構成されているか。 */
+    private fun isSymbolSurface(surface: String): Boolean =
+        surface.isNotEmpty() && surface.none { isHira(it) || isKanjiOrKata(it) }
+
     private val KANA_PREFERRED: Map<String, Set<Char>> = run {
         val aru = setOf('在', '有', '或')
         val iru = setOf('居')
@@ -161,6 +177,11 @@ object KkcConverter {
                 // 「読み → 抑制したい漢字」の対応で別語・別読みは巻き込まない。
                 if (surface.isNotEmpty() && KANA_PREFERRED[reading]?.contains(surface[0]) == true) {
                     adjCost += KANA_PREFERRED_PENALTY
+                }
+                // 1 文字平仮名の読みに記号表層 (＆ ２ ５ …) が最優先で付くのを抑止。
+                // 「と」で ＆、「に」で ２ …が最上位候補になる IPADIC の当て字を最下位へ落とす。
+                if (reading.length == 1 && isHira(reading[0]) && isSymbolSurface(surface)) {
+                    adjCost += SYMBOL_READING_PENALTY
                 }
                 map.getOrPut(reading) { ArrayList(2) }.add(Entry(surface, lc, rc, adjCost))
             }

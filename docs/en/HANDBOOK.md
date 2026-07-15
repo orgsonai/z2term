@@ -262,6 +262,22 @@ Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←**
 | Confirm before downloading | Show a confirmation dialog before fetching a distro / GUI |
 | SSH connection helper | Steps for connecting from a PC, with the IP shown |
 | Storage access | Permission to use `/sdcard` |
+| Clear cache | Sweeps the package/build caches that pile up inside the OS (pacman, apt, apk, `~/.cache`, …) plus the app's temp files. Tapping it opens a confirmation that **itemizes what and how much** will be deleted. Installed packages, settings and files you made are not removed |
+| Resident servers | Register any server (sshd / http / smb, …) as a **start command** and keep it running in the background. Turn on "auto-start on boot" and it **launches right after the device boots — without opening the app**. Stop them all from the "Stop servers" notification action or this screen. See below |
+
+### Resident servers (run without opening the app)
+
+Open ⚙ Settings → **Resident servers** → "Manage servers" to keep any server running.
+
+1. Tap "**+ New**". Picking a preset (SSH / HTTP / SMB / FTP / VNC) fills in a start command (edit it freely).
+2. Install the server itself (`sshd` / `smbd`, …) into that OS beforehand from the terminal — the app does not bundle them.
+3. Tap "**Start**" to launch all servers now. Each row shows its state (`running`, …) and is **auto-restarted** if it exits.
+4. Turn on "**Auto-start on boot**" and the servers **come up automatically after the device boots, without opening the app**.
+5. To stop, use the "**Stop servers**" notification action or "**Stop**" on this screen (stops them all at once).
+
+Note: ports below 1024 (e.g. 80) cannot be opened without root — use a high port (e.g. 8080).
+Note: excluding the app from battery optimization makes it less likely to be killed in the background (link inside ⚙ Settings).
+Note: if battery use bothers you, turn on "**Low-power mode**" — it lets the device sleep deeply while the screen is off to save battery, but incoming connections may be delayed or dropped during that time (battery over reachability).
 
 ---
 

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-07 / 対象バージョン: 0.8.145-alpha (versionCode 153)
+最終更新: 2026-07-15 / 対象バージョン: 0.8.148-alpha (versionCode 156)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -103,6 +103,7 @@
 **ライフサイクル設計の要点**:
 - `TerminalSession` は **UI から独立**して生存 (`SessionManager` が保持)。Activity 破棄でも PTY/emulator 状態を維持。
 - `TerminalService` (フォアグラウンドサービス) が常駐化を担い、バックグラウンドでも PTY を維持する。`AudioBridge`(GUI 音声) も同サービス系で扱う。常駐中は CPU の `PARTIAL_WAKE_LOCK` に加え **`WifiLock` (`WIFI_MODE_FULL_HIGH_PERF`)** を握り、画面消灯/アイドルでも Wi-Fi 無線を省電力 (PSM) に落とさない。これが無いと端末上の sshd 等への LAN 着信が届かず「立てたのに繋がらない/Wi-Fi 繋ぎ直すと直る」症状が出る。常駐 OFF (detach)・停止・破棄で両ロックを解放する (0.8.143)。
+- **常駐サーバー** (`ServerDaemonService` / `ServerDaemonManager` / `ServerSupervisorScript` / `BootReceiver` / `ServerEntry`, 0.8.147): 任意のサーバー (sshd/http/smb 等) を **起動コマンド**として登録し (`ServerEntry`, DataStore に JSON 保存)、対話セッションとは独立して常駐させる汎用機構。proot/z2root では全プロセスが 1 本のエンジンプロセスの子になるため、**enabled な全サーバーを起動する supervisor スクリプト 1 本**をエンジン上で headless 起動 (`ProotLauncher.launch(command=/usr/local/bin/z2term-server-supervisor)`) して生かし続ける。supervisor は各サーバーを **auto-restart ループ**付きで起動し、稼働状態を rootfs 内 `var/lib/z2term-servers/<token>.status` に書き出す (アプリが読んで一覧に反映)。前面維持 (プロセス被 kill 防止) と LAN 到達性 (WakeLock+WifiLock) は専用フォアグラウンドサービス `ServerDaemonService` が担う。**`BootReceiver` (RECEIVE_BOOT_COMPLETED) で端末起動直後にアプリを開かず自動常駐** (設定「起動時に自動で常駐」ON かつ enabled サーバーがある時のみ)。停止は通知「サーバー停止」または設定で **supervisor エンジンを kill = 全サーバー一括停止** (子プロセスがまとめて終了)。サーバー本体はユーザーが distro に導入する前提で、アプリはコマンド実行と再起動・常駐管理だけを行う (特定サーバーは非ハードコード)。1024 未満ポートは非 root エンジンで bind 不可。設定「省電力モード」(`serversLowPower`) ON のときは WakeLock/WifiLock を握らず Doze を許す (電池優先。画面消灯中の着信は遅延/取りこぼしうる。次回起動から反映, 0.8.148)。
 - emulator の状態更新は **専用シングルスレッド** (`z2term-emu-*`) に集約し、Compose は `StateFlow` 経由で読む。
 - **GUI デスクトップ**は別 Activity (`GuiActivity`) として起動し、distro 内 Xvnc に内蔵 RFB クライアントで接続する（[§4.12](#412-gui-デスクトップ-gui)）。実行エンジンは z2root 既定 (0.8.123)、裏設定で PRoot、root 端末ではさらに chroot に切替可（[§4.3](#43-proot-実行-prootprootlauncherkt-prootsshdscriptkt)）。
 
@@ -159,7 +160,8 @@
   - **Zip-Slip 対策 (0.8.141)**: 全展開先を `outputDir.canonicalFile` 配下に封じ込める (`isWithin`)。`canonicalFile` が既存プレフィックスの symlink を解決し `..` を正規化するため、悪意ある `../` エントリと「親に仕込んだ脱出 symlink を辿る write-through」の双方を弾く。ハードリンク元 (`linkname`) も同判定で rootfs 外読み出しを防ぐ。逸脱エントリは本体を `skipFully` で読み飛ばしつつストリーム整合を保ってスキップ。SHA 未固定で DL する Ubuntu/Arch/Kali の汚染 tar でアプリ領域外へ書き込まれるのを防ぐ (symlink の *ターゲット自体* は正 rootfs に多数ある正当な域外 (proot 名前空間内) リンクを壊さないよう制限しない — 危険なのは経由書き込みで、そちらを封じる)。手組み tar を実 `extractTar` に流す `ZipSlipExtractionTest` (正常展開 / `../` / write-through symlink / 域外 hardlink の 4 ケース) で回帰を防ぐ。JVM テストで `android.util.Log` を no-op 化するため `testOptions.unitTests.isReturnDefaultValues=true`。
   - `postInstallSetup`: resolv.conf/hosts、`pacman.conf` (sandbox/DownloadUser 無効化)、apt の Sandbox::User=root、version マーカー書込。
   - パーミッションは **owner-only** (`setUnixMode(ownerOnly=true)`)。world-writable だと sudo が拒否する。
-- `DistroDownloader`: HTTP DL + SHA256 検証、`cacheDir/distros/<id>-<abi>.tgz` にキャッシュ。
+- `DistroDownloader`: HTTP DL + SHA256 検証、`cacheDir/distros/<id>-<abi>.tgz` にキャッシュ (インストール成功直後に `deleteCachedArchive` で消すため常時ほぼ空)。
+- `RootfsCacheCleaner`: 設定「キャッシュ削除」の実体。Android の `cacheDir` はほぼ空なので、実際に容量を食う **rootfs 内の再取得可能キャッシュ** を直接ファイル削除で掃除する。対象は全インストール OS (`filesDir/distros/<id>`) の `var/cache/pacman/pkg`・`var/cache/apt/archives`・`var/cache/apk`・`root`/各ユーザの `.cache`、および `cacheDir` 全体。**稼働中セッションが握る恐れのある `/tmp` やパッケージ本体・設定・ユーザファイルには触れない**。確認ダイアログで「項目名 … サイズ」を 1 件ずつ列挙してから削除する (ワンタップ即削除を廃止)。
 
 ### 4.5 ターミナルエミュレータ (`emulator/`)
 
@@ -314,6 +316,7 @@ TerminalScreen: active が IDLE なら startTerminal()
 SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用補完を二分探索で引く best-effort 変換。打鍵ごとに候補バー (`CandidateBar`) を更新する。
 
 - **候補生成 (`convertFlexible`)**: 学習履歴(完全一致) → 学習履歴(前方一致＝予測変換) → 文まるごと最尤変換(`nbest`) → 完全一致(`convert`)/送り仮名活用(`okuriForms`) → 前方一致予測(`predict`)。生かな・カタカナは常に確定候補として残す。
+- **記号当て字の抑制** (`SYMBOL_READING_PENALTY`): IPADIC は 1 文字ひらがな読みに記号表層を低コストで持つため (と→＆ 3177・に→２・ご→５ 等) 素のかな/漢字より上位に出てしまう。読みが 1 文字ひらがな ∧ 表層が記号のみ (仮名・漢字を含まない) のエントリへ `loadFromStreams` で大きめのペナルティを足し最下位へ落とす (候補一覧には残る)。既存の `KATAKANA_DUP_PENALTY`(過剰カタカナ化抑止) / `KANA_PREFERRED`(補助動詞・形式名詞の漢字化抑止) と同じ流儀。
 - **学習履歴** (`ImeHistoryStore`): 確定語を頻度・直近 7 日でランキングし上位に出す。
 - **予測変換 (学習履歴の前方一致)**: 打った読みで始まる学習済みの語句を、文まるごと変換より先に候補上位へ出す (`ImeHistoryStore.predictHistoryWithReading` / `convertFlexible` の前方一致段)。打ちかけの読みで「打ち慣れた語句」を絞り込んで提示する本来の予測変換。**予測候補を確定したときは、打った接頭辞ではなく語句の実際の読みで学習する**: `ComposingState.commit` が `KkcConverter.predictionReadingMap` で表層→実際の読みを逆引きし、`ImeHistoryStore.record` の見出しに使う。接頭辞だけの不正な学習見出しが履歴に入らず、次回以降も同じ読みで予測が再利用される。
 - **文節分割合成 (`segment`)**: 内容語(最長辞書一致) + 後続の助詞/送り仮名を 1 文節として連結 (例: きょうの → 今日の)。**助詞** (の/は/が…) と**文末助動詞** (でしょう/ました/です…) は単漢字エントリ (野/葉/増田…) を持つため**かなのまま残す** (`PARTICLES` / `AUX_KANA`)。辞書ヒット 1 文節以上 ∧ 漢字を含むときに返す。

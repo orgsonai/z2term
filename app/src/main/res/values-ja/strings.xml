@@ -66,8 +66,12 @@
     <string name="settings_init_command_placeholder">例: zsh -l</string>
     <string name="settings_reset_terminal">端末リセット</string>
     <string name="settings_clear_cache">キャッシュ削除</string>
+    <string name="settings_clear_cache_sized">キャッシュ削除（%1$s）</string>
     <string name="settings_clear_cache_done">キャッシュを削除しました（%1$s 解放）</string>
     <string name="settings_clear_cache_empty">削除するキャッシュはありません</string>
+    <string name="confirm_clear_cache_title">キャッシュを削除しますか？</string>
+    <string name="confirm_clear_cache_msg">次の再取得可能なキャッシュ（合計 %1$s）を削除します:\n%2$s\n\nインストール済みパッケージ・設定・作業ファイルは消えません。</string>
+    <string name="confirm_clear_cache_empty_msg">削除できるキャッシュはありません。OS 内のパッケージ/ビルドキャッシュも、アプリのダウンロード一時も空です。</string>
     <string name="settings_section_app_info">アプリ情報</string>
 
     <!-- 裏機能: 実行エンジン選択 (バージョン7回タップで解放) -->
@@ -342,6 +346,32 @@
     <string name="service_notification_title">Z2Term 稼働中</string>
     <string name="service_notification_text">ターミナルセッションが実行中です</string>
     <string name="service_action_stop">停止</string>
+    <string name="server_channel_name">Z2Term サーバー</string>
+    <string name="server_channel_desc">常駐サーバー (sshd/http/smb 等) をバックグラウンドで維持</string>
+    <string name="server_notification_title">サーバー常駐中</string>
+    <string name="server_notification_text">%1$d 個のサーバーが稼働中</string>
+    <string name="server_action_stop">サーバー停止</string>
+    <string name="settings_section_servers">常駐サーバー</string>
+    <string name="settings_servers_desc">任意のサーバー (sshd/http/smb 等) をバックグラウンドで常駐。アプリを開かなくても動かせます。</string>
+    <string name="settings_open_servers">サーバーを管理</string>
+    <string name="servers_title">常駐サーバー</string>
+    <string name="servers_new">+ 新規</string>
+    <string name="servers_empty">まだサーバーがありません。起動コマンド (例: python3 -m http.server 8080) で追加してください。</string>
+    <string name="servers_hint">サーバーは選択中の OS 内で動きます。サーバー本体 (sshd/smbd 等) はご自身で導入してください。アプリは起動コマンドを実行し、終了したら自動で再起動します。1024 未満のポートは root 無しでは bind できません。</string>
+    <string name="servers_state_running">稼働中</string>
+    <string name="servers_state_stopped">停止中</string>
+    <string name="servers_start">起動</string>
+    <string name="servers_stop">停止</string>
+    <string name="servers_autostart_boot">起動時に自動で常駐</string>
+    <string name="servers_autostart_boot_desc">端末起動直後に、アプリを開かず有効なサーバーを自動で立ち上げます。</string>
+    <string name="servers_low_power">省電力モード</string>
+    <string name="servers_low_power_desc">WakeLock/WifiLock を握りません。電池は減りにくくなりますが、画面消灯中は外部からの着信が遅延・取りこぼすことがあります。次回の起動から反映。</string>
+    <string name="servers_no_command">(コマンド未設定)</string>
+    <string name="servers_preset">プリセット (起動コマンドを埋めます。あとで自由に編集可)</string>
+    <string name="servers_name_field">名前</string>
+    <string name="servers_command_field">起動コマンド</string>
+    <string name="servers_new_entry_title">サーバーを追加</string>
+    <string name="servers_edit_entry_title">サーバーを編集</string>
     <string name="toast_copy_from_remote">リモートからコピー (%1$d 文字)</string>
     <string name="toast_selection_empty">選択範囲が空です</string>
     <string name="toast_copy">コピー (%1$d 文字)</string>

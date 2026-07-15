@@ -70,6 +70,7 @@ import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.BatteryGuard
 import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
+import com.zerotoship.z2term.settings.RootfsCacheCleaner
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.theme.TerminalFontOption
@@ -131,6 +132,7 @@ fun SettingsSheet(
     var distroCleanArmed by remember { mutableStateOf(false) }
     // IME 学習履歴の管理シート。非 null の間 [ImeHistorySheet] を表示する (キーボードパッチ)。
     var imeHistoryOpen by remember { mutableStateOf(false) }
+    var serversOpen by remember { mutableStateOf(false) }
     // 画面の向き。キーボード高さスライダーを縦/横で自動切替するために監視する
     // (configChanges 宣言済みの Activity でも確実に届くよう View の実寸で判定)。
     val rootView = LocalView.current
@@ -147,6 +149,17 @@ fun SettingsSheet(
     // OS データ削除: 再スキャン用カウンタ + 削除確認ダイアログ対象 distro id。
     var osDataRefresh by remember { mutableStateOf(0) }
     var pendingOsDelete by remember { mutableStateOf<String?>(null) }
+    // キャッシュ削除: 再集計用カウンタ + 削除確認ダイアログの表示フラグ。
+    var cacheRefresh by remember { mutableStateOf(0) }
+    var pendingCacheClear by remember { mutableStateOf(false) }
+    // 掃除できる rootfs 内キャッシュ + アプリ一時をバックグラウンドで走査 (サイズ降順)。
+    // null = 走査前 (…表示)。削除後は cacheRefresh をインクリメントして再走査する。
+    val cacheItems by produceState<List<RootfsCacheCleaner.Item>?>(null, cacheRefresh) {
+        value = withContext(Dispatchers.IO) {
+            RootfsCacheCleaner.scan(java.io.File(context.filesDir, "distros"), context.cacheDir)
+        }
+    }
+    val cacheTotal = cacheItems?.sumOf { it.bytes }
     // L1: 電池最適化の除外状態。システム設定から戻った時 (ON_RESUME) に再判定して
     // トグル表示を実態に同期させる (除外の追加/解除はシステム UI 側で行われるため)。
     var batteryIgnoring by remember { mutableStateOf(BatteryGuard.isIgnoring(context)) }
@@ -753,19 +766,29 @@ fun SettingsSheet(
                     danger = true,
                     onClick = { session.restart() }
                 )
-                // キャッシュ削除 (cacheDir 配下のみ。rootfs / 設定は消えない)。
+                // キャッシュ削除 (rootfs 内のパッケージ/ビルドキャッシュ + アプリ一時)。
+                // ワンタップでは消さず、何をどれだけ消すか列挙した確認ダイアログを挟む。
                 ActionButton(
-                    label = stringResource(R.string.settings_clear_cache),
-                    onClick = {
-                        scope.launch {
-                            val freed = withContext(Dispatchers.IO) { clearAppCache(context) }
-                            val msg = if (freed > 0)
-                                context.getString(R.string.settings_clear_cache_done, formatStorageSize(freed))
-                            else
-                                context.getString(R.string.settings_clear_cache_empty)
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                        }
-                    }
+                    label = stringResource(
+                        R.string.settings_clear_cache_sized,
+                        cacheTotal?.let { formatStorageSize(it) } ?: "…"
+                    ),
+                    onClick = { pendingCacheClear = true }
+                )
+            }
+
+            // 常駐サーバー: 任意のサーバー (sshd/http/smb 等) を起動コマンドとして登録し、
+            // アプリを開かず自動常駐させる。管理は専用シート (ServersSheet) で行う。
+            Section(title = stringResource(R.string.settings_section_servers)) {
+                Text(
+                    text = stringResource(R.string.settings_servers_desc),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                ActionButton(
+                    label = stringResource(R.string.settings_open_servers),
+                    onClick = { serversOpen = true }
                 )
             }
 
@@ -924,9 +947,47 @@ fun SettingsSheet(
         )
     }
 
+    // キャッシュ削除の確認。何を (項目名) どれだけ (サイズ) 消すかを 1 件ずつ列挙してから消す。
+    // 対象は再取得できるキャッシュのみ。パッケージ本体・設定・作業ファイルは消えない旨も明示。
+    if (pendingCacheClear) {
+        val items = cacheItems.orEmpty()
+        val total = items.sumOf { it.bytes }
+        val message = if (items.isEmpty()) {
+            stringResource(R.string.confirm_clear_cache_empty_msg)
+        } else {
+            val lines = items.joinToString("\n") { "・${it.label} … ${formatStorageSize(it.bytes)}" }
+            stringResource(R.string.confirm_clear_cache_msg, formatStorageSize(total), lines)
+        }
+        DownloadConfirmDialog(
+            title = stringResource(R.string.confirm_clear_cache_title),
+            message = message,
+            confirmLabel = stringResource(R.string.settings_clear_cache),
+            onConfirm = {
+                pendingCacheClear = false
+                if (items.isNotEmpty()) {
+                    scope.launch {
+                        val freed = withContext(Dispatchers.IO) { RootfsCacheCleaner.clean(items) }
+                        cacheRefresh++
+                        val msg = if (freed > 0)
+                            context.getString(R.string.settings_clear_cache_done, formatStorageSize(freed))
+                        else
+                            context.getString(R.string.settings_clear_cache_empty)
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onCancel = { pendingCacheClear = false }
+        )
+    }
+
     // IME 学習履歴の管理シート (キーボードパッチ)。設定シートと**重ねて**開く。
     if (imeHistoryOpen) {
         ImeHistorySheet(onDismiss = { imeHistoryOpen = false })
+    }
+
+    // 常駐サーバー管理シート。設定シートと**重ねて**開く。
+    if (serversOpen) {
+        ServersSheet(session = session, onDismiss = { serversOpen = false })
     }
 }
 
@@ -1503,20 +1564,6 @@ private fun approxDirSize(dir: java.io.File): Long {
     return total
 }
 
-/**
- * アプリのキャッシュ (cacheDir 配下: distro ダウンロードキャッシュ等の一時ファイル) を
- * 削除し、解放したバイト数を返す。rootfs(filesDir) や設定(datastore) は一切触らない。
- * ファイル走査と削除があるので IO スレッドから呼ぶこと。
- */
-private fun clearAppCache(context: Context): Long {
-    val dir = context.cacheDir ?: return 0L
-    var freed = 0L
-    dir.listFiles()?.forEach { child ->
-        freed += approxDirSize(child)
-        child.deleteRecursively()
-    }
-    return freed
-}
 
 private fun formatStorageSize(bytes: Long): String {
     val mb = bytes / (1024.0 * 1024.0)
