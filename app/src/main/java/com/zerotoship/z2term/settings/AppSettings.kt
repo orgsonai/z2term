@@ -165,7 +165,15 @@ class AppSettings(private val context: Context) {
          * WakeLock / WifiLock を握らず、端末の Doze (深いスリープ) を許す。電池は減りにくくなるが、
          * 画面消灯中は外部からの着信が遅延・取りこぼすことがある (到達性より電池優先)。既定 OFF。
          */
-        val serversLowPower: Boolean = DEFAULT_SERVERS_LOW_POWER
+        val serversLowPower: Boolean = DEFAULT_SERVERS_LOW_POWER,
+        /**
+         * 通知検知の有効化フラグ。ON かつ OS の「通知アクセス」許可があるとき、
+         * [com.zerotoship.z2term.service.NotificationLogService] が受け取った通知を生のまま
+         * `~/.z2term/notifications.jsonl` へ追記する。フィルタ・保存方針・配信は一切ハードコードせず、
+         * 加工はユーザーがターミナル側で自由に行う **汎用の検知入口** (z2-notify の逆向き)。
+         * 既定 OFF・完全ローカル・外部送信なし。
+         */
+        val notificationCaptureEnabled: Boolean = DEFAULT_NOTIFICATION_CAPTURE
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -217,8 +225,13 @@ class AppSettings(private val context: Context) {
             sgrMouseInputEnabled = p[KEY_SGR_MOUSE_INPUT] ?: DEFAULT_SGR_MOUSE_INPUT,
             serverEntries = p[KEY_SERVER_ENTRIES] ?: "",
             serversAutostartOnBoot = p[KEY_SERVERS_AUTOSTART] ?: DEFAULT_SERVERS_AUTOSTART,
-            serversLowPower = p[KEY_SERVERS_LOW_POWER] ?: DEFAULT_SERVERS_LOW_POWER
+            serversLowPower = p[KEY_SERVERS_LOW_POWER] ?: DEFAULT_SERVERS_LOW_POWER,
+            notificationCaptureEnabled = p[KEY_NOTIFICATION_CAPTURE] ?: DEFAULT_NOTIFICATION_CAPTURE
         )
+    }
+
+    suspend fun setNotificationCaptureEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_NOTIFICATION_CAPTURE] = enabled }
     }
 
     suspend fun setServerEntries(json: String) {
@@ -439,6 +452,10 @@ class AppSettings(private val context: Context) {
         private val KEY_SERVER_ENTRIES = stringPreferencesKey("server_entries")
         private val KEY_SERVERS_AUTOSTART = booleanPreferencesKey("servers_autostart_on_boot")
         private val KEY_SERVERS_LOW_POWER = booleanPreferencesKey("servers_low_power")
+        private val KEY_NOTIFICATION_CAPTURE = booleanPreferencesKey("notification_capture_enabled")
+
+        /** 通知検知は既定 OFF (明示 opt-in + OS の通知アクセス許可が要る)。 */
+        const val DEFAULT_NOTIFICATION_CAPTURE = false
 
         /** 常駐サーバーの起動時自動起動は既定 OFF (明示 opt-in)。 */
         const val DEFAULT_SERVERS_AUTOSTART = false

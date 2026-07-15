@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-15 / 対象バージョン: 0.8.148-alpha (versionCode 156)
+最終更新: 2026-07-15 / 対象バージョン: 0.8.149-alpha (versionCode 157)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -104,6 +104,7 @@
 - `TerminalSession` は **UI から独立**して生存 (`SessionManager` が保持)。Activity 破棄でも PTY/emulator 状態を維持。
 - `TerminalService` (フォアグラウンドサービス) が常駐化を担い、バックグラウンドでも PTY を維持する。`AudioBridge`(GUI 音声) も同サービス系で扱う。常駐中は CPU の `PARTIAL_WAKE_LOCK` に加え **`WifiLock` (`WIFI_MODE_FULL_HIGH_PERF`)** を握り、画面消灯/アイドルでも Wi-Fi 無線を省電力 (PSM) に落とさない。これが無いと端末上の sshd 等への LAN 着信が届かず「立てたのに繋がらない/Wi-Fi 繋ぎ直すと直る」症状が出る。常駐 OFF (detach)・停止・破棄で両ロックを解放する (0.8.143)。
 - **常駐サーバー** (`ServerDaemonService` / `ServerDaemonManager` / `ServerSupervisorScript` / `BootReceiver` / `ServerEntry`, 0.8.147): 任意のサーバー (sshd/http/smb 等) を **起動コマンド**として登録し (`ServerEntry`, DataStore に JSON 保存)、対話セッションとは独立して常駐させる汎用機構。proot/z2root では全プロセスが 1 本のエンジンプロセスの子になるため、**enabled な全サーバーを起動する supervisor スクリプト 1 本**をエンジン上で headless 起動 (`ProotLauncher.launch(command=/usr/local/bin/z2term-server-supervisor)`) して生かし続ける。supervisor は各サーバーを **auto-restart ループ**付きで起動し、稼働状態を rootfs 内 `var/lib/z2term-servers/<token>.status` に書き出す (アプリが読んで一覧に反映)。前面維持 (プロセス被 kill 防止) と LAN 到達性 (WakeLock+WifiLock) は専用フォアグラウンドサービス `ServerDaemonService` が担う。**`BootReceiver` (RECEIVE_BOOT_COMPLETED) で端末起動直後にアプリを開かず自動常駐** (設定「起動時に自動で常駐」ON かつ enabled サーバーがある時のみ)。停止は通知「サーバー停止」または設定で **supervisor エンジンを kill = 全サーバー一括停止** (子プロセスがまとめて終了)。サーバー本体はユーザーが distro に導入する前提で、アプリはコマンド実行と再起動・常駐管理だけを行う (特定サーバーは非ハードコード)。1024 未満ポートは非 root エンジンで bind 不可。設定「省電力モード」(`serversLowPower`) ON のときは WakeLock/WifiLock を握らず Doze を許す (電池優先。画面消灯中の着信は遅延/取りこぼしうる。次回起動から反映, 0.8.148)。
+- **通知検知（汎用入口）** (`NotificationLogService`, 0.8.149): OS の「通知アクセス」許可を与えると Android が `NotificationListenerService` を自動でバインド・常駐させる（アプリを開かず・再起動後も動く＝通知検知デーモン）。設定 `notificationCaptureEnabled` ON のとき、受け取った通知を **生のまま** `~/.z2term/notifications.jsonl`（= `filesDir/shared_home/.z2term/notifications.jsonl`）へ 1 行 1 通知（JSON: ts/time/pkg/app/title/text/category/key）で追記する。**特定アプリの抽出・フィルタ・保存方針・配信は一切ハードコードしない**——z2term は「通知を検知してターミナルから読める形で流すだけ」の汎用機能を提供し、ログ化・絞り込み・配信はユーザーがターミナル側（`tail`／自作スクリプト／常駐サーバー）で自由に組む（`z2-notify` の逆向き）。既定 OFF・完全ローカル・外部送信なし。設定フラグは Service が `AppSettings.flow` を購読してキャッシュし、通知ごとの DataStore アクセスを避ける。書込みは単一スレッド executor で直列化。
 - emulator の状態更新は **専用シングルスレッド** (`z2term-emu-*`) に集約し、Compose は `StateFlow` 経由で読む。
 - **GUI デスクトップ**は別 Activity (`GuiActivity`) として起動し、distro 内 Xvnc に内蔵 RFB クライアントで接続する（[§4.12](#412-gui-デスクトップ-gui)）。実行エンジンは z2root 既定 (0.8.123)、裏設定で PRoot、root 端末ではさらに chroot に切替可（[§4.3](#43-proot-実行-prootprootlauncherkt-prootsshdscriptkt)）。
 

@@ -372,6 +372,14 @@
     <string name="servers_command_field">Start command</string>
     <string name="servers_new_entry_title">New server</string>
     <string name="servers_edit_entry_title">Edit server</string>
+    <string name="notif_capture_service_label">Notification detection (log)</string>
+    <string name="settings_section_notif">Notification detection</string>
+    <string name="settings_notif_capture">Capture notifications</string>
+    <string name="settings_notif_capture_desc">When on (and notification access is granted), incoming notifications are appended raw to ~/.z2term/notifications.jsonl. A generic hook — you decide what to log/filter/serve from the terminal. Fully local.</string>
+    <string name="settings_notif_access_granted">Notification access: granted</string>
+    <string name="settings_notif_access_missing">Notification access: not granted (tap below to grant)</string>
+    <string name="settings_notif_grant">Grant notification access</string>
+    <string name="settings_notif_logpath">Log: ~/.z2term/notifications.jsonl (read it from the terminal, e.g. tail -f)</string>
     <string name="toast_copy_from_remote">Copied from remote (%1$d chars)</string>
     <string name="toast_selection_empty">Selection is empty</string>
     <string name="toast_copy">Copied (%1$d chars)</string>
