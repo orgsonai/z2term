@@ -1,46 +1,50 @@
 # セッション引き継ぎ（現状ローリング）
 
-最終更新: 2026-07-16 / 対象版数: **0.8.156-alpha (versionCode 164)** / ブランチ: internal。
+最終更新: 2026-07-17 / 対象版数: **0.8.157-alpha (versionCode 165)** / ブランチ: internal。
 
-## 🔜 次セッションの依頼タスク（未着手・ユーザーが新セッションで実施予定）
+## 🔜 次セッションの依頼タスク（残 1 件）
 
-ユーザーから 3 件の追加要望。**未実装**。いずれも main で実装 → internal merge の流れ。調査済みの
-該当箇所を添える。
-
-### (A) タブのダブルタップ削除に「動作中なら確認ダイアログ」
+### (A) タブのダブルタップ削除に「動作中なら確認ダイアログ」【未着手】
 - 要望: タブのダブルタップ削除で、そのタブ内で**何か動作中なら削除確認**を出す。何も無ければ従来どおり
   即削除（作業中の誤タップ防止）。
-- 該当: `ui/terminal/TerminalScreen.kt:1622` `onDoubleClick = if (canClose) onClose else null`。
-  `onClose` の実体は `SessionManager.close(it)`（同ファイル 350/782 で束ねる。個別タブは 1535 `onClose(sess.id)`）。
+- 該当: `ui/terminal/TerminalScreen.kt` `onDoubleClick = if (canClose) onClose else null`。
+  `onClose` の実体は `SessionManager.close(it)`。
 - **設計の肝＝「動作中」の判定**: 現状 PtyProcess 側に前景プロセス情報が露出していない。案:
   (1) PTY master fd に `tcgetpgrp()` して**前景プロセスグループ ≠ ログインシェルの pgid** なら「実行中」
   → JNI に小さな native 追加が要る（PtyProcess の native 層）。(2) `/proc/<child>/task/.../children` や
   子 pgid を辿る heuristic。(3) 直近の PTY 出力活動での簡易判定（誤検知しやすい・非推奨）。**(1) が本命**。
 - UI: 確認ダイアログは既存のダイアログ様式（例 `RootfsCacheCleaner` の確認や `ui/components/` のダイアログ）に倣う。
-  ダブルタップ時に busy 判定 → busy なら AlertDialog、非busy なら即 close。文言は strings(ja/en) に追加。
 
-### (B) 日本語キーボード: 先頭ブロックを非ブロック化
-- 要望: 長文入力の自動ブロック変換で**一番左上（先頭ブロック）はブロック化せず素の入力かなのまま**にする。
-  「一つ右の長文自動変換部分（＝全文予測ピル）」は**今のブロック認識・変換仕様のまま**でよい。理由: 自分が
-  今どの文字を打っているか分からなくなるため。
-- 該当: `ui/terminal/keyboard/KanaKanjiConverter.kt` の `ComposingState`（1130〜）。
-  - `splitHeadLen>0` で先頭 `splitHeadLen` 文字が「変換中セグメント」になる。`autoSplit`(1182) が
-    true=長文の自動分割由来。`fullPrediction`(1143) が「一つ右」の全文予測ピル。`splitHead`/`splitTail`(1204-1208)。
-  - **方針案**: 自動分割（autoSplit）中は先頭セグメントを**変換候補で見せず生かな表示**にする（candidates を
-    先頭ブロックに適用しない／候補バーの先頭ピルを生かなにする）。`fullPrediction` ピルは現状維持。
-    候補バー描画は `TerminalKeyboard.kt` / `JapaneseFlickKeyboard.kt` 側。表示だけの問題か、内部の
-    `convert`/autoSplit 起動条件まで触るか切り分けて最小変更で。
+> **(B)(C) 日本語キーボードの2要望は 0.8.157 で完了**（下記サマリ参照）。
 
-### (C) 日本語キーボード: カーソル位置での挿入/削除
-- 要望: 長文入力中に**左右ボタンでカーソル位置を変えたら**、⌫ は**カーソル直前の文字**を削除、かな入力は
-  **カーソル位置の後ろに挿入**する。現状はカーソル位置に関わらず**末尾しか編集できず不便**。
-- 該当: 同 `ComposingState`。現状 `append` は**常に末尾追加**、⌫ は末尾削除で、**カーソル indexの概念が無い**。
-  - `emitKana`/`append`(1213〜) と backspace 系、`splitHeadLen` 調整の `shrinkSplitHead`/`extendSplitHead`。
-  - ◀▶ の現行意味（`JapaneseFlickKeyboard.kt:191-192`）: **スプリット中はフォーカス範囲調整**、composing 中
-    未スプリットは**変換キー相当**。→ 要望の「◀▶＝カーソル移動」と**衝突する**。どちらを優先するか（モード分岐か、
-    カーソル移動を別ジェスチャにするか）を**ユーザーに確認**してから実装するのが安全。
-  - **方針案**: `ComposingState` に `cursor:Int`（text 内の挿入位置）を追加し、append/backspace を cursor 相対に。
-    ◀▶ の役割再配置は上記の確認次第。スプリット/autoSplit との相互作用（境界とカーソルの二重概念）に注意。
+---
+
+## 引き継ぎサマリ — 0.8.157 (日本語 IME: 入力カーソル導入で「途中修正」「行頭移動」に対応、 実機確認済/未 commit→本作業で commit)
+
+ユーザー要望 (B) 先頭ブロックの非ブロック化 + (C) カーソル位置での挿入/削除 に対応した段。**数回の反復**を経て、
+最終的に `ComposingState` を **独立した入力カーソル `cursor` (0..length) 一本**へ作り替えた。実機で「途中修正できる」
+「行頭まで移動できる」をユーザー確認済み。
+
+- **反復の経緯（重要な教訓）**:
+  - 初版: ◀▶ を純カーソル化 → **先頭ブロック (`splitHeadLen`) が固定になり候補が更新されず**「使い物にならない」と指摘。
+  - v2: ◀▶ を元の「ブロック範囲伸縮＋候補追従」に戻し、表示だけ生かな全体化 → 「途中修正できないと意味ない」。
+  - v3: `caretEditMode` フラグで途中編集を追加 → **「編集できる時とできない時がある」（autoSplit 依存で不安定）「行頭に行けない」**（`splitHeadLen` 最小 1）。
+  - **最終: `splitHeadLen`/`autoSplit`/`caretEditMode` を全廃し、`cursor` 一本に統一**（下記）。
+- **最終仕様** (`KanaKanjiConverter.kt` `ComposingState`):
+  - `cursor` (0..length) = 挿入カーソル ∧ 先頭ブロックの境目。`splitHead=text[0..cursor]` / `splitTail=text[cursor..]`。
+  - `◀▶` = `moveCursorLeft`/`moveCursorRight`（**行頭 0 まで**）。動かすと候補 (`refreshPredict`) が先頭ブロックに追従。
+  - かな/記号 = `insertAtCursor`（カーソル位置へ挿入）、⌫ = カーソル直前削除、`小゛゜` = カーソル直前対象 (`charBeforeCaret`)。
+  - **打鍵直後はカーソル末尾**（先頭ブロック=全体）。旧「打鍵で自動的に先頭文節へ auto-split」は廃止（ユーザー要望 B に合致）。
+  - `convert`(変換キー) = 先頭ブロックの候補サイクル。`commitRaw`/候補タップ = 先頭ブロック確定 → 残りを末尾カーソルで続行。
+  - `fullPrediction`(薄緑ピル) は `0<cursor<length` のとき表示、◀▶ で追従。学習系 (`committedRun`/`fullPredictionBlocks`/
+    `learnMergedRun`/`commitFull`) は温存（文字列 `splitHead`/`splitTail` ベースなので不変）。
+  - 候補バー先頭ピル (`TerminalScreen.kt CandidateBar`): 打った生かな全体を連続表示。先頭ブロック濃色・残り薄色・
+    カーソル位置に caret(地色反転バー)。別 tail ラベルは廃止。
+  - `JapaneseFlickKeyboard.kt`: ◀▶ ハンドラを `moveCursorLeft/Right` に、`cycleDakuten` を `charBeforeCaret` に。
+- **落とし穴（実機反映）**: この端末はバックグラウンド常駐で `adb install -r` してもアプリのプロセスが**死なず古いコードのまま**
+  動き続ける（＝「変化なし」の主因だった）。**インストール後は `adb shell am force-stop com.zerotoship.z2term` してから再起動**すること。
+- 版数 0.8.157(165)。foss debug unit test は未実行（ComposingState は Compose state + ImeHistoryStore 依存で JVM 単体テスト困難、
+  実機確認で代替）。docs(README ja/en・DESIGN-SPEC ja/en §6.2/6.2.1・HANDBOOK ja/en) を cursor モデルへ更新。
 
 ---
 
