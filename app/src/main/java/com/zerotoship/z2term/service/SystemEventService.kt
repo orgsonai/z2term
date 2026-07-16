@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.media.AudioManager
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
@@ -50,6 +51,9 @@ import java.util.concurrent.Executors
  *  - `power_connected` / `power_disconnected` … 充電開始 / 停止 (`{level}` に残量%)
  *  - `battery_low` / `battery_okay`           … 電池残量 低下 / 回復 (`{level}` に残量%)
  *  - `wifi_connected` / `wifi_disconnected`   … Wi‑Fi 接続 / 切断 (`{ssid}` に SSID・取得可能な場合のみ)
+ *  - `headset_plugged` / `headset_unplugged`  … 有線ヘッドセットの抜き差し
+ *  - `airplane_on` / `airplane_off`           … 機内モード ON / OFF
+ *  - `ringer_normal` / `ringer_vibrate` / `ringer_silent` … マナーモード切替
  */
 class SystemEventService : Service() {
 
@@ -70,6 +74,11 @@ class SystemEventService : Service() {
                 Intent.ACTION_BATTERY_LOW -> emit("battery_low", level = batteryLevel())
                 Intent.ACTION_BATTERY_OKAY -> emit("battery_okay", level = batteryLevel())
                 WifiManager.NETWORK_STATE_CHANGED_ACTION -> handleWifi()
+                Intent.ACTION_HEADSET_PLUG ->
+                    emit(if (intent.getIntExtra("state", 0) == 1) "headset_plugged" else "headset_unplugged")
+                Intent.ACTION_AIRPLANE_MODE_CHANGED ->
+                    emit(if (intent.getBooleanExtra("state", false)) "airplane_on" else "airplane_off")
+                AudioManager.RINGER_MODE_CHANGED_ACTION -> handleRinger(intent)
             }
         }
     }
@@ -105,6 +114,9 @@ class SystemEventService : Service() {
             addAction(Intent.ACTION_BATTERY_LOW)
             addAction(Intent.ACTION_BATTERY_OKAY)
             addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
+            addAction(Intent.ACTION_HEADSET_PLUG)
+            addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
+            addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, RECEIVER_NOT_EXPORTED)
@@ -143,6 +155,18 @@ class SystemEventService : Service() {
         } else {
             emit("wifi_disconnected")
         }
+    }
+
+    /** マナーモード変化を normal/vibrate/silent として発火。 */
+    private fun handleRinger(intent: Intent) {
+        val mode = intent.getIntExtra(AudioManager.EXTRA_RINGER_MODE, -1)
+        val name = when (mode) {
+            AudioManager.RINGER_MODE_NORMAL -> "ringer_normal"
+            AudioManager.RINGER_MODE_VIBRATE -> "ringer_vibrate"
+            AudioManager.RINGER_MODE_SILENT -> "ringer_silent"
+            else -> return
+        }
+        emit(name)
     }
 
     private fun emit(event: String, level: Int? = null, ssid: String = "") {

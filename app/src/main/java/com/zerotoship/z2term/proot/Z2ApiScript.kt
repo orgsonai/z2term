@@ -124,6 +124,28 @@ fun z2ApiScripts(): Map<String, String> {
         |exec /usr/local/bin/z2api 1 torch "${d}{1:-toggle}"
     """.trimMargin() + "\n"
 
+    val media = """
+        |#!/bin/sh
+        |# z2-media play|pause|playpause|next|previous|stop  (既定 playpause)
+        |exec /usr/local/bin/z2api 0 media "${d}{1:-playpause}"
+    """.trimMargin() + "\n"
+
+    val volume = """
+        |#!/bin/sh
+        |# z2-volume up|down|mute|unmute|N|N%   メディア音量を操作。結果の current/max を出力。
+        |[ ${d}# -ge 1 ] || { echo "usage: z2-volume up|down|mute|unmute|N|N%" >&2; exit 1; }
+        |exec /usr/local/bin/z2api 1 volume "${d}1"
+    """.trimMargin() + "\n"
+
+    val intent = """
+        |#!/bin/sh
+        |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
+        |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
+        |# 任意の Android Intent を発火 (既定は startActivity)。先頭の非フラグ引数は ACTION。
+        |[ ${d}# -ge 1 ] || { echo "usage: z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] ..." >&2; exit 1; }
+        |exec /usr/local/bin/z2api 0 intent "${d}@"
+    """.trimMargin() + "\n"
+
     return linkedMapOf(
         "z2api" to dispatcher,
         "z2-notify" to notify,
@@ -135,5 +157,8 @@ fun z2ApiScripts(): Map<String, String> {
         "z2-vibrate" to vibrate,
         "z2-say" to say,
         "z2-torch" to torch,
+        "z2-media" to media,
+        "z2-volume" to volume,
+        "z2-intent" to intent,
     )
 }

@@ -5,22 +5,26 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.media.AudioManager
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.os.FileObserver
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.speech.tts.TextToSpeech
 import android.util.Base64
 import android.util.Log
+import android.view.KeyEvent
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -177,6 +181,9 @@ object Z2ApiBridge {
             "vibrate" -> { doVibrate(context, args.getOrNull(0)?.toLongOrNull() ?: 200L); null }
             "say" -> { doSay(context, args.joinToString(" ")); null }
             "torch" -> torchSet(context, args.getOrNull(0).orEmpty())
+            "media" -> { doMedia(context, args.getOrNull(0).orEmpty()); null }
+            "volume" -> volumeSet(context, args.getOrNull(0).orEmpty())
+            "intent" -> { doIntent(context, args); null }
             else -> throw IllegalArgumentException("unknown cmd: $cmd")
         }
     }
@@ -312,6 +319,104 @@ object Z2ApiBridge {
         cm.setTorchMode(camId, on)
         torchOn = on
         return if (on) "on" else "off"
+    }
+
+    /**
+     * メディア再生を制御する。[action] = `play`/`pause`/`playpause`/`next`/`previous`(`prev`)/`stop`。
+     * `AudioManager.dispatchMediaKeyEvent` にメディアキーを流すだけ (権限不要)。実際の応答は
+     * フォアグラウンドのメディアアプリ次第。
+     */
+    private fun doMedia(context: Context, action: String) {
+        val keyCode = when (action.lowercase()) {
+            "play" -> KeyEvent.KEYCODE_MEDIA_PLAY
+            "pause" -> KeyEvent.KEYCODE_MEDIA_PAUSE
+            "playpause", "toggle", "" -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+            "next" -> KeyEvent.KEYCODE_MEDIA_NEXT
+            "previous", "prev" -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
+            "stop" -> KeyEvent.KEYCODE_MEDIA_STOP
+            else -> throw IllegalArgumentException("usage: play|pause|playpause|next|previous|stop")
+        }
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val now = SystemClock.uptimeMillis()
+        am.dispatchMediaKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0))
+        am.dispatchMediaKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0))
+    }
+
+    /**
+     * メディア音量を制御する。[arg] = `up`/`down`/`mute`/`unmute`/`N`(0〜max の直値)/`N%`(0〜100%)。
+     * `STREAM_MUSIC` を対象に `AudioManager` で設定 (権限不要)。戻り値は結果の `current/max`。
+     */
+    private fun volumeSet(context: Context, arg: String): String {
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val stream = AudioManager.STREAM_MUSIC
+        val max = am.getStreamMaxVolume(stream)
+        val a = arg.lowercase()
+        when {
+            a == "up" -> am.adjustStreamVolume(stream, AudioManager.ADJUST_RAISE, 0)
+            a == "down" -> am.adjustStreamVolume(stream, AudioManager.ADJUST_LOWER, 0)
+            a == "mute" -> am.adjustStreamVolume(stream, AudioManager.ADJUST_MUTE, 0)
+            a == "unmute" -> am.adjustStreamVolume(stream, AudioManager.ADJUST_UNMUTE, 0)
+            a.endsWith("%") -> {
+                val pct = a.dropLast(1).toIntOrNull()
+                    ?: throw IllegalArgumentException("usage: up|down|mute|unmute|N|N%")
+                am.setStreamVolume(stream, (max * pct.coerceIn(0, 100)) / 100, 0)
+            }
+            else -> {
+                val v = a.toIntOrNull()
+                    ?: throw IllegalArgumentException("usage: up|down|mute|unmute|N|N%")
+                am.setStreamVolume(stream, v.coerceIn(0, max), 0)
+            }
+        }
+        return "${am.getStreamVolume(stream)}/$max"
+    }
+
+    /**
+     * 汎用 Intent 発火。`am start` に似たフラグで任意の Intent を組み、既定で `startActivity`
+     * (`--broadcast` で sendBroadcast、`--service` で startService) する。これ 1 本でアプリ起動・
+     * 設定画面表示・アラーム設定・共有などを網羅できるマクロの要。権限不要 (呼び先が要求する権限は別)。
+     *
+     * 対応フラグ (順不同): `-a/--action <ACTION>` `-d/--data <URI>` `-t/--type <MIME>`
+     * `-p/--package <PKG>` `-n/--component <PKG/CLS>` `-f/--flags <int>`
+     * `--es <K> <V>`(文字列) `--ez <K> <true|false>`(真偽) `--ei <K> <int>`(整数)
+     * `--broadcast` `--service`。先頭の非フラグ引数は action として扱う。
+     */
+    private fun doIntent(context: Context, args: List<String>) {
+        val intent = Intent()
+        var mode = "activity"
+        var i = 0
+        fun next(): String =
+            if (i < args.size) args[i++] else throw IllegalArgumentException("intent: missing value")
+        while (i < args.size) {
+            val tok = args[i++]
+            when (tok) {
+                "-a", "--action" -> intent.action = next()
+                "-d", "--data" -> intent.data = Uri.parse(next())
+                "-t", "--type" -> intent.type = next()
+                "-p", "--package" -> intent.setPackage(next())
+                "-n", "--component" -> {
+                    val cn = ComponentName.unflattenFromString(next())
+                        ?: throw IllegalArgumentException("intent: bad component (want PKG/CLS)")
+                    intent.component = cn
+                }
+                "-f", "--flags" -> intent.addFlags(
+                    next().toIntOrNull() ?: throw IllegalArgumentException("intent: --flags wants int")
+                )
+                "--es" -> intent.putExtra(next(), next())
+                "--ez" -> intent.putExtra(next(), next().toBoolean())
+                "--ei" -> intent.putExtra(
+                    next(), next().toIntOrNull() ?: throw IllegalArgumentException("intent: --ei wants int")
+                )
+                "--broadcast" -> mode = "broadcast"
+                "--service" -> mode = "service"
+                else -> if (intent.action == null && !tok.startsWith("-")) intent.action = tok
+                        else throw IllegalArgumentException("intent: unknown arg '$tok'")
+            }
+        }
+        when (mode) {
+            "broadcast" -> context.sendBroadcast(intent)
+            "service" -> { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); context.startService(intent) }
+            else -> { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); context.startActivity(intent) }
+        }
     }
 
     // --- 補助 ---
