@@ -1,8 +1,8 @@
 # セッション引き継ぎ（現状ローリング）
 
-最終更新: 2026-07-15 / 対象版数: **0.8.149-alpha (versionCode 157)** / ブランチ: internal。
+最終更新: 2026-07-16 / 対象版数: **0.8.151-alpha (versionCode 159)** / ブランチ: internal。
 
-## 引き継ぎサマリ — 0.8.146〜149 (キャッシュ刷新 / IME 記号当て字修正 / 常駐サーバー機構 / 通知検知、 internal コミット・local へ push)
+## 引き継ぎサマリ — 0.8.146〜151 (キャッシュ刷新 / IME 記号当て字修正 / 常駐サーバー / 通知検知 / ボトムシート修正、 internal コミット・local へ push)
 
 このセッションの成果は **`internal` ブランチのコミット群** (`local` へ push、 **origin/main へは未反映**)。 ※ 機能は internal 限定ではなく通常機能。 main は 0.8.141 以降ずっと遅れており、 公開時に main へ昇格 → origin push が別途要る (要ユーザー判断)。
 
@@ -16,14 +16,26 @@
 - **`c37bf28` 0.8.148(156) — 常駐サーバーの省電力モード**
   - `serversLowPower` トグル追加。 ON で `ServerDaemonService` が WakeLock/WifiLock を握らず Doze 許可 (電池優先・画面消灯中の着信は遅延/取りこぼしうる)。 既定 OFF。 `README.ja.md` の版数更新漏れ (0.8.145→) も是正。
 
-### ⚠️ 検証状況 / 未了
-- **キーボード修正のみ JVM テスト済**。 **キャッシュ UI・常駐サーバーの実機挙動は未検証**。 この端末は既知の **aapt2/box64 問題で APK が組めない** ([[project_build_aapt2_box64_binfmt]]) ため、 確認ダイアログ描画・supervisor 起動・status 生成・BOOT_COMPLETED 自動起動は **実機 install できる環境で e2e が要る**。 `compileFossDebugKotlin` は全て成功。
-- **ブランチ**: 3 コミットは `internal` のみ。 公開したいときは **main へ昇格 → origin へ push** が別途必要 (未実施・要判断)。
+- **`dbe03f3` 0.8.150(158) — ボトムシートがナビバーに被る不具合修正**
+  - 下からせり上がる ModalBottomSheet 6 種 (Servers/CustomTheme/ImeHistory/Sftp/Snippets/ClipboardHistory) の `contentWindowInsets` が `statusBars` のみで 3 ボタンナビ分の下パディングが無く、最下部ボタンが押せなかった。→ `systemBars` に変更。
+- **`4992ac5` 0.8.149(157) — 通知検知 (汎用入口)** ＋ **`f45f6be` 0.8.151(159) — 出力フォーマットのテンプレート化**
+  - 経緯: 当初「別アプリ (`10_AI-ext/14_notilog`)」案 → ユーザー真意は「**特定通知保存の決め打ち機能**を公開アプリに入れるのが NG」なだけで、**汎用の通知検知**を z2term に入れるのは OK (先のデーモンはユーザーの自由)。別アプリ `14_notilog` は**破棄済**。
+  - `service/NotificationLogService.kt`(`NotificationListenerService`)。OS「通知アクセス」許可で自動常駐。設定 `notificationCaptureEnabled` ON で届いた通知を `~/.z2term/notifications.jsonl`(=`filesDir/shared_home/.z2term/…`、shared_home は `-b …:/root` で端末の `~`) へ追記。**出力は `notificationLogFormat` テンプレート**を `render()` が置換 (`{time}{app}{title}{text}{text1}` 等・`\n``\t`・空=JSONL)。設定「通知検知」に許可導線＋プリセット＋テンプレ編集欄。`NotificationRenderTest` 追加。
+  - **実機検証済 (2026-07-16)**: 実機で `~/.z2term/notifications.jsonl` に実通知 (メッセージ/銀行アプリ等) が追記されるのを確認。**通知検知は end-to-end で動作**。
 
-### 通知検知 — z2term 本体に汎用機能として実装済み (0.8.149・別アプリ案は破棄)
-- **方針転換の経緯**: 当初は「別アプリ (`10_AI-ext/14_notilog`)」で進めたが、 ユーザーの真意は「**特定通知を保存する決め打ち機能**を公開アプリに入れるのがダメ」なだけで、 **「通知を検知するだけの汎用機能」を z2term に入れるのは問題ない** (その先どんなデーモンを立てるかはユーザーの自由＝個人的機能ではない)。 よって別アプリ `14_notilog` は**破棄**し、 z2term 本体へ汎用入口として実装した。 (「internal 限定機能」という区分は存在しない＝機能は通常どおり実装、 main への反映は別途リリース工程。)
-- **実装** (`4992ac5`, 0.8.149(157)): `service/NotificationLogService.kt`(`NotificationListenerService`)。 OS の「通知アクセス」許可で Android が自動常駐。 設定 `notificationCaptureEnabled` ON のとき、 届いた通知を**生のまま** `~/.z2term/notifications.jsonl`(=`filesDir/shared_home/.z2term/notifications.jsonl`) へ 1 行 1 JSON で追記。 フィルタ・保存方針・配信は**ハードコードせず**ユーザーがターミナル側で組む (z2-notify の逆)。 既定 OFF・完全ローカル。 Manifest に `BIND_NOTIFICATION_LISTENER_SERVICE` service、 設定に「通知検知」セクション追加。
-- **未検証**: 実機での通知取得・ログ追記・許可導線は APK が組めず未確認 (要 e2e)。 `compileFossDebugKotlin` 成功。
+### ⚠️ 検証状況 / ビルド
+- **実機ビルドは解決済 (2026-07-16)**: `~/.gradle/gradle.properties`(git 管理外) が**空になっていた**のが原因群。復元した 2 行で full release が通り、正常 APK を確認:
+  - `android.aapt2FromMavenOverride=/root/.cache/z2term/aapt2bin/aapt2` (既存の box64 aapt2 ラッパー。無いと processResources で `Daemon startup failed`)
+  - `android.enableResourceOptimizations=false` (無いと release の aapt2 optimize が空出力で **manifest/arsc 欠落 → 「パッケージ解析エラー」**。詳細 [[project_ondevice_release_apk_fix]])
+  - 以後は素の `scripts/gw.sh :app:assembleFullRelease` で OK。健全性は `unzip -l <apk> | grep AndroidManifest`。ネイティブ aapt2 override 別解は [[project_build_aapt2_box64_binfmt]]。
+- **未検証(要実機確認)**: キャッシュ削除ダイアログ・常駐サーバー起動/BOOT 自動常駐・ボトムシート修正の見た目・通知フォーマットの各プリセット。通知検知本体は検証済。
+- **ブランチ**: 全コミットは `internal` のみ (local へ push 済)。公開時は **main へ昇格 → origin push** が別途必要 (main は 0.8.141 以降遅れ・要ユーザー判断)。
+
+### 次タスク — MacroDroid ライト (ユーザー承認済みの方向)
+z2term は既に「アクション(シェル→Android: `z2-notify/toast/share/open/clip/battery/vibrate`)」＋「トリガー(Android→シェル: 通知検知)」を持つ。条件/ロジックはターミナル側 (script/cron/常駐サーバー) で書ける前提で、両輪を増やす:
+- **システムイベント検知** (通知検知と同じ opt-in＋テンプレ＋`~/.z2term/events.jsonl` 方式): 電池/充電・画面 ON/OFF・ロック解除・Wi‑Fi 接続/SSID・イヤホン/BT・(要権限で SMS/着信)。BroadcastReceiver 群で実装。
+- **アクション追加**: `z2-say`(TTS)・`z2-torch`(フラッシュライト)・メディア操作/音量/明るさ。z2-* ブリッジ (`proot/Z2ApiScript.kt` 系) に追加。
+- 推奨着手: 「イベント検知＝電池/充電/画面/WiFi」＋「z2-say・z2-torch」。全て非 root・opt-in・完全ローカルの汎用フックで。
 
 ---
 
