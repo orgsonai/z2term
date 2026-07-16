@@ -23,6 +23,13 @@ class BootReceiver : BroadcastReceiver() {
         ) return
 
         val settings = runBlocking { AppSettings(context).flow.first() }
+
+        // システムイベント検知が ON なら、アプリを開かずに常駐 FG サービスを起動する。
+        if (settings.systemEventCaptureEnabled) {
+            Log.i("BootReceiver", "Autostarting system event service after boot")
+            SystemEventService.start(context)
+        }
+
         if (!settings.serversAutostartOnBoot) return
         val hasEnabled = ServerEntry.decode(settings.serverEntries).any { it.enabled && it.command.isNotBlank() }
         if (!hasEnabled) return

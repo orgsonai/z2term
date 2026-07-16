@@ -7,6 +7,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
@@ -16,6 +18,7 @@ import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.speech.tts.TextToSpeech
 import android.util.Base64
 import android.util.Log
 import android.widget.Toast
@@ -24,7 +27,9 @@ import androidx.core.app.NotificationManagerCompat
 import com.zerotoship.z2term.R
 import org.json.JSONObject
 import java.io.File
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -75,6 +80,13 @@ object Z2ApiBridge {
     }
     private val notifyId = AtomicInteger(7000)
 
+    // TTS (z2-say) は初期化が非同期。準備できるまで発話を溜め、ready になったら流す。
+    @Volatile private var tts: TextToSpeech? = null
+    private val ttsReady = AtomicBoolean(false)
+    private val pendingSpeech = ConcurrentLinkedQueue<String>()
+    // z2-torch のトグル用に最後に設定した点灯状態を保持 (best-effort)。
+    @Volatile private var torchOn = false
+
     /** Application.onCreate から呼ぶ。idempotent。 */
     fun start(context: Context) {
         if (observer != null) return
@@ -111,6 +123,12 @@ object Z2ApiBridge {
         observer = null
         reqDir = null
         respDir = null
+        runOnMain {
+            tts?.shutdown()
+            tts = null
+            ttsReady.set(false)
+            pendingSpeech.clear()
+        }
     }
 
     private fun handleRequestFile(context: Context, file: File) {
@@ -157,6 +175,8 @@ object Z2ApiBridge {
             "clip-get" -> runOnMainSync { getClipboard(context) }
             "battery" -> batteryJson(context)
             "vibrate" -> { doVibrate(context, args.getOrNull(0)?.toLongOrNull() ?: 200L); null }
+            "say" -> { doSay(context, args.joinToString(" ")); null }
+            "torch" -> torchSet(context, args.getOrNull(0).orEmpty())
             else -> throw IllegalArgumentException("unknown cmd: $cmd")
         }
     }
@@ -237,6 +257,61 @@ object Z2ApiBridge {
             @Suppress("DEPRECATION")
             vibrator.vibrate(duration)
         }
+    }
+
+    /**
+     * 端末標準の TTS で読み上げる。TTS エンジンの初期化は非同期なので、初回は発話を [pendingSpeech] に
+     * 溜め、`onInit` が SUCCESS になった時点でまとめて流す。言語は端末の既定 Locale。
+     */
+    private fun doSay(context: Context, text: String) {
+        if (text.isBlank()) return
+        val t = tts
+        if (t != null && ttsReady.get()) {
+            t.speak(text, TextToSpeech.QUEUE_ADD, null, "z2say-${notifyId.incrementAndGet()}")
+            return
+        }
+        pendingSpeech.add(text)
+        if (tts == null) {
+            // TextToSpeech は Main スレッドで生成し、コールバックも Main で受ける。
+            runOnMain {
+                if (tts != null) return@runOnMain
+                tts = TextToSpeech(context.applicationContext) { status ->
+                    if (status == TextToSpeech.SUCCESS) {
+                        ttsReady.set(true)
+                        val engine = tts ?: return@TextToSpeech
+                        var s = pendingSpeech.poll()
+                        while (s != null) {
+                            engine.speak(s, TextToSpeech.QUEUE_ADD, null, "z2say-${notifyId.incrementAndGet()}")
+                            s = pendingSpeech.poll()
+                        }
+                    } else {
+                        Log.w(TAG, "TTS init failed (status=$status)")
+                        pendingSpeech.clear()
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * フラッシュライト (トーチ) を制御する。[mode] は `on` / `off` / `toggle`。
+     * `CameraManager.setTorchMode` は権限不要。フラッシュ付きカメラが無ければ例外。
+     * 戻り値は結果の点灯状態 (`on` / `off`)。
+     */
+    private fun torchSet(context: Context, mode: String): String {
+        val cm = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        val camId = cm.cameraIdList.firstOrNull { id ->
+            cm.getCameraCharacteristics(id).get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+        } ?: throw IllegalStateException("no camera flash available")
+        val on = when (mode.lowercase()) {
+            "on", "1", "true" -> true
+            "off", "0", "false" -> false
+            "toggle", "" -> !torchOn
+            else -> throw IllegalArgumentException("usage: on | off | toggle")
+        }
+        cm.setTorchMode(camId, on)
+        torchOn = on
+        return if (on) "on" else "off"
     }
 
     // --- 補助 ---

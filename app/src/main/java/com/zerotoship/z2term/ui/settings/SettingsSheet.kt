@@ -69,6 +69,7 @@ import com.zerotoship.z2term.proot.GuiTerminal
 import android.widget.Toast
 import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.proot.RootProbe
+import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.BatteryGuard
 import com.zerotoship.z2term.settings.CustomThemeStore
@@ -865,6 +866,60 @@ fun SettingsSheet(
 
                 Text(
                     text = stringResource(R.string.settings_notif_logpath),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+
+            // システムイベント検知 (汎用入口): 設定 ON のとき FG サービスが常駐し、画面 ON/OFF・ロック解除・
+            // 充電・電池・Wi‑Fi のイベントを ~/.z2term/events.jsonl へ追記する。加工はユーザーがターミナル側で。
+            Section(title = stringResource(R.string.settings_section_events)) {
+                ToggleField(
+                    title = stringResource(R.string.settings_events_capture),
+                    description = stringResource(R.string.settings_events_capture_desc),
+                    checked = settings.systemEventCaptureEnabled,
+                    onChange = { enabled ->
+                        session.setSystemEventCaptureEnabled(enabled)
+                        SystemEventService.sync(context, enabled)
+                    }
+                )
+
+                // 出力フォーマット: プリセットで埋めてから自由に編集できるテンプレート。
+                val evtPresets = remember {
+                    listOf(
+                        "jsonl" to "",
+                        "line" to "{time} {event} {level}{ssid}",
+                        "tsv" to "{time}\\t{event}\\t{level}\\t{ssid}",
+                    )
+                }
+                val evtSelected = evtPresets.firstOrNull { it.second == settings.systemEventLogFormat }?.first ?: ""
+                ChipRow(
+                    options = evtPresets.map { it.first },
+                    selected = evtSelected,
+                    labels = mapOf(
+                        "jsonl" to "JSONL",
+                        "line" to stringResource(R.string.settings_notif_fmt_line),
+                        "tsv" to "TSV",
+                    ),
+                    onSelect = { id ->
+                        session.setSystemEventLogFormat(evtPresets.first { it.first == id }.second)
+                    }
+                )
+                TextField(
+                    title = stringResource(R.string.settings_notif_fmt_title),
+                    placeholder = "{time} {event} {level}{ssid}",
+                    value = settings.systemEventLogFormat,
+                    onChange = { session.setSystemEventLogFormat(it) }
+                )
+                Text(
+                    text = stringResource(R.string.settings_events_fmt_help),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    text = stringResource(R.string.settings_events_logpath),
                     color = ZtsTextSecondary,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace

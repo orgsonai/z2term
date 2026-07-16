@@ -100,6 +100,19 @@
                 android:value="server_daemon_persistence" />
         </service>
 
+        <!-- システムイベント検知 (汎用入口): 設定「システムイベント検知」ON のとき常駐し、画面 ON/OFF・
+             ロック解除・充電・電池・Wi‑Fi の各イベントを ~/.z2term/events.jsonl へ追記する。
+             これらは暗黙ブロードキャスト制限で manifest レシーバでは拾えないため、生きた FG サービス内で
+             動的レシーバを登録する。 -->
+        <service
+            android:name=".service.SystemEventService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="system_event_capture" />
+        </service>
+
         <!-- 通知検知 (汎用入口): OS の「通知アクセス」許可を与えると Android が自動でバインド・常駐。
              設定「通知検知」ON のとき、受け取った通知を ~/.z2term/notifications.jsonl へ生ログ追記する。 -->
         <service

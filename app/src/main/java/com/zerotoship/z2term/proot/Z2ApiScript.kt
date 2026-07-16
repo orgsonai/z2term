@@ -110,6 +110,20 @@ fun z2ApiScripts(): Map<String, String> {
         |exec /usr/local/bin/z2api 0 vibrate "${d}{1:-200}"
     """.trimMargin() + "\n"
 
+    val say = """
+        |#!/bin/sh
+        |# z2-say <text>       … 端末標準の TTS で読み上げ (引数無しなら標準入力を読む)
+        |if [ ${d}# -ge 1 ]; then text="${d}*"; else text="${d}(cat)"; fi
+        |[ -n "${d}text" ] || { echo "usage: z2-say <text>" >&2; exit 1; }
+        |exec /usr/local/bin/z2api 0 say "${d}text"
+    """.trimMargin() + "\n"
+
+    val torch = """
+        |#!/bin/sh
+        |# z2-torch on|off|toggle  (既定 toggle)。結果の点灯状態 (on/off) を出力。
+        |exec /usr/local/bin/z2api 1 torch "${d}{1:-toggle}"
+    """.trimMargin() + "\n"
+
     return linkedMapOf(
         "z2api" to dispatcher,
         "z2-notify" to notify,
@@ -119,5 +133,7 @@ fun z2ApiScripts(): Map<String, String> {
         "z2-clip" to clip,
         "z2-battery" to battery,
         "z2-vibrate" to vibrate,
+        "z2-say" to say,
+        "z2-torch" to torch,
     )
 }

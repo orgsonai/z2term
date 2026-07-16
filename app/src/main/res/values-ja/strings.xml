@@ -384,6 +384,16 @@
     <string name="settings_notif_fmt_line">1行</string>
     <string name="settings_notif_fmt_help">使える項目: {time} {ts} {app} {pkg} {title} {text} {category} {key}。1行化: {text1} {title1}。改行=\\n タブ=\\t。新しい通知から反映。</string>
     <string name="settings_notif_logpath">ログ: ~/.z2term/notifications.jsonl（ターミナルで tail -f 等で読めます）</string>
+    <string name="event_channel_name">Z2Term システムイベント</string>
+    <string name="event_channel_desc">画面/ロック/充電/電池/Wi-Fi のイベントを検知します</string>
+    <string name="event_notification_title">システムイベント検知</string>
+    <string name="event_notification_text">~/.z2term/events.jsonl へイベントを記録中</string>
+    <string name="event_action_stop">停止</string>
+    <string name="settings_section_events">システムイベント検知</string>
+    <string name="settings_events_capture">システムイベントを検知</string>
+    <string name="settings_events_capture_desc">ON にすると、画面 ON/OFF・ロック解除・充電開始/停止・電池 低下/回復・Wi-Fi 接続/切断を ~/.z2term/events.jsonl へ記録するサービスが常駐します。何をするかはターミナル側で自由に組める汎用の自動化フック。完全ローカル。稼働中は常駐通知を表示します。</string>
+    <string name="settings_events_fmt_help">プレースホルダ: {time} {ts} {event} {level} {ssid}。エスケープ: \\n \\t。空 = JSONL。{ssid} は位置情報権限が無いと空になります。新規分から反映。</string>
+    <string name="settings_events_logpath">ログ: ~/.z2term/events.jsonl（ターミナルで tail -f 等で読めます）</string>
     <string name="toast_copy_from_remote">リモートからコピー (%1$d 文字)</string>
     <string name="toast_selection_empty">選択範囲が空です</string>
     <string name="toast_copy">コピー (%1$d 文字)</string>
