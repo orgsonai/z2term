@@ -8,6 +8,10 @@ import android.content.ClipboardManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.media.AudioManager
@@ -184,6 +188,7 @@ object Z2ApiBridge {
             "media" -> { doMedia(context, args.getOrNull(0).orEmpty()); null }
             "volume" -> volumeSet(context, args.getOrNull(0).orEmpty())
             "intent" -> { doIntent(context, args); null }
+            "sensor" -> sensorRead(context, args.getOrNull(0).orEmpty())
             else -> throw IllegalArgumentException("unknown cmd: $cmd")
         }
     }
@@ -416,6 +421,46 @@ object Z2ApiBridge {
             "broadcast" -> context.sendBroadcast(intent)
             "service" -> { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); context.startService(intent) }
             else -> { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); context.startActivity(intent) }
+        }
+    }
+
+    /**
+     * センサーを 1 回だけ読んで JSON で返す。[kind] = `light`(照度) / `accel`(加速度) / `proximity`(近接)。
+     * いずれも権限不要。リスナを登録して最初の値を受け取ったら解除する (常時オンにしない=電池に優しい)。
+     * light → `{"lux":F}` / proximity → `{"distance":F}` / accel → `{"x":F,"y":F,"z":F}`。
+     */
+    private fun sensorRead(context: Context, kind: String): String {
+        val type = when (kind.lowercase()) {
+            "light" -> Sensor.TYPE_LIGHT
+            "accel", "accelerometer" -> Sensor.TYPE_ACCELEROMETER
+            "proximity", "prox" -> Sensor.TYPE_PROXIMITY
+            else -> throw IllegalArgumentException("usage: light|accel|proximity")
+        }
+        val sm = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val sensor = sm.getDefaultSensor(type) ?: throw IllegalStateException("no $kind sensor")
+        val latch = java.util.concurrent.CountDownLatch(1)
+        val out = FloatArray(3)
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(e: SensorEvent) {
+                if (latch.count == 0L) return
+                System.arraycopy(e.values, 0, out, 0, minOf(e.values.size, 3))
+                latch.countDown()
+            }
+            override fun onAccuracyChanged(s: Sensor?, accuracy: Int) {}
+        }
+        sm.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_NORMAL, mainHandler)
+        try {
+            if (!latch.await(3, java.util.concurrent.TimeUnit.SECONDS))
+                throw IllegalStateException("sensor read timeout")
+        } finally {
+            sm.unregisterListener(listener)
+        }
+        return when (type) {
+            Sensor.TYPE_LIGHT -> JSONObject().put("lux", out[0].toDouble()).toString()
+            Sensor.TYPE_PROXIMITY -> JSONObject().put("distance", out[0].toDouble()).toString()
+            else -> JSONObject()
+                .put("x", out[0].toDouble()).put("y", out[1].toDouble()).put("z", out[2].toDouble())
+                .toString()
         }
     }
 
