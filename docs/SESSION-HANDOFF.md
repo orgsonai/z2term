@@ -1,23 +1,11 @@
 # セッション引き継ぎ（現状ローリング）
 
-最終更新: 2026-07-16 / 対象版数: **0.8.156-alpha (versionCode 164)** / ブランチ: internal。
+最終更新: 2026-07-16 / 対象版数: **0.8.157-alpha (versionCode 165)** / ブランチ: internal。
 
-## 🔜 次セッションの依頼タスク（未着手・ユーザーが新セッションで実施予定）
+## 🔜 次セッションの依頼タスク（残 2 件・ユーザーが新セッションで実施予定）
 
-ユーザーから 3 件の追加要望。**未実装**。いずれも main で実装 → internal merge の流れ。調査済みの
-該当箇所を添える。
-
-### (A) タブのダブルタップ削除に「動作中なら確認ダイアログ」
-- 要望: タブのダブルタップ削除で、そのタブ内で**何か動作中なら削除確認**を出す。何も無ければ従来どおり
-  即削除（作業中の誤タップ防止）。
-- 該当: `ui/terminal/TerminalScreen.kt:1622` `onDoubleClick = if (canClose) onClose else null`。
-  `onClose` の実体は `SessionManager.close(it)`（同ファイル 350/782 で束ねる。個別タブは 1535 `onClose(sess.id)`）。
-- **設計の肝＝「動作中」の判定**: 現状 PtyProcess 側に前景プロセス情報が露出していない。案:
-  (1) PTY master fd に `tcgetpgrp()` して**前景プロセスグループ ≠ ログインシェルの pgid** なら「実行中」
-  → JNI に小さな native 追加が要る（PtyProcess の native 層）。(2) `/proc/<child>/task/.../children` や
-  子 pgid を辿る heuristic。(3) 直近の PTY 出力活動での簡易判定（誤検知しやすい・非推奨）。**(1) が本命**。
-- UI: 確認ダイアログは既存のダイアログ様式（例 `RootfsCacheCleaner` の確認や `ui/components/` のダイアログ）に倣う。
-  ダブルタップ時に busy 判定 → busy なら AlertDialog、非busy なら即 close。文言は strings(ja/en) に追加。
+ユーザーから 3 件の追加要望のうち **(A) は 0.8.157 で実装済**（下記サマリ参照）。残る **(B)(C) が未実装**。
+いずれも main で実装 → internal merge の流れ。調査済みの該当箇所を添える。
 
 ### (B) 日本語キーボード: 先頭ブロックを非ブロック化
 - 要望: 長文入力の自動ブロック変換で**一番左上（先頭ブロック）はブロック化せず素の入力かなのまま**にする。
@@ -41,6 +29,30 @@
     カーソル移動を別ジェスチャにするか）を**ユーザーに確認**してから実装するのが安全。
   - **方針案**: `ComposingState` に `cursor:Int`（text 内の挿入位置）を追加し、append/backspace を cursor 相対に。
     ◀▶ の役割再配置は上記の確認次第。スプリット/autoSplit との相互作用（境界とカーソルの二重概念）に注意。
+
+---
+
+## 引き継ぎサマリ — 0.8.157 (タブのダブルタップ削除に「動作中なら確認ダイアログ」= 次タスク(A)、 main 実装・merge 済/実機未検証)
+
+前回引き継ぎの次タスク 3 件のうち **(A) を実装**した段。main で開発 → `main → internal` merge（fast-forward・競合なし）。**origin/main へは未 push**（公開判断はユーザー）。
+
+- **`ae2fbec` 0.8.157(165)**
+  - 要望: タブのダブルタップ削除で、そのタブ内で**子プロセスが前景実行中のときだけ削除確認ダイアログ**を挟む
+    （作業中の誤タップ防止）。前景がログインシェルなら従来どおり即削除。
+  - **判定は JNI 追加不要だった**: `PtyProcess.foregroundPgid()`/`shellPid`（`tcgetpgrp(master_fd)`）は
+    マウスホイールの stale 検知用に既に実装済で、`LocalPtyChannel.hasForegroundChild`（fg pgid ≠ shell pid）
+    → `TerminalSession.hasForegroundChild` まで露出済だった（前回引き継ぎの「native 追加が要る」は誤り）。
+    これを転用。
+  - 変更: `AppSession` に `val isBusy: Boolean`（既定 false）を追加。`TerminalSession` が
+    `isRunning && hasForegroundChild` で override。**判定不能な channel（SSH 等）は `hasForegroundChild`
+    が安全側で true を返す＝busy 扱いで必ず確認**（誤って接続を切らないため妥当）。GUI タブは既定 false で即削除。
+  - UI: `DownloadConfirmDialog` の AlertDialog 部分を汎用 `ui/components/ConfirmDialog.kt` に切り出して再利用
+    （DownloadConfirmDialog は ConfirmDialog へ委譲するだけに）。`TabChip` はダブルタップ時に `session.isBusy`
+    を評価し、busy なら `ConfirmDialog` を表示、非busy なら即 `onClose()`。文言 `confirm_close_busy_*` を
+    strings(ja/en) に追加。
+  - docs（DESIGN-SPEC/HANDBOOK ja/en）+ README 版数更新。**実機 e2e は未**（ビルドはユーザー指示で未実施）。
+    検証ポイント: (1) TUI/コマンド実行中のタブをダブルタップ→確認ダイアログが出て「閉じる」で閉じる/「やめる」で残る、
+    (2) シェルプロンプト（前景=シェル）のタブは確認なしで即閉じる、(3) SSH タブは常に確認が出る。
 
 ---
 
