@@ -1,6 +1,30 @@
 # セッション引き継ぎ（現状ローリング）
 
-最終更新: 2026-07-16 / 対象版数: **0.8.151-alpha (versionCode 159)** / ブランチ: internal。
+最終更新: 2026-07-16 / 対象版数: **0.8.153-alpha (versionCode 161)** / ブランチ: internal。
+
+## 引き継ぎサマリ — 0.8.152〜153 (MacroDroid ライト: システムイベント検知 + z2-say/z2-torch、 **main で開発**・merge 済/実機未検証)
+
+**今回は前回の教訓どおり機能を `main` で開発した** (`internal` は HANDOFF 追加＋main merge のみ)。2 コミットとも **main へコミット済** (未 push)。その後 `main → internal` を merge (コード/公開 docs の競合は「機能コミットが internal=オリジナル / main=cherry-pick の二重履歴」由来で、全て main 側 (theirs) を採用して解決。マージ後の internal ツリーは HANDOFF を除き main と完全一致)。**origin/main へは未 push** (ユーザー判断)。
+
+前回の次タスク「MacroDroid ライト」の推奨着手分 (システムイベント検知＝画面/ロック/充電/電池/WiFi＋z2-say/z2-torch) を実装した段。z2term の「トリガー(Android→シェル)」と「アクション(シェル→Android)」の両輪を増やした。
+
+- **`1f298a3` 0.8.152(160) — システムイベント検知 (汎用入口 / 通知検知の姉妹機能)**
+  - 新規 `service/SystemEventService.kt`: 画面 ON/OFF・ロック解除(USER_PRESENT)・充電開始/停止(POWER_CONNECTED/DISCONNECTED)・電池 低下/回復(BATTERY_LOW/OKAY)・Wi‑Fi 接続/切断 を検知し `~/.z2term/events.jsonl` (=`filesDir/shared_home/.z2term/events.jsonl`) へ 1 行 1 イベントで追記。
+  - **なぜ FG サービス**: これらは Android 8+ の**暗黙ブロードキャスト制限**で manifest 宣言レシーバでは配信されない。生きたプロセス内で `registerReceiver` した**動的レシーバ**でしか拾えないため、opt-in の FG サービス (`foregroundServiceType=specialUse`, `NOTIFICATION_ID=1003`, `CHANNEL_ID=z2term_events`) を常駐させその中で登録。稼働中は常駐通知が出る。
+  - `{event}` = `screen_on`/`screen_off`/`unlocked`/`power_connected`/`power_disconnected`/`battery_low`/`battery_okay`/`wifi_connected`/`wifi_disconnected`。出力は `systemEventLogFormat` テンプレ (`{time}{ts}{event}{level}{ssid}`・`\n``\t`・空=JSONL) を `render()` が置換。Wi‑Fi の **SSID は位置情報権限が無いと空** (v1 は権限要求せず best-effort)。Wi‑Fi は接続/切断の状態変化のみ 1 回発火 (`lastWifiConnected` で同一状態連続を抑制)。
+  - 変更: `AppSettings`(`systemEventCaptureEnabled`/`systemEventLogFormat` + keys/defaults/setter) / `TerminalSession`(setter) / `AndroidManifest.xml`(SystemEventService 登録) / `BootReceiver`(ON なら boot 後に自動常駐) / `Z2TermApplication`(前面起動時に ON なら再アサート・background 起動時の FGS 例外は握る) / `SettingsSheet`(「システムイベント検知」セクション: トグル+プリセット+テンプレ編集。トグル ON/OFF で `SystemEventService.sync()`) / strings(ja/en)。`EventRenderTest` 追加。
+  - **JVM ユニットテストで検証済み** (EventRenderTest + 既存 NotificationRenderTest、foss debug 全 pass)。
+- **`3f8f39c` 0.8.153(161) — アクション追加 z2-say(TTS) / z2-torch(フラッシュライト)**
+  - `Z2ApiBridge` に `say`/`torch` dispatch を追加。`z2-say <text>`: 端末標準 TTS で読み上げ。**TTS 初期化は非同期**なので初回は `pendingSpeech` キューに溜め `onInit`=SUCCESS でまとめて流す (TTS は Main で生成)。`stop()` で `shutdown()`。`z2-torch on|off|toggle`(既定 toggle): `CameraManager.setTorchMode` (**権限不要**) でフラッシュ付きカメラを制御、`torchOn` でトグル状態を保持、結果状態(on/off)を返す (need_resp 1)。フラッシュ無し端末は例外→ERR。
+  - `Z2ApiScript` に `z2-say`(引数無しは stdin)・`z2-torch` ラッパー追加。foss debug コンパイル pass。
+
+### ⚠️ 検証状況 / 次やること
+- **未検証(要実機・このビルド環境では e2e 不可)**: (1) events.jsonl に各イベントが実際に追記されるか (画面/ロック/充電/電池/WiFi の実発火)、(2) 常駐 FG 通知の見た目と BOOT 自動常駐、(3) `z2-say` の実読み上げ (TTS エンジン有無・日本語 Locale)、(4) `z2-torch` の実点灯/消灯/トグル。通知検知(0.8.149)は実機済だが本 2 機能は JVM テスト+コンパイルまで。
+- **公開状況**: **origin/main へは未 push**。前回同様、公開判断はユーザー。push するなら `main` を origin へ。GitHub Release も別途 (前回の `v0.8.151-alpha` draft がアセット未添付で残置している件も未完のまま)。
+- **MacroDroid ライトの残り (次段候補)**: イベント検知に SMS/着信(要権限)・BT/イヤホン・SSID 変化を追加。アクションに音量/明るさ/メディア操作。個別サーバー start/stop など。
+- **ブランチ運用メモ**: main→internal merge は二重履歴のため毎回コード/docs が競合する。internal はコード的に main のミラーなので**競合は theirs(main) 採用でよい**。HANDOFF のみ internal 固有。
+
+---
 
 ## 引き継ぎサマリ — 0.8.146〜151 (キャッシュ刷新 / IME 記号当て字修正 / 常駐サーバー / 通知検知 / ボトムシート修正、 internal コミット・local へ push)
 
