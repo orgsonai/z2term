@@ -50,6 +50,7 @@ import java.util.concurrent.Executors
  *  - `unlocked`                  … ロック解除 (USER_PRESENT)
  *  - `power_connected` / `power_disconnected` … 充電開始 / 停止 (`{level}` に残量%)
  *  - `battery_low` / `battery_okay`           … 電池残量 低下 / 回復 (`{level}` に残量%)
+ *  - `battery_level`                          … 残量が 10% 刻みの境界を跨いだとき (`{level}` に残量%)
  *  - `wifi_connected` / `wifi_disconnected`   … Wi‑Fi 接続 / 切断 (`{ssid}` に SSID・取得可能な場合のみ)
  *  - `headset_plugged` / `headset_unplugged`  … 有線ヘッドセットの抜き差し
  *  - `airplane_on` / `airplane_off`           … 機内モード ON / OFF
@@ -63,6 +64,8 @@ class SystemEventService : Service() {
     @Volatile private var formatTemplate = ""
     @Volatile private var lastWifiConnected: Boolean? = null
 
+    @Volatile private var lastBatteryBucket = -1
+
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
@@ -73,6 +76,7 @@ class SystemEventService : Service() {
                 Intent.ACTION_POWER_DISCONNECTED -> emit("power_disconnected", level = batteryLevel())
                 Intent.ACTION_BATTERY_LOW -> emit("battery_low", level = batteryLevel())
                 Intent.ACTION_BATTERY_OKAY -> emit("battery_okay", level = batteryLevel())
+                Intent.ACTION_BATTERY_CHANGED -> handleBatteryLevel(intent)
                 WifiManager.NETWORK_STATE_CHANGED_ACTION -> handleWifi()
                 Intent.ACTION_HEADSET_PLUG ->
                     emit(if (intent.getIntExtra("state", 0) == 1) "headset_plugged" else "headset_unplugged")
@@ -113,6 +117,7 @@ class SystemEventService : Service() {
             addAction(Intent.ACTION_POWER_DISCONNECTED)
             addAction(Intent.ACTION_BATTERY_LOW)
             addAction(Intent.ACTION_BATTERY_OKAY)
+            addAction(Intent.ACTION_BATTERY_CHANGED)
             addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
             addAction(Intent.ACTION_HEADSET_PLUG)
             addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
@@ -154,6 +159,23 @@ class SystemEventService : Service() {
             emit("wifi_connected", ssid = ssid)
         } else {
             emit("wifi_disconnected")
+        }
+    }
+
+    /**
+     * ACTION_BATTERY_CHANGED は高頻度なので、残量が **10% 刻みの境界を跨いだとき**だけ
+     * `battery_level` を発火する (サービス起動直後の初回はベースライン設定のみで発火しない)。
+     */
+    private fun handleBatteryLevel(intent: Intent) {
+        val lvl = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+        if (lvl < 0 || scale <= 0) return
+        val pct = lvl * 100 / scale
+        val bucket = pct / 10
+        if (lastBatteryBucket == -1) { lastBatteryBucket = bucket; return }
+        if (bucket != lastBatteryBucket) {
+            lastBatteryBucket = bucket
+            emit("battery_level", level = pct)
         }
     }
 

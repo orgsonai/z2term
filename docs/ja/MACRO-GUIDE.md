@@ -48,6 +48,7 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 | `unlocked` | ロック解除（本人確認後） | — |
 | `power_connected` / `power_disconnected` | 充電 開始 / 停止 | `level` |
 | `battery_low` / `battery_okay` | 電池残量 低下 / 回復 | `level` |
+| `battery_level` | 残量が 10% 刻みの境界を跨いだとき | `level` |
 | `wifi_connected` / `wifi_disconnected` | Wi‑Fi 接続 / 切断 | `ssid`（位置情報権限が無いと空） |
 | `headset_plugged` / `headset_unplugged` | 有線ヘッドセット 抜き差し | — |
 | `airplane_on` / `airplane_off` | 機内モード ON / OFF | — |
@@ -79,6 +80,7 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 | `z2-vibrate` | `z2-vibrate [ミリ秒]`（既定 200） | バイブ | — |
 | `z2-media` | `z2-media playpause\|play\|pause\|next\|previous\|stop`（既定 playpause） | メディア再生キー送出 | — |
 | `z2-volume` | `z2-volume up\|down\|mute\|unmute\|N\|N%` | メディア音量 | `current/max` |
+| `z2-sensor` | `z2-sensor light\|accel\|proximity` | センサーを 1 回読む | light`{"lux":F}` / proximity`{"distance":F}` / accel`{"x":F,"y":F,"z":F}` |
 | `z2-clip` | `z2-clip get` / `z2-clip set [文字]` | クリップボード取得/設定 | get 時に内容 |
 | `z2-battery` | `z2-battery` | 電池状態 | `{"level":N,"charging":bool}` |
 | `z2-share` | `z2-share "テキスト"` | 共有メニューへ | — |
