@@ -146,6 +146,12 @@ fun z2ApiScripts(): Map<String, String> {
         |exec /usr/local/bin/z2api 0 intent "${d}@"
     """.trimMargin() + "\n"
 
+    val sensor = """
+        |#!/bin/sh
+        |# z2-sensor light|accel|proximity  (既定 light)。センサーを 1 回読んで JSON で返す。
+        |exec /usr/local/bin/z2api 1 sensor "${d}{1:-light}"
+    """.trimMargin() + "\n"
+
     return linkedMapOf(
         "z2api" to dispatcher,
         "z2-notify" to notify,
@@ -160,5 +166,6 @@ fun z2ApiScripts(): Map<String, String> {
         "z2-media" to media,
         "z2-volume" to volume,
         "z2-intent" to intent,
+        "z2-sensor" to sensor,
     )
 }

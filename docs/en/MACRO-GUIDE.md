@@ -47,6 +47,7 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
 | `unlocked` | Unlocked (after auth) | — |
 | `power_connected` / `power_disconnected` | Charging started / stopped | `level` |
 | `battery_low` / `battery_okay` | Battery low / recovered | `level` |
+| `battery_level` | Level crossed a 10% boundary | `level` |
 | `wifi_connected` / `wifi_disconnected` | Wi‑Fi connected / disconnected | `ssid` (blank without location permission) |
 | `headset_plugged` / `headset_unplugged` | Wired headset plugged / unplugged | — |
 | `airplane_on` / `airplane_off` | Airplane mode on / off | — |
@@ -78,6 +79,7 @@ Run them from the terminal and the app performs the Android side. **All permissi
 | `z2-vibrate` | `z2-vibrate [ms]` (default 200) | Vibrate | — |
 | `z2-media` | `z2-media playpause\|play\|pause\|next\|previous\|stop` (default playpause) | Send a media key | — |
 | `z2-volume` | `z2-volume up\|down\|mute\|unmute\|N\|N%` | Media volume | `current/max` |
+| `z2-sensor` | `z2-sensor light\|accel\|proximity` | Read a sensor once | light`{"lux":F}` / proximity`{"distance":F}` / accel`{"x":F,"y":F,"z":F}` |
 | `z2-clip` | `z2-clip get` / `z2-clip set [text]` | Clipboard get/set | content on get |
 | `z2-battery` | `z2-battery` | Battery state | `{"level":N,"charging":bool}` |
 | `z2-share` | `z2-share "text"` | Share sheet | — |
