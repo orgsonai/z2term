@@ -1,49 +1,56 @@
 # セッション引き継ぎ（現状ローリング）
 
-最終更新: 2026-07-16 / 対象版数: **0.8.158-alpha (versionCode 166)** / ブランチ: internal。
+最終更新: 2026-07-16 / 対象版数: **0.8.159-alpha (versionCode 167)** / ブランチ: internal。
 
-## 🔜 次セッションの依頼タスク（残 1 件・ユーザーが新セッションで実施予定）
+## 🔀 二拠点分岐のマージ整理（0.8.159）
 
-ユーザーから 3 件の追加要望のうち **(A) は 0.8.157 / (B) は 0.8.158 で実装済**（下記サマリ参照）。残る
-**(C) が未実装**。main で実装 → internal merge の流れ。**(C) は着手前にユーザー確認が要る**（◀▶ の役割衝突）。
+二端末が `internal` を並行して進め分岐（6対6）していたのを **0.8.159 でマージ統合**した。両端末の追加要望
+3 件はすべて対応済み（下記サマリ参照）:
+- **(A) タブのダブルタップ削除に「動作中なら確認ダイアログ」** = 実装済（`ae2fbec`, 下記 0.8.157(A) サマリ）。
+- **(B) 先頭ブロックの非ブロック化 / (C) カーソル位置での挿入・削除** = **カーソルモデル(`cursor` 一本)で両方対応済**
+  （相手端末 `21261eb`, 下記 0.8.157(IME) サマリ）。打鍵直後はカーソル末尾＝生かな全体が先頭ブロック（＝B の意図）、
+  ◀▶ でカーソルを動かし途中修正（＝C）。
+- マージ時、本端末で別途 `splitHeadLen`/`autoSplit` ベースに作った **0.8.158(B) 実装はカーソルモデルに上位互換で
+  吸収されるため破棄**（`AutoSplitHeadDisplayTest` も削除）。ユーザー確認のうえ「相手(C)を全採用・B破棄・A保持」で解消。
 
-### (C) 日本語キーボード: カーソル位置での挿入/削除
-- 要望: 長文入力中に**左右ボタンでカーソル位置を変えたら**、⌫ は**カーソル直前の文字**を削除、かな入力は
-  **カーソル位置の後ろに挿入**する。現状はカーソル位置に関わらず**末尾しか編集できず不便**。
-- 該当: 同 `ComposingState`。現状 `append` は**常に末尾追加**、⌫ は末尾削除で、**カーソル indexの概念が無い**。
-  - `emitKana`/`append`(1213〜) と backspace 系、`splitHeadLen` 調整の `shrinkSplitHead`/`extendSplitHead`。
-  - ◀▶ の現行意味（`JapaneseFlickKeyboard.kt:191-192`）: **スプリット中はフォーカス範囲調整**、composing 中
-    未スプリットは**変換キー相当**。→ 要望の「◀▶＝カーソル移動」と**衝突する**。どちらを優先するか（モード分岐か、
-    カーソル移動を別ジェスチャにするか）を**ユーザーに確認**してから実装するのが安全。
-  - **方針案**: `ComposingState` に `cursor:Int`（text 内の挿入位置）を追加し、append/backspace を cursor 相対に。
-    ◀▶ の役割再配置は上記の確認次第。スプリット/autoSplit との相互作用（境界とカーソルの二重概念）に注意。
+**残タスク: なし**（3 件完了）。マージ後の版数は 0.8.159-alpha(167)。**実機 e2e 未・ビルド未**（マージ整合のみ）。
 
 ---
 
-## 引き継ぎサマリ — 0.8.158 (日本語入力: 自動分割で先頭ブロックを非ブロック化 = 次タスク(B)、 main 実装・merge 済/実機未検証)
+## 引き継ぎサマリ — 0.8.157 (日本語 IME: 入力カーソル導入で「途中修正」「行頭移動」に対応、 実機確認済/未 commit→本作業で commit)
 
-次タスク(B)を実装した段。main で開発 → `main → internal` merge（fast-forward・競合なし）。**origin/main へは未 push**。
+ユーザー要望 (B) 先頭ブロックの非ブロック化 + (C) カーソル位置での挿入/削除 に対応した段。**数回の反復**を経て、
+最終的に `ComposingState` を **独立した入力カーソル `cursor` (0..length) 一本**へ作り替えた。実機で「途中修正できる」
+「行頭まで移動できる」をユーザー確認済み。
 
-- **`b5401c0` 0.8.158(166)**
-  - 要望: 長文入力の**自動ブロック分割(as-you-type)中、一番左上（先頭ブロック）をブロック化せず生かな全体で表示**。
-    「一つ右の全文予測ピル」は現状維持。理由=今どの文字を打っているか分からなくなるため。
-  - **調査で判明**: 自動分割は `autoSplit=true`（`reevaluateAutoSplit`）で `splitHeadLen`=先頭文節長にする。
-    手動 `変換`キー由来のスプリットは `autoSplit=false`。この 2 つを区別すれば自動分割だけ挙動を変えられる
-    （`backspace()` は既にこの区別で分岐済＝踏襲）。
-  - 実装: `ComposingState` に `val isAutoSplit`(=autoSplit) 公開。①`commitRaw()` を
-    `interactiveSplit = isSplitMode && !autoSplit` で分岐し、自動分割/非スプリットは**生かな全体を一括確定**
-    （先頭ブロックのみ確定は手動スプリット時だけ）。②`convert()` に `else if (autoSplit)` を足し、自動分割中に
-    `変換`キー→`autoSplit=false` で**手動セグメント変換へ移行**（splitHeadLen は温存＝即セグメント UI）。
-    ③`CandidateBar`(TerminalScreen.kt) は `isAutoSplit` を見て先頭ピル=`composing.text`(生かな全体)、
-    tail ラベルと先頭ブロック候補を非表示、`fullPrediction` ピルのみ表示。手動スプリット時は従来表示のまま。
-  - **内部 `splitHeadLen` は自動分割中も保持**＝全文予測ピルの境界計算・◀▶ 伸縮は従来どおり動く
-    （◀▶ は autoSplit 中も `shrink/extendSplitHead` でピルの分割点を動かす。頭の生かな表示は不変）。
-  - `AutoSplitHeadDisplayTest`（「びるど」で 3 ケース）追加。docs(DESIGN-SPEC/HANDBOOK ja/en)+README 更新。
-  - **未検証（要実機・ビルドはユーザー指示で未実施）**: (1) 長文入力中に左端が生かな全体で出て tail/先頭候補が
-    消え全文予測ピルだけ残る、(2) 生確定(⏎/先頭ピルタップ)で生かな全体が一括で入る、(3) `変換`キーで
-    手動セグメント変換に切り替わる、(4) ◀▶ で全文予測ピルの境界が動く（頭表示は生かなのまま）。
-    **`testFossDebugUnitTest` に `AutoSplitHeadDisplayTest` が加わった**（この環境は test worker が稀に停止する
-    既知フレークあり）。
+- **反復の経緯（重要な教訓）**:
+  - 初版: ◀▶ を純カーソル化 → **先頭ブロック (`splitHeadLen`) が固定になり候補が更新されず**「使い物にならない」と指摘。
+  - v2: ◀▶ を元の「ブロック範囲伸縮＋候補追従」に戻し、表示だけ生かな全体化 → 「途中修正できないと意味ない」。
+  - v3: `caretEditMode` フラグで途中編集を追加 → **「編集できる時とできない時がある」（autoSplit 依存で不安定）「行頭に行けない」**（`splitHeadLen` 最小 1）。
+  - **最終: `splitHeadLen`/`autoSplit`/`caretEditMode` を全廃し、`cursor` 一本に統一**（下記）。
+- **最終仕様** (`KanaKanjiConverter.kt` `ComposingState`):
+  - `cursor` (0..length) = 挿入カーソル ∧ 先頭ブロックの境目。`splitHead=text[0..cursor]` / `splitTail=text[cursor..]`。
+  - `◀▶` = `moveCursorLeft`/`moveCursorRight`（**行頭 0 まで**）。動かすと候補 (`refreshPredict`) が先頭ブロックに追従。
+  - かな/記号 = `insertAtCursor`（カーソル位置へ挿入）、⌫ = カーソル直前削除、`小゛゜` = カーソル直前対象 (`charBeforeCaret`)。
+  - **打鍵直後はカーソル末尾**（先頭ブロック=全体）。旧「打鍵で自動的に先頭文節へ auto-split」は廃止（ユーザー要望 B に合致）。
+  - `convert`(変換キー) = 先頭ブロックの候補サイクル。`commitRaw`/候補タップ = 先頭ブロック確定 → 残りを末尾カーソルで続行。
+  - `fullPrediction`(薄緑ピル) は `0<cursor<length` のとき表示、◀▶ で追従。学習系 (`committedRun`/`fullPredictionBlocks`/
+    `learnMergedRun`/`commitFull`) は温存（文字列 `splitHead`/`splitTail` ベースなので不変）。
+  - 候補バー先頭ピル (`TerminalScreen.kt CandidateBar`): 打った生かな全体を連続表示。先頭ブロック濃色・残り薄色・
+    カーソル位置に caret(地色反転バー)。別 tail ラベルは廃止。
+  - `JapaneseFlickKeyboard.kt`: ◀▶ ハンドラを `moveCursorLeft/Right` に、`cycleDakuten` を `charBeforeCaret` に。
+- **落とし穴（実機反映）**: この端末はバックグラウンド常駐で `adb install -r` してもアプリのプロセスが**死なず古いコードのまま**
+  動き続ける（＝「変化なし」の主因だった）。**インストール後は `adb shell am force-stop com.zerotoship.z2term` してから再起動**すること。
+- 版数 0.8.157(165)。foss debug unit test は未実行（ComposingState は Compose state + ImeHistoryStore 依存で JVM 単体テスト困難、
+  実機確認で代替）。docs(README ja/en・DESIGN-SPEC ja/en §6.2/6.2.1・HANDBOOK ja/en) を cursor モデルへ更新。
+
+---
+
+## 引き継ぎサマリ — 0.8.158 (先頭ブロック非ブロック化 B: `splitHeadLen`/`autoSplit` 版) 【0.8.159 マージで破棄】
+
+本端末が二拠点分岐中に別途実装した (B) の `autoSplit`/`splitHeadLen` ベース版（`b5401c0`）。**相手端末のカーソル
+モデル（0.8.157 IME サマリ参照）が B の意図を上位互換で吸収するため、0.8.159 のマージで破棄**（`AutoSplitHeadDisplayTest`
+も削除）。B の要望内容自体はカーソルモデル側で満たされているので機能欠落はない。
 
 ---
 

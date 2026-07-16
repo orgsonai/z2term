@@ -1104,17 +1104,19 @@ internal val CYCLE_INDEX: Map<Char, Pair<List<Char>, Int>> = buildMap {
  * 確定で [onCommit] により PTY へ送出する。Compose state なので変化すると関係する
  * Composable が再描画される。
  *
- * **スプリット変換モード**:
- *   [convert] を呼ぶと [splitHeadLen] が >0 になり、`text` の先頭 [splitHeadLen] 文字が
- *   「現在変換中のセグメント」となる。`◀ ▶` で範囲を [shrinkSplitHead] / [extendSplitHead]
- *   で調整できる。セグメントを確定 ([commit] / [commitRaw]) すると、その分を PTY へ送出し、
- *   残りに対して自動でつぎの分割長を決め、フォーカスを次のブロックへ移す。残り 0 文字で抜ける。
- *   候補 ([candidates]) はスプリット中はセグメント分のみ参照する。
+ * **カーソルと先頭ブロック**:
+ *   [cursor] (0..text.length) が挿入カーソルであり、同時に「先頭ブロックの境目」でもある。
+ *   `◀ ▶` ([moveCursorLeft] / [moveCursorRight]) でカーソルを動かすと、`text` の先頭
+ *   [cursor] 文字 ([splitHead]) が変換対象になり、[candidates] がそれに追従する。かな入力は
+ *   カーソル位置へ挿入 ([emitKana]/[append])、⌫ ([backspace]) はカーソル直前を削除する
+ *   (= 途中修正できる)。行頭 (cursor=0) まで移動可。確定 ([commit] / [commitRaw]) すると
+ *   先頭ブロックを PTY へ送出し、残り ([splitTail]) を composing に据えて末尾カーソルで続行、
+ *   残り 0 文字で抜ける。
  *
  * **候補サイクル**:
- *   スプリット中に [convert] を続けて押すと [selectedCandidateIndex] が -1 → 0 → 1 → ... →
- *   末尾 → -1 と循環する。-1 = 生のかな (頭セグメント) を確定対象とする状態。⏎ ([commitRaw])
- *   は 「現在選択中の対象」を確定する (生かな or 選択中の候補)。
+ *   [convert] (変換キー) を押すと現在の先頭ブロックの候補について [selectedCandidateIndex] が
+ *   -1 → 0 → 1 → ... → 末尾 → -1 と循環する。-1 = 生のかな (先頭ブロック) を確定対象とする状態。
+ *   ⏎ ([commitRaw]) は「現在選択中の対象」を確定する (生かな or 選択中の候補)。
  *
  * **小書き/濁点**:
  *   [CYCLE_INDEX] の循環 (例: は→ば→ぱ→は、つ→っ→づ→つ) は `小゛゜` キー
@@ -1150,8 +1152,12 @@ class ComposingState(
      */
     private var fullPredictionBlocks: List<Pair<String, String>> = emptyList()
 
-    /** スプリットモード: 0 なら未起動。1..text.length なら先頭 splitHeadLen 文字がフォーカス。 */
-    var splitHeadLen by mutableStateOf(0)
+    /**
+     * 挿入カーソル (text 内 0..length)。かな/記号はここへ挿入、⌫ はここの直前を削除する。
+     * 同時に「先頭ブロックの境目」でもあり、候補は text[0..cursor] を変換対象にする。
+     * ◀▶ で 0..length を自由に動かせる (行頭 0 まで到達可)。打鍵/確定/リセットで末尾へ戻る。
+     */
+    var cursor by mutableStateOf(0)
         private set
 
     /** 候補サイクル: -1 = 生かな (頭セグメント) 選択中、0..candidates.size-1 = 候補選択中。 */
@@ -1176,12 +1182,6 @@ class ComposingState(
     private var prevCommitSurface: String? = null
 
     /**
-     * 現在のスプリットが「長文の自動分割」由来か (true) / 「変換キーによる手動分割」由来か (false)。
-     * 自動分割中は ⌫ で素直に 1 文字消す (手動分割中は ⌫ でまず分割取消) ように分岐するために持つ。
-     */
-    private var autoSplit: Boolean = false
-
-    /**
      * 同一スプリット run 中に連続確定したブロックの (読み, 表層)。run が尽きたとき (または
      * 一括確定時) に「結合読み → 結合表層」を [ImeHistoryStore] へ記録し、頻用の塊
      * (びる+ド → ビルド 等) を次回以降 1 ブロックへ繋ぎ止める材料にする ([KkcConverter.learnedBlock])。
@@ -1199,19 +1199,16 @@ class ComposingState(
     private var predictionReadings: Map<String, String> = emptyMap()
 
     val isActive: Boolean get() = text.isNotEmpty()
-    val isSplitMode: Boolean get() = splitHeadLen > 0
-    /**
-     * 現在のスプリットが「長文入力中の自動分割」由来か。true のあいだ候補バーは先頭ブロックを
-     * ブロック化せず生かな全体で見せ (今どこを打っているか分かるように)、全文予測ピルのみ残す。
-     * 変換キーを押すと [convert] で false になり、従来のセグメント変換 UI に移行する。
-     */
-    val isAutoSplit: Boolean get() = autoSplit
-    /** スプリット中のフォーカス文字列 (先頭セグメント)。非スプリット中は text 全体を返す。 */
+    /** 先頭ブロック = カーソルより前 (= 変換対象)。カーソル 0 では空。 */
     val splitHead: String
-        get() = if (isSplitMode) text.substring(0, splitHeadLen.coerceAtMost(text.length)) else text
-    /** スプリット中のフォーカス外 (尾側)。非スプリット中は空文字列。 */
+        get() = text.substring(0, cursor.coerceIn(0, text.length))
+    /** カーソルより後ろの残りかな。 */
     val splitTail: String
-        get() = if (isSplitMode && splitHeadLen < text.length) text.substring(splitHeadLen) else ""
+        get() = text.substring(cursor.coerceIn(0, text.length))
+    /** 後続 (tail) が残る「途中に境目がある」状態か (0 < cursor < length)。一括予測・確定分岐に使う。 */
+    val hasTail: Boolean get() = cursor in 1 until text.length
+    /** 表示互換: composing 中は常に先頭ピルに caret 付きで全体を出す (旧 isSplitMode の呼び出し用)。 */
+    val isSplitMode: Boolean get() = isActive
     /** 再変換可能か (composing が空 ∧ 直前 commit が残っている)。 */
     val canReconvert: Boolean
         get() = text.isEmpty() && !lastCommittedReading.isNullOrEmpty()
@@ -1225,13 +1222,9 @@ class ComposingState(
      * 素直に同じ文字を重ねる (ユーザー要望)。
      */
     fun emitKana(ch: Char) {
-        splitHeadLen = 0
-        autoSplit = false
-        text += ch
+        insertAtCursor(ch)
         lastEmitChar = ch
         lastEmitTimeMs = System.currentTimeMillis()
-        selectedCandidateIndex = -1
-        reevaluateAutoSplit()
     }
 
     /**
@@ -1239,100 +1232,85 @@ class ComposingState(
      * リセットされる (次に同じかなが来ても循環しない)。
      */
     fun append(ch: Char) {
-        splitHeadLen = 0
-        autoSplit = false
-        text += ch
+        insertAtCursor(ch)
         lastEmitChar = null
         lastEmitTimeMs = 0
-        selectedCandidateIndex = -1
-        reevaluateAutoSplit()
     }
 
-    /** 直前の文字を [s] (濁点等) に置換。スプリット中なら抜けてから置換する。 */
+    /** [ch] を [cursor] 位置へ挿入し、カーソルを 1 つ進める。候補・一括予測を更新。 */
+    private fun insertAtCursor(ch: Char) {
+        val at = cursor.coerceIn(0, text.length)
+        text = text.substring(0, at) + ch + text.substring(at)
+        cursor = at + 1
+        selectedCandidateIndex = -1
+        refreshPredict()
+    }
+
+    /** カーソル直前の文字を [s] (濁点等) に置換 (濁点循環)。カーソルが行頭なら何もしない。 */
     fun replaceLast(s: Char) {
-        if (text.isEmpty()) return
-        splitHeadLen = 0
-        autoSplit = false
-        text = text.dropLast(1) + s
+        if (cursor == 0) return
+        text = text.substring(0, cursor - 1) + s + text.substring(cursor)
         lastEmitChar = null
         lastEmitTimeMs = 0
         selectedCandidateIndex = -1
-        reevaluateAutoSplit()
+        refreshPredict()
     }
 
     /**
-     * ⌫。スプリット中はまずスプリットを抜ける (取消) だけで文字は消さない。
-     * 非スプリット時のみ末尾 1 文字を削除する。消費したら true。
+     * ⌫。カーソル直前の 1 文字を削除する (途中でも末尾でも一様)。カーソルが行頭のときは
+     * composing 中なら端末へ DEL を送らず消費だけする。何か消費したら true。
      */
     fun backspace(): Boolean {
-        if (text.isEmpty()) return false
-        // 手動スプリット (変換キーで入った) 中は、まずスプリット取消だけで文字は消さない。
-        if (isSplitMode && !autoSplit) {
-            splitHeadLen = 0
-            selectedCandidateIndex = -1
-            refreshPredict()
-            return true
-        }
-        // 自動スプリット中 or 非スプリット: 末尾 1 文字を削除して長文判定をやり直す。
-        splitHeadLen = 0
-        autoSplit = false
-        text = text.dropLast(1)
+        if (cursor == 0) return text.isNotEmpty()  // 行頭: composing 中は消費のみ / 空なら false で端末 DEL
+        text = text.substring(0, cursor - 1) + text.substring(cursor)
+        cursor -= 1
         lastEmitChar = null
         lastEmitTimeMs = 0
         selectedCandidateIndex = -1
-        if (text.isEmpty()) candidates = emptyList() else reevaluateAutoSplit()
+        if (text.isEmpty()) { candidates = emptyList(); fullPrediction = null } else refreshPredict()
         return true
     }
 
     /**
-     * 変換キー。未スプリットなら [KanaKanjiConverter.autoSplitHeadLen] で先頭セグメント長を
-     * 自動決定してスプリットモードへ入る。すでにスプリット中なら**候補サイクル**:
-     * `-1 (生かな) → 0 → 1 → ... → 末尾 → -1` を巡る。
+     * 変換キー。現在の先頭ブロック (text[0..cursor]) の候補を
+     * `-1 (生かな) → 0 → 1 → ... → 末尾 → -1` でサイクルする。
+     * 先頭ブロックを狭めたい/広げたいときは ◀▶ でカーソルを動かす。
      */
     fun convert() {
         if (text.isEmpty()) return
-        if (!isSplitMode) {
-            splitHeadLen = KanaKanjiConverter.autoSplitHeadLen(text)
-                .coerceAtLeast(1).coerceAtMost(text.length)
-            autoSplit = false   // 変換キーによる手動分割
+        val n = candidates.size
+        if (n == 0) {
             selectedCandidateIndex = -1
-            refreshPredict()
-        } else if (autoSplit) {
-            // 自動分割 (先頭は生かな表示) の状態で変換キー: 先頭文節 (splitHeadLen) はそのまま活かし、
-            // 手動セグメント変換 UI へ移行する。候補は自動分割中に先頭ブロック分を算出済みなので
-            // 再計算は不要 (選択サイクルだけ初期化)。
-            autoSplit = false
-            selectedCandidateIndex = -1
-        } else {
-            val n = candidates.size
-            if (n == 0) {
-                selectedCandidateIndex = -1
-                return
-            }
-            selectedCandidateIndex =
-                if (selectedCandidateIndex >= n - 1) -1 else selectedCandidateIndex + 1
+            return
         }
+        selectedCandidateIndex =
+            if (selectedCandidateIndex >= n - 1) -1 else selectedCandidateIndex + 1
     }
 
-    /** スプリット中: フォーカスを 1 文字広げる (末尾までで止まる)。候補選択はリセット。 */
-    fun extendSplitHead() {
-        if (!isSplitMode) return
-        if (splitHeadLen < text.length) {
-            splitHeadLen++
+    /** ▶: カーソルを 1 つ右へ (末尾まで)。先頭ブロックが広がり候補が追従する。 */
+    fun moveCursorRight() {
+        if (cursor < text.length) {
+            cursor++
             selectedCandidateIndex = -1
             refreshPredict()
         }
     }
 
-    /** スプリット中: フォーカスを 1 文字縮める (最小 1 文字)。候補選択はリセット。 */
-    fun shrinkSplitHead() {
-        if (!isSplitMode) return
-        if (splitHeadLen > 1) {
-            splitHeadLen--
+    /** ◀: カーソルを 1 つ左へ (行頭 0 まで)。先頭ブロックが縮み候補が追従する。 */
+    fun moveCursorLeft() {
+        if (cursor > 0) {
+            cursor--
             selectedCandidateIndex = -1
             refreshPredict()
         }
     }
+
+    // 旧名の別名 (キーボード側の ◀▶ 呼び出し互換)。◀▶ = カーソル移動に統一した。
+    fun extendSplitHead() = moveCursorRight()
+    fun shrinkSplitHead() = moveCursorLeft()
+
+    /** 濁点循環などが対象にする「カーソル直前の文字」。無ければ null。 */
+    fun charBeforeCaret(): Char? = if (cursor in 1..text.length) text[cursor - 1] else null
 
     /**
      * 候補を確定。スプリット中は現在セグメントだけを送り、残りに対して次のセグメントを自動分割。
@@ -1341,7 +1319,8 @@ class ComposingState(
      */
     fun commit(candidate: String) {
         if (text.isEmpty()) return
-        val typedKey = if (isSplitMode) splitHead else text
+        // 変換対象は先頭ブロック (cursor より前)。カーソルが行頭なら全体を対象にする。
+        val typedKey = if (cursor > 0) splitHead else text
         // 前方一致予測を選んだ場合は、打った接頭辞でなく実際の読みで学習する
         // (「お」→「お願いします」を「おねがいします→お願いします」として加算)。
         val recordKey = predictionReadings[candidate]?.takeIf { it != typedKey } ?: typedKey
@@ -1350,7 +1329,7 @@ class ComposingState(
         prevCommitSurface?.let { ImeHistoryStore.recordBigram(it, candidate) }
         prevCommitSurface = candidate
         // 予測は打った読み 1 文節に収まらない (表層が接頭辞より長い) ので結合学習には積まない。
-        if (isSplitMode && !isPrefixPrediction) committedRun.add(typedKey to candidate)
+        if (hasTail && !isPrefixPrediction) committedRun.add(typedKey to candidate)
         onCommit(candidate)
         lastCommittedReading = recordKey
         lastCommittedOutput = candidate
@@ -1389,11 +1368,10 @@ class ComposingState(
         lastCommittedReading = text
         lastCommittedOutput = full
         text = ""
+        cursor = 0
         candidates = emptyList()
         fullPrediction = null
         fullPredictionBlocks = emptyList()
-        splitHeadLen = 0
-        autoSplit = false
         selectedCandidateIndex = -1
         lastEmitChar = null
         lastEmitTimeMs = 0
@@ -1411,30 +1389,25 @@ class ComposingState(
             commit(candidates[selectedCandidateIndex])
             return true
         }
-        // 自動分割中 (as-you-type) は先頭ブロックだけでなく生かな全体を 1 度に確定する
-        // (先頭ブロックを非ブロック化する要望)。手動スプリット (変換キー) 中のみセグメント確定。
-        val interactiveSplit = isSplitMode && !autoSplit
-        val toCommit = if (interactiveSplit) splitHead else text
+        // 先頭ブロック (cursor より前) を生確定。カーソルが行頭なら全体を確定する。
+        val toCommit = if (cursor > 0) splitHead else text
         ImeHistoryStore.record(toCommit, toCommit)
         prevCommitSurface?.let { ImeHistoryStore.recordBigram(it, toCommit) }
         prevCommitSurface = toCommit
-        if (interactiveSplit) committedRun.add(toCommit to toCommit)
+        if (hasTail) committedRun.add(toCommit to toCommit)
         onCommit(toCommit)
         lastCommittedReading = toCommit
         lastCommittedOutput = toCommit
-        // 全体確定 (非スプリット / 自動分割) はスプリットを畳んでから全リセット分岐へ倒す。
-        if (!interactiveSplit) { splitHeadLen = 0; autoSplit = false }
         advanceSegmentOrReset()
         return true
     }
 
     fun reset() {
         text = ""
+        cursor = 0
         candidates = emptyList()
         fullPrediction = null
         fullPredictionBlocks = emptyList()
-        splitHeadLen = 0
-        autoSplit = false
         selectedCandidateIndex = -1
         lastEmitChar = null
         lastEmitTimeMs = 0
@@ -1456,15 +1429,14 @@ class ComposingState(
         val r = lastCommittedReading ?: return 0
         val o = lastCommittedOutput ?: return 0
         text = r
-        splitHeadLen = 0
-        autoSplit = false
+        cursor = r.length
         selectedCandidateIndex = -1
         lastEmitChar = null
         lastEmitTimeMs = 0
         val cps = o.codePointCount(0, o.length)
         lastCommittedReading = null
         lastCommittedOutput = null
-        reevaluateAutoSplit()
+        refreshPredict()
         return cps
     }
 
@@ -1484,62 +1456,33 @@ class ComposingState(
         committedRun.clear()
     }
 
-    /** スプリット中: 確定後の処理。残りに対して次の分割を行うか、無ければ全リセット。 */
+    /**
+     * 確定後の処理。カーソルより後ろ (splitTail) が残るなら残りを composing に据えて続行、
+     * 無ければ全リセット。残りはカーソルを末尾に置く (次のブロックは ◀ で選ぶ)。
+     */
     private fun advanceSegmentOrReset() {
-        if (isSplitMode) {
-            val remaining = splitTail
-            if (remaining.isEmpty()) {
-                learnMergedRun()
-                text = ""
-                candidates = emptyList()
-                fullPrediction = null
-                splitHeadLen = 0
-                autoSplit = false
-                selectedCandidateIndex = -1
-                lastEmitChar = null
-                lastEmitTimeMs = 0
-            } else {
-                text = remaining
-                splitHeadLen = KanaKanjiConverter.autoSplitHeadLen(remaining)
-                    .coerceAtLeast(1).coerceAtMost(remaining.length)
-                selectedCandidateIndex = -1
-                refreshPredict()
-            }
-        } else {
+        val remaining = if (hasTail) splitTail else ""
+        if (remaining.isEmpty()) {
+            learnMergedRun()
             text = ""
+            cursor = 0
             candidates = emptyList()
             fullPrediction = null
-            splitHeadLen = 0
-            autoSplit = false
+            fullPredictionBlocks = emptyList()
             selectedCandidateIndex = -1
             lastEmitChar = null
             lastEmitTimeMs = 0
-        }
-    }
-
-    /**
-     * text を変更したあとに呼ぶ。文が 2 文節以上に分かれるとき ([KkcConverter.bunsetsu]) は、変換キーを
-     * 押さなくても自動で先頭文節にスプリットし、ブロックごとの予測候補を出す (= 長文を「明日の /
-     * 天気は / …」のように区切って予測)。単語 1 個程度 (文節 1 つ) のときは全体予測 (スプリットなし)。
-     */
-    private fun reevaluateAutoSplit() {
-        // text が編集された = 確定 run の連続性が切れたので結合学習用の蓄積を捨てる
-        // (segment 確定は advanceSegmentOrReset→refreshPredict 経由で、ここは通らない)。
-        committedRun.clear()
-        val b = if (text.length >= 2) KkcConverter.bunsetsu(text) else emptyList()
-        if (b.size >= 2) {
-            autoSplit = true
-            splitHeadLen = b[0].first.length.coerceAtLeast(1).coerceAtMost(text.length)
         } else {
-            autoSplit = false
-            splitHeadLen = 0
+            text = remaining
+            cursor = remaining.length
+            selectedCandidateIndex = -1
+            refreshPredict()
         }
-        selectedCandidateIndex = -1
-        refreshPredict()
     }
 
     private fun refreshPredict() {
-        val key = if (isSplitMode) splitHead else text
+        // 変換対象 = 先頭ブロック (cursor より前)。カーソルが行頭なら全体。
+        val key = if (cursor > 0) splitHead else text
         if (key.isEmpty()) {
             candidates = emptyList()
             selectedCandidateIndex = -1
@@ -1547,10 +1490,9 @@ class ComposingState(
             predictionReadings = emptyMap()
             return
         }
-        // 後続 (tail) が残る先頭ブロックでは前方一致予測 (読みより長い補完) を抑止する。
-        // 補完が tail と重なると「して下さい」+「下さい」のような被り長文予測になるため、
-        // 各ブロックは自分の読みぴったりの変換だけを出す。
-        val hasTail = isSplitMode && splitTail.isNotEmpty()
+        // 後続 (tail) が残る先頭ブロック (0 < cursor < length) では前方一致予測 (読みより長い補完) を
+        // 抑止する。補完が tail と重なると「して下さい」+「下さい」のような被り長文予測になるため、
+        // 各ブロックは自分の読みぴったりの変換だけを出す。行頭/末尾 (block=全体) では予測を許す。
         candidates = buildList(
             KanaKanjiConverter.convertFlexible(key, prevSurface = prevCommitSurface, allowPrediction = !hasTail),
             key,
@@ -1564,7 +1506,7 @@ class ComposingState(
         // splitHeadLen を動かしても一括予測ピル (薄緑) が変わらなかった (ユーザー要望)。
         // 先頭は candidates 先頭 (= 履歴/Viterbi/辞書を統合した最尤) を使い、残りは
         // 先頭表層を文脈にして tail を Viterbi で 1-best 変換する。
-        fullPrediction = if (isSplitMode && splitTail.isNotEmpty()) {
+        fullPrediction = if (hasTail) {
             // 先頭ブロックの表層は「学習履歴 (完全一致) の頻度 1 位」を最優先する。これは平仮名表層
             // (例 して→して) も含む。candidates は buildList が「読みと同一＝平仮名」を除外するため、
             // candidates.first() を使うと学習済みの平仮名が拾えず常に漢字 (仕手 等) になっていた

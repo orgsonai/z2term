@@ -88,12 +88,14 @@ Z2Term comes with its **own in-app keyboard**.
 ### Japanese / kana-kanji conversion
 - Press the **"あ" key** on the left side of the keyboard to switch to the built-in **Japanese flick keyboard**.
 - Flick rules: **tap = あ / left = い / up = う / right = え / down = お** (same as the common 12-key phone layout).
-- **Cursor up/down keys**: just **below** ◀ ▶ are **▼** (left = down) and **▲** (right = up) — all four ◀▶▼▲ are the same size. Use them to walk command history or move the cursor.
+- **Cursor keys ◀ ▶ ▼ ▲**: just **below** ◀ ▶ are **▼** (left = down) and **▲** (right = up) — all four ◀▶▼▲ are the same size. When you're not typing, they move the terminal cursor (walk command history, move within the line). **While typing Japanese, ◀ ▶ move the composing cursor** and can reach the line start.
 - **The "小゛゜" key** changes the previous character like `か→が→か`, `は→ば→ぱ→は`, `つ→づ→っ→つ`.
 - While typing (unconfirmed), a **candidate bar** appears at the top so you can convert to kanji.
-  - With the **"変換" (convert) key** or **◀ ▶**, convert from the leading chunk (block). Tap a candidate or press ⏎ to confirm, and it automatically advances to the next chunk.
-  - When you type a **long sentence**, predictions appear **automatically per chunk** without pressing "変換". In this state the **leftmost pill shows the whole raw kana exactly as you typed it** (so you can see which characters you are typing), with the "whole-sentence" conversion candidate (light green) to its right. **Pressing the "変換" key** switches to the classic mode that converts one leading chunk at a time.
-  - The **light-green chunk** in the candidate bar is the "whole-sentence" conversion (e.g. 明日の天気はいかがでしょうか). Tap it to confirm the entire sentence at once. **Moving the boundary of the leading chunk with ◀ ▶ also rebuilds the light-green chunk to match the new boundary.**
+  - **The left end of the candidate bar shows your whole raw kana as typed.** Everything before the cursor (the thin bar) is the "leading chunk" being converted — drawn strong, the rest dim.
+  - With the **"変換" (convert) key**, convert the leading chunk (press repeatedly to cycle candidates). Tap a candidate or press ⏎ to confirm, and it advances to the rest.
+  - Right after typing a **long sentence** the cursor sits at the **end** (the whole thing is the leading chunk). **Move ◀ to shrink the cursor leftward and that prefix becomes the conversion target**, changing the candidates (particles and endings like "です・ました" stay in kana).
+  - The **light-green chunk** in the candidate bar is the "whole-sentence" conversion (e.g. 明日の天気はいかがでしょうか). Tap it to confirm the entire sentence at once. Moving the cursor with ◀ ▶ rebuilds it to match.
+  - **Fix a typo in the middle**: move the cursor (the thin bar) to the spot with ◀ ▶, and you can **insert kana there or delete the char before it with ⌫** (the "小゛゜" key targets that position too). The cursor can reach the line start.
   - **Predictive conversion from what you've typed**: as you start typing a reading, previously confirmed phrases whose reading begins with it appear at the head of the candidate bar. For example, typing お surfaces phrases you confirmed before such as お願いします / 概ね as predictions you can tap directly. When you pick a prediction it is learned under its actual reading, so it keeps showing up under the same reading next time.
   - **Chunk boundaries are learned too**: e.g. if こまんど first splits into 「こ」「まんど」, merge it into 「こまんど」 with ◀ ▶ and confirm — from the next time it's auto-recognized as a single chunk (コマンド). The more often you use a reading-chunk, the higher its priority.
   - For **katakana**, tap the katakana candidate in the candidate bar.

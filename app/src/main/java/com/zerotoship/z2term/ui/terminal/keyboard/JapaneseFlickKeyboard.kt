@@ -127,10 +127,10 @@ fun JapaneseFlickKeyboard(
         }
     }
 
-    // 「小゛゜」: composing 末尾のかなを 濁点→半濁点→小書き→元 の順に循環。
+    // 「小゛゜」: composing のカーソル直前のかなを 濁点→半濁点→小書き→元 の順に循環。
     //   連打サイクル ([ComposingState.emitKana]) のフォールバック (フリック後や空打ち後)。
     fun cycleDakuten() {
-        val cur = composing.text.lastOrNull() ?: return
+        val cur = composing.charBeforeCaret() ?: return
         val (forms, idx) = CYCLE_INDEX[cur] ?: return
         composing.replaceLast(forms[(idx + 1) % forms.size])
     }
@@ -188,18 +188,16 @@ fun JapaneseFlickKeyboard(
         // Row 2: [◀ / ▼]  た  な  は  [▶ / ▲]
         //   左右キー (◀ ▶) の真下に上下キー (▼ ▲) を半行ずつ積み、◀ ▶ ▼ ▲ を全て同じサイズに揃える。
         //   ◀ の下に ▼ (下)、▶ の下に ▲ (上)。スペース/変換は Row 3 で 1 行のまま (押しやすさ優先)。
-        //   スプリット変換中は ◀ ▶ をフォーカス範囲調整に流用 (左 = 縮める / 右 = 広げる)。
-        //   composing 中で未スプリットなら、◀ ▶ は **変換キーを押したのと同じ** 扱いで
-        //   スプリット変換へ突入する (ユーザー要望: 変換を押さず左右でブロック範囲変更に入る)。
-        //   composing が空のときだけ従来どおりカーソルキー送信。
+        //   composing 中は ◀ ▶ = **入力中カーソルの移動** (行頭 0 まで)。カーソルより前が先頭ブロック
+        //   になり、動かすたびに変換候補が追従する。かな=カーソル位置に挿入 / ⌫=カーソル直前を削除。
+        //   composing が空のときだけ従来どおり端末カーソルキー送信。
         JpRow(rowSpacing) {
             JpEdgeStack(
                 weight = JP_EDGE_WEIGHT, spacing = rowSpacing,
                 top = {
                     JpFuncKey("◀", style, modifier = Modifier.fillMaxSize(), repeatable = true) {
                         when {
-                            composing.isSplitMode -> composing.shrinkSplitHead()
-                            composing.isActive -> composing.convert()   // 変換キー相当: スプリット突入
+                            composing.isActive -> composing.moveCursorLeft()
                             else -> { flush(); onCursorKey(TerminalEmulator.CursorKey.LEFT) }
                         }
                     }
@@ -218,8 +216,7 @@ fun JapaneseFlickKeyboard(
                 top = {
                     JpFuncKey("▶", style, modifier = Modifier.fillMaxSize(), repeatable = true) {
                         when {
-                            composing.isSplitMode -> composing.extendSplitHead()
-                            composing.isActive -> composing.convert()   // 変換キー相当: スプリット突入
+                            composing.isActive -> composing.moveCursorRight()
                             else -> { flush(); onCursorKey(TerminalEmulator.CursorKey.RIGHT) }
                         }
                     }
