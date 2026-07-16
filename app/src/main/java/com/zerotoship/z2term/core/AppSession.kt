@@ -32,6 +32,16 @@ interface AppSession {
      */
     val display: Int
 
+    /**
+     * このタブで「何かが動作中」か (= 誤って閉じると作業を失いうる状態か)。
+     *
+     * タブのダブルタップ削除で削除確認ダイアログを出すか / 即削除するかの判定に使う。
+     * 端末タブは PTY の前景プロセスがログインシェル以外なら true (子プロセス実行中)。
+     * 既定は false で、判定手段を持たないセッション種別は従来どおり即削除にする。
+     */
+    val isBusy: Boolean
+        get() = false
+
     /** セッション終了 (リソース解放)。SessionManager.close から呼ばれる。 */
     fun shutdown()
 }

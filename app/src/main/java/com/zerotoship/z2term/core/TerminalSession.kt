@@ -215,6 +215,13 @@ class TerminalSession(
     val hasForegroundChild: Boolean
         get() = channel?.hasForegroundChild ?: true
 
+    /**
+     * タブ削除確認用の「動作中」判定。RUNNING かつ前景プロセスがシェル以外 (子プロセス実行中)
+     * のときだけ true。起動前 / 終了後や、プロンプトでシェルが前景のときは false で即削除に倒す。
+     */
+    override val isBusy: Boolean
+        get() = isRunning && hasForegroundChild
+
     init {
         CustomThemeStore.ensureLoaded(appContext)
         scope.launch {
