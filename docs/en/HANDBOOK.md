@@ -117,7 +117,7 @@ Z2Term comes with its **own in-app keyboard**.
 | Scroll up/down | Drag with one finger. You can also **grab the scrollbar on the right edge**. Use **↓** at the bottom-right to return to the latest |
 | Make text bigger/smaller | **Pinch** with two fingers (spread/squeeze) |
 | Add a terminal | The tab **+** (terminal) / **🖥** (GUI desktop) |
-| Remove a terminal | **Double-tap** that tab (the last remaining one won't be removed) |
+| Remove a terminal | **Double-tap** that tab (the last remaining one won't be removed). **If something is running in that tab, a confirmation dialog appears** (to prevent accidental removal while you are working). If nothing is running it closes right away |
 | Reorder tabs | **Long-press** a tab then **drag** left/right (you can move it edge to edge in one gesture) |
 | See tab info | **Long-press** a tab to pop up its name and the **engine it's running on** (PRoot / z2root / chroot / Android sh, or GUI for GUI tabs) — no need to open Settings; it shares the same long-press as reorder |
 | Check the app version | Type **`z2version`** in the terminal to print the running app's version, execution engine, the **running OS (distro) and kernel**, etc. (`z2version --short` for just the version) |

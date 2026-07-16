@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-16 / Target version: 0.8.156-alpha (versionCode 164)
+Last updated: 2026-07-16 / Target version: 0.8.157-alpha (versionCode 165)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -362,7 +362,7 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 
 ### 6.8 Other UI
 
-- Multiple tabs (**long-press → drag left/right to reorder**, double-tap to close), pinch font zoom (8–32sp), scroll + a ↓ to return to latest, snippets, live theme/font preview.
+- Multiple tabs (**long-press → drag left/right to reorder**, double-tap to close. **A close-confirm dialog is shown only when a child process is running in the foreground of that tab** — to prevent an accidental tap from discarding work; if the login shell is in the foreground it closes immediately as before. The check is PTY master `tcgetpgrp` ≠ shell pgid. 0.8.157), pinch font zoom (8–32sp), scroll + a ↓ to return to latest, snippets, live theme/font preview.
 - Settings (`SettingsSheet`): in 0.8.14, dropped the old bottom sheet stacking from below and now shows as a **full-screen "separate page"** (back arrow ← at top + system-back support).
 
 ---

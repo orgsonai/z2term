@@ -99,6 +99,7 @@ import com.zerotoship.z2term.gui.rfb.RfbClient
 import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.ui.clipboard.ClipboardHistorySheet
+import com.zerotoship.z2term.ui.components.ConfirmDialog
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.filterNotNull
@@ -1592,6 +1593,8 @@ private fun TabChip(
     // どのタブがどのエンジンで動いているか確認できる。長押し→ドラッグの並べ替えと併用で、
     // 押した瞬間 (onDragStart) に表示し、離した/キャンセルで消す。
     var showInfo by remember { mutableStateOf(false) }
+    // 動作中タブをダブルタップで閉じようとしたときに出す削除確認ダイアログの表示フラグ (要望)。
+    var showCloseConfirm by remember { mutableStateOf(false) }
     // 実行エンジン名。端末タブは実際に起動したエンジン、GUI タブは GUI 表記。
     val engineText: String = if (session is TerminalSession) {
         val actual by session.actualEngine.collectAsState()
@@ -1608,6 +1611,12 @@ private fun TabChip(
 
     // 単タップ=アクティブ化 / ダブルタップ=閉じる。× ボタンは廃止 (誤タップ防止 M8-6 T8)。
     // 最後の 1 枚 (canClose=false) はダブルタップでも閉じない。
+    // 動作中 (前景に子プロセスが居る) のタブは即削除せず確認ダイアログを挟む (作業中の誤タップ防止・要望)。
+    val onDoubleTap: (() -> Unit)? = if (canClose) {
+        { if (session.isBusy) showCloseConfirm = true else onClose() }
+    } else {
+        null
+    }
     // 長押し→左右ドラッグ=並べ替え (要望)。ドラッグ中のタブは前面 (zIndex) + 平行移動で追従。
     Box(
         modifier = Modifier
@@ -1619,7 +1628,7 @@ private fun TabChip(
             .border(1.dp, border, RoundedCornerShape(6.dp))
             .combinedClickable(
                 onClick = onSelect,
-                onDoubleClick = if (canClose) onClose else null
+                onDoubleClick = onDoubleTap
             )
             .pointerInput(session.id) {
                 detectDragGesturesAfterLongPress(
@@ -1646,6 +1655,16 @@ private fun TabChip(
         if (showInfo) {
             TabInfoPopup(name = label, engine = engineText)
         }
+    }
+
+    if (showCloseConfirm) {
+        ConfirmDialog(
+            title = stringResource(R.string.confirm_close_busy_title),
+            message = stringResource(R.string.confirm_close_busy_msg),
+            confirmLabel = stringResource(R.string.confirm_close_busy_action),
+            onConfirm = { showCloseConfirm = false; onClose() },
+            onCancel = { showCloseConfirm = false }
+        )
     }
 }
 

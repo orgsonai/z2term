@@ -62,6 +62,9 @@
     <string name="confirm_delete_os_title">%1$s のデータを削除しますか？</string>
     <string name="confirm_delete_os_msg">%1$s に入れたパッケージ・設定・ファイルがすべて消えます。この操作は元に戻せません。本当に削除しますか？</string>
     <string name="action_delete_os">削除する</string>
+    <string name="confirm_close_busy_title">このタブを閉じますか？</string>
+    <string name="confirm_close_busy_msg">このタブではまだ何かが動作中です。閉じると実行中のプログラムが終了します。閉じてもよいですか？</string>
+    <string name="confirm_close_busy_action">閉じる</string>
     <string name="settings_init_command">起動時 init コマンド</string>
     <string name="settings_init_command_placeholder">例: zsh -l</string>
     <string name="settings_reset_terminal">端末リセット</string>
