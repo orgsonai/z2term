@@ -29,7 +29,7 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 ## Current version
 
-**0.8.153-alpha (versionCode 161).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.154-alpha (versionCode 162).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
@@ -143,10 +143,12 @@ z2term/
 ├── docs/
 │   ├── ja/                        ← Japanese documentation
 │   │   ├── DESIGN-SPEC.md         ← design & specification (technical)
-│   │   └── HANDBOOK.md            ← user handbook
+│   │   ├── HANDBOOK.md            ← user handbook
+│   │   └── MACRO-GUIDE.md         ← phone-automation macro guide (AI-friendly)
 │   ├── en/                        ← English documentation
 │   │   ├── DESIGN-SPEC.md         ← design & specification
-│   │   └── HANDBOOK.md            ← getting started handbook
+│   │   ├── HANDBOOK.md            ← getting started handbook
+│   │   └── MACRO-GUIDE.md         ← phone-automation macro guide (AI-friendly)
 │   ├── images/                    ← screenshots etc. (shared)
 │   ├── RELEASE.md                 ← release steps
 │   └── SSH-INTO-Z2TERM.md

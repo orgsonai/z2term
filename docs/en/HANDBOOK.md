@@ -326,6 +326,11 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-vibrate [ms]` | Vibrate (default 200ms) |
 | `z2-say <text>` | Speak text via the device's text-to-speech (reads stdin if no argument) |
 | `z2-torch [on\|off\|toggle]` | Turn the flashlight on/off/toggle (default toggle; prints the resulting state) |
+| `z2-media [playpause\|play\|pause\|next\|previous\|stop]` | Control media playback (default playpause) |
+| `z2-volume <up\|down\|mute\|unmute\|N\|N%>` | Adjust media volume (prints the resulting current/max) |
+| `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | Fire an arbitrary Android Intent (launch apps, open settings, set alarms, … see `docs/en/MACRO-GUIDE.md`) |
+
+> Combine "trigger (event detection) → decide (shell) → action (z2-*)" to automate your phone (macros). See **`docs/en/MACRO-GUIDE.md`** for how — you can also feed it to an AI and have it generate the macro for you.
 
 ### Graphical (GUI) apps
 | Command | What it does |

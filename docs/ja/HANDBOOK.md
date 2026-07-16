@@ -326,6 +326,11 @@ Z2Term がどのディストロにも自動で入れてくれる「Z2Term 専用
 | `z2-vibrate [ミリ秒]` | バイブ（既定 200ms） |
 | `z2-say <テキスト>` | 端末標準の音声合成（TTS）で読み上げ（引数なしだと標準入力から） |
 | `z2-torch [on\|off\|toggle]` | フラッシュライトを点灯／消灯／切替（既定 toggle。結果の状態を出力） |
+| `z2-media [playpause\|play\|pause\|next\|previous\|stop]` | メディア再生を操作（既定 playpause） |
+| `z2-volume <up\|down\|mute\|unmute\|N\|N%>` | メディア音量を操作（結果の current/max を出力） |
+| `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | 任意の Android Intent を発火（アプリ起動・設定画面・アラーム設定など。詳細は `docs/ja/MACRO-GUIDE.md`） |
+
+> 「トリガー（イベント検知）→ 判断（シェル）→ アクション（z2-*）」でスマホの自動化（マクロ）が組めます。書き方は **`docs/ja/MACRO-GUIDE.md`**（AI に読ませてそのままマクロ生成させることもできます）。
 
 ### 画面つき（GUI）アプリ
 | コマンド | できること |
