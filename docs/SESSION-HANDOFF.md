@@ -29,7 +29,8 @@
   - `android.enableResourceOptimizations=false` (無いと release の aapt2 optimize が空出力で **manifest/arsc 欠落 → 「パッケージ解析エラー」**。詳細 [[project_ondevice_release_apk_fix]])
   - 以後は素の `scripts/gw.sh :app:assembleFullRelease` で OK。健全性は `unzip -l <apk> | grep AndroidManifest`。ネイティブ aapt2 override 別解は [[project_build_aapt2_box64_binfmt]]。
 - **未検証(要実機確認)**: キャッシュ削除ダイアログ・常駐サーバー起動/BOOT 自動常駐・ボトムシート修正の見た目・通知フォーマットの各プリセット。通知検知本体は検証済。
-- **ブランチ**: 全コミットは `internal` のみ (local へ push 済)。公開時は **main へ昇格 → origin push** が別途必要 (main は 0.8.141 以降遅れ・要ユーザー判断)。
+- **公開状況 (2026-07-16)**: 6 機能コミット (0.8.146〜151) を **main へ cherry-pick して `origin/main` へ push 済** (`ddf117f`, HANDOFF 非混入を確認)。GitHub 公開 main = 0.8.151。**GitHub リリースは未作成** — `.gh-token` の PAT が**失効(401)**のため。有効な `GH_TOKEN` を用意すれば `gh release create v0.8.151-alpha --latest` で作れる (アセット: full APK は build 済 `app/build/outputs/apk/full/release/app-full-release.apk`、foss APK は要ビルド。前例 [[reference_github_release_on_device]]: alpha は prerelease 無しで --latest・full+foss 2 アセット)。
+- **ブランチ運用の教訓**: 今セッションは誤って internal で開発した。以後は機能は main で。internal は HANDOFF 追加＋main の随時 merge のみ。
 
 ### 次タスク — MacroDroid ライト (ユーザー承認済みの方向)
 z2term は既に「アクション(シェル→Android: `z2-notify/toast/share/open/clip/battery/vibrate`)」＋「トリガー(Android→シェル: 通知検知)」を持つ。条件/ロジックはターミナル側 (script/cron/常駐サーバー) で書ける前提で、両輪を増やす:
