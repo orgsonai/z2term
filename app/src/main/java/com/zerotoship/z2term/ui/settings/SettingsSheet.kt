@@ -37,6 +37,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,6 +55,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -1592,7 +1594,16 @@ private fun TextField(
     value: String,
     onChange: (String) -> Unit
 ) {
-    var draft by remember(value) { mutableStateOf(TextFieldValue(value)) }
+    // draft はローカルに保持し、外部 (プリセット選択等) で value が変わったときだけ同期する。
+    // remember(value) にすると、入力→onChange→DataStore 書込→flow 再emit→value 変化 で
+    // 毎キーストロークごとに TextFieldValue が作り直されてカーソルが先頭へ飛ぶ (途中編集不可・
+    // 文字が逆順に見える) 不具合になるため、自分の編集による value 変化では作り直さない。
+    var draft by remember { mutableStateOf(TextFieldValue(value, TextRange(value.length))) }
+    LaunchedEffect(value) {
+        if (value != draft.text) {
+            draft = TextFieldValue(value, TextRange(value.length))
+        }
+    }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = title,
