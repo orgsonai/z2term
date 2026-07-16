@@ -5,8 +5,15 @@ import android.content.Context
 import android.util.Log
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.gui.GuiEventWatcher
+import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.service.Z2ApiBridge
+import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.LocaleHelper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /**
  * Z2Term アプリケーション本体。
@@ -38,7 +45,18 @@ class Z2TermApplication : Application() {
         Z2ApiBridge.start(this)
         // クリップボード履歴: ディスク読込 + システムクリップボード変化の監視を開始。
         ClipboardHistoryStore.init(this)
+        // システムイベント検知が ON なら常駐 FG サービスを起動 (アプリ前面起動時に再アサート)。
+        // background から起動した場合は FG サービス起動が禁止されうるので握りつぶす (BootReceiver 側で別途起動)。
+        appScope.launch {
+            runCatching {
+                if (AppSettings(this@Z2TermApplication).flow.first().systemEventCaptureEnabled) {
+                    SystemEventService.start(this@Z2TermApplication)
+                }
+            }.onFailure { Log.w(TAG, "system event service autostart skipped: ${it.message}") }
+        }
     }
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object {
         const val TAG = "Z2Term"

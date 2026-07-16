@@ -180,7 +180,20 @@ class AppSettings(private val context: Context) {
          * タブ `\t`・1 行化 `{text1}` `{title1}` (改行→空白) が使える。**空文字なら JSONL** (機械可読・既定)。
          * 置換は [com.zerotoship.z2term.service.NotificationLogService.render] が行う。
          */
-        val notificationLogFormat: String = DEFAULT_NOTIFICATION_LOG_FORMAT
+        val notificationLogFormat: String = DEFAULT_NOTIFICATION_LOG_FORMAT,
+        /**
+         * システムイベント検知の有効化フラグ。ON のとき [com.zerotoship.z2term.service.SystemEventService]
+         * (opt-in の FG サービス) が常駐し、画面 ON/OFF・ロック解除・充電・電池残量・Wi‑Fi 接続などを
+         * `~/.z2term/events.jsonl` へ追記する。通知検知 (z2-notify の逆向き) の姉妹機能で、加工はユーザーが
+         * ターミナル側で自由に行う **汎用の検知入口**。既定 OFF・完全ローカル・外部送信なし。
+         */
+        val systemEventCaptureEnabled: Boolean = DEFAULT_SYSTEM_EVENT_CAPTURE,
+        /**
+         * システムイベントログの出力フォーマット **テンプレート**。プレースホルダ `{time}` `{ts}`
+         * `{event}` `{level}` `{ssid}` と、改行 `\n`・タブ `\t` が使える。**空文字なら JSONL** (既定)。
+         * 置換は [com.zerotoship.z2term.service.SystemEventService.render] が行う。
+         */
+        val systemEventLogFormat: String = DEFAULT_SYSTEM_EVENT_LOG_FORMAT
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -234,7 +247,9 @@ class AppSettings(private val context: Context) {
             serversAutostartOnBoot = p[KEY_SERVERS_AUTOSTART] ?: DEFAULT_SERVERS_AUTOSTART,
             serversLowPower = p[KEY_SERVERS_LOW_POWER] ?: DEFAULT_SERVERS_LOW_POWER,
             notificationCaptureEnabled = p[KEY_NOTIFICATION_CAPTURE] ?: DEFAULT_NOTIFICATION_CAPTURE,
-            notificationLogFormat = p[KEY_NOTIFICATION_LOG_FORMAT] ?: DEFAULT_NOTIFICATION_LOG_FORMAT
+            notificationLogFormat = p[KEY_NOTIFICATION_LOG_FORMAT] ?: DEFAULT_NOTIFICATION_LOG_FORMAT,
+            systemEventCaptureEnabled = p[KEY_SYSTEM_EVENT_CAPTURE] ?: DEFAULT_SYSTEM_EVENT_CAPTURE,
+            systemEventLogFormat = p[KEY_SYSTEM_EVENT_LOG_FORMAT] ?: DEFAULT_SYSTEM_EVENT_LOG_FORMAT
         )
     }
 
@@ -244,6 +259,14 @@ class AppSettings(private val context: Context) {
 
     suspend fun setNotificationLogFormat(template: String) {
         context.dataStore.edit { it[KEY_NOTIFICATION_LOG_FORMAT] = template }
+    }
+
+    suspend fun setSystemEventCaptureEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_SYSTEM_EVENT_CAPTURE] = enabled }
+    }
+
+    suspend fun setSystemEventLogFormat(template: String) {
+        context.dataStore.edit { it[KEY_SYSTEM_EVENT_LOG_FORMAT] = template }
     }
 
     suspend fun setServerEntries(json: String) {
@@ -466,11 +489,18 @@ class AppSettings(private val context: Context) {
         private val KEY_SERVERS_LOW_POWER = booleanPreferencesKey("servers_low_power")
         private val KEY_NOTIFICATION_CAPTURE = booleanPreferencesKey("notification_capture_enabled")
         private val KEY_NOTIFICATION_LOG_FORMAT = stringPreferencesKey("notification_log_format")
+        private val KEY_SYSTEM_EVENT_CAPTURE = booleanPreferencesKey("system_event_capture_enabled")
+        private val KEY_SYSTEM_EVENT_LOG_FORMAT = stringPreferencesKey("system_event_log_format")
 
         /** 通知検知は既定 OFF (明示 opt-in + OS の通知アクセス許可が要る)。 */
         const val DEFAULT_NOTIFICATION_CAPTURE = false
         /** 通知ログのフォーマットテンプレート。空文字 = JSONL (機械可読・既定)。 */
         const val DEFAULT_NOTIFICATION_LOG_FORMAT = ""
+
+        /** システムイベント検知は既定 OFF (明示 opt-in で FG サービスを常駐させる)。 */
+        const val DEFAULT_SYSTEM_EVENT_CAPTURE = false
+        /** システムイベントログのフォーマットテンプレート。空文字 = JSONL (機械可読・既定)。 */
+        const val DEFAULT_SYSTEM_EVENT_LOG_FORMAT = ""
 
         /** 常駐サーバーの起動時自動起動は既定 OFF (明示 opt-in)。 */
         const val DEFAULT_SERVERS_AUTOSTART = false
