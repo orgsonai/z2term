@@ -1,6 +1,16 @@
 # セッション引き継ぎ（現状ローリング）
 
-最終更新: 2026-07-16 / 対象版数: **0.8.153-alpha (versionCode 161)** / ブランチ: internal。
+最終更新: 2026-07-16 / 対象版数: **0.8.154-alpha (versionCode 162)** / ブランチ: internal。
+
+## 引き継ぎサマリ — 0.8.154 (マクロ拡充: トリガー3種+アクション3種 + 公開マクロガイド、 main で開発・merge 済/実機未検証)
+
+ユーザー要望「難しいところは不要でお勧めで追加」に応じ、**権限不要で確実に動く軽いものだけ**を足した段。BT(実行時権限フロー) と 常時オンのセンサー(電池食い) は意図的に除外。加えて**公開用のマクロ仕様書**を新設。main で開発 → internal へ merge (今回は履歴統合済みで競合なし)。**origin/main へは未 push**。
+
+- **`b6d5f45` 0.8.154(162)**
+  - **トリガー追加** (`SystemEventService`, events.jsonl・全て権限不要): `headset_plugged`/`headset_unplugged` (ACTION_HEADSET_PLUG の state) ・`airplane_on`/`airplane_off` (ACTION_AIRPLANE_MODE_CHANGED) ・`ringer_normal`/`ringer_vibrate`/`ringer_silent` (RINGER_MODE_CHANGED_ACTION)。動的レシーバの IntentFilter とハンドラに追加しただけ。
+  - **アクション追加** (`Z2ApiBridge`+`Z2ApiScript`, 全て権限不要): `z2-media`(play/pause/playpause/next/previous/stop → `AudioManager.dispatchMediaKeyEvent`) ・`z2-volume`(up/down/mute/unmute/N/N% → STREAM_MUSIC、結果 current/max を返す) ・`z2-intent`(**`am start` 風の汎用 Intent 発火**。`-a/-d/-t/-p/-n/-f/--es/--ez/--ei/--broadcast/--service` を Kotlin 側で parse し startActivity/broadcast/startService)。z2-intent がマクロの要 (アプリ起動/設定画面/アラーム設定/地図/共有を 1 本で網羅)。
+  - **公開マクロガイド新設**: `docs/ja/MACRO-GUIDE.md` + 英訳 `docs/en/MACRO-GUIDE.md`。**人間可読**(3段構成=トリガー/判断/アクション・準備・全リファレンス表・テンプレ・jq 無し版・トラブルシュート) かつ **AI 可読**(機械可読な表 +「AI にマクロ生成させるコピペ用指示文」で"存在しない機能を使うな"と制約)。**引き継ぎ書ではないので main = GitHub 公開対象**。README/DESIGN-SPEC/HANDBOOK からリンク。
+  - 検証: foss debug unit test 全 pass (※この環境は test worker がまれに 't' 停止でハングする既知フレーク。ハング時は worker JVM を kill して再実行で通る。daemon は温存)。**実機 e2e は未** (通知検知(0.8.149)以外の 0.8.152-154 の検知/アクションは JVM+コンパイルまで)。
 
 ## 引き継ぎサマリ — 0.8.152〜153 (MacroDroid ライト: システムイベント検知 + z2-say/z2-torch、 **main で開発**・merge 済/実機未検証)
 
