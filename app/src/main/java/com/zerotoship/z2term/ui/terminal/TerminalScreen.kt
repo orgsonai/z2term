@@ -46,7 +46,10 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -1853,23 +1856,19 @@ private fun CandidateBar(
     modifier: Modifier = Modifier
 ) {
     if (!composing.isActive) return
-    // 自動分割 (長文入力中の as-you-type) のあいだは先頭ブロックを「ブロック化」せず、生かな全体を
-    // 左端ピルに出す (今どの文字を打っているか分かるように・要望)。tail ラベルと先頭ブロック候補は
-    // 出さず、全文予測ピルだけ添える。変換キーを押すと手動セグメント変換 (manualSplit) に移行する。
-    val autoSplit = composing.isAutoSplit
-    val manualSplit = composing.isSplitMode && !autoSplit
-    val candidates = if (autoSplit) emptyList() else composing.candidates
+    val candidates = composing.candidates
+    val isSplit = composing.isSplitMode
     // 候補サイクル選択 index: -1 なら「生かな (head)」が選択中、0+ なら候補配列の index。
     // 変換キー連打でこの index が循環し、選択中のピルが緑塗りでハイライトされる。
     val selIdx = composing.selectedCandidateIndex
     val rawSelected = selIdx == -1
-    val tail = if (manualSplit) composing.splitTail else ""
-    val hasTail = manualSplit && tail.isNotEmpty()
     // 長文の一括予測 (各ブロック第1候補を連結した「文まるごと」候補)。tail があるときのみ出す。
     val full = composing.fullPrediction
     val hasFull = full != null
-    //   通し index: 0=head, [1=tail], [full], base+i=候補 i
-    val base = 1 + (if (hasTail) 1 else 0) + (if (hasFull) 1 else 0)
+    //   通し index: 0=head, [full], base+i=候補 i
+    //   先頭ピルは「打った生かな全体」を連続表示し、その中で先頭ブロックの境目を示す
+    //   (別の tail ラベルは廃止)。◀▶ は先頭ブロック範囲を伸縮し候補が追従する。
+    val base = 1 + (if (hasFull) 1 else 0)
     // 上下 2 段の候補バー。各行は独立に左詰め (開始位置は揃わなくてよい) しつつ、両行を含む
     // 内側 Column を **1 つの horizontalScroll** で動かす。これで上下は必ず同じ量だけスクロールし、
     // ズレ (ドリフト) が起きない。列を揃えないので短い候補に無駄な隙間も出ない。
@@ -1891,7 +1890,9 @@ private fun CandidateBar(
     // 描画順に通し index を採番してピルを作る (even=上段, odd=下段)。
     val pills = ArrayList<Pair<Int, @Composable () -> Unit>>()
     var nextIdx = 0
-    // head ピル。スプリット頭 or 入力中ひらがな全体。タップで生確定。
+    // head ピル。打った生かな**全体**を連続表示する。スプリット中は先頭ブロック (splitHead) を
+    // 濃色、残り (splitTail) を薄色にし、境目に caret (地色反転の細バー) を挟んで「今の先頭ブロック
+    // の範囲」を示す。◀▶ でこの境目が動き、候補が追従する。タップで生確定 (commitRaw)。
     run {
         val myIdx = nextIdx++
         pills.add(myIdx to {
@@ -1904,27 +1905,25 @@ private fun CandidateBar(
                     .clickable { composing.commitRaw() }
                     .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
+                val blockColor = if (rawSelected) Color.Black else ZtsGreen
+                val tailColor = if (rawSelected) Color.Black.copy(alpha = 0.45f) else ZtsTextSecondary
                 Text(
-                    text = if (manualSplit) composing.splitHead else composing.text,
-                    color = if (rawSelected) Color.Black else ZtsGreen,
-                    fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace
+                    text = buildAnnotatedString {
+                        if (isSplit) {
+                            withStyle(SpanStyle(color = blockColor, fontWeight = FontWeight.Bold)) {
+                                append(composing.splitHead)
+                            }
+                            // 先頭ブロックと残りかなの境目 (◀▶ で動く)。
+                            withStyle(SpanStyle(background = blockColor)) { append(" ") }
+                            withStyle(SpanStyle(color = tailColor)) { append(composing.splitTail) }
+                        } else {
+                            withStyle(SpanStyle(color = blockColor, fontWeight = FontWeight.Bold)) {
+                                append(composing.text)
+                            }
+                        }
+                    },
+                    fontSize = 15.sp, fontFamily = FontFamily.Monospace
                 )
-            }
-        })
-    }
-    // tail ラベル。スプリット中の残りかな。薄色、タップ不可。
-    if (hasTail) {
-        val myIdx = nextIdx++
-        pills.add(myIdx to {
-            Box(
-                modifier = Modifier
-                    .onSizeChanged { itemWidths[myIdx] = it.width }
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(ZtsBgCard)
-                    .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
-                    .padding(horizontal = 10.dp, vertical = 5.dp)
-            ) {
-                Text(text = tail, color = ZtsTextSecondary, fontSize = 15.sp, fontFamily = FontFamily.Monospace)
             }
         })
     }
