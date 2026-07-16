@@ -1,23 +1,11 @@
 # セッション引き継ぎ（現状ローリング）
 
-最終更新: 2026-07-16 / 対象版数: **0.8.157-alpha (versionCode 165)** / ブランチ: internal。
+最終更新: 2026-07-16 / 対象版数: **0.8.158-alpha (versionCode 166)** / ブランチ: internal。
 
-## 🔜 次セッションの依頼タスク（残 2 件・ユーザーが新セッションで実施予定）
+## 🔜 次セッションの依頼タスク（残 1 件・ユーザーが新セッションで実施予定）
 
-ユーザーから 3 件の追加要望のうち **(A) は 0.8.157 で実装済**（下記サマリ参照）。残る **(B)(C) が未実装**。
-いずれも main で実装 → internal merge の流れ。調査済みの該当箇所を添える。
-
-### (B) 日本語キーボード: 先頭ブロックを非ブロック化
-- 要望: 長文入力の自動ブロック変換で**一番左上（先頭ブロック）はブロック化せず素の入力かなのまま**にする。
-  「一つ右の長文自動変換部分（＝全文予測ピル）」は**今のブロック認識・変換仕様のまま**でよい。理由: 自分が
-  今どの文字を打っているか分からなくなるため。
-- 該当: `ui/terminal/keyboard/KanaKanjiConverter.kt` の `ComposingState`（1130〜）。
-  - `splitHeadLen>0` で先頭 `splitHeadLen` 文字が「変換中セグメント」になる。`autoSplit`(1182) が
-    true=長文の自動分割由来。`fullPrediction`(1143) が「一つ右」の全文予測ピル。`splitHead`/`splitTail`(1204-1208)。
-  - **方針案**: 自動分割（autoSplit）中は先頭セグメントを**変換候補で見せず生かな表示**にする（candidates を
-    先頭ブロックに適用しない／候補バーの先頭ピルを生かなにする）。`fullPrediction` ピルは現状維持。
-    候補バー描画は `TerminalKeyboard.kt` / `JapaneseFlickKeyboard.kt` 側。表示だけの問題か、内部の
-    `convert`/autoSplit 起動条件まで触るか切り分けて最小変更で。
+ユーザーから 3 件の追加要望のうち **(A) は 0.8.157 / (B) は 0.8.158 で実装済**（下記サマリ参照）。残る
+**(C) が未実装**。main で実装 → internal merge の流れ。**(C) は着手前にユーザー確認が要る**（◀▶ の役割衝突）。
 
 ### (C) 日本語キーボード: カーソル位置での挿入/削除
 - 要望: 長文入力中に**左右ボタンでカーソル位置を変えたら**、⌫ は**カーソル直前の文字**を削除、かな入力は
@@ -29,6 +17,33 @@
     カーソル移動を別ジェスチャにするか）を**ユーザーに確認**してから実装するのが安全。
   - **方針案**: `ComposingState` に `cursor:Int`（text 内の挿入位置）を追加し、append/backspace を cursor 相対に。
     ◀▶ の役割再配置は上記の確認次第。スプリット/autoSplit との相互作用（境界とカーソルの二重概念）に注意。
+
+---
+
+## 引き継ぎサマリ — 0.8.158 (日本語入力: 自動分割で先頭ブロックを非ブロック化 = 次タスク(B)、 main 実装・merge 済/実機未検証)
+
+次タスク(B)を実装した段。main で開発 → `main → internal` merge（fast-forward・競合なし）。**origin/main へは未 push**。
+
+- **`b5401c0` 0.8.158(166)**
+  - 要望: 長文入力の**自動ブロック分割(as-you-type)中、一番左上（先頭ブロック）をブロック化せず生かな全体で表示**。
+    「一つ右の全文予測ピル」は現状維持。理由=今どの文字を打っているか分からなくなるため。
+  - **調査で判明**: 自動分割は `autoSplit=true`（`reevaluateAutoSplit`）で `splitHeadLen`=先頭文節長にする。
+    手動 `変換`キー由来のスプリットは `autoSplit=false`。この 2 つを区別すれば自動分割だけ挙動を変えられる
+    （`backspace()` は既にこの区別で分岐済＝踏襲）。
+  - 実装: `ComposingState` に `val isAutoSplit`(=autoSplit) 公開。①`commitRaw()` を
+    `interactiveSplit = isSplitMode && !autoSplit` で分岐し、自動分割/非スプリットは**生かな全体を一括確定**
+    （先頭ブロックのみ確定は手動スプリット時だけ）。②`convert()` に `else if (autoSplit)` を足し、自動分割中に
+    `変換`キー→`autoSplit=false` で**手動セグメント変換へ移行**（splitHeadLen は温存＝即セグメント UI）。
+    ③`CandidateBar`(TerminalScreen.kt) は `isAutoSplit` を見て先頭ピル=`composing.text`(生かな全体)、
+    tail ラベルと先頭ブロック候補を非表示、`fullPrediction` ピルのみ表示。手動スプリット時は従来表示のまま。
+  - **内部 `splitHeadLen` は自動分割中も保持**＝全文予測ピルの境界計算・◀▶ 伸縮は従来どおり動く
+    （◀▶ は autoSplit 中も `shrink/extendSplitHead` でピルの分割点を動かす。頭の生かな表示は不変）。
+  - `AutoSplitHeadDisplayTest`（「びるど」で 3 ケース）追加。docs(DESIGN-SPEC/HANDBOOK ja/en)+README 更新。
+  - **未検証（要実機・ビルドはユーザー指示で未実施）**: (1) 長文入力中に左端が生かな全体で出て tail/先頭候補が
+    消え全文予測ピルだけ残る、(2) 生確定(⏎/先頭ピルタップ)で生かな全体が一括で入る、(3) `変換`キーで
+    手動セグメント変換に切り替わる、(4) ◀▶ で全文予測ピルの境界が動く（頭表示は生かなのまま）。
+    **`testFossDebugUnitTest` に `AutoSplitHeadDisplayTest` が加わった**（この環境は test worker が稀に停止する
+    既知フレークあり）。
 
 ---
 
