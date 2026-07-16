@@ -1853,14 +1853,18 @@ private fun CandidateBar(
     modifier: Modifier = Modifier
 ) {
     if (!composing.isActive) return
-    val candidates = composing.candidates
-    val isSplit = composing.isSplitMode
+    // 自動分割 (長文入力中の as-you-type) のあいだは先頭ブロックを「ブロック化」せず、生かな全体を
+    // 左端ピルに出す (今どの文字を打っているか分かるように・要望)。tail ラベルと先頭ブロック候補は
+    // 出さず、全文予測ピルだけ添える。変換キーを押すと手動セグメント変換 (manualSplit) に移行する。
+    val autoSplit = composing.isAutoSplit
+    val manualSplit = composing.isSplitMode && !autoSplit
+    val candidates = if (autoSplit) emptyList() else composing.candidates
     // 候補サイクル選択 index: -1 なら「生かな (head)」が選択中、0+ なら候補配列の index。
     // 変換キー連打でこの index が循環し、選択中のピルが緑塗りでハイライトされる。
     val selIdx = composing.selectedCandidateIndex
     val rawSelected = selIdx == -1
-    val tail = if (isSplit) composing.splitTail else ""
-    val hasTail = isSplit && tail.isNotEmpty()
+    val tail = if (manualSplit) composing.splitTail else ""
+    val hasTail = manualSplit && tail.isNotEmpty()
     // 長文の一括予測 (各ブロック第1候補を連結した「文まるごと」候補)。tail があるときのみ出す。
     val full = composing.fullPrediction
     val hasFull = full != null
@@ -1901,7 +1905,7 @@ private fun CandidateBar(
                     .padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
                 Text(
-                    text = if (isSplit) composing.splitHead else composing.text,
+                    text = if (manualSplit) composing.splitHead else composing.text,
                     color = if (rawSelected) Color.Black else ZtsGreen,
                     fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace
                 )
