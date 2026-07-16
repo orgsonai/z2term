@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-16 / Target version: 0.8.152-alpha (versionCode 160)
+Last updated: 2026-07-16 / Target version: 0.8.153-alpha (versionCode 161)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -253,7 +253,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 
 ### 4.13 Android API bridge (`Z2ApiBridge` / `Z2ApiScript`)
 
-- A set of commands to invoke Android features from the terminal: `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip (set/get)` / `z2-battery` / `z2-vibrate`.
+- A set of commands to invoke Android features from the terminal: `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip (set/get)` / `z2-battery` / `z2-vibrate` / `z2-say` (TTS) / `z2-torch` (flashlight on/off/toggle, 0.8.153). `z2-say` speaks via the device's default TTS (queued until the async engine init completes); `z2-torch` uses `CameraManager.setTorchMode` (no permission needed) and returns the resulting on/off state.
 - `ProotLauncher.ensureZ2ApiScripts` writes them to `/usr/local/bin` on every launch. req/resp watch `getExternalFilesDir/z2api` with a `FileObserver`, args are base64, atomic rename.
 
 ---

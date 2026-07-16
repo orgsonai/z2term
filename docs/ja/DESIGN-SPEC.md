@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-16 / 対象バージョン: 0.8.152-alpha (versionCode 160)
+最終更新: 2026-07-16 / 対象バージョン: 0.8.153-alpha (versionCode 161)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -254,7 +254,7 @@
 
 ### 4.13 Android API ブリッジ (`Z2ApiBridge` / `Z2ApiScript`)
 
-- 端末から Android 機能を叩くコマンド群: `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip (set/get)` / `z2-battery` / `z2-vibrate`。
+- 端末から Android 機能を叩くコマンド群: `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip (set/get)` / `z2-battery` / `z2-vibrate` / `z2-say`(TTS 読み上げ) / `z2-torch`(フラッシュライト on/off/toggle, 0.8.153)。`z2-say` は端末標準 TTS で読み上げ (エンジン初期化は非同期のため準備完了までキュー)、`z2-torch` は `CameraManager.setTorchMode` (権限不要) で制御し結果の点灯状態を返す。
 - `ProotLauncher.ensureZ2ApiScripts` が launch 毎に `/usr/local/bin` へ書き出す。req/resp は `getExternalFilesDir/z2api` を `FileObserver` で監視、引数は base64、atomic rename。
 
 ---

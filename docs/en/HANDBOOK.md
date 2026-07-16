@@ -324,6 +324,8 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-clip get` / `z2-clip set [text]` | Get / set the clipboard (set reads stdin if no argument) |
 | `z2-battery` | Show battery level / charging state (JSON) |
 | `z2-vibrate [ms]` | Vibrate (default 200ms) |
+| `z2-say <text>` | Speak text via the device's text-to-speech (reads stdin if no argument) |
+| `z2-torch [on\|off\|toggle]` | Turn the flashlight on/off/toggle (default toggle; prints the resulting state) |
 
 ### Graphical (GUI) apps
 | Command | What it does |
