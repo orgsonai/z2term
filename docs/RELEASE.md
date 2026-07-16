@@ -56,6 +56,46 @@ APKSIGNER=$(ls $ANDROID_HOME/build-tools/*/apksigner | tail -1)
 `CN=Android Debug` と出たら debug 鍵 (= keystore.properties 未設定)。
 本番鍵なら自分の DN が表示される。
 
+## 5. CI で PAT 無しリリース (tag push → GitHub Release, foss 版)
+
+`v*` タグを push すると、GitHub Actions (`.github/workflows/build.yml` の `release` ジョブ) が
+**署名済み FOSS release APK** をビルドして GitHub Release に添付する。認証は Actions 組み込みの
+`GITHUB_TOKEN`(自動発行)なので **PAT を手元に置く必要がない**。full 版は同梱 rootfs(≈195MB)が
+重いため当面 CI 対象外で、full だけ従来どおり手動リリースする(§3 でビルド → `gh release upload`)。
+
+### 一度だけ: リポジトリ Secrets を登録
+
+`Settings → Secrets and variables → Actions → New repository secret` に 4 つ登録する。
+署名鍵は §2 の本番 `*.jks` と同一を使う(既存リリースの更新として入るように)。
+
+| Secret 名 | 値 |
+|---|---|
+| `RELEASE_KEYSTORE_BASE64` | 本番キーストアを base64 化した文字列 (`base64 -w0 z2term-release.jks`) |
+| `RELEASE_STORE_PASSWORD` | キーストアのパスワード |
+| `RELEASE_KEY_ALIAS` | 鍵エイリアス (例 `z2term`) |
+| `RELEASE_KEY_PASSWORD` | 鍵のパスワード |
+
+```bash
+# base64 文字列を作る (改行なし)
+base64 -w0 z2term-release.jks > keystore.b64   # この中身を RELEASE_KEYSTORE_BASE64 に貼る
+```
+
+Secret が未登録だと debug 署名事故を防ぐためジョブは**明示的に失敗**する。
+
+### リリースする (毎回)
+
+```bash
+# 版数を上げてコミット済みの状態で、そのコミットにタグを打って push (SSH。PAT 不要)
+git tag v0.8.xxx-alpha
+git push origin v0.8.xxx-alpha
+```
+
+- `build` ジョブ(lint/テスト/full+foss debug)を通過後に `release` ジョブが走る。
+- リリースが未作成なら **新規作成して Latest** に、既にあれば **foss APK を差し替え** (`--clobber`)。
+  → 先に手動で `gh release create`(notes 付き)しておき、CI に foss APK を載せてもらう運用も可。
+- 初回は生成された foss APK が端末に正常インストールできるか(manifest/arsc 欠落が無いか)を確認する。
+  ローカルの box64 aapt2 問題は CI(x86_64 の素の aapt2)では起きない想定。
+
 ## R8 keep ルール (app/proguard-rules.pro)
 
 R8 で壊れやすい箇所を明示 keep 済み:
