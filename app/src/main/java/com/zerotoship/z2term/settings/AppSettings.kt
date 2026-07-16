@@ -173,7 +173,14 @@ class AppSettings(private val context: Context) {
          * 加工はユーザーがターミナル側で自由に行う **汎用の検知入口** (z2-notify の逆向き)。
          * 既定 OFF・完全ローカル・外部送信なし。
          */
-        val notificationCaptureEnabled: Boolean = DEFAULT_NOTIFICATION_CAPTURE
+        val notificationCaptureEnabled: Boolean = DEFAULT_NOTIFICATION_CAPTURE,
+        /**
+         * 通知ログの出力フォーマット **テンプレート**。ユーザーが自由に編集する。プレースホルダ
+         * `{time}` `{ts}` `{pkg}` `{app}` `{title}` `{text}` `{category}` `{key}` と、改行 `\n`・
+         * タブ `\t`・1 行化 `{text1}` `{title1}` (改行→空白) が使える。**空文字なら JSONL** (機械可読・既定)。
+         * 置換は [com.zerotoship.z2term.service.NotificationLogService.render] が行う。
+         */
+        val notificationLogFormat: String = DEFAULT_NOTIFICATION_LOG_FORMAT
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -226,12 +233,17 @@ class AppSettings(private val context: Context) {
             serverEntries = p[KEY_SERVER_ENTRIES] ?: "",
             serversAutostartOnBoot = p[KEY_SERVERS_AUTOSTART] ?: DEFAULT_SERVERS_AUTOSTART,
             serversLowPower = p[KEY_SERVERS_LOW_POWER] ?: DEFAULT_SERVERS_LOW_POWER,
-            notificationCaptureEnabled = p[KEY_NOTIFICATION_CAPTURE] ?: DEFAULT_NOTIFICATION_CAPTURE
+            notificationCaptureEnabled = p[KEY_NOTIFICATION_CAPTURE] ?: DEFAULT_NOTIFICATION_CAPTURE,
+            notificationLogFormat = p[KEY_NOTIFICATION_LOG_FORMAT] ?: DEFAULT_NOTIFICATION_LOG_FORMAT
         )
     }
 
     suspend fun setNotificationCaptureEnabled(enabled: Boolean) {
         context.dataStore.edit { it[KEY_NOTIFICATION_CAPTURE] = enabled }
+    }
+
+    suspend fun setNotificationLogFormat(template: String) {
+        context.dataStore.edit { it[KEY_NOTIFICATION_LOG_FORMAT] = template }
     }
 
     suspend fun setServerEntries(json: String) {
@@ -453,9 +465,12 @@ class AppSettings(private val context: Context) {
         private val KEY_SERVERS_AUTOSTART = booleanPreferencesKey("servers_autostart_on_boot")
         private val KEY_SERVERS_LOW_POWER = booleanPreferencesKey("servers_low_power")
         private val KEY_NOTIFICATION_CAPTURE = booleanPreferencesKey("notification_capture_enabled")
+        private val KEY_NOTIFICATION_LOG_FORMAT = stringPreferencesKey("notification_log_format")
 
         /** 通知検知は既定 OFF (明示 opt-in + OS の通知アクセス許可が要る)。 */
         const val DEFAULT_NOTIFICATION_CAPTURE = false
+        /** 通知ログのフォーマットテンプレート。空文字 = JSONL (機械可読・既定)。 */
+        const val DEFAULT_NOTIFICATION_LOG_FORMAT = ""
 
         /** 常駐サーバーの起動時自動起動は既定 OFF (明示 opt-in)。 */
         const val DEFAULT_SERVERS_AUTOSTART = false

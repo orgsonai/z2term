@@ -264,7 +264,7 @@ Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←**
 | Storage access | Permission to use `/sdcard` |
 | Clear cache | Sweeps the package/build caches that pile up inside the OS (pacman, apt, apk, `~/.cache`, …) plus the app's temp files. Tapping it opens a confirmation that **itemizes what and how much** will be deleted. Installed packages, settings and files you made are not removed |
 | Resident servers | Register any server (sshd / http / smb, …) as a **start command** and keep it running in the background. Turn on "auto-start on boot" and it **launches right after the device boots — without opening the app**. Stop them all from the "Stop servers" notification action or this screen. See below |
-| Notification detection | Grant the OS "notification access" and turn it on, and incoming notifications are appended **raw** to `~/.z2term/notifications.jsonl` (a generic hook). What you record / filter / serve is **up to you on the terminal side** (e.g. `tail -f ~/.z2term/notifications.jsonl`, or serve it with a resident server). Default off, fully local |
+| Notification detection | Grant the OS "notification access" and turn it on, and incoming notifications are appended to `~/.z2term/notifications.jsonl` (a generic hook). **The output format is fully customizable** (a template of `{time}` `{app}` `{title}` `{text}` … ; presets: readable / one-line / TSV / JSONL). What you record / filter / serve is **up to you on the terminal side** (e.g. `tail -f`, or serve it with a resident server). Default off, fully local |
 
 ### Resident servers (run without opening the app)
 

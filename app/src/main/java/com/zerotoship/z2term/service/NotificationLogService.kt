@@ -36,12 +36,16 @@ class NotificationLogService : NotificationListenerService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val writer = Executors.newSingleThreadExecutor()
     @Volatile private var captureEnabled = false
+    @Volatile private var formatTemplate = ""
 
     override fun onCreate() {
         super.onCreate()
-        // 設定フラグを購読してキャッシュ (通知ごとに DataStore を叩かない)。
+        // 設定を購読してキャッシュ (通知ごとに DataStore を叩かない)。
         scope.launch {
-            AppSettings(applicationContext).flow.collectLatest { captureEnabled = it.notificationCaptureEnabled }
+            AppSettings(applicationContext).flow.collectLatest {
+                captureEnabled = it.notificationCaptureEnabled
+                formatTemplate = it.notificationLogFormat
+            }
         }
     }
 
@@ -60,16 +64,12 @@ class NotificationLogService : NotificationListenerService() {
             pm.getApplicationLabel(pm.getApplicationInfo(sbn.packageName, 0)).toString()
         }.getOrDefault(sbn.packageName)
 
-        val line = JSONObject()
-            .put("ts", sbn.postTime)
-            .put("time", ISO.format(Date(sbn.postTime)))
-            .put("pkg", sbn.packageName)
-            .put("app", app)
-            .put("title", title)
-            .put("text", text)
-            .put("category", n.category ?: "")
-            .put("key", sbn.key ?: "")
-            .toString()
+        val line = render(
+            formatTemplate,
+            ts = sbn.postTime, time = ISO.format(Date(sbn.postTime)),
+            pkg = sbn.packageName, app = app, title = title, text = text,
+            category = n.category ?: "", key = sbn.key ?: ""
+        )
 
         val ctx = applicationContext
         writer.execute {
@@ -97,5 +97,56 @@ class NotificationLogService : NotificationListenerService() {
         /** ログの実ファイル (`filesDir/shared_home/.z2term/notifications.jsonl`)。 */
         fun logFile(context: Context): File =
             File(File(context.filesDir, "shared_home"), LOG_REL)
+
+        private fun oneline(s: String): String =
+            s.replace("\r\n", " ").replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+
+        /**
+         * 1 通知を [template] に沿って 1 行分の文字列 (末尾改行なし) にする。
+         * [template] が空なら JSONL。プレースホルダ `{time}` `{ts}` `{pkg}` `{app}` `{title}`
+         * `{text}` `{category}` `{key}` と 1 行化 `{text1}` `{title1}`、エスケープ `\n` `\t` `\\` に対応。
+         */
+        fun render(
+            template: String,
+            ts: Long, time: String, pkg: String, app: String,
+            title: String, text: String, category: String, key: String
+        ): String {
+            if (template.isBlank()) {
+                return JSONObject()
+                    .put("ts", ts).put("time", time).put("pkg", pkg).put("app", app)
+                    .put("title", title).put("text", text).put("category", category).put("key", key)
+                    .toString()
+            }
+            val vars = mapOf(
+                "ts" to ts.toString(), "time" to time, "pkg" to pkg, "app" to app,
+                "title" to title, "text" to text, "category" to category, "key" to key,
+                "text1" to oneline(text), "title1" to oneline(title)
+            )
+            val sb = StringBuilder(template.length + 64)
+            var i = 0
+            while (i < template.length) {
+                val c = template[i]
+                when {
+                    c == '\\' && i + 1 < template.length -> {
+                        when (template[i + 1]) {
+                            'n' -> sb.append('\n'); 't' -> sb.append('\t')
+                            '\\' -> sb.append('\\'); else -> { sb.append('\\'); sb.append(template[i + 1]) }
+                        }
+                        i += 2
+                    }
+                    c == '{' -> {
+                        val end = template.indexOf('}', i + 1)
+                        if (end < 0) { sb.append(c); i++ }
+                        else {
+                            val name = template.substring(i + 1, end)
+                            sb.append(vars[name] ?: "{$name}")   // 未知プレースホルダはそのまま残す
+                            i = end + 1
+                        }
+                    }
+                    else -> { sb.append(c); i++ }
+                }
+            }
+            return sb.toString()
+        }
     }
 }
