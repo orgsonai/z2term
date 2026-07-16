@@ -29,7 +29,9 @@
   - `android.enableResourceOptimizations=false` (無いと release の aapt2 optimize が空出力で **manifest/arsc 欠落 → 「パッケージ解析エラー」**。詳細 [[project_ondevice_release_apk_fix]])
   - 以後は素の `scripts/gw.sh :app:assembleFullRelease` で OK。健全性は `unzip -l <apk> | grep AndroidManifest`。ネイティブ aapt2 override 別解は [[project_build_aapt2_box64_binfmt]]。
 - **未検証(要実機確認)**: キャッシュ削除ダイアログ・常駐サーバー起動/BOOT 自動常駐・ボトムシート修正の見た目・通知フォーマットの各プリセット。通知検知本体は検証済。
-- **公開状況 (2026-07-16)**: 6 機能コミット (0.8.146〜151) を **main へ cherry-pick して `origin/main` へ push 済** (`ddf117f`, HANDOFF 非混入を確認)。GitHub 公開 main = 0.8.151。**GitHub リリースは未作成** — `.gh-token` の PAT が**失効(401)**のため。有効な `GH_TOKEN` を用意すれば `gh release create v0.8.151-alpha --latest` で作れる (アセット: full APK は build 済 `app/build/outputs/apk/full/release/app-full-release.apk`、foss APK は要ビルド。前例 [[reference_github_release_on_device]]: alpha は prerelease 無しで --latest・full+foss 2 アセット)。
+- **公開状況 (2026-07-16)**: 6 機能コミット (0.8.146〜151) を **main へ cherry-pick して `origin/main` へ push 済** (`ddf117f`, HANDOFF 非混入を確認)。GitHub 公開 main = 0.8.151。
+- **GitHub リリース = draft のまま未完 (アセット未添付)**: 新しい PAT で `v0.8.151-alpha` の **draft** を作成 (`--latest`・notes 入り) までは済んだが、**この端末の回線が断続的に不安定 (TLS handshake timeout / unexpected EOF) で APK アップロードが失敗**、アセット 0 件。ユーザー判断で **draft はそのまま残置**。完了させるには回線の安定した環境で: `GH_TOKEN=<PAT> gh release upload v0.8.151-alpha app/build/outputs/apk/full/release/app-full-release.apk app/build/outputs/apk/foss/release/app-foss-release.apk` → `gh release edit v0.8.151-alpha --draft=false --latest`。両 APK はビルド済 (full 195MB / foss 21MB, 0.8.151)。※注意: リトライを `gh ... | tail -1` で囲むと gh の失敗が隠れる (パイプ終了コードが tail のになる)。前例 [[reference_github_release_on_device]]。
+- **CI にリリース自動化は無い**: `.github/workflows/build.yml` は main push で AAB を artifact 化するだけ (`softprops`/`gh release create` なし・tags トリガ無し)。「SSH だけで Release」経路は存在しない = release は手動 `gh` か Web。
 - **ブランチ運用の教訓**: 今セッションは誤って internal で開発した。以後は機能は main で。internal は HANDOFF 追加＋main の随時 merge のみ。
 
 ### 次タスク — MacroDroid ライト (ユーザー承認済みの方向)
