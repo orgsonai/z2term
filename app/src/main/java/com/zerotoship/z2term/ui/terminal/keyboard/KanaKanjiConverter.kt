@@ -1200,6 +1200,12 @@ class ComposingState(
 
     val isActive: Boolean get() = text.isNotEmpty()
     val isSplitMode: Boolean get() = splitHeadLen > 0
+    /**
+     * 現在のスプリットが「長文入力中の自動分割」由来か。true のあいだ候補バーは先頭ブロックを
+     * ブロック化せず生かな全体で見せ (今どこを打っているか分かるように)、全文予測ピルのみ残す。
+     * 変換キーを押すと [convert] で false になり、従来のセグメント変換 UI に移行する。
+     */
+    val isAutoSplit: Boolean get() = autoSplit
     /** スプリット中のフォーカス文字列 (先頭セグメント)。非スプリット中は text 全体を返す。 */
     val splitHead: String
         get() = if (isSplitMode) text.substring(0, splitHeadLen.coerceAtMost(text.length)) else text
@@ -1291,6 +1297,12 @@ class ComposingState(
             autoSplit = false   // 変換キーによる手動分割
             selectedCandidateIndex = -1
             refreshPredict()
+        } else if (autoSplit) {
+            // 自動分割 (先頭は生かな表示) の状態で変換キー: 先頭文節 (splitHeadLen) はそのまま活かし、
+            // 手動セグメント変換 UI へ移行する。候補は自動分割中に先頭ブロック分を算出済みなので
+            // 再計算は不要 (選択サイクルだけ初期化)。
+            autoSplit = false
+            selectedCandidateIndex = -1
         } else {
             val n = candidates.size
             if (n == 0) {
@@ -1399,14 +1411,19 @@ class ComposingState(
             commit(candidates[selectedCandidateIndex])
             return true
         }
-        val toCommit = if (isSplitMode) splitHead else text
+        // 自動分割中 (as-you-type) は先頭ブロックだけでなく生かな全体を 1 度に確定する
+        // (先頭ブロックを非ブロック化する要望)。手動スプリット (変換キー) 中のみセグメント確定。
+        val interactiveSplit = isSplitMode && !autoSplit
+        val toCommit = if (interactiveSplit) splitHead else text
         ImeHistoryStore.record(toCommit, toCommit)
         prevCommitSurface?.let { ImeHistoryStore.recordBigram(it, toCommit) }
         prevCommitSurface = toCommit
-        if (isSplitMode) committedRun.add(toCommit to toCommit)
+        if (interactiveSplit) committedRun.add(toCommit to toCommit)
         onCommit(toCommit)
         lastCommittedReading = toCommit
         lastCommittedOutput = toCommit
+        // 全体確定 (非スプリット / 自動分割) はスプリットを畳んでから全リセット分岐へ倒す。
+        if (!interactiveSplit) { splitHeadLen = 0; autoSplit = false }
         advanceSegmentOrReset()
         return true
     }
