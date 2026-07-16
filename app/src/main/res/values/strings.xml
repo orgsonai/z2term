@@ -379,6 +379,10 @@
     <string name="settings_notif_access_granted">Notification access: granted</string>
     <string name="settings_notif_access_missing">Notification access: not granted (tap below to grant)</string>
     <string name="settings_notif_grant">Grant notification access</string>
+    <string name="settings_notif_fmt_title">Output format (empty = JSONL)</string>
+    <string name="settings_notif_fmt_readable">Readable</string>
+    <string name="settings_notif_fmt_line">One line</string>
+    <string name="settings_notif_fmt_help">Placeholders: {time} {ts} {app} {pkg} {title} {text} {category} {key}. One-line: {text1} {title1}. Escapes: \\n \\t. Applies to new entries.</string>
     <string name="settings_notif_logpath">Log: ~/.z2term/notifications.jsonl (read it from the terminal, e.g. tail -f)</string>
     <string name="toast_copy_from_remote">Copied from remote (%1$d chars)</string>
     <string name="toast_selection_empty">Selection is empty</string>

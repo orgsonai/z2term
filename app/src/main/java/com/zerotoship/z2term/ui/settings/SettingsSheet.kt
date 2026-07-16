@@ -826,6 +826,43 @@ fun SettingsSheet(
                         }
                     }
                 )
+
+                // 出力フォーマット: プリセットで埋めてから自由に編集できるテンプレート。
+                val fmtPresets = remember {
+                    listOf(
+                        "jsonl" to "",
+                        "readable" to "[{time}] {app}\\n{title}\\n{text}\\n",
+                        "line" to "{time} [{app}] {title1}: {text1}",
+                        "tsv" to "{time}\\t{app}\\t{title1}\\t{text1}",
+                    )
+                }
+                val fmtSelected = fmtPresets.firstOrNull { it.second == settings.notificationLogFormat }?.first ?: ""
+                ChipRow(
+                    options = fmtPresets.map { it.first },
+                    selected = fmtSelected,
+                    labels = mapOf(
+                        "jsonl" to "JSONL",
+                        "readable" to stringResource(R.string.settings_notif_fmt_readable),
+                        "line" to stringResource(R.string.settings_notif_fmt_line),
+                        "tsv" to "TSV",
+                    ),
+                    onSelect = { id ->
+                        session.setNotificationLogFormat(fmtPresets.first { it.first == id }.second)
+                    }
+                )
+                TextField(
+                    title = stringResource(R.string.settings_notif_fmt_title),
+                    placeholder = "{time} [{app}] {title1}: {text1}",
+                    value = settings.notificationLogFormat,
+                    onChange = { session.setNotificationLogFormat(it) }
+                )
+                Text(
+                    text = stringResource(R.string.settings_notif_fmt_help),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+
                 Text(
                     text = stringResource(R.string.settings_notif_logpath),
                     color = ZtsTextSecondary,

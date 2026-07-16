@@ -379,6 +379,10 @@
     <string name="settings_notif_access_granted">通知アクセス: 許可済み</string>
     <string name="settings_notif_access_missing">通知アクセス: 未許可（下のボタンから許可）</string>
     <string name="settings_notif_grant">通知アクセスを許可</string>
+    <string name="settings_notif_fmt_title">出力フォーマット（空 = JSONL）</string>
+    <string name="settings_notif_fmt_readable">読みやすい</string>
+    <string name="settings_notif_fmt_line">1行</string>
+    <string name="settings_notif_fmt_help">使える項目: {time} {ts} {app} {pkg} {title} {text} {category} {key}。1行化: {text1} {title1}。改行=\\n タブ=\\t。新しい通知から反映。</string>
     <string name="settings_notif_logpath">ログ: ~/.z2term/notifications.jsonl（ターミナルで tail -f 等で読めます）</string>
     <string name="toast_copy_from_remote">リモートからコピー (%1$d 文字)</string>
     <string name="toast_selection_empty">選択範囲が空です</string>
