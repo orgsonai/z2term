@@ -1,6 +1,79 @@
 # セッション引き継ぎ（現状ローリング）
 
-最終更新: 2026-07-16 / 対象版数: **0.8.154-alpha (versionCode 162)** / ブランチ: internal。
+最終更新: 2026-07-16 / 対象版数: **0.8.156-alpha (versionCode 164)** / ブランチ: internal。
+
+## 🔜 次セッションの依頼タスク（未着手・ユーザーが新セッションで実施予定）
+
+ユーザーから 3 件の追加要望。**未実装**。いずれも main で実装 → internal merge の流れ。調査済みの
+該当箇所を添える。
+
+### (A) タブのダブルタップ削除に「動作中なら確認ダイアログ」
+- 要望: タブのダブルタップ削除で、そのタブ内で**何か動作中なら削除確認**を出す。何も無ければ従来どおり
+  即削除（作業中の誤タップ防止）。
+- 該当: `ui/terminal/TerminalScreen.kt:1622` `onDoubleClick = if (canClose) onClose else null`。
+  `onClose` の実体は `SessionManager.close(it)`（同ファイル 350/782 で束ねる。個別タブは 1535 `onClose(sess.id)`）。
+- **設計の肝＝「動作中」の判定**: 現状 PtyProcess 側に前景プロセス情報が露出していない。案:
+  (1) PTY master fd に `tcgetpgrp()` して**前景プロセスグループ ≠ ログインシェルの pgid** なら「実行中」
+  → JNI に小さな native 追加が要る（PtyProcess の native 層）。(2) `/proc/<child>/task/.../children` や
+  子 pgid を辿る heuristic。(3) 直近の PTY 出力活動での簡易判定（誤検知しやすい・非推奨）。**(1) が本命**。
+- UI: 確認ダイアログは既存のダイアログ様式（例 `RootfsCacheCleaner` の確認や `ui/components/` のダイアログ）に倣う。
+  ダブルタップ時に busy 判定 → busy なら AlertDialog、非busy なら即 close。文言は strings(ja/en) に追加。
+
+### (B) 日本語キーボード: 先頭ブロックを非ブロック化
+- 要望: 長文入力の自動ブロック変換で**一番左上（先頭ブロック）はブロック化せず素の入力かなのまま**にする。
+  「一つ右の長文自動変換部分（＝全文予測ピル）」は**今のブロック認識・変換仕様のまま**でよい。理由: 自分が
+  今どの文字を打っているか分からなくなるため。
+- 該当: `ui/terminal/keyboard/KanaKanjiConverter.kt` の `ComposingState`（1130〜）。
+  - `splitHeadLen>0` で先頭 `splitHeadLen` 文字が「変換中セグメント」になる。`autoSplit`(1182) が
+    true=長文の自動分割由来。`fullPrediction`(1143) が「一つ右」の全文予測ピル。`splitHead`/`splitTail`(1204-1208)。
+  - **方針案**: 自動分割（autoSplit）中は先頭セグメントを**変換候補で見せず生かな表示**にする（candidates を
+    先頭ブロックに適用しない／候補バーの先頭ピルを生かなにする）。`fullPrediction` ピルは現状維持。
+    候補バー描画は `TerminalKeyboard.kt` / `JapaneseFlickKeyboard.kt` 側。表示だけの問題か、内部の
+    `convert`/autoSplit 起動条件まで触るか切り分けて最小変更で。
+
+### (C) 日本語キーボード: カーソル位置での挿入/削除
+- 要望: 長文入力中に**左右ボタンでカーソル位置を変えたら**、⌫ は**カーソル直前の文字**を削除、かな入力は
+  **カーソル位置の後ろに挿入**する。現状はカーソル位置に関わらず**末尾しか編集できず不便**。
+- 該当: 同 `ComposingState`。現状 `append` は**常に末尾追加**、⌫ は末尾削除で、**カーソル indexの概念が無い**。
+  - `emitKana`/`append`(1213〜) と backspace 系、`splitHeadLen` 調整の `shrinkSplitHead`/`extendSplitHead`。
+  - ◀▶ の現行意味（`JapaneseFlickKeyboard.kt:191-192`）: **スプリット中はフォーカス範囲調整**、composing 中
+    未スプリットは**変換キー相当**。→ 要望の「◀▶＝カーソル移動」と**衝突する**。どちらを優先するか（モード分岐か、
+    カーソル移動を別ジェスチャにするか）を**ユーザーに確認**してから実装するのが安全。
+  - **方針案**: `ComposingState` に `cursor:Int`（text 内の挿入位置）を追加し、append/backspace を cursor 相対に。
+    ◀▶ の役割再配置は上記の確認次第。スプリット/autoSplit との相互作用（境界とカーソルの二重概念）に注意。
+
+---
+
+## 引き継ぎサマリ — 0.8.155〜156 (設定TextボックスのカーソルバグFix + マクロ強化 battery_level/z2-sensor、 main 実装・merge 済)
+
+- **`0ac540c` 0.8.155(163) — 設定テキストボックスの入力バグ修正**
+  - 症状: 設定内の入力欄（通知/イベントの出力フォーマット・初期コマンドの 3 箇所）で**1 文字打つごとにカーソルが
+    先頭へ飛ぶ**（途中編集不可・文字が逆順に見える）。
+  - 真因: 共有 `SettingsSheet.kt` の `TextField` が `var draft by remember(value) { mutableStateOf(TextFieldValue(value)) }`
+    と **`value` をキーに remember** していた。入力→onChange→DataStore 書込→flow 再emit→`value` 変化 のたびに
+    `TextFieldValue` が作り直され selection が 0 にリセット。
+  - 修正: draft はローカル保持（`remember {}`）にし、**外部（プリセット選択等）で value が変わったときだけ**
+    `LaunchedEffect(value){ if(value!=draft.text) draft = TextFieldValue(value, TextRange(value.length)) }` で同期。
+- **`36c6d2d` 0.8.156(164) — マクロ強化（権限不要）**
+  - トリガー `battery_level`: `SystemEventService` が `ACTION_BATTERY_CHANGED` を購読し、残量が **10% 刻みの境界を
+    跨いだときだけ**発火（起動直後の初回はベースライン設定のみで発火せず）。`{level}` に実残量%。
+  - アクション `z2-sensor <light|accel|proximity>`: `SensorManager` でリスナ登録→**最初の値を受けたら解除**する
+    1 発読み（常時オンにせず電池に優しい）。light`{"lux":F}`/proximity`{"distance":F}`/accel`{"x":F,"y":F,"z":F}`。
+  - docs（DESIGN-SPEC/HANDBOOK/MACRO-GUIDE ja/en）更新。foss debug unit test 全 pass。**実機 e2e は未**。
+
+### 公開状況 / この時点の到達点
+- **GitHub Release: `v0.8.153-alpha` が Latest**（full 195MB + foss 21MB 添付済み・回線安定時に成功）。宙ぶらりん
+  だった draft `v0.8.151-alpha` は削除済み。
+- **origin/main = `386d1c0`（0.8.154 + マクロガイド + CI ワークフロー）まで公開済み**。0.8.155/0.8.156 は
+  **local のみ・origin 未 push**（公開はユーザー判断）。
+- **PAT 不要リリースを整備済み**: `.github/workflows/build.yml` に `tags:['v*']` トリガー追加＋release ジョブを
+  「署名済み **foss** release APK をビルドして `GITHUB_TOKEN` で GitHub Release に添付」へ書換（full は当面手動）。
+  **有効化には repo Secrets 登録が必要**（`RELEASE_KEYSTORE_BASE64`/`RELEASE_STORE_PASSWORD`/`RELEASE_KEY_ALIAS`/
+  `RELEASE_KEY_PASSWORD`。本番鍵と同一）。手順は `docs/RELEASE.md §5`。以後は `git push origin v0.8.xxx-alpha` だけ。
+- **この環境の既知フレーク**: `testFossDebugUnitTest` の test worker JVM がまれに `t`(停止)でハング。停止 worker を
+  kill して再実行で通る（gradle daemon は温存）。
+
+---
 
 ## 引き継ぎサマリ — 0.8.154 (マクロ拡充: トリガー3種+アクション3種 + 公開マクロガイド、 main で開発・merge 済/実機未検証)
 
