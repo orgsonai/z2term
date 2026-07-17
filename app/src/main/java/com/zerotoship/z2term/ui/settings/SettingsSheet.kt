@@ -859,6 +859,12 @@ fun SettingsSheet(
                     value = settings.notificationLogFormat,
                     onChange = { session.setNotificationLogFormat(it) }
                 )
+                ToggleField(
+                    title = stringResource(R.string.settings_log_prepend),
+                    description = stringResource(R.string.settings_log_prepend_desc),
+                    checked = settings.notificationLogPrepend,
+                    onChange = { session.setNotificationLogPrepend(it) }
+                )
                 Text(
                     text = stringResource(R.string.settings_notif_fmt_help),
                     color = ZtsTextSecondary,
@@ -913,6 +919,12 @@ fun SettingsSheet(
                     placeholder = "{time} {event} {level}{ssid}",
                     value = settings.systemEventLogFormat,
                     onChange = { session.setSystemEventLogFormat(it) }
+                )
+                ToggleField(
+                    title = stringResource(R.string.settings_log_prepend),
+                    description = stringResource(R.string.settings_log_prepend_desc),
+                    checked = settings.systemEventLogPrepend,
+                    onChange = { session.setSystemEventLogPrepend(it) }
                 )
                 Text(
                     text = stringResource(R.string.settings_events_fmt_help),

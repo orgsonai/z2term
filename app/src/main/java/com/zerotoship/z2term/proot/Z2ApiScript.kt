@@ -56,13 +56,18 @@ fun z2ApiScripts(): Map<String, String> {
 
     val notify = """
         |#!/bin/sh
-        |# z2-notify "title" "text"  /  z2-notify "text"
+        |# z2-notify [-h|--high|--banner] "title" "text"  /  z2-notify [-h] "text"
+        |#   -h / --high / --banner : 画面上部にバナー(ヘッドアップ)表示する
+        |high=""
+        |case "${d}1" in
+        |  -h|--high|--banner) high="high"; shift ;;
+        |esac
         |if [ ${d}# -ge 2 ]; then
-        |  exec /usr/local/bin/z2api 0 notify "${d}1" "${d}2"
+        |  exec /usr/local/bin/z2api 0 notify "${d}1" "${d}2" "${d}high"
         |elif [ ${d}# -eq 1 ]; then
-        |  exec /usr/local/bin/z2api 0 notify "${d}1" ""
+        |  exec /usr/local/bin/z2api 0 notify "${d}1" "" "${d}high"
         |else
-        |  echo "usage: z2-notify <title> [text]" >&2; exit 1
+        |  echo "usage: z2-notify [-h|--high] <title> [text]" >&2; exit 1
         |fi
     """.trimMargin() + "\n"
 

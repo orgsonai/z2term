@@ -24,7 +24,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2version [--short]            App version, engine, OS (distro), kernel
         |
         |[Phone features]
-        |  z2-notify "title" [text]       Post a notification
+        |  z2-notify [-h] "title" [text]  Post a notification (-h: pop-up banner)
         |  z2-toast "message"             Toast (short on-screen message)
         |  z2-share "text"                Hand text to Android's share sheet
         |  z2-open <url|path>             Open a URL/file in the default app
@@ -59,7 +59,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2version [--short]            アプリ版数・実行エンジン・OS(ディストロ)・kernel
         |
         |[スマホの機能を呼ぶ]
-        |  z2-notify "タイトル" [本文]    通知を出す
+        |  z2-notify [-h] "タイトル" [本文] 通知を出す(-h: 画面上部にバナー)
         |  z2-toast "メッセージ"          トースト(画面下の短いメッセージ)
         |  z2-share "テキスト"            Android の共有メニューに渡す
         |  z2-open <URL かパス>           URL/ファイルを既定アプリで開く

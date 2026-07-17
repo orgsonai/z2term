@@ -182,6 +182,11 @@ class AppSettings(private val context: Context) {
          */
         val notificationLogFormat: String = DEFAULT_NOTIFICATION_LOG_FORMAT,
         /**
+         * 通知ログを **先頭追記** (新着が上) にするか。false で従来どおり末尾追記 (新着が下)。
+         * true のとき [com.zerotoship.z2term.service.LogWriter] が既存内容を読んで書き直す。
+         */
+        val notificationLogPrepend: Boolean = DEFAULT_LOG_PREPEND,
+        /**
          * システムイベント検知の有効化フラグ。ON のとき [com.zerotoship.z2term.service.SystemEventService]
          * (opt-in の FG サービス) が常駐し、画面 ON/OFF・ロック解除・充電・電池残量・Wi‑Fi 接続などを
          * `~/.z2term/events.jsonl` へ追記する。通知検知 (z2-notify の逆向き) の姉妹機能で、加工はユーザーが
@@ -193,7 +198,12 @@ class AppSettings(private val context: Context) {
          * `{event}` `{level}` `{ssid}` と、改行 `\n`・タブ `\t` が使える。**空文字なら JSONL** (既定)。
          * 置換は [com.zerotoship.z2term.service.SystemEventService.render] が行う。
          */
-        val systemEventLogFormat: String = DEFAULT_SYSTEM_EVENT_LOG_FORMAT
+        val systemEventLogFormat: String = DEFAULT_SYSTEM_EVENT_LOG_FORMAT,
+        /**
+         * システムイベントログを **先頭追記** (新着が上) にするか。false で末尾追記 (新着が下)。
+         * true のとき [com.zerotoship.z2term.service.LogWriter] が既存内容を読んで書き直す。
+         */
+        val systemEventLogPrepend: Boolean = DEFAULT_LOG_PREPEND
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -248,8 +258,10 @@ class AppSettings(private val context: Context) {
             serversLowPower = p[KEY_SERVERS_LOW_POWER] ?: DEFAULT_SERVERS_LOW_POWER,
             notificationCaptureEnabled = p[KEY_NOTIFICATION_CAPTURE] ?: DEFAULT_NOTIFICATION_CAPTURE,
             notificationLogFormat = p[KEY_NOTIFICATION_LOG_FORMAT] ?: DEFAULT_NOTIFICATION_LOG_FORMAT,
+            notificationLogPrepend = p[KEY_NOTIFICATION_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND,
             systemEventCaptureEnabled = p[KEY_SYSTEM_EVENT_CAPTURE] ?: DEFAULT_SYSTEM_EVENT_CAPTURE,
-            systemEventLogFormat = p[KEY_SYSTEM_EVENT_LOG_FORMAT] ?: DEFAULT_SYSTEM_EVENT_LOG_FORMAT
+            systemEventLogFormat = p[KEY_SYSTEM_EVENT_LOG_FORMAT] ?: DEFAULT_SYSTEM_EVENT_LOG_FORMAT,
+            systemEventLogPrepend = p[KEY_SYSTEM_EVENT_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND
         )
     }
 
@@ -261,12 +273,20 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_NOTIFICATION_LOG_FORMAT] = template }
     }
 
+    suspend fun setNotificationLogPrepend(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_NOTIFICATION_LOG_PREPEND] = enabled }
+    }
+
     suspend fun setSystemEventCaptureEnabled(enabled: Boolean) {
         context.dataStore.edit { it[KEY_SYSTEM_EVENT_CAPTURE] = enabled }
     }
 
     suspend fun setSystemEventLogFormat(template: String) {
         context.dataStore.edit { it[KEY_SYSTEM_EVENT_LOG_FORMAT] = template }
+    }
+
+    suspend fun setSystemEventLogPrepend(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_SYSTEM_EVENT_LOG_PREPEND] = enabled }
     }
 
     suspend fun setServerEntries(json: String) {
@@ -491,6 +511,8 @@ class AppSettings(private val context: Context) {
         private val KEY_NOTIFICATION_LOG_FORMAT = stringPreferencesKey("notification_log_format")
         private val KEY_SYSTEM_EVENT_CAPTURE = booleanPreferencesKey("system_event_capture_enabled")
         private val KEY_SYSTEM_EVENT_LOG_FORMAT = stringPreferencesKey("system_event_log_format")
+        private val KEY_NOTIFICATION_LOG_PREPEND = booleanPreferencesKey("notification_log_prepend")
+        private val KEY_SYSTEM_EVENT_LOG_PREPEND = booleanPreferencesKey("system_event_log_prepend")
 
         /** 通知検知は既定 OFF (明示 opt-in + OS の通知アクセス許可が要る)。 */
         const val DEFAULT_NOTIFICATION_CAPTURE = false
@@ -501,6 +523,9 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_SYSTEM_EVENT_CAPTURE = false
         /** システムイベントログのフォーマットテンプレート。空文字 = JSONL (機械可読・既定)。 */
         const val DEFAULT_SYSTEM_EVENT_LOG_FORMAT = ""
+
+        /** ログ書き込みは既定で末尾追記 (新着が下)。ON で先頭追記 (新着が上)。 */
+        const val DEFAULT_LOG_PREPEND = false
 
         /** 常駐サーバーの起動時自動起動は既定 OFF (明示 opt-in)。 */
         const val DEFAULT_SERVERS_AUTOSTART = false

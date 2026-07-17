@@ -78,6 +78,14 @@ object Z2ApiBridge {
     private const val DIR_NAME = "z2api"
     private const val CHANNEL_ID = "z2term_api"
 
+    /**
+     * ヘッドアップ (画面上部バナー) 表示用の高重要度チャンネル。既存の [CHANNEL_ID] は
+     * `IMPORTANCE_DEFAULT` で作成済みのため後から重要度を上げられない (Android 仕様)。
+     * バナーを出したいときは別 ID の `IMPORTANCE_HIGH` チャンネルを使う必要があるので分けている。
+     * `z2-notify -h`/`--high`/`--banner` 経由のときだけこちらを使う。
+     */
+    private const val CHANNEL_ID_HIGH = "z2term_api_high"
+
     private var observer: FileObserver? = null
     private var reqDir: File? = null
     private var respDir: File? = null
@@ -175,7 +183,7 @@ object Z2ApiBridge {
     /** コマンド分岐。戻り値が要る場合は文字列を返す (それ以外は null)。 */
     private fun dispatch(context: Context, cmd: String, args: List<String>): String? {
         return when (cmd) {
-            "notify" -> { doNotify(context, args.getOrNull(0).orEmpty(), args.getOrNull(1).orEmpty()); null }
+            "notify" -> { doNotify(context, args.getOrNull(0).orEmpty(), args.getOrNull(1).orEmpty(), args.getOrNull(2) == "high"); null }
             "toast" -> { val msg = args.joinToString(" "); mainHandler.post { Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }; null }
             "share" -> { doShareText(context, args.joinToString(" ")); null }
             "open" -> { doOpen(context, args.getOrNull(0).orEmpty()); null }
@@ -197,17 +205,19 @@ object Z2ApiBridge {
 
     // POST_NOTIFICATIONS 未許可は下の runCatching で握って Log に流すので、lint の権限チェックは抑止する。
     @SuppressLint("MissingPermission")
-    private fun doNotify(context: Context, titleArg: String, textArg: String) {
+    private fun doNotify(context: Context, titleArg: String, textArg: String, high: Boolean = false) {
         // 引数が 1 つだけなら本文として扱い、タイトルはアプリ名にする。
         val title = if (textArg.isBlank()) context.getString(R.string.app_name) else titleArg
         val text = if (textArg.isBlank()) titleArg else textArg
-        val n = NotificationCompat.Builder(context, CHANNEL_ID)
+        // high=true のときだけ IMPORTANCE_HIGH チャンネル + PRIORITY_HIGH で画面上部にバナー表示する。
+        val channel = if (high) CHANNEL_ID_HIGH else CHANNEL_ID
+        val n = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(if (high) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
             .build()
         runCatching {
             NotificationManagerCompat.from(context).notify(notifyId.incrementAndGet(), n)
@@ -476,6 +486,16 @@ object Z2ApiBridge {
                         context.getString(R.string.api_channel_name),
                         NotificationManager.IMPORTANCE_DEFAULT
                     ).apply { description = context.getString(R.string.api_channel_desc) }
+                )
+            }
+            // バナー (ヘッドアップ) 用の高重要度チャンネル。`z2-notify -h` のときだけ使う。
+            if (nm.getNotificationChannel(CHANNEL_ID_HIGH) == null) {
+                nm.createNotificationChannel(
+                    NotificationChannel(
+                        CHANNEL_ID_HIGH,
+                        context.getString(R.string.api_channel_high_name),
+                        NotificationManager.IMPORTANCE_HIGH
+                    ).apply { description = context.getString(R.string.api_channel_high_desc) }
                 )
             }
         }

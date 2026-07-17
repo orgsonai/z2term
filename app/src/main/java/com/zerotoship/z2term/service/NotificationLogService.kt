@@ -37,6 +37,7 @@ class NotificationLogService : NotificationListenerService() {
     private val writer = Executors.newSingleThreadExecutor()
     @Volatile private var captureEnabled = false
     @Volatile private var formatTemplate = ""
+    @Volatile private var prepend = false
 
     override fun onCreate() {
         super.onCreate()
@@ -45,6 +46,7 @@ class NotificationLogService : NotificationListenerService() {
             AppSettings(applicationContext).flow.collectLatest {
                 captureEnabled = it.notificationCaptureEnabled
                 formatTemplate = it.notificationLogFormat
+                prepend = it.notificationLogPrepend
             }
         }
     }
@@ -72,12 +74,11 @@ class NotificationLogService : NotificationListenerService() {
         )
 
         val ctx = applicationContext
+        val prependNow = prepend
         writer.execute {
             runCatching {
-                val f = logFile(ctx)
-                f.parentFile?.mkdirs()
-                f.appendText(line + "\n")
-            }.onFailure { Log.w(TAG, "append failed: ${it.message}") }
+                LogWriter.write(logFile(ctx), line, prependNow)
+            }.onFailure { Log.w(TAG, "write failed: ${it.message}") }
         }
     }
 

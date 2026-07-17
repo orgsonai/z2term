@@ -72,7 +72,7 @@ Run them from the terminal and the app performs the Android side. **All permissi
 
 | Command | Usage | What it does | Returns |
 |---|---|---|---|
-| `z2-notify` | `z2-notify "title" "text"` / `z2-notify "text"` | Post a notification | — |
+| `z2-notify` | `z2-notify [-h] "title" "text"` / `z2-notify [-h] "text"` | Post a notification (`-h`/`--high`/`--banner` shows a pop-up banner) | — |
 | `z2-toast` | `z2-toast "message"` | Short on-screen message | — |
 | `z2-say` | `z2-say "text to speak"` (stdin if no arg) | Speak via TTS | — |
 | `z2-torch` | `z2-torch on\|off\|toggle` (default toggle) | Flashlight | `on`/`off` |

@@ -266,8 +266,8 @@ Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←**
 | Storage access | Permission to use `/sdcard` |
 | Clear cache | Sweeps the package/build caches that pile up inside the OS (pacman, apt, apk, `~/.cache`, …) plus the app's temp files. Tapping it opens a confirmation that **itemizes what and how much** will be deleted. Installed packages, settings and files you made are not removed |
 | Resident servers | Register any server (sshd / http / smb, …) as a **start command** and keep it running in the background. Turn on "auto-start on boot" and it **launches right after the device boots — without opening the app**. Stop them all from the "Stop servers" notification action or this screen. See below |
-| Notification detection | Grant the OS "notification access" and turn it on, and incoming notifications are appended to `~/.z2term/notifications.jsonl` (a generic hook). **The output format is fully customizable** (a template of `{time}` `{app}` `{title}` `{text}` … ; presets: readable / one-line / TSV / JSONL). What you record / filter / serve is **up to you on the terminal side** (e.g. `tail -f`, or serve it with a resident server). Default off, fully local |
-| System event detection | Turn it on and screen on/off, unlock, charge start/stop, battery low/okay, and Wi-Fi connect/disconnect are appended to `~/.z2term/events.jsonl` (a generic automation trigger; sibling of notification detection). **The output format is customizable** (`{time}` `{event}` `{level}` `{ssid}`; presets: one-line / TSV / JSONL). Build automations like "when battery drops below 20%…" or "when charging starts…" **terminal-side** (e.g. a script reading `tail -f ~/.z2term/events.jsonl`). Default off, fully local, shows an ongoing notification while active (Wi-Fi SSID is blank without location permission) |
+| Notification detection | Grant the OS "notification access" and turn it on, and incoming notifications are appended to `~/.z2term/notifications.jsonl` (a generic hook). **The output format is fully customizable** (a template of `{time}` `{app}` `{title}` `{text}` … ; presets: readable / one-line / TSV / JSONL). Turn on **"Newest at the top"** to prepend new entries to the head of the file instead of appending at the end. What you record / filter / serve is **up to you on the terminal side** (e.g. `tail -f`, or serve it with a resident server). Default off, fully local |
+| System event detection | Turn it on and screen on/off, unlock, charge start/stop, battery low/okay, and Wi-Fi connect/disconnect are appended to `~/.z2term/events.jsonl` (a generic automation trigger; sibling of notification detection). **The output format is customizable** (`{time}` `{event}` `{level}` `{ssid}`; presets: one-line / TSV / JSONL). Turn on **"Newest at the top"** to prepend new entries to the head of the file. Build automations like "when battery drops below 20%…" or "when charging starts…" **terminal-side** (e.g. a script reading `tail -f ~/.z2term/events.jsonl`). Default off, fully local, shows an ongoing notification while active (Wi-Fi SSID is blank without location permission) |
 
 ### Resident servers (run without opening the app)
 
@@ -319,7 +319,7 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 ### Call phone features
 | Command | What it does |
 |---|---|
-| `z2-notify "title" "text"` | Post a notification (text optional) |
+| `z2-notify [-h] "title" "text"` | Post a notification (text optional; `-h`/`--high`/`--banner` shows a pop-up banner) |
 | `z2-toast "message"` | Toast (short message at the bottom of the screen) |
 | `z2-share "text"` | Hand text to Android's share sheet |
 | `z2-open <URL or path>` | Open a URL or file in the default app |

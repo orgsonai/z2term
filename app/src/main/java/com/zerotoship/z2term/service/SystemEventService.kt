@@ -62,6 +62,7 @@ class SystemEventService : Service() {
     private val writer = Executors.newSingleThreadExecutor()
     @Volatile private var captureEnabled = false
     @Volatile private var formatTemplate = ""
+    @Volatile private var prepend = false
     @Volatile private var lastWifiConnected: Boolean? = null
 
     @Volatile private var lastBatteryBucket = -1
@@ -106,6 +107,7 @@ class SystemEventService : Service() {
             AppSettings(applicationContext).flow.collectLatest {
                 captureEnabled = it.systemEventCaptureEnabled
                 formatTemplate = it.systemEventLogFormat
+                prepend = it.systemEventLogPrepend
             }
         }
         // 動的レシーバ登録 (manifest では配信されないイベント群を拾うため)。
@@ -200,12 +202,11 @@ class SystemEventService : Service() {
             event = event, level = level, ssid = ssid
         )
         val ctx = applicationContext
+        val prependNow = prepend
         writer.execute {
             runCatching {
-                val f = logFile(ctx)
-                f.parentFile?.mkdirs()
-                f.appendText(line + "\n")
-            }.onFailure { Log.w(TAG, "append failed: ${it.message}") }
+                LogWriter.write(logFile(ctx), line, prependNow)
+            }.onFailure { Log.w(TAG, "write failed: ${it.message}") }
         }
     }
 

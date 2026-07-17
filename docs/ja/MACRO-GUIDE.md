@@ -73,7 +73,7 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 
 | コマンド | 使い方 | 動作 | 戻り値 |
 |---|---|---|---|
-| `z2-notify` | `z2-notify "タイトル" "本文"` / `z2-notify "本文"` | 通知を出す | — |
+| `z2-notify` | `z2-notify [-h] "タイトル" "本文"` / `z2-notify [-h] "本文"` | 通知を出す（`-h`/`--high`/`--banner` で画面上部にバナー表示） | — |
 | `z2-toast` | `z2-toast "メッセージ"` | 画面下に短いメッセージ | — |
 | `z2-say` | `z2-say "読み上げる文"`（引数なしで標準入力） | TTS で読み上げ | — |
 | `z2-torch` | `z2-torch on\|off\|toggle`（既定 toggle） | フラッシュライト | `on`/`off` |

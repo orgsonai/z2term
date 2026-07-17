@@ -387,6 +387,8 @@
     <string name="settings_notif_fmt_line">1行</string>
     <string name="settings_notif_fmt_help">使える項目: {time} {ts} {app} {pkg} {title} {text} {category} {key}。1行化: {text1} {title1}。改行=\\n タブ=\\t。新しい通知から反映。</string>
     <string name="settings_notif_logpath">ログ: ~/.z2term/notifications.jsonl（ターミナルで tail -f 等で読めます）</string>
+    <string name="settings_log_prepend">新しいものを先頭に</string>
+    <string name="settings_log_prepend_desc">新しい行をファイルの末尾ではなく先頭に追記します（新着が上）。</string>
     <string name="event_channel_name">Z2Term システムイベント</string>
     <string name="event_channel_desc">画面/ロック/充電/電池/Wi-Fi のイベントを検知します</string>
     <string name="event_notification_title">システムイベント検知</string>
@@ -442,6 +444,8 @@
     <!-- Android API ブリッジ (z2-* ヘルパー) -->
     <string name="api_channel_name">端末 API</string>
     <string name="api_channel_desc">端末から z2-notify で送られた通知。</string>
+    <string name="api_channel_high_name">端末 API（バナー）</string>
+    <string name="api_channel_high_desc">z2-notify -h で送られたヘッドアップ通知（画面上部にポップアップ表示）。</string>
 
     <!-- スクロールバック検索 (検索パッチ) -->
     <string name="search_hint">出力を検索</string>

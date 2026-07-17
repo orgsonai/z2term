@@ -301,8 +301,10 @@ class TerminalSession(
     fun setServersLowPower(enabled: Boolean) { scope.launch { settings.setServersLowPower(enabled) } }
     fun setNotificationCaptureEnabled(enabled: Boolean) { scope.launch { settings.setNotificationCaptureEnabled(enabled) } }
     fun setNotificationLogFormat(template: String) { scope.launch { settings.setNotificationLogFormat(template) } }
+    fun setNotificationLogPrepend(enabled: Boolean) { scope.launch { settings.setNotificationLogPrepend(enabled) } }
     fun setSystemEventCaptureEnabled(enabled: Boolean) { scope.launch { settings.setSystemEventCaptureEnabled(enabled) } }
     fun setSystemEventLogFormat(template: String) { scope.launch { settings.setSystemEventLogFormat(template) } }
+    fun setSystemEventLogPrepend(enabled: Boolean) { scope.launch { settings.setSystemEventLogPrepend(enabled) } }
     fun setKittyExternalFileEnabled(value: Boolean) { scope.launch { settings.setKittyExternalFileEnabled(value) } }
     fun setSgrMouseInputEnabled(value: Boolean) { scope.launch { settings.setSgrMouseInputEnabled(value) } }
 

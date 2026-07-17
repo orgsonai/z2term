@@ -211,12 +211,15 @@ fun ServersSheet(
                 HintBox(stringResource(R.string.servers_empty))
             } else {
                 entries.forEach { e ->
-                    val st = statuses.firstOrNull { it.token == e.safeToken() }
+                    val st = statuses.firstOrNull { it.id == e.id }
                     ServerRow(
                         entry = e,
                         stateLabel = if (running && e.enabled) st?.state else null,
                         onToggle = { checked ->
+                            // 設定を永続化しつつ、稼働中なら該当サーバーだけを即時 起動/停止する
+                            // (supervisor を再起動しないので他サーバーは止まらない)。
                             persist(entries.map { if (it.id == e.id) it.copy(enabled = checked) else it })
+                            if (running) ServerDaemonManager.setWant(context, e.id, checked)
                         },
                         onEdit = { isNew = false; editing = e },
                         onDelete = { persist(entries.filterNot { it.id == e.id }) }

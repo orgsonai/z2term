@@ -24,8 +24,8 @@ object ServerDaemonManager {
 
     private const val TAG = "ServerDaemon"
 
-    /** サーバー 1 件の稼働状態 (status ファイルから読む)。 */
-    data class ServerStatus(val token: String, val state: String, val pid: String?, val command: String?)
+    /** サーバー 1 件の稼働状態 (status ファイルから読む)。[id] は [ServerEntry.id] に一致する。 */
+    data class ServerStatus(val id: String, val state: String, val pid: String?, val command: String?)
 
     private var pty: PtyProcess? = null
     private var drainThread: Thread? = null
@@ -41,8 +41,10 @@ object ServerDaemonManager {
     fun start(context: Context): Boolean = synchronized(this) {
         stopLocked()
         val settings = runBlocking { AppSettings(context).flow.first() }
-        val entries = ServerEntry.decode(settings.serverEntries).filter { it.enabled && it.command.isNotBlank() }
-        if (entries.isEmpty()) {
+        // enabled/disabled を問わず全件を焼き込む (個別トグルで稼働中に ON へ切替えられるように)。
+        // ただし 1 件も enabled が無ければ起動しない (通知だけ出る空常駐を避ける)。
+        val entries = ServerEntry.decode(settings.serverEntries).filter { it.command.isNotBlank() }
+        if (entries.none { it.enabled }) {
             Log.i(TAG, "No enabled servers; not starting")
             return false
         }
@@ -59,8 +61,10 @@ object ServerDaemonManager {
         scriptFile.writeText(ServerSupervisorScript.generate(entries))
         scriptFile.setExecutable(true, false)
         scriptFile.setReadable(true, false)
-        // 前回の status を掃除 (supervisor 冒頭でも消すが、起動失敗時の残骸対策)。
-        File(rootfs, ServerSupervisorScript.STATUS_REL).listFiles()?.forEach { it.delete() }
+        // 前回の status/want を掃除 (supervisor 冒頭でも消すが、起動失敗時の残骸対策)。
+        File(rootfs, ServerSupervisorScript.STATUS_REL).listFiles()
+            ?.filter { it.name.endsWith(".status") || it.name.endsWith(".want") }
+            ?.forEach { it.delete() }
 
         val spec = DistroSpec.byId(distroId) ?: DistroSpec.ALPINE
         val launcher = ProotLauncher(context)
@@ -115,6 +119,29 @@ object ServerDaemonManager {
     /** 全サーバーを停止 (supervisor エンジンを kill)。 */
     fun stop() = synchronized(this) { stopLocked() }
 
+    /**
+     * 稼働中の supervisor に対し、id で指定した 1 サーバーだけを起動/停止する。`<id>.want` フラグを
+     * 書き換えるだけで、supervisor 本体や他サーバーは止めない (~1 秒で反映)。supervisor 未起動なら
+     * false (この場合は設定 [ServerEntry.enabled] の永続化のみで、次回起動時に反映される)。
+     *
+     * 注意: supervisor 起動後に追加された新規エントリには対応する run ループが無いため反映されない
+     * (その場合は全体の再起動が必要)。既存エントリのトグルはこの経路で個別反映される。
+     */
+    fun setWant(context: Context, id: String, enabled: Boolean): Boolean = synchronized(this) {
+        if (pty?.isAlive != true) return false
+        val distroId = activeDistroId ?: return false
+        val dir = File(context.filesDir, "distros/$distroId/${ServerSupervisorScript.STATUS_REL}")
+        return runCatching {
+            dir.mkdirs()
+            File(dir, "$id.want").writeText(if (enabled) "1" else "0")
+            Log.i(TAG, "setWant id=$id enabled=$enabled")
+            true
+        }.getOrElse {
+            Log.w(TAG, "setWant failed for id=$id", it)
+            false
+        }
+    }
+
     private fun stopLocked() {
         pty?.let { p ->
             runCatching { p.close() }
@@ -144,7 +171,7 @@ object ServerDaemonManager {
                     }
                 }
             }
-            ServerStatus(token = f.name.removeSuffix(".status"), state = state, pid = pid, command = cmd)
+            ServerStatus(id = f.name.removeSuffix(".status"), state = state, pid = pid, command = cmd)
         }
     }
 }
