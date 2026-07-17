@@ -31,6 +31,12 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-clip get | set [text]       Get / set the clipboard (set: stdin if no arg)
         |  z2-battery                     Battery level / charging state (JSON)
         |  z2-vibrate [ms]                Vibrate (default 200ms)
+        |  z2-say "text"                  Speak via device TTS (stdin if no arg)
+        |  z2-torch [on|off|toggle]       Flashlight (default toggle)
+        |  z2-media [play|pause|next]     Media keys (also previous/stop)
+        |  z2-volume up|down|N|N%         Media volume (returns current/max)
+        |  z2-sensor [light|accel|prox]   Read one sensor sample (JSON)
+        |  z2-intent -a ACT -d URI ...    Fire any Android Intent (see MACRO-GUIDE)
         |
         |[Graphical (GUI) apps]
         |  z2gui start [WxH] | stop | status   Linux desktop (e.g. z2gui start 1280x720)
@@ -60,6 +66,12 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-clip get | set [テキスト]   クリップボード取得/設定(set は引数なしで標準入力)
         |  z2-battery                     電池残量・充電状態(JSON)
         |  z2-vibrate [ミリ秒]            バイブ(既定 200ms)
+        |  z2-say "テキスト"              端末標準 TTS で読み上げ(引数なしで標準入力)
+        |  z2-torch [on|off|toggle]       フラッシュライト(既定 toggle)
+        |  z2-media [play|pause|next]     メディアキー送出(previous/stop も)
+        |  z2-volume up|down|N|N%         メディア音量(結果の current/max を出力)
+        |  z2-sensor [light|accel|prox]   センサーを1回読む(JSON・照度/加速度/近接)
+        |  z2-intent -a ACT -d URI ...    任意の Android Intent を発火(MACRO-GUIDE 参照)
         |
         |[画面つき(GUI)アプリ]
         |  z2gui start [横x縦] | stop | status   Linux デスクトップ(例 z2gui start 1280x720)
