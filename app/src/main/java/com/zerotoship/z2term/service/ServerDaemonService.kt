@@ -33,6 +33,7 @@ class ServerDaemonService : Service() {
 
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
+    @Volatile private var refresher: Thread? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -40,6 +41,7 @@ class ServerDaemonService : Service() {
         when (intent?.action) {
             ACTION_STOP -> {
                 Log.i(TAG, "Stop servers action")
+                stopNotificationRefresher()
                 ServerDaemonManager.stop()
                 releaseLocks()
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -63,11 +65,9 @@ class ServerDaemonService : Service() {
                             runBlocking { AppSettings(this@ServerDaemonService).flow.first().serversLowPower }
                         }.getOrDefault(false)
                         if (!lowPower) acquireLocks()
-                        // 稼働数を反映した通知へ更新。
-                        runCatching {
-                            val nm = getSystemService(NotificationManager::class.java)
-                            nm.notify(NOTIFICATION_ID, buildNotification())
-                        }
+                        // supervisor が status を書くまでラグがある。1回きりの通知だと稼働数が 0 のまま
+                        // 固まるため、状態が反映されるまで定期的に通知を更新する (再起動/クラッシュも追従)。
+                        startNotificationRefresher()
                     }
                 }.apply { isDaemon = true; name = "server-daemon-start"; start() }
             }
@@ -91,10 +91,13 @@ class ServerDaemonService : Service() {
             val nm = getSystemService(NotificationManager::class.java)
             if (nm.getNotificationChannel(CHANNEL_ID) == null) {
                 nm.createNotificationChannel(
+                    // IMPORTANCE_MIN: フォアグラウンドサービスの通知は OS 仕様で必須 (完全には消せない) だが、
+                    // MIN にするとステータスバーのアイコンは出ず、通知シェード最下部に静かに畳まれる。
+                    // = 「サーバー常駐のみのときはステータスバーに出さない」に一番近い形。
                     NotificationChannel(
                         CHANNEL_ID,
                         getString(R.string.server_channel_name),
-                        NotificationManager.IMPORTANCE_LOW
+                        NotificationManager.IMPORTANCE_MIN
                     ).apply {
                         description = getString(R.string.server_channel_desc)
                         setShowBadge(false)
@@ -128,6 +131,32 @@ class ServerDaemonService : Service() {
             .build()
     }
 
+    /**
+     * 稼働状態が通知に反映されるまで (および稼働中ずっと) 定期的に通知を更新する。
+     * supervisor の status 書き込みラグや、サーバーのクラッシュ/自動再起動にも追従させる。
+     */
+    private fun startNotificationRefresher() {
+        stopNotificationRefresher()
+        val t = Thread {
+            val nm = getSystemService(NotificationManager::class.java)
+            try {
+                while (ServerDaemonManager.isRunning && !Thread.currentThread().isInterrupted) {
+                    runCatching { nm.notify(NOTIFICATION_ID, buildNotification()) }
+                    Thread.sleep(3000)
+                }
+            } catch (_: InterruptedException) {
+                // stop で割り込まれた = 正常終了。
+            }
+        }.apply { isDaemon = true; name = "server-notif-refresh" }
+        refresher = t
+        t.start()
+    }
+
+    private fun stopNotificationRefresher() {
+        refresher?.interrupt()
+        refresher = null
+    }
+
     private fun acquireLocks() {
         if (wakeLock?.isHeld != true) {
             val pm = getSystemService(POWER_SERVICE) as PowerManager
@@ -155,12 +184,15 @@ class ServerDaemonService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        stopNotificationRefresher()
         releaseLocks()
     }
 
     companion object {
         private const val TAG = "ServerDaemonService"
-        private const val CHANNEL_ID = "z2term_servers"
+        // v2: IMPORTANCE_MIN へ変更。チャンネルの重要度は作成後に下げられないため、確実に反映させる
+        // よう新 ID にする (旧 z2term_servers チャンネルは未使用のまま残るだけ)。
+        private const val CHANNEL_ID = "z2term_servers_v2"
         private const val NOTIFICATION_ID = 1002
         private const val MAX_WAKELOCK_MILLIS = 8L * 60 * 60 * 1000
         const val ACTION_START = "com.zerotoship.z2term.SERVERS_START"

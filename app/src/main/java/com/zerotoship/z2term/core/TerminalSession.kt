@@ -172,17 +172,23 @@ class TerminalSession(
     fun pasteFromClipboard() {
         val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val text = cm.primaryClip?.getItemAt(0)?.coerceToText(appContext)?.toString() ?: return
-        pasteText(text)
+        // 内容は既にクリップボードにある。再セットするとクリップ変更リスナーが「新規コピー」と
+        // 誤認して履歴へ積む (= 貼り付けたのにコピーされる) ため、通常の貼り付けでは同期しない。
+        pasteText(text, syncClipboard = false)
     }
 
     /**
      * 任意のテキストをペーストする (クリップボード履歴シートからの選択で使う)。
-     * 選んだ本文をシステムクリップボードにも反映して以後の貼り付けと揃える。
+     * [syncClipboard] が true のときだけシステムクリップボードにも反映する
+     * (履歴から選んだ本文を以後の貼り付けと揃えるため)。通常の貼り付けは既にクリップに
+     * 入っている内容なので false を渡し、無用なクリップ書き換え (履歴の重複積み) を避ける。
      */
-    fun pasteText(text: String) {
+    fun pasteText(text: String, syncClipboard: Boolean = true) {
         if (text.isEmpty()) return
-        val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
+        if (syncClipboard) {
+            val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
+        }
         val body = text.replace('\n', '\r').toByteArray(Charsets.UTF_8)
         // Bracketed paste (DECSET 2004) が有効なら 200~/201~ で囲んで送る。
         // これで bash/zsh/vim が「貼り付け」と認識し、各行の即時実行や自動インデント連鎖を防ぐ。
