@@ -75,12 +75,17 @@
     <string name="confirm_clear_cache_title">キャッシュを削除しますか？</string>
     <string name="confirm_clear_cache_msg">次の再取得可能なキャッシュ（合計 %1$s）を削除します:\n%2$s\n\nインストール済みパッケージ・設定・作業ファイルは消えません。</string>
     <string name="confirm_clear_cache_empty_msg">削除できるキャッシュはありません。OS 内のパッケージ/ビルドキャッシュも、アプリのダウンロード一時も空です。</string>
+    <string name="settings_reset_settings">設定を初期化</string>
+    <string name="settings_reset_settings_done">設定を初期化しました</string>
+    <string name="confirm_reset_settings_title">設定を初期化しますか？</string>
+    <string name="confirm_reset_settings_msg">テーマ・フォント・キーボード・実行エンジン（既定の z2root に戻ります）・常駐サーバー定義・裏機能の解放など、すべての設定が初期値に戻ります。この操作は元に戻せません。\n\nOS 本体（インストール済みパッケージやファイル）は消えません。</string>
+    <string name="action_reset_settings">初期化する</string>
     <string name="settings_section_app_info">アプリ情報</string>
 
     <!-- 裏機能: 実行エンジン選択 (バージョン7回タップで解放) -->
     <string name="settings_section_engine">実行エンジン</string>
-    <string name="settings_engine_proot">PRoot (既定)</string>
-    <string name="settings_engine_z2root">z2root (非 root)</string>
+    <string name="settings_engine_proot">PRoot (非 root)</string>
+    <string name="settings_engine_z2root">z2root (既定・非 root)</string>
     <string name="settings_engine_chroot">chroot (root)</string>
     <string name="settings_engine_desc">z2root は非 root の自前 ptrace エンジンです。chroot は実 root でネイティブ実行し root 化端末が必要です。新しいタブから選択中のエンジンで起動します。</string>
     <string name="settings_engine_current">このタブの実エンジン</string>

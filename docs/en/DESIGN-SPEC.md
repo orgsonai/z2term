@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-17 / Target version: 0.8.163-alpha (versionCode 171)
+Last updated: 2026-07-18 / Target version: 0.8.164-alpha (versionCode 172)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -396,12 +396,14 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 | Screen-on lock | keepScreenOn | false | true/false (toggled from the toolbar 💡; **persisted and restored on next launch** (0.8.144)) |
 | Keyboard toggle bar | keyboardToggleBar | true | true/false (on = a toggle bar above the keyboard; off = no bar, double-tap the ⌨ button to toggle (0.8.145)) |
 | Toolbar order | toolbarOrder | "" (default order) | comma-separated ids; updated by long-press drag |
-| Execution engine (hidden) | executionEngine | "proot" | proot / z2root / chroot (chroot only when root is unlocked) |
-| Engine selector unlock (hidden) | engineSelectorUnlocked | false | toggled by tapping the version 7 times (no root needed; locking resets engine to proot) |
+| Execution engine (hidden) | executionEngine | "z2root" | proot / z2root / chroot (chroot only when root is unlocked) |
+| Engine selector unlock (hidden) | engineSelectorUnlocked | false | toggled by tapping the version 7 times (no root needed; locking resets engine to z2root) |
 | chroot unlock flag (hidden) | rootChrootUnlocked | false | true when the 7-tap root self-test passes |
 | Language | (dedicated SharedPrefs `z2term_locale`) | OS default | ja / en |
 
 `noInstallTimeout` (disable install timeout), `cleanInstallGuiArmed` (GUI clean re-deploy flag), etc. are also kept in DataStore (`z2term_settings`). SSH profiles are saved as JSON in a separate DataStore (`z2term_ssh`).
+
+**Reset settings** (action): the "Reset settings" button at the end of the settings screen (`danger` style) shows a confirmation and then calls `AppSettings.resetToDefaults()` (which `clear()`s the `z2term_settings` DataStore). Clearing every key returns all values above, the hidden unlock flags, saved servers, toolbar order and log settings to their defaults (the execution engine goes back to the default z2root). The rootfs (installed OS), user files and language (separate SharedPrefs `z2term_locale`) are untouched.
 
 ---
 

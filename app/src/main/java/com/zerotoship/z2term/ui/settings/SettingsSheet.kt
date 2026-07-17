@@ -158,6 +158,8 @@ fun SettingsSheet(
     // キャッシュ削除: 再集計用カウンタ + 削除確認ダイアログの表示フラグ。
     var cacheRefresh by remember { mutableStateOf(0) }
     var pendingCacheClear by remember { mutableStateOf(false) }
+    // 設定の初期化 (デフォルトに戻す) 確認ダイアログの表示フラグ。
+    var pendingReset by remember { mutableStateOf(false) }
     // 掃除できる rootfs 内キャッシュ + アプリ一時をバックグラウンドで走査 (サイズ降順)。
     // null = 走査前 (…表示)。削除後は cacheRefresh をインクリメントして再走査する。
     val cacheItems by produceState<List<RootfsCacheCleaner.Item>?>(null, cacheRefresh) {
@@ -783,6 +785,13 @@ fun SettingsSheet(
                 )
             }
 
+            // 設定の初期化 (すべての設定を既定値へ戻す)。ワンタップでは戻さず確認ダイアログを挟む。
+            ActionButton(
+                label = stringResource(R.string.settings_reset_settings),
+                danger = true,
+                onClick = { pendingReset = true }
+            )
+
             // 常駐サーバー: 任意のサーバー (sshd/http/smb 等) を起動コマンドとして登録し、
             // アプリを開かず自動常駐させる。管理は専用シート (ServersSheet) で行う。
             Section(title = stringResource(R.string.settings_section_servers)) {
@@ -1028,8 +1037,8 @@ fun SettingsSheet(
                 onToggle = {
                     // 7タップでエンジン選択 (proot / z2root) の表示をトグルする (root 不要)。
                     if (settings.engineSelectorUnlocked) {
-                        // 解除: 選択を隠し、既定 (proot) へ戻す = 表示前の状態へ復帰。
-                        session.setExecutionEngine(AppSettings.ENGINE_PROOT)
+                        // 解除: 選択を隠し、既定 (z2root) へ戻す = 表示前の状態へ復帰。
+                        session.setExecutionEngine(AppSettings.ENGINE_Z2ROOT)
                         session.setEngineSelectorUnlocked(false)
                         Toast.makeText(
                             context,
@@ -1125,6 +1134,26 @@ fun SettingsSheet(
                 }
             },
             onCancel = { pendingCacheClear = false }
+        )
+    }
+
+    // 設定の初期化の確認。すべての設定が既定値に戻る旨を明示してから実行する。
+    // OS 本体 (rootfs) や作業ファイルは消えないこと・元に戻せないことを再確認させる。
+    if (pendingReset) {
+        DownloadConfirmDialog(
+            title = stringResource(R.string.confirm_reset_settings_title),
+            message = stringResource(R.string.confirm_reset_settings_msg),
+            confirmLabel = stringResource(R.string.action_reset_settings),
+            onConfirm = {
+                pendingReset = false
+                session.resetSettings()
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.settings_reset_settings_done),
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
+            onCancel = { pendingReset = false }
         )
     }
 

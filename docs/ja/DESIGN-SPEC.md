@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-17 / 対象バージョン: 0.8.163-alpha (versionCode 171)
+最終更新: 2026-07-18 / 対象バージョン: 0.8.164-alpha (versionCode 172)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -396,12 +396,14 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 | 画面消灯ロック | keepScreenOn | false | true/false（ツールバーの 💡 で ON/OFF。**永続化して次回起動時に復元** (0.8.144)） |
 | キーボード表示バー | keyboardToggleBar | true | true/false（ON=キーボード上にトグルバー。OFF=バー無しで ⌨ ボタンのダブルタップ切替 (0.8.145)） |
 | ツールバー並び順 | toolbarOrder | ""（既定順） | カンマ区切り id。長押しドラッグで更新 |
-| 実行エンジン (裏設定) | executionEngine | "proot" | proot / z2root / chroot（chroot は root 解放時のみ） |
-| エンジン選択解放 (裏設定) | engineSelectorUnlocked | false | バージョン 7 回タップでトグル（root 不要・解除時は proot へリセット） |
+| 実行エンジン (裏設定) | executionEngine | "z2root" | proot / z2root / chroot（chroot は root 解放時のみ） |
+| エンジン選択解放 (裏設定) | engineSelectorUnlocked | false | バージョン 7 回タップでトグル（root 不要・解除時は z2root へリセット） |
 | chroot 解放フラグ (裏設定) | rootChrootUnlocked | false | 7 タップ時の root セルフテスト成功で true |
 | 言語 | (専用 SharedPrefs `z2term_locale`) | OS 既定 | ja / en |
 
 `noInstallTimeout`（インストールタイムアウト無効化）・`cleanInstallGuiArmed`（GUI クリーン再展開フラグ）等も DataStore (`z2term_settings`) に保持。SSH プロファイルは別 DataStore (`z2term_ssh`) に JSON で保存。
+
+**設定を初期化**（アクション）: 設定末尾の「設定を初期化」ボタン（`danger` 表示）は、確認ダイアログを挟んで `AppSettings.resetToDefaults()`（DataStore `z2term_settings` を `clear()`）を呼ぶ。全キーが消えるので上表の各値・裏設定の解放フラグ・常駐サーバー定義・ツールバー並び順・各種ログ設定がすべて既定へ戻る（実行エンジンも既定 z2root に戻る）。rootfs（インストール済み OS）・ユーザファイル・言語（別 SharedPrefs `z2term_locale`）には触れない。
 
 ---
 

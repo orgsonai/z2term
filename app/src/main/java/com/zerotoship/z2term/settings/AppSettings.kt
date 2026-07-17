@@ -430,6 +430,16 @@ class AppSettings(private val context: Context) {
         }
     }
 
+    /**
+     * すべての設定を初期値へ戻す (「初期化」= デフォルト設定に戻る)。DataStore の全キーを消すと
+     * [flow] が各 DEFAULT_* / 既定値へフォールバックする (実行エンジンは [ENGINE_Z2ROOT] が既定)。
+     * 常駐サーバー定義・裏機能の解放フラグ (エンジン選択 / root chroot)・ツールバー並び順・
+     * 各種ログ設定も含めてまっさらな初期状態に戻る。OS 本体 (rootfs) や作業ファイルには触れない。
+     */
+    suspend fun resetToDefaults() {
+        context.dataStore.edit { it.clear() }
+    }
+
     companion object {
         const val DEFAULT_THEME = "ZTS Theme"
         const val DEFAULT_FONT_SIZE_SP = 13f
@@ -445,9 +455,9 @@ class AppSettings(private val context: Context) {
         /** キーボードトグルバーは既定 ON (従来どおりキーボードの上に表示)。OFF で ⌨ ダブルタップ切替。 */
         const val DEFAULT_KEYBOARD_TOGGLE_BAR = true
 
-        /** 実行エンジン: 非 root の PRoot (既定) */
+        /** 実行エンジン: 非 root の PRoot (full のみ選択可・foss は非同梱) */
         const val ENGINE_PROOT = "proot"
-        /** 実行エンジン: 非 root の自前 ptrace エンジン z2root (裏機能。foss の既定エンジン) */
+        /** 実行エンジン: 非 root の自前 ptrace エンジン z2root (既定エンジン。foss/full 共通で常用) */
         const val ENGINE_Z2ROOT = "z2root"
         /** 実行エンジン: root で実 chroot (裏機能・要解放) */
         const val ENGINE_CHROOT = "chroot"

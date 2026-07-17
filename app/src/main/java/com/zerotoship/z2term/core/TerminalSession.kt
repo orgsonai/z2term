@@ -293,6 +293,8 @@ class TerminalSession(
     fun setEngineSelectorUnlocked(value: Boolean) { scope.launch { settings.setEngineSelectorUnlocked(value) } }
     fun setRootChrootUnlocked(value: Boolean) { scope.launch { settings.setRootChrootUnlocked(value) } }
     fun setExecutionEngine(value: String) { scope.launch { settings.setExecutionEngine(value) } }
+    /** すべての設定を初期値へ戻す (「初期化」)。エンジンも既定の z2root に戻る。 */
+    fun resetSettings() { scope.launch { settings.resetToDefaults() } }
     fun setExternalStorageEnabled(value: Boolean) { scope.launch { settings.setExternalStorageEnabled(value) } }
     fun setAndroidHostBindEnabled(value: Boolean) { scope.launch { settings.setAndroidHostBindEnabled(value) } }
     fun setTraceLogEnabled(value: Boolean) { scope.launch { settings.setTraceLogEnabled(value) } }

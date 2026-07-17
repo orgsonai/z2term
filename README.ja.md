@@ -29,13 +29,13 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.159-alpha (versionCode 167).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.164-alpha (versionCode 172).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 
 - **ターミナルエミュレータ** — VT100 / xterm、256色・トゥルーカラー、6 テーマ、検索付きスクロールバック、UTF-8 と East Asian Width、代替スクリーン、OSC 4 / 7 / 8 / 10 / 11 / 12 / 52。
 - **root 不要の Linux ディストロ** — PRoot で Alpine / Ubuntu / Arch / Kali を動かし、`apk` / `apt` / `pacman` で何でも導入。
-- **実行エンジン** — PRoot（既定）、z2root（root 不要の ptrace ベースエンジン）、chroot（root 端末向け）。バージョンを 7 回タップするとエンジン選択がアンロックされる。
+- **実行エンジン** — z2root（既定・root 不要の ptrace ベースエンジン）、PRoot、chroot（root 端末向け）。バージョンを 7 回タップするとエンジン選択がアンロックされる。
 - **マルチタブ** — CUI / GUI タブ、ドラッグで並べ替え、OS にプロセスを落とされてもセッション復元。
 - **Linux GUI** — Xvnc + openbox と内蔵 RFB クライアント。Thunderbird や mpv などのデスクトップアプリを音声・動画つきで動かせる。
 - **SSH / SFTP** — 公開鍵認証（秘匿フィールドは Android Keystore で暗号化）、known_hosts 確認、ファイル転送、既定で localhost のみ bind する内蔵 `sshd`（dropbear）。
