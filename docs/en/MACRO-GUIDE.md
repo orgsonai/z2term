@@ -169,6 +169,75 @@ test you can just run `sh ~/.z2term/macros/watch.sh &` in the terminal.
 For "every morning at 7" and the like, skip events and use cron. In `crontab -e`, add
 `0 7 * * * z2-say "Good morning. Check today's schedule"` (installing cron depends on the distro).
 
+### 5-5. Worked example: auto-copy an SMS one-time code and clear it
+
+A practical macro that puts the **one-time code (OTP / verification number)** from a notification (SMS, etc.)
+onto the clipboard, then clears it after a delay — but only if it hasn't changed. It combines the notification
+trigger, `z2-clip`, and self-cleanup (a subshell + `sleep`), using nothing outside this guide.
+
+**Key points** (reusable patterns):
+- **Filter by keyword** (verification / code / OTP …) so ordinary messages and phone numbers aren't picked up.
+- Extract **one 4–8 digit number** only; for `123-456` style, strip separators first.
+- **Format-agnostic**: works whether the log is the default JSONL or a custom template — for JSON lines it reads
+  only `title`+`text`, and for template lines it strips a leading `[timestamp]` first (so digits in the leading
+  timestamp aren't mistaken for a code).
+- **Auto-clear** runs only when the current clipboard still equals what was copied (if you copied something else
+  in the meantime, it's kept). The clipboard is shared and readable by other apps, so clearing after paste is safer.
+
+```sh
+#!/bin/sh
+# ~/.z2term/macros/otp-clip.sh
+# Auto-copy a one-time code (4-8 digits) from a notification, then clear it after TTL seconds.
+# Setup: Settings -> "Notification capture" ON + grant the OS "Notification access".
+# Resident: Settings -> Resident servers -> register  sh ~/.z2term/macros/otp-clip.sh
+# Dep: jq recommended (a sed fallback runs if it's missing).
+
+TTL=60                                    # seconds until the clipboard is cleared
+KEYWORDS='verification|verify|code|otp|one[- ]?time|passcode|認証|確認|コード'
+
+# After TTL seconds, blank the clipboard only if it still holds the copied value.
+schedule_clear() {
+  code=$1
+  ( sleep "$TTL"
+    cur=$(z2-clip get 2>/dev/null)
+    if [ "$cur" = "$code" ]; then
+      z2-clip set ""
+      z2-toast "Cleared the copied code"
+    fi
+  ) &
+}
+
+tail -n0 -F ~/.z2term/notifications.jsonl 2>/dev/null | while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  # Extract the body (format-agnostic).
+  case "$line" in
+    '{'*)   # JSONL: use title + text only
+      if command -v jq >/dev/null 2>&1; then
+        body=$(printf '%s' "$line" | jq -r '((.title // "") + " " + (.text // ""))' 2>/dev/null)
+      else
+        t=$(printf '%s' "$line" | sed -n 's/.*"title":"\([^"]*\)".*/\1/p')
+        x=$(printf '%s' "$line" | sed -n 's/.*"text":"\([^"]*\)".*/\1/p')
+        body="$t $x"
+      fi ;;
+    *)      # custom template: strip one leading "[timestamp]"
+      body=$(printf '%s' "$line" | sed 's/^\[[^]]*\][[:space:]]*//') ;;
+  esac
+  [ -z "$body" ] && continue
+  # Only act when a keyword is present (avoid false positives).
+  printf '%s' "$body" | grep -Eiq "$KEYWORDS" || continue
+  # Extract one 4-8 digit number ("123-456" -> strip separators first).
+  code=$(printf '%s' "$body" | tr -d ' -' | grep -oE '[0-9]{4,8}' | head -n1)
+  [ -z "$code" ] && continue
+  # Copy -> notify -> auto-clear after TTL seconds.
+  z2-clip set "$code"
+  z2-toast "Copied code: ${code}"
+  schedule_clear "$code"
+done
+```
+
+The only knobs are `TTL` (seconds until clearing) and `KEYWORDS` (add terms for more services). The code lands
+on the clipboard the moment it arrives, so you just paste it into the field.
+
 ---
 
 ## 6. Parsing without jq (pure POSIX)

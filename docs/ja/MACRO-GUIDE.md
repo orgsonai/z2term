@@ -170,6 +170,74 @@ done
 「毎朝 7 時に」等は events を使わず cron で。`crontab -e` に
 `0 7 * * * z2-say "おはよう。今日の予定を確認して"` のように書きます（cron の導入は distro ごと）。
 
+### 5-5. 実例：SMS のワンタイムコードを自動コピー＆自動クリア
+
+通知（SMS 等）に含まれる**ワンタイムコード（OTP・認証番号）**を自動でクリップボードへ入れ、
+一定秒後に「値が変わっていなければ」自動で消す実用マクロです。通知トリガー・`z2-clip`・
+自動後始末（サブシェル＋`sleep`）を組み合わせた、このガイドの機能だけで完結する例です。
+
+**ポイント**（そのまま流用できる定石）:
+- **キーワードで絞る**（認証/確認/コード/OTP…）→ 普通のメッセージや電話番号を拾わない。
+- 抽出は **4〜8 桁の数字 1 つ**に限定。`123-456` 形式は区切りを除いてから拾う。
+- **形式非依存**: 出力が既定 JSONL でも独自テンプレートでも動くよう、JSON 行は `title`+`text` だけを見て、
+  テンプレート行は先頭の `[時刻]` を除去してから走査する（先頭タイムスタンプの数字を誤って拾わない）。
+- **自動クリア**はコピー時の値と一致するときだけ実行（途中で別物をコピーしていたら残す）。
+  クリップボードは他アプリからも読める共有領域なので、貼り付け後に消えるほうが安全。
+
+```sh
+#!/bin/sh
+# ~/.z2term/macros/otp-clip.sh
+# 通知内のワンタイムコード(4〜8桁)を自動でクリップボードにコピーし、TTL 秒後に自動クリア。
+# 準備: ⚙設定 →「通知検知」ON ＋ OS の「通知アクセス」許可
+# 常駐: ⚙設定 → 常駐サーバー に  sh ~/.z2term/macros/otp-clip.sh  を登録
+# 依存: jq 推奨（無ければ sed フォールバックが動く）
+
+TTL=60                                    # コピーから何秒でクリアするか
+KEYWORDS='認証|確認|ワンタイム|コード|パスワード|code|otp|verification|verify|one[- ]?time'
+
+# TTL 秒後、クリップがコピー時の値のままなら空にする（別物をコピーしていたら残す）
+schedule_clear() {
+  code=$1
+  ( sleep "$TTL"
+    cur=$(z2-clip get 2>/dev/null)
+    if [ "$cur" = "$code" ]; then
+      z2-clip set ""
+      z2-toast "コピーしたコードをクリアしました"
+    fi
+  ) &
+}
+
+tail -n0 -F ~/.z2term/notifications.jsonl 2>/dev/null | while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  # 本文(body)を取り出す（形式に依存しない）
+  case "$line" in
+    '{'*)   # JSONL: title + text だけを対象にする
+      if command -v jq >/dev/null 2>&1; then
+        body=$(printf '%s' "$line" | jq -r '((.title // "") + " " + (.text // ""))' 2>/dev/null)
+      else
+        t=$(printf '%s' "$line" | sed -n 's/.*"title":"\([^"]*\)".*/\1/p')
+        x=$(printf '%s' "$line" | sed -n 's/.*"text":"\([^"]*\)".*/\1/p')
+        body="$t $x"
+      fi ;;
+    *)      # 独自テンプレート: 先頭の "[時刻]" を1つ除去
+      body=$(printf '%s' "$line" | sed 's/^\[[^]]*\][[:space:]]*//') ;;
+  esac
+  [ -z "$body" ] && continue
+  # キーワードを含むときだけ処理（誤爆防止）
+  printf '%s' "$body" | grep -Eiq "$KEYWORDS" || continue
+  # 4〜8桁の数字を1つ抽出（"123-456" は区切りを除いてから）
+  code=$(printf '%s' "$body" | tr -d ' -' | grep -oE '[0-9]{4,8}' | head -n1)
+  [ -z "$code" ] && continue
+  # コピー → 知らせる → TTL 秒後に自動クリア
+  z2-clip set "$code"
+  z2-toast "コードをコピー: ${code}"
+  schedule_clear "$code"
+done
+```
+
+調整は先頭の `TTL`（クリアまでの秒数）と `KEYWORDS`（対応語を追加）だけ。届いた瞬間にコードだけ入るので、
+入力欄で貼り付けるだけで済みます。
+
 ---
 
 ## 6. jq が無いときの解析（純 POSIX）
