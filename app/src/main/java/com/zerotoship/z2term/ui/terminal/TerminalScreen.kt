@@ -594,7 +594,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     if (clipHistoryOpen) {
         ClipboardHistorySheet(
             onDismiss = { clipHistoryOpen = false },
-            onSelect = { text -> active.pasteText(text) }
+            // 履歴から選んで貼るだけ。システムクリップボードへ書き戻すと「貼り付けたのに
+            // コピーされた (履歴が積み替わる)」挙動になるため同期しない。
+            onSelect = { text -> active.pasteText(text, syncClipboard = false) }
         )
     }
     sftpProfile?.let { profile ->
@@ -926,10 +928,9 @@ private fun GuiTabScreen(
     if (clipHistoryOpen) {
         ClipboardHistorySheet(
             onDismiss = { clipHistoryOpen = false },
-            // GUI では選んだ本文を keysym 橋渡しでタイプし、システムクリップボードにも反映する。
+            // GUI では選んだ本文を keysym 橋渡しでタイプするだけ。システムクリップボードへは
+            // 書き戻さない (書き戻すと「貼り付けたのにコピーされた」= 履歴が積み替わるため)。
             onSelect = { text ->
-                context.getSystemService(ClipboardManager::class.java)
-                    ?.setPrimaryClip(android.content.ClipData.newPlainText("z2term", text))
                 GuiKeyMapper.sendText(gui.rfb, text)
             }
         )

@@ -115,7 +115,7 @@ Z2Term comes with its **own in-app keyboard**.
 | Copy text | **Long-press** the screen → drag with your finger to select → "Copy" button (trailing blanks are trimmed and each row gets a **line break**) |
 | Magnify while selecting | While selecting, a **magnifier** appears above your finger |
 | Select beyond the screen | While selecting, move your **finger to the top/bottom edge** → it auto-scrolls so you can keep selecting |
-| Paste | The **📋** button in the toolbar. **Double-tap** it to open the **clipboard history** and pick a past copy to paste (synced with the system clipboard) |
+| Paste | The **📋** button in the toolbar. **Double-tap** it to open the **clipboard history** and pick a past copy to paste (pasting never rewrites the system clipboard, so it won't "copy what you just pasted") |
 | Scroll up/down | Drag with one finger. You can also **grab the scrollbar on the right edge**. Use **↓** at the bottom-right to return to the latest |
 | Make text bigger/smaller | **Pinch** with two fingers (spread/squeeze) |
 | Add a terminal | The tab **+** (terminal) / **🖥** (GUI desktop) |
