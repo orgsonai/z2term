@@ -53,6 +53,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fakeroot unzip xz-utils
 
       - name: Generate bundled assets (fonts / PRoot / Alpine rootfs)
+        # フォント取得は api.github.com を叩く。未認証だと IP 単位 60 req/h でランナー間で
+        # 食い合うため、組み込みトークンを渡してレート上限を上げる。
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           bash scripts/fetch-fonts.sh
           bash scripts/build-proot.sh
@@ -140,6 +144,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends unzip
 
       - name: Generate bundled fonts (foss も src/main/assets/fonts が必要)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: bash scripts/fetch-fonts.sh
 
       - name: Build FOSS release APK

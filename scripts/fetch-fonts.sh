@@ -70,12 +70,19 @@ fetch_from_release_zip() {
     tmp="$(mktemp -d)"
     local zip="${tmp}/font.zip"
     local latest_url
-    latest_url="$(curl -sL --max-time 15 \
+    # 未認証の api.github.com は 60 req/h・**IP 単位**。CI ランナーは IP を共有するため
+    # ここは他人の消費で 403 になりやすい。GITHUB_TOKEN があれば付けて上限を上げる。
+    local auth=()
+    [[ -n "${GITHUB_TOKEN:-}" ]] && auth=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+    # `set -o pipefail` 下では grep が 0 件ヒットしただけでこの代入が失敗し、スクリプトが
+    # **何も出力せずに即死**する (実際に CI で「原因不明の exit 1」として現れた)。
+    # `|| true` で握って、下の空チェック＝意味のあるエラーメッセージに到達させる。
+    latest_url="$(curl -sL --max-time 15 "${auth[@]}" \
         "https://api.github.com/repos/${repo}/releases/latest" \
         | grep -oE '"browser_download_url":[[:space:]]*"[^"]+\.zip"' \
-        | sed -E 's/.*"([^"]+)".*/\1/' | head -n1)"
+        | sed -E 's/.*"([^"]+)".*/\1/' | head -n1 || true)"
     if [[ -z "${latest_url}" ]]; then
-        echo "ERROR: ${repo} の release zip URL 取得失敗" >&2
+        echo "ERROR: ${repo} の release zip URL 取得失敗 (API レート制限や応答形式の変化を疑う)" >&2
         rm -rf "${tmp}"; return 1
     fi
     echo "[info] fetching ${out_name} <- ${latest_url}"
