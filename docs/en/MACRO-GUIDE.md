@@ -55,6 +55,7 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
 | `battery_level` | Level crossed a 10% boundary | `level` |
 | `wifi_connected` / `wifi_disconnected` | Wi‑Fi connected / disconnected | `ssid` (blank without location permission) |
 | `headset_plugged` / `headset_unplugged` | Wired headset plugged / unplugged | — |
+| `bt_audio_connected` / `bt_audio_disconnected` | **Bluetooth audio** (earbuds etc.) connected / disconnected | — |
 | `airplane_on` / `airplane_off` | Airplane mode on / off | — |
 | `ringer_normal` / `ringer_vibrate` / `ringer_silent` | Ringer mode change | — |
 | `alarm` | **A time scheduled with `z2-alarm`** came around | `name` (the name you gave `z2-alarm`) |
@@ -146,6 +147,8 @@ returns just that value, so it drops straight into a shell test. **No extra perm
 | `ringer` | `normal` / `vibrate` / `silent` |
 | `airplane` | `true` / `false` |
 | `headset` | `true` / `false` (wired headset/headphones) |
+| `bt_audio` | `true` / `false` (Bluetooth audio connected) |
+| `temp` | Battery temperature in °C (decimal); `-1` when unavailable |
 | `volume` / `volume_max` | Current / maximum media volume |
 
 ```sh

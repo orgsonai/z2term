@@ -271,7 +271,7 @@ echo 'export DISABLE_AUTOUPDATER=1' >> ~/.bashrc
 | キャッシュ削除 | OS 内に溜まるパッケージ/ビルドキャッシュ（pacman・apt・apk・`~/.cache` など）とアプリの一時ファイルを掃除。押すと**何をどれだけ消すか一覧**した確認画面が出る。インストール済みパッケージ・設定・作ったファイルは消えません |
 | 常駐サーバー | 任意のサーバー（sshd / http / smb など）を**起動コマンド**として登録し、バックグラウンドで常駐させる。「起動時に自動で常駐」を ON にすると、**アプリを開かなくても端末起動直後に自動で立ち上がる**。停止は通知の「サーバー停止」ボタンかこの画面から一括で。詳しくは下記 |
 | 通知検知 | OS の「通知アクセス」を許可＋ON にすると、届いた通知を `~/.z2term/notifications.jsonl` に追記します（検知の汎用入口）。**出力フォーマットは自由に変更可**（`{time}` `{app}` `{title}` `{text}` などを並べたテンプレート。プリセット: 読みやすい/1行/TSV/JSONL）。**「新しいものを先頭に」**を ON にすると、新着が末尾でなくファイル先頭に追記されます（新着が上）。何を記録・絞り込み・配信するかは**ターミナル側で自由に**（例: `tail -f ~/.z2term/notifications.jsonl`、常駐サーバーで配信）。**「通知ログを保存する」**を OFF にすると、検知は続けたままファイルには一切書きません（検知だけ使いたいとき）。同じ通知が何度も出し直されても**記録は 1 行だけ**です。既定 OFF・完全ローカル |
-| システムイベント検知 | ON にすると、画面 ON/OFF・ロック解除・充電開始/停止・電池 低下/回復・Wi-Fi 接続/切断を `~/.z2term/events.jsonl` に追記します（自動化の汎用トリガー。通知検知の姉妹機能）。**出力フォーマットは自由に変更可**（`{time}` `{event}` `{level}` `{ssid}`。プリセット: 1行/TSV/JSONL）。**「新しいものを先頭に」**で新着をファイル先頭に追記できます。「電池が 20% を切ったら…」「充電したら…」のような自動化を**ターミナル側で自由に**組めます（例: `tail -f ~/.z2term/events.jsonl` を読むスクリプト）。既定 OFF・完全ローカル・稼働中は常駐通知が出ます（Wi-Fi の SSID は位置情報権限が無いと空になります）。**ログは 1MB を超えると `.1` に退避**され、新しいファイルに切り替わります（1 世代だけ残るので無限には増えません） |
+| システムイベント検知 | ON にすると、画面 ON/OFF・ロック解除・充電開始/停止・電池 低下/回復・Wi-Fi 接続/切断・**Bluetooth イヤホンの接続/切断**を `~/.z2term/events.jsonl` に追記します（自動化の汎用トリガー。通知検知の姉妹機能）。**出力フォーマットは自由に変更可**（`{time}` `{event}` `{level}` `{ssid}`。プリセット: 1行/TSV/JSONL）。**「新しいものを先頭に」**で新着をファイル先頭に追記できます。「電池が 20% を切ったら…」「充電したら…」のような自動化を**ターミナル側で自由に**組めます（例: `tail -f ~/.z2term/events.jsonl` を読むスクリプト）。既定 OFF・完全ローカル・稼働中は常駐通知が出ます（Wi-Fi の SSID は位置情報権限が無いと空になります）。**ログは 1MB を超えると `.1` に退避**され、新しいファイルに切り替わります（1 世代だけ残るので無限には増えません） |
 | 設定を初期化 | テーマ・フォント・キーボード・実行エンジン（既定の **z2root** に戻ります）・常駐サーバー定義・裏機能の解放など、**すべての設定を初期値に戻す**。押すと確認画面が出る（元に戻せません）。**OS 本体（インストール済みパッケージや作ったファイル）は消えません** |
 
 ### 常駐サーバー（アプリを開かず動かす）
@@ -337,7 +337,7 @@ Z2Term がどのディストロにも自動で入れてくれる「Z2Term 専用
 | `z2-media [playpause\|play\|pause\|next\|previous\|stop]` | メディア再生を操作（既定 playpause） |
 | `z2-volume <up\|down\|mute\|unmute\|N\|N%>` | メディア音量を操作（結果の current/max を出力） |
 | `z2-sensor [light\|accel\|proximity]` | センサーを1回読んで JSON 出力（照度/加速度/近接。既定 light） |
-| `z2-state [キー]` | **今の端末の状態**を JSON で出力。キーを付けるとその値だけ（`screen` `locked` `idle` `charging` `plug` `level` `wifi` `ssid` `ringer` `airplane` `headset` `volume` `volume_max`）。例: `[ "$(z2-state charging)" = "true" ]` |
+| `z2-state [キー]` | **今の端末の状態**を JSON で出力。キーを付けるとその値だけ（`screen` `locked` `idle` `charging` `plug` `level` `temp` `wifi` `ssid` `ringer` `airplane` `headset` `bt_audio` `volume` `volume_max`）。例: `[ "$(z2-state charging)" = "true" ]` |
 | `z2-alarm at\|daily HH:MM [名前]` | **時刻トリガー**。その時刻に `events.jsonl` へ `alarm` イベントを書く（`in 5m` / `list` / `cancel <id\|名前\|all>` も）。cron と違い Doze 中でも起きる（数分ずれることあり） |
 | `z2-macro list\|install <名前>` | **マクロのサンプル**を `~/.z2term/macros/` に導入（`show` / `run` / `dir` も）。最初の1本の雛形に |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | 任意の Android Intent を発火（アプリ起動・設定画面・アラーム設定など。詳細は `docs/ja/MACRO-GUIDE.md`） |

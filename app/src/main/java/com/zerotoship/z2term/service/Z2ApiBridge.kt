@@ -296,6 +296,16 @@ object Z2ApiBridge {
                     it.type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET
             } == true
         }.getOrDefault(false)
+        // Bluetooth オーディオ (A2DP/SCO) が繋がっているか。デバイス名は権限が要るので出さない。
+        val btAudio = runCatching {
+            am?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)?.any {
+                it.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                    it.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+            } == true
+        }.getOrDefault(false)
+        // 電池温度 (BATTERY_CHANGED は 0.1℃ 単位の整数で持っている)。取れなければ -1。
+        val tempRaw = batt?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE) ?: Int.MIN_VALUE
+        val temp = if (tempRaw == Int.MIN_VALUE) "-1" else (tempRaw / 10.0).toString()
         val volume = am?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: -1
         val volumeMax = am?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: -1
 
@@ -313,6 +323,8 @@ object Z2ApiBridge {
                 "ringer" -> ringer
                 "airplane" -> airplane.toString()
                 "headset" -> headset.toString()
+                "bt_audio" -> btAudio.toString()
+                "temp" -> temp
                 "volume" -> volume.toString()
                 "volume_max" -> volumeMax.toString()
                 else -> throw IllegalArgumentException("state: unknown key: $key")
@@ -330,6 +342,8 @@ object Z2ApiBridge {
             put("ringer", ringer)
             put("airplane", airplane)
             put("headset", headset)
+            put("bt_audio", btAudio)
+            put("temp", temp.toDoubleOrNull() ?: -1.0)
             put("volume", volume)
             put("volume_max", volumeMax)
         }.toString()

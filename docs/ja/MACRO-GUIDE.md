@@ -56,6 +56,7 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 | `battery_level` | 残量が 10% 刻みの境界を跨いだとき | `level` |
 | `wifi_connected` / `wifi_disconnected` | Wi‑Fi 接続 / 切断 | `ssid`（位置情報権限が無いと空） |
 | `headset_plugged` / `headset_unplugged` | 有線ヘッドセット 抜き差し | — |
+| `bt_audio_connected` / `bt_audio_disconnected` | **Bluetooth オーディオ**（イヤホン等）の 接続 / 切断 | — |
 | `airplane_on` / `airplane_off` | 機内モード ON / OFF | — |
 | `ringer_normal` / `ringer_vibrate` / `ringer_silent` | マナーモード 切替 | — |
 | `alarm` | **`z2-alarm` で仕掛けた時刻**になった | `name`（`z2-alarm` に付けた名前） |
@@ -147,6 +148,8 @@ events.jsonl は「変化した瞬間」しか流れてきません。「**今**
 | `ringer` | `normal` / `vibrate` / `silent` |
 | `airplane` | `true` / `false` |
 | `headset` | `true` / `false`（有線ヘッドセット/ヘッドホン） |
+| `bt_audio` | `true` / `false`（Bluetooth オーディオが繋がっているか） |
+| `temp` | 電池温度（℃・小数）。取れないときは `-1` |
 | `volume` / `volume_max` | メディア音量の現在値 / 最大値 |
 
 ```sh

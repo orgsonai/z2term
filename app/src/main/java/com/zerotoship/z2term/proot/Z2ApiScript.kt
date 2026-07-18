@@ -179,8 +179,8 @@ fun z2ApiScripts(): Map<String, String> {
         |#!/bin/sh
         |# z2-state            … 今の端末の状態をまとめて JSON で返す
         |# z2-state <キー>     … その値だけを生で返す (条件式にそのまま書ける)
-        |# キー: screen(on/off) locked idle charging plug(ac/usb/wireless/none) level
-        |#       wifi ssid ringer(normal/vibrate/silent) airplane headset volume volume_max
+        |# キー: screen(on/off) locked idle charging plug(ac/usb/wireless/none) level temp(℃)
+        |#       wifi ssid ringer(normal/vibrate/silent) airplane headset bt_audio volume volume_max
         |# 例: [ "${d}(z2-state charging)" = "true" ] && echo 充電中
         |exec /usr/local/bin/z2api 1 state "${d}1"
     """.trimMargin() + "\n"

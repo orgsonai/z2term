@@ -57,6 +57,7 @@ import java.util.concurrent.Executors
  *  - `headset_plugged` / `headset_unplugged`  … 有線ヘッドセットの抜き差し
  *  - `airplane_on` / `airplane_off`           … 機内モード ON / OFF
  *  - `ringer_normal` / `ringer_vibrate` / `ringer_silent` … マナーモード切替
+ *  - `bt_audio_connected` / `bt_audio_disconnected` … Bluetooth オーディオ (A2DP/SCO) の接続 / 切断
  *
  * このサービスとは別に、時刻トリガー ([AlarmScheduler] / `z2-alarm`) が同じ events.jsonl へ
  * `alarm` イベント (`{name}` 付き) を書く。そちらはこのサービスの ON/OFF に依存しない。
@@ -71,6 +72,25 @@ class SystemEventService : Service() {
     @Volatile private var lastWifiConnected: Boolean? = null
 
     @Volatile private var lastBatteryBucket = -1
+
+    /**
+     * Bluetooth オーディオ (A2DP/SCO) の抜き差しを拾うコールバック。
+     *
+     * 有線は `ACTION_HEADSET_PLUG` で拾えるが、**ワイヤレスイヤホンには相当するブロードキャストが
+     * 無い**ため「イヤホンを繋いだら再生」のような定番マクロが無線で書けなかった。
+     * `AudioDeviceCallback` なら**追加権限なし**で接続/切断とデバイス種別が取れる
+     * (`BLUETOOTH_CONNECT` が要るのはデバイス名の取得で、ここでは名前を出さない)。
+     *
+     * 登録直後に「既に繋がっているデバイス」で `onAudioDevicesAdded` が 1 度呼ばれる仕様なので、
+     * [btCallbackPrimed] が立つまでは発火しない (サービス起動＝接続、と誤検知しないため)。
+     */
+    @Volatile private var btCallbackPrimed = false
+    @Volatile private var lastBtAudio = false
+
+    private val audioDeviceCallback = object : android.media.AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(added: Array<out android.media.AudioDeviceInfo>?) = syncBtAudio()
+        override fun onAudioDevicesRemoved(removed: Array<out android.media.AudioDeviceInfo>?) = syncBtAudio()
+    }
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -136,11 +156,20 @@ class SystemEventService : Service() {
             @Suppress("UnspecifiedRegisterReceiverFlag")
             registerReceiver(receiver, filter)
         }
+        // Bluetooth オーディオの抜き差しはブロードキャストでは拾えないのでコールバックで受ける。
+        runCatching {
+            val am = getSystemService(AUDIO_SERVICE) as? AudioManager
+            am?.registerAudioDeviceCallback(audioDeviceCallback, android.os.Handler(mainLooper))
+        }.onFailure { Log.w(TAG, "audio device callback 登録失敗", it) }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         runCatching { unregisterReceiver(receiver) }
+        runCatching {
+            (getSystemService(AUDIO_SERVICE) as? AudioManager)
+                ?.unregisterAudioDeviceCallback(audioDeviceCallback)
+        }
         scope.cancel()
         writer.shutdown()
     }
@@ -193,6 +222,29 @@ class SystemEventService : Service() {
             lastBatteryBucket = bucket
             emit("battery_level", level = pct)
         }
+    }
+
+    /**
+     * Bluetooth オーディオ出力の有無を見て、変化したときだけ 1 回発火する。
+     * 対象は A2DP (音楽) と SCO (通話用ヘッドセット)。デバイス名は権限が要るので出さない。
+     */
+    private fun syncBtAudio() {
+        val am = getSystemService(AUDIO_SERVICE) as? AudioManager ?: return
+        val connected = runCatching {
+            am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).any {
+                it.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                    it.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+            }
+        }.getOrDefault(false)
+        // 登録直後の初回コールバックは現状の取り込みだけ行い、イベントは出さない。
+        if (!btCallbackPrimed) {
+            btCallbackPrimed = true
+            lastBtAudio = connected
+            return
+        }
+        if (connected == lastBtAudio) return
+        lastBtAudio = connected
+        emit(if (connected) "bt_audio_connected" else "bt_audio_disconnected")
     }
 
     /** マナーモード変化を normal/vibrate/silent として発火。 */
