@@ -130,7 +130,11 @@ fun z2guiScript(
         |# 渡してくる。その状態で xterm などが ${d}SHELL を起動すると **z2gui 自身が再帰起動**し、
         |# 再帰側の start_x → stop_x が**動作中の Xvnc を停止**して GUI 全体が落ちる。
         |# GUI 配下のシェルは必ず本物のシェルにするため、ここで SHELL を実体のシェルへ上書きする。
-        |for _sh in /bin/bash /bin/ash /bin/sh; do [ -x "${d}_sh" ] && { SHELL="${d}_sh"; break; }; done
+        |# 設定「ログインシェル」が Z2_LOGIN_SHELL で渡ってくるので、それを最優先で採用する
+        |# (GUI 内ターミナルだけ bash に戻ってしまうのを防ぐ)。
+        |for _sh in "${d}{Z2_LOGIN_SHELL:-}" /bin/bash /bin/ash /bin/sh; do
+        |  [ -n "${d}_sh" ] && [ -x "${d}_sh" ] && { SHELL="${d}_sh"; break; }
+        |done
         |export SHELL
         |
         |has() { command -v "${d}1" >/dev/null 2>&1; }

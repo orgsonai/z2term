@@ -839,6 +839,14 @@ fun SettingsSheet(
                     }
                 )
 
+                // ログ保存の ON/OFF (検知とは独立)。OFF なら検知だけ行いファイルには書かない。
+                ToggleField(
+                    title = stringResource(R.string.settings_notif_log),
+                    description = stringResource(R.string.settings_notif_log_desc),
+                    checked = settings.notificationLogEnabled,
+                    onChange = { session.setNotificationLogEnabled(it) }
+                )
+
                 // 出力フォーマット: プリセットで埋めてから自由に編集できるテンプレート。
                 val fmtPresets = remember {
                     listOf(

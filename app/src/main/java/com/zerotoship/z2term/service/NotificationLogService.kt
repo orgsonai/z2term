@@ -24,8 +24,17 @@ import java.util.concurrent.Executors
  *
  * OS の「通知アクセス」許可が本アプリに与えられていると、Android がこの
  * `NotificationListenerService` を自動でバインド・常駐させる (アプリを開かなくても・再起動後も動く
- * = 通知検知デーモン)。設定 [AppSettings.notificationCaptureEnabled] が ON のとき、受け取った通知を
- * **生のまま** [logFile] (`~/.z2term/notifications.jsonl`) へ 1 行 1 通知 (JSON) で追記する。
+ * = 通知検知デーモン)。設定 [AppSettings.notificationCaptureEnabled] が ON で、かつ
+ * [AppSettings.notificationLogEnabled] が ON のとき、受け取った通知を **生のまま**
+ * [logFile] (`~/.z2term/notifications.jsonl`) へ 1 行 1 通知 (JSON) で追記する。
+ * 保存を OFF にすると検知 (常駐) は続けたままファイルには一切書かない。
+ *
+ * **重複排除**: Android は 1 つの通知を内容が変わらなくても何度も再 post する (進捗更新・
+ * 常駐通知の再掲・グループ集約など)。そのまま書くと同じ行が何本も並ぶため、
+ *  - 同じ通知 (`key`) で内容 (title+text) が前回と同一なら書かない
+ *  - 別 `key` でも同じアプリ・同じ内容が [DEDUP_WINDOW_MS] 以内に続いたら書かない
+ * とし、**1 通知 = 1 行**にする。通知が消された (`onNotificationRemoved`) 後の再掲は
+ * 新しい通知として書く。
  *
  * **方針**: 特定アプリの抽出・フィルタ・保存方針・配信は一切ハードコードしない。z2term は「通知を
  * 検知してターミナルから読める形で流すだけ」の汎用機能を提供し、ログ化・絞り込み・配信は
@@ -36,8 +45,15 @@ class NotificationLogService : NotificationListenerService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val writer = Executors.newSingleThreadExecutor()
     @Volatile private var captureEnabled = false
+    @Volatile private var logEnabled = true
     @Volatile private var formatTemplate = ""
     @Volatile private var prepend = false
+
+    /** 通知 `key` ごとの最終記録内容 (再 post 判定用)。古いものから捨てる LRU。 */
+    private val lastSigByKey = lru<String>(DEDUP_ENTRIES)
+
+    /** 「アプリ + 内容」ごとの最終記録時刻 (key を作り直すアプリ向けの短時間 dedup)。 */
+    private val lastTimeBySig = lru<Long>(DEDUP_ENTRIES)
 
     override fun onCreate() {
         super.onCreate()
@@ -45,6 +61,7 @@ class NotificationLogService : NotificationListenerService() {
         scope.launch {
             AppSettings(applicationContext).flow.collectLatest {
                 captureEnabled = it.notificationCaptureEnabled
+                logEnabled = it.notificationLogEnabled
                 formatTemplate = it.notificationLogFormat
                 prepend = it.notificationLogPrepend
             }
@@ -60,6 +77,8 @@ class NotificationLogService : NotificationListenerService() {
         val text = (ex.getCharSequence(Notification.EXTRA_BIG_TEXT)
             ?: ex.getCharSequence(Notification.EXTRA_TEXT))?.toString().orEmpty()
         if (title.isEmpty() && text.isEmpty()) return                   // 実体のない通知は捨てる
+        if (!logEnabled) return                                         // 検知のみ (保存しない)
+        if (isDuplicate(sbn.key ?: sbn.packageName, sbn.packageName, title, text)) return
 
         val app = runCatching {
             val pm = packageManager
@@ -82,6 +101,38 @@ class NotificationLogService : NotificationListenerService() {
         }
     }
 
+    /**
+     * 通知が消された (ユーザーが払った / アプリが取り消した) ら記録も忘れる。
+     * 同じ内容が改めて通知されたときは「新しい通知」として 1 行書きたいため。
+     */
+    override fun onNotificationRemoved(sbn: StatusBarNotification?) {
+        val key = sbn?.key ?: return
+        synchronized(lastSigByKey) { lastSigByKey.remove(key) }
+    }
+
+    /**
+     * 既に同じ内容を記録済みなら true (= 今回は書かない)。
+     *  - 同じ `key` で内容が前回と同一 → 再 post とみなす
+     *  - 別 `key` でも同じアプリ・同じ内容が [DEDUP_WINDOW_MS] 以内 → 作り直しとみなす
+     */
+    private fun isDuplicate(key: String, pkg: String, title: String, text: String): Boolean {
+        val sig = "$title\u0000$text"
+        val now = System.currentTimeMillis()
+        synchronized(lastSigByKey) {
+            if (lastSigByKey[key] == sig) return true
+            val sigKey = "$pkg\u0000$sig"
+            val prev = lastTimeBySig[sigKey]
+            if (prev != null && now - prev < DEDUP_WINDOW_MS) {
+                lastSigByKey[key] = sig
+                lastTimeBySig[sigKey] = now
+                return true
+            }
+            lastSigByKey[key] = sig
+            lastTimeBySig[sigKey] = now
+        }
+        return false
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         scope.cancel()
@@ -91,6 +142,19 @@ class NotificationLogService : NotificationListenerService() {
     companion object {
         private const val TAG = "NotificationLog"
         private val ISO = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
+
+        /** 重複判定で覚えておく通知の件数 (これを超えたら古いものから忘れる)。 */
+        private const val DEDUP_ENTRIES = 256
+
+        /** 別 `key` で同じ内容が来たとき「同じ通知の作り直し」とみなす時間 (ミリ秒)。 */
+        private const val DEDUP_WINDOW_MS = 10_000L
+
+        /** 挿入/参照順で最大 [max] 件だけ保持する LRU マップ。 */
+        private fun <V> lru(max: Int): LinkedHashMap<String, V> =
+            object : LinkedHashMap<String, V>(max, 0.75f, true) {
+                override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, V>): Boolean =
+                    size > max
+            }
 
         /** 共有ホーム (= ターミナルの HOME `/root`) 配下の相対パス。ターミナルからは `~/.z2term/notifications.jsonl`。 */
         const val LOG_REL = ".z2term/notifications.jsonl"

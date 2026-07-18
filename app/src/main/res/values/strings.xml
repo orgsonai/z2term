@@ -383,7 +383,9 @@
     <string name="notif_capture_service_label">Notification detection (log)</string>
     <string name="settings_section_notif">Notification detection</string>
     <string name="settings_notif_capture">Capture notifications</string>
-    <string name="settings_notif_capture_desc">When on (and notification access is granted), incoming notifications are appended raw to ~/.z2term/notifications.jsonl. A generic hook — you decide what to log/filter/serve from the terminal. Fully local.</string>
+    <string name="settings_notif_capture_desc">When on (and notification access is granted), incoming notifications are detected. Whether they are written to a file is controlled by \"Save notification log\" below. A generic hook — you decide what to filter/serve from the terminal. Fully local.</string>
+    <string name="settings_notif_log">Save notification log</string>
+    <string name="settings_notif_log_desc">Write detected notifications to ~/.z2term/notifications.jsonl. When off, notifications are still detected but nothing is written. Repeated re-posts of the same notification are logged only once.</string>
     <string name="settings_notif_access_granted">Notification access: granted</string>
     <string name="settings_notif_access_missing">Notification access: not granted (tap below to grant)</string>
     <string name="settings_notif_grant">Grant notification access</string>

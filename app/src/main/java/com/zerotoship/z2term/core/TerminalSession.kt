@@ -302,6 +302,7 @@ class TerminalSession(
     fun setServersAutostartOnBoot(enabled: Boolean) { scope.launch { settings.setServersAutostartOnBoot(enabled) } }
     fun setServersLowPower(enabled: Boolean) { scope.launch { settings.setServersLowPower(enabled) } }
     fun setNotificationCaptureEnabled(enabled: Boolean) { scope.launch { settings.setNotificationCaptureEnabled(enabled) } }
+    fun setNotificationLogEnabled(enabled: Boolean) { scope.launch { settings.setNotificationLogEnabled(enabled) } }
     fun setNotificationLogFormat(template: String) { scope.launch { settings.setNotificationLogFormat(template) } }
     fun setNotificationLogPrepend(enabled: Boolean) { scope.launch { settings.setNotificationLogPrepend(enabled) } }
     fun setSystemEventCaptureEnabled(enabled: Boolean) { scope.launch { settings.setSystemEventCaptureEnabled(enabled) } }
@@ -409,6 +410,7 @@ class TerminalSession(
                             rows = rows,
                             cols = cols,
                             fallbackShell = spec.effectiveDefaultShell,
+                            loginShell = shell,
                             display = display,
                         )
                     }.getOrElse { e ->
@@ -426,6 +428,7 @@ class TerminalSession(
                             rows = rows,
                             cols = cols,
                             fallbackShell = spec.effectiveDefaultShell,
+                            loginShell = shell,
                             display = display,
                             exportDisplay = true,
                         )
@@ -438,6 +441,7 @@ class TerminalSession(
                         rows = rows,
                         cols = cols,
                         fallbackShell = spec.effectiveDefaultShell,
+                        loginShell = shell,
                         display = display,
                         exportDisplay = true,
                     )

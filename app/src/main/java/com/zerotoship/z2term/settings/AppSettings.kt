@@ -175,6 +175,12 @@ class AppSettings(private val context: Context) {
          */
         val notificationCaptureEnabled: Boolean = DEFAULT_NOTIFICATION_CAPTURE,
         /**
+         * 通知ログを **ファイルに保存する**か。OFF にすると検知 (常駐) は続けたまま
+         * `~/.z2term/notifications.jsonl` へは一切書かない (検知だけ使いたい場合・
+         * 保存容量やプライバシーを気にする場合)。既定 ON = 従来どおり保存する。
+         */
+        val notificationLogEnabled: Boolean = DEFAULT_NOTIFICATION_LOG,
+        /**
          * 通知ログの出力フォーマット **テンプレート**。ユーザーが自由に編集する。プレースホルダ
          * `{time}` `{ts}` `{pkg}` `{app}` `{title}` `{text}` `{category}` `{key}` と、改行 `\n`・
          * タブ `\t`・1 行化 `{text1}` `{title1}` (改行→空白) が使える。**空文字なら JSONL** (機械可読・既定)。
@@ -257,6 +263,7 @@ class AppSettings(private val context: Context) {
             serversAutostartOnBoot = p[KEY_SERVERS_AUTOSTART] ?: DEFAULT_SERVERS_AUTOSTART,
             serversLowPower = p[KEY_SERVERS_LOW_POWER] ?: DEFAULT_SERVERS_LOW_POWER,
             notificationCaptureEnabled = p[KEY_NOTIFICATION_CAPTURE] ?: DEFAULT_NOTIFICATION_CAPTURE,
+            notificationLogEnabled = p[KEY_NOTIFICATION_LOG] ?: DEFAULT_NOTIFICATION_LOG,
             notificationLogFormat = p[KEY_NOTIFICATION_LOG_FORMAT] ?: DEFAULT_NOTIFICATION_LOG_FORMAT,
             notificationLogPrepend = p[KEY_NOTIFICATION_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND,
             systemEventCaptureEnabled = p[KEY_SYSTEM_EVENT_CAPTURE] ?: DEFAULT_SYSTEM_EVENT_CAPTURE,
@@ -267,6 +274,10 @@ class AppSettings(private val context: Context) {
 
     suspend fun setNotificationCaptureEnabled(enabled: Boolean) {
         context.dataStore.edit { it[KEY_NOTIFICATION_CAPTURE] = enabled }
+    }
+
+    suspend fun setNotificationLogEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_NOTIFICATION_LOG] = enabled }
     }
 
     suspend fun setNotificationLogFormat(template: String) {
@@ -518,6 +529,7 @@ class AppSettings(private val context: Context) {
         private val KEY_SERVERS_AUTOSTART = booleanPreferencesKey("servers_autostart_on_boot")
         private val KEY_SERVERS_LOW_POWER = booleanPreferencesKey("servers_low_power")
         private val KEY_NOTIFICATION_CAPTURE = booleanPreferencesKey("notification_capture_enabled")
+        private val KEY_NOTIFICATION_LOG = booleanPreferencesKey("notification_log_enabled")
         private val KEY_NOTIFICATION_LOG_FORMAT = stringPreferencesKey("notification_log_format")
         private val KEY_SYSTEM_EVENT_CAPTURE = booleanPreferencesKey("system_event_capture_enabled")
         private val KEY_SYSTEM_EVENT_LOG_FORMAT = stringPreferencesKey("system_event_log_format")
@@ -526,6 +538,8 @@ class AppSettings(private val context: Context) {
 
         /** 通知検知は既定 OFF (明示 opt-in + OS の通知アクセス許可が要る)。 */
         const val DEFAULT_NOTIFICATION_CAPTURE = false
+        /** 通知ログのファイル保存は既定 ON (検知が ON のときだけ効く。OFF で検知のみ)。 */
+        const val DEFAULT_NOTIFICATION_LOG = true
         /** 通知ログのフォーマットテンプレート。空文字 = JSONL (機械可読・既定)。 */
         const val DEFAULT_NOTIFICATION_LOG_FORMAT = ""
 

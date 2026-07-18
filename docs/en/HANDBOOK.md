@@ -194,6 +194,10 @@ You can turn your phone into an SSH server and log in from a PC.
 - For a temporary change, you can also specify it like `sshd -p 50000`.
 - Note: the port number must be **1024 or higher** (lower ports are blocked by phone restrictions).
 
+**Keeping it running**
+- Register `sshd` (or `sshd --lan` to expose it to the LAN) under ⚙ Settings → "Resident servers" and it keeps running without opening the app.
+- When started as a resident server it automatically runs in **foreground (stay-alive) mode** even without `-D` (0.8.165; before that it was restarted every few seconds, so connections were refused or dropped shortly after connecting).
+
 > Tip: `/usr/sbin/sshd` (OpenSSH) does not work with this app's mechanism. **Always type `sshd`**
 > (a lightweight dropbear runs underneath).
 
@@ -253,7 +257,7 @@ Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←**
 | Font size | 4–32 (also changeable by pinching) |
 | Scrollback lines | How many lines you can scroll back through |
 | Distro | Alpine / Ubuntu / Arch / Kali |
-| Login shell | zsh / bash / sh |
+| Login shell | zsh / bash / sh — **the same shell is used for the terminal tab, SSH logins and the GUI's inner terminal** (the distro's `/etc/passwd` login shell is updated too). If the chosen shell is not installed in that distro, the default shell is used as before |
 | Keyboard style | Simple / 4-direction flick |
 | Keyboard position (landscape) | Left / bottom / right — effective only in landscape |
 | Side keyboard width (landscape) | Slider 280–700 dp |
@@ -267,7 +271,7 @@ Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←**
 | Clear cache | Sweeps the package/build caches that pile up inside the OS (pacman, apt, apk, `~/.cache`, …) plus the app's temp files. Tapping it opens a confirmation that **itemizes what and how much** will be deleted. Installed packages, settings and files you made are not removed |
 | Reset settings | Returns **every setting to its defaults** — theme, font, keyboard, execution engine (back to the default **z2root**), saved servers, unlocked hidden features and so on. Tapping it opens a confirmation (cannot be undone). **The OS itself (installed packages and files you made) is not removed** |
 | Resident servers | Register any server (sshd / http / smb, …) as a **start command** and keep it running in the background. Turn on "auto-start on boot" and it **launches right after the device boots — without opening the app**. Stop them all from the "Stop servers" notification action or this screen. See below |
-| Notification detection | Grant the OS "notification access" and turn it on, and incoming notifications are appended to `~/.z2term/notifications.jsonl` (a generic hook). **The output format is fully customizable** (a template of `{time}` `{app}` `{title}` `{text}` … ; presets: readable / one-line / TSV / JSONL). Turn on **"Newest at the top"** to prepend new entries to the head of the file instead of appending at the end. What you record / filter / serve is **up to you on the terminal side** (e.g. `tail -f`, or serve it with a resident server). Default off, fully local |
+| Notification detection | Grant the OS "notification access" and turn it on, and incoming notifications are appended to `~/.z2term/notifications.jsonl` (a generic hook). **The output format is fully customizable** (a template of `{time}` `{app}` `{title}` `{text}` … ; presets: readable / one-line / TSV / JSONL). Turn on **"Newest at the top"** to prepend new entries to the head of the file instead of appending at the end. What you record / filter / serve is **up to you on the terminal side** (e.g. `tail -f`, or serve it with a resident server). Turn **"Save notification log"** off to keep detecting without writing anything to the file (detection only). A notification that is re-posted many times is **logged only once**. Default off, fully local |
 | System event detection | Turn it on and screen on/off, unlock, charge start/stop, battery low/okay, and Wi-Fi connect/disconnect are appended to `~/.z2term/events.jsonl` (a generic automation trigger; sibling of notification detection). **The output format is customizable** (`{time}` `{event}` `{level}` `{ssid}`; presets: one-line / TSV / JSONL). Turn on **"Newest at the top"** to prepend new entries to the head of the file. Build automations like "when battery drops below 20%…" or "when charging starts…" **terminal-side** (e.g. a script reading `tail -f ~/.z2term/events.jsonl`). Default off, fully local, shows an ongoing notification while active (Wi-Fi SSID is blank without location permission) |
 
 ### Resident servers (run without opening the app)

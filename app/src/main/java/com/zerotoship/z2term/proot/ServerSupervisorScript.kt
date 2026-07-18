@@ -42,6 +42,10 @@ object ServerSupervisorScript {
         sb.append("#!/bin/sh\n")
         sb.append("# z2term server supervisor (auto-generated). Do not edit by hand.\n")
         sb.append("STATUS_DIR=").append(STATUS_DIR).append('\n')
+        // 常駐サーバーとして起動されたことを子プロセスへ伝える。sshd wrapper のように
+        // 「既定では自分を背景化して即 exit する」コマンドは、これを見て前景常駐へ切り替える
+        // (背景化されると supervisor が落ちたと誤認して再起動ループになる)。
+        sb.append("Z2_SUPERVISED=1\nexport Z2_SUPERVISED\n")
         sb.append("mkdir -p \"\$STATUS_DIR\" 2>/dev/null || true\n")
         sb.append("rm -f \"\$STATUS_DIR\"/*.status 2>/dev/null || true\n\n")
         sb.append(

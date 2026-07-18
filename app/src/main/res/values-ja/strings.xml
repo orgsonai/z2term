@@ -383,7 +383,9 @@
     <string name="notif_capture_service_label">通知検知（ログ）</string>
     <string name="settings_section_notif">通知検知</string>
     <string name="settings_notif_capture">通知を検知する</string>
-    <string name="settings_notif_capture_desc">ON かつ「通知アクセス」許可があるとき、届いた通知を生のまま ~/.z2term/notifications.jsonl へ追記します。汎用の入口で、何をログ/絞り込み/配信するかはターミナル側で自由に。完全ローカル。</string>
+    <string name="settings_notif_capture_desc">ON かつ「通知アクセス」許可があるとき、届いた通知を検知します。ファイルに残すかは下の「通知ログを保存する」で選べます。汎用の入口で、絞り込み/配信はターミナル側で自由に。完全ローカル。</string>
+    <string name="settings_notif_log">通知ログを保存する</string>
+    <string name="settings_notif_log_desc">検知した通知を ~/.z2term/notifications.jsonl へ書き出します。OFF にすると検知だけ行い、ファイルには一切書きません。同じ通知が何度も再表示されても 1 行だけ記録します。</string>
     <string name="settings_notif_access_granted">通知アクセス: 許可済み</string>
     <string name="settings_notif_access_missing">通知アクセス: 未許可（下のボタンから許可）</string>
     <string name="settings_notif_grant">通知アクセスを許可</string>

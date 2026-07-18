@@ -21,6 +21,9 @@ const val Z2TERM_SSHD_PORT = 2222
  *    → それも無ければ既定 ([Z2TERM_SSHD_PORT]) の優先順で決定
  *  - `-f <config>` で別の設定ファイルを参照、`-D`/`-d` で前景起動、`-t` で設定確認
  *  - dropbear 未導入なら自動 install、既存 dropbear を確実に停止してから起動
+ *  - 常駐サーバー (supervisor) 配下 (`Z2_SUPERVISED=1`) では `-D` 相当の**前景常駐**に自動切替。
+ *    背景化して即 exit すると supervisor が再起動を繰り返し、そのたび dropbear が kill されて
+ *    接続できなくなるため
  *
  * **既定の安全側設定 (法的対応パッチ):**
  *  - **`127.0.0.1` のみで bind** (LAN/WAN に公開しない)。端末の他アプリ間 SSH に限定。
@@ -132,6 +135,14 @@ fun dropbearBootstrapScript(
         |  esac
         |done
         |
+        |# 常駐サーバー (supervisor) 配下では **必ず前景で走らせる**。
+        |# dropbear を背景へ逃がして自分が exit すると、supervisor が「サーバーが落ちた」と
+        |# 判断して数秒ごとに再起動し、そのたび下の停止処理が既存 dropbear を kill するため
+        |# 接続が張れない/切られる (= LAN 公開しても繋がらない主因)。
+        |if [ -z "${d}FOREGROUND" ] && [ "${d}{Z2_SUPERVISED:-0}" = "1" ]; then
+        |  FOREGROUND=1
+        |fi
+        |
         |# ポート決定: -p / -o Port=N  →  sshd_config の Port  →  既定
         |if [ -z "${d}PORT" ] && [ -r "${d}CONFIG" ]; then
         |  PORT=${d}(awk 'tolower(${d}1)=="port" && ${d}2 ~ /^[0-9]+${d}/ {print ${d}2; exit}' "${d}CONFIG")
@@ -208,6 +219,11 @@ fun dropbearBootstrapScript(
         |
         |if [ -n "${d}FOREGROUND" ]; then
         |  echo "${strings.foregroundStart}: ${d}BIND_SPEC"
+        |  # 前景では exec で置き換わるため、鍵未設定の案内はここで先に出す。
+        |  if ! [ -s /root/.ssh/authorized_keys ] && ! [ -s ~/.ssh/authorized_keys ]; then
+        |    echo "${strings.authKeysHint}"
+        |    echo "${strings.authKeysExample}"
+        |  fi
         |  exec dropbear -F -p "${d}BIND_SPEC" -R -E ${d}SEC_FLAGS
         |fi
         |

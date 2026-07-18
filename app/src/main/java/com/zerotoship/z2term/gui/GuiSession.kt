@@ -125,6 +125,8 @@ class GuiSession(
                     command = "/usr/local/bin/z2gui",
                     rows = 24,
                     cols = 80,
+                    // 設定「ログインシェル」を GUI 内ターミナルにも効かせる (Z2_LOGIN_SHELL 経由)。
+                    loginShell = snap.loginShell,
                     extraArgs = startArgs,
                     guiTerminal = guiTerminal,
                     display = display,  // z2gui へ Z2_DISPLAY/Z2_RFBPORT として渡す (このタブ専用の :N)

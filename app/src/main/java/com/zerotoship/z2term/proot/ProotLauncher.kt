@@ -196,6 +196,14 @@ class ProotLauncher(private val context: Context) {
         rows: Int = 24,
         cols: Int = 80,
         fallbackShell: String = "/bin/sh",
+        /**
+         * 設定「ログインシェル」の値 (空なら未指定 = 従来どおり distro 既定)。
+         *
+         * 端末タブの `command` だけでなく、**SSH ログイン**と **GUI 内ターミナル**にも同じシェルを
+         * 使わせるために使う ([ensureRootLoginShell] で rootfs の `/etc/passwd` を更新 +
+         * `Z2_LOGIN_SHELL` / `SHELL` を環境変数に流す)。rootfs に無いシェルなら無視される。
+         */
+        loginShell: String = "",
         extraArgs: List<String> = emptyList(),
         guiTerminal: GuiTerminal = GuiTerminal.XTERM,
         /**
@@ -237,16 +245,24 @@ class ProotLauncher(private val context: Context) {
         // 指定シェルが rootfs に存在しなければ fallback → /bin/sh の順に解決。
         // (Ubuntu base に zsh が無い、等で起動不能になるのを防ぐ)
         val resolvedCommand = resolveShell(rootfs, command, fallbackShell)
+        // 設定「ログインシェル」を、この rootfs で実際に起動できる形へ解決する
+        // (未導入なら distro 既定 → /bin/sh へフォールバック)。空なら未指定。
+        val userLoginShell =
+            if (loginShell.isBlank()) "" else resolveShell(rootfs, loginShell, fallbackShell)
         // 環境変数 SHELL は必ず「実体シェル」を指すようにする。command が z2gui の
         // ようにシェル以外だと、子プロセス (xterm 等) が $SHELL を起動して再帰・誤動作
         // する (M8-3 で Xvnc が即死した罠の真因)。command がシェルならそのまま使う。
-        val shellForEnv = resolveLoginShell(rootfs, resolvedCommand, fallbackShell)
+        // command がシェルでないときは設定のログインシェルを最優先で採用する。
+        val shellForEnv =
+            resolveLoginShell(rootfs, resolvedCommand, userLoginShell.ifBlank { fallbackShell })
 
         // 共有ホーム作成 + libtalloc 配置 (talloc/loader は proot 専用。z2root では不要なので省く)
         sharedHomeDir.mkdirs()
         if (!useZ2root) ensureProotLibs()
         // z2root のときは accept→accept4 シムを rootfs に配置し、後で LD_PRELOAD する。
         if (useZ2root) ensureAcceptShim(rootfs)
+        // 設定のログインシェルを /etc/passwd(root) にも書き、SSH ログインにも効かせる。
+        ensureRootLoginShell(rootfs, userLoginShell)
         // 再起動後もコマンド履歴を辿れるよう、shell rc に履歴設定を流し込む。
         ensureShellHistoryConfig(rootfs)
         // セッション復元の cwd 用に、プロンプト毎 OSC 7 (cwd 通知) を出すフックを仕込む。
@@ -361,6 +377,9 @@ class ProotLauncher(private val context: Context) {
             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
             "TMPDIR=/tmp",
             "SHELL=$shellForEnv",
+            // GUI 内ターミナル (z2gui) 用。z2gui は SHELL を自分自身に上書きされる可能性が
+            // あるため SHELL を実体シェルへ張り直すが、その候補としてこれを最優先で見る。
+            "Z2_LOGIN_SHELL=$shellForEnv",
             // コマンド履歴を充実化。bash は PROMPT_COMMAND='history -a' で 1 コマンド毎に
             // 即 .bash_history へ追記 → proot が SIGKILL されても履歴が残る。
             // (zsh 用の INC_APPEND_HISTORY 等は ensureShellHistoryConfig が rc に書く)
@@ -408,6 +427,8 @@ class ProotLauncher(private val context: Context) {
         rows: Int = 24,
         cols: Int = 80,
         fallbackShell: String = "/bin/sh",
+        /** 設定「ログインシェル」。proot 経路と同じく `/etc/passwd`(root) に反映して SSH にも効かせる。 */
+        loginShell: String = "",
         guiTerminal: GuiTerminal = GuiTerminal.XTERM,
         display: Int? = null
     ): PtyProcess {
@@ -417,6 +438,10 @@ class ProotLauncher(private val context: Context) {
 
         // PRoot 経路と同じ rootfs セットアップ (proot libs / loader は chroot では不要)。
         sharedHomeDir.mkdirs()
+        ensureRootLoginShell(
+            rootfs,
+            if (loginShell.isBlank()) "" else resolveShell(rootfs, loginShell, fallbackShell)
+        )
         ensureShellHistoryConfig(rootfs)
         ensureOsc7CwdConfig(rootfs)
         ensureSshdWrapper(rootfs)
@@ -599,6 +624,44 @@ class ProotLauncher(private val context: Context) {
         }
         // どれも見つからなければ要求値のまま (proot 側でエラーにさせる)
         return requested
+    }
+
+    /**
+     * rootfs の `/etc/passwd` にある **root のログインシェル**を [shell] に揃える (= `chsh` 相当)。
+     *
+     * 設定「ログインシェル」はアプリの端末タブ (エンジンが直接 exec する) にしか効かず、
+     * **SSH ログイン** (dropbear は `/etc/passwd` の shell を起動する) や GUI 内ターミナルでは
+     * distro 既定 (bash 等) のままだった。通常の Linux なら利用者が `chsh` でやることを、
+     * 設定 1 箇所で全入口に効かせるためここで代行する。
+     *
+     * [shell] が空 / rootfs に存在しないときは何もしない (既存の passwd を壊さない)。
+     */
+    private fun ensureRootLoginShell(rootfs: File, shell: String) {
+        if (shell.isBlank() || !shellExists(rootfs, shell)) return
+        runCatching {
+            val passwd = File(rootfs, "etc/passwd")
+            if (!passwd.isFile) return
+            var changed = false
+            val updated = passwd.readLines().map { line ->
+                val f = line.split(':')
+                if (f.size < 7 || f[0] != "root" || f[6] == shell) line
+                else {
+                    changed = true
+                    (f.subList(0, 6) + shell).joinToString(":")
+                }
+            }
+            if (changed) {
+                passwd.writeText(updated.joinToString("\n") + "\n")
+                Log.i(TAG, "root login shell set to $shell")
+            }
+            // `su` / `chsh` が「正規のシェル」として認めるよう /etc/shells にも載せる。
+            val shells = File(rootfs, "etc/shells")
+            val listed = if (shells.isFile) shells.readLines().map { it.trim() } else emptyList()
+            if (shell !in listed) {
+                shells.parentFile?.mkdirs()
+                shells.appendText(shell + "\n")
+            }
+        }.onFailure { Log.w(TAG, "Failed to set root login shell: ${it.message}") }
     }
 
     /**
