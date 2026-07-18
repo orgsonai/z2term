@@ -11,6 +11,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.media.AudioManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
@@ -148,18 +150,27 @@ class SystemEventService : Service() {
         bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY).takeIf { it in 0..100 }
     }.getOrNull()
 
-    /** Wi‑Fi の接続/切断を状態変化として 1 回だけ発火 (連続する同一状態は抑制)。 */
+    /**
+     * Wi‑Fi の接続/切断を状態変化として 1 回だけ発火 (連続する同一状態は抑制)。
+     *
+     * 接続判定は `ConnectivityManager` で行う。`WifiManager.connectionInfo` は Android 12+ で
+     * **呼び出し元がフォアグラウンドでないと無効値 (networkId = -1) を返す**ため、画面消灯中など
+     * まさにイベントを拾いたい場面で「常に未接続」に見え、`wifi_connected` を取りこぼしていた
+     * (`z2-state` 側で実機再現。同じ理由でそちらも ConnectivityManager へ寄せてある)。
+     * SSID だけは `WifiInfo` 経由でしか取れず位置情報権限も要るので、取れなければ空文字。
+     */
     private fun handleWifi() {
-        val wm = applicationContext.getSystemService(WIFI_SERVICE) as? WifiManager ?: return
-        @Suppress("DEPRECATION")
-        val info = runCatching { wm.connectionInfo }.getOrNull()
-        // networkId が有効なら接続とみなす。SSID は位置情報権限が無いと "<unknown ssid>" になる。
-        val connected = info != null && info.networkId != -1
+        val cm = applicationContext.getSystemService(ConnectivityManager::class.java)
+        val connected = runCatching {
+            val net = cm?.activeNetwork ?: return@runCatching false
+            cm.getNetworkCapabilities(net)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        }.getOrDefault(false)
         if (connected == lastWifiConnected) return
         lastWifiConnected = connected
         if (connected) {
+            val wm = applicationContext.getSystemService(WIFI_SERVICE) as? WifiManager
             @Suppress("DEPRECATION")
-            val raw = info?.ssid.orEmpty()
+            val raw = runCatching { wm?.connectionInfo?.ssid }.getOrNull().orEmpty()
             val ssid = raw.trim('"').let { if (it.isBlank() || it == "<unknown ssid>") "" else it }
             emit("wifi_connected", ssid = ssid)
         } else {

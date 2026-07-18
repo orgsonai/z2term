@@ -39,6 +39,8 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
 ## 3. Trigger reference (events.jsonl)
 
 - Location: `~/.z2term/events.jsonl` (one JSON per line, append-only).
+- **Size cap**: past 1 MB the file is moved to `events.jsonl.1` and a fresh one starts (one generation kept).
+  If you need to keep history forever, have your macro copy lines into your own file (just `tail -F` and append).
 - Default fields: `ts` (epoch ms, integer), `time` (ISO8601 string), `event` (kind), and sometimes `level` (battery %), `ssid` (Wi‑Fi name).
 - The output format is templatable in Settings, but **for macros keep the default JSONL** — it's the easiest to parse.
 
