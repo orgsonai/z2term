@@ -336,6 +336,9 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-media [playpause\|play\|pause\|next\|previous\|stop]` | Control media playback (default playpause) |
 | `z2-volume <up\|down\|mute\|unmute\|N\|N%>` | Adjust media volume (prints the resulting current/max) |
 | `z2-sensor [light\|accel\|proximity]` | Read a sensor once as JSON (light/accelerometer/proximity; default light) |
+| `z2-state [key]` | **Current device state** as JSON; with a key, just that value (`screen` `locked` `idle` `charging` `plug` `level` `wifi` `ssid` `ringer` `airplane` `headset` `volume` `volume_max`). E.g. `[ "$(z2-state charging)" = "true" ]` |
+| `z2-alarm at\|daily HH:MM [name]` | **Time trigger**: writes an `alarm` event into `events.jsonl` at that time (`in 5m` / `list` / `cancel <id\|name\|all>` too). Unlike cron it fires during Doze (may be a few minutes late) |
+| `z2-macro list\|install <name>` | **Bundled macro samples** into `~/.z2term/macros/` (`show` / `run` / `dir` too) — a starting point for your first macro |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | Fire an arbitrary Android Intent (launch apps, open settings, set alarms, … see `docs/en/MACRO-GUIDE.md`) |
 
 > Combine "trigger (event detection) → decide (shell) → action (z2-*)" to automate your phone (macros). See **`docs/en/MACRO-GUIDE.md`** for how — you can also feed it to an AI and have it generate the macro for you.

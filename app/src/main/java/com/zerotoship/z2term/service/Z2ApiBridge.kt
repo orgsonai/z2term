@@ -1,6 +1,7 @@
 package com.zerotoship.z2term.service
 
 import android.annotation.SuppressLint
+import android.app.KeyguardManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.ClipData
@@ -15,12 +16,16 @@ import android.hardware.SensorManager
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
 import android.media.AudioManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
+import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.FileObserver
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -197,11 +202,163 @@ object Z2ApiBridge {
             "volume" -> volumeSet(context, args.getOrNull(0).orEmpty())
             "intent" -> { doIntent(context, args); null }
             "sensor" -> sensorRead(context, args.getOrNull(0).orEmpty())
+            "alarm" -> alarmCmd(context, args)
+            "state" -> stateRead(context, args.getOrNull(0).orEmpty())
             else -> throw IllegalArgumentException("unknown cmd: $cmd")
         }
     }
 
     // --- 各機能 ---
+
+    /**
+     * 端末の**現在の状態**を 1 回で返す (`z2-state`)。
+     *
+     * events.jsonl は「変化した瞬間」しか流れてこないので、マクロが「今どうなっているか」で
+     * 分岐したいとき (画面が点いていれば通知しない、充電中なら重い処理を回す…) に必要になる。
+     * これまでは `z2-battery` しか現在値を取る手段が無かった。
+     *
+     * 引数なしなら全項目を **フラットな JSON** で返す (入れ子にしないのは jq 無しの sed/grep でも
+     * 拾いやすくするため)。[key] を渡すとその値だけを生で返すので、`[ "$(z2-state charging)" = "true" ]`
+     * のようにそのまま条件式に書ける。すべて**追加権限なし**で取れるものだけ。
+     */
+    private fun stateRead(context: Context, key: String): String {
+        val pm = context.getSystemService(PowerManager::class.java)
+        val km = context.getSystemService(KeyguardManager::class.java)
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+
+        val screen = if (pm?.isInteractive == true) "on" else "off"
+        val locked = km?.isKeyguardLocked == true
+        val idle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) pm?.isDeviceIdleMode == true else false
+
+        // 充電状態はスティッキーな ACTION_BATTERY_CHANGED から取る (plug 種別まで分かる)。
+        val batt = runCatching {
+            context.registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        }.getOrNull()
+        val lvl = batt?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = batt?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val level = if (lvl >= 0 && scale > 0) lvl * 100 / scale else -1
+        val plugged = batt?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
+        val plug = when (plugged) {
+            BatteryManager.BATTERY_PLUGGED_AC -> "ac"
+            BatteryManager.BATTERY_PLUGGED_USB -> "usb"
+            BatteryManager.BATTERY_PLUGGED_WIRELESS -> "wireless"
+            else -> "none"
+        }
+        val charging = plugged != 0
+
+        // Wi-Fi 接続の有無は ConnectivityManager で見る。`WifiManager.connectionInfo` は
+        // Android 12+ で**呼び出し元がフォアグラウンドでないと無効値** (networkId=-1) を返すため、
+        // マクロが多用する「バックグラウンドからの問い合わせ」では常に未接続に見えてしまう。
+        // NetworkCapabilities は ACCESS_NETWORK_STATE (宣言のみで付与) だけで、その制限を受けない。
+        val cm = context.getSystemService(ConnectivityManager::class.java)
+        val wifiConnected = runCatching {
+            val net = cm?.activeNetwork ?: return@runCatching false
+            cm.getNetworkCapabilities(net)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        }.getOrDefault(false)
+        // SSID は WifiInfo からしか取れず、位置情報権限とフォアグラウンド制限の両方が掛かる。
+        // 取れないときは空文字 (events.jsonl の `ssid` と同じ扱い)。
+        val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        @Suppress("DEPRECATION")
+        val ssid = runCatching { wm?.connectionInfo?.ssid }.getOrNull().orEmpty().trim('"')
+            .let { if (it.isBlank() || it == "<unknown ssid>") "" else it }
+
+        val ringer = when (am?.ringerMode) {
+            AudioManager.RINGER_MODE_SILENT -> "silent"
+            AudioManager.RINGER_MODE_VIBRATE -> "vibrate"
+            AudioManager.RINGER_MODE_NORMAL -> "normal"
+            else -> ""
+        }
+        val airplane = runCatching {
+            android.provider.Settings.Global.getInt(
+                context.contentResolver, android.provider.Settings.Global.AIRPLANE_MODE_ON, 0
+            ) == 1
+        }.getOrDefault(false)
+        // 有線ヘッドセット/ヘッドホン/USB ヘッドセットのいずれかが挿さっているか。
+        val headset = runCatching {
+            am?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)?.any {
+                it.type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                    it.type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                    it.type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET
+            } == true
+        }.getOrDefault(false)
+        val volume = am?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: -1
+        val volumeMax = am?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: -1
+
+        // key 指定は生値を返す (シェルの比較にそのまま使えるように)。
+        if (key.isNotBlank()) {
+            return when (key) {
+                "screen" -> screen
+                "locked" -> locked.toString()
+                "idle" -> idle.toString()
+                "charging" -> charging.toString()
+                "plug" -> plug
+                "level" -> level.toString()
+                "wifi" -> wifiConnected.toString()
+                "ssid" -> ssid
+                "ringer" -> ringer
+                "airplane" -> airplane.toString()
+                "headset" -> headset.toString()
+                "volume" -> volume.toString()
+                "volume_max" -> volumeMax.toString()
+                else -> throw IllegalArgumentException("state: unknown key: $key")
+            }
+        }
+        return JSONObject().apply {
+            put("screen", screen)
+            put("locked", locked)
+            put("idle", idle)
+            put("charging", charging)
+            put("plug", plug)
+            put("level", level)
+            put("wifi", wifiConnected)
+            put("ssid", ssid)
+            put("ringer", ringer)
+            put("airplane", airplane)
+            put("headset", headset)
+            put("volume", volume)
+            put("volume_max", volumeMax)
+        }.toString()
+    }
+
+    /**
+     * 時刻トリガー (`z2-alarm`)。サブコマンドは CLI 側で正規化済みで、ここには
+     * `once <hour> <minute> <name>` / `at <epochMillis> <name>` / `daily <hour> <minute> <name>` /
+     * `list` / `cancel <key>` が来る。「今日の HH:MM、過ぎていれば明日」の判定は Calendar が要るので
+     * sh 側でなくここで行う (`in 5m` のような相対指定だけ sh 側で epoch に直して `at` で来る)。
+     */
+    private fun alarmCmd(context: Context, args: List<String>): String = when (args.getOrNull(0)) {
+        "once" -> {
+            val h = args.getOrNull(1)?.toIntOrNull() ?: -1
+            val m = args.getOrNull(2)?.toIntOrNull() ?: -1
+            if (h !in 0..23 || m !in 0..59) throw IllegalArgumentException("alarm: bad HH:MM")
+            AlarmScheduler.add(
+                context, args.getOrNull(3).orEmpty(), AlarmScheduler.KIND_ONCE,
+                AlarmScheduler.nextDailyAt(h, m), -1, -1
+            )
+        }
+        "at" -> {
+            val at = args.getOrNull(1)?.toLongOrNull()
+                ?: throw IllegalArgumentException("alarm: bad time")
+            if (at <= System.currentTimeMillis()) throw IllegalArgumentException("alarm: time is in the past")
+            AlarmScheduler.add(context, args.getOrNull(2).orEmpty(), AlarmScheduler.KIND_ONCE, at, -1, -1)
+        }
+        "daily" -> {
+            val h = args.getOrNull(1)?.toIntOrNull() ?: -1
+            val m = args.getOrNull(2)?.toIntOrNull() ?: -1
+            if (h !in 0..23 || m !in 0..59) throw IllegalArgumentException("alarm: bad HH:MM")
+            AlarmScheduler.add(
+                context, args.getOrNull(3).orEmpty(), AlarmScheduler.KIND_DAILY,
+                AlarmScheduler.nextDailyAt(h, m), h, m
+            )
+        }
+        "list" -> AlarmScheduler.listJson(context)
+        "cancel" -> {
+            val key = args.getOrNull(1).orEmpty()
+            if (key.isBlank()) throw IllegalArgumentException("alarm: cancel needs <id|name|all>")
+            "{\"cancelled\":${AlarmScheduler.cancel(context, key)}}"
+        }
+        else -> throw IllegalArgumentException("alarm: unknown subcommand")
+    }
 
     // POST_NOTIFICATIONS 未許可は下の runCatching で握って Log に流すので、lint の権限チェックは抑止する。
     @SuppressLint("MissingPermission")

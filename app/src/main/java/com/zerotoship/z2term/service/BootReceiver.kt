@@ -22,6 +22,11 @@ class BootReceiver : BroadcastReceiver() {
             action != "android.intent.action.QUICKBOOT_POWERON"
         ) return
 
+        // AlarmManager の予約は再起動で消えるので、保存済みの時刻トリガーを貼り直す
+        // (設定に依存しない。仕掛けた本人が消すまで生き続けるのが期待挙動)。
+        runCatching { AlarmScheduler.rescheduleAll(context) }
+            .onFailure { Log.w("BootReceiver", "alarm reschedule failed", it) }
+
         val settings = runBlocking { AppSettings(context).flow.first() }
 
         // システムイベント検知が ON なら、アプリを開かずに常駐 FG サービスを起動する。

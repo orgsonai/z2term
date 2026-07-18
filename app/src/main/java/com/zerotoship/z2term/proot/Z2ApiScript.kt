@@ -157,6 +157,71 @@ fun z2ApiScripts(): Map<String, String> {
         |exec /usr/local/bin/z2api 1 sensor "${d}{1:-light}"
     """.trimMargin() + "\n"
 
+    val state = """
+        |#!/bin/sh
+        |# z2-state            … 今の端末の状態をまとめて JSON で返す
+        |# z2-state <キー>     … その値だけを生で返す (条件式にそのまま書ける)
+        |# キー: screen(on/off) locked idle charging plug(ac/usb/wireless/none) level
+        |#       wifi ssid ringer(normal/vibrate/silent) airplane headset volume volume_max
+        |# 例: [ "${d}(z2-state charging)" = "true" ] && echo 充電中
+        |exec /usr/local/bin/z2api 1 state "${d}1"
+    """.trimMargin() + "\n"
+
+    val alarm = """
+        |#!/bin/sh
+        |# z2-alarm at HH:MM [名前]     … 次の HH:MM に 1 回 (今日を過ぎていれば明日)
+        |# z2-alarm daily HH:MM [名前]  … 毎日 HH:MM
+        |# z2-alarm in <N|Ns|Nm|Nh> [名前] … N 秒/分/時間後に 1 回
+        |# z2-alarm list                … 予約一覧 (JSON)
+        |# z2-alarm cancel <id|名前|all> … 取り消し
+        |# 発火すると ~/.z2term/events.jsonl に {"event":"alarm","name":…} が 1 行増える。
+        |# Doze 中でも起きるが、省電力のため発火が数分ずれることがある。
+        |usage() {
+        |  echo "usage: z2-alarm at HH:MM [name] | daily HH:MM [name] | in <N[s|m|h]> [name] | list | cancel <id|name|all>" >&2
+        |  exit 1
+        |}
+        |# "HH:MM" を hour/minute に割る。数値化はアプリ側 (10進で解釈) に任せるので、
+        |# ここでは形が HH:MM かどうかだけ見る (sh の $(()) は先頭 0 を 8 進と誤解する実装があるため触らない)。
+        |split_hm() {
+        |  case "${d}1" in
+        |    [0-9]*:[0-9]*) ;;
+        |    *) usage ;;
+        |  esac
+        |  hour=${d}{1%%:*}; minute=${d}{1##*:}
+        |}
+        |case "${d}1" in
+        |  at)
+        |    [ ${d}# -ge 2 ] || usage
+        |    split_hm "${d}2"
+        |    exec /usr/local/bin/z2api 1 alarm once "${d}hour" "${d}minute" "${d}3" ;;
+        |  daily)
+        |    [ ${d}# -ge 2 ] || usage
+        |    split_hm "${d}2"
+        |    exec /usr/local/bin/z2api 1 alarm daily "${d}hour" "${d}minute" "${d}3" ;;
+        |  in)
+        |    [ ${d}# -ge 2 ] || usage
+        |    spec="${d}2"
+        |    num=${d}{spec%[smh]}
+        |    # 先頭 0 を落とす ("05" を 8 進数と解釈する $(()) 実装があるため)
+        |    num=${d}(printf '%s' "${d}num" | sed 's/^0*//')
+        |    [ -n "${d}num" ] || num=0
+        |    case "${d}spec" in
+        |      *h) secs=${d}((num*3600)) ;;
+        |      *m) secs=${d}((num*60)) ;;
+        |      *s|*[0-9]) secs=${d}num ;;
+        |      *) usage ;;
+        |    esac
+        |    [ "${d}secs" -gt 0 ] 2>/dev/null || usage
+        |    now=${d}(date +%s) || { echo "z2-alarm: date が使えません" >&2; exit 1; }
+        |    exec /usr/local/bin/z2api 1 alarm at "${d}((  (now+secs)*1000  ))" "${d}3" ;;
+        |  list)   exec /usr/local/bin/z2api 1 alarm list ;;
+        |  cancel)
+        |    [ ${d}# -ge 2 ] || usage
+        |    exec /usr/local/bin/z2api 1 alarm cancel "${d}2" ;;
+        |  *) usage ;;
+        |esac
+    """.trimMargin() + "\n"
+
     return linkedMapOf(
         "z2api" to dispatcher,
         "z2-notify" to notify,
@@ -172,5 +237,7 @@ fun z2ApiScripts(): Map<String, String> {
         "z2-volume" to volume,
         "z2-intent" to intent,
         "z2-sensor" to sensor,
+        "z2-state" to state,
+        "z2-alarm" to alarm,
     )
 }

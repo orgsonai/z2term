@@ -290,6 +290,8 @@ class ProotLauncher(private val context: Context) {
         ensureZ2HelpScript(rootfs)
         // `z2scan`: 自端末/localhost 限定の脆弱性試験 (自己診断 + nmap/lynis ラッパー)。
         ensureZ2ScanScript(rootfs)
+        // `z2-macro`: 自動化マクロの同梱サンプル (list/install/show/run)。
+        ensureZ2MacroScripts(rootfs)
         // GUI 動画対策: mpv の既定をソフトウェア出力 (vo=x11) にする設定を配置。
         ensureMpvConfig(rootfs)
         // Android 外部ストレージを cd できるようマウント先を用意。
@@ -458,6 +460,8 @@ class ProotLauncher(private val context: Context) {
         ensureZ2HelpScript(rootfs)
         // `z2scan`: 自端末/localhost 限定の脆弱性試験 (自己診断 + nmap/lynis ラッパー)。
         ensureZ2ScanScript(rootfs)
+        // `z2-macro`: 自動化マクロの同梱サンプル (list/install/show/run)。
+        ensureZ2MacroScripts(rootfs)
         ensureMpvConfig(rootfs)
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
@@ -991,6 +995,31 @@ class ProotLauncher(private val context: Context) {
      * (`self`) と、distro 公式パッケージの nmap/lynis/trivy を導入して叩くラッパーから成る。
      * ネットワークスキャンは既定 localhost 固定・外部対象は明示フラグ必須。launch 毎に上書き。
      */
+    /**
+     * `/usr/local/bin/z2-macro` と、同梱サンプル `/usr/local/share/z2term/macros/` 配下の .sh を配置する。
+     * サンプルは**共有領域に置くだけ**で、HOME (`~/.z2term/macros/`) へは `z2-macro install`
+     * が明示的にコピーしたときだけ入る (ユーザーが編集したものを launch 毎に上書きしないため)。
+     */
+    private fun ensureZ2MacroScripts(rootfs: File) {
+        runCatching {
+            val lang = LocaleHelper.language(context)
+            val bin = File(rootfs, "usr/local/bin").apply { mkdirs() }
+            File(bin, "z2-macro").apply {
+                writeText(z2MacroScript(lang = lang))
+                setReadable(true, false)
+                setExecutable(true, false)
+            }
+            val samples = File(rootfs, "usr/local/share/z2term/macros").apply { mkdirs() }
+            z2MacroSamples(lang = lang).forEach { (name, body) ->
+                File(samples, name).apply {
+                    writeText(body)
+                    setReadable(true, false)
+                    setExecutable(true, false)
+                }
+            }
+        }.onFailure { Log.w(TAG, "z2-macro scripts 配置失敗", it) }
+    }
+
     private fun ensureZ2ScanScript(rootfs: File) {
         runCatching {
             val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }

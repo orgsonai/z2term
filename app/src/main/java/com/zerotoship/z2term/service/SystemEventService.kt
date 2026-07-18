@@ -55,6 +55,9 @@ import java.util.concurrent.Executors
  *  - `headset_plugged` / `headset_unplugged`  … 有線ヘッドセットの抜き差し
  *  - `airplane_on` / `airplane_off`           … 機内モード ON / OFF
  *  - `ringer_normal` / `ringer_vibrate` / `ringer_silent` … マナーモード切替
+ *
+ * このサービスとは別に、時刻トリガー ([AlarmScheduler] / `z2-alarm`) が同じ events.jsonl へ
+ * `alarm` イベント (`{name}` 付き) を書く。そちらはこのサービスの ON/OFF に依存しない。
  */
 class SystemEventService : Service() {
 
@@ -296,12 +299,14 @@ class SystemEventService : Service() {
 
         /**
          * 1 イベントを [template] に沿って 1 行分の文字列 (末尾改行なし) にする。
-         * [template] が空なら JSONL。プレースホルダ `{time}` `{ts}` `{event}` `{level}` `{ssid}` と、
-         * エスケープ `\n` `\t` `\\` に対応。`{level}`/`{ssid}` は該当イベント以外では空文字。
+         * [template] が空なら JSONL。プレースホルダ `{time}` `{ts}` `{event}` `{level}` `{ssid}`
+         * `{name}` と、エスケープ `\n` `\t` `\\` に対応。該当しないイベントでは空文字になる。
+         * [name] は時刻トリガー (`alarm`, [AlarmScheduler]) が付ける任意の名前。
          */
         fun render(
             template: String,
-            ts: Long, time: String, event: String, level: Int?, ssid: String
+            ts: Long, time: String, event: String, level: Int?, ssid: String,
+            name: String = ""
         ): String {
             if (template.isBlank()) {
                 return JSONObject().apply {
@@ -310,6 +315,7 @@ class SystemEventService : Service() {
                     put("event", event)
                     if (level != null) put("level", level)
                     if (ssid.isNotEmpty()) put("ssid", ssid)
+                    if (name.isNotEmpty()) put("name", oneline(name))
                 }.toString()
             }
             val vars = mapOf(
@@ -318,6 +324,7 @@ class SystemEventService : Service() {
                 "event" to event,
                 "level" to (level?.toString() ?: ""),
                 "ssid" to oneline(ssid),
+                "name" to oneline(name),
             )
             val sb = StringBuilder(template.length + 32)
             var i = 0

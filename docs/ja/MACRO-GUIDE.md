@@ -4,7 +4,7 @@
 人間が読んでそのまま書ける説明書であると同時に、**AI に丸ごと読ませて「〜したい」と頼めば
 マクロ用のスクリプトを生成できる**ように、機械可読なリファレンスを兼ねています。
 
-> 対象バージョン: 0.8.154-alpha 以降 / 英語版: `docs/en/MACRO-GUIDE.md`
+> 対象バージョン: 0.8.167-alpha 以降 / 英語版: `docs/en/MACRO-GUIDE.md`
 > すべて **非 root・完全ローカル・外部送信なし**。難しい権限が要る機能は含みません。
 
 ---
@@ -15,8 +15,8 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 
 | 段 | 誰が | z2term では |
 |---|---|---|
-| **トリガー** | Android → シェル | システムイベントを `~/.z2term/events.jsonl` に追記（充電/画面/ロック/Wi‑Fi/ヘッドセット/機内/マナー等）。通知は `~/.z2term/notifications.jsonl` |
-| **判断（ロジック）** | シェル | ログ行を読んで条件分岐（`if`・時刻・回数・状態ファイル…）。ふつうの sh/awk/jq で自由に |
+| **トリガー** | Android → シェル | システムイベントを `~/.z2term/events.jsonl` に追記（充電/画面/ロック/Wi‑Fi/ヘッドセット/機内/マナー等）。通知は `~/.z2term/notifications.jsonl`。**時刻**は `z2-alarm` が同じ events.jsonl に `alarm` を書く |
+| **判断（ロジック）** | シェル | ログ行を読んで条件分岐（`if`・時刻・回数・状態ファイル…）。ふつうの sh/awk/jq で自由に。**今の状態**は `z2-state` で聞ける |
 | **アクション** | シェル → Android | `z2-*` コマンドで Android 側を操作（通知/読み上げ/音量/ライト/Intent 発火…） |
 
 **マクロの実体＝「イベントログを監視して、条件が合ったらアクションを叩くシェルスクリプト」**です。
@@ -31,6 +31,9 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 2. **常駐させたいとき**: ⚙設定 → 「**常駐サーバー**」にマクロ用スクリプトの起動コマンドを登録すると、
    アプリを開かなくても・端末再起動後も動きます（「起動時に自動で常駐」も ON に）。
 3. 便利ツール: `jq`（JSON 解析）を入れておくと楽。例: Alpine `apk add jq` / Debian系 `apt install jq`。
+4. **白紙から書きたくないとき**: `z2-macro list` で同梱サンプルを見て、`z2-macro install <名前>` で
+   `~/.z2term/macros/` に置けます（`z2-macro install all` で全部）。中身は自由に書き換えて構いません。
+   既にあるファイルは上書きしないので、編集したものが消えることはありません（`-f` で明示的に上書き）。
 
 ---
 
@@ -53,6 +56,7 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 | `headset_plugged` / `headset_unplugged` | 有線ヘッドセット 抜き差し | — |
 | `airplane_on` / `airplane_off` | 機内モード ON / OFF | — |
 | `ringer_normal` / `ringer_vibrate` / `ringer_silent` | マナーモード 切替 | — |
+| `alarm` | **`z2-alarm` で仕掛けた時刻**になった | `name`（`z2-alarm` に付けた名前） |
 
 行の例:
 ```json
@@ -86,6 +90,56 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 | `z2-share` | `z2-share "テキスト"` | 共有メニューへ | — |
 | `z2-open` | `z2-open <URL\|パス>` | 既定アプリで開く | — |
 | `z2-intent` | 下記参照 | 任意の Intent を発火 | — |
+| `z2-state` | `z2-state [キー]` | **今の端末の状態**を返す（下記） | JSON / キー指定ならその値 |
+| `z2-alarm` | `z2-alarm at\|daily HH:MM [名前]` ほか | **時刻トリガー**を仕掛ける（下記） | 予約内容 JSON |
+| `z2-macro` | `z2-macro list\|install\|show\|run\|dir` | 同梱サンプルの管理 | — |
+
+### `z2-state`（今の状態を聞く）
+
+events.jsonl は「変化した瞬間」しか流れてきません。「**今**どうなっているか」で分岐したいときは
+`z2-state` を使います。引数なしでまとめて JSON、キーを付けるとその値だけを返すので、
+そのまま条件式に書けます。**追加の権限は要りません。**
+
+| キー | 値 |
+|---|---|
+| `screen` | `on` / `off`（画面が点いているか） |
+| `locked` | `true` / `false`（ロック画面が出ているか） |
+| `idle` | `true` / `false`（Doze＝省電力の眠りに入っているか） |
+| `charging` | `true` / `false` |
+| `plug` | `ac` / `usb` / `wireless` / `none` |
+| `level` | 電池残量 %（整数） |
+| `wifi` | `true` / `false`（Wi‑Fi でつながっているか） |
+| `ssid` | Wi‑Fi 名（位置情報権限が無いと空） |
+| `ringer` | `normal` / `vibrate` / `silent` |
+| `airplane` | `true` / `false` |
+| `headset` | `true` / `false`（有線ヘッドセット/ヘッドホン） |
+| `volume` / `volume_max` | メディア音量の現在値 / 最大値 |
+
+```sh
+z2-state                                  # 全部まとめて JSON
+[ "$(z2-state charging)" = "true" ] && echo 充電中
+[ "$(z2-state screen)" = "off" ] && z2-notify "画面が消えているときだけ通知"
+```
+
+### `z2-alarm`（時刻で動かす）
+
+「毎朝 7 時に」のような時刻トリガーです。指定時刻になると `events.jsonl` に
+`{"event":"alarm","name":"…"}` が 1 行増えるので、あとは他のイベントと同じように拾えます。
+
+```sh
+z2-alarm at 07:00 morning      # 次の 07:00 に 1 回（今日を過ぎていれば明日）
+z2-alarm daily 07:00 morning   # 毎日 07:00
+z2-alarm in 5m tea             # 5 分後に 1 回（30s / 2h なども可）
+z2-alarm list                  # 予約の一覧
+z2-alarm cancel morning        # 名前で取り消し（id でも all でも可）
+```
+
+- **cron との違い**: cron は Android が省電力の眠り（Doze）に入ると動きません。`z2-alarm` は
+  OS のアラームで起こしてもらうので、画面が消えていても動きます。
+- ただし省電力を優先する仕組みを使っているので、**発火が数分ずれることがあります**
+  （秒単位の正確さが要る用途には向きません）。
+- 端末を再起動しても予約は残ります（アプリが起動時に貼り直します）。
+- 名前は「どの用途のアラームか」を区別するためのものです。マクロ側で `name` を見て分岐します。
 
 ### `z2-intent`（汎用アクションの要）
 
@@ -165,10 +219,28 @@ done
 「起動時に自動で常駐」も ON にすれば、アプリを開かず・再起動後も動きます。手元で試すだけなら
 ターミナルでそのまま `sh ~/.z2term/macros/watch.sh &` でも可。
 
-### 5-4. 時刻・繰り返し（トリガー不要のもの）
+### 5-4. 時刻・繰り返し
 
-「毎朝 7 時に」等は events を使わず cron で。`crontab -e` に
-`0 7 * * * z2-say "おはよう。今日の予定を確認して"` のように書きます（cron の導入は distro ごと）。
+「毎朝 7 時に」等は **`z2-alarm`** を使います。時刻になると `events.jsonl` に `alarm` が 1 行増えるので、
+他のイベントとまったく同じ書き方で拾えます。
+
+```sh
+z2-alarm daily 07:00 morning     # 1 回仕掛けるだけ（再起動しても残ります）
+```
+
+```sh
+# 監視側（常駐サーバーに登録する）
+tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
+  ev=$(printf '%s' "$line"   | jq -r '.event')
+  name=$(printf '%s' "$line" | jq -r '.name // empty')
+  [ "$ev" = "alarm" ] && [ "$name" = "morning" ] || continue
+  z2-say "おはようございます。電池は $(z2-state level) パーセントです"
+done
+```
+
+distro の cron でも書けますが、**Android が省電力の眠り（Doze）に入ると cron は止まります**。
+画面を消していても確実に動かしたいなら `z2-alarm` を使ってください
+（そのかわり発火が数分ずれることがあります）。
 
 ### 5-5. 実例：SMS のワンタイムコードを自動コピー＆自動クリア
 

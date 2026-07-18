@@ -137,6 +137,11 @@
             </intent-filter>
         </receiver>
 
+        <!-- 時刻トリガー (z2-alarm) の受け口。AlarmManager からのみ届くので exported=false。 -->
+        <receiver
+            android:name=".service.AlarmReceiver"
+            android:exported="false" />
+
         <!-- SAF DocumentsProvider: rootfs / HOME を他のファイラーから開けるようにする。
              permission=MANAGE_DOCUMENTS でシステム (DocumentsUI) からのみアクセス可能。 -->
         <provider

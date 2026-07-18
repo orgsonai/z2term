@@ -37,6 +37,9 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-volume up|down|N|N%         Media volume (returns current/max)
         |  z2-sensor [light|accel|prox]   Read one sensor sample (JSON)
         |  z2-intent -a ACT -d URI ...    Fire any Android Intent (see MACRO-GUIDE)
+        |  z2-state [key]                 Current state as JSON (or one key raw)
+        |  z2-alarm at|daily HH:MM [name] Time trigger -> events.jsonl (list/cancel too)
+        |  z2-macro list|install <name>   Bundled automation samples (see MACRO-GUIDE)
         |
         |[Graphical (GUI) apps]
         |  z2gui start [WxH] | stop | status   Linux desktop (e.g. z2gui start 1280x720)
@@ -72,6 +75,9 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-volume up|down|N|N%         メディア音量(結果の current/max を出力)
         |  z2-sensor [light|accel|prox]   センサーを1回読む(JSON・照度/加速度/近接)
         |  z2-intent -a ACT -d URI ...    任意の Android Intent を発火(MACRO-GUIDE 参照)
+        |  z2-state [キー]                今の状態を JSON で(キー指定でその値だけ)
+        |  z2-alarm at|daily HH:MM [名前] 時刻トリガー→events.jsonl(list/cancel も)
+        |  z2-macro list|install <名前>   自動化マクロの同梱サンプル(MACRO-GUIDE 参照)
         |
         |[画面つき(GUI)アプリ]
         |  z2gui start [横x縦] | stop | status   Linux デスクトップ(例 z2gui start 1280x720)

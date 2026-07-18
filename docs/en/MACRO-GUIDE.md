@@ -4,7 +4,7 @@
 It is a manual you can read and write by hand, and at the same time a **machine-readable
 reference you can feed whole to an AI** — then just say "I want to …" and it generates the macro.
 
-> Target version: 0.8.154-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
+> Target version: 0.8.167-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
 > Everything here is **non-root, fully local, no external transmission**. No hard-permission features are included.
 
 ---
@@ -15,7 +15,7 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
 
 | Stage | Direction | In z2term |
 |---|---|---|
-| **Trigger** | Android → shell | System events appended to `~/.z2term/events.jsonl` (charge/screen/lock/Wi‑Fi/headset/airplane/ringer…). Notifications go to `~/.z2term/notifications.jsonl` |
+| **Trigger** | Android → shell | System events appended to `~/.z2term/events.jsonl` (charge/screen/lock/Wi‑Fi/headset/airplane/ringer…). Notifications go to `~/.z2term/notifications.jsonl`. **Time** triggers come from `z2-alarm`, which writes `alarm` into the same events.jsonl |
 | **Decide (logic)** | shell | Read the log lines and branch (`if`, time, counts, state files…). Plain sh/awk/jq, anything goes |
 | **Action** | shell → Android | `z2-*` commands drive the Android side (notify/speak/volume/torch/fire an Intent…) |
 
@@ -30,6 +30,9 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
    - If you use notifications too, turn on "**Notification detection**" (and grant the OS "notification access").
 2. **To keep it resident**: ⚙ Settings → "**Resident servers**" → register your macro script's start command; it then runs without opening the app and after reboot (also turn on "auto-start on boot").
 3. Handy tool: install `jq` (JSON parsing). e.g. Alpine `apk add jq` / Debian-family `apt install jq`.
+4. **If you would rather not start from a blank file**: `z2-macro list` shows the bundled samples and
+   `z2-macro install <name>` copies one into `~/.z2term/macros/` (`z2-macro install all` for every one).
+   Edit them freely — install never overwrites an existing file, so your edits are safe (`-f` forces it).
 
 ---
 
@@ -52,6 +55,7 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
 | `headset_plugged` / `headset_unplugged` | Wired headset plugged / unplugged | — |
 | `airplane_on` / `airplane_off` | Airplane mode on / off | — |
 | `ringer_normal` / `ringer_vibrate` / `ringer_silent` | Ringer mode change | — |
+| `alarm` | **A time scheduled with `z2-alarm`** came around | `name` (the name you gave `z2-alarm`) |
 
 Example lines:
 ```json
@@ -85,6 +89,56 @@ Run them from the terminal and the app performs the Android side. **All permissi
 | `z2-share` | `z2-share "text"` | Share sheet | — |
 | `z2-open` | `z2-open <URL\|path>` | Open in the default app | — |
 | `z2-intent` | see below | Fire an arbitrary Intent | — |
+| `z2-state` | `z2-state [key]` | **Current device state** (see below) | JSON, or the raw value for a key |
+| `z2-alarm` | `z2-alarm at\|daily HH:MM [name]` etc. | Set a **time trigger** (see below) | JSON of the schedule |
+| `z2-macro` | `z2-macro list\|install\|show\|run\|dir` | Manage the bundled samples | — |
+
+### `z2-state` (ask for the current state)
+
+events.jsonl only tells you about *changes*. When a macro needs to branch on how things are
+**right now**, use `z2-state`. With no argument it returns everything as JSON; with a key it
+returns just that value, so it drops straight into a shell test. **No extra permissions needed.**
+
+| Key | Value |
+|---|---|
+| `screen` | `on` / `off` |
+| `locked` | `true` / `false` (lock screen showing) |
+| `idle` | `true` / `false` (in Doze / power-saving sleep) |
+| `charging` | `true` / `false` |
+| `plug` | `ac` / `usb` / `wireless` / `none` |
+| `level` | Battery percentage (integer) |
+| `wifi` | `true` / `false` (connected over Wi‑Fi) |
+| `ssid` | Wi‑Fi name (empty without location permission) |
+| `ringer` | `normal` / `vibrate` / `silent` |
+| `airplane` | `true` / `false` |
+| `headset` | `true` / `false` (wired headset/headphones) |
+| `volume` / `volume_max` | Current / maximum media volume |
+
+```sh
+z2-state                                  # everything as JSON
+[ "$(z2-state charging)" = "true" ] && echo charging
+[ "$(z2-state screen)" = "off" ] && z2-notify "only notify while the screen is off"
+```
+
+### `z2-alarm` (run on a schedule)
+
+A time trigger for things like "every morning at 7". When the time comes, one line
+`{"event":"alarm","name":"…"}` is appended to `events.jsonl`, so you consume it like any other event.
+
+```sh
+z2-alarm at 07:00 morning      # once at the next 07:00 (tomorrow if today has passed)
+z2-alarm daily 07:00 morning   # every day at 07:00
+z2-alarm in 5m tea             # once, 5 minutes from now (30s / 2h also work)
+z2-alarm list                  # list what is scheduled
+z2-alarm cancel morning        # cancel by name (id or all also work)
+```
+
+- **Versus cron**: cron stops running once Android enters power-saving sleep (Doze). `z2-alarm`
+  asks the OS to wake the app, so it fires with the screen off too.
+- It uses the battery-friendly alarm API, so **firing can be a few minutes late** — not suitable
+  when you need second-level accuracy.
+- Schedules survive a reboot (the app re-registers them on boot).
+- The name exists so one macro can tell its alarms apart; branch on `name` in your script.
 
 ### `z2-intent` (the workhorse action)
 
@@ -164,10 +218,27 @@ Register a **start command** in `⚙ Settings → Resident servers` (e.g. `sh ~/
 Turn on "auto-start on boot" and it runs without opening the app and after a reboot. For a quick
 test you can just run `sh ~/.z2term/macros/watch.sh &` in the terminal.
 
-### 5-4. Time / recurring (no trigger needed)
+### 5-4. Time / recurring
 
-For "every morning at 7" and the like, skip events and use cron. In `crontab -e`, add
-`0 7 * * * z2-say "Good morning. Check today's schedule"` (installing cron depends on the distro).
+For "every morning at 7" and the like, use **`z2-alarm`**. When the time comes one `alarm` line is
+appended to `events.jsonl`, so you read it exactly like any other event.
+
+```sh
+z2-alarm daily 07:00 morning     # set it once (it survives a reboot)
+```
+
+```sh
+# the watcher (register this under Resident servers)
+tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
+  ev=$(printf '%s' "$line"   | jq -r '.event')
+  name=$(printf '%s' "$line" | jq -r '.name // empty')
+  [ "$ev" = "alarm" ] && [ "$name" = "morning" ] || continue
+  z2-say "Good morning. Battery is $(z2-state level) percent"
+done
+```
+
+The distro's cron works too, but **cron stops once Android enters power-saving sleep (Doze)**.
+Use `z2-alarm` when it has to run with the screen off (at the cost of firing a few minutes late).
 
 ### 5-5. Worked example: auto-copy an SMS one-time code and clear it
 
