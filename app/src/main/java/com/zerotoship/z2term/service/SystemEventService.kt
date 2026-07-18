@@ -311,13 +311,14 @@ class SystemEventService : Service() {
         /**
          * 1 イベントを [template] に沿って 1 行分の文字列 (末尾改行なし) にする。
          * [template] が空なら JSONL。プレースホルダ `{time}` `{ts}` `{event}` `{level}` `{ssid}`
-         * `{name}` と、エスケープ `\n` `\t` `\\` に対応。該当しないイベントでは空文字になる。
-         * [name] は時刻トリガー (`alarm`, [AlarmScheduler]) が付ける任意の名前。
+         * `{name}` `{action}` と、エスケープ `\n` `\t` `\\` に対応。該当しないイベントでは空文字になる。
+         * [name] は仕掛けたときの識別名 (時刻トリガー `alarm` / 通知 `notify_action`)、
+         * [action] は押された通知ボタンのラベル。
          */
         fun render(
             template: String,
             ts: Long, time: String, event: String, level: Int?, ssid: String,
-            name: String = ""
+            name: String = "", action: String = ""
         ): String {
             if (template.isBlank()) {
                 return JSONObject().apply {
@@ -327,6 +328,7 @@ class SystemEventService : Service() {
                     if (level != null) put("level", level)
                     if (ssid.isNotEmpty()) put("ssid", ssid)
                     if (name.isNotEmpty()) put("name", oneline(name))
+                    if (action.isNotEmpty()) put("action", oneline(action))
                 }.toString()
             }
             val vars = mapOf(
@@ -336,6 +338,7 @@ class SystemEventService : Service() {
                 "level" to (level?.toString() ?: ""),
                 "ssid" to oneline(ssid),
                 "name" to oneline(name),
+                "action" to oneline(action),
             )
             val sb = StringBuilder(template.length + 32)
             var i = 0

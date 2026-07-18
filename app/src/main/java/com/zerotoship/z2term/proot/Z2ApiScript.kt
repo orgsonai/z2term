@@ -56,18 +56,36 @@ fun z2ApiScripts(): Map<String, String> {
 
     val notify = """
         |#!/bin/sh
-        |# z2-notify [-h|--high|--banner] "title" "text"  /  z2-notify [-h] "text"
+        |# z2-notify [-h] [-n 名前] [-b ラベル]... "タイトル" "本文"  /  z2-notify [-h] "本文"
         |#   -h / --high / --banner : 画面上部にバナー(ヘッドアップ)表示する
+        |#   -b <ラベル>            : 返事のボタンを付ける (最大 3 つ)。押すと
+        |#                            ~/.z2term/events.jsonl に notify_action が 1 行増える
+        |#                            ({"event":"notify_action","name":名前,"action":ラベル})
+        |#   -n <名前>              : その通知の識別名 (どの問いかけへの返事か区別する用)
         |high=""
-        |case "${d}1" in
-        |  -h|--high|--banner) high="high"; shift ;;
-        |esac
+        |name=""
+        |b1=""; b2=""; b3=""
+        |while [ ${d}# -gt 0 ]; do
+        |  case "${d}1" in
+        |    -h|--high|--banner) high="high"; shift ;;
+        |    -n|--name) name="${d}2"; shift 2 || exit 1 ;;
+        |    -b|--button)
+        |      # 先着 3 つを採用し、4 つ目以降は黙って無視する (Android が 3 つしか出さないため)。
+        |      if   [ -z "${d}b1" ]; then b1="${d}2"
+        |      elif [ -z "${d}b2" ]; then b2="${d}2"
+        |      elif [ -z "${d}b3" ]; then b3="${d}2"
+        |      fi
+        |      shift 2 || exit 1 ;;
+        |    --) shift; break ;;
+        |    *) break ;;
+        |  esac
+        |done
         |if [ ${d}# -ge 2 ]; then
-        |  exec /usr/local/bin/z2api 0 notify "${d}1" "${d}2" "${d}high"
+        |  exec /usr/local/bin/z2api 0 notify "${d}1" "${d}2" "${d}high" "${d}name" "${d}b1" "${d}b2" "${d}b3"
         |elif [ ${d}# -eq 1 ]; then
-        |  exec /usr/local/bin/z2api 0 notify "${d}1" "" "${d}high"
+        |  exec /usr/local/bin/z2api 0 notify "${d}1" "" "${d}high" "${d}name" "${d}b1" "${d}b2" "${d}b3"
         |else
-        |  echo "usage: z2-notify [-h|--high] <title> [text]" >&2; exit 1
+        |  echo "usage: z2-notify [-h] [-n name] [-b label]... <title> [text]" >&2; exit 1
         |fi
     """.trimMargin() + "\n"
 

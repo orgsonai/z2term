@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.KeyguardManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ComponentName
@@ -90,6 +91,9 @@ object Z2ApiBridge {
      * `z2-notify -h`/`--high`/`--banner` 経由のときだけこちらを使う。
      */
     private const val CHANNEL_ID_HIGH = "z2term_api_high"
+
+    /** 通知に出せるボタンの数 (Android が表示するのは 3 つまで)。 */
+    private const val MAX_NOTIFY_BUTTONS = 3
 
     private var observer: FileObserver? = null
     private var reqDir: File? = null
@@ -188,7 +192,18 @@ object Z2ApiBridge {
     /** コマンド分岐。戻り値が要る場合は文字列を返す (それ以外は null)。 */
     private fun dispatch(context: Context, cmd: String, args: List<String>): String? {
         return when (cmd) {
-            "notify" -> { doNotify(context, args.getOrNull(0).orEmpty(), args.getOrNull(1).orEmpty(), args.getOrNull(2) == "high"); null }
+            // notify: title, text, high, name, buttons... (name/buttons は 0.8.169 で追加)
+            "notify" -> {
+                doNotify(
+                    context,
+                    titleArg = args.getOrNull(0).orEmpty(),
+                    textArg = args.getOrNull(1).orEmpty(),
+                    high = args.getOrNull(2) == "high",
+                    name = args.getOrNull(3).orEmpty(),
+                    buttons = args.drop(4).filter { it.isNotBlank() }
+                )
+                null
+            }
             "toast" -> { val msg = args.joinToString(" "); mainHandler.post { Toast.makeText(context, msg, Toast.LENGTH_SHORT).show() }; null }
             "share" -> { doShareText(context, args.joinToString(" ")); null }
             "open" -> { doOpen(context, args.getOrNull(0).orEmpty()); null }
@@ -362,22 +377,44 @@ object Z2ApiBridge {
 
     // POST_NOTIFICATIONS 未許可は下の runCatching で握って Log に流すので、lint の権限チェックは抑止する。
     @SuppressLint("MissingPermission")
-    private fun doNotify(context: Context, titleArg: String, textArg: String, high: Boolean = false) {
+    private fun doNotify(
+        context: Context,
+        titleArg: String,
+        textArg: String,
+        high: Boolean = false,
+        name: String = "",
+        buttons: List<String> = emptyList()
+    ) {
         // 引数が 1 つだけなら本文として扱い、タイトルはアプリ名にする。
         val title = if (textArg.isBlank()) context.getString(R.string.app_name) else titleArg
         val text = if (textArg.isBlank()) titleArg else textArg
         // high=true のときだけ IMPORTANCE_HIGH チャンネル + PRIORITY_HIGH で画面上部にバナー表示する。
         val channel = if (high) CHANNEL_ID_HIGH else CHANNEL_ID
-        val n = NotificationCompat.Builder(context, channel)
+        val id = notifyId.incrementAndGet()
+        val builder = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setAutoCancel(true)
             .setPriority(if (high) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
-            .build()
+        // ボタン付きなら、押されたラベルを events.jsonl へ返す (対話型マクロ)。
+        // Android の仕様上ボタンは 3 つまでしか表示されないので、超えた分は無視される。
+        buttons.take(MAX_NOTIFY_BUTTONS).forEachIndexed { i, label ->
+            val intent = Intent(context, NotifyActionReceiver::class.java)
+                .setAction(NotifyActionReceiver.ACTION_TAP)
+                .putExtra(NotifyActionReceiver.EXTRA_NAME, name)
+                .putExtra(NotifyActionReceiver.EXTRA_LABEL, label)
+                .putExtra(NotifyActionReceiver.EXTRA_NOTIF_ID, id)
+            // requestCode は通知ごと・ボタンごとに一意にする (同じだと extras が使い回される)。
+            val pi = PendingIntent.getBroadcast(
+                context, id * MAX_NOTIFY_BUTTONS + i, intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            builder.addAction(0, label, pi)
+        }
         runCatching {
-            NotificationManagerCompat.from(context).notify(notifyId.incrementAndGet(), n)
+            NotificationManagerCompat.from(context).notify(id, builder.build())
         }.onFailure { Log.w(TAG, "notify failed (POST_NOTIFICATIONS 未許可?)", it) }
     }
 

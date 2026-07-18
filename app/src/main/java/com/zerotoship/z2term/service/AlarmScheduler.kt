@@ -5,9 +5,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import com.zerotoship.z2term.settings.AppSettings
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -162,7 +159,7 @@ object AlarmScheduler {
             Log.w(TAG, "fired unknown alarm id=$id")
             return
         }
-        emitEvent(context, entry.name)
+        EventEmitter.emit(context, event = "alarm", name = entry.name)
         if (entry.kind == KIND_DAILY) {
             val next = entry.copy(at = nextDailyAt(entry.hour, entry.minute))
             synchronized(lock) {
@@ -190,34 +187,7 @@ object AlarmScheduler {
 
     // --- 内部 ---
 
-    /**
-     * `alarm` イベントを events.jsonl へ書く。
-     *
-     * **設定「システムイベント検知」の ON/OFF に関係なく書く**: アラームはユーザーが明示的に
-     * 仕掛けたものなので、検知トグル (受動的なイベントの取捨) とは独立に扱うほうが直感的。
-     * 出力フォーマット (`{name}` を含むテンプレート) と「新しいものを先頭に」は設定に従う。
-     */
-    private fun emitEvent(context: Context, name: String) {
-        val settings = runCatching { runBlocking { AppSettings(context).flow.first() } }.getOrNull()
-        val now = System.currentTimeMillis()
-        val line = SystemEventService.render(
-            settings?.systemEventLogFormat.orEmpty(),
-            ts = now,
-            time = ISO.format(Date(now)),
-            event = "alarm",
-            level = null,
-            ssid = "",
-            name = name
-        )
-        runCatching {
-            LogWriter.write(
-                SystemEventService.logFile(context),
-                line,
-                settings?.systemEventLogPrepend ?: false
-            )
-        }.onFailure { Log.w(TAG, "alarm event write failed: ${it.message}") }
-    }
-
+    // events.jsonl への書き込みは EventEmitter に集約 (通知ボタンの応答と同じ経路)。
     private fun schedule(context: Context, entry: AlarmEntry) {
         val am = context.getSystemService(AlarmManager::class.java) ?: return
         // setAndAllowWhileIdle: Doze を貫通しつつ SCHEDULE_EXACT_ALARM 権限が要らない

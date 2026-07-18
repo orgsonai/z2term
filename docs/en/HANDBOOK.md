@@ -324,7 +324,7 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 ### Call phone features
 | Command | What it does |
 |---|---|
-| `z2-notify [-h] "title" "text"` | Post a notification (text optional; `-h`/`--high`/`--banner` shows a pop-up banner) |
+| `z2-notify [-h] [-n name] [-b label]... "title" "text"` | Post a notification (text optional; `-h` shows a pop-up banner). **`-b` adds reply buttons** (up to 3); pressing one appends a `notify_action` line to `events.jsonl` so a macro can read the answer |
 | `z2-toast "message"` | Toast (short message at the bottom of the screen) |
 | `z2-share "text"` | Hand text to Android's share sheet |
 | `z2-open <URL or path>` | Open a URL or file in the default app |

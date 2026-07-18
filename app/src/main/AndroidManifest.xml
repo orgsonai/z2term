@@ -142,6 +142,11 @@
             android:name=".service.AlarmReceiver"
             android:exported="false" />
 
+        <!-- z2-notify のボタン応答の受け口。自アプリの PendingIntent からのみ届く。 -->
+        <receiver
+            android:name=".service.NotifyActionReceiver"
+            android:exported="false" />
+
         <!-- SAF DocumentsProvider: rootfs / HOME を他のファイラーから開けるようにする。
              permission=MANAGE_DOCUMENTS でシステム (DocumentsUI) からのみアクセス可能。 -->
         <provider

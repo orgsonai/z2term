@@ -59,6 +59,7 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 | `airplane_on` / `airplane_off` | 機内モード ON / OFF | — |
 | `ringer_normal` / `ringer_vibrate` / `ringer_silent` | マナーモード 切替 | — |
 | `alarm` | **`z2-alarm` で仕掛けた時刻**になった | `name`（`z2-alarm` に付けた名前） |
+| `notify_action` | **`z2-notify -b` で付けたボタンが押された** | `name`（通知に付けた名前）, `action`（押されたラベル） |
 
 行の例:
 ```json
@@ -79,7 +80,7 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 
 | コマンド | 使い方 | 動作 | 戻り値 |
 |---|---|---|---|
-| `z2-notify` | `z2-notify [-h] "タイトル" "本文"` / `z2-notify [-h] "本文"` | 通知を出す（`-h`/`--high`/`--banner` で画面上部にバナー表示） | — |
+| `z2-notify` | `z2-notify [-h] [-n 名前] [-b ラベル]... "タイトル" "本文"` | 通知を出す（`-h` でバナー表示、`-b` で**返事のボタン**を付ける） | — |
 | `z2-toast` | `z2-toast "メッセージ"` | 画面下に短いメッセージ | — |
 | `z2-say` | `z2-say "読み上げる文"`（引数なしで標準入力） | TTS で読み上げ | — |
 | `z2-torch` | `z2-torch on\|off\|toggle`（既定 toggle） | フラッシュライト | `on`/`off` |
@@ -95,6 +96,37 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 | `z2-state` | `z2-state [キー]` | **今の端末の状態**を返す（下記） | JSON / キー指定ならその値 |
 | `z2-alarm` | `z2-alarm at\|daily HH:MM [名前]` ほか | **時刻トリガー**を仕掛ける（下記） | 予約内容 JSON |
 | `z2-macro` | `z2-macro list\|install\|show\|run\|dir` | 同梱サンプルの管理 | — |
+
+### `z2-notify -b`（返事を受け取る＝対話型マクロ）
+
+`-b ラベル` を付けると通知にボタンが出ます。押すと `events.jsonl` に
+
+```json
+{"event":"notify_action","name":"confirm","action":"はい"}
+```
+
+が 1 行増えるので、**マクロが問いかけて、あなたがボタンで答え、続きが動く**という組み方ができます。
+ボタンは最大 3 つ（Android の表示上限）。`-n 名前` はどの問いかけへの返事かを区別するための名前です。
+
+```sh
+z2-notify -h -n cleanup -b はい -b あとで "掃除しますか?" "一時ファイルを消します"
+```
+
+```sh
+# 返事を待つ側（常駐サーバーに登録する）
+tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
+  ev=$(printf '%s' "$line"     | jq -r '.event')
+  name=$(printf '%s' "$line"   | jq -r '.name   // empty')
+  action=$(printf '%s' "$line" | jq -r '.action // empty')
+  [ "$ev" = "notify_action" ] && [ "$name" = "cleanup" ] || continue
+  case "$action" in
+    はい)   rm -rf ~/tmp/* && z2-toast "掃除しました" ;;
+    あとで) z2-alarm in 1h cleanup ;;   # 1時間後にもう一度きく
+  esac
+done
+```
+
+押された通知は自動で閉じます。返事をしなければ何も起きません（通知を消せばそれで終わりです）。
 
 ### `z2-state`（今の状態を聞く）
 

@@ -58,6 +58,7 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
 | `airplane_on` / `airplane_off` | Airplane mode on / off | — |
 | `ringer_normal` / `ringer_vibrate` / `ringer_silent` | Ringer mode change | — |
 | `alarm` | **A time scheduled with `z2-alarm`** came around | `name` (the name you gave `z2-alarm`) |
+| `notify_action` | **A button added with `z2-notify -b` was pressed** | `name` (the notification's name), `action` (the label pressed) |
 
 Example lines:
 ```json
@@ -78,7 +79,7 @@ Run them from the terminal and the app performs the Android side. **All permissi
 
 | Command | Usage | What it does | Returns |
 |---|---|---|---|
-| `z2-notify` | `z2-notify [-h] "title" "text"` / `z2-notify [-h] "text"` | Post a notification (`-h`/`--high`/`--banner` shows a pop-up banner) | — |
+| `z2-notify` | `z2-notify [-h] [-n name] [-b label]... "title" "text"` | Post a notification (`-h` shows a banner, `-b` adds a **reply button**) | — |
 | `z2-toast` | `z2-toast "message"` | Short on-screen message | — |
 | `z2-say` | `z2-say "text to speak"` (stdin if no arg) | Speak via TTS | — |
 | `z2-torch` | `z2-torch on\|off\|toggle` (default toggle) | Flashlight | `on`/`off` |
@@ -94,6 +95,37 @@ Run them from the terminal and the app performs the Android side. **All permissi
 | `z2-state` | `z2-state [key]` | **Current device state** (see below) | JSON, or the raw value for a key |
 | `z2-alarm` | `z2-alarm at\|daily HH:MM [name]` etc. | Set a **time trigger** (see below) | JSON of the schedule |
 | `z2-macro` | `z2-macro list\|install\|show\|run\|dir` | Manage the bundled samples | — |
+
+### `z2-notify -b` (get an answer back = interactive macros)
+
+Adding `-b label` puts buttons on the notification. Pressing one appends
+
+```json
+{"event":"notify_action","name":"confirm","action":"yes"}
+```
+
+to `events.jsonl`, so a macro can **ask a question, wait for your button, and carry on**.
+Up to 3 buttons (Android's display limit). `-n name` tells one question's answers from another's.
+
+```sh
+z2-notify -h -n cleanup -b yes -b later "Clean up?" "This deletes temporary files"
+```
+
+```sh
+# the side waiting for an answer (register it under Resident servers)
+tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
+  ev=$(printf '%s' "$line"     | jq -r '.event')
+  name=$(printf '%s' "$line"   | jq -r '.name   // empty')
+  action=$(printf '%s' "$line" | jq -r '.action // empty')
+  [ "$ev" = "notify_action" ] && [ "$name" = "cleanup" ] || continue
+  case "$action" in
+    yes)   rm -rf ~/tmp/* && z2-toast "cleaned" ;;
+    later) z2-alarm in 1h cleanup ;;   # ask again in an hour
+  esac
+done
+```
+
+The notification closes itself once a button is pressed. Ignoring it simply does nothing.
 
 ### `z2-state` (ask for the current state)
 
