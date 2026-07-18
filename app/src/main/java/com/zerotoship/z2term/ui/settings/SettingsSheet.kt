@@ -785,13 +785,6 @@ fun SettingsSheet(
                 )
             }
 
-            // 設定の初期化 (すべての設定を既定値へ戻す)。ワンタップでは戻さず確認ダイアログを挟む。
-            ActionButton(
-                label = stringResource(R.string.settings_reset_settings),
-                danger = true,
-                onClick = { pendingReset = true }
-            )
-
             // 常駐サーバー: 任意のサーバー (sshd/http/smb 等) を起動コマンドとして登録し、
             // アプリを開かず自動常駐させる。管理は専用シート (ServersSheet) で行う。
             Section(title = stringResource(R.string.settings_section_servers)) {
@@ -1042,6 +1035,8 @@ fun SettingsSheet(
             AppInfoSection(
                 distroId = settings.distroId,
                 engineUnlocked = settings.engineSelectorUnlocked,
+                // 設定の初期化はアプリ情報とライセンスの間に置く (設定の一番下・要望)。
+                onResetSettings = { pendingReset = true },
                 onToggle = {
                     // 7タップでエンジン選択 (proot / z2root) の表示をトグルする (root 不要)。
                     if (settings.engineSelectorUnlocked) {
@@ -1182,7 +1177,12 @@ fun SettingsSheet(
  * その os-release を表示する。
  */
 @Composable
-private fun AppInfoSection(distroId: String, engineUnlocked: Boolean, onToggle: () -> Unit) {
+private fun AppInfoSection(
+    distroId: String,
+    engineUnlocked: Boolean,
+    onResetSettings: () -> Unit,
+    onToggle: () -> Unit
+) {
     val context = LocalContext.current
     // 裏機能: バージョン行を 7 回タップでエンジン選択 (proot / z2root) の表示をトグル
     // (Android 開発者モードと同作法)。解放済みでも 7 タップで隠して既定へ戻せる。
@@ -1241,6 +1241,14 @@ private fun AppInfoSection(distroId: String, engineUnlocked: Boolean, onToggle: 
         InfoRow(stringResource(R.string.appinfo_rootfs_generation), DistroBundle.ROOTFS_VERSION.toString())
         InfoRow(stringResource(R.string.appinfo_distro), osPretty ?: distroId)
     }
+    // 設定の初期化 (すべての設定を既定値へ戻す)。ワンタップでは戻さず確認ダイアログを挟む。
+    // 普段触らない操作なので、設定の末尾 (ライセンスの直前) に置く。
+    ActionButton(
+        label = stringResource(R.string.settings_reset_settings),
+        danger = true,
+        onClick = onResetSettings
+    )
+
     // 設定シート内にずらりと並べると視認性が悪いので、タップで開く Dialog に切り出す。
     var showLicensesDialog by remember { mutableStateOf(false) }
     Section(title = stringResource(R.string.settings_section_licenses)) {

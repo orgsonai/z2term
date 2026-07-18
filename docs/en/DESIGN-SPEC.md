@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-18 / Target version: 0.8.165-alpha (versionCode 173)
+Last updated: 2026-07-18 / Target version: 0.8.166-alpha (versionCode 174)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -241,7 +241,7 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
   - `components/SpecialKeyBar.kt`: the special key row for OS IME mode.
 - `settings/SettingsSheet.kt` + `SshAccessHelper.kt`: settings modal + SSH/storage helper.
 - `ssh/SshProfilesSheet.kt` + `HostKeyVerificationDialog.kt`: SSH profile UI + key verification.
-- `snippets/SnippetsSheet.kt`: command snippets (tap a line to insert, reorder/edit).
+- `snippets/SnippetsSheet.kt`: tools sheet (toolbar 📜). Tabs switch between **Snippets** (tap a line to insert, reorder/edit), **SSH / SFTP** (`ssh/SshProfilesBody`) and **Servers** (`settings/ServersBody`, the same resident-server manager used by the settings sheet). The SSH tab only appears on terminal tabs, the Servers tab only when a terminal session is available.
 
 ### 4.12 GUI desktop (`gui/`)
 
@@ -404,7 +404,7 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 
 `noInstallTimeout` (disable install timeout), `cleanInstallGuiArmed` (GUI clean re-deploy flag), etc. are also kept in DataStore (`z2term_settings`). SSH profiles are saved as JSON in a separate DataStore (`z2term_ssh`).
 
-**Reset settings** (action): the "Reset settings" button at the end of the settings screen (`danger` style) shows a confirmation and then calls `AppSettings.resetToDefaults()` (which `clear()`s the `z2term_settings` DataStore). Clearing every key returns all values above, the hidden unlock flags, saved servers, toolbar order and log settings to their defaults (the execution engine goes back to the default z2root). The rootfs (installed OS), user files and language (separate SharedPrefs `z2term_locale`) are untouched.
+**Reset settings** (action): the "Reset settings" button at the end of the settings screen (between App info and Licenses) (`danger` style) shows a confirmation and then calls `AppSettings.resetToDefaults()` (which `clear()`s the `z2term_settings` DataStore). Clearing every key returns all values above, the hidden unlock flags, saved servers, toolbar order and log settings to their defaults (the execution engine goes back to the default z2root). The rootfs (installed OS), user files and language (separate SharedPrefs `z2term_locale`) are untouched.
 
 ---
 

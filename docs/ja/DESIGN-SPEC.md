@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-18 / 対象バージョン: 0.8.165-alpha (versionCode 173)
+最終更新: 2026-07-18 / 対象バージョン: 0.8.166-alpha (versionCode 174)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -242,7 +242,7 @@
   - `components/SpecialKeyBar.kt`: OS IME 時の特殊キー列。
 - `settings/SettingsSheet.kt` + `SshAccessHelper.kt`: 設定モーダル + SSH/ストレージ ヘルパー。
 - `ssh/SshProfilesSheet.kt` + `HostKeyVerificationDialog.kt`: SSH プロファイル UI + 鍵検証。
-- `snippets/SnippetsSheet.kt`: コマンドスニペット (1 行タップで挿入、並替/編集)。
+- `snippets/SnippetsSheet.kt`: ツールシート (ツールバー 📜)。タブで **スニペット** (1 行タップで挿入、並替/編集) / **SSH・SFTP** (`ssh/SshProfilesBody`) / **サーバー** (`settings/ServersBody` = 常駐サーバー管理を設定シートと共有) を切替える。SSH タブは端末タブのみ、サーバータブは端末セッションがあるときだけ出る。
 
 ### 4.12 GUI デスクトップ (`gui/`)
 
@@ -404,7 +404,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 
 `noInstallTimeout`（インストールタイムアウト無効化）・`cleanInstallGuiArmed`（GUI クリーン再展開フラグ）等も DataStore (`z2term_settings`) に保持。SSH プロファイルは別 DataStore (`z2term_ssh`) に JSON で保存。
 
-**設定を初期化**（アクション）: 設定末尾の「設定を初期化」ボタン（`danger` 表示）は、確認ダイアログを挟んで `AppSettings.resetToDefaults()`（DataStore `z2term_settings` を `clear()`）を呼ぶ。全キーが消えるので上表の各値・裏設定の解放フラグ・常駐サーバー定義・ツールバー並び順・各種ログ設定がすべて既定へ戻る（実行エンジンも既定 z2root に戻る）。rootfs（インストール済み OS）・ユーザファイル・言語（別 SharedPrefs `z2term_locale`）には触れない。
+**設定を初期化**（アクション）: 設定末尾（アプリ情報とライセンスの間）の「設定を初期化」ボタン（`danger` 表示）は、確認ダイアログを挟んで `AppSettings.resetToDefaults()`（DataStore `z2term_settings` を `clear()`）を呼ぶ。全キーが消えるので上表の各値・裏設定の解放フラグ・常駐サーバー定義・ツールバー並び順・各種ログ設定がすべて既定へ戻る（実行エンジンも既定 z2root に戻る）。rootfs（インストール済み OS）・ユーザファイル・言語（別 SharedPrefs `z2term_locale`）には触れない。
 
 ---
 

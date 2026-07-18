@@ -47,14 +47,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.SshProfile
+import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.snippets.Snippet
 import com.zerotoship.z2term.snippets.SnippetStore
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
+import com.zerotoship.z2term.ui.settings.ServersBody
 import com.zerotoship.z2term.ui.ssh.SshProfilesBody
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
@@ -69,19 +72,22 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-/** ツールシートのタブ。スニペット一覧と SSH/SFTP プロファイル一覧を 1 枚にまとめる。 */
-private enum class ToolsTab { SNIPPETS, SSH }
+/** ツールシートのタブ。スニペット / SSH・SFTP / 常駐サーバーを 1 枚にまとめる。 */
+private enum class ToolsTab { SNIPPETS, SSH, SERVERS }
 
 /**
  * ツールシート (ツールバーの 📜 から開く)。
  *
- * 上部のタブで「スニペット」と「SSH / SFTP」を切替える。
+ * 上部のタブで「スニペット」「SSH / SFTP」「サーバー」を切替える。
  *  - スニペット: よく使うコマンドを挿入 ([onRun])。並べ替え / 編集 / 削除可。
  *  - SSH / SFTP: 保存したホストへ接続 ([onConnect]) / SFTP で開く ([onSftp])。
+ *  - サーバー: 常駐サーバーの起動/停止・ON/OFF・編集 (設定シートと同じ [ServersBody])。
+ *    毎回設定画面を開かずここから管理できる。
  *
- * GUI タブからは SSH 接続の概念が無いので [showSshTab] = false でスニペットのみ表示する。
+ * GUI タブからは SSH 接続の概念が無いので [showSshTab] = false で SSH タブを隠す。
+ * サーバータブは [serverSession] が渡されたときだけ出す。
  *
- * 永続化はそれぞれ [SnippetStore] / SshProfileStore (DataStore)。
+ * 永続化はそれぞれ [SnippetStore] / SshProfileStore / AppSettings (DataStore)。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,7 +96,8 @@ fun SnippetsSheet(
     onRun: (String) -> Unit,
     onConnect: (SshProfile) -> Unit = {},
     onSftp: (SshProfile) -> Unit = {},
-    showSshTab: Boolean = true
+    showSshTab: Boolean = true,
+    serverSession: TerminalSession? = null
 ) {
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
@@ -128,8 +135,13 @@ fun SnippetsSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            if (showSshTab) {
-                ToolsTabBar(selected = tab, onSelect = { tab = it })
+            if (showSshTab || serverSession != null) {
+                ToolsTabBar(
+                    selected = tab,
+                    showSsh = showSshTab,
+                    showServers = serverSession != null,
+                    onSelect = { tab = it }
+                )
             }
             when (tab) {
                 ToolsTab.SNIPPETS -> SnippetsBody(onRun = onRun, onDismiss = onDismiss)
@@ -137,14 +149,20 @@ fun SnippetsSheet(
                     onConnect = { p -> onConnect(p); onDismiss() },
                     onSftp = { p -> onSftp(p); onDismiss() }
                 )
+                ToolsTab.SERVERS -> serverSession?.let { ServersBody(session = it) }
             }
         }
     }
 }
 
-/** スニペット / SSH・SFTP を切替えるセグメントタブ。 */
+/** スニペット / SSH・SFTP / サーバー を切替えるセグメントタブ。出せないタブは省く。 */
 @Composable
-private fun ToolsTabBar(selected: ToolsTab, onSelect: (ToolsTab) -> Unit) {
+private fun ToolsTabBar(
+    selected: ToolsTab,
+    showSsh: Boolean,
+    showServers: Boolean,
+    onSelect: (ToolsTab) -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -157,12 +175,22 @@ private fun ToolsTabBar(selected: ToolsTab, onSelect: (ToolsTab) -> Unit) {
             modifier = Modifier.weight(1f),
             onSelect = { onSelect(ToolsTab.SNIPPETS) }
         )
-        TabChip(
-            label = stringResource(R.string.tools_tab_ssh),
-            selected = selected == ToolsTab.SSH,
-            modifier = Modifier.weight(1f),
-            onSelect = { onSelect(ToolsTab.SSH) }
-        )
+        if (showSsh) {
+            TabChip(
+                label = stringResource(R.string.tools_tab_ssh),
+                selected = selected == ToolsTab.SSH,
+                modifier = Modifier.weight(1f),
+                onSelect = { onSelect(ToolsTab.SSH) }
+            )
+        }
+        if (showServers) {
+            TabChip(
+                label = stringResource(R.string.tools_tab_servers),
+                selected = selected == ToolsTab.SERVERS,
+                modifier = Modifier.weight(1f),
+                onSelect = { onSelect(ToolsTab.SERVERS) }
+            )
+        }
     }
 }
 
@@ -186,11 +214,14 @@ private fun TabChip(
         contentAlignment = Alignment.Center
     ) {
         Text(
+            // タブが 3 つ並ぶと幅が窮屈なので 12sp・1 行固定 (溢れは「…」)。
             text = label,
             color = fg,
-            fontSize = 13.sp,
+            fontSize = 12.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            fontFamily = FontFamily.Monospace
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }

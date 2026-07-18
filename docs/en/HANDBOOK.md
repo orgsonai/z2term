@@ -56,7 +56,7 @@ That's all the setup you need.
 | Button | What it does |
 |---|---|
 | 📋 | Paste text from the clipboard (**double-tap to open the clipboard history** and pick from it) |
-| 📜 | Command list (tap a frequently used command to type it) + **SSH connect / SFTP** (switch with tabs) |
+| 📜 | Command list (tap a frequently used command to type it) + **SSH connect / SFTP** + **Servers** (manage resident servers) (switch with tabs) |
 | 🔅 | Screen-on lock (when ON, the screen won't auto-dim; the icon changes to 💡 while ON) |
 | 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF) |
 | 🔍 | Search the on-screen text (jump back/forward with ↑↓) |
@@ -269,14 +269,14 @@ Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←**
 | SSH connection helper | Steps for connecting from a PC, with the IP shown |
 | Storage access | Permission to use `/sdcard` |
 | Clear cache | Sweeps the package/build caches that pile up inside the OS (pacman, apt, apk, `~/.cache`, …) plus the app's temp files. Tapping it opens a confirmation that **itemizes what and how much** will be deleted. Installed packages, settings and files you made are not removed |
-| Reset settings | Returns **every setting to its defaults** — theme, font, keyboard, execution engine (back to the default **z2root**), saved servers, unlocked hidden features and so on. Tapping it opens a confirmation (cannot be undone). **The OS itself (installed packages and files you made) is not removed** |
 | Resident servers | Register any server (sshd / http / smb, …) as a **start command** and keep it running in the background. Turn on "auto-start on boot" and it **launches right after the device boots — without opening the app**. Stop them all from the "Stop servers" notification action or this screen. See below |
 | Notification detection | Grant the OS "notification access" and turn it on, and incoming notifications are appended to `~/.z2term/notifications.jsonl` (a generic hook). **The output format is fully customizable** (a template of `{time}` `{app}` `{title}` `{text}` … ; presets: readable / one-line / TSV / JSONL). Turn on **"Newest at the top"** to prepend new entries to the head of the file instead of appending at the end. What you record / filter / serve is **up to you on the terminal side** (e.g. `tail -f`, or serve it with a resident server). Turn **"Save notification log"** off to keep detecting without writing anything to the file (detection only). A notification that is re-posted many times is **logged only once**. Default off, fully local |
 | System event detection | Turn it on and screen on/off, unlock, charge start/stop, battery low/okay, and Wi-Fi connect/disconnect are appended to `~/.z2term/events.jsonl` (a generic automation trigger; sibling of notification detection). **The output format is customizable** (`{time}` `{event}` `{level}` `{ssid}`; presets: one-line / TSV / JSONL). Turn on **"Newest at the top"** to prepend new entries to the head of the file. Build automations like "when battery drops below 20%…" or "when charging starts…" **terminal-side** (e.g. a script reading `tail -f ~/.z2term/events.jsonl`). Default off, fully local, shows an ongoing notification while active (Wi-Fi SSID is blank without location permission) |
+| Reset settings | Returns **every setting to its defaults** — theme, font, keyboard, execution engine (back to the default **z2root**), saved servers, unlocked hidden features and so on. Tapping it opens a confirmation (cannot be undone). **The OS itself (installed packages and files you made) is not removed** |
 
 ### Resident servers (run without opening the app)
 
-Open ⚙ Settings → **Resident servers** → "Manage servers" to keep any server running.
+Open ⚙ Settings → **Resident servers** → "Manage servers", or the **Servers** tab of the toolbar's 📜, to keep any server running (both show the same screen).
 
 1. Tap "**+ New**". Picking a preset (SSH / HTTP / SMB / FTP / VNC) fills in a start command (edit it freely).
 2. Install the server itself (`sshd` / `smbd`, …) into that OS beforehand from the terminal — the app does not bundle them.

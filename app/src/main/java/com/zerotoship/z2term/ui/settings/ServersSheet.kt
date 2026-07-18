@@ -93,25 +93,6 @@ fun ServersSheet(
         scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
     }
 
-    val settings by session.settingsFlow.collectAsState()
-    val entries = remember(settings.serverEntries) { ServerEntry.decode(settings.serverEntries) }
-
-    fun persist(list: List<ServerEntry>) = session.setServerEntries(ServerEntry.encode(list))
-
-    var editing by remember { mutableStateOf<ServerEntry?>(null) }
-    var isNew by remember { mutableStateOf(false) }
-
-    // 稼働状態を定期ポーリング (シートが開いている間だけ)。
-    var running by remember { mutableStateOf(ServerDaemonManager.isRunning) }
-    var statuses by remember { mutableStateOf(emptyList<ServerDaemonManager.ServerStatus>()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            running = ServerDaemonManager.isRunning
-            statuses = ServerDaemonManager.readStatus(context)
-            delay(1500)
-        }
-    }
-
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -127,109 +108,145 @@ fun ServersSheet(
                 .fillMaxWidth()
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(bottom = 24.dp)
         ) {
-            val currentEdit = editing
-            if (currentEdit != null) {
-                ServerEditForm(
-                    initial = currentEdit,
-                    isNew = isNew,
-                    onSave = { saved ->
-                        val list = entries.toMutableList()
-                        val idx = list.indexOfFirst { it.id == saved.id }
-                        if (idx >= 0) list[idx] = saved else list.add(saved)
-                        persist(list)
-                        editing = null
-                    },
-                    onCancel = { editing = null }
-                )
-                return@Column
-            }
-
-            // ヘッダ + 新規追加
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.servers_title),
-                    color = ZtsGreen,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = FontFamily.Monospace
-                )
-                Box(modifier = Modifier.weight(1f))
-                PillButton(label = stringResource(R.string.servers_new), accent = true) {
-                    isNew = true
-                    editing = ServerEntry(id = ServerEntry.newId(), name = "", command = "", enabled = true)
-                }
-            }
-
-            // 起動/停止 + 状態
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (running) stringResource(R.string.servers_state_running)
-                    else stringResource(R.string.servers_state_stopped),
-                    color = if (running) ZtsGreen else ZtsTextSecondary,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-                Box(modifier = Modifier.weight(1f))
-                if (running) {
-                    PillButton(label = stringResource(R.string.servers_stop), danger = true) {
-                        ServerDaemonService.stop(context)
-                    }
-                } else {
-                    PillButton(label = stringResource(R.string.servers_start), accent = true) {
-                        ServerDaemonService.start(context)
-                    }
-                }
-            }
-
-            // 起動時に自動で常駐
-            ToggleRow(
-                title = stringResource(R.string.servers_autostart_boot),
-                desc = stringResource(R.string.servers_autostart_boot_desc),
-                checked = settings.serversAutostartOnBoot,
-                onChange = { session.setServersAutostartOnBoot(it) }
-            )
-
-            // 省電力モード (WakeLock/WifiLock を握らない)。次回の起動から反映。
-            ToggleRow(
-                title = stringResource(R.string.servers_low_power),
-                desc = stringResource(R.string.servers_low_power_desc),
-                checked = settings.serversLowPower,
-                onChange = { session.setServersLowPower(it) }
-            )
-
-            if (entries.isEmpty()) {
-                HintBox(stringResource(R.string.servers_empty))
-            } else {
-                entries.forEach { e ->
-                    val st = statuses.firstOrNull { it.id == e.id }
-                    ServerRow(
-                        entry = e,
-                        stateLabel = if (running && e.enabled) st?.state else null,
-                        onToggle = { checked ->
-                            // 設定を永続化しつつ、稼働中なら該当サーバーだけを即時 起動/停止する
-                            // (supervisor を再起動しないので他サーバーは止まらない)。
-                            persist(entries.map { if (it.id == e.id) it.copy(enabled = checked) else it })
-                            if (running) ServerDaemonManager.setWant(context, e.id, checked)
-                        },
-                        onEdit = { isNew = false; editing = e },
-                        onDelete = { persist(entries.filterNot { it.id == e.id }) }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(2.dp))
-            HintBox(stringResource(R.string.servers_hint))
+            ServersBody(session = session)
         }
+    }
+}
+
+/**
+ * 常駐サーバー管理の本体 (シートの中身)。スクロールは呼び出し側が持つ。
+ *
+ * 設定シートの「サーバーを管理」([ServersSheet]) と、ツールシート (📜) の
+ * 「サーバー」タブの両方から同じ UI を使うためにここへ切り出してある。
+ */
+@Composable
+fun ServersBody(session: TerminalSession) {
+    val context = LocalContext.current
+
+    val settings by session.settingsFlow.collectAsState()
+    val entries = remember(settings.serverEntries) { ServerEntry.decode(settings.serverEntries) }
+
+    fun persist(list: List<ServerEntry>) = session.setServerEntries(ServerEntry.encode(list))
+
+    var editing by remember { mutableStateOf<ServerEntry?>(null) }
+    var isNew by remember { mutableStateOf(false) }
+
+    // 稼働状態を定期ポーリング (表示している間だけ)。
+    var running by remember { mutableStateOf(ServerDaemonManager.isRunning) }
+    var statuses by remember { mutableStateOf(emptyList<ServerDaemonManager.ServerStatus>()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            running = ServerDaemonManager.isRunning
+            statuses = ServerDaemonManager.readStatus(context)
+            delay(1500)
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        val currentEdit = editing
+        if (currentEdit != null) {
+            ServerEditForm(
+                initial = currentEdit,
+                isNew = isNew,
+                onSave = { saved ->
+                    val list = entries.toMutableList()
+                    val idx = list.indexOfFirst { it.id == saved.id }
+                    if (idx >= 0) list[idx] = saved else list.add(saved)
+                    persist(list)
+                    editing = null
+                },
+                onCancel = { editing = null }
+            )
+            return@Column
+        }
+
+        // ヘッダ + 新規追加
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.servers_title),
+                color = ZtsGreen,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = FontFamily.Monospace
+            )
+            Box(modifier = Modifier.weight(1f))
+            PillButton(label = stringResource(R.string.servers_new), accent = true) {
+                isNew = true
+                editing = ServerEntry(id = ServerEntry.newId(), name = "", command = "", enabled = true)
+            }
+        }
+
+        // 起動/停止 + 状態
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (running) stringResource(R.string.servers_state_running)
+                else stringResource(R.string.servers_state_stopped),
+                color = if (running) ZtsGreen else ZtsTextSecondary,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Box(modifier = Modifier.weight(1f))
+            if (running) {
+                PillButton(label = stringResource(R.string.servers_stop), danger = true) {
+                    ServerDaemonService.stop(context)
+                }
+            } else {
+                PillButton(label = stringResource(R.string.servers_start), accent = true) {
+                    ServerDaemonService.start(context)
+                }
+            }
+        }
+
+        // 起動時に自動で常駐
+        ToggleRow(
+            title = stringResource(R.string.servers_autostart_boot),
+            desc = stringResource(R.string.servers_autostart_boot_desc),
+            checked = settings.serversAutostartOnBoot,
+            onChange = { session.setServersAutostartOnBoot(it) }
+        )
+
+        // 省電力モード (WakeLock/WifiLock を握らない)。次回の起動から反映。
+        ToggleRow(
+            title = stringResource(R.string.servers_low_power),
+            desc = stringResource(R.string.servers_low_power_desc),
+            checked = settings.serversLowPower,
+            onChange = { session.setServersLowPower(it) }
+        )
+
+        if (entries.isEmpty()) {
+            HintBox(stringResource(R.string.servers_empty))
+        } else {
+            entries.forEach { e ->
+                val st = statuses.firstOrNull { it.id == e.id }
+                ServerRow(
+                    entry = e,
+                    stateLabel = if (running && e.enabled) st?.state else null,
+                    onToggle = { checked ->
+                        // 設定を永続化しつつ、稼働中なら該当サーバーだけを即時 起動/停止する
+                        // (supervisor を再起動しないので他サーバーは止まらない)。
+                        persist(entries.map { if (it.id == e.id) it.copy(enabled = checked) else it })
+                        if (running) ServerDaemonManager.setWant(context, e.id, checked)
+                    },
+                    onEdit = { isNew = false; editing = e },
+                    onDelete = { persist(entries.filterNot { it.id == e.id }) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(2.dp))
+        HintBox(stringResource(R.string.servers_hint))
     }
 }
 

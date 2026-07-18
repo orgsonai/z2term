@@ -158,6 +158,7 @@
     <!-- Tools sheet tabs -->
     <string name="tools_tab_snippets">Snippets</string>
     <string name="tools_tab_ssh">SSH / SFTP</string>
+    <string name="tools_tab_servers">Servers</string>
 
     <!-- Clipboard history sheet (double-tap the 📋 paste button) -->
     <string name="clip_history_title">Clipboard history</string>

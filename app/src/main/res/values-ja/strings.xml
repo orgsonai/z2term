@@ -158,6 +158,7 @@
     <!-- ツールシートのタブ -->
     <string name="tools_tab_snippets">スニペット</string>
     <string name="tools_tab_ssh">SSH / SFTP</string>
+    <string name="tools_tab_servers">サーバー</string>
 
     <!-- クリップボード履歴シート (📋 貼付ボタンをダブルタップで開く) -->
     <string name="clip_history_title">クリップボード履歴</string>

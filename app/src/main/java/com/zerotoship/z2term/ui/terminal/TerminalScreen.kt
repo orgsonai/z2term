@@ -588,7 +588,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 active.writeBytes(command.toByteArray(Charsets.UTF_8))
             },
             onConnect = { profile -> active.connectSsh(profile) },
-            onSftp = { profile -> sftpProfile = profile }
+            onSftp = { profile -> sftpProfile = profile },
+            // 常駐サーバーの管理をここからも行えるようにする (設定シートを経由しなくてよい)。
+            serverSession = active
         )
     }
     if (clipHistoryOpen) {
@@ -921,8 +923,10 @@ private fun GuiTabScreen(
             onDismiss = { snippetsSheetOpen = false },
             // 端末は writeBytes だが GUI は keysym 橋渡しで送る (M8-6 T1)。
             onRun = { command -> GuiKeyMapper.sendText(gui.rfb, command) },
-            // GUI タブからは SSH 接続の概念が無いのでスニペットタブのみ表示する。
-            showSshTab = false
+            // GUI タブからは SSH 接続の概念が無いので SSH タブは出さない。
+            showSshTab = false,
+            // 常駐サーバーの管理は端末タブが 1 つでもあれば GUI からも行える。
+            serverSession = terminalForSettings
         )
     }
     if (clipHistoryOpen) {
