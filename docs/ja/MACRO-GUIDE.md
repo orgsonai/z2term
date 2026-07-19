@@ -61,7 +61,7 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 | `ringer_normal` / `ringer_vibrate` / `ringer_silent` | マナーモード 切替 | — |
 | `alarm` | **`z2-alarm` で仕掛けた時刻**になった | `name`（`z2-alarm` に付けた名前） |
 | `notify_action` | **`z2-notify -b` で付けたボタンが押された** | `name`（通知に付けた名前）, `action`（押されたラベル） |
-| `unlock_failed` / `unlock_succeeded` | ロック画面の解除に**失敗 / 成功**（盗難対策向け。⚙設定「ロック解除の失敗監視」ON ＋ 端末管理者の有効化が必要） | `unlock_failed` に `level`（連続失敗回数） |
+| `unlock_failed` / `unlock_succeeded` | ロック画面の解除に**失敗 / 成功**（盗難対策向け。⚙設定「ロック解除の失敗監視」ON ＋ 端末管理者の有効化が必要）。**PIN・パターン・パスワードのみ**で、指紋/顔認証では発火しない（→ 解除の合図には `unlocked` を使う） | `unlock_failed` に `level`（連続失敗回数） |
 
 行の例:
 ```json
@@ -298,6 +298,12 @@ tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
   # scp ~/theft.log backup:/srv/ 2>/dev/null
 done
 ```
+
+⚠ **`unlock_failed` / `unlock_succeeded` は PIN・パターン・パスワードの失敗/成功でしか発火しません。**
+指紋や顔認証は Android が端末管理者に通知しない仕組みのため、**指紋で解除しても `unlock_succeeded` は流れません**。
+「失敗したら鳴らして、解除できたら止める」を組むときに成功側を `unlock_succeeded` で待つと、指紋で解除した
+場合に止まりません。**止める合図には `unlocked`（`USER_PRESENT`。生体認証を含むあらゆる解除で必ず発火）を使ってください**
+（`unlocked` は「システムイベント検知」が ON なら流れます）。
 
 撮影や送信の中身は**あなたのマクロ次第**です（このアプリはカメラ撮影を組み込みません。バックグラウンド
 撮影は Android の制約で別途 root/専用アプリが要ります）。位置は位置情報権限のある distro ツールや

@@ -60,7 +60,7 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
 | `ringer_normal` / `ringer_vibrate` / `ringer_silent` | Ringer mode change | — |
 | `alarm` | **A time scheduled with `z2-alarm`** came around | `name` (the name you gave `z2-alarm`) |
 | `notify_action` | **A button added with `z2-notify -b` was pressed** | `name` (the notification's name), `action` (the label pressed) |
-| `unlock_failed` / `unlock_succeeded` | Lock-screen unlock **failed / succeeded** (anti-theft; needs ⚙ Settings "Watch unlock failures" ON + device admin activated) | `level` on `unlock_failed` (consecutive failure count) |
+| `unlock_failed` / `unlock_succeeded` | Lock-screen unlock **failed / succeeded** (anti-theft; needs ⚙ Settings "Watch unlock failures" ON + device admin activated). **PIN / pattern / password only** — never fires for fingerprint or face (use `unlocked` as the "cleared" signal) | `level` on `unlock_failed` (consecutive failure count) |
 
 Example lines:
 ```json
@@ -296,6 +296,13 @@ tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
   # scp ~/theft.log backup:/srv/ 2>/dev/null
 done
 ```
+
+⚠ **`unlock_failed` / `unlock_succeeded` only fire for PIN, pattern and password attempts.**
+Android does not report biometric attempts to device admins, so **unlocking with a fingerprint produces no
+`unlock_succeeded`**. If you build "sound an alarm on failures, stop once unlocked" and wait for
+`unlock_succeeded`, it will never stop when the phone is unlocked by fingerprint. **Use `unlocked`
+(`USER_PRESENT`, fired on every successful unlock including biometrics) as the stop signal** — it is emitted
+whenever "System event detection" is on.
 
 What gets captured or sent is **up to your macro** (the app builds in no camera capture — background
 photos are blocked by Android and need separate root/dedicated tooling). Combine with a location tool
