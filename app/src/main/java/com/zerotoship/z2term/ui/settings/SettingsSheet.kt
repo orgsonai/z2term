@@ -5,6 +5,8 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -899,6 +901,10 @@ fun SettingsSheet(
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
+                CopyableCommand(
+                    label = stringResource(R.string.settings_cmd_read_label),
+                    command = "tail -f ~/" + NotificationLogService.LOG_REL
+                )
             }
 
             // システムイベント検知 (汎用入口): 設定 ON のとき FG サービスが常駐し、画面 ON/OFF・ロック解除・
@@ -966,14 +972,27 @@ fun SettingsSheet(
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
+                CopyableCommand(
+                    label = stringResource(R.string.settings_cmd_read_label),
+                    command = "tail -f ~/" + SystemEventService.LOG_REL
+                )
             }
 
             // ロック解除の失敗監視 (盗難対策マクロの検知入口): 設定 ON + 端末管理者が有効なとき、
             // ロック解除の失敗/成功を events.jsonl へ unlock_failed / unlock_succeeded として流す。
             // 撮影・送信・警報などのアクションはハードコードせず、ユーザーがマクロで組む。
             Section(title = stringResource(R.string.settings_section_unlock_watch)) {
-                val adminActive = remember(serversOpen, settings.unlockWatchEnabled) {
-                    PasswordWatchAdmin.isActive(context)
+                // 端末管理者の有効/無効は OS 側の画面で変わるため、遷移から戻ってきた時点で
+                // 必ず読み直す。remember のキー任せだと戻っても再評価されず、有効化したのに
+                // 「未設定」のまま・ボタンも「有効化」のままで、押すと既に有効な管理者に対して
+                // 追加ダイアログを出そうとして何も起きない (= 壊れて見える) ことになる。
+                var adminActive by remember { mutableStateOf(PasswordWatchAdmin.isActive(context)) }
+                val adminLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.StartActivityForResult()
+                ) {
+                    // 戻り値 (RESULT_OK/CANCELED) ではなく DPM に現在の状態を聞き直す。
+                    // セキュリティ設定から無効化して戻ってきた場合もこれで追従する。
+                    adminActive = PasswordWatchAdmin.isActive(context)
                 }
                 ToggleField(
                     title = stringResource(R.string.settings_unlock_watch),
@@ -994,21 +1013,29 @@ fun SettingsSheet(
                     label = if (adminActive) stringResource(R.string.settings_unlock_watch_admin_manage)
                     else stringResource(R.string.settings_unlock_watch_admin_grant),
                     onClick = {
-                        runCatching {
-                            val intent = if (adminActive) {
-                                Intent(Settings.ACTION_SECURITY_SETTINGS)
-                            } else {
-                                Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
-                                    .putExtra(
-                                        DevicePolicyManager.EXTRA_DEVICE_ADMIN,
-                                        PasswordWatchAdmin.component(context)
-                                    )
-                                    .putExtra(
-                                        DevicePolicyManager.EXTRA_ADD_EXPLANATION,
-                                        context.getString(R.string.settings_unlock_watch_admin_explain)
-                                    )
-                            }
-                            context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        val intent = if (adminActive) {
+                            Intent(Settings.ACTION_SECURITY_SETTINGS)
+                        } else {
+                            Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
+                                .putExtra(
+                                    DevicePolicyManager.EXTRA_DEVICE_ADMIN,
+                                    PasswordWatchAdmin.component(context)
+                                )
+                                .putExtra(
+                                    DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+                                    context.getString(R.string.settings_unlock_watch_admin_explain)
+                                )
+                        }
+                        // FLAG_ACTIVITY_NEW_TASK を付けて startActivity すると別タスクで開き、
+                        // 戻っても設定シートに帰ってこない。launcher なら同じタスクで開き、
+                        // 戻った時点で上のコールバックが発火して表示も更新される。
+                        runCatching { adminLauncher.launch(intent) }.onFailure {
+                            // 端末ポリシーで管理者追加が禁止されている等。黙って無反応にしない。
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.settings_unlock_watch_admin_failed),
+                                Toast.LENGTH_LONG
+                            ).show()
                         }
                     }
                 )
@@ -1718,6 +1745,49 @@ private fun ToggleField(
 private const val LOG_SIZE_WARN_BYTES = 10L * 1024 * 1024
 
 /**
+ * 設定画面に載せる「コマンド例」を **タップでクリップボードにコピー** できる形で見せる共通部品。
+ *
+ * 設定画面の例をターミナルで打ち直すのは端末では手間なので、例を出す箇所はコピーできるようにする。
+ * コピー後はトーストで結果を返す (押しても何も起きないように見えるのを避ける)。
+ */
+@Composable
+private fun CopyableCommand(label: String, command: String) {
+    val context = LocalContext.current
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = label,
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Text(
+            text = command,
+            color = ZtsGreen,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(4.dp))
+                .background(ZtsBgCard)
+                .border(1.dp, ZtsBorder, RoundedCornerShape(4.dp))
+                .clickable {
+                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                        as? android.content.ClipboardManager
+                    cm?.setPrimaryClip(
+                        android.content.ClipData.newPlainText("command", command)
+                    )
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.settings_cmd_copied),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                .padding(horizontal = 8.dp, vertical = 6.dp)
+        )
+    }
+}
+
+/**
  * 「新しいものを先頭に」が ON で、かつログが [LOG_SIZE_WARN_BYTES] を超えたときだけ出す注意書き。
  *
  * 先頭追記は 1 行書くたびにファイル全体を読み直して書き戻すため、肥大するほど 1 件あたりのコストが
@@ -1749,10 +1819,14 @@ private fun LogSizeWarning(bytes: Long, prepend: Boolean, path: String) {
             fontFamily = FontFamily.Monospace
         )
         Text(
-            text = stringResource(R.string.settings_log_size_warn_desc, path),
+            text = stringResource(R.string.settings_log_size_warn_desc),
             color = ZtsTextPrimary,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace
+        )
+        CopyableCommand(
+            label = stringResource(R.string.settings_log_size_warn_cmd_label),
+            command = ": > $path"
         )
     }
 }

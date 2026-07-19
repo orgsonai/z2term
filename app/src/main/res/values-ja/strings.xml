@@ -394,11 +394,15 @@
     <string name="settings_notif_fmt_readable">読みやすい</string>
     <string name="settings_notif_fmt_line">1行</string>
     <string name="settings_notif_fmt_help">使える項目: {time} {ts} {app} {pkg} {title} {text} {category} {key}。1行化: {text1} {title1}。改行=\\n タブ=\\t。新しい通知から反映。</string>
-    <string name="settings_notif_logpath">ログ: ~/.z2term/notifications.jsonl（ターミナルで tail -f 等で読めます）</string>
+    <string name="settings_notif_logpath">ログ: ~/.z2term/notifications.jsonl</string>
     <string name="settings_log_prepend">新しいものを先頭に</string>
     <string name="settings_log_prepend_desc">新しい行をファイルの末尾ではなく先頭に追記します（新着が上）。</string>
     <string name="settings_log_size_warn">⚠ ログが %1$s MB と大きくなっています</string>
-    <string name="settings_log_size_warn_desc">「新しいものを先頭に」が ON のあいだは、1 行記録するたびにファイル全体を読み書きします。このまま大きくなると動作が重くなり、いずれ記録できなくなります。この設定を OFF にする（末尾に追記）か、ターミナルで整理してください。\n空にする例: : &gt; %1$s</string>
+    <string name="settings_log_size_warn_desc">「新しいものを先頭に」が ON のあいだは、1 行記録するたびにファイル全体を読み書きします。このまま大きくなると動作が重くなり、いずれ記録できなくなります。この設定を OFF にする（末尾に追記）か、ターミナルで整理してください。</string>
+    <string name="settings_log_size_warn_cmd_label">空にするコマンド（タップでコピー）</string>
+    <string name="settings_cmd_read_label">読むコマンド（タップでコピー）</string>
+    <string name="settings_cmd_copied">コマンドをコピーしました</string>
+    <string name="settings_unlock_watch_admin_failed">この端末では端末管理者を追加できませんでした（端末のポリシーで禁止されている可能性があります）</string>
     <string name="event_channel_name">Z2Term システムイベント</string>
     <string name="event_channel_desc">画面/ロック/充電/電池/Wi-Fi のイベントを検知します</string>
     <string name="event_notification_title">システムイベント検知</string>
@@ -408,7 +412,7 @@
     <string name="settings_events_capture">システムイベントを検知</string>
     <string name="settings_events_capture_desc">ON にすると、画面 ON/OFF・ロック解除・充電開始/停止・電池 低下/回復・Wi-Fi 接続/切断を ~/.z2term/events.jsonl へ記録するサービスが常駐します。何をするかはターミナル側で自由に組める汎用の自動化フック。完全ローカル。稼働中は常駐通知を表示します。</string>
     <string name="settings_events_fmt_help">プレースホルダ: {time} {ts} {event} {level} {ssid}。エスケープ: \\n \\t。空 = JSONL。{ssid} は位置情報権限が無いと空になります。新規分から反映。</string>
-    <string name="settings_events_logpath">ログ: ~/.z2term/events.jsonl（ターミナルで tail -f 等で読めます）</string>
+    <string name="settings_events_logpath">ログ: ~/.z2term/events.jsonl</string>
     <string name="settings_section_unlock_watch">ロック解除の失敗監視</string>
     <string name="settings_unlock_watch">解除失敗を検知</string>
     <string name="settings_unlock_watch_desc">ON かつ端末管理者が有効なとき、ロック画面の解除の失敗/成功を ~/.z2term/events.jsonl へ unlock_failed / unlock_succeeded として記録します（{level} = 連続失敗回数）。盗難対策マクロの検知入口で、アクション（通知・位置記録・警報など）はマクロ側で自由に組みます。撮影や送信は組み込みません。完全ローカル。</string>
