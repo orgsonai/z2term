@@ -318,23 +318,48 @@ done
 **ポイント**（そのまま流用できる定石）:
 - **キーワードで絞る**（認証/確認/コード/OTP…）→ 普通のメッセージや電話番号を拾わない。
 - 抽出は **4〜8 桁の数字 1 つ**に限定。`123-456` 形式は区切りを除いてから拾う。
-- **形式非依存**: 出力が既定 JSONL でも独自テンプレートでも動くよう、JSON 行は `title`+`text` だけを見て、
-  テンプレート行は先頭の `[時刻]` を除去してから走査する（先頭タイムスタンプの数字を誤って拾わない）。
+- **ログ形式にも追記方向にも依存しない**（下の「なぜ行で読まないか」を参照）。設定でテンプレートを
+  自由に変えても、「新着を上」に切り替えても、マクロ側は無変更で動く。
 - **自動クリア**はコピー時の値と一致するときだけ実行（途中で別物をコピーしていたら残す）。
   クリップボードは他アプリからも読める共有領域なので、貼り付け後に消えるほうが安全。
+
+**なぜ行で読まないか**（ここがこのマクロの肝）:
+
+通知ログは**あなたが形式を自由に決められる**。素朴に「1 行 = 1 通知」と読み、`tail -F` で末尾を
+追う実装は、次の 2 つで破綻する。
+
+- **複数行テンプレート**（`\n` を含む形式）では題名と本文が別々の行に割れ、キーワードとコードが
+  同じ行に揃わない。
+- **先頭追記**（⚙設定の「新着を上」）ではファイルの**末尾に新着が来ない**ので、`tail -F` は
+  永久に何も拾わない。
+
+そこで**前回スナップショットとの差分**を見る。差分が前回内容の前後どちらに付いたかで追記方向を
+自動判別でき、差分は行に割らず**塊のまま**走査するので複数行テンプレートでもまたいで拾える。
+
+もう一点、形式が自由なほど「コードに見えるが違う数字」が紛れ込む。日時・エポック（`{ts}`）・
+通知 ID（`{key}` は `0|com.example|2847|null|10268` のような形）・パッケージ名（`{pkg}`）を先に
+除去し、さらに**キーワードからの位置**でコードを選ぶ。「最初に見つかった数字」方式だと、
+`{key}` を含むテンプレートで通知 ID をコードと取り違える。
 
 ```sh
 #!/bin/sh
 # ~/.z2term/macros/otp-clip.sh
 # 通知内のワンタイムコード(4〜8桁)を自動でクリップボードにコピーし、TTL 秒後に自動クリア。
+# ログ形式・追記方向のどちらにも依存しない。
 # 準備: ⚙設定 →「通知検知」ON ＋ OS の「通知アクセス」許可
 # 常駐: ⚙設定 → 常駐サーバー に  sh ~/.z2term/macros/otp-clip.sh  を登録
-# 依存: jq 推奨（無ければ sed フォールバックが動く）
 
 TTL=60                                    # コピーから何秒でクリアするか
+POLL=2                                    # 通知ログを見に行く間隔(秒)
 KEYWORDS='認証|確認|ワンタイム|コード|パスワード|code|otp|verification|verify|one[- ]?time'
 
-# TTL 秒後、クリップがコピー時の値のままなら空にする（別物をコピーしていたら残す）
+NOTIF=$HOME/.z2term/notifications.jsonl
+SNAP=$HOME/.z2term/.otp-clip.snap
+WORK=$HOME/.z2term/.otp-clip.work
+
+[ -f "$NOTIF" ] || : > "$NOTIF"
+
+# TTL 秒後、クリップボードがコピー時の値のままなら空にする(別物をコピーしていたら残す)。
 schedule_clear() {
   code=$1
   ( sleep "$TTL"
@@ -346,36 +371,100 @@ schedule_clear() {
   ) &
 }
 
-tail -n0 -F ~/.z2term/notifications.jsonl 2>/dev/null | while IFS= read -r line; do
-  [ -z "$line" ] && continue
-  # 本文(body)を取り出す（形式に依存しない）
-  case "$line" in
-    '{'*)   # JSONL: title + text だけを対象にする
-      if command -v jq >/dev/null 2>&1; then
-        body=$(printf '%s' "$line" | jq -r '((.title // "") + " " + (.text // ""))' 2>/dev/null)
-      else
-        t=$(printf '%s' "$line" | sed -n 's/.*"title":"\([^"]*\)".*/\1/p')
-        x=$(printf '%s' "$line" | sed -n 's/.*"text":"\([^"]*\)".*/\1/p')
-        body="$t $x"
-      fi ;;
-    *)      # 独自テンプレート: 先頭の "[時刻]" を1つ除去
-      body=$(printf '%s' "$line" | sed 's/^\[[^]]*\][[:space:]]*//') ;;
-  esac
-  [ -z "$body" ] && continue
-  # キーワードを含むときだけ処理（誤爆防止）
-  printf '%s' "$body" | grep -Eiq "$KEYWORDS" || continue
-  # 4〜8桁の数字を1つ抽出（"123-456" は区切りを除いてから）
-  code=$(printf '%s' "$body" | tr -d ' -' | grep -oE '[0-9]{4,8}' | head -n1)
-  [ -z "$code" ] && continue
-  # コピー → 知らせる → TTL 秒後に自動クリア
+handle() {
+  raw=$1
+  [ -z "$raw" ] && return
+
+  # コードに見えるが違うものを先に消す: 日時 / 時刻 / 9 桁以上(エポック等) /
+  # '|' を含むトークン ({key} の通知 ID) / ドット区切り識別子 ({pkg})。最後に "123-456" を詰める。
+  scan=$(printf '%s' "$raw" | sed \
+    -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}[T ][0-9:+-]*/ /g' \
+    -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}/ /g' \
+    -e 's/[0-9]\{1,2\}:[0-9]\{2\}\(:[0-9]\{2\}\)\?/ /g' \
+    -e 's/[0-9]\{9,\}/ /g' \
+    -e 's/[^ ]*|[^ ]*/ /g' \
+    -e 's/[A-Za-z0-9_]\{1,\}\.[A-Za-z0-9_.]\{1,\}/ /g' \
+    -e 's/\([0-9]\)-\([0-9]\)/\1\2/g' \
+    -e 's/\([0-9]\)-\([0-9]\)/\1\2/g')
+
+  # 「最初に見つかった数字」ではなくキーワードの直後を優先し、無ければ直前の最も近い数字。
+  # 自由な形式では前後にメタ情報の数字が混ざるため、位置で選ばないと取り違える。
+  # 数字列は必ず最大長で切り出し、長い数字列の一部を切り取らない。
+  code=$(printf '%s' "$scan" | awk -v kw="$KEYWORDS" '
+    function firstcode(s,   r) {
+      while (match(s, /[0-9]+/)) {
+        r = substr(s, RSTART, RLENGTH)
+        if (length(r) >= 4 && length(r) <= 8) return r
+        s = substr(s, RSTART + RLENGTH)
+      }
+      return ""
+    }
+    function lastcode(s,   r, best) {
+      best = ""
+      while (match(s, /[0-9]+/)) {
+        r = substr(s, RSTART, RLENGTH)
+        if (length(r) >= 4 && length(r) <= 8) best = r
+        s = substr(s, RSTART + RLENGTH)
+      }
+      return best
+    }
+    { buf = buf " " $0 }                    # 複数行でも 1 つの塊として扱う
+    END {
+      if (!match(tolower(buf), kw)) exit       # キーワード無し = 認証通知ではない
+      # RSTART/RLENGTH は awk の組み込みグローバルで、下の match() に壊されるため先に退避する。
+      ks = RSTART; kl = RLENGTH
+      c = firstcode(substr(buf, ks + kl))      # キーワードの直後を優先
+      if (c == "") c = lastcode(substr(buf, 1, ks - 1))   # 無ければ直前の最も近い数字
+      if (c != "") print c
+    }')
+  [ -z "$code" ] && return
+
   z2-clip set "$code"
   z2-toast "コードをコピー: ${code}"
   schedule_clear "$code"
+}
+
+# 初回は「今ある分」を既読の基準にするだけで、過去ログには反応しない。
+cp "$NOTIF" "$SNAP" 2>/dev/null || : > "$SNAP"
+
+while :; do
+  sleep "$POLL"
+  [ -f "$NOTIF" ] || continue
+
+  cn=$(wc -c < "$NOTIF" 2>/dev/null || echo 0)
+  pn=$(wc -c < "$SNAP"  2>/dev/null || echo 0)
+  [ "$cn" = "$pn" ] && continue           # サイズが同じなら変化なしとみなす
+
+  new=''
+  if [ "$cn" -gt "$pn" ] && [ "$pn" -eq 0 ]; then
+    # 直前が空 = 全体が新着。(起動時に必ず基準を取るので過去ログの誤発火にはならない)
+    new=$(cat "$NOTIF")
+  elif [ "$cn" -gt "$pn" ]; then
+    diff=$((cn - pn))
+    head -c "$pn" "$NOTIF" > "$WORK" 2>/dev/null
+    if cmp -s "$WORK" "$SNAP"; then
+      new=$(tail -c "$diff" "$NOTIF")  # 前回内容で「始まる」→ 末尾追記(新着が下)
+    else
+      tail -c "$pn" "$NOTIF" > "$WORK" 2>/dev/null
+      if cmp -s "$WORK" "$SNAP"; then
+        new=$(head -c "$diff" "$NOTIF")  # 前回内容で「終わる」→ 先頭追記(新着が上)
+      fi
+      # どちらでもない = 書き換え/掃除。基準を貼り直すだけで発火しない。
+    fi
+  fi
+  # cn < pn (truncate された) も基準の貼り直しだけ。
+
+  cp "$NOTIF" "$SNAP" 2>/dev/null
+  handle "$new"
 done
 ```
 
-調整は先頭の `TTL`（クリアまでの秒数）と `KEYWORDS`（対応語を追加）だけ。届いた瞬間にコードだけ入るので、
-入力欄で貼り付けるだけで済みます。
+調整は先頭の `TTL`（クリアまでの秒数）・`POLL`（反応の速さ）・`KEYWORDS`（対応語を追加）だけ。
+届いてから最大 `POLL` 秒でコードだけ入るので、入力欄で貼り付けるだけで済みます。
+
+**制約**: 1 回の `POLL` 周期内に通知が 2 件届くと 1 つの塊として扱われます（認証通知が連続する場面は
+稀ですが、原理的な穴です）。また通知の本文が OS 側で伏せられている場合（ロック画面で
+「プライベートな通知内容は表示されません」と出る設定）は、コードがそもそもログに届きません。
 
 ---
 

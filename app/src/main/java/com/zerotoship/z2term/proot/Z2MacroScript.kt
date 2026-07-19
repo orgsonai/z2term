@@ -127,59 +127,23 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         appendLine("done")
     }
 
-    // --- 4. 実用: 通知内のワンタイムコードを自動コピー (MACRO-GUIDE 5-5 と同じ内容) ---
+    // --- 4. 実用: 通知内のワンタイムコードを自動コピー (MACRO-GUIDE 5-6 と同じ内容) ---
     val otpClip = buildString {
         appendLine("#!/bin/sh")
         if (ja) {
             appendLine("# otp-clip.sh — 通知に含まれるワンタイムコード(4〜8桁)を自動でクリップボードへ入れ、")
             appendLine("# TTL 秒後に「値が変わっていなければ」自動で消す。")
+            appendLine("# ログ形式・追記方向のどちらにも依存しない (詳細は handle() と下のループのコメント)。")
             appendLine("# 準備: ⚙設定 →「通知検知」ON ＋ OS の「通知アクセス」許可")
             appendLine("# 常駐: ⚙設定 → 常駐サーバー に  sh ~/.z2term/macros/otp-clip.sh  を登録")
         } else {
             appendLine("# otp-clip.sh — copy a one-time code (4-8 digits) out of notifications, then")
             appendLine("# clear it after TTL seconds if the clipboard still holds that same value.")
+            appendLine("# Independent of both log format and write direction (see handle() and the loop below).")
             appendLine("# Setup: Settings -> \"Notification detection\" ON + grant OS notification access")
             appendLine("# Resident: register  sh ~/.z2term/macros/otp-clip.sh  under Settings -> Resident servers")
         }
-        appendLine("TTL=60")
-        appendLine("KEYWORDS='認証|確認|ワンタイム|コード|パスワード|code|otp|verification|verify|one[- ]?time'")
-        appendLine("NOTIF=~/.z2term/notifications.jsonl")
-        appendLine("[ -f \"${d}NOTIF\" ] || : > \"${d}NOTIF\"")
-        appendLine("schedule_clear() {")
-        appendLine("  code=${d}1")
-        appendLine("  ( sleep \"${d}TTL\"")
-        appendLine("    cur=${d}(z2-clip get 2>/dev/null)")
-        appendLine("    if [ \"${d}cur\" = \"${d}code\" ]; then")
-        appendLine("      z2-clip set \"\"")
-        if (ja) {
-            appendLine("      z2-toast \"コピーしたコードをクリアしました\"")
-        } else {
-            appendLine("      z2-toast \"Cleared the copied code\"")
-        }
-        appendLine("    fi")
-        appendLine("  ) &")
-        appendLine("}")
-        appendLine("tail -n0 -F \"${d}NOTIF\" 2>/dev/null | while IFS= read -r line; do")
-        appendLine("  [ -z \"${d}line\" ] && continue")
-        appendLine("  case \"${d}line\" in")
-        appendLine("    '{'*)")
-        appendLine("      t=${d}(printf '%s' \"${d}line\" | sed -n 's/.*\"title\":\"\\([^\"]*\\)\".*/\\1/p')")
-        appendLine("      x=${d}(printf '%s' \"${d}line\" | sed -n 's/.*\"text\":\"\\([^\"]*\\)\".*/\\1/p')")
-        appendLine("      body=\"${d}t ${d}x\" ;;")
-        appendLine("    *) body=${d}(printf '%s' \"${d}line\" | sed 's/^\\[[^]]*\\][[:space:]]*//') ;;")
-        appendLine("  esac")
-        appendLine("  [ -z \"${d}body\" ] && continue")
-        appendLine("  printf '%s' \"${d}body\" | grep -Eiq \"${d}KEYWORDS\" || continue")
-        appendLine("  code=${d}(printf '%s' \"${d}body\" | tr -d ' -' | grep -oE '[0-9]{4,8}' | head -n1)")
-        appendLine("  [ -z \"${d}code\" ] && continue")
-        appendLine("  z2-clip set \"${d}code\"")
-        if (ja) {
-            appendLine("  z2-toast \"コードをコピー: ${d}{code}\"")
-        } else {
-            appendLine("  z2-toast \"Copied code: ${d}{code}\"")
-        }
-        appendLine("  schedule_clear \"${d}code\"")
-        appendLine("done")
+        append(otpClipBody(d, ja))
     }
 
     return linkedMapOf(
@@ -188,6 +152,184 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         "daily-report.sh" to dailyReport,
         "otp-clip.sh" to otpClip,
     )
+}
+
+/**
+ * `otp-clip.sh` の本体 (シェバンとヘッダコメントを除く部分)。
+ *
+ * **ログ形式にも追記方向にも依存しない**のが設計の主眼。通知ログはユーザーが任意のテンプレートに
+ * 変更でき (`{title}` `{key}` 等・改行入りも可)、さらに「新着を上」設定で先頭追記にもできるため、
+ * 素朴な「1 行 = 1 通知」「`tail -F` で末尾を追う」実装は次の 2 通りで破綻する:
+ *  - 複数行テンプレートでは題名と本文が別行に割れ、キーワードとコードが同じ行に揃わない。
+ *  - 先頭追記ではファイル末尾に新着が来ないので `tail -F` が永久に何も拾わない。
+ *
+ * そこで**前回スナップショットとの差分**を見る。差分が前回内容の前後どちらに付いたかで追記方向を
+ * 判別でき、差分は行に割らず塊のまま走査するので複数行テンプレートでもまたいで拾える。
+ * 併せて、自由な形式ほど紛れ込む「コードに見えるが違う数字」(日時・エポック・`{key}` の通知 ID・
+ * `{pkg}`) を除去し、コードはキーワードからの位置で選ぶ (先頭一致だと通知 ID を取り違える)。
+ */
+private fun otpClipBody(d: String, ja: Boolean): String {
+    val copied = if (ja) "コードをコピー: ${d}{code}" else "Copied code: ${d}{code}"
+    val cleared = if (ja) "コピーしたコードをクリアしました" else "Cleared the copied code"
+    val cTtl = if (ja) "コピーから何秒でクリアするか" else "seconds before the copy is cleared"
+    val cPoll = if (ja) "通知ログを見に行く間隔(秒)" else "how often to poll the log (seconds)"
+    val cClear = if (ja) {
+        "# TTL 秒後、クリップボードがコピー時の値のままなら空にする(別物をコピーしていたら残す)。"
+    } else {
+        "# After TTL, clear the clipboard only if it still holds the code we copied."
+    }
+    val cStrip = if (ja) {
+        "# コードに見えるが違うものを先に消す: 日時 / 時刻 / 9 桁以上(エポック等) /\n" +
+            "  # '|' を含むトークン ({key} の通知 ID) / ドット区切り識別子 ({pkg})。最後に \"123-456\" を詰める。"
+    } else {
+        "# Drop things that look like a code but are not: dates / times / 9+ digit runs (epochs) /\n" +
+            "  # tokens containing '|' (notification id from {key}) / dotted ids ({pkg}). Then join \"123-456\"."
+    }
+    val cPick = if (ja) {
+        "# 「最初に見つかった数字」ではなくキーワードの直後を優先し、無ければ直前の最も近い数字。\n" +
+            "  # 自由な形式では前後にメタ情報の数字が混ざるため、位置で選ばないと取り違える。\n" +
+            "  # 数字列は必ず最大長で切り出し、長い数字列の一部を切り取らない。"
+    } else {
+        "# Prefer digits right after the keyword, else the nearest ones before it.\n" +
+            "  # With a free-form template, metadata digits sit nearby, so position is what disambiguates.\n" +
+            "  # Always take maximal digit runs so a long run never yields a partial match."
+    }
+    val cSave = if (ja) {
+        "# RSTART/RLENGTH は awk の組み込みグローバルで、下の match() に壊されるため先に退避する。"
+    } else {
+        "# RSTART/RLENGTH are awk globals that the match() calls below clobber, so save them first."
+    }
+    val cBase = if (ja) {
+        "# 初回は「今ある分」を既読の基準にするだけで、過去ログには反応しない。"
+    } else {
+        "# The first pass only records a baseline, so existing entries never fire."
+    }
+    val cSame = if (ja) "サイズが同じなら変化なしとみなす" else "same size = nothing new"
+    val cWhole = if (ja) {
+        "# 直前が空 = 全体が新着。(起動時に必ず基準を取るので過去ログの誤発火にはならない)"
+    } else {
+        "# Previously empty = all of it is new. (The startup baseline keeps old entries from firing.)"
+    }
+    val cAppend = if (ja) "前回内容で「始まる」→ 末尾追記(新着が下)" else "starts with the old content -> appended (newest last)"
+    val cPrepend = if (ja) "前回内容で「終わる」→ 先頭追記(新着が上)" else "ends with the old content -> prepended (newest first)"
+    val cElse = if (ja) {
+        "# どちらでもない = 書き換え/掃除。基準を貼り直すだけで発火しない。"
+    } else {
+        "# Neither = rewritten/cleaned. Just re-baseline without firing."
+    }
+    val cTrunc = if (ja) "# cn < pn (truncate された) も基準の貼り直しだけ。" else "# cn < pn (truncated) also just re-baselines."
+    val cMulti = if (ja) "複数行でも 1 つの塊として扱う" else "treat multi-line records as one blob"
+    val cNoKw = if (ja) "キーワード無し = 認証通知ではない" else "no keyword = not an auth notification"
+    val cAfter = if (ja) "キーワードの直後を優先" else "prefer what follows the keyword"
+    val cBefore = if (ja) "無ければ直前の最も近い数字" else "otherwise the nearest digits before it"
+
+    return """
+TTL=60                                    # $cTtl
+POLL=2                                    # $cPoll
+KEYWORDS='認証|確認|ワンタイム|コード|パスワード|code|otp|verification|verify|one[- ]?time'
+
+NOTIF=${d}HOME/.z2term/notifications.jsonl
+SNAP=${d}HOME/.z2term/.otp-clip.snap
+WORK=${d}HOME/.z2term/.otp-clip.work
+
+[ -f "${d}NOTIF" ] || : > "${d}NOTIF"
+
+$cClear
+schedule_clear() {
+  code=${d}1
+  ( sleep "${d}TTL"
+    cur=${d}(z2-clip get 2>/dev/null)
+    if [ "${d}cur" = "${d}code" ]; then
+      z2-clip set ""
+      z2-toast "$cleared"
+    fi
+  ) &
+}
+
+handle() {
+  raw=${d}1
+  [ -z "${d}raw" ] && return
+
+  $cStrip
+  scan=${d}(printf '%s' "${d}raw" | sed \
+    -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}[T ][0-9:+-]*/ /g' \
+    -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}/ /g' \
+    -e 's/[0-9]\{1,2\}:[0-9]\{2\}\(:[0-9]\{2\}\)\?/ /g' \
+    -e 's/[0-9]\{9,\}/ /g' \
+    -e 's/[^ ]*|[^ ]*/ /g' \
+    -e 's/[A-Za-z0-9_]\{1,\}\.[A-Za-z0-9_.]\{1,\}/ /g' \
+    -e 's/\([0-9]\)-\([0-9]\)/\1\2/g' \
+    -e 's/\([0-9]\)-\([0-9]\)/\1\2/g')
+
+  $cPick
+  code=${d}(printf '%s' "${d}scan" | awk -v kw="${d}KEYWORDS" '
+    function firstcode(s,   r) {
+      while (match(s, /[0-9]+/)) {
+        r = substr(s, RSTART, RLENGTH)
+        if (length(r) >= 4 && length(r) <= 8) return r
+        s = substr(s, RSTART + RLENGTH)
+      }
+      return ""
+    }
+    function lastcode(s,   r, best) {
+      best = ""
+      while (match(s, /[0-9]+/)) {
+        r = substr(s, RSTART, RLENGTH)
+        if (length(r) >= 4 && length(r) <= 8) best = r
+        s = substr(s, RSTART + RLENGTH)
+      }
+      return best
+    }
+    { buf = buf " " ${d}0 }                    # $cMulti
+    END {
+      if (!match(tolower(buf), kw)) exit       # $cNoKw
+      $cSave
+      ks = RSTART; kl = RLENGTH
+      c = firstcode(substr(buf, ks + kl))      # $cAfter
+      if (c == "") c = lastcode(substr(buf, 1, ks - 1))   # $cBefore
+      if (c != "") print c
+    }')
+  [ -z "${d}code" ] && return
+
+  z2-clip set "${d}code"
+  z2-toast "$copied"
+  schedule_clear "${d}code"
+}
+
+$cBase
+cp "${d}NOTIF" "${d}SNAP" 2>/dev/null || : > "${d}SNAP"
+
+while :; do
+  sleep "${d}POLL"
+  [ -f "${d}NOTIF" ] || continue
+
+  cn=${d}(wc -c < "${d}NOTIF" 2>/dev/null || echo 0)
+  pn=${d}(wc -c < "${d}SNAP"  2>/dev/null || echo 0)
+  [ "${d}cn" = "${d}pn" ] && continue           # $cSame
+
+  new=''
+  if [ "${d}cn" -gt "${d}pn" ] && [ "${d}pn" -eq 0 ]; then
+    $cWhole
+    new=${d}(cat "${d}NOTIF")
+  elif [ "${d}cn" -gt "${d}pn" ]; then
+    diff=${d}((cn - pn))
+    head -c "${d}pn" "${d}NOTIF" > "${d}WORK" 2>/dev/null
+    if cmp -s "${d}WORK" "${d}SNAP"; then
+      new=${d}(tail -c "${d}diff" "${d}NOTIF")  # $cAppend
+    else
+      tail -c "${d}pn" "${d}NOTIF" > "${d}WORK" 2>/dev/null
+      if cmp -s "${d}WORK" "${d}SNAP"; then
+        new=${d}(head -c "${d}diff" "${d}NOTIF")  # $cPrepend
+      fi
+      $cElse
+    fi
+  fi
+  $cTrunc
+
+  cp "${d}NOTIF" "${d}SNAP" 2>/dev/null
+  handle "${d}new"
+done
+"""
 }
 
 /** `z2-macro` CLI 本体。同梱サンプルの一覧 / 導入 / 表示 / 実行。 */

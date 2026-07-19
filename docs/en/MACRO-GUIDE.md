@@ -317,22 +317,47 @@ trigger, `z2-clip`, and self-cleanup (a subshell + `sleep`), using nothing outsi
 **Key points** (reusable patterns):
 - **Filter by keyword** (verification / code / OTP …) so ordinary messages and phone numbers aren't picked up.
 - Extract **one 4–8 digit number** only; for `123-456` style, strip separators first.
-- **Format-agnostic**: works whether the log is the default JSONL or a custom template — for JSON lines it reads
-  only `title`+`text`, and for template lines it strips a leading `[timestamp]` first (so digits in the leading
-  timestamp aren't mistaken for a code).
+- **Independent of both log format and write direction** (see "why not read it line by line" below). Change the
+  template however you like, or flip to "newest first", and the macro keeps working unchanged.
 - **Auto-clear** runs only when the current clipboard still equals what was copied (if you copied something else
   in the meantime, it's kept). The clipboard is shared and readable by other apps, so clearing after paste is safer.
+
+**Why not read it line by line** (the heart of this macro):
+
+**You choose the log format.** A naive "one line = one notification" reader that follows the tail with `tail -F`
+breaks in two ways:
+
+- With a **multi-line template** (a format containing `\n`), the title and the body land on separate lines, so
+  the keyword and the code are never on the same line.
+- With **prepending** (Settings -> "newest first"), new entries never reach the end of the file, so `tail -F`
+  picks up nothing, ever.
+
+So it diffs against a **snapshot of the previous read** instead. Whether the new bytes landed before or after the
+old content tells you the write direction, and the diff is scanned **as one blob** rather than split into lines,
+so multi-line templates are handled naturally.
+
+One more thing: the freer the format, the more "digits that look like a code" creep in. Timestamps, epochs
+(`{ts}`), notification ids (`{key}` looks like `0|com.example|2847|null|10268`) and package names (`{pkg}`) are
+stripped first, and the code is then chosen **by its position relative to the keyword**. A "first number wins"
+approach mistakes the notification id for the code as soon as the template includes `{key}`.
 
 ```sh
 #!/bin/sh
 # ~/.z2term/macros/otp-clip.sh
 # Auto-copy a one-time code (4-8 digits) from a notification, then clear it after TTL seconds.
+# Independent of both log format and write direction.
 # Setup: Settings -> "Notification capture" ON + grant the OS "Notification access".
 # Resident: Settings -> Resident servers -> register  sh ~/.z2term/macros/otp-clip.sh
-# Dep: jq recommended (a sed fallback runs if it's missing).
 
 TTL=60                                    # seconds until the clipboard is cleared
+POLL=2                                    # how often to poll the log (seconds)
 KEYWORDS='verification|verify|code|otp|one[- ]?time|passcode|認証|確認|コード'
+
+NOTIF=$HOME/.z2term/notifications.jsonl
+SNAP=$HOME/.z2term/.otp-clip.snap
+WORK=$HOME/.z2term/.otp-clip.work
+
+[ -f "$NOTIF" ] || : > "$NOTIF"
 
 # After TTL seconds, blank the clipboard only if it still holds the copied value.
 schedule_clear() {
@@ -346,36 +371,100 @@ schedule_clear() {
   ) &
 }
 
-tail -n0 -F ~/.z2term/notifications.jsonl 2>/dev/null | while IFS= read -r line; do
-  [ -z "$line" ] && continue
-  # Extract the body (format-agnostic).
-  case "$line" in
-    '{'*)   # JSONL: use title + text only
-      if command -v jq >/dev/null 2>&1; then
-        body=$(printf '%s' "$line" | jq -r '((.title // "") + " " + (.text // ""))' 2>/dev/null)
-      else
-        t=$(printf '%s' "$line" | sed -n 's/.*"title":"\([^"]*\)".*/\1/p')
-        x=$(printf '%s' "$line" | sed -n 's/.*"text":"\([^"]*\)".*/\1/p')
-        body="$t $x"
-      fi ;;
-    *)      # custom template: strip one leading "[timestamp]"
-      body=$(printf '%s' "$line" | sed 's/^\[[^]]*\][[:space:]]*//') ;;
-  esac
-  [ -z "$body" ] && continue
-  # Only act when a keyword is present (avoid false positives).
-  printf '%s' "$body" | grep -Eiq "$KEYWORDS" || continue
-  # Extract one 4-8 digit number ("123-456" -> strip separators first).
-  code=$(printf '%s' "$body" | tr -d ' -' | grep -oE '[0-9]{4,8}' | head -n1)
-  [ -z "$code" ] && continue
-  # Copy -> notify -> auto-clear after TTL seconds.
+handle() {
+  raw=$1
+  [ -z "$raw" ] && return
+
+  # Drop things that look like a code but are not: dates / times / 9+ digit runs (epochs) /
+  # tokens containing '|' (notification id from {key}) / dotted ids ({pkg}). Then join "123-456".
+  scan=$(printf '%s' "$raw" | sed \
+    -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}[T ][0-9:+-]*/ /g' \
+    -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}/ /g' \
+    -e 's/[0-9]\{1,2\}:[0-9]\{2\}\(:[0-9]\{2\}\)\?/ /g' \
+    -e 's/[0-9]\{9,\}/ /g' \
+    -e 's/[^ ]*|[^ ]*/ /g' \
+    -e 's/[A-Za-z0-9_]\{1,\}\.[A-Za-z0-9_.]\{1,\}/ /g' \
+    -e 's/\([0-9]\)-\([0-9]\)/\1\2/g' \
+    -e 's/\([0-9]\)-\([0-9]\)/\1\2/g')
+
+  # Prefer digits right after the keyword, else the nearest ones before it.
+  # With a free-form template, metadata digits sit nearby, so position is what disambiguates.
+  # Always take maximal digit runs so a long run never yields a partial match.
+  code=$(printf '%s' "$scan" | awk -v kw="$KEYWORDS" '
+    function firstcode(s,   r) {
+      while (match(s, /[0-9]+/)) {
+        r = substr(s, RSTART, RLENGTH)
+        if (length(r) >= 4 && length(r) <= 8) return r
+        s = substr(s, RSTART + RLENGTH)
+      }
+      return ""
+    }
+    function lastcode(s,   r, best) {
+      best = ""
+      while (match(s, /[0-9]+/)) {
+        r = substr(s, RSTART, RLENGTH)
+        if (length(r) >= 4 && length(r) <= 8) best = r
+        s = substr(s, RSTART + RLENGTH)
+      }
+      return best
+    }
+    { buf = buf " " $0 }                    # treat multi-line records as one blob
+    END {
+      if (!match(tolower(buf), kw)) exit       # no keyword = not an auth notification
+      # RSTART/RLENGTH are awk globals that the match() calls below clobber, so save them first.
+      ks = RSTART; kl = RLENGTH
+      c = firstcode(substr(buf, ks + kl))      # prefer what follows the keyword
+      if (c == "") c = lastcode(substr(buf, 1, ks - 1))   # otherwise the nearest digits before it
+      if (c != "") print c
+    }')
+  [ -z "$code" ] && return
+
   z2-clip set "$code"
   z2-toast "Copied code: ${code}"
   schedule_clear "$code"
+}
+
+# The first pass only records a baseline, so existing entries never fire.
+cp "$NOTIF" "$SNAP" 2>/dev/null || : > "$SNAP"
+
+while :; do
+  sleep "$POLL"
+  [ -f "$NOTIF" ] || continue
+
+  cn=$(wc -c < "$NOTIF" 2>/dev/null || echo 0)
+  pn=$(wc -c < "$SNAP"  2>/dev/null || echo 0)
+  [ "$cn" = "$pn" ] && continue           # same size = nothing new
+
+  new=''
+  if [ "$cn" -gt "$pn" ] && [ "$pn" -eq 0 ]; then
+    # Previously empty = all of it is new. (The startup baseline keeps old entries from firing.)
+    new=$(cat "$NOTIF")
+  elif [ "$cn" -gt "$pn" ]; then
+    diff=$((cn - pn))
+    head -c "$pn" "$NOTIF" > "$WORK" 2>/dev/null
+    if cmp -s "$WORK" "$SNAP"; then
+      new=$(tail -c "$diff" "$NOTIF")  # starts with the old content -> appended (newest last)
+    else
+      tail -c "$pn" "$NOTIF" > "$WORK" 2>/dev/null
+      if cmp -s "$WORK" "$SNAP"; then
+        new=$(head -c "$diff" "$NOTIF")  # ends with the old content -> prepended (newest first)
+      fi
+      # Neither = rewritten/cleaned. Just re-baseline without firing.
+    fi
+  fi
+  # cn < pn (truncated) also just re-baselines.
+
+  cp "$NOTIF" "$SNAP" 2>/dev/null
+  handle "$new"
 done
 ```
 
-The only knobs are `TTL` (seconds until clearing) and `KEYWORDS` (add terms for more services). The code lands
-on the clipboard the moment it arrives, so you just paste it into the field.
+The only knobs are `TTL` (seconds until clearing), `POLL` (how fast it reacts) and `KEYWORDS` (add terms for
+more services). The code lands on the clipboard within `POLL` seconds of arriving, so you just paste it.
+
+**Limits**: two notifications arriving within one `POLL` cycle are treated as a single blob (rare for auth
+codes, but a real gap). And if the OS hides the notification body — the lock-screen setting that shows
+"contents hidden" instead — the code never reaches the log in the first place.
 
 ---
 
