@@ -72,6 +72,7 @@ import android.widget.Toast
 import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.proot.RootProbe
 import android.app.admin.DevicePolicyManager
+import com.zerotoship.z2term.service.NotificationLogService
 import com.zerotoship.z2term.service.PasswordWatchAdmin
 import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.settings.AppSettings
@@ -93,6 +94,7 @@ import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import com.zerotoship.z2term.ui.theme.ZtsWarning
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -877,6 +879,13 @@ fun SettingsSheet(
                     checked = settings.notificationLogPrepend,
                     onChange = { session.setNotificationLogPrepend(it) }
                 )
+                LogSizeWarning(
+                    bytes = remember(serversOpen, settings.notificationLogPrepend) {
+                        NotificationLogService.logFile(context).length()
+                    },
+                    prepend = settings.notificationLogPrepend,
+                    path = "~/" + NotificationLogService.LOG_REL
+                )
                 Text(
                     text = stringResource(R.string.settings_notif_fmt_help),
                     color = ZtsTextSecondary,
@@ -937,6 +946,13 @@ fun SettingsSheet(
                     description = stringResource(R.string.settings_log_prepend_desc),
                     checked = settings.systemEventLogPrepend,
                     onChange = { session.setSystemEventLogPrepend(it) }
+                )
+                LogSizeWarning(
+                    bytes = remember(serversOpen, settings.systemEventLogPrepend) {
+                        SystemEventService.logFile(context).length()
+                    },
+                    prepend = settings.systemEventLogPrepend,
+                    path = "~/" + SystemEventService.LOG_REL
                 )
                 Text(
                     text = stringResource(R.string.settings_events_fmt_help),
@@ -1696,6 +1712,37 @@ private fun ToggleField(
             )
         )
     }
+}
+
+/** 先頭追記のログがこのサイズを超えたら設定画面に注意を出す。 */
+private const val LOG_SIZE_WARN_BYTES = 10L * 1024 * 1024
+
+/**
+ * 「新しいものを先頭に」が ON で、かつログが [LOG_SIZE_WARN_BYTES] を超えたときだけ出す注意書き。
+ *
+ * 先頭追記は 1 行書くたびにファイル全体を読み直して書き戻すため、肥大するほど 1 件あたりのコストが
+ * 増え、最後にはメモリ不足で記録できなくなる (末尾追記はサイズの影響を受けない)。サイズ上限による
+ * ローテーションを撤廃した代わりに、危険域に入ったことをユーザーが自分で気付けるようにする。
+ *
+ * [bytes] は呼び出し側が `remember` で取得する (設定を開いた時点のサイズ。毎コンポーズで stat しない)。
+ */
+@Composable
+private fun LogSizeWarning(bytes: Long, prepend: Boolean, path: String) {
+    if (!prepend || bytes < LOG_SIZE_WARN_BYTES) return
+    val mb = remember(bytes) { String.format(Locale.US, "%.1f", bytes / 1024.0 / 1024.0) }
+    Text(
+        text = stringResource(R.string.settings_log_size_warn, mb),
+        color = ZtsWarning,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Bold,
+        fontFamily = FontFamily.Monospace
+    )
+    Text(
+        text = stringResource(R.string.settings_log_size_warn_desc, path),
+        color = ZtsTextSecondary,
+        fontSize = 10.sp,
+        fontFamily = FontFamily.Monospace
+    )
 }
 
 @Composable

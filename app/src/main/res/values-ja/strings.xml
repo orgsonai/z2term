@@ -397,6 +397,8 @@
     <string name="settings_notif_logpath">ログ: ~/.z2term/notifications.jsonl（ターミナルで tail -f 等で読めます）</string>
     <string name="settings_log_prepend">新しいものを先頭に</string>
     <string name="settings_log_prepend_desc">新しい行をファイルの末尾ではなく先頭に追記します（新着が上）。</string>
+    <string name="settings_log_size_warn">⚠ ログが %1$s MB と大きくなっています</string>
+    <string name="settings_log_size_warn_desc">「新しいものを先頭に」が ON のあいだは、1 行記録するたびにファイル全体を読み書きします。このまま大きくなると動作が重くなり、いずれ記録できなくなります。この設定を OFF にする（末尾に追記）か、ターミナルで整理してください。\n空にする例: : &gt; %1$s</string>
     <string name="event_channel_name">Z2Term システムイベント</string>
     <string name="event_channel_desc">画面/ロック/充電/電池/Wi-Fi のイベントを検知します</string>
     <string name="event_notification_title">システムイベント検知</string>

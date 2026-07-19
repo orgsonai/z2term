@@ -397,6 +397,8 @@
     <string name="settings_notif_logpath">Log: ~/.z2term/notifications.jsonl (read it from the terminal, e.g. tail -f)</string>
     <string name="settings_log_prepend">Newest at the top</string>
     <string name="settings_log_prepend_desc">Insert each new entry at the head of the file (prepend) instead of appending at the end.</string>
+    <string name="settings_log_size_warn">⚠ This log has grown to %1$s MB</string>
+    <string name="settings_log_size_warn_desc">While "Newest at the top" is ON, the whole file is read and rewritten for every single entry. As it keeps growing this gets slow, and eventually entries can no longer be recorded. Turn this off (append at the end) or trim the file from the terminal.\nTo empty it: : &gt; %1$s</string>
     <string name="event_channel_name">Z2Term system events</string>
     <string name="event_channel_desc">Detects screen/lock/power/battery/Wi-Fi events</string>
     <string name="event_notification_title">System event detection</string>

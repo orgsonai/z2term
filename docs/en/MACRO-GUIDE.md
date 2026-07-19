@@ -40,7 +40,7 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
 
 - Location: `~/.z2term/events.jsonl` (one JSON per line, append-only).
 - **No size cap**: the file keeps appending all history into one file, so you can go back and aggregate over the whole log in one place.
-  If size becomes a concern, truncate it yourself from the terminal (e.g. `: > ~/.z2term/events.jsonl`). Note the "newest at the top" mode rewrites the whole file per entry, so the default (append at the end) is lighter for heavy use.
+  If size becomes a concern, truncate it yourself from the terminal (e.g. `: > ~/.z2term/events.jsonl`). Note the "newest at the top" mode rewrites the whole file per entry, so the default (append at the end) is lighter for heavy use. If you stay on prepend and the log passes 10MB, the settings screen shows a warning with the size and what to do.
 - Default fields: `ts` (epoch ms, integer), `time` (ISO8601 string), `event` (kind), and sometimes `level` (battery %), `ssid` (Wi‑Fi name).
 - The output format is templatable in Settings, but **for macros keep the default JSONL** — it's the easiest to parse.
 
