@@ -61,6 +61,13 @@
 #ifndef PTRACE_O_TRACESECCOMP
 #define PTRACE_O_TRACESECCOMP 0x00000080
 #endif
+// SIGSYS の si_code。seccomp フィルタ由来なら SYS_SECCOMP(1)。ヘッダによっては
+// 未定義なので自前で用意する(名前衝突を避けて Z_ 接頭辞)。
+#ifdef SYS_SECCOMP
+#define Z_SYS_SECCOMP SYS_SECCOMP
+#else
+#define Z_SYS_SECCOMP 1
+#endif
 
 extern char **environ;
 
@@ -2665,7 +2672,37 @@ static int run_tracer(const struct config *cfg, pid_t child) {
         //      (epoll_pwait/fstatat/clone 等)へ退避させる(proot も同経路で動く)。
         //      `claude --version' 等の即終了系は (B) のループに入らず動くが、
         //      対話起動は (B) のループ待ちでハングする、が実機の観測と一致。
+        //
+        // ただし SIGSYS の出所は Android のフィルタだけではない。ゲスト側の
+        // プロセスが自前で seccomp フィルタを入れる場合(Gecko のコンテンツ
+        // サンドボックス等)、フィルタは重畳評価され RET_TRAP が z2root の
+        // RET_TRACE に勝つ。この SIGSYS は「アプリ自身の SIGSYS ハンドラが
+        // 受けてファイルブローカーへ委譲する」ための正規の制御フローなので、
+        // ここで握り潰して ENOSYS を返すと openat が軒並み失敗する(Gecko は
+        // "unable to find a usable font" で MOZ_CRASH し、本文ペインが空白に
+        // なる)。出所の切り分けには siginfo の si_errno(=SECCOMP_RET_DATA)を
+        // 使う: Android untrusted_app のフィルタは data 0 で TRAP するのに対し、
+        // ゲスト自前のフィルタは 0 以外の trap id を載せる(Gecko の Trap() は
+        // 1 起点の連番)。0 以外ならゲスト自前と判断してそのまま配送する。
         if (sig == SIGSYS) {
+            siginfo_t ssi;
+            memset(&ssi, 0, sizeof ssi);
+            int have_si = (ptrace(PTRACE_GETSIGINFO, pid, 0, &ssi) == 0);
+            // Z2ROOT_NO_SIGSYS_DELIVER=1 で従来どおり全て握り潰す(切り分け用の退避口)。
+            int guest_filter = (have_si && ssi.si_code == Z_SYS_SECCOMP && ssi.si_errno != 0 &&
+                                !getenv("Z2ROOT_NO_SIGSYS_DELIVER"));
+            if (g_trc_on) {
+                struct user_pt_regs sr;
+                long snr = (get_regs(pid, &sr) == 0) ? (long)sr.regs[8] : -1;
+                fprintf(g_trc, "[z2trc] SIGSYS nr=%ld si_code=%d si_errno=%d origin=%s pid=%d\n",
+                        snr, have_si ? ssi.si_code : -999, have_si ? ssi.si_errno : -999,
+                        guest_filter ? "guest" : "android", pid);
+            }
+            if (guest_filter) {
+                // ゲスト自前のフィルタ由来: アプリのハンドラへそのまま配送する。
+                z_resume(pid, seccomp_mode, state_for(pid), SIGSYS);
+                continue;
+            }
             struct user_pt_regs regs;
             if (get_regs(pid, &regs) == 0) {
                 long nr = (long)regs.regs[8];

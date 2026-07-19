@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-20 / 対象バージョン: 0.8.178-alpha (versionCode 186)
+最終更新: 2026-07-20 / 対象バージョン: 0.8.179-alpha (versionCode 187)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -477,7 +477,11 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 
 **PRoot のカーネル特権制約 (修正不能)**: root に見えても `ip`/`nmap -sS`/`ping`/特権ポート bind は不可。代替は `nmap -sT` 等。OpenSSH sshd も privsep 破綻のため dropbear を使う。
 
-**Gecko 系 GUI アプリのコンテンツプロセスが自分のサンドボックス下でフォントを見つけられない**: 親プロセス (chrome UI) は正常に描画されるが、**中身を描くコンテンツプロセスだけ**が `unable to find a usable font (%.220s)` の `MOZ_CRASH` で落ちる。端末には理由が出ず「子プロセスが signal 11 で終了」とだけ記録されるため、`/dev/shm` の件 (0.8.177) と紛らわしいが**別問題**で、共有メモリは全て成功している (`shm_open` は正常)。落ちるのはコンテンツプロセスで、補助プロセス (rdd / utility / socket) を prefs で無効にしても再現する。サンドボックスを切ると再現しない。緩和では不可で、`security.sandbox.content.level` は **1 でも落ち、0 (無効) でのみ解消**する。実害は本文/HTML を描くペインが空白になること (画面キャプチャで確認済み)。回避は `MOZ_DISABLE_CONTENT_SANDBOX=1` を付けて起動する (HANDBOOK の FAQ に記載)。z2root の ptrace 傍受と Gecko の seccomp-bpf + ファイルブローカーの噛み合わせが原因と見られるが、**真因は未特定**。アプリ側でこの環境変数を既定で注入することはしていない (アプリ自身の防御層を黙って外す判断はユーザーに委ねる)。
+**Gecko 系 GUI アプリのコンテンツプロセスが自分のサンドボックス下でフォントを見つけられない (0.8.179 で修正・実機検証は未)**: 親プロセス (chrome UI) は正常に描画されるが、**中身を描くコンテンツプロセスだけ**が `unable to find a usable font (%.220s)` の `MOZ_CRASH` で落ち、本文/HTML を描くペインが空白になっていた。`/dev/shm` の件 (0.8.177) と紛らわしいが**別問題**で、共有メモリは全て成功している (`shm_open` は正常)。
+
+真因は **z2root のトレーサによる SIGSYS の握り潰し**。トレーサは Android の untrusted_app seccomp が禁ずる syscall の SIGSYS を子へ配送せず、その場で戻り値を `ENOSYS`(または権限系なら 0) に化かして握り潰していた。一方 Gecko のコンテンツサンドボックスは自前の seccomp フィルタを入れ、`openat` 等を `SECCOMP_RET_TRAP` にして**自分の SIGSYS ハンドラで受けてファイルブローカーへ委譲する**設計。seccomp フィルタは重畳評価され「より重い action が勝つ」ため TRAP が z2root の TRACE に勝ち、コンテンツプロセスの open は全て SIGSYS になる。それをトレーサが握り潰して ENOSYS を返していた＝**フォントファイルが 1 つも開けない**。サンドボックスを切ると再現しないこと、`security.sandbox.content.level` が 1 でも落ち 0 でのみ解消すること (level 1 でもフィルタ自体は入る)、親プロセスは無事なこと (親にはフィルタが無い)、補助プロセスを無効にしても再現すること、いずれもこれで説明がつく。
+
+修正は SIGSYS の**出所を切り分けて**、ゲスト自前のフィルタ由来なら握り潰さずアプリのハンドラへ配送する。判定は `siginfo` の `si_errno` (= `SECCOMP_RET_DATA`): Android のフィルタは data 0 で TRAP するのに対し、ゲスト自前のフィルタは 0 以外の trap id を載せる (Gecko の `Trap()` は 1 起点の連番)。Android 由来の SIGSYS の扱いは従来どおりで挙動不変。切り分け用に `Z2ROOT_NO_SIGSYS_DELIVER=1` で従来動作へ戻せる。回避策だった `MOZ_DISABLE_CONTENT_SANDBOX=1` は引き続き有効 (HANDBOOK の FAQ に記載)。アプリ側でこの環境変数を既定で注入することはしていない (アプリ自身の防御層を黙って外す判断はユーザーに委ねる)。
 
 **SysV 共有メモリ (`shmget`) が ENOSYS (カーネル由来・アプリ側では修正不能)**: Android のカーネルは `CONFIG_SYSVIPC` を落としているため、`shmget`/`shmat` が "Function not implemented" で失敗する。**POSIX 共有メモリ (`shm_open` = `/dev/shm`) とは別系統**で、そちらは 0.8.177 の bind で使えるようになったがこちらは残る。影響は X11 の **MIT-SHM 拡張**が使えないこと (GUI の描画がサーバ経由のソケット転送になり、その分遅い)。主要ツールキットは MIT-SHM の可否を検出して自動でフォールバックするので通常は「動くが遅い」で済むが、拡張の存在を前提に握り決め打ちする少数のアプリは表示が壊れうる。回避したい場合はアプリ側の設定で MIT-SHM を切る。
 
