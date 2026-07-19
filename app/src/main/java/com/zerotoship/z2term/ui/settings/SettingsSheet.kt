@@ -1730,19 +1730,31 @@ private const val LOG_SIZE_WARN_BYTES = 10L * 1024 * 1024
 private fun LogSizeWarning(bytes: Long, prepend: Boolean, path: String) {
     if (!prepend || bytes < LOG_SIZE_WARN_BYTES) return
     val mb = remember(bytes) { String.format(Locale.US, "%.1f", bytes / 1024.0 / 1024.0) }
-    Text(
-        text = stringResource(R.string.settings_log_size_warn, mb),
-        color = ZtsWarning,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Bold,
-        fontFamily = FontFamily.Monospace
-    )
-    Text(
-        text = stringResource(R.string.settings_log_size_warn_desc, path),
-        color = ZtsTextSecondary,
-        fontSize = 10.sp,
-        fontFamily = FontFamily.Monospace
-    )
+    // 周りの補助テキスト (10sp・secondary) と同じ見た目だと注意だと気付けないため、
+    // 警告色の枠＋淡い背景で囲み、本文も本文色・12sp で読ませる。
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .background(ZtsWarning.copy(alpha = 0.12f))
+            .border(1.dp, ZtsWarning, RoundedCornerShape(6.dp))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.settings_log_size_warn, mb),
+            color = ZtsWarning,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace
+        )
+        Text(
+            text = stringResource(R.string.settings_log_size_warn_desc, path),
+            color = ZtsTextPrimary,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
 }
 
 @Composable
