@@ -114,17 +114,17 @@ z2-notify -h -n cleanup -b yes -b later "Clean up?" "This deletes temporary file
 ```
 
 ```sh
-# the side waiting for an answer (register it under Resident servers)
-tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
-  ev=$(printf '%s' "$line"     | jq -r '.event')
-  name=$(printf '%s' "$line"   | jq -r '.name   // empty')
-  action=$(printf '%s' "$line" | jq -r '.action // empty')
-  [ "$ev" = "notify_action" ] && [ "$name" = "cleanup" ] || continue
-  case "$action" in
-    yes)   rm -rf ~/tmp/* && z2-toast "cleaned" ;;
-    later) z2-alarm in 1h cleanup ;;   # ask again in an hour
-  esac
-done
+# the side waiting for an answer (change handle() from the 5-0 skeleton; register under Resident servers)
+handle() {
+  printf '%s\n' "$1" | while IFS= read -r rec; do
+    case "$rec" in *notify_action*) ;; *) continue ;; esac
+    case "$rec" in *cleanup*) ;; *) continue ;; esac
+    case "$rec" in
+      *yes*)   rm -rf ~/tmp/* && z2-toast "cleaned" ;;
+      *later*) z2-alarm in 1h cleanup ;;   # ask again in an hour
+    esac
+  done
+}
 ```
 
 The notification closes itself once a button is pressed. Ignoring it simply does nothing.
@@ -216,38 +216,126 @@ z2-intent -a android.intent.action.SET_ALARM --ei android.intent.extra.alarm.HOU
 
 ## 5. Writing a macro (templates)
 
-### 5-1. Minimal: watch events and react
+### 5-0. How to read the log (the skeleton every macro uses)
 
-Follow events.jsonl with `tail -F` and branch per line (`-n0` = don't replay history, watch from now).
+**Read this first.** Every example below assumes this skeleton.
+
+Do not follow the log with `tail -F`. The log format is yours to change, and switching to
+**"newest first" makes it prepend — new entries never reach the end of the file**. `tail -F` only
+watches the end, so under that setting it picks up nothing, ever. A multi-line template also breaks
+the "one line = one record" assumption.
+
+So diff against a **snapshot of the previous read** instead. Whether the new bytes landed before or
+after the old content tells you the direction, and passing the diff along as one blob handles
+multi-line templates.
 
 ```sh
 #!/bin/sh
-# ~/.z2term/macros/watch.sh
-tail -n0 -F ~/.z2term/events.jsonl 2>/dev/null | while IFS= read -r line; do
-  ev=$(printf '%s' "$line" | jq -r '.event' 2>/dev/null)   # no jq? see section 6
-  case "$ev" in
-    power_connected)   z2-say "Charging started" ;;
-    headset_plugged)   z2-media play ;;
-    headset_unplugged) z2-media pause ;;
-    screen_off)        : # example: do nothing
-  esac
+# The shared skeleton. Change LOG, the work-file tag, and handle().
+POLL=2                                    # how often to poll the log (seconds)
+LOG=$HOME/.z2term/events.jsonl
+SNAP=$HOME/.z2term/.mymacro.snap
+WORK=$HOME/.z2term/.mymacro.work
+
+[ -f "$LOG" ] || : > "$LOG"
+
+# The new chunk arrives here. See 5-1 onward for how to inspect it.
+handle() {
+  printf '%s\n' "$1" | while IFS= read -r rec; do
+    case "$rec" in
+      *power_connected*) z2-toast "Charging started" ;;
+    esac
+  done
+}
+
+# The first pass only records a baseline, so existing entries never fire.
+cp "$LOG" "$SNAP" 2>/dev/null || : > "$SNAP"
+
+while :; do
+  sleep "$POLL"
+  [ -f "$LOG" ] || continue
+
+  cn=$(wc -c < "$LOG"  2>/dev/null || echo 0)
+  pn=$(wc -c < "$SNAP" 2>/dev/null || echo 0)
+  [ "$cn" = "$pn" ] && continue           # same size = nothing new
+
+  new=''
+  if [ "$cn" -gt "$pn" ] && [ "$pn" -eq 0 ]; then
+    # Previously empty = all of it is new. (The startup baseline keeps old entries from firing.)
+    new=$(cat "$LOG")
+  elif [ "$cn" -gt "$pn" ]; then
+    grew=$((cn - pn))
+    head -c "$pn" "$LOG" > "$WORK" 2>/dev/null
+    if cmp -s "$WORK" "$SNAP"; then
+      new=$(tail -c "$grew" "$LOG")  # starts with the old content -> appended (newest last)
+    else
+      tail -c "$pn" "$LOG" > "$WORK" 2>/dev/null
+      if cmp -s "$WORK" "$SNAP"; then
+        new=$(head -c "$grew" "$LOG")  # ends with the old content -> prepended (newest first)
+      fi
+      # Neither = rewritten/cleaned. Just re-baseline without firing.
+    fi
+  fi
+  # cn < pn (truncated) also just re-baselines.
+
+  cp "$LOG" "$SNAP" 2>/dev/null
+  [ -n "$new" ] && handle "$new"
 done
+```
+
+**This is where format dependence splits**:
+
+- **Matching on event names is format-independent.** `{event}` renders as `power_connected`
+  verbatim in both JSON and a template, so `case "$rec" in *power_connected*)` always works.
+  All four bundled samples are written this way.
+- **Values** (battery level, etc.) come from `z2-state`, which never touches the log. Prefer this.
+- **Parsing a log field** (like `ssid`, which `z2-state` doesn't expose) is the one part that
+  depends on the format you chose. Write it against the default JSONL and adjust if you change it.
+
+**Limit**: records arriving within the same `POLL` cycle are delivered as one blob.
+
+### 5-1. Minimal: watch events and react
+
+Change only `handle()` from the 5-0 skeleton (matching on event names, so format-independent).
+
+```sh
+handle() {
+  printf '%s\n' "$1" | while IFS= read -r rec; do
+    case "$rec" in
+      *power_connected*)   z2-say "Charging started" ;;
+      *headset_plugged*)   z2-media play ;;
+      *headset_unplugged*) z2-media pause ;;
+      *screen_off*)        : ;;  # example: do nothing
+    esac
+  done
+}
 ```
 
 ### 5-2. Use the fields (battery level, SSID)
 
+**Try `z2-state` first** — it never reads the log, so the format cannot matter.
+
 ```sh
-tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
-  ev=$(printf '%s' "$line"    | jq -r '.event')
-  level=$(printf '%s' "$line" | jq -r '.level // empty')
-  ssid=$(printf '%s' "$line"  | jq -r '.ssid  // empty')
-  if [ "$ev" = "battery_low" ]; then
-    z2-notify "Battery" "Only ${level}% left"
-  fi
-  if [ "$ev" = "wifi_connected" ] && [ "$ssid" = "home" ]; then
+handle() {
+  printf '%s\n' "$1" | while IFS= read -r rec; do
+    case "$rec" in *battery_low*) ;; *) continue ;; esac
+    z2-notify "Battery" "Only $(z2-state level)% left"
+  done
+}
+```
+
+Only reach into the log for what `z2-state` doesn't expose, like `ssid`. **This part depends on the
+format**, so it assumes the default JSONL (adjust the extraction if you change it).
+
+```sh
+handle() {
+  printf '%s\n' "$1" | while IFS= read -r rec; do
+    case "$rec" in *wifi_connected*) ;; *) continue ;; esac
+    ssid=$(printf '%s' "$rec" | jq -r '.ssid // empty' 2>/dev/null)   # sed version in section 6
+    [ "$ssid" = "home" ] || continue
     z2-volume 60% ; z2-toast "Home Wi‑Fi: volume restored"
-  fi
-done
+  done
+}
 ```
 
 ### 5-3. Make it resident
@@ -266,13 +354,14 @@ z2-alarm daily 07:00 morning     # set it once (it survives a reboot)
 ```
 
 ```sh
-# the watcher (register this under Resident servers)
-tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
-  ev=$(printf '%s' "$line"   | jq -r '.event')
-  name=$(printf '%s' "$line" | jq -r '.name // empty')
-  [ "$ev" = "alarm" ] && [ "$name" = "morning" ] || continue
+# the watcher (change handle() from the 5-0 skeleton; register under Resident servers)
+# Fire only when both 'alarm' and the name given to z2-alarm ('morning') show up.
+# A multi-line template splits them across lines, so check the chunk as a whole.
+handle() {
+  case "$1" in *alarm*) ;; *) return ;; esac
+  case "$1" in *morning*) ;; *) return ;; esac
   z2-say "Good morning. Battery is $(z2-state level) percent"
-done
+}
 ```
 
 The distro's cron works too, but **cron stops once Android enters power-saving sleep (Doze)**.
@@ -284,17 +373,20 @@ Turn on ⚙ Settings "Watch unlock failures" and activate **device admin** as pr
 failures then arrive as `unlock_failed` (`level` = consecutive failure count). React from the 3rd:
 
 ```sh
-# the watcher (register this under Resident servers)
-tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
-  ev=$(printf '%s' "$line"    | jq -r '.event')
-  n=$(printf '%s' "$line"     | jq -r '.level // 0')
-  [ "$ev" = "unlock_failed" ] && [ "$n" -ge 3 ] || continue
-  ts=$(date '+%F %T')
-  z2-notify -h "Unlock failed ${n}x" "$ts"        # push to your other device too
-  echo "$ts unlock_failed x$n" >> ~/theft.log      # keep a record
-  # e.g. exfiltrate to your home server (needs an ssh key)
-  # scp ~/theft.log backup:/srv/ 2>/dev/null
-done
+# the watcher (change handle() from the 5-0 skeleton; register under Resident servers)
+# The count is the level field, so this assumes the default JSONL (adjust if you change the format).
+handle() {
+  printf '%s\n' "$1" | while IFS= read -r rec; do
+    case "$rec" in *unlock_failed*) ;; *) continue ;; esac
+    n=$(printf '%s' "$rec" | jq -r '.level // 0' 2>/dev/null)
+    [ "$n" -ge 3 ] 2>/dev/null || continue
+    ts=$(date '+%F %T')
+    z2-notify -h "Unlock failed ${n}x" "$ts"        # push to your other device too
+    echo "$ts unlock_failed x$n" >> ~/theft.log      # keep a record
+    # e.g. exfiltrate to your home server (needs an ssh key)
+    # scp ~/theft.log backup:/srv/ 2>/dev/null
+  done
+}
 ```
 
 ⚠ **`unlock_failed` / `unlock_succeeded` only fire for PIN, pattern and password attempts.**
@@ -349,15 +441,15 @@ approach mistakes the notification id for the code as soon as the template inclu
 # Setup: Settings -> "Notification capture" ON + grant the OS "Notification access".
 # Resident: Settings -> Resident servers -> register  sh ~/.z2term/macros/otp-clip.sh
 
-TTL=60                                    # seconds until the clipboard is cleared
-POLL=2                                    # how often to poll the log (seconds)
+TTL=60                                    # seconds before the copy is cleared
 KEYWORDS='verification|verify|code|otp|one[- ]?time|passcode|認証|確認|コード'
 
-NOTIF=$HOME/.z2term/notifications.jsonl
+POLL=2                                    # how often to poll the log (seconds)
+LOG=$HOME/.z2term/notifications.jsonl
 SNAP=$HOME/.z2term/.otp-clip.snap
 WORK=$HOME/.z2term/.otp-clip.work
 
-[ -f "$NOTIF" ] || : > "$NOTIF"
+[ -f "$LOG" ] || : > "$LOG"
 
 # After TTL seconds, blank the clipboard only if it still holds the copied value.
 schedule_clear() {
@@ -373,7 +465,6 @@ schedule_clear() {
 
 handle() {
   raw=$1
-  [ -z "$raw" ] && return
 
   # Drop things that look like a code but are not: dates / times / 9+ digit runs (epochs) /
   # tokens containing '|' (notification id from {key}) / dotted ids ({pkg}). Then join "123-456".
@@ -425,37 +516,37 @@ handle() {
 }
 
 # The first pass only records a baseline, so existing entries never fire.
-cp "$NOTIF" "$SNAP" 2>/dev/null || : > "$SNAP"
+cp "$LOG" "$SNAP" 2>/dev/null || : > "$SNAP"
 
 while :; do
   sleep "$POLL"
-  [ -f "$NOTIF" ] || continue
+  [ -f "$LOG" ] || continue
 
-  cn=$(wc -c < "$NOTIF" 2>/dev/null || echo 0)
-  pn=$(wc -c < "$SNAP"  2>/dev/null || echo 0)
+  cn=$(wc -c < "$LOG"  2>/dev/null || echo 0)
+  pn=$(wc -c < "$SNAP" 2>/dev/null || echo 0)
   [ "$cn" = "$pn" ] && continue           # same size = nothing new
 
   new=''
   if [ "$cn" -gt "$pn" ] && [ "$pn" -eq 0 ]; then
     # Previously empty = all of it is new. (The startup baseline keeps old entries from firing.)
-    new=$(cat "$NOTIF")
+    new=$(cat "$LOG")
   elif [ "$cn" -gt "$pn" ]; then
-    diff=$((cn - pn))
-    head -c "$pn" "$NOTIF" > "$WORK" 2>/dev/null
+    grew=$((cn - pn))
+    head -c "$pn" "$LOG" > "$WORK" 2>/dev/null
     if cmp -s "$WORK" "$SNAP"; then
-      new=$(tail -c "$diff" "$NOTIF")  # starts with the old content -> appended (newest last)
+      new=$(tail -c "$grew" "$LOG")  # starts with the old content -> appended (newest last)
     else
-      tail -c "$pn" "$NOTIF" > "$WORK" 2>/dev/null
+      tail -c "$pn" "$LOG" > "$WORK" 2>/dev/null
       if cmp -s "$WORK" "$SNAP"; then
-        new=$(head -c "$diff" "$NOTIF")  # ends with the old content -> prepended (newest first)
+        new=$(head -c "$grew" "$LOG")  # ends with the old content -> prepended (newest first)
       fi
       # Neither = rewritten/cleaned. Just re-baseline without firing.
     fi
   fi
   # cn < pn (truncated) also just re-baselines.
 
-  cp "$NOTIF" "$SNAP" 2>/dev/null
-  handle "$new"
+  cp "$LOG" "$SNAP" 2>/dev/null
+  [ -n "$new" ] && handle "$new"
 done
 ```
 
@@ -488,7 +579,10 @@ ready-to-run macro. **Example instruction (copy-paste):**
 
 > You are a z2term macro generator. Using only the spec in this `MACRO-GUIDE.md`, output a **single
 > POSIX sh script** that satisfies the request below. Constraints:
-> - The trigger must watch `~/.z2term/events.jsonl` with `tail -n0 -F` (don't replay history).
+> - Watch the log with the skeleton from "5-0. How to read the log" (never `tail -F` — it breaks
+>   under the prepend setting). Change only `LOG`, the work-file tag, and `handle()`.
+> - Branch by matching event names (`case "$rec" in *power_connected*)`) — that is format-independent.
+> - Take values from `z2-state` whenever it exposes them; parse log fields only for what it doesn't.
 > - Use only the event kinds and fields listed in "3. Trigger reference".
 > - Use only the `z2-*` actions listed in "4. Action reference" (never invent features).
 > - Prefer `jq` for JSON parsing and also include a sed fallback for when it's missing.

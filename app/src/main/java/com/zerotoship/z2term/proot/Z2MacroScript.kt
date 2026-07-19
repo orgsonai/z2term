@@ -23,29 +23,40 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         appendLine("#!/bin/sh")
         if (ja) {
             appendLine("# watch-basic.sh — 入門用マクロ。イベントを見て反応する。")
+            appendLine("# ログ形式・追記方向のどちらにも依存しない (差分を読み、イベント名で照合する)。")
             appendLine("# 準備: ⚙設定 →「システムイベント検知」を ON")
             appendLine("# 常駐: ⚙設定 → 常駐サーバー に  sh ~/.z2term/macros/watch-basic.sh  を登録")
         } else {
             appendLine("# watch-basic.sh — starter macro. React to system events.")
+            appendLine("# Independent of log format and write direction (diffs the log, matches on event names).")
             appendLine("# Setup: Settings -> \"System event detection\" ON")
             appendLine("# Resident: register  sh ~/.z2term/macros/watch-basic.sh  under Settings -> Resident servers")
         }
-        appendLine("EVENTS=~/.z2term/events.jsonl")
-        appendLine("[ -f \"${d}EVENTS\" ] || : > \"${d}EVENTS\"")
-        appendLine("tail -n0 -F \"${d}EVENTS\" 2>/dev/null | while IFS= read -r line; do")
-        appendLine("  ev=${d}(printf '%s' \"${d}line\" | sed -n 's/.*\"event\":\"\\([^\"]*\\)\".*/\\1/p')")
-        appendLine("  case \"${d}ev\" in")
+        append(diffSetup(d, ja, "events.jsonl", "watch-basic"))
+        appendLine()
         if (ja) {
-            appendLine("    power_connected)   z2-toast \"充電を開始しました\" ;;")
-            appendLine("    power_disconnected) z2-toast \"充電をやめました\" ;;")
+            appendLine("# 新着の塊を 1 行ずつ見て、イベント名が含まれていたら反応する。")
+            appendLine("# JSON の \"event\":\"...\" もテンプレートの {event} も、名前がそのまま出るので同じ書き方で拾える。")
         } else {
-            appendLine("    power_connected)   z2-toast \"Charging started\" ;;")
-            appendLine("    power_disconnected) z2-toast \"Charging stopped\" ;;")
+            appendLine("# Walk the new chunk line by line and react when an event name appears.")
+            appendLine("# The name shows up verbatim in both JSON (\"event\":\"...\") and a {event} template.")
         }
-        appendLine("    headset_plugged)   z2-media play ;;")
-        appendLine("    headset_unplugged) z2-media pause ;;")
-        appendLine("  esac")
-        appendLine("done")
+        appendLine("handle() {")
+        appendLine("  printf '%s\\n' \"${d}1\" | while IFS= read -r rec; do")
+        appendLine("    case \"${d}rec\" in")
+        if (ja) {
+            appendLine("      *power_connected*)    z2-toast \"充電を開始しました\" ;;")
+            appendLine("      *power_disconnected*) z2-toast \"充電をやめました\" ;;")
+        } else {
+            appendLine("      *power_connected*)    z2-toast \"Charging started\" ;;")
+            appendLine("      *power_disconnected*) z2-toast \"Charging stopped\" ;;")
+        }
+        appendLine("      *headset_plugged*)    z2-media play ;;")
+        appendLine("      *headset_unplugged*)  z2-media pause ;;")
+        appendLine("    esac")
+        appendLine("  done")
+        appendLine("}")
+        append(diffLoop(d, ja, "handle"))
     }
 
     // --- 2. z2-state を使う: 状況を見てから動く ---
@@ -54,37 +65,46 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         if (ja) {
             appendLine("# battery-alert.sh — 電池が減ったら知らせる。ただし今の状況を見て出し分ける。")
             appendLine("# z2-state で「画面が点いているか」を見て、点いていればトースト、消えていれば通知。")
+            appendLine("# ログ形式・追記方向のどちらにも依存しない (差分を読み、イベント名で照合する)。")
             appendLine("# 準備: ⚙設定 →「システムイベント検知」を ON")
         } else {
             appendLine("# battery-alert.sh — warn on low battery, but adapt to the current state.")
             appendLine("# Uses z2-state to check whether the screen is on: toast if it is, notification if not.")
+            appendLine("# Independent of log format and write direction (diffs the log, matches on event names).")
             appendLine("# Setup: Settings -> \"System event detection\" ON")
         }
-        appendLine("EVENTS=~/.z2term/events.jsonl")
-        appendLine("[ -f \"${d}EVENTS\" ] || : > \"${d}EVENTS\"")
-        appendLine("tail -n0 -F \"${d}EVENTS\" 2>/dev/null | while IFS= read -r line; do")
-        appendLine("  ev=${d}(printf '%s' \"${d}line\" | sed -n 's/.*\"event\":\"\\([^\"]*\\)\".*/\\1/p')")
-        appendLine("  case \"${d}ev\" in battery_low|battery_level) ;; *) continue ;; esac")
-        appendLine("  level=${d}(z2-state level)")
+        append(diffSetup(d, ja, "events.jsonl", "battery-alert"))
+        appendLine()
         if (ja) {
-            appendLine("  # 充電中なら知らせない (勝手に減っているわけではないので)")
+            appendLine("# 値そのものはログから読まず z2-state で取る。だから形式が変わっても影響を受けない。")
         } else {
-            appendLine("  # Say nothing while charging (it is not actually draining)")
+            appendLine("# Read the value from z2-state, not from the log, so the format never matters.")
         }
-        appendLine("  [ \"${d}(z2-state charging)\" = \"true\" ] && continue")
-        appendLine("  [ \"${d}level\" -le 20 ] 2>/dev/null || continue")
-        appendLine("  if [ \"${d}(z2-state screen)\" = \"on\" ]; then")
+        appendLine("handle() {")
+        appendLine("  printf '%s\\n' \"${d}1\" | while IFS= read -r rec; do")
+        appendLine("    case \"${d}rec\" in *battery_low*|*battery_level*) ;; *) continue ;; esac")
+        appendLine("    level=${d}(z2-state level)")
         if (ja) {
-            appendLine("    z2-toast \"電池 ${d}{level}%\"")
-            appendLine("  else")
-            appendLine("    z2-notify -h \"電池注意\" \"残り ${d}{level}% です\"")
+            appendLine("    # 充電中なら知らせない (勝手に減っているわけではないので)")
         } else {
-            appendLine("    z2-toast \"Battery ${d}{level}%\"")
-            appendLine("  else")
-            appendLine("    z2-notify -h \"Low battery\" \"${d}{level}% left\"")
+            appendLine("    # Say nothing while charging (it is not actually draining)")
         }
-        appendLine("  fi")
-        appendLine("done")
+        appendLine("    [ \"${d}(z2-state charging)\" = \"true\" ] && continue")
+        appendLine("    [ \"${d}level\" -le 20 ] 2>/dev/null || continue")
+        appendLine("    if [ \"${d}(z2-state screen)\" = \"on\" ]; then")
+        if (ja) {
+            appendLine("      z2-toast \"電池 ${d}{level}%\"")
+            appendLine("    else")
+            appendLine("      z2-notify -h \"電池注意\" \"残り ${d}{level}% です\"")
+        } else {
+            appendLine("      z2-toast \"Battery ${d}{level}%\"")
+            appendLine("    else")
+            appendLine("      z2-notify -h \"Low battery\" \"${d}{level}% left\"")
+        }
+        appendLine("    fi")
+        appendLine("  done")
+        appendLine("}")
+        append(diffLoop(d, ja, "handle"))
     }
 
     // --- 3. z2-alarm を使う: 時刻で動く ---
@@ -97,6 +117,7 @@ fun z2MacroSamples(lang: String): Map<String, String> {
             appendLine("# そのうえで、このスクリプトを常駐させる")
             appendLine("#   ⚙設定 → 常駐サーバー に  sh ~/.z2term/macros/daily-report.sh  を登録")
             appendLine("# cron と違い Doze 中でも起きる (省電力のため数分ずれることはある)。")
+            appendLine("# ログ形式・追記方向のどちらにも依存しない (差分を読み、名前で照合する)。")
         } else {
             appendLine("# daily-report.sh — read out battery and connection every morning.")
             appendLine("# Usage: set the time trigger once")
@@ -104,19 +125,20 @@ fun z2MacroSamples(lang: String): Map<String, String> {
             appendLine("# then keep this script resident")
             appendLine("#   register  sh ~/.z2term/macros/daily-report.sh  under Settings -> Resident servers")
             appendLine("# Unlike cron this also fires during Doze (it may be a few minutes late).")
+            appendLine("# Independent of log format and write direction (diffs the log, matches on names).")
         }
-        appendLine("EVENTS=~/.z2term/events.jsonl")
-        appendLine("[ -f \"${d}EVENTS\" ] || : > \"${d}EVENTS\"")
-        appendLine("tail -n0 -F \"${d}EVENTS\" 2>/dev/null | while IFS= read -r line; do")
-        appendLine("  ev=${d}(printf '%s' \"${d}line\" | sed -n 's/.*\"event\":\"\\([^\"]*\\)\".*/\\1/p')")
-        appendLine("  name=${d}(printf '%s' \"${d}line\" | sed -n 's/.*\"name\":\"\\([^\"]*\\)\".*/\\1/p')")
-        appendLine("  [ \"${d}ev\" = \"alarm\" ] || continue")
+        append(diffSetup(d, ja, "events.jsonl", "daily-report"))
+        appendLine()
         if (ja) {
-            appendLine("  # z2-alarm に付けた名前で用途を分ける (morning 以外は無視)")
+            appendLine("# alarm と、z2-alarm に付けた名前 (morning) の両方が新着に出たときだけ動く。")
+            appendLine("# 複数行テンプレートだと 2 つが別々の行に出るので、行ごとではなく塊のまま見る。")
         } else {
-            appendLine("  # Branch on the name given to z2-alarm (ignore anything but morning)")
+            appendLine("# Fire only when both 'alarm' and the name given to z2-alarm ('morning') show up.")
+            appendLine("# A multi-line template splits them across lines, so check the chunk as a whole.")
         }
-        appendLine("  [ \"${d}name\" = \"morning\" ] || continue")
+        appendLine("handle() {")
+        appendLine("  case \"${d}1\" in *alarm*) ;; *) return ;; esac")
+        appendLine("  case \"${d}1\" in *morning*) ;; *) return ;; esac")
         appendLine("  level=${d}(z2-state level)")
         appendLine("  if [ \"${d}(z2-state wifi)\" = \"true\" ]; then net=Wi-Fi; else net=mobile; fi")
         if (ja) {
@@ -124,7 +146,8 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         } else {
             appendLine("  z2-say \"Good morning. Battery ${d}{level} percent, network ${d}{net}\"")
         }
-        appendLine("done")
+        appendLine("}")
+        append(diffLoop(d, ja, "handle"))
     }
 
     // --- 4. 実用: 通知内のワンタイムコードを自動コピー (MACRO-GUIDE 5-6 と同じ内容) ---
@@ -154,25 +177,106 @@ fun z2MacroSamples(lang: String): Map<String, String> {
     )
 }
 
+/*
+ * --- サンプル共通: ログの「新着だけ」を読む部品 ---
+ *
+ * 通知/イベントのログは**ユーザーが形式を自由に決められ**(任意テンプレート・改行入りも可)、
+ * さらに ⚙設定の「新着を上」で**先頭追記**にも切り替えられる。そのため、素朴な
+ * 「1 行 = 1 レコード」「`tail -F` で末尾を追う」実装は次の 2 通りで破綻する:
+ *  - 複数行テンプレートでは 1 レコードが複数行に割れ、必要な情報が同じ行に揃わない。
+ *  - 先頭追記ではファイル末尾に新着が来ないので `tail -F` が永久に何も拾わない。
+ *
+ * そこで**前回スナップショットとの差分**を見る。差分が前回内容の前後どちらに付いたかで
+ * 追記方向を自動判別でき、差分は行に割らず塊のまま渡すので複数行テンプレートも扱える。
+ *
+ * [diffSetup] が変数と準備、[diffLoop] が監視ループを吐く。両者の間に各サンプル固有の
+ * ハンドラ関数を置く。サンプルは `z2-macro install <名前>` で 1 ファイルずつ展開する
+ * 教材なので、**生成後のスクリプトは自己完結**させる (共通ファイルへの依存を作らない)。
+ */
+
+/** 差分読みの変数と準備。[log] は `~/.z2term/` 配下のファイル名、[tag] は作業ファイルの識別名。 */
+private fun diffSetup(d: String, ja: Boolean, log: String, tag: String): String {
+    val cPoll = if (ja) "ログを見に行く間隔(秒)" else "how often to poll the log (seconds)"
+    return """
+POLL=2                                    # $cPoll
+LOG=${d}HOME/.z2term/$log
+SNAP=${d}HOME/.z2term/.$tag.snap
+WORK=${d}HOME/.z2term/.$tag.work
+
+[ -f "${d}LOG" ] || : > "${d}LOG"
+"""
+}
+
+/** 差分読みの監視ループ。新着の塊を [handler] に渡す。 */
+private fun diffLoop(d: String, ja: Boolean, handler: String): String {
+    val cBase = if (ja) {
+        "# 初回は「今ある分」を既読の基準にするだけで、過去ログには反応しない。"
+    } else {
+        "# The first pass only records a baseline, so existing entries never fire."
+    }
+    val cSame = if (ja) "サイズが同じなら変化なしとみなす" else "same size = nothing new"
+    val cWhole = if (ja) {
+        "# 直前が空 = 全体が新着。(起動時に必ず基準を取るので過去ログの誤発火にはならない)"
+    } else {
+        "# Previously empty = all of it is new. (The startup baseline keeps old entries from firing.)"
+    }
+    val cAppend = if (ja) "前回内容で「始まる」→ 末尾追記(新着が下)" else "starts with the old content -> appended (newest last)"
+    val cPrepend = if (ja) "前回内容で「終わる」→ 先頭追記(新着が上)" else "ends with the old content -> prepended (newest first)"
+    val cElse = if (ja) {
+        "# どちらでもない = 書き換え/掃除。基準を貼り直すだけで発火しない。"
+    } else {
+        "# Neither = rewritten/cleaned. Just re-baseline without firing."
+    }
+    val cTrunc = if (ja) "# cn < pn (truncate された) も基準の貼り直しだけ。" else "# cn < pn (truncated) also just re-baselines."
+    return """
+$cBase
+cp "${d}LOG" "${d}SNAP" 2>/dev/null || : > "${d}SNAP"
+
+while :; do
+  sleep "${d}POLL"
+  [ -f "${d}LOG" ] || continue
+
+  cn=${d}(wc -c < "${d}LOG"  2>/dev/null || echo 0)
+  pn=${d}(wc -c < "${d}SNAP" 2>/dev/null || echo 0)
+  [ "${d}cn" = "${d}pn" ] && continue           # $cSame
+
+  new=''
+  if [ "${d}cn" -gt "${d}pn" ] && [ "${d}pn" -eq 0 ]; then
+    $cWhole
+    new=${d}(cat "${d}LOG")
+  elif [ "${d}cn" -gt "${d}pn" ]; then
+    grew=${d}((cn - pn))
+    head -c "${d}pn" "${d}LOG" > "${d}WORK" 2>/dev/null
+    if cmp -s "${d}WORK" "${d}SNAP"; then
+      new=${d}(tail -c "${d}grew" "${d}LOG")  # $cAppend
+    else
+      tail -c "${d}pn" "${d}LOG" > "${d}WORK" 2>/dev/null
+      if cmp -s "${d}WORK" "${d}SNAP"; then
+        new=${d}(head -c "${d}grew" "${d}LOG")  # $cPrepend
+      fi
+      $cElse
+    fi
+  fi
+  $cTrunc
+
+  cp "${d}LOG" "${d}SNAP" 2>/dev/null
+  [ -n "${d}new" ] && $handler "${d}new"
+done
+"""
+}
+
 /**
  * `otp-clip.sh` の本体 (シェバンとヘッダコメントを除く部分)。
  *
- * **ログ形式にも追記方向にも依存しない**のが設計の主眼。通知ログはユーザーが任意のテンプレートに
- * 変更でき (`{title}` `{key}` 等・改行入りも可)、さらに「新着を上」設定で先頭追記にもできるため、
- * 素朴な「1 行 = 1 通知」「`tail -F` で末尾を追う」実装は次の 2 通りで破綻する:
- *  - 複数行テンプレートでは題名と本文が別行に割れ、キーワードとコードが同じ行に揃わない。
- *  - 先頭追記ではファイル末尾に新着が来ないので `tail -F` が永久に何も拾わない。
- *
- * そこで**前回スナップショットとの差分**を見る。差分が前回内容の前後どちらに付いたかで追記方向を
- * 判別でき、差分は行に割らず塊のまま走査するので複数行テンプレートでもまたいで拾える。
- * 併せて、自由な形式ほど紛れ込む「コードに見えるが違う数字」(日時・エポック・`{key}` の通知 ID・
- * `{pkg}`) を除去し、コードはキーワードからの位置で選ぶ (先頭一致だと通知 ID を取り違える)。
+ * 差分読みは [diffSetup] / [diffLoop] に共通化してある。otp-clip 固有の難しさは
+ * **自由な形式ほど「コードに見えるが違う数字」が紛れ込む**こと。日時・エポック・
+ * `{key}` の通知 ID・`{pkg}` を除去し、コードはキーワードからの位置で選ぶ
+ * (先頭一致だと `{key}` を含むテンプレートで通知 ID を取り違える)。
  */
 private fun otpClipBody(d: String, ja: Boolean): String {
     val copied = if (ja) "コードをコピー: ${d}{code}" else "Copied code: ${d}{code}"
     val cleared = if (ja) "コピーしたコードをクリアしました" else "Cleared the copied code"
     val cTtl = if (ja) "コピーから何秒でクリアするか" else "seconds before the copy is cleared"
-    val cPoll = if (ja) "通知ログを見に行く間隔(秒)" else "how often to poll the log (seconds)"
     val cClear = if (ja) {
         "# TTL 秒後、クリップボードがコピー時の値のままなら空にする(別物をコピーしていたら残す)。"
     } else {
@@ -199,25 +303,6 @@ private fun otpClipBody(d: String, ja: Boolean): String {
     } else {
         "# RSTART/RLENGTH are awk globals that the match() calls below clobber, so save them first."
     }
-    val cBase = if (ja) {
-        "# 初回は「今ある分」を既読の基準にするだけで、過去ログには反応しない。"
-    } else {
-        "# The first pass only records a baseline, so existing entries never fire."
-    }
-    val cSame = if (ja) "サイズが同じなら変化なしとみなす" else "same size = nothing new"
-    val cWhole = if (ja) {
-        "# 直前が空 = 全体が新着。(起動時に必ず基準を取るので過去ログの誤発火にはならない)"
-    } else {
-        "# Previously empty = all of it is new. (The startup baseline keeps old entries from firing.)"
-    }
-    val cAppend = if (ja) "前回内容で「始まる」→ 末尾追記(新着が下)" else "starts with the old content -> appended (newest last)"
-    val cPrepend = if (ja) "前回内容で「終わる」→ 先頭追記(新着が上)" else "ends with the old content -> prepended (newest first)"
-    val cElse = if (ja) {
-        "# どちらでもない = 書き換え/掃除。基準を貼り直すだけで発火しない。"
-    } else {
-        "# Neither = rewritten/cleaned. Just re-baseline without firing."
-    }
-    val cTrunc = if (ja) "# cn < pn (truncate された) も基準の貼り直しだけ。" else "# cn < pn (truncated) also just re-baselines."
     val cMulti = if (ja) "複数行でも 1 つの塊として扱う" else "treat multi-line records as one blob"
     val cNoKw = if (ja) "キーワード無し = 認証通知ではない" else "no keyword = not an auth notification"
     val cAfter = if (ja) "キーワードの直後を優先" else "prefer what follows the keyword"
@@ -225,15 +310,8 @@ private fun otpClipBody(d: String, ja: Boolean): String {
 
     return """
 TTL=60                                    # $cTtl
-POLL=2                                    # $cPoll
 KEYWORDS='認証|確認|ワンタイム|コード|パスワード|code|otp|verification|verify|one[- ]?time'
-
-NOTIF=${d}HOME/.z2term/notifications.jsonl
-SNAP=${d}HOME/.z2term/.otp-clip.snap
-WORK=${d}HOME/.z2term/.otp-clip.work
-
-[ -f "${d}NOTIF" ] || : > "${d}NOTIF"
-
+""" + diffSetup(d, ja, "notifications.jsonl", "otp-clip") + """
 $cClear
 schedule_clear() {
   code=${d}1
@@ -248,7 +326,6 @@ schedule_clear() {
 
 handle() {
   raw=${d}1
-  [ -z "${d}raw" ] && return
 
   $cStrip
   scan=${d}(printf '%s' "${d}raw" | sed \
@@ -295,41 +372,7 @@ handle() {
   z2-toast "$copied"
   schedule_clear "${d}code"
 }
-
-$cBase
-cp "${d}NOTIF" "${d}SNAP" 2>/dev/null || : > "${d}SNAP"
-
-while :; do
-  sleep "${d}POLL"
-  [ -f "${d}NOTIF" ] || continue
-
-  cn=${d}(wc -c < "${d}NOTIF" 2>/dev/null || echo 0)
-  pn=${d}(wc -c < "${d}SNAP"  2>/dev/null || echo 0)
-  [ "${d}cn" = "${d}pn" ] && continue           # $cSame
-
-  new=''
-  if [ "${d}cn" -gt "${d}pn" ] && [ "${d}pn" -eq 0 ]; then
-    $cWhole
-    new=${d}(cat "${d}NOTIF")
-  elif [ "${d}cn" -gt "${d}pn" ]; then
-    diff=${d}((cn - pn))
-    head -c "${d}pn" "${d}NOTIF" > "${d}WORK" 2>/dev/null
-    if cmp -s "${d}WORK" "${d}SNAP"; then
-      new=${d}(tail -c "${d}diff" "${d}NOTIF")  # $cAppend
-    else
-      tail -c "${d}pn" "${d}NOTIF" > "${d}WORK" 2>/dev/null
-      if cmp -s "${d}WORK" "${d}SNAP"; then
-        new=${d}(head -c "${d}diff" "${d}NOTIF")  # $cPrepend
-      fi
-      $cElse
-    fi
-  fi
-  $cTrunc
-
-  cp "${d}NOTIF" "${d}SNAP" 2>/dev/null
-  handle "${d}new"
-done
-"""
+""" + diffLoop(d, ja, "handle")
 }
 
 /** `z2-macro` CLI 本体。同梱サンプルの一覧 / 導入 / 表示 / 実行。 */

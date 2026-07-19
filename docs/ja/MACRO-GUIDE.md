@@ -115,17 +115,17 @@ z2-notify -h -n cleanup -b はい -b あとで "掃除しますか?" "一時フ�
 ```
 
 ```sh
-# 返事を待つ側（常駐サーバーに登録する）
-tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
-  ev=$(printf '%s' "$line"     | jq -r '.event')
-  name=$(printf '%s' "$line"   | jq -r '.name   // empty')
-  action=$(printf '%s' "$line" | jq -r '.action // empty')
-  [ "$ev" = "notify_action" ] && [ "$name" = "cleanup" ] || continue
-  case "$action" in
-    はい)   rm -rf ~/tmp/* && z2-toast "掃除しました" ;;
-    あとで) z2-alarm in 1h cleanup ;;   # 1時間後にもう一度きく
-  esac
-done
+# 返事を待つ側（5-0 の雛形の handle() を書き換える。常駐サーバーに登録する）
+handle() {
+  printf '%s\n' "$1" | while IFS= read -r rec; do
+    case "$rec" in *notify_action*) ;; *) continue ;; esac
+    case "$rec" in *cleanup*) ;; *) continue ;; esac
+    case "$rec" in
+      *はい*)   rm -rf ~/tmp/* && z2-toast "掃除しました" ;;
+      *あとで*) z2-alarm in 1h cleanup ;;   # 1時間後にもう一度きく
+    esac
+  done
+}
 ```
 
 押された通知は自動で閉じます。返事をしなければ何も起きません（通知を消せばそれで終わりです）。
@@ -217,38 +217,125 @@ z2-intent -a android.intent.action.SET_ALARM --ei android.intent.extra.alarm.HOU
 
 ## 5. マクロの書き方（テンプレート）
 
-### 5-1. 最小形：イベントを監視して反応する
+### 5-0. ログの読み方（全マクロ共通の雛形）
 
-`tail -F` で events.jsonl を追い、行ごとに条件分岐します（`-n0` で過去分を読まず今から監視）。
+**まずここを読んでください。** 以降のすべての例がこの雛形を前提にしています。
+
+ログは `tail -F` で追ってはいけません。⚙設定でログ形式を自由に変えられるうえ、
+**「新着を上」に切り替えると先頭追記になり、ファイル末尾に新着が来なくなる**ためです。
+`tail -F` は末尾しか見ないので、その設定では永久に何も拾いません。複数行テンプレートでは
+1 レコードが複数行に割れるので、「1 行 = 1 レコード」という前提も崩れます。
+
+そこで**前回スナップショットとの差分**を読みます。差分が前回内容の前後どちらに付いたかで
+追記方向が分かり、差分を塊のまま渡せば複数行テンプレートも扱えます。
 
 ```sh
 #!/bin/sh
-# ~/.z2term/macros/watch.sh
-tail -n0 -F ~/.z2term/events.jsonl 2>/dev/null | while IFS= read -r line; do
-  ev=$(printf '%s' "$line" | jq -r '.event' 2>/dev/null)   # jq が無ければ 6章の grep 版
-  case "$ev" in
-    power_connected)   z2-say "充電を開始しました" ;;
-    headset_plugged)   z2-media play ;;
-    headset_unplugged) z2-media pause ;;
-    screen_off)        : # 何もしない例
-  esac
+# 全マクロ共通の雛形。LOG と tag（作業ファイル名）と handle() を書き換えて使う。
+POLL=2                                    # ログを見に行く間隔(秒)
+LOG=$HOME/.z2term/events.jsonl
+SNAP=$HOME/.z2term/.mymacro.snap
+WORK=$HOME/.z2term/.mymacro.work
+
+[ -f "$LOG" ] || : > "$LOG"
+
+# ここに「新着の塊」が渡ってくる。中身の見方は次の 5-1 以降を参照。
+handle() {
+  printf '%s\n' "$1" | while IFS= read -r rec; do
+    case "$rec" in
+      *power_connected*) z2-toast "充電を開始しました" ;;
+    esac
+  done
+}
+
+# 初回は「今ある分」を既読の基準にするだけで、過去ログには反応しない。
+cp "$LOG" "$SNAP" 2>/dev/null || : > "$SNAP"
+
+while :; do
+  sleep "$POLL"
+  [ -f "$LOG" ] || continue
+
+  cn=$(wc -c < "$LOG"  2>/dev/null || echo 0)
+  pn=$(wc -c < "$SNAP" 2>/dev/null || echo 0)
+  [ "$cn" = "$pn" ] && continue           # サイズが同じなら変化なしとみなす
+
+  new=''
+  if [ "$cn" -gt "$pn" ] && [ "$pn" -eq 0 ]; then
+    # 直前が空 = 全体が新着。(起動時に必ず基準を取るので過去ログの誤発火にはならない)
+    new=$(cat "$LOG")
+  elif [ "$cn" -gt "$pn" ]; then
+    grew=$((cn - pn))
+    head -c "$pn" "$LOG" > "$WORK" 2>/dev/null
+    if cmp -s "$WORK" "$SNAP"; then
+      new=$(tail -c "$grew" "$LOG")  # 前回内容で「始まる」→ 末尾追記(新着が下)
+    else
+      tail -c "$pn" "$LOG" > "$WORK" 2>/dev/null
+      if cmp -s "$WORK" "$SNAP"; then
+        new=$(head -c "$grew" "$LOG")  # 前回内容で「終わる」→ 先頭追記(新着が上)
+      fi
+      # どちらでもない = 書き換え/掃除。基準を貼り直すだけで発火しない。
+    fi
+  fi
+  # cn < pn (truncate された) も基準の貼り直しだけ。
+
+  cp "$LOG" "$SNAP" 2>/dev/null
+  [ -n "$new" ] && handle "$new"
 done
+```
+
+**形式への依存はここで分かれます**:
+
+- **イベント名・名前で照合する**のは形式非依存です。`{event}` は JSON でもテンプレートでも
+  `power_connected` のようにそのまま出るので、`case "$rec" in *power_connected*)` で拾えます。
+  同梱サンプル 4 本はこの方針で書いてあります。
+- **値そのもの**（電池残量など）は `z2-state` で取れば形式に一切依存しません。こちらを優先してください。
+- **ログのフィールドを解析する**場合（`ssid` など `z2-state` に無いもの）だけは、
+  あなたが選んだ形式に依存します。既定の JSONL 前提で書き、形式を変えたら抽出も直してください。
+
+**制約**: 1 回の `POLL` 周期内に届いた複数レコードは 1 つの塊として渡ります。
+
+### 5-1. 最小形：イベントを監視して反応する
+
+5-0 の雛形の `handle()` だけを書き換えます（イベント名での照合なので形式非依存）。
+
+```sh
+handle() {
+  printf '%s\n' "$1" | while IFS= read -r rec; do
+    case "$rec" in
+      *power_connected*)   z2-say "充電を開始しました" ;;
+      *headset_plugged*)   z2-media play ;;
+      *headset_unplugged*) z2-media pause ;;
+      *screen_off*)        : ;;  # 何もしない例
+    esac
+  done
+}
 ```
 
 ### 5-2. フィールドを使う（電池残量・SSID）
 
+値は**まず `z2-state` を試してください**。ログを解析しないので形式に依存しません。
+
 ```sh
-tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
-  ev=$(printf '%s' "$line"    | jq -r '.event')
-  level=$(printf '%s' "$line" | jq -r '.level // empty')
-  ssid=$(printf '%s' "$line"  | jq -r '.ssid  // empty')
-  if [ "$ev" = "battery_low" ]; then
-    z2-notify "電池注意" "残り ${level}% です"
-  fi
-  if [ "$ev" = "wifi_connected" ] && [ "$ssid" = "home" ]; then
+handle() {
+  printf '%s\n' "$1" | while IFS= read -r rec; do
+    case "$rec" in *battery_low*) ;; *) continue ;; esac
+    z2-notify "電池注意" "残り $(z2-state level)% です"
+  done
+}
+```
+
+`ssid` のように `z2-state` に無いものだけ、ログから取ります。**ここは形式に依存する**ので、
+既定の JSONL 前提です（形式を変えたら抽出も直してください）。
+
+```sh
+handle() {
+  printf '%s\n' "$1" | while IFS= read -r rec; do
+    case "$rec" in *wifi_connected*) ;; *) continue ;; esac
+    ssid=$(printf '%s' "$rec" | jq -r '.ssid // empty' 2>/dev/null)   # 6章に sed 版
+    [ "$ssid" = "home" ] || continue
     z2-volume 60% ; z2-toast "自宅 Wi‑Fi・音量を戻しました"
-  fi
-done
+  done
+}
 ```
 
 ### 5-3. 常駐させる
@@ -267,13 +354,14 @@ z2-alarm daily 07:00 morning     # 1 回仕掛けるだけ（再起動しても�
 ```
 
 ```sh
-# 監視側（常駐サーバーに登録する）
-tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
-  ev=$(printf '%s' "$line"   | jq -r '.event')
-  name=$(printf '%s' "$line" | jq -r '.name // empty')
-  [ "$ev" = "alarm" ] && [ "$name" = "morning" ] || continue
+# 監視側（5-0 の雛形の handle() を書き換える。常駐サーバーに登録する）
+# alarm と、z2-alarm に付けた名前 (morning) の両方が新着に出たときだけ動く。
+# 複数行テンプレートだと 2 つが別々の行に出るので、行ごとではなく塊のまま見る。
+handle() {
+  case "$1" in *alarm*) ;; *) return ;; esac
+  case "$1" in *morning*) ;; *) return ;; esac
   z2-say "おはようございます。電池は $(z2-state level) パーセントです"
-done
+}
 ```
 
 distro の cron でも書けますが、**Android が省電力の眠り（Doze）に入ると cron は止まります**。
@@ -286,17 +374,20 @@ distro の cron でも書けますが、**Android が省電力の眠り（Doze�
 解除の失敗が `unlock_failed`（`level` = 連続失敗回数）として流れます。3 回目から反応する例:
 
 ```sh
-# 監視側（常駐サーバーに登録する）
-tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
-  ev=$(printf '%s' "$line"    | jq -r '.event')
-  n=$(printf '%s' "$line"     | jq -r '.level // 0')
-  [ "$ev" = "unlock_failed" ] && [ "$n" -ge 3 ] || continue
-  ts=$(date '+%F %T')
-  z2-notify -h "解除失敗 ${n} 回" "$ts"          # 手元の別端末にも届くよう通知
-  echo "$ts unlock_failed x$n" >> ~/theft.log     # 記録を残す
-  # 例: 自宅サーバーへ即退避（要 ssh 鍵）
-  # scp ~/theft.log backup:/srv/ 2>/dev/null
-done
+# 監視側（5-0 の雛形の handle() を書き換える。常駐サーバーに登録する）
+# 失敗回数は level フィールドなので、ここは既定の JSONL 前提（形式を変えたら抽出も直す）。
+handle() {
+  printf '%s\n' "$1" | while IFS= read -r rec; do
+    case "$rec" in *unlock_failed*) ;; *) continue ;; esac
+    n=$(printf '%s' "$rec" | jq -r '.level // 0' 2>/dev/null)
+    [ "$n" -ge 3 ] 2>/dev/null || continue
+    ts=$(date '+%F %T')
+    z2-notify -h "解除失敗 ${n} 回" "$ts"          # 手元の別端末にも届くよう通知
+    echo "$ts unlock_failed x$n" >> ~/theft.log     # 記録を残す
+    # 例: 自宅サーバーへ即退避（要 ssh 鍵）
+    # scp ~/theft.log backup:/srv/ 2>/dev/null
+  done
+}
 ```
 
 ⚠ **`unlock_failed` / `unlock_succeeded` は PIN・パターン・パスワードの失敗/成功でしか発火しません。**
@@ -345,19 +436,18 @@ done
 #!/bin/sh
 # ~/.z2term/macros/otp-clip.sh
 # 通知内のワンタイムコード(4〜8桁)を自動でクリップボードにコピーし、TTL 秒後に自動クリア。
-# ログ形式・追記方向のどちらにも依存しない。
+# ログ形式・追記方向のどちらにも依存しない（読み取り部は 5-0 の雛形と同じ）。
 # 準備: ⚙設定 →「通知検知」ON ＋ OS の「通知アクセス」許可
 # 常駐: ⚙設定 → 常駐サーバー に  sh ~/.z2term/macros/otp-clip.sh  を登録
 
 TTL=60                                    # コピーから何秒でクリアするか
-POLL=2                                    # 通知ログを見に行く間隔(秒)
 KEYWORDS='認証|確認|ワンタイム|コード|パスワード|code|otp|verification|verify|one[- ]?time'
-
-NOTIF=$HOME/.z2term/notifications.jsonl
+POLL=2                                    # ログを見に行く間隔(秒)
+LOG=$HOME/.z2term/notifications.jsonl
 SNAP=$HOME/.z2term/.otp-clip.snap
 WORK=$HOME/.z2term/.otp-clip.work
 
-[ -f "$NOTIF" ] || : > "$NOTIF"
+[ -f "$LOG" ] || : > "$LOG"
 
 # TTL 秒後、クリップボードがコピー時の値のままなら空にする(別物をコピーしていたら残す)。
 schedule_clear() {
@@ -373,7 +463,6 @@ schedule_clear() {
 
 handle() {
   raw=$1
-  [ -z "$raw" ] && return
 
   # コードに見えるが違うものを先に消す: 日時 / 時刻 / 9 桁以上(エポック等) /
   # '|' を含むトークン ({key} の通知 ID) / ドット区切り識別子 ({pkg})。最後に "123-456" を詰める。
@@ -425,37 +514,37 @@ handle() {
 }
 
 # 初回は「今ある分」を既読の基準にするだけで、過去ログには反応しない。
-cp "$NOTIF" "$SNAP" 2>/dev/null || : > "$SNAP"
+cp "$LOG" "$SNAP" 2>/dev/null || : > "$SNAP"
 
 while :; do
   sleep "$POLL"
-  [ -f "$NOTIF" ] || continue
+  [ -f "$LOG" ] || continue
 
-  cn=$(wc -c < "$NOTIF" 2>/dev/null || echo 0)
-  pn=$(wc -c < "$SNAP"  2>/dev/null || echo 0)
+  cn=$(wc -c < "$LOG"  2>/dev/null || echo 0)
+  pn=$(wc -c < "$SNAP" 2>/dev/null || echo 0)
   [ "$cn" = "$pn" ] && continue           # サイズが同じなら変化なしとみなす
 
   new=''
   if [ "$cn" -gt "$pn" ] && [ "$pn" -eq 0 ]; then
     # 直前が空 = 全体が新着。(起動時に必ず基準を取るので過去ログの誤発火にはならない)
-    new=$(cat "$NOTIF")
+    new=$(cat "$LOG")
   elif [ "$cn" -gt "$pn" ]; then
-    diff=$((cn - pn))
-    head -c "$pn" "$NOTIF" > "$WORK" 2>/dev/null
+    grew=$((cn - pn))
+    head -c "$pn" "$LOG" > "$WORK" 2>/dev/null
     if cmp -s "$WORK" "$SNAP"; then
-      new=$(tail -c "$diff" "$NOTIF")  # 前回内容で「始まる」→ 末尾追記(新着が下)
+      new=$(tail -c "$grew" "$LOG")  # 前回内容で「始まる」→ 末尾追記(新着が下)
     else
-      tail -c "$pn" "$NOTIF" > "$WORK" 2>/dev/null
+      tail -c "$pn" "$LOG" > "$WORK" 2>/dev/null
       if cmp -s "$WORK" "$SNAP"; then
-        new=$(head -c "$diff" "$NOTIF")  # 前回内容で「終わる」→ 先頭追記(新着が上)
+        new=$(head -c "$grew" "$LOG")  # 前回内容で「終わる」→ 先頭追記(新着が上)
       fi
       # どちらでもない = 書き換え/掃除。基準を貼り直すだけで発火しない。
     fi
   fi
   # cn < pn (truncate された) も基準の貼り直しだけ。
 
-  cp "$NOTIF" "$SNAP" 2>/dev/null
-  handle "$new"
+  cp "$LOG" "$SNAP" 2>/dev/null
+  [ -n "$new" ] && handle "$new"
 done
 ```
 
@@ -488,10 +577,13 @@ level=$(printf '%s' "$line" | sed -n 's/.*"level":\([0-9]*\).*/\1/p')
 
 > あなたは z2term マクロ生成器です。この `MACRO-GUIDE.md` の仕様だけを使い、次の要望を満たす
 > **POSIX sh スクリプト 1 本**を出力してください。制約:
-> - トリガーは `~/.z2term/events.jsonl` を `tail -n0 -F` で監視する（過去分は読まない）。
+> - ログの監視は本ガイド「5-0. ログの読み方」の雛形をそのまま使う（`tail -F` は使わない。
+>   先頭追記の設定で動かなくなるため）。書き換えるのは `LOG` / 作業ファイル名 / `handle()` だけ。
+> - 分岐はイベント名での照合（`case "$rec" in *power_connected*)`）を優先する。ログ形式に依存しないため。
+> - 値は `z2-state` で取れるものは `z2-state` を使う。ログのフィールド解析は `z2-state` に無いものだけ。
 > - イベント種別・フィールドは本ガイド「3. トリガー・リファレンス」にある名前だけを使う。
 > - アクションは本ガイド「4. アクション・リファレンス」の `z2-*` だけを使う（存在しない機能は使わない）。
-> - JSON 解析は `jq` を第一候補にし、無い場合の sed フォールバックも併記する。
+> - JSON 解析が要る場合は `jq` を第一候補にし、無い場合の sed フォールバックも併記する。
 > - 依存パッケージ（jq 等）の導入コマンドと、常駐サーバーへの登録手順をコメントで添える。
 > - スクリプトは 1 ファイルで完結させ、各分岐に日本語コメントを付ける。
 >
