@@ -412,6 +412,22 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 | エンジン選択解放 (裏設定) | engineSelectorUnlocked | false | バージョン 7 回タップでトグル（root 不要・解除時は z2root へリセット） |
 | chroot 解放フラグ (裏設定) | rootChrootUnlocked | false | 7 タップ時の root セルフテスト成功で true |
 | 言語 | (専用 SharedPrefs `z2term_locale`) | OS 既定 | ja / en |
+| 通知検知 | notificationCaptureEnabled | false | true/false（OS の通知アクセス許可が別途必要） |
+| 通知ログを保存 | notificationLogEnabled | true | false なら検知だけ行いファイルに書かない |
+| 通知ログ形式 | notificationLogFormat | "" (= JSONL) | `{time}{app}{title}{text}` 等のテンプレート |
+| 通知ログを先頭に追記 | notificationLogPrepend | false | true で新着がファイル先頭（10 MiB 超で注意表示） |
+| システムイベント検知 | systemEventCaptureEnabled | false | 画面/ロック/充電/電池/Wi-Fi/BT オーディオ |
+| イベントログ形式 | systemEventLogFormat | "" (= JSONL) | `{time}{event}{level}{ssid}` |
+| イベントログを先頭に追記 | systemEventLogPrepend | false | true で新着がファイル先頭 |
+| 解除失敗を検知 | unlockWatchEnabled | false | 端末管理者 (watch-login) の有効化が別途必要 |
+| 常駐サーバー登録 | serverEntries | "" | 常駐させるサーバーの定義 (JSON) |
+| 起動時に自動で常駐 | serversAutostartOnBoot | false | 端末起動で常駐サーバーを開始 (`BootReceiver`) |
+| 常駐サーバー省電力 | serversLowPower | false | true/false |
+| Kitty 外部ファイル転送 | kittyExternalFileEnabled | false | 実験的。`t=f`/`t=t`/`t=s` の opt-in |
+| SGR マウス入力 | sgrMouseInputEnabled | false | 実験的 |
+| 外部 SD を認識 | externalStorageEnabled | false | ON で物理ボリュームを検出し bind |
+| Android ホスト bind | androidHostBindEnabled | false | 実験的。`/system` `/apex` を晒す |
+| トレースログ | traceLogEnabled | false | 開発者向け |
 
 `noInstallTimeout`（インストールタイムアウト無効化）・`cleanInstallGuiArmed`（GUI クリーン再展開フラグ）等も DataStore (`z2term_settings`) に保持。SSH プロファイルは別 DataStore (`z2term_ssh`) に JSON で保存。
 
@@ -429,6 +445,10 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 | WAKE_LOCK | バックグラウンド維持 |
 | MANAGE_EXTERNAL_STORAGE | `cd /sdcard` で共有ストレージ全体へ R/W (設定から許可導線) |
 | READ/WRITE_EXTERNAL_STORAGE (maxSdk) | 旧 API 用 (`requestLegacyExternalStorage`) |
+| ACCESS_WIFI_STATE | システムイベント検知の Wi-Fi 判定と SSID 取得 (`SystemEventService`。SSID は位置情報権限が無いと空) |
+| VIBRATE | `z2-vibrate` (Android ブリッジ) と検知イベントの通知 |
+| RECEIVE_BOOT_COMPLETED | 設定「起動時に自動で常駐」が ON のとき、端末起動で常駐サーバーを立ち上げる (`BootReceiver`。`LOCKED_BOOT_COMPLETED` も受ける) |
+| REQUEST_IGNORE_BATTERY_OPTIMIZATIONS | 常駐が OS に停止されないよう電池最適化の除外をワンタップで要求 (`BatteryGuard`) |
 
 ---
 
@@ -438,6 +458,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 bash scripts/build-bundle.sh          # 同梱物一括生成
 # 個別: build-proot.sh / build-alpine-rootfs.sh aarch64 / fetch-fonts.sh
 sh scripts/z2root-cmdtest.sh          # z2root の難所を踏む壊れやすいコマンド群を横断テスト(全10グループ・未導入はskip・末尾に非ゼロ一覧。SKIP_NET/SKIP_BUILD/RUN_SSHD/RUN_PRIV)
+bash scripts/gw.sh :app:assembleFullDebug   # オンデバイスはこちら (下記)
 ./gradlew :app:assembleFullDebug      # APK (full = rootfs 同梱)
 ./gradlew :app:assembleFossDebug      # APK (foss = rootfs 非同梱・起動時 DL)
 adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
@@ -447,6 +468,7 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 - foss は rootfs を含めず、`DistroSpec.ALPINE` の公式 CDN URL + SHA-256 で起動時に取得 (`DistroSpec.bundledInApk` が false)。proot/talloc prebuilt は F-Droid 非適合のため foss から除外し、実行エンジンは同梱ソースからビルドする z2root を使う。
 - **assets の rootfs は `.tgz` 拡張子**で置く (`.tar.gz` だと aapt が解凍リネームする)。
 - **`useLegacyPackaging=true` 必須** (execve する .so を nativeLibraryDir に実体配置するため)。
+- **オンデバイス (aarch64・proot/z2root 下) では `scripts/gw.sh` 経由でビルドする**: この環境は libc の `accept()` が ENOSYS を返し、JDK17 の `sun.nio.ch.Net.accept` が libc `accept()` を呼ぶため Gradle デーモンの TCP IPC が落ちて "Could not connect to the Gradle daemon" でビルド不能になる。`gw.sh` は **`accept()` が ENOSYS の環境でだけ** `accept4` シム (`scripts/accept4-shim.c`) を `LD_PRELOAD` して `./gradlew` を呼ぶ (PC など正常な環境では素通しなのでマルチデバイス運用を壊さない)。シムが aapt2 (bionic) に継承されると `libc.so.6 not found` で別の失敗になるため、aapt2 ラッパー側で `LD_PRELOAD` を外している。`bash scripts/gw.sh help` で適用の有無を確認できる。
 - rootfs 構成変更時: `scripts/alpine-packages.txt` 編集 → `DistroBundle.ROOTFS_VERSION` を +1 → `FORCE=1 build-alpine-rootfs.sh` → assemble (利用者は APK 入替で自動再展開)。
 
 ---

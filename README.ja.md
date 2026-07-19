@@ -3,7 +3,7 @@
 [English](README.md) ・ **日本語**
 
 **Z2Term** (ズィートゥーターム) は Android 端末上で動作する独自実装のターミナルアプリです。
-複数の Linux ディストリビューション (Alpine / Ubuntu / Arch / Kali) を PRoot 経由で動作させ、
+複数の Linux ディストリビューション (Alpine / Ubuntu / Arch / Kali) を root 不要で動作させ、
 `pacman` / `apt` などのパッケージマネージャ経由で任意のコマンドをインストール可能にします。
 
 > Zero to Ship プロジェクトの第5作目です。
@@ -29,15 +29,15 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.176-alpha (versionCode 184).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.178-alpha (versionCode 186).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 
 - **ターミナルエミュレータ** — VT100 / xterm、256色・トゥルーカラー、6 テーマ、検索付きスクロールバック、UTF-8 と East Asian Width、代替スクリーン、OSC 4 / 7 / 8 / 10 / 11 / 12 / 52。
-- **root 不要の Linux ディストロ** — PRoot で Alpine / Ubuntu / Arch / Kali を動かし、`apk` / `apt` / `pacman` で何でも導入。
+- **root 不要の Linux ディストロ** — ユーザ空間エンジン（既定は z2root。下の「実行エンジン」参照）で Alpine / Ubuntu / Arch / Kali を動かし、`apk` / `apt` / `pacman` で何でも導入。
 - **実行エンジン** — z2root（既定・root 不要の ptrace ベースエンジン）、PRoot、chroot（root 端末向け）。バージョンを 7 回タップするとエンジン選択がアンロックされる。
 - **マルチタブ** — CUI / GUI タブ、ドラッグで並べ替え、OS にプロセスを落とされてもセッション復元。
-- **Linux GUI** — Xvnc + openbox と内蔵 RFB クライアント。Thunderbird や mpv などのデスクトップアプリを音声・動画つきで動かせる。
+- **Linux GUI** — Xvnc + openbox と内蔵 RFB クライアント。`z2gui` でデスクトップを起動し、`z2run <アプリ>` で GUI アプリを起動（GUI タブも自動で開く）。音声・動画つき。
 - **SSH / SFTP** — 公開鍵認証（秘匿フィールドは Android Keystore で暗号化）、known_hosts 確認、ファイル転送、既定で localhost のみ bind する内蔵 `sshd`（dropbear）。
 - **日本語 IME** — Viterbi かな漢字変換、予測、頻度/新しさ学習、独自オンスクリーンキーボード。
 - **Android ブリッジ** — 端末から本体機能を呼ぶ: `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip` / `z2-battery` / `z2-vibrate` / `z2-say` / `z2-torch` / `z2-media` / `z2-volume` / `z2-sensor` / `z2-intent` / `z2-state` / `z2-alarm` / `z2-macro`。

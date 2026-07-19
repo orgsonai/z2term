@@ -412,6 +412,22 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 | Engine selector unlock (hidden) | engineSelectorUnlocked | false | toggled by tapping the version 7 times (no root needed; locking resets engine to z2root) |
 | chroot unlock flag (hidden) | rootChrootUnlocked | false | true when the 7-tap root self-test passes |
 | Language | (dedicated SharedPrefs `z2term_locale`) | OS default | ja / en |
+| Notification detection | notificationCaptureEnabled | false | true/false (also needs the OS notification-access grant) |
+| Save notification log | notificationLogEnabled | true | false = detect only, write nothing to the file |
+| Notification log format | notificationLogFormat | "" (= JSONL) | template such as `{time}{app}{title}{text}` |
+| Prepend notification log | notificationLogPrepend | false | true puts new entries at the head (warns past 10 MiB) |
+| System event detection | systemEventCaptureEnabled | false | screen/lock/charge/battery/Wi-Fi/BT audio |
+| Event log format | systemEventLogFormat | "" (= JSONL) | `{time}{event}{level}{ssid}` |
+| Prepend event log | systemEventLogPrepend | false | true puts new entries at the head |
+| Watch unlock failures | unlockWatchEnabled | false | also needs the device-admin (watch-login) grant |
+| Resident server entries | serverEntries | "" | definitions of the servers to keep resident (JSON) |
+| Start servers on boot | serversAutostartOnBoot | false | start resident servers at device boot (`BootReceiver`) |
+| Resident server low power | serversLowPower | false | true/false |
+| Kitty external file transfer | kittyExternalFileEnabled | false | experimental; opt-in for `t=f`/`t=t`/`t=s` |
+| SGR mouse input | sgrMouseInputEnabled | false | experimental |
+| Detect external SD | externalStorageEnabled | false | on = detect physical volumes and bind them |
+| Android host bind | androidHostBindEnabled | false | experimental; exposes `/system` and `/apex` |
+| Trace log | traceLogEnabled | false | for developers |
 
 `noInstallTimeout` (disable install timeout), `cleanInstallGuiArmed` (GUI clean re-deploy flag), etc. are also kept in DataStore (`z2term_settings`). SSH profiles are saved as JSON in a separate DataStore (`z2term_ssh`).
 
@@ -429,6 +445,10 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 | WAKE_LOCK | background maintenance |
 | MANAGE_EXTERNAL_STORAGE | R/W to all shared storage via `cd /sdcard` (granted from settings) |
 | READ/WRITE_EXTERNAL_STORAGE (maxSdk) | for old APIs (`requestLegacyExternalStorage`) |
+| ACCESS_WIFI_STATE | Wi-Fi state and SSID for system-event detection (`SystemEventService`; the SSID is blank without location permission) |
+| VIBRATE | `z2-vibrate` (Android bridge) and detection-event notifications |
+| RECEIVE_BOOT_COMPLETED | start resident servers at device boot when "start on boot" is on (`BootReceiver`; also handles `LOCKED_BOOT_COMPLETED`) |
+| REQUEST_IGNORE_BATTERY_OPTIMIZATIONS | one-tap request to be exempt from battery optimization so keep-alive is not killed (`BatteryGuard`) |
 
 ---
 
@@ -438,6 +458,7 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 bash scripts/build-bundle.sh          # generate all bundled assets at once
 # individually: build-proot.sh / build-alpine-rootfs.sh aarch64 / fetch-fonts.sh
 sh scripts/z2root-cmdtest.sh          # cross-test fragile commands that hit z2root's hard paths (10 groups; skips missing cmds; trailing non-zero summary. SKIP_NET/SKIP_BUILD/RUN_SSHD/RUN_PRIV)
+bash scripts/gw.sh :app:assembleFullDebug   # use this on-device (see below)
 ./gradlew :app:assembleFullDebug      # APK (full = rootfs bundled)
 ./gradlew :app:assembleFossDebug      # APK (foss = rootfs excluded, runtime DL)
 adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
@@ -447,6 +468,7 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 - foss excludes the rootfs and fetches it at startup via `DistroSpec.ALPINE`'s official CDN URL + SHA-256 (`DistroSpec.bundledInApk` returns false). foss also excludes the proot/talloc prebuilts (F-Droid non-compliant) and runs on z2root built from bundled source instead.
 - **The rootfs in assets uses the `.tgz` extension** (with `.tar.gz`, aapt decompresses and renames it).
 - **`useLegacyPackaging=true` is required** (so the `.so` files that get execve'd are placed as real files in nativeLibraryDir).
+- **Build through `scripts/gw.sh` when building on-device (aarch64, under proot/z2root)**: in that environment libc's `accept()` returns ENOSYS, and because JDK17's `sun.nio.ch.Net.accept` calls libc `accept()`, the Gradle daemon's TCP IPC dies and the build fails with "Could not connect to the Gradle daemon". `gw.sh` `LD_PRELOAD`s an `accept4` shim (`scripts/accept4-shim.c`) **only where `accept()` is ENOSYS**, and otherwise just calls `./gradlew` (so it does not disturb multi-device use). The shim leaking into aapt2 (bionic) causes a different failure, `libc.so.6 not found`, so the aapt2 wrapper strips `LD_PRELOAD`. Run `bash scripts/gw.sh help` to check whether the shim is applied.
 - When the rootfs composition changes: edit `scripts/alpine-packages.txt` → bump `DistroBundle.ROOTFS_VERSION` by +1 → `FORCE=1 build-alpine-rootfs.sh` → assemble (users auto-redeploy by swapping the APK).
 
 ---

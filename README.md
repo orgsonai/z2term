@@ -3,7 +3,7 @@
 **English** ・ [日本語](README.ja.md)
 
 **Z2Term** is a custom-built terminal app that runs on Android.
-It runs several Linux distributions (Alpine / Ubuntu / Arch / Kali) via PRoot,
+It runs several Linux distributions (Alpine / Ubuntu / Arch / Kali) without root,
 and lets you install any command through package managers like `pacman` / `apt`.
 
 > The 5th project of the Zero to Ship initiative.
@@ -34,10 +34,10 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 ## Features
 
 - **Terminal emulator** — VT100 / xterm, 256-color and true color, 6 themes, scrollback with search, UTF-8 and East Asian Width, alternate screen, OSC 4 / 7 / 8 / 10 / 11 / 12 / 52.
-- **Linux distributions without root** — Alpine / Ubuntu / Arch / Kali via PRoot. Install anything with `apk` / `apt` / `pacman`.
+- **Linux distributions without root** — Alpine / Ubuntu / Arch / Kali on a userspace engine (z2root by default; see below). Install anything with `apk` / `apt` / `pacman`.
 - **Execution engines** — z2root (default; a ptrace-based engine that needs no root), PRoot, and chroot (rooted devices). The engine selector unlocks by tapping the version 7 times.
 - **Multi-tab** — CUI and GUI tabs, drag to reorder, session restore after the OS kills the app.
-- **Linux GUI** — Xvnc + openbox with a built-in RFB client; run desktop apps such as Thunderbird or mpv, with audio and video.
+- **Linux GUI** — Xvnc + openbox with a built-in RFB client; `z2gui` starts a desktop and `z2run <app>` launches a GUI app (opening the GUI tab for you), with audio and video.
 - **SSH / SFTP** — public-key auth with secrets encrypted by the Android Keystore, known_hosts confirmation, file transfer, and a built-in `sshd` (dropbear) that binds to localhost only by default.
 - **Japanese IME** — Viterbi kana-kanji conversion, prediction, frequency/recency learning, and a custom on-screen keyboard.
 - **Android bridge** — call host features from the shell: `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip` / `z2-battery` / `z2-vibrate` / `z2-say` / `z2-torch` / `z2-media` / `z2-volume` / `z2-sensor` / `z2-intent` / `z2-state` / `z2-alarm` / `z2-macro`.
