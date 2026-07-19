@@ -315,13 +315,17 @@ Note: if battery use bothers you, turn on "**Low-power mode**" — it lets the d
 → **Fixed in 0.8.177.** Update the app, then close and reopen that OS's tab. The cause was that the place for shared memory (`/dev/shm`) is not provided on phones by default, so GUI apps built around it (mail clients, browsers, and the like) shut themselves down partway through startup. No reason is printed, which makes it look like a plain crash. If it still happens after updating, check that it exists with `ls -d /dev/shm` and let the developer know.
 
 **Q. Only the message/page area of a GUI app is blank, or a child process keeps dying**
-→ This happens with apps built on a web rendering engine (Gecko-based). The app's own frame and settings screens draw fine, but **the child process that renders content** dies, leaving the content pane blank. The cause is that engine's own sandbox: under it, the child cannot find any font in this environment and aborts itself (`unable to find a usable font`). Work around it by turning that sandbox off when launching the app:
+→ **Fixed in 0.8.179.** Update the app, then close and reopen that OS's tab.
+
+This used to happen with apps built on a web rendering engine (Gecko-based). The app's own frame and settings screens drew fine, but **the child process that renders content** died, leaving the content pane blank (`unable to find a usable font`). It was an interaction between that engine's own sandbox and z2term, and **the fix keeps the app's defenses intact**.
+
+If you still see it after updating, you can work around it by turning that sandbox off when launching the app:
 
 ```sh
 MOZ_DISABLE_CONTENT_SANDBOX=1 <app>
 ```
 
-To avoid typing it every time, run `echo 'export MOZ_DISABLE_CONTENT_SANDBOX=1' >> ~/.bashrc` (or `~/.zshrc` for zsh). Loosening the setting to an intermediate strength does not help (`security.sandbox.content.level` still crashes at 1), so turning it off is the only option. Note that this **removes one layer of the app's own defenses**, so weigh that risk when opening HTML mail from untrusted senders or unfamiliar sites.
+Note that this **removes one layer of the app's own defenses**, so weigh that risk when opening HTML mail from untrusted senders or unfamiliar sites. It is meant as a stopgap rather than a permanent setting — please report the symptom if you need it.
 
 **Q. GUI drawing feels sluggish**
 → Phone kernels have no SysV shared memory (`shmget`), so X11's fast drawing path (MIT-SHM) is unavailable. That is a platform limitation and cannot be fixed here. Most apps switch to another method automatically, so the result is "works, just a bit slower". If some app renders incorrectly, try turning MIT-SHM (shared memory) off in that app's own settings.
