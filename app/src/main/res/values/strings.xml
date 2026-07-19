@@ -42,8 +42,6 @@
     <string name="settings_battery_opt_toggle_desc">ON: the OS is less likely to kill the session and its running processes in the background. Turning OFF opens system settings (Android does not allow apps to re-enable optimization directly).</string>
     <string name="settings_phantom_title">If processes still get killed (Android 12/13)</string>
     <string name="settings_phantom_desc">Android 12/13 may kill the \"phantom processes\" that proot spawns. This cannot be changed inside the app — run the following from a PC via adb, then reboot the device. Android 14+ is usually relaxed already.</string>
-    <string name="settings_phantom_copy">Copy adb command</string>
-    <string name="settings_phantom_copied">Copied the adb command</string>
     <string name="settings_section_landscape_keyboard">Keyboard position (landscape)</string>
     <string name="settings_landscape_keyboard_desc">Where to place the on-screen keyboard when the screen is in landscape. Portrait always uses Bottom.</string>
     <string name="settings_landscape_kb_left">Left</string>
@@ -401,6 +399,7 @@
     <string name="settings_log_size_warn_desc">While "Newest at the top" is ON, the whole file is read and rewritten for every single entry. As it keeps growing this gets slow, and eventually entries can no longer be recorded. Turn this off (append at the end) or trim the file from the terminal.</string>
     <string name="settings_log_size_warn_cmd_label">Command to empty it (tap to copy)</string>
     <string name="settings_cmd_read_label">Command to read it (tap to copy)</string>
+    <string name="settings_cmd_copy_label">Command (tap to copy)</string>
     <string name="settings_cmd_copied">Copied the command</string>
     <string name="settings_unlock_watch_admin_failed">Could not add a device admin on this device (it may be blocked by device policy)</string>
     <string name="event_channel_name">Z2Term system events</string>

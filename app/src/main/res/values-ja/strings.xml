@@ -42,8 +42,6 @@
     <string name="settings_battery_opt_toggle_desc">ON: バックグラウンドでセッションや実行中プロセスが OS に kill されにくくなります。OFF にするとシステム設定を開きます (除外の解除はアプリから直接できないため)。</string>
     <string name="settings_phantom_title">それでも消える場合 (Android 12/13)</string>
     <string name="settings_phantom_desc">Android 12/13 は proot が生む「phantom process」を kill することがあります。アプリ内からは変更できないため、PC から adb で以下を実行し端末を再起動してください。Android 14+ は既定で緩和済みのことが多いです。</string>
-    <string name="settings_phantom_copy">adb コマンドをコピー</string>
-    <string name="settings_phantom_copied">adb コマンドをコピーしました</string>
     <string name="settings_section_landscape_keyboard">キーボード位置 (横画面)</string>
     <string name="settings_landscape_keyboard_desc">横画面のときにキーボードを画面のどこに出すか。縦画面は常に下に出る。</string>
     <string name="settings_landscape_kb_left">左</string>
@@ -401,6 +399,7 @@
     <string name="settings_log_size_warn_desc">「新しいものを先頭に」が ON のあいだは、1 行記録するたびにファイル全体を読み書きします。このまま大きくなると動作が重くなり、いずれ記録できなくなります。この設定を OFF にする（末尾に追記）か、ターミナルで整理してください。</string>
     <string name="settings_log_size_warn_cmd_label">空にするコマンド（タップでコピー）</string>
     <string name="settings_cmd_read_label">読むコマンド（タップでコピー）</string>
+    <string name="settings_cmd_copy_label">コマンド（タップでコピー）</string>
     <string name="settings_cmd_copied">コマンドをコピーしました</string>
     <string name="settings_unlock_watch_admin_failed">この端末では端末管理者を追加できませんでした（端末のポリシーで禁止されている可能性があります）</string>
     <string name="event_channel_name">Z2Term システムイベント</string>

@@ -699,28 +699,10 @@ fun SettingsSheet(
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
-                Text(
-                    text = BatteryGuard.PHANTOM_DISABLE_ADB,
-                    color = ZtsGreen,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-                ActionButton(
-                    label = stringResource(R.string.settings_phantom_copy),
-                    onClick = {
-                        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE)
-                            as? android.content.ClipboardManager
-                        cm?.setPrimaryClip(
-                            android.content.ClipData.newPlainText(
-                                "adb", BatteryGuard.PHANTOM_DISABLE_ADB
-                            )
-                        )
-                        Toast.makeText(
-                            context,
-                            context.getString(R.string.settings_phantom_copied),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
+                // コマンド例の見た目・コピー操作は他セクション (読むコマンド等) と揃える。
+                CopyableCommand(
+                    label = stringResource(R.string.settings_cmd_copy_label),
+                    command = BatteryGuard.PHANTOM_DISABLE_ADB
                 )
             }
 
@@ -903,7 +885,10 @@ fun SettingsSheet(
                 )
                 CopyableCommand(
                     label = stringResource(R.string.settings_cmd_read_label),
-                    command = "tail -f ~/" + NotificationLogService.LOG_REL
+                    command = readLogCommand(
+                        "~/" + NotificationLogService.LOG_REL,
+                        settings.notificationLogPrepend
+                    )
                 )
             }
 
@@ -974,7 +959,10 @@ fun SettingsSheet(
                 )
                 CopyableCommand(
                     label = stringResource(R.string.settings_cmd_read_label),
-                    command = "tail -f ~/" + SystemEventService.LOG_REL
+                    command = readLogCommand(
+                        "~/" + SystemEventService.LOG_REL,
+                        settings.systemEventLogPrepend
+                    )
                 )
             }
 
@@ -1743,6 +1731,19 @@ private fun ToggleField(
 
 /** 先頭追記のログがこのサイズを超えたら設定画面に注意を出す。 */
 private const val LOG_SIZE_WARN_BYTES = 10L * 1024 * 1024
+
+/**
+ * ログを目で追うコマンド例。**追記方向で新着が来る場所が逆になる**ので出すコマンドを変える。
+ *
+ *  - 末尾追記 (新着が下): `tail -f` でそのまま流れる。
+ *  - 先頭追記 (新着が上): 新着はファイル末尾に来ないので `tail -f` は永久に何も出さない。
+ *    先頭を定期的に出し直す (`watch` + `head`) 形にする。
+ *
+ * ここはあくまで「中身を目で見る」用。マクロから読むときは形式・追記方向のどちらにも依存しない
+ * 差分読み (同梱サンプル参照) を使うこと。
+ */
+private fun readLogCommand(path: String, prepend: Boolean): String =
+    if (prepend) "watch -n 1 head -n 20 $path" else "tail -f $path"
 
 /**
  * 設定画面に載せる「コマンド例」を **タップでクリップボードにコピー** できる形で見せる共通部品。
