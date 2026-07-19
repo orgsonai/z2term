@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-20 / 対象バージョン: 0.8.177-alpha (versionCode 185)
+最終更新: 2026-07-20 / 対象バージョン: 0.8.178-alpha (versionCode 186)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -137,10 +137,13 @@
 
 - バイナリは `nativeLibraryDir/libproot.so` (+ `libproot_loader.so`)。`libtalloc.so` を SONAME 通り `libtalloc.so.2` に展開し `LD_LIBRARY_PATH` に通す。新しい Termux proot は `libandroid-shmem.so`(SysV 共有メモリ)にもリンクされるため、これも同じ `proot-libs` に展開して通す(不在だと `library "libandroid-shmem.so" not found` で proot が即落ちする)。
 - `launch(distroId, command, rows, cols, fallbackShell)` が proot 引数を組み立てて `PtyProcess.create`:
-  - `--kill-on-exit -0 --link2symlink -r <rootfs> -b /dev -b /proc -b /sys -b <shared_home>:/root`
+  - `--kill-on-exit -0 --link2symlink -r <rootfs> -b /dev -b /proc -b /sys -b <rootfs>/dev/shm:/dev/shm -b <shared_home>:/root`
   - **外部ストレージ bind**: `/storage/emulated/0:/sdcard`、`getExternalFilesDir:/storage/app`
   - `-w /root`、env: `HOME=/root TERM=xterm-256color LANG=C.UTF-8 PATH=… TMPDIR=/tmp` + 履歴系 env。
 - **共有ホーム**: `filesDir/shared_home` を全 distro 共通で `/root` にバインド (← 端末の `~` の実体)。
+- **POSIX 共有メモリ `/dev/shm` の提供 (0.8.177)**: Android の `/dev` には `shm` が無く、`-b /dev` でホストの `/dev` を見せるだけでは `/dev/shm` が存在しない。ゲスト側から `mkdir /dev/shm` しても実体はホストの `/dev` なので SELinux に阻まれて `EACCES` になり、自力では作れない。この状態だと `shm_open()` が **ENOENT** で失敗し、**共有メモリを前提に組まれた GUI アプリが起動時に自ら異常終了する**。典型は Gecko 系で、`MOZ_RELEASE_ASSERT(mHandle.IsValid() && mMapping.IsValid())` に到達して `MOZ_CRASH()` で落ちるため、端末には理由の出ない `segmentation fault` だけが残る (`--version` や `-h` は共有メモリを使わないので成功してしまい、ローダやライブラリの問題と誤診しやすい)。対策として **`<rootfs>/dev/shm` を実体に持つ bind を `-b /dev` の後ろに重ねる**。z2root の bind 解決は最長一致なので (`translate_abs`)、`/dev/shm` (8 文字) が `/dev` (4 文字) に優先して選ばれ、`/dev` 配下の他のデバイスノードはホストのまま維持される。proot も bind は純粋なパス変換なので同じ引数で効く。実体を rootfs 配下の `dev/shm` に置いたのは、Kitty graphics の shm 転送 (`KittyHostTransferSource`) が shm 名を `<rootfs>/dev/shm/<name>` に rebase する既存仕様と**同じ場所を指させる**ため (別名にすると両者が別の場所を見て転送が空振りする)。chroot 経路 (裏機能・要 root) は実マウントなので、`$RFS/dev/shm` に tmpfs を直接被せ、umount 掃除リストにも `dev` より**前**に入れる (入れ子なので先に剥がす必要がある)。
+- **`/etc/machine-id` の生成 (`ensureMachineId`, 0.8.177)**: ディストロの rootfs には**空の** `/etc/machine-id` が入っていることがあり (0 バイト・`0400`)、その状態では dbus が "Invalid machine ID" でセッションバスを起動できない。D-Bus を要求する GUI アプリ (アクセシビリティバス経由のものを含む) が警告や機能欠落を起こすため、起動毎に冪等で確認し、**空またはファイルが無いときだけ** systemd と同じ形式 (ハイフン無し 32 桁 hex) を書き込む。中身があるときは触らない (端末を跨いで ID が変わらないようにする)。書き込み前に `setWritable` で権限を戻す (rootfs 側が `0400` で置かれていることがあるため)。
+- **端末タブ経路の `XDG_RUNTIME_DIR` (0.8.177)**: GUI タブ配下は `z2gui` が export していたが、**端末タブから直接 GUI アプリを起動する経路には無かった**。未設定だと Qt/GTK が警告を出し、D-Bus の socket 置き場も決まらない。`display != null && exportDisplay`(端末から `:N` へ相乗り) では GUI と同じ `/tmp/z2gui-xdg-<N>` を、`display == null`(端末/SSH 単独) では `/tmp/z2-xdg` を渡す。**z2gui 経由 (`exportDisplay=false`) では敢えて渡さない**: `start_audio` 等が `${XDG_RUNTIME_DIR:-/tmp/z2gui-xdg-$DISPLAY_NUM}` と**継承値を優先**するため、ここで一律に入れると全ディスプレイが同じディレクトリに集約され、`:N` 毎の PulseAudio 分離が壊れる。
 - **HOME のディストリ別隔離 (0.8.72, `.claude/downloads` を 0.8.73 で追加, z2root の最長一致 bind を 0.8.75 で修正)**: `/root` 全体は共有のままにしつつ、**arch 依存物が入る一部サブディレクトリだけをディストリ別オーバーレイで上書き bind** する (`isolatedHomeSubdirs` = `.local .cache .npm .npm-global .nvm .cargo .rustup .config .claude/downloads`)。`filesDir/home_overlay/<distroId>/<sub>` を `/root/<sub>` に重ね bind し、`shared_home/<sub>` はマウントポイントとして用意する (ネストパス `.claude/downloads` も `mkdir -p` で親ごと作成)。proot は `-b <shared_home>:/root` の後に各サブディレクトリ bind を重ね、chroot も `mount -o bind <SHOME> $RFS/root` の後に同様に重ねる (掃除時は `root` より先に lazy umount)。**狙い**: musl(Alpine)↔glibc(Arch/Ubuntu/Kali) で HOME 内の native (npm global の node/claude・**Claude Code 本体 `~/.claude/downloads/claude`**・`~/.cache` のコンパイル済みアドオン・nvm の node 本体等) が混ざって壊れる問題を、ディストリ別に分けて根治する。**項目4 の真因**: 旧版は `.claude/downloads` が共有だったため、Alpine(musl) と Arch(glibc) が同じ native 本体を上書き合い `Not a valid dynamic program` で双方起動不可になっていた。0.8.73 でオーバーレイ bind を足したが、**z2root エンジンでは隔離が効かず再発**した (2026-06-11 実機検証)。真因は z2root のパス変換 (`z2root.c` の `translate_abs`/`host_to_guest`) が **bind を登録順の最初一致で解決**しており、先に登録される親 bind `/root` が子 bind `/root/.claude/downloads` を覆い隠していたこと。proot は最長一致なので効いていた engine 差。**0.8.75 で両変換関数を最長一致 (最も具体的=guest_len 最長の bind 優先) に修正**し、z2root でも `.claude/downloads` だけがオーバーレイへ、`.claude/.credentials.json` 等は共有 HOME へ正しく解決されるようにした。`.claude` 直下の認証 (`.credentials.json`)・設定・projects、書類・git リポジトリ等の通常ファイルは `/root` 直下のまま共有される。**移行注意**: 既存 `shared_home/<sub>` の中身はオーバーレイに覆われて各ディストリからは見えなくなる (消えてはおらず影に入るだけ)。各ディストリで一度 `claude` を入れ直すと native 本体が各オーバーレイに収まる。
 - `resolveShell`: 指定シェルが rootfs に無ければ `defaultShell → /bin/sh` にフォールバック (usrmerge 考慮)。
 - **設定「ログインシェル」を全入口へ適用 (0.8.165)**: 従来は端末タブ (エンジンが直接 exec する `command`) にしか効かず、**SSH ログインと GUI 内ターミナルは distro 既定 (bash 等) のまま**だった (dropbear は `/etc/passwd` の shell を、GUI 内ターミナルは `$SHELL` を起動するため)。`launch()`/`launchChroot()` に `loginShell` を渡し、(1) `ensureRootLoginShell` が rootfs の `/etc/passwd` の root 行 7 番目のフィールドを設定値へ書き換える (= `chsh` 相当。`/etc/shells` にも追記)、(2) env `SHELL` / `Z2_LOGIN_SHELL` に流す、(3) `z2gui` の SHELL 張り直しが `Z2_LOGIN_SHELL` を最優先候補にする、の 3 点で端末タブ・SSH・GUI が同じシェルになる。rootfs に無いシェル (Ubuntu 素の zsh 等) を指定した場合は従来どおりフォールバックし、passwd は書き換えない。
@@ -451,6 +454,8 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 ## 10. 既知の制約と設計上の罠
 
 **PRoot のカーネル特権制約 (修正不能)**: root に見えても `ip`/`nmap -sS`/`ping`/特権ポート bind は不可。代替は `nmap -sT` 等。OpenSSH sshd も privsep 破綻のため dropbear を使う。
+
+**SysV 共有メモリ (`shmget`) が ENOSYS (カーネル由来・アプリ側では修正不能)**: Android のカーネルは `CONFIG_SYSVIPC` を落としているため、`shmget`/`shmat` が "Function not implemented" で失敗する。**POSIX 共有メモリ (`shm_open` = `/dev/shm`) とは別系統**で、そちらは 0.8.177 の bind で使えるようになったがこちらは残る。影響は X11 の **MIT-SHM 拡張**が使えないこと (GUI の描画がサーバ経由のソケット転送になり、その分遅い)。主要ツールキットは MIT-SHM の可否を検出して自動でフォールバックするので通常は「動くが遅い」で済むが、拡張の存在を前提に握り決め打ちする少数のアプリは表示が壊れうる。回避したい場合はアプリ側の設定で MIT-SHM を切る。
 
 **踏みやすい罠 (再発防止)**:
 - 端末の `/root` は `distros/<distro>/root` でなく **`filesDir/shared_home`**。SAF/外部ストレージ bind もこれ基準。

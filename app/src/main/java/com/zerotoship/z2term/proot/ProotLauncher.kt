@@ -9,6 +9,7 @@ import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.storage.ExternalStorageDetector
 import java.io.File
+import java.util.UUID
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
@@ -294,6 +295,32 @@ class ProotLauncher(private val context: Context) {
         ensureZ2MacroScripts(rootfs)
         // GUI 動画対策: mpv の既定をソフトウェア出力 (vo=x11) にする設定を配置。
         ensureMpvConfig(rootfs)
+        // D-Bus セッションバスに必要な machine-id を用意 (空だと「Invalid machine ID」で bus が起動不可)。
+        ensureMachineId(rootfs)
+        // POSIX 共有メモリ (/dev/shm) の置き場。Android の /dev には shm が無く、ホスト /dev を
+        // bind するだけではゲストからも作れない (SELinux で mkdir が EACCES)。
+        // 用意しないと shm_open が ENOENT になり、共有メモリ前提の GUI アプリが起動時に自ら中断する。
+        // 実体を rootfs 配下の `dev/shm` に置くのは、Kitty graphics の shm 転送
+        // (`KittyHostTransferSource`) が shm 名を `<rootfs>/dev/shm/<name>` に rebase するため。
+        // ここを別名にすると両者が別の場所を見て転送が空振りする。
+        File(rootfs, "dev/shm").mkdirs()
+        // XDG_RUNTIME_DIR。GUI タブ配下は z2gui が export するが、端末タブから直接 GUI アプリを
+        // 起動する経路には無かった。未設定だと Qt/GTK が警告を出し、D-Bus の socket 置き場も決まらない。
+        //
+        // z2gui 経由 (`exportDisplay=false`) では **敢えて設定しない**。start_audio 等が
+        // `${XDG_RUNTIME_DIR:-/tmp/z2gui-xdg-$DISPLAY_NUM}` と継承値を優先するため、ここで一律に
+        // 入れると全ディスプレイが同じディレクトリに集約され、:N 毎の PulseAudio 分離が壊れる。
+        val xdgRuntimeDir = when {
+            display != null && exportDisplay -> "/tmp/z2gui-xdg-$display"  // 端末から :N へ相乗り
+            display == null -> "/tmp/z2-xdg"                               // 端末/SSH 単独
+            else -> null                                                   // z2gui 本体は触らない
+        }
+        if (xdgRuntimeDir != null) {
+            File(rootfs, xdgRuntimeDir.trimStart('/')).apply {
+                mkdirs()
+                setReadable(true, true); setWritable(true, true); setExecutable(true, true)
+            }
+        }
         // Android 外部ストレージを cd できるようマウント先を用意。
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
@@ -326,6 +353,9 @@ class ProotLauncher(private val context: Context) {
             add("-b"); add("/dev")
             add("-b"); add("/proc")
             add("-b"); add("/sys")
+            // /dev を bind した「後」に重ねる。ホスト /dev には shm が無いので、これが無いと
+            // shm_open("/名前") が ENOENT になる。bind 解決は最長一致なので /dev の上に載る。
+            add("-b"); add("${File(rootfs, "dev/shm").absolutePath}:/dev/shm")
             add("-b"); add("${sharedHomeDir.absolutePath}:/root")
             // HOME 内の arch 依存ディレクトリだけをディストリ別オーバーレイで上書き (混在破壊の防止)。
             // /root 全体の bind の後に重ねるので、共有 HOME の上にサブディレクトリだけ差し替わる。
@@ -400,7 +430,8 @@ class ProotLauncher(private val context: Context) {
             // PRoot 自身の動作用
             "PROOT_TMP_DIR=${context.cacheDir.absolutePath}",
             "PROOT_LOADER=${File(context.applicationInfo.nativeLibraryDir, "libproot_loader.so").absolutePath}"
-        ) + displayEnv + z2rootEnv(useZ2root)).toTypedArray()
+        ) + listOfNotNull(xdgRuntimeDir?.let { "XDG_RUNTIME_DIR=$it" })
+            + displayEnv + z2rootEnv(useZ2root)).toTypedArray()
 
         val engineName = if (useZ2root) "z2root" else "PRoot"
         Log.i(TAG, "Launching $engineName: distro=$distroId, command=$resolvedCommand (requested=$command)")
@@ -555,7 +586,7 @@ class ProotLauncher(private val context: Context) {
             // 前回 chroot が残したマウントを掃除 (リーク回収)。外部 SD のマウント先も掃除対象に含める。
             // androidHostBind ON のときは /system /apex も掃除対象に。OFF でも掃除を試みるのは
             // 「前回 ON で起動 → OFF に切替 → 再起動」のときマウントが残ったままになるのを防ぐため。
-            append("for m in dev/pts dev proc sys")
+            append("for m in dev/pts dev/shm dev proc sys")
             // HOME 隔離オーバーレイは root より先に剥がす (root の lazy umount で取り残されないよう)。
             for ((_, dst) in homeOverlayBinds) append(' ').append(shq(dst.trimStart('/')))
             append(" root sdcard sdcard_ext system apex")
@@ -566,6 +597,11 @@ class ProotLauncher(private val context: Context) {
             append("mkdir -p \"\$RFS/dev\" \"\$RFS/dev/pts\" \"\$RFS/proc\" \"\$RFS/sys\" \"\$RFS/root\" \"\$RFS/sdcard\" \"\$RFS/tmp\"\n")
             append("mount -o bind /dev \"\$RFS/dev\"\n")
             append("mount -o bind /dev/pts \"\$RFS/dev/pts\" 2>/dev/null\n")
+            // POSIX 共有メモリ。Android の /dev には shm が無いため、bind しただけでは
+            // shm_open が ENOENT になり共有メモリ前提の GUI アプリが起動時に自ら中断する。
+            // ここは実 root なので tmpfs を直接被せる (mkdir はホスト /dev 側に出るため best-effort)。
+            append("mkdir -p \"\$RFS/dev/shm\" 2>/dev/null\n")
+            append("mount -t tmpfs -o mode=1777,nosuid,nodev tmpfs \"\$RFS/dev/shm\" 2>/dev/null\n")
             append("mount -o bind /proc \"\$RFS/proc\"\n")
             append("mount -o bind /sys \"\$RFS/sys\"\n")
             append("mount -o bind \"\$SHOME\" \"\$RFS/root\"\n")
@@ -1068,6 +1104,27 @@ class ProotLauncher(private val context: Context) {
             )
             f.setReadable(true, false)
         }.onFailure { Log.w(TAG, "mpv.conf 配置失敗", it) }
+    }
+
+    /**
+     * `/etc/machine-id` を用意する (D-Bus セッションバスの前提)。
+     *
+     * ディストリの rootfs には空の `/etc/machine-id` が入っていることがあり、その状態だと
+     * dbus が "Invalid machine ID" でバスを起動できず、D-Bus を要求する GUI アプリ
+     * (アクセシビリティバス経由のものを含む) が警告や機能欠落を起こす。
+     * 中身があるときは触らない (端末を跨いで ID が変わらないようにする)。
+     */
+    private fun ensureMachineId(rootfs: File) {
+        runCatching {
+            val f = File(rootfs, "etc/machine-id")
+            if (f.isFile && f.length() > 0L) return
+            f.parentFile?.mkdirs()
+            // rootfs 側は 0400 で置かれていることがあるので、書く前に権限を戻す。
+            f.setWritable(true, true)
+            // systemd と同じ形式: ハイフン無しの 32 桁 hex。
+            f.writeText(UUID.randomUUID().toString().replace("-", "") + "\n")
+            f.setReadable(true, false)
+        }.onFailure { Log.w(TAG, "machine-id 生成失敗", it) }
     }
 
     /**

@@ -311,6 +311,12 @@ Note: if battery use bothers you, turn on "**Low-power mode**" — it lets the d
 **Q. `ping` doesn't work**
 → It's not possible due to how phones work. Use `curl` for connectivity checks, and `nmap -sT` for port scans.
 
+**Q. A GUI app prints only `segmentation fault` and won't start**
+→ **Fixed in 0.8.177.** Update the app, then close and reopen that OS's tab. The cause was that the place for shared memory (`/dev/shm`) is not provided on phones by default, so GUI apps built around it (mail clients, browsers, and the like) shut themselves down partway through startup. No reason is printed, which makes it look like a plain crash. If it still happens after updating, check that it exists with `ls -d /dev/shm` and let the developer know.
+
+**Q. GUI drawing feels sluggish**
+→ Phone kernels have no SysV shared memory (`shmget`), so X11's fast drawing path (MIT-SHM) is unavailable. That is a platform limitation and cannot be fixed here. Most apps switch to another method automatically, so the result is "works, just a bit slower". If some app renders incorrectly, try turning MIT-SHM (shared memory) off in that app's own settings.
+
 ---
 
 ## 11. Z2Term's own commands (quick reference, `z2*`)
