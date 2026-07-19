@@ -49,7 +49,9 @@ fun z2AutoGuiScript(): String {
         |case "${d}bin" in */*) ;; *) exit 0 ;; esac
         |
         |# GUI 判定 (バイナリ実体パスごとにキャッシュ。ldd は初回のみ)。
-        |cache_dir="${d}{TMPDIR:-/tmp}/z2-autogui"
+        |# ディレクトリ名の末尾は判定ロジックの世代。判定を直したら上げる = 古い判定結果を捨てる
+        |# (一度 no と誤判定されるとキャッシュのせいで直しても効かないため)。
+        |cache_dir="${d}{TMPDIR:-/tmp}/z2-autogui2"
         |mkdir -p "${d}cache_dir" 2>/dev/null
         |real=${d}(readlink -f "${d}bin" 2>/dev/null || echo "${d}bin")
         |key=${d}(printf '%s' "${d}real" | tr '/ ' '__')
@@ -58,12 +60,24 @@ fun z2AutoGuiScript(): String {
         |  isgui=${d}(cat "${d}cache" 2>/dev/null)
         |else
         |  # 既知の GUI ランチャ名 (空白区切り)。ldd を待たず即 GUI 扱いにする。
-        |  GUI_NAMES="xterm xeyes xclock xcalc xlogo xmessage st urxvt rxvt qterminal konsole xfce4-terminal lxterminal gnome-terminal alacritty kitty firefox firefox-esr chromium chromium-browser google-chrome google-chrome-stable midori surf thunar pcmanfm pcmanfm-qt nautilus nemo dolphin code codium geany mousepad gedit kate leafpad featherpad inkscape gimp krita blender libreoffice soffice abiword gnumeric vlc mpv smplayer feh eog ristretto gpicview sxiv galculator qalculate-gtk gnome-calculator evince atril zathura xpdf okular xournalpp wireshark virt-manager remmina"
+        |  GUI_NAMES="xterm xeyes xclock xcalc xlogo xmessage st urxvt rxvt qterminal konsole xfce4-terminal lxterminal gnome-terminal alacritty kitty firefox firefox-esr chromium chromium-browser google-chrome google-chrome-stable midori surf thunderbird thunderbird-esr seamonkey thunar pcmanfm pcmanfm-qt nautilus nemo dolphin code codium geany mousepad gedit kate leafpad featherpad inkscape gimp krita blender libreoffice soffice abiword gnumeric vlc mpv smplayer feh eog ristretto gpicview sxiv galculator qalculate-gtk gnome-calculator evince atril zathura xpdf okular xournalpp wireshark virt-manager remmina"
         |  base="${d}{cmd##*/}"   # フルパス/相対パス起動でも名前で照合できるよう basename を取る
+        |  # ldd を当てる対象。ラッパーが「実体を exec するだけの sh」のことがあるので、
+        |  # よくある実体の置き場 (/usr/lib/<name>/<name>) があればそちらを見る。
+        |  # 例: Arch の thunderbird は /usr/sbin/thunderbird が sh・実体は /usr/lib/thunderbird/thunderbird。
+        |  target="${d}real"
+        |  for cand in "/usr/lib/${d}base/${d}base" "/usr/lib64/${d}base/${d}base" "/opt/${d}base/${d}base"; do
+        |    [ -x "${d}cand" ] && { target="${d}cand"; break; }
+        |  done
         |  case " ${d}GUI_NAMES " in
         |    *" ${d}base "*) isgui=yes ;;
         |    *)
-        |      if ldd "${d}bin" 2>/dev/null | grep -Eq 'libX11|libxcb|libwayland|libgtk|libgdk|libQt|libqt'; then
+        |      # .desktop を持つならデスクトップアプリ。ldd が効かないラッパー/スクリプト系を拾う。
+        |      # 誤爆を避けるためファイル名の完全一致だけを見る (Exec= 行の走査はしない)。
+        |      if [ -f "/usr/share/applications/${d}base.desktop" ] ||
+        |         [ -f "/usr/local/share/applications/${d}base.desktop" ]; then
+        |        isgui=yes
+        |      elif ldd "${d}target" 2>/dev/null | grep -Eq 'libX11|libxcb|libwayland|libgtk|libgdk|libQt|libqt'; then
         |        isgui=yes
         |      else
         |        isgui=no
