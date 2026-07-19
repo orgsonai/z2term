@@ -209,7 +209,17 @@ class AppSettings(private val context: Context) {
          * システムイベントログを **先頭追記** (新着が上) にするか。false で末尾追記 (新着が下)。
          * true のとき [com.zerotoship.z2term.service.LogWriter] が既存内容を読んで書き直す。
          */
-        val systemEventLogPrepend: Boolean = DEFAULT_LOG_PREPEND
+        val systemEventLogPrepend: Boolean = DEFAULT_LOG_PREPEND,
+        /**
+         * 画面ロック解除の**失敗監視**フラグ。ON かつ端末管理者 (Device Admin) が有効なとき、
+         * [com.zerotoship.z2term.service.PasswordWatchAdmin] がロック解除の失敗/成功を
+         * `~/.z2term/events.jsonl` へ `unlock_failed` / `unlock_succeeded` として追記する。
+         * 盗難・不正利用対策マクロ (失敗回数で通知・位置記録・警報など) の**検知入口**で、
+         * 撮影や送信などのアクションはアプリ側でハードコードせずユーザーがマクロで組む。
+         * 端末管理者権限は失敗回数の取得 (`watch-login`) にのみ使い、遠隔ロック/ワイプはしない。
+         * 既定 OFF・完全ローカル・外部送信なし。
+         */
+        val unlockWatchEnabled: Boolean = DEFAULT_UNLOCK_WATCH
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -268,7 +278,8 @@ class AppSettings(private val context: Context) {
             notificationLogPrepend = p[KEY_NOTIFICATION_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND,
             systemEventCaptureEnabled = p[KEY_SYSTEM_EVENT_CAPTURE] ?: DEFAULT_SYSTEM_EVENT_CAPTURE,
             systemEventLogFormat = p[KEY_SYSTEM_EVENT_LOG_FORMAT] ?: DEFAULT_SYSTEM_EVENT_LOG_FORMAT,
-            systemEventLogPrepend = p[KEY_SYSTEM_EVENT_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND
+            systemEventLogPrepend = p[KEY_SYSTEM_EVENT_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND,
+            unlockWatchEnabled = p[KEY_UNLOCK_WATCH] ?: DEFAULT_UNLOCK_WATCH
         )
     }
 
@@ -298,6 +309,10 @@ class AppSettings(private val context: Context) {
 
     suspend fun setSystemEventLogPrepend(enabled: Boolean) {
         context.dataStore.edit { it[KEY_SYSTEM_EVENT_LOG_PREPEND] = enabled }
+    }
+
+    suspend fun setUnlockWatchEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_UNLOCK_WATCH] = enabled }
     }
 
     suspend fun setServerEntries(json: String) {
@@ -535,6 +550,7 @@ class AppSettings(private val context: Context) {
         private val KEY_SYSTEM_EVENT_LOG_FORMAT = stringPreferencesKey("system_event_log_format")
         private val KEY_NOTIFICATION_LOG_PREPEND = booleanPreferencesKey("notification_log_prepend")
         private val KEY_SYSTEM_EVENT_LOG_PREPEND = booleanPreferencesKey("system_event_log_prepend")
+        private val KEY_UNLOCK_WATCH = booleanPreferencesKey("unlock_watch_enabled")
 
         /** 通知検知は既定 OFF (明示 opt-in + OS の通知アクセス許可が要る)。 */
         const val DEFAULT_NOTIFICATION_CAPTURE = false
@@ -550,6 +566,9 @@ class AppSettings(private val context: Context) {
 
         /** ログ書き込みは既定で末尾追記 (新着が下)。ON で先頭追記 (新着が上)。 */
         const val DEFAULT_LOG_PREPEND = false
+
+        /** ロック解除の失敗監視は既定 OFF (明示 opt-in + 端末管理者の有効化が要る)。 */
+        const val DEFAULT_UNLOCK_WATCH = false
 
         /** 常駐サーバーの起動時自動起動は既定 OFF (明示 opt-in)。 */
         const val DEFAULT_SERVERS_AUTOSTART = false

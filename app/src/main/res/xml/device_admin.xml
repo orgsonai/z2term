@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  端末管理者 (Device Admin) ポリシー宣言。ロック解除の失敗/成功コールバック
+  (PasswordWatchAdmin) を受け取るために必要な最小限だけを宣言する。
+  破壊的ポリシー (force-lock / wipe-data / reset-password 等) は宣言しない
+  ＝ 有効化してもアプリは端末をロック/初期化できない (失敗回数の監視だけ)。
+-->
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies>
+        <watch-login />
+    </uses-policies>
+</device-admin>

@@ -71,6 +71,8 @@ import com.zerotoship.z2term.proot.GuiTerminal
 import android.widget.Toast
 import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.proot.RootProbe
+import android.app.admin.DevicePolicyManager
+import com.zerotoship.z2term.service.PasswordWatchAdmin
 import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.BatteryGuard
@@ -944,6 +946,58 @@ fun SettingsSheet(
                 )
                 Text(
                     text = stringResource(R.string.settings_events_logpath),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+
+            // ロック解除の失敗監視 (盗難対策マクロの検知入口): 設定 ON + 端末管理者が有効なとき、
+            // ロック解除の失敗/成功を events.jsonl へ unlock_failed / unlock_succeeded として流す。
+            // 撮影・送信・警報などのアクションはハードコードせず、ユーザーがマクロで組む。
+            Section(title = stringResource(R.string.settings_section_unlock_watch)) {
+                val adminActive = remember(serversOpen, settings.unlockWatchEnabled) {
+                    PasswordWatchAdmin.isActive(context)
+                }
+                ToggleField(
+                    title = stringResource(R.string.settings_unlock_watch),
+                    description = stringResource(R.string.settings_unlock_watch_desc),
+                    checked = settings.unlockWatchEnabled,
+                    onChange = { session.setUnlockWatchEnabled(it) }
+                )
+                Text(
+                    text = if (adminActive) stringResource(R.string.settings_unlock_watch_admin_active)
+                    else stringResource(R.string.settings_unlock_watch_admin_missing),
+                    color = if (adminActive) ZtsGreen else ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                // 端末管理者の有効化ダイアログ (EXTRA_DEVICE_ADMIN は ComponentName parcelable なので
+                // z2-intent 等では組めず、アプリ内から起動する)。有効化済みなら管理者一覧を開いて無効化に導く。
+                ActionButton(
+                    label = if (adminActive) stringResource(R.string.settings_unlock_watch_admin_manage)
+                    else stringResource(R.string.settings_unlock_watch_admin_grant),
+                    onClick = {
+                        runCatching {
+                            val intent = if (adminActive) {
+                                Intent(Settings.ACTION_SECURITY_SETTINGS)
+                            } else {
+                                Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
+                                    .putExtra(
+                                        DevicePolicyManager.EXTRA_DEVICE_ADMIN,
+                                        PasswordWatchAdmin.component(context)
+                                    )
+                                    .putExtra(
+                                        DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+                                        context.getString(R.string.settings_unlock_watch_admin_explain)
+                                    )
+                            }
+                            context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        }
+                    }
+                )
+                Text(
+                    text = stringResource(R.string.settings_unlock_watch_help),
                     color = ZtsTextSecondary,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace

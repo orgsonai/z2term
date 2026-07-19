@@ -407,6 +407,15 @@
     <string name="settings_events_capture_desc">ON にすると、画面 ON/OFF・ロック解除・充電開始/停止・電池 低下/回復・Wi-Fi 接続/切断を ~/.z2term/events.jsonl へ記録するサービスが常駐します。何をするかはターミナル側で自由に組める汎用の自動化フック。完全ローカル。稼働中は常駐通知を表示します。</string>
     <string name="settings_events_fmt_help">プレースホルダ: {time} {ts} {event} {level} {ssid}。エスケープ: \\n \\t。空 = JSONL。{ssid} は位置情報権限が無いと空になります。新規分から反映。</string>
     <string name="settings_events_logpath">ログ: ~/.z2term/events.jsonl（ターミナルで tail -f 等で読めます）</string>
+    <string name="settings_section_unlock_watch">ロック解除の失敗監視</string>
+    <string name="settings_unlock_watch">解除失敗を検知</string>
+    <string name="settings_unlock_watch_desc">ON かつ端末管理者が有効なとき、ロック画面の解除の失敗/成功を ~/.z2term/events.jsonl へ unlock_failed / unlock_succeeded として記録します（{level} = 連続失敗回数）。盗難対策マクロの検知入口で、アクション（通知・位置記録・警報など）はマクロ側で自由に組みます。撮影や送信は組み込みません。完全ローカル。</string>
+    <string name="settings_unlock_watch_admin_active">端末管理者: 有効</string>
+    <string name="settings_unlock_watch_admin_missing">端末管理者: 未有効 — 有効化すると解除イベントを受け取れます</string>
+    <string name="settings_unlock_watch_admin_grant">端末管理者を有効化</string>
+    <string name="settings_unlock_watch_admin_manage">端末管理者を管理（無効化はこちら）</string>
+    <string name="settings_unlock_watch_admin_explain">盗難対策マクロ用に、ロック解除の失敗を検知するためだけに使います。このアプリが端末をロック・初期化・パスワード変更することはありません。</string>
+    <string name="settings_unlock_watch_help">端末管理者が必要です（watch-login のみ・遠隔ロック/ワイプはしません）。イベント: unlock_failed（{level}=失敗回数）, unlock_succeeded。反応は events.jsonl を見るマクロで組みます。</string>
     <string name="toast_copy_from_remote">リモートからコピー (%1$d 文字)</string>
     <string name="toast_selection_empty">選択範囲が空です</string>
     <string name="toast_copy">コピー (%1$d 文字)</string>

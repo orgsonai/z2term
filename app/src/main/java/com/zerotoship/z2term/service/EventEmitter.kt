@@ -25,8 +25,11 @@ internal object EventEmitter {
     private const val TAG = "EventEmitter"
     private val ISO = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
 
-    /** [event] を 1 行書く。[name] は仕掛けたときの識別名、[action] は押されたボタン等。 */
-    fun emit(context: Context, event: String, name: String = "", action: String = "") {
+    /**
+     * [event] を 1 行書く。[name] は仕掛けたときの識別名、[action] は押されたボタン等、
+     * [level] は数値 (失敗回数・電池残量など。無いイベントでは null)。
+     */
+    fun emit(context: Context, event: String, name: String = "", action: String = "", level: Int? = null) {
         val settings = runCatching { runBlocking { AppSettings(context).flow.first() } }.getOrNull()
         val now = System.currentTimeMillis()
         val line = SystemEventService.render(
@@ -34,7 +37,7 @@ internal object EventEmitter {
             ts = now,
             time = ISO.format(Date(now)),
             event = event,
-            level = null,
+            level = level,
             ssid = "",
             name = name,
             action = action

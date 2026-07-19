@@ -8,41 +8,25 @@ import java.io.File
  *  - **先頭追記**: 新しい行をファイル先頭に置く (新着が上)。ファイルは先頭に 1 行差し込む
  *    OS 機能が無いため、既存内容を読んで「新しい行 + 既存」で書き直す。
  *
- * **ローテーション**: どちらのモードでもログは放置すると無限に増える (マクロを常用するほど速い)。
- * [MAX_BYTES] を超えたら `<名前>.1` へ退避して新しいファイルを作る。**消さずに 1 世代残す**ので、
- * 直前のぶんは `~/.z2term/events.jsonl.1` で追える (合計サイズは上限のおよそ 2 倍で頭打ち)。
- * 先頭追記モードは毎回ファイル全体を読み書きするため、上限があること自体が速度面でも効く。
+ * **ローテーションはしない**: ログは 1 ファイルに追記し続け、サイズ上限で分割・退避しない
+ * (ユーザー要望)。以前は 1 MiB で `<名前>.1` へ退避していたが、マクロが「過去に遡って
+ * 集計する」用途では途中でファイルが切り替わると解析が面倒になるため、全履歴を 1 本に残す。
+ * 掃除が要るときはユーザーがターミナル側で truncate/rotate する (例: `: > ~/.z2term/events.jsonl`)。
+ *
+ * 注意: **先頭追記モードは 1 行ごとにファイル全体を読み書きする**ため、上限を外したことで
+ * ファイルが肥大すると 1 件あたりのコストが線形に増える。大量イベントを長期常用する場合は
+ * 末尾追記 (既定) の利用を推奨する (追記のみで肥大に影響されない)。
  */
 internal object LogWriter {
-
-    /** 1 ファイルの上限。JSONL 1 行 150 バイト前後として概ね 7000 行。 */
-    private const val MAX_BYTES = 1L * 1024 * 1024
 
     /** [line] (末尾改行なし) を [f] へ書く。[prepend] が true なら先頭追記 (新着が上)。 */
     fun write(f: File, line: String, prepend: Boolean) {
         f.parentFile?.mkdirs()
-        rotateIfNeeded(f)
         if (!prepend) {
             f.appendText(line + "\n")
             return
         }
         val existing = if (f.exists()) f.readText() else ""
         f.writeText(line + "\n" + existing)
-    }
-
-    /**
-     * 上限超過なら `<名前>.1` へ退避する (既存の `.1` は上書き = 保持は 1 世代)。
-     * 失敗しても書き込み自体は続ける (ログのために本体を止めない)。
-     */
-    private fun rotateIfNeeded(f: File) {
-        runCatching {
-            if (!f.exists() || f.length() < MAX_BYTES) return
-            val backup = File(f.parentFile, f.name + ".1")
-            if (backup.exists()) backup.delete()
-            if (!f.renameTo(backup)) {
-                // rename できない環境では、せめて肥大を止めるために切り詰める。
-                f.writeText("")
-            }
-        }
     }
 }

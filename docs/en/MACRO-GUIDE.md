@@ -39,8 +39,8 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
 ## 3. Trigger reference (events.jsonl)
 
 - Location: `~/.z2term/events.jsonl` (one JSON per line, append-only).
-- **Size cap**: past 1 MB the file is moved to `events.jsonl.1` and a fresh one starts (one generation kept).
-  If you need to keep history forever, have your macro copy lines into your own file (just `tail -F` and append).
+- **No size cap**: the file keeps appending all history into one file, so you can go back and aggregate over the whole log in one place.
+  If size becomes a concern, truncate it yourself from the terminal (e.g. `: > ~/.z2term/events.jsonl`). Note the "newest at the top" mode rewrites the whole file per entry, so the default (append at the end) is lighter for heavy use.
 - Default fields: `ts` (epoch ms, integer), `time` (ISO8601 string), `event` (kind), and sometimes `level` (battery %), `ssid` (Wi‑Fi name).
 - The output format is templatable in Settings, but **for macros keep the default JSONL** — it's the easiest to parse.
 
@@ -60,6 +60,7 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
 | `ringer_normal` / `ringer_vibrate` / `ringer_silent` | Ringer mode change | — |
 | `alarm` | **A time scheduled with `z2-alarm`** came around | `name` (the name you gave `z2-alarm`) |
 | `notify_action` | **A button added with `z2-notify -b` was pressed** | `name` (the notification's name), `action` (the label pressed) |
+| `unlock_failed` / `unlock_succeeded` | Lock-screen unlock **failed / succeeded** (anti-theft; needs ⚙ Settings "Watch unlock failures" ON + device admin activated) | `level` on `unlock_failed` (consecutive failure count) |
 
 Example lines:
 ```json
@@ -277,7 +278,30 @@ done
 The distro's cron works too, but **cron stops once Android enters power-saving sleep (Doze)**.
 Use `z2-alarm` when it has to run with the screen off (at the cost of firing a few minutes late).
 
-### 5-5. Worked example: auto-copy an SMS one-time code and clear it
+### 5-5. Worked example: notify + log location after N failed unlocks (anti-theft)
+
+Turn on ⚙ Settings "Watch unlock failures" and activate **device admin** as prompted; unlock
+failures then arrive as `unlock_failed` (`level` = consecutive failure count). React from the 3rd:
+
+```sh
+# the watcher (register this under Resident servers)
+tail -n0 -F ~/.z2term/events.jsonl | while IFS= read -r line; do
+  ev=$(printf '%s' "$line"    | jq -r '.event')
+  n=$(printf '%s' "$line"     | jq -r '.level // 0')
+  [ "$ev" = "unlock_failed" ] && [ "$n" -ge 3 ] || continue
+  ts=$(date '+%F %T')
+  z2-notify -h "Unlock failed ${n}x" "$ts"        # push to your other device too
+  echo "$ts unlock_failed x$n" >> ~/theft.log      # keep a record
+  # e.g. exfiltrate to your home server (needs an ssh key)
+  # scp ~/theft.log backup:/srv/ 2>/dev/null
+done
+```
+
+What gets captured or sent is **up to your macro** (the app builds in no camera capture — background
+photos are blocked by Android and need separate root/dedicated tooling). Combine with a location tool
+in your distro or an API for coordinates. **Device admin is used only to watch the failure count; it never locks or wipes your device.**
+
+### 5-6. Worked example: auto-copy an SMS one-time code and clear it
 
 A practical macro that puts the **one-time code (OTP / verification number)** from a notification (SMS, etc.)
 onto the clipboard, then clears it after a delay — but only if it hasn't changed. It combines the notification

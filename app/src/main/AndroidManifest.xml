@@ -147,6 +147,21 @@
             android:name=".service.NotifyActionReceiver"
             android:exported="false" />
 
+        <!-- ロック解除の失敗監視 (盗難対策マクロの検知入口): 端末管理者として有効化されると
+             OS がロック解除の失敗/成功コールバックを届ける。宣言ポリシーは watch-login のみで
+             遠隔ロック/ワイプはしない。BIND_DEVICE_ADMIN でシステムからのみバインド可。 -->
+        <receiver
+            android:name=".service.PasswordWatchAdmin"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:exported="true">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+
         <!-- SAF DocumentsProvider: rootfs / HOME を他のファイラーから開けるようにする。
              permission=MANAGE_DOCUMENTS でシステム (DocumentsUI) からのみアクセス可能。 -->
         <provider
