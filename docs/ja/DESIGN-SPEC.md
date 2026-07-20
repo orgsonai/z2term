@@ -71,50 +71,38 @@
 
 ### 3.1 レイヤ構成
 
-```mermaid
-graph TD
-    subgraph L1["UI 層 (Compose)"]
-        U1["MainActivity → TerminalScreen"]
-        U2["TopBar（ボタン並べ替え可） / TabBar / Renderer (Canvas)"]
-        U3["TerminalInputView<br/>(AndroidView: ジェスチャ / IME / 選択)<br/>ScrollIndicators"]
-        U4["TerminalKeyboard（独自）<br/>JapaneseFlickKeyboard / SpecialKeyBar"]
-        U5["SettingsSheet / SshProfilesSheet<br/>SnippetsSheet / HostKeyDialog"]
-    end
-
-    subgraph L2["ドメイン層"]
-        D1["SessionManager"]
-        D2["TerminalSession [*]<br/>状態機械 / readLoop / resize / 選択 / cwd / label"]
-        D3["emulator: TerminalEmulator<br/>(VT 解釈・専用 1 スレッド)"]
-        D4["channel: ProcessChannel<br/>= LocalPtyChannel または SshChannel"]
-        D1 -->|保持| D2
-        D2 --> D3
-        D2 --> D4
-    end
-
-    subgraph L3["実行基盤（ローカル）"]
-        P1["ProotLauncher"]
-        P2["PtyProcess (forkpty)"]
-        P3["エンジン (z2root / proot / chroot)"]
-        P4["distro shell"]
-        P1 --> P2 --> P3 --> P4
-    end
-
-    subgraph L4["リモート (SSH)"]
-        S1["SshChannel (JSch)<br/>shell + -L 転送"]
-    end
-
-    subgraph L5["distro / 永続 / 周辺"]
-        F1["DistroBundle / Spec<br/>Installer / Downloader<br/>(assets または DL)"]
-        F2["TerminalService<br/>(フォアグラウンド常駐)"]
-        F3["DocsProvider (SAF)"]
-        F4["AppSettings (DataStore)"]
-    end
-
-    L1 -->|"writeBytes（入力）"| L2
-    L2 -.->|"emulator buffer（描画）"| L1
-    D4 -->|ローカル| L3
-    D4 -->|リモート| L4
-    L3 -->|展開 / 更新| F1
+```text
++--- UI 層 (Compose) ----------------------------------------------------+
+| MainActivity -> TerminalScreen                                         |
+|   TopBar (ボタン並べ替え可) / TabBar / Renderer (Canvas)               |
+|   TerminalInputView (AndroidView: ジェスチャ / IME / 選択)             |
+|   ScrollIndicators                                                     |
+|   TerminalKeyboard (独自) / JapaneseFlickKeyboard / SpecialKeyBar      |
+|   SettingsSheet / SshProfilesSheet / SnippetsSheet / HostKeyDialog     |
++------------------------------------------------------------------------+
+       | writeBytes (入力)              ^ emulator buffer (描画)
+       v                                |
++--- ドメイン層 ---------------------------------------------------------+
+| SessionManager --(保持)--> TerminalSession[*]                          |
+|   TerminalSession: 状態機械 / readLoop / resize / 選択 / cwd / label   |
+|     emulator: TerminalEmulator (VT 解釈・専用 1 スレッド)              |
+|     channel : ProcessChannel = LocalPtyChannel | SshChannel            |
++------------------------------------------------------------------------+
+       |                                        |
+       v (ローカル)                             v (リモート)
++--- 実行基盤 (ローカル) ------------------+    +--- リモート (SSH) -----+
+| ProotLauncher                            |    | SshChannel (JSch)      |
+|   -> PtyProcess (forkpty)                |    |   shell + -L 転送      |
+|   -> エンジン (z2root / proot / chroot)  |    +------------------------+
+|   -> distro shell                        |
++------------------------------------------+
+       | 展開 / 更新
+       v
++--- distro / 永続 / 周辺 -----------------------------------------------+
+| DistroBundle / Spec / Installer / Downloader (assets または DL)        |
+| TerminalService (常駐) / DocsProvider (SAF)                            |
+| AppSettings (DataStore)                                                |
++------------------------------------------------------------------------+
 ```
 
 ### 3.2 ライフサイクルと常駐設計
