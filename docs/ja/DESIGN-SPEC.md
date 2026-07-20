@@ -191,7 +191,9 @@ Android 側の出来事をシェルから扱えるようにするための機能
 
 #### 通知検知（`NotificationLogService`、0.8.149）
 
-OS の「通知アクセス」許可を与えると Android が `NotificationListenerService` を自動でバインド・常駐させる（アプリを開かず・再起動後も動く＝通知検知デーモン）。設定 `notificationCaptureEnabled` が ON のとき、受け取った通知を**生のまま** 1 行 1 通知で追記する（JSON: ts / time / pkg / app / title / text / category / key）。`z2-notify` の逆向きの機能。
+OS の「通知アクセス」許可を与えると Android が `NotificationListenerService` を自動でバインド・常駐させる（アプリを開かず・再起動後も動く＝通知検知デーモン）。設定 `notificationCaptureEnabled` が ON のとき、受け取った通知を**生のまま** 1 行 1 通知で追記する（JSON: ts / time / pkg / app / title / text / category / key）。`z2-notify` の逆向きの機能。通知リスナーは OS の「ロック画面で機密性の高い内容を隠す」設定に**関係なく**本文の実体を受け取れる（あの設定はロック画面の**描画**だけを制御する）。
+
+**本文の抽出（`extractBody`、0.8.185）**: `title` は `EXTRA_TITLE`。`text` は標準の `EXTRA_BIG_TEXT` → `EXTRA_TEXT` だけだと **MessagingStyle の SMS / ワンタイムパスワード**（本文が `EXTRA_MESSAGES` に入り TEXT は空）を取りこぼすため、中身のある最初のフィールドを優先順に走査する: 展開本文（`EXTRA_BIG_TEXT`）→ 本文（`EXTRA_TEXT`）→ **MessagingStyle**（`EXTRA_MESSAGES` の各メッセージ本文を改行連結）→ **InboxStyle**（`EXTRA_TEXT_LINES`）→ 補助行（`EXTRA_SUB_TEXT` / `EXTRA_INFO_TEXT`）→ `tickerText`。どのフィールドにも文字が無い（完全カスタム表示のみの）通知は原理的に拾えない。抽出結果は既存の `text` に合流するのでプレースホルダやログ形式は無変更。
 
 **出力フォーマット（`notificationLogFormat`、0.8.151）**
 - `render()` がテンプレートを置換する

@@ -554,8 +554,11 @@ The only knobs are `TTL` (seconds until clearing), `POLL` (how fast it reacts) a
 more services). The code lands on the clipboard within `POLL` seconds of arriving, so you just paste it.
 
 **Limits**: two notifications arriving within one `POLL` cycle are treated as a single blob (rare for auth
-codes, but a real gap). And if the OS hides the notification body — the lock-screen setting that shows
-"contents hidden" instead — the code never reaches the log in the first place.
+codes, but a real gap). Note that the lock-screen "contents hidden" setting only controls how the
+notification is *drawn* — notification capture (notification access) still receives the real body regardless.
+The only thing that cannot be read is a notification whose body lives solely in a fully custom layout, with
+no text in the title, text, or message fields (a few apps). SMS one-time codes normally sit in the
+MessagingStyle body, which is captured from 0.8.185 on.
 
 ---
 

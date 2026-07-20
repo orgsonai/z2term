@@ -191,7 +191,9 @@ Everything lands in one of two log files.
 
 #### Notification detection (`NotificationLogService`, 0.8.149)
 
-Granting the OS "notification access" makes Android auto-bind and keep the `NotificationListenerService` resident (runs without opening the app, and after reboot = a notification-detection daemon). When `notificationCaptureEnabled` is on, each incoming notification is appended **raw** as one JSON per line (ts / time / pkg / app / title / text / category / key). This is the inverse of `z2-notify`.
+Granting the OS "notification access" makes Android auto-bind and keep the `NotificationListenerService` resident (runs without opening the app, and after reboot = a notification-detection daemon). When `notificationCaptureEnabled` is on, each incoming notification is appended **raw** as one JSON per line (ts / time / pkg / app / title / text / category / key). This is the inverse of `z2-notify`. The listener receives the real body **regardless** of the OS "hide sensitive content on the lock screen" setting (that setting only controls lock-screen **drawing**).
+
+**Body extraction (`extractBody`, 0.8.185)**: `title` is `EXTRA_TITLE`. Reading only the standard `EXTRA_BIG_TEXT` → `EXTRA_TEXT` for `text` drops **MessagingStyle SMS / one-time passwords** (whose body lives in `EXTRA_MESSAGES` while TEXT is empty), so it scans for the first non-empty field in priority order: big text (`EXTRA_BIG_TEXT`) → text (`EXTRA_TEXT`) → **MessagingStyle** (each message body in `EXTRA_MESSAGES`, newline-joined) → **InboxStyle** (`EXTRA_TEXT_LINES`) → sub/info line (`EXTRA_SUB_TEXT` / `EXTRA_INFO_TEXT`) → `tickerText`. A notification with no text in any field (fully custom layout only) cannot be read in principle. The result merges into the existing `text`, so placeholders and log formats are unchanged.
 
 **Output format (`notificationLogFormat`, 0.8.151)**
 - `render()` substitutes the template

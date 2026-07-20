@@ -2,6 +2,7 @@ package com.zerotoship.z2term.service
 
 import android.app.Notification
 import android.content.Context
+import android.os.Bundle
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -24,7 +25,8 @@ import java.util.concurrent.Executors
  *
  * OS の「通知アクセス」許可が本アプリに与えられていると、Android がこの
  * `NotificationListenerService` を自動でバインド・常駐させる (アプリを開かなくても・再起動後も動く
- * = 通知検知デーモン)。設定 [AppSettings.notificationCaptureEnabled] が ON で、かつ
+ * = 通知検知デーモン)。本文は [extractBody] で主要な通知スタイル (MessagingStyle の SMS/OTP・
+ * InboxStyle・補助行など) まで走査して取り出す。設定 [AppSettings.notificationCaptureEnabled] が ON で、かつ
  * [AppSettings.notificationLogEnabled] が ON のとき、受け取った通知を **生のまま**
  * [logFile] (`~/.z2term/notifications.jsonl`) へ 1 行 1 通知 (JSON) で追記する。
  * 保存を OFF にすると検知 (常駐) は続けたままファイルには一切書かない。
@@ -74,8 +76,7 @@ class NotificationLogService : NotificationListenerService() {
         if (sbn.packageName == applicationContext.packageName) return   // 自分の通知は除外
         val ex = n.extras
         val title = ex.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
-        val text = (ex.getCharSequence(Notification.EXTRA_BIG_TEXT)
-            ?: ex.getCharSequence(Notification.EXTRA_TEXT))?.toString().orEmpty()
+        val text = extractBody(n, ex)
         if (title.isEmpty() && text.isEmpty()) return                   // 実体のない通知は捨てる
         if (!logEnabled) return                                         // 検知のみ (保存しない)
         if (isDuplicate(sbn.key ?: sbn.packageName, sbn.packageName, title, text)) return
@@ -99,6 +100,45 @@ class NotificationLogService : NotificationListenerService() {
                 LogWriter.write(logFile(ctx), line, prependNow)
             }.onFailure { Log.w(TAG, "write failed: ${it.message}") }
         }
+    }
+
+    /**
+     * 通知本文を「中身のある最初のフィールド」から 1 つ取り出す。標準の TITLE/TEXT だけだと
+     * MessagingStyle の SMS・ワンタイムパスワード等 (本文が [Notification.EXTRA_MESSAGES] に入り、
+     * TEXT は空) を取りこぼすため、主要な通知スタイルの本文フィールドを優先順に走査する。
+     * 優先: 展開本文 (BigText) > 本文 (Text) > MessagingStyle > InboxStyle > 補助行 > ticker。
+     */
+    private fun extractBody(n: Notification, ex: Bundle): String {
+        ex.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.let { if (it.isNotEmpty()) return it }
+        ex.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.let { if (it.isNotEmpty()) return it }
+        messagesText(ex).let { if (it.isNotEmpty()) return it }
+        textLines(ex).let { if (it.isNotEmpty()) return it }
+        ex.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()?.let { if (it.isNotEmpty()) return it }
+        ex.getCharSequence(Notification.EXTRA_INFO_TEXT)?.toString()?.let { if (it.isNotEmpty()) return it }
+        n.tickerText?.toString()?.let { if (it.isNotEmpty()) return it }
+        return ""
+    }
+
+    /** MessagingStyle の各メッセージ本文を古い順に改行連結 (SMS/チャットの OTP はここに入る)。 */
+    @Suppress("DEPRECATION")
+    private fun messagesText(ex: Bundle): String {
+        val arr = ex.getParcelableArray(Notification.EXTRA_MESSAGES) ?: return ""
+        val sb = StringBuilder()
+        for (p in arr) {
+            val b = p as? Bundle ?: continue
+            val t = b.getCharSequence("text")?.toString().orEmpty()
+            if (t.isNotEmpty()) {
+                if (sb.isNotEmpty()) sb.append('\n')
+                sb.append(t)
+            }
+        }
+        return sb.toString()
+    }
+
+    /** InboxStyle の複数行 ([Notification.EXTRA_TEXT_LINES]) を改行連結。 */
+    private fun textLines(ex: Bundle): String {
+        val lines = ex.getCharSequenceArray(Notification.EXTRA_TEXT_LINES) ?: return ""
+        return lines.mapNotNull { it?.toString()?.takeIf(String::isNotEmpty) }.joinToString("\n")
     }
 
     /**
