@@ -36,7 +36,13 @@
 - **SSH 両方向**: 端末から外部へ (JSch クライアント)、PC から端末へ (dropbear サーバ)。
 - **ファイル連携**: SAF DocumentsProvider で他アプリから rootfs/ホームを R/W、proot 内から Android 共有ストレージへ `cd`。
 - **GUI デスクトップ**: distro 内で Xvnc + 軽量 WM/アプリを起動し、内蔵 RFB(VNC) クライアントで表示（`gui/` パッケージ）。動画はソフト描画、音声はオプトインで PulseAudio→TCP→AudioTrack ブリッジ（`AudioBridge`）。
-- **実行エンジン**: 既定は z2root (0.8.123 で full フレーバーも proot から z2root へ切替。foss は元から z2root 専用)。裏設定（設定→アプリ情報のバージョン行を 7 タップ）で full は **PRoot** にも切替可。さらに root 端末では root セルフテスト成功時に **「実 chroot」エンジン**も選択可（`su` 経由 bind mount + `chroot`。`executionEngine`）。root セルフテスト（`probeRootChroot`）は **7 タップ解放の瞬間だけでなく、エンジン選択内の「chroot を有効化（root を確認）」ボタンからも再実行できる**（0.8.106）。従来は解放時に 1 度だけ走り、su 許可ダイアログを拒否すると `rootChrootUnlocked` が false のまま二度と chroot を選べなくなっていた（再解放には再ロック→再解放の二重 7 タップが必要で気付けなかった）。`rootChrootUnlocked` が false の間はこのボタンと案内文を表示し、ボタンから何度でも再試行できる（成功で chroot 解放＋トースト、ボタン経由の失敗時のみ理由をトースト）。失敗は `RootProbe.NoRoot`(su 無し/拒否)と `RootProbe.ChrootBlocked(detail)`(root は取れたが chroot 実行が SELinux/rootfs 等で失敗)を切り分けて表示する（0.8.107）。**ただし Magisk 等の root 管理アプリは一度「拒否」を記憶すると以後 su 許可ダイアログを再表示せず即拒否を返すため、アプリ内ボタンだけでは復帰できない**（アプリから他アプリの root 権限は変更不可）。この場合 Magisk 側で Z2Term の root を「許可」に戻す必要がある旨を NoRoot トースト/案内文で誘導する（0.8.108）。トグル発火後 3 秒はバージョン行を**タップ不可**にして連打による即時再トグルを防ぐ（0.8.70。従来はタップを受けるが無視で不自然だった）。**foss は proot prebuilt を同梱せず常に z2root 実走**のため、エンジン選択肢に PRoot チップを出さない（z2root / root 解放時 chroot のみ。0.8.93。従来は選べても z2root に倒れる見せかけだった）。同じ 7 タップ解放枠内に **z2root トレースログ ON/OFF トグル**（開発者用・既定 OFF・`traceLogEnabled`）を置く。ON で z2root の全 syscall を `shared_home/z2root_trace.log` へ記録する＝障害調査用だがログが膨大で端末容量をすぐ圧迫するため、UI に「普段は OFF のままにする」警告を添える（0.8.105。0.8.107 で警告文を「OFF のまま使用しない」という矛盾表現から非矛盾表現へ修正。従来は `.z2root_trace_on` sentinel ファイルでしか切替できなかった。sentinel も後方互換で有効）。
+- **実行エンジン**: 既定は **z2root** (0.8.123 で full フレーバーも proot から z2root へ切替。foss は元から z2root 専用)。裏設定で full は **PRoot** にも、root 端末では **「実 chroot」** (`su` 経由 bind mount + `chroot`) にも切替できる (`executionEngine`)。
+  - **裏設定の解放**: 設定 → アプリ情報のバージョン行を 7 タップ。トグル発火後 3 秒はバージョン行を**タップ不可**にして連打による即時再トグルを防ぐ (0.8.70。従来はタップを受けるが無視で不自然だった)
+  - **chroot の解放**: root セルフテスト (`probeRootChroot`) の成功時のみ選択肢に加わる。このテストは **7 タップ解放の瞬間だけでなく、エンジン選択内の「chroot を有効化 (root を確認)」ボタンからも再実行できる** (0.8.106)。従来は解放時に 1 度だけ走り、su 許可ダイアログを拒否すると `rootChrootUnlocked` が false のまま二度と chroot を選べなくなっていた (再解放には再ロック→再解放の二重 7 タップが必要で気付けなかった)。false の間はこのボタンと案内文を表示し、何度でも再試行できる (成功で chroot 解放＋トースト、ボタン経由の失敗時のみ理由をトースト)
+  - **失敗の切り分け** (0.8.107): `RootProbe.NoRoot` (su 無し/拒否) と `RootProbe.ChrootBlocked(detail)` (root は取れたが chroot 実行が SELinux/rootfs 等で失敗) を区別して表示する
+  - ⚠️ **Magisk 等の root 管理アプリは一度「拒否」を記憶すると以後 su 許可ダイアログを再表示せず即拒否を返すため、アプリ内ボタンだけでは復帰できない** (アプリから他アプリの root 権限は変更不可)。この場合 Magisk 側で Z2Term の root を「許可」に戻す必要がある旨を NoRoot トースト/案内文で誘導する (0.8.108)
+  - **foss には PRoot チップを出さない** (0.8.93): foss は proot prebuilt を同梱せず常に z2root 実走のため、選択肢は z2root と (root 解放時の) chroot のみ。従来は選べても z2root に倒れる見せかけだった
+  - **z2root トレースログ** (開発者用・既定 OFF・`traceLogEnabled`): 同じ 7 タップ解放枠内のトグル。ON で z2root の全 syscall を `shared_home/z2root_trace.log` へ記録する＝障害調査用だが、ログが膨大で端末容量をすぐ圧迫するため UI に「普段は OFF のままにする」警告を添える (0.8.105。0.8.107 で警告文を「OFF のまま使用しない」という矛盾表現から非矛盾表現へ修正)。従来は `.z2root_trace_on` sentinel ファイルでしか切替できなかった (sentinel も後方互換で有効)
 
 対応 ABI は **arm64-v8a のみ**。最低 Android 10 (API 29)、ターゲット API 35。
 
@@ -1019,7 +1025,13 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 
 ## 10. 既知の制約と設計上の罠
 
+### 10.1 修正不能な制約
+
 **PRoot のカーネル特権制約 (修正不能)**: root に見えても `ip`/`nmap -sS`/`ping`/特権ポート bind は不可。代替は `nmap -sT` 等。OpenSSH sshd も privsep 破綻のため dropbear を使う。
+
+**SysV 共有メモリ (`shmget`) が ENOSYS (カーネル由来・アプリ側では修正不能)**: Android のカーネルは `CONFIG_SYSVIPC` を落としているため、`shmget`/`shmat` が "Function not implemented" で失敗する。**POSIX 共有メモリ (`shm_open` = `/dev/shm`) とは別系統**で、そちらは 0.8.177 の bind で使えるようになったがこちらは残る。影響は X11 の **MIT-SHM 拡張**が使えないこと (GUI の描画がサーバ経由のソケット転送になり、その分遅い)。主要ツールキットは MIT-SHM の可否を検出して自動でフォールバックするので通常は「動くが遅い」で済むが、拡張の存在を前提に握り決め打ちする少数のアプリは表示が壊れうる。回避したい場合はアプリ側の設定で MIT-SHM を切る。
+
+### 10.2 修正済みの重大な不具合
 
 **Gecko 系 GUI アプリのコンテンツプロセスが自分のサンドボックス下でフォントを見つけられない (0.8.179 で修正・2026-07-20 に実機検証済み)**: 親プロセス (chrome UI) は正常に描画されるが、**中身を描くコンテンツプロセスだけ**が `unable to find a usable font (%.220s)` の `MOZ_CRASH` で落ち、本文/HTML を描くペインが空白になっていた。`/dev/shm` の件 (0.8.177) と紛らわしいが**別問題**で、共有メモリは全て成功している (`shm_open` は正常)。
 
@@ -1027,9 +1039,8 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 
 修正は SIGSYS の**出所を切り分けて**、ゲスト自前のフィルタ由来なら握り潰さずアプリのハンドラへ配送する。判定は `siginfo` の `si_errno` (= `SECCOMP_RET_DATA`): Android のフィルタは data 0 で TRAP するのに対し、ゲスト自前のフィルタは 0 以外の trap id を載せる (Gecko の `Trap()` は 1 起点の連番)。Android 由来の SIGSYS の扱いは従来どおりで挙動不変。切り分け用に `Z2ROOT_NO_SIGSYS_DELIVER=1` で従来動作へ戻せる。実機 (Thunderbird / z2root) で修正前は必ず 1 件出ていた `exited on signal 11` と `unable to find a usable font` が、修正後は 0 件になることを確認済み。回避策だった `MOZ_DISABLE_CONTENT_SANDBOX=1` は引き続き有効 (HANDBOOK の FAQ に記載)。アプリ側でこの環境変数を既定で注入することはしていない (アプリ自身の防御層を黙って外す判断はユーザーに委ねる)。
 
-**SysV 共有メモリ (`shmget`) が ENOSYS (カーネル由来・アプリ側では修正不能)**: Android のカーネルは `CONFIG_SYSVIPC` を落としているため、`shmget`/`shmat` が "Function not implemented" で失敗する。**POSIX 共有メモリ (`shm_open` = `/dev/shm`) とは別系統**で、そちらは 0.8.177 の bind で使えるようになったがこちらは残る。影響は X11 の **MIT-SHM 拡張**が使えないこと (GUI の描画がサーバ経由のソケット転送になり、その分遅い)。主要ツールキットは MIT-SHM の可否を検出して自動でフォールバックするので通常は「動くが遅い」で済むが、拡張の存在を前提に握り決め打ちする少数のアプリは表示が壊れうる。回避したい場合はアプリ側の設定で MIT-SHM を切る。
+### 10.3 踏みやすい罠 (再発防止)
 
-**踏みやすい罠 (再発防止)**:
 - 端末の `/root` は `distros/<distro>/root` でなく **`filesDir/shared_home`**。SAF/外部ストレージ bind もこれ基準。
 - 複数行スクリプトを端末に直接打鍵すると **zsh が `#` コメントを誤実行/継続プロンプトで崩れる** → ファイル化して `sh` 実行。
 - dropbear を kill せず再起動すると "Address already in use"。
@@ -1045,6 +1056,15 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 - **chroot エンジンは su 経由だと制御端末を所有できず Ctrl+C/ジョブ制御が効かない** → login shell を `setsid -c` 経由で起動。
 - **GUI 動画**: GPU 無し端末で mpv の `gpu` 出力は化け/半分描画になる → `vo=x11` 既定 + `LIBGL_ALWAYS_SOFTWARE`。
 - **GUI 音声**: PulseAudio は `-n` 方式で起動しないと既存設定と競合。`AudioBridge` の接続先 port を 0 のまま渡すと無音（既定ポートを明示）。**z2root 配下では** `--daemonize` が `/proc/self/exe`（=ランチャ）の自己 re-exec で失敗する→`setsid …&` で背景化。AF_UNIX の `SCM_CREDENTIALS` は fake_root の uid=0 だとカーネルが `sendmsg` を `EPERM`→z2root が `sendmsg`/`recvmsg`(211/212) の ucred を実 uid へ書換（0.8.53）。
+- **折り返し URL の検出**: wrapped フラグは「継続行」でなく「折り返し元の行」に持たせる（逆だと長 URL がタップできない）。
+
+### 10.4 版ごとの修正記録 (0.8.110〜0.8.139)
+
+Kitty graphics・SGR mouse・スワイプ振り分けの**現仕様**は [§4.5](#45-ターミナルエミュレータ-emulator) に整理してある。ここは版ごとの記録として残す (両者で表現が異なる場合は §4.5 が新しい)。
+
+<details>
+<summary><b>0.8.110〜0.8.139 の修正記録 (28 件)</b></summary>
+
 - **SGR underline サブパラメータ (`4:n`) の正しい解釈 (0.8.139)**: `processCsi` が CSI の `:` 区切りを `;` 区切りと完全に同一視して `csiParams` に平坦化していたため、 styled underline を使う TUI が送る `\e[4:3m` (波線) を `[4,3]` と解釈し underline に加えてサブパラメータ値を別 SGR として誤適用していた (`4:3`→下線+イタリック、 `4:1`→下線+ボールド、 `4:5`→下線+点滅)。 さらに `\e[4:0m` (下線オフ) は `[4,0]` の `0` を全リセットとして処理し前景/背景色まで消していた。 結果として余計な装飾フラグが居残り、 styled underline を多用する TUI のあとに下線等が残留する。 修正: パーサに `csiParamIsSub: MutableList<Boolean>` と `csiPendingSub` を追加し、 `:` で確定したパラメータを「直前パラメータのサブパラメータ」として印付ける (`;` 区切りは false)。 `applySgr` の `4` を分岐し、 直後がサブパラメータなら `0`=`FLAG_UNDERLINE` クリア・非 0=セットとして扱い、 連続するサブパラメータは `while` で読み飛ばして別 SGR と誤解釈しない (`4` 単体は従来どおり単線下線)。 styled 種別 (1=単線/2=二重/3=波線/4=点線/5=破線) は描画上は一律下線として扱う。 38/48/58 の拡張色は従来の位置ベース読取りのままで退行なし。 テスト: 新規 `SgrUnderlineSubparamTest` (4 ケース: `4:3` が italic を立てない / `4:5` が blink を立てない / `4:1` が bold を立てない / `4:0` が色を保持して下線だけ消す) + `SgrUnderlineAltScreenExitTest` (1 ケース: `?1049h`→`4:3m`→`?1049l` 復帰後に通常テキストへ下線が残らない)。 仕様: <https://sw.kovidgoyal.net/kitty/underlines/>、 xterm `ctlseqs.txt` の "Set/Reset Text Attributes" のサブパラメータ表記。
 - **SGR mouse 入力 タップ→click の opt-in 切り離し (0.8.138)**: 0.8.137 で `sendMouseClick` の発火条件を `isSgrMouseInputActive(sess)` (= opt-in `sgrMouseInputEnabled` ON + mouse capture 中) 配下に閉じ込めた結果、 既定 OFF の状態だと **mouse capture を有効化する TUI のタップが届かなくなる** microregression が出た (0.8.116〜0.8.136 は `mouseEnabled` だけで自動送出していたので、 既存ユーザーの体感では明確な退行)。 `TerminalInputView.onSingleTapUp` の判定を `sess.emulator.mouseEnabled && sendMouseClick(e.x, e.y, sess)` に戻して、 「mouse capture 中はタップ→SGR click (button 0 press+release) を opt-in 関係なく送る」を復活させた。 ロングタップ→右クリック (button 2) と 1 指 drag→motion (button 32) は引き続き opt-in (`AppSettings.sgrMouseInputEnabled`) 配下に残す: opt-in OFF (既定) の挙動は「タップ→TUI click + 長押し/1 指 drag は Z2Term 自身の選択 / scrollback / wheel」 という 0.8.136 と同じベースになり、 opt-in ON で右クリック / drag motion が追加で動くという段階構成になる。 既存テスト (`MouseEncodeTest` 14 ケース) は退行なし、 タップ→click は 0.8.116 以降ずっと encode 経路を共有しているので追加テスト無し。
 - **SGR mouse 入力 (タップ→マウスイベント) opt-in (0.8.137)**: 0.8.116〜0.8.126 で SGR mouse の **wheel 送出 (button 64/65)** と alt screen での慣性 wheel 送出までは入れていたが、 **1 指タップ / ロングタップ / 1 指ドラッグ** を SGR (`\x1b[<n;col;row>M/m`) として PTY master に書き出す経路は未実装で、 mouse capture を要求する TUI 系 (日付選択 pane / ファイラ / 副 pane フォーカス切替 / 本文 caret 位置決め) が **タップで何も起きない** 状態だった。 既定 OFF の opt-in (`AppSettings.sgrMouseInputEnabled`, DataStore key `sgr_mouse_input_enabled`) として 3 種を追加: (1) **1 指タップ → button 0** の press+release (`\x1b[<0;col;row M` + `\x1b[<0;col;row m`)、 (2) **1 指長押し → button 2** の press+release (右クリック相当)、 (3) **1 指ドラッグ → button 0 press + button 32 motion 連発 + button 0 release** (motion は BUTTON_EVENT/ANY_EVENT 必須、 NORMAL は既存仕様で motion を捨てるので安全)。 `TerminalInputView` に `sgrMouseDragActive` / `sgrMouseLastCol/Row` の drag 状態を新設し、 `onScroll` でセル変化時のみ motion を発行 (同セル内連続 motion の流量制御)、 `onTouchEvent` の ACTION_UP/ACTION_CANCEL で必ず button 0 release を送って TUI 側の press 状態 stuck を防ぐ (drag 中に view 外へ抜けた場合は最後の有効セル位置で release)。 ヘルパ `isSgrMouseInputActive(sess)` で 「opt-in ON かつ `?1000`/`?1002`/`?1003`/`?1006` で mouse capture 中」を一元判定。 opt-in OFF (既定) ではタップ / 長押し / 1 指ドラッグはすべて Z2Term 自身の操作 (フォーカス / IME / テキスト選択 / scrollback スワイプ) に使われ、 0.8.136 までの挙動を完全保持する。 二本指スワイプ→wheel (button 64/65) は opt-in に関係なく従来通り送出する (1 指 swipe を wheel として扱う既存の alt screen 経路も温存)。 opt-in ON 中は 1 指 swipe が drag に振り替わるため `e2.pointerCount == 1` でガードして 2 指以上の swipe は既存 wheel 経路に流す。 設定 UI: 「設定 → 実験的 / 開発者向け」セクションに「SGR mouse 送出 (タッチ→マウスイベント変換)」トグル + ON 時の警告文 (`settings_sgr_mouse_input_*` strings, ja/en) を Kitty 外部ファイルトグルの直下に追加。 反映は即時 (combine 監視・再起動不要)。 テスト: `MouseEncodeTest` を 10 → 14 ケースへ拡張 (右クリック press/release のバイト列固定 / 1 指ドラッグ motion の button 32 + 'M' 終端固定 / NORMAL は motion を抑止して null / BUTTON_EVENT は motion 許可)。 既存の wheel / left click / 各 encoding / DECRST 連動 10 ケースは退行なし。 残スコープ: bracketed paste (`?2004`) と focus in/out (`?1004`) は別マター (今回は未対応)。 仕様: <https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#Mouse_Tracking>、 xterm `ctlseqs.txt` の "Any-event tracking" / "SGR (1006) mouse"。
@@ -1073,9 +1093,8 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 - **z2root の `/proc/<pid>/stat` field 2 も argv0 basename へ (0.8.113)**: 0.8.112 で `comm` と `status:Name` は直したが、busybox/procps 系の `ps` は速度のため `/proc/<pid>/stat` を 1 ファイル一気読みする経路を使い、その field 2 `(<comm>)` がカーネル設定のまま `(libz2root.so)` で漏れていた(結果 `ps -ef` 表示が `{libz2root.so} <実 argv>` の形でラベルが残る)。`PROC_FD_STAT` を追加し、`/proc/<pid>/stat` と `/proc/<pid>/task/<tid>/stat`(全体統計 `/proc/stat` は除外)を `fake_stat_comm` で length 保存書換。`comm` 内に `(`/`)` を含み得るため右端 `") "` を境界に使う。
 - **z2root の `/proc/<pid>/cmdline`・`comm`・`status:Name` をローダ漏れから復元 (0.8.112)**: z2root は Android の W^X 制約上 `execve(libz2root.so)` でローダラッパー(`z2root --loader-noreloc <ld.so> <ld.so> --argv0 <argv0> <prog> ...`)を通すため、カーネルが `/proc/<pid>/cmdline` にラッパー argv を、`comm`/`status:Name` に `libz2root.so` を記録してしまう。結果 `ps -ef` / `pgrep <name>` / `pidof` / `top` がゲスト全プロセスで壊れる(proot は ld.so 経由経路で argv が原型保持されるため起きない)。**修正**: execve 傍受時に元の argv(と guest_prog basename)を per-tracee に控え、`/proc/<pid>/cmdline` / `/comm` 用に PROC_FD 種別を 2 つ追加して openat-time temp 差し替え(readfree 既定)に乗せた。`/proc/<pid>/status` の `Name:` 行は length 保存で argv0 basename へ in-place 書換(`fake_status_buf` の隣に `fake_status_name` を追加)。fork/clone は親の控えを子へ継承、execve 成功時に上書き。非 readfree(`Z2ROOT_NO_READFREE=1`)経路の `fake_proc_on_read` も同分岐に対応(cmdline/comm は長さが変わるため `regs[0]` も併せて調整)。
 - **z2root の `/proc/self/exe` をゲスト視点へ書換 (0.8.111)**: `/proc/<tid>/exe` のカーネル symlink は execve 経路上 `libz2root.so`（または自前ローダ）を指すため、ゲストが `readlink("/proc/self/exe")` でホスト実パスを掴み、`open("/proc/self/exe")` も `ENOENT` で失敗していた。**症状**: Go ランタイムが起動段階で libbacktrace 用に `/proc/self/exe` を開けず `libbacktrace could not find executable to open` で即 panic（`go version` / `go build` 双方が走らない）。同じ経路で adb の `execl(自パス)` 系統や `--daemonize` 自己 re-exec も壊れる。proot は同等の hijack を持っていたため起きず、z2root のみの劣化。**修正**: execve(at)/ブートストラップ exec のタイミングでゲスト視点の絶対プログラムパスを per-tracee に控え、`host_path_for` の `/proc/<own pid>/exe` 検出時にそのパスへ差し替え、`readlinkat` exit で同じく返す。fork/clone は親の控えを子へ継承。`/proc/self/cwd` の逆変換（旧 0.8.60 で claude code の起動不能を直したもの）と同思想の追加対応。
-- **折り返し URL の検出**: wrapped フラグは「継続行」でなく「折り返し元の行」に持たせる（逆だと長 URL がタップできない）。
 
----
+</details>
 
 ## 11. l2s 制約と native passthrough
 
