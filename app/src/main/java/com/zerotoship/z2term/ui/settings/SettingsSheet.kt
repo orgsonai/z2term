@@ -1503,13 +1503,19 @@ private fun SettingsTopBar(onBack: () -> Unit) {
 private fun SettingsGroupSection(group: SettingsGroup, content: @Composable () -> Unit) {
     val openState by SettingsGroupStore.openState.collectAsState()
     val open = openState[group.id] ?: group.defaultOpen
+    // 見出しがタップできる場所だと分かるように、カードと同じ枠 + 背景を付ける。
+    // 開いている間はアクセント寄りの枠にして、開閉状態も枠だけで読めるようにする。
+    val headerBg = if (open) ZtsGreen.copy(alpha = 0.10f) else ZtsBgCard
+    val headerBorder = if (open) ZtsGreen.copy(alpha = 0.55f) else ZtsBorder
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(6.dp))
+                .background(headerBg)
+                .border(1.dp, headerBorder, RoundedCornerShape(6.dp))
                 .clickable { SettingsGroupStore.setOpen(group, !open) }
-                .padding(vertical = 6.dp),
+                .padding(horizontal = 10.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
