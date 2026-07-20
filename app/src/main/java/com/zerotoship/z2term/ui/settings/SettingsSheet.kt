@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.distro.DistroBundle
 import com.zerotoship.z2term.distro.DistroSpec
@@ -166,6 +167,9 @@ fun SettingsSheet(
     var pendingCacheClear by remember { mutableStateOf(false) }
     // 設定の初期化 (デフォルトに戻す) 確認ダイアログの表示フラグ。
     var pendingReset by remember { mutableStateOf(false) }
+    // 端末リセットの確認。タブが動作中かどうか・タブが何枚あるかに関係なく**常に**確認を挟む
+    // (「リセットボタンとしての確認」なので、状態によって出たり出なかったりさせない)。
+    var pendingTerminalReset by remember { mutableStateOf(false) }
     // 掃除できる rootfs 内キャッシュ + アプリ一時をバックグラウンドで走査 (サイズ降順)。
     // null = 走査前 (…表示)。削除後は cacheRefresh をインクリメントして再走査する。
     val cacheItems by produceState<List<RootfsCacheCleaner.Item>?>(null, cacheRefresh) {
@@ -751,7 +755,8 @@ fun SettingsSheet(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // 端末リセット (画面クリア + 再起動)。画面クリア単体は CTRL+L で行える。
+            // 端末リセット (アプリ初回起動時の状態に戻す = 端末タブ 1 つだけにして初期化)。
+            // 画面クリア単体は CTRL+L で行える。
             // ディストロ/GUI のクリーンインストールは各「切替」セクションのチェックへ移動。
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -760,7 +765,7 @@ fun SettingsSheet(
                 ActionButton(
                     label = stringResource(R.string.settings_reset_terminal),
                     danger = true,
-                    onClick = { session.restart() }
+                    onClick = { pendingTerminalReset = true }
                 )
                 // キャッシュ削除 (rootfs 内のパッケージ/ビルドキャッシュ + アプリ一時)。
                 // ワンタップでは消さず、何をどれだけ消すか列挙した確認ダイアログを挟む。
@@ -1222,6 +1227,26 @@ fun SettingsSheet(
                 }
             },
             onCancel = { pendingCacheClear = false }
+        )
+    }
+
+    // 端末リセットの確認。何が消えて何が残るか (タブは 1 つになる / 設定・rootfs は無事) を
+    // 明示してから実行する。実行後はトーストで効いたことを伝える (無言だと分からないため)。
+    if (pendingTerminalReset) {
+        DownloadConfirmDialog(
+            title = stringResource(R.string.confirm_reset_terminal_title),
+            message = stringResource(R.string.confirm_reset_terminal_msg),
+            confirmLabel = stringResource(R.string.action_reset_terminal),
+            onConfirm = {
+                pendingTerminalReset = false
+                SessionManager.resetToInitial(context)
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.settings_reset_terminal_done),
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
+            onCancel = { pendingTerminalReset = false }
         )
     }
 

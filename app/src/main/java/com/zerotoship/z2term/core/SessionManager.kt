@@ -225,6 +225,33 @@ object SessionManager {
     }
 
     /**
+     * 「アプリを最初に開いた状態」へ戻す (設定の端末リセット)。
+     *
+     * 端末タブを 1 つだけ残して**他のタブ (端末・GUI とも) を全部閉じ**、残した 1 つを
+     * [TerminalSession.restart] で初期状態 (シェル再起動・画面/scrollback クリア・端末属性リセット)
+     * に戻す。残すのはアクティブな端末タブ、無ければ最初の端末タブ、端末タブが 1 つも無ければ新規に開く。
+     *
+     * 消えるのは「いま動いている端末の見た目と構成」だけで、常駐サーバー設定・rootfs・
+     * インストール済みパッケージ・各種設定値・スニペットには触れない。
+     */
+    fun resetToInitial(context: Context): TerminalSession {
+        val keep: TerminalSession
+        val toClose: List<AppSession>
+        synchronized(lock) {
+            val activeTerminal = active() as? TerminalSession
+            keep = activeTerminal
+                ?: mutableSessions.filterIsInstance<TerminalSession>().firstOrNull()
+                ?: openNew(context)
+            toClose = mutableSessions.filter { it.id != keep.id }
+        }
+        // close() は内部で lock を取るのでロック外から呼ぶ (display 返却・永続化も close 側に任せる)。
+        toClose.forEach { close(it.id) }
+        setActive(keep.id)
+        keep.restart()
+        return keep
+    }
+
+    /**
      * タブの並びを入れ替える (ドラッグ並べ替え)。`fromIndex` / `toIndex` は `sessions` の index。
      * 端末タブの順序は DataStore に保存されるので、入れ替え後は再保存を促す。
      */

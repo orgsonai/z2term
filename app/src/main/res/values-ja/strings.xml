@@ -66,6 +66,10 @@
     <string name="settings_init_command">起動時 init コマンド</string>
     <string name="settings_init_command_placeholder">例: zsh -l</string>
     <string name="settings_reset_terminal">端末リセット</string>
+    <string name="settings_reset_terminal_done">端末をリセットしました</string>
+    <string name="confirm_reset_terminal_title">端末をリセットしますか？</string>
+    <string name="confirm_reset_terminal_msg">アプリを最初に開いた状態に戻します。開いているタブは端末 1 つだけになり（他の端末タブと GUI タブは閉じます）、残った端末も実行中のプログラム終了・画面と履歴のクリアで初期状態に戻ります。\n\n常駐サーバー定義・設定・スニペット・OS 本体（インストール済みパッケージやファイル）は消えません。</string>
+    <string name="action_reset_terminal">リセットする</string>
     <string name="settings_clear_cache">キャッシュ削除</string>
     <string name="settings_clear_cache_sized">キャッシュ削除（%1$s）</string>
     <string name="settings_clear_cache_done">キャッシュを削除しました（%1$s 解放）</string>

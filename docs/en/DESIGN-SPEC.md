@@ -778,7 +778,8 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   - `KeyboardStyle.kt`: COMPACT (44dp) / SPACIOUS (60dp, 4-direction flick). `naturalHeight`. `.copy()` makes a scaled style for landscape.
   - `KeyGestures.kt`: shared gesture for tap + long-press repeat (reports press state to the Composable via the `onPressedChange` callback).
   - `components/SpecialKeyBar.kt`: the special key row for OS IME mode.
-- `settings/SettingsSheet.kt` + `SshAccessHelper.kt`: settings modal + SSH/storage helper.
+- `settings/SettingsSheet.kt` + `SshAccessHelper.kt`: settings page (full screen) + SSH/storage helper.
+  - **Reset terminal** calls `SessionManager.resetToInitial()`: it **closes every other tab (terminal and GUI) and keeps a single terminal tab**, then reinitialises that one via `TerminalSession.restart()` (= the state right after the first launch). A confirmation dialog is **always** shown regardless of tab count or activity, and a toast reports the result. Settings, resident servers and the rootfs are untouched.
 - `ssh/SshProfilesSheet.kt` + `HostKeyVerificationDialog.kt`: SSH profile UI + key verification.
 - `snippets/SnippetsSheet.kt`: tools sheet (toolbar 📜). Tabs switch between **Snippets** (tap a line to insert, reorder/edit), **SSH / SFTP** (`ssh/SshProfilesBody`) and **Servers** (`settings/ServersBody`, the same resident-server manager used by the settings sheet). The SSH tab only appears on terminal tabs, the Servers tab only when a terminal session is available.
 

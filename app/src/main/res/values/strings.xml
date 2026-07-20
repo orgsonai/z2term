@@ -66,6 +66,10 @@
     <string name="settings_init_command">Startup init command</string>
     <string name="settings_init_command_placeholder">e.g. zsh -l</string>
     <string name="settings_reset_terminal">Reset terminal</string>
+    <string name="settings_reset_terminal_done">Terminal reset</string>
+    <string name="confirm_reset_terminal_title">Reset terminal?</string>
+    <string name="confirm_reset_terminal_msg">This returns the app to the state it had when first opened. Only a single terminal tab is left open (other terminal tabs and GUI tabs are closed), and that terminal goes back to its initial state: running programs are terminated and the screen and scrollback are cleared.\n\nSaved servers, settings, snippets and the OS itself (installed packages and your files) are not affected.</string>
+    <string name="action_reset_terminal">Reset</string>
     <string name="settings_clear_cache">Clear cache</string>
     <string name="settings_clear_cache_sized">Clear cache (%1$s)</string>
     <string name="settings_clear_cache_done">Cache cleared (%1$s freed)</string>
