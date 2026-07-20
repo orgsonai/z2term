@@ -68,53 +68,281 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 
 ## 3. Overall architecture
 
-```
-┌───────────────────────────── UI layer (Compose) ─────────────────────────┐
-│ MainActivity → TerminalScreen                                              │
-│  ├ TopBar (📋/📜/💡/🔒keep-alive/🔍/⌨/⚙ reorderable) ├ TabBar ├ Renderer    │
-│  ├ TerminalInputView(AndroidView: gestures/IME/selection) ├ ScrollIndic.  │
-│  ├ TerminalKeyboard(custom) / JapaneseFlickKeyboard / SpecialKeyBar       │
-│  └ SettingsSheet / SshProfilesSheet / SnippetsSheet / HostKeyDialog        │
-└───────────────────────────────────────────────────────────────────────────┘
-                 │ writeBytes(input)            ▲ emulator buffer(render)
-                 ▼                               │
-┌──────────────────────────── Domain layer ─────────────────────────────────┐
-│ SessionManager ─holds→ TerminalSession[*]                                  │
-│   TerminalSession: state machine / readLoop / resize / selection / cwd / label │
-│     ├ emulator: TerminalEmulator (VT interpretation, dedicated 1 thread)   │
-│     └ channel: ProcessChannel = LocalPtyChannel | SshChannel              │
-└───────────────────────────────────────────────────────────────────────────┘
-                 │                                       │
-                 ▼ (local)                               ▼ (remote)
-┌──────── Execution base ──────┐                  ┌──────── SSH ────────┐
-│ ProotLauncher                │                  │ SshChannel (JSch)    │
-│  → PtyProcess (forkpty)      │                  │  shell + -L forward  │
-│    → proot → distro shell    │                  └──────────────────────┘
-└──────────────────────────────┘
-        │ deploy/update
-        ▼
-┌──────── distro / persistence ─┐  ┌─ Service ─┐  ┌─ SAF ─┐  ┌─ Settings ─┐
-│ DistroBundle/Spec/Installer/  │  │ Terminal  │  │ Docs  │  │ AppSet     │
-│ Downloader (assets / DL)      │  │ Service   │  │Provider│ │ tings      │
-└───────────────────────────────┘  └───────────┘  └────────┘ └────────────┘
+### 3.1 Layer structure
+
+```text
++--- UI layer (Compose) -------------------------------------------------+
+| MainActivity -> TerminalScreen                                         |
+|   TopBar (reorderable) / TabBar / Renderer (Canvas)                    |
+|   TerminalInputView (AndroidView: gestures / IME / selection)          |
+|   ScrollIndicators                                                     |
+|   TerminalKeyboard (custom) / JapaneseFlickKeyboard / SpecialKeyBar    |
+|   SettingsSheet / SshProfilesSheet / SnippetsSheet / HostKeyDialog     |
++------------------------------------------------------------------------+
+       | writeBytes (input)             ^ emulator buffer (render)
+       v                                |
++--- Domain layer -------------------------------------------------------+
+| SessionManager --(holds)--> TerminalSession[*]                         |
+|   TerminalSession: state machine / readLoop / resize / selection /     |
+|                    cwd / label                                         |
+|     emulator: TerminalEmulator (VT interpretation, dedicated thread)   |
+|     channel : ProcessChannel = LocalPtyChannel | SshChannel            |
++------------------------------------------------------------------------+
+       |                                        |
+       v (local)                                v (remote)
++--- Execution base (local) ---------------+    +--- Remote (SSH) -------+
+| ProotLauncher                            |    | SshChannel (JSch)      |
+|   -> PtyProcess (forkpty)                |    |   shell + -L forward   |
+|   -> engine (z2root / proot / chroot)    |    +------------------------+
+|   -> distro shell                        |
++------------------------------------------+
+       | deploy / update
+       v
++--- distro / persistence / peripherals ---------------------------------+
+| DistroBundle / Spec / Installer / Downloader (assets or DL)            |
+| TerminalService (keep-alive) / DocsProvider (SAF)                      |
+| AppSettings (DataStore)                                                |
++------------------------------------------------------------------------+
 ```
 
-**Lifecycle design points**:
-- `TerminalSession` lives **independently of the UI** (held by `SessionManager`). PTY/emulator state survives Activity destruction.
-- `TerminalService` (foreground service) handles keep-alive, maintaining the PTY in the background. `AudioBridge` (GUI audio) is handled in the same service family. While keep-alive is on it holds a CPU `PARTIAL_WAKE_LOCK` plus a **`WifiLock` (`WIFI_MODE_FULL_HIGH_PERF`)** so the Wi-Fi radio does not drop into power-save (PSM) when the screen is off / device is idle. Without it, inbound LAN connections to an on-device sshd (etc.) are not delivered, producing the "started it but can't connect / reconnecting Wi-Fi fixes it" symptom. Both locks are released on detach (keep-alive off), stop and destroy (0.8.143).
-- **Time triggers** (`AlarmScheduler` / `AlarmReceiver` / `z2-alarm`, 0.8.167): appends an `alarm` event (with `{name}`) to events.jsonl at a given time. "Every morning at 7" used to depend on the distro's cron, which (1) has to be installed per distro and (2) **does not run at all during Doze**, so in practice it only worked with the screen on. Going through AlarmManager lets the OS wake the app, so it fires with the screen off. **Permission trade-off**: `setExactAndAllowWhileIdle` needs `SCHEDULE_EXACT_ALARM` (a user grant) on API31+, so we use the permission-free `setAndAllowWhileIdle` (Doze-piercing, inexact) and document that **firing may be several minutes late** — acceptable for macros. Schedules live in `filesDir/alarms.json`; AlarmManager registrations are lost on reboot and re-registered by `BootReceiver`. `daily` re-arms for the next day when it fires, `once` is deleted. A `daily` whose time passed during the reboot is moved to its next occurrence and a stale `once` is dropped (no catch-up firing). Writing to events.jsonl **does not depend on the "system event detection" setting** — an alarm is something the user set explicitly, independent of which passive events they collect. Deciding whether `HH:MM` means today or tomorrow needs Calendar, so it happens in Kotlin rather than sh; only relative forms like `in 5m` are converted to an epoch by the shell wrapper.
-- **Current-state query** (`z2-state`, 0.8.167): events.jsonl only reports changes, so `z2-battery` was the only way for a macro to ask about the present. This returns screen (`isInteractive`), lock (`isKeyguardLocked`), Doze (`isDeviceIdleMode`), charging + plug type + level (sticky `ACTION_BATTERY_CHANGED`), Wi‑Fi connectivity, SSID, ringer mode, airplane mode, wired headset and media volume in one call, all **without extra permissions**. The output is a **flat JSON** object (not nested, so sed/grep can pick fields without jq), and passing a key returns just the raw value (so `[ "$(z2-state charging)" = "true" ]` works). Wi‑Fi connectivity comes from **`ConnectivityManager`+`NetworkCapabilities`**, not `WifiManager.connectionInfo`: the latter returns an invalid value (networkId=-1) on API31+ unless the caller is in the foreground, which made background queries — exactly what macros do — always look disconnected (confirmed on device). Only the SSID still needs `WifiInfo` and a location permission, so it is empty when unavailable.
-- **Bundled macro samples** (`Z2MacroScript` / `z2-macro`, 0.8.167): the barrier to macros was never the syntax but **writing the first one from scratch**, so four working samples (event basics / battery alert / time trigger / one-time-code copy from notifications) are placed in the rootfs at `/usr/local/share/z2term/macros/` and copied into `~/.z2term/macros/` by `z2-macro install <name|all>`. Install **never overwrites an existing file** (only `-f` does), so user edits survive the per-launch re-provisioning. `list` shows each script's second-line comment as its description; `show` / `run` / `dir` are also provided. Comments inside the samples follow the app language (ja/en).
-- **Detection log rotation removed = no cap** (`LogWriter`, 0.8.171): events.jsonl / notifications.jsonl now **append all history into a single file** (no size-based split/rotation). 0.8.168 rotated to `<name>.1` at 1 MiB keeping one generation, but for macros that "go back and aggregate over the log" a file switching midway makes analysis awkward, so the cap was removed — per the user's request the full history stays in one file (clean up yourself from the terminal, e.g. `: > ~/.z2term/events.jsonl`). Caveat: the "newest at the top" mode reads and rewrites the whole file per entry, so its cost grows linearly as the file grows (prefer the default append-at-end for heavy use). **Growth warning (0.8.172)**: to compensate for the removed cap, the settings screen shows a warning right under the toggle — but only when **"Newest at the top" is ON and that log exceeds 10 MiB** — giving the current size (`12.3 MB` form) and what to do (turn it off / `: > <path>` from the terminal) (`LogSizeWarning`, `LOG_SIZE_WARN_BYTES`). It is attached to **both** the notification log and the system-event log; each section looks only at its own file size and its own toggle (the path inside the message is that section's too). The first cut (0.8.172) used the same 10–11sp secondary styling as the surrounding help text and "did not read as a warning", so it now sits in a **box with a 1px warning-coloured border and a faint warning-coloured background**, with the heading at 14sp bold and the body at 12sp in the primary text colour (0.8.173). Append-at-end is unaffected by size, so nothing is shown there. The size is stat'ed once via `remember` when the settings sheet opens (never per recomposition). 10 MiB was chosen because prepending expands the whole file into a UTF-16 String via `readText` and then builds another one by concatenation — a transient **4–6× the file size in heap** — so depending on the device heap limit (128–512 MB) an `OutOfMemoryError` becomes reachable in the tens of MB; the threshold sits well before that.
-- **Wi‑Fi connectivity fix** (`SystemEventService.handleWifi`, 0.8.168): the check moved from `WifiManager.connectionInfo` to `ConnectivityManager`+`NetworkCapabilities`. The former returns an invalid value (networkId = -1) on Android 12+ **unless the caller is in the foreground**, so with the screen off — exactly when you want the event — it always looked disconnected and `wifi_connected` was missed (reproduced on device while building `z2-state`, which was fixed for the same reason in 0.8.167). The SSID still comes from `WifiInfo` and stays empty when unavailable.
-- **Notification button replies** (`NotifyActionReceiver` / `z2-notify -b`, 0.8.169): `z2-*` could only push notifications out — there was no way to get an answer back. `-b <label>` adds buttons (up to 3, matching Android's display limit) and pressing one appends `notify_action` to events.jsonl (`{name}` = the notification's identifier, `{action}` = the label pressed), which is what makes **interactive macros** possible: ask, wait for the user, continue. Each PendingIntent uses `notificationId * buttons + index` as its requestCode so they stay distinct (sharing a requestCode makes Android reuse the extras, so every button would report the first one's label). The notification closes itself once answered. Writing to events.jsonl is shared with the time trigger through `EventEmitter` (`render` gained an `{action}` field).
-- **Bluetooth audio triggers** (`SystemEventService.syncBtAudio`, 0.8.170): wired headsets arrive via `ACTION_HEADSET_PLUG`, but **wireless earbuds have no equivalent broadcast**, so the classic "start playing when I plug in" macro could not be written for them. `AudioManager.registerAudioDeviceCallback` watches output devices and fires `bt_audio_connected` / `bt_audio_disconnected` only when A2DP/SCO presence actually changes. **No extra permission** is needed (`BLUETOOTH_CONNECT` is only required for device names, which we deliberately do not expose). The callback fires once for already-connected devices at registration time, so the first invocation only seeds the state (starting the service must not look like a connection). `z2-state` also gained `bt_audio` and battery temperature `temp` (°C).
-- **Unlock-failure detection (anti-theft macro hook)** (`PasswordWatchAdmin`, 0.8.171): a detection hook for anti-theft macros like "after N wrong passwords, notify / record location / sound an alarm". Android does not hand unlock-failure callbacks to ordinary apps, so the app registers as a **Device Admin declaring only the `watch-login` policy** and forwards `DeviceAdminReceiver.onPasswordFailed` / `onPasswordSucceeded` to events.jsonl as `unlock_failed` (`{level}` = `DevicePolicyManager.currentFailedPasswordAttempts` = consecutive failures) / `unlock_succeeded`. **No destructive policy (force-lock / wipe-data / reset-password) is declared or exercised** (`device_admin.xml` is `watch-login` only), so activating it cannot let the app lock or wipe the device. The `unlockWatchEnabled` setting (default OFF) is the master switch for detection; when OFF nothing is written even if the admin is active. Activation happens **from the in-app settings screen via `ACTION_ADD_DEVICE_ADMIN`** (its `EXTRA_DEVICE_ADMIN` is a ComponentName parcelable that can't be built from the shell; when already active the button opens `ACTION_SECURITY_SETTINGS` to deactivate). **No action (photo, upload, alarm) is hardcoded** — the user builds the reaction as a macro over events.jsonl (z2term's "the app provides the hook, the shell provides the logic" stance). Background camera capture is blocked by Android 9+ restrictions and needs a separate implementation, so this version does detection only. `EventEmitter.emit` gained a `level` argument.
-- **Resident servers** (`ServerDaemonService` / `ServerDaemonManager` / `ServerSupervisorScript` / `BootReceiver` / `ServerEntry`, 0.8.147): a generic mechanism to register any server (sshd/http/smb, …) as a **start command** (`ServerEntry`, stored as JSON in DataStore) and keep it resident independently of the interactive session. Under proot/z2root every process is a child of a single engine process, so **one supervisor script with a run loop baked in for every server (enabled or not)** is launched headless on the engine (`ProotLauncher.launch(command=/usr/local/bin/z2term-server-supervisor)`) and kept alive. The supervisor runs each server in an **auto-restart loop** and writes state to `var/lib/z2term-servers/<id>.status` inside the rootfs (the app reads it for the list). **Per-server on/off (0.8.163)**: each run loop watches a `var/lib/z2term-servers/<id>.want` flag (`1` = run); when the app rewrites it via `ServerDaemonManager.setWant`, only that one server starts/stops (~1s) without restarting the supervisor (so the other servers keep running). The flag's initial value reflects each `ServerEntry.enabled`. A server-row toggle in the UI applies live via `setWant` while resident, or just persists `enabled` while stopped (applied on next start). An entry added after the supervisor started has no run loop, so it is not applied per-server and needs a full restart. Foreground persistence (so the process is not killed) and LAN reachability (WakeLock+WifiLock) are handled by the dedicated `ServerDaemonService`. **`BootReceiver` (RECEIVE_BOOT_COMPLETED) auto-starts the daemon right after boot without opening the app** (only when "auto-start on boot" is on and at least one server is enabled). Stopping — via the "Stop servers" notification action or the settings — **kills the supervisor engine = stops all servers at once** (children are reaped together). The server binaries are the user's to install into the distro; the app only runs the command, restarts it, and manages residency (no server is hard-coded). Ports below 1024 cannot be bound by a non-root engine. When the "Low-power mode" setting (`serversLowPower`) is on, no WakeLock/WifiLock is held and Doze is allowed (battery over reachability; incoming connections may be delayed/dropped while the screen is off; applies on next start, 0.8.148). The resident notification uses an `IMPORTANCE_MIN` channel (`z2term_servers_v2`) so it **shows no status-bar icon and collapses to the bottom of the shade** (a foreground service must have a notification, so it cannot be hidden entirely; this favors unobtrusiveness for the server-only case; 0.8.160). Because the supervisor writes `.status` with a lag, the running count is refreshed on a **few-second cycle** (`server-notif-refresh`) rather than once at startup — fixing the count getting stuck at 0 and also tracking restarts/crashes (0.8.160). **Self-backgrounding servers (0.8.165)**: the supervisor treats "the command exited" as "the server died" and restarts it, so a server that daemonizes itself and exits immediately gets restarted every few seconds — and since the `sshd` wrapper kills any running dropbear on each start, **LAN-exposed SSH could not hold a connection**. The generated supervisor script now exports `Z2_SUPERVISED=1`, and the `sshd` wrapper uses it to switch to **foreground mode** (as if `-D` had been passed), so it stays alive as a child of the supervisor and auto-restart works as intended.
-- **Notification detection (generic hook)** (`NotificationLogService`, 0.8.149): granting the OS "notification access" makes Android auto-bind and keep the `NotificationListenerService` resident (runs without opening the app, and after reboot = a notification-detection daemon). When `notificationCaptureEnabled` is on, each incoming notification is appended **raw** to `~/.z2term/notifications.jsonl` (= `filesDir/shared_home/.z2term/notifications.jsonl`) as one JSON per line (ts/time/pkg/app/title/text/category/key). **No app selection, filtering, retention policy or serving is hard-coded** — z2term only provides the generic "detect notifications and expose them to the terminal" hook; logging, filtering and serving are the user's to build terminal-side (`tail` / own script / a resident server) — the inverse of `z2-notify`. Default off, fully local, no external transmission. The service subscribes to `AppSettings.flow` and caches the flag to avoid a DataStore hit per notification; writes are serialized on a single-thread executor. Output follows the "format template" setting (`notificationLogFormat`) via `render()`: placeholders like `{time}{app}{title}{text}`, one-line `{text1}{title1}`, and `\n``\t` escapes; blank = JSONL (default). Fill from a preset (readable/one-line/TSV/JSONL) then edit freely (0.8.151). When the "Newest at the top" setting (`notificationLogPrepend`) is on, each new line is **prepended** to the head of the file (newest first) instead of appended; since a file has no OS primitive to insert at the head, `LogWriter` reads the existing content and rewrites it (no line cap = all lines kept, 0.8.163). **Deduplication (0.8.165)**: Android re-posts the same notification many times even when nothing changed (progress updates, ongoing notifications, group summaries), which used to produce many identical lines. The last content (title+text) per `key` is remembered in a 256-entry LRU and **identical re-posts are not written**; for apps that recreate the `key`, "same app + same content within 10s" counts as the same notification too. `onNotificationRemoved` forgets the `key`, so a re-post after the notification was dismissed is logged as a new entry. **Saving on/off (0.8.165)**: turning off `notificationLogEnabled` (default on) keeps detection (the resident listener) running but writes nothing to `notifications.jsonl` — for users who only want detection, or who care about storage/privacy.
-- **System event detection (generic hook)** (`SystemEventService`, 0.8.152): sibling of notification detection, adding "Android → shell" triggers. Screen on/off, unlock (USER_PRESENT), battery level changes, charge start/stop, and Wi-Fi connect/disconnect are **not delivered to manifest-declared receivers** under Android 8+'s implicit-broadcast restrictions, so an opt-in foreground service `SystemEventService` (`foregroundServiceType=specialUse`) stays resident and picks them up via **dynamic receivers** registered with `registerReceiver`. When `systemEventCaptureEnabled` is on, each event is appended to `~/.z2term/events.jsonl` (= `filesDir/shared_home/.z2term/events.jsonl`) as one JSON per line (ts/time/event, plus level/ssid when applicable). `{event}` is one of `screen_on`/`screen_off`/`unlocked`/`power_connected`/`power_disconnected`/`battery_low`/`battery_okay`/`wifi_connected`/`wifi_disconnected`/`headset_plugged`/`headset_unplugged`/`airplane_on`/`airplane_off`/`ringer_normal`/`ringer_vibrate`/`ringer_silent` (these 7 added in 0.8.154) /`battery_level` (when the level crosses a 10% boundary; added in 0.8.156). All permission-free. **No filtering, retention or serving is hard-coded** — it just detects and streams; the user builds logging and conditionals terminal-side (`tail` / script / cron / a resident server). Output follows the `systemEventLogFormat` template (`{time}{ts}{event}{level}{ssid}`, `\n``\t`, blank = JSONL) via `render()`. When "Newest at the top" (`systemEventLogPrepend`) is on, new lines are **prepended** to the file head (newest first) via `LogWriter` (0.8.163). Wi-Fi SSID is blank without location permission (v1 requests no extra permission, best-effort). Wi-Fi fires once per connect/disconnect state change (same-state repeats suppressed). `BootReceiver` auto-starts it right after boot without opening the app (when enabled). The service subscribes to `AppSettings.flow` to cache the flag; writes are serialized on a single-thread executor. Default off, fully local, no external transmission; shows an ongoing notification while active.
-- emulator state updates are concentrated on a **dedicated single thread** (`z2term-emu-*`); Compose reads via `StateFlow`.
-- The **GUI desktop** launches as a separate Activity (`GuiActivity`) and connects to the in-distro Xvnc with the built-in RFB client ([§4.12](#412-gui-desktop-gui)). The execution engine defaults to z2root (0.8.123), with PRoot and chroot (rooted devices) selectable via a hidden setting ([§4.3](#43-proot-execution-prootprootlauncherkt-prootsshdscriptkt)).
+### 3.2 Lifecycle and residency design
+
+#### Sessions live independently of the UI
+
+`TerminalSession` lives **independently of the UI** (held by `SessionManager`). PTY/emulator state survives Activity destruction.
+
+emulator state updates are concentrated on a **dedicated single thread** (`z2term-emu-*`); Compose reads via `StateFlow`.
+
+#### Foreground residency and two locks (`TerminalService`, 0.8.143)
+
+`TerminalService` (foreground service) handles keep-alive, maintaining the PTY in the background. `AudioBridge` (GUI audio) is handled in the same service family.
+
+While keep-alive is on it holds two locks.
+
+| Lock | Purpose |
+|---|---|
+| `PARTIAL_WAKE_LOCK` | Keeps the CPU running |
+| `WifiLock` (`WIFI_MODE_FULL_HIGH_PERF`) | Keeps the Wi-Fi radio out of power-save (PSM) while the screen is off / the device is idle |
+
+**Why the `WifiLock` is needed**: without it, inbound LAN connections to an on-device sshd (etc.) are not delivered, producing the "started it but can't connect / reconnecting Wi-Fi fixes it" symptom.
+
+Both locks are released on detach (keep-alive off), stop and destroy.
+
+#### Resident servers (`ServerDaemonService` et al., 0.8.147)
+
+Components: `ServerDaemonService` / `ServerDaemonManager` / `ServerSupervisorScript` / `BootReceiver` / `ServerEntry`
+
+A generic mechanism to register any server (sshd/http/smb, …) as a **start command** (`ServerEntry`, stored as JSON in DataStore) and keep it resident independently of the interactive session. The server binaries are the user's to install into the distro; the app only runs the command, restarts it, and manages residency (no server is hard-coded).
+
+**Why a supervisor script**
+- Under proot/z2root every process is a child of a single engine process
+- So **one supervisor script with a run loop baked in for every server (enabled or not)** is launched headless on the engine (`ProotLauncher.launch(command=/usr/local/bin/z2term-server-supervisor)`) and kept alive
+- The supervisor runs each server in an **auto-restart loop** and writes state to `var/lib/z2term-servers/<id>.status` inside the rootfs (the app reads it for the list)
+
+**Per-server on/off (0.8.163)**
+- Each run loop watches a `var/lib/z2term-servers/<id>.want` flag (`1` = run)
+- When the app rewrites it via `ServerDaemonManager.setWant`, only that one server starts/stops (~1s) without restarting the supervisor (so the other servers keep running)
+- The flag's initial value reflects each `ServerEntry.enabled`
+- A server-row toggle in the UI applies live via `setWant` while resident, or just persists `enabled` while stopped (applied on next start)
+- ⚠️ An entry added after the supervisor started has no run loop, so it is not applied per-server and needs a full restart
+
+**Residency and stopping**
+- Foreground persistence (so the process is not killed) and LAN reachability (WakeLock + WifiLock) are handled by the dedicated `ServerDaemonService`
+- **`BootReceiver` (`RECEIVE_BOOT_COMPLETED`) auto-starts the daemon right after boot without opening the app** (only when "auto-start on boot" is on and at least one server is enabled)
+- Stopping — via the "Stop servers" notification action or the settings — **kills the supervisor engine = stops all servers at once** (children are reaped together)
+- Ports below 1024 cannot be bound by a non-root engine
+
+**Low-power mode (`serversLowPower`, 0.8.148)**: when on, no WakeLock/WifiLock is held and Doze is allowed (battery over reachability; incoming connections may be delayed/dropped while the screen is off; applies on next start).
+
+**Notification presentation (0.8.160)**
+- The resident notification uses an `IMPORTANCE_MIN` channel (`z2term_servers_v2`) so it **shows no status-bar icon and collapses to the bottom of the shade** (a foreground service must have a notification, so it cannot be hidden entirely; this favours unobtrusiveness for the server-only case)
+- Because the supervisor writes `.status` with a lag, the running count is refreshed on a **few-second cycle** (`server-notif-refresh`) rather than once at startup — fixing the count getting stuck at 0 and also tracking restarts/crashes
+
+**Self-backgrounding servers (0.8.165)**
+- The supervisor treats "the command exited" as "the server died" and restarts it, so a server that daemonizes itself and exits immediately gets restarted every few seconds
+- Since the `sshd` wrapper kills any running dropbear on each start, **LAN-exposed SSH could not hold a connection**
+- Fix: the generated supervisor script now exports `Z2_SUPERVISED=1`, and the `sshd` wrapper uses it to switch to **foreground mode** (as if `-D` had been passed), so it stays alive as a child of the supervisor and auto-restart works as intended
+
+#### GUI desktop
+
+The **GUI desktop** launches as a separate Activity (`GuiActivity`) and connects to the in-distro Xvnc with the built-in RFB client ([§4.12](#412-gui-desktop-gui)). The execution engine defaults to z2root (0.8.123), with PRoot and chroot (rooted devices) selectable via a hidden setting ([§4.3](#43-proot-execution-prootprootlauncherkt-prootsshdscriptkt)).
+
+### 3.3 Android integration (detection hooks and the macro foundation)
+
+A family of features that make Android-side events usable from the shell. All of them share one design stance:
+
+> **The app provides the hook, the shell provides the logic.**
+> The app only detects events and streams them to a known file. No app selection, filtering, retention policy or serving is ever hard-coded.
+> The user builds that terminal-side (`tail` / own script / cron / a resident server).
+> Default off, fully local, no external transmission.
+
+Everything lands in one of two log files.
+
+| File | Actual path | Contents |
+|---|---|---|
+| `~/.z2term/notifications.jsonl` | `filesDir/shared_home/.z2term/notifications.jsonl` | Notification detection |
+| `~/.z2term/events.jsonl` | `filesDir/shared_home/.z2term/events.jsonl` | System events, time triggers, notification button replies |
+
+#### Notification detection (`NotificationLogService`, 0.8.149)
+
+Granting the OS "notification access" makes Android auto-bind and keep the `NotificationListenerService` resident (runs without opening the app, and after reboot = a notification-detection daemon). When `notificationCaptureEnabled` is on, each incoming notification is appended **raw** as one JSON per line (ts / time / pkg / app / title / text / category / key). This is the inverse of `z2-notify`.
+
+**Output format (`notificationLogFormat`, 0.8.151)**
+- `render()` substitutes the template
+- Available: placeholders like `{time}` `{app}` `{title}` `{text}`, one-line `{text1}` `{title1}`, and `\n` `\t` escapes
+- **Blank = JSONL** (default)
+- Fill from a preset (readable / one-line / TSV / JSONL) then edit freely
+
+**Newest at the top (`notificationLogPrepend`)**: when on, each new line is **prepended** to the head of the file (newest first) instead of appended. Since a file has no OS primitive to insert at the head, `LogWriter` reads the existing content and rewrites it. No line cap = all lines kept (0.8.163).
+
+**Deduplication (0.8.165)**
+- Android re-posts the same notification many times even when nothing changed (progress updates, ongoing notifications, group summaries), which used to produce many identical lines
+- The last content (title + text) per `key` is remembered in a 256-entry LRU and **identical re-posts are not written**
+- For apps that recreate the `key`, "same app + same content within 10s" counts as the same notification too
+- `onNotificationRemoved` forgets the `key`, so a re-post after the notification was dismissed is logged as a new entry
+
+**Saving on/off (`notificationLogEnabled`, default on, 0.8.165)**: turning it off keeps detection (the resident listener) running but writes nothing to `notifications.jsonl` — for users who only want detection, or who care about storage/privacy.
+
+**Implementation notes**: the service subscribes to `AppSettings.flow` and caches the flag to avoid a DataStore hit per notification; writes are serialized on a single-thread executor.
+
+#### System event detection (`SystemEventService`, 0.8.152)
+
+Sibling of notification detection, adding "Android → shell" triggers. When `systemEventCaptureEnabled` is on, each event is appended as one JSON per line (ts / time / event, plus level / ssid when applicable). All permission-free.
+
+**Why a foreground service is required**: screen on/off, unlock (USER_PRESENT), battery level changes, charge start/stop, and Wi-Fi connect/disconnect are **not delivered to manifest-declared receivers** under Android 8+'s implicit-broadcast restrictions. So an opt-in foreground service `SystemEventService` (`foregroundServiceType=specialUse`) stays resident and picks them up via **dynamic receivers** registered with `registerReceiver`.
+
+**Values of `{event}`**
+
+| Category | Events |
+|---|---|
+| Screen / lock | `screen_on` / `screen_off` / `unlocked` |
+| Power | `power_connected` / `power_disconnected` / `battery_low` / `battery_okay` |
+| Battery level | `battery_level` (when the level crosses a 10% boundary; added in 0.8.156) |
+| Network | `wifi_connected` / `wifi_disconnected` |
+| Audio out | `headset_plugged` / `headset_unplugged` |
+| These 7 added in 0.8.154 | `airplane_on` / `airplane_off` / `ringer_normal` / `ringer_vibrate` / `ringer_silent` and others |
+
+**Output format**: follows the `systemEventLogFormat` template (`{time}` `{ts}` `{event}` `{level}` `{ssid}`, `\n` `\t`, blank = JSONL) via `render()`. When "Newest at the top" (`systemEventLogPrepend`) is on, new lines are prepended via `LogWriter` (0.8.163).
+
+**Other**
+- Wi-Fi fires once per connect/disconnect state change (same-state repeats suppressed)
+- Wi-Fi SSID is blank without location permission (v1 requests no extra permission, best-effort)
+- `BootReceiver` auto-starts it right after boot without opening the app (when enabled)
+- Shows an ongoing notification while active
+
+#### Wi-Fi connectivity fix (`SystemEventService.handleWifi`, 0.8.168)
+
+The check moved from `WifiManager.connectionInfo` to **`ConnectivityManager` + `NetworkCapabilities`**.
+
+**Why**: the former returns an invalid value (networkId = -1) on Android 12+ **unless the caller is in the foreground**. With the screen off — exactly when you want the event — it always looked disconnected and `wifi_connected` was missed (reproduced on device while building `z2-state`, which was fixed for the same reason in 0.8.167).
+
+The SSID still comes from `WifiInfo` and stays empty when unavailable.
+
+#### Bluetooth audio triggers (`SystemEventService.syncBtAudio`, 0.8.170)
+
+**Background**: wired headsets arrive via `ACTION_HEADSET_PLUG`, but **wireless earbuds have no equivalent broadcast**, so the classic "start playing when I plug in" macro could not be written for them.
+
+**Implementation**: `AudioManager.registerAudioDeviceCallback` watches output devices and fires `bt_audio_connected` / `bt_audio_disconnected` only when A2DP/SCO presence actually changes.
+
+- **No extra permission** is needed (`BLUETOOTH_CONNECT` is only required for device names, which we deliberately do not expose)
+- The callback fires once for already-connected devices at registration time, so the first invocation only seeds the state (starting the service must not look like a connection)
+- `z2-state` also gained `bt_audio` and battery temperature `temp` (°C)
+
+#### Unlock-failure detection (`PasswordWatchAdmin`, 0.8.171)
+
+A **detection hook** for anti-theft macros like "after N wrong passwords, notify / record location / sound an alarm".
+
+**Implementation**: Android does not hand unlock-failure callbacks to ordinary apps, so the app registers as a **Device Admin declaring only the `watch-login` policy** and forwards `DeviceAdminReceiver.onPasswordFailed` / `onPasswordSucceeded` to events.jsonl.
+
+| Event | Contents |
+|---|---|
+| `unlock_failed` | `{level}` = `DevicePolicyManager.currentFailedPasswordAttempts` = consecutive failures |
+| `unlock_succeeded` | — |
+
+**Safety-first design**
+- **No destructive policy (force-lock / wipe-data / reset-password) is declared or exercised** (`device_admin.xml` is `watch-login` only), so activating it cannot let the app lock or wipe the device
+- The `unlockWatchEnabled` setting (default OFF) is the master switch for detection; when OFF nothing is written even if the admin is active
+- **No action (photo, upload, alarm) is hardcoded** — the user builds the reaction as a macro over events.jsonl
+
+**Constraints**
+- Activation happens **from the in-app settings screen via `ACTION_ADD_DEVICE_ADMIN`** (its `EXTRA_DEVICE_ADMIN` is a ComponentName parcelable that can't be built from the shell; when already active the button opens `ACTION_SECURITY_SETTINGS` to deactivate)
+- Background camera capture is blocked by Android 9+ restrictions and needs a separate implementation, so this version does detection only
+- `EventEmitter.emit` gained a `level` argument
+
+#### Time triggers (`AlarmScheduler` / `AlarmReceiver` / `z2-alarm`, 0.8.167)
+
+Appends an `alarm` event (with `{name}`) to events.jsonl at a given time.
+
+**Why AlarmManager rather than cron**
+- "Every morning at 7" used to depend on the distro's cron
+- cron has to be installed per distro
+- It **does not run at all during Doze**, so in practice it only worked with the screen on
+- Going through AlarmManager lets the OS wake the app, so it fires with the screen off
+
+**Permission trade-off**
+- `setExactAndAllowWhileIdle` needs `SCHEDULE_EXACT_ALARM` (a user grant) on API31+
+- So we use the permission-free `setAndAllowWhileIdle` (Doze-piercing, inexact)
+- → We document that **firing may be several minutes late** — acceptable for macros
+
+**Persistence and recovery from reboot**
+- Schedules live in `filesDir/alarms.json`
+- AlarmManager registrations are lost on reboot and re-registered by `BootReceiver`
+- `daily` re-arms for the next day when it fires, `once` is deleted
+- A `daily` whose time passed during the reboot is moved to its next occurrence and a stale `once` is dropped (no catch-up firing)
+
+**Other**
+- Writing to events.jsonl **does not depend on the "system event detection" setting** — an alarm is something the user set explicitly, independent of which passive events they collect
+- Deciding whether `HH:MM` means today or tomorrow needs Calendar, so it happens in Kotlin rather than sh; only relative forms like `in 5m` are converted to an epoch by the shell wrapper
+
+#### Current-state query (`z2-state`, 0.8.167)
+
+**Background**: events.jsonl only reports changes, so `z2-battery` was the only way for a macro to ask about the present.
+
+**What it returns (in one call, without extra permissions)**: screen (`isInteractive`) / lock (`isKeyguardLocked`) / Doze (`isDeviceIdleMode`) / charging + plug type + level (sticky `ACTION_BATTERY_CHANGED`) / Wi-Fi connectivity / SSID / ringer mode / airplane mode / wired headset / media volume
+
+**Output shape**
+- A **flat JSON** object (not nested, so sed/grep can pick fields without jq)
+- Passing a key returns just the raw value → `[ "$(z2-state charging)" = "true" ]` works
+
+**Wi-Fi connectivity** comes from **`ConnectivityManager` + `NetworkCapabilities`**, not `WifiManager.connectionInfo`: the latter returns an invalid value (networkId=-1) on API31+ unless the caller is in the foreground, which made background queries — exactly what macros do — always look disconnected (confirmed on device). Only the SSID still needs `WifiInfo` and a location permission, so it is empty when unavailable.
+
+#### Notification button replies (`NotifyActionReceiver` / `z2-notify -b`, 0.8.169)
+
+**Background**: `z2-*` could only push notifications out — there was no way to get an answer back.
+
+**Implementation**: `-b <label>` adds buttons (up to 3, matching Android's display limit) and pressing one appends `notify_action` to events.jsonl (`{name}` = the notification's identifier, `{action}` = the label pressed). This is what makes **interactive macros** possible: ask, wait for the user, continue.
+
+- Each PendingIntent uses `notificationId * buttons + index` as its requestCode so they stay distinct (sharing a requestCode makes Android reuse the extras, so every button would report the first one's label)
+- The notification closes itself once answered
+- Writing to events.jsonl is shared with the time trigger through `EventEmitter` (`render` gained an `{action}` field)
+
+#### Bundled macro samples (`Z2MacroScript` / `z2-macro`, 0.8.167)
+
+**Background**: the barrier to macros was never the syntax but **writing the first one from scratch**.
+
+**Implementation**: four working samples (event basics / battery alert / time trigger / one-time-code copy from notifications) are placed in the rootfs at `/usr/local/share/z2term/macros/` and copied into `~/.z2term/macros/` by `z2-macro install <name|all>`.
+
+- Install **never overwrites an existing file** (only `-f` does), so user edits survive the per-launch re-provisioning
+- `list` shows each script's second-line comment as its description; `show` / `run` / `dir` are also provided
+- Comments inside the samples follow the app language (ja/en)
+
+#### Detection log: cap removed, growth warning added (`LogWriter`, 0.8.171)
+
+**Policy change**: events.jsonl / notifications.jsonl now **append all history into a single file** (no size-based split/rotation).
+
+0.8.168 rotated to `<name>.1` at 1 MiB keeping one generation, but for macros that "go back and aggregate over the log" a file switching midway makes analysis awkward, so the cap was removed (clean up yourself from the terminal, e.g. `: > ~/.z2term/events.jsonl`).
+
+**Cost caveat**: the "newest at the top" mode reads and rewrites the whole file per entry, so its cost grows linearly as the file grows (prefer the default append-at-end for heavy use).
+
+**Growth warning (`LogSizeWarning` / `LOG_SIZE_WARN_BYTES`, 0.8.172)**
+- Shown right under the toggle only when **"Newest at the top" is ON and that log exceeds 10 MiB**, giving the current size (`12.3 MB` form) and what to do (turn it off / `: > <path>` from the terminal)
+- Attached to **both** the notification log and the system-event log; each section looks only at its own file size and its own toggle (the path inside the message is that section's too)
+- Append-at-end is unaffected by size, so nothing is shown there
+- The size is stat'ed once via `remember` when the settings sheet opens (never per recomposition)
+
+**Why 10 MiB**: prepending expands the whole file into a UTF-16 String via `readText` and then builds another one by concatenation — a transient **4–6× the file size in heap** — so depending on the device heap limit (128–512 MB) an `OutOfMemoryError` becomes reachable in the tens of MB; the threshold sits well before that.
+
+**Presentation fix (0.8.173)**: the first cut (0.8.172) used the same 10–11sp secondary styling as the surrounding help text and "did not read as a warning", so it now sits in a **box with a 1px warning-coloured border and a faint warning-coloured background**, with the heading at 14sp bold and the body at 12sp in the primary text colour.
 
 ---
 
