@@ -49,7 +49,7 @@ armv7 (32bit) は M7 同梱方針では生成しません。`build.gradle.kts` �
 ## z2root (FOSS フェーズ2・自前 proot 互換エンジン)
 
 外部ライセンス表記の完全ゼロ化に向け、proot/talloc を自前コード(GPL-3.0)で
-置き換える取り組み (`docs/FOSS-PURE-HANDOFF.md` §5)。ソースは
+置き換える取り組み (`99_private/HANDOFF/z2term/FOSS-PURE-HANDOFF.md` §5)。ソースは
 `app/src/main/cpp/z2root/z2root.c`。
 
 ```bash

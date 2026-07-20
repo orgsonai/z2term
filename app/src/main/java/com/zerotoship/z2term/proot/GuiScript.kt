@@ -18,7 +18,7 @@ const val Z2TERM_GUI_PACKAGES = "tigervnc openbox xterm font-noto ttf-dejavu"
  *
  * PRoot は root もハードウェアフレームバッファも使えないため、**仮想 X サーバ Xvnc**
  * を立て、その画面を VNC(RFB) で z2term の内蔵クライアントへ転送する構成にする
- * (詳細は docs/M8-GUI-HANDOFF.md)。
+ * (詳細は 99_private/HANDOFF/z2term/M8-GUI-HANDOFF.md)。
  *
  * これを `/usr/local/bin/z2gui` に配置 (ProotLauncher.ensureGuiScript) することで、
  * 端末から、または z2term の GUI セッションから次のように使える:

@@ -1,7 +1,7 @@
 // z2root — z2term 自前の最小 proot 互換エンジン (FOSS フェーズ2)
 //
 // 目的: proot(GPL-2.0) + talloc(LGPL-3.0) を、自分のコード(GPL-3.0)で置き換え、
-//       外部バイナリの同梱・ライセンス表記をゼロ化する (docs/FOSS-PURE-HANDOFF.md §5)。
+//       外部バイナリの同梱・ライセンス表記をゼロ化する (99_private/HANDOFF/z2term/FOSS-PURE-HANDOFF.md §5)。
 //
 // 本ファイルは「長旅」の最初のスケルトン。ptrace(PTRACE_SYSCALL) で子プロセスの
 // syscall を entry で傍受し、パス引数を rootfs ルート化 + bind 解決で書き換える。

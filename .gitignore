@@ -42,8 +42,8 @@ Thumbs.db
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 
-# 引き継ぎ書は internal ブランチ専用（GitHub/main には載せない）
-# internal では追跡済みのため、追跡が gitignore より優先され通常どおり編集できる
+# 引き継ぎ書は app_project/99_private/HANDOFF/z2term/ へ移管済み（ztp-private.git で管理）。
+# 万一ここにコピーが現れても、公開リポジトリには入れない。
 docs/*HANDOFF*.md
 
 # rootfs アーカイブ（scripts/build-alpine-rootfs.sh で生成、リポジトリには含めない）

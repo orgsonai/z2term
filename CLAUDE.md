@@ -16,17 +16,20 @@
   - 該当箇所が無い純粋な内部修正（リファクタ等）は docs 更新スキップで可。スキップ時は理由を一言コミット本文に書く。
 - `git push` はユーザーの明示指示があるまで禁止。
 
-## ブランチ運用（公開 main / 内部 internal = orphan worktree）
+## ブランチ運用（公開 main のみ / 引き継ぎ書は 99_private へ移管）
 
-- ⛔ **引き継ぎ書（`docs/*HANDOFF*.md`）は `internal` ブランチ専用。`main`（= GitHub `origin`）には載せない。**
-  - 内部事情を含むため公開リポジトリに出さない。`.gitignore` で `docs/*HANDOFF*.md` を無視しているので `main` では誤って `git add` されない。
+- ⛔ **引き継ぎ書は `app_project/99_private/HANDOFF/z2term/` にある。`main`（= GitHub `origin`）には載せない。**
+  - 内部事情を含むため公開リポジトリに出さない。`.gitignore` で `docs/*HANDOFF*.md` を無視しているので、`main` では誤って `git add` されない。
+  - 編集・追加は `app_project/99_private/HANDOFF/z2term/` で行い、そこで `git commit` する。
+    同期は `ztp-private.git`（`local` のみ。**GitHub へは push しない**）。署名鍵も同じリポジトリにある。
   - `main`: 公開向けのコード・README・DESIGN-SPEC・HANDBOOK のみ。`origin`（GitHub）と `local`（ベアリポ）へ push する。
-  - **`internal` は「引き継ぎ書だけを持つ orphan ブランチ」**（コード・README・版数を一切含まず、`main` と共有ファイルが無い独立履歴）。だから **`main` → `internal` の merge は不要**（版数行などの衝突が構造的に起きない）。以前の「上位互換 internal＋前方 merge」方式は廃止。旧履歴は `internal-archive` に保全。
-  - **編集は worktree で**: `internal` は隣接ディレクトリ `../05_z2term-internal` に `git worktree` で常時チェックアウトしてある。引き継ぎ書の編集・追加・新規作成はこのディレクトリで行い、そこで `git commit` する（`main` の作業ツリーは触らない）。
-    - 無ければ再作成: `git worktree add /root/tmp/app_project/05_z2term-internal internal`
-    - 新規追加は worktree 内で通常どおり `git add docs/XXX-HANDOFF.md`（orphan ブランチ側では gitignore に載っていないため `-f` 不要）。
-  - 同期は **`local`（`~/git-server/z2term.git`）経由のみ**: `git push local internal` / `git fetch local && git reset --hard local/internal`（worktree 内で）。**`internal` を `origin` へ push しない。**
-  - 他端末は旧 internal（上位互換）を追っていることがあるので、初回だけ `git fetch local && git reset --hard local/internal` で orphan 版へ切り替える（履歴が別系列なので通常 pull では繋がらない）。
+  - **本リポジトリのブランチは `main` だけ**。以前の `internal`（引き継ぎ書だけの orphan）と
+    `internal-archive`（旧「上位互換 internal」の履歴）による運用は終了した。
+    隣接 worktree `../05_z2term-internal` も廃止。
+  - 過去の引き継ぎ書の**変更履歴**は `local`（`~/git-server/z2term.git`）の
+    `internal` / `internal-archive` ref に保全してある。掘り返すときだけ:
+    `git fetch local && git worktree add ../05_z2term-internal local/internal`
+    （日常運用では触らない。用が済んだら `git worktree remove` する）
 - `--no-verify` は禁止（フック失敗は原因を直す）。
 - 署名鍵（`*.jks`, `keystore.properties`）, `local.properties` はコミットしない。
 
