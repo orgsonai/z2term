@@ -69,53 +69,292 @@
 
 ## 3. 全体アーキテクチャ
 
-```
-┌───────────────────────────── UI 層 (Compose) ─────────────────────────────┐
-│ MainActivity → TerminalScreen                                              │
-│  ├ TopBar (📋/📜/💡/🔒常駐/🔍/⌨/⚙ 並べ替え可) ├ TabBar ├ Renderer(Canvas)   │
-│  ├ TerminalInputView(AndroidView: ジェスチャ/IME/選択) ├ ScrollIndicators │
-│  ├ TerminalKeyboard(独自) / JapaneseFlickKeyboard / SpecialKeyBar          │
-│  └ SettingsSheet / SshProfilesSheet / SnippetsSheet / HostKeyDialog        │
-└───────────────────────────────────────────────────────────────────────────┘
-                 │ writeBytes(入力)              ▲ emulator buffer(描画)
-                 ▼                               │
-┌──────────────────────────── ドメイン層 ───────────────────────────────────┐
-│ SessionManager ─持つ→ TerminalSession[*]                                   │
-│   TerminalSession: 状態機械 / readLoop / resize / 選択 / cwd / label       │
-│     ├ emulator: TerminalEmulator (VT 解釈, 専用 1 スレッド)                │
-│     └ channel: ProcessChannel = LocalPtyChannel | SshChannel              │
-└───────────────────────────────────────────────────────────────────────────┘
-                 │                                       │
-                 ▼ (ローカル)                            ▼ (リモート)
-┌──────── 実行基盤 ────────┐                  ┌──────── SSH ────────┐
-│ ProotLauncher            │                  │ SshChannel (JSch)    │
-│  → PtyProcess (forkpty)  │                  │  shell + -L 転送     │
-│    → proot → distro shell│                  └──────────────────────┘
-└──────────────────────────┘
-        │ 展開/更新
-        ▼
-┌──────── distro / 永続 ────────┐   ┌─ Service ─┐   ┌─ SAF ─┐   ┌─ 設定 ─┐
-│ DistroBundle/Spec/Installer/  │   │ Terminal  │   │ Docs  │   │ AppSet │
-│ Downloader (assets / DL)      │   │ Service   │   │Provider│  │ tings  │
-└───────────────────────────────┘   └───────────┘   └────────┘  └────────┘
+### 3.1 レイヤ構成
+
+```mermaid
+graph TD
+    subgraph L1["UI 層 (Compose)"]
+        U1["MainActivity → TerminalScreen"]
+        U2["TopBar（ボタン並べ替え可） / TabBar / Renderer (Canvas)"]
+        U3["TerminalInputView<br/>(AndroidView: ジェスチャ / IME / 選択)<br/>ScrollIndicators"]
+        U4["TerminalKeyboard（独自）<br/>JapaneseFlickKeyboard / SpecialKeyBar"]
+        U5["SettingsSheet / SshProfilesSheet<br/>SnippetsSheet / HostKeyDialog"]
+    end
+
+    subgraph L2["ドメイン層"]
+        D1["SessionManager"]
+        D2["TerminalSession [*]<br/>状態機械 / readLoop / resize / 選択 / cwd / label"]
+        D3["emulator: TerminalEmulator<br/>(VT 解釈・専用 1 スレッド)"]
+        D4["channel: ProcessChannel<br/>= LocalPtyChannel または SshChannel"]
+        D1 -->|保持| D2
+        D2 --> D3
+        D2 --> D4
+    end
+
+    subgraph L3["実行基盤（ローカル）"]
+        P1["ProotLauncher"]
+        P2["PtyProcess (forkpty)"]
+        P3["エンジン (z2root / proot / chroot)"]
+        P4["distro shell"]
+        P1 --> P2 --> P3 --> P4
+    end
+
+    subgraph L4["リモート (SSH)"]
+        S1["SshChannel (JSch)<br/>shell + -L 転送"]
+    end
+
+    subgraph L5["distro / 永続 / 周辺"]
+        F1["DistroBundle / Spec<br/>Installer / Downloader<br/>(assets または DL)"]
+        F2["TerminalService<br/>(フォアグラウンド常駐)"]
+        F3["DocsProvider (SAF)"]
+        F4["AppSettings (DataStore)"]
+    end
+
+    L1 -->|"writeBytes（入力）"| L2
+    L2 -.->|"emulator buffer（描画）"| L1
+    D4 -->|ローカル| L3
+    D4 -->|リモート| L4
+    L3 -->|展開 / 更新| F1
 ```
 
-**ライフサイクル設計の要点**:
-- `TerminalSession` は **UI から独立**して生存 (`SessionManager` が保持)。Activity 破棄でも PTY/emulator 状態を維持。
-- `TerminalService` (フォアグラウンドサービス) が常駐化を担い、バックグラウンドでも PTY を維持する。`AudioBridge`(GUI 音声) も同サービス系で扱う。常駐中は CPU の `PARTIAL_WAKE_LOCK` に加え **`WifiLock` (`WIFI_MODE_FULL_HIGH_PERF`)** を握り、画面消灯/アイドルでも Wi-Fi 無線を省電力 (PSM) に落とさない。これが無いと端末上の sshd 等への LAN 着信が届かず「立てたのに繋がらない/Wi-Fi 繋ぎ直すと直る」症状が出る。常駐 OFF (detach)・停止・破棄で両ロックを解放する (0.8.143)。
-- **時刻トリガー** (`AlarmScheduler` / `AlarmReceiver` / `z2-alarm`, 0.8.167): 指定時刻に events.jsonl へ `alarm` イベント (`{name}` 付き) を追記する。従来「毎朝 7 時に」は distro の cron 頼みだったが、(1) cron の導入が distro ごとに要る (2) **Doze 中は cron 自体が動かない**ため実質的に画面点灯中しか効かなかった。AlarmManager 経由なら OS がアプリを起こすので画面消灯中も発火する。**権限とのトレードオフ**: `setExactAndAllowWhileIdle` は API31+ で `SCHEDULE_EXACT_ALARM` (ユーザー許可) が要るため、権限が不要な `setAndAllowWhileIdle` (Doze 貫通・不正確) を採用し、**発火は数分ずれうる**ことを仕様として明示する (マクロ用途では許容)。予約は `filesDir/alarms.json` に保存し、再起動で消える AlarmManager の登録を `BootReceiver` で貼り直す。`daily` は発火時に翌日へ再セット、`once` は発火後に削除。再起動中に時刻を過ぎた `daily` は次回へ送り、過ぎた `once` は捨てる (後追い発火をしない)。events.jsonl への書き込みは**設定「システムイベント検知」の ON/OFF に依存しない** (ユーザーが明示的に仕掛けたものなので、受動的イベントの取捨とは独立)。`HH:MM` の「今日か明日か」判定は Calendar が要るので sh でなく Kotlin 側で行い、`in 5m` のような相対指定だけ sh が epoch へ直して渡す。
-- **現在状態の取得** (`z2-state`, 0.8.167): events.jsonl は変化の瞬間しか流れないため、マクロが「今どうなっているか」で分岐する手段が `z2-battery` しか無かった。画面 (`isInteractive`) / ロック (`isKeyguardLocked`) / Doze (`isDeviceIdleMode`) / 充電と plug 種別と残量 (sticky `ACTION_BATTERY_CHANGED`) / Wi‑Fi 接続 / SSID / マナーモード / 機内モード / 有線ヘッドセット / メディア音量を**追加権限なし**で 1 回にまとめて返す。出力は入れ子にせず**フラットな JSON** (jq 無しの sed/grep でも拾えるように)、引数にキーを渡すと生値だけを返す (`[ "$(z2-state charging)" = "true" ]` と書ける)。Wi‑Fi 接続判定は `WifiManager.connectionInfo` ではなく **`ConnectivityManager`+`NetworkCapabilities`** を使う: 前者は API31+ で呼び出し元がフォアグラウンドでないと無効値 (networkId=-1) を返し、マクロが多用するバックグラウンドからの問い合わせで常に未接続に見えるため (実機で確認)。SSID だけは `WifiInfo` 経由でしか取れず位置情報権限が要るので、取れないときは空文字。
-- **マクロのサンプル同梱** (`Z2MacroScript` / `z2-macro`, 0.8.167): マクロは書き方より**最初の 1 本を白紙から書くこと**が壁だったので、動くサンプル 4 本 (イベント入門 / 電池アラート / 時刻トリガー / 通知内 OTP 自動コピー) を rootfs の `/usr/local/share/z2term/macros/` に配置し、`z2-macro install <名前|all>` で `~/.z2term/macros/` へ展開する。install は**既存ファイルを上書きしない** (`-f` のときだけ上書き) ので、ユーザーが編集したものが launch 毎の再配置で消えない。`list` は各スクリプトの 2 行目コメントを説明として並べ、`show` / `run` / `dir` も持つ。サンプル本文のコメントはアプリ言語 (ja/en) に追従する。
-- **検知ログのローテーション廃止＝上限なし** (`LogWriter`, 0.8.171): events.jsonl / notifications.jsonl は **1 本に全履歴を追記し続ける** (サイズ上限での分割・退避をしない)。0.8.168 では 1 MiB で `<名前>.1` へ退避して 1 世代残していたが、マクロが「過去に遡って集計する」用途では途中でファイルが切り替わると解析が面倒になるため、上限を撤廃してユーザー要望どおり全履歴を 1 ファイルに残す方針へ変更 (掃除はユーザーがターミナル側で `: > ~/.z2term/events.jsonl` 等)。注意点として「新しいものを先頭に」モードは 1 件ごとにファイル全体を読み書きするため、肥大するとコストが線形に増える (大量常用は既定の末尾追記を推奨)。 **肥大の注意表示 (0.8.172)**: 上限を撤廃した代わりに、**「新しいものを先頭に」が ON かつ当該ログが 10 MiB を超えている**ときだけ、設定画面のトグル直下に現在サイズ (`12.3 MB` 形式) と対処 (OFF にする / ターミナルで `: > <パス>`) を出す (`LogSizeWarning`, `LOG_SIZE_WARN_BYTES`)。通知ログ / システムイベントログの**両方**に付き、各セクションは自分のログのサイズと自分のトグルだけを見る (警告文中のパスもそのセクションのもの)。初版 (0.8.172) は周囲の補助テキストと同じ 10〜11sp・secondary 色で「注意に見えない」ため、**警告色 1px 枠＋淡い警告色背景のボックス**に入れ、見出し 14sp 太字・本文 12sp 本文色に拡大した (0.8.173)。末尾追記はサイズの影響を受けないので出さない。サイズは設定シートを開いた時点で `remember` して 1 回 stat するだけ (毎コンポーズでは触らない)。10 MiB としたのは、先頭追記が `readText` で全文を UTF-16 の String に展開しさらに連結でもう 1 本作るため**瞬間的にファイルサイズの 4〜6 倍のヒープ**を使い、端末のヒープ上限 (128〜512 MB) 次第では数十 MB で `OutOfMemoryError` に達しうるため、その手前で気付ける値として選んだ。
-- **Wi‑Fi 接続判定の修正** (`SystemEventService.handleWifi`, 0.8.168): 判定を `WifiManager.connectionInfo` から `ConnectivityManager`+`NetworkCapabilities` へ変更。前者は Android 12+ で**呼び出し元がフォアグラウンドでないと無効値 (networkId = -1)** を返すため、画面消灯中というまさにイベントを拾いたい場面で常に未接続に見え、`wifi_connected` を取りこぼしていた (`z2-state` 実装時に実機で再現・0.8.167 で同じ理由により先に修正済み)。SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来どおり空文字。
-- **通知ボタンによる応答** (`NotifyActionReceiver` / `z2-notify -b`, 0.8.169): `z2-*` は通知を出すだけの一方通行で、ユーザーの返事を受け取る手段が無かった。`-b <ラベル>` で通知にボタン (Android の表示上限に合わせて最大 3 つ) を付け、押されたら events.jsonl へ `notify_action` (`{name}` = 通知に付けた識別名、`{action}` = 押されたラベル) を書く。これで「マクロが問いかける → ユーザーが答える → 続きを実行する」という**対話型マクロ**が組める。PendingIntent は通知 ID × ボタン数 + index を requestCode にして一意化する (同じ requestCode だと extras が使い回され、別のボタンを押しても前の値が飛ぶ)。押した通知は返事が済んだ状態なので自動で閉じる。events.jsonl への書き込みは時刻トリガーと共通の `EventEmitter` に集約した (`render` に `{action}` を追加)。
-- **Bluetooth オーディオのトリガー** (`SystemEventService.syncBtAudio`, 0.8.170): 有線は `ACTION_HEADSET_PLUG` で拾えるが、**ワイヤレスイヤホンには相当するブロードキャストが無い**ため「イヤホンを繋いだら再生」という定番マクロが無線では書けなかった。`AudioManager.registerAudioDeviceCallback` で出力デバイスの増減を監視し、A2DP/SCO の有無が変化したときだけ `bt_audio_connected` / `bt_audio_disconnected` を発火する。**追加権限は不要** (`BLUETOOTH_CONNECT` が要るのはデバイス名の取得で、名前は出さない方針)。登録直後に既存デバイスぶんのコールバックが 1 度来る仕様のため、初回は現状の取り込みだけ行い発火しない (サービス起動を接続と誤検知しない)。`z2-state` にも `bt_audio` と電池温度 `temp` (℃) を追加。
-- **ロック解除の失敗監視（盗難対策マクロの検知入口）** (`PasswordWatchAdmin`, 0.8.171): 「パスワードを N 回間違えたら通知/位置記録/警報」という盗難対策マクロを組めるようにする検知入口。Android は通常アプリにロック解除失敗のコールバックを渡さないため、**端末管理者 (Device Admin) として `watch-login` ポリシーだけを宣言**し、`DeviceAdminReceiver.onPasswordFailed` / `onPasswordSucceeded` を受けて events.jsonl へ `unlock_failed` (`{level}` = `DevicePolicyManager.currentFailedPasswordAttempts` = 連続失敗回数) / `unlock_succeeded` を書く。**破壊的ポリシー (force-lock / wipe-data / reset-password) は宣言も行使もしない** (`device_admin.xml` は `watch-login` のみ) ＝有効化してもアプリは端末をロック/初期化できない。設定 `unlockWatchEnabled` (既定 OFF) を検知の主スイッチとし、OFF のときは管理者が有効でも書かない。管理者の有効化は `EXTRA_DEVICE_ADMIN` が ComponentName parcelable でシェルからは組めないため**アプリ内の設定画面から `ACTION_ADD_DEVICE_ADMIN` を起動**する (有効化済みなら `ACTION_SECURITY_SETTINGS` で無効化へ導く)。**撮影・送信・警報などのアクションは一切ハードコードせず**、ユーザーが events.jsonl を見るマクロで組む (z2term の「接続点はアプリ・ロジックはシェル」方針)。バックグラウンドからのカメラ撮影は Android 9+ の制約で別実装が要るため本版では扱わない (検知のみ)。`EventEmitter.emit` に `level` 引数を追加。
-- **常駐サーバー** (`ServerDaemonService` / `ServerDaemonManager` / `ServerSupervisorScript` / `BootReceiver` / `ServerEntry`, 0.8.147): 任意のサーバー (sshd/http/smb 等) を **起動コマンド**として登録し (`ServerEntry`, DataStore に JSON 保存)、対話セッションとは独立して常駐させる汎用機構。proot/z2root では全プロセスが 1 本のエンジンプロセスの子になるため、**全サーバー (enabled/disabled 問わず) の run ループを焼き込んだ supervisor スクリプト 1 本**をエンジン上で headless 起動 (`ProotLauncher.launch(command=/usr/local/bin/z2term-server-supervisor)`) して生かし続ける。supervisor は各サーバーを **auto-restart ループ**付きで起動し、稼働状態を rootfs 内 `var/lib/z2term-servers/<id>.status` に書き出す (アプリが読んで一覧に反映)。**個別 ON/OFF (0.8.163)**: 各 run ループは `var/lib/z2term-servers/<id>.want` フラグ (`1`=起動) を監視し、アプリが `ServerDaemonManager.setWant` でこのフラグを書き換えると、supervisor を再起動せず (＝他サーバーを止めず) にその 1 本だけを起動/停止する (約 1 秒で反映)。フラグ初期値は各 `ServerEntry.enabled` を反映。UI のサーバー行トグルは稼働中なら `setWant` で即時反映し、停止中は `enabled` の永続化のみ (次回起動時に反映)。supervisor 起動後に追加した新規エントリには run ループが無いため個別反映されず、全体の再起動が必要。前面維持 (プロセス被 kill 防止) と LAN 到達性 (WakeLock+WifiLock) は専用フォアグラウンドサービス `ServerDaemonService` が担う。**`BootReceiver` (RECEIVE_BOOT_COMPLETED) で端末起動直後にアプリを開かず自動常駐** (設定「起動時に自動で常駐」ON かつ enabled サーバーがある時のみ)。停止は通知「サーバー停止」または設定で **supervisor エンジンを kill = 全サーバー一括停止** (子プロセスがまとめて終了)。サーバー本体はユーザーが distro に導入する前提で、アプリはコマンド実行と再起動・常駐管理だけを行う (特定サーバーは非ハードコード)。1024 未満ポートは非 root エンジンで bind 不可。設定「省電力モード」(`serversLowPower`) ON のときは WakeLock/WifiLock を握らず Doze を許す (電池優先。画面消灯中の着信は遅延/取りこぼしうる。次回起動から反映, 0.8.148)。常駐通知は `IMPORTANCE_MIN` チャンネル (`z2term_servers_v2`) で出し、**ステータスバーにアイコンを出さず通知シェード最下部へ畳む** (フォアグラウンドサービスは通知必須で完全非表示は不可のため、サーバー常駐のみのときの目立たなさを優先。0.8.160)。稼働数は supervisor の `.status` 書き込みラグがあるため起動直後の 1 回きりでなく**数秒周期で通知を更新**し (`server-notif-refresh`)、0 のまま固まる不具合と再起動/クラッシュ追従を両立 (0.8.160)。 **自己背景化するサーバーの扱い (0.8.165)**: supervisor は「コマンドが終了した＝落ちた」と見なして再起動するため、自分をバックグラウンドへ逃がして即 exit するサーバーは数秒周期で再起動され続ける。`sshd` ラッパーはその再起動のたび既存 dropbear を kill するため、**LAN 公開しても接続が張れない/数秒で切れる**症状になっていた。supervisor が生成スクリプト冒頭で `Z2_SUPERVISED=1` を export し、`sshd` ラッパーはこれを見て `-D` 相当の**前景常駐**へ自動的に切り替える (= supervisor の子として生き続け、auto-restart も正しく効く)。
-- **通知検知（汎用入口）** (`NotificationLogService`, 0.8.149): OS の「通知アクセス」許可を与えると Android が `NotificationListenerService` を自動でバインド・常駐させる（アプリを開かず・再起動後も動く＝通知検知デーモン）。設定 `notificationCaptureEnabled` ON のとき、受け取った通知を **生のまま** `~/.z2term/notifications.jsonl`（= `filesDir/shared_home/.z2term/notifications.jsonl`）へ 1 行 1 通知（JSON: ts/time/pkg/app/title/text/category/key）で追記する。**特定アプリの抽出・フィルタ・保存方針・配信は一切ハードコードしない**——z2term は「通知を検知してターミナルから読める形で流すだけ」の汎用機能を提供し、ログ化・絞り込み・配信はユーザーがターミナル側（`tail`／自作スクリプト／常駐サーバー）で自由に組む（`z2-notify` の逆向き）。既定 OFF・完全ローカル・外部送信なし。設定フラグは Service が `AppSettings.flow` を購読してキャッシュし、通知ごとの DataStore アクセスを避ける。書込みは単一スレッド executor で直列化。出力は設定の「フォーマットテンプレート」(`notificationLogFormat`) に従い `render()` が置換する: `{time}{app}{title}{text}` 等のプレースホルダ・`{text1}{title1}`(改行→空白の1行化)・`\n``\t` エスケープが使え、**空文字なら JSONL**(既定)。プリセット(読みやすい/1行/TSV/JSONL)から埋めて自由編集できる (0.8.151)。設定「新しいものを先頭に」(`notificationLogPrepend`) ON のときは末尾追記でなく**先頭追記**(新着が上)で書く。ファイルは先頭に 1 行差し込む OS 機能が無いため既存内容を読んで書き直す (`LogWriter`)。上限行なし=全行保持 (0.8.163)。 **重複排除 (0.8.165)**: Android は同じ通知を内容が変わらなくても何度も再 post する (進捗更新・常駐通知の再掲・グループ集約) ため、そのまま書くと同一行が大量に並ぶ。`key` ごとの最終内容 (title+text) を LRU 256 件で覚え、**同一なら書かない**。`key` を作り直すアプリ向けに「同一アプリ・同一内容が 10 秒以内」も同一とみなす。`onNotificationRemoved` で `key` を忘れるので、通知が消えた後の再掲は新しい 1 行として記録する。 **保存の ON/OFF (0.8.165)**: 設定 `notificationLogEnabled` (既定 ON) を OFF にすると、検知 (リスナー常駐) は続けたまま `notifications.jsonl` へは一切書かない (検知だけ使いたい/保存容量やプライバシーを優先したい場合)。
-- **システムイベント検知（汎用入口）** (`SystemEventService`, 0.8.152): 通知検知の姉妹機能で「Android → シェル」向きのトリガーを増やす段。画面 ON/OFF・ロック解除 (USER_PRESENT)・電池残量変化・充電開始/停止・Wi-Fi 接続/切断などは Android 8+ の**暗黙ブロードキャスト制限**で manifest 宣言のレシーバでは配信されないため、opt-in のフォアグラウンドサービス `SystemEventService` (`foregroundServiceType=specialUse`) を常駐させ、その中で `registerReceiver` した**動的レシーバ**で拾う。設定 `systemEventCaptureEnabled` ON のとき、拾ったイベントを `~/.z2term/events.jsonl`（= `filesDir/shared_home/.z2term/events.jsonl`）へ 1 行 1 イベント (JSON: ts/time/event と該当時のみ level/ssid) で追記する。`{event}` は `screen_on`/`screen_off`/`unlocked`/`power_connected`/`power_disconnected`/`battery_low`/`battery_okay`/`wifi_connected`/`wifi_disconnected`/`headset_plugged`/`headset_unplugged`/`airplane_on`/`airplane_off`/`ringer_normal`/`ringer_vibrate`/`ringer_silent` (この 7 種は 0.8.154 追加) /`battery_level` (残量が 10% 刻みの境界を跨いだとき・0.8.156 追加)。すべて権限不要。**加工・絞り込み・配信は一切ハードコードしない**——検知して流すだけの汎用フックで、ログ化・条件分岐はユーザーがターミナル側（`tail`／script／cron／常駐サーバー）で自由に組む。出力は `systemEventLogFormat` テンプレート (`{time}{ts}{event}{level}{ssid}`・`\n``\t`・空=JSONL) を `render()` が置換。設定「新しいものを先頭に」(`systemEventLogPrepend`) ON で末尾追記でなく**先頭追記**(新着が上・`LogWriter`, 0.8.163)。Wi-Fi の SSID は位置情報権限が無いと空になる（v1 では権限要求せず best-effort）。Wi-Fi は接続/切断の状態変化のみ 1 回発火（同一状態の連続は抑制）。`BootReceiver` で端末起動直後にアプリを開かず自動常駐（設定 ON のとき）。設定フラグは Service が `AppSettings.flow` を購読してキャッシュ、書込みは単一スレッド executor で直列化。既定 OFF・完全ローカル・外部送信なし。稼働中は常駐通知を表示する。
-- emulator の状態更新は **専用シングルスレッド** (`z2term-emu-*`) に集約し、Compose は `StateFlow` 経由で読む。
-- **GUI デスクトップ**は別 Activity (`GuiActivity`) として起動し、distro 内 Xvnc に内蔵 RFB クライアントで接続する（[§4.12](#412-gui-デスクトップ-gui)）。実行エンジンは z2root 既定 (0.8.123)、裏設定で PRoot、root 端末ではさらに chroot に切替可（[§4.3](#43-proot-実行-prootprootlauncherkt-prootsshdscriptkt)）。
+### 3.2 ライフサイクルと常駐設計
+
+#### セッションは UI から独立して生きる
+
+`TerminalSession` は **UI から独立**して生存する（`SessionManager` が保持）。Activity が破棄されても PTY と emulator の状態を維持する。
+
+emulator の状態更新は**専用シングルスレッド**（`z2term-emu-*`）に集約し、Compose は `StateFlow` 経由で読む。
+
+#### フォアグラウンド常駐と 2 種類のロック（`TerminalService`、0.8.143）
+
+`TerminalService`（フォアグラウンドサービス）が常駐化を担い、バックグラウンドでも PTY を維持する。`AudioBridge`（GUI 音声）も同サービス系で扱う。
+
+常駐中は 2 つのロックを握る。
+
+| ロック | 目的 |
+|---|---|
+| `PARTIAL_WAKE_LOCK` | CPU を止めない |
+| `WifiLock` (`WIFI_MODE_FULL_HIGH_PERF`) | 画面消灯・アイドル中も Wi-Fi 無線を省電力 (PSM) に落とさない |
+
+**`WifiLock` が必要な理由**: これが無いと端末上の sshd 等への LAN 着信が届かず、「立てたのに繋がらない / Wi-Fi を繋ぎ直すと直る」症状が出る。
+
+常駐 OFF（detach）・停止・破棄で両ロックを解放する。
+
+#### 常駐サーバー（`ServerDaemonService` ほか、0.8.147）
+
+構成要素: `ServerDaemonService` / `ServerDaemonManager` / `ServerSupervisorScript` / `BootReceiver` / `ServerEntry`
+
+任意のサーバー（sshd/http/smb 等）を**起動コマンド**として登録し（`ServerEntry`、DataStore に JSON 保存）、対話セッションとは独立して常駐させる汎用機構。サーバー本体はユーザーが distro に導入する前提で、アプリはコマンド実行と再起動・常駐管理だけを行う（特定サーバーは非ハードコード）。
+
+**supervisor 方式を採る理由**
+- proot/z2root では全プロセスが 1 本のエンジンプロセスの子になる
+- そこで**全サーバー（enabled/disabled 問わず）の run ループを焼き込んだ supervisor スクリプト 1 本**をエンジン上で headless 起動し（`ProotLauncher.launch(command=/usr/local/bin/z2term-server-supervisor)`）、生かし続ける
+- supervisor は各サーバーを **auto-restart ループ**付きで起動し、稼働状態を rootfs 内 `var/lib/z2term-servers/<id>.status` に書き出す（アプリが読んで一覧に反映）
+
+**個別 ON/OFF（0.8.163）**
+- 各 run ループは `var/lib/z2term-servers/<id>.want` フラグ（`1`=起動）を監視する
+- アプリが `ServerDaemonManager.setWant` で書き換えると、supervisor を再起動せず（＝他サーバーを止めず）にその 1 本だけを起動/停止する（約 1 秒で反映）
+- フラグ初期値は各 `ServerEntry.enabled` を反映
+- UI のサーバー行トグルは、稼働中なら `setWant` で即時反映、停止中は `enabled` の永続化のみ（次回起動時に反映）
+- ⚠️ supervisor 起動後に追加した新規エントリには run ループが無いため個別反映されず、全体の再起動が必要
+
+**常駐と停止**
+- 前面維持（プロセス被 kill 防止）と LAN 到達性（WakeLock + WifiLock）は専用フォアグラウンドサービス `ServerDaemonService` が担う
+- `BootReceiver`（`RECEIVE_BOOT_COMPLETED`）で端末起動直後にアプリを開かず自動常駐（設定「起動時に自動で常駐」ON かつ enabled サーバーがある時のみ）
+- 停止は通知「サーバー停止」または設定から、**supervisor エンジンを kill = 全サーバー一括停止**（子プロセスがまとめて終了）
+- 1024 未満ポートは非 root エンジンで bind 不可
+
+**省電力モード（`serversLowPower`、0.8.148）**: ON のとき WakeLock/WifiLock を握らず Doze を許す（電池優先。画面消灯中の着信は遅延・取りこぼしうる。次回起動から反映）。
+
+**常駐通知の見せ方（0.8.160）**
+- `IMPORTANCE_MIN` チャンネル（`z2term_servers_v2`）で出し、**ステータスバーにアイコンを出さず通知シェード最下部へ畳む**（フォアグラウンドサービスは通知必須で完全非表示は不可のため、サーバー常駐のみのときの目立たなさを優先）
+- 稼働数は supervisor の `.status` 書き込みラグがあるため、起動直後の 1 回きりでなく**数秒周期で通知を更新**する（`server-notif-refresh`）。0 のまま固まる不具合と、再起動/クラッシュ追従を両立
+
+**自己背景化するサーバーの扱い（0.8.165）**
+- supervisor は「コマンドが終了した＝落ちた」と見なして再起動するため、自分をバックグラウンドへ逃がして即 exit するサーバーは数秒周期で再起動され続ける
+- `sshd` ラッパーはその再起動のたび既存 dropbear を kill するため、**LAN 公開しても接続が張れない / 数秒で切れる**症状になっていた
+- 対策: supervisor が生成スクリプト冒頭で `Z2_SUPERVISED=1` を export し、`sshd` ラッパーはこれを見て `-D` 相当の**前景常駐**へ自動的に切り替える（= supervisor の子として生き続け、auto-restart も正しく効く）
+
+#### GUI デスクトップ
+
+**GUI デスクトップ**は別 Activity（`GuiActivity`）として起動し、distro 内 Xvnc に内蔵 RFB クライアントで接続する（[§4.12](#412-gui-デスクトップ-gui)）。実行エンジンは z2root 既定（0.8.123）、裏設定で PRoot、root 端末ではさらに chroot に切替可（[§4.3](#43-proot-実行-prootprootlauncherkt-prootsshdscriptkt)）。
+
+### 3.3 Android 連携（検知入口とマクロ基盤）
+
+Android 側の出来事をシェルから扱えるようにするための機能群。設計方針は全機能で共通:
+
+> **接続点はアプリ・ロジックはシェル。**
+> アプリは「検知して所定のファイルに流す」だけを行い、抽出・フィルタ・保存方針・配信は一切ハードコードしない。
+> ユーザーがターミナル側（`tail` / 自作スクリプト / cron / 常駐サーバー）で自由に組む。
+> 既定 OFF・完全ローカル・外部送信なし。
+
+流し先は 2 本のログファイル。
+
+| ファイル | 実体 | 内容 |
+|---|---|---|
+| `~/.z2term/notifications.jsonl` | `filesDir/shared_home/.z2term/notifications.jsonl` | 通知検知 |
+| `~/.z2term/events.jsonl` | `filesDir/shared_home/.z2term/events.jsonl` | システムイベント・時刻トリガー・通知ボタン応答 |
+
+#### 通知検知（`NotificationLogService`、0.8.149）
+
+OS の「通知アクセス」許可を与えると Android が `NotificationListenerService` を自動でバインド・常駐させる（アプリを開かず・再起動後も動く＝通知検知デーモン）。設定 `notificationCaptureEnabled` が ON のとき、受け取った通知を**生のまま** 1 行 1 通知で追記する（JSON: ts / time / pkg / app / title / text / category / key）。`z2-notify` の逆向きの機能。
+
+**出力フォーマット（`notificationLogFormat`、0.8.151）**
+- `render()` がテンプレートを置換する
+- 使えるもの: `{time}` `{app}` `{title}` `{text}` 等のプレースホルダ、`{text1}` `{title1}`（改行→空白の 1 行化）、`\n` `\t` エスケープ
+- **空文字なら JSONL**（既定）
+- プリセット（読みやすい / 1 行 / TSV / JSONL）から埋めて自由編集できる
+
+**新しいものを先頭に（`notificationLogPrepend`）**: ON のとき末尾追記でなく**先頭追記**（新着が上）。ファイルは先頭に 1 行差し込む OS 機能が無いため、既存内容を読んで書き直す（`LogWriter`）。上限行なし = 全行保持（0.8.163）。
+
+**重複排除（0.8.165）**
+- Android は同じ通知を内容が変わらなくても何度も再 post する（進捗更新・常駐通知の再掲・グループ集約）ため、そのまま書くと同一行が大量に並ぶ
+- `key` ごとの最終内容（title + text）を LRU 256 件で覚え、**同一なら書かない**
+- `key` を作り直すアプリ向けに「同一アプリ・同一内容が 10 秒以内」も同一とみなす
+- `onNotificationRemoved` で `key` を忘れるので、通知が消えた後の再掲は新しい 1 行として記録する
+
+**保存の ON/OFF（`notificationLogEnabled`、既定 ON、0.8.165）**: OFF にすると、検知（リスナー常駐）は続けたまま `notifications.jsonl` へは一切書かない（検知だけ使いたい / 保存容量やプライバシーを優先したい場合）。
+
+**実装メモ**: 設定フラグは Service が `AppSettings.flow` を購読してキャッシュし、通知ごとの DataStore アクセスを避ける。書込みは単一スレッド executor で直列化。
+
+#### システムイベント検知（`SystemEventService`、0.8.152）
+
+通知検知の姉妹機能で「Android → シェル」向きのトリガーを増やす段。設定 `systemEventCaptureEnabled` が ON のとき、拾ったイベントを 1 行 1 イベントで追記する（JSON: ts / time / event と、該当時のみ level / ssid）。すべて権限不要。
+
+**なぜフォアグラウンドサービスが要るか**: 画面 ON/OFF・ロック解除（USER_PRESENT）・電池残量変化・充電開始/停止・Wi-Fi 接続/切断などは Android 8+ の**暗黙ブロードキャスト制限**で manifest 宣言のレシーバでは配信されない。そこで opt-in のフォアグラウンドサービス `SystemEventService`（`foregroundServiceType=specialUse`）を常駐させ、その中で `registerReceiver` した**動的レシーバ**で拾う。
+
+**`{event}` の値**
+
+| 分類 | イベント |
+|---|---|
+| 画面・ロック | `screen_on` / `screen_off` / `unlocked` |
+| 電源 | `power_connected` / `power_disconnected` / `battery_low` / `battery_okay` |
+| 電池残量 | `battery_level`（残量が 10% 刻みの境界を跨いだとき、0.8.156 追加） |
+| ネットワーク | `wifi_connected` / `wifi_disconnected` |
+| 音声出力 | `headset_plugged` / `headset_unplugged` |
+| 以下 7 種は 0.8.154 追加 | `airplane_on` / `airplane_off` / `ringer_normal` / `ringer_vibrate` / `ringer_silent` ほか |
+
+**出力フォーマット**: `systemEventLogFormat` テンプレート（`{time}` `{ts}` `{event}` `{level}` `{ssid}`、`\n` `\t`、空 = JSONL）を `render()` が置換。「新しいものを先頭に」（`systemEventLogPrepend`）で先頭追記（`LogWriter`、0.8.163）。
+
+**その他**
+- Wi-Fi は接続/切断の状態変化のみ 1 回発火（同一状態の連続は抑制）
+- Wi-Fi の SSID は位置情報権限が無いと空になる（v1 では権限要求せず best-effort）
+- `BootReceiver` で端末起動直後にアプリを開かず自動常駐（設定 ON のとき）
+- 稼働中は常駐通知を表示する
+
+#### Wi-Fi 接続判定の修正（`SystemEventService.handleWifi`、0.8.168）
+
+判定を `WifiManager.connectionInfo` から **`ConnectivityManager` + `NetworkCapabilities`** へ変更した。
+
+**理由**: 前者は Android 12+ で**呼び出し元がフォアグラウンドでないと無効値（networkId = -1）**を返す。画面消灯中というまさにイベントを拾いたい場面で常に未接続に見え、`wifi_connected` を取りこぼしていた（`z2-state` 実装時に実機で再現し、0.8.167 で同じ理由により先に修正済み）。
+
+SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来どおり空文字。
+
+#### Bluetooth オーディオのトリガー（`SystemEventService.syncBtAudio`、0.8.170）
+
+**背景**: 有線は `ACTION_HEADSET_PLUG` で拾えるが、**ワイヤレスイヤホンには相当するブロードキャストが無い**ため「イヤホンを繋いだら再生」という定番マクロが無線では書けなかった。
+
+**実装**: `AudioManager.registerAudioDeviceCallback` で出力デバイスの増減を監視し、A2DP/SCO の有無が変化したときだけ `bt_audio_connected` / `bt_audio_disconnected` を発火する。
+
+- **追加権限は不要**（`BLUETOOTH_CONNECT` が要るのはデバイス名の取得で、名前は出さない方針）
+- 登録直後に既存デバイスぶんのコールバックが 1 度来る仕様のため、初回は現状の取り込みだけ行い発火しない（サービス起動を接続と誤検知しない）
+- `z2-state` にも `bt_audio` と電池温度 `temp`（℃）を追加
+
+#### ロック解除の失敗監視（`PasswordWatchAdmin`、0.8.171）
+
+「パスワードを N 回間違えたら通知 / 位置記録 / 警報」という盗難対策マクロを組めるようにする**検知入口**。
+
+**実装**: Android は通常アプリにロック解除失敗のコールバックを渡さないため、**端末管理者（Device Admin）として `watch-login` ポリシーだけを宣言**し、`DeviceAdminReceiver.onPasswordFailed` / `onPasswordSucceeded` を受けて events.jsonl へ書く。
+
+| イベント | 内容 |
+|---|---|
+| `unlock_failed` | `{level}` = `DevicePolicyManager.currentFailedPasswordAttempts` = 連続失敗回数 |
+| `unlock_succeeded` | — |
+
+**安全側の設計**
+- **破壊的ポリシー（force-lock / wipe-data / reset-password）は宣言も行使もしない**（`device_admin.xml` は `watch-login` のみ）＝有効化してもアプリは端末をロック / 初期化できない
+- 設定 `unlockWatchEnabled`（既定 OFF）を検知の主スイッチとし、OFF のときは管理者が有効でも書かない
+- **撮影・送信・警報などのアクションは一切ハードコードしない**。ユーザーが events.jsonl を見るマクロで組む
+
+**制約**
+- 管理者の有効化は `EXTRA_DEVICE_ADMIN` が ComponentName parcelable でシェルからは組めないため、**アプリ内の設定画面から `ACTION_ADD_DEVICE_ADMIN` を起動**する（有効化済みなら `ACTION_SECURITY_SETTINGS` で無効化へ導く）
+- バックグラウンドからのカメラ撮影は Android 9+ の制約で別実装が要るため本版では扱わない（検知のみ）
+- `EventEmitter.emit` に `level` 引数を追加
+
+#### 時刻トリガー（`AlarmScheduler` / `AlarmReceiver` / `z2-alarm`、0.8.167）
+
+指定時刻に events.jsonl へ `alarm` イベント（`{name}` 付き）を追記する。
+
+**なぜ cron でなく AlarmManager か**
+- 従来「毎朝 7 時に」は distro の cron 頼みだった
+- cron の導入が distro ごとに要る
+- **Doze 中は cron 自体が動かない**ため、実質的に画面点灯中しか効かなかった
+- AlarmManager 経由なら OS がアプリを起こすので画面消灯中も発火する
+
+**権限とのトレードオフ**
+- `setExactAndAllowWhileIdle` は API31+ で `SCHEDULE_EXACT_ALARM`（ユーザー許可）が要る
+- そこで権限が不要な `setAndAllowWhileIdle`（Doze 貫通・不正確）を採用した
+- → **発火は数分ずれうる**ことを仕様として明示する（マクロ用途では許容）
+
+**永続化と再起動からの復帰**
+- 予約は `filesDir/alarms.json` に保存
+- 再起動で消える AlarmManager の登録を `BootReceiver` で貼り直す
+- `daily` は発火時に翌日へ再セット、`once` は発火後に削除
+- 再起動中に時刻を過ぎた `daily` は次回へ送り、過ぎた `once` は捨てる（後追い発火をしない）
+
+**その他**
+- events.jsonl への書き込みは**設定「システムイベント検知」の ON/OFF に依存しない**（ユーザーが明示的に仕掛けたものなので、受動的イベントの取捨とは独立）
+- `HH:MM` の「今日か明日か」判定は Calendar が要るので sh でなく Kotlin 側で行い、`in 5m` のような相対指定だけ sh が epoch へ直して渡す
+
+#### 現在状態の取得（`z2-state`、0.8.167）
+
+**背景**: events.jsonl は変化の瞬間しか流れないため、マクロが「今どうなっているか」で分岐する手段が `z2-battery` しか無かった。
+
+**取れるもの（追加権限なしで 1 回にまとめて返す）**: 画面（`isInteractive`）/ ロック（`isKeyguardLocked`）/ Doze（`isDeviceIdleMode`）/ 充電と plug 種別と残量（sticky `ACTION_BATTERY_CHANGED`）/ Wi-Fi 接続 / SSID / マナーモード / 機内モード / 有線ヘッドセット / メディア音量
+
+**出力の作り**
+- 入れ子にせず**フラットな JSON**（jq 無しの sed/grep でも拾えるように）
+- 引数にキーを渡すと生値だけを返す → `[ "$(z2-state charging)" = "true" ]` と書ける
+
+**Wi-Fi 接続判定**: `WifiManager.connectionInfo` ではなく **`ConnectivityManager` + `NetworkCapabilities`** を使う。前者は API31+ で呼び出し元がフォアグラウンドでないと無効値（networkId=-1）を返し、マクロが多用するバックグラウンドからの問い合わせで常に未接続に見えるため（実機で確認）。SSID だけは `WifiInfo` 経由でしか取れず位置情報権限が要るので、取れないときは空文字。
+
+#### 通知ボタンによる応答（`NotifyActionReceiver` / `z2-notify -b`、0.8.169）
+
+**背景**: `z2-*` は通知を出すだけの一方通行で、ユーザーの返事を受け取る手段が無かった。
+
+**実装**: `-b <ラベル>` で通知にボタン（Android の表示上限に合わせて最大 3 つ）を付け、押されたら events.jsonl へ `notify_action` を書く（`{name}` = 通知に付けた識別名、`{action}` = 押されたラベル）。これで「マクロが問いかける → ユーザーが答える → 続きを実行する」という**対話型マクロ**が組める。
+
+- PendingIntent は `通知 ID × ボタン数 + index` を requestCode にして一意化する（同じ requestCode だと extras が使い回され、別のボタンを押しても前の値が飛ぶ）
+- 押した通知は返事が済んだ状態なので自動で閉じる
+- events.jsonl への書き込みは時刻トリガーと共通の `EventEmitter` に集約した（`render` に `{action}` を追加）
+
+#### マクロのサンプル同梱（`Z2MacroScript` / `z2-macro`、0.8.167）
+
+**背景**: マクロは書き方より**最初の 1 本を白紙から書くこと**が壁だった。
+
+**実装**: 動くサンプル 4 本（イベント入門 / 電池アラート / 時刻トリガー / 通知内 OTP 自動コピー）を rootfs の `/usr/local/share/z2term/macros/` に配置し、`z2-macro install <名前|all>` で `~/.z2term/macros/` へ展開する。
+
+- install は**既存ファイルを上書きしない**（`-f` のときだけ上書き）ので、ユーザーが編集したものが launch 毎の再配置で消えない
+- `list` は各スクリプトの 2 行目コメントを説明として並べる。`show` / `run` / `dir` も持つ
+- サンプル本文のコメントはアプリ言語（ja/en）に追従する
+
+#### 検知ログの上限撤廃と肥大の注意表示（`LogWriter`、0.8.171）
+
+**方針変更**: events.jsonl / notifications.jsonl は **1 本に全履歴を追記し続ける**（サイズ上限での分割・退避をしない）。
+
+0.8.168 では 1 MiB で `<名前>.1` へ退避して 1 世代残していたが、マクロが「過去に遡って集計する」用途では途中でファイルが切り替わると解析が面倒になるため、上限を撤廃した（掃除はユーザーがターミナル側で `: > ~/.z2term/events.jsonl` 等）。
+
+**コスト上の注意**: 「新しいものを先頭に」モードは 1 件ごとにファイル全体を読み書きするため、肥大するとコストが線形に増える（大量常用は既定の末尾追記を推奨）。
+
+**注意表示（`LogSizeWarning` / `LOG_SIZE_WARN_BYTES`、0.8.172）**
+- **「新しいものを先頭に」が ON かつ当該ログが 10 MiB 超**のときだけ、設定画面のトグル直下に現在サイズ（`12.3 MB` 形式）と対処（OFF にする / ターミナルで `: > <パス>`）を出す
+- 通知ログ / システムイベントログの**両方**に付き、各セクションは自分のログのサイズと自分のトグルだけを見る（警告文中のパスもそのセクションのもの）
+- 末尾追記はサイズの影響を受けないので出さない
+- サイズは設定シートを開いた時点で `remember` して 1 回 stat するだけ（毎コンポーズでは触らない）
+
+**なぜ 10 MiB か**: 先頭追記が `readText` で全文を UTF-16 の String に展開し、さらに連結でもう 1 本作るため**瞬間的にファイルサイズの 4〜6 倍のヒープ**を使う。端末のヒープ上限（128〜512 MB）次第では数十 MB で `OutOfMemoryError` に達しうるため、その手前で気付ける値として選んだ。
+
+**見た目の改善（0.8.173）**: 初版（0.8.172）は周囲の補助テキストと同じ 10〜11sp・secondary 色で「注意に見えない」ため、**警告色 1px 枠 + 淡い警告色背景のボックス**に入れ、見出し 14sp 太字・本文 12sp 本文色に拡大した。
 
 ---
 
