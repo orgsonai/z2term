@@ -46,6 +46,11 @@ Thumbs.db
 # 万一ここにコピーが現れても、公開リポジトリには入れない。
 docs/*HANDOFF*.md
 
+# CLAUDE.md も app_project/99_private/claude/z2term/ へ移管済み（ztp-private.git で管理）。
+# 開発フローの内部事情（非公開領域の構成・ブランチ運用・端末事情）を含むため公開しない。
+# 作業ディレクトリには symlink で置く: ln -s ../99_private/claude/z2term/CLAUDE.md CLAUDE.md
+CLAUDE.md
+
 # rootfs アーカイブ（scripts/build-alpine-rootfs.sh で生成、リポジトリには含めない）
 # full フレーバーは src/full/assets に同梱（foss は実行時 DL のため非同梱）
 app/src/main/assets/alpine-minirootfs-*.tar.gz
