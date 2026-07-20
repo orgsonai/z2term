@@ -780,6 +780,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - `settings/SettingsSheet.kt` + `SshAccessHelper.kt`: 設定ページ (全画面) + SSH/ストレージ ヘルパー。
   - **端末リセット**は `SessionManager.resetToInitial()` を呼び、**端末タブ 1 つだけを残して他タブ (端末・GUI) を全部閉じ**、残した 1 つを `TerminalSession.restart()` で初期化する (= アプリ初回起動時の状態)。タブ数や動作中かに関わらず**常に**確認ダイアログを挟み、実行後はトーストで結果を出す。設定値・常駐サーバー・rootfs には触れない。
 - `ssh/SshProfilesSheet.kt` + `HostKeyVerificationDialog.kt`: SSH プロファイル UI + 鍵検証。
+- `sftp/SftpSheet.kt`: SFTP ファイルブラウザ (**全画面ページ**)。一覧の下方向スクロールが ModalBottomSheet の「閉じる」ドラッグと競合して勝手に閉じるため、設定ページと同じ別ページ方式に変更した。戻る矢印 / システムバックで前の画面へ戻る。他のシート (スニペット・クリップボード履歴・サーバー・独自テーマ) は 「一時的に開く」用途なので ModalBottomSheet のまま。
 - `snippets/SnippetsSheet.kt`: ツールシート (ツールバー 📜)。タブで **スニペット** (1 行タップで挿入、並替/編集) / **SSH・SFTP** (`ssh/SshProfilesBody`) / **サーバー** (`settings/ServersBody` = 常駐サーバー管理を設定シートと共有) を切替える。SSH タブは端末タブのみ、サーバータブは端末セッションがあるときだけ出る。
 
 ### 4.12 GUI デスクトップ (`gui/`)

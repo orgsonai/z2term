@@ -781,6 +781,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
 - `settings/SettingsSheet.kt` + `SshAccessHelper.kt`: settings page (full screen) + SSH/storage helper.
   - **Reset terminal** calls `SessionManager.resetToInitial()`: it **closes every other tab (terminal and GUI) and keeps a single terminal tab**, then reinitialises that one via `TerminalSession.restart()` (= the state right after the first launch). A confirmation dialog is **always** shown regardless of tab count or activity, and a toast reports the result. Settings, resident servers and the rootfs are untouched.
 - `ssh/SshProfilesSheet.kt` + `HostKeyVerificationDialog.kt`: SSH profile UI + key verification.
+- `sftp/SftpSheet.kt`: SFTP file browser (**full-screen page**). Scrolling the listing downwards collided with the ModalBottomSheet close drag and dismissed the sheet, so it moved to the same separate-page style as the settings page. The back arrow / system back returns to the previous screen. The other sheets (snippets, clipboard history, servers, custom theme) stay ModalBottomSheets since they are meant to be opened briefly.
 - `snippets/SnippetsSheet.kt`: tools sheet (toolbar 📜). Tabs switch between **Snippets** (tap a line to insert, reorder/edit), **SSH / SFTP** (`ssh/SshProfilesBody`) and **Servers** (`settings/ServersBody`, the same resident-server manager used by the settings sheet). The SSH tab only appears on terminal tabs, the Servers tab only when a terminal session is available.
 
 ### 4.12 GUI desktop (`gui/`)

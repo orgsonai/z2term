@@ -16,12 +16,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -32,12 +34,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
@@ -49,7 +49,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -60,7 +59,6 @@ import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.SftpClient
 import com.zerotoship.z2term.channel.SftpEntry
 import com.zerotoship.z2term.channel.SshProfile
-import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
@@ -76,11 +74,15 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * SFTP ファイルブラウザ (ModalBottomSheet)。
+ * SFTP ファイルブラウザ (全画面ページ)。
  *
  * 指定 [profile] へ SFTP 接続し、リモートのファイルを一覧 / 移動 / ダウンロード /
  * アップロード / 削除 / 名前変更 / フォルダ作成できる。ダウンロード/アップロードは
  * Android の SAF (CreateDocument / OpenDocument) と連携する。
+ *
+ * 従来は下から重なる ModalBottomSheet だったが、一覧を下へスクロールする操作が
+ * 「シートを閉じる」ドラッグと競合して勝手に閉じてしまうため、設定ページと同じ
+ * 「別ページ (全画面)」に変更した (要望)。戻る矢印 / システムバックで前の画面へ戻る。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,20 +93,6 @@ fun SftpSheet(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
-    var forceClose by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true,
-        confirmValueChange = { target ->
-            if (target == SheetValue.Hidden)
-                forceClose || (listState.firstVisibleItemIndex == 0 &&
-                    listState.firstVisibleItemScrollOffset == 0)
-            else true
-        }
-    )
-    val closeSheet: () -> Unit = {
-        forceClose = true
-        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-    }
 
     var client by remember { mutableStateOf<SftpClient?>(null) }
     var connecting by remember { mutableStateOf(true) }
@@ -193,31 +181,31 @@ fun SftpSheet(
         }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = ZtsBgPrimary,
-        contentColor = ZtsTextPrimary,
-        scrimColor = Color.Black.copy(alpha = 0.55f),
-        contentWindowInsets = { WindowInsets.systemBars },
-        dragHandle = { Z2TermDragHandle(onClose = closeSheet) }
+    // 全画面の「別ページ」として表示する。背景はバー裏まで塗りつつ、中身はシステムバー
+    // (上=ステータス / 下=ナビゲーション) の内側に収める。戻る矢印 / システムバックで前へ戻る。
+    Surface(
+        modifier = Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.systemBars),
+        color = ZtsBgPrimary,
+        contentColor = ZtsTextPrimary
     ) {
-        BackHandler(onBack = closeSheet)
+        BackHandler(onBack = onDismiss)
+        Column(modifier = Modifier.fillMaxSize()) {
+        // ヘッダ: 戻る矢印 + プロファイル名 (設定ページと同じ上部バー)
+        SftpTopBar(
+            title = "SFTP : ${profile.user}@${profile.host}",
+            onBack = onDismiss
+        )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .weight(1f)
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
+                .padding(top = 8.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // ヘッダ: プロファイル名 + 現在パス + 上へ / 更新
-            Text(
-                text = "SFTP : ${profile.user}@${profile.host}",
-                color = ZtsGreen,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                fontFamily = FontFamily.Monospace
-            )
+            // 現在パス + 上へ / 更新
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = currentPath,
@@ -248,9 +236,11 @@ fun SftpSheet(
                 else -> {
                     LazyColumn(
                         state = listState,
+                        // 全画面ページなので、残りの高さいっぱいまで一覧を伸ばす
+                        // (下のアクション行は常に画面下に残る)。
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 100.dp, max = 460.dp),
+                            .weight(1f),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         items(entries, key = { it.name }) { entry ->
@@ -293,6 +283,7 @@ fun SftpSheet(
                     }
                 }
             }
+        }
         }
     }
 
@@ -378,6 +369,47 @@ fun SftpSheet(
                     Text(stringResource(R.string.action_cancel), color = ZtsTextSecondary, fontFamily = FontFamily.Monospace)
                 }
             }
+        )
+    }
+}
+
+/**
+ * 上部バー (設定ページの `SettingsTopBar` と同じ形)。
+ * 左上の矢印だけでなくバー全体をタップしても戻れる。
+ */
+@Composable
+private fun SftpTopBar(title: String, onBack: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(ZtsBgPrimary)
+            .border(width = 1.dp, color = ZtsBorder)
+            .clickable(onClick = onBack)
+            .padding(horizontal = 8.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .clickable(onClick = onBack)
+                .padding(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = "←",
+                color = ZtsGreen,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        Text(
+            text = title,
+            color = ZtsGreen,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1
         )
     }
 }
