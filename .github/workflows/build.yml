@@ -120,6 +120,18 @@ jobs:
           # 手動実行では入力タグの時点をビルドする (版数がタグと食い違わないように)。
           ref: ${{ inputs.tag || github.ref }}
 
+      # 本文の無いリリースを作らせない。CI 化した結果ノートを書く工程が抜け、
+      # v0.8.190 が compare リンク 1 行だけで公開された事故があったため、
+      # 長いビルドに入る前にここで落とす。
+      - name: Require release notes
+        run: |
+          NOTES="docs/release-notes/${{ inputs.tag || github.ref_name }}.md"
+          if [ ! -s "$NOTES" ]; then
+            echo "::error::release notes not found: $NOTES — write them before tagging."
+            exit 1
+          fi
+          echo "using $NOTES"
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -203,9 +215,12 @@ jobs:
           else
             echo "::warning::apksigner not found — skipped the signature check."
           fi
-          # 既にリリースがある (手動作成含む) 場合はアセット差し替え、無ければ新規作成 (Latest)。
+          NOTES="docs/release-notes/${TAG}.md"
+          # 既にリリースがある (手動作成含む) 場合はアセットと本文を差し替え、無ければ新規作成 (Latest)。
+          # 本文は必ずリポジトリの notes ファイルを正とする (--generate-notes は使わない)。
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$FOSS" "$FULL" --clobber
+            gh release edit "$TAG" --notes-file "$NOTES"
           else
-            gh release create "$TAG" "$FOSS" "$FULL" --title "$TAG" --generate-notes --latest
+            gh release create "$TAG" "$FOSS" "$FULL" --title "$TAG" --notes-file "$NOTES" --latest
           fi
