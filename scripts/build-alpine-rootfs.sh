@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Alpine minirootfs に必要パッケージを追加したカスタム rootfs を生成し、
-# app/src/main/assets/ に配置する。
+# app/src/full/assets/ に配置する。
+#
+# 置き場が full なのは意図的: src/main/assets は全 flavor に寄与するため、そこへ置くと
+# rootfs 非同梱が前提の foss にも入って APK が 20MB 級から 190MB 級へ膨らむ。
 #
 # 依存 (host):
 #   - curl
@@ -11,7 +14,7 @@
 #     呼ぶ場合があるため; --no-scripts 指定で原則回避)
 #
 # 出力:
-#   app/src/main/assets/alpine-minirootfs-aarch64.tar.gz
+#   app/src/full/assets/alpine-minirootfs-aarch64.tgz
 #
 # 使い方:
 #   bash scripts/build-alpine-rootfs.sh             # arm64 のみ (推奨)
@@ -69,7 +72,7 @@ run_maybe_fakeroot() {
 }
 
 WORK_DIR="${PROJECT_ROOT}/build/alpine-rootfs"
-ASSETS_DIR="${PROJECT_ROOT}/app/src/main/assets"
+ASSETS_DIR="${PROJECT_ROOT}/app/src/full/assets"
 mkdir -p "${WORK_DIR}" "${ASSETS_DIR}"
 
 # ---------------------------------------------------------------------------

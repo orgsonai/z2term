@@ -183,6 +183,13 @@ jobs:
           FOSS=app/build/outputs/apk/foss/release/app-foss-release.apk
           FULL=app/build/outputs/apk/full/release/app-full-release.apk
           TAG="${{ inputs.tag || github.ref_name }}"
+          # foss は「prebuilt 非同梱」が存在意義なので、rootfs が紛れ込んでいないか確かめる。
+          # 生成物の置き場を 1 つ間違えるだけ (src/main/assets は全 flavor に寄与する) で
+          # 20MB 級のはずの foss が 190MB 級になり、気付かず公開してしまう。
+          if unzip -l "$FOSS" | grep -q 'assets/alpine-minirootfs'; then
+            echo "::error::$FOSS bundles the Alpine rootfs — the foss flavor must not ship prebuilts."
+            exit 1
+          fi
           # 署名が release 鍵であること (= debug 署名で公開していないこと) を出荷前に確かめる。
           # 鍵の有無は Decode keystore で既に落としているので、これは最終確認。
           APKSIGNER="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" -name apksigner 2>/dev/null | sort -V | tail -1)"
