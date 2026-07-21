@@ -24,8 +24,15 @@ and lets you install any command through package managers like `pacman` / `apt`.
 
 - Go to the latest: **<https://github.com/orgsonai/z2term/releases/latest>**
 
+Every release ships two APKs.
+
+| File | Contents | Which to pick |
+|---|---|---|
+| `app-full-release.apk` | PRoot and the Alpine rootfs bundled (~190MB) | **Pick this if unsure.** Self-contained — no download on first launch |
+| `app-foss-release.apk` | No prebuilts (~21MB) | Minimises third-party license notices. Fetches Alpine from the official CDN on first launch |
+
 Tap the APK on your Android device → allow "Install from unknown sources" to install.
-(The `full` flavor bundles prebuilts, so the APK works standalone. Not distributed on Google Play.)
+(Not distributed on Google Play.)
 
 ## Current version
 
@@ -260,7 +267,7 @@ For which versions z2term fetches at build time, see `PROOT_VER_AARCH64` / `ALPI
 
 | Channel | Flavor | Status |
 |---|---|---|
-| **GitHub Releases / direct APK** | `full` (prebuilts bundled) | Primary channel. The APK works standalone |
+| **GitHub Releases / direct APK** | `full` (prebuilts bundled) / `foss` | Primary channel. Pushing a tag makes CI build and attach both |
 | **F-Droid** | `foss` (rootfs excluded) | **Not targeted** (runtime download is allowed). The `foss` flavor exists to minimize third-party license notices, not for F-Droid. proot/talloc remain bundled, so full reproducible-build compliance is out of scope |
 | **Google Play** | — | proot's execution of external code likely conflicts with DPA §4.4, so **no distribution planned** |
 

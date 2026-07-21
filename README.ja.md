@@ -24,8 +24,15 @@
 
 - 最新版に飛ぶ: **<https://github.com/orgsonai/z2term/releases/latest>**
 
+各リリースには APK が 2 つ付きます。
+
+| ファイル | 中身 | 選び方 |
+|---|---|---|
+| `app-full-release.apk` | PRoot と Alpine rootfs を同梱（約 190MB） | **迷ったらこちら。** APK だけで完結し、初回起動時のダウンロードが要らない |
+| `app-foss-release.apk` | prebuilt 非同梱（約 21MB） | 外部ライセンス表記を最小化した版。Alpine は初回起動時に公式 CDN から取得する |
+
 Android 端末で APK をタップ → 「提供元不明のアプリ」のインストールを許可するとインストールできます。
-(`full` フレーバー・prebuilt 同梱で APK 単体で動作完結。Google Play では配布していません)
+（Google Play では配布していません）
 
 ## 現在のバージョン
 
@@ -251,7 +258,7 @@ z2term 自身のビルド時にどのバージョンが取得されるかは `sc
 
 | チャネル | フレーバー | 状況 |
 |---|---|---|
-| **GitHub Releases / 直接 APK 配布** | `full` (prebuilt 同梱) | 主たる配布経路。APK 単体で動作完結 |
+| **GitHub Releases / 直接 APK 配布** | `full` (prebuilt 同梱) / `foss` | 主たる配布経路。タグを push すると CI が両方ビルドして添付する |
 | **F-Droid** | `foss` (rootfs 除外) | **非対象** (実行時 DL を許容)。`foss` は外部ライセンス表記の最小化が目的で F-Droid 向けではない。proot/talloc は同梱継続のため再現性ビルド適合は対象外 |
 | **Google Play** | — | proot による外部コード実行が DPA §4.4 に抵触する可能性が高く、**配布予定なし** |
 

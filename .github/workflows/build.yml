@@ -6,6 +6,14 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main]
+  # 既存タグへ後から APK を足したいとき用 (タグ push 時の workflow はその時点の定義で走るため、
+  # workflow を直した後に打ち直さずに済ませる手段が要る)。指定タグを checkout してビルドし、
+  # そのタグのリリースへアセットを追加/差し替えする。
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'リリースするタグ (例: v0.8.190-alpha)'
+        required: true
 
 jobs:
   build:
@@ -17,6 +25,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # 手動実行では release ジョブと同じ ref (入力タグ) を検査する。
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -90,20 +101,24 @@ jobs:
           path: app/build/outputs/apk/foss/debug/app-foss-debug.apk
           retention-days: 14
 
-  # tag (v*) を push すると、署名済み FOSS release APK をビルドして GitHub Release に添付する。
-  # 認証は Actions 組み込みの GITHUB_TOKEN (PAT 不要)。full は同梱 rootfs が重いため当面 CI 対象外
-  # (手動リリース)。foss は fonts のみ同梱すればよく、proot/Alpine rootfs 生成は不要。
+  # tag (v*) を push すると、署名済み release APK を foss / full 両方ビルドして
+  # GitHub Release に添付する。認証は Actions 組み込みの GITHUB_TOKEN (PAT 不要)。
+  # full は同梱物 (フォント/PRoot/Alpine rootfs) の生成が要るぶん時間がかかるが、
+  # 186MB 級の APK を手元の回線から上げるのは現実的でないため CI で出す。
   release:
-    name: Publish FOSS release APK to GitHub
+    name: Publish release APKs to GitHub
     runs-on: ubuntu-latest
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     permissions:
       contents: write   # GitHub Release の作成/アセット添付に必要
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # 手動実行では入力タグの時点をビルドする (版数がタグと食い違わないように)。
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -140,27 +155,50 @@ jobs:
       - name: Grant gradlew exec permission
         run: chmod +x ./gradlew
 
-      - name: Install host tools for bundled fonts
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends unzip
+      - name: Install host tools for bundled-asset generation
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fakeroot unzip xz-utils
 
-      - name: Generate bundled fonts (foss も src/main/assets/fonts が必要)
+      # foss は fonts だけでよいが、full は PRoot と Alpine rootfs も要る。
+      # いずれも .gitignore 対象の生成物なので fresh checkout では作り直す。
+      - name: Generate bundled assets (fonts / PRoot / Alpine rootfs)
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: bash scripts/fetch-fonts.sh
+        run: |
+          bash scripts/fetch-fonts.sh
+          bash scripts/build-proot.sh
+          bash scripts/build-alpine-rootfs.sh
 
+      # フレーバーは 1 回の gradle 実行にまとめず直列で回す。
       - name: Build FOSS release APK
         run: ./gradlew assembleFossRelease --stacktrace
+
+      - name: Build FULL release APK
+        run: ./gradlew assembleFullRelease --stacktrace
 
       - name: Publish to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          APK=app/build/outputs/apk/foss/release/app-foss-release.apk
-          TAG="${GITHUB_REF_NAME}"
+          FOSS=app/build/outputs/apk/foss/release/app-foss-release.apk
+          FULL=app/build/outputs/apk/full/release/app-full-release.apk
+          TAG="${{ inputs.tag || github.ref_name }}"
+          # 署名が release 鍵であること (= debug 署名で公開していないこと) を出荷前に確かめる。
+          # 鍵の有無は Decode keystore で既に落としているので、これは最終確認。
+          APKSIGNER="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" -name apksigner 2>/dev/null | sort -V | tail -1)"
+          if [ -n "$APKSIGNER" ]; then
+            for apk in "$FOSS" "$FULL"; do
+              if "$APKSIGNER" verify --print-certs "$apk" | grep -q 'CN=Android Debug'; then
+                echo "::error::$apk is debug-signed — refusing to publish."
+                exit 1
+              fi
+            done
+          else
+            echo "::warning::apksigner not found — skipped the signature check."
+          fi
           # 既にリリースがある (手動作成含む) 場合はアセット差し替え、無ければ新規作成 (Latest)。
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$APK" --clobber
+            gh release upload "$TAG" "$FOSS" "$FULL" --clobber
           else
-            gh release create "$TAG" "$APK" --title "$TAG" --generate-notes --latest
+            gh release create "$TAG" "$FOSS" "$FULL" --title "$TAG" --generate-notes --latest
           fi
