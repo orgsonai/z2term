@@ -554,11 +554,23 @@ The only knobs are `TTL` (seconds until clearing), `POLL` (how fast it reacts) a
 more services). The code lands on the clipboard within `POLL` seconds of arriving, so you just paste it.
 
 **Limits**: two notifications arriving within one `POLL` cycle are treated as a single blob (rare for auth
-codes, but a real gap). Note that the lock-screen "contents hidden" setting only controls how the
-notification is *drawn* — notification capture (notification access) still receives the real body regardless.
-The only thing that cannot be read is a notification whose body lives solely in a fully custom layout, with
-no text in the title, text, or message fields (a few apps). SMS one-time codes normally sit in the
-MessagingStyle body, which is captured from 0.8.185 on.
+codes, but a real gap).
+
+**Important on Android 15+ (OTP bodies get redacted)**: with "**Enhanced notifications**" (a.k.a. "Adaptive
+Notifications") on, Android System Intelligence classifies notifications containing an OTP as **sensitive** and
+replaces their body with a placeholder (e.g. "Sensitive content hidden") **before** handing it to
+**"untrusted" notification listeners — which every ordinary app is**. Even with notification access fully
+granted, only the OTP body is withheld (the notification still arrives, so a row appears, but `text` is the
+placeholder). Two ways around it:
+- Turn **`Settings → Notifications → Enhanced notifications` OFF** (most reliable, no rebuild; also disables the
+  OS OTP-autofill suggestions).
+- Become a **"trusted" listener** holding `RECEIVE_SENSITIVE_NOTIFICATIONS`. That is reserved for system-signed
+  apps or specific roles (companion watch/glasses, home, …); ordinary apps aren't granted it automatically and
+  must declare it and grant it via adb (may be rejected depending on the OEM).
+
+Once un-redacted, the only thing that still cannot be read is a notification whose body lives solely in a fully
+custom layout, with no text in the title, text, or message fields (a few apps). SMS one-time codes normally sit
+in the MessagingStyle body, captured from 0.8.185 on.
 
 ---
 
