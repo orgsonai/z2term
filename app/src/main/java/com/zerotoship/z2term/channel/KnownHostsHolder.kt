@@ -9,6 +9,10 @@ import kotlinx.coroutines.SupervisorJob
  * アプリプロセスごとに 1 つの known_hosts ストア + JSch HostKeyRepository を保持する
  * シングルトン。SshChannel.connect から参照される。
  */
+// 保持するのは applicationContext のみ (Application はプロセス生存期間そのものなので
+// シングルトンから参照し続けても leak しない)。lint は参照先が application か判別できず
+// 一律に警告するため、その旨を明記して抑制する。Activity/View の Context は保持しないこと。
+@Suppress("StaticFieldLeak")
 object KnownHostsHolder {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

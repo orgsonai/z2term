@@ -584,7 +584,9 @@ private fun humanSize(bytes: Long): String {
     return String.format(Locale.US, "%.1f GB", mb / 1024.0)
 }
 
-private val MTIME_FMT = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+// パターンが数字のみでロケール非依存なので ROOT 固定。Locale.getDefault() を静的初期化時に
+// 焼き込むと、アプリ言語を実行中に切り替えても古いロケールのまま残る (lint ConstantLocale)。
+private val MTIME_FMT = SimpleDateFormat("MM-dd HH:mm", Locale.ROOT)
 
 private fun formatMtime(sec: Long): String =
     if (sec <= 0) "" else MTIME_FMT.format(Date(sec * 1000))

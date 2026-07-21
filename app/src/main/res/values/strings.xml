@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Z2Term</string>
     <string name="app_tagline">Zero 2 Terminal</string>
     <string name="distro_alpine">Alpine Linux</string>
@@ -403,7 +403,7 @@
     <string name="settings_notif_fmt_title">Output format (empty = JSONL)</string>
     <string name="settings_notif_fmt_readable">Readable</string>
     <string name="settings_notif_fmt_line">One line</string>
-    <string name="settings_notif_fmt_help">Placeholders: {time} {ts} {app} {pkg} {title} {text} {category} {key}. One-line: {text1} {title1}. Escapes: \\n \\t. Applies to new entries.</string>
+    <string name="settings_notif_fmt_help" tools:ignore="Typos">Placeholders: {time} {ts} {app} {pkg} {title} {text} {category} {key}. One-line: {text1} {title1}. Escapes: \\n \\t. Applies to new entries.</string>
     <string name="settings_notif_logpath">Log: ~/.z2term/notifications.jsonl</string>
     <string name="settings_log_prepend">Newest at the top</string>
     <string name="settings_log_prepend_desc">Insert each new entry at the head of the file (prepend) instead of appending at the end.</string>
@@ -420,7 +420,7 @@
     <string name="settings_sms_perm_missing">SMS permission: not granted (tap below to grant)</string>
     <string name="settings_sms_grant">Grant SMS permission</string>
     <string name="settings_sms_fmt_title">Output format (empty = JSONL)</string>
-    <string name="settings_sms_help">Placeholders: {time} {ts} {from} {body}. One-line: {body1}. Escapes: \\n \\t. Applies to new entries. Log: ~/.z2term/sms.jsonl</string>
+    <string name="settings_sms_help" tools:ignore="Typos">Placeholders: {time} {ts} {from} {body}. One-line: {body1}. Escapes: \\n \\t. Applies to new entries. Log: ~/.z2term/sms.jsonl</string>
     <string name="settings_unlock_watch_admin_failed">Could not add a device admin on this device (it may be blocked by device policy)</string>
     <string name="event_channel_name">Z2Term system events</string>
     <string name="event_channel_desc">Detects screen/lock/power/battery/Wi-Fi events</string>

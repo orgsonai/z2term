@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Z2Term</string>
     <string name="app_tagline">Zero 2 Terminal</string>
     <string name="distro_alpine">Alpine Linux</string>
@@ -403,7 +403,7 @@
     <string name="settings_notif_fmt_title">出力フォーマット（空 = JSONL）</string>
     <string name="settings_notif_fmt_readable">読みやすい</string>
     <string name="settings_notif_fmt_line">1行</string>
-    <string name="settings_notif_fmt_help">使える項目: {time} {ts} {app} {pkg} {title} {text} {category} {key}。1行化: {text1} {title1}。改行=\\n タブ=\\t。新しい通知から反映。</string>
+    <string name="settings_notif_fmt_help" tools:ignore="Typos">使える項目: {time} {ts} {app} {pkg} {title} {text} {category} {key}。1行化: {text1} {title1}。改行=\\n タブ=\\t。新しい通知から反映。</string>
     <string name="settings_notif_logpath">ログ: ~/.z2term/notifications.jsonl</string>
     <string name="settings_log_prepend">新しいものを先頭に</string>
     <string name="settings_log_prepend_desc">新しい行をファイルの末尾ではなく先頭に追記します（新着が上）。</string>
@@ -420,7 +420,7 @@
     <string name="settings_sms_perm_missing">SMS 許可: なし（下のボタンで許可）</string>
     <string name="settings_sms_grant">SMS 受信を許可する</string>
     <string name="settings_sms_fmt_title">出力フォーマット（空 = JSONL）</string>
-    <string name="settings_sms_help">プレースホルダ: {time} {ts} {from} {body}。1 行化: {body1}。エスケープ: \\n \\t。新規の記録から反映。ログ: ~/.z2term/sms.jsonl</string>
+    <string name="settings_sms_help" tools:ignore="Typos">プレースホルダ: {time} {ts} {from} {body}。1 行化: {body1}。エスケープ: \\n \\t。新規の記録から反映。ログ: ~/.z2term/sms.jsonl</string>
     <string name="settings_unlock_watch_admin_failed">この端末では端末管理者を追加できませんでした（端末のポリシーで禁止されている可能性があります）</string>
     <string name="event_channel_name">Z2Term システムイベント</string>
     <string name="event_channel_desc">画面/ロック/充電/電池/Wi-Fi のイベントを検知します</string>

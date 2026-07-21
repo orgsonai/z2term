@@ -243,7 +243,7 @@ object Z2ApiBridge {
 
         val screen = if (pm?.isInteractive == true) "on" else "off"
         val locked = km?.isKeyguardLocked == true
-        val idle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) pm?.isDeviceIdleMode == true else false
+        val idle = pm?.isDeviceIdleMode == true
 
         // 充電状態はスティッキーな ACTION_BATTERY_CHANGED から取る (plug 種別まで分かる)。
         val batt = runCatching {
@@ -463,8 +463,7 @@ object Z2ApiBridge {
     private fun batteryJson(context: Context): String {
         val bm = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
         val level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-        val charging = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) bm.isCharging else
-            bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS) == BatteryManager.BATTERY_STATUS_CHARGING
+        val charging = bm.isCharging
         return JSONObject().apply {
             put("level", level)
             put("charging", charging)
@@ -481,12 +480,7 @@ object Z2ApiBridge {
             context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
         }
         if (vibrator == null || !vibrator.hasVibrator()) return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE))
-        } else {
-            @Suppress("DEPRECATION")
-            vibrator.vibrate(duration)
-        }
+        vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE))
     }
 
     /**
@@ -685,27 +679,25 @@ object Z2ApiBridge {
     // --- 補助 ---
 
     private fun ensureChannel(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = context.getSystemService(NotificationManager::class.java)
-            if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-                nm.createNotificationChannel(
-                    NotificationChannel(
-                        CHANNEL_ID,
-                        context.getString(R.string.api_channel_name),
-                        NotificationManager.IMPORTANCE_DEFAULT
-                    ).apply { description = context.getString(R.string.api_channel_desc) }
-                )
-            }
-            // バナー (ヘッドアップ) 用の高重要度チャンネル。`z2-notify -h` のときだけ使う。
-            if (nm.getNotificationChannel(CHANNEL_ID_HIGH) == null) {
-                nm.createNotificationChannel(
-                    NotificationChannel(
-                        CHANNEL_ID_HIGH,
-                        context.getString(R.string.api_channel_high_name),
-                        NotificationManager.IMPORTANCE_HIGH
-                    ).apply { description = context.getString(R.string.api_channel_high_desc) }
-                )
-            }
+        val nm = context.getSystemService(NotificationManager::class.java)
+        if (nm.getNotificationChannel(CHANNEL_ID) == null) {
+            nm.createNotificationChannel(
+                NotificationChannel(
+                    CHANNEL_ID,
+                    context.getString(R.string.api_channel_name),
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply { description = context.getString(R.string.api_channel_desc) }
+            )
+        }
+        // バナー (ヘッドアップ) 用の高重要度チャンネル。`z2-notify -h` のときだけ使う。
+        if (nm.getNotificationChannel(CHANNEL_ID_HIGH) == null) {
+            nm.createNotificationChannel(
+                NotificationChannel(
+                    CHANNEL_ID_HIGH,
+                    context.getString(R.string.api_channel_high_name),
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply { description = context.getString(R.string.api_channel_high_desc) }
+            )
         }
     }
 

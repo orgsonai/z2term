@@ -59,7 +59,11 @@ object ServerDaemonManager {
         val scriptFile = File(rootfs, ServerSupervisorScript.SCRIPT_PATH.trimStart('/'))
         scriptFile.parentFile?.mkdirs()
         scriptFile.writeText(ServerSupervisorScript.generate(entries))
+        // world ビットは filesDir 配下 (0700・アプリ UID 所有) なので他 UID には実効性が無い。
+        // ゲスト側から確実に読める状態を保つため付けている (ProotLauncher と同じ判断)。
+        @Suppress("SetWorldReadable")
         scriptFile.setExecutable(true, false)
+        @Suppress("SetWorldReadable")
         scriptFile.setReadable(true, false)
         // 前回の status/want を掃除 (supervisor 冒頭でも消すが、起動失敗時の残骸対策)。
         File(rootfs, ServerSupervisorScript.STATUS_REL).listFiles()

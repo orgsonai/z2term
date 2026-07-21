@@ -36,6 +36,13 @@ sealed class RootProbe {
  * `libxxx.so` の命名規約で jniLibs に置く必要がある。
  * 通常のファイルとしての配布は Android 10+ で動作しなくなった。
  */
+// setReadable/setExecutable の第2引数 false (= world ビット) は、対象がすべて
+// `context.filesDir` 配下 (アプリ専用データ領域) のファイルであるため実効性を持たない:
+// この領域は 0700・アプリ UID 所有で、他アプリ/他 UID はそもそもディレクトリを辿れない。
+// 一方で owner-only へ変えると proot/z2root のゲスト側でファイルが読めなくなる退行リスクがある。
+// よって「露出は無いが world ビットは必要」という判断で、このクラスに限り検査を抑制する
+// (アプリ外 (/sdcard 等) への world-readable は他の場所で引き続き検出される)。
+@Suppress("SetWorldReadable")
 class ProotLauncher(private val context: Context) {
 
     /** distros の格納場所 */
@@ -768,6 +775,10 @@ class ProotLauncher(private val context: Context) {
      *  - 外部 SD カード (検出済みボリューム) → 同名 + 最初の1つは /sdcard_ext エイリアス。
      *    設定で「外部ストレージ認識」が ON のときだけ呼び出し側から渡される。
      */
+    // ここの "/sdcard" / "/sdcard_ext" は **proot ゲスト側のマウント先パス** (rootfs 内の宛先) で、
+    // Android のホストパスではない。ホスト側の実体は Environment.getExternalStorageDirectory() /
+    // getExternalFilesDir() から取っており、lint の指摘 (ハードコードするな) は既に満たしている。
+    @Suppress("SdCardPath")
     private fun externalStorageBinds(externalVolumes: List<String>): List<Pair<String, String>> {
         val binds = mutableListOf<Pair<String, String>>()
         runCatching {

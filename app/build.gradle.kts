@@ -99,8 +99,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 196
-        versionName = "0.8.188-alpha"
+        versionCode = 197
+        versionName = "0.8.189-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -156,6 +156,27 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    // このプロジェクトでは恒常的に意味を持たない検査だけを無効化し、残る警告を「本物」だけにする。
+    // 個別の意図的な箇所 (SetWorldReadable / SdCardPath / Typos 等) はここで一律に消さず、
+    // 該当箇所に @Suppress / tools:ignore を付けて理由を残す (他の場所では検出を効かせ続けるため)。
+    lint {
+        disable += setOf(
+            // 「新しい版が出ました」通知。上流がリリースするたび増え、本物の警告を埋もれさせる。
+            // 依存の更新は意図的に管理しているので、lint で追跡しない。
+            "GradleDependency",
+            "NewerVersionAvailable",
+            "AndroidGradlePluginVersion",
+            // Google Play の配布ポリシー前提の検査。z2term は Play 非配布 (GitHub Release 直配布) で、
+            // 全ファイルアクセスも電池最適化除外も機能上必要な意図的採用。
+            "ScopedStorage",
+            "BatteryLife",
+            // App Bundle の言語分割前提の指摘。APK 直配布なので該当しない。
+            "AppBundleLocaleChanges",
+            // targetSdk は実機検証済みの版に意図的に固定している (上げるのは検証とセット)。
+            "OldTargetApi",
+        )
     }
 
     testOptions {

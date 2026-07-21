@@ -49,10 +49,8 @@ object LocaleHelper {
         Locale.setDefault(locale)
         val config = Configuration(base.resources.configuration)
         config.setLocale(locale)
-        // 24+ では setLocales でリスト先頭にしておく (リソース解決が二段で見るため)。
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            config.setLocales(android.os.LocaleList(locale))
-        }
+        // setLocales でリスト先頭にしておく (リソース解決が二段で見るため)。
+        config.setLocales(android.os.LocaleList(locale))
         return base.createConfigurationContext(config)
     }
 }

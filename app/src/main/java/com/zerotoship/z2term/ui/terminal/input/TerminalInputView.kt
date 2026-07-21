@@ -612,15 +612,21 @@ class TerminalInputView(context: Context) : View(context) {
         magnifier?.dismiss()
     }
 
+    // ジェスチャ除外領域は onLayout のたびに設定し直すが、毎回 Rect とリストを作ると
+    // レイアウト経路でゴミが出続ける (キーボード開閉やリサイズのたびに発火する)。
+    // 内容だけ書き換えて使い回す。
+    private val gestureExclusionLeft = android.graphics.Rect()
+    private val gestureExclusionRight = android.graphics.Rect()
+    private val gestureExclusionRects = listOf(gestureExclusionLeft, gestureExclusionRight)
+
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
         // 画面左右端のシステム「戻る」ジェスチャ領域を除外し、端ぴったりでも
         // 長押し選択を開始できるようにする (API 29+)。端の縦帯のみ対象。
         val strip = (40 * resources.displayMetrics.density).toInt()
-        systemGestureExclusionRects = listOf(
-            android.graphics.Rect(0, 0, strip, height),
-            android.graphics.Rect(width - strip, 0, width, height)
-        )
+        gestureExclusionLeft.set(0, 0, strip, height)
+        gestureExclusionRight.set(width - strip, 0, width, height)
+        systemGestureExclusionRects = gestureExclusionRects
     }
 
     override fun onDetachedFromWindow() {

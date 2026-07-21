@@ -1062,6 +1062,8 @@ The fix **distinguishes where the SIGSYS came from** and delivers it to the app'
 
 ### 10.3 Easy pitfalls (recurrence prevention)
 
+- **Do not follow lint advice blindly**: merging `mipmap-anydpi-v26` into `mipmap-anydpi` as lint suggests ("minSdk is 29, so `-v26` is unnecessary") **breaks the build — `mipmap/ic_launcher` no longer resolves** (it departs from the standard adaptive-icon layout). Breaking the launcher icon to silence one warning is not worth it, so `-v26` stays (tried and reverted in 0.8.189).
+
 - The terminal's `/root` is **`filesDir/shared_home`**, not `distros/<distro>/root`. SAF/external-storage bind are based on this too.
 - Typing a multi-line script directly into the terminal causes **zsh to misexecute `#` comments / break on continuation prompts** → write it to a file and run with `sh`.
 - Restarting dropbear without killing it gives "Address already in use".

@@ -1060,6 +1060,8 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 
 ### 10.3 踏みやすい罠 (再発防止)
 
+- **lint の助言を鵜呑みにしない**: `mipmap-anydpi-v26` を「minSdk 29 なので `-v26` は不要」の指摘どおり `mipmap-anydpi` へ統合すると、**`mipmap/ic_launcher` が解決できずビルドが壊れる**（アダプティブアイコンの標準配置から外れる）。警告1件のために起動アイコンを壊す価値はないので `-v26` のまま残す（0.8.189 で試して差し戻し済み）。
+
 - 端末の `/root` は `distros/<distro>/root` でなく **`filesDir/shared_home`**。SAF/外部ストレージ bind もこれ基準。
 - 複数行スクリプトを端末に直接打鍵すると **zsh が `#` コメントを誤実行/継続プロンプトで崩れる** → ファイル化して `sh` 実行。
 - dropbear を kill せず再起動すると "Address already in use"。

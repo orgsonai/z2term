@@ -287,20 +287,18 @@ class SystemEventService : Service() {
     }
 
     private fun ensureChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(NotificationManager::class.java)
-            if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-                nm.createNotificationChannel(
-                    NotificationChannel(
-                        CHANNEL_ID,
-                        getString(R.string.event_channel_name),
-                        NotificationManager.IMPORTANCE_LOW
-                    ).apply {
-                        description = getString(R.string.event_channel_desc)
-                        setShowBadge(false)
-                    }
-                )
-            }
+        val nm = getSystemService(NotificationManager::class.java)
+        if (nm.getNotificationChannel(CHANNEL_ID) == null) {
+            nm.createNotificationChannel(
+                NotificationChannel(
+                    CHANNEL_ID,
+                    getString(R.string.event_channel_name),
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    description = getString(R.string.event_channel_desc)
+                    setShowBadge(false)
+                }
+            )
         }
     }
 
@@ -348,8 +346,7 @@ class SystemEventService : Service() {
 
         fun start(context: Context) {
             val intent = Intent(context, SystemEventService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
-            else context.startService(intent)
+            context.startForegroundService(intent)
         }
 
         fun stop(context: Context) {

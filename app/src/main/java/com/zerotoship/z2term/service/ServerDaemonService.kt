@@ -87,23 +87,21 @@ class ServerDaemonService : Service() {
     }
 
     private fun ensureChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(NotificationManager::class.java)
-            if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-                nm.createNotificationChannel(
-                    // IMPORTANCE_MIN: フォアグラウンドサービスの通知は OS 仕様で必須 (完全には消せない) だが、
-                    // MIN にするとステータスバーのアイコンは出ず、通知シェード最下部に静かに畳まれる。
-                    // = 「サーバー常駐のみのときはステータスバーに出さない」に一番近い形。
-                    NotificationChannel(
-                        CHANNEL_ID,
-                        getString(R.string.server_channel_name),
-                        NotificationManager.IMPORTANCE_MIN
-                    ).apply {
-                        description = getString(R.string.server_channel_desc)
-                        setShowBadge(false)
-                    }
-                )
-            }
+        val nm = getSystemService(NotificationManager::class.java)
+        if (nm.getNotificationChannel(CHANNEL_ID) == null) {
+            nm.createNotificationChannel(
+                // IMPORTANCE_MIN: フォアグラウンドサービスの通知は OS 仕様で必須 (完全には消せない) だが、
+                // MIN にするとステータスバーのアイコンは出ず、通知シェード最下部に静かに畳まれる。
+                // = 「サーバー常駐のみのときはステータスバーに出さない」に一番近い形。
+                NotificationChannel(
+                    CHANNEL_ID,
+                    getString(R.string.server_channel_name),
+                    NotificationManager.IMPORTANCE_MIN
+                ).apply {
+                    description = getString(R.string.server_channel_desc)
+                    setShowBadge(false)
+                }
+            )
         }
     }
 
@@ -200,8 +198,7 @@ class ServerDaemonService : Service() {
 
         fun start(context: Context) {
             val intent = Intent(context, ServerDaemonService::class.java).setAction(ACTION_START)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
-            else context.startService(intent)
+            context.startForegroundService(intent)
         }
 
         fun stop(context: Context) {

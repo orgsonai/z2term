@@ -30,6 +30,10 @@ import java.io.File
  *
  * 保存場所: `filesDir/clipboard_history.json`
  */
+// 保持するのは applicationContext のみ (Application はプロセス生存期間そのものなので
+// シングルトンから参照し続けても leak しない)。lint は参照先が application か判別できず
+// 一律に警告するため、その旨を明記して抑制する。Activity/View の Context は保持しないこと。
+@Suppress("StaticFieldLeak")
 object ClipboardHistoryStore {
     private const val TAG = "ClipHistory"
     private const val FILE_NAME = "clipboard_history.json"

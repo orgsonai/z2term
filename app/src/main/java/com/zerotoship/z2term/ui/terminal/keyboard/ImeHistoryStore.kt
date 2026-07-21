@@ -38,6 +38,10 @@ import java.io.File
  * 履歴管理 UI (設定 → 学習履歴) からは [snapshot] / [deleteEntry] / [clearAll] を使う。
  * UI 側は変化通知 [versionFlow] を購読しておけば、別経路で学習が増えた場合も自動で再描画できる。
  */
+// 保持するのは applicationContext のみ (Application はプロセス生存期間そのものなので
+// シングルトンから参照し続けても leak しない)。lint は参照先が application か判別できず
+// 一律に警告するため、その旨を明記して抑制する。Activity/View の Context は保持しないこと。
+@Suppress("StaticFieldLeak")
 object ImeHistoryStore {
     private const val TAG = "ImeHistoryStore"
     private const val FILE_NAME = "ime_history.json"

@@ -124,19 +124,17 @@ class TerminalService : Service() {
     }
 
     private fun ensureChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(NotificationManager::class.java)
-            if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-                val channel = NotificationChannel(
-                    CHANNEL_ID,
-                    getString(R.string.service_channel_name),
-                    NotificationManager.IMPORTANCE_LOW
-                ).apply {
-                    description = getString(R.string.service_channel_desc)
-                    setShowBadge(false)
-                }
-                nm.createNotificationChannel(channel)
+        val nm = getSystemService(NotificationManager::class.java)
+        if (nm.getNotificationChannel(CHANNEL_ID) == null) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.service_channel_name),
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = getString(R.string.service_channel_desc)
+                setShowBadge(false)
             }
+            nm.createNotificationChannel(channel)
         }
     }
 
@@ -185,11 +183,7 @@ class TerminalService : Service() {
 
         fun start(context: Context) {
             val intent = Intent(context, TerminalService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
+            context.startForegroundService(intent)
         }
 
         /** 完全停止: セッションを終了して常駐解除 (通知の「停止」ボタン用) */

@@ -1266,7 +1266,10 @@ class TerminalEmulator(
             val g = (currentArgb shr 8) and 0xFF
             val b = currentArgb and 0xFF
             // 8bit → 16bit へ展開 (0xRR → 0xRRRR)。xterm 互換。
+            // ロケールは ROOT 固定。既定ロケール任せだと数字が非 ASCII 字形になる環境があり、
+            // これは端末へ書き出す制御応答なので壊れる (US_ASCII で送る前提)。
             val reply = String.format(
+                java.util.Locale.ROOT,
                 "]%d;rgb:%02x%02x/%02x%02x/%02x%02x",
                 code, r, r, g, g, b, b
             )
