@@ -213,6 +213,16 @@ Granting the OS "notification access" makes Android auto-bind and keep the `Noti
 
 **Implementation notes**: the service subscribes to `AppSettings.flow` and caches the flag to avoid a DataStore hit per notification; writes are serialized on a single-thread executor.
 
+#### SMS detection (`SmsLogReceiver`, 0.8.186)
+
+Sibling of notification detection. With the OS `RECEIVE_SMS` permission and `smsCaptureEnabled` on, incoming SMS are appended to `~/.z2term/sms.jsonl`, one per line (JSON: ts / time / from / body; template placeholders `{time}` `{ts}` `{from}` `{body}` `{body1}`). Multipart SMS are reassembled by concatenating the part bodies.
+
+**Why it is needed separately from notification detection**: per the notification-detection section above, Android 15+ classifies OTP-bearing notifications as sensitive and hands ordinary listeners a redacted body. **Reading the SMS directly bypasses that redaction and does not depend on lock state**, so one-time passwords come through reliably (same mechanism as an automation app's "SMS received" trigger).
+
+**Why a manifest receiver suffices**: `SMS_RECEIVED` is exempt from the implicit-broadcast restrictions, so unlike system-event detection no resident FG service is needed — a manifest receiver (`android:permission="android.permission.BROADCAST_SMS"`) fires even when the app is not running or the device is locked. On receipt it uses `goAsync()` to move off the main thread, reads settings via `AppSettings.flow.first()`, and writes through `LogWriter`.
+
+**Sample**: `z2-macro install otp-sms.sh` installs the SMS variant of otp-clip.sh (reads `sms.jsonl`, extracts 4–8 digits).
+
 #### System event detection (`SystemEventService`, 0.8.152)
 
 Sibling of notification detection, adding "Android → shell" triggers. When `systemEventCaptureEnabled` is on, each event is appended as one JSON per line (ts / time / event, plus level / ssid when applicable). All permission-free.

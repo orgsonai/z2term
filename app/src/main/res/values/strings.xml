@@ -413,6 +413,14 @@
     <string name="settings_cmd_read_label">Command to read it (tap to copy)</string>
     <string name="settings_cmd_copy_label">Command (tap to copy)</string>
     <string name="settings_cmd_copied">Copied the command</string>
+    <string name="settings_section_sms">SMS detection</string>
+    <string name="settings_sms_capture">Capture SMS</string>
+    <string name="settings_sms_capture_desc">When on (and the SMS permission is granted), incoming SMS are written to ~/.z2term/sms.jsonl. Unlike notifications, SMS bodies are not redacted by Android\'s sensitive-notification protection and work even while locked — so one-time passwords come through reliably. A generic hook; you decide what to extract from the terminal. Fully local.</string>
+    <string name="settings_sms_perm_granted">SMS permission: granted</string>
+    <string name="settings_sms_perm_missing">SMS permission: not granted (tap below to grant)</string>
+    <string name="settings_sms_grant">Grant SMS permission</string>
+    <string name="settings_sms_fmt_title">Output format (empty = JSONL)</string>
+    <string name="settings_sms_help">Placeholders: {time} {ts} {from} {body}. One-line: {body1}. Escapes: \\n \\t. Applies to new entries. Log: ~/.z2term/sms.jsonl</string>
     <string name="settings_unlock_watch_admin_failed">Could not add a device admin on this device (it may be blocked by device policy)</string>
     <string name="event_channel_name">Z2Term system events</string>
     <string name="event_channel_desc">Detects screen/lock/power/battery/Wi-Fi events</string>

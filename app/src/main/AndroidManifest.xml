@@ -31,6 +31,11 @@
     <!-- Android API ブリッジ: z2-vibrate 用 (通常権限・実行時要求不要) -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- SMS 受信検知 (汎用入口): 設定「SMS 検知」ON のとき、受信 SMS を ~/.z2term/sms.jsonl へ追記する。
+         通知と違い SMS 本文は機微通知の伏せ字 (Android 15+) やロック状態の影響を受けないため、
+         ワンタイムパスワードを確実に取れる。実行時許可制。 -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+
     <!-- 端末から /sdcard (Android 共有ストレージ) を cd/読み書きするため。
          Android 11+ は全ファイルアクセス、〜10 は従来権限で対応。 -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
@@ -134,6 +139,18 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- SMS 受信検知 (汎用入口): 設定「SMS 検知」ON かつ RECEIVE_SMS 許可があるとき、着信 SMS を
+             ~/.z2term/sms.jsonl へ追記する。SMS_RECEIVED は暗黙ブロードキャスト制限の対象外なので
+             manifest レシーバで拾える (アプリ未起動・ロック中でも起動)。BROADCAST_SMS でシステムからのみ届く。 -->
+        <receiver
+            android:name=".service.SmsLogReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
 

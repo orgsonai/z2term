@@ -1,9 +1,12 @@
 package com.zerotoship.z2term.ui.settings
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -76,6 +79,7 @@ import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.proot.RootProbe
 import android.app.admin.DevicePolicyManager
 import com.zerotoship.z2term.service.NotificationLogService
+import com.zerotoship.z2term.service.SmsLogReceiver
 import com.zerotoship.z2term.service.PasswordWatchAdmin
 import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.settings.AppSettings
@@ -829,6 +833,96 @@ fun SettingsSheet(
                             "~/" + NotificationLogService.LOG_REL,
                             settings.notificationLogPrepend
                         )
+                    )
+                }
+
+                // SMS 受信検知 (汎用入口): RECEIVE_SMS 許可 + 設定 ON のとき、着信 SMS を ~/.z2term/sms.jsonl へ追記。
+                // 通知と違い機微通知の伏せ字 (Android 15+) やロック状態の影響を受けないので OTP を確実に取れる。
+                Section(title = stringResource(R.string.settings_section_sms)) {
+                    var smsGranted by remember {
+                        mutableStateOf(
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS)
+                                == PackageManager.PERMISSION_GRANTED
+                        )
+                    }
+                    val smsPermLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestPermission()
+                    ) { granted -> smsGranted = granted }
+                    ToggleField(
+                        title = stringResource(R.string.settings_sms_capture),
+                        description = stringResource(R.string.settings_sms_capture_desc),
+                        checked = settings.smsCaptureEnabled,
+                        onChange = { enabled ->
+                            session.setSmsCaptureEnabled(enabled)
+                            // ON にした瞬間に許可が無ければ実行時許可を求める (無いと検知しても届かない)。
+                            if (enabled && !smsGranted) {
+                                smsPermLauncher.launch(Manifest.permission.RECEIVE_SMS)
+                            }
+                        }
+                    )
+                    Text(
+                        text = if (smsGranted) stringResource(R.string.settings_sms_perm_granted)
+                        else stringResource(R.string.settings_sms_perm_missing),
+                        color = if (smsGranted) ZtsGreen else ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    ActionButton(
+                        label = stringResource(R.string.settings_sms_grant),
+                        onClick = { smsPermLauncher.launch(Manifest.permission.RECEIVE_SMS) }
+                    )
+
+                    // 出力フォーマット: プリセットで埋めてから自由に編集できるテンプレート。
+                    val smsPresets = remember {
+                        listOf(
+                            "jsonl" to "",
+                            "readable" to "[{time}] {from}\\n{body}\\n",
+                            "line" to "{time} [{from}] {body1}",
+                            "tsv" to "{time}\\t{from}\\t{body1}",
+                        )
+                    }
+                    val smsSelected = smsPresets.firstOrNull { it.second == settings.smsLogFormat }?.first ?: ""
+                    ChipRow(
+                        options = smsPresets.map { it.first },
+                        selected = smsSelected,
+                        labels = mapOf(
+                            "jsonl" to "JSONL",
+                            "readable" to stringResource(R.string.settings_notif_fmt_readable),
+                            "line" to stringResource(R.string.settings_notif_fmt_line),
+                            "tsv" to "TSV",
+                        ),
+                        onSelect = { id ->
+                            session.setSmsLogFormat(smsPresets.first { it.first == id }.second)
+                        }
+                    )
+                    TextField(
+                        title = stringResource(R.string.settings_sms_fmt_title),
+                        placeholder = "{time} [{from}] {body1}",
+                        value = settings.smsLogFormat,
+                        onChange = { session.setSmsLogFormat(it) }
+                    )
+                    ToggleField(
+                        title = stringResource(R.string.settings_log_prepend),
+                        description = stringResource(R.string.settings_log_prepend_desc),
+                        checked = settings.smsLogPrepend,
+                        onChange = { session.setSmsLogPrepend(it) }
+                    )
+                    LogSizeWarning(
+                        bytes = remember(serversOpen, settings.smsLogPrepend) {
+                            SmsLogReceiver.logFile(context).length()
+                        },
+                        prepend = settings.smsLogPrepend,
+                        path = "~/" + SmsLogReceiver.LOG_REL
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_sms_help),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    CopyableCommand(
+                        label = stringResource(R.string.settings_cmd_read_label),
+                        command = readLogCommand("~/" + SmsLogReceiver.LOG_REL, settings.smsLogPrepend)
                     )
                 }
 

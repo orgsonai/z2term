@@ -169,11 +169,32 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         append(otpClipBody(d, ja))
     }
 
+    // --- 5. 実用: SMS 内のワンタイムコードを自動コピー (通知でなく SMS を直読み = 伏せ字を迂回) ---
+    val otpSms = buildString {
+        appendLine("#!/bin/sh")
+        if (ja) {
+            appendLine("# otp-sms.sh — 受信 SMS に含まれるワンタイムコード(4〜8桁)を自動でクリップボードへ入れ、")
+            appendLine("# TTL 秒後に「値が変わっていなければ」自動で消す。otp-clip.sh の SMS 版。")
+            appendLine("# 通知と違い SMS 本文は機微通知の伏せ字(Android 15+)やロック状態の影響を受けないので確実。")
+            appendLine("# 準備: ⚙設定 →「SMS 検知」ON ＋ OS の SMS 受信許可")
+            appendLine("# 常駐: ⚙設定 → 常駐サーバー に  sh ~/.z2term/macros/otp-sms.sh  を登録")
+        } else {
+            appendLine("# otp-sms.sh — copy a one-time code (4-8 digits) out of incoming SMS, then")
+            appendLine("# clear it after TTL seconds if the clipboard still holds that same value.")
+            appendLine("# The SMS variant of otp-clip.sh. Unlike notifications, SMS bodies are never")
+            appendLine("# redacted by sensitive-notification protection (Android 15+) and work while locked.")
+            appendLine("# Setup: Settings -> \"SMS detection\" ON + grant the OS SMS permission")
+            appendLine("# Resident: register  sh ~/.z2term/macros/otp-sms.sh  under Settings -> Resident servers")
+        }
+        append(otpClipBody(d, ja, "sms.jsonl", "otp-sms"))
+    }
+
     return linkedMapOf(
         "watch-basic.sh" to watchBasic,
         "battery-alert.sh" to batteryAlert,
         "daily-report.sh" to dailyReport,
         "otp-clip.sh" to otpClip,
+        "otp-sms.sh" to otpSms,
     )
 }
 
@@ -273,7 +294,7 @@ done
  * `{key}` の通知 ID・`{pkg}` を除去し、コードはキーワードからの位置で選ぶ
  * (先頭一致だと `{key}` を含むテンプレートで通知 ID を取り違える)。
  */
-private fun otpClipBody(d: String, ja: Boolean): String {
+private fun otpClipBody(d: String, ja: Boolean, log: String = "notifications.jsonl", tag: String = "otp-clip"): String {
     val copied = if (ja) "コードをコピー: ${d}{code}" else "Copied code: ${d}{code}"
     val cleared = if (ja) "コピーしたコードをクリアしました" else "Cleared the copied code"
     val cTtl = if (ja) "コピーから何秒でクリアするか" else "seconds before the copy is cleared"
@@ -311,7 +332,7 @@ private fun otpClipBody(d: String, ja: Boolean): String {
     return """
 TTL=60                                    # $cTtl
 KEYWORDS='認証|確認|ワンタイム|コード|パスワード|code|otp|verification|verify|one[- ]?time'
-""" + diffSetup(d, ja, "notifications.jsonl", "otp-clip") + """
+""" + diffSetup(d, ja, log, tag) + """
 $cClear
 schedule_clear() {
   code=${d}1

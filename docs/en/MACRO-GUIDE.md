@@ -15,7 +15,7 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
 
 | Stage | Direction | In z2term |
 |---|---|---|
-| **Trigger** | Android → shell | System events appended to `~/.z2term/events.jsonl` (charge/screen/lock/Wi‑Fi/headset/airplane/ringer…). Notifications go to `~/.z2term/notifications.jsonl`. **Time** triggers come from `z2-alarm`, which writes `alarm` into the same events.jsonl |
+| **Trigger** | Android → shell | System events appended to `~/.z2term/events.jsonl` (charge/screen/lock/Wi‑Fi/headset/airplane/ringer…). Notifications go to `~/.z2term/notifications.jsonl`, SMS to `~/.z2term/sms.jsonl` (for OTPs, SMS detection bypasses redaction — see 5-7). **Time** triggers come from `z2-alarm`, which writes `alarm` into the same events.jsonl |
 | **Decide (logic)** | shell | Read the log lines and branch (`if`, time, counts, state files…). Plain sh/awk/jq, anything goes |
 | **Action** | shell → Android | `z2-*` commands drive the Android side (notify/speak/volume/torch/fire an Intent…) |
 
@@ -562,8 +562,10 @@ replaces their body with a placeholder (e.g. "Sensitive content hidden") **befor
 **"untrusted" notification listeners — which every ordinary app is**. Even with notification access fully
 granted, only the OTP body is withheld (the notification still arrives, so a row appears, but `text` is the
 placeholder). Two ways around it:
-- Turn **`Settings → Notifications → Enhanced notifications` OFF** (most reliable, no rebuild; also disables the
-  OS OTP-autofill suggestions).
+- **For SMS OTPs, use "SMS detection" instead (recommended)** → see 5-7 below. It reads the SMS directly, fully
+  bypassing this redaction, and works even while locked. The most reliable option, independent of OEM settings.
+- Turn **`Settings → Notifications → Enhanced notifications` OFF** (works on Pixel etc.; some OEMs lack this
+  toggle or it has no effect; also disables the OS OTP-autofill suggestions).
 - Become a **"trusted" listener** holding `RECEIVE_SENSITIVE_NOTIFICATIONS`. That is reserved for system-signed
   apps or specific roles (companion watch/glasses, home, …); ordinary apps aren't granted it automatically and
   must declare it and grant it via adb (may be rejected depending on the OEM).
@@ -571,6 +573,21 @@ placeholder). Two ways around it:
 Once un-redacted, the only thing that still cannot be read is a notification whose body lives solely in a fully
 custom layout, with no text in the title, text, or message fields (a few apps). SMS one-time codes normally sit
 in the MessagingStyle body, captured from 0.8.185 on.
+
+### 5-7. Copy an SMS one-time code reliably via "SMS detection" (bypasses redaction)
+
+On Android 15+, SMS OTPs delivered as notifications are redacted (above), so notification detection may not see
+them (the same is true for notification-based triggers in MacroDroid etc.). z2term therefore has **SMS detection**
+that reads the SMS body directly — never going through the sensitive-notification redaction or lock state.
+
+- Setup: `⚙Settings → SMS detection` **ON**, then **grant the SMS permission** in the prompt.
+- Log: `~/.z2term/sms.jsonl` (fields: `ts` `time` `from` `body`).
+- Auto-copy: `z2-macro install otp-sms.sh` installs the SMS variant of 5-6 (reads `sms.jsonl`, extracts 4–8
+  digits). Register `sh ~/.z2term/macros/otp-sms.sh` under `⚙Settings → Resident servers` to copy OTPs even while
+  locked.
+
+OTPs that are **not SMS** (e.g. authenticator-app notifications) are out of scope for this route (use notification
+detection plus the workarounds above).
 
 ---
 

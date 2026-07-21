@@ -213,6 +213,16 @@ OS の「通知アクセス」許可を与えると Android が `NotificationLis
 
 **実装メモ**: 設定フラグは Service が `AppSettings.flow` を購読してキャッシュし、通知ごとの DataStore アクセスを避ける。書込みは単一スレッド executor で直列化。
 
+#### SMS 受信検知（`SmsLogReceiver`、0.8.186）
+
+通知検知の姉妹機能。OS の `RECEIVE_SMS` 許可 + 設定 `smsCaptureEnabled` が ON のとき、受信 SMS を `~/.z2term/sms.jsonl` へ 1 通 1 行で追記する（JSON: ts / time / from / body。テンプレートは `{time}` `{ts}` `{from}` `{body}` `{body1}`）。マルチパート SMS は part の本文を連結して 1 通に戻す。
+
+**なぜ通知検知と別に要るのか**: [通知検知（`NotificationLogService`、0.8.149）](#通知検知notificationlogservice08149) の項のとおり、Android 15+ は OTP を含む通知を機微判定し、一般アプリの通知リスナーには本文を伏せ字にして渡す。**SMS を直接読むこの経路はその伏せ字を通らず、ロック状態にも依存しない**ため、ワンタイムパスワードを確実に取れる（自動化アプリの「SMS 受信」トリガーと同じ）。
+
+**なぜ manifest レシーバでよいか**: `SMS_RECEIVED` は暗黙ブロードキャスト制限の対象外。よってシステムイベント検知のような常駐 FG サービスは不要で、manifest 宣言のレシーバ（`android:permission="android.permission.BROADCAST_SMS"`）で**アプリ未起動・ロック中でも**起動できる。受信時は `goAsync()` で背景スレッドに逃がし、`AppSettings.flow.first()` で設定を読んで `LogWriter` で書く。
+
+**サンプル**: `z2-macro install otp-sms.sh` で otp-clip.sh の SMS 版（`sms.jsonl` を見て 4〜8 桁を抽出）が入る。
+
 #### システムイベント検知（`SystemEventService`、0.8.152）
 
 通知検知の姉妹機能で「Android → シェル」向きのトリガーを増やす段。設定 `systemEventCaptureEnabled` が ON のとき、拾ったイベントを 1 行 1 イベントで追記する（JSON: ts / time / event と、該当時のみ level / ssid）。すべて権限不要。

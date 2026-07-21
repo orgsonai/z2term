@@ -309,6 +309,9 @@ class TerminalSession(
     fun setSystemEventLogFormat(template: String) { scope.launch { settings.setSystemEventLogFormat(template) } }
     fun setSystemEventLogPrepend(enabled: Boolean) { scope.launch { settings.setSystemEventLogPrepend(enabled) } }
     fun setUnlockWatchEnabled(enabled: Boolean) { scope.launch { settings.setUnlockWatchEnabled(enabled) } }
+    fun setSmsCaptureEnabled(enabled: Boolean) { scope.launch { settings.setSmsCaptureEnabled(enabled) } }
+    fun setSmsLogFormat(template: String) { scope.launch { settings.setSmsLogFormat(template) } }
+    fun setSmsLogPrepend(enabled: Boolean) { scope.launch { settings.setSmsLogPrepend(enabled) } }
     fun setKittyExternalFileEnabled(value: Boolean) { scope.launch { settings.setKittyExternalFileEnabled(value) } }
     fun setSgrMouseInputEnabled(value: Boolean) { scope.launch { settings.setSgrMouseInputEnabled(value) } }
 

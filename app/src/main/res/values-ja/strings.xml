@@ -413,6 +413,14 @@
     <string name="settings_cmd_read_label">読むコマンド（タップでコピー）</string>
     <string name="settings_cmd_copy_label">コマンド（タップでコピー）</string>
     <string name="settings_cmd_copied">コマンドをコピーしました</string>
+    <string name="settings_section_sms">SMS 検知</string>
+    <string name="settings_sms_capture">SMS を検知</string>
+    <string name="settings_sms_capture_desc">ON かつ SMS 許可があるとき、受信 SMS を ~/.z2term/sms.jsonl へ追記します。通知と違い SMS 本文は Android 15+ の機微通知の伏せ字やロック状態の影響を受けないため、ワンタイムパスワードを確実に取れます。検知の汎用入口で、何を抽出するかはターミナル側で自由に。完全ローカル・外部送信なし。</string>
+    <string name="settings_sms_perm_granted">SMS 許可: あり</string>
+    <string name="settings_sms_perm_missing">SMS 許可: なし（下のボタンで許可）</string>
+    <string name="settings_sms_grant">SMS 受信を許可する</string>
+    <string name="settings_sms_fmt_title">出力フォーマット（空 = JSONL）</string>
+    <string name="settings_sms_help">プレースホルダ: {time} {ts} {from} {body}。1 行化: {body1}。エスケープ: \\n \\t。新規の記録から反映。ログ: ~/.z2term/sms.jsonl</string>
     <string name="settings_unlock_watch_admin_failed">この端末では端末管理者を追加できませんでした（端末のポリシーで禁止されている可能性があります）</string>
     <string name="event_channel_name">Z2Term システムイベント</string>
     <string name="event_channel_desc">画面/ロック/充電/電池/Wi-Fi のイベントを検知します</string>

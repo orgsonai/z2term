@@ -219,7 +219,25 @@ class AppSettings(private val context: Context) {
          * 端末管理者権限は失敗回数の取得 (`watch-login`) にのみ使い、遠隔ロック/ワイプはしない。
          * 既定 OFF・完全ローカル・外部送信なし。
          */
-        val unlockWatchEnabled: Boolean = DEFAULT_UNLOCK_WATCH
+        val unlockWatchEnabled: Boolean = DEFAULT_UNLOCK_WATCH,
+        /**
+         * SMS 受信検知の有効化フラグ。ON かつ OS の `RECEIVE_SMS` 許可があるとき、
+         * [com.zerotoship.z2term.service.SmsLogReceiver] が受信 SMS を `~/.z2term/sms.jsonl` へ追記する。
+         * 通知と違い SMS 本文は OS の機微通知伏せ字 (Android 15+) やロック状態の影響を受けないため、
+         * ワンタイムパスワードを確実に取れる。通知検知の姉妹機能で加工はユーザーがターミナル側で行う。
+         * 既定 OFF・完全ローカル・外部送信なし。
+         */
+        val smsCaptureEnabled: Boolean = DEFAULT_SMS_CAPTURE,
+        /**
+         * SMS ログの出力フォーマット **テンプレート**。プレースホルダ `{time}` `{ts}` `{from}` `{body}` と、
+         * 改行 `\n`・タブ `\t`・1 行化 `{body1}` (改行→空白) が使える。**空文字なら JSONL** (機械可読・既定)。
+         * 置換は [com.zerotoship.z2term.service.SmsLogReceiver.render] が行う。
+         */
+        val smsLogFormat: String = DEFAULT_SMS_LOG_FORMAT,
+        /**
+         * SMS ログを **先頭追記** (新着が上) にするか。false で末尾追記 (新着が下)。
+         */
+        val smsLogPrepend: Boolean = DEFAULT_LOG_PREPEND
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -279,8 +297,23 @@ class AppSettings(private val context: Context) {
             systemEventCaptureEnabled = p[KEY_SYSTEM_EVENT_CAPTURE] ?: DEFAULT_SYSTEM_EVENT_CAPTURE,
             systemEventLogFormat = p[KEY_SYSTEM_EVENT_LOG_FORMAT] ?: DEFAULT_SYSTEM_EVENT_LOG_FORMAT,
             systemEventLogPrepend = p[KEY_SYSTEM_EVENT_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND,
-            unlockWatchEnabled = p[KEY_UNLOCK_WATCH] ?: DEFAULT_UNLOCK_WATCH
+            unlockWatchEnabled = p[KEY_UNLOCK_WATCH] ?: DEFAULT_UNLOCK_WATCH,
+            smsCaptureEnabled = p[KEY_SMS_CAPTURE] ?: DEFAULT_SMS_CAPTURE,
+            smsLogFormat = p[KEY_SMS_LOG_FORMAT] ?: DEFAULT_SMS_LOG_FORMAT,
+            smsLogPrepend = p[KEY_SMS_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND
         )
+    }
+
+    suspend fun setSmsCaptureEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_SMS_CAPTURE] = enabled }
+    }
+
+    suspend fun setSmsLogFormat(template: String) {
+        context.dataStore.edit { it[KEY_SMS_LOG_FORMAT] = template }
+    }
+
+    suspend fun setSmsLogPrepend(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_SMS_LOG_PREPEND] = enabled }
     }
 
     suspend fun setNotificationCaptureEnabled(enabled: Boolean) {
@@ -551,6 +584,9 @@ class AppSettings(private val context: Context) {
         private val KEY_NOTIFICATION_LOG_PREPEND = booleanPreferencesKey("notification_log_prepend")
         private val KEY_SYSTEM_EVENT_LOG_PREPEND = booleanPreferencesKey("system_event_log_prepend")
         private val KEY_UNLOCK_WATCH = booleanPreferencesKey("unlock_watch_enabled")
+        private val KEY_SMS_CAPTURE = booleanPreferencesKey("sms_capture_enabled")
+        private val KEY_SMS_LOG_FORMAT = stringPreferencesKey("sms_log_format")
+        private val KEY_SMS_LOG_PREPEND = booleanPreferencesKey("sms_log_prepend")
 
         /** 通知検知は既定 OFF (明示 opt-in + OS の通知アクセス許可が要る)。 */
         const val DEFAULT_NOTIFICATION_CAPTURE = false
@@ -569,6 +605,11 @@ class AppSettings(private val context: Context) {
 
         /** ロック解除の失敗監視は既定 OFF (明示 opt-in + 端末管理者の有効化が要る)。 */
         const val DEFAULT_UNLOCK_WATCH = false
+
+        /** SMS 受信検知は既定 OFF (明示 opt-in + OS の RECEIVE_SMS 許可が要る)。 */
+        const val DEFAULT_SMS_CAPTURE = false
+        /** SMS ログのフォーマットテンプレート。空文字 = JSONL (機械可読・既定)。 */
+        const val DEFAULT_SMS_LOG_FORMAT = ""
 
         /** 常駐サーバーの起動時自動起動は既定 OFF (明示 opt-in)。 */
         const val DEFAULT_SERVERS_AUTOSTART = false
