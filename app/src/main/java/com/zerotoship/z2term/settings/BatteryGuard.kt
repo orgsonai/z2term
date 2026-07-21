@@ -2,9 +2,9 @@ package com.zerotoship.z2term.settings
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
+import androidx.core.net.toUri
 
 /**
  * バックグラウンドでアプリプロセスが kill される頻度を下げる L1 対策ヘルパー。
@@ -33,7 +33,7 @@ object BatteryGuard {
     fun requestExemption(context: Context) {
         if (isIgnoring(context)) return
         val direct = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-            data = Uri.parse("package:${context.packageName}")
+            data = "package:${context.packageName}".toUri()
         }
         if (runCatching { context.startActivity(direct) }.isSuccess) return
         openOptimizationSettings(context)
@@ -53,7 +53,7 @@ object BatteryGuard {
         runCatching {
             context.startActivity(
                 Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.parse("package:${context.packageName}")
+                    data = "package:${context.packageName}".toUri()
                 }
             )
         }

@@ -1,17 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Z2Term</string>
-    <string name="app_tagline">Zero 2 Terminal</string>
-    <string name="distro_alpine">Alpine Linux</string>
-    <string name="status_initializing">Initializing…</string>
-    <string name="status_extracting">Extracting rootfs…</string>
-    <string name="status_ready">Ready</string>
-    <string name="status_running">Running</string>
-    <string name="error_setup">Setup failed</string>
-    <string name="action_restart">Restart</string>
     <string name="action_clear">Clear</string>
-    <string name="action_close">Close</string>
-    <string name="prompt_label">Prompt</string>
 
     <!-- Settings sheet (D2 batch) -->
     <string name="settings_header">Z2Term Settings</string>
@@ -41,8 +31,6 @@
     <string name="settings_gui_audio_desc">ON: play sound from GUI apps on this device. PulseAudio is installed into the Linux side on first use (downloads a few MB). OFF: no audio, no extra packages.</string>
     <string name="settings_ambiguous_width">Treat ambiguous-width chars as 2 cells</string>
     <string name="settings_ambiguous_width_desc">For CJK locales (works for PowerLine glyphs etc.)</string>
-    <string name="settings_keep_alive">Background service</string>
-    <string name="settings_keep_alive_desc">ON: keep the session alive after closing the app (a notification appears). OFF: terminate when closed.</string>
     <string name="settings_confirm_download">Confirm before download</string>
     <string name="settings_confirm_download_desc">ON: prompt before downloading a distro or GUI package. OFF: download without confirmation.</string>
     <string name="settings_section_process_guard">Background process protection</string>
@@ -50,7 +38,6 @@
     <string name="settings_battery_opt_toggle_desc">ON: the OS is less likely to kill the session and its running processes in the background. Turning OFF opens system settings (Android does not allow apps to re-enable optimization directly).</string>
     <string name="settings_phantom_title">If processes still get killed (Android 12/13)</string>
     <string name="settings_phantom_desc">Android 12/13 may kill the \"phantom processes\" that proot spawns. This cannot be changed inside the app — run the following from a PC via adb, then reboot the device. Android 14+ is usually relaxed already.</string>
-    <string name="settings_section_landscape_keyboard">Keyboard position (landscape)</string>
     <string name="settings_landscape_keyboard_desc">Where to place the on-screen keyboard when the screen is in landscape. Portrait always uses Bottom.</string>
     <string name="settings_landscape_kb_left">Left</string>
     <string name="settings_landscape_kb_bottom">Bottom</string>
@@ -114,7 +101,10 @@
     <string name="settings_root_retry_hint">chroot appears once you grant root on a rooted device. Re-check with the button below. After a "Deny" the prompt stops appearing, so set Z2Term back to "Grant" in your root manager (e.g. Magisk) first.</string>
     <string name="settings_root_retry_button">Enable chroot (check root)</string>
     <string name="settings_root_retry_probing">Checking root…</string>
-    <string name="settings_root_unlock_countdown">%1$d more taps to toggle the engine selector</string>
+    <plurals name="settings_root_unlock_countdown">
+        <item quantity="one">%1$d more tap to toggle the engine selector</item>
+        <item quantity="other">%1$d more taps to toggle the engine selector</item>
+    </plurals>
 
     <!-- Banners shown during distro / GUI install (D2 batch) -->
     <string name="banner_proot_missing">⚠️ PRoot binary not found — run scripts/build-proot.sh and rebuild. Falling back to Android sh.</string>
@@ -259,7 +249,7 @@
     <string name="oss_purpose_talloc">Memory management library dynamically linked by PRoot</string>
     <string name="oss_purpose_alpine_base">Base system (alpine-base, baselayout, keys)</string>
     <string name="oss_purpose_musl_libc">C standard library used by Alpine</string>
-    <string name="oss_purpose_busybox">Major UNIX tools for Alpine (sh/ls/cp/...)</string>
+    <string name="oss_purpose_busybox">Major UNIX tools for Alpine (sh/ls/cp/…)</string>
     <string name="oss_purpose_bash">Interactive shell (from alpine-packages.txt)</string>
     <string name="oss_purpose_zsh">Interactive shell</string>
     <string name="oss_purpose_openssh">SSH client (sshd inside proot uses Dropbear)</string>
@@ -341,7 +331,6 @@
     <string name="sshaccess_title">SSH access from a PC</string>
     <string name="sshaccess_wifi_unavailable">Connect to Wi-Fi (no IP detected)</string>
     <string name="sshaccess_from_pc_header">\nFrom your PC:</string>
-    <string name="sshaccess_copy_ssh_cmd">Copy ssh command</string>
     <string name="sshaccess_note">`sshd` can also be launched from the terminal (port comes from sshd_config\'s Port, or `-p`).\nOpenSSH /usr/sbin/sshd breaks privsep under proot → we use dropbear.\nSee docs/SSH-INTO-Z2TERM.md for details</string>
     <string name="storage_access_title">Storage access (cd /sdcard)</string>
     <string name="storage_access_granted">✅ Granted. From the terminal you can `cd /sdcard` to the shared storage.\n   `/storage/app` is the app-private area and needs no permission.</string>
@@ -368,7 +357,10 @@
     <string name="server_channel_name">Z2Term servers</string>
     <string name="server_channel_desc">Keeps resident servers (sshd/http/smb, …) running</string>
     <string name="server_notification_title">Servers running</string>
-    <string name="server_notification_text">%1$d server(s) running</string>
+    <plurals name="server_notification_text">
+        <item quantity="one">%1$d server running</item>
+        <item quantity="other">%1$d servers running</item>
+    </plurals>
     <string name="server_action_stop">Stop servers</string>
     <string name="settings_section_servers">Resident servers</string>
     <string name="settings_servers_desc">Keep any server (sshd/http/smb, …) running in the background — even without opening the app.</string>
@@ -441,9 +433,15 @@
     <string name="settings_unlock_watch_admin_manage">Manage device admin (to deactivate)</string>
     <string name="settings_unlock_watch_admin_explain">Used only to detect lock-screen unlock failures for your anti-theft macros. This app does not lock, wipe, or reset your device.</string>
     <string name="settings_unlock_watch_help">Needs device admin (watch-login only; no remote lock/wipe). Events: unlock_failed with {level}=failure count, unlock_succeeded. Build your reaction as a macro on events.jsonl.</string>
-    <string name="toast_copy_from_remote">Copied from remote (%1$d chars)</string>
+    <plurals name="toast_copy_from_remote">
+        <item quantity="one">Copied from remote (%1$d char)</item>
+        <item quantity="other">Copied from remote (%1$d chars)</item>
+    </plurals>
     <string name="toast_selection_empty">Selection is empty</string>
-    <string name="toast_copy">Copied (%1$d chars)</string>
+    <plurals name="toast_copy">
+        <item quantity="one">Copied (%1$d char)</item>
+        <item quantity="other">Copied (%1$d chars)</item>
+    </plurals>
     <string name="banner_process_exited">[process exited exitCode=%1$d]</string>
     <string name="gui_terminal_xterm_desc">Lightest / standard for all distros</string>
     <string name="gui_terminal_urxvt_desc">Light / Japanese-capable</string>
@@ -465,7 +463,10 @@
     <string name="saf_error_out_of_scope">Out of access scope: %1$s</string>
 
     <!-- Misc residuals (D3 batch 7) -->
-    <string name="scroll_offset_indicator">↑%1$d lines</string>
+    <plurals name="scroll_offset_indicator">
+        <item quantity="one">↑%1$d line</item>
+        <item quantity="other">↑%1$d lines</item>
+    </plurals>
     <string name="default_custom_theme_name">My theme</string>
     <string name="snippet_sample_ls_label">list (long)</string>
     <string name="snippet_sample_apk_update_label">apk: update (fetch index)</string>
@@ -473,7 +474,10 @@
 
     <!-- IME learning history management (keyboard patch) -->
     <string name="settings_section_ime_history">Japanese IME learning history</string>
-    <string name="settings_ime_history_count">%1$d learned entries</string>
+    <plurals name="settings_ime_history_count">
+        <item quantity="one">%1$d learned entry</item>
+        <item quantity="other">%1$d learned entries</item>
+    </plurals>
     <string name="settings_ime_history_open">Manage history</string>
     <string name="ime_history_title">Learning history</string>
     <string name="ime_history_empty">No learning history yet. Entries are recorded when you confirm a conversion in the Japanese keyboard.</string>
@@ -481,7 +485,10 @@
     <string name="ime_history_count_badge">×%1$d</string>
     <string name="ime_history_search_hint">Search by reading or word…</string>
     <string name="ime_history_search_empty">No entries match your search.</string>
-    <string name="ime_history_count_filtered">%1$d / %2$d entries</string>
+    <plurals name="ime_history_count_filtered">
+        <item quantity="one">%1$d / %2$d entry</item>
+        <item quantity="other">%1$d / %2$d entries</item>
+    </plurals>
 
     <!-- Android API bridge (z2-* helpers) -->
     <string name="api_channel_name">Terminal API</string>
@@ -504,5 +511,4 @@
     <string name="tb_search">Search scrollback</string>
     <string name="tb_keyboard">Switch keyboard</string>
     <string name="tb_settings">Settings</string>
-    <string name="tb_reorder_hint">Long-press to reorder</string>
 </resources>

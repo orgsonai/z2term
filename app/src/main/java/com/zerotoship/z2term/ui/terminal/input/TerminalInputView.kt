@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.ui.terminal.input
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.text.InputType
 import android.view.GestureDetector
@@ -11,6 +12,7 @@ import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
+import androidx.core.net.toUri
 import com.zerotoship.z2term.core.TerminalSelection
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.settings.AppSettings
@@ -371,6 +373,9 @@ class TerminalInputView(context: Context) : View(context) {
         imm?.hideSoftInputFromWindow(windowToken, 0)
     }
 
+    // タップのクリック通知 (performClick) は GestureDetector の onSingleTapUp で出している。
+    // lint はこのメソッド本体しか見ないため検出できず誤検知になる。
+    @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val action = event.actionMasked
 
@@ -697,7 +702,7 @@ class TerminalInputView(context: Context) : View(context) {
      */
     /** URL / OSC8 リンクを外部アプリ (ブラウザ等) で開く。開けたら true。 */
     private fun openUri(raw: String): Boolean {
-        val uri = runCatching { android.net.Uri.parse(raw) }.getOrNull() ?: return false
+        val uri = runCatching { raw.toUri() }.getOrNull() ?: return false
         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         return runCatching { context.startActivity(intent); true }.getOrDefault(false)

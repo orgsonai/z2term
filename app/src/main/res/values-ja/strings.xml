@@ -1,17 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Z2Term</string>
-    <string name="app_tagline">Zero 2 Terminal</string>
-    <string name="distro_alpine">Alpine Linux</string>
-    <string name="status_initializing">初期化中…</string>
-    <string name="status_extracting">rootfs を展開中…</string>
-    <string name="status_ready">準備完了</string>
-    <string name="status_running">実行中</string>
-    <string name="error_setup">セットアップに失敗しました</string>
-    <string name="action_restart">再起動</string>
     <string name="action_clear">クリア</string>
-    <string name="action_close">閉じる</string>
-    <string name="prompt_label">プロンプト</string>
 
     <!-- 設定シート (D2 バッチ) -->
     <string name="settings_header">Z2Term 設定</string>
@@ -41,8 +31,6 @@
     <string name="settings_gui_audio_desc">ON: GUI アプリの音をこの端末で鳴らします。初回 ON 時に Linux 側へ PulseAudio を導入します (数 MB 取得)。OFF: 音は鳴らさず追加パッケージも入れません。</string>
     <string name="settings_ambiguous_width">全角曖昧文字を 2 セル幅扱い</string>
     <string name="settings_ambiguous_width_desc">CJK ロケール向け (PowerLine 記号などに有効)</string>
-    <string name="settings_keep_alive">バックグラウンド常駐</string>
-    <string name="settings_keep_alive_desc">ON: アプリを閉じてもセッション維持 (通知が出ます)。OFF: 閉じると終了。</string>
     <string name="settings_confirm_download">ダウンロード前に確認</string>
     <string name="settings_confirm_download_desc">ON: distro / GUI のダウンロード前に確認を出す。OFF: 確認なしで取得。</string>
     <string name="settings_section_process_guard">バックグラウンドのプロセス保護</string>
@@ -50,7 +38,6 @@
     <string name="settings_battery_opt_toggle_desc">ON: バックグラウンドでセッションや実行中プロセスが OS に kill されにくくなります。OFF にするとシステム設定を開きます (除外の解除はアプリから直接できないため)。</string>
     <string name="settings_phantom_title">それでも消える場合 (Android 12/13)</string>
     <string name="settings_phantom_desc">Android 12/13 は proot が生む「phantom process」を kill することがあります。アプリ内からは変更できないため、PC から adb で以下を実行し端末を再起動してください。Android 14+ は既定で緩和済みのことが多いです。</string>
-    <string name="settings_section_landscape_keyboard">キーボード位置 (横画面)</string>
     <string name="settings_landscape_keyboard_desc">横画面のときにキーボードを画面のどこに出すか。縦画面は常に下に出る。</string>
     <string name="settings_landscape_kb_left">左</string>
     <string name="settings_landscape_kb_bottom">下</string>
@@ -114,7 +101,9 @@
     <string name="settings_root_retry_hint">chroot は root 端末で root を許可すると選べます。下のボタンで再確認できます。一度「拒否」した後はダイアログが出なくなるので、Magisk 等で Z2Term の root を「許可」に戻してから押してください。</string>
     <string name="settings_root_retry_button">chroot を有効化（root を確認）</string>
     <string name="settings_root_retry_probing">root を確認中…</string>
-    <string name="settings_root_unlock_countdown">エンジン選択の切替まであと %1$d 回</string>
+    <plurals name="settings_root_unlock_countdown">
+        <item quantity="other">エンジン選択の切替まであと %1$d 回</item>
+    </plurals>
 
     <!-- distro / GUI 導入時のバナー (D2 バッチ) -->
     <string name="banner_proot_missing">⚠️ PRoot バイナリが見つかりません — scripts/build-proot.sh を実行して再ビルドしてください。Android sh で起動します。</string>
@@ -259,7 +248,7 @@
     <string name="oss_purpose_talloc">PRoot が動的リンクするメモリ管理ライブラリ</string>
     <string name="oss_purpose_alpine_base">ベースシステム (alpine-base, baselayout, keys)</string>
     <string name="oss_purpose_musl_libc">Alpine の C 標準ライブラリ</string>
-    <string name="oss_purpose_busybox">Alpine の主要 UNIX ツール (sh/ls/cp/...)</string>
+    <string name="oss_purpose_busybox">Alpine の主要 UNIX ツール (sh/ls/cp/…)</string>
     <string name="oss_purpose_bash">対話シェル (alpine-packages.txt より)</string>
     <string name="oss_purpose_zsh">対話シェル</string>
     <string name="oss_purpose_openssh">SSH クライアント (proot 内サーバは Dropbear を利用)</string>
@@ -341,7 +330,6 @@
     <string name="sshaccess_title">PC からの SSH 接続</string>
     <string name="sshaccess_wifi_unavailable">Wi-Fi に接続して下さい (IP 未検出)</string>
     <string name="sshaccess_from_pc_header">\nPC から:</string>
-    <string name="sshaccess_copy_ssh_cmd">ssh コマンドをコピー</string>
     <string name="sshaccess_note">端末で `sshd` でも起動可 (ポートは sshd_config の Port、`-p` 指定も可)。\nOpenSSH の /usr/sbin/sshd は proot で privsep 破綻のため使えません → dropbear。\n詳細は docs/SSH-INTO-Z2TERM.md を参照</string>
     <string name="storage_access_title">ストレージアクセス (cd /sdcard)</string>
     <string name="storage_access_granted">✅ 許可済み。端末から `cd /sdcard` で共有ストレージへ移動できます。\n   権限不要のアプリ専用領域は `/storage/app` です。</string>
@@ -368,7 +356,9 @@
     <string name="server_channel_name">Z2Term サーバー</string>
     <string name="server_channel_desc">常駐サーバー (sshd/http/smb 等) をバックグラウンドで維持</string>
     <string name="server_notification_title">サーバー常駐中</string>
-    <string name="server_notification_text">%1$d 個のサーバーが稼働中</string>
+    <plurals name="server_notification_text">
+        <item quantity="other">%1$d 個のサーバーが稼働中</item>
+    </plurals>
     <string name="server_action_stop">サーバー停止</string>
     <string name="settings_section_servers">常駐サーバー</string>
     <string name="settings_servers_desc">任意のサーバー (sshd/http/smb 等) をバックグラウンドで常駐。アプリを開かなくても動かせます。</string>
@@ -441,9 +431,13 @@
     <string name="settings_unlock_watch_admin_manage">端末管理者を管理（無効化はこちら）</string>
     <string name="settings_unlock_watch_admin_explain">盗難対策マクロ用に、ロック解除の失敗を検知するためだけに使います。このアプリが端末をロック・初期化・パスワード変更することはありません。</string>
     <string name="settings_unlock_watch_help">端末管理者が必要です（watch-login のみ・遠隔ロック/ワイプはしません）。イベント: unlock_failed（{level}=失敗回数）, unlock_succeeded。反応は events.jsonl を見るマクロで組みます。</string>
-    <string name="toast_copy_from_remote">リモートからコピー (%1$d 文字)</string>
+    <plurals name="toast_copy_from_remote">
+        <item quantity="other">リモートからコピー (%1$d 文字)</item>
+    </plurals>
     <string name="toast_selection_empty">選択範囲が空です</string>
-    <string name="toast_copy">コピー (%1$d 文字)</string>
+    <plurals name="toast_copy">
+        <item quantity="other">コピー (%1$d 文字)</item>
+    </plurals>
     <string name="banner_process_exited">[プロセス終了 exitCode=%1$d]</string>
     <string name="gui_terminal_xterm_desc">最軽量・全 distro 標準</string>
     <string name="gui_terminal_urxvt_desc">軽量・日本語表示可</string>
@@ -465,7 +459,9 @@
     <string name="saf_error_out_of_scope">アクセス範囲外: %1$s</string>
 
     <!-- 残置の小物 (D3 バッチ 7) -->
-    <string name="scroll_offset_indicator">↑%1$d行</string>
+    <plurals name="scroll_offset_indicator">
+        <item quantity="other">↑%1$d行</item>
+    </plurals>
     <string name="default_custom_theme_name">マイテーマ</string>
     <string name="snippet_sample_ls_label">一覧 (詳細)</string>
     <string name="snippet_sample_apk_update_label">apk: 更新 (index 取得)</string>
@@ -473,7 +469,9 @@
 
     <!-- IME 学習履歴管理 (キーボードパッチ) -->
     <string name="settings_section_ime_history">日本語 IME 学習履歴</string>
-    <string name="settings_ime_history_count">%1$d 件の単語を学習済み</string>
+    <plurals name="settings_ime_history_count">
+        <item quantity="other">%1$d 件の単語を学習済み</item>
+    </plurals>
     <string name="settings_ime_history_open">履歴を管理</string>
     <string name="ime_history_title">学習履歴</string>
     <string name="ime_history_empty">学習履歴はまだありません。日本語キーボードで変換確定すると、ここに記録されます。</string>
@@ -481,7 +479,9 @@
     <string name="ime_history_count_badge">×%1$d</string>
     <string name="ime_history_search_hint">読み / 単語で検索…</string>
     <string name="ime_history_search_empty">検索に一致する項目がありません。</string>
-    <string name="ime_history_count_filtered">%1$d / %2$d 件</string>
+    <plurals name="ime_history_count_filtered">
+        <item quantity="other">%1$d / %2$d 件</item>
+    </plurals>
 
     <!-- Android API ブリッジ (z2-* ヘルパー) -->
     <string name="api_channel_name">端末 API</string>
@@ -504,5 +504,4 @@
     <string name="tb_search">スクロールバック検索</string>
     <string name="tb_keyboard">キーボード切替</string>
     <string name="tb_settings">設定</string>
-    <string name="tb_reorder_hint">長押しで並べ替え</string>
 </resources>

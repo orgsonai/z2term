@@ -19,7 +19,6 @@ import android.hardware.camera2.CameraManager
 import android.media.AudioManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
@@ -38,6 +37,7 @@ import android.view.KeyEvent
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.net.toUri
 import com.zerotoship.z2term.R
 import org.json.JSONObject
 import java.io.File
@@ -445,7 +445,7 @@ object Z2ApiBridge {
 
     private fun doOpen(context: Context, target: String) {
         if (target.isBlank()) return
-        val uri = Uri.parse(target)
+        val uri = target.toUri()
         val view = Intent(Intent.ACTION_VIEW, uri).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
         context.startActivity(view)
     }
@@ -607,7 +607,7 @@ object Z2ApiBridge {
             val tok = args[i++]
             when (tok) {
                 "-a", "--action" -> intent.action = next()
-                "-d", "--data" -> intent.data = Uri.parse(next())
+                "-d", "--data" -> intent.data = next().toUri()
                 "-t", "--type" -> intent.type = next()
                 "-p", "--package" -> intent.setPackage(next())
                 "-n", "--component" -> {

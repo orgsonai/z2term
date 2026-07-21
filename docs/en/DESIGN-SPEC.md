@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-21 / Target version: 0.8.184-alpha (versionCode 192)
+Last updated: 2026-07-21 / Target version: 0.8.190-alpha (versionCode 198)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1041,6 +1041,7 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 - **`useLegacyPackaging=true` is required** (so the `.so` files that get execve'd are placed as real files in nativeLibraryDir).
 - **Build through `scripts/gw.sh` when building on-device (aarch64, under proot/z2root)**: in that environment libc's `accept()` returns ENOSYS, and because JDK17's `sun.nio.ch.Net.accept` calls libc `accept()`, the Gradle daemon's TCP IPC dies and the build fails with "Could not connect to the Gradle daemon". `gw.sh` `LD_PRELOAD`s an `accept4` shim (`scripts/accept4-shim.c`) **only where `accept()` is ENOSYS**, and otherwise just calls `./gradlew` (so it does not disturb multi-device use). The shim leaking into aapt2 (bionic) causes a different failure, `libc.so.6 not found`, so the aapt2 wrapper strips `LD_PRELOAD`. Run `bash scripts/gw.sh help` to check whether the shim is applied.
 - When the rootfs composition changes: edit `scripts/alpine-packages.txt` → bump `DistroBundle.ROOTFS_VERSION` by +1 → `FORCE=1 build-alpine-rootfs.sh` → assemble (users auto-redeploy by swapping the APK).
+- **Keep lint at zero warnings** (`bash scripts/gw.sh :app:lintFullDebug`; reached in 0.8.190). A failing `Build & Lint` in CI causes the release job triggered by a tag push to be skipped, so passing lint is a precondition for releasing. Silencing is split into three tiers: `lint { disable }` in `app/build.gradle.kts` for checks that are **permanently meaningless here**, `<ignore path>` in `app/lint.xml` for **one specific location**, and `@Suppress`/`@SuppressLint`/`tools:ignore` with a reason comment at **the deliberate site itself**. Never bulk-move a check into `disable` and kill detection everywhere else.
 
 ---
 
@@ -1062,7 +1063,8 @@ The fix **distinguishes where the SIGSYS came from** and delivers it to the app'
 
 ### 10.3 Easy pitfalls (recurrence prevention)
 
-- **Do not follow lint advice blindly**: merging `mipmap-anydpi-v26` into `mipmap-anydpi` as lint suggests ("minSdk is 29, so `-v26` is unnecessary") **breaks the build — `mipmap/ic_launcher` no longer resolves** (it departs from the standard adaptive-icon layout). Breaking the launcher icon to silence one warning is not worth it, so `-v26` stays (tried and reverted in 0.8.189).
+- **Do not follow lint advice blindly**: merging `mipmap-anydpi-v26` into `mipmap-anydpi` as lint suggests ("minSdk is 29, so `-v26` is unnecessary") **breaks the build — `mipmap/ic_launcher` no longer resolves** (it departs from the standard adaptive-icon layout). Breaking the launcher icon to silence one warning is not worth it, so `-v26` stays and `app/lint.xml` excludes `ObsoleteSdkInt` **for that folder only** (the check stays active everywhere else).
+- **Verify every unused resource before deleting it**: lint cannot follow name-based lookups (`getIdentifier`) or references made through themes, so deleting `UnusedResources` hits blindly crashes at runtime. Search the whole tree for the resource name and confirm nothing in Kotlin, in other `res/` XML, or in `AndroidManifest.xml` refers to it before removing it (strings go from both ja and en).
 
 - The terminal's `/root` is **`filesDir/shared_home`**, not `distros/<distro>/root`. SAF/external-storage bind are based on this too.
 - Typing a multi-line script directly into the terminal causes **zsh to misexecute `#` comments / break on continuation prompts** → write it to a file and run with `sh`.

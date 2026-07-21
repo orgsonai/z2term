@@ -2,7 +2,6 @@ package com.zerotoship.z2term.ui.settings
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
@@ -32,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
+import androidx.core.net.toUri
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.proot.Z2TERM_SSHD_PORT
@@ -169,12 +169,12 @@ fun StorageAccessHelper() {
                     onClick = {
                         val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                             Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                                data = Uri.parse("package:${context.packageName}")
+                                data = "package:${context.packageName}".toUri()
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
                         } else {
                             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = Uri.parse("package:${context.packageName}")
+                                data = "package:${context.packageName}".toUri()
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
                         }

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.provider.Settings
+import androidx.compose.ui.res.pluralStringResource
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.activity.compose.BackHandler
@@ -400,7 +401,7 @@ fun SettingsSheet(
                         com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore.approximateCount()
                     }
                     Text(
-                        text = stringResource(R.string.settings_ime_history_count, count),
+                        text = pluralStringResource(R.plurals.settings_ime_history_count, count, count),
                         color = ZtsTextSecondary,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace
@@ -1448,7 +1449,9 @@ private fun AppInfoSection(
                 lastToast?.cancel()
                 lastToast = Toast.makeText(
                     context,
-                    context.getString(R.string.settings_root_unlock_countdown, remaining),
+                    context.resources.getQuantityString(
+                        R.plurals.settings_root_unlock_countdown, remaining, remaining
+                    ),
                     Toast.LENGTH_SHORT
                 ).also { it.show() }
             }

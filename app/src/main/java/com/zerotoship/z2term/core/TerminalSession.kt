@@ -127,7 +127,9 @@ class TerminalSession(
             val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
             ClipboardHistoryStore.record(text)
-            _toastEvents.tryEmit(appContext.getString(R.string.toast_copy_from_remote, text.length))
+            _toastEvents.tryEmit(appContext.resources.getQuantityString(
+                    R.plurals.toast_copy_from_remote, text.length, text.length
+                ))
         },
         titleSetter = { title -> if (title.isNotBlank()) _label.value = title.take(20) },
         cwdSetter = { path -> _cwd.value = path }
@@ -165,7 +167,9 @@ class TerminalSession(
         val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText("z2term", text))
         ClipboardHistoryStore.record(text)
-        _toastEvents.tryEmit(appContext.getString(R.string.toast_copy, text.length))
+        _toastEvents.tryEmit(appContext.resources.getQuantityString(
+                R.plurals.toast_copy, text.length, text.length
+            ))
     }
 
     /** クリップボードのテキストをペースト (PTY へ送出)。 */

@@ -2,6 +2,7 @@ package com.zerotoship.z2term.gui.rfb
 
 import android.graphics.Bitmap
 import android.util.Log
+import androidx.core.graphics.createBitmap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -101,7 +102,7 @@ class RfbClient(
         handshake(inp, out)
 
         pixels = IntArray(width * height)
-        frame = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        frame = createBitmap(width, height)
         _connected.value = true
         Log.i(TAG, "RFB connected: ${width}x$height '$desktopName'")
 
@@ -358,7 +359,7 @@ class RfbClient(
             width = newW
             height = newH
             pixels = IntArray(newW * newH)
-            frame = Bitmap.createBitmap(newW, newH, Bitmap.Config.ARGB_8888)
+            frame = createBitmap(newW, newH)
         }
         pendingFullRequest = true
         _redraw.value = _redraw.value + 1

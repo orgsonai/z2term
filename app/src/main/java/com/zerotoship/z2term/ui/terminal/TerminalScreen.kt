@@ -46,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -2121,7 +2122,7 @@ private fun ScrollIndicators(
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.scroll_offset_indicator, scrollOffset),
+                    text = pluralStringResource(R.plurals.scroll_offset_indicator, scrollOffset, scrollOffset),
                     color = ZtsTextSecondary,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace

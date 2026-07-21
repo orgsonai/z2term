@@ -3,6 +3,7 @@ package com.zerotoship.z2term.settings
 import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
+import androidx.core.content.edit
 import java.util.Locale
 
 /**
@@ -35,7 +36,7 @@ object LocaleHelper {
     /** 言語を保存する。反映には Activity の `recreate()` を呼ぶこと。 */
     fun setLanguage(context: Context, lang: String) {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        p.edit().putString(KEY_LANG, lang).apply()
+        p.edit { putString(KEY_LANG, lang) }
     }
 
     /**

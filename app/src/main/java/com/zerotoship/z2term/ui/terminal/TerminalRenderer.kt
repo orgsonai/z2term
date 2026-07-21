@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
+import androidx.core.graphics.withTranslation
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -167,26 +168,25 @@ fun TerminalRenderer(
                 // パディング部分も含め全面を背景色で塗ってから、中身を右へずらして描く。
                 bgPaint.color = session.emulator.colors.defaultBackground
                 nc.drawRect(0f, 0f, canvasWPx, lineHeight * rows, bgPaint)
-                nc.save()
-                nc.translate(hPadPx, 0f)
-                drawBuffer(
-                    nativeCanvas = nc,
-                    session = session,
-                    textPaint = textPaint,
-                    bgPaint = bgPaint,
-                    underlinePaint = underlinePaint,
-                    cellW = cellW,
-                    lineHeight = lineHeight,
-                    baselineOffset = baselineOffset,
-                    canvasRows = rows,
-                    canvasCols = cols,
-                    scrollOffset = scrollOffset,
-                    selection = selection,
-                    composingText = composingText,
-                    searchMatches = searchMatches,
-                    currentMatch = currentMatch
-                )
-                nc.restore()
+                nc.withTranslation(x = hPadPx) {
+                    drawBuffer(
+                        nativeCanvas = nc,
+                        session = session,
+                        textPaint = textPaint,
+                        bgPaint = bgPaint,
+                        underlinePaint = underlinePaint,
+                        cellW = cellW,
+                        lineHeight = lineHeight,
+                        baselineOffset = baselineOffset,
+                        canvasRows = rows,
+                        canvasCols = cols,
+                        scrollOffset = scrollOffset,
+                        selection = selection,
+                        composingText = composingText,
+                        searchMatches = searchMatches,
+                        currentMatch = currentMatch
+                    )
+                }
             }
         }
     }

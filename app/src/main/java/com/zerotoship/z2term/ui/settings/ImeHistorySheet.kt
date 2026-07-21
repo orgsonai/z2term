@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -146,9 +147,11 @@ fun ImeHistorySheet(onDismiss: () -> Unit) {
                 )
                 Text(
                     text = if (query.isBlank())
-                        stringResource(R.string.settings_ime_history_count, items.size)
+                        pluralStringResource(R.plurals.settings_ime_history_count, items.size, items.size)
                     else
-                        stringResource(R.string.ime_history_count_filtered, filtered.size, items.size),
+                        pluralStringResource(
+                            R.plurals.ime_history_count_filtered, items.size, filtered.size, items.size
+                        ),
                     color = ZtsTextSecondary,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace

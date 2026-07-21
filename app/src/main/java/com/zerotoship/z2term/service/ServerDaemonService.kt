@@ -119,7 +119,7 @@ class ServerDaemonService : Service() {
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.server_notification_title))
-            .setContentText(getString(R.string.server_notification_text, running))
+            .setContentText(resources.getQuantityString(R.plurals.server_notification_text, running, running))
             .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
             .setSilent(true)

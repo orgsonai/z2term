@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-21 / 対象バージョン: 0.8.184-alpha (versionCode 192)
+最終更新: 2026-07-21 / 対象バージョン: 0.8.190-alpha (versionCode 198)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1039,6 +1039,7 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 - **`useLegacyPackaging=true` 必須** (execve する .so を nativeLibraryDir に実体配置するため)。
 - **オンデバイス (aarch64・proot/z2root 下) では `scripts/gw.sh` 経由でビルドする**: この環境は libc の `accept()` が ENOSYS を返し、JDK17 の `sun.nio.ch.Net.accept` が libc `accept()` を呼ぶため Gradle デーモンの TCP IPC が落ちて "Could not connect to the Gradle daemon" でビルド不能になる。`gw.sh` は **`accept()` が ENOSYS の環境でだけ** `accept4` シム (`scripts/accept4-shim.c`) を `LD_PRELOAD` して `./gradlew` を呼ぶ (PC など正常な環境では素通しなのでマルチデバイス運用を壊さない)。シムが aapt2 (bionic) に継承されると `libc.so.6 not found` で別の失敗になるため、aapt2 ラッパー側で `LD_PRELOAD` を外している。`bash scripts/gw.sh help` で適用の有無を確認できる。
 - rootfs 構成変更時: `scripts/alpine-packages.txt` 編集 → `DistroBundle.ROOTFS_VERSION` を +1 → `FORCE=1 build-alpine-rootfs.sh` → assemble (利用者は APK 入替で自動再展開)。
+- **lint は警告 0 を維持する** (`bash scripts/gw.sh :app:lintFullDebug`、0.8.190 で達成)。CI の `Build & Lint` が落ちるとタグ push で走るリリースジョブが skip されるため、lint を通すことがリリースの前提になっている。黙らせ方は 3 段階に分ける: **恒常的に無意味な検査**だけ `app/build.gradle.kts` の `lint { disable }`、**特定の場所だけ外したいもの**は `app/lint.xml` の `<ignore path>`、**意図的な個別箇所**は現場に `@Suppress`/`@SuppressLint`/`tools:ignore` と理由コメント。一律に `disable` へ入れて他の場所の検出まで殺さない。
 
 ---
 
@@ -1060,7 +1061,8 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 
 ### 10.3 踏みやすい罠 (再発防止)
 
-- **lint の助言を鵜呑みにしない**: `mipmap-anydpi-v26` を「minSdk 29 なので `-v26` は不要」の指摘どおり `mipmap-anydpi` へ統合すると、**`mipmap/ic_launcher` が解決できずビルドが壊れる**（アダプティブアイコンの標準配置から外れる）。警告1件のために起動アイコンを壊す価値はないので `-v26` のまま残す（0.8.189 で試して差し戻し済み）。
+- **lint の助言を鵜呑みにしない**: `mipmap-anydpi-v26` を「minSdk 29 なので `-v26` は不要」の指摘どおり `mipmap-anydpi` へ統合すると、**`mipmap/ic_launcher` が解決できずビルドが壊れる**（アダプティブアイコンの標準配置から外れる）。警告1件のために起動アイコンを壊す価値はないので `-v26` のまま残し、`app/lint.xml` で**このフォルダに限って** `ObsoleteSdkInt` を除外する（他の場所では検出を効かせ続ける）。
+- **未使用リソースは 1 件ずつ裏取りしてから消す**: lint は名前解決 (`getIdentifier`) やテーマ経由の参照を追えないので、`UnusedResources` を鵜呑みに消すと実行時に落ちる。リソース名で全文検索し、Kotlin 側・`res/` 内の他 XML・`AndroidManifest.xml` のいずれからも参照が無いことを確認してから消す（文字列は ja/en 両方から）。
 
 - 端末の `/root` は `distros/<distro>/root` でなく **`filesDir/shared_home`**。SAF/外部ストレージ bind もこれ基準。
 - 複数行スクリプトを端末に直接打鍵すると **zsh が `#` コメントを誤実行/継続プロンプトで崩れる** → ファイル化して `sh` 実行。

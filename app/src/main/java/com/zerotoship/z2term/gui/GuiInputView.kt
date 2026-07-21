@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.gui
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.text.InputType
 import android.view.GestureDetector
@@ -183,6 +184,7 @@ class GuiInputView(context: Context) : View(context) {
             override fun onSingleTapUp(e: MotionEvent): Boolean {
                 if (dragHeld) return false
                 clickAtCursor(RfbClient.BTN_LEFT)
+                performClick()
                 return true
             }
 
@@ -206,6 +208,9 @@ class GuiInputView(context: Context) : View(context) {
         setIsLongpressEnabled(false)
     }
 
+    // タップのクリック通知 (performClick) は GestureDetector の onSingleTapUp で出している。
+    // lint はこのメソッド本体しか見ないため検出できず誤検知になる。
+    @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val action = event.actionMasked
 

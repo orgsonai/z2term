@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  パス限定の lint 除外。検査そのものを止めたいものは app/build.gradle.kts の lint { disable } 側にある。
+  ここに書くのは「この場所だけ検出させない」もの。
+-->
+<lint>
+    <!--
+      minSdk 29 なので -v26 修飾は理屈の上では不要だが、アダプティブアイコンは
+      mipmap-anydpi-v26/ に置くのが標準配置で、mipmap-anydpi/ へ改名すると
+      @mipmap/ic_launcher が解決できずビルドが壊れる。指摘には従えない。
+    -->
+    <issue id="ObsoleteSdkInt">
+        <ignore path="src/main/res/mipmap-anydpi-v26" />
+    </issue>
+</lint>
