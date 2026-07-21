@@ -221,6 +221,8 @@ OS の「通知アクセス」許可を与えると Android が `NotificationLis
 
 **なぜ manifest レシーバでよいか**: `SMS_RECEIVED` は暗黙ブロードキャスト制限の対象外。よってシステムイベント検知のような常駐 FG サービスは不要で、manifest 宣言のレシーバ（`android:permission="android.permission.BROADCAST_SMS"`）で**アプリ未起動・ロック中でも**起動できる。受信時は `goAsync()` で背景スレッドに逃がし、`AppSettings.flow.first()` で設定を読んで `LogWriter` で書く。
 
+**非電話端末でも入れる（0.8.188）**: `RECEIVE_SMS` を宣言すると Android は暗黙に `android.hardware.telephony` を**必須**とみなし、タブレット/ChromeOS 等からインストール不可になる（lint `PermissionImpliesUnsupportedChromeOsHardware` がエラーで検出する）。z2term はターミナルであり SMS 検知は任意機能なので、`<uses-feature android:name="android.hardware.telephony" android:required="false" />` を明示して従来どおり入るようにする（その端末では SMS 検知が発火しないだけ）。
+
 **サンプル**: `z2-macro install otp-sms.sh` で otp-clip.sh の SMS 版（`sms.jsonl` を見て 4〜8 桁を抽出）が入る。
 
 #### システムイベント検知（`SystemEventService`、0.8.152）

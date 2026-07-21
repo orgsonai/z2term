@@ -221,6 +221,8 @@ Sibling of notification detection. With the OS `RECEIVE_SMS` permission and `sms
 
 **Why a manifest receiver suffices**: `SMS_RECEIVED` is exempt from the implicit-broadcast restrictions, so unlike system-event detection no resident FG service is needed — a manifest receiver (`android:permission="android.permission.BROADCAST_SMS"`) fires even when the app is not running or the device is locked. On receipt it uses `goAsync()` to move off the main thread, reads settings via `AppSettings.flow.first()`, and writes through `LogWriter`.
 
+**Stays installable on non-telephony devices (0.8.188)**: declaring `RECEIVE_SMS` makes Android implicitly treat `android.hardware.telephony` as **required**, which blocks installation on tablets/ChromeOS (lint flags this as an error, `PermissionImpliesUnsupportedChromeOsHardware`). Since z2term is a terminal and SMS detection is optional, `<uses-feature android:name="android.hardware.telephony" android:required="false" />` is declared explicitly so installation is unaffected (SMS detection simply never fires on such devices).
+
 **Sample**: `z2-macro install otp-sms.sh` installs the SMS variant of otp-clip.sh (reads `sms.jsonl`, extracts 4–8 digits).
 
 #### System event detection (`SystemEventService`, 0.8.152)

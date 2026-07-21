@@ -35,6 +35,12 @@
          通知と違い SMS 本文は機微通知の伏せ字 (Android 15+) やロック状態の影響を受けないため、
          ワンタイムパスワードを確実に取れる。実行時許可制。 -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <!-- RECEIVE_SMS は暗黙に「電話機能が必須」とみなされ、非電話端末 (タブレット/ChromeOS) から
+         インストール不可になる。z2term はターミナルであり SMS 検知は任意機能なので、非電話端末でも
+         入るよう required="false" を明示する (その端末では SMS 検知が発火しないだけ)。 -->
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
 
     <!-- 端末から /sdcard (Android 共有ストレージ) を cd/読み書きするため。
          Android 11+ は全ファイルアクセス、〜10 は従来権限で対応。 -->
