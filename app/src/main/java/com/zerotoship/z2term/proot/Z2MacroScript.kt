@@ -436,7 +436,7 @@ fun z2MacroScript(lang: String): String {
         |SRC=$src
         |DEST=${d}HOME/.z2term/macros
         |usage() {
-        |${usage.joinToString("\n") { "|  echo '${it.replace("'", "'\\''")}' >&2" }}
+        |${usage.joinToString("\n|") { "  echo '${it.replace("'", "'\\''")}' >&2" }}
         |  exit 1
         |}
         |# -f/--force はどこに書かれていてもよいよう、先に引数列から抜き出す

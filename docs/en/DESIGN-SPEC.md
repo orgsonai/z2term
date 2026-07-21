@@ -338,11 +338,13 @@ Appends an `alarm` event (with `{name}`) to events.jsonl at a given time.
 
 **Background**: the barrier to macros was never the syntax but **writing the first one from scratch**.
 
-**Implementation**: four working samples (event basics / battery alert / time trigger / one-time-code copy from notifications) are placed in the rootfs at `/usr/local/share/z2term/macros/` and copied into `~/.z2term/macros/` by `z2-macro install <name|all>`.
+**Implementation**: five working samples (event basics / battery alert / time trigger / one-time-code copy from notifications / one-time-code copy from SMS) are placed in the rootfs at `/usr/local/share/z2term/macros/` and copied into `~/.z2term/macros/` by `z2-macro install <name|all>`.
 
 - Install **never overwrites an existing file** (only `-f` does), so user edits survive the per-launch re-provisioning
 - `list` shows each script's second-line comment as its description; `show` / `run` / `dir` are also provided
 - Comments inside the samples follow the app language (ja/en)
+
+**A `trimMargin` margin leak made `z2-macro` unusable (fixed in 0.8.187)**: in the usage block, the raw string already emitted a `|` for the line while each `joinToString` element also prefixed one, so the **first line became `||`**. `trimMargin()` strips only **one** leading `|`, leaving `|  echo 'usage: ...' >&2`; since the shell parses function bodies at parse time, **every subcommand failed with `syntax error near unexpected token '|'`** (so `z2-macro install` never once succeeded — samples could not be installed at all). The fix supplies the `|` from the separator side instead (`joinToString("\n|")`). The regression test `GeneratedScriptMarginTest` pins "no generated line starts with `|`" across all samples and both languages (a leading `|` is always a syntax error in POSIX sh, so it doubles as a soundness check).
 
 #### Detection log: cap removed, growth warning added (`LogWriter`, 0.8.171)
 

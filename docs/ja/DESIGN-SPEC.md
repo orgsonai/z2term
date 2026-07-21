@@ -338,11 +338,13 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 
 **背景**: マクロは書き方より**最初の 1 本を白紙から書くこと**が壁だった。
 
-**実装**: 動くサンプル 4 本（イベント入門 / 電池アラート / 時刻トリガー / 通知内 OTP 自動コピー）を rootfs の `/usr/local/share/z2term/macros/` に配置し、`z2-macro install <名前|all>` で `~/.z2term/macros/` へ展開する。
+**実装**: 動くサンプル 5 本（イベント入門 / 電池アラート / 時刻トリガー / 通知内 OTP 自動コピー / SMS の OTP 自動コピー）を rootfs の `/usr/local/share/z2term/macros/` に配置し、`z2-macro install <名前|all>` で `~/.z2term/macros/` へ展開する。
 
 - install は**既存ファイルを上書きしない**（`-f` のときだけ上書き）ので、ユーザーが編集したものが launch 毎の再配置で消えない
 - `list` は各スクリプトの 2 行目コメントを説明として並べる。`show` / `run` / `dir` も持つ
 - サンプル本文のコメントはアプリ言語（ja/en）に追従する
+
+**`trimMargin` マージン漏れで `z2-macro` が起動不能だった（0.8.187 で修正）**: usage 部で raw string 側が既に `|` を出している行に対し `joinToString` の各要素にも `|` を付けていたため、**1 行目だけ `||`** になった。`trimMargin()` は行頭の `|` を **1 個だけ**剥がすので `|  echo 'usage: ...' >&2` が残り、シェルは関数定義もパース時に読むため **どのサブコマンドでも `syntax error near unexpected token '|'` で起動不能**だった（`z2-macro install` が一度も成功しない = サンプルを導入できない）。修正は行の区切り側で `|` を供給する（`joinToString("\n|")`）形に変更。回帰テスト `GeneratedScriptMarginTest` で「生成物のどの行も `|` で始まらない」を全サンプル・両言語について固定した（行頭 `|` は POSIX sh では常に構文エラーなので健全性判定にそのまま使える）。
 
 #### 検知ログの上限撤廃と肥大の注意表示（`LogWriter`、0.8.171）
 
