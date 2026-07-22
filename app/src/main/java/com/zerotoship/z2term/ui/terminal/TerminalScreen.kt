@@ -1588,7 +1588,11 @@ private fun SearchQueryField(
                 fontFamily = FontFamily.Monospace,
                 maxLines = 1,
                 softWrap = false,
-                onTextLayout = { layout = it }
+                onTextLayout = { layout = it },
+                // 末尾のキャレット (x = テキスト幅) を置く余白。horizontalScroll は
+                // 内容幅でクリップするので、この余白が無いと文字を打った瞬間に
+                // キャレットがはみ出して消える。
+                modifier = Modifier.padding(end = 3.dp)
             )
             Box(
                 modifier = Modifier
@@ -2229,11 +2233,16 @@ private fun TerminalScrollbar(
                             while (true) {
                                 val change = awaitPointerEvent(PointerEventPass.Initial)
                                     .changes.firstOrNull { it.id == down.id } ?: break
+                                // ⚠ 移動量は consume する前に読むこと。
+                                // positionChange() は consume 済みの change に対して
+                                // Offset.Zero を返すため、先に consume すると移動量が
+                                // 常に 0 になりつまみが 1px も動かない。
+                                val dy = change.positionChange().y
                                 change.consume()
                                 if (!change.pressed) break          // 指を離した
                                 val (size, mt, _) = metrics.value
                                 if (size <= 0 || mt <= 0f) continue
-                                top = (top + change.positionChange().y).coerceIn(0f, mt)
+                                top = (top + dy).coerceIn(0f, mt)
                                 dragTop = top
                                 // frac=0 → offset=scrollbackSize(最上端)、frac=1 → offset=0(最下端)。
                                 val f = (top / mt).coerceIn(0f, 1f)

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-22 / 対象バージョン: 0.8.191-alpha (versionCode 199)
+最終更新: 2026-07-22 / 対象バージョン: 0.8.192-alpha (versionCode 200)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -598,8 +598,8 @@ proot 相当に強化済み。
   - bracketed paste (DECSET 2004) 対応。
   - `cursorKeyBytes`, `encodeMouseEvent`, `resize`(cursor-aware), scrollback。
 - `SearchEngine` (M11): スクロールバック全文検索。🔍 → 文字入力 → ↑↓ で前後ジャンプ。CJK は **セル列**でハイライト位置を計算。
-  - 検索バーの入力欄は**内蔵キーボード時だけ自前描画** (`SearchQueryField`)。`BasicTextField(readOnly=true)` は OS IME を出さない代わりに**キャレットも出ない**ため、末尾の追記/削除しかできなかった。表示 (`Text`) + 点滅キャレットを自前で描き、キャレット位置 (`searchCursor`) を画面側の状態として持つ。タップ位置→文字位置は `TextLayoutResult.getOffsetForPosition`、キャレット x は `getHorizontalPosition`。**キャレット位置は必ず「そのレイアウト結果が実際に持つ文字列長」でクランプする** — 状態 (`query`) の更新とレイアウト結果の更新には 1 フレームのずれがあり、`query.length` で丸めると空レイアウトに対して `offset(n) is out of bounds` で落ちる (0.8.191 で修正)。内蔵キーボードの ←→ でキャレット移動 (↑=先頭 / ↓=末尾)、BS はキャレット直前を削除 (サロゲートペアは 2 code unit まとめて)。語が枠を超えたらキャレットが見える位置まで `horizontalScroll` を寄せる。システムキーボード時は従来どおり `BasicTextField` (OS IME 側がキャレットを描く)。
-- `TerminalScrollbar`: 端末右端の掴めるスクロールバー。**タッチした瞬間から指に追従**させるため、`detectDragGestures` (タッチスロープ超過まで無反応) ではなく `awaitPointerEventScope` の自前ループで扱う。イベントは **`PointerEventPass.Initial` で受けて即 `consume`** する: Main パスまで残すと下に重なる `TerminalInputView` (AndroidView) に配られ、View 側が「処理した」として change を consume するため、`drag`/`detectDragGestures` は「他に取られた」と判断して即中断する (= つまみを掴んでも動かない。0.8.191 で修正)。`pointerInput` の key は `Unit` 固定で、変化する値 (`scrollbackSize` / つまみ寸法) は `rememberUpdatedState` 経由で読む — key に `scrollbackSize` を入れると**端末出力のたびに検出器が作り直され、掴んだ指が外れる**。ドラッグ中のつまみ位置はローカル state に持ち、`scrollOffset` (StateFlow) → recomposition の往復を待たずに描く。当たり判定は見た目 (幅 8dp) より広い 32dp × 上下 +10dp。
+  - 検索バーの入力欄は**内蔵キーボード時だけ自前描画** (`SearchQueryField`)。`BasicTextField(readOnly=true)` は OS IME を出さない代わりに**キャレットも出ない**ため、末尾の追記/削除しかできなかった。表示 (`Text`) + 点滅キャレットを自前で描き、キャレット位置 (`searchCursor`) を画面側の状態として持つ。タップ位置→文字位置は `TextLayoutResult.getOffsetForPosition`、キャレット x は `getHorizontalPosition`。**キャレット位置は必ず「そのレイアウト結果が実際に持つ文字列長」でクランプする** — 状態 (`query`) の更新とレイアウト結果の更新には 1 フレームのずれがあり、`query.length` で丸めると空レイアウトに対して `offset(n) is out of bounds` で落ちる (0.8.191 で修正)。内蔵キーボードの ←→ でキャレット移動 (↑=先頭 / ↓=末尾)、BS はキャレット直前を削除 (サロゲートペアは 2 code unit まとめて)。語が枠を超えたらキャレットが見える位置まで `horizontalScroll` を寄せる。**`Text` の末尾に 3dp の余白を入れる** — `horizontalScroll` は内容幅でクリップするので、余白が無いと末尾のキャレット (x = テキスト幅) がはみ出して**文字を打った瞬間に消える** (0.8.192 で修正)。システムキーボード時は従来どおり `BasicTextField` (OS IME 側がキャレットを描く)。
+- `TerminalScrollbar`: 端末右端の掴めるスクロールバー。**タッチした瞬間から指に追従**させるため、`detectDragGestures` (タッチスロープ超過まで無反応) ではなく `awaitPointerEventScope` の自前ループで扱う。イベントは **`PointerEventPass.Initial` で受けて即 `consume`** する: Main パスまで残すと下に重なる `TerminalInputView` (AndroidView) に配られ、View 側が「処理した」として change を consume するため、`drag`/`detectDragGestures` は「他に取られた」と判断して即中断する。**移動量 `positionChange()` は `consume()` する前に読むこと** — consume 済みの change に対しては `Offset.Zero` を返す仕様なので、先に consume するとつまみが 1px も動かない (0.8.190/0.8.191 の「掴めるが動かない」の真因。0.8.192 で修正)。`pointerInput` の key は `Unit` 固定で、変化する値 (`scrollbackSize` / つまみ寸法) は `rememberUpdatedState` 経由で読む — key に `scrollbackSize` を入れると**端末出力のたびに検出器が作り直され、掴んだ指が外れる**。ドラッグ中のつまみ位置はローカル state に持ち、`scrollOffset` (StateFlow) → recomposition の往復を待たずに描く。当たり判定は見た目 (幅 8dp) より広い 32dp × 上下 +10dp。
 - `TerminalBuffer`/`TerminalRow`/`TerminalCell`/`SgrAttribute`: セル格納とスクロールバック。
 - `TerminalColors`/`AvailableThemes`: 9 テーマ (ZTS / Solarized Dark / Dracula / Gruvbox Dark / Nord / Tokyo Night / Catppuccin Mocha / Catppuccin Latte / Monokai)。
 
