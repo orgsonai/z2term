@@ -7,7 +7,6 @@
 `pacman` / `apt` などのパッケージマネージャ経由で任意のコマンドをインストール可能にします。
 
 > Zero to Ship プロジェクトの第5作目です。
-> ブログ: https://zero-to-ship-app.vercel.app
 
 ## スクリーンショット
 
@@ -76,21 +75,28 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## セットアップ
 
-### 1. 依存バイナリを配置
+### 1. 同梱物を 1 コマンドで揃える
 
-ビルド前に以下を手動配置する必要があります（リポジトリには含まれていません）:
+APK に同梱されるが **git 管理外**の生成物がいくつかあります（`scripts/` が生成・取得）。
+clone や clean の直後には存在しないので、マスタースクリプトでまとめて揃えます。集め方をこれ 1 本に
+統一してあるので、PC でもスマホでも同じ同梱物セットになります（環境ごとに別物の APK ができる事故を防ぐため）。
 
-**Alpine rootfs** → `app/src/main/assets/`
-- `alpine-minirootfs-aarch64.tar.gz`
-- `alpine-minirootfs-armv7.tar.gz`
+```bash
+bash scripts/build-bundle.sh
+```
 
-詳細: [app/src/main/assets/README.md](app/src/main/assets/README.md)
+4 つの生成スクリプトを順に実行し、最後に欠落がないか点検します。
 
-**PRoot バイナリ** → `app/src/main/jniLibs/`
-- `arm64-v8a/libproot.so` (および `libproot_loader.so`)
-- `armeabi-v7a/libproot.so` (および `libproot_loader.so`)
+1. `build-proot.sh` → `libproot.so` / `libproot_loader.so` / `libtalloc.so` / `libandroid-shmem.so`
+2. `build-z2root.sh` → `libz2root.so` / `libz2accept.so`（NDK が必要。`local.properties` の `sdk.dir` + `ndk.version` から自動解決）
+3. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` の `-Regular.ttf`
+4. `build-alpine-rootfs.sh` → `app/src/full/assets/alpine-minirootfs-aarch64.tgz`（`full` フレーバーのみ。`foss` は実行時に DL）
 
-詳細: [app/src/main/jniLibs/README.md](app/src/main/jniLibs/README.md)
+最後の点検で同梱物ごとに `OK` / `MISS` を表示し、欠落があれば非ゼロ終了します。`fakeroot` が無くて
+rootfs を構築できない環境では `SKIP_ROOTFS=1 bash scripts/build-bundle.sh` で他を揃え、rootfs の
+`.tgz` は構築できる環境から持ち込みます。
+
+同梱物ごとの詳細: [app/src/main/assets/README.md](app/src/main/assets/README.md) · [app/src/main/jniLibs/README.md](app/src/main/jniLibs/README.md)
 
 ### 2. ビルド
 
@@ -231,6 +237,7 @@ Copyright (c) 2026 Zero to Ship。対応ソース（GPL v3 §6）: <https://gith
 |---|---|---|
 | `libproot.so` / `libproot_loader.so` | GPL-2.0 | [termux/proot](https://github.com/termux/proot) / `scripts/build-proot.sh` が DL する Termux パッケージのバージョン参照 |
 | `libtalloc.so` | LGPL-3.0 | [Samba talloc](https://gitlab.com/samba-team/samba/-/tree/master/lib/talloc) / 同上 |
+| `libandroid-shmem.so` | MIT | [termux/libandroid-shmem](https://github.com/termux/libandroid-shmem) / `scripts/build-proot.sh` が DL する Termux パッケージ（proot が SysV 共有メモリのためにリンクする） |
 | `alpine-minirootfs-*.tgz` 内の各パッケージ | 個別 (GPL-2.0 / GPL-3.0 / MIT / BSD 他) | [Alpine aports](https://gitlab.alpinelinux.org/alpine/aports) — `scripts/alpine-packages.txt` の各パッケージ名で参照 |
 | Fira Code / IBM Plex Mono / JetBrains Mono | OFL-1.1 | [tonsky/FiraCode](https://github.com/tonsky/FiraCode) / [IBM/plex](https://github.com/IBM/plex) / [JetBrains/JetBrainsMono](https://github.com/JetBrains/JetBrainsMono) |
 

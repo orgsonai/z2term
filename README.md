@@ -7,7 +7,6 @@ It runs several Linux distributions (Alpine / Ubuntu / Arch / Kali) without root
 and lets you install any command through package managers like `pacman` / `apt`.
 
 > The 5th project of the Zero to Ship initiative.
-> Blog: https://zero-to-ship-app.vercel.app
 
 ## Screenshots
 
@@ -239,7 +238,7 @@ is obtainable from the URLs below (for GPL v2 §3 / GPL v3 §6 / LGPL v3 §4).
 |---|---|---|
 | `libproot.so` / `libproot_loader.so` | GPL-2.0 | [termux/proot](https://github.com/termux/proot) / see the Termux package version downloaded by `scripts/build-proot.sh` |
 | `libtalloc.so` | LGPL-3.0 | [Samba talloc](https://gitlab.com/samba-team/samba/-/tree/master/lib/talloc) / same as above |
-| `libandroid-shmem.so` | MIT | [termux/android-shmem](https://github.com/termux/android-shmem) / Termux package downloaded by `scripts/build-proot.sh` (proot links it for SysV shared memory) |
+| `libandroid-shmem.so` | MIT | [termux/libandroid-shmem](https://github.com/termux/libandroid-shmem) / Termux package downloaded by `scripts/build-proot.sh` (proot links it for SysV shared memory) |
 | each package in `alpine-minirootfs-*.tgz` | individual (GPL-2.0 / GPL-3.0 / MIT / BSD, etc.) | [Alpine aports](https://gitlab.alpinelinux.org/alpine/aports) — look up each package name in `scripts/alpine-packages.txt` |
 | Fira Code / IBM Plex Mono / JetBrains Mono | OFL-1.1 | [tonsky/FiraCode](https://github.com/tonsky/FiraCode) / [IBM/plex](https://github.com/IBM/plex) / [JetBrains/JetBrainsMono](https://github.com/JetBrains/JetBrainsMono) |
 
