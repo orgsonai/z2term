@@ -598,6 +598,8 @@ proot 相当に強化済み。
   - bracketed paste (DECSET 2004) 対応。
   - `cursorKeyBytes`, `encodeMouseEvent`, `resize`(cursor-aware), scrollback。
 - `SearchEngine` (M11): スクロールバック全文検索。🔍 → 文字入力 → ↑↓ で前後ジャンプ。CJK は **セル列**でハイライト位置を計算。
+  - 検索バーの入力欄は**内蔵キーボード時だけ自前描画** (`SearchQueryField`)。`BasicTextField(readOnly=true)` は OS IME を出さない代わりに**キャレットも出ない**ため、末尾の追記/削除しかできなかった。表示 (`Text`) + 点滅キャレットを自前で描き、キャレット位置 (`searchCursor`) を画面側の状態として持つ。タップ位置→文字位置は `TextLayoutResult.getOffsetForPosition`、キャレット x は `getHorizontalPosition`。内蔵キーボードの ←→ でキャレット移動 (↑=先頭 / ↓=末尾)、BS はキャレット直前を削除 (サロゲートペアは 2 code unit まとめて)。語が枠を超えたらキャレットが見える位置まで `horizontalScroll` を寄せる。システムキーボード時は従来どおり `BasicTextField` (OS IME 側がキャレットを描く)。
+- `TerminalScrollbar`: 端末右端の掴めるスクロールバー。**タッチした瞬間から指に追従**させるため、`detectDragGestures` (タッチスロープ超過まで無反応) ではなく `awaitEachGesture` + `awaitFirstDown` + `drag` を使う。`pointerInput` の key は `Unit` 固定で、変化する値 (`scrollbackSize` / つまみ寸法) は `rememberUpdatedState` 経由で読む — key に `scrollbackSize` を入れると**端末出力のたびに検出器が作り直され、掴んだ指が外れる**。ドラッグ中のつまみ位置はローカル state に持ち、`scrollOffset` (StateFlow) → recomposition の往復を待たずに描く。当たり判定は見た目 (幅 8dp) より広い 32dp × 上下 +10dp。
 - `TerminalBuffer`/`TerminalRow`/`TerminalCell`/`SgrAttribute`: セル格納とスクロールバック。
 - `TerminalColors`/`AvailableThemes`: 9 テーマ (ZTS / Solarized Dark / Dracula / Gruvbox Dark / Nord / Tokyo Night / Catppuccin Mocha / Catppuccin Latte / Monokai)。
 
@@ -755,6 +757,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - **起動 distro はレース回避のため永続値を await**: `settingsFlow` は `stateIn(Eagerly)` の初期値が既定 Snapshot (`distroId=alpine`) なので、アプリ更新・端末再起動直後など DataStore の初回 emit が届く前に `startTerminal` が走ると、選択中の OS ではなく既定 Alpine で起動してしまうレースがあった（「希に Alpine が立ち上がる」現象）。`startTerminal` 内で `settings.flow.first()` を await してから distro を決定し、確実に選択中の OS を起動する（0.8.105）。
   - `StateFlow`: uiState / redrawTick(≈60fps コアレッシング) / scrollOffset / cellMetrics / selection / cwd / label / settingsFlow。
 - `TerminalSelection` / `CellMetrics`: 選択範囲 (絶対行) と 1 セル寸法。
+- `clipboard/ClipboardHistoryStore` (object): システムクリップボードは 1 件しか持てないので、変化を拾って履歴 (最大 50 件 / `filesDir/clipboard_history.json`) に貯める。取り込み経路は 3 つ: ①`OnPrimaryClipChangedListener` (前面中の変化)、②`MainActivity.onResume`、③`MainActivity.onWindowFocusChanged(true)`。Android 10+ の「クリップボードを読めるのはフォーカスのあるアプリだけ」制限は**ウィンドウフォーカス基準**で、`onResume` の時点ではまだフォーカスが確定せず空が返る端末があるため、③が無いと「他アプリでコピー → 戻る」を取りこぼす。裏で複数回コピーされても拾えるのは最後の 1 件だけ (OS の仕様上の限界)。重複は `record` が先頭一致/LRU で潰す。
 - `SessionStore`/`SessionManager` (M11): タブ構成 `{id,label,distro,cwd}` + activeId を DataStore に保存する（書き込みのみ）。**0.8.70 で起動時の自動復元を無効化**＝起動の度に複数タブが開く挙動を避けるため、`ensureFirst` は常に新規 1 タブだけを開く（ユーザー要望）。`save` は将来の復元 UI / デバッグ用に残すが読み戻し経路は持たない。**cwd は OSC7 で捕捉**（`ensureOsc7CwdConfig` が bash/zsh のプロンプトフックで OSC7 を吐かせる）。
 
 ### 4.7 通信チャネル (`channel/`)

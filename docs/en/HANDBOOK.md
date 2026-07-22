@@ -59,7 +59,7 @@ That's all the setup you need.
 | 📜 | Command list (tap a frequently used command to type it) + **SSH connect / SFTP** + **Servers** (manage resident servers) (switch with tabs) |
 | 🔅 | Screen-on lock (when ON, the screen won't auto-dim; the icon changes to 💡 while ON) |
 | 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF) |
-| 🔍 | Search the on-screen text (jump back/forward with ↑↓) |
+| 🔍 | Search the on-screen text (jump back/forward with ↑↓; **tap in the input field to move the caret** and fix a typo in the middle) |
 | ⌨ | Switch between the phone's standard keyboard ⇄ the in-app keyboard |
 | ⚙ | Settings |
 
@@ -116,7 +116,8 @@ Z2Term comes with its **own in-app keyboard**.
 | Magnify while selecting | While selecting, a **magnifier** appears above your finger |
 | Select beyond the screen | While selecting, move your **finger to the top/bottom edge** → it auto-scrolls so you can keep selecting |
 | Paste | The **📋** button in the toolbar. **Double-tap** it to open the **clipboard history** and pick a past copy to paste (pasting never rewrites the system clipboard, so it won't "copy what you just pasted") |
-| Scroll up/down | Drag with one finger. You can also **grab the scrollbar on the right edge**. Use **↓** at the bottom-right to return to the latest |
+| Use text copied in another app | Just come back to this app — **the clipboard content at that moment is added to the history** (pick it from the 📋 double-tap). Android only lets an app read the clipboard **while it is in the foreground**, so copies made while this app was in the background are picked up as a single entry when you return |
+| Scroll up/down | Drag with one finger. You can also **grab the scrollbar on the right edge** (it follows your finger from the moment you touch it). Use **↓** at the bottom-right to return to the latest |
 | Make text bigger/smaller | **Pinch** with two fingers (spread/squeeze) |
 | Add a terminal | The tab **+** (terminal) / **🖥** (GUI desktop) |
 | Remove a terminal | **Double-tap** that tab (the last remaining one won't be removed). **If something is running in that tab, a confirmation dialog appears** (to prevent accidental removal while you are working). If nothing is running it closes right away |

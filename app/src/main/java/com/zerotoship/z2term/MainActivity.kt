@@ -76,6 +76,20 @@ class MainActivity : ComponentActivity() {
         ClipboardHistoryStore.captureCurrent(this)
     }
 
+    /**
+     * ウィンドウフォーカス獲得時にもクリップボードを取り込む。
+     *
+     * Android 10+ の「フォーカスのあるアプリだけがクリップボードを読める」制限は
+     * *ウィンドウフォーカス* が基準で、[onResume] の時点ではまだフォーカスが確定して
+     * おらず primaryClip が空で返る端末がある。それだと「他アプリでコピー → 戻る」が
+     * 取りこぼされるので、フォーカス獲得後にもう一度読む。
+     * (通知シェード/ダイアログを閉じた時など、前面のままの復帰もここで拾える)
+     */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) ClipboardHistoryStore.captureCurrent(this)
+    }
+
     private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         val granted = ContextCompat.checkSelfPermission(

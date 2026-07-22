@@ -12,8 +12,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -48,6 +50,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
@@ -61,16 +64,20 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -137,6 +144,7 @@ import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsGreenDim
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -227,6 +235,26 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     var searchQuery by remember(active.id) { mutableStateOf("") }
     var searchMatches by remember(active.id) { mutableStateOf<List<SearchMatch>>(emptyList()) }
     var currentMatchIndex by remember(active.id) { mutableStateOf(0) }
+    // 検索語のキャレット位置 (文字インデックス)。内蔵キーボード入力・タップ・←→ で動かす。
+    // これが無いと「末尾追記と末尾削除」しかできず、途中の打ち間違いを直せなかった (要望)。
+    var searchCursor by remember(active.id) { mutableStateOf(0) }
+    // キャレット位置に文字列を挿入する。
+    fun searchInsert(text: String) {
+        val cur = searchCursor.coerceIn(0, searchQuery.length)
+        searchQuery = searchQuery.substring(0, cur) + text + searchQuery.substring(cur)
+        searchCursor = cur + text.length
+    }
+    // キャレット直前の 1 文字を削除する (BS)。
+    fun searchBackspace() {
+        val cur = searchCursor.coerceIn(0, searchQuery.length)
+        if (cur <= 0) return
+        // サロゲートペア (絵文字など) は 2 code unit まとめて消す。
+        val del = if (cur >= 2 && searchQuery[cur - 1].isLowSurrogate() &&
+            searchQuery[cur - 2].isHighSurrogate()
+        ) 2 else 1
+        searchQuery = searchQuery.substring(0, cur - del) + searchQuery.substring(cur)
+        searchCursor = cur - del
+    }
     // クエリ確定 / 検索バー開閉でヒットを再計算し、先頭ヒットへジャンプする。
     // (実行中コマンドで scrollback が伸びると absRow がずれるが、追従は v2。再入力で再計算される)
     LaunchedEffect(searchOpen, searchQuery) {
@@ -255,7 +283,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     val composing = remember(active.id) {
         ComposingState(onCommit = { text ->
             if (searchOpen && keyboardMode == KeyboardMode.CUSTOM) {
-                searchQuery += text
+                searchInsert(text)
             } else {
                 active.writeBytes(text.toByteArray(Charsets.UTF_8))
             }
@@ -394,13 +422,13 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         fun routeSearchBytes(bytes: ByteArray) {
             for (ch in String(bytes, Charsets.UTF_8)) {
                 when (ch) {
-                    '\u007F', '\b' -> if (searchQuery.isNotEmpty()) searchQuery = searchQuery.dropLast(1)
+                    '\u007F', '\b' -> searchBackspace()                  // キャレット直前を削除
                     '\r', '\n' -> if (searchMatches.isNotEmpty()) {
                         currentMatchIndex = (currentMatchIndex + 1) % searchMatches.size
                         active.scrollToAbsRow(searchMatches[currentMatchIndex].absRow)
                     }
                     '\u001B' -> searchOpen = false                       // ESC で検索を閉じる
-                    else -> if (ch.code >= 0x20 && ch.code != 0x7F) searchQuery += ch
+                    else -> if (ch.code >= 0x20 && ch.code != 0x7F) searchInsert(ch.toString())
                 }
             }
         }
@@ -408,8 +436,21 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             if (searchTyping) routeSearchBytes(bytes) else active.writeBytes(bytes)
         }
         val onKeyboardCursor: (com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey) -> Unit = { key ->
-            // 検索入力中はカーソルキーを PTY へ送らない (シェル側を乱さない)。
-            if (!searchTyping) active.writeBytes(active.emulator.cursorKeyBytes(key))
+            // 検索入力中はカーソルキーを PTY へ送らず、検索語のキャレット移動に使う
+            // (シェル側を乱さず、途中の打ち間違いをその場で直せるようにする)。
+            if (searchTyping) {
+                val len = searchQuery.length
+                when (key) {
+                    com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey.LEFT ->
+                        searchCursor = (searchCursor - 1).coerceIn(0, len)
+                    com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey.RIGHT ->
+                        searchCursor = (searchCursor + 1).coerceIn(0, len)
+                    com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey.UP -> searchCursor = 0
+                    com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey.DOWN -> searchCursor = len
+                }
+            } else {
+                active.writeBytes(active.emulator.cursorKeyBytes(key))
+            }
         }
 
         Row(modifier = Modifier
@@ -466,7 +507,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 if (searchOpen) {
                     SearchBar(
                         query = searchQuery,
-                        onQueryChange = { searchQuery = it },
+                        onQueryChange = { searchQuery = it; searchCursor = it.length },
+                        cursor = searchCursor.coerceIn(0, searchQuery.length),
+                        onCursorChange = { searchCursor = it.coerceIn(0, searchQuery.length) },
                         // システムキーボード使用時だけ OS IME を出す。独自キーボード時は
                         // 内蔵キーボードで検索語を入力する (二重キーボード回避・要望)。
                         systemKeyboard = keyboardMode == KeyboardMode.SYSTEM,
@@ -1387,11 +1430,16 @@ private fun TopBarIconButton(label: String, enabled: Boolean = true, onClick: ()
 /**
  * スクロールバック検索バー。端末領域の上端にオーバーレイする。
  * 入力フィールド + 件数 (現在/総数) + ↑(前) + ↓(次) + ✕(閉じる)。
+ *
+ * 内蔵キーボード時は OS IME を出さない代わりに、キャレット (点滅する縦棒) を自前で描く。
+ * タップした位置にキャレットが移動し、そこへ挿入 / そこから削除できる ([cursor]/[onCursorChange])。
  */
 @Composable
 private fun SearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
+    cursor: Int,
+    onCursorChange: (Int) -> Unit,
     systemKeyboard: Boolean,
     matchCount: Int,
     currentIndex: Int,
@@ -1426,33 +1474,40 @@ private fun SearchBar(
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-            if (query.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.search_hint),
-                    color = ZtsTextSecondary,
-                    fontSize = 14.sp,
-                    fontFamily = FontFamily.Monospace
+            if (systemKeyboard) {
+                if (query.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.search_hint),
+                        color = ZtsTextSecondary,
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+                BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        color = ZtsTextPrimary,
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.Monospace
+                    ),
+                    cursorBrush = SolidColor(ZtsGreen),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { onNext() }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
+                )
+            } else {
+                // 独自キーボード時。BasicTextField(readOnly) だとキャレットが一切出ず、
+                // 末尾の追記/削除しかできなかったため、表示とキャレットを自前で描く。
+                SearchQueryField(
+                    query = query,
+                    cursor = cursor,
+                    onCursorChange = onCursorChange
                 )
             }
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                singleLine = true,
-                // 独自キーボード時は readOnly にして OS IME を開かせない (タップしても出ない)。
-                // 検索語は内蔵キーボード経由で query に流し込まれる。
-                readOnly = !systemKeyboard,
-                textStyle = TextStyle(
-                    color = ZtsTextPrimary,
-                    fontSize = 14.sp,
-                    fontFamily = FontFamily.Monospace
-                ),
-                cursorBrush = SolidColor(ZtsGreen),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { onNext() }),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(focusRequester)
-            )
         }
         Text(
             text = stringResource(
@@ -1467,6 +1522,86 @@ private fun SearchBar(
         TopBarIconButton(label = stringResource(R.string.search_prev), onClick = onPrev)
         TopBarIconButton(label = stringResource(R.string.search_next), onClick = onNext)
         TopBarIconButton(label = stringResource(R.string.search_close), onClick = onClose)
+    }
+}
+
+/**
+ * 内蔵キーボード用の検索語表示。OS IME を出さずにキャレットを描く。
+ *  - タップした文字位置へキャレットを移動 ([TextLayoutResult.getOffsetForPosition])
+ *  - 点滅する縦棒でキャレット位置を示す
+ *  - 語が幅を超えたら、キャレットが常に見えるよう横スクロールする
+ */
+@Composable
+private fun SearchQueryField(
+    query: String,
+    cursor: Int,
+    onCursorChange: (Int) -> Unit
+) {
+    val density = LocalDensity.current
+    val scrollState = rememberScrollState()
+    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    // 入力/移動の直後は必ず点灯させたいので、query と cursor をキーにして点滅を作り直す。
+    val caretOn by produceState(true, query, cursor) {
+        while (true) {
+            value = true
+            delay(600)
+            value = false
+            delay(400)
+        }
+    }
+    val idx = cursor.coerceIn(0, query.length)
+    val caretX = layout?.getHorizontalPosition(idx, true) ?: 0f
+    val caretH = layout?.let { it.getLineBottom(0) - it.getLineTop(0) } ?: 0f
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(query) {
+                detectTapGestures { pos ->
+                    val l = layout ?: return@detectTapGestures
+                    onCursorChange(l.getOffsetForPosition(Offset(pos.x + scrollState.value, pos.y)))
+                }
+            },
+        contentAlignment = Alignment.CenterStart
+    ) {
+        val viewport = constraints.maxWidth.toFloat()
+        // キャレットが画面外に出たら、見える位置まで寄せる。
+        LaunchedEffect(caretX, viewport, query) {
+            val cur = scrollState.value.toFloat()
+            if (caretX < cur) {
+                scrollState.scrollTo(caretX.roundToInt().coerceAtLeast(0))
+            } else if (viewport > 0f && caretX > cur + viewport - 8f) {
+                scrollState.scrollTo((caretX - viewport + 8f).roundToInt().coerceAtLeast(0))
+            }
+        }
+        Box(modifier = Modifier.horizontalScroll(scrollState)) {
+            Text(
+                text = query,
+                color = ZtsTextPrimary,
+                fontSize = 14.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                softWrap = false,
+                onTextLayout = { layout = it }
+            )
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(caretX.roundToInt(), 0) }
+                    .width(2.dp)
+                    .height(with(density) { (if (caretH > 0f) caretH else 0f).toDp() }
+                        .coerceAtLeast(18.dp))
+                    .background(if (caretOn) ZtsGreen else Color.Transparent)
+            )
+        }
+        if (query.isEmpty()) {
+            Text(
+                text = stringResource(R.string.search_hint),
+                color = ZtsTextSecondary,
+                fontSize = 14.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        }
     }
 }
 
@@ -2032,7 +2167,9 @@ private fun TerminalScrollbar(
 
     val density = LocalDensity.current
     val barWidth = 8.dp
-    val minThumbPx = with(density) { 36.dp.toPx() }
+    val hitWidth = 32.dp          // 見た目より広いタッチ領域 (細いつまみを掴みやすくする)
+    val hitPadY = 10.dp           // 上下にも当たり判定を広げる
+    val minThumbPx = with(density) { 44.dp.toPx() }
 
     BoxWithConstraints(modifier = modifier) {
         val trackH = constraints.maxHeight.toFloat()
@@ -2041,39 +2178,67 @@ private fun TerminalScrollbar(
         val thumbH = (trackH * rows / totalRows).coerceIn(minThumbPx.coerceAtMost(trackH), trackH)
         val maxThumbTop = (trackH - thumbH).coerceAtLeast(0f)
         val frac = (scrollbackSize - scrollOffset).toFloat() / scrollbackSize
-        val thumbTop = (maxThumbTop * frac).coerceIn(0f, maxThumbTop)
+        val stateTop = (maxThumbTop * frac).coerceIn(0f, maxThumbTop)
 
-        fun applyThumbTop(newTop: Float) {
-            if (maxThumbTop <= 0f) return
-            val f = (newTop / maxThumbTop).coerceIn(0f, 1f)
-            // frac=0 → offset=scrollbackSize(最上端)、frac=1 → offset=0(最下端)。
-            val newOffset = (scrollbackSize * (1f - f)).roundToInt()
-            session.setScrollOffset(newOffset.coerceIn(0, scrollbackSize))
-        }
+        // ドラッグ中はここに指の位置を直接入れ、つまみの描画に使う。
+        // scrollOffset(StateFlow) → recomposition の往復を待たずに追従するので、
+        // 指とつまみがずれない (「掴んだ後もたつく」対策)。
+        var dragTop by remember { mutableStateOf<Float?>(null) }
+        val thumbTop = dragTop ?: stateTop
+
+        // pointerInput は張り替えると進行中のジェスチャが捨てられる。以前は
+        // scrollbackSize を key にしていたため、端末に出力があるたび (= scrollback が
+        // 伸びるたび) 検出器が作り直され、掴んだ指が外れていた。
+        // key は Unit にし、変化する値は rememberUpdatedState 経由で読む。
+        val metrics = rememberUpdatedState(Triple(scrollbackSize, maxThumbTop, thumbH))
 
         // つまみ。掴んで上下ドラッグで scrollback を移動できる。
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .offset { IntOffset(0, thumbTop.roundToInt()) }
-                .padding(end = 2.dp)
-                .width(barWidth)
-                .height(with(density) { thumbH.toDp() })
-                .clip(RoundedCornerShape(4.dp))
-                .background(ZtsGreen.copy(alpha = 0.55f))
-                .pointerInput(scrollbackSize, trackH, thumbH) {
-                    detectDragGestures(
-                        onDrag = { change, amount ->
+                .offset { IntOffset(0, (thumbTop - with(density) { hitPadY.toPx() }).roundToInt()) }
+                .width(hitWidth)
+                .height(with(density) { thumbH.toDp() } + hitPadY * 2)
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        // タッチスロープを待たずに down の瞬間から掴む。
+                        // detectDragGestures だと数十 px 動かすまで反応せず、
+                        // これが「掴むのにラグがある」の主因だった。
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        down.consume()
+                        val (sbSize, maxTop, _) = metrics.value
+                        if (sbSize <= 0 || maxTop <= 0f) return@awaitEachGesture
+                        var top = (maxTop *
+                            ((sbSize - session.scrollOffset.value).toFloat() / sbSize))
+                            .coerceIn(0f, maxTop)
+                        dragTop = top
+                        drag(down.id) { change ->
                             change.consume()
-                            // ドラッグ中の現在つまみ位置 (= frac から再計算) に移動量を足す。
-                            val curTop = (maxThumbTop *
-                                ((scrollbackSize - session.scrollOffset.value).toFloat() / scrollbackSize))
-                                .coerceIn(0f, maxThumbTop)
-                            applyThumbTop(curTop + amount.y)
+                            val (size, mt, _) = metrics.value
+                            if (size <= 0 || mt <= 0f) return@drag
+                            top = (top + change.positionChange().y).coerceIn(0f, mt)
+                            dragTop = top
+                            // frac=0 → offset=scrollbackSize(最上端)、frac=1 → offset=0(最下端)。
+                            val f = (top / mt).coerceIn(0f, 1f)
+                            session.setScrollOffset(
+                                (size * (1f - f)).roundToInt().coerceIn(0, size)
+                            )
                         }
-                    )
-                }
-        )
+                        dragTop = null
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 2.dp)
+                    .width(barWidth)
+                    .height(with(density) { thumbH.toDp() })
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(ZtsGreen.copy(alpha = if (dragTop != null) 0.9f else 0.55f))
+            )
+        }
     }
 }
 
