@@ -76,8 +76,8 @@ Z2Term comes with its **own in-app keyboard**.
 - **⇧ (shift)**: tap once = next single letter uppercase / tap again = always uppercase / tap again = release.
 - **Flick down (swipe a key downward) = uppercase.** e.g. flick `q` down to get `Q`.
 - **Flick up / left / right = symbols** (the small green characters are the hints).
-- **Long-press to repeat**: letters, numbers, arrows, and space repeat while held. `⌫` (delete) also repeats on long-press.
-- Press `CTRL` or `ALT` then a letter → shortcuts like Ctrl+C.
+- **Long-press to repeat**: letters, numbers, arrows, space, and `⏎` (return) repeat while held. `⌫` (delete) also repeats on long-press.
+- Press `CTRL` or `ALT` then a letter → shortcuts like Ctrl+C. `ALT` (and `META` on the English layout, which does the same thing) **prefixes the next key with ESC**, which drives bash/zsh line editing: `ALT`+`.` inserts the last argument of the previous command, `ALT`+`b`/`f` moves the cursor by words, `ALT`+`d` deletes the word to the right. `ALT`+arrow keys are sent with the same ESC prefix.
 - **The key background turns bright green when pressed** (so you can see what you touched).
 - During a flick, once your finger passes the threshold, **the small hint character for the destination is enlarged and highlighted**, so you can confirm where it will land before lifting your finger.
 

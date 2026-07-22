@@ -252,7 +252,9 @@ fun JapaneseFlickKeyboard(
             JpKey("小゛゜", style, fontScale = 0.6f) { cycleDakuten() }
             JpFlickKey(KANA_WA, style, ::emitKana)
             JpFlickKey(PUNCT, style, ::emitPlain)
-            JpKey("⏎", style, weight = JP_EDGE_WEIGHT) {
+            // ⏎ も長押しで連打できる (要望)。未確定文字があれば 1 回目は確定に使われ、
+            // 以降は改行が連続で送られる。
+            JpKey("⏎", style, repeatable = true, weight = JP_EDGE_WEIGHT) {
                 if (!composing.commitRaw()) onBytes(byteArrayOf(0x0D))
             }
         }

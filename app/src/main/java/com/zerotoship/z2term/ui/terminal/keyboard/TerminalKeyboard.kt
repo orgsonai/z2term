@@ -150,6 +150,10 @@ fun TerminalKeyboard(
     }
 
     fun emitCursor(key: TerminalEmulator.CursorKey) {
+        // ALT/META 押下中は ESC プレフィックスを付ける (Meta+矢印)。矢印そのもののバイト列は
+        // DECCKM の状態で変わり端末側が組むため、ここでは ESC だけ先に送って続けて矢印を送る。
+        // 以前は修飾が捨てられ、ALT+矢印がただの矢印になっていた。
+        if (alt) onBytes(byteArrayOf(0x1B))
         onCursorKey(key)
         if (alt) alt = false
     }
@@ -302,7 +306,8 @@ fun TerminalKeyboard(
                     onFlick = { ch -> emitFlick(ch) }
                 )
             }
-            BasicKey("⏎", weight = 1.4f, fontSp = style.keyFontSp, style = style) {
+            // ⏎ も長押しで連打できる (矢印・space・⌫ と同じ扱い・要望)。
+            BasicKey("⏎", weight = 1.4f, fontSp = style.keyFontSp, repeatable = true, style = style) {
                 emitSpecial(byteArrayOf(0x0D))
             }
         }

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-22 / Target version: 0.8.192-alpha (versionCode 200)
+Last updated: 2026-07-22 / Target version: 0.8.193-alpha (versionCode 201)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -877,7 +877,8 @@ On failure: fall back to launchAndroidSh
 - Layout (5 rows): `ESC 1..0 ⌫` / `TAB q..p` / `あ a..l ⏎` / `⇧ z..m,./` / `CTRL ?# ALT SPACE ←↓↑→`.
 - **Shift**: 3-state cycle OFF → ONESHOT → LOCKED. **CTRL/ALT/symbol (?#)**: toggle.
 - **Flick**: on letter keys, **flick down = uppercase Latin**. Up/left/right = symbols (green hints; flick down has no hint). COMPACT has up + down, SPACIOUS has 4 directions + down.
-- **Long-press repeat**: numbers / arrows / space / letter keys repeat while held (first 400ms→55ms). ⌫ is 500ms→60ms, with left/right flick = Ctrl+W / Ctrl+U. Modifier keys don't repeat.
+- **Long-press repeat**: numbers / arrows / space / letter keys / **⏎** repeat while held (first 400ms→55ms). ⌫ is 500ms→60ms, with left/right flick = Ctrl+W / Ctrl+U. Modifier keys don't repeat. ⏎ carries the repeat in all three places — the Latin layout, the kana flick layout, and `SpecialKeyBar` shown with the system keyboard (0.8.193; wiring only one of them makes it "work on some keyboards only"). On the kana flick layout the first press commits the pending composition, and the rest send newlines.
+- **ALT / META**: both are the same modifier that prefixes the next key with ESC (Meta); META is only shown at the left of Row 3 on the English layout. It applies to `emitChar`/`emitSpecial` **and to `emitCursor`** — arrows used to drop the modifier, so ALT+arrow was just a plain arrow (fixed in 0.8.193). Since the arrow bytes depend on DECCKM and are built by the terminal, ESC is sent on its own first, followed by the arrow.
 - The "あ" key → switches to the built-in Japanese flick. The TopBar "あ" → switches the OS IME (a separate path).
 - **English locale (`showJapaneseKeyboard=false`)**: with no "あ" key, SPACIOUS drops ⇧/CTRL down one row and puts a **META key** (= the same ESC-prefix modifier as Alt) at the left of `a`, removing the gap at the home-row start. Row 5 left is CTRL. COMPACT has no left key on the home row to begin with, so it is unchanged.
 
