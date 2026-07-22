@@ -13,6 +13,15 @@
 
 set -euo pipefail
 
+# 低速・不安定な回線でも取得が落ちないようにする共通 curl オプション。
+#   --retry 系      : 一時的な失敗・切断を自動で再試行する
+#   --connect-timeout: 接続だけは早めに見切る (本体の転送時間は制限しない)
+#   --speed-limit/time: 60 秒間 1KB/s を割り続けたら「停止」とみなして打ち切る
+#     (--max-time だと 168MB の rootfs のような大きい取得を回線速度次第で誤爆させるため使わない)
+CURL_NET=(--retry 5 --retry-delay 3 --retry-connrefused
+          --connect-timeout 20 --speed-limit 1024 --speed-time 60)
+
+
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="${PROJECT_ROOT}/app/src/main/assets/fonts"
 FORCE="${FORCE:-0}"
@@ -27,7 +36,7 @@ fetch() {
         return 0
     fi
     echo "[info] fetching ${out_name} <- ${url}"
-    curl -sL --fail -o "${out}" "${url}" || {
+    curl -sL --fail "${CURL_NET[@]}" -o "${out}" "${url}" || {
         echo "ERROR: 取得失敗 ${url}" >&2
         rm -f "${out}"
         return 1
@@ -77,7 +86,7 @@ fetch_from_release_zip() {
     # `set -o pipefail` 下では grep が 0 件ヒットしただけでこの代入が失敗し、スクリプトが
     # **何も出力せずに即死**する (実際に CI で「原因不明の exit 1」として現れた)。
     # `|| true` で握って、下の空チェック＝意味のあるエラーメッセージに到達させる。
-    latest_url="$(curl -sL --max-time 15 "${auth[@]}" \
+    latest_url="$(curl -sL "${CURL_NET[@]}" "${auth[@]}" \
         "https://api.github.com/repos/${repo}/releases/latest" \
         | grep -oE '"browser_download_url":[[:space:]]*"[^"]+\.zip"' \
         | sed -E 's/.*"([^"]+)".*/\1/' | head -n1 || true)"
@@ -86,7 +95,7 @@ fetch_from_release_zip() {
         rm -rf "${tmp}"; return 1
     fi
     echo "[info] fetching ${out_name} <- ${latest_url}"
-    curl -sL --fail -o "${zip}" "${latest_url}" || {
+    curl -sL --fail "${CURL_NET[@]}" -o "${zip}" "${latest_url}" || {
         echo "ERROR: zip 取得失敗 ${latest_url}" >&2; rm -rf "${tmp}"; return 1
     }
     (cd "${tmp}" && unzip -q "${zip}")

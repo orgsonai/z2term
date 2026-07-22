@@ -28,6 +28,15 @@
 
 set -euo pipefail
 
+# 低速・不安定な回線でも取得が落ちないようにする共通 curl オプション。
+#   --retry 系      : 一時的な失敗・切断を自動で再試行する
+#   --connect-timeout: 接続だけは早めに見切る (本体の転送時間は制限しない)
+#   --speed-limit/time: 60 秒間 1KB/s を割り続けたら「停止」とみなして打ち切る
+#     (--max-time だと 168MB の rootfs のような大きい取得を回線速度次第で誤爆させるため使わない)
+CURL_NET=(--retry 5 --retry-delay 3 --retry-connrefused
+          --connect-timeout 20 --speed-limit 1024 --speed-time 60)
+
+
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ALPINE_VERSION="${ALPINE_VERSION:-3.21.0}"
 ALPINE_BRANCH="${ALPINE_BRANCH:-v3.21}"
@@ -97,11 +106,11 @@ if [[ ! -x "${APK_STATIC}" ]]; then
     mkdir -p "${APK_STATIC_DIR}"
     # 最新の apk-tools-static を fetch
     APK_TOOLS_URL="https://dl-cdn.alpinelinux.org/alpine/${ALPINE_BRANCH}/main/${HOST_APK_ARCH}/"
-    apk_pkg="$(curl -sL "${APK_TOOLS_URL}" \
+    apk_pkg="$(curl -sL "${CURL_NET[@]}" "${APK_TOOLS_URL}" \
         | grep -oE 'apk-tools-static-[0-9][^"<]*\.apk' \
         | sort -V | tail -n1)"
     [[ -z "${apk_pkg}" ]] && { echo "ERROR: apk-tools-static が見つかりません" >&2; exit 1; }
-    curl -sL "${APK_TOOLS_URL}${apk_pkg}" -o "${APK_STATIC_DIR}/apk.apk"
+    curl -sL "${CURL_NET[@]}" "${APK_TOOLS_URL}${apk_pkg}" -o "${APK_STATIC_DIR}/apk.apk"
     tar -xzf "${APK_STATIC_DIR}/apk.apk" -C "${APK_STATIC_DIR}"
     rm -f "${APK_STATIC_DIR}/apk.apk"
 fi
@@ -116,12 +125,12 @@ if [[ ! -d "${KEYS_DIR}" || -z "$(ls -A "${KEYS_DIR}" 2>/dev/null)" ]]; then
     echo "[info] downloading alpine-keys ..."
     mkdir -p "${KEYS_DIR}"
     ALPINE_KEYS_URL="https://dl-cdn.alpinelinux.org/alpine/${ALPINE_BRANCH}/main/${HOST_APK_ARCH}/"
-    keys_pkg="$(curl -sL "${ALPINE_KEYS_URL}" \
+    keys_pkg="$(curl -sL "${CURL_NET[@]}" "${ALPINE_KEYS_URL}" \
         | grep -oE 'alpine-keys-[0-9][^"<]*\.apk' \
         | sort -V | tail -n1)"
     [[ -z "${keys_pkg}" ]] && { echo "ERROR: alpine-keys が見つかりません" >&2; exit 1; }
     tmpdir="$(mktemp -d)"
-    curl -sL "${ALPINE_KEYS_URL}${keys_pkg}" -o "${tmpdir}/keys.apk"
+    curl -sL "${CURL_NET[@]}" "${ALPINE_KEYS_URL}${keys_pkg}" -o "${tmpdir}/keys.apk"
     tar -xzf "${tmpdir}/keys.apk" -C "${tmpdir}"
     cp -v "${tmpdir}/etc/apk/keys/"*.rsa.pub "${KEYS_DIR}/" 2>/dev/null || true
     cp -v "${tmpdir}/usr/share/apk/keys/"*.rsa.pub "${KEYS_DIR}/" 2>/dev/null || true

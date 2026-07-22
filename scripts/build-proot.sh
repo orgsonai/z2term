@@ -27,6 +27,15 @@
 
 set -euo pipefail
 
+# 低速・不安定な回線でも取得が落ちないようにする共通 curl オプション。
+#   --retry 系      : 一時的な失敗・切断を自動で再試行する
+#   --connect-timeout: 接続だけは早めに見切る (本体の転送時間は制限しない)
+#   --speed-limit/time: 60 秒間 1KB/s を割り続けたら「停止」とみなして打ち切る
+#     (--max-time だと 168MB の rootfs のような大きい取得を回線速度次第で誤爆させるため使わない)
+CURL_NET=(--retry 5 --retry-delay 3 --retry-connrefused
+          --connect-timeout 20 --speed-limit 1024 --speed-time 60)
+
+
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 JNI_DIR="${PROJECT_ROOT}/app/src/full/jniLibs"
 WORK_DIR="${PROJECT_ROOT}/build/proot-fetch"
@@ -43,7 +52,7 @@ LIBSHMEM_VER_AARCH64="${LIBSHMEM_VERSION:-0.7}"
 # Termux は pool に最新版しか残さないため、ピン留めした版は予告なく 404 になる。
 latest_ver() {
     local repo="$1" prefix="$2"
-    curl -sL "${repo}" \
+    curl -sL "${CURL_NET[@]}" "${repo}" \
         | grep -oE "${prefix}_[0-9][^\"<]*_aarch64\.deb" \
         | sed -E "s/^${prefix}_([^_]+)_aarch64\.deb/\1/" \
         | sort -V | tail -n1
@@ -62,7 +71,7 @@ fetch_deb() {
     local cache="${WORK_DIR}/${deb_name}"
     if [[ ! -f "${cache}" ]]; then
         echo "[info] fetching ${deb_name} ..." >&2
-        curl -sL "${repo}${deb_name}" -o "${cache}"
+        curl -sL "${CURL_NET[@]}" "${repo}${deb_name}" -o "${cache}"
         [[ -s "${cache}" ]] || { echo "ERROR: 取得失敗 ${deb_name}" >&2; rm -f "${cache}"; return 1; }
     fi
     # 404 等で curl が HTML を保存しても -s は通ってしまうため、ar で .deb 妥当性を検証する
@@ -87,6 +96,21 @@ fetch_deb_resolving() {
     fetch_deb "${repo}" "${prefix}_${latest}_${arch}.deb"
 }
 
+# deb の data.tar.xz をカレントに展開する。
+#
+# tar の非ゼロ終了を握り潰しているのは、deb 内の symlink が原因の「パーミッション復元失敗」
+# を無視するため。2 パターンある:
+#   - share/doc/*/copyright → 別パッケージが持つ LICENSES/*.txt へのリンク (宛先が deb 内に無い)
+#   - libtalloc.so / libtalloc.so.2 → 実体 libtalloc.so.2.4.3 へのリンク (実体より先に展開される)
+# どちらも root で実行したときだけ問題になる (tar は root だと既定でパーミッションを復元し、
+# その際に壊れた/未作成の宛先を辿って ENOENT になる。非 root では復元しないので起きない)。
+#
+# 取り出したいのは実体ファイルだけで、これらの symlink は使わない。展開が本当に失敗した場合は
+# 呼び出し元の find による存在確認で捕まるので、ここで落とさなくても検出漏れにはならない。
+extract_deb_data() {
+    tar -xJf data.tar.xz || true
+}
+
 fetch_one() {
     local abi="$1"            # arm64-v8a | armeabi-v7a
     local termux_arch="$2"    # aarch64    | arm
@@ -102,7 +126,7 @@ fetch_one() {
     proot_deb_path="$(fetch_deb_resolving "${TERMUX_REPO}" proot "${proot_ver}" "${termux_arch}")"
     local proot_extract="${WORK_DIR}/${abi}-proot"
     rm -rf "${proot_extract}"; mkdir -p "${proot_extract}"
-    (cd "${proot_extract}" && ar x "${proot_deb_path}" && tar -xJf data.tar.xz)
+    (cd "${proot_extract}" && ar x "${proot_deb_path}" && extract_deb_data)
 
     local proot_bin loader_bin
     proot_bin="$(find "${proot_extract}" -name 'proot' -type f -path '*/usr/bin/*' | head -n1)"
@@ -125,7 +149,7 @@ fetch_one() {
     libtalloc_deb_path="$(fetch_deb_resolving "${TERMUX_LIBTALLOC_REPO}" libtalloc "${libtalloc_ver}" "${termux_arch}")"
     local libtalloc_extract="${WORK_DIR}/${abi}-libtalloc"
     rm -rf "${libtalloc_extract}"; mkdir -p "${libtalloc_extract}"
-    (cd "${libtalloc_extract}" && ar x "${libtalloc_deb_path}" && tar -xJf data.tar.xz)
+    (cd "${libtalloc_extract}" && ar x "${libtalloc_deb_path}" && extract_deb_data)
 
     local libtalloc_real
     libtalloc_real="$(find "${libtalloc_extract}" -name 'libtalloc.so.*' -type f ! -name '*.so.2' | head -n1)"
@@ -146,7 +170,7 @@ fetch_one() {
     libshmem_deb_path="$(fetch_deb_resolving "${TERMUX_SHMEM_REPO}" libandroid-shmem "${libshmem_ver}" "${termux_arch}")"
     local libshmem_extract="${WORK_DIR}/${abi}-libshmem"
     rm -rf "${libshmem_extract}"; mkdir -p "${libshmem_extract}"
-    (cd "${libshmem_extract}" && ar x "${libshmem_deb_path}" && tar -xJf data.tar.xz)
+    (cd "${libshmem_extract}" && ar x "${libshmem_deb_path}" && extract_deb_data)
 
     local libshmem_real
     libshmem_real="$(find "${libshmem_extract}" -name 'libandroid-shmem.so' -type f | head -n1)"
