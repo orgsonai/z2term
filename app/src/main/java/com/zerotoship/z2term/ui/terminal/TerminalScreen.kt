@@ -12,10 +12,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -76,6 +74,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onSizeChanged
@@ -1550,8 +1550,14 @@ private fun SearchQueryField(
         }
     }
     val idx = cursor.coerceIn(0, query.length)
-    val caretX = layout?.getHorizontalPosition(idx, true) ?: 0f
-    val caretH = layout?.let { it.getLineBottom(0) - it.getLineTop(0) } ?: 0f
+    // 位置は必ず「そのレイアウトが実際に持つ文字列」の長さでクランプする。
+    // query の更新 (状態) とレイアウト結果の更新 (次フレーム) には 1 フレームのずれがあり、
+    // query.length で丸めると、空レイアウトに対して idx>0 を問い合わせて
+    // IllegalArgumentException: offset(n) is out of bounds で落ちる (実機で確認)。
+    val caretX = layout?.let { it.getHorizontalPosition(idx.coerceAtMost(it.layoutInput.text.length), true) } ?: 0f
+    val caretH = layout?.let {
+        if (it.lineCount > 0) it.getLineBottom(0) - it.getLineTop(0) else 0f
+    } ?: 0f
 
     BoxWithConstraints(
         modifier = Modifier
@@ -2200,31 +2206,43 @@ private fun TerminalScrollbar(
                 .width(hitWidth)
                 .height(with(density) { thumbH.toDp() } + hitPadY * 2)
                 .pointerInput(Unit) {
-                    awaitEachGesture {
-                        // タッチスロープを待たずに down の瞬間から掴む。
-                        // detectDragGestures だと数十 px 動かすまで反応せず、
-                        // これが「掴むのにラグがある」の主因だった。
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        down.consume()
-                        val (sbSize, maxTop, _) = metrics.value
-                        if (sbSize <= 0 || maxTop <= 0f) return@awaitEachGesture
-                        var top = (maxTop *
-                            ((sbSize - session.scrollOffset.value).toFloat() / sbSize))
-                            .coerceIn(0f, maxTop)
-                        dragTop = top
-                        drag(down.id) { change ->
-                            change.consume()
-                            val (size, mt, _) = metrics.value
-                            if (size <= 0 || mt <= 0f) return@drag
-                            top = (top + change.positionChange().y).coerceIn(0f, mt)
+                    // Initial パスで受けて即 consume する自前ループ。
+                    //  - タッチスロープを待たないので down の瞬間から掴める
+                    //    (detectDragGestures は数十 px 動かすまで反応しない)
+                    //  - Initial で consume するため、下に重なっている端末 View
+                    //    (AndroidView = TerminalInputView) にイベントが渡らない。
+                    //    Main パスで渡ると View 側が「自分が処理した」として change を
+                    //    consume し、drag ループが「他に取られた」と判断して即中断する
+                    //    (= つまみを掴んでも動かない)。
+                    awaitPointerEventScope {
+                        while (true) {
+                            val down = awaitPointerEvent(PointerEventPass.Initial)
+                                .changes.firstOrNull { it.changedToDownIgnoreConsumed() }
+                                ?: continue
+                            down.consume()
+                            val (sbSize, maxTop, _) = metrics.value
+                            if (sbSize <= 0 || maxTop <= 0f) continue
+                            var top = (maxTop *
+                                ((sbSize - session.scrollOffset.value).toFloat() / sbSize))
+                                .coerceIn(0f, maxTop)
                             dragTop = top
-                            // frac=0 → offset=scrollbackSize(最上端)、frac=1 → offset=0(最下端)。
-                            val f = (top / mt).coerceIn(0f, 1f)
-                            session.setScrollOffset(
-                                (size * (1f - f)).roundToInt().coerceIn(0, size)
-                            )
+                            while (true) {
+                                val change = awaitPointerEvent(PointerEventPass.Initial)
+                                    .changes.firstOrNull { it.id == down.id } ?: break
+                                change.consume()
+                                if (!change.pressed) break          // 指を離した
+                                val (size, mt, _) = metrics.value
+                                if (size <= 0 || mt <= 0f) continue
+                                top = (top + change.positionChange().y).coerceIn(0f, mt)
+                                dragTop = top
+                                // frac=0 → offset=scrollbackSize(最上端)、frac=1 → offset=0(最下端)。
+                                val f = (top / mt).coerceIn(0f, 1f)
+                                session.setScrollOffset(
+                                    (size * (1f - f)).roundToInt().coerceIn(0, size)
+                                )
+                            }
+                            dragTop = null
                         }
-                        dragTop = null
                     }
                 },
             contentAlignment = Alignment.Center
