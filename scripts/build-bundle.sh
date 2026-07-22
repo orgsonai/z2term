@@ -5,16 +5,17 @@
 # clone/clean 直後の環境で最初にこれを実行すれば、PC でもスマホでも同じ手順で
 # 同じ同梱物セットが揃う (= 集め方が環境ごとにバラついて別物 APK ができる事故を防ぐ)。
 #
-# 1. PRoot バイナリ群を Termux deb から取得 (libproot/libproot_loader/libtalloc)
+# 1. PRoot バイナリ群を Termux deb から取得 (libproot/libproot_loader/libtalloc/libandroid-shmem)
 # 2. z2root 自前エンジンを NDK でクロスビルド (libz2root/libz2accept)
 # 3. プログラミングフォントを取得 (IBMPlex/JetBrainsMono/FiraCode)
 # 4. apk-tools-static で Alpine rootfs を構築し .tgz として assets に配置
 # 最後に全同梱物が揃ったかを点検し、欠落があれば非ゼロ終了する。
 #
 # 出力 (すべて gitignore):
-#   app/src/main/jniLibs/arm64-v8a/libproot.so
-#   app/src/main/jniLibs/arm64-v8a/libproot_loader.so
-#   app/src/main/jniLibs/arm64-v8a/libtalloc.so
+#   app/src/full/jniLibs/arm64-v8a/libproot.so           (full のみ)
+#   app/src/full/jniLibs/arm64-v8a/libproot_loader.so    (full のみ)
+#   app/src/full/jniLibs/arm64-v8a/libtalloc.so          (full のみ・proot の依存)
+#   app/src/full/jniLibs/arm64-v8a/libandroid-shmem.so   (full のみ・proot の依存)
 #   app/src/main/jniLibs/arm64-v8a/libz2root.so
 #   app/src/main/jniLibs/arm64-v8a/libz2accept.so
 #   app/src/main/assets/fonts/{IBMPlexMono,JetBrainsMono,FiraCode}-Regular.ttf
@@ -84,9 +85,11 @@ fi
 echo ""
 echo "=== [verify] 同梱物マニフェスト ==="
 REQUIRED=(
-    "app/src/main/jniLibs/arm64-v8a/libproot.so"
-    "app/src/main/jniLibs/arm64-v8a/libproot_loader.so"
-    "app/src/main/jniLibs/arm64-v8a/libtalloc.so"
+    # PRoot 一式は full のみに同梱するので src/full/jniLibs (build-proot.sh の JNI_DIR)
+    "app/src/full/jniLibs/arm64-v8a/libproot.so"
+    "app/src/full/jniLibs/arm64-v8a/libproot_loader.so"
+    "app/src/full/jniLibs/arm64-v8a/libtalloc.so"
+    "app/src/full/jniLibs/arm64-v8a/libandroid-shmem.so"
     "app/src/main/jniLibs/arm64-v8a/libz2root.so"
     "app/src/main/jniLibs/arm64-v8a/libz2accept.so"
     "app/src/main/assets/fonts/IBMPlexMono-Regular.ttf"
