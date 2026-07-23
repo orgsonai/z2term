@@ -11,7 +11,7 @@
     <string name="settings_group_keyboard">キーボード</string>
     <string name="settings_group_input">入力・言語</string>
     <string name="settings_group_linux">Linux 環境</string>
-    <string name="settings_group_automation">常駐・自動化</string>
+    <string name="settings_group_automation">常駐サーバー・自動化</string>
     <string name="settings_group_maintenance">メンテナンス</string>
     <string name="settings_group_developer">開発者向け</string>
     <string name="settings_group_about">このアプリについて</string>

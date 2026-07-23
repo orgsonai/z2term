@@ -265,7 +265,7 @@ You can run `adb` against this phone itself — no PC, no USB. `z2adb` helps wit
 
 Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←** at the top-left or your phone's back button.
 
-Settings are split into **8 groups** (Display / Keyboard / Input and language / Linux environment / Background and automation / Maintenance / Developer / About this app), and **tapping a heading opens or closes it**. The open/closed state is **remembered even after you close the app**, so you can keep the groups you use often expanded.
+Settings are split into **8 groups** (Display / Keyboard / Input and language / Linux environment / Resident servers and automation / Maintenance / Developer / About this app), and **tapping a heading opens or closes it**. The open/closed state is **remembered even after you close the app**, so you can keep the groups you use often expanded.
 
 | Setting | Description |
 |---|---|

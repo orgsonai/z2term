@@ -11,7 +11,7 @@
     <string name="settings_group_keyboard">Keyboard</string>
     <string name="settings_group_input">Input and language</string>
     <string name="settings_group_linux">Linux environment</string>
-    <string name="settings_group_automation">Background and automation</string>
+    <string name="settings_group_automation">Resident servers and automation</string>
     <string name="settings_group_maintenance">Maintenance</string>
     <string name="settings_group_developer">Developer</string>
     <string name="settings_group_about">About this app</string>
