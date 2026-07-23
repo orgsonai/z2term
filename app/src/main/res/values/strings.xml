@@ -31,6 +31,10 @@
     <string name="settings_gui_audio_desc">ON: play sound from GUI apps on this device. PulseAudio is installed into the Linux side on first use (downloads a few MB). OFF: no audio, no extra packages.</string>
     <string name="settings_ambiguous_width">Treat ambiguous-width chars as 2 cells</string>
     <string name="settings_ambiguous_width_desc">For CJK locales (works for PowerLine glyphs etc.)</string>
+    <string name="settings_section_toolbar">Toolbar</string>
+    <string name="settings_toolbar_desc">Tap to choose which buttons appear in the terminal top bar. To reorder, long-press a button on the terminal screen and drag left/right.</string>
+    <string name="settings_toolbar_always">Always shown</string>
+    <string name="settings_toolbar_hidden_toggle_desc">Hidden from the toolbar, so toggle it here</string>
     <string name="settings_confirm_download">Confirm before download</string>
     <string name="settings_confirm_download_desc">ON: prompt before downloading a distro or GUI package. OFF: download without confirmation.</string>
     <string name="settings_section_process_guard">Background process protection</string>

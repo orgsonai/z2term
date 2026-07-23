@@ -31,6 +31,10 @@
     <string name="settings_gui_audio_desc">ON: GUI アプリの音をこの端末で鳴らします。初回 ON 時に Linux 側へ PulseAudio を導入します (数 MB 取得)。OFF: 音は鳴らさず追加パッケージも入れません。</string>
     <string name="settings_ambiguous_width">全角曖昧文字を 2 セル幅扱い</string>
     <string name="settings_ambiguous_width_desc">CJK ロケール向け (PowerLine 記号などに有効)</string>
+    <string name="settings_section_toolbar">ツールバー</string>
+    <string name="settings_toolbar_desc">端末上部に出すボタンをタップで選ぶ。並べ替えは端末画面でボタンを長押し→左右にドラッグ。</string>
+    <string name="settings_toolbar_always">常に表示</string>
+    <string name="settings_toolbar_hidden_toggle_desc">ツールバーから隠しているのでここで切り替える</string>
     <string name="settings_confirm_download">ダウンロード前に確認</string>
     <string name="settings_confirm_download_desc">ON: distro / GUI のダウンロード前に確認を出す。OFF: 確認なしで取得。</string>
     <string name="settings_section_process_guard">バックグラウンドのプロセス保護</string>

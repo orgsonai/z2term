@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-22 / Target version: 0.8.193-alpha (versionCode 201)
+Last updated: 2026-07-23 / Target version: 0.8.194-alpha (versionCode 202)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -788,7 +788,10 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
 
 - `terminal/TerminalScreen.kt`: overall layout. TopBar / TabBar / render area / keyboard toggle / keyboard area. `KeyboardMode = CUSTOM | SYSTEM`. In **landscape**, orientation is detected via `LocalView.OnLayoutChangeListener`, switching to a Row layout (`SideKeyboardColumn`) per the `landscapeKeyboardPosition`/`Width`/`Height` settings. `landscapeScaledStyle()` scales keyHeight/font proportionally to landscape height.
   - **Keyboard toggle bar (`KeyboardToggleBar`)**: a 22dp tall strip whose tap shows/hides the keyboard. It sits **above the keyboard** (shared by the terminal and GUI tabs). The `keyboardToggleBar` setting (default on) chooses whether the bar is shown; **when off, no bar is drawn and a double-tap on the ⌨ toolbar button toggles show/hide instead** (0.8.145; single-tap on ⌨ still switches keyboard mode. 0.8.144 briefly moved the bar below the keyboard, but that was awkward, so it was moved back above and the setting + double-tap route was added). The label shows "keyboard" in both states (`▴ Keyboard` / `▾ Keyboard`; the hide state used to be just `▾` at 16dp tall, which clipped the text vertically). `.clickable`'s touch slop (~8dp) alone was not enough — during flick input a finger occasionally grazed the bar and accidentally hid the keyboard — so a custom `pointerInput` gesture is used instead: **if the cumulative movement from `down` exceeds 24dp, `onToggle` is suppressed**, so only a clean tap (< 24dp) toggles (0.8.109; previously, while `.clickable` would not fire past touch slop, short drags could still slip into tap detection and hide the keyboard).
-  - **Toolbar (`ReorderableToolbar`)**: 📋 paste / 📜 commands / 💡 screen-on lock / 🔒 background keep-alive / 🔍 search / ⌨ keyboard toggle / ⚙ settings, drawn from a list of `ToolbarItem`. **Plain tap = the action; long-press drag reorders** (`detectDragGesturesAfterLongPress` + swap on crossing a neighbor's center). A `ToolbarTooltip` Popup shows a short description while held. The order persists in `AppSettings.toolbarOrder` (comma-separated ids), merged with the default via `mergeToolbarOrder` so adding/removing buttons never breaks it. The keep-alive lock defaults to the right of the screen-on lock. The GUI tab (`GuiTopBar`) shares the same `ReorderableToolbar` (no search; 📋/📜 bridge via keysyms).
+  - **Toolbar (`ReorderableToolbar`)**: 📋 paste / 📜 commands / 💡 screen-on lock / 🔒 background keep-alive / 🔍 search / ⌨ keyboard toggle, drawn from a list of `ToolbarItem`. **Plain tap = the action; long-press drag reorders** (`detectDragGesturesAfterLongPress` + swap on crossing a neighbor's center). A `ToolbarTooltip` Popup shows a short description while held. The order persists in `AppSettings.toolbarOrder` (comma-separated ids), merged with the default via `mergeToolbarOrder` so adding/removing buttons never breaks it. The keep-alive lock defaults to the right of the screen-on lock. The GUI tab (`GuiTopBar`) shares the same `ReorderableToolbar` (no search; 📋/📜 bridge via keysyms).
+  - **⚙ settings is pinned to the right edge** and takes part in neither reordering nor hiding (0.8.194). It is a single `ToolbarChip` placed outside `ReorderableToolbar`, so its position never moves however the rest is arranged or hidden.
+  - **The user picks which buttons appear** (0.8.194). Hidden ids persist in `AppSettings.toolbarHidden` (comma-separated) and are toggled under Settings › Display › **Toolbar**. The button catalog (id / representative icon / description / whether it can be hidden) lives in `ui/terminal/ToolbarButtons.kt` as `CATALOG`, shared by the toolbar and the settings screen. **⚙ has `canHide = false`** — hiding it would leave no way back into settings. **The saved order keeps the ids of hidden buttons too** (`persistOrder`): saving only the visible ones would send a button to the end of the row after hiding and re-showing it.
+    Of the hidden buttons, the toggles (🔅 screen-on lock / 🔒 keep-alive) have **no other place to be operated from**, so a switch for each appears inside the same "Toolbar" section while it is hidden. This is also what keeps "new features must not grow everyone's toolbar" workable.
 - `terminal/TerminalRenderer.kt`: **per-cell drawText** on a native Canvas (avoids subpixel error accumulation when advance≠cellW). Order: background → selection highlight → text → cursor → selection handles.
 - `terminal/input/TerminalInputView.kt` (AndroidView): physical key/OS IME input, gestures (tap/long-press selection/drag scroll/pinch zoom/mouse click emission). Selection is in [§6.5](#65-text-selection-ux).
 - `terminal/keyboard/`:
@@ -979,10 +982,11 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 | GUI audio | guiAudioEnabled | false | true/false (opt-in PulseAudio bridge) |
 | GUI magnification | guiMagnification | 1.5 | 0.5–3.0 |
 | Confirm before download | confirmBeforeDownload | true | true/false |
-| Keep-alive service | keepAliveService | true | true/false (**toggled from the toolbar 🔒 lock, not the settings page**) |
-| Screen-on lock | keepScreenOn | false | true/false (toggled from the toolbar 💡; **persisted and restored on next launch** (0.8.144)) |
+| Keep-alive service | keepAliveService | true | true/false (toggled from the toolbar 🔒 lock; **a switch also appears under Settings › Toolbar while the button is hidden** (0.8.194)) |
+| Screen-on lock | keepScreenOn | false | true/false (toggled from the toolbar 💡; **persisted and restored on next launch** (0.8.144); from Settings › Toolbar while hidden (0.8.194)) |
 | Keyboard toggle bar | keyboardToggleBar | true | true/false (on = a toggle bar above the keyboard; off = no bar, double-tap the ⌨ button to toggle (0.8.145)) |
-| Toolbar order | toolbarOrder | "" (default order) | comma-separated ids; updated by long-press drag |
+| Toolbar order | toolbarOrder | "" (default order) | comma-separated ids; updated by long-press drag; keeps hidden ids too |
+| Toolbar hidden | toolbarHidden | "" (all shown) | comma-separated ids; tapped under Settings › Toolbar. ⚙ cannot be listed (0.8.194) |
 | Execution engine (hidden) | executionEngine | "z2root" | proot / z2root / chroot (chroot only when root is unlocked) |
 | Engine selector unlock (hidden) | engineSelectorUnlocked | false | toggled by tapping the version 7 times (no root needed; locking resets engine to z2root) |
 | chroot unlock flag (hidden) | rootChrootUnlocked | false | true when the 7-tap root self-test passes |

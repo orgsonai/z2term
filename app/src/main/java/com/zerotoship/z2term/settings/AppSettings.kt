@@ -123,6 +123,13 @@ class AppSettings(private val context: Context) {
          */
         val toolbarOrder: String = "",
         /**
+         * ツールバーで**隠している**ボタンのアクション id をカンマ区切りで保持する。
+         * 空文字 = 全部出す (既定)。設定シートの「ツールバー」セクションから切り替える。
+         * ボタンが増えても各自で減らせるようにするための指定で、⚙ 設定だけは隠せない
+         * (隠すと設定画面へ戻れなくなるため。[com.zerotoship.z2term.ui.terminal.ToolbarButtons] 参照)。
+         */
+        val toolbarHidden: String = "",
+        /**
          * z2root エンジンの syscall トレースログを出すか (開発者用・既定 OFF)。
          * ON のとき shared_home/z2root_trace.log に全 syscall を記録する。ログは膨大で
          * 容量を圧迫するため一般ユーザーは使わない。エンジン選択 (7タップ解放) と同じ場所に
@@ -244,6 +251,10 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_TOOLBAR_ORDER] = csv }
     }
 
+    suspend fun setToolbarHidden(csv: String) {
+        context.dataStore.edit { it[KEY_TOOLBAR_HIDDEN] = csv }
+    }
+
     suspend fun setGuiMagnification(value: Float) {
         context.dataStore.edit {
             it[KEY_GUI_MAGNIFICATION] = value.coerceIn(MIN_GUI_MAGNIFICATION, MAX_GUI_MAGNIFICATION)
@@ -284,6 +295,7 @@ class AppSettings(private val context: Context) {
             externalStorageEnabled = p[KEY_EXTERNAL_STORAGE] ?: DEFAULT_EXTERNAL_STORAGE,
             androidHostBindEnabled = p[KEY_ANDROID_HOST_BIND] ?: DEFAULT_ANDROID_HOST_BIND,
             toolbarOrder = p[KEY_TOOLBAR_ORDER] ?: "",
+            toolbarHidden = p[KEY_TOOLBAR_HIDDEN] ?: "",
             traceLogEnabled = p[KEY_TRACE_LOG] ?: DEFAULT_TRACE_LOG,
             kittyExternalFileEnabled = p[KEY_KITTY_EXTERNAL_FILE] ?: DEFAULT_KITTY_EXTERNAL_FILE,
             sgrMouseInputEnabled = p[KEY_SGR_MOUSE_INPUT] ?: DEFAULT_SGR_MOUSE_INPUT,
@@ -570,6 +582,7 @@ class AppSettings(private val context: Context) {
         private val KEY_EXTERNAL_STORAGE = booleanPreferencesKey("external_storage_enabled")
         private val KEY_ANDROID_HOST_BIND = booleanPreferencesKey("android_host_bind_enabled")
         private val KEY_TOOLBAR_ORDER = stringPreferencesKey("toolbar_order")
+        private val KEY_TOOLBAR_HIDDEN = stringPreferencesKey("toolbar_hidden")
         private val KEY_TRACE_LOG = booleanPreferencesKey("trace_log_enabled")
         private val KEY_KITTY_EXTERNAL_FILE = booleanPreferencesKey("kitty_external_file_enabled")
         private val KEY_SGR_MOUSE_INPUT = booleanPreferencesKey("sgr_mouse_input_enabled")

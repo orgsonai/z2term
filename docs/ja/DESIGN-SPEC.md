@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-22 / 対象バージョン: 0.8.193-alpha (versionCode 201)
+最終更新: 2026-07-23 / 対象バージョン: 0.8.194-alpha (versionCode 202)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -787,7 +787,10 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 
 - `terminal/TerminalScreen.kt`: 全体レイアウト。TopBar / TabBar / 描画領域 / キーボードトグル / キーボード領域。`KeyboardMode = CUSTOM | SYSTEM`。**横画面**は `LocalView.OnLayoutChangeListener` で向きを検知し、`landscapeKeyboardPosition`/`Width`/`Height` 設定に従って Row レイアウト (`SideKeyboardColumn`) に切替。`landscapeScaledStyle()` で keyHeight/font が横画面高さに比例拡縮。
   - **キーボードトグルバー (`KeyboardToggleBar`)**: タップでキーボード表示/非表示を切り替える 22dp 高の細いバー。**キーボードの上に配置**（端末タブ・GUI タブ共通）。設定 `keyboardToggleBar`（既定 ON）で表示/非表示を選べ、**OFF にするとバーを出さず ⌨ ツールバーボタンのダブルタップで表示/非表示を切り替える**（0.8.145。単タップ=キーボード切替は従来どおり。0.8.144 で一時キーボードの下へ移したが使いにくく上へ戻し、代わりに設定＋ダブルタップ方式を追加）。ラベルは表示/非表示どちらの状態でも「キーボード」を出す（`▴ キーボード` / `▾ キーボード`。従来は非表示側が `▾` のみ＋16dp 高で文字が縦に見切れていた）。`.clickable` の touch slop (約 8dp) だけではフリック入力中に指がバーへ掠めて誤って非表示が発動することがあったため、自前の `pointerInput` ジェスチャで **down からの累積移動が 24dp を超えたら onToggle を抑制**し、純粋なタップ（24dp 未満）でのみトグルするように変更（0.8.109。従来は touch slop 越えで `.clickable` が発火しないものの、短いドラッグが偶発的にタップ判定に流れて非表示になっていた）。
-  - **ツールバー (`ReorderableToolbar`)**: 📋貼付 / 📜コマンド / 💡画面消灯ロック / 🔒バックグラウンド常駐 / 🔍検索 / ⌨キーボード切替 / ⚙設定 を `ToolbarItem` のリストで描く。**通常タップ=動作、長押しドラッグで並べ替え** (`detectDragGesturesAfterLongPress` + 隣との中心越えで `order` 入替)。長押し中は `ToolbarTooltip` で簡易説明を Popup 表示。並びは `AppSettings.toolbarOrder` (カンマ区切り id) に永続化し、`mergeToolbarOrder` で既存順とマージするのでボタン追加/削除でも壊れない。🔒常駐は既定で 💡 の右。GUI タブ (`GuiTopBar`) も同 `ReorderableToolbar` を共有 (検索なし・📋/📜 は keysym 橋渡し)。
+  - **ツールバー (`ReorderableToolbar`)**: 📋貼付 / 📜コマンド / 💡画面消灯ロック / 🔒バックグラウンド常駐 / 🔍検索 / ⌨キーボード切替 を `ToolbarItem` のリストで描く。**通常タップ=動作、長押しドラッグで並べ替え** (`detectDragGesturesAfterLongPress` + 隣との中心越えで `order` 入替)。長押し中は `ToolbarTooltip` で簡易説明を Popup 表示。並びは `AppSettings.toolbarOrder` (カンマ区切り id) に永続化し、`mergeToolbarOrder` で既存順とマージするのでボタン追加/削除でも壊れない。🔒常駐は既定で 💡 の右。GUI タブ (`GuiTopBar`) も同 `ReorderableToolbar` を共有 (検索なし・📋/📜 は keysym 橋渡し)。
+  - **⚙設定は並べ替えにも非表示指定にも入れず、ツールバーの右端に固定**する (0.8.194)。`ReorderableToolbar` の外に `ToolbarChip` を 1 個直接置く形で、他をどう並べ替えても・どれだけ隠しても位置が動かない。
+  - **出すボタンをユーザーが選べる** (0.8.194)。非表示 id は `AppSettings.toolbarHidden` (カンマ区切り) に永続化し、設定 › 表示 › **ツールバー**で切り替える。ボタンの一覧 (id / 代表アイコン / 説明 / 隠せるか) は `ui/terminal/ToolbarButtons.kt` の `CATALOG` に集約し、表示側と設定画面で同じ定義を共有する。**⚙ は `canHide = false`** — 隠せると設定画面へ戻る手段が無くなるため。**並べ替えの保存値には隠しているボタンの id も残す** (`persistOrder`): 表示中のものだけを保存すると、隠して出し直したときに末尾へ飛んでしまう。
+    隠されたボタンのうちトグル系 (🔅 画面消灯ロック / 🔒 常駐) は**ツールバー以外に操作する場所が無い**ので、隠しているときだけ同じ「ツールバー」セクション内にトグルを出す。機能追加でボタンが増えても各自の画面は増やさない、という方針の受け皿でもある。
 - `terminal/TerminalRenderer.kt`: ネイティブ Canvas に **セル単位 drawText** (advance≠cellW のサブピクセル誤差累積を回避)。背景→選択ハイライト→文字→カーソル→選択ハンドルの順。
 - `terminal/input/TerminalInputView.kt` (AndroidView): 物理キー/OS IME 入力、ジェスチャ (タップ/長押し選択/ドラッグスクロール/ピンチ拡縮/マウスクリック送出)。選択は[§6.5](#65-テキスト選択-ux)。
 - `terminal/keyboard/`:
@@ -977,10 +980,11 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 | GUI 音声 | guiAudioEnabled | false | true/false（オプトイン PulseAudio ブリッジ） |
 | GUI 拡大率 | guiMagnification | 1.5 | 0.5–3.0 |
 | ダウンロード前確認 | confirmBeforeDownload | true | true/false |
-| 常駐サービス | keepAliveService | true | true/false（**設定画面ではなくツールバーの 🔒 ロックで ON/OFF**） |
-| 画面消灯ロック | keepScreenOn | false | true/false（ツールバーの 💡 で ON/OFF。**永続化して次回起動時に復元** (0.8.144)） |
+| 常駐サービス | keepAliveService | true | true/false（ツールバーの 🔒 ロックで ON/OFF。**ツールバーから隠しているときだけ設定 › ツールバーにもトグルが出る** (0.8.194)） |
+| 画面消灯ロック | keepScreenOn | false | true/false（ツールバーの 💡 で ON/OFF。**永続化して次回起動時に復元** (0.8.144)。隠しているときは設定 › ツールバーから (0.8.194)） |
 | キーボード表示バー | keyboardToggleBar | true | true/false（ON=キーボード上にトグルバー。OFF=バー無しで ⌨ ボタンのダブルタップ切替 (0.8.145)） |
-| ツールバー並び順 | toolbarOrder | ""（既定順） | カンマ区切り id。長押しドラッグで更新 |
+| ツールバー並び順 | toolbarOrder | ""（既定順） | カンマ区切り id。長押しドラッグで更新。隠しているボタンの id も残す |
+| ツールバー非表示 | toolbarHidden | ""（全部出す） | カンマ区切り id。設定 › ツールバーでタップ切替。⚙ は指定できない (0.8.194) |
 | 実行エンジン (裏設定) | executionEngine | "z2root" | proot / z2root / chroot（chroot は root 解放時のみ） |
 | エンジン選択解放 (裏設定) | engineSelectorUnlocked | false | バージョン 7 回タップでトグル（root 不要・解除時は z2root へリセット） |
 | chroot 解放フラグ (裏設定) | rootChrootUnlocked | false | 7 タップ時の root セルフテスト成功で true |

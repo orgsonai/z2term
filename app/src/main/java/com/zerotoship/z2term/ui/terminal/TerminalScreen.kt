@@ -370,6 +370,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             keepAlive = settings.keepAliveService,
             onToggleKeepAlive = { active.setKeepAliveService(!settings.keepAliveService) },
             toolbarOrder = settings.toolbarOrder,
+            toolbarHidden = settings.toolbarHidden,
             onReorderToolbar = { active.setToolbarOrder(it) },
             onOpenSnippets = { snippetsSheetOpen = true },
             searchActive = searchOpen,
@@ -822,6 +823,7 @@ private fun GuiTabScreen(
             keepAlive = settings.keepAliveService,
             onToggleKeepAlive = { scope.launch { appSettings.setKeepAliveService(!settings.keepAliveService) } },
             toolbarOrder = settings.toolbarOrder,
+            toolbarHidden = settings.toolbarHidden,
             onReorderToolbar = { scope.launch { appSettings.setToolbarOrder(it) } },
             settingsEnabled = terminalForSettings != null,
             onOpenSettings = { settingsOpen = true }
@@ -1030,6 +1032,7 @@ private fun GuiTopBar(
     keepAlive: Boolean,
     onToggleKeepAlive: () -> Unit,
     toolbarOrder: String,
+    toolbarHidden: String,
     onReorderToolbar: (String) -> Unit,
     settingsEnabled: Boolean,
     onOpenSettings: () -> Unit
@@ -1062,18 +1065,25 @@ private fun GuiTopBar(
             // GUI へタイプする (M8-6 T1)。⚙ は端末セッションが無いと押せない (settingsEnabled)。
             ReorderableToolbar(
                 items = listOf(
-                    ToolbarItem(TB_PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
-                    ToolbarItem(TB_SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
-                    ToolbarItem(TB_SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
-                    ToolbarItem(TB_KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
-                    ToolbarItem(TB_KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible),
-                    ToolbarItem(TB_SETTINGS, "⚙", stringResource(R.string.tb_settings), enabled = settingsEnabled, onClick = onOpenSettings)
+                    ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
+                    ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
+                    ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
+                    ToolbarItem(ToolbarButtons.KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
+                    ToolbarItem(ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible)
                 ),
+                hidden = toolbarHidden,
                 savedOrder = toolbarOrder,
                 onReorder = onReorderToolbar,
                 modifier = Modifier.horizontalScroll(rememberScrollState())
             )
         }
+        // ⚙ 設定は並べ替えにも非表示指定にも入れず、常に右端に固定する (要望)。
+        ToolbarChip(
+            icon = "⚙",
+            active = false,
+            enabled = settingsEnabled,
+            onClick = onOpenSettings
+        )
         // 状態名 (CONNECTED 等) は表示しない: 幅が狭いと崩れる & 実用上見ないため (要望で削除)。
     }
 }
@@ -1150,6 +1160,7 @@ private fun TopBar(
     keepAlive: Boolean,
     onToggleKeepAlive: () -> Unit,
     toolbarOrder: String,
+    toolbarHidden: String,
     onReorderToolbar: (String) -> Unit,
     onOpenSnippets: () -> Unit,
     searchActive: Boolean = false,
@@ -1185,36 +1196,39 @@ private fun TopBar(
         // 残り幅をすべて取る Box に収め、右寄せ。低解像度端末でボタン総幅が画面を超えると
         // 横スクロールで全ボタンに到達できる (はみ出して押せなくなるのを防ぐ・要望)。
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-            // 既定の並び (左→右): 貼付 / コマンド一覧 / 画面消灯ロック / 常駐ロック / 検索 / キーボード切替 / 設定。
+            // 既定の並び (左→右): 貼付 / コマンド一覧 / 画面消灯ロック / 常駐ロック / 検索 / キーボード切替。
             // 常駐ロック (バックグラウンド常駐トグル) は画面消灯ロックの右に置く (要望)。
             // 各ボタンは長押しドラッグで並べ替え可・長押し中は簡易説明をポップアップ表示する。
+            // 設定で隠したボタンは [hidden] で除かれる (設定 › ツールバー)。
             ReorderableToolbar(
                 items = listOf(
-                    ToolbarItem(TB_PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
-                    ToolbarItem(TB_SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
-                    ToolbarItem(TB_SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
-                    ToolbarItem(TB_KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
-                    ToolbarItem(TB_SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
-                    ToolbarItem(TB_KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible),
-                    ToolbarItem(TB_SETTINGS, "⚙", stringResource(R.string.tb_settings), onClick = onOpenSettings)
+                    ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
+                    ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
+                    ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
+                    ToolbarItem(ToolbarButtons.KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
+                    ToolbarItem(ToolbarButtons.SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
+                    ToolbarItem(ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible)
                 ),
+                hidden = toolbarHidden,
                 savedOrder = toolbarOrder,
                 onReorder = onReorderToolbar,
                 modifier = Modifier.horizontalScroll(rememberScrollState())
             )
         }
+        // ⚙ 設定は並べ替えにも非表示指定にも入れず、常に右端に固定する (要望)。
+        // 他のボタンをどう並べ替えても・どれだけ隠しても、設定の位置だけは動かない。
+        ToolbarChip(
+            icon = "⚙",
+            active = false,
+            enabled = true,
+            onClick = onOpenSettings
+        )
         // 状態名 (RUNNING 等) は表示しない: 幅が狭いと崩れる & 実用上見ないため (要望で削除)。
     }
 }
 
-// ツールバーのアクション id (並び順の永続化キーに使う・[ReorderableToolbar])。
-private const val TB_PASTE = "paste"
-private const val TB_SNIPPETS = "snippets"
-private const val TB_SCREEN_ON = "screen_on"
-private const val TB_KEEP_ALIVE = "keep_alive"
-private const val TB_SEARCH = "search"
-private const val TB_KEYBOARD = "keyboard"
-private const val TB_SETTINGS = "settings"
+// ツールバーのアクション id (並び順・非表示指定の永続化キー) は [ToolbarButtons] に集約。
+// 設定シートの「ツールバー」セクションと同じ定義を共有するため。
 
 /** ツールバーの 1 ボタン。[id] は並び順の保存キー、[active] は緑ハイライト、[description] は長押し説明。 */
 private class ToolbarItem(
@@ -1244,16 +1258,21 @@ private fun mergeToolbarOrder(saved: List<String>, present: List<String>): List<
  *  - 通常タップ = そのボタンの動作。
  *  - 長押し = つかんで左右ドラッグで並べ替え + 簡易説明ポップアップを表示。
  * 並びは [savedOrder] (カンマ区切り id) から復元し、変更を [onReorder] で永続化する。
+ * [hidden] (カンマ区切り id) に入っているボタンは描かない (設定 › ツールバーで指定)。
+ * 隠したボタンの id は [savedOrder] に残したままにして、出し直したときに元の位置へ戻す。
  */
 @Composable
 private fun ReorderableToolbar(
     items: List<ToolbarItem>,
     savedOrder: String,
     onReorder: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    hidden: String = ""
 ) {
-    val present = items.map { it.id }
-    val byId = items.associateBy { it.id }
+    val hiddenIds = remember(hidden) { ToolbarButtons.parseHidden(hidden) }
+    val shown = items.filter { it.id !in hiddenIds }
+    val present = shown.map { it.id }
+    val byId = shown.associateBy { it.id }
     val order = remember { mutableStateListOf<String>() }
     var dragging by remember { mutableStateOf<String?>(null) }
     // 保存順 / ボタン構成が変わったら並びを作り直す。ドラッグ中だけは触らない
@@ -1270,6 +1289,22 @@ private fun ReorderableToolbar(
     val widths = remember { mutableStateMapOf<String, Int>() }
     var dragOffset by remember { mutableStateOf(0f) }
     val gapPx = with(LocalDensity.current) { 8.dp.roundToPx() }
+
+    // 保存する並びは「隠しているボタンも含めた全体」にする。表示中のボタンだけを保存すると
+    // 隠した id が保存値から消え、出し直したときに末尾へ飛んでしまうため。
+    // 全体の並びの「表示されている位置」だけを、今の表示順で埋め直す。
+    val allIds = items.map { it.id }
+    fun persistOrder(shownOrder: List<String>): String {
+        val base = mergeToolbarOrder(
+            savedOrder.split(',').map { it.trim() }.filter { it.isNotEmpty() },
+            allIds
+        ).toMutableList()
+        var k = 0
+        for (i in base.indices) {
+            if (base[i] !in hiddenIds && k < shownOrder.size) base[i] = shownOrder[k++]
+        }
+        return base.joinToString(",")
+    }
 
     // ドラッグ量が隣ボタンの中心を越えたら order を入れ替え、その分 offset を戻して連続移動。
     fun trySwap() {
@@ -1307,8 +1342,8 @@ private fun ReorderableToolbar(
                         .pointerInput(id) {
                             detectDragGesturesAfterLongPress(
                                 onDragStart = { dragging = id; dragOffset = 0f },
-                                onDragEnd = { dragging = null; dragOffset = 0f; onReorder(order.joinToString(",")) },
-                                onDragCancel = { dragging = null; dragOffset = 0f; onReorder(order.joinToString(",")) },
+                                onDragEnd = { dragging = null; dragOffset = 0f; onReorder(persistOrder(order)) },
+                                onDragCancel = { dragging = null; dragOffset = 0f; onReorder(persistOrder(order)) },
                                 onDrag = { change, amount -> change.consume(); dragOffset += amount.x; trySwap() }
                             )
                         }

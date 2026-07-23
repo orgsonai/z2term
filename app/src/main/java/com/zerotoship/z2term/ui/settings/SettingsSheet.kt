@@ -63,6 +63,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.BuildConfig
@@ -91,6 +93,7 @@ import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.settings.RootfsCacheCleaner
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
+import com.zerotoship.z2term.ui.terminal.ToolbarButtons
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.theme.TerminalFontOption
 import com.zerotoship.z2term.ui.theme.TerminalFontOptions
@@ -311,6 +314,43 @@ fun SettingsSheet(
                     checked = settings.ambiguousAsWide,
                     onChange = { session.setAmbiguousAsWide(it) }
                 )
+
+                // ツールバー (端末上部バー) に出すボタンを選ぶ。使わないボタンを消せるので、
+                // 機能追加でボタンが増えても各自の画面は増えない (要望)。
+                // 並べ替えは今まで通り端末画面でボタンを長押し→左右ドラッグ。
+                Section(title = stringResource(R.string.settings_section_toolbar)) {
+                    Text(
+                        text = stringResource(R.string.settings_toolbar_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    ToolbarVisibilityRow(
+                        hidden = settings.toolbarHidden,
+                        onToggle = { id ->
+                            session.setToolbarHidden(ToolbarButtons.toggleHidden(settings.toolbarHidden, id))
+                        }
+                    )
+                    // 隠したボタンのうちトグル系 (🔅 画面消灯ロック / 🔒 常駐) は、
+                    // ツールバー以外に切り替える場所が無い。隠しているときだけここに出す。
+                    val hiddenIds = ToolbarButtons.parseHidden(settings.toolbarHidden)
+                    if (ToolbarButtons.SCREEN_ON in hiddenIds) {
+                        ToggleField(
+                            title = stringResource(R.string.tb_screen_on),
+                            description = stringResource(R.string.settings_toolbar_hidden_toggle_desc),
+                            checked = settings.keepScreenOn,
+                            onChange = { session.setKeepScreenOn(it) }
+                        )
+                    }
+                    if (ToolbarButtons.KEEP_ALIVE in hiddenIds) {
+                        ToggleField(
+                            title = stringResource(R.string.tb_keep_alive),
+                            description = stringResource(R.string.settings_toolbar_hidden_toggle_desc),
+                            checked = settings.keepAliveService,
+                            onChange = { session.setKeepAliveService(it) }
+                        )
+                    }
+                }
             }
 
             SettingsGroupSection(SettingsGroup.KEYBOARD) {
@@ -1874,6 +1914,89 @@ private fun SliderField(
                 inactiveTrackColor = ZtsBorder
             )
         )
+    }
+}
+
+/**
+ * ツールバーに出すボタンを選ぶ行 (要望: ボタンが増えても各自で減らせるように)。
+ *
+ * 実際のツールバーと同じ見た目のチップを並べ、**タップで出す / 隠すを切り替える**。
+ * 出しているものは緑で点灯、隠しているものは暗く落として一目で分かるようにする。
+ * ⚙ 設定は隠すと設定画面へ戻れなくなるので切り替えられない (押しても変わらない)。
+ *
+ * 並べ替えはここではやらない。端末画面でボタンを長押し→左右ドラッグ (既存の作法) のまま。
+ */
+@Composable
+private fun ToolbarVisibilityRow(hidden: String, onToggle: (String) -> Unit) {
+    val hiddenIds = ToolbarButtons.parseHidden(hidden)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        ToolbarButtons.CATALOG.forEach { spec ->
+            val shown = spec.id !in hiddenIds
+            val bg = when {
+                !spec.canHide -> ZtsBgCard
+                shown -> ZtsGreen
+                else -> ZtsBgCard.copy(alpha = 0.35f)
+            }
+            val fg = when {
+                !spec.canHide -> ZtsTextSecondary
+                shown -> Color.Black
+                else -> ZtsTextSecondary.copy(alpha = 0.4f)
+            }
+            val border = when {
+                !spec.canHide -> ZtsBorder
+                shown -> ZtsGreen
+                else -> ZtsBorder.copy(alpha = 0.35f)
+            }
+            Column(
+                modifier = Modifier.width(64.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(bg)
+                        .border(1.dp, border, RoundedCornerShape(6.dp))
+                        .then(
+                            if (spec.canHide) Modifier.clickable { onToggle(spec.id) } else Modifier
+                        )
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = spec.icon,
+                        color = fg,
+                        fontSize = 13.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+                Text(
+                    text = stringResource(spec.labelRes),
+                    color = if (shown) ZtsTextPrimary else ZtsTextSecondary,
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                // 隠せないボタンは理由を短く添える (押しても反応しないのを不具合と思わせない)。
+                if (!spec.canHide) {
+                    Text(
+                        text = stringResource(R.string.settings_toolbar_always),
+                        color = ZtsTextSecondary,
+                        fontSize = 8.sp,
+                        fontFamily = FontFamily.Monospace,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
     }
 }
 

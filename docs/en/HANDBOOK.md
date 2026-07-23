@@ -61,9 +61,13 @@ That's all the setup you need.
 | 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF) |
 | 🔍 | Search the on-screen text (jump back/forward with ↑↓; **tap in the input field to move the caret** and fix a typo in the middle) |
 | ⌨ | Switch between the phone's standard keyboard ⇄ the in-app keyboard |
-| ⚙ | Settings |
+| ⚙ | Settings (**always the rightmost**; it never moves when you reorder, and cannot be removed) |
 
 > **Reorder the buttons**: **long-press** a toolbar button to **drag it left/right and reorder**. A short description pops up above the button while held. The order is remembered.
+
+> **You can remove buttons you don't use**: ⚙ Settings → "Display" → **Toolbar** lets you tap to choose which buttons appear. The lit ones are shown. The order of a removed button is remembered, so bringing it back puts it where it was.
+> ⚙ Settings is **always at the far right** — it never moves and cannot be removed.
+> If you remove 🔅 screen-on lock or 🔒 background keep-alive, there would be nowhere left to toggle them, so **a switch appears in that same "Toolbar" section**.
 
 ---
 
