@@ -274,6 +274,35 @@ object SessionManager {
     }
 
     /**
+     * **外部から端末タブへ文字列を入れる共通の入口** (B1 の共有受け取り。将来の `z2-session send` も
+     * ここに乗せる)。入れるだけで**実行はしない** — 改行を付けないので入力行に置かれるだけで、
+     * 走らせるかどうかは必ずユーザーが決める。
+     *
+     * 入れ先の決め方:
+     *  1. [sessionId] の指定があればそのタブ
+     *  2. 無ければ現在アクティブなタブ
+     *  3. それが GUI タブ (文字を入れる先が無い) なら、いちばん手前の端末タブ
+     *
+     * 入れ先がアクティブでなければ、**そのタブへ切り替える**。どこに入ったか分からないまま
+     * 見えない所に文字が置かれる状態を作らないため。
+     *
+     * @return 入れられたら true。端末タブが 1 つも無い / 文字列が空なら false。
+     */
+    fun insertText(text: String, sessionId: String? = null): Boolean {
+        if (text.isEmpty()) return false
+        val target = synchronized(lock) {
+            val explicit = sessionId?.let { id -> mutableSessions.firstOrNull { it.id == id } }
+            val active = mutableSessions.firstOrNull { it.id == _activeId.value }
+            (explicit ?: active) as? TerminalSession
+                ?: mutableSessions.filterIsInstance<TerminalSession>().firstOrNull()
+        } ?: return false
+        if (_activeId.value != target.id) setActive(target.id)
+        // クリップボードは書き換えない (共有しただけでコピー履歴が積み替わるのを防ぐ)。
+        target.pasteText(text, syncClipboard = false)
+        return true
+    }
+
+    /**
      * 全セッション終了 (サービス停止 = ユーザーが明示的に「停止」したとき)。
      * 明示停止なので保存済みタブ構成もクリアする (次回起動で勝手に復元されないように)。
      */

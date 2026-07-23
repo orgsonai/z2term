@@ -131,6 +131,7 @@ Z2Term comes with its **own in-app keyboard**.
 | Check the app version | Type **`z2version`** in the terminal to print the running app's version, execution engine, the **running OS (distro) and kernel**, etc. (`z2version --short` for just the version) |
 | Past commands | The **↑ key** (history persists even after restarting the app) |
 | Record the terminal | Tap **⏺** in the toolbar once to start (the button lights up), tap again to stop. The file lands in `~/z2term-log/`, so `less ~/z2term-log/<name>` reads it directly. **Double-tap** to change the destination, file name, date format, and so on |
+| Send text or a file from another app | In that app choose **Share** → pick **Z2Term**. Text arrives as-is; a file is taken into `~/z2term-inbox/` and **its path** is placed on the input line. It is **only inserted, never run**, so finish the command yourself and press ⏎ |
 
 > When you launch the app it **always opens a single terminal tab** (previously open tabs are not auto-restored).
 

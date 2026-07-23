@@ -2,9 +2,11 @@ package com.zerotoship.z2term
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -13,14 +15,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
+import com.zerotoship.z2term.share.SharedIntake
 import com.zerotoship.z2term.ui.terminal.TerminalScreen
 import com.zerotoship.z2term.ui.theme.Z2TermTheme
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * エントリ Activity。
@@ -28,6 +35,9 @@ import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
  * - `SessionManager.ensureFirst` で最初のセッションを確保し、画面に表示する。
  * - `TerminalService` を起動して、Activity 破棄後も PTY を維持。
  * - Android 13+ では `POST_NOTIFICATIONS` をリクエスト (失敗しても起動継続)。
+ * - 他アプリの共有シートから来た `ACTION_SEND` を受け取り、端末タブへ入れる (B1)。
+ *   タブは常に 1 画面で持つものなので `launchMode="singleTask"`。共有が来るたびに
+ *   Activity が積み上がって「戻る」で古い画面が出る、という状態を作らない。
  */
 class MainActivity : ComponentActivity() {
 
@@ -67,6 +77,47 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        // 共有シートから起動されたとき (アプリが動いていなかった場合はこちらに来る)。
+        handleShareIntent(intent)
+    }
+
+    /** 既にアプリが動いている状態で共有された場合 (`singleTask` なのでここに届く)。 */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleShareIntent(intent)
+    }
+
+    /**
+     * 他アプリから共有されたテキスト / ファイルを端末タブへ入れる (B1)。
+     *
+     * **入れるだけで実行はしない。** ファイルは `~/z2term-inbox/` に取り込んでからパスを入れる
+     * (共有 URI は端末側から触れないため)。取り込みは I/O を含むのでワーカースレッドで行う。
+     *
+     * 同じ Intent で二度処理しないよう、印を Intent 自身に付ける (画面回転などで `onCreate` が
+     * 走り直したときに、同じ内容がもう一度入るのを防ぐ)。
+     */
+    private fun handleShareIntent(intent: Intent?) {
+        val i = intent ?: return
+        if (i.action != Intent.ACTION_SEND && i.action != Intent.ACTION_SEND_MULTIPLE) return
+        if (i.getBooleanExtra(EXTRA_SHARE_HANDLED, false)) return
+        i.putExtra(EXTRA_SHARE_HANDLED, true)
+        lifecycleScope.launch {
+            val text = withContext(Dispatchers.IO) {
+                runCatching { SharedIntake.textFrom(applicationContext, i) }.getOrNull()
+            }
+            if (text.isNullOrEmpty()) {
+                Toast.makeText(this@MainActivity, R.string.toast_share_failed, Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val ok = SessionManager.insertText(text)
+            Toast.makeText(
+                this@MainActivity,
+                if (ok) R.string.toast_share_inserted else R.string.toast_share_failed,
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     override fun onResume() {
@@ -98,5 +149,10 @@ class MainActivity : ComponentActivity() {
         if (!granted) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+
+    private companion object {
+        /** 共有 Intent を処理済みにする印 (同じ Intent での二重挿入を防ぐ)。 */
+        const val EXTRA_SHARE_HANDLED = "com.zerotoship.z2term.SHARE_HANDLED"
     }
 }

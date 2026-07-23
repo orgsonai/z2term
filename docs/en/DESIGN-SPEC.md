@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-23 / Target version: 0.8.196-alpha (versionCode 204)
+Last updated: 2026-07-23 / Target version: 0.8.197-alpha (versionCode 205)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -901,6 +901,37 @@ entered can only be decided once that chunk has been processed**.
   destination, file name, date format, whether to include earlier output, append vs. new file, alt
   screen and raw mode, and previews the next file name. It states plainly that whatever is displayed
   is recorded as-is.
+
+### 5.1.2 Receiving shares (B1, 0.8.197)
+
+The way text and files reach z2term from another app's share sheet. It **inserts, never executes**
+(no newline is appended, so the content just sits on the input line and the user decides).
+
+```
+another app "Share" → ACTION_SEND / ACTION_SEND_MULTIPLE
+   → MainActivity.handleShareIntent (onCreate / onNewIntent)
+   → SharedIntake.textFrom (IO)      … text as-is; files copied into ~/z2term-inbox/
+   → SessionManager.insertText       … pick the target tab, then pasteText (bracketed paste)
+```
+
+- **`SessionManager.insertText(text, sessionId?)` is *the* entry point for "outside → terminal"**.
+  A1 (`z2-session send`) is meant to ride on it, which is why B1 factors it out first. The target is
+  chosen as "explicit id → active tab → (if that is a GUI tab) the first terminal tab", and if it is
+  not the active tab, **the app switches to it** — text never lands somewhere invisible. The clipboard
+  is left alone, so sharing does not shuffle the copy history.
+- **Files are taken in as real files.** A share URI is a temporary reference held by the other app and
+  is unreachable from the shell, so it is copied into `shared_home/z2term-inbox/` before its path is
+  usable by `less` or `python`. The name comes from the sender's `DISPLAY_NAME` with **path separators
+  and anything meaningful inside double quotes (`"` `\` `$` `` ` `` `!`) plus control characters
+  stripped** (no writing outside the inbox via `../`, and the pasted path cannot be reinterpreted by
+  the shell). Name clashes get `-2`, `-3`, … rather than overwriting. The cap is 512 MiB.
+- **Shape of the pasted path**: a plain name stays `~/z2term-inbox/foo.txt`. If it contains spaces or
+  symbols it becomes **`"$HOME/..."`** — quoting as `"~/..."` would stop `~` from expanding and yield
+  "no such file". Multiple files are joined with spaces, ready to use as command arguments.
+- **`MainActivity` uses `launchMode="singleTask"`.** Tabs are something the app holds in one screen,
+  so a share must not stack another activity that "back" would reveal. Double insertion from the same
+  intent is prevented by a marker put on the intent itself (`EXTRA_SHARE_HANDLED`), which also covers
+  `onCreate` running again after a rotation.
 
 ### 5.2 Startup sequence
 

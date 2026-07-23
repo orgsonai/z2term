@@ -35,7 +35,7 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 ## Current version
 
-**0.8.196-alpha (versionCode 204).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.197-alpha (versionCode 205).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
@@ -51,6 +51,7 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 - **Built-in help** — `z2help` (or `z2term`) prints a categorized cheat sheet of every `z2*` helper; `z2version` shows the app version and the engine the tab is really running on.
 - **Vulnerability testing** — `z2scan self` audits this device/localhost (open ports, sshd config, SSH key perms, world-writable/SUID, PATH) with no external tools; `z2scan net/host/cve` wrap nmap/lynis/trivy on localhost (a remote target requires explicit opt-in). Results stay local.
 - **Terminal log** — tap ⏺ in the toolbar once to start writing what the tab shows to a text file, tap again to stop. Files land in `~/z2term-log/`, so they open straight from the shell or from other apps. By default colors and screen control codes are stripped so the result reads as plain text.
+- **Receive from Share** — pick z2term in another app's share sheet and the text (or, for files, a path under `~/z2term-inbox/`) is **inserted** on the terminal's input line — never executed.
 - **Tidy toolbar** — choose which buttons appear from settings (⚙ settings stays pinned to the right edge); long-press and drag to reorder.
 - **FOSS flavor** — bundles no third-party prebuilts; the distribution is downloaded at first launch and verified by SHA-256.
 

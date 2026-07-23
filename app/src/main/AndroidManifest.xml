@@ -68,15 +68,39 @@
         android:requestLegacyExternalStorage="true"
         tools:targetApi="35">
 
+        <!-- launchMode=singleTask: タブは 1 画面で持つものなので、外部 (共有シート) から
+             呼ばれるたびに Activity が積み上がらないようにする。既に動いていれば
+             onNewIntent で受け取る。 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|density|fontScale|uiMode"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Z2Term">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- 他アプリの共有シートからテキスト / ファイルを受け取る (B1)。
+                 受け取った内容は端末の入力行に入れるだけで実行はしない。 -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="application/*" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="application/*" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="video/*" />
             </intent-filter>
         </activity>
 

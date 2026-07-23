@@ -440,6 +440,8 @@
     </plurals>
     <string name="toast_selection_empty">選択範囲が空です</string>
     <string name="toast_log_start_failed">ログを開始できませんでした（保存先を確認してください）</string>
+    <string name="toast_share_inserted">端末に入れました（実行はしていません）</string>
+    <string name="toast_share_failed">受け取れませんでした</string>
     <plurals name="toast_copy">
         <item quantity="other">コピー (%1$d 文字)</item>
     </plurals>
