@@ -324,6 +324,9 @@ Note: if battery use bothers you, turn on "**Low-power mode**" — it lets the d
 **Q. I can't select text well / can't select to the edge**
 → Long-press first, then drag with your finger. To reach the edge, move your finger toward the top/bottom edge of the screen and it auto-scrolls. Drag near the end of the selection to change its range.
 
+**Q. My resident servers (sshd, …) were stopped after updating the app**
+→ **That is expected.** Replacing the app makes Android shut it down once, which takes the resident servers with it. "Auto-start on boot" applies when the **phone** boots, so it does not bring them back after an app update. After updating, open ⚙ Settings → "Resident servers and automation" → "Resident servers" → "Manage servers" → **Start** again.
+
 **Q. The terminal stops when I close the app**
 → Turn ON the **🔒 (background keep-alive)** button on the toolbar (🔒 = ON).
 

@@ -1197,6 +1197,8 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 
 **SysV 共有メモリ (`shmget`) が ENOSYS (カーネル由来・アプリ側では修正不能)**: Android のカーネルは `CONFIG_SYSVIPC` を落としているため、`shmget`/`shmat` が "Function not implemented" で失敗する。**POSIX 共有メモリ (`shm_open` = `/dev/shm`) とは別系統**で、そちらは 0.8.177 の bind で使えるようになったがこちらは残る。影響は X11 の **MIT-SHM 拡張**が使えないこと (GUI の描画がサーバ経由のソケット転送になり、その分遅い)。主要ツールキットは MIT-SHM の可否を検出して自動でフォールバックするので通常は「動くが遅い」で済むが、拡張の存在を前提に握り決め打ちする少数のアプリは表示が壊れうる。回避したい場合はアプリ側の設定で MIT-SHM を切る。
 
+**アプリを更新すると常駐サーバーが止まる (Android 由来・アプリ側では回避不能)**: APK を入れ替えると Android がそのアプリのプロセスを終了させるため、`ServerDaemonService` ごと supervisor が落ちる。`sshd` を上げたまま更新すると**更新後は止まっている**。設定「起動時に自動で常駐」は `BootReceiver`（端末の起動完了）でしか発火しないので、**更新では復帰しない**。更新のたびに手で起動し直すのが現状の運用（0.8.203 の実機検証で確認）。自動復帰させるなら `ACTION_MY_PACKAGE_REPLACED` を受けて起動する経路が要る（未実装）。
+
 ### 10.2 修正済みの重大な不具合
 
 **Gecko 系 GUI アプリのコンテンツプロセスが自分のサンドボックス下でフォントを見つけられない (0.8.179 で修正・2026-07-20 に実機検証済み)**: 親プロセス (chrome UI) は正常に描画されるが、**中身を描くコンテンツプロセスだけ**が `unable to find a usable font (%.220s)` の `MOZ_CRASH` で落ち、本文/HTML を描くペインが空白になっていた。`/dev/shm` の件 (0.8.177) と紛らわしいが**別問題**で、共有メモリは全て成功している (`shm_open` は正常)。
@@ -1210,6 +1212,8 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 - **lint の助言を鵜呑みにしない**: `mipmap-anydpi-v26` を「minSdk 29 なので `-v26` は不要」の指摘どおり `mipmap-anydpi` へ統合すると、**`mipmap/ic_launcher` が解決できずビルドが壊れる**（アダプティブアイコンの標準配置から外れる）。警告1件のために起動アイコンを壊す価値はないので `-v26` のまま残し、`app/lint.xml` で**このフォルダに限って** `ObsoleteSdkInt` を除外する（他の場所では検出を効かせ続ける）。
 - **未使用リソースは 1 件ずつ裏取りしてから消す**: lint は名前解決 (`getIdentifier`) やテーマ経由の参照を追えないので、`UnusedResources` を鵜呑みに消すと実行時に落ちる。リソース名で全文検索し、Kotlin 側・`res/` 内の他 XML・`AndroidManifest.xml` のいずれからも参照が無いことを確認してから消す（文字列は ja/en 両方から）。
 
+- **画面が無いとタブは起動しない**（0.8.203 で `z2-session new` 側は対処済み）。起動は `TerminalScreen` の `LaunchedEffect` が「表示中のタブが IDLE なら `startTerminal()`」という形で駆動している。**アプリ外からタブを作る経路を足すときは、その場で `startTerminal()` まで呼ぶこと**。呼ばないと「タブはできるが PTY が無く、送った文字がどこにも届かない」という分かりにくい状態になる。
+- **タブ名は放っておくと上書きされる**（0.8.202 で `labelPinned` を追加）。起動時の OS 名・`android-sh` フォールバック・SSH 接続・シェルのタイトル (OSC 0/2) が順に `_label` を書く。**名前を指定する機能を足すときは pinned を立てる**。
 - 端末の `/root` は `distros/<distro>/root` でなく **`filesDir/shared_home`**。SAF/外部ストレージ bind もこれ基準。
 - 複数行スクリプトを端末に直接打鍵すると **zsh が `#` コメントを誤実行/継続プロンプトで崩れる** → ファイル化して `sh` 実行。
 - dropbear を kill せず再起動すると "Address already in use"。
