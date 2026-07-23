@@ -264,7 +264,9 @@ object Z2ApiBridge {
                 val name = args.getOrNull(1).orEmpty()
                 val created = runOnMainSync {
                     val s = SessionManager.openNew(context)
-                    if (name.isNotBlank()) s.setLabel(name.take(20))
+                    // pinned = true: この後の起動で OS 名 (spec.id) やシェルのタイトルに
+                    // 上書きされないようにする。付けた名前が消えると指定の意味が無くなる。
+                    if (name.isNotBlank()) s.setLabel(name.take(20), pinned = true)
                     s
                 }
                 val index = SessionManager.sessions.value.indexOfFirst { it.id == created.id } + 1

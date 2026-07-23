@@ -77,7 +77,24 @@ class TerminalSession(
     /** タブ表示名 (RUNNING になったら mode を反映、それ以前は "session") */
     private val _label = MutableStateFlow(initialLabel)
     override val label: StateFlow<String> = _label.asStateFlow()
-    fun setLabel(s: String) { _label.value = s }
+
+    /**
+     * 名前が**明示的に付けられた**か (`z2-session new <名前>` など)。
+     *
+     * true の間は、起動時の OS 名 (`spec.id`) でもシェルが出すタイトル (OSC 0/2) でも上書きしない。
+     * これが無いと `z2-session new build` で付けた名前が、その直後の起動で OS 名に化けてしまい、
+     * 名前を指定した意味が無くなる (実機で確認)。
+     */
+    private var labelPinned = false
+
+    /**
+     * タブ名を設定する。[pinned] = true なら以後この名前を固定し、OS 名やシェルのタイトルで
+     * 上書きされないようにする。
+     */
+    fun setLabel(s: String, pinned: Boolean = false) {
+        _label.value = s
+        if (pinned) labelPinned = true
+    }
 
     /**
      * このタブが実際に起動した distro の id (proot 起動成功時に確定)。セッション復元の
@@ -150,7 +167,8 @@ class TerminalSession(
                     R.plurals.toast_copy_from_remote, text.length, text.length
                 ))
         },
-        titleSetter = { title -> if (title.isNotBlank()) _label.value = title.take(20) },
+        // 名前を明示的に付けたタブ (labelPinned) は、シェルが出すタイトルでも上書きしない。
+        titleSetter = { title -> if (title.isNotBlank() && !labelPinned) _label.value = title.take(20) },
         cwdSetter = { path -> _cwd.value = path }
     )
 
@@ -492,7 +510,8 @@ class TerminalSession(
                 val ch = LocalPtyChannel(pty)
                 channel = ch
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = spec.id) }
-                _label.value = spec.id
+                // 名前を明示的に付けたタブ (labelPinned) は OS 名で上書きしない。
+                if (!labelPinned) _label.value = spec.id
                 _distroId.value = spec.id
                 // Kitty graphics の file/temp/shm 経路用に、 セッションの rootfs root を確定。
                 // opt-in 設定が ON ならこのタイミングで transfer source が注入される
@@ -577,7 +596,7 @@ class TerminalSession(
             channel = ch
             _actualEngine.value = AppSettings.ENGINE_ANDROID_SH
             _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "android-sh") }
-            _label.value = "sh"
+            if (!labelPinned) _label.value = "sh"
             startReadLoop(ch)
             scheduleInitCommand(settingsFlow.value.initCommand)
         } catch (e: Throwable) {
@@ -600,7 +619,7 @@ class TerminalSession(
                 }
                 channel = ch
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "ssh") }
-                _label.value = "ssh:${profile.name.ifEmpty { profile.host }}"
+                if (!labelPinned) _label.value = "ssh:${profile.name.ifEmpty { profile.host }}"
                 // ポート転送が定義されていれば結果をバナーに出す (UX)
                 if (ch.forwardSummary.isNotEmpty()) {
                     ch.forwardSummary.forEach { line ->

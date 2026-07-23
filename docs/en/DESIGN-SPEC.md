@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-23 / Target version: 0.8.201-alpha (versionCode 209)
+Last updated: 2026-07-23 / Target version: 0.8.202-alpha (versionCode 210)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -394,6 +394,8 @@ quietly type into "whichever tab happened to be first".
 **Implementation**: text lands through `SessionManager.insertText` (bracketed paste), the entry point
 factored out by B1, so A1 really was just adding verbs. Creating/destroying tabs and reading the buffer
 go through `runOnMainSync`, putting them on the same thread assumption as drawing.
+
+**A name given to `new` sticks** (0.8.202). `TerminalSession` carries `labelPinned`; while it is set, the label is **not** overwritten by the OS name (`spec.id`) at startup, by the `android-sh` fallback, by an SSH connection, or by a title the shell emits (OSC 0/2). Without it, the name from `z2-session new build` turned into the OS name moments later during startup, which made naming pointless (found on device).
 
 #### Notification button replies (`NotifyActionReceiver` / `z2-notify -b`, 0.8.169)
 
