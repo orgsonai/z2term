@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-23 / Target version: 0.8.198-alpha (versionCode 206)
+Last updated: 2026-07-23 / Target version: 0.8.199-alpha (versionCode 207)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -365,6 +365,35 @@ Appends an `alarm` event (with `{name}`) to events.jsonl at a given time.
 - Passing a key returns just the raw value → `[ "$(z2-state charging)" = "true" ]` works
 
 **Wi-Fi connectivity** comes from **`ConnectivityManager` + `NetworkCapabilities`**, not `WifiManager.connectionInfo`: the latter returns an invalid value (networkId=-1) on API31+ unless the caller is in the foreground, which made background queries — exactly what macros do — always look disconnected (confirmed on device). Only the SSID still needs `WifiInfo` and a location permission, so it is empty when unavailable.
+
+#### Driving the app's own tabs (`z2-session`, 0.8.199, A1)
+
+**Background**: every verb in `Z2ApiBridge` was a one-way "shell tells Android to do something", and
+**not one of them touched the app's own inside (its tabs)**. There was no way for a shell or a macro to
+open another working tab, place a command into a different tab, or grab what is on screen right now.
+
+**Subcommands**
+
+| | What it does |
+|---|---|
+| `list` | one tab per line as TSV (`index / id / kind / marks / name`); marks are `*`=visible, `!`=busy, `-`=neither |
+| `new [name]` | opens one terminal tab and returns `index\tid` (the handle you then `send` to) |
+| `send <target> <text>… [--enter]` | **inserts** text into that tab; only runs it when `--enter` is given |
+| `capture [target] [--all]` | returns that tab's on-screen text (`--all` includes the scrollback) |
+| `close <target>` | closes that tab (never the last one — the same promise as double-tap-to-close in the UI) |
+
+**Safe by default**: `send` **inserts without executing** (no newline appended) — the same promise as
+receiving a share (B1, [§5.1.2](#512-receiving-shares-b1-08197)), so no tab ever starts running on its
+own. `Z2ApiScriptTest` pins that the helper does not slip in a `--enter` of its own.
+
+**Target resolution** (`resolveSession`) goes **index (1-based) → id → tab name**. The index is column 1
+of `list`, which is by far the easiest thing to pass along, so it wins. A name match must be exact,
+and a prefix match is accepted **only when it narrows to exactly one tab** — a vague target must never
+quietly type into "whichever tab happened to be first".
+
+**Implementation**: text lands through `SessionManager.insertText` (bracketed paste), the entry point
+factored out by B1, so A1 really was just adding verbs. Creating/destroying tabs and reading the buffer
+go through `runOnMainSync`, putting them on the same thread assumption as drawing.
 
 #### Notification button replies (`NotifyActionReceiver` / `z2-notify -b`, 0.8.169)
 
@@ -877,6 +906,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   | `z2-state` | Current state in one call (0.8.167) |
   | `z2-alarm` | Time trigger (0.8.167) |
   | `z2-macro` | Install the bundled macro samples (0.8.167) |
+  | `z2-session` | **Drives the app's own tabs** (0.8.199, A1) |
 
   - **Banner notifications from `z2-notify` (0.8.163)**: with `-h`/`--high`/`--banner` it posts through a separate `IMPORTANCE_HIGH` channel (`z2term_api_high`) with `PRIORITY_HIGH`, giving a **heads-up banner at the top of the screen**. The default channel (`z2term_api`) was created as `IMPORTANCE_DEFAULT` and its importance cannot be raised afterwards (an Android rule), hence a separate channel id for banners
   - **`z2-say`**: speaks via the device's standard TTS (engine init is async, so utterances are queued until it is ready)

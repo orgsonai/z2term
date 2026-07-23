@@ -40,6 +40,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-state [key]                 Current state as JSON (or one key raw)
         |  z2-alarm at|daily HH:MM [name] Time trigger -> events.jsonl (list/cancel too)
         |  z2-macro list|install <name>   Bundled automation samples (see MACRO-GUIDE)
+        |  z2-session list|new|send|...   Drive this app's own tabs (z2-session for usage)
         |
         |[Graphical (GUI) apps]
         |  z2gui start [WxH] | stop | status   Linux desktop (e.g. z2gui start 1280x720)
@@ -78,6 +79,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-state [キー]                今の状態を JSON で(キー指定でその値だけ)
         |  z2-alarm at|daily HH:MM [名前] 時刻トリガー→events.jsonl(list/cancel も)
         |  z2-macro list|install <名前>   自動化マクロの同梱サンプル(MACRO-GUIDE 参照)
+        |  z2-session list|new|send|...   このアプリのタブを操る(使い方は z2-session)
         |
         |[画面つき(GUI)アプリ]
         |  z2gui start [横x縦] | stop | status   Linux デスクトップ(例 z2gui start 1280x720)

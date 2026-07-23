@@ -240,8 +240,44 @@ fun z2ApiScripts(): Map<String, String> {
         |esac
     """.trimMargin() + "\n"
 
+    // アプリ自身のタブを操る (A1)。他の z2-* が「Android を叩く」のに対し、これだけは内側を触る。
+    // send は既定で「入れるだけ・実行しない」。実行させたいときだけ --enter を明示する
+    // (共有の受け取りと同じ約束で、他のタブが勝手に走り出す状態を作らない)。
+    val session = """
+        |#!/bin/sh
+        |# z2-session list                     … タブ一覧 (番号 / id / 種別 / 印 / 名前 の TSV)
+        |#   印: * = 表示中のタブ / ! = 何か動作中 / - = それ以外
+        |# z2-session new [名前]               … 端末タブを 1 枚開く (番号と id を返す)
+        |# z2-session send <先> <文字列>...    … そのタブに文字を入れる (実行はしない)
+        |# z2-session send <先> <文字列> --enter … 入れてから実行する
+        |# z2-session capture [先] [--all]     … そのタブの画面を取り出す (--all は遡れる分も)
+        |# z2-session close <先>               … そのタブを閉じる (最後の 1 枚は閉じない)
+        |#
+        |# <先> は list の番号 / id / タブ名 のどれでもよい。'.' か省略で今表示しているタブ。
+        |# 例: n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
+        |usage() {
+        |  echo "usage: z2-session list | new [名前] | send <先> <文字列>... [--enter] | capture [先] [--all] | close <先>" >&2
+        |  exit 1
+        |}
+        |[ ${d}# -ge 1 ] || usage
+        |sub="${d}1"; shift
+        |case "${d}sub" in
+        |  list)    exec /usr/local/bin/z2api 1 session list ;;
+        |  new)     exec /usr/local/bin/z2api 1 session new "${d}1" ;;
+        |  send)
+        |    [ ${d}# -ge 2 ] || usage
+        |    exec /usr/local/bin/z2api 1 session send "${d}@" ;;
+        |  capture) exec /usr/local/bin/z2api 1 session capture "${d}@" ;;
+        |  close)
+        |    [ ${d}# -ge 1 ] || usage
+        |    exec /usr/local/bin/z2api 1 session close "${d}1" ;;
+        |  *) usage ;;
+        |esac
+    """.trimMargin() + "\n"
+
     return linkedMapOf(
         "z2api" to dispatcher,
+        "z2-session" to session,
         "z2-notify" to notify,
         "z2-toast" to toast,
         "z2-share" to share,

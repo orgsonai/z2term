@@ -39,6 +39,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.core.SessionManager
+import com.zerotoship.z2term.core.TerminalSession
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -219,11 +221,114 @@ object Z2ApiBridge {
             "sensor" -> sensorRead(context, args.getOrNull(0).orEmpty())
             "alarm" -> alarmCmd(context, args)
             "state" -> stateRead(context, args.getOrNull(0).orEmpty())
+            "session" -> sessionCmd(context, args)
             else -> throw IllegalArgumentException("unknown cmd: $cmd")
         }
     }
 
     // --- 各機能 ---
+
+    /**
+     * **アプリ自身のタブを操る** (`z2-session`・A1)。
+     *
+     * 他の動詞がすべて「Android を叩く」片道なのに対し、これだけはアプリの内側 (タブ) を触る。
+     * シェルやマクロから「作業用のタブをもう 1 枚開く」「別のタブへコマンドを置く」
+     * 「今の画面を取り出す」ができるようになる。
+     *
+     * **安全側の既定**: `send` は文字を**入れるだけで実行しない** (改行を付けない)。共有の
+     * 受け取り (B1) と同じ約束で、他のタブが勝手に走り出す状態を作らない。実行させたいときだけ
+     * `--enter` を明示する。
+     *
+     * 入れ先の指定 ([resolveSession]) は id / 1 始まりの番号 / タブ名 のどれでもよい。
+     * `z2-session list` の番号をそのまま使えるのが実用上いちばん楽なので、番号を第一に扱う。
+     */
+    private fun sessionCmd(context: Context, args: List<String>): String? {
+        return when (val sub = args.getOrNull(0).orEmpty()) {
+            // 1 行 1 タブの TSV: <番号> <id> <種別> <印> <名前>
+            // jq の無い環境でも awk / cut で拾えるようにする (z2-state をフラット JSON にしたのと同じ理由)。
+            "list" -> {
+                val sessions = SessionManager.sessions.value
+                val activeId = SessionManager.activeId.value
+                sessions.mapIndexed { i, s ->
+                    val kind = if (s is TerminalSession) "term" else "gui"
+                    val marks = buildString {
+                        if (s.id == activeId) append('*')
+                        if (s.isBusy) append('!')
+                        if (isEmpty()) append('-')
+                    }
+                    "${i + 1}\t${s.id}\t$kind\t$marks\t${s.label.value}"
+                }.joinToString("\n")
+            }
+            // 新しい端末タブを開き、その番号と id を返す (続けて send する材料になる)。
+            "new" -> {
+                val name = args.getOrNull(1).orEmpty()
+                val created = runOnMainSync {
+                    val s = SessionManager.openNew(context)
+                    if (name.isNotBlank()) s.setLabel(name.take(20))
+                    s
+                }
+                val index = SessionManager.sessions.value.indexOfFirst { it.id == created.id } + 1
+                "$index\t${created.id}"
+            }
+            // 指定タブへ文字を入れる。既定は入れるだけ、--enter が付いたときだけ実行する。
+            "send" -> {
+                val target = args.getOrNull(1).orEmpty()
+                val rest = args.drop(2)
+                val enter = rest.contains("--enter")
+                val text = rest.filterNot { it == "--enter" }.joinToString(" ")
+                if (text.isEmpty()) throw IllegalArgumentException("session send: nothing to send")
+                val session = resolveSession(target) as? TerminalSession
+                    ?: throw IllegalArgumentException("session send: no such terminal tab: $target")
+                runOnMainSync {
+                    SessionManager.insertText(text, session.id)
+                    if (enter) session.writeBytes("\n".toByteArray(Charsets.UTF_8))
+                }
+                null
+            }
+            // 画面のテキストを取り出す。既定は今見えている分だけ、--all で遡れる分も含める。
+            "capture" -> {
+                val target = args.getOrNull(1).orEmpty().ifBlank { "." }
+                val all = args.contains("--all")
+                val session = resolveSession(target) as? TerminalSession
+                    ?: throw IllegalArgumentException("session capture: no such terminal tab: $target")
+                runOnMainSync {
+                    runCatching { session.emulator.buffer.getAllText(includeScrollback = all) }
+                        .getOrElse { "" }
+                }.trimEnd('\n')
+            }
+            "close" -> {
+                val target = args.getOrNull(1).orEmpty()
+                val session = resolveSession(target)
+                    ?: throw IllegalArgumentException("session close: no such tab: $target")
+                // 最後の 1 枚は閉じない (UI のダブルタップ削除と同じ約束)。
+                if (SessionManager.sessions.value.size <= 1) {
+                    throw IllegalArgumentException("session close: cannot close the last tab")
+                }
+                runOnMainSync { SessionManager.close(session.id) }
+                null
+            }
+            else -> throw IllegalArgumentException("session: unknown subcommand: $sub")
+        }
+    }
+
+    /**
+     * `z2-session` のタブ指定を解決する。**番号 (1 始まり) → id → タブ名** の順に見る。
+     *
+     * `.` はアクティブなタブ。番号は `z2-session list` の 1 列目そのままで、いちばんよく使う形。
+     * タブ名は完全一致を優先し、無ければ前方一致で 1 件に絞れるときだけ採用する
+     * (複数に当たる指定で「たまたま先頭のタブ」に文字が入る事故を作らない)。
+     */
+    private fun resolveSession(target: String): com.zerotoship.z2term.core.AppSession? {
+        val sessions = SessionManager.sessions.value
+        if (target.isBlank() || target == ".") {
+            return sessions.firstOrNull { it.id == SessionManager.activeId.value } ?: sessions.firstOrNull()
+        }
+        target.toIntOrNull()?.let { n -> return sessions.getOrNull(n - 1) }
+        sessions.firstOrNull { it.id == target }?.let { return it }
+        sessions.firstOrNull { it.label.value == target }?.let { return it }
+        val prefix = sessions.filter { it.label.value.startsWith(target) }
+        return if (prefix.size == 1) prefix[0] else null
+    }
 
     /**
      * 端末の**現在の状態**を 1 回で返す (`z2-state`)。
