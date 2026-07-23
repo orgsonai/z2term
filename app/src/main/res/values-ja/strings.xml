@@ -380,6 +380,10 @@
     <string name="servers_low_power">省電力モード</string>
     <string name="servers_low_power_desc">WakeLock/WifiLock を握りません。電池は減りにくくなりますが、画面消灯中は外部からの着信が遅延・取りこぼすことがあります。次回の起動から反映。</string>
     <string name="servers_no_command">(コマンド未設定)</string>
+    <string name="servers_restart_info">再起動 %1$d 回 / 前回の終了コード %2$s</string>
+    <string name="servers_log_title">このサーバーの出力 (%1$s)</string>
+    <string name="servers_log_clear">ログを消す</string>
+    <string name="servers_log_empty">(まだ出力はありません)</string>
     <string name="servers_preset">プリセット (起動コマンドを埋めます。あとで自由に編集可)</string>
     <string name="servers_name_field">名前</string>
     <string name="servers_command_field">起動コマンド</string>

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
@@ -128,7 +129,12 @@ fun ServersBody(session: TerminalSession) {
     val settings by session.settingsFlow.collectAsState()
     val entries = remember(settings.serverEntries) { ServerEntry.decode(settings.serverEntries) }
 
-    fun persist(list: List<ServerEntry>) = session.setServerEntries(ServerEntry.encode(list))
+    // 永続化と同時に、稼働中の supervisor へも反映する (A3・無停止リロード)。
+    // 追加・編集・削除のどれも、supervisor や他のサーバーを止めずに 2 秒以内に効く。
+    fun persist(list: List<ServerEntry>) {
+        session.setServerEntries(ServerEntry.encode(list))
+        ServerDaemonManager.syncEntries(context, list)
+    }
 
     var editing by remember { mutableStateOf<ServerEntry?>(null) }
     var isNew by remember { mutableStateOf(false) }
@@ -233,6 +239,7 @@ fun ServersBody(session: TerminalSession) {
                 ServerRow(
                     entry = e,
                     stateLabel = if (running && e.enabled) st?.state else null,
+                    status = if (running) st else null,
                     onToggle = { checked ->
                         // 設定を永続化しつつ、稼働中なら該当サーバーだけを即時 起動/停止する
                         // (supervisor を再起動しないので他サーバーは止まらない)。
@@ -254,59 +261,131 @@ fun ServersBody(session: TerminalSession) {
 private fun ServerRow(
     entry: ServerEntry,
     stateLabel: String?,
+    status: ServerDaemonManager.ServerStatus?,
     onToggle: (Boolean) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Row(
+    val context = LocalContext.current
+    // ログは開いている間だけ読む (常時読むと一覧のポーリングが重くなる)。
+    var logOpen by remember(entry.id) { mutableStateOf(false) }
+    var logText by remember(entry.id) { mutableStateOf("") }
+    var logBytes by remember(entry.id) { mutableStateOf(0L) }
+    LaunchedEffect(logOpen, entry.id) {
+        while (logOpen) {
+            logText = ServerDaemonManager.readLog(context, entry.id)
+            logBytes = ServerDaemonManager.logSize(context, entry.id)
+            delay(1500)
+        }
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(ZtsBgCard)
             .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
-        Switch(
-            checked = entry.enabled,
-            onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = ZtsGreen,
-                checkedTrackColor = ZtsGreen.copy(alpha = 0.3f)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Switch(
+                checked = entry.enabled,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = ZtsGreen,
+                    checkedTrackColor = ZtsGreen.copy(alpha = 0.3f)
+                )
             )
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = entry.name.ifBlank { entry.safeToken() },
+                        color = ZtsTextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 1
+                    )
+                    if (stateLabel != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "[$stateLabel]",
+                            color = if (stateLabel == "running") ZtsGreen else ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
                 Text(
-                    text = entry.name.ifBlank { entry.safeToken() },
-                    color = ZtsTextPrimary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
+                    text = entry.command.ifBlank { stringResource(R.string.servers_no_command) },
+                    color = ZtsTextSecondary,
+                    fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
                     maxLines = 1
                 )
-                if (stateLabel != null) {
-                    Spacer(modifier = Modifier.width(8.dp))
+                // 再起動回数と直近の終了コード (A3)。増え続けているなら「起動しては落ちる」を
+                // 繰り返しているので、ログを見るきっかけになる。
+                if (status != null && (status.restarts > 0 || status.lastExit != null)) {
                     Text(
-                        text = "[$stateLabel]",
-                        color = if (stateLabel == "running") ZtsGreen else ZtsTextSecondary,
+                        text = stringResource(
+                            R.string.servers_restart_info,
+                            status.restarts,
+                            status.lastExit ?: "-"
+                        ),
+                        color = if (status.restarts > 0) ZtsError else ZtsTextSecondary,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )
                 }
             }
-            Text(
-                text = entry.command.ifBlank { stringResource(R.string.servers_no_command) },
-                color = ZtsTextSecondary,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
-                maxLines = 1
-            )
+            IconCell(label = "▤", onClick = { logOpen = !logOpen })
+            IconCell(label = "✎", onClick = onEdit)
+            IconCell(label = "✕", danger = true, onClick = onDelete)
         }
-        IconCell(label = "✎", onClick = onEdit)
-        IconCell(label = "✕", danger = true, onClick = onDelete)
+
+        if (logOpen) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(R.string.servers_log_title, formatBytes(logBytes)),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.weight(1f)
+                )
+                PillButton(label = stringResource(R.string.servers_log_clear)) {
+                    ServerDaemonManager.clearLog(context, entry.id)
+                    logText = ""
+                    logBytes = 0L
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 220.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(ZtsBgPrimary)
+                    .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+                    .verticalScroll(rememberScrollState())
+                    .padding(8.dp)
+            ) {
+                Text(
+                    text = logText.ifBlank { stringResource(R.string.servers_log_empty) },
+                    color = if (logText.isBlank()) ZtsTextSecondary else ZtsTextPrimary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
     }
+}
+
+private fun formatBytes(bytes: Long): String = when {
+    bytes < 1024 -> "$bytes B"
+    bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
+    else -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
 }
 
 @Composable

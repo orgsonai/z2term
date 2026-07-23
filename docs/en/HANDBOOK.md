@@ -301,6 +301,9 @@ Open ⚙ Settings → **Resident servers** → "Manage servers", or the **Server
 1. Tap "**+ New**". Picking a preset (SSH / HTTP / SMB / FTP / VNC) fills in a start command (edit it freely).
 2. Install the server itself (`sshd` / `smbd`, …) into that OS beforehand from the terminal — the app does not bundle them.
 3. Tap "**Start**" to launch all servers now. Each row shows its state (`running`, …) and is **auto-restarted** if it exits.
+   - **You can add, edit and delete servers while they stay resident** (applied within a few seconds). Previously, running something you had just added meant restarting everything — taking the other servers down with it.
+   - The **▤ button** on a row shows what that server printed (its log). When something won't work, the reason is usually there. "Clear log" empties it at any time.
+   - If a server keeps dying and restarting, the row shows "**restarted N× / last exit code**". A number that keeps climbing means it fails to start every time — open ▤ and read the log.
 4. Turn on "**Auto-start on boot**" and the servers **come up automatically after the device boots, without opening the app**.
 5. To stop, use the "**Stop servers**" notification action or "**Stop**" on this screen (stops them all at once).
 

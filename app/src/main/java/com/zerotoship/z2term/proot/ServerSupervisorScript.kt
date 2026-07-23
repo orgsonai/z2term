@@ -1,22 +1,32 @@
 package com.zerotoship.z2term.proot
 
-import com.zerotoship.z2term.settings.ServerEntry
-
 /**
  * 常駐サーバー用 supervisor スクリプトの生成。
  *
  * エンジン (proot/z2root/chroot) 下で **すべてのサーバーの親になる 1 本のプロセス**として起動され、
- * 各サーバーを **auto-restart ループ**付きで起動して自身は `wait` で生き続ける。エンジンプロセスを
+ * 各サーバーを **auto-restart ループ**付きで起動して自身は監視ループで生き続ける。エンジンプロセスを
  * kill すると (= [com.zerotoship.z2term.service.ServerDaemonManager.stop]) この supervisor と全サーバーが
  * まとめて終了する。
  *
- * **個別 ON/OFF**: スクリプトには (enabled/disabled を問わず) 全エントリの run ループを焼き込み、各ループは
- * [STATUS_DIR] 配下の `<id>.want` フラグ (`1`=起動 / それ以外=停止) を監視する。アプリが
- * [com.zerotoship.z2term.service.ServerDaemonManager.setWant] でこのフラグを書き換えると、supervisor を
- * 再起動せずに (＝他サーバーを止めずに) その 1 本だけを起動/停止できる。
+ * ## ジョブファイル方式 (0.8.198・A3)
  *
- * 各サーバーの稼働状態は [STATUS_DIR] 配下に `<id>.status` (`state=…` / `pid=…`) として書き出し、
- * アプリ側は rootfs の実体パス (`filesDir/distros/<id>/var/lib/z2term-servers/`) を読んで一覧に反映する。
+ * **スクリプトはエントリを焼き込まない固定文字列**で、代わりに [STATUS_DIR] 配下のファイルを見る:
+ *
+ * | ファイル | 誰が書くか | 意味 |
+ * |---|---|---|
+ * | `<id>.job`    | アプリ | 実行するコマンド本文。**これが在ることがサーバーの定義**。消すと止まって片付く |
+ * | `<id>.want`   | アプリ | `1` = 起動 / それ以外 = 停止 (個別 ON/OFF) |
+ * | `<id>.status` | supervisor | `state=` / `pid=` / `restarts=` / `last_exit=` / `cmd=` |
+ * | `<id>.log`    | supervisor | そのサーバーの標準出力・標準エラー |
+ * | `<id>.exits`  | supervisor | 終了の履歴 (`<epoch> <rc>` を直近 [EXIT_KEEP] 行) |
+ *
+ * supervisor は監視ループで `*.job` を拾い、まだ動かしていないものがあれば run ループを起こす。
+ * これにより **サーバーを追加・変更・削除しても supervisor 全体を再起動しなくてよい** (無停止リロード)。
+ * 従来は「登録時点の全エントリの run ループを焼き込んだ 1 本の sh」だったため、起動後に追加した
+ * エントリには対応するループが無く、反映に全体再起動 = 他のサーバーの巻き添え停止が必要だった。
+ *
+ * run ループはコマンド本文の変化も見ていて、`<id>.job` が書き換わったら**そのサーバーだけ**を
+ * 再起動する (編集の反映も無停止)。
  */
 object ServerSupervisorScript {
 
@@ -29,76 +39,123 @@ object ServerSupervisorScript {
     /** アプリから読むときの rootfs ルートからの相対パス。 */
     const val STATUS_REL = "var/lib/z2term-servers"
 
-    /** sh のシングルクォート内へ安全に埋め込む (`'` → `'\''`)。 */
-    private fun sq(s: String): String = "'" + s.replace("'", "'\\''") + "'"
+    /**
+     * サーバーごとのログをこのサイズまで許し、超えていたら後半 [LOG_KEEP] だけ残す。
+     *
+     * 「ローテーションしない」という既存方針 ([com.zerotoship.z2term.service.LogWriter]) は
+     * **マクロが過去に遡って集計するログ** (events.jsonl 等) の話で、途中で切り替わると解析が
+     * 面倒になるためだった。サーバーの標準出力は解析対象ではなく、常駐で延々と増え続ける方が
+     * 実害が大きいので、こちらは上限を持たせる。
+     */
+    const val LOG_MAX_BYTES = 1024 * 1024
+    /** 切り詰めたあとに残す量。 */
+    const val LOG_KEEP_BYTES = 512 * 1024
+    /** 終了コード履歴として残す行数。 */
+    const val EXIT_KEEP = 20
 
     /**
-     * [entries] (enabled/disabled を問わず command が非空の全件) を焼き込む supervisor スクリプト本文を返す。
-     * 各ループは `<id>.want` フラグを監視し、`1` の間だけサーバーを起動・auto-restart する。フラグの
-     * 初期値は各エントリの [ServerEntry.enabled] を反映する。id は一意なのでファイル名衝突は起きない。
+     * supervisor スクリプト本文を返す。**エントリには依存しない** (ジョブは実行時にファイルで渡す)。
+     *
+     * 注意: 生成シェルスクリプトでは `trimMargin` を使わない。行頭に `|` が残ると POSIX sh では
+     * 常に構文エラーになり、スクリプトごと起動不能になる (0.8.187 の事故)。`trimIndent` を使い、
+     * `ServerSupervisorScriptTest` が `sh -n` で構文を検証している。
      */
-    fun generate(entries: List<ServerEntry>): String {
-        val sb = StringBuilder()
-        sb.append("#!/bin/sh\n")
-        sb.append("# z2term server supervisor (auto-generated). Do not edit by hand.\n")
-        sb.append("STATUS_DIR=").append(STATUS_DIR).append('\n')
-        // 常駐サーバーとして起動されたことを子プロセスへ伝える。sshd wrapper のように
-        // 「既定では自分を背景化して即 exit する」コマンドは、これを見て前景常駐へ切り替える
-        // (背景化されると supervisor が落ちたと誤認して再起動ループになる)。
-        sb.append("Z2_SUPERVISED=1\nexport Z2_SUPERVISED\n")
-        sb.append("mkdir -p \"\$STATUS_DIR\" 2>/dev/null || true\n")
-        sb.append("rm -f \"\$STATUS_DIR\"/*.status 2>/dev/null || true\n\n")
-        sb.append(
-            """
-            # 1 サーバーの常駐ループ。<id>.want が '1' の間だけ起動し、落ちたら再起動する。
-            # want が '1' 以外になったら (アプリの個別 OFF) 実行中プロセスを止めて待機する。
-            run_server() {
-              name="${'$'}1"; cmd="${'$'}2"
-              wantf="${'$'}STATUS_DIR/${'$'}name.want"
-              while true; do
-                if [ "${'$'}(cat "${'$'}wantf" 2>/dev/null)" != "1" ]; then
-                  printf 'state=stopped\ncmd=%s\n' "${'$'}cmd" > "${'$'}STATUS_DIR/${'$'}name.status"
-                  sleep 1
-                  continue
-                fi
-                printf 'state=starting\ncmd=%s\n' "${'$'}cmd" > "${'$'}STATUS_DIR/${'$'}name.status"
-                sh -c "${'$'}cmd" &
-                spid=${'$'}!
-                printf 'state=running\npid=%s\ncmd=%s\n' "${'$'}spid" "${'$'}cmd" > "${'$'}STATUS_DIR/${'$'}name.status"
-                # プロセスが生きている間、want フラグを監視。OFF になったら kill して待機へ。
-                while kill -0 "${'$'}spid" 2>/dev/null; do
-                  if [ "${'$'}(cat "${'$'}wantf" 2>/dev/null)" != "1" ]; then
-                    kill "${'$'}spid" 2>/dev/null
-                    wait "${'$'}spid" 2>/dev/null
-                    break
-                  fi
-                  sleep 1
-                done
-                if [ "${'$'}(cat "${'$'}wantf" 2>/dev/null)" != "1" ]; then
-                  printf 'state=stopped\ncmd=%s\n' "${'$'}cmd" > "${'$'}STATUS_DIR/${'$'}name.status"
-                  continue
-                fi
-                wait "${'$'}spid" 2>/dev/null
-                rc=${'$'}?
-                printf 'state=restarting\nlast_exit=%s\ncmd=%s\n' "${'$'}rc" "${'$'}cmd" > "${'$'}STATUS_DIR/${'$'}name.status"
-                sleep 3
-              done
-            }
+    fun generate(): String = """
+        #!/bin/sh
+        # z2term server supervisor (auto-generated). Do not edit by hand.
+        STATUS_DIR=$STATUS_DIR
+        LOG_MAX=$LOG_MAX_BYTES
+        LOG_KEEP=$LOG_KEEP_BYTES
+        EXIT_KEEP=$EXIT_KEEP
 
-            """.trimIndent()
-        )
-        sb.append('\n')
-        // want フラグの初期値を書き出す (enabled=1 / disabled=0)。以後アプリが個別に上書きする。
-        for (e in entries) {
-            val want = if (e.enabled) "1" else "0"
-            sb.append("printf '%s' ").append(sq(want))
-                .append(" > \"\$STATUS_DIR/").append(e.id).append(".want\"\n")
+        # 常駐サーバーとして起動されたことを子プロセスへ伝える。sshd wrapper のように
+        # 「既定では自分を背景化して即 exit する」コマンドは、これを見て前景常駐へ切り替える
+        # (背景化されると supervisor が落ちたと誤認して再起動ループになる)。
+        Z2_SUPERVISED=1
+        export Z2_SUPERVISED
+
+        mkdir -p "${'$'}STATUS_DIR" 2>/dev/null || true
+        # 前回の残骸を掃除する。.claimed が残っていると、その id の run ループが二度と
+        # 起こされない (= サーバーが黙って起動しない) ので必ず消す。
+        rm -f "${'$'}STATUS_DIR"/*.status "${'$'}STATUS_DIR"/*.claimed 2>/dev/null || true
+
+        # ログが大きくなり過ぎていたら後半だけ残す。
+        # **そのサーバーが動いていない瞬間にだけ呼ぶこと** — 実行中に差し替えると、走っている
+        # プロセスの fd が古い実体を掴んだままになり、以後の出力がどこにも現れなくなる。
+        trim_log() {
+          logf="${'$'}1"
+          [ -f "${'$'}logf" ] || return 0
+          sz=`wc -c < "${'$'}logf" 2>/dev/null || echo 0`
+          [ "${'$'}sz" -gt "${'$'}LOG_MAX" ] 2>/dev/null || return 0
+          tail -c "${'$'}LOG_KEEP" "${'$'}logf" > "${'$'}logf.tmp" 2>/dev/null && mv "${'$'}logf.tmp" "${'$'}logf"
         }
-        sb.append('\n')
-        for (e in entries) {
-            sb.append("run_server ").append(sq(e.id)).append(' ').append(sq(e.command)).append(" &\n")
+
+        # 1 サーバーの常駐ループ。
+        #  - <id>.job が在る間だけ生きる (消えたら片付けて抜ける = 削除の無停止反映)
+        #  - <id>.want が '1' の間だけ実際に起動し、落ちたら再起動する
+        #  - <id>.job の中身が変わったら、そのサーバーだけ再起動する (編集の無停止反映)
+        run_server() {
+          name="${'$'}1"
+          jobf="${'$'}STATUS_DIR/${'$'}name.job"
+          wantf="${'$'}STATUS_DIR/${'$'}name.want"
+          logf="${'$'}STATUS_DIR/${'$'}name.log"
+          exitf="${'$'}STATUS_DIR/${'$'}name.exits"
+          statf="${'$'}STATUS_DIR/${'$'}name.status"
+          restarts=0
+          while [ -f "${'$'}jobf" ]; do
+            cmd=`cat "${'$'}jobf" 2>/dev/null`
+            want=`cat "${'$'}wantf" 2>/dev/null`
+            if [ -z "${'$'}cmd" ] || [ "${'$'}want" != "1" ]; then
+              printf 'state=stopped\nrestarts=%s\ncmd=%s\n' "${'$'}restarts" "${'$'}cmd" > "${'$'}statf"
+              sleep 1
+              continue
+            fi
+            trim_log "${'$'}logf"
+            printf 'state=starting\nrestarts=%s\ncmd=%s\n' "${'$'}restarts" "${'$'}cmd" > "${'$'}statf"
+            sh -c "${'$'}cmd" >> "${'$'}logf" 2>&1 &
+            spid=${'$'}!
+            printf 'state=running\npid=%s\nrestarts=%s\ncmd=%s\n' "${'$'}spid" "${'$'}restarts" "${'$'}cmd" > "${'$'}statf"
+            # 動いている間、停止指示 / 削除 / コマンド変更を 1 秒ごとに見る。
+            while kill -0 "${'$'}spid" 2>/dev/null; do
+              now=`cat "${'$'}wantf" 2>/dev/null`
+              newcmd=`cat "${'$'}jobf" 2>/dev/null`
+              if [ "${'$'}now" != "1" ] || [ ! -f "${'$'}jobf" ] || [ "${'$'}newcmd" != "${'$'}cmd" ]; then
+                kill "${'$'}spid" 2>/dev/null
+                break
+              fi
+              sleep 1
+            done
+            # kill した場合もここで回収する (wait は 1 回だけ呼ぶこと。二度目は
+            # 「そんな子は居ない」で無関係な終了コードを拾ってしまう)。
+            wait "${'$'}spid" 2>/dev/null
+            rc=${'$'}?
+            stamp=`date +%s 2>/dev/null || echo 0`
+            printf '%s %s\n' "${'$'}stamp" "${'$'}rc" >> "${'$'}exitf"
+            tail -n "${'$'}EXIT_KEEP" "${'$'}exitf" > "${'$'}exitf.tmp" 2>/dev/null && mv "${'$'}exitf.tmp" "${'$'}exitf"
+            want=`cat "${'$'}wantf" 2>/dev/null`
+            if [ "${'$'}want" != "1" ] || [ ! -f "${'$'}jobf" ]; then
+              printf 'state=stopped\nlast_exit=%s\nrestarts=%s\ncmd=%s\n' "${'$'}rc" "${'$'}restarts" "${'$'}cmd" > "${'$'}statf"
+              continue
+            fi
+            restarts=`expr ${'$'}restarts + 1`
+            printf 'state=restarting\nlast_exit=%s\nrestarts=%s\ncmd=%s\n' "${'$'}rc" "${'$'}restarts" "${'$'}cmd" > "${'$'}statf"
+            sleep 3
+          done
+          rm -f "${'$'}statf" "${'$'}STATUS_DIR/${'$'}name.claimed" 2>/dev/null
         }
-        sb.append("\n# keep the engine process alive until it is killed.\nwait\n")
-        return sb.toString()
-    }
+
+        # 監視ループ: 新しく置かれた .job を拾って run ループを起こす。
+        # アプリがサーバーを追加・変更・削除しても supervisor 自身と他サーバーは止めない。
+        while true; do
+          for jobf in "${'$'}STATUS_DIR"/*.job; do
+            [ -f "${'$'}jobf" ] || continue
+            base=${'$'}{jobf##*/}
+            name=${'$'}{base%.job}
+            [ -f "${'$'}STATUS_DIR/${'$'}name.claimed" ] && continue
+            : > "${'$'}STATUS_DIR/${'$'}name.claimed"
+            run_server "${'$'}name" &
+          done
+          sleep 2
+        done
+    """.trimIndent() + "\n"
 }

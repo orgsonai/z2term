@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-23 / Target version: 0.8.197-alpha (versionCode 205)
+Last updated: 2026-07-23 / Target version: 0.8.198-alpha (versionCode 206)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -142,15 +142,55 @@ A generic mechanism to register any server (sshd/http/smb, …) as a **start com
 
 **Why a supervisor script**
 - Under proot/z2root every process is a child of a single engine process
-- So **one supervisor script with a run loop baked in for every server (enabled or not)** is launched headless on the engine (`ProotLauncher.launch(command=/usr/local/bin/z2term-server-supervisor)`) and kept alive
+- So **one supervisor script** is launched headless on the engine (`ProotLauncher.launch(command=/usr/local/bin/z2term-server-supervisor)`) and kept alive
 - The supervisor runs each server in an **auto-restart loop** and writes state to `var/lib/z2term-servers/<id>.status` inside the rootfs (the app reads it for the list)
 
+**Job-file model (0.8.198, live reload)**
+
+The script is a **fixed string that bakes in no server definitions**; servers are handed over as files
+under `var/lib/z2term-servers/`. A watch loop (every 2s) picks up any `*.job` it has not started yet and
+spawns a run loop for it.
+
+| File | Written by | Meaning |
+|---|---|---|
+| `<id>.job` | app | the command to run. **Its existence is the server's definition** — remove it and the server stops and is cleaned up |
+| `<id>.want` | app | `1` = run / anything else = stop (per-server on/off) |
+| `<id>.status` | supervisor | `state=` / `pid=` / `restarts=` / `last_exit=` / `cmd=` |
+| `<id>.log` | supervisor | that server's stdout and stderr |
+| `<id>.exits` | supervisor | exit history (`<epoch> <rc>`, last 20 lines) |
+
+- **Adding, editing and deleting all apply without stopping the supervisor** (`ServerDaemonManager.syncEntries`).
+  An addition is picked up within 2s, a changed `<id>.job` restarts just that server, and removing
+  `<id>.job` makes only that run loop clean up and exit. **Previously the script baked in a run loop for
+  every entry known at registration time**, so an entry added later had no loop and required a full
+  restart — taking every other server down with it. Fixing that is the point of A3.
+- A `.job` is **not rewritten when the content is unchanged**; rewriting would look like "the command
+  changed" and restart a server nobody touched.
+- On start, `.status` / `.want` / `.claimed` / `.job` are cleaned before being rewritten. A stale
+  `.claimed` (the marker saying a run loop was spawned) in particular would mean that id never gets a
+  run loop again — a server that **silently never starts**. `.log` and `.exits` are kept, since they
+  exist to explain a crash after the fact.
+
 **Per-server on/off (0.8.163)**
-- Each run loop watches a `var/lib/z2term-servers/<id>.want` flag (`1` = run)
+- Each run loop watches the `<id>.want` flag (`1` = run)
 - When the app rewrites it via `ServerDaemonManager.setWant`, only that one server starts/stops (~1s) without restarting the supervisor (so the other servers keep running)
 - The flag's initial value reflects each `ServerEntry.enabled`
 - A server-row toggle in the UI applies live via `setWant` while resident, or just persists `enabled` while stopped (applied on next start)
-- ⚠️ An entry added after the supervisor started has no run loop, so it is not applied per-server and needs a full restart
+
+**Observability (0.8.198)**
+- **Per-server logs**: stdout and stderr go to `<id>.log`. The UI (▤ on the server row) shows the last
+  64 KiB with its size and a "clear log" action. Once past 1 MiB the file is trimmed to its last
+  512 KiB **only while that server is not running** — swapping it mid-run would leave the live process
+  holding the old inode, and its output would vanish from everywhere.
+  The "never rotate" policy (`LogWriter`) is about **logs macros aggregate over time**; server output is
+  not analysed that way, and unbounded growth is the bigger harm, so this one has a cap.
+- **Restart count and exit code**: a climbing `restarts=` means "starts, dies, repeats". The row shows
+  the restart count and the latest `last_exit` (hidden while it is 0).
+- `wait` is called **exactly once per child**. Calling it again after a kill returns "no such child" and
+  reports an unrelated exit code, making `last_exit` a lie (`ServerSupervisorScriptTest` pins the count).
+- `ServerSupervisorScriptTest` runs the generated script through a real **`sh -n`**. The app never sees
+  this script executing inside the rootfs, so a breakage only ever surfaces as "the server won't start"
+  and is found late (the 0.8.165 incident, and the 0.8.187 `trimMargin` one).
 
 **Residency and stopping**
 - Foreground persistence (so the process is not killed) and LAN reachability (WakeLock + WifiLock) are handled by the dedicated `ServerDaemonService`

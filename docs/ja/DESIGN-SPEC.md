@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-23 / 対象バージョン: 0.8.197-alpha (versionCode 205)
+最終更新: 2026-07-23 / 対象バージョン: 0.8.198-alpha (versionCode 206)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -142,15 +142,54 @@ emulator の状態更新は**専用シングルスレッド**（`z2term-emu-*`�
 
 **supervisor 方式を採る理由**
 - proot/z2root では全プロセスが 1 本のエンジンプロセスの子になる
-- そこで**全サーバー（enabled/disabled 問わず）の run ループを焼き込んだ supervisor スクリプト 1 本**をエンジン上で headless 起動し（`ProotLauncher.launch(command=/usr/local/bin/z2term-server-supervisor)`）、生かし続ける
+- そこで **supervisor スクリプト 1 本**をエンジン上で headless 起動し（`ProotLauncher.launch(command=/usr/local/bin/z2term-server-supervisor)`）、生かし続ける
 - supervisor は各サーバーを **auto-restart ループ**付きで起動し、稼働状態を rootfs 内 `var/lib/z2term-servers/<id>.status` に書き出す（アプリが読んで一覧に反映）
 
+**ジョブファイル方式（0.8.198・無停止リロード）**
+
+スクリプトは**サーバー定義を焼き込まない固定文字列**で、サーバーは `var/lib/z2term-servers/` 配下の
+ファイルで渡す。supervisor は監視ループ（2 秒周期）で `*.job` を拾い、まだ動かしていないものがあれば
+run ループを起こす。
+
+| ファイル | 書く側 | 意味 |
+|---|---|---|
+| `<id>.job` | アプリ | 実行するコマンド本文。**これが在ることがサーバーの定義**。消すと止まって片付く |
+| `<id>.want` | アプリ | `1`=起動 / それ以外=停止（個別 ON/OFF） |
+| `<id>.status` | supervisor | `state=` / `pid=` / `restarts=` / `last_exit=` / `cmd=` |
+| `<id>.log` | supervisor | そのサーバーの標準出力・標準エラー |
+| `<id>.exits` | supervisor | 終了の履歴（`<epoch> <rc>` を直近 20 行） |
+
+- **追加・編集・削除のどれも supervisor 全体を止めずに反映される**（`ServerDaemonManager.syncEntries`）。
+  追加は 2 秒以内に拾われ、`<id>.job` の中身が変わればそのサーバーだけ再起動し、`<id>.job` を消せば
+  その run ループだけが片付いて抜ける。**従来は「登録時点の全エントリの run ループを焼き込んだ 1 本の sh」**
+  だったため、起動後に追加したエントリには対応するループが無く、反映に全体再起動＝他サーバーの
+  巻き添え停止が必要だった（この欠陥の解消が A3 の主目的）。
+- `.job` は**中身が同じなら書き直さない**。書き直すと supervisor が「コマンドが変わった」と見なし、
+  触っていないサーバーまで再起動してしまう。
+- 起動時は `.status` / `.want` / `.claimed` / `.job` を掃除してから書き直す。とくに `.claimed`（run ループを
+  起こした印）が残っていると、その id の run ループが二度と起こされず**黙って起動しない**状態になる。
+  `.log` と `.exits` は残す（落ちた理由を後から見るためのもの）。
+
 **個別 ON/OFF（0.8.163）**
-- 各 run ループは `var/lib/z2term-servers/<id>.want` フラグ（`1`=起動）を監視する
+- 各 run ループは `<id>.want` フラグ（`1`=起動）を監視する
 - アプリが `ServerDaemonManager.setWant` で書き換えると、supervisor を再起動せず（＝他サーバーを止めず）にその 1 本だけを起動/停止する（約 1 秒で反映）
 - フラグ初期値は各 `ServerEntry.enabled` を反映
 - UI のサーバー行トグルは、稼働中なら `setWant` で即時反映、停止中は `enabled` の永続化のみ（次回起動時に反映）
-- ⚠️ supervisor 起動後に追加した新規エントリには run ループが無いため個別反映されず、全体の再起動が必要
+
+**観測手段（0.8.198）**
+- **サーバーごとのログ**: 標準出力・標準エラーを `<id>.log` に落とす。UI（サーバー行の ▤）で末尾 64KiB を
+  表示し、サイズ表示と「ログを消す」を添える。ログが 1MiB を超えていたら**そのサーバーが動いていない
+  瞬間にだけ**後半 512KiB へ切り詰める（実行中に差し替えると、走っているプロセスの fd が古い実体を
+  掴んだままになり以後の出力がどこにも現れない）。
+  「ローテーションしない」という既存方針（`LogWriter`）は**マクロが過去に遡って集計するログ**の話で、
+  解析対象でないサーバー出力は青天井の方が実害が大きいため、こちらは上限を持たせる。
+- **再起動回数と終了コード**: `restarts=` が増え続けていれば「起動しては落ちる」を繰り返していると分かる。
+  UI は再起動回数と直近の `last_exit` を行に出す（0 回のときは出さない）。
+- `wait` は**子 1 回につき 1 回だけ**呼ぶ。kill 後にもう一度呼ぶと「そんな子は居ない」で無関係な終了コードを
+  拾い、`last_exit` が嘘になる（`ServerSupervisorScriptTest` が回数を固定している）。
+- 生成スクリプトは `ServerSupervisorScriptTest` が **実際の `sh -n` に通して構文検証**する。アプリからは
+  中身が見えないまま rootfs で実行されるので、壊れていても「サーバーが起動しない」としか現れず
+  発覚が遅れるため（0.8.165 の事故、0.8.187 の `trimMargin` 事故）。
 
 **常駐と停止**
 - 前面維持（プロセス被 kill 防止）と LAN 到達性（WakeLock + WifiLock）は専用フォアグラウンドサービス `ServerDaemonService` が担う
