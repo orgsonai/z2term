@@ -130,6 +130,39 @@ class AppSettings(private val context: Context) {
          */
         val toolbarHidden: String = "",
         /**
+         * 端末ログ (ツールバー ⏺) の保存先。**ホーム (`~`) からの相対パス**で持つ。
+         * 端末からもファイラーからもすぐ触れるよう、既定は `~/z2term-log/`。
+         * 記録の ON/OFF 自体はタブごとの状態なので永続化しない (アプリ再起動で必ず OFF)。
+         */
+        val sessionLogDir: String = DEFAULT_SESSION_LOG_DIR,
+        /**
+         * 端末ログのファイル名テンプレート。`{date}` = [sessionLogTimeFormat] で整形した日時、
+         * `{tab}` = タブ名 (ファイル名に使えない文字は `_` に置換)。
+         */
+        val sessionLogNameTemplate: String = DEFAULT_SESSION_LOG_NAME,
+        /** 端末ログのファイル名に埋める日時の書式 (`SimpleDateFormat` パターン)。 */
+        val sessionLogTimeFormat: String = DEFAULT_SESSION_LOG_TIME,
+        /**
+         * 記録を始めるとき、**それまで画面に出ていた分 (スクロールバック含む) も先頭に書く**か。
+         * 既定 OFF (押した時点から先だけ)。ON にすると「あ、記録し忘れた」を後から拾える。
+         */
+        val sessionLogIncludeScrollback: Boolean = DEFAULT_SESSION_LOG_SCROLLBACK,
+        /**
+         * 同名のファイルがあったとき追記するか。既定 OFF = **毎回新しいファイル**
+         * (同名なら `-2` `-3` を足す)。追記だと停止→再開の境目が分からなくなるため。
+         */
+        val sessionLogAppend: Boolean = DEFAULT_SESSION_LOG_APPEND,
+        /**
+         * 色や画面制御の指示 (エスケープシーケンス) を**そのまま残す**か。既定 OFF =
+         * 人が読めるプレーンテキストに直して書く。ON は不具合報告用の生ログ。
+         */
+        val sessionLogRaw: Boolean = DEFAULT_SESSION_LOG_RAW,
+        /**
+         * 全画面表示 (alt screen) の間も書くか。既定 OFF。全画面 TUI は画面を組み立て直しながら
+         * 描くので、平坦なテキストにしても意味のある内容にならず、ファイルだけが膨れるため。
+         */
+        val sessionLogAltScreen: Boolean = DEFAULT_SESSION_LOG_ALT_SCREEN,
+        /**
          * z2root エンジンの syscall トレースログを出すか (開発者用・既定 OFF)。
          * ON のとき shared_home/z2root_trace.log に全 syscall を記録する。ログは膨大で
          * 容量を圧迫するため一般ユーザーは使わない。エンジン選択 (7タップ解放) と同じ場所に
@@ -255,6 +288,34 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_TOOLBAR_HIDDEN] = csv }
     }
 
+    suspend fun setSessionLogDir(value: String) {
+        context.dataStore.edit { it[KEY_SESSION_LOG_DIR] = value }
+    }
+
+    suspend fun setSessionLogNameTemplate(value: String) {
+        context.dataStore.edit { it[KEY_SESSION_LOG_NAME] = value }
+    }
+
+    suspend fun setSessionLogTimeFormat(value: String) {
+        context.dataStore.edit { it[KEY_SESSION_LOG_TIME] = value }
+    }
+
+    suspend fun setSessionLogIncludeScrollback(value: Boolean) {
+        context.dataStore.edit { it[KEY_SESSION_LOG_SCROLLBACK] = value }
+    }
+
+    suspend fun setSessionLogAppend(value: Boolean) {
+        context.dataStore.edit { it[KEY_SESSION_LOG_APPEND] = value }
+    }
+
+    suspend fun setSessionLogRaw(value: Boolean) {
+        context.dataStore.edit { it[KEY_SESSION_LOG_RAW] = value }
+    }
+
+    suspend fun setSessionLogAltScreen(value: Boolean) {
+        context.dataStore.edit { it[KEY_SESSION_LOG_ALT_SCREEN] = value }
+    }
+
     suspend fun setGuiMagnification(value: Float) {
         context.dataStore.edit {
             it[KEY_GUI_MAGNIFICATION] = value.coerceIn(MIN_GUI_MAGNIFICATION, MAX_GUI_MAGNIFICATION)
@@ -296,6 +357,13 @@ class AppSettings(private val context: Context) {
             androidHostBindEnabled = p[KEY_ANDROID_HOST_BIND] ?: DEFAULT_ANDROID_HOST_BIND,
             toolbarOrder = p[KEY_TOOLBAR_ORDER] ?: "",
             toolbarHidden = p[KEY_TOOLBAR_HIDDEN] ?: "",
+            sessionLogDir = p[KEY_SESSION_LOG_DIR] ?: DEFAULT_SESSION_LOG_DIR,
+            sessionLogNameTemplate = p[KEY_SESSION_LOG_NAME] ?: DEFAULT_SESSION_LOG_NAME,
+            sessionLogTimeFormat = p[KEY_SESSION_LOG_TIME] ?: DEFAULT_SESSION_LOG_TIME,
+            sessionLogIncludeScrollback = p[KEY_SESSION_LOG_SCROLLBACK] ?: DEFAULT_SESSION_LOG_SCROLLBACK,
+            sessionLogAppend = p[KEY_SESSION_LOG_APPEND] ?: DEFAULT_SESSION_LOG_APPEND,
+            sessionLogRaw = p[KEY_SESSION_LOG_RAW] ?: DEFAULT_SESSION_LOG_RAW,
+            sessionLogAltScreen = p[KEY_SESSION_LOG_ALT_SCREEN] ?: DEFAULT_SESSION_LOG_ALT_SCREEN,
             traceLogEnabled = p[KEY_TRACE_LOG] ?: DEFAULT_TRACE_LOG,
             kittyExternalFileEnabled = p[KEY_KITTY_EXTERNAL_FILE] ?: DEFAULT_KITTY_EXTERNAL_FILE,
             sgrMouseInputEnabled = p[KEY_SGR_MOUSE_INPUT] ?: DEFAULT_SGR_MOUSE_INPUT,
@@ -583,6 +651,28 @@ class AppSettings(private val context: Context) {
         private val KEY_ANDROID_HOST_BIND = booleanPreferencesKey("android_host_bind_enabled")
         private val KEY_TOOLBAR_ORDER = stringPreferencesKey("toolbar_order")
         private val KEY_TOOLBAR_HIDDEN = stringPreferencesKey("toolbar_hidden")
+        private val KEY_SESSION_LOG_DIR = stringPreferencesKey("session_log_dir")
+        private val KEY_SESSION_LOG_NAME = stringPreferencesKey("session_log_name")
+        private val KEY_SESSION_LOG_TIME = stringPreferencesKey("session_log_time_format")
+        private val KEY_SESSION_LOG_SCROLLBACK = booleanPreferencesKey("session_log_scrollback")
+        private val KEY_SESSION_LOG_APPEND = booleanPreferencesKey("session_log_append")
+        private val KEY_SESSION_LOG_RAW = booleanPreferencesKey("session_log_raw")
+        private val KEY_SESSION_LOG_ALT_SCREEN = booleanPreferencesKey("session_log_alt_screen")
+
+        /** 端末ログの既定の保存先 (ホームからの相対)。 */
+        const val DEFAULT_SESSION_LOG_DIR = "z2term-log"
+        /** 端末ログの既定のファイル名テンプレート。 */
+        const val DEFAULT_SESSION_LOG_NAME = "{date}-{tab}.txt"
+        /** 端末ログの既定の日時書式。 */
+        const val DEFAULT_SESSION_LOG_TIME = "yyyy-MM-dd_HHmm"
+        /** 記録開始時に過去分を書き出すか (既定 OFF = 押した時点から先だけ)。 */
+        const val DEFAULT_SESSION_LOG_SCROLLBACK = false
+        /** 同名ファイルへの追記 (既定 OFF = 毎回新しいファイル)。 */
+        const val DEFAULT_SESSION_LOG_APPEND = false
+        /** エスケープをそのまま残すか (既定 OFF = プレーンテキスト)。 */
+        const val DEFAULT_SESSION_LOG_RAW = false
+        /** 全画面表示 (alt screen) 中も書くか (既定 OFF)。 */
+        const val DEFAULT_SESSION_LOG_ALT_SCREEN = false
         private val KEY_TRACE_LOG = booleanPreferencesKey("trace_log_enabled")
         private val KEY_KITTY_EXTERNAL_FILE = booleanPreferencesKey("kitty_external_file_enabled")
         private val KEY_SGR_MOUSE_INPUT = booleanPreferencesKey("sgr_mouse_input_enabled")

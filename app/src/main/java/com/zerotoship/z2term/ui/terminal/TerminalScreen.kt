@@ -110,6 +110,7 @@ import com.zerotoship.z2term.gui.rfb.RfbClient
 import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.ui.clipboard.ClipboardHistorySheet
+import com.zerotoship.z2term.ui.log.SessionLogSheet
 import com.zerotoship.z2term.ui.components.ConfirmDialog
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import kotlinx.coroutines.flow.first
@@ -227,6 +228,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     var pendingInitialDownload by remember(active.id) { mutableStateOf<DistroSpec?>(null) }
     var snippetsSheetOpen by remember { mutableStateOf(false) }
     var clipHistoryOpen by remember { mutableStateOf(false) }
+    // 端末ログ (⏺): 記録状態はセッションが持ち、詳細設定シートの開閉だけ画面側で持つ。
+    var logSheetOpen by remember { mutableStateOf(false) }
+    val logState by active.logState.collectAsState()
     // SFTP ファイルブラウザ対象のプロファイル (非 null の間シートを表示)
     var sftpProfile by remember { mutableStateOf<SshProfile?>(null) }
     var customThemeEditorOpen by remember { mutableStateOf(false) }
@@ -373,6 +377,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             toolbarHidden = settings.toolbarHidden,
             onReorderToolbar = { active.setToolbarOrder(it) },
             onOpenSnippets = { snippetsSheetOpen = true },
+            logRecording = logState.recording,
+            onToggleLog = { active.toggleLogging() },
+            onOpenLogSettings = { logSheetOpen = true },
             searchActive = searchOpen,
             onToggleSearch = { searchOpen = !searchOpen }
         )
@@ -644,6 +651,12 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             // 履歴から選んで貼るだけ。システムクリップボードへ書き戻すと「貼り付けたのに
             // コピーされた (履歴が積み替わる)」挙動になるため同期しない。
             onSelect = { text -> active.pasteText(text, syncClipboard = false) }
+        )
+    }
+    if (logSheetOpen) {
+        SessionLogSheet(
+            session = active,
+            onDismiss = { logSheetOpen = false }
         )
     }
     sftpProfile?.let { profile ->
@@ -1163,6 +1176,9 @@ private fun TopBar(
     toolbarHidden: String,
     onReorderToolbar: (String) -> Unit,
     onOpenSnippets: () -> Unit,
+    logRecording: Boolean,
+    onToggleLog: () -> Unit,
+    onOpenLogSettings: () -> Unit,
     searchActive: Boolean = false,
     onToggleSearch: () -> Unit = {}
 ) {
@@ -1207,7 +1223,9 @@ private fun TopBar(
                     ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
                     ToolbarItem(ToolbarButtons.KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
                     ToolbarItem(ToolbarButtons.SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
-                    ToolbarItem(ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible)
+                    ToolbarItem(ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible),
+                    // ⏺ 端末ログ: 短押し=記録の開始/停止 (記録中は点灯)、ダブルタップ=詳細設定。
+                    ToolbarItem(ToolbarButtons.LOG, "⏺", stringResource(R.string.tb_log), active = logRecording, onClick = onToggleLog, onDoubleClick = onOpenLogSettings)
                 ),
                 hidden = toolbarHidden,
                 savedOrder = toolbarOrder,

@@ -37,6 +37,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -101,6 +105,21 @@ class TerminalSession(
         val mode: String = ""
     )
 
+    /**
+     * 端末ログ (ツールバー ⏺) の状態。
+     *
+     * @param recording 記録中か (ツールバーのボタンが点灯している状態)。
+     * @param path      書き込み中のファイルの**端末から見たパス** (`~/z2term-log/....txt`)。
+     * @param realPath  同じファイルの実パス (共有・SAF 用)。
+     * @param bytes     これまでに書いたサイズ。ローテーションしないので目安として必ず出す。
+     */
+    data class LogState(
+        val recording: Boolean = false,
+        val path: String = "",
+        val realPath: String = "",
+        val bytes: Long = 0L
+    )
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     // PTY 読込 + emulator 状態更新を 1 本のシリアル executor 上で実行する。
@@ -146,6 +165,13 @@ class TerminalSession(
 
     private val _cellMetrics = MutableStateFlow(CellMetrics())
     val cellMetrics: StateFlow<CellMetrics> = _cellMetrics.asStateFlow()
+
+    // --- 端末ログ (ツールバー ⏺) ---
+    // 記録の ON/OFF は**タブごと**の状態で、永続化しない (アプリを開き直すと必ず OFF)。
+    // 画面に出たものがそのままファイルに入る機能なので、意図せず記録が続いている状態を作らない。
+    private var logger: SessionLogger? = null
+    private val _logState = MutableStateFlow(LogState())
+    val logState: StateFlow<LogState> = _logState.asStateFlow()
 
     private val _selection = MutableStateFlow<TerminalSelection?>(null)
     val selection: StateFlow<TerminalSelection?> = _selection.asStateFlow()
@@ -286,6 +312,13 @@ class TerminalSession(
     fun setKeyboardToggleBar(enabled: Boolean) { scope.launch { settings.setKeyboardToggleBar(enabled) } }
     fun setToolbarOrder(csv: String) { scope.launch { settings.setToolbarOrder(csv) } }
     fun setToolbarHidden(csv: String) { scope.launch { settings.setToolbarHidden(csv) } }
+    fun setSessionLogDir(value: String) { scope.launch { settings.setSessionLogDir(value) } }
+    fun setSessionLogNameTemplate(value: String) { scope.launch { settings.setSessionLogNameTemplate(value) } }
+    fun setSessionLogTimeFormat(value: String) { scope.launch { settings.setSessionLogTimeFormat(value) } }
+    fun setSessionLogIncludeScrollback(value: Boolean) { scope.launch { settings.setSessionLogIncludeScrollback(value) } }
+    fun setSessionLogAppend(value: Boolean) { scope.launch { settings.setSessionLogAppend(value) } }
+    fun setSessionLogRaw(value: Boolean) { scope.launch { settings.setSessionLogRaw(value) } }
+    fun setSessionLogAltScreen(value: Boolean) { scope.launch { settings.setSessionLogAltScreen(value) } }
     fun setConfirmBeforeDownload(enabled: Boolean) { scope.launch { settings.setConfirmBeforeDownload(enabled) } }
     fun setGuiAudioEnabled(enabled: Boolean) { scope.launch { settings.setGuiAudioEnabled(enabled) } }
     fun setGuiTerminal(id: String) { scope.launch { settings.setGuiTerminal(id) } }
@@ -624,6 +657,16 @@ class TerminalSession(
                         val deltaScrollback = withContext(emulatorDispatcher) {
                             val before = emulator.buffer.scrollbackSize
                             emulator.processBytes(chunk, chunk.size)
+                            // 端末ログ (⏺) の分岐点。**タブに出るものは必ずここを通る**唯一の場所。
+                            // エミュレータに食わせた「後」に渡すのは、alt screen に入ったかどうかが
+                            // この塊を処理した後でないと正しく判定できないため。
+                            // 書き込み自体は SessionLogger 側の専用スレッドへ積むだけで、
+                            // ここ (描画を直列化しているスレッド) はブロックしない。
+                            logger?.let { lg ->
+                                if (emulator.buffer.primaryActive || settingsFlow.value.sessionLogAltScreen) {
+                                    lg.append(chunk)
+                                }
+                            }
                             emulator.buffer.scrollbackSize - before
                         }
                         if (deltaScrollback > 0) {
@@ -811,7 +854,107 @@ class TerminalSession(
     fun emitToast(message: String) { _toastEvents.tryEmit(message) }
 
     /** セッションを終了 (PTY を閉じてジョブをキャンセル) */
+    // ---------------------------------------------------------------- 端末ログ (⏺)
+
+    /** ツールバー ⏺ の短押し。記録していなければ始め、していれば止める。 */
+    fun toggleLogging() {
+        if (_logState.value.recording) stopLogging() else startLogging()
+    }
+
+    /**
+     * 端末ログの記録を始める。既に記録中なら何もしない。
+     *
+     * 保存先は**ホーム配下** (`filesDir/shared_home/<設定のフォルダ>`)。端末からもファイラーからも
+     * すぐ触れる場所に置く、というのがこの機能の要 (取り出せないログには意味が無い)。
+     * ファイル名は設定のテンプレート (`{date}` / `{tab}`) から作り、追記 OFF のときに同名が
+     * 既にあれば `-2` `-3` を足して**上書きしない**。
+     */
+    fun startLogging() {
+        if (_logState.value.recording) return
+        val s = settingsFlow.value
+        val home = File(appContext.filesDir, "shared_home")
+        val relDir = s.sessionLogDir.trim().trim('/').ifBlank { AppSettings.DEFAULT_SESSION_LOG_DIR }
+        val dir = File(home, relDir)
+        val file = runCatching {
+            dir.mkdirs()
+            resolveLogFile(dir, s)
+        }.getOrElse {
+            Log.w(TAG, "log dir failed: ${it.message}")
+            _toastEvents.tryEmit(appContext.getString(R.string.toast_log_start_failed))
+            return
+        }
+        val lg = runCatching { SessionLogger(file, append = s.sessionLogAppend, raw = s.sessionLogRaw) }
+            .getOrElse {
+                Log.w(TAG, "log open failed: ${it.message}")
+                _toastEvents.tryEmit(appContext.getString(R.string.toast_log_start_failed))
+                return
+            }
+        logger = lg
+        _logState.value = LogState(
+            recording = true,
+            path = "~/$relDir/${file.name}",
+            realPath = file.absolutePath,
+            bytes = lg.bytesWritten
+        )
+        // 「押した時点より前」も残す設定のときは、今の画面 + スクロールバックを先頭に書く。
+        // バッファ読み出しはエミュレータのスレッドで行う (描画側と同じ直列化に乗せる)。
+        if (s.sessionLogIncludeScrollback) {
+            scope.launch(emulatorDispatcher) {
+                val text = runCatching { emulator.buffer.getAllText(includeScrollback = true) }.getOrNull()
+                if (!text.isNullOrEmpty()) lg.appendText(text.trimEnd('\n') + "\n")
+            }
+        }
+        // サイズ表示を定期的に追いかける (ローテーションしないので現在値を必ず見せる)。
+        scope.launch {
+            while (_logState.value.recording && logger === lg) {
+                delay(LOG_SIZE_POLL_MS)
+                if (logger !== lg) break
+                _logState.update { it.copy(bytes = lg.bytesWritten) }
+            }
+        }
+    }
+
+    /** 端末ログの記録を止め、書き残しを吐き出してファイルを閉じる。 */
+    fun stopLogging() {
+        val lg = logger ?: run { _logState.update { it.copy(recording = false) }; return }
+        logger = null
+        lg.close()
+        _logState.update { it.copy(recording = false, bytes = lg.bytesWritten) }
+    }
+
+    /**
+     * 設定のテンプレートからログファイルを決める。
+     * 追記 ON ならそのままの名前、OFF で同名が既にあれば `-2` `-3` … を足す。
+     */
+    private fun resolveLogFile(dir: File, s: AppSettings.Snapshot): File {
+        val stamp = runCatching {
+            SimpleDateFormat(s.sessionLogTimeFormat.ifBlank { AppSettings.DEFAULT_SESSION_LOG_TIME }, Locale.US)
+                .format(Date())
+        }.getOrElse {
+            // 書式が壊れていても記録は始められること (設定ミスで機能ごと死なせない)。
+            SimpleDateFormat(AppSettings.DEFAULT_SESSION_LOG_TIME, Locale.US).format(Date())
+        }
+        val tab = _label.value.ifBlank { "term" }.replace(LOG_NAME_UNSAFE, "_").take(32)
+        val base = s.sessionLogNameTemplate.ifBlank { AppSettings.DEFAULT_SESSION_LOG_NAME }
+            .replace("{date}", stamp)
+            .replace("{tab}", tab)
+            .replace(LOG_NAME_UNSAFE_PATH, "_")
+            .ifBlank { "z2term.txt" }
+        val first = File(dir, base)
+        if (s.sessionLogAppend || !first.exists()) return first
+        val dot = base.lastIndexOf('.')
+        val stem = if (dot > 0) base.substring(0, dot) else base
+        val ext = if (dot > 0) base.substring(dot) else ""
+        for (n in 2..LOG_NAME_MAX_TRIES) {
+            val f = File(dir, "$stem-$n$ext")
+            if (!f.exists()) return f
+        }
+        return File(dir, "$stem-${System.currentTimeMillis()}$ext")
+    }
+
     override fun shutdown() {
+        // タブを閉じるときは書き残しを必ず吐き出す (バッファは数百 ms 分だけ残っている)。
+        stopLogging()
         channel?.close()
         channel = null
         readJob?.cancel()
@@ -884,6 +1027,14 @@ class TerminalSession(
         private const val INIT_DELAY_MS = 400L
         /** redraw 通知の最短間隔 (~60fps) */
         private const val REDRAW_INTERVAL_MS = 16L
+        /** 端末ログの「今のサイズ」表示を更新する間隔 (ローテーションしないので必ず見せる) */
+        private const val LOG_SIZE_POLL_MS = 1000L
+        /** ログのファイル名に使えない文字 (タブ名から作る部分に適用)。 */
+        private val LOG_NAME_UNSAFE = Regex("""[^A-Za-z0-9._\-]""")
+        /** テンプレート展開後に残ってはいけない文字 (パス区切り等)。 */
+        private val LOG_NAME_UNSAFE_PATH = Regex("""[/\\:*?"<>| ]""")
+        /** 同名ファイルを避ける連番の上限 (これを超えたら時刻を付けて逃がす)。 */
+        private const val LOG_NAME_MAX_TRIES = 99
         /** Bracketed paste 開始シーケンス ESC [ 200 ~ */
         private val BRACKET_PASTE_START = byteArrayOf(0x1B, '['.code.toByte(), '2'.code.toByte(), '0'.code.toByte(), '0'.code.toByte(), '~'.code.toByte())
         /** Bracketed paste 終了シーケンス ESC [ 201 ~ */

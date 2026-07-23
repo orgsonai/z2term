@@ -39,6 +39,7 @@ object ToolbarButtons {
     const val KEEP_ALIVE = "keep_alive"
     const val SEARCH = "search"
     const val KEYBOARD = "keyboard"
+    const val LOG = "log"
     const val SETTINGS = "settings"
 
     /** 設定画面に並べる既定順 (= ツールバーの既定の並び)。 */
@@ -49,6 +50,7 @@ object ToolbarButtons {
         ToolbarButtonSpec(KEEP_ALIVE, "🔓", R.string.tb_keep_alive),
         ToolbarButtonSpec(SEARCH, "🔍", R.string.tb_search, terminalOnly = true),
         ToolbarButtonSpec(KEYBOARD, "⌨", R.string.tb_keyboard),
+        ToolbarButtonSpec(LOG, "⏺", R.string.tb_log, terminalOnly = true),
         ToolbarButtonSpec(SETTINGS, "⚙", R.string.tb_settings, canHide = false)
     )
 

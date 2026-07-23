@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-23 / 対象バージョン: 0.8.194-alpha (versionCode 202)
+最終更新: 2026-07-23 / 対象バージョン: 0.8.195-alpha (versionCode 203)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -856,8 +856,45 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
    → distro shell が処理 → 標準出力
    → readLoop (IO) が channel.reader を読む
    → emulator.processBytes (専用スレッド) → buffer 更新
+   → [端末ログが ON なら SessionLogger へ tee]
    → redrawTick/StateFlow 通知 → TerminalRenderer が Canvas 再描画
 ```
+
+### 5.1.1 端末ログ (ツールバー ⏺・0.8.195)
+
+画面に出た内容をテキストファイルに書き続ける機能。**分岐点は 1 か所だけ**で、
+`TerminalSession.startReadLoop` の `emulator.processBytes` の**直後**に `SessionLogger.append` を置く
+(タブに出るものが必ず通る唯一の場所。`writeBanner` 等のアプリ内部生成メッセージだけは別経路)。
+processBytes の「後」なのは、**alt screen に入ったかどうかがその塊を処理した後でないと判定できない**ため。
+
+- **スレッド**: `append` はバイト列を `SessionLogger` の単一スレッド executor に積むだけで、
+  描画を直列化しているエミュレータスレッドをブロックしない。flush は 500ms 周期。
+  アプリが OS に殺されても失うのは末尾のこの分だけ。
+- **ローテーションしない** (`service/LogWriter.kt` と同じユーザー方針)。代わりに現在のサイズを
+  `TerminalSession.LogState.bytes` として 1 秒ごとに出し、青天井なのを黙って進めない。
+- **プレーンテキスト化** (`PlainTextFilter`、既定): エスケープシーケンス (CSI / OSC / DCS / 文字集合指定) と
+  意味を持たない C0 を捨てる。単に捨てるだけでは読めるものにならないので、**画面の 1 行を組み立て直す**:
+  - **`\r` は行頭に戻るだけで内容を消さない**。以後の文字はその行を上書きする。これでダウンロードの
+    進捗表示 (`50%\r75%\r100%\n`) が数千行に膨れず、最後の状態だけが 1 行として残る。
+    `\r\n` (ふつうの改行) も同じ規則で正しく処理される。
+  - **`\b` は 1 文字戻る**。タブは残す。
+  - 組み立ては**コードポイント単位** (`Utf8Decoder` 経由)。日本語混じりの行で `\r` 上書きが起きても
+    マルチバイト文字が割れない。塊の途中で UTF-8 が切れても次回へ持ち越す。
+  - 1 行が 8192 文字を超えたら改行を待たずに吐き出す (改行の来ない出力で行バッファが無限に伸びるのを防ぐ)。
+- **alt screen 中は書かない** (既定)。全画面 TUI は画面を組み立て直しながら描くので、平坦なテキストにしても
+  意味のある内容にならずファイルだけが膨れる。設定 `sessionLogAltScreen` で書くようにもできる。
+- **保存先**は `filesDir/shared_home/<sessionLogDir>` (= 端末から見た `~/z2term-log/`)。ホーム配下なので
+  端末からもファイラーからも (SAF プロバイダ経由で他アプリからも) すぐ触れる。ファイル名は
+  `sessionLogNameTemplate` (`{date}` / `{tab}`) と `sessionLogTimeFormat` から作り、追記 OFF で同名が既に
+  あれば `-2` `-3` … を足して**上書きしない**。日時書式が壊れていても既定書式に落として記録は始める
+  (設定ミスで機能ごと死なせない)。
+- **記録の ON/OFF はタブごとの状態で、永続化しない**。アプリを開き直すと必ず OFF になる。画面に出たものが
+  そのまま入る機能なので、意図せず記録が続いている状態を作らない。タブを閉じるとき (`shutdown`) は
+  `stopLogging` で書き残しを吐き出す。
+- **UI**: ツールバー ⏺ の**短押し = 開始/停止** (記録中は点灯)、**ダブルタップ = 詳細設定シート**
+  (`ui/log/SessionLogSheet.kt`)。長押しは並べ替えで埋まっているので使えない。設定シートでは保存先・
+  ファイル名・日時書式・過去分を含めるか・追記か新規か・alt screen・生ログを切り替え、次に作られる
+  ファイル名をプレビューする。「画面に出たものはそのまま入る」旨をシート内に明記する。
 
 ### 5.2 起動シーケンス
 
@@ -985,6 +1022,13 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 | キーボード表示バー | keyboardToggleBar | true | true/false（ON=キーボード上にトグルバー。OFF=バー無しで ⌨ ボタンのダブルタップ切替 (0.8.145)） |
 | ツールバー並び順 | toolbarOrder | ""（既定順） | カンマ区切り id。長押しドラッグで更新。隠しているボタンの id も残す |
 | ツールバー非表示 | toolbarHidden | ""（全部出す） | カンマ区切り id。設定 › ツールバーでタップ切替。⚙ は指定できない (0.8.194) |
+| 端末ログ 保存先 | sessionLogDir | "z2term-log" | ホーム (~) からの相対パス (0.8.195) |
+| 端末ログ ファイル名 | sessionLogNameTemplate | "{date}-{tab}.txt" | `{date}` / `{tab}` を展開。パス区切り等は `_` に置換 |
+| 端末ログ 日時書式 | sessionLogTimeFormat | "yyyy-MM-dd_HHmm" | `SimpleDateFormat` パターン。壊れていても既定に落として記録は始める |
+| 端末ログ 過去分を含める | sessionLogIncludeScrollback | false | ON で開始時に画面 + スクロールバックを先に書く |
+| 端末ログ 追記 | sessionLogAppend | false | OFF は毎回新規（同名なら `-2` `-3`） |
+| 端末ログ 生ログ | sessionLogRaw | false | ON でエスケープをそのまま残す（不具合報告用） |
+| 端末ログ 全画面も記録 | sessionLogAltScreen | false | ON で alt screen 中も書く |
 | 実行エンジン (裏設定) | executionEngine | "z2root" | proot / z2root / chroot（chroot は root 解放時のみ） |
 | エンジン選択解放 (裏設定) | engineSelectorUnlocked | false | バージョン 7 回タップでトグル（root 不要・解除時は z2root へリセット） |
 | chroot 解放フラグ (裏設定) | rootChrootUnlocked | false | 7 タップ時の root セルフテスト成功で true |

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-23 / Target version: 0.8.194-alpha (versionCode 202)
+Last updated: 2026-07-23 / Target version: 0.8.195-alpha (versionCode 203)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -857,8 +857,50 @@ key/IME/flick → onBytes(ByteArray)
    → distro shell processes it → stdout
    → readLoop (IO) reads channel.reader
    → emulator.processBytes (dedicated thread) → buffer update
+   → [tee to SessionLogger when the terminal log is on]
    → redrawTick/StateFlow notification → TerminalRenderer redraws the Canvas
 ```
+
+### 5.1.1 Terminal log (toolbar ⏺, 0.8.195)
+
+Keeps writing what the tab shows to a text file. There is **exactly one tap point**:
+`SessionLogger.append` sits in `TerminalSession.startReadLoop` **right after** `emulator.processBytes`
+(the only place everything shown in a tab passes through; only app-generated messages such as
+`writeBanner` take another path). It goes *after* processBytes because **whether the alt screen was
+entered can only be decided once that chunk has been processed**.
+
+- **Threading**: `append` only queues the bytes on `SessionLogger`'s single-threaded executor, so the
+  emulator thread that serializes drawing is never blocked. Flush runs every 500 ms, so an OS kill
+  loses only that tail.
+- **No rotation** (same user policy as `service/LogWriter.kt`). Instead the current size is published
+  as `TerminalSession.LogState.bytes` once a second — the unbounded growth is never silent.
+- **Plain-text conversion** (`PlainTextFilter`, the default): escape sequences (CSI / OSC / DCS /
+  charset designation) and meaningless C0 bytes are dropped. Dropping alone does not produce readable
+  output, so **each screen line is rebuilt**:
+  - **`\r` only returns to the start of the line; it does not clear it.** Following characters
+    overwrite that line. A download progress bar (`50%\r75%\r100%\n`) therefore leaves one final line
+    instead of thousands, and ordinary `\r\n` line endings fall out of the same rule.
+  - **`\b` steps back one character.** Tabs are kept.
+  - Lines are assembled **per code point** (via `Utf8Decoder`), so `\r` overwriting on a line that
+    contains Japanese never splits a multi-byte character, and UTF-8 cut across chunks carries over.
+  - A line longer than 8192 characters is flushed without waiting for a newline (so output that never
+    emits one cannot grow the line buffer forever).
+- **Nothing is written while the alt screen is active** (default). A full-screen TUI paints by
+  rebuilding the screen, so flattening it yields no meaningful text and only inflates the file. The
+  `sessionLogAltScreen` setting can turn it on anyway.
+- **Destination** is `filesDir/shared_home/<sessionLogDir>` (`~/z2term-log/` as seen from the shell).
+  Being under home, it is reachable from the terminal, from file managers, and from other apps via the
+  SAF provider. The name comes from `sessionLogNameTemplate` (`{date}` / `{tab}`) and
+  `sessionLogTimeFormat`; with append off, an existing name gets `-2`, `-3`, … so **nothing is
+  overwritten**. A broken date format falls back to the default rather than failing to record.
+- **Recording is per-tab state and is not persisted** — reopening the app always leaves it off. Since
+  whatever appears on screen goes straight into the file, a recording must never be left running by
+  accident. Closing a tab (`shutdown`) calls `stopLogging` to flush what is buffered.
+- **UI**: the toolbar ⏺ **short tap = start/stop** (lit while recording), **double tap = the detail
+  sheet** (`ui/log/SessionLogSheet.kt`); long-press is already taken by reordering. The sheet switches
+  destination, file name, date format, whether to include earlier output, append vs. new file, alt
+  screen and raw mode, and previews the next file name. It states plainly that whatever is displayed
+  is recorded as-is.
 
 ### 5.2 Startup sequence
 
@@ -987,6 +1029,13 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 | Keyboard toggle bar | keyboardToggleBar | true | true/false (on = a toggle bar above the keyboard; off = no bar, double-tap the ⌨ button to toggle (0.8.145)) |
 | Toolbar order | toolbarOrder | "" (default order) | comma-separated ids; updated by long-press drag; keeps hidden ids too |
 | Toolbar hidden | toolbarHidden | "" (all shown) | comma-separated ids; tapped under Settings › Toolbar. ⚙ cannot be listed (0.8.194) |
+| Terminal log destination | sessionLogDir | "z2term-log" | relative to home (~) (0.8.195) |
+| Terminal log file name | sessionLogNameTemplate | "{date}-{tab}.txt" | `{date}` / `{tab}` expanded; path separators become `_` |
+| Terminal log date format | sessionLogTimeFormat | "yyyy-MM-dd_HHmm" | `SimpleDateFormat` pattern; a broken one falls back to the default rather than blocking |
+| Terminal log include earlier | sessionLogIncludeScrollback | false | on = write the screen + scrollback first when starting |
+| Terminal log append | sessionLogAppend | false | off = a new file each time (`-2`, `-3` on a clash) |
+| Terminal log raw | sessionLogRaw | false | on = keep escape sequences (for bug reports) |
+| Terminal log alt screen | sessionLogAltScreen | false | on = also record while the alt screen is active |
 | Execution engine (hidden) | executionEngine | "z2root" | proot / z2root / chroot (chroot only when root is unlocked) |
 | Engine selector unlock (hidden) | engineSelectorUnlocked | false | toggled by tapping the version 7 times (no root needed; locking resets engine to z2root) |
 | chroot unlock flag (hidden) | rootChrootUnlocked | false | true when the 7-tap root self-test passes |

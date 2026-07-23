@@ -442,6 +442,7 @@
         <item quantity="other">Copied from remote (%1$d chars)</item>
     </plurals>
     <string name="toast_selection_empty">Selection is empty</string>
+    <string name="toast_log_start_failed">Could not start logging (check the destination folder)</string>
     <plurals name="toast_copy">
         <item quantity="one">Copied (%1$d char)</item>
         <item quantity="other">Copied (%1$d chars)</item>
@@ -515,4 +516,25 @@
     <string name="tb_search">Search scrollback</string>
     <string name="tb_keyboard">Switch keyboard</string>
     <string name="tb_settings">Settings</string>
+    <string name="tb_log">Record terminal log</string>
+    <string name="log_sheet_title">Terminal log</string>
+    <string name="log_recording">Record this tab</string>
+    <string name="log_recording_desc">Keeps writing what appears on screen to a text file</string>
+    <string name="log_copy_open_command">Copy a command to open it in the terminal</string>
+    <string name="log_dir">Destination folder</string>
+    <string name="log_dir_desc">Relative to home (~). Reachable from the terminal and from file managers</string>
+    <string name="log_name">File name</string>
+    <string name="log_name_desc">{date} = date/time, {tab} = tab name</string>
+    <string name="log_time_format">Date/time format</string>
+    <string name="log_time_format_desc">yyyy=year MM=month dd=day HH=hour mm=minute ss=second</string>
+    <string name="log_name_preview">Next file: %1$s</string>
+    <string name="log_include_scrollback">Include what came before</string>
+    <string name="log_include_scrollback_desc">When starting, write what was already on screen (and in the scrollback) first</string>
+    <string name="log_append">Append if the name already exists</string>
+    <string name="log_append_desc">Off = a new file every time (-2, -3 … are added on a name clash)</string>
+    <string name="log_alt_screen">Record full-screen views too</string>
+    <string name="log_alt_screen_desc">Apps that redraw the whole screen. Best left off — it does not come out as readable text</string>
+    <string name="log_raw">Keep colors and control codes</string>
+    <string name="log_raw_desc">Raw log for bug reports. Off converts it to human-readable text</string>
+    <string name="log_secret_warning">Note: whatever appears on screen goes in as-is, including keys, tokens and one-time codes that were displayed (a password you only type never appears on screen, so it is not recorded). The toolbar button stays lit while recording.</string>
 </resources>

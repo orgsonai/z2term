@@ -37,7 +37,7 @@ That's all the setup you need.
 
 ```
 ┌───────────────────────────────────────────────┐
-│ hostname [mode]   📋 📜 🔅 🔒 🔍 ⌨ ⚙       │ ← top bar (toolbar)
+│ hostname [mode]   📋 📜 🔅 🔒 🔍 ⌨ ⏺ ⚙     │ ← top bar (toolbar)
 ├───────────────────────────────────────────────┤
 │ [ archlinux ] [ + ] [ 🖥 ]                      │ ← tabs (switch between terminals / GUIs)
 ├───────────────────────────────────────────────┤
@@ -61,6 +61,7 @@ That's all the setup you need.
 | 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF) |
 | 🔍 | Search the on-screen text (jump back/forward with ↑↓; **tap in the input field to move the caret** and fix a typo in the middle) |
 | ⌨ | Switch between the phone's standard keyboard ⇄ the in-app keyboard |
+| ⏺ | Record a terminal log (tap to start, tap again to stop; **lit while recording**; **double-tap for the details**) |
 | ⚙ | Settings (**always the rightmost**; it never moves when you reorder, and cannot be removed) |
 
 > **Reorder the buttons**: **long-press** a toolbar button to **drag it left/right and reorder**. A short description pops up above the button while held. The order is remembered.
@@ -129,8 +130,16 @@ Z2Term comes with its **own in-app keyboard**.
 | See tab info | **Long-press** a tab to pop up its name and the **engine it's running on** (PRoot / z2root / chroot / Android sh, or GUI for GUI tabs) — no need to open Settings; it shares the same long-press as reorder |
 | Check the app version | Type **`z2version`** in the terminal to print the running app's version, execution engine, the **running OS (distro) and kernel**, etc. (`z2version --short` for just the version) |
 | Past commands | The **↑ key** (history persists even after restarting the app) |
+| Record the terminal | Tap **⏺** in the toolbar once to start (the button lights up), tap again to stop. The file lands in `~/z2term-log/`, so `less ~/z2term-log/<name>` reads it directly. **Double-tap** to change the destination, file name, date format, and so on |
 
 > When you launch the app it **always opens a single terminal tab** (previously open tabs are not auto-restored).
+
+> **About the terminal log (⏺)**
+> - Recording is **per tab**, and always returns to off when you reopen the app (so nothing keeps recording by accident).
+> - What you get is an **ordinary text file**. Colors and screen-control codes are stripped, and progress output that rewrites one line (`50% → 75% → 100%`) leaves **only its final state** as a single line.
+> - **Whatever appears on screen goes in as-is.** Keys, tokens and one-time codes that were displayed are recorded too (a password you only type never appears on screen, so it is not recorded). The button always stays lit while recording, so you can see it at a glance. A log you no longer want is a normal file — delete it with `rm`.
+> - `~/z2term-log/` is **visible to other apps** (it is treated like the rest of your home). As with any other file under home, don't keep there what you don't want seen.
+> - Full-screen apps (the ones that paint by redrawing the screen) are not recorded by default, because flattening them does not produce readable text.
 
 ---
 

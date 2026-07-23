@@ -35,14 +35,14 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.194-alpha (versionCode 202).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.195-alpha (versionCode 203).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 
 - **ターミナルエミュレータ** — VT100 / xterm、256色・トゥルーカラー、6 テーマ、検索付きスクロールバック、UTF-8 と East Asian Width、代替スクリーン、OSC 4 / 7 / 8 / 10 / 11 / 12 / 52。
 - **root 不要の Linux ディストロ** — ユーザ空間エンジン（既定は z2root。下の「実行エンジン」参照）で Alpine / Ubuntu / Arch / Kali を動かし、`apk` / `apt` / `pacman` で何でも導入。
 - **実行エンジン** — z2root（既定・root 不要の ptrace ベースエンジン）、PRoot、chroot（root 端末向け）。バージョンを 7 回タップするとエンジン選択がアンロックされる。
-- **マルチタブ** — CUI / GUI タブ、ドラッグで並べ替え、OS にプロセスを落とされてもセッション復元。
+- **マルチタブ** — CUI / GUI タブ、ドラッグで並べ替え、タブ長押しで実行エンジンを確認。
 - **Linux GUI** — Xvnc + openbox と内蔵 RFB クライアント。`z2gui` でデスクトップを起動し、`z2run <アプリ>` で GUI アプリを起動（GUI タブも自動で開く）。音声・動画つき。
 - **SSH / SFTP** — 公開鍵認証（秘匿フィールドは Android Keystore で暗号化）、known_hosts 確認、ファイル転送、既定で localhost のみ bind する内蔵 `sshd`（dropbear）。
 - **日本語 IME** — Viterbi かな漢字変換、予測、頻度/新しさ学習、独自オンスクリーンキーボード。
@@ -50,15 +50,17 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 - **セルフ adb** — `z2adb` で端末自身のワイヤレスデバッグへ localhost 接続。PC・USB・root すべて不要。
 - **内蔵ヘルプ** — `z2help`（または `z2term`）で全 `z2*` ヘルパーの分類済み早見表を表示。`z2version` でアプリ版数とタブが実際に動いているエンジンを確認。
 - **脆弱性試験** — `z2scan self` が自端末/localhost を自己診断（公開ポート・sshd 設定・SSH 鍵の権限・world-writable/SUID・PATH）。外部ツール不要。`z2scan net/host/cve` は localhost に nmap/lynis/trivy をかける薄いラッパー（外部対象は明示許可制）。結果はローカルに留まります。
+- **端末ログ** — ツールバーの ⏺ を 1 回押すとそのタブの表示内容をテキストファイルに記録し、もう 1 回で停止。保存先は `~/z2term-log/` なので端末からも他アプリからもそのまま開ける。既定は色や画面制御を落とした読めるテキスト。
+- **ツールバーの整理** — 出すボタンを設定で選べる（⚙ 設定は常に右端固定）。長押しドラッグで並べ替え。
 - **FOSS フレーバー** — 第三者 prebuilt を一切同梱せず、初回起動時にディストロを DL して SHA-256 で検証。
 
 ### 未対応 / 今後の検討
 
-- ローカルポートフォワーディング (-L) / リバース転送 (-R)
+- リバースポート転送 (-R) と、SSH タブを閉じても転送を残す常駐化（ローカル転送 -L は実装済み）
 - mosh プロトコル対応 (UDP ベース)
 - リバース DNS / IPv6 接続のリトライ強化
 - proot 自前実装でネイティブ外部表記を完全に無くす (FOSS-PURE フェーズ2)
-- IME 学習履歴のリセット UI / バックアップ
+- IME 学習履歴のエクスポート / バックアップ（リセット UI は実装済み）
 
 ## ビルド要件
 

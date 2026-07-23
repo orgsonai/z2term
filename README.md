@@ -35,14 +35,14 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 ## Current version
 
-**0.8.194-alpha (versionCode 202).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.195-alpha (versionCode 203).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
 - **Terminal emulator** — VT100 / xterm, 256-color and true color, 6 themes, scrollback with search, UTF-8 and East Asian Width, alternate screen, OSC 4 / 7 / 8 / 10 / 11 / 12 / 52.
 - **Linux distributions without root** — Alpine / Ubuntu / Arch / Kali on a userspace engine (z2root by default; see below). Install anything with `apk` / `apt` / `pacman`.
 - **Execution engines** — z2root (default; a ptrace-based engine that needs no root), PRoot, and chroot (rooted devices). The engine selector unlocks by tapping the version 7 times.
-- **Multi-tab** — CUI and GUI tabs, drag to reorder, session restore after the OS kills the app.
+- **Multi-tab** — CUI and GUI tabs, drag to reorder, long-press a tab to see the engine it runs on.
 - **Linux GUI** — Xvnc + openbox with a built-in RFB client; `z2gui` starts a desktop and `z2run <app>` launches a GUI app (opening the GUI tab for you), with audio and video.
 - **SSH / SFTP** — public-key auth with secrets encrypted by the Android Keystore, known_hosts confirmation, file transfer, and a built-in `sshd` (dropbear) that binds to localhost only by default.
 - **Japanese IME** — Viterbi kana-kanji conversion, prediction, frequency/recency learning, and a custom on-screen keyboard.
@@ -50,15 +50,17 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 - **Self adb** — `z2adb` connects to the device's own wireless debugging over localhost. No PC, USB, or root.
 - **Built-in help** — `z2help` (or `z2term`) prints a categorized cheat sheet of every `z2*` helper; `z2version` shows the app version and the engine the tab is really running on.
 - **Vulnerability testing** — `z2scan self` audits this device/localhost (open ports, sshd config, SSH key perms, world-writable/SUID, PATH) with no external tools; `z2scan net/host/cve` wrap nmap/lynis/trivy on localhost (a remote target requires explicit opt-in). Results stay local.
+- **Terminal log** — tap ⏺ in the toolbar once to start writing what the tab shows to a text file, tap again to stop. Files land in `~/z2term-log/`, so they open straight from the shell or from other apps. By default colors and screen control codes are stripped so the result reads as plain text.
+- **Tidy toolbar** — choose which buttons appear from settings (⚙ settings stays pinned to the right edge); long-press and drag to reorder.
 - **FOSS flavor** — bundles no third-party prebuilts; the distribution is downloaded at first launch and verified by SHA-256.
 
 ### Not yet supported / under consideration
 
-- Local port forwarding (-L) / reverse forwarding (-R)
+- Reverse port forwarding (-R), and keeping forwards alive after the SSH tab is closed (local forwarding -L is implemented)
 - mosh protocol support (UDP-based)
 - Reverse DNS / stronger IPv6 connection retry
 - Fully self-contained proot replacement to drop all third-party native notices (FOSS-PURE phase 2)
-- IME learning-history reset UI / backup
+- IME learning-history export / backup (the reset UI is implemented)
 
 ## Build requirements
 
