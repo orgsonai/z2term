@@ -1,19 +1,23 @@
 Z2Term is a self-contained terminal emulator for Android with:
 
-* PRoot-based Linux: run Alpine or Ubuntu without root
-* Full VT100/xterm escape sequence support (colors, attributes, alt screen)
-* 6 built-in themes (ZTS, Solarized, Dracula, Gruvbox, Nord, Tokyo Night)
-* Custom font loading from assets/fonts
+* Linux distributions without root: Alpine, Ubuntu, Arch and Kali on a userspace engine (z2root by default; PRoot and chroot also available)
+* Full VT100/xterm escape sequence support (colors, attributes, alt screen, OSC 4/7/8/10/11/12/52)
+* 9 built-in themes plus a custom theme editor, and custom font loading
 * East Asian Width (CJK / emoji) rendered as 2 cells
-* 5,000-line scrollback (configurable 500–50,000)
-* Multi-tab sessions with independent emulators
+* 5,000-line scrollback (configurable 500-50,000) with search
+* Multi-tab sessions with independent emulators, drag to reorder
+* Linux GUI: Xvnc + openbox with a built-in RFB client, audio and video
+* SSH client and SFTP built in (public-key auth, secrets encrypted by the Android Keystore), plus a built-in sshd that binds to localhost only by default
+* Japanese IME: kana-kanji conversion with prediction and learning, and a custom on-screen keyboard
+* Android bridge: call host features from the shell (notifications, clipboard, battery, sensors, alarms, intents, and driving the app's own tabs)
+* Resident servers: register any server as a start command and keep it running in the background
+* Terminal log: record what a tab shows to a plain text file with one tap
+* Receive from other apps' share sheet (inserted into the input line, never executed)
 * Foreground service keeps your session alive across Activity recycles
 * Physical keyboard support (Bluetooth keyboards, Chromebook, etc.)
 * Long-press range selection + clipboard copy/paste
-* SSH client built in (JSch, password auth)
-* IME-aware realtime input mode for CJK languages
 * Pinch-to-zoom font size
 
-100% local — no telemetry, no analytics, no required network.
+100% local - no telemetry, no analytics. The foss build downloads the distribution on first launch and verifies it by SHA-256; everything else works offline.
 
 License: GPL-3.0-only

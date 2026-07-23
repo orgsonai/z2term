@@ -273,20 +273,26 @@ Settings are split into **8 groups** (Display / Keyboard / Input and language / 
 | Font | Display typeface (4 options, with preview) |
 | Font size | 4–32 (also changeable by pinching) |
 | Scrollback lines | How many lines you can scroll back through |
+| Toolbar | **Choose which buttons appear above the terminal.** The real buttons are laid out; tap to remove or bring one back. A removed button's position is remembered. ⚙ is always rightmost and cannot be removed. If you remove 🔅 screen-on lock or 🔒 keep-alive, a switch for it appears in this section |
 | Distro | Alpine / Ubuntu / Arch / Kali |
 | Login shell | zsh / bash / sh — **the same shell is used for the terminal tab, SSH logins and the GUI's inner terminal** (the distro's `/etc/passwd` login shell is updated too). If the chosen shell is not installed in that distro, the default shell is used as before |
 | Keyboard style | Simple / 4-direction flick |
+| Japanese IME learning history | The phrases the converter has learned. Search and delete them one by one, or clear them all |
 | Keyboard position (landscape) | Left / bottom / right — effective only in landscape |
 | Side keyboard width (landscape) | Slider 280–700 dp |
 | Keyboard height (landscape / portrait) | Slider 200–500 dp (remembered separately per orientation) |
 | GUI audio | Play sound (video, etc.) in the GUI (desktop) — only when ON |
+| GUI terminal | Pick which terminal app is used inside the GUI desktop |
 | Language / 言語 | Japanese / English (switches instantly) |
 | Disable install timeout | Wait for OS / GUI downloads to finish completely |
 | Confirm before downloading | Show a confirmation dialog before fetching a distro / GUI |
 | SSH connection helper | Steps for connecting from a PC, with the IP shown |
 | Storage access | Permission to use `/sdcard` |
+| External storage (SD card) | When on, an inserted SD card is made visible from inside the OS (`/sdcard_ext`) |
+| Background process protection | A way into the battery-optimisation exemption, plus instructions for turning off phantom process killing with `adb`. This is what keeps long background work alive |
 | Reset terminal | Returns the app to **the state it had when first opened**. Only one terminal tab is left (other terminal tabs and GUI tabs are closed), and that terminal goes back to its initial state: running programs are terminated, screen and scrollback cleared. Tapping it opens a confirmation. **Saved servers, settings, snippets and the OS itself (installed packages and files you made) are not removed** |
 | Clear cache | Sweeps the package/build caches that pile up inside the OS (pacman, apt, apk, `~/.cache`, …) plus the app's temp files. Tapping it opens a confirmation that **itemizes what and how much** will be deleted. Installed packages, settings and files you made are not removed |
+| Delete OS data | Removes an installed OS (Alpine / Ubuntu / Arch / Kali) entirely to free storage. Tapping it opens a confirmation |
 | Resident servers | Register any server (sshd / http / smb, …) as a **start command** and keep it running in the background. Turn on "auto-start on boot" and it **launches right after the device boots — without opening the app**. Stop them all from the "Stop servers" notification action or this screen. See below |
 | Notification detection | Grant the OS "notification access" and turn it on, and incoming notifications are appended to `~/.z2term/notifications.jsonl` (a generic hook). **The output format is fully customizable** (a template of `{time}` `{app}` `{title}` `{text}` … ; presets: readable / one-line / TSV / JSONL). Turn on **"Newest at the top"** to prepend new entries to the head of the file instead of appending at the end. That mode reads and rewrites the whole file per entry, so **once the log passes 10MB the settings screen shows a warning** (turn it off before it gets slow, or trim the file from the terminal). What you record / filter / serve is **up to you on the terminal side** (e.g. `tail -f`, or serve it with a resident server). Since the side new entries arrive on changes with the append direction, **the "command to read it" shown in settings follows that setting** (`tail -f` when newest is at the bottom, `watch -n 1 head -n 20 …` when newest is at the top). Turn **"Save notification log"** off to keep detecting without writing anything to the file (detection only). A notification that is re-posted many times is **logged only once**. Default off, fully local |
 | SMS detection | Turn it on and **grant the SMS permission**, and incoming SMS are appended to `~/.z2term/sms.jsonl` (fields: `time` `from` `body`; format customizable). **Vs. notification detection**: Android 15+ **redacts OTP-bearing notifications** before handing them to ordinary apps, so SMS OTPs may not be readable via notifications (same for MacroDroid etc.). SMS detection reads the **SMS body directly**, bypassing the redaction, and works **even while locked**. For auto-copy, register `z2-macro install otp-sms.sh` as a resident server. Non-SMS OTPs (e.g. authenticator-app notifications) are out of scope. Default off, fully local |

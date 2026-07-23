@@ -1110,6 +1110,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 | GUI ターミナル | guiTerminalId | "xterm" | GUI 内で起動するターミナル |
 | GUI 音声 | guiAudioEnabled | false | true/false（オプトイン PulseAudio ブリッジ） |
 | GUI 拡大率 | guiMagnification | 1.5 | 0.5–3.0 |
+| GUI クリーンインストール予約 | cleanInstallGuiArmed | false | 次に開く GUI タブで入れ直す。起動時に消化して false へ戻る |
 | ダウンロード前確認 | confirmBeforeDownload | true | true/false |
 | 常駐サービス | keepAliveService | true | true/false（ツールバーの 🔒 ロックで ON/OFF。**ツールバーから隠しているときだけ設定 › ツールバーにもトグルが出る** (0.8.194)） |
 | 画面消灯ロック | keepScreenOn | false | true/false（ツールバーの 💡 で ON/OFF。**永続化して次回起動時に復元** (0.8.144)。隠しているときは設定 › ツールバーから (0.8.194)） |
@@ -1134,6 +1135,9 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 | システムイベント検知 | systemEventCaptureEnabled | false | 画面/ロック/充電/電池/Wi-Fi/BT オーディオ |
 | イベントログ形式 | systemEventLogFormat | "" (= JSONL) | `{time}{event}{level}{ssid}` |
 | イベントログを先頭に追記 | systemEventLogPrepend | false | true で新着がファイル先頭 |
+| SMS 検知 | smsCaptureEnabled | false | true/false（SMS 受信権限が別途必要。通知経由と違い本文を直接読む） |
+| SMS ログ形式 | smsLogFormat | "" (= JSONL) | `{time}{from}{body}` 等のテンプレート |
+| SMS ログを先頭に追記 | smsLogPrepend | false | true で新着がファイル先頭（10 MiB 超で注意表示） |
 | 解除失敗を検知 | unlockWatchEnabled | false | 端末管理者 (watch-login) の有効化が別途必要 |
 | 常駐サーバー登録 | serverEntries | "" | 常駐させるサーバーの定義 (JSON) |
 | 起動時に自動で常駐 | serversAutostartOnBoot | false | 端末起動で常駐サーバーを開始 (`BootReceiver`) |

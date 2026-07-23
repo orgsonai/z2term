@@ -39,7 +39,7 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 ## Features
 
-- **Terminal emulator** — VT100 / xterm, 256-color and true color, 6 themes, scrollback with search, UTF-8 and East Asian Width, alternate screen, OSC 4 / 7 / 8 / 10 / 11 / 12 / 52.
+- **Terminal emulator** — VT100 / xterm, 256-color and true color, 9 themes, scrollback with search, UTF-8 and East Asian Width, alternate screen, OSC 4 / 7 / 8 / 10 / 11 / 12 / 52.
 - **Linux distributions without root** — Alpine / Ubuntu / Arch / Kali on a userspace engine (z2root by default; see below). Install anything with `apk` / `apt` / `pacman`.
 - **Execution engines** — z2root (default; a ptrace-based engine that needs no root), PRoot, and chroot (rooted devices). The engine selector unlocks by tapping the version 7 times.
 - **Multi-tab** — CUI and GUI tabs, drag to reorder, long-press a tab to see the engine it runs on.

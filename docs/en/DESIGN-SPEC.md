@@ -1129,6 +1129,7 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 | GUI terminal | guiTerminalId | "xterm" | terminal launched inside the GUI |
 | GUI audio | guiAudioEnabled | false | true/false (opt-in PulseAudio bridge) |
 | GUI magnification | guiMagnification | 1.5 | 0.5–3.0 |
+| GUI clean-install armed | cleanInstallGuiArmed | false | reinstall GUI packages on the next GUI tab; consumed at startup and reset to false |
 | Confirm before download | confirmBeforeDownload | true | true/false |
 | Keep-alive service | keepAliveService | true | true/false (toggled from the toolbar 🔒 lock; **a switch also appears under Settings › Toolbar while the button is hidden** (0.8.194)) |
 | Screen-on lock | keepScreenOn | false | true/false (toggled from the toolbar 💡; **persisted and restored on next launch** (0.8.144); from Settings › Toolbar while hidden (0.8.194)) |
@@ -1153,6 +1154,9 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 | System event detection | systemEventCaptureEnabled | false | screen/lock/charge/battery/Wi-Fi/BT audio |
 | Event log format | systemEventLogFormat | "" (= JSONL) | `{time}{event}{level}{ssid}` |
 | Prepend event log | systemEventLogPrepend | false | true puts new entries at the head |
+| SMS detection | smsCaptureEnabled | false | true/false (needs the SMS permission; reads the message body directly rather than via notifications) |
+| SMS log format | smsLogFormat | "" (= JSONL) | a template such as `{time}{from}{body}` |
+| SMS log prepend | smsLogPrepend | false | true puts new entries at the head of the file (warning past 10 MiB) |
 | Watch unlock failures | unlockWatchEnabled | false | also needs the device-admin (watch-login) grant |
 | Resident server entries | serverEntries | "" | definitions of the servers to keep resident (JSON) |
 | Start servers on boot | serversAutostartOnBoot | false | start resident servers at device boot (`BootReceiver`) |

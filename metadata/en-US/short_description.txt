@@ -1,1 +1,1 @@
-Android terminal with PRoot Linux distros (Alpine / Ubuntu) and SSH client.
+Android terminal running Alpine/Ubuntu/Arch/Kali without root, with SSH and GUI.
