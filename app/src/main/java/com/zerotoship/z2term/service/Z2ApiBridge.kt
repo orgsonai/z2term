@@ -246,6 +246,9 @@ object Z2ApiBridge {
         return when (val sub = args.getOrNull(0).orEmpty()) {
             // 1 行 1 タブの TSV: <番号> <id> <種別> <印> <名前>
             // jq の無い環境でも awk / cut で拾えるようにする (z2-state をフラット JSON にしたのと同じ理由)。
+            // 印は * = 表示中 / ! = 動作中 / ? = まだ起動していない / - = それ以外。
+            // ? を出すのは、未起動のタブへ send しても PTY が無く何も起きないため
+            // (印が無いと「送ったのに動かない」の理由が分からない)。
             "list" -> {
                 val sessions = SessionManager.sessions.value
                 val activeId = SessionManager.activeId.value
@@ -254,6 +257,9 @@ object Z2ApiBridge {
                     val marks = buildString {
                         if (s.id == activeId) append('*')
                         if (s.isBusy) append('!')
+                        val idle = (s as? TerminalSession)?.uiState?.value?.state ==
+                            TerminalSession.TerminalState.IDLE
+                        if (idle) append('?')
                         if (isEmpty()) append('-')
                     }
                     "${i + 1}\t${s.id}\t$kind\t$marks\t${s.label.value}"
@@ -267,6 +273,12 @@ object Z2ApiBridge {
                     // pinned = true: この後の起動で OS 名 (spec.id) やシェルのタイトルに
                     // 上書きされないようにする。付けた名前が消えると指定の意味が無くなる。
                     if (name.isNotBlank()) s.setLabel(name.take(20), pinned = true)
+                    // **ここで起動まで済ませる**。画面側の自動起動は「表示中のタブが IDLE なら」
+                    // という条件なので、アプリを開いていない間に作ったタブは開くまで起動せず、
+                    // 続けて send しても PTY が無く何も起きない (実機で確認)。
+                    // マクロから「タブを開いてコマンドを流す」を成立させるにはここで立ち上げる。
+                    // ただし初回ダウンロードが要る distro は勝手に通信を始めない (画面で確認を出す)。
+                    if (s.downloadOnStartSpec() == null) s.startTerminal()
                     s
                 }
                 val index = SessionManager.sessions.value.indexOfFirst { it.id == created.id } + 1

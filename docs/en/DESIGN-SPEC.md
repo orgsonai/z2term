@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-23 / Target version: 0.8.202-alpha (versionCode 210)
+Last updated: 2026-07-23 / Target version: 0.8.203-alpha (versionCode 211)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -376,8 +376,8 @@ open another working tab, place a command into a different tab, or grab what is 
 
 | | What it does |
 |---|---|
-| `list` | one tab per line as TSV (`index / id / kind / marks / name`); marks are `*`=visible, `!`=busy, `-`=neither |
-| `new [name]` | opens one terminal tab and returns `index\tid` (the handle you then `send` to) |
+| `list` | one tab per line as TSV (`index / id / kind / marks / name`); marks are `*`=visible, `!`=busy, `?`=not started, `-`=neither |
+| `new [name]` | opens one terminal tab, **starts it**, and returns `index\tid` (the handle you then `send` to) |
 | `send <target> <text>… [--enter]` | **inserts** text into that tab; only runs it when `--enter` is given |
 | `capture [target] [--all]` | returns that tab's on-screen text (`--all` includes the scrollback) |
 | `close <target>` | closes that tab (never the last one — the same promise as double-tap-to-close in the UI) |
@@ -394,6 +394,9 @@ quietly type into "whichever tab happened to be first".
 **Implementation**: text lands through `SessionManager.insertText` (bracketed paste), the entry point
 factored out by B1, so A1 really was just adding verbs. Creating/destroying tabs and reading the buffer
 go through `runOnMainSync`, putting them on the same thread assumption as drawing.
+
+**`new` starts the tab too** (0.8.203). The screen-side autostart only fires for "the visible tab, if it is IDLE", so **a tab created while the app was closed stayed unstarted until it was opened** — and a following `send` did nothing, because there was no PTY (found on device). To make "open a tab and feed it a command" work from a macro, `new` calls `startTerminal` itself. A distro that would need a first-run download (Alpine on foss, …) is left alone, so nothing starts a transfer behind the user's back; the on-screen confirmation still handles it.
+`list` also gained a **`?` (not started)** mark: sending to an unstarted tab does nothing, and without the mark there is no way to tell why.
 
 **A name given to `new` sticks** (0.8.202). `TerminalSession` carries `labelPinned`; while it is set, the label is **not** overwritten by the OS name (`spec.id`) at startup, by the `android-sh` fallback, by an SSH connection, or by a title the shell emits (OSC 0/2). Without it, the name from `z2-session new build` turned into the OS name moments later during startup, which made naming pointless (found on device).
 

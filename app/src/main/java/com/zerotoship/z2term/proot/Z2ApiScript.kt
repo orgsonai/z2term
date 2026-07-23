@@ -246,7 +246,7 @@ fun z2ApiScripts(): Map<String, String> {
     val session = """
         |#!/bin/sh
         |# z2-session list                     … タブ一覧 (番号 / id / 種別 / 印 / 名前 の TSV)
-        |#   印: * = 表示中のタブ / ! = 何か動作中 / - = それ以外
+        |#   印: * = 表示中のタブ / ! = 何か動作中 / ? = まだ起動していない / - = それ以外
         |# z2-session new [名前]               … 端末タブを 1 枚開く (番号と id を返す)
         |# z2-session send <先> <文字列>...    … そのタブに文字を入れる (実行はしない)
         |# z2-session send <先> <文字列> --enter … 入れてから実行する
