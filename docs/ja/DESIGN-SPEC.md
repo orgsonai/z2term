@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-23 / 対象バージョン: 0.8.195-alpha (versionCode 203)
+最終更新: 2026-07-23 / 対象バージョン: 0.8.196-alpha (versionCode 204)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -775,7 +775,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 ### 4.9 常駐サービス (`service/TerminalService.kt`)
 
 - `foregroundServiceType=specialUse`。`start`/`detach`(常駐解除のみ・セッション維持)/`stop`(全終了)。
-- `PARTIAL_WAKE_LOCK`、通知 (`ic_notification` = 透過 Z2 アイコン、タップで復帰 / 停止アクション)。
+- `PARTIAL_WAKE_LOCK`、通知 (`ic_notification` = 透過マスクの `>_` アイコン、タップで復帰 / 停止アクション)。ステータスバーでは 24px 前後しか無く「Z2」の 2 文字は潰れて読めなかったため、0.8.196 で**ランチャーと同じ `>_` (プロンプト + カーソル)** に統一した。要素 2 つ・斜め帯の水平厚み 4 で、小さくても形が残る。SAF プロバイダのルートアイコンにも同じものを使う。
 
 ### 4.10 ファイル連携 (`saf/Z2TermDocumentsProvider.kt`)
 

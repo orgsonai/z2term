@@ -1,20 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  ステータスバー常駐通知用アイコン。
+  ステータスバー常駐通知用アイコン (SAF プロバイダのルートアイコンにも使う)。
+
   通知アイコンは透過マスク (不透明部分が白系にティントされる) なので背景塗りは入れない。
-  「Z2」のミニマルシルエット。
+  **ランチャーアイコンと同じ `>_` (プロンプト + カーソル)** にしてブランドを揃える
+  (0.8.196。以前は「Z2」の 2 文字だったが、小さいステータスバーでは字が潰れるうえ
+   ランチャーと別物に見えていた)。
+
+  ステータスバーでの実表示は 24px 前後しかないので、
+   - 要素は 2 つだけ、細部を持たない
+   - 斜め帯の水平方向の厚みを 4 (実効の太さ ≈ 2.8) 取って潰れないようにする
+   - 端の余白を 3 前後空ける (OS 側のマスクに食われないように)
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Z (左) -->
+    <!-- > プロンプト記号 -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M3,5 L12,5 L12,8 L7,14 L12,14 L12,17 L3,17 L3,14 L8,8 L3,8 Z" />
-    <!-- 2 (右) ブロック体: 上バー→右上縦→中バー→左下縦→下バー -->
+        android:pathData="M3.6,5 L7.6,5 L14.4,12 L7.6,19 L3.6,19 L10.4,12 Z" />
+    <!-- _ カーソル (プロンプトの右下に揃える) -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M14,5 L21,5 L21,14 L17,14 L17,16 L21,16 L21,19 L14,19 L14,11 L18,11 L18,8 L14,8 Z" />
+        android:pathData="M15.4,16.4 L21,16.4 L21,19 L15.4,19 Z" />
 </vector>

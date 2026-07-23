@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-23 / Target version: 0.8.195-alpha (versionCode 203)
+Last updated: 2026-07-23 / Target version: 0.8.196-alpha (versionCode 204)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -776,7 +776,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
 ### 4.9 Keep-alive service (`service/TerminalService.kt`)
 
 - `foregroundServiceType=specialUse`. `start`/`detach` (only drops keep-alive, keeps the session)/`stop` (terminate all).
-- `PARTIAL_WAKE_LOCK`, notification (`ic_notification` = transparent Z2 icon, tap to return / stop action).
+- `PARTIAL_WAKE_LOCK`, notification (`ic_notification` = a transparent-mask `>_` icon, tap to return / stop action). At the ~24px the status bar actually gives it, the old two-character "Z2" collapsed into an unreadable blob, so 0.8.196 unified it with **the launcher icon: `>_` (prompt + cursor)**. Two elements only, with a diagonal bar 4 units thick horizontally, so the shape survives at that size. The SAF provider root uses the same icon.
 
 ### 4.10 File integration (`saf/Z2TermDocumentsProvider.kt`)
 
