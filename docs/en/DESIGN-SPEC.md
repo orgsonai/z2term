@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-23 / Target version: 0.8.199-alpha (versionCode 207)
+Last updated: 2026-07-23 / Target version: 0.8.200-alpha (versionCode 208)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -845,7 +845,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
 ### 4.9 Keep-alive service (`service/TerminalService.kt`)
 
 - `foregroundServiceType=specialUse`. `start`/`detach` (only drops keep-alive, keeps the session)/`stop` (terminate all).
-- `PARTIAL_WAKE_LOCK`, notification (`ic_notification` = a transparent-mask `>_` icon, tap to return / stop action). At the ~24px the status bar actually gives it, the old two-character "Z2" collapsed into an unreadable blob, so 0.8.196 unified it with **the launcher icon: `>_` (prompt + cursor)**. Two elements only, with a diagonal bar 4 units thick horizontally, so the shape survives at that size. The SAF provider root uses the same icon.
+- `PARTIAL_WAKE_LOCK`, notification (`ic_notification` = a transparent-mask **single letter "Z"**, tap to return / stop action). **A small icon cannot use color** (every opaque pixel is tinted the same), so shape is the only thing that distinguishes it. The old two-character "Z2" collapsed into an unreadable blob at the ~24px the status bar gives it; 0.8.196 switched it to the launcher's `>_`, which then shared its silhouette with **other major terminal apps** — with the notification collapsed there was no telling which app it belonged to. So 0.8.200 moved the notification alone to a **single Z**: the diagonal stroke makes its outline fundamentally different from a chevron `>`, and one element survives best at that size. The launcher icon (`>_`) is shown large, so it carries the "this is a terminal" reading. The SAF provider root uses the same icon.
 
 ### 4.10 File integration (`saf/Z2TermDocumentsProvider.kt`)
 
