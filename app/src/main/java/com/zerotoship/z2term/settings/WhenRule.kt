@@ -24,6 +24,9 @@ package com.zerotoship.z2term.settings
  *  - `time:cron=分 時 日 月 曜日`          … cron 式 (stage 2。曜日 0-7 で 0/7=日曜)
  *  - `wifi:connect` / `wifi:disconnect`    … Wi‑Fi 接続 / 切断 (stage 2。検知 ON が前提)
  *  - `wifi:ssid=<名前>`                    … 指定 SSID へ接続 (位置情報権限が無いと SSID は取れない)
+ *  - `sms:any`                             … すべての着信 SMS (stage 2。RECEIVE_SMS 許可が前提)
+ *  - `sms:from=<部分>` / `sms:contains=<部分>` … 送信元 / 本文の部分一致 (大小文字無視)
+ *  - `sms:otp`                             … 本文に OTP らしい数字コードがあるとき
  */
 data class WhenRule(
     val id: String,

@@ -35,7 +35,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.208-alpha (versionCode 216).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.209-alpha (versionCode 217).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 
@@ -47,7 +47,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 - **SSH / SFTP** — 公開鍵認証（秘匿フィールドは Android Keystore で暗号化）、known_hosts 確認、ファイル転送、既定で localhost のみ bind する内蔵 `sshd`（dropbear）。
 - **日本語 IME** — Viterbi かな漢字変換、予測、頻度/新しさ学習、独自オンスクリーンキーボード。
 - **Android ブリッジ** — 端末から本体機能を呼ぶ: `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip` / `z2-battery` / `z2-vibrate` / `z2-say` / `z2-torch` / `z2-media` / `z2-volume` / `z2-sensor` / `z2-intent` / `z2-state` / `z2-alarm` / `z2-macro` / `z2-session`（アプリ自身のタブを操る）。
-- **自動化ハブ** — `z2-when <トリガー> run <コマンド>` で、Android 側の出来事をきっかけにスクリプトを自動実行: 充電の開始/停止、電池が一定値を跨いだとき、時刻（毎日 / 1 回 / N ごと / cron）、Wi‑Fi の接続/切断。ルールは `~/.z2term/when/` 配下のテキスト（git 同期可）で、アプリを開かなくても・再起動をまたいでも働く。
+- **自動化ハブ** — `z2-when <トリガー> run <コマンド>` で、Android 側の出来事をきっかけにスクリプトを自動実行: 充電の開始/停止、電池が一定値を跨いだとき、時刻（毎日 / 1 回 / N ごと / cron）、Wi‑Fi の接続/切断、SMS 受信（OTP コード抽出つき）。ルールは `~/.z2term/when/` 配下のテキスト（git 同期可）で、アプリを開かなくても・再起動をまたいでも働く。
 - **セルフ adb** — `z2adb` で端末自身のワイヤレスデバッグへ localhost 接続。PC・USB・root すべて不要。
 - **内蔵ヘルプ** — `z2help`（または `z2term`）で全 `z2*` ヘルパーの分類済み早見表を表示。`z2version` でアプリ版数とタブが実際に動いているエンジンを確認。
 - **脆弱性試験** — `z2scan self` が自端末/localhost を自己診断（公開ポート・sshd 設定・SSH 鍵の権限・world-writable/SUID・PATH）。外部ツール不要。`z2scan net/host/cve` は localhost に nmap/lynis/trivy をかける薄いラッパー（外部対象は明示許可制）。結果はローカルに留まります。

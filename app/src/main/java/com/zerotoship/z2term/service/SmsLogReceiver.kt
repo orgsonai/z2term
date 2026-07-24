@@ -44,7 +44,6 @@ class SmsLogReceiver : BroadcastReceiver() {
         EXEC.execute {
             try {
                 val s = runBlocking { AppSettings(app).flow.first() }
-                if (!s.smsCaptureEnabled) return@execute
 
                 // マルチパート SMS は 1 通が複数 part に割れて届くので、本文を順に連結して 1 通に戻す。
                 val from = messages.firstOrNull()?.displayOriginatingAddress.orEmpty()
@@ -52,8 +51,15 @@ class SmsLogReceiver : BroadcastReceiver() {
                 val body = buildString { for (m in messages) append(m.messageBody.orEmpty()) }
                 if (from.isEmpty() && body.isEmpty()) return@execute
 
-                val line = render(s.smsLogFormat, ts, ISO.format(Date(ts)), from, body)
-                LogWriter.write(logFile(app), line, s.smsLogPrepend)
+                // z2-when (A6 stage2) の sms トリガー。生ログ設定とは独立 (RECEIVE_SMS 許可さえ
+                // あれば OS が着信ごとに起動するので、ここまで来ている時点で許可はある)。
+                runCatching { WhenManager.onSms(app, from, body) }
+
+                // 生ログ (~/.z2term/sms.jsonl) への追記は設定 [smsCaptureEnabled] が ON のときだけ。
+                if (s.smsCaptureEnabled) {
+                    val line = render(s.smsLogFormat, ts, ISO.format(Date(ts)), from, body)
+                    LogWriter.write(logFile(app), line, s.smsLogPrepend)
+                }
             } catch (t: Throwable) {
                 Log.w(TAG, "sms capture failed: ${t.message}")
             } finally {

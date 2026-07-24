@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-24 / 対象バージョン: 0.8.208-alpha (versionCode 216)
+最終更新: 2026-07-24 / 対象バージョン: 0.8.209-alpha (versionCode 217)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -403,15 +403,16 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 - `time:daily=HH:MM`（毎日）/ `time:at=HH:MM`（次の HH:MM に 1 回。発火後は `enabled=0` に自動で書き戻す）/ `time:every=Nm|Nh|Ns`（N ごと・最短 1 分）
 - `time:cron='分 時 日 月 曜日'`（0.8.207・stage 2）… 5 フィールドの cron 式。`*` / `*/n` / `a` / `a-b` / `a-b/n` / `a,b,c` に対応。曜日は 0-7（0,7 が日曜）。**日と曜日がどちらも `*` でない場合はどちらか一致で発火**（標準 cron の仕様）。次回発火の算出は Android 非依存の `CronSchedule.nextAfter`（`CronScheduleTest` で具体例検証）。`daily`/`every` と同じ AlarmManager 経路に載り、発火のたびに次回を貼り直す。空白を含むのでシェルではクォート必須。
 - `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<名前>`（0.8.208・stage 2）… Wi‑Fi の接続 / 切断 / 指定 SSID への接続。判定は Android 非依存の `WhenTriggerMatch.wifi`（`WhenTriggerMatchTest` で具体例検証。SSID は大小文字無視、位置情報権限が無く SSID が空なら `ssid=` は取りこぼす）。**電池の 10% 刻みと同じく検知（`SystemEventService`）が ON のときだけ働く**（Wi‑Fi の接続変化は暗黙ブロードキャスト制限の対象で、manifest レシーバでは拾えず動的レシーバ＝検知 FG サービスが要る）。発火時は SSID を `Z2_WHEN_SSID` で渡す（外部文字列なので単一引用符へ安全にエスケープ）。
+- `sms:any` / `sms:from=<部分>` / `sms:contains=<部分>` / `sms:otp`（0.8.209・stage 2）… 着信 SMS。判定と OTP 抽出は Android 非依存の `WhenTriggerMatch.sms` / `.extractOtp`（`WhenTriggerMatchTest` で具体例検証。`from`/`contains` は部分一致・大小文字無視。OTP は**前後が数字でない 4〜8 桁**の先頭で、9 桁以上の電話番号/注文番号は拾わない）。既存の `SmsLogReceiver`（`RECEIVE_SMS` 許可で OS が着信ごとに起動＝アプリ未起動でも動く）に相乗りし、**生ログ設定 `smsCaptureEnabled` とは独立に評価する**（許可さえあれば動く）。SMS 本文は Android 15 の機微通知伏せ字（`RECEIVE_SENSITIVE_NOTIFICATIONS`）を通らない直読み経路なので伏せ字化されない（既存 `SmsLogReceiver` の解説参照）。発火時は `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY`、`otp` のときは `Z2_WHEN_OTP` を渡す（いずれも外部入力なので単一引用符へ安全にエスケープ・`eval` させない安全境界）。
 
 **常駐を増やさない設計（§10-1 の指針）**:
 - 充電・電池は **manifest レシーバ `WhenReceiver`**。`ACTION_POWER_CONNECTED` / `_DISCONNECTED` / `BATTERY_LOW` / `_OKAY` は暗黙ブロードキャスト制限の**例外**なので、**専用のフォアグラウンドサービス（＝追加の常駐通知・WakeLock）無しで**、アプリ未起動でも拾える。すべてシステム保護ブロードキャストなので `exported=true` でも外部から送れない。
 - 時刻は **AlarmManager**（`setAndAllowWhileIdle`＝Doze 貫通・`SCHEDULE_EXACT_ALARM` 不要。数分ずれることがある）。予約は再起動で消えるので `WhenReceiver`（`BOOT_COMPLETED` / `MY_PACKAGE_REPLACED`）と `Z2TermApplication.onCreate` の両方で `WhenManager.reload` が貼り直す。武装済み id は `.armed` に記録して、消えた/無効化されたルールの予約を確実に解除する。
 - 電池しきい値は充電の抜き差し・`BATTERY_LOW`/`OKAY` で評価。加えて**検知（`SystemEventService`）が ON のとき**は 10% 刻みの境界でも `WhenManager.onBatteryChanged` を呼ぶので細かく拾える。エッジ判定なので二重に呼ばれても跨いだ瞬間しか発火しない。
 
-**実行**: 発火すると「そのとき選ばれている distro」で `sh -lc '<run>'` を **headless 起動**（`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`。`ServerDaemonManager` と同じ launch + drain パターン）。トリガー情報は環境変数 `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` / `Z2_WHEN_SSID`（wifi 時）で渡す（外部入力をシェルへ文字列展開しない安全境界。SSID や trigger は外部文字列を含み得るので単一引用符へ `'\''` エスケープ）。出力は `~/.z2term/when/<id>.log` へ追記（128KB を超えたら実行前に空にする）。root chroot モードでも `launchChroot` は追加引数を取らないため、ルール実行はエンジン経路に統一している。
+**実行**: 発火すると「そのとき選ばれている distro」で `sh -lc '<run>'` を **headless 起動**（`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`。`ServerDaemonManager` と同じ launch + drain パターン）。トリガー情報は環境変数 `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` と、トリガー固有の追加 env（wifi: `Z2_WHEN_SSID` / sms: `Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP`）で渡す（外部入力をシェルへ文字列展開しない安全境界。値は単一引用符へ `'\''` エスケープ）。出力は `~/.z2term/when/<id>.log` へ追記（128KB を超えたら実行前に空にする）。root chroot モードでも `launchChroot` は追加引数を取らないため、ルール実行はエンジン経路に統一している。
 
-**CLI**（`z2-when`。`Z2ApiScript` が launch 毎に `/usr/local/bin` へ配置）: `<trigger> run <cmd>` で登録 / `list`（TSV）/ `remove <id|all>`（`rm`）/ `on|off <id>` / `log <id>`。id は `w<epoch><乱数>`。**未実装（次段）**: `sensor` / `sms-otp` トリガー（いずれも新権限・実機検証が前提のため別スライス）。
+**CLI**（`z2-when`。`Z2ApiScript` が launch 毎に `/usr/local/bin` へ配置）: `<trigger> run <cmd>` で登録 / `list`（TSV）/ `remove <id|all>`（`rm`）/ `on|off <id>` / `log <id>`。id は `w<epoch><乱数>`。**未実装（次段）**: `sensor` トリガー（継続センサー監視は opt-in・FGS 前提で新権限・実機検証が要るため別スライス）。
 
 #### 通知ボタンによる応答（`NotifyActionReceiver` / `z2-notify -b`、0.8.169）
 

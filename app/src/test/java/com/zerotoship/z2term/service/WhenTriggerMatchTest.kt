@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.service
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -40,5 +41,48 @@ class WhenTriggerMatchTest {
     @Test fun unknownSpec_doesNotFire() {
         assertFalse(m("whatever", connected = true, ssid = "home"))
         assertFalse(m("", connected = true, ssid = "home"))
+    }
+
+    // --- sms ---
+
+    private fun sms(spec: String, from: String, body: String) =
+        WhenTriggerMatch.sms(spec, from, body)
+
+    @Test fun sms_any_alwaysFires() {
+        assertTrue(sms("any", from = "+81", body = "hi"))
+        assertTrue(sms("any", from = "", body = ""))
+    }
+
+    @Test fun sms_from_substringCaseInsensitive() {
+        assertTrue(sms("from=bank", from = "MyBank", body = "..."))
+        assertTrue(sms("from=1234", from = "+81901234", body = "..."))
+        assertFalse(sms("from=bank", from = "Shop", body = "..."))
+        assertFalse(sms("from=", from = "MyBank", body = "...")) // 空指定は不一致
+    }
+
+    @Test fun sms_contains_substringCaseInsensitive() {
+        assertTrue(sms("contains=code", from = "x", body = "Your CODE is 1234"))
+        assertFalse(sms("contains=code", from = "x", body = "no match here"))
+    }
+
+    @Test fun sms_otp_firesOnlyWhenCodePresent() {
+        assertTrue(sms("otp", from = "x", body = "Your code is 483920"))
+        assertFalse(sms("otp", from = "x", body = "Welcome! No code in this one."))
+    }
+
+    @Test fun extractOtp_findsFourToEightDigits() {
+        assertEquals("483920", WhenTriggerMatch.extractOtp("Your code is 483920. Do not share."))
+        assertEquals("12345", WhenTriggerMatch.extractOtp("G-12345 is your code")) // G- の後ろも拾う
+        assertEquals("8842", WhenTriggerMatch.extractOtp("Verification: 8842"))
+    }
+
+    @Test fun extractOtp_ignoresLongDigitRuns() {
+        // 9 桁以上 (電話番号・注文番号) は OTP として拾わない。
+        assertEquals("", WhenTriggerMatch.extractOtp("Order #1234567890 has shipped"))
+        assertEquals("", WhenTriggerMatch.extractOtp("Call +8190123456789 now"))
+        // 3 桁以下も拾わない。
+        assertEquals("", WhenTriggerMatch.extractOtp("Room 12 is ready"))
+        // コードが無ければ空。
+        assertEquals("", WhenTriggerMatch.extractOtp("Thanks for signing up!"))
     }
 }

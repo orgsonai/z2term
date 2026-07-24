@@ -222,7 +222,31 @@ object WhenManager {
     fun onWifi(context: Context, connected: Boolean, ssid: String) {
         val app = context.applicationContext
         loadRules(app).filter { it.enabled && it.kind == "wifi" }.forEach { rule ->
-            if (WhenTriggerMatch.wifi(rule.spec, connected, ssid)) runRule(app, rule, level = -1, ssid = ssid)
+            if (WhenTriggerMatch.wifi(rule.spec, connected, ssid)) {
+                val env = if (ssid.isNotEmpty()) mapOf("Z2_WHEN_SSID" to ssid) else emptyMap()
+                runRule(app, rule, level = -1, extraEnv = env)
+            }
+        }
+    }
+
+    // --- SMS トリガー ---
+
+    /**
+     * 着信 SMS を受けて `sms:any` / `sms:from=` / `sms:contains=` / `sms:otp` を実行する。
+     * 呼び元は [SmsLogReceiver] (`RECEIVE_SMS` 許可があれば OS が着信ごとに起動＝アプリ未起動でも動く)。
+     * 送信元・本文は `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY`、`sms:otp` のときは抽出コードを
+     * `Z2_WHEN_OTP` で渡す (いずれも外部入力なのでシェルへ展開せず env・安全エスケープ)。
+     */
+    fun onSms(context: Context, from: String, body: String) {
+        val app = context.applicationContext
+        loadRules(app).filter { it.enabled && it.kind == "sms" }.forEach { rule ->
+            if (WhenTriggerMatch.sms(rule.spec, from, body)) {
+                val env = HashMap<String, String>()
+                env["Z2_WHEN_SMS_FROM"] = from
+                env["Z2_WHEN_SMS_BODY"] = body
+                if (rule.spec.trim() == "otp") env["Z2_WHEN_OTP"] = WhenTriggerMatch.extractOtp(body)
+                runRule(app, rule, level = -1, extraEnv = env)
+            }
         }
     }
 
@@ -230,10 +254,11 @@ object WhenManager {
 
     /**
      * ルールの [WhenRule.run] を現在の distro で headless 実行する。トリガー情報は環境変数
-     * `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` / `Z2_WHEN_SSID` で渡す (シェルへ
-     * 文字列展開しない)。出力は `~/.z2term/when/<id>.log` へ (肥大したら実行前に空にする)。
+     * `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` と、トリガー固有の [extraEnv]
+     * (`Z2_WHEN_SSID` / `Z2_WHEN_SMS_*` / `Z2_WHEN_OTP` 等) で渡す (シェルへ文字列展開しない)。
+     * 出力は `~/.z2term/when/<id>.log` へ (肥大したら実行前に空にする)。
      */
-    private fun runRule(context: Context, rule: WhenRule, level: Int, ssid: String = "") {
+    private fun runRule(context: Context, rule: WhenRule, level: Int, extraEnv: Map<String, String> = emptyMap()) {
         val settings = runCatching { runBlocking { AppSettings(context).flow.first() } }.getOrNull() ?: return
         val distroId = settings.distroId
         val rootfs = File(context.filesDir, "distros/$distroId")
@@ -247,14 +272,14 @@ object WhenManager {
             logFile.appendText("--- ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())} ${rule.trigger} ---\n")
         }
 
-        // 環境変数 + ユーザーコマンドを 1 本の sh -lc へ。trigger/ssid は SSID 等の外部文字列を
-        // 含み得る (wifi:ssid=<名前>) ので単一引用符へ安全にエスケープする ([shSingleQuote])。
-        // level は数値なのでそのまま。ユーザーコマンド (rule.run) は実行対象なのでクォートしない。
+        // 環境変数 + ユーザーコマンドを 1 本の sh -lc へ。trigger や extraEnv の値 (SSID・SMS 本文
+        // 等) は外部文字列を含み得るので単一引用符へ安全にエスケープする ([shSingleQuote])。level は
+        // 数値なのでそのまま。ユーザーコマンド (rule.run) は実行対象なのでクォートしない。
         val levelExport = if (level in 0..100) " export Z2_WHEN_LEVEL='$level';" else ""
-        val ssidExport = if (ssid.isNotEmpty()) " export Z2_WHEN_SSID=${shSingleQuote(ssid)};" else ""
+        val extraExport = extraEnv.entries.joinToString("") { (k, v) -> " export $k=${shSingleQuote(v)};" }
         val script = "export Z2_WHEN_TRIGGER=${shSingleQuote(rule.trigger)}; " +
             "export Z2_WHEN_NAME=${shSingleQuote(rule.id)};" +
-            "$levelExport$ssidExport cd \"\$HOME\" 2>/dev/null; ${rule.run}"
+            "$levelExport$extraExport cd \"\$HOME\" 2>/dev/null; ${rule.run}"
 
         // 実行は常に launch() (proot/z2root)。root chroot モードでも launchChroot は追加引数を
         // 取らないため、ルール実行はエンジン経路に統一する (同じ distro で動くので挙動は変わらない)。

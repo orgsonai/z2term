@@ -420,6 +420,7 @@ z2-when battery:below=20    run "z2-notify -h 'Battery under 20%'"
 z2-when time:daily=03:00    run ~/.z2term/macros/nightly.sh  # every day at 03:00
 z2-when time:cron='0 9 * * 1-5' run ~/.z2term/macros/weekday.sh  # weekdays at 09:00
 z2-when wifi:ssid=home       run ~/.z2term/macros/expose-lan.sh # when joining home Wi‑Fi
+z2-when sms:otp              run 'echo "$Z2_WHEN_OTP" | z2-clip'  # copy an incoming OTP to the clipboard
 ```
 
 - **Trigger types**
@@ -428,8 +429,9 @@ z2-when wifi:ssid=home       run ~/.z2term/macros/expose-lan.sh # when joining h
   - `time:daily=HH:MM` (every day) / `time:at=HH:MM` (once at the next HH:MM, then auto-disabled) / `time:every=30m`·`2h` (fixed interval, min 1 minute)
   - `time:cron='min hour dom month dow'` — a cron expression for finer control (e.g. `'0 3 * * *'` daily at 03:00 / `'*/15 * * * *'` every 15 min / `'0 9 * * 1-5'` weekdays at 09:00). Day-of-week is 0–7 (0 and 7 are Sunday). **Always quote it** since it contains spaces.
   - `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<name>` — when Wi‑Fi connects / disconnects / joins a given network. **These Wi‑Fi triggers only work while "detection" is on** (Settings › keep-alive & automation). Using the network name (SSID) also needs location permission. Inside the command, `Z2_WHEN_SSID` holds the connected network's name.
+  - `sms:any` / `sms:from=<substr>` / `sms:contains=<substr>` / `sms:otp` — when an SMS arrives (any / sender matches / body contains / body has an OTP-looking code). **Needs SMS receive permission** (grant it via Settings › "SMS detection"). Inside the command you get `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY`, and for `sms:otp` the extracted code in `Z2_WHEN_OTP`. Reading SMS directly avoids Android 15's OTP redaction.
 - **List / remove / toggle**: `z2-when list` / `z2-when remove <id>` (`all` for everything) / `z2-when on <id>` `z2-when off <id>` / `z2-when log <id>` (see the run log)
-- Inside the command you can use `Z2_WHEN_TRIGGER` (which trigger fired), `Z2_WHEN_LEVEL` (battery level then), and `Z2_WHEN_SSID` (the network for a wifi trigger) as env vars.
+- Inside the command you can use `Z2_WHEN_TRIGGER` (which trigger fired), `Z2_WHEN_LEVEL` (battery level then), `Z2_WHEN_SSID` (the network for a wifi trigger), and `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` / `Z2_WHEN_OTP` (for sms triggers) as env vars.
 - Rules live as text under `~/.z2term/when/`, so you can **sync/back them up with git**.
 - Time triggers use a battery-friendly mechanism (Doze-through AlarmManager), so **firing can be a few minutes off**. Finer `wifi` / sensor / SMS-OTP triggers and `cron` syntax are planned for a later version.
 

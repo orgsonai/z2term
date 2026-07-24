@@ -30,4 +30,40 @@ object WhenTriggerMatch {
             else -> false
         }
     }
+
+    /** OTP らしい数字コードを抜き出す (前後が数字でない 4〜8 桁の並びの先頭。無ければ空)。 */
+    private val OTP_REGEX = Regex("(?<!\\d)(\\d{4,8})(?!\\d)")
+
+    /**
+     * 着信 SMS で `sms:*` トリガーが発火すべきか。
+     *
+     * spec の書式:
+     *  - `any`             … すべての着信 SMS
+     *  - `from=<部分文字列>` … 送信元に一致 (大小文字を区別しない・部分一致)
+     *  - `contains=<部分文字列>` … 本文に含む (大小文字を区別しない)
+     *  - `otp`             … 本文に OTP らしい数字コードがあるとき ([extractOtp] が非空)
+     */
+    fun sms(spec: String, from: String, body: String): Boolean {
+        val s = spec.trim()
+        return when {
+            s == "any" -> true
+            s == "otp" -> extractOtp(body).isNotEmpty()
+            s.startsWith("from=") -> {
+                val want = s.substring("from=".length).trim()
+                want.isNotEmpty() && from.contains(want, ignoreCase = true)
+            }
+            s.startsWith("contains=") -> {
+                val want = s.substring("contains=".length).trim()
+                want.isNotEmpty() && body.contains(want, ignoreCase = true)
+            }
+            else -> false
+        }
+    }
+
+    /**
+     * SMS 本文から OTP らしい数字コードを 1 つ取り出す (無ければ空文字)。前後が数字でない 4〜8 桁を
+     * 探すので、電話番号や注文番号のような長い数字列 (9 桁以上) は拾わない。`sms:otp` の発火判定と
+     * `Z2_WHEN_OTP` の値づくりの両方で使う。純ロジックなのでユニットテスト可能。
+     */
+    fun extractOtp(body: String): String = OTP_REGEX.find(body)?.groupValues?.get(1).orEmpty()
 }
