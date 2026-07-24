@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-24 / 対象バージョン: 0.8.206-alpha (versionCode 214)
+最終更新: 2026-07-24 / 対象バージョン: 0.8.207-alpha (versionCode 215)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -397,10 +397,11 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 
 **ルールはテキスト**: `~/.z2term/when/<id>.rule`（`filesDir/shared_home/.z2term/when/`）。`trigger=` / `run=` / `enabled=` の 3 行（`settings/WhenRule.kt`）。DataStore でなくプレーンファイルにするのは **git 同期・バックアップが効く**ため（常駐サーバーのジョブファイルと同じ思想）。CLI（`z2-when`）が直接読み書きし、変更後に `z2api when-reload` で時刻トリガーを貼り直させる。
 
-**トリガー書式（stage 1）**:
+**トリガー書式（stage 1 + cron）**:
 - `charge:start` / `charge:stop` … 充電の開始 / 停止
 - `battery:below=N` / `battery:above=N` … 残量が N% を下/上へ**跨いだ瞬間**（エッジ判定。直近残量を `.battlevel` に保存し、初回は基準設定のみ）
 - `time:daily=HH:MM`（毎日）/ `time:at=HH:MM`（次の HH:MM に 1 回。発火後は `enabled=0` に自動で書き戻す）/ `time:every=Nm|Nh|Ns`（N ごと・最短 1 分）
+- `time:cron='分 時 日 月 曜日'`（0.8.207・stage 2）… 5 フィールドの cron 式。`*` / `*/n` / `a` / `a-b` / `a-b/n` / `a,b,c` に対応。曜日は 0-7（0,7 が日曜）。**日と曜日がどちらも `*` でない場合はどちらか一致で発火**（標準 cron の仕様）。次回発火の算出は Android 非依存の `CronSchedule.nextAfter`（`CronScheduleTest` で具体例検証）。`daily`/`every` と同じ AlarmManager 経路に載り、発火のたびに次回を貼り直す。空白を含むのでシェルではクォート必須。
 
 **常駐を増やさない設計（§10-1 の指針）**:
 - 充電・電池は **manifest レシーバ `WhenReceiver`**。`ACTION_POWER_CONNECTED` / `_DISCONNECTED` / `BATTERY_LOW` / `_OKAY` は暗黙ブロードキャスト制限の**例外**なので、**専用のフォアグラウンドサービス（＝追加の常駐通知・WakeLock）無しで**、アプリ未起動でも拾える。すべてシステム保護ブロードキャストなので `exported=true` でも外部から送れない。
@@ -409,7 +410,7 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 
 **実行**: 発火すると「そのとき選ばれている distro」で `sh -lc '<run>'` を **headless 起動**（`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`。`ServerDaemonManager` と同じ launch + drain パターン）。トリガー情報は環境変数 `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` で渡す（外部入力をシェルへ文字列展開しない安全境界）。出力は `~/.z2term/when/<id>.log` へ追記（128KB を超えたら実行前に空にする）。root chroot モードでも `launchChroot` は追加引数を取らないため、ルール実行はエンジン経路に統一している。
 
-**CLI**（`z2-when`。`Z2ApiScript` が launch 毎に `/usr/local/bin` へ配置）: `<trigger> run <cmd>` で登録 / `list`（TSV）/ `remove <id|all>`（`rm`）/ `on|off <id>` / `log <id>`。id は `w<epoch><乱数>`。**未実装（次段）**: `wifi` / `sensor` / `sms-otp` トリガー、`time:cron`。
+**CLI**（`z2-when`。`Z2ApiScript` が launch 毎に `/usr/local/bin` へ配置）: `<trigger> run <cmd>` で登録 / `list`（TSV）/ `remove <id|all>`（`rm`）/ `on|off <id>` / `log <id>`。id は `w<epoch><乱数>`。**未実装（次段）**: `wifi` / `sensor` / `sms-otp` トリガー（いずれも新権限・実機検証が前提のため別スライス）。
 
 #### 通知ボタンによる応答（`NotifyActionReceiver` / `z2-notify -b`、0.8.169）
 

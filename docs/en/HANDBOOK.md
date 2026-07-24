@@ -418,12 +418,14 @@ How to register (just line up a trigger and a command):
 z2-when charge:start        run ~/.z2term/macros/backup.sh   # back up when charging starts
 z2-when battery:below=20    run "z2-notify -h 'Battery under 20%'"
 z2-when time:daily=03:00    run ~/.z2term/macros/nightly.sh  # every day at 03:00
+z2-when time:cron='0 9 * * 1-5' run ~/.z2term/macros/weekday.sh  # weekdays at 09:00
 ```
 
 - **Trigger types**
   - `charge:start` / `charge:stop` — charging started / stopped
   - `battery:below=N` / `battery:above=N` — the moment the level **crosses** N% (e.g. drops under 20)
   - `time:daily=HH:MM` (every day) / `time:at=HH:MM` (once at the next HH:MM, then auto-disabled) / `time:every=30m`·`2h` (fixed interval, min 1 minute)
+  - `time:cron='min hour dom month dow'` — a cron expression for finer control (e.g. `'0 3 * * *'` daily at 03:00 / `'*/15 * * * *'` every 15 min / `'0 9 * * 1-5'` weekdays at 09:00). Day-of-week is 0–7 (0 and 7 are Sunday). **Always quote it** since it contains spaces.
 - **List / remove / toggle**: `z2-when list` / `z2-when remove <id>` (`all` for everything) / `z2-when on <id>` `z2-when off <id>` / `z2-when log <id>` (see the run log)
 - Inside the command you can use `Z2_WHEN_TRIGGER` (which trigger fired) and `Z2_WHEN_LEVEL` (battery level then) as env vars.
 - Rules live as text under `~/.z2term/when/`, so you can **sync/back them up with git**.

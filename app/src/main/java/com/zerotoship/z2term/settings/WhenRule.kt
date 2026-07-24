@@ -21,6 +21,7 @@ package com.zerotoship.z2term.settings
  *  - `time:daily=HH:MM`                    … 毎日その時刻
  *  - `time:at=HH:MM`                       … 次の HH:MM に 1 回 (発火後は自動で無効化)
  *  - `time:every=Nm|Nh|Ns`                … N 分/時間/秒ごと
+ *  - `time:cron=分 時 日 月 曜日`          … cron 式 (stage 2。曜日 0-7 で 0/7=日曜)
  */
 data class WhenRule(
     val id: String,

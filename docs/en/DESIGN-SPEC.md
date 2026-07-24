@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-24 / Target version: 0.8.206-alpha (versionCode 214)
+Last updated: 2026-07-24 / Target version: 0.8.207-alpha (versionCode 215)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -407,10 +407,11 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 
 **Rules are plain text**: `~/.z2term/when/<id>.rule` (`filesDir/shared_home/.z2term/when/`), three lines `trigger=` / `run=` / `enabled=` (`settings/WhenRule.kt`). Plain files (not DataStore) so **git sync and backups work** (same idea as the resident-server job files). The CLI (`z2-when`) reads/writes them directly and calls `z2api when-reload` to re-arm time triggers.
 
-**Trigger syntax (stage 1)**:
+**Trigger syntax (stage 1 + cron)**:
 - `charge:start` / `charge:stop`
 - `battery:below=N` / `battery:above=N` — fires the moment the level **crosses** N% (edge-triggered; last level saved in `.battlevel`, first reading only sets the baseline)
 - `time:daily=HH:MM` (every day) / `time:at=HH:MM` (once at the next HH:MM, then auto-disabled by writing `enabled=0`) / `time:every=Nm|Nh|Ns` (min 1 minute)
+- `time:cron='min hour dom month dow'` (0.8.207, stage 2) — 5-field cron. Supports `*` / `*/n` / `a` / `a-b` / `a-b/n` / `a,b,c`; day-of-week 0-7 (0,7 = Sunday). **When both day-of-month and day-of-week are non-`*`, either match fires** (standard cron). Next-fire is computed by the Android-independent `CronSchedule.nextAfter` (concrete-example tested in `CronScheduleTest`); it rides the same AlarmManager path as `daily`/`every` and re-arms on each fire. Must be quoted in the shell since it contains spaces.
 
 **No new resident component (§10-1 guidance)**:
 - Charge/battery use the **manifest receiver `WhenReceiver`**. `ACTION_POWER_CONNECTED` / `_DISCONNECTED` / `BATTERY_LOW` / `_OKAY` are **exempt** from the implicit-broadcast ban, so they're caught **without a dedicated foreground service** (no extra ongoing notification / WakeLock), even with the app closed. All are protected broadcasts, so `exported=true` is safe.
@@ -419,7 +420,7 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 
 **Execution**: on fire, runs `sh -lc '<run>'` **headless** on the currently selected distro (`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`, same launch+drain pattern as `ServerDaemonManager`). Trigger context is passed via env vars `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` (external input is never spliced into the shell). Output is appended to `~/.z2term/when/<id>.log` (cleared before a run once past 128KB). Rule execution always goes through the engine path since `launchChroot` takes no extra args.
 
-**CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> run <cmd>` to add / `list` (TSV) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><rand>`. **Not yet (next stage)**: `wifi` / `sensor` / `sms-otp` triggers, `time:cron`.
+**CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> run <cmd>` to add / `list` (TSV) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><rand>`. **Not yet (next stage)**: `wifi` / `sensor` / `sms-otp` triggers (each needs a new permission and on-device verification, so a separate slice).
 
 #### Notification button replies (`NotifyActionReceiver` / `z2-notify -b`, 0.8.169)
 

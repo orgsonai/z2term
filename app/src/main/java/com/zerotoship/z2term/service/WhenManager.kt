@@ -84,8 +84,9 @@ object WhenManager {
         if (!rule.enabled) return
         runRule(app, rule, level = -1)
         when {
-            // 毎日 / 周期 → 次回を武装。
-            rule.spec.startsWith("daily=") || rule.spec.startsWith("every=") -> {
+            // 毎日 / 周期 / cron → 次回を武装。
+            rule.spec.startsWith("daily=") || rule.spec.startsWith("every=") ||
+                rule.spec.startsWith("cron=") -> {
                 val next = nextTimeAt(rule.spec)
                 if (next > 0) scheduleTime(app, rule.id, next)
             }
@@ -115,6 +116,8 @@ object WhenManager {
                 val ms = parseIntervalMs(value)
                 if (ms <= 0) 0 else System.currentTimeMillis() + ms
             }
+            // cron 式は空白を含むので、`=` の後ろ全体 (trim 済み) をそのまま渡す。
+            "cron" -> CronSchedule.nextAfter(value, System.currentTimeMillis())
             else -> 0
         }
     }
