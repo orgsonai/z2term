@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.219-alpha (versionCode 227)
+Last updated: 2026-07-25 / Target version: 0.8.220-alpha (versionCode 228)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -433,13 +433,19 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 
 **Parts**:
 - `widget/TailWidgetProvider` — drawing plus the ⟳ / ⚙ taps. Tapping the body opens the app.
-- `widget/TailConfigActivity` (`APPWIDGET_CONFIGURE`) — pick the file and the line count.
-- `widget/TailStore` — per-widget file (path relative to `~`) and line count in SharedPreferences, plus candidate collection.
+- `widget/TailConfigActivity` (`APPWIDGET_CONFIGURE`) — choose the file (type a path or walk the folders).
+- `widget/TailStore` — the per-widget file (path relative to `~`) in SharedPreferences, plus path resolution and directory listing. **The line count is not stored.**
 - `widget/TailReader` — taking the last N lines. The decision part is Android-independent and covered by `TailReaderTest` (8 cases).
 
 **Never reads the whole file**: neither session logs nor resident-server logs rotate (by design), so they grow without bound. `RandomAccessFile` seeks to the end and takes only `MAX_TAIL_BYTES` (16KB), then splits that into lines. Starting mid-file can **cut the first line in the middle of a multi-byte character**, so that line is dropped (`truncatedHead`) — unless it is the only line, in which case dropping it would leave nothing to show.
 
-**Candidates**: walks `~` up to depth 3 for real files ending in `.log` / `.jsonl` / `.txt` / `.out` / `.err`, **most recently modified first**, capped at 60. Hidden directories are included (logs collect under `~/.z2term/`). The config screen shows each file's modification time and size.
+**Choosing the file (reworked in 0.8.220)**: the first version listed up to 60 candidates found by walking `~`, newest first — **too many to choose from**, as on-device feedback put it. Now there are two ways:
+- **type the path** in the field at the top (`~/.z2term/events.jsonl`, `.z2term/events.jsonl` or `/root/.z2term/events.jsonl` are all accepted)
+- **walk the folders** one level at a time in the list below (directories first, then names; no extension filter)
+
+`TailStore.resolve` **rejects anything outside `~` by canonicalPath comparison**, so this never becomes a window into the app's private data. Save only works when the path is a real file, and otherwise says why (never a button that silently does nothing).
+
+**The line count follows the widget's height (0.8.220)**: with a fixed count, **stretching the widget vertically left a gap at the bottom**. `OPTION_APPWIDGET_MIN_HEIGHT` (the height the widget is guaranteed to have, in dp) minus header, footer and padding, divided by 13dp per line, clamped to 2..30. Resizes come in through `onAppWidgetOptionsChanged`. The manual line-count setting was dropped.
 
 **Update triggers** (like D1, **no new resident component**):
 1. The OS periodic update (30 minutes, the OS floor)
@@ -449,26 +455,6 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 **Shared with D1**: the background (`widget_bg`), the 40dp icon buttons (`Z2WidgetIconButton`), and the config-screen pieces (`ConfigSelectRow` / `ConfigButton` in `widget/WidgetConfigUi.kt`). Writing the look twice guarantees drift, so it was extracted from D1 while adding D2.
 
 **No `configuration_optional`** (unlike D1): **there is no way to guess which file to watch**, so the config screen always opens when the widget is placed. The unconfigured state can still happen (the user backs out), and then the body says "tap ⚙ and choose a file".
-
-#### SSH QR widget (`widget/QrWidgetProvider` / `widget/QrEncoder`, 0.8.219, D3)
-
-**What it does**: shows a QR code for `ssh://root@<IP>:<port>` — the address to get into this device right now. Scan it with a laptop camera instead of copying the IP by eye. It follows along when Wi‑Fi changes the IP, on ⟳ or the periodic update. There is no config screen (there is only one thing to show). This is D3 from §10-2.
-
-**The QR encoder is written in-house** (no new dependency, per the project's preference), deliberately scoped:
-- **8-bit byte mode only** (UTF-8); no numeric/alphanumeric packing.
-- **Versions 1–10, error correction M** (up to 122 bytes in byte mode) — an ssh URI is 60 characters at most. Beyond that `encode` returns null and the caller shows text only.
-- All eight masks are tried and the lowest JIS X 0510 penalty wins.
-- Version information (BCH(18,6)), required from version 7 up, is included.
-
-**How correctness is established (important)**: a wrong QR still **looks like a plausible pattern**, so visual inspection cannot catch breakage. Therefore:
-1. `QrEncoderTest` checks **known values from the spec** — the 10 error-correction codewords for "01234567" at version 1-M, all eight format-information words, version information for 7–10, the timing pattern, and the finder patterns.
-2. During development the output was **compared module by module against an existing implementation** (`qrencode`). Mask selection can legitimately differ between implementations, so `QrEncoder.encode(text, forcedMask)` (internal, for tests) pins it. **Versions 1, 7 and 10 all matched with zero differing modules.**
-
-**Traps hit while writing it**: reserving the format-information area with `for (i in 0..8)` also **whites out `(8,6)` and `(6,8)`**, which are not format modules but **timing pattern** — erasing them stops a reader from tracking the timing (caught by `QrEncoderTest.timingPatternAlternates`). And skipping alignment patterns "because the module is already reserved" **deletes the patterns that cross the timing lines from version 7 up**; only the three corners (which overlap finder patterns) may be skipped.
-
-**Bitmap**: a 4-module quiet zone (the spec minimum) is included, the whole thing fits 360px, and the scale is **rounded so one module is a whole number of pixels** (fractional scaling blurs edges and confuses readers). The white background is **baked into the image** rather than left to the layout — the widget's own background is dark, and a dark quiet zone would make the code unreadable.
-
-**Caption**: when `sshd` is not running it appends "(sshd stopped)", so a scannable code never silently implies a reachable host. `ServerDaemonService` calls `QrWidgetProvider.refresh()` on start/stop to keep it honest.
 
 #### Normalizing the toolbar order (`ToolbarButtons.mergeOrder` / `.normalizeOrder`, 0.8.213)
 

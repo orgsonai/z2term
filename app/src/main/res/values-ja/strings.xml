@@ -575,17 +575,12 @@
     <string name="tail_empty">（中身なし）</string>
     <string name="tail_footer">%1$s 時点 · %2$d KB</string>
     <string name="tail_config_title">見るファイル</string>
-    <string name="tail_config_desc">選んだファイルの末尾がホーム画面に出ます。新しいものが上に並びます。</string>
-    <string name="tail_config_empty">~ の下にまだログがありません。マクロを走らせるか検知を ON にしてから、この画面を開き直してください。</string>
+    <string name="tail_config_desc">選んだファイルの末尾がホーム画面に出ます。パスを直接打つか、下のフォルダを辿って選んでください。行数はウィジェットの高さに合わせて自動で決まります。</string>
     <string name="tail_file_meta">%1$s · %2$d KB</string>
-    <string name="tail_lines_label">出す行数</string>
+    <string name="tail_path_hint">例: ~/.z2term/events.jsonl （~ の下ならどこでも）</string>
+    <string name="tail_dir_empty">（このフォルダは空です）</string>
+    <string name="tail_not_a_file">そのパスはファイルではないので保存できません。</string>
 
-    <!-- D3 SSH 接続 QR -->
-    <string name="qr_widget_label">Z2Term SSH QR</string>
-    <string name="qr_widget_description">この端末に入るための ssh:// を QR で出します。PC のカメラで読めば、IP を打ち直さずに接続できます。</string>
-    <string name="qr_image_desc">ssh 接続先の QR コード</string>
-    <string name="qr_no_address">LAN アドレスなし</string>
-    <string name="qr_sshd_stopped">%1$s（sshd 停止中）</string>
     <string name="widget_config_empty">~/.z2term/macros が空です。端末で z2-macro install all を実行してから、もう一度ウィジェットを追加してください。</string>
     <string name="widget_config_save">保存</string>
     <string name="widget_config_cancel">キャンセル</string>

@@ -64,15 +64,11 @@ class StatusWidgetProvider : AppWidgetProvider() {
                     renderAll(ctx)
                 }
             }
-            // ⟳ タップ。押した手応えが無いと「押せたのか分からない」ので、振動と
-            // 「更新中…」表示を先に返してから読み直す。
-            ACTION_REFRESH -> {
-                WidgetFeedback.tick(context)
-                background(context) { ctx ->
-                    showBusy(ctx)
-                    Thread.sleep(WidgetFeedback.BUSY_HOLD_MS)
-                    renderAll(ctx)
-                }
+            // ⟳ タップ。押したことが分かるよう「更新中…」を先に出してから読み直す。
+            ACTION_REFRESH -> background(context) { ctx ->
+                showBusy(ctx)
+                Thread.sleep(WidgetFeedback.BUSY_HOLD_MS)
+                renderAll(ctx)
             }
             // 定期更新 (APPWIDGET_UPDATE) も自前で受けて非同期に描く。onUpdate は使わない。
             AppWidgetManager.ACTION_APPWIDGET_UPDATE ->
@@ -181,6 +177,11 @@ class StatusWidgetProvider : AppWidgetProvider() {
             // SimpleDateFormat はスレッド安全でないので共有せず、この描画の中だけで使う。
             val hhmm = SimpleDateFormat("HH:mm", Locale.US)
             val hms = SimpleDateFormat("HH:mm:ss", Locale.US)
+
+            // ⚠ ここで ⟳ の文字を**必ず書き戻す**。updateAppWidget は既存の View に
+            // このRemoteViews の操作を上乗せするだけなので、[showBusy] で ⏳ にした文字は
+            // 触らない限り残り続ける (「砂時計から戻らない」実機フィードバックの原因)。
+            views.setTextViewText(R.id.widget_refresh, context.getString(R.string.widget_refresh_glyph))
 
             // タイトルはアプリを開く。⟳ はその場で読み直す。⚙ は設定画面を直接開く
             // (ウィジェット長押しからしか設定へ行けないのは使いにくい、という実機フィードバック)。

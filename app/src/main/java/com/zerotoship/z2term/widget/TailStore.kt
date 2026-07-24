@@ -4,34 +4,25 @@ import android.content.Context
 import java.io.File
 
 /**
- * ライブ tail ウィジェット (D2) の保存データと、見せるファイルの候補集め。
+ * ライブ tail ウィジェット (D2) の保存データと、ファイルを選ぶためのディレクトリ走査。
  *
  * D1 ([WidgetStore]) と同じ理由で **SharedPreferences**（ウィジェットはアプリのプロセスが
  * 生きていない状態で描かれるので、同期で読める必要がある）。
  *
- * 保存するのは「どのファイルを何行出すか」だけで、ファイル本体はユーザーのもの
- * (`~/` 配下) が正本。
+ * 保存するのは「どのファイルを見るか」だけ。**行数は保存しない** — ウィジェットの高さから
+ * 毎回決める（固定にすると縦に伸ばしたときに下が余る。0.8.220 で自動化）。
  */
 object TailStore {
 
     private const val PREFS = "z2term_widget_tail"
     private const val KEY_PATH_PREFIX = "tail_path_"
-    private const val KEY_LINES_PREFIX = "tail_lines_"
 
-    /** 既定の表示行数。 */
+    /** 高さが取れなかったときの行数。 */
     const val DEFAULT_LINES = 8
 
-    /** 選べる行数。ウィジェットの高さに合わせて選ぶ。 */
-    val LINE_CHOICES = listOf(4, 6, 8, 12, 16)
-
-    /** 候補として拾う拡張子。端末で `tail` したくなるのはこの辺り。 */
-    private val EXTENSIONS = setOf("log", "jsonl", "txt", "out", "err")
-
-    /** 候補を探す深さ (`~/` からの階層)。深追いすると重くなるので浅く。 */
-    private const val SCAN_DEPTH = 3
-
-    /** 候補の上限。 */
-    private const val MAX_CANDIDATES = 60
+    /** 自動計算した行数の下限 / 上限。 */
+    const val MIN_LINES = 2
+    const val MAX_LINES = 30
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -49,56 +40,79 @@ object TailStore {
     /** [appWidgetId] が見るファイルの実体 (未設定・実在しないなら null)。 */
     fun file(context: Context, appWidgetId: Int): File? {
         val rel = path(context, appWidgetId) ?: return null
-        val f = File(home(context), rel)
+        val f = resolve(context, rel) ?: return null
         return if (f.isFile) f else null
     }
 
-    fun lines(context: Context, appWidgetId: Int): Int =
-        prefs(context).getInt(KEY_LINES_PREFIX + appWidgetId, DEFAULT_LINES)
-
-    fun set(context: Context, appWidgetId: Int, relPath: String, lines: Int) {
-        prefs(context).edit()
-            .putString(KEY_PATH_PREFIX + appWidgetId, relPath)
-            .putInt(KEY_LINES_PREFIX + appWidgetId, lines)
-            .apply()
+    fun set(context: Context, appWidgetId: Int, relPath: String) {
+        prefs(context).edit().putString(KEY_PATH_PREFIX + appWidgetId, relPath).apply()
     }
 
     /** ウィジェットが削除されたときに設定を捨てる。 */
     fun clear(context: Context, appWidgetId: Int) {
-        prefs(context).edit()
-            .remove(KEY_PATH_PREFIX + appWidgetId)
-            .remove(KEY_LINES_PREFIX + appWidgetId)
-            .apply()
+        prefs(context).edit().remove(KEY_PATH_PREFIX + appWidgetId).apply()
     }
 
-    // --- 候補集め ---
+    // --- パスの解決 ---
 
     /**
-     * `~` 配下から tail できそうなファイルを集めて、**新しい順**に返す
-     * (いま動かしているものが上に来るので選びやすい)。
+     * ユーザーが打った / 選んだパスを実ファイルに直す。**`~` の外は見せない。**
      *
-     * 隠しディレクトリも見る (`~/.z2term/` にログが集まるため) が、深さは [SCAN_DEPTH] まで。
-     * 戻り値は `~` からの相対パス。
+     * 受け付ける書き方: `~/.z2term/events.jsonl` / `.z2term/events.jsonl` /
+     * `/root/.z2term/events.jsonl`（端末から見た絶対パス）。
+     * `..` で `~` の外へ出ようとしたものは null（アプリの内部データを覗ける口にしない）。
      */
-    fun candidates(context: Context): List<String> {
+    fun resolve(context: Context, input: String): File? {
         val home = home(context)
-        if (!home.isDirectory) return emptyList()
-        val found = ArrayList<File>()
-        collect(home, depth = 0, into = found)
-        return found
-            .sortedByDescending { it.lastModified() }
-            .take(MAX_CANDIDATES)
-            .map { it.relativeTo(home).path }
+        var s = input.trim()
+        if (s.isEmpty()) return null
+        s = s.removePrefix("~/").removePrefix("~")
+        // 端末側の HOME は /root。そこからの絶対パスで打たれても受ける。
+        s = s.removePrefix("/root/").removePrefix("/root")
+        s = s.trimStart('/')
+        if (s.isEmpty()) return null
+        val f = File(home, s)
+        val canonicalHome = runCatching { home.canonicalPath }.getOrNull() ?: return null
+        val canonical = runCatching { f.canonicalPath }.getOrNull() ?: return null
+        if (canonical != canonicalHome && !canonical.startsWith("$canonicalHome/")) return null
+        return f
     }
 
-    private fun collect(dir: File, depth: Int, into: MutableList<File>) {
-        if (depth > SCAN_DEPTH || into.size >= MAX_CANDIDATES * 4) return
-        val entries = dir.listFiles() ?: return
-        entries.forEach { f ->
-            when {
-                f.isDirectory -> collect(f, depth + 1, into)
-                f.isFile && f.extension.lowercase() in EXTENSIONS && f.length() > 0 -> into.add(f)
+    /** [file] を `~` からの相対パスにする (`~` の外なら null)。 */
+    fun relativize(context: Context, file: File): String? {
+        val home = runCatching { home(context).canonicalPath }.getOrNull() ?: return null
+        val path = runCatching { file.canonicalPath }.getOrNull() ?: return null
+        if (!path.startsWith("$home/")) return null
+        return path.removePrefix("$home/")
+    }
+
+    // --- フォルダを辿って選ぶ ---
+
+    /** 一覧の 1 行。[isDir] が true ならタップで中へ入る。 */
+    data class Entry(val name: String, val relPath: String, val isDir: Boolean, val size: Long, val modified: Long)
+
+    /**
+     * [relDir]（`~` からの相対。空なら `~` 自身）の中身を、**フォルダが先・名前順**で返す。
+     *
+     * 拡張子では絞らない。**候補を機械的に集めて 60 件並べると選べない**（実機フィードバック）ので、
+     * ユーザーが自分で辿る前提にした。数が多いディレクトリでも 1 階層ぶんしか出ないので迷わない。
+     */
+    fun list(context: Context, relDir: String): List<Entry> {
+        val dir = resolve(context, relDir.ifEmpty { "." }) ?: return emptyList()
+        if (!dir.isDirectory) return emptyList()
+        val entries = dir.listFiles() ?: return emptyList()
+        return entries
+            .mapNotNull { f ->
+                val rel = relativize(context, f) ?: return@mapNotNull null
+                Entry(f.name, rel, f.isDirectory, f.length(), f.lastModified())
             }
-        }
+            .sortedWith(compareByDescending<Entry> { it.isDir }.thenBy { it.name.lowercase() })
+    }
+
+    /** [relDir] の 1 つ上の相対パス (すでに `~` なら null)。 */
+    fun parentOf(relDir: String): String? {
+        if (relDir.isEmpty()) return null
+        val i = relDir.trimEnd('/').lastIndexOf('/')
+        return if (i < 0) "" else relDir.substring(0, i)
     }
 }

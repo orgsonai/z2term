@@ -33,12 +33,11 @@ class TailWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            // ⟳ タップ。押した手応え (振動 + 「更新中…」) を先に返してから読み直す。
-            // マクロ完了などアプリ側からの refresh でも同じ経路を通るが、そちらは
-            // ユーザーが押したわけではないので振動させない。
+            // ⟳ タップ。押したことが分かるよう「更新中…」を先に出してから読み直す。
+            // マクロ完了などアプリ側からの refresh も同じ経路を通るが、そちらは
+            // ユーザーが押したわけではないので「更新中…」は出さない。
             ACTION_REFRESH -> {
                 val manual = intent.getBooleanExtra(EXTRA_MANUAL, false)
-                if (manual) WidgetFeedback.tick(context)
                 background(context) { ctx ->
                     if (manual) {
                         showBusy(ctx)
@@ -51,6 +50,16 @@ class TailWidgetProvider : AppWidgetProvider() {
                 background(context) { ctx -> renderAll(ctx) }
             else -> super.onReceive(context, intent)
         }
+    }
+
+    /** ウィジェットの大きさが変わったら、入る行数が変わるので描き直す。 */
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: android.os.Bundle,
+    ) {
+        background(context) { ctx -> renderAll(ctx) }
     }
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
@@ -116,12 +125,35 @@ class TailWidgetProvider : AppWidgetProvider() {
             val mgr = AppWidgetManager.getInstance(context) ?: return
             val ids = widgetIds(context)
             if (ids.isEmpty()) return
-            ids.forEach { id -> mgr.updateAppWidget(id, buildViews(context, id)) }
+            ids.forEach { id -> mgr.updateAppWidget(id, buildViews(context, mgr, id)) }
         }
 
-        private fun buildViews(context: Context, appWidgetId: Int): RemoteViews {
+        /**
+         * いまのウィジェットの高さに入る行数。
+         *
+         * 行数を固定にしていた 0.8.219 までは、**ウィジェットを縦に伸ばすと下に隙間ができた**
+         * (実機フィードバック)。`OPTION_APPWIDGET_MIN_HEIGHT` は「そのウィジェットが確実に持てる
+         * 高さ (dp)」なので、そこからヘッダー・フッター・余白を引いた残りを 1 行の高さで割る。
+         * 取れないときだけ [TailStore.DEFAULT_LINES]。
+         */
+        private fun linesFor(mgr: AppWidgetManager, appWidgetId: Int): Int {
+            val h = runCatching {
+                mgr.getAppWidgetOptions(appWidgetId)
+                    .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+            }.getOrDefault(0)
+            if (h <= 0) return TailStore.DEFAULT_LINES
+            // 内訳: 上下 padding 20 + ヘッダー 40 + 本文の上 margin 6 + 本文 padding 12
+            //      + フッター (margin 5 + 文字 13)。
+            val body = h - (20 + 40 + 6 + 12 + 18)
+            // 本文は 10sp・等幅。行送りは概ね 13dp。
+            return (body / 13).coerceIn(TailStore.MIN_LINES, TailStore.MAX_LINES)
+        }
+
+        private fun buildViews(context: Context, mgr: AppWidgetManager, appWidgetId: Int): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_tail)
             val hhmm = SimpleDateFormat("HH:mm:ss", Locale.US)
+            // ⚠ ⟳ の文字を必ず書き戻す ([showBusy] の ⏳ が残り続けるのを防ぐ)。
+            views.setTextViewText(R.id.tail_refresh, context.getString(R.string.widget_refresh_glyph))
 
             views.setOnClickPendingIntent(
                 R.id.tail_refresh,
@@ -140,7 +172,7 @@ class TailWidgetProvider : AppWidgetProvider() {
 
             val rel = TailStore.path(context, appWidgetId)
             val file = TailStore.file(context, appWidgetId)
-            val lines = TailStore.lines(context, appWidgetId)
+            val lines = linesFor(mgr, appWidgetId)
 
             when {
                 rel == null -> {

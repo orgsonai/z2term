@@ -587,18 +587,12 @@
     <string name="tail_empty">(empty)</string>
     <string name="tail_footer">read at %1$s · %2$d KB</string>
     <string name="tail_config_title">File to watch</string>
-    <string name="tail_config_desc">The last lines of this file appear on the home screen. Newest files come first.</string>
-    <string name="tail_config_empty">No log files under ~ yet. Run a macro or turn on detection first, then reopen this screen.</string>
+    <string name="tail_config_desc">The end of this file appears on the home screen. Type a path, or tap through the folders below. The number of lines follows the widget\'s height.</string>
     <string name="tail_file_meta">%1$s · %2$d KB</string>
-    <string name="tail_lines_label">Lines to show</string>
+    <string name="tail_path_hint">e.g. ~/.z2term/events.jsonl — anywhere under ~</string>
+    <string name="tail_dir_empty">(this folder is empty)</string>
+    <string name="tail_not_a_file">That path is not a file, so it cannot be saved.</string>
 
-    <!-- D3 SSH 接続 QR -->
-    <string name="qr_widget_label">Z2Term SSH QR</string>
-    <string name="qr_widget_short_label" translatable="false">SSH QR</string>
-    <string name="qr_widget_description">Shows a QR code for the ssh:// address of this device. Scan it with a laptop camera to connect without typing the IP.</string>
-    <string name="qr_image_desc">QR code for the ssh address</string>
-    <string name="qr_no_address">no LAN address</string>
-    <string name="qr_sshd_stopped">%1$s (sshd stopped)</string>
     <string name="widget_config_empty">~/.z2term/macros is empty. Run z2-macro install all in the terminal, then add the widget again.</string>
     <string name="widget_config_save">Save</string>
     <string name="widget_config_cancel">Cancel</string>

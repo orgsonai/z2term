@@ -392,28 +392,20 @@ Keeps the **end of a log file** on your home screen, so you can see what a macro
 
 1. Long-press an empty spot on the home screen → "Widgets"
 2. Pick **Z2Term live tail** and place it
-3. The config screen opens — choose **the file** and **how many lines** (4–16), then Save
+3. The config screen opens — choose **the file**, then Save
 
-- The candidate list holds log-like files under `~` (`.log` / `.jsonl` / `.txt` …), **most recently
-  changed first**. The usual ones are:
+- There are two ways to choose it:
+  - **type the path** in the field at the top (e.g. `~/.z2term/events.jsonl`)
+  - **tap through the folders** in the list below and tap the file you want
+- **How many lines are shown follows the widget's size** — stretch it taller for more lines.
+- The usual ones are:
   - `.z2term/widget/run.log` — output of macros started from the widget
   - `.z2term/events.jsonl` — detected events (screen on/off, charging, Wi‑Fi …)
   - `.z2term/when/<id>.log` — what that automation rule ran
 - **⟳** re-reads right now. Besides the 30-minute automatic refresh, it also redraws itself
   **whenever a macro or an automation rule finishes**.
-- **⚙** changes the file or the line count.
+- **⚙** changes which file is shown.
 - It only ever reads the **end** of the file, so it stays fast however large the log grows.
-
-### The third widget: SSH QR
-
-Shows **the address to ssh into this device, as a QR code**, so you never have to read an IP off the
-screen and type it again. Long-press the home screen → "Widgets" → **Z2Term SSH QR**. No settings.
-
-- The code contains `ssh://root@<this device's IP>:<port>`. Scan it with your PC's camera.
-- When Wi‑Fi changes the IP, **⟳** (or the 30-minute automatic refresh) catches up.
-- **If `sshd` is not running it says "(sshd stopped)"** — the code scans fine but nothing will answer,
-  so start `sshd` in the terminal first.
-- If it says "no LAN address", the device is not on Wi‑Fi (or airplane mode is on).
 
 ---
 

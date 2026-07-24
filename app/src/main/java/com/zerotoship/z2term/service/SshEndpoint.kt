@@ -55,15 +55,4 @@ object SshEndpoint {
         return "ssh -p ${configuredPort(context, distroId)} root@$ip"
     }
 
-    /**
-     * `ssh://root@<ip>:<port>` の URI。QR ウィジェット (D3) が符号化する文字列。
-     *
-     * コマンド行 (`ssh -p …`) ではなく URI にするのは、**カメラアプリや端末エミュレータが
-     * そのまま接続先として扱える**形だから (読み取り側でコマンドに直す手間が要らない)。
-     * IP が取れなければ null。
-     */
-    fun sshUri(context: Context, distroId: String): String? {
-        val ip = nics().firstOrNull()?.ip ?: return null
-        return "ssh://root@$ip:${configuredPort(context, distroId)}"
-    }
 }

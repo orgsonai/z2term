@@ -247,20 +247,6 @@
             </intent-filter>
         </activity>
 
-        <!-- ホーム画面ウィジェット D3「SSH 接続 QR」。いま入れる ssh:// を QR で出すだけなので
-             設定画面は持たない。QR は自前実装 (widget/QrEncoder)。 -->
-        <receiver
-            android:name=".widget.QrWidgetProvider"
-            android:exported="false"
-            android:label="@string/qr_widget_label">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_qr_info" />
-        </receiver>
-
         <!-- SMS 受信検知 (汎用入口): 設定「SMS 検知」ON かつ RECEIVE_SMS 許可があるとき、着信 SMS を
              ~/.z2term/sms.jsonl へ追記する。SMS_RECEIVED は暗黙ブロードキャスト制限の対象外なので
              manifest レシーバで拾える (アプリ未起動・ロック中でも起動)。BROADCAST_SMS でシステムからのみ届く。 -->
