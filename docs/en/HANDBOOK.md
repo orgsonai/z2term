@@ -401,10 +401,32 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-state [key]` | **Current device state** as JSON; with a key, just that value (`screen` `locked` `idle` `charging` `plug` `level` `temp` `wifi` `ssid` `ringer` `airplane` `headset` `bt_audio` `volume` `volume_max`). E.g. `[ "$(z2-state charging)" = "true" ]` |
 | `z2-alarm at\|daily HH:MM [name]` | **Time trigger**: writes an `alarm` event into `events.jsonl` at that time (`in 5m` / `list` / `cancel <id\|name\|all>` too). Unlike cron it fires during Doze (may be a few minutes late) |
 | `z2-session list\|new\|send\|capture\|close` | **Drives this app's own tabs.** `list` shows them (index, id, name, marks: `*`=visible, `!`=busy, `?`=not started), `new [name]` adds one, `send <target> "text"` **only inserts** into that tab (add `--enter` to actually run it), `capture [target]` pulls the on-screen text, `close <target>` closes it. `<target>` is the index from `list`, an id, or a tab name. E.g. ``n=$(z2-session new build \| cut -f1); z2-session send "$n" 'make -j2' --enter`` |
+| `z2-when <trigger> run <cmd>` | **Automation hub.** Auto-run a command on charge / battery / time (see "Automation hub" below). Also `list` / `remove <id\|all>` / `on\|off <id>` / `log <id>`. E.g. `z2-when charge:start run ~/.z2term/macros/backup.sh` |
 | `z2-macro list\|install <name>` | **Bundled macro samples** into `~/.z2term/macros/` (`show` / `run` / `dir` too) — a starting point for your first macro |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | Fire an arbitrary Android Intent (launch apps, open settings, set alarms, … see `docs/en/MACRO-GUIDE.md`) |
 
 > Combine "trigger (event detection) → decide (shell) → action (z2-*)" to automate your phone (macros). See **`docs/en/MACRO-GUIDE.md`** for how — you can also feed it to an AI and have it generate the macro for you.
+
+### Automation hub (`z2-when`)
+
+Auto-run a command **when you start charging / the battery drops / a set time arrives**. No need to `tail` events yourself — you just **declare** the rule and it runs, even with the app closed and across reboots.
+
+How to register (just line up a trigger and a command):
+
+```sh
+z2-when charge:start        run ~/.z2term/macros/backup.sh   # back up when charging starts
+z2-when battery:below=20    run "z2-notify -h 'Battery under 20%'"
+z2-when time:daily=03:00    run ~/.z2term/macros/nightly.sh  # every day at 03:00
+```
+
+- **Trigger types**
+  - `charge:start` / `charge:stop` — charging started / stopped
+  - `battery:below=N` / `battery:above=N` — the moment the level **crosses** N% (e.g. drops under 20)
+  - `time:daily=HH:MM` (every day) / `time:at=HH:MM` (once at the next HH:MM, then auto-disabled) / `time:every=30m`·`2h` (fixed interval, min 1 minute)
+- **List / remove / toggle**: `z2-when list` / `z2-when remove <id>` (`all` for everything) / `z2-when on <id>` `z2-when off <id>` / `z2-when log <id>` (see the run log)
+- Inside the command you can use `Z2_WHEN_TRIGGER` (which trigger fired) and `Z2_WHEN_LEVEL` (battery level then) as env vars.
+- Rules live as text under `~/.z2term/when/`, so you can **sync/back them up with git**.
+- Time triggers use a battery-friendly mechanism (Doze-through AlarmManager), so **firing can be a few minutes off**. Finer `wifi` / sensor / SMS-OTP triggers and `cron` syntax are planned for a later version.
 
 ### Graphical (GUI) apps
 | Command | What it does |

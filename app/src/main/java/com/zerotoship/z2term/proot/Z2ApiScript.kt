@@ -275,9 +275,85 @@ fun z2ApiScripts(): Map<String, String> {
         |esac
     """.trimMargin() + "\n"
 
+    // 自動化ハブ (A6)。トリガー (充電/電池/時刻) を宣言すると、アプリ側 (WhenManager) が監視して
+    // 発火時に run のコマンドを実行する。ルールは ~/.z2term/when/<id>.rule のテキスト (git 同期が効く)。
+    // CLI はファイルを直接読み書きし、変更後に z2api when-reload で時刻トリガーを貼り直させる。
+    val zwhen = """
+        |#!/bin/sh
+        |# z2-when <トリガー> run <コマンド...>   … ルールを登録
+        |#   トリガー: charge:start | charge:stop
+        |#            battery:below=N | battery:above=N
+        |#            time:daily=HH:MM | time:at=HH:MM | time:every=Nm|Nh
+        |# z2-when list                          … 登録一覧 (id / on|off / トリガー / -> / コマンド の TSV)
+        |# z2-when remove <id|all>  (rm でも可)  … 削除
+        |# z2-when on <id> / off <id>            … 有効 / 無効
+        |# z2-when log <id>                      … そのルールの実行ログ (末尾)
+        |# 発火時、コマンドは選択中の distro で実行され、環境変数 Z2_WHEN_TRIGGER / Z2_WHEN_LEVEL が入る。
+        |# 例: z2-when charge:start run ~/.z2term/macros/backup.sh
+        |DIR="${d}HOME/.z2term/when"
+        |mkdir -p "${d}DIR" 2>/dev/null
+        |reload() { /usr/local/bin/z2api 0 when-reload >/dev/null 2>&1 || true; }
+        |usage() {
+        |  echo "usage: z2-when <trigger> run <cmd...> | list | remove <id|all> | on <id> | off <id> | log <id>" >&2
+        |  exit 1
+        |}
+        |[ ${d}# -ge 1 ] || usage
+        |case "${d}1" in
+        |  list)
+        |    for f in "${d}DIR"/*.rule; do
+        |      [ -e "${d}f" ] || continue
+        |      id=${d}(basename "${d}f" .rule)
+        |      t=${d}(sed -n 's/^trigger=//p' "${d}f")
+        |      r=${d}(sed -n 's/^run=//p' "${d}f")
+        |      e=${d}(sed -n 's/^enabled=//p' "${d}f")
+        |      if [ "${d}e" = "0" ]; then st=off; else st=on; fi
+        |      printf '%s\t%s\t%s\t->\t%s\n' "${d}id" "${d}st" "${d}t" "${d}r"
+        |    done
+        |    ;;
+        |  remove|rm)
+        |    [ ${d}# -ge 2 ] || usage
+        |    if [ "${d}2" = "all" ]; then
+        |      rm -f "${d}DIR"/*.rule "${d}DIR"/*.log 2>/dev/null
+        |    else
+        |      rm -f "${d}DIR/${d}2.rule" "${d}DIR/${d}2.log" 2>/dev/null
+        |    fi
+        |    reload
+        |    ;;
+        |  on|off)
+        |    [ ${d}# -ge 2 ] || usage
+        |    f="${d}DIR/${d}2.rule"
+        |    [ -f "${d}f" ] || { echo "z2-when: no such rule: ${d}2" >&2; exit 1; }
+        |    if [ "${d}1" = "off" ]; then val=0; else val=1; fi
+        |    if ! sed -i "s/^enabled=.*/enabled=${d}val/" "${d}f" 2>/dev/null; then
+        |      # sed -i が無い環境 (一部 busybox) のフォールバック。
+        |      tmp="${d}f.tmp"; sed "s/^enabled=.*/enabled=${d}val/" "${d}f" > "${d}tmp" && mv "${d}tmp" "${d}f"
+        |    fi
+        |    reload
+        |    ;;
+        |  log)
+        |    [ ${d}# -ge 2 ] || usage
+        |    cat "${d}DIR/${d}2.log" 2>/dev/null || echo "(ログはまだありません)"
+        |    ;;
+        |  *)
+        |    trig="${d}1"; shift
+        |    [ "${d}1" = "run" ] && shift
+        |    { [ -n "${d}trig" ] && [ ${d}# -ge 1 ]; } || usage
+        |    cmd="${d}*"
+        |    rnd=${d}(awk 'BEGIN{srand(); printf "%03d", rand()*1000}' 2>/dev/null)
+        |    id="w${d}(date +%s 2>/dev/null)${d}rnd"
+        |    tmp="${d}DIR/.${d}id.tmp"
+        |    { printf 'trigger=%s\n' "${d}trig"; printf 'run=%s\n' "${d}cmd"; printf 'enabled=1\n'; } > "${d}tmp"
+        |    mv "${d}tmp" "${d}DIR/${d}id.rule" || { echo "z2-when: 書き込みに失敗しました" >&2; exit 1; }
+        |    echo "${d}id"
+        |    reload
+        |    ;;
+        |esac
+    """.trimMargin() + "\n"
+
     return linkedMapOf(
         "z2api" to dispatcher,
         "z2-session" to session,
+        "z2-when" to zwhen,
         "z2-notify" to notify,
         "z2-toast" to toast,
         "z2-share" to share,

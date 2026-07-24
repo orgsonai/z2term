@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-24 / 対象バージョン: 0.8.204-alpha (versionCode 212)
+最終更新: 2026-07-24 / 対象バージョン: 0.8.205-alpha (versionCode 213)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -227,6 +227,7 @@ Android 側の出来事をシェルから扱えるようにするための機能
 |---|---|---|
 | `~/.z2term/notifications.jsonl` | `filesDir/shared_home/.z2term/notifications.jsonl` | 通知検知 |
 | `~/.z2term/events.jsonl` | `filesDir/shared_home/.z2term/events.jsonl` | システムイベント・時刻トリガー・通知ボタン応答 |
+| `~/.z2term/when/<id>.rule` | `filesDir/shared_home/.z2term/when/` | `z2-when` の自動化ルール（+ `<id>.log` 実行ログ）|
 
 #### 通知検知（`NotificationLogService`、0.8.149）
 
@@ -389,6 +390,26 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 あわせて `list` の印に **`?`（未起動）** を足した。未起動のタブへ送っても何も起きないので、印が無いと「送ったのに動かない」理由が分からない。
 
 **`new <名前>` の名前は固定する**（0.8.202）。`TerminalSession` に `labelPinned` を持たせ、true の間は**起動時の OS 名（`spec.id`）・`android-sh` フォールバック・SSH 接続・シェルが出すタイトル（OSC 0/2）のどれでも上書きしない**。これが無いと `z2-session new build` で付けた名前が直後の起動で OS 名に化け、名前を指定した意味が無くなる（実機で確認した）。
+
+#### 自動化ハブ（`z2-when` / `WhenManager` / `WhenReceiver`、0.8.205・A6 stage 1）
+
+**何ができるか**: Android 側の出来事（充電・電池・時刻）を**きっかけに Linux スクリプトを自動実行**する。これまで `z2-*` は「検知（events.jsonl へ書く）」と「実行（`z2-session` 等）」が別々で、両者を繋ぐのはユーザーが書く常駐スクリプトだった。`z2-when` は**トリガー宣言 → アプリが監視 → 発火時に実行**までを担い、スマホを「ポケットの中の自動化サーバー」にする。0→1 ではなく既存資産の“配線”。
+
+**ルールはテキスト**: `~/.z2term/when/<id>.rule`（`filesDir/shared_home/.z2term/when/`）。`trigger=` / `run=` / `enabled=` の 3 行（`settings/WhenRule.kt`）。DataStore でなくプレーンファイルにするのは **git 同期・バックアップが効く**ため（常駐サーバーのジョブファイルと同じ思想）。CLI（`z2-when`）が直接読み書きし、変更後に `z2api when-reload` で時刻トリガーを貼り直させる。
+
+**トリガー書式（stage 1）**:
+- `charge:start` / `charge:stop` … 充電の開始 / 停止
+- `battery:below=N` / `battery:above=N` … 残量が N% を下/上へ**跨いだ瞬間**（エッジ判定。直近残量を `.battlevel` に保存し、初回は基準設定のみ）
+- `time:daily=HH:MM`（毎日）/ `time:at=HH:MM`（次の HH:MM に 1 回。発火後は `enabled=0` に自動で書き戻す）/ `time:every=Nm|Nh|Ns`（N ごと・最短 1 分）
+
+**常駐を増やさない設計（§10-1 の指針）**:
+- 充電・電池は **manifest レシーバ `WhenReceiver`**。`ACTION_POWER_CONNECTED` / `_DISCONNECTED` / `BATTERY_LOW` / `_OKAY` は暗黙ブロードキャスト制限の**例外**なので、**専用のフォアグラウンドサービス（＝追加の常駐通知・WakeLock）無しで**、アプリ未起動でも拾える。すべてシステム保護ブロードキャストなので `exported=true` でも外部から送れない。
+- 時刻は **AlarmManager**（`setAndAllowWhileIdle`＝Doze 貫通・`SCHEDULE_EXACT_ALARM` 不要。数分ずれることがある）。予約は再起動で消えるので `WhenReceiver`（`BOOT_COMPLETED` / `MY_PACKAGE_REPLACED`）と `Z2TermApplication.onCreate` の両方で `WhenManager.reload` が貼り直す。武装済み id は `.armed` に記録して、消えた/無効化されたルールの予約を確実に解除する。
+- 電池しきい値は充電の抜き差し・`BATTERY_LOW`/`OKAY` で評価。加えて**検知（`SystemEventService`）が ON のとき**は 10% 刻みの境界でも `WhenManager.onBatteryChanged` を呼ぶので細かく拾える。エッジ判定なので二重に呼ばれても跨いだ瞬間しか発火しない。
+
+**実行**: 発火すると「そのとき選ばれている distro」で `sh -lc '<run>'` を **headless 起動**（`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`。`ServerDaemonManager` と同じ launch + drain パターン）。トリガー情報は環境変数 `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` で渡す（外部入力をシェルへ文字列展開しない安全境界）。出力は `~/.z2term/when/<id>.log` へ追記（128KB を超えたら実行前に空にする）。root chroot モードでも `launchChroot` は追加引数を取らないため、ルール実行はエンジン経路に統一している。
+
+**CLI**（`z2-when`。`Z2ApiScript` が launch 毎に `/usr/local/bin` へ配置）: `<trigger> run <cmd>` で登録 / `list`（TSV）/ `remove <id|all>`（`rm`）/ `on|off <id>` / `log <id>`。id は `w<epoch><乱数>`。**未実装（次段）**: `wifi` / `sensor` / `sms-otp` トリガー、`time:cron`。
 
 #### 通知ボタンによる応答（`NotifyActionReceiver` / `z2-notify -b`、0.8.169）
 
@@ -1167,8 +1188,9 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 | READ/WRITE_EXTERNAL_STORAGE (maxSdk) | 旧 API 用 (`requestLegacyExternalStorage`) |
 | ACCESS_WIFI_STATE | システムイベント検知の Wi-Fi 判定と SSID 取得 (`SystemEventService`。SSID は位置情報権限が無いと空) |
 | VIBRATE | `z2-vibrate` (Android ブリッジ) と検知イベントの通知 |
-| RECEIVE_BOOT_COMPLETED | 設定「起動時に自動で常駐」が ON のとき、端末起動で常駐サーバーを立ち上げる (`BootReceiver`。`LOCKED_BOOT_COMPLETED` も受ける) |
+| RECEIVE_BOOT_COMPLETED | 設定「起動時に自動で常駐」が ON のとき、端末起動で常駐サーバーを立ち上げる (`BootReceiver`。`LOCKED_BOOT_COMPLETED` も受ける)。`z2-when` の時刻トリガーも端末起動・アプリ更新で貼り直す (`WhenReceiver`) |
 | REQUEST_IGNORE_BATTERY_OPTIMIZATIONS | 常駐が OS に停止されないよう電池最適化の除外をワンタップで要求 (`BatteryGuard`) |
+| (システム保護ブロードキャスト) | `z2-when` が `ACTION_POWER_CONNECTED`/`_DISCONNECTED`/`BATTERY_LOW`/`_OKAY` を manifest レシーバ `WhenReceiver` で受け、充電/電池トリガーを実行 (権限宣言は不要・外部からは送れない) |
 
 ---
 

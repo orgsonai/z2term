@@ -401,10 +401,32 @@ Z2Term がどのディストロにも自動で入れてくれる「Z2Term 専用
 | `z2-state [キー]` | **今の端末の状態**を JSON で出力。キーを付けるとその値だけ（`screen` `locked` `idle` `charging` `plug` `level` `temp` `wifi` `ssid` `ringer` `airplane` `headset` `bt_audio` `volume` `volume_max`）。例: `[ "$(z2-state charging)" = "true" ]` |
 | `z2-alarm at\|daily HH:MM [名前]` | **時刻トリガー**。その時刻に `events.jsonl` へ `alarm` イベントを書く（`in 5m` / `list` / `cancel <id\|名前\|all>` も）。cron と違い Doze 中でも起きる（数分ずれることあり） |
 | `z2-session list\|new\|send\|capture\|close` | **このアプリのタブを操る**。`list` で一覧（番号・id・名前・印。`*`=表示中 `!`=動作中 `?`=未起動）、`new [名前]` でタブを 1 枚追加、`send <先> "文字列"` でそのタブに**入れるだけ**（`--enter` を付けたときだけ実行）、`capture [先]` で画面のテキストを取り出し、`close <先>` で閉じる。`<先>` は `list` の番号 / id / タブ名。例: ``n=$(z2-session new build \| cut -f1); z2-session send "$n" 'make -j2' --enter`` |
+| `z2-when <トリガー> run <コマンド>` | **自動化ハブ**。充電・電池・時刻をきっかけにコマンドを自動実行（下記「自動化ハブ」参照）。`list` / `remove <id\|all>` / `on\|off <id>` / `log <id>` も。例: `z2-when charge:start run ~/.z2term/macros/backup.sh` |
 | `z2-macro list\|install <名前>` | **マクロのサンプル**を `~/.z2term/macros/` に導入（`show` / `run` / `dir` も）。最初の1本の雛形に |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | 任意の Android Intent を発火（アプリ起動・設定画面・アラーム設定など。詳細は `docs/ja/MACRO-GUIDE.md`） |
 
 > 「トリガー（イベント検知）→ 判断（シェル）→ アクション（z2-*）」でスマホの自動化（マクロ）が組めます。書き方は **`docs/ja/MACRO-GUIDE.md`**（AI に読ませてそのままマクロ生成させることもできます）。
+
+### 自動化ハブ（`z2-when`）
+
+**充電した / 電池が減った / 決まった時刻になった**、をきっかけにコマンドを自動で実行します。イベントの検知を自分で `tail` して書く必要がなく、**宣言するだけ**で動きます。アプリを開いていなくても・再起動をまたいでも働きます。
+
+登録の書き方（トリガーとコマンドを並べるだけ）:
+
+```sh
+z2-when charge:start        run ~/.z2term/macros/backup.sh   # 充電を始めたらバックアップ
+z2-when battery:below=20    run "z2-notify -h '電池 20% 切りました'"
+z2-when time:daily=03:00    run ~/.z2term/macros/nightly.sh  # 毎日 3:00
+```
+
+- **トリガーの種類**
+  - `charge:start` / `charge:stop` … 充電の開始 / 停止
+  - `battery:below=N` / `battery:above=N` … 残量が N% を**下/上へ跨いだ瞬間**（例: 20 を切った時）
+  - `time:daily=HH:MM`（毎日）/ `time:at=HH:MM`（次の HH:MM に 1 回だけ。実行後は自動で無効になります）/ `time:every=30m`・`2h`（一定間隔・最短 1 分）
+- **一覧・削除・オンオフ**: `z2-when list`（一覧）/ `z2-when remove <id>`（`all` で全部）/ `z2-when on <id>` `z2-when off <id>` / `z2-when log <id>`（実行の記録を見る）
+- **実行されるコマンド**の中では `Z2_WHEN_TRIGGER`（発火したトリガー）や `Z2_WHEN_LEVEL`（そのときの電池残量）が環境変数で使えます。
+- ルールは `~/.z2term/when/` にテキストで置かれるので、**git で同期・バックアップ**できます。
+- 時刻は電池にやさしい仕組み（Doze 貫通の AlarmManager）で動くため、**発火が数分ずれることがあります**。細かい `wifi` / センサー / SMS-OTP トリガーや `cron` 書式は次のバージョンで追加予定です。
 
 ### 画面つき（GUI）アプリ
 | コマンド | できること |

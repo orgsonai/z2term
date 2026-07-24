@@ -222,6 +222,8 @@ object Z2ApiBridge {
             "alarm" -> alarmCmd(context, args)
             "state" -> stateRead(context, args.getOrNull(0).orEmpty())
             "session" -> sessionCmd(context, args)
+            // z2-when がルールファイルを書き換えた後に呼ぶ。時刻トリガーの AlarmManager 予約を貼り直す。
+            "when-reload" -> { WhenManager.reload(context); null }
             else -> throw IllegalArgumentException("unknown cmd: $cmd")
         }
     }

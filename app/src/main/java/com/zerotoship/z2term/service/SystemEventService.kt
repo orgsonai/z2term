@@ -221,6 +221,10 @@ class SystemEventService : Service() {
         if (bucket != lastBatteryBucket) {
             lastBatteryBucket = bucket
             emit("battery_level", level = pct)
+            // z2-when (A6) の電池しきい値も 10% 刻みの境界で評価する。検知 OFF でも受動的な
+            // 電源/低電池ブロードキャストで評価されるが、検知 ON のときはここで細かく拾える。
+            // エッジ判定なので二重に呼ばれても跨いだ瞬間しか発火しない。
+            runCatching { WhenManager.onBatteryChanged(applicationContext, pct) }
         }
     }
 

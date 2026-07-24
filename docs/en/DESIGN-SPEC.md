@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-24 / Target version: 0.8.204-alpha (versionCode 212)
+Last updated: 2026-07-24 / Target version: 0.8.205-alpha (versionCode 213)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -228,6 +228,7 @@ Everything lands in one of two log files.
 |---|---|---|
 | `~/.z2term/notifications.jsonl` | `filesDir/shared_home/.z2term/notifications.jsonl` | Notification detection |
 | `~/.z2term/events.jsonl` | `filesDir/shared_home/.z2term/events.jsonl` | System events, time triggers, notification button replies |
+| `~/.z2term/when/<id>.rule` | `filesDir/shared_home/.z2term/when/` | `z2-when` automation rules (+ `<id>.log` run logs) |
 
 #### Notification detection (`NotificationLogService`, 0.8.149)
 
@@ -399,6 +400,26 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 `list` also gained a **`?` (not started)** mark: sending to an unstarted tab does nothing, and without the mark there is no way to tell why.
 
 **A name given to `new` sticks** (0.8.202). `TerminalSession` carries `labelPinned`; while it is set, the label is **not** overwritten by the OS name (`spec.id`) at startup, by the `android-sh` fallback, by an SSH connection, or by a title the shell emits (OSC 0/2). Without it, the name from `z2-session new build` turned into the OS name moments later during startup, which made naming pointless (found on device).
+
+#### Automation hub (`z2-when` / `WhenManager` / `WhenReceiver`, 0.8.205, A6 stage 1)
+
+**What it does**: auto-runs a Linux script on an Android event (charge / battery / time). Previously `z2-*` split "detect" (write to events.jsonl) from "act" (`z2-session`, …), and the user's own resident script was the glue. `z2-when` owns **declare trigger → app watches → run on fire**, turning the phone into a pocket automation server. It's wiring of existing pieces, not 0→1.
+
+**Rules are plain text**: `~/.z2term/when/<id>.rule` (`filesDir/shared_home/.z2term/when/`), three lines `trigger=` / `run=` / `enabled=` (`settings/WhenRule.kt`). Plain files (not DataStore) so **git sync and backups work** (same idea as the resident-server job files). The CLI (`z2-when`) reads/writes them directly and calls `z2api when-reload` to re-arm time triggers.
+
+**Trigger syntax (stage 1)**:
+- `charge:start` / `charge:stop`
+- `battery:below=N` / `battery:above=N` — fires the moment the level **crosses** N% (edge-triggered; last level saved in `.battlevel`, first reading only sets the baseline)
+- `time:daily=HH:MM` (every day) / `time:at=HH:MM` (once at the next HH:MM, then auto-disabled by writing `enabled=0`) / `time:every=Nm|Nh|Ns` (min 1 minute)
+
+**No new resident component (§10-1 guidance)**:
+- Charge/battery use the **manifest receiver `WhenReceiver`**. `ACTION_POWER_CONNECTED` / `_DISCONNECTED` / `BATTERY_LOW` / `_OKAY` are **exempt** from the implicit-broadcast ban, so they're caught **without a dedicated foreground service** (no extra ongoing notification / WakeLock), even with the app closed. All are protected broadcasts, so `exported=true` is safe.
+- Time uses **AlarmManager** (`setAndAllowWhileIdle` — Doze-through, no `SCHEDULE_EXACT_ALARM`; can be a few minutes off). Registrations are lost on reboot, so both `WhenReceiver` (`BOOT_COMPLETED` / `MY_PACKAGE_REPLACED`) and `Z2TermApplication.onCreate` re-arm via `WhenManager.reload`. Armed ids are tracked in `.armed` to reliably cancel alarms for removed/disabled rules.
+- Battery thresholds are evaluated on charge changes and `BATTERY_LOW`/`OKAY`; additionally, when detection (`SystemEventService`) is on, `WhenManager.onBatteryChanged` is called on 10% bucket crossings for finer resolution. Edge-triggering dedupes double calls.
+
+**Execution**: on fire, runs `sh -lc '<run>'` **headless** on the currently selected distro (`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`, same launch+drain pattern as `ServerDaemonManager`). Trigger context is passed via env vars `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` (external input is never spliced into the shell). Output is appended to `~/.z2term/when/<id>.log` (cleared before a run once past 128KB). Rule execution always goes through the engine path since `launchChroot` takes no extra args.
+
+**CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> run <cmd>` to add / `list` (TSV) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><rand>`. **Not yet (next stage)**: `wifi` / `sensor` / `sms-otp` triggers, `time:cron`.
 
 #### Notification button replies (`NotifyActionReceiver` / `z2-notify -b`, 0.8.169)
 
@@ -1186,8 +1207,9 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 | READ/WRITE_EXTERNAL_STORAGE (maxSdk) | for old APIs (`requestLegacyExternalStorage`) |
 | ACCESS_WIFI_STATE | Wi-Fi state and SSID for system-event detection (`SystemEventService`; the SSID is blank without location permission) |
 | VIBRATE | `z2-vibrate` (Android bridge) and detection-event notifications |
-| RECEIVE_BOOT_COMPLETED | start resident servers at device boot when "start on boot" is on (`BootReceiver`; also handles `LOCKED_BOOT_COMPLETED`) |
+| RECEIVE_BOOT_COMPLETED | start resident servers at device boot when "start on boot" is on (`BootReceiver`; also handles `LOCKED_BOOT_COMPLETED`). `z2-when` time triggers are also re-armed on boot / app update (`WhenReceiver`) |
 | REQUEST_IGNORE_BATTERY_OPTIMIZATIONS | one-tap request to be exempt from battery optimization so keep-alive is not killed (`BatteryGuard`) |
+| (protected broadcasts) | `z2-when` receives `ACTION_POWER_CONNECTED`/`_DISCONNECTED`/`BATTERY_LOW`/`_OKAY` in the manifest receiver `WhenReceiver` to run charge/battery triggers (no permission declaration needed; external apps can't send them) |
 
 ---
 

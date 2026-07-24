@@ -6,6 +6,7 @@ import android.util.Log
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.gui.GuiEventWatcher
 import com.zerotoship.z2term.service.SystemEventService
+import com.zerotoship.z2term.service.WhenManager
 import com.zerotoship.z2term.service.Z2ApiBridge
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.LocaleHelper
@@ -45,6 +46,9 @@ class Z2TermApplication : Application() {
         Z2ApiBridge.start(this)
         // クリップボード履歴: ディスク読込 + システムクリップボード変化の監視を開始。
         ClipboardHistoryStore.init(this)
+        // z2-when (A6) の時刻トリガーを貼り直す (AlarmManager 予約は再起動で消えるため。
+        // BootReceiver でも貼るが、アプリを普通に開いた場合の取りこぼしをここで埋める)。idempotent。
+        appScope.launch { runCatching { WhenManager.reload(this@Z2TermApplication) } }
         // システムイベント検知が ON なら常駐 FG サービスを起動 (アプリ前面起動時に再アサート)。
         // background から起動した場合は FG サービス起動が禁止されうるので握りつぶす (BootReceiver 側で別途起動)。
         appScope.launch {

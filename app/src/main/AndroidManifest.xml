@@ -172,6 +172,27 @@
             </intent-filter>
         </receiver>
 
+        <!-- z2-when (A6) 自動化ハブの充電/電池/時刻トリガーの受け口。ACTION_POWER_CONNECTED /
+             _DISCONNECTED / BATTERY_LOW / _OKAY は暗黙ブロードキャスト制限の例外なので、専用の常駐
+             サービス無しで (アプリ未起動でも) 拾える。いずれもシステム保護ブロードキャストなので
+             exported=true でも外部アプリからは送れない。時刻発火 (WHEN_TIME_FIRE) は AlarmManager
+             からの明示 Intent で届くのでフィルタは不要。 -->
+        <receiver
+            android:name=".service.WhenReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
+                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
+                <action android:name="android.intent.action.BATTERY_LOW" />
+                <action android:name="android.intent.action.BATTERY_OKAY" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- SMS 受信検知 (汎用入口): 設定「SMS 検知」ON かつ RECEIVE_SMS 許可があるとき、着信 SMS を
              ~/.z2term/sms.jsonl へ追記する。SMS_RECEIVED は暗黙ブロードキャスト制限の対象外なので
              manifest レシーバで拾える (アプリ未起動・ロック中でも起動)。BROADCAST_SMS でシステムからのみ届く。 -->
