@@ -162,6 +162,16 @@
     <string name="tools_tab_snippets">スニペット</string>
     <string name="tools_tab_ssh">SSH / SFTP</string>
     <string name="tools_tab_servers">サーバー</string>
+    <string name="tools_tab_history">履歴</string>
+    <string name="ssh_resident_tunnel">このトンネルを常駐させる</string>
+    <string name="ssh_resident_tunnel_desc">SSH タブを閉じても転送が生き続けます（常駐サーバーと同じ枠で動きます）。先に SSH タブで 1 度接続して、ホスト鍵を承認しておく必要があります。</string>
+    <string name="ssh_resident_tunnel_reverse_desc">⚠ -R を含みます: 常駐中は接続先からこの端末へ入れる状態になります。SSH タブを閉じても転送は生き続けます。先にホスト鍵の承認が必要です。</string>
+    <string name="ssh_forward_local_desc">遠くのサービスをこちらへ</string>
+    <string name="ssh_forward_reverse_desc">こちらを遠くから触れるように</string>
+    <string name="history_search_hint">絞り込み（空白区切りで複数語）</string>
+    <string name="history_empty">履歴がまだありません。端末で実行したコマンドがここに並びます。</string>
+    <string name="history_no_match">その絞り込みに合うものはありません。</string>
+    <string name="history_desc">コマンドをタップすると入力行に入ります。入るだけで実行はされません。</string>
 
     <!-- クリップボード履歴シート (📋 貼付ボタンをダブルタップで開く) -->
     <string name="clip_history_title">クリップボード履歴</string>

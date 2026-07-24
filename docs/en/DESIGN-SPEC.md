@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.220-alpha (versionCode 228)
+Last updated: 2026-07-25 / Target version: 0.8.221-alpha (versionCode 229)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -426,6 +426,35 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 **Execution**: on fire, runs `sh -lc '<run>'` **headless** on the currently selected distro (`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`, same launch+drain pattern as `ServerDaemonManager`). Trigger context is passed via env vars `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` plus trigger-specific extras (wifi: `Z2_WHEN_SSID`; sms: `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` / `Z2_WHEN_OTP`; sensor: `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX`) (external input is never spliced into the shell; values are single-quote-escaped with `'\''`). Output is appended to `~/.z2term/when/<id>.log` (cleared before a run once past 128KB). Rule execution always goes through the engine path since `launchChroot` takes no extra args.
 
 **CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> run <cmd>` to add / `list` (TSV) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><pid>` (0.8.211 switched from a random suffix to the pid to avoid same-second collisions; a counter is appended if the file already exists). **Stage 2 now covers cron/wifi/sms/sensor** (0.8.207–0.8.210). Later candidates: DST-boundary refinement for `time:cron`, light-threshold hysteresis, etc.
+
+#### History palette (`ui/snippets/ShellHistory`, 0.8.221, B2)
+
+**What it does**: adds a "History" tab to the 📜 tools sheet — **filter past commands and tap one to put it on the input line**. Read-only; it never touches the input or rendering paths.
+
+**No separate history of our own**: the content is **the shell's own history files**. Recording commands a second time inside the app would drift (e.g. `history -c` in the terminal, yet entries survive here).
+
+**There are two history files** (missing this means "no history shows up"):
+- `~/.bash_history` — written **after a command finishes** (`PROMPT_COMMAND='history -a'`), one command per line, no timestamps.
+- `~/.zsh_history` — written **before execution** (`INC_APPEND_HISTORY`), in the extended format `: <epoch>:<duration>;<cmd>`, with a trailing `\` continuing onto the next line.
+
+Both are merged **newest first**, deduplicated (the timestamped zsh entry wins). zsh's `SHARE_HISTORY` means every tab shares one file, so **per-tab or per-distro splitting has nothing to split** — one flat list is correct. The files grow without bound, so only the **last 256KB** is read, capped at 300 entries. Filtering is case-insensitive and requires **every whitespace-separated term** (`git log` also matches `git --no-pager log`).
+
+**Tapping never runs anything** — it only inserts, matching the safety stance of B1 (share receiving). The parsing is Android-independent and covered by `ShellHistoryTest` (7 cases).
+
+#### Resident tunnels (`service/TunnelManager`, 0.8.221, A2)
+
+**What it does**: **keeps port forwards alive after the SSH tab is closed**, and adds `-R` (remote → device).
+
+**Why**: today the SSH tab (`channel/SshChannel`) connects, sets up forwards, then opens the shell for the screen — **the forwards and the screen hang off one session**, so closing the tab drops the forwards. And `-R` is **meaningless without residency**: if you must have a tab open on the phone to get in, you did not need to get in remotely.
+
+**No new resident component**: `TunnelManager` holds screen-less JSch sessions and **rides along** with `ServerDaemonService`'s existing residency (FGS notification / WakeLock / WifiLock / `BootReceiver` autostart). Tunnels alone justify residency even with zero resident servers (`BootReceiver` checks for them too).
+
+**The three rules from §6**:
+1. **Explicit opt-in**: only profiles with `SshProfile.residentTunnel`. The toggle appears only once at least one forward exists, and its wording changes when a `-R` forward is present ("the remote side can reach into this device").
+2. **Only hosts already in known_hosts**: a resident tunnel cannot show a host-key prompt, so an unknown host is **not connected, and the reason is recorded** — never silently trusted. Connect once from the SSH tab first.
+3. **Exponential backoff on reconnect**: 5s doubling to a 5-minute ceiling (`TunnelManager.backoffMs`; `TunnelManagerTest` pins the boundaries and overflow). Never hammer a dead link.
+
+**Direction**: `PortForward.reverse`. `setPortForwardingR(bindAddress, remotePort, remoteHost, localPort)` listens on the remote's `bindAddress:remotePort` and connects to `remoteHost:localPort` as seen from the device. The field names date from the `-L`-only era, so **their meaning swaps with the direction** — the `PortForward` KDoc and `describe()` are the reference.
 
 #### Live tail widget (`widget/TailWidgetProvider`, 0.8.217, D2)
 

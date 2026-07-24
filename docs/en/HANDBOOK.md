@@ -56,7 +56,7 @@ That's all the setup you need.
 | Button | What it does |
 |---|---|
 | 📋 | Paste text from the clipboard (**double-tap to open the clipboard history** and pick from it) |
-| 📜 | Command list (tap a frequently used command to type it) + **SSH connect / SFTP** + **Servers** (manage resident servers) (switch with tabs) |
+| 📜 | Command list (tap a frequently used command to type it) + **History** (filter past commands and insert one) + **SSH connect / SFTP** + **Servers** (manage resident servers) (switch with tabs) |
 | 🔅 | Screen-on lock (when ON, the screen won't auto-dim; the icon changes to 💡 while ON) |
 | 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF). **While resident servers are running, 🔒 is dimmed and can't be toggled** (the servers already keep the app alive, so turning it OFF here would do nothing). Tapping 🔒 in that state opens a screen to choose **"End session only" / "Stop everything and quit"** (see below) |
 | 🔍 | Search the on-screen text (jump back/forward with ↑↓; **tap in the input field to move the caret** and fix a typo in the middle) |
@@ -143,6 +143,16 @@ Z2Term comes with its **own in-app keyboard**.
 > - `~/z2term-log/` is **visible to other apps** (it is treated like the rest of your home). As with any other file under home, don't keep there what you don't want seen.
 > - Full-screen apps (the ones that paint by redrawing the screen) are not recorded by default, because flattening them does not produce readable text.
 
+### Reusing a command you typed before (History)
+
+**📜 → the "History" tab** lists the commands you ran in the terminal, **newest first**.
+
+- Type in the field at the top to filter. **Space-separated words all have to match**
+  (`git log` also finds `git --no-pager log`).
+- Tapping a command only **puts it on the input line** — it is not run. Edit it, then press ⏎.
+- The content is the shell's own history (`~/.bash_history` and `~/.zsh_history`), so it matches
+  what `history` shows in the terminal. The app does not keep a separate copy.
+
 ---
 
 ## 6. Installing software (packages)
@@ -218,6 +228,25 @@ You can turn your phone into an SSH server and log in from a PC.
 > (a lightweight dropbear runs underneath).
 
 ---
+
+### Keeping a tunnel running (get in from outside, bring a service here)
+
+Editing a host in 📜 → "SSH / SFTP" lets you add **port forwards**, in one of two directions.
+
+| Direction | What it does | Example |
+|---|---|---|
+| **-L** | brings **a remote service here** | view your home PC's web server at `127.0.0.1:8080` on the phone |
+| **-R** | lets **the remote reach this device** | ssh into the phone from your home server while you are out |
+
+Once at least one forward exists, a **"Keep this tunnel running"** toggle appears. With it on, the
+**forwards survive closing the SSH tab** (they are treated like resident servers and come back after a reboot).
+
+- **`-R` only makes sense together with residency** — if you need a tab open on the phone to get in,
+  you did not need remote access in the first place.
+- **Connect once from the SSH tab first so the host key is trusted.** A resident tunnel cannot show a
+  confirmation dialog, so it **refuses to connect** to an unknown host rather than trusting it silently.
+- If the link drops it reconnects on its own after 5s, 10s, … up to 5 minutes.
+- ⚠ `-R` makes this device reachable from the other end. Turn it on only when you need it.
 
 ## 7.5. Using `adb` without a PC (`z2adb`)
 

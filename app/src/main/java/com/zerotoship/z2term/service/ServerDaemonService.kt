@@ -44,6 +44,8 @@ class ServerDaemonService : Service() {
                 Log.i(TAG, "Stop servers action")
                 stopNotificationRefresher()
                 ServerDaemonManager.stop()
+                // 常駐トンネル (A2) も同じ枠にぶら下がっているので一緒に畳む。
+                TunnelManager.stopAll()
                 releaseLocks()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
@@ -55,7 +57,9 @@ class ServerDaemonService : Service() {
                 startForegroundInternal()
                 Thread {
                     val started = ServerDaemonManager.start(this)
-                    if (!started) {
+                    // 常駐トンネル (A2) を張る。サーバーが 1 つも無くてもトンネルだけで常駐する。
+                    runCatching { TunnelManager.reload(this) }
+                    if (!started && !TunnelManager.isRunning) {
                         Log.i(TAG, "No servers to run; stopping service")
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         stopSelf()
@@ -195,6 +199,7 @@ class ServerDaemonService : Service() {
         super.onDestroy()
         stopNotificationRefresher()
         releaseLocks()
+        TunnelManager.stopAll()
         // 常駐が終わった＝ホーム画面ウィジェットの「常駐 N」が古くなるので描き直す。
         StatusWidgetProvider.refresh(this)
     }

@@ -7,6 +7,7 @@ import android.util.Log
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.ServerEntry
 import kotlinx.coroutines.flow.first
+import com.zerotoship.z2term.channel.SshProfileStore
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -37,7 +38,12 @@ class BootReceiver : BroadcastReceiver() {
 
         if (!settings.serversAutostartOnBoot) return
         val hasEnabled = ServerEntry.decode(settings.serverEntries).any { it.enabled && it.command.isNotBlank() }
-        if (!hasEnabled) return
+        // 常駐トンネル (A2) も同じサービスにぶら下がるので、サーバーが 0 でもトンネルがあれば起こす。
+        val hasTunnel = runCatching {
+            runBlocking { SshProfileStore(context).profiles.first() }
+                .any { it.residentTunnel && it.forwards.isNotEmpty() }
+        }.getOrDefault(false)
+        if (!hasEnabled && !hasTunnel) return
 
         Log.i("BootReceiver", "Autostarting server daemon after boot")
         ServerDaemonService.start(context)

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-25 / 対象バージョン: 0.8.220-alpha (versionCode 228)
+最終更新: 2026-07-25 / 対象バージョン: 0.8.221-alpha (versionCode 229)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -416,6 +416,35 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 **実行**: 発火すると「そのとき選ばれている distro」で `sh -lc '<run>'` を **headless 起動**（`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`。`ServerDaemonManager` と同じ launch + drain パターン）。トリガー情報は環境変数 `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` と、トリガー固有の追加 env（wifi: `Z2_WHEN_SSID` / sms: `Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP` / sensor: `Z2_WHEN_SENSOR`・`Z2_WHEN_LUX`）で渡す（外部入力をシェルへ文字列展開しない安全境界。値は単一引用符へ `'\''` エスケープ）。出力は `~/.z2term/when/<id>.log` へ追記（128KB を超えたら実行前に空にする）。root chroot モードでも `launchChroot` は追加引数を取らないため、ルール実行はエンジン経路に統一している。
 
 **CLI**（`z2-when`。`Z2ApiScript` が launch 毎に `/usr/local/bin` へ配置）: `<trigger> run <cmd>` で登録 / `list`（TSV）/ `remove <id|all>`（`rm`）/ `on|off <id>` / `log <id>`。id は `w<epoch><pid>`（同一秒の衝突を避けるため 0.8.211 で乱数から pid へ変更。既存があれば連番を付す）。**stage2 は cron/wifi/sms/sensor まで実装済み**（0.8.207〜0.8.210）。以降の候補は `time:cron` の DST 跨ぎ精緻化や照度ヒステリシス等の作り込み。
+
+#### 履歴パレット（`ui/snippets/ShellHistory`、0.8.221・B2）
+
+**何ができるか**: 📜 ツールシートに「履歴」タブを足し、**端末で実行した過去コマンドを絞り込んでタップで入力行に入れる**。読み取り専用で、入力・描画の経路には一切触らない。
+
+**独自の履歴を持たない**: 中身は**シェルの履歴ファイルそのもの**。アプリ側でコマンドを二重に記録すると、端末で `history -c` したのに残る等のズレが出る。
+
+**履歴ファイルは 2 本ある**（この事実を外すと「履歴が出ない」になる）:
+- `~/.bash_history` … `PROMPT_COMMAND='history -a'` で**コマンド終了後**に 1 行 1 コマンド。時刻を持たない。
+- `~/.zsh_history` … `INC_APPEND_HISTORY` で**実行前**に載る。`: <epoch>:<duration>;<cmd>` の拡張形式で、行末 `\` で次行へ続く（複数行コマンド）。
+
+両方を**新しい順**にマージし、同じコマンドは 1 つに畳む（時刻を持つ zsh 側を優先）。zsh は `SHARE_HISTORY` で全タブが 1 本を共有するので、**タブ別・ディストロ別の出し分けは実体を持たない**（フラット 1 本でよい）。ファイルは青天井に育つので**末尾 256KB だけ**読み、最大 300 件。絞り込みは大小文字を無視し、**空白区切りの語をすべて含む**ものを残す（`git log` で `git --no-pager log` も拾う）。
+
+**タップしても実行はしない**（入力行に入るだけ）。B1（共有受け取り）と揃えた安全側の作法。解析部分は Android 非依存で `ShellHistoryTest`（7 ケース）。
+
+#### 常駐トンネル（`service/TunnelManager`、0.8.221・A2）
+
+**何ができるか**: **SSH タブを閉じてもポート転送を生かし続ける**。あわせて `-R`（リモート → 端末）を追加した。
+
+**なぜ要るか**: 現状の SSH タブ（`channel/SshChannel`）は「接続 → 転送を張る → 画面用の shell を開く」の順で、**転送と画面が 1 本のセッションにぶら下がっている**。だからタブを閉じると転送も消える。`-R` は**常駐しないと意味を成さない**（入りたい時に端末側でタブを開いている必要があるなら、そもそも外から入る必要が無い）。
+
+**常駐を新規に作らない**: 画面を持たない JSch セッションを `TunnelManager` が持ち、`ServerDaemonService` の常駐枠（FGS 通知 / WakeLock / WifiLock / `BootReceiver` 自動起動）に**相乗り**する。常駐サーバーが 0 本でもトンネルだけで常駐してよい（`BootReceiver` もトンネルの有無を見る）。
+
+**守っていること**（§6 の 3 条件）:
+1. **明示 opt-in**: `SshProfile.residentTunnel` が true のものだけ。UI では転送を 1 つ以上作ったときにだけトグルが出る。`-R` を含むときは「接続先からこの端末へ入れる状態になる」と文言を変える。
+2. **known_hosts 登録済みのホストだけ**: 常駐中はホスト鍵の確認ダイアログを出せないので、未知のホストは**張らずに理由を残す**（黙って信用しない）。先に SSH タブで 1 度繋いで承認してもらう。
+3. **指数バックオフで再接続**: 5 秒から倍々にして 5 分で頭打ち（`TunnelManager.backoffMs`・`TunnelManagerTest` が境界とオーバーフローを押さえる）。回線が落ちている間に総当たりで撃たない。
+
+**`-R` の向き**: `PortForward.reverse` で切り替える。`setPortForwardingR(bindAddress, remotePort, remoteHost, localPort)` = リモートの `bindAddress:remotePort` で待ち受け、端末から見た `remoteHost:localPort` へ繋ぐ。フィールド名は `-L` 時代のままなので、**意味が向きで入れ替わる**点に注意（`PortForward` の KDoc と `describe()` が正本）。
 
 #### ライブ tail ウィジェット（`widget/TailWidgetProvider`、0.8.217・D2）
 

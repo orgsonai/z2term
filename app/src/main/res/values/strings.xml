@@ -163,6 +163,16 @@
     <string name="tools_tab_snippets">Snippets</string>
     <string name="tools_tab_ssh">SSH / SFTP</string>
     <string name="tools_tab_servers">Servers</string>
+    <string name="tools_tab_history">History</string>
+    <string name="ssh_resident_tunnel">Keep this tunnel running</string>
+    <string name="ssh_resident_tunnel_desc">Forwards stay alive even after the SSH tab is closed (runs alongside resident servers). The host key must already be trusted — connect once from the SSH tab first.</string>
+    <string name="ssh_resident_tunnel_reverse_desc">⚠ Includes a -R forward: while this runs, the remote side can reach into this device. Forwards stay alive after the SSH tab is closed. The host key must already be trusted.</string>
+    <string name="ssh_forward_local_desc">bring a remote service here</string>
+    <string name="ssh_forward_reverse_desc">let the remote reach this device</string>
+    <string name="history_search_hint">filter (space-separated words)</string>
+    <string name="history_empty">No history yet. Commands you run in the terminal appear here.</string>
+    <string name="history_no_match">Nothing matches that filter.</string>
+    <string name="history_desc">Tap a command to put it on the input line. It is inserted, never run.</string>
 
     <!-- Clipboard history sheet (double-tap the 📋 paste button) -->
     <string name="clip_history_title">Clipboard history</string>

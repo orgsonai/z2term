@@ -28,6 +28,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import com.zerotoship.z2term.service.ServerDaemonService
+import com.zerotoship.z2term.service.TunnelManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -108,6 +112,16 @@ fun SshProfilesBody(
                     scope.launch {
                         store.upsert(saved)
                         editing = null
+                        // 常駐トンネル (A2) を ON にしたら、その場で張り始める。
+                        // 常駐サーバーが 1 つも無くてもトンネルだけで常駐してよい。
+                        if (saved.residentTunnel) {
+                            ServerDaemonService.start(context.applicationContext)
+                        } else {
+                            // OFF にしたぶんを畳む (サービス自体は他の常駐が残っていれば生きる)。
+                            withContext(Dispatchers.IO) {
+                                runCatching { TunnelManager.reload(context.applicationContext) }
+                            }
+                        }
                     }
                 },
                 onCancel = { editing = null }
@@ -206,7 +220,9 @@ private fun ProfileRow(
         Text(
             text = "${profile.user}@${profile.host}:${profile.port} " +
                 "[${profile.authType.name.lowercase()}]" +
-                (if (profile.forwards.isNotEmpty()) " 🔀${profile.forwards.size}" else ""),
+                (if (profile.forwards.isNotEmpty()) " 🔀${profile.forwards.size}" else "") +
+                // 常駐トンネル (A2) はタブを閉じても生きるので、一覧で分かるようにする。
+                (if (profile.residentTunnel) " ⏻" else ""),
             color = ZtsTextSecondary,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace
@@ -238,6 +254,7 @@ private fun EditForm(
     var keyPassphrase by remember(initial.id) { mutableStateOf(initial.keyPassphrase) }
     var initCmd by remember(initial.id) { mutableStateOf(initial.initCommand) }
     var forwards by remember(initial.id) { mutableStateOf(initial.forwards) }
+    var resident by remember(initial.id) { mutableStateOf(initial.residentTunnel) }
 
     Text(
         text = if (initial.name.isEmpty() && initial.host.isEmpty())
@@ -313,6 +330,15 @@ private fun EditForm(
         onChange = { forwards = it }
     )
 
+    // 常駐トンネル (A2)。明示 opt-in。転送が 1 つも無ければ意味が無いので出さない。
+    if (forwards.isNotEmpty()) {
+        ResidentTunnelToggle(
+            checked = resident,
+            hasReverse = forwards.any { it.reverse },
+            onChange = { resident = it }
+        )
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -334,7 +360,8 @@ private fun EditForm(
                     privateKey = if (auth == SshProfile.AuthType.PUBLIC_KEY) privateKey else "",
                     keyPassphrase = if (auth == SshProfile.AuthType.PUBLIC_KEY) keyPassphrase else "",
                     initCommand = initCmd,
-                    forwards = forwards.filter { it.localPort in 1..65535 && it.remotePort in 1..65535 && it.remoteHost.isNotBlank() }
+                    forwards = forwards.filter { it.localPort in 1..65535 && it.remotePort in 1..65535 && it.remoteHost.isNotBlank() },
+                    residentTunnel = resident && forwards.isNotEmpty()
                 )
                 onSave(saved)
             }
@@ -410,6 +437,81 @@ private fun PortForwardSection(
     }
 }
 
+/**
+ * 常駐トンネル (A2) の ON/OFF。
+ *
+ * ON にすると SSH タブを閉じても転送が生き続ける（常駐サーバーと同じ枠にぶら下がる）。
+ * **明示 opt-in**にしているのは、知らないうちに外向きの口が開いたままにならないため。
+ * `-R` を含むときは「外から入れるようになる」ことを併記する。
+ */
+@Composable
+private fun ResidentTunnelToggle(
+    checked: Boolean,
+    hasReverse: Boolean,
+    onChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(ZtsBgCard)
+            .border(1.dp, if (checked) ZtsGreen else ZtsBorder, RoundedCornerShape(8.dp))
+            .clickable { onChange(!checked) }
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = if (checked) "[x]" else "[ ]",
+            color = if (checked) ZtsGreen else ZtsTextPrimary,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = stringResource(R.string.ssh_resident_tunnel),
+                color = if (checked) ZtsGreen else ZtsTextPrimary,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = stringResource(
+                    if (hasReverse) R.string.ssh_resident_tunnel_reverse_desc
+                    else R.string.ssh_resident_tunnel_desc
+                ),
+                color = ZtsTextSecondary,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
+}
+
+/** `-L` / `-R` を選ぶ小さなチップ。 */
+@Composable
+private fun DirectionChip(
+    label: String,
+    selected: Boolean,
+    onSelect: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .padding(end = 4.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (selected) ZtsGreen.copy(alpha = 0.18f) else ZtsBgCard)
+            .border(1.dp, if (selected) ZtsGreen else ZtsBorder, RoundedCornerShape(6.dp))
+            .clickable(onClick = onSelect)
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+    ) {
+        Text(
+            text = label,
+            color = if (selected) ZtsGreen else ZtsTextPrimary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
 @Composable
 private fun ForwardRow(
     fw: PortForward,
@@ -425,9 +527,31 @@ private fun ForwardRow(
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        // 向きの切替。-L は「遠くをこちらへ」、-R は「こちらを遠くから」。
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            DirectionChip(
+                label = "-L",
+                selected = !fw.reverse,
+                onSelect = { onChange(fw.copy(reverse = false)) }
+            )
+            DirectionChip(
+                label = "-R",
+                selected = fw.reverse,
+                onSelect = { onChange(fw.copy(reverse = true)) }
+            )
+            Text(
+                text = stringResource(
+                    if (fw.reverse) R.string.ssh_forward_reverse_desc else R.string.ssh_forward_local_desc
+                ),
+                color = ZtsTextSecondary,
+                fontSize = 9.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.padding(start = 6.dp)
+            )
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Local",
+                text = if (fw.reverse) "Remote" else "Local",
                 color = ZtsGreen,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,

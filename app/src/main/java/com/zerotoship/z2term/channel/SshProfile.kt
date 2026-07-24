@@ -12,37 +12,55 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * ローカルポート転送 (ssh -L) 1 件分の設定。
+ * ポート転送 1 件分の設定。[reverse] で向きが変わる。
  *
- * bindAddress を 127.0.0.1 に固定すると端末上の他アプリだけがアクセス可能、
- * 0.0.0.0 にすると同 Wi-Fi 上の他デバイスからもアクセス可能 (注意)。
+ * **`-L` (reverse=false・既定)**: 遠くのサービスを**こちらへ引き込む**。
+ * 端末の `bindAddress:localPort` で待ち受け、リモートから見た `remoteHost:remotePort` へ繋ぐ。
+ * bindAddress を 127.0.0.1 にすると端末上の他アプリだけ、0.0.0.0 にすると同 Wi-Fi の他機からも届く (注意)。
+ * 例: `localPort=8080, remoteHost=localhost, remotePort=80` で、リモートの HTTP を端末の
+ * `127.0.0.1:8080` として見る。
  *
- * 例: `localPort=8080, remoteHost=localhost, remotePort=80` で
- * リモートホスト上の HTTP サーバを端末の 127.0.0.1:8080 にトンネルする。
+ * **`-R` (reverse=true)**: 逆向き。**こちら側を遠くから触れるようにする** (A2)。
+ * リモートの `bindAddress:remotePort` で待ち受け、端末から見た `remoteHost:localPort` へ繋ぐ。
+ * 携帯回線のスマホは外から直接繋げないので、スマホ側から自宅サーバーへ張った接続を逆走させる。
+ * 例: `reverse=true, remotePort=2222, remoteHost=127.0.0.1, localPort=2222` で、
+ * 自宅サーバーの `127.0.0.1:2222` からスマホの sshd に入れる。
+ * ⚠ **`-R` は常駐 ([SshProfile.residentTunnel]) と組み合わせて初めて意味を持つ**
+ * (入りたい時にスマホ側でタブを開いている必要があるなら、外から入る意味が無い)。
  */
 data class PortForward(
-    /** 端末側で listen するアドレス (既定: 127.0.0.1) */
+    /** 待ち受けアドレス。`-L` は端末側、`-R` はリモート側 (既定: 127.0.0.1) */
     val bindAddress: String = "127.0.0.1",
-    /** 端末側で listen するポート (1〜65535) */
+    /** `-L`: 端末側の待ち受けポート / `-R`: 端末から見た接続先ポート */
     val localPort: Int,
-    /** リモートホストから見た接続先 (localhost や内部 IP など) */
+    /** `-L`: リモートから見た接続先ホスト / `-R`: 端末から見た接続先ホスト */
     val remoteHost: String,
-    /** リモートホストから見た接続先ポート */
-    val remotePort: Int
+    /** `-L`: リモートから見た接続先ポート / `-R`: リモート側の待ち受けポート */
+    val remotePort: Int,
+    /** true なら `-R` (リモート → 端末)。既定は `-L`。 */
+    val reverse: Boolean = false
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("bindAddress", bindAddress)
         put("localPort", localPort)
         put("remoteHost", remoteHost)
         put("remotePort", remotePort)
+        put("reverse", reverse)
     }
+
+    /** 一覧に出す 1 行 (`-L 127.0.0.1:8080 → localhost:80` のような形)。 */
+    fun describe(): String = if (reverse)
+        "-R $bindAddress:$remotePort → $remoteHost:$localPort"
+    else
+        "-L $bindAddress:$localPort → $remoteHost:$remotePort"
 
     companion object {
         fun fromJson(o: JSONObject): PortForward = PortForward(
             bindAddress = o.optString("bindAddress", "127.0.0.1"),
             localPort = o.optInt("localPort"),
             remoteHost = o.optString("remoteHost"),
-            remotePort = o.optInt("remotePort")
+            remotePort = o.optInt("remotePort"),
+            reverse = o.optBoolean("reverse", false)
         )
     }
 }
@@ -56,7 +74,7 @@ data class PortForward(
  * 永続化時、password / privateKey / keyPassphrase は [KeystoreCrypt] で
  * AES-GCM 暗号化されてから DataStore に書かれる。
  *
- * M7 で [forwards] を追加 (-L ローカルポート転送)。
+ * M7 で [forwards] を追加 (-L ローカルポート転送)。0.8.221 で [residentTunnel] と `-R` を追加 (A2)。
  */
 data class SshProfile(
     val id: String,
@@ -73,8 +91,16 @@ data class SshProfile(
     val keyPassphrase: String = "",
     /** 接続後に自動実行するコマンド (空なら何もしない) */
     val initCommand: String = "",
-    /** -L ローカルポート転送のリスト (空なら何もしない) */
-    val forwards: List<PortForward> = emptyList()
+    /** ポート転送のリスト (空なら何もしない)。向きは [PortForward.reverse] で決まる */
+    val forwards: List<PortForward> = emptyList(),
+    /**
+     * **常駐トンネル (A2)**: true なら、SSH タブを開いていなくてもこの接続を張り続け、
+     * [forwards] を生かしたままにする ([com.zerotoship.z2term.service.TunnelManager])。
+     *
+     * 既定 false = 明示 opt-in。`-R` は常駐と組み合わせて初めて意味を持つので、
+     * 実質ここが `-R` の opt-in も兼ねる。
+     */
+    val residentTunnel: Boolean = false
 ) {
 
     enum class AuthType { PASSWORD, PUBLIC_KEY }
@@ -87,6 +113,7 @@ data class SshProfile(
         put("port", port)
         put("user", user)
         put("authType", authType.name)
+        put("residentTunnel", residentTunnel)
         put("password", KeystoreCrypt.encrypt(password))
         put("privateKey", KeystoreCrypt.encrypt(privateKey))
         put("keyPassphrase", KeystoreCrypt.encrypt(keyPassphrase))
@@ -113,7 +140,8 @@ data class SshProfile(
             forwards = runCatching {
                 val arr = o.optJSONArray("forwards") ?: return@runCatching emptyList()
                 List(arr.length()) { PortForward.fromJson(arr.getJSONObject(it)) }
-            }.getOrDefault(emptyList())
+            }.getOrDefault(emptyList()),
+            residentTunnel = o.optBoolean("residentTunnel", false)
         )
     }
 }

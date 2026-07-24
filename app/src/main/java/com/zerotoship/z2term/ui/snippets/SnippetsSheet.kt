@@ -41,13 +41,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -69,17 +70,24 @@ import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 /** ツールシートのタブ。スニペット / SSH・SFTP / 常駐サーバーを 1 枚にまとめる。 */
-private enum class ToolsTab { SNIPPETS, SSH, SERVERS }
+private enum class ToolsTab { SNIPPETS, HISTORY, SSH, SERVERS }
 
 /**
  * ツールシート (ツールバーの 📜 から開く)。
  *
  * 上部のタブで「スニペット」「SSH / SFTP」「サーバー」を切替える。
  *  - スニペット: よく使うコマンドを挿入 ([onRun])。並べ替え / 編集 / 削除可。
+ *  - 履歴 (B2): 端末で実行した過去コマンドを絞り込んでタップで挿入。読み取り専用で、
+ *    シェルの履歴ファイル (`~/.bash_history` / `~/.zsh_history`) をそのまま見る。
  *  - SSH / SFTP: 保存したホストへ接続 ([onConnect]) / SFTP で開く ([onSftp])。
  *  - サーバー: 常駐サーバーの起動/停止・ON/OFF・編集 (設定シートと同じ [ServersBody])。
  *    毎回設定画面を開かずここから管理できる。
@@ -135,7 +143,8 @@ fun SnippetsSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            if (showSshTab || serverSession != null) {
+            // 履歴タブは常に出るので、タブバーは必ず表示する。
+            run {
                 ToolsTabBar(
                     selected = tab,
                     showSsh = showSshTab,
@@ -145,6 +154,7 @@ fun SnippetsSheet(
             }
             when (tab) {
                 ToolsTab.SNIPPETS -> SnippetsBody(onRun = onRun, onDismiss = onDismiss)
+                ToolsTab.HISTORY -> HistoryBody(onRun = { cmd -> onRun(cmd); onDismiss() })
                 ToolsTab.SSH -> SshProfilesBody(
                     onConnect = { p -> onConnect(p); onDismiss() },
                     onSftp = { p -> onSftp(p); onDismiss() }
@@ -155,7 +165,7 @@ fun SnippetsSheet(
     }
 }
 
-/** スニペット / SSH・SFTP / サーバー を切替えるセグメントタブ。出せないタブは省く。 */
+/** スニペット / 履歴 / SSH・SFTP / サーバー を切替えるセグメントタブ。出せないタブは省く。 */
 @Composable
 private fun ToolsTabBar(
     selected: ToolsTab,
@@ -174,6 +184,12 @@ private fun ToolsTabBar(
             selected = selected == ToolsTab.SNIPPETS,
             modifier = Modifier.weight(1f),
             onSelect = { onSelect(ToolsTab.SNIPPETS) }
+        )
+        TabChip(
+            label = stringResource(R.string.tools_tab_history),
+            selected = selected == ToolsTab.HISTORY,
+            modifier = Modifier.weight(1f),
+            onSelect = { onSelect(ToolsTab.HISTORY) }
         )
         if (showSsh) {
             TabChip(
@@ -334,6 +350,117 @@ private fun newSnippet() = Snippet(
 )
 
 /** スニペット 1 行の固定高さ。ドラッグ並べ替えのピッチ計算に使うため固定にする。 */
+
+/**
+ * 履歴タブ (B2)。端末で実行した過去コマンドを絞り込んでタップで挿入する。
+ *
+ * **読み取り専用**で、入力・描画の経路には一切触らない。中身はシェルの履歴ファイルそのもの
+ * ([ShellHistory] が `~/.bash_history` と `~/.zsh_history` をマージする) なので、
+ * このアプリ独自の履歴を別に持つことはしない (二重管理を作らない)。
+ *
+ * タップで入るのは**入力行まで**。スニペットと同じく実行はしない (B1 と揃えた安全側の作法)。
+ */
+@Composable
+private fun HistoryBody(onRun: (String) -> Unit) {
+    val context = LocalContext.current
+    var query by remember { mutableStateOf("") }
+    // ファイル読み込みなので画面を止めない。タブを開くたびに読み直す (履歴は増え続けるため)。
+    val entries by produceState(initialValue = emptyList<ShellHistory.Entry>()) {
+        value = withContext(Dispatchers.IO) { ShellHistory.load(context.applicationContext) }
+    }
+    val shown = remember(entries, query) { ShellHistory.filter(entries, query) }
+    val stamp = remember { SimpleDateFormat("MM/dd HH:mm", Locale.US) }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.history_desc),
+            color = ZtsTextSecondary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(ZtsBgCard)
+                .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp, vertical = 9.dp)
+        ) {
+            if (query.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.history_search_hint),
+                    color = ZtsTextSecondary,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            BasicTextField(
+                value = query,
+                onValueChange = { query = it },
+                singleLine = true,
+                textStyle = TextStyle(
+                    color = ZtsTextPrimary,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace
+                ),
+                cursorBrush = SolidColor(ZtsGreen),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        if (entries.isEmpty()) {
+            Text(
+                text = stringResource(R.string.history_empty),
+                color = ZtsTextSecondary,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        } else if (shown.isEmpty()) {
+            Text(
+                text = stringResource(R.string.history_no_match),
+                color = ZtsTextSecondary,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+
+        shown.forEach { e ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(ZtsBgCard)
+                    .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp))
+                    .clickable { onRun(e.command) }
+                    .padding(horizontal = 10.dp, vertical = 9.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = e.command,
+                    color = ZtsTextPrimary,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                // zsh 側から来たものだけ時刻を持つ (bash は記録しない)。
+                if (e.at > 0) {
+                    Text(
+                        text = stamp.format(Date(e.at * 1000)),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+    }
+}
+
 private val SNIPPET_ROW_HEIGHT = 52.dp
 
 @Composable
