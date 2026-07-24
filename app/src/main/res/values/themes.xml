@@ -12,21 +12,38 @@
       レイアウト側の重複を避けてここに置く。親は必ず横並びの LinearLayout
       (layout_weight で等幅に割る)。
     -->
+    <!--
+      マクロボタン。行が layout_weight=1 で伸びるので高さは match_parent にして
+      枠いっぱいに広げる (押しやすさと、下端に空白を残さないため)。
+      名前と開始時刻の 2 行を出すので singleLine ではなく maxLines=2。
+    -->
     <style name="Z2WidgetButton">
         <item name="android:layout_width">0dp</item>
-        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_height">match_parent</item>
         <item name="android:layout_weight">1</item>
-        <item name="android:layout_marginEnd">4dp</item>
         <item name="android:background">@drawable/widget_button</item>
         <item name="android:gravity">center</item>
-        <item name="android:paddingTop">8dp</item>
-        <item name="android:paddingBottom">8dp</item>
-        <item name="android:paddingStart">4dp</item>
-        <item name="android:paddingEnd">4dp</item>
+        <item name="android:paddingTop">4dp</item>
+        <item name="android:paddingBottom">4dp</item>
+        <item name="android:paddingStart">3dp</item>
+        <item name="android:paddingEnd">3dp</item>
         <item name="android:textColor">@color/widget_text_primary</item>
         <item name="android:textSize">11sp</item>
         <item name="android:fontFamily">monospace</item>
-        <item name="android:singleLine">true</item>
+        <item name="android:maxLines">2</item>
         <item name="android:ellipsize">end</item>
+    </style>
+
+    <!--
+      ヘッダーの ⚙ / ⟳。40dp 角にして指で押せるようにする
+      (以前は文字だけでタップ領域が無く「小さくて押せない」と指摘された)。
+    -->
+    <style name="Z2WidgetIconButton">
+        <item name="android:layout_width">40dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:background">@drawable/widget_button</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textColor">@color/widget_text_secondary</item>
+        <item name="android:textSize">16sp</item>
     </style>
 </resources>

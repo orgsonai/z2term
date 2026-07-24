@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-24 / Target version: 0.8.215-alpha (versionCode 223)
+Last updated: 2026-07-24 / Target version: 0.8.216-alpha (versionCode 224)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -457,6 +457,19 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 **Drawing constraints**: `RemoteViews` are inflated in the launcher's process, so they **cannot read the Compose dynamic palette (`AppColors`)**. The widget alone keeps fixed ZTS dark colors in `res/values/colors.xml` as `widget_*` and does not follow the selected theme (deliberate). Views cannot be created dynamically either, so **all 4 buttons live in the layout and the spare ones are set to `GONE`**. Reading the state involves file I/O and the settings DataStore, so drawing always happens under `goAsync()` on a separate thread.
 
 **Unique PendingIntents**: both the requestCode (`appWidgetId * 8 + slot`) and the data URI (`z2term://widget/<id>/<slot>`) are made unique per widget × button. If either collides the PendingIntent is reused and one button runs the other's macro.
+
+**Layout rework (0.8.216, from on-device feedback)**:
+- **A large empty area was left at the bottom** because every row was `wrap_content` in a vertical stack, so any height beyond the content just stayed blank. The macro button row now takes `layout_weight=1` (height `0dp`) to absorb it, and the buttons themselves are `match_parent` so they grow. **Removing the gap and making the buttons bigger is the same change**, which fixes both "too much empty space" and "the buttons are small".
+- **⟳ was untappable** — it was a bare 14sp `TextView` with no touch target. It is now `Z2WidgetIconButton` (40dp square with the `widget_button` background).
+- **⚙ (config) added to the header**. Having to go through the launcher's "long-press → settings" was called out as awkward. It opens `WidgetConfigActivity` directly through `PendingIntent.getActivity` with `EXTRA_APPWIDGET_ID` (requestCode `appWidgetId * 8 + 6`).
+- **Default size 4x2 → 4x3 cells** (`minHeight` 110dp → 140dp): with a 40dp header, two cells squash the buttons.
+
+**Macro buttons are two lines (0.8.216)**: line 1 is the name with a state marker, line 2 is **when that macro was last started**. `WidgetStore` keeps the start time **per macro** (`run_at_<file name>`); up to 0.8.215 it remembered only one globally, so **running several made it impossible to tell which time belonged to which**. The three states are:
+- `■ name` (accent) — running; tap to stop.
+- `✓ name` — has run and finished. Added because **a macro that finishes instantly makes `■` vanish at once, which looked like it had been stopped**.
+- `name` — never run yet (time shows `––:––`).
+
+The footer now shows **the macro that finished last**, since start times moved onto the buttons.
 
 **Tap again to stop while running (0.8.215)**: `RemoteViews` has no long-press, so this is a **toggle on the same button rather than a new mode**. While running, the label becomes `■ name` in the accent colour (`widget_accent`) and a tap sends `ACTION_STOP_MACRO` → `HeadlessRun.stop`. "Running" is decided from an **in-process map** in `HeadlessRun` (`name` → `PtyProcess`). If the app process dies its child processes die with it, so **starting from an empty map is correct** (never "shows running when nothing is"). Stopping goes through `PtyProcess.close` (SIGHUP, then SIGKILL after up to 1s), so it must never be called on the broadcast thread — the receiver hands it to a background thread. On exit, `HeadlessRun.launch(onExit = …)` re-renders to clear the `■`.
 

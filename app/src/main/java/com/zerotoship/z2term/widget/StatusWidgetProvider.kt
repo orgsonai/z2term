@@ -150,13 +150,17 @@ class StatusWidgetProvider : AppWidgetProvider() {
 
         private fun buildViews(context: Context, appWidgetId: Int, s: Snapshot): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_status)
+            // SimpleDateFormat はスレッド安全でないので共有せず、この描画の中だけで使う。
+            val hhmm = SimpleDateFormat("HH:mm", Locale.US)
 
-            // タイトルはアプリを開く。⟳ はその場で読み直す。
+            // タイトルはアプリを開く。⟳ はその場で読み直す。⚙ は設定画面を直接開く
+            // (ウィジェット長押しからしか設定へ行けないのは使いにくい、という実機フィードバック)。
             views.setOnClickPendingIntent(R.id.widget_title, openAppIntent(context))
             views.setOnClickPendingIntent(
                 R.id.widget_refresh,
                 broadcast(context, appWidgetId, SLOT_REFRESH, ACTION_REFRESH, null)
             )
+            views.setOnClickPendingIntent(R.id.widget_config, configIntent(context, appWidgetId))
 
             views.setTextViewText(R.id.widget_ssh, s.sshLine ?: context.getString(R.string.widget_ssh_none))
             // sshd が動いているときだけアクセント色にする (動いていない＝その宛先では入れない)。
@@ -180,12 +184,24 @@ class StatusWidgetProvider : AppWidgetProvider() {
                 } else {
                     // 実行中は「■ 名前」にして、同じボタンのタップで止められるようにする
                     // (RemoteViews に長押しは無いので、モードを増やさずトグルにするのが自然)。
+                    // 2 行目は**そのマクロを最後に開始した時刻**。全体で 1 件しか出していなかった
+                    // ときは、複数走らせるとどれがいつのものか分からなかった。
                     val busy = HeadlessRun.isRunning(runKey(name))
+                    val startedAt = WidgetStore.runStartAt(context, name)
+                    val time =
+                        if (startedAt > 0) hhmm.format(Date(startedAt))
+                        else context.getString(R.string.widget_btn_time_none)
+                    val label = WidgetStore.label(name)
                     views.setViewVisibility(viewId, View.VISIBLE)
                     views.setTextViewText(
                         viewId,
-                        if (busy) context.getString(R.string.widget_btn_running, WidgetStore.label(name))
-                        else WidgetStore.label(name)
+                        when {
+                            busy -> context.getString(R.string.widget_btn_running, label, time)
+                            // 一度でも走ったものは ✓ を付ける。すぐ終わるマクロで「■ が消えた」のが
+                            // 停止ではなく正常終了だと分かるようにするため。
+                            startedAt > 0 -> context.getString(R.string.widget_btn_done, label, time)
+                            else -> context.getString(R.string.widget_btn_idle, label, time)
+                        }
                     )
                     views.setTextColor(
                         viewId,
@@ -204,13 +220,14 @@ class StatusWidgetProvider : AppWidgetProvider() {
                 }
             }
 
+            // フッターは「直近に**終わった**マクロ」。開始時刻はボタン側に出るようになったので、
+            // ここは終了を伝える役に回す (すぐ終わるマクロが「勝手に止まった」ように見えないため)。
             val footer = when {
                 macros.isEmpty() -> context.getString(R.string.widget_no_macros)
-                s.lastRun != null -> context.getString(
-                    R.string.widget_last_run,
-                    WidgetStore.label(s.lastRun.first),
-                    // SimpleDateFormat はスレッド安全でないので、共有せず都度作る。
-                    SimpleDateFormat("HH:mm", Locale.US).format(Date(s.lastRun.second))
+                s.lastFinish != null -> context.getString(
+                    R.string.widget_last_finish,
+                    WidgetStore.label(s.lastFinish.first),
+                    hhmm.format(Date(s.lastFinish.second))
                 )
                 else -> null
             }
@@ -221,6 +238,26 @@ class StatusWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(R.id.widget_footer, footer)
             }
             return views
+        }
+
+        /**
+         * ⚙ から [WidgetConfigActivity] を直接開く PendingIntent。
+         *
+         * ランチャーの「ウィジェット長押し → 設定」を辿らないと設定へ行けないのは使いにくい、
+         * という実機フィードバックへの対応。`EXTRA_APPWIDGET_ID` を渡すので、どのウィジェットの
+         * 設定かはランチャー経由のときと同じように決まる (渡さないと即 finish する作りになっている)。
+         * requestCode はウィジェットごとに変える (使い回されると別のウィジェットの設定が開く)。
+         */
+        private fun configIntent(context: Context, appWidgetId: Int): PendingIntent {
+            val intent = Intent(context, WidgetConfigActivity::class.java)
+                .setAction(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
+                .setData("z2term://widget/$appWidgetId/config".toUri())
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            return PendingIntent.getActivity(
+                context, appWidgetId * SLOTS_PER_WIDGET + SLOT_CONFIG, intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
         }
 
         private fun openAppIntent(context: Context): PendingIntent {
@@ -274,17 +311,23 @@ class StatusWidgetProvider : AppWidgetProvider() {
                 logFile = File(File(context.filesDir, "shared_home"), LOG_REL),
                 name = runKey(name),
                 header = HeadlessRun.logHeader("widget $name"),
-                // 終わったらボタンの「■」を戻す (onExit は drain スレッドから呼ばれる)。
-                onExit = { runCatching { renderAll(app) } },
+                // 終わったら「■」を「✓」へ戻す (onExit は drain スレッドから呼ばれる)。
+                onExit = {
+                    runCatching { WidgetStore.setRunFinish(app, name) }
+                    runCatching { renderAll(app) }
+                },
             )
-            if (ok) WidgetStore.setLastRun(context, name)
+            if (ok) WidgetStore.setRunStart(context, name)
         }
 
-        /** ウィジェット 1 個あたりの PendingIntent スロット数 (ボタン + ⟳)。 */
+        /** ウィジェット 1 個あたりの PendingIntent スロット数 (ボタン + ⟳ + ⚙)。 */
         private const val SLOTS_PER_WIDGET = 8
 
         /** ⟳ が使うスロット番号 (マクロボタンと衝突しない値)。 */
         private const val SLOT_REFRESH = 7
+
+        /** ⚙ が使うスロット番号。 */
+        private const val SLOT_CONFIG = 6
 
     }
 
@@ -299,6 +342,8 @@ class StatusWidgetProvider : AppWidgetProvider() {
         val rulesEnabled: Int,
         val batteryLevel: Int,
         val lastRun: Pair<String, Long>?,
+        /** 直近に**終わった**マクロと時刻。フッターで「止めたのではなく終わった」ことを示す。 */
+        val lastFinish: Pair<String, Long>?,
     ) {
         companion object {
             internal fun read(context: Context): Snapshot {
@@ -334,6 +379,7 @@ class StatusWidgetProvider : AppWidgetProvider() {
                         .getOrDefault(0),
                     batteryLevel = if (lvl >= 0 && scale > 0) lvl * 100 / scale else -1,
                     lastRun = WidgetStore.lastRun(context),
+                    lastFinish = WidgetStore.lastFinish(context),
                 )
             }
         }

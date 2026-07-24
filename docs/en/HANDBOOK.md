@@ -352,8 +352,16 @@ dropped into that folder show up the same way.
 |---|---|
 | 1st line | `ssh -p 2222 root@192.168.x.x` — the command to get into this device from a PC. **Green means `sshd` is running** (grey = just the address) |
 | 2nd line | Number of resident servers / enabled automation rules (`z2-when`) / battery level |
-| Buttons | The macros you picked. A tap runs one in the background. **While running it shows `■ name` in green** |
-| Bottom line | The macro that ran last, and when |
+| Top right | **⚙** — pick which macros to show / **⟳** — refresh right now |
+| Buttons | The macros you picked. A tap runs one in the background. Line 1 is the name, **line 2 is when that macro was last started** |
+| Button marker | `■` = running (green) / `✓` = ran and finished / no marker = never run yet |
+| Bottom line | The macro that **finished** last, and when |
+
+**When it looks like it started and stopped straight away**
+
+The macro may simply have **finished instantly** (one that only does an `echo`, for example).
+If `■` (running) is gone and `✓` is there, it was not stopped — it **completed normally**.
+The bottom line also says "✓ name finished at HH:MM". A macro that keeps running keeps its `■`.
 
 **Stopping a macro**
 
@@ -372,8 +380,10 @@ Note that **quitting the app also ends any macro started from the widget**.
 - Tap **the Z2Term title at the top left to open the app**.
 - Macro output is kept in `~/.z2term/widget/run.log`. If something does not work,
   run `tail ~/.z2term/widget/run.log` in the terminal.
-- To change which macros are shown, long-press the widget and reopen its settings
-  (Android 12 and later). On older Android, remove the widget and add it again.
+- To change which macros are shown, **tap ⚙ at the top right of the widget** (long-pressing the
+  widget to open its settings still works too).
+- **To get more macros into that list**, put your own `.sh` in `~/.z2term/macros/` in the terminal,
+  or run `z2-macro install all`, then reopen ⚙.
 
 ---
 

@@ -182,6 +182,15 @@ private fun ConfigScreen(
             }
         }
 
+        // 「一覧に無いマクロをどう足すのか分からない」という実機フィードバックへの対応。
+        // 一覧が空のときだけでなく**常に**出す (足し方はここでしか分からない)。
+        Text(
+            text = stringResource(R.string.widget_config_add_hint),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ConfigButton(
                 label = stringResource(R.string.widget_config_save),

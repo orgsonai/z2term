@@ -20,6 +20,11 @@ object WidgetStore {
     private const val KEY_MACROS_PREFIX = "macros_"
     private const val KEY_LAST_RUN_NAME = "last_run_name"
     private const val KEY_LAST_RUN_AT = "last_run_at"
+    private const val KEY_LAST_FINISH_NAME = "last_finish_name"
+    private const val KEY_LAST_FINISH_AT = "last_finish_at"
+
+    /** マクロごとの「最後に開始した時刻」。キーは `run_at_<ファイル名>`。 */
+    private const val KEY_RUN_AT_PREFIX = "run_at_"
 
     /** 1 つのウィジェットに並べられるマクロの上限 (レイアウトのボタン数と一致させること)。 */
     const val MAX_MACROS = 4
@@ -65,13 +70,42 @@ object WidgetStore {
         prefs(context).edit().remove(KEY_MACROS_PREFIX + appWidgetId).apply()
     }
 
-    // --- 直近に走らせたマクロ (全ウィジェット共通の表示) ---
+    // --- 実行の記録 ---
 
-    fun setLastRun(context: Context, name: String) {
+    /**
+     * [name] を開始したことを記録する。**マクロごとに**持つのが要点で、
+     * 全体で 1 件しか覚えていなかった 0.8.215 までは**複数走らせるとどれがいつのものか
+     * 分からなかった** (実機フィードバック 2026-07-24)。ボタンの 2 行目に出す。
+     */
+    fun setRunStart(context: Context, name: String) {
         prefs(context).edit()
+            .putLong(KEY_RUN_AT_PREFIX + name, System.currentTimeMillis())
             .putString(KEY_LAST_RUN_NAME, name)
             .putLong(KEY_LAST_RUN_AT, System.currentTimeMillis())
             .apply()
+    }
+
+    /** [name] を最後に開始した時刻 (一度も無ければ 0)。 */
+    fun runStartAt(context: Context, name: String): Long =
+        prefs(context).getLong(KEY_RUN_AT_PREFIX + name, 0L)
+
+    /**
+     * [name] が終わったことを記録する。**終了を表示するため**に要る。
+     * すぐ終わるマクロだと `■` が一瞬で消えるので「勝手に停止された」ように見え、
+     * 正常終了と停止の区別が付かなかった (同上のフィードバック)。
+     */
+    fun setRunFinish(context: Context, name: String) {
+        prefs(context).edit()
+            .putString(KEY_LAST_FINISH_NAME, name)
+            .putLong(KEY_LAST_FINISH_AT, System.currentTimeMillis())
+            .apply()
+    }
+
+    /** 直近に終わったマクロ名と時刻 (無ければ null)。 */
+    fun lastFinish(context: Context): Pair<String, Long>? {
+        val p = prefs(context)
+        val name = p.getString(KEY_LAST_FINISH_NAME, null) ?: return null
+        return name to p.getLong(KEY_LAST_FINISH_AT, 0L)
     }
 
     /** 直近に走らせたマクロ名と時刻 (無ければ null)。 */
