@@ -128,25 +128,47 @@ class TailWidgetProvider : AppWidgetProvider() {
             ids.forEach { id -> mgr.updateAppWidget(id, buildViews(context, mgr, id)) }
         }
 
+        /** 本文以外が使う高さ (dp)。上下 padding 20 + ヘッダー 40 + 本文の上 margin 6 + 本文 padding 12 + フッター 18。 */
+        private const val CHROME_DP = 20 + 40 + 6 + 12 + 18
+
         /**
          * いまのウィジェットの高さに入る行数。
          *
-         * 行数を固定にしていた 0.8.219 までは、**ウィジェットを縦に伸ばすと下に隙間ができた**
-         * (実機フィードバック)。`OPTION_APPWIDGET_MIN_HEIGHT` は「そのウィジェットが確実に持てる
-         * 高さ (dp)」なので、そこからヘッダー・フッター・余白を引いた残りを 1 行の高さで割る。
-         * 取れないときだけ [TailStore.DEFAULT_LINES]。
+         * ⚠ **`OPTION_APPWIDGET_MIN_HEIGHT` は「縦画面での高さ」ではない。** Android は
+         * `MIN_HEIGHT` に**横画面での高さ**、`MAX_HEIGHT` に**縦画面での高さ**を入れる
+         * (幅は逆で MIN が縦画面)。0.8.222 まで MIN_HEIGHT を見ていたため**実際より小さく見積もり、
+         * 上に隙間が空いてログが入りきらなかった** (実機フィードバック 2026-07-25)。
+         * いまの向きに合う方を使う。
+         *
+         * 行の高さも 13dp 決め打ちをやめ、**実際のフォント metrics から測る** (端末のフォント
+         * スケール設定にも追従する)。
+         *
+         * ⛔ **多めに見積もってはいけない。** TextView は中身が高さを超えると `gravity=bottom` が
+         * 効かなくなり、**上詰めで描かれて末尾 (＝最新の行) が切れる**。必ず切り捨て。
          */
-        private fun linesFor(mgr: AppWidgetManager, appWidgetId: Int): Int {
-            val h = runCatching {
-                mgr.getAppWidgetOptions(appWidgetId)
-                    .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
-            }.getOrDefault(0)
+        private fun linesFor(context: Context, mgr: AppWidgetManager, appWidgetId: Int): Int {
+            val opts = runCatching { mgr.getAppWidgetOptions(appWidgetId) }.getOrNull()
+                ?: return TailStore.DEFAULT_LINES
+            val portrait = context.resources.configuration.orientation !=
+                android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            val key = if (portrait) AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT
+            else AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT
+            val h = opts.getInt(key, 0)
             if (h <= 0) return TailStore.DEFAULT_LINES
-            // 内訳: 上下 padding 20 + ヘッダー 40 + 本文の上 margin 6 + 本文 padding 12
-            //      + フッター (margin 5 + 文字 13)。
-            val body = h - (20 + 40 + 6 + 12 + 18)
-            // 本文は 10sp・等幅。行送りは概ね 13dp。
-            return (body / 13).coerceIn(TailStore.MIN_LINES, TailStore.MAX_LINES)
+
+            val density = context.resources.displayMetrics.density
+            val bodyPx = (h - CHROME_DP) * density
+            if (bodyPx <= 0f) return TailStore.MIN_LINES
+
+            // 本文と同じ 10sp・等幅で 1 行の送りを測る。
+            val paint = android.text.TextPaint().apply {
+                typeface = android.graphics.Typeface.MONOSPACE
+                textSize = 10f * context.resources.displayMetrics.scaledDensity
+            }
+            val fm = paint.fontMetrics
+            val lineHeightPx = (fm.descent - fm.ascent + fm.leading).coerceAtLeast(1f)
+
+            return (bodyPx / lineHeightPx).toInt().coerceIn(TailStore.MIN_LINES, TailStore.MAX_LINES)
         }
 
         private fun buildViews(context: Context, mgr: AppWidgetManager, appWidgetId: Int): RemoteViews {
@@ -172,7 +194,7 @@ class TailWidgetProvider : AppWidgetProvider() {
 
             val rel = TailStore.path(context, appWidgetId)
             val file = TailStore.file(context, appWidgetId)
-            val lines = linesFor(mgr, appWidgetId)
+            val lines = linesFor(context, mgr, appWidgetId)
 
             when {
                 rel == null -> {

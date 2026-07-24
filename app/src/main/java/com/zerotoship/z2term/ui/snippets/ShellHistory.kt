@@ -39,13 +39,18 @@ object ShellHistory {
      */
     fun load(context: Context): List<Entry> {
         val h = home(context)
-        val bash = parseBash(readTail(File(h, ".bash_history")))
-        val zsh = parseZsh(readTail(File(h, ".zsh_history")))
+        val bash = parseBash(readTail(File(h, ".bash_history"), unmetafy = false))
+        val zsh = parseZsh(readTail(File(h, ".zsh_history"), unmetafy = true))
         return merge(bash, zsh)
     }
 
-    /** ファイル末尾を読む（無ければ空文字）。 */
-    private fun readTail(file: File): String {
+    /**
+     * ファイル末尾を読む（無ければ空文字）。
+     *
+     * [unmetafy] は zsh 用。**zsh は履歴ファイルで非 ASCII を "metafy" して書く**ので、
+     * そのまま UTF-8 として読むと日本語が化ける ([unmetafy] 参照)。
+     */
+    private fun readTail(file: File, unmetafy: Boolean): String {
         if (!file.isFile) return ""
         return runCatching {
             RandomAccessFile(file, "r").use { raf ->
@@ -55,12 +60,46 @@ object ShellHistory {
                 raf.seek(from)
                 val buf = ByteArray((len - from).toInt())
                 raf.readFully(buf)
-                val text = String(buf, Charsets.UTF_8)
+                val bytes = if (unmetafy) unmetafy(buf) else buf
+                val text = String(bytes, Charsets.UTF_8)
                 // 途中から読んだときの半端な 1 行目は捨てる。
                 if (from > 0) text.substringAfter('\n', "") else text
             }
         }.getOrDefault("")
     }
+
+    /**
+     * zsh の履歴ファイルの "metafy" を元に戻す。
+     *
+     * zsh は履歴に書くとき、**0x80 以上のバイトを `0x83` + `(元のバイト xor 0x20)` の 2 バイトに
+     * 置き換える**（内部表現をそのままファイルへ出しているため）。だから UTF-8 の日本語は
+     * `0x83` 混じりの並びになり、**そのまま読むと必ず化ける**（実機の `.zsh_history` で確認:
+     * 生のままでは UTF-8 として不正、この変換を通すと全体が正しく UTF-8 になる。2026-07-25）。
+     *
+     * 末尾が `0x83` で切れている場合（末尾だけ読んでいるので起こり得る）はそのまま落とす。
+     */
+    internal fun unmetafy(src: ByteArray): ByteArray {
+        // 目印が無いなら触らない（無駄なコピーを避ける）。
+        if (src.none { it == META }) return src
+        val out = ByteArray(src.size)
+        var w = 0
+        var i = 0
+        while (i < src.size) {
+            val b = src[i]
+            if (b == META) {
+                if (i + 1 >= src.size) break  // 末尾で切れている
+                out[w++] = (src[i + 1].toInt() xor 0x20).toByte()
+                i += 2
+            } else {
+                out[w++] = b
+                i++
+            }
+        }
+        return out.copyOf(w)
+    }
+
+    /** zsh が metafy に使う目印バイト (0x83)。 */
+    private const val META: Byte = 0x83.toByte()
 
     /** `.bash_history`（1 行 1 コマンド）。時刻は持たないので 0。 */
     internal fun parseBash(text: String): List<Entry> =

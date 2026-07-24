@@ -53,6 +53,30 @@ class ShellHistoryTest {
         assertEquals(20L, got[0].at)
     }
 
+    // --- zsh の metafy (日本語が化ける原因) ---
+
+    @Test fun unmetafyRestoresUtf8() {
+        // zsh は 0x80 以上のバイトを 0x83 + (byte xor 0x20) にして書く。
+        // 「あ」= E3 81 82 は E3->83 C3, 81->83 A1, 82->83 A2 の並びで保存される。
+        val metafied = byteArrayOf(
+            0x83.toByte(), 0xC3.toByte(),
+            0x83.toByte(), 0xA1.toByte(),
+            0x83.toByte(), 0xA2.toByte(),
+        )
+        assertEquals("あ", String(ShellHistory.unmetafy(metafied), Charsets.UTF_8))
+    }
+
+    @Test fun unmetafyLeavesAsciiAlone() {
+        val ascii = "ls -la\n".toByteArray(Charsets.UTF_8)
+        assertEquals("ls -la\n", String(ShellHistory.unmetafy(ascii), Charsets.UTF_8))
+    }
+
+    @Test fun unmetafyToleratesTruncatedTail() {
+        // 末尾だけ読むので、目印の途中で切れることがある。落として続ける。
+        val cut = byteArrayOf('a'.code.toByte(), 0x83.toByte())
+        assertEquals("a", String(ShellHistory.unmetafy(cut), Charsets.UTF_8))
+    }
+
     @Test fun filterNeedsEveryTerm() {
         val entries = listOf(
             ShellHistory.Entry("git --no-pager log", 0),

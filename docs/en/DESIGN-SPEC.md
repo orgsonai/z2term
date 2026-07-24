@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.222-alpha (versionCode 230)
+Last updated: 2026-07-25 / Target version: 0.8.223-alpha (versionCode 231)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -439,7 +439,9 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 
 Both are merged **newest first**, deduplicated (the timestamped zsh entry wins). zsh's `SHARE_HISTORY` means every tab shares one file, so **per-tab or per-distro splitting has nothing to split** — one flat list is correct. The files grow without bound, so only the **last 256KB** is read, capped at 300 entries. Filtering is case-insensitive and requires **every whitespace-separated term** (`git log` also matches `git --no-pager log`).
 
-**Tapping never runs anything** — it only inserts, matching the safety stance of B1 (share receiving). The parsing is Android-independent and covered by `ShellHistoryTest` (7 cases).
+**Tapping never runs anything** — it only inserts, matching the safety stance of B1 (share receiving). The parsing is Android-independent and covered by `ShellHistoryTest` (10 cases).
+
+> ⚠ **zsh's history file is "metafied".** zsh writes every byte >= 0x80 as `0x83` followed by `(byte xor 0x20)`, so **reading it as UTF-8 directly always mangles Japanese** (it did, in 0.8.222). 0.8.223 runs it through `ShellHistory.unmetafy` first. The real `.zsh_history` on the test device is invalid UTF-8 as stored and decodes cleanly after the conversion (868 occurrences of 0x83). `.bash_history` is plain UTF-8 and is left alone.
 
 **Only 50 rows are drawn**: the History tab lives inside the sheet's own `verticalScroll`, so a `LazyColumn` **cannot be nested** (same scroll direction). Composing 300 rows at once makes opening the tab sluggish, so 300 are kept in memory but only the first 50 are rendered, with the remaining count shown at the bottom — narrow the filter to reach them. The real `.zsh_history` on the test device held 3912 lines / 3380 commands, so this cap matters in practice.
 
@@ -476,7 +478,11 @@ Both are merged **newest first**, deduplicated (the timestamped zsh entry wins).
 
 `TailStore.resolve` **rejects anything outside `~` by canonicalPath comparison**, so this never becomes a window into the app's private data. Save only works when the path is a real file, and otherwise says why (never a button that silently does nothing).
 
-**The line count follows the widget's height (0.8.220)**: with a fixed count, **stretching the widget vertically left a gap at the bottom**. `OPTION_APPWIDGET_MIN_HEIGHT` (the height the widget is guaranteed to have, in dp) minus header, footer and padding, divided by 13dp per line, clamped to 2..30. Resizes come in through `onAppWidgetOptionsChanged`. The manual line-count setting was dropped.
+**The line count follows the widget's height (0.8.220, fixed in 0.8.223)**: with a fixed count, **stretching the widget vertically left a gap**. Header, footer and padding are subtracted and the rest divided by one line's height, clamped to 2..30. Resizes come in through `onAppWidgetOptionsChanged`. The manual line-count setting was dropped.
+
+> ⚠ **`OPTION_APPWIDGET_MIN_HEIGHT` is not "the height in portrait".** Android puts the **landscape** height in `MIN_HEIGHT` and the **portrait** height in `MAX_HEIGHT` (widths are the other way round). Up to 0.8.222 this code read `MIN_HEIGHT`, **underestimated the space, and left a gap at the top with log lines missing** (on-device feedback). 0.8.223 picks the value matching the current orientation and measures one line from **real font metrics** instead of assuming 13dp (which also tracks the device's font-scale setting).
+>
+> ⛔ **Never overestimate.** When the text is taller than the view, `TextView` stops honouring `gravity=bottom` and draws from the top, **cutting off the end — the newest lines**. Always round down.
 
 **Update triggers** (like D1, **no new resident component**):
 1. The OS periodic update (30 minutes, the OS floor)
