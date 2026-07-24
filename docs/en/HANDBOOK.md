@@ -352,11 +352,20 @@ dropped into that folder show up the same way.
 |---|---|
 | 1st line | `ssh -p 2222 root@192.168.x.x` — the command to get into this device from a PC. **Green means `sshd` is running** (grey = just the address) |
 | 2nd line | Number of resident servers / enabled automation rules (`z2-when`) / battery level |
-| Buttons | The macros you picked. A tap runs one in the background |
+| Buttons | The macros you picked. A tap runs one in the background. **While running it shows `■ name` in green** |
 | Bottom line | The macro that ran last, and when |
+
+**Stopping a macro**
+
+**Tap a running button again to stop it** (the `■` marks it as running). That makes it possible to
+stop long-running macros — the ones that keep watching for events — straight from the home screen.
+Note that **quitting the app also ends any macro started from the widget**.
 
 **Tips**
 
+- The macro list in the config screen shows **a description under each macro name**, read from the
+  comment at the top of the script. When writing your own `.sh`, put `# what this macro does` on the
+  line after the shebang (`#!/bin/sh`) and it will show up here.
 - Tap **⟳ at the top right to refresh right now**. Otherwise it updates every 30 minutes
   (Android does not allow anything shorter). It also redraws itself when resident servers
   start/stop or when you add, remove or toggle a `z2-when` rule.

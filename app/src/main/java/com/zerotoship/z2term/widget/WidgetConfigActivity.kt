@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,9 +15,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -64,6 +68,9 @@ class WidgetConfigActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // MainActivity / GuiActivity と同じく edge-to-edge にする。どの API でも同じ前提になるので、
+        // 中身の `windowInsetsPadding(systemBars)` が二重padding にならない。
+        enableEdgeToEdge()
         // 途中でやめた (戻る) ときはウィジェットを置かない、が Android の作法。
         setResult(Activity.RESULT_CANCELED)
 
@@ -79,12 +86,15 @@ class WidgetConfigActivity : ComponentActivity() {
 
         val available = WidgetStore.availableMacros(this)
         val initial = WidgetStore.macros(this, appWidgetId)
+        // ファイル名だけでは何のマクロか分からないので、スクリプト先頭のコメントを説明として出す。
+        val descriptions = available.associateWith { WidgetStore.description(this, it) }
 
         setContent {
             Z2TermTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = ZtsBgPrimary) {
                     ConfigScreen(
                         available = available,
+                        descriptions = descriptions,
                         initial = initial,
                         onSave = { selected -> save(selected) },
                         onCancel = { finish() },
@@ -111,6 +121,7 @@ class WidgetConfigActivity : ComponentActivity() {
 @Composable
 private fun ConfigScreen(
     available: List<String>,
+    descriptions: Map<String, String>,
     initial: List<String>,
     onSave: (List<String>) -> Unit,
     onCancel: () -> Unit,
@@ -120,6 +131,10 @@ private fun ConfigScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            // ステータスバー / ナビゲーションバーの下に潜り込ませない。targetSdk 35 の
+            // Android 15 は edge-to-edge が強制なので、これが無いと上下が隠れて押せない
+            // (実機フィードバック 2026-07-24)。既存の画面と同じ書き方に揃えている。
+            .windowInsetsPadding(WindowInsets.systemBars)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -155,6 +170,7 @@ private fun ConfigScreen(
                     val checked = name in selected
                     MacroRow(
                         name = name,
+                        description = descriptions[name].orEmpty(),
                         checked = checked,
                         // 上限に達していたら未選択の行は押せない (先に外してもらう)。
                         enabled = checked || selected.size < WidgetStore.MAX_MACROS,
@@ -180,9 +196,14 @@ private fun ConfigScreen(
     }
 }
 
+/**
+ * マクロ 1 件の行。**ファイル名だけでは何のマクロか分からない**という実機フィードバック
+ * (2026-07-24) を受けて、`.sh` を落とした名前の下にスクリプト先頭コメントの説明を出す。
+ */
 @Composable
 private fun MacroRow(
     name: String,
+    description: String,
     checked: Boolean,
     enabled: Boolean,
     onToggle: () -> Unit,
@@ -209,12 +230,20 @@ private fun MacroRow(
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace
         )
-        Text(
-            text = name,
-            color = fg,
-            fontSize = 12.sp,
-            fontFamily = FontFamily.Monospace
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = WidgetStore.label(name),
+                color = fg,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = description.ifBlank { stringResource(R.string.widget_config_no_desc) },
+                color = ZtsTextSecondary,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
     }
 }
 

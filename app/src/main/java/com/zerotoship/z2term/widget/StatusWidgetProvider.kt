@@ -56,6 +56,14 @@ class StatusWidgetProvider : AppWidgetProvider() {
                     renderAll(ctx)
                 }
             }
+            // 実行中のボタンをもう一度押したとき。停止は最大 1 秒ブロックするので必ず別スレッドで。
+            ACTION_STOP_MACRO -> {
+                val macro = intent.getStringExtra(EXTRA_MACRO).orEmpty()
+                background(context) { ctx ->
+                    if (macro.isNotBlank()) HeadlessRun.stop(runKey(macro))
+                    renderAll(ctx)
+                }
+            }
             // 定期更新 (APPWIDGET_UPDATE) も自前で受けて非同期に描く。onUpdate は使わない。
             ACTION_REFRESH, AppWidgetManager.ACTION_APPWIDGET_UPDATE ->
                 background(context) { ctx -> renderAll(ctx) }
@@ -96,7 +104,13 @@ class StatusWidgetProvider : AppWidgetProvider() {
         /** マクロボタンのタップ。 */
         private const val ACTION_RUN_MACRO = "com.zerotoship.z2term.widget.RUN_MACRO"
 
+        /** 実行中のマクロボタンのタップ (= 停止)。 */
+        private const val ACTION_STOP_MACRO = "com.zerotoship.z2term.widget.STOP_MACRO"
+
         private const val EXTRA_MACRO = "macro"
+
+        /** [HeadlessRun] に渡す実行キー。ウィジェット発の実行だと分かる形にしておく。 */
+        private fun runKey(macro: String) = "widget-$macro"
 
         /** マクロ実行のまとめログ (`~/.z2term/widget/run.log`)。端末から `tail` して確かめられる。 */
         private const val LOG_REL = ".z2term/widget/run.log"
@@ -164,10 +178,28 @@ class StatusWidgetProvider : AppWidgetProvider() {
                 if (name == null) {
                     views.setViewVisibility(viewId, View.GONE)
                 } else {
+                    // 実行中は「■ 名前」にして、同じボタンのタップで止められるようにする
+                    // (RemoteViews に長押しは無いので、モードを増やさずトグルにするのが自然)。
+                    val busy = HeadlessRun.isRunning(runKey(name))
                     views.setViewVisibility(viewId, View.VISIBLE)
-                    views.setTextViewText(viewId, WidgetStore.label(name))
+                    views.setTextViewText(
+                        viewId,
+                        if (busy) context.getString(R.string.widget_btn_running, WidgetStore.label(name))
+                        else WidgetStore.label(name)
+                    )
+                    views.setTextColor(
+                        viewId,
+                        ContextCompat.getColor(
+                            context,
+                            if (busy) R.color.widget_accent else R.color.widget_text_primary
+                        )
+                    )
                     views.setOnClickPendingIntent(
-                        viewId, broadcast(context, appWidgetId, slot, ACTION_RUN_MACRO, name)
+                        viewId,
+                        broadcast(
+                            context, appWidgetId, slot,
+                            if (busy) ACTION_STOP_MACRO else ACTION_RUN_MACRO, name
+                        )
                     )
                 }
             }
@@ -235,12 +267,15 @@ class StatusWidgetProvider : AppWidgetProvider() {
             val q = HeadlessRun.shSingleQuote(name)
             val script = "export Z2_WIDGET_MACRO=$q; cd \"\$HOME\" 2>/dev/null; " +
                 "sh \"\$HOME/.z2term/macros/\"$q"
+            val app = context.applicationContext
             val ok = HeadlessRun.launch(
                 context = context,
                 script = script,
                 logFile = File(File(context.filesDir, "shared_home"), LOG_REL),
-                name = "widget-$name",
+                name = runKey(name),
                 header = HeadlessRun.logHeader("widget $name"),
+                // 終わったらボタンの「■」を戻す (onExit は drain スレッドから呼ばれる)。
+                onExit = { runCatching { renderAll(app) } },
             )
             if (ok) WidgetStore.setLastRun(context, name)
         }

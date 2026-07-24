@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-24 / 対象バージョン: 0.8.214-alpha (versionCode 222)
+最終更新: 2026-07-24 / 対象バージョン: 0.8.215-alpha (versionCode 223)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -447,6 +447,12 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 **描画の制約**: `RemoteViews` はランチャーのプロセスで描かれるため **Compose の動的パレット（`AppColors`）を読めない**。ウィジェットだけは ZTS ダークパレットの固定色を `res/values/colors.xml` の `widget_*` に持ち、選択中テーマには追従しない（意図的）。ボタンは View を動的に生やせないので**4 個ぶんをレイアウトに置いて余りを `GONE`** にする。読み取りはファイル I/O と設定 DataStore を含むので、描画は必ず `goAsync()` + 別スレッドで行う。
 
 **PendingIntent の一意化**: requestCode（`appWidgetId * 8 + スロット`）と data（`z2term://widget/<id>/<slot>`）の両方をウィジェット×ボタンで一意にする。どちらかが同じだと PendingIntent が使い回され、別のボタンが前のマクロを走らせる。
+
+**実行中はもう一度タップで停止（0.8.215）**: `RemoteViews` に長押しは無いので、**モードを増やさず同じボタンのトグル**にした。実行中はラベルが `■ 名前` になりアクセント色（`widget_accent`）で、タップすると `ACTION_STOP_MACRO` → `HeadlessRun.stop`。実行中かどうかは `HeadlessRun` が持つ**プロセス内のマップ**（`name` → `PtyProcess`）で判定する。アプリのプロセスが死ねば起動した子プロセスも道連れなので、**マップが空から始まるのは正しい**（「動いていないのに動いている表示」にならない）。停止は `PtyProcess.close`（SIGHUP → 最大 1 秒待って SIGKILL）なのでブロードキャスト受信スレッドから直接呼ばず、必ず別スレッドへ逃がす。終了時は `HeadlessRun.launch(onExit = …)` から再描画して `■` を戻す。
+
+**設定画面（0.8.215 で 2 件修正）**:
+- **インセット**: `enableEdgeToEdge()` ＋ ルートに `windowInsetsPadding(WindowInsets.systemBars)`。targetSdk 35（Android 15）は edge-to-edge が強制なので、これが無いと**ステータスバーと 3 ボタンナビの下に潜り込んで見えず、操作もできない**（実機で発生）。新しい `Activity` を足すときは既存画面と同じこの書き方に必ず揃えること。
+- **マクロの説明**: ファイル名だけ並べても何のマクロか分からないので、`.sh` を落とした名前の下に**スクリプト先頭のコメント**を 1 行説明として出す（`WidgetStore.describe`・Android 非依存で `WidgetStoreTest` が押さえる）。シェバンと空行は飛ばし、`# ~/.z2term/macros/<自分>.sh` のような自己言及行も飛ばす。`# <ファイル名> — <説明>` の形なら頭のファイル名を落とす（区切りが `—` / `–` / ` - ` / `:` のとき、かつ**その手前が自分のファイル名と一致するときだけ**。`z2term: …` のような接頭辞は説明の一部として残す）。60 文字で切り詰め。
 
 #### 通知ボタンによる応答（`NotifyActionReceiver` / `z2-notify -b`、0.8.169）
 

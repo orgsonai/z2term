@@ -562,7 +562,9 @@
     <string name="widget_last_run">\u25b6 %1$s %2$s</string>
     <string name="widget_no_macros">No macros yet. Run z2-macro install all in the terminal.</string>
     <string name="widget_config_title">Macros on this widget</string>
-    <string name="widget_config_desc">Up to %1$d. A tap runs the macro in the background \u2014 the app does not open.</string>
+    <string name="widget_config_desc">Up to %1$d. A tap runs the macro in the background \u2014 the app does not open. Tap a running macro again to stop it.</string>
+    <string name="widget_btn_running">\u25a0 %1$s</string>
+    <string name="widget_config_no_desc">(no description in the script)</string>
     <string name="widget_config_empty">~/.z2term/macros is empty. Run z2-macro install all in the terminal, then add the widget again.</string>
     <string name="widget_config_save">Save</string>
     <string name="widget_config_cancel">Cancel</string>

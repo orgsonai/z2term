@@ -554,7 +554,9 @@
     <string name="widget_last_run">\u25b6 %1$s %2$s</string>
     <string name="widget_no_macros">マクロがありません。端末で z2-macro install all を実行してください。</string>
     <string name="widget_config_title">このウィジェットに並べるマクロ</string>
-    <string name="widget_config_desc">最大 %1$d 個。タップするとバックグラウンドで実行します（アプリは開きません）。</string>
+    <string name="widget_config_desc">最大 %1$d 個。タップするとバックグラウンドで実行します（アプリは開きません）。実行中のマクロは、もう一度タップすると停止します。</string>
+    <string name="widget_btn_running">■ %1$s</string>
+    <string name="widget_config_no_desc">（スクリプトに説明がありません）</string>
     <string name="widget_config_empty">~/.z2term/macros が空です。端末で z2-macro install all を実行してから、もう一度ウィジェットを追加してください。</string>
     <string name="widget_config_save">保存</string>
     <string name="widget_config_cancel">キャンセル</string>

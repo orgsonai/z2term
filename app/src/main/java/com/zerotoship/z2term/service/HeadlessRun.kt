@@ -4,11 +4,13 @@ import android.content.Context
 import android.util.Log
 import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.proot.ProotLauncher
+import com.zerotoship.z2term.pty.PtyProcess
 import com.zerotoship.z2term.settings.AppSettings
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 画面を持たない実行 (headless run) の共通経路。
@@ -29,11 +31,37 @@ object HeadlessRun {
     const val LOG_RESET_BYTES = 128L * 1024
 
     /**
+     * いま走っている headless 実行 (`name` → プロセス)。**アプリのプロセス内メモリだけ**に持つ。
+     *
+     * アプリが死ねば起動した子プロセスも道連れになるので、プロセスが作り直されたときに
+     * 空から始まるのは正しい (「動いていないのに動いている表示」にならない)。
+     * ウィジェットのボタンを「実行中はタップで停止」に変えるために使う。
+     */
+    private val running = ConcurrentHashMap<String, PtyProcess>()
+
+    /** [name] の実行が今も生きているか。 */
+    fun isRunning(name: String): Boolean = running[name]?.isAlive == true
+
+    /**
+     * [name] の実行を止める。止めるものが無ければ false。
+     *
+     * [PtyProcess.close] は SIGHUP → 最大 1 秒待って SIGKILL まで行うので**呼び出しはブロックする**。
+     * ブロードキャスト受信スレッドから直接呼ばないこと (呼び元でスレッドへ逃がす)。
+     */
+    fun stop(name: String): Boolean {
+        val p = running.remove(name) ?: return false
+        Log.i(TAG, "stopping $name")
+        runCatching { p.close() }
+        return true
+    }
+
+    /**
      * [script] を headless で実行する。起動できたら true。
      *
      * @param logFile 出力の追記先。null なら出力は捨てる (それでも pty は読み切る)。
      * @param header  実行の頭に書く 1 行 (null なら書かない)。誰がいつ走らせたかを残すために使う。
-     * @param name    ログ/スレッド名に使う短い識別子。
+     * @param name    ログ/スレッド名に使う短い識別子。[isRunning] / [stop] のキーも兼ねる。
+     * @param onExit  実行が終わったときに呼ばれる (別スレッド)。表示を戻すために使う。
      */
     fun launch(
         context: Context,
@@ -41,6 +69,7 @@ object HeadlessRun {
         logFile: File?,
         name: String,
         header: String? = null,
+        onExit: (() -> Unit)? = null,
     ): Boolean {
         val settings = runCatching { runBlocking { AppSettings(context).flow.first() } }.getOrNull() ?: return false
         val distroId = settings.distroId
@@ -72,6 +101,8 @@ object HeadlessRun {
         }
 
         Log.i(TAG, "launched $name on $distroId")
+        // 同名の前回分が残っていたら畳んでおく (キーを上書きして取り違えないように)。
+        running.put(name, process)?.let { old -> runCatching { old.close() } }
         // 出力を流し切る (誰も読まないと pty バッファが埋まり、実行側の書込みが詰まる)。
         // プロセス終了で EOF → close。
         val threadName = "headless-$name"
@@ -89,7 +120,11 @@ object HeadlessRun {
             } catch (_: Exception) {
                 // 終了時 close の例外は正常終了扱い。
             } finally {
+                // stop() が既に別のプロセスを登録し直している場合を壊さないよう、
+                // 自分が登録した実体と一致するときだけ外す。
+                running.remove(name, process)
                 runCatching { process.close() }
+                runCatching { onExit?.invoke() }
             }
         }.apply { isDaemon = true; this.name = threadName; start() }
         return true

@@ -59,4 +59,69 @@ class WidgetStoreTest {
     fun labelDropsExtension() {
         assertEquals("backup", WidgetStore.label("backup.sh"))
     }
+
+    // --- 説明の抽出 (設定画面で「sh が並んでいて何か分からない」を防ぐ) ---
+
+    @Test
+    fun descriptionComesFromLeadingComment() {
+        assertEquals(
+            "入門用マクロ。イベントを見て反応する。",
+            WidgetStore.describe(
+                "watch-basic.sh",
+                listOf("#!/bin/sh", "# watch-basic.sh — 入門用マクロ。イベントを見て反応する。", "# 準備: …")
+            )
+        )
+    }
+
+    @Test
+    fun descriptionSkipsSelfReferencingPathLine() {
+        // 同梱マクロには 2 行目が自分のパスだけ、というものがある。それは説明ではない。
+        assertEquals(
+            "画面消灯＝離席タイマー。",
+            WidgetStore.describe(
+                "away-timer.sh",
+                listOf("#!/bin/sh", "# ~/.z2term/macros/away-timer.sh", "# 画面消灯＝離席タイマー。")
+            )
+        )
+    }
+
+    @Test
+    fun descriptionKeepsPrefixThatIsNotTheFileName() {
+        // 「z2term: …」のようにファイル名以外の接頭辞は説明の一部なので落とさない。
+        assertEquals(
+            "z2term: 切り分け診断。",
+            WidgetStore.describe("ssh-diag.sh", listOf("#!/bin/sh", "# z2term: 切り分け診断。"))
+        )
+    }
+
+    @Test
+    fun descriptionStopsAtFirstCode() {
+        // コメント帯が終わったら諦める (本文の途中のコメントを説明に採らない)。
+        assertEquals(
+            "",
+            WidgetStore.describe("x.sh", listOf("#!/bin/sh", "echo hi", "# これは説明ではない"))
+        )
+    }
+
+    @Test
+    fun descriptionIsTruncated() {
+        val long = "あ".repeat(200)
+        val got = WidgetStore.describe("x.sh", listOf("#!/bin/sh", "# $long"))
+        assertEquals(60, got.length)
+        assertEquals('…', got.last())
+    }
+
+    @Test
+    fun descriptionEmptyWhenNoComment() {
+        assertEquals("", WidgetStore.describe("x.sh", listOf("#!/bin/sh", "", "echo hi")))
+    }
+
+    @Test
+    fun descriptionSurvivesBlankLineAfterShebang() {
+        // シェバンと説明の間に空行がある書き方でも拾う。
+        assertEquals(
+            "バックアップを取る。",
+            WidgetStore.describe("backup.sh", listOf("#!/bin/sh", "", "# バックアップを取る。", "echo hi"))
+        )
+    }
 }
