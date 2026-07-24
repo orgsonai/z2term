@@ -117,7 +117,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.debounce
+import com.zerotoship.z2term.service.ServerDaemonManager
+import com.zerotoship.z2term.service.ServerDaemonService
 import com.zerotoship.z2term.service.TerminalService
+import com.zerotoship.z2term.ui.components.ResidentActionDialog
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.ui.settings.SettingsSheet
 import com.zerotoship.z2term.ui.sftp.SftpSheet
@@ -224,6 +227,13 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     var inputViewRef by remember { mutableStateOf<TerminalInputView?>(null) }
     var keyboardCollapsed by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
+    // 常駐サーバーが稼働中か (🔒 の薄くロック表示・タップ時ダイアログの出し分けに使う)。
+    // supervisor の起動/停止は UI 外で起きるので周期ポーリングで追従する (ServersSheet と同方式)。
+    var serversRunning by remember { mutableStateOf(ServerDaemonManager.isRunning) }
+    var residentDialogOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        while (true) { serversRunning = ServerDaemonManager.isRunning; delay(1000) }
+    }
     // 自動起動前に DL 確認が要る spec (foss 初回など)。非 null の間ダイアログを出す。
     var pendingInitialDownload by remember(active.id) { mutableStateOf<DistroSpec?>(null) }
     var snippetsSheetOpen by remember { mutableStateOf(false) }
@@ -373,6 +383,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onToggleKeepScreenOn = { active.setKeepScreenOn(!settings.keepScreenOn) },
             keepAlive = settings.keepAliveService,
             onToggleKeepAlive = { active.setKeepAliveService(!settings.keepAliveService) },
+            residentLocked = serversRunning,
+            onLockedKeepAliveTap = { residentDialogOpen = true },
             toolbarOrder = settings.toolbarOrder,
             toolbarHidden = settings.toolbarHidden,
             onReorderToolbar = { active.setToolbarOrder(it) },
@@ -679,6 +691,28 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onCancel = { pendingInitialDownload = null }
         )
     }
+
+    // 常駐サーバー稼働中に🔒をタップしたときの終了ダイアログ (常駐に閉じ込められないための出口)。
+    if (residentDialogOpen) {
+        ResidentActionDialog(
+            onResetSession = { residentDialogOpen = false; SessionManager.resetToInitial(context) },
+            onStopAll = { residentDialogOpen = false; stopEverythingAndQuit(context) },
+            onCancel = { residentDialogOpen = false }
+        )
+    }
+}
+
+/**
+ * 常駐サーバー・セッション・常駐サービスをすべて止めてアプリを閉じる (タスクキル相当)。
+ *
+ * 常駐サーバーが動いていると最近履歴からのスワイプではプロセスが死なないため、明示的な出口として
+ * ここで全部落とす。順に: 常駐サーバー停止 → 全セッション終了 → セッション常駐 FG 停止 → タスク終了。
+ */
+private fun stopEverythingAndQuit(context: Context) {
+    ServerDaemonService.stop(context)
+    SessionManager.shutdown()
+    TerminalService.stop(context)
+    context.findActivity()?.finishAndRemoveTask()
 }
 
 /**
@@ -730,6 +764,12 @@ private fun GuiTabScreen(
     var settingsOpen by remember { mutableStateOf(false) }
     var snippetsSheetOpen by remember { mutableStateOf(false) }
     var clipHistoryOpen by remember { mutableStateOf(false) }
+    // 端末タブと同じく常駐サーバー稼働中は🔒を薄くロックし、タップで終了ダイアログを出す。
+    var serversRunning by remember { mutableStateOf(ServerDaemonManager.isRunning) }
+    var residentDialogOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        while (true) { serversRunning = ServerDaemonManager.isRunning; delay(1000) }
+    }
 
     val rootView = LocalView.current
     LaunchedEffect(keepScreenOn) { applyKeepScreenOn(context, rootView, keepScreenOn) }
@@ -835,6 +875,8 @@ private fun GuiTabScreen(
             onToggleKeepScreenOn = { scope.launch { appSettings.setKeepScreenOn(!settings.keepScreenOn) } },
             keepAlive = settings.keepAliveService,
             onToggleKeepAlive = { scope.launch { appSettings.setKeepAliveService(!settings.keepAliveService) } },
+            residentLocked = serversRunning,
+            onLockedKeepAliveTap = { residentDialogOpen = true },
             toolbarOrder = settings.toolbarOrder,
             toolbarHidden = settings.toolbarHidden,
             onReorderToolbar = { scope.launch { appSettings.setToolbarOrder(it) } },
@@ -1012,6 +1054,15 @@ private fun GuiTabScreen(
             onCancel = { pendingGuiStart = null; SessionManager.close(gui.id) }
         )
     }
+
+    // 端末タブと同じ常駐終了ダイアログ (常駐サーバー稼働中に🔒をタップしたとき)。
+    if (residentDialogOpen) {
+        ResidentActionDialog(
+            onResetSession = { residentDialogOpen = false; SessionManager.resetToInitial(context) },
+            onStopAll = { residentDialogOpen = false; stopEverythingAndQuit(context) },
+            onCancel = { residentDialogOpen = false }
+        )
+    }
 }
 
 /**
@@ -1044,6 +1095,8 @@ private fun GuiTopBar(
     onToggleKeepScreenOn: () -> Unit,
     keepAlive: Boolean,
     onToggleKeepAlive: () -> Unit,
+    residentLocked: Boolean,
+    onLockedKeepAliveTap: () -> Unit,
     toolbarOrder: String,
     toolbarHidden: String,
     onReorderToolbar: (String) -> Unit,
@@ -1081,7 +1134,7 @@ private fun GuiTopBar(
                     ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
                     ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
                     ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
-                    ToolbarItem(ToolbarButtons.KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
+                    keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
                     ToolbarItem(ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible)
                 ),
                 hidden = toolbarHidden,
@@ -1172,6 +1225,8 @@ private fun TopBar(
     onToggleKeepScreenOn: () -> Unit,
     keepAlive: Boolean,
     onToggleKeepAlive: () -> Unit,
+    residentLocked: Boolean,
+    onLockedKeepAliveTap: () -> Unit,
     toolbarOrder: String,
     toolbarHidden: String,
     onReorderToolbar: (String) -> Unit,
@@ -1221,7 +1276,7 @@ private fun TopBar(
                     ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
                     ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
                     ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
-                    ToolbarItem(ToolbarButtons.KEEP_ALIVE, if (keepAlive) "🔒" else "🔓", stringResource(R.string.tb_keep_alive), active = keepAlive, onClick = onToggleKeepAlive),
+                    keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
                     ToolbarItem(ToolbarButtons.SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
                     ToolbarItem(ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible),
                     // ⏺ 端末ログ: 短押し=記録の開始/停止 (記録中は点灯)、ダブルタップ=詳細設定。
@@ -1255,10 +1310,40 @@ private class ToolbarItem(
     val description: String,
     val active: Boolean = false,
     val enabled: Boolean = true,
+    // 押せるが薄く見せる (例: 常駐サーバー稼働中の🔒 = 解除不可のロック表示)。enabled=false と違い
+    // タップ自体は受け付ける (タップで代替アクションのダイアログを開くため)。
+    val dimmed: Boolean = false,
     val onClick: () -> Unit,
     // 設定時のみ有効化されるダブルタップ動作 (📋 貼付ボタンでクリップボード履歴を開く等)。
     val onDoubleClick: (() -> Unit)? = null
 )
+
+/**
+ * 🔒 バックグラウンド常駐トグルのツールバー項目を作る (端末 / GUI 共通)。
+ *
+ * 常駐サーバー稼働中 ([residentLocked]=true) はプロセスが生き続けるため、🔒 を OFF にしても
+ * セッションは消えない (最近履歴からのスワイプも効かない)。そこで ON 表示のまま薄くロックし、
+ * タップではトグルせず終了ダイアログ ([onLockedTap]) を開く。非稼働時は通常のトグル。
+ */
+@Composable
+private fun keepAliveToolbarItem(
+    residentLocked: Boolean,
+    keepAlive: Boolean,
+    onToggle: () -> Unit,
+    onLockedTap: () -> Unit,
+): ToolbarItem = if (residentLocked) {
+    ToolbarItem(
+        ToolbarButtons.KEEP_ALIVE, "🔒",
+        stringResource(R.string.tb_keep_alive_locked),
+        active = true, dimmed = true, onClick = onLockedTap
+    )
+} else {
+    ToolbarItem(
+        ToolbarButtons.KEEP_ALIVE, if (keepAlive) "🔒" else "🔓",
+        stringResource(R.string.tb_keep_alive),
+        active = keepAlive, onClick = onToggle
+    )
+}
 
 /**
  * 保存済み並び [saved] と現在表示すべき [present] をマージする。
@@ -1370,6 +1455,7 @@ private fun ReorderableToolbar(
                         icon = item.icon,
                         active = item.active,
                         enabled = item.enabled,
+                        dimmed = item.dimmed,
                         onClick = item.onClick,
                         onDoubleClick = item.onDoubleClick
                     )
@@ -1387,23 +1473,27 @@ private fun ToolbarChip(
     icon: String,
     active: Boolean,
     enabled: Boolean,
+    dimmed: Boolean = false,
     onClick: () -> Unit,
     onDoubleClick: (() -> Unit)? = null
 ) {
+    // dimmed = 押せるが薄く (常駐ロック等)。enabled=false のグレーアウトとは別で、色は活かしたまま
+    // 半透明にして「有効だが今は解除できない」を伝える。
+    val dim = if (dimmed) 0.4f else 1f
     val bg = when {
         !enabled -> ZtsBgCard.copy(alpha = 0.35f)
-        active -> ZtsGreen
-        else -> ZtsBgCard
+        active -> ZtsGreen.copy(alpha = dim)
+        else -> ZtsBgCard.copy(alpha = dim)
     }
     val fg = when {
         !enabled -> ZtsTextSecondary.copy(alpha = 0.4f)
-        active -> Color.Black
-        else -> ZtsTextPrimary
+        active -> Color.Black.copy(alpha = dim)
+        else -> ZtsTextPrimary.copy(alpha = dim)
     }
     val border = when {
         !enabled -> ZtsBorder.copy(alpha = 0.35f)
-        active -> ZtsGreen
-        else -> ZtsBorder
+        active -> ZtsGreen.copy(alpha = dim)
+        else -> ZtsBorder.copy(alpha = dim)
     }
     Box(
         modifier = Modifier

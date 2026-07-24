@@ -364,6 +364,13 @@
         <item quantity="other">%1$d 個のサーバーが稼働中</item>
     </plurals>
     <string name="server_action_stop">サーバー停止</string>
+    <!-- 常駐サーバー稼働中に🔒をタップしたときの操作ダイアログ (バックグラウンド常駐トグルの代わり) -->
+    <string name="resident_dialog_title">常駐サーバーが動作中</string>
+    <string name="resident_dialog_message">常駐サーバーが動いている間、アプリはバックグラウンドに残り続けます。最近履歴からスワイプしてもセッションは消えません。ここから終了できます。</string>
+    <string name="resident_dialog_reset_session">セッションだけ終了</string>
+    <string name="resident_dialog_reset_session_desc">端末を開き直した状態に戻す。常駐サーバーはそのまま動かし続けます。</string>
+    <string name="resident_dialog_stop_all">全部停止して終了</string>
+    <string name="resident_dialog_stop_all_desc">常駐サーバーもセッションも止めてアプリを閉じます（タスクキル相当）。</string>
     <string name="settings_section_servers">常駐サーバー</string>
     <string name="settings_servers_desc">任意のサーバー (sshd/http/smb 等) をバックグラウンドで常駐。アプリを開かなくても動かせます。</string>
     <string name="settings_open_servers">サーバーを管理</string>
@@ -512,6 +519,7 @@
     <string name="tb_snippets">コマンド一覧</string>
     <string name="tb_screen_on">画面消灯ロック</string>
     <string name="tb_keep_alive">バックグラウンド常駐</string>
+    <string name="tb_keep_alive_locked">常駐中（常駐サーバー稼働）</string>
     <string name="tb_search">スクロールバック検索</string>
     <string name="tb_keyboard">キーボード切替</string>
     <string name="tb_settings">設定</string>

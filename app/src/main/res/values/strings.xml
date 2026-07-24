@@ -366,6 +366,13 @@
         <item quantity="other">%1$d servers running</item>
     </plurals>
     <string name="server_action_stop">Stop servers</string>
+    <!-- Dialog shown when tapping the locked 🔒 while resident servers are running (replaces the keep-alive toggle) -->
+    <string name="resident_dialog_title">Resident servers are running</string>
+    <string name="resident_dialog_message">While resident servers run, the app stays in the background. Swiping it away from recents will not end the session. You can end it here.</string>
+    <string name="resident_dialog_reset_session">End session only</string>
+    <string name="resident_dialog_reset_session_desc">Return the terminal to a freshly opened state. Resident servers keep running.</string>
+    <string name="resident_dialog_stop_all">Stop everything and quit</string>
+    <string name="resident_dialog_stop_all_desc">Stop both the resident servers and the session, then close the app (like a task kill).</string>
     <string name="settings_section_servers">Resident servers</string>
     <string name="settings_servers_desc">Keep any server (sshd/http/smb, …) running in the background — even without opening the app.</string>
     <string name="settings_open_servers">Manage servers</string>
@@ -519,6 +526,7 @@
     <string name="tb_snippets">Command list</string>
     <string name="tb_screen_on">Keep screen on</string>
     <string name="tb_keep_alive">Keep running in background</string>
+    <string name="tb_keep_alive_locked">Resident (servers running)</string>
     <string name="tb_search">Search scrollback</string>
     <string name="tb_keyboard">Switch keyboard</string>
     <string name="tb_settings">Settings</string>

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-23 / 対象バージョン: 0.8.203-alpha (versionCode 211)
+最終更新: 2026-07-24 / 対象バージョン: 0.8.204-alpha (versionCode 212)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -852,6 +852,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - `terminal/TerminalScreen.kt`: 全体レイアウト。TopBar / TabBar / 描画領域 / キーボードトグル / キーボード領域。`KeyboardMode = CUSTOM | SYSTEM`。**横画面**は `LocalView.OnLayoutChangeListener` で向きを検知し、`landscapeKeyboardPosition`/`Width`/`Height` 設定に従って Row レイアウト (`SideKeyboardColumn`) に切替。`landscapeScaledStyle()` で keyHeight/font が横画面高さに比例拡縮。
   - **キーボードトグルバー (`KeyboardToggleBar`)**: タップでキーボード表示/非表示を切り替える 22dp 高の細いバー。**キーボードの上に配置**（端末タブ・GUI タブ共通）。設定 `keyboardToggleBar`（既定 ON）で表示/非表示を選べ、**OFF にするとバーを出さず ⌨ ツールバーボタンのダブルタップで表示/非表示を切り替える**（0.8.145。単タップ=キーボード切替は従来どおり。0.8.144 で一時キーボードの下へ移したが使いにくく上へ戻し、代わりに設定＋ダブルタップ方式を追加）。ラベルは表示/非表示どちらの状態でも「キーボード」を出す（`▴ キーボード` / `▾ キーボード`。従来は非表示側が `▾` のみ＋16dp 高で文字が縦に見切れていた）。`.clickable` の touch slop (約 8dp) だけではフリック入力中に指がバーへ掠めて誤って非表示が発動することがあったため、自前の `pointerInput` ジェスチャで **down からの累積移動が 24dp を超えたら onToggle を抑制**し、純粋なタップ（24dp 未満）でのみトグルするように変更（0.8.109。従来は touch slop 越えで `.clickable` が発火しないものの、短いドラッグが偶発的にタップ判定に流れて非表示になっていた）。
   - **ツールバー (`ReorderableToolbar`)**: 📋貼付 / 📜コマンド / 💡画面消灯ロック / 🔒バックグラウンド常駐 / 🔍検索 / ⌨キーボード切替 を `ToolbarItem` のリストで描く。**通常タップ=動作、長押しドラッグで並べ替え** (`detectDragGesturesAfterLongPress` + 隣との中心越えで `order` 入替)。長押し中は `ToolbarTooltip` で簡易説明を Popup 表示。並びは `AppSettings.toolbarOrder` (カンマ区切り id) に永続化し、`mergeToolbarOrder` で既存順とマージするのでボタン追加/削除でも壊れない。🔒常駐は既定で 💡 の右。GUI タブ (`GuiTopBar`) も同 `ReorderableToolbar` を共有 (検索なし・📋/📜 は keysym 橋渡し)。
+  - **🔒 常駐トグルは常駐サーバー稼働中はロックする** (0.8.204)。常駐サーバー (`ServerDaemonService`) が動いている間はプロセスが生き続けるため、🔒 を OFF にしてもセッションは消えない (最近履歴からスワイプしてもプロセスは死なない)。そこで `ServerDaemonManager.isRunning` を 1 秒周期でポーリングし、稼働中は 🔒 を **ON 表示のまま薄く (`ToolbarChip(dimmed=true)`) してトグル不可**にする。この間タップするとトグルの代わりに `ResidentActionDialog` を開き、「常駐に閉じ込められない」ための出口を出す — **セッションだけ終了** (`SessionManager.resetToInitial`。常駐サーバーはそのまま) / **全部停止して終了** (`ServerDaemonService.stop` + `SessionManager.shutdown` + `TerminalService.stop` + `finishAndRemoveTask`＝タスクキル相当)。ロック条件を常駐サーバーに限るのは、検知系 FG サービス (システムイベント/通知) は WakeLock を握らず 🔒 の「CPU を起こし続ける」独自価値が残るのに対し、常駐サーバーは同じ WakeLock/WifiLock を握るため 🔒 が完全に無意味になるから。端末タブ (`TopBar`)・GUI タブ (`GuiTopBar`) 共通 (`keepAliveToolbarItem`)。
   - **⚙設定は並べ替えにも非表示指定にも入れず、ツールバーの右端に固定**する (0.8.194)。`ReorderableToolbar` の外に `ToolbarChip` を 1 個直接置く形で、他をどう並べ替えても・どれだけ隠しても位置が動かない。
   - **出すボタンをユーザーが選べる** (0.8.194)。非表示 id は `AppSettings.toolbarHidden` (カンマ区切り) に永続化し、設定 › 表示 › **ツールバー**で切り替える。ボタンの一覧 (id / 代表アイコン / 説明 / 隠せるか) は `ui/terminal/ToolbarButtons.kt` の `CATALOG` に集約し、表示側と設定画面で同じ定義を共有する。**⚙ は `canHide = false`** — 隠せると設定画面へ戻る手段が無くなるため。**並べ替えの保存値には隠しているボタンの id も残す** (`persistOrder`): 表示中のものだけを保存すると、隠して出し直したときに末尾へ飛んでしまう。
     隠されたボタンのうちトグル系 (🔅 画面消灯ロック / 🔒 常駐) は**ツールバー以外に操作する場所が無い**ので、隠しているときだけ同じ「ツールバー」セクション内にトグルを出す。機能追加でボタンが増えても各自の画面は増やさない、という方針の受け皿でもある。
@@ -1112,7 +1113,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 | GUI 拡大率 | guiMagnification | 1.5 | 0.5–3.0 |
 | GUI クリーンインストール予約 | cleanInstallGuiArmed | false | 次に開く GUI タブで入れ直す。起動時に消化して false へ戻る |
 | ダウンロード前確認 | confirmBeforeDownload | true | true/false |
-| 常駐サービス | keepAliveService | true | true/false（ツールバーの 🔒 ロックで ON/OFF。**ツールバーから隠しているときだけ設定 › ツールバーにもトグルが出る** (0.8.194)） |
+| 常駐サービス | keepAliveService | true | true/false（ツールバーの 🔒 ロックで ON/OFF。**ツールバーから隠しているときだけ設定 › ツールバーにもトグルが出る** (0.8.194)。**常駐サーバー稼働中は 🔒 が薄くロックされトグル不可**になり、タップで終了ダイアログが出る (0.8.204)） |
 | 画面消灯ロック | keepScreenOn | false | true/false（ツールバーの 💡 で ON/OFF。**永続化して次回起動時に復元** (0.8.144)。隠しているときは設定 › ツールバーから (0.8.194)） |
 | キーボード表示バー | keyboardToggleBar | true | true/false（ON=キーボード上にトグルバー。OFF=バー無しで ⌨ ボタンのダブルタップ切替 (0.8.145)） |
 | ツールバー並び順 | toolbarOrder | ""（既定順） | カンマ区切り id。長押しドラッグで更新。隠しているボタンの id も残す |

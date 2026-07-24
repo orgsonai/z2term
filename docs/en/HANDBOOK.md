@@ -58,7 +58,7 @@ That's all the setup you need.
 | 📋 | Paste text from the clipboard (**double-tap to open the clipboard history** and pick from it) |
 | 📜 | Command list (tap a frequently used command to type it) + **SSH connect / SFTP** + **Servers** (manage resident servers) (switch with tabs) |
 | 🔅 | Screen-on lock (when ON, the screen won't auto-dim; the icon changes to 💡 while ON) |
-| 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF) |
+| 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF). **While resident servers are running, 🔒 is dimmed and can't be toggled** (the servers already keep the app alive, so turning it OFF here would do nothing). Tapping 🔒 in that state opens a screen to choose **"End session only" / "Stop everything and quit"** (see below) |
 | 🔍 | Search the on-screen text (jump back/forward with ↑↓; **tap in the input field to move the caret** and fix a typo in the middle) |
 | ⌨ | Switch between the phone's standard keyboard ⇄ the in-app keyboard |
 | ⏺ | Record a terminal log (tap to start, tap again to stop; **lit while recording**; **double-tap for the details**) |
@@ -316,6 +316,17 @@ Open ⚙ Settings → **Resident servers** → "Manage servers", or the **Server
 Note: ports below 1024 (e.g. 80) cannot be opened without root — use a high port (e.g. 8080).
 Note: excluding the app from battery optimization makes it less likely to be killed in the background (link inside ⚙ Settings).
 Note: if battery use bothers you, turn on "**Low-power mode**" — it lets the device sleep deeply while the screen is off to save battery, but incoming connections may be delayed or dropped during that time (battery over reachability).
+
+#### Ending the terminal while resident servers are running
+
+While resident servers run, the app stays in the background, so **swiping it away from recents will not close the terminal**. During this time the toolbar's **🔒 is dimmed and can't be toggled** (turning it OFF would do nothing).
+
+**Tap the dimmed 🔒** to choose one of two things:
+
+- **End session only**: returns the terminal to a **freshly opened state** (running programs end; screen and history are cleared). **Resident servers keep running.**
+- **Stop everything and quit**: **stops both the resident servers and the terminal and closes the app** (a reliable way to quit, since swiping won't).
+
+Pick "End session only" for a clean slate, or "Stop everything and quit" to stop it all.
 
 ---
 
