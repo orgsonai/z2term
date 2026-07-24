@@ -555,7 +555,9 @@
     <string name="widget_config_btn_desc">\u30de\u30af\u30ed\u3092\u9078\u3076</string>
     <string name="widget_btn_idle">%1$s\n%2$s</string>
     <string name="widget_btn_done">\u2713 %1$s\n%2$s</string>
-    <string name="widget_last_finish">\u2713 %1$s %2$s \u306b\u7d42\u4e86</string>
+    <string name="widget_last_finish">\u2713 %1$s %2$s</string>
+    <string name="widget_updated_at">\u27f3 %1$s</string>
+    <string name="widget_refreshing">\u66f4\u65b0\u4e2d\u2026</string>
     <string name="widget_no_macros">マクロがありません。端末で z2-macro install all を実行してください。</string>
     <string name="widget_config_title">このウィジェットに並べるマクロ</string>
     <string name="widget_config_desc">最大 %1$d 個。タップするとバックグラウンドで実行します（アプリは開きません）。実行中のマクロは、もう一度タップすると停止します。</string>
@@ -577,6 +579,13 @@
     <string name="tail_config_empty">~ の下にまだログがありません。マクロを走らせるか検知を ON にしてから、この画面を開き直してください。</string>
     <string name="tail_file_meta">%1$s · %2$d KB</string>
     <string name="tail_lines_label">出す行数</string>
+
+    <!-- D3 SSH 接続 QR -->
+    <string name="qr_widget_label">Z2Term SSH QR</string>
+    <string name="qr_widget_description">この端末に入るための ssh:// を QR で出します。PC のカメラで読めば、IP を打ち直さずに接続できます。</string>
+    <string name="qr_image_desc">ssh 接続先の QR コード</string>
+    <string name="qr_no_address">LAN アドレスなし</string>
+    <string name="qr_sshd_stopped">%1$s（sshd 停止中）</string>
     <string name="widget_config_empty">~/.z2term/macros が空です。端末で z2-macro install all を実行してから、もう一度ウィジェットを追加してください。</string>
     <string name="widget_config_save">保存</string>
     <string name="widget_config_cancel">キャンセル</string>

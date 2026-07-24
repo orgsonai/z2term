@@ -404,6 +404,17 @@ Keeps the **end of a log file** on your home screen, so you can see what a macro
 - **⚙** changes the file or the line count.
 - It only ever reads the **end** of the file, so it stays fast however large the log grows.
 
+### The third widget: SSH QR
+
+Shows **the address to ssh into this device, as a QR code**, so you never have to read an IP off the
+screen and type it again. Long-press the home screen → "Widgets" → **Z2Term SSH QR**. No settings.
+
+- The code contains `ssh://root@<this device's IP>:<port>`. Scan it with your PC's camera.
+- When Wi‑Fi changes the IP, **⟳** (or the 30-minute automatic refresh) catches up.
+- **If `sshd` is not running it says "(sshd stopped)"** — the code scans fine but nothing will answer,
+  so start `sshd` in the terminal first.
+- If it says "no LAN address", the device is not on Wi‑Fi (or airplane mode is on).
+
 ---
 
 ## 10. Troubleshooting (FAQ)

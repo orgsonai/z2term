@@ -33,7 +33,21 @@ class TailWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            ACTION_REFRESH, AppWidgetManager.ACTION_APPWIDGET_UPDATE ->
+            // ⟳ タップ。押した手応え (振動 + 「更新中…」) を先に返してから読み直す。
+            // マクロ完了などアプリ側からの refresh でも同じ経路を通るが、そちらは
+            // ユーザーが押したわけではないので振動させない。
+            ACTION_REFRESH -> {
+                val manual = intent.getBooleanExtra(EXTRA_MANUAL, false)
+                if (manual) WidgetFeedback.tick(context)
+                background(context) { ctx ->
+                    if (manual) {
+                        showBusy(ctx)
+                        Thread.sleep(WidgetFeedback.BUSY_HOLD_MS)
+                    }
+                    renderAll(ctx)
+                }
+            }
+            AppWidgetManager.ACTION_APPWIDGET_UPDATE ->
                 background(context) { ctx -> renderAll(ctx) }
             else -> super.onReceive(context, intent)
         }
@@ -63,6 +77,9 @@ class TailWidgetProvider : AppWidgetProvider() {
 
         private const val ACTION_REFRESH = "com.zerotoship.z2term.widget.TAIL_REFRESH"
 
+        /** true なら**ユーザーが ⟳ を押した**もの (振動と「更新中…」を出す合図)。 */
+        private const val EXTRA_MANUAL = "manual"
+
         /** ウィジェット 1 個あたりの PendingIntent スロット数 (⟳ と ⚙)。 */
         private const val SLOTS_PER_WIDGET = 4
         private const val SLOT_REFRESH = 1
@@ -82,6 +99,18 @@ class TailWidgetProvider : AppWidgetProvider() {
                 .getAppWidgetIds(ComponentName(context, TailWidgetProvider::class.java))
         }.getOrDefault(IntArray(0))
 
+        /** 「いま読み直している」ことだけを先に見せる (D1 の同名関数と同じ理由)。 */
+        private fun showBusy(context: Context) {
+            val mgr = AppWidgetManager.getInstance(context) ?: return
+            val ids = widgetIds(context)
+            if (ids.isEmpty()) return
+            val busy = RemoteViews(context.packageName, R.layout.widget_tail).apply {
+                setTextViewText(R.id.tail_refresh, context.getString(R.string.widget_busy_glyph))
+                setTextViewText(R.id.tail_footer, context.getString(R.string.widget_refreshing))
+            }
+            ids.forEach { id -> runCatching { mgr.partiallyUpdateAppWidget(id, busy) } }
+        }
+
         /** 全ウィジェットを今の中身で描き直す (バックグラウンドスレッドから呼ぶこと)。 */
         internal fun renderAll(context: Context) {
             val mgr = AppWidgetManager.getInstance(context) ?: return
@@ -100,7 +129,8 @@ class TailWidgetProvider : AppWidgetProvider() {
                     context, appWidgetId * SLOTS_PER_WIDGET + SLOT_REFRESH,
                     Intent(context, TailWidgetProvider::class.java)
                         .setAction(ACTION_REFRESH)
-                        .setData("z2term://tail/$appWidgetId/refresh".toUri()),
+                        .setData("z2term://tail/$appWidgetId/refresh".toUri())
+                        .putExtra(EXTRA_MANUAL, true),
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
                 )
             )

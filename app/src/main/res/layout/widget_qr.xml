@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ホーム画面ウィジェット D3「SSH 接続 QR」のレイアウト。
+
+  QR は白地でないと読み取り率が落ちるので、ImageView の中身 (ビットマップ) 側に
+  白い余白を焼き込んである (背景色ではなく画像の一部)。ウィジェットの土台は他と同じ暗色。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/qr_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/qr_widget_short_label"
+            android:textColor="@color/widget_accent"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:singleLine="true" />
+
+        <TextView
+            android:id="@+id/qr_refresh"
+            style="@style/Z2WidgetIconButton"
+            android:layout_marginStart="6dp"
+            android:text="@string/widget_refresh_glyph"
+            android:contentDescription="@string/widget_refresh_desc" />
+    </LinearLayout>
+
+    <!-- 余った高さを全部もらい、QR を中央に大きく出す。 -->
+    <ImageView
+        android:id="@+id/qr_image"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="6dp"
+        android:adjustViewBounds="true"
+        android:scaleType="fitCenter"
+        android:contentDescription="@string/qr_image_desc" />
+
+    <TextView
+        android:id="@+id/qr_caption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:textColor="@color/widget_text_secondary"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:gravity="center"
+        android:singleLine="true"
+        android:ellipsize="middle" />
+</LinearLayout>

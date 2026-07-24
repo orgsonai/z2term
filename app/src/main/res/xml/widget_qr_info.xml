@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ホーム画面ウィジェット D3「SSH 接続 QR」の宣言 (API 29-30 用)。
+
+  設定画面は無い (見せるものが 1 つしかないため)。QR を読ませるには面積が要るので
+  正方形に近い既定サイズにしてある。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="140dp"
+    android:minHeight="180dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="140dp"
+    android:updatePeriodMillis="1800000"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:initialLayout="@layout/widget_qr"
+    android:previewImage="@mipmap/ic_launcher"
+    android:description="@string/qr_widget_description" />

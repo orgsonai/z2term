@@ -17,6 +17,7 @@ import androidx.core.app.NotificationCompat
 import com.zerotoship.z2term.MainActivity
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.settings.AppSettings
+import com.zerotoship.z2term.widget.QrWidgetProvider
 import com.zerotoship.z2term.widget.StatusWidgetProvider
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -150,6 +151,8 @@ class ServerDaemonService : Service() {
                     if (running != lastRunning) {
                         lastRunning = running
                         StatusWidgetProvider.refresh(this)
+                        // sshd の起動/停止で QR ウィジェットの但し書きも変わる。
+                        QrWidgetProvider.refresh(this)
                     }
                     Thread.sleep(3000)
                 }
@@ -197,6 +200,7 @@ class ServerDaemonService : Service() {
         releaseLocks()
         // 常駐が終わった＝ホーム画面ウィジェットの「常駐 N」が古くなるので描き直す。
         StatusWidgetProvider.refresh(this)
+        QrWidgetProvider.refresh(this)
     }
 
     companion object {

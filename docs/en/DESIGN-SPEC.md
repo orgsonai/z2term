@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-24 / Target version: 0.8.217-alpha (versionCode 225)
+Last updated: 2026-07-25 / Target version: 0.8.219-alpha (versionCode 227)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -449,6 +449,26 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 **Shared with D1**: the background (`widget_bg`), the 40dp icon buttons (`Z2WidgetIconButton`), and the config-screen pieces (`ConfigSelectRow` / `ConfigButton` in `widget/WidgetConfigUi.kt`). Writing the look twice guarantees drift, so it was extracted from D1 while adding D2.
 
 **No `configuration_optional`** (unlike D1): **there is no way to guess which file to watch**, so the config screen always opens when the widget is placed. The unconfigured state can still happen (the user backs out), and then the body says "tap ⚙ and choose a file".
+
+#### SSH QR widget (`widget/QrWidgetProvider` / `widget/QrEncoder`, 0.8.219, D3)
+
+**What it does**: shows a QR code for `ssh://root@<IP>:<port>` — the address to get into this device right now. Scan it with a laptop camera instead of copying the IP by eye. It follows along when Wi‑Fi changes the IP, on ⟳ or the periodic update. There is no config screen (there is only one thing to show). This is D3 from §10-2.
+
+**The QR encoder is written in-house** (no new dependency, per the project's preference), deliberately scoped:
+- **8-bit byte mode only** (UTF-8); no numeric/alphanumeric packing.
+- **Versions 1–10, error correction M** (up to 122 bytes in byte mode) — an ssh URI is 60 characters at most. Beyond that `encode` returns null and the caller shows text only.
+- All eight masks are tried and the lowest JIS X 0510 penalty wins.
+- Version information (BCH(18,6)), required from version 7 up, is included.
+
+**How correctness is established (important)**: a wrong QR still **looks like a plausible pattern**, so visual inspection cannot catch breakage. Therefore:
+1. `QrEncoderTest` checks **known values from the spec** — the 10 error-correction codewords for "01234567" at version 1-M, all eight format-information words, version information for 7–10, the timing pattern, and the finder patterns.
+2. During development the output was **compared module by module against an existing implementation** (`qrencode`). Mask selection can legitimately differ between implementations, so `QrEncoder.encode(text, forcedMask)` (internal, for tests) pins it. **Versions 1, 7 and 10 all matched with zero differing modules.**
+
+**Traps hit while writing it**: reserving the format-information area with `for (i in 0..8)` also **whites out `(8,6)` and `(6,8)`**, which are not format modules but **timing pattern** — erasing them stops a reader from tracking the timing (caught by `QrEncoderTest.timingPatternAlternates`). And skipping alignment patterns "because the module is already reserved" **deletes the patterns that cross the timing lines from version 7 up**; only the three corners (which overlap finder patterns) may be skipped.
+
+**Bitmap**: a 4-module quiet zone (the spec minimum) is included, the whole thing fits 360px, and the scale is **rounded so one module is a whole number of pixels** (fractional scaling blurs edges and confuses readers). The white background is **baked into the image** rather than left to the layout — the widget's own background is dark, and a dark quiet zone would make the code unreadable.
+
+**Caption**: when `sshd` is not running it appends "(sshd stopped)", so a scannable code never silently implies a reachable host. `ServerDaemonService` calls `QrWidgetProvider.refresh()` on start/stop to keep it honest.
 
 #### Normalizing the toolbar order (`ToolbarButtons.mergeOrder` / `.normalizeOrder`, 0.8.213)
 

@@ -566,7 +566,10 @@
     <string name="widget_btn_idle">%1$s\n%2$s</string>
     <string name="widget_btn_done">\u2713 %1$s\n%2$s</string>
     <string name="widget_btn_time_none" translatable="false">\u2013\u2013:\u2013\u2013</string>
-    <string name="widget_last_finish">\u2713 %1$s finished at %2$s</string>
+    <string name="widget_last_finish">\u2713 %1$s %2$s</string>
+    <string name="widget_updated_at">\u27f3 %1$s</string>
+    <string name="widget_refreshing">refreshing\u2026</string>
+    <string name="widget_busy_glyph" translatable="false">\u23f3</string>
     <string name="widget_no_macros">No macros yet. Run z2-macro install all in the terminal.</string>
     <string name="widget_config_title">Macros on this widget</string>
     <string name="widget_config_desc">Up to %1$d. A tap runs the macro in the background \u2014 the app does not open. Tap a running macro again to stop it.</string>
@@ -588,6 +591,14 @@
     <string name="tail_config_empty">No log files under ~ yet. Run a macro or turn on detection first, then reopen this screen.</string>
     <string name="tail_file_meta">%1$s · %2$d KB</string>
     <string name="tail_lines_label">Lines to show</string>
+
+    <!-- D3 SSH 接続 QR -->
+    <string name="qr_widget_label">Z2Term SSH QR</string>
+    <string name="qr_widget_short_label" translatable="false">SSH QR</string>
+    <string name="qr_widget_description">Shows a QR code for the ssh:// address of this device. Scan it with a laptop camera to connect without typing the IP.</string>
+    <string name="qr_image_desc">QR code for the ssh address</string>
+    <string name="qr_no_address">no LAN address</string>
+    <string name="qr_sshd_stopped">%1$s (sshd stopped)</string>
     <string name="widget_config_empty">~/.z2term/macros is empty. Run z2-macro install all in the terminal, then add the widget again.</string>
     <string name="widget_config_save">Save</string>
     <string name="widget_config_cancel">Cancel</string>

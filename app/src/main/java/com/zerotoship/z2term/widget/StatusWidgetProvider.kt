@@ -64,8 +64,18 @@ class StatusWidgetProvider : AppWidgetProvider() {
                     renderAll(ctx)
                 }
             }
+            // ⟳ タップ。押した手応えが無いと「押せたのか分からない」ので、振動と
+            // 「更新中…」表示を先に返してから読み直す。
+            ACTION_REFRESH -> {
+                WidgetFeedback.tick(context)
+                background(context) { ctx ->
+                    showBusy(ctx)
+                    Thread.sleep(WidgetFeedback.BUSY_HOLD_MS)
+                    renderAll(ctx)
+                }
+            }
             // 定期更新 (APPWIDGET_UPDATE) も自前で受けて非同期に描く。onUpdate は使わない。
-            ACTION_REFRESH, AppWidgetManager.ACTION_APPWIDGET_UPDATE ->
+            AppWidgetManager.ACTION_APPWIDGET_UPDATE ->
                 background(context) { ctx -> renderAll(ctx) }
             // 削除・無効化などのライフサイクルは AppWidgetProvider の既定処理へ。
             else -> super.onReceive(context, intent)
@@ -137,6 +147,24 @@ class StatusWidgetProvider : AppWidgetProvider() {
                 .getAppWidgetIds(ComponentName(context, StatusWidgetProvider::class.java))
         }.getOrDefault(IntArray(0))
 
+        /**
+         * 「いま読み直している」ことだけを先に見せる (⟳ を ⏳ に・フッターを「更新中…」に)。
+         *
+         * `partiallyUpdateAppWidget` なので**この 2 つの View 以外はそのまま**。読み直しは
+         * たいてい一瞬で終わるため、これが無いと**画面上は何も起きていないように見える**。
+         */
+        private fun showBusy(context: Context) {
+            val mgr = AppWidgetManager.getInstance(context) ?: return
+            val ids = widgetIds(context)
+            if (ids.isEmpty()) return
+            val busy = RemoteViews(context.packageName, R.layout.widget_status).apply {
+                setTextViewText(R.id.widget_refresh, context.getString(R.string.widget_busy_glyph))
+                setTextViewText(R.id.widget_footer, context.getString(R.string.widget_refreshing))
+                setViewVisibility(R.id.widget_footer, View.VISIBLE)
+            }
+            ids.forEach { id -> runCatching { mgr.partiallyUpdateAppWidget(id, busy) } }
+        }
+
         /** 全ウィジェットを今の状態で描き直す (バックグラウンドスレッドから呼ぶこと)。 */
         internal fun renderAll(context: Context) {
             val mgr = AppWidgetManager.getInstance(context) ?: return
@@ -152,6 +180,7 @@ class StatusWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_status)
             // SimpleDateFormat はスレッド安全でないので共有せず、この描画の中だけで使う。
             val hhmm = SimpleDateFormat("HH:mm", Locale.US)
+            val hms = SimpleDateFormat("HH:mm:ss", Locale.US)
 
             // タイトルはアプリを開く。⟳ はその場で読み直す。⚙ は設定画面を直接開く
             // (ウィジェット長押しからしか設定へ行けないのは使いにくい、という実機フィードバック)。
@@ -220,16 +249,24 @@ class StatusWidgetProvider : AppWidgetProvider() {
                 }
             }
 
-            // フッターは「直近に**終わった**マクロ」。開始時刻はボタン側に出るようになったので、
-            // ここは終了を伝える役に回す (すぐ終わるマクロが「勝手に止まった」ように見えないため)。
-            val footer = when {
-                macros.isEmpty() -> context.getString(R.string.widget_no_macros)
-                s.lastFinish != null -> context.getString(
-                    R.string.widget_last_finish,
-                    WidgetStore.label(s.lastFinish.first),
-                    hhmm.format(Date(s.lastFinish.second))
-                )
-                else -> null
+            // フッターは「最後に起きたこと」。読み直した時刻を必ず出すので、⟳ を押したときに
+            // **表示が変わったことで押せたと分かる**。あわせて直近に終わったマクロも出す
+            // (開始時刻はボタン側に移ったので、ここは終了を伝える役)。
+            val footer = if (macros.isEmpty()) {
+                context.getString(R.string.widget_no_macros)
+            } else {
+                val parts = ArrayList<String>(2)
+                parts.add(context.getString(R.string.widget_updated_at, hms.format(Date())))
+                if (s.lastFinish != null) {
+                    parts.add(
+                        context.getString(
+                            R.string.widget_last_finish,
+                            WidgetStore.label(s.lastFinish.first),
+                            hhmm.format(Date(s.lastFinish.second))
+                        )
+                    )
+                }
+                parts.joinToString(" · ")
             }
             if (footer == null) {
                 views.setViewVisibility(R.id.widget_footer, View.GONE)
