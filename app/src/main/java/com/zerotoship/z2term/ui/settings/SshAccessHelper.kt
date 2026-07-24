@@ -1,6 +1,5 @@
 package com.zerotoship.z2term.ui.settings
 
-import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Environment
@@ -35,6 +34,7 @@ import androidx.core.net.toUri
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.proot.Z2TERM_SSHD_PORT
+import com.zerotoship.z2term.service.SshEndpoint
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
@@ -43,8 +43,6 @@ import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.net.Inet4Address
-import java.net.NetworkInterface
 
 /**
  * 設定シートに埋め込む「PC からの SSH 接続」ヘルパー (情報表示のみ)。
@@ -61,8 +59,10 @@ fun SshAccessHelper(session: TerminalSession) {
     // 表示用ポートは sshd_config の Port を反映 (無ければ既定 2222)。`sshd` コマンドと一致。
     var sshdPort by remember { mutableStateOf(Z2TERM_SSHD_PORT) }
     LaunchedEffect(Unit) {
-        ips = withContext(Dispatchers.IO) { detectIpv4Addresses() }
-        sshdPort = withContext(Dispatchers.IO) { readConfiguredSshdPort(context, session) }
+        ips = withContext(Dispatchers.IO) { SshEndpoint.nics().map { "${it.ip} (${it.name})" } }
+        sshdPort = withContext(Dispatchers.IO) {
+            SshEndpoint.configuredPort(context, session.settingsFlow.value.distroId)
+        }
     }
     val primaryIp = ips.firstOrNull() ?: "<端末IP>"
     val sshCmd = "ssh -p $sshdPort root@$primaryIp"
@@ -210,38 +210,4 @@ private fun HelperButton(
             fontFamily = FontFamily.Monospace
         )
     }
-}
-
-/**
- * NetworkInterface を全列挙して、ローカルじゃない IPv4 を返す。
- * 通常 Wi-Fi の wlan0 が `192.168.x.x` を返す。
- */
-private fun detectIpv4Addresses(): List<String> {
-    return try {
-        NetworkInterface.getNetworkInterfaces().toList()
-            .filter { it.isUp && !it.isLoopback }
-            .flatMap { iface -> iface.inetAddresses.toList().map { iface.name to it } }
-            .filter { (_, addr) -> addr is Inet4Address && !addr.isLoopbackAddress && !addr.isLinkLocalAddress }
-            .mapNotNull { (name, addr) -> addr.hostAddress?.let { "$it ($name)" } }
-    } catch (_: Exception) {
-        emptyList()
-    }
-}
-
-/**
- * 実行中 distro の `/etc/ssh/sshd_config` から `Port` を読む。
- * `sshd` コマンド (dropbear ラッパー) と同じ優先順 (config の Port、無ければ既定)。
- * コメント行や `PortForwarding` 等の別ディレクティブは無視する。
- */
-private fun readConfiguredSshdPort(context: Context, session: TerminalSession): Int {
-    val distroId = session.settingsFlow.value.distroId
-    val cfg = java.io.File(context.filesDir, "distros/$distroId/etc/ssh/sshd_config")
-    if (!cfg.isFile) return Z2TERM_SSHD_PORT
-    return runCatching {
-        cfg.readLines().firstNotNullOfOrNull { line ->
-            val parts = line.trim().split(Regex("\\s+"))
-            if (parts.size >= 2 && parts[0].equals("Port", ignoreCase = true)) parts[1].toIntOrNull()
-            else null
-        }
-    }.getOrNull() ?: Z2TERM_SSHD_PORT
 }

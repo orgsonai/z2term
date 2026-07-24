@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ホーム画面ウィジェット D1「状態＋ランチャー」の宣言 (API 29-30 用)。
+  API 31+ 向けの追加属性 (targetCellWidth / previewLayout / widgetFeatures) は
+  res/xml-v31/widget_status_info.xml にある。
+
+  updatePeriodMillis は OS が 30 分未満に詰めないので、これを電池の下限とみなす。
+  もっと早く反映したいときは ⟳ ボタンか、アプリ側からの StatusWidgetProvider.refresh()。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="80dp"
+    android:updatePeriodMillis="1800000"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:initialLayout="@layout/widget_status"
+    android:previewImage="@mipmap/ic_launcher"
+    android:configure="com.zerotoship.z2term.widget.WidgetConfigActivity"
+    android:description="@string/widget_status_description" />

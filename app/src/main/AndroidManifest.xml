@@ -193,6 +193,35 @@
             </intent-filter>
         </receiver>
 
+        <!-- ホーム画面ウィジェット D1「状態＋ランチャー」。
+             OS の定期更新 (APPWIDGET_UPDATE) と、ウィジェット内のボタンから送る自前の
+             ブロードキャスト (REFRESH / RUN_MACRO) を受ける。後者は自アプリ内の明示 Intent
+             なので exported=false のままで届く。ウィジェットの追加はランチャーが
+             AppWidgetService 経由で行うため、こちらも公開不要。 -->
+        <receiver
+            android:name=".widget.StatusWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_status_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_status_info" />
+        </receiver>
+
+        <!-- 上のウィジェットの設定画面 (並べるマクロを選ぶ)。ウィジェット配置時にランチャーが
+             起動するため exported=true が必須。受け取るのは appWidgetId だけ。 -->
+        <activity
+            android:name=".widget.WidgetConfigActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.Z2Term">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <!-- SMS 受信検知 (汎用入口): 設定「SMS 検知」ON かつ RECEIVE_SMS 許可があるとき、着信 SMS を
              ~/.z2term/sms.jsonl へ追記する。SMS_RECEIVED は暗黙ブロードキャスト制限の対象外なので
              manifest レシーバで拾える (アプリ未起動・ロック中でも起動)。BROADCAST_SMS でシステムからのみ届く。 -->

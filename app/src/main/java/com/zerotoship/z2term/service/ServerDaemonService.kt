@@ -17,6 +17,7 @@ import androidx.core.app.NotificationCompat
 import com.zerotoship.z2term.MainActivity
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.settings.AppSettings
+import com.zerotoship.z2term.widget.StatusWidgetProvider
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
@@ -137,9 +138,19 @@ class ServerDaemonService : Service() {
         stopNotificationRefresher()
         val t = Thread {
             val nm = getSystemService(NotificationManager::class.java)
+            var lastRunning = -1
             try {
                 while (ServerDaemonManager.isRunning && !Thread.currentThread().isInterrupted) {
                     runCatching { nm.notify(NOTIFICATION_ID, buildNotification()) }
+                    // 稼働数が変わったときだけホーム画面ウィジェットを描き直す。ここは 3 秒周期なので、
+                    // 毎回叩くとウィジェット側のファイル読取が無駄に回る。
+                    val running = runCatching {
+                        ServerDaemonManager.readStatus(this).count { it.state == "running" }
+                    }.getOrDefault(-1)
+                    if (running != lastRunning) {
+                        lastRunning = running
+                        StatusWidgetProvider.refresh(this)
+                    }
                     Thread.sleep(3000)
                 }
             } catch (_: InterruptedException) {
@@ -184,6 +195,8 @@ class ServerDaemonService : Service() {
         super.onDestroy()
         stopNotificationRefresher()
         releaseLocks()
+        // 常駐が終わった＝ホーム画面ウィジェットの「常駐 N」が古くなるので描き直す。
+        StatusWidgetProvider.refresh(this)
     }
 
     companion object {

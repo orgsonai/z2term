@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  API 31+ 用。res/xml/widget_status_info.xml と同じ内容に、31 で入った属性を足したもの:
+
+   - targetCellWidth/Height : ランチャーのグリッドでの既定サイズ (4x2 マス)
+   - previewLayout          : ウィジェット選択画面に実物のレイアウトを出す (静止画より正確)
+   - widgetFeatures         : configuration_optional = 設定画面を出さずに置ける
+                              (その場合はマクロディレクトリの先頭 4 件が並ぶ)
+                              reconfigurable = 置いたあとから設定を開き直せる
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="80dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:initialLayout="@layout/widget_status"
+    android:previewLayout="@layout/widget_status"
+    android:previewImage="@mipmap/ic_launcher"
+    android:configure="com.zerotoship.z2term.widget.WidgetConfigActivity"
+    android:widgetFeatures="reconfigurable|configuration_optional"
+    android:description="@string/widget_status_description" />

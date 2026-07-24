@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-24 / Target version: 0.8.211-alpha (versionCode 219)
+Last updated: 2026-07-24 / Target version: 0.8.212-alpha (versionCode 220)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -229,6 +229,7 @@ Everything lands in one of two log files.
 | `~/.z2term/notifications.jsonl` | `filesDir/shared_home/.z2term/notifications.jsonl` | Notification detection |
 | `~/.z2term/events.jsonl` | `filesDir/shared_home/.z2term/events.jsonl` | System events, time triggers, notification button replies |
 | `~/.z2term/when/<id>.rule` | `filesDir/shared_home/.z2term/when/` | `z2-when` automation rules (+ `<id>.log` run logs) |
+| `~/.z2term/widget/run.log` | `filesDir/shared_home/.z2term/widget/` | Output of macros started from the home screen widget |
 
 #### Notification detection (`NotificationLogService`, 0.8.149)
 
@@ -424,6 +425,26 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 **Execution**: on fire, runs `sh -lc '<run>'` **headless** on the currently selected distro (`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`, same launch+drain pattern as `ServerDaemonManager`). Trigger context is passed via env vars `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` plus trigger-specific extras (wifi: `Z2_WHEN_SSID`; sms: `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` / `Z2_WHEN_OTP`; sensor: `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX`) (external input is never spliced into the shell; values are single-quote-escaped with `'\''`). Output is appended to `~/.z2term/when/<id>.log` (cleared before a run once past 128KB). Rule execution always goes through the engine path since `launchChroot` takes no extra args.
 
 **CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> run <cmd>` to add / `list` (TSV) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><pid>` (0.8.211 switched from a random suffix to the pid to avoid same-second collisions; a counter is appended if the file already exists). **Stage 2 now covers cron/wifi/sms/sensor** (0.8.207–0.8.210). Later candidates: DST-boundary refinement for `time:cron`, light-threshold hysteresis, etc.
+
+#### Home screen widget (`widget/StatusWidgetProvider`, 0.8.212, D1)
+
+**What it does**: puts the **current state** on the home screen (ssh endpoint / number of running resident servers / number of enabled `z2-when` rules / battery) and, on the bottom row, buttons that run `~/.z2term/macros/*.sh` **in the background without opening the app**. Where `z2-when` is trigger-driven, this is the entry point **a human presses**.
+
+**Parts**:
+- `widget/StatusWidgetProvider` (`AppWidgetProvider`) — drawing, plus the button/⟳ taps.
+- `widget/WidgetConfigActivity` (`APPWIDGET_CONFIGURE`) — picks which macros this widget shows (max 4). On API 31+ it is `configuration_optional`, so the widget can be placed without configuring it (then the first 4 macros in the directory are shown).
+- `widget/WidgetStore` — stores the per-widget selection and the "last macro run" in **SharedPreferences**. The widget is drawn and tapped **while the app process may not be alive**, so it needs storage that can be read synchronously, not the coroutine-based DataStore. The macros themselves live in the user's files (`~/.z2term/macros/*.sh`); the widget only references them.
+
+**Tap-to-run path**: the button's `PendingIntent` (a broadcast to ourselves) → `StatusWidgetProvider.onReceive` → `HeadlessRun.launch` → redraw without waiting for completion. **No new resident service is added** (nothing new to blame for battery drain). `HeadlessRun` (`service/HeadlessRun.kt`) was factored out of the `z2-when` rule runner: it centralizes "start `sh -lc` once on the selected distro and drain its output into a log file", so log-size handling and pty draining cannot drift between callers. Output goes to `~/.z2term/widget/run.log` (tail it from the shell to check). Macro names only ever come from real files, but they are still passed to the shell inside single quotes so nothing expands (same safety boundary as `z2-when`).
+
+**Three things trigger an update**:
+1. The OS periodic update (`updatePeriodMillis` = 30 min; that is the platform floor, it cannot be tightened)
+2. The ⟳ tap on the widget (re-reads immediately)
+3. `StatusWidgetProvider.refresh()` from the app — when the number of running resident servers changes (`ServerDaemonService`'s notification loop calls it **only when the count changes**) and from `WhenManager.reload()` (rules added/removed/toggled)
+
+**Drawing constraints**: `RemoteViews` are inflated in the launcher's process, so they **cannot read the Compose dynamic palette (`AppColors`)**. The widget alone keeps fixed ZTS dark colors in `res/values/colors.xml` as `widget_*` and does not follow the selected theme (deliberate). Views cannot be created dynamically either, so **all 4 buttons live in the layout and the spare ones are set to `GONE`**. Reading the state involves file I/O and the settings DataStore, so drawing always happens under `goAsync()` on a separate thread.
+
+**Unique PendingIntents**: both the requestCode (`appWidgetId * 8 + slot`) and the data URI (`z2term://widget/<id>/<slot>`) are made unique per widget × button. If either collides the PendingIntent is reused and one button runs the other's macro.
 
 #### Notification button replies (`NotifyActionReceiver` / `z2-notify -b`, 0.8.169)
 

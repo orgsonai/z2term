@@ -6,4 +6,27 @@
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowBackground">@color/zts_bg_primary</item>
     </style>
+
+    <!--
+      ホーム画面ウィジェット (D1) のマクロボタン。4 個ぶん同じ見た目を並べるので
+      レイアウト側の重複を避けてここに置く。親は必ず横並びの LinearLayout
+      (layout_weight で等幅に割る)。
+    -->
+    <style name="Z2WidgetButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginEnd">4dp</item>
+        <item name="android:background">@drawable/widget_button</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:paddingStart">4dp</item>
+        <item name="android:paddingEnd">4dp</item>
+        <item name="android:textColor">@color/widget_text_primary</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:fontFamily">monospace</item>
+        <item name="android:singleLine">true</item>
+        <item name="android:ellipsize">end</item>
+    </style>
 </resources>

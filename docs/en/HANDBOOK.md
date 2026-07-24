@@ -331,6 +331,43 @@ Pick "End session only" for a clean slate, or "Stop everything and quit" to stop
 
 ---
 
+## 9.5. Home screen widget (use it without opening the app)
+
+Puts Z2Term's **current state** on your home screen and runs **your favourite macros with a single tap**.
+The app does not open — you stay on the home screen while the macro runs in the background.
+
+**Adding it**
+
+1. Long-press an empty spot on the home screen → "Widgets"
+2. Pick **Z2Term status** from the list and drop it on the home screen
+3. The settings screen opens right away — **tick the macros you want and press Save** (up to 4)
+
+If you have no macros yet, run `z2-macro install all` in the terminal first
+(everything under `~/.z2term/macros/` becomes selectable). Your own `.sh` files
+dropped into that folder show up the same way.
+
+**What it shows**
+
+| Where | What |
+|---|---|
+| 1st line | `ssh -p 2222 root@192.168.x.x` — the command to get into this device from a PC. **Green means `sshd` is running** (grey = just the address) |
+| 2nd line | Number of resident servers / enabled automation rules (`z2-when`) / battery level |
+| Buttons | The macros you picked. A tap runs one in the background |
+| Bottom line | The macro that ran last, and when |
+
+**Tips**
+
+- Tap **⟳ at the top right to refresh right now**. Otherwise it updates every 30 minutes
+  (Android does not allow anything shorter). It also redraws itself when resident servers
+  start/stop or when you add, remove or toggle a `z2-when` rule.
+- Tap **the Z2Term title at the top left to open the app**.
+- Macro output is kept in `~/.z2term/widget/run.log`. If something does not work,
+  run `tail ~/.z2term/widget/run.log` in the terminal.
+- To change which macros are shown, long-press the widget and reopen its settings
+  (Android 12 and later). On older Android, remove the widget and add it again.
+
+---
+
 ## 10. Troubleshooting (FAQ)
 
 **Q. `sshd` won't work / the port is wrong**
@@ -435,7 +472,7 @@ z2-when sensor:shake         run ~/.z2term/macros/panic.sh        # when you sha
 - **List / remove / toggle**: `z2-when list` / `z2-when remove <id>` (`all` for everything) / `z2-when on <id>` `z2-when off <id>` / `z2-when log <id>` (see the run log)
 - Inside the command you can use `Z2_WHEN_TRIGGER` (which trigger fired), `Z2_WHEN_LEVEL` (battery level then), `Z2_WHEN_SSID` (the network for a wifi trigger), `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` / `Z2_WHEN_OTP` (for sms triggers), and `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX` (for sensor triggers) as env vars.
 - Rules live as text under `~/.z2term/when/`, so you can **sync/back them up with git**.
-- Time triggers use a battery-friendly mechanism (Doze-through AlarmManager), so **firing can be a few minutes off**. Finer `wifi` / sensor / SMS-OTP triggers and `cron` syntax are planned for a later version.
+- Time triggers use a battery-friendly mechanism (Doze-through AlarmManager), so **firing can be a few minutes off**. The `wifi` / `sms` / `sensor` / `cron` triggers are all available.
 
 ### Graphical (GUI) apps
 | Command | What it does |

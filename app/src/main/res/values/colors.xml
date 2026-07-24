@@ -7,4 +7,17 @@
       XML に写しを置くと二重管理になり、片方だけ直して食い違うので置かない。
     -->
     <color name="zts_bg_primary">#0a0a0a</color>
+
+    <!--
+      ホーム画面ウィジェット (D1) 専用の配色。ここだけは XML に色を持つ。
+      RemoteViews はランチャーのプロセスで描かれるため Compose の動的パレット (AppColors) を
+      読めず、選択中テーマに追従できない。ZTS ダークパレットの値で固定する (意図的)。
+    -->
+    <color name="widget_bg">#F00A0A0A</color>
+    <color name="widget_card">#FF1F1F1F</color>
+    <color name="widget_border">#FF2A2A2A</color>
+    <color name="widget_accent">#FF22C55E</color>
+    <color name="widget_text_primary">#FFFAFAFA</color>
+    <color name="widget_text_secondary">#FFA3A3A3</color>
+    <color name="widget_text_tertiary">#FF737373</color>
 </resources>

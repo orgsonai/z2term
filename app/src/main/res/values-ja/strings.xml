@@ -544,4 +544,18 @@
     <string name="log_raw">色や制御文字をそのまま残す</string>
     <string name="log_raw_desc">不具合報告用の生ログ。OFF なら人が読めるテキストに直します</string>
     <string name="log_secret_warning">※ 画面に出たものはそのまま入ります。表示された鍵・トークン・確認コードも記録されます（打っただけで画面に出ないパスワードは入りません）。記録中はツールバーのボタンが点灯します。</string>
+
+    <!-- ホーム画面ウィジェット (D1: 状態＋ランチャー) -->
+    <string name="widget_status_label">Z2Term の状態</string>
+    <string name="widget_status_description">ssh の接続先・常駐サーバー・自動化ルール・電池を表示し、マクロをタップでバックグラウンド実行します。</string>
+    <string name="widget_refresh_desc">更新</string>
+    <string name="widget_ssh_none">LAN アドレスなし</string>
+    <string name="widget_stats">常駐 %1$d \u00b7 自動化 %2$d \u00b7 電池 %3$d%%</string>
+    <string name="widget_last_run">\u25b6 %1$s %2$s</string>
+    <string name="widget_no_macros">マクロがありません。端末で z2-macro install all を実行してください。</string>
+    <string name="widget_config_title">このウィジェットに並べるマクロ</string>
+    <string name="widget_config_desc">最大 %1$d 個。タップするとバックグラウンドで実行します（アプリは開きません）。</string>
+    <string name="widget_config_empty">~/.z2term/macros が空です。端末で z2-macro install all を実行してから、もう一度ウィジェットを追加してください。</string>
+    <string name="widget_config_save">保存</string>
+    <string name="widget_config_cancel">キャンセル</string>
 </resources>

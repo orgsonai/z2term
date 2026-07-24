@@ -5,12 +5,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import com.zerotoship.z2term.distro.DistroSpec
-import com.zerotoship.z2term.proot.ProotLauncher
-import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.WhenRule
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import com.zerotoship.z2term.widget.StatusWidgetProvider
 import java.io.File
 
 /**
@@ -36,9 +32,6 @@ object WhenManager {
 
     /** 時刻トリガーで武装済みのルール id を覚えておくファイル (reload 時に取りこぼしなく貼り直す)。 */
     private const val ARMED_STATE = ".armed"
-
-    /** 実行ログが肥大しないよう、この閾値を超えていたら実行前に空にする。 */
-    private const val LOG_RESET_BYTES = 128 * 1024
 
     /** ルールディレクトリ (`filesDir/shared_home/.z2term/when` = 端末からは `~/.z2term/when`)。 */
     fun whenDir(context: Context): File =
@@ -77,6 +70,8 @@ object WhenManager {
         writeArmed(dir, armed)
         // 検知サービスが動いていれば、sensor ルールの増減に合わせてセンサー登録を貼り直す。
         SystemEventService.refreshSensorsIfRunning()
+        // ホーム画面ウィジェットの「自動化 N」もここで追従させる (ルールの増減・on/off の直後)。
+        StatusWidgetProvider.refresh(app)
     }
 
     /** [WhenReceiver] の時刻発火から呼ぶ。ルールを実行し、繰り返し種別なら次を武装し直す。 */
@@ -322,62 +317,22 @@ object WhenManager {
      * 出力は `~/.z2term/when/<id>.log` へ (肥大したら実行前に空にする)。
      */
     private fun runRule(context: Context, rule: WhenRule, level: Int, extraEnv: Map<String, String> = emptyMap()) {
-        val settings = runCatching { runBlocking { AppSettings(context).flow.first() } }.getOrNull() ?: return
-        val distroId = settings.distroId
-        val rootfs = File(context.filesDir, "distros/$distroId")
-        if (!rootfs.exists()) {
-            Log.w(TAG, "rootfs missing for $distroId; cannot run ${rule.id}")
-            return
-        }
-        val logFile = File(whenDir(context), "${rule.id}.log")
-        runCatching {
-            if (logFile.length() > LOG_RESET_BYTES) logFile.writeText("")
-            logFile.appendText("--- ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())} ${rule.trigger} ---\n")
-        }
-
         // 環境変数 + ユーザーコマンドを 1 本の sh -lc へ。trigger や extraEnv の値 (SSID・SMS 本文
         // 等) は外部文字列を含み得るので単一引用符へ安全にエスケープする ([shSingleQuote])。level は
         // 数値なのでそのまま。ユーザーコマンド (rule.run) は実行対象なのでクォートしない。
         val levelExport = if (level in 0..100) " export Z2_WHEN_LEVEL='$level';" else ""
-        val extraExport = extraEnv.entries.joinToString("") { (k, v) -> " export $k=${shSingleQuote(v)};" }
-        val script = "export Z2_WHEN_TRIGGER=${shSingleQuote(rule.trigger)}; " +
-            "export Z2_WHEN_NAME=${shSingleQuote(rule.id)};" +
+        val extraExport = extraEnv.entries.joinToString("") { (k, v) -> " export $k=${HeadlessRun.shSingleQuote(v)};" }
+        val script = "export Z2_WHEN_TRIGGER=${HeadlessRun.shSingleQuote(rule.trigger)}; " +
+            "export Z2_WHEN_NAME=${HeadlessRun.shSingleQuote(rule.id)};" +
             "$levelExport$extraExport cd \"\$HOME\" 2>/dev/null; ${rule.run}"
 
-        // 実行は常に launch() (proot/z2root)。root chroot モードでも launchChroot は追加引数を
-        // 取らないため、ルール実行はエンジン経路に統一する (同じ distro で動くので挙動は変わらない)。
-        val spec = DistroSpec.byId(distroId) ?: DistroSpec.ALPINE
-        val launcher = ProotLauncher(context)
-        val process = runCatching {
-            launcher.launch(
-                distroId = distroId, command = "/bin/sh", rows = 24, cols = 80,
-                fallbackShell = spec.effectiveDefaultShell, loginShell = settings.loginShell,
-                extraArgs = listOf("-lc", script),
-            )
-        }.getOrElse { e ->
-            Log.e(TAG, "failed to launch rule ${rule.id}", e)
-            runCatching { logFile.appendText("(起動に失敗しました: ${e.message})\n") }
-            return
-        }
-
-        Log.i(TAG, "ran rule ${rule.id} (${rule.trigger}) on $distroId")
-        // 出力を log へ追記で流し切る (誰も読まないと pty が詰まる)。プロセス終了で EOF → close。
-        Thread {
-            val buf = ByteArray(4096)
-            try {
-                java.io.FileOutputStream(logFile, true).use { out ->
-                    while (true) {
-                        val n = process.reader.read(buf)
-                        if (n < 0) break
-                        out.write(buf, 0, n)
-                    }
-                }
-            } catch (_: Exception) {
-                // 終了時 close の例外は正常終了扱い。
-            } finally {
-                runCatching { process.close() }
-            }
-        }.apply { isDaemon = true; name = "when-run-${rule.id}"; start() }
+        HeadlessRun.launch(
+            context = context,
+            script = script,
+            logFile = File(whenDir(context), "${rule.id}.log"),
+            name = "when-${rule.id}",
+            header = HeadlessRun.logHeader(rule.trigger),
+        )
     }
 
     // --- ルールファイルの小さな書き換え (CLI と競合しない範囲で) ---
@@ -388,9 +343,6 @@ object WhenManager {
         val rule = runCatching { WhenRule.parse(ruleId, f.readText()) }.getOrNull() ?: return
         runCatching { f.writeText(rule.copy(enabled = enabled).serialize()) }
     }
-
-    /** 任意文字列を sh の単一引用符へ安全に埋め込む (`'` を `'\''` へ割る)。 */
-    private fun shSingleQuote(s: String): String = "'" + s.replace("'", "'\\''") + "'"
 
     private fun readArmed(dir: File): List<String> =
         runCatching { File(dir, ARMED_STATE).readLines().map { it.trim() }.filter { it.isNotEmpty() } }

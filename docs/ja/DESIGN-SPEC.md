@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-24 / 対象バージョン: 0.8.211-alpha (versionCode 219)
+最終更新: 2026-07-24 / 対象バージョン: 0.8.212-alpha (versionCode 220)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -228,6 +228,7 @@ Android 側の出来事をシェルから扱えるようにするための機能
 | `~/.z2term/notifications.jsonl` | `filesDir/shared_home/.z2term/notifications.jsonl` | 通知検知 |
 | `~/.z2term/events.jsonl` | `filesDir/shared_home/.z2term/events.jsonl` | システムイベント・時刻トリガー・通知ボタン応答 |
 | `~/.z2term/when/<id>.rule` | `filesDir/shared_home/.z2term/when/` | `z2-when` の自動化ルール（+ `<id>.log` 実行ログ）|
+| `~/.z2term/widget/run.log` | `filesDir/shared_home/.z2term/widget/` | ホーム画面ウィジェットから実行したマクロの出力 |
 
 #### 通知検知（`NotificationLogService`、0.8.149）
 
@@ -414,6 +415,26 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 **実行**: 発火すると「そのとき選ばれている distro」で `sh -lc '<run>'` を **headless 起動**（`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`。`ServerDaemonManager` と同じ launch + drain パターン）。トリガー情報は環境変数 `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` と、トリガー固有の追加 env（wifi: `Z2_WHEN_SSID` / sms: `Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP` / sensor: `Z2_WHEN_SENSOR`・`Z2_WHEN_LUX`）で渡す（外部入力をシェルへ文字列展開しない安全境界。値は単一引用符へ `'\''` エスケープ）。出力は `~/.z2term/when/<id>.log` へ追記（128KB を超えたら実行前に空にする）。root chroot モードでも `launchChroot` は追加引数を取らないため、ルール実行はエンジン経路に統一している。
 
 **CLI**（`z2-when`。`Z2ApiScript` が launch 毎に `/usr/local/bin` へ配置）: `<trigger> run <cmd>` で登録 / `list`（TSV）/ `remove <id|all>`（`rm`）/ `on|off <id>` / `log <id>`。id は `w<epoch><pid>`（同一秒の衝突を避けるため 0.8.211 で乱数から pid へ変更。既存があれば連番を付す）。**stage2 は cron/wifi/sms/sensor まで実装済み**（0.8.207〜0.8.210）。以降の候補は `time:cron` の DST 跨ぎ精緻化や照度ヒステリシス等の作り込み。
+
+#### ホーム画面ウィジェット（`widget/StatusWidgetProvider`、0.8.212・D1）
+
+**何ができるか**: ホーム画面に**いまの状態**（ssh の接続先 / 常駐サーバーの稼働数 / 有効な `z2-when` ルール数 / 電池残量）を出し、下段に並べたボタンで `~/.z2term/macros/*.sh` を**アプリを開かずバックグラウンド実行**する。`z2-when`（トリガー駆動）に対して、こちらは**人が押して起こす**入口。
+
+**構成**:
+- `widget/StatusWidgetProvider`（`AppWidgetProvider`）… 描画と、ボタン/⟳ のタップ受け。
+- `widget/WidgetConfigActivity`（`APPWIDGET_CONFIGURE`）… そのウィジェットに並べるマクロを選ぶ（最大 4）。API 31+ は `configuration_optional` を付けてあるので設定せずに置いてもよい（その場合はマクロディレクトリの先頭 4 件が並ぶ）。
+- `widget/WidgetStore`… ウィジェットごとの選択と「直近に走らせたマクロ」を **SharedPreferences** に保存する。ウィジェットは**アプリのプロセスが生きていない状態**で描画・タップされるので、非同期前提の DataStore ではなく同期で読める SharedPreferences を使う。マクロ本体はユーザーのファイル（`~/.z2term/macros/*.sh`）が正本で、ウィジェットは参照するだけ。
+
+**タップ実行の経路**: ボタンの `PendingIntent`（自分宛のブロードキャスト）→ `StatusWidgetProvider.onReceive` → `HeadlessRun.launch` → 完了を待たず再描画。**新しい常駐サービスは足さない**（電池要因を増やさない）。`HeadlessRun`（`service/HeadlessRun.kt`）は `z2-when` のルール実行から切り出した共通経路で、「選択中の distro で `sh -lc` を 1 回起動し、出力をログへ流し切る」処理を 1 本化している（呼び元が違っても肥大対策と pty の drain がズレない）。実行ログは `~/.z2term/widget/run.log`（端末から `tail` して確かめられる）。マクロ名は実在ファイルからしか来ないが、シェルへは単一引用符で渡して展開させない（`z2-when` と同じ安全境界）。
+
+**更新のきっかけは 3 つ**:
+1. OS の定期更新（`updatePeriodMillis` = 30 分。OS 側の下限なのでこれ以上は詰められない）
+2. ウィジェットの ⟳ タップ（その場で読み直す）
+3. アプリ側からの `StatusWidgetProvider.refresh()` — 常駐サーバーの稼働数が変わったとき（`ServerDaemonService` の通知更新ループが**数が変わった時だけ**叩く）と、`WhenManager.reload()`（ルールの増減・on/off）のとき
+
+**描画の制約**: `RemoteViews` はランチャーのプロセスで描かれるため **Compose の動的パレット（`AppColors`）を読めない**。ウィジェットだけは ZTS ダークパレットの固定色を `res/values/colors.xml` の `widget_*` に持ち、選択中テーマには追従しない（意図的）。ボタンは View を動的に生やせないので**4 個ぶんをレイアウトに置いて余りを `GONE`** にする。読み取りはファイル I/O と設定 DataStore を含むので、描画は必ず `goAsync()` + 別スレッドで行う。
+
+**PendingIntent の一意化**: requestCode（`appWidgetId * 8 + スロット`）と data（`z2term://widget/<id>/<slot>`）の両方をウィジェット×ボタンで一意にする。どちらかが同じだと PendingIntent が使い回され、別のボタンが前のマクロを走らせる。
 
 #### 通知ボタンによる応答（`NotifyActionReceiver` / `z2-notify -b`、0.8.169）
 

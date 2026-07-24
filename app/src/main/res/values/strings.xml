@@ -551,4 +551,19 @@
     <string name="log_raw">Keep colors and control codes</string>
     <string name="log_raw_desc">Raw log for bug reports. Off converts it to human-readable text</string>
     <string name="log_secret_warning">Note: whatever appears on screen goes in as-is, including keys, tokens and one-time codes that were displayed (a password you only type never appears on screen, so it is not recorded). The toolbar button stays lit while recording.</string>
+
+    <!-- Home screen widget (D1: status + launcher) -->
+    <string name="widget_status_label">Z2Term status</string>
+    <string name="widget_status_description">Shows the ssh address, resident servers, automation rules and battery, and runs your macros in the background with one tap.</string>
+    <string name="widget_refresh_glyph" translatable="false">\u27f3</string>
+    <string name="widget_refresh_desc">Refresh</string>
+    <string name="widget_ssh_none">no LAN address</string>
+    <string name="widget_stats">servers %1$d \u00b7 rules %2$d \u00b7 battery %3$d%%</string>
+    <string name="widget_last_run">\u25b6 %1$s %2$s</string>
+    <string name="widget_no_macros">No macros yet. Run z2-macro install all in the terminal.</string>
+    <string name="widget_config_title">Macros on this widget</string>
+    <string name="widget_config_desc">Up to %1$d. A tap runs the macro in the background \u2014 the app does not open.</string>
+    <string name="widget_config_empty">~/.z2term/macros is empty. Run z2-macro install all in the terminal, then add the widget again.</string>
+    <string name="widget_config_save">Save</string>
+    <string name="widget_config_cancel">Cancel</string>
 </resources>
