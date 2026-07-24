@@ -315,6 +315,8 @@ class StatusWidgetProvider : AppWidgetProvider() {
                 onExit = {
                     runCatching { WidgetStore.setRunFinish(app, name) }
                     runCatching { renderAll(app) }
+                    // run.log を見ているライブ tail (D2) があれば、そちらも描き直す。
+                    runCatching { TailWidgetProvider.refresh(app) }
                 },
             )
             if (ok) WidgetStore.setRunStart(context, name)

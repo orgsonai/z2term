@@ -385,6 +385,25 @@ Note that **quitting the app also ends any macro started from the widget**.
 - **To get more macros into that list**, put your own `.sh` in `~/.z2term/macros/` in the terminal,
   or run `z2-macro install all`, then reopen ⚙.
 
+### The other widget: live tail
+
+Keeps the **end of a log file** on your home screen, so you can see what a macro wrote or when a
+`z2-when` rule fired **without opening the app**.
+
+1. Long-press an empty spot on the home screen → "Widgets"
+2. Pick **Z2Term live tail** and place it
+3. The config screen opens — choose **the file** and **how many lines** (4–16), then Save
+
+- The candidate list holds log-like files under `~` (`.log` / `.jsonl` / `.txt` …), **most recently
+  changed first**. The usual ones are:
+  - `.z2term/widget/run.log` — output of macros started from the widget
+  - `.z2term/events.jsonl` — detected events (screen on/off, charging, Wi‑Fi …)
+  - `.z2term/when/<id>.log` — what that automation rule ran
+- **⟳** re-reads right now. Besides the 30-minute automatic refresh, it also redraws itself
+  **whenever a macro or an automation rule finishes**.
+- **⚙** changes the file or the line count.
+- It only ever reads the **end** of the file, so it stays fast however large the log grows.
+
 ---
 
 ## 10. Troubleshooting (FAQ)

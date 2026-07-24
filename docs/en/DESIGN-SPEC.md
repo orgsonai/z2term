@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-24 / Target version: 0.8.216-alpha (versionCode 224)
+Last updated: 2026-07-24 / Target version: 0.8.217-alpha (versionCode 225)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -426,6 +426,29 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 **Execution**: on fire, runs `sh -lc '<run>'` **headless** on the currently selected distro (`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`, same launch+drain pattern as `ServerDaemonManager`). Trigger context is passed via env vars `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` plus trigger-specific extras (wifi: `Z2_WHEN_SSID`; sms: `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` / `Z2_WHEN_OTP`; sensor: `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX`) (external input is never spliced into the shell; values are single-quote-escaped with `'\''`). Output is appended to `~/.z2term/when/<id>.log` (cleared before a run once past 128KB). Rule execution always goes through the engine path since `launchChroot` takes no extra args.
 
 **CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> run <cmd>` to add / `list` (TSV) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><pid>` (0.8.211 switched from a random suffix to the pid to avoid same-second collisions; a counter is appended if the file already exists). **Stage 2 now covers cron/wifi/sms/sensor** (0.8.207–0.8.210). Later candidates: DST-boundary refinement for `time:cron`, light-threshold hysteresis, etc.
+
+#### Live tail widget (`widget/TailWidgetProvider`, 0.8.217, D2)
+
+**What it does**: shows **the last N lines** of a chosen file on the home screen — "`tail` on your home screen". A window onto what macros and `z2-when` wrote, `events.jsonl`, or session logs, without opening the app. This is D2 from §10-2.
+
+**Parts**:
+- `widget/TailWidgetProvider` — drawing plus the ⟳ / ⚙ taps. Tapping the body opens the app.
+- `widget/TailConfigActivity` (`APPWIDGET_CONFIGURE`) — pick the file and the line count.
+- `widget/TailStore` — per-widget file (path relative to `~`) and line count in SharedPreferences, plus candidate collection.
+- `widget/TailReader` — taking the last N lines. The decision part is Android-independent and covered by `TailReaderTest` (8 cases).
+
+**Never reads the whole file**: neither session logs nor resident-server logs rotate (by design), so they grow without bound. `RandomAccessFile` seeks to the end and takes only `MAX_TAIL_BYTES` (16KB), then splits that into lines. Starting mid-file can **cut the first line in the middle of a multi-byte character**, so that line is dropped (`truncatedHead`) — unless it is the only line, in which case dropping it would leave nothing to show.
+
+**Candidates**: walks `~` up to depth 3 for real files ending in `.log` / `.jsonl` / `.txt` / `.out` / `.err`, **most recently modified first**, capped at 60. Hidden directories are included (logs collect under `~/.z2term/`). The config screen shows each file's modification time and size.
+
+**Update triggers** (like D1, **no new resident component**):
+1. The OS periodic update (30 minutes, the OS floor)
+2. A ⟳ tap
+3. `TailWidgetProvider.refresh()` — **when a macro or `z2-when` rule finishes** (from `HeadlessRun.launch(onExit = …)`). It does nothing when no such widget is placed, so it costs nothing for people who don't use it.
+
+**Shared with D1**: the background (`widget_bg`), the 40dp icon buttons (`Z2WidgetIconButton`), and the config-screen pieces (`ConfigSelectRow` / `ConfigButton` in `widget/WidgetConfigUi.kt`). Writing the look twice guarantees drift, so it was extracted from D1 while adding D2.
+
+**No `configuration_optional`** (unlike D1): **there is no way to guess which file to watch**, so the config screen always opens when the widget is placed. The unconfigured state can still happen (the user backs out), and then the body says "tap ⚙ and choose a file".
 
 #### Normalizing the toolbar order (`ToolbarButtons.mergeOrder` / `.normalizeOrder`, 0.8.213)
 

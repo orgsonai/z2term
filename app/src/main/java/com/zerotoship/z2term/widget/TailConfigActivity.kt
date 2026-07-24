@@ -21,8 +21,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -36,18 +39,18 @@ import com.zerotoship.z2term.ui.theme.Z2TermTheme
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
- * ホーム画面ウィジェット (D1) の設定画面。ウィジェットを置いたときにランチャーから呼ばれ、
- * **どのマクロをボタンに並べるか**だけを選ばせる。
+ * ライブ tail ウィジェット (D2) の設定画面。**どのファイルを何行出すか**だけを選ばせる。
  *
- * 候補は `~/.z2term/macros/` 配下の `.sh` の実ファイル。ここで新しいマクロを作らせることはしない
- * (マクロはターミナルで書く/`z2-macro install` で入れるもので、正本はファイル側にある)。
- *
- * API 31+ では `configuration_optional` を付けてあるので、この画面を出さずに置いても
- * ウィジェットは動く (その場合はマクロディレクトリの先頭 4 件が並ぶ)。
+ * 候補は `~/` 配下のログらしいファイル ([TailStore.candidates])。ここでファイルを作らせることは
+ * しない (ログはマクロ・`z2-when`・セッション記録が書くもので、正本はファイル側にある)。
  */
-class WidgetConfigActivity : ComponentActivity() {
+class TailConfigActivity : ComponentActivity() {
 
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
 
@@ -57,10 +60,8 @@ class WidgetConfigActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // MainActivity / GuiActivity と同じく edge-to-edge にする。どの API でも同じ前提になるので、
-        // 中身の `windowInsetsPadding(systemBars)` が二重padding にならない。
+        // D1 と同じ。これが無いとステータスバー / ナビゲーションバーの下に潜り込む。
         enableEdgeToEdge()
-        // 途中でやめた (戻る) ときはウィジェットを置かない、が Android の作法。
         setResult(Activity.RESULT_CANCELED)
 
         appWidgetId = intent?.extras?.getInt(
@@ -73,19 +74,24 @@ class WidgetConfigActivity : ComponentActivity() {
 
         CustomThemeStore.ensureLoaded(applicationContext)
 
-        val available = WidgetStore.availableMacros(this)
-        val initial = WidgetStore.macros(this, appWidgetId)
-        // ファイル名だけでは何のマクロか分からないので、スクリプト先頭のコメントを説明として出す。
-        val descriptions = available.associateWith { WidgetStore.description(this, it) }
+        val home = TailStore.home(this)
+        val candidates = TailStore.candidates(this)
+        // 「いつの・どれくらいの大きさのファイルか」が分かると選びやすい。
+        val stamp = SimpleDateFormat("MM/dd HH:mm", Locale.US)
+        val subtitles = candidates.associateWith { rel ->
+            val f = File(home, rel)
+            getString(R.string.tail_file_meta, stamp.format(Date(f.lastModified())), f.length() / 1024)
+        }
 
         setContent {
             Z2TermTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = ZtsBgPrimary) {
-                    ConfigScreen(
-                        available = available,
-                        descriptions = descriptions,
-                        initial = initial,
-                        onSave = { selected -> save(selected) },
+                    TailConfigScreen(
+                        candidates = candidates,
+                        subtitles = subtitles,
+                        initialPath = TailStore.path(this, appWidgetId),
+                        initialLines = TailStore.lines(this, appWidgetId),
+                        onSave = { path, lines -> save(path, lines) },
                         onCancel = { finish() },
                     )
                 }
@@ -93,57 +99,53 @@ class WidgetConfigActivity : ComponentActivity() {
         }
     }
 
-    private fun save(selected: List<String>) {
-        WidgetStore.setMacros(this, appWidgetId, selected)
-        // 置かれた直後は OS の更新が来ないので、自分で 1 回描く。
+    private fun save(path: String, lines: Int) {
+        TailStore.set(this, appWidgetId, path, lines)
         val id = appWidgetId
-        Thread { runCatching { StatusWidgetProvider.renderAll(applicationContext) } }
+        // 置かれた直後は OS の更新が来ないので、自分で 1 回描く。
+        Thread { runCatching { TailWidgetProvider.renderAll(applicationContext) } }
             .apply { isDaemon = true; start() }
-        setResult(
-            Activity.RESULT_OK,
-            Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
-        )
+        setResult(Activity.RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id))
         finish()
     }
 }
 
 @Composable
-private fun ConfigScreen(
-    available: List<String>,
-    descriptions: Map<String, String>,
-    initial: List<String>,
-    onSave: (List<String>) -> Unit,
+private fun TailConfigScreen(
+    candidates: List<String>,
+    subtitles: Map<String, String>,
+    initialPath: String?,
+    initialLines: Int,
+    onSave: (String, Int) -> Unit,
     onCancel: () -> Unit,
 ) {
-    val selected = remember { mutableStateListOf<String>().apply { addAll(initial) } }
+    var path by remember { mutableStateOf(initialPath ?: candidates.firstOrNull()) }
+    var lines by remember { mutableIntStateOf(initialLines) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // ステータスバー / ナビゲーションバーの下に潜り込ませない。targetSdk 35 の
-            // Android 15 は edge-to-edge が強制なので、これが無いと上下が隠れて押せない
-            // (実機フィードバック 2026-07-24)。既存の画面と同じ書き方に揃えている。
             .windowInsetsPadding(WindowInsets.systemBars)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
-            text = stringResource(R.string.widget_config_title),
+            text = stringResource(R.string.tail_config_title),
             color = ZtsTextPrimary,
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             fontFamily = FontFamily.Monospace
         )
         Text(
-            text = stringResource(R.string.widget_config_desc, WidgetStore.MAX_MACROS),
+            text = stringResource(R.string.tail_config_desc),
             color = ZtsTextSecondary,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace
         )
 
-        if (available.isEmpty()) {
+        if (candidates.isEmpty()) {
             Text(
-                text = stringResource(R.string.widget_config_empty),
+                text = stringResource(R.string.tail_config_empty),
                 color = ZtsTextSecondary,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace
@@ -155,37 +157,39 @@ private fun ConfigScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                available.forEach { name ->
-                    val checked = name in selected
-                    val desc = descriptions[name].orEmpty()
+                candidates.forEach { rel ->
                     ConfigSelectRow(
-                        title = WidgetStore.label(name),
-                        subtitle = desc.ifBlank { stringResource(R.string.widget_config_no_desc) },
-                        checked = checked,
-                        // 上限に達していたら未選択の行は押せない (先に外してもらう)。
-                        enabled = checked || selected.size < WidgetStore.MAX_MACROS,
-                        onToggle = {
-                            if (checked) selected.remove(name) else selected.add(name)
-                        }
+                        title = rel,
+                        subtitle = subtitles[rel].orEmpty(),
+                        checked = rel == path,
+                        // ファイルは 1 つだけ選ぶ (ラジオ相当)。
+                        onToggle = { path = rel }
                     )
                 }
             }
         }
 
-        // 「一覧に無いマクロをどう足すのか分からない」という実機フィードバックへの対応。
-        // 一覧が空のときだけでなく**常に**出す (足し方はここでしか分からない)。
         Text(
-            text = stringResource(R.string.widget_config_add_hint),
+            text = stringResource(R.string.tail_lines_label),
             color = ZtsTextSecondary,
-            fontSize = 10.sp,
+            fontSize = 11.sp,
             fontFamily = FontFamily.Monospace
         )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            TailStore.LINE_CHOICES.forEach { n ->
+                ConfigButton(
+                    label = n.toString(),
+                    accent = n == lines,
+                    onClick = { lines = n }
+                )
+            }
+        }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ConfigButton(
                 label = stringResource(R.string.widget_config_save),
                 accent = true,
-                onClick = { onSave(selected.toList()) }
+                onClick = { path?.let { onSave(it, lines) } }
             )
             ConfigButton(
                 label = stringResource(R.string.widget_config_cancel),

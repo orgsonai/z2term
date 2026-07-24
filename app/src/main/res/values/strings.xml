@@ -573,6 +573,21 @@
     <string name="widget_btn_running">\u25a0 %1$s\n%2$s</string>
     <string name="widget_config_no_desc">(no description in the script)</string>
     <string name="widget_config_add_hint">To add more: put your own .sh in ~/.z2term/macros/ in the terminal, or run z2-macro install all. Then reopen this screen.</string>
+
+    <!-- D2 ライブ tail -->
+    <string name="tail_widget_label">Z2Term live tail</string>
+    <string name="tail_widget_description">Shows the last lines of a log file on your home screen — macro output, events.jsonl, session logs. Like tail, without opening the app.</string>
+    <string name="tail_config_btn_desc">Choose the file</string>
+    <string name="tail_title_none">no file selected</string>
+    <string name="tail_pick_file">Tap ⚙ and choose a file to watch.</string>
+    <string name="tail_missing">That file does not exist yet.</string>
+    <string name="tail_empty">(empty)</string>
+    <string name="tail_footer">read at %1$s · %2$d KB</string>
+    <string name="tail_config_title">File to watch</string>
+    <string name="tail_config_desc">The last lines of this file appear on the home screen. Newest files come first.</string>
+    <string name="tail_config_empty">No log files under ~ yet. Run a macro or turn on detection first, then reopen this screen.</string>
+    <string name="tail_file_meta">%1$s · %2$d KB</string>
+    <string name="tail_lines_label">Lines to show</string>
     <string name="widget_config_empty">~/.z2term/macros is empty. Run z2-macro install all in the terminal, then add the widget again.</string>
     <string name="widget_config_save">Save</string>
     <string name="widget_config_cancel">Cancel</string>

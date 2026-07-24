@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ホーム画面ウィジェット D2「ライブ tail」のレイアウト。
+
+  D1 (widget_status.xml) と同じ土台・同じ 40dp 角のアイコンボタンを使う。
+  本文は 1 つの TextView に改行区切りで流し込む (RemoteViews では行数ぶんの View を
+  動的に生やせないため)。行数は設定で決め、weight=1 の枠に収める。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tail_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="10dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tail_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textColor="@color/widget_accent"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:singleLine="true"
+            android:ellipsize="start" />
+
+        <TextView
+            android:id="@+id/tail_config"
+            style="@style/Z2WidgetIconButton"
+            android:layout_marginStart="6dp"
+            android:text="@string/widget_config_glyph"
+            android:contentDescription="@string/tail_config_btn_desc" />
+
+        <TextView
+            android:id="@+id/tail_refresh"
+            style="@style/Z2WidgetIconButton"
+            android:layout_marginStart="6dp"
+            android:text="@string/widget_refresh_glyph"
+            android:contentDescription="@string/widget_refresh_desc" />
+    </LinearLayout>
+
+    <!-- 本文。余った高さを全部もらって、下端に空白を残さない (D1 と同じ考え方)。 -->
+    <TextView
+        android:id="@+id/tail_body"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/widget_button"
+        android:padding="6dp"
+        android:textColor="@color/widget_text_primary"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:gravity="bottom"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/tail_footer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:textColor="@color/widget_text_tertiary"
+        android:textSize="10sp"
+        android:fontFamily="monospace"
+        android:singleLine="true"
+        android:ellipsize="end" />
+</LinearLayout>

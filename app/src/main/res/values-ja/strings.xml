@@ -562,6 +562,21 @@
     <string name="widget_btn_running">■ %1$s\n%2$s</string>
     <string name="widget_config_no_desc">（スクリプトに説明がありません）</string>
     <string name="widget_config_add_hint">増やすには: 端末で ~/.z2term/macros/ に自分の .sh を置くか、z2-macro install all を実行してから、この画面を開き直してください。</string>
+
+    <!-- D2 ライブ tail -->
+    <string name="tail_widget_label">Z2Term ライブ tail</string>
+    <string name="tail_widget_description">ログファイルの末尾をホーム画面に出します。マクロの出力・events.jsonl・セッション記録など、アプリを開かずに tail できます。</string>
+    <string name="tail_config_btn_desc">見るファイルを選ぶ</string>
+    <string name="tail_title_none">ファイル未選択</string>
+    <string name="tail_pick_file">⚙ を押して、見るファイルを選んでください。</string>
+    <string name="tail_missing">そのファイルはまだありません。</string>
+    <string name="tail_empty">（中身なし）</string>
+    <string name="tail_footer">%1$s 時点 · %2$d KB</string>
+    <string name="tail_config_title">見るファイル</string>
+    <string name="tail_config_desc">選んだファイルの末尾がホーム画面に出ます。新しいものが上に並びます。</string>
+    <string name="tail_config_empty">~ の下にまだログがありません。マクロを走らせるか検知を ON にしてから、この画面を開き直してください。</string>
+    <string name="tail_file_meta">%1$s · %2$d KB</string>
+    <string name="tail_lines_label">出す行数</string>
     <string name="widget_config_empty">~/.z2term/macros が空です。端末で z2-macro install all を実行してから、もう一度ウィジェットを追加してください。</string>
     <string name="widget_config_save">保存</string>
     <string name="widget_config_cancel">キャンセル</string>

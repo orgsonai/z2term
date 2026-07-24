@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-24 / 対象バージョン: 0.8.216-alpha (versionCode 224)
+最終更新: 2026-07-24 / 対象バージョン: 0.8.217-alpha (versionCode 225)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -416,6 +416,29 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 **実行**: 発火すると「そのとき選ばれている distro」で `sh -lc '<run>'` を **headless 起動**（`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`。`ServerDaemonManager` と同じ launch + drain パターン）。トリガー情報は環境変数 `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` と、トリガー固有の追加 env（wifi: `Z2_WHEN_SSID` / sms: `Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP` / sensor: `Z2_WHEN_SENSOR`・`Z2_WHEN_LUX`）で渡す（外部入力をシェルへ文字列展開しない安全境界。値は単一引用符へ `'\''` エスケープ）。出力は `~/.z2term/when/<id>.log` へ追記（128KB を超えたら実行前に空にする）。root chroot モードでも `launchChroot` は追加引数を取らないため、ルール実行はエンジン経路に統一している。
 
 **CLI**（`z2-when`。`Z2ApiScript` が launch 毎に `/usr/local/bin` へ配置）: `<trigger> run <cmd>` で登録 / `list`（TSV）/ `remove <id|all>`（`rm`）/ `on|off <id>` / `log <id>`。id は `w<epoch><pid>`（同一秒の衝突を避けるため 0.8.211 で乱数から pid へ変更。既存があれば連番を付す）。**stage2 は cron/wifi/sms/sensor まで実装済み**（0.8.207〜0.8.210）。以降の候補は `time:cron` の DST 跨ぎ精緻化や照度ヒステリシス等の作り込み。
+
+#### ライブ tail ウィジェット（`widget/TailWidgetProvider`、0.8.217・D2）
+
+**何ができるか**: 選んだファイルの**末尾 N 行**をホーム画面に出す。「ホーム画面で `tail`」。マクロや `z2-when` が書いたログ・`events.jsonl`・セッション記録を、端末を開かずに眺めるための窓。§10-2 の D2。
+
+**構成**:
+- `widget/TailWidgetProvider`… 描画と ⟳ / ⚙ のタップ受け。本文タップでアプリを開く。
+- `widget/TailConfigActivity`（`APPWIDGET_CONFIGURE`）… 見るファイルと行数を選ぶ。
+- `widget/TailStore`… ウィジェットごとの「ファイル（`~` からの相対パス）と行数」を SharedPreferences に保存し、候補集めも持つ。
+- `widget/TailReader`… 末尾 N 行の切り出し。判断部分は Android 非依存で `TailReaderTest`（8 ケース）。
+
+**全部読まない**: セッションログも常駐サーバーのログも**ローテーションしない**方針（青天井）なので、`RandomAccessFile` で末尾から `MAX_TAIL_BYTES`（16KB）だけ切り出し、その中で行に割る。途中のバイトから読むと**先頭行がマルチバイト文字の途中で切れる**ので、その 1 行は捨てる（`truncatedHead`。ただし 1 行しか無いときは捨てると何も出せないので残す）。
+
+**候補集め**: `~` 配下を深さ 3 まで走査して `.log` / `.jsonl` / `.txt` / `.out` / `.err` の実ファイルを拾い、**更新が新しい順**に最大 60 件。隠しディレクトリも見る（`~/.z2term/` にログが集まるため）。設定画面には更新時刻とサイズを添えて出す。
+
+**更新のきっかけ**（D1 と同じく**常駐は増やさない**）:
+1. OS の定期更新（30 分。OS 側の下限）
+2. ⟳ タップ
+3. `TailWidgetProvider.refresh()` — **マクロや `z2-when` ルールの実行が終わったとき**（`HeadlessRun.launch(onExit = …)` から）。置かれていなければ何もしないので、使っていない人には一切のコストが無い。
+
+**D1 と共有しているもの**: 土台（`widget_bg`）・40dp 角のアイコンボタン（`Z2WidgetIconButton`）・設定画面の部品（`widget/WidgetConfigUi.kt` の `ConfigSelectRow` / `ConfigButton`）。見た目を 2 か所に書くと必ずズレるので、D2 を足すときに D1 から切り出した。
+
+**`configuration_optional` を付けない**（D1 とはここが違う）: **どのファイルを見るかは推測しようがない**ので、置いた直後に必ず設定画面を出す。それでも未設定の状態は起こり得る（設定を途中でやめた等）ので、その場合は「⚙ を押してファイルを選んでください」と本文に出す。
 
 #### ツールバーの並び順の正規化（`ToolbarButtons.mergeOrder` / `.normalizeOrder`、0.8.213）
 

@@ -7,6 +7,7 @@ import android.content.Intent
 import android.util.Log
 import com.zerotoship.z2term.settings.WhenRule
 import com.zerotoship.z2term.widget.StatusWidgetProvider
+import com.zerotoship.z2term.widget.TailWidgetProvider
 import java.io.File
 
 /**
@@ -329,12 +330,16 @@ object WhenManager {
             "export Z2_WHEN_NAME=${HeadlessRun.shSingleQuote(rule.id)};" +
             "$levelExport$extraExport cd \"\$HOME\" 2>/dev/null; ${rule.run}"
 
+        val app = context.applicationContext
         HeadlessRun.launch(
             context = context,
             script = script,
             logFile = File(whenDir(context), "${rule.id}.log"),
             name = "when-${rule.id}",
             header = HeadlessRun.logHeader(rule.trigger),
+            // ルールのログを見ているライブ tail ウィジェット (D2) があれば描き直す。
+            // 置かれていなければ何もしない (常駐は増やさない)。
+            onExit = { runCatching { TailWidgetProvider.refresh(app) } },
         )
     }
 
