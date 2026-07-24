@@ -202,8 +202,11 @@ class SystemEventService : Service() {
             val raw = runCatching { wm?.connectionInfo?.ssid }.getOrNull().orEmpty()
             val ssid = raw.trim('"').let { if (it.isBlank() || it == "<unknown ssid>") "" else it }
             emit("wifi_connected", ssid = ssid)
+            // z2-when (A6 stage2) の wifi トリガー。状態変化のときだけ呼ばれる (上の抑制で担保)。
+            runCatching { WhenManager.onWifi(applicationContext, connected = true, ssid = ssid) }
         } else {
             emit("wifi_disconnected")
+            runCatching { WhenManager.onWifi(applicationContext, connected = false, ssid = "") }
         }
     }
 

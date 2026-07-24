@@ -211,14 +211,29 @@ object WhenManager {
         runCatching { File(dir, BATT_STATE).writeText(level.toString()) }
     }
 
+    // --- Wi-Fi トリガー ---
+
+    /**
+     * Wi‑Fi の接続/切断を受けて `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<名前>` を実行する。
+     * 呼び元は検知 ON 時の [SystemEventService.handleWifi] (状態変化で 1 回だけ・エッジ判定は呼び元)。
+     * Wi‑Fi の接続変化は動的レシーバでしか拾えない (暗黙ブロードキャスト制限の対象) ため、充電/電池と
+     * 違い**検知フォアグラウンドサービスが ON のときだけ**働く。SSID は位置情報権限が無いと空になる。
+     */
+    fun onWifi(context: Context, connected: Boolean, ssid: String) {
+        val app = context.applicationContext
+        loadRules(app).filter { it.enabled && it.kind == "wifi" }.forEach { rule ->
+            if (WhenTriggerMatch.wifi(rule.spec, connected, ssid)) runRule(app, rule, level = -1, ssid = ssid)
+        }
+    }
+
     // --- 実行 ---
 
     /**
      * ルールの [WhenRule.run] を現在の distro で headless 実行する。トリガー情報は環境変数
-     * `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` で渡す (シェルへ文字列展開しない)。
-     * 出力は `~/.z2term/when/<id>.log` へ (肥大したら実行前に空にする)。
+     * `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` / `Z2_WHEN_SSID` で渡す (シェルへ
+     * 文字列展開しない)。出力は `~/.z2term/when/<id>.log` へ (肥大したら実行前に空にする)。
      */
-    private fun runRule(context: Context, rule: WhenRule, level: Int) {
+    private fun runRule(context: Context, rule: WhenRule, level: Int, ssid: String = "") {
         val settings = runCatching { runBlocking { AppSettings(context).flow.first() } }.getOrNull() ?: return
         val distroId = settings.distroId
         val rootfs = File(context.filesDir, "distros/$distroId")
@@ -232,10 +247,14 @@ object WhenManager {
             logFile.appendText("--- ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())} ${rule.trigger} ---\n")
         }
 
-        // 環境変数 + ユーザーコマンドを 1 本の sh -lc へ。trigger/id は生成値なので単一引用符と衝突しない。
+        // 環境変数 + ユーザーコマンドを 1 本の sh -lc へ。trigger/ssid は SSID 等の外部文字列を
+        // 含み得る (wifi:ssid=<名前>) ので単一引用符へ安全にエスケープする ([shSingleQuote])。
+        // level は数値なのでそのまま。ユーザーコマンド (rule.run) は実行対象なのでクォートしない。
         val levelExport = if (level in 0..100) " export Z2_WHEN_LEVEL='$level';" else ""
-        val script = "export Z2_WHEN_TRIGGER='${rule.trigger}'; export Z2_WHEN_NAME='${rule.id}';" +
-            "$levelExport cd \"\$HOME\" 2>/dev/null; ${rule.run}"
+        val ssidExport = if (ssid.isNotEmpty()) " export Z2_WHEN_SSID=${shSingleQuote(ssid)};" else ""
+        val script = "export Z2_WHEN_TRIGGER=${shSingleQuote(rule.trigger)}; " +
+            "export Z2_WHEN_NAME=${shSingleQuote(rule.id)};" +
+            "$levelExport$ssidExport cd \"\$HOME\" 2>/dev/null; ${rule.run}"
 
         // 実行は常に launch() (proot/z2root)。root chroot モードでも launchChroot は追加引数を
         // 取らないため、ルール実行はエンジン経路に統一する (同じ distro で動くので挙動は変わらない)。
@@ -281,6 +300,9 @@ object WhenManager {
         val rule = runCatching { WhenRule.parse(ruleId, f.readText()) }.getOrNull() ?: return
         runCatching { f.writeText(rule.copy(enabled = enabled).serialize()) }
     }
+
+    /** 任意文字列を sh の単一引用符へ安全に埋め込む (`'` を `'\''` へ割る)。 */
+    private fun shSingleQuote(s: String): String = "'" + s.replace("'", "'\\''") + "'"
 
     private fun readArmed(dir: File): List<String> =
         runCatching { File(dir, ARMED_STATE).readLines().map { it.trim() }.filter { it.isNotEmpty() } }

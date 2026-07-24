@@ -285,11 +285,13 @@ fun z2ApiScripts(): Map<String, String> {
         |#            battery:below=N | battery:above=N
         |#            time:daily=HH:MM | time:at=HH:MM | time:every=Nm|Nh
         |#            time:cron='分 時 日 月 曜日'  (曜日 0-7 / 0,7=日曜。空白を含むので要クォート)
+        |#            wifi:connect | wifi:disconnect | wifi:ssid=<名前>  (検知 ON が前提)
         |# z2-when list                          … 登録一覧 (id / on|off / トリガー / -> / コマンド の TSV)
         |# z2-when remove <id|all>  (rm でも可)  … 削除
         |# z2-when on <id> / off <id>            … 有効 / 無効
         |# z2-when log <id>                      … そのルールの実行ログ (末尾)
-        |# 発火時、コマンドは選択中の distro で実行され、環境変数 Z2_WHEN_TRIGGER / Z2_WHEN_LEVEL が入る。
+        |# 発火時、コマンドは選択中の distro で実行され、環境変数 Z2_WHEN_TRIGGER / Z2_WHEN_LEVEL
+        |# / Z2_WHEN_SSID (wifi トリガー時) が入る。
         |# 例: z2-when charge:start run ~/.z2term/macros/backup.sh
         |#     z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
         |DIR="${d}HOME/.z2term/when"

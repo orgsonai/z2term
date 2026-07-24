@@ -419,6 +419,7 @@ z2-when charge:start        run ~/.z2term/macros/backup.sh   # 充電を始め�
 z2-when battery:below=20    run "z2-notify -h '電池 20% 切りました'"
 z2-when time:daily=03:00    run ~/.z2term/macros/nightly.sh  # 毎日 3:00
 z2-when time:cron='0 9 * * 1-5' run ~/.z2term/macros/weekday.sh  # 平日 9:00
+z2-when wifi:ssid=home       run ~/.z2term/macros/expose-lan.sh # 自宅 Wi‑Fi に繋いだら
 ```
 
 - **トリガーの種類**
@@ -426,8 +427,9 @@ z2-when time:cron='0 9 * * 1-5' run ~/.z2term/macros/weekday.sh  # 平日 9:00
   - `battery:below=N` / `battery:above=N` … 残量が N% を**下/上へ跨いだ瞬間**（例: 20 を切った時）
   - `time:daily=HH:MM`（毎日）/ `time:at=HH:MM`（次の HH:MM に 1 回だけ。実行後は自動で無効になります）/ `time:every=30m`・`2h`（一定間隔・最短 1 分）
   - `time:cron='分 時 日 月 曜日'` … cron 式で細かく指定（例: `'0 3 * * *'` 毎日 3:00 / `'*/15 * * * *'` 15 分ごと / `'0 9 * * 1-5'` 平日 9:00）。曜日は 0〜7（0 と 7 が日曜）。**空白を含むので必ずクォート**してください
+  - `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<名前>` … Wi‑Fi に接続 / 切断 / 指定のネットワークに接続したとき。**この Wi‑Fi トリガーは「検知」を ON にしているときだけ働きます**（設定の常駐・自動化）。ネットワーク名（SSID）を使うには位置情報の許可も要ります。コマンド内では `Z2_WHEN_SSID` に接続先の名前が入ります
 - **一覧・削除・オンオフ**: `z2-when list`（一覧）/ `z2-when remove <id>`（`all` で全部）/ `z2-when on <id>` `z2-when off <id>` / `z2-when log <id>`（実行の記録を見る）
-- **実行されるコマンド**の中では `Z2_WHEN_TRIGGER`（発火したトリガー）や `Z2_WHEN_LEVEL`（そのときの電池残量）が環境変数で使えます。
+- **実行されるコマンド**の中では `Z2_WHEN_TRIGGER`（発火したトリガー）や `Z2_WHEN_LEVEL`（そのときの電池残量）、`Z2_WHEN_SSID`（wifi トリガー時の接続先）が環境変数で使えます。
 - ルールは `~/.z2term/when/` にテキストで置かれるので、**git で同期・バックアップ**できます。
 - 時刻は電池にやさしい仕組み（Doze 貫通の AlarmManager）で動くため、**発火が数分ずれることがあります**。細かい `wifi` / センサー / SMS-OTP トリガーや `cron` 書式は次のバージョンで追加予定です。
 
