@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-24 / Target version: 0.8.212-alpha (versionCode 220)
+Last updated: 2026-07-24 / Target version: 0.8.213-alpha (versionCode 221)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -425,6 +425,17 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 **Execution**: on fire, runs `sh -lc '<run>'` **headless** on the currently selected distro (`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`, same launch+drain pattern as `ServerDaemonManager`). Trigger context is passed via env vars `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` plus trigger-specific extras (wifi: `Z2_WHEN_SSID`; sms: `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` / `Z2_WHEN_OTP`; sensor: `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX`) (external input is never spliced into the shell; values are single-quote-escaped with `'\''`). Output is appended to `~/.z2term/when/<id>.log` (cleared before a run once past 128KB). Rule execution always goes through the engine path since `launchChroot` takes no extra args.
 
 **CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> run <cmd>` to add / `list` (TSV) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><pid>` (0.8.211 switched from a random suffix to the pid to avoid same-second collisions; a counter is appended if the file already exists). **Stage 2 now covers cron/wifi/sms/sensor** (0.8.207–0.8.210). Later candidates: DST-boundary refinement for `time:cron`, light-threshold hysteresis, etc.
+
+#### Normalizing the toolbar order (`ToolbarButtons.mergeOrder` / `.normalizeOrder`, 0.8.213)
+
+**The bug**: some toolbar buttons were drawn **twice** (it surfaced when the UI was rebuilt, e.g. after switching the language — only some buttons, and not reproducible on demand).
+
+**Cause**: the stored `toolbarOrder` could end up with **the same id in two places**. On drop, the write fills only the *visible slots* of "the saved order of all ids" with the current on-screen order — but right after toggling a button's visibility in Settings, the `hidden` change may not have reached the on-screen order (`order`) yet, so a **stale list that still contains the just-hidden id** is handed in. Pouring that into the visible slots writes the hidden id into a visible slot too (duplicating it) and drops another id. The value lives in DataStore, so **once corrupted it survived restarts**. The read path (`mergeToolbarOrder`) passed duplicates straight through, so `key(id)` collided and the reordering state broke as well.
+
+**Fix**: the decision logic moved into `ui/terminal/ToolbarButtons` as Android-free pure functions, covered by `ToolbarOrderTest`.
+- `mergeOrder(saved, present)` — read path. Collapses duplicates in `saved` before merging with present, so the display is correct even with a corrupted stored value.
+- `normalizeOrder(savedCsv, allIds, hiddenIds, shownOrder)` — write path. Drops hidden/unknown ids from the incoming order, then **collapses first-wins and appends anything missing**. The result is guaranteed to contain every id in `allIds` exactly once.
+- On read, a stored value with duplicates is **normalized and written back immediately**, so already-broken devices heal themselves (the write updates `savedOrder`, the effect runs once more, and it converges).
 
 #### Home screen widget (`widget/StatusWidgetProvider`, 0.8.212, D1)
 

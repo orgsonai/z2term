@@ -58,6 +58,59 @@ object ToolbarButtons {
     fun parseHidden(csv: String): Set<String> =
         csv.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
 
+    /** カンマ区切りの並び順を id のリストにする (空要素を落として trim)。 */
+    fun parseOrder(csv: String): List<String> =
+        csv.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+
+    /**
+     * 保存済み並び [saved] と、いま表示すべき [present] をマージした表示順を返す。
+     * 保存順のうち present に在るものを優先し、保存に無い (新しく増えた) ボタンを present の
+     * 既定順で末尾に補う。ボタンの追加・削除があっても並びが壊れない。
+     *
+     * **[saved] に同じ id が二重に入っていても 1 つに畳む。** 畳まないと同じボタンが 2 個描かれ、
+     * 描画側の `key(id)` が重複して並べ替えの状態まで壊れる (0.8.212 で修正した不具合)。
+     * 壊れた保存値は一度書かれると残り続けるので、読む側でも必ず正規化する。
+     */
+    fun mergeOrder(saved: List<String>, present: List<String>): List<String> {
+        val kept = saved.distinct().filter { it in present }
+        return kept + present.filter { it !in kept }
+    }
+
+    /**
+     * 並べ替えを確定したときに**保存する**並び順を組み立てる。
+     *
+     * 保存値は「隠しているボタンも含めた全体」にする。表示中のボタンだけを保存すると隠した id が
+     * 消え、出し直したときに末尾へ飛んでしまうため。全体の並びのうち**表示されている位置だけ**を、
+     * いまの表示順 [shownOrder] で埋め直す。
+     *
+     * @param savedCsv   これまでの保存値。
+     * @param allIds     このツールバーが持つ全ボタン id (隠しているものも含む)。
+     * @param hiddenIds  非表示指定。
+     * @param shownOrder 画面に出ている順の id。
+     *
+     * 戻り値は **[allIds] がちょうど 1 回ずつ現れる**ことを保証する。[shownOrder] が古くて
+     * 隠し済みの id を含んでいても (隠す/出すの切替直後にドラッグを確定した場合に起きる)、
+     * 同じ id が 2 か所に入った保存値を書かない — これが「ボタンが二重に出る」原因だった。
+     */
+    fun normalizeOrder(
+        savedCsv: String,
+        allIds: List<String>,
+        hiddenIds: Set<String>,
+        shownOrder: List<String>,
+    ): String {
+        val base = mergeOrder(parseOrder(savedCsv), allIds).toMutableList()
+        val queue = shownOrder.distinct().filter { it in allIds && it !in hiddenIds }
+        var k = 0
+        for (i in base.indices) {
+            if (base[i] !in hiddenIds && k < queue.size) base[i] = queue[k++]
+        }
+        // 位置埋めの結果として重複や欠落が出ても壊れた値を書かない。先勝ちで畳み、
+        // 落ちた id は末尾に補う。
+        val seen = LinkedHashSet<String>()
+        val deduped = base.filter { seen.add(it) }
+        return (deduped + allIds.filter { it !in seen }).joinToString(",")
+    }
+
     /** [id] を隠す / 出すを切り替えた新しいカンマ区切り文字列を返す。隠せないボタンは無視する。 */
     fun toggleHidden(csv: String, id: String): String {
         if (CATALOG.any { it.id == id && !it.canHide }) return csv

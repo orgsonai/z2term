@@ -1354,17 +1354,6 @@ private fun keepAliveToolbarItem(
 }
 
 /**
- * 保存済み並び [saved] と現在表示すべき [present] をマージする。
- * 保存順のうち present に在るものを優先採用し、保存に無い (新規追加された) ボタンを
- * present の既定順で末尾に補う。これでボタンの追加・削除があっても並びが壊れない。
- */
-private fun mergeToolbarOrder(saved: List<String>, present: List<String>): List<String> {
-    val kept = saved.filter { it in present }
-    val rest = present.filter { it !in kept }
-    return kept + rest
-}
-
-/**
  * 並べ替え可能なツールバー (要望)。
  *  - 通常タップ = そのボタンの動作。
  *  - 長押し = つかんで左右ドラッグで並べ替え + 簡易説明ポップアップを表示。
@@ -1390,11 +1379,15 @@ private fun ReorderableToolbar(
     // (確定時は order をローカル更新済 → 直後の savedOrder 反映で同じ並びに収束しちらつかない)。
     LaunchedEffect(savedOrder, present) {
         if (dragging == null) {
-            val merged = mergeToolbarOrder(
-                savedOrder.split(',').map { it.trim() }.filter { it.isNotEmpty() },
-                present
-            )
-            order.clear(); order.addAll(merged)
+            val savedIds = ToolbarButtons.parseOrder(savedOrder)
+            // 壊れた保存値 (同じ id が二重) を見つけたら、その場で正規化して書き戻す。
+            // 表示は mergeOrder が畳むので直るが、保存値を直さないと壊れたまま残り、
+            // 次に隠す/出すを切り替えたときにまた表面化する。書き戻すと savedOrder が
+            // 更新されてこの LaunchedEffect が 1 回だけ回り直し、以後は何もしない。
+            if (savedIds.size != savedIds.distinct().size) {
+                onReorder(savedIds.distinct().joinToString(","))
+            }
+            order.clear(); order.addAll(ToolbarButtons.mergeOrder(savedIds, present))
         }
     }
     val widths = remember { mutableStateMapOf<String, Int>() }
@@ -1405,17 +1398,8 @@ private fun ReorderableToolbar(
     // 隠した id が保存値から消え、出し直したときに末尾へ飛んでしまうため。
     // 全体の並びの「表示されている位置」だけを、今の表示順で埋め直す。
     val allIds = items.map { it.id }
-    fun persistOrder(shownOrder: List<String>): String {
-        val base = mergeToolbarOrder(
-            savedOrder.split(',').map { it.trim() }.filter { it.isNotEmpty() },
-            allIds
-        ).toMutableList()
-        var k = 0
-        for (i in base.indices) {
-            if (base[i] !in hiddenIds && k < shownOrder.size) base[i] = shownOrder[k++]
-        }
-        return base.joinToString(",")
-    }
+    fun persistOrder(shownOrder: List<String>): String =
+        ToolbarButtons.normalizeOrder(savedOrder, allIds, hiddenIds, shownOrder)
 
     // ドラッグ量が隣ボタンの中心を越えたら order を入れ替え、その分 offset を戻して連続移動。
     fun trySwap() {
