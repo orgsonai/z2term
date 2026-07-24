@@ -346,8 +346,12 @@ fun z2ApiScripts(): Map<String, String> {
         |    [ "${d}1" = "run" ] && shift
         |    { [ -n "${d}trig" ] && [ ${d}# -ge 1 ]; } || usage
         |    cmd="${d}*"
-        |    rnd=${d}(awk 'BEGIN{srand(); printf "%03d", rand()*1000}' 2>/dev/null)
-        |    id="w${d}(date +%s 2>/dev/null)${d}rnd"
+        |    # id は w<epoch><pid>。awk の srand() は「秒」で seed されるため同一秒では同じ乱数になり、
+        |    # 続けて登録したルールが同じ id で上書きし合っていた。pid は 1 プロセス 1 値なので同一秒でも
+        |    # 衝突しない。pid 再利用に備えて既存ファイルがあれば連番を足す (二重の防御)。
+        |    base="w${d}(date +%s 2>/dev/null)${d}${d}"
+        |    id="${d}base"; n=0
+        |    while [ -e "${d}DIR/${d}id.rule" ]; do n=${d}((n+1)); id="${d}base-${d}n"; done
         |    tmp="${d}DIR/.${d}id.tmp"
         |    { printf 'trigger=%s\n' "${d}trig"; printf 'run=%s\n' "${d}cmd"; printf 'enabled=1\n'; } > "${d}tmp"
         |    mv "${d}tmp" "${d}DIR/${d}id.rule" || { echo "z2-when: 書き込みに失敗しました" >&2; exit 1; }

@@ -5,6 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
+import java.nio.file.Files
 
 /**
  * `z2-*` ヘルパー (rootfs 側 CLI) の生成物を検証する。
@@ -55,6 +56,43 @@ class Z2ApiScriptTest {
         for ((name, body) in scripts) {
             assertTrue("$name: シェバンが無い", body.startsWith("#!/bin/sh\n"))
             assertTrue("$name: 改行で終わっていない", body.endsWith("\n"))
+        }
+    }
+
+    /**
+     * A6: `z2-when` を**続けて実行してもルール id が衝突しない**こと (0.8.211 の回帰テスト)。
+     *
+     * 元バグ: id が `w<epoch><awk の乱数>` だったが、awk の `srand()` は**秒**で seed されるため
+     * 同一秒では乱数まで同値になり、`w<epoch><乱数>` が丸ごと一致した。結果、続けて登録した
+     * ルールが**同じファイルへ黙って上書き**され、7 個登録して 3 個しか残らない事故になった
+     * (実機で確認)。セットアップスクリプトで複数ルールを並べるのは普通の使い方なので実害が大きい。
+     */
+    @Test
+    fun whenRuleIdsDoNotCollide() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val script = File.createTempFile("z2when", ".sh").apply { writeText(scripts["z2-when"]!!) }
+        val home = Files.createTempDirectory("z2home").toFile()
+        val want = 5
+        try {
+            // 同一秒に収まる速さで連続登録する (衝突していれば 1 件しか残らない)。
+            repeat(want) { i ->
+                val pb = ProcessBuilder(sh!!, script.absolutePath, "charge:start", "run", "echo $i")
+                    .redirectErrorStream(true)
+                pb.environment()["HOME"] = home.absolutePath
+                val proc = pb.start()
+                proc.inputStream.bufferedReader().readText()
+                proc.waitFor()
+            }
+            val rules = File(home, ".z2term/when").listFiles { f -> f.name.endsWith(".rule") }.orEmpty()
+            assertEquals(
+                "連続登録したルールが上書きされている (id 衝突): 残ったのは " +
+                    rules.joinToString { it.name },
+                want, rules.size
+            )
+        } finally {
+            script.delete()
+            home.deleteRecursively()
         }
     }
 

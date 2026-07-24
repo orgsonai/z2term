@@ -1,13 +1,12 @@
 package com.zerotoship.z2term.ui.settings
 
 import android.Manifest
+import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.provider.Settings
-import androidx.compose.ui.res.pluralStringResource
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,14 +25,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -53,51 +52,55 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.distro.DistroBundle
 import com.zerotoship.z2term.distro.DistroSpec
-import com.zerotoship.z2term.legal.LicensesDialog
 import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.emulator.TerminalTheme
+import com.zerotoship.z2term.legal.LicensesDialog
 import com.zerotoship.z2term.proot.GuiTerminal
-import android.widget.Toast
 import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.proot.RootProbe
-import android.app.admin.DevicePolicyManager
 import com.zerotoship.z2term.service.NotificationLogService
-import com.zerotoship.z2term.service.SmsLogReceiver
 import com.zerotoship.z2term.service.PasswordWatchAdmin
+import com.zerotoship.z2term.service.ServerDaemonManager
+import com.zerotoship.z2term.service.SmsLogReceiver
 import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.settings.AppSettings
-import com.zerotoship.z2term.settings.SettingsGroup
-import com.zerotoship.z2term.settings.SettingsGroupStore
 import com.zerotoship.z2term.settings.BatteryGuard
 import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.settings.RootfsCacheCleaner
+import com.zerotoship.z2term.settings.SettingsGroup
+import com.zerotoship.z2term.settings.SettingsGroupStore
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
+import com.zerotoship.z2term.ui.components.ResidentActionDialog
 import com.zerotoship.z2term.ui.terminal.ToolbarButtons
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
+import com.zerotoship.z2term.ui.terminal.stopEverythingAndQuit
 import com.zerotoship.z2term.ui.theme.TerminalFontOption
 import com.zerotoship.z2term.ui.theme.TerminalFontOptions
-import com.zerotoship.z2term.ui.theme.rememberTerminalFontFamily
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -107,6 +110,7 @@ import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import com.zerotoship.z2term.ui.theme.ZtsWarning
+import com.zerotoship.z2term.ui.theme.rememberTerminalFontFamily
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -156,6 +160,13 @@ fun SettingsSheet(
     // IME 学習履歴の管理シート。非 null の間 [ImeHistorySheet] を表示する (キーボードパッチ)。
     var imeHistoryOpen by remember { mutableStateOf(false) }
     var serversOpen by remember { mutableStateOf(false) }
+    // 常駐サーバーが動いている間は🔒トグルをロックする (ツールバーの keepAliveToolbarItem と同じ扱い)。
+    // ボタンを隠している人はここが唯一の🔒操作口なので、出口の終了ダイアログもここに出す (0.8.211)。
+    var serversRunning by remember { mutableStateOf(ServerDaemonManager.isRunning) }
+    var residentDialogOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        while (true) { serversRunning = ServerDaemonManager.isRunning; delay(1000) }
+    }
     // 画面の向き。キーボード高さスライダーを縦/横で自動切替するために監視する
     // (configChanges 宣言済みの Activity でも確実に届くよう View の実寸で判定)。
     val rootView = LocalView.current
@@ -343,11 +354,16 @@ fun SettingsSheet(
                         )
                     }
                     if (ToolbarButtons.KEEP_ALIVE in hiddenIds) {
+                        // ツールバーの🔒と同じく、常駐サーバー稼働中はトグル不可にして終了の出口を出す
+                        // (0.8.211)。ここを素通しにすると、ボタンを隠している人だけ「常駐に閉じ込められて
+                        // セッションを終了できない」状態になっていた。
                         ToggleField(
                             title = stringResource(R.string.tb_keep_alive),
                             description = stringResource(R.string.settings_toolbar_hidden_toggle_desc),
                             checked = settings.keepAliveService,
-                            onChange = { session.setKeepAliveService(it) }
+                            onChange = { session.setKeepAliveService(it) },
+                            locked = serversRunning,
+                            onLockedTap = { residentDialogOpen = true }
                         )
                     }
                 }
@@ -1435,6 +1451,19 @@ fun SettingsSheet(
     if (serversOpen) {
         ServersSheet(session = session, onDismiss = { serversOpen = false })
     }
+
+    // ロックされた🔒トグルをタップしたときの終了ダイアログ (ツールバー側と同じ出口)。
+    if (residentDialogOpen) {
+        ResidentActionDialog(
+            onResetSession = {
+                residentDialogOpen = false
+                onDismiss()
+                SessionManager.resetToInitial(context)
+            },
+            onStopAll = { residentDialogOpen = false; stopEverythingAndQuit(context) },
+            onCancel = { residentDialogOpen = false }
+        )
+    }
 }
 
 /**
@@ -2005,13 +2034,21 @@ private fun ToggleField(
     title: String,
     description: String? = null,
     checked: Boolean,
-    onChange: (Boolean) -> Unit
+    onChange: (Boolean) -> Unit,
+    /** true の間はトグル不可にして薄く見せ、タップは [onLockedTap] へ回す (ツールバーの dimmed と同じ扱い)。 */
+    locked: Boolean = false,
+    onLockedTap: (() -> Unit)? = null,
 ) {
+    val dim = if (locked) 0.5f else 1f
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (locked && onLockedTap != null) Modifier.clickable { onLockedTap() } else Modifier
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f).alpha(dim)) {
             Text(
                 text = title,
                 color = ZtsTextPrimary,
@@ -2029,7 +2066,9 @@ private fun ToggleField(
         }
         Switch(
             checked = checked,
-            onCheckedChange = onChange,
+            // ロック中は null にしてスイッチ自身がタップを食わないようにし、行の clickable へ通す。
+            onCheckedChange = if (locked) null else onChange,
+            modifier = Modifier.alpha(dim),
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.Black,
                 checkedTrackColor = ZtsGreen,

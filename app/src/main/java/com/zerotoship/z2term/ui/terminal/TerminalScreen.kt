@@ -715,7 +715,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
  * 常駐サーバーが動いていると最近履歴からのスワイプではプロセスが死なないため、明示的な出口として
  * ここで全部落とす。順に: 常駐サーバー停止 → 全セッション終了 → セッション常駐 FG 停止 → タスク終了。
  */
-private fun stopEverythingAndQuit(context: Context) {
+internal fun stopEverythingAndQuit(context: Context) {
     ServerDaemonService.stop(context)
     SessionManager.shutdown()
     TerminalService.stop(context)
