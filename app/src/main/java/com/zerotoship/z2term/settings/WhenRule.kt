@@ -16,8 +16,8 @@ package com.zerotoship.z2term.settings
  * ```
  *
  * トリガー書式 (stage 1):
- *  - `charge:start` / `charge:stop`        … 充電の開始 / 停止
- *  - `battery:below=N` / `battery:above=N` … 電池残量が N% を下/上へ跨いだとき
+ *  - `charge:start` / `charge:stop`        … 充電の開始 / 停止 (検知 ON が前提。0.8.214 で受け口を変更)
+ *  - `battery:below=N` / `battery:above=N` … 電池残量が N% を下/上へ跨いだとき (検知 ON が前提)
  *  - `time:daily=HH:MM`                    … 毎日その時刻
  *  - `time:at=HH:MM`                       … 次の HH:MM に 1 回 (発火後は自動で無効化)
  *  - `time:every=Nm|Nh|Ns`                … N 分/時間/秒ごと

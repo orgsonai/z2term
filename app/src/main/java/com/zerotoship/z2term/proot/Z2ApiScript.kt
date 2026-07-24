@@ -281,8 +281,8 @@ fun z2ApiScripts(): Map<String, String> {
     val zwhen = """
         |#!/bin/sh
         |# z2-when <トリガー> run <コマンド...>   … ルールを登録
-        |#   トリガー: charge:start | charge:stop
-        |#            battery:below=N | battery:above=N
+        |#   トリガー: charge:start | charge:stop  (検知 ON が前提)
+        |#            battery:below=N | battery:above=N  (検知 ON が前提)
         |#            time:daily=HH:MM | time:at=HH:MM | time:every=Nm|Nh
         |#            time:cron='分 時 日 月 曜日'  (曜日 0-7 / 0,7=日曜。空白を含むので要クォート)
         |#            wifi:connect | wifi:disconnect | wifi:ssid=<名前>  (検知 ON が前提)

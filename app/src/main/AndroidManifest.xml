@@ -181,11 +181,11 @@
             android:name=".service.WhenReceiver"
             android:exported="true"
             android:enabled="true">
+            <!-- ⚠ ACTION_POWER_CONNECTED / _DISCONNECTED / BATTERY_LOW / _OKAY は
+                 Android 8+ の暗黙ブロードキャスト制限の例外ではないので、ここに書いても
+                 manifest レシーバには届かない (0.8.213 まで charge:* が不発だった原因)。
+                 充電/電池は SystemEventService の動的レシーバで受ける。戻さないこと。 -->
             <intent-filter>
-                <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
-                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED" />
-                <action android:name="android.intent.action.BATTERY_LOW" />
-                <action android:name="android.intent.action.BATTERY_OKAY" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />

@@ -448,6 +448,7 @@ Z2Term がどのディストロにも自動で入れてくれる「Z2Term 専用
 ### 自動化ハブ（`z2-when`）
 
 **充電した / 電池が減った / 決まった時刻になった**、をきっかけにコマンドを自動で実行します。イベントの検知を自分で `tail` して書く必要がなく、**宣言するだけ**で動きます。アプリを開いていなくても・再起動をまたいでも働きます。
+**ただし時刻と SMS 以外のトリガー（充電・電池・Wi‑Fi・センサー）は「検知」を ON にしている間だけ働きます**（設定の常駐・自動化）。Android の仕組み上、これらの出来事はアプリが常駐していないと受け取れません。
 
 登録の書き方（トリガーとコマンドを並べるだけ）:
 
@@ -462,13 +463,13 @@ z2-when sensor:shake         run ~/.z2term/macros/panic.sh        # 端末を振
 ```
 
 - **トリガーの種類**
-  - `charge:start` / `charge:stop` … 充電の開始 / 停止
-  - `battery:below=N` / `battery:above=N` … 残量が N% を**下/上へ跨いだ瞬間**（例: 20 を切った時）
+  - `charge:start` / `charge:stop` … 充電の開始 / 停止。**「検知」を ON にしているときだけ働きます**（設定の常駐・自動化）
+  - `battery:below=N` / `battery:above=N` … 残量が N% を**下/上へ跨いだ瞬間**（例: 20 を切った時）。こちらも**「検知」が ON のときだけ**働きます
   - `time:daily=HH:MM`（毎日）/ `time:at=HH:MM`（次の HH:MM に 1 回だけ。実行後は自動で無効になります）/ `time:every=30m`・`2h`（一定間隔・最短 1 分）
   - `time:cron='分 時 日 月 曜日'` … cron 式で細かく指定（例: `'0 3 * * *'` 毎日 3:00 / `'*/15 * * * *'` 15 分ごと / `'0 9 * * 1-5'` 平日 9:00）。曜日は 0〜7（0 と 7 が日曜）。**空白を含むので必ずクォート**してください
   - `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<名前>` … Wi‑Fi に接続 / 切断 / 指定のネットワークに接続したとき。**この Wi‑Fi トリガーは「検知」を ON にしているときだけ働きます**（設定の常駐・自動化）。ネットワーク名（SSID）を使うには位置情報の許可も要ります。コマンド内では `Z2_WHEN_SSID` に接続先の名前が入ります
   - `sms:any` / `sms:from=<部分>` / `sms:contains=<部分>` / `sms:otp` … SMS を受信したとき（すべて / 送信元に一致 / 本文に含む / OTP らしい数字コードがあるとき）。**SMS の受信許可（設定の「SMS 検知」で許可）が要ります**。コマンド内では `Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`、`sms:otp` のときは抜き出したコードが `Z2_WHEN_OTP` に入ります。SMS を直接読むので、Android 15 の OTP 伏せ字の影響を受けません
-  - `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near` / `sensor:proximity=far` … 端末を振ったとき / 明るさ（照度 lux）が N を上・下へ跨いだとき / 近接センサーが近づいた・離れたとき。**この sensor トリガーは「検知」を ON にしているときだけ働きます**。センサーは電池を使うので、使うルールがあるセンサーだけを動かします（使っていなければ電池は消費しません）。コマンド内では `Z2_WHEN_SENSOR`（どのセンサーか）、light は `Z2_WHEN_LUX`（そのときの照度）が入ります
+  - `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near` / `sensor:proximity=far` … 端末を振ったとき / 明るさ（照度 lux）が N を上・下へ跨いだとき / 近接センサーが近づいた・離れたとき。**この sensor トリガーは「検知」を ON にしているときだけ働きます**。`shake` は**しっかり振ったとき**だけ反応します（歩いているだけで反応しないよう強めに設定してあります。連続して振っても 3 秒に 1 回までです）。センサーは電池を使うので、使うルールがあるセンサーだけを動かします（使っていなければ電池は消費しません）。コマンド内では `Z2_WHEN_SENSOR`（どのセンサーか）、light は `Z2_WHEN_LUX`（そのときの照度）が入ります
 - **一覧・削除・オンオフ**: `z2-when list`（一覧）/ `z2-when remove <id>`（`all` で全部）/ `z2-when on <id>` `z2-when off <id>` / `z2-when log <id>`（実行の記録を見る）
 - **実行されるコマンド**の中では `Z2_WHEN_TRIGGER`（発火したトリガー）や `Z2_WHEN_LEVEL`（そのときの電池残量）、`Z2_WHEN_SSID`（wifi 時の接続先）、`Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP`（sms 時）、`Z2_WHEN_SENSOR`・`Z2_WHEN_LUX`（sensor 時）が環境変数で使えます。
 - ルールは `~/.z2term/when/` にテキストで置かれるので、**git で同期・バックアップ**できます。

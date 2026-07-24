@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-24 / 対象バージョン: 0.8.213-alpha (versionCode 221)
+最終更新: 2026-07-24 / 対象バージョン: 0.8.214-alpha (versionCode 222)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -399,18 +399,19 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 **ルールはテキスト**: `~/.z2term/when/<id>.rule`（`filesDir/shared_home/.z2term/when/`）。`trigger=` / `run=` / `enabled=` の 3 行（`settings/WhenRule.kt`）。DataStore でなくプレーンファイルにするのは **git 同期・バックアップが効く**ため（常駐サーバーのジョブファイルと同じ思想）。CLI（`z2-when`）が直接読み書きし、変更後に `z2api when-reload` で時刻トリガーを貼り直させる。
 
 **トリガー書式（stage 1 + cron）**:
-- `charge:start` / `charge:stop` … 充電の開始 / 停止
-- `battery:below=N` / `battery:above=N` … 残量が N% を下/上へ**跨いだ瞬間**（エッジ判定。直近残量を `.battlevel` に保存し、初回は基準設定のみ）
+- `charge:start` / `charge:stop` … 充電の開始 / 停止。**検知（`SystemEventService`）が ON のときだけ働く**（0.8.214 で受け口を変更。理由は下記「常駐を増やさない設計」）
+- `battery:below=N` / `battery:above=N` … 残量が N% を下/上へ**跨いだ瞬間**（エッジ判定。直近残量を `.battlevel` に保存し、初回は基準設定のみ）。**検知が ON のときだけ働く**（0.8.214）
 - `time:daily=HH:MM`（毎日）/ `time:at=HH:MM`（次の HH:MM に 1 回。発火後は `enabled=0` に自動で書き戻す）/ `time:every=Nm|Nh|Ns`（N ごと・最短 1 分）
 - `time:cron='分 時 日 月 曜日'`（0.8.207・stage 2）… 5 フィールドの cron 式。`*` / `*/n` / `a` / `a-b` / `a-b/n` / `a,b,c` に対応。曜日は 0-7（0,7 が日曜）。**日と曜日がどちらも `*` でない場合はどちらか一致で発火**（標準 cron の仕様）。次回発火の算出は Android 非依存の `CronSchedule.nextAfter`（`CronScheduleTest` で具体例検証）。`daily`/`every` と同じ AlarmManager 経路に載り、発火のたびに次回を貼り直す。空白を含むのでシェルではクォート必須。
 - `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<名前>`（0.8.208・stage 2）… Wi‑Fi の接続 / 切断 / 指定 SSID への接続。判定は Android 非依存の `WhenTriggerMatch.wifi`（`WhenTriggerMatchTest` で具体例検証。SSID は大小文字無視、位置情報権限が無く SSID が空なら `ssid=` は取りこぼす）。**電池の 10% 刻みと同じく検知（`SystemEventService`）が ON のときだけ働く**（Wi‑Fi の接続変化は暗黙ブロードキャスト制限の対象で、manifest レシーバでは拾えず動的レシーバ＝検知 FG サービスが要る）。発火時は SSID を `Z2_WHEN_SSID` で渡す（外部文字列なので単一引用符へ安全にエスケープ）。
 - `sms:any` / `sms:from=<部分>` / `sms:contains=<部分>` / `sms:otp`（0.8.209・stage 2）… 着信 SMS。判定と OTP 抽出は Android 非依存の `WhenTriggerMatch.sms` / `.extractOtp`（`WhenTriggerMatchTest` で具体例検証。`from`/`contains` は部分一致・大小文字無視。OTP は**前後が数字でない 4〜8 桁**の先頭で、9 桁以上の電話番号/注文番号は拾わない）。既存の `SmsLogReceiver`（`RECEIVE_SMS` 許可で OS が着信ごとに起動＝アプリ未起動でも動く）に相乗りし、**生ログ設定 `smsCaptureEnabled` とは独立に評価する**（許可さえあれば動く）。SMS 本文は Android 15 の機微通知伏せ字（`RECEIVE_SENSITIVE_NOTIFICATIONS`）を通らない直読み経路なので伏せ字化されない（既存 `SmsLogReceiver` の解説参照）。発火時は `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY`、`otp` のときは `Z2_WHEN_OTP` を渡す（いずれも外部入力なので単一引用符へ安全にエスケープ・`eval` させない安全境界）。
-- `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near` / `sensor:proximity=far`（0.8.210・stage 2）… 端末を振った / 照度が N lux を跨いだ / 近接が near・far へ変化。**継続センサー監視は電池を食う**ので §10-1 の指針どおり **opt-in・検知（`SystemEventService`）が ON のときだけ**働き、しかも**該当ルールがあるセンサーだけ登録する**（`WhenManager.sensorKindsNeeded` → `SystemEventService.refreshSensors`。ルール増減や検知 ON で貼り直し、要求集合が空なら 1 つも登録しない＝電池ゼロ）。加速度は shake 検出に十分な `SENSOR_DELAY_UI`、照度/近接は on-change の `NORMAL`。shake 判定は `ShakeDetector`（合成加速度が 2.7g 超＋1 秒 debounce・`ShakeDetectorTest`）、照度/近接は `WhenTriggerMatch.lightSatisfied`/`.proximitySatisfied` を**条件成立の立ち上がり（false→true）**で発火（rule 単位のプロセス内メモリ・初回は基準のみ。しきい値付近のばたつきは未吸収＝将来ヒステリシス可）。発火時は `Z2_WHEN_SENSOR`（`shake`/`light`/`proximity:near|far`）、light は `Z2_WHEN_LUX` も渡す。
+- `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near` / `sensor:proximity=far`（0.8.210・stage 2）… 端末を振った / 照度が N lux を跨いだ / 近接が near・far へ変化。**継続センサー監視は電池を食う**ので §10-1 の指針どおり **opt-in・検知（`SystemEventService`）が ON のときだけ**働き、しかも**該当ルールがあるセンサーだけ登録する**（`WhenManager.sensorKindsNeeded` → `SystemEventService.refreshSensors`。ルール増減や検知 ON で貼り直し、要求集合が空なら 1 つも登録しない＝電池ゼロ）。加速度は shake 検出に十分な `SENSOR_DELAY_UI`、照度/近接は on-change の `NORMAL`。shake 判定は `ShakeDetector`（合成加速度が **4.0g 超＋3 秒 debounce**・`ShakeDetectorTest`。当初の 2.7g／1 秒では**ポケットに入れて歩いているだけで連続発火**した＝2026-07-24 の実機検証で 3.5 時間に 255 回・発火間隔が debounce に張り付く形で判明したため 0.8.214 で引き上げ。下げるときは歩行で誤発火しないか実機確認が要る）、照度/近接は `WhenTriggerMatch.lightSatisfied`/`.proximitySatisfied` を**条件成立の立ち上がり（false→true）**で発火（rule 単位のプロセス内メモリ・初回は基準のみ。しきい値付近のばたつきは未吸収＝将来ヒステリシス可）。発火時は `Z2_WHEN_SENSOR`（`shake`/`light`/`proximity:near|far`）、light は `Z2_WHEN_LUX` も渡す。
 
-**常駐を増やさない設計（§10-1 の指針）**:
-- 充電・電池は **manifest レシーバ `WhenReceiver`**。`ACTION_POWER_CONNECTED` / `_DISCONNECTED` / `BATTERY_LOW` / `_OKAY` は暗黙ブロードキャスト制限の**例外**なので、**専用のフォアグラウンドサービス（＝追加の常駐通知・WakeLock）無しで**、アプリ未起動でも拾える。すべてシステム保護ブロードキャストなので `exported=true` でも外部から送れない。
-- 時刻は **AlarmManager**（`setAndAllowWhileIdle`＝Doze 貫通・`SCHEDULE_EXACT_ALARM` 不要。数分ずれることがある）。予約は再起動で消えるので `WhenReceiver`（`BOOT_COMPLETED` / `MY_PACKAGE_REPLACED`）と `Z2TermApplication.onCreate` の両方で `WhenManager.reload` が貼り直す。武装済み id は `.armed` に記録して、消えた/無効化されたルールの予約を確実に解除する。
-- 電池しきい値は充電の抜き差し・`BATTERY_LOW`/`OKAY` で評価。加えて**検知（`SystemEventService`）が ON のとき**は 10% 刻みの境界でも `WhenManager.onBatteryChanged` を呼ぶので細かく拾える。エッジ判定なので二重に呼ばれても跨いだ瞬間しか発火しない。
+**常駐を増やさない設計（§10-1 の指針）と、その一部撤回（0.8.214）**:
+- 時刻は **AlarmManager**（`setAndAllowWhileIdle`＝Doze 貫通・`SCHEDULE_EXACT_ALARM` 不要。数分ずれることがある）。予約は再起動で消えるので `WhenReceiver`（`BOOT_COMPLETED` / `MY_PACKAGE_REPLACED`）と `Z2TermApplication.onCreate` の両方で `WhenManager.reload` が貼り直す。武装済み id は `.armed` に記録して、消えた/無効化されたルールの予約を確実に解除する。**時刻トリガーだけは常駐なしで動く**（`AlarmManager` からの明示 Intent は manifest レシーバに届くため）。
+- ⚠ **充電・電池は 0.8.205 で「manifest レシーバ `WhenReceiver` で常駐なしに拾える」と設計したが、これは誤りだった。** `ACTION_POWER_CONNECTED` / `_DISCONNECTED` / `BATTERY_LOW` / `_OKAY` は Android 8+ の暗黙ブロードキャスト制限の**例外ではない**（公式の broadcast-exceptions 一覧に電源・電池系は 1 つも無い）。そのため manifest レシーバには届かず、**0.8.213 まで `charge:*` は一度も発火していなかった**（2026-07-24 の実機検証で判明。イベント自体は `events.jsonl` に `power_connected` として記録されているのにルールのログが 1 行も無い、という形で切り分けた）。時刻トリガーは明示 Intent なので動いており、e2e が通っていたため長く気付けなかった。
+- **0.8.214 で受け口を `SystemEventService` の動的レシーバへ移した**（`handlePower` / `handleBatteryLowOkay`）。wifi / sms / sensor と同じく **`charge:*` / `battery:*` も「検知 ON」が前提**になる。§10-1 の「常駐を増やさず回す」はこの範囲で撤回。
+- 電池しきい値は充電の抜き差し・`BATTERY_LOW`/`OKAY` に加えて、**残量が 1% 変わるたび**に `WhenManager.onBatteryChanged` を呼ぶ（`SystemEventService.handleBatteryLevel`）。0.8.213 までは 10% 刻みの境界でしか評価せず、`battery:above=40` が 40%→44% で発火しない・発火しても最大 10% 遅れて `Z2_WHEN_LEVEL` が実値とズレる、という「跨いだ瞬間」の説明と食い違う状態だった。`events.jsonl` の `battery_level` イベントは従来どおり 10% 刻み（ログを汚さないため）。エッジ判定なので二重に呼ばれても跨いだ瞬間しか発火せず、前回値と同じなら `.battlevel` の書き戻しもしない。
 
 **実行**: 発火すると「そのとき選ばれている distro」で `sh -lc '<run>'` を **headless 起動**（`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`。`ServerDaemonManager` と同じ launch + drain パターン）。トリガー情報は環境変数 `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` と、トリガー固有の追加 env（wifi: `Z2_WHEN_SSID` / sms: `Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP` / sensor: `Z2_WHEN_SENSOR`・`Z2_WHEN_LUX`）で渡す（外部入力をシェルへ文字列展開しない安全境界。値は単一引用符へ `'\''` エスケープ）。出力は `~/.z2term/when/<id>.log` へ追記（128KB を超えたら実行前に空にする）。root chroot モードでも `launchChroot` は追加引数を取らないため、ルール実行はエンジン経路に統一している。
 
@@ -1227,7 +1228,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 | VIBRATE | `z2-vibrate` (Android ブリッジ) と検知イベントの通知 |
 | RECEIVE_BOOT_COMPLETED | 設定「起動時に自動で常駐」が ON のとき、端末起動で常駐サーバーを立ち上げる (`BootReceiver`。`LOCKED_BOOT_COMPLETED` も受ける)。`z2-when` の時刻トリガーも端末起動・アプリ更新で貼り直す (`WhenReceiver`) |
 | REQUEST_IGNORE_BATTERY_OPTIMIZATIONS | 常駐が OS に停止されないよう電池最適化の除外をワンタップで要求 (`BatteryGuard`) |
-| (システム保護ブロードキャスト) | `z2-when` が `ACTION_POWER_CONNECTED`/`_DISCONNECTED`/`BATTERY_LOW`/`_OKAY` を manifest レシーバ `WhenReceiver` で受け、充電/電池トリガーを実行 (権限宣言は不要・外部からは送れない) |
+| (システム保護ブロードキャスト) | `z2-when` の充電/電池トリガー用に `ACTION_POWER_CONNECTED`/`_DISCONNECTED`/`BATTERY_LOW`/`_OKAY` を受ける (権限宣言は不要・外部からは送れない)。**0.8.214 から受け口は検知サービス `SystemEventService` の動的レシーバ**（manifest レシーバでは届かないため。上記「自動化ハブ」参照） |
 
 ---
 

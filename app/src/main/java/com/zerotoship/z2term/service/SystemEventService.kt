@@ -65,6 +65,10 @@ import java.util.concurrent.Executors
  *
  * このサービスとは別に、時刻トリガー ([AlarmScheduler] / `z2-alarm`) が同じ events.jsonl へ
  * `alarm` イベント (`{name}` 付き) を書く。そちらはこのサービスの ON/OFF に依存しない。
+ *
+ * **z2-when (A6) との関係**: `wifi` / `sensor` に加えて **`charge:*` / `battery:*` もこのサービスが
+ * 受け口**になっている (0.8.214〜。[handlePower] のコメント参照)。つまりこれらのトリガーは
+ * **検知 ON が前提**。ON/OFF に依存しないのは時刻トリガーと `sms:*` ([SmsLogReceiver] 経由) だけ。
  */
 class SystemEventService : Service() {
 
@@ -76,6 +80,9 @@ class SystemEventService : Service() {
     @Volatile private var lastWifiConnected: Boolean? = null
 
     @Volatile private var lastBatteryBucket = -1
+
+    /** 直近に見た残量% (`events.jsonl` の 10% 刻みとは別に、z2-when の 1% 刻み評価を間引くため)。 */
+    @Volatile private var lastBatteryPct = -1
 
     /**
      * Bluetooth オーディオ (A2DP/SCO) の抜き差しを拾うコールバック。
@@ -125,10 +132,10 @@ class SystemEventService : Service() {
                 Intent.ACTION_SCREEN_ON -> emit("screen_on")
                 Intent.ACTION_SCREEN_OFF -> emit("screen_off")
                 Intent.ACTION_USER_PRESENT -> emit("unlocked")
-                Intent.ACTION_POWER_CONNECTED -> emit("power_connected", level = batteryLevel())
-                Intent.ACTION_POWER_DISCONNECTED -> emit("power_disconnected", level = batteryLevel())
-                Intent.ACTION_BATTERY_LOW -> emit("battery_low", level = batteryLevel())
-                Intent.ACTION_BATTERY_OKAY -> emit("battery_okay", level = batteryLevel())
+                Intent.ACTION_POWER_CONNECTED -> handlePower(started = true)
+                Intent.ACTION_POWER_DISCONNECTED -> handlePower(started = false)
+                Intent.ACTION_BATTERY_LOW -> handleBatteryLowOkay("battery_low")
+                Intent.ACTION_BATTERY_OKAY -> handleBatteryLowOkay("battery_okay")
                 Intent.ACTION_BATTERY_CHANGED -> handleBatteryLevel(intent)
                 WifiManager.NETWORK_STATE_CHANGED_ACTION -> handleWifi()
                 Intent.ACTION_HEADSET_PLUG ->
@@ -267,23 +274,54 @@ class SystemEventService : Service() {
     }
 
     /**
-     * ACTION_BATTERY_CHANGED は高頻度なので、残量が **10% 刻みの境界を跨いだとき**だけ
-     * `battery_level` を発火する (サービス起動直後の初回はベースライン設定のみで発火しない)。
+     * 充電の開始/停止。`events.jsonl` へ書くのに加えて、**z2-when の `charge:*` トリガーもここで実行する**。
+     *
+     * `ACTION_POWER_CONNECTED` / `_DISCONNECTED` は**暗黙ブロードキャスト制限の例外ではない**ので、
+     * manifest 宣言の [WhenReceiver] には Android 8+ では**永久に届かない** (0.8.205〜0.8.213 の
+     * `charge:*` が一度も動かなかった原因。2026-07-24 の実機検証で判明)。生きたプロセスで
+     * `registerReceiver` したこのサービスだけが受け取れるため、ここから [WhenManager.onCharge] を呼ぶ。
+     * その代償として **`charge:*` / `battery:*` は「検知 ON」が前提**になった (wifi/sms/sensor と同じ)。
+     */
+    private fun handlePower(started: Boolean) {
+        val level = batteryLevel()
+        emit(if (started) "power_connected" else "power_disconnected", level = level)
+        // 残量が取れなかったときは -1 を渡す (WhenManager 側で「不明」として扱われ、
+        // Z2_WHEN_LEVEL を渡さず電池しきい値の評価もしない)。charge:* 自体は発火する。
+        runCatching { WhenManager.onCharge(applicationContext, started = started, level = level ?: -1) }
+    }
+
+    /** 低電池/回復。[handlePower] と同じ理由でここから電池しきい値も評価する。 */
+    private fun handleBatteryLowOkay(event: String) {
+        val level = batteryLevel()
+        emit(event, level = level)
+        runCatching { WhenManager.onBatteryChanged(applicationContext, level ?: -1) }
+    }
+
+    /**
+     * ACTION_BATTERY_CHANGED は高頻度なので、`battery_level` イベントは残量が **10% 刻みの境界を
+     * 跨いだとき**だけ書く (サービス起動直後の初回はベースライン設定のみで発火しない)。
+     *
+     * 一方 z2-when の `battery:above=N` / `below=N` は **1% 変わるたびに**評価する。10% 刻みで
+     * 評価していた 0.8.213 までは「40%→44% で `above=40` が発火しない」「発火しても最大 10% 遅れ、
+     * `Z2_WHEN_LEVEL` が実値とズレる」状態で、docs の「N% を跨いだとき」と食い違っていた。
+     * [WhenManager.onBatteryChanged] 自体がエッジ判定＋前回値と同じなら即 return なので呼び出しは軽い。
      */
     private fun handleBatteryLevel(intent: Intent) {
         val lvl = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
         if (lvl < 0 || scale <= 0) return
         val pct = lvl * 100 / scale
+        // BATTERY_CHANGED は電圧/温度が動いただけでも飛んでくるので、残量が変わっていなければ
+        // ここで打ち切る (WhenManager 側も同値なら何もしないが、その判定にファイル読みが要る)。
+        if (pct != lastBatteryPct) {
+            lastBatteryPct = pct
+            runCatching { WhenManager.onBatteryChanged(applicationContext, pct) }
+        }
         val bucket = pct / 10
         if (lastBatteryBucket == -1) { lastBatteryBucket = bucket; return }
         if (bucket != lastBatteryBucket) {
             lastBatteryBucket = bucket
             emit("battery_level", level = pct)
-            // z2-when (A6) の電池しきい値も 10% 刻みの境界で評価する。検知 OFF でも受動的な
-            // 電源/低電池ブロードキャストで評価されるが、検知 ON のときはここで細かく拾える。
-            // エッジ判定なので二重に呼ばれても跨いだ瞬間しか発火しない。
-            runCatching { WhenManager.onBatteryChanged(applicationContext, pct) }
         }
     }
 

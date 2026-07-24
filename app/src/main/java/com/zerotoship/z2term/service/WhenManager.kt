@@ -176,17 +176,20 @@ object WhenManager {
      * 電池残量が変わったときに呼ぶ。`battery:below=N` / `battery:above=N` を**跨いだ瞬間だけ**
      * 発火する (エッジ判定)。直近残量は [BATT_STATE] に保存し、初回は基準設定のみで発火しない。
      *
-     * 呼び元は [WhenReceiver] (充電/`BATTERY_LOW`/`_OKAY`) と、検知 ON 時の [SystemEventService]
-     * (10% 刻みの境界)。同じ残量で二重に呼ばれてもエッジが立たないので二重発火しない。
+     * 呼び元は [SystemEventService] だけ (充電の開始/停止・`BATTERY_LOW`/`_OKAY`・残量 1% 変化)。
+     * **検知 ON が前提**なのは、電源/電池のブロードキャストが暗黙ブロードキャスト制限の例外ではなく
+     * manifest レシーバでは受け取れないため ([SystemEventService.handlePower] のコメント)。
+     * 同じ残量で二重に呼ばれてもエッジが立たないので二重発火しない。
      */
     fun onBatteryChanged(context: Context, level: Int) {
         if (level !in 0..100) return
         val app = context.applicationContext
         val dir = whenDir(app).apply { mkdirs() }
         val prev = readBattLevel(dir)
+        // 変化なしなら書き戻しもしない (BATTERY_CHANGED は数秒おきに来るので毎回書くと無駄が大きい)。
+        if (prev == level) return
         writeBattLevel(dir, level)
         if (prev < 0) return  // 初回は基準を置くだけ
-        if (prev == level) return
         loadRules(app).filter { it.enabled && it.kind == "battery" }.forEach { rule ->
             val eq = rule.spec.indexOf('=')
             if (eq <= 0) return@forEach

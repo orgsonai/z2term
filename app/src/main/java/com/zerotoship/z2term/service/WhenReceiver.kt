@@ -3,33 +3,28 @@ package com.zerotoship.z2term.service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
-import android.os.BatteryManager
 import android.util.Log
 
 /**
- * `z2-when` (A6) の充電/電池/時刻トリガーを受ける manifest レシーバ。
+ * `z2-when` (A6) の時刻トリガーと、端末起動/アプリ更新後の復帰を受ける manifest レシーバ。
  *
- * `ACTION_POWER_CONNECTED` / `_DISCONNECTED` / `BATTERY_LOW` / `_OKAY` は Android 8+ の暗黙
- * ブロードキャスト制限の**例外**なので、**アプリを開いていなくても・専用の常駐サービス無しでも**
- * manifest 宣言のレシーバで受け取れる (§10-1 の「常駐を増やさない」設計の要)。
- *
- *  - 電源接続/切断 → `charge:start`/`charge:stop` を実行し、電池しきい値も評価。
- *  - 電池 低下/回復 → 電池しきい値を評価。
  *  - 端末起動 / アプリ更新 → 時刻トリガーを貼り直す ([WhenManager.reload])。
- *  - [ACTION_TIME_FIRE] → 時刻トリガーの発火 ([AlarmManager] から届く明示 Intent)。
+ *  - [ACTION_TIME_FIRE] → 時刻トリガーの発火 ([AlarmManager] から届く**明示** Intent)。
+ *
+ * ⚠ **充電/電池トリガー (`charge:*` / `battery:*`) はここでは受けない。**
+ * `ACTION_POWER_CONNECTED` / `_DISCONNECTED` / `BATTERY_LOW` / `_OKAY` は Android 8+ の暗黙
+ * ブロードキャスト制限の**例外ではない**ため、manifest 宣言のレシーバには**永久に届かない**
+ * (公式の broadcast-exceptions 一覧に電源・電池系は 1 つも無い)。0.8.205 で「例外だから常駐なしで
+ * 受けられる」と誤って設計し、**0.8.213 まで `charge:*` が一度も発火しなかった** (2026-07-24 の
+ * 実機検証で判明)。受け口は [SystemEventService] の動的レシーバへ移した (0.8.214)。
+ * ここで動いていたのは明示 Intent の [ACTION_TIME_FIRE] だけで、時刻トリガーの e2e が通っていたため
+ * 長く気付けなかった。**電源/電池の action をこの manifest filter に戻さないこと。**
  */
 class WhenReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext
         when (intent.action) {
-            Intent.ACTION_POWER_CONNECTED ->
-                runAsync(this) { WhenManager.onCharge(app, started = true, level = batteryLevel(app)) }
-            Intent.ACTION_POWER_DISCONNECTED ->
-                runAsync(this) { WhenManager.onCharge(app, started = false, level = batteryLevel(app)) }
-            Intent.ACTION_BATTERY_LOW, Intent.ACTION_BATTERY_OKAY ->
-                runAsync(this) { WhenManager.onBatteryChanged(app, batteryLevel(app)) }
             ACTION_TIME_FIRE -> {
                 val id = intent.getStringExtra(EXTRA_RULE_ID) ?: return
                 runAsync(this) { WhenManager.onTimeFire(app, id) }
@@ -41,14 +36,6 @@ class WhenReceiver : BroadcastReceiver() {
                 runAsync(this) { WhenManager.reload(app) }
         }
     }
-
-    /** 現在の電池残量% (取れなければ -1)。スティッキーな `ACTION_BATTERY_CHANGED` から読む。 */
-    private fun batteryLevel(context: Context): Int = runCatching {
-        val batt = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val lvl = batt?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val scale = batt?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-        if (lvl >= 0 && scale > 0) lvl * 100 / scale else -1
-    }.getOrDefault(-1)
 
     companion object {
         private const val TAG = "WhenReceiver"

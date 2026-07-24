@@ -18,18 +18,30 @@ class ShakeDetectorTest {
 
     @Test fun strongJoltFires() {
         val d = ShakeDetector()
-        // 3g 相当 (既定しきい値 2.7g 超) → 発火。
-        assertTrue(d.onSample(0f, 0f, 3f * rest, 0L))
+        // 5g 相当 (既定しきい値 4.0g 超) → 発火。
+        assertTrue(d.onSample(0f, 0f, 5f * rest, 0L))
+    }
+
+    /**
+     * **退行防止**: 歩行程度のピーク (3g 前後) では発火しないこと。既定を 2.7g にしていた 0.8.210 では
+     * ポケットの中で歩いているだけで連続発火した (実機で 3.5 時間に 255 回)。ここが赤くなったら
+     * また誤発火する水準に戻っている。
+     */
+    @Test fun walkingDoesNotShake() {
+        val d = ShakeDetector()
+        assertFalse(d.onSample(0f, 0f, 2.7f * rest, 0L))
+        assertFalse(d.onSample(0f, 0f, 3f * rest, 1000L))
+        assertFalse(d.onSample(0f, 0f, 3.9f * rest, 2000L))
     }
 
     @Test fun debounceSuppressesRapidRefire() {
         val d = ShakeDetector()
-        assertTrue(d.onSample(0f, 0f, 3f * rest, 0L))
-        // 既定 1000ms 未満の連続サンプルは同じ振りとみなし発火させない。
-        assertFalse(d.onSample(0f, 0f, 3f * rest, 300L))
-        assertFalse(d.onSample(0f, 0f, 3f * rest, 900L))
-        // 1000ms を超えたら次の振りとして発火。
-        assertTrue(d.onSample(0f, 0f, 3f * rest, 1200L))
+        assertTrue(d.onSample(0f, 0f, 5f * rest, 0L))
+        // 既定 3000ms 未満の連続サンプルは同じ振りとみなし発火させない。
+        assertFalse(d.onSample(0f, 0f, 5f * rest, 900L))
+        assertFalse(d.onSample(0f, 0f, 5f * rest, 2900L))
+        // 3000ms を超えたら次の振りとして発火。
+        assertTrue(d.onSample(0f, 0f, 5f * rest, 3200L))
     }
 
     @Test fun customThreshold() {
