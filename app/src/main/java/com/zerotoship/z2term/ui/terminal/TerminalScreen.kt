@@ -303,13 +303,17 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             }
         })
     }
+    // システム(OS)キーボードの変換中(確定前)テキスト。OS IME は InputConnection.setComposingText で
+    // 確定前の文字列を送ってくるので、それを内蔵キーボードの composing.text と同じ描画経路
+    // (TerminalRenderer の composingText) に載せて、端末のカーソル位置へインライン表示する。
+    var systemComposing by remember(active.id) { mutableStateOf("") }
     // 辞書はアプリ起動後にバックグラウンドで 1 度だけ読み込む。
     LaunchedEffect(Unit) { KanaKanjiConverter.ensureLoaded(context) }
     LaunchedEffect(Unit) { KkcConverter.ensureLoaded(context) }
     // IME 学習履歴 (確定済み読み→単語) も同タイミングで読み込み、変換候補のランキングに使う。
     LaunchedEffect(Unit) { ImeHistoryStore.ensureLoaded(context) }
     // キーボードモード変更時は変換中バッファを破棄 (OS IME と二重表示を防ぐ)。
-    LaunchedEffect(keyboardMode, keyboardCollapsed) { composing.reset() }
+    LaunchedEffect(keyboardMode, keyboardCollapsed) { composing.reset(); systemComposing = "" }
 
     // 保存されたキーボードモードに常に追従する。keyboardMode を変えるのはトグル
     // (= setKeyboardMode で settings に永続化) だけなので、settings に追従しても競合しない。
@@ -495,7 +499,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             ) {
                 TerminalRenderer(
                     session = active,
-                    composingText = composing.text,
+                    // 内蔵キーボードは composing.text、OS キーボードは OS IME からの変換中テキスト。
+                    composingText = if (keyboardMode == KeyboardMode.SYSTEM) systemComposing else composing.text,
                     searchMatches = if (searchOpen) searchMatches else emptyList(),
                     currentMatch = if (searchOpen) searchMatches.getOrNull(currentMatchIndex) else null,
                     modifier = Modifier.fillMaxSize()
@@ -513,6 +518,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         v.ctrlSticky = ctrlSticky
                         // システムキーボードで内蔵 CTRL を 1 文字に適用したら sticky を解除 (ワンショット)。
                         v.onCtrlConsumed = { ctrlSticky = false }
+                        // OS IME の変換中テキストをインライン表示へ流す。
+                        v.onComposingChanged = { systemComposing = it }
                     },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -1279,8 +1286,9 @@ private fun TopBar(
                     keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
                     ToolbarItem(ToolbarButtons.SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
                     ToolbarItem(ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible),
-                    // ⏺ 端末ログ: 短押し=記録の開始/停止 (記録中は点灯)、ダブルタップ=詳細設定。
-                    ToolbarItem(ToolbarButtons.LOG, "⏺", stringResource(R.string.tb_log), active = logRecording, onClick = onToggleLog, onDoubleClick = onOpenLogSettings)
+                    // 端末ログ: 短押し=記録の開始/停止、ダブルタップ=詳細設定。記録中は 🔴、停止中は ⚪
+                    // (録画ボタンの慣習で状態が一目で分かる。active の緑ハイライトも併せて点く)。
+                    ToolbarItem(ToolbarButtons.LOG, if (logRecording) "🔴" else "⚪", stringResource(R.string.tb_log), active = logRecording, onClick = onToggleLog, onDoubleClick = onOpenLogSettings)
                 ),
                 hidden = toolbarHidden,
                 savedOrder = toolbarOrder,

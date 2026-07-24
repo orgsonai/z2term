@@ -52,6 +52,13 @@ class TerminalInputView(context: Context) : View(context) {
     /** sticky Ctrl を確定文字へ 1 回適用したとき呼ばれる (呼び出し側で解除＝ワンショット)。 */
     var onCtrlConsumed: (() -> Unit)? = null
 
+    /**
+     * OS IME の**変換中 (確定前) テキスト**が変わったときに呼ばれる。空文字は変換終了/確定。
+     * 呼び出し側 (TerminalScreen) がこれを端末のカーソル位置へインライン表示する
+     * (内蔵キーボードの composing.text と同じ描画経路)。
+     */
+    var onComposingChanged: ((String) -> Unit)? = null
+
     var imeEnabled: Boolean = false
         set(value) {
             if (field == value) return
@@ -341,11 +348,17 @@ class TerminalInputView(context: Context) : View(context) {
 
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? {
         if (!imeEnabled) return null
-        outAttrs.inputType = InputType.TYPE_NULL
+        // **確定前のインライン変換を出すために TYPE_NULL をやめて通常のテキスト入力にする**。
+        // TYPE_NULL だと多くの IME が変換 (composing) を行わず、日本語や予測入力が確定前に
+        // 端末へ出なかった。FORCE_ASCII も外す (日本語を潰し、変換を抑制するため)。
+        // NO_SUGGESTIONS はラテン文字のオートコレクトでコマンドが化けるのを避けるため付ける
+        // (CJK の変換自体は主要 IME では維持される)。
+        outAttrs.inputType = InputType.TYPE_CLASS_TEXT or
+            InputType.TYPE_TEXT_VARIATION_NORMAL or
+            InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         outAttrs.imeOptions = (
             EditorInfo.IME_FLAG_NO_EXTRACT_UI or
                 EditorInfo.IME_FLAG_NO_FULLSCREEN or
-                EditorInfo.IME_FLAG_FORCE_ASCII or
                 EditorInfo.IME_ACTION_NONE
             )
         return TerminalInputConnection(this)
@@ -846,18 +859,24 @@ private class TerminalInputConnection(
     private val session: TerminalSession? get() = targetView.session
 
     override fun setComposingText(text: CharSequence?, newCursorPosition: Int): Boolean {
-        return super.setComposingText(text, newCursorPosition)
+        val r = super.setComposingText(text, newCursorPosition)
+        // 変換中テキストは PTY へは送らず、端末カーソル位置へインライン表示するだけ。
+        targetView.onComposingChanged?.invoke(text?.toString() ?: "")
+        return r
     }
 
     override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean {
         super.commitText(text, newCursorPosition)
         flushEditable()
+        // 確定したのでインライン表示を消す。
+        targetView.onComposingChanged?.invoke("")
         return true
     }
 
     override fun finishComposingText(): Boolean {
         super.finishComposingText()
         flushEditable()
+        targetView.onComposingChanged?.invoke("")
         return true
     }
 

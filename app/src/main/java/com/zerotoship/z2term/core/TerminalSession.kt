@@ -953,7 +953,14 @@ class TerminalSession(
             // 書式が壊れていても記録は始められること (設定ミスで機能ごと死なせない)。
             SimpleDateFormat(AppSettings.DEFAULT_SESSION_LOG_TIME, Locale.US).format(Date())
         }
-        val tab = _label.value.ifBlank { "term" }.replace(LOG_NAME_UNSAFE, "_").take(32)
+        // タブ名をファイル名に使える形へ。日本語などの Unicode 文字は残し、パス区切りや予約記号・
+        // 制御文字・空白だけを _ にする。連続する _ は 1 つに畳み、前後の _/./- は削る。全部落ちたら "term"。
+        val tab = _label.value
+            .replace(LOG_NAME_UNSAFE, "_")
+            .replace(LOG_NAME_UNDERSCORE_RUN, "_")
+            .take(32)
+            .trim('_', '.', '-')
+            .ifBlank { "term" }
         val base = s.sessionLogNameTemplate.ifBlank { AppSettings.DEFAULT_SESSION_LOG_NAME }
             .replace("{date}", stamp)
             .replace("{tab}", tab)
@@ -1049,7 +1056,13 @@ class TerminalSession(
         /** 端末ログの「今のサイズ」表示を更新する間隔 (ローテーションしないので必ず見せる) */
         private const val LOG_SIZE_POLL_MS = 1000L
         /** ログのファイル名に使えない文字 (タブ名から作る部分に適用)。 */
-        private val LOG_NAME_UNSAFE = Regex("""[^A-Za-z0-9._\-]""")
+        // ファイル名に使えない文字だけを _ にする (パス区切り・予約記号・制御文字・空白)。
+        // 日本語などの Unicode 文字はそのまま残す。以前は「ASCII 英数字以外を全部 _」にしていたため、
+        // 日本語タイトルのタブが下線だらけのファイル名 (例: 2026-07-24_0941-____.txt) になっていた。
+        private val LOG_NAME_UNSAFE = Regex("""[/\\:*?"<>|\x00-\x1F\s]""")
+
+        /** 連続する下線を 1 つに畳む (置換で _ が並んだときに詰める)。 */
+        private val LOG_NAME_UNDERSCORE_RUN = Regex("_+")
         /** テンプレート展開後に残ってはいけない文字 (パス区切り等)。 */
         private val LOG_NAME_UNSAFE_PATH = Regex("""[/\\:*?"<>| ]""")
         /** 同名ファイルを避ける連番の上限 (これを超えたら時刻を付けて逃がす)。 */

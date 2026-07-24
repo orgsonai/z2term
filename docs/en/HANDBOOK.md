@@ -37,7 +37,7 @@ That's all the setup you need.
 
 ```
 ┌───────────────────────────────────────────────┐
-│ hostname [mode]   📋 📜 🔅 🔒 🔍 ⌨ ⏺ ⚙     │ ← top bar (toolbar)
+│ hostname [mode]   📋 📜 🔅 🔒 🔍 ⌨ 🔴 ⚙     │ ← top bar (toolbar)
 ├───────────────────────────────────────────────┤
 │ [ archlinux ] [ + ] [ 🖥 ]                      │ ← tabs (switch between terminals / GUIs)
 ├───────────────────────────────────────────────┤
@@ -60,8 +60,8 @@ That's all the setup you need.
 | 🔅 | Screen-on lock (when ON, the screen won't auto-dim; the icon changes to 💡 while ON) |
 | 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF). **While resident servers are running, 🔒 is dimmed and can't be toggled** (the servers already keep the app alive, so turning it OFF here would do nothing). Tapping 🔒 in that state opens a screen to choose **"End session only" / "Stop everything and quit"** (see below) |
 | 🔍 | Search the on-screen text (jump back/forward with ↑↓; **tap in the input field to move the caret** and fix a typo in the middle) |
-| ⌨ | Switch between the phone's standard keyboard ⇄ the in-app keyboard |
-| ⏺ | Record a terminal log (tap to start, tap again to stop; **lit while recording**; **double-tap for the details**) |
+| ⌨ | Switch between the phone's standard keyboard ⇄ the in-app keyboard. Even with the phone's keyboard, **the text being composed (before you confirm) shows inline at the terminal cursor** |
+| 🔴 / ⚪ | Record a terminal log (tap to start, tap again to stop; **🔴 while recording, ⚪ when idle**; **double-tap for the details**) |
 | ⚙ | Settings (**always the rightmost**; it never moves when you reorder, and cannot be removed) |
 
 > **Reorder the buttons**: **long-press** a toolbar button to **drag it left/right and reorder**. A short description pops up above the button while held. The order is remembered.
@@ -110,6 +110,7 @@ Z2Term comes with its **own in-app keyboard**.
 
 ### When you want the phone's standard keyboard
 - Tap the **"あ" button in the toolbar** to switch to your usual phone keyboard (Gboard, etc.).
+- With the phone's keyboard, **the text you're composing (before you confirm) now appears inline at the terminal cursor**. You can see the in-progress state of Japanese conversion or predictive input, instead of characters only showing up after you confirm.
 
 ---
 

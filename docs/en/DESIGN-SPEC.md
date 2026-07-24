@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-24 / Target version: 0.8.205-alpha (versionCode 213)
+Last updated: 2026-07-24 / Target version: 0.8.206-alpha (versionCode 214)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -993,11 +993,19 @@ entered can only be decided once that chunk has been processed**.
 - **Recording is per-tab state and is not persisted** — reopening the app always leaves it off. Since
   whatever appears on screen goes straight into the file, a recording must never be left running by
   accident. Closing a tab (`shutdown`) calls `stopLogging` to flush what is buffered.
-- **UI**: the toolbar ⏺ **short tap = start/stop** (lit while recording), **double tap = the detail
-  sheet** (`ui/log/SessionLogSheet.kt`); long-press is already taken by reordering. The sheet switches
+- **UI**: the toolbar log button **short tap = start/stop**, **double tap = the detail
+  sheet** (`ui/log/SessionLogSheet.kt`); long-press is already taken by reordering. The icon is
+  **🔴 while recording / ⚪ when idle** (record-button convention, so state is obvious at a glance; 0.8.206;
+  previously always ⏺ with only a green highlight). The sheet switches
   destination, file name, date format, whether to include earlier output, append vs. new file, alt
   screen and raw mode, and previews the next file name. It states plainly that whatever is displayed
   is recorded as-is.
+- **`{tab}` sanitization for the file name** (`TerminalSession.resolveLogFile`): when turning the tab
+  name into a filename-safe form, **Unicode letters (e.g. Japanese) are kept**; only path separators,
+  reserved symbols, control chars and whitespace become `_`. It used to replace "everything that isn't
+  ASCII alnum" with `_`, so a Japanese-titled tab produced an **all-underscore filename** (e.g.
+  `2026-07-24_0941-____________________.txt`) (fixed in 0.8.206; runs of `_` are collapsed, leading/
+  trailing `_/./-` trimmed, and it falls back to `term` if empty).
 
 ### 5.1.2 Receiving shares (B1, 0.8.197)
 
@@ -1266,6 +1274,7 @@ The fix **distinguishes where the SIGSYS came from** and delivers it to the app'
 - Realtime PTY input with Compose `BasicTextField` breaks IME sync → `TerminalInputView` + a custom InputConnection.
 - Calling `requestFocus` in an AndroidView factory makes the IME pop up on its own.
 - Mozc ignores `FORCE_ASCII` (ASCII input isn't guaranteed with a Japanese IME).
+- **Inline pre-commit composition for the system (OS) keyboard** (0.8.206): `onCreateInputConnection`'s `inputType` was changed from **`TYPE_NULL` to `TYPE_CLASS_TEXT` (+`TYPE_TEXT_FLAG_NO_SUGGESTIONS`)** and `IME_FLAG_FORCE_ASCII` dropped. With `TYPE_NULL` many IMEs don't compose, so Japanese/predictive input **didn't show inline before confirming**. `TerminalInputConnection.setComposingText` no longer sends composing text to the PTY; it passes it via `onComposingChanged` into `TerminalRenderer.composingText` (same path as the in-app keyboard's `composing.text`) to render inline at the cursor. On `commitText` / `finishComposingText` it writes to the PTY and clears the inline text. **IME behavior differences on device (whether `NO_SUGGESTIONS` still allows CJK composition; handling of unconfirmed text on `finishComposingText`) need device verification.**
 - Batching an SGR run into one drawText causes cursor drift → per-cell drawText.
 - Writing `*/` (e.g. `*.tgz`) inside KDoc closes the comment early.
 - `setUnixMode` must be owner-only (world-writable makes sudo refuse).

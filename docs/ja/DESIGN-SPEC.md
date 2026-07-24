@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-24 / 対象バージョン: 0.8.205-alpha (versionCode 213)
+最終更新: 2026-07-24 / 対象バージョン: 0.8.206-alpha (versionCode 214)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -978,10 +978,11 @@ processBytes の「後」なのは、**alt screen に入ったかどうかがそ
 - **記録の ON/OFF はタブごとの状態で、永続化しない**。アプリを開き直すと必ず OFF になる。画面に出たものが
   そのまま入る機能なので、意図せず記録が続いている状態を作らない。タブを閉じるとき (`shutdown`) は
   `stopLogging` で書き残しを吐き出す。
-- **UI**: ツールバー ⏺ の**短押し = 開始/停止** (記録中は点灯)、**ダブルタップ = 詳細設定シート**
-  (`ui/log/SessionLogSheet.kt`)。長押しは並べ替えで埋まっているので使えない。設定シートでは保存先・
+- **UI**: ツールバーのログボタンの**短押し = 開始/停止**、**ダブルタップ = 詳細設定シート**
+  (`ui/log/SessionLogSheet.kt`)。アイコンは**記録中 🔴 / 停止中 ⚪**（録画ボタンの慣習で状態が一目で分かる。0.8.206。以前は常時 ⏺ で緑ハイライトのみ）。長押しは並べ替えで埋まっているので使えない。設定シートでは保存先・
   ファイル名・日時書式・過去分を含めるか・追記か新規か・alt screen・生ログを切り替え、次に作られる
   ファイル名をプレビューする。「画面に出たものはそのまま入る」旨をシート内に明記する。
+- **ファイル名の `{tab}` サニタイズ** (`TerminalSession.resolveLogFile`): タブ名をファイル名に使える形へ直すとき、**日本語などの Unicode 文字は残し**、パス区切り・予約記号・制御文字・空白だけを `_` にする。以前は「ASCII 英数字以外を全部 `_`」にしていたため、日本語タイトルのタブが**下線だらけのファイル名**（例: `2026-07-24_0941-____________________.txt`）になっていた（0.8.206 で修正。連続 `_` は 1 つに畳み、前後の `_/./-` を削り、空になれば `term`）。
 
 ### 5.1.2 共有の受け取り (B1・0.8.197)
 
@@ -1249,6 +1250,7 @@ adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
 - Compose `BasicTextField` で realtime PTY 入力は IME 同期破綻 → `TerminalInputView` + 自前 InputConnection。
 - AndroidView の factory で `requestFocus` すると IME が勝手に出る。
 - Mozc は `FORCE_ASCII` を無視する (日本語 IME で ASCII 入力は保証されない)。
+- **システム(OS)キーボードの確定前インライン表示** (0.8.206): `onCreateInputConnection` の `inputType` を **`TYPE_NULL` から `TYPE_CLASS_TEXT`（+`TYPE_TEXT_FLAG_NO_SUGGESTIONS`）へ**変え、`IME_FLAG_FORCE_ASCII` を外した。`TYPE_NULL` だと多くの IME が変換 (composing) を行わず、日本語・予測入力の**確定前が端末に出なかった**。`TerminalInputConnection.setComposingText` は変換中テキストを PTY へ送らず `onComposingChanged` で画面へ渡し、`TerminalRenderer.composingText`（内蔵キーボードの `composing.text` と同じ描画経路）へ載せてカーソル位置にインライン表示する。確定 (`commitText`) / 変換終了 (`finishComposingText`) で PTY へ書いてインライン表示を消す。**実機での IME 挙動差（`NO_SUGGESTIONS` と CJK 変換の両立、`finishComposingText` 時の未確定文字の扱い）は要デバイス検証**。
 - SGR run まとめ drawText でカーソルズレ → セル単位 drawText。
 - KDoc 内に `*/`(例: `*.tgz`) を書くとコメント早閉じ。
 - `setUnixMode` は owner-only 必須 (world-writable だと sudo 拒否)。
