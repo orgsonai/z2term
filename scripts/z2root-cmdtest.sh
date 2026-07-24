@@ -122,6 +122,15 @@ if not os.path.isdir("/dev/shm"):
 else:
     try:
         import multiprocessing as mp
+        # Python 3.14 から Linux の既定 start method が forkserver になった。forkserver は
+        # 子側で __main__ を再 import するため、このスクリプトのように stdin (heredoc) から
+        # 流し込むと main_path が "<stdin>" になり FileNotFoundError → Connection reset で
+        # 必ず失敗する。**z2root とは無関係の実行形態の問題**なので fork を明示する
+        # (fork/exec 自体を踏むという本来の狙いはこれで達成できる)。
+        try:
+            mp.set_start_method("fork", force=True)
+        except (ValueError, RuntimeError):
+            pass
         with mp.Pool(2) as p:
             print("py-mp:", sum(p.map(abs, [-1,-2,-3])))
     except Exception as e:
