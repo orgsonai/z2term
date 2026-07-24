@@ -172,6 +172,7 @@
     <string name="history_search_hint">filter (space-separated words)</string>
     <string name="history_empty">No history yet. Commands you run in the terminal appear here.</string>
     <string name="history_no_match">Nothing matches that filter.</string>
+    <string name="history_more">…and %1$d more — narrow the filter to reach them.</string>
     <string name="history_desc">Tap a command to put it on the input line. It is inserted, never run.</string>
 
     <!-- Clipboard history sheet (double-tap the 📋 paste button) -->

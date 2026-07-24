@@ -427,7 +427,10 @@ private fun HistoryBody(onRun: (String) -> Unit) {
             )
         }
 
-        shown.forEach { e ->
+        // ⚠ ここはシート全体の verticalScroll の中なので LazyColumn を入れ子にできない
+        // (同じ向きのスクロールを重ねられない)。300 件を一度に組み立てると開くのが重くなるので、
+        // **描くのは先頭 [HISTORY_RENDER_LIMIT] 件まで**にして、残りは絞り込みで辿ってもらう。
+        shown.take(HISTORY_RENDER_LIMIT).forEach { e ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -458,8 +461,20 @@ private fun HistoryBody(onRun: (String) -> Unit) {
                 }
             }
         }
+
+        if (shown.size > HISTORY_RENDER_LIMIT) {
+            Text(
+                text = stringResource(R.string.history_more, shown.size - HISTORY_RENDER_LIMIT),
+                color = ZtsTextSecondary,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
     }
 }
+
+/** 履歴タブで一度に描く行数の上限 (残りは絞り込んで辿る)。 */
+private const val HISTORY_RENDER_LIMIT = 50
 
 private val SNIPPET_ROW_HEIGHT = 52.dp
 

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.221-alpha (versionCode 229)
+Last updated: 2026-07-25 / Target version: 0.8.222-alpha (versionCode 230)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -440,6 +440,8 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 Both are merged **newest first**, deduplicated (the timestamped zsh entry wins). zsh's `SHARE_HISTORY` means every tab shares one file, so **per-tab or per-distro splitting has nothing to split** — one flat list is correct. The files grow without bound, so only the **last 256KB** is read, capped at 300 entries. Filtering is case-insensitive and requires **every whitespace-separated term** (`git log` also matches `git --no-pager log`).
 
 **Tapping never runs anything** — it only inserts, matching the safety stance of B1 (share receiving). The parsing is Android-independent and covered by `ShellHistoryTest` (7 cases).
+
+**Only 50 rows are drawn**: the History tab lives inside the sheet's own `verticalScroll`, so a `LazyColumn` **cannot be nested** (same scroll direction). Composing 300 rows at once makes opening the tab sluggish, so 300 are kept in memory but only the first 50 are rendered, with the remaining count shown at the bottom — narrow the filter to reach them. The real `.zsh_history` on the test device held 3912 lines / 3380 commands, so this cap matters in practice.
 
 #### Resident tunnels (`service/TunnelManager`, 0.8.221, A2)
 

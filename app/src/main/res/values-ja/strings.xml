@@ -171,6 +171,7 @@
     <string name="history_search_hint">絞り込み（空白区切りで複数語）</string>
     <string name="history_empty">履歴がまだありません。端末で実行したコマンドがここに並びます。</string>
     <string name="history_no_match">その絞り込みに合うものはありません。</string>
+    <string name="history_more">…ほか %1$d 件。絞り込むと出てきます。</string>
     <string name="history_desc">コマンドをタップすると入力行に入ります。入るだけで実行はされません。</string>
 
     <!-- クリップボード履歴シート (📋 貼付ボタンをダブルタップで開く) -->
