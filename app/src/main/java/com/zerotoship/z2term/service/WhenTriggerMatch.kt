@@ -66,4 +66,35 @@ object WhenTriggerMatch {
      * `Z2_WHEN_OTP` の値づくりの両方で使う。純ロジックなのでユニットテスト可能。
      */
     fun extractOtp(body: String): String = OTP_REGEX.find(body)?.groupValues?.get(1).orEmpty()
+
+    /**
+     * `sensor:*` トリガーが要求するセンサー種別。`"accel"` (shake) / `"light"` / `"proximity"`、
+     * 未知の spec は null。どのセンサーを登録すべきか ([SystemEventService]) の判断に使う。
+     */
+    fun sensorType(spec: String): String? {
+        val s = spec.trim()
+        return when {
+            s == "shake" -> "accel"
+            s.startsWith("light>") || s.startsWith("light<") -> "light"
+            s == "proximity=near" || s == "proximity=far" -> "proximity"
+            else -> null
+        }
+    }
+
+    /** `sensor:light>N` / `light<N` を今の照度 [lux] が満たすか (エッジ判定は [WhenManager] 側)。 */
+    fun lightSatisfied(spec: String, lux: Float): Boolean {
+        val s = spec.trim()
+        return when {
+            s.startsWith("light>") -> s.substring(6).trim().toFloatOrNull()?.let { lux > it } ?: false
+            s.startsWith("light<") -> s.substring(6).trim().toFloatOrNull()?.let { lux < it } ?: false
+            else -> false
+        }
+    }
+
+    /** `sensor:proximity=near` / `=far` を今の近接状態 [near] が満たすか。 */
+    fun proximitySatisfied(spec: String, near: Boolean): Boolean = when (spec.trim()) {
+        "proximity=near" -> near
+        "proximity=far" -> !near
+        else -> false
+    }
 }

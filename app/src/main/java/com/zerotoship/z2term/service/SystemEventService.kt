@@ -10,6 +10,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.media.AudioManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -92,6 +96,29 @@ class SystemEventService : Service() {
         override fun onAudioDevicesRemoved(removed: Array<out android.media.AudioDeviceInfo>?) = syncBtAudio()
     }
 
+    /**
+     * z2-when (A6 stage2) の `sensor:*` トリガー用。センサーは常時監視が電池を食うので、**該当ルールが
+     * あるセンサーだけ** [refreshSensors] で登録する。加速度は shake 判定・照度/近接はしきい値/near-far を
+     * [WhenManager] が担う (エッジ判定・shake の debounce ともに WhenManager 側)。
+     */
+    private val sensorListener = object : SensorEventListener {
+        override fun onSensorChanged(e: SensorEvent) {
+            when (e.sensor.type) {
+                Sensor.TYPE_ACCELEROMETER -> WhenManager.onAccel(
+                    applicationContext, e.values[0], e.values[1], e.values[2], e.timestamp / 1_000_000L
+                )
+                Sensor.TYPE_LIGHT -> WhenManager.onLight(applicationContext, e.values[0])
+                Sensor.TYPE_PROXIMITY ->
+                    // 近接センサーは 0 (near) 〜 maximumRange (far) を返す実装が一般的。
+                    WhenManager.onProximity(applicationContext, near = e.values[0] < e.sensor.maximumRange)
+            }
+        }
+
+        override fun onAccuracyChanged(s: Sensor?, accuracy: Int) {}
+    }
+
+    @Volatile private var sensorsRegistered = false
+
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
@@ -122,11 +149,14 @@ class SystemEventService : Service() {
             return START_NOT_STICKY
         }
         startForegroundInternal()
+        // detection を ON にしたタイミングで sensor ルールを拾ってセンサー登録する。
+        refreshSensors()
         return START_STICKY
     }
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         // 設定を購読してキャッシュ (イベントごとに DataStore を叩かない)。
         scope.launch {
             AppSettings(applicationContext).flow.collectLatest {
@@ -165,13 +195,39 @@ class SystemEventService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        instance = null
         runCatching { unregisterReceiver(receiver) }
         runCatching {
             (getSystemService(AUDIO_SERVICE) as? AudioManager)
                 ?.unregisterAudioDeviceCallback(audioDeviceCallback)
         }
+        runCatching { (getSystemService(SENSOR_SERVICE) as? SensorManager)?.unregisterListener(sensorListener) }
         scope.cancel()
         writer.shutdown()
+    }
+
+    /**
+     * enabled な `sensor:*` ルールが要求するセンサーだけを登録し直す (要求集合が空なら 1 つも登録しない)。
+     * ルールの増減・detection ON でその都度呼ぶ。加速度は shake 検出に十分な速度が要るので `UI`、
+     * 照度/近接は on-change センサーで低頻度なので `NORMAL`。
+     */
+    private fun refreshSensors() {
+        val sm = getSystemService(SENSOR_SERVICE) as? SensorManager ?: return
+        if (sensorsRegistered) {
+            runCatching { sm.unregisterListener(sensorListener) }
+            sensorsRegistered = false
+        }
+        val kinds = runCatching { WhenManager.sensorKindsNeeded(applicationContext) }.getOrDefault(emptySet())
+        if (kinds.isEmpty()) return
+        val h = android.os.Handler(mainLooper)
+        fun reg(type: Int, delay: Int) {
+            sm.getDefaultSensor(type)?.let {
+                if (sm.registerListener(sensorListener, it, delay, h)) sensorsRegistered = true
+            }
+        }
+        if ("accel" in kinds) reg(Sensor.TYPE_ACCELEROMETER, SensorManager.SENSOR_DELAY_UI)
+        if ("light" in kinds) reg(Sensor.TYPE_LIGHT, SensorManager.SENSOR_DELAY_NORMAL)
+        if ("proximity" in kinds) reg(Sensor.TYPE_PROXIMITY, SensorManager.SENSOR_DELAY_NORMAL)
     }
 
     private fun batteryLevel(): Int? = runCatching {
@@ -338,6 +394,19 @@ class SystemEventService : Service() {
         private const val NOTIFICATION_ID = 1003
         const val ACTION_STOP = "com.zerotoship.z2term.EVENTS_STOP"
         private val ISO = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
+
+        /** 稼働中インスタンス (z2-when の sensor 登録を貼り直すため)。onCreate/onDestroy で更新。 */
+        @Volatile private var instance: SystemEventService? = null
+
+        /**
+         * 検知サービスが**動いていれば**、sensor ルールの増減に合わせてセンサー登録を貼り直す。
+         * z2-when のルール変更 ([WhenManager.reload]) から呼ぶ。動いていなければ何もしない
+         * (sensor トリガーは検知 ON のときだけ働く。wifi と同じ割り切り)。
+         */
+        fun refreshSensorsIfRunning() {
+            val svc = instance ?: return
+            android.os.Handler(svc.mainLooper).post { runCatching { svc.refreshSensors() } }
+        }
 
         /** 共有ホーム (= ターミナルの HOME `/root`) 配下の相対パス。ターミナルからは `~/.z2term/events.jsonl`。 */
         const val LOG_REL = ".z2term/events.jsonl"

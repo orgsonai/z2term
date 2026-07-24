@@ -2,6 +2,7 @@ package com.zerotoship.z2term.service
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -84,5 +85,31 @@ class WhenTriggerMatchTest {
         assertEquals("", WhenTriggerMatch.extractOtp("Room 12 is ready"))
         // コードが無ければ空。
         assertEquals("", WhenTriggerMatch.extractOtp("Thanks for signing up!"))
+    }
+
+    // --- sensor ---
+
+    @Test fun sensorType_mapsSpecToSensor() {
+        assertEquals("accel", WhenTriggerMatch.sensorType("shake"))
+        assertEquals("light", WhenTriggerMatch.sensorType("light>500"))
+        assertEquals("light", WhenTriggerMatch.sensorType("light<10"))
+        assertEquals("proximity", WhenTriggerMatch.sensorType("proximity=near"))
+        assertEquals("proximity", WhenTriggerMatch.sensorType("proximity=far"))
+        assertNull(WhenTriggerMatch.sensorType("nonsense"))
+    }
+
+    @Test fun lightSatisfied_thresholds() {
+        assertTrue(WhenTriggerMatch.lightSatisfied("light>500", 600f))
+        assertFalse(WhenTriggerMatch.lightSatisfied("light>500", 400f))
+        assertTrue(WhenTriggerMatch.lightSatisfied("light<10", 5f))
+        assertFalse(WhenTriggerMatch.lightSatisfied("light<10", 20f))
+        assertFalse(WhenTriggerMatch.lightSatisfied("light>abc", 600f)) // 不正閾値は不成立
+    }
+
+    @Test fun proximitySatisfied_nearFar() {
+        assertTrue(WhenTriggerMatch.proximitySatisfied("proximity=near", near = true))
+        assertFalse(WhenTriggerMatch.proximitySatisfied("proximity=near", near = false))
+        assertTrue(WhenTriggerMatch.proximitySatisfied("proximity=far", near = false))
+        assertFalse(WhenTriggerMatch.proximitySatisfied("proximity=far", near = true))
     }
 }

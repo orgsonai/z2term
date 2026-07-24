@@ -75,6 +75,8 @@ object WhenManager {
             }
         }
         writeArmed(dir, armed)
+        // 検知サービスが動いていれば、sensor ルールの増減に合わせてセンサー登録を貼り直す。
+        SystemEventService.refreshSensorsIfRunning()
     }
 
     /** [WhenReceiver] の時刻発火から呼ぶ。ルールを実行し、繰り返し種別なら次を武装し直す。 */
@@ -247,6 +249,67 @@ object WhenManager {
                 if (rule.spec.trim() == "otp") env["Z2_WHEN_OTP"] = WhenTriggerMatch.extractOtp(body)
                 runRule(app, rule, level = -1, extraEnv = env)
             }
+        }
+    }
+
+    // --- センサートリガー (opt-in・検知 FG サービス前提) ---
+
+    /** センサーのエッジ判定用「直近で条件を満たしていたか」(rule id 単位・プロセス内メモリのみ)。 */
+    private val sensorSatisfied = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+    /** shake 判定は連続サンプルにまたがる状態を持つので 1 インスタンスを共有。 */
+    private val shakeDetector = ShakeDetector()
+
+    /**
+     * enabled な sensor ルールが要求するセンサー種別集合 (`"accel"`/`"light"`/`"proximity"`)。
+     * [SystemEventService] が**必要なセンサーだけ**登録するために使う (不使用なら 1 つも登録せず電池ゼロ)。
+     */
+    fun sensorKindsNeeded(context: Context): Set<String> =
+        loadRules(context).asSequence()
+            .filter { it.enabled && it.kind == "sensor" }
+            .mapNotNull { WhenTriggerMatch.sensorType(it.spec) }
+            .toSet()
+
+    /** 加速度サンプル ([tMs] は単調増加ミリ秒)。shake を検出したら `sensor:shake` ルールを実行。 */
+    fun onAccel(context: Context, x: Float, y: Float, z: Float, tMs: Long) {
+        if (!shakeDetector.onSample(x, y, z, tMs)) return
+        val app = context.applicationContext
+        loadRules(app).filter { it.enabled && it.kind == "sensor" && it.spec.trim() == "shake" }
+            .forEach { runRule(app, it, level = -1, extraEnv = mapOf("Z2_WHEN_SENSOR" to "shake")) }
+    }
+
+    /** 照度 [lux]。`sensor:light>N`/`<N` を条件成立の立ち上がり (false→true) で実行。 */
+    fun onLight(context: Context, lux: Float) = fireSensorEdge(
+        context, "light",
+        match = { spec -> WhenTriggerMatch.lightSatisfied(spec, lux) },
+        env = { mapOf("Z2_WHEN_SENSOR" to "light", "Z2_WHEN_LUX" to lux.toString()) },
+    )
+
+    /** 近接 [near]。`sensor:proximity=near`/`=far` を条件成立の立ち上がりで実行。 */
+    fun onProximity(context: Context, near: Boolean) = fireSensorEdge(
+        context, "proximity",
+        match = { spec -> WhenTriggerMatch.proximitySatisfied(spec, near) },
+        env = { mapOf("Z2_WHEN_SENSOR" to if (near) "proximity:near" else "proximity:far") },
+    )
+
+    /**
+     * 指定 [kind] の sensor ルールについて、[match] が満たされる**立ち上がり (false→true)** で実行する。
+     * 直近状態を [sensorSatisfied] に保持し、初回 (prev=null) は基準を置くだけで発火しない (電池しきい値と
+     * 同じエッジ判定の思想)。照度のしきい値付近でのばたつきはここでは吸収しない (将来ヒステリシス可)。
+     */
+    private fun fireSensorEdge(
+        context: Context,
+        kind: String,
+        match: (String) -> Boolean,
+        env: () -> Map<String, String>,
+    ) {
+        val app = context.applicationContext
+        loadRules(app).filter {
+            it.enabled && it.kind == "sensor" && WhenTriggerMatch.sensorType(it.spec) == kind
+        }.forEach { rule ->
+            val now = match(rule.spec)
+            val prev = sensorSatisfied.put(rule.id, now)
+            if (prev == false && now) runRule(app, rule, level = -1, extraEnv = env())
         }
     }
 

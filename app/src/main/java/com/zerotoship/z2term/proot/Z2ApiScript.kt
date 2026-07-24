@@ -287,12 +287,14 @@ fun z2ApiScripts(): Map<String, String> {
         |#            time:cron='分 時 日 月 曜日'  (曜日 0-7 / 0,7=日曜。空白を含むので要クォート)
         |#            wifi:connect | wifi:disconnect | wifi:ssid=<名前>  (検知 ON が前提)
         |#            sms:any | sms:from=<部分> | sms:contains=<部分> | sms:otp  (RECEIVE_SMS 許可が前提)
+        |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (検知 ON が前提)
         |# z2-when list                          … 登録一覧 (id / on|off / トリガー / -> / コマンド の TSV)
         |# z2-when remove <id|all>  (rm でも可)  … 削除
         |# z2-when on <id> / off <id>            … 有効 / 無効
         |# z2-when log <id>                      … そのルールの実行ログ (末尾)
         |# 発火時、コマンドは選択中の distro で実行され、環境変数 Z2_WHEN_TRIGGER / Z2_WHEN_LEVEL
-        |# / Z2_WHEN_SSID (wifi) / Z2_WHEN_SMS_FROM / Z2_WHEN_SMS_BODY / Z2_WHEN_OTP (sms) が入る。
+        |# / Z2_WHEN_SSID (wifi) / Z2_WHEN_SMS_FROM / Z2_WHEN_SMS_BODY / Z2_WHEN_OTP (sms)
+        |# / Z2_WHEN_SENSOR / Z2_WHEN_LUX (sensor) が入る。
         |# 例: z2-when charge:start run ~/.z2term/macros/backup.sh
         |#     z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
         |DIR="${d}HOME/.z2term/when"

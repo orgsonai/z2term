@@ -27,6 +27,9 @@ package com.zerotoship.z2term.settings
  *  - `sms:any`                             … すべての着信 SMS (stage 2。RECEIVE_SMS 許可が前提)
  *  - `sms:from=<部分>` / `sms:contains=<部分>` … 送信元 / 本文の部分一致 (大小文字無視)
  *  - `sms:otp`                             … 本文に OTP らしい数字コードがあるとき
+ *  - `sensor:shake`                        … 端末を振ったとき (stage 2。検知 ON が前提・加速度)
+ *  - `sensor:light>N` / `sensor:light<N`   … 照度が N lux を上/下へ跨いだとき
+ *  - `sensor:proximity=near` / `=far`      … 近接センサーが near/far へ変化したとき
  */
 data class WhenRule(
     val id: String,
