@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-26 / 対象バージョン: 0.8.240-alpha (versionCode 248)
+最終更新: 2026-07-26 / 対象バージョン: 0.8.241-alpha (versionCode 249)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -759,6 +759,7 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
   - **SSID・IP・ホスト名は出さない**。伏せていることを画面にも明記する。伏せ字を後付けにすると、報告文に社内 IP や SSID が混ざる事故が必ず起きる。
   - **情報源を 2 つに分ける**: 許可の有無・設定・常駐の数のように**シェルからは原理的に見えない**ものは `z2api 1 doctor`（[`Z2ApiBridge.doctorRead`](../../app/src/main/java/com/zerotoship/z2term/service/Z2ApiBridge.kt)）が JSON で返し、kernel・空き容量・sshd・`/sdcard` はシェル側で調べる。ブリッジ側は**値の解釈をしない**（`NG` の判定と文言は CLI に置く）。
   - ⚠ **ブリッジが無い状態でも最後まで走り切ること**を `Z2DoctorScriptTest` が実際の `sh` で固定する。診断は困っている人が最後に打つものなので、そこで落ちると打つ手が無くなる。
+  - **その OS に無い項目は `false` ではなく `null` を返す（0.8.241）**: `storage_all`（`MANAGE_EXTERNAL_STORAGE`）は API 30 で入った権限で、minSdk の API 29 には存在しない。`false` を返すと「設定を開いて許可してください」という**その端末では実行できない次の一手**が `NG` として出てしまうので、`JSONObject.NULL` を返して CLI 側の `--`（該当なし）に落とす。API 依存の値を足すときは同じ扱いにすること。
 
 - **`z2scan` コマンド (0.8.91・脆弱性試験)**: 自端末/localhost 限定の脆弱性試験ヘルパー。z2term の哲学 (自端末・localhost 限定・非侵襲・外部送信なし・distro 公式パッケージのみ) に沿わせた 2 本立て。表示言語は `LocaleHelper.language` に追従。実装は [`Z2ScanScript.kt`](../../app/src/main/java/com/zerotoship/z2term/proot/Z2ScanScript.kt)。proot/z2root/chroot の全起動経路に配置。
 

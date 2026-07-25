@@ -35,7 +35,7 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 ## Current version
 
-**0.8.240-alpha (versionCode 248).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.241-alpha (versionCode 249).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 

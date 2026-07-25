@@ -520,7 +520,12 @@ object Z2ApiBridge {
             pm?.isIgnoringBatteryOptimizations(context.packageName) == true
         }.getOrDefault(false)
         // /sdcard 全体が見えるか (MANAGE_EXTERNAL_STORAGE)。無いと `cd /sdcard` が空に見える。
-        val storageAll = runCatching { Environment.isExternalStorageManager() }.getOrDefault(false)
+        // API 29 にはこの権限自体が無い (requestLegacyExternalStorage で従来権限が効く) ので、
+        // false ではなく null を返して診断側で「--」にする。false にすると直せない NG が出る。
+        val storageAll: Any =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                runCatching { Environment.isExternalStorageManager() }.getOrDefault(false)
+            } else JSONObject.NULL
         val smsOk = runCatching {
             context.checkSelfPermission(android.Manifest.permission.RECEIVE_SMS) ==
                 android.content.pm.PackageManager.PERMISSION_GRANTED

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-26 / Target version: 0.8.240-alpha (versionCode 248)
+Last updated: 2026-07-26 / Target version: 0.8.241-alpha (versionCode 249)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -766,6 +766,7 @@ The footer now shows **the macro that finished last**, since start times moved o
   - It ends with **a report you can paste as-is**. One command to type, one short report to send: that removes the "it doesn't work" → "what doesn't?" round trip (for a 1–3 h/day project, one support round trip costs a full day).
   - **SSIDs, IPs and host names are never printed**, and the output says so. Adding redaction later guarantees an internal IP ends up in a pasted report.
   - **Two sources, deliberately split**: whatever the shell cannot see in principle (permissions, settings, how many things are resident) comes from `z2api 1 doctor` ([`Z2ApiBridge.doctorRead`](../../app/src/main/java/com/zerotoship/z2term/service/Z2ApiBridge.kt)) as JSON; kernel, free space, sshd and `/sdcard` are probed by the shell. The bridge **does not interpret** — the `NG` rule and the wording live in the CLI.
+  - **A row that does not exist on this OS returns `null`, not `false` (0.8.241)**: `storage_all` (`MANAGE_EXTERNAL_STORAGE`) arrived in API 30 and does not exist on API 29, our minSdk. Returning `false` would print an `NG` whose next step ("open Settings and grant it") **cannot be carried out on that device**, so we return `JSONObject.NULL` and let the CLI fall through to `--` (not applicable). Any future API-dependent value gets the same treatment.
   - ⚠ `Z2DoctorScriptTest` pins, with a real `sh`, that it **runs to the end even with no bridge at all**. A diagnostic is what someone types when nothing else works; if it dies there, they have nothing left.
 
 - **`z2scan` command (0.8.91, vulnerability testing)**: a vulnerability-testing helper scoped to this device / localhost, aligned with z2term's principles (this-device/localhost only, non-invasive, no data sent out, distro official packages only). Two parts. The display language follows `LocaleHelper.language`. Implemented in [`Z2ScanScript.kt`](../../app/src/main/java/com/zerotoship/z2term/proot/Z2ScanScript.kt); installed on all launch paths (proot/z2root/chroot).
