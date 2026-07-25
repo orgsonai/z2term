@@ -374,6 +374,12 @@ class SystemEventService : Service() {
             runCatching {
                 LogWriter.write(logFile(ctx), line, prependNow)
             }.onFailure { Log.w(TAG, "write failed: ${it.message}") }
+            // 記録したのと同じイベントで `event:<名前>` ルールを実行する (0.8.226)。ここは既に
+            // 単一のワーカースレッドなので、ルール読み込み (ファイル I/O) をレシーバのスレッドへ
+            // 持ち込まずに済む。捕捉は必須 — 自動化の失敗で検知そのものを止めない。
+            runCatching {
+                WhenManager.onEvent(ctx, event, level = level, ssid = ssid)
+            }.onFailure { Log.w(TAG, "when event failed ($event): ${it.message}") }
         }
     }
 

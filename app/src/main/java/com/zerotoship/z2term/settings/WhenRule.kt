@@ -30,6 +30,10 @@ package com.zerotoship.z2term.settings
  *  - `sensor:shake`                        … 端末を振ったとき (stage 2。検知 ON が前提・加速度)
  *  - `sensor:light>N` / `sensor:light<N`   … 照度が N lux を上/下へ跨いだとき
  *  - `sensor:proximity=near` / `=far`      … 近接センサーが near/far へ変化したとき
+ *  - `event:<名前>`                        … `events.jsonl` に流れる端末イベント (0.8.226)。
+ *    `event:ringer_*` の前方一致と `event:*` も可。名前は `z2-when events` で一覧できる。
+ *    受動的なイベント (画面・充電・Wi‑Fi 等) は検知 ON が前提、自分で仕掛けたもの
+ *    (`alarm` / `notify_action` 等) は検知の ON/OFF に依存しない。
  */
 data class WhenRule(
     val id: String,

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-25 / 対象バージョン: 0.8.225-alpha (versionCode 233)
+最終更新: 2026-07-25 / 対象バージョン: 0.8.226-alpha (versionCode 234)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -406,6 +406,19 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 - `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<名前>`（0.8.208・stage 2）… Wi‑Fi の接続 / 切断 / 指定 SSID への接続。判定は Android 非依存の `WhenTriggerMatch.wifi`（`WhenTriggerMatchTest` で具体例検証。SSID は大小文字無視、位置情報権限が無く SSID が空なら `ssid=` は取りこぼす）。**電池の 10% 刻みと同じく検知（`SystemEventService`）が ON のときだけ働く**（Wi‑Fi の接続変化は暗黙ブロードキャスト制限の対象で、manifest レシーバでは拾えず動的レシーバ＝検知 FG サービスが要る）。発火時は SSID を `Z2_WHEN_SSID` で渡す（外部文字列なので単一引用符へ安全にエスケープ）。
 - `sms:any` / `sms:from=<部分>` / `sms:contains=<部分>` / `sms:otp`（0.8.209・stage 2）… 着信 SMS。判定と OTP 抽出は Android 非依存の `WhenTriggerMatch.sms` / `.extractOtp`（`WhenTriggerMatchTest` で具体例検証。`from`/`contains` は部分一致・大小文字無視。OTP は**前後が数字でない 4〜8 桁**の先頭で、9 桁以上の電話番号/注文番号は拾わない）。既存の `SmsLogReceiver`（`RECEIVE_SMS` 許可で OS が着信ごとに起動＝アプリ未起動でも動く）に相乗りし、**生ログ設定 `smsCaptureEnabled` とは独立に評価する**（許可さえあれば動く）。SMS 本文は Android 15 の機微通知伏せ字（`RECEIVE_SENSITIVE_NOTIFICATIONS`）を通らない直読み経路なので伏せ字化されない（既存 `SmsLogReceiver` の解説参照）。発火時は `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY`、`otp` のときは `Z2_WHEN_OTP` を渡す（いずれも外部入力なので単一引用符へ安全にエスケープ・`eval` させない安全境界）。
 - `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near` / `sensor:proximity=far`（0.8.210・stage 2）… 端末を振った / 照度が N lux を跨いだ / 近接が near・far へ変化。**継続センサー監視は電池を食う**ので §10-1 の指針どおり **opt-in・検知（`SystemEventService`）が ON のときだけ**働き、しかも**該当ルールがあるセンサーだけ登録する**（`WhenManager.sensorKindsNeeded` → `SystemEventService.refreshSensors`。ルール増減や検知 ON で貼り直し、要求集合が空なら 1 つも登録しない＝電池ゼロ）。加速度は shake 検出に十分な `SENSOR_DELAY_UI`、照度/近接は on-change の `NORMAL`。shake 判定は `ShakeDetector`（合成加速度が **4.0g 超＋3 秒 debounce**・`ShakeDetectorTest`。当初の 2.7g／1 秒では**ポケットに入れて歩いているだけで連続発火**した＝2026-07-24 の実機検証で 3.5 時間に 255 回・発火間隔が debounce に張り付く形で判明したため 0.8.214 で引き上げ。下げるときは歩行で誤発火しないか実機確認が要る）、照度/近接は `WhenTriggerMatch.lightSatisfied`/`.proximitySatisfied` を**条件成立の立ち上がり（false→true）**で発火（rule 単位のプロセス内メモリ・初回は基準のみ。しきい値付近のばたつきは未吸収＝将来ヒステリシス可）。発火時は `Z2_WHEN_SENSOR`（`shake`/`light`/`proximity:near|far`）、light は `Z2_WHEN_LUX` も渡す。
+- `event:<名前>` / `event:<接頭辞>*` / `event:*`（0.8.226）… **`events.jsonl` に書かれる端末イベントを名前で拾う**。判定は `WhenTriggerMatch.event`（完全一致・末尾 `*` の前方一致・`*` で全件。大小文字と前後空白は無視＝手書きの打ち間違いで黙って動かないのを避ける）。
+
+**なぜ足したか**: 検知はもう 15 種以上を拾って `events.jsonl` に書いているのに、`z2-when` から名前で指せるのは 6 kind だけだった。「イヤホンを挿したら再生」を書くには**ユーザーが自分で tail ループのマクロを常駐させる**しかなく、§10-1 の「常駐を増やさない」に一番反した状態を本人に作らせていた。**新しい常駐も新しい権限も増やさず**、既に鳴っている鈴を聞けるようにしただけの追加。
+
+**フックは 2 か所**（「唯一の出口」は 1 つではない点に注意）:
+- `SystemEventService.emit` … 受動的なイベント（画面・解錠・充電・電池・Wi‑Fi・ヘッドセット・BT 音声・機内・マナー）。**検知 ON が前提**。既存の単一ワーカースレッド（`writer`）の中で呼ぶので、ルール読み込みのファイル I/O をレシーバのスレッドへ持ち込まない。
+- `EventEmitter.emit` … **ユーザーが自分で仕掛けたもの**（`alarm` / `notify_action` / `unlock_failed` / `unlock_succeeded`）。記録が検知 ON/OFF に依存しないので、こちらのトリガーも**検知 OFF で働く**。呼び元（レシーバ・AlarmManager の配信スレッド）を塞がないよう専用の単一スレッドへ逃がす。
+
+**最小実行間隔 10 秒**（`WhenManager.EVENT_MIN_INTERVAL_MS`・rule 単位のプロセス内メモリ）: `screen_on`/`screen_off` のように**人の操作しだいで何度でも来る**イベントを名前で拾えるようにした以上、これが無いとルール 1 本で発火の嵐になる。トリガー別ではなく**ルール別**に効かせる（別々のルールは互いを抑制しない）。
+
+**env の衝突を避けた**: イベント名は `Z2_WHEN_EVENT`、`alarm` 等の識別名は `Z2_WHEN_EVENT_NAME`、通知ボタンのラベルは `Z2_WHEN_ACTION`。**`Z2_WHEN_NAME` はルール id のまま**にしてある（既存ルールの意味を変えない）。
+
+**名前の一覧は CLI が持つ**（`z2-when events`）。ヒアドキュメントなので崩れると黙って空になるため、`Z2ApiScriptTest.whenEventsListsEventNames` が実際に `sh` で走らせて中身が出ることまで見る。
 
 **常駐を増やさない設計（§10-1 の指針）と、その一部撤回（0.8.214）**:
 - 時刻は **AlarmManager**（`setAndAllowWhileIdle`＝Doze 貫通・`SCHEDULE_EXACT_ALARM` 不要。数分ずれることがある）。予約は再起動で消えるので `WhenReceiver`（`BOOT_COMPLETED` / `MY_PACKAGE_REPLACED`）と `Z2TermApplication.onCreate` の両方で `WhenManager.reload` が貼り直す。武装済み id は `.armed` に記録して、消えた/無効化されたルールの予約を確実に解除する。**時刻トリガーだけは常駐なしで動く**（`AlarmManager` からの明示 Intent は manifest レシーバに届くため）。
@@ -413,9 +426,9 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 - **0.8.214 で受け口を `SystemEventService` の動的レシーバへ移した**（`handlePower` / `handleBatteryLowOkay`）。wifi / sms / sensor と同じく **`charge:*` / `battery:*` も「検知 ON」が前提**になる。§10-1 の「常駐を増やさず回す」はこの範囲で撤回。
 - 電池しきい値は充電の抜き差し・`BATTERY_LOW`/`OKAY` に加えて、**残量が 1% 変わるたび**に `WhenManager.onBatteryChanged` を呼ぶ（`SystemEventService.handleBatteryLevel`）。0.8.213 までは 10% 刻みの境界でしか評価せず、`battery:above=40` が 40%→44% で発火しない・発火しても最大 10% 遅れて `Z2_WHEN_LEVEL` が実値とズレる、という「跨いだ瞬間」の説明と食い違う状態だった。`events.jsonl` の `battery_level` イベントは従来どおり 10% 刻み（ログを汚さないため）。エッジ判定なので二重に呼ばれても跨いだ瞬間しか発火せず、前回値と同じなら `.battlevel` の書き戻しもしない。
 
-**実行**: 発火すると「そのとき選ばれている distro」で `sh -lc '<run>'` を **headless 起動**（`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`。`ServerDaemonManager` と同じ launch + drain パターン）。トリガー情報は環境変数 `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` と、トリガー固有の追加 env（wifi: `Z2_WHEN_SSID` / sms: `Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP` / sensor: `Z2_WHEN_SENSOR`・`Z2_WHEN_LUX`）で渡す（外部入力をシェルへ文字列展開しない安全境界。値は単一引用符へ `'\''` エスケープ）。出力は `~/.z2term/when/<id>.log` へ追記（128KB を超えたら実行前に空にする）。root chroot モードでも `launchChroot` は追加引数を取らないため、ルール実行はエンジン経路に統一している。
+**実行**: 発火すると「そのとき選ばれている distro」で `sh -lc '<run>'` を **headless 起動**（`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`。`ServerDaemonManager` と同じ launch + drain パターン）。トリガー情報は環境変数 `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` と、トリガー固有の追加 env（wifi: `Z2_WHEN_SSID` / sms: `Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP` / sensor: `Z2_WHEN_SENSOR`・`Z2_WHEN_LUX` / event: `Z2_WHEN_EVENT`・`Z2_WHEN_EVENT_NAME`・`Z2_WHEN_ACTION`）で渡す（外部入力をシェルへ文字列展開しない安全境界。値は単一引用符へ `'\''` エスケープ）。出力は `~/.z2term/when/<id>.log` へ追記（128KB を超えたら実行前に空にする）。root chroot モードでも `launchChroot` は追加引数を取らないため、ルール実行はエンジン経路に統一している。
 
-**CLI**（`z2-when`。`Z2ApiScript` が launch 毎に `/usr/local/bin` へ配置）: `<trigger> run <cmd>` で登録 / `list`（TSV）/ `remove <id|all>`（`rm`）/ `on|off <id>` / `log <id>`。id は `w<epoch><pid>`（同一秒の衝突を避けるため 0.8.211 で乱数から pid へ変更。既存があれば連番を付す）。**stage2 は cron/wifi/sms/sensor まで実装済み**（0.8.207〜0.8.210）。以降の候補は `time:cron` の DST 跨ぎ精緻化や照度ヒステリシス等の作り込み。
+**CLI**（`z2-when`。`Z2ApiScript` が launch 毎に `/usr/local/bin` へ配置）: `<trigger> run <cmd>` で登録 / `list`（TSV）/ `events`（`event:` に使える名前の一覧・0.8.226）/ `remove <id|all>`（`rm`）/ `on|off <id>` / `log <id>`。id は `w<epoch><pid>`（同一秒の衝突を避けるため 0.8.211 で乱数から pid へ変更。既存があれば連番を付す）。**stage2 は cron/wifi/sms/sensor まで実装済み**（0.8.207〜0.8.210）。以降の候補は `time:cron` の DST 跨ぎ精緻化や照度ヒステリシス等の作り込み。
 
 #### 履歴パレット（`ui/snippets/ShellHistory`、0.8.221・B2）
 

@@ -526,7 +526,7 @@ Z2Term がどのディストロにも自動で入れてくれる「Z2Term 専用
 | `z2-state [キー]` | **今の端末の状態**を JSON で出力。キーを付けるとその値だけ（`screen` `locked` `idle` `charging` `plug` `level` `temp` `wifi` `ssid` `ringer` `airplane` `headset` `bt_audio` `volume` `volume_max`）。例: `[ "$(z2-state charging)" = "true" ]` |
 | `z2-alarm at\|daily HH:MM [名前]` | **時刻トリガー**。その時刻に `events.jsonl` へ `alarm` イベントを書く（`in 5m` / `list` / `cancel <id\|名前\|all>` も）。cron と違い Doze 中でも起きる（数分ずれることあり） |
 | `z2-session list\|new\|send\|capture\|close` | **このアプリのタブを操る**。`list` で一覧（番号・id・名前・印。`*`=表示中 `!`=動作中 `?`=未起動）、`new [名前]` でタブを 1 枚追加、`send <先> "文字列"` でそのタブに**入れるだけ**（`--enter` を付けたときだけ実行）、`capture [先]` で画面のテキストを取り出し、`close <先>` で閉じる。`<先>` は `list` の番号 / id / タブ名。例: ``n=$(z2-session new build \| cut -f1); z2-session send "$n" 'make -j2' --enter`` |
-| `z2-when <トリガー> run <コマンド>` | **自動化ハブ**。充電・電池・時刻をきっかけにコマンドを自動実行（下記「自動化ハブ」参照）。`list` / `remove <id\|all>` / `on\|off <id>` / `log <id>` も。例: `z2-when charge:start run ~/.z2term/macros/backup.sh` |
+| `z2-when <トリガー> run <コマンド>` | **自動化ハブ**。充電・電池・時刻・端末イベントをきっかけにコマンドを自動実行（下記「自動化ハブ」参照）。`list` / `remove <id\|all>` / `on\|off <id>` / `log <id>` も。例: `z2-when charge:start run ~/.z2term/macros/backup.sh` |
 | `z2-macro list\|install <名前>` | **マクロのサンプル**を `~/.z2term/macros/` に導入（`show` / `run` / `dir` も）。最初の1本の雛形に |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | 任意の Android Intent を発火（アプリ起動・設定画面・アラーム設定など。詳細は `docs/ja/MACRO-GUIDE.md`） |
 
@@ -547,6 +547,8 @@ z2-when time:cron='0 9 * * 1-5' run ~/.z2term/macros/weekday.sh  # 平日 9:00
 z2-when wifi:ssid=home       run ~/.z2term/macros/expose-lan.sh # 自宅 Wi‑Fi に繋いだら
 z2-when sms:otp              run 'echo "$Z2_WHEN_OTP" | z2-clip'  # 届いた OTP をクリップボードへ
 z2-when sensor:shake         run ~/.z2term/macros/panic.sh        # 端末を振ったら
+z2-when event:headset_plugged run ~/.z2term/macros/play.sh        # イヤホンを挿したら
+z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # マナーモードを切り替えたら
 ```
 
 - **トリガーの種類**
@@ -557,8 +559,11 @@ z2-when sensor:shake         run ~/.z2term/macros/panic.sh        # 端末を振
   - `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<名前>` … Wi‑Fi に接続 / 切断 / 指定のネットワークに接続したとき。**この Wi‑Fi トリガーは「検知」を ON にしているときだけ働きます**（設定の常駐・自動化）。ネットワーク名（SSID）を使うには位置情報の許可も要ります。コマンド内では `Z2_WHEN_SSID` に接続先の名前が入ります
   - `sms:any` / `sms:from=<部分>` / `sms:contains=<部分>` / `sms:otp` … SMS を受信したとき（すべて / 送信元に一致 / 本文に含む / OTP らしい数字コードがあるとき）。**SMS の受信許可（設定の「SMS 検知」で許可）が要ります**。コマンド内では `Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`、`sms:otp` のときは抜き出したコードが `Z2_WHEN_OTP` に入ります。SMS を直接読むので、Android 15 の OTP 伏せ字の影響を受けません
   - `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near` / `sensor:proximity=far` … 端末を振ったとき / 明るさ（照度 lux）が N を上・下へ跨いだとき / 近接センサーが近づいた・離れたとき。**この sensor トリガーは「検知」を ON にしているときだけ働きます**。`shake` は**しっかり振ったとき**だけ反応します（歩いているだけで反応しないよう強めに設定してあります。連続して振っても 3 秒に 1 回までです）。センサーは電池を使うので、使うルールがあるセンサーだけを動かします（使っていなければ電池は消費しません）。コマンド内では `Z2_WHEN_SENSOR`（どのセンサーか）、light は `Z2_WHEN_LUX`（そのときの照度）が入ります
-- **一覧・削除・オンオフ**: `z2-when list`（一覧）/ `z2-when remove <id>`（`all` で全部）/ `z2-when on <id>` `z2-when off <id>` / `z2-when log <id>`（実行の記録を見る）
-- **実行されるコマンド**の中では `Z2_WHEN_TRIGGER`（発火したトリガー）や `Z2_WHEN_LEVEL`（そのときの電池残量）、`Z2_WHEN_SSID`（wifi 時の接続先）、`Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP`（sms 時）、`Z2_WHEN_SENSOR`・`Z2_WHEN_LUX`（sensor 時）が環境変数で使えます。
+  - `event:<名前>` … **端末で起きたことを名前で拾います**（0.8.226 で追加）。使える名前は **`z2-when events`** で一覧できます（`screen_on`・`unlocked`・`headset_plugged`・`bt_audio_connected`・`ringer_silent`・`airplane_on`・`alarm`・`notify_action` など約20種）。`event:ringer_*` のように**末尾を `*`** にすると前方一致、`event:*` ですべてになります。コマンド内では `Z2_WHEN_EVENT` にイベント名が入ります。
+    **同じルールは 10 秒以内に続けて発火しません**（`screen_on` のように何度も起きるものがあるため）。
+    画面・充電・Wi‑Fi などの受け身のイベントは**「検知」が ON のときだけ**ですが、`alarm`（`z2-alarm` で仕掛けたもの）や `notify_action`（通知のボタン）は**検知 OFF でも働きます**。
+- **一覧・削除・オンオフ**: `z2-when list`（一覧）/ `z2-when events`（`event:` に使える名前）/ `z2-when remove <id>`（`all` で全部）/ `z2-when on <id>` `z2-when off <id>` / `z2-when log <id>`（実行の記録を見る）
+- **実行されるコマンド**の中では `Z2_WHEN_TRIGGER`（発火したトリガー）や `Z2_WHEN_LEVEL`（そのときの電池残量）、`Z2_WHEN_SSID`（wifi 時の接続先）、`Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP`（sms 時）、`Z2_WHEN_SENSOR`・`Z2_WHEN_LUX`（sensor 時）、`Z2_WHEN_EVENT`（event 時。`alarm` や `notify_action` では `Z2_WHEN_EVENT_NAME`・`Z2_WHEN_ACTION` も）が環境変数で使えます。
 - ルールは `~/.z2term/when/` にテキストで置かれるので、**git で同期・バックアップ**できます。
 - 時刻は電池にやさしい仕組み（Doze 貫通の AlarmManager）で動くため、**発火が数分ずれることがあります**。`wifi` / `sms` / `sensor` / `cron` の各トリガーはすべて使えます。
 

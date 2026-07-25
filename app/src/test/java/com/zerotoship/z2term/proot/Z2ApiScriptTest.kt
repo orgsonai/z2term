@@ -96,6 +96,36 @@ class Z2ApiScriptTest {
         }
     }
 
+    /**
+     * A6: `z2-when events` が `event:<名前>` に書ける名前を実際に一覧すること (0.8.226)。
+     *
+     * 一覧はヒアドキュメントで持っているので、`|` の剥がれ方や終端 (`EOS`) の位置がずれると
+     * **黙って空になる**か、以降のスクリプトごと壊れる。`sh -n` は通ってしまうケースがあるため、
+     * 実際に走らせて中身が出ることまで見る。名前が変わったらこのテストも直すこと
+     * (= 名前は CLI と実装の合意なので、勝手に変えられると困る、という意思表示でもある)。
+     */
+    @Test
+    fun whenEventsListsEventNames() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val script = File.createTempFile("z2when", ".sh").apply { writeText(scripts["z2-when"]!!) }
+        val home = Files.createTempDirectory("z2home").toFile()
+        try {
+            val pb = ProcessBuilder(sh!!, script.absolutePath, "events").redirectErrorStream(true)
+            pb.environment()["HOME"] = home.absolutePath
+            val proc = pb.start()
+            val out = proc.inputStream.bufferedReader().readText()
+            assertEquals("z2-when events が失敗した:\n$out", 0, proc.waitFor())
+            // 受動的なイベント (検知 ON が前提) と、自分で仕掛けるもの (検知に依存しない) の両方。
+            for (name in listOf("screen_on", "headset_plugged", "ringer_silent", "alarm", "notify_action")) {
+                assertTrue("z2-when events に $name が出ていない:\n$out", out.contains(name))
+            }
+        } finally {
+            script.delete()
+            home.deleteRecursively()
+        }
+    }
+
     /** A1: タブを操る `z2-session` が同梱され、5 つのサブコマンドを持つこと。 */
     @Test
     fun sessionHelperCoversAllSubcommands() {

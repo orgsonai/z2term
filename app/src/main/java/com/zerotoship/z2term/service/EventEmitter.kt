@@ -8,6 +8,8 @@ import kotlinx.coroutines.runBlocking
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /**
  * `~/.z2term/events.jsonl` へ 1 行書く共通処理。
@@ -49,5 +51,22 @@ internal object EventEmitter {
                 settings?.systemEventLogPrepend ?: false
             )
         }.onFailure { Log.w(TAG, "event write failed ($event): ${it.message}") }
+
+        // 記録したのと同じイベントで `event:<名前>` ルールを実行する (0.8.226)。
+        // ルール読み込みとエンジン起動が入るので、呼び元 (レシーバ・AlarmManager の配信スレッド) を
+        // 塞がないよう専用スレッドへ逃がす。単一スレッドなのでイベントの順序は保たれる。
+        val app = context.applicationContext
+        runCatching {
+            worker.execute {
+                runCatching {
+                    WhenManager.onEvent(app, event, level = level, name = name, action = action)
+                }.onFailure { Log.w(TAG, "when event failed ($event): ${it.message}") }
+            }
+        }
+    }
+
+    /** [WhenManager.onEvent] を呼び元スレッドから外すための単一スレッド (daemon)。 */
+    private val worker: ExecutorService = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "when-event").apply { isDaemon = true }
     }
 }

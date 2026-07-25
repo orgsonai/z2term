@@ -31,6 +31,30 @@ object WhenTriggerMatch {
         }
     }
 
+    /**
+     * `event:*` トリガーが、いま起きた端末イベント [event] で発火すべきか。
+     *
+     * spec の書式:
+     *  - `screen_on` のような**イベント名そのもの** … 完全一致
+     *  - `ringer_*` … 末尾 `*` の前方一致 (`ringer_normal` / `ringer_vibrate` / `ringer_silent` をまとめて)
+     *  - `*` … すべてのイベント
+     *
+     * イベント名は `events.jsonl` に書かれるものと同じ (`z2-when events` で一覧できる)。
+     * 大小文字は区別しない (ファイルに手で書くものなので、打ち間違いで黙って動かないのを避ける)。
+     */
+    fun event(spec: String, event: String): Boolean {
+        val s = spec.trim()
+        val e = event.trim()
+        if (s.isEmpty() || e.isEmpty()) return false
+        if (s == "*") return true
+        if (s.endsWith("*")) {
+            val prefix = s.dropLast(1)
+            // `*` だけの前方一致は上で処理済み。`_*` のような空でない接頭辞のみ。
+            return prefix.isNotEmpty() && e.startsWith(prefix, ignoreCase = true)
+        }
+        return s.equals(e, ignoreCase = true)
+    }
+
     /** OTP らしい数字コードを抜き出す (前後が数字でない 4〜8 桁の並びの先頭。無ければ空)。 */
     private val OTP_REGEX = Regex("(?<!\\d)(\\d{4,8})(?!\\d)")
 

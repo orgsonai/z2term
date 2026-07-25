@@ -112,4 +112,37 @@ class WhenTriggerMatchTest {
         assertTrue(WhenTriggerMatch.proximitySatisfied("proximity=far", near = false))
         assertFalse(WhenTriggerMatch.proximitySatisfied("proximity=far", near = true))
     }
+
+    // --- event:* トリガー (events.jsonl に流れる端末イベントを名前で拾う) ---
+
+    @Test fun event_exactName() {
+        assertTrue(WhenTriggerMatch.event("screen_on", "screen_on"))
+        assertFalse(WhenTriggerMatch.event("screen_on", "screen_off"))
+    }
+
+    @Test fun event_prefixWildcard() {
+        // ringer_normal / _vibrate / _silent をまとめて 1 ルールで拾えること。
+        assertTrue(WhenTriggerMatch.event("ringer_*", "ringer_silent"))
+        assertTrue(WhenTriggerMatch.event("ringer_*", "ringer_normal"))
+        assertFalse(WhenTriggerMatch.event("ringer_*", "screen_on"))
+    }
+
+    @Test fun event_matchAll() {
+        assertTrue(WhenTriggerMatch.event("*", "anything"))
+    }
+
+    @Test fun event_ignoresCaseAndSpace() {
+        // ルールファイルは手で書けるので、大小文字と前後空白では落とさない。
+        assertTrue(WhenTriggerMatch.event(" Screen_On ", "screen_on"))
+    }
+
+    @Test fun event_emptyNeverMatches() {
+        // 空 spec が全一致に化けると、壊れたルールが全イベントで発火してしまう。
+        assertFalse(WhenTriggerMatch.event("", "screen_on"))
+        assertFalse(WhenTriggerMatch.event("screen_on", ""))
+    }
+
+    @Test fun event_prefixDoesNotMatchShorterName() {
+        assertFalse(WhenTriggerMatch.event("battery_low*", "battery_"))
+    }
 }

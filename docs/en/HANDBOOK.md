@@ -527,7 +527,7 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-state [key]` | **Current device state** as JSON; with a key, just that value (`screen` `locked` `idle` `charging` `plug` `level` `temp` `wifi` `ssid` `ringer` `airplane` `headset` `bt_audio` `volume` `volume_max`). E.g. `[ "$(z2-state charging)" = "true" ]` |
 | `z2-alarm at\|daily HH:MM [name]` | **Time trigger**: writes an `alarm` event into `events.jsonl` at that time (`in 5m` / `list` / `cancel <id\|name\|all>` too). Unlike cron it fires during Doze (may be a few minutes late) |
 | `z2-session list\|new\|send\|capture\|close` | **Drives this app's own tabs.** `list` shows them (index, id, name, marks: `*`=visible, `!`=busy, `?`=not started), `new [name]` adds one, `send <target> "text"` **only inserts** into that tab (add `--enter` to actually run it), `capture [target]` pulls the on-screen text, `close <target>` closes it. `<target>` is the index from `list`, an id, or a tab name. E.g. ``n=$(z2-session new build \| cut -f1); z2-session send "$n" 'make -j2' --enter`` |
-| `z2-when <trigger> run <cmd>` | **Automation hub.** Auto-run a command on charge / battery / time (see "Automation hub" below). Also `list` / `remove <id\|all>` / `on\|off <id>` / `log <id>`. E.g. `z2-when charge:start run ~/.z2term/macros/backup.sh` |
+| `z2-when <trigger> run <cmd>` | **Automation hub.** Auto-run a command on charge / battery / time / device events (see "Automation hub" below). Also `list` / `remove <id\|all>` / `on\|off <id>` / `log <id>`. E.g. `z2-when charge:start run ~/.z2term/macros/backup.sh` |
 | `z2-macro list\|install <name>` | **Bundled macro samples** into `~/.z2term/macros/` (`show` / `run` / `dir` too) — a starting point for your first macro |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | Fire an arbitrary Android Intent (launch apps, open settings, set alarms, … see `docs/en/MACRO-GUIDE.md`) |
 
@@ -548,6 +548,8 @@ z2-when time:cron='0 9 * * 1-5' run ~/.z2term/macros/weekday.sh  # weekdays at 0
 z2-when wifi:ssid=home       run ~/.z2term/macros/expose-lan.sh # when joining home Wi‑Fi
 z2-when sms:otp              run 'echo "$Z2_WHEN_OTP" | z2-clip'  # copy an incoming OTP to the clipboard
 z2-when sensor:shake         run ~/.z2term/macros/panic.sh        # when you shake the device
+z2-when event:headset_plugged run ~/.z2term/macros/play.sh        # when wired earphones go in
+z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # on any ringer-mode change
 ```
 
 - **Trigger types**
@@ -558,8 +560,11 @@ z2-when sensor:shake         run ~/.z2term/macros/panic.sh        # when you sha
   - `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<name>` — when Wi‑Fi connects / disconnects / joins a given network. **These Wi‑Fi triggers only work while "detection" is on** (Settings › keep-alive & automation). Using the network name (SSID) also needs location permission. Inside the command, `Z2_WHEN_SSID` holds the connected network's name.
   - `sms:any` / `sms:from=<substr>` / `sms:contains=<substr>` / `sms:otp` — when an SMS arrives (any / sender matches / body contains / body has an OTP-looking code). **Needs SMS receive permission** (grant it via Settings › "SMS detection"). Inside the command you get `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY`, and for `sms:otp` the extracted code in `Z2_WHEN_OTP`. Reading SMS directly avoids Android 15's OTP redaction.
   - `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near` / `sensor:proximity=far` — when you shake the device / ambient light (lux) crosses N up or down / the proximity sensor goes near or far. **These sensor triggers only work while "detection" is on**. Sensors cost battery, so only the sensors your rules use are turned on (none run if you don't use them). `shake` only reacts to a **firm shake** (deliberately set high so that walking around doesn't trigger it), and at most once every 3 seconds. Inside the command, `Z2_WHEN_SENSOR` names the sensor and `Z2_WHEN_LUX` holds the light level (for light).
-- **List / remove / toggle**: `z2-when list` / `z2-when remove <id>` (`all` for everything) / `z2-when on <id>` `z2-when off <id>` / `z2-when log <id>` (see the run log)
-- Inside the command you can use `Z2_WHEN_TRIGGER` (which trigger fired), `Z2_WHEN_LEVEL` (battery level then), `Z2_WHEN_SSID` (the network for a wifi trigger), `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` / `Z2_WHEN_OTP` (for sms triggers), and `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX` (for sensor triggers) as env vars.
+  - `event:<name>` — **any device event, by name** (added in 0.8.226). Run **`z2-when events`** to list the names (~20: `screen_on`, `unlocked`, `headset_plugged`, `bt_audio_connected`, `ringer_silent`, `airplane_on`, `alarm`, `notify_action`, …). A trailing `*` makes it a prefix match (`event:ringer_*`), and `event:*` matches everything. Inside the command, `Z2_WHEN_EVENT` holds the event name.
+    **The same rule will not fire twice within 10 seconds** (some events, like `screen_on`, happen often).
+    Passive events (screen, charging, Wi‑Fi, …) need **"detection" on**, but `alarm` (set with `z2-alarm`) and `notify_action` (a notification button) **work with detection off**.
+- **List / remove / toggle**: `z2-when list` / `z2-when events` (names usable with `event:`) / `z2-when remove <id>` (`all` for everything) / `z2-when on <id>` `z2-when off <id>` / `z2-when log <id>` (see the run log)
+- Inside the command you can use `Z2_WHEN_TRIGGER` (which trigger fired), `Z2_WHEN_LEVEL` (battery level then), `Z2_WHEN_SSID` (the network for a wifi trigger), `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` / `Z2_WHEN_OTP` (for sms triggers), `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX` (for sensor triggers), and `Z2_WHEN_EVENT` (for event triggers; `alarm` and `notify_action` also set `Z2_WHEN_EVENT_NAME` / `Z2_WHEN_ACTION`) as env vars.
 - Rules live as text under `~/.z2term/when/`, so you can **sync/back them up with git**.
 - Time triggers use a battery-friendly mechanism (Doze-through AlarmManager), so **firing can be a few minutes off**. The `wifi` / `sms` / `sensor` / `cron` triggers are all available.
 

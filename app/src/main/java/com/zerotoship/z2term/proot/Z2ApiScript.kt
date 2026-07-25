@@ -288,6 +288,9 @@ fun z2ApiScripts(): Map<String, String> {
         |#            wifi:connect | wifi:disconnect | wifi:ssid=<名前>  (検知 ON が前提)
         |#            sms:any | sms:from=<部分> | sms:contains=<部分> | sms:otp  (RECEIVE_SMS 許可が前提)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (検知 ON が前提)
+        |#            event:<名前> | event:<接頭辞>* | event:*  … 端末イベントを名前で拾う
+        |#              (名前は z2-when events で一覧。events.jsonl に出るものと同じ)
+        |# z2-when events                        … event: で使えるイベント名の一覧
         |# z2-when list                          … 登録一覧 (id / on|off / トリガー / -> / コマンド の TSV)
         |# z2-when remove <id|all>  (rm でも可)  … 削除
         |# z2-when on <id> / off <id>            … 有効 / 無効
@@ -295,13 +298,18 @@ fun z2ApiScripts(): Map<String, String> {
         |# 発火時、コマンドは選択中の distro で実行され、環境変数 Z2_WHEN_TRIGGER / Z2_WHEN_LEVEL
         |# / Z2_WHEN_SSID (wifi) / Z2_WHEN_SMS_FROM / Z2_WHEN_SMS_BODY / Z2_WHEN_OTP (sms)
         |# / Z2_WHEN_SENSOR / Z2_WHEN_LUX (sensor) が入る。
+        |# event: のときは Z2_WHEN_EVENT (イベント名) が入る。alarm / notify_action では
+        |# Z2_WHEN_EVENT_NAME (仕掛けたときの識別名) と Z2_WHEN_ACTION (押したボタン) も入る。
+        |# 同じルールは 10 秒以内に続けて発火しない (screen_on のような数の多いイベント対策)。
         |# 例: z2-when charge:start run ~/.z2term/macros/backup.sh
         |#     z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
+        |#     z2-when event:headset_plugged run ~/.z2term/macros/play.sh
+        |#     z2-when 'event:ringer_*' run 'z2-toast "マナーモード: ${d}Z2_WHEN_EVENT"'
         |DIR="${d}HOME/.z2term/when"
         |mkdir -p "${d}DIR" 2>/dev/null
         |reload() { /usr/local/bin/z2api 0 when-reload >/dev/null 2>&1 || true; }
         |usage() {
-        |  echo "usage: z2-when <trigger> run <cmd...> | list | remove <id|all> | on <id> | off <id> | log <id>" >&2
+        |  echo "usage: z2-when <trigger> run <cmd...> | list | events | remove <id|all> | on <id> | off <id> | log <id>" >&2
         |  exit 1
         |}
         |[ ${d}# -ge 1 ] || usage
@@ -340,6 +348,36 @@ fun z2ApiScripts(): Map<String, String> {
         |  log)
         |    [ ${d}# -ge 2 ] || usage
         |    cat "${d}DIR/${d}2.log" 2>/dev/null || echo "(ログはまだありません)"
+        |    ;;
+        |  events)
+        |    # event:<名前> に書ける名前。events.jsonl に出るものと同じ並び。
+        |    # 上段は検知 ON が前提 (設定 › 常駐サーバー・自動化 › システムイベント検知)、
+        |    # 下段は自分で仕掛けるものなので検知 OFF でも動く。
+        |    cat <<'EOS'
+        |screen_on              画面が点いた            [検知 ON]
+        |screen_off             画面が消えた            [検知 ON]
+        |unlocked               ロックを解除した        [検知 ON]
+        |power_connected        充電を開始した          [検知 ON]
+        |power_disconnected     充電を止めた            [検知 ON]
+        |battery_low            電池が少なくなった      [検知 ON]
+        |battery_okay           電池が回復した          [検知 ON]
+        |battery_level          残量が 10% 刻みを跨いだ [検知 ON]
+        |wifi_connected         Wi-Fi に繋がった        [検知 ON]
+        |wifi_disconnected      Wi-Fi が切れた          [検知 ON]
+        |headset_plugged        有線イヤホンを挿した    [検知 ON]
+        |headset_unplugged      有線イヤホンを抜いた    [検知 ON]
+        |bt_audio_connected     Bluetooth 音声が繋がった [検知 ON]
+        |bt_audio_disconnected  Bluetooth 音声が切れた   [検知 ON]
+        |airplane_on            機内モードにした        [検知 ON]
+        |airplane_off           機内モードを解除した    [検知 ON]
+        |ringer_normal          着信音ありにした        [検知 ON]
+        |ringer_vibrate         バイブにした            [検知 ON]
+        |ringer_silent          マナーにした            [検知 ON]
+        |alarm                  z2-alarm が鳴った       [常に]
+        |notify_action          通知のボタンを押した    [常に]
+        |unlock_failed          ロック解除に失敗した    [常に・要設定]
+        |unlock_succeeded       失敗のあと解除できた    [常に・要設定]
+        |EOS
         |    ;;
         |  *)
         |    trig="${d}1"; shift

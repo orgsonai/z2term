@@ -251,6 +251,60 @@ object WhenManager {
         }
     }
 
+    // --- 端末イベントトリガー (event:*) ---
+
+    /**
+     * 同一ルールの連続発火を抑える最小間隔。`screen_on`/`screen_off` のように**人の操作しだいで
+     * 何度でも来る**イベントを名前で拾えるようにした以上、これが無いとルール 1 本で発火の嵐になる。
+     * トリガー別ではなく**ルール別**に効かせる (別々のルールは互いを抑制しない)。
+     */
+    private const val EVENT_MIN_INTERVAL_MS = 10_000L
+
+    /** rule id → 最後に発火した時刻。プロセス内メモリのみ (死んだらリセットで構わない)。 */
+    private val eventLastFired = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /**
+     * `events.jsonl` に書かれる端末イベントを受けて `event:<名前>` ルールを実行する (0.8.226)。
+     *
+     * **既に検知して記録しているものを、名前で呼べるようにしただけ**の追加で、新しい常駐も新しい権限も
+     * 増えない。呼び元は 2 か所 — 受動的なイベントの [SystemEventService.emit] と、ユーザーが自分で
+     * 仕掛けた合図の [EventEmitter.emit] (`alarm` / `notify_action` / `unlock_failed` など)。
+     * 前者は**検知 ON が前提**、後者は検知の ON/OFF に依存しない (記録と同じ条件に揃えてある)。
+     *
+     * 環境変数は `Z2_WHEN_EVENT` (イベント名) と、あれば `Z2_WHEN_EVENT_NAME` (仕掛けたときの識別名) /
+     * `Z2_WHEN_ACTION` (押された通知ボタン) / `Z2_WHEN_SSID`。数値は既存と同じ `Z2_WHEN_LEVEL`。
+     * `Z2_WHEN_NAME` は**ルール id** のままにしてある (既存ルールの意味を変えない)。
+     */
+    fun onEvent(
+        context: Context,
+        event: String,
+        level: Int? = null,
+        name: String = "",
+        action: String = "",
+        ssid: String = "",
+    ) {
+        if (event.isBlank()) return
+        val app = context.applicationContext
+        val rules = runCatching { loadRules(app) }.getOrDefault(emptyList())
+            .filter { it.enabled && it.kind == "event" && WhenTriggerMatch.event(it.spec, event) }
+        if (rules.isEmpty()) return
+        val now = System.currentTimeMillis()
+        rules.forEach { rule ->
+            val prev = eventLastFired[rule.id]
+            if (prev != null && now - prev < EVENT_MIN_INTERVAL_MS) {
+                Log.i(TAG, "event $event: ${rule.id} skipped (min interval)")
+                return@forEach
+            }
+            eventLastFired[rule.id] = now
+            val env = HashMap<String, String>()
+            env["Z2_WHEN_EVENT"] = event
+            if (name.isNotEmpty()) env["Z2_WHEN_EVENT_NAME"] = name
+            if (action.isNotEmpty()) env["Z2_WHEN_ACTION"] = action
+            if (ssid.isNotEmpty()) env["Z2_WHEN_SSID"] = ssid
+            runRule(app, rule, level = level ?: -1, extraEnv = env)
+        }
+    }
+
     // --- センサートリガー (opt-in・検知 FG サービス前提) ---
 
     /** センサーのエッジ判定用「直近で条件を満たしていたか」(rule id 単位・プロセス内メモリのみ)。 */
