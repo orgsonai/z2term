@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-26 / Target version: 0.8.243-alpha (versionCode 251)
+Last updated: 2026-07-26 / Target version: 0.8.244-alpha (versionCode 252)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1254,7 +1254,10 @@ entered can only be decided once that chunk has been processed**.
   - ⚠ **The setting is re-read from DataStore (`settings.flow.first()`), not from `settingsFlow`.**
     Right after a cold start the first DataStore emission has not arrived and `settingsFlow` still
     holds the default (off), which fails in the worst possible shape: **only the very first tab —
-    the one you most wanted — goes unrecorded.**
+    the one you most wanted — goes unrecorded.** The snapshot that was read is handed to
+    `startLogging(snapshot)`, because the destination and file name would fall back to the defaults
+    for the same reason — re-reading only the flag would just move the bug to "the first tab lands in
+    the default folder".
   - Recording itself stays per-tab and is never persisted (always off after a restart), but **this
     setting is persisted** — auto-start is an intent about every session, not a state of one tab.
 - **Masking** (`core/SecretMasker`, `sessionLogMaskSecrets`, **default on**, 0.8.243): key- and

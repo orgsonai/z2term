@@ -714,10 +714,12 @@ class TerminalSession(
         //
         // 設定は settingsFlow ではなく DataStore から読み直す — アプリの起動直後は初回 emit が
         // 間に合わず、settingsFlow がまだ既定値 (自動開始 OFF) のことがあり、**いちばん録りたい
-        // 1 本目のタブだけ録れない**という形で外れる。
+        // 1 本目のタブだけ録れない**という形で外れる。読み直した snapshot は startLogging へ
+        // そのまま渡す (保存先・ファイル名も同じ理由で既定に落ちるため)。
         if (logger == null) {
             scope.launch {
-                if (settings.flow.first().sessionLogAutoStart) startLogging()
+                val snap = settings.flow.first()
+                if (snap.sessionLogAutoStart) startLogging(snap)
             }
         }
         // PTY blocking read は IO で行い、emulator 処理は専用シリアルスレッドに hand off。
@@ -956,10 +958,14 @@ class TerminalSession(
      * すぐ触れる場所に置く、というのがこの機能の要 (取り出せないログには意味が無い)。
      * ファイル名は設定のテンプレート (`{date}` / `{tab}`) から作り、追記 OFF のときに同名が
      * 既にあれば `-2` `-3` を足して**上書きしない**。
+     *
+     * @param snapshot 使う設定。省略時は [settingsFlow] の現在値 (= ユーザーが ⏺ を押した場合)。
+     *   **自動開始の経路は必ず読み直した値を渡すこと** — 起動直後は [settingsFlow] がまだ既定値で、
+     *   保存先やファイル名を変えている人だけ「1 本目のタブが既定の場所に落ちる」ことになる。
      */
-    fun startLogging() {
+    fun startLogging(snapshot: AppSettings.Snapshot? = null) {
         if (_logState.value.recording) return
-        val s = settingsFlow.value
+        val s = snapshot ?: settingsFlow.value
         val home = File(appContext.filesDir, "shared_home")
         val relDir = s.sessionLogDir.trim().trim('/').ifBlank { AppSettings.DEFAULT_SESSION_LOG_DIR }
         val dir = File(home, relDir)
