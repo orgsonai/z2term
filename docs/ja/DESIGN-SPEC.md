@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-25 / 対象バージョン: 0.8.226-alpha (versionCode 234)
+最終更新: 2026-07-25 / 対象バージョン: 0.8.227-alpha (versionCode 235)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -428,7 +428,19 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 
 **実行**: 発火すると「そのとき選ばれている distro」で `sh -lc '<run>'` を **headless 起動**（`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`。`ServerDaemonManager` と同じ launch + drain パターン）。トリガー情報は環境変数 `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` と、トリガー固有の追加 env（wifi: `Z2_WHEN_SSID` / sms: `Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP` / sensor: `Z2_WHEN_SENSOR`・`Z2_WHEN_LUX` / event: `Z2_WHEN_EVENT`・`Z2_WHEN_EVENT_NAME`・`Z2_WHEN_ACTION`）で渡す（外部入力をシェルへ文字列展開しない安全境界。値は単一引用符へ `'\''` エスケープ）。出力は `~/.z2term/when/<id>.log` へ追記（128KB を超えたら実行前に空にする）。root chroot モードでも `launchChroot` は追加引数を取らないため、ルール実行はエンジン経路に統一している。
 
-**CLI**（`z2-when`。`Z2ApiScript` が launch 毎に `/usr/local/bin` へ配置）: `<trigger> run <cmd>` で登録 / `list`（TSV）/ `events`（`event:` に使える名前の一覧・0.8.226）/ `remove <id|all>`（`rm`）/ `on|off <id>` / `log <id>`。id は `w<epoch><pid>`（同一秒の衝突を避けるため 0.8.211 で乱数から pid へ変更。既存があれば連番を付す）。**stage2 は cron/wifi/sms/sensor まで実装済み**（0.8.207〜0.8.210）。以降の候補は `time:cron` の DST 跨ぎ精緻化や照度ヒステリシス等の作り込み。
+**キルスイッチと発火の記録（0.8.227）**: トリガーが増えるほど**裏で勝手に走る回数**が増えるのに、暴走したときに全部止める 1 操作も、「さっき何が走ったか」を見る場所も無かった。`event:`（0.8.226）でその落差が実害になる前に足す。
+
+- **一時停止は `~/.z2term/when/.paused` の有無**（DataStore ではなくファイル）。CLI（`z2-when pause` / `resume`）とアプリの画面が**同じ 1 つの真実**を見るため。ルールがファイルなのとも揃う。
+- **判定は `runRule` の入口 1 か所**。トリガーを何種類増やしても止め忘れが起きない。**時刻トリガーの AlarmManager 予約は解除しない**（捨てると再開時の貼り直しが要り、`time:at` の「次の 1 回」も失われる）。発火はしても入口で弾く。
+- **止めたことも記録する**（`status=paused`）。黙って動かないと「なぜ動かないのか」を探す手段が無くなる。
+- **`~/.z2term/when/.fired` に 1 行 1 発火**（TSV: 時刻・rule id・トリガー・`run|paused|manual`、直近 50 件でローテート）。トリガーの値（SSID・SMS 本文）は書かない — 記録は残るものなので、外部由来の文字列を貯めない。
+- **▶「いま試す」は一時停止中でも動く**（`runRule(manual=true)`）。キルスイッチは「勝手に走るもの」を止めるためのもので、人が押した実行まで禁じる設定ではない。トリガー固有の env は渡さない（作り物の値で「試したら動いたのに本番で動かない」を作らないため）。`Z2_WHEN_MANUAL=1` だけ入る。
+
+**自動化タブ（`ui/settings/WhenRulesSheet`、0.8.227）**: 📜 に「自動化」タブを足し、一覧・ON/OFF・実行ログ・▶試す・削除・一時停止・直近の発火をまとめる。設定 › 常駐サーバー・自動化からも同じ中身を開ける（`ServersBody` と同じ 2 経路の作り）。部品（`ToggleRow` / `HintBox` / `IconCell` / `PillButton`）は `ServersSheet` から `internal` で共有し、見た目を 2 か所に書かない。
+
+**ルールの新規作成と編集は画面に載せない**。正本は `~/.z2term/when/<id>.rule` のテキストで、ロジックはシェル側という設計（§3.3「接続点はアプリ・ロジックはシェル」）を崩さないため。GUI で全部書かせようとした瞬間に二重管理になる。画面は**見る・止める・試す**だけに留め、作るのは `z2-when` に任せる。
+
+**CLI**（`z2-when`。`Z2ApiScript` が launch 毎に `/usr/local/bin` へ配置）: `<trigger> run <cmd>` で登録 / `list`（TSV。一時停止中は先頭に注記）/ `events`（`event:` に使える名前の一覧・0.8.226）/ `pause` / `resume` / `fired [n]`（0.8.227）/ `remove <id|all>`（`rm`）/ `on|off <id>` / `log <id>`。id は `w<epoch><pid>`（同一秒の衝突を避けるため 0.8.211 で乱数から pid へ変更。既存があれば連番を付す）。**stage2 は cron/wifi/sms/sensor まで実装済み**（0.8.207〜0.8.210）。以降の候補は `time:cron` の DST 跨ぎ精緻化や照度ヒステリシス等の作り込み。
 
 #### 履歴パレット（`ui/snippets/ShellHistory`、0.8.221・B2）
 

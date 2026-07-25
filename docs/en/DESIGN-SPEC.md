@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.226-alpha (versionCode 234)
+Last updated: 2026-07-25 / Target version: 0.8.227-alpha (versionCode 235)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -438,7 +438,19 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 
 **Execution**: on fire, runs `sh -lc '<run>'` **headless** on the currently selected distro (`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`, same launch+drain pattern as `ServerDaemonManager`). Trigger context is passed via env vars `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` plus trigger-specific extras (wifi: `Z2_WHEN_SSID`; sms: `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` / `Z2_WHEN_OTP`; sensor: `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX`; event: `Z2_WHEN_EVENT` / `Z2_WHEN_EVENT_NAME` / `Z2_WHEN_ACTION`) (external input is never spliced into the shell; values are single-quote-escaped with `'\''`). Output is appended to `~/.z2term/when/<id>.log` (cleared before a run once past 128KB). Rule execution always goes through the engine path since `launchChroot` takes no extra args.
 
-**CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> run <cmd>` to add / `list` (TSV) / `events` (names usable with `event:`, 0.8.226) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><pid>` (0.8.211 switched from a random suffix to the pid to avoid same-second collisions; a counter is appended if the file already exists). **Stage 2 now covers cron/wifi/sms/sensor** (0.8.207–0.8.210). Later candidates: DST-boundary refinement for `time:cron`, light-threshold hysteresis, etc.
+**Kill switch and a record of fires (0.8.227)**: every new trigger increases how often something runs **on its own**, yet there was no single action to stop it all, and nowhere to see what just ran. Added before `event:` (0.8.226) turned that gap into real damage.
+
+- **Pausing is the presence of `~/.z2term/when/.paused`** — a file, not DataStore — so the CLI (`z2-when pause` / `resume`) and the app screen read **one single truth**. It also matches rules already being files.
+- **Checked at one place: the entry of `runRule`.** No matter how many trigger kinds get added, none can forget to honour it. **Time triggers keep their AlarmManager registrations** (dropping them would require re-arming on resume and would lose the "next one" of `time:at`); they still fire, and are turned away at the entry.
+- **Being held back is recorded too** (`status=paused`). Failing silently would remove the only way to answer "why didn't it run?".
+- **`~/.z2term/when/.fired` holds one line per fire** (TSV: time, rule id, trigger, `run|paused|manual`; rotated at 50). Trigger payloads (SSID, SMS body) are never written — this file persists, so external strings must not accumulate in it.
+- **▶ "run now" works even while paused** (`runRule(manual=true)`). The kill switch exists to stop things that run *by themselves*; it is not a setting that forbids the user from running their own rule. No trigger-specific env is passed (a made-up value would produce "worked when I tested it, fails for real"); only `Z2_WHEN_MANUAL=1`.
+
+**Automation tab (`ui/settings/WhenRulesSheet`, 0.8.227)**: adds an "Automation" tab to 📜 with the rule list, on/off, run logs, ▶ run-now, delete, the pause switch and recent fires. The same body opens from Settings › resident servers & automation (the two-entry structure `ServersBody` already uses). Shared widgets (`ToggleRow` / `HintBox` / `IconCell` / `PillButton`) are `internal` in `ServersSheet` so the look is not written twice.
+
+**Creating and editing rules is deliberately absent from the UI.** The source of truth is the text at `~/.z2term/when/<id>.rule`, with the logic on the shell side (§3.3, "the app is the connection point, the shell holds the logic"). Letting the GUI author rules would create a second source of truth. The screen only lets you **see, stop and try**; authoring stays with `z2-when`.
+
+**CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> run <cmd>` to add / `list` (TSV; notes when paused) / `events` (names usable with `event:`, 0.8.226) / `pause` / `resume` / `fired [n]` (0.8.227) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><pid>` (0.8.211 switched from a random suffix to the pid to avoid same-second collisions; a counter is appended if the file already exists). **Stage 2 now covers cron/wifi/sms/sensor** (0.8.207–0.8.210). Later candidates: DST-boundary refinement for `time:cron`, light-threshold hysteresis, etc.
 
 #### History palette (`ui/snippets/ShellHistory`, 0.8.221, B2)
 

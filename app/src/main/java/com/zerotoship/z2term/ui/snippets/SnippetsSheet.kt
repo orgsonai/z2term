@@ -59,6 +59,7 @@ import com.zerotoship.z2term.snippets.Snippet
 import com.zerotoship.z2term.snippets.SnippetStore
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.settings.ServersBody
+import com.zerotoship.z2term.ui.settings.WhenRulesBody
 import com.zerotoship.z2term.ui.ssh.SshProfilesBody
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
@@ -79,7 +80,7 @@ import java.util.Locale
 import java.util.UUID
 
 /** ツールシートのタブ。スニペット / SSH・SFTP / 常駐サーバーを 1 枚にまとめる。 */
-private enum class ToolsTab { SNIPPETS, HISTORY, SSH, SERVERS }
+private enum class ToolsTab { SNIPPETS, HISTORY, SSH, SERVERS, WHEN }
 
 /**
  * ツールシート (ツールバーの 📜 から開く)。
@@ -160,12 +161,13 @@ fun SnippetsSheet(
                     onSftp = { p -> onSftp(p); onDismiss() }
                 )
                 ToolsTab.SERVERS -> serverSession?.let { ServersBody(session = it) }
+                ToolsTab.WHEN -> WhenRulesBody()
             }
         }
     }
 }
 
-/** スニペット / 履歴 / SSH・SFTP / サーバー を切替えるセグメントタブ。出せないタブは省く。 */
+/** スニペット / 履歴 / SSH・SFTP / サーバー / 自動化 を切替えるセグメントタブ。出せないタブは省く。 */
 @Composable
 private fun ToolsTabBar(
     selected: ToolsTab,
@@ -207,6 +209,13 @@ private fun ToolsTabBar(
                 onSelect = { onSelect(ToolsTab.SERVERS) }
             )
         }
+        // 自動化 (z2-when) はセッションに依存しないので、GUI タブからでも常に出す。
+        TabChip(
+            label = stringResource(R.string.tools_tab_when),
+            selected = selected == ToolsTab.WHEN,
+            modifier = Modifier.weight(1f),
+            onSelect = { onSelect(ToolsTab.WHEN) }
+        )
     }
 }
 

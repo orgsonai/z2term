@@ -9,6 +9,9 @@ import com.zerotoship.z2term.settings.WhenRule
 import com.zerotoship.z2term.widget.StatusWidgetProvider
 import com.zerotoship.z2term.widget.TailWidgetProvider
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * `z2-when` 自動化ハブの中核 (A6・stage 1)。ルールファイル (`~/.z2term/when/<id>.rule`) を読み、
@@ -33,6 +36,19 @@ object WhenManager {
 
     /** 時刻トリガーで武装済みのルール id を覚えておくファイル (reload 時に取りこぼしなく貼り直す)。 */
     private const val ARMED_STATE = ".armed"
+
+    /**
+     * 一時停止フラグ (**存在＝停止中**)。DataStore ではなく**ファイル**で持つのは、
+     * `z2-when pause` (端末側 CLI) とアプリの設定画面が**同じ 1 つの真実**を見るため。
+     * ルール自体がファイルなのと揃えてあり、端末から `ls ~/.z2term/when/` すれば状態が分かる。
+     */
+    private const val PAUSED_STATE = ".paused"
+
+    /** 直近の発火の記録 (1 行 1 件・古いものが先頭)。「さっき何が走ったか」を 1 か所で見るため。 */
+    private const val FIRED_LOG = ".fired"
+
+    /** [FIRED_LOG] に残す件数。ファイルが太らない範囲で、直近の様子が分かるだけの長さ。 */
+    private const val FIRED_KEEP = 50
 
     /** ルールディレクトリ (`filesDir/shared_home/.z2term/when` = 端末からは `~/.z2term/when`)。 */
     fun whenDir(context: Context): File =
@@ -366,6 +382,83 @@ object WhenManager {
         }
     }
 
+    // --- 一時停止 (キルスイッチ) と発火の記録 ---
+
+    /**
+     * 自動化が一時停止中か。**トリガーで勝手に走るものだけ**を止めるスイッチで、
+     * ウィジェットのボタンや `z2-macro` のように**人が押して走らせるもの**は対象外
+     * (「暴走を止めたい」のであって「自分で動かすのも禁じたい」わけではない)。
+     */
+    fun isPaused(context: Context): Boolean =
+        File(whenDir(context), PAUSED_STATE).exists()
+
+    /**
+     * 一時停止を切り替える。時刻トリガーの AlarmManager 予約は**解除しない** —
+     * 予約を捨てると再開時に貼り直しが要り、`time:at` の「次の 1 回」も失われる。
+     * 発火はしても [runRule] の入口で弾くので、止まっていることに変わりはない。
+     */
+    fun setPaused(context: Context, paused: Boolean) {
+        val f = File(whenDir(context).apply { mkdirs() }, PAUSED_STATE)
+        runCatching { if (paused) f.writeText("paused\n") else f.delete() }
+        Log.i(TAG, if (paused) "automation paused" else "automation resumed")
+    }
+
+    /**
+     * 直近の発火を新しい順に [limit] 件返す。1 行 = 1 件で、[firedLine] の TSV。
+     * 「いま何が走っているか」ではなく「**さっき何が走ったか**」を見るためのもの。
+     */
+    fun recentFires(context: Context, limit: Int = 20): List<String> =
+        runCatching { File(whenDir(context), FIRED_LOG).readLines() }
+            .getOrDefault(emptyList())
+            .filter { it.isNotBlank() }
+            .takeLast(limit)
+            .asReversed()
+
+    /** 発火 1 件。[status] は `run` (実行した) / `paused` (止められた) / `manual` (画面から試した)。 */
+    data class Fired(val time: String, val ruleId: String, val trigger: String, val status: String)
+
+    /** 発火 1 件の TSV 行 (Android 非依存・テスト用に切り出す)。 */
+    internal fun firedLine(timeIso: String, id: String, trigger: String, status: String): String =
+        listOf(timeIso, id, trigger, status).joinToString("\t") { it.replace('\t', ' ').replace('\n', ' ') }
+
+    /** [firedLine] の逆。壊れた行は null (古い形式が混ざっても落ちない)。 */
+    internal fun parseFired(line: String): Fired? {
+        val p = line.split('\t')
+        if (p.size < 4) return null
+        return Fired(time = p[0], ruleId = p[1], trigger = p[2], status = p[3])
+    }
+
+    /** 直近の発火を新しい順にパースして返す (画面表示用)。 */
+    fun recentFiredEntries(context: Context, limit: Int = 20): List<Fired> =
+        recentFires(context, limit).mapNotNull { parseFired(it) }
+
+    /** ルール id → 最後に発火した時刻 (`paused` で止まった分は含めない)。 */
+    fun lastFiredByRule(context: Context): Map<String, String> {
+        val out = HashMap<String, String>()
+        // recentFires は新しい順なので、最初に見つかったものが最新。
+        recentFires(context, FIRED_KEEP).mapNotNull { parseFired(it) }
+            .filter { it.status != "paused" }
+            .forEach { out.putIfAbsent(it.ruleId, it.time) }
+        return out
+    }
+
+    /** 記録を [keep] 件に切り詰める (古い方から捨てる)。 */
+    internal fun trimFired(lines: List<String>, keep: Int): List<String> =
+        lines.filter { it.isNotBlank() }.takeLast(keep)
+
+    /** 発火 (または一時停止でスキップしたこと) を [FIRED_LOG] へ 1 行足す。 */
+    private fun appendFired(context: Context, rule: WhenRule, status: String) {
+        runCatching {
+            val dir = whenDir(context).apply { mkdirs() }
+            val f = File(dir, FIRED_LOG)
+            // SimpleDateFormat はスレッド安全でなく、ここは複数スレッドから呼ばれるので都度作る。
+            val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(Date())
+            val line = firedLine(iso, rule.id, rule.trigger, status)
+            val kept = trimFired(runCatching { f.readLines() }.getOrDefault(emptyList()) + line, FIRED_KEEP)
+            f.writeText(kept.joinToString("\n", postfix = "\n"))
+        }.onFailure { Log.w(TAG, "fired log failed: ${it.message}") }
+    }
+
     // --- 実行 ---
 
     /**
@@ -374,7 +467,24 @@ object WhenManager {
      * (`Z2_WHEN_SSID` / `Z2_WHEN_SMS_*` / `Z2_WHEN_OTP` 等) で渡す (シェルへ文字列展開しない)。
      * 出力は `~/.z2term/when/<id>.log` へ (肥大したら実行前に空にする)。
      */
-    private fun runRule(context: Context, rule: WhenRule, level: Int, extraEnv: Map<String, String> = emptyMap()) {
+    private fun runRule(
+        context: Context,
+        rule: WhenRule,
+        level: Int,
+        extraEnv: Map<String, String> = emptyMap(),
+        manual: Boolean = false,
+    ) {
+        // キルスイッチ。**全トリガー共通の 1 か所**で弾くので、トリガーを増やしても止め忘れが起きない。
+        // 止めたことも記録する — 「なぜ動かないのか」が分からないまま探させないため。
+        // [manual] (画面の ▶ で試した) は**人が押したもの**なので止めない。キルスイッチは
+        // 「勝手に走るもの」を止めるためのもので、自分で動かすことまで禁じる設定ではない。
+        if (!manual && isPaused(context)) {
+            appendFired(context, rule, "paused")
+            Log.i(TAG, "paused: skip ${rule.id} (${rule.trigger})")
+            return
+        }
+        appendFired(context, rule, if (manual) "manual" else "run")
+
         // 環境変数 + ユーザーコマンドを 1 本の sh -lc へ。trigger や extraEnv の値 (SSID・SMS 本文
         // 等) は外部文字列を含み得るので単一引用符へ安全にエスケープする ([shSingleQuote])。level は
         // 数値なのでそのまま。ユーザーコマンド (rule.run) は実行対象なのでクォートしない。
@@ -396,6 +506,57 @@ object WhenManager {
             onExit = { runCatching { TailWidgetProvider.refresh(app) } },
         )
     }
+
+    // --- 画面 (自動化タブ) から使う操作 ---
+
+    /**
+     * ルールを**トリガーを待たずに 1 回実行する**（画面の ▶）。
+     *
+     * 「充電したらバックアップ」を確かめるのに充電を抜き差しさせるのは無理があるので、
+     * 出口をここに用意する。一時停止中でも動く（[runRule] の `manual` 参照）。
+     * 環境変数は実際の発火と同じ形で渡すが、トリガー固有の値（SSID・SMS 本文など）は
+     * **無い**（作り物の値を渡すと「試したら動いたのに本番で動かない」を生むため）。
+     */
+    fun runNow(context: Context, rule: WhenRule) {
+        runRule(context, rule, level = -1, extraEnv = mapOf("Z2_WHEN_MANUAL" to "1"), manual = true)
+    }
+
+    /** ルールの有効 / 無効を切り替えて、時刻トリガーを貼り直す。 */
+    fun setRuleEnabled(context: Context, ruleId: String, enabled: Boolean) {
+        setEnabled(context, ruleId, enabled)
+        reload(context)
+    }
+
+    /** ルールとそのログを消して、時刻トリガーを貼り直す。 */
+    fun removeRule(context: Context, ruleId: String) {
+        runCatching { File(whenDir(context), "$ruleId.rule").delete() }
+        runCatching { File(whenDir(context), "$ruleId.log").delete() }
+        reload(context)
+    }
+
+    /** ルールの実行ログ（末尾 [maxChars] 文字）。無ければ空。 */
+    fun readRuleLog(context: Context, ruleId: String, maxChars: Int = 8000): String =
+        runCatching {
+            val text = File(whenDir(context), "$ruleId.log").readText()
+            if (text.length > maxChars) text.takeLast(maxChars) else text
+        }.getOrDefault("")
+
+    /** ルールの実行ログを空にする。 */
+    fun clearRuleLog(context: Context, ruleId: String) {
+        runCatching { File(whenDir(context), "$ruleId.log").writeText("") }
+    }
+
+    /**
+     * 有効なルールのうち、**検知（[SystemEventService]）が ON でないと動かない**ものの件数。
+     * 検知 OFF のまま登録しても**黙って動かない**ので、画面で警告を出すために使う。
+     * 時刻と SMS は検知に依存しない。`event:` は受動イベントなら依存するが、`alarm` /
+     * `notify_action` のように自分で仕掛けたものは依存しない — 名前だけでは判別できないので、
+     * 「依存しうる」側に数えて警告する（黙って動かないより、余計に注意する方がまし）。
+     */
+    fun rulesNeedingDetection(context: Context): Int =
+        loadRules(context).count {
+            it.enabled && it.kind in setOf("charge", "battery", "wifi", "sensor", "event")
+        }
 
     // --- ルールファイルの小さな書き換え (CLI と競合しない範囲で) ---
 

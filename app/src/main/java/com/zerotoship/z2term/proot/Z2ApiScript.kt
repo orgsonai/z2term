@@ -291,6 +291,8 @@ fun z2ApiScripts(): Map<String, String> {
         |#            event:<名前> | event:<接頭辞>* | event:*  … 端末イベントを名前で拾う
         |#              (名前は z2-when events で一覧。events.jsonl に出るものと同じ)
         |# z2-when events                        … event: で使えるイベント名の一覧
+        |# z2-when pause / resume                … 自動実行を一時停止 / 再開 (ルールは消えない)
+        |# z2-when fired [n]                     … 直近の発火 (時刻 / id / トリガー / run|paused)
         |# z2-when list                          … 登録一覧 (id / on|off / トリガー / -> / コマンド の TSV)
         |# z2-when remove <id|all>  (rm でも可)  … 削除
         |# z2-when on <id> / off <id>            … 有効 / 無効
@@ -309,12 +311,29 @@ fun z2ApiScripts(): Map<String, String> {
         |mkdir -p "${d}DIR" 2>/dev/null
         |reload() { /usr/local/bin/z2api 0 when-reload >/dev/null 2>&1 || true; }
         |usage() {
-        |  echo "usage: z2-when <trigger> run <cmd...> | list | events | remove <id|all> | on <id> | off <id> | log <id>" >&2
+        |  echo "usage: z2-when <trigger> run <cmd...> | list | events | pause | resume | fired [n] | remove <id|all> | on <id> | off <id> | log <id>" >&2
         |  exit 1
         |}
         |[ ${d}# -ge 1 ] || usage
         |case "${d}1" in
+        |  pause)
+        |    printf 'paused\n' > "${d}DIR/.paused"
+        |    echo "自動実行を一時停止しました (z2-when resume で再開)"
+        |    ;;
+        |  resume)
+        |    rm -f "${d}DIR/.paused" 2>/dev/null
+        |    echo "自動実行を再開しました"
+        |    ;;
+        |  fired)
+        |    n="${d}2"; [ -n "${d}n" ] || n=20
+        |    if [ -s "${d}DIR/.fired" ]; then
+        |      tail -n "${d}n" "${d}DIR/.fired"
+        |    else
+        |      echo "(まだ発火していません)"
+        |    fi
+        |    ;;
         |  list)
+        |    if [ -e "${d}DIR/.paused" ]; then echo "# 一時停止中 (z2-when resume で再開)"; fi
         |    for f in "${d}DIR"/*.rule; do
         |      [ -e "${d}f" ] || continue
         |      id=${d}(basename "${d}f" .rule)
@@ -394,6 +413,9 @@ fun z2ApiScripts(): Map<String, String> {
         |    { printf 'trigger=%s\n' "${d}trig"; printf 'run=%s\n' "${d}cmd"; printf 'enabled=1\n'; } > "${d}tmp"
         |    mv "${d}tmp" "${d}DIR/${d}id.rule" || { echo "z2-when: 書き込みに失敗しました" >&2; exit 1; }
         |    echo "${d}id"
+        |    if [ -e "${d}DIR/.paused" ]; then
+        |      echo "注意: 自動実行は一時停止中です (z2-when resume で再開)" >&2
+        |    fi
         |    reload
         |    ;;
         |esac

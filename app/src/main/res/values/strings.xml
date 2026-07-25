@@ -610,4 +610,20 @@
     <string name="widget_config_reset">Clear run history</string>
     <string name="widget_config_reset_desc">The ✓ marks and times on the buttons clear on their own when the day changes. This clears them now. Your macros are not touched.</string>
     <string name="widget_config_reset_done">Run history cleared.</string>
+    <string name="tools_tab_when">Automation</string>
+    <string name="when_title">Automation rules</string>
+    <string name="when_count">%1$d on / %2$d total</string>
+    <string name="when_pause">Pause automatic runs</string>
+    <string name="when_pause_desc">While on, no rule runs when its trigger fires. Rules are not deleted, and you can still try one yourself with ▶.</string>
+    <string name="when_paused_banner">■ Paused: triggers will not run anything</string>
+    <string name="when_empty">No rules yet. Create one in the terminal with z2-when (e.g. z2-when charge:start run ~/.z2term/macros/backup.sh). Run z2-when events to list the triggers you can use.</string>
+    <string name="when_last_fired">Last: %1$s</string>
+    <string name="when_never_fired">Has not run yet</string>
+    <string name="when_log_title">Run log for this rule</string>
+    <string name="when_fired_title">Recent fires</string>
+    <string name="when_fired_empty">Nothing has run yet.</string>
+    <string name="when_hint">▶ = run once without waiting for the trigger / ▤ = that rule\'s run log / ✕ = delete. To change what a rule does, use z2-when in the terminal — the source of truth is the text under ~/.z2term/when/.</string>
+    <string name="settings_section_automation_rules">Automation rules (z2-when)</string>
+    <string name="settings_automation_rules_desc">Review your rules, toggle them, read their logs, try one, or pause them all at once.</string>
+    <string name="settings_open_when_rules">Manage rules</string>
 </resources>

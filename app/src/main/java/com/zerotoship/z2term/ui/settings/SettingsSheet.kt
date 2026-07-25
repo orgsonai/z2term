@@ -160,6 +160,8 @@ fun SettingsSheet(
     // IME 学習履歴の管理シート。非 null の間 [ImeHistorySheet] を表示する (キーボードパッチ)。
     var imeHistoryOpen by remember { mutableStateOf(false) }
     var serversOpen by remember { mutableStateOf(false) }
+    // 自動化ルール (z2-when) の管理シート。📜 の「自動化」タブと同じ中身をここからも開ける。
+    var whenRulesOpen by remember { mutableStateOf(false) }
     // 常駐サーバーが動いている間は🔒トグルをロックする (ツールバーの keepAliveToolbarItem と同じ扱い)。
     // ボタンを隠している人はここが唯一の🔒操作口なので、出口の終了ダイアログもここに出す (0.8.211)。
     var serversRunning by remember { mutableStateOf(ServerDaemonManager.isRunning) }
@@ -790,6 +792,21 @@ fun SettingsSheet(
                     ActionButton(
                         label = stringResource(R.string.settings_open_servers),
                         onClick = { serversOpen = true }
+                    )
+                }
+
+                // 自動化ルール (z2-when)。一覧・ON/OFF・ログ・▶試す・一時停止は 1 つの画面
+                // ([WhenRulesBody]) にまとめ、常駐サーバーと同じくここからも開けるようにする。
+                Section(title = stringResource(R.string.settings_section_automation_rules)) {
+                    Text(
+                        text = stringResource(R.string.settings_automation_rules_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    ActionButton(
+                        label = stringResource(R.string.settings_open_when_rules),
+                        onClick = { whenRulesOpen = true }
                     )
                 }
 
@@ -1452,6 +1469,10 @@ fun SettingsSheet(
     }
 
     // 常駐サーバー管理シート。設定シートと**重ねて**開く。
+    if (whenRulesOpen) {
+        WhenRulesSheet(onDismiss = { whenRulesOpen = false })
+    }
+
     if (serversOpen) {
         ServersSheet(session = session, onDismiss = { serversOpen = false })
     }

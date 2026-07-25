@@ -382,7 +382,7 @@ private fun ServerRow(
     }
 }
 
-private fun formatBytes(bytes: Long): String = when {
+internal fun formatBytes(bytes: Long): String = when {
     bytes < 1024 -> "$bytes B"
     bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
     else -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
@@ -454,7 +454,7 @@ private fun ServerEditForm(
 }
 
 @Composable
-private fun ToggleRow(
+internal fun ToggleRow(
     title: String,
     desc: String,
     checked: Boolean,
@@ -485,7 +485,7 @@ private fun ToggleRow(
 }
 
 @Composable
-private fun HintBox(text: String) {
+internal fun HintBox(text: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -499,7 +499,7 @@ private fun HintBox(text: String) {
 }
 
 @Composable
-private fun IconCell(label: String, danger: Boolean = false, onClick: () -> Unit) {
+internal fun IconCell(label: String, danger: Boolean = false, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .clickable(onClick = onClick)
@@ -516,7 +516,7 @@ private fun IconCell(label: String, danger: Boolean = false, onClick: () -> Unit
 }
 
 @Composable
-private fun PillButton(
+internal fun PillButton(
     label: String,
     accent: Boolean = false,
     danger: Boolean = false,

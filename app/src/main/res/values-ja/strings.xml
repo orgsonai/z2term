@@ -598,4 +598,20 @@
     <string name="widget_config_reset">実行履歴をリセット</string>
     <string name="widget_config_reset_desc">ボタンの ✓ と時刻は日付が変わると自動で消えます。今すぐ消したいときはここから。マクロ自体は消えません。</string>
     <string name="widget_config_reset_done">実行履歴を消しました。</string>
+    <string name="tools_tab_when">自動化</string>
+    <string name="when_title">自動化ルール</string>
+    <string name="when_count">有効 %1$d / 全 %2$d</string>
+    <string name="when_pause">自動実行を一時停止</string>
+    <string name="when_pause_desc">ON のあいだ、きっかけが来てもルールを実行しません。ルールは消えません。▶ で自分から試すことはできます。</string>
+    <string name="when_paused_banner">■ 停止中: きっかけが来ても実行しません</string>
+    <string name="when_empty">ルールがまだありません。端末で z2-when を打つと作れます（例: z2-when charge:start run ~/.z2term/macros/backup.sh）。使えるきっかけの一覧は z2-when events。</string>
+    <string name="when_last_fired">最後: %1$s</string>
+    <string name="when_never_fired">まだ動いていません</string>
+    <string name="when_log_title">このルールの実行ログ</string>
+    <string name="when_fired_title">直近の発火</string>
+    <string name="when_fired_empty">まだ何も動いていません。</string>
+    <string name="when_hint">▶ = きっかけを待たずに 1 回試す ／ ▤ = そのルールの実行ログ ／ ✕ = 削除。ルールの中身を書き換えるときは端末の z2-when を使ってください（正本は ~/.z2term/when/ のテキストです）。</string>
+    <string name="settings_section_automation_rules">自動化ルール（z2-when）</string>
+    <string name="settings_automation_rules_desc">登録したルールの確認・ON/OFF・実行ログ・お試し実行と、全部まとめての一時停止。</string>
+    <string name="settings_open_when_rules">ルールを管理</string>
 </resources>

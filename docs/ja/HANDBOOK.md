@@ -562,6 +562,8 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # マナーモ
   - `event:<名前>` … **端末で起きたことを名前で拾います**（0.8.226 で追加）。使える名前は **`z2-when events`** で一覧できます（`screen_on`・`unlocked`・`headset_plugged`・`bt_audio_connected`・`ringer_silent`・`airplane_on`・`alarm`・`notify_action` など約20種）。`event:ringer_*` のように**末尾を `*`** にすると前方一致、`event:*` ですべてになります。コマンド内では `Z2_WHEN_EVENT` にイベント名が入ります。
     **同じルールは 10 秒以内に続けて発火しません**（`screen_on` のように何度も起きるものがあるため）。
     画面・充電・Wi‑Fi などの受け身のイベントは**「検知」が ON のときだけ**ですが、`alarm`（`z2-alarm` で仕掛けたもの）や `notify_action`（通知のボタン）は**検知 OFF でも働きます**。
+- **画面から見る・止める**（0.8.227）: 📜 →「**自動化**」タブに登録したルールが並びます。各行で ON/OFF、**▶ できっかけを待たずに 1 回試す**、**▤ で実行ログ**、✕ で削除。上の「**自動実行を一時停止**」を ON にすると、**どのきっかけが来ても実行しなくなります**（ルールは消えません。▶ で自分から試すことはできます）。下には**直近の発火**が出るので、「さっき何が動いたか」「なぜ動かなかったか（`paused` と出ます）」が分かります。
+  端末からも同じことができます: `z2-when pause` / `z2-when resume` / `z2-when fired`。
 - **一覧・削除・オンオフ**: `z2-when list`（一覧）/ `z2-when events`（`event:` に使える名前）/ `z2-when remove <id>`（`all` で全部）/ `z2-when on <id>` `z2-when off <id>` / `z2-when log <id>`（実行の記録を見る）
 - **実行されるコマンド**の中では `Z2_WHEN_TRIGGER`（発火したトリガー）や `Z2_WHEN_LEVEL`（そのときの電池残量）、`Z2_WHEN_SSID`（wifi 時の接続先）、`Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP`（sms 時）、`Z2_WHEN_SENSOR`・`Z2_WHEN_LUX`（sensor 時）、`Z2_WHEN_EVENT`（event 時。`alarm` や `notify_action` では `Z2_WHEN_EVENT_NAME`・`Z2_WHEN_ACTION` も）が環境変数で使えます。
 - ルールは `~/.z2term/when/` にテキストで置かれるので、**git で同期・バックアップ**できます。
