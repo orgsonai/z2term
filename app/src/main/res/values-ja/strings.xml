@@ -627,4 +627,11 @@
     </plurals>
     <string name="paste_preview_do">貼る</string>
     <string name="brightness_reset">戻す</string>
+    <string name="hint_ping">ping は仕組み上使えません。nmap -sT か curl で代わりになります</string>
+    <string name="hint_low_port">1024 より小さいポートは使えません。8022 などに変えてください</string>
+    <string name="hint_sshd_path">sshd は絶対パスではなく sshd とだけ打ってください（内蔵の dropbear が動きます）</string>
+    <string name="hint_not_found">そのコマンドはまだ入っていません。apk add / apt install / pacman -S で入れられます</string>
+    <string name="hint_storage">/sdcard を見るには ⚙設定「ストレージ全体を許可」が要ります</string>
+    <string name="settings_terminal_hints">つまずきの言い換え</string>
+    <string name="settings_terminal_hints_desc">よくあるエラーが出たとき、画面の下に「次の一手」を1行だけ出します。端末の出力は書き換えません。</string>
 </resources>

@@ -103,6 +103,7 @@ import androidx.compose.ui.zIndex
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.AppSession
 import com.zerotoship.z2term.core.SessionManager
+import com.zerotoship.z2term.core.TerminalHints
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.gui.GuiKeyMapper
@@ -250,6 +251,17 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     var ctrlSticky by remember { mutableStateOf(false) }
     var keyboardMode by remember { mutableStateOf(KeyboardMode.CUSTOM) }
     var inputViewRef by remember { mutableStateOf<TerminalInputView?>(null) }
+    // つまずきの言い換え (0.8.237)。当たったヒントを数秒だけ出す。
+    var hint by remember { mutableStateOf<TerminalHints.Hint?>(null) }
+    LaunchedEffect(active.id) {
+        active.hintEvents.collect { h ->
+            hint = h
+            // 読める長さだけ出して自分から消える。押して消す操作を強いない。
+            delay(6000)
+            hint = null
+        }
+    }
+
     // 複数行の貼り付けを確認する帯。null の間は出さない (= 1 行の貼り付けでは何も起きない)。
     var pastePreview by remember { mutableStateOf<String?>(null) }
     var keyboardCollapsed by remember { mutableStateOf(false) }
@@ -585,6 +597,15 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     modifier = Modifier.fillMaxSize()
                 )
                 ScrollIndicators(session = active, modifier = Modifier.fillMaxSize())
+                // つまずきの言い換え: 端末の**下端**に 1 行だけ。上端の帯 (検索・貼り付け・明るさ) とは
+                // 別の場所に置き、出力の邪魔をしない。タップで消える。
+                hint?.let { h ->
+                    HintBar(
+                        hint = h,
+                        onDismiss = { hint = null },
+                        modifier = Modifier.align(Alignment.BottomStart)
+                    )
+                }
                 // 変換候補バー: キーボードの上に浮かせて表示 (キーボード本体の高さは変えない)
                 CandidateBar(
                     composing = composing,
@@ -1646,6 +1667,46 @@ private fun TopBarIconButton(label: String, enabled: Boolean = true, onClick: ()
             color = fg,
             fontSize = 13.sp,
             fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+/**
+ * つまずきの言い換えを 1 行だけ出す帯 (0.8.237)。
+ *
+ * ⚠ **端末の出力そのものは書き換えない。** ここは別の場所に 1 行足しているだけで、
+ * スクロールバックにも端末ログにも残らない。書き換えは端末アプリとしての信用に直結する。
+ */
+@Composable
+private fun HintBar(
+    hint: TerminalHints.Hint,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val res = when (hint) {
+        TerminalHints.Hint.PING -> R.string.hint_ping
+        TerminalHints.Hint.LOW_PORT -> R.string.hint_low_port
+        TerminalHints.Hint.SSHD_PATH -> R.string.hint_sshd_path
+        TerminalHints.Hint.NOT_FOUND -> R.string.hint_not_found
+        TerminalHints.Hint.STORAGE -> R.string.hint_storage
+    }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(ZtsBgSecondary)
+            .border(width = 1.dp, color = ZtsBorder)
+            .clickable(onClick = onDismiss)
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(text = "→", color = ZtsGreen, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+        Text(
+            text = stringResource(res),
+            color = ZtsTextSecondary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.weight(1f)
         )
     }
 }

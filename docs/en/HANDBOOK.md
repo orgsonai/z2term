@@ -145,6 +145,12 @@ Z2Term comes with its **own in-app keyboard**.
 > - `~/z2term-log/` is **visible to other apps** (it is treated like the rest of your home). As with any other file under home, don't keep there what you don't want seen.
 > - Full-screen apps (the ones that paint by redrawing the screen) are not recorded by default, because flattening them does not produce readable text.
 
+### Hints for common stumbles
+
+When you hit one of the usual walls — `ping` not working, a port below 1024, `/sdcard` looking empty — **one line with the next step** appears at the bottom of the screen (it fades after a few seconds, or tap it to dismiss).
+The terminal output itself is **never modified**; this is just an extra line elsewhere.
+If you find it noisy, turn off Settings > Display > "Explain common stumbles".
+
 ### Reusing a command you typed before (History)
 
 **📜 → the "History" tab** lists the commands you ran in the terminal, **newest first**.

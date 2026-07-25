@@ -27,6 +27,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -258,6 +259,34 @@ class TerminalSession(
         }
     }
 
+    /**
+     * つまずきの言い換え ([TerminalHints]) の通知。UI が 1 行バーとして出す。
+     * 出力そのものには手を触れないので、購読しなければ何も起きない。
+     */
+    private val _hintEvents = MutableSharedFlow<TerminalHints.Hint>(replay = 0, extraBufferCapacity = 2)
+    val hintEvents: SharedFlow<TerminalHints.Hint> = _hintEvents.asSharedFlow()
+
+    /** チャンクの境目で 1 行が割れても拾えるよう、直前の末尾を少しだけ持ち越す。 */
+    private var hintCarry = ""
+
+    /** 同じヒントを出した時刻 (連発を抑える。お節介にしないため)。 */
+    private val hintLastShown = HashMap<TerminalHints.Hint, Long>()
+
+    /**
+     * 出力チャンクから既知のつまずきを探し、当たれば [hintEvents] へ流す。
+     * 制御コードはそのままデコードして見る (エラーメッセージ自体は平文で連続して出る)。
+     */
+    private fun scanForHint(chunk: ByteArray) {
+        val text = hintCarry + String(chunk, Charsets.UTF_8)
+        hintCarry = text.takeLast(TerminalHints.CARRY_CHARS)
+        val hint = TerminalHints.detect(text) ?: return
+        val now = System.currentTimeMillis()
+        val prev = hintLastShown[hint]
+        if (prev != null && now - prev < TerminalHints.REPEAT_SUPPRESS_MS) return
+        hintLastShown[hint] = now
+        _hintEvents.tryEmit(hint)
+    }
+
     private val _toastEvents = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 4)
     val toastEvents = _toastEvents.asSharedFlow()
 
@@ -343,6 +372,7 @@ class TerminalSession(
     fun setKeepAliveService(enabled: Boolean) { scope.launch { settings.setKeepAliveService(enabled) } }
     /** 初回ガイド (最初の 3 枚) を出し終えたことを覚える。 */
     fun setIntroDone(done: Boolean) { scope.launch { settings.setIntroDone(done) } }
+    fun setTerminalHintsEnabled(enabled: Boolean) { scope.launch { settings.setTerminalHintsEnabled(enabled) } }
     fun setKeepScreenOn(enabled: Boolean) { scope.launch { settings.setKeepScreenOn(enabled) } }
     fun setKeyboardToggleBar(enabled: Boolean) { scope.launch { settings.setKeyboardToggleBar(enabled) } }
     fun setToolbarOrder(csv: String) { scope.launch { settings.setToolbarOrder(csv) } }
@@ -702,6 +732,13 @@ class TerminalSession(
                                 if (emulator.buffer.primaryActive || settingsFlow.value.sessionLogAltScreen) {
                                     lg.append(chunk)
                                 }
+                            }
+                            // つまずきの言い換え (0.8.237)。**出力は一切書き換えず**、
+                            // 既知のパターンに当たったことだけを UI へ知らせる。
+                            // alt screen (vim/less 等) の最中は見ない — 全画面アプリの描画に
+                            // たまたま含まれる文字列で誤爆するため。
+                            if (settingsFlow.value.terminalHintsEnabled && emulator.buffer.primaryActive) {
+                                scanForHint(chunk)
                             }
                             emulator.buffer.scrollbackSize - before
                         }

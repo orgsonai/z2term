@@ -328,6 +328,14 @@ fun SettingsSheet(
                     onChange = { session.setAmbiguousAsWide(it) }
                 )
 
+                // つまずきの言い換え (0.8.237)。既定 ON だが、お節介と感じたらすぐ切れる場所に置く。
+                ToggleField(
+                    title = stringResource(R.string.settings_terminal_hints),
+                    description = stringResource(R.string.settings_terminal_hints_desc),
+                    checked = settings.terminalHintsEnabled,
+                    onChange = { session.setTerminalHintsEnabled(it) }
+                )
+
                 // ツールバー (端末上部バー) に出すボタンを選ぶ。使わないボタンを消せるので、
                 // 機能追加でボタンが増えても各自の画面は増えない (要望)。
                 // 並べ替えは今まで通り端末画面でボタンを長押し→左右ドラッグ。

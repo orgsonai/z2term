@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.236-alpha (versionCode 244)
+Last updated: 2026-07-25 / Target version: 0.8.237-alpha (versionCode 245)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -487,6 +487,16 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 - The default is `BRIGHTNESS_OVERRIDE_NONE` (leave it to the OS); it only applies **once you touch it**, so no setting and no mode is added. A single tap still toggles keep-screen-on (the same "tap = act / double-tap = details" contract as 📋 and ⌨).
 - **Not persisted.** This is a "right now it's too bright" adjustment, not something to carry into the next session.
 - ⚠ Floor of 10%. The worst outcome is a screen too dark to find the way back, so Reset always sits in the bar (without an exit, nobody dares touch the slider).
+
+**Explaining common stumbles (`core/TerminalHints`, 0.8.237)**: the handbook FAQ has the answers, but **the person who is stuck does not read it at that moment**. When a known pattern appears in the output, one line with the next step is shown at the **bottom** of the terminal.
+
+- ⚠ **The terminal output itself is never rewritten.** This adds one line elsewhere; nothing enters the scrollback or the session log. Rewriting output would undermine the one thing a terminal must be trusted for.
+- The scan point is **the same single place as logging (⏺)** — inside `readJob`, "the only place everything shown in a tab passes through". PTY chunks arrive in 8KB pieces, so a line can split across them; the previous 256 characters are carried over before matching.
+- **Not scanned during alt screen.** Full-screen apps would trigger false positives with whatever text happens to be on their canvas.
+- **Exactly five patterns** (ping / ports under 1024 / calling `/usr/sbin/sshd` directly / command not found / `/sdcard` invisible). Only stumbles whose answer fits in one line and that people actually hit. False positives make this instantly annoying, and an annoying feature gets deleted outright.
+- **Sixty seconds of silence per hint.** Firing on every `command not found` would turn the app into a nag.
+- Settings › Display carries an **off switch** (default on), where someone who finds it intrusive can reach it immediately.
+- Matching is an Android-free pure function; `TerminalHintsTest` pins both what must match and **what must not** (normal `PING 8.8.8.8 …` output, or a line you wrote yourself such as `# ping is not available`).
 
 #### History palette (`ui/snippets/ShellHistory`, 0.8.221, B2)
 
