@@ -165,6 +165,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#            wifi:connect | wifi:disconnect | wifi:ssid=<name>  (needs detection ON)
         |#            sms:any | sms:from=<substr> | sms:contains=<substr> | sms:otp  (needs RECEIVE_SMS)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (detection ON)
+        |#            file:new=<dir>[,ext=<ext>]  … a new file landed in that folder (needs detection ON)
         |#            event:<name> | event:<prefix>* | event:*  … any device event, by name
         |#              (z2-when events lists them; same names as in events.jsonl)
         |# z2-when events                        … list the names usable with event:
@@ -177,6 +178,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# On fire the command runs on the selected distro with Z2_WHEN_TRIGGER / Z2_WHEN_LEVEL
         |# / Z2_WHEN_SSID (wifi) / Z2_WHEN_SMS_FROM / Z2_WHEN_SMS_BODY / Z2_WHEN_OTP (sms)
         |# / Z2_WHEN_SENSOR / Z2_WHEN_LUX (sensor) in the environment.
+        |# For file: you get Z2_WHEN_FILE (full path) and Z2_WHEN_DIR.
         |# For event: you also get Z2_WHEN_EVENT (the event name); alarm / notify_action add
         |# Z2_WHEN_EVENT_NAME (the identifier you armed it with) and Z2_WHEN_ACTION (button pressed).
         |# The same rule will not fire twice within 10 seconds (events like screen_on come often).
@@ -184,6 +186,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#      z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
         |#      z2-when event:headset_plugged run ~/.z2term/macros/play.sh
         |#      z2-when 'event:ringer_*' run 'z2-toast "ringer: ${d}Z2_WHEN_EVENT"'
+        |#      z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
     """.trimMargin() else """
         |# z2-when <トリガー> run <コマンド...>   … ルールを登録
         |#   トリガー: charge:start | charge:stop  (検知 ON が前提)
@@ -193,6 +196,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#            wifi:connect | wifi:disconnect | wifi:ssid=<名前>  (検知 ON が前提)
         |#            sms:any | sms:from=<部分> | sms:contains=<部分> | sms:otp  (RECEIVE_SMS 許可が前提)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (検知 ON が前提)
+        |#            file:new=<フォルダ>[,ext=<拡張子>]  … そのフォルダに新しいファイルが来たとき (検知 ON が前提)
         |#            event:<名前> | event:<接頭辞>* | event:*  … 端末イベントを名前で拾う
         |#              (名前は z2-when events で一覧。events.jsonl に出るものと同じ)
         |# z2-when events                        … event: で使えるイベント名の一覧
@@ -205,6 +209,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# 発火時、コマンドは選択中の distro で実行され、環境変数 Z2_WHEN_TRIGGER / Z2_WHEN_LEVEL
         |# / Z2_WHEN_SSID (wifi) / Z2_WHEN_SMS_FROM / Z2_WHEN_SMS_BODY / Z2_WHEN_OTP (sms)
         |# / Z2_WHEN_SENSOR / Z2_WHEN_LUX (sensor) が入る。
+        |# file: のときは Z2_WHEN_FILE (フルパス) と Z2_WHEN_DIR が入る。
         |# event: のときは Z2_WHEN_EVENT (イベント名) が入る。alarm / notify_action では
         |# Z2_WHEN_EVENT_NAME (仕掛けたときの識別名) と Z2_WHEN_ACTION (押したボタン) も入る。
         |# 同じルールは 10 秒以内に続けて発火しない (screen_on のような数の多いイベント対策)。
@@ -212,6 +217,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#     z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
         |#     z2-when event:headset_plugged run ~/.z2term/macros/play.sh
         |#     z2-when 'event:ringer_*' run 'z2-toast "マナーモード: ${d}Z2_WHEN_EVENT"'
+        |#     z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
     """.trimMargin()
 
     val whenPaused: String =

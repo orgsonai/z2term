@@ -145,4 +145,35 @@ class WhenTriggerMatchTest {
     @Test fun event_prefixDoesNotMatchShorterName() {
         assertFalse(WhenTriggerMatch.event("battery_low*", "battery_"))
     }
+
+    // --- file:new トリガー (新しいファイルが降ってきたら動く) ---
+
+    @Test fun fileDir_parsesWithAndWithoutFilter() {
+        assertEquals("/sdcard/Download", WhenTriggerMatch.fileDir("new=/sdcard/Download"))
+        assertEquals("/sdcard/Download", WhenTriggerMatch.fileDir("new=/sdcard/Download,ext=zip"))
+        // 末尾スラッシュの有無で別フォルダ扱いになると、同じ場所に監視が二重に張られる。
+        assertEquals("/sdcard/Download", WhenTriggerMatch.fileDir("new=/sdcard/Download/"))
+    }
+
+    @Test fun fileDir_rejectsOtherSpecs() {
+        assertNull(WhenTriggerMatch.fileDir("moved=/sdcard"))
+        assertNull(WhenTriggerMatch.fileDir("new="))
+    }
+
+    @Test fun fileMatches_withoutFilterTakesEverything() {
+        assertTrue(WhenTriggerMatch.fileMatches("new=/sdcard/Download", "a.zip"))
+        assertTrue(WhenTriggerMatch.fileMatches("new=/sdcard/Download", "no-extension"))
+    }
+
+    @Test fun fileMatches_extensionFilterIsCaseInsensitive() {
+        assertTrue(WhenTriggerMatch.fileMatches("new=/sdcard/Download,ext=zip", "a.ZIP"))
+        assertFalse(WhenTriggerMatch.fileMatches("new=/sdcard/Download,ext=zip", "a.tar"))
+    }
+
+    @Test fun fileMatches_skipsHiddenAndPartialFiles() {
+        // 同期アプリやカメラは `.pending-xxx` で書いてから rename する。拾うと
+        // 実体の無いパスでマクロが走るので、隠しファイルは常に外す。
+        assertFalse(WhenTriggerMatch.fileMatches("new=/sdcard/DCIM", ".pending-1234.jpg"))
+        assertFalse(WhenTriggerMatch.fileMatches("new=/sdcard/DCIM", ""))
+    }
 }

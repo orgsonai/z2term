@@ -158,6 +158,7 @@ class SystemEventService : Service() {
         startForegroundInternal()
         // detection を ON にしたタイミングで sensor ルールを拾ってセンサー登録する。
         refreshSensors()
+        refreshFileWatchers()
         return START_STICKY
     }
 
@@ -209,6 +210,9 @@ class SystemEventService : Service() {
                 ?.unregisterAudioDeviceCallback(audioDeviceCallback)
         }
         runCatching { (getSystemService(SENSOR_SERVICE) as? SensorManager)?.unregisterListener(sensorListener) }
+        // 見張りも畳む (プロセスが残ったまま監視だけ生き続けるのを防ぐ)。
+        fileWatchers.forEach { runCatching { it.stopWatching() } }
+        fileWatchers.clear()
         scope.cancel()
         writer.shutdown()
     }
@@ -218,6 +222,46 @@ class SystemEventService : Service() {
      * ルールの増減・detection ON でその都度呼ぶ。加速度は shake 検出に十分な速度が要るので `UI`、
      * 照度/近接は on-change センサーで低頻度なので `NORMAL`。
      */
+    /** いま張っている `FileObserver`。ルールの増減で全部作り直す (差分管理はしない)。 */
+    private val fileWatchers = ArrayList<android.os.FileObserver>()
+
+    /**
+     * `file:new=…` ルールが見張るフォルダに `FileObserver` を張り直す (0.8.235)。
+     *
+     * センサーと同じ考え方で、**該当ルールがあるフォルダだけ**を監視する。1 件も無ければ
+     * 1 つも張らない。見るのは `CLOSE_WRITE`（書き込み完了）と `MOVED_TO`（別名で書いてから
+     * rename する書き方）だけ — `CREATE` を見るとコピー途中の空ファイルを掴む。
+     *
+     * ⚠ `FileObserver` は**プロセスが生きている間だけ**なので、これは「検知 ON が前提」の
+     * トリガー (時刻や SMS のような常時性は無い)。docs にもそう書く。
+     */
+    private fun refreshFileWatchers() {
+        fileWatchers.forEach { runCatching { it.stopWatching() } }
+        fileWatchers.clear()
+        val dirs = runCatching { WhenManager.fileDirsNeeded(applicationContext) }.getOrDefault(emptySet())
+        val mask = android.os.FileObserver.CLOSE_WRITE or android.os.FileObserver.MOVED_TO
+        dirs.forEach { dir ->
+            runCatching {
+                val f = java.io.File(dir)
+                if (!f.isDirectory) {
+                    Log.w(TAG, "file:new のフォルダが無い: $dir")
+                    return@runCatching
+                }
+                val obs = object : android.os.FileObserver(f, mask) {
+                    override fun onEvent(event: Int, path: String?) {
+                        val name = path ?: return
+                        writer.execute {
+                            runCatching { WhenManager.onFileCreated(applicationContext, dir, name) }
+                                .onFailure { Log.w(TAG, "file rule failed ($dir/$name): ${it.message}") }
+                        }
+                    }
+                }
+                obs.startWatching()
+                fileWatchers.add(obs)
+            }.onFailure { Log.w(TAG, "file watcher failed for $dir", it) }
+        }
+    }
+
     private fun refreshSensors() {
         val sm = getSystemService(SENSOR_SERVICE) as? SensorManager ?: return
         if (sensorsRegistered) {
@@ -447,6 +491,12 @@ class SystemEventService : Service() {
          * z2-when のルール変更 ([WhenManager.reload]) から呼ぶ。動いていなければ何もしない
          * (sensor トリガーは検知 ON のときだけ働く。wifi と同じ割り切り)。
          */
+        /** ルールが増減したとき、動いていれば `file:new` の監視を張り直す。 */
+        fun refreshFileWatchersIfRunning() {
+            val svc = instance ?: return
+            android.os.Handler(svc.mainLooper).post { runCatching { svc.refreshFileWatchers() } }
+        }
+
         fun refreshSensorsIfRunning() {
             val svc = instance ?: return
             android.os.Handler(svc.mainLooper).post { runCatching { svc.refreshSensors() } }

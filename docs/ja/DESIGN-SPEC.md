@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-25 / 対象バージョン: 0.8.234-alpha (versionCode 242)
+最終更新: 2026-07-25 / 対象バージョン: 0.8.235-alpha (versionCode 243)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -406,6 +406,7 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 - `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<名前>`（0.8.208・stage 2）… Wi‑Fi の接続 / 切断 / 指定 SSID への接続。判定は Android 非依存の `WhenTriggerMatch.wifi`（`WhenTriggerMatchTest` で具体例検証。SSID は大小文字無視、位置情報権限が無く SSID が空なら `ssid=` は取りこぼす）。**電池の 10% 刻みと同じく検知（`SystemEventService`）が ON のときだけ働く**（Wi‑Fi の接続変化は暗黙ブロードキャスト制限の対象で、manifest レシーバでは拾えず動的レシーバ＝検知 FG サービスが要る）。発火時は SSID を `Z2_WHEN_SSID` で渡す（外部文字列なので単一引用符へ安全にエスケープ）。
 - `sms:any` / `sms:from=<部分>` / `sms:contains=<部分>` / `sms:otp`（0.8.209・stage 2）… 着信 SMS。判定と OTP 抽出は Android 非依存の `WhenTriggerMatch.sms` / `.extractOtp`（`WhenTriggerMatchTest` で具体例検証。`from`/`contains` は部分一致・大小文字無視。OTP は**前後が数字でない 4〜8 桁**の先頭で、9 桁以上の電話番号/注文番号は拾わない）。既存の `SmsLogReceiver`（`RECEIVE_SMS` 許可で OS が着信ごとに起動＝アプリ未起動でも動く）に相乗りし、**生ログ設定 `smsCaptureEnabled` とは独立に評価する**（許可さえあれば動く）。SMS 本文は Android 15 の機微通知伏せ字（`RECEIVE_SENSITIVE_NOTIFICATIONS`）を通らない直読み経路なので伏せ字化されない（既存 `SmsLogReceiver` の解説参照）。発火時は `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY`、`otp` のときは `Z2_WHEN_OTP` を渡す（いずれも外部入力なので単一引用符へ安全にエスケープ・`eval` させない安全境界）。
 - `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near` / `sensor:proximity=far`（0.8.210・stage 2）… 端末を振った / 照度が N lux を跨いだ / 近接が near・far へ変化。**継続センサー監視は電池を食う**ので §10-1 の指針どおり **opt-in・検知（`SystemEventService`）が ON のときだけ**働き、しかも**該当ルールがあるセンサーだけ登録する**（`WhenManager.sensorKindsNeeded` → `SystemEventService.refreshSensors`。ルール増減や検知 ON で貼り直し、要求集合が空なら 1 つも登録しない＝電池ゼロ）。加速度は shake 検出に十分な `SENSOR_DELAY_UI`、照度/近接は on-change の `NORMAL`。shake 判定は `ShakeDetector`（合成加速度が **4.0g 超＋3 秒 debounce**・`ShakeDetectorTest`。当初の 2.7g／1 秒では**ポケットに入れて歩いているだけで連続発火**した＝2026-07-24 の実機検証で 3.5 時間に 255 回・発火間隔が debounce に張り付く形で判明したため 0.8.214 で引き上げ。下げるときは歩行で誤発火しないか実機確認が要る）、照度/近接は `WhenTriggerMatch.lightSatisfied`/`.proximitySatisfied` を**条件成立の立ち上がり（false→true）**で発火（rule 単位のプロセス内メモリ・初回は基準のみ。しきい値付近のばたつきは未吸収＝将来ヒステリシス可）。発火時は `Z2_WHEN_SENSOR`（`shake`/`light`/`proximity:near|far`）、light は `Z2_WHEN_LUX` も渡す。
+- `file:new=<フォルダ>[,ext=<拡張子>]`（0.8.235）… そのフォルダに**新しいファイルが降ってきた**とき。見るのは `CLOSE_WRITE`（書き込み完了）と `MOVED_TO`（別名で書いてから rename する書き方）だけで、**`CREATE` は見ない** — コピー途中の空ファイルを掴んでしまうため。センサーと同じく**該当ルールがあるフォルダだけ**を監視し（`WhenManager.fileDirsNeeded` → `SystemEventService.refreshFileWatchers`）、1 件も無ければ 1 つも張らない。隠しファイル（`.pending-xxx` のような書きかけ）は常に除外する。同じパスは 5 秒間は二重に拾わない（`CLOSE_WRITE` と `MOVED_TO` が両方来ることがある）。`Z2_WHEN_FILE`（フルパス）と `Z2_WHEN_DIR` を渡す。⚠ `FileObserver` はプロセスが生きている間だけなので、**検知 ON が前提**（時刻や SMS のような常時性は無い）。
 - `event:<名前>` / `event:<接頭辞>*` / `event:*`（0.8.226）… **`events.jsonl` に書かれる端末イベントを名前で拾う**。判定は `WhenTriggerMatch.event`（完全一致・末尾 `*` の前方一致・`*` で全件。大小文字と前後空白は無視＝手書きの打ち間違いで黙って動かないのを避ける）。
 
 **なぜ足したか**: 検知はもう 15 種以上を拾って `events.jsonl` に書いているのに、`z2-when` から名前で指せるのは 6 kind だけだった。「イヤホンを挿したら再生」を書くには**ユーザーが自分で tail ループのマクロを常駐させる**しかなく、§10-1 の「常駐を増やさない」に一番反した状態を本人に作らせていた。**新しい常駐も新しい権限も増やさず**、既に鳴っている鈴を聞けるようにしただけの追加。

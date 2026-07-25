@@ -92,6 +92,37 @@ object WhenTriggerMatch {
     fun extractOtp(body: String): String = OTP_REGEX.find(body)?.groupValues?.get(1).orEmpty()
 
     /**
+     * `file:new=<フォルダ>[,ext=<拡張子>]` の監視先フォルダ (書式が違えば null)。
+     *
+     * どのフォルダを見張るかは**登録されたルールからしか決まらない**ので、
+     * [SystemEventService] が `FileObserver` を張る前にここで取り出す。
+     */
+    fun fileDir(spec: String): String? {
+        val s = spec.trim()
+        if (!s.startsWith("new=")) return null
+        val body = s.substring("new=".length)
+        val dir = body.substringBefore(',').trim().trimEnd('/')
+        return dir.ifEmpty { null }
+    }
+
+    /**
+     * `file:new=…` の絞り込み。[fileName] がそのルールの対象か。
+     *
+     * `ext=` を付けたときだけ拡張子で絞る (大小文字は区別しない)。付けなければ全部。
+     * 隠しファイルと**書きかけの一時ファイル**は常に外す — 同期アプリやカメラは
+     * `.pending-xxx` のような名前で書いてから rename するので、拾うと実体の無いパスで
+     * マクロが走る。
+     */
+    fun fileMatches(spec: String, fileName: String): Boolean {
+        val name = fileName.trim()
+        if (name.isEmpty() || name.startsWith(".")) return false
+        val s = spec.trim()
+        val ext = s.substringAfter(",ext=", "").trim().removePrefix(".")
+        if (ext.isEmpty()) return true
+        return name.substringAfterLast('.', "").equals(ext, ignoreCase = true)
+    }
+
+    /**
      * `sensor:*` トリガーが要求するセンサー種別。`"accel"` (shake) / `"light"` / `"proximity"`、
      * 未知の spec は null。どのセンサーを登録すべきか ([SystemEventService]) の判断に使う。
      */

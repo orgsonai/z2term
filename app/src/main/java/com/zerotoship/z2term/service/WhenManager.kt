@@ -87,6 +87,8 @@ object WhenManager {
         writeArmed(dir, armed)
         // 検知サービスが動いていれば、sensor ルールの増減に合わせてセンサー登録を貼り直す。
         SystemEventService.refreshSensorsIfRunning()
+        // ルールが増減したら見張るフォルダも変わる (センサーと同じ扱い)。
+        SystemEventService.refreshFileWatchersIfRunning()
         // ホーム画面ウィジェットの「自動化 N」もここで追従させる (ルールの増減・on/off の直後)。
         StatusWidgetProvider.refresh(app)
     }
@@ -318,6 +320,59 @@ object WhenManager {
             if (action.isNotEmpty()) env["Z2_WHEN_ACTION"] = action
             if (ssid.isNotEmpty()) env["Z2_WHEN_SSID"] = ssid
             runRule(app, rule, level = level ?: -1, extraEnv = env)
+        }
+    }
+
+    // --- ファイル出現トリガー (file:new・検知 FG サービス前提) ---
+
+    /**
+     * 直近に処理したファイルのパスと時刻。**同じファイルで二重に走らせない**ために持つ。
+     * `CLOSE_WRITE` と `MOVED_TO` は同じ 1 個のファイルに対して両方来ることがあり、
+     * 素通しにするとマクロが 2 回走る。
+     */
+    private val recentFiles = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /** 同じパスをこの間隔内に見たら無視する。 */
+    private const val FILE_DEDUP_MS = 5_000L
+
+    /**
+     * enabled な `file:new=…` ルールが見張るフォルダの集合 (0.8.235)。
+     *
+     * センサーと同じ考え方で、**該当ルールがあるフォルダだけ**を [SystemEventService] が
+     * `FileObserver` で監視する。1 件も無ければ 1 つも登録しない = 電池も CPU も使わない。
+     */
+    fun fileDirsNeeded(context: Context): Set<String> =
+        loadRules(context).asSequence()
+            .filter { it.enabled && it.kind == "file" }
+            .mapNotNull { WhenTriggerMatch.fileDir(it.spec) }
+            .toSet()
+
+    /**
+     * [dir] に [fileName] が現れたときに `file:new=…` ルールを実行する。
+     *
+     * 呼び元は検知 ON のときの [SystemEventService] の `FileObserver`。書き込み完了
+     * (`CLOSE_WRITE`) と移動 (`MOVED_TO`) を見るので、**コピー途中のファイルは掴まない**。
+     * フルパスは `Z2_WHEN_FILE`、フォルダは `Z2_WHEN_DIR` で渡す (外部由来なので env 渡し)。
+     */
+    fun onFileCreated(context: Context, dir: String, fileName: String) {
+        val app = context.applicationContext
+        val path = "$dir/$fileName"
+        val now = System.currentTimeMillis()
+        val prev = recentFiles.put(path, now)
+        if (prev != null && now - prev < FILE_DEDUP_MS) return
+        // 溜まりすぎたら古いものから捨てる (見張り続けると際限なく増える)。
+        if (recentFiles.size > 256) {
+            recentFiles.entries.removeIf { now - it.value > FILE_DEDUP_MS * 4 }
+        }
+        loadRules(app).filter {
+            it.enabled && it.kind == "file" &&
+                WhenTriggerMatch.fileDir(it.spec) == dir &&
+                WhenTriggerMatch.fileMatches(it.spec, fileName)
+        }.forEach { rule ->
+            runRule(
+                app, rule, level = -1,
+                extraEnv = mapOf("Z2_WHEN_FILE" to path, "Z2_WHEN_DIR" to dir)
+            )
         }
     }
 
