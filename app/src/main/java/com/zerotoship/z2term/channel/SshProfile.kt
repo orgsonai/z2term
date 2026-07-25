@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
@@ -123,7 +124,51 @@ data class SshProfile(
         })
     }
 
+    /**
+     * 持ち出し用の JSON (**Keystore 暗号化を通さない平文**)。
+     *
+     * Keystore の鍵は端末に紐づくので、暗号化済みの値をそのまま持ち出しても**移した先で復号
+     * できない**。持ち出しでは平文に戻し、ファイル全体をパスフレーズで暗号化し直す
+     * ([com.zerotoship.z2term.backup.BackupManager])。呼び元が秘密を含めない選択をした場合、
+     * 秘密フィールドは空で渡ってくる。
+     */
+    fun toPlainJson(): JSONObject = JSONObject().apply {
+        put("id", id)
+        put("name", name)
+        put("host", host)
+        put("port", port)
+        put("user", user)
+        put("authType", authType.name)
+        put("residentTunnel", residentTunnel)
+        put("password", password)
+        put("privateKey", privateKey)
+        put("keyPassphrase", keyPassphrase)
+        put("initCommand", initCommand)
+        put("forwards", JSONArray().also { arr -> forwards.forEach { arr.put(it.toJson()) } })
+    }
+
     companion object {
+        /** [toPlainJson] の逆 (持ち出しから戻すとき用。保存時に改めて Keystore 暗号化される)。 */
+        fun fromPlainJson(o: JSONObject): SshProfile = SshProfile(
+            id = o.optString("id"),
+            name = o.optString("name"),
+            host = o.optString("host"),
+            port = o.optInt("port", 22),
+            user = o.optString("user"),
+            authType = runCatching {
+                AuthType.valueOf(o.optString("authType", AuthType.PASSWORD.name))
+            }.getOrDefault(AuthType.PASSWORD),
+            password = o.optString("password"),
+            privateKey = o.optString("privateKey"),
+            keyPassphrase = o.optString("keyPassphrase"),
+            initCommand = o.optString("initCommand"),
+            forwards = runCatching {
+                val arr = o.optJSONArray("forwards") ?: return@runCatching emptyList()
+                List(arr.length()) { PortForward.fromJson(arr.getJSONObject(it)) }
+            }.getOrDefault(emptyList()),
+            residentTunnel = o.optBoolean("residentTunnel", false)
+        )
+
         fun fromJson(o: JSONObject): SshProfile = SshProfile(
             id = o.optString("id"),
             name = o.optString("name"),
@@ -166,6 +211,38 @@ class SshProfileStore(private val context: Context) {
     suspend fun delete(id: String) {
         context.sshDataStore.edit { p ->
             val list = readList(p[KEY]).filterNot { it.id == id }
+            p[KEY] = serialize(list)
+        }
+    }
+
+    /**
+     * 接続先をまるごと JSON にする (持ち出し用・0.8.239)。
+     *
+     * ⚠ **保存されている秘密は Keystore 暗号化されていて、端末の外では復号できない**
+     * (Keystore の鍵は端末に紐づく)。そのため持ち出しでは [SshProfile.toJson] ではなく
+     * **平文に戻した JSON** を作り、パスフレーズで暗号化し直すのが呼び元の責任
+     * ([com.zerotoship.z2term.backup.BackupManager])。ここは平文/秘密なしの選択だけを引き受ける。
+     */
+    suspend fun exportRaw(includeSecrets: Boolean): String {
+        val list = profiles.first()
+        val arr = JSONArray()
+        list.forEach { p ->
+            val strip = if (includeSecrets) p else p.copy(password = "", privateKey = "", keyPassphrase = "")
+            arr.put(strip.toPlainJson())
+        }
+        return arr.toString()
+    }
+
+    /** 持ち出した接続先を取り込む (同じ id は置き換え・無いものは追加)。 */
+    suspend fun importRaw(json: String) {
+        val arr = runCatching { JSONArray(json) }.getOrNull() ?: return
+        context.sshDataStore.edit { p ->
+            val list = readList(p[KEY]).toMutableList()
+            for (i in 0 until arr.length()) {
+                val prof = runCatching { SshProfile.fromPlainJson(arr.getJSONObject(i)) }.getOrNull() ?: continue
+                val idx = list.indexOfFirst { it.id == prof.id }
+                if (idx >= 0) list[idx] = prof else list.add(prof)
+            }
             p[KEY] = serialize(list)
         }
     }

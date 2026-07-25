@@ -162,6 +162,9 @@ fun SettingsSheet(
     var serversOpen by remember { mutableStateOf(false) }
     // 自動化ルール (z2-when) の管理シート。📜 の「自動化」タブと同じ中身をここからも開ける。
     var whenRulesOpen by remember { mutableStateOf(false) }
+    // 持ち出し / 引き継ぎ (0.8.239)。秘密を含めるときだけ合言葉を要る形にする。
+    var backupExportOpen by remember { mutableStateOf(false) }
+    var backupImportUri by remember { mutableStateOf<android.net.Uri?>(null) }
     // 常駐サーバーが動いている間は🔒トグルをロックする (ツールバーの keepAliveToolbarItem と同じ扱い)。
     // ボタンを隠している人はここが唯一の🔒操作口なので、出口の終了ダイアログもここに出す (0.8.211)。
     var serversRunning by remember { mutableStateOf(ServerDaemonManager.isRunning) }
@@ -1159,6 +1162,30 @@ fun SettingsSheet(
             SettingsGroupSection(SettingsGroup.MAINTENANCE) {
                 Spacer(modifier = Modifier.height(4.dp))
 
+                // 持ち出し / 引き継ぎ。機種変・初期化で全部消えるのが今までで、
+                // 持ち出せると分かって初めて腰を据えて積み上げられる (提案 19)。
+                Section(title = stringResource(R.string.settings_backup)) {
+                    Text(
+                        text = stringResource(R.string.settings_backup_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    val importPicker = rememberLauncherForActivityResult(
+                        ActivityResultContracts.OpenDocument()
+                    ) { uri -> if (uri != null) backupImportUri = uri }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ActionButton(
+                            label = stringResource(R.string.settings_backup_export),
+                            onClick = { backupExportOpen = true }
+                        )
+                        ActionButton(
+                            label = stringResource(R.string.settings_backup_import),
+                            onClick = { runCatching { importPicker.launch(arrayOf("*/*")) } }
+                        )
+                    }
+                }
+
                 // 初回ガイドをもう一度。復活の導線は「設定の奥に 1 行」に留める
                 // (毎回出したい機能ではないので、目立つ場所には置かない)。
                 Section(title = stringResource(R.string.settings_intro_again)) {
@@ -1499,6 +1526,20 @@ fun SettingsSheet(
     // 常駐サーバー管理シート。設定シートと**重ねて**開く。
     if (whenRulesOpen) {
         WhenRulesSheet(onDismiss = { whenRulesOpen = false })
+    }
+
+    if (backupExportOpen) {
+        BackupExportDialog(
+            onDismiss = { backupExportOpen = false },
+            onDone = { backupExportOpen = false }
+        )
+    }
+    backupImportUri?.let { uri ->
+        BackupImportDialog(
+            uri = uri,
+            onDismiss = { backupImportUri = null },
+            onDone = { backupImportUri = null }
+        )
     }
 
     if (serversOpen) {

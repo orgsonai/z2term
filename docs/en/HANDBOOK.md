@@ -151,6 +151,15 @@ When you hit one of the usual walls — `ping` not working, a port below 1024, `
 The terminal output itself is **never modified**; this is just an extra line elsewhere.
 If you find it noisy, turn off Settings > Display > "Explain common stumbles".
 
+### Taking your setup with you (for a new phone or a reinstall)
+
+Settings > Maintenance > **"Take it with you"** writes your current setup to a single file.
+
+- Included: **settings, SSH connections, snippets, automation rules, macros**
+- Not included: **the OS image** (hundreds of MB — a reinstall brings it back) and logs
+- **SSH passwords and keys are left out by default.** Tick the box to include them and you will be asked for a **passphrase** (without it the backup cannot be restored, so pick something you will remember).
+- When restoring, you see **what and how many** will be added before deciding. Nothing you already have is deleted; only matching items are replaced.
+
 ### Creating an SSH key in the app
 
 In 📜 > "SSH / SFTP", add a connection and set auth to public key: a **"Create a key (ed25519)"** button appears.

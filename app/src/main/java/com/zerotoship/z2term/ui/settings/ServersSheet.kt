@@ -541,7 +541,7 @@ internal fun PillButton(
 }
 
 @Composable
-private fun Field(
+internal fun Field(
     label: String,
     value: String,
     onChange: (String) -> Unit,

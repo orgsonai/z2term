@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
@@ -124,6 +125,23 @@ class SnippetStore(private val context: Context) {
     /** リスト全体を指定順で保存する (ドラッグ並べ替えの確定用)。 */
     suspend fun replaceAll(list: List<Snippet>) {
         context.snippetDataStore.edit { p -> p[KEY] = serialize(list) }
+    }
+
+    /** スニペットをまるごと JSON にする (持ち出し用・0.8.239)。秘密は含まれない。 */
+    suspend fun exportRaw(): String = serialize(snippets.first())
+
+    /** 持ち出したスニペットを取り込む (同じ id は置き換え・無いものは追加)。 */
+    suspend fun importRaw(json: String) {
+        val arr = runCatching { JSONArray(json) }.getOrNull() ?: return
+        context.snippetDataStore.edit { p ->
+            val list = readList(p[KEY]).toMutableList()
+            for (i in 0 until arr.length()) {
+                val s = runCatching { Snippet.fromJson(arr.getJSONObject(i)) }.getOrNull() ?: continue
+                val idx = list.indexOfFirst { it.id == s.id }
+                if (idx >= 0) list[idx] = s else list.add(s)
+            }
+            p[KEY] = serialize(list)
+        }
     }
 
     private fun readList(raw: String?): List<Snippet> {

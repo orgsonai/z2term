@@ -656,4 +656,25 @@
     <string name="ssh_key_copied">Public key copied</string>
     <string name="ssh_key_authorized">Added to ~/.ssh/authorized_keys on this device</string>
     <string name="ssh_key_authorized_already">That key is already registered</string>
+    <string name="settings_backup">Take it with you</string>
+    <string name="settings_backup_desc">Bundles settings, SSH connections, snippets, automation rules and macros into one file. The OS image (hundreds of MB) is not included — what a reinstall restores is kept separate from what would be lost forever.</string>
+    <string name="settings_backup_export">Create a backup</string>
+    <string name="settings_backup_import">Restore from a backup</string>
+    <string name="backup_export_title">Create a backup</string>
+    <string name="backup_export_body">Writes settings, SSH connections, snippets, automation rules and macros to a single file. You choose where to save it next.</string>
+    <string name="backup_include_secrets">Include SSH passwords and keys</string>
+    <string name="backup_secrets_warning">⚠ This takes secrets off the device. A passphrase is required (without it, the backup cannot be restored).</string>
+    <string name="backup_passphrase">Passphrase</string>
+    <string name="backup_export_do">Create</string>
+    <string name="backup_import_title">Restore from a backup</string>
+    <string name="backup_import_unreadable">This file could not be read as a z2term backup.</string>
+    <string name="backup_import_summary">Created %1$s (%2$s)
+
+SSH connections: %3$d
+Snippets: %4$d
+Automation rules: %5$d
+Macros: %6$d</string>
+    <string name="backup_import_merge_note">Nothing you have now is deleted. Matching items are replaced, new ones are added.</string>
+    <string name="backup_import_failed">Could not restore (wrong passphrase, or the file is damaged).</string>
+    <string name="backup_import_do">Restore</string>
 </resources>

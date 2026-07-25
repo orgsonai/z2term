@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.238-alpha (versionCode 246)
+Last updated: 2026-07-25 / Target version: 0.8.239-alpha (versionCode 247)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -505,6 +505,23 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 - ⚠ **JSch cannot create it.** `KeyPair.genKeyPair(…, ED25519)` generates, but `writePrivateKey` throws `UnsupportedOperationException` — JSch **reads** ed25519 and does not **write** it. Generation therefore uses **BouncyCastle** (already a dependency for SSH) and writes OpenSSH format (`openssh-key-v1`). `SshKeyGenTest` then feeds the result to `KeyPair.load` to prove **JSch can read what we produced** — a mismatch here would surface as "the key was created but nothing connects", the hardest failure to diagnose.
 - No passphrase. Requiring one on every connection lengthens the road to "it connects at all"; the private key stays on the device, encrypted by `KeystoreCrypt` as before.
 - The public key is **not persisted** (it is only handed over right after creation, and can be re-derived from the private key). `authorized_keys` de-duplicates **on the key body**, so the same key with a different comment is not added twice.
+
+#### Taking it with you (`backup/BackupManager`, 0.8.239)
+
+**What it does**: writes settings, SSH connections, snippets, `z2-when` rules and macros into **one zip**, and restores them on another device. Until now a new phone, a factory reset or a reinstall meant **losing everything**; only once it can be carried does building a real setup feel worth it.
+
+**What is in and what is out**: the rootfs (hundreds of MB), logs and `events.jsonl` are **excluded**. Separating "what a reinstall restores" from "what is lost forever" *is* the design here — mixing them produces a several-hundred-megabyte file that nobody ever makes twice.
+
+**Settings are not copied field by field** (`settings/PrefsPortable`): the DataStore key/value pairs are serialised as-is. There are 60+ settings, and a hand-written mapping would **silently miss every newly added one** — a gap you only discover when changing phones. Types survive as one-character tags (`b`/`i`/`l`/`f`/`s`/`S`).
+
+**Secrets (the central judgement)**:
+- SSH passwords and private keys are encrypted with the Android Keystore, but **Keystore keys cannot leave the device**, so carrying the ciphertext produces something undecryptable on the other side. Exporting them means decrypting first.
+- Therefore secrets are **excluded by default** (only names, hosts and ports travel). Including them **requires a passphrase**, and **no path — in the UI or the API — writes secrets without one** (`BackupManager.export` enforces it with `require`). One remaining path is all it takes for an accident.
+- The crypto lives in `backup/BackupCrypt`: PBKDF2WithHmacSHA256 (210,000 iterations) derives a 256-bit key, AES-GCM wraps the payload. A wrong passphrase fails GCM authentication, so **"wrong passphrase" and "corrupted file" need not be distinguished**. `BackupCryptTest` pins that the output is not plaintext, that a wrong passphrase never passes, and that two exports of the same data differ.
+
+**Restoring merges, it does not overwrite**: matching ids are replaced, anything absent from the backup is left alone — restoring an old backup must not delete what you built since. `peek` shows the counts **before** anything is applied. Zip entries containing `/` are dropped (this is a path where a file from someone else is opened, so nothing may escape the target directory).
+
+**The destination is the user's choice** (SAF `CreateDocument`); the app never drops the file somewhere on its own.
 
 #### History palette (`ui/snippets/ShellHistory`, 0.8.221, B2)
 

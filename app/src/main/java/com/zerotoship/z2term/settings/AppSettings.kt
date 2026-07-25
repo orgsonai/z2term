@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
@@ -435,6 +436,14 @@ class AppSettings(private val context: Context) {
 
     suspend fun setTerminalHintsEnabled(enabled: Boolean) {
         context.dataStore.edit { it[KEY_TERMINAL_HINTS] = enabled }
+    }
+
+    /** 設定をまるごと JSON にする (持ち出し用・0.8.239)。 */
+    suspend fun exportRaw(): String = PrefsPortable.toJson(context.dataStore.data.first())
+
+    /** 持ち出した設定を書き戻す (既存は消さず、あるものだけ更新する)。 */
+    suspend fun importRaw(json: String) {
+        context.dataStore.edit { PrefsPortable.applyTo(it, json) }
     }
 
     suspend fun setSystemEventLogFormat(template: String) {
