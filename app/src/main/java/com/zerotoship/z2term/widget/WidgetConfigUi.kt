@@ -32,13 +32,18 @@ import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
  * アプリ本体の設定シートと同じ ZTS の配色・等幅フォントに揃えてある。
  */
 
-/** 選択肢 1 行。[checked] のときは緑の枠と `[x]`。[subtitle] は空なら出さない。 */
+/**
+ * 選択肢 1 行。[checked] のときは緑の枠と `[x]`。[subtitle] は空なら出さない。
+ *
+ * 既定は幅いっぱい。2 つを横に並べたいときだけ [modifier] に `weight` を渡す。
+ */
 @Composable
 internal fun ConfigSelectRow(
     title: String,
     subtitle: String,
     checked: Boolean,
     enabled: Boolean = true,
+    modifier: Modifier = Modifier.fillMaxWidth(),
     onToggle: () -> Unit,
 ) {
     val fg = when {
@@ -47,8 +52,7 @@ internal fun ConfigSelectRow(
         else -> ZtsTextSecondary.copy(alpha = 0.5f)
     }
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .clip(RoundedCornerShape(6.dp))
             .background(ZtsBgCard)
             .border(1.dp, if (checked) ZtsGreen else ZtsBorder, RoundedCornerShape(6.dp))

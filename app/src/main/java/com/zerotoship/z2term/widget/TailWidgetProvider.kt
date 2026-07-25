@@ -18,9 +18,10 @@ import java.util.Locale
 /**
  * ホーム画面ウィジェット D2「ライブ tail」(§10-2)。
  *
- * **何ができるか**: 選んだファイルの**末尾 N 行**をホーム画面に出す。「ホーム画面で `tail`」。
- * マクロや `z2-when` が書いたログ・`events.jsonl`・セッションログなど、端末を開かずに
- * 「いま何が起きたか」を見るための窓。
+ * **何ができるか**: 選んだファイルの**末尾 N 行 / 先頭 N 行**をホーム画面に出す。
+ * 「ホーム画面で `tail` / `head`」。マクロや `z2-when` が書いたログ・`events.jsonl`・
+ * セッションログなど、端末を開かずに「いま何が起きたか」を見るための窓。
+ * 末尾 (tail) は増え続けるログ用、先頭 (head) は書き終わったレポートや設定ファイル用。
  *
  * **常駐は増やさない** (D1 と同じ方針。§10-1)。更新のきっかけは
  *  1. OS の定期更新 (`updatePeriodMillis` = 30 分。OS 側の下限)
@@ -209,17 +210,21 @@ class TailWidgetProvider : AppWidgetProvider() {
                     views.setTextViewText(R.id.tail_footer, "")
                 }
                 else -> {
-                    val tail = TailReader.read(file, lines)
+                    val mode = TailStore.mode(context, appWidgetId)
+                    val body = TailReader.read(file, lines, mode)
                     views.setTextViewText(R.id.tail_title, rel)
                     views.setTextViewText(
                         R.id.tail_body,
-                        if (tail.isEmpty()) context.getString(R.string.tail_empty)
-                        else tail.joinToString("\n")
+                        if (body.isEmpty()) context.getString(R.string.tail_empty)
+                        else body.joinToString("\n")
                     )
+                    // どちら側を見ているかは本文からは分からないので、フッターに必ず出す。
+                    // `tail` / `head` はコマンド名そのものなので訳さない。
                     views.setTextViewText(
                         R.id.tail_footer,
                         context.getString(
                             R.string.tail_footer,
+                            mode.name.lowercase(Locale.US),
                             hhmm.format(Date()),
                             file.length() / 1024
                         )

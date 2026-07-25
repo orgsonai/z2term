@@ -458,16 +458,20 @@ Note that **quitting the app also ends any macro started from the widget**.
 
 ### The other widget: live tail
 
-Keeps the **end of a log file** on your home screen, so you can see what a macro wrote or when a
-`z2-when` rule fired **without opening the app**.
+Keeps the **end or the start of a file** on your home screen, so you can see what a macro wrote or
+when a `z2-when` rule fired **without opening the app**.
 
 1. Long-press an empty spot on the home screen → "Widgets"
 2. Pick **Z2Term live tail** and place it
-3. The config screen opens — choose **the file**, then Save
+3. The config screen opens — choose **the file** and **which end of it**, then Save
 
 - There are two ways to choose it:
   - **type the path** in the field at the top (e.g. `~/.z2term/events.jsonl`)
   - **tap through the folders** in the list below and tap the file you want
+- **Pick the end (tail) or the start (head)** (0.8.240).
+  - **end** — for a log that keeps growing, where new lines are added at the bottom.
+  - **start** — for a file already written, like a report or a config file where **what matters is at the top**.
+  - The line under the text always says which one you are looking at: `tail` or `head`.
 - **How many lines are shown follows the widget's size** — stretch it taller for more lines.
 - The usual ones are:
   - `.z2term/widget/run.log` — output of macros started from the widget
@@ -476,7 +480,7 @@ Keeps the **end of a log file** on your home screen, so you can see what a macro
 - **⟳** re-reads right now. Besides the 30-minute automatic refresh, it also redraws itself
   **whenever a macro or an automation rule finishes**.
 - **⚙** changes which file is shown.
-- It only ever reads the **end** of the file, so it stays fast however large the log grows.
+- It only ever reads **part of the end you chose**, so it stays fast however large the file grows.
 
 ---
 

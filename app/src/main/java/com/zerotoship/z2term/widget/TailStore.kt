@@ -16,6 +16,22 @@ object TailStore {
 
     private const val PREFS = "z2term_widget_tail"
     private const val KEY_PATH_PREFIX = "tail_path_"
+    private const val KEY_MODE_PREFIX = "tail_mode_"
+
+    /**
+     * ファイルのどちら側を見るか。
+     *
+     * [TAIL] は末尾（増えていくログを追う）。[HEAD] は先頭（書き出しが 1 回きりの
+     * レポートや、設定ファイルの頭を確認する用途）。
+     */
+    enum class Mode {
+        TAIL,
+        HEAD;
+
+        companion object {
+            fun from(name: String?): Mode = entries.firstOrNull { it.name == name } ?: TAIL
+        }
+    }
 
     /** 高さが取れなかったときの行数。 */
     const val DEFAULT_LINES = 8
@@ -48,9 +64,20 @@ object TailStore {
         prefs(context).edit().putString(KEY_PATH_PREFIX + appWidgetId, relPath).apply()
     }
 
+    /** [appWidgetId] がファイルのどちら側を見るか (未設定なら [Mode.TAIL])。 */
+    fun mode(context: Context, appWidgetId: Int): Mode =
+        Mode.from(prefs(context).getString(KEY_MODE_PREFIX + appWidgetId, null))
+
+    fun setMode(context: Context, appWidgetId: Int, mode: Mode) {
+        prefs(context).edit().putString(KEY_MODE_PREFIX + appWidgetId, mode.name).apply()
+    }
+
     /** ウィジェットが削除されたときに設定を捨てる。 */
     fun clear(context: Context, appWidgetId: Int) {
-        prefs(context).edit().remove(KEY_PATH_PREFIX + appWidgetId).apply()
+        prefs(context).edit()
+            .remove(KEY_PATH_PREFIX + appWidgetId)
+            .remove(KEY_MODE_PREFIX + appWidgetId)
+            .apply()
     }
 
     // --- パスの解決 ---

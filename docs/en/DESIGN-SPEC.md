@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.239-alpha (versionCode 247)
+Last updated: 2026-07-26 / Target version: 0.8.240-alpha (versionCode 248)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -558,15 +558,17 @@ Both are merged **newest first**, deduplicated (the timestamped zsh entry wins).
 
 #### Live tail widget (`widget/TailWidgetProvider`, 0.8.217, D2)
 
-**What it does**: shows **the last N lines** of a chosen file on the home screen — "`tail` on your home screen". A window onto what macros and `z2-when` wrote, `events.jsonl`, or session logs, without opening the app. This is D2 from §10-2.
+**What it does**: shows **the last N lines or the first N lines** of a chosen file on the home screen — "`tail` or `head` on your home screen". A window onto what macros and `z2-when` wrote, `events.jsonl`, or session logs, without opening the app. This is D2 from §10-2.
 
 **Parts**:
 - `widget/TailWidgetProvider` — drawing plus the ⟳ / ⚙ taps. Tapping the body opens the app.
 - `widget/TailConfigActivity` (`APPWIDGET_CONFIGURE`) — choose the file (type a path or walk the folders).
-- `widget/TailStore` — the per-widget file (path relative to `~`) in SharedPreferences, plus path resolution and directory listing. **The line count is not stored.**
-- `widget/TailReader` — taking the last N lines. The decision part is Android-independent and covered by `TailReaderTest` (8 cases).
+- `widget/TailStore` — the per-widget file (path relative to `~`) and which end to show (`Mode.TAIL` / `Mode.HEAD`) in SharedPreferences, plus path resolution and directory listing. **The line count is not stored.**
+- `widget/TailReader` — taking the last or first N lines. The decision part is Android-independent and covered by `TailReaderTest` (17 cases).
 
-**Never reads the whole file**: neither session logs nor resident-server logs rotate (by design), so they grow without bound. `RandomAccessFile` seeks to the end and takes only `MAX_TAIL_BYTES` (16KB), then splits that into lines. Starting mid-file can **cut the first line in the middle of a multi-byte character**, so that line is dropped (`truncatedHead`) — unless it is the only line, in which case dropping it would leave nothing to show.
+**Never reads the whole file**: neither session logs nor resident-server logs rotate (by design), so they grow without bound. `RandomAccessFile` seeks to **one end** and takes only `MAX_TAIL_BYTES` (16KB), then splits that into lines. The line on **whichever side the window was cut** can be sliced through a multi-byte character, so it is dropped (the first line via `truncatedHead` in tail mode, the last line via `truncatedTail` in head mode) — unless it is the only line, in which case dropping it would leave nothing to show.
+
+**Either end, your choice (0.8.240)**: logs are read from the end, but **a file that is already finished is read from the start** — reports, config files, `z2doctor` output, the kind where what matters is written at the top. With tail only, those files showed nothing but their meaningless last few lines. The config screen offers `end (tail)` / `start (head)` and stores it as `TailStore.Mode` (unset means `TAIL`, i.e. the old behaviour). Which end you are looking at cannot be told from the text itself, so **the footer always says `tail` or `head`** (command names, so they are not translated).
 
 **Choosing the file (reworked in 0.8.220)**: the first version listed up to 60 candidates found by walking `~`, newest first — **too many to choose from**, as on-device feedback put it. Now there are two ways:
 - **type the path** in the field at the top (`~/.z2term/events.jsonl`, `.z2term/events.jsonl` or `/root/.z2term/events.jsonl` are all accepted)

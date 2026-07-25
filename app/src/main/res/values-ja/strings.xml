@@ -578,15 +578,20 @@
 
     <!-- D2 ライブ tail -->
     <string name="tail_widget_label">Z2Term ライブ tail</string>
-    <string name="tail_widget_description">ログファイルの末尾をホーム画面に出します。マクロの出力・events.jsonl・セッション記録など、アプリを開かずに tail できます。</string>
+    <string name="tail_widget_description">ファイルの末尾または先頭をホーム画面に出します。マクロの出力・events.jsonl・セッション記録など、アプリを開かずに tail / head できます。</string>
     <string name="tail_config_btn_desc">見るファイルを選ぶ</string>
     <string name="tail_title_none">ファイル未選択</string>
     <string name="tail_pick_file">⚙ を押して、見るファイルを選んでください。</string>
     <string name="tail_missing">そのファイルはまだありません。</string>
     <string name="tail_empty">（中身なし）</string>
-    <string name="tail_footer">%1$s 時点 · %2$d KB</string>
+    <string name="tail_footer">%1$s · %2$s 時点 · %3$d KB</string>
     <string name="tail_config_title">見るファイル</string>
-    <string name="tail_config_desc">選んだファイルの末尾がホーム画面に出ます。パスを直接打つか、下のフォルダを辿って選んでください。行数はウィジェットの高さに合わせて自動で決まります。</string>
+    <string name="tail_config_desc">選んだファイルがホーム画面に出ます。パスを直接打つか、下のフォルダを辿って選んでください。行数はウィジェットの高さに合わせて自動で決まります。</string>
+    <string name="tail_mode_label">ファイルのどちら側を見るか</string>
+    <string name="tail_mode_tail">末尾 (tail)</string>
+    <string name="tail_mode_tail_desc">増え続けるログ向け</string>
+    <string name="tail_mode_head">先頭 (head)</string>
+    <string name="tail_mode_head_desc">書き終わったファイル向け</string>
     <string name="tail_file_meta">%1$s · %2$d KB</string>
     <string name="tail_path_hint">例: ~/.z2term/events.jsonl （~ の下ならどこでも）</string>
     <string name="tail_dir_empty">（このフォルダは空です）</string>

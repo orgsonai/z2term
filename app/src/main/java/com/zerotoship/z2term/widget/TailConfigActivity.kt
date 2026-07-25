@@ -81,15 +81,17 @@ class TailConfigActivity : ComponentActivity() {
 
         CustomThemeStore.ensureLoaded(applicationContext)
         val initial = TailStore.path(this, appWidgetId)
+        val initialMode = TailStore.mode(this, appWidgetId)
 
         setContent {
             Z2TermTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = ZtsBgPrimary) {
                     TailConfigScreen(
                         initialPath = initial,
+                        initialMode = initialMode,
                         list = { dir -> TailStore.list(this, dir) },
                         isFile = { p -> TailStore.resolve(this, p)?.isFile == true },
-                        onSave = { path -> save(path) },
+                        onSave = { path, mode -> save(path, mode) },
                         onCancel = { finish() },
                     )
                 }
@@ -97,8 +99,9 @@ class TailConfigActivity : ComponentActivity() {
         }
     }
 
-    private fun save(path: String) {
+    private fun save(path: String, mode: TailStore.Mode) {
         TailStore.set(this, appWidgetId, path)
+        TailStore.setMode(this, appWidgetId, mode)
         val id = appWidgetId
         // 置かれた直後は OS の更新が来ないので、自分で 1 回描く。
         Thread { runCatching { TailWidgetProvider.renderAll(applicationContext) } }
@@ -111,12 +114,14 @@ class TailConfigActivity : ComponentActivity() {
 @Composable
 private fun TailConfigScreen(
     initialPath: String?,
+    initialMode: TailStore.Mode,
     list: (String) -> List<TailStore.Entry>,
     isFile: (String) -> Boolean,
-    onSave: (String) -> Unit,
+    onSave: (String, TailStore.Mode) -> Unit,
     onCancel: () -> Unit,
 ) {
     var path by remember { mutableStateOf(initialPath.orEmpty()) }
+    var mode by remember { mutableStateOf(initialMode) }
     // いま開いているフォルダ (`~` からの相対。空なら `~` 自身)。
     var dir by remember {
         mutableStateOf(initialPath?.let { TailStore.parentOf(it) }.orEmpty())
@@ -167,6 +172,30 @@ private fun TailConfigScreen(
             fontFamily = FontFamily.Monospace
         )
 
+        // ファイルのどちら側を出すか。増え続けるログなら末尾、書き終わったファイルなら先頭。
+        Text(
+            text = stringResource(R.string.tail_mode_label),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ConfigSelectRow(
+                title = stringResource(R.string.tail_mode_tail),
+                subtitle = stringResource(R.string.tail_mode_tail_desc),
+                checked = mode == TailStore.Mode.TAIL,
+                modifier = Modifier.weight(1f),
+                onToggle = { mode = TailStore.Mode.TAIL }
+            )
+            ConfigSelectRow(
+                title = stringResource(R.string.tail_mode_head),
+                subtitle = stringResource(R.string.tail_mode_head_desc),
+                checked = mode == TailStore.Mode.HEAD,
+                modifier = Modifier.weight(1f),
+                onToggle = { mode = TailStore.Mode.HEAD }
+            )
+        }
+
         // いま開いているフォルダ。
         Text(
             text = "~/" + dir,
@@ -212,7 +241,7 @@ private fun TailConfigScreen(
             ConfigButton(
                 label = stringResource(R.string.widget_config_save),
                 accent = true,
-                onClick = { if (path.isNotBlank() && isFile(path)) onSave(path.trim()) }
+                onClick = { if (path.isNotBlank() && isFile(path)) onSave(path.trim(), mode) }
             )
             ConfigButton(
                 label = stringResource(R.string.widget_config_cancel),

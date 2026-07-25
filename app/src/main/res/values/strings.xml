@@ -590,15 +590,20 @@
 
     <!-- D2 ライブ tail -->
     <string name="tail_widget_label">Z2Term live tail</string>
-    <string name="tail_widget_description">Shows the last lines of a log file on your home screen — macro output, events.jsonl, session logs. Like tail, without opening the app.</string>
+    <string name="tail_widget_description">Shows the start or the end of a file on your home screen — macro output, events.jsonl, session logs. Like head or tail, without opening the app.</string>
     <string name="tail_config_btn_desc">Choose the file</string>
     <string name="tail_title_none">no file selected</string>
     <string name="tail_pick_file">Tap ⚙ and choose a file to watch.</string>
     <string name="tail_missing">That file does not exist yet.</string>
     <string name="tail_empty">(empty)</string>
-    <string name="tail_footer">read at %1$s · %2$d KB</string>
+    <string name="tail_footer">%1$s · read at %2$s · %3$d KB</string>
     <string name="tail_config_title">File to watch</string>
-    <string name="tail_config_desc">The end of this file appears on the home screen. Type a path, or tap through the folders below. The number of lines follows the widget\'s height.</string>
+    <string name="tail_config_desc">This file appears on the home screen. Type a path, or tap through the folders below. The number of lines follows the widget\'s height.</string>
+    <string name="tail_mode_label">Which end of the file</string>
+    <string name="tail_mode_tail">end (tail)</string>
+    <string name="tail_mode_tail_desc">for a log that keeps growing</string>
+    <string name="tail_mode_head">start (head)</string>
+    <string name="tail_mode_head_desc">for a file already written</string>
     <string name="tail_file_meta">%1$s · %2$d KB</string>
     <string name="tail_path_hint">e.g. ~/.z2term/events.jsonl — anywhere under ~</string>
     <string name="tail_dir_empty">(this folder is empty)</string>
