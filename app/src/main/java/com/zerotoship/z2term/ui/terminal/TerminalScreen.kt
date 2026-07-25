@@ -119,6 +119,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.debounce
 import com.zerotoship.z2term.service.ServerDaemonManager
 import com.zerotoship.z2term.service.ServerDaemonService
+import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.ui.components.ResidentActionDialog
 import com.zerotoship.z2term.channel.SshProfile
@@ -713,10 +714,17 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
  * 常駐サーバー・セッション・常駐サービスをすべて止めてアプリを閉じる (タスクキル相当)。
  *
  * 常駐サーバーが動いていると最近履歴からのスワイプではプロセスが死なないため、明示的な出口として
- * ここで全部落とす。順に: 常駐サーバー停止 → 全セッション終了 → セッション常駐 FG 停止 → タスク終了。
+ * ここで全部落とす。順に: 常駐サーバー停止 → **システムイベント検知停止** → 全セッション終了 →
+ * セッション常駐 FG 停止 → タスク終了。
+ *
+ * ⚠ **フォアグラウンドサービスは 1 つでも残っているとプロセスが死なない。** システムイベント検知
+ * ([SystemEventService]) を落とし忘れていたため、「全部停止して終了」を押してもアプリが閉じない
+ * ままだった (実機フィードバック 2026-07-25)。FG サービスを増やしたら**必ずここへ足す**こと。
+ * 設定 (`systemEventCaptureEnabled`) は触らないので、次にアプリを開けば検知は再開する。
  */
 internal fun stopEverythingAndQuit(context: Context) {
     ServerDaemonService.stop(context)
+    SystemEventService.stop(context)
     SessionManager.shutdown()
     TerminalService.stop(context)
     context.findActivity()?.finishAndRemoveTask()

@@ -354,7 +354,7 @@ While resident servers run, the app stays in the background, so **swiping it awa
 **Tap the dimmed 🔒** to choose one of two things:
 
 - **End session only**: returns the terminal to a **freshly opened state** (running programs end; screen and history are cleared). **Resident servers keep running.**
-- **Stop everything and quit**: **stops both the resident servers and the terminal and closes the app** (a reliable way to quit, since swiping won't).
+- **Stop everything and quit**: **stops the resident servers, system event capture and the terminal, then closes the app** (a reliable way to quit, since swiping won't). Your settings are unchanged, so capture resumes the next time you open the app.
 
 Pick "End session only" for a clean slate, or "Stop everything and quit" to stop it all.
 

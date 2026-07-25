@@ -383,7 +383,7 @@
     <string name="resident_dialog_reset_session">End session only</string>
     <string name="resident_dialog_reset_session_desc">Return the terminal to a freshly opened state. Resident servers keep running.</string>
     <string name="resident_dialog_stop_all">Stop everything and quit</string>
-    <string name="resident_dialog_stop_all_desc">Stop both the resident servers and the session, then close the app (like a task kill).</string>
+    <string name="resident_dialog_stop_all_desc">Stop the resident servers, system event capture and the session, then close the app (like a task kill). Your settings are left alone, so capture resumes the next time you open the app.</string>
     <string name="settings_section_servers">Resident servers</string>
     <string name="settings_servers_desc">Keep any server (sshd/http/smb, …) running in the background — even without opening the app.</string>
     <string name="settings_open_servers">Manage servers</string>

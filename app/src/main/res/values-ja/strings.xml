@@ -381,7 +381,7 @@
     <string name="resident_dialog_reset_session">セッションだけ終了</string>
     <string name="resident_dialog_reset_session_desc">端末を開き直した状態に戻す。常駐サーバーはそのまま動かし続けます。</string>
     <string name="resident_dialog_stop_all">全部停止して終了</string>
-    <string name="resident_dialog_stop_all_desc">常駐サーバーもセッションも止めてアプリを閉じます（タスクキル相当）。</string>
+    <string name="resident_dialog_stop_all_desc">常駐サーバー・システムイベント検知・セッションをすべて止めてアプリを閉じます（タスクキル相当）。設定は変えないので、次にアプリを開くと検知は再開します。</string>
     <string name="settings_section_servers">常駐サーバー</string>
     <string name="settings_servers_desc">任意のサーバー (sshd/http/smb 等) をバックグラウンドで常駐。アプリを開かなくても動かせます。</string>
     <string name="settings_open_servers">サーバーを管理</string>
