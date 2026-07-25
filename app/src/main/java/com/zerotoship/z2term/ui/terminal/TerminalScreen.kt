@@ -330,10 +330,16 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         applyKeepScreenOn(context, rootView, keepScreenOn)
     }
 
-    // この画面だけの明るさ。null = OS に任せる (既定)。**設定には保存しない** —
-    // 「今この場が眩しい」ための一時的な調整で、次に開いたときまで持ち越すものではない。
-    var brightness by remember { mutableStateOf<Float?>(null) }
+    // この画面だけの明るさ。null = OS に任せる (既定)。**設定に保存する** (0.8.242) —
+    // 暗い部屋で使う人は毎回同じ値へ合わせ直すことになっていたため。「戻す」で null に戻せる
+    // ので、触らない人にとっては今までどおり OS 任せのままで、モードは増えない。
+    //
+    // 正本は設定だが、ドラッグ中まで DataStore の往復を待つとつまみが渋るので、いまの値は
+    // ローカルに持ち、**指を離したところで 1 回だけ保存**する。保存値が外から変わったとき
+    // (起動直後の復元・バックアップの戻し) は下の LaunchedEffect で引き取る。
+    var brightness by remember { mutableStateOf(settings.screenBrightness) }
     var brightnessBarOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(settings.screenBrightness) { brightness = settings.screenBrightness }
     LaunchedEffect(brightness) { applyScreenBrightness(context, brightness) }
 
     // かな漢字変換: 入力中ひらがな(composing)と候補を保持。確定で PTY へ送出。
@@ -616,7 +622,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     BrightnessBar(
                         level = brightness,
                         onChange = { brightness = it },
-                        onReset = { brightness = null },
+                        onCommit = { active.setScreenBrightness(brightness) },
+                        onReset = {
+                            brightness = null
+                            active.setScreenBrightness(null)
+                        },
                         onClose = { brightnessBarOpen = false }
                     )
                 }
@@ -888,6 +898,12 @@ private fun GuiTabScreen(
 
     val rootView = LocalView.current
     LaunchedEffect(keepScreenOn) { applyKeepScreenOn(context, rootView, keepScreenOn) }
+
+    // 明るさは Window に効く設定なので端末タブと共通。GUI タブを開いたまま起動した場合でも
+    // 保存値が当たるようにここでも適用する (帯を出す口は端末タブの 🔅 ダブルタップのまま)。
+    LaunchedEffect(settings.screenBrightness) {
+        applyScreenBrightness(context, settings.screenBrightness)
+    }
 
     // 保存済みキーボードモードに常に追従 (端末と同一仕様)。一度きりの復元だと
     // settingsFlow の初期値を先に拾って固定され「GUI で内蔵+SYS 二重表示」になるため。
@@ -1786,12 +1802,16 @@ private fun PastePreviewBar(
  *
  * 中身は**スライダー 1 本 +「戻す」+ ✕** だけ。設定画面へは行かせない — 眩しいのは
  * 「いま」なので、その場で終わる操作にする。既定は「OS に任せる」で、触ったときだけ
- * 効くから**モードが増えない**。
+ * 効くから**モードが増えない**。決めた値は設定に残る (0.8.242)。
+ *
+ * [onChange] はドラッグ中に何度も呼ばれる**表示用**、[onCommit] は指を離したときの
+ * **保存用**。分けないと、つまみを動かすたびに DataStore へ書きに行くことになる。
  */
 @Composable
 private fun BrightnessBar(
     level: Float?,
     onChange: (Float) -> Unit,
+    onCommit: () -> Unit,
     onReset: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
@@ -1810,6 +1830,7 @@ private fun BrightnessBar(
         Slider(
             value = level ?: 1f,
             onValueChange = onChange,
+            onValueChangeFinished = onCommit,
             valueRange = MIN_BRIGHTNESS..1f,
             colors = SliderDefaults.colors(
                 thumbColor = ZtsGreen,

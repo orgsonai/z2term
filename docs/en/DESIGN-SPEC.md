@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-26 / Target version: 0.8.241-alpha (versionCode 249)
+Last updated: 2026-07-26 / Target version: 0.8.242-alpha (versionCode 250)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -450,6 +450,8 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 
 **Automation tab (`ui/settings/WhenRulesSheet`, 0.8.227)**: adds an "Automation" tab to 📜 with the rule list, on/off, run logs, ▶ run-now, delete, the pause switch and recent fires. The same body opens from Settings › resident servers & automation (the two-entry structure `ServersBody` already uses). Shared widgets (`ToggleRow` / `HintBox` / `IconCell` / `PillButton`) are `internal` in `ServersSheet` so the look is not written twice.
 
+- ⚠ **A `Switch` must specify its OFF colours, not just its ON ones** (0.8.242). Passing only `checked*` to `SwitchDefaults.colors()` leaves the OFF side on the Material3 default (a dark `surfaceVariant`), which **dissolves into this app's dark background — the switch reads as "nothing is there"**. That is what happened to the pause toggle and the per-rule on/off (reported from a device). Always pass the set together: `uncheckedThumbColor = ZtsTextSecondary` / `uncheckedTrackColor = ZtsBgCard` / `uncheckedBorderColor = ZtsBorder` (the same combination the settings screen's `ToggleField` uses).
+
 **Creating and editing rules is deliberately absent from the UI.** The source of truth is the text at `~/.z2term/when/<id>.rule`, with the logic on the shell side (§3.3, "the app is the connection point, the shell holds the logic"). Letting the GUI author rules would create a second source of truth. The screen only lets you **see, stop and try**; authoring stays with `z2-when`.
 
 **CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> run <cmd>` to add / `list` (TSV; notes when paused) / `events` (names usable with `event:`, 0.8.226) / `pause` / `resume` / `fired [n]` (0.8.227) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><pid>` (0.8.211 switched from a random suffix to the pid to avoid same-second collisions; a counter is appended if the file already exists). **Stage 2 now covers cron/wifi/sms/sensor** (0.8.207–0.8.210). Later candidates: DST-boundary refinement for `time:cron`, light-threshold hysteresis, etc.
@@ -485,8 +487,11 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 
 - It sets `WindowManager.LayoutParams.screenBrightness`, i.e. **this window only**. Going home restores the OS brightness.
 - The default is `BRIGHTNESS_OVERRIDE_NONE` (leave it to the OS); it only applies **once you touch it**, so no setting and no mode is added. A single tap still toggles keep-screen-on (the same "tap = act / double-tap = details" contract as 📋 and ⌨).
-- **Not persisted.** This is a "right now it's too bright" adjustment, not something to carry into the next session.
-- ⚠ Floor of 10%. The worst outcome is a screen too dark to find the way back, so Reset always sits in the bar (without an exit, nobody dares touch the slider).
+- **The level you pick is persisted (0.8.242).** It started out unsaved — a "right now it's too bright" adjustment — but anyone who uses the app in a dark room ended up **dialling in the same value every time they opened it**. It now lives in `AppSettings.screenBrightness` (`Float?`) and the app opens at that brightness.
+  - **null = leave it to the OS** still means exactly that after persisting: Reset does not overwrite the value, it **removes the key** (`remove`). We never write `0` and create a "saved at brightness 0" state. For anyone who never touches the slider, nothing changes — so persisting it still adds no mode.
+  - It is written **once, when the finger lifts** (`Slider.onValueChangeFinished`). While dragging, a local state drives the window directly so a DataStore round-trip never sits between the thumb and the screen.
+  - Brightness is a window-level setting, so it is **shared by terminal and GUI tabs**. `GuiTabScreen` applies the stored value as well, so launching straight into a GUI tab is not left at full backlight (the bar itself is still opened by double-tapping 🔅 on a terminal tab).
+- ⚠ Floor of 10%. The worst outcome is a screen too dark to find the way back, so Reset always sits in the bar (without an exit, nobody dares touch the slider). **Persisting makes that floor matter more than before**, since a too-dark value would come back on the next launch.
 
 **Explaining common stumbles (`core/TerminalHints`, 0.8.237)**: the handbook FAQ has the answers, but **the person who is stuck does not read it at that moment**. When a known pattern appears in the output, one line with the next step is shown at the **bottom** of the terminal.
 
@@ -1139,6 +1144,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   - **⚙ settings is pinned to the right edge** and takes part in neither reordering nor hiding (0.8.194). It is a single `ToolbarChip` placed outside `ReorderableToolbar`, so its position never moves however the rest is arranged or hidden.
   - **The user picks which buttons appear** (0.8.194). Hidden ids persist in `AppSettings.toolbarHidden` (comma-separated) and are toggled under Settings › Display › **Toolbar**. The button catalog (id / representative icon / description / whether it can be hidden) lives in `ui/terminal/ToolbarButtons.kt` as `CATALOG`, shared by the toolbar and the settings screen. **⚙ has `canHide = false`** — hiding it would leave no way back into settings. **The saved order keeps the ids of hidden buttons too** (`persistOrder`): saving only the visible ones would send a button to the end of the row after hiding and re-showing it.
     Of the hidden buttons, the toggles (🔅 screen-on lock / 🔒 keep-alive) have **no other place to be operated from**, so a switch for each appears inside the same "Toolbar" section while it is hidden. This is also what keeps "new features must not grow everyone's toolbar" workable.
+    **A `CATALOG` icon must be the exact glyph the toolbar draws** (for stateful buttons, the OFF side: 🔅 / 🔓 / ⚪). The settings screen works because it lays out the *real* buttons; a different glyph both breaks that correspondence and **puts one thin text-style symbol in a row of colour emoji, so the row stops lining up**. Fixed in 0.8.242 (log ⏺ → ⚪; the toolbar itself draws 🔴 while recording, ⚪ while stopped).
 - `terminal/TerminalRenderer.kt`: **per-cell drawText** on a native Canvas (avoids subpixel error accumulation when advance≠cellW). Order: background → selection highlight → text → cursor → selection handles.
 - `terminal/input/TerminalInputView.kt` (AndroidView): physical key/OS IME input, gestures (tap/long-press selection/drag scroll/pinch zoom/mouse click emission). Selection is in [§6.5](#65-text-selection-ux).
 - `terminal/keyboard/`:

@@ -291,9 +291,14 @@ private fun ServerRow(
             Switch(
                 checked = entry.enabled,
                 onCheckedChange = onToggle,
+                // OFF 側も必ず指定する。既定のままだと Material3 の配色 (暗い surfaceVariant) が
+                // そのまま出て、暗い背景のこのアプリでは**スイッチが消えて見える**。
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = ZtsGreen,
-                    checkedTrackColor = ZtsGreen.copy(alpha = 0.3f)
+                    checkedTrackColor = ZtsGreen.copy(alpha = 0.3f),
+                    uncheckedThumbColor = ZtsTextSecondary,
+                    uncheckedTrackColor = ZtsBgCard,
+                    uncheckedBorderColor = ZtsBorder
                 )
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -476,9 +481,13 @@ internal fun ToggleRow(
         Switch(
             checked = checked,
             onCheckedChange = onChange,
+            // OFF 側も必ず指定する (指定しないと暗い背景でスイッチが見えなくなる)。
             colors = SwitchDefaults.colors(
                 checkedThumbColor = ZtsGreen,
-                checkedTrackColor = ZtsGreen.copy(alpha = 0.3f)
+                checkedTrackColor = ZtsGreen.copy(alpha = 0.3f),
+                uncheckedThumbColor = ZtsTextSecondary,
+                uncheckedTrackColor = ZtsBgCard,
+                uncheckedBorderColor = ZtsBorder
             )
         )
     }

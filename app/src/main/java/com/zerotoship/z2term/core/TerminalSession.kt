@@ -374,6 +374,7 @@ class TerminalSession(
     fun setIntroDone(done: Boolean) { scope.launch { settings.setIntroDone(done) } }
     fun setTerminalHintsEnabled(enabled: Boolean) { scope.launch { settings.setTerminalHintsEnabled(enabled) } }
     fun setKeepScreenOn(enabled: Boolean) { scope.launch { settings.setKeepScreenOn(enabled) } }
+    fun setScreenBrightness(level: Float?) { scope.launch { settings.setScreenBrightness(level) } }
     fun setKeyboardToggleBar(enabled: Boolean) { scope.launch { settings.setKeyboardToggleBar(enabled) } }
     fun setToolbarOrder(csv: String) { scope.launch { settings.setToolbarOrder(csv) } }
     fun setToolbarHidden(csv: String) { scope.launch { settings.setToolbarHidden(csv) } }

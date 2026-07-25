@@ -38,6 +38,14 @@ class AppSettings(private val context: Context) {
         val keepAliveService: Boolean = DEFAULT_KEEP_ALIVE,
         /** 画面消灯ロック (ディスプレイを自動で消さない) の状態。次回起動時に復元 */
         val keepScreenOn: Boolean = DEFAULT_KEEP_SCREEN_ON,
+        /**
+         * このアプリの画面だけの明るさ (🔅 のダブルタップで出る帯)。**null = OS に任せる** (既定)。
+         *
+         * 保存しない一時的な調整として始めた (0.8.234) が、暗い部屋で使う人は毎回同じ値へ
+         * 合わせ直すことになっていたため永続化した (0.8.242)。「戻す」でキーごと消えて
+         * null に戻るので、保存していても**モードは増えない** (触らなければ OS 任せのまま)。
+         */
+        val screenBrightness: Float? = null,
         /** キーボード表示/非表示トグルバーをキーボードの上に出すか (OFF なら ⌨ ボタンのダブルタップで切替) */
         val keyboardToggleBar: Boolean = DEFAULT_KEYBOARD_TOGGLE_BAR,
         /** GUI セッションで起動するターミナル ([com.zerotoship.z2term.proot.GuiTerminal] の id) */
@@ -351,6 +359,8 @@ class AppSettings(private val context: Context) {
             keyboardMode = p[KEY_KEYBOARD_MODE] ?: DEFAULT_KEYBOARD_MODE,
             keepAliveService = p[KEY_KEEP_ALIVE] ?: DEFAULT_KEEP_ALIVE,
             keepScreenOn = p[KEY_KEEP_SCREEN_ON] ?: DEFAULT_KEEP_SCREEN_ON,
+            // キーが無い = 一度も触っていない or 「戻す」を押した = OS に任せる。
+            screenBrightness = p[KEY_SCREEN_BRIGHTNESS],
             keyboardToggleBar = p[KEY_KEYBOARD_TOGGLE_BAR] ?: DEFAULT_KEYBOARD_TOGGLE_BAR,
             guiTerminalId = p[KEY_GUI_TERMINAL] ?: DEFAULT_GUI_TERMINAL,
             confirmBeforeDownload = p[KEY_CONFIRM_DOWNLOAD] ?: DEFAULT_CONFIRM_DOWNLOAD,
@@ -557,6 +567,16 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_KEEP_SCREEN_ON] = enabled }
     }
 
+    /**
+     * この画面だけの明るさを保存する。[level] が null なら**キーごと消す** (= OS に任せるへ戻す)。
+     * 0 を書いて「明るさ 0 で保存済み」にしてしまわないよう、必ず remove で戻すこと。
+     */
+    suspend fun setScreenBrightness(level: Float?) {
+        context.dataStore.edit {
+            if (level == null) it.remove(KEY_SCREEN_BRIGHTNESS) else it[KEY_SCREEN_BRIGHTNESS] = level
+        }
+    }
+
     suspend fun setKeyboardToggleBar(enabled: Boolean) {
         context.dataStore.edit { it[KEY_KEYBOARD_TOGGLE_BAR] = enabled }
     }
@@ -664,6 +684,7 @@ class AppSettings(private val context: Context) {
         private val KEY_KEYBOARD_MODE = stringPreferencesKey("keyboard_mode")
         private val KEY_KEEP_ALIVE = booleanPreferencesKey("keep_alive_service")
         private val KEY_KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
+        private val KEY_SCREEN_BRIGHTNESS = floatPreferencesKey("screen_brightness")
         private val KEY_KEYBOARD_TOGGLE_BAR = booleanPreferencesKey("keyboard_toggle_bar")
         private val KEY_GUI_TERMINAL = stringPreferencesKey("gui_terminal")
         private val KEY_CONFIRM_DOWNLOAD = booleanPreferencesKey("confirm_before_download")

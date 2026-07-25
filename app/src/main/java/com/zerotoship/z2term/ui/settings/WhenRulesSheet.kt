@@ -290,9 +290,13 @@ private fun WhenRuleRow(
             Switch(
                 checked = rule.enabled,
                 onCheckedChange = onToggle,
+                // OFF 側も必ず指定する (指定しないと暗い背景でスイッチが見えなくなる)。
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = ZtsGreen,
-                    checkedTrackColor = ZtsGreen.copy(alpha = 0.3f)
+                    checkedTrackColor = ZtsGreen.copy(alpha = 0.3f),
+                    uncheckedThumbColor = ZtsTextSecondary,
+                    uncheckedTrackColor = ZtsBgCard,
+                    uncheckedBorderColor = ZtsBorder
                 )
             )
             Spacer(modifier = Modifier.width(8.dp))

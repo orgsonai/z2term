@@ -9,7 +9,9 @@ import com.zerotoship.z2term.R
  * @param id      並び順 ([com.zerotoship.z2term.settings.AppSettings.Data.toolbarOrder]) と
  *                非表示指定 (同 `toolbarHidden`) の保存キー。**改名しないこと** (保存値が孤児になる)。
  * @param icon    設定画面のプレビューに出す代表アイコン。状態でアイコンが変わるボタン
- *                (🔅/💡・🔓/🔒) は OFF 側を代表とする。
+ *                (🔅/💡・🔓/🔒・⚪/🔴) は OFF 側を代表とする。
+ *                **ツールバーが実際に描く字を必ずそのまま置く**こと。別の字を置くと、設定画面
+ *                だけ字形が違って (色付き絵文字の列に 1 つだけ細い記号が混じる) 揃わなくなる。
  * @param labelRes ボタンの説明 (ツールバー長押しのポップアップと設定画面で共用)。
  * @param canHide  false のボタンは設定画面から隠せない。⚙ 設定を隠すと設定画面に戻れなくなるため。
  * @param terminalOnly 端末タブにしか無いボタン (GUI タブでは一覧に出さない)。
@@ -50,7 +52,7 @@ object ToolbarButtons {
         ToolbarButtonSpec(KEEP_ALIVE, "🔓", R.string.tb_keep_alive),
         ToolbarButtonSpec(SEARCH, "🔍", R.string.tb_search, terminalOnly = true),
         ToolbarButtonSpec(KEYBOARD, "⌨", R.string.tb_keyboard),
-        ToolbarButtonSpec(LOG, "⏺", R.string.tb_log, terminalOnly = true),
+        ToolbarButtonSpec(LOG, "⚪", R.string.tb_log, terminalOnly = true),
         ToolbarButtonSpec(SETTINGS, "⚙", R.string.tb_settings, canHide = false)
     )
 
