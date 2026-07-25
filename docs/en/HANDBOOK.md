@@ -557,10 +557,52 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-alarm at\|daily HH:MM [name]` | **Time trigger**: writes an `alarm` event into `events.jsonl` at that time (`in 5m` / `list` / `cancel <id\|name\|all>` too). Unlike cron it fires during Doze (may be a few minutes late) |
 | `z2-session list\|new\|send\|capture\|close` | **Drives this app's own tabs.** `list` shows them (index, id, name, marks: `*`=visible, `!`=busy, `?`=not started), `new [name]` adds one, `send <target> "text"` **only inserts** into that tab (add `--enter` to actually run it), `capture [target]` pulls the on-screen text, `close <target>` closes it. `<target>` is the index from `list`, an id, or a tab name. E.g. ``n=$(z2-session new build \| cut -f1); z2-session send "$n" 'make -j2' --enter`` |
 | `z2-when <trigger> run <cmd>` | **Automation hub.** Auto-run a command on charge / battery / time / device events (see "Automation hub" below). Also `list` / `remove <id\|all>` / `on\|off <id>` / `log <id>`. E.g. `z2-when charge:start run ~/.z2term/macros/backup.sh` |
-| `z2-macro list\|install <name>` | **Bundled macro samples** into `~/.z2term/macros/` (`show` / `run` / `dir` too) — a starting point for your first macro |
+| `z2-macro list\|install <name>` | **Bundled macro samples** into `~/.z2term/macros/` (`show` / `run` / `dir` too) — a starting point for your first macro. Bundled: `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `rss` / `rss-open` |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | Fire an arbitrary Android Intent (launch apps, open settings, set alarms, … see `docs/en/MACRO-GUIDE.md`) |
 
 > Combine "trigger (event detection) → decide (shell) → action (z2-*)" to automate your phone (macros). See **`docs/en/MACRO-GUIDE.md`** for how — you can also feed it to an AI and have it generate the macro for you.
+
+### Subscribing to feeds (RSS / Atom)
+
+**There is no RSS reader in the app.** You build one out of parts that already exist: scheduled runs, notifications, opening a browser, and widgets. The upside is that you can rewrite any of it when your needs differ.
+
+```sh
+z2-macro install rss rss-open        # the collecting side and the opening side
+python3 -V || apk add python3        # parsing needs python3 (Debian: apt-get install -y python3 / Arch: pacman -S python)
+```
+
+**1. List the feeds you want** — one URL per line in `~/.z2term/rss/feeds.txt` (lines starting with `#` are ignored).
+
+**2. Poll them on a schedule**
+
+```sh
+z2-when time:every=30m run ~/.z2term/macros/rss.sh
+```
+
+A notification ("N new") appears only when something is new. **Do not go below 30 minutes** — polling costs battery.
+
+**3. Let the notification's button open the newest item** (optional)
+
+```sh
+z2-when event:notify_action run '[ "$Z2_WHEN_EVENT_NAME" = rss ] && z2-open "$(head -1 ~/.z2term/rss/new.txt | cut -f1)"'
+```
+
+**4. Read from a widget** (optional)
+
+- Point a **live tail widget** at `~/.z2term/rss/latest.txt` in **"start (head)"** mode and the newest articles sit at the top
+- Assign `rss-open` to a button on the **status widget**, and each tap opens **the next article down the list** (it remembers what it opened, so nothing opens twice)
+
+Everything it produces is plain text.
+
+| File | Contents |
+|---|---|
+| `~/.z2term/rss/feeds.txt` | The feed URLs you want (you write this) |
+| `~/.z2term/rss/latest.txt` | "title  URL", newest first. This is the one you read |
+| `~/.z2term/rss/new.txt` | Only what the last poll added |
+| `~/.z2term/rss/seen.txt` | Articles already seen (used to decide what is new) |
+| `~/.z2term/rss/opened.txt` | Articles `rss-open` has opened |
+
+Delete them all to start over. One dead feed does not stop the others, and broken XML is skipped silently.
 
 ### Automation hub (`z2-when`)
 

@@ -556,10 +556,52 @@ Z2Term がどのディストロにも自動で入れてくれる「Z2Term 専用
 | `z2-alarm at\|daily HH:MM [名前]` | **時刻トリガー**。その時刻に `events.jsonl` へ `alarm` イベントを書く（`in 5m` / `list` / `cancel <id\|名前\|all>` も）。cron と違い Doze 中でも起きる（数分ずれることあり） |
 | `z2-session list\|new\|send\|capture\|close` | **このアプリのタブを操る**。`list` で一覧（番号・id・名前・印。`*`=表示中 `!`=動作中 `?`=未起動）、`new [名前]` でタブを 1 枚追加、`send <先> "文字列"` でそのタブに**入れるだけ**（`--enter` を付けたときだけ実行）、`capture [先]` で画面のテキストを取り出し、`close <先>` で閉じる。`<先>` は `list` の番号 / id / タブ名。例: ``n=$(z2-session new build \| cut -f1); z2-session send "$n" 'make -j2' --enter`` |
 | `z2-when <トリガー> run <コマンド>` | **自動化ハブ**。充電・電池・時刻・端末イベントをきっかけにコマンドを自動実行（下記「自動化ハブ」参照）。`list` / `remove <id\|all>` / `on\|off <id>` / `log <id>` も。例: `z2-when charge:start run ~/.z2term/macros/backup.sh` |
-| `z2-macro list\|install <名前>` | **マクロのサンプル**を `~/.z2term/macros/` に導入（`show` / `run` / `dir` も）。最初の1本の雛形に |
+| `z2-macro list\|install <名前>` | **マクロのサンプル**を `~/.z2term/macros/` に導入（`show` / `run` / `dir` も）。最初の1本の雛形に。同梱は `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `rss` / `rss-open` |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | 任意の Android Intent を発火（アプリ起動・設定画面・アラーム設定など。詳細は `docs/ja/MACRO-GUIDE.md`） |
 
 > 「トリガー（イベント検知）→ 判断（シェル）→ アクション（z2-*）」でスマホの自動化（マクロ）が組めます。書き方は **`docs/ja/MACRO-GUIDE.md`**（AI に読ませてそのままマクロ生成させることもできます）。
+
+### フィードを購読する（RSS / Atom）
+
+**アプリに RSS リーダーは入っていません。** 代わりに、定期実行・通知・ブラウザで開く・ウィジェットという**既にある部品**を組み合わせて作ります。用途が違えば書き換えられるのが利点です。
+
+```sh
+z2-macro install rss rss-open        # 集める側と開く側を入れる
+python3 -V || apk add python3        # 解析に python3 が要ります（Debian: apt-get install -y python3 / Arch: pacman -S python）
+```
+
+**1. 読みたい URL を書く** — `~/.z2term/rss/feeds.txt` に 1 行 1 本（`#` で始まる行は無視）。
+
+**2. 定期的に取りに行かせる**
+
+```sh
+z2-when time:every=30m run ~/.z2term/macros/rss.sh
+```
+
+新着があったときだけ「新着 N 件」と通知が出ます。**30 分より短くしないでください**（そのぶん電池を食います）。
+
+**3. 通知の「開く」で最新の 1 本をブラウザへ**（任意）
+
+```sh
+z2-when event:notify_action run '[ "$Z2_WHEN_EVENT_NAME" = rss ] && z2-open "$(head -1 ~/.z2term/rss/new.txt | cut -f1)"'
+```
+
+**4. ウィジェットで読む**（任意）
+
+- **ライブ tail ウィジェット**で `~/.z2term/rss/latest.txt` を「**先頭 (head)**」表示にすると、新しい記事が上に並びます
+- **状態ウィジェット**のボタンに `rss-open` を割り当てると、**押すたびに次の 1 本**がブラウザで開きます（開いたものは覚えているので、同じ記事が何度も開きません）
+
+できるファイルはどれもただのテキストです。
+
+| ファイル | 中身 |
+|---|---|
+| `~/.z2term/rss/feeds.txt` | 読みたいフィードの URL（自分で書く） |
+| `~/.z2term/rss/latest.txt` | 「タイトル  URL」を新しい順に。読むのはこれ |
+| `~/.z2term/rss/new.txt` | 直近の取得で増えた分だけ |
+| `~/.z2term/rss/seen.txt` | 既に見た記事（新着の判定に使う） |
+| `~/.z2term/rss/opened.txt` | `rss-open` で開いた記事 |
+
+全部消せば最初からやり直せます。1 本のフィードが落ちていても他は続きます。壊れた XML は黙って飛ばします。
 
 ### 自動化ハブ（`z2-when`）
 

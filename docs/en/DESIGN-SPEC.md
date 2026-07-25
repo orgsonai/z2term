@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-26 / Target version: 0.8.245-alpha (versionCode 253)
+Last updated: 2026-07-26 / Target version: 0.8.246-alpha (versionCode 254)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -670,11 +670,21 @@ The footer now shows **the macro that finished last**, since start times moved o
 
 **Background**: the barrier to macros was never the syntax but **writing the first one from scratch**.
 
-**Implementation**: five working samples (event basics / battery alert / time trigger / one-time-code copy from notifications / one-time-code copy from SMS) are placed in the rootfs at `/usr/local/share/z2term/macros/` and copied into `~/.z2term/macros/` by `z2-macro install <name|all>`.
+**Implementation**: seven working samples (event basics / battery alert / time trigger / one-time-code copy from notifications / one-time-code copy from SMS / feed subscription / opening what was collected) are placed in the rootfs at `/usr/local/share/z2term/macros/` and copied into `~/.z2term/macros/` by `z2-macro install <name|all>`.
 
 - Install **never overwrites an existing file** (only `-f` does), so user edits survive the per-launch re-provisioning
 - `list` shows each script's second-line comment as its description; `show` / `run` / `dir` are also provided
 - Comments inside the samples follow the app language (ja/en)
+
+**Feed subscription is deliberately not an app feature** (`rss.sh` / `rss-open.sh`, 0.8.246): the request was for an RSS reader, and **not one line was added to the app**. Scheduled runs (`z2-when time:`), a notification with a button (`z2-notify -b` → `event:notify_action`), opening a browser (`z2-open`) and the live tail widget all existed already; the only thing missing was **a worked example of wiring them together**. A dedicated screen would add another single-purpose page, and feed formats are broken in the wild in ways that would then become **the app's problem to keep fixing**. On the terminal side, one malformed feed costs the user one extra line.
+
+- **"Already read" is line subtraction** (accumulate in `seen.txt`, then `grep -Fxv`) — the same trick as `z2scan`'s baseline diff. **Feed dates and ordering are not trusted**; neither is reliable
+- **Parsing is left to python3 (standard library only)**. RSS and Atom vary enough that a `grep`/`sed` parser breaks every time a feed is added; no pip dependency is introduced
+- **One dead feed does not stop the rest** — a fetch failure that aborts the run means nothing arrives on a day with poor signal
+- **`latest.txt` keeps the URL on the line**, because reading from a widget needs somewhere to go
+- ⚠ **Per-line taps in the live tail were not built.** The body is a single `TextView` (RemoteViews cannot grow one view per line), so per-row taps would require converting it to a collection widget (`ListView` + `RemoteViewsService`) — which means rebuilding the "line count from height" and "head/tail" work that landed in 0.8.240. Deferred; instead `rss-open.sh` is assigned to a **status-widget macro button** (already "tap to run a `.sh` under `~/.z2term/macros/`"). Each tap moves one article down the list (`opened.txt` is subtracted, so nothing opens twice)
+
+⚠ **Never write `/` immediately followed by `*` inside a KDoc.** Kotlin **nests block comments**, so writing `*` right after `macros/` opens the comment one level deeper; the closing delimiter then lands short and **the rest of the file is swallowed as a comment** (a flood of `Unresolved reference` plus a syntax error pointing somewhere completely unrelated to the real line). Hit for real while implementing 0.8.246.
 
 **A `trimMargin` margin leak made `z2-macro` unusable (fixed in 0.8.187)**: in the usage block, the raw string already emitted a `|` for the line while each `joinToString` element also prefixed one, so the **first line became `||`**. `trimMargin()` strips only **one** leading `|`, leaving `|  echo 'usage: ...' >&2`; since the shell parses function bodies at parse time, **every subcommand failed with `syntax error near unexpected token '|'`** (so `z2-macro install` never once succeeded — samples could not be installed at all). The fix supplies the `|` from the separator side instead (`joinToString("\n|")`). The regression test `GeneratedScriptMarginTest` pins "no generated line starts with `|`" across all samples and both languages (a leading `|` is always a syntax error in POSIX sh, so it doubles as a soundness check).
 

@@ -189,13 +189,221 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         append(otpClipBody(d, ja, "sms.jsonl", "otp-sms"))
     }
 
+    // --- 6. 実用: フィード購読 (時刻トリガーで 1 回だけ走る「使い切り」の形) ---
+    val rss = buildString {
+        appendLine("#!/bin/sh")
+        if (ja) {
+            appendLine("# rss.sh — フィードを見に行って、新着だけを通知とテキストに残す。")
+            appendLine("# 他のサンプルと違い**常駐しない**。時刻トリガーで 1 回走って終わる形の見本でもある。")
+        } else {
+            appendLine("# rss.sh — poll feeds and keep only what is new, as a notification and as text.")
+            appendLine("# Unlike the other samples this one does **not** stay resident: it is the")
+            appendLine("# 'run once from a time trigger and exit' shape.")
+        }
+        append(rssBody(d, ja))
+    }
+
+    // --- 7. 実用: 集めた記事を 1 本ずつ開く (状態ウィジェットのボタンから叩く用) ---
+    val rssOpen = buildString {
+        appendLine("#!/bin/sh")
+        if (ja) {
+            appendLine("# rss-open.sh — rss.sh が集めた記事を、新しいものから 1 本ずつブラウザで開く。")
+            appendLine("# 状態ウィジェットのマクロボタンに出るので、タップするたびに次の 1 本が開く。")
+        } else {
+            appendLine("# rss-open.sh — open what rss.sh collected, newest first, one article per tap.")
+            appendLine("# It shows up as a macro button on the status widget, so each tap opens the next one.")
+        }
+        append(rssOpenBody(d, ja))
+    }
+
     return linkedMapOf(
         "watch-basic.sh" to watchBasic,
         "battery-alert.sh" to batteryAlert,
         "daily-report.sh" to dailyReport,
         "otp-clip.sh" to otpClip,
         "otp-sms.sh" to otpSms,
+        "rss.sh" to rss,
+        "rss-open.sh" to rssOpen,
     )
+}
+
+/**
+ * フィード購読サンプルの本体。
+ *
+ * **アプリ側に RSS 機能を作らないための見本**でもある。定期実行 (`z2-when time:`)・通知
+ * (`z2-notify -b`)・ブラウザで開く (`z2-open`)・ライブ tail ウィジェットという既存の
+ * 汎用部品だけで購読が成立することを示す。用途限定の画面を 1 枚も増やさずに済む。
+ *
+ * 設計上の要点:
+ *  - **既読は「見た行を引き算する」**。`z2scan` のベースライン差分と同じやり方で、
+ *    フィード側の日付や順序を信用しない (どちらも当てにならない)。
+ *  - **解析は python3 に任せる**。RSS と Atom は形が揺れるので `grep`/`sed` で切ると
+ *    フィードを 1 本増やすたびに壊れる。標準ライブラリだけで足りるので pip は要らない。
+ *  - **1 本落ちても他は続ける**。取得失敗で全体が止まると、電波の悪い日に何も来なくなる。
+ *  - `latest.txt` の行に **URL を残す**。ライブ tail ウィジェットは行に URL があれば
+ *    タップでそれを開くので、一覧から直接読める。
+ */
+private fun rssBody(d: String, ja: Boolean): String {
+    val head = if (ja) """
+#
+# 準備:
+#   1) 読みたい URL を 1 行 1 本で書く:  ~/.z2term/rss/feeds.txt
+#   2) 定期実行を仕掛ける (30 分ごと):
+#        z2-when time:every=30m run ~/.z2term/macros/rss.sh
+#   3) 通知の「開く」で最新の 1 本をブラウザへ (任意):
+#        z2-when event:notify_action run '[ "${d}Z2_WHEN_EVENT_NAME" = rss ] && z2-open "${d}(head -1 ~/.z2term/rss/new.txt | cut -f1)"'
+#   4) ウィジェット (任意): ライブ tail で ~/.z2term/rss/latest.txt を「先頭 (head)」表示。
+#      行に URL が入っているので、タップするとその記事が開く。
+#
+# 必要: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
+# 電池: 取りに行くほど食う。30 分より短くしないこと。
+""" else """
+#
+# Setup:
+#   1) One feed URL per line in:  ~/.z2term/rss/feeds.txt
+#   2) Poll every 30 minutes:
+#        z2-when time:every=30m run ~/.z2term/macros/rss.sh
+#   3) Optional - let the notification's button open the newest item:
+#        z2-when event:notify_action run '[ "${d}Z2_WHEN_EVENT_NAME" = rss ] && z2-open "${d}(head -1 ~/.z2term/rss/new.txt | cut -f1)"'
+#   4) Optional - widget: point a live tail at ~/.z2term/rss/latest.txt in "start (head)" mode.
+#      Each line carries its URL, so tapping a line opens that article.
+#
+# Needs: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
+# Battery: the more often you poll the more it costs. Do not go below 30 minutes.
+"""
+
+    val cKeep = if (ja) "seen/latest に残す行数の上限" else "max lines kept in seen/latest"
+    val cNoPy = if (ja) "python3 が要ります (apk add python3 など)" else "python3 is required (e.g. apk add python3)"
+    val cWriteFeeds = if (ja) "フィードの URL を 1 行に 1 本書いてください:" else "Write one feed URL per line in:"
+    val cFeedsHint = if (ja) "# 1 行に 1 本、フィードの URL を書く (# で始まる行は無視)" else "# One feed URL per line (lines starting with # are ignored)"
+    val cSkipFail = if (ja) "取得や解析に失敗した 1 本は黙って飛ばす (他のフィードは続ける)" else "silently skip a feed that fails to fetch or parse (the rest continue)"
+    val cDiff = if (ja) {
+        "# 既読を引いて新着だけにする (z2scan のベースライン差分と同じやり方)。\n# フィードの日付や並び順は当てにしない — どちらも当てにならない。"
+    } else {
+        "# Subtract what we have seen to leave only what is new (same trick as z2scan's baseline diff).\n# Feed dates and ordering are not trusted; neither is reliable."
+    }
+    val cPrepend = if (ja) {
+        "# 新着が上に来るように積む (ウィジェットの「先頭 (head)」表示でそのまま読める)。"
+    } else {
+        "# Stack newest-first so the widget's \"start (head)\" mode reads correctly."
+    }
+    val cNotify = if (ja) "新着 %s 件" else "%s new"
+    val cOpen = if (ja) "開く" else "Open"
+
+    return """$head
+DIR="${d}HOME/.z2term/rss"
+FEEDS="${d}DIR/feeds.txt"
+SEEN="${d}DIR/seen.txt"
+NEW="${d}DIR/new.txt"
+LATEST="${d}DIR/latest.txt"
+KEEP=500                                  # $cKeep
+
+mkdir -p "${d}DIR" || exit 1
+command -v python3 >/dev/null 2>&1 || { echo "$cNoPy" >&2; exit 1; }
+if [ ! -f "${d}FEEDS" ]; then
+  printf '%s\n' '$cFeedsHint' > "${d}FEEDS"
+  echo "$cWriteFeeds ${d}FEEDS"
+  exit 0
+fi
+
+: > "${d}DIR/.raw"
+while IFS= read -r url; do
+  case "${d}url" in ''|'#'*) continue ;; esac
+  # $cSkipFail
+  python3 - "${d}url" >> "${d}DIR/.raw" <<'Z2RSS_PY'
+import sys, urllib.request, xml.etree.ElementTree as ET
+
+req = urllib.request.Request(sys.argv[1], headers={"User-Agent": "z2term-rss/1"})
+try:
+    with urllib.request.urlopen(req, timeout=20) as r:
+        root = ET.fromstring(r.read())
+except Exception:
+    sys.exit(0)
+
+for it in root.iter():
+    if it.tag.split("}")[-1] not in ("item", "entry"):
+        continue
+    title = link = ""
+    for c in it:
+        t = c.tag.split("}")[-1]
+        if t == "title" and not title:
+            title = (c.text or "").strip()
+        elif t == "link" and not link:
+            link = (c.get("href") or c.text or "").strip()
+    if link.startswith("http"):
+        print(link + "\t" + (title or link))
+Z2RSS_PY
+done < "${d}FEEDS"
+
+$cDiff
+touch "${d}SEEN"
+grep -Fxv -f "${d}SEEN" "${d}DIR/.raw" 2>/dev/null | grep . > "${d}NEW"
+rm -f "${d}DIR/.raw"
+n=${d}(grep -c . "${d}NEW" 2>/dev/null)
+[ "${d}{n:-0}" -eq 0 ] && exit 0
+
+cat "${d}NEW" "${d}SEEN" | head -n "${d}KEEP" > "${d}SEEN.t" && mv "${d}SEEN.t" "${d}SEEN"
+$cPrepend
+{ awk -F'\t' '{ print ${d}2 "  " ${d}1 }' "${d}NEW"; cat "${d}LATEST" 2>/dev/null; } \
+  | head -n "${d}KEEP" > "${d}LATEST.t" && mv "${d}LATEST.t" "${d}LATEST"
+
+z2-notify -h -n rss -b "$cOpen" "${d}(printf '$cNotify' "${d}n")" "${d}(cut -f2 "${d}NEW" | head -3)"
+"""
+}
+
+/**
+ * 集めた記事を 1 本ずつ開くサンプルの本体。
+ *
+ * **ウィジェットに「行ごとのタップ」を作らずに済ませるための答え**でもある。ライブ tail の
+ * 本文は 1 つの TextView に流し込む作りで (RemoteViews は行数ぶんの View を生やせない)、
+ * 行を個別に押させるには一覧ウィジェットへの作り替えが要る。一方、**状態ウィジェットの
+ * マクロボタンは既に「タップで `~/.z2term/macros/` 配下の `.sh` を実行」**なので、開く側を
+ * マクロで書けばアプリを 1 行も変えずに「タップで次の記事」が成立する。
+ *
+ * ⚠ このコメントで `macros/` の後に `*` を続けて書かないこと。Kotlin は**ブロックコメントが
+ * 入れ子になる**ので、`/` と `*` が並んだ時点でコメントが 1 段深く開き、閉じ側がずれて
+ * **以降のコードが丸ごとコメントに飲まれる**。
+ *
+ * 開いた URL を [OPENED] に貯めて引き算するので、**押すたびに次の 1 本**へ進む
+ * (同じ記事が何度も開かない)。`rss.sh` の既読管理と同じ考え方。
+ */
+private fun rssOpenBody(d: String, ja: Boolean): String {
+    val head = if (ja) """
+#
+# 準備: 先に集める側を仕掛ける
+#   z2-macro install rss
+# ウィジェット: 状態ウィジェットの設定で「rss-open」をボタンに割り当てる。
+""" else """
+#
+# Setup: put the collecting side in place first
+#   z2-macro install rss
+# Widget: assign "rss-open" to a button in the status widget's settings.
+"""
+    val cNone = if (ja) "まだ記事がありません" else "No articles yet"
+    val cAllRead = if (ja) "新しい記事はありません" else "Nothing new to open"
+    val cPick = if (ja) {
+        "# latest.txt は「タイトル  URL」。まだ開いていない先頭の URL を 1 本だけ取る。"
+    } else {
+        "# latest.txt lines are \"title  URL\". Take the first URL that has not been opened yet."
+    }
+    val cCap = if (ja) "開いた記録が増え続けないよう上限をかける" else "cap the opened list so it cannot grow forever"
+
+    return """$head
+DIR="${d}HOME/.z2term/rss"
+LATEST="${d}DIR/latest.txt"
+OPENED="${d}DIR/opened.txt"
+
+[ -f "${d}LATEST" ] || { z2-toast "$cNone"; exit 0; }
+touch "${d}OPENED"
+$cPick
+url=${d}(awk '{ print ${d}NF }' "${d}LATEST" | grep '^http' | grep -Fxv -f "${d}OPENED" | head -1)
+[ -n "${d}url" ] || { z2-toast "$cAllRead"; exit 0; }
+
+echo "${d}url" >> "${d}OPENED"
+# $cCap
+tail -n 500 "${d}OPENED" > "${d}OPENED.t" && mv "${d}OPENED.t" "${d}OPENED"
+z2-open "${d}url"
+"""
 }
 
 /*
