@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-26 / Target version: 0.8.244-alpha (versionCode 252)
+Last updated: 2026-07-26 / Target version: 0.8.245-alpha (versionCode 253)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1152,6 +1152,10 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
     Of the hidden buttons, the toggles (🔅 screen-on lock / 🔒 keep-alive) have **no other place to be operated from**, so a switch for each appears inside the same "Toolbar" section while it is hidden. This is also what keeps "new features must not grow everyone's toolbar" workable.
     **A `CATALOG` icon must be the exact glyph the toolbar draws** (for stateful buttons, the OFF side: 🔅 / 🔓 / ⚪). The settings screen works because it lays out the *real* buttons; a different glyph both breaks that correspondence and **puts one thin text-style symbol in a row of colour emoji, so the row stops lining up**. Fixed in 0.8.242 (log ⏺ → ⚪; the toolbar itself draws 🔴 while recording, ⚪ while stopped).
 - `terminal/TerminalRenderer.kt`: **per-cell drawText** on a native Canvas (avoids subpixel error accumulation when advance≠cellW). Order: background → selection highlight → text → cursor → selection handles.
+  - **A single tap on a tab switches without waiting** (`TabChip`, 0.8.245). ⚠ Passing `onDoubleClick` to `combinedClickable` makes Compose **withhold `onClick` until it is sure a second tap is not coming**. That turns `doubleTapTimeoutMillis` (a device setting, usually 300ms) into **the latency of every tab switch** — a dead interval where pressing does nothing (reported from a device; nothing about the drawing was slow). Replaced with `clickable` plus **our own second-tap detection**, so the first tap calls `setActive` immediately.
+    - The clock is `SystemClock.uptimeMillis()` (monotonic); a wall clock can jump on a time sync and misjudge. Once a tap has been consumed as the second one the timestamp resets to 0, so a triple tap does not read as another double.
+    - **Restore the pre-tap active tab before closing** (`TabBar.activeBeforeTap`). The first tap has already moved you onto that tab, so closing it straight away makes `SessionManager.close` fall back to **the leftmost tab** — "I only deleted another tab and got thrown somewhere else".
+    - ⚠ "Commit on the first tap" only works because selecting a tab is **idempotent**. The toolbar's 📋/🔅/⏺ (`ToolbarChip`) have a side effect on the first tap (paste, lock, start recording), so the same substitution is not available there; removing that latency needs a different design.
 - `terminal/input/TerminalInputView.kt` (AndroidView): physical key/OS IME input, gestures (tap/long-press selection/drag scroll/pinch zoom/mouse click emission). Selection is in [§6.5](#65-text-selection-ux).
 - `terminal/keyboard/`:
   - `TerminalKeyboard.kt`: 5-row custom keyboard. 3-state Shift, flick, long-press repeat on all keys. **The key background turns bright green when pressed**, and **during a flick the hint in the crossed-threshold direction is bolded + enlarged 1.6×** (the center character stays unchanged).

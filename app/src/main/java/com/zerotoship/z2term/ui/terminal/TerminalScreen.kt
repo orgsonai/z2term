@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.res.Configuration
+import android.os.SystemClock
 import android.view.View
 import android.view.WindowManager
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -61,6 +62,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -85,6 +87,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -2092,6 +2095,12 @@ private fun TabBar(
         }
     }
 
+    // タップ直前にどのタブを見ていたか。単タップで**待たずに**切り替えるようにした結果
+    // (下の TabChip 参照)、ダブルタップで閉じるときには既にそのタブへ移っている。
+    // 閉じたタブがアクティブだと SessionManager は左端のタブを選ぶので、そのままだと
+    // 「別のタブを消しただけなのに関係ない所へ飛ばされる」。元居たタブへ戻してから閉じる。
+    var activeBeforeTap by remember { mutableStateOf<String?>(null) }
+
     // 動作中の判定は tcgetpgrp を伴うので、タブごとに回さず**ここで 1 回だけ**まとめて見る
     // (1 秒 × タブ数の syscall を避ける)。判定できないタブ (SSH 等) は最初から対象外
     // — hasForegroundChild は判定不能なとき true を返すので、素直に使うと嘘の印が点く。
@@ -2145,8 +2154,13 @@ private fun TabBar(
                         dragging = isDragging,
                         dragOffsetX = if (isDragging) dragOffset.value else 0f,
                         onWidth = { tabWidths[sess.id] = it },
-                        onSelect = { onSelect(sess.id) },
-                        onClose = { onClose(sess.id) },
+                        onSelect = { activeBeforeTap = activeId; onSelect(sess.id) },
+                        onClose = {
+                            activeBeforeTap
+                                ?.takeIf { prev -> prev != sess.id && sessions.any { it.id == prev } }
+                                ?.let { prev -> onSelect(prev) }
+                            onClose(sess.id)
+                        },
                         onDragStart = { draggingId.value = sess.id; dragOffset.value = 0f },
                         onDrag = { dx -> dragOffset.value += dx; trySwap() },
                         onDragEnd = { draggingId.value = null; dragOffset.value = 0f }
@@ -2213,7 +2227,6 @@ private enum class TabMark {
     ENDED,
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TabChip(
     session: AppSession,
@@ -2258,10 +2271,25 @@ private fun TabChip(
     // 単タップ=アクティブ化 / ダブルタップ=閉じる。× ボタンは廃止 (誤タップ防止 M8-6 T8)。
     // 最後の 1 枚 (canClose=false) はダブルタップでも閉じない。
     // 動作中 (前景に子プロセスが居る) のタブは即削除せず確認ダイアログを挟む (作業中の誤タップ防止・要望)。
-    val onDoubleTap: (() -> Unit)? = if (canClose) {
-        { if (session.isBusy) showCloseConfirm = true else onClose() }
-    } else {
-        null
+    //
+    // ⚠ **`combinedClickable` に `onDoubleClick` を渡さない** (0.8.245)。渡すと Compose は
+    // 「2 回目が来ないこと」を確かめるまで `onClick` を出さないので、ダブルタップの猶予
+    // (`doubleTapTimeoutMillis` = 端末の設定。多くは 300ms) が**そのままタブ切替の待ち時間**に
+    // なる。描画が重いわけではなく、押しても何も起きない時間が毎回挟まっていた (実機で指摘)。
+    // 2 回目の判定は自前で持ち、**1 回目は待たずに切り替える**。
+    val doubleTapWindowMs = LocalViewConfiguration.current.doubleTapTimeoutMillis
+    var lastTapAt by remember { mutableLongStateOf(0L) }
+    val onTap: () -> Unit = {
+        // 時計は単調増加のものを使う (壁時計だと時刻合わせで飛んで誤判定する)。
+        val now = SystemClock.uptimeMillis()
+        val isSecondTap = canClose && lastTapAt != 0L && now - lastTapAt <= doubleTapWindowMs
+        // 2 回目として使ったらリセット。3 回目が続けてまた「2 回目」になるのを防ぐ。
+        lastTapAt = if (isSecondTap) 0L else now
+        when {
+            !isSecondTap -> onSelect()
+            session.isBusy -> showCloseConfirm = true
+            else -> onClose()
+        }
     }
     // 長押し→左右ドラッグ=並べ替え (要望)。ドラッグ中のタブは前面 (zIndex) + 平行移動で追従。
     Box(
@@ -2272,10 +2300,7 @@ private fun TabChip(
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
             .border(1.dp, border, RoundedCornerShape(6.dp))
-            .combinedClickable(
-                onClick = onSelect,
-                onDoubleClick = onDoubleTap
-            )
+            .clickable(onClick = onTap)
             .pointerInput(session.id) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = { showInfo = true; onDragStart() },
