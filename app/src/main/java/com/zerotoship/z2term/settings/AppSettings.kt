@@ -172,6 +172,23 @@ class AppSettings(private val context: Context) {
          */
         val sessionLogAltScreen: Boolean = DEFAULT_SESSION_LOG_ALT_SCREEN,
         /**
+         * 新しいタブが繋がったら、⏺ を押さなくても記録を始めるか (既定 OFF)。
+         *
+         * 「あとから見返そうとしたら録っていなかった」を無くすための設定。記録の ON/OFF 自体は
+         * タブごとの状態で永続化しないが、**この設定は永続化する** — 自動開始は「毎回そうしたい」
+         * という意思であって、そのタブだけの一時的な状態ではないため。
+         */
+        val sessionLogAutoStart: Boolean = DEFAULT_SESSION_LOG_AUTO_START,
+        /**
+         * 端末ログに書く前に、鍵・トークン・パスワードらしき部分を伏せ字にするか (既定 ON)。
+         *
+         * ⚠ **完全ではない** ([com.zerotoship.z2term.core.SecretMasker] を参照)。誤爆しない形が
+         * はっきりしているものだけを対象にしており、独自形式の秘密は素通りする。それでも既定 ON
+         * なのは、ログを人に見せる場面 (不具合報告・作業記録の共有) で最も多い漏れ方が
+         * `TOKEN=...` と貼り付けた秘密鍵の 2 つで、そこは高い精度で潰せるため。
+         */
+        val sessionLogMaskSecrets: Boolean = DEFAULT_SESSION_LOG_MASK,
+        /**
          * z2root エンジンの syscall トレースログを出すか (開発者用・既定 OFF)。
          * ON のとき shared_home/z2root_trace.log に全 syscall を記録する。ログは膨大で
          * 容量を圧迫するため一般ユーザーは使わない。エンジン選択 (7タップ解放) と同じ場所に
@@ -335,6 +352,14 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_SESSION_LOG_ALT_SCREEN] = value }
     }
 
+    suspend fun setSessionLogAutoStart(value: Boolean) {
+        context.dataStore.edit { it[KEY_SESSION_LOG_AUTO_START] = value }
+    }
+
+    suspend fun setSessionLogMaskSecrets(value: Boolean) {
+        context.dataStore.edit { it[KEY_SESSION_LOG_MASK] = value }
+    }
+
     suspend fun setGuiMagnification(value: Float) {
         context.dataStore.edit {
             it[KEY_GUI_MAGNIFICATION] = value.coerceIn(MIN_GUI_MAGNIFICATION, MAX_GUI_MAGNIFICATION)
@@ -385,6 +410,8 @@ class AppSettings(private val context: Context) {
             sessionLogAppend = p[KEY_SESSION_LOG_APPEND] ?: DEFAULT_SESSION_LOG_APPEND,
             sessionLogRaw = p[KEY_SESSION_LOG_RAW] ?: DEFAULT_SESSION_LOG_RAW,
             sessionLogAltScreen = p[KEY_SESSION_LOG_ALT_SCREEN] ?: DEFAULT_SESSION_LOG_ALT_SCREEN,
+            sessionLogAutoStart = p[KEY_SESSION_LOG_AUTO_START] ?: DEFAULT_SESSION_LOG_AUTO_START,
+            sessionLogMaskSecrets = p[KEY_SESSION_LOG_MASK] ?: DEFAULT_SESSION_LOG_MASK,
             traceLogEnabled = p[KEY_TRACE_LOG] ?: DEFAULT_TRACE_LOG,
             kittyExternalFileEnabled = p[KEY_KITTY_EXTERNAL_FILE] ?: DEFAULT_KITTY_EXTERNAL_FILE,
             sgrMouseInputEnabled = p[KEY_SGR_MOUSE_INPUT] ?: DEFAULT_SGR_MOUSE_INPUT,
@@ -724,6 +751,12 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_SESSION_LOG_RAW = false
         /** 全画面表示 (alt screen) 中も書くか (既定 OFF)。 */
         const val DEFAULT_SESSION_LOG_ALT_SCREEN = false
+        /** 新しいタブが繋がったら自動で記録を始めるか (既定 OFF)。 */
+        const val DEFAULT_SESSION_LOG_AUTO_START = false
+        /** 鍵・トークンらしき部分を伏せ字にするか (既定 ON)。 */
+        const val DEFAULT_SESSION_LOG_MASK = true
+        private val KEY_SESSION_LOG_AUTO_START = booleanPreferencesKey("session_log_auto_start")
+        private val KEY_SESSION_LOG_MASK = booleanPreferencesKey("session_log_mask_secrets")
         private val KEY_TRACE_LOG = booleanPreferencesKey("trace_log_enabled")
         private val KEY_KITTY_EXTERNAL_FILE = booleanPreferencesKey("kitty_external_file_enabled")
         private val KEY_SGR_MOUSE_INPUT = booleanPreferencesKey("sgr_mouse_input_enabled")

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-26 / Target version: 0.8.242-alpha (versionCode 250)
+Last updated: 2026-07-26 / Target version: 0.8.243-alpha (versionCode 251)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -788,6 +788,12 @@ The footer now shows **the macro that finished last**, since start times moved o
   - `z2scan net` runs nmap `-sT -Pn` (no root) with a **default target of `127.0.0.1`**; a non-local target is refused unless `--allow-remote` is given (plus a warning), structurally preventing unauthorized mass targeting
   - `host` uses lynis (falling back to `self` if absent); `cve` scans the rootfs for known CVEs via trivy/grype when present
   - No scanner is bundled and results stay local (F-Droid compliant, nothing sent out)
+
+  **③ Baseline diff (`self --save` / `diff` / `baseline`, 0.8.243)**: printing the full report every time does not help, because **nobody can spot the difference** in it day after day. Record the current state as the baseline and print **only the lines that changed** from then on.
+  - What is compared: the `[WARN]` / `[INFO]` lines plus the indented detail lines hanging off them (file listings). **Headers, `[ OK ]`, the count and blank lines are dropped** — putting anything that changes on every run into the baseline makes it report "changed" every day and therefore useless. `sort -u` removes ordering noise as well.
+  - **Exit 1 only when something is new.** Things going away exit 0 — an alert that fires on the day you cleaned something up is an alert people stop reading. `--quiet` makes the output completely empty when nothing changed, so `out=$(z2scan diff --quiet); [ -n "$out" ] && z2-notify …` works as-is (pair it with `z2-when time:daily` for "tell me only what appeared on its own").
+  - **No dependency on `diff`** — busybox and GNU differ, and set subtraction over lines (`grep -Fxv -f`) is enough. `self --save` runs the check **only once** (it shells out to `find`, so running it twice is visibly slow).
+  - The baseline is **plain text** at `~/.z2term/scan/baseline.txt` (readable as-is, keepable in git). A `# lang:` header records the language so that "everything changed after I switched languages" has a visible reason (the comparison is over the message strings themselves, so it cannot be otherwise); a mismatch prints a warning.
 - `launchAndroidSh`: fallback when proot isn't possible (`/system/bin/sh` + minimal mkshrc).
 
 #### Execution engine z2root (hidden feature, no root)
@@ -1242,6 +1248,38 @@ entered can only be decided once that chunk has been processed**.
 - **Nothing is written while the alt screen is active** (default). A full-screen TUI paints by
   rebuilding the screen, so flattening it yields no meaningful text and only inflates the file. The
   `sessionLogAltScreen` setting can turn it on anyway.
+- **Auto-start** (`sessionLogAutoStart`, default off, 0.8.243): removes "I went to look it up and it
+  was never recorded". The check lives at **one place, the entry of `startReadLoop`** — the local,
+  android-sh fallback and SSH paths all pass through it, so adding a start path cannot forget it.
+  - ⚠ **The setting is re-read from DataStore (`settings.flow.first()`), not from `settingsFlow`.**
+    Right after a cold start the first DataStore emission has not arrived and `settingsFlow` still
+    holds the default (off), which fails in the worst possible shape: **only the very first tab —
+    the one you most wanted — goes unrecorded.**
+  - Recording itself stays per-tab and is never persisted (always off after a restart), but **this
+    setting is persisted** — auto-start is an intent about every session, not a state of one tab.
+- **Masking** (`core/SecretMasker`, `sessionLogMaskSecrets`, **default on**, 0.8.243): key- and
+  token-shaped text is replaced with `[z2term:masked]` just before it is written.
+  - **A typed password is not the target.** `sudo` and friends turn echo off, so the password never
+    reaches the screen or the PTY output and never enters the log at all. What actually leaks is the
+    secret that **was displayed**: `name=value` pairs like `TOKEN=…`, and PEM blocks that were `cat`ed
+    or pasted. Those two are hit with high precision.
+  - ⚠ **Not misfiring outranks catching everything.** Treating any 6-digit number as a one-time code,
+    or blanking every long base64 string, riddles `ls` output and build logs with holes and ends with
+    the user switching the whole feature off. For the same reason: **only one value is masked** (going
+    to end-of-line would eat the `&& echo done` in `TOKEN=x && echo done`), **bare `pass` is not a
+    keyword** (it matches `Passed 12 tests`), and **short attached flags like `-p<value>` are left
+    alone** (indistinguishable from `tar -pxvf`). The decision is made on **the name, never on what
+    the value looks like**.
+  - Applied **per completed line**. Cutting mid-line would let the second half of a secret through, so
+    while masking is on the last line is held until a newline arrives (the file is read afterwards, so
+    this costs nothing, and `close` always drains it).
+  - **It applies to the raw log too** — the bug-report log is the one most likely to be handed to
+    someone, so it must not be the hole. Bytes round-trip through **ISO-8859-1** so that anything not
+    masked stays bit-identical (reading as UTF-8 would turn invalid bytes into `?` and it would no
+    longer be a raw log).
+  - ⚠ **It is not complete.** A secret in a bespoke format goes straight through. The UI and handbook
+    must say so, or "masking is on" gets read as "this is safe". Verified by `SecretMaskerTest`, where
+    the not-misfiring cases are the point.
 - **Destination** is `filesDir/shared_home/<sessionLogDir>` (`~/z2term-log/` as seen from the shell).
   Being under home, it is reachable from the terminal, from file managers, and from other apps via the
   SAF provider. The name comes from `sessionLogNameTemplate` (`{date}` / `{tab}`) and
@@ -1430,6 +1468,8 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 | Terminal log append | sessionLogAppend | false | off = a new file each time (`-2`, `-3` on a clash) |
 | Terminal log raw | sessionLogRaw | false | on = keep escape sequences (for bug reports) |
 | Terminal log alt screen | sessionLogAltScreen | false | on = also record while the alt screen is active |
+| Terminal log auto-start | sessionLogAutoStart | false | on = start recording as soon as a new tab connects (0.8.243) |
+| Terminal log masking | sessionLogMaskSecrets | **true** | replaces key/token-shaped text with `[z2term:masked]` (0.8.243); not complete |
 | Execution engine (hidden) | executionEngine | "z2root" | proot / z2root / chroot (chroot only when root is unlocked) |
 | Engine selector unlock (hidden) | engineSelectorUnlocked | false | toggled by tapping the version 7 times (no root needed; locking resets engine to z2root) |
 | chroot unlock flag (hidden) | rootChrootUnlocked | false | true when the 7-tap root self-test passes |

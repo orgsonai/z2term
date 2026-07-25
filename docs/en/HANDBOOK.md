@@ -139,9 +139,10 @@ Z2Term comes with its **own in-app keyboard**.
 > When you launch the app it **always opens a single terminal tab** (previously open tabs are not auto-restored).
 
 > **About the terminal log (⏺)**
-> - Recording is **per tab**, and always returns to off when you reopen the app (so nothing keeps recording by accident).
+> - Recording is **per tab**, and always returns to off when you reopen the app (so nothing keeps recording by accident). **Turn on "Record new tabs automatically"** and every tab you open is recorded from the start, so there is no ⏺ left unpressed (that setting is remembered and applies to tabs opened from then on).
 > - What you get is an **ordinary text file**. Colors and screen-control codes are stripped, and progress output that rewrites one line (`50% → 75% → 100%`) leaves **only its final state** as a single line.
 > - **Whatever appears on screen goes in as-is.** Keys, tokens and one-time codes that were displayed are recorded too (a password you only type never appears on screen, so it is not recorded). The button always stays lit while recording, so you can see it at a glance. A log you no longer want is a normal file — delete it with `rm`.
+> - **"Mask keys and tokens" is on by default.** It replaces name=value pairs such as `TOKEN=…`, the body of a pasted private key, and fixed-shape tokens like `ghp_` / `AKIA` with `[z2term:masked]`. ⚠ **It is not complete.** Only clearly recognisable shapes are covered; a secret in your own format stays in. **Always read a log before handing it to someone.**
 > - `~/z2term-log/` is **visible to other apps** (it is treated like the rest of your home). As with any other file under home, don't keep there what you don't want seen.
 > - Full-screen apps (the ones that paint by redrawing the screen) are not recorded by default, because flattening them does not produce readable text.
 
@@ -617,13 +618,29 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # on any ringe
 ### Security (vulnerability testing)
 | Command | What it does |
 |---|---|
-| `z2scan self` | Self-check this device/localhost (open ports, sshd config, SSH key perms, world-writable/SUID, PATH). No external tools |
+| `z2scan self [--save]` | Self-check this device/localhost (open ports, sshd config, SSH key perms, world-writable/SUID, PATH). No external tools. **`--save` also records the result as the baseline** |
+| `z2scan diff [--quiet]` | Re-run the self-check and print **only what changed** since the baseline: `+` is new, `-` is gone. **Exit code 1 only when something is new** (things going away exit 0 — no need to be told). `--quiet` prints nothing at all when nothing changed |
+| `z2scan baseline [clear]` | Show the saved baseline (`clear` deletes it) |
 | `z2scan setup` | Install scanners (`nmap`/`lynis`) from your distro's official packages |
 | `z2scan net [--allow-remote] [target]` | `nmap` TCP scan. Target defaults to `127.0.0.1`. A non-local target requires `--allow-remote` + a warning |
 | `z2scan host` | Host audit via `lynis` (falls back to `self` if absent) |
 | `z2scan cve` | Known-CVE scan of the rootfs via `trivy`/`grype` if present |
 
 > Note: results stay local (nothing is sent out). **Only scan systems you are explicitly authorized to test.**
+
+**Daily watch (tell me only what changed)**
+
+Nobody reads a full report every day, so record "the way it is now" as the baseline and get told **only on days when something is new**.
+
+```sh
+z2scan self --save                      # once: make the current state the baseline
+z2-when time:daily=03:00 run 'out=$(z2scan diff --quiet); [ -n "$out" ] && z2-notify -h "z2scan: something changed" "$out"'
+```
+
+`--quiet` prints nothing on a quiet day, so the notification only fires when `$out` has content.
+If the change was you (you opened that port on purpose), re-record with `z2scan self --save`.
+
+> The baseline is plain text at `~/.z2term/scan/baseline.txt` — the `[WARN]` / `[INFO]` lines of the report, so you can read it directly and keep it in git. Changing the app's language changes the strings themselves, so the baseline has to be re-recorded (you get a warning when that happens).
 
 ### Help
 | Command | What it does |

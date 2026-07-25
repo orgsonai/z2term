@@ -545,6 +545,8 @@
     <string name="log_sheet_title">Terminal log</string>
     <string name="log_recording">Record this tab</string>
     <string name="log_recording_desc">Keeps writing what appears on screen to a text file</string>
+    <string name="log_auto_start">Record new tabs automatically</string>
+    <string name="log_auto_start_desc">Starts recording as soon as a tab connects, so nothing is lost when you forget to press ⏺. Applies to tabs opened from now on</string>
     <string name="log_copy_open_command">Copy a command to open it in the terminal</string>
     <string name="log_dir">Destination folder</string>
     <string name="log_dir_desc">Relative to home (~). Reachable from the terminal and from file managers</string>
@@ -561,7 +563,9 @@
     <string name="log_alt_screen_desc">Apps that redraw the whole screen. Best left off — it does not come out as readable text</string>
     <string name="log_raw">Keep colors and control codes</string>
     <string name="log_raw_desc">Raw log for bug reports. Off converts it to human-readable text</string>
-    <string name="log_secret_warning">Note: whatever appears on screen goes in as-is, including keys, tokens and one-time codes that were displayed (a password you only type never appears on screen, so it is not recorded). The toolbar button stays lit while recording.</string>
+    <string name="log_mask">Mask keys and tokens</string>
+    <string name="log_mask_desc">Replaces name=value pairs such as TOKEN=…, pasted private keys, and fixed-shape tokens like ghp_ / AKIA with [z2term:masked]</string>
+    <string name="log_secret_warning">Note: whatever appears on screen goes in as-is (a password you only type never appears on screen, so it is not recorded). The toolbar button stays lit while recording.\nNote: masking only covers clearly recognisable shapes and is not complete — a secret in your own format goes straight through. Always read a log before handing it to someone.</string>
 
     <!-- Home screen widget (D1: status + launcher) -->
     <string name="widget_status_label">Z2Term status</string>

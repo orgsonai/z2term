@@ -10,6 +10,10 @@ package com.zerotoship.z2term.proot
  *  - **スキャナ** (`net`/`host`/`cve`): distro 公式の `nmap`/`lynis`/`trivy` を自動導入して叩く
  *    薄いラッパー。ネットワークスキャンの既定対象は `127.0.0.1` に固定し、外部ホストは
  *    `--allow-remote` の明示と警告でゲートする (無許可のマス標的化を構造的に防ぐ)。
+ *  - **ベースライン差分** (`self --save` / `diff`, 0.8.243): 毎回フルレポートを出しても、人は
+ *    その差に気付けない (毎日読める量ではない)。今の状態を「基準」として保存し、次からは
+ *    **増えた・無くなった行だけ**を出す。増えたものがあるときだけ終了コード 1 を返すので、
+ *    `z2-when time:daily=…` と組めば「**勝手に増えたものだけ通知**」になる。
  *
  * スキャナ本体は同梱せず distro 公式パッケージを使う (F-Droid 適合・追加同梱物ゼロ)。結果は
  * ローカル出力のみで外部送信しない。[ProotLauncher.ensureZ2ScanScript] が launch 毎に
@@ -57,14 +61,35 @@ fun z2scanScript(lang: String = "ja"): String {
     val mFound = if (en) "findings:" else "検出件数:"
     val mClean = if (en) "no obvious issues found." else "目立った問題は見つかりませんでした。"
 
+    // ベースライン差分 (0.8.243)
+    val mSaved = if (en) "z2scan: baseline saved:" else "z2scan: 基準を保存しました:"
+    val mSaveFail = if (en) "z2scan: could not write the baseline:" else "z2scan: 基準を保存できませんでした:"
+    val mNoBase = if (en)
+        "z2scan: no baseline yet. Run 'z2scan self --save' once to record the current state." else
+        "z2scan: 基準がまだありません。'z2scan self --save' を 1 回実行して今の状態を記録してください。"
+    val mNoChange = if (en) "[ OK ] no change since the baseline." else "[ OK ] 基準から変化はありません。"
+    val mAdded = if (en) "== new since the baseline ==" else "== 基準から増えたもの =="
+    val mRemoved = if (en) "== gone since the baseline ==" else "== 基準から無くなったもの =="
+    val mCleared = if (en) "z2scan: baseline cleared." else "z2scan: 基準を削除しました。"
+    val mLangDiff = if (en)
+        "z2scan: WARNING the baseline was saved in another language, so everything will look changed. Re-save with 'z2scan self --save'." else
+        "z2scan: 警告 基準が別の言語で保存されているため、すべて変化として出ます。'z2scan self --save' で取り直してください。"
+    val langTag = if (en) "en" else "ja"
+
     val usageText = if (en) """
         z2scan - vulnerability testing for this device / localhost (defensive, no data sent out).
 
         Scans only localhost by default. Scanners are installed from your distro's official
         packages (nmap/lynis/trivy); nothing is bundled and results stay local.
 
-          z2scan self                  built-in self-check (no external tools): open ports,
-                                       sshd config, SSH key perms, world-writable/SUID, PATH
+          z2scan self [--save]         built-in self-check (no external tools): open ports,
+                                       sshd config, SSH key perms, world-writable/SUID, PATH.
+                                       --save also records the result as the baseline.
+          z2scan diff [--quiet]        re-run the self-check and print only what changed
+                                       since the baseline. Exits 1 when something is new,
+                                       so it fits straight into z2-when. --quiet prints
+                                       nothing at all when nothing changed.
+          z2scan baseline [clear]      show the saved baseline (or delete it)
           z2scan setup                 install scanners (nmap, lynis) via apk/apt-get/pacman
           z2scan net [--allow-remote] [target]
                                        nmap TCP scan. target defaults to 127.0.0.1.
@@ -79,8 +104,14 @@ fun z2scanScript(lang: String = "ja"): String {
         既定では localhost のみを対象にします。スキャナは distro 公式パッケージ
         (nmap/lynis/trivy) から導入し、同梱物は増やしません。結果はローカルに留まります。
 
-          z2scan self                  内蔵の自己診断 (外部ツール不要): 公開ポート・sshd 設定・
-                                       SSH 鍵の権限・world-writable/SUID・PATH 衛生
+          z2scan self [--save]         内蔵の自己診断 (外部ツール不要): 公開ポート・sshd 設定・
+                                       SSH 鍵の権限・world-writable/SUID・PATH 衛生。
+                                       --save を付けると結果を「基準」として保存します。
+          z2scan diff [--quiet]        もう一度診断して、基準から**変わった所だけ**を出します。
+                                       増えたものがあるときは終了コード 1 なので、そのまま
+                                       z2-when に載せられます。--quiet は変化が無いとき何も
+                                       出しません。
+          z2scan baseline [clear]      保存した基準を表示 (clear で削除)
           z2scan setup                 スキャナ (nmap, lynis) を apk/apt-get/pacman で導入
           z2scan net [--allow-remote] [対象]
                                        nmap の TCP スキャン。対象の既定は 127.0.0.1。
@@ -94,7 +125,7 @@ fun z2scanScript(lang: String = "ja"): String {
     val head = """
         |#!/bin/sh
         |# z2term: 自端末/localhost 限定の脆弱性試験ヘルパー (launch 毎にアプリが再生成)。
-        |# usage: z2scan {self|setup|net [--allow-remote] [target]|host|cve|help}
+        |# usage: z2scan {self [--save]|diff [--quiet]|baseline [clear]|setup|net [--allow-remote] [target]|host|cve|help}
         |
         |has() { command -v "${d}1" >/dev/null 2>&1; }
         |
@@ -162,6 +193,30 @@ fun z2scanScript(lang: String = "ja"): String {
         |  if [ "${d}FINDINGS" -gt 0 ]; then echo "$mFound ${d}FINDINGS"; return 1; else echo "$mClean"; return 0; fi
         |}
         |
+        |# --- ベースライン差分 (0.8.243) -----------------------------------------
+        |# 毎回フルレポートを読ませても人は差に気付けない。「前と同じ」を基準として保存し、
+        |# 次からは**変わった所だけ**を出す。時刻トリガーと組めば「勝手に増えたものだけ通知」になる。
+        |SCAN_DIR="${d}HOME/.z2term/scan"
+        |BASE="${d}SCAN_DIR/baseline.txt"
+        |
+        |# 診断結果から「前回と比べられる事実」だけを取り出す。
+        |# [WARN]/[INFO] の行と、その下にぶら下がる字下げ行 (ファイル名の列挙) が対象。
+        |# 見出し・[ OK ]・件数・空行は落とす — **実行のたびに変わるものを基準に入れない**。
+        |# 並び順で差が出ないよう sort -u で正規化する。
+        |state_from() { grep -E '^\[(WARN|INFO)\]|^ ' "${d}1" | sort -u; }
+        |
+        |# 基準を書く。ヘッダに言語を残すのは、言語を変えた後に「全部変わった」と出る理由が
+        |# 読み手に分かるようにするため (メッセージ文字列そのものを比べているので当然そうなる)。
+        |write_baseline() {
+        |  mkdir -p "${d}SCAN_DIR" 2>/dev/null || { echo "$mSaveFail ${d}BASE" >&2; return 1; }
+        |  { printf '# z2scan baseline\n'
+        |    printf '# saved: %s\n' "${d}(date '+%Y-%m-%dT%H:%M:%S' 2>/dev/null)"
+        |    printf '# lang: %s\n' "$langTag"
+        |    state_from "${d}1"
+        |  } > "${d}BASE" || { echo "$mSaveFail ${d}BASE" >&2; return 1; }
+        |  echo "$mSaved ${d}BASE"
+        |}
+        |
         |cmd="${d}1"; [ ${d}# -gt 0 ] && shift
         |case "${d}cmd" in
         |  ""|help|-h|--help)
@@ -172,7 +227,53 @@ fun z2scanScript(lang: String = "ja"): String {
         |Z2SCAN_USAGE
         |    ;;
         |  self)
+        |    # --save のときも診断は 1 回だけ (find が走るので 2 回流すと目に見えて遅い)。
+        |    # レポートを一時ファイルへ取り、画面へ出しつつ同じものから基準を作る。
+        |    if [ "${d}1" = "--save" ]; then
+        |      tmp="${d}{TMPDIR:-/tmp}/z2scan-self.${d}${d}"
+        |      self_check > "${d}tmp" 2>&1; rc=${d}?
+        |      cat "${d}tmp"
+        |      write_baseline "${d}tmp" || rc=1
+        |      rm -f "${d}tmp"
+        |      exit ${d}rc
+        |    fi
         |    self_check; exit ${d}?
+        |    ;;
+        |  diff)
+        |    quiet=0
+        |    [ "${d}1" = "--quiet" ] && quiet=1
+        |    if [ ! -f "${d}BASE" ]; then echo "$mNoBase" >&2; exit 2; fi
+        |    bl=${d}(sed -n 's/^# lang: //p' "${d}BASE" 2>/dev/null | head -1)
+        |    [ -n "${d}bl" ] && [ "${d}bl" != "$langTag" ] && echo "$mLangDiff" >&2
+        |    tmp="${d}{TMPDIR:-/tmp}/z2scan-diff.${d}${d}"
+        |    now="${d}tmp.now"; old="${d}tmp.old"
+        |    self_check > "${d}tmp" 2>&1
+        |    state_from "${d}tmp" > "${d}now"
+        |    grep -v '^#' "${d}BASE" > "${d}old"
+        |    # diff コマンドに頼らない (busybox の有無で挙動が割れる)。行の集合の引き算で足りる。
+        |    added=${d}(grep -Fxv -f "${d}old" "${d}now" 2>/dev/null)
+        |    removed=${d}(grep -Fxv -f "${d}now" "${d}old" 2>/dev/null)
+        |    rm -f "${d}tmp" "${d}now" "${d}old"
+        |    if [ -z "${d}added" ] && [ -z "${d}removed" ]; then
+        |      [ "${d}quiet" = "1" ] || echo "$mNoChange"
+        |      exit 0
+        |    fi
+        |    if [ -n "${d}added" ]; then
+        |      echo "$mAdded"; printf '%s\n' "${d}added" | sed 's/^/  + /'
+        |    fi
+        |    if [ -n "${d}removed" ]; then
+        |      echo "$mRemoved"; printf '%s\n' "${d}removed" | sed 's/^/  - /'
+        |    fi
+        |    # **増えたときだけ 1**。減っただけで通知が飛ぶと、片付けたその日に鳴って信用を失う。
+        |    [ -n "${d}added" ] && exit 1
+        |    exit 0
+        |    ;;
+        |  baseline)
+        |    case "${d}1" in
+        |      clear) rm -f "${d}BASE"; echo "$mCleared"; exit 0 ;;
+        |      *) if [ -f "${d}BASE" ]; then cat "${d}BASE"; exit 0; fi
+        |         echo "$mNoBase" >&2; exit 2 ;;
+        |    esac
         |    ;;
         |  setup)
         |    rc=0

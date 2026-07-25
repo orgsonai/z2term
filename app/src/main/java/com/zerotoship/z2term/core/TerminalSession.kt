@@ -385,6 +385,8 @@ class TerminalSession(
     fun setSessionLogAppend(value: Boolean) { scope.launch { settings.setSessionLogAppend(value) } }
     fun setSessionLogRaw(value: Boolean) { scope.launch { settings.setSessionLogRaw(value) } }
     fun setSessionLogAltScreen(value: Boolean) { scope.launch { settings.setSessionLogAltScreen(value) } }
+    fun setSessionLogAutoStart(value: Boolean) { scope.launch { settings.setSessionLogAutoStart(value) } }
+    fun setSessionLogMaskSecrets(value: Boolean) { scope.launch { settings.setSessionLogMaskSecrets(value) } }
     fun setConfirmBeforeDownload(enabled: Boolean) { scope.launch { settings.setConfirmBeforeDownload(enabled) } }
     fun setGuiAudioEnabled(enabled: Boolean) { scope.launch { settings.setGuiAudioEnabled(enabled) } }
     fun setGuiTerminal(id: String) { scope.launch { settings.setGuiTerminal(id) } }
@@ -706,6 +708,18 @@ class TerminalSession(
 
     private fun startReadLoop(ch: ProcessChannel) {
         readJob?.cancel()
+        // ⏺ の自動開始 (0.8.243)。**チャネルが繋がった直後 = タブに何か出る直前**のここ 1 か所で
+        // 判定する。ローカル / android-sh フォールバック / SSH のどの経路も必ず通るので、
+        // 起動経路を足したときに付け忘れが起きない。
+        //
+        // 設定は settingsFlow ではなく DataStore から読み直す — アプリの起動直後は初回 emit が
+        // 間に合わず、settingsFlow がまだ既定値 (自動開始 OFF) のことがあり、**いちばん録りたい
+        // 1 本目のタブだけ録れない**という形で外れる。
+        if (logger == null) {
+            scope.launch {
+                if (settings.flow.first().sessionLogAutoStart) startLogging()
+            }
+        }
         // PTY blocking read は IO で行い、emulator 処理は専用シリアルスレッドに hand off。
         // これで clearOutput / restart など他経路の emulator 操作も同じスレッド上で
         // 直列化でき、UI スレッドとのレースを完全に排除できる。
@@ -957,7 +971,14 @@ class TerminalSession(
             _toastEvents.tryEmit(appContext.getString(R.string.toast_log_start_failed))
             return
         }
-        val lg = runCatching { SessionLogger(file, append = s.sessionLogAppend, raw = s.sessionLogRaw) }
+        val lg = runCatching {
+            SessionLogger(
+                file,
+                append = s.sessionLogAppend,
+                raw = s.sessionLogRaw,
+                mask = s.sessionLogMaskSecrets
+            )
+        }
             .getOrElse {
                 Log.w(TAG, "log open failed: ${it.message}")
                 _toastEvents.tryEmit(appContext.getString(R.string.toast_log_start_failed))

@@ -131,6 +131,15 @@ fun SessionLogSheet(
                 onChange = { if (it) session.startLogging() else session.stopLogging() }
             )
 
+            // 自動開始はアプリ全体の設定 (次に開くタブから効く)。記録の ON/OFF のすぐ下に置くのは、
+            // 「録り忘れた」と気付いた人がその場で二度と忘れない設定に手が届くようにするため。
+            LogToggle(
+                title = stringResource(R.string.log_auto_start),
+                description = stringResource(R.string.log_auto_start_desc),
+                checked = settings.sessionLogAutoStart,
+                onChange = { session.setSessionLogAutoStart(it) }
+            )
+
             // 書き込み中 (または直前に書いた) ファイル。ローテーションしないのでサイズを必ず出す。
             if (log.path.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -217,10 +226,18 @@ fun SessionLogSheet(
                 checked = settings.sessionLogRaw,
                 onChange = { session.setSessionLogRaw(it) }
             )
+            LogToggle(
+                title = stringResource(R.string.log_mask),
+                description = stringResource(R.string.log_mask_desc),
+                checked = settings.sessionLogMaskSecrets,
+                onChange = { session.setSessionLogMaskSecrets(it) }
+            )
 
             LogDivider()
 
             // 画面に出たものはそのまま入る、を隠さずに書く (記録中はボタンが点灯している、と対で守る約束)。
+            // 伏せ字は「完全ではない」を必ず添える — ここを書かないと、伏せ字 ON を安全の保証と
+            // 受け取られてしまう。
             Text(
                 text = stringResource(R.string.log_secret_warning),
                 color = ZtsTextSecondary,

@@ -23,21 +23,41 @@ import java.util.concurrent.TimeUnit
  * **ローテーションしない** ([com.zerotoship.z2term.service.LogWriter] と同じユーザー方針)。
  * 代わりに現在のサイズを [bytesWritten] で出し、青天井なのを黙って進めない。
  *
+ * **伏せ字** ([mask]、0.8.243): 書く直前に [SecretMasker] を通す。行の途中で秘密が半分だけ
+ * 通ることが無いよう**完成した行の単位**で当てるので、ON のときは改行が来るまで最後の 1 行を
+ * 保持する (ファイルは後から読むものなので実害は無く、[close] で必ず吐き出す)。
+ *
  * @param file    書き込み先。親ディレクトリは呼び出し側で作っておくこと。
  * @param append  true なら既存ファイルの末尾に足す。false なら新規 (呼び出し側で名前を決めておく)。
  * @param raw     true ならバイト列をそのまま書く (不具合報告用の生ログ)。
  *                false は色や画面制御の指示を落として人が読めるテキストにする。
+ * @param mask    true なら鍵・トークンらしき部分を伏せ字にする。**生ログ (raw) にも効かせる** —
+ *                外に出す機会がいちばん多いのが不具合報告用のログなので、そこに穴を空けない。
  */
 class SessionLogger(
     val file: File,
     append: Boolean,
-    private val raw: Boolean
+    private val raw: Boolean,
+    mask: Boolean
 ) {
     private val executor = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "z2term-log").apply { isDaemon = true }
     }
     private val out = BufferedOutputStream(FileOutputStream(file, append), BUFFER_BYTES)
     private val plain = if (raw) null else PlainTextFilter()
+    private val masker = if (mask) SecretMasker() else null
+
+    /** 伏せ字の当て先を作るための、まだ改行が来ていない行。 */
+    private val maskBuf = StringBuilder()
+
+    /**
+     * 伏せ字のときにバイト列と文字列を行き来する文字集合。
+     *
+     * プレーンは変換後の UTF-8。**生ログは ISO-8859-1** — 1 バイト = 1 文字で往復するので、
+     * 伏せ字に当たらなかった部分のバイト列が 1 ビットも変わらない (UTF-8 で読もうとすると
+     * 不正なバイトが `?` に化けて生ログでなくなる)。
+     */
+    private val maskCharset = if (raw) Charsets.ISO_8859_1 else Charsets.UTF_8
 
     @Volatile
     private var closed = false
@@ -66,7 +86,7 @@ class SessionLogger(
             executor.execute {
                 if (closed) return@execute
                 runCatching {
-                    val bytes = plain?.filter(chunk) ?: chunk
+                    val bytes = maskIfNeeded(plain?.filter(chunk) ?: chunk)
                     if (bytes.isNotEmpty()) {
                         out.write(bytes)
                         bytesWritten += bytes.size
@@ -79,16 +99,52 @@ class SessionLogger(
     /** 既に画面に出ていた分 (スクロールバック) を先頭に書く。記録開始直後に 1 回だけ呼ぶ。 */
     fun appendText(text: String) {
         if (closed || text.isEmpty()) return
-        val bytes = text.toByteArray(Charsets.UTF_8)
+        val raw = text.toByteArray(maskCharset)
         runCatching {
             executor.execute {
                 if (closed) return@execute
                 runCatching {
-                    out.write(bytes)
-                    bytesWritten += bytes.size
+                    val bytes = maskIfNeeded(raw)
+                    if (bytes.isNotEmpty()) {
+                        out.write(bytes)
+                        bytesWritten += bytes.size
+                    }
                 }.onFailure { Log.w(TAG, "write failed: ${it.message}") }
             }
         }
+    }
+
+    /**
+     * 伏せ字を当てる。**完成した行だけ**を通し、改行が来ていない末尾は次回へ持ち越す
+     * (行の途中で切ると秘密の後半が素通りする)。伏せ字が OFF なら何もしない。
+     *
+     * 改行を出さないまま流れ続ける出力で持ち越しが無限に伸びないよう、
+     * [MASK_LINE_LIMIT] を超えたらそこまでを 1 行として扱って吐き出す。
+     */
+    private fun maskIfNeeded(bytes: ByteArray): ByteArray {
+        val m = masker ?: return bytes
+        if (bytes.isNotEmpty()) maskBuf.append(String(bytes, maskCharset))
+        val sb = StringBuilder()
+        while (true) {
+            val nl = maskBuf.indexOf("\n")
+            if (nl < 0) break
+            sb.append(m.maskLine(maskBuf.substring(0, nl))).append('\n')
+            maskBuf.delete(0, nl + 1)
+        }
+        if (maskBuf.length >= MASK_LINE_LIMIT) {
+            sb.append(m.maskLine(maskBuf.toString()))
+            maskBuf.setLength(0)
+        }
+        return if (sb.isEmpty()) EMPTY else sb.toString().toByteArray(maskCharset)
+    }
+
+    /** 伏せ字の持ち越し (改行で終わっていない最後の行) を吐き出す。 */
+    private fun drainMask(): ByteArray {
+        val m = masker ?: return EMPTY
+        if (maskBuf.isEmpty()) return EMPTY
+        val text = m.maskLine(maskBuf.toString())
+        maskBuf.setLength(0)
+        return text.toByteArray(maskCharset)
     }
 
     /** 記録を止めてファイルを閉じる。書き残しは必ず吐き出す (タブを閉じるときも呼ぶこと)。 */
@@ -98,8 +154,10 @@ class SessionLogger(
         runCatching {
             executor.execute {
                 runCatching {
-                    // 改行で終わっていない最後の 1 行も落とさない。
-                    plain?.drain()?.let { if (it.isNotEmpty()) out.write(it) }
+                    // 改行で終わっていない最後の 1 行も落とさない
+                    // (整形 → 伏せ字 の順。伏せ字の持ち越しは整形の残りも含めて最後に吐く)。
+                    plain?.drain()?.let { if (it.isNotEmpty()) out.write(maskIfNeeded(it)) }
+                    drainMask().let { if (it.isNotEmpty()) out.write(it) }
                     out.flush()
                     out.close()
                 }.onFailure { Log.w(TAG, "close failed: ${it.message}") }
@@ -112,6 +170,9 @@ class SessionLogger(
         private const val TAG = "SessionLogger"
         private const val BUFFER_BYTES = 16 * 1024
         private const val FLUSH_INTERVAL_MS = 500L
+        private val EMPTY = ByteArray(0)
+        /** 改行が来ないまま伏せ字の持ち越しがこれ以上伸びたら、そこまでを 1 行として扱う。 */
+        private const val MASK_LINE_LIMIT = 8192
     }
 }
 

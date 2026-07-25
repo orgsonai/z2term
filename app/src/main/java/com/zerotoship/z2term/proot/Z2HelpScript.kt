@@ -53,7 +53,8 @@ fun z2helpScript(lang: String = "ja"): String {
         |  sshd [-p N]                    SSH server (default: 127.0.0.1 only, key auth)
         |
         |[Security]
-        |  z2scan self                    Self-check this device/localhost (z2scan help)
+        |  z2scan self [--save]           Self-check this device/localhost (z2scan help)
+        |  z2scan diff                    Only what changed since the baseline (exit 1 = new)
         |  z2scan net|host|cve            nmap/lynis/trivy on localhost (remote needs opt-in)
         |
         |[Help]
@@ -94,7 +95,8 @@ fun z2helpScript(lang: String = "ja"): String {
         |  sshd [-p N]                    SSH サーバ(既定 127.0.0.1 のみ・鍵認証)
         |
         |[セキュリティ]
-        |  z2scan self                    自端末/localhost の自己診断(z2scan help)
+        |  z2scan self [--save]           自端末/localhost の自己診断(z2scan help)
+        |  z2scan diff                    基準から変わった所だけ(増えたら終了コード 1)
         |  z2scan net|host|cve            localhost に nmap/lynis/trivy(外部は明示許可制)
         |
         |[ヘルプ]
