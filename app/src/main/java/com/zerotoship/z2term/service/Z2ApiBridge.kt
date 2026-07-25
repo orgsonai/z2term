@@ -22,6 +22,7 @@ import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
+import android.os.Environment
 import android.os.FileObserver
 import android.os.Handler
 import android.os.Looper
@@ -37,6 +38,10 @@ import android.view.KeyEvent
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import com.zerotoship.z2term.settings.AppSettings
+import com.zerotoship.z2term.settings.ServerEntry
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import androidx.core.net.toUri
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.SessionManager
@@ -221,6 +226,8 @@ object Z2ApiBridge {
             "sensor" -> sensorRead(context, args.getOrNull(0).orEmpty())
             "alarm" -> alarmCmd(context, args)
             "state" -> stateRead(context, args.getOrNull(0).orEmpty())
+            // z2doctor 用。**アプリ側にしか無い情報**（許可の有無・設定・常駐の数）をまとめて返す。
+            "doctor" -> doctorRead(context)
             "session" -> sessionCmd(context, args)
             // z2-when がルールファイルを書き換えた後に呼ぶ。時刻トリガーの AlarmManager 予約を貼り直す。
             "when-reload" -> { WhenManager.reload(context); null }
@@ -467,6 +474,63 @@ object Z2ApiBridge {
             put("temp", temp.toDoubleOrNull() ?: -1.0)
             put("volume", volume)
             put("volume_max", volumeMax)
+        }.toString()
+    }
+
+    /**
+     * `z2doctor` へ渡す「アプリ側にしか分からないこと」を JSON で返す (0.8.230)。
+     *
+     * 端末から見えるもの (kernel・空き容量・sshd プロセス・PATH) は**シェル側で調べる**。
+     * ここで返すのは、許可の有無や設定値のように**シェルからは原理的に見えない**ものだけ。
+     * 診断は「動かない理由」を探すためのものなので、**値の解釈はしない** — × の判定と
+     * 次の一手の文言は CLI 側に置き、ここは事実だけを返す。
+     */
+    private fun doctorRead(context: Context): String {
+        val settings = runCatching { runBlocking { AppSettings(context).flow.first() } }.getOrNull()
+        val pm = context.getSystemService(PowerManager::class.java)
+
+        // 通知を出せるか (POST_NOTIFICATIONS)。OFF だと z2-notify が黙って何も出さない。
+        val notifyOk = runCatching {
+            NotificationManagerCompat.from(context).areNotificationsEnabled()
+        }.getOrDefault(false)
+        // 通知を読めるか (通知アクセス)。z2-when notify: / 通知検知の前提。
+        val notifyListen = runCatching {
+            NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+        }.getOrDefault(false)
+        // 電池最適化から除外されているか。除外されていないと常駐サーバーや検知が落とされやすい。
+        val battOptIgnored = runCatching {
+            pm?.isIgnoringBatteryOptimizations(context.packageName) == true
+        }.getOrDefault(false)
+        // /sdcard 全体が見えるか (MANAGE_EXTERNAL_STORAGE)。無いと `cd /sdcard` が空に見える。
+        val storageAll = runCatching { Environment.isExternalStorageManager() }.getOrDefault(false)
+        val smsOk = runCatching {
+            context.checkSelfPermission(android.Manifest.permission.RECEIVE_SMS) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        }.getOrDefault(false)
+
+        val servers = runCatching { ServerEntry.decode(settings?.serverEntries) }.getOrDefault(emptyList())
+        val running = if (ServerDaemonManager.isRunning) {
+            runCatching { ServerDaemonManager.readStatus(context) }.getOrDefault(emptyList())
+                .count { it.state == "running" }
+        } else 0
+        val rules = runCatching { WhenManager.loadRules(context) }.getOrDefault(emptyList())
+
+        return JSONObject().apply {
+            put("version", com.zerotoship.z2term.BuildConfig.VERSION_NAME)
+            put("version_code", com.zerotoship.z2term.BuildConfig.VERSION_CODE)
+            put("engine", settings?.executionEngine.orEmpty())
+            put("distro", settings?.distroId.orEmpty())
+            put("notifications", notifyOk)
+            put("notification_access", notifyListen)
+            put("battery_opt_ignored", battOptIgnored)
+            put("storage_all", storageAll)
+            put("sms_permission", smsOk)
+            put("event_capture", settings?.systemEventCaptureEnabled ?: false)
+            put("servers_enabled", servers.count { it.enabled && it.command.isNotBlank() })
+            put("servers_running", running)
+            put("rules_total", rules.size)
+            put("rules_enabled", rules.count { it.enabled })
+            put("rules_paused", runCatching { WhenManager.isPaused(context) }.getOrDefault(false))
         }.toString()
     }
 

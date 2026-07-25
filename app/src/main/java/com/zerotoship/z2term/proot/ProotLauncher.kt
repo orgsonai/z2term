@@ -298,6 +298,7 @@ class ProotLauncher(private val context: Context) {
         ensureZ2HelpScript(rootfs)
         // `z2scan`: 自端末/localhost 限定の脆弱性試験 (自己診断 + nmap/lynis ラッパー)。
         ensureZ2ScanScript(rootfs)
+        ensureZ2DoctorScript(rootfs)
         // `z2-macro`: 自動化マクロの同梱サンプル (list/install/show/run)。
         ensureZ2MacroScripts(rootfs)
         // GUI 動画対策: mpv の既定をソフトウェア出力 (vo=x11) にする設定を配置。
@@ -498,6 +499,7 @@ class ProotLauncher(private val context: Context) {
         ensureZ2HelpScript(rootfs)
         // `z2scan`: 自端末/localhost 限定の脆弱性試験 (自己診断 + nmap/lynis ラッパー)。
         ensureZ2ScanScript(rootfs)
+        ensureZ2DoctorScript(rootfs)
         // `z2-macro`: 自動化マクロの同梱サンプル (list/install/show/run)。
         ensureZ2MacroScripts(rootfs)
         ensureMpvConfig(rootfs)
@@ -1075,6 +1077,20 @@ class ProotLauncher(private val context: Context) {
             f.setReadable(true, false)
             f.setExecutable(true, false)
         }.onFailure { Log.w(TAG, "z2scan script 配置失敗", it) }
+    }
+
+    /**
+     * `/usr/local/bin/z2doctor` を配置する。「動きません」の切り分け診断 (0.8.230)。
+     * 名前の近い `z2scan self` は「危ない設定を探す」別物なので、用途を混ぜないこと。
+     */
+    private fun ensureZ2DoctorScript(rootfs: File) {
+        runCatching {
+            val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
+            val f = File(dir, "z2doctor")
+            f.writeText(z2doctorScript(lang = LocaleHelper.language(context)))
+            f.setReadable(true, false)
+            f.setExecutable(true, false)
+        }.onFailure { Log.w(TAG, "z2doctor script 配置失敗", it) }
     }
 
     /**

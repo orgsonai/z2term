@@ -22,6 +22,7 @@ fun z2helpScript(lang: String = "ja"): String {
     val list = if (en) """
         |[Version / info]
         |  z2version [--short]            App version, engine, OS (distro), kernel
+|  z2doctor [--share|--clip]      Why isn't it working? Self-check + a report you can paste
         |
         |[Phone features]
         |  z2-notify [-h] [-b LABEL]...   Notification (-h: banner, -b: reply button)
@@ -62,6 +63,7 @@ fun z2helpScript(lang: String = "ja"): String {
     """ else """
         |[版数・情報]
         |  z2version [--short]            アプリ版数・実行エンジン・OS(ディストロ)・kernel
+|  z2doctor [--share|--clip]      動かないときの切り分け診断＋貼れる報告文
         |
         |[スマホの機能を呼ぶ]
         |  z2-notify [-h] [-b ラベル]...  通知(-h: バナー, -b: 返事のボタン)

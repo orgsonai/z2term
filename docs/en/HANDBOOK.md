@@ -580,6 +580,7 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # on any ringe
 ### Connecting
 | Command | What it does |
 |---|---|
+| `z2doctor` | **Self-check for when something doesn't work.** Lists version, permissions, detection and automation state; every `NG` line tells you what to do. `z2doctor --clip` copies a report (SSIDs and IPs are left out) |
 | `z2adb …` | `adb` to this phone itself (no PC) → see **§7.5** |
 | `sshd` | Start an SSH server → see **§7** (defaults to "this device only" + key auth only) |
 

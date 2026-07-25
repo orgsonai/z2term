@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.229-alpha (versionCode 237)
+Last updated: 2026-07-25 / Target version: 0.8.230-alpha (versionCode 238)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -689,6 +689,13 @@ The footer now shows **the macro that finished last**, since start times moved o
   - `Z2ApiScriptTest` runs the same checks (`sh -n`, margin leak, shebang) against **both languages**. Adding a branch must not leave room for one side to break silently.
   - `z2gui` already had `GuiScriptStrings` yet **15 lines were still Japanese** (Konsole rebuild, GUI install failure, audio, Qt fallback); they now go through the same mechanism.
   - Out of scope: `z2-autogui` is an internal helper called from the preexec hook and **prints nothing to the user** (its Japanese is implementation comments). Kotlin comments likewise stay Japanese — they are for the developer and never reach the terminal.
+
+- **`z2doctor` command (0.8.230, troubleshooting)**: one command that answers "why isn't it working?". **A different tool from `z2scan self`** — that one hunts for risky settings (security), this one hunts for the reason something does not run. The names are close; do not merge them.
+  - Every line is `OK` / `NG` / `--` (unknown or not applicable). **An `NG` always carries the next step, and a check we cannot advise on is simply not shown** (an `NG` with no fix only creates anxiety). **What could not be read is `--`, never counted as `NG`** — not knowing is not a fault.
+  - It ends with **a report you can paste as-is**. One command to type, one short report to send: that removes the "it doesn't work" → "what doesn't?" round trip (for a 1–3 h/day project, one support round trip costs a full day).
+  - **SSIDs, IPs and host names are never printed**, and the output says so. Adding redaction later guarantees an internal IP ends up in a pasted report.
+  - **Two sources, deliberately split**: whatever the shell cannot see in principle (permissions, settings, how many things are resident) comes from `z2api 1 doctor` ([`Z2ApiBridge.doctorRead`](../../app/src/main/java/com/zerotoship/z2term/service/Z2ApiBridge.kt)) as JSON; kernel, free space, sshd and `/sdcard` are probed by the shell. The bridge **does not interpret** — the `NG` rule and the wording live in the CLI.
+  - ⚠ `Z2DoctorScriptTest` pins, with a real `sh`, that it **runs to the end even with no bridge at all**. A diagnostic is what someone types when nothing else works; if it dies there, they have nothing left.
 
 - **`z2scan` command (0.8.91, vulnerability testing)**: a vulnerability-testing helper scoped to this device / localhost, aligned with z2term's principles (this-device/localhost only, non-invasive, no data sent out, distro official packages only). Two parts. The display language follows `LocaleHelper.language`. Implemented in [`Z2ScanScript.kt`](../../app/src/main/java/com/zerotoship/z2term/proot/Z2ScanScript.kt); installed on all launch paths (proot/z2root/chroot).
 
