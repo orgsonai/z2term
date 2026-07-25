@@ -226,6 +226,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     var ctrlSticky by remember { mutableStateOf(false) }
     var keyboardMode by remember { mutableStateOf(KeyboardMode.CUSTOM) }
     var inputViewRef by remember { mutableStateOf<TerminalInputView?>(null) }
+    // 複数行の貼り付けを確認する帯。null の間は出さない (= 1 行の貼り付けでは何も起きない)。
+    var pastePreview by remember { mutableStateOf<String?>(null) }
     var keyboardCollapsed by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
     // 常駐サーバーが稼働中か (🔒 の薄くロック表示・タップ時ダイアログの出し分けに使う)。
@@ -374,7 +376,16 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         TopBar(
             session = active,
             keyboardMode = keyboardMode,
-            onPaste = { active.pasteFromClipboard() },
+            onPaste = {
+                // 1 行なら今までどおり即挿入。**改行を含むときだけ**貼る前に見せる (0.8.232)。
+                // ここを 1 行にも広げると、一番よく押すボタンが 2 タップになって台無しになる。
+                val text = active.clipboardText()
+                when {
+                    text.isNullOrEmpty() -> Unit
+                    text.contains('\n') -> pastePreview = text
+                    else -> active.pasteText(text, syncClipboard = false)
+                }
+            },
             onPasteHistory = { clipHistoryOpen = true },
             onToggleKeyboardMode = {
                 val next = if (keyboardMode == KeyboardMode.CUSTOM)
@@ -540,6 +551,17 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     composing = composing,
                     modifier = Modifier.align(Alignment.BottomStart)
                 )
+                // 複数行の貼り付け確認 (端末領域の上端にオーバーレイ・検索バーと同じ置き方)。
+                pastePreview?.let { text ->
+                    PastePreviewBar(
+                        text = text,
+                        onPaste = {
+                            active.pasteText(text, syncClipboard = false)
+                            pastePreview = null
+                        },
+                        onDismiss = { pastePreview = null }
+                    )
+                }
                 // スクロールバック検索バー (端末領域の上端にオーバーレイ)
                 if (searchOpen) {
                     SearchBar(
@@ -1576,6 +1598,76 @@ private fun TopBarIconButton(label: String, enabled: Boolean = true, onClick: ()
             fontSize = 13.sp,
             fontFamily = FontFamily.Monospace
         )
+    }
+}
+
+/**
+ * 複数行の貼り付けを、貼る前に見せる帯 (0.8.232)。
+ *
+ * 📋 は押した瞬間に入るので、コピー元がコードのかたまりだと**何行入ったのか分からないまま**
+ * ⏎ を押すことになる。**改行を含むときだけ**この帯を出す — 1 行の貼り付けは今までどおり
+ * 即挿入で、そこを広げると一番よく押すボタンが 2 タップになって台無しになる。
+ *
+ * 貼っても**実行はしない** (入力行に入るだけ)。共有の受け取り (B1) と同じ作法。
+ * 寸法と置き方は [SearchBar] に揃えてある (同じ場所に出る帯が 2 種類あるので)。
+ */
+@Composable
+private fun PastePreviewBar(
+    text: String,
+    onPaste: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val lines = remember(text) { text.lines() }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .background(ZtsBgSecondary)
+            .border(width = 1.dp, color = ZtsBorder)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // 行数を先頭に置く。ここでいちばん効く情報は「何行入るか」。
+        Text(
+            text = pluralStringResource(R.plurals.paste_preview_lines, lines.size, lines.size),
+            color = ZtsGreen,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1
+        )
+        // 中身は最大 2 行だけ覗かせる (全文を見せる場所ではない)。
+        Text(
+            text = lines.take(2).joinToString(" ⏎ ") { it.trim() },
+            color = ZtsTextSecondary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .clickable(onClick = onPaste)
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.paste_preview_do),
+                color = ZtsGreen,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .clickable(onClick = onDismiss)
+                .padding(horizontal = 8.dp, vertical = 6.dp)
+        ) {
+            Text(text = "✕", color = ZtsTextSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+        }
     }
 }
 

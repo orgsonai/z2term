@@ -216,6 +216,17 @@ class TerminalSession(
             ))
     }
 
+    /**
+     * いまクリップボードにあるテキスト (無ければ null)。
+     *
+     * 貼る前に中身を見たい呼び元 (複数行の確認・0.8.232) のために、読み取りだけを切り出す。
+     * 読むだけなのでクリップボードは書き換えない。
+     */
+    fun clipboardText(): String? {
+        val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        return cm.primaryClip?.getItemAt(0)?.coerceToText(appContext)?.toString()
+    }
+
     /** クリップボードのテキストをペースト (PTY へ送出)。 */
     fun pasteFromClipboard() {
         val cm = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

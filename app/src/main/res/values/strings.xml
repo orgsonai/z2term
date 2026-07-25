@@ -634,4 +634,9 @@
     <string name="settings_intro_again">Show the intro again</string>
     <string name="settings_intro_again_desc">The first three cards will appear again the next time you open the app.</string>
     <string name="settings_intro_again_done">It will show next time you open the app</string>
+    <plurals name="paste_preview_lines">
+        <item quantity="one">%1$d line</item>
+        <item quantity="other">%1$d lines</item>
+    </plurals>
+    <string name="paste_preview_do">Paste</string>
 </resources>

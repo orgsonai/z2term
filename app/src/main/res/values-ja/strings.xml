@@ -622,4 +622,8 @@
     <string name="settings_intro_again">はじめの案内をもう一度出す</string>
     <string name="settings_intro_again_desc">次にアプリを開いたとき、最初の 3 枚をもう一度表示します。</string>
     <string name="settings_intro_again_done">次に開いたときに出ます</string>
+    <plurals name="paste_preview_lines">
+        <item quantity="other">%1$d 行</item>
+    </plurals>
+    <string name="paste_preview_do">貼る</string>
 </resources>

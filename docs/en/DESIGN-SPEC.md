@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.231-alpha (versionCode 239)
+Last updated: 2026-07-25 / Target version: 0.8.232-alpha (versionCode 240)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -465,6 +465,13 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 - **Nothing runs by itself.** A tap only **puts the command on the input line**; the user presses the return key (the same contract as receiving a share, B1). The wording shows **the command itself** rather than an explanation — this is not a screen to read, it is a screen to make something happen once.
 - **A card disappears once tapped.** When all three are gone, or the close button is pressed, [AppSettings.introDone] is set and it **never appears again**.
 - Of the 32 proposals this was **the only one that could collide head-on with "don't add modes"**. Hence the spec is fixed up front: **at most three items, never a full-screen wizard, and one line deep in Settings to bring it back** (Maintenance). If a fourth item feels necessary, that is `z2help`'s job.
+
+**Multi-line pastes are shown before they land (0.8.232)**: 📋 inserts the moment you press it, so when the source is a block of code you end up pressing return **without knowing how many lines went in**. Only **when the text contains a newline**, a 44dp bar appears with the line count and the first two lines.
+
+- ⚠ **Never shown for a single line.** Widening this "for safety" instantly turns **the most frequently pressed button in the app into two taps**. The condition is exactly `text.contains('\n')` — no room to drift.
+- The bar leads with the **line count**: here, how many lines are about to land matters more than what they say. Only two lines are previewed (this is not a place to read the whole thing).
+- Pasting still **does not execute** (it lands on the input line; bracketed paste is unchanged). Same contract as receiving a share (B1).
+- Placement and size match `SearchBar` — two different bars appear at the top of the terminal area, and they must not look unrelated.
 
 #### History palette (`ui/snippets/ShellHistory`, 0.8.221, B2)
 
