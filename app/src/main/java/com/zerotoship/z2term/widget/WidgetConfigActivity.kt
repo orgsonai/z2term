@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -87,10 +88,22 @@ class WidgetConfigActivity : ComponentActivity() {
                         initial = initial,
                         onSave = { selected -> save(selected) },
                         onCancel = { finish() },
+                        onResetHistory = { resetHistory() },
                     )
                 }
             }
         }
+    }
+
+    /**
+     * ボタンの `✓` と時刻をいま消す。保存 (「保存」ボタン) とは独立に**その場で効く**
+     * — 見えている印を消すのが目的なので、保存を待たせると何も起きていないように見える。
+     */
+    private fun resetHistory() {
+        WidgetStore.clearRunHistory(this)
+        Thread { runCatching { StatusWidgetProvider.renderAll(applicationContext) } }
+            .apply { isDaemon = true; start() }
+        Toast.makeText(this, R.string.widget_config_reset_done, Toast.LENGTH_SHORT).show()
     }
 
     private fun save(selected: List<String>) {
@@ -114,6 +127,7 @@ private fun ConfigScreen(
     initial: List<String>,
     onSave: (List<String>) -> Unit,
     onCancel: () -> Unit,
+    onResetHistory: () -> Unit,
 ) {
     val selected = remember { mutableStateListOf<String>().apply { addAll(initial) } }
 
@@ -179,6 +193,20 @@ private fun ConfigScreen(
             color = ZtsTextSecondary,
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace
+        )
+
+        // 実行履歴 (ボタンの ✓ と時刻) のリセット。日付が変われば自動で消えるが、
+        // 「いま消したい」に応える出口をここに置く — ウィジェットを置き直しても消えず、
+        // アプリのデータ削除しか手が無かった (実機フィードバック 2026-07-25)。
+        Text(
+            text = stringResource(R.string.widget_config_reset_desc),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        ConfigButton(
+            label = stringResource(R.string.widget_config_reset),
+            onClick = onResetHistory
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -380,11 +380,26 @@ dropped into that folder show up the same way.
 | Where | What |
 |---|---|
 | 1st line | `ssh -p 2222 root@192.168.x.x` — the command to get into this device from a PC. **Green means `sshd` is running** (grey = just the address) |
-| 2nd line | Number of resident servers / enabled automation rules (`z2-when`) / battery level |
+| 2nd line | `servers 1/3 · rules 2/5 · battery 87%` (see the table below) |
 | Top right | **⚙** — pick which macros to show / **⟳** — refresh right now |
-| Buttons | The macros you picked. A tap runs one in the background. Line 1 is the name, **line 2 is when that macro was last started** |
-| Button marker | `■` = running (green) / `✓` = ran and finished / no marker = never run yet |
-| Bottom line | The macro that **finished** last, and when |
+| Buttons | The macros you picked. A tap runs one in the background. Line 1 is the name, **line 2 is when that macro was started today** |
+| Button marker | `■` = running (green) / `✓` = ran and finished today / no marker = has not run today |
+| Bottom line | The macro that **finished** last today, and when |
+
+**What the numbers on the 2nd line mean**
+
+`1/3` reads "**how many are live now / how many are registered**". The three numbers count
+**three different things**:
+
+| Shown | Counts | Where you add them |
+|---|---|---|
+| `servers 1/3` | Resident servers | Settings › Resident servers & automation › Servers |
+| `rules 2/5` | Automation rules | `z2-when` in the terminal (files in `~/.z2term/when/`) |
+| The buttons below | Macros | `z2-macro` in the terminal (files in `~/.z2term/macros/`) |
+
+So **`rules` has nothing to do with the number of buttons below it**. Adding four macro buttons does
+not change `rules`, and `servers 0/3` means "three are registered, none are running right now" —
+which is what you see when the resident servers have not been started.
 
 **When it looks like it started and stopped straight away**
 
@@ -411,6 +426,9 @@ Note that **quitting the app also ends any macro started from the widget**.
   run `tail ~/.z2term/widget/run.log` in the terminal.
 - To change which macros are shown, **tap ⚙ at the top right of the widget** (long-pressing the
   widget to open its settings still works too).
+- **The `✓` and the time clear when the date changes** (the button goes back to no marker the next
+  day). A button can only show `HH:MM`, so a mark left over from yesterday would be unreadable.
+  To clear them right now, use **⚙ → "Clear run history"**. Your macros are not touched.
 - **To get more macros into that list**, put your own `.sh` in `~/.z2term/macros/` in the terminal,
   or run `z2-macro install all`, then reopen ⚙.
 

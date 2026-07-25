@@ -360,7 +360,11 @@ fun SettingsSheet(
                         ToggleField(
                             title = stringResource(R.string.tb_keep_alive),
                             description = stringResource(R.string.settings_toolbar_hidden_toggle_desc),
-                            checked = settings.keepAliveService,
+                            // ロック中は**必ず ON 表示**にする。常駐サーバーが動いている間はプロセスが
+                            // 生き続けるので、設定値が OFF でも実際には常駐している。ツールバーの🔒も
+                            // ロック中は active=true (ON) で薄く見せており、ここだけ OFF のまま薄くなって
+                            // 食い違っていた (実機フィードバック 2026-07-25)。
+                            checked = settings.keepAliveService || serversRunning,
                             onChange = { session.setKeepAliveService(it) },
                             locked = serversRunning,
                             onLockedTap = { residentDialogOpen = true }

@@ -2,6 +2,8 @@ package com.zerotoship.z2term.widget
 
 import android.content.Context
 import java.io.File
+import java.util.Calendar
+import java.util.TimeZone
 
 /**
  * ホーム画面ウィジェット (D1) の保存データ。
@@ -113,6 +115,46 @@ object WidgetStore {
         val p = prefs(context)
         val name = p.getString(KEY_LAST_RUN_NAME, null) ?: return null
         return name to p.getLong(KEY_LAST_RUN_AT, 0L)
+    }
+
+    /**
+     * 実行の記録をすべて捨てる (ボタンの `✓` と時刻・フッターの「最後に終わった」が消える)。
+     *
+     * `✓` は「一度でも実行した」印なので、放っておくと**永久に残る**。ウィジェットを置き直しても
+     * ([clear] はマクロ選択しか消さないので) 消えず、アプリのデータ削除しか手が無かった
+     * (実機フィードバック 2026-07-25)。設定画面のリセットボタンからここを呼ぶ。
+     */
+    fun clearRunHistory(context: Context) {
+        val p = prefs(context)
+        val editor = p.edit()
+        p.all.keys.filter { it.startsWith(KEY_RUN_AT_PREFIX) }.forEach { editor.remove(it) }
+        editor.remove(KEY_LAST_RUN_NAME).remove(KEY_LAST_RUN_AT)
+        editor.remove(KEY_LAST_FINISH_NAME).remove(KEY_LAST_FINISH_AT)
+        editor.apply()
+    }
+
+    /**
+     * [a] と [b] が同じ日か (端末のタイムゾーン)。どちらかが 0 以下なら false。
+     *
+     * `✓` と時刻表示を**当日限り**にするために使う。ボタンの時刻は `HH:mm` しか出せないので、
+     * 日付をまたいだ記録を残すと「その 07:12 は今日なのか 3 日前なのか」が分からなくなる。
+     */
+    internal fun isSameDay(a: Long, b: Long, zone: TimeZone = TimeZone.getDefault()): Boolean {
+        if (a <= 0L || b <= 0L) return false
+        val ca = Calendar.getInstance(zone).apply { timeInMillis = a }
+        val cb = Calendar.getInstance(zone).apply { timeInMillis = b }
+        return ca.get(Calendar.YEAR) == cb.get(Calendar.YEAR) &&
+            ca.get(Calendar.DAY_OF_YEAR) == cb.get(Calendar.DAY_OF_YEAR)
+    }
+
+    /**
+     * [name] を**今日**開始した時刻 (今日でない・一度も無いなら 0)。
+     *
+     * 日付が変われば自動で 0 に戻るので、`✓` は翌日には消えて無印へ戻る。
+     */
+    fun runStartAtToday(context: Context, name: String, now: Long = System.currentTimeMillis()): Long {
+        val at = runStartAt(context, name)
+        return if (isSameDay(at, now)) at else 0L
     }
 
     // --- マクロディレクトリ ---

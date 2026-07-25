@@ -1,7 +1,11 @@
 package com.zerotoship.z2term.widget
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Calendar
+import java.util.TimeZone
 
 /**
  * ウィジェットに並べるマクロの決めかた ([WidgetStore.resolve]) の検証。
@@ -114,6 +118,36 @@ class WidgetStoreTest {
     @Test
     fun descriptionEmptyWhenNoComment() {
         assertEquals("", WidgetStore.describe("x.sh", listOf("#!/bin/sh", "", "echo hi")))
+    }
+
+    // --- ✓ の当日限り判定 (日付が変わったらボタンの印と時刻を消す) ---
+
+    private val zone: TimeZone = TimeZone.getTimeZone("Asia/Tokyo")
+
+    private fun at(year: Int, month: Int, day: Int, hour: Int, minute: Int): Long =
+        Calendar.getInstance(zone).apply { clear(); set(year, month - 1, day, hour, minute, 0) }.timeInMillis
+
+    @Test
+    fun sameDayHoldsAcrossTheWholeDay() {
+        assertTrue(WidgetStore.isSameDay(at(2026, 7, 25, 0, 1), at(2026, 7, 25, 23, 59), zone))
+    }
+
+    @Test
+    fun midnightClearsTheMark() {
+        // 23:59 に走らせたマクロの ✓ は、日付が変わった 00:01 の描画では消えている。
+        assertFalse(WidgetStore.isSameDay(at(2026, 7, 25, 23, 59), at(2026, 7, 26, 0, 1), zone))
+    }
+
+    @Test
+    fun sameDateOfDifferentYearIsNotSameDay() {
+        // 日付だけ見て年を見ないと、1 年前の記録が「今日」に化ける。
+        assertFalse(WidgetStore.isSameDay(at(2025, 7, 25, 10, 0), at(2026, 7, 25, 10, 0), zone))
+    }
+
+    @Test
+    fun neverRunIsNotToday() {
+        // 一度も走っていない (0) は常に false。無印のままにする。
+        assertFalse(WidgetStore.isSameDay(0L, at(2026, 7, 25, 10, 0), zone))
     }
 
     @Test

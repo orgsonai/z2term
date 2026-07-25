@@ -561,7 +561,7 @@
     <string name="widget_status_description">ssh の接続先・常駐サーバー・自動化ルール・電池を表示し、マクロをタップでバックグラウンド実行します。</string>
     <string name="widget_refresh_desc">更新</string>
     <string name="widget_ssh_none">LAN アドレスなし</string>
-    <string name="widget_stats">常駐 %1$d \u00b7 自動化 %2$d \u00b7 電池 %3$d%%</string>
+    <string name="widget_stats">常駐 %1$d/%2$d \u00b7 自動化 %3$d/%4$d \u00b7 電池 %5$d%%</string>
     <string name="widget_last_run">\u25b6 %1$s %2$s</string>
     <string name="widget_config_btn_desc">\u30de\u30af\u30ed\u3092\u9078\u3076</string>
     <string name="widget_btn_idle">%1$s\n%2$s</string>
@@ -595,4 +595,7 @@
     <string name="widget_config_empty">~/.z2term/macros が空です。端末で z2-macro install all を実行してから、もう一度ウィジェットを追加してください。</string>
     <string name="widget_config_save">保存</string>
     <string name="widget_config_cancel">キャンセル</string>
+    <string name="widget_config_reset">実行履歴をリセット</string>
+    <string name="widget_config_reset_desc">ボタンの ✓ と時刻は日付が変わると自動で消えます。今すぐ消したいときはここから。マクロ自体は消えません。</string>
+    <string name="widget_config_reset_done">実行履歴を消しました。</string>
 </resources>

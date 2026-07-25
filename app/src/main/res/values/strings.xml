@@ -569,7 +569,7 @@
     <string name="widget_refresh_glyph" translatable="false">\u27f3</string>
     <string name="widget_refresh_desc">Refresh</string>
     <string name="widget_ssh_none">no LAN address</string>
-    <string name="widget_stats">servers %1$d \u00b7 rules %2$d \u00b7 battery %3$d%%</string>
+    <string name="widget_stats">servers %1$d/%2$d \u00b7 rules %3$d/%4$d \u00b7 battery %5$d%%</string>
     <string name="widget_last_run">\u25b6 %1$s %2$s</string>
     <string name="widget_config_glyph" translatable="false">\u2699</string>
     <string name="widget_config_btn_desc">Choose macros</string>
@@ -607,4 +607,7 @@
     <string name="widget_config_empty">~/.z2term/macros is empty. Run z2-macro install all in the terminal, then add the widget again.</string>
     <string name="widget_config_save">Save</string>
     <string name="widget_config_cancel">Cancel</string>
+    <string name="widget_config_reset">Clear run history</string>
+    <string name="widget_config_reset_desc">The ✓ marks and times on the buttons clear on their own when the day changes. This clears them now. Your macros are not touched.</string>
+    <string name="widget_config_reset_done">Run history cleared.</string>
 </resources>

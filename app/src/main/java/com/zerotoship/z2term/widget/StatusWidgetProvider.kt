@@ -20,6 +20,7 @@ import com.zerotoship.z2term.service.ServerDaemonManager
 import com.zerotoship.z2term.service.SshEndpoint
 import com.zerotoship.z2term.service.WhenManager
 import com.zerotoship.z2term.settings.AppSettings
+import com.zerotoship.z2term.settings.ServerEntry
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -201,11 +202,21 @@ class StatusWidgetProvider : AppWidgetProvider() {
                     if (s.sshdRunning) R.color.widget_accent else R.color.widget_text_secondary
                 )
             )
+            // 「常駐 1/3」= 動いている本数 / 登録して有効にしてある本数。「自動化 2/5」も同じで、
+            // 有効なルール数 / 全ルール数。分子だけだと **0 の理由** (登録が無いのか・常駐を
+            // 止めているのか) が読めず、下に並ぶマクロボタンの数とも混同された
+            // (実機フィードバック 2026-07-25)。分母はどちらも「アプリ側に登録してあるもの」を指す。
             views.setTextViewText(
                 R.id.widget_stats,
-                context.getString(R.string.widget_stats, s.serversRunning, s.rulesEnabled, s.batteryLevel)
+                context.getString(
+                    R.string.widget_stats,
+                    s.serversRunning, s.serversEnabled,
+                    s.rulesEnabled, s.rulesTotal,
+                    s.batteryLevel
+                )
             )
 
+            val now = System.currentTimeMillis()
             val macros = WidgetStore.macros(context, appWidgetId)
             BUTTON_IDS.forEachIndexed { slot, viewId ->
                 val name = macros.getOrNull(slot)
@@ -214,10 +225,12 @@ class StatusWidgetProvider : AppWidgetProvider() {
                 } else {
                     // 実行中は「■ 名前」にして、同じボタンのタップで止められるようにする
                     // (RemoteViews に長押しは無いので、モードを増やさずトグルにするのが自然)。
-                    // 2 行目は**そのマクロを最後に開始した時刻**。全体で 1 件しか出していなかった
+                    // 2 行目は**そのマクロを今日開始した時刻**。全体で 1 件しか出していなかった
                     // ときは、複数走らせるとどれがいつのものか分からなかった。
+                    // 日付が変われば 0 に戻る (= ✓ が消えて無印へ)。`HH:mm` しか出せない以上、
+                    // 昨日の記録を残すと「その 07:12 はいつのものか」が読めないため。
                     val busy = HeadlessRun.isRunning(runKey(name))
-                    val startedAt = WidgetStore.runStartAt(context, name)
+                    val startedAt = WidgetStore.runStartAtToday(context, name, now)
                     val time =
                         if (startedAt > 0) hhmm.format(Date(startedAt))
                         else context.getString(R.string.widget_btn_time_none)
@@ -227,8 +240,8 @@ class StatusWidgetProvider : AppWidgetProvider() {
                         viewId,
                         when {
                             busy -> context.getString(R.string.widget_btn_running, label, time)
-                            // 一度でも走ったものは ✓ を付ける。すぐ終わるマクロで「■ が消えた」のが
-                            // 停止ではなく正常終了だと分かるようにするため。
+                            // 今日走ったものは ✓ を付ける。すぐ終わるマクロで「■ が消えた」のが
+                            // 停止ではなく正常終了だと分かるようにするため。翌日には自動で消える。
                             startedAt > 0 -> context.getString(R.string.widget_btn_done, label, time)
                             else -> context.getString(R.string.widget_btn_idle, label, time)
                         }
@@ -257,8 +270,10 @@ class StatusWidgetProvider : AppWidgetProvider() {
                 context.getString(R.string.widget_no_macros)
             } else {
                 val parts = ArrayList<String>(2)
-                parts.add(context.getString(R.string.widget_updated_at, hms.format(Date())))
-                if (s.lastFinish != null) {
+                parts.add(context.getString(R.string.widget_updated_at, hms.format(Date(now))))
+                // 「最後に終わった」もボタンの ✓ と同じく当日限り (昨日の終了時刻を今日の
+                // フッターに出しても読み手には判断が付かない)。
+                if (s.lastFinish != null && WidgetStore.isSameDay(s.lastFinish.second, now)) {
                     parts.add(
                         context.getString(
                             R.string.widget_last_finish,
@@ -379,7 +394,11 @@ class StatusWidgetProvider : AppWidgetProvider() {
         val sshLine: String?,
         val sshdRunning: Boolean,
         val serversRunning: Int,
+        /** 登録済みで有効な常駐サーバーの件数 (= 起動対象の数)。「常駐 1/3」の分母。 */
+        val serversEnabled: Int,
         val rulesEnabled: Int,
+        /** ルールファイルの総数。「自動化 2/5」の分母。 */
+        val rulesTotal: Int,
         val batteryLevel: Int,
         val lastRun: Pair<String, Long>?,
         /** 直近に**終わった**マクロと時刻。フッターで「止めたのではなく終わった」ことを示す。 */
@@ -387,9 +406,17 @@ class StatusWidgetProvider : AppWidgetProvider() {
     ) {
         companion object {
             internal fun read(context: Context): Snapshot {
-                val distroId = runCatching {
-                    runBlocking { AppSettings(context).flow.first() }.distroId
-                }.getOrNull().orEmpty()
+                val settings = runCatching {
+                    runBlocking { AppSettings(context).flow.first() }
+                }.getOrNull()
+                val distroId = settings?.distroId.orEmpty()
+                // 「常駐 1/3」の分母。ServerDaemonManager.start が起動対象にする条件
+                // (command が空でなく enabled) と揃えて数える。
+                val enabledServers = runCatching {
+                    ServerEntry.decode(settings?.serverEntries)
+                        .count { it.enabled && it.command.isNotBlank() }
+                }.getOrDefault(0)
+                val rules = runCatching { WhenManager.loadRules(context) }.getOrDefault(emptyList())
 
                 // status ファイルは supervisor が落ちても残るので、supervisor が生きているときだけ
                 // 数える。常駐サーバーが動いていればフォアグラウンドサービスがこのプロセスを
@@ -415,8 +442,9 @@ class StatusWidgetProvider : AppWidgetProvider() {
                     // コマンド文字列に sshd が現れる常駐サーバーが走っているか (`sshd --lan` 等)。
                     sshdRunning = running.any { it.command?.contains("sshd") == true },
                     serversRunning = running.size,
-                    rulesEnabled = runCatching { WhenManager.loadRules(context).count { it.enabled } }
-                        .getOrDefault(0),
+                    serversEnabled = enabledServers,
+                    rulesEnabled = rules.count { it.enabled },
+                    rulesTotal = rules.size,
                     batteryLevel = if (lvl >= 0 && scale > 0) lvl * 100 / scale else -1,
                     lastRun = WidgetStore.lastRun(context),
                     lastFinish = WidgetStore.lastFinish(context),

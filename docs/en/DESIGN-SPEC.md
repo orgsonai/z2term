@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.223-alpha (versionCode 231)
+Last updated: 2026-07-25 / Target version: 0.8.224-alpha (versionCode 232)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -506,7 +506,15 @@ Both are merged **newest first**, deduplicated (the timestamped zsh entry wins).
 
 #### Home screen widget (`widget/StatusWidgetProvider`, 0.8.212, D1)
 
-**What it does**: puts the **current state** on the home screen (ssh endpoint / number of running resident servers / number of enabled `z2-when` rules / battery) and, on the bottom row, buttons that run `~/.z2term/macros/*.sh` **in the background without opening the app**. Where `z2-when` is trigger-driven, this is the entry point **a human presses**.
+**What it does**: puts the **current state** on the home screen (ssh endpoint / resident servers / `z2-when` rules / battery) and, on the bottom row, buttons that run `~/.z2term/macros/*.sh` **in the background without opening the app**. Where `z2-when` is trigger-driven, this is the entry point **a human presses**.
+
+**The state line reads "running / registered" (0.8.224)**: `servers 1/3 · rules 2/5 · battery 87%`. The numerator is what is **live right now** (resident servers in `state=running`; enabled rules), the denominator is what is **registered in the app** (enabled `ServerEntry` entries — the same condition `ServerDaemonManager.start` uses to pick what to launch; the total number of `~/.z2term/when/*.rule`). With the numerator alone, up to 0.8.223, **a `0` gave no clue why** (nothing registered, or the resident service simply not started), and "rules" was **mistaken for the macro buttons right below it** (on-device feedback, 2026-07-25). The three numbers count three different things:
+
+| Shown | Counts | Source of truth |
+|---|---|---|
+| servers | resident servers | Settings › Resident servers (`ServerEntry`) |
+| rules | `z2-when` rules | `~/.z2term/when/*.rule` |
+| bottom buttons | macros | `~/.z2term/macros/*.sh` |
 
 **Parts**:
 - `widget/StatusWidgetProvider` (`AppWidgetProvider`) — drawing, plus the button/⟳ taps.
@@ -532,10 +540,12 @@ Both are merged **newest first**, deduplicated (the timestamped zsh entry wins).
 
 **Macro buttons are two lines (0.8.216)**: line 1 is the name with a state marker, line 2 is **when that macro was last started**. `WidgetStore` keeps the start time **per macro** (`run_at_<file name>`); up to 0.8.215 it remembered only one globally, so **running several made it impossible to tell which time belonged to which**. The three states are:
 - `■ name` (accent) — running; tap to stop.
-- `✓ name` — has run and finished. Added because **a macro that finishes instantly makes `■` vanish at once, which looked like it had been stopped**.
-- `name` — never run yet (time shows `––:––`).
+- `✓ name` — ran and finished **today**. Added because **a macro that finishes instantly makes `■` vanish at once, which looked like it had been stopped**.
+- `name` — has not run today (time shows `––:––`).
 
 The footer now shows **the macro that finished last**, since start times moved onto the buttons.
+
+**`✓` lasts for the day only (0.8.224)**: up to 0.8.223 the `✓` meant "has run at least once" and, because `run_at_<file name>` was never removed, **it stayed forever**. `WidgetConfigActivity.clear` only drops the macro selection, so **removing and re-adding the widget did not clear it either** — wiping the app's data was the only way (on-device feedback, 2026-07-25). Since a button can only show `HH:mm`, a record from another day cannot be read ("is that 07:12 from today or from Tuesday?"), so **the mark and the time reset on their own when the date changes** (`WidgetStore.isSameDay` / `runStartAtToday`, Android-free and covered by `WidgetStoreTest`). The footer's "finished last" follows the same rule. The config screen also gained **"Clear run history"** for clearing it right now (`WidgetStore.clearRunHistory`). It applies **immediately, without waiting for Save** — the point is to clear a mark you are looking at, and deferring it would look like the button did nothing.
 
 **Tap again to stop while running (0.8.215)**: `RemoteViews` has no long-press, so this is a **toggle on the same button rather than a new mode**. While running, the label becomes `■ name` in the accent colour (`widget_accent`) and a tap sends `ACTION_STOP_MACRO` → `HeadlessRun.stop`. "Running" is decided from an **in-process map** in `HeadlessRun` (`name` → `PtyProcess`). If the app process dies its child processes die with it, so **starting from an empty map is correct** (never "shows running when nothing is"). Stopping goes through `PtyProcess.close` (SIGHUP, then SIGKILL after up to 1s), so it must never be called on the broadcast thread — the receiver hands it to a background thread. On exit, `HeadlessRun.launch(onExit = …)` re-renders to clear the `■`.
 
