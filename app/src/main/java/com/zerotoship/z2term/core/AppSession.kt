@@ -42,6 +42,16 @@ interface AppSession {
     val isBusy: Boolean
         get() = false
 
+    /**
+     * [isBusy] が**実態を表しているか**。false のタブでは動作中の印を出してはいけない。
+     *
+     * 端末タブでもチャネルによっては判定できず ([ProcessChannel.supportsForegroundChild])、
+     * その場合 [isBusy] は安全側に倒れて常に true になる。閉じる確認では「多めに確認する」で
+     * 済むが、**タブの印にすると嘘が出っぱなしになる**ので、表示側はこちらを見る。
+     */
+    val busyKnown: Boolean
+        get() = false
+
     /** セッション終了 (リソース解放)。SessionManager.close から呼ばれる。 */
     fun shutdown()
 }

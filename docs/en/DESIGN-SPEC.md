@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.228-alpha (versionCode 236)
+Last updated: 2026-07-25 / Target version: 0.8.229-alpha (versionCode 237)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -451,6 +451,13 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 **Creating and editing rules is deliberately absent from the UI.** The source of truth is the text at `~/.z2term/when/<id>.rule`, with the logic on the shell side (§3.3, "the app is the connection point, the shell holds the logic"). Letting the GUI author rules would create a second source of truth. The screen only lets you **see, stop and try**; authoring stays with `z2-when`.
 
 **CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> run <cmd>` to add / `list` (TSV; notes when paused) / `events` (names usable with `event:`, 0.8.226) / `pause` / `resume` / `fired [n]` (0.8.227) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><pid>` (0.8.211 switched from a random suffix to the pid to avoid same-second collisions; a counter is appended if the file already exists). **Stage 2 now covers cron/wifi/sms/sensor** (0.8.207–0.8.210). Later candidates: DST-boundary refinement for `time:cron`, light-threshold hysteresis, etc.
+
+**Tab activity marks (0.8.229)**: an inactive tab shows a **small filled square while something runs in it**, and a **`✓` if it finished while you were looking elsewhere**. The judgement (`AppSession.isBusy`) was **already being computed for the close-confirmation dialog**, but nothing surfaced it, so checking meant switching tabs and back.
+
+- **No mark on the active tab.** State display is pointless for what you are looking at, and `✓` means "finished while you weren't watching" — opening the tab is exactly when it stops being news.
+- **Never blinks.** Blinking is hostile in a dark room and breaks the quiet look of a terminal. A 4dp square and a 9sp `✓`, nothing more.
+- ⚠ **Do not mark tabs that cannot be judged.** `hasForegroundChild` returns a safe **`true`** when there is no way to tell (correct for its original purpose: not breaking TUI scrolling). Wired straight into the UI, that pins a permanent "running" dot on every SSH tab. `ProcessChannel.supportsForegroundChild` (true only for a local PTY) and `AppSession.busyKnown` were added, and the display reads those. The asymmetry matters: for the close dialog, over-confirming is harmless; for a mark, a lie stays on screen.
+- Polling happens **once in the tab bar**, not per tab (avoiding 1s × tab-count `tcgetpgrp` calls). The rule is extracted into `nextEndedIds` and pinned by `TabMarkTest` — both "finished but no mark" and "marked but still running" are easy to miss by eye.
 
 #### History palette (`ui/snippets/ShellHistory`, 0.8.221, B2)
 

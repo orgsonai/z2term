@@ -276,6 +276,10 @@ class TerminalSession(
     override val isBusy: Boolean
         get() = isRunning && hasForegroundChild
 
+    /** 前景プロセスを実際に見られるチャネル (ローカル PTY) のときだけ、印の表示に使ってよい。 */
+    override val busyKnown: Boolean
+        get() = isRunning && channel?.supportsForegroundChild == true
+
     init {
         CustomThemeStore.ensureLoaded(appContext)
         scope.launch {

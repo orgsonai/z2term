@@ -1798,6 +1798,21 @@ private fun TabBar(
         }
     }
 
+    // 動作中の判定は tcgetpgrp を伴うので、タブごとに回さず**ここで 1 回だけ**まとめて見る
+    // (1 秒 × タブ数の syscall を避ける)。判定できないタブ (SSH 等) は最初から対象外
+    // — hasForegroundChild は判定不能なとき true を返すので、素直に使うと嘘の印が点く。
+    var busyIds by remember { mutableStateOf(emptySet<String>()) }
+    // 「見ていない間に終わった」タブ。開いたら消えるので、アクティブなタブは常に外す。
+    var endedIds by remember { mutableStateOf(emptySet<String>()) }
+    LaunchedEffect(sessions, activeId) {
+        while (true) {
+            val now = sessions.filter { it.busyKnown && it.isBusy }.map { it.id }.toSet()
+            endedIds = nextEndedIds(endedIds, busyIds, now, activeId)
+            busyIds = now
+            delay(1000)
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1825,6 +1840,13 @@ private fun TabBar(
                     TabChip(
                         session = sess,
                         active = sess.id == activeId,
+                        // アクティブなタブには印を出さない (見ているものに状態表示は要らない)。
+                        mark = when {
+                            sess.id == activeId -> TabMark.NONE
+                            sess.id in busyIds -> TabMark.BUSY
+                            sess.id in endedIds -> TabMark.ENDED
+                            else -> TabMark.NONE
+                        },
                         canClose = sessions.size > 1,
                         dragging = isDragging,
                         dragOffsetX = if (isDragging) dragOffset.value else 0f,
@@ -1865,11 +1887,44 @@ private fun NewTabButton(label: String, onClick: () -> Unit) {
     }
 }
 
+/**
+ * 「見ていない間に終わった」タブ ([TabMark.ENDED]) の次の集合を決める。
+ *
+ * 画面では確かめにくいわりに間違えやすいので純関数にしてある ([TabMarkTest])。規則は 3 つ:
+ *  - `prevBusy` にあって `nowBusy` に無い = **終わった**ので足す
+ *  - いま見ているタブ ([activeId]) は外す (開いた時点で印の役目は終わり)
+ *  - また動き出したタブは外す (`✓` のまま動作中になると嘘になる)
+ */
+internal fun nextEndedIds(
+    prevEnded: Set<String>,
+    prevBusy: Set<String>,
+    nowBusy: Set<String>,
+    activeId: String?,
+): Set<String> = (prevEnded + (prevBusy - nowBusy)).filterNot { it == activeId || it in nowBusy }.toSet()
+
+/**
+ * タブに出す状態の印 (0.8.229)。
+ *
+ * 判定 ([AppSession.isBusy]) は閉じる確認のために**もう計算されていた**のに、タブからは
+ * 何も見えず「切り替えて確かめる」往復が要っていた。持っている情報を出すだけの追加。
+ */
+private enum class TabMark {
+    /** 何も出さない (アクティブなタブ / 判定できないタブ / 静かなタブ)。 */
+    NONE,
+
+    /** いま子プロセスが動いている。 */
+    BUSY,
+
+    /** 見ていない間に終わった (そのタブを開くと消える)。 */
+    ENDED,
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TabChip(
     session: AppSession,
     active: Boolean,
+    mark: TabMark,
     canClose: Boolean,
     dragging: Boolean,
     dragOffsetX: Float,
@@ -1937,17 +1992,39 @@ private fun TabChip(
             }
             .padding(horizontal = 10.dp, vertical = 5.dp)
     ) {
-        Text(
-            // タブ名は最大固定字数で切り詰める (要望)。チップが伸びて新規タブボタンを
-            // 押し出さないよう、字数制限 + 上限幅 + 省略を併用する。
-            text = label.take(12),
-            color = fg,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 84.dp)
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                // タブ名は最大固定字数で切り詰める (要望)。チップが伸びて新規タブボタンを
+                // 押し出さないよう、字数制限 + 上限幅 + 省略を併用する。
+                text = label.take(12),
+                color = fg,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 84.dp)
+            )
+            when (mark) {
+                // 動作中。4dp の塗り四角だけで、**点滅させない** (暗所で目障りになるうえ、
+                // ターミナルの静かな見た目を壊す)。
+                TabMark.BUSY -> Box(
+                    modifier = Modifier
+                        .padding(start = 5.dp)
+                        .size(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(ZtsGreen)
+                )
+                // 見ていない間に終わった。そのタブを開けば消える (= 見たら役目が終わる印)。
+                TabMark.ENDED -> Text(
+                    text = "✓",
+                    color = ZtsTextSecondary,
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+                TabMark.NONE -> Unit
+            }
+        }
 
         if (showInfo) {
             TabInfoPopup(name = label, engine = engineText)

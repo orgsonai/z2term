@@ -33,4 +33,13 @@ interface ProcessChannel {
      * scrollback に倒すための判定。
      */
     val hasForegroundChild: Boolean get() = true
+
+    /**
+     * [hasForegroundChild] が**実態を見ているか**。判定機構を持たない実装 (SSH 等) は false。
+     *
+     * [hasForegroundChild] は判定不能なとき安全側の `true` を返すので、そのまま
+     * 「動作中」の表示に使うと**SSH タブに永久に動作中の印が点く**ことになる (嘘の表示)。
+     * 表示に使う側は必ずこのフラグで「判定できるタブか」を先に確かめる。
+     */
+    val supportsForegroundChild: Boolean get() = false
 }

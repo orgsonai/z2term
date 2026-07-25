@@ -128,6 +128,7 @@ Z2Term comes with its **own in-app keyboard**.
 | Add a terminal | The tab **+** (terminal) / **🖥** (GUI desktop) |
 | Remove a terminal | **Double-tap** that tab (the last remaining one won't be removed). **If something is running in that tab, a confirmation dialog appears** (to prevent accidental removal while you are working). If nothing is running it closes right away |
 | Reorder tabs | **Long-press** a tab then **drag** left/right (you can move it edge to edge in one gesture) |
+| Tell which tabs are working | An inactive tab gets **a small dot** next to its name while something runs in it, and a **`✓`** if it finished while you were elsewhere (it clears when you open that tab). The tab you're on never gets a mark |
 | See tab info | **Long-press** a tab to pop up its name and the **engine it's running on** (PRoot / z2root / chroot / Android sh, or GUI for GUI tabs) — no need to open Settings; it shares the same long-press as reorder |
 | Check the app version | Type **`z2version`** in the terminal to print the running app's version, execution engine, the **running OS (distro) and kernel**, etc. (`z2version --short` for just the version) |
 | Past commands | The **↑ key** (history persists even after restarting the app) |

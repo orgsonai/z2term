@@ -45,6 +45,9 @@ class LocalPtyChannel(private val pty: PtyProcess) : ProcessChannel {
      * `tcgetpgrp` が失敗 (-1) した場合は安全側に倒して `true` (= 子プロセス前景扱い)。これは TUI の
      * スクロールを止めない方を優先するため (リーク側は別の救済が効かないだけで悪化しない)。
      */
+    /** `tcgetpgrp` で実際に見ているので、表示にも使える。 */
+    override val supportsForegroundChild: Boolean get() = true
+
     override val hasForegroundChild: Boolean
         get() {
             val fg = pty.foregroundPgid()
