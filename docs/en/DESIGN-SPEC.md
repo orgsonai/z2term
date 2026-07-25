@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.232-alpha (versionCode 240)
+Last updated: 2026-07-25 / Target version: 0.8.233-alpha (versionCode 241)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -472,6 +472,12 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 - The bar leads with the **line count**: here, how many lines are about to land matters more than what they say. Only two lines are previewed (this is not a place to read the whole thing).
 - Pasting still **does not execute** (it lands on the input line; bracketed paste is unchanged). Same contract as receiving a share (B1).
 - Placement and size match `SearchBar` — two different bars appear at the top of the terminal area, and they must not look unrelated.
+
+**While searching, the scrollbar becomes a map (0.8.233)**: search reports a **count** ("3 / 17") but not whether those 17 hits sit near the top or are spread through the buffer, so you end up hammering ∨. Hit positions now appear as ticks on the scrollbar.
+
+- **Nothing is added when not searching** (an empty `matchRows` draws zero ticks). A scrollbar's job is "where am I", not a permanent status area.
+- **At most one tick per pixel row** (thinned at 2dp). A grep-like search with hundreds of hits therefore reads as density rather than a solid bar — without the thinning, more hits would mean less information.
+- A tick is **tappable** and seeks there. Its hit area is as wide as the thumb and 12dp tall (never make someone aim at a hairline). Where a tick overlaps the thumb, **the thumb wins** (it is placed after), so dragging behaves exactly as before.
 
 #### History palette (`ui/snippets/ShellHistory`, 0.8.221, B2)
 

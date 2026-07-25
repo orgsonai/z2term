@@ -544,7 +544,13 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     },
                     modifier = Modifier.fillMaxSize()
                 )
-                TerminalScrollbar(session = active, modifier = Modifier.fillMaxSize())
+                TerminalScrollbar(
+                    session = active,
+                    // 検索中だけ地図になる。検索していないときは今までどおり何も足さない。
+                    matchRows = if (searchOpen) searchMatches.map { it.absRow } else emptyList(),
+                    onSeek = { absRow -> active.scrollToAbsRow(absRow) },
+                    modifier = Modifier.fillMaxSize()
+                )
                 ScrollIndicators(session = active, modifier = Modifier.fillMaxSize())
                 // 変換候補バー: キーボードの上に浮かせて表示 (キーボード本体の高さは変えない)
                 CandidateBar(
@@ -2485,6 +2491,8 @@ private fun CandidateBar(
 @Composable
 private fun TerminalScrollbar(
     session: TerminalSession,
+    matchRows: List<Int>,
+    onSeek: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scrollOffset by session.scrollOffset.collectAsState()
@@ -2522,6 +2530,46 @@ private fun TerminalScrollbar(
         // 伸びるたび) 検出器が作り直され、掴んだ指が外れていた。
         // key は Unit にし、変化する値は rememberUpdatedState 経由で読む。
         val metrics = rememberUpdatedState(Triple(scrollbackSize, maxThumbTop, thumbH))
+
+        // 検索ヒットの目盛り (0.8.233)。件数は「3 / 17」と出ていても、**17 件が上に固まって
+        // いるのか散っているのか**が分からず ∨ を連打することになっていた。位置を出すだけで
+        // 「あと何回押すか」が読める。検索していないときは matchRows が空なので何も描かない。
+        if (matchRows.isNotEmpty()) {
+            val tickH = with(density) { 2.dp.toPx() }
+            // 同じ画素行に何本も描いても情報は増えないので間引く。grep 的な検索で
+            // 数百件ヒットしても、帯にならず「濃さ」で分かる程度に留める。
+            val ticks = remember(matchRows, trackH, totalRows) {
+                matchRows.asSequence()
+                    .map { abs -> (trackH * abs / totalRows).coerceIn(0f, trackH - tickH) }
+                    .map { y -> (y / tickH).toInt() to y }
+                    .distinctBy { it.first }
+                    .map { it.second }
+                    .toList()
+            }
+            ticks.forEach { y ->
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset { IntOffset(0, (y - with(density) { 5.dp.toPx() }).roundToInt()) }
+                        // 当たり判定はつまみと同じ幅・高さ 12dp。細い線を狙わせない。
+                        .width(hitWidth)
+                        .height(12.dp)
+                        .clickable {
+                            val abs = (y / trackH * totalRows).roundToInt()
+                            onSeek(abs)
+                        },
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 2.dp)
+                            .width(barWidth)
+                            .height(with(density) { tickH.toDp() })
+                            .background(ZtsGreen.copy(alpha = 0.75f))
+                    )
+                }
+            }
+        }
 
         // つまみ。掴んで上下ドラッグで scrollback を移動できる。
         Box(
