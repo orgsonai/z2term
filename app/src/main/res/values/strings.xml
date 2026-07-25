@@ -626,4 +626,12 @@
     <string name="settings_section_automation_rules">Automation rules (z2-when)</string>
     <string name="settings_automation_rules_desc">Review your rules, toggle them, read their logs, try one, or pause them all at once.</string>
     <string name="settings_open_when_rules">Manage rules</string>
+    <string name="intro_title">To start (tap to put it on the input line; press ⏎ yourself to run it)</string>
+    <string name="intro_footer">z2help for the full list / z2doctor when something does not work</string>
+    <string name="intro_card_notify">Post a notification on your phone</string>
+    <string name="intro_card_torch">Turn the flashlight on</string>
+    <string name="intro_card_sshd">Let a PC connect to this device</string>
+    <string name="settings_intro_again">Show the intro again</string>
+    <string name="settings_intro_again_desc">The first three cards will appear again the next time you open the app.</string>
+    <string name="settings_intro_again_done">It will show next time you open the app</string>
 </resources>

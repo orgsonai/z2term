@@ -330,6 +330,8 @@ class TerminalSession(
     fun setLoginShell(shell: String) { scope.launch { settings.setLoginShell(shell) } }
     fun setKeyboardMode(mode: String) { scope.launch { settings.setKeyboardMode(mode) } }
     fun setKeepAliveService(enabled: Boolean) { scope.launch { settings.setKeepAliveService(enabled) } }
+    /** 初回ガイド (最初の 3 枚) を出し終えたことを覚える。 */
+    fun setIntroDone(done: Boolean) { scope.launch { settings.setIntroDone(done) } }
     fun setKeepScreenOn(enabled: Boolean) { scope.launch { settings.setKeepScreenOn(enabled) } }
     fun setKeyboardToggleBar(enabled: Boolean) { scope.launch { settings.setKeyboardToggleBar(enabled) } }
     fun setToolbarOrder(csv: String) { scope.launch { settings.setToolbarOrder(csv) } }

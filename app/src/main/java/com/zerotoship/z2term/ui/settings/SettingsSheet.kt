@@ -1151,6 +1151,26 @@ fun SettingsSheet(
             SettingsGroupSection(SettingsGroup.MAINTENANCE) {
                 Spacer(modifier = Modifier.height(4.dp))
 
+                // 初回ガイドをもう一度。復活の導線は「設定の奥に 1 行」に留める
+                // (毎回出したい機能ではないので、目立つ場所には置かない)。
+                Section(title = stringResource(R.string.settings_intro_again)) {
+                    Text(
+                        text = stringResource(R.string.settings_intro_again_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    ActionButton(
+                        label = stringResource(R.string.settings_intro_again),
+                        onClick = {
+                            session.setIntroDone(false)
+                            Toast.makeText(
+                                context, R.string.settings_intro_again_done, Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+                }
+
                 // 端末リセット (アプリ初回起動時の状態に戻す = 端末タブ 1 つだけにして初期化)。
                 // 画面クリア単体は CTRL+L で行える。
                 // ディストロ/GUI のクリーンインストールは各「切替」セクションのチェックへ移動。

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.230-alpha (versionCode 238)
+Last updated: 2026-07-25 / Target version: 0.8.231-alpha (versionCode 239)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -458,6 +458,13 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 - **Never blinks.** Blinking is hostile in a dark room and breaks the quiet look of a terminal. A 4dp square and a 9sp `✓`, nothing more.
 - ⚠ **Do not mark tabs that cannot be judged.** `hasForegroundChild` returns a safe **`true`** when there is no way to tell (correct for its original purpose: not breaking TUI scrolling). Wired straight into the UI, that pins a permanent "running" dot on every SSH tab. `ProcessChannel.supportsForegroundChild` (true only for a local PTY) and `AppSession.busyKnown` were added, and the display reads those. The asymmetry matters: for the close dialog, over-confirming is harmless; for a mark, a lie stays on screen.
 - Polling happens **once in the tab bar**, not per tab (avoiding 1s × tab-count `tcgetpgrp` calls). The rule is extracted into `nextEndedIds` and pinned by `TabMarkTest` — both "finished but no mark" and "marked but still running" are easy to miss by eye.
+
+**The first three cards (`ui/terminal/IntroCards`, 0.8.231)**: right after install the screen is black with a `#`, and someone who doesn't know Linux stops there. Someone who does know sees "just a terminal" and **never notices what makes Z2Term different — that it can reach Android**. Three cards exist to hand out one "it worked" in the first 90 seconds.
+
+- The three are "post a notification", "turn on the flashlight", "let a PC connect": **two about touching Android, one about getting in from a PC**, all of them things that answer in one line (nothing that makes you wait comes first).
+- **Nothing runs by itself.** A tap only **puts the command on the input line**; the user presses the return key (the same contract as receiving a share, B1). The wording shows **the command itself** rather than an explanation — this is not a screen to read, it is a screen to make something happen once.
+- **A card disappears once tapped.** When all three are gone, or the close button is pressed, [AppSettings.introDone] is set and it **never appears again**.
+- Of the 32 proposals this was **the only one that could collide head-on with "don't add modes"**. Hence the spec is fixed up front: **at most three items, never a full-screen wizard, and one line deep in Settings to bring it back** (Maintenance). If a fourth item feels necessary, that is `z2help`'s job.
 
 #### History palette (`ui/snippets/ShellHistory`, 0.8.221, B2)
 

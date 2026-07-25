@@ -240,6 +240,11 @@ class AppSettings(private val context: Context) {
          */
         val systemEventCaptureEnabled: Boolean = DEFAULT_SYSTEM_EVENT_CAPTURE,
         /**
+         * 初回ガイド (最初の 3 枚) を出し終えたか。1 度きりの案内なので、**触ったら二度と出さない**。
+         * 既定 false = まだ出していない。設定から false に戻せば、もう一度出せる。
+         */
+        val introDone: Boolean = false,
+        /**
          * システムイベントログの出力フォーマット **テンプレート**。プレースホルダ `{time}` `{ts}`
          * `{event}` `{level}` `{ssid}` と、改行 `\n`・タブ `\t` が使える。**空文字なら JSONL** (既定)。
          * 置換は [com.zerotoship.z2term.service.SystemEventService.render] が行う。
@@ -375,6 +380,7 @@ class AppSettings(private val context: Context) {
             notificationLogFormat = p[KEY_NOTIFICATION_LOG_FORMAT] ?: DEFAULT_NOTIFICATION_LOG_FORMAT,
             notificationLogPrepend = p[KEY_NOTIFICATION_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND,
             systemEventCaptureEnabled = p[KEY_SYSTEM_EVENT_CAPTURE] ?: DEFAULT_SYSTEM_EVENT_CAPTURE,
+            introDone = p[KEY_INTRO_DONE] ?: false,
             systemEventLogFormat = p[KEY_SYSTEM_EVENT_LOG_FORMAT] ?: DEFAULT_SYSTEM_EVENT_LOG_FORMAT,
             systemEventLogPrepend = p[KEY_SYSTEM_EVENT_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND,
             unlockWatchEnabled = p[KEY_UNLOCK_WATCH] ?: DEFAULT_UNLOCK_WATCH,
@@ -414,6 +420,11 @@ class AppSettings(private val context: Context) {
 
     suspend fun setSystemEventCaptureEnabled(enabled: Boolean) {
         context.dataStore.edit { it[KEY_SYSTEM_EVENT_CAPTURE] = enabled }
+    }
+
+    /** 初回ガイドを出し終えた (または「もう出さない」を選んだ) ことを覚える。 */
+    suspend fun setIntroDone(done: Boolean) {
+        context.dataStore.edit { it[KEY_INTRO_DONE] = done }
     }
 
     suspend fun setSystemEventLogFormat(template: String) {
@@ -683,6 +694,7 @@ class AppSettings(private val context: Context) {
         private val KEY_NOTIFICATION_LOG = booleanPreferencesKey("notification_log_enabled")
         private val KEY_NOTIFICATION_LOG_FORMAT = stringPreferencesKey("notification_log_format")
         private val KEY_SYSTEM_EVENT_CAPTURE = booleanPreferencesKey("system_event_capture_enabled")
+        private val KEY_INTRO_DONE = booleanPreferencesKey("intro_done")
         private val KEY_SYSTEM_EVENT_LOG_FORMAT = stringPreferencesKey("system_event_log_format")
         private val KEY_NOTIFICATION_LOG_PREPEND = booleanPreferencesKey("notification_log_prepend")
         private val KEY_SYSTEM_EVENT_LOG_PREPEND = booleanPreferencesKey("system_event_log_prepend")

@@ -27,6 +27,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 3. Open the app.
 
 On first launch, **Alpine Linux is set up automatically** (wait a moment and a `#` prompt appears).
+The first time, **three small cards** appear above the terminal. Tapping one only **puts a command on the input line**, so press the return key to run it (post a notification / turn on the flashlight / let a PC connect). Tap all three, or press the close button, and they never come back. To see them again: Settings > Maintenance > "Show the intro again".
 That's all the setup you need.
 
 > ℹ️ The `foss` build (for F-Droid / sideload) does not bundle Alpine itself, so it **needs a network connection on the first launch only** (it auto-downloads from the official site). The `full` build bundles it, so it starts instantly even offline.

@@ -478,6 +478,15 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             }
         }
 
+        // 初回だけ「最初の 3 枚」を出す (0.8.231)。触ったら消え、3 枚とも消えるか ✕ で二度と出ない。
+        // 実行はしない — タップで入力行に入るだけで、⏎ は人が押す (共有受け取りと同じ作法)。
+        if (!settings.introDone) {
+            IntroCards(
+                onInsert = { cmd -> active.writeBytes(cmd.toByteArray(Charsets.UTF_8)) },
+                onFinish = { active.setIntroDone(true) }
+            )
+        }
+
         Row(modifier = Modifier
             .fillMaxWidth()
             .weight(1f)

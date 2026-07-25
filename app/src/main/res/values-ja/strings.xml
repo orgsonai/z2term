@@ -614,4 +614,12 @@
     <string name="settings_section_automation_rules">自動化ルール（z2-when）</string>
     <string name="settings_automation_rules_desc">登録したルールの確認・ON/OFF・実行ログ・お試し実行と、全部まとめての一時停止。</string>
     <string name="settings_open_when_rules">ルールを管理</string>
+    <string name="intro_title">はじめに（タップすると入力欄に入ります。実行は ⏎ を押してから）</string>
+    <string name="intro_footer">一覧は z2help ／ 動かないときは z2doctor</string>
+    <string name="intro_card_notify">スマホに通知を出してみる</string>
+    <string name="intro_card_torch">ライトを点けてみる</string>
+    <string name="intro_card_sshd">PC からこの端末に入れるようにする</string>
+    <string name="settings_intro_again">はじめの案内をもう一度出す</string>
+    <string name="settings_intro_again_desc">次にアプリを開いたとき、最初の 3 枚をもう一度表示します。</string>
+    <string name="settings_intro_again_done">次に開いたときに出ます</string>
 </resources>
