@@ -257,6 +257,8 @@ private fun rssBody(d: String, ja: Boolean): String {
 #
 # 必要: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
 # 電池: 取りに行くほど食う。30 分より短くしないこと。
+#
+# z2-run: z2-when time:every=30m run ~/.z2term/macros/rss.sh
 """ else """
 #
 # Setup:
@@ -270,6 +272,8 @@ private fun rssBody(d: String, ja: Boolean): String {
 #
 # Needs: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
 # Battery: the more often you poll the more it costs. Do not go below 30 minutes.
+#
+# z2-run: z2-when time:every=30m run ~/.z2term/macros/rss.sh
 """
 
     val cKeep = if (ja) "seen/latest に残す行数の上限" else "max lines kept in seen/latest"
@@ -373,11 +377,15 @@ private fun rssOpenBody(d: String, ja: Boolean): String {
 # 準備: 先に集める側を仕掛ける
 #   z2-macro install rss
 # ウィジェット: 状態ウィジェットの設定で「rss-open」をボタンに割り当てる。
+#
+# z2-run: 状態ウィジェットのボタンに rss-open を割り当てる (端末で試すなら sh ~/.z2term/macros/rss-open.sh)
 """ else """
 #
 # Setup: put the collecting side in place first
 #   z2-macro install rss
 # Widget: assign "rss-open" to a button in the status widget's settings.
+#
+# z2-run: assign "rss-open" to a status-widget button (to try it here: sh ~/.z2term/macros/rss-open.sh)
 """
     val cNone = if (ja) "まだ記事がありません" else "No articles yet"
     val cAllRead = if (ja) "新しい記事はありません" else "Nothing new to open"
@@ -637,6 +645,11 @@ fun z2MacroScript(lang: String): String {
         "常駐させるには ⚙設定 → 常駐サーバー に次を登録してください:"
     else
         "To keep it running, register this under Settings -> Resident servers:"
+    // 常駐させないサンプル (時刻トリガーで 1 回走るもの・ウィジェットのボタンから叩くもの) がある。
+    // そういうスクリプトは先頭に `# z2-run: <動かし方>` を書いておき、install はそれを出す。
+    // ⚠ 一律に「常駐サーバーに登録」と案内すると、**使い切りのスクリプトを常駐させてしまう**
+    //   (終了するたび supervisor が再起動するので、フィード取得なら延々と取りに行く)。
+    val msgHintRun = if (ja) "動かし方:" else "How to run it:"
 
     return """
         |#!/bin/sh
@@ -683,8 +696,14 @@ fun z2MacroScript(lang: String): String {
         |      fi
         |      cp "${d}SRC/${d}name" "${d}DEST/${d}name" && chmod +x "${d}DEST/${d}name" || continue
         |      echo "$msgInstalled ${d}DEST/${d}name"
-        |      echo "$msgHintResident"
-        |      echo "  sh ${d}DEST/${d}name"
+        |      hint=${d}(sed -n 's/^# z2-run: //p' "${d}DEST/${d}name" 2>/dev/null | head -1)
+        |      if [ -n "${d}hint" ]; then
+        |        echo "$msgHintRun"
+        |        echo "  ${d}hint"
+        |      else
+        |        echo "$msgHintResident"
+        |        echo "  sh ${d}DEST/${d}name"
+        |      fi
         |    done ;;
         |  show)
         |    [ ${d}# -ge 2 ] || usage

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-26 / Target version: 0.8.246-alpha (versionCode 254)
+Last updated: 2026-07-26 / Target version: 0.8.247-alpha (versionCode 255)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -675,6 +675,7 @@ The footer now shows **the macro that finished last**, since start times moved o
 - Install **never overwrites an existing file** (only `-f` does), so user edits survive the per-launch re-provisioning
 - `list` shows each script's second-line comment as its description; `show` / `run` / `dir` are also provided
 - Comments inside the samples follow the app language (ja/en)
+- **Each script declares how it is meant to be run** (`# z2-run: <how>`, 0.8.247). Install prints that line when present and falls back to the old "register under Resident servers" otherwise. ⚠ The unconditional resident hint was actively telling users to **make a run-once script resident** — `rss.sh` exits every time, so the supervisor would restart it and it would poll feeds forever (caught on a device). Keep `# z2-run:` **below the description line (line 2)**; putting it first would make the widget's button description (`WidgetStore.describe`) pick it up instead
 
 **Feed subscription is deliberately not an app feature** (`rss.sh` / `rss-open.sh`, 0.8.246): the request was for an RSS reader, and **not one line was added to the app**. Scheduled runs (`z2-when time:`), a notification with a button (`z2-notify -b` → `event:notify_action`), opening a browser (`z2-open`) and the live tail widget all existed already; the only thing missing was **a worked example of wiring them together**. A dedicated screen would add another single-purpose page, and feed formats are broken in the wild in ways that would then become **the app's problem to keep fixing**. On the terminal side, one malformed feed costs the user one extra line.
 
