@@ -42,6 +42,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -181,6 +183,28 @@ private fun applyKeepScreenOn(context: Context, fallbackView: View, on: Boolean)
 }
 
 /**
+ * このアプリの**画面だけ**の明るさを当てる (0.8.234)。
+ *
+ * 暗い部屋で開くと、いちばん眩しいのが黒地に緑文字の自分のアプリ、という状況になる。
+ * OS の明るさを下げに行くと戻すのを忘れるので、**この Window だけ**に効かせる
+ * (`WindowManager.LayoutParams.screenBrightness`)。ホームに戻れば OS の明るさに戻る。
+ *
+ * [level] が null なら `BRIGHTNESS_OVERRIDE_NONE` = **OS に任せる** (既定)。触ったときだけ
+ * 効くので**モードは増えない**。下限は [MIN_BRIGHTNESS] — 真っ暗にして「戻す」も押せなく
+ * なるのが最悪の結末なので、そこには落ちないようにする。
+ */
+private fun applyScreenBrightness(context: Context, level: Float?) {
+    val window = context.findActivity()?.window ?: return
+    window.attributes = window.attributes.apply {
+        screenBrightness = level?.coerceIn(MIN_BRIGHTNESS, 1f)
+            ?: WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+    }
+}
+
+/** 明るさの下限。これ以上暗くすると画面が読めず、戻す操作もできなくなる。 */
+private const val MIN_BRIGHTNESS = 0.10f
+
+/**
  * アプリ全体のターミナル画面。
  *
  * 構造:
@@ -294,6 +318,12 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         applyKeepScreenOn(context, rootView, keepScreenOn)
     }
 
+    // この画面だけの明るさ。null = OS に任せる (既定)。**設定には保存しない** —
+    // 「今この場が眩しい」ための一時的な調整で、次に開いたときまで持ち越すものではない。
+    var brightness by remember { mutableStateOf<Float?>(null) }
+    var brightnessBarOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(brightness) { applyScreenBrightness(context, brightness) }
+
     // かな漢字変換: 入力中ひらがな(composing)と候補を保持。確定で PTY へ送出。
     // ただし検索バーを開いて独自キーボード使用中は、確定文字を PTY ではなく検索クエリへ流す
     // (システムキーボードとの二重入力を避ける。詳細は onKeyboardBytes 付近)。
@@ -397,6 +427,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onOpenSettings = { settingsOpen = true },
             keepScreenOn = keepScreenOn,
             onToggleKeepScreenOn = { active.setKeepScreenOn(!settings.keepScreenOn) },
+            // ダブルタップ = この画面だけの明るさ (単タップは今までどおり画面消灯ロック)。
+            // 📋 や ⌨ と同じ「単タップ=動作 / ダブルタップ=詳細」の作法に揃える。
+            onOpenBrightness = { brightnessBarOpen = true },
             keepAlive = settings.keepAliveService,
             onToggleKeepAlive = { active.setKeepAliveService(!settings.keepAliveService) },
             residentLocked = serversRunning,
@@ -557,6 +590,15 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     composing = composing,
                     modifier = Modifier.align(Alignment.BottomStart)
                 )
+                // 画面の明るさ (🔅 のダブルタップで開く)。同じ場所に出る帯の 3 つ目。
+                if (brightnessBarOpen) {
+                    BrightnessBar(
+                        level = brightness,
+                        onChange = { brightness = it },
+                        onReset = { brightness = null },
+                        onClose = { brightnessBarOpen = false }
+                    )
+                }
                 // 複数行の貼り付け確認 (端末領域の上端にオーバーレイ・検索バーと同じ置き方)。
                 pastePreview?.let { text ->
                     PastePreviewBar(
@@ -1275,6 +1317,7 @@ private fun TopBar(
     onOpenSettings: () -> Unit,
     keepScreenOn: Boolean,
     onToggleKeepScreenOn: () -> Unit,
+    onOpenBrightness: () -> Unit,
     keepAlive: Boolean,
     onToggleKeepAlive: () -> Unit,
     residentLocked: Boolean,
@@ -1327,7 +1370,7 @@ private fun TopBar(
                 items = listOf(
                     ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
                     ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
-                    ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
+                    ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn, onDoubleClick = onOpenBrightness),
                     keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
                     ToolbarItem(ToolbarButtons.SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
                     ToolbarItem(ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible),
@@ -1670,6 +1713,68 @@ private fun PastePreviewBar(
             modifier = Modifier
                 .clip(RoundedCornerShape(4.dp))
                 .clickable(onClick = onDismiss)
+                .padding(horizontal = 8.dp, vertical = 6.dp)
+        ) {
+            Text(text = "✕", color = ZtsTextSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+        }
+    }
+}
+
+/**
+ * この画面だけの明るさを決める帯 (0.8.234)。🔅 のダブルタップで開く。
+ *
+ * 中身は**スライダー 1 本 +「戻す」+ ✕** だけ。設定画面へは行かせない — 眩しいのは
+ * 「いま」なので、その場で終わる操作にする。既定は「OS に任せる」で、触ったときだけ
+ * 効くから**モードが増えない**。
+ */
+@Composable
+private fun BrightnessBar(
+    level: Float?,
+    onChange: (Float) -> Unit,
+    onReset: () -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .background(ZtsBgSecondary)
+            .border(width = 1.dp, color = ZtsBorder)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(text = "◐", color = ZtsGreen, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+        Slider(
+            value = level ?: 1f,
+            onValueChange = onChange,
+            valueRange = MIN_BRIGHTNESS..1f,
+            colors = SliderDefaults.colors(
+                thumbColor = ZtsGreen,
+                activeTrackColor = ZtsGreen,
+                inactiveTrackColor = ZtsBorder
+            ),
+            modifier = Modifier.weight(1f)
+        )
+        // 「戻す」は常に出しておく。暗くしすぎたときの出口が無いと怖くて触れない。
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .clickable(onClick = onReset)
+                .padding(horizontal = 8.dp, vertical = 6.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.brightness_reset),
+                color = ZtsTextSecondary,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .clickable(onClick = onClose)
                 .padding(horizontal = 8.dp, vertical = 6.dp)
         ) {
             Text(text = "✕", color = ZtsTextSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)

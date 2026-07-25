@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.233-alpha (versionCode 241)
+Last updated: 2026-07-25 / Target version: 0.8.234-alpha (versionCode 242)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -478,6 +478,13 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 - **Nothing is added when not searching** (an empty `matchRows` draws zero ticks). A scrollbar's job is "where am I", not a permanent status area.
 - **At most one tick per pixel row** (thinned at 2dp). A grep-like search with hundreds of hits therefore reads as density rather than a solid bar — without the thinning, more hits would mean less information.
 - A tick is **tappable** and seeks there. Its hit area is as wide as the thumb and 12dp tall (never make someone aim at a hairline). Where a tick overlaps the thumb, **the thumb wins** (it is placed after), so dragging behaves exactly as before.
+
+**Per-app screen brightness (0.8.234)**: in a dark room, **the brightest thing around is your own app** — green on black at full backlight. Reaching for the OS brightness means forgetting to put it back, and no amount of theming fixes it (it is a brightness problem, not a colour one). **Double-tapping 🔅** opens a bar with a single slider.
+
+- It sets `WindowManager.LayoutParams.screenBrightness`, i.e. **this window only**. Going home restores the OS brightness.
+- The default is `BRIGHTNESS_OVERRIDE_NONE` (leave it to the OS); it only applies **once you touch it**, so no setting and no mode is added. A single tap still toggles keep-screen-on (the same "tap = act / double-tap = details" contract as 📋 and ⌨).
+- **Not persisted.** This is a "right now it's too bright" adjustment, not something to carry into the next session.
+- ⚠ Floor of 10%. The worst outcome is a screen too dark to find the way back, so Reset always sits in the bar (without an exit, nobody dares touch the slider).
 
 #### History palette (`ui/snippets/ShellHistory`, 0.8.221, B2)
 

@@ -639,4 +639,5 @@
         <item quantity="other">%1$d lines</item>
     </plurals>
     <string name="paste_preview_do">Paste</string>
+    <string name="brightness_reset">Reset</string>
 </resources>
