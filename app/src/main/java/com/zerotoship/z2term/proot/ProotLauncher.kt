@@ -1157,7 +1157,8 @@ class ProotLauncher(private val context: Context) {
     private fun ensureZ2ApiScripts(rootfs: File) {
         runCatching {
             val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
-            z2ApiScripts().forEach { (name, body) ->
+            // 端末に出る文言はアプリの言語設定に合わせる (z2help と同じ扱い)。
+            z2ApiScripts(lang = LocaleHelper.language(context)).forEach { (name, body) ->
                 val f = File(dir, name)
                 f.writeText(body)
                 f.setReadable(true, false)

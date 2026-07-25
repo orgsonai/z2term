@@ -59,7 +59,21 @@ data class GuiScriptStrings(
     val running: String,              // "✅ GUI 起動中 (DISPLAY=..., RFB ...)"
     val stopped: String,              // "⏹ GUI は停止中"
     val stoppedMsg: String,           // "⏹ 停止しました"
-    val usage: String                  // "使い方: z2gui [start [WxH] [clean] | stop | status | ...]"
+    val usage: String,                 // "使い方: z2gui [start [WxH] [clean] | stop | status | ...]"
+    // --- 0.8.228 で追加。ここだけ日本語のまま端末に出ていた（英語モードでも和文が出る状態）。
+    val konsoleRebuild: String,       // ローカル cache から再構成する旨
+    val extracting: String,           // "📦 展開:" (方式名は英字なので後ろに付ける)
+    val konsoleRebuilt: String,       // 再構成できた
+    val konsoleCacheShort: String,    // cache だけでは足りない
+    val installFailed: String,        // GUI 一式を導入できなかった
+    val installFailedHint: String,    // その次の一手
+    val audioInstalling: String,      // PulseAudio を導入します
+    val audioNoPulse: String,         // pulseaudio が無いので無音で継続
+    val audioNoPactl: String,         // pactl が無いので無音で継続
+    val audioStartFailed: String,     // PulseAudio 起動失敗
+    val audioReady: String,           // 音声の経路ができた
+    val qtFallback: String,           // PySide6 同梱 Qt6 を追加
+    val qtFallbackFound: String       // 任意の libQt6QuickWidgets を発見
 ) {
     companion object {
         fun ja(): GuiScriptStrings = GuiScriptStrings(
@@ -77,7 +91,20 @@ data class GuiScriptStrings(
             running = "✅ GUI 起動中",
             stopped = "⏹ GUI は停止中",
             stoppedMsg = "⏹ 停止しました",
-            usage = "使い方: z2gui [start [WxH] [clean] | stop | status | install | clean | check]"
+            usage = "使い方: z2gui [start [WxH] [clean] | stop | status | install | clean | check]",
+            konsoleRebuild = "🔧 Konsole 関連ファイルが不足 — ローカル cache から再構成 (ネット通信なし)",
+            extracting = "📦 展開",
+            konsoleRebuilt = "✅ Konsole + Qt6 をローカル cache から再構成済",
+            konsoleCacheShort = "⚠️ ローカル cache だけでは揃いません — 設定で「クリーンインストール」を ON にして 🖥 を押してください",
+            installFailed = "❌ GUI 一式 (Xvnc / openbox / 端末) を導入できませんでした。",
+            installFailedHint = "   ネットワーク接続を確認するか、設定で「クリーンインストール」を ON にして 🖥 を押してください。",
+            audioInstalling = "🔊 GUI 音声: PulseAudio を導入します",
+            audioNoPulse = "⚠️ GUI 音声: pulseaudio が無いため無音で継続",
+            audioNoPactl = "⚠️ GUI 音声: pactl が無いため無音で継続",
+            audioStartFailed = "⚠️ GUI 音声: PulseAudio 起動失敗",
+            audioReady = "🔊 GUI 音声: z2sink.monitor →",
+            qtFallback = "📚 PySide6 同梱 Qt6 を LD_LIBRARY_PATH に追加 (Konsole 救済):",
+            qtFallbackFound = "📚 任意の libQt6QuickWidgets.so.6 を発見 → LD_LIBRARY_PATH に追加:"
         )
         fun en(): GuiScriptStrings = GuiScriptStrings(
             installing = "📦 Installing GUI stack",
@@ -94,7 +121,20 @@ data class GuiScriptStrings(
             running = "✅ GUI running",
             stopped = "⏹ GUI is stopped",
             stoppedMsg = "⏹ Stopped",
-            usage = "Usage: z2gui [start [WxH] [clean] | stop | status | install | clean | check]"
+            usage = "Usage: z2gui [start [WxH] [clean] | stop | status | install | clean | check]",
+            konsoleRebuild = "🔧 Konsole files are missing — rebuilding from the local cache (no network)",
+            extracting = "📦 Extracting",
+            konsoleRebuilt = "✅ Rebuilt Konsole + Qt6 from the local cache",
+            konsoleCacheShort = "⚠️ The local cache is not enough — turn on \"Clean install\" in settings and press 🖥",
+            installFailed = "❌ Could not install the GUI stack (Xvnc / openbox / terminal).",
+            installFailedHint = "   Check your network, or turn on \"Clean install\" in settings and press 🖥.",
+            audioInstalling = "🔊 GUI audio: installing PulseAudio",
+            audioNoPulse = "⚠️ GUI audio: no pulseaudio, continuing without sound",
+            audioNoPactl = "⚠️ GUI audio: no pactl, continuing without sound",
+            audioStartFailed = "⚠️ GUI audio: PulseAudio failed to start",
+            audioReady = "🔊 GUI audio: z2sink.monitor →",
+            qtFallback = "📚 Added PySide6's bundled Qt6 to LD_LIBRARY_PATH (Konsole fallback):",
+            qtFallbackFound = "📚 Found a libQt6QuickWidgets.so.6 → added to LD_LIBRARY_PATH:"
         )
         fun forLang(lang: String): GuiScriptStrings = if (lang == "en") en() else ja()
     }
@@ -235,7 +275,7 @@ fun z2guiScript(
         |  fi
         |  detect_pm
         |  # ローカル cache から bsdtar / tar / dpkg で再展開を試みる (NO NETWORK)。
-        |  echo "🔧 Konsole 関連ファイルが不足 — ローカル cache から再構成 (ネット通信なし)"
+        |  echo "${strings.konsoleRebuild}"
         |  case "${d}PM" in
         |    pacman)
         |      for pkg in /var/cache/pacman/pkg/konsole-*.pkg.tar.zst \
@@ -244,7 +284,7 @@ fun z2guiScript(
         |                 /var/cache/pacman/pkg/qt6-base-*.pkg.tar.zst \
         |                 /var/cache/pacman/pkg/dbus-*.pkg.tar.zst; do
         |        [ -f "${d}pkg" ] || continue
-        |        echo "📦 bsdtar 展開: ${d}pkg"
+        |        echo "${strings.extracting} (bsdtar): ${d}pkg"
         |        if has bsdtar; then
         |          bsdtar -xf "${d}pkg" -C / --no-same-owner --no-same-permissions 2>/dev/null
         |        else
@@ -259,7 +299,7 @@ fun z2guiScript(
         |                 /etc/apk/cache/qt6-qtbase-x11-*.apk \
         |                 /etc/apk/cache/dbus-*.apk; do
         |        [ -f "${d}pkg" ] || continue
-        |        echo "📦 tar -xzf 展開: ${d}pkg"
+        |        echo "${strings.extracting} (tar -xzf): ${d}pkg"
         |        tar -xzf "${d}pkg" -C / --no-same-owner 2>/dev/null
         |      done ;;
         |    apt)
@@ -267,14 +307,14 @@ fun z2guiScript(
         |                 /var/cache/apt/archives/libqt6quickwidgets6_*.deb \
         |                 /var/cache/apt/archives/dbus_*.deb; do
         |        [ -f "${d}pkg" ] || continue
-        |        echo "📦 dpkg -x 展開: ${d}pkg"
+        |        echo "${strings.extracting} (dpkg -x): ${d}pkg"
         |        dpkg -x "${d}pkg" / 2>/dev/null
         |      done ;;
         |  esac
         |  if has konsole && [ -e /usr/lib/libQt6QuickWidgets.so.6 ]; then
-        |    echo "✅ Konsole + Qt6 をローカル cache から再構成済"
+        |    echo "${strings.konsoleRebuilt}"
         |  else
-        |    echo "⚠️ ローカル cache だけでは揃いません — 設定で「クリーンインストール」を ON にして 🖥 を押してください"
+        |    echo "${strings.konsoleCacheShort}"
         |  fi
         |  return 0
         |}
@@ -295,8 +335,8 @@ fun z2guiScript(
         |  if xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN"; then
         |    return 0
         |  fi
-        |  echo "❌ GUI 一式 (Xvnc / openbox / ${d}GUI_TERM_BIN) を導入できませんでした。"
-        |  echo "   ネットワーク接続を確認するか、設定で「クリーンインストール」を ON にして 🖥 を押してください。"
+        |  echo "${strings.installFailed} (Xvnc / openbox / ${d}GUI_TERM_BIN)"
+        |  echo "${strings.installFailedHint}"
         |  return 1
         |}
         |
@@ -380,7 +420,7 @@ fun z2guiScript(
         |  if ! has pulseaudio || ! has pactl; then
         |    detect_pm
         |    clear_pm_locks
-        |    echo "🔊 GUI 音声: PulseAudio を導入します (${d}PM)"
+        |    echo "${strings.audioInstalling} (${d}PM)"
         |    case "${d}PM" in
         |      apk)    apk add --no-cache pulseaudio pulseaudio-utils ;;
         |      apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y pulseaudio pulseaudio-utils ;;
@@ -388,8 +428,8 @@ fun z2guiScript(
         |      *) echo "${strings.noPackageManager}"; return 0 ;;
         |    esac
         |  fi
-        |  has pulseaudio || { echo "⚠️ GUI 音声: pulseaudio が無いため無音で継続"; return 0; }
-        |  has pactl || { echo "⚠️ GUI 音声: pactl が無いため無音で継続"; return 0; }
+        |  has pulseaudio || { echo "${strings.audioNoPulse}"; return 0; }
+        |  has pactl || { echo "${strings.audioNoPactl}"; return 0; }
         |  # 実行時ディレクトリを :N 専用にして PA をディスプレイ毎に分離する。
         |  export XDG_RUNTIME_DIR="${d}{XDG_RUNTIME_DIR:-/tmp/z2gui-xdg-${d}{DISPLAY_NUM}}"
         |  mkdir -p "${d}XDG_RUNTIME_DIR"; chmod 0700 "${d}XDG_RUNTIME_DIR" 2>/dev/null
@@ -416,7 +456,7 @@ fun z2guiScript(
         |    while [ ${d}k -lt 30 ] && ! pactl info >/dev/null 2>&1; do sleep 0.1; k=${d}((k+1)); done
         |  fi
         |  if ! pactl info >/dev/null 2>&1; then
-        |    echo "⚠️ GUI 音声: PulseAudio 起動失敗 (log: /tmp/z2gui-audio-${d}{DISPLAY_NUM}.log)"; return 0
+        |    echo "${strings.audioStartFailed} (log: /tmp/z2gui-audio-${d}{DISPLAY_NUM}.log)"; return 0
         |  fi
         |  # null-sink (z2sink) を既定 sink にし、その monitor を TCP で出す。二重ロードは避ける。
         |  pactl list short sinks 2>/dev/null | grep -q z2sink || \
@@ -430,7 +470,7 @@ fun z2guiScript(
         |  [ -e /etc/asound.conf ] || printf 'pcm.!default pulse\nctl.!default pulse\n' > /etc/asound.conf 2>/dev/null
         |  export PULSE_SINK=z2sink
         |  export SDL_AUDIODRIVER=pulseaudio
-        |  echo "🔊 GUI 音声: z2sink.monitor → 127.0.0.1:${d}APORT (s16le/48k/2ch)"
+        |  echo "${strings.audioReady} 127.0.0.1:${d}APORT (s16le/48k/2ch)"
         |}
         |
         |# この :N の音声を止める。XDG_RUNTIME_DIR が :N 専用なので他ディスプレイの PA には影響しない。
@@ -577,14 +617,14 @@ fun z2guiScript(
         |        fi
         |      done
         |      if [ -n "${d}QT_FALLBACK" ]; then
-        |        echo "📚 PySide6 同梱 Qt6 を LD_LIBRARY_PATH に追加 (Konsole 救済): ${d}QT_FALLBACK"
+        |        echo "${strings.qtFallback} ${d}QT_FALLBACK"
         |        export LD_LIBRARY_PATH="${d}QT_FALLBACK:${d}{LD_LIBRARY_PATH:-}"
         |      else
         |        # find は遅いが最後の手段。範囲を /usr と /opt と /root に限定。
         |        FOUND=${d}(find /usr /opt /root -maxdepth 8 -name 'libQt6QuickWidgets.so.6' -print 2>/dev/null | head -1)
         |        if [ -n "${d}FOUND" ]; then
         |          QT_FALLBACK_DIR=${d}(dirname "${d}FOUND")
-        |          echo "📚 任意の libQt6QuickWidgets.so.6 を発見 → LD_LIBRARY_PATH に追加: ${d}QT_FALLBACK_DIR"
+        |          echo "${strings.qtFallbackFound} ${d}QT_FALLBACK_DIR"
         |          export LD_LIBRARY_PATH="${d}QT_FALLBACK_DIR:${d}{LD_LIBRARY_PATH:-}"
         |        fi
         |      fi

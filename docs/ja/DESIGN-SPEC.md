@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-25 / 対象バージョン: 0.8.227-alpha (versionCode 235)
+最終更新: 2026-07-25 / 対象バージョン: 0.8.228-alpha (versionCode 236)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -667,6 +667,14 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 
   **adb サーバの先行起動 (0.8.89)**: adb は通常クライアント実行時に daemon が無ければ**自身を `execl(自パス)` で再起動**するが、z2root は `/proc/self/exe` を APK 内 `libz2root.so` と返すため ENOENT で失敗する (adb 全般の問題。0.8.111 で z2root 側の `/proc/self/exe` をゲスト視点へ書き換えて根治)。そこで `ensure_adb` が `start_server` を呼び、**自己 exec を伴わない `adb nodaemon server` を background で先行起動**する。起動前に `/proc/net/tcp{,6}` を見て対象ポート (`ADB_SERVER_SOCKET` のポート・既定 `5037`) が既に LISTEN (`0A`) なら立てない**冪等ガード** (`server_up`) を持ち、二重 bind による `Address already in use` の abort を避ける。以降のクライアントは fork せず既存サーバに繋がる。
 - **`z2help` / `z2term` コマンド (0.8.90)**: ディストロに注入する独自 `z2*` コマンドの早見表を端末から引けるヘルプ。引数なしで全 `z2*` コマンドの分類済み一覧 (版数・情報／スマホ機能／GUI／つなぐ／ヘルプ) ＋一行説明を表示し、先頭にアプリ版数 (`z2version --short`) を併記する。本体は全て静的テキストで、quote 付き heredoc (`<<'Z2HELP_EOF'`) に入れるためシェル展開されない (外部入力なし)。`z2term` は当面 `z2help` の薄いエイリアス (`exec /usr/local/bin/z2help "$@"`) として同梱する予約コマンドで、将来 `z2term` を別用途に使いたくなったら [`Z2HelpScript.kt`](../../app/src/main/java/com/zerotoship/z2term/proot/Z2HelpScript.kt) の `z2termAliasScript` を差し替えればよい。表示言語は `LocaleHelper.language` に追従。proot/z2root/chroot の全起動経路に配置 ([`Z2HelpScript.kt`](../../app/src/main/java/com/zerotoship/z2term/proot/Z2HelpScript.kt))。
+- **`z2-*` CLI の表示言語 (0.8.228)**: 端末に出る文言 (先頭のヘルプコメント・usage・メッセージ) を `LocaleHelper.language` に追従させる。`z2help` / `z2scan` / `z2gui` / `sshd` ラッパー等は先に対応していたが、**`z2-*` ブリッジ群 (`z2-when` / `z2-notify` / `z2-session` / `z2-alarm` …) だけが日本語ベタ書き**で、英語モードでも和文が出ていた。GitHub 直配布で README も英語が主なので、ここだけ日本語なのは実質「英語話者には使えない」に等しい。
+  - 文言は [`Z2ApiMessages.kt`](../../app/src/main/java/com/zerotoship/z2term/proot/Z2ApiMessages.kt) (`Z2ApiMsg`) に日英で持ち、`z2ApiScripts(lang)` が差し込む。**スクリプト全体を 2 セット持たない**のが要点 — ロジックを二重化すると片方だけ直して挙動がズレ、しかも端末でしか気付けない。持つのは文言だけで、制御フローは言語に関係なく 1 つ。
+  - ヘルプは行頭 `#`・末尾改行つきの**完成形**で持ち、`trimMargin()` の**外**で連結する (マージン `|` の剥がし漏れを構造的に起こさない)。
+  - `z2-when events` のイベント名は**訳さない** (ルールに書く識別子なので)。訳すのは説明と注記だけ。
+  - `Z2ApiScriptTest` は**日英どちらの生成物にも**同じ検証 (`sh -n`・マージン剥がれ・シェバン) を掛ける。分岐を増やした以上、片方だけ壊れる余地を残さない。
+  - `z2gui` は `GuiScriptStrings` を持ちながら**一部のメッセージが日本語のまま**だった (Konsole 再構成・GUI 導入失敗・音声まわり・Qt fallback の計 15 行)。同じ仕組みへ寄せた。
+  - 対象外: `z2-autogui` は preexec フックから呼ばれる内部ヘルパーで**ユーザーに出す文言が無い** (日本語は実装コメントのみ)。Kotlin のコメントも同様に日本語のまま (開発者向けで端末には出ない)。
+
 - **`z2scan` コマンド (0.8.91・脆弱性試験)**: 自端末/localhost 限定の脆弱性試験ヘルパー。z2term の哲学 (自端末・localhost 限定・非侵襲・外部送信なし・distro 公式パッケージのみ) に沿わせた 2 本立て。表示言語は `LocaleHelper.language` に追従。実装は [`Z2ScanScript.kt`](../../app/src/main/java/com/zerotoship/z2term/proot/Z2ScanScript.kt)。proot/z2root/chroot の全起動経路に配置。
 
   **① 自己診断 (`z2scan self`)**: 外部ツール不要。検出件数 > 0 で exit 1。

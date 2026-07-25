@@ -35,7 +35,7 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 ## Current version
 
-**0.8.227-alpha (versionCode 235).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.228-alpha (versionCode 236).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
@@ -45,6 +45,7 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 - **Multi-tab** — CUI and GUI tabs, drag to reorder, long-press a tab to see the engine it runs on.
 - **Linux GUI** — Xvnc + openbox with a built-in RFB client; `z2gui` starts a desktop and `z2run <app>` launches a GUI app (opening the GUI tab for you), with audio and video.
 - **SSH / SFTP** — public-key auth with secrets encrypted by the Android Keystore, known_hosts confirmation, file transfer, port forwarding in both directions (`-L` / `-R`) that can **keep running after the SSH tab is closed**, and a built-in `sshd` (dropbear) that binds to localhost only by default.
+- **English / Japanese throughout** — the in-app UI *and* the `z2-*` command-line helpers follow the language setting, so the help text, usage lines and messages you get in the terminal are localized too.
 - **Japanese IME** — Viterbi kana-kanji conversion, prediction, frequency/recency learning, and a custom on-screen keyboard.
 - **Android bridge** — call host features from the shell: `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip` / `z2-battery` / `z2-vibrate` / `z2-say` / `z2-torch` / `z2-media` / `z2-volume` / `z2-sensor` / `z2-intent` / `z2-state` / `z2-alarm` / `z2-macro` / `z2-session` (drives the app's own tabs).
 - **Automation hub** — `z2-when <trigger> run <cmd>` auto-runs a script on Android events: charge start/stop, battery crossing a level, a time (daily / once / every N / cron), Wi‑Fi connect/disconnect, an incoming SMS (incl. OTP code extraction), a sensor (shake / light threshold / proximity), or **any device event by name (`event:headset_plugged` and ~20 more; `z2-when events` lists them)**. Rules are plain text under `~/.z2term/when/` (git-syncable) and survive reboots without opening the app. The **Automation tab** (📜) lists them with on/off toggles, run logs and a **▶ run-now** that skips the trigger, plus a **kill switch that pauses every rule** and a list of recent fires (`z2-when pause` / `resume` / `fired` in the terminal).

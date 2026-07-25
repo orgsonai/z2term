@@ -18,10 +18,13 @@ class Z2ApiScriptTest {
 
     private val scripts = z2ApiScripts()
 
+    /** 英語版。文言だけを差し替える作りなので、**両方**が同じ検証を通らないと意味がない。 */
+    private val scriptsEn = z2ApiScripts(lang = "en")
+
     /** 行頭の `|` (trimMargin の剥がし漏れ) は POSIX sh では常に構文エラー (0.8.187 の事故)。 */
     @Test
     fun noMarginLeak() {
-        for ((name, body) in scripts) {
+        for ((name, body) in scripts + scriptsEn.mapKeys { "${it.key} (en)" }) {
             val bad = body.lines().withIndex().filter { (_, line) -> line.startsWith("|") }
             assertTrue(
                 "$name: 行頭に trimMargin のマージン `|` が残っている " +
@@ -36,7 +39,7 @@ class Z2ApiScriptTest {
     fun allScriptsAreValidPosixShell() {
         val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
         assumeTrue("sh が無い環境なのでスキップ", sh != null)
-        for ((name, body) in scripts) {
+        for ((name, body) in scripts + scriptsEn.mapKeys { "${it.key} (en)" }) {
             val tmp = File.createTempFile("z2script", ".sh")
             try {
                 tmp.writeText(body)
@@ -53,7 +56,7 @@ class Z2ApiScriptTest {
     /** すべてシェバンで始まり、改行で終わること (書き出してそのまま実行されるため)。 */
     @Test
     fun allScriptsStartWithShebang() {
-        for ((name, body) in scripts) {
+        for ((name, body) in scripts + scriptsEn.mapKeys { "${it.key} (en)" }) {
             assertTrue("$name: シェバンが無い", body.startsWith("#!/bin/sh\n"))
             assertTrue("$name: 改行で終わっていない", body.endsWith("\n"))
         }
