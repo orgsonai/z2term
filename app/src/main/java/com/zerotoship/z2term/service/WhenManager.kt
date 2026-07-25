@@ -323,6 +323,35 @@ object WhenManager {
         }
     }
 
+    // --- 通知トリガー (notify:*・通知アクセス許可 + 通知検知 ON が前提) ---
+
+    /**
+     * 届いた通知で `notify:*` ルールを実行する (0.8.236)。
+     *
+     * 呼び元は [NotificationLogService.onNotificationPosted]。**ログ保存 (`notificationLogEnabled`)
+     * とは独立**に動く — 「記録はしないがトリガーには使いたい」が普通の使い方で、記録を必須に
+     * すると通知本文がずっとファイルに残ることになる。
+     *
+     * 本文・タイトルは外部由来なので env 渡し (`Z2_WHEN_NOTI_*`)。`notify:otp` のときは
+     * 抽出したコードを `Z2_WHEN_OTP` に入れる (`sms:otp` と同じ名前にして覚えることを増やさない)。
+     */
+    fun onNotification(context: Context, pkg: String, app: String, title: String, text: String) {
+        val ctx = context.applicationContext
+        loadRules(ctx).filter { it.enabled && it.kind == "notify" }.forEach { rule ->
+            if (!WhenTriggerMatch.notify(rule.spec, pkg, app, title, text)) return@forEach
+            val env = HashMap<String, String>()
+            env["Z2_WHEN_NOTI_PKG"] = pkg
+            env["Z2_WHEN_NOTI_APP"] = app
+            env["Z2_WHEN_NOTI_TITLE"] = title
+            env["Z2_WHEN_NOTI_TEXT"] = text
+            if (rule.spec.trim() == "otp") {
+                val code = WhenTriggerMatch.extractOtp(text).ifEmpty { WhenTriggerMatch.extractOtp(title) }
+                env["Z2_WHEN_OTP"] = code
+            }
+            runRule(ctx, rule, level = -1, extraEnv = env)
+        }
+    }
+
     // --- ファイル出現トリガー (file:new・検知 FG サービス前提) ---
 
     /**

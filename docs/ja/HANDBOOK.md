@@ -561,6 +561,7 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # マナーモ
   - `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<名前>` … Wi‑Fi に接続 / 切断 / 指定のネットワークに接続したとき。**この Wi‑Fi トリガーは「検知」を ON にしているときだけ働きます**（設定の常駐・自動化）。ネットワーク名（SSID）を使うには位置情報の許可も要ります。コマンド内では `Z2_WHEN_SSID` に接続先の名前が入ります
   - `sms:any` / `sms:from=<部分>` / `sms:contains=<部分>` / `sms:otp` … SMS を受信したとき（すべて / 送信元に一致 / 本文に含む / OTP らしい数字コードがあるとき）。**SMS の受信許可（設定の「SMS 検知」で許可）が要ります**。コマンド内では `Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`、`sms:otp` のときは抜き出したコードが `Z2_WHEN_OTP` に入ります。SMS を直接読むので、Android 15 の OTP 伏せ字の影響を受けません
   - `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near` / `sensor:proximity=far` … 端末を振ったとき / 明るさ（照度 lux）が N を上・下へ跨いだとき / 近接センサーが近づいた・離れたとき。**この sensor トリガーは「検知」を ON にしているときだけ働きます**。`shake` は**しっかり振ったとき**だけ反応します（歩いているだけで反応しないよう強めに設定してあります。連続して振っても 3 秒に 1 回までです）。センサーは電池を使うので、使うルールがあるセンサーだけを動かします（使っていなければ電池は消費しません）。コマンド内では `Z2_WHEN_SENSOR`（どのセンサーか）、light は `Z2_WHEN_LUX`（そのときの照度）が入ります
+  - `notify:any` / `notify:otp` / `notify:pkg=<部分>` / `notify:title=<部分>` / `notify:contains=<部分>` … **通知が届いたとき**（0.8.236 で追加）。SMS 以外で届く確認コード（メール・認証アプリ）を拾うのに使えます。例: `z2-when notify:otp run 'echo "$Z2_WHEN_OTP" | z2-clip set'`。コマンド内では `Z2_WHEN_NOTI_PKG`・`_APP`・`_TITLE`・`_TEXT` が使えます。**通知アクセスの許可**が要ります（設定 › 常駐サーバー・自動化 › 通知検知）。通知の記録を OFF にしていても働きます。
   - `file:new=<フォルダ>` / `file:new=<フォルダ>,ext=<拡張子>` … **そのフォルダに新しいファイルが来たとき**（0.8.235 で追加。例: `z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh`）。コマンド内では `Z2_WHEN_FILE`（フルパス）と `Z2_WHEN_DIR` が使えます。**書き込みが終わってから**動くので、コピー途中のファイルを掴みません。**「検知」が ON のときだけ**働きます。
   - `event:<名前>` … **端末で起きたことを名前で拾います**（0.8.226 で追加）。使える名前は **`z2-when events`** で一覧できます（`screen_on`・`unlocked`・`headset_plugged`・`bt_audio_connected`・`ringer_silent`・`airplane_on`・`alarm`・`notify_action` など約20種）。`event:ringer_*` のように**末尾を `*`** にすると前方一致、`event:*` ですべてになります。コマンド内では `Z2_WHEN_EVENT` にイベント名が入ります。
     **同じルールは 10 秒以内に続けて発火しません**（`screen_on` のように何度も起きるものがあるため）。
@@ -581,6 +582,7 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # マナーモ
 ### つなぐ
 | コマンド | できること |
 |---|---|
+| `z2-noti list` | **いま出ている通知**を一覧（アプリ名・タイトル・本文）。読むだけで、押す・消すはできません |
 | `z2doctor` | **動かないときの切り分け診断**。版数・許可・検知・自動化の状態を一覧し、`NG` の行には直し方が付きます。`z2doctor --clip` で報告文をクリップボードへ（SSID・IP は伏せます） |
 | `z2adb …` | このスマホ自身に `adb`（PC 不要）→ 詳しくは **§7.5** |
 | `sshd` | SSH サーバを立てる → 詳しくは **§7**（既定は「自分の中だけ」・鍵認証のみで安全側） |

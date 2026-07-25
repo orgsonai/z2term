@@ -170,6 +170,43 @@ class WhenTriggerMatchTest {
         assertFalse(WhenTriggerMatch.fileMatches("new=/sdcard/Download,ext=zip", "a.tar"))
     }
 
+    // --- notify:* トリガー (SMS 以外で届く確認コードを拾うのが主目的) ---
+
+    private fun noti(spec: String, pkg: String = "com.example.mail", app: String = "Mail",
+                     title: String = "", text: String = "") =
+        WhenTriggerMatch.notify(spec, pkg, app, title, text)
+
+    @Test fun notify_any() {
+        assertTrue(noti("any"))
+    }
+
+    @Test fun notify_pkgMatchesPackageOrAppName() {
+        // パッケージ名は覚えていないことが多いので、表示名でも拾えるようにしてある。
+        assertTrue(noti("pkg=example", pkg = "com.example.mail"))
+        assertTrue(noti("pkg=mail", app = "Mail"))
+        assertFalse(noti("pkg=chat", pkg = "com.example.mail", app = "Mail"))
+        assertFalse(noti("pkg="))
+    }
+
+    @Test fun notify_titleAndContains() {
+        assertTrue(noti("title=Bank", title = "MyBank"))
+        assertFalse(noti("title=Bank", title = "Shop", text = "Bank"))
+        // contains はタイトルと本文の両方を見る (どちらに入るかはアプリ次第なので)。
+        assertTrue(noti("contains=code", title = "x", text = "Your CODE is 1234"))
+        assertTrue(noti("contains=code", title = "Your code", text = ""))
+    }
+
+    @Test fun notify_otpLooksAtBodyThenTitle() {
+        assertTrue(noti("otp", text = "Your code is 483920"))
+        assertTrue(noti("otp", title = "G-12345 is your code"))
+        assertFalse(noti("otp", title = "Welcome", text = "No code here"))
+    }
+
+    @Test fun notify_unknownSpecNeverFires() {
+        assertFalse(noti("whatever"))
+        assertFalse(noti(""))
+    }
+
     @Test fun fileMatches_skipsHiddenAndPartialFiles() {
         // 同期アプリやカメラは `.pending-xxx` で書いてから rename する。拾うと
         // 実体の無いパスでマクロが走るので、隠しファイルは常に外す。

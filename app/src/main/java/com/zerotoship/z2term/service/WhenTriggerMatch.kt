@@ -92,6 +92,42 @@ object WhenTriggerMatch {
     fun extractOtp(body: String): String = OTP_REGEX.find(body)?.groupValues?.get(1).orEmpty()
 
     /**
+     * `notify:*` トリガーが、いま届いた通知で発火すべきか (0.8.236)。
+     *
+     * spec の書式:
+     *  - `any`                  … すべての通知
+     *  - `pkg=<部分>`           … パッケージ名かアプリ名に一致 (大小文字を区別しない・部分一致)
+     *  - `title=<部分>`         … タイトルに含む
+     *  - `contains=<部分>`      … タイトル**または本文**に含む
+     *  - `otp`                  … 本文に OTP らしい数字コードがあるとき ([extractOtp] と同じ判定)
+     *
+     * SMS 以外で届く確認コード (メール・認証アプリ) を拾うのが主目的なので、判定は
+     * `sms:*` と同じ考え方に揃えてある (覚えることを増やさない)。
+     */
+    fun notify(spec: String, pkg: String, app: String, title: String, text: String): Boolean {
+        val s = spec.trim()
+        return when {
+            s == "any" -> true
+            s == "otp" -> extractOtp(text).isNotEmpty() || extractOtp(title).isNotEmpty()
+            s.startsWith("pkg=") -> {
+                val want = s.substring("pkg=".length).trim()
+                want.isNotEmpty() &&
+                    (pkg.contains(want, ignoreCase = true) || app.contains(want, ignoreCase = true))
+            }
+            s.startsWith("title=") -> {
+                val want = s.substring("title=".length).trim()
+                want.isNotEmpty() && title.contains(want, ignoreCase = true)
+            }
+            s.startsWith("contains=") -> {
+                val want = s.substring("contains=".length).trim()
+                want.isNotEmpty() &&
+                    (title.contains(want, ignoreCase = true) || text.contains(want, ignoreCase = true))
+            }
+            else -> false
+        }
+    }
+
+    /**
      * `file:new=<フォルダ>[,ext=<拡張子>]` の監視先フォルダ (書式が違えば null)。
      *
      * どのフォルダを見張るかは**登録されたルールからしか決まらない**ので、

@@ -59,6 +59,7 @@ class NotificationLogService : NotificationListenerService() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         // 設定を購読してキャッシュ (通知ごとに DataStore を叩かない)。
         scope.launch {
             AppSettings(applicationContext).flow.collectLatest {
@@ -78,13 +79,26 @@ class NotificationLogService : NotificationListenerService() {
         val title = ex.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
         val text = extractBody(n, ex)
         if (title.isEmpty() && text.isEmpty()) return                   // 実体のない通知は捨てる
-        if (!logEnabled) return                                         // 検知のみ (保存しない)
+        // 同じ通知の再掲 (進捗更新など) は 1 回だけ扱う。**トリガーの前に**判定するので、
+        // ログを保存していなくても連続発火しない。
         if (isDuplicate(sbn.key ?: sbn.packageName, sbn.packageName, title, text)) return
 
         val app = runCatching {
             val pm = packageManager
             pm.getApplicationLabel(pm.getApplicationInfo(sbn.packageName, 0)).toString()
         }.getOrDefault(sbn.packageName)
+
+        // `notify:*` トリガー (0.8.236)。**ログ保存とは独立**に動かす — 「記録はしないが
+        // トリガーには使いたい」が普通の使い方で、記録を必須にすると通知本文がずっと
+        // ファイルに残ることになる。ここは通知配信スレッドなので writer へ逃がす。
+        val whenCtx = applicationContext
+        writer.execute {
+            runCatching {
+                WhenManager.onNotification(whenCtx, sbn.packageName, app, title, text)
+            }.onFailure { Log.w(TAG, "when notify failed: ${it.message}") }
+        }
+
+        if (!logEnabled) return                                         // 検知のみ (保存しない)
 
         val line = render(
             formatTemplate,
@@ -174,6 +188,7 @@ class NotificationLogService : NotificationListenerService() {
     }
 
     override fun onDestroy() {
+        instance = null
         super.onDestroy()
         scope.cancel()
         writer.shutdown()
@@ -181,6 +196,39 @@ class NotificationLogService : NotificationListenerService() {
 
     companion object {
         private const val TAG = "NotificationLog"
+
+        /**
+         * 稼働中インスタンス。`z2-noti list` が**いま出ている通知**を読むために要る
+         * (`getActiveNotifications()` は `NotificationListenerService` のメソッドで、
+         * OS が bind したインスタンスからしか呼べない)。
+         */
+        @Volatile private var instance: NotificationLogService? = null
+
+        /**
+         * いま出ている通知を TSV (key / パッケージ / アプリ名 / タイトル / 本文) で返す (0.8.236)。
+         *
+         * 通知アクセスが未許可・サービスが bind されていなければ null。**読むだけ**で、
+         * 押す・消すはできない — 他アプリの決済や送信のボタンを押せてしまうと、誤爆の実害が
+         * このアプリの外に出る (提案 20 の検討でその動詞だけ落とした)。
+         */
+        fun activeNotificationsTsv(): String? {
+            val svc = instance ?: return null
+            val list = runCatching { svc.activeNotifications }.getOrNull() ?: return null
+            return list.filter { it.packageName != svc.applicationContext.packageName }
+                .joinToString("\n") { sbn ->
+                    val n = sbn.notification
+                    val ex = n?.extras
+                    val title = ex?.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
+                    val text = if (n != null && ex != null) svc.extractBody(n, ex) else ""
+                    val app = runCatching {
+                        val pm = svc.packageManager
+                        pm.getApplicationLabel(pm.getApplicationInfo(sbn.packageName, 0)).toString()
+                    }.getOrDefault(sbn.packageName)
+                    // タブ区切りを壊さないよう、値の中のタブと改行は空白へ寄せる。
+                    listOf(sbn.key.orEmpty(), sbn.packageName, app, title, text)
+                        .joinToString("\t") { v -> v.replace('\t', ' ').replace('\n', ' ') }
+                }
+        }
         private val ISO = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
 
         /** 重複判定で覚えておく通知の件数 (これを超えたら古いものから忘れる)。 */

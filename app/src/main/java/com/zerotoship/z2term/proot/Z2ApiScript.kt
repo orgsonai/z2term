@@ -149,6 +149,13 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |exec /usr/local/bin/z2api 1 sensor "${d}{1:-light}"
     """.trimMargin() + "\n"
 
+    val noti = "#!/bin/sh\n" + m.notiHelp + "\n" + """
+        |case "${d}{1:-list}" in
+        |  list) exec /usr/local/bin/z2api 1 noti list ;;
+        |  *) echo "${m.notiUsage}" >&2; exit 1 ;;
+        |esac
+    """.trimMargin() + "\n"
+
     val state = "#!/bin/sh\n" + m.stateHelp + "\n" + """
         |exec /usr/local/bin/z2api 1 state "${d}1"
     """.trimMargin() + "\n"
@@ -336,6 +343,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         "z2-intent" to intent,
         "z2-sensor" to sensor,
         "z2-state" to state,
+        "z2-noti" to noti,
         "z2-alarm" to alarm,
     )
 }

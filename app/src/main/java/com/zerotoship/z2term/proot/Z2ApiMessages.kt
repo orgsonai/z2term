@@ -101,6 +101,27 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# 例: [ "${d}(z2-state charging)" = "true" ] && echo 充電中
     """.trimMargin()
 
+    // --- z2-noti ---
+
+    val notiHelp: String = if (en) """
+        |# z2-noti list  … the notifications currently on screen, as TSV
+        |#                 (key / package / app name / title / body)
+        |# Reading only. There is deliberately no way to press or dismiss a notification:
+        |# that would also press other apps' pay and send buttons.
+        |# Needs notification access (Settings > resident servers & automation).
+        |# See also: z2-when notify:otp / notify:pkg=<part> / notify:contains=<part>
+    """.trimMargin() else """
+        |# z2-noti list  … いま出ている通知を TSV で表示
+        |#                 (key / パッケージ / アプリ名 / タイトル / 本文)
+        |# 読むだけです。通知のボタンを「押す」「消す」は意図的に用意していません
+        |# (他アプリの決済・送信ボタンまで押せてしまうため)。
+        |# 通知アクセスの許可が要ります (設定 › 常駐サーバー・自動化 › 通知検知)。
+        |# 併せて: z2-when notify:otp / notify:pkg=<部分> / notify:contains=<部分>
+    """.trimMargin()
+
+    val notiUsage: String =
+        if (en) "usage: z2-noti list" else "usage: z2-noti list"
+
     // --- z2-alarm ---
 
     val alarmHelp: String = if (en) """
@@ -166,6 +187,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#            sms:any | sms:from=<substr> | sms:contains=<substr> | sms:otp  (needs RECEIVE_SMS)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (detection ON)
         |#            file:new=<dir>[,ext=<ext>]  … a new file landed in that folder (needs detection ON)
+        |#            notify:any | notify:otp | notify:pkg=<part> | notify:title=<part> | notify:contains=<part>
+        |#                                        … a notification arrived (needs notification access)
         |#            event:<name> | event:<prefix>* | event:*  … any device event, by name
         |#              (z2-when events lists them; same names as in events.jsonl)
         |# z2-when events                        … list the names usable with event:
@@ -179,6 +202,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# / Z2_WHEN_SSID (wifi) / Z2_WHEN_SMS_FROM / Z2_WHEN_SMS_BODY / Z2_WHEN_OTP (sms)
         |# / Z2_WHEN_SENSOR / Z2_WHEN_LUX (sensor) in the environment.
         |# For file: you get Z2_WHEN_FILE (full path) and Z2_WHEN_DIR.
+        |# For notify: you get Z2_WHEN_NOTI_PKG / _APP / _TITLE / _TEXT (and Z2_WHEN_OTP for notify:otp).
         |# For event: you also get Z2_WHEN_EVENT (the event name); alarm / notify_action add
         |# Z2_WHEN_EVENT_NAME (the identifier you armed it with) and Z2_WHEN_ACTION (button pressed).
         |# The same rule will not fire twice within 10 seconds (events like screen_on come often).
@@ -197,6 +221,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#            sms:any | sms:from=<部分> | sms:contains=<部分> | sms:otp  (RECEIVE_SMS 許可が前提)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (検知 ON が前提)
         |#            file:new=<フォルダ>[,ext=<拡張子>]  … そのフォルダに新しいファイルが来たとき (検知 ON が前提)
+        |#            notify:any | notify:otp | notify:pkg=<部分> | notify:title=<部分> | notify:contains=<部分>
+        |#                                        … 通知が届いたとき (通知アクセスの許可が前提)
         |#            event:<名前> | event:<接頭辞>* | event:*  … 端末イベントを名前で拾う
         |#              (名前は z2-when events で一覧。events.jsonl に出るものと同じ)
         |# z2-when events                        … event: で使えるイベント名の一覧
@@ -210,6 +236,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# / Z2_WHEN_SSID (wifi) / Z2_WHEN_SMS_FROM / Z2_WHEN_SMS_BODY / Z2_WHEN_OTP (sms)
         |# / Z2_WHEN_SENSOR / Z2_WHEN_LUX (sensor) が入る。
         |# file: のときは Z2_WHEN_FILE (フルパス) と Z2_WHEN_DIR が入る。
+        |# notify: のときは Z2_WHEN_NOTI_PKG / _APP / _TITLE / _TEXT (notify:otp なら Z2_WHEN_OTP も)。
         |# event: のときは Z2_WHEN_EVENT (イベント名) が入る。alarm / notify_action では
         |# Z2_WHEN_EVENT_NAME (仕掛けたときの識別名) と Z2_WHEN_ACTION (押したボタン) も入る。
         |# 同じルールは 10 秒以内に続けて発火しない (screen_on のような数の多いイベント対策)。

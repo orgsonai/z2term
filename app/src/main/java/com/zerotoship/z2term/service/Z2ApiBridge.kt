@@ -228,6 +228,8 @@ object Z2ApiBridge {
             "state" -> stateRead(context, args.getOrNull(0).orEmpty())
             // z2doctor 用。**アプリ側にしか無い情報**（許可の有無・設定・常駐の数）をまとめて返す。
             "doctor" -> doctorRead(context)
+            // z2-noti: いま出ている通知を読むだけ (押す・消すは提供しない)。
+            "noti" -> notiCmd(args)
             "session" -> sessionCmd(context, args)
             // z2-when がルールファイルを書き換えた後に呼ぶ。時刻トリガーの AlarmManager 予約を貼り直す。
             "when-reload" -> { WhenManager.reload(context); null }
@@ -475,6 +477,22 @@ object Z2ApiBridge {
             put("volume", volume)
             put("volume_max", volumeMax)
         }.toString()
+    }
+
+    /**
+     * `z2-noti` (0.8.236)。いま出ている通知を TSV で返す**だけ**。
+     *
+     * ⚠ **「押す」「消す」は意図的に提供しない。** 通知のボタンを押せるということは、
+     * 他アプリの決済ボタンや送信ボタンも押せるということで、**誤爆の実害がこのアプリの外に出る**。
+     * 読む・きっかけにする (`z2-when notify:`) までなら価値が高く危険は小さい、という線引き
+     * (提案 20 の検討でその動詞だけ落とした)。
+     */
+    private fun notiCmd(args: List<String>): String = when (args.getOrNull(0)) {
+        "list", null, "" -> NotificationLogService.activeNotificationsTsv()
+            ?: throw IllegalStateException(
+                "z2-noti: 通知アクセスが許可されていません (設定 › 常駐サーバー・自動化 › 通知検知)"
+            )
+        else -> throw IllegalArgumentException("z2-noti: unknown subcommand: ${args[0]}")
     }
 
     /**
