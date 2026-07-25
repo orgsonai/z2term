@@ -151,6 +151,13 @@ When you hit one of the usual walls — `ping` not working, a port below 1024, `
 The terminal output itself is **never modified**; this is just an extra line elsewhere.
 If you find it noisy, turn off Settings > Display > "Explain common stumbles".
 
+### Creating an SSH key in the app
+
+In 📜 > "SSH / SFTP", add a connection and set auth to public key: a **"Create a key (ed25519)"** button appears.
+Press it and the key is made, with **copy / share / add to this device's sshd** right there.
+Give the **public** key to whoever runs the server you connect to (the private key never leaves this device).
+The field for pasting your own private key is still there.
+
 ### Reusing a command you typed before (History)
 
 **📜 → the "History" tab** lists the commands you ran in the terminal, **newest first**.

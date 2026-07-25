@@ -634,4 +634,13 @@
     <string name="hint_storage">/sdcard を見るには ⚙設定「ストレージ全体を許可」が要ります</string>
     <string name="settings_terminal_hints">つまずきの言い換え</string>
     <string name="settings_terminal_hints_desc">よくあるエラーが出たとき、画面の下に「次の一手」を1行だけ出します。端末の出力は書き換えません。</string>
+    <string name="ssh_key_generate">鍵を作る（ed25519）</string>
+    <string name="ssh_key_regenerate">鍵を作り直す</string>
+    <string name="ssh_key_public_hint">この公開鍵を接続先に登録してください（秘密鍵はこの端末から出ません）</string>
+    <string name="ssh_key_copy">公開鍵をコピー</string>
+    <string name="ssh_key_share">公開鍵を共有</string>
+    <string name="ssh_key_authorize">この端末の sshd に登録</string>
+    <string name="ssh_key_copied">公開鍵をコピーしました</string>
+    <string name="ssh_key_authorized">この端末の ~/.ssh/authorized_keys に登録しました</string>
+    <string name="ssh_key_authorized_already">その鍵はすでに登録されています</string>
 </resources>

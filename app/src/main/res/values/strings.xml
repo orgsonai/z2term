@@ -647,4 +647,13 @@
     <string name="hint_storage">Seeing /sdcard needs Settings > allow access to all files</string>
     <string name="settings_terminal_hints">Explain common stumbles</string>
     <string name="settings_terminal_hints_desc">When a well-known error appears, show one line at the bottom with the next step. The terminal output itself is never altered.</string>
+    <string name="ssh_key_generate">Create a key (ed25519)</string>
+    <string name="ssh_key_regenerate">Create a new key</string>
+    <string name="ssh_key_public_hint">Register this public key on the server you connect to (the private key never leaves this device)</string>
+    <string name="ssh_key_copy">Copy public key</string>
+    <string name="ssh_key_share">Share public key</string>
+    <string name="ssh_key_authorize">Add to this device\'s sshd</string>
+    <string name="ssh_key_copied">Public key copied</string>
+    <string name="ssh_key_authorized">Added to ~/.ssh/authorized_keys on this device</string>
+    <string name="ssh_key_authorized_already">That key is already registered</string>
 </resources>

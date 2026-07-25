@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-25 / Target version: 0.8.237-alpha (versionCode 245)
+Last updated: 2026-07-25 / Target version: 0.8.238-alpha (versionCode 246)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -497,6 +497,14 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 - **Sixty seconds of silence per hint.** Firing on every `command not found` would turn the app into a nag.
 - Settings › Display carries an **off switch** (default on), where someone who finds it intrusive can reach it immediately.
 - Matching is an Android-free pure function; `TerminalHintsTest` pins both what must match and **what must not** (normal `PING 8.8.8.8 …` output, or a line you wrote yourself such as `# ping is not available`).
+
+**Creating an SSH client key in the app (`channel/SshKeyGen`, 0.8.238)**: using a client key previously meant **pasting a private-key PEM into a text field**, which is close to impossible to produce on a phone. People stopped there before ever using SSH.
+
+- "Create a key" generates an ed25519 pair, and from the same place you can **copy / share the public key, or add it to this device's sshd** — no more typing `cat … >> ~/.ssh/authorized_keys && chmod 600 …`.
+- **The paste field stays.** Create or paste, two choices, no mode switch (anyone who can produce a PEM keeps their path).
+- ⚠ **JSch cannot create it.** `KeyPair.genKeyPair(…, ED25519)` generates, but `writePrivateKey` throws `UnsupportedOperationException` — JSch **reads** ed25519 and does not **write** it. Generation therefore uses **BouncyCastle** (already a dependency for SSH) and writes OpenSSH format (`openssh-key-v1`). `SshKeyGenTest` then feeds the result to `KeyPair.load` to prove **JSch can read what we produced** — a mismatch here would surface as "the key was created but nothing connects", the hardest failure to diagnose.
+- No passphrase. Requiring one on every connection lengthens the road to "it connects at all"; the private key stays on the device, encrypted by `KeystoreCrypt` as before.
+- The public key is **not persisted** (it is only handed over right after creation, and can be re-derived from the private key). `authorized_keys` de-duplicates **on the key body**, so the same key with a different comment is not added twice.
 
 #### History palette (`ui/snippets/ShellHistory`, 0.8.221, B2)
 

@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import com.zerotoship.z2term.service.ServerDaemonService
 import com.zerotoship.z2term.service.TunnelManager
@@ -38,10 +39,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.PortForward
+import com.zerotoship.z2term.channel.SshKeyGen
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.channel.SshProfileStore
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
@@ -251,6 +254,9 @@ private fun EditForm(
     var auth by remember(initial.id) { mutableStateOf(initial.authType) }
     var password by remember(initial.id) { mutableStateOf(initial.password) }
     var privateKey by remember(initial.id) { mutableStateOf(initial.privateKey) }
+    // 作った直後の公開鍵 (相手に渡す 1 行)。秘密鍵と違って**保存しない** — 秘密鍵から
+    // いつでも作り直せるし、渡すのは作った直後だけなので、状態を増やす理由がない。
+    var generatedPublicLine by remember(initial.id) { mutableStateOf("") }
     var keyPassphrase by remember(initial.id) { mutableStateOf(initial.keyPassphrase) }
     var initCmd by remember(initial.id) { mutableStateOf(initial.initCommand) }
     var forwards by remember(initial.id) { mutableStateOf(initial.forwards) }
@@ -307,10 +313,21 @@ private fun EditForm(
             Field(label = stringResource(R.string.ssh_field_password), value = password, onChange = { password = it }, placeholder = "********", secret = true)
         }
         SshProfile.AuthType.PUBLIC_KEY -> {
+            // 鍵を「作る」導線 (0.8.238)。貼り付け欄はそのまま残す — 作る／貼る の 2 択で、
+            // モード分けはしない。PEM を自分で用意できる人はこれまでどおり貼ればよい。
+            SshKeyRow(
+                hasKey = privateKey.isNotBlank(),
+                publicLine = generatedPublicLine,
+                onGenerate = {
+                    val gen = SshKeyGen.generate(comment = "z2term")
+                    privateKey = gen.privatePem
+                    generatedPublicLine = gen.publicLine
+                }
+            )
             Field(
                 label = stringResource(R.string.ssh_field_private_key),
                 value = privateKey,
-                onChange = { privateKey = it },
+                onChange = { privateKey = it; generatedPublicLine = "" },
                 placeholder = "-----BEGIN OPENSSH PRIVATE KEY-----\n...",
                 multiline = true
             )
@@ -773,5 +790,80 @@ private fun SmallButton(
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace
         )
+    }
+}
+
+/**
+ * SSH クライアント鍵を「作る」「渡す」「この端末に登録する」ための 1 行 (0.8.238)。
+ *
+ * これまでは秘密鍵の PEM を貼るしか手が無く、**スマホでそれを用意するのがまず無理**で、
+ * SSH を使い始める前にここで止まっていた。作ったらその場で公開鍵を渡せるところまでを
+ * 1 か所に置く（渡すのは作った直後だけなので、公開鍵は保存せず画面の状態に留める）。
+ */
+@Composable
+private fun SshKeyRow(
+    hasKey: Boolean,
+    publicLine: String,
+    onGenerate: () -> Unit,
+) {
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SmallButton(
+                label = stringResource(
+                    if (hasKey) R.string.ssh_key_regenerate else R.string.ssh_key_generate
+                ),
+                onClick = onGenerate
+            )
+        }
+        if (publicLine.isNotEmpty()) {
+            Text(
+                text = stringResource(R.string.ssh_key_public_hint),
+                color = ZtsTextSecondary,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = publicLine,
+                color = ZtsGreen,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SmallButton(label = stringResource(R.string.ssh_key_copy)) {
+                    val cm = context.getSystemService(android.content.ClipboardManager::class.java)
+                    cm?.setPrimaryClip(android.content.ClipData.newPlainText("z2term", publicLine))
+                    Toast.makeText(context, R.string.ssh_key_copied, Toast.LENGTH_SHORT).show()
+                }
+                SmallButton(label = stringResource(R.string.ssh_key_share)) {
+                    runCatching {
+                        val i = android.content.Intent(android.content.Intent.ACTION_SEND)
+                            .setType("text/plain")
+                            .putExtra(android.content.Intent.EXTRA_TEXT, publicLine)
+                        context.startActivity(
+                            android.content.Intent.createChooser(i, null)
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }
+                }
+                // この端末の内蔵 sshd に登録する。これまで端末で
+                // `cat … >> ~/.ssh/authorized_keys && chmod 600 …` と打たせていた作業。
+                SmallButton(label = stringResource(R.string.ssh_key_authorize)) {
+                    val added = runCatching {
+                        SshKeyGen.addToAuthorizedKeys(context, publicLine)
+                    }.getOrDefault(false)
+                    Toast.makeText(
+                        context,
+                        if (added) R.string.ssh_key_authorized else R.string.ssh_key_authorized_already,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
     }
 }
