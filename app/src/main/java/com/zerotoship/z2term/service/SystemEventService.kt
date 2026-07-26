@@ -16,6 +16,7 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.AudioManager
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
@@ -104,6 +105,33 @@ class SystemEventService : Service() {
     }
 
     /**
+     * Wi‑Fi の接続/切断を拾うコールバック (0.8.248〜)。
+     *
+     * 以前は `WifiManager.NETWORK_STATE_CHANGED_ACTION` を受けた**その場で**
+     * `ConnectivityManager.activeNetwork` を読んでいたが、このブロードキャストは
+     * **既定ネットワークが切り替わる前**に飛ぶ。そのため切断直後はまだ Wi‑Fi が見えて
+     * `wifi_connected`、接続直後はまだモバイル (または未確定) のままで `wifi_disconnected` と、
+     * **接続と切断が入れ替わって記録されていた** (実機の `events.jsonl` で確認: Wi‑Fi ON の
+     * まま最後の記録が `wifi_disconnected` になる)。判定式自体は正しく、読むタイミングだけが
+     * 早すぎたということ。`z2-state wifi` が常に正しかったのは、聞かれた時点で読むから。
+     *
+     * `NetworkCallback` は**状態が確定してから**呼ばれるので、この取り違えが原理的に起きない。
+     * 既定ネットワークを見るのは [wifiConnectedNow] (= `z2-state wifi`) と判定を揃えるため。
+     */
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+            handleWifi(caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI))
+        }
+
+        /**
+         * 既定ネットワークが無くなった。別の回線へ切り替わる場合は続けて
+         * [onCapabilitiesChanged] が来るので、ここでは「Wi‑Fi ではなくなった」だけを見る
+         * (元から false なら [handleWifi] 側の抑制で何も起きない)。
+         */
+        override fun onLost(network: Network) = handleWifi(false)
+    }
+
+    /**
      * z2-when (A6 stage2) の `sensor:*` トリガー用。センサーは常時監視が電池を食うので、**該当ルールが
      * あるセンサーだけ** [refreshSensors] で登録する。加速度は shake 判定・照度/近接はしきい値/near-far を
      * [WhenManager] が担う (エッジ判定・shake の debounce ともに WhenManager 側)。
@@ -137,7 +165,6 @@ class SystemEventService : Service() {
                 Intent.ACTION_BATTERY_LOW -> handleBatteryLowOkay("battery_low")
                 Intent.ACTION_BATTERY_OKAY -> handleBatteryLowOkay("battery_okay")
                 Intent.ACTION_BATTERY_CHANGED -> handleBatteryLevel(intent)
-                WifiManager.NETWORK_STATE_CHANGED_ACTION -> handleWifi()
                 Intent.ACTION_HEADSET_PLUG ->
                     emit(if (intent.getIntExtra("state", 0) == 1) "headset_plugged" else "headset_unplugged")
                 Intent.ACTION_AIRPLANE_MODE_CHANGED ->
@@ -183,7 +210,6 @@ class SystemEventService : Service() {
             addAction(Intent.ACTION_BATTERY_LOW)
             addAction(Intent.ACTION_BATTERY_OKAY)
             addAction(Intent.ACTION_BATTERY_CHANGED)
-            addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
             addAction(Intent.ACTION_HEADSET_PLUG)
             addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
             addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
@@ -199,6 +225,15 @@ class SystemEventService : Service() {
             val am = getSystemService(AUDIO_SERVICE) as? AudioManager
             am?.registerAudioDeviceCallback(audioDeviceCallback, android.os.Handler(mainLooper))
         }.onFailure { Log.w(TAG, "audio device callback 登録失敗", it) }
+        // Wi‑Fi も同じくコールバックで受ける (ブロードキャストだと接続/切断が入れ替わる → networkCallback)。
+        // 登録直後に「今の既定ネットワーク」で onCapabilitiesChanged が 1 度呼ばれるので、
+        // **サービスの起動を接続イベントと誤検知しない**よう、先に今の状態を基準にしておく
+        // (BT オーディオの btCallbackPrimed と同じ理由)。
+        lastWifiConnected = wifiConnectedNow()
+        runCatching {
+            applicationContext.getSystemService(ConnectivityManager::class.java)
+                ?.registerDefaultNetworkCallback(networkCallback)
+        }.onFailure { Log.w(TAG, "network callback 登録失敗", it) }
     }
 
     override fun onDestroy() {
@@ -208,6 +243,10 @@ class SystemEventService : Service() {
         runCatching {
             (getSystemService(AUDIO_SERVICE) as? AudioManager)
                 ?.unregisterAudioDeviceCallback(audioDeviceCallback)
+        }
+        runCatching {
+            applicationContext.getSystemService(ConnectivityManager::class.java)
+                ?.unregisterNetworkCallback(networkCallback)
         }
         runCatching { (getSystemService(SENSOR_SERVICE) as? SensorManager)?.unregisterListener(sensorListener) }
         // 見張りも畳む (プロセスが残ったまま監視だけ生き続けるのを防ぐ)。
@@ -287,20 +326,26 @@ class SystemEventService : Service() {
     }.getOrNull()
 
     /**
-     * Wi‑Fi の接続/切断を状態変化として 1 回だけ発火 (連続する同一状態は抑制)。
+     * いま Wi‑Fi で繋がっているか (= 既定ネットワークが Wi‑Fi か)。`z2-state wifi` と同じ判定。
      *
-     * 接続判定は `ConnectivityManager` で行う。`WifiManager.connectionInfo` は Android 12+ で
-     * **呼び出し元がフォアグラウンドでないと無効値 (networkId = -1) を返す**ため、画面消灯中など
-     * まさにイベントを拾いたい場面で「常に未接続」に見え、`wifi_connected` を取りこぼしていた
-     * (`z2-state` 側で実機再現。同じ理由でそちらも ConnectivityManager へ寄せてある)。
-     * SSID だけは `WifiInfo` 経由でしか取れず位置情報権限も要るので、取れなければ空文字。
+     * `WifiManager.connectionInfo` は Android 12+ で**呼び出し元がフォアグラウンドでないと無効値
+     * (networkId = -1) を返す**ため、画面消灯中などまさにイベントを拾いたい場面で「常に未接続」に
+     * 見え、`wifi_connected` を取りこぼしていた (`z2-state` 側で実機再現。同じ理由でそちらも
+     * ConnectivityManager へ寄せてある)。
      */
-    private fun handleWifi() {
+    private fun wifiConnectedNow(): Boolean = runCatching {
         val cm = applicationContext.getSystemService(ConnectivityManager::class.java)
-        val connected = runCatching {
-            val net = cm?.activeNetwork ?: return@runCatching false
-            cm.getNetworkCapabilities(net)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-        }.getOrDefault(false)
+        val net = cm?.activeNetwork ?: return@runCatching false
+        cm.getNetworkCapabilities(net)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+    }.getOrDefault(false)
+
+    /**
+     * Wi‑Fi の接続/切断を状態変化として 1 回だけ発火 (連続する同一状態は抑制)。
+     * 呼び元は [networkCallback] だけ ([connected] は確定済みの状態)。
+     *
+     * SSID は `WifiInfo` 経由でしか取れず位置情報権限も要るので、取れなければ空文字。
+     */
+    private fun handleWifi(connected: Boolean) {
         if (connected == lastWifiConnected) return
         lastWifiConnected = connected
         if (connected) {

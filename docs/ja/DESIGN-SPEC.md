@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-26 / 対象バージョン: 0.8.247-alpha (versionCode 255)
+最終更新: 2026-07-27 / 対象バージョン: 0.8.248-alpha (versionCode 256)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -299,6 +299,16 @@ OS の「通知アクセス」許可を与えると Android が `NotificationLis
 
 SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来どおり空文字。
 
+#### Wi-Fi の接続 / 切断が入れ替わっていたのを直す（`SystemEventService.networkCallback`、0.8.248）
+
+**症状**: Wi-Fi を**切ると** `wifi_connected`、**繋ぐと** `wifi_disconnected` が記録される。`z2-when` の `wifi:connect` / `wifi:disconnect` も同じく逆に発火する。実機の `events.jsonl` で確認（Wi-Fi が ON のまま最後の記録が `wifi_disconnected` になる）。
+
+**原因**: きっかけが `WifiManager.NETWORK_STATE_CHANGED_ACTION` で、受け取った**その場で** `ConnectivityManager.activeNetwork` を読んでいた。このブロードキャストは**既定ネットワークが切り替わる前**に飛ぶため、切断直後はまだ Wi-Fi が見えて `connected=true`、接続直後はまだモバイル（または未確定）のままで `connected=false` になる。0.8.168 で直した判定式そのものは正しく、**読むタイミングだけが早すぎた**（`z2-state wifi` が常に正しかったのは、聞かれた時点で読むから）。接続の過程でこのブロードキャストが何度も飛ぶため、`wifi_connected` が連続して並ぶ現象も同じ原因。
+
+**対策**: `ConnectivityManager.registerDefaultNetworkCallback` に寄せる。`onCapabilitiesChanged` は**状態が確定してから**呼ばれるので、この取り違えが原理的に起きない。既定ネットワークを見るのは `z2-state wifi` と判定を揃えるため。`onLost`（既定ネットワークが消えた）は「Wi-Fi ではなくなった」だけを見る — 別の回線へ切り替わる場合は続けて `onCapabilitiesChanged` が来る。
+
+⚠ 登録直後に「今の既定ネットワーク」で `onCapabilitiesChanged` が 1 度呼ばれるので、**登録前に `lastWifiConnected` を現在値で埋めておく**（サービスの起動を接続イベントと誤検知しないため。BT オーディオの `btCallbackPrimed` と同じ考え方）。
+
 #### Bluetooth オーディオのトリガー（`SystemEventService.syncBtAudio`、0.8.170）
 
 **背景**: 有線は `ACTION_HEADSET_PLUG` で拾えるが、**ワイヤレスイヤホンには相当するブロードキャストが無い**ため「イヤホンを繋いだら再生」という定番マクロが無線では書けなかった。
@@ -403,7 +413,7 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 - `battery:below=N` / `battery:above=N` … 残量が N% を下/上へ**跨いだ瞬間**（エッジ判定。直近残量を `.battlevel` に保存し、初回は基準設定のみ）。**検知が ON のときだけ働く**（0.8.214）
 - `time:daily=HH:MM`（毎日）/ `time:at=HH:MM`（次の HH:MM に 1 回。発火後は `enabled=0` に自動で書き戻す）/ `time:every=Nm|Nh|Ns`（N ごと・最短 1 分）
 - `time:cron='分 時 日 月 曜日'`（0.8.207・stage 2）… 5 フィールドの cron 式。`*` / `*/n` / `a` / `a-b` / `a-b/n` / `a,b,c` に対応。曜日は 0-7（0,7 が日曜）。**日と曜日がどちらも `*` でない場合はどちらか一致で発火**（標準 cron の仕様）。次回発火の算出は Android 非依存の `CronSchedule.nextAfter`（`CronScheduleTest` で具体例検証）。`daily`/`every` と同じ AlarmManager 経路に載り、発火のたびに次回を貼り直す。空白を含むのでシェルではクォート必須。
-- `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<名前>`（0.8.208・stage 2）… Wi‑Fi の接続 / 切断 / 指定 SSID への接続。判定は Android 非依存の `WhenTriggerMatch.wifi`（`WhenTriggerMatchTest` で具体例検証。SSID は大小文字無視、位置情報権限が無く SSID が空なら `ssid=` は取りこぼす）。**電池の 10% 刻みと同じく検知（`SystemEventService`）が ON のときだけ働く**（Wi‑Fi の接続変化は暗黙ブロードキャスト制限の対象で、manifest レシーバでは拾えず動的レシーバ＝検知 FG サービスが要る）。発火時は SSID を `Z2_WHEN_SSID` で渡す（外部文字列なので単一引用符へ安全にエスケープ）。
+- `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<名前>`（0.8.208・stage 2）… Wi‑Fi の接続 / 切断 / 指定 SSID への接続。判定は Android 非依存の `WhenTriggerMatch.wifi`（`WhenTriggerMatchTest` で具体例検証。SSID は大小文字無視、位置情報権限が無く SSID が空なら `ssid=` は取りこぼす）。**電池の 10% 刻みと同じく検知（`SystemEventService`）が ON のときだけ働く**（受け口は同サービスが登録する `NetworkCallback`＝生きたプロセスが要る。0.8.248 まではブロードキャストだったが、接続 / 切断が入れ替わるため差し替えた → 前掲）。発火時は SSID を `Z2_WHEN_SSID` で渡す（外部文字列なので単一引用符へ安全にエスケープ）。
 - `sms:any` / `sms:from=<部分>` / `sms:contains=<部分>` / `sms:otp`（0.8.209・stage 2）… 着信 SMS。判定と OTP 抽出は Android 非依存の `WhenTriggerMatch.sms` / `.extractOtp`（`WhenTriggerMatchTest` で具体例検証。`from`/`contains` は部分一致・大小文字無視。OTP は**前後が数字でない 4〜8 桁**の先頭で、9 桁以上の電話番号/注文番号は拾わない）。既存の `SmsLogReceiver`（`RECEIVE_SMS` 許可で OS が着信ごとに起動＝アプリ未起動でも動く）に相乗りし、**生ログ設定 `smsCaptureEnabled` とは独立に評価する**（許可さえあれば動く）。SMS 本文は Android 15 の機微通知伏せ字（`RECEIVE_SENSITIVE_NOTIFICATIONS`）を通らない直読み経路なので伏せ字化されない（既存 `SmsLogReceiver` の解説参照）。発火時は `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY`、`otp` のときは `Z2_WHEN_OTP` を渡す（いずれも外部入力なので単一引用符へ安全にエスケープ・`eval` させない安全境界）。
 - `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near` / `sensor:proximity=far`（0.8.210・stage 2）… 端末を振った / 照度が N lux を跨いだ / 近接が near・far へ変化。**継続センサー監視は電池を食う**ので §10-1 の指針どおり **opt-in・検知（`SystemEventService`）が ON のときだけ**働き、しかも**該当ルールがあるセンサーだけ登録する**（`WhenManager.sensorKindsNeeded` → `SystemEventService.refreshSensors`。ルール増減や検知 ON で貼り直し、要求集合が空なら 1 つも登録しない＝電池ゼロ）。加速度は shake 検出に十分な `SENSOR_DELAY_UI`、照度/近接は on-change の `NORMAL`。shake 判定は `ShakeDetector`（合成加速度が **4.0g 超＋3 秒 debounce**・`ShakeDetectorTest`。当初の 2.7g／1 秒では**ポケットに入れて歩いているだけで連続発火**した＝2026-07-24 の実機検証で 3.5 時間に 255 回・発火間隔が debounce に張り付く形で判明したため 0.8.214 で引き上げ。下げるときは歩行で誤発火しないか実機確認が要る）、照度/近接は `WhenTriggerMatch.lightSatisfied`/`.proximitySatisfied` を**条件成立の立ち上がり（false→true）**で発火（rule 単位のプロセス内メモリ・初回は基準のみ。しきい値付近のばたつきは未吸収＝将来ヒステリシス可）。発火時は `Z2_WHEN_SENSOR`（`shake`/`light`/`proximity:near|far`）、light は `Z2_WHEN_LUX` も渡す。
 - `notify:any` / `notify:otp` / `notify:pkg=<部分>` / `notify:title=<部分>` / `notify:contains=<部分>`（0.8.236）… **通知が届いたとき**。判定は `sms:*` と同じ考え方に揃えてある（覚えることを増やさない）。`pkg=` は**パッケージ名でもアプリ表示名でも**当たる（パッケージ名は覚えていないことが多い）。`Z2_WHEN_NOTI_PKG` / `_APP` / `_TITLE` / `_TEXT` を渡し、`notify:otp` では抽出コードを `Z2_WHEN_OTP`（`sms:otp` と同名）に入れる。**ログ保存（`notificationLogEnabled`）とは独立**に働く — 「記録はしないがトリガーには使いたい」が普通の使い方で、記録を必須にすると通知本文がずっとファイルに残る。同じ通知の再掲（進捗更新など）は**トリガーの前に**重複判定で落とす。通知アクセスの許可が前提。
