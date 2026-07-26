@@ -13,7 +13,12 @@ package com.zerotoship.z2term.settings
  * trigger=charge:start
  * run=~/.z2term/macros/backup.sh
  * enabled=1
+ * order=0
  * ```
+ *
+ * `order` は**画面での並び順**だけを持つ任意項目 (0.8.249)。CLI (`z2-when`) は書かないので、
+ * 端末から登録したルールには付かない ([order] = [NO_ORDER])。[parse] は知らないキーを黙って
+ * 無視するので、どちらから書いても壊れない。
  *
  * トリガー書式 (stage 1):
  *  - `charge:start` / `charge:stop`        … 充電の開始 / 停止 (検知 ON が前提。0.8.214 で受け口を変更)
@@ -40,6 +45,8 @@ data class WhenRule(
     val trigger: String,
     val run: String,
     val enabled: Boolean = true,
+    /** 画面での並び順。[NO_ORDER] = 未指定 (画面で並べ替えるまでは id 順)。 */
+    val order: Int = NO_ORDER,
 ) {
     /** トリガーの種別 (`:` の手前)。例: `charge` / `battery` / `time`。 */
     val kind: String get() = trigger.substringBefore(':', "").trim()
@@ -51,14 +58,20 @@ data class WhenRule(
         append("trigger=").append(trigger).append('\n')
         append("run=").append(run).append('\n')
         append("enabled=").append(if (enabled) "1" else "0").append('\n')
+        // 未指定のときは書かない (端末から登録したままのルールに余計な行を足さない)。
+        if (order != NO_ORDER) append("order=").append(order).append('\n')
     }
 
     companion object {
+        /** [order] 未指定。並べ替えたことが無いルールはこれになり、id 順で後ろに並ぶ。 */
+        const val NO_ORDER = -1
+
         /** ルールファイルの内容を [id] 付きで復元する。trigger か run が欠けていれば null。 */
         fun parse(id: String, text: String): WhenRule? {
             var trigger = ""
             var run = ""
             var enabled = true
+            var order = NO_ORDER
             text.lineSequence().forEach { line ->
                 val eq = line.indexOf('=')
                 if (eq <= 0) return@forEach
@@ -70,10 +83,13 @@ data class WhenRule(
                     "trigger" -> trigger = value.trim()
                     "run" -> run = value.trimEnd('\r')
                     "enabled" -> enabled = value.trim() != "0"
+                    // 壊れた値 (手書きの typo 等) は未指定として扱う。並び順のためにルールを
+                    // 読めなくするのは割に合わない。
+                    "order" -> order = value.trim().toIntOrNull()?.takeIf { it >= 0 } ?: NO_ORDER
                 }
             }
             if (trigger.isBlank() || run.isBlank()) return null
-            return WhenRule(id, trigger, run, enabled)
+            return WhenRule(id, trigger, run, enabled, order)
         }
     }
 }

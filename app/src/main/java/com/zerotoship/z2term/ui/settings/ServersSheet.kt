@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,7 +53,10 @@ import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.service.ServerDaemonManager
 import com.zerotoship.z2term.service.ServerDaemonService
 import com.zerotoship.z2term.settings.ServerEntry
+import com.zerotoship.z2term.ui.components.ReorderHandle
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
+import com.zerotoship.z2term.ui.components.rememberReorderState
+import com.zerotoship.z2term.ui.components.reorderItem
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -138,6 +142,12 @@ fun ServersBody(session: TerminalSession) {
 
     var editing by remember { mutableStateOf<ServerEntry?>(null) }
     var isNew by remember { mutableStateOf(false) }
+
+    // ドラッグ並べ替え (スニペットタブと同じ操作)。指を離したところで並びを保存する。
+    val reorder = rememberReorderState(spacing = 10.dp) { ids ->
+        val byId = entries.associateBy { it.id }
+        persist(ids.mapNotNull { byId[it] })
+    }
 
     // 稼働状態を定期ポーリング (表示している間だけ)。
     var running by remember { mutableStateOf(ServerDaemonManager.isRunning) }
@@ -234,21 +244,30 @@ fun ServersBody(session: TerminalSession) {
         if (entries.isEmpty()) {
             HintBox(stringResource(R.string.servers_empty))
         } else {
-            entries.forEach { e ->
-                val st = statuses.firstOrNull { it.id == e.id }
-                ServerRow(
-                    entry = e,
-                    stateLabel = if (running && e.enabled) st?.state else null,
-                    status = if (running) st else null,
-                    onToggle = { checked ->
-                        // 設定を永続化しつつ、稼働中なら該当サーバーだけを即時 起動/停止する
-                        // (supervisor を再起動しないので他サーバーは止まらない)。
-                        persist(entries.map { if (it.id == e.id) it.copy(enabled = checked) else it })
-                        if (running) ServerDaemonManager.setWant(context, e.id, checked)
-                    },
-                    onEdit = { isNew = false; editing = e },
-                    onDelete = { persist(entries.filterNot { it.id == e.id }) }
-                )
+            // 並べ替えたら、その順のまま保存する (supervisor は id で見ているので、順番を
+            // 変えても動いているサーバーは止まらない)。
+            reorder.sync(entries.map { it.id })
+            val byId = entries.associateBy { it.id }
+            reorder.order.mapNotNull { byId[it] }.forEach { e ->
+                // key(id) でノード identity を固定 → 並べ替え中も掴んだ行に指が追従する。
+                key(e.id) {
+                    val st = statuses.firstOrNull { it.id == e.id }
+                    ServerRow(
+                        entry = e,
+                        stateLabel = if (running && e.enabled) st?.state else null,
+                        status = if (running) st else null,
+                        modifier = Modifier.reorderItem(reorder, e.id),
+                        handle = { ReorderHandle(reorder, e.id) },
+                        onToggle = { checked ->
+                            // 設定を永続化しつつ、稼働中なら該当サーバーだけを即時 起動/停止する
+                            // (supervisor を再起動しないので他サーバーは止まらない)。
+                            persist(entries.map { if (it.id == e.id) it.copy(enabled = checked) else it })
+                            if (running) ServerDaemonManager.setWant(context, e.id, checked)
+                        },
+                        onEdit = { isNew = false; editing = e },
+                        onDelete = { persist(entries.filterNot { it.id == e.id }) }
+                    )
+                }
             }
         }
 
@@ -262,6 +281,8 @@ private fun ServerRow(
     entry: ServerEntry,
     stateLabel: String?,
     status: ServerDaemonManager.ServerStatus?,
+    modifier: Modifier = Modifier,
+    handle: @Composable () -> Unit = {},
     onToggle: (Boolean) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -280,7 +301,7 @@ private fun ServerRow(
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(ZtsBgCard)
@@ -344,6 +365,7 @@ private fun ServerRow(
                     )
                 }
             }
+            handle()
             IconCell(label = "▤", onClick = { logOpen = !logOpen })
             IconCell(label = "✎", onClick = onEdit)
             IconCell(label = "✕", danger = true, onClick = onDelete)

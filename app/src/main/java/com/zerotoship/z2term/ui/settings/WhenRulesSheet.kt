@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -53,7 +54,10 @@ import com.zerotoship.z2term.ui.theme.ZtsError
 import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
+import com.zerotoship.z2term.ui.components.ReorderHandle
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
+import com.zerotoship.z2term.ui.components.rememberReorderState
+import com.zerotoship.z2term.ui.components.reorderItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -131,6 +135,15 @@ fun WhenRulesBody() {
     var fired by remember { mutableStateOf(emptyList<WhenManager.Fired>()) }
     var lastFired by remember { mutableStateOf(emptyMap<String, String>()) }
     var reloadTick by remember { mutableStateOf(0) }
+
+    // ドラッグ並べ替え (スニペットタブと同じ操作)。並びは各ルールファイルの `order=` に書く
+    // ので、端末から `z2-when` を叩いても消えない。表示順だけで、実行には影響しない。
+    val reorder = rememberReorderState(spacing = 10.dp) { ids ->
+        scope.launch(Dispatchers.IO) {
+            WhenManager.reorderRules(context, ids)
+            reloadTick++
+        }
+    }
     LaunchedEffect(reloadTick) {
         while (true) {
             rules = runCatching { WhenManager.loadRules(context) }.getOrDefault(emptyList())
@@ -188,24 +201,31 @@ fun WhenRulesBody() {
         if (rules.isEmpty()) {
             HintBox(stringResource(R.string.when_empty))
         } else {
-            rules.forEach { rule ->
-                WhenRuleRow(
-                    rule = rule,
-                    lastFiredAt = lastFired[rule.id],
-                    onToggle = { checked ->
-                        scope.launch(Dispatchers.IO) {
-                            WhenManager.setRuleEnabled(context, rule.id, checked)
-                            reloadTick++
+            reorder.sync(rules.map { it.id })
+            val byId = rules.associateBy { it.id }
+            reorder.order.mapNotNull { byId[it] }.forEach { rule ->
+                // key(id) でノード identity を固定 → 並べ替え中も掴んだ行に指が追従する。
+                key(rule.id) {
+                    WhenRuleRow(
+                        rule = rule,
+                        lastFiredAt = lastFired[rule.id],
+                        modifier = Modifier.reorderItem(reorder, rule.id),
+                        handle = { ReorderHandle(reorder, rule.id) },
+                        onToggle = { checked ->
+                            scope.launch(Dispatchers.IO) {
+                                WhenManager.setRuleEnabled(context, rule.id, checked)
+                                reloadTick++
+                            }
+                        },
+                        onRunNow = { scope.launch(Dispatchers.IO) { WhenManager.runNow(context, rule) } },
+                        onDelete = {
+                            scope.launch(Dispatchers.IO) {
+                                WhenManager.removeRule(context, rule.id)
+                                reloadTick++
+                            }
                         }
-                    },
-                    onRunNow = { scope.launch(Dispatchers.IO) { WhenManager.runNow(context, rule) } },
-                    onDelete = {
-                        scope.launch(Dispatchers.IO) {
-                            WhenManager.removeRule(context, rule.id)
-                            reloadTick++
-                        }
-                    }
-                )
+                    )
+                }
             }
         }
 
@@ -263,6 +283,8 @@ private fun shortTime(iso: String): String =
 private fun WhenRuleRow(
     rule: WhenRule,
     lastFiredAt: String?,
+    modifier: Modifier = Modifier,
+    handle: @Composable () -> Unit = {},
     onToggle: (Boolean) -> Unit,
     onRunNow: () -> Unit,
     onDelete: () -> Unit,
@@ -279,7 +301,7 @@ private fun WhenRuleRow(
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(ZtsBgCard)
@@ -331,6 +353,7 @@ private fun WhenRuleRow(
             }
             // ▶ = トリガーを待たずに 1 回試す。「充電したら…」を確かめるのに充電を
             // 抜き差しさせないための出口 (一時停止中でも動く)。
+            handle()
             IconCell(label = "▶", onClick = onRunNow)
             IconCell(label = "▤", onClick = { logOpen = !logOpen })
             IconCell(label = "✕", danger = true, onClick = onDelete)

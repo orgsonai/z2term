@@ -54,13 +54,19 @@ object WhenManager {
     fun whenDir(context: Context): File =
         File(File(context.filesDir, "shared_home"), ".z2term/when")
 
-    /** ルールファイルをすべて読む。壊れた 1 件は飛ばす。 */
+    /**
+     * ルールファイルをすべて読む。壊れた 1 件は飛ばす。
+     *
+     * 並びは `order` があるものが先 (その値の順)、無いものは id 順で後ろ。id は登録時刻由来なので、
+     * **一度も並べ替えていなければ従来どおり登録順**になり、端末から `z2-when` で足した新しい
+     * ルールは (order を持たないので) 末尾に付く。
+     */
     fun loadRules(context: Context): List<WhenRule> {
         val dir = whenDir(context)
         val files = dir.listFiles { f -> f.isFile && f.name.endsWith(".rule") } ?: return emptyList()
         return files.sortedBy { it.name }.mapNotNull { f ->
             runCatching { WhenRule.parse(f.name.removeSuffix(".rule"), f.readText()) }.getOrNull()
-        }
+        }.sortedBy { if (it.order == WhenRule.NO_ORDER) Int.MAX_VALUE else it.order }
     }
 
     // --- 時刻トリガー (AlarmManager) ---
@@ -609,6 +615,26 @@ object WhenManager {
     fun setRuleEnabled(context: Context, ruleId: String, enabled: Boolean) {
         setEnabled(context, ruleId, enabled)
         reload(context)
+    }
+
+    /**
+     * 自動化タブでドラッグして決めた並びを、各ルールファイルの `order=` として書く（0.8.249）。
+     *
+     * **並び順専用のファイルは作らない** — ルールファイルが正本という設計を崩さないため。
+     * CLI (`z2-when`) は `order` を書かないが、`on` / `off` は enabled 行だけを sed で
+     * 書き換えるので、ここで書いた並びは端末から操作しても消えない。
+     * 実行やトリガーには一切影響しない（表示順だけ）。
+     */
+    fun reorderRules(context: Context, ids: List<String>) {
+        val dir = whenDir(context)
+        ids.forEachIndexed { index, id ->
+            val f = File(dir, "$id.rule")
+            val rule = runCatching { WhenRule.parse(id, f.readText()) }.getOrNull()
+                ?: return@forEachIndexed
+            if (rule.order == index) return@forEachIndexed
+            runCatching { f.writeText(rule.copy(order = index).serialize()) }
+                .onFailure { Log.w(TAG, "reorder failed ($id): ${it.message}") }
+        }
     }
 
     /** ルールとそのログを消して、時刻トリガーを貼り直す。 */

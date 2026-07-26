@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-27 / Target version: 0.8.248-alpha (versionCode 256)
+Last updated: 2026-07-27 / Target version: 0.8.249-alpha (versionCode 257)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -460,6 +460,7 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 
 **Automation tab (`ui/settings/WhenRulesSheet`, 0.8.227)**: adds an "Automation" tab to 📜 with the rule list, on/off, run logs, ▶ run-now, delete, the pause switch and recent fires. The same body opens from Settings › resident servers & automation (the two-entry structure `ServersBody` already uses). Shared widgets (`ToggleRow` / `HintBox` / `IconCell` / `PillButton`) are `internal` in `ServersSheet` so the look is not written twice.
 
+- **Rows can be reordered by dragging ≡** (0.8.249, shared with the Servers tab). The order is written as an `order=<n>` line inside each rule file (`WhenManager.reorderRules`). **No separate order file is created** — that would break the rule-file-is-the-source-of-truth policy above. The CLI never writes `order`, and `z2-when on|off` only seds the enabled line, so an order set from the screen survives terminal-side edits. Rules without `order` (added from the terminal) sort last, by id. **Display order only — it does not affect execution or triggers.**
 - ⚠ **A `Switch` must specify its OFF colours, not just its ON ones** (0.8.242). Passing only `checked*` to `SwitchDefaults.colors()` leaves the OFF side on the Material3 default (a dark `surfaceVariant`), which **dissolves into this app's dark background — the switch reads as "nothing is there"**. That is what happened to the pause toggle and the per-rule on/off (reported from a device). Always pass the set together: `uncheckedThumbColor = ZtsTextSecondary` / `uncheckedTrackColor = ZtsBgCard` / `uncheckedBorderColor = ZtsBorder` (the same combination the settings screen's `ToggleField` uses).
 
 **Creating and editing rules is deliberately absent from the UI.** The source of truth is the text at `~/.z2term/when/<id>.rule`, with the logic on the shell side (§3.3, "the app is the connection point, the shell holds the logic"). Letting the GUI author rules would create a second source of truth. The screen only lets you **see, stop and try**; authoring stays with `z2-when`.
@@ -1190,6 +1191,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
 - `ssh/SshProfilesSheet.kt` + `HostKeyVerificationDialog.kt`: SSH profile UI + key verification.
 - `sftp/SftpSheet.kt`: SFTP file browser (**full-screen page**). Scrolling the listing downwards collided with the ModalBottomSheet close drag and dismissed the sheet, so it moved to the same separate-page style as the settings page. The back arrow / system back returns to the previous screen. The other sheets (snippets, clipboard history, servers, custom theme) stay ModalBottomSheets since they are meant to be opened briefly.
 - `snippets/SnippetsSheet.kt`: tools sheet (toolbar 📜). Tabs switch between **Snippets** (tap a line to insert, reorder/edit), **SSH / SFTP** (`ssh/SshProfilesBody`) and **Servers** (`settings/ServersBody`, the same resident-server manager used by the settings sheet). The SSH tab only appears on terminal tabs, the Servers tab only when a terminal session is available.
+- `components/ReorderList.kt`: **drag-to-reorder for vertical lists** (0.8.249). Brings the Snippets-tab feel (grab ≡, move up/down) to lists whose **rows vary in height**; used by the Servers and Automation tabs. Snippet rows are a fixed height, so a constant pitch was enough; server / rule rows grow with status lines and expanded logs, so every row reports its height via `onSizeChanged` and the swap test uses **the measured height of the neighbouring row**. While a row is held, the outer list never overwrites the order (otherwise rows jump out from under the finger). ⚠ Wrap rows in `key(id)` — without a stable node identity the pointer detaches from the row being dragged. ⚠ Attach the drag to **the handle only**; on the whole row it fights the on/off and log-toggle taps. Persistence is the caller's job (Servers: store the reordered `ServerEntry` list; Automation: `order=` in each rule file).
 
 ### 4.12 GUI desktop (`gui/`)
 
