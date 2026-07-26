@@ -94,6 +94,31 @@ class PtyProcess private constructor(
         nativeClose(fd, pid)
     }
 
+    /**
+     * PTY を**閉じるだけ**にする（シグナルは一切送らない）。
+     *
+     * [close] との違いは「殺さない」こと。proot/z2root は `--kill-on-exit`
+     * (`PTRACE_O_EXITKILL`) 付きで起動しているので、**ルートプロセスを kill すると配下の
+     * プロセスがカーネルに道連れで kill される**。スクリプトが背景へ逃がしたデーモン
+     * (`sshd --lan` の dropbear 等) を生かしたままにしたいときは [close] を使ってはいけない。
+     *
+     * ⚠ 呼ぶのは**ルートプロセスが既に終わったあと**だけにすること。生きているうちに
+     * マスタ fd を閉じると、カーネルが端末のフォアグラウンドプロセスグループへ SIGHUP を
+     * 送り、結局ルートごと落ちて同じ道連れが起きる（[waitFor] で待ってから呼ぶ）。
+     */
+    fun detach() {
+        try {
+            writer.close()
+        } catch (e: IOException) {
+            // ignore
+        }
+        try {
+            reader.close()
+        } catch (e: IOException) {
+            // ignore
+        }
+    }
+
     /** プロセスの終了を待つ（ブロッキング） */
     fun waitFor(): Int {
         return nativeWaitFor(pid)

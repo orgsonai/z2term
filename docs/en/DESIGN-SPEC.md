@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-27 / Target version: 0.8.250-alpha (versionCode 258)
+Last updated: 2026-07-27 / Target version: 0.8.251-alpha (versionCode 259)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -466,6 +466,17 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 **Creating and editing rules is deliberately absent from the UI.** The source of truth is the text at `~/.z2term/when/<id>.rule`, with the logic on the shell side (§3.3, "the app is the connection point, the shell holds the logic"). Letting the GUI author rules would create a second source of truth. The screen only lets you **see, stop and try**; authoring stays with `z2-when`.
 
 **CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> run <cmd>` to add / `list` (TSV; notes when paused) / `events` (names usable with `event:`, 0.8.226) / `pause` / `resume` / `fired [n]` (0.8.227) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><pid>` (0.8.211 switched from a random suffix to the pid to avoid same-second collisions; a counter is appended if the file already exists). **Stage 2 now covers cron/wifi/sms/sensor** (0.8.207–0.8.210). Later candidates: DST-boundary refinement for `time:cron`, light-threshold hysteresis, etc.
+
+#### Daemons started by a rule were killed the moment the rule finished (`HeadlessRun` / `PtyProcess.detach`, 0.8.251)
+
+**Symptom**: a rule that **starts a daemon** — `z2-when wifi:connect run 'sshd --lan'` — does nothing useful. The run log faithfully records `✅ dropbear listening … on :2222` every time, yet seconds later nothing is listening and the port refuses connections. Running the same thing from a script registered as a resident server works, so it looks like "only automation kills it".
+
+**Cause**: the teardown for a one-shot run was `PtyProcess.close()`, which sends **SIGHUP then SIGKILL to the root process (proot/z2root)**. The launcher always passes `--kill-on-exit` (`PTRACE_O_EXITKILL` under z2root), so **killing the root makes the kernel take every process underneath it down as well**. When the rule calls `sshd --lan`, dropbear daemonises and genuinely listens (the wrapper only prints `listening` after confirming the pidfile with `kill -0`); then `sh` exits, the PTY hits EOF, teardown runs, and dropbear dies with the root. The log ending on success is not a lie — it was true at that instant — which is exactly why the log misleads you.  The resident-server path survives because its script keeps running, so the PTY never reaches EOF and teardown never fires (the GUI works around the same trap with `while x_running; do sleep 2; done`).
+
+**Fix**: treat EOF as "**the foreground script finished**", not "everything finished". Teardown is now `waitFor()` → `detach()` (**close the fd, send no signals**), waiting for the root to exit on its own. For ordinary rules that leave nothing behind, `waitFor` returns immediately and nothing changes. Explicit stops (`HeadlessRun.stop()`) still use `close()` and take the whole tree down — a person asked for it, so the cascade is the correct behaviour.
+
+⚠ Never call `detach()` while the root is still alive: closing the master fd makes the kernel send SIGHUP to the terminal's foreground process group, which takes the root down and produces the very cascade being avoided.
+⚠ A daemon that survives this way lives **only as long as the app process** (it is a child of the proot root). Anything that must stay up for good belongs in a resident server.
 
 **Tab activity marks (0.8.229)**: an inactive tab shows a **small filled square while something runs in it**, and a **`✓` if it finished while you were looking elsewhere**. The judgement (`AppSession.isBusy`) was **already being computed for the close-confirmation dialog**, but nothing surfaced it, so checking meant switching tabs and back.
 

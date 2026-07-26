@@ -22,6 +22,13 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * 実行は常に [ProotLauncher.launch] (proot/z2root)。root chroot モードでも `launchChroot` は
  * 追加引数を取らないため、単発実行はエンジン経路に統一する (同じ distro で動くので挙動は変わらない)。
+ *
+ * **背景へ逃がしたプロセスは生き残る**: スクリプトが `sshd --lan` のようにデーモンを起こして
+ * 自分は終了した場合、そのデーモンは実行が終わっても止めない。proot/z2root は
+ * `--kill-on-exit` (`PTRACE_O_EXITKILL`) 付きで動くため、後始末でルートを kill すると配下ごと
+ * カーネルに殺される — だから終了後は [PtyProcess.close] ではなく
+ * [PtyProcess.waitFor] → [PtyProcess.detach] で畳む。明示的に止めるのは [stop] だけ。
+ * ⚠ デーモンはアプリのプロセスが生きている間だけ生き残る (proot ルートの子であるため)。
  */
 object HeadlessRun {
 
@@ -123,8 +130,16 @@ object HeadlessRun {
                 // stop() が既に別のプロセスを登録し直している場合を壊さないよう、
                 // 自分が登録した実体と一致するときだけ外す。
                 running.remove(name, process)
-                runCatching { process.close() }
                 runCatching { onExit?.invoke() }
+                // ⚠ ここで close() してはいけない。EOF は「前景スクリプトが終わった」だけで、
+                // ルールが背景へ逃がしたデーモン (`sshd --lan` の dropbear 等) はまだ生きている。
+                // proot/z2root は --kill-on-exit (PTRACE_O_EXITKILL) 付きなので、ルートを
+                // kill すると配下ごとカーネルに殺される — ログに「listening」と出たのに
+                // 直後には誰も listen していない、という形で表に出る。
+                // ルートが自分から終わるのを待ってから、シグナルを送らずに畳む。
+                // 背景に何も残らない普通のルールでは waitFor は即座に返る。
+                runCatching { process.waitFor() }
+                runCatching { process.detach() }
             }
         }.apply { isDaemon = true; this.name = threadName; start() }
         return true

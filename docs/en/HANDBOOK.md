@@ -610,6 +610,8 @@ Delete them all to start over. One dead feed does not stop the others, and broke
 Auto-run a command **when you start charging / the battery drops / a set time arrives**. No need to `tail` events yourself — you just **declare** the rule and it runs, even with the app closed and across reboots.
 **However, every trigger except time, SMS and notifications (charging, battery, Wi‑Fi, sensors, new files, device events) only works while "detection" is on** (Settings › keep-alive & automation): Android does not deliver those events to an app that isn't resident. SMS needs the receive-SMS permission, and `notify:` needs notification access.
 
+**Rules may start servers too** (e.g. `z2-when wifi:connect run 'sshd --lan'`). A server started that way **keeps running** after the rule itself finishes (fixed in 0.8.251 — before that it was taken down the instant the run ended, so the log said "listening" while nothing answered). ⚠ It only survives **while the app is alive**; register anything that must stay up permanently as a **resident server**.
+
 How to register (just line up a trigger and a command):
 
 ```sh
