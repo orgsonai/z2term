@@ -139,6 +139,13 @@ fun SnippetsSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                // ⚠ 中身の量に関わらず**常に全高**にする。付けないとシートが内容の高さに縮み、
+                // 項目の少ないタブでは背が低くなる。すると**タブバーの位置がタブごとに動き**、
+                // 切り替えた先で前のタブのタブバーがあった場所を押してしまう (誤タップ)。
+                // 高さが変わらなければ、どのタブでもタブバーは同じ場所にある。
+                // `fillMaxHeight` ではなく `weight` なのは、上のドラッグハンドルの分を
+                // 差し引いた残り全部を取るため (fillMaxHeight だとハンドルの分だけはみ出す)。
+                .weight(1f)
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
