@@ -57,7 +57,7 @@ That's all the setup you need.
 | Button | What it does |
 |---|---|
 | 📋 | Paste text from the clipboard (**double-tap to open the clipboard history** and pick from it) |
-| 📜 | Command list (tap a frequently used command to type it) + **History** (filter past commands and insert one) + **SSH connect / SFTP** + **Servers** (manage resident servers) (switch with tabs) |
+| 📜 | Command list (tap a frequently used command to type it) + **History** (filter past commands and insert one) + **SSH connect / SFTP** + **Servers** (manage resident servers) + **Automation** (list `z2-when` rules, toggle them, read run logs, pause) (switch with tabs) |
 | 🔅 | Screen-on lock (when ON, the screen won't auto-dim; the icon changes to 💡 while ON). **Double-tap for a slider that dims this app only** (for dark rooms; going home restores it, and Reset clears it any time). **The level you pick is remembered, so the app opens at that brightness next time** (press Reset to go back to normal) |
 | 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF). **While resident servers are running, 🔒 is dimmed and can't be toggled** (the servers already keep the app alive, so turning it OFF here would do nothing). Tapping 🔒 in that state opens a screen to choose **"End session only" / "Stop everything and quit"** (see below) |
 | 🔍 | Search the on-screen text (jump back/forward with ↑↓; **while searching, the scrollbar shows a tick for every hit** so you can see where they cluster — tap a tick to jump there; **tap in the input field to move the caret** and fix a typo in the middle) |
