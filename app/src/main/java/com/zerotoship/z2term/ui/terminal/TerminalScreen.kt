@@ -783,7 +783,13 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onDismiss = { clipHistoryOpen = false },
             // 履歴から選んで貼るだけ。システムクリップボードへ書き戻すと「貼り付けたのに
             // コピーされた (履歴が積み替わる)」挙動になるため同期しない。
-            onSelect = { text -> active.pasteText(text, syncClipboard = false) }
+            // **改行を含むものは 📋 と同じく貼る前に見せる** (0.8.249)。危ないのは
+            // 「入るとそのまま実行される」ことで、どの入口から来たかは関係ない。
+            // シートは選択と同時に閉じるので、確認バーはその後ろに出る。
+            onSelect = { text ->
+                if (text.contains('\n')) pastePreview = text
+                else active.pasteText(text, syncClipboard = false)
+            }
         )
     }
     if (logSheetOpen) {

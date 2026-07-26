@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-27 / Target version: 0.8.249-alpha (versionCode 257)
+Last updated: 2026-07-27 / Target version: 0.8.250-alpha (versionCode 258)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -487,6 +487,7 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 - The bar leads with the **line count**: here, how many lines are about to land matters more than what they say. Only two lines are previewed (this is not a place to read the whole thing).
 - Pasting still **does not execute** (it lands on the input line; bracketed paste is unchanged). Same contract as receiving a share (B1).
 - Placement and size match `SearchBar` — two different bars appear at the top of the terminal area, and they must not look unrelated.
+- **Picking from clipboard history shows the same bar (0.8.250)**. History (double-tap 📋) pasted the moment you picked a row, so the very same multi-line text skipped the confirmation just because it arrived through a different door. What is risky is that it lands and then runs; where it came from is irrelevant. The test stays the single `text.contains('\n')` used by 📋 — **no per-entry-point rules**. The history sheet closes as you pick, so the bar appears behind it. ⚠ The GUI tab (`GuiScreen`) types via keysym and confirms **neither** 📋 nor history, which is at least consistent — if that changes, change both together.
 
 **While searching, the scrollbar becomes a map (0.8.233)**: search reports a **count** ("3 / 17") but not whether those 17 hits sit near the top or are spread through the buffer, so you end up hammering ∨. Hit positions now appear as ticks on the scrollbar.
 
