@@ -1183,7 +1183,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 
 ### 4.13 Android API ブリッジ (`Z2ApiBridge` / `Z2ApiScript`)
 
-- 端末から Android 機能を叩くコマンド群。マクロは「トリガー (events.jsonl を tail) → ロジック (シェル) → アクション (`z2-*`)」で組む。[マクロの書き方は `docs/ja/MACRO-GUIDE.md`](MACRO-GUIDE.md) を参照。
+- 端末から Android 機能を叩くコマンド群。マクロは「トリガー (`z2-when` に登録。無いきっかけは events.jsonl の差分監視) → ロジック (シェル) → アクション (`z2-*`)」で組む。[マクロの書き方は `docs/ja/MACRO-GUIDE.md`](MACRO-GUIDE.md) を参照。
 
   | コマンド | 内容 |
   |---|---|

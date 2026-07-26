@@ -557,7 +557,7 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-alarm at\|daily HH:MM [name]` | **Time trigger**: writes an `alarm` event into `events.jsonl` at that time (`in 5m` / `list` / `cancel <id\|name\|all>` too). Unlike cron it fires during Doze (may be a few minutes late) |
 | `z2-session list\|new\|send\|capture\|close` | **Drives this app's own tabs.** `list` shows them (index, id, name, marks: `*`=visible, `!`=busy, `?`=not started), `new [name]` adds one, `send <target> "text"` **only inserts** into that tab (add `--enter` to actually run it), `capture [target]` pulls the on-screen text, `close <target>` closes it. `<target>` is the index from `list`, an id, or a tab name. E.g. ``n=$(z2-session new build \| cut -f1); z2-session send "$n" 'make -j2' --enter`` |
 | `z2-when <trigger> run <cmd>` | **Automation hub.** Auto-run a command on charge / battery / time / device events (see "Automation hub" below). Also `list` / `remove <id\|all>` / `on\|off <id>` / `log <id>`. E.g. `z2-when charge:start run ~/.z2term/macros/backup.sh` |
-| `z2-macro list\|install <name>` | **Bundled macro samples** into `~/.z2term/macros/` (`show` / `run` / `dir` too) — a starting point for your first macro. Bundled: `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `rss` / `rss-open` |
+| `z2-macro list\|install <name>` | **Bundled macro samples** into `~/.z2term/macros/` (`show` / `run` / `dir` too) — a starting point for your first macro. Bundled: `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `rss` / `rss-open`. On install it also tells you **how that script is meant to be run** (register it as a resident server / drive it with `z2-when` / assign it to a widget button). ⚠ **Never register a one-shot script (`rss` / `rss-open`) as a resident server** — it would be restarted every time it finishes |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | Fire an arbitrary Android Intent (launch apps, open settings, set alarms, … see `docs/en/MACRO-GUIDE.md`) |
 
 > Combine "trigger (event detection) → decide (shell) → action (z2-*)" to automate your phone (macros). See **`docs/en/MACRO-GUIDE.md`** for how — you can also feed it to an AI and have it generate the macro for you.
@@ -607,7 +607,7 @@ Delete them all to start over. One dead feed does not stop the others, and broke
 ### Automation hub (`z2-when`)
 
 Auto-run a command **when you start charging / the battery drops / a set time arrives**. No need to `tail` events yourself — you just **declare** the rule and it runs, even with the app closed and across reboots.
-**However, every trigger except time and SMS (charging, battery, Wi‑Fi, sensors) only works while "detection" is on** (Settings › keep-alive & automation): Android does not deliver those events to an app that isn't resident.
+**However, every trigger except time, SMS and notifications (charging, battery, Wi‑Fi, sensors, new files, device events) only works while "detection" is on** (Settings › keep-alive & automation): Android does not deliver those events to an app that isn't resident. SMS needs the receive-SMS permission, and `notify:` needs notification access.
 
 How to register (just line up a trigger and a command):
 

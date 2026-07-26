@@ -4,7 +4,7 @@
 It is a manual you can read and write by hand, and at the same time a **machine-readable
 reference you can feed whole to an AI** — then just say "I want to …" and it generates the macro.
 
-> Target version: 0.8.167-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
+> Target version: 0.8.247-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
 > Everything here is **non-root, fully local, no external transmission**. No hard-permission features are included.
 
 ---
@@ -15,28 +15,104 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
 
 | Stage | Direction | In z2term |
 |---|---|---|
-| **Trigger** | Android → shell | System events appended to `~/.z2term/events.jsonl` (charge/screen/lock/Wi‑Fi/headset/airplane/ringer…). Notifications go to `~/.z2term/notifications.jsonl`, SMS to `~/.z2term/sms.jsonl` (for OTPs, SMS detection bypasses redaction — see 5-7). **Time** triggers come from `z2-alarm`, which writes `alarm` into the same events.jsonl |
-| **Decide (logic)** | shell | Read the log lines and branch (`if`, time, counts, state files…). Plain sh/awk/jq, anything goes |
+| **Trigger** | Android → shell | **Register what should wake you with `z2-when`** (charge/battery/time/Wi‑Fi/SMS/sensor/new file/notification/device event). Your command runs once, only when the condition matches. The same things are also appended to `~/.z2term/events.jsonl`, so **you can watch the log yourself instead** (notifications go to `~/.z2term/notifications.jsonl`, SMS to `~/.z2term/sms.jsonl`; for OTPs, SMS detection bypasses redaction — see 5-7) |
+| **Decide (logic)** | shell | Branch on the condition (`if`, time, counts, state files…). Plain sh/awk/jq, anything goes. **Current state** comes from `z2-state` |
 | **Action** | shell → Android | `z2-*` commands drive the Android side (notify/speak/volume/torch/fire an Intent…) |
 
-**A macro is simply "a shell script that watches the event log and fires actions when conditions match."**
+### Two ways to receive a trigger
+
+| | When to use it | What you write |
+|---|---|---|
+| **A. Let `z2-when` do it** (the default; since 0.8.205) | Whenever a registrable trigger covers your case | A short script with **only the work in it** (runs once and exits) |
+| **B. Watch the log yourself** (the 5-0 skeleton) | Triggers `z2-when` does not have, or decisions that combine several events | A resident script that keeps diffing the log |
+
+**Try A first.** The app does the waiting, so **you run no resident script at all** and it costs no
+battery. B is the escape hatch for what A cannot express (5-5 / 5-6 / 5-7 in this guide, where the
+decision needs the contents of the log).
+
+**A macro is simply "a shell script that checks a condition and fires actions when the trigger arrives."**
 
 ---
 
 ## 2. One-time setup
 
-1. **Enable triggers**: app ⚙ Settings →
-   - Turn on "**System event detection**" (events.jsonl starts filling).
-   - If you use notifications too, turn on "**Notification detection**" (and grant the OS "notification access").
-2. **To keep it resident**: ⚙ Settings → "**Resident servers**" → register your macro script's start command; it then runs without opening the app and after reboot (also turn on "auto-start on boot").
-3. Handy tool: install `jq` (JSON parsing). e.g. Alpine `apk add jq` / Debian-family `apt install jq`.
-4. **If you would rather not start from a blank file**: `z2-macro list` shows the bundled samples and
+1. **Enable triggers**: app ⚙ Settings → "**Resident servers & automation**" →
+   - Turn on "**System event detection**". `z2-when`'s `charge:` / `battery:` / `wifi:` /
+     `sensor:` / `file:` / `event:` and the `events.jsonl` log all depend on it.
+   - If you use notifications too, turn on "**Notification detection**" (and grant the OS
+     "notification access"). That is what `notify:` needs.
+   - If you use SMS, turn on "**SMS detection**" (and allow receiving SMS). That is what `sms:` needs.
+   - **Only the `time:` family works with detection off** (the OS alarm wakes it up).
+2. **Register a trigger**: `z2-when <trigger> run <command>` (→ section 4). Everything you register
+   also shows up under 📜 → the "**Automation**" tab, where you can toggle rules, **▶ run one once
+   without waiting for the trigger**, read its run log, pause everything, and see recent fires.
+3. **To keep something resident** (only for style B): ⚙ Settings → "**Resident servers**" → register
+   your script's start command; it then runs without opening the app and after reboot (also turn on
+   "auto-start on boot").
+4. Handy tool: install `jq` (JSON parsing). e.g. Alpine `apk add jq` / Debian-family `apt install jq`.
+5. **If you would rather not start from a blank file**: `z2-macro list` shows the 7 bundled samples and
    `z2-macro install <name>` copies one into `~/.z2term/macros/` (`z2-macro install all` for every one).
    Edit them freely — install never overwrites an existing file, so your edits are safe (`-f` forces it).
+   On install it also tells you **how that script is meant to be run** (register it as a resident
+   server / drive it with `z2-when` / assign it to a widget button).
 
 ---
 
-## 3. Trigger reference (events.jsonl)
+## 3. Trigger reference
+
+### 3-A. Triggers you can register with `z2-when`
+
+Register with `z2-when <trigger> run <command>`. When the condition matches, **your command runs
+exactly once** (no resident script involved).
+
+| Trigger | When | Needs |
+|---|---|---|
+| `charge:start` / `charge:stop` | Charging started / stopped | detection ON |
+| `battery:below=N` / `battery:above=N` | The level **crossed** N% downward / upward | detection ON |
+| `time:daily=HH:MM` | Every day at HH:MM | — |
+| `time:at=HH:MM` | Once, at the next HH:MM | — |
+| `time:every=Nm` / `time:every=Nh` | Every N minutes / hours | — |
+| `time:cron='min hour dom month dow'` | A cron expression (dow 0-7 / 0,7 = Sunday). It has spaces, so **quote it** | — |
+| `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<name>` | Wi‑Fi connected / disconnected / joined that SSID | detection ON |
+| `sms:any` / `sms:from=<substr>` / `sms:contains=<substr>` / `sms:otp` | An SMS arrived | SMS detection |
+| `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near\|far` | Shaken / light crossed N lux / proximity changed | detection ON |
+| `file:new=<dir>[,ext=<ext>]` | **A new file landed in that folder** (after the write finishes) | detection ON |
+| `notify:any` / `notify:otp` / `notify:pkg=<part>` / `notify:title=<part>` / `notify:contains=<part>` | A notification arrived (`pkg=` matches the package name *or* the app label) | notification access |
+| `event:<name>` / `event:<prefix>*` / `event:*` | Any device event, **by name** (same names as 3-B; `z2-when events` lists them) | depends on the name |
+
+The command that fires gets **what happened** in its environment.
+
+| Variable | Holds |
+|---|---|
+| `Z2_WHEN_TRIGGER` | The trigger string you registered (all triggers) |
+| `Z2_WHEN_LEVEL` | Battery % (`charge:` / `battery:`) |
+| `Z2_WHEN_SSID` | Wi‑Fi name (`wifi:`) |
+| `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` | Sender / body (`sms:`) |
+| `Z2_WHEN_OTP` | The extracted one-time code (`sms:otp` / `notify:otp`) |
+| `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX` | `shake`/`light`/`proximity:near\|far` / illuminance (`sensor:`) |
+| `Z2_WHEN_FILE` / `Z2_WHEN_DIR` | Full path of the new file / its folder (`file:`) |
+| `Z2_WHEN_NOTI_PKG` / `_APP` / `_TITLE` / `_TEXT` | Package / app label / title / body (`notify:`) |
+| `Z2_WHEN_EVENT` | Event name (`event:`) |
+| `Z2_WHEN_EVENT_NAME` | The identifier you armed it with (`event:alarm` / `event:notify_action`) |
+| `Z2_WHEN_ACTION` | The button label that was pressed (`event:notify_action`) |
+
+```sh
+z2-when charge:start run ~/.z2term/macros/backup.sh
+z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
+z2-when event:headset_plugged run ~/.z2term/macros/play.sh
+z2-when 'event:ringer_*' run 'z2-toast "ringer: $Z2_WHEN_EVENT"'
+z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
+```
+
+- Strings that came from outside (SSID, SMS body, notification text, file names) are **passed in
+  safely quoted**. Quote them on your side too (`"$Z2_WHEN_SMS_BODY"`) and never feed them to `eval`.
+- **The same rule will not fire twice within 10 seconds** (events like `screen_on` come often).
+- The command runs on **the distro you have selected**.
+
+### 3-B. The event log (events.jsonl)
+
+This is what you read when you watch the log yourself (style B / the 5-0 skeleton).
+`z2-when`'s `event:` uses exactly the names in this table.
 
 - Location: `~/.z2term/events.jsonl` (one JSON per line, append-only).
 - **No size cap**: the file keeps appending all history into one file, so you can go back and aggregate over the whole log in one place.
@@ -44,7 +120,7 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
 - Default fields: `ts` (epoch ms, integer), `time` (ISO8601 string), `event` (kind), and sometimes `level` (battery %), `ssid` (Wi‑Fi name).
 - The output format is templatable in Settings, but **for macros keep the default JSONL** — it's the easiest to parse.
 
-### Event kinds (values of `event`)
+#### Event kinds (values of `event`)
 
 | event | Meaning | Extra fields |
 |---|---|---|
@@ -68,16 +144,19 @@ Example lines:
 {"ts":1752620750000,"time":"2026-07-16T10:26:00+09:00","event":"wifi_connected","ssid":"home"}
 ```
 
-### Notification triggers (notifications.jsonl)
+#### The notification log (notifications.jsonl)
 
 - Location: `~/.z2term/notifications.jsonl`. Fields: `ts` `time` `pkg` (package) `app` (app label) `title` `text` `category` `key`.
-- Use it as the starting point for "when a notification from a certain app arrives…".
+- Use it as the starting point for "when a notification from a certain app arrives…" (`z2-when notify:pkg=<part>` does the same thing without logging anything).
+- Logging is **independent** of `z2-when notify:`, so "do not record them, but do use them as a trigger" is exactly what you get by leaving the log off.
 
 ---
 
 ## 4. Action reference (z2-* commands)
 
-Run them from the terminal and the app performs the Android side. **All permission-free** (the callee of `z2-intent` may need its own permissions).
+Run them from the terminal and the app performs the Android side. **All permission-free**
+(the callee of `z2-intent` may need its own permissions, and each `z2-when` trigger has its own
+prerequisite → 3-A).
 
 | Command | Usage | What it does | Returns |
 |---|---|---|---|
@@ -96,6 +175,9 @@ Run them from the terminal and the app performs the Android side. **All permissi
 | `z2-intent` | see below | Fire an arbitrary Intent | — |
 | `z2-state` | `z2-state [key]` | **Current device state** (see below) | JSON, or the raw value for a key |
 | `z2-alarm` | `z2-alarm at\|daily HH:MM [name]` etc. | Set a **time trigger** (see below) | JSON of the schedule |
+| `z2-when` | `z2-when <trigger> run <command>` etc. | **Register a trigger** (→ 3-A, and below) | the rule id |
+| `z2-noti` | `z2-noti list` | Read **the notifications on screen right now** (read-only, see below) | TSV |
+| `z2-session` | `z2-session list\|new\|send\|capture\|close` | Drive **the app's own tabs** (see below) | TSV / index |
 | `z2-macro` | `z2-macro list\|install\|show\|run\|dir` | Manage the bundled samples | — |
 
 ### `z2-notify -b` (get an answer back = interactive macros)
@@ -178,6 +260,71 @@ z2-alarm cancel morning        # cancel by name (id or all also work)
 - Schedules survive a reboot (the app re-registers them on boot).
 - The name exists so one macro can tell its alarms apart; branch on `name` in your script.
 
+**`z2-alarm` vs `z2-when time:`**: both fire on a clock, but `z2-alarm` only **writes one `alarm`
+line into `events.jsonl`** — something else (a resident script) still has to pick it up.
+`z2-when time:daily=07:00 run <command>` runs **the command itself**, so no watcher is needed.
+**Use `z2-when` for anything new.** `z2-alarm` is for cases where you already have a resident script,
+or where you want "the alarm went off" recorded in the log as well.
+
+### `z2-when` (register a trigger)
+
+**The triggers you can register and the variables you get are in 3-A.** This section covers managing them.
+
+```sh
+z2-when battery:below=20 run 'z2-say "battery is getting low"'
+z2-when time:daily=07:00 run ~/.z2term/macros/morning.sh
+z2-when notify:otp run 'echo "$Z2_WHEN_OTP" | z2-clip set'
+```
+
+| Command | What it does |
+|---|---|
+| `z2-when list` | Registered rules (id / on\|off / trigger / `->` / command, TSV) |
+| `z2-when events` | The names you can put in `event:` |
+| `z2-when log <id>` | **That rule's run log** (tail). Start here when nothing happens |
+| `z2-when fired [n]` | Recent fires (time / id / trigger / `run`\|`paused`) |
+| `z2-when on <id>` / `off <id>` | Enable / disable one rule |
+| `z2-when pause` / `resume` | Stop / resume **every** rule (nothing is deleted) |
+| `z2-when remove <id\|all>` | Delete (`rm` works too) |
+
+- Rules also appear under 📜 → the "**Automation**" tab. **▶ runs one without waiting for its
+  trigger**, which is how you shake out mistakes in the script itself.
+- If something runs away, `z2-when pause` (or "Pause automatic runs" in the Automation tab).
+  **No trigger fires anything** while paused, the rules stay, and ▶ still works.
+- Registered commands run through `sh -lc` (inside the selected distro) each time they fire.
+  **Wrap the whole command in single quotes when you use `Z2_WHEN_*`**
+  (`run 'z2-toast "$Z2_WHEN_EVENT"'`). With double quotes, **the shell you are registering from
+  expands it first** and an empty string gets stored.
+
+### `z2-noti` (read the notifications on screen)
+
+```sh
+z2-noti list        # key / package / app label / title / text, as TSV
+```
+
+- Needs notification access (⚙ Settings → Resident servers & automation → Notification detection).
+- **Read-only.** Pressing or dismissing other apps' notification buttons is deliberately not offered
+  (it would also press their pay and send buttons).
+- To react the moment one arrives, use `z2-when notify:*` (3-A). `z2-noti` is for counting or
+  searching **what is there right now**.
+
+### `z2-session` (drive the app's own tabs)
+
+A macro can open a terminal tab in z2term itself and type into it.
+
+```sh
+z2-session list                      # tabs (index / id / kind / mark / name, TSV)
+n=$(z2-session new build | cut -f1)  # open one tab, take its index
+z2-session send "$n" 'make -j2' --enter
+z2-session capture "$n" --all        # grab that tab's screen (--all includes scrollback)
+z2-session close "$n"                # close it (never the last one)
+```
+
+- Marks in `list`: `*` = the tab on screen / `!` = something is running / `?` = not started yet / `-` = other.
+- `<tab>` can be **the index, an id, or a tab name**; `.` or omitted means the tab on screen.
+- **`send` only types — it does not run anything.** Add `--enter` when you do want it executed
+  (so nothing starts running behind your back).
+- A name given with `new <name>` is **pinned**: neither the distro name nor the shell's title overwrites it.
+
 ### `z2-intent` (the workhorse action)
 
 Builds an arbitrary Android Intent with `am start`-style flags and does `startActivity` by default.
@@ -216,9 +363,49 @@ z2-intent -a android.intent.action.SET_ALARM --ei android.intent.extra.alarm.HOU
 
 ## 5. Writing a macro (templates)
 
-### 5-0. How to read the log (the skeleton every macro uses)
+**See whether 5-A covers your case first.** If it does, the script is a few lines of "the work" and
+nothing else. You only need the watching skeleton from 5-0 for triggers `z2-when` does not have, and
+for decisions that read the contents of the log (5-5 / 5-6 / 5-7).
 
-**Read this first.** Every example below assumes this skeleton.
+### 5-A. Let `z2-when` do it (start here)
+
+Write the work, then register the trigger.
+
+```sh
+#!/bin/sh
+# ~/.z2term/macros/lowbat.sh — just say something when the battery gets low
+z2-say "battery is at $(z2-state level) percent"
+z2-notify "Battery low" "$(z2-state level)% left"
+```
+
+```sh
+chmod +x ~/.z2term/macros/lowbat.sh
+z2-when battery:below=20 run ~/.z2term/macros/lowbat.sh
+z2-when list                       # check that it registered
+```
+
+**No watch loop, no resident server.** The app does the waiting and runs this script once when the
+condition matches.
+
+Short ones need no file at all:
+
+```sh
+z2-when charge:start  run 'z2-volume 30%'
+z2-when charge:stop   run 'z2-volume 70%'
+z2-when wifi:ssid=home run 'z2-toast "home Wi-Fi"'
+z2-when notify:otp    run 'echo "$Z2_WHEN_OTP" | z2-clip set'
+```
+
+**When nothing happens**, walk this list:
+
+1. `z2-when list` — is it registered, and is it `off`?
+2. 📜 → Automation tab → **▶** — run it once without waiting (mistakes in the script surface here)
+3. `z2-when log <id>` — the output and errors from the run
+4. `z2-when fired` — did it fire at all? (`paused` means automatic runs are paused)
+
+### 5-0. How to read the log (the skeleton for watching it yourself)
+
+**The examples in 5-5 / 5-6 / 5-7 assume this skeleton.**
 
 Do not follow the log with `tail -F`. The log format is yours to change, and switching to
 **"newest first" makes it prepend — new entries never reach the end of the file**. `tail -F` only
@@ -287,7 +474,8 @@ done
 
 - **Matching on event names is format-independent.** `{event}` renders as `power_connected`
   verbatim in both JSON and a template, so `case "$rec" in *power_connected*)` always works.
-  All four bundled samples are written this way.
+  The **five log-watching samples** (`watch-basic` / `battery-alert` / `daily-report` / `otp-clip` /
+  `otp-sms`) are written this way.
 - **Values** (battery level, etc.) come from `z2-state`, which never touches the log. Prefer this.
 - **Parsing a log field** (like `ssid`, which `z2-state` doesn't expose) is the one part that
   depends on the format you chose. Write it against the default JSONL and adjust if you change it.
@@ -297,6 +485,10 @@ done
 ### 5-1. Minimal: watch events and react
 
 Change only `handle()` from the 5-0 skeleton (matching on event names, so format-independent).
+
+> 💡 One event with one reaction is shorter as `z2-when event:<name> run <command>`. You want this
+> shape when you **handle several events in one script**, or when the decision depends on
+> **what happened earlier**.
 
 ```sh
 handle() {
@@ -338,16 +530,51 @@ handle() {
 }
 ```
 
-### 5-3. Make it resident
+### 5-3. How to run it (resident vs. one-shot)
 
-Register a **start command** in `⚙ Settings → Resident servers` (e.g. `sh ~/.z2term/macros/watch.sh`).
-Turn on "auto-start on boot" and it runs without opening the app and after a reboot. For a quick
-test you can just run `sh ~/.z2term/macros/watch.sh &` in the terminal.
+A script is run in one of **two ways**, and **mixing them up causes real trouble**.
+
+| Kind | How you run it | What is in it |
+|---|---|---|
+| **Resident** (keeps running) | Register a start command in `⚙ Settings → Resident servers` (e.g. `sh ~/.z2term/macros/watch.sh`). Turn on "auto-start on boot" and it runs without opening the app and after a reboot | Anything built on the 5-0 skeleton (it has a watch loop) |
+| **One-shot** (runs once and exits) | Register it with `z2-when` / assign it to a widget button / run it by hand | Anything shaped like 5-A ("just the work") |
+
+⚠ **Never register a one-shot script as a resident server.** The supervisor treats "it exited" as
+"it died" and restarts it, so it **runs again every time it finishes** (a feed reader would fetch
+forever).
+
+For a quick test, just run it in the terminal: `sh ~/.z2term/macros/watch.sh &` (resident) or
+`sh ~/.z2term/macros/lowbat.sh` (one-shot).
+
+**Your own scripts can declare how they are meant to be run** (0.8.247 and later).
+
+```sh
+#!/bin/sh
+# rss.sh — fetch feeds and notify only what is new     <- line 2 is the description in z2-macro list
+# z2-run: z2-when time:every=30m run ~/.z2term/macros/rss.sh
+```
+
+When `# z2-run:` is present, `z2-macro install` prints that line as the script's instructions
+(without it, it prints the "register it under Resident servers" advice). Put it **after the
+description line (line 2)**.
 
 ### 5-4. Time / recurring
 
-For "every morning at 7" and the like, use **`z2-alarm`**. When the time comes one `alarm` line is
-appended to `events.jsonl`, so you read it exactly like any other event.
+**`z2-when time:`** is the shortest. The command runs directly when the time comes, so no watcher
+is involved.
+
+```sh
+z2-when time:daily=07:00 run ~/.z2term/macros/morning.sh   # every morning at 7
+z2-when time:every=30m   run ~/.z2term/macros/rss.sh       # every 30 minutes
+z2-when time:cron='0 3 * * 1-5' run ~/.z2term/macros/nightly.sh  # 3:00 on weekdays
+```
+
+`time:cron=` takes a five-field cron expression (`*` / `*/n` / `a` / `a-b` / `a-b/n` / `a,b,c`;
+day-of-week 0-7 with 0 and 7 both Sunday). **It contains spaces, so it must be quoted.**
+
+If you already have a resident script, or you want "the alarm went off" in the log as well, use
+**`z2-alarm`**. When the time comes one `alarm` line is appended to `events.jsonl`, so you read it
+exactly like any other event.
 
 ```sh
 z2-alarm daily 07:00 morning     # set it once (it survives a reboot)
@@ -365,7 +592,9 @@ handle() {
 ```
 
 The distro's cron works too, but **cron stops once Android enters power-saving sleep (Doze)**.
-Use `z2-alarm` when it has to run with the screen off (at the cost of firing a few minutes late).
+Use `z2-when time:` or `z2-alarm` when it has to run with the screen off (both ask the OS to wake
+the app, at the cost of firing a few minutes late). Note that `time:cron=` only **borrows the cron
+syntax** — the distro's cron is not what runs it.
 
 ### 5-5. Worked example: notify + log location after N failed unlocks (anti-theft)
 
@@ -405,6 +634,16 @@ in your distro or an API for coordinates. **Device admin is used only to watch t
 A practical macro that puts the **one-time code (OTP / verification number)** from a notification (SMS, etc.)
 onto the clipboard, then clears it after a delay — but only if it hasn't changed. It combines the notification
 trigger, `z2-clip`, and self-cleanup (a subshell + `sleep`), using nothing outside this guide.
+
+> 💡 **Copying alone is one line** (`notify:otp` does the extraction and hands it to you in `Z2_WHEN_OTP`):
+>
+> ```sh
+> z2-when notify:otp run 'echo "$Z2_WHEN_OTP" | z2-clip set'
+> ```
+>
+> What follows is the version that **also clears the clipboard**, and at the same time a worked example of
+> **parsing a log yourself**. The extraction ideas here — strip the metadata numbers first, pick by distance
+> from the keyword — carry over to any other log you have to read.
 
 **Key points** (reusable patterns):
 - **Filter by keyword** (verification / code / OTP …) so ordinary messages and phone numbers aren't picked up.
@@ -582,12 +821,44 @@ that reads the SMS body directly — never going through the sensitive-notificat
 
 - Setup: `⚙Settings → SMS detection` **ON**, then **grant the SMS permission** in the prompt.
 - Log: `~/.z2term/sms.jsonl` (fields: `ts` `time` `from` `body`).
-- Auto-copy: `z2-macro install otp-sms.sh` installs the SMS variant of 5-6 (reads `sms.jsonl`, extracts 4–8
-  digits). Register `sh ~/.z2term/macros/otp-sms.sh` under `⚙Settings → Resident servers` to copy OTPs even while
-  locked.
+- **The shortest form** (`sms:otp` does the extraction, and works whether or not the log is on):
+
+  ```sh
+  z2-when sms:otp run 'echo "$Z2_WHEN_OTP" | z2-clip set'
+  ```
+
+- When you also want the auto-clear: `z2-macro install otp-sms.sh` installs the SMS variant of 5-6 (reads
+  `sms.jsonl`, extracts 4–8 digits). Register `sh ~/.z2term/macros/otp-sms.sh` under
+  `⚙Settings → Resident servers` to copy OTPs even while locked.
 
 OTPs that are **not SMS** (e.g. authenticator-app notifications) are out of scope for this route (use notification
 detection plus the workarounds above).
+
+### 5-8. Worked example: subscribe to feeds (how the parts fit together)
+
+The two scripts installed by `z2-macro install rss rss-open` build "poll → keep only what is new →
+notify → open in the browser → list it on the home screen" **without adding a single screen to the
+app**. Read them as a worked example of how the generic parts connect.
+
+| What it does | The part doing it |
+|---|---|
+| Polling | `z2-when time:every=30m run ~/.z2term/macros/rss.sh` |
+| Keeping only what is new | **Subtract** `seen.txt` (`grep -Fxv`). Feed dates and ordering are not trusted |
+| Telling you | `z2-notify -b Open` (a notification with a button) |
+| Handling the button | `z2-when event:notify_action run '[ "$Z2_WHEN_EVENT_NAME" = rss ] && z2-open "$(head -1 ~/.z2term/rss/new.txt \| cut -f1)"'` |
+| Opening it | `z2-open <URL>` |
+| Browsing the list | A live-tail widget on `~/.z2term/rss/latest.txt` in **"start (head)"** mode |
+| Opening the next one | A status-widget button assigned to `rss-open` (it subtracts `opened.txt`, so nothing opens twice) |
+
+- **Both are one-shot** (5-3). **Do not register them as resident servers.**
+- Parsing uses python3's standard library only (no pip). One failing feed does not stop the others,
+  and broken XML is skipped silently.
+- Polling costs battery, so **do not go below 30 minutes**.
+- For the setup steps, see "Subscribe to feeds (RSS / Atom)" in `docs/en/HANDBOOK.md`.
+
+**"Subtract to find what is new" is a standard trick.** When the other side's dates and ordering
+cannot be trusted, remembering what you already saw and subtracting it is enough (the same idea as
+`z2scan`'s baseline diff).
 
 ---
 
@@ -610,15 +881,24 @@ Feed this guide to an AI, then hand it the instruction below plus what you want,
 ready-to-run macro. **Example instruction (copy-paste):**
 
 > You are a z2term macro generator. Using only the spec in this `MACRO-GUIDE.md`, output a **single
-> POSIX sh script** that satisfies the request below. Constraints:
-> - Watch the log with the skeleton from "5-0. How to read the log" (never `tail -F` — it breaks
->   under the prepend setting). Change only `LOG`, the work-file tag, and `handle()`.
+> POSIX sh script** and **the command that runs it**, satisfying the request below. Constraints:
+> - **First check whether "3-A. Triggers you can register with `z2-when`" can express it.** If it can,
+>   put **only the work** in the script (no watch loop) and add the `z2-when <trigger> run <path>`
+>   registration command below it.
+> - Only when `z2-when` has no such trigger, or the decision combines several events, use the
+>   skeleton from "5-0. How to read the log" (never `tail -F` — it breaks under the prepend setting).
+>   Change only `LOG`, the work-file tag, and `handle()`.
 > - Branch by matching event names (`case "$rec" in *power_connected*)`) — that is format-independent.
 > - Take values from `z2-state` whenever it exposes them; parse log fields only for what it doesn't.
-> - Use only the event kinds and fields listed in "3. Trigger reference".
+> - Use only the trigger names, event names and fields listed in "3. Trigger reference".
 > - Use only the `z2-*` actions listed in "4. Action reference" (never invent features).
+> - When using `Z2_WHEN_*`, wrap `z2-when ... run '...'` in **single quotes** so it is not expanded
+>   at registration time.
 > - Prefer `jq` for JSON parsing and also include a sed fallback for when it's missing.
-> - Add comments for any dependency install (jq, …) and for registering it as a Resident server.
+> - Add comments for any dependency install (jq, …).
+> - Line 2 of the script is a one-line description; the next line is `# z2-run: <how to run it>`
+>   (say "register `sh <path>` under Resident servers" only if it really is resident — never make a
+>   one-shot script resident).
 > - Keep it to one self-contained file with a short comment on each branch.
 >
 > What I want: "__describe it in natural language__" (e.g. when charging starts set volume to 30% and
@@ -630,6 +910,17 @@ The trick is to explicitly say **stay within this guide** so the AI won't reach 
 
 ## 8. Troubleshooting
 
+- **A `z2-when` rule never runs** → (1) `z2-when list` — is it registered, is it `off`? (2) `z2-when fired` —
+  does it say `paused`? (`z2-when resume`) (3) does the trigger's **prerequisite** hold (the "Needs" column in
+  3-A)? `charge:` / `battery:` / `wifi:` / `sensor:` / `file:` / `event:` all need "System event detection" on.
+  (4) 📜 → Automation tab → **▶** to run it once, which separates "the trigger never arrived" from
+  "the script fails".
+- **It fires but nothing happens** → `z2-when log <id>` holds the command's output and errors. If you registered
+  `Z2_WHEN_*` inside **double quotes**, it was expanded at registration time and stored empty (→ section 4).
+- **It only runs once even though the trigger keeps coming** → **the same rule will not fire twice within 10 seconds**.
+- **`file:new=` misses files** → it only works while detection is on, and fires **after the write finishes**
+  (so nothing during a copy, and hidden files never count).
+- **An installed macro runs forever** → did you register a one-shot script as a resident server? (→ 5-3)
 - **events.jsonl doesn't grow** → is "System event detection" on in ⚙ Settings? An ongoing notification shows while active.
 - **`ssid` is blank** → reading the SSID needs location permission (v1 doesn't request it, so it can be blank). Connect/disconnect detection still works.
 - **`z2-*: cannot write request (storage perm?)`** → check the app's storage permission.

@@ -556,7 +556,7 @@ Z2Term がどのディストロにも自動で入れてくれる「Z2Term 専用
 | `z2-alarm at\|daily HH:MM [名前]` | **時刻トリガー**。その時刻に `events.jsonl` へ `alarm` イベントを書く（`in 5m` / `list` / `cancel <id\|名前\|all>` も）。cron と違い Doze 中でも起きる（数分ずれることあり） |
 | `z2-session list\|new\|send\|capture\|close` | **このアプリのタブを操る**。`list` で一覧（番号・id・名前・印。`*`=表示中 `!`=動作中 `?`=未起動）、`new [名前]` でタブを 1 枚追加、`send <先> "文字列"` でそのタブに**入れるだけ**（`--enter` を付けたときだけ実行）、`capture [先]` で画面のテキストを取り出し、`close <先>` で閉じる。`<先>` は `list` の番号 / id / タブ名。例: ``n=$(z2-session new build \| cut -f1); z2-session send "$n" 'make -j2' --enter`` |
 | `z2-when <トリガー> run <コマンド>` | **自動化ハブ**。充電・電池・時刻・端末イベントをきっかけにコマンドを自動実行（下記「自動化ハブ」参照）。`list` / `remove <id\|all>` / `on\|off <id>` / `log <id>` も。例: `z2-when charge:start run ~/.z2term/macros/backup.sh` |
-| `z2-macro list\|install <名前>` | **マクロのサンプル**を `~/.z2term/macros/` に導入（`show` / `run` / `dir` も）。最初の1本の雛形に。同梱は `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `rss` / `rss-open` |
+| `z2-macro list\|install <名前>` | **マクロのサンプル**を `~/.z2term/macros/` に導入（`show` / `run` / `dir` も）。最初の1本の雛形に。同梱は `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `rss` / `rss-open`。導入すると**そのスクリプトの動かし方**（常駐サーバーに登録する／`z2-when` で回す／ウィジェットのボタンに割り当てる）が表示されます。⚠ **使い切りのもの（`rss` / `rss-open`）を常駐サーバーに登録しないでください** — 終わるたびに再起動されます |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | 任意の Android Intent を発火（アプリ起動・設定画面・アラーム設定など。詳細は `docs/ja/MACRO-GUIDE.md`） |
 
 > 「トリガー（イベント検知）→ 判断（シェル）→ アクション（z2-*）」でスマホの自動化（マクロ）が組めます。書き方は **`docs/ja/MACRO-GUIDE.md`**（AI に読ませてそのままマクロ生成させることもできます）。
@@ -606,7 +606,7 @@ z2-when event:notify_action run '[ "$Z2_WHEN_EVENT_NAME" = rss ] && z2-open "$(h
 ### 自動化ハブ（`z2-when`）
 
 **充電した / 電池が減った / 決まった時刻になった**、をきっかけにコマンドを自動で実行します。イベントの検知を自分で `tail` して書く必要がなく、**宣言するだけ**で動きます。アプリを開いていなくても・再起動をまたいでも働きます。
-**ただし時刻と SMS 以外のトリガー（充電・電池・Wi‑Fi・センサー）は「検知」を ON にしている間だけ働きます**（設定の常駐・自動化）。Android の仕組み上、これらの出来事はアプリが常駐していないと受け取れません。
+**ただし時刻・SMS・通知以外のトリガー（充電・電池・Wi‑Fi・センサー・新しいファイル・端末イベント）は「検知」を ON にしている間だけ働きます**（設定の常駐・自動化）。Android の仕組み上、これらの出来事はアプリが常駐していないと受け取れません。SMS は SMS 受信の許可、通知（`notify:`）は通知アクセスの許可が前提です。
 
 登録の書き方（トリガーとコマンドを並べるだけ）:
 

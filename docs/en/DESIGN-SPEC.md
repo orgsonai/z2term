@@ -1192,7 +1192,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
 
 ### 4.13 Android API bridge (`Z2ApiBridge` / `Z2ApiScript`)
 
-- Commands that drive Android features from the terminal. Macros are built as "trigger (tail events.jsonl) → logic (shell) → action (`z2-*`)". [See `docs/en/MACRO-GUIDE.md` for how to write them](MACRO-GUIDE.md).
+- Commands that drive Android features from the terminal. Macros are built as "trigger (register it with `z2-when`; diff events.jsonl for what `z2-when` does not cover) → logic (shell) → action (`z2-*`)". [See `docs/en/MACRO-GUIDE.md` for how to write them](MACRO-GUIDE.md).
 
   | Command | Purpose |
   |---|---|
