@@ -5,11 +5,14 @@ import com.zerotoship.z2term.emulator.Utf8Decoder
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * 端末に出た内容をテキストファイルへ記録する (ツールバー ⏺ = C1)。
+ * 端末に出た内容をテキストファイルへ記録する (ツールバー ⚪ = C1)。
  *
  * **書き込み経路**: `TerminalSession.startReadLoop` が PTY から読んだ塊を、エミュレータに
  * 食わせた**直後**に [append] へ渡す。alt screen かどうかはエミュレータに食わせた後でないと
@@ -38,7 +41,8 @@ class SessionLogger(
     val file: File,
     append: Boolean,
     private val raw: Boolean,
-    mask: Boolean
+    mask: Boolean,
+    timestamp: Boolean = false
 ) {
     private val executor = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "z2term-log").apply { isDaemon = true }
@@ -58,6 +62,21 @@ class SessionLogger(
      * 不正なバイトが `?` に化けて生ログでなくなる)。
      */
     private val maskCharset = if (raw) Charsets.ISO_8859_1 else Charsets.UTF_8
+
+    /**
+     * 行頭に付ける時刻の書式。**生ログ (raw) では絶対に付けない** — バイト列がそのまま
+     * 残ることが生ログの存在意義で、1 バイトでも足したら不具合報告の材料として使えない。
+     *
+     * **固定長**にしてある（`[2026-07-27 08:42:13] ` = 常に 22 文字）。桁が揺れると
+     * 本文の開始位置がズレて、せっかく行頭に付けても読みづらくなる。年から秒まで
+     * 完全な日付を入れるのは、日をまたぐ記録で「その 08:42 はいつのものか」を
+     * 後から読めなくしないため。
+     */
+    private val stampFormat =
+        if (timestamp && !raw) SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US) else null
+
+    /** 次に書くバイトが行頭か（チャンクをまたいで持ち越す）。 */
+    private var atLineStart = true
 
     @Volatile
     private var closed = false
@@ -86,7 +105,7 @@ class SessionLogger(
             executor.execute {
                 if (closed) return@execute
                 runCatching {
-                    val bytes = maskIfNeeded(plain?.filter(chunk) ?: chunk)
+                    val bytes = stampIfNeeded(maskIfNeeded(plain?.filter(chunk) ?: chunk))
                     if (bytes.isNotEmpty()) {
                         out.write(bytes)
                         bytesWritten += bytes.size
@@ -104,7 +123,7 @@ class SessionLogger(
             executor.execute {
                 if (closed) return@execute
                 runCatching {
-                    val bytes = maskIfNeeded(raw)
+                    val bytes = stampIfNeeded(maskIfNeeded(raw))
                     if (bytes.isNotEmpty()) {
                         out.write(bytes)
                         bytesWritten += bytes.size
@@ -112,6 +131,35 @@ class SessionLogger(
                 }.onFailure { Log.w(TAG, "write failed: ${it.message}") }
             }
         }
+    }
+
+    /**
+     * 行頭ごとに時刻を差し込む。時刻はチャンク単位で 1 回だけ求める（同じ塊は同じ瞬間に届く）。
+     *
+     * 改行の直後を「次の行頭」として持ち越すので、1 行がチャンクの境目で割れても
+     * 二重に付いたり付き損ねたりしない。挿入するのは ASCII だけなので、UTF-8 の
+     * 途中に割り込んで文字を壊すことはない。
+     */
+    private fun stampIfNeeded(bytes: ByteArray): ByteArray {
+        val fmt = stampFormat ?: return bytes
+        if (bytes.isEmpty()) return bytes
+        val prefix = "[${fmt.format(Date())}] ".toByteArray(Charsets.US_ASCII)
+        val out = java.io.ByteArrayOutputStream(bytes.size + prefix.size * 4)
+        var from = 0
+        for (i in bytes.indices) {
+            if (bytes[i] == NEWLINE) {
+                if (atLineStart) out.write(prefix)
+                out.write(bytes, from, i - from + 1)
+                atLineStart = true
+                from = i + 1
+            }
+        }
+        if (from < bytes.size) {
+            if (atLineStart) out.write(prefix)
+            out.write(bytes, from, bytes.size - from)
+            atLineStart = false
+        }
+        return out.toByteArray()
     }
 
     /**
@@ -167,6 +215,8 @@ class SessionLogger(
     }
 
     companion object {
+        /** 行頭判定に使う改行 (LF)。 */
+        private const val NEWLINE: Byte = 10
         private const val TAG = "SessionLogger"
         private const val BUFFER_BYTES = 16 * 1024
         private const val FLUSH_INTERVAL_MS = 500L

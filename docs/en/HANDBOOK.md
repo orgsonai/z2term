@@ -133,15 +133,16 @@ Z2Term comes with its **own in-app keyboard**.
 | See tab info | **Long-press** a tab to pop up its name and the **engine it's running on** (PRoot / z2root / chroot / Android sh, or GUI for GUI tabs) — no need to open Settings; it shares the same long-press as reorder |
 | Check the app version | Type **`z2version`** in the terminal to print the running app's version, execution engine, the **running OS (distro) and kernel**, etc. (`z2version --short` for just the version) |
 | Past commands | The **↑ key** (history persists even after restarting the app) |
-| Record the terminal | Tap **⏺** in the toolbar once to start (the button lights up), tap again to stop. The file lands in `~/z2term-log/`, so `less ~/z2term-log/<name>` reads it directly. **Double-tap** to change the destination, file name, date format, and so on |
+| Record the terminal | Tap **⚪** in the toolbar once to start (the button lights up), tap again to stop. The file lands in `~/z2term-log/`, so `less ~/z2term-log/<name>` reads it directly. **Double-tap** to change the destination, file name, date format, and so on |
 | Send text or a file from another app | In that app choose **Share** → pick **Z2Term**. Text arrives as-is; a file is taken into `~/z2term-inbox/` and **its path** is placed on the input line. It is **only inserted, never run**, so finish the command yourself and press ⏎ |
 
 > When you launch the app it **always opens a single terminal tab** (previously open tabs are not auto-restored).
 
-> **About the terminal log (⏺)**
-> - Recording is **per tab**, and always returns to off when you reopen the app (so nothing keeps recording by accident). **Turn on "Record new tabs automatically"** and every tab you open is recorded from the start, so there is no ⏺ left unpressed (that setting is remembered and applies to tabs opened from then on).
+> **About the terminal log (⚪)**
+> - Recording is **per tab**, and always returns to off when you reopen the app (so nothing keeps recording by accident). **Turn on "Record new tabs automatically"** and every tab you open is recorded from the start, so there is no ⚪ left unpressed (that setting is remembered and applies to tabs opened from then on).
 > - What you get is an **ordinary text file**. Colors and screen-control codes are stripped, and progress output that rewrites one line (`50% → 75% → 100%`) leaves **only its final state** as a single line.
 > - **Whatever appears on screen goes in as-is.** Keys, tokens and one-time codes that were displayed are recorded too (a password you only type never appears on screen, so it is not recorded). The button always stays lit while recording, so you can see it at a glance. A log you no longer want is a normal file — delete it with `rm`.
+> - **"Timestamp every line"** (off by default) prefixes each line with a fixed-width `[2026-07-27 08:42:13] `, so you can trace when things happened. ⚠ It is **not applied to raw logs**, which must stay byte-for-byte.
 > - **"Mask keys and tokens" is on by default.** It replaces name=value pairs such as `TOKEN=…`, the body of a pasted private key, and fixed-shape tokens like `ghp_` / `AKIA` with `[z2term:masked]`. ⚠ **It is not complete.** Only clearly recognisable shapes are covered; a secret in your own format stays in. **Always read a log before handing it to someone.**
 > - `~/z2term-log/` is **visible to other apps** (it is treated like the rest of your home). As with any other file under home, don't keep there what you don't want seen.
 > - Full-screen apps (the ones that paint by redrawing the screen) are not recorded by default, because flattening them does not produce readable text.

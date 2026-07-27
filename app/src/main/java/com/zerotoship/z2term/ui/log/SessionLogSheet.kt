@@ -64,7 +64,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * 端末ログの詳細設定シート (ツールバー ⏺ の**ダブルタップ**で開く)。
+ * 端末ログの詳細設定シート (ツールバー ⚪ の**ダブルタップ**で開く)。
  *
  * 短押し = 記録の開始/停止という「ワンタップで済む」経路は必ず残し、細かい設定はここに寄せる
  * (ツールバーのボタンは長押しが並べ替えで埋まっているため、ダブルタップを入口にしている
@@ -232,6 +232,14 @@ fun SessionLogSheet(
                 checked = settings.sessionLogMaskSecrets,
                 onChange = { session.setSessionLogMaskSecrets(it) }
             )
+            LogToggle(
+                title = stringResource(R.string.log_timestamp),
+                description = stringResource(R.string.log_timestamp_desc),
+                checked = settings.sessionLogTimestamp,
+                // 生ログは 1 バイトも足さないのが存在意義なので、そちらが ON の間は選べない。
+                enabled = !settings.sessionLogRaw,
+                onChange = { session.setSessionLogTimestamp(it) }
+            )
 
             LogDivider()
 
@@ -295,6 +303,8 @@ private fun LogToggle(
     title: String,
     description: String,
     checked: Boolean,
+    /** false なら押せない (前提となる別の設定が邪魔しているとき)。薄くして理由を察せるようにする。 */
+    enabled: Boolean = true,
     onChange: (Boolean) -> Unit
 ) {
     Row(
@@ -304,7 +314,7 @@ private fun LogToggle(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                color = ZtsTextPrimary,
+                color = if (enabled) ZtsTextPrimary else ZtsTextSecondary,
                 fontSize = 13.sp,
                 fontFamily = FontFamily.Monospace
             )
@@ -318,6 +328,7 @@ private fun LogToggle(
         Switch(
             checked = checked,
             onCheckedChange = onChange,
+            enabled = enabled,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.Black,
                 checkedTrackColor = ZtsGreen,

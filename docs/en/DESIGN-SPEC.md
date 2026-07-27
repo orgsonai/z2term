@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-27 / Target version: 0.8.255-alpha (versionCode 263)
+Last updated: 2026-07-27 / Target version: 0.8.256-alpha (versionCode 264)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -499,7 +499,7 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 
 **Multi-line pastes are shown before they land (0.8.232)**: 📋 inserts the moment you press it, so when the source is a block of code you end up pressing return **without knowing how many lines went in**. Only **when the text contains a newline**, a 48dp bar appears with the line count and the first two lines.
 
-- **The bar is drawn in the accent colour (0.8.255)**. Up to 0.8.254 it used `ZtsBgSecondary` on a `ZtsBorder` outline — **the same dark family as everything around it** — and "paste" was **green text with no button shape**, so people **did not notice it had appeared and moved on without pasting** (reported on-device). It now has a 2dp green border, a 12% green fill, a leading 📋 (tying it to the toolbar's 📋), and "paste" as a **filled green button** with dark bold text. ⚠ **Its position is unchanged** (same slot as `SearchBar`): moving it would throw away what the user has already learned about where to look, so only the colour and the tap target got stronger.
+- **The bar is drawn in the accent colour (0.8.255)**. Up to 0.8.254 it used `ZtsBgSecondary` on a `ZtsBorder` outline — **the same dark family as everything around it** — and "paste" was **green text with no button shape**, so people **did not notice it had appeared and moved on without pasting** (reported on-device). It now has a 2dp green border, a **90% green fill (effectively opaque)**, a leading 📋 (tying it to the toolbar's 📋), and "paste" as a **filled dark button with green text**. ⚠ A 12% tint was tried first and reported again as **invisible — the terminal showed straight through it** — hence 90% (0.8.256). ⚠ Darkening the fill means inverting the foreground with it: green on green cannot be read, so the count, the preview and the ✕ are all dark, and only "paste" is knocked out in green on dark so it still reads as the primary action. ⚠ **Its position is unchanged** (same slot as `SearchBar`): moving it would throw away what the user has already learned about where to look, so only the colour and the tap target got stronger.
 
 - ⚠ **Never shown for a single line.** Widening this "for safety" instantly turns **the most frequently pressed button in the app into two taps**. The condition is exactly `text.contains('\n')` — no room to drift.
 - The bar leads with the **line count**: here, how many lines are about to land matters more than what they say. Only two lines are previewed (this is not a place to read the whole thing).
@@ -526,7 +526,7 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 **Explaining common stumbles (`core/TerminalHints`, 0.8.237)**: the handbook FAQ has the answers, but **the person who is stuck does not read it at that moment**. When a known pattern appears in the output, one line with the next step is shown at the **bottom** of the terminal.
 
 - ⚠ **The terminal output itself is never rewritten.** This adds one line elsewhere; nothing enters the scrollback or the session log. Rewriting output would undermine the one thing a terminal must be trusted for.
-- The scan point is **the same single place as logging (⏺)** — inside `readJob`, "the only place everything shown in a tab passes through". PTY chunks arrive in 8KB pieces, so a line can split across them; the previous 256 characters are carried over before matching.
+- The scan point is **the same single place as logging (⚪)** — inside `readJob`, "the only place everything shown in a tab passes through". PTY chunks arrive in 8KB pieces, so a line can split across them; the previous 256 characters are carried over before matching.
 - **Not scanned during alt screen.** Full-screen apps would trigger false positives with whatever text happens to be on their canvas.
 - **Exactly five patterns** (ping / ports under 1024 / calling `/usr/sbin/sshd` directly / command not found / `/sdcard` invisible). Only stumbles whose answer fits in one line and that people actually hit. False positives make this instantly annoying, and an annoying feature gets deleted outright.
 - **Sixty seconds of silence per hint.** Firing on every `command not found` would turn the app into a nag.
@@ -1202,7 +1202,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   - **A single tap on a tab switches without waiting** (`TabChip`, 0.8.245). ⚠ Passing `onDoubleClick` to `combinedClickable` makes Compose **withhold `onClick` until it is sure a second tap is not coming**. That turns `doubleTapTimeoutMillis` (a device setting, usually 300ms) into **the latency of every tab switch** — a dead interval where pressing does nothing (reported from a device; nothing about the drawing was slow). Replaced with `clickable` plus **our own second-tap detection**, so the first tap calls `setActive` immediately.
     - The clock is `SystemClock.uptimeMillis()` (monotonic); a wall clock can jump on a time sync and misjudge. Once a tap has been consumed as the second one the timestamp resets to 0, so a triple tap does not read as another double.
     - **Restore the pre-tap active tab before closing** (`TabBar.activeBeforeTap`). The first tap has already moved you onto that tab, so closing it straight away makes `SessionManager.close` fall back to **the leftmost tab** — "I only deleted another tab and got thrown somewhere else".
-    - ⚠ "Commit on the first tap" only works because selecting a tab is **idempotent**. The toolbar's 📋/🔅/⏺ (`ToolbarChip`) have a side effect on the first tap (paste, lock, start recording), so the same substitution is not available there; removing that latency needs a different design.
+    - ⚠ "Commit on the first tap" only works because selecting a tab is **idempotent**. The toolbar's 📋/🔅/⚪ (`ToolbarChip`) have a side effect on the first tap (paste, lock, start recording), so the same substitution is not available there; removing that latency needs a different design.
 - `terminal/input/TerminalInputView.kt` (AndroidView): physical key/OS IME input, gestures (tap/long-press selection/drag scroll/pinch zoom/mouse click emission). Selection is in [§6.5](#65-text-selection-ux).
 - `terminal/keyboard/`:
   - `TerminalKeyboard.kt`: 5-row custom keyboard. 3-state Shift, flick, long-press repeat on all keys. **The key background turns bright green when pressed**, and **during a flick the hint in the crossed-threshold direction is bolded + enlarged 1.6×** (the center character stays unchanged).
@@ -1274,7 +1274,7 @@ key/IME/flick → onBytes(ByteArray)
    → redrawTick/StateFlow notification → TerminalRenderer redraws the Canvas
 ```
 
-### 5.1.1 Terminal log (toolbar ⏺, 0.8.195)
+### 5.1.1 Terminal log (toolbar ⚪, 0.8.195)
 
 Keeps writing what the tab shows to a text file. There is **exactly one tap point**:
 `SessionLogger.append` sits in `TerminalSession.startReadLoop` **right after** `emulator.processBytes`
@@ -1285,6 +1285,10 @@ entered can only be decided once that chunk has been processed**.
 - **Threading**: `append` only queues the bytes on `SessionLogger`'s single-threaded executor, so the
   emulator thread that serializes drawing is never blocked. Flush runs every 500 ms, so an OS kill
   loses only that tail.
+- **Every line can be timestamped (0.8.256, off by default)**. The format is **fixed width**: `[yyyy-MM-dd HH:mm:ss] `, always 22 characters, so the body always starts in the same column — a ragged prefix would undo the point of putting it there. The date is **complete down to the second** so a recording that crosses midnight never leaves you asking which day an 08:42 belongs to.
+  - ⚠ **Never applied to raw logs.** Staying byte-for-byte is the whole reason raw exists; one added byte makes it useless as bug-report material. The settings sheet disables the toggle (dimmed, so the reason is guessable) while raw is on.
+  - The clock is read **once per chunk** — a chunk arrives at a single instant. "Next byte starts a line" is **carried across chunks**, so a line split at a chunk boundary is neither stamped twice nor missed. Only ASCII is inserted, so it can never land inside a UTF-8 sequence.
+  - It is applied **after** masking (`stampIfNeeded(maskIfNeeded(...))`); stamping first would feed the timestamp into the masker's line detection.
 - **No rotation** (same user policy as `service/LogWriter.kt`). Instead the current size is published
   as `TerminalSession.LogState.bytes` once a second — the unbounded growth is never silent.
 - **Plain-text conversion** (`PlainTextFilter`, the default): escape sequences (CSI / OSC / DCS /

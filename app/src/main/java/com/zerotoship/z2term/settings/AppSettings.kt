@@ -139,7 +139,7 @@ class AppSettings(private val context: Context) {
          */
         val toolbarHidden: String = "",
         /**
-         * 端末ログ (ツールバー ⏺) の保存先。**ホーム (`~`) からの相対パス**で持つ。
+         * 端末ログ (ツールバー ⚪) の保存先。**ホーム (`~`) からの相対パス**で持つ。
          * 端末からもファイラーからもすぐ触れるよう、既定は `~/z2term-log/`。
          * 記録の ON/OFF 自体はタブごとの状態なので永続化しない (アプリ再起動で必ず OFF)。
          */
@@ -172,7 +172,7 @@ class AppSettings(private val context: Context) {
          */
         val sessionLogAltScreen: Boolean = DEFAULT_SESSION_LOG_ALT_SCREEN,
         /**
-         * 新しいタブが繋がったら、⏺ を押さなくても記録を始めるか (既定 OFF)。
+         * 新しいタブが繋がったら、⚪ を押さなくても記録を始めるか (既定 OFF)。
          *
          * 「あとから見返そうとしたら録っていなかった」を無くすための設定。記録の ON/OFF 自体は
          * タブごとの状態で永続化しないが、**この設定は永続化する** — 自動開始は「毎回そうしたい」
@@ -188,6 +188,12 @@ class AppSettings(private val context: Context) {
          * `TOKEN=...` と貼り付けた秘密鍵の 2 つで、そこは高い精度で潰せるため。
          */
         val sessionLogMaskSecrets: Boolean = DEFAULT_SESSION_LOG_MASK,
+        /**
+         * ログの各行の先頭に日時を付けるか (既定 OFF)。書式は固定長の
+         * `[yyyy-MM-dd HH:mm:ss] `。⚠ **生ログ (raw) には効かない** — バイト列が
+         * そのまま残ることが生ログの存在意義なので、1 バイトも足さない。
+         */
+        val sessionLogTimestamp: Boolean = DEFAULT_SESSION_LOG_TIMESTAMP,
         /**
          * z2root エンジンの syscall トレースログを出すか (開発者用・既定 OFF)。
          * ON のとき shared_home/z2root_trace.log に全 syscall を記録する。ログは膨大で
@@ -360,6 +366,10 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_SESSION_LOG_MASK] = value }
     }
 
+    suspend fun setSessionLogTimestamp(value: Boolean) {
+        context.dataStore.edit { it[KEY_SESSION_LOG_TIMESTAMP] = value }
+    }
+
     suspend fun setGuiMagnification(value: Float) {
         context.dataStore.edit {
             it[KEY_GUI_MAGNIFICATION] = value.coerceIn(MIN_GUI_MAGNIFICATION, MAX_GUI_MAGNIFICATION)
@@ -412,6 +422,7 @@ class AppSettings(private val context: Context) {
             sessionLogAltScreen = p[KEY_SESSION_LOG_ALT_SCREEN] ?: DEFAULT_SESSION_LOG_ALT_SCREEN,
             sessionLogAutoStart = p[KEY_SESSION_LOG_AUTO_START] ?: DEFAULT_SESSION_LOG_AUTO_START,
             sessionLogMaskSecrets = p[KEY_SESSION_LOG_MASK] ?: DEFAULT_SESSION_LOG_MASK,
+            sessionLogTimestamp = p[KEY_SESSION_LOG_TIMESTAMP] ?: DEFAULT_SESSION_LOG_TIMESTAMP,
             traceLogEnabled = p[KEY_TRACE_LOG] ?: DEFAULT_TRACE_LOG,
             kittyExternalFileEnabled = p[KEY_KITTY_EXTERNAL_FILE] ?: DEFAULT_KITTY_EXTERNAL_FILE,
             sgrMouseInputEnabled = p[KEY_SGR_MOUSE_INPUT] ?: DEFAULT_SGR_MOUSE_INPUT,
@@ -757,6 +768,8 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_SESSION_LOG_MASK = true
         private val KEY_SESSION_LOG_AUTO_START = booleanPreferencesKey("session_log_auto_start")
         private val KEY_SESSION_LOG_MASK = booleanPreferencesKey("session_log_mask_secrets")
+        private val KEY_SESSION_LOG_TIMESTAMP = booleanPreferencesKey("session_log_timestamp")
+        const val DEFAULT_SESSION_LOG_TIMESTAMP = false
         private val KEY_TRACE_LOG = booleanPreferencesKey("trace_log_enabled")
         private val KEY_KITTY_EXTERNAL_FILE = booleanPreferencesKey("kitty_external_file_enabled")
         private val KEY_SGR_MOUSE_INPUT = booleanPreferencesKey("sgr_mouse_input_enabled")
