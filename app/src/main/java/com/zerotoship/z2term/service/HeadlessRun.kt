@@ -100,6 +100,9 @@ object HeadlessRun {
                 distroId = distroId, command = "/bin/sh", rows = 24, cols = 80,
                 fallbackShell = spec.effectiveDefaultShell, loginShell = settings.loginShell,
                 extraArgs = listOf("-lc", script),
+                // スクリプトが背景へ逃がしたデーモンを、実行終了と同時に道連れにしないため。
+                // これが無いと `sshd --lan` は起動に成功した直後にエンジンごと消える。
+                waitTracees = true,
             )
         }.getOrElse { e ->
             Log.e(TAG, "failed to launch $name", e)

@@ -88,6 +88,18 @@ struct config {
     char cwd[PATH_MAX_Z];             // -w <dir>   (ゲスト視点の作業ディレクトリ)
     int fake_root;                    // -0
     int kill_on_exit;                 // --kill-on-exit
+    // --wait-tracees: メインの tracee が終わっても、**他の tracee が残っている限り** トレースを
+    // 続ける (既定 OFF = 従来どおりメインの終了で即終了)。
+    //
+    // 既定のままだと、コマンドが背景へ逃がしたデーモン (`sshd --lan` の dropbear 等) は
+    // メインの sh が exit した瞬間に道連れで死ぬ — トレーサである自分が終了し、
+    // PTRACE_O_EXITKILL (kill_on_exit) でカーネルが残りの tracee を kill するため。
+    // かといって kill_on_exit を外すのは解ではない: seccomp フィルタは対象プロセスに
+    // residual として残るので、トレーサが居なくなると該当 syscall が軒並み ENOSYS になり
+    // デーモンが壊れる。**トレースを続けたまま生かす**のが唯一の正解。
+    // 単発実行 (z2-when のルール実行・ウィジェットのマクロ実行) だけで使う。端末タブは
+    // 既定のまま = シェルを抜けたらタブが終わる、という従来の挙動を変えない。
+    int wait_tracees;                 // --wait-tracees
     int link2symlink;                 // --link2symlink (linkat→symlinkat エミュレート)
     struct bind_entry binds[MAX_BINDS];
     int nbinds;
@@ -2065,7 +2077,7 @@ static void maybe_rewrite_path(const struct config *cfg, pid_t pid, struct user_
 static void usage_die(const char *me) {
     fprintf(stderr,
         "%s: z2term 自前 ptrace エンジン (proot 互換 subset)\n"
-        "usage: %s [-0] [--kill-on-exit] [--link2symlink] -r <rootfs>\n"
+        "usage: %s [-0] [--kill-on-exit] [--wait-tracees] [--link2symlink] -r <rootfs>\n"
         "          [-b host[:guest]]... [-w <cwd>] -- <command> [args...]\n",
         me, me);
     exit(2);
@@ -2112,6 +2124,7 @@ static char *const *parse_args(int argc, char **argv, struct config *cfg) {
         const char *a = argv[i];
         if (strcmp(a, "-0") == 0) { cfg->fake_root = 1; }
         else if (strcmp(a, "--kill-on-exit") == 0) { cfg->kill_on_exit = 1; }
+        else if (strcmp(a, "--wait-tracees") == 0) { cfg->wait_tracees = 1; }
         else if (strcmp(a, "--link2symlink") == 0) { cfg->link2symlink = 1; }
         else if (strcmp(a, "-r") == 0 && i + 1 < argc) { snprintf(cfg->rootfs, sizeof(cfg->rootfs), "%s", argv[++i]); }
         else if (strcmp(a, "-b") == 0 && i + 1 < argc) { add_bind(cfg, argv[++i]); }
@@ -2502,7 +2515,11 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                 WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status));
             if (pid == child) exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
             state_drop(pid);
-            if (pid == child) alive = 0;
+            // --wait-tracees のときはここで終わらない。残った tracee (背景へ逃がされた
+            // デーモン) の syscall を翻訳し続け、全員が居なくなって waitpid が ECHILD を
+            // 返した時点で上の `pid < 0` から break する。終了コードはメインのものを使う
+            // (上で確定済みなので、後から終わる tracee に上書きされない)。
+            if (pid == child && !cfg->wait_tracees) alive = 0;
             continue;
         }
         if (!WIFSTOPPED(status)) continue;

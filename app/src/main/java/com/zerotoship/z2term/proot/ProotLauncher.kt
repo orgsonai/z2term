@@ -233,7 +233,20 @@ class ProotLauncher(private val context: Context) {
          * monitor を 127.0.0.1:<port> へ流す。null (既定) のときは一切起動しない (依存ゼロ)。
          * 設定「GUI 音声」が ON のときだけ [com.zerotoship.z2term.gui.GuiSession] が渡す。
          */
-        guiAudioPort: Int? = null
+        guiAudioPort: Int? = null,
+        /**
+         * true なら z2root に `--wait-tracees` を渡し、**メインのコマンドが終わっても背景に
+         * 残ったプロセスが居る限りエンジンを終了させない**。
+         *
+         * 既定 (false) では、メインの `sh` が exit した瞬間にエンジンが終了し、
+         * `PTRACE_O_EXITKILL` (`--kill-on-exit`) でカーネルが残りのプロセスを kill する。
+         * そのため `sshd --lan` のようにデーモンを起こすコマンドは、起動に成功した直後に
+         * 道連れで消える。単発実行 ([com.zerotoship.z2term.service.HeadlessRun]) だけ true にする。
+         *
+         * ⚠ proot エンジンには渡さない (未知オプションで起動に失敗するため)。proot を選んで
+         * いる場合はこの問題は残る — z2root が本線という前提。
+         */
+        waitTracees: Boolean = false
     ): PtyProcess {
         val rootfs = File(distrosDir, distroId)
         if (!rootfs.exists()) {
@@ -352,6 +365,9 @@ class ProotLauncher(private val context: Context) {
         val args = mutableListOf<String>().apply {
             add("proot")                                  // argv[0]
             add("--kill-on-exit")
+            // z2root 専用。背景に残ったデーモンを道連れにしないため (KDoc 参照)。
+            // proot には渡さない — 未知オプションで起動に失敗する。
+            if (useZ2root && waitTracees) add("--wait-tracees")
             add("-0")                                     // fake root
             // ハードリンクを symlink でエミュレート。Android のアプリ内ストレージは
             // link() を拒否する (EACCES) ため、これが無いと dpkg が status-old の

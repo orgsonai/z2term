@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-27 / Target version: 0.8.252-alpha (versionCode 260)
+Last updated: 2026-07-27 / Target version: 0.8.253-alpha (versionCode 261)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -467,16 +467,21 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 
 **CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> run <cmd>` to add / `list` (TSV; notes when paused) / `events` (names usable with `event:`, 0.8.226) / `pause` / `resume` / `fired [n]` (0.8.227) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><pid>` (0.8.211 switched from a random suffix to the pid to avoid same-second collisions; a counter is appended if the file already exists). **Stage 2 now covers cron/wifi/sms/sensor** (0.8.207–0.8.210). Later candidates: DST-boundary refinement for `time:cron`, light-threshold hysteresis, etc.
 
-#### Daemons started by a rule were killed the moment the rule finished (`HeadlessRun` / `PtyProcess.detach`, 0.8.251)
+#### Daemons started by a rule were killed the moment the rule finished (`z2root --wait-tracees` / `HeadlessRun`, 0.8.251 + 0.8.253)
 
 **Symptom**: a rule that **starts a daemon** — `z2-when wifi:connect run 'sshd --lan'` — does nothing useful. The run log faithfully records `✅ dropbear listening … on :2222` every time, yet seconds later nothing is listening and the port refuses connections. Running the same thing from a script registered as a resident server works, so it looks like "only automation kills it".
 
-**Cause**: the teardown for a one-shot run was `PtyProcess.close()`, which sends **SIGHUP then SIGKILL to the root process (proot/z2root)**. The launcher always passes `--kill-on-exit` (`PTRACE_O_EXITKILL` under z2root), so **killing the root makes the kernel take every process underneath it down as well**. When the rule calls `sshd --lan`, dropbear daemonises and genuinely listens (the wrapper only prints `listening` after confirming the pidfile with `kill -0`); then `sh` exits, the PTY hits EOF, teardown runs, and dropbear dies with the root. The log ending on success is not a lie — it was true at that instant — which is exactly why the log misleads you.  The resident-server path survives because its script keeps running, so the PTY never reaches EOF and teardown never fires (the GUI works around the same trap with `while x_running; do sleep 2; done`).
+**The cause was in the engine** (`run_tracer` in `z2root.c`). z2root leaves its trace loop **the moment the main tracee (`sh`) exits** — `if (pid == child) alive = 0;` — without waiting for any other tracee. Once the z2root process is gone, `--kill-on-exit` (`PTRACE_O_EXITKILL`) has the kernel **kill every remaining tracee**. When the rule calls `sshd --lan`, dropbear daemonises and genuinely listens (the wrapper only prints `listening` after confirming the pidfile with `kill -0`), and then goes down with the engine the instant `sh` exits. **The log ending on success is not a lie** — it was true at that instant — which is exactly why it misleads. The resident-server path survives because its script keeps running, so the main tracee never exits (the GUI works around the same trap with `while x_running; do sleep 2; done`).
 
-**Fix**: treat EOF as "**the foreground script finished**", not "everything finished". Teardown is now `waitFor()` → `detach()` (**close the fd, send no signals**), waiting for the root to exit on its own. For ordinary rules that leave nothing behind, `waitFor` returns immediately and nothing changes. Explicit stops (`HeadlessRun.stop()`) still use `close()` and take the whole tree down — a person asked for it, so the cascade is the correct behaviour.
+⚠ **Dropping `--kill-on-exit` is not a fix.** z2root installs a seccomp filter in the traced processes, so with no tracer left the filtered syscalls all return `ENOSYS` and the surviving daemon is broken anyway. The only correct answer is to **keep tracing it while it lives**.
+
+**The fix has two halves** (either alone is useless — 0.8.251 fixed only the app side and **was confirmed on-device to still be broken**; 0.8.253 fixed the engine and completed it).
+
+1. **Engine: `--wait-tracees` (0.8.253)**. With the flag, the loop does not exit when the main tracee does; it keeps translating the remaining tracees' syscalls and finishes only when they are all gone and `waitpid` returns `ECHILD`. The exit code still comes from the main tracee (a later-exiting tracee cannot overwrite it). **Only one-shot runs (`HeadlessRun`) pass it** — terminal tabs keep the default so that leaving the shell still ends the tab. ⚠ Never pass it to proot, which fails to start on an unknown option.
+2. **App: teardown must not kill (0.8.251)**. EOF means "the foreground script finished", not "everything finished", so teardown is `waitFor()` → `detach()` (**close the fd, send no signals**) rather than `PtyProcess.close()`. For ordinary rules that leave nothing behind, `waitFor` returns immediately and nothing changes. Explicit stops (`HeadlessRun.stop()`) still use `close()` and take the whole tree down — a person asked for it, so the cascade is correct there.
 
 ⚠ Never call `detach()` while the root is still alive: closing the master fd makes the kernel send SIGHUP to the terminal's foreground process group, which takes the root down and produces the very cascade being avoided.
-⚠ A daemon that survives this way lives **only as long as the app process** (it is a child of the proot root). Anything that must stay up for good belongs in a resident server.
+⚠ A daemon that survives this way lives **only as long as the app process** (it is a child of the engine). Anything that must stay up for good belongs in a resident server.
 
 **Tab activity marks (0.8.229)**: an inactive tab shows a **small filled square while something runs in it**, and a **`✓` if it finished while you were looking elsewhere**. The judgement (`AppSession.isBusy`) was **already being computed for the close-confirmation dialog**, but nothing surfaced it, so checking meant switching tabs and back.
 
