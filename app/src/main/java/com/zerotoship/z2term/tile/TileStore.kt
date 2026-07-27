@@ -177,6 +177,24 @@ object TileStore {
     }
 
     /**
+     * 名前の後ろに残り時間などを足す (Android 非依存・テスト用)。
+     *
+     * ⚠ **タイルの副題 (`Tile.subtitle`) は機種によっては一切表示されない**。実機 (Android 15) では
+     * アイコンと名前しか出ず、「残り 60 分」を副題に置いても**誰にも読めなかった**。
+     * 出せる場所が名前しか無いので、状態はここへ畳み込む。
+     *
+     * 名前を削ってでも [suffix] は必ず残す — 押す前に知りたいのは「これは何か」ではなく
+     * (自分で並べたのだから分かっている)「**あとどれだけか**」のほう。
+     */
+    internal fun labelWithSuffix(name: String, suffix: String): String {
+        if (suffix.isBlank()) return name
+        val room = MAX_LABEL_CHARS - suffix.length - 1
+        if (room <= 0) return suffix
+        val head = if (name.length > room) name.take(room - 1) + "…" else name
+        return "$head $suffix"
+    }
+
+    /**
      * 割り当てが **`z2-screen keepon <時間>`** か (Android 非依存・テスト用)。
      *
      * このタイルだけは緑が「走っている間」ではなく**「消灯しないが掛かっている間」**を指す。

@@ -659,6 +659,10 @@
     <string name="tile_subtitle_screen_minutes">%1$d min left — tap to release</string>
     <string name="tile_subtitle_screen_seconds">%1$d s left — tap to release</string>
     <string name="tile_subtitle_screen_off">off — tap to keep the screen on</string>
+    <!-- Time left, appended to the tile label: some devices never render the subtitle at all. -->
+    <string name="tile_remain_hours">%1$dh</string>
+    <string name="tile_remain_minutes">%1$dm</string>
+    <string name="tile_remain_seconds">%1$ds</string>
     <!-- A slot given both an on and an off command (the off flag of z2-tile set). -->
     <string name="tile_subtitle_pair_on">on — tap to turn off</string>
     <string name="tile_subtitle_pair_off">off — tap to turn on</string>

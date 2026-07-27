@@ -75,6 +75,21 @@ class TileStoreTest {
         assertFalse(TileStore.isScreenKeepOn("sh -c 'z2-screen keepon 1h'"))
     }
 
+    /**
+     * 残り時間は名前の後ろに足す (副題を表示しない機種があるため)。名前を削ってでも
+     * 残りは必ず残す — 押す前に知りたいのは「あとどれだけか」のほう。
+     */
+    @Test
+    fun theRemainingTimeSurvivesALongName() {
+        assertEquals("消灯しない 60分", TileStore.labelWithSuffix("消灯しない", "60分"))
+        // 12 文字に収まらない名前は削られ、残りは丸ごと残る。
+        val long = TileStore.labelWithSuffix("0123456789ab", "60分")
+        assertTrue("残りが落ちている: $long", long.endsWith(" 60分"))
+        assertTrue("上限を超えている: $long", long.length <= TileStore.MAX_LABEL_CHARS)
+        // 足すものが無ければ名前だけ (通常の枠を巻き込まない)。
+        assertEquals("backup", TileStore.labelWithSuffix("backup", ""))
+    }
+
     /** `--off` を渡した枠は入 / 切の 2 コマンドとして扱う。 */
     @Test
     fun aSlotWithAnOffCommandIsAPair() {

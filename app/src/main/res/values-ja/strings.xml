@@ -647,6 +647,10 @@
     <string name="tile_subtitle_screen_minutes">残り %1$d 分 — 押すと解除</string>
     <string name="tile_subtitle_screen_seconds">残り %1$d 秒 — 押すと解除</string>
     <string name="tile_subtitle_screen_off">切 — 押すと消灯しない</string>
+    <!-- 名前の後ろに足す残り時間。副題を表示しない機種があるので、状態は名前へ畳み込む。 -->
+    <string name="tile_remain_hours">%1$d時間</string>
+    <string name="tile_remain_minutes">%1$d分</string>
+    <string name="tile_remain_seconds">%1$d秒</string>
     <!-- z2-tile set の off 指定で、入 / 切の 2 コマンドを割り当てた枠。 -->
     <string name="tile_subtitle_pair_on">入 — 押すと切</string>
     <string name="tile_subtitle_pair_off">切 — 押すと入</string>

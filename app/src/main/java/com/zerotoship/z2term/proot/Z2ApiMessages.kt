@@ -142,10 +142,10 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# What you assign is either **the file name of a macro** in ~/.z2term/macros/ or
         |# **a command** to run as typed — whichever it is, is worked out from the name.
         |# Tap the tile to run it, tap again to stop (same deal as the widget's buttons).
-        |# The tile turns green while it runs. Locked device: Android asks you to unlock first.
+        |# The tile looks "on" while it runs (the colour is the OS accent, not ours).
         |# With --off you get **two commands**: tapping alternates between them and the tile stays
-        |# green while it is "on". Use it where turning off is its own command (z2-torch on/off).
-        |# ⚠ The green is only what the app remembers — running z2-torch off in the terminal
+        |# "on"-looking while it is on. Use it where turning off is its own command (z2-torch on/off).
+        |# ⚠ That on/off is only what the app remembers — running z2-torch off in the terminal
         |# instead leaves the tile showing "on". (z2-screen keepon is the exception: the app
         |# holds that state for real, so its tile follows the terminal.)
         |# The command runs with Z2_TILE=<slot> (and Z2_TILE_MACRO for a macro) in the environment.
@@ -163,10 +163,10 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# 割り当てるのは ~/.z2term/macros/ にある**マクロのファイル名**か、そのまま走らせる
         |# **コマンド**のどちらでもよい (名前を見て自動で判別します)。
         |# タイルを押すと実行、もう一度押すと停止 (ウィジェットのボタンと同じ約束)。
-        |# 実行中はタイルが緑になります。ロック中は Android が先に解除を求めます。
+        |# 実行中はタイルが ON の見た目になります (色は OS のもの)。
         |# --off を付けると**入 / 切の 2 コマンド**になり、押すたびに交互に走ります
-        |# (入の間タイルは緑)。切るのが別コマンドのもの (z2-torch on / off) 向けです。
-        |# ⚠ この緑は**アプリが覚えているだけ**です。端末から直接 z2-torch off を打つと
+        |# (入の間タイルは ON の見た目)。切るのが別コマンドのもの (z2-torch on / off) 向けです。
+        |# ⚠ この ON / 切は**アプリが覚えているだけ**です。端末から直接 z2-torch off を打つと
         |# タイルは入のままになります (z2-screen keepon だけは例外で、アプリが実態を
         |# 持っているので端末から切ってもタイルが揃います)。
         |# 実行時、環境変数 Z2_TILE に枠番号 (マクロなら Z2_TILE_MACRO も) が入ります。

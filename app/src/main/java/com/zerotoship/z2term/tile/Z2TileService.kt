@@ -150,11 +150,26 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
                 // 進まない (OS がタイルを描き直さない) ので、分より細かくは出さない。
                 val until = ScreenTimeout.keepOnUntil(app)
                 tile.state = if (until != null) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-                tile.label = assigned.label
-                tile.subtitle = if (until == null) getString(R.string.tile_subtitle_screen_off)
-                else {
+                if (until == null) {
+                    tile.label = assigned.label
+                    tile.subtitle = getString(R.string.tile_subtitle_screen_off)
+                } else {
                     val left = TileStore.remaining((until - System.currentTimeMillis()) / 1000)
-                    getString(
+                    // ⚠ 残りは**名前のほう**に足す。副題を一切表示しない機種があり (実機の
+                    // Android 15 はアイコンと名前だけ)、副題に置くと誰にも読めない。
+                    tile.label = TileStore.labelWithSuffix(
+                        assigned.label,
+                        getString(
+                            when (left.unit) {
+                                TileStore.RemainUnit.HOURS -> R.string.tile_remain_hours
+                                TileStore.RemainUnit.MINUTES -> R.string.tile_remain_minutes
+                                TileStore.RemainUnit.SECONDS -> R.string.tile_remain_seconds
+                            },
+                            left.value
+                        )
+                    )
+                    // 副題が出る機種では、そちらに「押すと解除」まで書く。
+                    tile.subtitle = getString(
                         when (left.unit) {
                             TileStore.RemainUnit.HOURS -> R.string.tile_subtitle_screen_hours
                             TileStore.RemainUnit.MINUTES -> R.string.tile_subtitle_screen_minutes
