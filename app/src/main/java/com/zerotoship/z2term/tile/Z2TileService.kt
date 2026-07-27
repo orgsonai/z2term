@@ -11,6 +11,7 @@ import android.util.Log
 import android.widget.Toast
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.service.HeadlessRun
+import com.zerotoship.z2term.service.ScreenTimeout
 import java.io.File
 
 /**
@@ -60,6 +61,18 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
     /** 走っていれば止め、走っていなければ実行する (D1 ウィジェットのボタンと同じ約束)。 */
     private fun toggle(assigned: TileStore.Slot) {
         val app = applicationContext
+        // z2-screen の枠は「掛かっているなら外す」。外すのはアプリ側で完結する操作なので、
+        // わざわざ端末を起こして `z2-screen keepon off` を走らせない (proot の起動を待たずに済む)。
+        // ⚠ 掛けるほうは今までどおりコマンドを走らせる — `1h` のような時間の読み方を
+        // ここへ書き写すと、端末側の z2-screen と 2 か所で解釈がずれる。
+        if (TileStore.isScreenKeepOn(assigned.command) && ScreenTimeout.keepOnUntil(app) != null) {
+            Thread {
+                runCatching { ScreenTimeout.cancel(app) }
+                    .onFailure { Log.w(TAG, "tile $slot screen cancel failed", it) }
+                render()
+            }.apply { isDaemon = true; name = "tile-$slot-screen"; start() }
+            return
+        }
         val key = TileStore.runKey(slot)
         // stop() は最大 1 秒ブロックし、launch() は設定の読み出しで待つ。どちらも main では走らせない。
         Thread {
@@ -74,7 +87,9 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
                         name = key,
                         header = HeadlessRun.logHeader("tile $slot ${assigned.command}"),
                         // 終わったら緑を消す。onExit は drain スレッドから呼ばれる。
-                        onExit = { requestUpdate(app, slot) },
+                        // ⚠ render() も呼ぶ — requestUpdate は「次にシェードが開かれたら」なので、
+                        // シェードを下ろしたまま終わったコマンドの緑が消えずに残る。
+                        onExit = { requestUpdate(app, slot); render() },
                     )
                 }
             }.onFailure { Log.w(TAG, "tile $slot failed", it) }
@@ -95,6 +110,24 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
                 tile.state = Tile.STATE_INACTIVE
                 tile.label = getString(R.string.tile_label_empty, slot)
                 tile.subtitle = getString(R.string.tile_subtitle_empty)
+            } else if (TileStore.isScreenKeepOn(assigned.command)) {
+                // この枠の緑は「掛かっている間」。残りはいま読んだ値で、シェードを開いている間は
+                // 進まない (OS がタイルを描き直さない) ので、分より細かくは出さない。
+                val until = ScreenTimeout.keepOnUntil(app)
+                tile.state = if (until != null) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+                tile.label = assigned.label
+                tile.subtitle = if (until == null) getString(R.string.tile_subtitle_screen_off)
+                else {
+                    val left = TileStore.remaining((until - System.currentTimeMillis()) / 1000)
+                    getString(
+                        when (left.unit) {
+                            TileStore.RemainUnit.HOURS -> R.string.tile_subtitle_screen_hours
+                            TileStore.RemainUnit.MINUTES -> R.string.tile_subtitle_screen_minutes
+                            TileStore.RemainUnit.SECONDS -> R.string.tile_subtitle_screen_seconds
+                        },
+                        left.value
+                    )
+                }
             } else {
                 val busy = HeadlessRun.isRunning(TileStore.runKey(slot))
                 tile.state = if (busy) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
