@@ -650,7 +650,9 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # on any ringe
 | Command | What it does |
 |---|---|
 | `z2gui start [WxH]` / `stop` / `status` | Start / stop / status of the Linux desktop (e.g. `z2gui start 1280x720`) |
-| `z2run <GUI app>` | Launching a GUI app also opens the GUI tab automatically |
+| `z2run <GUI app>` | Launch a GUI app and open the GUI tab with it |
+
+> **The GUI tab never opens by itself (0.8.254).** There used to be a hook that opened it as soon as you ran something that looked like a GUI app, but **a text editor that merely talks to X for clipboard support tripped it too**, so it was removed. The GUI opens only when **you open the GUI tab yourself** or **you type `z2run`**.
 
 ### Connecting
 | Command | What it does |

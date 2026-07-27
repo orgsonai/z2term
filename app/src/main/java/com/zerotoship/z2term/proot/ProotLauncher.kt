@@ -299,10 +299,8 @@ class ProotLauncher(private val context: Context) {
         ensureZ2RunScript(rootfs)
         // `z2version` で端末からアプリ本体の版数を確認できるようにする (版数不一致の切り分け用)。
         ensureVersionScript(rootfs, if (useZ2root) "z2root" else "proot")
-        // `z2-autogui` (P-自動GUI): GUI アプリを起動しただけで (z2run を打たなくても) GUI タブが
-        // 自動で開くよう、判定ヘルパーを配置し、interactive shell の preexec フックを仕込む。
-        ensureZ2AutoGuiScript(rootfs)
-        ensureAutoGuiHook(rootfs)
+        // 旧「GUI 自動連動」(preexec フック) の後始末。廃止したので既存 rootfs から取り除く。
+        removeAutoGuiHook(rootfs)
         // Android API ブリッジのヘルパー (`z2-notify` 等) を配置 (Termux:API 相当)。
         ensureZ2ApiScripts(rootfs)
         // `z2adb` (セルフ adb): 端末自身の adb (ワイヤレスデバッグ) に localhost で繋ぐヘルパー。
@@ -506,8 +504,7 @@ class ProotLauncher(private val context: Context) {
         ensureZ2RunScript(rootfs)
         // `z2version` で端末からアプリ本体の版数を確認できるようにする (版数不一致の切り分け用)。
         ensureVersionScript(rootfs, "chroot")
-        ensureZ2AutoGuiScript(rootfs)
-        ensureAutoGuiHook(rootfs)
+        removeAutoGuiHook(rootfs)
         ensureZ2ApiScripts(rootfs)
         // `z2adb` (セルフ adb): 端末自身の adb (ワイヤレスデバッグ) に localhost で繋ぐヘルパー。
         ensureZ2AdbScript(rootfs)
@@ -1110,18 +1107,46 @@ class ProotLauncher(private val context: Context) {
     }
 
     /**
-     * `/usr/local/bin/z2-autogui` (P-自動GUI) を配置する。端末で GUI アプリを起動しただけで
-     * GUI タブが自動で開くよう、preexec フック ([ensureAutoGuiHook]) から呼ばれる判定ヘルパー。
-     * launch 毎に上書きするので内容は常に最新。
+     * 廃止した「GUI 自動連動」(preexec フック + `/usr/local/bin/z2-autogui`) を rootfs から取り除く。
+     *
+     * **なぜ廃止したか**: GUI アプリかどうかを「libX11 等にリンクしているか」で判定していたが、
+     * **クリップボード連携のために X を張るだけの CUI アプリ (テキストエディタ等) が必ず引っかかる**。
+     * 「GUI アプリを起動したら GUI タブを開く」つもりの仕掛けが、CUI を使っているだけの人の画面を
+     * 奪う。判定を賢くしても同じ取りこぼしが別の形で出るだけなので、**仕掛けごと畳んだ**。
+     * GUI を開く道は「タブを自分で開く」か「`z2run <アプリ>` と明示的に打つ」の 2 つに絞る。
+     * 設定での ON/OFF も足さない — 誤爆する機能を選べるようにしても選ぶ理由が無い。
+     *
+     * 入れるのをやめるだけでは**既に rootfs へ書き込んだ分が残り続ける**ので、能動的に消す。
+     * マーカー行ごと取り除くので、ユーザーが自分で書いた行は触らない。
      */
-    private fun ensureZ2AutoGuiScript(rootfs: File) {
+    private fun removeAutoGuiHook(rootfs: File) {
+        val begin = "# >>> z2term autogui >>>"
+        val end = "# <<< z2term autogui <<<"
+        removeBlockWithMarker(File(rootfs, "etc/bash.bashrc"), begin, end)
+        removeBlockWithMarker(File(rootfs, "etc/zsh/zshrc"), begin, end)
+        runCatching { File(rootfs, "usr/local/bin/z2-autogui").delete() }
+    }
+
+    /**
+     * [begin] 行から [end] 行までを (両端を含めて) ファイルから取り除く。マーカーが無ければ何もしない。
+     * 書き込みは中身が変わったときだけ (毎 launch で無駄に触らない)。失敗は握り潰す。
+     */
+    private fun removeBlockWithMarker(file: File, begin: String, end: String) {
         runCatching {
-            val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
-            val f = File(dir, "z2-autogui")
-            f.writeText(z2AutoGuiScript())
-            f.setReadable(true, false)
-            f.setExecutable(true, false)
-        }.onFailure { Log.w(TAG, "z2-autogui script 配置失敗", it) }
+            if (!file.exists()) return
+            val lines = file.readLines()
+            if (lines.none { it.trim() == begin }) return
+            val kept = mutableListOf<String>()
+            var dropping = false
+            for (line in lines) {
+                when {
+                    line.trim() == begin -> dropping = true
+                    line.trim() == end -> dropping = false
+                    !dropping -> kept.add(line)
+                }
+            }
+            file.writeText(kept.joinToString("\n").trimEnd('\n') + "\n")
+        }.onFailure { Log.w(TAG, "autogui フック除去失敗: ${file.absolutePath}", it) }
     }
 
     /**
@@ -1168,17 +1193,6 @@ class ProotLauncher(private val context: Context) {
             f.writeText(UUID.randomUUID().toString().replace("-", "") + "\n")
             f.setReadable(true, false)
         }.onFailure { Log.w(TAG, "machine-id 生成失敗", it) }
-    }
-
-    /**
-     * interactive shell の rc に GUI 自動連動フック (preexec) を仕込む (P-自動GUI)。
-     * bash は DEBUG トラップ、zsh は `add-zsh-hook preexec` で、実行されるコマンドを z2-autogui に
-     * 渡す。マーカーで二重書き込みを防ぐ idempotent な処理 ([ensureShellHistoryConfig] と同方式)。
-     */
-    private fun ensureAutoGuiHook(rootfs: File) {
-        val marker = "# >>> z2term autogui >>>"
-        appendOnceWithMarker(File(rootfs, "etc/bash.bashrc"), marker, autoGuiBashHookBlock(marker))
-        appendOnceWithMarker(File(rootfs, "etc/zsh/zshrc"), marker, autoGuiZshHookBlock(marker))
     }
 
     /**

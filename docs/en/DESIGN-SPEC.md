@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-27 / Target version: 0.8.253-alpha (versionCode 261)
+Last updated: 2026-07-27 / Target version: 0.8.254-alpha (versionCode 262)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -798,7 +798,7 @@ The footer now shows **the macro that finished last**, since start times moved o
   - The event names printed by `z2-when events` are **not translated** — they are identifiers you type into a rule. Only the descriptions and the notes are.
   - `Z2ApiScriptTest` runs the same checks (`sh -n`, margin leak, shebang) against **both languages**. Adding a branch must not leave room for one side to break silently.
   - `z2gui` already had `GuiScriptStrings` yet **15 lines were still Japanese** (Konsole rebuild, GUI install failure, audio, Qt fallback); they now go through the same mechanism.
-  - Out of scope: `z2-autogui` is an internal helper called from the preexec hook and **prints nothing to the user** (its Japanese is implementation comments). Kotlin comments likewise stay Japanese — they are for the developer and never reach the terminal.
+  - Kotlin comments stay Japanese — they are for the developer and never reach the terminal.
 
 - **`z2-noti` command (0.8.236)**: prints the notifications currently on screen as TSV (key / package / app name / title / body) — and nothing else. Notification detection already existed, but it could only record; there was no way to ask "what is on screen right now" from the shell.
   - ⚠ **Pressing and dismissing are deliberately absent.** The original proposal included a verb to press a notification's buttons, which also means **pressing other apps' pay and send buttons** — the only feature among the 32 proposals whose misfires land outside this app. Per the summariser's call, only the reading half was implemented.
@@ -1218,6 +1218,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
 - **Input**: `GuiInputView` gestures — **2 fingers = pinch (zoom/pan)**, **3-finger vertical move = wheel up/down scroll** (once it becomes 3 fingers, it's treated as scroll until all fingers lift). The old scroll buttons and `RfbClient.scrollWheel` were removed.
 - **Video**: because `gpu` output fails on GPU-less devices, mpv plays correctly with **`vo=x11` default + `LIBGL_ALWAYS_SOFTWARE`** software rendering.
 - **Audio (`service/AudioBridge.kt`)**: **opt-in** (only when the "GUI audio" setting `guiAudioEnabled` is ON). In-distro PulseAudio (started with the `-n` method) → TCP → bridged to Android `AudioTrack`.
+- **The GUI never opens on its own (auto-launch removed in 0.8.254)**. A preexec hook in interactive shells (bash `DEBUG` trap / zsh `add-zsh-hook preexec`) used to pass the command about to run to `z2-autogui`, which **opened the GUI tab whenever it judged the binary to be a GUI app**. The test was "does it link `libX11` / `libxcb` / GTK / Qt", and **a CUI app that merely talks to X for clipboard support trips it every time** (reported on-device: opening a text editor pops the GUI tab). That steals the screen from someone who is only using the CUI, so the mechanism was **removed rather than made cleverer**, and no on/off setting was added — **there is no reason to offer a choice about a feature that misfires**. The GUI opens exactly two ways: you open the GUI tab, or you type `z2run <app>`. ⚠ The hook was written into the rootfs rc files, so **not installing it any more would leave it in place on existing setups**. `ProotLauncher.removeAutoGuiHook` strips the marked block on every launch and deletes `/usr/local/bin/z2-autogui`, leaving lines the user wrote alone.
 
 ### 4.13 Android API bridge (`Z2ApiBridge` / `Z2ApiScript`)
 
