@@ -591,6 +591,9 @@
     <string name="tail_footer">%1$s · %2$s 時点 · %3$d KB</string>
     <string name="tail_config_title">見るファイル</string>
     <string name="tail_config_desc">選んだファイルがホーム画面に出ます。パスを直接打つか、下のフォルダを辿って選んでください。行数はウィジェットの高さに合わせて自動で決まります。</string>
+    <string name="tail_text_size_label">文字の大きさ</string>
+    <string name="tail_text_size_desc">大きくすると読みやすくなりますが、入る行数は減ります。</string>
+    <string name="tail_text_size_default">既定</string>
     <string name="tail_mode_label">ファイルのどちら側を見るか</string>
     <string name="tail_mode_tail">末尾 (tail)</string>
     <string name="tail_mode_tail_desc">増え続けるログ向け</string>

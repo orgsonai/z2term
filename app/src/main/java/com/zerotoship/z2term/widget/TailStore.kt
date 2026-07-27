@@ -17,6 +17,7 @@ object TailStore {
     private const val PREFS = "z2term_widget_tail"
     private const val KEY_PATH_PREFIX = "tail_path_"
     private const val KEY_MODE_PREFIX = "tail_mode_"
+    private const val KEY_TEXT_SP_PREFIX = "tail_text_sp_"
 
     /**
      * ファイルのどちら側を見るか。
@@ -39,6 +40,18 @@ object TailStore {
     /** 自動計算した行数の下限 / 上限。 */
     const val MIN_LINES = 2
     const val MAX_LINES = 30
+
+    /**
+     * 本文の文字サイズ (sp)。既定は 10 = 0.8.254 までの固定値なので、**触らなければ今までと同じ**。
+     *
+     * ⚠ 行数は高さから自動計算しているので、ここを変えると**入る行数も一緒に変わる**
+     * (大きくすれば少なく、小さくすれば多く表示される)。行数を別に持たせないのは、
+     * 「文字の大きさ」と「入る行数」は同じことを 2 通りで言っているだけで、
+     * 両方いじれると矛盾した組み合わせを作れてしまうため。
+     */
+    const val DEFAULT_TEXT_SP = 10
+    const val MIN_TEXT_SP = 8
+    const val MAX_TEXT_SP = 20
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -72,11 +85,23 @@ object TailStore {
         prefs(context).edit().putString(KEY_MODE_PREFIX + appWidgetId, mode.name).apply()
     }
 
+    /** [appWidgetId] の本文の文字サイズ (sp)。未設定なら [DEFAULT_TEXT_SP]。 */
+    fun textSp(context: Context, appWidgetId: Int): Int =
+        prefs(context).getInt(KEY_TEXT_SP_PREFIX + appWidgetId, DEFAULT_TEXT_SP)
+            .coerceIn(MIN_TEXT_SP, MAX_TEXT_SP)
+
+    fun setTextSp(context: Context, appWidgetId: Int, sp: Int) {
+        prefs(context).edit()
+            .putInt(KEY_TEXT_SP_PREFIX + appWidgetId, sp.coerceIn(MIN_TEXT_SP, MAX_TEXT_SP))
+            .apply()
+    }
+
     /** ウィジェットが削除されたときに設定を捨てる。 */
     fun clear(context: Context, appWidgetId: Int) {
         prefs(context).edit()
             .remove(KEY_PATH_PREFIX + appWidgetId)
             .remove(KEY_MODE_PREFIX + appWidgetId)
+            .remove(KEY_TEXT_SP_PREFIX + appWidgetId)
             .apply()
     }
 

@@ -603,6 +603,9 @@
     <string name="tail_footer">%1$s · read at %2$s · %3$d KB</string>
     <string name="tail_config_title">File to watch</string>
     <string name="tail_config_desc">This file appears on the home screen. Type a path, or tap through the folders below. The number of lines follows the widget\'s height.</string>
+    <string name="tail_text_size_label">Text size</string>
+    <string name="tail_text_size_desc">Larger text is easier to read but fits fewer lines.</string>
+    <string name="tail_text_size_default">default</string>
     <string name="tail_mode_label">Which end of the file</string>
     <string name="tail_mode_tail">end (tail)</string>
     <string name="tail_mode_tail_desc">for a log that keeps growing</string>

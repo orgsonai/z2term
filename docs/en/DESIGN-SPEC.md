@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-27 / Target version: 0.8.254-alpha (versionCode 262)
+Last updated: 2026-07-27 / Target version: 0.8.255-alpha (versionCode 263)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -497,7 +497,9 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 - **A card disappears once tapped.** When all three are gone, or the close button is pressed, [AppSettings.introDone] is set and it **never appears again**.
 - Of the 32 proposals this was **the only one that could collide head-on with "don't add modes"**. Hence the spec is fixed up front: **at most three items, never a full-screen wizard, and one line deep in Settings to bring it back** (Maintenance). If a fourth item feels necessary, that is `z2help`'s job.
 
-**Multi-line pastes are shown before they land (0.8.232)**: 📋 inserts the moment you press it, so when the source is a block of code you end up pressing return **without knowing how many lines went in**. Only **when the text contains a newline**, a 44dp bar appears with the line count and the first two lines.
+**Multi-line pastes are shown before they land (0.8.232)**: 📋 inserts the moment you press it, so when the source is a block of code you end up pressing return **without knowing how many lines went in**. Only **when the text contains a newline**, a 48dp bar appears with the line count and the first two lines.
+
+- **The bar is drawn in the accent colour (0.8.255)**. Up to 0.8.254 it used `ZtsBgSecondary` on a `ZtsBorder` outline — **the same dark family as everything around it** — and "paste" was **green text with no button shape**, so people **did not notice it had appeared and moved on without pasting** (reported on-device). It now has a 2dp green border, a 12% green fill, a leading 📋 (tying it to the toolbar's 📋), and "paste" as a **filled green button** with dark bold text. ⚠ **Its position is unchanged** (same slot as `SearchBar`): moving it would throw away what the user has already learned about where to look, so only the colour and the tap target got stronger.
 
 - ⚠ **Never shown for a single line.** Widening this "for safety" instantly turns **the most frequently pressed button in the app into two taps**. The condition is exactly `text.contains('\n')` — no room to drift.
 - The bar leads with the **line count**: here, how many lines are about to land matters more than what they say. Only two lines are previewed (this is not a place to read the whole thing).
@@ -621,6 +623,12 @@ Both are merged **newest first**, deduplicated (the timestamped zsh entry wins).
 3. `TailWidgetProvider.refresh()` — **when a macro or `z2-when` rule finishes** (from `HeadlessRun.launch(onExit = …)`). It does nothing when no such widget is placed, so it costs nothing for people who don't use it.
 
 **Shared with D1**: the background (`widget_bg`), the 40dp icon buttons (`Z2WidgetIconButton`), and the config-screen pieces (`ConfigSelectRow` / `ConfigButton` in `widget/WidgetConfigUi.kt`). Writing the look twice guarantees drift, so it was extracted from D1 while adding D2.
+
+**Text size is selectable (0.8.255, both D1 and D2)**: pick it from the widget's ⚙ (D2: 8–20sp, default 10; D1: 9–20sp, default 11 — each the value hard-coded in the layout up to 0.8.254). `RemoteViews.setTextViewTextSize` overrides the XML. The unit is **SP** so the device's font-scale setting still applies (never DIP).
+- **Presets, not a slider.** Nothing is gained by making someone choose between 13 and 14sp; a handful of steps is enough for a widget. The default is labelled "default" so it is easy to get back to.
+- **D1 shifts by a delta, not a ratio** (`WidgetStore.scaled`). Its rows start at different sizes (title 13 / status and buttons 11 / footer 10), and a ratio squashes the small rows until the rows no longer balance.
+- ⚠ **D2 feeds the same value into its line-count estimate** (`TextPaint.textSize` in `linesFor`). If that drifts from the body text, the last line gets clipped or a gap opens. Bigger text therefore means fewer lines — there is deliberately no separate "lines" setting, because text size and line count are two ways of saying the same thing and exposing both lets you build contradictory combinations.
+- ⚠ **Notification text size cannot be set by an app** (Android exposes no API; notifications follow the OS "Display → Font size"). Custom `RemoteViews` could do it, but that abandons the standard look, expansion and action behaviour, and Android 12+ decorates custom views anyway — not worth it.
 
 **No `configuration_optional`** (unlike D1): **there is no way to guess which file to watch**, so the config screen always opens when the widget is placed. The unconfigured state can still happen (the user backs out), and then the body says "tap ⚙ and choose a file".
 

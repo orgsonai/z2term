@@ -20,6 +20,7 @@ object WidgetStore {
 
     private const val PREFS = "z2term_widget"
     private const val KEY_MACROS_PREFIX = "macros_"
+    private const val KEY_TEXT_SP_PREFIX = "status_text_sp_"
     private const val KEY_LAST_RUN_NAME = "last_run_name"
     private const val KEY_LAST_RUN_AT = "last_run_at"
     private const val KEY_LAST_FINISH_NAME = "last_finish_name"
@@ -68,8 +69,40 @@ object WidgetStore {
     }
 
     /** ウィジェットが削除されたときに設定を捨てる。 */
+    /**
+     * 本文の文字サイズ (sp)。既定 [DEFAULT_TEXT_SP] は 0.8.254 までのレイアウト固定値なので、
+     * **触らなければ今までと同じ**。行 (ssh / 状態 / フッター) の相対的な大小は保ったまま、
+     * まとめて同じ差分だけ動かす ([scaled] 参照) — 1 行だけ大きくすると釣り合いが崩れるため。
+     */
+    const val DEFAULT_TEXT_SP = 11
+    const val MIN_TEXT_SP = 9
+    const val MAX_TEXT_SP = 20
+
+    fun textSp(context: Context, appWidgetId: Int): Int =
+        prefs(context).getInt(KEY_TEXT_SP_PREFIX + appWidgetId, DEFAULT_TEXT_SP)
+            .coerceIn(MIN_TEXT_SP, MAX_TEXT_SP)
+
+    fun setTextSp(context: Context, appWidgetId: Int, sp: Int) {
+        prefs(context).edit()
+            .putInt(KEY_TEXT_SP_PREFIX + appWidgetId, sp.coerceIn(MIN_TEXT_SP, MAX_TEXT_SP))
+            .apply()
+    }
+
+    /**
+     * レイアウトで [base] sp と書かれている行の、いまの文字サイズ。
+     *
+     * 既定からの**差分**を足す (倍率ではない)。倍率だと小さい行だけ潰れたり、
+     * 大きい行だけ極端に伸びたりして、行同士の釣り合いが崩れる。
+     */
+    fun scaled(context: Context, appWidgetId: Int, base: Int): Float =
+        (base + (textSp(context, appWidgetId) - DEFAULT_TEXT_SP))
+            .coerceAtLeast(6).toFloat()
+
     fun clear(context: Context, appWidgetId: Int) {
-        prefs(context).edit().remove(KEY_MACROS_PREFIX + appWidgetId).apply()
+        prefs(context).edit()
+            .remove(KEY_MACROS_PREFIX + appWidgetId)
+            .remove(KEY_TEXT_SP_PREFIX + appWidgetId)
+            .apply()
     }
 
     // --- 実行の記録 ---

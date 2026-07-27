@@ -89,9 +89,10 @@ class TailConfigActivity : ComponentActivity() {
                     TailConfigScreen(
                         initialPath = initial,
                         initialMode = initialMode,
+                        initialTextSp = TailStore.textSp(this, appWidgetId),
                         list = { dir -> TailStore.list(this, dir) },
                         isFile = { p -> TailStore.resolve(this, p)?.isFile == true },
-                        onSave = { path, mode -> save(path, mode) },
+                        onSave = { path, mode, sp -> save(path, mode, sp) },
                         onCancel = { finish() },
                     )
                 }
@@ -99,9 +100,10 @@ class TailConfigActivity : ComponentActivity() {
         }
     }
 
-    private fun save(path: String, mode: TailStore.Mode) {
+    private fun save(path: String, mode: TailStore.Mode, textSp: Int) {
         TailStore.set(this, appWidgetId, path)
         TailStore.setMode(this, appWidgetId, mode)
+        TailStore.setTextSp(this, appWidgetId, textSp)
         val id = appWidgetId
         // 置かれた直後は OS の更新が来ないので、自分で 1 回描く。
         Thread { runCatching { TailWidgetProvider.renderAll(applicationContext) } }
@@ -115,13 +117,15 @@ class TailConfigActivity : ComponentActivity() {
 private fun TailConfigScreen(
     initialPath: String?,
     initialMode: TailStore.Mode,
+    initialTextSp: Int,
     list: (String) -> List<TailStore.Entry>,
     isFile: (String) -> Boolean,
-    onSave: (String, TailStore.Mode) -> Unit,
+    onSave: (String, TailStore.Mode, Int) -> Unit,
     onCancel: () -> Unit,
 ) {
     var path by remember { mutableStateOf(initialPath.orEmpty()) }
     var mode by remember { mutableStateOf(initialMode) }
+    var textSp by remember { mutableStateOf(initialTextSp) }
     // いま開いているフォルダ (`~` からの相対。空なら `~` 自身)。
     var dir by remember {
         mutableStateOf(initialPath?.let { TailStore.parentOf(it) }.orEmpty())
@@ -196,6 +200,35 @@ private fun TailConfigScreen(
             )
         }
 
+        // 文字の大きさ (0.8.255)。プリセットを並べる — スライダーだと 1sp 刻みで
+        // 迷わせるだけで、ウィジェットの文字は数段階あれば足りる。
+        Text(
+            text = stringResource(R.string.tail_text_size_label),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(8, 10, 12, 14, 17, 20).forEach { sp ->
+                ConfigSelectRow(
+                    title = "$sp",
+                    // 既定 (10) がどれか分かるようにしておく。戻したくなったとき迷わない。
+                    subtitle = if (sp == TailStore.DEFAULT_TEXT_SP) {
+                        stringResource(R.string.tail_text_size_default)
+                    } else "",
+                    checked = textSp == sp,
+                    modifier = Modifier.weight(1f),
+                    onToggle = { textSp = sp }
+                )
+            }
+        }
+        Text(
+            text = stringResource(R.string.tail_text_size_desc),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+
         // いま開いているフォルダ。
         Text(
             text = "~/" + dir,
@@ -241,7 +274,7 @@ private fun TailConfigScreen(
             ConfigButton(
                 label = stringResource(R.string.widget_config_save),
                 accent = true,
-                onClick = { if (path.isNotBlank() && isFile(path)) onSave(path.trim(), mode) }
+                onClick = { if (path.isNotBlank() && isFile(path)) onSave(path.trim(), mode, textSp) }
             )
             ConfigButton(
                 label = stringResource(R.string.widget_config_cancel),

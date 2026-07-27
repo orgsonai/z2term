@@ -161,10 +161,12 @@ class TailWidgetProvider : AppWidgetProvider() {
             val bodyPx = (h - CHROME_DP) * density
             if (bodyPx <= 0f) return TailStore.MIN_LINES
 
-            // 本文と同じ 10sp・等幅で 1 行の送りを測る。
+            // 本文と**同じ文字サイズ**・等幅で 1 行の送りを測る (設定で変えられる。0.8.255)。
+            // ここが本文とズレると行数の見積もりが狂い、末尾が切れる / 隙間が空く。
             val paint = android.text.TextPaint().apply {
                 typeface = android.graphics.Typeface.MONOSPACE
-                textSize = 10f * context.resources.displayMetrics.scaledDensity
+                textSize = TailStore.textSp(context, appWidgetId).toFloat() *
+                    context.resources.displayMetrics.scaledDensity
             }
             val fm = paint.fontMetrics
             val lineHeightPx = (fm.descent - fm.ascent + fm.leading).coerceAtLeast(1f)
@@ -192,6 +194,13 @@ class TailWidgetProvider : AppWidgetProvider() {
             views.setOnClickPendingIntent(R.id.tail_config, configIntent(context, appWidgetId))
             // 本文をタップしたらアプリを開く (端末で続きを見たくなるのが自然な流れ)。
             views.setOnClickPendingIntent(R.id.tail_body, openAppIntent(context))
+            // 本文の文字サイズ (設定で変えられる。0.8.255)。レイアウト XML の値を上書きする。
+            // 単位は SP — 端末のフォントスケール設定にも従わせるため (DIP にしない)。
+            views.setTextViewTextSize(
+                R.id.tail_body,
+                android.util.TypedValue.COMPLEX_UNIT_SP,
+                TailStore.textSp(context, appWidgetId).toFloat()
+            )
 
             val rel = TailStore.path(context, appWidgetId)
             val file = TailStore.file(context, appWidgetId)

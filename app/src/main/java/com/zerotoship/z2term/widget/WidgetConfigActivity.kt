@@ -22,8 +22,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -86,7 +89,8 @@ class WidgetConfigActivity : ComponentActivity() {
                         available = available,
                         descriptions = descriptions,
                         initial = initial,
-                        onSave = { selected -> save(selected) },
+                        initialTextSp = WidgetStore.textSp(this, appWidgetId),
+                        onSave = { selected, sp -> save(selected, sp) },
                         onCancel = { finish() },
                         onResetHistory = { resetHistory() },
                     )
@@ -106,8 +110,9 @@ class WidgetConfigActivity : ComponentActivity() {
         Toast.makeText(this, R.string.widget_config_reset_done, Toast.LENGTH_SHORT).show()
     }
 
-    private fun save(selected: List<String>) {
+    private fun save(selected: List<String>, textSp: Int) {
         WidgetStore.setMacros(this, appWidgetId, selected)
+        WidgetStore.setTextSp(this, appWidgetId, textSp)
         // 置かれた直後は OS の更新が来ないので、自分で 1 回描く。
         val id = appWidgetId
         Thread { runCatching { StatusWidgetProvider.renderAll(applicationContext) } }
@@ -125,11 +130,13 @@ private fun ConfigScreen(
     available: List<String>,
     descriptions: Map<String, String>,
     initial: List<String>,
-    onSave: (List<String>) -> Unit,
+    initialTextSp: Int,
+    onSave: (List<String>, Int) -> Unit,
     onCancel: () -> Unit,
     onResetHistory: () -> Unit,
 ) {
     val selected = remember { mutableStateListOf<String>().apply { addAll(initial) } }
+    var textSp by remember { mutableStateOf(initialTextSp) }
 
     Column(
         modifier = Modifier
@@ -154,6 +161,28 @@ private fun ConfigScreen(
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace
         )
+
+        // 文字の大きさ (0.8.255)。ライブ tail ウィジェットと同じ作法 (プリセットを並べる)。
+        // ここで選んだ差分が、見出し・状態行・ボタン・フッターに**まとめて**効く。
+        Text(
+            text = stringResource(R.string.tail_text_size_label),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(9, 11, 13, 15, 17, 20).forEach { sp ->
+                ConfigSelectRow(
+                    title = "$sp",
+                    subtitle = if (sp == WidgetStore.DEFAULT_TEXT_SP) {
+                        stringResource(R.string.tail_text_size_default)
+                    } else "",
+                    checked = textSp == sp,
+                    modifier = Modifier.weight(1f),
+                    onToggle = { textSp = sp }
+                )
+            }
+        }
 
         if (available.isEmpty()) {
             Text(
@@ -213,7 +242,7 @@ private fun ConfigScreen(
             ConfigButton(
                 label = stringResource(R.string.widget_config_save),
                 accent = true,
-                onClick = { onSave(selected.toList()) }
+                onClick = { onSave(selected.toList(), textSp) }
             )
             ConfigButton(
                 label = stringResource(R.string.widget_config_cancel),

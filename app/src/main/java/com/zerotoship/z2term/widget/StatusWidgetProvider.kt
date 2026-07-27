@@ -193,6 +193,15 @@ class StatusWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_config, configIntent(context, appWidgetId))
 
+            // 文字の大きさ (設定で変えられる。0.8.255)。レイアウト XML の値を上書きする。
+            // 括弧の中はレイアウトに書いてある基準値 — ここを変えたら XML も合わせること。
+            // 単位は SP: 端末のフォントスケール設定にも従わせるため (DIP にしない)。
+            val sp = android.util.TypedValue.COMPLEX_UNIT_SP
+            views.setTextViewTextSize(R.id.widget_title, sp, WidgetStore.scaled(context, appWidgetId, 13))
+            views.setTextViewTextSize(R.id.widget_ssh, sp, WidgetStore.scaled(context, appWidgetId, 11))
+            views.setTextViewTextSize(R.id.widget_stats, sp, WidgetStore.scaled(context, appWidgetId, 11))
+            views.setTextViewTextSize(R.id.widget_footer, sp, WidgetStore.scaled(context, appWidgetId, 10))
+
             views.setTextViewText(R.id.widget_ssh, s.sshLine ?: context.getString(R.string.widget_ssh_none))
             // sshd が動いているときだけアクセント色にする (動いていない＝その宛先では入れない)。
             views.setTextColor(
@@ -236,6 +245,12 @@ class StatusWidgetProvider : AppWidgetProvider() {
                         else context.getString(R.string.widget_btn_time_none)
                     val label = WidgetStore.label(name)
                     views.setViewVisibility(viewId, View.VISIBLE)
+                    // ボタンの基準は style Z2WidgetButton の 11sp。上の行と一緒に動かす。
+                    views.setTextViewTextSize(
+                        viewId,
+                        android.util.TypedValue.COMPLEX_UNIT_SP,
+                        WidgetStore.scaled(context, appWidgetId, 11)
+                    )
                     views.setTextViewText(
                         viewId,
                         when {
