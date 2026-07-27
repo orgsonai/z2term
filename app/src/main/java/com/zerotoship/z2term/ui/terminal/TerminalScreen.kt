@@ -280,7 +280,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     var pendingInitialDownload by remember(active.id) { mutableStateOf<DistroSpec?>(null) }
     var snippetsSheetOpen by remember { mutableStateOf(false) }
     var clipHistoryOpen by remember { mutableStateOf(false) }
-    // 端末ログ (⏺): 記録状態はセッションが持ち、詳細設定シートの開閉だけ画面側で持つ。
+    // 端末ログ (⚪): 記録状態はセッションが持ち、詳細設定シートの開閉だけ画面側で持つ。
     var logSheetOpen by remember { mutableStateOf(false) }
     val logState by active.logState.collectAsState()
     // SFTP ファイルブラウザ対象のプロファイル (非 null の間シートを表示)
@@ -1758,11 +1758,14 @@ private fun PastePreviewBar(
         modifier = modifier
             .fillMaxWidth()
             .height(48.dp)
-            // 見落とし対策 (0.8.255): 帯そのものをアクセント色で縁取り、薄く緑を敷く。
+            // 見落とし対策 (0.8.255): 帯そのものをアクセント色で塗る。
             // 以前は背景も枠も周囲と同系の暗色で、**出ていることに気付けず貼らずに進んでしまう**
-            // という報告があった。出る場所は変えない (SearchBar と同じ位置) — 動かすと
-            // 「どこに出るか」の学習が無駄になるので、強めるのは色と押しやすさだけにする。
-            .background(ZtsGreen.copy(alpha = 0.12f))
+            // という報告があった。薄く敷くだけ (12%) では**端末の文字が透けて帯に見えない**と
+            // 再度指摘されたので、ほぼ不透明まで上げた。⚠ ここを濃くしたら前景も一緒に
+            // 反転させること — 緑地に緑文字では読めない (下の色はすべてそのための暗色)。
+            // 出る場所は変えない (SearchBar と同じ位置) — 動かすと「どこに出るか」の
+            // 学習が無駄になるので、強めるのは色と押しやすさだけにする。
+            .background(ZtsGreen.copy(alpha = 0.9f))
             .border(width = 2.dp, color = ZtsGreen)
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1773,33 +1776,36 @@ private fun PastePreviewBar(
         // 行数を先頭に置く。ここでいちばん効く情報は「何行入るか」。
         Text(
             text = pluralStringResource(R.plurals.paste_preview_lines, lines.size, lines.size),
-            color = ZtsGreen,
+            color = ZtsBgPrimary,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
             maxLines = 1
         )
         // 中身は最大 2 行だけ覗かせる (全文を見せる場所ではない)。
         Text(
             text = lines.take(2).joinToString(" ⏎ ") { it.trim() },
-            color = ZtsTextSecondary,
+            // 緑地なので二次情報も暗色。薄くして主役 (行数と「貼る」) と差を付ける。
+            color = ZtsBgPrimary.copy(alpha = 0.7f),
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        // 「貼る」は**塗りつぶし**にする。緑の文字だけだとラベルに見えて押せると分からず、
+        // 「貼る」は**塗りつぶし**にする。文字だけだとラベルに見えて押せると分からず、
         // 帯を出した意味が無くなる (実機報告)。ここは画面で唯一の主ボタンなので迷わせない。
+        // ⚠ 帯が緑地なので、ボタンは**暗い地に緑文字**で抜く (緑地に緑ボタンでは溶ける)。
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(6.dp))
-                .background(ZtsGreen)
+                .background(ZtsBgPrimary)
                 .clickable(onClick = onPaste)
                 .padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
             Text(
                 text = stringResource(R.string.paste_preview_do),
-                color = ZtsBgPrimary,
+                color = ZtsGreen,
                 fontSize = 13.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
@@ -1811,7 +1817,13 @@ private fun PastePreviewBar(
                 .clickable(onClick = onDismiss)
                 .padding(horizontal = 8.dp, vertical = 6.dp)
         ) {
-            Text(text = "✕", color = ZtsTextSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            // 緑地なので暗色。ただし主役の「貼る」より弱く見せたいので薄める。
+            Text(
+                text = "✕",
+                color = ZtsBgPrimary.copy(alpha = 0.7f),
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace
+            )
         }
     }
 }
