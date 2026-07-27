@@ -174,6 +174,7 @@ prerequisite → 3-A).
 | `z2-open` | `z2-open <URL\|path>` | Open in the default app | — |
 | `z2-intent` | see below | Fire an arbitrary Intent | — |
 | `z2-state` | `z2-state [key]` | **Current device state** (see below) | JSON, or the raw value for a key |
+| `z2-screen` | `z2-screen keepon 1h` / `keepon off` / `status` | **Hold off the automatic screen timeout, with a deadline** (below) | state JSON |
 | `z2-alarm` | `z2-alarm at\|daily HH:MM [name]` etc. | Set a **time trigger** (see below) | JSON of the schedule |
 | `z2-when` | `z2-when <trigger> run <command>` etc. | **Register a trigger** (→ 3-A, and below) | the rule id |
 | `z2-noti` | `z2-noti list` | Read **the notifications on screen right now** (read-only, see below) | TSV |
@@ -238,6 +239,34 @@ returns just that value, so it drops straight into a shell test. **No extra perm
 z2-state                                  # everything as JSON
 [ "$(z2-state charging)" = "true" ] && echo charging
 [ "$(z2-state screen)" = "off" ] && z2-notify "only notify while the screen is off"
+```
+
+### `z2-screen` (keep the screen awake — with a deadline)
+
+For "I want to watch this long build, so stop the screen turning itself off **for an hour**".
+
+```sh
+z2-screen keepon 1h        # no automatic screen-off for an hour (30m / 90s / 90 work too)
+z2-screen status           # is it held, and how many seconds are left (JSON)
+z2-screen keepon off       # put it back now, without waiting for the deadline
+```
+
+- It changes the **OS-wide** setting (screen timeout), so it **holds with the app in the background**.
+- ⚠ This is **not** the toolbar's 🔅. That one only lasts while the app is on screen; the two do not
+  affect each other. Pick whichever matches what you are doing.
+- **The original value always comes back.** It is saved when you take the hold, and the deadline is
+  an OS alarm, so it is restored even if the app is killed or the device reboots. There is no way to
+  leave it held and quietly drain the battery.
+- Max **24h** in one go (so a typo cannot leave the screen on for days).
+- **Needs "modify system settings".** Allow it under Settings › **Screen timeout (z2-screen)**.
+  Without it, `z2-screen` says so and **does nothing**.
+  (Calling `settings put` from the shell is not an option — the app's UID is refused.)
+
+Combine it with `z2-when` for things like "no screen-off for two hours once charging starts":
+
+```sh
+z2-when charge:start run 'z2-screen keepon 2h'
+z2-when charge:stop  run 'z2-screen keepon off'
 ```
 
 ### `z2-alarm` (run on a schedule)

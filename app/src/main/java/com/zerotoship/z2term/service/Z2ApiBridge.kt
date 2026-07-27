@@ -226,6 +226,8 @@ object Z2ApiBridge {
             "sensor" -> sensorRead(context, args.getOrNull(0).orEmpty())
             "alarm" -> alarmCmd(context, args)
             "state" -> stateRead(context, args.getOrNull(0).orEmpty())
+            // z2-screen: OS の自動画面消灯を期限つきで止める (🔅 とは別物・[ScreenTimeout] 参照)。
+            "screen" -> screenCmd(context, args)
             // z2doctor 用。**アプリ側にしか無い情報**（許可の有無・設定・常駐の数）をまとめて返す。
             "doctor" -> doctorRead(context)
             // z2-noti: いま出ている通知を読むだけ (押す・消すは提供しない)。
@@ -555,6 +557,23 @@ object Z2ApiBridge {
             put("rules_enabled", rules.count { it.enabled })
             put("rules_paused", runCatching { WhenManager.isPaused(context) }.getOrDefault(false))
         }.toString()
+    }
+
+    /**
+     * OS の自動画面消灯 (`z2-screen`)。CLI 側で `keepon <秒>` / `keepon off` / `status` に
+     * 正規化済み (相対時間 `1h` の秒への変換だけ sh 側で行う。`z2-alarm in` と同じ分担)。
+     *
+     * ⚠ ツールバーの 🔅 (アプリを開いている間だけ点けておく) とは**別の機能**。あちらは触らない。
+     */
+    private fun screenCmd(context: Context, args: List<String>): String = when (args.getOrNull(0)) {
+        "keepon" -> {
+            val secs = args.getOrNull(1)?.toLongOrNull()
+                ?: throw IllegalArgumentException("screen: bad duration")
+            ScreenTimeout.keepOn(context, secs)
+        }
+        "off" -> ScreenTimeout.cancel(context)
+        "status", null, "" -> ScreenTimeout.statusJson(context)
+        else -> throw IllegalArgumentException("screen: unknown subcommand: ${args[0]}")
     }
 
     /**

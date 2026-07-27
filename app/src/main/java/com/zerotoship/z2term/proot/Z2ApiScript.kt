@@ -160,6 +160,39 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |exec /usr/local/bin/z2api 1 state "${d}1"
     """.trimMargin() + "\n"
 
+    // OS の自動画面消灯を期限つきで止める。⚠ ツールバーの 🔅 (アプリを開いている間だけ) とは別物。
+    // 相対時間 (1h / 30m / 90s) の秒への変換だけここで行い、あとはアプリ側 (ScreenTimeout) が持つ
+    // — z2-alarm in と同じ分担。時間を必須にしているのは、期限の無い「消灯しない」を作らないため。
+    val screen = "#!/bin/sh\n" + m.screenHelp + "\n" + """
+        |usage() {
+        |  echo "${m.screenUsage}" >&2
+        |  exit 1
+        |}
+        |case "${d}{1:-status}" in
+        |  status) exec /usr/local/bin/z2api 1 screen status ;;
+        |  keepon)
+        |    [ ${d}# -ge 2 ] || usage
+        |    case "${d}2" in
+        |      off|0) exec /usr/local/bin/z2api 1 screen off ;;
+        |    esac
+        |    spec="${d}2"
+        |    num=${d}{spec%[smh]}
+        |    # 先頭 0 を落とす ("05" を 8 進数と解釈する ${d}(()) 実装があるため。z2-alarm in と同じ)
+        |    num=${d}(printf '%s' "${d}num" | sed 's/^0*//')
+        |    [ -n "${d}num" ] || num=0
+        |    case "${d}spec" in
+        |      *h) secs=${d}((num*3600)) ;;
+        |      *m) secs=${d}((num*60)) ;;
+        |      *s|*[0-9]) secs=${d}num ;;
+        |      *) usage ;;
+        |    esac
+        |    [ "${d}secs" -gt 0 ] 2>/dev/null || usage
+        |    exec /usr/local/bin/z2api 1 screen keepon "${d}secs" ;;
+        |  off) exec /usr/local/bin/z2api 1 screen off ;;
+        |  *) usage ;;
+        |esac
+    """.trimMargin() + "\n"
+
     val alarm = "#!/bin/sh\n" + m.alarmHelp + "\n" + """
         |usage() {
         |  echo "usage: z2-alarm at HH:MM [name] | daily HH:MM [name] | in <N[s|m|h]> [name] | list | cancel <id|name|all>" >&2
@@ -343,6 +376,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         "z2-intent" to intent,
         "z2-sensor" to sensor,
         "z2-state" to state,
+        "z2-screen" to screen,
         "z2-noti" to noti,
         "z2-alarm" to alarm,
     )

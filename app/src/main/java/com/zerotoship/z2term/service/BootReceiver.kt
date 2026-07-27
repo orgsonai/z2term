@@ -28,6 +28,11 @@ class BootReceiver : BroadcastReceiver() {
         runCatching { AlarmScheduler.rescheduleAll(context) }
             .onFailure { Log.w("BootReceiver", "alarm reschedule failed", it) }
 
+        // z2-screen keepon が掛かったまま再起動した場合の後始末。期限を過ぎていればその場で
+        // 書き戻し、まだなら予約を貼り直す。放っておくと「消灯しない」が永久に残る。
+        runCatching { ScreenTimeout.restoreOrReschedule(context) }
+            .onFailure { Log.w("BootReceiver", "screen timeout restore failed", it) }
+
         val settings = runBlocking { AppSettings(context).flow.first() }
 
         // システムイベント検知が ON なら、アプリを開かずに常駐 FG サービスを起動する。

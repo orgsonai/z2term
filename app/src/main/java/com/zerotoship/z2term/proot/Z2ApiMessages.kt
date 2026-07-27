@@ -101,6 +101,37 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# 例: [ "${d}(z2-state charging)" = "true" ] && echo 充電中
     """.trimMargin()
 
+    // --- z2-screen ---
+
+    val screenHelp: String = if (en) """
+        |# z2-screen keepon <N|Ns|Nm|Nh> … stop the screen from turning off by itself, for that long
+        |# z2-screen keepon off          … put it back now, without waiting for the deadline
+        |# z2-screen status              … current state as JSON
+        |#   (allowed / keepon / timeout_ms / until / remaining_sec / original_ms)
+        |# This changes the OS-wide "screen timeout" setting, so it holds even when the app is
+        |# in the background. It is NOT the toolbar's screen lock, which only lasts while the
+        |# app is on screen — that one is left untouched.
+        |# The original value is saved and always written back at the deadline (even if the app
+        |# is killed or the device reboots). Max 24h in one go.
+        |# Needs "modify system settings" (Settings > screen timeout > allow).
+        |# e.g. z2-screen keepon 1h; make; z2-screen keepon off
+    """.trimMargin() else """
+        |# z2-screen keepon <N|Ns|Nm|Nh> … その時間だけ、画面が自分で消えないようにする
+        |# z2-screen keepon off          … 期限を待たずに今すぐ元へ戻す
+        |# z2-screen status              … 今の状態を JSON で
+        |#   (allowed / keepon / timeout_ms / until / remaining_sec / original_ms)
+        |# これは OS 全体の「画面消灯までの時間」を変えるので、アプリを畳んでいても効く。
+        |# ツールバーの🔅 (アプリを開いている間だけ消えない) とは別物で、そちらは触らない。
+        |# 元の値は保存され、期限が来たら必ず書き戻す (アプリが落ちても・再起動しても)。
+        |# 一度に掛けられるのは 24h まで。
+        |# 「システム設定の変更」の許可が要ります (設定 › 画面の自動消灯 › 許可)。
+        |# 例: z2-screen keepon 1h; make; z2-screen keepon off
+    """.trimMargin()
+
+    val screenUsage: String =
+        if (en) "usage: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status"
+        else "usage: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status"
+
     // --- z2-noti ---
 
     val notiHelp: String = if (en) """

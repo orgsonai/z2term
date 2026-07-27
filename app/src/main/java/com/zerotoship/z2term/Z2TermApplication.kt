@@ -5,6 +5,7 @@ import android.content.Context
 import android.util.Log
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.gui.GuiEventWatcher
+import com.zerotoship.z2term.service.ScreenTimeout
 import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.service.WhenManager
 import com.zerotoship.z2term.service.Z2ApiBridge
@@ -49,6 +50,12 @@ class Z2TermApplication : Application() {
         // z2-when (A6) の時刻トリガーを貼り直す (AlarmManager 予約は再起動で消えるため。
         // BootReceiver でも貼るが、アプリを普通に開いた場合の取りこぼしをここで埋める)。idempotent。
         appScope.launch { runCatching { WhenManager.reload(this@Z2TermApplication) } }
+        // z2-screen keepon も同様に、掛かったままなら予約を貼り直す (期限切れならその場で書き戻す)。
+        // 消灯しない状態を取りこぼすと電池が静かに減り続けるので、入口を 2 つ持つ。
+        appScope.launch {
+            runCatching { ScreenTimeout.restoreOrReschedule(this@Z2TermApplication) }
+                .onFailure { Log.w(TAG, "screen timeout restore skipped: ${it.message}") }
+        }
         // システムイベント検知が ON なら常駐 FG サービスを起動 (アプリ前面起動時に再アサート)。
         // background から起動した場合は FG サービス起動が禁止されうるので握りつぶす (BootReceiver 側で別途起動)。
         appScope.launch {

@@ -628,6 +628,12 @@
     <string name="settings_section_automation_rules">自動化ルール（z2-when）</string>
     <string name="settings_automation_rules_desc">登録したルールの確認・ON/OFF・実行ログ・お試し実行と、全部まとめての一時停止。</string>
     <string name="settings_open_when_rules">ルールを管理</string>
+    <string name="settings_section_screen_timeout">画面の自動消灯（z2-screen）</string>
+    <string name="settings_screen_timeout_desc">指定した時間だけ、画面が自分で消えないようにします。OS 全体の設定を変えるので、アプリを畳んでいても効きます（ツールバーの🔅はアプリを開いている間だけで、別物です）。元の値は期限が来たら必ず書き戻します。</string>
+    <string name="settings_screen_timeout_granted">システム設定の変更: 許可済み</string>
+    <string name="settings_screen_timeout_missing">システム設定の変更: 未許可（下のボタンから許可）</string>
+    <string name="settings_screen_timeout_grant">システム設定の変更を許可</string>
+    <string name="settings_screen_timeout_cmd_label">端末での使い方（タップでコピー）。期限前に戻すなら z2-screen keepon off</string>
     <string name="intro_title">はじめに（タップすると入力欄に入ります。実行は ⏎ を押してから）</string>
     <string name="intro_footer">一覧は z2help ／ 動かないときは z2doctor</string>
     <string name="intro_card_notify">スマホに通知を出してみる</string>

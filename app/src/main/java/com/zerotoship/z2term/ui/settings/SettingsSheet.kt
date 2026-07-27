@@ -85,6 +85,7 @@ import com.zerotoship.z2term.proot.RootProbe
 import com.zerotoship.z2term.service.NotificationLogService
 import com.zerotoship.z2term.service.PasswordWatchAdmin
 import com.zerotoship.z2term.service.ServerDaemonManager
+import com.zerotoship.z2term.service.ScreenTimeout
 import com.zerotoship.z2term.service.SmsLogReceiver
 import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.settings.AppSettings
@@ -818,6 +819,38 @@ fun SettingsSheet(
                     ActionButton(
                         label = stringResource(R.string.settings_open_when_rules),
                         onClick = { whenRulesOpen = true }
+                    )
+                }
+
+                // 画面の自動消灯 (z2-screen): OS 全体の「画面消灯までの時間」を期限つきで延ばす。
+                // ⚠ ツールバーの🔅 (アプリを開いている間だけ) とは別物。ここは許可の状態を見せて
+                // 許可画面へ送るだけで、掛ける/外すは端末側の z2-screen が担う (時間指定が要るため)。
+                Section(title = stringResource(R.string.settings_section_screen_timeout)) {
+                    // 許可は OS の設定画面で変わるので remember しない (キャッシュすると、許可して
+                    // 戻ってきても「未許可」のままに見える)。AppOps の問い合わせだけなので毎回読む。
+                    val allowed = ScreenTimeout.canWrite(context)
+                    Text(
+                        text = stringResource(R.string.settings_screen_timeout_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = if (allowed) stringResource(R.string.settings_screen_timeout_granted)
+                        else stringResource(R.string.settings_screen_timeout_missing),
+                        color = if (allowed) ZtsGreen else ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    ActionButton(
+                        label = stringResource(R.string.settings_screen_timeout_grant),
+                        onClick = {
+                            runCatching { context.startActivity(ScreenTimeout.manageIntent(context)) }
+                        }
+                    )
+                    CopyableCommand(
+                        label = stringResource(R.string.settings_screen_timeout_cmd_label),
+                        command = "z2-screen keepon 1h"
                     )
                 }
 

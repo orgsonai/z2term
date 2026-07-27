@@ -129,6 +129,56 @@ class Z2ApiScriptTest {
         }
     }
 
+    /**
+     * `z2-screen` の**時間の読み取り**が正しいこと。
+     *
+     * 1h/30m/90s の秒への変換だけが sh 側の仕事で、あとはアプリ側 ([ScreenTimeout]) が持つ。
+     * ここを間違えると「1 時間のつもりが 1 秒」のように**掛かったように見えて掛かっていない**
+     * ので、実際に `sh` で走らせてブリッジへ渡る引数そのものを見る (`z2api` はスタブに差し替える)。
+     * 先頭 0 (`05m`) を確かめるのは、`$(())` が "05" を 8 進と解釈する実装があるため。
+     */
+    @Test
+    fun screenParsesDurations() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val dir = Files.createTempDirectory("z2screen").toFile()
+        val stub = File(dir, "z2api").apply {
+            writeText("#!/bin/sh\necho \"ARGS: \$*\"\n")
+            setExecutable(true)
+        }
+        // 生成物そのものを使い、呼び先だけスタブへ向ける (ロジックには手を触れない)。
+        val script = File(dir, "z2-screen").apply {
+            writeText(scripts["z2-screen"]!!.replace("/usr/local/bin/z2api", stub.absolutePath))
+        }
+        fun run(vararg args: String): String {
+            val proc = ProcessBuilder(listOf(sh!!, script.absolutePath) + args)
+                .redirectErrorStream(true).start()
+            val out = proc.inputStream.bufferedReader().readText().trim()
+            proc.waitFor()
+            return out
+        }
+        try {
+            assertEquals("ARGS: 1 screen keepon 3600", run("keepon", "1h"))
+            assertEquals("ARGS: 1 screen keepon 1800", run("keepon", "30m"))
+            assertEquals("ARGS: 1 screen keepon 90", run("keepon", "90s"))
+            // 単位なしは秒 (z2-alarm in と同じ約束)。
+            assertEquals("ARGS: 1 screen keepon 90", run("keepon", "90"))
+            assertEquals("ARGS: 1 screen keepon 300", run("keepon", "05m"))
+            // 期限を待たずに戻す / 状態を見る。
+            assertEquals("ARGS: 1 screen off", run("keepon", "off"))
+            assertEquals("ARGS: 1 screen status", run("status"))
+            assertEquals("ARGS: 1 screen status", run())
+            // 読めない時間は**掛けずに**usage を出す (黙って 0 秒や 1 秒で掛けない)。
+            assertTrue("時間が無いのに掛かっている: ${run("keepon")}", run("keepon").contains("usage:"))
+            assertTrue(
+                "読めない時間で掛かっている: ${run("keepon", "banana")}",
+                run("keepon", "banana").contains("usage:")
+            )
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
     /** A1: タブを操る `z2-session` が同梱され、5 つのサブコマンドを持つこと。 */
     @Test
     fun sessionHelperCoversAllSubcommands() {

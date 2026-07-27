@@ -640,6 +640,12 @@
     <string name="settings_section_automation_rules">Automation rules (z2-when)</string>
     <string name="settings_automation_rules_desc">Review your rules, toggle them, read their logs, try one, or pause them all at once.</string>
     <string name="settings_open_when_rules">Manage rules</string>
+    <string name="settings_section_screen_timeout">Screen timeout (z2-screen)</string>
+    <string name="settings_screen_timeout_desc">Stop the screen turning off by itself, for as long as you say. This is the OS-wide setting, so it holds with the app in the background — unlike the toolbar\'s 🔅, which only lasts while the app is on screen. The original value is always written back at the deadline.</string>
+    <string name="settings_screen_timeout_granted">Modify system settings: allowed</string>
+    <string name="settings_screen_timeout_missing">Modify system settings: not allowed (tap below to allow)</string>
+    <string name="settings_screen_timeout_grant">Allow modifying system settings</string>
+    <string name="settings_screen_timeout_cmd_label">In the terminal (tap to copy). z2-screen keepon off puts it back early</string>
     <string name="intro_title">To start (tap to put it on the input line; press ⏎ yourself to run it)</string>
     <string name="intro_footer">z2help for the full list / z2doctor when something does not work</string>
     <string name="intro_card_notify">Post a notification on your phone</string>

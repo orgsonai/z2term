@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-27 / Target version: 0.8.256-alpha (versionCode 264)
+Last updated: 2026-07-27 / Target version: 0.8.257-alpha (versionCode 265)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -812,6 +812,18 @@ The footer now shows **the macro that finished last**, since start times moved o
   - ⚠ **Pressing and dismissing are deliberately absent.** The original proposal included a verb to press a notification's buttons, which also means **pressing other apps' pay and send buttons** — the only feature among the 32 proposals whose misfires land outside this app. Per the summariser's call, only the reading half was implemented.
   - `getActiveNotifications()` belongs to `NotificationListenerService`, so it can only be read through the live, OS-bound instance ([`NotificationLogService.activeNotificationsTsv`]). Without the permission or the binding it reports that notification access is not granted.
   - Our own notifications are excluded, and tabs/newlines inside values are folded to spaces so the TSV cannot break.
+
+- **`z2-screen` (0.8.257 — hold off the OS screen timeout, with a deadline)**: the answer to "I want to watch a long build, so stop the screen turning itself off **for an hour**". `z2-screen keepon 1h` / `keepon off` / `status`.
+  - ⚠ **This is not the toolbar's 🔅, and that one is left alone** (the user said so explicitly). 🔅 is `FLAG_KEEP_SCREEN_ON`: it only holds **while the app is on screen**, so it does nothing once you fold the app away. This one writes `Settings.System.SCREEN_OFF_TIMEOUT` — the **OS-wide** setting — so it holds in the background and on the home screen. **They are not merged**: dropping either one takes away a use case the other cannot cover.
+  - **A macro cannot do this**, measured: `/system/bin/settings` is visible from the rootfs, but calling it as the app's UID throws `SecurityException` (that binder shell command is for `shell` / `root` only). So it goes the Android way — declare `WRITE_SETTINGS` and write only once the user has explicitly allowed it on the "modify system settings" screen. The way in is Settings › **Screen timeout (z2-screen)**.
+  - **Always putting it back is the centre of the design.** A hold left on quietly drains the battery, so there must be no state in which it is held and forgotten.
+    - **The duration is mandatory** (`keepon` with no argument stops at usage). An open-ended "never sleep" is never constructible in the first place.
+    - **The original value is saved** (`filesDir/screen_timeout.json`). ⚠ A second `keepon` while one is already held **only extends the deadline and keeps the first original** — re-reading here would save "never" as the original, and the deadline would restore nothing.
+    - **The deadline is an `AlarmManager` booking** ([`ScreenTimeoutReceiver`]), so the OS wakes us even if the app was killed. Bookings die on reboot, so `restoreOrReschedule` is called from **both** [`BootReceiver`] and `Z2TermApplication`, and a deadline that passed during the reboot is **written back on the spot**. Two entry points because the cost of missing one is a battery that keeps draining.
+    - **24h cap**, so a typo cannot leave the screen on for days.
+  - **Whether a hold is active is decided by the saved file**, never by reading `SCREEN_OFF_TIMEOUT` back — that way nothing contradicts itself if the user also touches the value in the system settings app.
+  - The value written for "never" is `Int.MAX_VALUE` (~24.8 days). Android has no dedicated infinity here; this is what the stock settings app means by "never".
+  - Only the **relative time to seconds** conversion (`1h` / `30m` / `90s` / bare = seconds) lives in sh; the rest is app-side ([`ScreenTimeout`]) — the same split as `z2-alarm in`. Leading zeros (`05m`) are stripped because some `$(())` implementations read "05" as octal. `Z2ApiScriptTest.screenParsesDurations` swaps `z2api` for a stub and pins **the exact arguments that reach the bridge**: get this wrong and "an hour" becomes "a second", which looks held but is not.
 
 - **`z2doctor` command (0.8.230, troubleshooting)**: one command that answers "why isn't it working?". **A different tool from `z2scan self`** — that one hunts for risky settings (security), this one hunts for the reason something does not run. The names are close; do not merge them.
   - Every line is `OK` / `NG` / `--` (unknown or not applicable). **An `NG` always carries the next step, and a check we cannot advise on is simply not shown** (an `NG` with no fix only creates anxiety). **What could not be read is `--`, never counted as `NG`** — not knowing is not a fault.

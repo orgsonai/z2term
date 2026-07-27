@@ -31,6 +31,12 @@
     <!-- Android API ブリッジ: z2-vibrate 用 (通常権限・実行時要求不要) -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- z2-screen: OS の自動画面消灯までの時間 (SCREEN_OFF_TIMEOUT) を期限つきで延ばすため。
+         宣言しただけでは効かない特別権限で、利用者が「システム設定の変更」画面で明示的に
+         許可したときだけ書き換えられる (設定 › 画面の自動消灯 から誘導する)。
+         端末から `settings put` を叩く手は使えない (アプリ UID では SecurityException)。 -->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+
     <!-- SMS 受信検知 (汎用入口): 設定「SMS 検知」ON のとき、受信 SMS を ~/.z2term/sms.jsonl へ追記する。
          通知と違い SMS 本文は機微通知の伏せ字 (Android 15+) やロック状態の影響を受けないため、
          ワンタイムパスワードを確実に取れる。実行時許可制。 -->
@@ -262,6 +268,11 @@
         <!-- 時刻トリガー (z2-alarm) の受け口。AlarmManager からのみ届くので exported=false。 -->
         <receiver
             android:name=".service.AlarmReceiver"
+            android:exported="false" />
+
+        <!-- z2-screen keepon の期限の受け口 (自動画面消灯を元の値へ書き戻す)。同上。 -->
+        <receiver
+            android:name=".service.ScreenTimeoutReceiver"
             android:exported="false" />
 
         <!-- z2-notify のボタン応答の受け口。自アプリの PendingIntent からのみ届く。 -->
