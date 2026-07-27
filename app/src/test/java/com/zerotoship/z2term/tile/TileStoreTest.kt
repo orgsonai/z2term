@@ -75,6 +75,13 @@ class TileStoreTest {
         assertFalse(TileStore.isScreenKeepOn("sh -c 'z2-screen keepon 1h'"))
     }
 
+    /** `--off` を渡した枠は入 / 切の 2 コマンドとして扱う。 */
+    @Test
+    fun aSlotWithAnOffCommandIsAPair() {
+        assertFalse(TileStore.Slot(1, "z2-torch on", "torch").isPair)
+        assertTrue(TileStore.Slot(1, "z2-torch on", "torch", "z2-torch off").isPair)
+    }
+
     /**
      * 残り時間は**切り上げ**。切り捨てると `keepon 1h` の直後に「残り 59 分」と出て、
      * 頼んだ時間より短く見える。

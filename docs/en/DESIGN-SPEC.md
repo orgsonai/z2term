@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-27 / Target version: 0.8.260-alpha (versionCode 268)
+Last updated: 2026-07-28 / Target version: 0.8.261-alpha (versionCode 269)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -817,6 +817,11 @@ The footer now shows **the macro that finished last**, since start times moved o
   - **Why this and not just the D1 widget**: a home-screen widget means going back to the home screen. Quick settings comes down in two swipes **whatever app you are in**, which makes it **the one entry point that reaches you mid-task** — "bring up sshd for tethering" without leaving the video you are watching.
   - **No new resident anything.** A `TileService` is only bound while the shade is open. Execution goes through the same [`HeadlessRun`] as D1: more entry points, still one execution path.
   - **The deal is the D1 widget button's deal**: tap to run, green while running (`Tile.STATE_ACTIVE`), tap again to stop. Entry points do not each get their own feel.
+  - **When on and off are separate commands, `--off` puts both on one tile (0.8.261).** `z2-tile set 3 z2-torch on --off z2-torch off`. Tapping alternates between them and the tile is **green while it is on**. A slot holding only `z2-torch on` runs `on` on every tap — **the tile can never turn it off** — so the off side became writable (the user's proposal).
+    - ⚠ **Two bare positional commands cannot work**: `z2-tile set 1 ls -la` would become "on = `ls`, off = `-la`" (joining the remaining arguments into one command is the existing reading). Hence an explicit separator, and like `-l`, **`--off` is picked up wherever it appears**.
+    - ⚠ **This green is only what the app remembers** — nothing observes the real state (Android offers no way to read whether the torch is lit). Running `z2-torch off` in the terminal instead leaves the tile showing on. `z2-screen` is special-cased precisely because **the app does hold that state for real**.
+    - **Turning off does not kill anything**: it runs the off command that was written down, rather than killing the process from the on side (killing `z2-torch on` does not put the light out). The run keys differ per side too — sharing one would count the on side as "running" the moment the off command starts.
+    - **Reassigning a slot drops the remembered on state**, otherwise the first tap on something newly placed starts from the off side.
   - **A command that holds a state shows that state instead (0.8.260).** `z2-screen keepon 1h` writes a setting and **exits immediately**, so "green while running" makes it **flash green once and then read as idle, leaving no way to tell whether the screen is still being held** (reported on-device). For a slot holding `z2-screen keepon <duration>`, green means **"the screen is still being held"** ([`TileStore.isScreenKeepOn`]). The source of truth is the single file `ScreenTimeout` already keeps, so **typing `z2-screen keepon off` in the terminal moves the tile too**. ⚠ `keepon off` and `status` are excluded — one-shot operations with no state, which would read as "green that disappears when you press it".
     - **Releasing is handled in-app; holding still runs the command.** Copying how `1h` is read into the tile would leave two places interpreting durations (the sh side owns the conversion to seconds).
     - **The remaining time goes in the subtitle.** ⚠ **It freezes at the moment the shade came down** — a `TileService` is not redrawn while the shade is open, so there is no countdown. Hence nothing finer than minutes ([`TileStore.remaining`], **rounded up**) — rounding down would print "59 min left" immediately after `keepon 1h` and read as short measure.

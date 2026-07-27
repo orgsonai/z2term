@@ -135,7 +135,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
     // --- z2-tile ---
 
     val tileHelp: String = if (en) """
-        |# z2-tile set <1-4> <macro.sh | command...> [-l <label>]
+        |# z2-tile set <1-4> <macro.sh | command...> [--off <command...>] [-l <label>]
         |#                             … put something on quick-settings tile 1-4
         |# z2-tile list                … all four slots as TSV (slot / label / command; '-' = empty)
         |# z2-tile clear <1-4|all>     … empty a slot
@@ -143,14 +143,20 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# **a command** to run as typed — whichever it is, is worked out from the name.
         |# Tap the tile to run it, tap again to stop (same deal as the widget's buttons).
         |# The tile turns green while it runs. Locked device: Android asks you to unlock first.
+        |# With --off you get **two commands**: tapping alternates between them and the tile stays
+        |# green while it is "on". Use it where turning off is its own command (z2-torch on/off).
+        |# ⚠ The green is only what the app remembers — running z2-torch off in the terminal
+        |# instead leaves the tile showing "on". (z2-screen keepon is the exception: the app
+        |# holds that state for real, so its tile follows the terminal.)
         |# The command runs with Z2_TILE=<slot> (and Z2_TILE_MACRO for a macro) in the environment.
         |# ⚠ You still have to place the tile yourself, from the pencil/edit screen of the quick
         |# settings panel — Android does not let an app put its own tiles there. There are exactly
         |# 4 slots: the number is fixed in the manifest and cannot grow at runtime.
         |# e.g. z2-tile set 1 backup.sh
         |#      z2-tile set 2 'z2-screen keepon 1h' -l "no sleep"
+        |#      z2-tile set 3 z2-torch on --off z2-torch off -l torch
     """.trimMargin() else """
-        |# z2-tile set <1-4> <マクロ.sh | コマンド...> [-l <表示名>]
+        |# z2-tile set <1-4> <マクロ.sh | コマンド...> [--off <コマンド...>] [-l <表示名>]
         |#                             … クイック設定タイル 1〜4 に割り当てる
         |# z2-tile list                … 4 枠すべてを TSV で (枠 / 表示名 / コマンド。'-' は空き)
         |# z2-tile clear <1-4|all>     … 割り当てを消す
@@ -158,17 +164,25 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# **コマンド**のどちらでもよい (名前を見て自動で判別します)。
         |# タイルを押すと実行、もう一度押すと停止 (ウィジェットのボタンと同じ約束)。
         |# 実行中はタイルが緑になります。ロック中は Android が先に解除を求めます。
+        |# --off を付けると**入 / 切の 2 コマンド**になり、押すたびに交互に走ります
+        |# (入の間タイルは緑)。切るのが別コマンドのもの (z2-torch on / off) 向けです。
+        |# ⚠ この緑は**アプリが覚えているだけ**です。端末から直接 z2-torch off を打つと
+        |# タイルは入のままになります (z2-screen keepon だけは例外で、アプリが実態を
+        |# 持っているので端末から切ってもタイルが揃います)。
         |# 実行時、環境変数 Z2_TILE に枠番号 (マクロなら Z2_TILE_MACRO も) が入ります。
         |# ⚠ タイルを**並べるのはご自身**で、クイック設定パネルの鉛筆(編集)から追加します
         |# — アプリが勝手に置くことは Android が禁じています。枠はちょうど 4 つで、
         |# manifest で決め打ちのため実行中に増やせません。
         |# 例: z2-tile set 1 backup.sh
         |#     z2-tile set 2 'z2-screen keepon 1h' -l 消灯しない
+        |#     z2-tile set 3 z2-torch on --off z2-torch off -l ライト
     """.trimMargin()
 
     val tileUsage: String =
-        if (en) "usage: z2-tile set <1-4> <macro.sh|command...> [-l label] | list | clear <1-4|all>"
-        else "usage: z2-tile set <1-4> <マクロ.sh|コマンド...> [-l 表示名] | list | clear <1-4|all>"
+        if (en) "usage: z2-tile set <1-4> <macro.sh|command...> [--off <command...>] [-l label] | " +
+            "list | clear <1-4|all>"
+        else "usage: z2-tile set <1-4> <マクロ.sh|コマンド...> [--off <コマンド...>] [-l 表示名] | " +
+            "list | clear <1-4|all>"
 
     // --- z2-noti ---
 

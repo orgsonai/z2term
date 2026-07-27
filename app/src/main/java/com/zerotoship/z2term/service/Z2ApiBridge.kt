@@ -591,7 +591,13 @@ object Z2ApiBridge {
         "set" -> {
             val n = args.getOrNull(1)?.toIntOrNull()
                 ?: throw IllegalArgumentException("z2-tile: 枠は 1〜${TileStore.COUNT} です")
-            TileStore.set(context, n, args.getOrNull(2).orEmpty(), args.getOrNull(3).orEmpty())
+            TileStore.set(
+                context,
+                n,
+                args.getOrNull(2).orEmpty(),
+                args.getOrNull(3).orEmpty(),
+                args.getOrNull(4).orEmpty()
+            )
             Z2TileService.requestUpdate(context, n)
             tileListTsv(context)
         }
@@ -609,9 +615,16 @@ object Z2ApiBridge {
         else -> throw IllegalArgumentException("z2-tile: unknown subcommand: ${args[0]}")
     }
 
+    /**
+     * `z2-tile list` の TSV。列は **枠 / 表示名 / コマンド** の 3 つで固定する
+     * (列が増えると、既に `cut -f3` で読んでいる手元のスクリプトが黙って壊れる)。
+     * 入 / 切の枠は 3 列目を `<入> --off <切>` にする — **打ち込むときと同じ書き方**なので、
+     * list の出力をそのまま貼り直せる。
+     */
     private fun tileListTsv(context: Context): String = (1..TileStore.COUNT).joinToString("\n") { n ->
         val s = TileStore.get(context, n)
-        if (s == null) "$n\t-\t-" else "$n\t${s.label}\t${s.command}"
+        if (s == null) "$n\t-\t-"
+        else "$n\t${s.label}\t${s.command}${s.offCommand?.let { " --off $it" }.orEmpty()}"
     }
 
     /**

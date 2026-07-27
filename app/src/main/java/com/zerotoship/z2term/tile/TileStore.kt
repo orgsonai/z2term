@@ -31,6 +31,8 @@ object TileStore {
     private const val PREFS = "z2term_tile"
     private const val KEY_CMD_PREFIX = "cmd_"
     private const val KEY_LABEL_PREFIX = "label_"
+    private const val KEY_OFF_PREFIX = "off_"
+    private const val KEY_ON_PREFIX = "on_"
 
     /** タイルに出す表示名の上限。クイック設定は狭いので、長い名前は切り詰めて出す。 */
     const val MAX_LABEL_CHARS = 12
@@ -38,8 +40,19 @@ object TileStore {
     /**
      * 1 枠の割り当て。[command] は**マクロのファイル名** (`backup.sh`) か
      * **そのまま走らせるコマンド** (`z2-screen keepon 1h`) のどちらか ([scriptFor] 参照)。
+     *
+     * [offCommand] があれば**入 / 切の 2 コマンド**として扱う (`--off`)。`z2-torch on` のように
+     * 「掛けるコマンドと外すコマンドが別」のものを 1 枚のタイルで往復させるための形。
      */
-    data class Slot(val n: Int, val command: String, val label: String)
+    data class Slot(
+        val n: Int,
+        val command: String,
+        val label: String,
+        val offCommand: String? = null
+    ) {
+        /** 入 / 切の 2 コマンドを持つ枠か。緑の意味がこれで変わる ([Z2TileService])。 */
+        val isPair: Boolean get() = offCommand != null
+    }
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -50,7 +63,24 @@ object TileStore {
         val cmd = prefs(context).getString(KEY_CMD_PREFIX + n, null)?.takeIf { it.isNotBlank() }
             ?: return null
         val label = prefs(context).getString(KEY_LABEL_PREFIX + n, null).orEmpty()
-        return Slot(n, cmd, labelFor(cmd, label))
+        val off = prefs(context).getString(KEY_OFF_PREFIX + n, null)?.takeIf { it.isNotBlank() }
+        return Slot(n, cmd, labelFor(cmd, label), off)
+    }
+
+    /**
+     * 入 / 切の枠 ([Slot.isPair]) が「いま入っているか」。
+     *
+     * ⚠ **これはアプリが覚えているだけ**で、実際に点いているかを見に行っているのではない
+     * (`z2-torch` の光を Android から読む方法は無い)。端末から直接 `z2-torch off` を打つと
+     * タイルの表示だけ入のまま残る。`z2-screen` を特別扱いしているのは、あちらだけは
+     * **アプリが実態を持っている**ため ([isScreenKeepOn])。
+     */
+    fun isOn(context: Context, n: Int): Boolean =
+        prefs(context).getBoolean(KEY_ON_PREFIX + n, false)
+
+    /** [isOn] を書き換える。押したコマンドが**起動できたときだけ**呼ぶこと。 */
+    fun setOn(context: Context, n: Int, on: Boolean) {
+        prefs(context).edit().putBoolean(KEY_ON_PREFIX + n, on).apply()
     }
 
     /** 全枠 (未設定の枠は含まない)。 */
@@ -60,12 +90,16 @@ object TileStore {
      * [n] へ割り当てる。[label] が空なら [labelFor] が [command] から作る。
      * @throws IllegalArgumentException 枠番号が範囲外・コマンドが空
      */
-    fun set(context: Context, n: Int, command: String, label: String = "") {
+    fun set(context: Context, n: Int, command: String, label: String = "", offCommand: String = "") {
         require(n in 1..COUNT) { "z2-tile: 枠は 1〜$COUNT です" }
         require(command.isNotBlank()) { "z2-tile: 割り当てるコマンドがありません" }
         prefs(context).edit()
             .putString(KEY_CMD_PREFIX + n, command)
             .putString(KEY_LABEL_PREFIX + n, label)
+            .putString(KEY_OFF_PREFIX + n, offCommand)
+            // 割り当て直したら「入」の記憶は捨てる。前の割り当ての入 / 切をそのまま持ち越すと、
+            // 別のものを載せた 1 回目が切るほうから始まる。
+            .remove(KEY_ON_PREFIX + n)
             .apply()
         syncEnabledTiles(context)
     }
@@ -76,6 +110,8 @@ object TileStore {
         prefs(context).edit()
             .remove(KEY_CMD_PREFIX + n)
             .remove(KEY_LABEL_PREFIX + n)
+            .remove(KEY_OFF_PREFIX + n)
+            .remove(KEY_ON_PREFIX + n)
             .apply()
         syncEnabledTiles(context)
     }
@@ -151,6 +187,9 @@ object TileStore {
      *
      * ⚠ `keepon off` と `status` は対象外。どちらも状態を持たない一度きりの操作で、
      * これらを緑にすると「押すと消える緑」というちぐはぐな見え方になる。
+     *
+     * ⚠ **`--off` を明示した枠には効かせない** ([Slot.isPair] が優先)。書いたものが素直に
+     * 効くほうを上に置く — 打った `--off` が黙って無視される作りは追いかけようがない。
      */
     internal fun isScreenKeepOn(command: String): Boolean {
         val parts = command.trim().split(Regex("\\s+"))
@@ -188,15 +227,18 @@ object TileStore {
      * 打てばマクロが走り、それ以外は端末に打ったのと同じになる。
      *
      * `Z2_TILE` に枠番号が入るので、同じマクロを複数の枠に置いて中で分岐することもできる。
+     *
+     * [command] は既定で [Slot.command]。入 / 切の枠 ([Slot.isPair]) では切るときに
+     * [Slot.offCommand] を渡す。**切るほうもマクロ名で書ける** (判定は同じ道を通る)。
      */
-    fun scriptFor(context: Context, slot: Slot): String {
+    fun scriptFor(context: Context, slot: Slot, command: String = slot.command): String {
         val n = HeadlessRun.shSingleQuote(slot.n.toString())
         val prefix = "export Z2_TILE=$n; cd \"\$HOME\" 2>/dev/null; "
-        return if (slot.command in WidgetStore.availableMacros(context)) {
-            val q = HeadlessRun.shSingleQuote(slot.command)
+        return if (command in WidgetStore.availableMacros(context)) {
+            val q = HeadlessRun.shSingleQuote(command)
             prefix + "export Z2_TILE_MACRO=$q; sh \"\$HOME/.z2term/macros/\"$q"
         } else {
-            prefix + slot.command
+            prefix + command
         }
     }
 

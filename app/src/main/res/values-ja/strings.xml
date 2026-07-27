@@ -647,6 +647,9 @@
     <string name="tile_subtitle_screen_minutes">残り %1$d 分 — 押すと解除</string>
     <string name="tile_subtitle_screen_seconds">残り %1$d 秒 — 押すと解除</string>
     <string name="tile_subtitle_screen_off">切 — 押すと消灯しない</string>
+    <!-- z2-tile set の off 指定で、入 / 切の 2 コマンドを割り当てた枠。 -->
+    <string name="tile_subtitle_pair_on">入 — 押すと切</string>
+    <string name="tile_subtitle_pair_off">切 — 押すと入</string>
     <string name="tile_unassigned_toast">タイル %1$d には何も割り当てられていません。端末で z2-tile set %1$d backup.sh のように割り当ててください</string>
     <string name="settings_section_screen_timeout">画面の自動消灯（z2-screen）</string>
     <string name="settings_screen_timeout_desc">指定した時間だけ、画面が自分で消えないようにします。OS 全体の設定を変えるので、アプリを畳んでいても効きます（ツールバーの🔅はアプリを開いている間だけで、別物です）。元の値は期限が来たら必ず書き戻します。</string>

@@ -207,15 +207,26 @@ class Z2ApiScriptTest {
             return out
         }
         try {
-            assertEquals("[1]\n[tile]\n[set]\n[1]\n[backup.sh]\n[]", run("set", "1", "backup.sh"))
+            assertEquals("[1]\n[tile]\n[set]\n[1]\n[backup.sh]\n[]\n[]", run("set", "1", "backup.sh"))
             // 表示名が後ろでも前でも、コマンドは同じに読めること。
-            val expected = "[1]\n[tile]\n[set]\n[2]\n[z2-screen keepon 1h]\n[消灯しない]"
+            val expected = "[1]\n[tile]\n[set]\n[2]\n[z2-screen keepon 1h]\n[消灯しない]\n[]"
             assertEquals(expected, run("set", "2", "z2-screen", "keepon", "1h", "-l", "消灯しない"))
             assertEquals(expected, run("set", "2", "-l", "消灯しない", "z2-screen", "keepon", "1h"))
+            // --off から後ろは「切るときのコマンド」。⚠ ここが混ざると、切るつもりの引数が
+            // 入のコマンドに足されて毎回おかしなものが走る。表示名はどこに書いてもよい。
+            val pair = "[1]\n[tile]\n[set]\n[3]\n[z2-torch on]\n[ライト]\n[z2-torch off]"
+            assertEquals(pair, run("set", "3", "z2-torch", "on", "--off", "z2-torch", "off", "-l", "ライト"))
+            assertEquals(pair, run("set", "3", "-l", "ライト", "z2-torch", "on", "--off", "z2-torch", "off"))
+            // 引用符でひとまとまりにしても同じ。
+            assertEquals(pair, run("set", "3", "z2-torch on", "--off", "z2-torch off", "-l", "ライト"))
             assertEquals("[1]\n[tile]\n[list]", run())
             assertEquals("[1]\n[tile]\n[clear]\n[all]", run("clear", "all"))
-            // コマンドが無い / 枠だけ / 未知のサブコマンドは usage で終わり、割り当てに行かない。
-            for (args in listOf(listOf("set"), listOf("set", "1"), listOf("bogus"))) {
+            // コマンドが無い / 枠だけ / 未知のサブコマンド / --off が空 は usage で終わり、
+            // 割り当てに行かない (空の --off を通すと「押しても切れないトグル」になる)。
+            for (args in listOf(
+                listOf("set"), listOf("set", "1"), listOf("bogus"),
+                listOf("set", "3", "z2-torch", "on", "--off")
+            )) {
                 val out = run(*args.toTypedArray())
                 assertTrue("usage が出ていない (${args.joinToString(" ")}): $out", out.contains("usage:"))
             }

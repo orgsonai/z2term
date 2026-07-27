@@ -61,6 +61,32 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
     /** 走っていれば止め、走っていなければ実行する (D1 ウィジェットのボタンと同じ約束)。 */
     private fun toggle(assigned: TileStore.Slot) {
         val app = applicationContext
+        // 入 / 切の 2 コマンドを持つ枠 (`--off`)。押すたびに反対側を走らせる。
+        // ⚠ こちらは**止めない** — 利用者が「切るときはこれ」と書いた以上、走っているものを
+        // 殺すのではなくそのコマンドを走らせるのが約束 (`z2-torch off` で消えるのであって、
+        // `z2-torch on` のプロセスを殺しても消えない)。
+        if (assigned.isPair) {
+            val on = TileStore.isOn(app, slot)
+            val next = if (on) assigned.offCommand.orEmpty() else assigned.command
+            Thread {
+                runCatching {
+                    HeadlessRun.launch(
+                        context = app,
+                        script = TileStore.scriptFor(app, assigned, next),
+                        logFile = File(File(app.filesDir, "shared_home"), TileStore.LOG_REL),
+                        // 入と切で実行キーを分ける。同じキーだと、切るコマンドを走らせた瞬間に
+                        // 入のほうを「実行中」と数えてしまう。
+                        name = TileStore.runKey(slot) + if (on) "-off" else "-on",
+                        header = HeadlessRun.logHeader("tile $slot $next"),
+                    )
+                    // 起動できたときだけ覚えを裏返す。失敗しても裏返すと、次の 1 回が
+                    // 「切るつもりが切れていないのに切ったことになる」ですれ違う。
+                    TileStore.setOn(app, slot, !on)
+                }.onFailure { Log.w(TAG, "tile $slot pair failed", it) }
+                render()
+            }.apply { isDaemon = true; name = "tile-$slot-pair"; start() }
+            return
+        }
         // z2-screen の枠は「掛かっているなら外す」。外すのはアプリ側で完結する操作なので、
         // わざわざ端末を起こして `z2-screen keepon off` を走らせない (proot の起動を待たずに済む)。
         // ⚠ 掛けるほうは今までどおりコマンドを走らせる — `1h` のような時間の読み方を
@@ -110,6 +136,15 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
                 tile.state = Tile.STATE_INACTIVE
                 tile.label = getString(R.string.tile_label_empty, slot)
                 tile.subtitle = getString(R.string.tile_subtitle_empty)
+            } else if (assigned.isPair) {
+                // 入 / 切の枠。緑 = アプリが「入にした」と覚えている状態 (実態を見に行く方法は
+                // 無い。詳しくは TileStore.isOn)。
+                val on = TileStore.isOn(app, slot)
+                tile.state = if (on) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+                tile.label = assigned.label
+                tile.subtitle = getString(
+                    if (on) R.string.tile_subtitle_pair_on else R.string.tile_subtitle_pair_off
+                )
             } else if (TileStore.isScreenKeepOn(assigned.command)) {
                 // この枠の緑は「掛かっている間」。残りはいま読んだ値で、シェードを開いている間は
                 // 進まない (OS がタイルを描き直さない) ので、分より細かくは出さない。
