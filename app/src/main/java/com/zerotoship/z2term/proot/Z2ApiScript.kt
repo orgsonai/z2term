@@ -193,6 +193,39 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |esac
     """.trimMargin() + "\n"
 
+    // クイック設定タイル (4 枠固定)。割り当てるのは「マクロのファイル名」か「そのまま走らせる
+    // コマンド」で、どちらかはアプリ側 (TileStore.scriptFor) が名前で判別する — 打つ側に
+    // 「これはマクロかコマンドか」を選ばせない。-l/--label は先に読み切ってから残りをコマンドにする。
+    val tile = "#!/bin/sh\n" + m.tileHelp + "\n" + """
+        |usage() {
+        |  echo "${m.tileUsage}" >&2
+        |  exit 1
+        |}
+        |sub="${d}{1:-list}"
+        |case "${d}sub" in
+        |  list) exec /usr/local/bin/z2api 1 tile list ;;
+        |  clear)
+        |    [ ${d}# -ge 2 ] || usage
+        |    exec /usr/local/bin/z2api 1 tile clear "${d}2" ;;
+        |  set)
+        |    shift
+        |    [ ${d}# -ge 2 ] || usage
+        |    n="${d}1"; shift
+        |    # -l/--label は**どこに書かれていても**拾う。表示名はコマンドの後ろに足したくなるので
+        |    # (`z2-tile set 2 'z2-screen keepon 1h' -l 消灯しない`)、頭だけ見る作りにしない。
+        |    label=""; cmd=""
+        |    while [ ${d}# -gt 0 ]; do
+        |      case "${d}1" in
+        |        -l|--label) label="${d}2"; shift 2 2>/dev/null || usage ;;
+        |        *) if [ -z "${d}cmd" ]; then cmd="${d}1"; else cmd="${d}cmd ${d}1"; fi; shift ;;
+        |      esac
+        |    done
+        |    [ -n "${d}cmd" ] || usage
+        |    exec /usr/local/bin/z2api 1 tile set "${d}n" "${d}cmd" "${d}label" ;;
+        |  *) usage ;;
+        |esac
+    """.trimMargin() + "\n"
+
     val alarm = "#!/bin/sh\n" + m.alarmHelp + "\n" + """
         |usage() {
         |  echo "usage: z2-alarm at HH:MM [name] | daily HH:MM [name] | in <N[s|m|h]> [name] | list | cancel <id|name|all>" >&2
@@ -377,6 +410,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         "z2-sensor" to sensor,
         "z2-state" to state,
         "z2-screen" to screen,
+        "z2-tile" to tile,
         "z2-noti" to noti,
         "z2-alarm" to alarm,
     )

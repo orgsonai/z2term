@@ -179,6 +179,51 @@ class Z2ApiScriptTest {
         }
     }
 
+    /**
+     * `z2-tile set` が**表示名とコマンドを取り違えない**こと。
+     *
+     * `-l/--label` は「コマンドの後ろに足したくなる」ものなので、頭だけ見る作りにすると
+     * `z2-tile set 2 'z2-screen keepon 1h' -l 消灯しない` の `-l 消灯しない` が**コマンドの一部**に
+     * 混ざり、タイルを押すたびに存在しない引数付きで走る。位置に関わらず拾えることを実際の `sh` で押さえる。
+     */
+    @Test
+    fun tileSetSeparatesLabelFromCommand() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val dir = Files.createTempDirectory("z2tile").toFile()
+        val stub = File(dir, "z2api").apply {
+            // 引数の境目が見えるように 1 引数 1 行で出す (空白を含むコマンドを確かめるため)。
+            writeText("#!/bin/sh\nfor a in \"\$@\"; do echo \"[\$a]\"; done\n")
+            setExecutable(true)
+        }
+        val script = File(dir, "z2-tile").apply {
+            writeText(scripts["z2-tile"]!!.replace("/usr/local/bin/z2api", stub.absolutePath))
+        }
+        fun run(vararg args: String): String {
+            val proc = ProcessBuilder(listOf(sh!!, script.absolutePath) + args)
+                .redirectErrorStream(true).start()
+            val out = proc.inputStream.bufferedReader().readText().trim()
+            proc.waitFor()
+            return out
+        }
+        try {
+            assertEquals("[1]\n[tile]\n[set]\n[1]\n[backup.sh]\n[]", run("set", "1", "backup.sh"))
+            // 表示名が後ろでも前でも、コマンドは同じに読めること。
+            val expected = "[1]\n[tile]\n[set]\n[2]\n[z2-screen keepon 1h]\n[消灯しない]"
+            assertEquals(expected, run("set", "2", "z2-screen", "keepon", "1h", "-l", "消灯しない"))
+            assertEquals(expected, run("set", "2", "-l", "消灯しない", "z2-screen", "keepon", "1h"))
+            assertEquals("[1]\n[tile]\n[list]", run())
+            assertEquals("[1]\n[tile]\n[clear]\n[all]", run("clear", "all"))
+            // コマンドが無い / 枠だけ / 未知のサブコマンドは usage で終わり、割り当てに行かない。
+            for (args in listOf(listOf("set"), listOf("set", "1"), listOf("bogus"))) {
+                val out = run(*args.toTypedArray())
+                assertTrue("usage が出ていない (${args.joinToString(" ")}): $out", out.contains("usage:"))
+            }
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
     /** A1: タブを操る `z2-session` が同梱され、5 つのサブコマンドを持つこと。 */
     @Test
     fun sessionHelperCoversAllSubcommands() {

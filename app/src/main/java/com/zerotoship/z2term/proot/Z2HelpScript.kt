@@ -40,6 +40,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-intent -a ACT -d URI ...    Fire any Android Intent (see MACRO-GUIDE)
         |  z2-state [key]                 Current state as JSON (or one key raw)
         |  z2-screen keepon 1h | off      Stop the screen turning off by itself, for a while
+        |  z2-tile set 1 backup.sh        Put a macro/command on a quick-settings tile (4 slots)
         |  z2-alarm at|daily HH:MM [name] Time trigger -> events.jsonl (list/cancel too)
         |  z2-when <trigger> run <cmd>    Auto-run on charge/battery/time/events (z2-when for usage)
         |  z2-macro list|install <name>   Bundled automation samples (see MACRO-GUIDE)
@@ -83,6 +84,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-intent -a ACT -d URI ...    任意の Android Intent を発火(MACRO-GUIDE 参照)
         |  z2-state [キー]                今の状態を JSON で(キー指定でその値だけ)
         |  z2-screen keepon 1h | off      その時間だけ画面が自分で消えないようにする
+        |  z2-tile set 1 backup.sh        クイック設定タイルにマクロ/コマンドを割り当て(4枠)
         |  z2-alarm at|daily HH:MM [名前] 時刻トリガー→events.jsonl(list/cancel も)
         |  z2-when <トリガー> run <コマンド> 充電/電池/時刻/端末イベントで自動実行(使い方は z2-when)
         |  z2-macro list|install <名前>   自動化マクロの同梱サンプル(MACRO-GUIDE 参照)

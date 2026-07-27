@@ -46,6 +46,8 @@ import androidx.core.net.toUri
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.core.TerminalSession
+import com.zerotoship.z2term.tile.TileStore
+import com.zerotoship.z2term.tile.Z2TileService
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -228,6 +230,8 @@ object Z2ApiBridge {
             "state" -> stateRead(context, args.getOrNull(0).orEmpty())
             // z2-screen: OS の自動画面消灯を期限つきで止める (🔅 とは別物・[ScreenTimeout] 参照)。
             "screen" -> screenCmd(context, args)
+            // z2-tile: クイック設定タイル 4 枠への割り当て。
+            "tile" -> tileCmd(context, args)
             // z2doctor 用。**アプリ側にしか無い情報**（許可の有無・設定・常駐の数）をまとめて返す。
             "doctor" -> doctorRead(context)
             // z2-noti: いま出ている通知を読むだけ (押す・消すは提供しない)。
@@ -574,6 +578,40 @@ object Z2ApiBridge {
         "off" -> ScreenTimeout.cancel(context)
         "status", null, "" -> ScreenTimeout.statusJson(context)
         else -> throw IllegalArgumentException("screen: unknown subcommand: ${args[0]}")
+    }
+
+    /**
+     * クイック設定タイル (`z2-tile`)。CLI 側で `set <枠> <コマンド> <ラベル>` / `list` /
+     * `clear <枠|all>` に正規化済み。
+     *
+     * `list` は **1 行 1 枠の TSV** (`<枠> <ラベル> <コマンド>`)。未割り当ての枠も `-` として出す —
+     * 「どの番号が空いているか」が分からないと次に何番へ入れればよいか決められないため。
+     */
+    private fun tileCmd(context: Context, args: List<String>): String = when (args.getOrNull(0)) {
+        "set" -> {
+            val n = args.getOrNull(1)?.toIntOrNull()
+                ?: throw IllegalArgumentException("z2-tile: 枠は 1〜${TileStore.COUNT} です")
+            TileStore.set(context, n, args.getOrNull(2).orEmpty(), args.getOrNull(3).orEmpty())
+            Z2TileService.requestUpdate(context, n)
+            tileListTsv(context)
+        }
+        "clear" -> {
+            val key = args.getOrNull(1).orEmpty()
+            val targets = if (key == "all") (1..TileStore.COUNT).toList()
+            else listOf(
+                key.toIntOrNull()
+                    ?: throw IllegalArgumentException("z2-tile: 枠は 1〜${TileStore.COUNT} か all です")
+            )
+            targets.forEach { TileStore.clear(context, it); Z2TileService.requestUpdate(context, it) }
+            tileListTsv(context)
+        }
+        "list", null, "" -> tileListTsv(context)
+        else -> throw IllegalArgumentException("z2-tile: unknown subcommand: ${args[0]}")
+    }
+
+    private fun tileListTsv(context: Context): String = (1..TileStore.COUNT).joinToString("\n") { n ->
+        val s = TileStore.get(context, n)
+        if (s == null) "$n\t-\t-" else "$n\t${s.label}\t${s.command}"
     }
 
     /**
