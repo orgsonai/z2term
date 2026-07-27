@@ -539,7 +539,7 @@
     <string name="log_recording">このタブを記録する</string>
     <string name="log_recording_desc">画面に出た内容をテキストファイルに書き続けます</string>
     <string name="log_auto_start">新しいタブは自動で記録する</string>
-    <string name="log_auto_start_desc">タブが繋がった時点から勝手に録り始めます（⏺ を押し忘れても残ります）。次に開くタブから有効</string>
+    <string name="log_auto_start_desc">タブが繋がった時点から勝手に録り始めます（⚪ を押し忘れても残ります）。次に開くタブから有効</string>
     <string name="log_copy_open_command">端末で開くコマンドをコピー</string>
     <string name="log_dir">保存先フォルダ</string>
     <string name="log_dir_desc">ホーム (~) からの相対。端末からもファイラーからも開けます</string>
@@ -556,6 +556,8 @@
     <string name="log_alt_screen_desc">画面を書き換えながら描くアプリの表示。OFF 推奨（読めるテキストになりません）</string>
     <string name="log_raw">色や制御文字をそのまま残す</string>
     <string name="log_raw_desc">不具合報告用の生ログ。OFF なら人が読めるテキストに直します</string>
+    <string name="log_timestamp">各行の先頭に日時を付ける</string>
+    <string name="log_timestamp_desc">[2026-07-27 08:42:13] のように、桁の揃った日時を行頭に付けます。生ログのときは付きません（バイト列をそのまま残すため）</string>
     <string name="log_mask">鍵・トークンを伏せ字にする</string>
     <string name="log_mask_desc">TOKEN=… のような「名前＝値」と、貼り付けた秘密鍵、ghp_ / AKIA などの決まった形のトークンを [z2term:masked] に置き換えます</string>
     <string name="log_secret_warning">※ 画面に出たものはそのまま入ります（打っただけで画面に出ないパスワードは入りません）。記録中はツールバーのボタンが点灯します。\n※ 伏せ字は形がはっきりしているものだけが対象で、完全ではありません。独自の形の秘密は素通りします。人に渡す前に必ず中身を確認してください。</string>

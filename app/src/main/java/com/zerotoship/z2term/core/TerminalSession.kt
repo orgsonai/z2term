@@ -124,7 +124,7 @@ class TerminalSession(
     )
 
     /**
-     * 端末ログ (ツールバー ⏺) の状態。
+     * 端末ログ (ツールバー ⚪) の状態。
      *
      * @param recording 記録中か (ツールバーのボタンが点灯している状態)。
      * @param path      書き込み中のファイルの**端末から見たパス** (`~/z2term-log/....txt`)。
@@ -185,7 +185,7 @@ class TerminalSession(
     private val _cellMetrics = MutableStateFlow(CellMetrics())
     val cellMetrics: StateFlow<CellMetrics> = _cellMetrics.asStateFlow()
 
-    // --- 端末ログ (ツールバー ⏺) ---
+    // --- 端末ログ (ツールバー ⚪) ---
     // 記録の ON/OFF は**タブごと**の状態で、永続化しない (アプリを開き直すと必ず OFF)。
     // 画面に出たものがそのままファイルに入る機能なので、意図せず記録が続いている状態を作らない。
     private var logger: SessionLogger? = null
@@ -387,6 +387,7 @@ class TerminalSession(
     fun setSessionLogAltScreen(value: Boolean) { scope.launch { settings.setSessionLogAltScreen(value) } }
     fun setSessionLogAutoStart(value: Boolean) { scope.launch { settings.setSessionLogAutoStart(value) } }
     fun setSessionLogMaskSecrets(value: Boolean) { scope.launch { settings.setSessionLogMaskSecrets(value) } }
+    fun setSessionLogTimestamp(value: Boolean) { scope.launch { settings.setSessionLogTimestamp(value) } }
     fun setConfirmBeforeDownload(enabled: Boolean) { scope.launch { settings.setConfirmBeforeDownload(enabled) } }
     fun setGuiAudioEnabled(enabled: Boolean) { scope.launch { settings.setGuiAudioEnabled(enabled) } }
     fun setGuiTerminal(id: String) { scope.launch { settings.setGuiTerminal(id) } }
@@ -708,7 +709,7 @@ class TerminalSession(
 
     private fun startReadLoop(ch: ProcessChannel) {
         readJob?.cancel()
-        // ⏺ の自動開始 (0.8.243)。**チャネルが繋がった直後 = タブに何か出る直前**のここ 1 か所で
+        // ⚪ の自動開始 (0.8.243)。**チャネルが繋がった直後 = タブに何か出る直前**のここ 1 か所で
         // 判定する。ローカル / android-sh フォールバック / SSH のどの経路も必ず通るので、
         // 起動経路を足したときに付け忘れが起きない。
         //
@@ -740,7 +741,7 @@ class TerminalSession(
                         val deltaScrollback = withContext(emulatorDispatcher) {
                             val before = emulator.buffer.scrollbackSize
                             emulator.processBytes(chunk, chunk.size)
-                            // 端末ログ (⏺) の分岐点。**タブに出るものは必ずここを通る**唯一の場所。
+                            // 端末ログ (⚪) の分岐点。**タブに出るものは必ずここを通る**唯一の場所。
                             // エミュレータに食わせた「後」に渡すのは、alt screen に入ったかどうかが
                             // この塊を処理した後でないと正しく判定できないため。
                             // 書き込み自体は SessionLogger 側の専用スレッドへ積むだけで、
@@ -944,9 +945,9 @@ class TerminalSession(
     fun emitToast(message: String) { _toastEvents.tryEmit(message) }
 
     /** セッションを終了 (PTY を閉じてジョブをキャンセル) */
-    // ---------------------------------------------------------------- 端末ログ (⏺)
+    // ---------------------------------------------------------------- 端末ログ (⚪)
 
-    /** ツールバー ⏺ の短押し。記録していなければ始め、していれば止める。 */
+    /** ツールバー ⚪ の短押し。記録していなければ始め、していれば止める。 */
     fun toggleLogging() {
         if (_logState.value.recording) stopLogging() else startLogging()
     }
@@ -959,7 +960,7 @@ class TerminalSession(
      * ファイル名は設定のテンプレート (`{date}` / `{tab}`) から作り、追記 OFF のときに同名が
      * 既にあれば `-2` `-3` を足して**上書きしない**。
      *
-     * @param snapshot 使う設定。省略時は [settingsFlow] の現在値 (= ユーザーが ⏺ を押した場合)。
+     * @param snapshot 使う設定。省略時は [settingsFlow] の現在値 (= ユーザーが ⚪ を押した場合)。
      *   **自動開始の経路は必ず読み直した値を渡すこと** — 起動直後は [settingsFlow] がまだ既定値で、
      *   保存先やファイル名を変えている人だけ「1 本目のタブが既定の場所に落ちる」ことになる。
      */
@@ -982,7 +983,8 @@ class TerminalSession(
                 file,
                 append = s.sessionLogAppend,
                 raw = s.sessionLogRaw,
-                mask = s.sessionLogMaskSecrets
+                mask = s.sessionLogMaskSecrets,
+                timestamp = s.sessionLogTimestamp
             )
         }
             .getOrElse {

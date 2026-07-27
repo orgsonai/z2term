@@ -102,7 +102,7 @@ class ToolbarOrderTest {
 
     @Test
     fun guiTabDoesNotInventButtonsItDoesNotHave() {
-        // GUI タブは 🔍/⏺ を持たない。その状態で並べ替えても重複を作らない。
+        // GUI タブは 🔍/⚪ を持たない。その状態で並べ替えても重複を作らない。
         val guiIds = listOf("paste", "snippets", "screen_on", "keep_alive", "keyboard")
         val out = ToolbarButtons.normalizeOrder(
             savedCsv = all.joinToString(","),

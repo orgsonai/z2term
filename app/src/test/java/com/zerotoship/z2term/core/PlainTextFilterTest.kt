@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * 端末ログ (ツールバー ⏺) のプレーンテキスト変換 ([PlainTextFilter]) の回帰テスト。
+ * 端末ログ (ツールバー ⚪) のプレーンテキスト変換 ([PlainTextFilter]) の回帰テスト。
  *
  * ここが壊れると「ログは取れているが読めない / 何千行にも膨れる」という形で出るため、
  * 実際に踏みやすいパターン (進捗表示・CRLF・色付きプロンプト・分割された UTF-8) を固定する。
