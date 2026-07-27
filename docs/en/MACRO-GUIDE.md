@@ -104,7 +104,7 @@ z2-when 'event:ringer_*' run 'z2-toast "ringer: $Z2_WHEN_EVENT"'
 z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
 ```
 
-**Filters** (0.8.259 — put them right after the trigger, before `run`; they work the same for every kind of trigger):
+**Filters** (0.8.263 — put them right after the trigger, before `run`; they work the same for every kind of trigger):
 
 | Written as | Meaning |
 |---|---|

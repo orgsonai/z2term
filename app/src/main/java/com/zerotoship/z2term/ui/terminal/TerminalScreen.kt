@@ -1761,11 +1761,12 @@ private fun PastePreviewBar(
             // 見落とし対策 (0.8.255): 帯そのものをアクセント色で塗る。
             // 以前は背景も枠も周囲と同系の暗色で、**出ていることに気付けず貼らずに進んでしまう**
             // という報告があった。薄く敷くだけ (12%) では**端末の文字が透けて帯に見えない**と
-            // 再度指摘されたので、ほぼ不透明まで上げた。⚠ ここを濃くしたら前景も一緒に
-            // 反転させること — 緑地に緑文字では読めない (下の色はすべてそのための暗色)。
+            // 再度指摘されたので、ほぼ不透明まで上げた。0.8.259 で**透明度 20% (= 不透明度
+            // 80%)** に落ち着かせた。⚠ ここを薄くしたぶん前景は濃くすること — 地が透ける
+            // ほど下の端末文字と混ざって、薄い前景から先に読めなくなる。
             // 出る場所は変えない (SearchBar と同じ位置) — 動かすと「どこに出るか」の
             // 学習が無駄になるので、強めるのは色と押しやすさだけにする。
-            .background(ZtsGreen.copy(alpha = 0.9f))
+            .background(ZtsGreen.copy(alpha = 0.8f))
             .border(width = 2.dp, color = ZtsGreen)
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1785,10 +1786,13 @@ private fun PastePreviewBar(
         // 中身は最大 2 行だけ覗かせる (全文を見せる場所ではない)。
         Text(
             text = lines.take(2).joinToString(" ⏎ ") { it.trim() },
-            // 緑地なので二次情報も暗色。薄くして主役 (行数と「貼る」) と差を付ける。
-            color = ZtsBgPrimary.copy(alpha = 0.7f),
+            // 緑地なので二次情報も暗色。⚠ ここは**細字にも薄くもしない** (0.8.259) —
+            // 11sp の等幅で細いままだと「何を貼るのか」が読めず、帯を出した意味が消える。
+            // 主役 (行数と「貼る」) との差は**文字の大きさ**だけで付ける。
+            color = ZtsBgPrimary,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)

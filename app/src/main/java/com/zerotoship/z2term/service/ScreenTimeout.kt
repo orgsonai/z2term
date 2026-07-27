@@ -64,8 +64,9 @@ object ScreenTimeout {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     /**
-     * [seconds] の間、自動消灯を止める。既に掛かっていれば**期限だけ延ばす**
-     * (元の値は最初に掛けたときのものを保ち続ける — 上書きすると「なし」が元の値になってしまう)。
+     * [seconds] の間、自動消灯を止める。既に掛かっていれば**期限を [seconds] 後で置き換える**
+     * (縮めることもできる — 掛けすぎたときに打ち直せないと外すしかなくなる)。
+     * 元の値は最初に掛けたときのものを保ち続ける (上書きすると「なし」が元の値になってしまう)。
      * @return 状態 JSON ([statusJson] と同じ形)
      */
     fun keepOn(context: Context, seconds: Long): String {
@@ -135,6 +136,15 @@ object ScreenTimeout {
             }
         }.toString()
     }
+
+    /**
+     * 掛かっているなら**いつまで** (epoch ミリ秒)、掛かっていなければ null。
+     *
+     * [statusJson] と同じ情報だが、こちらは JSON を組まないのでクイック設定タイルのように
+     * **描くたびに読む**ところから呼べる ([statusJson] を parse させると、表示のために
+     * JSON を作って壊す往復が毎回入る)。正本は [statusJson] と同じ保存ファイル 1 つ。
+     */
+    fun keepOnUntil(context: Context): Long? = synchronized(lock) { load(context) }?.until
 
     /** 許可が無いときに CLI へ返す文言。設定画面への行き方まで書く (端末側では開けないため)。 */
     const val NOT_ALLOWED: String =

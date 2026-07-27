@@ -102,7 +102,7 @@ z2-when 'event:ringer_*' run 'z2-toast "マナーモード: $Z2_WHEN_EVENT"'
 z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
 ```
 
-**条件で絞る**（0.8.259。きっかけの直後・`run` より前に置きます。どのきっかけにも同じように効きます）:
+**条件で絞る**（0.8.263。きっかけの直後・`run` より前に置きます。どのきっかけにも同じように効きます）:
 
 | 書き方 | 意味 |
 |---|---|

@@ -213,15 +213,26 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    n="${d}1"; shift
         |    # -l/--label は**どこに書かれていても**拾う。表示名はコマンドの後ろに足したくなるので
         |    # (`z2-tile set 2 'z2-screen keepon 1h' -l 消灯しない`)、頭だけ見る作りにしない。
-        |    label=""; cmd=""
+        |    # --off から後ろは「切るときのコマンド」。⚠ 引数を 2 つ並べるだけの形にはできない
+        |    # (`z2-tile set 1 ls -la` が「入=ls / 切=-la」に化ける)。区切りを明示させる。
+        |    label=""; cmd=""; off=""; seen_off=0
         |    while [ ${d}# -gt 0 ]; do
         |      case "${d}1" in
         |        -l|--label) label="${d}2"; shift 2 2>/dev/null || usage ;;
-        |        *) if [ -z "${d}cmd" ]; then cmd="${d}1"; else cmd="${d}cmd ${d}1"; fi; shift ;;
+        |        --off) seen_off=1; shift ;;
+        |        *)
+        |          if [ "${d}seen_off" = 1 ]; then
+        |            if [ -z "${d}off" ]; then off="${d}1"; else off="${d}off ${d}1"; fi
+        |          else
+        |            if [ -z "${d}cmd" ]; then cmd="${d}1"; else cmd="${d}cmd ${d}1"; fi
+        |          fi
+        |          shift ;;
         |      esac
         |    done
         |    [ -n "${d}cmd" ] || usage
-        |    exec /usr/local/bin/z2api 1 tile set "${d}n" "${d}cmd" "${d}label" ;;
+        |    # --off と書いたのに中身が無いのは打ち間違い。空で通すと「押しても切れないトグル」になる。
+        |    [ "${d}seen_off" = 0 ] || [ -n "${d}off" ] || usage
+        |    exec /usr/local/bin/z2api 1 tile set "${d}n" "${d}cmd" "${d}label" "${d}off" ;;
         |  *) usage ;;
         |esac
     """.trimMargin() + "\n"
