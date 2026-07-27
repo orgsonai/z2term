@@ -1757,13 +1757,19 @@ private fun PastePreviewBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(44.dp)
-            .background(ZtsBgSecondary)
-            .border(width = 1.dp, color = ZtsBorder)
+            .height(48.dp)
+            // 見落とし対策 (0.8.255): 帯そのものをアクセント色で縁取り、薄く緑を敷く。
+            // 以前は背景も枠も周囲と同系の暗色で、**出ていることに気付けず貼らずに進んでしまう**
+            // という報告があった。出る場所は変えない (SearchBar と同じ位置) — 動かすと
+            // 「どこに出るか」の学習が無駄になるので、強めるのは色と押しやすさだけにする。
+            .background(ZtsGreen.copy(alpha = 0.12f))
+            .border(width = 2.dp, color = ZtsGreen)
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        // 何の帯かを一目で分からせる。ツールバーの 📋 と同じ絵文字にして結び付ける。
+        Text(text = "📋", fontSize = 14.sp, maxLines = 1)
         // 行数を先頭に置く。ここでいちばん効く情報は「何行入るか」。
         Text(
             text = pluralStringResource(R.plurals.paste_preview_lines, lines.size, lines.size),
@@ -1782,17 +1788,21 @@ private fun PastePreviewBar(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
+        // 「貼る」は**塗りつぶし**にする。緑の文字だけだとラベルに見えて押せると分からず、
+        // 帯を出した意味が無くなる (実機報告)。ここは画面で唯一の主ボタンなので迷わせない。
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
+                .clip(RoundedCornerShape(6.dp))
+                .background(ZtsGreen)
                 .clickable(onClick = onPaste)
-                .padding(horizontal = 10.dp, vertical = 6.dp)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
             Text(
                 text = stringResource(R.string.paste_preview_do),
-                color = ZtsGreen,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace
+                color = ZtsBgPrimary,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
             )
         }
         Box(
