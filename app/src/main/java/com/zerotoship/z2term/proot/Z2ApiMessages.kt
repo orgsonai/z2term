@@ -260,6 +260,17 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#                                        … a notification arrived (needs notification access)
         |#            event:<name> | event:<prefix>* | event:*  … any device event, by name
         |#              (z2-when events lists them; same names as in events.jsonl)
+        |# Filters (any trigger, right after it — before run):
+        |#   if=<cond>[,<cond>...]   … only when the device is in that state (AND; ! negates)
+        |#                             keys are the ones z2-state prints: wifi charging screen locked
+        |#                             idle headset bt_audio airplane plug ssid ringer level temp volume
+        |#                             e.g. if=wifi,!screen / if=ssid=Home / if=level<30
+        |#   cooldown=30m            … do not run again within that time (10s / 30m / 2h)
+        |#   between=22:00-07:00     … only inside that window (wraps past midnight)
+        |#   days=mon-fri            … only on those days (names or cron numbers 0-7, 0/7 = Sunday)
+        |# Skipped runs are recorded too — z2-when fired shows skip:if / skip:between / skip:days
+        |# / skip:cooldown, so a rule that never runs can be explained. The ▶ button in the app
+        |# ignores every filter (it is there to try the rule out).
         |# z2-when events                        … list the names usable with event:
         |# z2-when pause / resume                … stop / resume automatic runs (rules are kept)
         |# z2-when fired [n]                     … recent fires (time / id / trigger / run|paused)
@@ -294,6 +305,17 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#                                        … 通知が届いたとき (通知アクセスの許可が前提)
         |#            event:<名前> | event:<接頭辞>* | event:*  … 端末イベントを名前で拾う
         |#              (名前は z2-when events で一覧。events.jsonl に出るものと同じ)
+        |# 絞り込み (どのトリガーでも使える。トリガーの直後・run より前に置く):
+        |#   if=<条件>[,<条件>...]   … 端末がその状態のときだけ実行 (カンマは AND。頭の ! で否定)
+        |#                             使えるキーは z2-state が出すもの: wifi charging screen locked
+        |#                             idle headset bt_audio airplane plug ssid ringer level temp volume
+        |#                             例: if=wifi,!screen / if=ssid=Home / if=level<30
+        |#   cooldown=30m            … 前回の実行からこの時間は再実行しない (10s / 30m / 2h)
+        |#   between=22:00-07:00     … この時間帯だけ実行 (日跨ぎ可)
+        |#   days=mon-fri            … この曜日だけ実行 (曜日名か cron と同じ数字 0-7 / 0,7=日曜)
+        |# 弾いたことも記録する — z2-when fired に skip:if / skip:between / skip:days / skip:cooldown
+        |# として出るので、「動かない理由」が分かる。アプリ画面の ▶ は絞り込みを無視する
+        |# (試すためのボタンなので)。
         |# z2-when events                        … event: で使えるイベント名の一覧
         |# z2-when pause / resume                … 自動実行を一時停止 / 再開 (ルールは消えない)
         |# z2-when fired [n]                     … 直近の発火 (時刻 / id / トリガー / run|paused)
@@ -335,6 +357,11 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
 
     val whenWriteFailed: String =
         if (en) "z2-when: could not write the rule" else "z2-when: 書き込みに失敗しました"
+
+    /** `if=` に知らないキーを書いたとき。**キー名は呼び元がこの後ろに足す**。 */
+    val whenUnknownIfKey: String =
+        if (en) "z2-when: unknown if= key (z2-state lists what you can use):"
+        else "z2-when: if= に書けない条件です (使えるものは z2-state が出す項目):"
 
     val whenPausedWarn: String =
         if (en) "note: automatic runs are paused (z2-when resume to start again)"

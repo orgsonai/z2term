@@ -13,12 +13,21 @@ package com.zerotoship.z2term.settings
  * trigger=charge:start
  * run=~/.z2term/macros/backup.sh
  * enabled=1
+ * if=wifi,!screen
+ * cooldown=30m
+ * between=22:00-07:00
+ * days=mon-fri
  * order=0
  * ```
  *
  * `order` は**画面での並び順**だけを持つ任意項目 (0.8.249)。CLI (`z2-when`) は書かないので、
  * 端末から登録したルールには付かない ([order] = [NO_ORDER])。[parse] は知らないキーを黙って
- * 無視するので、どちらから書いても壊れない。
+ * 無視するので、どちらから書いても壊れない。**この「知らないキーは無視」のおかげで、後から
+ * 項目を足しても古い版のアプリがルールを読めなくなることは無い** (0.8.259 の [condition] 等)。
+ *
+ * 絞り込み ([condition] / [cooldown] / [between] / [days]・0.8.259) は**どのトリガーにも
+ * 同じように効く**。判定は [com.zerotoship.z2term.service.WhenGuard]、適用は
+ * [com.zerotoship.z2term.service.WhenManager] の実行入口 1 か所。
  *
  * トリガー書式 (stage 1):
  *  - `charge:start` / `charge:stop`        … 充電の開始 / 停止 (検知 ON が前提。0.8.214 で受け口を変更)
@@ -47,6 +56,14 @@ data class WhenRule(
     val enabled: Boolean = true,
     /** 画面での並び順。[NO_ORDER] = 未指定 (画面で並べ替えるまでは id 順)。 */
     val order: Int = NO_ORDER,
+    /** `if=` … 発火した瞬間の端末の状態で絞る (空 = 絞らない)。書式は [WhenRule] の KDoc 参照。 */
+    val condition: String = "",
+    /** `cooldown=` … 前回の実行からこの時間は再実行しない (空 = 抑制しない)。例: `30m`。 */
+    val cooldown: String = "",
+    /** `between=` … この時間帯だけ実行する (空 = いつでも)。例: `22:00-07:00` (日跨ぎ可)。 */
+    val between: String = "",
+    /** `days=` … この曜日だけ実行する (空 = 毎日)。例: `mon-fri`。 */
+    val days: String = "",
 ) {
     /** トリガーの種別 (`:` の手前)。例: `charge` / `battery` / `time`。 */
     val kind: String get() = trigger.substringBefore(':', "").trim()
@@ -54,11 +71,20 @@ data class WhenRule(
     /** トリガーの引数 (`:` の後ろ)。例: `start` / `below=20` / `daily=03:00`。 */
     val spec: String get() = trigger.substringAfter(':', "").trim()
 
+    /** 絞り込み ([condition] / [cooldown] / [between] / [days]) を 1 つでも持っているか。 */
+    val hasFilters: Boolean
+        get() = condition.isNotEmpty() || cooldown.isNotEmpty() ||
+            between.isNotEmpty() || days.isNotEmpty()
+
     fun serialize(): String = buildString {
         append("trigger=").append(trigger).append('\n')
         append("run=").append(run).append('\n')
         append("enabled=").append(if (enabled) "1" else "0").append('\n')
         // 未指定のときは書かない (端末から登録したままのルールに余計な行を足さない)。
+        if (condition.isNotEmpty()) append("if=").append(condition).append('\n')
+        if (cooldown.isNotEmpty()) append("cooldown=").append(cooldown).append('\n')
+        if (between.isNotEmpty()) append("between=").append(between).append('\n')
+        if (days.isNotEmpty()) append("days=").append(days).append('\n')
         if (order != NO_ORDER) append("order=").append(order).append('\n')
     }
 
@@ -72,6 +98,10 @@ data class WhenRule(
             var run = ""
             var enabled = true
             var order = NO_ORDER
+            var condition = ""
+            var cooldown = ""
+            var between = ""
+            var days = ""
             text.lineSequence().forEach { line ->
                 val eq = line.indexOf('=')
                 if (eq <= 0) return@forEach
@@ -86,10 +116,15 @@ data class WhenRule(
                     // 壊れた値 (手書きの typo 等) は未指定として扱う。並び順のためにルールを
                     // 読めなくするのは割に合わない。
                     "order" -> order = value.trim().toIntOrNull()?.takeIf { it >= 0 } ?: NO_ORDER
+                    // 絞り込みは空白を含まない書式なので trim する (手書きの余白で効かなくならないように)。
+                    "if" -> condition = value.trim()
+                    "cooldown" -> cooldown = value.trim()
+                    "between" -> between = value.trim()
+                    "days" -> days = value.trim()
                 }
             }
             if (trigger.isBlank() || run.isBlank()) return null
-            return WhenRule(id, trigger, run, enabled, order)
+            return WhenRule(id, trigger, run, enabled, order, condition, cooldown, between, days)
         }
     }
 }

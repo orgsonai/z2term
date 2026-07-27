@@ -100,6 +100,66 @@ class Z2ApiScriptTest {
     }
 
     /**
+     * A6: 絞り込み (`if=` / `cooldown=` / `between=` / `days=`・0.8.259) をルールファイルへ書くこと。
+     *
+     * ここは**書式の合意**そのもの — 絞り込みはトリガーの直後に置き、`run` の後ろは全部コマンド。
+     * 取り違えると「コマンドの一部が絞り込みとして食われる」か「絞り込みが黙って無視される」に
+     * なり、どちらも実行時まで気付けない。実際に `sh` で走らせて、書かれたファイルで確かめる。
+     */
+    @Test
+    fun whenFiltersAreWrittenToTheRuleFile() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val script = File.createTempFile("z2when", ".sh").apply { writeText(scripts["z2-when"]!!) }
+        val home = Files.createTempDirectory("z2home").toFile()
+        try {
+            fun run(vararg args: String): String {
+                val pb = ProcessBuilder(listOf(sh!!, script.absolutePath) + args).redirectErrorStream(true)
+                pb.environment()["HOME"] = home.absolutePath
+                val proc = pb.start()
+                val out = proc.inputStream.bufferedReader().readText()
+                proc.waitFor()
+                return out
+            }
+
+            run(
+                "charge:start", "if=ssid=Home,!screen", "cooldown=1h",
+                "between=22:00-07:00", "days=mon-fri", "run", "echo hi", "there"
+            )
+            val rule = File(home, ".z2term/when").listFiles { f -> f.name.endsWith(".rule") }
+                .orEmpty().single().readText()
+            assertTrue("if= が書かれていない: $rule", "if=ssid=Home,!screen\n" in rule)
+            assertTrue("cooldown= が書かれていない: $rule", "cooldown=1h\n" in rule)
+            assertTrue("between= が書かれていない: $rule", "between=22:00-07:00\n" in rule)
+            assertTrue("days= が書かれていない: $rule", "days=mon-fri\n" in rule)
+            // run の後ろは**全部**コマンド (空白で切れていない)。
+            assertTrue("コマンドが欠けている: $rule", "run=echo hi there\n" in rule)
+
+            // 絞り込みを付けなければ今までどおりの 3 行のまま (既存ルールの見え方を変えない)。
+            run("charge:stop", "run", "echo plain")
+            val plain = File(home, ".z2term/when").listFiles { f -> f.name.endsWith(".rule") }
+                .orEmpty().map { it.readText() }.single { "echo plain" in it }
+            assertTrue("余計な行が付いている: $plain", plain.lines().none { it.startsWith("if=") })
+
+            // 一覧では絞り込みが末尾に出る (端末でそのまま打ち直せる表記のまま)。
+            val list = run("list")
+            assertTrue("list に絞り込みが出ていない: $list", "[if=ssid=Home,!screen" in list)
+
+            // 知らない条件キーは登録の時点で弾く (実行時に黙って不成立になるより早く気付ける)。
+            val bad = run("charge:start", "if=batery<30", "run", "echo nope")
+            assertTrue("知らない if= キーが弾かれていない: $bad", "batery" in bad)
+            assertTrue(
+                "弾いたのにルールが作られている",
+                File(home, ".z2term/when").listFiles { f -> f.name.endsWith(".rule") }
+                    .orEmpty().none { "echo nope" in it.readText() }
+            )
+        } finally {
+            script.delete()
+            home.deleteRecursively()
+        }
+    }
+
+    /**
      * A6: `z2-when events` が `event:<名前>` に書ける名前を実際に一覧すること (0.8.226)。
      *
      * 一覧はヒアドキュメントで持っているので、`|` の剥がれ方や終端 (`EOS`) の位置がずれると

@@ -10,6 +10,7 @@ import com.zerotoship.z2term.widget.StatusWidgetProvider
 import com.zerotoship.z2term.widget.TailWidgetProvider
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -49,6 +50,9 @@ object WhenManager {
 
     /** [FIRED_LOG] に残す件数。ファイルが太らない範囲で、直近の様子が分かるだけの長さ。 */
     private const val FIRED_KEEP = 50
+
+    /** `cooldown=` 判定用の「最後に実行した時刻」(`id=エポックミリ秒`)。[readLastFire] 参照。 */
+    private const val LASTFIRE_STATE = ".lastfire"
 
     /** ルールディレクトリ (`filesDir/shared_home/.z2term/when` = 端末からは `~/.z2term/when`)。 */
     fun whenDir(context: Context): File =
@@ -549,6 +553,78 @@ object WhenManager {
         }.onFailure { Log.w(TAG, "fired log failed: ${it.message}") }
     }
 
+    // --- 絞り込み (if / between / days / cooldown) ---
+
+    /**
+     * このルールを**いま実行してよいか**を見て、駄目なら理由 ([WhenGuard] の `skip:*`) を返す。
+     * 実行してよければ null。
+     *
+     * 判定は**安い順**に並べてある — 時計を見るだけの `between`/`days`、ファイルを 1 つ読む
+     * `cooldown`、端末の状態を集める `if` の順。手前で弾ければ後ろは評価しない。
+     */
+    private fun skipReason(context: Context, rule: WhenRule): String? {
+        val cal = Calendar.getInstance()
+        if (rule.between.isNotEmpty()) {
+            val minute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
+            if (!WhenGuard.inWindow(rule.between, minute)) return WhenGuard.SKIP_BETWEEN
+        }
+        if (rule.days.isNotEmpty()) {
+            // Calendar は 1 = 日曜。WhenGuard は 0 = 日曜なので 1 引いて渡す。
+            if (!WhenGuard.dayAllowed(rule.days, cal.get(Calendar.DAY_OF_WEEK) - 1)) {
+                return WhenGuard.SKIP_DAYS
+            }
+        }
+        if (rule.cooldown.isNotEmpty()) {
+            val ms = WhenGuard.cooldownMs(rule.cooldown)
+            val last = readLastFire(context)[rule.id] ?: 0L
+            if (ms > 0 && last > 0 && System.currentTimeMillis() - last < ms) {
+                return WhenGuard.SKIP_COOLDOWN
+            }
+        }
+        if (rule.condition.isNotEmpty()) {
+            if (!WhenGuard.conditionsMet(rule.condition, Z2ApiBridge.stateSnapshot(context))) {
+                return WhenGuard.SKIP_IF
+            }
+        }
+        return null
+    }
+
+    /**
+     * `cooldown=` 判定用の「最後に実行した時刻」(`id=エポックミリ秒` の行)。
+     *
+     * [FIRED_LOG] は 50 件で切り詰めるので**判定の根拠にはできない** (発火の多いルールが
+     * 混ざると、直前に走ったことが記録から押し出される)。専用の小さなファイルで持つ。
+     */
+    private fun readLastFire(context: Context): Map<String, Long> =
+        runCatching {
+            File(whenDir(context), LASTFIRE_STATE).readLines().mapNotNull { line ->
+                val eq = line.indexOf('=')
+                if (eq <= 0) return@mapNotNull null
+                val t = line.substring(eq + 1).trim().toLongOrNull() ?: return@mapNotNull null
+                line.substring(0, eq).trim() to t
+            }.toMap()
+        }.getOrDefault(emptyMap())
+
+    /** [ruleId] の最終実行時刻を今にする ([cooldown][WhenRule.cooldown] があるルールだけ呼ぶ)。 */
+    private fun markFired(context: Context, ruleId: String) {
+        runCatching {
+            val dir = whenDir(context).apply { mkdirs() }
+            val updated = readLastFire(context) + (ruleId to System.currentTimeMillis())
+            File(dir, LASTFIRE_STATE)
+                .writeText(updated.entries.joinToString("\n", postfix = "\n") { "${it.key}=${it.value}" })
+        }.onFailure { Log.w(TAG, "lastfire write failed: ${it.message}") }
+    }
+
+    /** ルールを消したときに [LASTFIRE_STATE] の行も落とす (消えた id の記録を残さない)。 */
+    private fun forgetLastFire(context: Context, ruleId: String) {
+        runCatching {
+            val rest = readLastFire(context) - ruleId
+            val f = File(whenDir(context), LASTFIRE_STATE)
+            if (rest.isEmpty()) f.delete()
+            else f.writeText(rest.entries.joinToString("\n", postfix = "\n") { "${it.key}=${it.value}" })
+        }
+    }
+
     // --- 実行 ---
 
     /**
@@ -573,7 +649,19 @@ object WhenManager {
             Log.i(TAG, "paused: skip ${rule.id} (${rule.trigger})")
             return
         }
+        // 絞り込み (`if=` / `between=` / `days=` / `cooldown=`)。**キルスイッチと同じくここ 1 か所**で
+        // 見るので、トリガーを増やしても効かせ忘れが起きない。[manual] (画面の ▶) は素通り —
+        // 条件で動かないと「試して確かめる」手段が無くなるため (一時停止と同じ扱い)。
+        if (!manual && rule.hasFilters) {
+            val skip = skipReason(context, rule)
+            if (skip != null) {
+                appendFired(context, rule, skip)
+                Log.i(TAG, "$skip: ${rule.id} (${rule.trigger})")
+                return
+            }
+        }
         appendFired(context, rule, if (manual) "manual" else "run")
+        if (rule.cooldown.isNotEmpty()) markFired(context, rule.id)
 
         // 環境変数 + ユーザーコマンドを 1 本の sh -lc へ。trigger や extraEnv の値 (SSID・SMS 本文
         // 等) は外部文字列を含み得るので単一引用符へ安全にエスケープする ([shSingleQuote])。level は
@@ -641,6 +729,7 @@ object WhenManager {
     fun removeRule(context: Context, ruleId: String) {
         runCatching { File(whenDir(context), "$ruleId.rule").delete() }
         runCatching { File(whenDir(context), "$ruleId.log").delete() }
+        forgetLastFire(context, ruleId)
         reload(context)
     }
 

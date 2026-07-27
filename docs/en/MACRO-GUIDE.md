@@ -104,6 +104,24 @@ z2-when 'event:ringer_*' run 'z2-toast "ringer: $Z2_WHEN_EVENT"'
 z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
 ```
 
+**Filters** (0.8.259 — put them right after the trigger, before `run`; they work the same for every kind of trigger):
+
+| Written as | Meaning |
+|---|---|
+| `if=wifi,!screen` | Only when the device is in that state (commas are "and", `!` negates). The conditions are what `z2-state` shows (`wifi` `charging` `screen` `locked` `headset` `airplane` / `ssid=Home` `ringer=silent` / `level<30` `temp>40`) |
+| `cooldown=1h` | Do not run again for that long (`30s` / `10m` / `2h`; a bare number means minutes) |
+| `between=22:00-07:00` | Only inside that window (it may wrap past midnight) |
+| `days=mon-fri` | Only on those days (`sat,sun`, or cron-style numbers like `1-5`) |
+
+```sh
+# Only when charging starts on the home network, at most once an hour
+z2-when charge:start if=ssid=Home cooldown=1h run ~/.z2term/macros/backup.sh
+# Weeknights, and only while the screen is off
+z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term/macros/nightly.sh
+```
+
+Skipped runs stay in `z2-when fired` as `skip:if` / `skip:cooldown` / `skip:between` / `skip:days`, so **you can tell why nothing happened**. Compared with writing your own `z2-state` check at the top of the script, this is the part that differs: the record distinguishes "held back" from "ran and did nothing".
+
 - Strings that came from outside (SSID, SMS body, notification text, file names) are **passed in
   safely quoted**. Quote them on your side too (`"$Z2_WHEN_SMS_BODY"`) and never feed them to `eval`.
 - **The same rule will not fire twice within 10 seconds** (events like `screen_on` come often).

@@ -102,6 +102,24 @@ z2-when 'event:ringer_*' run 'z2-toast "マナーモード: $Z2_WHEN_EVENT"'
 z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
 ```
 
+**条件で絞る**（0.8.259。きっかけの直後・`run` より前に置きます。どのきっかけにも同じように効きます）:
+
+| 書き方 | 意味 |
+|---|---|
+| `if=wifi,!screen` | そのときの端末の状態で絞る（カンマは「かつ」・`!` は否定）。条件は `z2-state` で見られる項目（`wifi` `charging` `screen` `locked` `headset` `airplane` / `ssid=Home` `ringer=silent` / `level<30` `temp>40`）|
+| `cooldown=1h` | 前に実行してからこの時間は動かさない（`30s` / `10m` / `2h`・単位省略で分）|
+| `between=22:00-07:00` | その時間帯だけ（日をまたいでも書けます）|
+| `days=mon-fri` | その曜日だけ（`sat,sun` や cron と同じ数字 `1-5` も可）|
+
+```sh
+# 自宅の Wi-Fi で充電を始めたときだけ、1 時間に 1 回まで
+z2-when charge:start if=ssid=Home cooldown=1h run ~/.z2term/macros/backup.sh
+# 平日の夜、画面が消えているときだけ
+z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term/macros/nightly.sh
+```
+
+絞り込みで見送ったものも `z2-when fired` に `skip:if` / `skip:cooldown` / `skip:between` / `skip:days` として残るので、**動かない理由が追えます**。スクリプトの先頭に自分で `z2-state` を見る `if` を書くのに比べて、こちらは「弾かれた」と「実行したが何もしなかった」を**記録の上で区別できる**のが違いです。
+
 - 外から来た文字列（SSID・SMS 本文・通知本文・ファイル名）は**安全にクォートして渡されます**。
   受け取る側でも `"$Z2_WHEN_SMS_BODY"` のように必ず引用符で囲み、`eval` に渡さないでください。
 - **同じルールは 10 秒以内に続けて発火しません**（`screen_on` のように数の多いイベント対策）。

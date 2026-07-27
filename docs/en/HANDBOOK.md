@@ -651,6 +651,20 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # on any ringe
   - `event:<name>` — **any device event, by name** (added in 0.8.226). Run **`z2-when events`** to list the names (~20: `screen_on`, `unlocked`, `headset_plugged`, `bt_audio_connected`, `ringer_silent`, `airplane_on`, `alarm`, `notify_action`, …). A trailing `*` makes it a prefix match (`event:ringer_*`), and `event:*` matches everything. Inside the command, `Z2_WHEN_EVENT` holds the event name.
     **The same rule will not fire twice within 10 seconds** (some events, like `screen_on`, happen often).
     Passive events (screen, charging, Wi‑Fi, …) need **"detection" on**, but `alarm` (set with `z2-alarm`) and `notify_action` (a notification button) **work with detection off**.
+- **Narrow a rule down with filters** (0.8.259): put them **right after the trigger** (before `run`) and they work the same way for **every** kind of trigger. They combine.
+  - `if=<cond>` … only run when the **device is in that state**. Commas mean "and", a leading `!` negates. The conditions are exactly what `z2-state` shows (`wifi` `charging` `screen` `locked` `headset` `bt_audio` `airplane` `idle` / `ssid=` `ringer=` `plug=` / `level<30` `temp>40` `volume>0`). E.g. `if=wifi,!screen` (on Wi‑Fi with the screen off) / `if=ssid=Home` (only on your home network) / `if=level<30`.
+  - `cooldown=<duration>` … **do not run again for that long** (`30s` / `10m` / `2h`; a bare number means minutes). Useful for triggers that come in bursts, like `sensor:shake`.
+  - `between=HH:MM-HH:MM` … only **inside that window**. It may **wrap past midnight** (`22:00-07:00`); the start time is included, the end time is not.
+  - `days=mon-fri` … only on **those days**. Lists work (`sat,sun`) and so do cron-style numbers (`1-5`, where 0 and 7 are Sunday).
+
+  ```sh
+  # Back up when charging starts on the home network — at most once an hour
+  z2-when charge:start if=ssid=Home cooldown=1h run ~/.z2term/macros/backup.sh
+  # Weeknights only, and only while the screen is off
+  z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term/macros/nightly.sh
+  ```
+
+  **Skipped runs are recorded too** — `z2-when fired` and the app's recent-fires list show `skip:if` / `skip:cooldown` / `skip:between` / `skip:days`, so instead of "it didn't run" you get **why** it didn't run. The **▶ (run once) button ignores filters** — it is there to try the rule out.
 - **See and stop them from the app** (0.8.227): 📜 → the **Automation** tab lists your rules. Each row has an on/off switch, **▶ to run it once without waiting for the trigger**, **▤ for its run log**, and ✕ to delete. The **Pause automatic runs** switch at the top stops **every** rule from firing (nothing is deleted, and ▶ still works). Below the list, **recent fires** show what ran — and what was held back (`paused`), so a rule that seems dead is easy to explain. **Grab ≡ and drag** to reorder the list (0.8.249; the order is remembered and is **display order only** — it changes neither when rules run nor what triggers them).
   The same things work from the terminal: `z2-when pause` / `z2-when resume` / `z2-when fired`.
 - **List / remove / toggle**: `z2-when list` / `z2-when events` (names usable with `event:`) / `z2-when remove <id>` (`all` for everything) / `z2-when on <id>` `z2-when off <id>` / `z2-when log <id>` (see the run log)

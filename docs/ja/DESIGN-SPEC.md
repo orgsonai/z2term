@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-27 / 対象バージョン: 0.8.258-alpha (versionCode 266)
+最終更新: 2026-07-27 / 対象バージョン: 0.8.259-alpha (versionCode 267)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -406,7 +406,7 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 
 **何ができるか**: Android 側の出来事（充電・電池・時刻）を**きっかけに Linux スクリプトを自動実行**する。これまで `z2-*` は「検知（events.jsonl へ書く）」と「実行（`z2-session` 等）」が別々で、両者を繋ぐのはユーザーが書く常駐スクリプトだった。`z2-when` は**トリガー宣言 → アプリが監視 → 発火時に実行**までを担い、スマホを「ポケットの中の自動化サーバー」にする。0→1 ではなく既存資産の“配線”。
 
-**ルールはテキスト**: `~/.z2term/when/<id>.rule`（`filesDir/shared_home/.z2term/when/`）。`trigger=` / `run=` / `enabled=` の 3 行（`settings/WhenRule.kt`）。DataStore でなくプレーンファイルにするのは **git 同期・バックアップが効く**ため（常駐サーバーのジョブファイルと同じ思想）。CLI（`z2-when`）が直接読み書きし、変更後に `z2api when-reload` で時刻トリガーを貼り直させる。
+**ルールはテキスト**: `~/.z2term/when/<id>.rule`（`filesDir/shared_home/.z2term/when/`）。`trigger=` / `run=` / `enabled=` の 3 行（`settings/WhenRule.kt`。任意で `order=` と、0.8.259 の絞り込み `if=` / `cooldown=` / `between=` / `days=` → 後述）。DataStore でなくプレーンファイルにするのは **git 同期・バックアップが効く**ため（常駐サーバーのジョブファイルと同じ思想）。CLI（`z2-when`）が直接読み書きし、変更後に `z2api when-reload` で時刻トリガーを貼り直させる。
 
 **トリガー書式（stage 1 + cron）**:
 - `charge:start` / `charge:stop` … 充電の開始 / 停止。**検知（`SystemEventService`）が ON のときだけ働く**（0.8.214 で受け口を変更。理由は下記「常駐を増やさない設計」）
@@ -440,6 +440,20 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 
 **実行**: 発火すると「そのとき選ばれている distro」で `sh -lc '<run>'` を **headless 起動**（`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`。`ServerDaemonManager` と同じ launch + drain パターン）。トリガー情報は環境変数 `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` と、トリガー固有の追加 env（wifi: `Z2_WHEN_SSID` / sms: `Z2_WHEN_SMS_FROM`・`Z2_WHEN_SMS_BODY`・`Z2_WHEN_OTP` / sensor: `Z2_WHEN_SENSOR`・`Z2_WHEN_LUX` / event: `Z2_WHEN_EVENT`・`Z2_WHEN_EVENT_NAME`・`Z2_WHEN_ACTION`）で渡す（外部入力をシェルへ文字列展開しない安全境界。値は単一引用符へ `'\''` エスケープ）。出力は `~/.z2term/when/<id>.log` へ追記（128KB を超えたら実行前に空にする）。root chroot モードでも `launchChroot` は追加引数を取らないため、ルール実行はエンジン経路に統一している。
 
+**絞り込み（`if=` / `cooldown=` / `between=` / `days=`、0.8.259）**: ルールに**「動いていい状況か」**を足す任意項目。`trigger=` が「いつ動くか」を決めるのに対し、こちらは**どのトリガーにも同じように効く**。
+
+**なぜ足したか**: トリガーを 1 種類足しても増えるのは 1 つだけだが、絞り込みは**既存 9 種すべて**に効く。しかも新しい常駐も新しい権限も要らない。これまで「自宅 Wi‑Fi のときだけ」「夜だけ」「連続で走らせない」を書くには**ユーザー側のスクリプト先頭に `z2-state` を見る `if` を毎回書く**しかなく、しかもそれは `.fired` に「走った」として残るため**弾かれたのか実行して何もしなかったのか区別が付かなかった**。
+
+- `if=<条件>[,<条件>…]` … 発火した瞬間の端末の状態で絞る。カンマは **AND**、頭の `!` で否定。判定は Android 非依存の `WhenGuard.conditionsMet`（`WhenGuardTest` で具体例検証）。**キーは `z2-state` が返すものと同じ語彙**（`wifi` / `charging` / `screen` / `locked` / `ssid` / `level` / `temp` …）で、値も `Z2ApiBridge.stateSnapshot` 経由で**`z2-state` と同じ関数**から取る — 別実装で判定すると端末で確かめた値とルールの挙動が必ずズレる。書き方は真偽（`wifi`）・一致（`ssid=Home`・大小文字無視）・数値比較（`level<30`）の 3 つ。`screen` だけは `on`/`off` が返るので、裸で書いたときは `on` を真として読む。**知らないキーは不成立**（誤発火より取りこぼしを選ぶ既存方針）だが、それだけだと打ち間違いで黙って動かなくなるので **CLI の登録時にキー名を検査して弾く**（一覧は `WhenGuard.KNOWN_KEYS` と `z2-when` スクリプトの 2 か所にある。増やすときは両方）。
+- `cooldown=<時間>` … 前回の実行からこの時間は再実行しない（`30s` / `10m` / `2h`・単位省略で分）。`time:every=` と違って**最短 1 分に切り上げない** — `sensor:shake` の連打を数秒だけ抑えたい、という使い方に意味があるため。最後に実行した時刻は **`.lastfire`（`id=エポックミリ秒`）**で持つ。`.fired` は 50 件でローテートするので**判定の根拠にはできない**（発火の多いルールが混ざると直前の実行が記録から押し出される）。
+- `between=HH:MM-HH:MM` … その時間帯だけ。**開始を含み終了を含まない**。開始 > 終了は**日跨ぎ**（`22:00-07:00` は夜通し）。
+- `days=mon-fri` / `sat,sun` / `1-5` … その曜日だけ。数字は **cron と同じ 0-7（0,7 が日曜）**で、覚えることを増やさない。
+- **書式が壊れていたら絞らない**（`between` / `days`）。時間帯の書き間違いで**ルールが永久に動かない**状態を作らないため。`if=` だけは逆に不成立側へ倒す（状態が読めないまま実行する方が危ない）。
+- **判定は `runRule` の入口 1 か所**で、キルスイッチのすぐ後ろ。トリガーを増やしても効かせ忘れが起きない。評価は**安い順**（時計を見るだけの `between`/`days` → ファイル 1 つの `cooldown` → 端末の状態を集める `if`）で、手前で弾ければ後ろは評価しない。**状態を読むのは発火の瞬間だけ**で常時監視は増やさない。
+- **弾いたことも記録する**（`.fired` の status が `skip:if` / `skip:between` / `skip:days` / `skip:cooldown`）。`status=paused` を残しているのと同じ理由で、「なぜ動かないのか」を探す手段を消さない。自動化タブでは実行とも一時停止とも違う色（`ZtsWarning`）で出す。
+- **▶「いま試す」は絞り込みを無視する**（`manual`）。条件で動かないと「試して確かめる」手段そのものが無くなる。一時停止と同じ扱い。
+- **既存ルールは 1 行も書き換わらない**。`WhenRule.parse` が知らないキーを黙って無視する作りなので、新しい項目が付いたルールを古い版のアプリで読んでも壊れない（逆も同じ）。付いていないルールの見え方も変えない（画面も CLI の `list` も、付いているときだけ 1 行足す）。
+
 **キルスイッチと発火の記録（0.8.227）**: トリガーが増えるほど**裏で勝手に走る回数**が増えるのに、暴走したときに全部止める 1 操作も、「さっき何が走ったか」を見る場所も無かった。`event:`（0.8.226）でその落差が実害になる前に足す。
 
 - **一時停止は `~/.z2term/when/.paused` の有無**（DataStore ではなくファイル）。CLI（`z2-when pause` / `resume`）とアプリの画面が**同じ 1 つの真実**を見るため。ルールがファイルなのとも揃う。
@@ -455,7 +469,7 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 
 **ルールの新規作成と編集は画面に載せない**。正本は `~/.z2term/when/<id>.rule` のテキストで、ロジックはシェル側という設計（§3.3「接続点はアプリ・ロジックはシェル」）を崩さないため。GUI で全部書かせようとした瞬間に二重管理になる。画面は**見る・止める・試す**だけに留め、作るのは `z2-when` に任せる。
 
-**CLI**（`z2-when`。`Z2ApiScript` が launch 毎に `/usr/local/bin` へ配置）: `<trigger> run <cmd>` で登録 / `list`（TSV。一時停止中は先頭に注記）/ `events`（`event:` に使える名前の一覧・0.8.226）/ `pause` / `resume` / `fired [n]`（0.8.227）/ `remove <id|all>`（`rm`）/ `on|off <id>` / `log <id>`。id は `w<epoch><pid>`（同一秒の衝突を避けるため 0.8.211 で乱数から pid へ変更。既存があれば連番を付す）。**stage2 は cron/wifi/sms/sensor まで実装済み**（0.8.207〜0.8.210）。以降の候補は `time:cron` の DST 跨ぎ精緻化や照度ヒステリシス等の作り込み。
+**CLI**（`z2-when`。`Z2ApiScript` が launch 毎に `/usr/local/bin` へ配置）: `<trigger> [if=… cooldown=… between=… days=…] run <cmd>` で登録（絞り込みは**トリガーの直後・`run` より前**に置く。`run` の後ろは全部コマンド、という今までの読み方を変えないため）/ `list`（TSV。一時停止中は先頭に注記。絞り込みが付いていれば末尾に `[if=… cooldown=…]`）/ `events`（`event:` に使える名前の一覧・0.8.226）/ `pause` / `resume` / `fired [n]`（0.8.227）/ `remove <id|all>`（`rm`）/ `on|off <id>` / `log <id>`。id は `w<epoch><pid>`（同一秒の衝突を避けるため 0.8.211 で乱数から pid へ変更。既存があれば連番を付す）。**stage2 は cron/wifi/sms/sensor まで実装済み**（0.8.207〜0.8.210）。以降の候補は `time:cron` の DST 跨ぎ精緻化や照度ヒステリシス等の作り込み。
 
 #### ルールが起こしたデーモンが即座に殺されていたのを直す（`z2root --wait-tracees` / `HeadlessRun`、0.8.251 + 0.8.253）
 

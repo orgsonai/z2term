@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-27 / Target version: 0.8.258-alpha (versionCode 266)
+Last updated: 2026-07-27 / Target version: 0.8.259-alpha (versionCode 267)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -416,7 +416,7 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 
 **What it does**: auto-runs a Linux script on an Android event (charge / battery / time). Previously `z2-*` split "detect" (write to events.jsonl) from "act" (`z2-session`, …), and the user's own resident script was the glue. `z2-when` owns **declare trigger → app watches → run on fire**, turning the phone into a pocket automation server. It's wiring of existing pieces, not 0→1.
 
-**Rules are plain text**: `~/.z2term/when/<id>.rule` (`filesDir/shared_home/.z2term/when/`), three lines `trigger=` / `run=` / `enabled=` (`settings/WhenRule.kt`). Plain files (not DataStore) so **git sync and backups work** (same idea as the resident-server job files). The CLI (`z2-when`) reads/writes them directly and calls `z2api when-reload` to re-arm time triggers.
+**Rules are plain text**: `~/.z2term/when/<id>.rule` (`filesDir/shared_home/.z2term/when/`), three lines `trigger=` / `run=` / `enabled=` (`settings/WhenRule.kt`; optionally `order=` and the 0.8.259 filters `if=` / `cooldown=` / `between=` / `days=`, see below). Plain files (not DataStore) so **git sync and backups work** (same idea as the resident-server job files). The CLI (`z2-when`) reads/writes them directly and calls `z2api when-reload` to re-arm time triggers.
 
 **Trigger syntax (stage 1 + cron)**:
 - `charge:start` / `charge:stop` — **only works while detection (`SystemEventService`) is on** (receiver moved in 0.8.214; see "No new resident component" below)
@@ -450,6 +450,20 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 
 **Execution**: on fire, runs `sh -lc '<run>'` **headless** on the currently selected distro (`ProotLauncher.launch(command="/bin/sh", extraArgs=["-lc", …])`, same launch+drain pattern as `ServerDaemonManager`). Trigger context is passed via env vars `Z2_WHEN_TRIGGER` / `Z2_WHEN_NAME` / `Z2_WHEN_LEVEL` plus trigger-specific extras (wifi: `Z2_WHEN_SSID`; sms: `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` / `Z2_WHEN_OTP`; sensor: `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX`; event: `Z2_WHEN_EVENT` / `Z2_WHEN_EVENT_NAME` / `Z2_WHEN_ACTION`) (external input is never spliced into the shell; values are single-quote-escaped with `'\''`). Output is appended to `~/.z2term/when/<id>.log` (cleared before a run once past 128KB). Rule execution always goes through the engine path since `launchChroot` takes no extra args.
 
+**Filters (`if=` / `cooldown=` / `between=` / `days=`, 0.8.259)**: optional fields that say **whether this is a good moment to run**. Where `trigger=` decides *when* a rule fires, these apply **uniformly to every trigger kind**.
+
+**Why**: adding a trigger kind adds one thing; a filter improves **all nine existing kinds** — and needs no new resident component and no new permission. Until now, "only on home Wi‑Fi", "only at night" or "not again for a while" had to be written as an `if` on `z2-state` at the top of the user's own script, and that path recorded the rule as having *run*, so **a skipped run was indistinguishable from a run that did nothing**.
+
+- `if=<cond>[,<cond>…]` — filter on device state at the moment of the fire. Commas are **AND**, a leading `!` negates. The decision is the Android-free `WhenGuard.conditionsMet` (verified by example in `WhenGuardTest`). **Keys are the same vocabulary `z2-state` prints** (`wifi` / `charging` / `screen` / `locked` / `ssid` / `level` / `temp`, …) and values come from **the very same function** via `Z2ApiBridge.stateSnapshot` — a separate implementation would inevitably drift from what the user verified in the terminal. Three forms: truthy (`wifi`), equality (`ssid=Home`, case-insensitive) and numeric comparison (`level<30`). `screen` returns `on`/`off`, so bare `screen` reads `on` as true. **Unknown keys do not match** (preferring a missed fire over a wrong one, as elsewhere), but since that alone would let a typo silently disable a rule, **the CLI validates key names at registration time** (the list exists in `WhenGuard.KNOWN_KEYS` and in the `z2-when` script — extend both).
+- `cooldown=<duration>` — do not run again within that time (`30s` / `10m` / `2h`; a bare number means minutes). Unlike `time:every=` it is **not clamped to one minute**: suppressing a burst of `sensor:shake` for a few seconds is a legitimate use. The last run time lives in **`.lastfire` (`id=epoch-millis`)**; `.fired` rotates at 50 entries and therefore **cannot be the source of truth** (a chatty rule would push the last run out of the log).
+- `between=HH:MM-HH:MM` — only inside that window. **Start inclusive, end exclusive.** Start > end means it **wraps past midnight** (`22:00-07:00` covers the night).
+- `days=mon-fri` / `sat,sun` / `1-5` — only on those days. Numbers follow **cron (0-7, 0 and 7 are Sunday)** so there is nothing new to memorise.
+- **A malformed value does not filter** (`between` / `days`) — a typo must not leave a rule that can **never** run. `if=` falls the other way (running without being able to read the state is the riskier side).
+- **Evaluated at one place: the entry of `runRule`**, right behind the kill switch, so new triggers cannot forget it. Order is **cheapest first** (`between`/`days` read a clock → `cooldown` reads one file → `if` collects device state), and later checks are skipped once something rejects. **State is read only at the moment of a fire**; no new polling.
+- **Skips are recorded too** (`.fired` status `skip:if` / `skip:between` / `skip:days` / `skip:cooldown`), for the same reason `status=paused` is recorded: never remove the means to find out why nothing happened. The automation tab shows them in a third colour (`ZtsWarning`).
+- **▶ "run now" ignores every filter** (`manual`) — otherwise the way to try a rule out disappears. Same treatment as pausing.
+- **No existing rule is rewritten.** `WhenRule.parse` silently ignores unknown keys, so a rule carrying the new fields loads fine on an older build (and vice versa). Rules without filters also look exactly as before — both the screen and `list` add a line only when there is one.
+
 **Kill switch and a record of fires (0.8.227)**: every new trigger increases how often something runs **on its own**, yet there was no single action to stop it all, and nowhere to see what just ran. Added before `event:` (0.8.226) turned that gap into real damage.
 
 - **Pausing is the presence of `~/.z2term/when/.paused`** — a file, not DataStore — so the CLI (`z2-when pause` / `resume`) and the app screen read **one single truth**. It also matches rules already being files.
@@ -465,7 +479,7 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 
 **Creating and editing rules is deliberately absent from the UI.** The source of truth is the text at `~/.z2term/when/<id>.rule`, with the logic on the shell side (§3.3, "the app is the connection point, the shell holds the logic"). Letting the GUI author rules would create a second source of truth. The screen only lets you **see, stop and try**; authoring stays with `z2-when`.
 
-**CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> run <cmd>` to add / `list` (TSV; notes when paused) / `events` (names usable with `event:`, 0.8.226) / `pause` / `resume` / `fired [n]` (0.8.227) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><pid>` (0.8.211 switched from a random suffix to the pid to avoid same-second collisions; a counter is appended if the file already exists). **Stage 2 now covers cron/wifi/sms/sensor** (0.8.207–0.8.210). Later candidates: DST-boundary refinement for `time:cron`, light-threshold hysteresis, etc.
+**CLI** (`z2-when`, placed in `/usr/local/bin` each launch by `Z2ApiScript`): `<trigger> [if=… cooldown=… between=… days=…] run <cmd>` to add (filters go **right after the trigger, before `run`**, so that "everything after `run` is the command" keeps holding) / `list` (TSV; notes when paused; appends `[if=… cooldown=…]` when a rule has filters) / `events` (names usable with `event:`, 0.8.226) / `pause` / `resume` / `fired [n]` (0.8.227) / `remove <id|all>` (`rm`) / `on|off <id>` / `log <id>`. Ids are `w<epoch><pid>` (0.8.211 switched from a random suffix to the pid to avoid same-second collisions; a counter is appended if the file already exists). **Stage 2 now covers cron/wifi/sms/sensor** (0.8.207–0.8.210). Later candidates: DST-boundary refinement for `time:cron`, light-threshold hysteresis, etc.
 
 #### Daemons started by a rule were killed the moment the rule finished (`z2root --wait-tracees` / `HeadlessRun`, 0.8.251 + 0.8.253)
 

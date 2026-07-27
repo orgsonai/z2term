@@ -371,8 +371,11 @@ object Z2ApiBridge {
      * 引数なしなら全項目を **フラットな JSON** で返す (入れ子にしないのは jq 無しの sed/grep でも
      * 拾いやすくするため)。[key] を渡すとその値だけを生で返すので、`[ "$(z2-state charging)" = "true" ]`
      * のようにそのまま条件式に書ける。すべて**追加権限なし**で取れるものだけ。
+     *
+     * `z2-when` の `if=` 条件も [stateSnapshot] 経由で**この同じ関数**を通る。判定を別実装に
+     * すると `z2-state` で確かめた値とルールの挙動が必ずズレるため。
      */
-    private fun stateRead(context: Context, key: String): String {
+    internal fun stateRead(context: Context, key: String): String {
         val pm = context.getSystemService(PowerManager::class.java)
         val km = context.getSystemService(KeyguardManager::class.java)
         val am = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
@@ -484,6 +487,18 @@ object Z2ApiBridge {
             put("volume_max", volumeMax)
         }.toString()
     }
+
+    /**
+     * [stateRead] の全項目を `キー → 文字列` で返す (`z2-when` の `if=` 判定用・0.8.259)。
+     *
+     * 値は JSON の生の見た目のまま文字列にする (`true` / `off` / `85`)。**端末で
+     * `z2-state <キー>` を叩いて見えるものと同じ**なので、条件をそのとおりに書ける。
+     * 状態を読むのは**ルールが発火した瞬間だけ**で、常時監視は増やさない。
+     */
+    internal fun stateSnapshot(context: Context): Map<String, String> = runCatching {
+        val json = JSONObject(stateRead(context, ""))
+        json.keys().asSequence().associateWith { json.get(it).toString() }
+    }.getOrDefault(emptyMap())
 
     /**
      * `z2-noti` (0.8.236)。いま出ている通知を TSV で返す**だけ**。

@@ -650,6 +650,20 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # マナーモ
   - `event:<名前>` … **端末で起きたことを名前で拾います**（0.8.226 で追加）。使える名前は **`z2-when events`** で一覧できます（`screen_on`・`unlocked`・`headset_plugged`・`bt_audio_connected`・`ringer_silent`・`airplane_on`・`alarm`・`notify_action` など約20種）。`event:ringer_*` のように**末尾を `*`** にすると前方一致、`event:*` ですべてになります。コマンド内では `Z2_WHEN_EVENT` にイベント名が入ります。
     **同じルールは 10 秒以内に続けて発火しません**（`screen_on` のように何度も起きるものがあるため）。
     画面・充電・Wi‑Fi などの受け身のイベントは**「検知」が ON のときだけ**ですが、`alarm`（`z2-alarm` で仕掛けたもの）や `notify_action`（通知のボタン）は**検知 OFF でも働きます**。
+- **条件を付けて絞り込む**（0.8.259）: きっかけの**直後**（`run` より前）に置くと、**どのきっかけにも同じように効きます**。組み合わせて使えます。
+  - `if=<条件>` … **そのときの端末の状態**が合っているときだけ実行します。カンマで区切ると「かつ」、頭に `!` を付けると否定です。書ける条件は `z2-state` で見られる項目そのもの（`wifi` `charging` `screen` `locked` `headset` `bt_audio` `airplane` `idle` / `ssid=` `ringer=` `plug=` / `level<30` `temp>40` `volume>0`）。例: `if=wifi,!screen`（Wi‑Fi に繋がっていて画面が消えているとき）/ `if=ssid=Home`（自宅の Wi‑Fi のときだけ）/ `if=level<30`（電池が 30% 未満のとき）
+  - `cooldown=<時間>` … **前に実行してからこの時間は動かしません**（`30s` / `10m` / `2h`。単位を省くと分）。`sensor:shake` のように何度も来るきっかけで効きます
+  - `between=HH:MM-HH:MM` … **その時間帯だけ**実行します。`22:00-07:00` のように**日をまたいでも**書けます（開始の時刻は含み、終了の時刻は含みません）
+  - `days=mon-fri` … **その曜日だけ**実行します。`sat,sun` のように並べても、`1-5` のように cron と同じ数字（0 と 7 が日曜）でも書けます
+
+  ```sh
+  # 自宅の Wi-Fi で充電を始めたときだけバックアップ（1 時間に 1 回まで）
+  z2-when charge:start if=ssid=Home cooldown=1h run ~/.z2term/macros/backup.sh
+  # 平日の夜だけ、画面が消えていたら実行
+  z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term/macros/nightly.sh
+  ```
+
+  **弾いたことも記録されます** — `z2-when fired` や画面の「直近の発火」に `skip:if` / `skip:cooldown` / `skip:between` / `skip:days` と出るので、「動かない」ではなく「**なぜ動かなかったか**」が分かります。画面の **▶（1 回試す）はこの絞り込みを無視**します（試すためのボタンなので）。
 - **画面から見る・止める**（0.8.227）: 📜 →「**自動化**」タブに登録したルールが並びます。各行で ON/OFF、**▶ できっかけを待たずに 1 回試す**、**▤ で実行ログ**、✕ で削除。上の「**自動実行を一時停止**」を ON にすると、**どのきっかけが来ても実行しなくなります**（ルールは消えません。▶ で自分から試すことはできます）。下には**直近の発火**が出るので、「さっき何が動いたか」「なぜ動かなかったか（`paused` と出ます）」が分かります。各行の **≡ を掴んで上下にドラッグ**すれば**並べ替え**もできます（0.8.249。並びは記憶されます。**表示順が変わるだけ**で、実行の順番やきっかけには影響しません）。
   端末からも同じことができます: `z2-when pause` / `z2-when resume` / `z2-when fired`。
 - **一覧・削除・オンオフ**: `z2-when list`（一覧）/ `z2-when events`（`event:` に使える名前）/ `z2-when remove <id>`（`all` で全部）/ `z2-when on <id>` `z2-when off <id>` / `z2-when log <id>`（実行の記録を見る）

@@ -54,6 +54,7 @@ import com.zerotoship.z2term.ui.theme.ZtsError
 import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
+import com.zerotoship.z2term.ui.theme.ZtsWarning
 import com.zerotoship.z2term.ui.components.ReorderHandle
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.components.rememberReorderState
@@ -253,9 +254,12 @@ fun WhenRulesBody() {
                     Text(
                         // 日付は落として時刻だけ (幅が限られるので、直近を読むのに要るのは時刻)。
                         text = "${shortTime(f.time)}  ${f.trigger}  ${f.status}",
-                        color = when (f.status) {
-                            "paused" -> ZtsError
-                            "manual" -> ZtsTextSecondary
+                        color = when {
+                            f.status == "paused" -> ZtsError
+                            f.status == "manual" -> ZtsTextSecondary
+                            // 絞り込みで見送ったもの (skip:if / skip:cooldown …)。止まったのが
+                            // 意図どおりか一目で分かるよう、実行とも一時停止とも違う色にする。
+                            f.status.startsWith("skip:") -> ZtsWarning
                             else -> ZtsTextPrimary
                         },
                         fontSize = 10.sp,
@@ -278,6 +282,17 @@ private const val FIRED_SHOWN = 12
 /** `2026-07-25T21:40:12` → `21:40:12`。形式が違えばそのまま返す。 */
 private fun shortTime(iso: String): String =
     iso.substringAfter('T', iso)
+
+/**
+ * ルールに付いている絞り込みを 1 行にまとめる (`if=wifi cooldown=30m`)。
+ * **ルールファイルに書いてある表記のまま**出す — 端末で直すときにそのまま打てるように。
+ */
+private fun filterSummary(rule: WhenRule): String = buildList {
+    if (rule.condition.isNotEmpty()) add("if=${rule.condition}")
+    if (rule.cooldown.isNotEmpty()) add("cooldown=${rule.cooldown}")
+    if (rule.between.isNotEmpty()) add("between=${rule.between}")
+    if (rule.days.isNotEmpty()) add("days=${rule.days}")
+}.joinToString("  ")
 
 @Composable
 private fun WhenRuleRow(
@@ -340,6 +355,18 @@ private fun WhenRuleRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                // 絞り込み (if / cooldown / between / days) は付いているときだけ 1 行出す。
+                // 付いていないルールの見え方を変えないため (0.8.259)。
+                if (rule.hasFilters) {
+                    Text(
+                        text = filterSummary(rule),
+                        color = ZtsWarning,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Text(
                     text = if (lastFiredAt != null) {
                         stringResource(R.string.when_last_fired, shortTime(lastFiredAt))
