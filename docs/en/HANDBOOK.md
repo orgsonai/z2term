@@ -582,6 +582,15 @@ z2-when time:every=30m run ~/.z2term/macros/rss.sh
 
 A notification ("N new") appears only when something is new. **Do not go below 30 minutes** — polling costs battery.
 
+**Read what was collected as a list** (0.8.255)
+
+```sh
+sh ~/.z2term/macros/rss.sh list       # 20 items
+sh ~/.z2term/macros/rss.sh list 50    # pick a count
+```
+
+One article per line, as `[ 1] Article title  (zenn.dev)`. **Tap the title to open the article** — the URL is not printed, because long URLs wrap and tangle with the titles until the list is unreadable. Piped or redirected, it falls back to plain text with the URLs shown.
+
 **3. Let the notification's button open the newest item** (optional)
 
 ```sh

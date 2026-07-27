@@ -293,6 +293,18 @@ private fun rssBody(d: String, ja: Boolean): String {
     }
     val cNotify = if (ja) "新着 %s 件" else "%s new"
     val cOpen = if (ja) "開く" else "Open"
+    val cListNone = if (ja) "まだ何も集めていません。まず引数なしで実行してください。" else "Nothing collected yet — run it once with no arguments first."
+    val cListHint = if (ja) "一覧: rss.sh list [件数]" else "List them with: rss.sh list [count]"
+    val cListDoc = if (ja) {
+        "# 集めた記事を読みやすく並べて出す。色は使わない (ウィジェットやファイル表示と見え方を揃える)。\n" +
+            "# 端末のときは OSC 8 で**題名そのものをリンク**にし、URL の行を並べない — 長い URL は\n" +
+            "# 折り返して題名と混ざり、一覧として読めなくなるため。端末以外 (パイプ・リダイレクト) では\n" +
+            "# エスケープが邪魔なので素のテキストに落とし、URL も見えるようにする。\n" +
+            "# latest.txt は 1 行 1 記事の素データのままにしておく (ウィジェットの tail と rss-open.sh が読む)。"
+    } else {
+        "# Print what was collected as a readable list (no colour — it should look the same as the file/widget).\n" +
+            "# latest.txt itself stays one-article-per-line raw data (the widget tail and rss-open.sh read it)."
+    }
 
     return """$head
 DIR="${d}HOME/.z2term/rss"
@@ -301,6 +313,26 @@ SEEN="${d}DIR/seen.txt"
 NEW="${d}DIR/new.txt"
 LATEST="${d}DIR/latest.txt"
 KEEP=500                                  # $cKeep
+
+$cListDoc
+if [ "${d}1" = list ]; then
+  [ -f "${d}LATEST" ] || { echo "$cListNone"; exit 0; }
+  tty=0; [ -t 1 ] && tty=1
+  head -n "${d}{2:-20}" "${d}LATEST" | awk -v tty="${d}tty" '
+    {
+      url = ${d}NF                          # URL は行末の 1 語 (空白を含まないため)
+      t = ${d}0
+      sub(/[ \t]+[^ \t]+${d}/, "", t)       # 末尾の URL を落として題名だけにする
+      host = url
+      sub(/^https?:\/\//, "", host)
+      sub(/\/.*${d}/, "", host)
+      if (tty)
+        printf "[%2d] \033]8;;%s\033\\%s  (%s)\033]8;;\033\\\n", NR, url, t, host
+      else
+        printf "[%2d] %s  (%s)\n     %s\n", NR, t, host, url
+    }'
+  exit 0
+fi
 
 mkdir -p "${d}DIR" || exit 1
 command -v python3 >/dev/null 2>&1 || { echo "$cNoPy" >&2; exit 1; }
@@ -352,6 +384,9 @@ $cPrepend
   | head -n "${d}KEEP" > "${d}LATEST.t" && mv "${d}LATEST.t" "${d}LATEST"
 
 z2-notify -h -n rss -b "$cOpen" "${d}(printf '$cNotify' "${d}n")" "${d}(cut -f2 "${d}NEW" | head -3)"
+
+# 端末から直に走らせたときだけ一覧の出し方を案内する (自動実行のログを汚さない)。
+[ -t 1 ] && echo "$cListHint"
 """
 }
 
