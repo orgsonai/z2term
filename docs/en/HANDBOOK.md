@@ -59,7 +59,7 @@ That's all the setup you need.
 | 📋 | Paste text from the clipboard (**double-tap to open the clipboard history** and pick from it) |
 | 📜 | Command list (tap a frequently used command to type it) + **History** (filter past commands and insert one) + **SSH connect / SFTP** + **Servers** (manage resident servers) + **Automation** (list `z2-when` rules, toggle them, read run logs, pause) (switch with tabs) |
 | 🔅 | Screen-on lock (when ON, the screen won't auto-dim; the icon changes to 💡 while ON). **Double-tap for a slider that dims this app only** (for dark rooms; going home restores it, and Reset clears it any time). **The level you pick is remembered, so the app opens at that brightness next time** (press Reset to go back to normal) |
-| 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF). **While resident servers are running, 🔒 is dimmed and can't be toggled** (the servers already keep the app alive, so turning it OFF here would do nothing). Tapping 🔒 in that state opens a screen to choose **"End session only" / "Stop everything and quit"** (see below) |
+| 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF). **While resident servers are running, 🔒 is dimmed and can't be toggled** (the servers already keep the app alive, so turning it OFF here would do nothing). Tapping 🔒 in that state opens a screen to choose **"End session only" / "Stop everything and quit"** (see below). Note: **keeping the device reachable from outside (ssh, etc.) is the job of "resident servers"**, not 🔒 (0.8.268 — 🔒 used to keep Wi-Fi at full power too, which cost a lot of battery, so it no longer does) |
 | 🔍 | Search the on-screen text (jump back/forward with ↑↓; **while searching, the scrollbar shows a tick for every hit** so you can see where they cluster — tap a tick to jump there; **tap in the input field to move the caret** and fix a typo in the middle) |
 | ⌨ | Switch between the phone's standard keyboard ⇄ the in-app keyboard. Even with the phone's keyboard, **the text being composed (before you confirm) shows inline at the terminal cursor** |
 | 🔴 / ⚪ | Record a terminal log (tap to start, tap again to stop; **🔴 while recording, ⚪ when idle**; **double-tap for the details**) |
@@ -373,6 +373,8 @@ Open ⚙ Settings → **Resident servers** → "Manage servers", or the **Server
 Note: ports below 1024 (e.g. 80) cannot be opened without root — use a high port (e.g. 8080).
 Note: excluding the app from battery optimization makes it less likely to be killed in the background (link inside ⚙ Settings).
 Note: if battery use bothers you, turn on "**Low-power mode**" — it lets the device sleep deeply while the screen is off to save battery, but incoming connections may be delayed or dropped during that time (battery over reachability).
+
+Note: **0.8.268 fixes battery drain caused by residency alone.** Until then the servers were checked once a second, and each check spawned several small processes inside the device — including for servers that were not even running. That added up and kept the phone permanently warm, so the **check interval is now 5 seconds** and the residency notification is only rewritten **when the running count changes**. In exchange, turning a server on/off — and adding, editing or deleting one — takes up to **5 seconds** to apply.
 
 #### Ending the terminal while resident servers are running
 

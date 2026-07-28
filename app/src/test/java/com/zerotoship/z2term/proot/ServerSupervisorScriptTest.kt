@@ -104,6 +104,43 @@ class ServerSupervisorScriptTest {
         assertTrue(script.contains("export Z2_SUPERVISED"))
     }
 
+    /**
+     * 見張りの間隔をハードコードしないこと (0.8.268)。
+     *
+     * このスクリプトはエンジン (proot/z2root) の中で動き、外部コマンドを 1 回起こすだけで
+     * ptrace 越しに数千 syscall になる。`sleep 1` に戻すと**常駐しているだけで端末が温まり
+     * 電池が減る**ので、間隔は必ず `$POLL` 経由にして 1 か所で決める。
+     */
+    @Test
+    fun pollsThroughASingleInterval() {
+        assertTrue("POLL が定義されていない", script.contains("POLL=${ServerSupervisorScript.POLL_SECONDS}"))
+        val hardcoded = script.lines().map { it.trim() }.filter { it.startsWith("sleep ") && it != "sleep \"\$POLL\"" }
+        // 再起動前の待ち (sleep 3) だけは間隔と無関係なので許す。
+        assertEquals("見張りの sleep が POLL を経由していない: $hardcoded", listOf("sleep 3"), hardcoded)
+    }
+
+    /**
+     * `.want` をシェル組み込みの `read` で読むこと (0.8.268)。`cat` に戻すと 1 周期ごとに
+     * プロセスが 1 つ増え、サーバーの本数だけ倍になる。
+     */
+    @Test
+    fun readsWantFlagWithoutSpawningAProcess() {
+        assertTrue("want を read で読んでいない", script.contains("read want < \"\$wantf\""))
+        assertFalse("want を cat で読んでいる (プロセスが増える)", script.contains("cat \"\$wantf\""))
+    }
+
+    /**
+     * 停止中のサーバーが `.status` を毎周期書き直さないこと (0.8.268)。動いていないサーバーの
+     * 分までディスクとエンジンを回し続けるのを防ぐ。
+     */
+    @Test
+    fun doesNotRewriteStatusWhileStopped() {
+        assertTrue(
+            "停止中の status 書き込みに変化ガードが無い",
+            script.contains("[ \"\$laststop\" != \"\$restarts:\$cmd\" ]")
+        )
+    }
+
     /** シェバンで始まり、末尾は改行で終わること。 */
     @Test
     fun startsWithShebangAndEndsWithNewline() {

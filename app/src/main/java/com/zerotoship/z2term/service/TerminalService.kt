@@ -11,7 +11,6 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
-import android.net.wifi.WifiManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.zerotoship.z2term.MainActivity
@@ -23,11 +22,24 @@ import com.zerotoship.z2term.core.SessionManager
  *
  * - Activity が破棄された後も [SessionManager] が保持するセッションを生かす。
  * - 通知から STOP アクションを発火すると、セッションを終了して自身を停止。
+ *
+ * ## WifiLock を持たない理由 (0.8.268)
+ *
+ * 0.8.143〜0.8.267 はここでも `WIFI_MODE_FULL_HIGH_PERF` の WifiLock を握っていた。これは
+ * **Wi-Fi 無線の省電力を完全に止める**指定で、画面消灯中も無線がフルパワーのままになり、
+ * 電池と発熱に直接効く。
+ *
+ * 無線を起こしたままにする必要があるのは「外から着信を受ける」= 常駐サーバー
+ * ([ServerDaemonService]) の仕事で、そちらが同じ WifiLock を持っている。このサービスの役目は
+ * **対話セッションのプロセスを生かすこと**だけで、そのために無線は要らない。両方が握ると
+ * 同じロックが二重になるだけなので、ここでは持たない。
+ *
+ * ⚠ 逆に言うと、外部からの到達性を保つには常駐サーバー側を動かす必要がある (🔒 だけでは
+ * 保たれない)。常駐サーバーの省電力モードを ON にした場合は、どちらも握らない。
  */
 class TerminalService : Service() {
 
     private var wakeLock: PowerManager.WakeLock? = null
-    private var wifiLock: WifiManager.WifiLock? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -43,7 +55,6 @@ class TerminalService : Service() {
                 // (プロセスが背景でいつ殺されてもよい = ユーザーが望んだ非常駐挙動)
                 Log.i(TAG, "Detach action received (foreground off, sessions kept)")
                 releaseWakeLock()
-                releaseWifiLock()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
@@ -66,12 +77,10 @@ class TerminalService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
         acquireWakeLock()
-        acquireWifiLock()
     }
 
     private fun stopSessionAndSelf() {
         releaseWakeLock()
-        releaseWifiLock()
         SessionManager.shutdown()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
@@ -93,34 +102,6 @@ class TerminalService : Service() {
             Log.i(TAG, "Partial WakeLock released")
         }
         wakeLock = null
-    }
-
-    /**
-     * Wi-Fi 無線を高性能モードで保持 (省電力/PSM 抑止)。
-     *
-     * CPU の [PowerManager.WakeLock] は Wi-Fi 無線を起こしたままにはしないため、
-     * これが無いと画面消灯/アイドルで Wi-Fi が省電力に入り、LAN からの着信
-     * (端末上の sshd への接続など) が届かず到達不能になる。
-     * `WIFI_MODE_FULL_HIGH_PERF` は画面消灯中でも無線をフルパワーに保つ
-     * (`WIFI_MODE_FULL_LOW_LATENCY` は前景+画面ON 時しか効かず、常駐 sshd 用途には不適)。
-     */
-    private fun acquireWifiLock() {
-        if (wifiLock?.isHeld == true) return
-        val wm = applicationContext.getSystemService(WIFI_SERVICE) as? WifiManager ?: return
-        @Suppress("DEPRECATION")
-        val wl = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "z2term:wifi")
-        wl.setReferenceCounted(false)
-        wl.acquire()
-        wifiLock = wl
-        Log.i(TAG, "WifiLock acquired (FULL_HIGH_PERF)")
-    }
-
-    private fun releaseWifiLock() {
-        wifiLock?.let { wl ->
-            if (wl.isHeld) wl.release()
-            Log.i(TAG, "WifiLock released")
-        }
-        wifiLock = null
     }
 
     private fun ensureChannel() {
@@ -168,7 +149,6 @@ class TerminalService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         releaseWakeLock()
-        releaseWifiLock()
         Log.i(TAG, "TerminalService destroyed")
     }
 

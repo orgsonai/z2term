@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-28 / Target version: 0.8.267-alpha (versionCode 275)
+Last updated: 2026-07-28 / Target version: 0.8.268-alpha (versionCode 276)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -119,20 +119,17 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 
 emulator state updates are concentrated on a **dedicated single thread** (`z2term-emu-*`); Compose reads via `StateFlow`.
 
-#### Foreground residency and two locks (`TerminalService`, 0.8.143)
+#### Foreground residency and its lock (`TerminalService`, 0.8.143 / 0.8.268)
 
 `TerminalService` (foreground service) handles keep-alive, maintaining the PTY in the background. `AudioBridge` (GUI audio) is handled in the same service family.
 
-While keep-alive is on it holds two locks.
+While keep-alive is on it holds a `PARTIAL_WAKE_LOCK` (keeps the CPU running) and **nothing else**. It is released on detach (keep-alive off), stop and destroy.
 
-| Lock | Purpose |
-|---|---|
-| `PARTIAL_WAKE_LOCK` | Keeps the CPU running |
-| `WifiLock` (`WIFI_MODE_FULL_HIGH_PERF`) | Keeps the Wi-Fi radio out of power-save (PSM) while the screen is off / the device is idle |
+**No `WifiLock` here (0.8.268)**: 0.8.143 through 0.8.267 also held a `WIFI_MODE_FULL_HIGH_PERF` `WifiLock`. That setting takes the Wi-Fi radio out of power-save (PSM) entirely, keeping it at full power even while the screen is off — which costs battery and generates heat directly. Keeping the radio awake is the job of the side that **accepts inbound connections**, i.e. resident servers (`ServerDaemonService`), which holds that same `WifiLock`. This service only has to keep the interactive session's process alive, so it no longer holds a duplicate.
 
-**Why the `WifiLock` is needed**: without it, inbound LAN connections to an on-device sshd (etc.) are not delivered, producing the "started it but can't connect / reconnecting Wi-Fi fixes it" symptom.
+⚠ Consequently **🔒 alone does not preserve inbound reachability** — resident servers must be running. Without a `WifiLock`, inbound LAN connections to an on-device sshd (etc.) are not delivered, producing the "started it but can't connect / reconnecting Wi-Fi fixes it" symptom; that is what the resident-server `WifiLock` guards against.
 
-Both locks are released on detach (keep-alive off), stop and destroy.
+⚠ **With resident servers or the capture services on, the process never dies**, so this service — and its "Z2Term running" notification — stays too. With them off, swiping the app from recents kills the process and the notification goes away. That is why residency notifications appear to multiply once resident servers are in use.
 
 #### Resident servers (`ServerDaemonService` et al., 0.8.147)
 
@@ -148,8 +145,8 @@ A generic mechanism to register any server (sshd/http/smb, …) as a **start com
 **Job-file model (0.8.198, live reload)**
 
 The script is a **fixed string that bakes in no server definitions**; servers are handed over as files
-under `var/lib/z2term-servers/`. A watch loop (every 2s) picks up any `*.job` it has not started yet and
-spawns a run loop for it.
+under `var/lib/z2term-servers/`. A watch loop (every `POLL` seconds, see below) picks up any `*.job` it has
+not started yet and spawns a run loop for it.
 
 | File | Written by | Meaning |
 |---|---|---|
@@ -160,7 +157,7 @@ spawns a run loop for it.
 | `<id>.exits` | supervisor | exit history (`<epoch> <rc>`, last 20 lines) |
 
 - **Adding, editing and deleting all apply without stopping the supervisor** (`ServerDaemonManager.syncEntries`).
-  An addition is picked up within 2s, a changed `<id>.job` restarts just that server, and removing
+  An addition is picked up within `POLL` seconds, a changed `<id>.job` restarts just that server, and removing
   `<id>.job` makes only that run loop clean up and exit. **Previously the script baked in a run loop for
   every entry known at registration time**, so an entry added later had no loop and required a full
   restart — taking every other server down with it. Fixing that is the point of A3.
@@ -171,9 +168,22 @@ spawns a run loop for it.
   run loop again — a server that **silently never starts**. `.log` and `.exits` are kept, since they
   exist to explain a crash after the fact.
 
+**Watch interval (`POLL` = 5s, 0.8.268)**
+
+The supervisor runs **inside the engine** (proot/z2root), where spawning one external command costs thousands of syscalls through ptrace. **The watch interval therefore translates directly into heat and battery drain.**
+
+Through 0.8.267 it woke every second and spawned `cat` twice (for `.want` and `.job`); `sleep` is itself an external command, so that was **three processes per second per server** — and **stopped servers ran at the same rate**. On device, merely being resident kept the engine at 5–7% CPU continuously and left the phone permanently warm (measured from `utime+stime` deltas in `/proc/<pid>/stat`).
+
+Three fixes:
+- Widen the interval to `ServerSupervisorScript.POLL_SECONDS` (5s) and route **every `sleep` in the script through `$POLL`** (except the `sleep 3` before a restart)
+- Read `<id>.want` with the **shell built-in `read`** — it is a single line, and this spawns no process. `.job` may be multi-line, so it stays on `cat`
+- **Stopped servers no longer rewrite `.status` every cycle** (only when the content changes)
+
+The cost is that per-server on/off, additions, edits, deletions and crash-restarts take up to 5s to apply. A resident server's job is to keep running, not to answer within a second, so battery wins. `ServerSupervisorScriptTest` pins all three ("no hardcoded `sleep`", "`.want` not read via `cat`", "stopped-state write is guarded").
+
 **Per-server on/off (0.8.163)**
 - Each run loop watches the `<id>.want` flag (`1` = run)
-- When the app rewrites it via `ServerDaemonManager.setWant`, only that one server starts/stops (~1s) without restarting the supervisor (so the other servers keep running)
+- When the app rewrites it via `ServerDaemonManager.setWant`, only that one server starts/stops (within `POLL` seconds) without restarting the supervisor (so the other servers keep running)
 - The flag's initial value reflects each `ServerEntry.enabled`
 - A server-row toggle in the UI applies live via `setWant` while resident, or just persists `enabled` while stopped (applied on next start)
 
@@ -202,7 +212,8 @@ spawns a run loop for it.
 
 **Notification presentation (0.8.160)**
 - The resident notification uses an `IMPORTANCE_MIN` channel (`z2term_servers_v2`) so it **shows no status-bar icon and collapses to the bottom of the shade** (a foreground service must have a notification, so it cannot be hidden entirely; this favours unobtrusiveness for the server-only case)
-- Because the supervisor writes `.status` with a lag, the running count is refreshed on a **few-second cycle** (`server-notif-refresh`) rather than once at startup — fixing the count getting stuck at 0 and also tracking restarts/crashes
+- Because the supervisor writes `.status` with a lag, the running count is refreshed **periodically** (`server-notif-refresh`) rather than once at startup — fixing the count getting stuck at 0 and also tracking restarts/crashes
+- **Cycle and update condition (0.8.268)**: every 3s for the first minute, every 30s afterwards. On top of that, `notify()` and the widget redraw happen **only when the running count changes**, and `.status` is read once per cycle instead of twice. Through 0.8.267 this ran every 3s and re-issued the notification after two `.status` reads each time (~29,000 times a day); with a WakeLock held the device could not enter Doze, so the CPU woke for every one of them. Re-issuing an unchanged notification changes nothing on screen, so it is skipped
 
 **Self-backgrounding servers (0.8.165)**
 - The supervisor treats "the command exited" as "the server died" and restarts it, so a server that daemonizes itself and exits immediately gets restarted every few seconds

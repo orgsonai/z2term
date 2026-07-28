@@ -35,7 +35,7 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 ## Current version
 
-**0.8.267-alpha (versionCode 275).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.268-alpha (versionCode 276).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
@@ -140,7 +140,7 @@ z2term/
 │       │   ├── distro/              ← rootfs deployment (Alpine + Ubuntu)
 │       │   ├── emulator/            ← VT100/xterm emulator core
 │       │   ├── settings/            ← DataStore persistence
-│       │   ├── service/             ← TerminalService / AudioBridge (foreground + Wake/WifiLock)
+│       │   ├── service/             ← TerminalService / AudioBridge (foreground + WakeLock)
 │       │   ├── gui/                  ← GUI (Xvnc + built-in RFB client / GuiSession)
 │       │   ├── saf/                  ← SAF DocumentsProvider
 │       │   └── ui/

@@ -110,8 +110,15 @@ class ServerDaemonService : Service() {
         }
     }
 
-    private fun buildNotification(): Notification {
-        val running = ServerDaemonManager.readStatus(this).count { it.state == "running" }
+    private fun buildNotification(): Notification =
+        buildNotification(ServerDaemonManager.readStatus(this).count { it.state == "running" })
+
+    /**
+     * 稼働数を渡して通知を組む。[startNotificationRefresher] は数えた結果を持っているので、
+     * ここへ渡して**状態ファイルの読み直しを 1 周期 1 回**に抑える (以前は数えるためと通知を
+     * 組むために毎周期 2 回読んでいた)。
+     */
+    private fun buildNotification(running: Int): Notification {
         val tapIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -137,25 +144,35 @@ class ServerDaemonService : Service() {
     /**
      * 稼働状態が通知に反映されるまで (および稼働中ずっと) 定期的に通知を更新する。
      * supervisor の status 書き込みラグや、サーバーのクラッシュ/自動再起動にも追従させる。
+     *
+     * ⚠ **常駐中ずっと回り続けるループ**なので、周期と 1 周期あたりの仕事量がそのまま電池に効く
+     * (0.8.268)。0.8.267 までは 3 秒ごとに status を 2 回読んで通知を出し直していた ＝ 1 日
+     * 約 29,000 回。しかも WakeLock を握っているので端末が Doze へ入れず、その都度 CPU が起きる。
+     * いまは **稼働数が変わったときだけ**描き直し、落ち着いたら周期も広げる。
      */
     private fun startNotificationRefresher() {
         stopNotificationRefresher()
         val t = Thread {
             val nm = getSystemService(NotificationManager::class.java)
             var lastRunning = -1
+            var elapsed = 0L
             try {
                 while (ServerDaemonManager.isRunning && !Thread.currentThread().isInterrupted) {
-                    runCatching { nm.notify(NOTIFICATION_ID, buildNotification()) }
-                    // 稼働数が変わったときだけホーム画面ウィジェットを描き直す。ここは 3 秒周期なので、
-                    // 毎回叩くとウィジェット側のファイル読取が無駄に回る。
                     val running = runCatching {
                         ServerDaemonManager.readStatus(this).count { it.state == "running" }
                     }.getOrDefault(-1)
+                    // 同じ数のまま通知を出し直しても見た目は 1 ドットも変わらないので出さない。
+                    // ホーム画面ウィジェットも同じ理由で変化時だけ描き直す。
                     if (running != lastRunning) {
                         lastRunning = running
+                        runCatching { nm.notify(NOTIFICATION_ID, buildNotification(running)) }
                         StatusWidgetProvider.refresh(this)
                     }
-                    Thread.sleep(3000)
+                    // 起動直後は supervisor が status を書くまでラグがあるので短く見る。
+                    // 落ち着いた後は「クラッシュして再起動した」に気付けば十分なので広げる。
+                    val interval = if (elapsed < SETTLE_MILLIS) SETTLE_POLL_MILLIS else STEADY_POLL_MILLIS
+                    Thread.sleep(interval)
+                    elapsed += interval
                 }
             } catch (_: InterruptedException) {
                 // stop で割り込まれた = 正常終了。
@@ -211,6 +228,13 @@ class ServerDaemonService : Service() {
         private const val CHANNEL_ID = "z2term_servers_v2"
         private const val NOTIFICATION_ID = 1002
         private const val MAX_WAKELOCK_MILLIS = 8L * 60 * 60 * 1000
+
+        /** 起動直後、status の書き込みラグに追従するため短い周期で見る時間。 */
+        private const val SETTLE_MILLIS = 60_000L
+        /** その間の周期 (従来と同じ)。 */
+        private const val SETTLE_POLL_MILLIS = 3_000L
+        /** 落ち着いた後の周期。常駐中ずっと回るので、ここを詰めると電池に効く。 */
+        private const val STEADY_POLL_MILLIS = 30_000L
         const val ACTION_START = "com.zerotoship.z2term.SERVERS_START"
         const val ACTION_STOP = "com.zerotoship.z2term.SERVERS_STOP"
 

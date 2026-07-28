@@ -27,6 +27,21 @@ package com.zerotoship.z2term.proot
  *
  * run ループはコマンド本文の変化も見ていて、`<id>.job` が書き換わったら**そのサーバーだけ**を
  * 再起動する (編集の反映も無停止)。
+ *
+ * ## 見張りの間隔 ([POLL_SECONDS]・0.8.268)
+ *
+ * このスクリプトはエンジン (proot/z2root) の中で動く。**エンジン下では外部コマンドを 1 回起こす
+ * だけで ptrace 越しに数千 syscall になる**ため、見張りの間隔がそのまま端末の発熱と電池に効く。
+ * 0.8.267 までは 1 秒ごとに `cat` を 2 回起こしていて (= サーバー 1 本あたり毎秒 3 プロセス、
+ * 停止中のサーバーも同じ頻度)、常駐しているだけでエンジンが CPU を数 % 使い続けていた。
+ *
+ * そこで:
+ *  - 見張りの間隔を [POLL_SECONDS] 秒に広げる
+ *  - `<id>.want` は 1 行しかないのでシェル組み込みの `read` で読む (プロセスを起こさない)
+ *  - **停止中のサーバーは `.status` を毎周期書き直さない** (中身が変わったときだけ書く)
+ *
+ * 代償として、個別 ON/OFF・追加・編集・削除の反映と、落ちたサーバーの再起動が最大
+ * [POLL_SECONDS] 秒遅れる。常駐サーバーは「動き続けること」が仕事で、秒単位の応答は要らない。
  */
 object ServerSupervisorScript {
 
@@ -54,6 +69,12 @@ object ServerSupervisorScript {
     const val EXIT_KEEP = 20
 
     /**
+     * 見張りの間隔 (秒)。KDoc の「見張りの間隔」参照 — エンジン下ではここが発熱と電池に直結する。
+     * 縮めるときは「秒あたり何プロセス起こすことになるか」を必ず数えること。
+     */
+    const val POLL_SECONDS = 5
+
+    /**
      * supervisor スクリプト本文を返す。**エントリには依存しない** (ジョブは実行時にファイルで渡す)。
      *
      * 注意: 生成シェルスクリプトでは `trimMargin` を使わない。行頭に `|` が残ると POSIX sh では
@@ -67,6 +88,9 @@ object ServerSupervisorScript {
         LOG_MAX=$LOG_MAX_BYTES
         LOG_KEEP=$LOG_KEEP_BYTES
         EXIT_KEEP=$EXIT_KEEP
+        # 見張りの間隔(秒)。エンジン(proot/z2root)下では外部コマンドを 1 回起こすだけで
+        # ptrace 越しに数千 syscall になるため、ここを詰めると常駐しているだけで端末が温まる。
+        POLL=$POLL_SECONDS
 
         # 常駐サーバーとして起動されたことを子プロセスへ伝える。sshd wrapper のように
         # 「既定では自分を背景化して即 exit する」コマンドは、これを見て前景常駐へ切り替える
@@ -102,28 +126,44 @@ object ServerSupervisorScript {
           exitf="${'$'}STATUS_DIR/${'$'}name.exits"
           statf="${'$'}STATUS_DIR/${'$'}name.status"
           restarts=0
+          laststop=''
           while [ -f "${'$'}jobf" ]; do
             cmd=`cat "${'$'}jobf" 2>/dev/null`
-            want=`cat "${'$'}wantf" 2>/dev/null`
+            # .want は '1' か '0' の 1 行しかないので組み込みの read で読む (プロセスを起こさない)。
+            want=''
+            read want < "${'$'}wantf" 2>/dev/null
             if [ -z "${'$'}cmd" ] || [ "${'$'}want" != "1" ]; then
-              printf 'state=stopped\nrestarts=%s\ncmd=%s\n' "${'$'}restarts" "${'$'}cmd" > "${'$'}statf"
-              sleep 1
+              # 停止中は中身が変わったときだけ書く。毎周期書き直すと、動いてすらいない
+              # サーバーの分までエンジンとディスクが回り続ける。
+              if [ "${'$'}laststop" != "${'$'}restarts:${'$'}cmd" ]; then
+                printf 'state=stopped\nrestarts=%s\ncmd=%s\n' "${'$'}restarts" "${'$'}cmd" > "${'$'}statf"
+                laststop="${'$'}restarts:${'$'}cmd"
+              fi
+              sleep "${'$'}POLL"
               continue
             fi
+            laststop=''
             trim_log "${'$'}logf"
             printf 'state=starting\nrestarts=%s\ncmd=%s\n' "${'$'}restarts" "${'$'}cmd" > "${'$'}statf"
             sh -c "${'$'}cmd" >> "${'$'}logf" 2>&1 &
             spid=${'$'}!
             printf 'state=running\npid=%s\nrestarts=%s\ncmd=%s\n' "${'$'}spid" "${'$'}restarts" "${'$'}cmd" > "${'$'}statf"
-            # 動いている間、停止指示 / 削除 / コマンド変更を 1 秒ごとに見る。
+            # 動いている間、停止指示 / 削除 / コマンド変更を POLL 秒ごとに見る。
+            # kill -0 と read と test は組み込みなので、ここで起こすプロセスは sleep と
+            # (want が生きているときだけの) cat の 2 つに抑える。
             while kill -0 "${'$'}spid" 2>/dev/null; do
-              now=`cat "${'$'}wantf" 2>/dev/null`
-              newcmd=`cat "${'$'}jobf" 2>/dev/null`
-              if [ "${'$'}now" != "1" ] || [ ! -f "${'$'}jobf" ] || [ "${'$'}newcmd" != "${'$'}cmd" ]; then
+              now=''
+              read now < "${'$'}wantf" 2>/dev/null
+              if [ "${'$'}now" != "1" ] || [ ! -f "${'$'}jobf" ]; then
                 kill "${'$'}spid" 2>/dev/null
                 break
               fi
-              sleep 1
+              newcmd=`cat "${'$'}jobf" 2>/dev/null`
+              if [ "${'$'}newcmd" != "${'$'}cmd" ]; then
+                kill "${'$'}spid" 2>/dev/null
+                break
+              fi
+              sleep "${'$'}POLL"
             done
             # kill した場合もここで回収する (wait は 1 回だけ呼ぶこと。二度目は
             # 「そんな子は居ない」で無関係な終了コードを拾ってしまう)。
@@ -132,7 +172,8 @@ object ServerSupervisorScript {
             stamp=`date +%s 2>/dev/null || echo 0`
             printf '%s %s\n' "${'$'}stamp" "${'$'}rc" >> "${'$'}exitf"
             tail -n "${'$'}EXIT_KEEP" "${'$'}exitf" > "${'$'}exitf.tmp" 2>/dev/null && mv "${'$'}exitf.tmp" "${'$'}exitf"
-            want=`cat "${'$'}wantf" 2>/dev/null`
+            want=''
+            read want < "${'$'}wantf" 2>/dev/null
             if [ "${'$'}want" != "1" ] || [ ! -f "${'$'}jobf" ]; then
               printf 'state=stopped\nlast_exit=%s\nrestarts=%s\ncmd=%s\n' "${'$'}rc" "${'$'}restarts" "${'$'}cmd" > "${'$'}statf"
               continue
@@ -155,7 +196,7 @@ object ServerSupervisorScript {
             : > "${'$'}STATUS_DIR/${'$'}name.claimed"
             run_server "${'$'}name" &
           done
-          sleep 2
+          sleep "${'$'}POLL"
         done
     """.trimIndent() + "\n"
 }

@@ -35,7 +35,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.267-alpha (versionCode 275).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.268-alpha (versionCode 276).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 
@@ -144,7 +144,7 @@ z2term/
 │       │   ├── distro/              ← rootfs 展開 (Alpine + Ubuntu)
 │       │   ├── emulator/            ← VT100/xterm エミュレータコア
 │       │   ├── settings/            ← DataStore 永続化
-│       │   ├── service/             ← TerminalService / AudioBridge (foreground + Wake/WifiLock)
+│       │   ├── service/             ← TerminalService / AudioBridge (foreground + WakeLock)
 │       │   ├── gui/                  ← GUI (Xvnc + 内蔵 RFB クライアント / GuiSession)
 │       │   ├── saf/                  ← SAF DocumentsProvider
 │       │   └── ui/
