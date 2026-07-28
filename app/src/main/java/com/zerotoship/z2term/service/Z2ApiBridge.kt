@@ -755,6 +755,9 @@ object Z2ApiBridge {
      *
      * @param args 0=質問, 1=返信欄のヒント (省略可), 2=既定値 (省略可・返信欄に入れておく)
      */
+    // POST_NOTIFICATIONS 未許可は下の runCatching で握り、待っている端末側へ ERR を返すので、
+    // lint の権限チェックは抑止する ([doNotify] と同じ扱い)。
+    @SuppressLint("MissingPermission")
     private fun askCmd(context: Context, reqId: String, args: List<String>, needResp: Boolean) {
         val question = args.getOrNull(0).orEmpty().ifBlank { context.getString(R.string.ask_default_title) }
         val hint = args.getOrNull(1).orEmpty().ifBlank { context.getString(R.string.ask_default_hint) }
