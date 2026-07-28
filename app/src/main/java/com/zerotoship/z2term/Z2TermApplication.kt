@@ -11,7 +11,6 @@ import com.zerotoship.z2term.service.WhenManager
 import com.zerotoship.z2term.service.Z2ApiBridge
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.LocaleHelper
-import com.zerotoship.z2term.tile.TileStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -57,10 +56,6 @@ class Z2TermApplication : Application() {
             runCatching { ScreenTimeout.restoreOrReschedule(this@Z2TermApplication) }
                 .onFailure { Log.w(TAG, "screen timeout restore skipped: ${it.message}") }
         }
-        // クイック設定タイル: 割り当ての無い枠をクイック設定の一覧から隠す。z2-tile set/clear の
-        // たびに揃えているが、インストール直後は 4 枠とも有効 (manifest の既定) なのでここで一度均す。
-        runCatching { TileStore.syncEnabledTiles(this) }
-            .onFailure { Log.w(TAG, "tile sync skipped: ${it.message}") }
         // システムイベント検知が ON なら常駐 FG サービスを起動 (アプリ前面起動時に再アサート)。
         // background から起動した場合は FG サービス起動が禁止されうるので握りつぶす (BootReceiver 側で別途起動)。
         appScope.launch {
