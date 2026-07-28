@@ -127,9 +127,17 @@ While keep-alive is on it holds a `PARTIAL_WAKE_LOCK` (keeps the CPU running) an
 
 **It honours low-power mode (0.8.269)**: that `PARTIAL_WAKE_LOCK` is not taken when `serversLowPower` is on. Through 0.8.268 this service alone ignored the setting, so turning on low-power mode for resident servers **did not take full effect** — while resident servers ran, two services each held their own copy of the same WakeLock. Holding one of them anyway breaks the promise made to someone who chose battery over reachability, so a single flag covers both. ⚠ The check only happens in `onStartCommand`, so changing the setting must be followed by another `TerminalService.start` to re-evaluate it (the `ServersSheet` toggle does this; the call is idempotent).
 
-**No `WifiLock` here (0.8.268)**: 0.8.143 through 0.8.267 also held a `WIFI_MODE_FULL_HIGH_PERF` `WifiLock`. That setting takes the Wi-Fi radio out of power-save (PSM) entirely, keeping it at full power even while the screen is off — which costs battery and generates heat directly. Keeping the radio awake is the job of the side that **accepts inbound connections**, i.e. resident servers (`ServerDaemonService`), which holds that same `WifiLock`. This service only has to keep the interactive session's process alive, so it no longer holds a duplicate.
+**No `WifiLock` here (0.8.268)**: 0.8.143 through 0.8.267 also held a `WIFI_MODE_FULL_HIGH_PERF` `WifiLock`. That setting takes the Wi-Fi radio out of power-save (PSM) entirely, keeping it at full power even while the screen is off — which costs battery and generates heat directly. Keeping the radio awake belongs to the side that **accepts inbound connections**, i.e. resident servers (`ServerDaemonService`), which holds that same `WifiLock`. This service only has to keep the interactive session's process alive, so it no longer holds a duplicate.
 
-⚠ Consequently **🔒 alone does not preserve inbound reachability** — resident servers must be running. Without a `WifiLock`, inbound LAN connections to an on-device sshd (etc.) are not delivered, producing the "started it but can't connect / reconnecting Wi-Fi fixes it" symptom; that is what the resident-server `WifiLock` guards against.
+⚠ Consequently **🔒 alone does not preserve inbound reachability** — resident servers must be running.
+
+⚠⚠ **But holding a `WifiLock` cannot be claimed to preserve reachability either (measured 2026-07-28).** On 0.8.267 — with `TerminalService` and `ServerDaemonService` each holding their own `WIFI_MODE_FULL_HIGH_PERF` lock, two in total — neither ping nor ssh reached the device from outside **right after a Wi-Fi reconnect**. dropbear was still listening and accepted logins from 127.0.0.1, so the server side was blameless and the failure was **below TCP (ARP)**. Reachability returned the instant the device sent anything outbound, which pins the cause to "Wi-Fi power save leaves the device unresponsive to ARP".
+
+`WIFI_MODE_FULL_HIGH_PERF` has been **deprecated since Android 10** and is effectively ignored on some devices. Therefore:
+
+- **Do not treat a `WifiLock` as a guarantee of reachability when making design decisions.** Dropping it from `TerminalService` in 0.8.268 was justified as "no point holding a duplicate of something that isn't working" — reachability was never guaranteed to begin with, so nothing was lost
+- **Cover reachability from the device side.** In practice this is a `z2-when wifi:connect` rule in `~/.z2term` that pings the gateway and the peer once, a few seconds after reconnecting (the device announcing itself brings ARP back). It costs almost no battery since nothing runs periodically
+- To triage while the symptom is live, use `~/.z2term/macros/ssh-diag.sh`
 
 ⚠ **With resident servers or the capture services on, the process never dies**, so this service — and its "Z2Term running" notification — stays too. With them off, swiping the app from recents kills the process and the notification goes away. That is why residency notifications appear to multiply once resident servers are in use.
 
@@ -205,7 +213,7 @@ The cost is that per-server on/off, additions, edits, deletions and crash-restar
   and is found late (the 0.8.165 incident, and the 0.8.187 `trimMargin` one).
 
 **Residency and stopping**
-- Foreground persistence (so the process is not killed) and LAN reachability (WakeLock + WifiLock) are handled by the dedicated `ServerDaemonService`
+- Foreground persistence (so the process is not killed) and LAN reachability (WakeLock + WifiLock) are handled by the dedicated `ServerDaemonService`. ⚠ **The `WifiLock` does not guarantee reachability** (measured: it drops at the ARP layer right after a Wi-Fi reconnect — see "Foreground residency and its lock" above)
 - **`BootReceiver` (`RECEIVE_BOOT_COMPLETED`) auto-starts the daemon right after boot without opening the app** (only when "auto-start on boot" is on and at least one server is enabled)
 - Stopping — via the "Stop servers" notification action or the settings — **kills the supervisor engine = stops all servers at once** (children are reaped together)
 - Ports below 1024 cannot be bound by a non-root engine
