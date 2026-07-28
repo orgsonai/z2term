@@ -632,11 +632,6 @@
     <string name="settings_section_automation_rules">自動化ルール（z2-when）</string>
     <string name="settings_automation_rules_desc">登録したルールの確認・ON/OFF・実行ログ・お試し実行と、全部まとめての一時停止。</string>
     <string name="settings_open_when_rules">ルールを管理</string>
-    <string name="settings_section_tile">クイック設定タイル（z2-tile）</string>
-    <string name="settings_tile_desc">クイック設定パネルに置ける 4 つのタイル。1 枠につきマクロかコマンドを 1 つ実行します。押すと実行、もう一度押すと停止。割り当ては端末の z2-tile から。ロック中は先に解除を求めます。</string>
-    <string name="settings_tile_empty">まだ何も割り当てていません。</string>
-    <string name="settings_tile_add">タイル %1$d（%2$s）をクイック設定に追加</string>
-    <string name="settings_tile_cmd_label">端末での使い方（タップでコピー）。4 枠の一覧は z2-tile list</string>
     <string name="tile_service_label_1">z2term 1</string>
     <string name="tile_service_label_2">z2term 2</string>
     <string name="tile_service_label_3">z2term 3</string>

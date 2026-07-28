@@ -92,8 +92,6 @@ import com.zerotoship.z2term.service.PasswordWatchAdmin
 import com.zerotoship.z2term.service.ServerDaemonManager
 import com.zerotoship.z2term.service.ScreenTimeout
 import com.zerotoship.z2term.service.SmsLogReceiver
-import com.zerotoship.z2term.tile.TileStore
-import com.zerotoship.z2term.tile.Z2TileService
 import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.BatteryGuard
@@ -826,41 +824,6 @@ fun SettingsSheet(
                     ActionButton(
                         label = stringResource(R.string.settings_open_when_rules),
                         onClick = { whenRulesOpen = true }
-                    )
-                }
-
-                // クイック設定タイル (z2-tile): 4 枠の割り当てを見せ、Android 13+ なら
-                // 「クイック設定に追加」を 1 タップで頼める (それ未満は編集画面から手で並べる)。
-                // ⚠ 割り当ての変更はここではやらない — 端末の z2-tile が正本で、入口を 2 つ作ると
-                // どちらが効いているのか分からなくなる (マクロと同じ考え方)。
-                Section(title = stringResource(R.string.settings_section_tile)) {
-                    Text(
-                        text = stringResource(R.string.settings_tile_desc),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    val slots = TileStore.all(context)
-                    Text(
-                        text = if (slots.isEmpty()) stringResource(R.string.settings_tile_empty)
-                        else slots.joinToString("\n") { "${it.n}. ${it.label}  —  ${it.command}" },
-                        color = if (slots.isEmpty()) ZtsTextSecondary else ZtsGreen,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    // requestAddTileService は Android 13 (API 33) から。それ未満の端末では
-                    // クイック設定の編集画面から手で並べてもらうしかない (OS が API を持たない)。
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        slots.forEach { slot ->
-                            ActionButton(
-                                label = stringResource(R.string.settings_tile_add, slot.n, slot.label),
-                                onClick = { requestAddTile(context, slot) }
-                            )
-                        }
-                    }
-                    CopyableCommand(
-                        label = stringResource(R.string.settings_tile_cmd_label),
-                        command = "z2-tile set 1 backup.sh"
                     )
                 }
 
@@ -2271,28 +2234,6 @@ private fun readLogCommand(path: String, prepend: Boolean): String =
  * 設定画面の例をターミナルで打ち直すのは端末では手間なので、例を出す箇所はコピーできるようにする。
  * コピー後はトーストで結果を返す (押しても何も起きないように見えるのを避ける)。
  */
-/**
- * 「このタイルをクイック設定に追加しますか」の OS ダイアログを出す (Android 13+)。
- *
- * ⚠ アプリがタイルを**勝手に並べることは OS が禁じている**。これは「頼む」までで、置くかどうかは
- * 利用者が決める。Android 12 以前にはこの API 自体が無いので、そちらでは編集画面から手で並べる
- * (だから設定画面ではボタンを出さない — 押せないボタンを出さない)。
- */
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-private fun requestAddTile(context: Context, slot: TileStore.Slot) {
-    val cls = Z2TileService.classFor(slot.n) ?: return
-    val bar = context.getSystemService(StatusBarManager::class.java) ?: return
-    runCatching {
-        bar.requestAddTileService(
-            ComponentName(context, cls),
-            slot.label,
-            Icon.createWithResource(context, R.drawable.ic_notification),
-            java.util.concurrent.Executor { it.run() },
-            java.util.function.Consumer { },
-        )
-    }
-}
-
 @Composable
 private fun CopyableCommand(label: String, command: String) {
     val context = LocalContext.current

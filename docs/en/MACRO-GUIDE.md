@@ -324,8 +324,9 @@ z2-tile clear 2                                  # empty a slot (clear all works
   straight off the shade.
 - ⚠ **There are exactly 4 slots.** Tiles are declared in the manifest and cannot grow at runtime.
 - ⚠ **You place the tiles yourself**, from the pencil/edit screen of the quick settings panel; Android
-  does not let an app put its own tiles there. (On Android 13+, Settings › **Quick-settings tiles** can
-  ask the OS on your behalf.)
+  does not let an app put its own tiles there.
+- **With nothing assigned, no tile is listed at all** (0.8.271). Only the slots you assign show up in
+  the quick settings list.
 - The run log is `~/.z2term/tile/run.log`, kept apart from the widget's `~/.z2term/widget/run.log`.
 
 ### `z2-alarm` (run on a schedule)

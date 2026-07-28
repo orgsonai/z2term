@@ -47,13 +47,15 @@ class TileStoreTest {
     }
 
     /**
-     * 割り当ての無い枠はクイック設定の一覧に出さない。ただし**枠 1 だけは常に出す**。
-     * ここが逆になると、一度も z2-tile を打っていない人の一覧が z2term で埋まるか (全部出す)、
-     * 逆にタイルという置き場があること自体に気付けなくなる (全部隠す)。
+     * 割り当ての無い枠はクイック設定の一覧に出さない。**枠 1 も例外にしない (0.8.271)**。
+     *
+     * 0.8.260〜0.8.270 は枠 1 だけ常に出していた（機能に気付ける場所をアプリの外に残す意図）が、
+     * **使わない人には空の枠が消せずに残る**だけだった（実機で指摘）。ここが `n == 1 ||` に
+     * 戻ると同じ苦情が再発する。
      */
     @Test
     fun onlyAssignedSlotsAreListed() {
-        assertTrue(TileStore.shouldEnable(1, assigned = false))
+        assertFalse("未割り当ての枠 1 を出してはいけない", TileStore.shouldEnable(1, assigned = false))
         assertTrue(TileStore.shouldEnable(1, assigned = true))
         assertFalse(TileStore.shouldEnable(2, assigned = false))
         assertTrue(TileStore.shouldEnable(2, assigned = true))
