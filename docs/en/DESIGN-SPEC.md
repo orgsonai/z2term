@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-29 / Target version: 0.8.272-alpha (versionCode 280)
+Last updated: 2026-07-29 / Target version: 0.8.273-alpha (versionCode 281)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -286,7 +286,7 @@ Sibling of notification detection. With the OS `RECEIVE_SMS` permission and `sms
 
 **Stays installable on non-telephony devices (0.8.188)**: declaring `RECEIVE_SMS` makes Android implicitly treat `android.hardware.telephony` as **required**, which blocks installation on tablets/ChromeOS (lint flags this as an error, `PermissionImpliesUnsupportedChromeOsHardware`). Since z2term is a terminal and SMS detection is optional, `<uses-feature android:name="android.hardware.telephony" android:required="false" />` is declared explicitly so installation is unaffected (SMS detection simply never fires on such devices).
 
-**Sample**: `z2-macro install otp-sms.sh` installs the SMS variant of otp-clip.sh (reads `sms.jsonl`, extracts 4–8 digits).
+**Sample**: `z2-macro install otp-sms` installs the version driven by `sms:otp` (0.8.273; before that it was a resident script polling `sms.jsonl` every 2 seconds and extracting 4–8 digits itself — see "Moving the samples off residency onto `z2-when`" below).
 
 #### System event detection (`SystemEventService`, 0.8.152)
 
@@ -756,6 +756,28 @@ The footer now shows **the macro that finished last**, since start times moved o
 **Background**: the barrier to macros was never the syntax but **writing the first one from scratch**.
 
 **Implementation**: seven working samples (event basics / battery alert / time trigger / one-time-code copy from notifications / one-time-code copy from SMS / feed subscription / opening what was collected) are placed in the rootfs at `/usr/local/share/z2term/macros/` and copied into `~/.z2term/macros/` by `z2-macro install <name|all>`.
+
+**Moving the samples off residency onto `z2-when` (0.8.273)**: up to 0.8.272 the battery-alert,
+daily-report and OTP samples were **resident scripts polling a log every 2 seconds**, and the macro
+guide told people to "register it as a resident server if you also want the auto-clear". It surfaced
+as battery drain on a real device; measuring it showed **the resident-server engine using 3 seconds
+of CPU per minute (~5% continuously)**. Inside the engine a single external command costs thousands
+of ptrace-mediated syscalls, and residency also holds a WakeLock/WifiLock that keeps the device out
+of Doze.
+
+- **`z2-when` triggers express the same thing** (`battery:below=` / `time:daily=` / `notify:otp` /
+  `sms:otp`). For OTPs in particular **the app has already extracted the code into `Z2_WHEN_OTP`**,
+  so the body-parsing awk disappears entirely. All four lost their watch loops; idling now costs nothing.
+- **Only `watch-basic` stays resident.** It *is* the skeleton for "pick up something `z2-when` does not
+  have", so its watch loop is the point. Its `POLL` did move from **2 s to 15 s**, with the reason
+  written into the script's own comments (that number is the first thing a reader edits, so the
+  default has to be the answer).
+- `GeneratedScriptMarginTest.triggerBasedSamples_doNotPoll` pins "nothing but `watch-basic` has a
+  watch loop" and `pollingSample_usesARelaxedInterval` pins "`POLL` is at least 10". **Reverting to
+  the resident shape fails the tests.**
+- `samples_areValidPosixShell` was added at the same time, running every generated sample in both
+  languages through a real `sh -n` (these are teaching material — shipping one with a syntax error
+  breaks someone on their very first macro).
 
 - Install **never overwrites an existing file** (only `-f` does), so user edits survive the per-launch re-provisioning
 - `list` shows each script's second-line comment as its description; `show` / `run` / `dir` are also provided

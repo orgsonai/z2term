@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-29 / 対象バージョン: 0.8.272-alpha (versionCode 280)
+最終更新: 2026-07-29 / 対象バージョン: 0.8.273-alpha (versionCode 281)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -285,7 +285,7 @@ OS の「通知アクセス」許可を与えると Android が `NotificationLis
 
 **非電話端末でも入れる（0.8.188）**: `RECEIVE_SMS` を宣言すると Android は暗黙に `android.hardware.telephony` を**必須**とみなし、タブレット/ChromeOS 等からインストール不可になる（lint `PermissionImpliesUnsupportedChromeOsHardware` がエラーで検出する）。z2term はターミナルであり SMS 検知は任意機能なので、`<uses-feature android:name="android.hardware.telephony" android:required="false" />` を明示して従来どおり入るようにする（その端末では SMS 検知が発火しないだけ）。
 
-**サンプル**: `z2-macro install otp-sms.sh` で otp-clip.sh の SMS 版（`sms.jsonl` を見て 4〜8 桁を抽出）が入る。
+**サンプル**: `z2-macro install otp-sms` で `sms:otp` から起こされる版が入る（0.8.273。それ以前は `sms.jsonl` を 2 秒ごとに見張って自分で 4〜8 桁を抽出する常駐スクリプトだった → 下記「サンプルを常駐から `z2-when` へ寄せる」）。
 
 #### システムイベント検知（`SystemEventService`、0.8.152）
 
@@ -748,6 +748,23 @@ SSID の取得だけは `WifiInfo` 経由のままで、取れなければ従来
 **背景**: マクロは書き方より**最初の 1 本を白紙から書くこと**が壁だった。
 
 **実装**: 動くサンプル 7 本（イベント入門 / 電池アラート / 時刻トリガー / 通知内 OTP 自動コピー / SMS の OTP 自動コピー / フィード購読 / 集めた記事を開く）を rootfs の `/usr/local/share/z2term/macros/` に配置し、`z2-macro install <名前|all>` で `~/.z2term/macros/` へ展開する。
+
+**サンプルを常駐から `z2-when` へ寄せる（0.8.273）**: 0.8.272 まで、電池アラート・日報・OTP の 3 系統は
+**ログを 2 秒ごとに見張る常駐スクリプト**で、マクロガイドも「自動クリアまで欲しいなら常駐サーバーに
+登録」と案内していた。実機で電池の減りとして表に出たので測ったところ、**常駐サーバーのエンジンが
+60 秒あたり CPU 3 秒（＝常時 5% 前後）**を使っていた。エンジン下では外部コマンドを 1 回起こすだけで
+ptrace 越しに数千 syscall になるうえ、常駐中は WakeLock/WifiLock で Doze にも入れない。
+
+- **同じことが `z2-when` のトリガーで書ける**（`battery:below=` / `time:daily=` / `notify:otp` / `sms:otp`）。
+  特に OTP は**アプリ側が抽出まで済ませて `Z2_WHEN_OTP` に入れている**ので、本文を解析する awk ごと不要になる。
+  4 本とも監視ループが消え、待っている間のコストがゼロになった。
+- **`watch-basic` だけは常駐のまま**。あれは「`z2-when` に無いきっかけを自分で拾う」ための雛形そのもので、
+  監視ループがあることに意味がある。ただし雛形の `POLL` は **2 秒 → 15 秒**へ広げ、詰めたときに何が起きるかを
+  スクリプト内のコメントにも書いた（読む人が最初に触る数字なので、既定値が答えになる）。
+- `GeneratedScriptMarginTest.triggerBasedSamples_doNotPoll` が「`watch-basic` 以外は監視ループを持たない」を、
+  `pollingSample_usesARelaxedInterval` が「`POLL` は 10 秒以上」を固定する。**常駐版へ戻す変更はテストで止まる。**
+- 併せて `samples_areValidPosixShell` を足し、生成した全サンプル・両言語を実際の `sh -n` に通すようにした
+  （サンプルは教材なので、配ったものが構文エラーだと最初の 1 本で詰む）。
 
 - install は**既存ファイルを上書きしない**（`-f` のときだけ上書き）ので、ユーザーが編集したものが launch 毎の再配置で消えない
 - `list` は各スクリプトの 2 行目コメントを説明として並べる。`show` / `run` / `dir` も持つ

@@ -59,134 +59,110 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         append(diffLoop(d, ja, "handle"))
     }
 
-    // --- 2. z2-state を使う: 状況を見てから動く ---
+    // --- 2. z2-state を使う: 状況を見てから動く (z2-when が起こす「使い切り」の形) ---
     val batteryAlert = buildString {
         appendLine("#!/bin/sh")
         if (ja) {
             appendLine("# battery-alert.sh — 電池が減ったら知らせる。ただし今の状況を見て出し分ける。")
             appendLine("# z2-state で「画面が点いているか」を見て、点いていればトースト、消えていれば通知。")
-            appendLine("# ログ形式・追記方向のどちらにも依存しない (差分を読み、イベント名で照合する)。")
             appendLine("# 準備: ⚙設定 →「システムイベント検知」を ON")
+            appendLine("# z2-run: z2-when battery:below=20 run ~/.z2term/macros/battery-alert.sh")
+            appendLine()
+            appendLine("# 残量は z2-when が渡してくれる。手で試すときのために z2-state も見ておく。")
         } else {
             appendLine("# battery-alert.sh — warn on low battery, but adapt to the current state.")
             appendLine("# Uses z2-state to check whether the screen is on: toast if it is, notification if not.")
-            appendLine("# Independent of log format and write direction (diffs the log, matches on event names).")
             appendLine("# Setup: Settings -> \"System event detection\" ON")
+            appendLine("# z2-run: z2-when battery:below=20 run ~/.z2term/macros/battery-alert.sh")
+            appendLine()
+            appendLine("# z2-when hands the level over; fall back to z2-state so this also runs by hand.")
         }
-        append(diffSetup(d, ja, "events.jsonl", "battery-alert"))
+        appendLine("level=${d}{Z2_WHEN_LEVEL:-${d}(z2-state level)}")
         appendLine()
         if (ja) {
-            appendLine("# 値そのものはログから読まず z2-state で取る。だから形式が変わっても影響を受けない。")
+            appendLine("# 充電中なら知らせない (勝手に減っているわけではないので)")
         } else {
-            appendLine("# Read the value from z2-state, not from the log, so the format never matters.")
+            appendLine("# Say nothing while charging (it is not actually draining)")
         }
-        appendLine("handle() {")
-        appendLine("  printf '%s\\n' \"${d}1\" | while IFS= read -r rec; do")
-        appendLine("    case \"${d}rec\" in *battery_low*|*battery_level*) ;; *) continue ;; esac")
-        appendLine("    level=${d}(z2-state level)")
+        appendLine("[ \"${d}(z2-state charging)\" = \"true\" ] && exit 0")
+        appendLine()
+        appendLine("if [ \"${d}(z2-state screen)\" = \"on\" ]; then")
         if (ja) {
-            appendLine("    # 充電中なら知らせない (勝手に減っているわけではないので)")
+            appendLine("  z2-toast \"電池 ${d}{level}%\"")
+            appendLine("else")
+            appendLine("  z2-notify -h \"電池注意\" \"残り ${d}{level}% です\"")
         } else {
-            appendLine("    # Say nothing while charging (it is not actually draining)")
+            appendLine("  z2-toast \"Battery ${d}{level}%\"")
+            appendLine("else")
+            appendLine("  z2-notify -h \"Low battery\" \"${d}{level}% left\"")
         }
-        appendLine("    [ \"${d}(z2-state charging)\" = \"true\" ] && continue")
-        appendLine("    [ \"${d}level\" -le 20 ] 2>/dev/null || continue")
-        appendLine("    if [ \"${d}(z2-state screen)\" = \"on\" ]; then")
-        if (ja) {
-            appendLine("      z2-toast \"電池 ${d}{level}%\"")
-            appendLine("    else")
-            appendLine("      z2-notify -h \"電池注意\" \"残り ${d}{level}% です\"")
-        } else {
-            appendLine("      z2-toast \"Battery ${d}{level}%\"")
-            appendLine("    else")
-            appendLine("      z2-notify -h \"Low battery\" \"${d}{level}% left\"")
-        }
-        appendLine("    fi")
-        appendLine("  done")
-        appendLine("}")
-        append(diffLoop(d, ja, "handle"))
+        appendLine("fi")
     }
 
-    // --- 3. z2-alarm を使う: 時刻で動く ---
+    // --- 3. 時刻で動く (z2-when time: が OS のアラームで起こす) ---
     val dailyReport = buildString {
         appendLine("#!/bin/sh")
         if (ja) {
             appendLine("# daily-report.sh — 毎朝きまった時刻に電池と接続状態を読み上げる。")
-            appendLine("# 使い方: まず時刻トリガーを 1 回だけ仕掛ける")
-            appendLine("#   z2-alarm daily 07:00 morning")
-            appendLine("# そのうえで、このスクリプトを常駐させる")
-            appendLine("#   ⚙設定 → 常駐サーバー に  sh ~/.z2term/macros/daily-report.sh  を登録")
-            appendLine("# cron と違い Doze 中でも起きる (省電力のため数分ずれることはある)。")
-            appendLine("# ログ形式・追記方向のどちらにも依存しない (差分を読み、名前で照合する)。")
+            appendLine("# z2-run: z2-when time:daily=07:00 run ~/.z2term/macros/daily-report.sh")
+            appendLine("# 時刻は OS のアラームで起こすので Doze 中でも動く (省電力のため数分ずれることはある)。")
+            appendLine("# 検知の ON/OFF には依存しない。")
         } else {
             appendLine("# daily-report.sh — read out battery and connection every morning.")
-            appendLine("# Usage: set the time trigger once")
-            appendLine("#   z2-alarm daily 07:00 morning")
-            appendLine("# then keep this script resident")
-            appendLine("#   register  sh ~/.z2term/macros/daily-report.sh  under Settings -> Resident servers")
-            appendLine("# Unlike cron this also fires during Doze (it may be a few minutes late).")
-            appendLine("# Independent of log format and write direction (diffs the log, matches on names).")
+            appendLine("# z2-run: z2-when time:daily=07:00 run ~/.z2term/macros/daily-report.sh")
+            appendLine("# The OS alarm wakes it, so it fires during Doze too (may be a few minutes late).")
+            appendLine("# Does not depend on the detection switches.")
         }
-        append(diffSetup(d, ja, "events.jsonl", "daily-report"))
         appendLine()
+        appendLine("level=${d}(z2-state level)")
         if (ja) {
-            appendLine("# alarm と、z2-alarm に付けた名前 (morning) の両方が新着に出たときだけ動く。")
-            appendLine("# 複数行テンプレートだと 2 つが別々の行に出るので、行ごとではなく塊のまま見る。")
+            appendLine("if [ \"${d}(z2-state wifi)\" = \"true\" ]; then net=Wi-Fi; else net=モバイル; fi")
+            appendLine("z2-say \"おはようございます。電池は ${d}{level} パーセント、接続は ${d}{net} です\"")
         } else {
-            appendLine("# Fire only when both 'alarm' and the name given to z2-alarm ('morning') show up.")
-            appendLine("# A multi-line template splits them across lines, so check the chunk as a whole.")
+            appendLine("if [ \"${d}(z2-state wifi)\" = \"true\" ]; then net=Wi-Fi; else net=mobile; fi")
+            appendLine("z2-say \"Good morning. Battery ${d}{level} percent, network ${d}{net}\"")
         }
-        appendLine("handle() {")
-        appendLine("  case \"${d}1\" in *alarm*) ;; *) return ;; esac")
-        appendLine("  case \"${d}1\" in *morning*) ;; *) return ;; esac")
-        appendLine("  level=${d}(z2-state level)")
-        appendLine("  if [ \"${d}(z2-state wifi)\" = \"true\" ]; then net=Wi-Fi; else net=mobile; fi")
-        if (ja) {
-            appendLine("  z2-say \"おはようございます。電池は ${d}{level} パーセント、接続は ${d}{net} です\"")
-        } else {
-            appendLine("  z2-say \"Good morning. Battery ${d}{level} percent, network ${d}{net}\"")
-        }
-        appendLine("}")
-        append(diffLoop(d, ja, "handle"))
     }
 
     // --- 4. 実用: 通知内のワンタイムコードを自動コピー (MACRO-GUIDE 5-6 と同じ内容) ---
     val otpClip = buildString {
         appendLine("#!/bin/sh")
         if (ja) {
-            appendLine("# otp-clip.sh — 通知に含まれるワンタイムコード(4〜8桁)を自動でクリップボードへ入れ、")
+            appendLine("# otp-clip.sh — 通知に含まれるワンタイムコードを自動でクリップボードへ入れ、")
             appendLine("# TTL 秒後に「値が変わっていなければ」自動で消す。")
-            appendLine("# ログ形式・追記方向のどちらにも依存しない (詳細は handle() と下のループのコメント)。")
             appendLine("# 準備: ⚙設定 →「通知検知」ON ＋ OS の「通知アクセス」許可")
-            appendLine("# 常駐: ⚙設定 → 常駐サーバー に  sh ~/.z2term/macros/otp-clip.sh  を登録")
+            appendLine("# z2-run: z2-when notify:otp run ~/.z2term/macros/otp-clip.sh")
+            appendLine("# ⚠ Android 15+ は機微通知のコードを伏せ字にすることがある。確実に取るなら SMS 版")
+            appendLine("#    (otp-sms.sh) を使う — SMS 本文は伏せ字にならない。")
         } else {
-            appendLine("# otp-clip.sh — copy a one-time code (4-8 digits) out of notifications, then")
-            appendLine("# clear it after TTL seconds if the clipboard still holds that same value.")
-            appendLine("# Independent of both log format and write direction (see handle() and the loop below).")
+            appendLine("# otp-clip.sh — copy a one-time code out of notifications, then clear it after")
+            appendLine("# TTL seconds if the clipboard still holds that same value.")
             appendLine("# Setup: Settings -> \"Notification detection\" ON + grant OS notification access")
-            appendLine("# Resident: register  sh ~/.z2term/macros/otp-clip.sh  under Settings -> Resident servers")
+            appendLine("# z2-run: z2-when notify:otp run ~/.z2term/macros/otp-clip.sh")
+            appendLine("# ⚠ Android 15+ may redact codes in sensitive notifications. For a reliable path use")
+            appendLine("#    the SMS variant (otp-sms.sh) — SMS bodies are never redacted.")
         }
-        append(otpClipBody(d, ja))
+        append(otpWhenBody(d, ja))
     }
 
     // --- 5. 実用: SMS 内のワンタイムコードを自動コピー (通知でなく SMS を直読み = 伏せ字を迂回) ---
     val otpSms = buildString {
         appendLine("#!/bin/sh")
         if (ja) {
-            appendLine("# otp-sms.sh — 受信 SMS に含まれるワンタイムコード(4〜8桁)を自動でクリップボードへ入れ、")
+            appendLine("# otp-sms.sh — 受信 SMS に含まれるワンタイムコードを自動でクリップボードへ入れ、")
             appendLine("# TTL 秒後に「値が変わっていなければ」自動で消す。otp-clip.sh の SMS 版。")
             appendLine("# 通知と違い SMS 本文は機微通知の伏せ字(Android 15+)やロック状態の影響を受けないので確実。")
             appendLine("# 準備: ⚙設定 →「SMS 検知」ON ＋ OS の SMS 受信許可")
-            appendLine("# 常駐: ⚙設定 → 常駐サーバー に  sh ~/.z2term/macros/otp-sms.sh  を登録")
+            appendLine("# z2-run: z2-when sms:otp run ~/.z2term/macros/otp-sms.sh")
         } else {
-            appendLine("# otp-sms.sh — copy a one-time code (4-8 digits) out of incoming SMS, then")
-            appendLine("# clear it after TTL seconds if the clipboard still holds that same value.")
+            appendLine("# otp-sms.sh — copy a one-time code out of incoming SMS, then clear it after")
+            appendLine("# TTL seconds if the clipboard still holds that same value.")
             appendLine("# The SMS variant of otp-clip.sh. Unlike notifications, SMS bodies are never")
             appendLine("# redacted by sensitive-notification protection (Android 15+) and work while locked.")
             appendLine("# Setup: Settings -> \"SMS detection\" ON + grant the OS SMS permission")
-            appendLine("# Resident: register  sh ~/.z2term/macros/otp-sms.sh  under Settings -> Resident servers")
+            appendLine("# z2-run: z2-when sms:otp run ~/.z2term/macros/otp-sms.sh")
         }
-        append(otpClipBody(d, ja, "sms.jsonl", "otp-sms"))
+        append(otpWhenBody(d, ja))
     }
 
     // --- 6. 実用: フィード購読 (時刻トリガーで 1 回だけ走る「使い切り」の形) ---
@@ -468,9 +444,32 @@ z2-open "${d}url"
 
 /** 差分読みの変数と準備。[log] は `~/.z2term/` 配下のファイル名、[tag] は作業ファイルの識別名。 */
 private fun diffSetup(d: String, ja: Boolean, log: String, tag: String): String {
-    val cPoll = if (ja) "ログを見に行く間隔(秒)" else "how often to poll the log (seconds)"
-    return """
-POLL=2                                    # $cPoll
+    val cPoll = if (ja) "ログを見に行く間隔(秒)。⚠ 詰めないこと (下記)" else "how often to poll the log (seconds). Do NOT shorten (see below)"
+    // ⚠ **この既定値を小さくしないこと** (0.8.273)。0.8.272 まで 2 秒だった結果、これを常駐させた
+    // 端末で「待っているだけ」の CPU が常時 5% 前後になり、電池の減りとして表に出た (実測)。
+    // 同じ理由でアプリ側の supervisor も 1 秒 → 5 秒へ広げてある (ServerSupervisorScript 参照)。
+    val cCost = if (ja) {
+        """
+# ⚠ **POLL を詰めないでください。** このスクリプトはエンジン (proot/z2root) の中で動くので、
+# 外部コマンドを 1 回起こすだけで ptrace 越しに数千 syscall になります。1 周で sleep と wc を
+# 起こすため、2 秒間隔にすると**待っているだけでエンジンが CPU を数 % 使い続け**、常駐中は
+# 端末が Doze に入れないぶん電池が目に見えて減ります (実測: 60 秒あたり CPU 3 秒)。
+# ⚠ そもそも **z2-when に登録できるきっかけなら、この形ではなく z2-when を使ってください。**
+# 待ち受けはアプリ側がやるので、常駐スクリプトが 1 本も要らず、待っている間のコストがゼロです。
+"""
+    } else {
+        """
+# ⚠ **Do not shorten POLL.** This script runs inside the engine (proot/z2root), where starting a
+# single external command costs thousands of ptrace-mediated syscalls. Each pass starts a sleep and
+# a wc, so a 2-second interval keeps **the engine burning a few percent of CPU while doing nothing**,
+# and a resident script also keeps the device out of Doze — visible as battery drain (measured:
+# ~3 seconds of CPU per minute).
+# ⚠ More importantly: **if z2-when can express your trigger, use z2-when instead of this shape.**
+# The app does the waiting, so no resident script is needed and idling costs nothing.
+"""
+    }
+    return """$cCost
+POLL=15                                   # $cPoll
 LOG=${d}HOME/.z2term/$log
 SNAP=${d}HOME/.z2term/.$tag.snap
 WORK=${d}HOME/.z2term/.$tag.work
@@ -538,113 +537,50 @@ done
 }
 
 /**
- * `otp-clip.sh` の本体 (シェバンとヘッダコメントを除く部分)。
+ * OTP をクリップボードへ入れて TTL 秒後に消す本体 (`notify:otp` / `sms:otp` 共用・0.8.273)。
  *
- * 差分読みは [diffSetup] / [diffLoop] に共通化してある。otp-clip 固有の難しさは
- * **自由な形式ほど「コードに見えるが違う数字」が紛れ込む**こと。日時・エポック・
- * `{key}` の通知 ID・`{pkg}` を除去し、コードはキーワードからの位置で選ぶ
- * (先頭一致だと `{key}` を含むテンプレートで通知 ID を取り違える)。
+ * 0.8.272 まではここが**ログを 2 秒ごとに見張る常駐スクリプト**で、本文から 4〜8 桁を取り出す
+ * awk (日時・エポック・通知 ID・パッケージ名を先に潰し、キーワードからの位置で選ぶ) を抱えていた。
+ * `notify:otp` / `sms:otp` が**その抽出まで済ませて `Z2_WHEN_OTP` に入れてくれる**ので、
+ * 同じことが常駐なしで書ける。実際に常駐版を動かしていた端末では、待っているだけでエンジンが
+ * CPU を常時 5% 前後使い続けていた (実測) — 同じものが数行で書けるなら、既定のサンプルは
+ * そちらであるべき。
+ *
+ * ⚠ 抽出そのものの作法 (メタ情報の数字を先に消す・キーワードからの位置で選ぶ) は、
+ * `z2-when` に無いきっかけで同じことをしたくなったときのために MACRO-GUIDE 5-6 に残してある。
  */
-private fun otpClipBody(d: String, ja: Boolean, log: String = "notifications.jsonl", tag: String = "otp-clip"): String {
+private fun otpWhenBody(d: String, ja: Boolean): String {
     val copied = if (ja) "コードをコピー: ${d}{code}" else "Copied code: ${d}{code}"
     val cleared = if (ja) "コピーしたコードをクリアしました" else "Cleared the copied code"
     val cTtl = if (ja) "コピーから何秒でクリアするか" else "seconds before the copy is cleared"
+    val cCode = if (ja) {
+        "# コードの抽出はアプリ側が済ませてある。取れなかったときは何もしない。"
+    } else {
+        "# The app already extracted the code. Do nothing when it could not."
+    }
     val cClear = if (ja) {
-        "# TTL 秒後、クリップボードがコピー時の値のままなら空にする(別物をコピーしていたら残す)。"
+        "# TTL 秒後、クリップボードがコピー時の値のままなら空にする。\n" +
+            "# その間に別のものをコピーしていたら、そちらは消さずに残す。"
     } else {
-        "# After TTL, clear the clipboard only if it still holds the code we copied."
+        "# After TTL, clear the clipboard only if it still holds the code we copied\n" +
+            "# (anything copied since then is left alone)."
     }
-    val cStrip = if (ja) {
-        "# コードに見えるが違うものを先に消す: 日時 / 時刻 / 9 桁以上(エポック等) /\n" +
-            "  # '|' を含むトークン ({key} の通知 ID) / ドット区切り識別子 ({pkg})。最後に \"123-456\" を詰める。"
-    } else {
-        "# Drop things that look like a code but are not: dates / times / 9+ digit runs (epochs) /\n" +
-            "  # tokens containing '|' (notification id from {key}) / dotted ids ({pkg}). Then join \"123-456\"."
-    }
-    val cPick = if (ja) {
-        "# 「最初に見つかった数字」ではなくキーワードの直後を優先し、無ければ直前の最も近い数字。\n" +
-            "  # 自由な形式では前後にメタ情報の数字が混ざるため、位置で選ばないと取り違える。\n" +
-            "  # 数字列は必ず最大長で切り出し、長い数字列の一部を切り取らない。"
-    } else {
-        "# Prefer digits right after the keyword, else the nearest ones before it.\n" +
-            "  # With a free-form template, metadata digits sit nearby, so position is what disambiguates.\n" +
-            "  # Always take maximal digit runs so a long run never yields a partial match."
-    }
-    val cSave = if (ja) {
-        "# RSTART/RLENGTH は awk の組み込みグローバルで、下の match() に壊されるため先に退避する。"
-    } else {
-        "# RSTART/RLENGTH are awk globals that the match() calls below clobber, so save them first."
-    }
-    val cMulti = if (ja) "複数行でも 1 つの塊として扱う" else "treat multi-line records as one blob"
-    val cNoKw = if (ja) "キーワード無し = 認証通知ではない" else "no keyword = not an auth notification"
-    val cAfter = if (ja) "キーワードの直後を優先" else "prefer what follows the keyword"
-    val cBefore = if (ja) "無ければ直前の最も近い数字" else "otherwise the nearest digits before it"
-
     return """
 TTL=60                                    # $cTtl
-KEYWORDS='認証|確認|ワンタイム|コード|パスワード|code|otp|verification|verify|one[- ]?time'
-""" + diffSetup(d, ja, log, tag) + """
+
+$cCode
+code=${d}Z2_WHEN_OTP
+[ -n "${d}code" ] || exit 0
+
+z2-clip set "${d}code"
+z2-toast "$copied"
+
 $cClear
-schedule_clear() {
-  code=${d}1
-  ( sleep "${d}TTL"
-    cur=${d}(z2-clip get 2>/dev/null)
-    if [ "${d}cur" = "${d}code" ]; then
-      z2-clip set ""
-      z2-toast "$cleared"
-    fi
-  ) &
-}
-
-handle() {
-  raw=${d}1
-
-  $cStrip
-  scan=${d}(printf '%s' "${d}raw" | sed \
-    -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}[T ][0-9:+-]*/ /g' \
-    -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}/ /g' \
-    -e 's/[0-9]\{1,2\}:[0-9]\{2\}\(:[0-9]\{2\}\)\?/ /g' \
-    -e 's/[0-9]\{9,\}/ /g' \
-    -e 's/[^ ]*|[^ ]*/ /g' \
-    -e 's/[A-Za-z0-9_]\{1,\}\.[A-Za-z0-9_.]\{1,\}/ /g' \
-    -e 's/\([0-9]\)-\([0-9]\)/\1\2/g' \
-    -e 's/\([0-9]\)-\([0-9]\)/\1\2/g')
-
-  $cPick
-  code=${d}(printf '%s' "${d}scan" | awk -v kw="${d}KEYWORDS" '
-    function firstcode(s,   r) {
-      while (match(s, /[0-9]+/)) {
-        r = substr(s, RSTART, RLENGTH)
-        if (length(r) >= 4 && length(r) <= 8) return r
-        s = substr(s, RSTART + RLENGTH)
-      }
-      return ""
-    }
-    function lastcode(s,   r, best) {
-      best = ""
-      while (match(s, /[0-9]+/)) {
-        r = substr(s, RSTART, RLENGTH)
-        if (length(r) >= 4 && length(r) <= 8) best = r
-        s = substr(s, RSTART + RLENGTH)
-      }
-      return best
-    }
-    { buf = buf " " ${d}0 }                    # $cMulti
-    END {
-      if (!match(tolower(buf), kw)) exit       # $cNoKw
-      $cSave
-      ks = RSTART; kl = RLENGTH
-      c = firstcode(substr(buf, ks + kl))      # $cAfter
-      if (c == "") c = lastcode(substr(buf, 1, ks - 1))   # $cBefore
-      if (c != "") print c
-    }')
-  [ -z "${d}code" ] && return
-
-  z2-clip set "${d}code"
-  z2-toast "$copied"
-  schedule_clear "${d}code"
-}
-""" + diffLoop(d, ja, "handle")
+sleep "${d}TTL"
+[ "${d}(z2-clip get 2>/dev/null)" = "${d}code" ] || exit 0
+z2-clip set ""
+z2-toast "$cleared"
+"""
 }
 
 /** `z2-macro` CLI 本体。同梱サンプルの一覧 / 導入 / 表示 / 実行。 */

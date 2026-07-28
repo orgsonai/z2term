@@ -4,7 +4,7 @@
 It is a manual you can read and write by hand, and at the same time a **machine-readable
 reference you can feed whole to an AI** — then just say "I want to …" and it generates the macro.
 
-> Target version: 0.8.247-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
+> Target version: 0.8.273-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
 > Everything here is **non-root, fully local, no external transmission**. No hard-permission features are included.
 
 ---
@@ -26,9 +26,14 @@ z2term macros follow the same "**trigger → decide → action**" shape as Macro
 | **A. Let `z2-when` do it** (the default; since 0.8.205) | Whenever a registrable trigger covers your case | A short script with **only the work in it** (runs once and exits) |
 | **B. Watch the log yourself** (the 5-0 skeleton) | Triggers `z2-when` does not have, or decisions that combine several events | A resident script that keeps diffing the log |
 
-**Try A first.** The app does the waiting, so **you run no resident script at all** and it costs no
-battery. B is the escape hatch for what A cannot express (5-5 / 5-6 / 5-7 in this guide, where the
-decision needs the contents of the log).
+**Try A first.** The app does the waiting, so **you run no resident script at all**. B is the escape
+hatch for what A cannot express (5-5, where the decision needs the contents of the log).
+
+⚠ **B costs battery just by waiting.** A resident script runs inside the engine (proot/z2root), where
+starting a single external command costs thousands of ptrace-mediated syscalls. Polling a log every
+2 seconds keeps **the engine burning a few percent of CPU with nothing happening**, and residency
+also keeps the device out of Doze — visible as battery drain (measured: ~3 seconds of CPU per
+minute). **Do not write in style B what style A can express.**
 
 **A macro is simply "a shell script that checks a condition and fires actions when the trigger arrives."**
 
@@ -77,7 +82,7 @@ exactly once** (no resident script involved).
 | `battery:below=N` / `battery:above=N` | The level **crossed** N% downward / upward | detection ON |
 | `time:daily=HH:MM` | Every day at HH:MM | — |
 | `time:at=HH:MM` | Once, at the next HH:MM | — |
-| `time:every=Nm` / `time:every=Nh` | Every N minutes / hours | — |
+| `time:every=Nm` / `time:every=Nh` / `time:every=Ns` | Every N minutes / hours / seconds (1 minute floor; anything shorter is rounded up) | — |
 | `time:cron='min hour dom month dow'` | A cron expression (dow 0-7 / 0,7 = Sunday). It has spaces, so **quote it** | — |
 | `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<name>` | Wi‑Fi connected / disconnected / joined that SSID | detection ON |
 | `net:online` / `net:offline` | a usable connection appeared / went away (mobile counts too) | detection ON |
@@ -85,14 +90,13 @@ exactly once** (no resident script involved).
 | `share:any` / `share:text` / `share:file` | something was shared to z2term from another app | — |
 | `share:contains=<part>` / `share:ext=<ext>` | filter on the shared text / the file extension | — |
 | `boot` | the device finished starting up (no `:`) | — |
-
-⚠ **A misspelled trigger will not register** (0.8.265). If it did, you would get a rule that sits in the list and never runs, with no way to find out why. Only `event:` names are left unchecked (the list from `z2-when events` is the source of truth).
-
 | `sms:any` / `sms:from=<substr>` / `sms:contains=<substr>` / `sms:otp` | An SMS arrived | SMS detection |
 | `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near\|far` | Shaken / light crossed N lux / proximity changed | detection ON |
 | `file:new=<dir>[,ext=<ext>]` | **A new file landed in that folder** (after the write finishes) | detection ON |
 | `notify:any` / `notify:otp` / `notify:pkg=<part>` / `notify:title=<part>` / `notify:contains=<part>` | A notification arrived (`pkg=` matches the package name *or* the app label) | notification access |
 | `event:<name>` / `event:<prefix>*` / `event:*` | Any device event, **by name** (same names as 3-B; `z2-when events` lists them) | depends on the name |
+
+⚠ **A misspelled trigger will not register** (0.8.265). If it did, you would get a rule that sits in the list and never runs, with no way to find out why. Only `event:` names are left unchecked (the list from `z2-when events` is the source of truth).
 
 The command that fires gets **what happened** in its environment.
 
@@ -511,10 +515,15 @@ So diff against a **snapshot of the previous read** instead. Whether the new byt
 after the old content tells you the direction, and passing the diff along as one blob handles
 multi-line templates.
 
+⚠ **Do not shorten `POLL`.** Every pass starts a `sleep` and a `wc`, and inside the engine those two
+alone cost thousands of ptrace-mediated syscalls. At a 2-second interval that **burns a few percent
+of CPU while nothing is happening**, which is why the default is now 15 seconds (0.8.273; it used to
+be 2). If you need second-level reactions, check first whether `z2-when` already has that trigger.
+
 ```sh
 #!/bin/sh
 # The shared skeleton. Change LOG, the work-file tag, and handle().
-POLL=2                                    # how often to poll the log (seconds)
+POLL=15                                   # how often to poll the log (seconds). Do NOT shorten (below)
 LOG=$HOME/.z2term/events.jsonl
 SNAP=$HOME/.z2term/.mymacro.snap
 WORK=$HOME/.z2term/.mymacro.work
@@ -638,6 +647,15 @@ A script is run in one of **two ways**, and **mixing them up causes real trouble
 "it died" and restarts it, so it **runs again every time it finishes** (a feed reader would fetch
 forever).
 
+⚠ **Residency costs battery even when nothing happens.** With even one resident server, the app
+holds a WakeLock and a WifiLock and keeps the device out of Doze. On top of that, every `sleep` and
+`wc` a watch loop starts costs thousands of ptrace-mediated syscalls inside the engine
+(proot/z2root). On a device running a single 2-second watcher the measurement was **3 seconds of CPU
+per minute (~5% continuously)**. **Always ask first whether a `z2-when` trigger can express it** —
+if it can, you need no resident script at all (0.8.273 moved the battery, daily-report and OTP
+samples from resident loops to `z2-when`). Residency is genuinely needed only when you are picking
+up something `z2-when` does not have (the 5-0 skeleton).
+
 For a quick test, just run it in the terminal: `sh ~/.z2term/macros/watch.sh &` (resident) or
 `sh ~/.z2term/macros/lowbat.sh` (one-shot).
 
@@ -724,210 +742,97 @@ What gets captured or sent is **up to your macro** (the app builds in no camera 
 photos are blocked by Android and need separate root/dedicated tooling). Combine with a location tool
 in your distro or an API for coordinates. **Device admin is used only to watch the failure count; it never locks or wipes your device.**
 
-### 5-6. Worked example: auto-copy an SMS one-time code and clear it
+### 5-6. Worked example: auto-copy a one-time code and clear it
 
-A practical macro that puts the **one-time code (OTP / verification number)** from a notification (SMS, etc.)
-onto the clipboard, then clears it after a delay — but only if it hasn't changed. It combines the notification
-trigger, `z2-clip`, and self-cleanup (a subshell + `sleep`), using nothing outside this guide.
+Copy the **one-time code (OTP)** out of a notification or an SMS into the clipboard, then clear it
+after a while — but only if the clipboard still holds that same value.
 
-> 💡 **Copying alone is one line** (`notify:otp` does the extraction and hands it to you in `Z2_WHEN_OTP`):
+**The app does the extraction for you.** `notify:otp` / `sms:otp` pull the code out of the body and
+hand it over in `$Z2_WHEN_OTP`, so all you write is "put it in" and "take it out".
+**No resident script is involved** (`z2-macro install otp-clip` / `otp-sms` gives you the file below).
+
+```sh
+# ~/.z2term/macros/otp-clip.sh
+# Setup: Settings -> "Notification detection" ON + grant OS notification access
+# z2-run: z2-when notify:otp run ~/.z2term/macros/otp-clip.sh
+
+TTL=60                                    # seconds before the copy is cleared
+
+# The app already extracted the code. Do nothing when it could not.
+code=$Z2_WHEN_OTP
+[ -n "$code" ] || exit 0
+
+z2-clip set "$code"
+z2-toast "Copied code: ${code}"
+
+# After TTL, clear the clipboard only if it still holds the code we copied
+# (anything copied since then is left alone).
+sleep "$TTL"
+[ "$(z2-clip get 2>/dev/null)" = "$code" ] || exit 0
+z2-clip set ""
+z2-toast "Cleared the copied code"
+```
+
+Registering it is one line.
+
+```sh
+z2-when notify:otp run ~/.z2term/macros/otp-clip.sh
+```
+
+> 💡 **If you do not need the auto-clear, the whole thing is one line.**
 >
 > ```sh
 > z2-when notify:otp run 'echo "$Z2_WHEN_OTP" | z2-clip set'
 > ```
->
-> What follows is the version that **also clears the clipboard**, and at the same time a worked example of
-> **parsing a log yourself**. The extraction ideas here — strip the metadata numbers first, pick by distance
-> from the keyword — carry over to any other log you have to read.
 
-**Key points** (reusable patterns):
-- **Filter by keyword** (verification / code / OTP …) so ordinary messages and phone numbers aren't picked up.
-- Extract **one 4–8 digit number** only; for `123-456` style, strip separators first.
-- **Independent of both log format and write direction** (see "why not read it line by line" below). Change the
-  template however you like, or flip to "newest first", and the macro keeps working unchanged.
-- **Auto-clear** runs only when the current clipboard still equals what was copied (if you copied something else
-  in the meantime, it's kept). The clipboard is shared and readable by other apps, so clearing after paste is safer.
+⚠ **On Android 15+ a code delivered by notification may be redacted** (sensitive-notification
+protection; other automation apps hit the same wall). When the code arrives by SMS, use
+**`sms:otp` (5-7)** — it reads the body directly, so neither redaction nor the lock screen matters.
 
-**Why not read it line by line** (the heart of this macro):
+⚠ The script stays alive during the `sleep` (a run started by `z2-when` keeps going until it
+finishes, as long as the app is alive). Keep TTL short — a TTL of hours leaves a process sitting
+around for hours.
 
-**You choose the log format.** A naive "one line = one notification" reader that follows the tail with `tail -F`
-breaks in two ways:
+**When you do want to parse the body yourself** (a trigger `z2-when` does not have, an unusual code
+format, …), you end up reading `notifications.jsonl` / `sms.jsonl` with the 5-0 skeleton. The parts
+that actually matter there:
 
-- With a **multi-line template** (a format containing `\n`), the title and the body land on separate lines, so
-  the keyword and the code are never on the same line.
-- With **prepending** (Settings -> "newest first"), new entries never reach the end of the file, so `tail -F`
-  picks up nothing, ever.
+- **Delete the digits that only look like codes, first** — dates (`2026-07-29T01:23`), clock times
+  (`01:23`), anything 9+ digits (epochs), tokens containing `|` (notification ids), dotted
+  identifiers (package names). Only then take what is 4–8 digits long.
+- **Choose by position** — not "the first number found". Prefer what follows a keyword
+  (`code`, `otp`, `verification`, …), and fall back to the nearest number *before* it. Matching
+  from the start picks up the notification id embedded in a template.
+- **Squeeze `-` out** — `123-456` has to become `123456` before you count digits.
 
-So it diffs against a **snapshot of the previous read** instead. Whether the new bytes landed before or after the
-old content tells you the write direction, and the diff is scanned **as one blob** rather than split into lines,
-so multi-line templates are handled naturally.
-
-One more thing: the freer the format, the more "digits that look like a code" creep in. Timestamps, epochs
-(`{ts}`), notification ids (`{key}` looks like `0|com.example|2847|null|10268`) and package names (`{pkg}`) are
-stripped first, and the code is then chosen **by its position relative to the keyword**. A "first number wins"
-approach mistakes the notification id for the code as soon as the template includes `{key}`.
-
-```sh
-#!/bin/sh
-# ~/.z2term/macros/otp-clip.sh
-# Auto-copy a one-time code (4-8 digits) from a notification, then clear it after TTL seconds.
-# Independent of both log format and write direction.
-# Setup: Settings -> "Notification capture" ON + grant the OS "Notification access".
-# Resident: Settings -> Resident servers -> register  sh ~/.z2term/macros/otp-clip.sh
-
-TTL=60                                    # seconds before the copy is cleared
-KEYWORDS='verification|verify|code|otp|one[- ]?time|passcode|認証|確認|コード'
-
-POLL=2                                    # how often to poll the log (seconds)
-LOG=$HOME/.z2term/notifications.jsonl
-SNAP=$HOME/.z2term/.otp-clip.snap
-WORK=$HOME/.z2term/.otp-clip.work
-
-[ -f "$LOG" ] || : > "$LOG"
-
-# After TTL seconds, blank the clipboard only if it still holds the copied value.
-schedule_clear() {
-  code=$1
-  ( sleep "$TTL"
-    cur=$(z2-clip get 2>/dev/null)
-    if [ "$cur" = "$code" ]; then
-      z2-clip set ""
-      z2-toast "Cleared the copied code"
-    fi
-  ) &
-}
-
-handle() {
-  raw=$1
-
-  # Drop things that look like a code but are not: dates / times / 9+ digit runs (epochs) /
-  # tokens containing '|' (notification id from {key}) / dotted ids ({pkg}). Then join "123-456".
-  scan=$(printf '%s' "$raw" | sed \
-    -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}[T ][0-9:+-]*/ /g' \
-    -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}/ /g' \
-    -e 's/[0-9]\{1,2\}:[0-9]\{2\}\(:[0-9]\{2\}\)\?/ /g' \
-    -e 's/[0-9]\{9,\}/ /g' \
-    -e 's/[^ ]*|[^ ]*/ /g' \
-    -e 's/[A-Za-z0-9_]\{1,\}\.[A-Za-z0-9_.]\{1,\}/ /g' \
-    -e 's/\([0-9]\)-\([0-9]\)/\1\2/g' \
-    -e 's/\([0-9]\)-\([0-9]\)/\1\2/g')
-
-  # Prefer digits right after the keyword, else the nearest ones before it.
-  # With a free-form template, metadata digits sit nearby, so position is what disambiguates.
-  # Always take maximal digit runs so a long run never yields a partial match.
-  code=$(printf '%s' "$scan" | awk -v kw="$KEYWORDS" '
-    function firstcode(s,   r) {
-      while (match(s, /[0-9]+/)) {
-        r = substr(s, RSTART, RLENGTH)
-        if (length(r) >= 4 && length(r) <= 8) return r
-        s = substr(s, RSTART + RLENGTH)
-      }
-      return ""
-    }
-    function lastcode(s,   r, best) {
-      best = ""
-      while (match(s, /[0-9]+/)) {
-        r = substr(s, RSTART, RLENGTH)
-        if (length(r) >= 4 && length(r) <= 8) best = r
-        s = substr(s, RSTART + RLENGTH)
-      }
-      return best
-    }
-    { buf = buf " " $0 }                    # treat multi-line records as one blob
-    END {
-      if (!match(tolower(buf), kw)) exit       # no keyword = not an auth notification
-      # RSTART/RLENGTH are awk globals that the match() calls below clobber, so save them first.
-      ks = RSTART; kl = RLENGTH
-      c = firstcode(substr(buf, ks + kl))      # prefer what follows the keyword
-      if (c == "") c = lastcode(substr(buf, 1, ks - 1))   # otherwise the nearest digits before it
-      if (c != "") print c
-    }')
-  [ -z "$code" ] && return
-
-  z2-clip set "$code"
-  z2-toast "Copied code: ${code}"
-  schedule_clear "$code"
-}
-
-# The first pass only records a baseline, so existing entries never fire.
-cp "$LOG" "$SNAP" 2>/dev/null || : > "$SNAP"
-
-while :; do
-  sleep "$POLL"
-  [ -f "$LOG" ] || continue
-
-  cn=$(wc -c < "$LOG"  2>/dev/null || echo 0)
-  pn=$(wc -c < "$SNAP" 2>/dev/null || echo 0)
-  [ "$cn" = "$pn" ] && continue           # same size = nothing new
-
-  new=''
-  if [ "$cn" -gt "$pn" ] && [ "$pn" -eq 0 ]; then
-    # Previously empty = all of it is new. (The startup baseline keeps old entries from firing.)
-    new=$(cat "$LOG")
-  elif [ "$cn" -gt "$pn" ]; then
-    grew=$((cn - pn))
-    head -c "$pn" "$LOG" > "$WORK" 2>/dev/null
-    if cmp -s "$WORK" "$SNAP"; then
-      new=$(tail -c "$grew" "$LOG")  # starts with the old content -> appended (newest last)
-    else
-      tail -c "$pn" "$LOG" > "$WORK" 2>/dev/null
-      if cmp -s "$WORK" "$SNAP"; then
-        new=$(head -c "$grew" "$LOG")  # ends with the old content -> prepended (newest first)
-      fi
-      # Neither = rewritten/cleaned. Just re-baseline without firing.
-    fi
-  fi
-  # cn < pn (truncated) also just re-baselines.
-
-  cp "$LOG" "$SNAP" 2>/dev/null
-  [ -n "$new" ] && handle "$new"
-done
-```
-
-The only knobs are `TTL` (seconds until clearing), `POLL` (how fast it reacts) and `KEYWORDS` (add terms for
-more services). The code lands on the clipboard within `POLL` seconds of arriving, so you just paste it.
-
-**Limits**: two notifications arriving within one `POLL` cycle are treated as a single blob (rare for auth
-codes, but a real gap).
-
-**Important on Android 15+ (OTP bodies get redacted)**: with "**Enhanced notifications**" (a.k.a. "Adaptive
-Notifications") on, Android System Intelligence classifies notifications containing an OTP as **sensitive** and
-replaces their body with a placeholder (e.g. "Sensitive content hidden") **before** handing it to
-**"untrusted" notification listeners — which every ordinary app is**. Even with notification access fully
-granted, only the OTP body is withheld (the notification still arrives, so a row appears, but `text` is the
-placeholder). Two ways around it:
-- **For SMS OTPs, use "SMS detection" instead (recommended)** → see 5-7 below. It reads the SMS directly, fully
-  bypassing this redaction, and works even while locked. The most reliable option, independent of OEM settings.
-- Turn **`Settings → Notifications → Enhanced notifications` OFF** (works on Pixel etc.; some OEMs lack this
-  toggle or it has no effect; also disables the OS OTP-autofill suggestions).
-- Become a **"trusted" listener** holding `RECEIVE_SENSITIVE_NOTIFICATIONS`. That is reserved for system-signed
-  apps or specific roles (companion watch/glasses, home, …); ordinary apps aren't granted it automatically and
-  must declare it and grant it via adb (may be rejected depending on the OEM).
-
-Once un-redacted, the only thing that still cannot be read is a notification whose body lives solely in a fully
-custom layout, with no text in the title, text, or message fields (a few apps). SMS one-time codes normally sit
-in the MessagingStyle body, captured from 0.8.185 on.
 
 ### 5-7. Copy an SMS one-time code reliably via "SMS detection" (bypasses redaction)
 
-On Android 15+, SMS OTPs delivered as notifications are redacted (above), so notification detection may not see
-them (the same is true for notification-based triggers in MacroDroid etc.). z2term therefore has **SMS detection**
-that reads the SMS body directly — never going through the sensitive-notification redaction or lock state.
+On Android 15+ an **SMS OTP delivered as a notification can be redacted**, so notification detection
+never sees it (the same is true of other automation apps' notification triggers). That is why z2term
+has "SMS detection", which **reads the SMS body itself** — redaction and the lock screen do not apply.
 
-- Setup: `⚙Settings → SMS detection` **ON**, then **grant the SMS permission** in the prompt.
-- Log: `~/.z2term/sms.jsonl` (fields: `ts` `time` `from` `body`).
-- **The shortest form** (`sms:otp` does the extraction, and works whether or not the log is on):
+- Setup: `⚙ Settings → SMS detection` **ON**, and allow receiving SMS in the dialog that appears
+- Recorded to: `~/.z2term/sms.jsonl` (fields: `ts` `time` `from` `body`)
+- **Shortest form** (`sms:otp` does the extraction; it works whether or not logging is on):
 
   ```sh
   z2-when sms:otp run 'echo "$Z2_WHEN_OTP" | z2-clip set'
   ```
 
-- When you also want the auto-clear: `z2-macro install otp-sms.sh` installs the SMS variant of 5-6 (reads
-  `sms.jsonl`, extracts 4–8 digits). Register `sh ~/.z2term/macros/otp-sms.sh` under
-  `⚙Settings → Resident servers` to copy OTPs even while locked.
+- **When you want the auto-clear too**, use the same file as 5-6 and just swap the trigger.
+  `z2-macro install otp-sms` puts it in place, so registering it is all that is left:
 
-OTPs that are **not SMS** (e.g. authenticator-app notifications) are out of scope for this route (use notification
-detection plus the workarounds above).
+  ```sh
+  z2-when sms:otp run ~/.z2term/macros/otp-sms.sh
+  ```
+
+  ⚠ **Do not register it as a resident server** (which is what this guide said up to 0.8.273).
+  `sms:otp` does the waiting, so residency buys nothing and **costs battery while idle** (→ 5-3).
+
+An OTP that is **not** an SMS (an authenticator app's notification, say) is outside this path — that
+is what `notify:otp` in 5-6 is for.
+
 
 ### 5-8. Worked example: subscribe to feeds (how the parts fit together)
 
@@ -1016,6 +921,13 @@ The trick is to explicitly say **stay within this guide** so the AI won't reach 
 - **`file:new=` misses files** → it only works while detection is on, and fires **after the write finishes**
   (so nothing during a copy, and hidden files never count).
 - **An installed macro runs forever** → did you register a one-shot script as a resident server? (→ 5-3)
+- **The battery started draining faster** → **is a resident server running?** (📜 → Servers tab). Even one
+  keeps the device out of Doze, and every `sleep` and `wc` a watch loop starts costs thousands of
+  ptrace-mediated syscalls inside the engine (a single 2-second watcher measured **3 seconds of CPU per
+  minute**). ① Can that macro be expressed as a `z2-when` trigger? (then you need no resident script at
+  all → section 1, style A) ② If residency really is needed, widen `POLL` (15 s or more) ③ `⚙ Settings →
+  Low-power mode` stops the app from holding the WakeLock/WifiLock (at the cost of slower reactions
+  while the screen is off).
 - **events.jsonl doesn't grow** → is "System event detection" on in ⚙ Settings? An ongoing notification shows while active.
 - **`ssid` is blank** → reading the SSID needs location permission (v1 doesn't request it, so it can be blank). Connect/disconnect detection still works.
 - **`z2-*: cannot write request (storage perm?)`** → check the app's storage permission.

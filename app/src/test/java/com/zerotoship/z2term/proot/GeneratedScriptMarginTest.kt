@@ -1,7 +1,10 @@
 package com.zerotoship.z2term.proot
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
+import java.io.File
 
 /**
  * 生成シェルスクリプトに `trimMargin` のマージン文字 `|` が漏れていないことの回帰テスト。
@@ -54,12 +57,77 @@ class GeneratedScriptMarginTest {
         )
     }
 
-    /** SMS 版 OTP サンプルが同梱され、通知ログではなく sms.jsonl を見ていること。 */
+    /** OTP サンプルが `z2-when` のトリガーで動く形になっていること（0.8.273）。 */
     @Test
-    fun otpSmsSample_readsSmsLog() {
+    fun otpSamples_areTriggerBased() {
         val samples = z2MacroSamples("ja")
-        val body = samples["otp-sms.sh"]
-        assertTrue("otp-sms.sh が同梱されていない", body != null)
-        assertTrue("otp-sms.sh が sms.jsonl を見ていない", body!!.contains(".z2term/sms.jsonl"))
+        val sms = samples["otp-sms.sh"]
+        val clip = samples["otp-clip.sh"]
+        assertTrue("otp-sms.sh が同梱されていない", sms != null)
+        assertTrue("otp-clip.sh が同梱されていない", clip != null)
+        // 抽出済みのコードを使う（本文を自分で解析しない）。
+        assertTrue("otp-sms.sh が Z2_WHEN_OTP を使っていない", sms!!.contains("Z2_WHEN_OTP"))
+        assertTrue("otp-clip.sh が Z2_WHEN_OTP を使っていない", clip!!.contains("Z2_WHEN_OTP"))
+        // 動かし方の案内 (`z2-macro install` が出す行) が z2-when 側を指していること。
+        assertTrue("otp-sms.sh の z2-run 行が sms:otp でない", sms.contains("# z2-run: z2-when sms:otp"))
+        assertTrue("otp-clip.sh の z2-run 行が notify:otp でない", clip.contains("# z2-run: z2-when notify:otp"))
+    }
+
+    /**
+     * **`z2-when` で表現できるサンプルは監視ループを持たない**こと（0.8.273）。
+     *
+     * 0.8.272 まで OTP・電池・日報のサンプルは「ログを 2 秒ごとに見張る常駐スクリプト」で、
+     * 常駐サーバーに登録して使う案内が付いていた。エンジン(proot/z2root)下では外部コマンドを
+     * 1 回起こすだけで ptrace 越しに数千 syscall になるため、実際に動かしていた端末では
+     * **待っているだけでエンジンが CPU を常時 5% 前後**使い続けていた（実測）。同じことが
+     * `z2-when` のトリガーで常駐なしに書けるので、常駐版へ戻さないことをここで固定する。
+     *
+     * `watch-basic.sh` だけは例外 — **ログ差分の読み方そのものを見せる教材**で、`z2-when` に
+     * 無いきっかけを自分で拾いたいときの雛形だから、監視ループがあることに意味がある。
+     */
+    @Test
+    fun triggerBasedSamples_doNotPoll() {
+        val mayPoll = setOf("watch-basic.sh")
+        for (lang in listOf("ja", "en")) {
+            for ((name, body) in z2MacroSamples(lang)) {
+                if (name in mayPoll) continue
+                assertTrue(
+                    "$lang/$name が監視ループ (while :;) を持っている — z2-when で書けるはず",
+                    !body.contains("while :;")
+                )
+            }
+        }
+    }
+
+    /** 雛形の見張り間隔が詰められていないこと（エンジン下ではここが電池に直結する）。 */
+    @Test
+    fun pollingSample_usesARelaxedInterval() {
+        val body = z2MacroSamples("ja")["watch-basic.sh"]!!
+        val poll = Regex("""^POLL=(\d+)""", RegexOption.MULTILINE)
+            .find(body)?.groupValues?.get(1)?.toInt()
+        assertTrue("watch-basic.sh に POLL が無い", poll != null)
+        assertTrue("POLL=$poll は短すぎる (エンジン下では電池に出る)", poll!! >= 10)
+    }
+
+    /** 同梱サンプルが実際の `sh` の構文検査を通ること（sh が無い環境ではスキップ）。 */
+    @Test
+    fun samples_areValidPosixShell() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        for (lang in listOf("ja", "en")) {
+            for ((name, body) in z2MacroSamples(lang)) {
+                val tmp = File.createTempFile("macro-$lang-", "-$name")
+                try {
+                    tmp.writeText(body)
+                    val proc = ProcessBuilder(sh!!, "-n", tmp.absolutePath)
+                        .redirectErrorStream(true)
+                        .start()
+                    val output = proc.inputStream.bufferedReader().readText()
+                    assertEquals("$lang/$name: sh -n が構文エラーを報告した:\n$output", 0, proc.waitFor())
+                } finally {
+                    tmp.delete()
+                }
+            }
+        }
     }
 }
