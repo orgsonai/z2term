@@ -372,7 +372,7 @@ Open ⚙ Settings → **Resident servers** → "Manage servers", or the **Server
 
 Note: ports below 1024 (e.g. 80) cannot be opened without root — use a high port (e.g. 8080).
 Note: excluding the app from battery optimization makes it less likely to be killed in the background (link inside ⚙ Settings).
-Note: if battery use bothers you, turn on "**Low-power mode**" — it lets the device sleep deeply while the screen is off to save battery, but incoming connections may be delayed or dropped during that time (battery over reachability).
+Note: if battery use bothers you, turn on "**Low-power mode**" — it lets the device sleep deeply while the screen is off to save battery, but incoming connections may be delayed or dropped during that time (battery over reachability). **Since 0.8.269 the same setting also covers the toolbar's 🔒 background keep-alive** (until then, 🔒 kept the device awake even with resident servers in low-power mode).
 
 Note: **0.8.268 fixes battery drain caused by residency alone.** Until then the servers were checked once a second, and each check spawned several small processes inside the device — including for servers that were not even running. That added up and kept the phone permanently warm, so the **check interval is now 5 seconds** and the residency notification is only rewritten **when the running count changes**. In exchange, turning a server on/off — and adding, editing or deleting one — takes up to **5 seconds** to apply.
 

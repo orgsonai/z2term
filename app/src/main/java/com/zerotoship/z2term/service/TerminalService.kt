@@ -16,6 +16,9 @@ import androidx.core.app.NotificationCompat
 import com.zerotoship.z2term.MainActivity
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.SessionManager
+import com.zerotoship.z2term.settings.AppSettings
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 /**
  * Terminal フォアグラウンドサービス。
@@ -35,7 +38,14 @@ import com.zerotoship.z2term.core.SessionManager
  * 同じロックが二重になるだけなので、ここでは持たない。
  *
  * ⚠ 逆に言うと、外部からの到達性を保つには常駐サーバー側を動かす必要がある (🔒 だけでは
- * 保たれない)。常駐サーバーの省電力モードを ON にした場合は、どちらも握らない。
+ * 保たれない)。
+ *
+ * ## 省電力モードに従う (0.8.269)
+ *
+ * WakeLock も [AppSettings.serversLowPower] が ON なら握らない。0.8.268 まではこのサービスだけ
+ * 設定を見ておらず、常駐サーバーを省電力モードにしても**こちらが握り続けるので設定が効き切らなかった**
+ * (常駐サーバーが動いている間は 2 つのサービスが同じ WakeLock を 1 本ずつ持つ)。「電池を採る」と
+ * 決めた人に対して片方だけ握り続けるのは約束を破っているので、フラグは 1 つで共有する。
  */
 class TerminalService : Service() {
 
@@ -76,8 +86,23 @@ class TerminalService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
-        acquireWakeLock()
+        // 省電力モードのときは WakeLock を握らず Doze を許す (0.8.269)。
+        // 0.8.268 まではこのサービスだけ設定を見ておらず、常駐サーバーを省電力モードにしても
+        // こちらが握り続けるので **設定が効き切らなかった**。「電池を採る」と決めた人に対して、
+        // 片方だけ握り続けるのは約束を破っている。
+        if (!lowPowerNow()) acquireWakeLock() else releaseWakeLock()
     }
+
+    /**
+     * 省電力モードか (常駐サーバーと共通の [AppSettings.serversLowPower])。
+     *
+     * 設定は「常駐している間ずっと CPU を起こしておくか」の 1 つの意思表示で、サービスごとに
+     * 分ける意味が無いのでフラグも 1 つで共有する。⚠ ここは `onStartCommand` からしか読まないので、
+     * 設定を変えたら [start] を呼び直して再判定させること (`ServersSheet` がそうしている)。
+     */
+    private fun lowPowerNow(): Boolean = runCatching {
+        runBlocking { AppSettings(applicationContext).flow.first().serversLowPower }
+    }.getOrDefault(false)
 
     private fun stopSessionAndSelf() {
         releaseWakeLock()
