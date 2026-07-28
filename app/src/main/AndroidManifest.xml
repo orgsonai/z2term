@@ -325,6 +325,11 @@
             android:name=".service.NotifyActionReceiver"
             android:exported="false" />
 
+        <!-- z2-ask の返信欄 (RemoteInput) の受け口。自アプリの PendingIntent からのみ届く。 -->
+        <receiver
+            android:name=".service.AskReplyReceiver"
+            android:exported="false" />
+
         <!-- ロック解除の失敗監視 (盗難対策マクロの検知入口): 端末管理者として有効化されると
              OS がロック解除の失敗/成功コールバックを届ける。宣言ポリシーは watch-login のみで
              遠隔ロック/ワイプはしない。BIND_DEVICE_ADMIN でシステムからのみバインド可。 -->

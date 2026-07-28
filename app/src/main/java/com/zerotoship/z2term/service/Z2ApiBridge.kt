@@ -104,6 +104,9 @@ object Z2ApiBridge {
     /** 通知に出せるボタンの数 (Android が表示するのは 3 つまで)。 */
     private const val MAX_NOTIFY_BUTTONS = 3
 
+    /** `z2-ask` の返信欄 ([android.app.RemoteInput]) から本文を取り出すキー。 */
+    internal const val REMOTE_INPUT_KEY = "z2_ask_reply"
+
     private var observer: FileObserver? = null
     private var reqDir: File? = null
     private var respDir: File? = null
@@ -190,6 +193,13 @@ object Z2ApiBridge {
         runCatching { file.delete() }
 
         try {
+            // `ask` だけは**答えが返ってくるまで応答を書かない** (0.8.267)。他の動詞はここで
+            // 処理して即答えるが、ask は人が入力するまで何分でもかかる。応答を書くのは
+            // 返事を受け取った [AskReplyReceiver] 側 ([completeAsk])。
+            if (cmd == "ask") {
+                askCmd(context, id, args, needResp)
+                return
+            }
             val result = dispatch(context, cmd, args)
             if (needResp) writeResponse(id, ok = true, data = result ?: "")
         } catch (e: Exception) {
@@ -236,6 +246,9 @@ object Z2ApiBridge {
             "doctor" -> doctorRead(context)
             // z2-noti: いま出ている通知を読むだけ (押す・消すは提供しない)。
             "noti" -> notiCmd(args)
+            // `ask` はここには来ない ([handleRequestFile] が先に捌く)。応答が非同期なので、
+            // 「dispatch が返った値を書く」というここの約束に乗らない。
+            "ask" -> throw IllegalStateException("ask is handled before dispatch")
             "session" -> sessionCmd(context, args)
             // z2-when がルールファイルを書き換えた後に呼ぶ。時刻トリガーの AlarmManager 予約を貼り直す。
             "when-reload" -> { WhenManager.reload(context); null }
@@ -723,6 +736,96 @@ object Z2ApiBridge {
         runCatching {
             NotificationManagerCompat.from(context).notify(id, builder.build())
         }.onFailure { Log.w(TAG, "notify failed (POST_NOTIFICATIONS 未許可?)", it) }
+    }
+
+    /**
+     * `z2-ask <質問>` — **通知の返信欄で聞いて、答えを標準出力へ返す** (0.8.267)。
+     *
+     * これまで `z2-*` から人へ問いかける手段は `z2-notify -b <ラベル>` の**ボタン**しか無く、
+     * 用意した選択肢からしか答えられなかった。マクロが「どのブランチへ？」「保存先は？」と
+     * **自由入力**を求める場面は選択肢では書けない。
+     *
+     * ⚠ **画面 (Activity) を出さない**。`RemoteInput` 付きの通知なら**アプリを開かずに**
+     * 通知シェードのまま答えられる。ダイアログにすると端末を触っている作業を中断させるうえ、
+     * 裏で走っているマクロ (z2-when など) からは前面へ出る手段そのものが無い。
+     * 受け口は `z2-notify -b` と同じ「通知 + ブロードキャスト」で、新しい常駐は増えない。
+     *
+     * ⚠ **応答はここでは書かない**。答えが返るまで何分でもかかるので、`resp` を書くのは
+     * [AskReplyReceiver] → [completeAsk]。[handleRequestFile] がこの動詞だけ別扱いにしている。
+     *
+     * @param args 0=質問, 1=返信欄のヒント (省略可), 2=既定値 (省略可・返信欄に入れておく)
+     */
+    private fun askCmd(context: Context, reqId: String, args: List<String>, needResp: Boolean) {
+        val question = args.getOrNull(0).orEmpty().ifBlank { context.getString(R.string.ask_default_title) }
+        val hint = args.getOrNull(1).orEmpty().ifBlank { context.getString(R.string.ask_default_hint) }
+        val preset = args.getOrNull(2).orEmpty()
+        // 応答が要らない呼び方 (z2api 0 ask) は、答えを渡す先が無いので聞くだけ無駄。
+        if (!needResp) {
+            Log.w(TAG, "ask without R 1 — nothing to answer to")
+            return
+        }
+        val notifId = notifyId.incrementAndGet()
+        val remoteInput = androidx.core.app.RemoteInput.Builder(REMOTE_INPUT_KEY)
+            .setLabel(hint)
+            .build()
+        fun intentFor(action: String) = Intent(context, AskReplyReceiver::class.java)
+            .setAction(action)
+            .putExtra(AskReplyReceiver.EXTRA_REQ_ID, reqId)
+            .putExtra(AskReplyReceiver.EXTRA_NOTIF_ID, notifId)
+        // requestCode は通知ごとに一意にする (使い回すと extras が古いものに差し替わる)。
+        val replyPi = PendingIntent.getBroadcast(
+            context, notifId, intentFor(AskReplyReceiver.ACTION_REPLY),
+            // ⚠ RemoteInput を受け取るので MUTABLE が必須。IMMUTABLE だと入力が届かない。
+            PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val cancelPi = PendingIntent.getBroadcast(
+            context, -notifId, intentFor(AskReplyReceiver.ACTION_CANCEL),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val action = NotificationCompat.Action.Builder(
+            0, context.getString(R.string.ask_reply_action), replyPi
+        ).addRemoteInput(remoteInput).build()
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID_HIGH)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(question)
+            .setContentText(if (preset.isEmpty()) hint else preset)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(question))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            // 消したら「答えない」と決めたということ。待っている側を宙吊りにしないよう
+            // ERR を書いて終わらせる (待ち時間いっぱい黙って固まるのが一番たちが悪い)。
+            .setDeleteIntent(cancelPi)
+            .setAutoCancel(false)
+            .addAction(action)
+        runCatching {
+            NotificationManagerCompat.from(context).notify(notifId, builder.build())
+        }.onFailure {
+            Log.w(TAG, "ask notify failed (POST_NOTIFICATIONS 未許可?)", it)
+            // 通知が出せないなら誰も答えられない。待たせずにその場で失敗させる。
+            writeResponse(reqId, ok = false, data = "cannot post the question (notifications blocked?)")
+        }
+    }
+
+    /**
+     * `z2-ask` の答えを待っている端末側へ返す (0.8.267)。呼び元は [AskReplyReceiver]。
+     *
+     * [answer] が null なら「答えずに消した」＝ ERR。端末側は非ゼロ終了で受け取れるので、
+     * `ans=${'$'}(z2-ask …) || exit` のように**答えなかった場合の分岐が書ける**。
+     */
+    internal fun completeAsk(context: Context, reqId: String, answer: String?) {
+        // 応答先はプロセスが死んでいても求まる場所 (start() を通っていなくても書ける)。
+        // 返事はアプリが落ちた後に届くこともあり、そのとき respDir は null になっている。
+        val dir = respDir ?: context.applicationContext.getExternalFilesDir(null)
+            ?.let { File(File(it, DIR_NAME), "resp") }?.apply { mkdirs() }
+        if (dir == null) {
+            Log.w(TAG, "ask reply dropped (no resp dir)")
+            return
+        }
+        val prefix = if (answer != null) "OK " else "ERR "
+        val tmp = File(dir, ".$reqId.tmp")
+        runCatching {
+            tmp.writeText(prefix + encode(answer ?: "cancelled") + "\n")
+            tmp.renameTo(File(dir, "$reqId.resp"))
+        }.onFailure { Log.w(TAG, "ask reply write failed", it) }
     }
 
     private fun doShareText(context: Context, text: String) {

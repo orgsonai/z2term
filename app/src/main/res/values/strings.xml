@@ -467,6 +467,10 @@
     <string name="toast_log_start_failed">Could not start logging (check the destination folder)</string>
     <string name="toast_share_inserted">Inserted into the terminal (not executed)</string>
     <string name="toast_share_failed">Could not receive it</string>
+    <!-- z2-ask: the notification that asks, and its reply field. -->
+    <string name="ask_default_title">z2term is asking</string>
+    <string name="ask_default_hint">Type your answer</string>
+    <string name="ask_reply_action">Answer</string>
     <plurals name="toast_copy">
         <item quantity="one">Copied (%1$d char)</item>
         <item quantity="other">Copied (%1$d chars)</item>

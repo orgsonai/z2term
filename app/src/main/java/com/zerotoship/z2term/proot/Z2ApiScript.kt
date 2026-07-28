@@ -39,8 +39,12 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |mv "${d}tmp" "${d}DIR/req/${d}id.req" 2>/dev/null || { echo "z2api: cannot write request (storage perm?)" >&2; exit 1; }
         |[ "${d}need_resp" = "1" ] || exit 0
         |resp="${d}DIR/resp/${d}id.resp"
+        |# 待ち時間は 0.1 秒 x この回数 (既定 5 秒)。z2-ask のように**人が答えるまで**待つものだけが
+        |# Z2API_WAIT を伸ばす。ここを一律に長くすると、アプリが止まっているときの誤動作
+        |# (応答が来ない) にどのコマンドも延々と付き合うことになる。
+        |wait_n="${d}{Z2API_WAIT:-50}"
         |i=0
-        |while [ ! -e "${d}resp" ] && [ ${d}i -lt 50 ]; do sleep 0.1; i=${d}((i+1)); done
+        |while [ ! -e "${d}resp" ] && [ ${d}i -lt "${d}wait_n" ]; do sleep 0.1; i=${d}((i+1)); done
         |if [ ! -e "${d}resp" ]; then echo "z2api: timeout waiting for app" >&2; exit 1; fi
         |line=${d}(head -n1 "${d}resp")
         |status=${d}{line%% *}
@@ -147,6 +151,29 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
 
     val sensor = "#!/bin/sh\n" + m.sensorHelp + "\n" + """
         |exec /usr/local/bin/z2api 1 sensor "${d}{1:-light}"
+    """.trimMargin() + "\n"
+
+    // z2-ask: 通知の返信欄で人に聞いて、答えを標準出力へ返す。応答待ちだけが長い (人が入力する)
+    // ので、この 1 本だけ Z2API_WAIT を伸ばす。既定 5 分は「通知に気付いて答えるまで」の実感値で、
+    // -t で変えられる。答えずに通知を消したらブリッジが ERR を返す = 非ゼロ終了なので、
+    // `ans=$(z2-ask ...) || 諦める` が書ける (待ちっぱなしで固まらない)。
+    val ask = "#!/bin/sh\n" + m.askHelp + "\n" + """
+        |secs=300
+        |hint=""
+        |preset=""
+        |while [ ${d}# -gt 0 ]; do
+        |  case "${d}1" in
+        |    -t|--timeout) secs="${d}2"; shift 2 || exit 1 ;;
+        |    -H|--hint)    hint="${d}2"; shift 2 || exit 1 ;;
+        |    -d|--default) preset="${d}2"; shift 2 || exit 1 ;;
+        |    --) shift; break ;;
+        |    *) break ;;
+        |  esac
+        |done
+        |[ ${d}# -ge 1 ] || { echo "${m.askUsage}" >&2; exit 1; }
+        |case "${d}secs" in *[!0-9]*|"") echo "${m.askUsage}" >&2; exit 1 ;; esac
+        |[ "${d}secs" -gt 0 ] || { echo "${m.askUsage}" >&2; exit 1; }
+        |Z2API_WAIT=${d}((secs*10)) exec /usr/local/bin/z2api 1 ask "${d}*" "${d}hint" "${d}preset"
     """.trimMargin() + "\n"
 
     val noti = "#!/bin/sh\n" + m.notiHelp + "\n" + """
@@ -489,6 +516,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         "z2-screen" to screen,
         "z2-tile" to tile,
         "z2-noti" to noti,
+        "z2-ask" to ask,
         "z2-alarm" to alarm,
     )
 }

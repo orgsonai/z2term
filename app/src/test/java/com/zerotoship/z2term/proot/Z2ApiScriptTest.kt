@@ -216,6 +216,39 @@ class Z2ApiScriptTest {
     }
 
     /**
+     * `z2-ask` が**引数を検査してから**アプリを呼ぶこと (0.8.267)。
+     *
+     * `-t` は待ち時間 (秒) をそのまま `Z2API_WAIT` の算術に渡すので、数字でない値が来ると
+     * `${'$'}((secs*10))` が sh によっては構文エラーで落ち、**質問が出ないまま失敗する**。
+     * 質問が出ないのに理由も出ない、が一番困るので、呼ぶ前に弾いて usage を出す。
+     * ここは `z2api` が無い環境でも通る (弾く側は exec の手前で終わるため)。
+     */
+    @Test
+    fun askValidatesArgumentsBeforeCallingTheApp() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val script = File.createTempFile("z2ask", ".sh").apply { writeText(scripts["z2-ask"]!!) }
+        try {
+            fun run(vararg args: String): Pair<Int, String> {
+                val pb = ProcessBuilder(listOf(sh!!, script.absolutePath) + args).redirectErrorStream(true)
+                val proc = pb.start()
+                val out = proc.inputStream.bufferedReader().readText()
+                return proc.waitFor() to out
+            }
+            // 質問が無い。
+            val (rcNoArg, outNoArg) = run()
+            assertEquals("質問なしが弾かれていない: $outNoArg", 1, rcNoArg)
+            assertTrue("usage が出ていない: $outNoArg", "z2-ask" in outNoArg)
+            // -t が数字でない / 0。
+            assertEquals("-t の非数値が弾かれていない", 1, run("-t", "abc", "質問").first)
+            assertEquals("-t 0 が弾かれていない", 1, run("-t", "0", "質問").first)
+            assertEquals("-t の負値が弾かれていない", 1, run("-t", "-5", "質問").first)
+        } finally {
+            script.delete()
+        }
+    }
+
+    /**
      * A6: `z2-when events` が `event:<名前>` に書ける名前を実際に一覧すること (0.8.226)。
      *
      * 一覧はヒアドキュメントで持っているので、`|` の剥がれ方や終端 (`EOS`) の位置がずれると

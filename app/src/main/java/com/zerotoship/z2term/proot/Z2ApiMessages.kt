@@ -101,6 +101,39 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# 例: [ "${d}(z2-state charging)" = "true" ] && echo 充電中
     """.trimMargin()
 
+    // --- z2-ask ---
+
+    val askHelp: String = if (en) """
+        |# z2-ask [-t SEC] [-H HINT] [-d DEFAULT] <question>
+        |#   Ask the person a question and print their answer on stdout.
+        |#   The question arrives as a notification with a **reply field**, so it can be
+        |#   answered from the shade without opening the app (a macro running in the
+        |#   background can ask too).
+        |#   -t <sec>   how long to wait for an answer (default 300 = 5 min)
+        |#   -H <hint>  label shown in the reply field
+        |#   -d <text>  suggested answer (shown in the notification)
+        |# Dismissing the notification without answering, or running out of time, exits
+        |# non-zero and prints nothing — so you can write "or give up":
+        |#   name=${d}(z2-ask "Branch name?") || exit 1
+        |# Compare with z2-notify -b <label>, which only offers the choices you prepared.
+    """.trimMargin() else """
+        |# z2-ask [-t 秒] [-H ヒント] [-d 既定] <質問>
+        |#   人に質問して、答えを標準出力へ返す。
+        |#   質問は**返信欄つきの通知**で届くので、アプリを開かずシェードのまま答えられる
+        |#   (裏で走っているマクロからも聞ける)。
+        |#   -t <秒>     答えを待つ時間 (既定 300 = 5 分)
+        |#   -H <ヒント> 返信欄に出す見出し
+        |#   -d <文字列> 答えの候補 (通知に出す)
+        |# 答えずに通知を消したとき・時間切れのときは**非ゼロ終了**で何も出さないので、
+        |# 「答えなければ諦める」がそのまま書ける:
+        |#   name=${d}(z2-ask "ブランチ名は?") || exit 1
+        |# 用意した選択肢から選ばせるだけなら z2-notify -b <ラベル> の方が向いている。
+    """.trimMargin()
+
+    val askUsage: String =
+        if (en) "usage: z2-ask [-t sec] [-H hint] [-d default] <question>"
+        else "usage: z2-ask [-t 秒] [-H ヒント] [-d 既定] <質問>"
+
     // --- z2-screen ---
 
     val screenHelp: String = if (en) """

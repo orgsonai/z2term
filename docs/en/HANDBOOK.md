@@ -544,6 +544,7 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | Command | What it does |
 |---|---|
 | `z2-notify [-h] [-n name] [-b label]... "title" "text"` | Post a notification (text optional; `-h` shows a pop-up banner). **`-b` adds reply buttons** (up to 3); pressing one appends a `notify_action` line to `events.jsonl` so a macro can read the answer |
+| `z2-ask [-t sec] [-H hint] [-d default] "question"` | **Ask a question and get the answer** (0.8.267). It arrives as a notification with a **reply field**, so it can be answered from the shade without opening the app. The answer goes to stdout: `name=$(z2-ask "Branch name?")`. Dismissing it, or the timeout (5 min by default), **fails without printing anything**, so `|| exit` expresses "give up if there is no answer". If you only need a choice from a list, `z2-notify -b` fits better |
 | `z2-toast "message"` | Toast (short message at the bottom of the screen) |
 | `z2-share "text"` | Hand text to Android's share sheet |
 | `z2-open <URL or path>` | Open a URL or file in the default app |

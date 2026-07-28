@@ -35,7 +35,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.266-alpha (versionCode 274).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.267-alpha (versionCode 275).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 
@@ -48,6 +48,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 - **日英どちらでも** — アプリの画面だけでなく **`z2-*` コマンドの表示も言語設定に追従**します（ヘルプ・usage・メッセージまで）。
 - **日本語 IME** — Viterbi かな漢字変換、予測、頻度/新しさ学習、独自オンスクリーンキーボード。
 - **Android ブリッジ** — 端末から本体機能を呼ぶ: `z2-noti`（いま出ている通知を読む・読むだけ）/ `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip` / `z2-battery` / `z2-vibrate` / `z2-say` / `z2-torch` / `z2-media` / `z2-volume` / `z2-sensor` / `z2-intent` / `z2-state` / `z2-screen`（その時間だけ画面が自分で消えないようにする）/ `z2-tile`（クイック設定タイルにマクロを載せる）/ `z2-alarm` / `z2-macro` / `z2-session`（アプリ自身のタブを操る）。
+- **人に聞ける** — `name=$(z2-ask "ブランチ名は?")` で**通知の返信欄**から答えを受け取れる（アプリを開かずシェードのまま。答えなければ非ゼロ終了なので「諦める」も書ける）。
 - **自動化ハブ** — `z2-when <トリガー> run <コマンド>` で、Android 側の出来事をきっかけにスクリプトを自動実行: 充電の開始/停止、電池が一定値を跨いだとき、時刻（毎日 / 1 回 / N ごと / cron）、Wi‑Fi の接続/切断、**回線が通じた/途切れた・使う回線が切り替わった（`net:online` / `net:mobile` — モバイル回線も見る）**、**端末の起動（`boot`）**、**他アプリから共有されたとき（`share:ext=pdf` など）**、SMS 受信（OTP コード抽出つき）、センサー（振る / 照度しきい値 / 近接）、**通知が届いたとき（`notify:otp` は OTP コード抽出つき。ログ保存とは独立）**、**端末イベントを名前で指定（`event:headset_plugged` など約20種。`z2-when events` で一覧）**、**フォルダに新しいファイルが来たとき（`file:new=…`）**。**条件で絞り込める**（`if=ssid=Home` / `cooldown=1h` / `between=22:00-07:00` / `days=mon-fri` — どのトリガーにも同じように効き、見送った分も `skip:` として記録に残る）。ルールは `~/.z2term/when/` 配下のテキスト（git 同期可）で、アプリを開かなくても・再起動をまたいでも働く。**📜 の「自動化」タブ**で一覧・ON/OFF・実行ログ・きっかけを待たない「▶ いま試す」ができ、**全ルールの一時停止（キルスイッチ）と直近の発火**もここで見られる（端末からは `z2-when pause` / `resume` / `fired`）。
 - **セルフ adb** — `z2adb` で端末自身のワイヤレスデバッグへ localhost 接続。PC・USB・root すべて不要。
 - **内蔵ヘルプ** — `z2help`（または `z2term`）で全 `z2*` ヘルパーの分類済み早見表を表示。`z2version` でアプリ版数とタブが実際に動いているエンジンを確認。

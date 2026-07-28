@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-28 / Target version: 0.8.266-alpha (versionCode 274)
+Last updated: 2026-07-28 / Target version: 0.8.267-alpha (versionCode 275)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -826,6 +826,13 @@ The footer now shows **the macro that finished last**, since start times moved o
   - `z2gui` already had `GuiScriptStrings` yet **15 lines were still Japanese** (Konsole rebuild, GUI install failure, audio, Qt fallback); they now go through the same mechanism.
   - Kotlin comments stay Japanese — they are for the developer and never reach the terminal.
 
+- **`z2-ask` (0.8.267 — ask the person, get the answer back)**: `name=$(z2-ask "Branch name?")`. It asks **through a notification's reply field** (`RemoteInput`). `-t sec` (default 300) / `-H hint` / `-d default`.
+  - **Why**: the only way to ask a person was `z2-notify -b <label>`, i.e. **buttons** — they could only answer with a choice you had prepared. Free-form answers ("which branch?", "where should it go?") could not be expressed at all, so macros gave up asking and hard-coded a value.
+  - ⚠ **No Activity is shown.** A dialog interrupts whatever the person is doing, and **a macro running in the background (a `z2-when` fire) has no way to come to the front at all**. A notification with a reply field can be answered **from the shade without opening the app**, and it reuses the same "notification + broadcast" entry point as `z2-notify -b` — **no new resident process**.
+  - ⚠ **The answer cannot come back as `dispatch`'s return value.** Every other verb answers on the spot; `ask` takes as long as the person takes. So `handleRequestFile` intercepts `ask` **before** dispatch, and the `resp` file is written by [`AskReplyReceiver`] → `completeAsk` once the reply arrives.
+  - ⚠ **Dismissing without answering still replies** (the notification's `setDeleteIntent`). Writing nothing would leave the terminal side hanging for the whole timeout. Both cancel and timeout **exit non-zero**, so `ans=$(z2-ask …) || exit 1` expresses "give up if they don't answer" directly.
+  - ⚠ **The `PendingIntent` must be `FLAG_MUTABLE`**: `RemoteInput` works by having the OS insert the typed text into the Intent, so `IMMUTABLE` means **the answer never arrives** (the one exception in a codebase that otherwise uses `IMMUTABLE` everywhere). `setAutoCancel` does not fire for replies, so the notification is **cancelled explicitly** (leaving it up would allow a second reply).
+  - ⚠ **Only this command waits longer.** The `z2api` dispatcher waits 5s by default; that is now overridable with `Z2API_WAIT` (tenths of a second). Making it long for everything would mean **every** command sits through the full wait whenever the app is not running.
 - **`z2-noti` command (0.8.236)**: prints the notifications currently on screen as TSV (key / package / app name / title / body) — and nothing else. Notification detection already existed, but it could only record; there was no way to ask "what is on screen right now" from the shell.
   - ⚠ **Pressing and dismissing are deliberately absent.** The original proposal included a verb to press a notification's buttons, which also means **pressing other apps' pay and send buttons** — the only feature among the 32 proposals whose misfires land outside this app. Per the summariser's call, only the reading half was implemented.
   - `getActiveNotifications()` belongs to `NotificationListenerService`, so it can only be read through the live, OS-bound instance ([`NotificationLogService.activeNotificationsTsv`]). Without the permission or the binding it reports that notification access is not granted.
