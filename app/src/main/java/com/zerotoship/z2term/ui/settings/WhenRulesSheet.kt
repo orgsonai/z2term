@@ -356,7 +356,7 @@ private fun WhenRuleRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 // 絞り込み (if / cooldown / between / days) は付いているときだけ 1 行出す。
-                // 付いていないルールの見え方を変えないため (0.8.259)。
+                // 付いていないルールの見え方を変えないため (0.8.263)。
                 if (rule.hasFilters) {
                     Text(
                         text = filterSummary(rule),

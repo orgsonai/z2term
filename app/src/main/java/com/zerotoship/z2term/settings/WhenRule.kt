@@ -23,9 +23,9 @@ package com.zerotoship.z2term.settings
  * `order` は**画面での並び順**だけを持つ任意項目 (0.8.249)。CLI (`z2-when`) は書かないので、
  * 端末から登録したルールには付かない ([order] = [NO_ORDER])。[parse] は知らないキーを黙って
  * 無視するので、どちらから書いても壊れない。**この「知らないキーは無視」のおかげで、後から
- * 項目を足しても古い版のアプリがルールを読めなくなることは無い** (0.8.259 の [condition] 等)。
+ * 項目を足しても古い版のアプリがルールを読めなくなることは無い** (0.8.263 の [condition] 等)。
  *
- * 絞り込み ([condition] / [cooldown] / [between] / [days]・0.8.259) は**どのトリガーにも
+ * 絞り込み ([condition] / [cooldown] / [between] / [days]・0.8.263) は**どのトリガーにも
  * 同じように効く**。判定は [com.zerotoship.z2term.service.WhenGuard]、適用は
  * [com.zerotoship.z2term.service.WhenManager] の実行入口 1 か所。
  *
@@ -38,6 +38,10 @@ package com.zerotoship.z2term.settings
  *  - `time:cron=分 時 日 月 曜日`          … cron 式 (stage 2。曜日 0-7 で 0/7=日曜)
  *  - `wifi:connect` / `wifi:disconnect`    … Wi‑Fi 接続 / 切断 (stage 2。検知 ON が前提)
  *  - `wifi:ssid=<名前>`                    … 指定 SSID へ接続 (位置情報権限が無いと SSID は取れない)
+ *  - `net:online` / `net:offline`          … 回線が通じた / 途切れた (0.8.264。検知 ON が前提)
+ *  - `net:wifi` / `net:mobile` / `net:ethernet` … 使う回線がそれへ切り替わったとき
+ *  - `boot`                                … 端末が起動したとき (0.8.264)。**引数を取らない**ので
+ *    `:` が付かない唯一のトリガー。manifest 宣言のレシーバで受けるため**検知 OFF でも動く**。
  *  - `sms:any`                             … すべての着信 SMS (stage 2。RECEIVE_SMS 許可が前提)
  *  - `sms:from=<部分>` / `sms:contains=<部分>` … 送信元 / 本文の部分一致 (大小文字無視)
  *  - `sms:otp`                             … 本文に OTP らしい数字コードがあるとき
@@ -65,8 +69,15 @@ data class WhenRule(
     /** `days=` … この曜日だけ実行する (空 = 毎日)。例: `mon-fri`。 */
     val days: String = "",
 ) {
-    /** トリガーの種別 (`:` の手前)。例: `charge` / `battery` / `time`。 */
-    val kind: String get() = trigger.substringBefore(':', "").trim()
+    /**
+     * トリガーの種別 (`:` の手前)。例: `charge` / `battery` / `time`。
+     *
+     * `:` が無いトリガーは**全体が種別**になる (`boot`・0.8.264)。引数を取らないトリガーに
+     * `boot:` と空の引数を書かせるのは不自然なので、書式の方をトリガーに合わせた。
+     * 種別が未知なら [com.zerotoship.z2term.service.WhenManager] のどの受け口にも一致しない
+     * ＝打ち間違いは今までどおり黙って何も起きないだけで、意味が変わるルールは無い。
+     */
+    val kind: String get() = trigger.substringBefore(':').trim()
 
     /** トリガーの引数 (`:` の後ろ)。例: `start` / `below=20` / `daily=03:00`。 */
     val spec: String get() = trigger.substringAfter(':', "").trim()

@@ -31,6 +31,36 @@ object WhenTriggerMatch {
         }
     }
 
+    /** 回線が無い (どこにも繋がっていない) ことを表す [net] の値。 */
+    const val NET_NONE = "none"
+
+    /**
+     * `net:*` トリガーが、既定回線が [prev] から [now] へ変わったことで発火すべきか (0.8.264)。
+     *
+     * spec の書式:
+     *  - `online` / `offline` … 通信できる回線がある / 無い状態へ**変わった**とき
+     *  - `wifi` / `mobile` / `ethernet` … 使う回線が**それへ切り替わった**とき
+     *
+     * [now] / [prev] は `wifi` `mobile` `ethernet` `vpn` `other` [NET_NONE] のいずれか
+     * (判定は [SystemEventService.netTransport]。Android 側の値をここへ持ち込まない)。
+     *
+     * ⚠ **判定に前の状態を要る**のがこのトリガーの肝。回線が Wi‑Fi からモバイルへ替わっても
+     * 「通信できる」ことは変わらないので、`net:online` を発火させてはいけない。「今の状態を
+     * 満たすか」だけで書くと、そこで誤発火する — だから*変化した項目*を見る。
+     * 呼び元 ([SystemEventService.handleNet]) は [now] != [prev] のときしか呼ばない。
+     */
+    fun net(spec: String, now: String, prev: String): Boolean {
+        val online = now != NET_NONE
+        val wasOnline = prev != NET_NONE
+        return when (val s = spec.trim()) {
+            "online" -> online && !wasOnline
+            "offline" -> !online && wasOnline
+            // 回線種別は「その回線になった」= 直前が別の回線だったとき。
+            "wifi", "mobile", "ethernet" -> now == s && prev != s
+            else -> false
+        }
+    }
+
     /**
      * `event:*` トリガーが、いま起きた端末イベント [event] で発火すべきか。
      *

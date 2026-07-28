@@ -74,6 +74,9 @@ exactly once** (no resident script involved).
 | `time:every=Nm` / `time:every=Nh` | Every N minutes / hours | — |
 | `time:cron='min hour dom month dow'` | A cron expression (dow 0-7 / 0,7 = Sunday). It has spaces, so **quote it** | — |
 | `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<name>` | Wi‑Fi connected / disconnected / joined that SSID | detection ON |
+| `net:online` / `net:offline` | a usable connection appeared / went away (mobile counts too) | detection ON |
+| `net:wifi` / `net:mobile` / `net:ethernet` | the link in use **switched to that one** | detection ON |
+| `boot` | the device finished starting up (no `:`) | — |
 | `sms:any` / `sms:from=<substr>` / `sms:contains=<substr>` / `sms:otp` | An SMS arrived | SMS detection |
 | `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near\|far` | Shaken / light crossed N lux / proximity changed | detection ON |
 | `file:new=<dir>[,ext=<ext>]` | **A new file landed in that folder** (after the write finishes) | detection ON |
@@ -87,6 +90,7 @@ The command that fires gets **what happened** in its environment.
 | `Z2_WHEN_TRIGGER` | The trigger string you registered (all triggers) |
 | `Z2_WHEN_LEVEL` | Battery % (`charge:` / `battery:`) |
 | `Z2_WHEN_SSID` | Wi‑Fi name (`wifi:`) |
+| `Z2_WHEN_NET` / `Z2_WHEN_NET_PREV` | the link now / the one before (`net:`; `wifi` `mobile` `ethernet` `vpn` `other` `none`) |
 | `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` | Sender / body (`sms:`) |
 | `Z2_WHEN_OTP` | The extracted one-time code (`sms:otp` / `notify:otp`) |
 | `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX` | `shake`/`light`/`proximity:near\|far` / illuminance (`sensor:`) |
@@ -148,6 +152,9 @@ This is what you read when you watch the log yourself (style B / the 5-0 skeleto
 | `battery_low` / `battery_okay` | Battery low / recovered | `level` |
 | `battery_level` | Level crossed a 10% boundary | `level` |
 | `wifi_connected` / `wifi_disconnected` | Wi‑Fi connected / disconnected | `ssid` (blank without location permission) |
+| `net_online` / `net_offline` | a usable connection appeared / went away | — |
+| `net_wifi` / `net_mobile` / `net_ethernet` | the link in use switched | — |
+| `boot` | the device started up (recorded even with detection off) | — |
 | `headset_plugged` / `headset_unplugged` | Wired headset plugged / unplugged | — |
 | `bt_audio_connected` / `bt_audio_disconnected` | **Bluetooth audio** (earbuds etc.) connected / disconnected | — |
 | `airplane_on` / `airplane_off` | Airplane mode on / off | — |

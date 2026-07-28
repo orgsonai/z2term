@@ -14,6 +14,9 @@ import kotlinx.coroutines.runBlocking
  * 端末起動 (BOOT_COMPLETED) を受けて、設定「起動時に自動で常駐」が ON かつ enabled な
  * サーバーがあれば [ServerDaemonService] を起動する。**アプリを一度も開かずにサーバーを常駐**
  * させるための入口。条件を満たさなければ何もしない。
+ *
+ * 0.8.264 から z2-when の `boot` トリガーの受け口も兼ねる。`BOOT_COMPLETED` は**暗黙
+ * ブロードキャスト制限の例外**なので manifest 宣言のここへ確実に届く＝検知 OFF でも動く。
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -32,6 +35,31 @@ class BootReceiver : BroadcastReceiver() {
         // 書き戻し、まだなら予約を貼り直す。放っておくと「消灯しない」が永久に残る。
         runCatching { ScreenTimeout.restoreOrReschedule(context) }
             .onFailure { Log.w("BootReceiver", "screen timeout restore failed", it) }
+
+        // z2-when の `boot` トリガー (0.8.264)。ロック解除前 (LOCKED_BOOT_COMPLETED) は
+        // 資格情報で暗号化された領域がまだ開いていない＝ルールファイルもエンジンも読めないので、
+        // 通常の BOOT_COMPLETED まで待つ。ここで走らせても黙って失敗するだけになる。
+        if (action != Intent.ACTION_LOCKED_BOOT_COMPLETED) {
+            // events.jsonl へ `boot` を残しつつ `event:boot` も実行する (EventEmitter が両方やる)。
+            // 検知の ON/OFF に依存しない側のイベントなので、そちらの経路に乗せるのが正しい。
+            runCatching { EventEmitter.emit(context, "boot") }
+                .onFailure { Log.w("BootReceiver", "boot event failed", it) }
+            // ルール実行はエンジン (proot/z2root) の起動を伴うので受信スレッドを塞がない。
+            // ⚠ ただの Thread では **onReceive を抜けた瞬間にプロセスごと止められうる**ので
+            // goAsync() で「まだ処理中」と OS に伝える。下の常駐サービス起動と違い、
+            // z2-when のルール実行はサービスを持たない一度きりの実行なので、これが唯一の生命線。
+            val pending = goAsync()
+            val app = context.applicationContext
+            Thread({
+                try {
+                    WhenManager.onBoot(app)
+                } catch (t: Throwable) {
+                    Log.w("BootReceiver", "boot rule failed", t)
+                } finally {
+                    pending.finish()
+                }
+            }, "when-boot").start()
+        }
 
         val settings = runBlocking { AppSettings(context).flow.first() }
 

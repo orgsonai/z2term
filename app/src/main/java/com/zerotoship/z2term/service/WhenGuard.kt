@@ -1,7 +1,7 @@
 package com.zerotoship.z2term.service
 
 /**
- * `z2-when` ルールの**絞り込み** (`if=` / `cooldown=` / `between=` / `days=`・0.8.259) を
+ * `z2-when` ルールの**絞り込み** (`if=` / `cooldown=` / `between=` / `days=`・0.8.263) を
  * 判定する部分。[WhenTriggerMatch] と同じく **Android API に触れない**ので単体テストできる。
  *
  * トリガーが「いつ動くか」を決めるのに対し、こちらは「**動いていい状況か**」を決める。

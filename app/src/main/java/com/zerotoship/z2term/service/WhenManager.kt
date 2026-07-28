@@ -258,6 +258,51 @@ object WhenManager {
         }
     }
 
+    // --- 回線トリガー (net:*) ---
+
+    /**
+     * 既定回線の変化を受けて `net:online` / `net:offline` / `net:wifi` / `net:mobile` /
+     * `net:ethernet` を実行する (0.8.264)。呼び元は [SystemEventService.handleNet]
+     * (種別が変わったときだけ・エッジ判定は [WhenTriggerMatch.net])。
+     *
+     * `wifi:*` との違いは**モバイル回線も見る**こと。`wifi:disconnect` は「Wi‑Fi が切れた」
+     * までしか言えず、そのあとモバイルで通信できているのか本当に圏外なのかを区別できない。
+     * 「通信できるようになったら送る」「圏外になったら止める」はここでしか書けない。
+     *
+     * 環境変数は `Z2_WHEN_NET` (今の回線種別) と `Z2_WHEN_NET_PREV` (直前の種別)。
+     * どちらへ変わったかで分岐するマクロを 1 本で書けるようにするため両方渡す。
+     */
+    fun onNet(context: Context, now: String, prev: String) {
+        val app = context.applicationContext
+        loadRules(app).filter { it.enabled && it.kind == "net" }.forEach { rule ->
+            if (WhenTriggerMatch.net(rule.spec, now, prev)) {
+                runRule(
+                    app, rule, level = -1,
+                    extraEnv = mapOf("Z2_WHEN_NET" to now, "Z2_WHEN_NET_PREV" to prev)
+                )
+            }
+        }
+    }
+
+    // --- 起動トリガー (boot) ---
+
+    /**
+     * 端末の起動を受けて `boot` ルールを実行する (0.8.264)。呼び元は [BootReceiver]。
+     *
+     * `BOOT_COMPLETED` は**暗黙ブロードキャスト制限の例外**なので manifest 宣言のレシーバへ
+     * 確実に届く。つまり**検知フォアグラウンドサービスが OFF でも動く**数少ないトリガーで、
+     * 「再起動したら常駐サーバーを上げ直す」のような後始末をアプリを開かずに書ける。
+     *
+     * ⚠ 引数を取らないので [WhenRule.spec] は空。`boot:` と書かれても同じルールとして扱う
+     * (spec を見ないため)。
+     */
+    fun onBoot(context: Context) {
+        val app = context.applicationContext
+        loadRules(app).filter { it.enabled && it.kind == "boot" }.forEach { rule ->
+            runRule(app, rule, level = -1)
+        }
+    }
+
     // --- SMS トリガー ---
 
     /**
@@ -751,10 +796,11 @@ object WhenManager {
      * 時刻と SMS は検知に依存しない。`event:` は受動イベントなら依存するが、`alarm` /
      * `notify_action` のように自分で仕掛けたものは依存しない — 名前だけでは判別できないので、
      * 「依存しうる」側に数えて警告する（黙って動かないより、余計に注意する方がまし）。
+     * `boot` は manifest 宣言のレシーバで受けるので**依存しない**（0.8.264）。
      */
     fun rulesNeedingDetection(context: Context): Int =
         loadRules(context).count {
-            it.enabled && it.kind in setOf("charge", "battery", "wifi", "sensor", "event")
+            it.enabled && it.kind in setOf("charge", "battery", "wifi", "net", "sensor", "event")
         }
 
     // --- ルールファイルの小さな書き換え (CLI と競合しない範囲で) ---

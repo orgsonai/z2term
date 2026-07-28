@@ -392,7 +392,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    ;;
         |  *)
         |    trig="${d}1"; shift
-        |    # 絞り込み (0.8.259) はトリガーの直後に置く。run の後ろは**全部コマンド**という
+        |    # 絞り込み (0.8.263) はトリガーの直後に置く。run の後ろは**全部コマンド**という
         |    # 今までの読み方を変えないため (コマンド側に if= が現れても誤解しない)。
         |    zif=""; zcool=""; zbetw=""; zdays=""
         |    while [ ${d}# -ge 1 ]; do

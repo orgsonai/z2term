@@ -59,6 +59,8 @@ import java.util.concurrent.Executors
  *  - `battery_low` / `battery_okay`           … 電池残量 低下 / 回復 (`{level}` に残量%)
  *  - `battery_level`                          … 残量が 10% 刻みの境界を跨いだとき (`{level}` に残量%)
  *  - `wifi_connected` / `wifi_disconnected`   … Wi‑Fi 接続 / 切断 (`{ssid}` に SSID・取得可能な場合のみ)
+ *  - `net_online` / `net_offline`             … 通信できる回線ができた / 無くなった (0.8.264)
+ *  - `net_wifi` / `net_mobile` / `net_ethernet` … 使う回線が切り替わった (0.8.264)
  *  - `headset_plugged` / `headset_unplugged`  … 有線ヘッドセットの抜き差し
  *  - `airplane_on` / `airplane_off`           … 機内モード ON / OFF
  *  - `ringer_normal` / `ringer_vibrate` / `ringer_silent` … マナーモード切替
@@ -79,6 +81,9 @@ class SystemEventService : Service() {
     @Volatile private var formatTemplate = ""
     @Volatile private var prepend = false
     @Volatile private var lastWifiConnected: Boolean? = null
+
+    /** 直前の既定回線の種別 ([netTransport] の値)。null = まだ基準を取っていない。 */
+    @Volatile private var lastNetTransport: String? = null
 
     @Volatile private var lastBatteryBucket = -1
 
@@ -121,6 +126,7 @@ class SystemEventService : Service() {
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
             handleWifi(caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI))
+            handleNet(netTransport(caps))
         }
 
         /**
@@ -128,7 +134,10 @@ class SystemEventService : Service() {
          * [onCapabilitiesChanged] が来るので、ここでは「Wi‑Fi ではなくなった」だけを見る
          * (元から false なら [handleWifi] 側の抑制で何も起きない)。
          */
-        override fun onLost(network: Network) = handleWifi(false)
+        override fun onLost(network: Network) {
+            handleWifi(false)
+            handleNet(WhenTriggerMatch.NET_NONE)
+        }
     }
 
     /**
@@ -230,6 +239,7 @@ class SystemEventService : Service() {
         // **サービスの起動を接続イベントと誤検知しない**よう、先に今の状態を基準にしておく
         // (BT オーディオの btCallbackPrimed と同じ理由)。
         lastWifiConnected = wifiConnectedNow()
+        lastNetTransport = netTransportNow()
         runCatching {
             applicationContext.getSystemService(ConnectivityManager::class.java)
                 ?.registerDefaultNetworkCallback(networkCallback)
@@ -360,6 +370,64 @@ class SystemEventService : Service() {
             emit("wifi_disconnected")
             runCatching { WhenManager.onWifi(applicationContext, connected = false, ssid = "") }
         }
+    }
+
+    /**
+     * 既定回線の種別 (0.8.264)。`wifi` / `mobile` / `ethernet` / `vpn` / `other` /
+     * [WhenTriggerMatch.NET_NONE] のいずれかを返す。判定はここだけに置き、
+     * `net:*` の発火条件 ([WhenTriggerMatch.net]) へは**この文字列だけ**を渡す
+     * (Android の定数を純ロジック側へ持ち込まないため)。
+     *
+     * ⚠ `NET_CAPABILITY_VALIDATED` (**実際に通信できたか**) が無ければ [WhenTriggerMatch.NET_NONE]
+     * 扱いにする。Wi‑Fi に「繋がって」いても認証画面の先へ出られない、圏内なのに通らない、は
+     * 珍しくない。`net:online` を「送れるようになった」の合図として使えないと意味が無いので、
+     * 繋がったことではなく**通ったこと**を採る。⚠ その代わり、繋がってから検証が終わるまでの
+     * わずかな間は `none` のままなので、`net:online` は Wi‑Fi のアイコンが立つより**少し遅れる**。
+     */
+    private fun netTransport(caps: NetworkCapabilities?): String = when {
+        caps == null -> WhenTriggerMatch.NET_NONE
+        !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) -> WhenTriggerMatch.NET_NONE
+        !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) -> WhenTriggerMatch.NET_NONE
+        // VPN は下に実回線がぶら下がるが、既定回線として見えるのは VPN の方。
+        // 「どの回線か」で分岐したい人には嘘になるので、素直に vpn と答える。
+        caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) -> "vpn"
+        caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
+        caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "mobile"
+        caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
+        else -> "other"
+    }
+
+    /** いまの既定回線の種別。サービス起動時の基準づくり用 ([netTransport] と同じ判定)。 */
+    private fun netTransportNow(): String = runCatching {
+        val cm = applicationContext.getSystemService(ConnectivityManager::class.java)
+        val net = cm?.activeNetwork ?: return@runCatching WhenTriggerMatch.NET_NONE
+        netTransport(cm.getNetworkCapabilities(net))
+    }.getOrDefault(WhenTriggerMatch.NET_NONE)
+
+    /**
+     * 既定回線の種別が変わったときだけ 1 回発火する (0.8.264)。呼び元は [networkCallback]。
+     *
+     * `onCapabilitiesChanged` は帯域の変化などでも何度も呼ばれるので、**種別が変わったときだけ**に
+     * 絞る ([handleWifi] と同じ考え方)。[lastNetTransport] が null のときは基準が無い＝
+     * サービスが起きた直後なので、記録だけして発火はしない (起動を「回線が変わった」と誤検知しない)。
+     */
+    private fun handleNet(now: String) {
+        val prev = lastNetTransport
+        if (now == prev) return
+        lastNetTransport = now
+        if (prev == null) return
+        // events.jsonl へ残すのは「通じた/途切れた」と「別の回線になった」の 2 種類。
+        // wifi_connected と重なるように見えるが、あちらは Wi‑Fi の有無しか言えず、
+        // モバイルへ切り替わったのか圏外になったのかを区別できない。
+        val online = now != WhenTriggerMatch.NET_NONE
+        val wasOnline = prev != WhenTriggerMatch.NET_NONE
+        when {
+            online && !wasOnline -> emit("net_online")
+            !online && wasOnline -> emit("net_offline")
+        }
+        if (online) emit("net_$now")
+        runCatching { WhenManager.onNet(applicationContext, now = now, prev = prev) }
+            .onFailure { Log.w(TAG, "net rule failed ($prev -> $now): ${it.message}") }
     }
 
     /**

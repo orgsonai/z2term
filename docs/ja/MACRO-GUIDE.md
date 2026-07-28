@@ -72,6 +72,9 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 | `time:every=Nm` / `time:every=Nh` | N 分 / N 時間ごと | — |
 | `time:cron='分 時 日 月 曜日'` | cron 式（曜日 0-7 / 0,7 = 日曜）。空白を含むので**要クォート** | — |
 | `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<名前>` | Wi‑Fi の 接続 / 切断 / 指定 SSID への接続 | 検知 ON |
+| `net:online` / `net:offline` | 通信できる回線が できた / 無くなった（モバイル回線も見る） | 検知 ON |
+| `net:wifi` / `net:mobile` / `net:ethernet` | 使う回線が**それへ切り替わった** | 検知 ON |
+| `boot` | 端末の起動が終わった（`:` は付けない） | — |
 | `sms:any` / `sms:from=<部分>` / `sms:contains=<部分>` / `sms:otp` | SMS が届いた | SMS 検知 |
 | `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near\|far` | 振った / 照度が N lux を跨いだ / 近接が変化 | 検知 ON |
 | `file:new=<フォルダ>[,ext=<拡張子>]` | そのフォルダに**新しいファイルが来た**（書き込みが終わってから） | 検知 ON |
@@ -85,6 +88,7 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 | `Z2_WHEN_TRIGGER` | 登録したトリガー文字列（全トリガー共通） |
 | `Z2_WHEN_LEVEL` | 電池残量 %（`charge:` / `battery:`） |
 | `Z2_WHEN_SSID` | Wi‑Fi 名（`wifi:`） |
+| `Z2_WHEN_NET` / `Z2_WHEN_NET_PREV` | 今の回線 / 直前の回線（`net:`。`wifi` `mobile` `ethernet` `vpn` `other` `none`） |
 | `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` | 送信元 / 本文（`sms:`） |
 | `Z2_WHEN_OTP` | 抽出したワンタイムコード（`sms:otp` / `notify:otp`） |
 | `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX` | `shake`/`light`/`proximity:near\|far` / 照度（`sensor:`） |
@@ -146,6 +150,9 @@ z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term
 | `battery_low` / `battery_okay` | 電池残量 低下 / 回復 | `level` |
 | `battery_level` | 残量が 10% 刻みの境界を跨いだとき | `level` |
 | `wifi_connected` / `wifi_disconnected` | Wi‑Fi 接続 / 切断 | `ssid`（位置情報権限が無いと空） |
+| `net_online` / `net_offline` | 通信できる回線が できた / 無くなった | — |
+| `net_wifi` / `net_mobile` / `net_ethernet` | 使う回線が切り替わった | — |
+| `boot` | 端末が起動した（検知 OFF でも出る） | — |
 | `headset_plugged` / `headset_unplugged` | 有線ヘッドセット 抜き差し | — |
 | `bt_audio_connected` / `bt_audio_disconnected` | **Bluetooth オーディオ**（イヤホン等）の 接続 / 切断 | — |
 | `airplane_on` / `airplane_off` | 機内モード ON / OFF | — |

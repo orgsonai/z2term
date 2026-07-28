@@ -267,6 +267,10 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#            time:daily=HH:MM | time:at=HH:MM | time:every=Nm|Nh
         |#            time:cron='min hour dom month dow'  (dow 0-7 / 0,7=Sunday. Quote it: it has spaces)
         |#            wifi:connect | wifi:disconnect | wifi:ssid=<name>  (needs detection ON)
+        |#            net:online | net:offline  … a usable connection appeared / went away
+        |#            net:wifi | net:mobile | net:ethernet  … the link in use switched to that
+        |#                                        (needs detection ON; counts mobile data, not just Wi-Fi)
+        |#            boot                        … the device finished starting up (works with detection OFF)
         |#            sms:any | sms:from=<substr> | sms:contains=<substr> | sms:otp  (needs RECEIVE_SMS)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (detection ON)
         |#            file:new=<dir>[,ext=<ext>]  … a new file landed in that folder (needs detection ON)
@@ -295,6 +299,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# On fire the command runs on the selected distro with Z2_WHEN_TRIGGER / Z2_WHEN_LEVEL
         |# / Z2_WHEN_SSID (wifi) / Z2_WHEN_SMS_FROM / Z2_WHEN_SMS_BODY / Z2_WHEN_OTP (sms)
         |# / Z2_WHEN_SENSOR / Z2_WHEN_LUX (sensor) in the environment.
+        |# For net: you get Z2_WHEN_NET (the link now) and Z2_WHEN_NET_PREV (the one before).
         |# For file: you get Z2_WHEN_FILE (full path) and Z2_WHEN_DIR.
         |# For notify: you get Z2_WHEN_NOTI_PKG / _APP / _TITLE / _TEXT (and Z2_WHEN_OTP for notify:otp).
         |# For event: you also get Z2_WHEN_EVENT (the event name); alarm / notify_action add
@@ -305,6 +310,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#      z2-when event:headset_plugged run ~/.z2term/macros/play.sh
         |#      z2-when 'event:ringer_*' run 'z2-toast "ringer: ${d}Z2_WHEN_EVENT"'
         |#      z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
+        |#      z2-when net:online cooldown=5m run ~/.z2term/macros/sync.sh
+        |#      z2-when boot run 'sshd --lan'
     """.trimMargin() else """
         |# z2-when <トリガー> run <コマンド...>   … ルールを登録
         |#   トリガー: charge:start | charge:stop  (検知 ON が前提)
@@ -312,6 +319,10 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#            time:daily=HH:MM | time:at=HH:MM | time:every=Nm|Nh
         |#            time:cron='分 時 日 月 曜日'  (曜日 0-7 / 0,7=日曜。空白を含むので要クォート)
         |#            wifi:connect | wifi:disconnect | wifi:ssid=<名前>  (検知 ON が前提)
+        |#            net:online | net:offline  … 通信できる回線ができた / 無くなった
+        |#            net:wifi | net:mobile | net:ethernet  … 使う回線がそれへ切り替わった
+        |#                                        (検知 ON が前提。Wi-Fi だけでなくモバイル回線も見る)
+        |#            boot                        … 端末の起動が終わったとき (検知 OFF でも動く)
         |#            sms:any | sms:from=<部分> | sms:contains=<部分> | sms:otp  (RECEIVE_SMS 許可が前提)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (検知 ON が前提)
         |#            file:new=<フォルダ>[,ext=<拡張子>]  … そのフォルダに新しいファイルが来たとき (検知 ON が前提)
@@ -340,6 +351,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# 発火時、コマンドは選択中の distro で実行され、環境変数 Z2_WHEN_TRIGGER / Z2_WHEN_LEVEL
         |# / Z2_WHEN_SSID (wifi) / Z2_WHEN_SMS_FROM / Z2_WHEN_SMS_BODY / Z2_WHEN_OTP (sms)
         |# / Z2_WHEN_SENSOR / Z2_WHEN_LUX (sensor) が入る。
+        |# net: のときは Z2_WHEN_NET (今の回線) と Z2_WHEN_NET_PREV (直前の回線) が入る。
         |# file: のときは Z2_WHEN_FILE (フルパス) と Z2_WHEN_DIR が入る。
         |# notify: のときは Z2_WHEN_NOTI_PKG / _APP / _TITLE / _TEXT (notify:otp なら Z2_WHEN_OTP も)。
         |# event: のときは Z2_WHEN_EVENT (イベント名) が入る。alarm / notify_action では
@@ -350,6 +362,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#     z2-when event:headset_plugged run ~/.z2term/macros/play.sh
         |#     z2-when 'event:ringer_*' run 'z2-toast "マナーモード: ${d}Z2_WHEN_EVENT"'
         |#     z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
+        |#     z2-when net:online cooldown=5m run ~/.z2term/macros/sync.sh
+        |#     z2-when boot run 'sshd --lan'
     """.trimMargin()
 
     val whenPaused: String =
@@ -396,6 +410,10 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |battery_level          level crossed a 10% mark  [detection ON]
         |wifi_connected         joined Wi-Fi              [detection ON]
         |wifi_disconnected      left Wi-Fi                [detection ON]
+        |net_online             a link that works appeared [detection ON]
+        |net_offline            no link that works        [detection ON]
+        |net_wifi               the link in use is Wi-Fi  [detection ON]
+        |net_mobile             the link in use is mobile [detection ON]
         |headset_plugged        wired earphones in        [detection ON]
         |headset_unplugged      wired earphones out       [detection ON]
         |bt_audio_connected     Bluetooth audio connected [detection ON]
@@ -405,6 +423,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |ringer_normal          ringer set to normal      [detection ON]
         |ringer_vibrate         ringer set to vibrate     [detection ON]
         |ringer_silent          ringer set to silent      [detection ON]
+        |boot                   the device started up     [always]
         |alarm                  a z2-alarm fired          [always]
         |notify_action          a notification button     [always]
         |unlock_failed          failed to unlock          [always, needs setup]
@@ -420,6 +439,10 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |battery_level          残量が 10% 刻みを跨いだ [検知 ON]
         |wifi_connected         Wi-Fi に繋がった        [検知 ON]
         |wifi_disconnected      Wi-Fi が切れた          [検知 ON]
+        |net_online             通信できる回線ができた  [検知 ON]
+        |net_offline            通信できる回線が無い    [検知 ON]
+        |net_wifi               使う回線が Wi-Fi になった [検知 ON]
+        |net_mobile             使う回線がモバイルになった [検知 ON]
         |headset_plugged        有線イヤホンを挿した    [検知 ON]
         |headset_unplugged      有線イヤホンを抜いた    [検知 ON]
         |bt_audio_connected     Bluetooth 音声が繋がった [検知 ON]
@@ -429,6 +452,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |ringer_normal          着信音ありにした        [検知 ON]
         |ringer_vibrate         バイブにした            [検知 ON]
         |ringer_silent          マナーにした            [検知 ON]
+        |boot                   端末が起動した          [常に]
         |alarm                  z2-alarm が鳴った       [常に]
         |notify_action          通知のボタンを押した    [常に]
         |unlock_failed          ロック解除に失敗した    [常に・要設定]

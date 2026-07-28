@@ -44,6 +44,44 @@ class WhenTriggerMatchTest {
         assertFalse(m("", connected = true, ssid = "home"))
     }
 
+    // --- net (0.8.264) ---
+
+    private fun net(spec: String, now: String, prev: String) = WhenTriggerMatch.net(spec, now, prev)
+
+    @Test fun net_online_firesOnlyOnTheEdgeIntoOnline() {
+        assertTrue(net("online", now = "wifi", prev = "none"))
+        assertTrue(net("online", now = "mobile", prev = "none"))
+        assertFalse(net("online", now = "none", prev = "wifi"))
+    }
+
+    @Test fun net_online_doesNotFireWhenTheLinkMerelySwitches() {
+        // Wi-Fi からモバイルへ替わっても「通信できる」ことは変わらない。ここで発火すると
+        // 「繋がったら送る」が移動のたびに走ってしまう (このトリガーの一番の落とし穴)。
+        assertFalse(net("online", now = "mobile", prev = "wifi"))
+        assertFalse(net("offline", now = "mobile", prev = "wifi"))
+    }
+
+    @Test fun net_offline_firesOnlyOnTheEdgeIntoOffline() {
+        assertTrue(net("offline", now = "none", prev = "mobile"))
+        assertFalse(net("offline", now = "wifi", prev = "none"))
+    }
+
+    @Test fun net_transport_firesWhenItBecomesThatLink() {
+        assertTrue(net("wifi", now = "wifi", prev = "mobile"))
+        assertTrue(net("wifi", now = "wifi", prev = "none"))
+        assertTrue(net("mobile", now = "mobile", prev = "wifi"))
+        assertTrue(net("ethernet", now = "ethernet", prev = "none"))
+        // 同じ回線のままなら発火しない (呼び元も変化時しか呼ばないが、判定単体でも成り立たせる)。
+        assertFalse(net("wifi", now = "wifi", prev = "wifi"))
+        assertFalse(net("mobile", now = "wifi", prev = "mobile"))
+    }
+
+    @Test fun net_unknownSpec_doesNotFire() {
+        assertFalse(net("vpn", now = "vpn", prev = "wifi")) // vpn は種別としては返るが spec には無い
+        assertFalse(net("", now = "wifi", prev = "none"))
+        assertFalse(net("whatever", now = "wifi", prev = "none"))
+    }
+
     // --- sms ---
 
     private fun sms(spec: String, from: String, body: String) =
