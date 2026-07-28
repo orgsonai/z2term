@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,8 +47,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.service.WhenGuard
 import com.zerotoship.z2term.service.WhenManager
 import com.zerotoship.z2term.settings.WhenRule
+import com.zerotoship.z2term.settings.WhenTriggerCatalog
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
@@ -62,6 +66,7 @@ import com.zerotoship.z2term.ui.components.reorderItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * 📜 ツールシートの「自動化」タブ (0.8.227)。`z2-when` のルールを**見る・止める・試す**画面。
@@ -156,10 +161,38 @@ fun WhenRulesBody() {
         }
     }
 
+    // 編集中はフォームだけを出す (常駐サーバータブと同じ作り)。
+    var editing by remember { mutableStateOf<WhenRule?>(null) }
+    var isNew by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        val currentEdit = editing
+        if (currentEdit != null) {
+            WhenRuleEditForm(
+                initial = currentEdit,
+                isNew = isNew,
+                onSave = { saved ->
+                    scope.launch(Dispatchers.IO) {
+                        // 新規は id を持たせずに開くので、保存する瞬間に採番する
+                        // (作りかけで閉じたときに空のルールファイルを残さないため)。
+                        val rule = if (saved.id.isEmpty()) {
+                            saved.copy(id = WhenManager.newRuleId(context))
+                        } else {
+                            saved
+                        }
+                        WhenManager.saveRule(context, rule)
+                        reloadTick++
+                    }
+                    editing = null
+                },
+                onCancel = { editing = null }
+            )
+            return@Column
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -178,6 +211,11 @@ fun WhenRulesBody() {
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace
             )
+            Spacer(modifier = Modifier.width(8.dp))
+            PillButton(label = stringResource(R.string.when_new), accent = true) {
+                isNew = true
+                editing = WhenRule(id = "", trigger = "", run = "")
+            }
         }
 
         // キルスイッチ。止まっている間は一覧側にも出すので、開いた瞬間に「なぜ動かないか」が分かる。
@@ -219,6 +257,7 @@ fun WhenRulesBody() {
                             }
                         },
                         onRunNow = { scope.launch(Dispatchers.IO) { WhenManager.runNow(context, rule) } },
+                        onEdit = { isNew = false; editing = rule },
                         onDelete = {
                             scope.launch(Dispatchers.IO) {
                                 WhenManager.removeRule(context, rule.id)
@@ -302,6 +341,7 @@ private fun WhenRuleRow(
     handle: @Composable () -> Unit = {},
     onToggle: (Boolean) -> Unit,
     onRunNow: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -383,6 +423,7 @@ private fun WhenRuleRow(
             handle()
             IconCell(label = "▶", onClick = onRunNow)
             IconCell(label = "▤", onClick = { logOpen = !logOpen })
+            IconCell(label = "✎", onClick = onEdit)
             IconCell(label = "✕", danger = true, onClick = onDelete)
         }
 
@@ -421,4 +462,266 @@ private fun WhenRuleRow(
             }
         }
     }
+}
+
+/**
+ * ルールの編集フォーム（0.8.272）。新規作成もこれ 1 つで済ませる。
+ *
+ * **なぜ画面から作れるようにしたか**: 0.8.271 まではここを「見る・止める・試す」だけに留めて、
+ * 作る・直すは端末の `z2-when` に任せていた。しかし `run` の**全文が画面のどこにも出ない**ため、
+ * 「このルールが何をするのか」を確かめるのに端末を開くしかなかった。さらに**折り返して貼り付けた
+ * コマンドが途中で切れ、黙って構文エラーになり続ける事故**が起きた（ルールファイルは 1 行 1 項目
+ * なので、`run` に改行が入ると 2 行目以降が捨てられる）。画面から直せて、改行をその場で潰せて、
+ * トリガーを候補から選べれば、この 3 つとも起きない。
+ *
+ * 正本がテキストファイルであることは変えていない（[WhenManager.saveRule] が同じ書式で書く）ので、
+ * 端末で作ったものを画面で直す・その逆、どちらもできる。
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun WhenRuleEditForm(
+    initial: WhenRule,
+    isNew: Boolean,
+    onSave: (WhenRule) -> Unit,
+    onCancel: () -> Unit,
+) {
+    val context = LocalContext.current
+    var trigger by remember(initial.id) { mutableStateOf(initial.trigger) }
+    var run by remember(initial.id) { mutableStateOf(initial.run) }
+    var condition by remember(initial.id) { mutableStateOf(initial.condition) }
+    var cooldown by remember(initial.id) { mutableStateOf(initial.cooldown) }
+    var between by remember(initial.id) { mutableStateOf(initial.between) }
+    var days by remember(initial.id) { mutableStateOf(initial.days) }
+    var error by remember(initial.id) { mutableStateOf<String?>(null) }
+    // 貼り付けた文字列から改行を落としたら、黙って直さずに一言出す（勝手に変えられたと思わせない）。
+    var stripped by remember(initial.id) { mutableStateOf(false) }
+    // 候補を開いている種別。既存ルールを開いたときはその種別を開いておく。
+    var openKind by remember(initial.id) {
+        mutableStateOf(if (isNew) "" else initial.trigger.substringBefore(':').trim())
+    }
+
+    // run が 1 本のスクリプトを指しているなら中身を読む（読み取り専用の確認窓）。
+    var script by remember(initial.id) { mutableStateOf<String?>(null) }
+    LaunchedEffect(run) {
+        script = withContext(Dispatchers.IO) { WhenManager.readRunScript(context, run) }
+    }
+
+    // 保存ボタンの中（Composable ではない）から使うので、文言は先に取っておく。
+    val msgTriggerEmpty = stringResource(R.string.when_form_trigger_empty)
+    val msgTriggerUnknown = stringResource(R.string.when_form_trigger_unknown)
+    val msgTriggerBadSpec = stringResource(R.string.when_form_trigger_bad_spec)
+    val msgRunEmpty = stringResource(R.string.when_form_run_empty)
+    val msgRunMultiline = stringResource(R.string.when_form_run_multiline)
+    val msgIfUnknown = stringResource(R.string.when_form_if_unknown)
+
+    Text(
+        text = if (isNew) stringResource(R.string.when_new_rule_title)
+        else stringResource(R.string.when_edit_rule_title),
+        color = ZtsGreen,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontFamily = FontFamily.Monospace
+    )
+
+    Field(
+        label = stringResource(R.string.when_trigger_field),
+        value = trigger,
+        // 貼り付けで改行が混ざっても 1 行に保つ（トリガーは 1 行しか読まれない）。
+        onChange = { trigger = it.replace('\n', ' ').replace('\r', ' ') },
+        placeholder = "charge:start"
+    )
+
+    // きっかけの候補。**そのまま入れて動く完成形**を並べるので、選んだ直後から正しい。
+    Text(
+        text = stringResource(R.string.when_trigger_pick),
+        color = ZtsTextSecondary,
+        fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace
+    )
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        WhenTriggerCatalog.kinds.forEach { k ->
+            PillButton(label = kindLabel(k.labelKey), accent = k.id == openKind) {
+                openKind = if (openKind == k.id) "" else k.id
+            }
+        }
+    }
+    WhenTriggerCatalog.kinds.firstOrNull { it.id == openKind }?.let { kind ->
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            kind.options.forEach { option ->
+                PillButton(label = option.example) {
+                    trigger = option.example
+                    error = null
+                }
+            }
+        }
+    }
+
+    Field(
+        label = stringResource(R.string.when_run_field),
+        value = run,
+        onChange = { value ->
+            // ⚠ ここが肝。ルールファイルは 1 行 1 項目なので、改行が入ると 2 行目以降が
+            // 捨てられて**途中で切れたコマンド**になる（0.8.272 の事故）。入った瞬間に潰す。
+            val single = value.replace('\n', ' ').replace('\r', ' ')
+            if (single != value) stripped = true
+            run = single
+        },
+        placeholder = "~/.z2term/macros/backup.sh",
+        multiline = true
+    )
+    if (stripped) {
+        Text(
+            text = stringResource(R.string.when_form_newline_stripped),
+            color = ZtsWarning,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+
+    // run がスクリプト 1 本を指しているなら、その中身を見せる（直すのは端末側）。
+    script?.let { text ->
+        Text(
+            text = stringResource(R.string.when_script_title),
+            color = ZtsTextSecondary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 220.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(ZtsBgPrimary)
+                .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+                .verticalScroll(rememberScrollState())
+                .padding(8.dp)
+        ) {
+            Text(
+                text = text,
+                color = ZtsTextPrimary,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        Text(
+            text = stringResource(R.string.when_script_readonly),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+
+    Text(
+        text = stringResource(R.string.when_filters_label),
+        color = ZtsTextSecondary,
+        fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace
+    )
+    Field(
+        label = stringResource(R.string.when_if_field),
+        value = condition,
+        onChange = { condition = it.trim() },
+        placeholder = "wifi,!screen"
+    )
+    Field(
+        label = stringResource(R.string.when_cooldown_field),
+        value = cooldown,
+        onChange = { cooldown = it.trim() },
+        placeholder = "30m"
+    )
+    Field(
+        label = stringResource(R.string.when_between_field),
+        value = between,
+        onChange = { between = it.trim() },
+        placeholder = "22:00-07:00"
+    )
+    Field(
+        label = stringResource(R.string.when_days_field),
+        value = days,
+        onChange = { days = it.trim() },
+        placeholder = "mon-fri"
+    )
+
+    error?.let { message ->
+        Text(
+            text = message,
+            color = ZtsError,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        PillButton(label = stringResource(R.string.action_cancel), onClick = onCancel)
+        Box(modifier = Modifier.weight(1f))
+        PillButton(label = stringResource(R.string.action_save), accent = true) {
+            val t = trigger.trim()
+            val r = run.trim()
+            // 綴りが 1 文字違うだけで「一覧に並ぶのに一生動かないルール」になるので、
+            // 保存の前に必ず見る（CLI が登録時に検査しているのと同じ理由・同じ判定）。
+            val problem = when (WhenTriggerCatalog.triggerProblem(t)) {
+                WhenTriggerCatalog.Problem.EMPTY -> msgTriggerEmpty
+                WhenTriggerCatalog.Problem.UNKNOWN_KIND -> msgTriggerUnknown.format(t.substringBefore(':'))
+                WhenTriggerCatalog.Problem.BAD_SPEC -> msgTriggerBadSpec.format(t)
+                null -> when (WhenTriggerCatalog.runProblem(r)) {
+                    WhenTriggerCatalog.RunProblem.EMPTY -> msgRunEmpty
+                    WhenTriggerCatalog.RunProblem.MULTILINE -> msgRunMultiline
+                    null -> unknownConditionKey(condition)?.let { msgIfUnknown.format(it) }
+                }
+            }
+            error = problem
+            if (problem == null) {
+                onSave(
+                    initial.copy(
+                        trigger = t,
+                        run = r,
+                        condition = condition.trim(),
+                        cooldown = cooldown.trim(),
+                        between = between.trim(),
+                        days = days.trim(),
+                    )
+                )
+            }
+        }
+    }
+}
+
+/**
+ * `if=` に知らないキーが混ざっていれば、その最初の 1 つ（無ければ null）。
+ * 判定は [WhenGuard] が持っているものをそのまま使う（一覧を 2 か所に置かない）。
+ */
+private fun unknownConditionKey(spec: String): String? =
+    spec.split(',')
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .map { term -> term.removePrefix("!").takeWhile { it != '=' && it != '<' && it != '>' }.trim() }
+        .firstOrNull { it.isNotEmpty() && !WhenGuard.isKnownCondition(it) }
+
+/** トリガー種別の短いラベル。文字列は `strings.xml` に置く（英語版も要るため）。 */
+@Composable
+private fun kindLabel(key: String): String = when (key) {
+    "charge" -> stringResource(R.string.when_kind_charge)
+    "battery" -> stringResource(R.string.when_kind_battery)
+    "time" -> stringResource(R.string.when_kind_time)
+    "wifi" -> stringResource(R.string.when_kind_wifi)
+    "net" -> stringResource(R.string.when_kind_net)
+    "sensor" -> stringResource(R.string.when_kind_sensor)
+    "sms" -> stringResource(R.string.when_kind_sms)
+    "notify" -> stringResource(R.string.when_kind_notify)
+    "file" -> stringResource(R.string.when_kind_file)
+    "share" -> stringResource(R.string.when_kind_share)
+    "event" -> stringResource(R.string.when_kind_event)
+    "boot" -> stringResource(R.string.when_kind_boot)
+    else -> key
 }

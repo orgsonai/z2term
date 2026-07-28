@@ -449,6 +449,17 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         else "注意: 自動実行は一時停止中です (z2-when resume で再開)"
 
     /**
+     * `run` に改行が入っていたので空白へ直したとき。
+     *
+     * ルールファイルは 1 行 1 項目なので、改行入りのまま書くと 2 行目以降が別の項目として
+     * 読まれ、**途中で切れたコマンド**が黙って登録される（折り返して貼り付けると起きる）。
+     * 弾くのではなく直して通すが、直したことは必ず伝える。
+     */
+    val whenRunJoined: String =
+        if (en) "note: line breaks in the command were turned into spaces (a rule reads one line only)"
+        else "注意: コマンドの改行を空白に直しました (ルールは 1 行しか読みません)"
+
+    /**
      * `z2-when events` が出すイベント名の一覧。**名前 (1 列目) は言語を問わず同じ**で、
      * 説明と注記だけを訳す（名前はルールに書く識別子なので訳してはいけない）。
      */

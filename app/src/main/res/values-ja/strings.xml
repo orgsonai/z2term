@@ -622,13 +622,45 @@
     <string name="when_pause">自動実行を一時停止</string>
     <string name="when_pause_desc">ON のあいだ、きっかけが来てもルールを実行しません。ルールは消えません。▶ で自分から試すことはできます。</string>
     <string name="when_paused_banner">■ 停止中: きっかけが来ても実行しません</string>
-    <string name="when_empty">ルールがまだありません。端末で z2-when を打つと作れます（例: z2-when charge:start run ~/.z2term/macros/backup.sh）。使えるきっかけの一覧は z2-when events。</string>
+    <string name="when_empty">ルールがまだありません。＋ 新規 から作れます。端末で z2-when を打っても同じです（例: z2-when charge:start run ~/.z2term/macros/backup.sh）。</string>
+    <string name="when_new">+ 新規</string>
+    <string name="when_new_rule_title">ルールを追加</string>
+    <string name="when_edit_rule_title">ルールを編集</string>
+    <string name="when_trigger_field">きっかけ</string>
+    <string name="when_trigger_pick">きっかけを選ぶ（そのまま動く形が入ります）</string>
+    <string name="when_run_field">実行するコマンド</string>
+    <string name="when_filters_label">絞り込み（空欄なら絞りません）</string>
+    <string name="when_if_field">if = そのときの端末の状態</string>
+    <string name="when_cooldown_field">cooldown = 前の実行からこの時間は動かさない</string>
+    <string name="when_between_field">between = この時間帯だけ</string>
+    <string name="when_days_field">days = この曜日だけ</string>
+    <string name="when_form_trigger_empty">きっかけを入れてください。</string>
+    <string name="when_form_trigger_unknown">知らないきっかけです: %1$s（下の候補から選べます）</string>
+    <string name="when_form_trigger_bad_spec">きっかけの書き方が違います: %1$s（下の候補から選べます）</string>
+    <string name="when_form_run_empty">実行するコマンドを入れてください。</string>
+    <string name="when_form_run_multiline">コマンドは 1 行で書いてください（改行があると途中で切れます）。</string>
+    <string name="when_form_if_unknown">if に知らない条件があります: %1$s</string>
+    <string name="when_form_newline_stripped">改行を空白に直しました（ルールは 1 行しか読みません）。</string>
+    <string name="when_script_title">このコマンドが呼ぶスクリプト</string>
+    <string name="when_script_readonly">表示だけです。中身を直すときは端末で開いてください。</string>
+    <string name="when_kind_charge">充電</string>
+    <string name="when_kind_battery">電池</string>
+    <string name="when_kind_time">時刻</string>
+    <string name="when_kind_wifi">Wi-Fi</string>
+    <string name="when_kind_net">回線</string>
+    <string name="when_kind_sensor">センサー</string>
+    <string name="when_kind_sms">SMS</string>
+    <string name="when_kind_notify">通知</string>
+    <string name="when_kind_file">ファイル</string>
+    <string name="when_kind_share">共有</string>
+    <string name="when_kind_event">イベント</string>
+    <string name="when_kind_boot">起動</string>
     <string name="when_last_fired">最後: %1$s</string>
     <string name="when_never_fired">まだ動いていません</string>
     <string name="when_log_title">このルールの実行ログ</string>
     <string name="when_fired_title">直近の発火</string>
     <string name="when_fired_empty">まだ何も動いていません。</string>
-    <string name="when_hint">▶ = きっかけを待たずに 1 回試す ／ ▤ = そのルールの実行ログ ／ ✕ = 削除。ルールの中身を書き換えるときは端末の z2-when を使ってください（正本は ~/.z2term/when/ のテキストです）。</string>
+    <string name="when_hint">▶ = きっかけを待たずに 1 回試す ／ ▤ = そのルールの実行ログ ／ ✎ = 中身を直す ／ ✕ = 削除。端末の z2-when で作ったものもここで直せます（正本は ~/.z2term/when/ のテキストです）。</string>
     <string name="settings_section_automation_rules">自動化ルール（z2-when）</string>
     <string name="settings_automation_rules_desc">登録したルールの確認・ON/OFF・実行ログ・お試し実行と、全部まとめての一時停止。</string>
     <string name="settings_open_when_rules">ルールを管理</string>

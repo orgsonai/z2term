@@ -1,6 +1,8 @@
 package com.zerotoship.z2term.ui.snippets
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -57,6 +59,7 @@ import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.snippets.Snippet
 import com.zerotoship.z2term.snippets.SnippetStore
+import com.zerotoship.z2term.ui.components.REORDER_SETTLE_MS
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.settings.ServersBody
 import com.zerotoship.z2term.ui.settings.WhenRulesBody
@@ -72,6 +75,7 @@ import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -284,10 +288,34 @@ private fun SnippetsBody(
     LaunchedEffect(Unit) { store.ensureSeeded() }
 
     // ドラッグ並べ替え: 表示順はローカル [order] を真実とし、ドラッグ中は flow 更新で上書きしない。
+    // ⚠ 考え方は共通部品の ReorderState と同じ (自動化タブ・常駐サーバータブが使っている方)。
+    // こちらは行が固定高なので独自のままだが、直すときは両方を見ること。
     var draggingId by remember { mutableStateOf<String?>(null) }
     var dragDy by remember { mutableStateOf(0f) }
     var order by remember { mutableStateOf<List<Snippet>>(emptyList()) }
-    LaunchedEffect(snippets, draggingId) { if (draggingId == null) order = snippets }
+    // 指を離したあと、半端に残ったズレを 0 まで滑らせている最中の行 (0.8.272)。
+    // ここを即 0 にすると、残りぶんだけ行が 1 フレームで飛び「離した瞬間に入れ替わった」ように見える。
+    var settlingId by remember { mutableStateOf<String?>(null) }
+    var settleJob by remember { mutableStateOf<Job?>(null) }
+    // 保存した並び。保存 (DataStore への書き込み → flow で戻ってくる) が反映されるまでは
+    // flow 側の古い並びで上書きしない — 取り込むと並びが一度戻ってからまた入れ替わる。
+    var pendingIds by remember { mutableStateOf<List<String>?>(null) }
+    LaunchedEffect(snippets, draggingId) {
+        if (draggingId != null) return@LaunchedEffect
+        val p = pendingIds
+        if (p != null) {
+            val ids = snippets.map { it.id }
+            when {
+                // 顔ぶれが変わった (追加・削除) なら flow 側が正しい。
+                ids.size != p.size || ids.toSet() != p.toSet() -> pendingIds = null
+                // 並びが追いついた。以後はふつうに取り込む。
+                ids == p -> pendingIds = null
+                // 同じ顔ぶれで並びだけ違う = まだ保存が反映されていない。自分の並びを保つ。
+                else -> return@LaunchedEffect
+            }
+        }
+        order = snippets
+    }
     // 1 行ぶんのピッチ (行高 + Column の spacedBy 10dp)。これを超えて動かしたら隣と入れ替える。
     val rowPitchPx = with(LocalDensity.current) { (SNIPPET_ROW_HEIGHT + 10.dp).toPx() }
 
@@ -305,7 +333,8 @@ private fun SnippetsBody(
                 // ポインタ(ドラッグ)が追従する (Column でも item が移動できる)。
                 order.forEach { s ->
                     key(s.id) {
-                        val dragging = s.id == draggingId
+                        // 着地し終わるまでは掴んでいるときと同じ扱い (前面・指追従) にする。
+                        val dragging = s.id == draggingId || s.id == settlingId
                         SnippetRow(
                             snippet = s,
                             dragging = dragging,
@@ -316,7 +345,14 @@ private fun SnippetsBody(
                             },
                             onEdit = { editing = s },
                             onDelete = { scope.launch { store.delete(s.id) } },
-                            onDragStart = { draggingId = s.id; dragDy = 0f },
+                            onDragStart = {
+                                // 前の行がまだ着地中なら止めて、そこから掴み直す。
+                                settleJob?.cancel()
+                                settleJob = null
+                                settlingId = null
+                                draggingId = s.id
+                                dragDy = 0f
+                            },
                             onDrag = { dy ->
                                 dragDy += dy
                                 val cur = order.indexOfFirst { it.id == draggingId }
@@ -334,9 +370,27 @@ private fun SnippetsBody(
                             },
                             onDragEnd = {
                                 val finalOrder = order
+                                val id = draggingId
                                 draggingId = null
-                                dragDy = 0f
+                                // 保存は待たずに投げる (離してすぐ閉じても並びが残るように)。
+                                pendingIds = finalOrder.map { it.id }
                                 scope.launch { store.replaceAll(finalOrder) }
+                                if (id != null && dragDy != 0f) {
+                                    // 半端に残ったズレを 0 まで滑らせる (即 0 にすると行が飛ぶ)。
+                                    settlingId = id
+                                    settleJob = scope.launch {
+                                        animate(
+                                            initialValue = dragDy,
+                                            targetValue = 0f,
+                                            animationSpec = tween(durationMillis = REORDER_SETTLE_MS)
+                                        ) { value, _ -> dragDy = value }
+                                        dragDy = 0f
+                                        settlingId = null
+                                        settleJob = null
+                                    }
+                                } else {
+                                    dragDy = 0f
+                                }
                             }
                         )
                     }

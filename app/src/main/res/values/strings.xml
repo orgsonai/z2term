@@ -634,13 +634,45 @@
     <string name="when_pause">Pause automatic runs</string>
     <string name="when_pause_desc">While on, no rule runs when its trigger fires. Rules are not deleted, and you can still try one yourself with ▶.</string>
     <string name="when_paused_banner">■ Paused: triggers will not run anything</string>
-    <string name="when_empty">No rules yet. Create one in the terminal with z2-when (e.g. z2-when charge:start run ~/.z2term/macros/backup.sh). Run z2-when events to list the triggers you can use.</string>
+    <string name="when_empty">No rules yet. Tap + New to make one, or use z2-when in the terminal (e.g. z2-when charge:start run ~/.z2term/macros/backup.sh).</string>
+    <string name="when_new">+ New</string>
+    <string name="when_new_rule_title">New rule</string>
+    <string name="when_edit_rule_title">Edit rule</string>
+    <string name="when_trigger_field">Trigger</string>
+    <string name="when_trigger_pick">Pick a trigger (inserts a ready-to-run form)</string>
+    <string name="when_run_field">Command to run</string>
+    <string name="when_filters_label">Filters (leave empty for none)</string>
+    <string name="when_if_field">if = device state at that moment</string>
+    <string name="when_cooldown_field">cooldown = do not run again for this long</string>
+    <string name="when_between_field">between = only in this time window</string>
+    <string name="when_days_field">days = only on these days</string>
+    <string name="when_form_trigger_empty">Enter a trigger.</string>
+    <string name="when_form_trigger_unknown">Unknown trigger: %1$s (pick one from the list below)</string>
+    <string name="when_form_trigger_bad_spec">Malformed trigger: %1$s (pick one from the list below)</string>
+    <string name="when_form_run_empty">Enter a command to run.</string>
+    <string name="when_form_run_multiline">Keep the command on one line (a line break cuts it short).</string>
+    <string name="when_form_if_unknown">Unknown condition in if: %1$s</string>
+    <string name="when_form_newline_stripped">Line breaks were turned into spaces (a rule reads one line only).</string>
+    <string name="when_script_title">Script this command runs</string>
+    <string name="when_script_readonly">Shown for reference. Edit it in the terminal.</string>
+    <string name="when_kind_charge">Charging</string>
+    <string name="when_kind_battery">Battery</string>
+    <string name="when_kind_time">Time</string>
+    <string name="when_kind_wifi">Wi-Fi</string>
+    <string name="when_kind_net">Network</string>
+    <string name="when_kind_sensor">Sensor</string>
+    <string name="when_kind_sms">SMS</string>
+    <string name="when_kind_notify">Notification</string>
+    <string name="when_kind_file">File</string>
+    <string name="when_kind_share">Share</string>
+    <string name="when_kind_event">Event</string>
+    <string name="when_kind_boot">Boot</string>
     <string name="when_last_fired">Last: %1$s</string>
     <string name="when_never_fired">Has not run yet</string>
     <string name="when_log_title">Run log for this rule</string>
     <string name="when_fired_title">Recent fires</string>
     <string name="when_fired_empty">Nothing has run yet.</string>
-    <string name="when_hint">▶ = run once without waiting for the trigger / ▤ = that rule\'s run log / ✕ = delete. To change what a rule does, use z2-when in the terminal — the source of truth is the text under ~/.z2term/when/.</string>
+    <string name="when_hint">▶ = run once without waiting for the trigger / ▤ = that rule\'s run log / ✎ = edit / ✕ = delete. Rules made with z2-when in the terminal can be edited here too — the source of truth is the text under ~/.z2term/when/.</string>
     <string name="settings_section_automation_rules">Automation rules (z2-when)</string>
     <string name="settings_automation_rules_desc">Review your rules, toggle them, read their logs, try one, or pause them all at once.</string>
     <string name="settings_open_when_rules">Manage rules</string>

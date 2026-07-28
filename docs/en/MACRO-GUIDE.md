@@ -46,6 +46,12 @@ decision needs the contents of the log).
 2. **Register a trigger**: `z2-when <trigger> run <command>` (→ section 4). Everything you register
    also shows up under 📜 → the "**Automation**" tab, where you can toggle rules, **▶ run one once
    without waiting for the trigger**, read its run log, pause everything, and see recent fires.
+   **You can also create and edit them there** (0.8.272: "+ New" picks a trigger from a list, **✎**
+   opens an existing rule's command and filters). Terminal and screen write **the same files**
+   (`~/.z2term/when/*.rule`), so you can move between them freely.
+   ⚠ **A command is one line.** A rule file holds one item per line, so a newline throws away
+   everything after it (since 0.8.272 newlines are folded into spaces on registration, but for
+   anything long it is safer to **put it in a script file and register that path**).
 3. **To keep something resident** (only for style B): ⚙ Settings → "**Resident servers**" → register
    your script's start command; it then runs without opening the app and after reboot (also turn on
    "auto-start on boot").

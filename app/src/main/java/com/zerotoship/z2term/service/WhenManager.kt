@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.zerotoship.z2term.settings.WhenRule
+import com.zerotoship.z2term.settings.WhenTriggerCatalog
 import com.zerotoship.z2term.widget.StatusWidgetProvider
 import com.zerotoship.z2term.widget.TailWidgetProvider
 import java.io.File
@@ -774,6 +775,75 @@ object WhenManager {
     fun setRuleEnabled(context: Context, ruleId: String, enabled: Boolean) {
         setEnabled(context, ruleId, enabled)
         reload(context)
+    }
+
+    /**
+     * 画面から作った / 直したルールを書く（0.8.272）。書けたら true。
+     *
+     * **正本はテキストファイル**という設計は変えないので、書き先も書式も CLI と同じ
+     * （[WhenRule.serialize]）。画面で直したものを端末の `z2-when list` がそのまま読めるし、
+     * 端末で足したものを画面から直せる。時刻トリガーを貼り直すため、書けたら [reload] する。
+     *
+     * ⚠ 呼ぶ前に [com.zerotoship.z2term.settings.WhenTriggerCatalog] で検査すること。
+     * ここは書くだけで、書式は見ない（CLI から来た手書きのルールを画面が拒めると、
+     * 直すために端末へ戻らされて本末転倒になる）。
+     */
+    fun saveRule(context: Context, rule: WhenRule): Boolean {
+        val f = File(whenDir(context), "${rule.id}.rule")
+        val ok = runCatching {
+            f.parentFile?.mkdirs()
+            f.writeText(rule.serialize())
+        }.onFailure { Log.w(TAG, "saveRule failed (${rule.id}): ${it.message}") }.isSuccess
+        if (ok) reload(context)
+        return ok
+    }
+
+    /**
+     * 新しいルールの id。
+     *
+     * CLI (`z2-when`) の `w<エポック秒><pid>` と**同じ見た目**にする（一覧に並んだときに
+     * どちらで作ったか分からない方がよい）。アプリには pid の代わりが無いのでミリ秒を使い、
+     * 万一ぶつかったら連番を足す（CLI と同じ二重の防御）。
+     */
+    fun newRuleId(context: Context): String {
+        val dir = whenDir(context)
+        val now = System.currentTimeMillis()
+        val base = "w${now / 1000}${(now % 1000).toString().padStart(3, '0')}"
+        var id = base
+        var n = 0
+        while (File(dir, "$id.rule").exists()) {
+            n++
+            id = "$base-$n"
+        }
+        return id
+    }
+
+    /**
+     * `run` が指しているスクリプトの中身（末尾 [maxChars] 文字）。読めなければ null。
+     *
+     * 自動化タブで「このルールが何をするのか」を見るための**読み取り専用**の窓口
+     * （0.8.272）。ルール行に出るのはコマンドの 1 行だけで、それがスクリプトのパスだと
+     * 中身が分からず、端末を開くまで何をするルールなのか確かめられなかった。
+     *
+     * 読めるのは**共有 HOME の下だけ**。`~/` はそこへ読み替え、絶対パスも共有 HOME の
+     * 中に収まっているものだけ返す — ルールの文字列を変えれば端末のどこでも覗ける、
+     * という穴を開けないため。
+     */
+    fun readRunScript(context: Context, run: String, maxChars: Int = 8000): String? {
+        val path = WhenTriggerCatalog.scriptPathIn(run) ?: return null
+        val home = File(context.filesDir, "shared_home")
+        val file = when {
+            path.startsWith("~/") -> File(home, path.removePrefix("~/"))
+            path.startsWith("/root/") -> File(home, path.removePrefix("/root/"))
+            else -> return null
+        }
+        return runCatching {
+            val canonical = file.canonicalFile
+            if (!canonical.path.startsWith(home.canonicalFile.path)) return null
+            if (!canonical.isFile) return null
+            val text = canonical.readText()
+            if (text.length > maxChars) text.takeLast(maxChars) else text
+        }.getOrNull()
     }
 
     /**

@@ -469,7 +469,12 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |        esac
         |      done
         |    fi
-        |    cmd="${d}*"
+        |    # ルールファイルは 1 行 1 項目。改行入りのまま書くと 2 行目以降が別の項目として
+        |    # 読まれ、**途中で切れたコマンド**が黙って登録される (折り返して貼り付けると起きる)。
+        |    # 弾くのではなく空白へ直して通し、直したことだけ伝える。
+        |    cmdraw="${d}*"
+        |    cmd=${d}(printf '%s' "${d}cmdraw" | tr '\n\r' '  ')
+        |    [ "${d}cmd" = "${d}cmdraw" ] || echo "${m.whenRunJoined}" >&2
         |    # id は w<epoch><pid>。awk の srand() は「秒」で seed されるため同一秒では同じ乱数になり、
         |    # 続けて登録したルールが同じ id で上書きし合っていた。pid は 1 プロセス 1 値なので同一秒でも
         |    # 衝突しない。pid 再利用に備えて既存ファイルがあれば連番を足す (二重の防御)。
