@@ -77,6 +77,9 @@ exactly once** (no resident script involved).
 | `net:online` / `net:offline` | a usable connection appeared / went away (mobile counts too) | detection ON |
 | `net:wifi` / `net:mobile` / `net:ethernet` | the link in use **switched to that one** | detection ON |
 | `boot` | the device finished starting up (no `:`) | — |
+
+⚠ **A misspelled trigger will not register** (0.8.265). If it did, you would get a rule that sits in the list and never runs, with no way to find out why. Only `event:` names are left unchecked (the list from `z2-when events` is the source of truth).
+
 | `sms:any` / `sms:from=<substr>` / `sms:contains=<substr>` / `sms:otp` | An SMS arrived | SMS detection |
 | `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near\|far` | Shaken / light crossed N lux / proximity changed | detection ON |
 | `file:new=<dir>[,ext=<ext>]` | **A new file landed in that folder** (after the write finishes) | detection ON |

@@ -160,6 +160,61 @@ class Z2ApiScriptTest {
     }
 
     /**
+     * A6: 綴り違いのトリガーを**登録の時点で**弾くこと (0.8.265)。
+     *
+     * トリガーが 1 文字違っても登録は成功し、**一度も発火しないルール**ができるだけだった。
+     * `z2-when list` にも普通に並ぶので、外から見て正しいルールと区別が付かない。`if=` のキーを
+     * 登録時に検査しているのと同じ理由でここも止める。実際に `sh` で走らせて、**弾いたときに
+     * ルールファイルが作られていないこと**まで確かめる (エラーを出しつつ登録されていたら無意味)。
+     */
+    @Test
+    fun whenRejectsMisspelledTriggersAtRegistration() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val script = File.createTempFile("z2when", ".sh").apply { writeText(scripts["z2-when"]!!) }
+        val home = Files.createTempDirectory("z2home").toFile()
+        try {
+            fun run(vararg args: String): String {
+                val pb = ProcessBuilder(listOf(sh!!, script.absolutePath) + args).redirectErrorStream(true)
+                pb.environment()["HOME"] = home.absolutePath
+                val proc = pb.start()
+                val out = proc.inputStream.bufferedReader().readText()
+                proc.waitFor()
+                return out
+            }
+            fun rules() = File(home, ".z2term/when")
+                .listFiles { f -> f.name.endsWith(".rule") }.orEmpty().map { it.readText() }
+
+            // 種別そのものが違う。
+            assertTrue("知らない種別が弾かれていない", "nework" in run("nework:online", "run", "echo x"))
+            // 種別は合っているが引数の綴りが違う (一番起きやすい)。
+            assertTrue("net の引数違いが弾かれていない", run("net:onlien", "run", "echo x").isNotBlank())
+            assertTrue("charge の引数違いが弾かれていない", run("charge:begin", "run", "echo x").isNotBlank())
+            // 引数を取らない boot に引数を付けた / 引数が要るものが空。
+            assertTrue("boot の余計な引数が弾かれていない", run("boot:now", "run", "echo x").isNotBlank())
+            assertTrue("空の file: が弾かれていない", run("file:new=", "run", "echo x").isNotBlank())
+            assertTrue("弾いたのにルールが作られている: ${rules()}", rules().none { "echo x" in it })
+
+            // 正しい書き方は今までどおり通ること (検査が厳しすぎて実用を壊していない)。
+            listOf(
+                "boot", "net:online", "net:mobile", "charge:start", "battery:below=20",
+                "time:cron=0 3 * * *", "wifi:ssid=Home", "sms:otp", "notify:pkg=mail",
+                "sensor:light>500", "sensor:proximity=near", "file:new=/sdcard/Download",
+                "event:ringer_*",
+            ).forEach { trigger ->
+                run(trigger, "run", "echo ok-$trigger")
+                assertTrue(
+                    "正しいトリガーが弾かれた: $trigger (${run("list")})",
+                    rules().any { "echo ok-$trigger" in it },
+                )
+            }
+        } finally {
+            script.delete()
+            home.deleteRecursively()
+        }
+    }
+
+    /**
      * A6: `z2-when events` が `event:<名前>` に書ける名前を実際に一覧すること (0.8.226)。
      *
      * 一覧はヒアドキュメントで持っているので、`|` の剥がれ方や終端 (`EOS`) の位置がずれると

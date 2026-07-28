@@ -391,6 +391,16 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         if (en) "z2-when: unknown if= key (z2-state lists what you can use):"
         else "z2-when: if= に書けない条件です (使えるものは z2-state が出す項目):"
 
+    /** 知らない種別のトリガー (`:` の手前) を書いたとき。**種別は呼び元がこの後ろに足す**。 */
+    val whenUnknownTrigger: String =
+        if (en) "z2-when: unknown trigger (z2-when with no arguments lists them):"
+        else "z2-when: そんなきっかけはありません (一覧は引数なしの z2-when で出ます):"
+
+    /** 種別は合っているが引数の書き方が違うとき。**トリガー全体は呼び元がこの後ろに足す**。 */
+    val whenBadTriggerSpec: String =
+        if (en) "z2-when: that trigger does not take this argument:"
+        else "z2-when: そのきっかけにその書き方はできません:"
+
     val whenPausedWarn: String =
         if (en) "note: automatic runs are paused (z2-when resume to start again)"
         else "注意: 自動実行は一時停止中です (z2-when resume で再開)"

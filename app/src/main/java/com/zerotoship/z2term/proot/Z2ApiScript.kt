@@ -406,6 +406,30 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |      esac
         |    done
         |    { [ -n "${d}trig" ] && [ ${d}# -ge 1 ]; } || usage
+        |    # トリガーを登録時に検査する (if= のキーと同じ理由・0.8.265)。綴りが 1 文字違っても
+        |    # 登録は成功して**黙って一度も発火しない**ので、書いた瞬間に止めないと原因に辿り着けない。
+        |    # 種別と引数の一覧は WhenRule の KDoc / whenHelp と揃えること。
+        |    tkind="${d}{trig%%:*}"
+        |    tspec=""
+        |    case "${d}trig" in *:*) tspec="${d}{trig#*:}" ;; esac
+        |    badspec=0
+        |    case "${d}tkind" in
+        |      boot)    [ -z "${d}tspec" ] || badspec=1 ;;
+        |      charge)  case "${d}tspec" in start|stop) ;; *) badspec=1 ;; esac ;;
+        |      battery) case "${d}tspec" in below=?*|above=?*) ;; *) badspec=1 ;; esac ;;
+        |      time)    case "${d}tspec" in daily=?*|at=?*|every=?*|cron=?*) ;; *) badspec=1 ;; esac ;;
+        |      wifi)    case "${d}tspec" in connect|disconnect|ssid=?*) ;; *) badspec=1 ;; esac ;;
+        |      net)     case "${d}tspec" in online|offline|wifi|mobile|ethernet) ;; *) badspec=1 ;; esac ;;
+        |      sms)     case "${d}tspec" in any|otp|from=?*|contains=?*) ;; *) badspec=1 ;; esac ;;
+        |      notify)  case "${d}tspec" in any|otp|pkg=?*|title=?*|contains=?*) ;; *) badspec=1 ;; esac ;;
+        |      file)    case "${d}tspec" in new=?*) ;; *) badspec=1 ;; esac ;;
+        |      # `>` `<` は case のパターンではリダイレクトに読まれうるのでクォートする。
+        |      sensor)  case "${d}tspec" in shake|"light>"?*|"light<"?*|proximity=near|proximity=far) ;; *) badspec=1 ;; esac ;;
+        |      # event: の名前は増え続ける (z2-when events が正本) ので、ここでは空でないことだけ見る。
+        |      event)   [ -n "${d}tspec" ] || badspec=1 ;;
+        |      *) echo "${m.whenUnknownTrigger} ${d}tkind" >&2; exit 1 ;;
+        |    esac
+        |    [ "${d}badspec" = 0 ] || { echo "${m.whenBadTriggerSpec} ${d}trig" >&2; exit 1; }
         |    # if= のキーを登録時に検査する (実行時に黙って不成立になるより、書いた瞬間に気付ける)。
         |    # 一覧は WhenGuard.KNOWN_KEYS と揃えること。
         |    if [ -n "${d}zif" ]; then

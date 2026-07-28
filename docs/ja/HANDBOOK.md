@@ -652,6 +652,7 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # マナーモ
   - `event:<名前>` … **端末で起きたことを名前で拾います**（0.8.226 で追加）。使える名前は **`z2-when events`** で一覧できます（`screen_on`・`unlocked`・`headset_plugged`・`bt_audio_connected`・`ringer_silent`・`airplane_on`・`alarm`・`notify_action` など約20種）。`event:ringer_*` のように**末尾を `*`** にすると前方一致、`event:*` ですべてになります。コマンド内では `Z2_WHEN_EVENT` にイベント名が入ります。
     **同じルールは 10 秒以内に続けて発火しません**（`screen_on` のように何度も起きるものがあるため）。
     画面・充電・Wi‑Fi などの受け身のイベントは**「検知」が ON のときだけ**ですが、`alarm`（`z2-alarm` で仕掛けたもの）や `notify_action`（通知のボタン）は**検知 OFF でも働きます**。
+- **打ち間違いはその場で教えてくれます**（0.8.265）: `z2-when net:onlien …` のようにきっかけの綴りを間違えると、**登録せずにエラーを出します**。登録できてしまうと「並んでいるのに一生動かないルール」になり、原因が分からなくなるためです。
 - **条件を付けて絞り込む**（0.8.263）: きっかけの**直後**（`run` より前）に置くと、**どのきっかけにも同じように効きます**。組み合わせて使えます。
   - `if=<条件>` … **そのときの端末の状態**が合っているときだけ実行します。カンマで区切ると「かつ」、頭に `!` を付けると否定です。書ける条件は `z2-state` で見られる項目そのもの（`wifi` `charging` `screen` `locked` `headset` `bt_audio` `airplane` `idle` / `ssid=` `ringer=` `plug=` / `level<30` `temp>40` `volume>0`）。例: `if=wifi,!screen`（Wi‑Fi に繋がっていて画面が消えているとき）/ `if=ssid=Home`（自宅の Wi‑Fi のときだけ）/ `if=level<30`（電池が 30% 未満のとき）
   - `cooldown=<時間>` … **前に実行してからこの時間は動かしません**（`30s` / `10m` / `2h`。単位を省くと分）。`sensor:shake` のように何度も来るきっかけで効きます

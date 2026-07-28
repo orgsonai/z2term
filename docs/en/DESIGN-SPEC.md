@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-28 / Target version: 0.8.264-alpha (versionCode 272)
+Last updated: 2026-07-28 / Target version: 0.8.265-alpha (versionCode 273)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -463,6 +463,7 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 - **A malformed value does not filter** (`between` / `days`) — a typo must not leave a rule that can **never** run. `if=` falls the other way (running without being able to read the state is the riskier side).
 - **Evaluated at one place: the entry of `runRule`**, right behind the kill switch, so new triggers cannot forget it. Order is **cheapest first** (`between`/`days` read a clock → `cooldown` reads one file → `if` collects device state), and later checks are skipped once something rejects. **State is read only at the moment of a fire**; no new polling.
 - **Skips are recorded too** (`.fired` status `skip:if` / `skip:between` / `skip:days` / `skip:cooldown`), for the same reason `status=paused` is recorded: never remove the means to find out why nothing happened. The automation tab shows them in a third colour (`ZtsWarning`).
+- **Misspellings are rejected at registration** (`if=` keys, and **the trigger itself** as of 0.8.265). ⚠ **Refusing to register is the only place this can be caught**: one wrong letter still writes the `.rule`, still returns an id, still appears in `z2-when list` — and simply never fires. It is indistinguishable from a correct rule from the outside, and the runtime record (`skip:*`) cannot help because nothing fires and so nothing is recorded. So it is stopped **as it is typed**. Both the kind (`net` / `boot` / `charge` …) and the shape of that kind's argument (`net:online|offline|wifi|mobile|ethernet` and so on) are checked. ⚠ **Only `event:` names are left unchecked** — they keep growing and the list in `z2-when events` is the source of truth, so duplicating it here would mean forgetting one side every time one is added; only non-emptiness is verified. The table must be kept in step with `WhenRule`'s KDoc and `whenHelp` (**three places**).
 - **▶ "run now" ignores every filter** (`manual`) — otherwise the way to try a rule out disappears. Same treatment as pausing.
 - **No existing rule is rewritten.** `WhenRule.parse` silently ignores unknown keys, so a rule carrying the new fields loads fine on an older build (and vice versa). Rules without filters also look exactly as before — both the screen and `list` add a line only when there is one.
 

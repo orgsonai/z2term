@@ -75,6 +75,9 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 | `net:online` / `net:offline` | 通信できる回線が できた / 無くなった（モバイル回線も見る） | 検知 ON |
 | `net:wifi` / `net:mobile` / `net:ethernet` | 使う回線が**それへ切り替わった** | 検知 ON |
 | `boot` | 端末の起動が終わった（`:` は付けない） | — |
+
+⚠ **きっかけの綴りを間違えると登録できません**（0.8.265）。登録できてしまうと「一覧に並ぶのに一生動かないルール」になり、原因が追えなくなるためです。`event:` の名前だけは検査しません（正本は `z2-when events` の一覧）。
+
 | `sms:any` / `sms:from=<部分>` / `sms:contains=<部分>` / `sms:otp` | SMS が届いた | SMS 検知 |
 | `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near\|far` | 振った / 照度が N lux を跨いだ / 近接が変化 | 検知 ON |
 | `file:new=<フォルダ>[,ext=<拡張子>]` | そのフォルダに**新しいファイルが来た**（書き込みが終わってから） | 検知 ON |
