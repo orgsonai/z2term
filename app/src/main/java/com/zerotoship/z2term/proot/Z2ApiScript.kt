@@ -423,6 +423,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |      sms)     case "${d}tspec" in any|otp|from=?*|contains=?*) ;; *) badspec=1 ;; esac ;;
         |      notify)  case "${d}tspec" in any|otp|pkg=?*|title=?*|contains=?*) ;; *) badspec=1 ;; esac ;;
         |      file)    case "${d}tspec" in new=?*) ;; *) badspec=1 ;; esac ;;
+        |      share)   case "${d}tspec" in any|text|file|contains=?*|ext=?*) ;; *) badspec=1 ;; esac ;;
         |      # `>` `<` は case のパターンではリダイレクトに読まれうるのでクォートする。
         |      sensor)  case "${d}tspec" in shake|"light>"?*|"light<"?*|proximity=near|proximity=far) ;; *) badspec=1 ;; esac ;;
         |      # event: の名前は増え続ける (z2-when events が正本) ので、ここでは空でないことだけ見る。

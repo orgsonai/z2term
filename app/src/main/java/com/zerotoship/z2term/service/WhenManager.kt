@@ -284,6 +284,32 @@ object WhenManager {
         }
     }
 
+    // --- 共有トリガー (share:*) ---
+
+    /**
+     * 他アプリの共有シートから届いたものを受けて `share:*` ルールを実行する (0.8.266)。
+     * 呼び元は [com.zerotoship.z2term.MainActivity]（共有の受け口はアプリの起動経路なので、
+     * 検知フォアグラウンドサービスには**依存しない**）。
+     *
+     * **端末への挿入は今までどおり行われる**（ルールが動いても消さない）。共有は「入れるだけ・
+     * 実行しない」と約束してある入口で、ルールを 1 本足したら挿入が黙って止まる、では
+     * 既にある使い方を壊す。ルールは**足し算**で、入力行に残るのは実行されていないただの文字列。
+     *
+     * 環境変数は `Z2_WHEN_SHARE`（端末に入るのと同じ文字列＝テキストそのもの、またはファイルの
+     * パス）と `Z2_WHEN_SHARE_KIND`（`text` / `file`）。外部入力なので env で渡す（`eval` させない）。
+     */
+    fun onShare(context: Context, kind: String, text: String, fileNames: List<String>) {
+        val app = context.applicationContext
+        loadRules(app).filter { it.enabled && it.kind == "share" }.forEach { rule ->
+            if (WhenTriggerMatch.share(rule.spec, kind, text, fileNames)) {
+                runRule(
+                    app, rule, level = -1,
+                    extraEnv = mapOf("Z2_WHEN_SHARE" to text, "Z2_WHEN_SHARE_KIND" to kind)
+                )
+            }
+        }
+    }
+
     // --- 起動トリガー (boot) ---
 
     /**

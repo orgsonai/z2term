@@ -44,6 +44,47 @@ class WhenTriggerMatchTest {
         assertFalse(m("", connected = true, ssid = "home"))
     }
 
+    // --- share (0.8.266) ---
+
+    private fun share(spec: String, kind: String, text: String, files: List<String> = emptyList()) =
+        WhenTriggerMatch.share(spec, kind, text, files)
+
+    @Test fun share_anyAndKind() {
+        assertTrue(share("any", "text", "hello"))
+        assertTrue(share("any", "file", "~/z2term-inbox/a.pdf", listOf("a.pdf")))
+        assertTrue(share("text", "text", "hello"))
+        assertFalse(share("text", "file", "~/z2term-inbox/a.pdf", listOf("a.pdf")))
+        assertTrue(share("file", "file", "~/z2term-inbox/a.pdf", listOf("a.pdf")))
+        assertFalse(share("file", "text", "hello"))
+    }
+
+    @Test fun share_containsIsCaseInsensitive() {
+        assertTrue(share("contains=youtube", "text", "https://YouTube.com/watch?v=x"))
+        assertFalse(share("contains=youtube", "text", "https://example.com/"))
+        assertFalse(share("contains=", "text", "anything"))
+    }
+
+    @Test fun share_containsNeverMatchesFilePaths() {
+        // ファイル共有の text は取り込み先のパス。当たると「ファイル名にたまたま含まれていた」で
+        // 発火してしまい、書いた人の意図 (共有された文章の中身で絞る) とズレる。
+        assertFalse(share("contains=inbox", "file", "~/z2term-inbox/report.pdf", listOf("report.pdf")))
+    }
+
+    @Test fun share_extMatchesAnyOfTheFiles() {
+        assertTrue(share("ext=pdf", "file", "…", listOf("a.txt", "b.pdf")))
+        assertTrue(share("ext=.pdf", "file", "…", listOf("b.pdf"))) // 先頭の . は付けても付けなくても
+        assertTrue(share("ext=PDF", "file", "…", listOf("b.pdf"))) // 大小文字は区別しない
+        assertFalse(share("ext=pdf", "file", "…", listOf("a.txt")))
+        assertFalse(share("ext=pdf", "text", "b.pdf")) // テキスト共有には当たらない
+        // 拡張子の無いファイルを ext= が拾わない (substringAfterLast の取り違え防止)。
+        assertFalse(share("ext=pdf", "file", "…", listOf("README")))
+    }
+
+    @Test fun share_unknownSpec_doesNotFire() {
+        assertFalse(share("", "text", "hello"))
+        assertFalse(share("whatever", "text", "hello"))
+    }
+
     // --- net (0.8.264) ---
 
     private fun net(spec: String, now: String, prev: String) = WhenTriggerMatch.net(spec, now, prev)

@@ -76,6 +76,8 @@ exactly once** (no resident script involved).
 | `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<name>` | Wi‑Fi connected / disconnected / joined that SSID | detection ON |
 | `net:online` / `net:offline` | a usable connection appeared / went away (mobile counts too) | detection ON |
 | `net:wifi` / `net:mobile` / `net:ethernet` | the link in use **switched to that one** | detection ON |
+| `share:any` / `share:text` / `share:file` | something was shared to z2term from another app | — |
+| `share:contains=<part>` / `share:ext=<ext>` | filter on the shared text / the file extension | — |
 | `boot` | the device finished starting up (no `:`) | — |
 
 ⚠ **A misspelled trigger will not register** (0.8.265). If it did, you would get a rule that sits in the list and never runs, with no way to find out why. Only `event:` names are left unchecked (the list from `z2-when events` is the source of truth).
@@ -94,6 +96,7 @@ The command that fires gets **what happened** in its environment.
 | `Z2_WHEN_LEVEL` | Battery % (`charge:` / `battery:`) |
 | `Z2_WHEN_SSID` | Wi‑Fi name (`wifi:`) |
 | `Z2_WHEN_NET` / `Z2_WHEN_NET_PREV` | the link now / the one before (`net:`; `wifi` `mobile` `ethernet` `vpn` `other` `none`) |
+| `Z2_WHEN_SHARE` / `Z2_WHEN_SHARE_KIND` | the shared string / its kind `text`·`file` (`share:`) |
 | `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` | Sender / body (`sms:`) |
 | `Z2_WHEN_OTP` | The extracted one-time code (`sms:otp` / `notify:otp`) |
 | `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX` | `shake`/`light`/`proximity:near\|far` / illuminance (`sensor:`) |

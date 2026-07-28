@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,6 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.service.TerminalService
+import com.zerotoship.z2term.service.WhenManager
 import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.share.SharedIntake
@@ -104,12 +106,20 @@ class MainActivity : ComponentActivity() {
         if (i.getBooleanExtra(EXTRA_SHARE_HANDLED, false)) return
         i.putExtra(EXTRA_SHARE_HANDLED, true)
         lifecycleScope.launch {
-            val text = withContext(Dispatchers.IO) {
-                runCatching { SharedIntake.textFrom(applicationContext, i) }.getOrNull()
+            val intake = withContext(Dispatchers.IO) {
+                runCatching { SharedIntake.intakeFrom(applicationContext, i) }.getOrNull()
             }
+            val text = intake?.text
             if (text.isNullOrEmpty()) {
                 Toast.makeText(this@MainActivity, R.string.toast_share_failed, Toast.LENGTH_SHORT).show()
                 return@launch
+            }
+            // z2-when の `share:*` トリガー (0.8.266)。挿入は今までどおり行う (ルールは足し算)。
+            // ルール読み込みとエンジン起動を含むので画面のスレッドから外す。
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    WhenManager.onShare(applicationContext, intake.kind, text, intake.fileNames)
+                }.onFailure { Log.w("MainActivity", "share rule failed: ${it.message}") }
             }
             val ok = SessionManager.insertText(text)
             Toast.makeText(

@@ -74,6 +74,8 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 | `wifi:connect` / `wifi:disconnect` / `wifi:ssid=<名前>` | Wi‑Fi の 接続 / 切断 / 指定 SSID への接続 | 検知 ON |
 | `net:online` / `net:offline` | 通信できる回線が できた / 無くなった（モバイル回線も見る） | 検知 ON |
 | `net:wifi` / `net:mobile` / `net:ethernet` | 使う回線が**それへ切り替わった** | 検知 ON |
+| `share:any` / `share:text` / `share:file` | 他アプリの共有シートから z2term へ送られた | — |
+| `share:contains=<部分>` / `share:ext=<拡張子>` | 共有テキストの中身 / ファイルの拡張子で絞る | — |
 | `boot` | 端末の起動が終わった（`:` は付けない） | — |
 
 ⚠ **きっかけの綴りを間違えると登録できません**（0.8.265）。登録できてしまうと「一覧に並ぶのに一生動かないルール」になり、原因が追えなくなるためです。`event:` の名前だけは検査しません（正本は `z2-when events` の一覧）。
@@ -92,6 +94,7 @@ z2term のマクロは MacroDroid 等と同じ「**トリガー → 判断 → �
 | `Z2_WHEN_LEVEL` | 電池残量 %（`charge:` / `battery:`） |
 | `Z2_WHEN_SSID` | Wi‑Fi 名（`wifi:`） |
 | `Z2_WHEN_NET` / `Z2_WHEN_NET_PREV` | 今の回線 / 直前の回線（`net:`。`wifi` `mobile` `ethernet` `vpn` `other` `none`） |
+| `Z2_WHEN_SHARE` / `Z2_WHEN_SHARE_KIND` | 共有された文字列 / 種別 `text`・`file`（`share:`） |
 | `Z2_WHEN_SMS_FROM` / `Z2_WHEN_SMS_BODY` | 送信元 / 本文（`sms:`） |
 | `Z2_WHEN_OTP` | 抽出したワンタイムコード（`sms:otp` / `notify:otp`） |
 | `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX` | `shake`/`light`/`proximity:near\|far` / 照度（`sensor:`） |

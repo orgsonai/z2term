@@ -270,6 +270,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#            net:online | net:offline  … a usable connection appeared / went away
         |#            net:wifi | net:mobile | net:ethernet  … the link in use switched to that
         |#                                        (needs detection ON; counts mobile data, not just Wi-Fi)
+        |#            share:any | share:text | share:file | share:contains=<part> | share:ext=<ext>
+        |#                                        … something was shared to z2term from another app
         |#            boot                        … the device finished starting up (works with detection OFF)
         |#            sms:any | sms:from=<substr> | sms:contains=<substr> | sms:otp  (needs RECEIVE_SMS)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (detection ON)
@@ -300,6 +302,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# / Z2_WHEN_SSID (wifi) / Z2_WHEN_SMS_FROM / Z2_WHEN_SMS_BODY / Z2_WHEN_OTP (sms)
         |# / Z2_WHEN_SENSOR / Z2_WHEN_LUX (sensor) in the environment.
         |# For net: you get Z2_WHEN_NET (the link now) and Z2_WHEN_NET_PREV (the one before).
+        |# For share: you get Z2_WHEN_SHARE (the text, or the paths of the files taken in)
+        |# and Z2_WHEN_SHARE_KIND (text|file). The share is still put on the input line as before.
         |# For file: you get Z2_WHEN_FILE (full path) and Z2_WHEN_DIR.
         |# For notify: you get Z2_WHEN_NOTI_PKG / _APP / _TITLE / _TEXT (and Z2_WHEN_OTP for notify:otp).
         |# For event: you also get Z2_WHEN_EVENT (the event name); alarm / notify_action add
@@ -312,6 +316,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#      z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
         |#      z2-when net:online cooldown=5m run ~/.z2term/macros/sync.sh
         |#      z2-when boot run 'sshd --lan'
+        |#      z2-when share:text run '~/.z2term/macros/fetch.sh "${d}Z2_WHEN_SHARE"'
     """.trimMargin() else """
         |# z2-when <トリガー> run <コマンド...>   … ルールを登録
         |#   トリガー: charge:start | charge:stop  (検知 ON が前提)
@@ -322,6 +327,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#            net:online | net:offline  … 通信できる回線ができた / 無くなった
         |#            net:wifi | net:mobile | net:ethernet  … 使う回線がそれへ切り替わった
         |#                                        (検知 ON が前提。Wi-Fi だけでなくモバイル回線も見る)
+        |#            share:any | share:text | share:file | share:contains=<部分> | share:ext=<拡張子>
+        |#                                        … 他アプリの共有シートから z2term へ送られたとき
         |#            boot                        … 端末の起動が終わったとき (検知 OFF でも動く)
         |#            sms:any | sms:from=<部分> | sms:contains=<部分> | sms:otp  (RECEIVE_SMS 許可が前提)
         |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (検知 ON が前提)
@@ -352,6 +359,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# / Z2_WHEN_SSID (wifi) / Z2_WHEN_SMS_FROM / Z2_WHEN_SMS_BODY / Z2_WHEN_OTP (sms)
         |# / Z2_WHEN_SENSOR / Z2_WHEN_LUX (sensor) が入る。
         |# net: のときは Z2_WHEN_NET (今の回線) と Z2_WHEN_NET_PREV (直前の回線) が入る。
+        |# share: のときは Z2_WHEN_SHARE (テキストそのもの、またはファイルの取り込み先パス) と
+        |# Z2_WHEN_SHARE_KIND (text|file) が入る。共有されたものは今までどおり入力行にも入る。
         |# file: のときは Z2_WHEN_FILE (フルパス) と Z2_WHEN_DIR が入る。
         |# notify: のときは Z2_WHEN_NOTI_PKG / _APP / _TITLE / _TEXT (notify:otp なら Z2_WHEN_OTP も)。
         |# event: のときは Z2_WHEN_EVENT (イベント名) が入る。alarm / notify_action では
@@ -364,6 +373,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#     z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
         |#     z2-when net:online cooldown=5m run ~/.z2term/macros/sync.sh
         |#     z2-when boot run 'sshd --lan'
+        |#     z2-when share:text run '~/.z2term/macros/fetch.sh "${d}Z2_WHEN_SHARE"'
     """.trimMargin()
 
     val whenPaused: String =

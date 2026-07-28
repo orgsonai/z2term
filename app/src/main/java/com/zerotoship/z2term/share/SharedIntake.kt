@@ -31,19 +31,37 @@ object SharedIntake {
     /** 受け取るファイルの上限。これを超えるものは黙ってコピーせず、失敗として扱う。 */
     private const val MAX_BYTES = 512L * 1024 * 1024
 
+    /** 共有が**テキスト**だったことを表す [Intake.kind] の値。 */
+    const val KIND_TEXT = "text"
+
+    /** 共有が**ファイル**だったことを表す [Intake.kind] の値。 */
+    const val KIND_FILE = "file"
+
     /**
-     * [intent] が共有なら、端末に入れる文字列を返す。共有でない / 中身が無いときは null。
+     * 受け取ったものを 1 つにまとめた結果 (0.8.266)。
+     *
+     * [text] は**端末に入れる文字列**そのもの (従来からの唯一の出力)。[kind] と [fileNames] は
+     * `z2-when` の `share:` トリガーが「テキストか / ファイルか」「拡張子は何か」で絞るために要る。
+     * 挿入する文字列からファイル名を読み戻すのは、クォートの有無で形が変わるぶん壊れやすいので、
+     * **取り込んだ時点の事実をそのまま持ち回る**。
+     *
+     * @param fileNames 取り込んだファイル名 (拡張子付き・ディレクトリを含まない)。テキスト共有では空。
+     */
+    data class Intake(val kind: String, val text: String, val fileNames: List<String>)
+
+    /**
+     * [intent] が共有なら、受け取った内容を返す。共有でない / 中身が無いときは null。
      *
      * ファイルが複数のときは、それぞれのパスを**空白区切り**で並べる (そのままコマンドの
      * 引数として使えるように、必要ならクォートする)。
      */
-    fun textFrom(context: Context, intent: Intent): String? {
+    fun intakeFrom(context: Context, intent: Intent): Intake? {
         val action = intent.action
         if (action != Intent.ACTION_SEND && action != Intent.ACTION_SEND_MULTIPLE) return null
 
         // テキスト共有が最優先。ファイルマネージャ以外の多くはこちらで来る。
         intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.takeIf { it.isNotEmpty() }
-            ?.let { return it }
+            ?.let { return Intake(KIND_TEXT, it, emptyList()) }
 
         val uris: List<Uri> = when (action) {
             Intent.ACTION_SEND -> listOfNotNull(getStream(intent))
@@ -56,9 +74,13 @@ object SharedIntake {
             Log.w(TAG, "cannot create $dir")
             return null
         }
-        val paths = uris.mapNotNull { copyIn(context, it, dir) }
-        if (paths.isEmpty()) return null
-        return paths.joinToString(" ") { homePath("$INBOX_DIR/$it") }
+        val names = uris.mapNotNull { copyIn(context, it, dir) }
+        if (names.isEmpty()) return null
+        return Intake(
+            kind = KIND_FILE,
+            text = names.joinToString(" ") { homePath("$INBOX_DIR/$it") },
+            fileNames = names,
+        )
     }
 
     @Suppress("DEPRECATION")  // getParcelableExtra(String, Class) は API 33+。minSdk 29 のため旧 API を使う。

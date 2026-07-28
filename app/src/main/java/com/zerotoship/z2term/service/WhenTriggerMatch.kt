@@ -31,6 +31,41 @@ object WhenTriggerMatch {
         }
     }
 
+    /**
+     * `share:*` トリガーが、他アプリから共有された内容で発火すべきか (0.8.266)。
+     *
+     * spec の書式:
+     *  - `any`                  … 共有されたもの全部
+     *  - `text` / `file`        … テキストが / ファイルが共有されたとき
+     *  - `contains=<部分>`      … 共有されたテキストに含む (大小文字を区別しない)
+     *  - `ext=<拡張子>`         … その拡張子のファイルが 1 つでもあるとき (`.` は付けても付けなくてもよい)
+     *
+     * [kind] は [com.zerotoship.z2term.share.SharedIntake.KIND_TEXT] /
+     * `KIND_FILE`。判定は `sms:*` / `notify:*` と同じ考え方に揃えてある (覚えることを増やさない)。
+     *
+     * ⚠ **`contains=` はファイル共有では当たらない**。ファイルのときの [text] は取り込んだ先の
+     * パスなので、当たると「ファイル名にたまたま含まれていた」で発火してしまい、書いた人の
+     * 意図 (共有された文章の中身で絞る) とズレる。ファイル側は `ext=` で絞る。
+     */
+    fun share(spec: String, kind: String, text: String, fileNames: List<String>): Boolean {
+        val s = spec.trim()
+        return when {
+            s == "any" -> true
+            s == "text" || s == "file" -> kind == s
+            s.startsWith("contains=") -> {
+                val want = s.substring("contains=".length).trim()
+                want.isNotEmpty() && kind == "text" && text.contains(want, ignoreCase = true)
+            }
+            s.startsWith("ext=") -> {
+                val want = s.substring("ext=".length).trim().removePrefix(".")
+                want.isNotEmpty() && fileNames.any {
+                    it.substringAfterLast('.', "").equals(want, ignoreCase = true)
+                }
+            }
+            else -> false
+        }
+    }
+
     /** 回線が無い (どこにも繋がっていない) ことを表す [net] の値。 */
     const val NET_NONE = "none"
 

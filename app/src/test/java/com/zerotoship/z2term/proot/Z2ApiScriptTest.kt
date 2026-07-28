@@ -193,6 +193,7 @@ class Z2ApiScriptTest {
             // 引数を取らない boot に引数を付けた / 引数が要るものが空。
             assertTrue("boot の余計な引数が弾かれていない", run("boot:now", "run", "echo x").isNotBlank())
             assertTrue("空の file: が弾かれていない", run("file:new=", "run", "echo x").isNotBlank())
+            assertTrue("share の引数違いが弾かれていない", run("share:txet", "run", "echo x").isNotBlank())
             assertTrue("弾いたのにルールが作られている: ${rules()}", rules().none { "echo x" in it })
 
             // 正しい書き方は今までどおり通ること (検査が厳しすぎて実用を壊していない)。
@@ -200,7 +201,7 @@ class Z2ApiScriptTest {
                 "boot", "net:online", "net:mobile", "charge:start", "battery:below=20",
                 "time:cron=0 3 * * *", "wifi:ssid=Home", "sms:otp", "notify:pkg=mail",
                 "sensor:light>500", "sensor:proximity=near", "file:new=/sdcard/Download",
-                "event:ringer_*",
+                "share:any", "share:text", "share:ext=pdf", "event:ringer_*",
             ).forEach { trigger ->
                 run(trigger, "run", "echo ok-$trigger")
                 assertTrue(

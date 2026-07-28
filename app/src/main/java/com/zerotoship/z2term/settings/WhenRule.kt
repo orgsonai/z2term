@@ -40,6 +40,8 @@ package com.zerotoship.z2term.settings
  *  - `wifi:ssid=<名前>`                    … 指定 SSID へ接続 (位置情報権限が無いと SSID は取れない)
  *  - `net:online` / `net:offline`          … 回線が通じた / 途切れた (0.8.264。検知 ON が前提)
  *  - `net:wifi` / `net:mobile` / `net:ethernet` … 使う回線がそれへ切り替わったとき
+ *  - `share:any` / `share:text` / `share:file`（0.8.266）… 他アプリの共有シートから届いたとき
+ *  - `share:contains=<部分>` / `share:ext=<拡張子>` … 共有テキストの中身 / ファイルの拡張子で絞る
  *  - `boot`                                … 端末が起動したとき (0.8.264)。**引数を取らない**ので
  *    `:` が付かない唯一のトリガー。manifest 宣言のレシーバで受けるため**検知 OFF でも動く**。
  *  - `sms:any`                             … すべての着信 SMS (stage 2。RECEIVE_SMS 許可が前提)
