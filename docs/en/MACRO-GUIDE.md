@@ -207,6 +207,7 @@ prerequisite → 3-A).
 | `z2-intent` | see below | Fire an arbitrary Intent | — |
 | `z2-state` | `z2-state [key]` | **Current device state** (see below) | JSON, or the raw value for a key |
 | `z2-screen` | `z2-screen keepon 1h` / `keepon off` / `status` | **Hold off the automatic screen timeout, with a deadline** (below) | state JSON |
+| `z2-tile` | `z2-tile set <1-4> <macro\|command>` etc. | Assign it to a **quick-settings tile** (below) | TSV of all 4 slots |
 | `z2-alarm` | `z2-alarm at\|daily HH:MM [name]` etc. | Set a **time trigger** (see below) | JSON of the schedule |
 | `z2-when` | `z2-when <trigger> run <command>` etc. | **Register a trigger** (→ 3-A, and below) | the rule id |
 | `z2-noti` | `z2-noti list` | Read **the notifications on screen right now** (read-only, see below) | TSV |
@@ -300,6 +301,32 @@ Combine it with `z2-when` for things like "no screen-off for two hours once char
 z2-when charge:start run 'z2-screen keepon 2h'
 z2-when charge:stop  run 'z2-screen keepon off'
 ```
+
+### `z2-tile` (put it on the quick-settings panel)
+
+A home-screen widget means going back to the home screen. Quick settings comes down in two swipes
+**whatever app you are in**, so it is the one entry point that reaches you mid-task.
+
+```sh
+z2-tile set 1 backup.sh                          # a macro on slot 1
+z2-tile set 2 'z2-screen keepon 1h' -l "no sleep"  # a command, with a label
+z2-tile list                                     # all 4 slots (slot / label / command; '-' = empty)
+z2-tile clear 2                                  # empty a slot (clear all works too)
+```
+
+- What you assign is either the **file name of a macro** in `~/.z2term/macros/` or a **command** to
+  run as typed. **Which one it is comes from the name** — there is no `--macro` flag to get wrong.
+- **Tap to run, tap again to stop.** The tile is green while it runs (same deal as the widget buttons).
+- The run gets **`Z2_TILE`** (the slot number) in its environment, plus `Z2_TILE_MACRO` for a macro,
+  so the same macro can sit on several slots and branch on which one was pressed.
+- ⚠ **A locked device is not waved through.** Android asks to unlock first, and the command runs only
+  if it is unlocked. That is not a setting: it stops someone who picked up your phone firing a command
+  straight off the shade.
+- ⚠ **There are exactly 4 slots.** Tiles are declared in the manifest and cannot grow at runtime.
+- ⚠ **You place the tiles yourself**, from the pencil/edit screen of the quick settings panel; Android
+  does not let an app put its own tiles there. (On Android 13+, Settings › **Quick-settings tiles** can
+  ask the OS on your behalf.)
+- The run log is `~/.z2term/tile/run.log`, kept apart from the widget's `~/.z2term/widget/run.log`.
 
 ### `z2-alarm` (run on a schedule)
 
