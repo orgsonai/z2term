@@ -4,7 +4,7 @@
 It is a manual you can read and write by hand, and at the same time a **machine-readable
 reference you can feed whole to an AI** — then just say "I want to …" and it generates the macro.
 
-> Target version: 0.8.278-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
+> Target version: 0.8.283-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
 > Everything here is **non-root, fully local, no external transmission**. No hard-permission features are included.
 
 ---
@@ -907,6 +907,14 @@ remind.sh list / remind.sh del 2       # list / cancel
   `events.jsonl`, so something has to pick it up. `z2-when time:` runs **your command directly** (→ 3-A).
 - **The text lives in a file; the notification name only carries an id** (`~/.z2term/remind/<id>.txt`).
   Put the text in the name and the matching breaks the moment it contains a space or an emoji.
+- **An unreadable "when" is refused before booking** (0.8.283). Not only the format (`HH:MM`) but the
+  **range** (00:00-23:59) and the delay being a whole number (`1.5h` is rejected). ⚠ Letting those
+  through breaks `$((num*3600))`, or parks a reminder that never rings in the list wearing a
+  "scheduled" face. The reason is returned to the caller in `WHY`.
+- **The tile path (`remind.sh ask`) always answers with a notification** (0.8.283). Nobody is looking at
+  a terminal there, so exiting to stderr reads as "I tapped it and nothing happened" (the reason only
+  reached the tile's `run.log`). Unreadable input is asked again up to three times with the reason
+  attached (the previous answer is put back via `z2-ask -d`); a successful one shows the plan and text.
 - Firing can be **a few minutes late** (the booking is battery-friendly and Doze-aware). Not for
   anything that needs to be on time to the second.
 

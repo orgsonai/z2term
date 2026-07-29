@@ -727,6 +727,9 @@ fun z2MacroScript(lang: String): String {
  *    混ざった瞬間に突き合わせが壊れる。
  *  - **受け口は 2 本だけ**。予定を何件足しても `z2-when` のルールは増えない。
  */
+/** 「いつ？」を聞き直す回数。⚠ 無限に聞かない — 通知が消えない相手になってしまう。 */
+private const val ASK_TRIES = 3
+
 private fun remindBody(d: String, ja: Boolean): String {
     val head = if (ja) """
 #
@@ -813,6 +816,16 @@ after_label() {
         "cannot read the time (try: 30m / 18:30 / daily 07:00 / weekday 09:00):"
     }
     val mBadTime = if (ja) "時刻は HH:MM で書いてください:" else "write the time as HH:MM:"
+    val mBadRange = if (ja) {
+        "時刻の範囲が違います (00:00〜23:59):"
+    } else {
+        "time out of range (00:00-23:59):"
+    }
+    val mNoTime = if (ja) {
+        "時刻が書かれていません (例: 毎日 07:00):"
+    } else {
+        "no time given (e.g. daily 07:00):"
+    }
     val mBadDow = if (ja) "曜日が分かりません:" else "unknown weekday:"
     val mNoBody = if (ja) "リマインドの本文を書いてください" else "say what to remind you about"
     val mNoAlarm = if (ja) "予約できませんでした" else "could not schedule it"
@@ -834,6 +847,14 @@ after_label() {
     val mAsk1H = if (ja) "例: 薬を飲む" else "e.g. take pills"
     val mAsk2 = if (ja) "いつ？" else "When?"
     val mAsk2H = if (ja) "30m / 18:30 / 毎日 07:00 / 平日 09:00" else "30m / 18:30 / daily 07:00 / weekday 09:00"
+    val mAskAgain = if (ja) "もう一度入力してください" else "please enter it again"
+    val mAskGiveUp = if (ja) {
+        "${ASK_TRIES} 回とも読めませんでした。端末からも登録できます: remind.sh 30m 薬を飲む"
+    } else {
+        "Could not read it ${ASK_TRIES} times. You can also add it from the terminal: remind.sh 30m take pills"
+    }
+    val mOkTitle = if (ja) "⏰ 登録しました" else "⏰ Reminder set"
+    val mNgTitle = if (ja) "⚠ 登録できませんでした" else "⚠ Not set"
     val cHooks = if (ja) {
         """  # 予定が鳴ったのを拾う 1 本と、通知ボタンの返事を拾う 1 本。**この 2 本だけ**で、
   # 予定を何件足しても増えない。どちらも「検知」の ON/OFF に関係なく働く。"""
@@ -867,6 +888,19 @@ after_label() {
     } else {
         "      # Do not delete a repeating one here: it should fire again tomorrow."
     }
+    val cAsk = if (ja) {
+        """# タイル/通知から聞く経路。⚠ **結果は必ず通知で返す** — ここは画面を見ていない前提の
+# 入口なので、エラーを標準エラーへ出して終わると「押したのに何も起きない」になる
+# (実際そうなっていた。理由はタイルの run.log にしか残らなかった)。
+#   読めなかったら → 何が駄目かを付けて $ASK_TRIES 回まで聞き直す (前の入力は返信欄に残す)
+#   登録できたら   → 予定と本文を通知で見せる"""
+    } else {
+        """# The path used from the tile / a notification. ⚠ **Always answer with a notification**:
+# nobody is looking at a terminal here, so failing to stderr reads as "I tapped it and
+# nothing happened" (it did — the reason only reached the tile's run.log).
+#   Unreadable -> say why and ask again, up to $ASK_TRIES times (the previous answer is kept)
+#   Scheduled  -> show the plan and the text in a notification"""
+    }
     val cSnoozeCancel = if (ja) {
         "スヌーズ中に完了を押したときの予約を残さない"
     } else {
@@ -888,32 +922,52 @@ die() { echo "${d}1" >&2; exit 1; }
 
 $cParse
 parse_when() {
-  KIND=; PLAN=; SPEC=; USED=0
+  KIND=; PLAN=; SPEC=; USED=0; WHY=; hhmm=; dowf=; downame=
   w1=${d}1; w2=${d}2; w3=${d}3
 
   case ${d}w1 in
-    毎日|daily)       KIND=repeat; hhmm=${d}w2; USED=2; PLAN="$pDaily${d}hhmm"; SPEC="time:daily=${d}hhmm" ;;
-    平日|weekday)     KIND=repeat; hhmm=${d}w2; USED=2; PLAN="$pWeekday${d}hhmm"
-                      SPEC="time:cron=${d}(cron_of "${d}hhmm" 1-5)" ;;
-    毎週|weekly)      KIND=repeat; hhmm=${d}w3; USED=3
-                      dow=${d}(dow_of "${d}w2") || die "$mBadDow ${d}w2"
-                      PLAN="$pWeekly${d}w2 ${d}hhmm"; SPEC="time:cron=${d}(cron_of "${d}hhmm" "${d}dow")" ;;
-    毎日=*|daily=*)   KIND=repeat; hhmm=${d}{w1#*=}; USED=1; PLAN="$pDaily${d}hhmm"; SPEC="time:daily=${d}hhmm" ;;
-    平日=*|weekday=*) KIND=repeat; hhmm=${d}{w1#*=}; USED=1; PLAN="$pWeekday${d}hhmm"
-                      SPEC="time:cron=${d}(cron_of "${d}hhmm" 1-5)" ;;
-    毎日*)            KIND=repeat; hhmm=${d}{w1#毎日}; USED=1; PLAN="$pDaily${d}hhmm"; SPEC="time:daily=${d}hhmm" ;;
-    平日*)            KIND=repeat; hhmm=${d}{w1#平日}; USED=1; PLAN="$pWeekday${d}hhmm"
-                      SPEC="time:cron=${d}(cron_of "${d}hhmm" 1-5)" ;;
-    [0-9]*[smh])      KIND=once; USED=1; PLAN="${d}(after_label "${d}w1")"; SPEC="in ${d}w1" ;;
-    [0-9]*:[0-9]*)    KIND=once; USED=1; PLAN="${d}w1"; SPEC="at ${d}w1" ;;
-    *) return 1 ;;
+    毎日|daily)       KIND=repeat; hhmm=${d}w2; USED=2; dowf=daily ;;
+    平日|weekday)     KIND=repeat; hhmm=${d}w2; USED=2; dowf=1-5 ;;
+    毎週|weekly)      KIND=repeat; hhmm=${d}w3; USED=3; downame=${d}w2
+                      dowf=${d}(dow_of "${d}w2") || { WHY="$mBadDow ${d}w2"; return 1; } ;;
+    毎日=*|daily=*)   KIND=repeat; hhmm=${d}{w1#*=}; USED=1; dowf=daily ;;
+    平日=*|weekday=*) KIND=repeat; hhmm=${d}{w1#*=}; USED=1; dowf=1-5 ;;
+    毎日*)            KIND=repeat; hhmm=${d}{w1#毎日}; USED=1; dowf=daily ;;
+    平日*)            KIND=repeat; hhmm=${d}{w1#平日}; USED=1; dowf=1-5 ;;
+    [0-9]*[smh])      KIND=once; USED=1
+                      # ⚠ 数字以外が混じった "1.5h" "3x0m" をここで弾く。通すと after_label の
+                      #   ${d}((num*60)) が壊れ、予約は入らないのに登録できたように見える。
+                      case ${d}{w1%[smh]} in
+                        *[!0-9]*|"") WHY="$mBadWhen ${d}w1"; return 1 ;;
+                      esac
+                      PLAN="${d}(after_label "${d}w1")"; SPEC="in ${d}w1"; return 0 ;;
+    [0-9]*:[0-9]*)    KIND=once; USED=1; hhmm=${d}w1 ;;
+    *) WHY="$mBadWhen ${d}w1"; return 1 ;;
   esac
 
-  case ${d}SPEC in
-    time:daily=*|"at "*)
-      t=${d}{SPEC##*[= ]}
-      echo "${d}t" | grep -Eq '^[0-9]{1,2}:[0-9]{2}${d}' || die "$mBadTime ${d}t" ;;
-  esac
+  check_hhmm "${d}hhmm" || return 1
+
+  if [ "${d}KIND" = once ]; then
+    PLAN=${d}hhmm; SPEC="at ${d}hhmm"
+  elif [ "${d}dowf" = daily ]; then
+    PLAN="$pDaily${d}hhmm"; SPEC="time:daily=${d}hhmm"
+  elif [ -n "${d}downame" ]; then
+    PLAN="$pWeekly${d}downame ${d}hhmm"; SPEC="time:cron=${d}(cron_of "${d}hhmm" "${d}dowf")"
+  else
+    PLAN="$pWeekday${d}hhmm"; SPEC="time:cron=${d}(cron_of "${d}hhmm" "${d}dowf")"
+  fi
+  return 0
+}
+
+# 時刻の検査。⚠ **書式だけでなく範囲も見る** — "18:70" は書式に通ってしまい、
+# そのまま予約すると鳴らない予定が「登録できた」顔で一覧に並ぶ。
+check_hhmm() {
+  [ -n "${d}1" ] || { WHY="$mNoTime"; return 1; }
+  echo "${d}1" | grep -Eq '^[0-9]{1,2}:[0-9]{2}${d}' || { WHY="$mBadTime ${d}1"; return 1; }
+  hh=${d}{1%%:*}; mm=${d}{1##*:}
+  hh=${d}{hh#0}; [ -n "${d}hh" ] || hh=0
+  mm=${d}{mm#0}; [ -n "${d}mm" ] || mm=0
+  { [ "${d}hh" -le 23 ] && [ "${d}mm" -le 59 ]; } || { WHY="$mBadRange ${d}1"; return 1; }
   return 0
 }
 
@@ -939,7 +993,7 @@ $afterLabel
 
 cmd_add() {
   [ ${d}# -ge 1 ] || die "$mUsageAdd"
-  parse_when "${d}1" "${d}2" "${d}3" || die "$mBadWhen ${d}1"
+  parse_when "${d}1" "${d}2" "${d}3" || die "${d}{WHY:-$mBadWhen ${d}1}"
   shift "${d}USED"
   body=${d}*
   [ -n "${d}body" ] || die "$mNoBody"
@@ -1056,13 +1110,31 @@ sweep_done() {
   done
 }
 
+$cAsk
 cmd_ask() {
   body=${d}(z2-ask -H "$mAsk1H" "$mAsk1") || exit 0
   [ -n "${d}body" ] || exit 0
-  w=${d}(z2-ask -H "$mAsk2H" "$mAsk2") || exit 0
-  [ -n "${d}w" ] || exit 0
+
+  q=$mAsk2; prev=; ok=; n=0
+  while [ "${d}n" -lt $ASK_TRIES ]; do
+    n=${d}((n+1))
+    if [ -n "${d}prev" ]; then
+      w=${d}(z2-ask -H "$mAsk2H" -d "${d}prev" "${d}q") || exit 0
+    else
+      w=${d}(z2-ask -H "$mAsk2H" "${d}q") || exit 0
+    fi
+    [ -n "${d}w" ] || exit 0
+    set -- ${d}w
+    if parse_when "${d}1" "${d}2" "${d}3"; then ok=1; break; fi
+    # ⚠ 打ち直しやすいように、読めなかった入力を -d で返信欄に入れておく。
+    prev=${d}w
+    q="⚠ ${d}WHY — $mAskAgain"
+  done
+  [ "${d}ok" = 1 ] || { z2-notify -n remind-ng "$mNgTitle" "$mAskGiveUp"; exit 1; }
+
   set -- ${d}w
-  cmd_add "${d}@" "${d}body"
+  out=${d}(cmd_add "${d}@" "${d}body" 2>&1) || { z2-notify -n remind-ng "$mNgTitle" "${d}out"; exit 1; }
+  z2-notify -n remind-ok "$mOkTitle" "${d}(echo "${d}out" | tr '\t' ' ')"
 }
 
 cmd_setup() {

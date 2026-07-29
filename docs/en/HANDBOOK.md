@@ -608,7 +608,13 @@ shade with one tap. Pressing Done on a repeating reminder does not cancel tomorr
 **Add one without opening the app**: `setup` prepares two quick-settings tiles ("remind" and "list").
 ⚠ **You place them yourself**, from the pencil/edit screen of the quick settings panel. Tapping
 "remind" asks "Remind you about what?" and "When?" in a notification reply box.
+⚠ **If "When?" is written in a way it cannot read, it says why and asks again** (0.8.283). Your previous
+answer stays in the reply box, so you only have to fix it. After three tries it gives up and tells you
+"Not set" (before this it just ended quietly, so the tap looked like it did nothing).
+**A successful one is announced too**, as an "⏰ Reminder set" notification with the plan and the text.
 
+- **Anything written the wrong way is not scheduled** (0.8.283): `18:70` (out of range), `daily` with no
+  time, `1.5h` (not a whole number), an unknown weekday. You get the reason, in the terminal too.
 - Firing can be **a few minutes late** (the booking follows the battery-saving Doze schedule). Not for
   anything that needs to be on time to the second.
 - Reminders survive a reboot.
