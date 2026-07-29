@@ -289,6 +289,16 @@ object KkcConverter {
      */
     @Volatile var learnedBlock: ((String) -> Pair<String, Int>?)? = null
 
+    /**
+     * ユーザー辞書参照。[learnedBlock] と同じ形で `(表層, コスト下げ幅)` を返す。
+     * [UserDictStore] が配線する。
+     *
+     * ⚠ **学習 ([learnedBlock]) の方を先に見る**。学習は「利用者が実際にその読みで選んだ結果」で、
+     * ユーザー辞書は「登録しただけ」。同じ読みに両方あるなら、選ばれた実績のある表層を優先する。
+     * これが無いと、辞書に 1 行足しただけで打ち慣れた変換が上書きされる。
+     */
+    @Volatile var userDictBlock: ((String) -> Pair<String, Int>?)? = null
+
     /** ラティスのノード。BOS/EOS は surface/reading 空・cost 0 で表す。 */
     private class Node(
         val begin: Int, val end: Int,
@@ -314,11 +324,13 @@ object KkcConverter {
         val eos = Node(n, n, "", "", 0, 0, 0)
         endsAt[0].add(bos)
         val blockFn = learnedBlock
+        val userFn = userDictBlock
         for (i in 0 until n) {
             for (j in i + 1..n) {
                 val r = reading.substring(i, j)
                 // 学習ブロック (2 文字以上): 該当読みのノードコストを下げて 1 ブロックに繋ぎ止める。
-                val learned = if (j - i >= 2) blockFn?.invoke(r) else null
+                // 学習が無ければユーザー辞書を見る (登録語も文の中で 1 ブロックとして拾えるように)。
+                val learned = if (j - i >= 2) (blockFn?.invoke(r) ?: userFn?.invoke(r)) else null
                 val bonus = learned?.second ?: 0
                 val entries = lex[r]
                 if (entries != null) {

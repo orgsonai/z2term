@@ -103,6 +103,7 @@ import com.zerotoship.z2term.settings.SettingsGroupStore
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import com.zerotoship.z2term.ui.components.ResidentActionDialog
 import com.zerotoship.z2term.ui.terminal.ToolbarButtons
+import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.stopEverythingAndQuit
 import com.zerotoship.z2term.ui.theme.TerminalFontOption
@@ -536,6 +537,72 @@ fun SettingsSheet(
                         label = stringResource(R.string.settings_ime_history_open),
                         onClick = { imeHistoryOpen = true }
                     )
+                }
+
+                // ユーザー辞書 (SKK 形式のテキストを取り込んで変換候補に混ぜる)。
+                // 学習履歴の隣に置く — どちらも「自分の語を IME に覚えさせる」設定なので。
+                Section(title = stringResource(R.string.settings_section_user_dict)) {
+                    val dictFiles by UserDictStore.files.collectAsState()
+                    val dictWords by UserDictStore.wordCount.collectAsState()
+                    Text(
+                        text = stringResource(R.string.settings_user_dict_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.settings_user_dict_count, dictWords, dictFiles.size
+                        ),
+                        color = ZtsTextSecondary,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    val dictPicker = rememberLauncherForActivityResult(
+                        ActivityResultContracts.OpenDocument()
+                    ) { uri ->
+                        if (uri != null) scope.launch {
+                            // 取り込みの結果は Toast で返す。⚠ 形式違い/大きすぎは黙って
+                            // 無視せず必ず伝える (入ったつもりで変換が変わらないと原因を追えない)。
+                            val msg = when (val r = UserDictStore.import(context, uri)) {
+                                is UserDictStore.ImportResult.Success ->
+                                    context.getString(R.string.settings_user_dict_added, r.name, r.words)
+                                UserDictStore.ImportResult.TooLarge ->
+                                    context.getString(R.string.settings_user_dict_too_large)
+                                UserDictStore.ImportResult.NoEntries ->
+                                    context.getString(R.string.settings_user_dict_no_entries)
+                                is UserDictStore.ImportResult.Failed ->
+                                    context.getString(R.string.settings_user_dict_failed, r.message)
+                            }
+                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    ActionButton(
+                        label = stringResource(R.string.settings_user_dict_add),
+                        // ⚠ MIME は絞らない。テキストなのに provider が octet-stream を返すことが
+                        // あり、text/* だけだと選べないファイルが出る。
+                        onClick = { runCatching { dictPicker.launch(arrayOf("*/*")) } }
+                    )
+                    dictFiles.forEach { f ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_user_dict_file, f.name, f.words),
+                                color = ZtsTextPrimary,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.weight(1f)
+                            )
+                            ActionButton(
+                                label = stringResource(R.string.settings_user_dict_remove),
+                                danger = true,
+                                onClick = { scope.launch { UserDictStore.remove(context, f.name) } }
+                            )
+                        }
+                    }
                 }
 
                 // 言語スイッチ。アプリ内で「日本語/English」を切替える (OS Locale ではなく独自管理)。

@@ -133,6 +133,10 @@ object KanaKanjiConverter {
         for ((r, w) in ImeHistoryStore.predictHistoryWithReading(prefix, limit = 8)) {
             if (r != prefix) map.putIfAbsent(w, r)
         }
+        // ユーザー辞書の予測も「打った接頭辞」でなく登録した読みで学習させる。
+        for ((r, w) in UserDictStore.predictWithReading(prefix, limit = 8)) {
+            if (r != prefix) map.putIfAbsent(w, r)
+        }
         for ((r, w) in predictWithReading(prefix)) {
             if (r != prefix) map.putIfAbsent(w, r)
         }
@@ -210,10 +214,21 @@ object KanaKanjiConverter {
             out.add(h)
             if (out.size >= limit) return out.toList()
         }
+        // 1.5 ユーザー辞書 (完全一致)。利用者が自分で登録した語なので、同梱辞書や Viterbi より
+        //     先に出す。学習履歴 (1) だけは「実際に選んだ実績」なので上に置いたままにする。
+        for (w in UserDictStore.lookup(reading)) {
+            out.add(w)
+            if (out.size >= limit) return out.toList()
+        }
         // 2. 学習履歴 (前方一致) = 本来の予測変換。打った読みで始まる学習済みの語句を変換より先に出す。
         if (allowPrediction) {
             for (h in ImeHistoryStore.predictHistory(reading, limit = 6)) {
                 out.add(h)
+                if (out.size >= limit) return out.toList()
+            }
+            // 2.5 ユーザー辞書 (前方一致)。登録語も打ちかけで補完できるようにする。
+            for (w in UserDictStore.predict(reading, limit = 6)) {
+                out.add(w)
                 if (out.size >= limit) return out.toList()
             }
         }

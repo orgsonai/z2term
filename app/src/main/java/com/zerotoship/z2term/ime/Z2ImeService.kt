@@ -49,6 +49,7 @@ import com.zerotoship.z2term.ui.terminal.keyboard.KanaKanjiConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.KkcConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
+import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
 import com.zerotoship.z2term.ui.theme.AppColors
 import com.zerotoship.z2term.ui.theme.Z2TermTheme
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -116,6 +117,7 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
             KanaKanjiConverter.ensureLoaded(this@Z2ImeService)
             KkcConverter.ensureLoaded(this@Z2ImeService)
             ImeHistoryStore.ensureLoaded(this@Z2ImeService)
+            UserDictStore.ensureLoaded(this@Z2ImeService)
         }
     }
 

@@ -144,6 +144,7 @@ import com.zerotoship.z2term.ui.terminal.keyboard.KanaKanjiConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.KkcConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
+import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
 import com.zerotoship.z2term.emulator.ZtsTheme
 import com.zerotoship.z2term.emulator.resolveTheme
 import com.zerotoship.z2term.settings.CustomThemeStore
@@ -368,6 +369,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     LaunchedEffect(Unit) { KkcConverter.ensureLoaded(context) }
     // IME 学習履歴 (確定済み読み→単語) も同タイミングで読み込み、変換候補のランキングに使う。
     LaunchedEffect(Unit) { ImeHistoryStore.ensureLoaded(context) }
+    // 取り込んだユーザー辞書 (SKK 形式) も同じタイミングで読む。無ければ何もしない。
+    LaunchedEffect(Unit) { UserDictStore.ensureLoaded(context) }
     // キーボードモード変更時は変換中バッファを破棄 (OS IME と二重表示を防ぐ)。
     // 検索バーの開閉でも捨てる — 確定先が端末と検索語で入れ替わるので、跨いで持ち越すと
     // 「端末へ打っていたかな」が検索語に紛れ込む (0.8.275)。
@@ -892,6 +895,7 @@ private fun GuiTabScreen(
     LaunchedEffect(Unit) { KanaKanjiConverter.ensureLoaded(context) }
     LaunchedEffect(Unit) { KkcConverter.ensureLoaded(context) }
     LaunchedEffect(Unit) { ImeHistoryStore.ensureLoaded(context) }
+    LaunchedEffect(Unit) { UserDictStore.ensureLoaded(context) }
 
     // 枠線の内側 (= 実際に GUI を描く領域) の実測 px。これを倍率で割って Xvnc 解像度を決める。
     var guiAreaPx by remember(gui.id) { mutableStateOf(IntSize.Zero) }

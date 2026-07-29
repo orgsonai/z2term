@@ -23,6 +23,16 @@
     <string name="settings_section_keyboard_style">独自キーボードスタイル</string>
     <string name="settings_keyboard_toggle_bar">キーボード表示バー</string>
     <string name="settings_keyboard_toggle_bar_desc">キーボードの上に表示/非表示バーを出す。OFF のときは ⌨ ボタンのダブルタップで切り替え。</string>
+    <string name="settings_section_user_dict">ユーザー辞書</string>
+    <string name="settings_user_dict_desc">自分の語をファイルで足せます。1 行 = 「よみ /候補1/候補2/」（SKK 辞書と同じ形式）。行頭 ; はコメント。文字コードは UTF-8 / EUC-JP のどちらでも読めます。読みがひらがなの行だけを取り込みます。</string>
+    <string name="settings_user_dict_count">登録 %1$d 語 / %2$d ファイル</string>
+    <string name="settings_user_dict_add">辞書ファイルを選ぶ</string>
+    <string name="settings_user_dict_file">%1$s  %2$d 語</string>
+    <string name="settings_user_dict_remove">削除</string>
+    <string name="settings_user_dict_added">%1$s を取り込みました（%2$d 語）</string>
+    <string name="settings_user_dict_too_large">ファイルが大きすぎます（上限 8MB）</string>
+    <string name="settings_user_dict_no_entries">語が 1 つも読み取れませんでした。1 行 = 「よみ /候補/」の形式か確認してください</string>
+    <string name="settings_user_dict_failed">取り込めませんでした: %1$s</string>
     <string name="settings_special_key_bar">補助キーバー (OS のキーボード使用時)</string>
     <string name="settings_special_key_bar_desc">OS のキーボードに切り替えているとき、ESC・TAB・CTRL・矢印などの補助キーをキーボードの上に出す。OFF にすると出ない (内蔵キーボードには影響しない)。</string>
     <string name="settings_section_gui_terminal">GUI ターミナル</string>
