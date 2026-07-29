@@ -1208,8 +1208,11 @@ $cYmd
 
 $cDayEpoch
 day_epoch() {
+  # ⚠ 時分秒は **1 つの `now` から** 導く。以前は now と時/分/秒を別々の `date` で取っており、
+  #   CI などで呼び出し間に秒境界をまたぐと算出時刻が数百ms〜数秒ずれ、**18:30 が 18:29 に
+  #   丸められて**予約されていた (ローカルは呼び出しが同一秒に収まって出なかった)。
   now=${d}(date +%s)
-  ch=${d}(date +%H); cm=${d}(date +%M); cs=${d}(date +%S)
+  ch=${d}(date -d "@${d}now" +%H); cm=${d}(date -d "@${d}now" +%M); cs=${d}(date -d "@${d}now" +%S)
   ch=${d}{ch#0}; [ -n "${d}ch" ] || ch=0
   cm=${d}{cm#0}; [ -n "${d}cm" ] || cm=0
   cs=${d}{cs#0}; [ -n "${d}cs" ] || cs=0
@@ -1291,8 +1294,12 @@ days_from_civil() {
 }
 
 # 今日から見て「その年月日」が何日後か (負なら過去)。[day_epoch] に渡して使う。
+# ⚠ 今日の年月日も **1 つの `now` から** 取る (別々の date だと午前 0 時直前に日付がずれる)。
 days_between() {
-  ty=${d}(strip0 "${d}(date +%Y)"); tm=${d}(strip0 "${d}(date +%m)"); td=${d}(strip0 "${d}(date +%d)")
+  n0=${d}(date +%s)
+  ty=${d}(strip0 "${d}(date -d "@${d}n0" +%Y)")
+  tm=${d}(strip0 "${d}(date -d "@${d}n0" +%m)")
+  td=${d}(strip0 "${d}(date -d "@${d}n0" +%d)")
   a=${d}(days_from_civil "${d}ty" "${d}tm" "${d}td")
   b=${d}(days_from_civil "${d}(strip0 "${d}1")" "${d}(strip0 "${d}2")" "${d}(strip0 "${d}3")")
   echo ${d}((b - a))

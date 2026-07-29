@@ -73,11 +73,30 @@ class RemindScriptTest {
         }
     }
 
-    /** 今から [days] 日後の日付を `MM/dd` で。 */
-    private fun dateAfter(days: Int): String {
-        val c = java.util.Calendar.getInstance()
+    /** [atMillis] を基準に [days] 日後の日付を `MM/dd` で。 */
+    private fun dateAfter(days: Int, atMillis: Long = System.currentTimeMillis()): String {
+        val c = java.util.Calendar.getInstance().apply { timeInMillis = atMillis }
         c.add(java.util.Calendar.DAY_OF_YEAR, days)
         return java.text.SimpleDateFormat("MM/dd", java.util.Locale.US).format(c.time)
+    }
+
+    /** [atMillis] の HH:mm。 */
+    private fun hmAt(atMillis: Long): String =
+        java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date(atMillis))
+
+    /**
+     * 時計に依存するテストの取りこぼしを塞ぐ。⚠ シェルが `date` を読む瞬間とテストが基準時刻を
+     * 読む瞬間は数十 ms ずれるので、**実行の前後**を基準に候補を作り、どちらかに一致すれば通す
+     * (分・日の境界を実行中にまたいでも落ちない)。
+     */
+    private inline fun timedRun(
+        lang: String, vararg args: String, block: (out: String, before: Long, after: Long) -> Unit
+    ) {
+        val before = System.currentTimeMillis()
+        val (code, out) = run(lang, fakes = true, args = args)
+        val after = System.currentTimeMillis()
+        assertEquals("登録に失敗した: $out", 0, code)
+        block(out, before, after)
     }
 
     @Test
@@ -176,30 +195,37 @@ class RemindScriptTest {
     fun `一覧の表記は「明日」ではなく実際の日付になる`() {
         assumeTrue(sh != null)
         // ⚠ 「明日」と覚えると日付が変わった後にズレて見える。登録時点で実日付に直して持つ。
-        val (code, out) = run("ja", fakes = true, "明日", "18:30", "ゴミ出し")
-        assertEquals("登録に失敗した: $out", 0, code)
-        assertTrue("明日の日付になっていない: $out", out.contains("${dateAfter(1)} 18:30"))
-        assertTrue("本文が落ちている: $out", out.contains("ゴミ出し"))
+        timedRun("ja", "明日", "18:30", "ゴミ出し") { out, before, after ->
+            val ok = out.contains("${dateAfter(1, before)} 18:30") ||
+                out.contains("${dateAfter(1, after)} 18:30")
+            assertTrue("明日の日付になっていない: $out", ok)
+            assertTrue("本文が落ちている: $out", out.contains("ゴミ出し"))
+        }
     }
 
     @Test
     fun `N日後は日数ぶん先の日付になる`() {
         assumeTrue(sh != null)
-        val (code, out) = run("ja", fakes = true, "3日後", "07:00", "返却")
-        assertEquals("登録に失敗した: $out", 0, code)
-        assertTrue("3 日後の日付になっていない: $out", out.contains("${dateAfter(3)} 07:00"))
+        timedRun("ja", "3日後", "07:00", "返却") { out, before, after ->
+            val ok = out.contains("${dateAfter(3, before)} 07:00") ||
+                out.contains("${dateAfter(3, after)} 07:00")
+            assertTrue("3 日後の日付になっていない: $out", ok)
+        }
     }
 
     @Test
     fun `時刻を省くと今と同じ時刻になる`() {
         assumeTrue(sh != null)
-        // 既定時刻を勝手に決めず、「明後日のこの時間」にする。
-        val (code, out) = run("ja", fakes = true, "明後日", "電話する")
-        assertEquals("登録に失敗した: $out", 0, code)
-        val nowHm = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date())
-        assertTrue("明後日の同時刻になっていない (期待 ${dateAfter(2)} $nowHm): $out",
-            out.contains("${dateAfter(2)} $nowHm"))
-        assertTrue("本文が落ちている: $out", out.contains("電話する"))
+        // 既定時刻を勝手に決めず、「明後日のこの時間」にする。⚠ 分・日の境界を実行中にまたぐと
+        // 前後で HH:mm / 日付が変わるので、前後どちらの組でも通す。
+        timedRun("ja", "明後日", "電話する") { out, before, after ->
+            val ok = out.contains("${dateAfter(2, before)} ${hmAt(before)}") ||
+                out.contains("${dateAfter(2, after)} ${hmAt(after)}") ||
+                out.contains("${dateAfter(2, after)} ${hmAt(before)}") ||
+                out.contains("${dateAfter(2, before)} ${hmAt(after)}")
+            assertTrue("明後日の同時刻になっていない: $out", ok)
+            assertTrue("本文が落ちている: $out", out.contains("電話する"))
+        }
     }
 
     @Test

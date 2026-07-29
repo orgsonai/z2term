@@ -916,7 +916,9 @@ remind.sh list / remind.sh del 2       # list / cancel
   `203007301900` / `07301900` are turned into a day difference and then a delay. ⚠ Leap years mean the
   civil-date-to-day-number conversion is done here (`days_from_civil`); `date -d "2026-07-30"` is not
   dependable on busybox. ⚠ Only the **day difference** is used, with the time left to `day_epoch`, which
-  cancels out the timezone. ⚠ A writable-but-nonexistent date (`2/30`) rolls over into the next month,
+  cancels out the timezone. ⚠ **`day_epoch` reads `date` only once and derives H:M:S from it** (0.8.289):
+  reading `now` and the hour/minute/second from separate `date` calls could straddle a second boundary
+  under load and round **18:30 down to 18:29** (surfaced on CI). ⚠ A writable-but-nonexistent date (`2/30`) rolls over into the next month,
   so it is converted back and checked.
 - **The short "every" form** (0.8.286): `every 19:00` -> daily, `every wed 19:00` -> weekly,
   `every 15 19:00` -> monthly, `every 07/30 19:00` -> yearly. ⚠ Only **the shape of the next word**
