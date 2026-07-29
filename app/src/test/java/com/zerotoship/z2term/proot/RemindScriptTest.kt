@@ -322,6 +322,16 @@ class RemindScriptTest {
     }
 
     @Test
+    fun `setup は名前で打てないときに PATH の直し方を出す`() {
+        assumeTrue(sh != null)
+        // ⚠ 0.8.286 まではマクロ置き場が PATH に無く、help も docs も名前で打つ前提だったので
+        //   `remind.sh: command not found` になっていた (実機で指摘)。黙って終わらせない。
+        val (code, out) = run("ja", fakes = true, "setup")
+        assertEquals("setup が失敗した: $out", 0, code)
+        assertTrue("PATH の直し方が出ていない: $out", out.contains("export PATH="))
+    }
+
+    @Test
     fun `英語でも読めない語を断る`() {
         assumeTrue(sh != null)
         val (code, out) = run("en", "whenever", "take pills")

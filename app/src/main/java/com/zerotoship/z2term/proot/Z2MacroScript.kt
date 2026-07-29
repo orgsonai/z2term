@@ -1013,6 +1013,22 @@ after_label() {
     }
     val mSetupHooks = if (ja) "受け口を登録しました:" else "hooks registered:"
     val mSetupTiles = if (ja) "タイル:" else "tiles:"
+    val mPathHint = if (ja) {
+        "⚠ このタブでは remind.sh を名前で打てません。新しいタブを開くか、" +
+            "このタブで export PATH=${d}HOME/.z2term/macros:${d}PATH を打ってください。"
+    } else {
+        "Note: this tab cannot run remind.sh by name yet. Open a new tab, or run " +
+            "export PATH=${d}HOME/.z2term/macros:${d}PATH here."
+    }
+    val cPathHint = if (ja) {
+        """  # ⚠ マクロ置き場が PATH に入るのは 0.8.287 から。**それ以前に開いたタブ**は古い PATH の
+  # ままなので、名前で打てるか確かめて、駄目なら開き直しを案内する (黙っていると
+  # `command not found` の理由が分からない)。"""
+    } else {
+        """  # ⚠ The macro directory has only been on PATH since 0.8.287, so **tabs opened before that**
+  # still carry the old one. Check whether the name resolves and say what to do if not
+  # (otherwise `command not found` has no visible reason)."""
+    }
     val mPlace = if (ja) {
         "⚠ タイルはご自身でクイック設定パネルの鉛筆(編集)から並べてください。"
     } else {
@@ -1494,6 +1510,8 @@ $cTiles
   z2-tile list
   echo
   echo "$mPlace"
+$cPathHint
+  command -v remind.sh >/dev/null 2>&1 || { echo; echo "$mPathHint"; }
 }
 
 case ${d}1 in

@@ -428,7 +428,11 @@ class ProotLauncher(private val context: Context) {
             "HOME=/root",
             "TERM=xterm-256color",
             "LANG=C.UTF-8",
-            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            // ⚠ 末尾に**マクロ置き場**を足す (0.8.287)。`z2-macro install remind` で入れたものを
+            // `remind.sh …` と名前で打てるようにするため — help も docs もその前提で書いてあるのに
+            // PATH に無く、`command not found` になっていた (実機で指摘)。⚠ **末尾**に置くのは、
+            // 同名のコマンドがあったときに OS 側を覆わないため。
+            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$MACRO_DIR",
             "TMPDIR=/tmp",
             "SHELL=$shellForEnv",
             // GUI 内ターミナル (z2gui) 用。z2gui は SHELL を自分自身に上書きされる可能性が
@@ -655,7 +659,8 @@ class ProotLauncher(private val context: Context) {
                 append("mount -o bind /apex \"\$RFS/apex\" 2>/dev/null\n")
             }
             append("exec chroot \"\$RFS\" /usr/bin/env -i HOME=/root TERM=xterm-256color LANG=C.UTF-8 ")
-            append("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin TMPDIR=/tmp")
+            // ⚠ proot 経路と同じくマクロ置き場を末尾に足す (0.8.287)。
+            append("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$MACRO_DIR TMPDIR=/tmp")
             append(displayEnv)
             // 制御端末を取り直してジョブ制御 / Ctrl+C を効かせる。
             // chroot は su(magiskd)経由で起動するため root shell が PTY を制御端末として
@@ -1342,6 +1347,13 @@ class ProotLauncher(private val context: Context) {
 
     companion object {
         private const val TAG = "ProotLauncher"
+
+        /**
+         * マクロ置き場 (`z2-macro install` の展開先)。**PATH の末尾**に足して、入れたマクロを
+         * 名前で打てるようにする。⚠ `HOME=/root` 固定なのでここも実パスで持つ (env の値は
+         * 展開されないため `$HOME` とは書けない)。
+         */
+        private const val MACRO_DIR = "/root/.z2term/macros"
 
         /** SHELL に採用してよい既知のシェル basename (これ以外は実体シェルへ振り替える)。 */
         private val KNOWN_SHELLS = setOf("sh", "bash", "ash", "dash", "zsh", "ksh", "mksh")

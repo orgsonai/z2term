@@ -607,6 +607,8 @@ remind.sh every 07/30 19:00             #   yearly (the next word decides)
 ```
 
 **Forgot the syntax?** `remind.sh help` prints all of it (it is also one of the 📜 snippets).
+⚠ **If you get `remind.sh: command not found`, that tab still has the old PATH** (0.8.287 put the macro
+directory on it). **Open a new tab**, or run `export PATH=$HOME/.z2term/macros:$PATH` in that tab.
 
 **See and cancel**: `remind.sh list` (⏰ = one-shot / 🔁 = repeating / ✔ = already fired) and
 `remind.sh del 2` (`del all` clears everything). ⚠ **You can also remove one from the "list" tile**

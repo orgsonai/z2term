@@ -4,7 +4,7 @@
 It is a manual you can read and write by hand, and at the same time a **machine-readable
 reference you can feed whole to an AI** — then just say "I want to …" and it generates the macro.
 
-> Target version: 0.8.286-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
+> Target version: 0.8.287-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
 > Everything here is **non-root, fully local, no external transmission**. No hard-permission features are included.
 
 ---
@@ -63,6 +63,10 @@ minute). **Do not write in style B what style A can express.**
 4. Handy tool: install `jq` (JSON parsing). e.g. Alpine `apk add jq` / Debian-family `apt install jq`.
 5. **If you would rather not start from a blank file**: `z2-macro list` shows the 8 bundled samples and
    `z2-macro install <name>` copies one into `~/.z2term/macros/` (`z2-macro install all` for every one).
+   ⚠ **The macro directory is on PATH** (since 0.8.287; appended, so it never shadows an OS command),
+   so what you install runs by name: `remind.sh 30m pills`. ⚠ **Tabs opened before 0.8.287 carry the old
+   PATH** — open a new tab or run `export PATH=$HOME/.z2term/macros:$PATH`. ⚠ **An ssh session is
+   different**: it does not even have `/usr/local/bin`, so `z2-*` needs a full path there.
    Edit them freely — install never overwrites an existing file, so your edits are safe (`-f` forces it).
    On install it also tells you **how that script is meant to be run** (register it as a resident
    server / drive it with `z2-when` / assign it to a widget button).
