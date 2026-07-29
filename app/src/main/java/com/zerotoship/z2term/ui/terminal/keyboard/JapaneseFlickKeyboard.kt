@@ -88,6 +88,12 @@ import kotlinx.coroutines.launch
 // 両端 (機能キー) 列の幅。中央のかな列 (1f) より狭くする。
 private const val JP_EDGE_WEIGHT = 0.7f
 
+/** ESC の上フリック先 (貼り付けパッド) を表す印。キー上のヒントと長押しポップアップで共用。 */
+private const val PAD_HINT = "📋"
+
+/** ESC を押しっぱなしにしてから [PAD_HINT] のポップアップを出すまでの時間。 */
+private const val LONG_PRESS_HINT_MS = 300L
+
 @Composable
 fun JapaneseFlickKeyboard(
     onBytes: (ByteArray) -> Unit,
@@ -592,6 +598,12 @@ private fun JpBackspaceKeyBody(
  *
  * ⚠ 上フリックにしたのは**キーを増やす隙間が無い**から。⌫ の左右フリック
  * ([JpBackspaceKeyBody]) と同じ指の動きなので、この配列の中では一貫している。
+ *
+ * ⚠ ただし**指の動きは見えない** — 上フリックできること自体を知らないと辿り着けなかったので、
+ * かなキー ([JpFlickKey]) が上下左右のフリック先を常時出しているのと同じように、
+ * キーの上端に [PAD_HINT] を薄く出す。さらに**押しっぱなし**にすると
+ * ([LONG_PRESS_HINT_MS] 後) キーの真上にポップアップが浮いて「上へ払うと出る」と分かる。
+ * ポップアップは指を離すかフリックが決まった時点で消える。
  */
 @Composable
 private fun RowScope.JpEscKey(
@@ -601,6 +613,8 @@ private fun RowScope.JpEscKey(
     onFlickUp: () -> Unit
 ) {
     var pressed by remember { mutableStateOf(false) }
+    var showHint by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val currentOnTap by rememberUpdatedState(onTap)
     val currentOnFlickUp by rememberUpdatedState(onFlickUp)
     val bg = if (pressed) ZtsGreenBright else ZtsBgCard
@@ -622,6 +636,11 @@ private fun RowScope.JpEscKey(
                         val startX = down.position.x
                         val startY = down.position.y
                         var resolved = false
+                        // 押しっぱなしなら「上へ払うと貼り付けパッド」をポップアップで教える。
+                        val hintJob = scope.launch {
+                            delay(LONG_PRESS_HINT_MS)
+                            if (!resolved) showHint = true
+                        }
                         while (true) {
                             val event = awaitPointerEvent(PointerEventPass.Main)
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
@@ -629,6 +648,8 @@ private fun RowScope.JpEscKey(
                             val dy = change.position.y - startY
                             if (!resolved && dy < -flickThreshold && abs(dy) > abs(dx)) {
                                 resolved = true
+                                hintJob.cancel()
+                                showHint = false
                                 currentOnFlickUp()
                                 change.consume()
                             }
@@ -637,6 +658,8 @@ private fun RowScope.JpEscKey(
                                 break
                             }
                         }
+                        hintJob.cancel()
+                        showHint = false
                         pressed = false
                     }
                 }
@@ -648,8 +671,18 @@ private fun RowScope.JpEscKey(
             color = fg,
             fontSize = (style.keyFontSp * 0.7f).sp,
             fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.align(Alignment.Center)
         )
+        // 上フリック先のヒント (かなキーの上段ヒントと同じ置き方・同じ薄さ)。
+        Text(
+            text = PAD_HINT,
+            color = fg.copy(alpha = 0.6f),
+            fontSize = style.flickHintFontSp.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
+        if (showHint) FlickCommitPopup(text = PAD_HINT, style = style)
     }
 }
 
@@ -755,7 +788,7 @@ private fun RowScope.JpFlickKey(
         // 押下中: キー直上のポップアップに「今このまま離すと確定する 1 文字」だけを
         //   大きく表示する (緑地に黒文字でハイライト)。
         if (pressed) {
-            FlickCommitPopup(ch = flickPreview ?: km.center, style = style)
+            FlickCommitPopup(text = (flickPreview ?: km.center).toString(), style = style)
         }
     }
 }
@@ -764,13 +797,16 @@ private fun RowScope.JpFlickKey(
  * フリックキー押下時にキー直上へ浮かべる確定文字ポップアップ。
  *
  * 「今このまま指を離すと送出される 1 文字」だけを大きく表示する (緑地に黒文字)。
- * フリック方向を変えると [ch] が差し替わり、何が確定するか一目で分かる。
+ * フリック方向を変えると [text] が差し替わり、何が確定するか一目で分かる。
  * Popup を使うことでキー本体の境界を越えて画面上方へ描けるので、最上段のキーでも
  * 端末画面側に重ねて表示できる。
+ *
+ * ⚠ 文字列を受けるのは絵文字 ([PAD_HINT]) がサロゲートペアで `Char` に収まらないため
+ * (ESC キーの長押しヒントでも同じポップアップを使う)。
  */
 @Composable
 private fun FlickCommitPopup(
-    ch: Char,
+    text: String,
     style: KeyboardStyle
 ) {
     val density = LocalDensity.current
@@ -792,7 +828,7 @@ private fun FlickCommitPopup(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = ch.toString(),
+                text = text,
                 color = Color.Black,
                 fontSize = (style.keyFontSp * 1.5f).sp,
                 fontWeight = FontWeight.Bold,

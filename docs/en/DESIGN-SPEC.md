@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-29 / Target version: 0.8.278-alpha (versionCode 286)
+Last updated: 2026-07-29 / Target version: 0.8.279-alpha (versionCode 287)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1597,6 +1597,12 @@ into "close" — you would not be able to delete while the pad is open.
   column, too small a target — hence the vertical split. ⚠ The ESC up-flick is an invisible entry, so
   the pad carries 😀 / 📋 tabs and **paste is reachable from the visible 😀 key** too. Closing is
   pressing **the same key you entered with** (toggle), or the × at the top left.
+- **Making the up-flick discoverable** (0.8.279): the tabs alone did not get people to "flick up on
+  ESC", so — exactly like the kana keys (`JpFlickKey`), which always show where each flick goes —
+  **a dim 📋 sits at the top edge of the ESC key**. On top of that, **holding ESC for 300ms** floats
+  `FlickCommitPopup` (the same part the kana keys use while pressed) with a large 📋 right above the
+  key. ⚠ A plain tap shows nothing — ESC is one of the most-pressed keys in a terminal, and popping
+  something up on every press would be in the way. The popup disappears as soon as the flick resolves.
 - **Emoji** (`EmojiCatalog`): a hand-picked table in 8 categories (no attempt at full coverage —
   thousands of glyphs cannot be browsed). ⚠ **Glyphs the device font lacks are not shown**
   (`Paint.hasGlyph`, filtered once). That keeps tofu (□) out of what people send, and new OS versions
@@ -1724,6 +1730,18 @@ earlier `setComposingText` does not double up.
   "Resident servers and automation", where nobody looking for keyboard settings would find them.
   For the same reason the old "Input and language" group (IME learning history / language) was folded
   into Keyboard — **everything about typing in one place**.
+  ⚠ **The group is named "Keyboard, input and language"** (0.8.279). After the merge the name gave no
+  hint that the display-language switch lives there, so people could not find it. The Japanese title
+  carries the English word "Language" alongside, so **someone who cannot read Japanese can still get
+  to the language switch**.
+- ⚠ **The input view keeps clear of the navigation bar** (0.8.279). Android 15 (targetSdk 35) extends
+  the input-method window to the edges of the screen too, so without handling it the bottom row
+  (← ↓ ↑ → ⏎) hides **behind the 3-button navigation bar** and presses land on Back/Home instead.
+  The bottom of the **`tappableElement`** inset, received via
+  `ViewCompat.setOnApplyWindowInsetsListener`, becomes bottom padding on the input view and lifts the
+  keyboard clear. ⚠ It reads `tappableElement` rather than `navigationBars` because **gesture-navigation
+  devices report 0 there** — no wasted gap on devices without a bar. Some paths recreate the window
+  without delivering the listener, so `onStartInputView` re-reads it from `rootWindowInsets`.
 
 **Candidates for the next stage**: adapting to `EditorInfo.inputType` (digits only for numeric
 fields, no learning in password fields), a key to hand back to the OS keyboard, and the globe key via
@@ -1758,6 +1776,7 @@ built-in keyboard**".
 | Keep-alive service | keepAliveService | true | true/false (toggled from the toolbar 🔒 lock; **a switch also appears under Settings › Toolbar while the button is hidden** (0.8.194). **While resident servers run, 🔒 is dimmed and locked** and tapping it opens the quit dialog (0.8.204)) |
 | Screen-on lock | keepScreenOn | false | true/false (toggled from the toolbar 💡; **persisted and restored on next launch** (0.8.144); from Settings › Toolbar while hidden (0.8.194)) |
 | Keyboard toggle bar | keyboardToggleBar | true | true/false (on = a toggle bar above the keyboard; off = no bar, double-tap the ⌨ button to toggle (0.8.145)) |
+| Special key bar | specialKeyBar | true | true/false (whether `SpecialKeyBar` / `GuiSpecialKeyBar` (ESC, TAB, CTRL, arrows…) is shown while the OS keyboard is in use. Off hides it; the built-in keyboard is unaffected (0.8.279)) |
 | Toolbar order | toolbarOrder | "" (default order) | comma-separated ids; updated by long-press drag; keeps hidden ids too |
 | Toolbar hidden | toolbarHidden | "" (all shown) | comma-separated ids; tapped under Settings › Toolbar. ⚙ cannot be listed (0.8.194) |
 | Terminal log destination | sessionLogDir | "z2term-log" | relative to home (~) (0.8.195) |

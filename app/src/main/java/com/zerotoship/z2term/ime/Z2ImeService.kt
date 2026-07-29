@@ -11,14 +11,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -119,8 +124,37 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         attachOwners(window?.window?.decorView)
         val view = ComposeView(this)
         attachOwners(view)
+        // ⚠ Android 15 (targetSdk 35) は**入力メソッドの窓も画面の端まで**広げる。何もしないと
+        // キーボードの最下段が 3 ボタンナビゲーションバーの裏に潜り、← ↓ ↑ → や ⏎ が押せない
+        // (バーの側が反応して「戻る」等になる)。バーのぶんだけ下に余白を作って持ち上げる。
+        ViewCompat.setOnApplyWindowInsetsListener(view) { _, insets ->
+            navBarInsetPx.intValue = insets.tappableBottom()
+            insets
+        }
         view.setContent { KeyboardContent() }
         return view
+    }
+
+    /**
+     * 下端に空けるナビゲーションバーぶんの余白 (px)。
+     *
+     * ⚠ [WindowInsetsCompat.Type.navigationBars] ではなく **tappableElement** を見る —
+     * ジェスチャー操作の端末では「バー」は細いハンドルだけでタップを奪わないので 0 が返り、
+     * 余計な隙間が空かない。3 ボタン操作のときだけバーの高さぶん持ち上がる。
+     */
+    private val navBarInsetPx = mutableIntStateOf(0)
+
+    private fun WindowInsetsCompat.tappableBottom(): Int =
+        getInsets(WindowInsetsCompat.Type.tappableElement()).bottom
+
+    /**
+     * 窓から今のナビゲーションバー高さを読み直す。
+     * リスナー ([onCreateInputView]) が呼ばれないまま入力ビューが出る経路 (窓の作り直し・
+     * 操作方法の変更直後) の取りこぼしを埋める。
+     */
+    private fun refreshNavBarInset() {
+        val raw = window?.window?.decorView?.rootWindowInsets ?: return
+        navBarInsetPx.intValue = WindowInsetsCompat.toWindowInsetsCompat(raw).tappableBottom()
     }
 
     /**
@@ -146,6 +180,7 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         // 画面回転や設定変更で窓ごと作り直されることがある。作り直された decorView には
         // オーナーが付いていないので、出すたびに載せ直す (同じ値の付け直しなので無害)。
         attachOwners(window?.window?.decorView)
+        refreshNavBarInset()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
         // ⚠ 入力欄が変わったら変換中を捨てる。持ち越すと、前の欄へ打っていたかなが
         // 次の欄に確定されて入る (端末と検索バーで同じ事故を踏んだ)。
@@ -182,8 +217,15 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         // 変換中のかなは**下線付きのプリエディット**として相手の入力欄に見せる。端末では
         // 自前で描いているものを、ここでは OS の仕組み (setComposingText) に任せる。
         MirrorComposingText()
+        // 3 ボタンナビゲーションバーのぶんだけ下に余白を足す (背景の内側なので色は続いて見える)。
+        val navBarPadding = with(LocalDensity.current) { navBarInsetPx.intValue.toDp() }
         Z2TermTheme {
-            Column(modifier = Modifier.fillMaxWidth().background(ZtsBgSecondary)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(ZtsBgSecondary)
+                    .padding(bottom = navBarPadding)
+            ) {
                 CandidateBar(composing = composing)
                 Column(modifier = Modifier.fillMaxWidth().height(style.naturalHeight)) {
                     TerminalKeyboard(

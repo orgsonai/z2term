@@ -732,11 +732,14 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 }
                 KeyboardMode.SYSTEM -> {
                     // OS IME はシステムが描画するため、こちらは SpecialKeyBar の高さだけ。
-                    SpecialKeyBar(
-                        session = active,
-                        ctrlSticky = ctrlSticky,
-                        onCtrlToggle = { ctrlSticky = !ctrlSticky }
-                    )
+                    // 設定 (specialKeyBar) が OFF なら補助キーごと出さない。
+                    if (settings.specialKeyBar) {
+                        SpecialKeyBar(
+                            session = active,
+                            ctrlSticky = ctrlSticky,
+                            onCtrlToggle = { ctrlSticky = !ctrlSticky }
+                        )
+                    }
                 }
             }
         }
@@ -1135,11 +1138,14 @@ private fun GuiTabScreen(
                                 }
                             }
                             KeyboardMode.SYSTEM -> {
-                                GuiSpecialKeyBar(
-                                    rfb = gui.rfb,
-                                    ctrlSticky = ctrlSticky,
-                                    onCtrlToggle = { ctrlSticky = !ctrlSticky }
-                                )
+                                // 端末側と同じ設定で GUI の補助キーバーも出し入れする。
+                                if (settings.specialKeyBar) {
+                                    GuiSpecialKeyBar(
+                                        rfb = gui.rfb,
+                                        ctrlSticky = ctrlSticky,
+                                        onCtrlToggle = { ctrlSticky = !ctrlSticky }
+                                    )
+                                }
                             }
                         }
                     }

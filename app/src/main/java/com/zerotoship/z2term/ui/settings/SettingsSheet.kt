@@ -468,6 +468,14 @@ fun SettingsSheet(
                         checked = settings.keyboardToggleBar,
                         onChange = { session.setKeyboardToggleBar(it) }
                     )
+                    // OS のキーボードに切り替えたときだけ出る補助キー (ESC/TAB/CTRL/矢印…) の表示。
+                    // OS の IME が自前で同じキーを持っている場合は二重になるので消せるようにする (要望)。
+                    ToggleField(
+                        title = stringResource(R.string.settings_special_key_bar),
+                        description = stringResource(R.string.settings_special_key_bar_desc),
+                        checked = settings.specialKeyBar,
+                        onChange = { session.setSpecialKeyBar(it) }
+                    )
                 }
 
                 // 内蔵キーボードを OS の入力方法として出す (Z2ImeService)。⚠ 有効化も選択も

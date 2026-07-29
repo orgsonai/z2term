@@ -8,7 +8,7 @@
     <string name="settings_section_language">Language / 言語</string>
     <string name="settings_section_language_desc">Switches the in-app display language (independent of the OS setting). When English is selected, untranslated parts remain in Japanese (more translation coming). The Japanese flick keyboard is hidden in English mode.</string>
     <string name="settings_group_display">Display</string>
-    <string name="settings_group_keyboard">Keyboard and input</string>
+    <string name="settings_group_keyboard">Keyboard, input and language</string>
     <string name="settings_group_linux">Linux environment</string>
     <string name="settings_group_automation">Resident servers and automation</string>
     <string name="settings_group_maintenance">Maintenance</string>
@@ -23,6 +23,8 @@
     <string name="settings_section_keyboard_style">Keyboard style</string>
     <string name="settings_keyboard_toggle_bar">Keyboard toggle bar</string>
     <string name="settings_keyboard_toggle_bar_desc">Show a show/hide bar above the keyboard. When off, double-tap the ⌨ button to toggle.</string>
+    <string name="settings_special_key_bar">Special key bar (with the OS keyboard)</string>
+    <string name="settings_special_key_bar_desc">While the OS keyboard is selected, show ESC, TAB, CTRL and arrow keys above it. Turn off to hide the bar (the built-in keyboard is unaffected).</string>
     <string name="settings_section_gui_terminal">GUI terminal</string>
     <string name="settings_gui_magnification">GUI magnification (applies from next GUI start)</string>
     <string name="settings_clean_install">Clean install</string>
