@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-29 / 対象バージョン: 0.8.276-alpha (versionCode 284)
+最終更新: 2026-07-29 / 対象バージョン: 0.8.277-alpha (versionCode 285)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1321,7 +1321,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - `KeyGestures.kt`: タップ + 長押し連打の共通ジェスチャ (`onPressedChange` コールバックで press 状態を Composable に伝える)。
   - `components/SpecialKeyBar.kt`: OS IME 時の特殊キー列。
 - `settings/SettingsSheet.kt` + `SshAccessHelper.kt`: 設定ページ (全画面) + SSH/ストレージ ヘルパー。
-  - 項目は **8 グループのアコーディオン** (`settings/SettingsGroup.kt`) に束ねる: 表示 / キーボード / 入力・言語 / Linux 環境 / 常駐サーバー・自動化 / メンテナンス / 開発者向け / このアプリについて。宣言順が表示順。開閉状態は `settings/SettingsGroupStore.kt` が `settings_group_open_<id>` の固定キー 1 本ずつで DataStore に永続化する (グループを増減しても既存の状態が壊れない。保存が無いグループは `defaultOpen` にフォールバック)。閉じている間は中身を composition しない。見出し行は「タップできる場所」だと分かるように**カード背景 + 1dp の枠**（他のタップ可能カードと同じ意匠）を付け、**開いている間は枠と背景をアクセント寄り**にして開閉状態も色で読めるようにする (0.8.184。それ以前は文字と ▸/▾ だけで、周囲の項目と見分けが付きにくかった)。
+  - 項目は **7 グループのアコーディオン** (`settings/SettingsGroup.kt`) に束ねる: 表示 / キーボード・入力 / Linux 環境 / 常駐サーバー・自動化 / メンテナンス / 開発者向け / このアプリについて。宣言順が表示順。開閉状態は `settings/SettingsGroupStore.kt` が `settings_group_open_<id>` の固定キー 1 本ずつで DataStore に永続化する (グループを増減しても既存の状態が壊れない。保存が無いグループは `defaultOpen` にフォールバック)。閉じている間は中身を composition しない。見出し行は「タップできる場所」だと分かるように**カード背景 + 1dp の枠**（他のタップ可能カードと同じ意匠）を付け、**開いている間は枠と背景をアクセント寄り**にして開閉状態も色で読めるようにする (0.8.184。それ以前は文字と ▸/▾ だけで、周囲の項目と見分けが付きにくかった)。
   - **端末リセット**は `SessionManager.resetToInitial()` を呼び、**端末タブ 1 つだけを残して他タブ (端末・GUI) を全部閉じ**、残した 1 つを `TerminalSession.restart()` で初期化する (= アプリ初回起動時の状態)。タブ数や動作中かに関わらず**常に**確認ダイアログを挟み、実行後はトーストで結果を出す。設定値・常駐サーバー・rootfs には触れない。
 - `ssh/SshProfilesSheet.kt` + `HostKeyVerificationDialog.kt`: SSH プロファイル UI + 鍵検証。
 - `sftp/SftpSheet.kt`: SFTP ファイルブラウザ (**全画面ページ**)。一覧の下方向スクロールが ModalBottomSheet の「閉じる」ドラッグと競合して勝手に閉じるため、設定ページと同じ別ページ方式に変更した。戻る矢印 / システムバックで前の画面へ戻る。他のシート (スニペット・クリップボード履歴・サーバー・独自テーマ) は 「一時的に開く」用途なので ModalBottomSheet のまま。
@@ -1630,6 +1630,13 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
 - ⚠ **`InputMethodService` は `LifecycleOwner` ではない**。`ComposeView` は lifecycle /
   ViewModelStore / SavedStateRegistry の 3 オーナーを view tree から探すので、サービス自身が
   実装して `setViewTree*Owner` で載せる。無いと入力ビューを出した瞬間に落ちる。
+- ⚠ **オーナーは `ComposeView` だけでなく入力メソッド窓の `decorView` にも載せる** (0.8.277 で修正)。
+  Compose は composition を作るとき `AbstractComposeView.resolveParentCompositionContext()` →
+  `windowRecomposer` と辿り、**窓の根から** `findViewTreeLifecycleOwner()` を呼ぶ。入力メソッドの窓は
+  `Dialog` なので根は decorView 配下 (`parentPanel`) にあり、`ComposeView` に付けただけでは見つからない。
+  0.8.276 はこれで `IllegalStateException: ViewTreeLifecycleOwner not found` を**メインスレッドの
+  未捕捉例外**として上げ、キーボードを選んだ瞬間に**アプリごと落ちていた** (端末セッションも道連れ)。
+  窓は画面回転などで作り直されるため、`onCreateInputView` と `onStartInputView` の両方で載せ直す。
 - **`ComposingState` はサービスが持つ**。入力ビューは設定変更などで作り直されるので、Compose 側に
   持たせると打っている途中のかなが消える。⚠ **入力欄が変わったら捨てる** (`onStartInputView`) —
   持ち越すと前の欄へ打っていたかなが次の欄に確定されて入る (端末と検索バーで踏んだのと同じ形)。
@@ -1637,6 +1644,9 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
   キーボードを使う (PTY へバイトを送る経路の方が、制御コードも修飾キーもそのまま通せる)。
 - ⚠ **有効化と選択はユーザーの操作でしかできない** (OS の決まり)。アプリ側は設定画面から
   `Settings.ACTION_INPUT_METHOD_SETTINGS` と `showInputMethodPicker()` を開くところまで。
+- **設定の置き場は「キーボード・入力」グループ** (0.8.277)。0.8.276 では「常駐サーバー・自動化」の
+  下にあり、キーボードの設定を探した人が見つけられなかった。同じ理由で旧「入力・言語」グループ
+  (IME 学習履歴 / 言語) もキーボードへ統合した — **打つときの設定を 1 か所にまとめる**。
 
 **次段の候補**: 入力欄の種別 (`EditorInfo.inputType`) に合わせた出し分け (数値欄では数字段だけ、
 パスワード欄では学習しない)、⌨ から OS のキーボードへ戻る導線、`supportsSwitchingToNextInputMethod`

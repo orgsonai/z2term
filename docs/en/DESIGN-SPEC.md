@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-29 / Target version: 0.8.276-alpha (versionCode 284)
+Last updated: 2026-07-29 / Target version: 0.8.277-alpha (versionCode 285)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1335,7 +1335,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   - `KeyGestures.kt`: shared gesture for tap + long-press repeat (reports press state to the Composable via the `onPressedChange` callback).
   - `components/SpecialKeyBar.kt`: the special key row for OS IME mode.
 - `settings/SettingsSheet.kt` + `SshAccessHelper.kt`: settings page (full screen) + SSH/storage helper.
-  - Items are grouped into **8 accordions** (`settings/SettingsGroup.kt`): Display / Keyboard / Input and language / Linux environment / Resident servers and automation / Maintenance / Developer / About this app. Declaration order is display order. Open/closed state is persisted by `settings/SettingsGroupStore.kt` under one fixed key per group (`settings_group_open_<id>`), so adding or removing groups never breaks existing state (groups with no stored value fall back to `defaultOpen`). A closed group does not compose its content. The header row carries a **card background plus a 1dp border** (the same treatment as the other tappable cards) so it reads as a tap target, and while the group is open the border and background shift towards the accent colour so the open/closed state is legible from the framing alone (0.8.184; before that it was just text and a ▸/▾ marker, which was hard to tell apart from the surrounding items).
+  - Items are grouped into **7 accordions** (`settings/SettingsGroup.kt`): Display / Keyboard and input / Linux environment / Resident servers and automation / Maintenance / Developer / About this app. Declaration order is display order. Open/closed state is persisted by `settings/SettingsGroupStore.kt` under one fixed key per group (`settings_group_open_<id>`), so adding or removing groups never breaks existing state (groups with no stored value fall back to `defaultOpen`). A closed group does not compose its content. The header row carries a **card background plus a 1dp border** (the same treatment as the other tappable cards) so it reads as a tap target, and while the group is open the border and background shift towards the accent colour so the open/closed state is legible from the framing alone (0.8.184; before that it was just text and a ▸/▾ marker, which was hard to tell apart from the surrounding items).
   - **Reset terminal** calls `SessionManager.resetToInitial()`: it **closes every other tab (terminal and GUI) and keeps a single terminal tab**, then reinitialises that one via `TerminalSession.restart()` (= the state right after the first launch). A confirmation dialog is **always** shown regardless of tab count or activity, and a toast reports the result. Settings, resident servers and the rootfs are untouched.
 - `ssh/SshProfilesSheet.kt` + `HostKeyVerificationDialog.kt`: SSH profile UI + key verification.
 - `sftp/SftpSheet.kt`: SFTP file browser (**full-screen page**). Scrolling the listing downwards collided with the ModalBottomSheet close drag and dismissed the sheet, so it moved to the same separate-page style as the settings page. The back arrow / system back returns to the previous screen. The other sheets (snippets, clipboard history, servers, custom theme) stay ModalBottomSheets since they are meant to be opened briefly.
@@ -1669,6 +1669,15 @@ earlier `setComposingText` does not double up.
 - ⚠ **`InputMethodService` is not a `LifecycleOwner`.** `ComposeView` looks up three owners
   (lifecycle / ViewModelStore / SavedStateRegistry) from the view tree, so the service implements
   them and attaches them with `setViewTree*Owner`. Without it the input view crashes on first show.
+- ⚠ **Attach the owners to the input-method window's `decorView`, not only to the `ComposeView`**
+  (fixed in 0.8.277). When creating its composition, Compose goes
+  `AbstractComposeView.resolveParentCompositionContext()` → `windowRecomposer` and calls
+  `findViewTreeLifecycleOwner()` **from the root of the window**. An input-method window is a `Dialog`,
+  so that root sits under the decorView (`parentPanel`) and owners set on the `ComposeView` are never
+  found. 0.8.276 therefore threw `IllegalStateException: ViewTreeLifecycleOwner not found` as an
+  **uncaught main-thread exception**: picking the keyboard **killed the whole app**, terminal sessions
+  included. The window is recreated on rotation, so attach in both `onCreateInputView` and
+  `onStartInputView`.
 - **`ComposingState` belongs to the service.** The input view is recreated on configuration changes,
   so keeping it in Compose would drop kana mid-word. ⚠ **Drop it when the field changes**
   (`onStartInputView`) — carrying it over commits kana meant for the previous field into the next one
@@ -1677,6 +1686,10 @@ earlier `setComposingText` does not double up.
   keyboard (that path can pass control codes and modifiers through as they are).
 - ⚠ **Enabling and picking are the user's to do** (an OS rule). The app only opens
   `Settings.ACTION_INPUT_METHOD_SETTINGS` and `showInputMethodPicker()` from its settings screen.
+- **The settings live in the "Keyboard and input" group** (0.8.277). In 0.8.276 they sat under
+  "Resident servers and automation", where nobody looking for keyboard settings would find them.
+  For the same reason the old "Input and language" group (IME learning history / language) was folded
+  into Keyboard — **everything about typing in one place**.
 
 **Candidates for the next stage**: adapting to `EditorInfo.inputType` (digits only for numeric
 fields, no learning in password fields), a key to hand back to the OS keyboard, and the globe key via

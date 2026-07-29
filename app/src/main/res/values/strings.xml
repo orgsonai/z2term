@@ -8,8 +8,7 @@
     <string name="settings_section_language">Language / 言語</string>
     <string name="settings_section_language_desc">Switches the in-app display language (independent of the OS setting). When English is selected, untranslated parts remain in Japanese (more translation coming). The Japanese flick keyboard is hidden in English mode.</string>
     <string name="settings_group_display">Display</string>
-    <string name="settings_group_keyboard">Keyboard</string>
-    <string name="settings_group_input">Input and language</string>
+    <string name="settings_group_keyboard">Keyboard and input</string>
     <string name="settings_group_linux">Linux environment</string>
     <string name="settings_group_automation">Resident servers and automation</string>
     <string name="settings_group_maintenance">Maintenance</string>

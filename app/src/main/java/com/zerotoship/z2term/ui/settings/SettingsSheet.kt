@@ -469,9 +469,48 @@ fun SettingsSheet(
                         onChange = { session.setKeyboardToggleBar(it) }
                     )
                 }
-            }
 
-            SettingsGroupSection(SettingsGroup.INPUT) {
+                // 内蔵キーボードを OS の入力方法として出す (Z2ImeService)。⚠ 有効化も選択も
+                // ユーザーの操作でしか行えない (OS の決まり) ので、ここは 2 つの画面へ送るだけ。
+                // 「有効にする」→ OS の入力方法一覧、「切り替える」→ キーボード選択ダイアログ。
+                // キーボードの設定なので**キーボードのグループ**に置く (以前は自動化の下にあり、
+                // キーボードを探した人が見つけられなかった)。
+                Section(title = stringResource(R.string.settings_section_ime)) {
+                    Text(
+                        text = stringResource(R.string.settings_ime_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    ActionButton(
+                        label = stringResource(R.string.settings_ime_enable),
+                        onClick = {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }
+                        }
+                    )
+                    ActionButton(
+                        label = stringResource(R.string.settings_ime_pick),
+                        onClick = {
+                            runCatching {
+                                val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE)
+                                    as android.view.inputmethod.InputMethodManager
+                                imm.showInputMethodPicker()
+                            }
+                        }
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_ime_note),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
                 // IME 学習履歴 (キーボードパッチ): 件数表示 + 管理ボタン (シートを開く)
                 Section(title = stringResource(R.string.settings_section_ime_history)) {
                     val historyVersion by com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore.versionFlow.collectAsState()
@@ -824,45 +863,6 @@ fun SettingsSheet(
                     ActionButton(
                         label = stringResource(R.string.settings_open_when_rules),
                         onClick = { whenRulesOpen = true }
-                    )
-                }
-
-                // 内蔵キーボードを OS の入力方法として出す (Z2ImeService)。⚠ 有効化も選択も
-                // ユーザーの操作でしか行えない (OS の決まり) ので、ここは 2 つの画面へ送るだけ。
-                // 「有効にする」→ OS の入力方法一覧、「切り替える」→ キーボード選択ダイアログ。
-                Section(title = stringResource(R.string.settings_section_ime)) {
-                    Text(
-                        text = stringResource(R.string.settings_ime_desc),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    ActionButton(
-                        label = stringResource(R.string.settings_ime_enable),
-                        onClick = {
-                            runCatching {
-                                context.startActivity(
-                                    Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
-                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                )
-                            }
-                        }
-                    )
-                    ActionButton(
-                        label = stringResource(R.string.settings_ime_pick),
-                        onClick = {
-                            runCatching {
-                                val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE)
-                                    as android.view.inputmethod.InputMethodManager
-                                imm.showInputMethodPicker()
-                            }
-                        }
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_ime_note),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
                     )
                 }
 

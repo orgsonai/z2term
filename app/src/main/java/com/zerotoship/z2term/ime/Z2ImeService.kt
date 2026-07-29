@@ -69,7 +69,10 @@ import kotlinx.coroutines.launch
  *
  * ⚠ **`InputMethodService` は `LifecycleOwner` ではない**ので、`ComposeView` が要求する 3 つの
  * オーナー (lifecycle / ViewModelStore / SavedStateRegistry) を自前で用意して view tree に載せる。
- * これが無いと入力ビューを出した瞬間に `ViewTreeLifecycleOwner not found` で落ちる。
+ * ⚠ しかも **`ComposeView` 自身に付けるだけでは足りない** — Compose は窓の**根**から
+ * `LifecycleOwner` を探すため ([AbstractComposeView] → windowRecomposer)、入力メソッドの窓
+ * (`Dialog`) の decorView にも同じオーナーを載せないと、キーボードが出た瞬間に
+ * `ViewTreeLifecycleOwner not found` でアプリごと落ちる ([attachOwners])。
  */
 class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
 
@@ -112,16 +115,37 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
     }
 
     override fun onCreateInputView(): View {
+        // ⚠ 窓の decorView が先。ComposeView だけに付けても Compose は見つけられない (下記)。
+        attachOwners(window?.window?.decorView)
         val view = ComposeView(this)
-        view.setViewTreeLifecycleOwner(this)
-        view.setViewTreeViewModelStoreOwner(this)
-        view.setViewTreeSavedStateRegistryOwner(this)
+        attachOwners(view)
         view.setContent { KeyboardContent() }
         return view
     }
 
+    /**
+     * `ComposeView` が要求する 3 つのオーナーを [view] に載せる。
+     *
+     * ⚠ **`ComposeView` 自身に付けるだけでは動かない。** Compose は composition を作るとき
+     * `AbstractComposeView.resolveParentCompositionContext()` → `windowRecomposer` と辿り、
+     * **窓の根 (`contentChild`) から** `findViewTreeLifecycleOwner()` を呼ぶ。入力メソッドの窓は
+     * `Dialog` (`SoftInputWindow`) なので根は decorView 配下の `parentPanel` になり、その上に
+     * オーナーが無いと `IllegalStateException: ViewTreeLifecycleOwner not found` が
+     * **メインスレッドの未捕捉例外**として上がる = キーボードが出た瞬間にアプリごと落ちる。
+     * 端末セッションも一緒に死ぬので、キーボード切替で選んだだけで作業中の端末が消えていた。
+     */
+    private fun attachOwners(view: View?) {
+        view ?: return
+        view.setViewTreeLifecycleOwner(this)
+        view.setViewTreeViewModelStoreOwner(this)
+        view.setViewTreeSavedStateRegistryOwner(this)
+    }
+
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        // 画面回転や設定変更で窓ごと作り直されることがある。作り直された decorView には
+        // オーナーが付いていないので、出すたびに載せ直す (同じ値の付け直しなので無害)。
+        attachOwners(window?.window?.decorView)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
         // ⚠ 入力欄が変わったら変換中を捨てる。持ち越すと、前の欄へ打っていたかなが
         // 次の欄に確定されて入る (端末と検索バーで同じ事故を踏んだ)。

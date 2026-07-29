@@ -7,7 +7,7 @@ import com.zerotoship.z2term.R
  * 設定ページの項目グループ (アコーディオンの単位)。
  *
  * 設定項目が増えて 1 本の長いリストでは目的の設定に辿り着けなくなったため、関連する
- * セクションをこの 8 グループに束ね、開閉できるようにした (要望)。**宣言順が画面上の
+ * セクションをこの 7 グループに束ね、開閉できるようにした (要望)。**宣言順が画面上の
  * 表示順**で、機能の関連が近いものが隣り合うよう並べ替えてある。
  *
  * [id] は開閉状態の永続化キー ([SettingsGroupStore]) に使う固定文字列。**改名しないこと**
@@ -24,11 +24,15 @@ enum class SettingsGroup(
     /** テーマ / フォントファミリー / フォントサイズ / スクロールバック行数 */
     DISPLAY("display", R.string.settings_group_display, true),
 
-    /** キーボードの大きさ / 独自キーボードスタイル / キーボード位置 (横画面) */
+    /**
+     * キーボードの大きさ / 独自キーボードスタイル / キーボード位置 (横画面) /
+     * 内蔵キーボードを他でも使う (IME) / 日本語 IME 学習履歴 / 言語。
+     *
+     * 「入力・言語」グループはここへ統合した (要望)。⚠ どれも**打つときの設定**で、
+     * キーボードを探した人が別のグループを開き直すことになっていたため。
+     * 旧グループの id `"input"` は [SettingsGroupStore] に残るが、参照が無いので無視される。
+     */
     KEYBOARD("keyboard", R.string.settings_group_keyboard, true),
-
-    /** 日本語 IME 学習履歴 / 言語 */
-    INPUT("input", R.string.settings_group_input, false),
 
     /** ディストロ / OS データの削除 / ログインシェル / 外部ストレージ / GUI ターミナル */
     LINUX("linux", R.string.settings_group_linux, false),

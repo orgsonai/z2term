@@ -8,8 +8,7 @@
     <string name="settings_section_language">言語 / Language</string>
     <string name="settings_section_language_desc">アプリ内の表示言語を切替えます (OS 設定とは別)。English を選ぶと未翻訳の箇所は日本語のままです (順次翻訳予定)。日本語フリックキーボードは English モードでは非表示になります。</string>
     <string name="settings_group_display">表示</string>
-    <string name="settings_group_keyboard">キーボード</string>
-    <string name="settings_group_input">入力・言語</string>
+    <string name="settings_group_keyboard">キーボード・入力</string>
     <string name="settings_group_linux">Linux 環境</string>
     <string name="settings_group_automation">常駐サーバー・自動化</string>
     <string name="settings_group_maintenance">メンテナンス</string>
