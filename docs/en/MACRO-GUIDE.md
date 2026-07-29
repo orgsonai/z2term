@@ -4,7 +4,7 @@
 It is a manual you can read and write by hand, and at the same time a **machine-readable
 reference you can feed whole to an AI** — then just say "I want to …" and it generates the macro.
 
-> Target version: 0.8.283-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
+> Target version: 0.8.285-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
 > Everything here is **non-root, fully local, no external transmission**. No hard-permission features are included.
 
 ---
@@ -907,6 +907,12 @@ remind.sh list / remind.sh del 2       # list / cancel
   `events.jsonl`, so something has to pick it up. `z2-when time:` runs **your command directly** (→ 3-A).
 - **The text lives in a file; the notification name only carries an id** (`~/.z2term/remind/<id>.txt`).
   Put the text in the name and the matching breaks the moment it contains a space or an emoji.
+- **Day-based wording is folded into a delay** (0.8.285). `tomorrow` / `Nd` cannot be expressed with
+  `z2-alarm at`, which only takes "the next HH:MM" and **cannot carry a date**. Today's midnight is
+  derived, the days and time added, and the result handed to `z2-alarm in <sec>s`. ⚠ `date -d "tomorrow"`
+  does not exist in busybox. ⚠ A day is added as 86400s, so a DST switch day can be an hour off.
+  ⚠ The list stores the **real date** (`07/31 18:30`), not "tomorrow", which would read wrong once the
+  date rolls over.
 - **An unreadable "when" is refused before booking** (0.8.283). Not only the format (`HH:MM`) but the
   **range** (00:00-23:59) and the delay being a whole number (`1.5h` is rejected). ⚠ Letting those
   through breaks `$((num*3600))`, or parks a reminder that never rings in the list wearing a

@@ -24,13 +24,29 @@ class RemindScriptTest {
     private fun script(lang: String): String = z2MacroSamples(lang)["remind.sh"]!!
 
     /** remind.sh を引数付きで走らせ、(終了コード, 出力) を返す。 */
-    private fun run(lang: String, vararg args: String): Pair<Int, String> {
+    private fun run(lang: String, vararg args: String): Pair<Int, String> =
+        run(lang, fakes = false, args = args)
+
+    /**
+     * [fakes] = true なら `z2-alarm` などの偽物を PATH の先頭に置いて、**登録まで走り切らせる**。
+     * 一覧に出る表記 (PLAN) を見たいときに使う。false なら本物も偽物も無い = 予約で止まる。
+     */
+    private fun run(lang: String, fakes: Boolean, vararg args: String): Pair<Int, String> {
         val f = File.createTempFile("remind", ".sh").apply { writeText(script(lang)) }
         val home = File.createTempFile("remind-home", "").apply { delete(); mkdirs() }
+        val bin = File(home, "bin").apply { mkdirs() }
         try {
+            if (fakes) {
+                // z2-when だけはルール id を返す (cmd_add がその出力を wid として持つため)。
+                for (name in listOf("z2-alarm", "z2-toast", "z2-notify", "z2-ask")) {
+                    File(bin, name).apply { writeText("#!/bin/sh\nexit 0\n"); setExecutable(true) }
+                }
+                File(bin, "z2-when").apply { writeText("#!/bin/sh\necho w1\n"); setExecutable(true) }
+            }
             val pb = ProcessBuilder(listOf(sh!!, f.absolutePath) + args).redirectErrorStream(true)
             pb.environment()["HOME"] = home.absolutePath
             // ⚠ PATH を空にはしない (date / grep が要る)。z2-* が無いことが再現できればよい。
+            if (fakes) pb.environment()["PATH"] = bin.absolutePath + ":" + System.getenv("PATH")
             val p = pb.start()
             val out = p.inputStream.bufferedReader().readText()
             return p.waitFor() to out
@@ -38,6 +54,13 @@ class RemindScriptTest {
             f.delete()
             home.deleteRecursively()
         }
+    }
+
+    /** 今から [days] 日後の日付を `MM/dd` で。 */
+    private fun dateAfter(days: Int): String {
+        val c = java.util.Calendar.getInstance()
+        c.add(java.util.Calendar.DAY_OF_YEAR, days)
+        return java.text.SimpleDateFormat("MM/dd", java.util.Locale.US).format(c.time)
     }
 
     @Test
@@ -111,6 +134,81 @@ class RemindScriptTest {
                 !out.contains("分かりません") && !out.contains("書いてください")
             )
         }
+    }
+
+    @Test
+    fun `日付の言い方も読み取って予約まで進む`() {
+        assumeTrue(sh != null)
+        // ⚠ 「明日」系は z2-alarm の at では書けない (日付を渡せない) ので in <秒>s へ寄せている。
+        //   読めていれば予約の段まで進み、テスト環境では z2-alarm が無くてそこで止まる。
+        for (spec in listOf(
+            arrayOf("明日", "18:30"), arrayOf("明日18:30"), arrayOf("明日の18:30"),
+            arrayOf("明後日"), arrayOf("あさって", "09:00"), arrayOf("翌日", "07:00"),
+            arrayOf("3日後", "07:00"), arrayOf("3日後の07:00"), arrayOf("3d", "09:00"), arrayOf("3d")
+        )) {
+            val (code, out) = run("ja", *spec, "本文")
+            assertNotEquals("${spec.toList()}: 予約が無い環境で成功してしまった: $out", 0, code)
+            assertTrue(
+                "${spec.toList()}: 読み取りで断られている: $out",
+                !out.contains("分かりません") && !out.contains("時刻") && !out.contains("過ぎ")
+            )
+        }
+    }
+
+    @Test
+    fun `一覧の表記は「明日」ではなく実際の日付になる`() {
+        assumeTrue(sh != null)
+        // ⚠ 「明日」と覚えると日付が変わった後にズレて見える。登録時点で実日付に直して持つ。
+        val (code, out) = run("ja", fakes = true, "明日", "18:30", "ゴミ出し")
+        assertEquals("登録に失敗した: $out", 0, code)
+        assertTrue("明日の日付になっていない: $out", out.contains("${dateAfter(1)} 18:30"))
+        assertTrue("本文が落ちている: $out", out.contains("ゴミ出し"))
+    }
+
+    @Test
+    fun `N日後は日数ぶん先の日付になる`() {
+        assumeTrue(sh != null)
+        val (code, out) = run("ja", fakes = true, "3日後", "07:00", "返却")
+        assertEquals("登録に失敗した: $out", 0, code)
+        assertTrue("3 日後の日付になっていない: $out", out.contains("${dateAfter(3)} 07:00"))
+    }
+
+    @Test
+    fun `時刻を省くと今と同じ時刻になる`() {
+        assumeTrue(sh != null)
+        // 既定時刻を勝手に決めず、「明後日のこの時間」にする。
+        val (code, out) = run("ja", fakes = true, "明後日", "電話する")
+        assertEquals("登録に失敗した: $out", 0, code)
+        val nowHm = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US).format(java.util.Date())
+        assertTrue("明後日の同時刻になっていない (期待 ${dateAfter(2)} $nowHm): $out",
+            out.contains("${dateAfter(2)} $nowHm"))
+        assertTrue("本文が落ちている: $out", out.contains("電話する"))
+    }
+
+    @Test
+    fun `時刻を省いた日付指定は本文を食べない`() {
+        assumeTrue(sh != null)
+        // 「明日 電話する」の "電話する" を時刻と誤解して弾いてはいけない (本文として残す)。
+        val (code, out) = run("ja", "明日", "電話する")
+        assertNotEquals(0, code)
+        assertTrue("本文が時刻として読まれている: $out", !out.contains("時刻") && !out.contains("分かりません"))
+    }
+
+    @Test
+    fun `過ぎた日時は断る`() {
+        assumeTrue(sh != null)
+        // 0 日後 = 今日。00:00 は必ず過ぎているので、予約せずに断る。
+        val (code, out) = run("ja", "0日後の00:00", "本文")
+        assertNotEquals("過去の日時が通ってしまった: $out", 0, code)
+        assertTrue("過ぎたことが分からない出力: $out", out.contains("過ぎ"))
+    }
+
+    @Test
+    fun `英語の tomorrow も読める`() {
+        assumeTrue(sh != null)
+        val (code, out) = run("en", "tomorrow", "18:30", "the bins")
+        assertNotEquals(0, code)
+        assertTrue("読み取りで断られている: $out", !out.contains("cannot read"))
     }
 
     @Test

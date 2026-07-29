@@ -739,6 +739,9 @@ private fun remindBody(d: String, ja: Boolean): String {
 # 使い方:
 #   remind.sh 30m 薬を飲む            30 分後に 1 回 (90s / 2h も可)
 #   remind.sh 18:30 ゴミ出し          次の 18:30 に 1 回 (過ぎていれば明日)
+#   remind.sh 明日 18:30 ゴミ出し     明日の 18:30 に 1 回
+#   remind.sh 明後日 電話する          明後日の**今と同じ時刻**に 1 回 (時刻を書けばその時刻)
+#   remind.sh 3日後 07:00 返却        N 日後 (3d / 3日後の07:00 も同じ)
 #   remind.sh 毎日 07:00 体重を計る    毎日
 #   remind.sh 平日 09:00 朝会          月〜金
 #   remind.sh 毎週 月 09:00 資源ごみ   その曜日だけ
@@ -754,6 +757,9 @@ private fun remindBody(d: String, ja: Boolean): String {
 # Usage:
 #   remind.sh 30m take pills              once, 30 minutes from now (90s / 2h too)
 #   remind.sh 18:30 take out the bins     once, at the next 18:30 (tomorrow if it passed)
+#   remind.sh tomorrow 18:30 the bins     once, tomorrow at 18:30
+#   remind.sh 3d call them back           once, N days from now, **at the current time of day**
+#   remind.sh 3d 07:00 return it          ... or at the time you give
 #   remind.sh daily 07:00 weigh in        every day
 #   remind.sh weekday 09:00 standup       Mon-Fri
 #   remind.sh weekly mon 09:00 recycling  that weekday only
@@ -811,9 +817,9 @@ after_label() {
     }
     val mUsageAdd = if (ja) "usage: remind.sh <いつ> <本文>" else "usage: remind.sh <when> <text>"
     val mBadWhen = if (ja) {
-        "いつ？ が分かりません (例: 30m / 18:30 / 毎日 07:00 / 平日 09:00):"
+        "いつ？ が分かりません (例: 30m / 18:30 / 明日 18:30 / 3日後 09:00 / 毎日 07:00):"
     } else {
-        "cannot read the time (try: 30m / 18:30 / daily 07:00 / weekday 09:00):"
+        "cannot read the time (try: 30m / 18:30 / tomorrow 18:30 / 3d 09:00 / daily 07:00):"
     }
     val mBadTime = if (ja) "時刻は HH:MM で書いてください:" else "write the time as HH:MM:"
     val mBadRange = if (ja) {
@@ -827,6 +833,34 @@ after_label() {
         "no time given (e.g. daily 07:00):"
     }
     val mBadDow = if (ja) "曜日が分かりません:" else "unknown weekday:"
+    val mPastTime = if (ja) {
+        "その時刻はもう過ぎています:"
+    } else {
+        "that time has already passed:"
+    }
+    val cDays = if (ja) {
+        """    # 日付で書く言い方。時刻を省いたら**今と同じ時刻**にする (既定時刻を勝手に決めない)。
+    # 「明日の18:30」のように 1 語で来ることもあるので、くっついた形も受ける。"""
+    } else {
+        """    # Day-based wording. With no time, keep **the current time of day** (never invent a default).
+    # It can also arrive as a single word, so the glued form is accepted too."""
+    }
+    val cDayEpoch = if (ja) {
+        """# 「N 日後の HH:MM」を epoch 秒にする。⚠ date -d "tomorrow" は busybox に無いので、
+# 今日の 0 時を出してから日数と時刻を足す。
+# ⚠ 先頭 0 の付いた値 ("08") を ${d}(()) に渡すと 8 進数と解釈されるので必ず落とす。
+# ⚠ 1 日 = 86400 秒として足すので、夏時間のある地域では切り替え日に 1 時間ずれる。"""
+    } else {
+        """# Turn "HH:MM, N days from now" into epoch seconds. ⚠ busybox has no date -d "tomorrow",
+# so today's midnight is derived first and the days and time added on top.
+# ⚠ A value with a leading zero ("08") is read as octal by ${d}(()), so strip it.
+# ⚠ A day is added as 86400s, so it can be an hour off on a DST switch day."""
+    }
+    val cFmtAt = if (ja) {
+        """# 一覧に出す日時。⚠ 「明日」のまま覚えると日付が変わった後にズレて見えるので、実日付にする。"""
+    } else {
+        """# The label shown in the list. ⚠ Keeping "tomorrow" would read wrong once the date rolls over."""
+    }
     val mNoBody = if (ja) "リマインドの本文を書いてください" else "say what to remind you about"
     val mNoAlarm = if (ja) "予約できませんでした" else "could not schedule it"
     val mNone = if (ja) "予定はありません" else "nothing scheduled"
@@ -846,7 +880,7 @@ after_label() {
     val mAsk1 = if (ja) "何をリマインド？" else "Remind you about what?"
     val mAsk1H = if (ja) "例: 薬を飲む" else "e.g. take pills"
     val mAsk2 = if (ja) "いつ？" else "When?"
-    val mAsk2H = if (ja) "30m / 18:30 / 毎日 07:00 / 平日 09:00" else "30m / 18:30 / daily 07:00 / weekday 09:00"
+    val mAsk2H = if (ja) "30m / 18:30 / 明日 18:30 / 3日後 / 毎日 07:00" else "30m / 18:30 / tomorrow 18:30 / 3d / daily 07:00"
     val mAskAgain = if (ja) "もう一度入力してください" else "please enter it again"
     val mAskGiveUp = if (ja) {
         "${ASK_TRIES} 回とも読めませんでした。端末からも登録できます: remind.sh 30m 薬を飲む"
@@ -922,10 +956,24 @@ die() { echo "${d}1" >&2; exit 1; }
 
 $cParse
 parse_when() {
-  KIND=; PLAN=; SPEC=; USED=0; WHY=; hhmm=; dowf=; downame=
+  KIND=; PLAN=; SPEC=; USED=0; WHY=; hhmm=; dowf=; downame=; days=
   w1=${d}1; w2=${d}2; w3=${d}3
 
   case ${d}w1 in
+$cDays
+    明日|あした|翌日|tomorrow)
+                      KIND=once; days=1; USED=1
+                      if is_hhmm "${d}w2"; then hhmm=${d}w2; USED=2; fi ;;
+    明後日|あさって)   KIND=once; days=2; USED=1
+                      if is_hhmm "${d}w2"; then hhmm=${d}w2; USED=2; fi ;;
+    明日*)            KIND=once; days=1; USED=1; hhmm=${d}{w1#明日}; hhmm=${d}{hhmm#の} ;;
+    明後日*)          KIND=once; days=2; USED=1; hhmm=${d}{w1#明後日}; hhmm=${d}{hhmm#の} ;;
+    [0-9]*日後*)      KIND=once; days=${d}{w1%%日後*}; USED=1
+                      rest=${d}{w1#*日後}; rest=${d}{rest#の}
+                      if [ -n "${d}rest" ]; then hhmm=${d}rest
+                      elif is_hhmm "${d}w2"; then hhmm=${d}w2; USED=2; fi ;;
+    [0-9]*d)          KIND=once; days=${d}{w1%d}; USED=1
+                      if is_hhmm "${d}w2"; then hhmm=${d}w2; USED=2; fi ;;
     毎日|daily)       KIND=repeat; hhmm=${d}w2; USED=2; dowf=daily ;;
     平日|weekday)     KIND=repeat; hhmm=${d}w2; USED=2; dowf=1-5 ;;
     毎週|weekly)      KIND=repeat; hhmm=${d}w3; USED=3; downame=${d}w2
@@ -945,6 +993,18 @@ parse_when() {
     *) WHY="$mBadWhen ${d}w1"; return 1 ;;
   esac
 
+  # 日付で書かれたもの (明日 / 明後日 / N日後) は秒差にして z2-alarm へ渡す。
+  # ⚠ z2-alarm の at は「次の HH:MM」しか取れず**日付を渡せない**ので、in <秒>s へ寄せる。
+  if [ -n "${d}days" ]; then
+    case ${d}days in *[!0-9]*|"") WHY="$mBadWhen ${d}w1"; return 1 ;; esac
+    [ -z "${d}hhmm" ] || check_hhmm "${d}hhmm" || return 1
+    tgt=${d}(day_epoch "${d}days" "${d}hhmm")
+    sec=${d}(( tgt - ${d}(date +%s) ))
+    [ "${d}sec" -gt 0 ] || { WHY="$mPastTime ${d}(fmt_at "${d}tgt")"; return 1; }
+    PLAN=${d}(fmt_at "${d}tgt"); SPEC="in ${d}{sec}s"
+    return 0
+  fi
+
   check_hhmm "${d}hhmm" || return 1
 
   if [ "${d}KIND" = once ]; then
@@ -957,6 +1017,34 @@ parse_when() {
     PLAN="$pWeekday${d}hhmm"; SPEC="time:cron=${d}(cron_of "${d}hhmm" "${d}dowf")"
   fi
   return 0
+}
+
+$cDayEpoch
+day_epoch() {
+  now=${d}(date +%s)
+  ch=${d}(date +%H); cm=${d}(date +%M); cs=${d}(date +%S)
+  ch=${d}{ch#0}; [ -n "${d}ch" ] || ch=0
+  cm=${d}{cm#0}; [ -n "${d}cm" ] || cm=0
+  cs=${d}{cs#0}; [ -n "${d}cs" ] || cs=0
+  if [ -n "${d}2" ]; then
+    hh=${d}{2%%:*}; mm=${d}{2##*:}
+    hh=${d}{hh#0}; [ -n "${d}hh" ] || hh=0
+    mm=${d}{mm#0}; [ -n "${d}mm" ] || mm=0
+  else
+    hh=${d}ch; mm=${d}cm
+  fi
+  echo ${d}(( now - ch*3600 - cm*60 - cs + ${d}1*86400 + hh*3600 + mm*60 ))
+}
+
+$cFmtAt
+fmt_at() { date -d "@${d}1" +'%m/%d %H:%M' 2>/dev/null || echo "${d}1"; }
+
+# 次の語が HH:MM か。時刻を省いた「明日 電話する」と「明日 18:30 電話する」を見分ける。
+is_hhmm() {
+  case ${d}1 in
+    [0-9]:[0-9][0-9]|[0-9][0-9]:[0-9][0-9]) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 # 時刻の検査。⚠ **書式だけでなく範囲も見る** — "18:70" は書式に通ってしまい、

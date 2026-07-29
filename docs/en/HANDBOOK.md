@@ -615,6 +615,9 @@ answer stays in the reply box, so you only have to fix it. After three tries it 
 "Not set" (before this it just ended quietly, so the tap looked like it did nothing).
 **A successful one is announced too**, as an "⏰ Reminder set" notification with the plan and the text.
 
+- **Days work too** (0.8.285): `tomorrow` and `Nd` (`3d`). **Leave the time out and it keeps the current
+  time of day** (no invented default like 9am). ⚠ The list shows the **real date** (`07/31 18:30`) —
+  keeping "tomorrow" would read wrong once the date rolls over.
 - **Anything written the wrong way is not scheduled** (0.8.283): `18:70` (out of range), `daily` with no
   time, `1.5h` (not a whole number), an unknown weekday. You get the reason, in the terminal too.
 - Firing can be **a few minutes late** (the booking follows the battery-saving Doze schedule). Not for
