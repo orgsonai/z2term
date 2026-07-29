@@ -510,6 +510,7 @@
     <string name="snippet_sample_ls_label">一覧 (詳細)</string>
     <string name="snippet_sample_apk_update_label">apk: 更新 (index 取得)</string>
     <string name="snippet_sample_apk_add_label">apk: 追加 (パッケージ名を追記)</string>
+    <string name="snippet_sample_remind_label">リマインドの使い方 (書き方の一覧)</string>
 
     <!-- IME 学習履歴管理 (キーボードパッチ) -->
     <string name="settings_section_ime_history">日本語 IME 学習履歴</string>
@@ -718,7 +719,8 @@
     <string name="intro_footer">一覧は z2help ／ 動かないときは z2doctor</string>
     <string name="intro_card_notify">スマホに通知を出してみる</string>
     <string name="intro_card_torch">ライトを点けてみる</string>
-    <string name="intro_card_sshd">PC からこの端末に入れるようにする</string>
+    <string name="intro_card_remind_install">通知でリマインドできるようにする</string>
+    <string name="intro_card_remind_setup">リマインドの受け口とタイルを用意する</string>
     <string name="settings_intro_again">はじめの案内をもう一度出す</string>
     <string name="settings_intro_again_desc">次にアプリを開いたとき、最初の 3 枚をもう一度表示します。</string>
     <string name="settings_intro_again_done">次に開いたときに出ます</string>

@@ -515,6 +515,7 @@
     <string name="snippet_sample_ls_label">list (long)</string>
     <string name="snippet_sample_apk_update_label">apk: update (fetch index)</string>
     <string name="snippet_sample_apk_add_label">apk: add (append package name)</string>
+    <string name="snippet_sample_remind_label">How to write reminders (the full syntax)</string>
 
     <!-- IME learning history management (keyboard patch) -->
     <string name="settings_section_ime_history">Japanese IME learning history</string>
@@ -730,7 +731,8 @@
     <string name="intro_footer">z2help for the full list / z2doctor when something does not work</string>
     <string name="intro_card_notify">Post a notification on your phone</string>
     <string name="intro_card_torch">Turn the flashlight on</string>
-    <string name="intro_card_sshd">Let a PC connect to this device</string>
+    <string name="intro_card_remind_install">Get reminders as notifications</string>
+    <string name="intro_card_remind_setup">Set up the reminder hooks and tiles</string>
     <string name="settings_intro_again">Show the intro again</string>
     <string name="settings_intro_again_desc">The first three cards will appear again the next time you open the app.</string>
     <string name="settings_intro_again_done">It will show next time you open the app</string>

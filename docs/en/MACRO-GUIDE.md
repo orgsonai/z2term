@@ -4,7 +4,7 @@
 It is a manual you can read and write by hand, and at the same time a **machine-readable
 reference you can feed whole to an AI** — then just say "I want to …" and it generates the macro.
 
-> Target version: 0.8.285-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
+> Target version: 0.8.286-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
 > Everything here is **non-root, fully local, no external transmission**. No hard-permission features are included.
 
 ---
@@ -907,6 +907,21 @@ remind.sh list / remind.sh del 2       # list / cancel
   `events.jsonl`, so something has to pick it up. `z2-when time:` runs **your command directly** (→ 3-A).
 - **The text lives in a file; the notification name only carries an id** (`~/.z2term/remind/<id>.txt`).
   Put the text in the name and the matching breaks the moment it contains a space or an emoji.
+- **More ways to write it** (0.8.286): `monthly 15 09:00` / `yearly 07/30 19:00` map onto the **day and
+  month fields of cron** (`0 9 15 * *` / `0 19 30 7 *`). One-shot `07/30 19:00` / `2030 07/30 19:00` /
+  `203007301900` / `07301900` are turned into a day difference and then a delay. ⚠ Leap years mean the
+  civil-date-to-day-number conversion is done here (`days_from_civil`); `date -d "2026-07-30"` is not
+  dependable on busybox. ⚠ Only the **day difference** is used, with the time left to `day_epoch`, which
+  cancels out the timezone. ⚠ A writable-but-nonexistent date (`2/30`) rolls over into the next month,
+  so it is converted back and checked.
+- **The short "every" form** (0.8.286): `every 19:00` -> daily, `every wed 19:00` -> weekly,
+  `every 15 19:00` -> monthly, `every 07/30 19:00` -> yearly. ⚠ Only **the shape of the next word**
+  decides. The word count does not change (one word swapped for another), so the `USED` argument count
+  still holds.
+- **Removing from the list tile** (0.8.286): `peek` carries a single **[Delete]** button; pressing it
+  asks for a number with `z2-ask` and hands it to `del`. ⚠ **Keep the numbers in the list** (`peek` used
+  to strip them) — they are what you point at. ⚠ Pressing a button closes the original notification, so
+  the list is posted again before asking.
 - **Day-based wording is folded into a delay** (0.8.285). `tomorrow` / `Nd` cannot be expressed with
   `z2-alarm at`, which only takes "the next HH:MM" and **cannot carry a date**. Today's midnight is
   derived, the days and time added, and the result handed to `z2-alarm in <sec>s`. ⚠ `date -d "tomorrow"`

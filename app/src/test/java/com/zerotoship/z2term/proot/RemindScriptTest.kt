@@ -32,16 +32,32 @@ class RemindScriptTest {
      * 一覧に出る表記 (PLAN) を見たいときに使う。false なら本物も偽物も無い = 予約で止まる。
      */
     private fun run(lang: String, fakes: Boolean, vararg args: String): Pair<Int, String> {
+        val (code, out, _) = runTraced(lang, fakes, *args)
+        return code to out
+    }
+
+    /**
+     * [run] と同じだが、偽物に渡された引数も返す (3 つ目)。
+     * ⚠ 繰り返しの予定は `z2-when` へ渡す **cron 式が正しいか**が要で、そこは出力に出ない。
+     */
+    private fun runTraced(lang: String, fakes: Boolean, vararg args: String): Triple<Int, String, String> {
         val f = File.createTempFile("remind", ".sh").apply { writeText(script(lang)) }
         val home = File.createTempFile("remind-home", "").apply { delete(); mkdirs() }
         val bin = File(home, "bin").apply { mkdirs() }
+        val trace = File(home, "trace.log")
         try {
             if (fakes) {
-                // z2-when だけはルール id を返す (cmd_add がその出力を wid として持つため)。
                 for (name in listOf("z2-alarm", "z2-toast", "z2-notify", "z2-ask")) {
-                    File(bin, name).apply { writeText("#!/bin/sh\nexit 0\n"); setExecutable(true) }
+                    File(bin, name).apply {
+                        writeText("#!/bin/sh\necho \"$name \$*\" >> ${trace.absolutePath}\nexit 0\n")
+                        setExecutable(true)
+                    }
                 }
-                File(bin, "z2-when").apply { writeText("#!/bin/sh\necho w1\n"); setExecutable(true) }
+                // z2-when だけはルール id を返す (cmd_add がその出力を wid として持つため)。
+                File(bin, "z2-when").apply {
+                    writeText("#!/bin/sh\necho \"z2-when \$*\" >> ${trace.absolutePath}\necho w1\n")
+                    setExecutable(true)
+                }
             }
             val pb = ProcessBuilder(listOf(sh!!, f.absolutePath) + args).redirectErrorStream(true)
             pb.environment()["HOME"] = home.absolutePath
@@ -49,7 +65,8 @@ class RemindScriptTest {
             if (fakes) pb.environment()["PATH"] = bin.absolutePath + ":" + System.getenv("PATH")
             val p = pb.start()
             val out = p.inputStream.bufferedReader().readText()
-            return p.waitFor() to out
+            val code = p.waitFor()
+            return Triple(code, out, if (trace.exists()) trace.readText() else "")
         } finally {
             f.delete()
             home.deleteRecursively()
@@ -201,6 +218,99 @@ class RemindScriptTest {
         val (code, out) = run("ja", "0日後の00:00", "本文")
         assertNotEquals("過去の日時が通ってしまった: $out", 0, code)
         assertTrue("過ぎたことが分からない出力: $out", out.contains("過ぎ"))
+    }
+
+    @Test
+    fun `毎月と毎年は cron の日と月の欄を埋める`() {
+        assumeTrue(sh != null)
+        val (c1, out1, t1) = runTraced("ja", true, "毎月", "15", "09:00", "家賃")
+        assertEquals("登録に失敗した: $out1", 0, c1)
+        assertTrue("cron が毎月 15 日になっていない: $t1", t1.contains("time:cron=0 9 15 * *"))
+        assertTrue("表記が毎月になっていない: $out1", out1.contains("毎月 15日 09:00"))
+
+        val (c2, out2, t2) = runTraced("ja", true, "毎年", "07/30", "19:00", "誕生日")
+        assertEquals("登録に失敗した: $out2", 0, c2)
+        assertTrue("cron が毎年 7/30 になっていない: $t2", t2.contains("time:cron=0 19 30 7 *"))
+        assertTrue("表記が毎年になっていない: $out2", out2.contains("毎年 07/30 19:00"))
+    }
+
+    @Test
+    fun `毎月は「毎月15日」のようにくっつけても読める`() {
+        assumeTrue(sh != null)
+        val (code, _, trace) = runTraced("ja", true, "毎月15日", "09:00", "家賃")
+        assertEquals(0, code)
+        assertTrue("cron が毎月 15 日になっていない: $trace", trace.contains("time:cron=0 9 15 * *"))
+    }
+
+    @Test
+    fun `簡易「毎」は次の語で毎日 毎週 毎月 毎年を選ぶ`() {
+        assumeTrue(sh != null)
+        // 毎 19:00 = 毎日 (daily は cron ではなく time:daily= へ行く)
+        val (_, _, tDaily) = runTraced("ja", true, "毎", "19:00", "本文")
+        assertTrue("毎日になっていない: $tDaily", tDaily.contains("time:daily=19:00"))
+        // 毎 水 19:00 = 毎週水曜 (cron の曜日 3)
+        val (_, _, tWeekly) = runTraced("ja", true, "毎", "水", "19:00", "本文")
+        assertTrue("毎週水曜になっていない: $tWeekly", tWeekly.contains("time:cron=0 19 * * 3"))
+        // 毎 15 19:00 = 毎月 15 日
+        val (_, _, tMonthly) = runTraced("ja", true, "毎", "15", "19:00", "本文")
+        assertTrue("毎月になっていない: $tMonthly", tMonthly.contains("time:cron=0 19 15 * *"))
+        // 毎 07/30 19:00 = 毎年
+        val (_, _, tYearly) = runTraced("ja", true, "毎", "07/30", "19:00", "本文")
+        assertTrue("毎年になっていない: $tYearly", tYearly.contains("time:cron=0 19 30 7 *"))
+    }
+
+    @Test
+    fun `年月日で書いた単発を読む`() {
+        assumeTrue(sh != null)
+        // ⚠ 実行日に左右されないよう、確実に未来の年を使う。
+        for (spec in listOf(
+            arrayOf("2030", "07/30", "19:00"),   // 年 + 月日 + 時刻
+            arrayOf("203007301900"),             // 数字だけ 12 桁
+        )) {
+            val (code, out) = run("ja", fakes = true, *spec, "本文")
+            assertEquals("${spec.toList()}: 登録に失敗した: $out", 0, code)
+            assertTrue("${spec.toList()}: 表記が 2030/07/30 19:00 でない: $out",
+                out.contains("2030/07/30 19:00"))
+        }
+    }
+
+    @Test
+    fun `年を省いた月日は今年、過ぎていれば来年になる`() {
+        assumeTrue(sh != null)
+        val (code, out) = run("ja", fakes = true, "12/31", "23:59", "大晦日")
+        assertEquals("登録に失敗した: $out", 0, code)
+        // 今年の 12/31 23:59 が未来なら年なし表記、過ぎていれば来年なので年付き表記になる。
+        assertTrue("12/31 23:59 が読めていない: $out",
+            out.contains("12/31 23:59") || out.contains("/12/31 23:59"))
+    }
+
+    @Test
+    fun `数字だけ 8 桁 (月日時分) も読む`() {
+        assumeTrue(sh != null)
+        val (code, out) = run("ja", fakes = true, "12312359", "大晦日")
+        assertEquals("登録に失敗した: $out", 0, code)
+        assertTrue("12/31 23:59 になっていない: $out", out.contains("12/31 23:59"))
+    }
+
+    @Test
+    fun `存在しない日付を断る`() {
+        assumeTrue(sh != null)
+        for (spec in listOf("02/30", "13/01", "07/32")) {
+            val (code, out) = run("ja", fakes = true, spec, "09:00", "本文")
+            assertNotEquals("$spec が通ってしまった: $out", 0, code)
+            assertTrue("$spec: 日付の話だと分からない出力: $out", out.contains("日付"))
+        }
+    }
+
+    @Test
+    fun `英語の monthly と yearly と every`() {
+        assumeTrue(sh != null)
+        val (_, _, t1) = runTraced("en", true, "monthly", "15", "09:00", "rent")
+        assertTrue("monthly が cron になっていない: $t1", t1.contains("time:cron=0 9 15 * *"))
+        val (_, _, t2) = runTraced("en", true, "yearly", "07/30", "19:00", "birthday")
+        assertTrue("yearly が cron になっていない: $t2", t2.contains("time:cron=0 19 30 7 *"))
+        val (_, _, t3) = runTraced("en", true, "every", "wed", "19:00", "bins")
+        assertTrue("every wed が毎週になっていない: $t3", t3.contains("time:cron=0 19 * * 3"))
     }
 
     @Test

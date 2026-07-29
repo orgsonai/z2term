@@ -593,13 +593,25 @@ sh ~/.z2term/macros/remind.sh setup      # once, up front (registers the hooks a
 ```sh
 remind.sh 30m take pills               # once, 30 minutes from now (90s / 2h too)
 remind.sh 18:30 take out the bins      # once, at the next 18:30 (tomorrow if it passed)
-remind.sh daily 07:00 weigh in         # every day
-remind.sh weekday 09:00 standup        # Mon-Fri
-remind.sh weekly tue 20:00 recycling   # that weekday only
+remind.sh 07/30 19:00 fireworks         # month/day (next year if it passed)
+remind.sh 2030 07/30 19:00 the day      # with a year
+remind.sh 203007301900 the day          # digits only (07301900 = MMDDHHMM too)
+remind.sh daily 07:00 weigh in          # every day
+remind.sh weekday 09:00 standup         # Mon-Fri
+remind.sh weekly tue 20:00 recycling    # that weekday only
+remind.sh monthly 25 10:00 rent         # that day of the month
+remind.sh yearly 07/30 19:00 birthday   # that month and day
+remind.sh every 19:00                   # "every" alone works: this is daily
+remind.sh every wed 19:00               #   weekly / every 15 19:00 -> monthly
+remind.sh every 07/30 19:00             #   yearly (the next word decides)
 ```
 
+**Forgot the syntax?** `remind.sh help` prints all of it (it is also one of the 📜 snippets).
+
 **See and cancel**: `remind.sh list` (⏰ = one-shot / 🔁 = repeating / ✔ = already fired) and
-`remind.sh del 2` (`del all` clears everything). Repeating ones also appear under 📜 → the
+`remind.sh del 2` (`del all` clears everything). ⚠ **You can also remove one from the "list" tile**
+(0.8.286): tap it, the list appears as a notification, press **[Delete]** and answer with the number
+(or `all`). Repeating ones also appear under 📜 → the
 "Automation" tab, where you can toggle them or ▶ run one to try it.
 
 **When it fires**: the notification carries **[Done] [+10min] [+1h]**, so you can snooze from the

@@ -734,37 +734,79 @@ private fun remindBody(d: String, ja: Boolean): String {
     val head = if (ja) """
 #
 # 準備 (1 回だけ):
-#   sh ~/.z2term/macros/remind.sh setup     … 受け口 2 本とタイル 2 枠を登録
+#   sh ~/.z2term/macros/remind.sh setup     受け口 2 本とタイル 2 枠を登録
 #
-# 使い方:
-#   remind.sh 30m 薬を飲む            30 分後に 1 回 (90s / 2h も可)
-#   remind.sh 18:30 ゴミ出し          次の 18:30 に 1 回 (過ぎていれば明日)
-#   remind.sh 明日 18:30 ゴミ出し     明日の 18:30 に 1 回
-#   remind.sh 明後日 電話する          明後日の**今と同じ時刻**に 1 回 (時刻を書けばその時刻)
-#   remind.sh 3日後 07:00 返却        N 日後 (3d / 3日後の07:00 も同じ)
-#   remind.sh 毎日 07:00 体重を計る    毎日
-#   remind.sh 平日 09:00 朝会          月〜金
-#   remind.sh 毎週 月 09:00 資源ごみ   その曜日だけ
-#   remind.sh list / del <番号|all>   一覧 / 取り消し
-#   remind.sh ask                     通知の返信欄で聞いて登録 (タイル用)
+# 構文:
+#   remind.sh <いつ> <本文>          予定を足す
+#   remind.sh list                   一覧 (先頭が番号)
+#   remind.sh del <番号|all>         取り消し (rm でも可)
+#   remind.sh peek                   一覧を通知で見る (「消す」ボタン付き)
+#   remind.sh ask                    通知の返信欄で聞いて足す (タイル用)
+#   remind.sh setup                  受け口とタイルを登録 (最初に 1 回)
+#   remind.sh help                   この説明
+#
+# <いつ> の書き方 — 1 回だけ:
+#   30m / 90s / 2h                   いまから
+#   18:30                            次の 18:30 (過ぎていれば明日)
+#   明日 18:30 / 明後日 / 3日後 07:00  日付で (3d / 明日の18:30 も同じ)
+#   07/30 19:00                      月日 (過ぎていれば来年)
+#   2026 07/30 19:00                 年つき
+#   202607301900 / 07301900          数字だけ (年月日時分 / 月日時分)
+#   ⚠ 時刻を書かなければ**今と同じ時刻**になる (明後日 / 3日後 / 07/30 …)
+#
+# <いつ> の書き方 — 繰り返し:
+#   毎日 07:00 / 平日 09:00          毎日 / 月〜金
+#   毎週 月 09:00                    その曜日
+#   毎月 15 09:00                    その日 (毎月15日 09:00 も同じ)
+#   毎年 07/30 19:00                 その月日
+#   毎 19:00 / 毎 水 19:00           「毎」だけでも書ける (次の語で決まる)
+#   毎 15 19:00 / 毎 07/30 19:00     → 毎日 / 毎週 / 毎月 / 毎年
+#
+# 例:
+#   remind.sh 30m 薬を飲む
+#   remind.sh 明日 18:30 ゴミ出し
+#   remind.sh 毎月 25 10:00 家賃
+#   remind.sh list        →  1  ⏰ 07/30 18:30  ゴミ出し
+#   remind.sh del 1
 #
 # z2-run: sh ~/.z2term/macros/remind.sh setup   (以降は remind.sh 30m … で足すだけ)
 """ else """
 #
 # Setup (once):
-#   sh ~/.z2term/macros/remind.sh setup     ... register the two hooks and two tiles
+#   sh ~/.z2term/macros/remind.sh setup   register the two hooks and two tiles
 #
-# Usage:
-#   remind.sh 30m take pills              once, 30 minutes from now (90s / 2h too)
-#   remind.sh 18:30 take out the bins     once, at the next 18:30 (tomorrow if it passed)
-#   remind.sh tomorrow 18:30 the bins     once, tomorrow at 18:30
-#   remind.sh 3d call them back           once, N days from now, **at the current time of day**
-#   remind.sh 3d 07:00 return it          ... or at the time you give
-#   remind.sh daily 07:00 weigh in        every day
-#   remind.sh weekday 09:00 standup       Mon-Fri
-#   remind.sh weekly mon 09:00 recycling  that weekday only
-#   remind.sh list / del <n|all>          list / cancel
-#   remind.sh ask                         ask in a notification reply box (for the tile)
+# Syntax:
+#   remind.sh <when> <text>          add a reminder
+#   remind.sh list                   list them (the number comes first)
+#   remind.sh del <n|all>            cancel (rm works too)
+#   remind.sh peek                   show the list in a notification (with a Delete button)
+#   remind.sh ask                    ask in a notification reply box (for the tile)
+#   remind.sh setup                  register the hooks and tiles (once)
+#   remind.sh help                   this text
+#
+# <when> - one-shot:
+#   30m / 90s / 2h                   from now
+#   18:30                            the next 18:30 (tomorrow if it passed)
+#   tomorrow 18:30 / 3d 07:00        by day (3d = 3 days from now)
+#   07/30 19:00                      month/day (next year if it passed)
+#   2030 07/30 19:00                 with a year
+#   203007301900 / 07301900          digits only (YYYYMMDDHHMM / MMDDHHMM)
+#   ⚠ leave the time out and it keeps **the current time of day** (3d / 07/30 ...)
+#
+# <when> - repeating:
+#   daily 07:00 / weekday 09:00      every day / Mon-Fri
+#   weekly mon 09:00                 that weekday
+#   monthly 15 09:00                 that day of the month
+#   yearly 07/30 19:00               that month and day
+#   every 19:00 / every wed 19:00    "every" alone works (the next word decides)
+#   every 15 19:00 / every 07/30 19:00  -> daily / weekly / monthly / yearly
+#
+# Examples:
+#   remind.sh 30m take pills
+#   remind.sh tomorrow 18:30 the bins
+#   remind.sh monthly 25 10:00 rent
+#   remind.sh list        ->  1  ⏰ 07/30 18:30  the bins
+#   remind.sh del 1
 #
 # z2-run: sh ~/.z2term/macros/remind.sh setup   (then just: remind.sh 30m ...)
 """
@@ -789,6 +831,55 @@ private fun remindBody(d: String, ja: Boolean): String {
     val pDaily = if (ja) "毎日 " else "daily "
     val pWeekday = if (ja) "平日 " else "weekdays "
     val pWeekly = if (ja) "毎週" else "weekly "
+    val pMonthly = if (ja) "毎月 " else "monthly "
+    val pYearly = if (ja) "毎年 " else "yearly "
+    val mDay = if (ja) "日" else ""
+    // 「毎 …」の展開先。⚠ **その言語で case が拾える語**であること (日本語面なら「毎日」等)。
+    val eDaily = if (ja) "毎日" else "daily"
+    val eWeekly = if (ja) "毎週" else "weekly"
+    val eMonthly = if (ja) "毎月" else "monthly"
+    val eYearly = if (ja) "毎年" else "yearly"
+    val mBadDate = if (ja) {
+        "その日付はありません (例: 07/30):"
+    } else {
+        "no such date (e.g. 07/30):"
+    }
+    val cEvery = if (ja) {
+        """  # 「毎 …」の簡易指定 (要望)。**次の語の形**で 毎日 / 毎週 / 毎月 / 毎年 を決める。
+  #   毎 19:00 → 毎日 / 毎 水 19:00 → 毎週 / 毎 15 19:00 → 毎月 / 毎 07/30 19:00 → 毎年
+  # ⚠ 語数は変わらない (「毎」1 語が「毎日」等に置き換わるだけ) ので USED はそのままでよい。"""
+    } else {
+        """  # The short "every ..." form. **The shape of the next word** picks daily/weekly/monthly/yearly:
+  #   every 19:00 -> daily / every wed 19:00 -> weekly / every 15 19:00 -> monthly /
+  #   every 07/30 19:00 -> yearly
+  # ⚠ The word count does not change (one word swapped for another), so USED still holds."""
+    }
+    val cExpand = if (ja) {
+        "# 「毎」の次に来た語から、どの繰り返しかを決める。"
+    } else {
+        "# Decide which recurrence \"every\" meant, from the word that follows it."
+    }
+    val cDigits = if (ja) {
+        """    # 数字だけで書く形 (要望): 202607301900 = 年月日時分 / 07301900 = 月日時分。
+    # ⚠ 12 桁 → 8 桁の順に見る (8 桁のパターンは 12 桁にも当たってしまうため)。"""
+    } else {
+        """    # All-digit forms: 202607301900 = YYYYMMDDHHMM / 07301900 = MMDDHHMM.
+    # ⚠ Check 12 digits before 8 (the 8-digit pattern also matches a 12-digit string)."""
+    }
+    val cYmd = if (ja) {
+        """  # 年月日で書かれたもの。⚠ z2-alarm は日付を渡せないので、ここでも秒差へ寄せる。"""
+    } else {
+        """  # Written as a date. ⚠ z2-alarm cannot take a date, so this also folds into a delay."""
+    }
+    val cCivil = if (ja) {
+        """# 年月日 → 1970-01-01 からの通算日 (うるう年込み・Howard Hinnant の days_from_civil)。
+# ⚠ date -d "2026-07-30" は busybox で当てにならないので自前で数える。
+# ⚠ 日数の差だけを使い、時刻は [day_epoch] に任せる (こうするとタイムゾーンが相殺される)。"""
+    } else {
+        """# Civil date -> days since 1970-01-01 (leap years included; Howard Hinnant's days_from_civil).
+# ⚠ date -d "2026-07-30" is not dependable on busybox, so the count is done here.
+# ⚠ Only the day difference is used and the time is left to [day_epoch], which cancels out the zone."""
+    }
     val cCron = if (ja) {
         """# HH:MM と曜日欄から cron 式を作る (分 時 日 月 曜日)。
 # ⚠ 先頭 0 を落とすのに expr を使わないこと — 結果が 0 のとき終了コードが 1 になり、
@@ -873,6 +964,23 @@ after_label() {
     }
     val mUsageDel = if (ja) "usage: remind.sh del <番号|all>" else "usage: remind.sh del <n|all>"
     val bDone = if (ja) "完了" else "Done"
+    // ⚠ 通知のボタンは 1 語で書く (空白があると引数が割れる)。
+    val bDelete = if (ja) "消す" else "Delete"
+    val mAskDel = if (ja) "どれを消す？" else "Remove which one?"
+    val mAskDelH = if (ja) "番号 / all" else "number / all"
+    val mDeletedTitle = if (ja) "🗑 消しました" else "🗑 Removed"
+    val cPeek = if (ja) {
+        """# 一覧を通知で見せる (タイル「予定」から)。**番号を残す** — 消すときに指すものだから。
+# ⚠ 一覧を出したのに消す手段が無く、set したら消せないと言われた (要望) ので「消す」を付ける。"""
+    } else {
+        """# Show the list in a notification (from the "list" tile). **Keep the numbers** — they are what
+# you point at to remove one. ⚠ Listing without a way to remove was the complaint; hence the button."""
+    }
+    val cAskDel = if (ja) {
+        """# 「消す」ボタン。番号を聞いて [cmd_del] へ渡すだけ (端末の remind.sh del と同じ経路)。"""
+    } else {
+        """# The "delete" button: ask for a number and hand it to [cmd_del] (the same path as the CLI)."""
+    }
     val bS1 = if (ja) "10分後" else "+10min"
     val bS2 = if (ja) "1時間後" else "+1h"
     val mAgain = if (ja) "にもう一度:" else "- again in"
@@ -957,7 +1065,13 @@ die() { echo "${d}1" >&2; exit 1; }
 $cParse
 parse_when() {
   KIND=; PLAN=; SPEC=; USED=0; WHY=; hhmm=; dowf=; downame=; days=
+  dom=; mon=; ymd=; yy=; mm2=; dd2=
   w1=${d}1; w2=${d}2; w3=${d}3
+
+$cEvery
+  case ${d}w1 in
+    毎|every) w1=${d}(expand_every "${d}w2") ;;
+  esac
 
   case ${d}w1 in
 $cDays
@@ -978,10 +1092,17 @@ $cDays
     平日|weekday)     KIND=repeat; hhmm=${d}w2; USED=2; dowf=1-5 ;;
     毎週|weekly)      KIND=repeat; hhmm=${d}w3; USED=3; downame=${d}w2
                       dowf=${d}(dow_of "${d}w2") || { WHY="$mBadDow ${d}w2"; return 1; } ;;
+    毎月|monthly)     KIND=repeat; dom=${d}{w2%日}; hhmm=${d}w3; USED=3 ;;
+    毎年|yearly)      KIND=repeat; USED=3; hhmm=${d}w3
+                      mon=${d}{w2%%/*}; dom=${d}{w2#*/} ;;
     毎日=*|daily=*)   KIND=repeat; hhmm=${d}{w1#*=}; USED=1; dowf=daily ;;
     平日=*|weekday=*) KIND=repeat; hhmm=${d}{w1#*=}; USED=1; dowf=1-5 ;;
     毎日*)            KIND=repeat; hhmm=${d}{w1#毎日}; USED=1; dowf=daily ;;
     平日*)            KIND=repeat; hhmm=${d}{w1#平日}; USED=1; dowf=1-5 ;;
+    毎月*)            KIND=repeat; USED=2; rest=${d}{w1#毎月}
+                      dom=${d}{rest%日}; hhmm=${d}w2 ;;
+    毎年*)            KIND=repeat; USED=2; rest=${d}{w1#毎年}
+                      mon=${d}{rest%%/*}; dom=${d}{rest#*/}; hhmm=${d}w2 ;;
     [0-9]*[smh])      KIND=once; USED=1
                       # ⚠ 数字以外が混じった "1.5h" "3x0m" をここで弾く。通すと after_label の
                       #   ${d}((num*60)) が壊れ、予約は入らないのに登録できたように見える。
@@ -989,9 +1110,59 @@ $cDays
                         *[!0-9]*|"") WHY="$mBadWhen ${d}w1"; return 1 ;;
                       esac
                       PLAN="${d}(after_label "${d}w1")"; SPEC="in ${d}w1"; return 0 ;;
+$cDigits
+    [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])
+                      KIND=once; USED=1; ymd=1
+                      yy=${d}(cut2 "${d}w1" 1); yy=${d}yy${d}(cut2 "${d}w1" 3)
+                      mm2=${d}(cut2 "${d}w1" 5); dd2=${d}(cut2 "${d}w1" 7)
+                      hhmm="${d}(cut2 "${d}w1" 9):${d}(cut2 "${d}w1" 11)" ;;
+    [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])
+                      KIND=once; USED=1; ymd=1
+                      mm2=${d}(cut2 "${d}w1" 1); dd2=${d}(cut2 "${d}w1" 3)
+                      hhmm="${d}(cut2 "${d}w1" 5):${d}(cut2 "${d}w1" 7)" ;;
+    20[0-9][0-9])     KIND=once; USED=2; ymd=1; yy=${d}w1
+                      case ${d}w2 in
+                        [0-9]*/[0-9]*) mm2=${d}{w2%%/*}; dd2=${d}{w2#*/} ;;
+                        *) WHY="$mBadWhen ${d}w2"; return 1 ;;
+                      esac
+                      if is_hhmm "${d}w3"; then hhmm=${d}w3; USED=3; fi ;;
+    [0-9]*/[0-9]*)    KIND=once; USED=1; ymd=1
+                      mm2=${d}{w1%%/*}; dd2=${d}{w1#*/}
+                      if is_hhmm "${d}w2"; then hhmm=${d}w2; USED=2; fi ;;
     [0-9]*:[0-9]*)    KIND=once; USED=1; hhmm=${d}w1 ;;
     *) WHY="$mBadWhen ${d}w1"; return 1 ;;
   esac
+
+$cYmd
+  if [ -n "${d}ymd" ]; then
+    y=${d}{yy:-${d}(date +%Y)}
+    check_md "${d}mm2" "${d}dd2" || return 1
+    [ -z "${d}hhmm" ] || check_hhmm "${d}hhmm" || return 1
+    now=${d}(date +%s)
+    tgt=${d}(day_epoch "${d}(days_between "${d}y" "${d}mm2" "${d}dd2")" "${d}hhmm")
+    # 年を書いていない ∧ その日付が過ぎている → 来年のこと (「07/30」と書く人はそう思っている)。
+    if [ "${d}tgt" -le "${d}now" ] && [ -z "${d}yy" ]; then
+      tgt=${d}(day_epoch "${d}(days_between "${d}((y+1))" "${d}mm2" "${d}dd2")" "${d}hhmm")
+    fi
+    sec=${d}(( tgt - now ))
+    [ "${d}sec" -gt 0 ] || { WHY="$mPastTime ${d}(fmt_at "${d}tgt")"; return 1; }
+    PLAN=${d}(fmt_at "${d}tgt"); SPEC="in ${d}{sec}s"
+    return 0
+  fi
+
+  # 毎月 / 毎年。cron の日・月の欄を使う (曜日は *)。
+  if [ -n "${d}dom" ]; then
+    check_md "${d}{mon:-1}" "${d}dom" || return 1
+    check_hhmm "${d}hhmm" || return 1
+    if [ -n "${d}mon" ]; then
+      PLAN="$pYearly${d}{mon}/${d}{dom} ${d}hhmm"
+      SPEC="time:cron=${d}(cron_of "${d}hhmm" '*' "${d}(strip0 "${d}dom")" "${d}(strip0 "${d}mon")")"
+    else
+      PLAN="$pMonthly${d}dom$mDay ${d}hhmm"
+      SPEC="time:cron=${d}(cron_of "${d}hhmm" '*' "${d}(strip0 "${d}dom")")"
+    fi
+    return 0
+  fi
 
   # 日付で書かれたもの (明日 / 明後日 / N日後) は秒差にして z2-alarm へ渡す。
   # ⚠ z2-alarm の at は「次の HH:MM」しか取れず**日付を渡せない**ので、in <秒>s へ寄せる。
@@ -1037,7 +1208,25 @@ day_epoch() {
 }
 
 $cFmtAt
-fmt_at() { date -d "@${d}1" +'%m/%d %H:%M' 2>/dev/null || echo "${d}1"; }
+fmt_at() {
+  y=${d}(date -d "@${d}1" +%Y 2>/dev/null)
+  # ⚠ 年をまたぐものは年も出す。「07/30」だけだと来年のことなのか分からない。
+  if [ -n "${d}y" ] && [ "${d}y" != "${d}(date +%Y)" ]; then
+    date -d "@${d}1" +'%Y/%m/%d %H:%M' 2>/dev/null || echo "${d}1"
+  else
+    date -d "@${d}1" +'%m/%d %H:%M' 2>/dev/null || echo "${d}1"
+  fi
+}
+
+$cExpand
+expand_every() {
+  case ${d}1 in
+    [0-9]:[0-9][0-9]|[0-9][0-9]:[0-9][0-9]) echo "$eDaily" ;;
+    [0-9]*/[0-9]*)                          echo "$eYearly" ;;
+    [0-9]*)                                 echo "$eMonthly" ;;
+    *)                                      echo "$eWeekly" ;;
+  esac
+}
 
 # 次の語が HH:MM か。時刻を省いた「明日 電話する」と「明日 18:30 電話する」を見分ける。
 is_hhmm() {
@@ -1060,11 +1249,51 @@ check_hhmm() {
 }
 
 $cCron
+# ${d}3 = 日の欄 / ${d}4 = 月の欄 (省略で *)。毎月 / 毎年はここを埋める。
 cron_of() {
   h=${d}{1%%:*}; m=${d}{1##*:}
   h=${d}{h#0}; [ -n "${d}h" ] || h=0
   m=${d}{m#0}; [ -n "${d}m" ] || m=0
-  echo "${d}m ${d}h * * ${d}2"
+  echo "${d}m ${d}h ${d}{3:-*} ${d}{4:-*} ${d}2"
+}
+
+# 先頭 0 を落とす ("07" → "7")。cron の欄と算術に渡す前に必ず通す。
+strip0() { v=${d}{1#0}; [ -n "${d}v" ] || v=0; echo "${d}v"; }
+
+# ${d}1 の ${d}2 文字目から 2 文字。数字だけの日時 (202607301900) を割るのに使う。
+cut2() { printf '%s' "${d}1" | cut -c"${d}2-${d}((${d}2+1))"; }
+
+$cCivil
+days_from_civil() {
+  y=${d}1; m=${d}2; d_=${d}3
+  if [ "${d}m" -le 2 ]; then y=${d}((y-1)); sm=${d}((m+9)); else sm=${d}((m-3)); fi
+  era=${d}((y/400))
+  yoe=${d}((y - era*400))
+  doy=${d}(( (153*sm + 2)/5 + d_-1 ))
+  doe=${d}(( yoe*365 + yoe/4 - yoe/100 + doy ))
+  echo ${d}(( era*146097 + doe - 719468 ))
+}
+
+# 今日から見て「その年月日」が何日後か (負なら過去)。[day_epoch] に渡して使う。
+days_between() {
+  ty=${d}(strip0 "${d}(date +%Y)"); tm=${d}(strip0 "${d}(date +%m)"); td=${d}(strip0 "${d}(date +%d)")
+  a=${d}(days_from_civil "${d}ty" "${d}tm" "${d}td")
+  b=${d}(days_from_civil "${d}(strip0 "${d}1")" "${d}(strip0 "${d}2")" "${d}(strip0 "${d}3")")
+  echo ${d}((b - a))
+}
+
+# 月と日の検査。⚠ 2/31 のような「書けるが存在しない日」も弾く (通すと予定が別の日に化ける)。
+check_md() {
+  m=${d}(strip0 "${d}1"); d_=${d}(strip0 "${d}2")
+  case "${d}1${d}2" in *[!0-9]*|"") WHY="$mBadDate ${d}1/${d}2"; return 1 ;; esac
+  { [ "${d}m" -ge 1 ] && [ "${d}m" -le 12 ] && [ "${d}d_" -ge 1 ] && [ "${d}d_" -le 31 ]; } ||
+    { WHY="$mBadDate ${d}1/${d}2"; return 1; }
+  # その月に無い日 (4/31・2/30…) は days_from_civil が翌月へ回り込むので、戻して確かめる。
+  y=${d}{yy:-${d}(date +%Y)}; y=${d}(strip0 "${d}y")
+  n=${d}(days_from_civil "${d}y" "${d}m" "${d}d_")
+  [ "${d}(date -d "@${d}((n*86400 + 43200))" -u +%d 2>/dev/null || echo "${d}d_")" = "${d}(printf '%02d' "${d}d_")" ] ||
+    { WHY="$mBadDate ${d}1/${d}2"; return 1; }
+  return 0
 }
 
 dow_of() {
@@ -1117,6 +1346,11 @@ cmd_fire() {
 }
 
 cmd_reply() {
+  # 一覧通知の「消す」ボタン。⚠ 予定の通知 (r…) より先に見る — remind-list も r で始まるので、
+  # 後ろに置くと id="emind-list" として拾われてしまう。
+  case ${d}1 in
+    remind-list) [ "${d}2" = "$bDelete" ] && ask_delete; exit 0 ;;
+  esac
   case ${d}1 in r*) id=${d}{1#r} ;; *) exit 0 ;; esac   $cSelf
   f="${d}DIR/${d}id.txt"
   [ -f "${d}f" ] || exit 0
@@ -1164,10 +1398,26 @@ cmd_list() {
   if [ -z "${d}out" ]; then echo "$mNone"; else echo "${d}out"; fi
 }
 
+$cPeek
 cmd_peek() {
-  out=${d}(each row | sed 's/^[0-9]*\t//' | tr '\t' ' ')
-  [ -n "${d}out" ] || out="$mNone"
+  out=${d}(each row | tr '\t' ' ')
+  if [ -z "${d}out" ]; then
+    z2-notify -n remind-list "$mTitle" "$mNone"
+    return
+  fi
+  z2-notify -n remind-list -b $bDelete "$mTitle" "${d}out"
+}
+
+$cAskDel
+ask_delete() {
+  out=${d}(each row | tr '\t' ' ')
+  [ -n "${d}out" ] || { z2-notify -n remind-list "$mTitle" "$mNone"; return; }
+  # ⚠ ボタンを押すと元の通知は閉じるので、番号が見えるように一覧を出し直してから聞く。
   z2-notify -n remind-list "$mTitle" "${d}out"
+  n=${d}(z2-ask -H "$mAskDelH" "$mAskDel") || return
+  [ -n "${d}n" ] || return
+  msg=${d}(cmd_del "${d}n" 2>&1) || { z2-notify -n remind-ng "$mNgTitle" "${d}msg"; return; }
+  z2-notify -n remind-ok "$mDeletedTitle" "${d}msg"
 }
 
 del_one() {

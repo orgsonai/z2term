@@ -78,6 +78,17 @@ class SnippetStore(private val context: Context) {
                 p[KEY] = serialize(list)
             }
             p[SEEDED_APK] = true
+            // リマインドの書き方 (`remind.sh help`) を後追い投入 (0.8.286)。⚠ 書き方が増えて
+            // 覚えきれないので、**一覧をすぐ開ける場所**を 1 つ置く。初回シードにも含まれる
+            // ので、ここでは既に在れば何もしない。
+            if (p[SEEDED_REMIND] != true) {
+                val list = readList(p[KEY]).toMutableList()
+                for (s in remindSeeds()) {
+                    if (list.none { it.id == s.id }) list.add(s)
+                }
+                p[KEY] = serialize(list)
+                p[SEEDED_REMIND] = true
+            }
         }
     }
 
@@ -89,6 +100,7 @@ class SnippetStore(private val context: Context) {
             command = "ls -la --color=auto"
         ))
         addAll(apkSeeds())
+        addAll(remindSeeds())
     }
 
     /** Alpine 用 apk サンプル。pacman/apt は対象外 (Alpine 専用)。 */
@@ -103,6 +115,18 @@ class SnippetStore(private val context: Context) {
             // command 末尾を半角スペースで止めてユーザーがパッケージ名を追記できる形に。
             label = context.getString(com.zerotoship.z2term.R.string.snippet_sample_apk_add_label),
             command = "apk add ",
+        ),
+    )
+
+    /**
+     * リマインドの書き方を引く 1 件 (0.8.286)。⚠ マクロを入れていなければ「見つからない」と
+     * 出るだけなので、入れる前から置いてあってよい (押した人が入れ方に辿り着ける)。
+     */
+    private fun remindSeeds(): List<Snippet> = listOf(
+        Snippet(
+            id = "sample:remind-help",
+            label = context.getString(com.zerotoship.z2term.R.string.snippet_sample_remind_label),
+            command = "remind.sh help",
         ),
     )
 
@@ -160,5 +184,6 @@ class SnippetStore(private val context: Context) {
         private val KEY = stringPreferencesKey("snippets")
         private val SEEDED = booleanPreferencesKey("seeded")
         private val SEEDED_APK = booleanPreferencesKey("seeded_apk")
+        private val SEEDED_REMIND = booleanPreferencesKey("seeded_remind")
     }
 }
