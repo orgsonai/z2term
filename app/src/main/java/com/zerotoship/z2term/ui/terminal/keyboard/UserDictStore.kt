@@ -64,6 +64,12 @@ object UserDictStore {
     private const val MAX_READING_LEN = 32
 
     /**
+     * 表形式 (よみ→表記→品詞→注釈) の列区切り。**タブ、または 2 個以上の空白**。
+     * ⚠ 1 個のスペースを区切りにしない — SKK 形式 (`よみ /候補/`) と見分けが付かなくなる。
+     */
+    private val COLUMN_SEP = Regex("""\t+|　+| {2,}""")
+
+    /**
      * 文まるごと変換 ([KkcConverter.nbest]) でユーザー辞書の語に与えるコスト下げ幅。
      * ⚠ カタカナ化ペナルティ (4000) を越えないと、登録した表層が「カタカナのまま」に負ける。
      * 学習ブロック ([ImeHistoryStore.learnedBlock]) が在ればそちらが優先されるので、
@@ -247,31 +253,54 @@ object UserDictStore {
     }
 
     /**
-     * SKK 形式のテキストを「読み → 候補」に開く。
+     * 辞書テキストを「読み → 候補」に開く。**2 つの書き方**を受ける (どちらも 1 行 1 語):
+     *
+     *  - **SKK 形式**: `よみ /候補1/候補2/` (区切りはスペースでもタブでもよい)
+     *  - **表形式**: `よみ→表記→品詞→注釈` (タブ / 全角スペース / 2 個以上の半角スペース区切り)。
+     *    かな漢字変換の辞書ツールが書き出す形。⚠ **3 列目以降は使わない** — 品詞を活かすには
+     *    IPADIC の文脈 ID へ対応付ける必要があり、雑に混ぜると接続コストが壊れる。
+     *
      * ⚠ 読みがひらがな以外の行 (送り仮名あり見出し・英字見出し・壊れた行) は捨てる。
      */
-    private fun parse(text: String): Map<String, List<String>> {
+    internal fun parse(text: String): Map<String, List<String>> {
         val out = LinkedHashMap<String, MutableList<String>>()
         text.lineSequence().forEach { raw ->
             val line = raw.trim()
-            if (line.isEmpty() || line[0] == ';') return@forEach
-            val sp = line.indexOf(' ')
+            if (line.isEmpty() || line[0] == ';' || line[0] == '#') return@forEach
+            val cols = line.split(COLUMN_SEP).filter { it.isNotEmpty() }
+            // 表形式か SKK 形式かは **2 列目が `/` で始まるか**で見分ける。
+            // タブ区切りで書かれた SKK 形式 (よみ→/候補/) も取りこぼさない。
+            if (cols.size >= 2 && !cols[1].startsWith("/")) {
+                val reading = cols[0]
+                if (!isPlainKanaReading(reading)) return@forEach
+                addCandidate(out, reading, cols[1])
+                return@forEach
+            }
+            // SKK 形式: "よみ /候補1/候補2/"。区切りはスペースでもタブでもよい。
+            val sp = line.indexOfFirst { it == ' ' || it == '\t' }
             if (sp <= 0) return@forEach
             val reading = line.substring(0, sp)
             if (!isPlainKanaReading(reading)) return@forEach
             val body = line.substring(sp + 1).trim()
             if (!body.startsWith("/")) return@forEach
-            val list = out.getOrPut(reading) { ArrayList() }
             for (part in body.split('/')) {
                 if (part.isEmpty()) continue
                 // SKK の注釈 (候補;注釈) は表示に混ぜない。
-                val cand = part.substringBefore(';').trim()
-                if (cand.isEmpty() || cand == reading) continue
-                if (!list.contains(cand)) list.add(cand)
+                addCandidate(out, reading, part.substringBefore(';'))
             }
-            if (list.isEmpty()) out.remove(reading)
         }
         return out
+    }
+
+    private fun addCandidate(
+        out: MutableMap<String, MutableList<String>>,
+        reading: String,
+        rawCandidate: String
+    ) {
+        val cand = rawCandidate.trim()
+        if (cand.isEmpty() || cand == reading) return
+        val list = out.getOrPut(reading) { ArrayList() }
+        if (!list.contains(cand)) list.add(cand)
     }
 
     private fun isPlainKanaReading(s: String): Boolean {

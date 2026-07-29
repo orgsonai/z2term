@@ -24,14 +24,14 @@
     <string name="settings_keyboard_toggle_bar">Keyboard toggle bar</string>
     <string name="settings_keyboard_toggle_bar_desc">Show a show/hide bar above the keyboard. When off, double-tap the ⌨ button to toggle.</string>
     <string name="settings_section_user_dict">User dictionary</string>
-    <string name="settings_user_dict_desc">Add your own words from a file. One line = "reading /candidate1/candidate2/" (the SKK dictionary format). Lines starting with ; are comments. UTF-8 and EUC-JP are both read. Only lines whose reading is hiragana are imported.</string>
+    <string name="settings_user_dict_desc">Add your own words from a file, one word per line. Both "reading /candidate1/candidate2/" (SKK format) and "reading&lt;TAB&gt;word&lt;TAB&gt;part-of-speech" (what IME dictionary tools export) are read. Lines starting with ; or # are comments. UTF-8 and EUC-JP are both read. Only lines whose reading is hiragana are imported.</string>
     <string name="settings_user_dict_count">%1$d words / %2$d files</string>
     <string name="settings_user_dict_add">Choose a dictionary file</string>
     <string name="settings_user_dict_file">%1$s  %2$d words</string>
     <string name="settings_user_dict_remove">Remove</string>
     <string name="settings_user_dict_added">Imported %1$s (%2$d words)</string>
     <string name="settings_user_dict_too_large">That file is too large (8MB limit)</string>
-    <string name="settings_user_dict_no_entries">No words could be read. Check that each line looks like "reading /candidate/"</string>
+    <string name="settings_user_dict_no_entries">No words could be read. Check that each line looks like "reading /candidate/" or tab-separated "reading&lt;TAB&gt;word", and that readings are hiragana</string>
     <string name="settings_user_dict_failed">Could not import: %1$s</string>
     <string name="settings_special_key_bar">Special key bar (with the OS keyboard)</string>
     <string name="settings_special_key_bar_desc">While the OS keyboard is selected, show ESC, TAB, CTRL and arrow keys above it. Turn off to hide the bar (the built-in keyboard is unaffected).</string>
