@@ -1,8 +1,11 @@
 package com.zerotoship.z2term.tile
 
+import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.graphics.drawable.Icon
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.service.quicksettings.Tile
@@ -55,7 +58,40 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
             return
         }
         // ロック中なら OS が解除を求め、解除できたときだけ block が走る。
-        unlockAndRun { toggle(assigned) }
+        unlockAndRun {
+            collapsePanel()
+            toggle(assigned)
+        }
+    }
+
+    /**
+     * クイック設定パネルを畳んでから走らせる。
+     *
+     * ⚠ **押した結果が見えるようにするため**。パネルが開いている間、Android は
+     * ヘッドアップ通知 (画面上部のバナー) を出さずシェードに積むだけなので、走らせた
+     * マクロが `z2-ask` で聞き返しても**パネルの下に隠れて答えられない**
+     * (`remind.sh ask` をタイルから押すとまさにそうなっていた)。トーストも同様に埋もれる。
+     *
+     * ⚠ パネルを畳むには **Activity を起こすしかない** (OS の口がそれしか無い)。
+     * 起こす [TileCollapseActivity] は画面を持たず、開いた瞬間に自分を閉じる踏み台。
+     * Android 14 からは `PendingIntent` を渡す形だけが残っているので版で分ける。
+     */
+    private fun collapsePanel() {
+        val intent = Intent(this, TileCollapseActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startActivityAndCollapse(
+                    PendingIntent.getActivity(
+                        this, slot, intent,
+                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                    )
+                )
+            } else {
+                @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
+                startActivityAndCollapse(intent)
+            }
+        }.onFailure { Log.w(TAG, "collapse failed: ${it.message}") }
     }
 
     /** 走っていれば止め、走っていなければ実行する (D1 ウィジェットのボタンと同じ約束)。 */

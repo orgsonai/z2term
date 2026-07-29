@@ -606,7 +606,9 @@ remind.sh weekly tue 20:00 recycling   # that weekday only
 shade with one tap. Pressing Done on a repeating reminder does not cancel tomorrow's.
 
 **Add one without opening the app**: `setup` prepares two quick-settings tiles ("remind" and "list").
-⚠ **You place them yourself**, from the pencil/edit screen of the quick settings panel. Tapping
+⚠ **You place them yourself**, from the pencil/edit screen of the quick settings panel. ⚠ **Tapping a
+tile closes the quick settings panel** (0.8.284): while it is open, the question would be buried
+underneath it and you could not answer. Tapping
 "remind" asks "Remind you about what?" and "When?" in a notification reply box.
 ⚠ **If "When?" is written in a way it cannot read, it says why and asks again** (0.8.283). Your previous
 answer stays in the reply box, so you only have to fix it. After three tries it gives up and tells you

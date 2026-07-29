@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-29 / Target version: 0.8.283-alpha (versionCode 291)
+Last updated: 2026-07-29 / Target version: 0.8.284-alpha (versionCode 292)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -902,6 +902,7 @@ of Doze.
   - **Why this and not just the D1 widget**: a home-screen widget means going back to the home screen. Quick settings comes down in two swipes **whatever app you are in**, which makes it **the one entry point that reaches you mid-task** — "bring up sshd for tethering" without leaving the video you are watching.
   - **No new resident anything.** A `TileService` is only bound while the shade is open. Execution goes through the same [`HeadlessRun`] as D1: more entry points, still one execution path.
   - **The deal is the D1 widget button's deal**: tap to run, "on"-looking while running (`Tile.STATE_ACTIVE`), tap again to stop. Entry points do not each get their own feel.
+  - **A tap collapses the quick settings panel (0.8.284).** ⚠ While the panel is open, Android does **not** show heads-up notifications (the banner at the top of the screen) — it just stacks them in the shade — and toasts land under the panel too. Tapping `remind.sh ask` from a tile buried the `z2-ask` reply box under the panel, so **you tapped it and could not answer** (reported from the device). ⚠ The only way to collapse the panel is `TileService.startActivityAndCollapse`, which **requires starting an Activity**, so the tap goes through [`TileCollapseActivity`] — a stand-in with no UI that closes itself the moment it opens (translucent theme, `noHistory`, `excludeFromRecents`). Android 14 throws `UnsupportedOperationException` for the `Intent` form, so the `PendingIntent` form is used from there on. ⚠ Toggle-style tiles (torch and friends) collapse the panel as well: rather than making entry points behave differently, **what a tap did is always visible**.
   - **When on and off are separate commands, `--off` puts both on one tile (0.8.261).** `z2-tile set 3 z2-torch on --off z2-torch off`. Tapping alternates between them and the tile **looks on while it is on**. A slot holding only `z2-torch on` runs `on` on every tap — **the tile can never turn it off** — so the off side became writable (the user's proposal).
     - ⚠ **Two bare positional commands cannot work**: `z2-tile set 1 ls -la` would become "on = `ls`, off = `-la`" (joining the remaining arguments into one command is the existing reading). Hence an explicit separator, and like `-l`, **`--off` is picked up wherever it appears**.
     - ⚠ **This green is only what the app remembers** — nothing observes the real state (Android offers no way to read whether the torch is lit). Running `z2-torch off` in the terminal instead leaves the tile showing on. `z2-screen` is special-cased precisely because **the app does hold that state for real**.
