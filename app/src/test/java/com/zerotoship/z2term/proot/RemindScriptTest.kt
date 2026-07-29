@@ -322,6 +322,33 @@ class RemindScriptTest {
     }
 
     @Test
+    fun `help は構文と書き方をすべて出す`() {
+        assumeTrue(sh != null)
+        // ⚠ 見出しの塊は空行 (`#` のみの行) で区切ってある。抽出がそこで止まると
+        //   **冒頭 3 行だけ**が出る (0.8.286 まで実際そうなっていた・実機で指摘)。
+        val (code, out) = run("ja", "help")
+        assertEquals("help が失敗した: $out", 0, code)
+        for (expected in listOf(
+            "remind.sh <いつ> <本文>",   // 構文
+            "del <番号|all>",            // 消し方
+            "毎月 15 09:00",             // 繰り返しの書き方
+            "202607301900",              // 数字だけの書き方
+            "remind.sh del 1",           // 例
+        )) {
+            assertTrue("help に「$expected」が出ていない:\n$out", out.contains(expected))
+        }
+    }
+
+    @Test
+    fun `英語の help も最後まで出る`() {
+        assumeTrue(sh != null)
+        val (code, out) = run("en", "help")
+        assertEquals(0, code)
+        assertTrue("syntax が出ていない: $out", out.contains("remind.sh <when> <text>"))
+        assertTrue("monthly が出ていない: $out", out.contains("monthly 15 09:00"))
+    }
+
+    @Test
     fun `setup は名前で打てないときに PATH の直し方を出す`() {
         assumeTrue(sh != null)
         // ⚠ 0.8.286 まではマクロ置き場が PATH に無く、help も docs も名前で打つ前提だったので

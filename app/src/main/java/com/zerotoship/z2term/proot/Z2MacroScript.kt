@@ -1523,7 +1523,9 @@ case ${d}1 in
   reply)       shift; cmd_reply "${d}@" ;;
   ask)         cmd_ask ;;
   setup)       cmd_setup ;;
-  -h|--help|help) awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 { exit }' "${d}0" ;;
+  # 先頭のコメントを説明として出す。⚠ **空行では止めない** (NF で判定する) —
+  # 見出しの塊を空行で区切ってあるので、止めると冒頭の 3 行しか出ない (0.8.286 まで実際そうだった)。
+  -h|--help|help) awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 && NF { exit }' "${d}0" ;;
   *)           cmd_add "${d}@" ;;
 esac
 """
