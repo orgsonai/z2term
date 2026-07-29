@@ -334,6 +334,7 @@ Settings are split into **8 groups** (Display / Keyboard / Input and language / 
 | Login shell | zsh / bash / sh — **the same shell is used for the terminal tab, SSH logins and the GUI's inner terminal** (the distro's `/etc/passwd` login shell is updated too). If the chosen shell is not installed in that distro, the default shell is used as before |
 | Keyboard style | Simple / 4-direction flick |
 | Japanese IME learning history | The phrases the converter has learned. Search and delete them one by one, or clear them all |
+| Built-in keyboard elsewhere | **Offer the built-in keyboard to the rest of the system as an input method** (0.8.276). Once enabled, the app's own text fields (snippets, SSH, SFTP, settings) and other apps all get **the same keyboard and the same Japanese conversion**. "Turn it on in Android settings" → enable z2term keyboard in the list → "Switch keyboard" to pick it. ⚠ **Enabling and picking are yours to do** — Android does not let an app switch the keyboard on your behalf. The terminal itself is unaffected: it keeps using the keyboard drawn inside the app |
 | Keyboard position (landscape) | Left / bottom / right — effective only in landscape |
 | Side keyboard width (landscape) | Slider 280–700 dp |
 | Keyboard height (landscape / portrait) | Slider 200–500 dp (remembered separately per orientation) |

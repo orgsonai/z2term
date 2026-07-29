@@ -2537,8 +2537,11 @@ private fun KeyboardToggleBar(
  * [KeyboardStyle] を縦方向だけ拡縮して総高さを [targetHeightDp] にそろえる (縦画面・横画面共通)。
  * 5 行 × 1 行 = 5*keyHeight + α なので、naturalHeight を [targetHeightDp] にそろえて
  * keyHeight も比例拡縮する。フォントサイズはやや控えめに同方向にスケール (0.85〜1.4 倍に丸め)。
+ *
+ * ⚠ **入力メソッド ([com.zerotoship.z2term.ime.Z2ImeService]) からも使う**ので internal。
+ * 高さの設定は端末とアプリ内の入力欄で同じものが効かないと、切り替えるたびに背丈が変わる。
  */
-private fun scaledKeyboardStyle(base: KeyboardStyle, targetHeightDp: Float): KeyboardStyle {
+internal fun scaledKeyboardStyle(base: KeyboardStyle, targetHeightDp: Float): KeyboardStyle {
     val baseNat = base.naturalHeight.value
     val scale = (targetHeightDp / baseNat).coerceIn(0.6f, 2.5f)
     val fontScale = scale.coerceIn(0.85f, 1.4f)
@@ -2600,9 +2603,12 @@ private fun SideKeyboardColumn(
  *   続いて当該セグメントに対する候補 (タップで確定 → 自動で次のセグメントへ)。
  *   ◀ / ▶ キーでフォーカス範囲を縮小 / 拡大できる。
  * composing が空のときは何も描かない。
+ *
+ * ⚠ **入力メソッド ([com.zerotoship.z2term.ime.Z2ImeService]) からも使う**ので internal。
+ * 端末とアプリ内の入力欄で候補の見た目・操作が違うと、同じキーボードに見えなくなる。
  */
 @Composable
-private fun CandidateBar(
+internal fun CandidateBar(
     composing: ComposingState,
     modifier: Modifier = Modifier
 ) {

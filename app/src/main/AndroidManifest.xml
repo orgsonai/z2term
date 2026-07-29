@@ -211,6 +211,22 @@
             </intent-filter>
         </service>
 
+        <!-- 内蔵キーボードを OS の入力メソッドとして出す (アプリ内の入力欄・他アプリでも使える)。
+             ⚠ 有効化と選択はユーザーの操作でしか行えない (OS の決まり)。アプリからは設定画面と
+             切替ピッカーを開くところまで。 -->
+        <service
+            android:name=".ime.Z2ImeService"
+            android:label="@string/ime_label"
+            android:exported="true"
+            android:permission="android.permission.BIND_INPUT_METHOD">
+            <intent-filter>
+                <action android:name="android.view.InputMethod" />
+            </intent-filter>
+            <meta-data
+                android:name="android.view.im"
+                android:resource="@xml/ime_method" />
+        </service>
+
         <!-- 端末起動時の常駐サーバー自動起動レシーバ (設定 ON かつ enabled サーバーがある時のみ動く)。 -->
         <receiver
             android:name=".service.BootReceiver"

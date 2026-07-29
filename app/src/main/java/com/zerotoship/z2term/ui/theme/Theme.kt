@@ -63,11 +63,15 @@ fun Z2TermTheme(
     val colorScheme = currentColorScheme()
 
     val view = LocalView.current
-    if (!view.isInEditMode) {
+    // ⚠ ステータスバーの色を触れるのは Activity の中だけ。入力メソッド (Z2ImeService) から
+    // このテーマを使うと context は Service なので、決め打ちのキャストだと
+    // ClassCastException でキーボードが出た瞬間に落ちる。窓が無いときは色合わせを飛ばす。
+    val activity = view.context as? Activity
+    if (!view.isInEditMode && activity != null) {
         val isLight = AppColors.isLight
         val barColor = colorScheme.background.toArgb()
         SideEffect {
-            val window = (view.context as Activity).window
+            val window = activity.window
             window.statusBarColor = barColor
             window.navigationBarColor = barColor
             val insets = WindowCompat.getInsetsController(window, view)

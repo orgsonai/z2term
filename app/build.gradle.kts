@@ -99,8 +99,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 283
-        versionName = "0.8.275-alpha"
+        versionCode = 284
+        versionName = "0.8.276-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -354,6 +354,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
+    // 入力メソッド (Z2ImeService) が ComposeView を出すのに要る 3 つのオーナーのうち
+    // SavedStateRegistry のぶん。Activity 経由では推移的に入るが、Service からは自分で持つ。
+    implementation(libs.androidx.savedstate.ktx)
 
     // Compose BOM
     implementation(platform(libs.androidx.compose.bom))

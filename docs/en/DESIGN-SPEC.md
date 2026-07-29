@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-29 / Target version: 0.8.275-alpha (versionCode 283)
+Last updated: 2026-07-29 / Target version: 0.8.276-alpha (versionCode 284)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1614,6 +1614,74 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 
 - Multiple tabs (**long-press → drag left/right to reorder**, double-tap to close. **A close-confirm dialog is shown only when a child process is running in the foreground of that tab** — to prevent an accidental tap from discarding work; if the login shell is in the foreground it closes immediately as before. The check compares PTY master `tcgetpgrp` against the **idle-prompt foreground pgid (measured once at startup)**. 0.8.157 compared it against `shellPid`, but `shellPid` is the forkpty child = the **engine (proot/z2root) process pid**, a different pgid from the guest login shell, so it never matched → **always flagged "busy"**; switching to the measured baseline fixes it. 0.8.157, fixed 0.8.160), pinch font zoom (8–32sp), scroll + a ↓ to return to latest, snippets, live theme/font preview.
 - Settings (`SettingsSheet`): in 0.8.14, dropped the old bottom sheet stacking from below and now shows as a **full-screen "separate page"** (back arrow ← at top + system-back support).
+
+### 6.9 Offering the built-in keyboard as an OS input method (`Z2ImeService`, 0.8.276)
+
+**What it does**: registers the built-in keyboard as an Android **input method**. Once the user enables
+and picks it in the OS list, **the app's own text fields** (snippets, SSH profiles, SFTP, settings,
+widget configuration…) **and other apps** all get the same keyboard and the same Japanese conversion
+as the terminal.
+
+**Why it was needed**: the built-in keyboard was written as `TerminalKeyboard(onBytes = …)`, a part
+that **sends bytes to the terminal**, with no connection to `TextField`. ⚠ Inside one app, the
+terminal had its own conversion while touching any text field swapped in the OS keyboard. From the
+user's side that reads as "**the built-in keyboard cannot type inside the app**" — a missing feature.
+
+**Replacing each field with hand-drawn input was rejected.** The search bar (`SearchQueryField`) is
+that approach, and that single field needed tap-to-move-caret, deleting surrogate pairs as two code
+units, and clamping to the layout's own length to avoid a crash. Spreading that over 20 fields would
+⚠ **rebuild text selection, copy/paste, caret movement and autofill from scratch**, trading the OS's
+quality for our own bugs. As an input method, **the OS keyboard switcher becomes the "built-in vs
+system" switch**, so the user's request — "the system keyboard only when I switch to it" — comes
+from the platform rather than from our own plumbing.
+
+**Nothing is drawn twice**: the same [`TerminalKeyboard`] + [`CandidateBar`] and the same
+[`ComposingState`] / [`KkcConverter`] / [`ImeHistoryStore`] (learning is shared, so a word learned in
+the terminal shows up in a text field). ⚠ **Do not fork the look or the candidate behaviour here** —
+it would stop looking like the same keyboard and there would be two places to fix. `CandidateBar` and
+`scaledKeyboardStyle` were widened from private to internal for this (the height setting applies to
+both, so the keyboard does not change size when you switch).
+
+**Only the exit differs** ([`ImeKeyTranslator`]): terminal-bound bytes become `InputConnection` calls.
+
+| What the keyboard emits | What it means in a text field |
+|---|---|
+| Printable characters (UTF-8) | `commitText` (runs are merged into one call) |
+| `0x7F` / `0x08` (⌫) | **a `KEYCODE_DEL` key event**. ⚠ `deleteSurroundingText` does **not** delete a selection |
+| `0x17` / `0x15` (⌫ flicks) | delete word / delete to line start, measured against `getTextBeforeCursor` (same counting as `readline`'s `unix-word-rubout`) |
+| `0x0D` (⏎) | newline in a multi-line field; otherwise **the action the field asks for** (`performEditorAction`) |
+| `0x09` (TAB) | `KEYCODE_TAB` (next field) |
+| `0x1B` (ESC, and the ALT prefix) | **dropped**. ALT+key inserts just the character |
+| Other control codes (Ctrl+key) | **dropped** |
+
+⚠ **Terminal-only bytes must not reach a text field**: an invisible character slips in and you find
+out **after saving**. ⚠ The ⌫ flicks are the exception, kept as delete operations — a gesture that
+works in the terminal and does nothing in a text field breaks the illusion of one keyboard.
+`ImeKeyTranslatorTest` pins the table.
+
+**Pre-edit is left to the platform**: changes to `composing.text` are mirrored with
+`setComposingText` / `finishComposingText` (the terminal and the search bar draw their own underline
+because they are not real text fields; here the OS draws it). Commits go through
+`ComposingState.onCommit` → `commitText`. ⚠ `commitText` **replaces** the composing region, so an
+earlier `setComposingText` does not double up.
+
+**Implementation notes**:
+- ⚠ **`InputMethodService` is not a `LifecycleOwner`.** `ComposeView` looks up three owners
+  (lifecycle / ViewModelStore / SavedStateRegistry) from the view tree, so the service implements
+  them and attaches them with `setViewTree*Owner`. Without it the input view crashes on first show.
+- **`ComposingState` belongs to the service.** The input view is recreated on configuration changes,
+  so keeping it in Compose would drop kana mid-word. ⚠ **Drop it when the field changes**
+  (`onStartInputView`) — carrying it over commits kana meant for the previous field into the next one
+  (the same shape of bug as the terminal/search-bar one).
+- **The terminal screen is unchanged.** Even with the IME enabled, terminal tabs keep the in-app
+  keyboard (that path can pass control codes and modifiers through as they are).
+- ⚠ **Enabling and picking are the user's to do** (an OS rule). The app only opens
+  `Settings.ACTION_INPUT_METHOD_SETTINGS` and `showInputMethodPicker()` from its settings screen.
+
+**Candidates for the next stage**: adapting to `EditorInfo.inputType` (digits only for numeric
+fields, no learning in password fields), a key to hand back to the OS keyboard, and the globe key via
+`supportsSwitchingToNextInputMethod`. Stage 1 covers "**every field in the app can be typed with the
+built-in keyboard**".
 
 ---
 

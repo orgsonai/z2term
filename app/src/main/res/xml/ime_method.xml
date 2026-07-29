@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  内蔵キーボード (Z2ImeService) の入力メソッド定義。
+
+  サブタイプを 2 つ出すのは、OS の言語切替 (地球儀キー) の一覧に載せるため。⚠ 中身の
+  キーボードは 1 つで、日本語ロケールのときだけ「あ」キー (かなフリック) が出る作り
+  (TerminalKeyboard の showJapaneseKeyboard) なので、ここでの ja/en は表示上の宣言にとどまる。
+-->
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="com.zerotoship.z2term.MainActivity"
+    android:supportsSwitchingToNextInputMethod="true">
+    <subtype
+        android:label="@string/ime_subtype_ja"
+        android:imeSubtypeLocale="ja_JP"
+        android:imeSubtypeMode="keyboard"
+        android:isAsciiCapable="true" />
+    <subtype
+        android:label="@string/ime_subtype_en"
+        android:imeSubtypeLocale="en_US"
+        android:imeSubtypeMode="keyboard"
+        android:isAsciiCapable="true" />
+</input-method>

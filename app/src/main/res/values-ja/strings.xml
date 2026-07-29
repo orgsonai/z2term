@@ -664,6 +664,15 @@
     <string name="settings_section_automation_rules">自動化ルール（z2-when）</string>
     <string name="settings_automation_rules_desc">登録したルールの確認・ON/OFF・実行ログ・お試し実行と、全部まとめての一時停止。</string>
     <string name="settings_open_when_rules">ルールを管理</string>
+    <!-- 内蔵キーボードを OS の入力メソッドとして出す (Z2ImeService)。 -->
+    <string name="ime_label">z2term キーボード</string>
+    <string name="ime_subtype_ja">z2term（日本語）</string>
+    <string name="ime_subtype_en">z2term（英語）</string>
+    <string name="settings_section_ime">内蔵キーボードを他でも使う</string>
+    <string name="settings_ime_desc">内蔵キーボードを OS の入力方法として出します。アプリ内の入力欄（スニペット・SSH・SFTP・設定）でも他のアプリでも、同じキーボードと同じかな漢字変換で打てます。まず OS の一覧で有効にし、キーボード切替から選んでください。</string>
+    <string name="settings_ime_enable">Android の設定で有効にする</string>
+    <string name="settings_ime_pick">キーボードを切り替える</string>
+    <string name="settings_ime_note">端末画面はこれまでどおり、アプリの中に描くキーボードを使います。</string>
     <string name="tile_service_label_1">z2term 1</string>
     <string name="tile_service_label_2">z2term 2</string>
     <string name="tile_service_label_3">z2term 3</string>

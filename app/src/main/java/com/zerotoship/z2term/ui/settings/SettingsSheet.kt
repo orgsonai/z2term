@@ -827,6 +827,45 @@ fun SettingsSheet(
                     )
                 }
 
+                // 内蔵キーボードを OS の入力方法として出す (Z2ImeService)。⚠ 有効化も選択も
+                // ユーザーの操作でしか行えない (OS の決まり) ので、ここは 2 つの画面へ送るだけ。
+                // 「有効にする」→ OS の入力方法一覧、「切り替える」→ キーボード選択ダイアログ。
+                Section(title = stringResource(R.string.settings_section_ime)) {
+                    Text(
+                        text = stringResource(R.string.settings_ime_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    ActionButton(
+                        label = stringResource(R.string.settings_ime_enable),
+                        onClick = {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }
+                        }
+                    )
+                    ActionButton(
+                        label = stringResource(R.string.settings_ime_pick),
+                        onClick = {
+                            runCatching {
+                                val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE)
+                                    as android.view.inputmethod.InputMethodManager
+                                imm.showInputMethodPicker()
+                            }
+                        }
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_ime_note),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
                 // 画面の自動消灯 (z2-screen): OS 全体の「画面消灯までの時間」を期限つきで延ばす。
                 // ⚠ ツールバーの🔅 (アプリを開いている間だけ) とは別物。ここは許可の状態を見せて
                 // 許可画面へ送るだけで、掛ける/外すは端末側の z2-screen が担う (時間指定が要るため)。
