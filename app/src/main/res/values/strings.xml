@@ -684,6 +684,8 @@
     <string name="settings_ime_enable">Turn it on in Android settings</string>
     <string name="settings_ime_pick">Switch keyboard</string>
     <string name="settings_ime_note">The terminal itself is unaffected: it keeps using the keyboard drawn inside the app.</string>
+    <string name="pad_clip_empty">Copied text shows up here.\nCopy first, then open the keyboard.</string>
+    <string name="pad_emoji_empty">Emoji you use show up here.\nPick one from the tabs on the right.</string>
     <string name="tile_service_label_1">z2term 1</string>
     <string name="tile_service_label_2">z2term 2</string>
     <string name="tile_service_label_3">z2term 3</string>

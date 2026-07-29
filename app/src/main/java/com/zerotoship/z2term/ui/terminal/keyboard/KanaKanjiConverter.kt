@@ -1402,6 +1402,25 @@ class ComposingState(
         return true
     }
 
+    /**
+     * 変換を経ないテキスト (絵文字・クリップボードの貼り付け) をそのまま確定して送り出す。
+     *
+     * ⚠ **確定と同じ出口 ([onCommit]) を通す**こと。端末なら PTY へ、入力メソッドなら
+     * `InputConnection.commitText` へ流れるので、貼り付けたテキストに改行が入っていても
+     * 「1 行の入力欄で検索が走る」といった読み替えを受けない (バイト列として送ると起きる)。
+     *
+     * 打ちかけのかなが残っていれば**先に確定**してから出す (打ちかけが後ろへ回らない)。
+     * ⚠ 学習も再変換の対象にもしない — 読みが無いので次の変換の材料にならず、
+     * 「変換」キーで絵文字を呼び戻せても意味が無い。
+     */
+    fun commitExternalText(s: String) {
+        if (s.isEmpty()) return
+        commitRaw()
+        onCommit(s)
+        lastCommittedReading = null
+        lastCommittedOutput = null
+    }
+
     fun reset() {
         text = ""
         cursor = 0

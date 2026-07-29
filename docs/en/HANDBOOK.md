@@ -107,6 +107,9 @@ Z2Term comes with its **own in-app keyboard**.
   - For **katakana**, tap the katakana candidate in the candidate bar.
 - The "ABC" key returns to the Latin keyboard.
 - **Flicking the ⌫ (delete) key**: flick left to **delete the previous word at once**, flick right to **delete the entire line being typed**.
+- **Typing emoji (0.8.278)**: the **😀 key above the space key** turns the kana keys into an **emoji pad**. Pick a category from the tabs, scroll, and tap to insert. ⚠ **The leftmost tab is most recently used**, so from the second time on you pick from there. Press 😀 again to go back to the kana keys (the × at the top left does the same).
+- **Pasting what you copied (0.8.278)**: **flick up on the ESC key** and the same area becomes a **paste pad**. Copied text is listed newest first; tap to insert it. ✕ removes one entry, 🗑 clears all. ⚠ Entries are captured when you **copy first, then open the keyboard** (an Android rule: a keyboard may only read the clipboard while it is up). Clips marked as sensitive by password managers are never kept.
+- ⚠ While either pad is showing, **⌫ ⏎ ␣ ◀ ▶ still work**, so you can delete what you just pasted or hit return. The 😀 / 📋 tabs at the top of the pad switch between emoji and paste.
 - Note: this is a simple dictionary-based conversion, so it isn't as smart as Gboard — but words you use are learned and start appearing near the top.
 
 ### When you want the phone's standard keyboard

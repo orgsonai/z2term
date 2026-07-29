@@ -672,6 +672,8 @@
     <string name="settings_ime_enable">Android の設定で有効にする</string>
     <string name="settings_ime_pick">キーボードを切り替える</string>
     <string name="settings_ime_note">端末画面はこれまでどおり、アプリの中に描くキーボードを使います。</string>
+    <string name="pad_clip_empty">コピーしたテキストがここに並びます。\nコピーしてからキーボードを開くと入ります。</string>
+    <string name="pad_emoji_empty">使った絵文字がここに並びます。\n右のタブから選んでください。</string>
     <string name="tile_service_label_1">z2term 1</string>
     <string name="tile_service_label_2">z2term 2</string>
     <string name="tile_service_label_3">z2term 3</string>

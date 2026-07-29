@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-29 / Target version: 0.8.277-alpha (versionCode 285)
+Last updated: 2026-07-29 / Target version: 0.8.278-alpha (versionCode 286)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1548,7 +1548,7 @@ On failure: fall back to launchAndroidSh
   ```
   ESC      あ   か  さ   ⌫
   ◀/▼     た   な  は   ▶/▲
-  ␣       ま   や  ら   変換
+  😀/␣    ま   や  ら   変換
   ABC      小゛゜ わ  、。  ⏎    ← ABC = back to Latin
   ```
   Row 2's edges stack the cursor keys directly under the left/right keys, half a row each
@@ -1578,6 +1578,40 @@ A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.
 - **Mid-string editing at the caret** (`cursor`) (0.8.157): the edit position is an independent field `cursor` (0..length) and **◀▶ are unified to cursor movement**. Kana/symbols insert at the cursor (`insertAtCursor`), ⌫ (`backspace`) deletes the char before the cursor, and `小゛゜` targets the char before the cursor (`charBeforeCaret`). **You can reach the line start (0), and mid-string fixes work uniformly regardless of sentence length.** Previously the edit position rode on `splitHeadLen` (min 1, auto-split-derived), so it "couldn't reach the line start" and "only worked in long sentences where auto-split kicked in". The old `autoSplit`/`caretEditMode` flags and the "auto-split to the leading bunsetsu on keystroke" behavior were dropped; right after typing the cursor sits at the end (leading block = whole).
 - **Reconversion**: right after confirming (composing empty), the convert key = "reconvert" returns the last confirmation to its reading (`restoreLastCommit`).
 - **Key background**: during composing, the ◀▶ / convert key backgrounds stay quiet (not green); green is only for the convert key as a "reconvert" hint.
+
+#### 6.2.2 Emoji pad / paste pad (`KeyboardPad`, 0.8.278)
+
+Closes the gap that opened the moment the built-in keyboard started being used **outside the app**
+(§6.9). Inside the terminal the toolbar 📋 and copy/paste were enough; as an everyday keyboard in
+other apps it was a keyboard that **cannot type emoji and cannot paste**. ⚠ **Japanese keyboard
+only** — the Latin layer is terminal-oriented and we do not want to give up keys there (in the
+English locale the kana layer is not offered at all, so the pads are unavailable there).
+
+⚠ **There is no room for new keys**, so this is a **layer swap** (the same shape as `あ` for kana and
+`?#` for symbols). Only the middle 3 columns (the 12 kana keys) become the pad; **the edge columns
+(⌫ ⏎ ␣ ◀▶) stay**, so deleting what you just pasted or hitting return still works. ⚠ Do not turn ⌫
+into "close" — you would not be able to delete while the pad is open.
+
+- **Entry points**: the 😀 key (top half of the `␣` column, split with `JpEdgeStack`) = emoji, and
+  **flick up on ESC** = paste. ⚠ Splitting `␣` left/right would leave half of an already narrow edge
+  column, too small a target — hence the vertical split. ⚠ The ESC up-flick is an invisible entry, so
+  the pad carries 😀 / 📋 tabs and **paste is reachable from the visible 😀 key** too. Closing is
+  pressing **the same key you entered with** (toggle), or the × at the top left.
+- **Emoji** (`EmojiCatalog`): a hand-picked table in 8 categories (no attempt at full coverage —
+  thousands of glyphs cannot be browsed). ⚠ **Glyphs the device font lacks are not shown**
+  (`Paint.hasGlyph`, filtered once). That keeps tofu (□) out of what people send, and new OS versions
+  add emoji without touching the table. The first tab is **most recently used**
+  (`RecentEmojiStore` to `filesDir/emoji_recent.json`, 48 entries) — real usage concentrates on ~20.
+- **Paste** (`ClipboardHistoryStore` to `filesDir/clipboard_history.json`, 50 entries):
+  ⚠ **Continuous watching is impossible** — since Android 10 only the foreground app or the current
+  input method may read the clipboard. Capture therefore happens **once, when the pad opens**, which
+  reads as "**copy first, then open the keyboard**" from the outside. That ordering needs saying, so
+  the empty pad says it. ⚠ Clips flagged sensitive by password managers
+  (`android.content.extra.IS_SENSITIVE`) are never stored. ✕ deletes one entry, 🗑 clears all.
+- **Exit** (`ComposingState.commitExternalText`): emoji and pasted text go out through **the same
+  path as a confirmation**. ⚠ Sent as bytes (`onBytes`) they would be re-read by the input method,
+  turning newlines into `performEditorAction` (= running the search in a single-line field, §6.9).
+  Pending kana is confirmed first, and neither is learned or reconvertible (there is no reading).
 
 ### 6.3 SSH (terminal → outside)
 

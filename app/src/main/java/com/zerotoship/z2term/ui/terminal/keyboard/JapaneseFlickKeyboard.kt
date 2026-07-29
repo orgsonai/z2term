@@ -70,8 +70,14 @@ import kotlinx.coroutines.launch
  * 配列 (5 列 × 4 行、画面高さを充填):
  *   ESC      あ   か  さ   ⌫
  *   ◀/▼     た   な  は   ▶/▲
- *   ␣       ま   や  ら   変換
+ *   😀/␣    ま   や  ら   変換
  *   ABC      小゛゜ わ  、。  ⏎
+ *
+ * **パッド (絵文字 / 貼り付け)**: 😀 キー、または ESC の**上フリック**で
+ * [KeyboardPad] を開く。⚠ 絵文字も貼り付けも**新しいキーを置く隙間が無い**ので、
+ * `あ` でかな面へ切り替えるのと同じ「**面の差し替え**」にしてある — 中央 3 列だけが
+ * パッドになり、両端の列 (⌫ ⏎ ␣ …) はそのまま残るので、貼った直後に消す・改行する
+ * といった操作が続けてできる。閉じるのは**入った同じキーをもう一度**押す (トグル)。
  *
  * 両端の列 (ESC/◀▼/␣/ABC と ⌫/▶▲/変換/⏎) は [JP_EDGE_WEIGHT] で幅を狭め、
  * 中央 3 列のかな (フリック) を広く取って打ちやすくしている。
@@ -109,8 +115,18 @@ fun JapaneseFlickKeyboard(
         )
     }
 
+    // 開いているパッド (絵文字 / 貼り付け)。NONE ならかなキーがそのまま出る。
+    var pad by remember { mutableStateOf(PadMode.NONE) }
+
     // 入力中のひらがなを確定して PTY へ流す (composing が空なら何もしない)。
     fun flush() { composing.commitRaw() }
+
+    // パッドの開閉。⚠ 同じキーをもう一度押したら閉じる (入った場所と出る場所を同じにする)。
+    fun togglePad(mode: PadMode) { pad = if (pad == mode) PadMode.NONE else mode }
+
+    // 絵文字 / 貼り付けを送る。⚠ **確定と同じ出口**を通すこと (バイト列で送ると、
+    // 入力メソッド側で改行が「検索実行」等へ読み替えられてしまう)。
+    fun insertText(text: String) { composing.commitExternalText(text) }
 
     // かなは composing に積む (連打サイクル含む)。予測候補が随時更新される。
     fun emitKana(hira: Char) { composing.emitKana(hira) }
@@ -160,6 +176,72 @@ fun JapaneseFlickKeyboard(
 
     val rowSpacing = if (style.keyHeight >= 56.dp) 4.dp else 3.dp
 
+    // ⌫ の中身 (かな削除 / 端末へ DEL) はパッドを開いていても同じものを使う。
+    val backspaceTap = { if (!composing.backspace()) onBytes(byteArrayOf(0x7F)) }
+    val backspaceLeft = { if (composing.isActive) composing.reset() else onBytes(byteArrayOf(0x17)) }
+    val backspaceRight = { if (composing.isActive) composing.reset() else onBytes(byteArrayOf(0x15)) }
+
+    if (pad != PadMode.NONE) {
+        // パッド表示中: 中央 3 列ぶんをパッドに差し替え、両端の列は残す。
+        // ⚠ ⌫ を「閉じる」に置き換えない — 貼った直後に消せなくなるため。閉じるのは
+        // 入口キーのトグル (😀 / ESC 上フリック) と、左上の × ([JpFuncKey])。
+        Row(
+            modifier = modifier
+                .fillMaxSize()
+                .background(ZtsBgSecondary)
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(rowSpacing)
+        ) {
+            Column(
+                modifier = Modifier.weight(JP_EDGE_WEIGHT).fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(rowSpacing)
+            ) {
+                JpFuncKey("×", style, Modifier.weight(1f).fillMaxWidth(), accent = true) {
+                    pad = PadMode.NONE
+                }
+                JpFuncKey("◀", style, Modifier.weight(1f).fillMaxWidth(), repeatable = true) {
+                    if (composing.isActive) composing.moveCursorLeft()
+                    else { flush(); onCursorKey(TerminalEmulator.CursorKey.LEFT) }
+                }
+                JpFuncKey("␣", style, Modifier.weight(1f).fillMaxWidth(), repeatable = true) {
+                    if (composing.isActive) composing.append(' ') else onBytes(byteArrayOf(0x20))
+                }
+                JpFuncKey("ABC", style, Modifier.weight(1f).fillMaxWidth(), fontScale = 0.7f, accent = true) {
+                    pad = PadMode.NONE
+                    flush()
+                    onSwitchToAscii()
+                }
+            }
+            KeyboardPad(
+                mode = pad,
+                onMode = { pad = it },
+                style = style,
+                onInsert = ::insertText,
+                modifier = Modifier.weight(3f).fillMaxHeight()
+            )
+            Column(
+                modifier = Modifier.weight(JP_EDGE_WEIGHT).fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(rowSpacing)
+            ) {
+                JpBackspaceKeyBody(
+                    style = style,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    onTap = backspaceTap,
+                    onFlickLeft = backspaceLeft,
+                    onFlickRight = backspaceRight
+                )
+                JpFuncKey("▶", style, Modifier.weight(1f).fillMaxWidth(), repeatable = true) {
+                    if (composing.isActive) composing.moveCursorRight()
+                    else { flush(); onCursorKey(TerminalEmulator.CursorKey.RIGHT) }
+                }
+                JpFuncKey("⏎", style, Modifier.weight(2f).fillMaxWidth(), repeatable = true) {
+                    if (!composing.commitRaw()) onBytes(byteArrayOf(0x0D))
+                }
+            }
+        }
+        return
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -169,9 +251,15 @@ fun JapaneseFlickKeyboard(
     ) {
         // Row 1: ESC  あ  か  さ  ⌫
         JpRow(rowSpacing) {
-            JpKey("ESC", style, fontScale = 0.7f, weight = JP_EDGE_WEIGHT) {
-                if (composing.isActive) composing.reset() else onBytes(byteArrayOf(0x1B))
-            }
+            // ESC: タップ=従来どおり (変換中なら取り消し / 端末へ ESC)、
+            //      上フリック=貼り付けパッド。⚠ 見えない入口なので、パッドの中に
+            //      絵文字タブも並べて、見える 😀 キーからも辿れるようにしてある。
+            JpEscKey(
+                style = style,
+                weight = JP_EDGE_WEIGHT,
+                onTap = { if (composing.isActive) composing.reset() else onBytes(byteArrayOf(0x1B)) },
+                onFlickUp = { togglePad(PadMode.CLIPBOARD) }
+            )
             JpFlickKey(KANA_A, style, ::emitKana)
             JpFlickKey(KANA_KA, style, ::emitKana)
             JpFlickKey(KANA_SA, style, ::emitKana)
@@ -228,13 +316,26 @@ fun JapaneseFlickKeyboard(
                 }
             )
         }
-        // Row 3: ␣  ま  や  ら  変換   (スペース/変換は 1 行のまま = 押しやすさ優先)
+        // Row 3: [😀 / ␣]  ま  や  ら  変換   (変換は 1 行のまま = 押しやすさ優先)
         //   ␣ も composing がある間は **強制確定しない** で空白を append (記号と同じ方針)。
+        //   ⚠ 絵文字キーは ␣ の列を**上下に割って**置く ([JpEdgeStack] は Row 2 と同じ部品)。
+        //   左右に割ると縁 1 列の半分になって指の的が小さすぎるため。
         JpRow(rowSpacing) {
-            JpKey("␣", style, repeatable = true, weight = JP_EDGE_WEIGHT) {
-                if (composing.isActive) composing.append(' ')
-                else onBytes(byteArrayOf(0x20))
-            }
+            JpEdgeStack(
+                weight = JP_EDGE_WEIGHT, spacing = rowSpacing,
+                top = {
+                    JpFuncKey(
+                        "😀", style, modifier = Modifier.fillMaxSize(),
+                        fontScale = 0.85f, accent = pad == PadMode.EMOJI
+                    ) { togglePad(PadMode.EMOJI) }
+                },
+                bottom = {
+                    JpFuncKey("␣", style, modifier = Modifier.fillMaxSize(), repeatable = true) {
+                        if (composing.isActive) composing.append(' ')
+                        else onBytes(byteArrayOf(0x20))
+                    }
+                }
+            )
             JpFlickKey(KANA_MA, style, ::emitKana)
             JpFlickKey(KANA_YA, style, ::emitKana)
             JpFlickKey(KANA_RA, style, ::emitKana)
@@ -393,6 +494,27 @@ private fun RowScope.JpBackspaceKey(
     onFlickLeft: () -> Unit,
     onFlickRight: () -> Unit
 ) {
+    JpBackspaceKeyBody(
+        style = style,
+        modifier = Modifier.weight(weight).fillMaxHeight(),
+        onTap = onTap,
+        onFlickLeft = onFlickLeft,
+        onFlickRight = onFlickRight
+    )
+}
+
+/**
+ * ⌫ の本体。[modifier] にサイズを渡す形にしてあるので、通常の行 (Row) でも
+ * パッド表示中の縁の列 (Column) でも同じキーを使える。
+ */
+@Composable
+private fun JpBackspaceKeyBody(
+    style: KeyboardStyle,
+    modifier: Modifier,
+    onTap: () -> Unit,
+    onFlickLeft: () -> Unit,
+    onFlickRight: () -> Unit
+) {
     var pressed by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val currentOnTap by rememberUpdatedState(onTap)
@@ -402,9 +524,7 @@ private fun RowScope.JpBackspaceKey(
     val fg = if (pressed) Color.Black else ZtsTextPrimary
     val border = if (pressed) ZtsGreen else ZtsBorder
     Box(
-        modifier = Modifier
-            .weight(weight)
-            .fillMaxHeight()
+        modifier = modifier
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
             .border(1.dp, border, RoundedCornerShape(6.dp))
@@ -461,6 +581,72 @@ private fun RowScope.JpBackspaceKey(
             text = "⌫",
             color = fg,
             fontSize = style.keyFontSp.sp,
+            fontWeight = FontWeight.Medium,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+/**
+ * ESC キー。タップ=[onTap] (従来どおり)、**上フリック**=[onFlickUp] (貼り付けパッド)。
+ *
+ * ⚠ 上フリックにしたのは**キーを増やす隙間が無い**から。⌫ の左右フリック
+ * ([JpBackspaceKeyBody]) と同じ指の動きなので、この配列の中では一貫している。
+ */
+@Composable
+private fun RowScope.JpEscKey(
+    style: KeyboardStyle,
+    weight: Float,
+    onTap: () -> Unit,
+    onFlickUp: () -> Unit
+) {
+    var pressed by remember { mutableStateOf(false) }
+    val currentOnTap by rememberUpdatedState(onTap)
+    val currentOnFlickUp by rememberUpdatedState(onFlickUp)
+    val bg = if (pressed) ZtsGreenBright else ZtsBgCard
+    val fg = if (pressed) Color.Black else ZtsTextPrimary
+    val border = if (pressed) ZtsGreen else ZtsBorder
+    Box(
+        modifier = Modifier
+            .weight(weight)
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(6.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(6.dp))
+            .pointerInput(Unit) {
+                val flickThreshold = viewConfiguration.touchSlop * 1.4f
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        pressed = true
+                        val startX = down.position.x
+                        val startY = down.position.y
+                        var resolved = false
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Main)
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            val dx = change.position.x - startX
+                            val dy = change.position.y - startY
+                            if (!resolved && dy < -flickThreshold && abs(dy) > abs(dx)) {
+                                resolved = true
+                                currentOnFlickUp()
+                                change.consume()
+                            }
+                            if (!change.pressed) {
+                                if (!resolved) currentOnTap()
+                                break
+                            }
+                        }
+                        pressed = false
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "ESC",
+            color = fg,
+            fontSize = (style.keyFontSp * 0.7f).sp,
             fontWeight = FontWeight.Medium,
             fontFamily = FontFamily.Monospace
         )
