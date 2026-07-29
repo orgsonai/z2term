@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-29 / Target version: 0.8.280-alpha (versionCode 288)
+Last updated: 2026-07-29 / Target version: 0.8.281-alpha (versionCode 289)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1538,9 +1538,14 @@ On failure: fall back to launchAndroidSh
 - **Shift**: 3-state cycle OFF → ONESHOT → LOCKED. **CTRL/ALT/symbol (?#)**: toggle.
 - **Flick**: on letter keys, **flick down = uppercase Latin**. Up/left/right = symbols (green hints; flick down has no hint). COMPACT has up + down, SPACIOUS has 4 directions + down.
 - **Long-press repeat**: numbers / arrows / space / letter keys / **⏎** repeat while held (first 400ms→55ms). ⌫ is 500ms→60ms, with left/right flick = Ctrl+W / Ctrl+U. Modifier keys don't repeat. ⏎ carries the repeat in all three places — the Latin layout, the kana flick layout, and `SpecialKeyBar` shown with the system keyboard (0.8.193; wiring only one of them makes it "work on some keyboards only"). On the kana flick layout the first press commits the pending composition, and the rest send newlines.
-- **ALT / META**: both are the same modifier that prefixes the next key with ESC (Meta); META is only shown at the left of Row 3 on the English layout. It applies to `emitChar`/`emitSpecial` **and to `emitCursor`** — arrows used to drop the modifier, so ALT+arrow was just a plain arrow (fixed in 0.8.193). Since the arrow bytes depend on DECCKM and are built by the terminal, ESC is sent on its own first, followed by the arrow.
+- **ALT / META**: both are the same modifier that prefixes the next key with ESC (Meta). ⚠ **META was removed in 0.8.281** and its seat became the entry point for the paste / emoji pad (`PadKey`, below); the Meta modifier now lives only on ALT in Row 5 (the two keys always did the same thing). It applies to `emitChar`/`emitSpecial` **and to `emitCursor`** — arrows used to drop the modifier, so ALT+arrow was just a plain arrow (fixed in 0.8.193). Since the arrow bytes depend on DECCKM and are built by the terminal, ESC is sent on its own first, followed by the arrow.
 - The "あ" key → switches to the built-in Japanese flick. The TopBar "あ" → switches the OS IME (a separate path).
-- **English locale (`showJapaneseKeyboard=false`)**: with no "あ" key, SPACIOUS drops ⇧/CTRL down one row and puts a **META key** (= the same ESC-prefix modifier as Alt) at the left of `a`, removing the gap at the home-row start. Row 5 left is CTRL. COMPACT has no left key on the home row to begin with, so it is unchanged.
+- **English locale (`showJapaneseKeyboard=false`)**: with no "あ" key, SPACIOUS drops ⇧/CTRL down one row to fill the gap at the home-row start. COMPACT has no left key on the home row to begin with, so it is unchanged.
+- **Paste / emoji on the Latin layout (`PadKey`, 0.8.281)**: the Latin layout had no entry point for either, so using it as the everyday keyboard in an English locale meant **no emoji and no paste** (the Japanese locale reaches both from the kana layout). ⚠ **There is no room for another key**, so the seats of keys that were **already duplicates** are used:
+  - SPACIOUS English = the old **META** at the left of Row 3 (the same modifier as ALT in Row 5).
+  - COMPACT English = the old **CTRL** at the left of Row 5 (the top bar already carries CTRL). ⚠ This is the seat "あ" (layer switching) occupies on the Japanese layout, which makes it a consistent home for a key that swaps the layer.
+  - **Tap = paste, flick up = emoji.** ⚠ The key draws 📋 in the middle and 😀 at the top edge, so **the key itself explains the entry point** — the lesson from the ESC up-flick on the Japanese layout, which went unused because it was invisible.
+  - While the pad is open the layer is swapped wholesale, **keeping only the bottom row of function keys (× ⌫ space ⏎ ← →)**. ⚠ Unlike the Japanese layout it does not keep the edge columns: with 10 columns they are too narrow to be a finger target. ⌫ is not replaced by "close", same as the Japanese layout (you would lose the ability to delete right after pasting).
 
 ### 6.2 Japanese flick keyboard
 

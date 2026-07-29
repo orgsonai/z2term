@@ -97,6 +97,9 @@ fun TerminalKeyboard(
     var sym by remember { mutableStateOf(false) }
     // 日本語フリックモード (⌨ → あ キーで切替)。ON の間は内蔵かなキーボードを描画。
     var jpMode by remember { mutableStateOf(false) }
+    // 開いているパッド (絵文字 / 貼り付け)。⚠ 入口は**英語ロケールのときだけ**出す
+    // (日本語ロケールでは「あ」面に 😀 キーと ESC 上フリックがあるので、そちらから入る)。
+    var pad by remember { mutableStateOf(PadMode.NONE) }
 
     if (jpMode) {
         JapaneseFlickKeyboard(
@@ -148,6 +151,14 @@ fun TerminalKeyboard(
         onBytes(final)
         if (alt) alt = false
     }
+
+    // パッドの開閉。⚠ 同じキーをもう一度押したら閉じる (日本語面と同じ約束)。
+    fun togglePad(mode: PadMode) { pad = if (pad == mode) PadMode.NONE else mode }
+
+    // 絵文字 / 貼り付けの出口。⚠ **確定と同じ経路**を通すこと — バイト列 (onBytes) で送ると、
+    // OS の入力メソッドとして使っているとき改行が performEditorAction (1 行欄では検索実行) へ
+    // 読み替えられてしまう。
+    fun insertText(text: String) { composing.commitExternalText(text) }
 
     fun emitCursor(key: TerminalEmulator.CursorKey) {
         // ALT/META 押下中は ESC プレフィックスを付ける (Meta+矢印)。矢印そのもののバイト列は
@@ -214,6 +225,52 @@ fun TerminalKeyboard(
     val rowSpacing = if (style.keyHeight >= 56.dp) 4.dp else 3.dp
     val isCompact = style.id == "compact"
     val smallFont = (style.keyFontSp - 3f).coerceAtLeast(10f)
+
+    if (pad != PadMode.NONE) {
+        // パッド表示中: キーの面をまるごとパッドへ差し替え、**最下段だけ機能キーを残す**。
+        // ⚠ 日本語面 ([JapaneseFlickKeyboard]) は両端の列を残せるが、こちらは 10 列あって
+        // 縁が細いので、残すのは行単位にする。貼った直後に消す・改行するのは同じようにできる。
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(ZtsBgSecondary)
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(rowSpacing)
+        ) {
+            KeyboardPad(
+                mode = pad,
+                onMode = { pad = it },
+                style = style,
+                onInsert = ::insertText,
+                modifier = Modifier.fillMaxWidth().weight(1f)
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
+                // ⚠ 閉じるのはここか、入口キー ([PadKey]) をもう一度押すか。⌫ を「閉じる」に
+                // 置き換えない (パッドを開いている間に文字を消せなくなる)。
+                BasicKey("×", weight = 1.2f, fontSp = style.keyFontSp, active = true, style = style) {
+                    pad = PadMode.NONE
+                }
+                BackspaceKey(
+                    weight = 1.4f,
+                    style = style,
+                    onTap = { emitSpecial(byteArrayOf(0x7F)) },
+                    onFlickLeft = { emitSpecial(byteArrayOf(0x17)) },
+                    onFlickRight = { emitSpecial(byteArrayOf(0x15)) }
+                )
+                SpaceKey(weight = 3f, style = style) { emitChar(' ') }
+                BasicKey("⏎", weight = 1.4f, fontSp = style.keyFontSp, repeatable = true, style = style) {
+                    emitSpecial(byteArrayOf(0x0D))
+                }
+                BasicKey("←", weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) {
+                    emitCursor(TerminalEmulator.CursorKey.LEFT)
+                }
+                BasicKey("→", weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) {
+                    emitCursor(TerminalEmulator.CursorKey.RIGHT)
+                }
+            }
+        }
+        return
+    }
 
     Column(
         modifier = modifier
@@ -286,13 +343,15 @@ fun TerminalKeyboard(
                 if (showJapaneseKeyboard) {
                     ShiftKey(weight = 1.4f, state = shift, style = style, onCycle = { cycleShift() })
                 } else {
-                    BasicKey(
-                        label = "META",
+                    // 英語ロケールのみ: 旧 META キーを**貼り付け / 絵文字の入口**にする (要望)。
+                    // ⚠ META は Row 5 の ALT と同じ修飾 (ESC プレフィックス) だったので、
+                    // 潰しても ALT で代わりが利く。英字面には絵文字も貼り付けも入口が無かった。
+                    PadKey(
                         weight = 1.4f,
-                        fontSp = smallFont,
-                        active = alt,
-                        style = style
-                    ) { alt = !alt }
+                        style = style,
+                        onTap = { togglePad(PadMode.CLIPBOARD) },
+                        onFlickUp = { togglePad(PadMode.EMOJI) }
+                    )
                 }
             }
             r3Labels.forEachIndexed { idx, s ->
@@ -344,6 +403,16 @@ fun TerminalKeyboard(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
             if (showJapaneseKeyboard) {
                 BasicKey("あ", weight = 1.4f, fontSp = style.keyFontSp, style = style) { jpMode = true }
+            } else if (isCompact) {
+                // compact の英語面は上部バーに CTRL があり、ここは**同じキーが 2 つ**あった。
+                // 日本語面で「あ」(面の切替) が座っている位置なので、面を差し替えるパッドの
+                // 入口をここに置く (spacious 英語は Row 3 左の旧 META がその役)。
+                PadKey(
+                    weight = 1.4f,
+                    style = style,
+                    onTap = { togglePad(PadMode.CLIPBOARD) },
+                    onFlickUp = { togglePad(PadMode.EMOJI) }
+                )
             } else {
                 BasicKey("CTRL", weight = 1.4f, fontSp = smallFont, active = ctrl, style = style) { ctrl = !ctrl }
             }
@@ -430,6 +499,75 @@ private fun RowScope.BasicKey(
             fontSize = fontSp.sp,
             fontWeight = FontWeight.Medium,
             fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+/**
+ * 貼り付け / 絵文字パッド ([KeyboardPad]) の入口キー。**英語ロケールの英字面だけ**に出る。
+ *
+ * タップ = 貼り付け ([onTap])、**上フリック** = 絵文字 ([onFlickUp])。
+ *
+ * ⚠ 中央に 📋、上端に 😀 を出して**どちらが何か見て分かる**ようにする — 日本語面の
+ * 「ESC の上フリック」は見えない入口だったため辿り着けない人がいた (0.8.279 でヒントを足した)。
+ * 同じ轍を踏まないよう、こちらは最初からキーの表示そのものを入口の説明にする。
+ */
+@Composable
+private fun RowScope.PadKey(
+    weight: Float,
+    style: KeyboardStyle,
+    onTap: () -> Unit,
+    onFlickUp: () -> Unit
+) {
+    var pressed by remember { mutableStateOf(false) }
+    val currentOnTap by rememberUpdatedState(onTap)
+    val currentOnFlickUp by rememberUpdatedState(onFlickUp)
+    val bg = if (pressed) ZtsGreenBright else ZtsBgCard
+    val fg = if (pressed) Color.Black else ZtsTextPrimary
+    val border = if (pressed) ZtsGreen else ZtsBorder
+    Box(
+        modifier = Modifier
+            .weight(weight)
+            .height(style.keyHeight)
+            .clip(RoundedCornerShape(6.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(6.dp))
+            .pointerInput(Unit) {
+                val flickThreshold = viewConfiguration.touchSlop * 1.4f
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        pressed = true
+                        val startX = down.position.x
+                        val startY = down.position.y
+                        var resolved = false
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Main)
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            val dx = change.position.x - startX
+                            val dy = change.position.y - startY
+                            if (!resolved && dy < -flickThreshold && abs(dy) > abs(dx)) {
+                                resolved = true
+                                currentOnFlickUp()
+                                change.consume()
+                            }
+                            if (!change.pressed) {
+                                if (!resolved) currentOnTap()
+                                break
+                            }
+                        }
+                        pressed = false
+                    }
+                }
+            }
+    ) {
+        HintText("😀", style, modifier = Modifier.align(Alignment.TopCenter))
+        Text(
+            text = "📋",
+            color = fg,
+            fontSize = style.keyFontSp.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.align(Alignment.Center)
         )
     }
 }
