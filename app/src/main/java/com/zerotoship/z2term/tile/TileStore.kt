@@ -168,14 +168,17 @@ object TileStore {
     /**
      * タイルに出す名前を決める (Android 非依存・テスト用)。
      *
-     * 明示的な名前があればそれ。無ければ、マクロなら拡張子を落とした名前 (`backup.sh` → `backup`)、
-     * コマンドなら**先頭の語**(`z2-screen keepon 1h` → `z2-screen`)。**タイルは名前が機能そのもの**
+     * 明示的な名前があればそれ。無ければ**先頭の語**で、マクロなら拡張子を落とす
+     * (`backup.sh` → `backup` / `z2-screen keepon 1h` → `z2-screen`)。**タイルは名前が機能そのもの**
      * なので、コマンド全文を出して切れるより短い手掛かりを出す方が使える。
+     *
+     * ⚠ 引数付きのマクロ (`remind.sh ask` / `remind.sh peek`) は**どちらも同じ名前になる**ので、
+     * 使い分けるなら `-l` を付ける (`z2-tile set 2 'remind.sh ask' -l リマインド`)。引数まで
+     * 名前に畳み込まないのは、枠は 4 つしかなく、長い名前は機種によって黙って切れるため。
      */
     internal fun labelFor(command: String, explicit: String): String {
         val raw = explicit.ifBlank {
-            if (command.endsWith(".sh")) command.removeSuffix(".sh")
-            else command.trim().substringBefore(' ')
+            command.trim().substringBefore(' ').removeSuffix(".sh")
         }
         return if (raw.length > MAX_LABEL_CHARS) raw.take(MAX_LABEL_CHARS - 1) + "…" else raw
     }
@@ -253,14 +256,32 @@ object TileStore {
      * [command] は既定で [Slot.command]。入 / 切の枠 ([Slot.isPair]) では切るときに
      * [Slot.offCommand] を渡す。**切るほうもマクロ名で書ける** (判定は同じ道を通る)。
      */
-    fun scriptFor(context: Context, slot: Slot, command: String = slot.command): String {
-        val n = HeadlessRun.shSingleQuote(slot.n.toString())
-        val prefix = "export Z2_TILE=$n; cd \"\$HOME\" 2>/dev/null; "
-        return if (command in WidgetStore.availableMacros(context)) {
-            val q = HeadlessRun.shSingleQuote(command)
-            prefix + "export Z2_TILE_MACRO=$q; sh \"\$HOME/.z2term/macros/\"$q"
+    fun scriptFor(context: Context, slot: Slot, command: String = slot.command): String =
+        scriptOf(slot.n, command, WidgetStore.availableMacros(context))
+
+    /**
+     * [scriptFor] の中身 (Android 非依存・テスト用)。[macros] は導入済みマクロのファイル名。
+     *
+     * ⚠ **先頭の語だけを見てマクロか判定する** (0.8.275)。それまでは割り当て全体との完全一致で、
+     * `remind.sh ask` のように**引数を 1 つ付けた瞬間にコマンド扱いへ落ちていた**。マクロ置き場は
+     * PATH に入っていないので `sh: remind.sh: not found` で終わり、**タイルは押しても無反応**
+     * (失敗は `~/.z2term/tile/run.log` にしか出ない) という、外から原因の見えない壊れ方をした。
+     * 1 本のマクロをサブコマンドで使い分ける書き方は自然に出てくるので、そちらを通す。
+     *
+     * 引数は**そのままシェルへ渡す** (`$HOME` や `$(…)` が効く)。マクロ名の方だけ単一引用符で
+     * 囲むのは従来どおり — こちらは実在ファイル名しか来ないので、展開させる理由がない。
+     */
+    internal fun scriptOf(n: Int, command: String, macros: Collection<String>): String {
+        val prefix = "export Z2_TILE=${HeadlessRun.shSingleQuote(n.toString())}; cd \"\$HOME\" 2>/dev/null; "
+        val cmd = command.trim()
+        val head = cmd.substringBefore(' ')
+        val args = cmd.substringAfter(' ', "").trim()
+        return if (head in macros) {
+            val q = HeadlessRun.shSingleQuote(head)
+            prefix + "export Z2_TILE_MACRO=$q; sh \"\$HOME/.z2term/macros/\"$q" +
+                if (args.isEmpty()) "" else " $args"
         } else {
-            prefix + command
+            prefix + cmd
         }
     }
 

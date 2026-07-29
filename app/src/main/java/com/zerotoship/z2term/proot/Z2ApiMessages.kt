@@ -181,6 +181,11 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# ⚠ That on/off is only what the app remembers — running z2-torch off in the terminal
         |# instead leaves the tile showing "on". (z2-screen keepon is the exception: the app
         |# holds that state for real, so its tile follows the terminal.)
+        |# A macro may take arguments ('remind.sh ask'): the first word decides whether this is a
+        |# macro, the rest is passed to it. Two slots running the same macro end up with the same
+        |# label, so give them -l. ⚠ A name ending in .sh that is not in ~/.z2term/macros/ is
+        |# rejected here — as a command it would be looked up in PATH (which does not include the
+        |# macro folder), so the tile would do nothing at all and only say so in tile/run.log.
         |# The command runs with Z2_TILE=<slot> (and Z2_TILE_MACRO for a macro) in the environment.
         |# ⚠ You still have to place the tile yourself, from the pencil/edit screen of the quick
         |# settings panel — Android does not let an app put its own tiles there. There are exactly
@@ -202,6 +207,11 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# ⚠ この ON / 切は**アプリが覚えているだけ**です。端末から直接 z2-torch off を打つと
         |# タイルは入のままになります (z2-screen keepon だけは例外で、アプリが実態を
         |# 持っているので端末から切ってもタイルが揃います)。
+        |# マクロには**引数を付けられます** ('remind.sh ask')。マクロかどうかは**先頭の語**で決まり、
+        |# 残りはそのままマクロへ渡ります。同じマクロを 2 枠に置くと表示名が同じになるので -l を
+        |# 付けてください。⚠ .sh で終わるのに ~/.z2term/macros/ に無い名前は**ここで弾きます** —
+        |# コマンド扱いになると PATH (マクロ置き場は入っていません) から探されて見つからず、
+        |# タイルは押しても無反応・理由は tile/run.log にしか出ない、という壊れ方をするためです。
         |# 実行時、環境変数 Z2_TILE に枠番号 (マクロなら Z2_TILE_MACRO も) が入ります。
         |# ⚠ タイルを**並べるのはご自身**で、クイック設定パネルの鉛筆(編集)から追加します
         |# — アプリが勝手に置くことは Android が禁じています。枠はちょうど 4 つで、
@@ -216,6 +226,11 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
             "list | clear <1-4|all>"
         else "usage: z2-tile set <1-4> <マクロ.sh|コマンド...> [--off <コマンド...>] [-l 表示名] | " +
             "list | clear <1-4|all>"
+
+    /** 置き場に無いマクロ名を弾くときの文言 (後ろに名前が付く)。 */
+    val tileNoSuchMacro: String =
+        if (en) "no such macro in ~/.z2term/macros/ (use a full path to run it as a command):"
+        else "そのマクロは ~/.z2term/macros/ にありません (コマンドとして走らせるならフルパスで):"
 
     // --- z2-noti ---
 

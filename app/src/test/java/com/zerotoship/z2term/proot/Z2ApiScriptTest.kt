@@ -1,6 +1,7 @@
 package com.zerotoship.z2term.proot
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -348,9 +349,15 @@ class Z2ApiScriptTest {
         val script = File(dir, "z2-tile").apply {
             writeText(scripts["z2-tile"]!!.replace("/usr/local/bin/z2api", stub.absolutePath))
         }
+        // 0.8.275 から「.sh で終わるのに置き場に無い名前」は弾かれるので、HOME を作り替えて
+        // 導入済みマクロを 1 本置く (実機で backup.sh を install した状態と同じにする)。
+        val home = File(dir, "home").apply { File(this, ".z2term/macros").mkdirs() }
+        File(home, ".z2term/macros/backup.sh").writeText("#!/bin/sh\n")
         fun run(vararg args: String): String {
-            val proc = ProcessBuilder(listOf(sh!!, script.absolutePath) + args)
-                .redirectErrorStream(true).start()
+            val pb = ProcessBuilder(listOf(sh!!, script.absolutePath) + args)
+                .redirectErrorStream(true)
+            pb.environment()["HOME"] = home.absolutePath
+            val proc = pb.start()
             val out = proc.inputStream.bufferedReader().readText().trim()
             proc.waitFor()
             return out
@@ -378,6 +385,22 @@ class Z2ApiScriptTest {
             )) {
                 val out = run(*args.toTypedArray())
                 assertTrue("usage が出ていない (${args.joinToString(" ")}): $out", out.contains("usage:"))
+            }
+            // 引数付きのマクロ名はそのまま通る (タイル側が先頭の語で判定する・0.8.275)。
+            assertEquals(
+                "[1]\n[tile]\n[set]\n[1]\n[backup.sh --now]\n[]\n[]",
+                run("set", "1", "backup.sh --now")
+            )
+            // ⚠ 置き場に無い .sh は**割り当てに行かない**。通すとコマンド扱いで PATH から
+            // 探され、見つからず「押しても無反応」になる (理由は tile/run.log にしか出ない)。
+            for (args in listOf(
+                listOf("set", "1", "nope.sh"),
+                listOf("set", "1", "nope.sh", "ask"),
+                listOf("set", "1", "backup.sh", "--off", "nope.sh")
+            )) {
+                val out = run(*args.toTypedArray())
+                assertFalse("置き場に無いマクロが割り当てられた (${args.joinToString(" ")}): $out", out.contains("[tile]"))
+                assertTrue("理由が出ていない (${args.joinToString(" ")}): $out", out.contains("nope.sh"))
             }
         } finally {
             dir.deleteRecursively()

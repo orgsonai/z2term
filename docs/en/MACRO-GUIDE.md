@@ -4,7 +4,7 @@
 It is a manual you can read and write by hand, and at the same time a **machine-readable
 reference you can feed whole to an AI** — then just say "I want to …" and it generates the macro.
 
-> Target version: 0.8.273-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
+> Target version: 0.8.275-alpha and later / 日本語版: `docs/ja/MACRO-GUIDE.md`
 > Everything here is **non-root, fully local, no external transmission**. No hard-permission features are included.
 
 ---
@@ -61,7 +61,7 @@ minute). **Do not write in style B what style A can express.**
    your script's start command; it then runs without opening the app and after reboot (also turn on
    "auto-start on boot").
 4. Handy tool: install `jq` (JSON parsing). e.g. Alpine `apk add jq` / Debian-family `apt install jq`.
-5. **If you would rather not start from a blank file**: `z2-macro list` shows the 7 bundled samples and
+5. **If you would rather not start from a blank file**: `z2-macro list` shows the 8 bundled samples and
    `z2-macro install <name>` copies one into `~/.z2term/macros/` (`z2-macro install all` for every one).
    Edit them freely — install never overwrites an existing file, so your edits are safe (`-f` forces it).
    On install it also tells you **how that script is meant to be run** (register it as a resident
@@ -326,6 +326,19 @@ z2-tile clear 2                                  # empty a slot (clear all works
 
 - What you assign is either the **file name of a macro** in `~/.z2term/macros/` or a **command** to
   run as typed. **Which one it is comes from the name** — there is no `--macro` flag to get wrong.
+  Only the **first word** decides, so **a macro can take arguments**:
+
+  ```sh
+  z2-tile set 2 'remind.sh ask'  -l remind    # macro + arguments
+  z2-tile set 3 'remind.sh peek' -l list
+  ```
+
+  - Two slots running the same macro end up with **the same label** (it comes from the first word),
+    so give them `-l`.
+  - ⚠ A name ending in `.sh` that is **not** in `~/.z2term/macros/` is **rejected when you assign it**.
+    Letting it through would make it a command, and the macro folder **is not on PATH** — the tile
+    would do nothing at all, with the reason only in `~/.z2term/tile/run.log`.
+  - Scripts outside the macro folder go in with a **full path** (`sh /path/to/foo.sh args`).
 - **Tap to run, tap again to stop.** The tile is green while it runs (same deal as the widget buttons).
 - The run gets **`Z2_TILE`** (the slot number) in its environment, plus `Z2_TILE_MACRO` for a macro,
   so the same macro can sit on several slots and branch on which one was pressed.
@@ -338,6 +351,7 @@ z2-tile clear 2                                  # empty a slot (clear all works
 - **With nothing assigned, no tile is listed at all** (0.8.271). Only the slots you assign show up in
   the quick settings list.
 - The run log is `~/.z2term/tile/run.log`, kept apart from the widget's `~/.z2term/widget/run.log`.
+  **When a tap seems to do nothing, look there first** — failures never reach the screen.
 
 ### `z2-alarm` (run on a schedule)
 
@@ -860,6 +874,42 @@ app**. Read them as a worked example of how the generic parts connect.
 cannot be trusted, remembering what you already saw and subtracting it is enough (the same idea as
 `z2scan`'s baseline diff).
 
+
+### 5-9. Worked example: remind yourself with a notification (one-shot vs repeating)
+
+The single script `z2-macro install remind` brings in is **a reminder that fires with the app closed**.
+The point is that one-shot and repeating reminders live in different places; the same split applies
+to plenty of other jobs.
+
+```sh
+sh ~/.z2term/macros/remind.sh setup    # once, up front (registers the hooks and the tiles)
+
+remind.sh 30m take pills               # once, 30 minutes from now
+remind.sh 18:30 take out the bins      # once, at the next 18:30
+remind.sh daily 07:00 weigh in         # every day
+remind.sh weekday 09:00 standup        # Mon-Fri
+remind.sh weekly tue 20:00 recycling   # that weekday only
+remind.sh list / remind.sh del 2       # list / cancel
+```
+
+| What it does | Which parts |
+|---|---|
+| One-shot | `z2-alarm in 30m r<id>` / `z2-alarm at 18:30 r<id>` (a booking that disappears once it fires) |
+| Repeating | `z2-when time:daily=07:00` / `time:cron='0 20 * * 2'` (a rule that stays) |
+| Fire it | `z2-notify -h -n r<id> -b Done -b +10min -b +1h` |
+| The button reply | `z2-when event:notify_action` (`Z2_WHEN_EVENT_NAME` gives back the `-n` name) |
+| Catch the alarm | `z2-when event:alarm` — **one rule, permanently**, no matter how many reminders you add |
+| Add one without opening the app | a quick-settings tile → `z2-ask` (asks "what?" and "when?" in a notification reply box) |
+
+- **Why not put one-shots in `z2-when`**: `time:at=` disables itself after firing, but **the rule
+  itself stays**, so dead rules pile up in the automation tab. A `z2-alarm` booking is gone once it rings.
+- **Why not do repeating ones with `z2-alarm`**: `z2-alarm` only writes an `alarm` line into
+  `events.jsonl`, so something has to pick it up. `z2-when time:` runs **your command directly** (→ 3-A).
+- **The text lives in a file; the notification name only carries an id** (`~/.z2term/remind/<id>.txt`).
+  Put the text in the name and the matching breaks the moment it contains a space or an emoji.
+- Firing can be **a few minutes late** (the booking is battery-friendly and Doze-aware). Not for
+  anything that needs to be on time to the second.
+
 ---
 
 ## 6. Parsing without jq (pure POSIX)
@@ -928,6 +978,9 @@ The trick is to explicitly say **stay within this guide** so the AI won't reach 
   all → section 1, style A) ② If residency really is needed, widen `POLL` (15 s or more) ③ `⚙ Settings →
   Low-power mode` stops the app from holding the WakeLock/WifiLock (at the cost of slower reactions
   while the screen is off).
+- **A tile does nothing when tapped** → the reason is in `~/.z2term/tile/run.log` (failures never
+  reach the screen). `command not found` means you assigned something outside the macro folder by
+  name — use a full path.
 - **events.jsonl doesn't grow** → is "System event detection" on in ⚙ Settings? An ongoing notification shows while active.
 - **`ssid` is blank** → reading the SSID needs location permission (v1 doesn't request it, so it can be blank). Connect/disconnect detection still works.
 - **`z2-*: cannot write request (storage perm?)`** → check the app's storage permission.

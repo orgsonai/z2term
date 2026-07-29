@@ -31,6 +31,41 @@ class TileStoreTest {
         assertEquals("消灯しない", TileStore.labelFor("z2-screen keepon 1h", explicit = "消灯しない"))
     }
 
+    /** 引数付きのマクロも先頭の語で名前が決まる (`remind.sh ask` → `remind`)。 */
+    @Test
+    fun macroWithArgumentsStillDropsTheExtension() {
+        assertEquals("remind", TileStore.labelFor("remind.sh ask", explicit = ""))
+    }
+
+    /**
+     * 引数を付けてもマクロとして走る (0.8.275 の回帰テスト)。
+     *
+     * 元バグ: 割り当て全体との完全一致で判定していたため `remind.sh ask` がコマンド扱いになり、
+     * マクロ置き場は PATH に無いので `not found`。**タイルは押しても無反応**で、理由は
+     * `~/.z2term/tile/run.log` にしか出なかった。
+     */
+    @Test
+    fun aMacroKeepsItsArguments() {
+        val script = TileStore.scriptOf(2, "remind.sh ask", listOf("remind.sh"))
+        assertTrue(script, script.contains("export Z2_TILE_MACRO='remind.sh'"))
+        assertTrue(script, script.endsWith("sh \"\$HOME/.z2term/macros/\"'remind.sh' ask"))
+    }
+
+    /** 引数の無いマクロは従来どおり (余計な空白を足さない)。 */
+    @Test
+    fun aMacroWithoutArgumentsIsUnchanged() {
+        val script = TileStore.scriptOf(1, "backup.sh", listOf("backup.sh"))
+        assertTrue(script, script.endsWith("sh \"\$HOME/.z2term/macros/\"'backup.sh'"))
+    }
+
+    /** マクロ置き場に無いものは、これまでどおりコマンドとしてそのまま走る。 */
+    @Test
+    fun anythingElseRunsAsACommand() {
+        val script = TileStore.scriptOf(3, "z2-screen keepon 1h", listOf("backup.sh"))
+        assertTrue(script, script.endsWith("z2-screen keepon 1h"))
+        assertFalse(script, script.contains("Z2_TILE_MACRO"))
+    }
+
     /** 長すぎる名前は切り詰める (クイック設定は狭く、溢れると読めなくなる)。 */
     @Test
     fun longLabelIsShortened()  {

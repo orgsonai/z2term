@@ -109,6 +109,26 @@ class GeneratedScriptMarginTest {
         assertTrue("POLL=$poll は短すぎる (エンジン下では電池に出る)", poll!! >= 10)
     }
 
+    /**
+     * リマインダーサンプルが**単発と繰り返しで置き場を分けている**こと（0.8.275）。
+     *
+     * 単発まで `z2-when` のルールにすると、鳴り終わった死んだルールが自動化タブに溜まる。
+     * 逆に繰り返しを `z2-alarm` だけで組むと、拾い役を予定の数だけ常設することになる。
+     * どちらに寄せても壊れないので、**両方を使い分けている**ことをここで押さえる。
+     */
+    @Test
+    fun remindSample_splitsOneShotAndRepeating() {
+        for (lang in listOf("ja", "en")) {
+            val body = z2MacroSamples(lang)["remind.sh"]
+            assertTrue("$lang: remind.sh が同梱されていない", body != null)
+            assertTrue("$lang: 単発が z2-alarm の予約になっていない", body!!.contains("z2-alarm ${'$'}SPEC"))
+            assertTrue("$lang: 繰り返しが z2-when のルールになっていない", body.contains("z2-when \"${'$'}SPEC\" run"))
+            // 受け口は 2 本だけ (予定を足しても増えない)。
+            assertTrue("$lang: 発火の受け口が無い", body.contains("z2-when 'event:alarm' run"))
+            assertTrue("$lang: 通知ボタンの受け口が無い", body.contains("z2-when 'event:notify_action' run"))
+        }
+    }
+
     /** 同梱サンプルが実際の `sh` の構文検査を通ること（sh が無い環境ではスキップ）。 */
     @Test
     fun samples_areValidPosixShell() {

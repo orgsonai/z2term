@@ -50,6 +50,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
@@ -90,6 +91,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -367,7 +369,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // IME 学習履歴 (確定済み読み→単語) も同タイミングで読み込み、変換候補のランキングに使う。
     LaunchedEffect(Unit) { ImeHistoryStore.ensureLoaded(context) }
     // キーボードモード変更時は変換中バッファを破棄 (OS IME と二重表示を防ぐ)。
-    LaunchedEffect(keyboardMode, keyboardCollapsed) { composing.reset(); systemComposing = "" }
+    // 検索バーの開閉でも捨てる — 確定先が端末と検索語で入れ替わるので、跨いで持ち越すと
+    // 「端末へ打っていたかな」が検索語に紛れ込む (0.8.275)。
+    LaunchedEffect(keyboardMode, keyboardCollapsed, searchOpen) { composing.reset(); systemComposing = "" }
 
     // 保存されたキーボードモードに常に追従する。keyboardMode を変えるのはトグル
     // (= setKeyboardMode で settings に永続化) だけなので、settings に追従しても競合しない。
@@ -654,6 +658,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         // システムキーボード使用時だけ OS IME を出す。独自キーボード時は
                         // 内蔵キーボードで検索語を入力する (二重キーボード回避・要望)。
                         systemKeyboard = keyboardMode == KeyboardMode.SYSTEM,
+                        // 変換中 (確定前) のかなをキャレット位置へ下線付きで見せる。端末側の
+                        // プリエディット表示と同じ経路・同じ見た目にする (0.8.275)。
+                        composingText = if (keyboardMode == KeyboardMode.SYSTEM) "" else composing.text,
                         matchCount = searchMatches.size,
                         currentIndex = currentMatchIndex,
                         onPrev = {
@@ -1905,6 +1912,10 @@ private fun BrightnessBar(
  *
  * 内蔵キーボード時は OS IME を出さない代わりに、キャレット (点滅する縦棒) を自前で描く。
  * タップした位置にキャレットが移動し、そこへ挿入 / そこから削除できる ([cursor]/[onCursorChange])。
+ *
+ * [composingText] は内蔵キーボードの**変換中 (確定前) のかな**。確定しないと検索語に入らないので、
+ * これを出さないと**打っている最中は画面がまったく変わらない** — 端末では下線付きで見えるものが
+ * 検索バーだけ見えず、「内蔵キーボードで日本語が打てない」ようにしか見えなかった (0.8.275)。
  */
 @Composable
 private fun SearchBar(
@@ -1913,6 +1924,7 @@ private fun SearchBar(
     cursor: Int,
     onCursorChange: (Int) -> Unit,
     systemKeyboard: Boolean,
+    composingText: String,
     matchCount: Int,
     currentIndex: Int,
     onPrev: () -> Unit,
@@ -1977,6 +1989,7 @@ private fun SearchBar(
                 SearchQueryField(
                     query = query,
                     cursor = cursor,
+                    composingText = composingText,
                     onCursorChange = onCursorChange
                 )
             }
@@ -2002,18 +2015,21 @@ private fun SearchBar(
  *  - タップした文字位置へキャレットを移動 ([TextLayoutResult.getOffsetForPosition])
  *  - 点滅する縦棒でキャレット位置を示す
  *  - 語が幅を超えたら、キャレットが常に見えるよう横スクロールする
+ *  - [composingText] (変換中のかな) はキャレット位置に**下線付き**で挟んで見せる
  */
 @Composable
 private fun SearchQueryField(
     query: String,
     cursor: Int,
+    composingText: String,
     onCursorChange: (Int) -> Unit
 ) {
     val density = LocalDensity.current
     val scrollState = rememberScrollState()
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     // 入力/移動の直後は必ず点灯させたいので、query と cursor をキーにして点滅を作り直す。
-    val caretOn by produceState(true, query, cursor) {
+    // 変換中も打鍵のたびに点け直したいので composingText もキーに含める。
+    val caretOn by produceState(true, query, cursor, composingText) {
         while (true) {
             value = true
             delay(600)
@@ -2021,7 +2037,17 @@ private fun SearchQueryField(
             delay(400)
         }
     }
-    val idx = cursor.coerceIn(0, query.length)
+    val at = cursor.coerceIn(0, query.length)
+    // 実際に描く文字列 = 確定済みのキャレット前 + 変換中 + 確定済みのキャレット後。
+    // キャレットは変換中の**後ろ**に置く (次の打鍵が入る位置なので、端末側と同じ)。
+    val shown = remember(query, at, composingText) {
+        if (composingText.isEmpty()) AnnotatedString(query) else buildAnnotatedString {
+            append(query.substring(0, at))
+            withStyle(SpanStyle(textDecoration = TextDecoration.Underline)) { append(composingText) }
+            append(query.substring(at))
+        }
+    }
+    val idx = at + composingText.length
     // 位置は必ず「そのレイアウトが実際に持つ文字列」の長さでクランプする。
     // query の更新 (状態) とレイアウト結果の更新 (次フレーム) には 1 フレームのずれがあり、
     // query.length で丸めると、空レイアウトに対して idx>0 を問い合わせて
@@ -2034,8 +2060,11 @@ private fun SearchQueryField(
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .pointerInput(query) {
+            .pointerInput(query, composingText) {
                 detectTapGestures { pos ->
+                    // 変換中はキャレットを動かさない。描いている文字列に確定前のかなが
+                    // 挟まっているので、タップ位置から検索語側の位置を出しても合わない。
+                    if (composingText.isNotEmpty()) return@detectTapGestures
                     val l = layout ?: return@detectTapGestures
                     onCursorChange(l.getOffsetForPosition(Offset(pos.x + scrollState.value, pos.y)))
                 }
@@ -2054,7 +2083,7 @@ private fun SearchQueryField(
         }
         Box(modifier = Modifier.horizontalScroll(scrollState)) {
             Text(
-                text = query,
+                text = shown,
                 color = ZtsTextPrimary,
                 fontSize = 14.sp,
                 fontFamily = FontFamily.Monospace,
@@ -2075,7 +2104,7 @@ private fun SearchQueryField(
                     .background(if (caretOn) ZtsGreen else Color.Transparent)
             )
         }
-        if (query.isEmpty()) {
+        if (query.isEmpty() && composingText.isEmpty()) {
             Text(
                 text = stringResource(R.string.search_hint),
                 color = ZtsTextSecondary,

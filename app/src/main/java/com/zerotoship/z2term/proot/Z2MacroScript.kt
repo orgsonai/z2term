@@ -192,12 +192,28 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         append(rssOpenBody(d, ja))
     }
 
+    // --- 8. 実用: 通知でリマインド (単発 = z2-alarm / 繰り返し = z2-when time: の使い分けの見本) ---
+    val remind = buildString {
+        appendLine("#!/bin/sh")
+        if (ja) {
+            appendLine("# remind.sh — 通知でリマインドする。単発 (30分後・18:30) と繰り返し (毎日・平日・毎週)。")
+            appendLine("# アプリを閉じていても鳴る (OS のアラームで起こされるため。「検知」ON も不要)。")
+            appendLine("# 通知のボタンからスヌーズできる。**アプリ側に予定機能を作らないための見本**でもある。")
+        } else {
+            appendLine("# remind.sh — remind you with a notification: one-shot (in 30m, at 18:30) or")
+            appendLine("# repeating (daily / weekdays / weekly). Fires with the app closed (an OS alarm")
+            appendLine("# wakes it; no detection switch needed). Snooze from the notification buttons.")
+        }
+        append(remindBody(d, ja))
+    }
+
     return linkedMapOf(
         "watch-basic.sh" to watchBasic,
         "battery-alert.sh" to batteryAlert,
         "daily-report.sh" to dailyReport,
         "otp-clip.sh" to otpClip,
         "otp-sms.sh" to otpSms,
+        "remind.sh" to remind,
         "rss.sh" to rss,
         "rss-open.sh" to rssOpen,
     )
@@ -692,4 +708,395 @@ fun z2MacroScript(lang: String): String {
         |  *) usage ;;
         |esac
     """.trimMargin() + "\n"
+}
+
+/**
+ * リマインダーサンプルの本体。
+ *
+ * **アプリ側に「予定」機能を作らないための見本**でもある (rss.sh と同じ立ち位置)。
+ * 必要な部品はすべて揃っている — 単発は `z2-alarm`、繰り返しは `z2-when time:`、鳴らすのは
+ * `z2-notify -b`、返事は `event:notify_action`、アプリを開かず足すのは `z2-tile` + `z2-ask`。
+ *
+ * 設計上の要点:
+ *  - **単発と繰り返しで置き場を分ける**。繰り返しは `z2-when` のルールとして残るので、
+ *    自動化タブに並び ▶ で試せる。単発をルールにすると発火後に**死んだルールが溜まる**ので、
+ *    こちらは `z2-alarm` の予約 (鳴れば消える) にして、拾い役の `event:alarm` を 1 本だけ常設する。
+ *  - **本文はファイルに置き、通知の名前 (`-n`) には id だけ入れる**。`z2-notify -n <名前>` が
+ *    `event:notify_action` の `Z2_WHEN_EVENT_NAME` にそのまま返るので、これで単発・繰り返し
+ *    どちらのボタンも 1 本のルールで受けられる。名前に本文を入れると、空白や絵文字が
+ *    混ざった瞬間に突き合わせが壊れる。
+ *  - **受け口は 2 本だけ**。予定を何件足しても `z2-when` のルールは増えない。
+ */
+private fun remindBody(d: String, ja: Boolean): String {
+    val head = if (ja) """
+#
+# 準備 (1 回だけ):
+#   sh ~/.z2term/macros/remind.sh setup     … 受け口 2 本とタイル 2 枠を登録
+#
+# 使い方:
+#   remind.sh 30m 薬を飲む            30 分後に 1 回 (90s / 2h も可)
+#   remind.sh 18:30 ゴミ出し          次の 18:30 に 1 回 (過ぎていれば明日)
+#   remind.sh 毎日 07:00 体重を計る    毎日
+#   remind.sh 平日 09:00 朝会          月〜金
+#   remind.sh 毎週 月 09:00 資源ごみ   その曜日だけ
+#   remind.sh list / del <番号|all>   一覧 / 取り消し
+#   remind.sh ask                     通知の返信欄で聞いて登録 (タイル用)
+#
+# z2-run: sh ~/.z2term/macros/remind.sh setup   (以降は remind.sh 30m … で足すだけ)
+""" else """
+#
+# Setup (once):
+#   sh ~/.z2term/macros/remind.sh setup     ... register the two hooks and two tiles
+#
+# Usage:
+#   remind.sh 30m take pills              once, 30 minutes from now (90s / 2h too)
+#   remind.sh 18:30 take out the bins     once, at the next 18:30 (tomorrow if it passed)
+#   remind.sh daily 07:00 weigh in        every day
+#   remind.sh weekday 09:00 standup       Mon-Fri
+#   remind.sh weekly mon 09:00 recycling  that weekday only
+#   remind.sh list / del <n|all>          list / cancel
+#   remind.sh ask                         ask in a notification reply box (for the tile)
+#
+# z2-run: sh ~/.z2term/macros/remind.sh setup   (then just: remind.sh 30m ...)
+"""
+    val cStore = if (ja) {
+        """# 予定 1 件 = ${d}DIR/<id>.txt の 1 行。TAB 区切りで  種別 / 予定の表記 / when の id / 本文。
+#   種別: once (これから鳴る単発) / fired (鳴った単発) / repeat (繰り返し)
+#   when の id: repeat のときだけ入る (削除で z2-when remove するため)。それ以外は '-'。
+# 本文を末尾に置くのは、TAB 以外の文字をそのまま持たせるため。"""
+    } else {
+        """# One reminder = one line in ${d}DIR/<id>.txt, tab separated: kind / label / when-id / text.
+#   kind: once (still to fire) / fired (already fired) / repeat (recurring)
+#   when-id: only for repeat (so delete can call z2-when remove). '-' otherwise.
+# The text goes last so it can hold anything but a TAB."""
+    }
+    val cParse = if (ja) {
+        """# 引数 (1〜3 語) を読んで下記を決める。
+#   KIND … once|repeat   PLAN … 一覧に出す表記   SPEC … z2-alarm/z2-when へ渡す形   USED … 使った語数"""
+    } else {
+        """# Read 1-3 words and decide:
+#   KIND ... once|repeat   PLAN ... label to show   SPEC ... what z2-alarm/z2-when takes   USED ... words used"""
+    }
+    val pDaily = if (ja) "毎日 " else "daily "
+    val pWeekday = if (ja) "平日 " else "weekdays "
+    val pWeekly = if (ja) "毎週" else "weekly "
+    val cCron = if (ja) {
+        """# HH:MM と曜日欄から cron 式を作る (分 時 日 月 曜日)。
+# ⚠ 先頭 0 を落とすのに expr を使わないこと — 結果が 0 のとき終了コードが 1 になり、
+#   `expr "${d}m" + 0 || echo "${d}m"` の右側まで走って値が 2 行に化ける (実際に踏んだ)。"""
+    } else {
+        """# Build a cron expression (min hour dom month dow) from HH:MM and a weekday field.
+# Do NOT use expr to strip a leading zero: it exits 1 when the result is 0, so the right-hand
+# side of `expr "${d}m" + 0 || echo "${d}m"` also runs and the value ends up two lines long."""
+    }
+    val afterLabel = if (ja) {
+        """# "30m" → "30分後 (14:35)"。今の時刻を足して見せるのは、登録した直後に確かめられるように。
+after_label() {
+  num=${d}{1%[smh]}; u=${d}{1#${d}num}
+  case ${d}u in s) sec=${d}num; unit=秒 ;; m) sec=${d}((num*60)); unit=分 ;; h) sec=${d}((num*3600)); unit=時間 ;; esac
+  at=${d}(date -d "@${d}(( ${d}(date +%s) + sec ))" +%H:%M 2>/dev/null) || at=
+  [ -n "${d}at" ] && echo "${d}num${d}unit後 (${d}at)" || echo "${d}num${d}unit後"
+}"""
+    } else {
+        """# "30m" -> "in 30m (14:35)". Showing the wall-clock time lets you check it right away.
+after_label() {
+  num=${d}{1%[smh]}; u=${d}{1#${d}num}
+  case ${d}u in s) sec=${d}num ;; m) sec=${d}((num*60)) ;; h) sec=${d}((num*3600)) ;; esac
+  at=${d}(date -d "@${d}(( ${d}(date +%s) + sec ))" +%H:%M 2>/dev/null) || at=
+  [ -n "${d}at" ] && echo "in ${d}num${d}u (${d}at)" || echo "in ${d}num${d}u"
+}"""
+    }
+    val mUsageAdd = if (ja) "usage: remind.sh <いつ> <本文>" else "usage: remind.sh <when> <text>"
+    val mBadWhen = if (ja) {
+        "いつ？ が分かりません (例: 30m / 18:30 / 毎日 07:00 / 平日 09:00):"
+    } else {
+        "cannot read the time (try: 30m / 18:30 / daily 07:00 / weekday 09:00):"
+    }
+    val mBadTime = if (ja) "時刻は HH:MM で書いてください:" else "write the time as HH:MM:"
+    val mBadDow = if (ja) "曜日が分かりません:" else "unknown weekday:"
+    val mNoBody = if (ja) "リマインドの本文を書いてください" else "say what to remind you about"
+    val mNoAlarm = if (ja) "予約できませんでした" else "could not schedule it"
+    val mNone = if (ja) "予定はありません" else "nothing scheduled"
+    val mFired = if (ja) " (通知済)" else " (fired)"
+    val mRemoved = if (ja) "消しました:" else "removed:"
+    val mNoSuchNum = if (ja) {
+        "その番号はありません (remind.sh list で確認):"
+    } else {
+        "no such entry (check remind.sh list):"
+    }
+    val mUsageDel = if (ja) "usage: remind.sh del <番号|all>" else "usage: remind.sh del <n|all>"
+    val bDone = if (ja) "完了" else "Done"
+    val bS1 = if (ja) "10分後" else "+10min"
+    val bS2 = if (ja) "1時間後" else "+1h"
+    val mAgain = if (ja) "にもう一度:" else "- again in"
+    val mTitle = if (ja) "⏰ リマインド" else "⏰ Reminders"
+    val mAsk1 = if (ja) "何をリマインド？" else "Remind you about what?"
+    val mAsk1H = if (ja) "例: 薬を飲む" else "e.g. take pills"
+    val mAsk2 = if (ja) "いつ？" else "When?"
+    val mAsk2H = if (ja) "30m / 18:30 / 毎日 07:00 / 平日 09:00" else "30m / 18:30 / daily 07:00 / weekday 09:00"
+    val cHooks = if (ja) {
+        """  # 予定が鳴ったのを拾う 1 本と、通知ボタンの返事を拾う 1 本。**この 2 本だけ**で、
+  # 予定を何件足しても増えない。どちらも「検知」の ON/OFF に関係なく働く。"""
+    } else {
+        """  # One hook for "a reminder fired", one for "a notification button was tapped". Just these
+  # two, no matter how many reminders you add. Neither depends on the detection switches."""
+    }
+    val cTiles = if (ja) {
+        """  # 空いている枠と、すでに自分が使っている枠だけに置く (他人の割り当ては触らない)。
+  # 引数付きのマクロ名は 0.8.275 からそのまま書ける (それより前は sh + フルパスで書くこと)。"""
+    } else {
+        """  # Only fill empty slots and slots already ours (never overwrite someone else's).
+  # A macro name with arguments works from 0.8.275 on (before that, write sh + full path)."""
+    }
+    val mSetupHooks = if (ja) "受け口を登録しました:" else "hooks registered:"
+    val mSetupTiles = if (ja) "タイル:" else "tiles:"
+    val mPlace = if (ja) {
+        "⚠ タイルはご自身でクイック設定パネルの鉛筆(編集)から並べてください。"
+    } else {
+        "Note: you still have to place the tiles yourself, from the quick-settings pencil/edit screen."
+    }
+    val lRemind = if (ja) "リマインド" else "remind"
+    val lList = if (ja) "予定" else "list"
+    val cSelf = if (ja) {
+        "# 自分が出した通知だけ相手にする (id は必ず r で始まる)"
+    } else {
+        "# Only react to our own notifications (our ids always start with r)"
+    }
+    val cKeepRepeat = if (ja) {
+        "      # 繰り返しはここで消さない (明日もまた鳴ってほしいので)。単発だけ片付ける。"
+    } else {
+        "      # Do not delete a repeating one here: it should fire again tomorrow."
+    }
+    val cSnoozeCancel = if (ja) {
+        "スヌーズ中に完了を押したときの予約を残さない"
+    } else {
+        "drop the snooze alarm if it was snoozed before being done"
+    }
+
+    return """$head
+DIR="${d}HOME/.z2term/remind"
+SELF="${d}HOME/.z2term/macros/remind.sh"
+SNOOZE1=10m
+SNOOZE2=1h
+KEEP_DONE_DAYS=3
+
+mkdir -p "${d}DIR"
+
+$cStore
+
+die() { echo "${d}1" >&2; exit 1; }
+
+$cParse
+parse_when() {
+  KIND=; PLAN=; SPEC=; USED=0
+  w1=${d}1; w2=${d}2; w3=${d}3
+
+  case ${d}w1 in
+    毎日|daily)       KIND=repeat; hhmm=${d}w2; USED=2; PLAN="$pDaily${d}hhmm"; SPEC="time:daily=${d}hhmm" ;;
+    平日|weekday)     KIND=repeat; hhmm=${d}w2; USED=2; PLAN="$pWeekday${d}hhmm"
+                      SPEC="time:cron=${d}(cron_of "${d}hhmm" 1-5)" ;;
+    毎週|weekly)      KIND=repeat; hhmm=${d}w3; USED=3
+                      dow=${d}(dow_of "${d}w2") || die "$mBadDow ${d}w2"
+                      PLAN="$pWeekly${d}w2 ${d}hhmm"; SPEC="time:cron=${d}(cron_of "${d}hhmm" "${d}dow")" ;;
+    毎日=*|daily=*)   KIND=repeat; hhmm=${d}{w1#*=}; USED=1; PLAN="$pDaily${d}hhmm"; SPEC="time:daily=${d}hhmm" ;;
+    平日=*|weekday=*) KIND=repeat; hhmm=${d}{w1#*=}; USED=1; PLAN="$pWeekday${d}hhmm"
+                      SPEC="time:cron=${d}(cron_of "${d}hhmm" 1-5)" ;;
+    毎日*)            KIND=repeat; hhmm=${d}{w1#毎日}; USED=1; PLAN="$pDaily${d}hhmm"; SPEC="time:daily=${d}hhmm" ;;
+    平日*)            KIND=repeat; hhmm=${d}{w1#平日}; USED=1; PLAN="$pWeekday${d}hhmm"
+                      SPEC="time:cron=${d}(cron_of "${d}hhmm" 1-5)" ;;
+    [0-9]*[smh])      KIND=once; USED=1; PLAN="${d}(after_label "${d}w1")"; SPEC="in ${d}w1" ;;
+    [0-9]*:[0-9]*)    KIND=once; USED=1; PLAN="${d}w1"; SPEC="at ${d}w1" ;;
+    *) return 1 ;;
+  esac
+
+  case ${d}SPEC in
+    time:daily=*|"at "*)
+      t=${d}{SPEC##*[= ]}
+      echo "${d}t" | grep -Eq '^[0-9]{1,2}:[0-9]{2}${d}' || die "$mBadTime ${d}t" ;;
+  esac
+  return 0
+}
+
+$cCron
+cron_of() {
+  h=${d}{1%%:*}; m=${d}{1##*:}
+  h=${d}{h#0}; [ -n "${d}h" ] || h=0
+  m=${d}{m#0}; [ -n "${d}m" ] || m=0
+  echo "${d}m ${d}h * * ${d}2"
+}
+
+dow_of() {
+  case ${d}1 in
+    日|日曜|日曜日|sun) echo 0 ;;  月|月曜|月曜日|mon) echo 1 ;;
+    火|火曜|火曜日|tue) echo 2 ;;  水|水曜|水曜日|wed) echo 3 ;;
+    木|木曜|木曜日|thu) echo 4 ;;  金|金曜|金曜日|fri) echo 5 ;;
+    土|土曜|土曜日|sat) echo 6 ;;
+    *) return 1 ;;
+  esac
+}
+
+$afterLabel
+
+cmd_add() {
+  [ ${d}# -ge 1 ] || die "$mUsageAdd"
+  parse_when "${d}1" "${d}2" "${d}3" || die "$mBadWhen ${d}1"
+  shift "${d}USED"
+  body=${d}*
+  [ -n "${d}body" ] || die "$mNoBody"
+
+  sweep_done
+  id="${d}(date +%s)${d}${d}"
+  wid=-
+
+  if [ "${d}KIND" = repeat ]; then
+    wid=${d}(z2-when "${d}SPEC" run "sh ${d}SELF fire ${d}id" 2>&1) || die "${d}wid"
+    wid=${d}(echo "${d}wid" | tr -d ' \t\r\n')
+  else
+    z2-alarm ${d}SPEC "r${d}id" >/dev/null || die "$mNoAlarm"
+  fi
+
+  printf '%s\t%s\t%s\t%s\n' "${d}KIND" "${d}PLAN" "${d}wid" "${d}body" > "${d}DIR/${d}id.txt"
+  z2-toast "⏰ ${d}PLAN — ${d}body"
+  printf '%s\t%s\n' "${d}PLAN" "${d}body"
+}
+
+cmd_fire() {
+  id=${d}{1#r}
+  f="${d}DIR/${d}id.txt"
+  [ -f "${d}f" ] || exit 0
+  kind=${d}(cut -f1 "${d}f"); body=${d}(cut -f4- "${d}f")
+
+  z2-notify -h -n "r${d}id" -b $bDone -b $bS1 -b $bS2 "⏰ ${d}body"
+
+  if [ "${d}kind" = once ]; then
+    plan=${d}(cut -f2 "${d}f"); wid=${d}(cut -f3 "${d}f")
+    printf '%s\t%s\t%s\t%s\n' fired "${d}plan" "${d}wid" "${d}body" > "${d}f"
+  fi
+}
+
+cmd_reply() {
+  case ${d}1 in r*) id=${d}{1#r} ;; *) exit 0 ;; esac   $cSelf
+  f="${d}DIR/${d}id.txt"
+  [ -f "${d}f" ] || exit 0
+  kind=${d}(cut -f1 "${d}f"); wid=${d}(cut -f3 "${d}f"); body=${d}(cut -f4- "${d}f")
+
+  case ${d}2 in
+    $bDone)
+$cKeepRepeat
+      if [ "${d}kind" != repeat ]; then
+        z2-alarm cancel "r${d}id" >/dev/null 2>&1   # $cSnoozeCancel
+        rm -f "${d}f"
+      fi
+      z2-toast "✅ ${d}body" ;;
+    $bS1|$bS2)
+      case ${d}2 in $bS1) sp=${d}SNOOZE1 ;; *) sp=${d}SNOOZE2 ;; esac
+      z2-alarm in "${d}sp" "r${d}id" >/dev/null || exit 1
+      [ "${d}kind" = repeat ] ||
+        printf '%s\t%s\t%s\t%s\n' once "${d}(after_label "${d}sp")" "${d}wid" "${d}body" > "${d}f"
+      z2-toast "💤 ${d}2 $mAgain ${d}body" ;;
+  esac
+}
+
+each() {
+  n=0
+  for f in "${d}DIR"/*.txt; do
+    [ -f "${d}f" ] || continue
+    n=${d}((n+1))
+    id=${d}(basename "${d}f" .txt)
+    "${d}1" "${d}n" "${d}id" "${d}f"
+  done
+  return 0
+}
+
+row() {
+  kind=${d}(cut -f1 "${d}3"); plan=${d}(cut -f2 "${d}3"); body=${d}(cut -f4- "${d}3")
+  case ${d}kind in
+    repeat) mark=🔁 ;; fired) mark=✔ ;; *) mark=⏰ ;;
+  esac
+  [ "${d}kind" = fired ] && plan="${d}plan$mFired"
+  printf '%s\t%s %s\t%s\n' "${d}1" "${d}mark" "${d}plan" "${d}body"
+}
+
+cmd_list() {
+  out=${d}(each row)
+  if [ -z "${d}out" ]; then echo "$mNone"; else echo "${d}out"; fi
+}
+
+cmd_peek() {
+  out=${d}(each row | sed 's/^[0-9]*\t//' | tr '\t' ' ')
+  [ -n "${d}out" ] || out="$mNone"
+  z2-notify -n remind-list "$mTitle" "${d}out"
+}
+
+del_one() {
+  kind=${d}(cut -f1 "${d}3"); wid=${d}(cut -f3 "${d}3"); body=${d}(cut -f4- "${d}3")
+  [ "${d}kind" = repeat ] && [ "${d}wid" != - ] && z2-when remove "${d}wid" >/dev/null 2>&1
+  [ "${d}kind" = once ] && z2-alarm cancel "r${d}2" >/dev/null 2>&1
+  rm -f "${d}3"
+  echo "$mRemoved ${d}body"
+}
+
+TARGET=
+del_if_match() {
+  [ "${d}1" = "${d}TARGET" ] || [ "${d}2" = "${d}TARGET" ] || return 0
+  del_one "${d}@"; HIT=1
+}
+
+cmd_del() {
+  [ -n "${d}1" ] || die "$mUsageDel"
+  if [ "${d}1" = all ]; then each del_one; return; fi
+  TARGET=${d}1; HIT=0
+  each del_if_match
+  [ "${d}HIT" = 1 ] || die "$mNoSuchNum ${d}TARGET"
+}
+
+sweep_done() {
+  find "${d}DIR" -name '*.txt' -mtime "+${d}KEEP_DONE_DAYS" 2>/dev/null | while read -r f; do
+    [ "${d}(cut -f1 "${d}f")" = fired ] && rm -f "${d}f"
+  done
+}
+
+cmd_ask() {
+  body=${d}(z2-ask -H "$mAsk1H" "$mAsk1") || exit 0
+  [ -n "${d}body" ] || exit 0
+  w=${d}(z2-ask -H "$mAsk2H" "$mAsk2") || exit 0
+  [ -n "${d}w" ] || exit 0
+  set -- ${d}w
+  cmd_add "${d}@" "${d}body"
+}
+
+cmd_setup() {
+$cHooks
+  z2-when list 2>/dev/null | grep -q "${d}SELF fire" ||
+    z2-when 'event:alarm' run "sh ${d}SELF fire \"${d}Z2_WHEN_EVENT_NAME\"" >/dev/null
+  z2-when list 2>/dev/null | grep -q "${d}SELF reply" ||
+    z2-when 'event:notify_action' run "sh ${d}SELF reply \"${d}Z2_WHEN_EVENT_NAME\" \"${d}Z2_WHEN_ACTION\"" >/dev/null
+
+$cTiles
+  free=${d}(z2-tile list | awk -F'\t' '${d}2=="-" || index(${d}3, "remind") { print ${d}1 }')
+  set -- ${d}free
+  [ -n "${d}1" ] && z2-tile set "${d}1" 'remind.sh ask'  -l $lRemind >/dev/null
+  [ -n "${d}2" ] && z2-tile set "${d}2" 'remind.sh peek' -l $lList >/dev/null
+
+  echo "$mSetupHooks"
+  z2-when list | grep "${d}SELF" | cut -f1,3
+  echo "$mSetupTiles"
+  z2-tile list
+  echo
+  echo "$mPlace"
+}
+
+case ${d}1 in
+  ''|list|ls)  cmd_list ;;
+  peek)        cmd_peek ;;
+  add)         shift; cmd_add "${d}@" ;;
+  del|rm)      shift; cmd_del "${d}@" ;;
+  fire)        shift; cmd_fire "${d}@" ;;
+  reply)       shift; cmd_reply "${d}@" ;;
+  ask)         cmd_ask ;;
+  setup)       cmd_setup ;;
+  -h|--help|help) awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 { exit }' "${d}0" ;;
+  *)           cmd_add "${d}@" ;;
+esac
+"""
 }

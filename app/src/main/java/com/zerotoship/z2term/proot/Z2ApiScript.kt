@@ -259,6 +259,20 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    [ -n "${d}cmd" ] || usage
         |    # --off と書いたのに中身が無いのは打ち間違い。空で通すと「押しても切れないトグル」になる。
         |    [ "${d}seen_off" = 0 ] || [ -n "${d}off" ] || usage
+        |    # ⚠ マクロ名らしいのに置き場に無いものは**ここで弾く** (z2-when の綴り検査と同じ思想)。
+        |    # 通してしまうとコマンド扱いで PATH から探され、見つからず「押しても無反応」になる。
+        |    # 失敗は tile/run.log にしか出ないので、外からは正しい割り当てと区別が付かない。
+        |    check_macro() {
+        |      first="${d}{1%% *}"
+        |      case "${d}first" in
+        |        */*) return 0 ;;                     # パス指定は素直にコマンドとして扱う
+        |        *.sh)
+        |          [ -f "${d}HOME/.z2term/macros/${d}first" ] ||
+        |            { echo "${m.tileNoSuchMacro} ${d}first" >&2; exit 1; } ;;
+        |      esac
+        |    }
+        |    check_macro "${d}cmd"
+        |    [ -z "${d}off" ] || check_macro "${d}off"
         |    exec /usr/local/bin/z2api 1 tile set "${d}n" "${d}cmd" "${d}label" "${d}off" ;;
         |  *) usage ;;
         |esac

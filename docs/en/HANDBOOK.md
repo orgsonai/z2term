@@ -60,7 +60,7 @@ That's all the setup you need.
 | 📜 | Command list (tap a frequently used command to type it) + **History** (filter past commands and insert one) + **SSH connect / SFTP** + **Servers** (manage resident servers) + **Automation** (list `z2-when` rules, **add / edit** them, toggle them, read run logs, pause) (switch with tabs) |
 | 🔅 | Screen-on lock (when ON, the screen won't auto-dim; the icon changes to 💡 while ON). **Double-tap for a slider that dims this app only** (for dark rooms; going home restores it, and Reset clears it any time). **The level you pick is remembered, so the app opens at that brightness next time** (press Reset to go back to normal) |
 | 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF). **While resident servers are running, 🔒 is dimmed and can't be toggled** (the servers already keep the app alive, so turning it OFF here would do nothing). Tapping 🔒 in that state opens a screen to choose **"End session only" / "Stop everything and quit"** (see below). Note: **keeping the device reachable from outside (ssh, etc.) is the job of "resident servers"**, not 🔒 (0.8.268 — 🔒 used to keep Wi-Fi at full power too, which cost a lot of battery, so it no longer does). ⚠ Even with resident servers running, **the device can be unreachable from outside right after rejoining Wi-Fi** (power save stops it answering "where I am"). This is Android's behaviour and the app cannot prevent it. **Any single outbound packet from the device fixes it**, so run `ping -c 1 <router IP>`, or put the same thing on a `z2-when wifi:connect` rule to have it recover automatically |
-| 🔍 | Search the on-screen text (jump back/forward with ↑↓; **while searching, the scrollbar shows a tick for every hit** so you can see where they cluster — tap a tick to jump there; **tap in the input field to move the caret** and fix a typo in the middle) |
+| 🔍 | Search the on-screen text (jump back/forward with ↑↓; **while searching, the scrollbar shows a tick for every hit** so you can see where they cluster — tap a tick to jump there; **tap in the input field to move the caret** and fix a typo in the middle). **You can search in Japanese without leaving the built-in keyboard** — text being converted appears underlined in the field and lands in the search term once you commit it (0.8.275; before that nothing changed on screen until you committed, so it looked as if typing did not work). With the OS keyboard selected the field behaves as an ordinary OS text field, as before) |
 | ⌨ | Switch between the phone's standard keyboard ⇄ the in-app keyboard. Even with the phone's keyboard, **the text being composed (before you confirm) shows inline at the terminal cursor** |
 | 🔴 / ⚪ | Record a terminal log (tap to start, tap again to stop; **🔴 while recording, ⚪ when idle**; **double-tap for the details**) |
 | ⚙ | Settings (**always the rightmost**; it never moves when you reorder, and cannot be removed) |
@@ -560,14 +560,52 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-sensor [light\|accel\|proximity]` | Read a sensor once as JSON (light/accelerometer/proximity; default light) |
 | `z2-state [key]` | **Current device state** as JSON; with a key, just that value (`screen` `locked` `idle` `charging` `plug` `level` `temp` `wifi` `ssid` `ringer` `airplane` `headset` `bt_audio` `volume` `volume_max`). E.g. `[ "$(z2-state charging)" = "true" ]` |
 | `z2-screen keepon <1h\|30m\|90s>` | **Stop the screen turning off by itself, for that long** (`keepon off` puts it back early, `status` shows what is left). It changes the OS-wide screen timeout, so **it holds with the app in the background**. ⚠ Not the toolbar's 🔅, which only lasts while the app is on screen. The original value is always written back at the deadline (even if the app is killed or the device reboots). Max 24h in one go. **Needs "modify system settings"** (Settings › screen timeout) |
-| `z2-tile set <1-4> <macro.sh\|command>` | **Put a macro or command on the quick-settings panel** (`list` / `clear <1-4\|all>`, `-l` for the label). Tap to run, tap again to stop (same deal as the widget buttons). The tile looks "on" while it runs (the colour comes from the OS). A locked device is asked to unlock first. ⚠ **There are exactly 4 slots** (Android fixes the number at build time). **A slot you have not assigned anything to stays out of the quick-settings list** (since 0.8.271, **with nothing assigned no tile is listed at all**; before that slot 1 remained as a signpost). ⚠ **You place the tiles yourself**, from the pencil/edit screen of the quick settings panel — Android does not let an app put its own tiles there. ⚠ `clear`-ing a slot also **removes that tile from the panel** (reassigning means placing it again). **A slot holding `z2-screen keepon` is special**: the "on" look means "the screen is still being held", **the time left is appended to the name** (e.g. "no sleep 60m"), and tapping releases it (the figure is read when the panel opens and does not tick while it is open). When turning something off is its own command, **`--off` puts both on one tile** (`z2-tile set 3 z2-torch on --off z2-torch off -l torch`): taps alternate between them and the tile looks "on" while it is on. ⚠ That on/off is **only what the app remembers**, so running `z2-torch off` in the terminal instead leaves the tile showing on |
+| `z2-tile set <1-4> <macro.sh\|command>` | **Put a macro or command on the quick-settings panel** (`list` / `clear <1-4\|all>`, `-l` for the label). Tap to run, tap again to stop (same deal as the widget buttons). The tile looks "on" while it runs (the colour comes from the OS). A locked device is asked to unlock first. ⚠ **There are exactly 4 slots** (Android fixes the number at build time). **A slot you have not assigned anything to stays out of the quick-settings list** (since 0.8.271, **with nothing assigned no tile is listed at all**; before that slot 1 remained as a signpost). ⚠ **You place the tiles yourself**, from the pencil/edit screen of the quick settings panel — Android does not let an app put its own tiles there. ⚠ `clear`-ing a slot also **removes that tile from the panel** (reassigning means placing it again). **A slot holding `z2-screen keepon` is special**: the "on" look means "the screen is still being held", **the time left is appended to the name** (e.g. "no sleep 60m"), and tapping releases it (the figure is read when the panel opens and does not tick while it is open). When turning something off is its own command, **`--off` puts both on one tile** (`z2-tile set 3 z2-torch on --off z2-torch off -l torch`): taps alternate between them and the tile looks "on" while it is on. ⚠ That on/off is **only what the app remembers**, so running `z2-torch off` in the terminal instead leaves the tile showing on. **A macro can take arguments** (`z2-tile set 2 'remind.sh ask' -l remind`; 0.8.275 — the **first word** decides whether it is a macro). Two slots on the same macro get the same label, so give them `-l`. ⚠ A name ending in `.sh` that is not in `~/.z2term/macros/` is **rejected when you assign it** (letting it through would make it a command, which is not found, and the tile would do nothing). Scripts outside the macro folder go in with a full path. **When a tap seems to do nothing, look at `~/.z2term/tile/run.log`** — failures never reach the screen |
 | `z2-alarm at\|daily HH:MM [name]` | **Time trigger**: writes an `alarm` event into `events.jsonl` at that time (`in 5m` / `list` / `cancel <id\|name\|all>` too). Unlike cron it fires during Doze (may be a few minutes late) |
 | `z2-session list\|new\|send\|capture\|close` | **Drives this app's own tabs.** `list` shows them (index, id, name, marks: `*`=visible, `!`=busy, `?`=not started), `new [name]` adds one, `send <target> "text"` **only inserts** into that tab (add `--enter` to actually run it), `capture [target]` pulls the on-screen text, `close <target>` closes it. `<target>` is the index from `list`, an id, or a tab name. E.g. ``n=$(z2-session new build \| cut -f1); z2-session send "$n" 'make -j2' --enter`` |
 | `z2-when <trigger> run <cmd>` | **Automation hub.** Auto-run a command on charge / battery / time / device events (see "Automation hub" below). Also `list` / `remove <id\|all>` / `on\|off <id>` / `log <id>`. E.g. `z2-when charge:start run ~/.z2term/macros/backup.sh` |
-| `z2-macro list\|install <name>` | **Bundled macro samples** into `~/.z2term/macros/` (`show` / `run` / `dir` too) — a starting point for your first macro. Bundled: `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `rss` / `rss-open`. On install it also tells you **how that script is meant to be run** (drive it with `z2-when` / assign it to a widget button / register it as a resident server). ⚠ **`watch-basic` is the only one that belongs in a resident server** (0.8.273; the rest run once and exit from `z2-when` or a button, so residency both restarts them every time they finish and burns battery while idle) |
+| `z2-macro list\|install <name>` | **Bundled macro samples** into `~/.z2term/macros/` (`show` / `run` / `dir` too) — a starting point for your first macro. Bundled: `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `remind` / `rss` / `rss-open`. On install it also tells you **how that script is meant to be run** (drive it with `z2-when` / assign it to a widget button / register it as a resident server). ⚠ **`watch-basic` is the only one that belongs in a resident server** (0.8.273; the rest run once and exit from `z2-when` or a button, so residency both restarts them every time they finish and burns battery while idle) |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | Fire an arbitrary Android Intent (launch apps, open settings, set alarms, … see `docs/en/MACRO-GUIDE.md`) |
 
 > Combine "trigger (event detection) → decide (shell) → action (z2-*)" to automate your phone (macros). See **`docs/en/MACRO-GUIDE.md`** for how — you can also feed it to an AI and have it generate the macro for you.
+
+### Get reminders as notifications
+
+**There is no calendar in the app.** Instead a bundled sample (`remind`) wires together the time
+triggers, notifications and tiles that already exist into **a reminder that fires with the app
+closed** (0.8.275).
+
+```sh
+z2-macro install remind                  # install it
+sh ~/.z2term/macros/remind.sh setup      # once, up front (registers the hooks and the tiles)
+```
+
+**Add one**
+
+```sh
+remind.sh 30m take pills               # once, 30 minutes from now (90s / 2h too)
+remind.sh 18:30 take out the bins      # once, at the next 18:30 (tomorrow if it passed)
+remind.sh daily 07:00 weigh in         # every day
+remind.sh weekday 09:00 standup        # Mon-Fri
+remind.sh weekly tue 20:00 recycling   # that weekday only
+```
+
+**See and cancel**: `remind.sh list` (⏰ = one-shot / 🔁 = repeating / ✔ = already fired) and
+`remind.sh del 2` (`del all` clears everything). Repeating ones also appear under 📜 → the
+"Automation" tab, where you can toggle them or ▶ run one to try it.
+
+**When it fires**: the notification carries **[Done] [+10min] [+1h]**, so you can snooze from the
+shade with one tap. Pressing Done on a repeating reminder does not cancel tomorrow's.
+
+**Add one without opening the app**: `setup` prepares two quick-settings tiles ("remind" and "list").
+⚠ **You place them yourself**, from the pencil/edit screen of the quick settings panel. Tapping
+"remind" asks "Remind you about what?" and "When?" in a notification reply box.
+
+- Firing can be **a few minutes late** (the booking follows the battery-saving Doze schedule). Not for
+  anything that needs to be on time to the second.
+- Reminders survive a reboot.
+- For how it is built, see "5-9. Worked example: remind yourself with a notification" in
+  `docs/en/MACRO-GUIDE.md`.
 
 ### Subscribing to feeds (RSS / Atom)
 
