@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-30 / Target version: 0.8.290-alpha (versionCode 298)
+Last updated: 2026-07-30 / Target version: 0.8.291-alpha (versionCode 299)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1757,6 +1757,17 @@ earlier `setComposingText` does not double up.
   keyboard clear. ⚠ It reads `tappableElement` rather than `navigationBars` because **gesture-navigation
   devices report 0 there** — no wasted gap on devices without a bar. Some paths recreate the window
   without delivering the listener, so `onStartInputView` re-reads it from `rootWindowInsets`.
+- ⚠ **The candidate-bar slot is always reserved in Japanese so the input-view height stays constant**
+  (0.8.291). [CandidateBar] is 0-height when idle and grows to `CandidateBarHeight` (76dp) when
+  conversion starts. In the IME this changes the input-view height, which **resizes the IME window** at
+  that moment. After the resize, `ComposeView`'s screen→local pointer mapping stays anchored to the old
+  (pre-resize) position, so taps registered **~76dp above the key actually touched** (it began the
+  instant candidates appeared). The terminal screen never showed this because there the candidate bar
+  rides a bottom-anchored `Column` and the keyboard doesn't move. The fix reserves the bar's frame with
+  `Box(height = CandidateBarHeight)` in Japanese so the input-view height does not change with
+  conversion — no resize happens. English has no composing and never shows the bar, so nothing is
+  reserved (no wasted gap). The `CandidateBarHeight` constant is shared with `CandidateBar` so the real
+  height and the reserved amount can't drift apart.
 
 **Candidates for the next stage**: adapting to `EditorInfo.inputType` (digits only for numeric
 fields, no learning in password fields), a key to hand back to the OS keyboard, and the globe key via

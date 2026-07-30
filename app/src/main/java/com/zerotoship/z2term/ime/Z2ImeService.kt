@@ -8,6 +8,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -42,6 +43,7 @@ import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.ui.terminal.CandidateBar
+import com.zerotoship.z2term.ui.terminal.CandidateBarHeight
 import com.zerotoship.z2term.ui.terminal.scaledKeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.ComposingState
 import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
@@ -221,6 +223,7 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         MirrorComposingText()
         // 3 ボタンナビゲーションバーのぶんだけ下に余白を足す (背景の内側なので色は続いて見える)。
         val navBarPadding = with(LocalDensity.current) { navBarInsetPx.intValue.toDp() }
+        val isJa = LocaleHelper.language(this@Z2ImeService) == LocaleHelper.LANG_JA
         Z2TermTheme {
             Column(
                 modifier = Modifier
@@ -228,14 +231,24 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                     .background(ZtsBgSecondary)
                     .padding(bottom = navBarPadding)
             ) {
-                CandidateBar(composing = composing)
+                // ⚠ 候補バーの領域は日本語のとき**常に確保**する ([CandidateBarHeight])。
+                // IME の入力ビューは高さが変わるとウィンドウがリサイズされ、その直後から
+                // ComposeView のタップ座標変換がリサイズ差分ぶん古いまま残り、「実際に触った
+                // 位置より少し上のキー」を押した判定になる (候補バーが出た瞬間から発生していた)。
+                // 高さを一定に保てばリサイズ自体が起きず直る。英語では composing が無く候補バーも
+                // 出ない ＝ ズレも起きないので、無駄な隙間を作らないよう確保しない。
+                if (isJa) {
+                    Box(modifier = Modifier.fillMaxWidth().height(CandidateBarHeight)) {
+                        CandidateBar(composing = composing)
+                    }
+                }
                 Column(modifier = Modifier.fillMaxWidth().height(style.naturalHeight)) {
                     TerminalKeyboard(
                         onBytes = ::sendBytes,
                         onCursorKey = ::sendCursorKey,
                         composing = composing,
                         style = style,
-                        showJapaneseKeyboard = LocaleHelper.language(this@Z2ImeService) == LocaleHelper.LANG_JA
+                        showJapaneseKeyboard = isJa
                     )
                 }
             }

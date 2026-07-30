@@ -2617,6 +2617,16 @@ private fun SideKeyboardColumn(
  * ⚠ **入力メソッド ([com.zerotoship.z2term.ime.Z2ImeService]) からも使う**ので internal。
  * 端末とアプリ内の入力欄で候補の見た目・操作が違うと、同じキーボードに見えなくなる。
  */
+/**
+ * 候補バーが出ているときの固定高さ (上下 2 段ぶん)。
+ *
+ * ⚠ IME ([com.zerotoship.z2term.ime.Z2ImeService]) はこの高さぶんの領域を**常に確保**して
+ * 入力ビューの高さを一定に保つ。候補バーが出た/消えた瞬間に高さが変わると IME ウィンドウが
+ * リサイズされ、その直後から ComposeView のタップ座標変換がリサイズ差分ぶん古いまま残って
+ * 「少し上のキー」を触った判定になるため。定数を 1 か所に置き、両者でズレないようにする。
+ */
+internal val CandidateBarHeight = 76.dp
+
 @Composable
 internal fun CandidateBar(
     composing: ComposingState,
@@ -2739,7 +2749,7 @@ internal fun CandidateBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(76.dp)
+            .height(CandidateBarHeight)
             .background(ZtsBgSecondary)
             .border(width = 1.dp, color = ZtsBorder)
             .padding(horizontal = 4.dp, vertical = 4.dp)
