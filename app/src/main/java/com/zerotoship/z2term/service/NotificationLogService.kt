@@ -92,9 +92,10 @@ class NotificationLogService : NotificationListenerService() {
         // トリガーには使いたい」が普通の使い方で、記録を必須にすると通知本文がずっと
         // ファイルに残ることになる。ここは通知配信スレッドなので writer へ逃がす。
         val whenCtx = applicationContext
+        val category = n.category ?: ""
         writer.execute {
             runCatching {
-                WhenManager.onNotification(whenCtx, sbn.packageName, app, title, text)
+                WhenManager.onNotification(whenCtx, sbn.packageName, app, title, text, category)
             }.onFailure { Log.w(TAG, "when notify failed: ${it.message}") }
         }
 
@@ -104,7 +105,7 @@ class NotificationLogService : NotificationListenerService() {
             formatTemplate,
             ts = sbn.postTime, time = ISO.format(Date(sbn.postTime)),
             pkg = sbn.packageName, app = app, title = title, text = text,
-            category = n.category ?: "", key = sbn.key ?: ""
+            category = category, key = sbn.key ?: ""
         )
 
         val ctx = applicationContext

@@ -353,7 +353,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# For share: you get Z2_WHEN_SHARE (the text, or the paths of the files taken in)
         |# and Z2_WHEN_SHARE_KIND (text|file). The share is still put on the input line as before.
         |# For file: you get Z2_WHEN_FILE (full path) and Z2_WHEN_DIR.
-        |# For notify: you get Z2_WHEN_NOTI_PKG / _APP / _TITLE / _TEXT (and Z2_WHEN_OTP for notify:otp).
+        |# For notify: you get Z2_WHEN_NOTI_PKG / _APP / _TITLE / _TEXT / _CATEGORY
+        |# (and Z2_WHEN_OTP for notify:otp). notify:category= matches exactly: call, missed_call, msg, ...
         |# For event: you also get Z2_WHEN_EVENT (the event name); alarm / notify_action add
         |# Z2_WHEN_EVENT_NAME (the identifier you armed it with) and Z2_WHEN_ACTION (button pressed).
         |# The same rule will not fire twice within 10 seconds (events like screen_on come often).
@@ -410,7 +411,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# share: のときは Z2_WHEN_SHARE (テキストそのもの、またはファイルの取り込み先パス) と
         |# Z2_WHEN_SHARE_KIND (text|file) が入る。共有されたものは今までどおり入力行にも入る。
         |# file: のときは Z2_WHEN_FILE (フルパス) と Z2_WHEN_DIR が入る。
-        |# notify: のときは Z2_WHEN_NOTI_PKG / _APP / _TITLE / _TEXT (notify:otp なら Z2_WHEN_OTP も)。
+        |# notify: のときは Z2_WHEN_NOTI_PKG / _APP / _TITLE / _TEXT / _CATEGORY
+        |# (notify:otp なら Z2_WHEN_OTP も)。notify:category= は完全一致: call, missed_call, msg, ...
         |# event: のときは Z2_WHEN_EVENT (イベント名) が入る。alarm / notify_action では
         |# Z2_WHEN_EVENT_NAME (仕掛けたときの識別名) と Z2_WHEN_ACTION (押したボタン) も入る。
         |# 同じルールは 10 秒以内に続けて発火しない (screen_on のような数の多いイベント対策)。

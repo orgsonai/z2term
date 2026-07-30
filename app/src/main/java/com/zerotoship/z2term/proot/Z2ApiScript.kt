@@ -462,7 +462,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |      wifi)    case "${d}tspec" in connect|disconnect|ssid=?*) ;; *) badspec=1 ;; esac ;;
         |      net)     case "${d}tspec" in online|offline|wifi|mobile|ethernet) ;; *) badspec=1 ;; esac ;;
         |      sms)     case "${d}tspec" in any|otp|from=?*|contains=?*) ;; *) badspec=1 ;; esac ;;
-        |      notify)  case "${d}tspec" in any|otp|pkg=?*|title=?*|contains=?*) ;; *) badspec=1 ;; esac ;;
+        |      notify)  case "${d}tspec" in any|otp|pkg=?*|title=?*|contains=?*|category=?*) ;; *) badspec=1 ;; esac ;;
         |      file)    case "${d}tspec" in new=?*) ;; *) badspec=1 ;; esac ;;
         |      share)   case "${d}tspec" in any|text|file|contains=?*|ext=?*) ;; *) badspec=1 ;; esac ;;
         |      # `>` `<` は case のパターンではリダイレクトに読まれうるのでクォートする。

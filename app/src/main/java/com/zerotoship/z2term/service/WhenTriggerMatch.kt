@@ -164,16 +164,32 @@ object WhenTriggerMatch {
      *  - `pkg=<部分>`           … パッケージ名かアプリ名に一致 (大小文字を区別しない・部分一致)
      *  - `title=<部分>`         … タイトルに含む
      *  - `contains=<部分>`      … タイトル**または本文**に含む
+     *  - `category=<種別>`      … 通知の種別 (`Notification.category`) に**完全一致** (0.8.293)
      *  - `otp`                  … 本文に OTP らしい数字コードがあるとき ([extractOtp] と同じ判定)
      *
      * SMS 以外で届く確認コード (メール・認証アプリ) を拾うのが主目的なので、判定は
      * `sms:*` と同じ考え方に揃えてある (覚えることを増やさない)。
+     *
+     * ⚠ `category=` だけは**部分一致にしない**。種別名は Android が決めた固定の語彙で、
+     * `call` (着信中) は `missed_call` (不在着信) の部分文字列になっている — 部分一致に
+     * すると「着信のとき」と書いたルールが不在着信でも動いてしまい、区別できなくなる。
      */
-    fun notify(spec: String, pkg: String, app: String, title: String, text: String): Boolean {
+    fun notify(
+        spec: String,
+        pkg: String,
+        app: String,
+        title: String,
+        text: String,
+        category: String = ""
+    ): Boolean {
         val s = spec.trim()
         return when {
             s == "any" -> true
             s == "otp" -> extractOtp(text).isNotEmpty() || extractOtp(title).isNotEmpty()
+            s.startsWith("category=") -> {
+                val want = s.substring("category=".length).trim()
+                want.isNotEmpty() && category.equals(want, ignoreCase = true)
+            }
             s.startsWith("pkg=") -> {
                 val want = s.substring("pkg=".length).trim()
                 want.isNotEmpty() &&

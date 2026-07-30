@@ -74,6 +74,7 @@ object WhenTriggerCatalog {
             Option("notify:any"), Option("notify:otp"),
             Option("notify:pkg=", "com.example"), Option("notify:title=", "会議"),
             Option("notify:contains=", "至急"),
+            Option("notify:category=", "call"), Option("notify:category=", "missed_call"),
         )),
         Kind("file", "file", listOf(Option("file:new=", "/sdcard/Pictures/Screenshots"))),
         Kind("share", "share", listOf(
@@ -113,7 +114,8 @@ object WhenTriggerCatalog {
             "wifi" -> spec in setOf("connect", "disconnect") || spec.hasValueFor("ssid")
             "net" -> spec in setOf("online", "offline", "wifi", "mobile", "ethernet")
             "sms" -> spec in setOf("any", "otp") || spec.hasValueFor("from", "contains")
-            "notify" -> spec in setOf("any", "otp") || spec.hasValueFor("pkg", "title", "contains")
+            "notify" -> spec in setOf("any", "otp") ||
+                spec.hasValueFor("pkg", "title", "contains", "category")
             "file" -> spec.hasValueFor("new")
             "share" -> spec in setOf("any", "text", "file") || spec.hasValueFor("contains", "ext")
             "sensor" -> spec == "shake" ||

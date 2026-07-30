@@ -201,6 +201,7 @@ class Z2ApiScriptTest {
             listOf(
                 "boot", "net:online", "net:mobile", "charge:start", "battery:below=20",
                 "time:cron=0 3 * * *", "wifi:ssid=Home", "sms:otp", "notify:pkg=mail",
+                "notify:category=call", "notify:category=missed_call",
                 "sensor:light>500", "sensor:proximity=near", "file:new=/sdcard/Download",
                 "share:any", "share:text", "share:ext=pdf", "event:ringer_*",
             ).forEach { trigger ->

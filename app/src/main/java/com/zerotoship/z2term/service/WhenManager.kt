@@ -416,16 +416,28 @@ object WhenManager {
      *
      * 本文・タイトルは外部由来なので env 渡し (`Z2_WHEN_NOTI_*`)。`notify:otp` のときは
      * 抽出したコードを `Z2_WHEN_OTP` に入れる (`sms:otp` と同じ名前にして覚えることを増やさない)。
+     *
+     * [category] は通知の種別 (`Notification.category`)。`notify:category=` の判定に使うほか、
+     * `Z2_WHEN_NOTI_CATEGORY` として渡す — 同じ電話アプリからでも「着信中 (`call`)」と
+     * 「不在着信 (`missed_call`)」を**マクロ側で見分けられる**ようにするため。
      */
-    fun onNotification(context: Context, pkg: String, app: String, title: String, text: String) {
+    fun onNotification(
+        context: Context,
+        pkg: String,
+        app: String,
+        title: String,
+        text: String,
+        category: String = ""
+    ) {
         val ctx = context.applicationContext
         loadRules(ctx).filter { it.enabled && it.kind == "notify" }.forEach { rule ->
-            if (!WhenTriggerMatch.notify(rule.spec, pkg, app, title, text)) return@forEach
+            if (!WhenTriggerMatch.notify(rule.spec, pkg, app, title, text, category)) return@forEach
             val env = HashMap<String, String>()
             env["Z2_WHEN_NOTI_PKG"] = pkg
             env["Z2_WHEN_NOTI_APP"] = app
             env["Z2_WHEN_NOTI_TITLE"] = title
             env["Z2_WHEN_NOTI_TEXT"] = text
+            env["Z2_WHEN_NOTI_CATEGORY"] = category
             if (rule.spec.trim() == "otp") {
                 val code = WhenTriggerMatch.extractOtp(text).ifEmpty { WhenTriggerMatch.extractOtp(title) }
                 env["Z2_WHEN_OTP"] = code

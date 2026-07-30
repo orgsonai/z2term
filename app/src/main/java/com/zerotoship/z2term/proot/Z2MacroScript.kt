@@ -165,7 +165,28 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         append(otpWhenBody(d, ja))
     }
 
-    // --- 6. 実用: フィード購読 (時刻トリガーで 1 回だけ走る「使い切り」の形) ---
+    // --- 6. 実用: 電話帳に無い番号からの着信を控える (通知の種別で拾う = 権限を増やさない) ---
+    val unknownCall = buildString {
+        appendLine("#!/bin/sh")
+        if (ja) {
+            appendLine("# unknown-call.sh — 電話帳に無い番号から電話が来たら、その番号をクリップボードへ入れる。")
+            appendLine("# 準備: ⚙設定 →「通知検知」ON ＋ OS の「通知アクセス」許可")
+            appendLine("# z2-run: z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh")
+            appendLine("#")
+            appendLine("# 不在着信も控えたいなら、種別違いでもう 1 本登録する (中身は同じでよい):")
+            appendLine("#   z2-when notify:category=missed_call cooldown=20s run ~/.z2term/macros/unknown-call.sh")
+        } else {
+            appendLine("# unknown-call.sh — when a number that is not in your contacts calls, copy it to the clipboard.")
+            appendLine("# Setup: Settings -> \"Notification detection\" ON + grant OS notification access")
+            appendLine("# z2-run: z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh")
+            appendLine("#")
+            appendLine("# To catch missed calls too, register a second rule (same script, different category):")
+            appendLine("#   z2-when notify:category=missed_call cooldown=20s run ~/.z2term/macros/unknown-call.sh")
+        }
+        append(unknownCallBody(d, ja))
+    }
+
+    // --- 7. 実用: フィード購読 (時刻トリガーで 1 回だけ走る「使い切り」の形) ---
     val rss = buildString {
         appendLine("#!/bin/sh")
         if (ja) {
@@ -179,7 +200,7 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         append(rssBody(d, ja))
     }
 
-    // --- 7. 実用: 集めた記事を 1 本ずつ開く (状態ウィジェットのボタンから叩く用) ---
+    // --- 8. 実用: 集めた記事を 1 本ずつ開く (状態ウィジェットのボタンから叩く用) ---
     val rssOpen = buildString {
         appendLine("#!/bin/sh")
         if (ja) {
@@ -192,7 +213,7 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         append(rssOpenBody(d, ja))
     }
 
-    // --- 8. 実用: 通知でリマインド (単発 = z2-alarm / 繰り返し = z2-when time: の使い分けの見本) ---
+    // --- 9. 実用: 通知でリマインド (単発 = z2-alarm / 繰り返し = z2-when time: の使い分けの見本) ---
     val remind = buildString {
         appendLine("#!/bin/sh")
         if (ja) {
@@ -213,6 +234,7 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         "daily-report.sh" to dailyReport,
         "otp-clip.sh" to otpClip,
         "otp-sms.sh" to otpSms,
+        "unknown-call.sh" to unknownCall,
         "remind.sh" to remind,
         "rss.sh" to rss,
         "rss-open.sh" to rssOpen,
@@ -596,6 +618,94 @@ sleep "${d}TTL"
 [ "${d}(z2-clip get 2>/dev/null)" = "${d}code" ] || exit 0
 z2-clip set ""
 z2-toast "$cleared"
+"""
+}
+
+/**
+ * 「電話帳に無い番号からの着信を控える」サンプルの本体。
+ *
+ * **アプリ側に電話まわりの権限を持たせないための見本**でもある。発信者が電話帳にいるかを
+ * 直に調べるには連絡先 (`READ_CONTACTS`) と通話履歴 (`READ_CALL_LOG`。Android 9+ は
+ * 着信番号を得るのに必須) が要り、後者は既定の電話アプリ以外ほぼ配布できない。
+ *
+ * 代わりに**電話アプリが出す通知の表示**を見る。電話アプリは電話帳にある相手なら名前を、
+ * 無ければ番号そのものを出すので、「表示が番号の形か」を見れば同じ答えが出る。必要なのは
+ * 既にある通知アクセスだけで、権限は 1 つも増えない。
+ */
+private fun unknownCallBody(d: String, ja: Boolean): String {
+    val cHow = if (ja) {
+        """
+# ■ 「電話帳に無い」をどう見分けているか
+#   電話アプリは、電話帳にある相手なら**名前**を、無い相手なら**番号そのもの**を通知に出す。
+#   だから通知の表示が番号の形なら、その相手は電話帳に載っていない。
+#   ⚠ この形にしているのは、z2term に連絡先 (READ_CONTACTS) も通話履歴 (READ_CALL_LOG) も
+#      持たせないため。通知アクセスだけで同じ答えが出るので、権限は 1 つも増えない。
+"""
+    } else {
+        """
+# ■ How "not in contacts" is decided
+#   A phone app shows the **name** for someone in your contacts and the **bare number** for
+#   someone who is not. So if the notification shows a number, that caller is not in contacts.
+#   ⚠ This shape exists to keep z2term free of contacts (READ_CONTACTS) and call-log
+#      (READ_CALL_LOG) permissions: notification access alone gives the same answer.
+"""
+    }
+    val cIsNum = if (ja) {
+        """
+# 「番号そのもの」か? 電話番号で使う文字 (数字 + - ( ) 空白) を全部消して**何も残らず**、
+# かつ数字が 7〜15 桁あれば番号とみなす。
+#   → かな・漢字・英字が混ざる = 名前 = 電話帳にある相手なので、何もしない。
+#   → 「非通知」「不明な発信者」も数字が足りずここで外れる (拾いたいなら下の判定を緩める)。
+# ⚠ case の [!...] で書かないこと — パターン中の ) が case の区切りに読まれて構文エラーになる。
+"""
+    } else {
+        """
+# Is it a bare number? Strip every character a phone number may use (digits + - ( ) space);
+# if **nothing is left** and 7-15 digits remain, treat it as a number.
+#   -> Letters mixed in = a name = someone in your contacts, so do nothing.
+#   -> "Unknown"/"Private number" also fall out here (loosen the test below if you want those).
+# ⚠ Do not write this as case [!...]: the ) inside the pattern is read as the case separator.
+"""
+    }
+    val cScan = if (ja) {
+        "# 発信者は題名に出るのが普通だが、電話アプリによっては本文側に出る。両方を見る。"
+    } else {
+        "# The caller is usually the title, but some phone apps put it in the text. Check both."
+    }
+    val cSkip = if (ja) "# 名前が出ていた = 電話帳にある相手。何もしない。" else "# A name was shown = in contacts. Do nothing."
+    val cWhat = if (ja) {
+        "# 着信中と不在着信のどちらで動いたかは種別で分かる (登録した notify:category= と同じ値)。"
+    } else {
+        "# The category tells which one fired (same value as the notify:category= you registered)."
+    }
+    val missed = if (ja) "不在着信" else "Missed call"
+    val incoming = if (ja) "着信" else "Incoming call"
+    val title = if (ja) "電話帳に無い番号" else "number not in contacts"
+    val body = if (ja) "${d}{num} をコピーしました" else "Copied ${d}{num}"
+    return """$cHow$cIsNum
+is_number() {
+  [ -z "${d}(printf '%s' "${d}1" | tr -d '0-9+() -')" ] || return 1
+  digits=${d}(printf '%s' "${d}1" | tr -cd '0-9')
+  [ ${d}{#digits} -ge 7 ] && [ ${d}{#digits} -le 15 ]
+}
+
+$cScan
+num=""
+for s in "${d}Z2_WHEN_NOTI_TITLE" "${d}Z2_WHEN_NOTI_TEXT"; do
+  if is_number "${d}s"; then num="${d}s"; break; fi
+done
+
+$cSkip
+[ -n "${d}num" ] || exit 0
+
+z2-clip set "${d}num"
+
+$cWhat
+case "${d}Z2_WHEN_NOTI_CATEGORY" in
+  missed_call) what="$missed" ;;
+  *)           what="$incoming" ;;
+esac
+z2-notify -h "${d}{what}: $title" "$body"
 """
 }
 

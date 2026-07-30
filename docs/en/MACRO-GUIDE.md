@@ -61,7 +61,7 @@ minute). **Do not write in style B what style A can express.**
    your script's start command; it then runs without opening the app and after reboot (also turn on
    "auto-start on boot").
 4. Handy tool: install `jq` (JSON parsing). e.g. Alpine `apk add jq` / Debian-family `apt install jq`.
-5. **If you would rather not start from a blank file**: `z2-macro list` shows the 8 bundled samples and
+5. **If you would rather not start from a blank file**: `z2-macro list` shows the 9 bundled samples and
    `z2-macro install <name>` copies one into `~/.z2term/macros/` (`z2-macro install all` for every one).
    ⚠ **The macro directory is on PATH** (since 0.8.287; appended, so it never shadows an OS command),
    so what you install runs by name: `remind.sh 30m pills`. ⚠ **Tabs opened before 0.8.287 carry the old
@@ -98,6 +98,7 @@ exactly once** (no resident script involved).
 | `sensor:shake` / `sensor:light>N` / `sensor:light<N` / `sensor:proximity=near\|far` | Shaken / light crossed N lux / proximity changed | detection ON |
 | `file:new=<dir>[,ext=<ext>]` | **A new file landed in that folder** (after the write finishes) | detection ON |
 | `notify:any` / `notify:otp` / `notify:pkg=<part>` / `notify:title=<part>` / `notify:contains=<part>` | A notification arrived (`pkg=` matches the package name *or* the app label) | notification access |
+| `notify:category=<kind>` | A notification of that **category** arrived (`call` = ringing / `missed_call` / `msg` `email` `alarm` `event` `progress` … — Android's own vocabulary). ⚠ This one matches **exactly** (a partial match would make `call` fire on `missed_call`, so the two could not be told apart). Lets you catch calls without knowing the phone app's package name | notification access |
 | `event:<name>` / `event:<prefix>*` / `event:*` | Any device event, **by name** (same names as 3-B; `z2-when events` lists them) | depends on the name |
 
 ⚠ **A misspelled trigger will not register** (0.8.265). If it did, you would get a rule that sits in the list and never runs, with no way to find out why. Only `event:` names are left unchecked (the list from `z2-when events` is the source of truth).
@@ -115,7 +116,7 @@ The command that fires gets **what happened** in its environment.
 | `Z2_WHEN_OTP` | The extracted one-time code (`sms:otp` / `notify:otp`) |
 | `Z2_WHEN_SENSOR` / `Z2_WHEN_LUX` | `shake`/`light`/`proximity:near\|far` / illuminance (`sensor:`) |
 | `Z2_WHEN_FILE` / `Z2_WHEN_DIR` | Full path of the new file / its folder (`file:`) |
-| `Z2_WHEN_NOTI_PKG` / `_APP` / `_TITLE` / `_TEXT` | Package / app label / title / body (`notify:`) |
+| `Z2_WHEN_NOTI_PKG` / `_APP` / `_TITLE` / `_TEXT` / `_CATEGORY` | Package / app label / title / body / category (`notify:`) |
 | `Z2_WHEN_EVENT` | Event name (`event:`) |
 | `Z2_WHEN_EVENT_NAME` | The identifier you armed it with (`event:alarm` / `event:notify_action`) |
 | `Z2_WHEN_ACTION` | The button label that was pressed (`event:notify_action`) |
@@ -944,6 +945,83 @@ remind.sh list / remind.sh del 2       # list / cancel
   attached (the previous answer is put back via `z2-ask -d`); a successful one shows the plan and text.
 - Firing can be **a few minutes late** (the booking is battery-friendly and Doze-aware). Not for
   anything that needs to be on time to the second.
+
+### 5-10. Worked example: capture calls from numbers not in your contacts
+
+When someone who is not in your contacts calls, copy their number to the clipboard. Whether you want
+to call back, look the number up, or block it, you no longer have to copy it down by hand.
+(`z2-macro install unknown-call` gives you exactly what is below.)
+
+**How "not in contacts" is decided.** A phone app shows the **name** for someone in your contacts and
+the **bare number** for someone who is not. So if **the notification shows a number**, that caller is
+not in your contacts.
+
+⚠ This shape exists to keep **z2term free of phone-related permissions**. Checking the contacts
+database directly needs `READ_CONTACTS` plus `READ_CALL_LOG` (required since Android 9 just to learn
+the incoming number), and the latter is essentially undistributable unless you are the default phone
+app. Reading what the notification shows gives the same answer, so **no permission is added** — the
+notification access you already granted is enough.
+
+```sh
+# ~/.z2term/macros/unknown-call.sh
+# Setup: Settings -> "Notification detection" ON + grant OS notification access
+# z2-run: z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh
+
+# Is it a bare number? Strip every character a phone number may use (digits + - ( ) space);
+# if **nothing is left** and 7-15 digits remain, treat it as a number.
+#   -> Letters mixed in = a name = someone in your contacts, so do nothing.
+#   -> "Unknown"/"Private number" also fall out here.
+# ⚠ Do not write this as case [!...]: the ) inside the pattern is read as the case separator.
+is_number() {
+  [ -z "$(printf '%s' "$1" | tr -d '0-9+() -')" ] || return 1
+  digits=$(printf '%s' "$1" | tr -cd '0-9')
+  [ ${#digits} -ge 7 ] && [ ${#digits} -le 15 ]
+}
+
+# The caller is usually the title, but some phone apps put it in the text. Check both.
+num=""
+for s in "$Z2_WHEN_NOTI_TITLE" "$Z2_WHEN_NOTI_TEXT"; do
+  if is_number "$s"; then num="$s"; break; fi
+done
+
+# A name was shown = in contacts. Do nothing.
+[ -n "$num" ] || exit 0
+
+z2-clip set "$num"
+
+# The category tells which one fired.
+case "$Z2_WHEN_NOTI_CATEGORY" in
+  missed_call) what="Missed call" ;;
+  *)           what="Incoming call" ;;
+esac
+z2-notify -h "${what}: number not in contacts" "Copied ${num}"
+```
+
+That is the whole registration:
+
+```sh
+z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh
+```
+
+**To capture missed calls too**, register a second rule with the other category (the same script is
+fine).
+
+```sh
+z2-when notify:category=missed_call cooldown=20s run ~/.z2term/macros/unknown-call.sh
+```
+
+⚠ **`notify:category=` is used so you do not need the phone app's package name.** `notify:pkg=` would
+work too, but the phone app differs per device (Google's, the vendor's, or a dialer you installed).
+Call notifications carry Android's own `call` category, so matching on that is device-independent.
+
+⚠ **`cooldown=20s` is there on purpose.** A ringing call updates its notification several times (call
+duration and so on), so without it one call runs the macro repeatedly.
+
+⚠ **Withheld numbers are not captured** (there is no number to capture). If you want to know anyway,
+add a branch that fires `z2-notify` when `is_number` fails.
+
+⚠ The test only looks at **what is displayed**, so if the phone app shows something of its own
+("Suspected spam", say), that wins and is treated as a name — nothing happens.
 
 ---
 

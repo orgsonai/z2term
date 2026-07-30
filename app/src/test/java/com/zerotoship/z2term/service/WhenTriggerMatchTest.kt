@@ -252,8 +252,8 @@ class WhenTriggerMatchTest {
     // --- notify:* トリガー (SMS 以外で届く確認コードを拾うのが主目的) ---
 
     private fun noti(spec: String, pkg: String = "com.example.mail", app: String = "Mail",
-                     title: String = "", text: String = "") =
-        WhenTriggerMatch.notify(spec, pkg, app, title, text)
+                     title: String = "", text: String = "", category: String = "") =
+        WhenTriggerMatch.notify(spec, pkg, app, title, text, category)
 
     @Test fun notify_any() {
         assertTrue(noti("any"))
@@ -279,6 +279,17 @@ class WhenTriggerMatchTest {
         assertTrue(noti("otp", text = "Your code is 483920"))
         assertTrue(noti("otp", title = "G-12345 is your code"))
         assertFalse(noti("otp", title = "Welcome", text = "No code here"))
+    }
+
+    @Test fun notify_categoryIsExactNotPartial() {
+        assertTrue(noti("category=call", category = "call"))
+        assertTrue(noti("category=CALL", category = "call"))      // 大小は無視する
+        assertTrue(noti("category=missed_call", category = "missed_call"))
+        // ⚠ ここが要 — 部分一致にすると「着信のとき」が不在着信でも動いてしまう
+        // (call は missed_call の部分文字列)。着信と不在着信を書き分けられなくなる。
+        assertFalse(noti("category=call", category = "missed_call"))
+        assertFalse(noti("category=call", category = ""))
+        assertFalse(noti("category="))
     }
 
     @Test fun notify_unknownSpecNeverFires() {
