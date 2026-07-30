@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Z2Term — Android のターミナルであり、Android を操作する手段でもあるアプリ</title>
+<meta name="description" content="Alpine / Ubuntu / Arch / Kali を root 不要で動かす Android ターミナル。Linux GUI・SSH/SFTP・日本語 IME を内蔵し、シェルから Android 自体を操作・自動化できます。">
+<meta property="og:title" content="Z2Term — Zero 2 Terminal">
+<meta property="og:description" content="root 不要で Alpine / Ubuntu / Arch / Kali が動く。タブの中に Linux デスクトップ。シェルから通知を読み、質問し、端末のイベントでスクリプトを走らせる。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://orgsonai.github.io/z2term/index.ja.html">
+<meta property="og:image" content="https://orgsonai.github.io/z2term/images/cui-terminal.png">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://orgsonai.github.io/z2term/index.ja.html">
+<style>
+  :root{
+    --bg:#0B0F0E; --bg2:#111817; --line:#1F2A28;
+    --fg:#E6EDEB; --dim:#93A4A0; --accent:#22C55E; --accent-dim:#15803D;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:system-ui,-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;
+    line-height:1.85;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px}
+  header{border-bottom:1px solid var(--line);padding:14px 0;font-family:var(--mono);font-size:14px}
+  header .brand{color:var(--fg);font-weight:600}
+  header .brand b{color:var(--accent)}
+  header nav a{color:var(--dim);margin-left:16px}
+  .hero{padding:64px 0 40px}
+  .kicker{font-family:var(--mono);font-size:13px;color:var(--accent);letter-spacing:.08em}
+  h1{font-size:clamp(26px,4.6vw,42px);line-height:1.32;margin:.4em 0 .5em;letter-spacing:-.01em}
+  .lede{font-size:clamp(16px,2vw,19px);color:var(--dim);max-width:42em;margin:0}
+  .lede strong{color:var(--fg)}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;margin:32px 0 10px}
+  .btn{display:inline-block;padding:12px 22px;border-radius:8px;font-weight:600;font-size:15px;
+    border:1px solid var(--accent);background:var(--accent);color:#05130B}
+  .btn:hover{text-decoration:none;background:#1eb257}
+  .btn.ghost{background:transparent;color:var(--fg);border-color:var(--line)}
+  .btn.ghost:hover{border-color:var(--accent);background:#0F1A16}
+  .note{font-family:var(--mono);font-size:13px;color:var(--dim);margin:6px 0 0}
+  section{padding:48px 0;border-top:1px solid var(--line)}
+  h2{font-size:24px;margin:0 0 8px}
+  h2 + p.sub{color:var(--dim);margin:0 0 28px}
+  .grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:22px}
+  .card h3{margin:0 0 8px;font-size:17px}
+  .card h3 span{color:var(--accent);font-family:var(--mono);margin-right:8px}
+  .card p{margin:0;color:var(--dim);font-size:15px}
+  .shots{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+  .shots figure{margin:0;text-align:center}
+  .shots img{width:100%;max-width:300px;border:1px solid var(--line);border-radius:10px}
+  .shots figcaption{font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:8px}
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse;width:100%;min-width:640px;font-size:15px}
+  th,td{border-bottom:1px solid var(--line);padding:12px 14px;text-align:left;vertical-align:top}
+  thead th{font-family:var(--mono);font-size:13px;color:var(--dim);font-weight:600;white-space:nowrap}
+  thead th:nth-child(2){color:var(--accent)}
+  td:first-child{color:var(--dim)}
+  td b{color:var(--fg)}
+  pre{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:16px 18px;
+    overflow-x:auto;font-family:var(--mono);font-size:14px;margin:0;line-height:1.7}
+  pre .c{color:var(--dim)}
+  pre .g{color:var(--accent)}
+  .two{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+  footer{border-top:1px solid var(--line);padding:32px 0 56px;color:var(--dim);
+    font-family:var(--mono);font-size:13px}
+  .warn{font-size:14px;color:var(--dim);border-left:2px solid var(--accent-dim);
+    padding:2px 0 2px 14px;margin:24px 0 0}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+    <span class="brand">Z<b>2</b>Term</span>
+    <nav>
+      <a href="#features">機能</a>
+      <a href="#compare">比較</a>
+      <a href="#download">ダウンロード</a>
+      <a href="https://github.com/orgsonai/z2term">GitHub</a>
+      <a href="index.html">English</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="hero">
+    <p class="kicker">Zero 2 Terminal · GPL-3.0 · Android 10+</p>
+    <h1>Android のターミナルであり、<br>Android を操作する手段でもあるアプリ。</h1>
+    <p class="lede">Z2Term は <strong>Alpine / Ubuntu / Arch / Kali を root 不要で</strong>動かし、
+      <strong>タブの中に Linux のデスクトップ</strong>を開き、シェルから端末そのものに手を伸ばせます。
+      通知を読む、通知シェードの返信欄であなたに質問する、充電・ネットワーク・受信 SMS の変化で
+      スクリプトを走らせる — そういうことができます。</p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/orgsonai/z2term/releases/latest">APK をダウンロード</a>
+      <a class="btn ghost" href="https://github.com/orgsonai/z2term">GitHub でソースを見る</a>
+    </div>
+    <p class="note">root 不要 · PC 不要 · テレメトリなし · Google Play では配布していません</p>
+  </div>
+
+  <section id="features">
+    <h2>ふつうのターミナルがやらない 3 つのこと</h2>
+    <p class="sub">以下はすべて APK 1 つに入っています。コンパニオンアプリもセットアップスクリプトも要りません。</p>
+    <div class="grid">
+      <div class="card">
+        <h3><span>01</span>ディストロがすぐ動く</h3>
+        <p>APK を入れれば <code>apk</code> / <code>apt</code> / <code>pacman</code> が使えます。既定の実行エンジン
+          <b>z2root</b> は本アプリ用に書いた ptrace ベースのユーザ空間実装で、root もカーネルモジュールも不要。
+          PRoot と chroot にも切り替えられます。</p>
+      </div>
+      <div class="card">
+        <h3><span>02</span>シェルが Android に話しかける</h3>
+        <p>約 20 個の <code>z2-*</code> コマンド。通知・クリップボード・センサー・ライト・Intent・アラーム・読み上げ、
+          そして自端末への無線 <code>adb</code>。<code>z2-ask</code> は通知シェードに質問を出し、
+          返信をシェル変数として受け取ります。</p>
+      </div>
+      <div class="card">
+        <h3><span>03</span>アプリを閉じても続く自動化</h3>
+        <p><code>z2-when</code> が端末のイベントでスクリプトを起動します — 充電、電池残量、時刻や cron、Wi-Fi、
+          回線の切り替わり、起動、他アプリからの共有、受信 SMS、センサー、届いた通知、ファイルの追加。
+          ルールはテキストファイルで、再起動をまたいで生き残ります。</p>
+      </div>
+      <div class="card">
+        <h3><span>04</span>タブの中の Linux デスクトップ</h3>
+        <p>Xvnc + openbox を、アプリ内蔵の RFB クライアントで表示します。音声・動画つき。
+          <code>z2gui</code> でデスクトップを起動、<code>z2run &lt;app&gt;</code> で GUI アプリを起動して
+          タブまで開きます。</p>
+      </div>
+      <div class="card">
+        <h3><span>05</span>日本語がちゃんと打てる</h3>
+        <p>かな漢字変換・予測・学習（頻度と直近）を備えた IME と独自のオンスクリーンキーボードを内蔵。
+          <b>OS の入力メソッドとして有効化</b>すれば他アプリでも同じ変換が使えます。ユーザー辞書はファイルから読み込み。</p>
+      </div>
+      <div class="card">
+        <h3><span>06</span>SSH は行きも帰りも</h3>
+        <p>SSH / SFTP クライアント（鍵は Android Keystore が保持）、タブを閉じても生き続けるポートフォワード、
+          既定で localhost のみに bind する内蔵 <code>sshd</code>。</p>
+      </div>
+      <div class="card">
+        <h3><span>07</span>止まらないサーバー</h3>
+        <p>任意の起動コマンドを <b>設定 → 常駐サーバー</b>に登録すると、<b>アプリを開かなくても</b>
+          バックグラウンドで動き続けます。小さな Web サーバー、同期デーモン、bot を手元のスマホで常駐。
+          稼働数はホーム画面ウィジェットに出て、再起動後の復帰も面倒を見ます。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>スクリーンショット</h2>
+    <p class="sub">左: Alpine と独自キーボード。右: Xvnc 上で動く GUI アプリ。</p>
+    <div class="shots">
+      <figure>
+        <img src="images/cui-terminal.png" alt="Alpine の端末と独自オンスクリーンキーボード">
+        <figcaption>CUI — Alpine + 独自キーボード</figcaption>
+      </figure>
+      <figure>
+        <img src="images/gui-thunderbird.png" alt="Z2Term 内の Xvnc 上で動く GUI アプリケーション">
+        <figcaption>GUI — Xvnc 上のデスクトップアプリ</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>使うとこうなる</h2>
+    <div class="two">
+      <pre><span class="c"># 通知シェードから答えてもらう</span>
+name=$(z2-ask <span class="g">"ブランチ名は？"</span>) \
+  || echo <span class="g">"やめた"</span>
+
+<span class="c"># 端末のイベントで走らせる</span>
+z2-when charge:start run ~/sync.sh
+z2-when net:online if=ssid=Home \
+  cooldown=1h run ~/backup.sh</pre>
+      <pre><span class="c"># シェルから Linux デスクトップ</span>
+z2gui
+z2run <span class="g">firefox</span>
+
+<span class="c"># 動かないときはこれ 1 つ</span>
+z2doctor --clip
+
+<span class="c"># PC なしで自端末の adb</span>
+z2adb shell getprop ro.product.model</pre>
+    </div>
+  </section>
+
+  <section id="compare">
+    <h2>なぜもう一つターミナルアプリを作るのか</h2>
+    <p class="sub">最大のパッケージ資産と実績が欲しいなら Termux が正解です。Z2Term は別の問いから作られています —
+      ターミナルが「端末を操作する正面の手段」になり、しかも APK 1 つで完結したらどうなるか。</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th></th><th>Z2Term</th><th>Termux + アドオン群</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Linux ディストロ</td><td><b>Alpine 同梱</b>で初回から使える。Ubuntu / Arch / Kali も導入可</td><td>パッケージで導入する</td></tr>
+          <tr><td>Linux GUI</td><td><b>アプリ内に GUI タブ</b>（Xvnc + RFB クライアント）。音声・動画つき</td><td>別途 X11 / VNC ビューアアプリ</td></tr>
+          <tr><td>シェルから Android を操作</td><td><b>内蔵</b> — 約 20 個の <code>z2-*</code></td><td>別アプリ（コンパニオン）</td></tr>
+          <tr><td>イベント駆動の自動化</td><td><b>内蔵</b> — <code>z2-when</code>。専用タブ・実行ログ・一括停止つき</td><td>別アプリ + 多くは市販の自動化アプリと併用</td></tr>
+          <tr><td>日本語入力</td><td><b>IME 内蔵</b>。OS の入力メソッドとしても選べる</td><td>OS のキーボード</td></tr>
+          <tr><td>SSH / SFTP と <code>sshd</code></td><td><b>内蔵</b>。鍵は Android Keystore</td><td>自分でパッケージを入れる</td></tr>
+          <tr><td>配布</td><td>GitHub Releases</td><td>F-Droid と独自リポジトリ</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="warn">どちらも GPL-3.0 で、どちらもテレメトリを取りません。すでに満足している Termux 環境がある人にとって、
+      Z2Term の存在理由は上の表の <b>2・3・4 行目</b>です。</p>
+  </section>
+
+  <section id="download">
+    <h2>ダウンロード</h2>
+    <p class="sub">各リリースに APK が 2 つ付きます。端末でファイルをタップし、提供元不明のアプリのインストールを許可してください。</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>ファイル</th><th>中身</th><th>選び方</th></tr></thead>
+        <tbody>
+          <tr><td><code>app-full-release.apk</code></td><td>PRoot と Alpine rootfs を同梱（約 190 MB）</td><td><b>無難な既定。</b>ディストロが中にあり、初回起動時のダウンロード不要で最初からオフラインで動く。Wi-Fi で更新するなら長期利用でも問題ない</td></tr>
+          <tr><td><code>app-foss-release.apk</code></td><td>prebuilt 非同梱（約 21 MB）</td><td><b>更新が軽い。</b>約 9 分の 1 なので更新のたびのダウンロードが約 190 MB → 約 21 MB。従量制や遅い回線で効く。外部 prebuilt も同梱しない。Alpine は初回だけ取得し SHA-256 で検証、更新時に再取得しない</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="warn">どちらも同じアプリ。自動更新にしても毎回 APK 全体をダウンロードします（Play 以外に差分更新は無い）。
+      なので実質的な違いはダウンロード容量だけで、Wi-Fi なら気になりません。</p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/orgsonai/z2term/releases/latest">最新リリース</a>
+      <a class="btn ghost" href="https://github.com/orgsonai/z2term/blob/main/docs/ja/HANDBOOK.md">ハンドブック</a>
+    </div>
+    <p class="note">アプリ内の更新チェックはありません。
+      <a href="https://github.com/ImranR98/Obtainium">Obtainium</a> に本リポジトリを登録すると、
+      新リリース時にワンタップで更新できます（ストア不要）。</p>
+    <p class="warn">版数はまだ <code>0.8.x-alpha</code> です。機能は広く毎日使われていますが、版数はそのことに正直にしています。</p>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    Z2Term — Zero to Ship プロジェクト 第 5 作。GPL-3.0.
+    · <a href="https://github.com/orgsonai/z2term">ソース</a>
+    · <a href="https://github.com/orgsonai/z2term/issues">Issues</a>
+    · <a href="index.html">English</a>
+  </div>
+</footer>
+
+</body>
+</html>

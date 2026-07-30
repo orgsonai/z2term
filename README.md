@@ -2,9 +2,19 @@
 
 **English** ・ [日本語](README.ja.md)
 
-**Z2Term** is a custom-built terminal app that runs on Android.
-It runs several Linux distributions (Alpine / Ubuntu / Arch / Kali) without root,
-and lets you install any command through package managers like `pacman` / `apt`.
+[![Release](https://img.shields.io/github/v/release/orgsonai/z2term?include_prereleases&label=release)](https://github.com/orgsonai/z2term/releases/latest)
+[![License](https://img.shields.io/github/license/orgsonai/z2term)](LICENSE)
+![Android 10+](https://img.shields.io/badge/Android-10%2B-3DDC84)
+
+### A terminal for Android that is also a way to drive Android.
+
+Z2Term runs Alpine / Ubuntu / Arch / Kali **without root**, opens a **Linux desktop** in a tab,
+and lets the shell reach the phone itself — read a notification, ask you a question in the
+notification shade, or run a script when the battery, the network or an incoming SMS changes.
+
+- **No root, no PC, no setup script.** Install one APK and you have a working distribution with `apk` / `apt` / `pacman`. The default execution engine (`z2root`) is a ptrace-based userspace implementation written for this app.
+- **The shell can talk to Android.** Around 20 `z2-*` helpers (notifications, clipboard, sensors, torch, intents, alarms, wireless `adb` to the device itself) plus `z2-when` — an automation hub that runs scripts on device events and keeps working after a reboot without the app being opened.
+- **Usable in Japanese.** A built-in kana-kanji IME with prediction and learning, which can also be turned on as an OS-wide input method.
 
 > The 5th project of the Zero to Ship initiative.
 
@@ -17,6 +27,26 @@ and lets you install any command through package managers like `pacman` / `apt`.
   </tr>
 </table>
 
+## Why another terminal app?
+
+Android already has a mature terminal ecosystem, and Termux is the right answer if what you
+want is the largest package repository and the most battle-tested tooling. Z2Term is built
+around a different question: **what if the terminal were a first-class way to operate the
+phone, and everything came in one APK?**
+
+| | Z2Term | Termux + its add-ons |
+|---|---|---|
+| Full Linux distribution | Alpine bundled in the `full` APK, ready on first launch; Ubuntu / Arch / Kali installable | `proot-distro` package installs one |
+| Linux GUI | Built-in GUI tab (Xvnc + an RFB client inside the app), with audio and video | A separate X11 or VNC viewer app |
+| Drive Android from the shell | Built in — ~20 `z2-*` helpers | A separate companion app |
+| Event-driven automation | Built in — `z2-when` (charging, battery level, time / cron, Wi-Fi, connectivity, boot, share, SMS, sensors, notifications, new files) with an Automation tab, logs and a kill switch | A separate companion app, usually paired with a third-party automation app |
+| Japanese input | Built-in IME (conversion, prediction, learning), also selectable as the OS input method | The OS keyboard |
+| SSH / SFTP client and `sshd` | Built in, keys held by the Android Keystore | Install the packages yourself |
+| Distribution | GitHub Releases (this repo) | F-Droid and its own repository |
+
+Both are GPL-3.0 and neither collects telemetry. If you already have a Termux setup you are
+happy with, Z2Term's reason to exist is the second, third and fourth rows of that table.
+
 ## Download
 
 **You can download the latest APK directly from GitHub Releases** (no build needed):
@@ -27,11 +57,25 @@ Every release ships two APKs.
 
 | File | Contents | Which to pick |
 |---|---|---|
-| `app-full-release.apk` | PRoot and the Alpine rootfs bundled (~190MB) | **Pick this if unsure.** Self-contained — no download on first launch |
-| `app-foss-release.apk` | No prebuilts (~21MB) | Minimises third-party license notices. Fetches Alpine from the official CDN on first launch |
+| `app-full-release.apk` | PRoot and the Alpine rootfs bundled (~190MB) | **A fine default.** Self-contained — the distribution is already inside, so nothing downloads and it works fully offline from the start. Perfectly good long-term too if you update over Wi-Fi. |
+| `app-foss-release.apk` | No prebuilts (~21MB) | **Lighter updates.** Nine times smaller, so each update downloads ~21MB instead of ~190MB — handy on metered data or a slow link. It also bundles no third-party prebuilts (fewer license notices), for people who'd rather not carry them. Alpine is fetched once from the official CDN on first launch and verified by SHA-256; updates never re-download it. |
+
+Same app either way. Note that automatic updates (below) still fetch the whole APK each time —
+there are no delta updates outside Google Play — so the download-size gap is the one real
+difference between them, and it simply doesn't matter on Wi-Fi.
 
 Tap the APK on your Android device → allow "Install from unknown sources" to install.
 (Not distributed on Google Play.)
+
+### Keeping it updated
+
+There is no in-app update check. Pick whichever fits:
+
+- **Manual** — download the newer APK from Releases and tap it (installs over the top; your data stays).
+- **Automatic (recommended)** — add `https://github.com/orgsonai/z2term` to
+  [Obtainium](https://github.com/ImranR98/Obtainium). It watches these Releases and updates the app
+  with one tap when a new version appears — no app store involved. With `foss` selected, each such
+  update is only ~21MB.
 
 ## Current version
 
@@ -50,6 +94,7 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 - **Android bridge** — call host features from the shell: `z2-noti` (read the notifications on screen; read-only) / `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip` / `z2-battery` / `z2-vibrate` / `z2-say` / `z2-torch` / `z2-media` / `z2-volume` / `z2-sensor` / `z2-intent` / `z2-state` / `z2-screen` (stop the screen turning off by itself, for a while) / `z2-tile` (put a macro on a quick-settings tile) / `z2-alarm` / `z2-macro` / `z2-session` (drives the app's own tabs).
 - **It can ask you things** — `name=$(z2-ask "Branch name?")` takes the answer from a **notification reply field** (answerable from the shade without opening the app; no answer means a non-zero exit, so "give up" is expressible).
 - **Automation hub** — `z2-when <trigger> run <cmd>` auto-runs a script on Android events: charge start/stop, battery crossing a level, a time (daily / once / every N / cron), Wi‑Fi connect/disconnect, **a usable connection appearing/going away or the link in use switching (`net:online` / `net:mobile` — mobile data counts too)**, **the device booting (`boot`)**, **something being shared to it from another app (`share:ext=pdf` …)**, an incoming SMS (incl. OTP code extraction), a sensor (shake / light threshold / proximity), **an arriving notification (`notify:otp` extracts the code; independent of whether notifications are logged)**, **any device event by name (`event:headset_plugged` and ~20 more; `z2-when events` lists them)**, or **a new file appearing in a folder (`file:new=…`)**. Rules can be **narrowed with filters** (`if=ssid=Home` / `cooldown=1h` / `between=22:00-07:00` / `days=mon-fri` — they work the same for every trigger, and skipped runs stay in the log as `skip:`). Rules are plain text under `~/.z2term/when/` (git-syncable) and survive reboots without opening the app. The **Automation tab** (📜) lists them with on/off toggles, run logs and a **▶ run-now** that skips the trigger, plus a **kill switch that pauses every rule** and a list of recent fires (`z2-when pause` / `resume` / `fired` in the terminal).
+- **Resident servers** — register any start command under *Settings → Resident servers* and it keeps running in the background **without the app being open**: host a small web server, a sync daemon or a bot from the phone. The Status widget shows how many are up, and registered servers are restarted on boot.
 - **Self adb** — `z2adb` connects to the device's own wireless debugging over localhost. No PC, USB, or root.
 - **Built-in help** — `z2help` (or `z2term`) prints a categorized cheat sheet of every `z2*` helper; `z2version` shows the app version and the engine the tab is really running on.
 - **`z2doctor`** — one command that answers "why isn't it working?": version, engine, free space, every permission the app needs, detection and automation state. **Each `NG` line carries the next step**, and the end is a short report you can paste into an issue (`--share` / `--clip`). SSIDs, IPs and host names are left out on purpose.
