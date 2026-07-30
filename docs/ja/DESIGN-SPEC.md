@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-29 / 対象バージョン: 0.8.289-alpha (versionCode 297)
+最終更新: 2026-07-30 / 対象バージョン: 0.8.290-alpha (versionCode 298)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1782,6 +1782,8 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
 `noInstallTimeout`（インストールタイムアウト無効化）・`cleanInstallGuiArmed`（GUI クリーン再展開フラグ）等も DataStore (`z2term_settings`) に保持。SSH プロファイルは別 DataStore (`z2term_ssh`) に JSON で保存。
 
 **設定を初期化**（アクション）: 設定末尾（アプリ情報とライセンスの間）の「設定を初期化」ボタン（`danger` 表示）は、確認ダイアログを挟んで `AppSettings.resetToDefaults()`（DataStore `z2term_settings` を `clear()`）を呼ぶ。全キーが消えるので上表の各値・裏設定の解放フラグ・常駐サーバー定義・ツールバー並び順・各種ログ設定がすべて既定へ戻る（実行エンジンも既定 z2root に戻る）。rootfs（インストール済み OS）・ユーザファイル・言語（別 SharedPrefs `z2term_locale`）には触れない。
+
+**更新を確認**（アクション、0.8.290）: アプリ情報セクションのバージョン行直下に置く「更新を確認」ボタン。押した瞬間だけ `UpdateChecker.check()`（`update/UpdateChecker.kt`）が GitHub Releases API（`/releases/latest`）へ 1 回 GET し、`tag_name` の major.minor.patch を `BuildConfig.VERSION_NAME` と数値比較する。**設定を開いただけでは通信せず、自動チェック・起動時チェック・バックグラウンド通信はしない**（ユーザーが押したときだけ通信する方針）。新版があれば版数を表示し「リリースページを開く」で `html_url` を `ACTION_VIEW` で開く — **APK の DL・インストールはしない**（手動のまま）。設定は保持しない（押すたびに問い合わせる一過性の状態）。full/foss 共通で動くが、foss はいずれ F-Droid / IzzyOnDroid が更新を担うため、この機能は「新版があればページへ誘導する」までに留め、アプリ内自己更新（DL+インストール）は入れない（F-Droid 適合）。判定の網羅は `numbersOf` の先頭 3 数値抽出で、`-alpha` や過去タグの commit ハッシュ（数字混じり）を比較に混ぜない。
 
 ---
 

@@ -169,6 +169,13 @@
     <string name="appinfo_package">Package</string>
     <string name="appinfo_rootfs_generation">rootfs generation</string>
     <string name="appinfo_distro">Distro</string>
+    <!-- Manual update check (queries GitHub Releases only when the button is tapped) -->
+    <string name="settings_check_update">Check for updates</string>
+    <string name="settings_check_update_checking">Checking…</string>
+    <string name="settings_update_available">A newer version (%1$s) is available.</string>
+    <string name="settings_update_open_page">Open the release page</string>
+    <string name="settings_update_uptodate">You\'re on the latest version.</string>
+    <string name="settings_update_failed">Couldn\'t check for updates: %1$s</string>
 
     <!-- Tools sheet tabs -->
     <string name="tools_tab_snippets">Snippets</string>

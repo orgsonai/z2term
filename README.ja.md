@@ -69,16 +69,19 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ### アップデートの方法
 
-アプリ内の更新チェックはありません。合うものを選んでください。
+合うものを選んでください。
 
+- **アプリ内で確認** — *設定 → アプリ情報 → 更新を確認*。**ボタンを押したときだけ** GitHub の最新版に
+  問い合わせます（自動チェックは一切せず、押すまでネットワークにも触れません）。新版があれば版数を表示し、
+  リリースページを開きます。APK のダウンロードとインストールは手動のままです。
 - **手動** — Releases から新しい APK を落としてタップ（上書きインストールされ、データは残ります）。
-- **自動（おすすめ）** — [Obtainium](https://github.com/ImranR98/Obtainium) に
+- **自動** — [Obtainium](https://github.com/ImranR98/Obtainium) に
   `https://github.com/orgsonai/z2term` を登録します。Releases を監視し、新版が出ると**ワンタップで更新**（ストア不要）。
   `foss` を選んでいれば、その更新は毎回わずか約 21MB です。
 
 ## 現在のバージョン
 
-**0.8.289-alpha (versionCode 297).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.290-alpha (versionCode 298).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 

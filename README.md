@@ -69,17 +69,21 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 ### Keeping it updated
 
-There is no in-app update check. Pick whichever fits:
+Pick whichever fits:
 
+- **In-app check** — *Settings → App info → Check for updates* asks GitHub for the latest release
+  **only when you tap the button** (nothing is checked automatically, and no network is touched until
+  then). If a newer version exists it shows the number and opens the release page for you; downloading
+  and installing the APK stays a manual step.
 - **Manual** — download the newer APK from Releases and tap it (installs over the top; your data stays).
-- **Automatic (recommended)** — add `https://github.com/orgsonai/z2term` to
+- **Automatic** — add `https://github.com/orgsonai/z2term` to
   [Obtainium](https://github.com/ImranR98/Obtainium). It watches these Releases and updates the app
   with one tap when a new version appears — no app store involved. With `foss` selected, each such
   update is only ~21MB.
 
 ## Current version
 
-**0.8.289-alpha (versionCode 297).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.290-alpha (versionCode 298).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 

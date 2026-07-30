@@ -32,6 +32,10 @@ That's all the setup you need.
 
 > ℹ️ The `foss` build (for F-Droid / sideload) does not bundle Alpine itself, so it **needs a network connection on the first launch only** (it auto-downloads from the official site). The `full` build bundles it, so it starts instantly even offline.
 
+### Checking whether a newer version is out
+
+Settings > App info > **"Check for updates"** compares your version with the latest on GitHub. It talks to the network **only when you tap it** (there is no automatic check). If a newer version exists it shows the number, and **"Open the release page"** takes you to the download. Installing the new APK stays a manual step (same as "Installing" above).
+
 ---
 
 ## 3. Reading the screen

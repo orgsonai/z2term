@@ -168,6 +168,13 @@
     <string name="appinfo_package">パッケージ</string>
     <string name="appinfo_rootfs_generation">rootfs 世代</string>
     <string name="appinfo_distro">ディストロ</string>
+    <!-- 手動の更新チェック (ボタンを押したときだけ GitHub Releases に問い合わせる) -->
+    <string name="settings_check_update">更新を確認</string>
+    <string name="settings_check_update_checking">確認中…</string>
+    <string name="settings_update_available">新しい版 (%1$s) があります。</string>
+    <string name="settings_update_open_page">リリースページを開く</string>
+    <string name="settings_update_uptodate">お使いの版が最新です。</string>
+    <string name="settings_update_failed">更新を確認できませんでした: %1$s</string>
 
     <!-- ツールシートのタブ -->
     <string name="tools_tab_snippets">スニペット</string>

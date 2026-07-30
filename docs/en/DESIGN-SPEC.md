@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-29 / Target version: 0.8.289-alpha (versionCode 297)
+Last updated: 2026-07-30 / Target version: 0.8.290-alpha (versionCode 298)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1830,6 +1830,8 @@ built-in keyboard**".
 `noInstallTimeout` (disable install timeout), `cleanInstallGuiArmed` (GUI clean re-deploy flag), etc. are also kept in DataStore (`z2term_settings`). SSH profiles are saved as JSON in a separate DataStore (`z2term_ssh`).
 
 **Reset settings** (action): the "Reset settings" button at the end of the settings screen (between App info and Licenses) (`danger` style) shows a confirmation and then calls `AppSettings.resetToDefaults()` (which `clear()`s the `z2term_settings` DataStore). Clearing every key returns all values above, the hidden unlock flags, saved servers, toolbar order and log settings to their defaults (the execution engine goes back to the default z2root). The rootfs (installed OS), user files and language (separate SharedPrefs `z2term_locale`) are untouched.
+
+**Check for updates** (action, 0.8.290): a button placed directly under the version row in the App info section. Only when tapped does `UpdateChecker.check()` (`update/UpdateChecker.kt`) issue a single GET to the GitHub Releases API (`/releases/latest`) and compare the `tag_name`'s major.minor.patch numerically against `BuildConfig.VERSION_NAME`. **Merely opening settings touches no network; there is no automatic check, no launch-time check and no background traffic** (the network is contacted only on the user's tap). If a newer version exists it shows the number and "Open the release page" opens `html_url` via `ACTION_VIEW` — it does **not** download or install the APK (that stays manual). No setting is persisted (a transient state re-fetched on each tap). It works in both full and foss, but because foss is eventually updated by F-Droid / IzzyOnDroid, the feature stops at pointing to the page and deliberately omits in-app self-update (download+install), keeping foss F-Droid-clean. Version parsing (`numbersOf`) takes only the first three numbers so `-alpha` and the digit-bearing commit hashes of old tags never leak into the comparison.
 
 ---
 

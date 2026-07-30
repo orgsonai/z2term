@@ -1772,6 +1772,10 @@ private fun AppInfoSection(
             }
         }
     }
+    // 手動更新チェックの状態。null = まだ押していない。ボタンを押したときだけ
+    // UpdateChecker.check() が走り、それ以外ではネットワークに一切触れない。
+    var updateChecking by remember { mutableStateOf(false) }
+    var updateResult by remember { mutableStateOf<com.zerotoship.z2term.update.UpdateResult?>(null) }
     Section(title = stringResource(R.string.settings_section_app_info)) {
         InfoRow(
             stringResource(R.string.appinfo_version),
@@ -1783,6 +1787,58 @@ private fun AppInfoSection(
         InfoRow(stringResource(R.string.appinfo_package), BuildConfig.APPLICATION_ID)
         InfoRow(stringResource(R.string.appinfo_rootfs_generation), DistroBundle.ROOTFS_VERSION.toString())
         InfoRow(stringResource(R.string.appinfo_distro), osPretty ?: distroId)
+
+        // 更新を確認: ボタンを押した瞬間だけ GitHub Releases に 1 回問い合わせる。
+        // 自動チェックはしない (押すまで通信しない)。DL/インストールもしない —
+        // 新版があればリリースページを開くところまで。
+        Spacer(Modifier.height(4.dp))
+        ActionButton(
+            label = if (updateChecking) stringResource(R.string.settings_check_update_checking)
+            else stringResource(R.string.settings_check_update),
+            onClick = {
+                if (updateChecking) return@ActionButton
+                updateChecking = true
+                updateResult = null
+                scope.launch {
+                    updateResult = com.zerotoship.z2term.update.UpdateChecker.check()
+                    updateChecking = false
+                }
+            }
+        )
+        when (val r = updateResult) {
+            is com.zerotoship.z2term.update.UpdateResult.Available -> {
+                Text(
+                    text = stringResource(R.string.settings_update_available, r.latest),
+                    color = ZtsGreen,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                ActionButton(
+                    label = stringResource(R.string.settings_update_open_page),
+                    onClick = {
+                        runCatching {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, android.net.Uri.parse(r.url))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                    }
+                )
+            }
+            is com.zerotoship.z2term.update.UpdateResult.UpToDate -> Text(
+                text = stringResource(R.string.settings_update_uptodate),
+                color = ZtsTextSecondary,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            is com.zerotoship.z2term.update.UpdateResult.Failed -> Text(
+                text = stringResource(R.string.settings_update_failed, r.reason),
+                color = ZtsError,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            null -> {}
+        }
     }
     // 設定の初期化 (すべての設定を既定値へ戻す)。ワンタップでは戻さず確認ダイアログを挟む。
     // 普段触らない操作なので、設定の末尾 (ライセンスの直前) に置く。
