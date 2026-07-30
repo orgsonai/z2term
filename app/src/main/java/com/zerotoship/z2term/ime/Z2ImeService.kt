@@ -2,6 +2,7 @@ package com.zerotoship.z2term.ime
 
 import android.content.res.Configuration
 import android.inputmethodservice.InputMethodService
+import android.inputmethodservice.InputMethodService.Insets
 import android.text.InputType
 import android.view.KeyEvent
 import android.view.View
@@ -225,34 +226,65 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         val navBarPadding = with(LocalDensity.current) { navBarInsetPx.intValue.toDp() }
         val isJa = LocaleHelper.language(this@Z2ImeService) == LocaleHelper.LANG_JA
         Z2TermTheme {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ZtsBgSecondary)
-                    .padding(bottom = navBarPadding)
-            ) {
-                // ⚠ 候補バーの領域は日本語のとき**常に確保**する ([CandidateBarHeight])。
-                // IME の入力ビューは高さが変わるとウィンドウがリサイズされ、その直後から
-                // ComposeView のタップ座標変換がリサイズ差分ぶん古いまま残り、「実際に触った
-                // 位置より少し上のキー」を押した判定になる (候補バーが出た瞬間から発生していた)。
-                // 高さを一定に保てばリサイズ自体が起きず直る。英語では composing が無く候補バーも
-                // 出ない ＝ ズレも起きないので、無駄な隙間を作らないよう確保しない。
-                if (isJa) {
-                    Box(modifier = Modifier.fillMaxWidth().height(CandidateBarHeight)) {
-                        CandidateBar(composing = composing)
-                    }
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // 候補バーの**席**。中身の有無にかかわらず高さを [CandidateBarHeight] で固定する。
+                //
+                // ⚠ ここを可変にしてはいけない。入力ビューの高さが変わると入力メソッドの窓が
+                // リサイズされ、新しい窓枠がタップを配る側 (システム) に伝わるまでの数フレーム、
+                // タップは**古い窓枠**を基準に座標へ直される = 実際に触った位置より候補バーの
+                // 高さぶん上のキーが反応する。窓の高さを動かさなければ、この過渡期そのものが
+                // 存在しない。候補バーが出てしまえばズレないのも同じ理由 (窓枠が伝わり終えている)。
+                //
+                // ⚠ 席は**塗らない** (背景を付けない)。候補バーが出ていない間ここは透けて下の
+                // アプリが見え、[onComputeInsets] で insets からも外すので、席を確保している
+                // ことは画面にも相手アプリのレイアウトにも一切現れない。
+                Box(modifier = Modifier.fillMaxWidth().height(CandidateBarHeight)) {
+                    CandidateBar(composing = composing)
                 }
-                Column(modifier = Modifier.fillMaxWidth().height(style.naturalHeight)) {
-                    TerminalKeyboard(
-                        onBytes = ::sendBytes,
-                        onCursorKey = ::sendCursorKey,
-                        composing = composing,
-                        style = style,
-                        showJapaneseKeyboard = isJa
-                    )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(ZtsBgSecondary)
+                        .padding(bottom = navBarPadding)
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth().height(style.naturalHeight)) {
+                        TerminalKeyboard(
+                            onBytes = ::sendBytes,
+                            onCursorKey = ::sendCursorKey,
+                            composing = composing,
+                            style = style,
+                            showJapaneseKeyboard = isJa
+                        )
+                    }
                 }
             }
         }
+    }
+
+    /**
+     * 入力メソッドが**画面のどこを占めているか**をシステムへ伝える。
+     *
+     * 入力ビューの上端には候補バーの席 ([CandidateBarHeight]) が常にあるが、候補バーが出て
+     * いない間そこは**透明な空き地**でしかない。既定の実装は入力ビューの上端をそのまま伝える
+     * ので、放っておくと空き地のぶんだけ相手アプリが押し上げられ、キーボードの上に使っていない
+     * 帯が居座って見える。席のぶんを差し引いて「キーボードの上端から下だけが入力メソッドだ」と
+     * 伝えれば、席を確保していることは相手アプリからは見えない。
+     *
+     * - `contentTopInsets`: 相手アプリがレイアウトを避ける線。
+     * - `visibleTopInsets`: 入力メソッドが実際に見えている線。この上のタップは相手アプリへ通る
+     *   (既定の `touchableInsets` = `TOUCHABLE_INSETS_VISIBLE`)。空き地を押しても下のアプリが
+     *   反応するので、透明な席がタップを食べてしまうことはない。
+     *
+     * ⚠ ここで返す値は**窓の大きさではない**。insets が変わっても入力メソッドの窓は 1px も
+     * 動かない — だから候補バーの出し入れでタップがズレない。それがこの作りの目的。
+     */
+    override fun onComputeInsets(outInsets: Insets) {
+        super.onComputeInsets(outInsets)
+        // 候補バーが出ていれば席は「中身入り」= 入力メソッドの一部。出ていなければ空き地。
+        if (composing.isActive) return
+        val reserved = (CandidateBarHeight.value * resources.displayMetrics.density).toInt()
+        outInsets.contentTopInsets += reserved
+        outInsets.visibleTopInsets += reserved
     }
 
     /** [composing] の変化を `setComposingText` / `finishComposingText` へ流す。 */

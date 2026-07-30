@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-30 / Target version: 0.8.291-alpha (versionCode 299)
+Last updated: 2026-07-30 / Target version: 0.8.292-alpha (versionCode 300)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1757,17 +1757,29 @@ earlier `setComposingText` does not double up.
   keyboard clear. ⚠ It reads `tappableElement` rather than `navigationBars` because **gesture-navigation
   devices report 0 there** — no wasted gap on devices without a bar. Some paths recreate the window
   without delivering the listener, so `onStartInputView` re-reads it from `rootWindowInsets`.
-- ⚠ **The candidate-bar slot is always reserved in Japanese so the input-view height stays constant**
-  (0.8.291). [CandidateBar] is 0-height when idle and grows to `CandidateBarHeight` (76dp) when
-  conversion starts. In the IME this changes the input-view height, which **resizes the IME window** at
-  that moment. After the resize, `ComposeView`'s screen→local pointer mapping stays anchored to the old
-  (pre-resize) position, so taps registered **~76dp above the key actually touched** (it began the
-  instant candidates appeared). The terminal screen never showed this because there the candidate bar
-  rides a bottom-anchored `Column` and the keyboard doesn't move. The fix reserves the bar's frame with
-  `Box(height = CandidateBarHeight)` in Japanese so the input-view height does not change with
-  conversion — no resize happens. English has no composing and never shows the bar, so nothing is
-  reserved (no wasted gap). The `CandidateBarHeight` constant is shared with `CandidateBar` so the real
-  height and the reserved amount can't drift apart.
+- ⚠ **The candidate-bar seat is always reserved so the input-view height never moves; the seat is
+  transparent and is subtracted from the insets** (0.8.292). [CandidateBar] is 0-height when idle and
+  grows to `CandidateBarHeight` (76dp) when conversion starts. In the IME this changes the input-view
+  height, which **resizes the IME window** at that moment. For the few frames before the new window
+  frame reaches the side that dispatches touches (the system), taps are mapped against the **old
+  frame**, so the key **76dp above the one actually touched** fires. ⚠ The drift happens **only at the
+  instant the bar appears** — once it is up, taps are exact again (the new frame has landed). The cause
+  is therefore the **resize transient itself**, and no amount of after-the-fact coordinate correction
+  can remove it. The terminal screen never showed this because there the candidate bar rides a
+  bottom-anchored `Column` and the keyboard doesn't move.
+  - **Fix**: reserve the seat unconditionally with `Box(height = CandidateBarHeight)` so the
+    input-view height does not change with conversion — no resize, hence no transient. The seat is
+    **not** made language-dependent, so switching Japanese⇄English doesn't move the height either.
+  - **Keeping the seat invisible**: the seat has **no background**, so while the bar is hidden it is
+    see-through and the app below shows through. `onComputeInsets` then subtracts the seat from
+    `contentTopInsets` / `visibleTopInsets`, declaring that "only the keyboard's top edge downwards is
+    the IME". The target app is not pushed up by the seat, and taps above the keyboard pass through to
+    it (default `TOUCHABLE_INSETS_VISIBLE`). ⚠ Insets are **not** the window size, so this reporting
+    moves the window by 0px — it composes cleanly with the fixed height.
+  - The `CandidateBarHeight` constant is shared with `CandidateBar` so the real height and the reserved
+    amount can't drift apart.
+  - **Verification**: on a device, confirm the input-view height (`View.onSizeChanged`) does not change
+    across the bar appearing, and that `rawY - getLocationOnScreen()[1]` equals `MotionEvent.y`.
 
 **Candidates for the next stage**: adapting to `EditorInfo.inputType` (digits only for numeric
 fields, no learning in password fields), a key to hand back to the OS keyboard, and the globe key via
