@@ -1,23 +1,28 @@
-Z2Term is a self-contained terminal emulator for Android with:
+Z2Term is a terminal for Android that is also a way to drive Android.
 
-* Linux distributions without root: Alpine, Ubuntu, Arch and Kali on a userspace engine (z2root by default; PRoot and chroot also available)
-* Full VT100/xterm escape sequence support (colors, attributes, alt screen, OSC 4/7/8/10/11/12/52)
+It runs Alpine, Ubuntu, Arch and Kali without root, opens a Linux desktop in a tab, and lets the shell reach the phone itself: read a notification, ask you a question in the notification shade, or run a script when the battery, the network or an incoming SMS changes.
+
+* Linux distributions without root: the default execution engine, z2root, is a ptrace-based userspace implementation written for this app and built from source. PRoot and chroot (rooted devices) are also selectable.
+* Terminal emulator: VT100/xterm, 256-colour and true colour, alternate screen, East Asian Width (CJK / emoji) rendered as 2 cells, OSC 4/7/8/10/11/12/52
 * 9 built-in themes plus a custom theme editor, and custom font loading
-* East Asian Width (CJK / emoji) rendered as 2 cells
 * 5,000-line scrollback (configurable 500-50,000) with search
 * Multi-tab sessions with independent emulators, drag to reorder
-* Linux GUI: Xvnc + openbox with a built-in RFB client, audio and video
-* SSH client and SFTP built in (public-key auth, secrets encrypted by the Android Keystore), plus a built-in sshd that binds to localhost only by default
-* Japanese IME: kana-kanji conversion with prediction and learning, and a custom on-screen keyboard
-* Android bridge: call host features from the shell (notifications, clipboard, battery, sensors, alarms, intents, and driving the app's own tabs)
-* Resident servers: register any server as a start command and keep it running in the background
+* Linux GUI: Xvnc + openbox with an RFB client built into the app, with audio and video. "z2gui" starts a desktop, "z2run <app>" launches a GUI program.
+* SSH client and SFTP built in (public-key auth, secrets encrypted by the Android Keystore), port forwarding in both directions that can outlive the tab, plus a built-in sshd that binds to localhost only by default
+* Android bridge: around 20 "z2-*" helpers call host features from the shell (notifications, clipboard, battery, sensors, torch, intents, alarms, text-to-speech, and wireless adb to the device itself)
+* It can ask you things: "z2-ask" puts a question in the notification shade and reads your reply into a shell variable
+* Automation hub: "z2-when" runs scripts on device events (charging, battery level, time or cron, Wi-Fi, connectivity, boot, a share from another app, an incoming SMS, sensors, an arriving notification, a new file), narrowed by filters. Rules are plain text and survive reboots without opening the app.
+* Resident servers: register any server as a start command and keep it running in the background without the app being open
+* Japanese IME: kana-kanji conversion with prediction and learning, and a custom on-screen keyboard that can also be enabled as an OS-wide input method
 * Terminal log: record what a tab shows to a plain text file with one tap
+* Home screen widgets: a status and macro launcher, and a live tail of any file
 * Receive from other apps' share sheet (inserted into the input line, never executed)
+* Backup and restore: settings, SSH connections, snippets, automation rules and macros in one file
+* Built-in help ("z2help") and self-diagnosis ("z2doctor") that answers "why isn't it working?" with a next step on every NG line
 * Foreground service keeps your session alive across Activity recycles
 * Physical keyboard support (Bluetooth keyboards, Chromebook, etc.)
-* Long-press range selection + clipboard copy/paste
-* Pinch-to-zoom font size
+* Long-press range selection + clipboard copy/paste, and pinch-to-zoom font size
 
-100% local - no telemetry, no analytics. The foss build downloads the distribution on first launch and verifies it by SHA-256; everything else works offline.
+100% local - no telemetry, no analytics. This FOSS build bundles no third-party prebuilts: the Linux distribution is downloaded from the official CDN on first launch and verified by SHA-256; everything else works offline.
 
 License: GPL-3.0-only

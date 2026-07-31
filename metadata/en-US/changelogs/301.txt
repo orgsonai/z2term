@@ -1,0 +1,12 @@
+0.8.293-alpha
+
+- Fixed taps landing on the key above the one you touched when starting Japanese
+  conversion with the built-in keyboard used as an OS input method. The candidate
+  bar's slot is now reserved so the input view never changes height (and so the
+  window is never resized mid-typing).
+- Added about 150 emoji (Emoji 12 to 15.1). Characters your device's font lacks are
+  hidden automatically instead of showing as tofu.
+- Added a manual update check in Settings. It contacts the network only when you
+  tap it; there is no automatic check.
+- Added a macro sample that declines calls from numbers not in your contacts, and a
+  "notify:category" automation trigger.

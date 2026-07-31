@@ -1,1 +1,1 @@
-Android terminal running Alpine/Ubuntu/Arch/Kali without root, with SSH and GUI.
+Rootless Linux terminal with a GUI, SSH, automation and a Japanese IME.

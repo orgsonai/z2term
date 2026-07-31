@@ -1,0 +1,101 @@
+# F-Droid metadata (fdroiddata へ提出する内容の控え)。
+#
+# ⚠ ファイル名は **foss フレーバーの applicationId** に合わせてある。
+#    foss は build.gradle.kts で applicationIdSuffix = ".foss" が付くため、
+#    実際にインストールされる ID は com.zerotoship.z2term.foss になる
+#    (full と同居させるための設計)。F-Droid は metadata のファイル名と
+#    applicationId の一致を要求するので、full 側の ID では登録できない。
+#
+# ⚠ **申請するのは foss フレーバーだけ。** F-Droid は prebuilt バイナリの同梱を
+#    禁止しており、full は PRoot/talloc の prebuilt と Alpine rootfs を APK に
+#    同梱するため適合しない。foss はそれらを一切含まず、z2root/z2accept は
+#    app/src/main/cpp/ のソースから NDK でビルドする。
+
+Categories:
+  - System
+  - Development
+License: GPL-3.0-only
+AuthorName: orgson
+WebSite: https://orgsonai.github.io/z2term/
+SourceCode: https://github.com/orgsonai/z2term
+IssueTracker: https://github.com/orgsonai/z2term/issues
+Changelog: https://github.com/orgsonai/z2term/releases
+
+AutoName: Z2Term
+Summary: Rootless Linux terminal with a GUI, SSH, automation and a Japanese IME
+
+Description: |-
+  Z2Term is a terminal for Android that is also a way to drive Android.
+
+  It runs Alpine, Ubuntu, Arch and Kali without root, opens a Linux desktop in a
+  tab, and lets the shell reach the phone itself: read a notification, ask you a
+  question in the notification shade, or run a script when the battery, the
+  network or an incoming SMS changes.
+
+  Features:
+
+  * Linux distributions without root. The default execution engine, z2root, is a
+    ptrace-based userspace implementation written for this app and built from
+    source. PRoot and chroot (rooted devices) are also selectable.
+  * Terminal emulator: VT100/xterm, 256-colour and true colour, 9 themes plus a
+    custom theme editor, alternate screen, East Asian Width, scrollback with
+    search, OSC 4/7/8/10/11/12/52.
+  * Linux GUI: Xvnc and openbox with an RFB client built into the app, with audio
+    and video. "z2gui" starts a desktop, "z2run <app>" launches a GUI program.
+  * SSH and SFTP client with public-key auth (secrets encrypted by the Android
+    Keystore), known_hosts confirmation, port forwarding in both directions that
+    can outlive the tab, and a built-in sshd bound to localhost by default.
+  * Android bridge: around 20 "z2-*" helpers call host features from the shell
+    (notifications, clipboard, battery, sensors, torch, intents, alarms,
+    text-to-speech, and wireless adb to the device itself).
+  * It can ask you things: "z2-ask" puts a question in the notification shade and
+    reads your reply into a shell variable.
+  * Automation hub: "z2-when" runs scripts on device events (charging, battery
+    level, time or cron, Wi-Fi, connectivity, boot, a share from another app, an
+    incoming SMS, sensors, an arriving notification, a new file), narrowed by
+    filters. Rules are plain text and survive reboots without opening the app.
+  * Resident servers: register any start command and keep it running in the
+    background without the app being open.
+  * Japanese IME: kana-kanji conversion with prediction and learning, plus a
+    custom on-screen keyboard that can also be enabled as an OS-wide input
+    method. Your own words load from a file (SKK format).
+  * Terminal log, home screen widgets, backup and restore of settings, and
+    receiving text or files from another app's share sheet (inserted into the
+    input line, never executed).
+  * Built-in help ("z2help") and a self-diagnosis command ("z2doctor") that
+    answers "why isn't it working?" with a next step on every NG line.
+
+  No telemetry and no analytics. This FOSS build bundles no third-party
+  prebuilts: the Linux distribution is downloaded from the official CDN on first
+  launch and verified by SHA-256. Everything else works offline.
+
+  The 5th project of the Zero to Ship initiative.
+
+RepoType: git
+Repo: https://github.com/orgsonai/z2term
+
+Builds:
+  - versionName: 0.8.293-alpha-foss
+    versionCode: 301
+    commit: v0.8.293-alpha
+    subdir: app
+    # z2root / z2accept は prebuilt を同梱せず、app/src/main/cpp/ のソースから
+    # NDK でビルドして jniLibs へ置く (Android 10+ は nativeLibraryDir からの
+    # execve しか許さないため、自前ビルドでも .so 名での同梱が要る)。
+    # ⚠ NDK バージョンは F-Droid のビルドサーバーが持つものに合わせて要調整。
+    #    ソースは NDK 27 以降で確認している。
+    ndk: r27c
+    prebuild: ANDROID_NDK_HOME=$$NDK$$ bash ../scripts/build-z2root.sh
+    gradle:
+      - foss
+
+# ⚠ プログラミングフォント (IBM Plex Mono / JetBrains Mono / Fira Code) は
+#    scripts/fetch-fonts.sh がネットワークから取得するもので git に入っていない。
+#    F-Droid のビルドではネットワーク取得を避けたいので **同梱しない**。
+#    TerminalFonts.isAvailable() が assets を確認し、無ければ端末の monospace に
+#    フォールバックする作りなので、フォント選択肢が減るだけで動作に支障はない。
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^v[0-9.]+-alpha$
+CurrentVersion: 0.8.293-alpha-foss
+CurrentVersionCode: 301

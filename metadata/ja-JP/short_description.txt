@@ -1,0 +1,1 @@
+root 不要で Linux が動くターミナル。GUI・SSH・自動化・日本語 IME を内蔵。
