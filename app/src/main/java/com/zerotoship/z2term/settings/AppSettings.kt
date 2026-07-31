@@ -34,6 +34,15 @@ class AppSettings(private val context: Context) {
         val loginShell: String = DEFAULT_LOGIN_SHELL,
         /** 直近のキーボードモード ("custom" / "system")。次回起動時に復元 */
         val keyboardMode: String = DEFAULT_KEYBOARD_MODE,
+        /**
+         * OS の入力メソッド (`Z2ImeService`) として開いたとき、日本語フリック面から始めるか。
+         * 「あ」/ABC で切替えるたびに保存し、次にキーボードが開くときその面で出す。
+         *
+         * ⚠ **端末画面の内蔵キーボードはこの値を読まない** — 端末は常に英字面から始める。
+         * 端末では英字で打ち始めることが多く、他アプリでは日本語で打ち始めることが多いため、
+         * 面を覚えるのは入力メソッド側だけにしている。
+         */
+        val imeJapaneseMode: Boolean = DEFAULT_IME_JAPANESE_MODE,
         /** フォアグラウンド常駐サービスを使うか (Activity 破棄後もセッション維持) */
         val keepAliveService: Boolean = DEFAULT_KEEP_ALIVE,
         /** 画面消灯ロック (ディスプレイを自動で消さない) の状態。次回起動時に復元 */
@@ -397,6 +406,7 @@ class AppSettings(private val context: Context) {
             keyboardStyleId = p[KEY_KEYBOARD_STYLE] ?: DEFAULT_KEYBOARD_STYLE,
             loginShell = p[KEY_LOGIN_SHELL] ?: DEFAULT_LOGIN_SHELL,
             keyboardMode = p[KEY_KEYBOARD_MODE] ?: DEFAULT_KEYBOARD_MODE,
+            imeJapaneseMode = p[KEY_IME_JAPANESE_MODE] ?: DEFAULT_IME_JAPANESE_MODE,
             keepAliveService = p[KEY_KEEP_ALIVE] ?: DEFAULT_KEEP_ALIVE,
             keepScreenOn = p[KEY_KEEP_SCREEN_ON] ?: DEFAULT_KEEP_SCREEN_ON,
             // キーが無い = 一度も触っていない or 「戻す」を押した = OS に任せる。
@@ -603,6 +613,11 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_KEYBOARD_MODE] = mode }
     }
 
+    /** 入力メソッドで最後に使っていた面を覚える (true = 日本語フリック面)。 */
+    suspend fun setImeJapaneseMode(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_IME_JAPANESE_MODE] = enabled }
+    }
+
     suspend fun setKeepAliveService(enabled: Boolean) {
         context.dataStore.edit { it[KEY_KEEP_ALIVE] = enabled }
     }
@@ -686,6 +701,8 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_AMBIGUOUS_AS_WIDE = false
         const val DEFAULT_KEYBOARD_STYLE = "spacious"
         const val DEFAULT_KEYBOARD_MODE = "custom"
+        /** 入力メソッドの初回は英字面から。以後は最後に使った面を覚える。 */
+        const val DEFAULT_IME_JAPANESE_MODE = false
         const val DEFAULT_KEEP_ALIVE = true
         /** 画面消灯ロックは既定 OFF (放置でのバッテリ消費を避ける)。トグル状態は永続化して復元。 */
         const val DEFAULT_KEEP_SCREEN_ON = false
@@ -732,6 +749,7 @@ class AppSettings(private val context: Context) {
         private val KEY_KEYBOARD_STYLE = stringPreferencesKey("keyboard_style")
         private val KEY_LOGIN_SHELL = stringPreferencesKey("login_shell")
         private val KEY_KEYBOARD_MODE = stringPreferencesKey("keyboard_mode")
+        private val KEY_IME_JAPANESE_MODE = booleanPreferencesKey("ime_japanese_mode")
         private val KEY_KEEP_ALIVE = booleanPreferencesKey("keep_alive_service")
         private val KEY_KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         private val KEY_SCREEN_BRIGHTNESS = floatPreferencesKey("screen_brightness")

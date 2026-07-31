@@ -89,6 +89,18 @@ fun TerminalKeyboard(
      * (= Alt 相当の ESC プレフィックス修飾) にして a 行頭の空きをなくす。
      */
     showJapaneseKeyboard: Boolean = true,
+    /**
+     * 開いたときに**日本語フリック面から始めるか**。既定 false = 英字面。
+     *
+     * ⚠ 面を覚えるかどうかは**呼出し側が決める**。端末画面は常に false (英字面から始める) で、
+     * OS の入力メソッド ([com.zerotoship.z2term.ime.Z2ImeService]) だけが前回の面を渡す —
+     * 端末では英字で打ち始めることが多く、他アプリでは日本語で打ち始めることが多いため。
+     */
+    initialJapaneseMode: Boolean = false,
+    /**
+     * 「あ」/ABC で面を切替えたときの通知 (true = 日本語面)。面を永続化する呼出し側だけが受ける。
+     */
+    onJapaneseModeChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var shift by remember { mutableStateOf(ShiftState.OFF) }
@@ -96,7 +108,12 @@ fun TerminalKeyboard(
     var alt by remember { mutableStateOf(false) }
     var sym by remember { mutableStateOf(false) }
     // 日本語フリックモード (⌨ → あ キーで切替)。ON の間は内蔵かなキーボードを描画。
-    var jpMode by remember { mutableStateOf(false) }
+    // ⚠ 始まりの面は [initialJapaneseMode] (= 呼出し側が覚えている面)。ただし「あ」キーが
+    // 出ない English モードでは復元しない — 戻る口 (ABC) は日本語面にあるので出られはするが、
+    // 「あ」の無いキーボードが日本語面で開くのは筋が通らない。
+    var jpMode by remember(initialJapaneseMode, showJapaneseKeyboard) {
+        mutableStateOf(initialJapaneseMode && showJapaneseKeyboard)
+    }
     // 開いているパッド (絵文字 / 貼り付け)。⚠ 入口は**英語ロケールのときだけ**出す
     // (日本語ロケールでは「あ」面に 😀 キーと ESC 上フリックがあるので、そちらから入る)。
     var pad by remember { mutableStateOf(PadMode.NONE) }
@@ -105,7 +122,7 @@ fun TerminalKeyboard(
         JapaneseFlickKeyboard(
             onBytes = onBytes,
             onCursorKey = onCursorKey,
-            onSwitchToAscii = { composing.commitRaw(); jpMode = false },
+            onSwitchToAscii = { composing.commitRaw(); jpMode = false; onJapaneseModeChange(false) },
             composing = composing,
             selectedStyle = style,
             modifier = modifier
@@ -402,7 +419,9 @@ fun TerminalKeyboard(
         //   (spacious は ⇧/CTRL を 1 段下げた結果として、compact は上部バーとは別にここへ)。
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
             if (showJapaneseKeyboard) {
-                BasicKey("あ", weight = 1.4f, fontSp = style.keyFontSp, style = style) { jpMode = true }
+                BasicKey("あ", weight = 1.4f, fontSp = style.keyFontSp, style = style) {
+                    jpMode = true; onJapaneseModeChange(true)
+                }
             } else if (isCompact) {
                 // compact の英語面は上部バーに CTRL があり、ここは**同じキーが 2 つ**あった。
                 // 日本語面で「あ」(面の切替) が座っている位置なので、面を差し替えるパッドの

@@ -253,7 +253,9 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                             onCursorKey = ::sendCursorKey,
                             composing = composing,
                             style = style,
-                            showJapaneseKeyboard = isJa
+                            showJapaneseKeyboard = isJa,
+                            initialJapaneseMode = settings.imeJapaneseMode,
+                            onJapaneseModeChange = ::rememberJapaneseMode
                         )
                     }
                 }
@@ -285,6 +287,16 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         val reserved = (CandidateBarHeight.value * resources.displayMetrics.density).toInt()
         outInsets.contentTopInsets += reserved
         outInsets.visibleTopInsets += reserved
+    }
+
+    /**
+     * 「あ」/ABC で切替えた面を覚える。次にキーボードが開くときは同じ面で出る。
+     *
+     * ⚠ **端末画面の内蔵キーボードは覚えない** (常に英字面から始まる)。端末は英字で、
+     * 他アプリは日本語で打ち始めることが多く、同じ設定を共有すると片方が必ず外れる。
+     */
+    private fun rememberJapaneseMode(japanese: Boolean) {
+        lifecycleScope.launch { appSettings.setImeJapaneseMode(japanese) }
     }
 
     /** [composing] の変化を `setComposingText` / `finishComposingText` へ流す。 */

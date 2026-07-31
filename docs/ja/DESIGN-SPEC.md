@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-07-31 / 対象バージョン: 0.8.294-alpha (versionCode 302)
+最終更新: 2026-07-31 / 対象バージョン: 0.8.295-alpha (versionCode 303)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1746,6 +1746,15 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
     (既定の `TOUCHABLE_INSETS_VISIBLE`)。⚠ insets は**窓の大きさではない**ので、この出し分けで
     窓は 1px も動かない — 高さ固定とは両立する。
   - 定数 `CandidateBarHeight` は `CandidateBar` と共有し、実高さと確保量がズレないようにする。
+- **最後に使っていた面 (英字 / 日本語フリック) を覚えて次回その面で開く (0.8.295)**。
+  「あ」/ABC を押すたびに `AppSettings.imeJapaneseMode` (DataStore key `ime_japanese_mode`) へ
+  保存し、入力ビューを組むとき `TerminalKeyboard(initialJapaneseMode = …)` として渡す。
+  ⚠ **覚えるのは入力メソッドだけで、端末画面の内蔵キーボードは常に英字面から始まる** —
+  端末は英字で、他アプリは日本語で打ち始めることが多く、1 つの設定を共有すると必ずどちらかが
+  外れる。`TerminalKeyboard` 自身は面を保存しない (既定 `initialJapaneseMode = false` /
+  `onJapaneseModeChange = {}`) ので、**どちらの側が覚えるかは呼出し側だけを見れば分かる**。
+  ⚠ 復元は `showJapaneseKeyboard` が true のときだけ (English 表示では「あ」キーが無いので、
+  日本語面で開いても筋が通らない)。
   - **検証**: 候補バーの出現前後で入力ビューの高さ (`View.onSizeChanged`) が変わらないこと、
     タップの `rawY - getLocationOnScreen()[1]` と `MotionEvent.y` が一致することを実機で確認する。
 

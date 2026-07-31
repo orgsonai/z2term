@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-07-31 / Target version: 0.8.294-alpha (versionCode 302)
+Last updated: 2026-07-31 / Target version: 0.8.295-alpha (versionCode 303)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1798,6 +1798,15 @@ earlier `setComposingText` does not double up.
     amount can't drift apart.
   - **Verification**: on a device, confirm the input-view height (`View.onSizeChanged`) does not change
     across the bar appearing, and that `rawY - getLocationOnScreen()[1]` equals `MotionEvent.y`.
+- **The last face used (ASCII / Japanese flick) is remembered and reopened (0.8.295)**. Every press of
+  「あ」/ABC is written to `AppSettings.imeJapaneseMode` (DataStore key `ime_japanese_mode`) and handed
+  back as `TerminalKeyboard(initialJapaneseMode = …)` when the input view is composed. ⚠ **Only the IME
+  remembers; the terminal screen's built-in keyboard always starts on the ASCII face** — people start
+  typing ASCII in a terminal and Japanese in other apps, so one shared setting is always wrong for one
+  of them. `TerminalKeyboard` itself never persists the face (defaults `initialJapaneseMode = false` /
+  `onJapaneseModeChange = {}`), so **which side remembers is visible from the call site alone**.
+  ⚠ The face is only restored while `showJapaneseKeyboard` is true (in English there is no 「あ」 key,
+  so opening on the Japanese face would make no sense).
 
 **Candidates for the next stage**: adapting to `EditorInfo.inputType` (digits only for numeric
 fields, no learning in password fields), a key to hand back to the OS keyboard, and the globe key via
