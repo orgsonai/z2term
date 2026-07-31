@@ -222,7 +222,8 @@ prerequisite → 3-A).
 | `z2-intent` | see below | Fire an arbitrary Intent | — |
 | `z2-state` | `z2-state [key]` | **Current device state** (see below) | JSON, or the raw value for a key |
 | `z2-screen` | `z2-screen keepon 1h` / `keepon off` / `status` | **Hold off the automatic screen timeout, with a deadline** (below) | state JSON |
-| `z2-tile` | `z2-tile set <1-4> <macro\|command>` etc. | Assign it to a **quick-settings tile** (below) | TSV of all 4 slots |
+| `z2-tile` | `z2-tile set <1-12> <macro\|command>` etc. | Assign it to a **quick-settings tile** (below) | TSV of all 12 slots |
+| `z2-icon` | `z2-icon pick <notify\|1-12>` etc. | Draw the **status-bar / tile icons** yourself (below) | a preview of the drawing |
 | `z2-alarm` | `z2-alarm at\|daily HH:MM [name]` etc. | Set a **time trigger** (see below) | JSON of the schedule |
 | `z2-when` | `z2-when <trigger> run <command>` etc. | **Register a trigger** (→ 3-A, and below) | the rule id |
 | `z2-noti` | `z2-noti list` | Read **the notifications on screen right now** (read-only, see below) | TSV |
@@ -325,7 +326,7 @@ A home-screen widget means going back to the home screen. Quick settings comes d
 ```sh
 z2-tile set 1 backup.sh                          # a macro on slot 1
 z2-tile set 2 'z2-screen keepon 1h' -l "no sleep"  # a command, with a label
-z2-tile list                                     # all 4 slots (slot / label / command; '-' = empty)
+z2-tile list                                     # all 12 slots (slot / label / command; '-' = empty)
 z2-tile clear 2                                  # empty a slot (clear all works too)
 ```
 
@@ -350,13 +351,63 @@ z2-tile clear 2                                  # empty a slot (clear all works
 - ⚠ **A locked device is not waved through.** Android asks to unlock first, and the command runs only
   if it is unlocked. That is not a setting: it stops someone who picked up your phone firing a command
   straight off the shade.
-- ⚠ **There are exactly 4 slots.** Tiles are declared in the manifest and cannot grow at runtime.
+- ⚠ **There are exactly 12 slots.** Tiles are declared in the manifest and cannot grow at runtime
+  (raised from 4 in 0.8.294 — an unassigned slot is not listed anywhere, so spares cost nothing).
 - ⚠ **You place the tiles yourself**, from the pencil/edit screen of the quick settings panel; Android
   does not let an app put its own tiles there.
 - **With nothing assigned, no tile is listed at all** (0.8.271). Only the slots you assign show up in
   the quick settings list.
 - The run log is `~/.z2term/tile/run.log`, kept apart from the widget's `~/.z2term/widget/run.log`.
   **When a tap seems to do nothing, look there first** — failures never reach the screen.
+
+
+### `z2-icon` (put your own drawing on the icons)
+
+The notification icon in the status bar and the quick-settings tile icons can be replaced with
+**a 24x24 drawing of your own** (0.8.294). Tiles get **one drawing per slot**.
+
+```sh
+z2-icon pick 1                 # choose one of the built-in drawings for slot 1
+z2-icon sample                 # list the built-in drawings (14 of them)
+z2-icon sample bell            # print one of them
+z2-icon sample notify bell     # put the bell on the notification icon
+z2-icon edit 1                 # draw it in $EDITOR (saving applies it)
+z2-icon show 1                 # print the current drawing
+z2-icon clear notify           # back to the built-in icon (clear all works too)
+z2-icon list                   # which ones you have changed
+```
+
+The targets are **`notify`** (one drawing for every notification this app puts out) and
+**slots `1`-`12`**.
+
+A drawing is a grid of characters. `.` `(space)` `0` `-` `_` leave a cell empty and **anything else
+fills it in**, so draw with whichever character you find easiest to see. Blank space around the
+drawing is ignored and it gets centred, so you need not fill all 24 lines exactly.
+
+```sh
+cat > /tmp/dot.txt <<'EOF'
+....##....
+...####...
+..######..
+.########.
+....##....
+....##....
+EOF
+z2-icon set 2 /tmp/dot.txt     # from a file
+printf '..##..\n.####.\n..##..\n' | z2-icon set 3 -   # from stdin
+```
+
+- ⚠ **There is no colour.** Android **repaints these icons in a single colour of its own** (tiles
+  change colour between on and off), so the only thing you decide is **the shape**.
+- ⚠ **They end up about 24px across.** Detail finer than the grid is lost — treat what `show`
+  prints as what will appear.
+- ⚠ **A drawing that is too big is refused**, rather than quietly clipped: clipping would deliver an
+  icon with its edges missing to the one person who cannot tell why.
+- ⚠ **Three things cannot be changed** (Android fixes them at install time): the icon in the
+  quick-settings **edit** screen (where you drag the tile from), the **file-picker root icon**, and
+  the **launcher icon**. Placed tiles and posted notifications do change.
+- The built-in drawings are **just text** as well: `pick` one, then open it with `z2-icon edit` and
+  rework it into your own.
 
 ### `z2-alarm` (run on a schedule)
 

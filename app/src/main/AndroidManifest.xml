@@ -179,9 +179,12 @@
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- クイック設定タイル (z2-tile)。枠は manifest に書いた数で固定され、実行中に増やせない
-             (Android の仕様) ので 4 枠。中身の割り当ては端末の `z2-tile set <1-4> <コマンド>`。
+             (Android の仕様) ので 12 枠。中身の割り当ては端末の `z2-tile set <1-12> <コマンド>`。
              TileService はシェードを開いている間しかバインドされないので常駐は増えない。
-             BIND_QUICK_SETTINGS_TILE でシステムからのみバインド可。 -->
+             BIND_QUICK_SETTINGS_TILE でシステムからのみバインド可。
+             ⚠ 割り当ての無い枠は TileStore.syncEnabledTiles が無効化して編集画面の一覧から
+             消すので、12 枚並べても使っていない人の目には触れない。数を減らすときは
+             TileStore.COUNT / Z2TileService.CLASSES と必ず揃えること (ずれた枠は消せなくなる)。 -->
         <service
             android:name=".tile.Z2Tile1"
             android:label="@string/tile_service_label_1"
@@ -215,6 +218,86 @@
         <service
             android:name=".tile.Z2Tile4"
             android:label="@string/tile_service_label_4"
+            android:icon="@drawable/ic_notification"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".tile.Z2Tile5"
+            android:label="@string/tile_service_label_5"
+            android:icon="@drawable/ic_notification"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".tile.Z2Tile6"
+            android:label="@string/tile_service_label_6"
+            android:icon="@drawable/ic_notification"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".tile.Z2Tile7"
+            android:label="@string/tile_service_label_7"
+            android:icon="@drawable/ic_notification"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".tile.Z2Tile8"
+            android:label="@string/tile_service_label_8"
+            android:icon="@drawable/ic_notification"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".tile.Z2Tile9"
+            android:label="@string/tile_service_label_9"
+            android:icon="@drawable/ic_notification"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".tile.Z2Tile10"
+            android:label="@string/tile_service_label_10"
+            android:icon="@drawable/ic_notification"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".tile.Z2Tile11"
+            android:label="@string/tile_service_label_11"
+            android:icon="@drawable/ic_notification"
+            android:exported="true"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".tile.Z2Tile12"
+            android:label="@string/tile_service_label_12"
             android:icon="@drawable/ic_notification"
             android:exported="true"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">

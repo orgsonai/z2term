@@ -16,6 +16,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.zerotoship.z2term.MainActivity
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.icon.setZ2SmallIcon
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.widget.StatusWidgetProvider
 import kotlinx.coroutines.flow.first
@@ -132,7 +133,7 @@ class ServerDaemonService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.server_notification_title))
             .setContentText(resources.getQuantityString(R.plurals.server_notification_text, running, running))
-            .setSmallIcon(R.drawable.ic_notification)
+            .setZ2SmallIcon(this)
             .setOngoing(true)
             .setSilent(true)
             .setContentIntent(tapPending)

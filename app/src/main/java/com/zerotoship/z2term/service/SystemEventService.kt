@@ -26,6 +26,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.zerotoship.z2term.MainActivity
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.icon.setZ2SmallIcon
 import com.zerotoship.z2term.settings.AppSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -580,7 +581,7 @@ class SystemEventService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.event_notification_title))
             .setContentText(getString(R.string.event_notification_text))
-            .setSmallIcon(R.drawable.ic_notification)
+            .setZ2SmallIcon(this)
             .setOngoing(true)
             .setSilent(true)
             .setContentIntent(tapPending)

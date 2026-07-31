@@ -44,6 +44,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import androidx.core.net.toUri
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.icon.IconSamples
+import com.zerotoship.z2term.icon.IconStore
+import com.zerotoship.z2term.icon.refreshActiveNotifications
+import com.zerotoship.z2term.icon.setZ2SmallIcon
 import com.zerotoship.z2term.core.SessionManager
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.tile.TileStore
@@ -240,8 +244,10 @@ object Z2ApiBridge {
             "state" -> stateRead(context, args.getOrNull(0).orEmpty())
             // z2-screen: OS の自動画面消灯を期限つきで止める (🔅 とは別物・[ScreenTimeout] 参照)。
             "screen" -> screenCmd(context, args)
-            // z2-tile: クイック設定タイル 4 枠への割り当て。
+            // z2-tile: クイック設定タイル各枠への割り当て。
             "tile" -> tileCmd(context, args)
+            // z2-icon: ステータスバーとタイルのアイコンをドット絵で差し替える。
+            "icon" -> iconCmd(context, args)
             // z2doctor 用。**アプリ側にしか無い情報**（許可の有無・設定・常駐の数）をまとめて返す。
             "doctor" -> doctorRead(context)
             // z2-noti: いま出ている通知を読むだけ (押す・消すは提供しない)。
@@ -656,6 +662,95 @@ object Z2ApiBridge {
     }
 
     /**
+     * ステータスバーとタイルのアイコン (`z2-icon`)。CLI 側で `set <対象> <base64>` / `get <対象>` /
+     * `show <対象>` / `clear <対象|all>` / `list` に正規化済み。
+     *
+     * ⚠ **絵は base64 で受ける**。ドット絵は改行を含む数百バイトの塊で、引数へ生のまま載せると
+     * リクエストファイルの行構造 (`A <base64>` 1 行 = 1 引数) を壊す。
+     *
+     * 差し替えた結果は**プレビューにして返す**。押したり通知が出たりするまで確認できないと、
+     * 描いた絵が意図どおり入ったのか分からない。
+     */
+    private fun iconCmd(context: Context, args: List<String>): String {
+        fun target(raw: String?): String = IconStore.normalizeTarget(raw.orEmpty())
+            ?: throw IllegalArgumentException(
+                "z2-icon: 対象は notify か 1〜${TileStore.COUNT} です: ${raw.orEmpty()}"
+            )
+        // サンプルは**名前でも一覧の番号でも**指す。番号は `z2-icon pick` が読み上げた並びで、
+        // 名前は覚えた人がそのまま打つためのもの。どちらか一方しか受けないと、一覧を見て
+        // 選んだ直後の 1 回と、2 回目からの打ち方が食い違う。
+        fun sample(raw: String?): String {
+            val key = raw.orEmpty().trim()
+            val byIndex = key.toIntOrNull()?.let { IconSamples.names().getOrNull(it - 1) }
+            return IconSamples.get(byIndex ?: key)
+                ?: throw IllegalArgumentException(
+                    "z2-icon: そのサンプルはありません: $key (一覧は z2-icon sample)"
+                )
+        }
+        return when (args.getOrNull(0)) {
+            "set" -> {
+                val t = target(args.getOrNull(1))
+                val drawn = IconStore.set(context, t, decode(args.getOrNull(2).orEmpty()))
+                applyIconChange(context, t)
+                IconStore.preview(drawn)
+            }
+            // 編集用。未設定なら空のひな形を返す (`z2-icon edit` がこれを開く)。
+            "get" -> {
+                val t = target(args.getOrNull(1))
+                IconStore.text(context, t) ?: IconStore.emptyText()
+            }
+            "show" -> {
+                val t = target(args.getOrNull(1))
+                val m = IconStore.mask(context, t)
+                    ?: throw IllegalArgumentException("z2-icon: ${args.getOrNull(1)} は既定のアイコンのままです")
+                IconStore.preview(m)
+            }
+            "clear" -> {
+                val key = args.getOrNull(1).orEmpty()
+                val targets = if (key == "all") IconStore.targets() else listOf(target(key))
+                targets.forEach { IconStore.clear(context, it); applyIconChange(context, it) }
+                iconListTsv(context)
+            }
+            // 組み込みのドット絵。`samples` は番号と名前だけの一覧 (絵まで並べると
+            // 14 個 x 12 行で画面が流れてしまう)。1 つ見たいときは `sample-show`。
+            "samples" -> IconSamples.names()
+                .mapIndexed { i, name -> "${i + 1}\t$name" }
+                .joinToString("\n")
+            "sample-show" -> IconStore.preview(IconStore.parse(sample(args.getOrNull(1))))
+            "sample" -> {
+                val t = target(args.getOrNull(1))
+                val drawn = IconStore.set(context, t, sample(args.getOrNull(2)))
+                applyIconChange(context, t)
+                IconStore.preview(drawn)
+            }
+            "list", null, "" -> iconListTsv(context)
+            else -> throw IllegalArgumentException("z2-icon: unknown subcommand: ${args[0]}")
+        }
+    }
+
+    /**
+     * 差し替えを**いま出ているもの**へ反映する。
+     *
+     * タイルは次にシェードが開かれたときに描き直させ ([Z2TileService.requestUpdate])、
+     * 通知は出ているものをその場で出し直す ([refreshActiveNotifications])。⚠ ここを省くと、
+     * 常駐通知だけ**次に作り直されるまで古いアイコンのまま**になる (常駐は普段作り直されない)。
+     */
+    private fun applyIconChange(context: Context, target: String) {
+        val slot = IconStore.slotOf(target)
+        if (slot != null) Z2TileService.requestUpdate(context, slot)
+        else refreshActiveNotifications(context)
+    }
+
+    /**
+     * `z2-icon list` の TSV。列は **対象 / 状態** の 2 つ。`-` が「既定のアイコンのまま」で、
+     * `z2-tile list` の空き枠と同じ読み方に揃える。
+     */
+    private fun iconListTsv(context: Context): String = IconStore.targets().joinToString("\n") { t ->
+        val name = IconStore.slotOf(t)?.toString() ?: t
+        "$name\t${if (IconStore.text(context, t) != null) "custom" else "-"}"
+    }
+
+    /**
      * 時刻トリガー (`z2-alarm`)。サブコマンドは CLI 側で正規化済みで、ここには
      * `once <hour> <minute> <name>` / `at <epochMillis> <name>` / `daily <hour> <minute> <name>` /
      * `list` / `cancel <key>` が来る。「今日の HH:MM、過ぎていれば明日」の判定は Calendar が要るので
@@ -712,7 +807,7 @@ object Z2ApiBridge {
         val channel = if (high) CHANNEL_ID_HIGH else CHANNEL_ID
         val id = notifyId.incrementAndGet()
         val builder = NotificationCompat.Builder(context, channel)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setZ2SmallIcon(context)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
@@ -789,7 +884,7 @@ object Z2ApiBridge {
             0, context.getString(R.string.ask_reply_action), replyPi
         ).addRemoteInput(remoteInput).build()
         val builder = NotificationCompat.Builder(context, CHANNEL_ID_HIGH)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setZ2SmallIcon(context)
             .setContentTitle(question)
             .setContentText(if (preset.isEmpty()) hint else preset)
             .setStyle(NotificationCompat.BigTextStyle().bigText(question))

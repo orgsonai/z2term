@@ -220,7 +220,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |esac
     """.trimMargin() + "\n"
 
-    // クイック設定タイル (4 枠固定)。割り当てるのは「マクロのファイル名」か「そのまま走らせる
+    // クイック設定タイル (枠数は manifest 固定)。割り当てるのは「マクロのファイル名」か「そのまま走らせる
     // コマンド」で、どちらかはアプリ側 (TileStore.scriptFor) が名前で判別する — 打つ側に
     // 「これはマクロかコマンドか」を選ばせない。-l/--label は先に読み切ってから残りをコマンドにする。
     val tile = "#!/bin/sh\n" + m.tileHelp + "\n" + """
@@ -274,6 +274,83 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    check_macro "${d}cmd"
         |    [ -z "${d}off" ] || check_macro "${d}off"
         |    exec /usr/local/bin/z2api 1 tile set "${d}n" "${d}cmd" "${d}label" "${d}off" ;;
+        |  *) usage ;;
+        |esac
+    """.trimMargin() + "\n"
+
+    // ステータスバー / タイルのアイコンをドット絵で差し替える。⚠ 絵は base64 にしてから渡す —
+    // 改行を含む数百バイトをそのまま引数に載せると、リクエストファイルの「1 行 = 1 引数」が壊れる。
+    // 中身の検査 (大きさ・塗りの有無) はアプリ側 (IconStore.parse) の 1 か所だけに置き、
+    // ここでは「どこから読むか」しか決めない。
+    val icon = "#!/bin/sh\n" + m.iconHelp + "\n" + """
+        |usage() {
+        |  echo "${m.iconUsage}" >&2
+        |  exit 1
+        |}
+        |# ファイル (または標準入力) を base64 にして ${d}data へ入れる。
+        |read_art() {
+        |  if [ "${d}1" = "-" ]; then
+        |    data=${d}(base64 | tr -d '\n')
+        |  else
+        |    [ -f "${d}1" ] || { echo "z2-icon: ${m.iconNoSuchFile} ${d}1" >&2; exit 1; }
+        |    data=${d}(base64 < "${d}1" | tr -d '\n')
+        |  fi
+        |}
+        |sub="${d}{1:-list}"
+        |case "${d}sub" in
+        |  list) exec /usr/local/bin/z2api 1 icon list ;;
+        |  show)
+        |    [ ${d}# -ge 2 ] || usage
+        |    exec /usr/local/bin/z2api 1 icon show "${d}2" ;;
+        |  clear)
+        |    [ ${d}# -ge 2 ] || usage
+        |    exec /usr/local/bin/z2api 1 icon clear "${d}2" ;;
+        |  set)
+        |    [ ${d}# -ge 2 ] || usage
+        |    read_art "${d}{3:--}"
+        |    exec /usr/local/bin/z2api 1 icon set "${d}2" "${d}data" ;;
+        |  sample)
+        |    shift
+        |    # 引数の数で読み分ける: 無し=一覧 / 1 つ=その絵を表示 / 2 つ=対象へ入れる。
+        |    case ${d}# in
+        |      0) exec /usr/local/bin/z2api 1 icon samples ;;
+        |      1) exec /usr/local/bin/z2api 1 icon sample-show "${d}1" ;;
+        |      *) exec /usr/local/bin/z2api 1 icon sample "${d}1" "${d}2" ;;
+        |    esac ;;
+        |  pick)
+        |    [ ${d}# -ge 2 ] || usage
+        |    /usr/local/bin/z2api 1 icon samples || exit 1
+        |    printf '%s' "${m.iconPickPrompt}"
+        |    # ⚠ 端末から読む。read が失敗する (パイプで繋がれている等) 場合は選びようが無いので
+        |    # 中止する — 入力を待たずに既定を入れてしまうと、押した覚えの無い絵が入る。
+        |    read -r choice || { echo ""; echo "${m.iconPickCancelled}"; exit 1; }
+        |    [ -n "${d}choice" ] || { echo "${m.iconPickCancelled}"; exit 0; }
+        |    exec /usr/local/bin/z2api 1 icon sample "${d}2" "${d}choice" ;;
+        |  edit)
+        |    [ ${d}# -ge 2 ] || usage
+        |    # ${d}EDITOR が無い端末でも「開いて描く」が使えるように、よくあるものから探す。
+        |    ed="${d}{EDITOR:-}"
+        |    if [ -z "${d}ed" ]; then
+        |      for c in nano vim vi; do
+        |        command -v "${d}c" >/dev/null 2>&1 && { ed="${d}c"; break; }
+        |      done
+        |    fi
+        |    [ -n "${d}ed" ] || { echo "z2-icon: ${m.iconNoEditor}" >&2; exit 1; }
+        |    tmp=${d}(mktemp 2>/dev/null || echo "/tmp/z2-icon.${d}${d}")
+        |    # いまの絵 (未設定なら空のマス目) を出してから開く。白紙から桁を数えさせない。
+        |    /usr/local/bin/z2api 1 icon get "${d}2" > "${d}tmp" || { rm -f "${d}tmp"; exit 1; }
+        |    before=${d}(cat "${d}tmp")
+        |    # ⚠ ${d}ed はクォートしない。EDITOR には "code -w" のように**引数付き**が入ることがあり、
+        |    # 括ると全体が 1 つのコマンド名として探されて必ず失敗する。
+        |    ${d}ed "${d}tmp" || { rm -f "${d}tmp"; exit 1; }
+        |    after=${d}(cat "${d}tmp")
+        |    # 触らずに閉じたときに反映まで走らせない (エディタを開き間違えただけのことがある)。
+        |    if [ "${d}before" = "${d}after" ]; then
+        |      rm -f "${d}tmp"; echo "${m.iconEditUnchanged}"; exit 0
+        |    fi
+        |    read_art "${d}tmp"
+        |    rm -f "${d}tmp"
+        |    exec /usr/local/bin/z2api 1 icon set "${d}2" "${d}data" ;;
         |  *) usage ;;
         |esac
     """.trimMargin() + "\n"
@@ -534,6 +611,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         "z2-state" to state,
         "z2-screen" to screen,
         "z2-tile" to tile,
+        "z2-icon" to icon,
         "z2-noti" to noti,
         "z2-ask" to ask,
         "z2-alarm" to alarm,

@@ -13,6 +13,7 @@ import android.service.quicksettings.TileService
 import android.util.Log
 import android.widget.Toast
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.icon.IconStore
 import com.zerotoship.z2term.service.HeadlessRun
 import com.zerotoship.z2term.service.ScreenTimeout
 import java.io.File
@@ -35,8 +36,11 @@ import java.io.File
  * (設定で切り替えるのではなく、常にこうする — 誤爆の実害がアプリの外に出る類の話なので、
  * 選べるようにしても選ぶ理由が無い)。
  *
- * 枠は manifest に書いた数だけで**実行中に増やせない** (Android の仕様) ため、[TileStore.COUNT] = 4
- * の固定。並べる場所は利用者がクイック設定の「編集」から決める (アプリが勝手に置くことは OS が禁止)。
+ * 枠は manifest に書いた数だけで**実行中に増やせない** (Android の仕様) ため、[TileStore.COUNT]
+ * 固定。並べる場所は利用者がクイック設定の「編集」から決める (アプリが勝手に置くことは OS が禁止)。
+ *
+ * アイコンは枠ごとに差し替えられる (`z2-icon set <枠> …` / [IconStore])。⚠ 差し替わるのは
+ * **並べた後のタイル**だけで、「タイル編集」の一覧に出るアイコンは manifest 決め打ちのまま。
  */
 abstract class Z2TileService(private val slot: Int) : TileService() {
 
@@ -167,7 +171,10 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
         main.post {
             val tile = qsTile ?: return@post
             val assigned = TileStore.get(app, slot)
-            tile.icon = Icon.createWithResource(app, R.drawable.ic_notification)
+            // 端末から差し替えたドット絵があればそれを出す (`z2-icon set <枠> …`)。
+            // ⚠ 色は乗らない — OS が入 / 切の色で塗り直すので、決まるのは形だけ ([IconStore])。
+            tile.icon = IconStore.tileIcon(app, slot)
+                ?: Icon.createWithResource(app, R.drawable.ic_notification)
             if (assigned == null) {
                 tile.state = Tile.STATE_INACTIVE
                 tile.label = getString(R.string.tile_label_empty, slot)
@@ -242,14 +249,18 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
             }.onFailure { Log.w(TAG, "requestListeningState failed for $slot", it) }
         }
 
-        /** 枠番号 → `TileService` の実装クラス。manifest の並びと 1 対 1。 */
-        fun classFor(slot: Int): Class<out Z2TileService>? = when (slot) {
-            1 -> Z2Tile1::class.java
-            2 -> Z2Tile2::class.java
-            3 -> Z2Tile3::class.java
-            4 -> Z2Tile4::class.java
-            else -> null
-        }
+        /**
+         * 枠番号 → `TileService` の実装クラス。**manifest の並びと 1 対 1**。
+         * 数は [TileStore.COUNT] と必ず揃えること (ずれた枠は消せなくなる)。
+         */
+        private val CLASSES: Array<Class<out Z2TileService>> = arrayOf(
+            Z2Tile1::class.java, Z2Tile2::class.java, Z2Tile3::class.java,
+            Z2Tile4::class.java, Z2Tile5::class.java, Z2Tile6::class.java,
+            Z2Tile7::class.java, Z2Tile8::class.java, Z2Tile9::class.java,
+            Z2Tile10::class.java, Z2Tile11::class.java, Z2Tile12::class.java,
+        )
+
+        fun classFor(slot: Int): Class<out Z2TileService>? = CLASSES.getOrNull(slot - 1)
     }
 }
 
@@ -259,3 +270,11 @@ class Z2Tile1 : Z2TileService(1)
 class Z2Tile2 : Z2TileService(2)
 class Z2Tile3 : Z2TileService(3)
 class Z2Tile4 : Z2TileService(4)
+class Z2Tile5 : Z2TileService(5)
+class Z2Tile6 : Z2TileService(6)
+class Z2Tile7 : Z2TileService(7)
+class Z2Tile8 : Z2TileService(8)
+class Z2Tile9 : Z2TileService(9)
+class Z2Tile10 : Z2TileService(10)
+class Z2Tile11 : Z2TileService(11)
+class Z2Tile12 : Z2TileService(12)

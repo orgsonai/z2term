@@ -1,5 +1,8 @@
 package com.zerotoship.z2term.proot
 
+import com.zerotoship.z2term.icon.IconStore
+import com.zerotoship.z2term.tile.TileStore
+
 /**
  * `z2-*` CLI が**端末に出す文言**（先頭のヘルプコメント・usage・メッセージ）の日英。
  *
@@ -16,6 +19,9 @@ package com.zerotoship.z2term.proot
  * マージン `|` の剥がし漏れが起きない）。[d] はシェルの `$`。
  */
 internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
+
+    /** タイルの枠数 ([TileStore.COUNT])。文言へ数を**書き写さない** — 増やしたときにここだけ古くなる。 */
+    private val tiles = TileStore.COUNT
 
     // --- z2-notify ---
 
@@ -168,10 +174,10 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
     // --- z2-tile ---
 
     val tileHelp: String = if (en) """
-        |# z2-tile set <1-4> <macro.sh | command...> [--off <command...>] [-l <label>]
-        |#                             … put something on quick-settings tile 1-4
-        |# z2-tile list                … all four slots as TSV (slot / label / command; '-' = empty)
-        |# z2-tile clear <1-4|all>     … empty a slot
+        |# z2-tile set <1-$tiles> <macro.sh | command...> [--off <command...>] [-l <label>]
+        |#                             … put something on quick-settings tile 1-$tiles
+        |# z2-tile list                … all $tiles slots as TSV (slot / label / command; '-' = empty)
+        |# z2-tile clear <1-$tiles|all>    … empty a slot
         |# What you assign is either **the file name of a macro** in ~/.z2term/macros/ or
         |# **a command** to run as typed — whichever it is, is worked out from the name.
         |# Tap the tile to run it, tap again to stop (same deal as the widget's buttons).
@@ -189,15 +195,18 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# The command runs with Z2_TILE=<slot> (and Z2_TILE_MACRO for a macro) in the environment.
         |# ⚠ You still have to place the tile yourself, from the pencil/edit screen of the quick
         |# settings panel — Android does not let an app put its own tiles there. There are exactly
-        |# 4 slots: the number is fixed in the manifest and cannot grow at runtime.
+        |# $tiles slots: the number is fixed in the manifest and cannot grow at runtime.
+        |# Slots you have not assigned anything to do not show up in that edit screen at all,
+        |# so having $tiles of them costs you nothing.
+        |# Give a slot its own icon with z2-icon (see z2-icon for how to draw one).
         |# e.g. z2-tile set 1 backup.sh
         |#      z2-tile set 2 'z2-screen keepon 1h' -l "no sleep"
         |#      z2-tile set 3 z2-torch on --off z2-torch off -l torch
     """.trimMargin() else """
-        |# z2-tile set <1-4> <マクロ.sh | コマンド...> [--off <コマンド...>] [-l <表示名>]
-        |#                             … クイック設定タイル 1〜4 に割り当てる
-        |# z2-tile list                … 4 枠すべてを TSV で (枠 / 表示名 / コマンド。'-' は空き)
-        |# z2-tile clear <1-4|all>     … 割り当てを消す
+        |# z2-tile set <1-$tiles> <マクロ.sh | コマンド...> [--off <コマンド...>] [-l <表示名>]
+        |#                             … クイック設定タイル 1〜$tiles に割り当てる
+        |# z2-tile list                … $tiles 枠すべてを TSV で (枠 / 表示名 / コマンド。'-' は空き)
+        |# z2-tile clear <1-$tiles|all>    … 割り当てを消す
         |# 割り当てるのは ~/.z2term/macros/ にある**マクロのファイル名**か、そのまま走らせる
         |# **コマンド**のどちらでもよい (名前を見て自動で判別します)。
         |# タイルを押すと実行、もう一度押すと停止 (ウィジェットのボタンと同じ約束)。
@@ -214,18 +223,105 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# タイルは押しても無反応・理由は tile/run.log にしか出ない、という壊れ方をするためです。
         |# 実行時、環境変数 Z2_TILE に枠番号 (マクロなら Z2_TILE_MACRO も) が入ります。
         |# ⚠ タイルを**並べるのはご自身**で、クイック設定パネルの鉛筆(編集)から追加します
-        |# — アプリが勝手に置くことは Android が禁じています。枠はちょうど 4 つで、
-        |# manifest で決め打ちのため実行中に増やせません。
+        |# — アプリが勝手に置くことは Android が禁じています。枠はちょうど $tiles 個で、
+        |# manifest で決め打ちのため実行中に増やせません。まだ割り当てていない枠は編集画面の
+        |# 一覧にも出ないので、$tiles 個あっても邪魔になりません。
+        |# 枠ごとにアイコンを変えられます (描き方は z2-icon を参照)。
         |# 例: z2-tile set 1 backup.sh
         |#     z2-tile set 2 'z2-screen keepon 1h' -l 消灯しない
         |#     z2-tile set 3 z2-torch on --off z2-torch off -l ライト
     """.trimMargin()
 
     val tileUsage: String =
-        if (en) "usage: z2-tile set <1-4> <macro.sh|command...> [--off <command...>] [-l label] | " +
-            "list | clear <1-4|all>"
-        else "usage: z2-tile set <1-4> <マクロ.sh|コマンド...> [--off <コマンド...>] [-l 表示名] | " +
-            "list | clear <1-4|all>"
+        if (en) "usage: z2-tile set <1-$tiles> <macro.sh|command...> [--off <command...>] [-l label] | " +
+            "list | clear <1-$tiles|all>"
+        else "usage: z2-tile set <1-$tiles> <マクロ.sh|コマンド...> [--off <コマンド...>] [-l 表示名] | " +
+            "list | clear <1-$tiles|all>"
+
+    // --- z2-icon ---
+
+    private val grid = IconStore.GRID
+
+    val iconHelp: String = if (en) """
+        |# z2-icon pick <notify|1-$tiles>        … choose one of the built-in drawings from a list
+        |# z2-icon sample [name] / [target name] … list the built-in drawings, show one, or use one
+        |# z2-icon edit <notify|1-$tiles>        … draw it in ${d}EDITOR, save, and it is applied
+        |# z2-icon set <notify|1-$tiles> [file]  … take the drawing from a file (or stdin with -)
+        |# z2-icon show <notify|1-$tiles>        … print the current drawing
+        |# z2-icon clear <notify|1-$tiles|all>   … back to the built-in icon
+        |# z2-icon list                      … which ones you have changed, as TSV
+        |# 'notify' is the icon in the status bar (every notification this app puts out);
+        |# 1-$tiles are the quick-settings tiles, one drawing each.
+        |# The drawing is a ${grid}x${grid} grid of characters. '.' ' ' '0' '-' '_' leave a dot empty,
+        |# anything else fills it in — use whichever character you find easiest to see.
+        |# Blank space around the drawing is ignored: it gets centred for you, so you do not
+        |# have to fill all ${grid} lines exactly.
+        |# ⚠ **Only the shape gets through.** Android paints these icons a single colour of its own
+        |# (tiles change colour between on and off), and they end up about ${grid}px across.
+        |# So there is no colour to pick, and detail finer than the grid is lost — the drawing you
+        |# see with 'show' is what will appear.
+        |# ⚠ The icon in the quick-settings **edit** screen (the one you drag the tile from) and
+        |# the launcher icon cannot be changed: Android fixes those at install time.
+        |# A sample is just text as well: pick one, then 'z2-icon edit' it into your own.
+        |# e.g. z2-icon pick 1
+        |#      z2-icon sample notify bell
+        |#      z2-icon edit 1
+        |#      printf '..##..\n.####.\n..##..\n' | z2-icon set 2 -
+        |#      z2-icon clear notify
+    """.trimMargin() else """
+        |# z2-icon pick <notify|1-$tiles>        … 組み込みの絵から一覧で選んで入れる
+        |# z2-icon sample [名前] / [対象 名前]   … 組み込みの絵の一覧 / 1 つ表示 / 対象へ入れる
+        |# z2-icon edit <notify|1-$tiles>        … ${d}EDITOR で描いて保存すると反映されます
+        |# z2-icon set <notify|1-$tiles> [file]  … ファイルから読み込む (- で標準入力)
+        |# z2-icon show <notify|1-$tiles>        … いまの絵を表示
+        |# z2-icon clear <notify|1-$tiles|all>   … 元のアイコンに戻す
+        |# z2-icon list                      … どれを変えてあるかを TSV で
+        |# notify はステータスバーのアイコン (このアプリが出す通知すべて)、
+        |# 1〜$tiles はクイック設定タイルで、枠ごとに別の絵にできます。
+        |# 絵は ${grid}x${grid} の文字のマス目です。'.' ' ' '0' '-' '_' が空きマス、
+        |# **それ以外の文字はすべて塗り**なので、自分が見やすい字で描けます。
+        |# まわりの余白は無視して中央に置き直すので、${grid} 行きっちりに合わせる必要はありません。
+        |# ⚠ **伝わるのは形だけ**です。Android がこれらのアイコンを単色で塗り直し
+        |# (タイルは入 / 切で色が変わります)、表示は ${grid}px 前後になります。色は選べず、
+        |# マス目より細かい描き込みは消えます — show で見えるものがそのまま出ます。
+        |# ⚠ クイック設定の**編集**画面 (タイルを引っぱり出すところ) のアイコンと、
+        |# ランチャーのアイコンは変えられません (Android が導入時に固定するため)。
+        |# サンプルもただのテキストです。入れてから z2-icon edit で自分の絵に直せます。
+        |# 例: z2-icon pick 1
+        |#     z2-icon sample notify bell
+        |#     z2-icon edit 1
+        |#     printf '..##..\n.####.\n..##..\n' | z2-icon set 2 -
+        |#     z2-icon clear notify
+    """.trimMargin()
+
+    val iconUsage: String =
+        if (en) "usage: z2-icon pick <notify|1-$tiles> | sample [name|target name] | " +
+            "edit <notify|1-$tiles> | set <notify|1-$tiles> [file|-] | " +
+            "show <notify|1-$tiles> | clear <notify|1-$tiles|all> | list"
+        else "usage: z2-icon pick <notify|1-$tiles> | sample [名前|対象 名前] | " +
+            "edit <notify|1-$tiles> | set <notify|1-$tiles> [ファイル|-] | " +
+            "show <notify|1-$tiles> | clear <notify|1-$tiles|all> | list"
+
+    /** `z2-icon set` にファイルを指定したが無かったときの文言 (後ろにファイル名が付く)。 */
+    val iconNoSuchFile: String =
+        if (en) "no such file:" else "そのファイルはありません:"
+
+    /** `z2-icon edit` で何も変えずに終わったときの文言。 */
+    val iconEditUnchanged: String =
+        if (en) "unchanged." else "変更なしで終了しました。"
+
+    /** `z2-icon pick` が番号を尋ねるときの文言 (行末で入力を待つので改行を入れない)。 */
+    val iconPickPrompt: String =
+        if (en) "number (or name), blank to cancel: " else "番号 (または名前) を入力 (空欄で中止): "
+
+    /** `z2-icon pick` を空欄で抜けたときの文言。 */
+    val iconPickCancelled: String =
+        if (en) "cancelled." else "中止しました。"
+
+    /** `z2-icon edit` で開くエディタが見つからないときの文言。 */
+    val iconNoEditor: String =
+        if (en) "no editor found. Set ${d}EDITOR, or use: z2-icon set <target> <file>"
+        else "エディタが見つかりません。${d}EDITOR を設定するか z2-icon set <対象> <ファイル> をお使いください"
 
     /** 置き場に無いマクロ名を弾くときの文言 (後ろに名前が付く)。 */
     val tileNoSuchMacro: String =

@@ -698,6 +698,14 @@
     <string name="tile_service_label_2">z2term 2</string>
     <string name="tile_service_label_3">z2term 3</string>
     <string name="tile_service_label_4">z2term 4</string>
+    <string name="tile_service_label_5">z2term 5</string>
+    <string name="tile_service_label_6">z2term 6</string>
+    <string name="tile_service_label_7">z2term 7</string>
+    <string name="tile_service_label_8">z2term 8</string>
+    <string name="tile_service_label_9">z2term 9</string>
+    <string name="tile_service_label_10">z2term 10</string>
+    <string name="tile_service_label_11">z2term 11</string>
+    <string name="tile_service_label_12">z2term 12</string>
     <string name="tile_label_empty">z2term %1$d</string>
     <string name="tile_subtitle_empty">未割り当て</string>
     <string name="tile_subtitle_idle">押すと実行</string>

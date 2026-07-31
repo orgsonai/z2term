@@ -419,6 +419,64 @@ class Z2ApiScriptTest {
     }
 
     /**
+     * `z2-icon` が**絵をそのまま届ける**こと。
+     *
+     * ドット絵は改行を含む数百バイトの塊で、生のまま引数に載せるとリクエストファイルの
+     * 「1 行 = 1 引数」が壊れる。base64 に畳んで渡すのが約束で、ここが崩れると
+     * **2 行目から先が黙って落ちた絵**が届く (端末側からは正常に見える)。
+     * ファイルからでも標準入力からでも同じものが渡ることを実際の `sh` で押さえる。
+     */
+    @Test
+    fun iconSendsTheDrawingAsBase64() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        assumeTrue("base64 が無い環境なのでスキップ", File("/usr/bin/base64").canExecute() ||
+            File("/bin/base64").canExecute())
+        val dir = Files.createTempDirectory("z2icon").toFile()
+        val stub = File(dir, "z2api").apply {
+            writeText("#!/bin/sh\nfor a in \"\$@\"; do echo \"[\$a]\"; done\n")
+            setExecutable(true)
+        }
+        val script = File(dir, "z2-icon").apply {
+            writeText(scripts["z2-icon"]!!.replace("/usr/local/bin/z2api", stub.absolutePath))
+        }
+        val art = "..##..\n.####.\n..##..\n"
+        val artFile = File(dir, "art.txt").apply { writeText(art) }
+        val b64 = java.util.Base64.getEncoder().encodeToString(art.toByteArray())
+        fun run(stdin: String? = null, vararg args: String): String {
+            val proc = ProcessBuilder(listOf(sh!!, script.absolutePath) + args)
+                .redirectErrorStream(true).start()
+            proc.outputStream.use { if (stdin != null) it.write(stdin.toByteArray()) }
+            val out = proc.inputStream.bufferedReader().readText().trim()
+            proc.waitFor()
+            return out
+        }
+        try {
+            assertEquals("[1]\n[icon]\n[set]\n[1]\n[$b64]", run(null, "set", "1", artFile.absolutePath))
+            // ファイルを省いたときと `-` は同じ = 標準入力から読む。
+            assertEquals("[1]\n[icon]\n[set]\n[notify]\n[$b64]", run(art, "set", "notify", "-"))
+            assertEquals("[1]\n[icon]\n[set]\n[notify]\n[$b64]", run(art, "set", "notify"))
+            // 引数の数で読み分ける (無し=一覧 / 1 つ=表示 / 2 つ=対象へ入れる)。
+            assertEquals("[1]\n[icon]\n[samples]", run(null, "sample"))
+            assertEquals("[1]\n[icon]\n[sample-show]\n[bell]", run(null, "sample", "bell"))
+            assertEquals("[1]\n[icon]\n[sample]\n[2]\n[bell]", run(null, "sample", "2", "bell"))
+            assertEquals("[1]\n[icon]\n[list]", run(null))
+            assertEquals("[1]\n[icon]\n[clear]\n[all]", run(null, "clear", "all"))
+            // ⚠ 無いファイルは**ブリッジまで行かせない**。空を渡すと「1 点も塗られていない」
+            // という、打ったつもりのファイル名とは無関係な理由で断られる。
+            val missing = run(null, "set", "1", File(dir, "nope.txt").absolutePath)
+            assertTrue("無いファイルが通っている: $missing", !missing.contains("[icon]"))
+            // 対象が無い呼び方は usage で終わる。
+            for (args in listOf(listOf("set"), listOf("show"), listOf("clear"), listOf("bogus"))) {
+                val out = run(null, *args.toTypedArray())
+                assertTrue("usage が出ていない (${args.joinToString(" ")}): $out", out.contains("usage:"))
+            }
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    /**
      * `z2-session send` が**勝手に実行しない**こと。
      *
      * 引数をそのままブリッジへ渡すだけで、ヘルパー側が改行や `--enter` を足さないのが約束。
