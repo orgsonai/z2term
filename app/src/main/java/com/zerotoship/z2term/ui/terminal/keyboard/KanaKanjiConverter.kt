@@ -24,6 +24,25 @@ import java.io.BufferedReader
  * 生のかな・カタカナは常に確定候補として残す。
  */
 object KanaKanjiConverter {
+
+    /**
+     * 候補バーに出す候補の上限 ([convertFlexible])。
+     *
+     * ⚠ **絞ると「辞書は持っているのに変換できない」語ができる。** 候補は 1 つの枠を
+     * 学習履歴・予測変換・文まるごと変換・同梱辞書が取り合うので、枠が小さいほど下位の源が
+     * 押し出される (16 枠だった頃は「とく」で 説く/解く/溶く が最後まで出てこなかった)。
+     * 候補バーは**横スクロールする**ので、枠を広げて困るのは「探す距離が伸びる」ことだけ。
+     * 出ない語があるほうが困るので、広めに取る。
+     */
+    const val DEFAULT_CANDIDATE_LIMIT = 48
+
+    /**
+     * 前方一致の補完 (読みより長い語。仕事 → 仕事相手/仕事唄…) に使ってよい件数。
+     * ⚠ 全体の枠と別に持つ — 補完は際限なく作れるので、枠を広げたぶんが全部補完で埋まると
+     * 「打った読みそのものの変換」が埋もれる。
+     */
+    private const val PREFIX_PREDICT_LIMIT = 12
+
     @Volatile private var lines: List<String> = emptyList()
     @Volatile var loaded: Boolean = false
         private set
@@ -206,39 +225,56 @@ object KanaKanjiConverter {
      *  1. 学習履歴: 完全一致 reading の確定済み単語 ([ImeHistoryStore.historyFor]) ← 最上位
      *  2. 学習履歴: 前方一致 ([ImeHistoryStore.predictHistory]) — 打った読みで始まる学習済み語句の予測変換
      *  3. 文まるごと最尤変換 ([KkcConverter.convert]) — 読み全体を Viterbi で一発変換
-     *  3.5 読み完全一致の 1 語候補 ([KkcConverter.wordsFor]) — N-best の順位に埋もれた同音語
+     *  3.5 読み完全一致の 1 語候補 ([KkcConverter.wordsFor]) — 辞書が持つ同音語。⚠ **[limit] の枠外**
      *  4. 完全一致 ([convert]) / 送り仮名活用 ([okuriForms]) — 単語の別表記候補
      *  5. 前方一致の予測 ([predict]) で補完
+     *
+     * ⚠ **3.5 だけは [limit] を取り合わせない。** 1〜5 が同じ枠を先着で食い合う作りだと、
+     * 学習が育つほど上の段 (履歴 4 + 予測 6 + N-best 6 = 16) で枠が尽き、**辞書が持っている
+     * 同音語が永久に候補へ出てこない** (0.8.297 で 3.5 を足しても「とく → 説く」が出ない端末が
+     * あったのはこれ。履歴が空なら出るので、テストでは見えなかった)。辞書に在る語を選べるか
+     * どうかが「その人がどれだけ学習を貯めたか」で決まるのは変換として筋が通らない。
+     * 候補バーは横スクロールするので、枠外に置いても失うものは無い。
      */
     fun convertFlexible(
         reading: String,
-        limit: Int = 16,
+        limit: Int = DEFAULT_CANDIDATE_LIMIT,
         prevSurface: String? = null,
         allowPrediction: Boolean = true,
     ): List<String> {
         if (reading.isEmpty()) return emptyList()
+        // 読みに完全一致する 1 語 (辞書が持つ同音語)。⚠ limit の枠外で必ず入れる (上記)。
+        // 差し込み位置は「文まるごと変換 (3) の直後」= [spliceAt]。既に上の段へ出ている表層は
+        // 合成時に重複が落ちるので、実際に増えるのは「まだ出ていない同音語」だけになる。
+        val exactWords = KkcConverter.wordsFor(reading)
         val out = LinkedHashSet<String>()
+        var spliceAt = -1
+        fun assemble(): List<String> {
+            val ordered = out.toList().take(limit)
+            val at = if (spliceAt in 0..ordered.size) spliceAt else ordered.size
+            return (ordered.take(at) + exactWords + ordered.drop(at)).distinct()
+        }
         // 1. 学習履歴 (完全一致) は最優先で上位表示。loaded 前は空。
         for (h in ImeHistoryStore.historyFor(reading, limit = 4)) {
             out.add(h)
-            if (out.size >= limit) return out.toList()
+            if (out.size >= limit) return assemble()
         }
         // 1.5 ユーザー辞書 (完全一致)。利用者が自分で登録した語なので、同梱辞書や Viterbi より
         //     先に出す。学習履歴 (1) だけは「実際に選んだ実績」なので上に置いたままにする。
         for (w in UserDictStore.lookup(reading)) {
             out.add(w)
-            if (out.size >= limit) return out.toList()
+            if (out.size >= limit) return assemble()
         }
         // 2. 学習履歴 (前方一致) = 本来の予測変換。打った読みで始まる学習済みの語句を変換より先に出す。
         if (allowPrediction) {
             for (h in ImeHistoryStore.predictHistory(reading, limit = 6)) {
                 out.add(h)
-                if (out.size >= limit) return out.toList()
+                if (out.size >= limit) return assemble()
             }
             // 2.5 ユーザー辞書 (前方一致)。登録語も打ちかけで補完できるようにする。
             for (w in UserDictStore.predict(reading, limit = 6)) {
                 out.add(w)
-                if (out.size >= limit) return out.toList()
+                if (out.size >= limit) return assemble()
             }
         }
         // 3. 文まるごとの最尤変換 (Viterbi/IPADIC)。読み全体を最尤の単語列へ一発変換する。
@@ -251,23 +287,19 @@ object KanaKanjiConverter {
         if (nb.isNotEmpty()) {
             for (cand in nb.take(6)) {
                 out.add(cand.surface)
-                if (out.size >= limit) return out.toList()
+                if (out.size >= limit) return assemble()
             }
         } else {
             KkcConverter.convert(reading)?.let {
-                out.add(it); if (out.size >= limit) return out.toList()
+                out.add(it); if (out.size >= limit) return assemble()
             }
         }
-        // 3.5 読みに完全一致する 1 語候補 ([KkcConverter.wordsFor])。
-        //   N-best は「文としての経路」の上位しか出さないため、同じ読みの 1 語候補が順位争いに
-        //   埋もれて**一度も候補に出ない**ことがある (とく → 説く/解く/溶く が出ず、代わりに
-        //   z2dict の稀な単漢字 慝/悳/涜/犢… が枠を埋めていた)。辞書に在る語を選べないのは
-        //   変換の穴なので、完全一致の 1 語候補はコスト順で直接足す。z2dict の完全一致 (4) より
-        //   前に置くのは、IPADIC 側がコスト順 (= 使われる順) に並んでいて上位の質が高いため。
-        for (w in KkcConverter.wordsFor(reading)) {
-            out.add(w)
-            if (out.size >= limit) return out.toList()
-        }
+        // 3.5 読みに完全一致する 1 語候補 ([exactWords]) の差し込み位置。
+        //   N-best は「文としての経路」の上位 6 本しか出さないため、同じ読みの 1 語候補が順位
+        //   争いに埋もれて**一度も候補に出ない**ことがある (とく → 説く/解く/溶く が出ず、
+        //   代わりに z2dict の稀な単漢字 慝/悳/涜/犢… が枠を埋めていた)。ここに置くのは、
+        //   学習・予測 (1,2) の下・同梱辞書の総ざらい (4) の上、という位置付けのため。
+        spliceAt = out.size
         if (lines.isEmpty()) {
             // z2dict 未ロード時は前方一致履歴を上限まで埋める (ステップ2は6件まで)。
             if (allowPrediction) {
@@ -275,19 +307,23 @@ object KanaKanjiConverter {
                     out.add(h); if (out.size >= limit) break
                 }
             }
-            return out.toList()
+            return assemble()
         }
         out.addAll(convert(reading))
         out.addAll(okuriForms(reading))
         // 5. 辞書の前方一致予測 (読みより長い補完) で補う。後続ブロックがある分割の先頭ブロックでは
         //   抑止する: 補完が tail と重なって「して下さい + 下さい」のような被り長文予測を生むため。
         if (allowPrediction) {
-            for (c in predict(reading, limit)) {
+            // ⚠ 前方一致の補完 (読みより長い語) は**上限を別に持つ**。枠が大きいと「仕事」で
+            //   仕事相手/仕事唄/仕事運… が延々と並び、同音語 (変換したい語) より目立ってしまう。
+            //   打った読みそのものの変換を先に出し切ってから、余った枠だけ補完に使う。
+            val predictCap = minOf(limit, out.size + PREFIX_PREDICT_LIMIT)
+            for (c in predict(reading, PREFIX_PREDICT_LIMIT)) {
                 out.add(c)
-                if (out.size >= limit) break
+                if (out.size >= predictCap) break
             }
         }
-        return out.toList().take(limit)
+        return assemble()
     }
 
     /**

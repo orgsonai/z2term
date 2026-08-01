@@ -1,5 +1,7 @@
 package com.zerotoship.z2term.ui.terminal.keyboard
 
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
 import org.junit.Test
@@ -63,6 +65,60 @@ class ExactWordCandidateTest {
         val miru = KanaKanjiConverter.convertFlexible("みる")
         for (expected in listOf("見る", "診る", "観る")) {
             assertTrue("みる の候補に $expected が無い: $miru", expected in miru)
+        }
+    }
+
+    /**
+     * ⚠ **学習が育っている端末**でも同音語が出ること。
+     *
+     * 候補の枠 (limit=16) を学習履歴 (完全一致 4) + 予測変換 (前方一致 6) + 文まるごと変換 (6) が
+     * **先着で取り合う**作りだと、使い込むほど上の段で枠が尽き、辞書が持っている語が候補へ
+     * 一度も出てこなくなる。0.8.297 で「読み完全一致の 1 語」を足しても実機で「とく → 説く」が
+     * 出なかったのはこれで、履歴が空の環境 (他のケース) では出るため見えなかった。
+     */
+    @Test
+    fun exactWordsSurviveEvenWhenHistoryFillsTheBudget() {
+        // 枠を上限まで食う履歴: 完全一致 4 件 + 前方一致 6 件。⚠ 完全一致側は文まるごと変換の
+        // 上位と重ならない表層にする (重なると重複が落ちて枠が空き、条件を再現できない)。
+        // ⚠ 1 文字の語は学習されない (MIN_WORD_LEN=2) ので、実機同様すべて 2 文字以上にする。
+        withHistory(
+            listOf(
+                "とく" to "トク", "とく" to "得々", "とく" to "特区", "とく" to "篤く",
+                "とくに" to "特に", "とくべつ" to "特別", "とくちょう" to "特徴",
+                "とくい" to "得意", "とくてい" to "特定", "とくてん" to "得点",
+            )
+        ) {
+            val cands = KanaKanjiConverter.convertFlexible("とく")
+            println("とく (枠が満杯の履歴) = " + cands.mapIndexed { i, c -> "${i + 1}:$c" })
+            // 学習した語は今までどおり先頭 (予測変換の順位は動かさない)。
+            assertTrue("学習した語が先頭に来ていない: $cands", cands.take(4).contains("トク"))
+            for (expected in listOf("説く", "解く", "溶く")) {
+                assertTrue("学習が枠を埋めると $expected が消える: $cands", expected in cands)
+            }
+        }
+    }
+
+    /** [entries] を学習履歴に入れた状態で [body] を実行し、後片付けする。 */
+    private fun withHistory(entries: List<Pair<String, String>>, body: () -> Unit) {
+        val loadedField = ImeHistoryStore::class.java.getDeclaredField("loaded")
+            .apply { isAccessible = true }
+        val wasLoaded = loadedField.getBoolean(ImeHistoryStore)
+        loadedField.setBoolean(ImeHistoryStore, true)
+        try {
+            runBlocking { ImeHistoryStore.clearAll() }
+            for ((r, w) in entries) ImeHistoryStore.record(r, w)
+            // record は IO コルーチンなので反映を待つ。
+            val deadline = System.currentTimeMillis() + 5_000
+            while (ImeHistoryStore.approximateCount() < entries.size &&
+                System.currentTimeMillis() < deadline
+            ) {
+                Thread.sleep(20)
+            }
+            assertEquals("履歴が入りきっていない", entries.size, ImeHistoryStore.approximateCount())
+            body()
+        } finally {
+            runBlocking { ImeHistoryStore.clearAll() }
+            loadedField.setBoolean(ImeHistoryStore, wasLoaded)
         }
     }
 
