@@ -90,10 +90,17 @@ object UserDictStore {
         data class Failed(val message: String) : ImportResult
     }
 
-    // 見出しソート済みの配列。完全一致は二分探索、前方一致は挿入位置から前進で引く
-    // ([KanaKanjiConverter] と同じ作法)。
-    @Volatile private var readings: Array<String> = emptyArray()
-    @Volatile private var candidates: Array<List<String>> = emptyArray()
+    /**
+     * 見出しソート済みの表。完全一致は二分探索、前方一致は挿入位置から前進で引く
+     * ([KanaKanjiConverter] と同じ作法)。
+     *
+     * ⚠ **読みと候補は 1 つの物として差し替える**。別々の変数に持つと、読み替え ([reload]) の
+     * 最中に「新しい readings で引いた添字を古い candidates に当てる」瞬間ができ、辞書を
+     * 入れ替えた直後に添字はみ出しで落ちうる。対で持てばその瞬間自体が無くなる。
+     */
+    private class Table(val readings: Array<String>, val candidates: Array<List<String>>)
+
+    @Volatile private var table = Table(emptyArray(), emptyArray())
 
     private val _files = MutableStateFlow<List<DictFile>>(emptyList())
     /** 取り込み済みファイルの一覧 (設定画面が購読する)。 */
@@ -160,20 +167,22 @@ object UserDictStore {
     /** 読みに完全一致する候補 (登録順)。 */
     fun lookup(reading: String): List<String> {
         if (reading.isEmpty()) return emptyList()
-        val idx = searchIndex(reading)
-        return if (idx >= 0) candidates[idx] else emptyList()
+        val t = table
+        val idx = searchIndex(t, reading)
+        return if (idx >= 0) t.candidates[idx] else emptyList()
     }
 
     /** 読みで前方一致する候補を「実際の読み → 候補」で最大 [limit] 件返す (予測変換)。 */
     fun predictWithReading(prefix: String, limit: Int = 8): List<Pair<String, String>> {
-        if (prefix.isEmpty() || readings.isEmpty()) return emptyList()
-        var i = searchIndex(prefix)
+        val t = table
+        if (prefix.isEmpty() || t.readings.isEmpty()) return emptyList()
+        var i = searchIndex(t, prefix)
         if (i < 0) i = -i - 1
         val out = ArrayList<Pair<String, String>>()
-        while (i < readings.size && out.size < limit) {
-            val r = readings[i]
+        while (i < t.readings.size && out.size < limit) {
+            val r = t.readings[i]
             if (!r.startsWith(prefix)) break
-            for (c in candidates[i]) {
+            for (c in t.candidates[i]) {
                 out.add(r to c)
                 if (out.size >= limit) break
             }
@@ -192,9 +201,10 @@ object UserDictStore {
      */
     fun block(reading: String): Pair<String, Int>? {
         if (reading.length < 2) return null
-        val idx = searchIndex(reading)
+        val t = table
+        val idx = searchIndex(t, reading)
         if (idx < 0) return null
-        val first = candidates[idx].firstOrNull() ?: return null
+        val first = t.candidates[idx].firstOrNull() ?: return null
         return first to BLOCK_BONUS
     }
 
@@ -203,8 +213,8 @@ object UserDictStore {
     private fun dir(context: Context): File =
         File(context.filesDir, DIR_NAME).apply { if (!exists()) mkdirs() }
 
-    private fun searchIndex(reading: String): Int {
-        val src = readings
+    private fun searchIndex(t: Table, reading: String): Int {
+        val src = t.readings
         var lo = 0
         var hi = src.size - 1
         while (lo <= hi) {
@@ -246,8 +256,11 @@ object UserDictStore {
             fileList.add(DictFile(f.name, words))
         }
         val sorted = merged.keys.sorted()
-        readings = sorted.toTypedArray()
-        candidates = Array(sorted.size) { merged[sorted[it]] ?: emptyList() }
+        // 読みと候補を組み上げてから 1 度で差し替える (対で入れ替わるので添字がズレない)。
+        table = Table(
+            sorted.toTypedArray(),
+            Array(sorted.size) { merged[sorted[it]] ?: emptyList() },
+        )
         _files.value = fileList
         _wordCount.value = total
     }

@@ -37,6 +37,21 @@ import java.io.File
  *
  * 履歴管理 UI (設定 → 学習履歴) からは [snapshot] / [deleteEntry] / [clearAll] を使う。
  * UI 側は変化通知 [versionFlow] を購読しておけば、別経路で学習が増えた場合も自動で再描画できる。
+ *
+ * ## ⚠ 表は「差し替え」で更新する (書き換えない)
+ *
+ * 記録 ([record] / [recordBigram]) は IO スレッドのコルーチンで走り、参照 ([historyFor] /
+ * [predictHistoryWithReading] / [bigramBonus] / [learnedBlock]) は**変換のたびに UI スレッド**から
+ * 呼ばれる。可変の `HashMap` を共有すると、記録が新しい読みを put した瞬間に UI スレッド側の
+ * 走査が `ConcurrentModificationException` を投げてアプリごと落ちる (実際に落ちた: 変換候補を
+ * 押す → 確定で [record] → 続けて残りかなの候補を出すために履歴を走査、の並びで踏む)。
+ *
+ * そこで表は**不変オブジェクト**として持ち、更新するときは新しい表を組んで参照先を差し替える
+ * (copy-on-write)。読み手が触るのは常に「完成した表」なので、走査中に中身が変わることが
+ * **構造的に起こらない**。⚠ 例外を握りつぶす形 (try/catch) で塞がないこと — 握りつぶしても
+ * 壊れた読み出し (取りこぼし・無限ループ) の可能性は残る。
+ *
+ * 表を差し替える側 ([record] などの書き手) は [mutex] で直列化する。読み手は錠を取らない。
  */
 // 保持するのは applicationContext のみ (Application はプロセス生存期間そのものなので
 // シングルトンから参照し続けても leak しない)。lint は参照先が application か判別できず
@@ -72,14 +87,21 @@ object ImeHistoryStore {
         val lastUsedAt: Long
     )
 
-    private data class Entry(val word: String, var count: Int, var lastUsedAt: Long)
-    private data class BiEntry(val next: String, var count: Int, var lastUsedAt: Long)
+    // ⚠ Entry / BiEntry は**不変**。count を書き換えたいときは copy() で新しい値に差し替える
+    //   (可変フィールドにすると、表を差し替えても中身だけが別スレッドから書き換わってしまう)。
+    private data class Entry(val word: String, val count: Int, val lastUsedAt: Long)
+    private data class BiEntry(val next: String, val count: Int, val lastUsedAt: Long)
 
-    /** reading → 候補単語リスト。同一 reading で複数候補を別 Entry として保持。 */
-    private val byReading: HashMap<String, MutableList<Entry>> = HashMap()
+    /**
+     * reading → 候補単語リスト。同一 reading で複数候補を別 Entry として保持。
+     * ⚠ 中身を書き換えず、更新のたびに新しい Map へ差し替える (クラス冒頭の注記)。
+     */
+    @Volatile private var byReading: Map<String, List<Entry>> = emptyMap()
 
-    /** 前確定語の表層 → 続いて確定された語の表層リスト (UserHistory bigram 相当)。 */
-    private val bigram: HashMap<String, MutableList<BiEntry>> = HashMap()
+    /** 前確定語の表層 → 続いて確定された語の表層リスト (UserHistory bigram 相当)。同上。 */
+    @Volatile private var bigram: Map<String, List<BiEntry>> = emptyMap()
+
+    /** 表を差し替える側 (書き手) の直列化用。読み手は取らない。 */
     private val mutex = Mutex()
     @Volatile private var loaded = false
     private var saveJob: Job? = null
@@ -126,16 +148,17 @@ object ImeHistoryStore {
         scope.launch {
             mutex.withLock {
                 val now = System.currentTimeMillis()
-                val list = byReading.getOrPut(reading) { mutableListOf() }
-                val existing = list.firstOrNull { it.word == word }
-                if (existing != null) {
-                    existing.count += 1
-                    existing.lastUsedAt = now
+                val next = HashMap(byReading)
+                val list = ArrayList(next[reading] ?: emptyList())
+                val at = list.indexOfFirst { it.word == word }
+                if (at >= 0) {
+                    list[at] = list[at].copy(count = list[at].count + 1, lastUsedAt = now)
                 } else {
                     list.add(Entry(word, 1, now))
                 }
-                // 件数上限を超えたら最下位スコアから切り詰める (mutex 内で実行)。
-                ensureCapacityLocked()
+                next[reading] = list
+                // 件数上限を超えたら最下位スコアから切り詰めてから差し替える。
+                byReading = trimEntries(next)
             }
             _versionFlow.update { it + 1 }
             scheduleSave()
@@ -153,15 +176,16 @@ object ImeHistoryStore {
         scope.launch {
             mutex.withLock {
                 val now = System.currentTimeMillis()
-                val list = bigram.getOrPut(prev) { mutableListOf() }
-                val existing = list.firstOrNull { it.next == next }
-                if (existing != null) {
-                    existing.count += 1
-                    existing.lastUsedAt = now
+                val table = HashMap(bigram)
+                val list = ArrayList(table[prev] ?: emptyList())
+                val at = list.indexOfFirst { it.next == next }
+                if (at >= 0) {
+                    list[at] = list[at].copy(count = list[at].count + 1, lastUsedAt = now)
                 } else {
                     list.add(BiEntry(next, 1, now))
                 }
-                ensureBigramCapacityLocked()
+                table[prev] = list
+                bigram = trimBigrams(table)
             }
             scheduleSave()
         }
@@ -186,24 +210,22 @@ object ImeHistoryStore {
     /**
      * 動的ブロック分割用: 完全一致 reading をユーザーが確定したことがあれば
      * `(最頻表層, コスト下げ幅)` を返す。未学習 / 1 文字 reading は null。
-     * [KkcConverter.learnedBlock] から変換のホットパスで参照されるため、mutex は取らず
-     * best-effort で読む (同時記録中の CME は runCatching で握りつぶし null 扱い)。
+     * [KkcConverter.learnedBlock] から変換のホットパスで参照される。錠は取らないが、
+     * 見えるのは差し替え済みの不変な表なので走査中に中身が変わることはない。
      */
     fun learnedBlock(reading: String): Pair<String, Int>? {
         if (!loaded || reading.length < 2) return null
-        return runCatching {
-            val list = byReading[reading] ?: return@runCatching null
-            var best: Entry? = null
-            for (e in list) if (best == null || e.count > best.count) best = e
-            val e = best ?: return@runCatching null
-            if (e.count <= 0) return@runCatching null
-            val now = System.currentTimeMillis()
-            val ageMs = (now - e.lastUsedAt).coerceAtLeast(0)
-            val recency = if (ageMs >= RECENT_WINDOW_MS) 0
-                          else (BLOCK_RECENT_BONUS * (1.0 - ageMs.toDouble() / RECENT_WINDOW_MS)).toInt()
-            val freq = BLOCK_BASE_BONUS + BLOCK_COUNT_STEP * (e.count.coerceAtMost(4) - 1)
-            e.word to (freq + recency)
-        }.getOrNull()
+        val list = byReading[reading] ?: return null
+        var best: Entry? = null
+        for (e in list) if (best == null || e.count > best.count) best = e
+        val e = best ?: return null
+        if (e.count <= 0) return null
+        val now = System.currentTimeMillis()
+        val ageMs = (now - e.lastUsedAt).coerceAtLeast(0)
+        val recency = if (ageMs >= RECENT_WINDOW_MS) 0
+                      else (BLOCK_RECENT_BONUS * (1.0 - ageMs.toDouble() / RECENT_WINDOW_MS)).toInt()
+        val freq = BLOCK_BASE_BONUS + BLOCK_COUNT_STEP * (e.count.coerceAtMost(4) - 1)
+        return e.word to (freq + recency)
     }
 
     /** 完全一致 reading の候補を score 降順で返す (履歴ヒットのみ。辞書とは別経路)。 */
@@ -231,7 +253,8 @@ object ImeHistoryStore {
     fun predictHistoryWithReading(prefix: String, limit: Int = 8): List<Pair<String, String>> {
         if (!loaded || prefix.isEmpty()) return emptyList()
         val now = System.currentTimeMillis()
-        // HashMap なので走査になるが、エントリ数は MAX_ENTRIES=4000 と小さくラグなし。
+        // 全走査になるが、エントリ数は MAX_ENTRIES=4000 と小さくラグなし。
+        // 走査するのは差し替え済みの不変な表 (記録側が書き換えることはない)。
         val flat = ArrayList<Triple<String, Entry, Double>>()
         for ((r, entries) in byReading) {
             if (!r.startsWith(prefix)) continue
@@ -249,10 +272,10 @@ object ImeHistoryStore {
 
     /**
      * UI 用: 学習済み全エントリのスナップショットを score 降順で返す。
-     * mutex で排他してから ArrayList へコピーするのでスレッド安全。
+     * 走査するのは不変の表なのでそのまま安全に読める。
      */
-    suspend fun snapshot(): List<HistoryItem> = mutex.withLock {
-        if (!loaded) return@withLock emptyList()
+    fun snapshot(): List<HistoryItem> {
+        if (!loaded) return emptyList()
         val out = ArrayList<HistoryItem>()
         val now = System.currentTimeMillis()
         for ((r, entries) in byReading) {
@@ -264,18 +287,14 @@ object ImeHistoryStore {
                           else MAX_RECENCY_BOOST * (1.0 - ageMs.toDouble() / RECENT_WINDOW_MS)
             it.count.toDouble() + recency
         }
-        out
+        return out
     }
 
-    /** UI 用: 概算件数 (mutex 取らずに best-effort で読む。表示更新用なので OK)。 */
+    /** UI 用: 学習済みエントリの件数。 */
     fun approximateCount(): Int {
         if (!loaded) return 0
         var n = 0
-        try {
-            for ((_, l) in byReading) n += l.size
-        } catch (_: ConcurrentModificationException) {
-            // 同時記録中の場合は再試行せず古い値を返す (表示なので不正確で OK)。
-        }
+        for ((_, l) in byReading) n += l.size
         return n
     }
 
@@ -284,8 +303,11 @@ object ImeHistoryStore {
         if (!loaded) return
         mutex.withLock {
             val list = byReading[reading] ?: return@withLock
-            list.removeAll { it.word == word }
-            if (list.isEmpty()) byReading.remove(reading)
+            val kept = list.filterNot { it.word == word }
+            if (kept.size == list.size) return@withLock
+            val next = HashMap(byReading)
+            if (kept.isEmpty()) next.remove(reading) else next[reading] = kept
+            byReading = next
         }
         _versionFlow.update { it + 1 }
         scheduleSave()
@@ -294,7 +316,7 @@ object ImeHistoryStore {
     /** UI 用: 学習履歴を全削除。ファイルも空で上書きされる (debounce save 経由)。 */
     suspend fun clearAll() {
         if (!loaded) return
-        mutex.withLock { byReading.clear(); bigram.clear() }
+        mutex.withLock { byReading = emptyMap(); bigram = emptyMap() }
         _versionFlow.update { it + 1 }
         scheduleSave()
     }
@@ -306,33 +328,45 @@ object ImeHistoryStore {
         return e.count.toDouble() + recency
     }
 
-    private fun ensureCapacityLocked() {
+    /**
+     * 件数上限を超えていたら最下位スコアから切り詰めた**新しい表**を返す (収まっていれば
+     * 渡された表をそのまま返す)。⚠ 渡された表は差し替え前の作業用コピーなので中身を書き換えて
+     * よいが、公開済みの表を渡さないこと。
+     */
+    private fun trimEntries(table: Map<String, List<Entry>>): Map<String, List<Entry>> {
         var total = 0
-        for ((_, entries) in byReading) total += entries.size
-        if (total <= MAX_ENTRIES) return
+        for ((_, entries) in table) total += entries.size
+        if (total <= MAX_ENTRIES) return table
         // 全エントリを score 昇順にして 10% 切り捨て (毎回ではなく余裕を持って削る)。
         val now = System.currentTimeMillis()
         data class Ref(val reading: String, val entry: Entry, val s: Double)
         val all = ArrayList<Ref>(total)
-        for ((r, entries) in byReading) for (e in entries) all.add(Ref(r, e, score(e, now)))
+        for ((r, entries) in table) for (e in entries) all.add(Ref(r, e, score(e, now)))
         all.sortBy { it.s }
         val drop = (total - MAX_ENTRIES) + total / 10
+        val dropped = HashMap<String, MutableSet<Entry>>()
         for (i in 0 until drop.coerceAtMost(all.size)) {
             val ref = all[i]
-            val list = byReading[ref.reading] ?: continue
-            list.remove(ref.entry)
-            if (list.isEmpty()) byReading.remove(ref.reading)
+            dropped.getOrPut(ref.reading) { HashSet() }.add(ref.entry)
         }
+        val out = HashMap<String, List<Entry>>(table.size)
+        for ((r, entries) in table) {
+            val del = dropped[r]
+            val kept = if (del == null) entries else entries.filterNot { it in del }
+            if (kept.isNotEmpty()) out[r] = kept
+        }
+        return out
     }
 
-    private fun ensureBigramCapacityLocked() {
+    /** [trimEntries] の bigram 版。 */
+    private fun trimBigrams(table: Map<String, List<BiEntry>>): Map<String, List<BiEntry>> {
         var total = 0
-        for ((_, l) in bigram) total += l.size
-        if (total <= MAX_BIGRAMS) return
+        for ((_, l) in table) total += l.size
+        if (total <= MAX_BIGRAMS) return table
         val now = System.currentTimeMillis()
         data class Ref(val prev: String, val entry: BiEntry, val s: Double)
         val all = ArrayList<Ref>(total)
-        for ((p, entries) in bigram) for (e in entries) {
+        for ((p, entries) in table) for (e in entries) {
             val ageMs = (now - e.lastUsedAt).coerceAtLeast(0)
             val rec = if (ageMs >= RECENT_WINDOW_MS) 0.0
                       else MAX_RECENCY_BOOST * (1.0 - ageMs.toDouble() / RECENT_WINDOW_MS)
@@ -340,12 +374,18 @@ object ImeHistoryStore {
         }
         all.sortBy { it.s }
         val drop = (total - MAX_BIGRAMS) + total / 10
+        val dropped = HashMap<String, MutableSet<BiEntry>>()
         for (i in 0 until drop.coerceAtMost(all.size)) {
             val ref = all[i]
-            val list = bigram[ref.prev] ?: continue
-            list.remove(ref.entry)
-            if (list.isEmpty()) bigram.remove(ref.prev)
+            dropped.getOrPut(ref.prev) { HashSet() }.add(ref.entry)
         }
+        val out = HashMap<String, List<BiEntry>>(table.size)
+        for ((p, entries) in table) {
+            val del = dropped[p]
+            val kept = if (del == null) entries else entries.filterNot { it in del }
+            if (kept.isNotEmpty()) out[p] = kept
+        }
+        return out
     }
 
     private fun scheduleSave() {
@@ -369,6 +409,8 @@ object ImeHistoryStore {
         val ver = obj.optInt("version", 0)
         if (ver < 1 || ver > VERSION) return   // v1(unigram のみ)/v2(+bigram) を読込互換
         val arr = obj.optJSONArray("entries") ?: return
+        // 組み上がってから 1 度だけ差し替える (途中の表を読み手へ見せない)。
+        val loadedEntries = HashMap<String, MutableList<Entry>>()
         for (i in 0 until arr.length()) {
             val e = arr.optJSONObject(i) ?: continue
             val r = e.optString("r")
@@ -376,10 +418,11 @@ object ImeHistoryStore {
             if (r.isEmpty() || w.isEmpty()) continue
             val c = e.optInt("c", 1).coerceAtLeast(1)
             val t = e.optLong("t", 0L)
-            val list = byReading.getOrPut(r) { mutableListOf() }
-            list.add(Entry(w, c, t))
+            loadedEntries.getOrPut(r) { mutableListOf() }.add(Entry(w, c, t))
         }
+        byReading = loadedEntries
         val barr = obj.optJSONArray("bigrams") ?: return  // v1 には無い
+        val loadedBigrams = HashMap<String, MutableList<BiEntry>>()
         for (i in 0 until barr.length()) {
             val e = barr.optJSONObject(i) ?: continue
             val p = e.optString("p")
@@ -387,8 +430,9 @@ object ImeHistoryStore {
             if (p.isEmpty() || nx.isEmpty()) continue
             val c = e.optInt("c", 1).coerceAtLeast(1)
             val t = e.optLong("t", 0L)
-            bigram.getOrPut(p) { mutableListOf() }.add(BiEntry(nx, c, t))
+            loadedBigrams.getOrPut(p) { mutableListOf() }.add(BiEntry(nx, c, t))
         }
+        bigram = loadedBigrams
     }
 
     private fun saveToDisk(context: Context) {
