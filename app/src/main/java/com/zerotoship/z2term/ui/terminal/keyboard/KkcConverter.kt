@@ -423,6 +423,27 @@ object KkcConverter {
         return reranker.rerank(reading, out, context)
     }
 
+    /**
+     * 読み**全体**に完全一致する語彙エントリの表層を、単語コスト昇順で最大 [limit] 件返す
+     * (= その読み 1 語ぶんの変換候補すべて)。
+     *
+     * ⚠ [nbest] とは役割が違う。nbest は「文としての最尤経路」を上から k 本取るので、
+     * 同じ読みの 1 語候補でも下位のものは経路の順位争いに埋もれて出てこない
+     * (例 とく: 疾く/得/督/都区/とく/徳 で打ち切られ、**説く・解く・溶くが候補一覧に一度も
+     * 現れない**)。辞書に在る語が「順位の都合で選べない」のは変換として穴なので、
+     * 完全一致の 1 語候補はここから直接引いて候補へ足す。
+     *
+     * 表層の重複 (同じ表層で品詞違いの複数エントリ) は最小コストのものだけ残す。
+     */
+    fun wordsFor(reading: String, limit: Int = 12): List<String> {
+        if (reading.isEmpty() || !loaded || limit <= 0) return emptyList()
+        val entries = lex[reading] ?: return emptyList()
+        return entries.sortedBy { it.cost }
+            .map { it.surface }
+            .distinct()
+            .take(limit)
+    }
+
     /** 読み全体の最尤変換 (文まるごと)。変換不能なら null。 */
     fun convert(reading: String): String? {
         val segs = segments(reading)

@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.BufferedReader
 
 /**
  * SKK 辞書ベースの簡易かな漢字変換エンジン。
@@ -31,20 +32,27 @@ object KanaKanjiConverter {
         if (loaded) return
         withContext(Dispatchers.IO) {
             if (loaded) return@withContext
-            val result = ArrayList<String>(160_000)
-            context.assets.open("z2dict.txt").bufferedReader(Charsets.UTF_8).use { r ->
-                r.forEachLine { if (it.isNotEmpty() && it[0] != ';') result.add(it) }
-            }
-            // 元辞書 (SKK 送り仮名なし) は常用動詞・形容詞の終止形/活用をほぼ持たず、押す/入る/
-            // 出る/食べる… が変換できない。内蔵の常用語テーブルから活用形を生成し、見出し順に
-            // マージして「直接 convert で引ける」状態にする (okuri 推測のノイズに頼らない)。
-            //
-            // さらに、SKK 辞書はカタカナ外来語の読みを英単語綴りへ落とすエントリ (こみっと→commit
-            // など) を持たないため、プログラミング/シェルでよく使う ~200 語を内蔵 [buildLoanwords]
-            // で追加する (英語小文字のみ。すべてカタカナ語の hiragana 読み)。
-            lines = mergeDict(mergeDict(result, buildSupplement()), buildLoanwords())
-            loaded = true
+            context.assets.open("z2dict.txt").bufferedReader(Charsets.UTF_8).use { loadFrom(it) }
         }
+    }
+
+    /**
+     * 辞書本体を読み込む。[reader] = `z2dict.txt` (UTF-8)。close は呼び出し側で行う。
+     * Android Context を介さないので JVM ユニットテストからも同じ経路で読める
+     * ([KkcConverter.loadFromStreams] と同じ作法)。
+     */
+    fun loadFrom(reader: BufferedReader) {
+        val result = ArrayList<String>(160_000)
+        reader.forEachLine { if (it.isNotEmpty() && it[0] != ';') result.add(it) }
+        // 元辞書 (SKK 送り仮名なし) は常用動詞・形容詞の終止形/活用をほぼ持たず、押す/入る/
+        // 出る/食べる… が変換できない。内蔵の常用語テーブルから活用形を生成し、見出し順に
+        // マージして「直接 convert で引ける」状態にする (okuri 推測のノイズに頼らない)。
+        //
+        // さらに、SKK 辞書はカタカナ外来語の読みを英単語綴りへ落とすエントリ (こみっと→commit
+        // など) を持たないため、プログラミング/シェルでよく使う ~200 語を内蔵 [buildLoanwords]
+        // で追加する (英語小文字のみ。すべてカタカナ語の hiragana 読み)。
+        lines = mergeDict(mergeDict(result, buildSupplement()), buildLoanwords())
+        loaded = true
     }
 
     /** 見出しの行 index を二分探索。完全一致なら index、無ければ -(挿入位置)-1。 */
@@ -198,6 +206,7 @@ object KanaKanjiConverter {
      *  1. 学習履歴: 完全一致 reading の確定済み単語 ([ImeHistoryStore.historyFor]) ← 最上位
      *  2. 学習履歴: 前方一致 ([ImeHistoryStore.predictHistory]) — 打った読みで始まる学習済み語句の予測変換
      *  3. 文まるごと最尤変換 ([KkcConverter.convert]) — 読み全体を Viterbi で一発変換
+     *  3.5 読み完全一致の 1 語候補 ([KkcConverter.wordsFor]) — N-best の順位に埋もれた同音語
      *  4. 完全一致 ([convert]) / 送り仮名活用 ([okuriForms]) — 単語の別表記候補
      *  5. 前方一致の予測 ([predict]) で補完
      */
@@ -248,6 +257,16 @@ object KanaKanjiConverter {
             KkcConverter.convert(reading)?.let {
                 out.add(it); if (out.size >= limit) return out.toList()
             }
+        }
+        // 3.5 読みに完全一致する 1 語候補 ([KkcConverter.wordsFor])。
+        //   N-best は「文としての経路」の上位しか出さないため、同じ読みの 1 語候補が順位争いに
+        //   埋もれて**一度も候補に出ない**ことがある (とく → 説く/解く/溶く が出ず、代わりに
+        //   z2dict の稀な単漢字 慝/悳/涜/犢… が枠を埋めていた)。辞書に在る語を選べないのは
+        //   変換の穴なので、完全一致の 1 語候補はコスト順で直接足す。z2dict の完全一致 (4) より
+        //   前に置くのは、IPADIC 側がコスト順 (= 使われる順) に並んでいて上位の質が高いため。
+        for (w in KkcConverter.wordsFor(reading)) {
+            out.add(w)
+            if (out.size >= limit) return out.toList()
         }
         if (lines.isEmpty()) {
             // z2dict 未ロード時は前方一致履歴を上限まで埋める (ステップ2は6件まで)。
