@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-03 / Target version: 0.8.300-alpha (versionCode 308)
+Last updated: 2026-08-03 / Target version: 0.8.301-alpha (versionCode 309)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1651,8 +1651,17 @@ into "close" — you would not be able to delete while the pad is open.
   `FlickCommitPopup` (the same part the kana keys use while pressed) with a large 📋 right above the
   key. ⚠ A plain tap shows nothing — ESC is one of the most-pressed keys in a terminal, and popping
   something up on every press would be in the way. The popup disappears as soon as the flick resolves.
-- **Emoji** (`EmojiCatalog`): a hand-picked table in 8 categories (no attempt at full coverage —
-  thousands of glyphs cannot be browsed). ⚠ **Glyphs the device font lacks are not shown**
+- **Emoji** (`EmojiCatalog`): 8 categories, built from **a hand-picked table plus whole code-point
+  blocks** (no attempt at full coverage — thousands of glyphs cannot be browsed).
+  ⚠ **A table copied one glyph at a time always has holes in it.** 13 of the 80 characters in
+  U+1F600–U+1F64F were missing (😌 U+1F60C, 😝 U+1F61D, the cat faces U+1F638–U+1F640 …), and
+  **only the person trying to type one could ever notice** (the user's report). 0.8.301 appends
+  the blocks for faces (U+1F600–U+1F644), gestures (U+1F645–U+1F64F), hands (U+1F446–U+1F450) and
+  animals (U+1F400–U+1F43E), and `EmojiCatalogTest` pins every code point in those ranges.
+  ⚠ **The hand-picked table goes first, the blocks after**: the other way round pushes the ones
+  people actually use dozens of glyphs down, which is the one real cost of a wider table.
+  ⚠ **Code points that need a variation selector stay out of the ranges** (U+1F43F 🐿 renders as a
+  monochrome symbol without U+FE0F, so the animal block stops at U+1F43E). ⚠ **Glyphs the device font lacks are not shown**
   (`Paint.hasGlyph`, filtered once). That keeps tofu (□) out of what people send, and new OS versions
   add emoji without touching the table. The first tab is **most recently used**
   (`RecentEmojiStore` to `filesDir/emoji_recent.json`, 48 entries) — real usage concentrates on ~20.

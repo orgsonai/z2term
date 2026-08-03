@@ -33,7 +33,22 @@ internal object EmojiCatalog {
     /** 1 カテゴリ。[label] はタブに出す絵文字 1 字 (文字ラベルにすると翻訳が要るため)。 */
     data class Category(val label: String, val items: List<String>)
 
-    private val FACES = listOf(
+    /**
+     * 連番で埋まっている絵文字ブロックをそのまま並べる (0.8.301)。
+     *
+     * ⚠ **1 字ずつ書き写した表は必ず抜ける**。実際 U+1F600–U+1F64F の 80 字のうち
+     * 😌 U+1F60C・😝 U+1F61D・😸〜🙀 U+1F638–U+1F640 など **13 字が抜けていた**
+     * (利用者の報告。打てないことに気付けるのは打とうとした本人だけで、こちらからは見えない)。
+     * ブロックごと足しておけば、同じ抜け方は二度と起きない。
+     *
+     * **豆腐は出ない**: 端末のフォントが持っていない字は [categories] の `hasGlyph` が落とす。
+     * 表を広く持って困るのは「探しにくくなる」ことだけなので、⚠ **手で選んだ表を先に、
+     * ブロックを後ろに**置いて、よく打つ字が上に来る並びは崩さない。
+     */
+    private fun block(from: Int, to: Int): List<String> =
+        (from..to).map { String(Character.toChars(it)) }
+
+    private val FACES_PICKED = listOf(
         "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃",
         "😉", "😊", "😇", "🥰", "😍", "😘", "😗", "😚", "😋", "😛",
         "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🥳", "😏", "😒", "😞",
@@ -48,7 +63,7 @@ internal object EmojiCatalog {
         "🙂‍↔️", "😶‍🌫️", "😮‍💨", "😵‍💫", "🤥", "🥸", "😙", "🤩"
     )
 
-    private val PEOPLE = listOf(
+    private val PEOPLE_PICKED = listOf(
         "👍", "👎", "👌", "🤌", "🤏", "✌️", "🤞", "🤟", "🤘", "🤙",
         "👈", "👉", "👆", "👇", "☝️", "✋", "🤚", "🖐️", "🖖", "👋",
         "🤝", "🙏", "✍️", "💪", "🦵", "🦶", "👂", "👃", "👀", "👁️",
@@ -60,7 +75,7 @@ internal object EmojiCatalog {
         "👏", "🤲", "👐", "🤛", "🤜", "👊", "✊", "🫅"
     )
 
-    private val NATURE = listOf(
+    private val NATURE_PICKED = listOf(
         "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯",
         "🦁", "🐮", "🐷", "🐸", "🐵", "🙈", "🙉", "🙊", "🐔", "🐧",
         "🐦", "🐤", "🦆", "🦅", "🦉", "🦇", "🐺", "🐗", "🐴", "🦄",
@@ -159,8 +174,34 @@ internal object EmojiCatalog {
         "🔢", "🔤", "🔡", "🆎", "🅰️", "🅱️", "🆑", "🆘"
     )
 
-    /** タブの並び (最近使った順は [KeyboardPad] 側が先頭に足す)。 */
-    private val ALL = listOf(
+    // --- 手で選んだ表 + 連番ブロック ([block] 参照) ---
+    // ⚠ **足す順を変えない**。手で選んだ表が先、ブロックが後ろ。逆にすると、よく打つ字が
+    // ブロックの数十字の後ろへ押し出されて探せなくなる。`distinct()` が重なりを落とす。
+
+    /** 顔 (U+1F600–U+1F644)。⚠ U+1F645 から先は「人のしぐさ」なので [PEOPLE] へ入れる。 */
+    private val FACES = (FACES_PICKED + block(0x1F600, 0x1F644)).distinct()
+
+    /** 手と人。連番の手 (U+1F446–U+1F450) と、人のしぐさ (U+1F645–U+1F64F) を足す。 */
+    private val PEOPLE =
+        (PEOPLE_PICKED + block(0x1F446, 0x1F450) + block(0x1F645, 0x1F64F)).distinct()
+
+    /**
+     * 動物と自然 (U+1F400–U+1F43E)。
+     *
+     * ⚠ **U+1F43E で止め、U+1F43F 🐿 を入れない**。この字は**異体字セレクタ (U+FE0F) を
+     * 付けないと絵で出ない**ので、素のまま並べると白黒の記号が 1 つ混じる。範囲で足してよいのは
+     * 絵が既定の字だけ。
+     */
+    private val NATURE = (NATURE_PICKED + block(0x1F400, 0x1F43E)).distinct()
+
+    /**
+     * タブの並び (最近使った順は [KeyboardPad] 側が先頭に足す)。
+     *
+     * `internal` なのは**テストから中身を見るため**。[categories] は `Paint` を要るので
+     * ふつうのユニットテストからは呼べず、抜けを押さえる側がここを直接読む
+     * (`EmojiCatalogTest`)。
+     */
+    internal val ALL = listOf(
         Category("😀", FACES),
         Category("👍", PEOPLE),
         Category("🐶", NATURE),
