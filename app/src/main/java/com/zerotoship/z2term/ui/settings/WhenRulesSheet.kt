@@ -289,10 +289,13 @@ fun WhenRulesBody() {
                     .padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
+                // 発火の記録に残るのはトリガーだが、一覧と同じ見出し (名前) で読めた方が
+                // 「どのルールが走ったか」が分かる。消したルールの記録はトリガーのまま出る。
+                val namedRules = rules.filter { it.name.isNotEmpty() }.associate { it.id to it.name }
                 fired.forEach { f ->
                     Text(
                         // 日付は落として時刻だけ (幅が限られるので、直近を読むのに要るのは時刻)。
-                        text = "${shortTime(f.time)}  ${f.trigger}  ${f.status}",
+                        text = "${shortTime(f.time)}  ${namedRules[f.ruleId] ?: f.trigger}  ${f.status}",
                         color = when {
                             f.status == "paused" -> ZtsError
                             f.status == "manual" -> ZtsTextSecondary
@@ -378,8 +381,10 @@ private fun WhenRuleRow(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
+                // 見出しは名前 (未記入ならトリガー・0.8.303)。トリガーだけが並ぶと
+                // 「いつ動くか」しか分からず、同じきっかけのルールを見分けられない。
                 Text(
-                    text = rule.trigger,
+                    text = rule.label,
                     color = if (rule.enabled) ZtsTextPrimary else ZtsTextSecondary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
@@ -387,6 +392,17 @@ private fun WhenRuleRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                // 名前を付けたときだけ、きっかけを 1 行足す (名前で消してしまわない)。
+                if (rule.name.isNotEmpty()) {
+                    Text(
+                        text = rule.trigger,
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Text(
                     text = rule.run,
                     color = ZtsTextSecondary,
@@ -486,6 +502,7 @@ private fun WhenRuleEditForm(
     onCancel: () -> Unit,
 ) {
     val context = LocalContext.current
+    var name by remember(initial.id) { mutableStateOf(initial.name) }
     var trigger by remember(initial.id) { mutableStateOf(initial.trigger) }
     var run by remember(initial.id) { mutableStateOf(initial.run) }
     var condition by remember(initial.id) { mutableStateOf(initial.condition) }
@@ -521,6 +538,16 @@ private fun WhenRuleEditForm(
         fontSize = 16.sp,
         fontWeight = FontWeight.SemiBold,
         fontFamily = FontFamily.Monospace
+    )
+
+    // 名前は表示だけの項目 (0.8.303)。空欄で保存すれば今までどおりトリガーが見出しになるので、
+    // 必須にはしない — 1 行足すために保存が止まる方が嫌われる。
+    Field(
+        label = stringResource(R.string.when_name_field),
+        value = name,
+        // ルールファイルは 1 行 1 項目。名前でも改行が入れば後ろが捨てられるので同じく潰す。
+        onChange = { name = it.replace('\n', ' ').replace('\r', ' ') },
+        placeholder = stringResource(R.string.when_name_placeholder)
     )
 
     Field(
@@ -684,6 +711,7 @@ private fun WhenRuleEditForm(
             if (problem == null) {
                 onSave(
                     initial.copy(
+                        name = name.trim(),
                         trigger = t,
                         run = r,
                         condition = condition.trim(),

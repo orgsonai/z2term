@@ -54,6 +54,9 @@ minute). **Do not write in style B what style A can express.**
    **You can also create and edit them there** (0.8.272: "+ New" picks a trigger from a list, **✎**
    opens an existing rule's command and filters). Terminal and screen write **the same files**
    (`~/.z2term/when/*.rule`), so you can move between them freely.
+   **Rules can be named** (0.8.303: the first field of the form; from the terminal,
+   `z2-when <trigger> name='<name>' run <command>`). A named rule uses that name as its heading in
+   the list, so several rules on the same trigger stay apart. Empty means the trigger is the heading.
    ⚠ **A command is one line.** A rule file holds one item per line, so a newline throws away
    everything after it (since 0.8.272 newlines are folded into spaces on registration, but for
    anything long it is safer to **put it in a script file and register that path**).

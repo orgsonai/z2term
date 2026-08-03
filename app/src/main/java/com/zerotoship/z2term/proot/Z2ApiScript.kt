@@ -448,7 +448,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |mkdir -p "${d}DIR" 2>/dev/null
         |reload() { /usr/local/bin/z2api 0 when-reload >/dev/null 2>&1 || true; }
         |usage() {
-        |  echo "usage: z2-when <trigger> [if=..] [cooldown=..] [between=..] [days=..] run <cmd...>" >&2
+        |  echo "usage: z2-when <trigger> [name=..] [if=..] [cooldown=..] [between=..] [days=..] run <cmd...>" >&2
         |  echo "       z2-when list | events | pause | resume | fired [n] | remove <id|all> | on <id> | off <id> | log <id>" >&2
         |  exit 1
         |}
@@ -479,9 +479,10 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |      r=${d}(sed -n 's/^run=//p' "${d}f")
         |      e=${d}(sed -n 's/^enabled=//p' "${d}f")
         |      if [ "${d}e" = "0" ]; then st=off; else st=on; fi
-        |      # 絞り込みが付いていれば末尾に足す (付いていないルールの見え方は今までどおり)。
+        |      # 名前 (0.8.303) と絞り込みが付いていれば末尾に足す。カラムを増やさないのは、
+        |      # 既存の TSV を cut で読んでいる手元のスクリプトを壊さないため。
         |      w=""
-        |      for k in if cooldown between days; do
+        |      for k in name if cooldown between days; do
         |        v=${d}(sed -n "s/^${d}k=//p" "${d}f")
         |        [ -n "${d}v" ] && w="${d}w ${d}k=${d}v"
         |      done
@@ -526,9 +527,10 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    trig="${d}1"; shift
         |    # 絞り込み (0.8.263) はトリガーの直後に置く。run の後ろは**全部コマンド**という
         |    # 今までの読み方を変えないため (コマンド側に if= が現れても誤解しない)。
-        |    zif=""; zcool=""; zbetw=""; zdays=""
+        |    zif=""; zcool=""; zbetw=""; zdays=""; zname=""
         |    while [ ${d}# -ge 1 ]; do
         |      case "${d}1" in
+        |        name=*)     zname="${d}{1#name=}"; shift ;;
         |        if=*)       zif="${d}{1#if=}"; shift ;;
         |        cooldown=*) zcool="${d}{1#cooldown=}"; shift ;;
         |        between=*)  zbetw="${d}{1#between=}"; shift ;;
@@ -580,6 +582,8 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    cmdraw="${d}*"
         |    cmd=${d}(printf '%s' "${d}cmdraw" | tr '\n\r' '  ')
         |    [ "${d}cmd" = "${d}cmdraw" ] || echo "${m.whenRunJoined}" >&2
+        |    # 名前も 1 行しか読まれない (0.8.303)。改行を空白へ直してから書く。
+        |    zname=${d}(printf '%s' "${d}zname" | tr '\n\r' '  ')
         |    # id は w<epoch><pid>。awk の srand() は「秒」で seed されるため同一秒では同じ乱数になり、
         |    # 続けて登録したルールが同じ id で上書きし合っていた。pid は 1 プロセス 1 値なので同一秒でも
         |    # 衝突しない。pid 再利用に備えて既存ファイルがあれば連番を足す (二重の防御)。
@@ -589,6 +593,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    tmp="${d}DIR/.${d}id.tmp"
         |    {
         |      printf 'trigger=%s\n' "${d}trig"; printf 'run=%s\n' "${d}cmd"; printf 'enabled=1\n'
+        |      [ -n "${d}zname" ] && printf 'name=%s\n' "${d}zname"
         |      [ -n "${d}zif" ] && printf 'if=%s\n' "${d}zif"
         |      [ -n "${d}zcool" ] && printf 'cooldown=%s\n' "${d}zcool"
         |      [ -n "${d}zbetw" ] && printf 'between=%s\n' "${d}zbetw"

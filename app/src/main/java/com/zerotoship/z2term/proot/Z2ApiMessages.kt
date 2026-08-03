@@ -483,6 +483,10 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#                                        … a notification arrived (needs notification access)
         |#            event:<name> | event:<prefix>* | event:*  … any device event, by name
         |#              (z2-when events lists them; same names as in events.jsonl)
+        |# Name (optional, right after the trigger — before run):
+        |#   name=<text>             … what this rule is for, shown in the Automation tab
+        |#                             (quote it if it has spaces). Empty = the trigger is shown.
+        |#                             Display only: it changes nothing about when the rule runs.
         |# Filters (any trigger, right after it — before run):
         |#   if=<cond>[,<cond>...]   … only when the device is in that state (AND; ! negates)
         |#                             keys are the ones z2-state prints: wifi charging screen locked
@@ -497,7 +501,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# z2-when events                        … list the names usable with event:
         |# z2-when pause / resume                … stop / resume automatic runs (rules are kept)
         |# z2-when fired [n]                     … recent fires (time / id / trigger / run|paused)
-        |# z2-when list                          … registered rules (id / on|off / trigger / -> / cmd, TSV)
+        |# z2-when list                          … registered rules (id / on|off / trigger / -> / cmd, TSV;
+        |#                                         name and filters, if any, in [] at the end)
         |# z2-when remove <id|all>  (rm works)   … delete
         |# z2-when on <id> / off <id>            … enable / disable
         |# z2-when log <id>                      … that rule's run log (tail)
@@ -521,6 +526,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#      z2-when net:online cooldown=5m run ~/.z2term/macros/sync.sh
         |#      z2-when boot run 'sshd --lan'
         |#      z2-when share:text run '~/.z2term/macros/fetch.sh "${d}Z2_WHEN_SHARE"'
+        |#      z2-when time:daily=07:00 name='Morning report' run ~/.z2term/macros/report.sh
     """.trimMargin() else """
         |# z2-when <トリガー> run <コマンド...>   … ルールを登録
         |#   トリガー: charge:start | charge:stop  (検知 ON が前提)
@@ -541,6 +547,10 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#                                        … 通知が届いたとき (通知アクセスの許可が前提)
         |#            event:<名前> | event:<接頭辞>* | event:*  … 端末イベントを名前で拾う
         |#              (名前は z2-when events で一覧。events.jsonl に出るものと同じ)
+        |# 名前 (任意。トリガーの直後・run より前に置く):
+        |#   name=<文字列>           … 何の自動化かを表す名前。自動化タブの見出しになる
+        |#                             (空白を含むならクォート)。空なら今までどおりトリガーが出る。
+        |#                             表示だけの項目で、いつ動くかは一切変わらない。
         |# 絞り込み (どのトリガーでも使える。トリガーの直後・run より前に置く):
         |#   if=<条件>[,<条件>...]   … 端末がその状態のときだけ実行 (カンマは AND。頭の ! で否定)
         |#                             使えるキーは z2-state が出すもの: wifi charging screen locked
@@ -555,7 +565,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# z2-when events                        … event: で使えるイベント名の一覧
         |# z2-when pause / resume                … 自動実行を一時停止 / 再開 (ルールは消えない)
         |# z2-when fired [n]                     … 直近の発火 (時刻 / id / トリガー / run|paused)
-        |# z2-when list                          … 登録一覧 (id / on|off / トリガー / -> / コマンド の TSV)
+        |# z2-when list                          … 登録一覧 (id / on|off / トリガー / -> / コマンド の TSV。
+        |#                                         名前と絞り込みは付いていれば末尾の [] に出る)
         |# z2-when remove <id|all>  (rm でも可)  … 削除
         |# z2-when on <id> / off <id>            … 有効 / 無効
         |# z2-when log <id>                      … そのルールの実行ログ (末尾)
@@ -579,6 +590,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#     z2-when net:online cooldown=5m run ~/.z2term/macros/sync.sh
         |#     z2-when boot run 'sshd --lan'
         |#     z2-when share:text run '~/.z2term/macros/fetch.sh "${d}Z2_WHEN_SHARE"'
+        |#     z2-when time:daily=07:00 name='朝の日報' run ~/.z2term/macros/report.sh
     """.trimMargin()
 
     val whenPaused: String =

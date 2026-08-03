@@ -645,6 +645,8 @@
     <string name="when_new">+ 新規</string>
     <string name="when_new_rule_title">ルールを追加</string>
     <string name="when_edit_rule_title">ルールを編集</string>
+    <string name="when_name_field">名前（任意。空ならきっかけが出ます）</string>
+    <string name="when_name_placeholder">夜のバックアップ</string>
     <string name="when_trigger_field">きっかけ</string>
     <string name="when_trigger_pick">きっかけを選ぶ（そのまま動く形が入ります）</string>
     <string name="when_run_field">実行するコマンド</string>

@@ -13,6 +13,7 @@ package com.zerotoship.z2term.settings
  * trigger=charge:start
  * run=~/.z2term/macros/backup.sh
  * enabled=1
+ * name=夜のバックアップ
  * if=wifi,!screen
  * cooldown=30m
  * between=22:00-07:00
@@ -70,6 +71,15 @@ data class WhenRule(
     val between: String = "",
     /** `days=` … この曜日だけ実行する (空 = 毎日)。例: `mon-fri`。 */
     val days: String = "",
+    /**
+     * `name=` … 一覧に出す名前 (空 = 未記入。0.8.303)。
+     *
+     * トリガーは「いつ動くか」しか言わないので、`event:screen_on` が 3 本並ぶと**どれが何の
+     * 自動化なのか区別が付かない**。名前は表示だけの項目で、発火にも実行にも一切影響しない。
+     * 未記入のルール (今まで登録した全部と、CLI で `name=` を付けずに作ったもの) は今までどおり
+     * トリガーが名前の代わりに出る ([label])。
+     */
+    val name: String = "",
 ) {
     /**
      * トリガーの種別 (`:` の手前)。例: `charge` / `battery` / `time`。
@@ -84,6 +94,14 @@ data class WhenRule(
     /** トリガーの引数 (`:` の後ろ)。例: `start` / `below=20` / `daily=03:00`。 */
     val spec: String get() = trigger.substringAfter(':', "").trim()
 
+    /**
+     * 一覧に出す見出し。[name] があればそれ、無ければ [trigger] (0.8.303)。
+     *
+     * 「未記入のときだけトリガー」を 1 か所に閉じ込める — 一覧・直近の発火・将来の表示で
+     * 判定がズレると、同じルールが場所によって違う名前で出てしまう。
+     */
+    val label: String get() = name.ifBlank { trigger }
+
     /** 絞り込み ([condition] / [cooldown] / [between] / [days]) を 1 つでも持っているか。 */
     val hasFilters: Boolean
         get() = condition.isNotEmpty() || cooldown.isNotEmpty() ||
@@ -94,6 +112,7 @@ data class WhenRule(
         append("run=").append(run).append('\n')
         append("enabled=").append(if (enabled) "1" else "0").append('\n')
         // 未指定のときは書かない (端末から登録したままのルールに余計な行を足さない)。
+        if (name.isNotEmpty()) append("name=").append(name).append('\n')
         if (condition.isNotEmpty()) append("if=").append(condition).append('\n')
         if (cooldown.isNotEmpty()) append("cooldown=").append(cooldown).append('\n')
         if (between.isNotEmpty()) append("between=").append(between).append('\n')
@@ -115,6 +134,7 @@ data class WhenRule(
             var cooldown = ""
             var between = ""
             var days = ""
+            var name = ""
             text.lineSequence().forEach { line ->
                 val eq = line.indexOf('=')
                 if (eq <= 0) return@forEach
@@ -134,10 +154,12 @@ data class WhenRule(
                     "cooldown" -> cooldown = value.trim()
                     "between" -> between = value.trim()
                     "days" -> days = value.trim()
+                    // 名前は人が読む文字列なので中の空白は保つ (前後だけ落とす)。
+                    "name" -> name = value.trim()
                 }
             }
             if (trigger.isBlank() || run.isBlank()) return null
-            return WhenRule(id, trigger, run, enabled, order, condition, cooldown, between, days)
+            return WhenRule(id, trigger, run, enabled, order, condition, cooldown, between, days, name)
         }
     }
 }

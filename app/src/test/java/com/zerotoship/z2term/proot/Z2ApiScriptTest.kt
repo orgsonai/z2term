@@ -161,6 +161,50 @@ class Z2ApiScriptTest {
     }
 
     /**
+     * A6: 名前 (`name=`・0.8.303) をルールファイルへ書き、`list` にも出すこと。
+     *
+     * 名前は絞り込みと**同じ位置** (トリガーの直後・`run` より前) に置く。取り違えると名前が
+     * コマンドの一部として食われるか、逆にコマンドの一部が名前として食われる。空白を含む
+     * 文字列を渡して、`run` の後ろが丸ごとコマンドのままであることまで確かめる。
+     */
+    @Test
+    fun whenNameIsWrittenAndListed() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val script = File.createTempFile("z2when", ".sh").apply { writeText(scripts["z2-when"]!!) }
+        val home = Files.createTempDirectory("z2home").toFile()
+        try {
+            fun run(vararg args: String): String {
+                val pb = ProcessBuilder(listOf(sh!!, script.absolutePath) + args).redirectErrorStream(true)
+                pb.environment()["HOME"] = home.absolutePath
+                val proc = pb.start()
+                val out = proc.inputStream.bufferedReader().readText()
+                proc.waitFor()
+                return out
+            }
+
+            run("time:daily=07:00", "name=朝の日報", "cooldown=1h", "run", "echo hi", "there")
+            val rule = File(home, ".z2term/when").listFiles { f -> f.name.endsWith(".rule") }
+                .orEmpty().single().readText()
+            assertTrue("name= が書かれていない: $rule", "name=朝の日報\n" in rule)
+            assertTrue("コマンドが欠けている: $rule", "run=echo hi there\n" in rule)
+
+            // 名前を付けなければ `name=` 行は付かない (既存ルールに余計な行を足さない)。
+            run("charge:stop", "run", "echo plain")
+            val plain = File(home, ".z2term/when").listFiles { f -> f.name.endsWith(".rule") }
+                .orEmpty().map { it.readText() }.single { "echo plain" in it }
+            assertTrue("余計な name= が付いている: $plain", plain.lines().none { it.startsWith("name=") })
+
+            // 一覧では名前が絞り込みと同じ末尾の [] に出る (カラム数は増やさない)。
+            val list = run("list")
+            assertTrue("list に名前が出ていない: $list", "[name=朝の日報" in list)
+        } finally {
+            script.delete()
+            home.deleteRecursively()
+        }
+    }
+
+    /**
      * A6: 綴り違いのトリガーを**登録の時点で**弾くこと (0.8.265)。
      *
      * トリガーが 1 文字違っても登録は成功し、**一度も発火しないルール**ができるだけだった。

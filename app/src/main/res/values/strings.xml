@@ -658,6 +658,8 @@
     <string name="when_new">+ New</string>
     <string name="when_new_rule_title">New rule</string>
     <string name="when_edit_rule_title">Edit rule</string>
+    <string name="when_name_field">Name (optional — the trigger is shown when empty)</string>
+    <string name="when_name_placeholder">Nightly backup</string>
     <string name="when_trigger_field">Trigger</string>
     <string name="when_trigger_pick">Pick a trigger (inserts a ready-to-run form)</string>
     <string name="when_run_field">Command to run</string>

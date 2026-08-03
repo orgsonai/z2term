@@ -63,6 +63,19 @@ class WhenRuleTest {
         assertEquals(r, WhenRule.parse("sync", r.serialize()))
     }
 
+    @Test fun parse_readsNameAndRoundTrips() {
+        // 名前は表示だけの項目 (0.8.303)。中の空白は保つ (前後だけ落とす)。
+        val r = WhenRule.parse("r", "trigger=boot\nrun=true\nenabled=1\nname=夜の バックアップ\n")!!
+        assertEquals("夜の バックアップ", r.name)
+        assertEquals("夜の バックアップ", r.label)
+        assertEquals(r, WhenRule.parse("r", r.serialize()))
+    }
+
+    @Test fun label_fallsBackToTrigger() {
+        // 未記入のときだけトリガーが見出しになる (今まで登録したルールの見え方を変えない)。
+        assertEquals("charge:start", rule("charge:start").label)
+    }
+
     @Test fun parse_ignoresUnknownKeys() {
         // 「知らないキーは黙って無視」= 新しい項目を足しても古い版が読める、の担保。
         val r = WhenRule.parse("r", "trigger=boot\nrun=true\nenabled=1\nfuture=whatever\n")!!

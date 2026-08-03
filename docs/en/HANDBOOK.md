@@ -708,6 +708,8 @@ Auto-run a command **when you start charging / the battery drops / a set time ar
 
 **You can also build them on screen** (0.8.272). In 📜 → the "Automation" tab, **+ New** lets you pick a trigger from a list and type the command. Tap **✎** on an existing rule to see the full command and its filters (`if` / `cooldown` / `between` / `days`) and edit them. When the command points at a single script, **its contents are shown too** (edit the script itself in the terminal). Rules created with `z2-when` in the terminal can be edited the same way — both read the same files (`~/.z2term/when/*.rule`).
 
+**Rules can be named** (0.8.303). "Name" is the first field of the form. Give a rule a name and it becomes the heading in the list (the trigger stays underneath in small type), and recent fires use it too — so several rules on the same trigger, say `event:screen_on`, are no longer indistinguishable. **Leave it empty and the trigger is the heading, as before.** The name is display only; it changes nothing about when a rule runs. From the terminal, put it right after the trigger and before `run`: `z2-when time:daily=07:00 name='Morning report' run ~/.z2term/macros/report.sh` (quote it if it contains spaces).
+
 ⚠ **A command is always one line.** A rule file holds one item per line, so **a newline throws away everything after it** — a command pasted across two lines gets cut short and the rule stops working. Since 0.8.272 both the screen and `z2-when` **fold newlines into spaces**, so this no longer bites, but for anything long it is safer to **put it in a script file and register that path**.
 
 How to register (just line up a trigger and a command):
