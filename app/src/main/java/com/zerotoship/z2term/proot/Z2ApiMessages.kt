@@ -244,76 +244,122 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
 
     private val grid = IconStore.GRID
 
+    /**
+     * `z2-icon` のヘルプ。
+     *
+     * ⚠ **やりたいこと順に並べる**。以前はサブコマンドを 8 つ並べてから注意書きを続けており、
+     * 「まず何を打てばよいか」が読み取れなかった (利用者の指摘)。いちばん多い用途 (一覧から
+     * 選んで入れる) を先頭に置き、残りを「入れる / 自分の絵を残す / 描き方 / 注意」へ分ける。
+     */
     val iconHelp: String = if (en) """
-        |# z2-icon pick <notify|1-$tiles>        … choose one of the built-in drawings from a list
-        |# z2-icon sample [name] / [target name] … list the built-in drawings, show one, or use one
-        |# z2-icon edit <notify|1-$tiles>        … draw it in ${d}EDITOR, save, and it is applied
-        |# z2-icon set <notify|1-$tiles> [file]  … take the drawing from a file (or stdin with -)
-        |# z2-icon show <notify|1-$tiles>        … print the current drawing
-        |# z2-icon clear <notify|1-$tiles|all>   … back to the built-in icon
-        |# z2-icon auto <1-$tiles|all>       … re-pick from what the tile runs (overwrites yours)
-        |# z2-icon list                      … which ones you have changed, as TSV
-        |#                                     ('auto' = picked for you, 'custom' = you set it)
-        |# 'notify' is the icon in the status bar (every notification this app puts out);
-        |# 1-$tiles are the quick-settings tiles, one drawing each.
-        |# The drawing is a ${grid}x${grid} grid of characters. '.' ' ' '0' '-' '_' leave a dot empty,
-        |# anything else fills it in — use whichever character you find easiest to see.
-        |# Blank space around the drawing is ignored: it gets centred for you, so you do not
-        |# have to fill all ${grid} lines exactly.
-        |# ⚠ **Only the shape gets through.** Android paints these icons a single colour of its own
-        |# (tiles change colour between on and off), and they end up about ${grid}px across.
-        |# So there is no colour to pick, and detail finer than the grid is lost — the drawing you
-        |# see with 'show' is what will appear.
-        |# ⚠ The icon in the quick-settings **edit** screen (the one you drag the tile from) and
-        |# the launcher icon cannot be changed: Android fixes those at install time.
-        |# A sample is just text as well: pick one, then 'z2-icon edit' it into your own.
-        |# Tiles pick a sample by themselves when the assigned name gives it away ('z2-tile set 1
-        |# remind.sh' puts a clock there). Anything you set here overrides that for good.
-        |# e.g. z2-icon pick 1
-        |#      z2-icon sample notify bell
-        |#      z2-icon edit 1
-        |#      printf '..##..\n.####.\n..##..\n' | z2-icon set 2 -
-        |#      z2-icon auto 1
-        |#      z2-icon clear notify
+        |# Replace the status bar and quick-settings tile icons with your own pixel drawing.
+        |#
+        |# Start here
+        |#   z2-icon pick 1     ... choose a drawing from a list and put it on tile slot 1
+        |#   z2-icon list       ... what each slot has now ('-p' shows the drawings too)
+        |#
+        |# What <target> means
+        |#   notify    the icon for every notification this app puts out (the status bar one)
+        |#   1-$tiles      a quick-settings tile slot - the same number z2-tile uses
+        |#
+        |# Putting a drawing in
+        |#   pick <target>            list them and choose by number (easiest)
+        |#   sample <target> <name>   when you already know the name
+        |#   edit <target>            draw it, or fix the current one, in ${d}EDITOR
+        |#   set <target> <file>      read it from a file ('-' for stdin)
+        |#   auto <1-$tiles|all>          pick again from what the tile runs
+        |#   clear <target|all>       back to the built-in icon
+        |#
+        |# Keeping your own drawings in the list
+        |#   save <target> <name>     name what is on <target> now and add it to the list
+        |#   sample                   the list you can choose from (number / name /
+        |#                            'builtin' = shipped, 'mine' = saved by you)
+        |#   sample <name>            show that drawing
+        |#   forget <name>            drop one of yours from the list (what you already
+        |#                            put on a target stays where it is)
+        |#
+        |# How to draw
+        |#   It is a ${grid}x${grid} grid of characters. '.' ' ' '0' '-' '_' leave a dot empty and
+        |#   anything else fills it in, so use whichever character you find easiest to see.
+        |#   Blank space around the drawing is ignored - it gets centred, so you do not have
+        |#   to fill all ${grid} lines exactly.
+        |#
+        |# Worth knowing
+        |#   ⚠ Only the shape gets through. Android paints these icons a single colour of its
+        |#     own (tiles change colour between on and off) and shows them about ${grid}px across:
+        |#     there is no colour to pick, and detail finer than the grid is lost.
+        |#   ⚠ A tile gets a drawing by itself when the name gives it away ('z2-tile set 1
+        |#     remind.sh' puts a clock there). Anything you set here wins and is never touched
+        |#     again — 'z2-icon auto 1' hands that slot back to the automatic choice.
+        |#   ⚠ Two icons cannot be changed: the one in the quick-settings **edit** screen (where
+        |#     you drag tiles from) and the launcher icon. Android fixes those at install time.
+        |#
+        |# e.g. z2-icon pick 1              choose the drawing for slot 1
+        |#      z2-icon edit 1              redraw it yourself
+        |#      z2-icon save 1 my-face      name that drawing and add it to the list
+        |#      z2-icon sample 3 my-face    put the same drawing on slot 3
+        |#      z2-icon list -p             check what is where, drawings and all
+        |#      z2-icon clear notify        put the notification icon back
     """.trimMargin() else """
-        |# z2-icon pick <notify|1-$tiles>        … 組み込みの絵から一覧で選んで入れる
-        |# z2-icon sample [名前] / [対象 名前]   … 組み込みの絵の一覧 / 1 つ表示 / 対象へ入れる
-        |# z2-icon edit <notify|1-$tiles>        … ${d}EDITOR で描いて保存すると反映されます
-        |# z2-icon set <notify|1-$tiles> [file]  … ファイルから読み込む (- で標準入力)
-        |# z2-icon show <notify|1-$tiles>        … いまの絵を表示
-        |# z2-icon clear <notify|1-$tiles|all>   … 元のアイコンに戻す
-        |# z2-icon auto <1-$tiles|all>       … 割り当てから選び直す (自分で入れた絵も上書き)
-        |# z2-icon list                      … どれを変えてあるかを TSV で
-        |#                                     (auto = 自動で付いた / custom = 自分で入れた)
-        |# notify はステータスバーのアイコン (このアプリが出す通知すべて)、
-        |# 1〜$tiles はクイック設定タイルで、枠ごとに別の絵にできます。
-        |# 絵は ${grid}x${grid} の文字のマス目です。'.' ' ' '0' '-' '_' が空きマス、
-        |# **それ以外の文字はすべて塗り**なので、自分が見やすい字で描けます。
-        |# まわりの余白は無視して中央に置き直すので、${grid} 行きっちりに合わせる必要はありません。
-        |# ⚠ **伝わるのは形だけ**です。Android がこれらのアイコンを単色で塗り直し
-        |# (タイルは入 / 切で色が変わります)、表示は ${grid}px 前後になります。色は選べず、
-        |# マス目より細かい描き込みは消えます — show で見えるものがそのまま出ます。
-        |# ⚠ クイック設定の**編集**画面 (タイルを引っぱり出すところ) のアイコンと、
-        |# ランチャーのアイコンは変えられません (Android が導入時に固定するため)。
-        |# サンプルもただのテキストです。入れてから z2-icon edit で自分の絵に直せます。
-        |# タイルは、割り当てた名前から分かるときに**自分でサンプルを選んで付けます**
-        |# (z2-tile set 1 remind.sh なら時計)。ここで入れた絵はそれより優先され、以後
-        |# 自動では触りません。
-        |# 例: z2-icon pick 1
-        |#     z2-icon sample notify bell
-        |#     z2-icon edit 1
-        |#     printf '..##..\n.####.\n..##..\n' | z2-icon set 2 -
-        |#     z2-icon auto 1
-        |#     z2-icon clear notify
+        |# ステータスバーとタイルのアイコンを、自分のドット絵に差し替えます。
+        |#
+        |# まずこれだけ
+        |#   z2-icon pick 1     ... 絵を一覧から選んでタイルの枠 1 に入れる
+        |#   z2-icon list       ... いまどの枠に何の絵が入っているか (-p を付けると絵も出ます)
+        |#
+        |# <対象> の書き方
+        |#   notify    このアプリが出す通知すべてのアイコン (ステータスバーに出るもの)
+        |#   1〜$tiles      クイック設定タイルの枠番号 - z2-tile の枠と同じ番号です
+        |#
+        |# 絵を入れる
+        |#   pick <対象>              一覧を出して番号で選ぶ (いちばん簡単)
+        |#   sample <対象> <名前>     名前が分かっているとき
+        |#   edit <対象>              ${d}EDITOR で描く / いまの絵を直す
+        |#   set <対象> <ファイル>    ファイルから読む (- で標準入力)
+        |#   auto <1〜$tiles|all>         割り当てたコマンドから選び直す
+        |#   clear <対象|all>         既定のアイコンに戻す
+        |#
+        |# 自分の絵を一覧に残す
+        |#   save <対象> <名前>       いま入っている絵に名前を付けて一覧に足す
+        |#   sample                   選べる絵の一覧 (番号 / 名前 /
+        |#                            builtin = 同梱の絵・mine = 自分で保存した絵)
+        |#   sample <名前>            その絵を表示する
+        |#   forget <名前>            自分の絵を一覧から下げる
+        |#                            (すでに入れてある絵はそのまま残ります)
+        |#
+        |# 描き方
+        |#   ${grid}x${grid} の文字のマス目です。'.' ' ' '0' '-' '_' が空きマスで、
+        |#   それ以外の文字はすべて塗りなので、自分が見やすい字で描けます。
+        |#   まわりの余白は無視して中央に置き直すので、${grid} 行きっちりでなくてかまいません。
+        |#
+        |# 覚えておくこと
+        |#   ⚠ 伝わるのは形だけです。Android がこれらのアイコンを単色で塗り直し
+        |#     (タイルは入 / 切で色が変わります)、表示は ${grid}px 前後になります。
+        |#     色は選べず、マス目より細かい描き込みは消えます。
+        |#   ⚠ タイルには、割り当てた名前から分かるものに絵が自動で付きます
+        |#     (z2-tile set 1 remind.sh なら時計)。ここで入れた絵はそれより優先され、
+        |#     以後は自動で触りません。自動に戻したいときは z2-icon auto 1 です。
+        |#   ⚠ 変えられないアイコンが 2 つあります: クイック設定の**編集**画面
+        |#     (タイルを引っぱり出すところ) のアイコンと、ランチャーのアイコン。
+        |#     Android が導入時に固定するためです。
+        |#
+        |# 例: z2-icon pick 1                枠 1 の絵を一覧から選ぶ
+        |#     z2-icon edit 1                自分で描き直す
+        |#     z2-icon save 1 わたしの顔     その絵に名前を付けて一覧に足す
+        |#     z2-icon sample 3 わたしの顔   枠 3 にも同じ絵を入れる
+        |#     z2-icon list -p               どこに何が入っているか絵つきで確かめる
+        |#     z2-icon clear notify          通知のアイコンを元に戻す
     """.trimMargin()
 
     val iconUsage: String =
         if (en) "usage: z2-icon pick <notify|1-$tiles> | sample [name|target name] | " +
             "edit <notify|1-$tiles> | set <notify|1-$tiles> [file|-] | " +
-            "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | list"
+            "save <notify|1-$tiles> <name> | forget <name> | " +
+            "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | list [-p]"
         else "usage: z2-icon pick <notify|1-$tiles> | sample [名前|対象 名前] | " +
             "edit <notify|1-$tiles> | set <notify|1-$tiles> [ファイル|-] | " +
-            "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | list"
+            "save <notify|1-$tiles> <名前> | forget <名前> | " +
+            "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | list [-p]"
 
     /** `z2-icon set` にファイルを指定したが無かったときの文言 (後ろにファイル名が付く)。 */
     val iconNoSuchFile: String =

@@ -161,4 +161,38 @@ class IconStoreTest {
         assertNull(IconStore.slotOf(IconStore.TARGET_NOTIFY))
         assertEquals(TileStore.COUNT + 1, IconStore.targets().size)
     }
+
+    /**
+     * 自分の絵に付けられる名前 (`z2-icon save`)。
+     *
+     * ⚠ **数字だけの名前を通さない**こと。一覧は番号でも名前でも選べるので、`3` という名前を
+     * 作れてしまうと「3 番」と「3 という名前」のどちらを指すのか決められなくなる。
+     * ⚠ 空白を含む名前も通さない — 一覧は TSV なので列がずれる。
+     */
+    @Test
+    fun sampleNamesRejectNumbersAndWhitespace() {
+        assertEquals("my-face", IconStore.normalizeSampleName("  my-face "))
+        assertEquals("わたしの顔", IconStore.normalizeSampleName("わたしの顔"))
+        assertNull(IconStore.normalizeSampleName("3"))
+        assertNull(IconStore.normalizeSampleName("my face"))
+        assertNull(IconStore.normalizeSampleName("a\tb"))
+        assertNull(IconStore.normalizeSampleName(""))
+        assertNull(IconStore.normalizeSampleName("x".repeat(25)))
+    }
+
+    /**
+     * ⚠ **同梱サンプルに同じ絵が 2 つ無い**こと。
+     *
+     * `z2-icon list` は入っている絵から名前を逆に引く ([IconStore.nameOf])。同じ形の絵が
+     * 2 つあると、入れたときと違う名前が出て「別の絵に化けた」ように見える。
+     */
+    @Test
+    fun noTwoSamplesAreTheSameDrawing() {
+        val seen = HashMap<String, String>()
+        IconSamples.ALL.forEach { (name, art) ->
+            val canonical = IconStore.toText(IconStore.parse(art))
+            val previous = seen.put(canonical, name)
+            assertNull("$previous と $name が同じ絵", previous)
+        }
+    }
 }

@@ -44,7 +44,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import androidx.core.net.toUri
 import com.zerotoship.z2term.R
-import com.zerotoship.z2term.icon.IconSamples
 import com.zerotoship.z2term.icon.IconStore
 import com.zerotoship.z2term.icon.refreshActiveNotifications
 import com.zerotoship.z2term.icon.setZ2SmallIcon
@@ -688,12 +687,13 @@ object Z2ApiBridge {
         // サンプルは**名前でも一覧の番号でも**指す。番号は `z2-icon pick` が読み上げた並びで、
         // 名前は覚えた人がそのまま打つためのもの。どちらか一方しか受けないと、一覧を見て
         // 選んだ直後の 1 回と、2 回目からの打ち方が食い違う。
+        // ⚠ 引くのは同梱の絵**と自分で保存した絵の両方**から ([IconStore.findSample])。
+        // 自分の絵を一覧に足せても番号や名前で選べなければ、足す意味が無い。
         fun sample(raw: String?): String {
             val key = raw.orEmpty().trim()
-            val byIndex = key.toIntOrNull()?.let { IconSamples.names().getOrNull(it - 1) }
-            return IconSamples.get(byIndex ?: key)
+            return IconStore.findSample(context, key)
                 ?: throw IllegalArgumentException(
-                    "z2-icon: そのサンプルはありません: $key (一覧は z2-icon sample)"
+                    "z2-icon: その絵はありません: $key (一覧は z2-icon sample)"
                 )
         }
         return when (args.getOrNull(0)) {
@@ -720,11 +720,24 @@ object Z2ApiBridge {
                 targets.forEach { IconStore.clear(context, it); applyIconChange(context, it) }
                 iconListTsv(context)
             }
-            // 組み込みのドット絵。`samples` は番号と名前だけの一覧 (絵まで並べると
-            // 14 個 x 12 行で画面が流れてしまう)。1 つ見たいときは `sample-show`。
-            "samples" -> IconSamples.names()
-                .mapIndexed { i, name -> "${i + 1}\t$name" }
-                .joinToString("\n")
+            // 選べる絵の一覧。`samples` は番号と名前だけ (絵まで並べると 1 つ 12 行で画面が
+            // 流れてしまう)。1 つ見たいときは `sample-show`。3 列目は出どころで、
+            // ⚠ `mine` (自分で保存した絵) だけが `z2-icon forget` で消せる。
+            "samples" -> iconSamplesTsv(context)
+            // いま入っている絵に名前を付けて一覧へ足す。⚠ 足すだけで、入っている絵は動かさない。
+            "save" -> {
+                val t = target(args.getOrNull(1))
+                val name = args.getOrNull(2).orEmpty()
+                IconStore.preview(IconStore.parse(IconStore.saveUserSample(context, t, name)))
+            }
+            // 一覧から下げるだけ。⚠ すでに入れてある絵はそのまま (戻すのは `z2-icon clear`)。
+            "forget" -> {
+                val name = args.getOrNull(1).orEmpty().trim()
+                if (!IconStore.deleteUserSample(context, name)) {
+                    throw IllegalArgumentException("z2-icon forget: 自分の絵にその名前はありません: $name")
+                }
+                iconSamplesTsv(context)
+            }
             "sample-show" -> IconStore.preview(IconStore.parse(sample(args.getOrNull(1))))
             "sample" -> {
                 val t = target(args.getOrNull(1))
@@ -749,6 +762,14 @@ object Z2ApiBridge {
                 iconListTsv(context)
             }
             "list", null, "" -> iconListTsv(context)
+            // 絵つきの一覧。⚠ **入れてある対象だけ**並べる (既定のままの枠まで空欄で並べると、
+            // 見たいものが画面の外へ流れる)。名前だけでは形を思い出せないときの逃げ道。
+            "list-preview" -> IconStore.targets().mapNotNull { t ->
+                val m = IconStore.mask(context, t) ?: return@mapNotNull null
+                val name = IconStore.slotOf(t)?.toString() ?: t
+                "$name\t${iconState(context, t)}\t${IconStore.nameOf(context, t) ?: "-"}\n" +
+                    IconStore.preview(m)
+            }.joinToString("\n\n").ifEmpty { "(まだどれも変えていません)" }
             else -> throw IllegalArgumentException("z2-icon: unknown subcommand: ${args[0]}")
         }
     }
@@ -775,13 +796,24 @@ object Z2ApiBridge {
      */
     private fun iconListTsv(context: Context): String = IconStore.targets().joinToString("\n") { t ->
         val name = IconStore.slotOf(t)?.toString() ?: t
-        val state = when {
-            IconStore.text(context, t) == null -> "-"
-            IconStore.isAuto(context, t) -> "auto"
-            else -> "custom"
-        }
-        "$name\t$state"
+        "$name\t${iconState(context, t)}\t${IconStore.nameOf(context, t) ?: "-"}"
     }
+
+    /** `-` = 既定のまま / `auto` = 割り当てから自動で入った / `custom` = 自分で入れた。 */
+    private fun iconState(context: Context, target: String): String = when {
+        IconStore.text(context, target) == null -> "-"
+        IconStore.isAuto(context, target) -> "auto"
+        else -> "custom"
+    }
+
+    /**
+     * 選べる絵の一覧 (番号 / 名前 / 出どころ)。`z2-icon sample` と `z2-icon pick` が同じものを出す。
+     *
+     * ⚠ 3 列目の `mine` が自分で保存した絵で、これだけが `z2-icon forget` で消せる。
+     */
+    private fun iconSamplesTsv(context: Context): String = IconStore.allSampleNames(context)
+        .mapIndexed { i, (name, mine) -> "${i + 1}\t$name\t${if (mine) "mine" else "builtin"}" }
+        .joinToString("\n")
 
     /**
      * 時刻トリガー (`z2-alarm`)。サブコマンドは CLI 側で正規化済みで、ここには

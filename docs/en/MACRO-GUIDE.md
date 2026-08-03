@@ -417,6 +417,23 @@ printf '..##..\n.####.\n..##..\n' | z2-icon set 3 -   # from stdin
   - Names that give nothing away get nothing (they keep the built-in icon).
 - The built-in drawings are **just text** as well: `pick` one, then open it with `z2-icon edit` and
   rework it into your own.
+- **A drawing of your own can be named and kept in the list** (0.8.300).
+
+  ```sh
+  z2-icon edit 1                 # draw your own on slot 1
+  z2-icon save 1 my-face         # name it and add it to the list
+  z2-icon sample 5 my-face       # put the same drawing on slot 5
+  z2-icon sample                 # the list (builtin = shipped / mine = yours)
+  z2-icon forget my-face         # drop it from the list (what is on a slot stays)
+  ```
+
+  A drawing in the list can be chosen by number or by name **exactly like a shipped one**
+  (it appears in `pick` too). ⚠ **Names cannot contain spaces** (the list is TSV, so a space
+  would shift the columns). ⚠ **A name cannot be digits only** either — the list is also
+  chosen by number, so a drawing called `3` could not be told apart from "number 3".
+- **`z2-icon list` tells you which drawing is on which slot** (0.8.300 prints **the name**;
+  before that it only said `custom`, which was no help once several slots were in use).
+  When the name does not bring the shape to mind, **`z2-icon list -p`** prints the drawings.
 
 ### `z2-alarm` (run on a schedule)
 

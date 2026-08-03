@@ -44,6 +44,21 @@ object IconStore {
     /** その枠の絵を [autoAssign] が入れたことの印。手で入れた絵と区別するためだけに持つ。 */
     private const val KEY_AUTO_PREFIX = "auto_"
 
+    /** 自分で描いて名前を付けた絵 (`z2-icon save`)。値は正規形テキスト。 */
+    private const val KEY_USER_PREFIX = "sample_"
+
+    /**
+     * 自分の絵の並び順 (改行区切り・登録順)。
+     *
+     * ⚠ **名前順に並べ替えない**。一覧は番号で選ぶので、名前順にすると新しく保存した絵が
+     * 途中へ割り込み、**前に覚えた番号が別の絵を指す**ようになる。末尾へ足せば番号は動かない
+     * (同梱サンプルの並びを固定してあるのと同じ理由)。
+     */
+    private const val KEY_USER_ORDER = "sample_order"
+
+    /** 自分の絵に付けられる名前の長さ。一覧で名前の列が流れない範囲。 */
+    private const val NAME_MAX = 24
+
     /** 塗らない点として読む文字。これ以外の**空白でない文字はすべて塗る**。 */
     private const val BLANK_CHARS = ". 0-_\t"
 
@@ -178,6 +193,125 @@ object IconStore {
             remove(KEY_AUTO_PREFIX + target)
         }
         cache.remove(target)
+    }
+
+    // --- 自分の絵 (名前を付けて一覧へ足す) ---
+
+    /**
+     * 自分で保存した絵の名前を**登録順**に。同梱サンプルの後ろに続く並び。
+     *
+     * **なぜ要るか**: `z2-icon edit` で描いた絵はその対象にしか残らず、別の枠へ同じ絵を入れたく
+     * なったら描き直すしかなかった。名前を付けて残せれば、同梱サンプルとまったく同じように
+     * `pick` の一覧から選べる — **自分の絵と同梱の絵の間に段差を作らない**。
+     */
+    fun userSampleNames(context: Context): List<String> =
+        prefs(context).getString(KEY_USER_ORDER, null)
+            ?.split("\n")
+            ?.filter { it.isNotBlank() && prefs(context).contains(KEY_USER_PREFIX + it) }
+            ?: emptyList()
+
+    /** 自分の絵 [name] の正規形テキスト。無ければ null。 */
+    fun userSample(context: Context, name: String): String? =
+        prefs(context).getString(KEY_USER_PREFIX + name, null)
+
+    /**
+     * 付けてよい名前か見て、正規化した名前を返す (Android 非依存・テスト用)。
+     *
+     * ⚠ **数字だけの名前を許さない**。一覧は番号でも名前でも選べるので、`3` という名前の絵を
+     * 作れてしまうと「3 番」と「3 という名前」のどちらを指すのか決められなくなる。
+     * ⚠ 空白とタブも許さない — 一覧は TSV で、名前に入ると列がずれる。
+     *
+     * @return 正規化した名前。使えない名前なら null
+     */
+    fun normalizeSampleName(raw: String): String? {
+        val name = raw.trim()
+        if (name.isEmpty() || name.length > NAME_MAX) return null
+        if (name.toIntOrNull() != null) return null
+        if (name.any { it.isWhitespace() || it.code < 0x20 }) return null
+        return name
+    }
+
+    /**
+     * いま [target] に入っている絵に [name] を付けて一覧へ足す。
+     *
+     * ⚠ **同梱サンプルと同じ名前は断る**。同名を許すと `z2-icon sample <名前>` がどちらを指すか
+     * 決められない。同じ名前で保存し直したときは**上書き** (並び順はそのまま) — 描き直して
+     * 保存し直すのはごく普通の流れで、そこで別名を強いる理由が無い。
+     *
+     * @return 保存した絵の正規形テキスト
+     * @throws IllegalArgumentException 名前が使えない・[target] が既定のまま
+     */
+    fun saveUserSample(context: Context, target: String, name: String): String {
+        val art = text(context, target)
+            ?: throw IllegalArgumentException("z2-icon save: $target は既定のアイコンのままです")
+        val key = normalizeSampleName(name)
+            ?: throw IllegalArgumentException(
+                "z2-icon save: その名前は使えません (空白と数字だけの名前は不可・$NAME_MAX 文字まで)"
+            )
+        require(IconSamples.get(key) == null) { "z2-icon save: $key は同梱の絵の名前です。別の名前を付けてください" }
+        val order = userSampleNames(context)
+        prefs(context).edit {
+            putString(KEY_USER_PREFIX + key, art)
+            if (key !in order) putString(KEY_USER_ORDER, (order + key).joinToString("\n"))
+        }
+        return art
+    }
+
+    /**
+     * 自分の絵 [name] を一覧から消す。
+     *
+     * ⚠ **入れてある対象の絵は消さない**。一覧から下げるのと、いま出ているアイコンを既定へ戻すのは
+     * 別の操作 (戻すのは `z2-icon clear`)。ここで両方やると、一覧の整理をしただけで
+     * タイルの見た目が変わってしまう。
+     */
+    fun deleteUserSample(context: Context, name: String): Boolean {
+        if (userSample(context, name) == null) return false
+        prefs(context).edit {
+            remove(KEY_USER_PREFIX + name)
+            putString(KEY_USER_ORDER, userSampleNames(context).filter { it != name }.joinToString("\n"))
+        }
+        return true
+    }
+
+    /**
+     * 同梱と自分の絵を合わせた一覧 (この順が `pick` の番号)。
+     *
+     * @return 名前 → 自分の絵なら true
+     */
+    fun allSampleNames(context: Context): List<Pair<String, Boolean>> =
+        IconSamples.names().map { it to false } + userSampleNames(context).map { it to true }
+
+    /** 番号 (1 始まり) か名前で絵を引く。無ければ null。 */
+    fun findSample(context: Context, key: String): String? {
+        val k = key.trim()
+        val byIndex = k.toIntOrNull()?.let { allSampleNames(context).getOrNull(it - 1)?.first }
+        val name = byIndex ?: k
+        return IconSamples.get(name) ?: userSample(context, name)
+    }
+
+    /**
+     * いま [target] に入っている絵の**名前**。同梱にも自分の絵にも無いものは null。
+     *
+     * **なぜ要るか**: `z2-icon list` が「変えてある」ことしか出さないと、枠を何枚も使ったときに
+     * **どの枠に何の絵が入っているのか分からない** (利用者の指摘)。名前まで出せば一覧で見分けが
+     * 付き、名前の無い絵は `z2-icon save` で名前を付ければよい、と次の一手も見える。
+     */
+    fun nameOf(context: Context, target: String): String? {
+        val art = text(context, target) ?: return null
+        builtinByArt[art]?.let { return it }
+        return userSampleNames(context).firstOrNull { userSample(context, it) == art }
+    }
+
+    /**
+     * 同梱サンプルの「絵 → 名前」。⚠ 同梱の絵は書かれたまま (余白や字がまちまち) なので、
+     * [parse] を通した**正規形**で引き当てる — 保存されている絵も正規形なので、これで一致する。
+     */
+    private val builtinByArt: Map<String, String> by lazy {
+        IconSamples.names().mapNotNull { name ->
+            IconSamples.get(name)
+                ?.let { runCatching { toText(parse(it)) }.getOrNull() }
+                ?.let { it to name }
+        }.toMap()
     }
 
     // --- Android へ渡す形 ---

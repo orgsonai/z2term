@@ -298,7 +298,18 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |}
         |sub="${d}{1:-list}"
         |case "${d}sub" in
-        |  list) exec /usr/local/bin/z2api 1 icon list ;;
+        |  list)
+        |    # -p は絵つき。名前だけでは形を思い出せないときに使う。
+        |    case "${d}{2:-}" in
+        |      -p|--preview) exec /usr/local/bin/z2api 1 icon list-preview ;;
+        |    esac
+        |    exec /usr/local/bin/z2api 1 icon list ;;
+        |  save)
+        |    [ ${d}# -ge 3 ] || usage
+        |    exec /usr/local/bin/z2api 1 icon save "${d}2" "${d}3" ;;
+        |  forget)
+        |    [ ${d}# -ge 2 ] || usage
+        |    exec /usr/local/bin/z2api 1 icon forget "${d}2" ;;
         |  show)
         |    [ ${d}# -ge 2 ] || usage
         |    exec /usr/local/bin/z2api 1 icon show "${d}2" ;;
