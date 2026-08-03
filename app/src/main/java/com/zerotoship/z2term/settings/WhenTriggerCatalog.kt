@@ -45,6 +45,9 @@ object WhenTriggerCatalog {
     data class Kind(val id: String, val labelKey: String, val options: List<Option>)
 
     /** 画面に出す順。よく使うもの（充電・電池・時刻・Wi-Fi）を先に置く。 */
+    // ⚠ /sdcard は利用者へ見せる**入力例**で、ディストロ側から見えるパス。Android の
+    // 外部ストレージ API に置き換えると、端末で打つパスと食い違う例になる。
+    @Suppress("SdCardPath")
     val kinds: List<Kind> = listOf(
         Kind("charge", "charge", listOf(Option("charge:start"), Option("charge:stop"))),
         Kind("battery", "battery", listOf(Option("battery:below=", "20"), Option("battery:above=", "80"))),

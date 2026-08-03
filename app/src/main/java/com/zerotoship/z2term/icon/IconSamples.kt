@@ -299,4 +299,48 @@ object IconSamples {
 
     /** サンプルの名前を並び順に。 */
     fun names(): List<String> = ALL.keys.toList()
+
+    /**
+     * タイルに割り当てた中身から、合いそうな絵を選ぶ (Android 非依存・テスト用)。
+     *
+     * **なぜ要るか**: `z2-tile set` でマクロを置いた直後のタイルは、`z2-icon` を別に打つまで
+     * 全部同じ既定のアイコンで並ぶ。枠が 12 になって**並べるほど見分けが付かなくなった**ので、
+     * 置いた中身から分かる範囲だけ最初から絵を入れておく (0.8.299)。
+     *
+     * ⚠ **当たらなければ何も返さない**。無理に何かを当てると、意味の合わない絵が黙って付く方が
+     * 既定のアイコンより分かりにくい。⚠ 当たった絵は**目安**でしかないので、気に入らなければ
+     * `z2-icon` で上書きでき、そのあとは自動で触らない ([IconStore.autoAssign])。
+     *
+     * @return サンプルの名前。合うものが無ければ null
+     */
+    fun guess(command: String): String? {
+        val c = command.lowercase()
+        return KEYWORDS.firstOrNull { (words, _) -> words.any { it in c } }?.second
+    }
+
+    /**
+     * 「この語が入っていればこの絵」の対応。**上から順に見て先に当たったもの**を採る。
+     *
+     * ⚠ 順序が意味を持つ。`battery-alert` は `battery` (電池) が `alert` (通知) より先で電池、
+     * `unknown-call` は `unknown` (見知らぬ) が `call` (着信) より先で注意 — どちらも
+     * **後ろの語のほうが一般的**なので、狭い意味の語を上に置く。
+     *
+     * ⚠ 短すぎる語を入れない。`log` は `login` に、`test` は `latest` に、`dir` は `direct` に
+     * 当たってしまう。**当たらないより、間違って当たるほうが悪い**。
+     */
+    private val KEYWORDS: List<Pair<List<String>, String>> = listOf(
+        listOf("remind", "alarm", "timer", "schedule", "cron") to "clock",
+        listOf("battery", "charge", "charging") to "battery",
+        listOf("torch", "flashlight") to "bolt",
+        listOf("unknown", "warn", "error", "failed", "alert") to "warning",
+        listOf("notify", "call", "ring", "phone", "sms", "otp", "mail", "message") to "bell",
+        listOf("screen", "keepon", "sleep", "night", "silent", "quiet") to "moon",
+        listOf("ssh", "server", "wifi", "network", "tether", "tunnel") to "wifi",
+        listOf("sync", "backup", "rss", "feed", "fetch", "upload", "download", "git") to "sync",
+        listOf("report", "file", "folder", "archive", "doc") to "folder",
+        listOf("watch", "monitor", "check", "doctor", "scan", "status", "health") to "check",
+        listOf("setting", "config", "setup") to "gear",
+        listOf("favorite", "bookmark") to "star",
+        listOf("shell", "term", "console", "bash", "zsh") to "terminal",
+    )
 }

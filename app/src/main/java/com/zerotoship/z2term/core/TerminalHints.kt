@@ -43,6 +43,9 @@ object TerminalHints {
      * 複数当たったときは**この順**で先頭のものを返す。より具体的なパターンを先に置く
      * (`/usr/sbin/sshd: not found` は「コマンドが無い」でもあるが、案内すべきは sshd の方)。
      */
+    // ⚠ /sdcard は Android の外部ストレージ API に置き換える対象ではない — ここで見ているのは
+    // **端末の出力に含まれる文字列**で、ディストロ側から見えるパスそのもの。
+    @Suppress("SdCardPath")
     fun detect(text: String): Hint? {
         if (text.isEmpty()) return null
         return when {

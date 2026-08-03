@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.SessionManager
@@ -1818,7 +1819,7 @@ private fun AppInfoSection(
                     onClick = {
                         runCatching {
                             context.startActivity(
-                                Intent(Intent.ACTION_VIEW, android.net.Uri.parse(r.url))
+                                Intent(Intent.ACTION_VIEW, r.url.toUri())
                                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             )
                         }

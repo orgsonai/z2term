@@ -632,6 +632,10 @@ object Z2ApiBridge {
                 args.getOrNull(3).orEmpty(),
                 args.getOrNull(4).orEmpty()
             )
+            // 置いた中身に合う絵があれば入れておく。⚠ 自分で決めた絵は上書きしない
+            // ([IconStore.autoAssign])。枠が 12 になり、並べるほど既定のアイコンだけでは
+            // 見分けが付かなくなったため。
+            IconStore.autoAssign(context, n, args.getOrNull(2).orEmpty())
             Z2TileService.requestUpdate(context, n)
             tileListTsv(context)
         }
@@ -642,7 +646,12 @@ object Z2ApiBridge {
                 key.toIntOrNull()
                     ?: throw IllegalArgumentException("z2-tile: 枠は 1〜${TileStore.COUNT} か all です")
             )
-            targets.forEach { TileStore.clear(context, it); Z2TileService.requestUpdate(context, it) }
+            targets.forEach {
+                TileStore.clear(context, it)
+                // 自動で入った絵は割り当てと一緒に片付ける (自分で描いた絵は残す)。
+                IconStore.clearAuto(context, it)
+                Z2TileService.requestUpdate(context, it)
+            }
             tileListTsv(context)
         }
         "list", null, "" -> tileListTsv(context)
@@ -723,6 +732,22 @@ object Z2ApiBridge {
                 applyIconChange(context, t)
                 IconStore.preview(drawn)
             }
+            // 割り当てから絵を選び直す。⚠ こちらは**手で入れた絵も上書きする** — 明示的に
+            // 頼まれたときだけ通る道で、これが無いと一度手で入れた枠を自動へ戻せない。
+            "auto" -> {
+                val key = args.getOrNull(1).orEmpty()
+                val slots = if (key == "all") (1..TileStore.COUNT).toList()
+                else listOf(
+                    IconStore.slotOf(target(key))
+                        ?: throw IllegalArgumentException("z2-icon auto: 対象は枠 1〜${TileStore.COUNT} か all です")
+                )
+                slots.forEach { n ->
+                    val command = TileStore.get(context, n)?.command.orEmpty()
+                    IconStore.autoAssign(context, n, command, force = true)
+                    Z2TileService.requestUpdate(context, n)
+                }
+                iconListTsv(context)
+            }
             "list", null, "" -> iconListTsv(context)
             else -> throw IllegalArgumentException("z2-icon: unknown subcommand: ${args[0]}")
         }
@@ -744,10 +769,18 @@ object Z2ApiBridge {
     /**
      * `z2-icon list` の TSV。列は **対象 / 状態** の 2 つ。`-` が「既定のアイコンのまま」で、
      * `z2-tile list` の空き枠と同じ読み方に揃える。
+     *
+     * ⚠ `auto` (割り当てから自動で入った) と `custom` (自分で入れた) を**出し分ける**。
+     * どちらなのかが見えないと、`z2-icon auto` で自動へ戻せることに気付けない。
      */
     private fun iconListTsv(context: Context): String = IconStore.targets().joinToString("\n") { t ->
         val name = IconStore.slotOf(t)?.toString() ?: t
-        "$name\t${if (IconStore.text(context, t) != null) "custom" else "-"}"
+        val state = when {
+            IconStore.text(context, t) == null -> "-"
+            IconStore.isAuto(context, t) -> "auto"
+            else -> "custom"
+        }
+        "$name\t$state"
     }
 
     /**

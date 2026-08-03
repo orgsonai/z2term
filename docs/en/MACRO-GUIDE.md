@@ -406,6 +406,15 @@ printf '..##..\n.####.\n..##..\n' | z2-icon set 3 -   # from stdin
 - ⚠ **Three things cannot be changed** (Android fixes them at install time): the icon in the
   quick-settings **edit** screen (where you drag the tile from), the **file-picker root icon**, and
   the **launcher icon**. Placed tiles and posted notifications do change.
+- **A tile picks its own drawing.** When you put something on a slot with `z2-tile set`, a
+  matching drawing is filled in wherever the name gives it away (`remind.sh` gets a clock,
+  `battery-alert.sh` a battery, `z2-screen keepon` a moon). Every bundled macro matches one.
+  - ⚠ **A drawing you set is never lost.** Only "no drawing yet" and "filled in here before"
+    are touched; once you set one with `z2-icon`, that slot is left alone.
+  - **To go back to automatic, `z2-icon auto <slot>`** (`all` for every slot). That one **does
+    overwrite your own drawing** and re-picks. `z2-icon list` shows which is which
+    (`auto` = picked for you, `custom` = you set it, `-` = still the built-in icon).
+  - Names that give nothing away get nothing (they keep the built-in icon).
 - The built-in drawings are **just text** as well: `pick` one, then open it with `z2-icon edit` and
   rework it into your own.
 

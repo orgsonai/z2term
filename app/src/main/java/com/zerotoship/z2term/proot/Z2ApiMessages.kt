@@ -198,7 +198,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# $tiles slots: the number is fixed in the manifest and cannot grow at runtime.
         |# Slots you have not assigned anything to do not show up in that edit screen at all,
         |# so having $tiles of them costs you nothing.
-        |# Give a slot its own icon with z2-icon (see z2-icon for how to draw one).
+        |# A slot gets a matching icon by itself where the name gives it away (remind.sh -> a clock),
+        |# and z2-icon replaces it with anything you like — once you do, it is left alone.
         |# e.g. z2-tile set 1 backup.sh
         |#      z2-tile set 2 'z2-screen keepon 1h' -l "no sleep"
         |#      z2-tile set 3 z2-torch on --off z2-torch off -l torch
@@ -226,7 +227,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# — アプリが勝手に置くことは Android が禁じています。枠はちょうど $tiles 個で、
         |# manifest で決め打ちのため実行中に増やせません。まだ割り当てていない枠は編集画面の
         |# 一覧にも出ないので、$tiles 個あっても邪魔になりません。
-        |# 枠ごとにアイコンを変えられます (描き方は z2-icon を参照)。
+        |# 名前から分かるものは**アイコンが自動で付きます** (remind.sh なら時計)。z2-icon で
+        |# 好きな絵に変えられ、一度変えたらそれ以降は自動で触りません。
         |# 例: z2-tile set 1 backup.sh
         |#     z2-tile set 2 'z2-screen keepon 1h' -l 消灯しない
         |#     z2-tile set 3 z2-torch on --off z2-torch off -l ライト
@@ -249,7 +251,9 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# z2-icon set <notify|1-$tiles> [file]  … take the drawing from a file (or stdin with -)
         |# z2-icon show <notify|1-$tiles>        … print the current drawing
         |# z2-icon clear <notify|1-$tiles|all>   … back to the built-in icon
+        |# z2-icon auto <1-$tiles|all>       … re-pick from what the tile runs (overwrites yours)
         |# z2-icon list                      … which ones you have changed, as TSV
+        |#                                     ('auto' = picked for you, 'custom' = you set it)
         |# 'notify' is the icon in the status bar (every notification this app puts out);
         |# 1-$tiles are the quick-settings tiles, one drawing each.
         |# The drawing is a ${grid}x${grid} grid of characters. '.' ' ' '0' '-' '_' leave a dot empty,
@@ -263,10 +267,13 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# ⚠ The icon in the quick-settings **edit** screen (the one you drag the tile from) and
         |# the launcher icon cannot be changed: Android fixes those at install time.
         |# A sample is just text as well: pick one, then 'z2-icon edit' it into your own.
+        |# Tiles pick a sample by themselves when the assigned name gives it away ('z2-tile set 1
+        |# remind.sh' puts a clock there). Anything you set here overrides that for good.
         |# e.g. z2-icon pick 1
         |#      z2-icon sample notify bell
         |#      z2-icon edit 1
         |#      printf '..##..\n.####.\n..##..\n' | z2-icon set 2 -
+        |#      z2-icon auto 1
         |#      z2-icon clear notify
     """.trimMargin() else """
         |# z2-icon pick <notify|1-$tiles>        … 組み込みの絵から一覧で選んで入れる
@@ -275,7 +282,9 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# z2-icon set <notify|1-$tiles> [file]  … ファイルから読み込む (- で標準入力)
         |# z2-icon show <notify|1-$tiles>        … いまの絵を表示
         |# z2-icon clear <notify|1-$tiles|all>   … 元のアイコンに戻す
+        |# z2-icon auto <1-$tiles|all>       … 割り当てから選び直す (自分で入れた絵も上書き)
         |# z2-icon list                      … どれを変えてあるかを TSV で
+        |#                                     (auto = 自動で付いた / custom = 自分で入れた)
         |# notify はステータスバーのアイコン (このアプリが出す通知すべて)、
         |# 1〜$tiles はクイック設定タイルで、枠ごとに別の絵にできます。
         |# 絵は ${grid}x${grid} の文字のマス目です。'.' ' ' '0' '-' '_' が空きマス、
@@ -287,20 +296,24 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# ⚠ クイック設定の**編集**画面 (タイルを引っぱり出すところ) のアイコンと、
         |# ランチャーのアイコンは変えられません (Android が導入時に固定するため)。
         |# サンプルもただのテキストです。入れてから z2-icon edit で自分の絵に直せます。
+        |# タイルは、割り当てた名前から分かるときに**自分でサンプルを選んで付けます**
+        |# (z2-tile set 1 remind.sh なら時計)。ここで入れた絵はそれより優先され、以後
+        |# 自動では触りません。
         |# 例: z2-icon pick 1
         |#     z2-icon sample notify bell
         |#     z2-icon edit 1
         |#     printf '..##..\n.####.\n..##..\n' | z2-icon set 2 -
+        |#     z2-icon auto 1
         |#     z2-icon clear notify
     """.trimMargin()
 
     val iconUsage: String =
         if (en) "usage: z2-icon pick <notify|1-$tiles> | sample [name|target name] | " +
             "edit <notify|1-$tiles> | set <notify|1-$tiles> [file|-] | " +
-            "show <notify|1-$tiles> | clear <notify|1-$tiles|all> | list"
+            "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | list"
         else "usage: z2-icon pick <notify|1-$tiles> | sample [名前|対象 名前] | " +
             "edit <notify|1-$tiles> | set <notify|1-$tiles> [ファイル|-] | " +
-            "show <notify|1-$tiles> | clear <notify|1-$tiles|all> | list"
+            "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | list"
 
     /** `z2-icon set` にファイルを指定したが無かったときの文言 (後ろにファイル名が付く)。 */
     val iconNoSuchFile: String =

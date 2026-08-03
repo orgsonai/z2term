@@ -1,6 +1,7 @@
 package com.zerotoship.z2term.widget
 
 import android.content.Context
+import androidx.core.content.edit
 import java.io.File
 import java.util.Calendar
 import java.util.TimeZone
@@ -63,9 +64,9 @@ object WidgetStore {
 
     /** [appWidgetId] のマクロ選択を保存する。 */
     fun setMacros(context: Context, appWidgetId: Int, names: List<String>) {
-        prefs(context).edit()
-            .putString(KEY_MACROS_PREFIX + appWidgetId, names.take(MAX_MACROS).joinToString("\n"))
-            .apply()
+        prefs(context).edit {
+            putString(KEY_MACROS_PREFIX + appWidgetId, names.take(MAX_MACROS).joinToString("\n"))
+        }
     }
 
     /** ウィジェットが削除されたときに設定を捨てる。 */
@@ -83,9 +84,9 @@ object WidgetStore {
             .coerceIn(MIN_TEXT_SP, MAX_TEXT_SP)
 
     fun setTextSp(context: Context, appWidgetId: Int, sp: Int) {
-        prefs(context).edit()
-            .putInt(KEY_TEXT_SP_PREFIX + appWidgetId, sp.coerceIn(MIN_TEXT_SP, MAX_TEXT_SP))
-            .apply()
+        prefs(context).edit {
+            putInt(KEY_TEXT_SP_PREFIX + appWidgetId, sp.coerceIn(MIN_TEXT_SP, MAX_TEXT_SP))
+        }
     }
 
     /**
@@ -99,10 +100,10 @@ object WidgetStore {
             .coerceAtLeast(6).toFloat()
 
     fun clear(context: Context, appWidgetId: Int) {
-        prefs(context).edit()
-            .remove(KEY_MACROS_PREFIX + appWidgetId)
-            .remove(KEY_TEXT_SP_PREFIX + appWidgetId)
-            .apply()
+        prefs(context).edit {
+            remove(KEY_MACROS_PREFIX + appWidgetId)
+            remove(KEY_TEXT_SP_PREFIX + appWidgetId)
+        }
     }
 
     // --- 実行の記録 ---
@@ -113,11 +114,11 @@ object WidgetStore {
      * 分からなかった** (実機フィードバック 2026-07-24)。ボタンの 2 行目に出す。
      */
     fun setRunStart(context: Context, name: String) {
-        prefs(context).edit()
-            .putLong(KEY_RUN_AT_PREFIX + name, System.currentTimeMillis())
-            .putString(KEY_LAST_RUN_NAME, name)
-            .putLong(KEY_LAST_RUN_AT, System.currentTimeMillis())
-            .apply()
+        prefs(context).edit {
+            putLong(KEY_RUN_AT_PREFIX + name, System.currentTimeMillis())
+            putString(KEY_LAST_RUN_NAME, name)
+            putLong(KEY_LAST_RUN_AT, System.currentTimeMillis())
+        }
     }
 
     /** [name] を最後に開始した時刻 (一度も無ければ 0)。 */
@@ -130,10 +131,10 @@ object WidgetStore {
      * 正常終了と停止の区別が付かなかった (同上のフィードバック)。
      */
     fun setRunFinish(context: Context, name: String) {
-        prefs(context).edit()
-            .putString(KEY_LAST_FINISH_NAME, name)
-            .putLong(KEY_LAST_FINISH_AT, System.currentTimeMillis())
-            .apply()
+        prefs(context).edit {
+            putString(KEY_LAST_FINISH_NAME, name)
+            putLong(KEY_LAST_FINISH_AT, System.currentTimeMillis())
+        }
     }
 
     /** 直近に終わったマクロ名と時刻 (無ければ null)。 */
@@ -159,11 +160,13 @@ object WidgetStore {
      */
     fun clearRunHistory(context: Context) {
         val p = prefs(context)
-        val editor = p.edit()
-        p.all.keys.filter { it.startsWith(KEY_RUN_AT_PREFIX) }.forEach { editor.remove(it) }
-        editor.remove(KEY_LAST_RUN_NAME).remove(KEY_LAST_RUN_AT)
-        editor.remove(KEY_LAST_FINISH_NAME).remove(KEY_LAST_FINISH_AT)
-        editor.apply()
+        p.edit {
+            p.all.keys.filter { it.startsWith(KEY_RUN_AT_PREFIX) }.forEach { remove(it) }
+            remove(KEY_LAST_RUN_NAME)
+            remove(KEY_LAST_RUN_AT)
+            remove(KEY_LAST_FINISH_NAME)
+            remove(KEY_LAST_FINISH_AT)
+        }
     }
 
     /**

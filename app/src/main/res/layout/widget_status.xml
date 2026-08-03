@@ -15,6 +15,7 @@
    - ボタンは 2 行 (名前 / 開始時刻) にして、複数走らせても取り違えないようにする。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -113,6 +114,7 @@
         android:layout_marginTop="5dp"
         android:textColor="@color/widget_text_tertiary"
         android:textSize="10sp"
+        tools:ignore="SmallSp"
         android:fontFamily="monospace"
         android:singleLine="true"
         android:ellipsize="end" />

@@ -1,6 +1,7 @@
 package com.zerotoship.z2term.widget
 
 import android.content.Context
+import androidx.core.content.edit
 import java.io.File
 
 /**
@@ -74,7 +75,7 @@ object TailStore {
     }
 
     fun set(context: Context, appWidgetId: Int, relPath: String) {
-        prefs(context).edit().putString(KEY_PATH_PREFIX + appWidgetId, relPath).apply()
+        prefs(context).edit { putString(KEY_PATH_PREFIX + appWidgetId, relPath) }
     }
 
     /** [appWidgetId] がファイルのどちら側を見るか (未設定なら [Mode.TAIL])。 */
@@ -82,7 +83,7 @@ object TailStore {
         Mode.from(prefs(context).getString(KEY_MODE_PREFIX + appWidgetId, null))
 
     fun setMode(context: Context, appWidgetId: Int, mode: Mode) {
-        prefs(context).edit().putString(KEY_MODE_PREFIX + appWidgetId, mode.name).apply()
+        prefs(context).edit { putString(KEY_MODE_PREFIX + appWidgetId, mode.name) }
     }
 
     /** [appWidgetId] の本文の文字サイズ (sp)。未設定なら [DEFAULT_TEXT_SP]。 */
@@ -91,18 +92,18 @@ object TailStore {
             .coerceIn(MIN_TEXT_SP, MAX_TEXT_SP)
 
     fun setTextSp(context: Context, appWidgetId: Int, sp: Int) {
-        prefs(context).edit()
-            .putInt(KEY_TEXT_SP_PREFIX + appWidgetId, sp.coerceIn(MIN_TEXT_SP, MAX_TEXT_SP))
-            .apply()
+        prefs(context).edit {
+            putInt(KEY_TEXT_SP_PREFIX + appWidgetId, sp.coerceIn(MIN_TEXT_SP, MAX_TEXT_SP))
+        }
     }
 
     /** ウィジェットが削除されたときに設定を捨てる。 */
     fun clear(context: Context, appWidgetId: Int) {
-        prefs(context).edit()
-            .remove(KEY_PATH_PREFIX + appWidgetId)
-            .remove(KEY_MODE_PREFIX + appWidgetId)
-            .remove(KEY_TEXT_SP_PREFIX + appWidgetId)
-            .apply()
+        prefs(context).edit {
+            remove(KEY_PATH_PREFIX + appWidgetId)
+            remove(KEY_MODE_PREFIX + appWidgetId)
+            remove(KEY_TEXT_SP_PREFIX + appWidgetId)
+        }
     }
 
     // --- パスの解決 ---

@@ -580,7 +580,8 @@
     <string name="log_raw">色や制御文字をそのまま残す</string>
     <string name="log_raw_desc">不具合報告用の生ログ。OFF なら人が読めるテキストに直します</string>
     <string name="log_timestamp">各行の先頭に日時を付ける</string>
-    <string name="log_timestamp_desc">[2026-07-27 08:42:13] のように、桁の揃った日時を行頭に付けます。生ログのときは付きません（バイト列をそのまま残すため）</string>
+    <!-- ハイフンは ISO 日付の見本の一部。en dash に替えると実際の出力と食い違う。 -->
+    <string name="log_timestamp_desc" tools:ignore="TypographyDashes">[2026-07-27 08:42:13] のように、桁の揃った日時を行頭に付けます。生ログのときは付きません（バイト列をそのまま残すため）</string>
     <string name="log_mask">鍵・トークンを伏せ字にする</string>
     <string name="log_mask_desc">TOKEN=… のような「名前＝値」と、貼り付けた秘密鍵、ghp_ / AKIA などの決まった形のトークンを [z2term:masked] に置き換えます</string>
     <string name="log_secret_warning">※ 画面に出たものはそのまま入ります（打っただけで画面に出ないパスワードは入りません）。記録中はツールバーのボタンが点灯します。\n※ 伏せ字は形がはっきりしているものだけが対象で、完全ではありません。独自の形の秘密は素通りします。人に渡す前に必ず中身を確認してください。</string>
@@ -591,7 +592,6 @@
     <string name="widget_refresh_desc">更新</string>
     <string name="widget_ssh_none">LAN アドレスなし</string>
     <string name="widget_stats">常駐 %1$d/%2$d \u00b7 自動化 %3$d/%4$d \u00b7 電池 %5$d%%</string>
-    <string name="widget_last_run">\u25b6 %1$s %2$s</string>
     <string name="widget_config_btn_desc">\u30de\u30af\u30ed\u3092\u9078\u3076</string>
     <string name="widget_btn_idle">%1$s\n%2$s</string>
     <string name="widget_btn_done">\u2713 %1$s\n%2$s</string>

@@ -16,6 +16,9 @@ package com.zerotoship.z2term.proot
  *  - アプリ側にしか無い情報（許可の有無・設定・常駐の数）は `z2api 1 doctor` で JSON を取り、
  *    端末から見えるもの（kernel・空き容量・sshd・PATH）は**シェル側で調べる**。
  */
+// ⚠ /sdcard は z2doctor が**端末に出す行の見出し**で、ディストロ側から見えるパスそのもの。
+// Android の外部ストレージ API に置き換える対象ではない。
+@Suppress("SdCardPath")
 fun z2doctorScript(lang: String = "ja"): String {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
     val en = lang == "en"

@@ -1,7 +1,9 @@
 package com.zerotoship.z2term.icon
 
+import com.zerotoship.z2term.proot.z2MacroSamples
 import com.zerotoship.z2term.tile.TileStore
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -110,6 +112,46 @@ class IconStoreTest {
             val m = IconStore.parse(art)  // 読めなければここで落ちる
             assertTrue("$name に塗りが無い", m.any { it })
         }
+    }
+
+    /**
+     * **同梱マクロは全部、タイルに置いた時点で絵が付く**こと。
+     *
+     * `z2-macro install` で入るものが「自分では絵を選べない人が最初に置くもの」なので、
+     * ここが 1 本でも抜けると、揃えて並べたタイルの中にひとつだけ既定のアイコンが混ざる。
+     */
+    @Test
+    fun everyBundledMacroGetsAnIcon() {
+        val macros = z2MacroSamples("ja").keys
+        assertTrue(macros.isNotEmpty())
+        macros.forEach { name ->
+            val guessed = IconSamples.guess(name)
+            assertNotNull("$name に当たる絵が無い", guessed)
+            assertNotNull("$name → $guessed という絵が無い", IconSamples.get(guessed!!))
+        }
+    }
+
+    /** 何を当てるかを固定する。⚠ 語の並び順で結果が変わるので、代表例を押さえておく。 */
+    @Test
+    fun theGuessFollowsTheNarrowerWordFirst() {
+        assertEquals("clock", IconSamples.guess("remind.sh ask"))
+        assertEquals("moon", IconSamples.guess("z2-screen keepon 1h"))
+        assertEquals("bolt", IconSamples.guess("z2-torch on"))
+        assertEquals("sync", IconSamples.guess("backup.sh"))
+        // ⚠ battery が alert より、unknown が call より先。狭い意味の語を上に置いてある。
+        assertEquals("battery", IconSamples.guess("battery-alert.sh"))
+        assertEquals("warning", IconSamples.guess("unknown-call.sh"))
+        // 当たらないものは当てない (意味の合わない絵が黙って付く方が分かりにくい)。
+        assertNull(IconSamples.guess("ls -la"))
+        assertNull(IconSamples.guess("./run"))
+    }
+
+    /** ⚠ 短い語で誤爆しないこと (`log` が `login` に当たるような取りこぼしの逆)。 */
+    @Test
+    fun theGuessDoesNotFireOnUnrelatedWords() {
+        assertNull(IconSamples.guess("latest.sh"))
+        assertNull(IconSamples.guess("direct.sh"))
+        assertNull(IconSamples.guess("login.sh"))
     }
 
     /** 枠番号は往復する (`z2-icon list` が枠を番号で出すのに使う)。 */

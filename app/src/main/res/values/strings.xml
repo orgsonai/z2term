@@ -24,12 +24,13 @@
     <string name="settings_keyboard_toggle_bar">Keyboard toggle bar</string>
     <string name="settings_keyboard_toggle_bar_desc">Show a show/hide bar above the keyboard. When off, double-tap the ⌨ button to toggle.</string>
     <string name="settings_section_user_dict">User dictionary</string>
-    <string name="settings_user_dict_desc">Add your own words from a file, one word per line. Both "reading /candidate1/candidate2/" (SKK format) and "reading&lt;TAB&gt;word&lt;TAB&gt;part-of-speech" (what IME dictionary tools export) are read. Lines starting with ; or # are comments. UTF-8 and EUC-JP are both read. Only lines whose reading is hiragana are imported.</string>
-    <string name="settings_user_dict_count">%1$d words / %2$d files</string>
+    <!-- "candidate1" is part of the SKK dictionary format, not a typo for "candidate!". -->
+    <string name="settings_user_dict_desc" tools:ignore="Typos">Add your own words from a file, one word per line. Both "reading /candidate1/candidate2/" (SKK format) and "reading&lt;TAB&gt;word&lt;TAB&gt;part-of-speech" (what IME dictionary tools export) are read. Lines starting with ; or # are comments. UTF-8 and EUC-JP are both read. Only lines whose reading is hiragana are imported.</string>
+    <string name="settings_user_dict_count" tools:ignore="PluralsCandidate">%1$d words / %2$d files</string>
     <string name="settings_user_dict_add">Choose a dictionary file</string>
-    <string name="settings_user_dict_file">%1$s  %2$d words</string>
+    <string name="settings_user_dict_file" tools:ignore="PluralsCandidate">%1$s  %2$d words</string>
     <string name="settings_user_dict_remove">Remove</string>
-    <string name="settings_user_dict_added">Imported %1$s (%2$d words)</string>
+    <string name="settings_user_dict_added" tools:ignore="PluralsCandidate">Imported %1$s (%2$d words)</string>
     <string name="settings_user_dict_too_large">That file is too large (8MB limit)</string>
     <string name="settings_user_dict_no_entries">No words could be read. Check that each line looks like "reading /candidate/" or tab-separated "reading&lt;TAB&gt;word", and that readings are hiragana</string>
     <string name="settings_user_dict_failed">Could not import: %1$s</string>
@@ -190,7 +191,7 @@
     <string name="history_search_hint">filter (space-separated words)</string>
     <string name="history_empty">No history yet. Commands you run in the terminal appear here.</string>
     <string name="history_no_match">Nothing matches that filter.</string>
-    <string name="history_more">…and %1$d more — narrow the filter to reach them.</string>
+    <string name="history_more" tools:ignore="PluralsCandidate">…and %1$d more — narrow the filter to reach them.</string>
     <string name="history_desc">Tap a command to put it on the input line. It is inserted, never run.</string>
 
     <!-- Clipboard history sheet (double-tap the 📋 paste button) -->
@@ -587,7 +588,8 @@
     <string name="log_raw">Keep colors and control codes</string>
     <string name="log_raw_desc">Raw log for bug reports. Off converts it to human-readable text</string>
     <string name="log_timestamp">Timestamp every line</string>
-    <string name="log_timestamp_desc">Prefixes each line with a fixed-width date and time, like [2026-07-27 08:42:13]. Not applied to raw logs, which must stay byte-for-byte</string>
+    <!-- The hyphens are inside an ISO date sample; an en dash would misdescribe the output. -->
+    <string name="log_timestamp_desc" tools:ignore="TypographyDashes">Prefixes each line with a fixed-width date and time, like [2026-07-27 08:42:13]. Not applied to raw logs, which must stay byte-for-byte</string>
     <string name="log_mask">Mask keys and tokens</string>
     <string name="log_mask_desc">Replaces name=value pairs such as TOKEN=…, pasted private keys, and fixed-shape tokens like ghp_ / AKIA with [z2term:masked]</string>
     <string name="log_secret_warning">Note: whatever appears on screen goes in as-is (a password you only type never appears on screen, so it is not recorded). The toolbar button stays lit while recording.\nNote: masking only covers clearly recognisable shapes and is not complete — a secret in your own format goes straight through. Always read a log before handing it to someone.</string>
@@ -599,7 +601,6 @@
     <string name="widget_refresh_desc">Refresh</string>
     <string name="widget_ssh_none">no LAN address</string>
     <string name="widget_stats">servers %1$d/%2$d \u00b7 rules %3$d/%4$d \u00b7 battery %5$d%%</string>
-    <string name="widget_last_run">\u25b6 %1$s %2$s</string>
     <string name="widget_config_glyph" translatable="false">\u2699</string>
     <string name="widget_config_btn_desc">Choose macros</string>
     <!-- \u30de\u30af\u30ed\u30dc\u30bf\u30f3: 1 \u884c\u76ee\u304c\u540d\u524d (\u72b6\u614b\u306e\u5370\u3064\u304d)\u30012 \u884c\u76ee\u304c\u6700\u5f8c\u306b\u958b\u59cb\u3057\u305f\u6642\u523b\u3002 -->
@@ -649,7 +650,7 @@
     <string name="widget_config_reset_done">Run history cleared.</string>
     <string name="tools_tab_when">Automation</string>
     <string name="when_title">Automation rules</string>
-    <string name="when_count">%1$d on / %2$d total</string>
+    <string name="when_count" tools:ignore="PluralsCandidate">%1$d on / %2$d total</string>
     <string name="when_pause">Pause automatic runs</string>
     <string name="when_pause_desc">While on, no rule runs when its trigger fires. Rules are not deleted, and you can still try one yourself with ▶.</string>
     <string name="when_paused_banner">■ Paused: triggers will not run anything</string>
@@ -735,7 +736,7 @@
     <!-- A slot given both an on and an off command (the off flag of z2-tile set). -->
     <string name="tile_subtitle_pair_on">on — tap to turn off</string>
     <string name="tile_subtitle_pair_off">off — tap to turn on</string>
-    <string name="tile_unassigned_toast">Tile %1$d has nothing on it. Assign one in the terminal, e.g. z2-tile set %1$d backup.sh</string>
+    <string name="tile_unassigned_toast" tools:ignore="PluralsCandidate">Tile %1$d has nothing on it. Assign one in the terminal, e.g. z2-tile set %1$d backup.sh</string>
     <string name="settings_section_screen_timeout">Screen timeout (z2-screen)</string>
     <string name="settings_screen_timeout_desc">Stop the screen turning off by itself, for as long as you say. This is the OS-wide setting, so it holds with the app in the background — unlike the toolbar\'s 🔅, which only lasts while the app is on screen. The original value is always written back at the deadline.</string>
     <string name="settings_screen_timeout_granted">Modify system settings: allowed</string>
@@ -785,7 +786,7 @@
     <string name="backup_export_do">Create</string>
     <string name="backup_import_title">Restore from a backup</string>
     <string name="backup_import_unreadable">This file could not be read as a z2term backup.</string>
-    <string name="backup_import_summary">Created %1$s (%2$s)
+    <string name="backup_import_summary" tools:ignore="PluralsCandidate">Created %1$s (%2$s)
 
 SSH connections: %3$d
 Snippets: %4$d

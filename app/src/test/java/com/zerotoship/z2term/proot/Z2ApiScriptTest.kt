@@ -462,12 +462,17 @@ class Z2ApiScriptTest {
             assertEquals("[1]\n[icon]\n[sample]\n[2]\n[bell]", run(null, "sample", "2", "bell"))
             assertEquals("[1]\n[icon]\n[list]", run(null))
             assertEquals("[1]\n[icon]\n[clear]\n[all]", run(null, "clear", "all"))
+            // 自分で入れた絵を捨てて割り当てから選び直す道 (これが無いと自動へ戻せない)。
+            assertEquals("[1]\n[icon]\n[auto]\n[1]", run(null, "auto", "1"))
+            assertEquals("[1]\n[icon]\n[auto]\n[all]", run(null, "auto", "all"))
             // ⚠ 無いファイルは**ブリッジまで行かせない**。空を渡すと「1 点も塗られていない」
             // という、打ったつもりのファイル名とは無関係な理由で断られる。
             val missing = run(null, "set", "1", File(dir, "nope.txt").absolutePath)
             assertTrue("無いファイルが通っている: $missing", !missing.contains("[icon]"))
             // 対象が無い呼び方は usage で終わる。
-            for (args in listOf(listOf("set"), listOf("show"), listOf("clear"), listOf("bogus"))) {
+            for (args in listOf(
+                listOf("set"), listOf("show"), listOf("clear"), listOf("auto"), listOf("bogus")
+            )) {
                 val out = run(null, *args.toTypedArray())
                 assertTrue("usage が出ていない (${args.joinToString(" ")}): $out", out.contains("usage:"))
             }

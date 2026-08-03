@@ -61,8 +61,14 @@ class RemindScriptTest {
             }
             val pb = ProcessBuilder(listOf(sh!!, f.absolutePath) + args).redirectErrorStream(true)
             pb.environment()["HOME"] = home.absolutePath
-            // ⚠ PATH を空にはしない (date / grep が要る)。z2-* が無いことが再現できればよい。
-            if (fakes) pb.environment()["PATH"] = bin.absolutePath + ":" + System.getenv("PATH")
+            // ⚠ **PATH は毎回組み直す。継承してはいけない。**
+            // このテストの前提は「z2-* がどこにも無い環境」だが、z2term のディストロの中で
+            // 回すと **/usr/local/bin に本物の z2-* が居る** (開発環境がそれ自身)。継承すると
+            // 本物が動いてしまい、「予約が無いので止まる」はずが**成功して**しまう。逆に
+            // マクロ置き場が PATH に入っている環境では `setup` の案内も出なくなる。
+            // ⚠ 空にもしない — date / grep が要る。素の OS にある場所だけを並べる。
+            val base = listOf("/usr/bin", "/bin").filter { File(it).isDirectory }.joinToString(":")
+            pb.environment()["PATH"] = if (fakes) bin.absolutePath + ":" + base else base
             val p = pb.start()
             val out = p.inputStream.bufferedReader().readText()
             val code = p.waitFor()

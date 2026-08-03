@@ -41,6 +41,9 @@ object IconStore {
     private const val TILE_PREFIX = "tile"
     private const val PREFS = "z2term_icon"
 
+    /** その枠の絵を [autoAssign] が入れたことの印。手で入れた絵と区別するためだけに持つ。 */
+    private const val KEY_AUTO_PREFIX = "auto_"
+
     /** 塗らない点として読む文字。これ以外の**空白でない文字はすべて塗る**。 */
     private const val BLANK_CHARS = ". 0-_\t"
 
@@ -91,6 +94,13 @@ object IconStore {
     fun text(context: Context, target: String): String? =
         prefs(context).getString(target, null)?.takeIf { it.isNotBlank() }
 
+    /**
+     * [target] の絵が [autoAssign] の入れたものか。`z2-icon list` が「自動」と「自分で入れた」を
+     * 出し分けるのに使う — どちらなのかが見えないと、`z2-icon auto` で戻せることに気付けない。
+     */
+    fun isAuto(context: Context, target: String): Boolean =
+        prefs(context).getBoolean(KEY_AUTO_PREFIX + target, false)
+
     /** [target] のドット絵。未設定なら null。 */
     fun mask(context: Context, target: String): BooleanArray? =
         text(context, target)?.let { runCatching { parse(it) }.getOrNull() }
@@ -105,14 +115,68 @@ object IconStore {
      */
     fun set(context: Context, target: String, art: String): BooleanArray {
         val parsed = parse(art)
-        prefs(context).edit { putString(target, toText(parsed)) }
+        prefs(context).edit {
+            putString(target, toText(parsed))
+            // 手で入れた絵には印を残さない = 以後 [autoAssign] が触らない。
+            remove(KEY_AUTO_PREFIX + target)
+        }
         cache.remove(target)
         return parsed
     }
 
+    /**
+     * タイル枠 [slot] へ、割り当てた [command] に合う絵を**自動で**入れる
+     * ([IconSamples.guess] が当てる)。
+     *
+     * ⚠ **自分で決めた絵は絶対に上書きしない**。触ってよいのは「まだ絵が無い枠」と
+     * 「前にここが自動で入れた枠」だけで、そのために自動で入れた印を別に持つ。
+     * 印を持たずに「絵の有無」だけで判断すると、`z2-tile set` を打ち直すたびに
+     * **自分で描いた絵が消える**か、逆に前のマクロの絵が残り続けるかのどちらかになる。
+     *
+     * ⚠ 合う絵が無ければ、**前に自動で入れた絵は消す**。枠の中身を別のマクロへ替えたのに
+     * 前の絵だけ残ると、タイルの見た目が中身と食い違う。
+     *
+     * [force] は利用者が明示的に頼んだとき (`z2-icon auto`) にだけ true。**自分で入れた絵も
+     * 上書きする**。自動を断る手段 (`z2-icon` で好きな絵を入れる) と、自動へ戻す手段の
+     * 両方が要る — 片道だけだと、一度手で入れたら二度と自動に戻せない。
+     *
+     * @return 入れた絵の名前。何も入れなかったら null
+     */
+    fun autoAssign(context: Context, slot: Int, command: String, force: Boolean = false): String? {
+        val target = tileTarget(slot)
+        val wasAuto = prefs(context).getBoolean(KEY_AUTO_PREFIX + target, false)
+        if (!force && text(context, target) != null && !wasAuto) return null
+        val name = IconSamples.guess(command)
+        if (name == null) {
+            if (wasAuto || force) clear(context, target)
+            return null
+        }
+        val parsed = runCatching { parse(IconSamples.get(name).orEmpty()) }.getOrNull() ?: return null
+        prefs(context).edit {
+            putString(target, toText(parsed))
+            putBoolean(KEY_AUTO_PREFIX + target, true)
+        }
+        cache.remove(target)
+        return name
+    }
+
+    /**
+     * 枠 [slot] の絵が [autoAssign] の入れたものなら片付ける (`z2-tile clear` から呼ぶ)。
+     *
+     * ⚠ **手で入れた絵は残す**。割り当てを消しただけで自分の描いた絵まで消えると、置き直す
+     * たびに描き直しになる。
+     */
+    fun clearAuto(context: Context, slot: Int) {
+        val target = tileTarget(slot)
+        if (prefs(context).getBoolean(KEY_AUTO_PREFIX + target, false)) clear(context, target)
+    }
+
     /** [target] を既定のアイコンへ戻す。 */
     fun clear(context: Context, target: String) {
-        prefs(context).edit { remove(target) }
+        prefs(context).edit {
+            remove(target)
+            remove(KEY_AUTO_PREFIX + target)
+        }
         cache.remove(target)
     }
 

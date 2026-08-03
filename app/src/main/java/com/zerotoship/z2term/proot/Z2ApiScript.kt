@@ -305,6 +305,9 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |  clear)
         |    [ ${d}# -ge 2 ] || usage
         |    exec /usr/local/bin/z2api 1 icon clear "${d}2" ;;
+        |  auto)
+        |    [ ${d}# -ge 2 ] || usage
+        |    exec /usr/local/bin/z2api 1 icon auto "${d}2" ;;
         |  set)
         |    [ ${d}# -ge 2 ] || usage
         |    read_art "${d}{3:--}"
