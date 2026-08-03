@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-03 / 対象バージョン: 0.8.301-alpha (versionCode 309)
+最終更新: 2026-08-03 / 対象バージョン: 0.8.302-alpha (versionCode 310)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -831,7 +831,23 @@ ptrace 越しに数千 syscall になるうえ、常駐中は WakeLock/WifiLock 
 - `launch(distroId, command, rows, cols, fallbackShell)` が proot 引数を組み立てて `PtyProcess.create`:
   - `--kill-on-exit -0 --link2symlink -r <rootfs> -b /dev -b /proc -b /sys -b <rootfs>/dev/shm:/dev/shm -b <shared_home>:/root`
   - **外部ストレージ bind**: `/storage/emulated/0:/sdcard`、`getExternalFilesDir:/storage/app`
-  - `-w /root`、env: `HOME=/root TERM=xterm-256color LANG=C.UTF-8 PATH=… TMPDIR=/tmp` + 履歴系 env。
+  - `-w /root`、env: `HOME=/root TERM=xterm-256color LANG=C.UTF-8 TZ=… PATH=… TMPDIR=/tmp` + 履歴系 env。
+  - **`TZ` は端末のタイムゾーンを POSIX 形式で渡す ([`PosixTimeZone`]・0.8.302)**。⚠ それまで distro の中は
+    `TZ` も `/etc/localtime` も無く **常に UTC** で、`date` の返す時刻が端末と食い違っていた。相対指定は
+    差分なのでずれないが、**`18:30` のような絶対時刻は時差ぶんずれて予約され、一覧も同じだけずれる**
+    (JST で 9 時間。利用者の報告 —「スヌーズは正しいのに予定だけ来ない」という形で出る)。
+    - ⚠ **ゾーン名 (`Asia/Tokyo`) を渡さない**。解決できるのは **tzdata が入っている distro だけ**で、
+      無ければ libc は黙って UTC へ落ちる (Alpine の `tzdata` は既定で入っていない)。パッケージの有無で
+      時計が狂うのは避ける。POSIX 形式 (`<+09>-9`) なら libc だけで解釈でき、glibc / musl / busybox の
+      いずれでも同じに効く。
+    - ⚠ **略称は `JST` ではなく `<+09>` の数字表記**。`TimeZone.getDisplayName` はロケール次第で
+      `GMT+09:00` のような POSIX では読めない文字列を返し、そうなると **`TZ` 全体が無視されて UTC へ落ちる**。
+    - 夏時間は `,M<月>.<週>.<曜日>/<時刻>` を 2 本書く。⚠ **時刻は「切り替え直前のその土地の時刻」**で
+      書く決まりなので、`ZoneOffsetTransitionRule` の `timeDefinition` (壁時計 / 標準時 / UTC) を見て
+      直してから書く — そのまま書き写すと**切り替えが 1 時間ずれる**。表せない規則 (日付固定・年 3 回以上)
+      は夏時間なしとして今のオフセットだけ書く (次にタブを開けば作り直されるので実害が小さい)。
+    - `PosixTimeZoneTest` が、生成した文字列の**形**と、それが**指すオフセット**の両方を、夏と冬の
+      両方で本物のゾーンと突き合わせる。
 - **共有ホーム**: `filesDir/shared_home` を全 distro 共通で `/root` にバインド (← 端末の `~` の実体)。
 - **POSIX 共有メモリ `/dev/shm` の提供 (0.8.177)**: Android の `/dev` には `shm` が無く、`-b /dev` でホストの `/dev` を見せるだけでは `/dev/shm` が存在しない。ゲスト側から `mkdir /dev/shm` しても実体はホストの `/dev` なので SELinux に阻まれて `EACCES` になり、自力では作れない。この状態だと `shm_open()` が **ENOENT** で失敗し、**共有メモリを前提に組まれた GUI アプリが起動時に自ら異常終了する**。典型は Gecko 系で、`MOZ_RELEASE_ASSERT(mHandle.IsValid() && mMapping.IsValid())` に到達して `MOZ_CRASH()` で落ちるため、端末には理由の出ない `segmentation fault` だけが残る (`--version` や `-h` は共有メモリを使わないので成功してしまい、ローダやライブラリの問題と誤診しやすい)。対策として **`<rootfs>/dev/shm` を実体に持つ bind を `-b /dev` の後ろに重ねる**。z2root の bind 解決は最長一致なので (`translate_abs`)、`/dev/shm` (8 文字) が `/dev` (4 文字) に優先して選ばれ、`/dev` 配下の他のデバイスノードはホストのまま維持される。proot も bind は純粋なパス変換なので同じ引数で効く。実体を rootfs 配下の `dev/shm` に置いたのは、Kitty graphics の shm 転送 (`KittyHostTransferSource`) が shm 名を `<rootfs>/dev/shm/<name>` に rebase する既存仕様と**同じ場所を指させる**ため (別名にすると両者が別の場所を見て転送が空振りする)。chroot 経路 (裏機能・要 root) は実マウントなので、`$RFS/dev/shm` に tmpfs を直接被せ、umount 掃除リストにも `dev` より**前**に入れる (入れ子なので先に剥がす必要がある)。
 - **`/etc/machine-id` の生成 (`ensureMachineId`, 0.8.177)**: ディストロの rootfs には**空の** `/etc/machine-id` が入っていることがあり (0 バイト・`0400`)、その状態では dbus が "Invalid machine ID" でセッションバスを起動できない。D-Bus を要求する GUI アプリ (アクセシビリティバス経由のものを含む) が警告や機能欠落を起こすため、起動毎に冪等で確認し、**空またはファイルが無いときだけ** systemd と同じ形式 (ハイフン無し 32 桁 hex) を書き込む。中身があるときは触らない (端末を跨いで ID が変わらないようにする)。書き込み前に `setWritable` で権限を戻す (rootfs 側が `0400` で置かれていることがあるため)。

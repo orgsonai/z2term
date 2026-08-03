@@ -613,7 +613,16 @@ A script started by `z2-when` runs like this (measured):
 SHELL=/bin/sh   HOME=/root   TERM=xterm-256color
 LANG=C.UTF-8 (and every LC_*, so cut -c and friends count characters, not bytes)
 PATH=…:/root/.z2term/macros:…   ← the macro folder is on PATH
+TZ=<+09>-9                      ← the device's time zone (since 0.8.302)
 ```
+
+- **`date` agrees with the device clock** (0.8.302). ⚠ **Before that it was always UTC**,
+  so while relative delays (`in 30m`) were fine, **anything working with a wall-clock time
+  like `18:30` was off by the whole zone offset**. Re-create anything you scheduled with an
+  older build.
+- `TZ` holds a **POSIX specification rather than a zone name** (`<+09>-9`), so that it works
+  the same on a distro without `tzdata`. Where daylight saving applies, the switch-over rules
+  are included too: `<-05>5<-04>4,M3.2.0/2,M11.1.0/2`.
 
 - **Anything you push into the background outlives the script.** A child started with `&` or
   `nohup` is not killed when the macro that started it exits (this is what `sshd --lan` needs).

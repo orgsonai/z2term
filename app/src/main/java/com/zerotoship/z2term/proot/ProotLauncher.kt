@@ -3,6 +3,7 @@ package com.zerotoship.z2term.proot
 import android.content.Context
 import android.util.Log
 import com.zerotoship.z2term.BuildConfig
+import com.zerotoship.z2term.core.PosixTimeZone
 import com.zerotoship.z2term.distro.DistroBundle
 import com.zerotoship.z2term.pty.PtyProcess
 import com.zerotoship.z2term.settings.AppSettings
@@ -428,6 +429,11 @@ class ProotLauncher(private val context: Context) {
             "HOME=/root",
             "TERM=xterm-256color",
             "LANG=C.UTF-8",
+            // ⚠ **時計を端末に合わせる** (0.8.302)。これが無いと distro の中は UTC のままで、
+            // `18:30` のような絶対時刻の予約と一覧が**まるごとずれる** (JST なら 9 時間。
+            // 相対指定は差分なのでずれず、「なぜか予定だけ来ない」という形で出る — 利用者の報告)。
+            // ゾーン名ではなく POSIX 形式を渡す理由は [PosixTimeZone] にある (tzdata 不要)。
+            "TZ=${PosixTimeZone.current()}",
             // ⚠ 末尾に**マクロ置き場**を足す (0.8.287)。`z2-macro install remind` で入れたものを
             // `remind.sh …` と名前で打てるようにするため — help も docs もその前提で書いてあるのに
             // PATH に無く、`command not found` になっていた (実機で指摘)。⚠ **末尾**に置くのは、
@@ -659,6 +665,8 @@ class ProotLauncher(private val context: Context) {
                 append("mount -o bind /apex \"\$RFS/apex\" 2>/dev/null\n")
             }
             append("exec chroot \"\$RFS\" /usr/bin/env -i HOME=/root TERM=xterm-256color LANG=C.UTF-8 ")
+            // proot 経路と同じく端末の時計に合わせる ([PosixTimeZone])。
+            append("TZ=${PosixTimeZone.current()} ")
             // ⚠ proot 経路と同じくマクロ置き場を末尾に足す (0.8.287)。
             append("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$MACRO_DIR TMPDIR=/tmp")
             append(displayEnv)

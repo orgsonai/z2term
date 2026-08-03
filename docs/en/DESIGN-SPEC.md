@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-03 / Target version: 0.8.301-alpha (versionCode 309)
+Last updated: 2026-08-03 / Target version: 0.8.302-alpha (versionCode 310)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -844,7 +844,25 @@ of Doze.
 - `launch(distroId, command, rows, cols, fallbackShell)` assembles proot arguments and calls `PtyProcess.create`:
   - `--kill-on-exit -0 --link2symlink -r <rootfs> -b /dev -b /proc -b /sys -b <rootfs>/dev/shm:/dev/shm -b <shared_home>:/root`
   - **External storage bind**: `/storage/emulated/0:/sdcard`, `getExternalFilesDir:/storage/app`
-  - `-w /root`, env: `HOME=/root TERM=xterm-256color LANG=C.UTF-8 PATH=… TMPDIR=/tmp` + history-related env.
+  - `-w /root`, env: `HOME=/root TERM=xterm-256color LANG=C.UTF-8 TZ=… PATH=… TMPDIR=/tmp` + history-related env.
+  - **`TZ` carries the device time zone in POSIX form** ([`PosixTimeZone`], 0.8.302). ⚠ Until then the distro
+    had neither `TZ` nor `/etc/localtime` and was **always UTC**, so `date` disagreed with the device clock.
+    Relative delays were unaffected, but **a wall-clock time like `18:30` was scheduled — and listed — off by
+    the whole offset** (9 hours in JST; reported as "snooze works but the appointment never fires").
+    - ⚠ **A zone name (`Asia/Tokyo`) is not used.** Only a distro carrying `tzdata` could resolve it, and
+      without it libc silently falls back to UTC (Alpine ships without `tzdata`). A clock that depends on
+      which packages are installed is not acceptable. The POSIX form (`<+09>-9`) needs nothing but libc and
+      behaves the same under glibc, musl and busybox.
+    - ⚠ **The abbreviation is the numeric `<+09>`, not `JST`.** `TimeZone.getDisplayName` can return
+      `GMT+09:00` depending on locale, which POSIX cannot parse — and then **the whole `TZ` is ignored and
+      the zone falls back to UTC**.
+    - Daylight saving is written as two `,M<month>.<week>.<day>/<time>` rules. ⚠ **The time is the local time
+      immediately before the change**, per POSIX, so the `timeDefinition` of `ZoneOffsetTransitionRule`
+      (wall / standard / UTC) has to be converted first — copying it across **puts the change an hour out**.
+      Rules that cannot be expressed (fixed dates, three or more changes a year) are written as no-DST with
+      the current offset (a new tab regenerates it, so the cost is small).
+    - `PosixTimeZoneTest` checks both the **shape** of the string and the **offset it resolves to**, against
+      the real zone, in summer and in winter.
 - **Shared home**: `filesDir/shared_home` is bound to `/root` across all distros (← the real backing of the terminal's `~`).
 - **Providing POSIX shared memory `/dev/shm` (0.8.177)**: Android's `/dev` has no `shm`, so exposing the host `/dev` via `-b /dev` still leaves `/dev/shm` missing. A guest-side `mkdir /dev/shm` cannot fix it either, because the target really is the host `/dev` and SELinux rejects it with `EACCES`. In that state `shm_open()` fails with **ENOENT**, and **GUI apps built around shared memory abort themselves during startup**. The typical case is Gecko-based apps, which reach `MOZ_RELEASE_ASSERT(mHandle.IsValid() && mMapping.IsValid())` and die via `MOZ_CRASH()`, leaving the terminal with nothing but an unexplained `segmentation fault` (`--version` and `-h` do not touch shared memory and succeed, which makes this easy to misdiagnose as a loader or library problem). The fix layers a bind backed by **`<rootfs>/dev/shm` after `-b /dev`**. z2root resolves binds by longest match (`translate_abs`), so `/dev/shm` (8 chars) wins over `/dev` (4 chars) while every other device node under `/dev` stays on the host. PRoot treats binds as pure path translation too, so the same argument works there. The backing directory lives at `dev/shm` under the rootfs so that it **points at the same place** as the existing Kitty graphics shm transfer (`KittyHostTransferSource`), which rebases shm names onto `<rootfs>/dev/shm/<name>` — a different name would make the two look at different locations and the transfer would silently miss. The chroot path (hidden feature, requires root) uses real mounts, so it lays a tmpfs directly over `$RFS/dev/shm` and adds it to the umount cleanup list **before** `dev` (being nested, it must be unmounted first).
 - **Generating `/etc/machine-id` (`ensureMachineId`, 0.8.177)**: some distro rootfs images ship an **empty** `/etc/machine-id` (0 bytes, `0400`), and in that state dbus cannot start a session bus, failing with "Invalid machine ID". GUI apps that require D-Bus (including those reaching it through the accessibility bus) then emit warnings or lose functionality. The launcher idempotently checks it on every start and writes a systemd-style value (32 hex digits, no hyphens) **only when the file is missing or empty**, leaving existing content untouched so the ID stays stable across sessions. Permissions are restored with `setWritable` before writing, since the rootfs copy may be `0400`.

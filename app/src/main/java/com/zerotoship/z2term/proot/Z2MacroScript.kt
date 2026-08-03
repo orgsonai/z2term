@@ -1535,22 +1535,22 @@ $cPeek
 cmd_peek() {
   out=${d}(each row | tr '\t' ' ')
   if [ -z "${d}out" ]; then
-    z2-notify -n remind-list "$mTitle" "$mNone"
+    z2-notify -h -n remind-list "$mTitle" "$mNone"
     return
   fi
-  z2-notify -n remind-list -b $bDelete "$mTitle" "${d}out"
+  z2-notify -h -n remind-list -b $bDelete "$mTitle" "${d}out"
 }
 
 $cAskDel
 ask_delete() {
   out=${d}(each row | tr '\t' ' ')
-  [ -n "${d}out" ] || { z2-notify -n remind-list "$mTitle" "$mNone"; return; }
+  [ -n "${d}out" ] || { z2-notify -h -n remind-list "$mTitle" "$mNone"; return; }
   # ⚠ ボタンを押すと元の通知は閉じるので、番号が見えるように一覧を出し直してから聞く。
-  z2-notify -n remind-list "$mTitle" "${d}out"
+  z2-notify -h -n remind-list "$mTitle" "${d}out"
   n=${d}(z2-ask -H "$mAskDelH" "$mAskDel") || return
   [ -n "${d}n" ] || return
-  msg=${d}(cmd_del "${d}n" 2>&1) || { z2-notify -n remind-ng "$mNgTitle" "${d}msg"; return; }
-  z2-notify -n remind-ok "$mDeletedTitle" "${d}msg"
+  msg=${d}(cmd_del "${d}n" 2>&1) || { z2-notify -h -n remind-ng "$mNgTitle" "${d}msg"; return; }
+  z2-notify -h -n remind-ok "$mDeletedTitle" "${d}msg"
 }
 
 del_one() {
@@ -1601,11 +1601,11 @@ cmd_ask() {
     prev=${d}w
     q="⚠ ${d}WHY — $mAskAgain"
   done
-  [ "${d}ok" = 1 ] || { z2-notify -n remind-ng "$mNgTitle" "$mAskGiveUp"; exit 1; }
+  [ "${d}ok" = 1 ] || { z2-notify -h -n remind-ng "$mNgTitle" "$mAskGiveUp"; exit 1; }
 
   set -- ${d}w
-  out=${d}(cmd_add "${d}@" "${d}body" 2>&1) || { z2-notify -n remind-ng "$mNgTitle" "${d}out"; exit 1; }
-  z2-notify -n remind-ok "$mOkTitle" "${d}(echo "${d}out" | tr '\t' ' ')"
+  out=${d}(cmd_add "${d}@" "${d}body" 2>&1) || { z2-notify -h -n remind-ng "$mNgTitle" "${d}out"; exit 1; }
+  z2-notify -h -n remind-ok "$mOkTitle" "${d}(echo "${d}out" | tr '\t' ' ')"
 }
 
 cmd_setup() {
