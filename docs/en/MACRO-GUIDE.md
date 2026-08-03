@@ -121,6 +121,53 @@ The command that fires gets **what happened** in its environment.
 | `Z2_WHEN_EVENT_NAME` | The identifier you armed it with (`event:alarm` / `event:notify_action`) |
 | `Z2_WHEN_ACTION` | The button label that was pressed (`event:notify_action`) |
 
+#### ⚠ The shape of what `share:` hands you (get this wrong and it always fails)
+
+For `share:file`, `Z2_WHEN_SHARE` is **not a path — it is a string meant to be pasted into a shell**.
+`[ -f "$Z2_WHEN_SHARE" ]` is **always false**, and nothing about it shows up in `z2-when log`
+(the `else` branch just runs, quietly). Three things to know:
+
+- Files are taken into `~/z2term-inbox/`, and **`~` is left unexpanded**. Turn it into `$HOME/`
+  before touching it.
+- A name containing spaces arrives as `"$HOME/z2term-inbox/foo bar.jpg"` — **quoted**.
+- **Several files are separated by spaces.** Do not write for exactly one.
+
+Splitting it into one path per line without `eval` (paste this as it is):
+
+```sh
+# Turn Z2_WHEN_SHARE into one path per line (~ and $HOME expanded, ready to use).
+split_paths() {
+  printf '%s' "$1" | awk -v home="$HOME" '
+    function emit(p) {
+      if (length(p) == 0) return
+      sub(/^~\//, home "/", p)        # expand ~/...
+      sub(/^\$HOME\//, home "/", p)   # and "$HOME/..." the same way
+      print p
+    }
+    {
+      s = $0
+      while (length(s) > 0) {
+        if (substr(s, 1, 1) == " ") { s = substr(s, 2); continue }
+        if (substr(s, 1, 1) == "\"") {           # one quoted entry
+          e = index(substr(s, 2), "\"")
+          emit(substr(s, 2, e - 1)); s = substr(s, e + 2)
+        } else {                                  # one bare entry
+          e = index(s, " ")
+          if (e == 0) { emit(s); s = "" } else { emit(substr(s, 1, e - 1)); s = substr(s, e) }
+        }
+      }
+    }'
+}
+
+split_paths "$Z2_WHEN_SHARE" | while IFS= read -r p; do
+  [ -f "$p" ] || continue
+  echo "got: $p"
+done
+```
+
+For `share:text` it is just the text, so you can use it directly (`Z2_WHEN_SHARE_KIND` tells you
+which of the two you got).
+
 ```sh
 z2-when charge:start run ~/.z2term/macros/backup.sh
 z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
@@ -558,6 +605,31 @@ z2-intent -a android.intent.action.SET_ALARM --ei android.intent.extra.alarm.HOU
 
 ## 5. Writing a macro (templates)
 
+### 5-Z. The environment a macro runs in (know this first)
+
+A script started by `z2-when` runs like this (measured):
+
+```
+SHELL=/bin/sh   HOME=/root   TERM=xterm-256color
+LANG=C.UTF-8 (and every LC_*, so cut -c and friends count characters, not bytes)
+PATH=…:/root/.z2term/macros:…   ← the macro folder is on PATH
+```
+
+- **Anything you push into the background outlives the script.** A child started with `&` or
+  `nohup` is not killed when the macro that started it exits (this is what `sshd --lan` needs).
+  ⚠ That means **a slow download belongs in the background**: waiting for it in the foreground
+  blocks every share or event for as long as it takes.
+- **Bundled macros can be called as building blocks.** From your own macro,
+  `sh ~/.z2term/macros/remind.sh tomorrow 09:00 meeting` saves you from rewriting the time
+  handling and the notification (see 5-9).
+- **`~/.z2term/macros/` is on `PATH`** (since 0.8.287), so anything in there can be called by name
+  (`remind.sh …`). ⚠ Scripts **outside** that folder need a full path.
+
+⚠ **`at` / `atd` / `systemd` timers do not work here.** The distro has no PID 1, so `systemd` never
+starts, and `atd` is not installed. Writing "once at this time" with `at`, the way you would on any
+other Linux, means **nothing happens and no error is printed**. `cron` runs but is stopped by Doze.
+**For anything time-based use `z2-when time:` or `z2-alarm`, and nothing else.**
+
 **See whether 5-A covers your case first.** If it does, the script is a few lines of "the work" and
 nothing else. You only need the watching skeleton from 5-0 for triggers `z2-when` does not have, and
 for decisions that read the contents of the log (5-5 / 5-6 / 5-7).
@@ -979,6 +1051,19 @@ remind.sh list / remind.sh del 2       # list / cancel
 | One-shot | `z2-alarm in 30m r<id>` / `z2-alarm at 18:30 r<id>` (a booking that disappears once it fires) |
 | Repeating | `z2-when time:daily=07:00` / `time:cron='0 20 * * 2'` (a rule that stays) |
 | Fire it | `z2-notify -h -n r<id> -b Done -b +10min -b +1h` |
+
+**You can call this macro from your own.** Neither the time handling nor the notification has to be
+written again, so "something happened, put a reminder in" becomes one line.
+
+```sh
+# e.g. set a reminder from text that was shared to you (inside your own macro)
+sh ~/.z2term/macros/remind.sh tomorrow 09:00 "meeting"
+sh ~/.z2term/macros/remind.sh 30m "laundry"
+```
+
+⚠ **Pass the parts separately** (`tomorrow 09:00 meeting`): a whole natural sentence is not parsed.
+If you are feeding it sentences (from a share, say), ⚠ **do not turn text without a time into a
+reminder** — a note silently becoming an appointment is worse than no reminder at all.
 | The button reply | `z2-when event:notify_action` (`Z2_WHEN_EVENT_NAME` gives back the `-n` name) |
 | Catch the alarm | `z2-when event:alarm` — **one rule, permanently**, no matter how many reminders you add |
 | Add one without opening the app | a quick-settings tile → `z2-ask` (asks "what?" and "when?" in a notification reply box) |
@@ -1139,6 +1224,12 @@ ready-to-run macro. **Example instruction (copy-paste):**
 > - Line 2 of the script is a one-line description; the next line is `# z2-run: <how to run it>`
 >   (say "register `sh <path>` under Resident servers" only if it really is resident — never make a
 >   one-shot script resident).
+> - **Schedule only with `z2-when time:` or `z2-alarm`** (`at` / `atd` / `systemd` do not exist
+>   here; `cron` is stopped by Doze).
+> - **Never use `Z2_WHEN_SHARE` as a path.** Follow "3-A ⚠ The shape of what `share:` hands you":
+>   turn it into `$HOME/` and **expect more than one file**.
+> - Bundled macros in `~/.z2term/macros/` **may be called as building blocks**
+>   (e.g. `sh ~/.z2term/macros/remind.sh tomorrow 09:00 thing`).
 > - Keep it to one self-contained file with a short comment on each branch.
 >
 > What I want: "__describe it in natural language__" (e.g. when charging starts set volume to 30% and
