@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1. ターミナルとして使う — Z2Term 使いこなしガイド</title>
+<meta name="description" content="画面の見かた、ツールバーの各ボタン、独自キーボードとフリック入力、コピーと検索、パッケージの導入、PC からの SSH、ファイルのやりとり。">
+<link rel="canonical" href="https://orgsonai.github.io/z2term/guide-terminal.ja.html">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <a href="index.ja.html" class="brand">Z<b>2</b>Term</a>
+    <nav>
+      <a href="guide.ja.html">ガイド目次</a>
+      <a href="https://github.com/orgsonai/z2term">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <p class="crumb"><a href="guide.ja.html">使いこなしガイド</a> / 1. ターミナルとして使う</p>
+
+  <h1>1. ターミナルとして使う</h1>
+  <p class="lede">まずは<strong>ふつうのターミナルとして</strong>動かせるところまで。
+    ここだけ読めば、スマホの中の Linux でコマンドを打って作業できます。</p>
+
+  <div class="chapnav">
+    <a href="guide-terminal.ja.html" aria-current="page">1. ターミナル</a>
+    <a href="guide-macro.ja.html">2. マクロ</a>
+    <a href="guide-when.ja.html">3. 自動化</a>
+    <a href="guide-tile.ja.html">4. タイル</a>
+  </div>
+
+  <h2>画面の見かた</h2>
+
+  <figure class="shot">
+    <img src="images/terminal-overview.png" alt="Z2Term の端末画面。上からツールバー、タブ、端末、キーボード">
+    <figcaption>上からツールバー / タブ / 端末 / キーボード</figcaption>
+  </figure>
+
+  <ul>
+    <li><b>ツールバー</b>（いちばん上）… 貼り付け・履歴・常駐・検索などのボタン。⚙ は必ず右端です。</li>
+    <li><b>タブ</b>… 端末をいくつも開けます。<code>+</code> で追加、🖥 は GUI デスクトップのタブです。</li>
+    <li><b>端末</b>… 文字が出るところ。ピンチで文字サイズを変えられます。</li>
+    <li><b>キーボード</b>… アプリ内蔵のもの。境目のバーをタップで開閉します。</li>
+  </ul>
+
+  <h3>ツールバーのボタン</h3>
+
+  <figure class="shot wide">
+    <img src="images/toolbar.png" alt="ツールバーのボタンの並び">
+    <figcaption>ボタンは<b>長押しで並べ替え</b>、⚙設定 →「表示」→「ツールバー」で消せます</figcaption>
+  </figure>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>ボタン</th><th>はたらき</th></tr></thead>
+      <tbody>
+        <tr><td>📋</td><td>クリップボードを貼り付け。<b>ダブルタップでコピー履歴</b>から選べます</td></tr>
+        <tr><td>📜</td><td><b>いちばん使う入口。</b>よく使うコマンド / 実行履歴 / SSH・SFTP / <b>サーバー</b> / <b>自動化</b> をタブで切り替え</td></tr>
+        <tr><td>🔅</td><td>画面が自動で消えないようにする。ダブルタップで<b>このアプリだけ暗くする</b>スライダー</td></tr>
+        <tr><td>🔒</td><td>バックグラウンド常駐（閉じても端末が動き続ける）</td></tr>
+        <tr><td>🔍</td><td>画面の文字を検索。見つかった場所がスクロールバーに目盛りで出ます</td></tr>
+        <tr><td>⌨</td><td>スマホ標準のキーボード ⇄ アプリ内蔵キーボードの切り替え</td></tr>
+        <tr><td>🔴 / ⚪</td><td>端末ログの記録（開始 / 停止）。ダブルタップで詳細設定</td></tr>
+        <tr><td>⚙</td><td>設定。<b>常に右端</b>で、消すことはできません</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>キーボードの使いかた</h2>
+
+  <p>Z2Term には<b>専用のキーボード</b>が入っています。記号と修飾キーを、端末で打ちやすい形に並べたものです。</p>
+
+  <div class="shots">
+    <figure class="shot">
+      <img src="images/keyboard-ascii.png" alt="英字キーボード。キーの角に緑でフリック先の記号が出ている">
+      <figcaption>英字。<b>角の緑の字</b>がフリック先です</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="images/keyboard-kana.png" alt="日本語入力中。上に変換候補バーが出ている">
+      <figcaption>日本語。上の<b>候補バー</b>から変換します</figcaption>
+    </figure>
+  </div>
+
+  <h3>英字のとき</h3>
+  <ul>
+    <li><b>下フリック = 大文字</b>（<code>q</code> を下にはらうと <code>Q</code>）。上・左右は記号です。</li>
+    <li><kbd>⇧</kbd> は 1 回で次の 1 文字、2 回でロック、3 回で解除。</li>
+    <li><kbd>CTRL</kbd> <kbd>ALT</kbd> のあとに文字で <kbd>Ctrl</kbd>+<kbd>C</kbd> などを送れます。
+      <kbd>ALT</kbd> は「次のキーの前に ESC を付ける」修飾なので、<kbd>ALT</kbd>+<kbd>.</kbd> で
+      直前のコマンドの最後の引数、<kbd>ALT</kbd>+<kbd>b</kbd>/<kbd>f</kbd> で単語移動が使えます。</li>
+    <li><b>長押しで連打</b>（文字・数字・矢印・スペース・⏎・⌫）。</li>
+  </ul>
+
+  <h3>日本語のとき</h3>
+  <ul>
+    <li>左の「<b>あ</b>」で日本語フリックへ。<b>タップ=あ / 左=い / 上=う / 右=え / 下=お</b>です。</li>
+    <li>打っている間は上に<b>候補バー</b>が出ます。<b>「変換」キー</b>で先頭のかたまりを変換、
+      ⏎ か候補タップで確定。</li>
+    <li><b>◀ ▶ で変換する範囲を変えられます。</b>長い文を打った直後は全体が対象なので、
+      ◀ で縮めると助詞やあとの語をかなのまま残せます。</li>
+    <li>薄緑のかたまりは<b>文まるごとの変換</b>。タップで一気に確定します。</li>
+    <li>使った言葉は覚えるので、次から<b>予測</b>に出ます。かたまりの分け方も学習します。</li>
+    <li><b>絵文字</b>はスペースの上の 😀 キー、<b>貼り付け</b>は ESC キーを上にはらうと出ます。</li>
+  </ul>
+
+  <div class="tip"><b>内蔵キーボードは、他のアプリでも使えます。</b>
+    ⚙設定 →「キーボード・入力・言語」→「内蔵キーボードを他でも使う」で、OS の入力方法として
+    有効にできます（有効化と選択は Android の決まりでご自身の操作が必要です）。</div>
+
+  <h2>コピー・貼り付け・検索</h2>
+  <ul>
+    <li><b>コピー</b>: 画面を<b>長押し</b>してなぞって範囲選択 →「コピー」。指の上に拡大鏡が出ます。</li>
+    <li><b>貼り付け</b>: ツールバーの 📋。<b>ダブルタップで履歴</b>から選べます。</li>
+    <li><b>検索</b>: 🔍。↑↓ で前後へ。<b>内蔵キーボードのまま日本語で検索できます</b>。</li>
+  </ul>
+
+  <figure class="shot">
+    <img src="images/search.png" alt="画面内検索。右のスクロールバーに見つかった場所の目盛りが出ている">
+    <figcaption>検索中は、右のスクロールバーに<b>見つかった場所の目盛り</b>が出ます</figcaption>
+  </figure>
+
+  <h2>ソフトを入れる</h2>
+
+  <p>ディストロは ⚙設定 →「ディストロ」で選びます。あとはふつうの Linux と同じです。</p>
+
+  <pre><span class="c"># Alpine（初期状態）</span>
+apk add git vim jq
+
+<span class="c"># Ubuntu / Kali</span>
+apt update && apt install -y git vim jq
+
+<span class="c"># Arch</span>
+pacman -Sy --noconfirm git vim jq</pre>
+
+  <div class="warn"><b>glibc が要るものは Arch を選んでください。</b>
+    Alpine は musl なので、<code>claude</code>（Claude Code）や一部の言語処理系のように
+    <b>glibc 前提で配布されているバイナリは起動しません</b>。
+    手順は <a href="https://github.com/orgsonai/z2term/blob/main/docs/ja/HANDBOOK.md#65-claudeclaude-code-を動かす">ハンドブック §6.5</a> にあります。</div>
+
+  <h2>PC からつなぐ / ファイルを渡す</h2>
+
+  <ul>
+    <li><b>PC から入る</b>: 端末で <code>sshd</code> を動かし、PC から <code>ssh -p 2222 root@&lt;端末のIP&gt;</code>。
+      ⚙設定 →「SSH 接続ヘルパー」に、いまの IP とコマンドがそのまま出ます。
+      <b>閉じても入れるようにしたいときは「常駐サーバー」に登録</b>します（→ <a href="guide-tile.ja.html">4 章</a>）。</li>
+    <li><b>他のアプリから渡す</b>: 相手のアプリで「共有」→ Z2Term。文字はそのまま、
+      ファイルは <code>~/z2term-inbox/</code> に入り、そのパスが入力行に入ります（<b>入るだけで実行はされません</b>）。</li>
+    <li><b>SD カードや内部ストレージ</b>: ⚙設定 →「ストレージアクセス」を許可すると <code>/sdcard</code> が見えます。</li>
+    <li><b>PC 不要の adb</b>: <code>z2adb</code> で自分の端末に adb でつなげます。</li>
+  </ul>
+
+  <h2>Linux の GUI を開く</h2>
+
+  <figure class="shot wide">
+    <img src="images/gui-thunderbird.png" alt="Z2Term のタブの中で動く Linux のデスクトップアプリ">
+    <figcaption><code>z2gui</code> でデスクトップ、<code>z2run &lt;アプリ&gt;</code> で単体起動</figcaption>
+  </figure>
+
+  <p>タブの中に Linux のデスクトップ（Xvnc + openbox）が開きます。音も出ます。
+    使うアプリは端末側で入れてください（例: <code>pacman -S firefox</code>）。</p>
+
+  <div class="next">
+    <a href="guide.ja.html"><span>← 戻る</span><b>ガイド目次</b></a>
+    <a href="guide-macro.ja.html"><span>次へ →</span><b>2. マクロ（Android を操る）</b></a>
+  </div>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    Z2Term — GPL-3.0.
+    · <a href="https://github.com/orgsonai/z2term">ソース</a>
+    · <a href="guide.ja.html">ガイド目次</a>
+  </div>
+</footer>
+
+</body>
+</html>

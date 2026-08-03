@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2. マクロ（Android を操る） — Z2Term 使いこなしガイド</title>
+<meta name="description" content="シェルから Android を操作する z2-* コマンドと、その組み合わせ方。通知を出す、通知で質問して答えを受け取る、同梱サンプル、自分のマクロの書きかた。">
+<link rel="canonical" href="https://orgsonai.github.io/z2term/guide-macro.ja.html">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <a href="index.ja.html" class="brand">Z<b>2</b>Term</a>
+    <nav>
+      <a href="guide.ja.html">ガイド目次</a>
+      <a href="https://github.com/orgsonai/z2term">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <p class="crumb"><a href="guide.ja.html">使いこなしガイド</a> / 2. マクロ</p>
+
+  <h1>2. マクロ（Android を操る）</h1>
+  <p class="lede">ここからが Z2Term の独自部分です。<strong>シェルから Android 本体に手を伸ばす</strong>
+    <code>z2-*</code> コマンドと、それをまとめた「マクロ」の話をします。</p>
+
+  <div class="chapnav">
+    <a href="guide-terminal.ja.html">1. ターミナル</a>
+    <a href="guide-macro.ja.html" aria-current="page">2. マクロ</a>
+    <a href="guide-when.ja.html">3. 自動化</a>
+    <a href="guide-tile.ja.html">4. タイル</a>
+  </div>
+
+  <h2>マクロとは、ここでは何のことか</h2>
+
+  <p>Z2Term でいう<b>マクロ</b>は、<code>~/.z2term/macros/</code> に置いた<b>ふつうのシェルスクリプト</b>です。
+    特別な書き方はありません。特別なのは<b>置き場所</b>で、ここに置くと次の 3 つが使えるようになります。</p>
+
+  <ol class="steps">
+    <li><b>名前だけで呼べる</b>（この場所は <code>PATH</code> に入っています）。<code>remind.sh 30m 薬</code> のように。</li>
+    <li><b>きっかけで自動実行できる</b>（<code>z2-when</code> → <a href="guide-when.ja.html">3 章</a>）。</li>
+    <li><b>タイルやウィジェットに割り当てられる</b>（→ <a href="guide-tile.ja.html">4 章</a>）。</li>
+  </ol>
+
+  <p>まずは同梱のサンプルを入れてみるのが早道です。</p>
+
+  <pre>z2-macro list            <span class="c"># どんなサンプルがあるか見る</span>
+z2-macro install all     <span class="c"># 全部 ~/.z2term/macros/ に置く</span>
+z2-macro show remind     <span class="c"># 中身を読む（そのまま書き換えて構いません）</span></pre>
+
+  <div class="note">導入すると、そのスクリプトの<b>動かし方</b>（常駐に登録する / <code>z2-when</code> で回す /
+    ウィジェットに割り当てる）も一緒に表示されます。既にあるファイルは上書きしません。</div>
+
+  <h2>Android に手を伸ばす <code>z2-*</code> コマンド</h2>
+
+  <p><b>権限の設定は要りません</b>（一部、OS 側の許可が要るものだけ後述）。よく使うものを挙げます。</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>コマンド</th><th>できること</th></tr></thead>
+      <tbody>
+        <tr><td><code>z2-notify</code></td><td>通知を出す。<code>-h</code> でバナー、<code>-b ラベル</code> で<b>返事のボタン</b></td></tr>
+        <tr><td><code>z2-ask</code></td><td><b>通知の返信欄で質問して、答えを受け取る</b>（下記）</td></tr>
+        <tr><td><code>z2-toast</code> / <code>z2-say</code></td><td>画面下の短いメッセージ / 読み上げ</td></tr>
+        <tr><td><code>z2-clip</code></td><td>クリップボードの読み書き</td></tr>
+        <tr><td><code>z2-state</code></td><td><b>今の端末の状態</b>（画面・ロック・充電・電池・Wi-Fi・SSID・マナーモード・音量…）</td></tr>
+        <tr><td><code>z2-battery</code> / <code>z2-sensor</code></td><td>電池 / 照度・加速度・近接</td></tr>
+        <tr><td><code>z2-torch</code> / <code>z2-vibrate</code> / <code>z2-volume</code> / <code>z2-media</code></td><td>ライト / バイブ / 音量 / 再生キー</td></tr>
+        <tr><td><code>z2-open</code> / <code>z2-share</code> / <code>z2-intent</code></td><td>URL やファイルを開く / 共有シートへ / 任意の Intent</td></tr>
+        <tr><td><code>z2-noti</code></td><td><b>いま出ている通知を読む</b>（要「通知アクセス」）</td></tr>
+        <tr><td><code>z2-screen keepon</code></td><td><b>時間を決めて</b>画面を消させない（アプリを畳んでも効きます）</td></tr>
+        <tr><td><code>z2-alarm</code></td><td>時刻の予約（Doze 中でも起きます）</td></tr>
+        <tr><td><code>z2-session</code></td><td><b>このアプリのタブを操る</b>（新規タブ・文字を入れる・画面を取り出す）</td></tr>
+        <tr><td><code>z2-tile</code> / <code>z2-icon</code></td><td>クイック設定タイルへの割り当て / アイコンの差し替え（→ <a href="guide-tile.ja.html">4 章</a>）</td></tr>
+        <tr><td><code>z2-when</code></td><td><b>自動化ハブ</b>（→ <a href="guide-when.ja.html">3 章</a>）</td></tr>
+        <tr><td><code>z2adb</code> / <code>z2doctor</code></td><td>PC 不要の adb / 環境の健康診断</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tip">どのコマンドも<b>引数なしで打つとヘルプ</b>が出ます。全体の一覧は <code>z2help</code> です。</div>
+
+  <h2>目玉: スクリプトが「あなたに聞く」</h2>
+
+  <p><code>z2-ask</code> は、<b>通知の返信欄</b>で質問して、打ち込まれた答えを標準出力に返します。
+    アプリを開かなくても、通知を下ろして答えるだけで、裏で待っているスクリプトが続きを始めます。</p>
+
+  <figure class="shot">
+    <img src="images/notify-ask.png" alt="通知シェードに出た質問と、その返信欄">
+    <figcaption>通知シェードのまま答えられます</figcaption>
+  </figure>
+
+  <pre><span class="c"># 答えなければ非ゼロで終わるので「やめる」がそのまま書ける</span>
+name=$(z2-ask <span class="g">"ブランチ名は？"</span>) || exit 1
+git switch -c <span class="g">"$name"</span></pre>
+
+  <p>選択肢から選ばせたいときは <code>z2-notify -b</code> です。押されたボタンは
+    <code>~/.z2term/events.jsonl</code> に 1 行増えるので、それを見て続きを分岐させます。</p>
+
+  <pre>z2-notify -h -n cleanup -b <span class="g">はい</span> -b <span class="g">あとで</span> <span class="g">"掃除しますか?"</span> <span class="g">"一時ファイルを消します"</span></pre>
+
+  <h2>自分のマクロを書く</h2>
+
+  <p>ふつうの POSIX シェルスクリプトです。1 行目にシェバン、<b>2 行目に「何をするものか」</b>を
+    コメントで書いておくと、ウィジェットやタイルの一覧にその説明が出ます。</p>
+
+  <pre><span class="c">#!/bin/sh</span>
+<span class="c"># ~/.z2term/macros/lowbat.sh ─ 電池が減ったら知らせる</span>
+level=$(z2-state level)
+[ <span class="g">"$level"</span> -lt 20 ] || exit 0
+z2-notify -h <span class="g">"電池 ${level}%"</span> <span class="g">"そろそろ充電してください"</span>
+z2-say <span class="g">"電池が少なくなりました"</span></pre>
+
+  <p>置いたら実行できるようにします。</p>
+
+  <pre>chmod +x ~/.z2term/macros/lowbat.sh
+lowbat.sh                 <span class="c"># 名前だけで呼べます</span></pre>
+
+  <h3>知っておくと詰まらないこと</h3>
+
+  <div class="warn"><b><code>at</code> / <code>atd</code> / <code>systemd</code> は使えません。</b>
+    この環境には PID 1 が無く、<code>atd</code> も入っていません。
+    「指定の時刻に 1 回」を <code>at</code> で書くと<b>何も起きず、エラーも出ません</b>。
+    <code>cron</code> は動きますが省電力（Doze）で止まります。
+    <b>時刻で動かすものは <code>z2-when time:</code> か <code>z2-alarm</code> だけ</b>を使ってください。</div>
+
+  <div class="note"><b>背景に投げた処理は、スクリプトが終わっても生き残ります。</b>
+    <code>&amp;</code> や <code>nohup</code> で逃がした子プロセスは止まりません。
+    時間のかかるダウンロードなどは、前景で待たずに背景へ投げてください。</div>
+
+  <div class="note"><b>同梱マクロは部品として呼べます。</b>
+    たとえば時刻の解釈と通知の組み立ては <code>remind.sh</code> に任せられます。
+    <br><code>sh ~/.z2term/macros/remind.sh 明日 09:00 "打ち合わせ"</code></div>
+
+  <h2>AI に書いてもらう</h2>
+
+  <p><a href="https://github.com/orgsonai/z2term/blob/main/docs/ja/MACRO-GUIDE.md">マクロガイド</a>
+    には、<b>そのファイル 1 本を AI に渡せば動くマクロが出てくる</b>ように、
+    仕様とコピペ用の指示文がまとまっています。「§7. AI にマクロを作ってもらう」をご覧ください。</p>
+
+  <div class="next">
+    <a href="guide-terminal.ja.html"><span>← 前へ</span><b>1. ターミナルとして使う</b></a>
+    <a href="guide-when.ja.html"><span>次へ →</span><b>3. 自動化（z2-when）</b></a>
+  </div>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    Z2Term — GPL-3.0.
+    · <a href="https://github.com/orgsonai/z2term">ソース</a>
+    · <a href="guide.ja.html">ガイド目次</a>
+  </div>
+</footer>
+
+</body>
+</html>

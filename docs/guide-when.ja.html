@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3. 自動化（z2-when） — Z2Term 使いこなしガイド</title>
+<meta name="description" content="充電・時刻・Wi-Fi・共有・SMS・通知・センサー・ファイルをきっかけに、アプリを閉じていてもスクリプトを走らせる z2-when の使いかた。条件の絞り込みと、動かないときの調べかたまで。">
+<link rel="canonical" href="https://orgsonai.github.io/z2term/guide-when.ja.html">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <a href="index.ja.html" class="brand">Z<b>2</b>Term</a>
+    <nav>
+      <a href="guide.ja.html">ガイド目次</a>
+      <a href="https://github.com/orgsonai/z2term">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <p class="crumb"><a href="guide.ja.html">使いこなしガイド</a> / 3. 自動化</p>
+
+  <h1>3. 自動化（<code>z2-when</code>）</h1>
+  <p class="lede">「<strong>こうなったら、これを走らせる</strong>」を 1 行で登録します。
+    登録したルールは<strong>アプリを閉じても、端末を再起動しても</strong>生き残ります。
+    見張り続けるスクリプトを自分で書く必要はありません。</p>
+
+  <div class="chapnav">
+    <a href="guide-terminal.ja.html">1. ターミナル</a>
+    <a href="guide-macro.ja.html">2. マクロ</a>
+    <a href="guide-when.ja.html" aria-current="page">3. 自動化</a>
+    <a href="guide-tile.ja.html">4. タイル</a>
+  </div>
+
+  <h2>書き方はこれだけ</h2>
+
+  <pre>z2-when <span class="g">&lt;きっかけ&gt;</span> [条件...] run <span class="g">&lt;コマンド&gt;</span></pre>
+
+  <pre><span class="c"># 充電を始めたらバックアップ</span>
+z2-when charge:start run ~/.z2term/macros/backup.sh
+
+<span class="c"># 毎朝 7 時に</span>
+z2-when time:daily=07:00 run ~/.z2term/macros/morning.sh
+
+<span class="c"># 自宅の Wi-Fi に繋がったときだけ、1 時間に 1 回まで</span>
+z2-when net:online if=ssid=Home cooldown=1h run ~/.z2term/macros/sync.sh</pre>
+
+  <p>登録・確認・停止は次のとおりです。</p>
+
+  <pre>z2-when list             <span class="c"># 登録したルールの一覧（id が出ます）</span>
+z2-when log &lt;id&gt;         <span class="c"># そのルールが実行した記録</span>
+z2-when fired            <span class="c"># 直近の発火（見送った理由も出ます）</span>
+z2-when off &lt;id&gt;         <span class="c"># 一時停止 / on で再開</span>
+z2-when remove &lt;id&gt;      <span class="c"># 削除（all で全部）</span></pre>
+
+  <h3>画面からも操作できます</h3>
+
+  <figure class="shot">
+    <img src="images/sheet-automation.png" alt="ツールバーの 📜 から開いた自動化タブ。登録済みのルールが並んでいる">
+    <figcaption>ツールバーの <b>📜 →「自動化」</b>タブ。追加・編集・ON/OFF・実行ログがここにあります</figcaption>
+  </figure>
+
+  <figure class="shot">
+    <img src="images/when-add.png" alt="ルールの追加画面。きっかけを一覧から選ぶ">
+    <figcaption>きっかけは一覧から選べるので、綴りを覚える必要はありません</figcaption>
+  </figure>
+
+  <h2>きっかけの一覧</h2>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>きっかけ</th><th>いつ動くか</th><th>前もって要るもの</th></tr></thead>
+      <tbody>
+        <tr><td><code>charge:start</code> / <code>charge:stop</code></td><td>充電の開始 / 停止</td><td>システムイベント検知</td></tr>
+        <tr><td><code>battery:below=20</code> / <code>battery:above=80</code></td><td>電池がその値を<b>跨いだ瞬間</b></td><td>システムイベント検知</td></tr>
+        <tr><td><code>time:daily=07:00</code></td><td>毎日その時刻</td><td>—</td></tr>
+        <tr><td><code>time:at=18:30</code></td><td>次のその時刻に 1 回</td><td>—</td></tr>
+        <tr><td><code>time:every=30m</code></td><td>その間隔ごと（最短 1 分）</td><td>—</td></tr>
+        <tr><td><code>time:cron='0 3 * * *'</code></td><td>cron 式（空白を含むので<b>要クォート</b>）</td><td>—</td></tr>
+        <tr><td><code>wifi:connect</code> / <code>wifi:ssid=Home</code></td><td>Wi-Fi 接続 / その SSID へ接続</td><td>システムイベント検知</td></tr>
+        <tr><td><code>net:online</code> / <code>net:offline</code></td><td>通信できる回線ができた / 無くなった</td><td>システムイベント検知</td></tr>
+        <tr><td><code>share:any</code> / <code>share:ext=pdf</code></td><td><b>他のアプリから「共有」で送られた</b></td><td>—</td></tr>
+        <tr><td><code>boot</code></td><td>端末の起動が終わった</td><td>—</td></tr>
+        <tr><td><code>sms:otp</code> / <code>sms:from=…</code></td><td>SMS が届いた</td><td>SMS 検知</td></tr>
+        <tr><td><code>notify:category=call</code> / <code>notify:pkg=…</code></td><td>通知が届いた（着信・不在着信も種別で拾えます）</td><td>通知アクセス</td></tr>
+        <tr><td><code>sensor:shake</code> / <code>sensor:light&lt;10</code></td><td>振った / 明るさが変わった</td><td>システムイベント検知</td></tr>
+        <tr><td><code>file:new=/sdcard/Pictures/Screenshots</code></td><td>そのフォルダに<b>新しいファイルが来た</b></td><td>システムイベント検知</td></tr>
+        <tr><td><code>event:headset_plugged</code></td><td>端末イベントを名前で（一覧は <code>z2-when events</code>）</td><td>ものによる</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="warn"><b>「前もって要るもの」は ⚙設定で ON にしてください。</b>
+    システムイベント検知・SMS 検知・通知アクセスは、どれも<b>既定では OFF</b> です
+    （勝手に見張らないため）。ON にしていないきっかけは、登録できても動きません。</div>
+
+  <div class="note"><b>きっかけの綴りを間違えると、登録の時点で断ります。</b>
+    通してしまうと「一覧に並ぶのに一生動かないルール」になり、原因を追えなくなるためです。</div>
+
+  <h2>条件で絞る</h2>
+
+  <p>きっかけの直後、<code>run</code> より前に置きます。どのきっかけにも同じように効きます。</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>書き方</th><th>意味</th></tr></thead>
+      <tbody>
+        <tr><td><code>if=wifi,!screen</code></td><td>そのときの状態で絞る（カンマは「かつ」、<code>!</code> は否定）。
+          使えるのは <code>z2-state</code> で見える項目（<code>ssid=Home</code> <code>level&lt;30</code> <code>temp&gt;40</code> なども）</td></tr>
+        <tr><td><code>cooldown=1h</code></td><td>前に実行してからこの時間は動かさない</td></tr>
+        <tr><td><code>between=22:00-07:00</code></td><td>その時間帯だけ（日をまたいでも書けます）</td></tr>
+        <tr><td><code>days=mon-fri</code></td><td>その曜日だけ</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <pre><span class="c"># 平日の夜、画面が消えているときだけ、30 分ごとに</span>
+z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term/macros/nightly.sh</pre>
+
+  <h2>何が起きたかを受け取る</h2>
+
+  <p>走ったコマンドには、<b>何がきっかけだったか</b>が環境変数で渡ります。</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>変数</th><th>入るもの</th></tr></thead>
+      <tbody>
+        <tr><td><code>Z2_WHEN_TRIGGER</code></td><td>登録したきっかけの文字列（全部共通）</td></tr>
+        <tr><td><code>Z2_WHEN_LEVEL</code> / <code>Z2_WHEN_SSID</code></td><td>電池残量 / Wi-Fi 名</td></tr>
+        <tr><td><code>Z2_WHEN_SHARE</code> / <code>_KIND</code></td><td>共有された中身 / 種別（<code>text</code> か <code>file</code>）</td></tr>
+        <tr><td><code>Z2_WHEN_SMS_FROM</code> / <code>_BODY</code> / <code>Z2_WHEN_OTP</code></td><td>送信元 / 本文 / 抽出したワンタイムコード</td></tr>
+        <tr><td><code>Z2_WHEN_NOTI_PKG</code> / <code>_TITLE</code> / <code>_TEXT</code> / <code>_CATEGORY</code></td><td>通知のアプリ / 題名 / 本文 / 種別</td></tr>
+        <tr><td><code>Z2_WHEN_FILE</code> / <code>Z2_WHEN_DIR</code></td><td>増えたファイル / そのフォルダ</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="warn"><b>共有ファイルの <code>Z2_WHEN_SHARE</code> は「パス」ではありません。</b>
+    シェルに貼るための文字列で、<code>~</code> は展開されておらず、空白を含む名前は引用符つき、
+    <b>複数ファイルは空白区切り</b>で並びます。<code>[ -f "$Z2_WHEN_SHARE" ]</code> と書くと必ず外れ、
+    しかもログには何も出ません。分解の例は
+    <a href="https://github.com/orgsonai/z2term/blob/main/docs/ja/MACRO-GUIDE.md">マクロガイド</a>に
+    そのまま貼れる形で載せてあります。</div>
+
+  <div class="note"><code>Z2_WHEN_*</code> をコマンドの中で使うときは、
+    <code>run '...'</code> のように<b>単一引用符</b>で囲んでください（登録した時点で展開されてしまうため）。</div>
+
+  <h2>そのまま使える例</h2>
+
+  <pre><span class="c"># 1. スクリーンショットを撮ったら、その場で名前を聞いて付け直す</span>
+z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
+
+<span class="c"># 2. 届いたワンタイムコードを自動でコピー（SMS 検知が要ります）</span>
+z2-when sms:otp run 'z2-clip set "$Z2_WHEN_OTP"; z2-toast "コードをコピーしました"'
+
+<span class="c"># 3. 電話帳に無い番号からの着信を控えておく（通知アクセスが要ります）</span>
+z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh
+
+<span class="c"># 4. 共有したものを裏で仕分ける</span>
+z2-when share:any run ~/.z2term/macros/zap.sh
+
+<span class="c"># 5. マナーモードにしたら Wi-Fi テザリングも切る、のような組み合わせ</span>
+z2-when 'event:ringer_*' run 'z2-toast "マナーモード: $Z2_WHEN_EVENT"'</pre>
+
+  <h2>動かないときは</h2>
+
+  <ol class="steps">
+    <li><b><code>z2-when list</code> に居るか。</b>登録できていなければ綴りが違います。</li>
+    <li><b><code>z2-when fired</code> を見る。</b>発火はしたが条件で見送った場合、
+      <code>skip:if</code> <code>skip:cooldown</code> <code>skip:between</code> <code>skip:days</code> と理由が出ます。</li>
+    <li><b><code>z2-when log &lt;id&gt;</code> を見る。</b>走った結果（エラー出力も）がここに残ります。</li>
+    <li><b>検知が ON か。</b>⚙設定 →「システムイベント検知」「SMS 検知」「通知検知」。</li>
+    <li><b>電池最適化から外す。</b>⚙設定 →「バックグラウンドのプロセス保護」。裏で長く動かすときに効きます。</li>
+  </ol>
+
+  <div class="tip">ルールの実行記録は <code>~/.z2term/when/&lt;id&gt;.log</code> です。
+    ホーム画面の<b>ライブ tail ウィジェット</b>に出しておくと、アプリを開かず眺められます
+    （→ <a href="guide-tile.ja.html">4 章</a>）。</div>
+
+  <div class="next">
+    <a href="guide-macro.ja.html"><span>← 前へ</span><b>2. マクロ（Android を操る）</b></a>
+    <a href="guide-tile.ja.html"><span>次へ →</span><b>4. タイル・ウィジェット・アイコン</b></a>
+  </div>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    Z2Term — GPL-3.0.
+    · <a href="https://github.com/orgsonai/z2term">ソース</a>
+    · <a href="guide.ja.html">ガイド目次</a>
+  </div>
+</footer>
+
+</body>
+</html>

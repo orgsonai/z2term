@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4. タイル・ウィジェット・アイコン — Z2Term 使いこなしガイド</title>
+<meta name="description" content="クイック設定のタイルとホーム画面のウィジェットからアプリを開かずに実行する方法、常駐サーバー、通知とタイルのアイコンを自分のドット絵に差し替える z2-icon の使いかた。">
+<link rel="canonical" href="https://orgsonai.github.io/z2term/guide-tile.ja.html">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <a href="index.ja.html" class="brand">Z<b>2</b>Term</a>
+    <nav>
+      <a href="guide.ja.html">ガイド目次</a>
+      <a href="https://github.com/orgsonai/z2term">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <p class="crumb"><a href="guide.ja.html">使いこなしガイド</a> / 4. タイル・ウィジェット・アイコン</p>
+
+  <h1>4. タイル・ウィジェット・アイコン</h1>
+  <p class="lede">書いたマクロを、<strong>アプリを開かずに</strong>手の届く場所へ置きます。
+    クイック設定のタイル、ホーム画面のウィジェット、そして裏で動き続ける常駐サーバー。</p>
+
+  <div class="chapnav">
+    <a href="guide-terminal.ja.html">1. ターミナル</a>
+    <a href="guide-macro.ja.html">2. マクロ</a>
+    <a href="guide-when.ja.html">3. 自動化</a>
+    <a href="guide-tile.ja.html" aria-current="page">4. タイル</a>
+  </div>
+
+  <h2>クイック設定のタイルに置く</h2>
+
+  <figure class="shot">
+    <img src="images/qs-tiles.png" alt="クイック設定パネルに並んだ Z2Term のタイル。それぞれ別のアイコンが付いている">
+    <figcaption>枠は 12 個。<b>中身に合わせてアイコンが自動で付きます</b></figcaption>
+  </figure>
+
+  <ol class="steps">
+    <li><b>枠に割り当てる。</b>端末でこう打ちます。
+      <pre>z2-tile set 1 backup.sh
+z2-tile set 2 <span class="g">'remind.sh ask'</span> -l <span class="g">リマインド</span>
+z2-tile set 3 z2-torch on --off z2-torch off -l <span class="g">ライト</span></pre>
+      マクロの名前でも、そのまま走らせるコマンドでも構いません（<code>-l</code> は表示名）。</li>
+    <li><b>クイック設定に並べる。</b>パネルを開いて<b>鉛筆（編集）</b>から Z2Term のタイルを引っぱり出します。
+      <div class="warn"><b>並べるのはご自身の操作が要ります。</b>
+        アプリが勝手にタイルを置くことは Android が禁じています。
+        <b>まだ何も割り当てていない枠は、編集画面にも出てきません</b>ので、12 個あっても邪魔になりません。</div>
+    </li>
+    <li><b>押す。</b>1 回目で実行、もう 1 回で停止。実行中はタイルが ON の見た目になります。</li>
+  </ol>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>したいこと</th><th>書き方</th></tr></thead>
+      <tbody>
+        <tr><td>入と切が別コマンド</td><td><code>--off</code> を付けると 1 枚で交互に走ります（ライトなど）</td></tr>
+        <tr><td>マクロに引数を渡す</td><td><code>z2-tile set 2 'remind.sh ask'</code> のようにクォートで囲みます</td></tr>
+        <tr><td>一覧・取り消し</td><td><code>z2-tile list</code> / <code>z2-tile clear 3</code>（<code>all</code> で全部）</td></tr>
+        <tr><td>押しても無反応</td><td><code>~/.z2term/tile/run.log</code> に理由が出ています</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>アイコンを自分の絵にする</h2>
+
+  <p>タイルとステータスバーのアイコンは、<b>24×24 のドット絵</b>に差し替えられます。
+    絵といっても<b>ただのテキスト</b>で、<code>#</code> と <code>.</code> で描きます。</p>
+
+  <p>まず、<b>タイルに置いた中身から自動で絵が付きます</b>。
+    <code>remind.sh</code> なら時計、<code>battery-alert.sh</code> なら電池、
+    <code>z2-screen keepon</code> なら月、といった具合です。同梱のマクロはすべて何かしら付きます。</p>
+
+  <pre>z2-icon pick 1              <span class="c"># 一覧から番号で選んで枠 1 へ</span>
+z2-icon edit 1              <span class="c"># $EDITOR で描く / 描き直す</span>
+z2-icon save 1 <span class="g">わたしの顔</span>   <span class="c"># その絵に名前を付けて一覧に足す</span>
+z2-icon sample 5 <span class="g">わたしの顔</span> <span class="c"># 枠 5 にも同じ絵を入れる</span>
+z2-icon list                <span class="c"># どの枠に何の絵が入っているか</span>
+z2-icon list -p             <span class="c"># 絵つきで確かめる</span>
+z2-icon auto 1              <span class="c"># 自動の選択に戻す</span>
+z2-icon clear notify        <span class="c"># 既定のアイコンへ戻す</span></pre>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>覚えておくこと</th><th>なぜ</th></tr></thead>
+      <tbody>
+        <tr><td><b>自分で入れた絵は自動で上書きされません</b></td>
+          <td>一度 <code>z2-icon</code> で入れたら、以後そこは自動で触りません（戻すのは <code>auto</code>）</td></tr>
+        <tr><td><b>色は選べません</b></td>
+          <td>Android がアイコンを単色で塗り直すため。決まるのは<b>形だけ</b>です</td></tr>
+        <tr><td><b>細かい描き込みは消えます</b></td>
+          <td>実際の表示が 24px 前後なので。<code>z2-icon show</code> で見えるものがそのまま出ます</td></tr>
+        <tr><td><b>変えられない場所が 2 つ</b></td>
+          <td>クイック設定の<b>編集画面</b>のアイコンと、ランチャーのアイコン（Android が導入時に固定します）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <figure class="shot">
+    <img src="images/statusbar-icon.png" alt="ステータスバーに自分のドット絵アイコンが出ている">
+    <figcaption><code>notify</code> を差し替えると、このアプリの通知すべてがその絵になります</figcaption>
+  </figure>
+
+  <h2>ホーム画面のウィジェット</h2>
+
+  <figure class="shot">
+    <img src="images/widget-status.png" alt="ホーム画面に置いた状態ウィジェット。SSH の宛先、稼働数、マクロのボタンが並ぶ">
+    <figcaption>状態ウィジェット。<b>ボタンを押すとマクロが裏で走ります</b>（画面は切り替わりません）</figcaption>
+  </figure>
+
+  <p>ホーム画面の空きを長押し →「ウィジェット」→ <b>Z2Term の状態</b>。置いた直後に、
+    並べるマクロを選ぶ画面が出ます（最大 4 個）。</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>出ているもの</th><th>意味</th></tr></thead>
+      <tbody>
+        <tr><td>1 行目</td><td>PC からこの端末に入るための <code>ssh</code> コマンド。<b>緑なら <code>sshd</code> が動いています</b></td></tr>
+        <tr><td>2 行目</td><td><code>常駐 1/3 · 自動化 2/5 · 電池 87%</code> ＝「動いている数 / 登録してある数」。
+          <b>3 つは別のもの</b>を数えています（サーバー / ルール / 電池）</td></tr>
+        <tr><td>ボタンの印</td><td><code>■</code> 実行中 / <code>✓</code> 今日走って終わった / 印なし 今日はまだ</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note"><b>「開始したのにすぐ止まった」ように見えるとき</b>は、一瞬で終わっているだけのことがあります。
+    <code>■</code> が消えて <code>✓</code> が付いていれば正常に終わっています。
+    実行中のボタンをもう一度押すと止められます。</div>
+
+  <h3>もう 1 つ: ライブ tail</h3>
+
+  <figure class="shot">
+    <img src="images/widget-tail.png" alt="ライブ tail ウィジェット。ログファイルの末尾が表示されている">
+    <figcaption>ファイルの末尾（または先頭）を、アプリを開かずに眺められます</figcaption>
+  </figure>
+
+  <p>よく見るのはこのあたりです。</p>
+  <ul>
+    <li><code>~/.z2term/when/&lt;id&gt;.log</code> … その自動化ルールが実行した記録</li>
+    <li><code>~/.z2term/events.jsonl</code> … 検知したイベント（画面・充電・Wi-Fi など）</li>
+    <li><code>~/.z2term/widget/run.log</code> … ウィジェットから走らせたマクロの出力</li>
+  </ul>
+
+  <h2>常駐サーバー（アプリを開かず動かし続ける）</h2>
+
+  <figure class="shot">
+    <img src="images/sheet-servers.png" alt="サーバー管理画面。登録したサーバーと稼働状態が並んでいる">
+    <figcaption>ツールバーの <b>📜 →「サーバー」</b>（⚙設定 →「常駐サーバー」と同じ画面）</figcaption>
+  </figure>
+
+  <p><code>sshd</code>・Web サーバー・同期デーモンなど、<b>動かし続けたいもの</b>を登録します。
+    「起動時に自動で常駐」を ON にすると、<b>アプリを開かなくても端末の起動直後から</b>立ち上がります。</p>
+
+  <ul>
+    <li>プリセット（SSH / HTTP / SMB / FTP / VNC）を選ぶと起動コマンドが埋まります。中身は自由に編集できます。</li>
+    <li>サーバー本体（<code>sshd</code> など）は、あらかじめ端末で導入しておいてください。</li>
+    <li>落ちても<b>自動で再起動</b>します。うまく動かないときは各行の <b>▤</b> でログを見てください。</li>
+    <li>止めるのは通知の「サーバー停止」か、この画面の「停止」。</li>
+  </ul>
+
+  <div class="warn"><b>1024 未満のポート（80 など）は root 無しでは開けません。</b>
+    8080 のような高いポートを使ってください。</div>
+
+  <div class="note"><b>常駐サーバーが動いている間、ツールバーの 🔒 は薄くなります。</b>
+    サーバーがアプリを裏で生かしているので、そこで切っても意味がないためです。
+    押すと「セッションだけ終了」「全部停止して終了」を選べます。</div>
+
+  <div class="next">
+    <a href="guide-when.ja.html"><span>← 前へ</span><b>3. 自動化（z2-when）</b></a>
+    <a href="guide.ja.html"><span>戻る →</span><b>ガイド目次</b></a>
+  </div>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    Z2Term — GPL-3.0.
+    · <a href="https://github.com/orgsonai/z2term">ソース</a>
+    · <a href="guide.ja.html">ガイド目次</a>
+  </div>
+</footer>
+
+</body>
+</html>

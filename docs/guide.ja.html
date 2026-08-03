@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Z2Term 使いこなしガイド — 何ができて、どう使うか</title>
+<meta name="description" content="Z2Term の使いかたを最初から。ターミナルの操作、マクロ、自動化 (z2-when)、クイック設定タイルとウィジェットまで、独自の部分を順に説明します。">
+<meta property="og:title" content="Z2Term 使いこなしガイド">
+<meta property="og:description" content="Linux が分かる人でも最初は戸惑う「z2term 独自の部分」を、順番に説明します。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://orgsonai.github.io/z2term/guide.ja.html">
+<meta property="og:locale" content="ja_JP">
+<link rel="canonical" href="https://orgsonai.github.io/z2term/guide.ja.html">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <a href="index.ja.html" class="brand">Z<b>2</b>Term</a>
+    <nav>
+      <a href="index.ja.html">トップ</a>
+      <a href="guide.ja.html" aria-current="page">ガイド</a>
+      <a href="https://github.com/orgsonai/z2term">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <h1>使いこなしガイド</h1>
+  <p class="lede">Z2Term は「Android で動く Linux ターミナル」であると同時に、
+    <strong>シェルから Android そのものを操作する道具</strong>です。後半がまるごと独自のしくみなので、
+    <strong>Linux に慣れている方でも、知らなければ使えません</strong>。
+    このガイドは、その独自部分を順番に説明します。</p>
+
+  <div class="tip">はじめての方は <b>下の「最初の 15 分」</b>だけ読めば、ふつうのターミナルとして使えます。
+    その先の 4 章が、このアプリならではの部分です。</div>
+
+  <h2>このアプリで何ができるか</h2>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>できること</th><th>ひとことで言うと</th><th>詳しく</th></tr></thead>
+      <tbody>
+        <tr><td><b>Linux を動かす</b></td>
+          <td>root 不要で Alpine / Ubuntu / Arch / Kali。<code>apk</code> <code>apt</code> <code>pacman</code> がそのまま使えます</td>
+          <td><a href="guide-terminal.ja.html">1. ターミナル</a></td></tr>
+        <tr><td><b>Android を操作する</b></td>
+          <td>通知を出す・質問する・クリップボード・ライト・音量・センサー・SMS を <b>シェルから</b></td>
+          <td><a href="guide-macro.ja.html">2. マクロ</a></td></tr>
+        <tr><td><b>ひとりでに動かす</b></td>
+          <td>充電・時刻・Wi-Fi・共有・着信などをきっかけに、<b>アプリを閉じていても</b>スクリプトが走ります</td>
+          <td><a href="guide-when.ja.html">3. 自動化</a></td></tr>
+        <tr><td><b>すぐ手が届く場所に置く</b></td>
+          <td>クイック設定のタイル・ホーム画面のウィジェットから、<b>アプリを開かずに</b>実行</td>
+          <td><a href="guide-tile.ja.html">4. タイルとウィジェット</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>最初の 15 分</h2>
+
+  <ol class="steps">
+    <li><b>APK を入れて開く。</b>
+      <a href="https://github.com/orgsonai/z2term/releases/latest">GitHub Releases</a> から
+      <code>app-full-release.apk</code>（Alpine 同梱・約 190MB）を入れるのがいちばん簡単です。
+      初回起動でそのまま Linux が立ち上がります。
+      <div class="note">通信量を抑えたいときは <code>app-foss-release.apk</code>（約 21MB）。
+        こちらは初回だけ Alpine を取得します。</div>
+    </li>
+    <li><b>画面の見かたを覚える。</b>上のバーがツールバー、その下がタブ、真ん中が端末、下がキーボードです。
+      ボタンは<b>長押しで並べ替え</b>られ、使わないものは設定で消せます。
+      → <a href="guide-terminal.ja.html">1. ターミナル</a></li>
+    <li><b>日本語を打ってみる。</b>キーボード左の「あ」で日本語フリックに切り替わります。
+      変換は候補バーから。<b>OS のキーボードとしても使えます</b>（設定 → キーボード）。</li>
+    <li><b>使うディストロを決める。</b>⚙ 設定 →「ディストロ」で Alpine / Ubuntu / Arch / Kali。
+      迷ったら Alpine のままで構いません。
+      <div class="warn"><code>claude</code> や <code>gcc</code> など <b>glibc 前提のものを動かすなら Arch</b> を選んでください。
+        Alpine（musl）では起動できないものがあります。</div>
+    </li>
+    <li><b>同梱のマクロを入れてみる。</b>端末で <code>z2-macro install all</code> と打つと、
+      すぐ使えるサンプルが <code>~/.z2term/macros/</code> に入ります。ここが 2 章以降の出発点です。</li>
+  </ol>
+
+  <h2>4 つの章</h2>
+
+  <div class="cards">
+    <a class="card" href="guide-terminal.ja.html">
+      <h3><span>1</span>ターミナルとして使う</h3>
+      <p>画面の見かた、ツールバーの各ボタン、独自キーボードとフリック、コピーと検索、
+        パッケージの入れかた、PC からの SSH、ファイルのやりとり。</p>
+    </a>
+    <a class="card" href="guide-macro.ja.html">
+      <h3><span>2</span>マクロ（Android を操る）</h3>
+      <p><code>z2-*</code> コマンド一覧と、その組み合わせ方。通知を出す、通知で質問して答えを受け取る、
+        同梱サンプルの使いかた、自分のマクロの書きかた。</p>
+    </a>
+    <a class="card" href="guide-when.ja.html">
+      <h3><span>3</span>自動化（<code>z2-when</code>）</h3>
+      <p>きっかけの一覧と条件の絞り込み。充電・時刻・Wi-Fi・共有・SMS・通知・センサー・ファイル。
+        動かないときの調べかたまで。</p>
+    </a>
+    <a class="card" href="guide-tile.ja.html">
+      <h3><span>4</span>タイル・ウィジェット・アイコン</h3>
+      <p>クイック設定に置く、ホーム画面に置く、常駐サーバー、通知とタイルのアイコンを
+        自分のドット絵にする。</p>
+    </a>
+  </div>
+
+  <h2>困ったときは</h2>
+  <ul>
+    <li><b>まず <code>z2doctor</code></b>。環境の状態をまとめて出します（<code>z2doctor --clip</code> で結果をコピー）。</li>
+    <li><b>コマンドの使い方は <code>z2help</code></b>。個々のコマンドは引数なしで打つとヘルプが出ます
+      （例: <code>z2-when</code>、<code>z2-icon</code>）。</li>
+    <li>より細かい仕様は
+      <a href="https://github.com/orgsonai/z2term/blob/main/docs/ja/HANDBOOK.md">ハンドブック</a>と
+      <a href="https://github.com/orgsonai/z2term/blob/main/docs/ja/MACRO-GUIDE.md">マクロガイド</a>にあります。</li>
+    <li>うまくいかない・分かりにくいところは
+      <a href="https://github.com/orgsonai/z2term/issues">Issues</a> へどうぞ。</li>
+  </ul>
+
+  <div class="next">
+    <a href="index.ja.html"><span>← 戻る</span><b>トップページ</b></a>
+    <a href="guide-terminal.ja.html"><span>次へ →</span><b>1. ターミナルとして使う</b></a>
+  </div>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    Z2Term — Zero to Ship プロジェクト 第 5 作。GPL-3.0.
+    · <a href="https://github.com/orgsonai/z2term">ソース</a>
+    · <a href="index.ja.html">トップ</a>
+  </div>
+</footer>
+
+</body>
+</html>
