@@ -763,7 +763,6 @@
     <string name="hint_ping">ping cannot work here. Use nmap -sT or curl instead</string>
     <string name="hint_low_port">Ports below 1024 are not available. Try 8022 or similar</string>
     <string name="hint_sshd_path">Type just sshd, not the full path (the built-in dropbear runs)</string>
-    <string name="hint_not_found">That command is not installed yet. Try apk add / apt install / pacman -S</string>
     <string name="hint_storage">Seeing /sdcard needs Settings > allow access to all files</string>
     <string name="settings_terminal_hints">Explain common stumbles</string>
     <string name="settings_terminal_hints_desc">When a well-known error appears, show one line at the bottom with the next step. The terminal output itself is never altered.</string>

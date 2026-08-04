@@ -1729,7 +1729,6 @@ private fun HintBar(
         TerminalHints.Hint.PING -> R.string.hint_ping
         TerminalHints.Hint.LOW_PORT -> R.string.hint_low_port
         TerminalHints.Hint.SSHD_PATH -> R.string.hint_sshd_path
-        TerminalHints.Hint.NOT_FOUND -> R.string.hint_not_found
         TerminalHints.Hint.STORAGE -> R.string.hint_storage
     }
     Row(

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-03 / Target version: 0.8.303-alpha (versionCode 311)
+Last updated: 2026-08-04 / Target version: 0.8.304-alpha (versionCode 312)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -579,7 +579,8 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 - ⚠ **The terminal output itself is never rewritten.** This adds one line elsewhere; nothing enters the scrollback or the session log. Rewriting output would undermine the one thing a terminal must be trusted for.
 - The scan point is **the same single place as logging (⚪)** — inside `readJob`, "the only place everything shown in a tab passes through". PTY chunks arrive in 8KB pieces, so a line can split across them; the previous 256 characters are carried over before matching.
 - **Not scanned during alt screen.** Full-screen apps would trigger false positives with whatever text happens to be on their canvas.
-- **Exactly five patterns** (ping / ports under 1024 / calling `/usr/sbin/sshd` directly / command not found / `/sdcard` invisible). Only stumbles whose answer fits in one line and that people actually hit. False positives make this instantly annoying, and an annoying feature gets deleted outright.
+- **Exactly four patterns** (ping / ports under 1024 / calling `/usr/sbin/sshd` directly / `/sdcard` invisible). Only stumbles whose answer fits in one line and that people actually hit. False positives make this instantly annoying, and an annoying feature gets deleted outright.
+- **"Command not found" is never shown** (removed in 0.8.304). `command not found` is the most ordinary thing that happens in a terminal — it is not even a stumble — and the only advice possible was to list `apk add / apt install / pacman -S`, which is unreadable to someone who does not know which distro they are on. It was not a false positive; it was useless even when it hit.
 - **Sixty seconds of silence per hint.** Firing on every `command not found` would turn the app into a nag.
 - Settings › Display carries an **off switch** (default on), where someone who finds it intrusive can reach it immediately.
 - Matching is an Android-free pure function; `TerminalHintsTest` pins both what must match and **what must not** (normal `PING 8.8.8.8 …` output, or a line you wrote yourself such as `# ping is not available`).

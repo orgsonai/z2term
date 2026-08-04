@@ -21,8 +21,9 @@ class TerminalHintsTest {
     }
 
     @Test
-    fun sshdAbsolutePath_beatsGenericNotFound() {
-        // `/usr/sbin/sshd: not found` は「コマンドが無い」でもあるが、案内すべきは sshd の方。
+    fun sshdAbsolutePath_isDetected() {
+        // 「コマンドが無い」の案内は 0.8.304 で撤去したが、その判定 (looksMissing) は
+        // ここが使い続ける。消すと sshd の直叩きに気付けなくなる。
         assertEquals(
             TerminalHints.Hint.SSHD_PATH,
             TerminalHints.detect("sh: /usr/sbin/sshd: not found")
@@ -46,9 +47,11 @@ class TerminalHintsTest {
     }
 
     @Test
-    fun commandNotFound_isDetected() {
-        assertEquals(TerminalHints.Hint.NOT_FOUND, TerminalHints.detect("bash: git: command not found"))
-        assertEquals(TerminalHints.Hint.NOT_FOUND, TerminalHints.detect("sh: vim: not found"))
+    fun commandNotFound_neverFires() {
+        // 0.8.304 で撤去。`command not found` は端末で最も普通に起きる出来事で、
+        // 案内も 3 ディストロを並べるしかなく役に立たなかった。うっかり復活させたらここで落ちる。
+        assertNull(TerminalHints.detect("bash: git: command not found"))
+        assertNull(TerminalHints.detect("sh: vim: not found"))
     }
 
     @Test

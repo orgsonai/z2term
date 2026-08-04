@@ -10,7 +10,10 @@ package com.zerotoship.z2term.core
  *  - **端末の出力そのものは絶対に書き換えない**。書き換えは端末アプリとしての信用に直結する。
  *    出すのは別の場所に 1 行だけ。
  *  - パターンを増やしすぎない。**誤爆すると一気にうっとうしい**ので、
- *    「答えが 1 行で書けて、実際によく詰まる」ものだけに絞る（いまは 5 つ）。
+ *    「答えが 1 行で書けて、実際によく詰まる」ものだけに絞る（いまは 4 つ）。
+ *  - **「コマンドが無い」は出さない**（0.8.304 で撤去）。`command not found` は端末で
+ *    最も普通に起きる出来事で詰まりですらなく、案内も 3 ディストロのコマンドを並べる
+ *    ことしかできないため、当たっても役に立たなかった。
  *
  * 判定は Android に触れない純粋な文字列処理なので [TerminalHintsTest] が固定する。
  */
@@ -29,9 +32,6 @@ object TerminalHints {
 
         /** `/usr/sbin/sshd` を直接叩いた (このアプリでは `sshd` ラッパーを使う)。 */
         SSHD_PATH,
-
-        /** コマンドが無い (パッケージを入れる案内)。 */
-        NOT_FOUND,
 
         /** `/sdcard` が見えない (ストレージ許可)。 */
         STORAGE,
@@ -63,8 +63,6 @@ object TerminalHints {
             // /sdcard が見えないのは、たいてい「すべてのファイルへのアクセス」が未許可。
             text.contains("/sdcard") &&
                 (text.contains("Permission denied") || text.contains("No such file or directory")) -> Hint.STORAGE
-
-            looksMissing(text) -> Hint.NOT_FOUND
 
             else -> null
         }
