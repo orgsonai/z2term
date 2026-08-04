@@ -49,6 +49,7 @@ import com.zerotoship.z2term.ui.terminal.scaledKeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.ComposingState
 import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
 import com.zerotoship.z2term.ui.terminal.keyboard.KanaKanjiConverter
+import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.KkcConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
@@ -254,8 +255,12 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                             composing = composing,
                             style = style,
                             showJapaneseKeyboard = isJa,
-                            initialJapaneseMode = settings.imeJapaneseMode,
-                            onJapaneseModeChange = ::rememberJapaneseMode
+                            faceOrder = KeyboardFace.orderFrom(
+                                settings.keyboardFaceOrder,
+                                settings.keyboardNumberFace
+                            ),
+                            initialFace = KeyboardFace.byId(settings.imeFace),
+                            onFaceChange = ::rememberFace
                         )
                     }
                 }
@@ -290,13 +295,13 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
     }
 
     /**
-     * 「あ」/ABC で切替えた面を覚える。次にキーボードが開くときは同じ面で出る。
+     * 切替キーで移った面を覚える。次にキーボードが開くときは同じ面で出る。
      *
      * ⚠ **端末画面の内蔵キーボードは覚えない** (常に英字面から始まる)。端末は英字で、
      * 他アプリは日本語で打ち始めることが多く、同じ設定を共有すると片方が必ず外れる。
      */
-    private fun rememberJapaneseMode(japanese: Boolean) {
-        lifecycleScope.launch { appSettings.setImeJapaneseMode(japanese) }
+    private fun rememberFace(face: KeyboardFace) {
+        lifecycleScope.launch { appSettings.setImeFace(face.id) }
     }
 
     /** [composing] の変化を `setComposingText` / `finishComposingText` へ流す。 */

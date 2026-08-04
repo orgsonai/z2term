@@ -367,6 +367,8 @@ class TerminalSession(
     fun setAmbiguousAsWide(v: Boolean) { scope.launch { settings.setAmbiguousAsWide(v) } }
     fun setInitCommand(value: String) { scope.launch { settings.setInitCommand(value) } }
     fun setKeyboardStyleId(id: String) { scope.launch { settings.setKeyboardStyleId(id) } }
+    fun setKeyboardNumberFace(enabled: Boolean) { scope.launch { settings.setKeyboardNumberFace(enabled) } }
+    fun setKeyboardFaceOrder(orderId: String) { scope.launch { settings.setKeyboardFaceOrder(orderId) } }
     fun setLoginShell(shell: String) { scope.launch { settings.setLoginShell(shell) } }
     fun setKeyboardMode(mode: String) { scope.launch { settings.setKeyboardMode(mode) } }
     fun setKeepAliveService(enabled: Boolean) { scope.launch { settings.setKeepAliveService(enabled) } }

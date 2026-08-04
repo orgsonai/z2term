@@ -22,6 +22,9 @@
     <string name="settings_section_login_shell">Login shell (applies from the next session)</string>
     <string name="settings_section_keyboard_style">Keyboard style</string>
     <string name="settings_keyboard_toggle_bar">Keyboard toggle bar</string>
+    <string name="settings_keyboard_number_face">Show the number face</string>
+    <string name="settings_keyboard_number_face_desc">Adds a numbers-only face (a keypad) to the built-in keyboard, so the switch key cycles through 12 as well. Turn it off and the cycle is あ → A → あ as before</string>
+    <string name="settings_keyboard_face_order">Face switching order</string>
     <string name="settings_keyboard_toggle_bar_desc">Show a show/hide bar above the keyboard. When off, double-tap the ⌨ button to toggle.</string>
     <string name="settings_section_user_dict">User dictionary</string>
     <!-- "candidate1" is part of the SKK dictionary format, not a typo for "candidate!". -->

@@ -142,6 +142,7 @@ import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
 import com.zerotoship.z2term.ui.terminal.keyboard.KanaKanjiConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.KkcConverter
+import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
@@ -510,6 +511,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             baseStyle,
             if (isLandscape) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp
         )
+        // 面 (かな / 英字 / 数字) の巡回順。設定の順序から、数字面が OFF ならそれを外す。
+        // 日本語面を外すかどうかは TerminalKeyboard 側 (showJapaneseKeyboard) が決める。
+        val faceOrder = KeyboardFace.orderFrom(settings.keyboardFaceOrder, settings.keyboardNumberFace)
 
         // 検索バー入力のルーティング:
         //   検索バーを開いて独自(内蔵)キーボード使用中は、キーボード出力を PTY ではなく検索クエリへ流す。
@@ -569,6 +573,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         style = kbStyle,
                         composing = composing,
                         showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                        faceOrder = faceOrder,
                         widthDp = settings.landscapeKeyboardWidthDp,
                         onBytes = onKeyboardBytes,
                         onCursorKey = onKeyboardCursor
@@ -690,6 +695,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         style = kbStyle,
                         composing = composing,
                         showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                        faceOrder = faceOrder,
                         widthDp = settings.landscapeKeyboardWidthDp,
                         onBytes = onKeyboardBytes,
                         onCursorKey = onKeyboardCursor
@@ -726,8 +732,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                                     onCursorKey = onKeyboardCursor,
                                     composing = composing,
                                     style = kbStyle,
-                                    // English モードでは日本語フリックボタンを隠す。
-                                    showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA
+                                    // English モードでは日本語面を巡回から外す。
+                                    showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                                    faceOrder = faceOrder
                                 )
                             }
                         }
@@ -1072,6 +1079,9 @@ private fun GuiTabScreen(
             baseStyleGui,
             if (isLandscapeGui) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp
         )
+        // 面 (かな / 英字 / 数字) の巡回順。設定の順序から、数字面が OFF ならそれを外す。
+        // 日本語面を外すかどうかは TerminalKeyboard 側 (showJapaneseKeyboard) が決める。
+        val faceOrder = KeyboardFace.orderFrom(settings.keyboardFaceOrder, settings.keyboardNumberFace)
 
         Row(modifier = Modifier
             .fillMaxWidth()
@@ -1082,6 +1092,7 @@ private fun GuiTabScreen(
                     style = kbStyleGui,
                     composing = composing,
                     showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                    faceOrder = faceOrder,
                     widthDp = settings.landscapeKeyboardWidthDp,
                     onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
                     onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) }
@@ -1136,7 +1147,8 @@ private fun GuiTabScreen(
                                             onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) },
                                             composing = composing,
                                             style = kbStyleGui,
-                                            showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA
+                                            showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                                            faceOrder = faceOrder
                                         )
                                     }
                                 }
@@ -1160,6 +1172,7 @@ private fun GuiTabScreen(
                     style = kbStyleGui,
                     composing = composing,
                     showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                    faceOrder = faceOrder,
                     widthDp = settings.landscapeKeyboardWidthDp,
                     onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
                     onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) }
@@ -2575,6 +2588,7 @@ private fun SideKeyboardColumn(
     style: KeyboardStyle,
     composing: ComposingState,
     showJapaneseKeyboard: Boolean,
+    faceOrder: List<KeyboardFace>,
     widthDp: Float,
     onBytes: (ByteArray) -> Unit,
     onCursorKey: (com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey) -> Unit
@@ -2595,7 +2609,8 @@ private fun SideKeyboardColumn(
                 onCursorKey = onCursorKey,
                 composing = composing,
                 style = style,
-                showJapaneseKeyboard = showJapaneseKeyboard
+                showJapaneseKeyboard = showJapaneseKeyboard,
+                faceOrder = faceOrder
             )
         }
     }

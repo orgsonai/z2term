@@ -71,7 +71,7 @@ import kotlinx.coroutines.launch
  *   ESC      あ   か  さ   ⌫
  *   ◀/▼     た   な  は   ▶/▲
  *   😀/␣    ま   や  ら   変換
- *   ABC      小゛゜ わ  、。  ⏎
+ *   面切替   小゛゜ わ  、。  ⏎   (面切替 = 次の面へ。2 面のときは従来どおり ABC)
  *
  * **パッド (絵文字 / 貼り付け)**: 😀 キー、または ESC の**上フリック**で
  * [KeyboardPad] を開く。⚠ 絵文字も貼り付けも**新しいキーを置く隙間が無い**ので、
@@ -79,14 +79,14 @@ import kotlinx.coroutines.launch
  * パッドになり、両端の列 (⌫ ⏎ ␣ …) はそのまま残るので、貼った直後に消す・改行する
  * といった操作が続けてできる。閉じるのは**入った同じキーをもう一度**押す (トグル)。
  *
- * 両端の列 (ESC/◀▼/␣/ABC と ⌫/▶▲/変換/⏎) は [JP_EDGE_WEIGHT] で幅を狭め、
+ * 両端の列 (ESC/◀▼/␣/面切替 と ⌫/▶▲/変換/⏎) は [JP_EDGE_WEIGHT] で幅を狭め、
  * 中央 3 列のかな (フリック) を広く取って打ちやすくしている。
  * Row 2 の両端は左右キーの真下に上下キーを半行ずつ積み ([JpEdgeStack])、◀ ▶ ▼ ▲ を
  * 全て同じサイズに揃える: ◀ の下 (左) に ▼ (下)、▶ の下 (右) に ▲ (上)。
  * スペース/変換は Row 3 で 1 行のまま (押しやすさ優先)。
  */
 // 両端 (機能キー) 列の幅。中央のかな列 (1f) より狭くする。
-private const val JP_EDGE_WEIGHT = 0.7f
+internal const val JP_EDGE_WEIGHT = 0.7f
 
 /** ESC の上フリック先 (貼り付けパッド) を表す印。キー上のヒントと長押しポップアップで共用。 */
 private const val PAD_HINT = "📋"
@@ -98,28 +98,19 @@ private const val LONG_PRESS_HINT_MS = 300L
 fun JapaneseFlickKeyboard(
     onBytes: (ByteArray) -> Unit,
     onCursorKey: (TerminalEmulator.CursorKey) -> Unit,
-    onSwitchToAscii: () -> Unit,
+    onSwitchFace: () -> Unit,
+    /**
+     * 面の切替キーに出すラベル (= 押すと**行く先**の面 / [KeyboardFace.switchLabel])。
+     * 面が 3 つあると「押したらどこへ行くのか」がラベル以外に分からないため、
+     * 呼出し側が巡回順から決めて渡す。既定は従来どおり英字面。
+     */
+    switchLabel: String = KeyboardFace.ASCII.switchLabel,
     composing: ComposingState,
     selectedStyle: KeyboardStyle,
     modifier: Modifier = Modifier
 ) {
-    // 日本語キーボードは「シンプル / 4 方向フリック」どちらを選んでも、文字の見やすさ
-    // (フォントサイズ) を **4 方向フリック (SPACIOUS) に統一** する (ユーザー要望)。
-    //   - シンプル(COMPACT) はかなが小さく見えていたので、選択スタイルに関係なく
-    //     SPACIOUS のフォント設定を基準にする。
-    //   - 高さは選択スタイルのまま。キーボード高さ設定に応じた拡縮も維持したいので、
-    //     scaledKeyboardStyle が naturalHeight に入れた「目標総高さ」に合わせて
-    //     SPACIOUS の素のフォント値を同じ比率でスケールする (= scaledKeyboardStyle と同じ計算)。
-    val style = run {
-        val ref = KeyboardStyle.SPACIOUS
-        val scale = (selectedStyle.naturalHeight.value / ref.naturalHeight.value).coerceIn(0.6f, 2.5f)
-        val fontScale = scale.coerceIn(0.85f, 1.4f)
-        selectedStyle.copy(
-            keyFontSp = ref.keyFontSp * fontScale,
-            mainKeyFontSp = ref.mainKeyFontSp * fontScale,
-            flickHintFontSp = ref.flickHintFontSp * fontScale
-        )
-    }
+    // フォントは選択スタイルによらず SPACIOUS 基準へ揃える (数字面と共通・[forTwelveKeyFace])。
+    val style = selectedStyle.forTwelveKeyFace()
 
     // 開いているパッド (絵文字 / 貼り付け)。NONE ならかなキーがそのまま出る。
     var pad by remember { mutableStateOf(PadMode.NONE) }
@@ -212,10 +203,10 @@ fun JapaneseFlickKeyboard(
                 JpFuncKey("␣", style, Modifier.weight(1f).fillMaxWidth(), repeatable = true) {
                     if (composing.isActive) composing.append(' ') else onBytes(byteArrayOf(0x20))
                 }
-                JpFuncKey("ABC", style, Modifier.weight(1f).fillMaxWidth(), fontScale = 0.7f, accent = true) {
+                JpFuncKey(switchLabel, style, Modifier.weight(1f).fillMaxWidth(), fontScale = 0.7f, accent = true) {
                     pad = PadMode.NONE
                     flush()
-                    onSwitchToAscii()
+                    onSwitchFace()
                 }
             }
             KeyboardPad(
@@ -353,9 +344,9 @@ fun JapaneseFlickKeyboard(
                 handleConvert()
             }
         }
-        // Row 4: ABC(英字へ)  小゛゜  わ  、。  ⏎
+        // Row 4: 面切替(次の面へ)  小゛゜  わ  、。  ⏎
         JpRow(rowSpacing) {
-            JpKey("ABC", style, fontScale = 0.7f, accent = true, weight = JP_EDGE_WEIGHT) { flush(); onSwitchToAscii() }
+            JpKey(switchLabel, style, fontScale = 0.7f, accent = true, weight = JP_EDGE_WEIGHT) { flush(); onSwitchFace() }
             JpKey("小゛゜", style, fontScale = 0.6f) { cycleDakuten() }
             JpFlickKey(KANA_WA, style, ::emitKana)
             JpFlickKey(PUNCT, style, ::emitPlain)
@@ -369,7 +360,7 @@ fun JapaneseFlickKeyboard(
 }
 
 @Composable
-private fun ColumnScope.JpRow(spacing: androidx.compose.ui.unit.Dp, content: @Composable RowScope.() -> Unit) {
+internal fun ColumnScope.JpRow(spacing: androidx.compose.ui.unit.Dp, content: @Composable RowScope.() -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().weight(1f),
         horizontalArrangement = Arrangement.spacedBy(spacing),
@@ -379,7 +370,7 @@ private fun ColumnScope.JpRow(spacing: androidx.compose.ui.unit.Dp, content: @Co
 
 /** タップ専用 (任意で長押し連打) の機能キー。 */
 @Composable
-private fun RowScope.JpKey(
+internal fun RowScope.JpKey(
     label: String,
     style: KeyboardStyle,
     fontScale: Float = 1f,
@@ -405,7 +396,7 @@ private fun RowScope.JpKey(
  * [topWeight] / [bottomWeight] で上下の高さ比を決める (上を薄く = topWeight を小さめに)。
  */
 @Composable
-private fun RowScope.JpEdgeStack(
+internal fun RowScope.JpEdgeStack(
     weight: Float,
     spacing: androidx.compose.ui.unit.Dp,
     topWeight: Float = 1f,
@@ -427,7 +418,7 @@ private fun RowScope.JpEdgeStack(
  * 渡すことで Row 直下でも Column ([JpEdgeStack]) の中でも使える。
  */
 @Composable
-private fun JpFuncKey(
+internal fun JpFuncKey(
     label: String,
     style: KeyboardStyle,
     modifier: Modifier,
@@ -493,7 +484,7 @@ private fun JpFuncKey(
  * 左フリック=[onFlickLeft] (単語削除 Ctrl+W)、右フリック=[onFlickRight] (全削除 Ctrl+U)。
  */
 @Composable
-private fun RowScope.JpBackspaceKey(
+internal fun RowScope.JpBackspaceKey(
     style: KeyboardStyle,
     weight: Float,
     onTap: () -> Unit,
@@ -514,7 +505,7 @@ private fun RowScope.JpBackspaceKey(
  * パッド表示中の縁の列 (Column) でも同じキーを使える。
  */
 @Composable
-private fun JpBackspaceKeyBody(
+internal fun JpBackspaceKeyBody(
     style: KeyboardStyle,
     modifier: Modifier,
     onTap: () -> Unit,

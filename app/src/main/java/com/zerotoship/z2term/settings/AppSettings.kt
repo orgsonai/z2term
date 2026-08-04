@@ -35,14 +35,29 @@ class AppSettings(private val context: Context) {
         /** 直近のキーボードモード ("custom" / "system")。次回起動時に復元 */
         val keyboardMode: String = DEFAULT_KEYBOARD_MODE,
         /**
-         * OS の入力メソッド (`Z2ImeService`) として開いたとき、日本語フリック面から始めるか。
-         * 「あ」/ABC で切替えるたびに保存し、次にキーボードが開くときその面で出す。
+         * OS の入力メソッド (`Z2ImeService`) として開いたときの面 (`KeyboardFace.id`)。
+         * 切替キーで移るたびに保存し、次にキーボードが開くときその面で出す。
          *
          * ⚠ **端末画面の内蔵キーボードはこの値を読まない** — 端末は常に英字面から始める。
          * 端末では英字で打ち始めることが多く、他アプリでは日本語で打ち始めることが多いため、
          * 面を覚えるのは入力メソッド側だけにしている。
+         *
+         * ⚠ 0.8.305 で真偽値 (`ime_japanese_mode`) から面の id へ移した。既存ユーザーの値は
+         * 読み出し時に読み替える (true → かな面 / false → 英字面)。
          */
-        val imeJapaneseMode: Boolean = DEFAULT_IME_JAPANESE_MODE,
+        val imeFace: String = DEFAULT_IME_FACE,
+        /**
+         * 数字だけの面 (`KeyboardFace.NUMBER`) を面の巡回に入れるか (0.8.305)。
+         * OFF なら巡回は「あ → A → あ」の従来どおりで、キーの見た目も 0.8.304 と変わらない。
+         */
+        val keyboardNumberFace: Boolean = DEFAULT_KEYBOARD_NUMBER_FACE,
+        /**
+         * 面の巡回順のプリセット (`KeyboardFace.ORDER_*_ID`)。
+         *
+         * ⚠ **3 面の巡回順は回転を除いて 2 通りしかない**ので、選べるのはこの 2 つで全部
+         * (`A → 12 → あ` は `あ → A → 12` を回しただけの同じ順)。
+         */
+        val keyboardFaceOrder: String = DEFAULT_KEYBOARD_FACE_ORDER,
         /** フォアグラウンド常駐サービスを使うか (Activity 破棄後もセッション維持) */
         val keepAliveService: Boolean = DEFAULT_KEEP_ALIVE,
         /** 画面消灯ロック (ディスプレイを自動で消さない) の状態。次回起動時に復元 */
@@ -406,7 +421,12 @@ class AppSettings(private val context: Context) {
             keyboardStyleId = p[KEY_KEYBOARD_STYLE] ?: DEFAULT_KEYBOARD_STYLE,
             loginShell = p[KEY_LOGIN_SHELL] ?: DEFAULT_LOGIN_SHELL,
             keyboardMode = p[KEY_KEYBOARD_MODE] ?: DEFAULT_KEYBOARD_MODE,
-            imeJapaneseMode = p[KEY_IME_JAPANESE_MODE] ?: DEFAULT_IME_JAPANESE_MODE,
+            // ⚠ 旧 `ime_japanese_mode` からの読み替え。新しいキーが無いユーザーは
+            // 真偽値の方を見て、かな面 / 英字面に対応付ける (面の設定を失わせない)。
+            imeFace = p[KEY_IME_FACE]
+                ?: if (p[KEY_IME_JAPANESE_MODE] == true) FACE_ID_KANA else DEFAULT_IME_FACE,
+            keyboardNumberFace = p[KEY_KEYBOARD_NUMBER_FACE] ?: DEFAULT_KEYBOARD_NUMBER_FACE,
+            keyboardFaceOrder = p[KEY_KEYBOARD_FACE_ORDER] ?: DEFAULT_KEYBOARD_FACE_ORDER,
             keepAliveService = p[KEY_KEEP_ALIVE] ?: DEFAULT_KEEP_ALIVE,
             keepScreenOn = p[KEY_KEEP_SCREEN_ON] ?: DEFAULT_KEEP_SCREEN_ON,
             // キーが無い = 一度も触っていない or 「戻す」を押した = OS に任せる。
@@ -613,9 +633,17 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_KEYBOARD_MODE] = mode }
     }
 
-    /** 入力メソッドで最後に使っていた面を覚える (true = 日本語フリック面)。 */
-    suspend fun setImeJapaneseMode(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_IME_JAPANESE_MODE] = enabled }
+    /** 入力メソッドで最後に使っていた面を覚える (`KeyboardFace.id`)。 */
+    suspend fun setImeFace(faceId: String) {
+        context.dataStore.edit { it[KEY_IME_FACE] = faceId }
+    }
+
+    suspend fun setKeyboardNumberFace(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_KEYBOARD_NUMBER_FACE] = enabled }
+    }
+
+    suspend fun setKeyboardFaceOrder(orderId: String) {
+        context.dataStore.edit { it[KEY_KEYBOARD_FACE_ORDER] = orderId }
     }
 
     suspend fun setKeepAliveService(enabled: Boolean) {
@@ -701,8 +729,15 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_AMBIGUOUS_AS_WIDE = false
         const val DEFAULT_KEYBOARD_STYLE = "spacious"
         const val DEFAULT_KEYBOARD_MODE = "custom"
+        /** `KeyboardFace.KANA.id` / `KeyboardFace.ASCII.id` (設定層から UI を参照しないため文字列で持つ)。 */
+        const val FACE_ID_KANA = "kana"
+        const val FACE_ID_ASCII = "ascii"
         /** 入力メソッドの初回は英字面から。以後は最後に使った面を覚える。 */
-        const val DEFAULT_IME_JAPANESE_MODE = false
+        const val DEFAULT_IME_FACE = FACE_ID_ASCII
+        /** 数字面は既定 ON (この面を足すこと自体が 0.8.305 の要望)。 */
+        const val DEFAULT_KEYBOARD_NUMBER_FACE = true
+        /** 巡回順の既定は「あ → A → 12」(`KeyboardFace.ORDER_ASCII_FIRST_ID`)。 */
+        const val DEFAULT_KEYBOARD_FACE_ORDER = "kana_ascii_number"
         const val DEFAULT_KEEP_ALIVE = true
         /** 画面消灯ロックは既定 OFF (放置でのバッテリ消費を避ける)。トグル状態は永続化して復元。 */
         const val DEFAULT_KEEP_SCREEN_ON = false
@@ -749,7 +784,11 @@ class AppSettings(private val context: Context) {
         private val KEY_KEYBOARD_STYLE = stringPreferencesKey("keyboard_style")
         private val KEY_LOGIN_SHELL = stringPreferencesKey("login_shell")
         private val KEY_KEYBOARD_MODE = stringPreferencesKey("keyboard_mode")
+        // ⚠ 0.8.304 以前の面の設定。読み替えのためだけに残してある (書き込みはもうしない)。
         private val KEY_IME_JAPANESE_MODE = booleanPreferencesKey("ime_japanese_mode")
+        private val KEY_IME_FACE = stringPreferencesKey("ime_face")
+        private val KEY_KEYBOARD_NUMBER_FACE = booleanPreferencesKey("keyboard_number_face")
+        private val KEY_KEYBOARD_FACE_ORDER = stringPreferencesKey("keyboard_face_order")
         private val KEY_KEEP_ALIVE = booleanPreferencesKey("keep_alive_service")
         private val KEY_KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         private val KEY_SCREEN_BRIGHTNESS = floatPreferencesKey("screen_brightness")

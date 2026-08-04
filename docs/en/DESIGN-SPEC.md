@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-04 / Target version: 0.8.304-alpha (versionCode 312)
+Last updated: 2026-08-04 / Target version: 0.8.305-alpha (versionCode 313)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -31,7 +31,7 @@ Last updated: 2026-08-04 / Target version: 0.8.304-alpha (versionCode 312)
 
 - **No root required**: using `forkpty(3)` + **PRoot** (userspace chroot/bind emulation), it deploys and runs a Linux distro (Alpine / Ubuntu / Arch / Kali) inside a normal-privilege app.
 - **Own terminal emulator**: xterm-compatible VT/ANSI interpretation implemented in Kotlin.
-- **Own UI / keyboard**: Jetpack Compose. A custom flick keyboard (Latin + Japanese/katakana) that can switch with the OS IME.
+- **Own UI / keyboard**: Jetpack Compose. A custom flick keyboard (Latin + Japanese/katakana + numbers) that can switch with the OS IME.
 - **Bidirectional SSH**: from the terminal to the outside (JSch client), and from a PC into the terminal (dropbear server).
 - **File integration**: SAF DocumentsProvider lets other apps R/W the rootfs/home; from inside proot you can `cd` into Android shared storage.
 - **GUI desktop**: inside the distro, Xvnc + a lightweight WM/app launches and is displayed by the built-in RFB (VNC) client (`gui/` package). Video uses software rendering; audio is an opt-in PulseAudio→TCP→AudioTrack bridge (`AudioBridge`).
@@ -1590,13 +1590,36 @@ On failure: fall back to launchAndroidSh
 - **Flick**: on letter keys, **flick down = uppercase Latin**. Up/left/right = symbols (green hints; flick down has no hint). COMPACT has up + down, SPACIOUS has 4 directions + down.
 - **Long-press repeat**: numbers / arrows / space / letter keys / **⏎** repeat while held (first 400ms→55ms). ⌫ is 500ms→60ms, with left/right flick = Ctrl+W / Ctrl+U. Modifier keys don't repeat. ⏎ carries the repeat in all three places — the Latin layout, the kana flick layout, and `SpecialKeyBar` shown with the system keyboard (0.8.193; wiring only one of them makes it "work on some keyboards only"). On the kana flick layout the first press commits the pending composition, and the rest send newlines.
 - **ALT / META**: both are the same modifier that prefixes the next key with ESC (Meta). ⚠ **META was removed in 0.8.281** and its seat became the entry point for the paste / emoji pad (`PadKey`, below); the Meta modifier now lives only on ALT in Row 5 (the two keys always did the same thing). It applies to `emitChar`/`emitSpecial` **and to `emitCursor`** — arrows used to drop the modifier, so ALT+arrow was just a plain arrow (fixed in 0.8.193). Since the arrow bytes depend on DECCKM and are built by the terminal, ESC is sent on its own first, followed by the arrow.
-- The "あ" key → switches to the built-in Japanese flick. The TopBar "あ" → switches the OS IME (a separate path).
-- **English locale (`showJapaneseKeyboard=false`)**: with no "あ" key, SPACIOUS drops ⇧/CTRL down one row to fill the gap at the home-row start. COMPACT has no left key on the home row to begin with, so it is unchanged.
-- **Paste / emoji on the Latin layout (`PadKey`, 0.8.281)**: the Latin layout had no entry point for either, so using it as the everyday keyboard in an English locale meant **no emoji and no paste** (the Japanese locale reaches both from the kana layout). ⚠ **There is no room for another key**, so the seats of keys that were **already duplicates** are used:
-  - SPACIOUS English = the old **META** at the left of Row 3 (the same modifier as ALT in Row 5).
-  - COMPACT English = the old **CTRL** at the left of Row 5 (the top bar already carries CTRL). ⚠ This is the seat "あ" (layer switching) occupies on the Japanese layout, which makes it a consistent home for a key that swaps the layer.
+- **Cycling through faces (`KeyboardFace`, 0.8.305)**: the left end of the bottom row (the seat "あ" used to occupy) is the **face-switch key**, and pressing it moves to the next face. ⚠ **Its label names the face you are going to, not the one you are on** (`あ` / `ABC` / `12`) — with two faces "the other one" needed no label, but with three there is nothing else to tell you where the key leads. The TopBar "あ" → switches the OS IME (a separate path).
+  - The faces are **kana (`KANA`) / Latin (`ASCII`) / numbers (`NUMBER`)**. ⛔ **No new switch key is added** — that is the whole point: faces are a swap, not an addition, so **the number of keys on screen does not change** when a face is added.
+  - The cycle is **the configured order ∩ the faces available here** (`KeyboardFace.available`). Kana is available only when the app language is Japanese, numbers only when the setting is on. ⚠ **ASCII always survives** — drop both and there would be no face left at all.
+  - ⚠ **If the current face falls out of the cycle, fall back to the first one** (`KeyboardFace.next`). This happens right after a settings change, and getting stuck there would leave the switch key doing nothing.
+  - **The order is a choice of two** (`あ → A → 12` / `あ → 12 → A`). ⚠ **For three faces there are exactly two cycles up to rotation**, so those two exhaust every possibility (`A → 12 → あ` is the first one rotated — the same cycle). **A drag-to-reorder UI would not offer anything more**, so there is none. With only two faces (English, or numbers off) the notion of an order does not apply, and the setting is not shown at all.
+  - Moving between faces **commits any pending kana first** (nothing is carried across a face change).
+- **Faces with no switch key (English locale ∧ numbers off)**: with Latin as the only face there is no switch key, so SPACIOUS drops ⇧/CTRL down one row to fill the gap at the home-row start. COMPACT has no left key on the home row to begin with, so it is unchanged. ⚠ The test is not "is this Japanese?" but "**does the switch key take a seat on this face?**". Turn numbers on in an English locale and the switch key takes its seat, so the arrangement goes back to the Japanese one.
+- **Paste / emoji on the Latin layout (`PadKey`, 0.8.281)**: the Latin layout had no entry point for either, so using it as the everyday keyboard in an English locale meant **no emoji and no paste** (the Japanese locale reaches both from the kana layout). ⚠ **There is no room for another key**, so the seats of keys that were **already duplicates** are used. ⚠ **The entry point only appears on a face with no switch key** (0.8.305); where the switch key does take that seat, the entry points live on the **kana face (😀 / ESC flick up) and the number face (😀)** instead — so one entry point survives in every language and every setting:
+  - SPACIOUS = the old **META** at the left of Row 3 (the same modifier as ALT in Row 5).
+  - COMPACT = the old **CTRL** at the left of Row 5 (the top bar already carries CTRL). ⚠ This is the seat the face-switch key occupies, which makes it a consistent home for a key that swaps the face.
   - **Tap = paste, flick up = emoji.** ⚠ The key draws 📋 in the middle and 😀 at the top edge, so **the key itself explains the entry point** — the lesson from the ESC up-flick on the Japanese layout, which went unused because it was invisible.
   - While the pad is open the layer is swapped wholesale, **keeping only the bottom row of function keys (× ⌫ space ⏎ ← →)**. ⚠ Unlike the Japanese layout it does not keep the edge columns: with 10 columns they are too narrow to be a finger target. ⌫ is not replaced by "close", same as the Japanese layout (you would lose the ability to delete right after pasting).
+
+#### 6.1.1 The numbers-only face (0.8.305)
+
+- **Why it exists**: the flick face has no digits at all, and Row 1 of the Latin face (`ESC 1..0 ⌫`) puts ten keys side by side, which is fiddly. Typing **runs of digits** — port numbers, IP addresses, `chmod 755` — is common in a terminal, and that case deserves large keys.
+- ⛔ **Row 1 of the Latin face is not reused.** The point is large keys, so a **3 × 4 keypad** goes into the same 5-column × 4-row grid as the kana face, giving each key the same area as a kana key.
+- Layout (the edge columns **keep the roles they have on the kana face**, so the fingers travel the same way across a face change):
+
+  ```
+  ESC       1  2  3   ⌫
+  ◀/▼       4  5  6   ▶/▲
+  😀/␣      7  8  9   -//
+  switch    .  0  :   ⏎
+  ```
+
+- **Exactly four symbols** (`.` `:` `-` `/`), limited to what gets typed alongside digits in a terminal (addresses, ports, times, paths, options). ⚠ **Load it up and it becomes a symbol face, blunting the point** — the Latin face's `?#` is there when a full set of symbols is wanted. `-` and `/` are stacked (`JpEdgeStack`) in the seat the kana face gives to 変換, which is free here since there is nothing to convert.
+- Digits and symbols go out through **the same exit as a commit** (`ComposingState.commitExternalText`). ⚠ Sending them as bytes (`onBytes`) would let a newline or symbol be reinterpreted as `performEditorAction` and friends while running as the OS input method. Any pending kana is committed first, so nothing is reordered when arriving straight from the kana face.
+- **Setting** (`keyboardNumberFace`, on by default): turn it off and the cycle is `あ → A → あ` as before — **neither the keys nor where the switch key leads differ from 0.8.304**.
+- It carries an entry point (😀) for the emoji / paste pad. ⚠ This **matters most in an English locale**: there the switch key takes the left of Row 5 on the Latin face, displacing the entry point that used to sit there, and putting one on the number face keeps an entry point available in every language.
 
 ### 6.2 Japanese flick keyboard
 

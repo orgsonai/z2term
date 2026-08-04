@@ -53,7 +53,10 @@ import kotlin.math.abs
  * Z2Term 独自キーボード。
  *
  * 主な仕様:
- *  - 日本語ロケールのみ「あ」キー (= 日本語フリックキーボードへ切替) を出す
+ *  - 面 ([KeyboardFace]) の入口。かな / 数字は別の Composable が描き、ここは英字面と
+ *    面の巡回を持つ。最下段の左端が**面の切替キー**で、ラベルは**行き先の面** (あ / 12)。
+ *    面が英字だけ (英語ロケール ∧ 数字面 OFF) のときは切替キーを出さず、その席は
+ *    CTRL / 貼り付けの入口が使う (= 従来の英語レイアウトのまま)。
  *  - Shift は OFF / ONESHOT / LOCKED の 3 状態 (タップ毎に循環)
  *  - ⌫ 長押しで連打、左フリックで `Ctrl+W` (単語削除)、右フリックで `Ctrl+U` (行頭まで削除)
  *  - 各英字キー: スタイルに応じて 1 方向 (compact) or 4 方向 (spacious) フリック
@@ -63,9 +66,9 @@ import kotlin.math.abs
  *   Row 2: TAB  q w e r t y u i o p
  *   Row 3: ⇧    a s d f g h j k l                            ⏎
  *   Row 4: CTRL z x c v b n m , . /
- *   Row 5: あ   ?#  ALT  SPACE                              ← ↓ ↑ →
- *   英語ロケールのみ ⇧/CTRL を 1 段下げ、Row 3 左を META (= Alt 相当)、Row 5 左を CTRL にする
- *   (「あ」が無い分の縦 1 列を META/⇧/CTRL で埋め、a 行頭の空きをなくす)。
+ *   Row 5: 面切替 ?#  ALT  SPACE                            ← ↓ ↑ →
+ *   切替キーが無いときのみ ⇧/CTRL を 1 段下げ、Row 3 左を貼り付けの入口、Row 5 左を CTRL にする
+ *   (切替キーが座らない分の縦 1 列を埋め、a 行頭の空きをなくす)。
  *
  * レイアウト (compact, 特殊キーを上に追い出して主キー幅を広く):
  *   Top  : [ ESC ][ TAB ][ ⇧ ][ CTRL ]
@@ -73,7 +76,7 @@ import kotlin.math.abs
  *   Row 2: q w e r t y u i o p
  *   Row 3: a s d f g h j k l                                 ⏎
  *   Row 4: z x c v b n m , . /
- *   Row 5: あ(JP) / CTRL(英語)  ?#  ALT  SPACE              ← ↓ ↑ →
+ *   Row 5: 面切替 / CTRL(切替キー無し)  ?#  ALT  SPACE       ← ↓ ↑ →
  *
  * 各英字キーの下フリック = そのローマ字の大文字 (ヒント非表示)。
  */
@@ -84,45 +87,80 @@ fun TerminalKeyboard(
     composing: ComposingState,
     style: KeyboardStyle = KeyboardStyle.COMPACT,
     /**
-     * 日本語フリックキーボード切替キー (「あ」) を表示するか。English モードでは false で
-     * 隠す (Locale=en のとき呼出し側で false を渡す)。false のときは Row 3 左端を META キー
-     * (= Alt 相当の ESC プレフィックス修飾) にして a 行頭の空きをなくす。
+     * 日本語面 ([KeyboardFace.KANA]) を巡回に入れるか。English モードでは false で外す
+     * (Locale=en のとき呼出し側で false を渡す)。
      */
     showJapaneseKeyboard: Boolean = true,
     /**
-     * 開いたときに**日本語フリック面から始めるか**。既定 false = 英字面。
+     * 面 ([KeyboardFace]) の巡回順。設定 (巡回順のプリセット + 数字面の有無) から
+     * `KeyboardFace.orderFrom(...)` で組んで渡す。
      *
-     * ⚠ 面を覚えるかどうかは**呼出し側が決める**。端末画面は常に false (英字面から始める) で、
+     * ⚠ 日本語面はここに入っていても [showJapaneseKeyboard] が false なら飛ばす。
+     * 巡回は「**設定の順序 ∩ いま出せる面**」で回る ([KeyboardFace.available])。
+     */
+    faceOrder: List<KeyboardFace> = KeyboardFace.ORDER_ASCII_FIRST,
+    /**
+     * 開いたときの面。既定は英字面。
+     *
+     * ⚠ 面を覚えるかどうかは**呼出し側が決める**。端末画面は常に英字面から始め、
      * OS の入力メソッド ([com.zerotoship.z2term.ime.Z2ImeService]) だけが前回の面を渡す —
      * 端末では英字で打ち始めることが多く、他アプリでは日本語で打ち始めることが多いため。
      */
-    initialJapaneseMode: Boolean = false,
-    /**
-     * 「あ」/ABC で面を切替えたときの通知 (true = 日本語面)。面を永続化する呼出し側だけが受ける。
-     */
-    onJapaneseModeChange: (Boolean) -> Unit = {},
+    initialFace: KeyboardFace = KeyboardFace.ASCII,
+    /** 切替キーで面が変わったときの通知。面を永続化する呼出し側だけが受ける。 */
+    onFaceChange: (KeyboardFace) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var shift by remember { mutableStateOf(ShiftState.OFF) }
     var ctrl by remember { mutableStateOf(false) }
     var alt by remember { mutableStateOf(false) }
     var sym by remember { mutableStateOf(false) }
-    // 日本語フリックモード (⌨ → あ キーで切替)。ON の間は内蔵かなキーボードを描画。
-    // ⚠ 始まりの面は [initialJapaneseMode] (= 呼出し側が覚えている面)。ただし「あ」キーが
-    // 出ない English モードでは復元しない — 戻る口 (ABC) は日本語面にあるので出られはするが、
-    // 「あ」の無いキーボードが日本語面で開くのは筋が通らない。
-    var jpMode by remember(initialJapaneseMode, showJapaneseKeyboard) {
-        mutableStateOf(initialJapaneseMode && showJapaneseKeyboard)
+    // いま回せる面。⚠ 日本語面はアプリの言語が日本語のときだけ、数字面は設定 ON のときだけ
+    // (= 呼出し側が [faceOrder] から外している)。英字面は必ず残る。
+    val faces = KeyboardFace.available(faceOrder, allowKana = showJapaneseKeyboard)
+
+    // いま出している面。⚠ 始まりの面は [initialFace] (= 呼出し側が覚えている面) だが、
+    // 巡回に無い面では開かない — 「あ」キーの出ない英語ロケールで日本語面から開いたり、
+    // 設定で切った数字面が復元されたりするのは筋が通らない。
+    var face by remember(initialFace, faces) {
+        mutableStateOf(if (initialFace in faces) initialFace else KeyboardFace.ASCII)
     }
-    // 開いているパッド (絵文字 / 貼り付け)。⚠ 入口は**英語ロケールのときだけ**出す
-    // (日本語ロケールでは「あ」面に 😀 キーと ESC 上フリックがあるので、そちらから入る)。
+    // 開いているパッド (絵文字 / 貼り付け)。⚠ 入口は**面の切替キーがこの面に無いときだけ**出す。
+    // 切替キーがあるときは、その席 (日本語面の「あ」の位置) を切替キーが使うため。
+    // 入口はかな面 (😀 キーと ESC 上フリック) と数字面 (😀 キー) にもある。
     var pad by remember { mutableStateOf(PadMode.NONE) }
 
-    if (jpMode) {
+    // 面が 2 つ以上あるなら、最下段の左端は面の切替キー (= 日本語面の「あ」の席)。
+    // ⛔ 切替キーを新設しない — 面が増えても画面に見えるキーの数は変わらない。
+    val hasFaceKey = faces.size > 1
+    val nextFace = KeyboardFace.next(faces, face)
+
+    // 面を移る。⚠ 打ちかけのかなは**先に確定**する (面をまたいで持ち越さない)。
+    fun switchFace(to: KeyboardFace) {
+        composing.commitRaw()
+        face = to
+        onFaceChange(to)
+    }
+
+    if (face == KeyboardFace.KANA) {
         JapaneseFlickKeyboard(
             onBytes = onBytes,
             onCursorKey = onCursorKey,
-            onSwitchToAscii = { composing.commitRaw(); jpMode = false; onJapaneseModeChange(false) },
+            onSwitchFace = { switchFace(nextFace) },
+            switchLabel = nextFace.switchLabel,
+            composing = composing,
+            selectedStyle = style,
+            modifier = modifier
+        )
+        return
+    }
+
+    if (face == KeyboardFace.NUMBER) {
+        NumberKeyboard(
+            onBytes = onBytes,
+            onCursorKey = onCursorKey,
+            onSwitchFace = { switchFace(nextFace) },
+            switchLabel = nextFace.switchLabel,
             composing = composing,
             selectedStyle = style,
             modifier = modifier
@@ -353,14 +391,15 @@ fun TerminalKeyboard(
                 )
             }
         }
-        // Row 3: spacious 左端。日本語ロケールは従来どおり ⇧ (配置は変えない)。
-        //        英語ロケールのみ ⇧ を Row 4 へ 1 段下げ、ここは META キー (= Alt と同じ ESC プレフィックス修飾)。
+        // Row 3: spacious 左端。最下段に面の切替キーがあるなら従来どおり ⇧ (配置は変えない)。
+        //        切替キーが無いとき (英語ロケール ∧ 数字面 OFF) だけ ⇧ を Row 4 へ 1 段下げ、
+        //        ここを貼り付け / 絵文字の入口にする — その面には他に入口が無いため。
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
             if (!isCompact) {
-                if (showJapaneseKeyboard) {
+                if (hasFaceKey) {
                     ShiftKey(weight = 1.4f, state = shift, style = style, onCycle = { cycleShift() })
                 } else {
-                    // 英語ロケールのみ: 旧 META キーを**貼り付け / 絵文字の入口**にする (要望)。
+                    // 切替キーが無い面のみ: 旧 META キーを**貼り付け / 絵文字の入口**にする (要望)。
                     // ⚠ META は Row 5 の ALT と同じ修飾 (ESC プレフィックス) だったので、
                     // 潰しても ALT で代わりが利く。英字面には絵文字も貼り付けも入口が無かった。
                     PadKey(
@@ -387,10 +426,10 @@ fun TerminalKeyboard(
                 emitSpecial(byteArrayOf(0x0D))
             }
         }
-        // Row 4: spacious 左端。日本語ロケールは CTRL (従来どおり)、英語ロケールは ⇧ を 1 段下げてここへ。
+        // Row 4: spacious 左端。切替キーがあるなら CTRL (従来どおり)、無いなら ⇧ を 1 段下げてここへ。
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
             if (!isCompact) {
-                if (showJapaneseKeyboard) {
+                if (hasFaceKey) {
                     BasicKey(
                         label = "CTRL",
                         weight = 1.4f,
@@ -414,13 +453,13 @@ fun TerminalKeyboard(
                 )
             }
         }
-        // Row 5: 最下段の左端 = 日本語ロケールは「あ」(かなフリックへ切替)、英語ロケールは CTRL。
-        //   英語時は「あ」が無い分の左下の空きを CTRL で埋める
+        // Row 5: 最下段の左端 = 面の切替キー (行き先の面のラベル: あ / 12)。
+        //   面が英字だけなら切替キーは要らないので、その空きを CTRL で埋める
         //   (spacious は ⇧/CTRL を 1 段下げた結果として、compact は上部バーとは別にここへ)。
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-            if (showJapaneseKeyboard) {
-                BasicKey("あ", weight = 1.4f, fontSp = style.keyFontSp, style = style) {
-                    jpMode = true; onJapaneseModeChange(true)
+            if (hasFaceKey) {
+                BasicKey(nextFace.switchLabel, weight = 1.4f, fontSp = style.keyFontSp, style = style) {
+                    switchFace(nextFace)
                 }
             } else if (isCompact) {
                 // compact の英語面は上部バーに CTRL があり、ここは**同じキーが 2 つ**あった。

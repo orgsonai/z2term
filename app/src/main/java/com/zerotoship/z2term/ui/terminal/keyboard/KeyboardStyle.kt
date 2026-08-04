@@ -30,6 +30,26 @@ data class KeyboardStyle(
      */
     val naturalHeight: Dp
 ) {
+    /**
+     * 12 キー系の面 (かな [KeyboardFace.KANA] / 数字 [KeyboardFace.NUMBER]) 用に、
+     * **フォントサイズだけ** [SPACIOUS] 基準へ揃えたスタイル。
+     *
+     * 「シンプル / 4 方向フリック」どちらを選んでも文字の見やすさを揃える (ユーザー要望)。
+     * シンプル ([COMPACT]) は 1 キーあたりの面積が広い 12 キー系では字が小さく見えていた。
+     * ⚠ **高さは選択スタイルのまま**。キーボード高さ設定に応じた拡縮を保つため、
+     * `naturalHeight` に入っている「目標総高さ」との比でフォントを同じようにスケールする。
+     */
+    fun forTwelveKeyFace(): KeyboardStyle {
+        val ref = SPACIOUS
+        val scale = (naturalHeight.value / ref.naturalHeight.value).coerceIn(0.6f, 2.5f)
+        val fontScale = scale.coerceIn(0.85f, 1.4f)
+        return copy(
+            keyFontSp = ref.keyFontSp * fontScale,
+            mainKeyFontSp = ref.mainKeyFontSp * fontScale,
+            flickHintFontSp = ref.flickHintFontSp * fontScale
+        )
+    }
+
     companion object {
         val COMPACT = KeyboardStyle(
             id = "compact",

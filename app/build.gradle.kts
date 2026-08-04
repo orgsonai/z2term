@@ -99,8 +99,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 312
-        versionName = "0.8.304-alpha"
+        versionCode = 313
+        versionName = "0.8.305-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -185,6 +185,14 @@ android {
             // 既定値 (no-op / 0) にする。純ロジックの JUnit テスト (tar 展開等) を
             // Robolectric 無しで回すため。
             isReturnDefaultValues = true
+
+            // ⛔ fork される test JVM のヒープ上限を必ず明示する。
+            // 既定は **物理メモリの 1/4** なので、メモリの少ない端末では Gradle
+            // デーモンの隣に 2GB 近い JVM がもう 1 本立ち、OS 側のメモリ回収に
+            // 巻き込まれて **テストが無言で固まる**（オンデバイス開発で実際に踏んだ。
+            // コンパイルは通るのに testFullDebugUnitTest だけが進まなくなる）。
+            // ここのテストは Android に触れない純ロジックなので 512MB で足りる。
+            all { it.maxHeapSize = "512m" }
         }
     }
 

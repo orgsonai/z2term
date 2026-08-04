@@ -96,8 +96,27 @@ Z2Term comes with its **own in-app keyboard**.
 - In settings, **"Keyboard position (landscape)"** lets you choose **left / bottom / right** (in portrait it's always at the bottom).
 - The **"Side keyboard width (landscape)"** slider adjusts the width when docked to a side, and the **"Keyboard height (landscape)"** slider adjusts the overall height. Bigger keys are easier to press; smaller keys give you more screen — your trade-off.
 
+### Switching keyboard "faces" (0.8.305)
+
+Pressing the **bottom-left key** swaps the whole set of keys. We call each set a **face**.
+
+| Face | What is on it |
+|---|---|
+| **あ** | Japanese flick (kana) — only when the app language is Japanese |
+| **A** | Latin (qwerty) |
+| **12** | Numbers only (a keypad) |
+
+⚠ **The key shows where it takes you, not where you are.** If it reads `12`, pressing it gives you the number face.
+
+The **number face (0.8.305)** is for typing **runs of digits** — port numbers, IP addresses, `chmod 755`. The Latin face has a row of digits along the top, but ten keys side by side is fiddly; on the number face they are as big as kana keys. `.` `:` `-` `/` sit there too, so something like `192.168.10.20:2222` can be typed without leaving the face.
+
+Under Settings › **Keyboard style**:
+
+- Turn **"Show the number face"** off and you are back to two faces, **あ → A → あ**, looking exactly as it did before.
+- **"Face switching order"** offers **あ → A → 12** and **あ → 12 → A**. ⚠ **Those two are all there is.** The faces cycle round, so `A → 12 → あ` is the very same rotation as the first one. (The setting only appears when the number face is on and the app language is Japanese — with two faces there is no order to speak of.)
+
 ### Japanese / kana-kanji conversion
-- Press the **"あ" key** on the left side of the keyboard to switch to the built-in **Japanese flick keyboard**.
+- When the bottom-left key reads **"あ"**, press it to switch to the built-in **Japanese flick keyboard**.
 - Flick rules: **tap = あ / left = い / up = う / right = え / down = お** (same as the common 12-key phone layout).
 - **Cursor keys ◀ ▶ ▼ ▲**: just **below** ◀ ▶ are **▼** (left = down) and **▲** (right = up) — all four ◀▶▼▲ are the same size. When you're not typing, they move the terminal cursor (walk command history, move within the line). **While typing Japanese, ◀ ▶ move the composing cursor** and can reach the line start.
 - **The "小゛゜" key** changes the previous character like `か→が→か`, `は→ば→ぱ→は`, `つ→づ→っ→つ`.
@@ -112,7 +131,7 @@ Z2Term comes with its **own in-app keyboard**.
   - **Words that share the reading are listed properly** (0.8.297 / 0.8.298): typing とく now also offers **説く / 解く / 溶く** next to 得 and 特 (likewise きく → 聞く / 効く / 聴く, みる → 見る / 診る / 観る). Before this, some words the dictionary knows never showed up in the candidate bar at all, so there was no way to pick them. Pick one once and it is learned and moves up next time.
   - **More candidates** (0.8.298): the bar used to stop at 16 candidates, and ⚠ **the more you used it, the more the learned entries pushed the rest out until some words could no longer be converted at all** (that is why とく offered no 説く). The cap is now 48, and conversions of the exact reading you typed sit **outside that cap**, so they show up no matter how much learning has piled up. The candidate bar **scrolls to the right**.
   - For **katakana**, tap the katakana candidate in the candidate bar.
-- The "ABC" key returns to the Latin keyboard.
+- The **face-switch key** at the bottom left moves to the next face (`ABC` for Latin, `12` for numbers).
 - **Flicking the ⌫ (delete) key**: flick left to **delete the previous word at once**, flick right to **delete the entire line being typed**.
 - **Typing emoji (0.8.278)**: the **😀 key above the space key** turns the kana keys into an **emoji pad**. Pick a category from the tabs, scroll, and tap to insert. ⚠ **The leftmost tab is most recently used**, so from the second time on you pick from there. Press 😀 again to go back to the kana keys (the × at the top left does the same). **Faces and animals are there as whole Unicode blocks**, so an emoji you expect to find is not missing (0.8.301 — the table used to be hand-picked, and 13 glyphs including 😌 had fallen out).
 - **Pasting what you copied (0.8.278)**: **flick up on the ESC key** and the same area becomes a **paste pad**. ⚠ So that the flick is discoverable, **a small 📋 sits above the ESC label** (0.8.279 — the same meaning as the flick characters printed in the corners of the kana keys). **Hold ESC down** and a large 📋 floats right above the key; flick up from there. Copied text is listed newest first; tap to insert it. ✕ removes one entry, 🗑 clears all. ⚠ Entries are captured when you **copy first, then open the keyboard** (an Android rule: a keyboard may only read the clipboard while it is up). Clips marked as sensitive by password managers are never kept.
@@ -343,6 +362,8 @@ Settings are split into **7 groups** (Display / Keyboard and input / Linux envir
 | Distro | Alpine / Ubuntu / Arch / Kali |
 | Login shell | zsh / bash / sh — **the same shell is used for the terminal tab, SSH logins and the GUI's inner terminal** (the distro's `/etc/passwd` login shell is updated too). If the chosen shell is not installed in that distro, the default shell is used as before |
 | Keyboard style | Simple / 4-direction flick |
+| Show the number face | Adds a **numbers-only face** (a keypad) to the built-in keyboard (0.8.305), so the switch key cycles through `12` as well. Turn it off and you are back to **あ → A → あ** as before |
+| Face switching order | **あ → A → 12** or **あ → 12 → A** (0.8.305). ⚠ Those two are all there is — the faces cycle round, so `A → 12 → あ` is the same rotation as the first. Shown **only when the number face is on and the app language is Japanese**, since with two faces there is no order to speak of |
 | User dictionary | **Add your own words from a file** (0.8.280). "Choose a dictionary file" picks a text file on the phone and its words start appearing in conversion straight away. One word per line, in **either of two layouts** (0.8.282): `reading /candidate1/candidate2/` (the SKK dictionary format, e.g. `ずーたーむ /Z2Term/z2term/`) or `reading<TAB>word<TAB>part-of-speech` (what dictionary tools export, e.g. `あいぎょう→愛楽→名詞`; a fourth note column is fine). Lines starting with `;` or `#` are treated as notes and skipped. ⚠ **Write readings in hiragana.** UTF-8 and EUC-JP files are both read. Imported files are listed so you can remove one when you no longer want it. ⚠ Up to 8MB per file. If no words could be read you are told immediately, so a format mistake is not silent |
 | Special key bar (with the OS keyboard) | Whether the **ESC, TAB, CTRL and arrow keys** appear above your phone's own keyboard while it is selected (0.8.279). Turn it off and they are not shown. The built-in keyboard never had them, so it is unaffected |
 | Japanese IME learning history | The phrases the converter has learned. Search and delete them one by one, or clear them all |

@@ -104,8 +104,9 @@ import com.zerotoship.z2term.settings.SettingsGroupStore
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import com.zerotoship.z2term.ui.components.ResidentActionDialog
 import com.zerotoship.z2term.ui.terminal.ToolbarButtons
-import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
+import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
+import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
 import com.zerotoship.z2term.ui.terminal.stopEverythingAndQuit
 import com.zerotoship.z2term.ui.theme.TerminalFontOption
 import com.zerotoship.z2term.ui.theme.TerminalFontOptions
@@ -464,6 +465,35 @@ fun SettingsSheet(
                         selected = settings.keyboardStyleId,
                         onSelect = { session.setKeyboardStyleId(it) }
                     )
+                    // 数字だけの面 (0.8.305)。OFF なら巡回は「あ → A → あ」の従来どおりで、
+                    // キーの見た目も切替キーの行き先も 0.8.304 と変わらない。
+                    ToggleField(
+                        title = stringResource(R.string.settings_keyboard_number_face),
+                        description = stringResource(R.string.settings_keyboard_number_face_desc),
+                        checked = settings.keyboardNumberFace,
+                        onChange = { session.setKeyboardNumberFace(it) }
+                    )
+                    // 面の切りかえ順。⚠ **面が 3 つあるときだけ**出す — 2 面では「もう片方へ」
+                    // しか無く、巡回順という考えそのものが成り立たない (英語では日本語面が
+                    // 出ないので、数字面を入れても 2 面のまま)。
+                    val kanaFaceAvailable = LocaleHelper.language(context) == LocaleHelper.LANG_JA
+                    if (settings.keyboardNumberFace && kanaFaceAvailable) {
+                        Text(
+                            text = stringResource(R.string.settings_keyboard_face_order),
+                            color = ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        ChipRow(
+                            options = KeyboardFace.ORDERS.map { KeyboardFace.orderIdOf(it) },
+                            labels = KeyboardFace.ORDERS.associate { order ->
+                                KeyboardFace.orderIdOf(order) to
+                                    order.joinToString(" → ") { it.switchLabel }
+                            },
+                            selected = settings.keyboardFaceOrder,
+                            onSelect = { session.setKeyboardFaceOrder(it) }
+                        )
+                    }
                     ToggleField(
                         title = stringResource(R.string.settings_keyboard_toggle_bar),
                         description = stringResource(R.string.settings_keyboard_toggle_bar_desc),
