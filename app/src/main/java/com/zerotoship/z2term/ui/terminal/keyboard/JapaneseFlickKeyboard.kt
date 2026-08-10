@@ -70,14 +70,16 @@ import kotlinx.coroutines.launch
  * 配列 (5 列 × 4 行、画面高さを充填):
  *   ESC      あ   か  さ   ⌫
  *   ◀/▼     た   な  は   ▶/▲
- *   😀/␣    ま   や  ら   変換
+ *   ␣       ま   や  ら   変換
  *   面切替   小゛゜ わ  、。  ⏎   (面切替 = 次の面へ。2 面のときは従来どおり ABC)
  *
- * **パッド (絵文字 / 貼り付け)**: 😀 キー、または ESC の**上フリック**で
- * [KeyboardPad] を開く。⚠ 絵文字も貼り付けも**新しいキーを置く隙間が無い**ので、
- * `あ` でかな面へ切り替えるのと同じ「**面の差し替え**」にしてある — 中央 3 列だけが
- * パッドになり、両端の列 (⌫ ⏎ ␣ …) はそのまま残るので、貼った直後に消す・改行する
- * といった操作が続けてできる。閉じるのは**入った同じキーをもう一度**押す (トグル)。
+ * **パッド (絵文字 / 貼り付け)**: ESC の**上フリック**で貼り付け、**下フリック**で絵文字。
+ * ⚠ 絵文字も貼り付けも**新しいキーを置く隙間が無い**ので、`あ` でかな面へ切り替えるのと
+ * 同じ「**面の差し替え**」にしてある — 中央 3 列だけがパッドになり、両端の列 (⌫ ⏎ ␣ …) は
+ * そのまま残るので、貼った直後に消す・改行するといった操作が続けてできる。
+ * ⚠ 入口を **ESC の上下フリックに揃えた**のは、`␣` の列を上下に割って 😀 キーを置くと
+ * スペースが縁 1 列の半分になり、一番よく打つキーが小さくなっていたため。閉じるのは
+ * パッド左上の × (入口キーがパッド表示中は画面に無いのでトグルでは閉じられない)。
  *
  * 両端の列 (ESC/◀▼/␣/面切替 と ⌫/▶▲/変換/⏎) は [JP_EDGE_WEIGHT] で幅を狭め、
  * 中央 3 列のかな (フリック) を広く取って打ちやすくしている。
@@ -91,7 +93,10 @@ internal const val JP_EDGE_WEIGHT = 0.7f
 /** ESC の上フリック先 (貼り付けパッド) を表す印。キー上のヒントと長押しポップアップで共用。 */
 private const val PAD_HINT = "📋"
 
-/** ESC を押しっぱなしにしてから [PAD_HINT] のポップアップを出すまでの時間。 */
+/** ESC の下フリック先 (絵文字パッド) を表す印。[PAD_HINT] と同じくヒントとポップアップで共用。 */
+private const val EMOJI_HINT = "😀"
+
+/** ESC を押しっぱなしにしてからフリック先のポップアップを出すまでの時間。 */
 private const val LONG_PRESS_HINT_MS = 300L
 
 @Composable
@@ -181,7 +186,8 @@ fun JapaneseFlickKeyboard(
     if (pad != PadMode.NONE) {
         // パッド表示中: 中央 3 列ぶんをパッドに差し替え、両端の列は残す。
         // ⚠ ⌫ を「閉じる」に置き換えない — 貼った直後に消せなくなるため。閉じるのは
-        // 入口キーのトグル (😀 / ESC 上フリック) と、左上の × ([JpFuncKey])。
+        // 左上の × ([JpFuncKey])。入口の ESC はパッド表示中は画面に無いので、
+        // 「入った同じキーで出る」ではなく **× で閉じる**のがこの面の約束。
         Row(
             modifier = modifier
                 .fillMaxSize()
@@ -249,13 +255,16 @@ fun JapaneseFlickKeyboard(
         // Row 1: ESC  あ  か  さ  ⌫
         JpRow(rowSpacing) {
             // ESC: タップ=従来どおり (変換中なら取り消し / 端末へ ESC)、
-            //      上フリック=貼り付けパッド。⚠ 見えない入口なので、パッドの中に
-            //      絵文字タブも並べて、見える 😀 キーからも辿れるようにしてある。
+            //      上フリック=貼り付けパッド、下フリック=絵文字パッド。
+            //      ⚠ 指の動きは見えないので、キーの上端 / 下端にそれぞれの印を薄く出し、
+            //      押しっぱなしでも上下 2 方向のポップアップで教える ([JpEscKey])。
+            //      入ってしまえばパッド上部のタブで絵文字 ⇄ 貼り付けを行き来できる。
             JpEscKey(
                 style = style,
                 weight = JP_EDGE_WEIGHT,
                 onTap = { if (composing.isActive) composing.reset() else onBytes(byteArrayOf(0x1B)) },
-                onFlickUp = { togglePad(PadMode.CLIPBOARD) }
+                onFlickUp = { togglePad(PadMode.CLIPBOARD) },
+                onFlickDown = { togglePad(PadMode.EMOJI) }
             )
             JpFlickKey(KANA_A, style, ::emitKana)
             JpFlickKey(KANA_KA, style, ::emitKana)
@@ -313,26 +322,15 @@ fun JapaneseFlickKeyboard(
                 }
             )
         }
-        // Row 3: [😀 / ␣]  ま  や  ら  変換   (変換は 1 行のまま = 押しやすさ優先)
-        //   ␣ も composing がある間は **強制確定しない** で空白を append (記号と同じ方針)。
-        //   ⚠ 絵文字キーは ␣ の列を**上下に割って**置く ([JpEdgeStack] は Row 2 と同じ部品)。
-        //   左右に割ると縁 1 列の半分になって指の的が小さすぎるため。
+        // Row 3: ␣  ま  や  ら  変換   (␣ も 変換 も 1 行のまま = 押しやすさ優先)
+        //   ␣ は composing がある間は **強制確定しない** で空白を append (記号と同じ方針)。
+        //   ⚠ ここを上下に割って絵文字キーを載せていた時期があるが、**一番よく打つ ␣ が
+        //   縁 1 列の半分**になって打ちにくかったので戻した。絵文字の入口は ESC の下フリック。
         JpRow(rowSpacing) {
-            JpEdgeStack(
-                weight = JP_EDGE_WEIGHT, spacing = rowSpacing,
-                top = {
-                    JpFuncKey(
-                        "😀", style, modifier = Modifier.fillMaxSize(),
-                        fontScale = 0.85f, accent = pad == PadMode.EMOJI
-                    ) { togglePad(PadMode.EMOJI) }
-                },
-                bottom = {
-                    JpFuncKey("␣", style, modifier = Modifier.fillMaxSize(), repeatable = true) {
-                        if (composing.isActive) composing.append(' ')
-                        else onBytes(byteArrayOf(0x20))
-                    }
-                }
-            )
+            JpKey("␣", style, repeatable = true, weight = JP_EDGE_WEIGHT) {
+                if (composing.isActive) composing.append(' ')
+                else onBytes(byteArrayOf(0x20))
+            }
             JpFlickKey(KANA_MA, style, ::emitKana)
             JpFlickKey(KANA_YA, style, ::emitKana)
             JpFlickKey(KANA_RA, style, ::emitKana)
@@ -585,29 +583,32 @@ internal fun JpBackspaceKeyBody(
 }
 
 /**
- * ESC キー。タップ=[onTap] (従来どおり)、**上フリック**=[onFlickUp] (貼り付けパッド)。
+ * ESC キー。タップ=[onTap] (従来どおり)、**上フリック**=[onFlickUp] (貼り付けパッド)、
+ * **下フリック**=[onFlickDown] (絵文字パッド)。
  *
- * ⚠ 上フリックにしたのは**キーを増やす隙間が無い**から。⌫ の左右フリック
+ * ⚠ フリックにしたのは**キーを増やす隙間が無い**から。⌫ の左右フリック
  * ([JpBackspaceKeyBody]) と同じ指の動きなので、この配列の中では一貫している。
  *
- * ⚠ ただし**指の動きは見えない** — 上フリックできること自体を知らないと辿り着けなかったので、
+ * ⚠ ただし**指の動きは見えない** — フリックできること自体を知らないと辿り着けなかったので、
  * かなキー ([JpFlickKey]) が上下左右のフリック先を常時出しているのと同じように、
- * キーの上端に [PAD_HINT] を薄く出す。さらに**押しっぱなし**にすると
- * ([LONG_PRESS_HINT_MS] 後) キーの真上にポップアップが浮いて「上へ払うと出る」と分かる。
- * ポップアップは指を離すかフリックが決まった時点で消える。
+ * キーの上端に [PAD_HINT]、下端に [EMOJI_HINT] を薄く出す。さらに**押しっぱなし**にすると
+ * ([LONG_PRESS_HINT_MS] 後) キーの真上にポップアップが浮いて上下どちらに何があるか分かる
+ * ([JpEscHintPopup])。ポップアップは指を離すかフリックが決まった時点で消える。
  */
 @Composable
 private fun RowScope.JpEscKey(
     style: KeyboardStyle,
     weight: Float,
     onTap: () -> Unit,
-    onFlickUp: () -> Unit
+    onFlickUp: () -> Unit,
+    onFlickDown: () -> Unit
 ) {
     var pressed by remember { mutableStateOf(false) }
     var showHint by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val currentOnTap by rememberUpdatedState(onTap)
     val currentOnFlickUp by rememberUpdatedState(onFlickUp)
+    val currentOnFlickDown by rememberUpdatedState(onFlickDown)
     val bg = if (pressed) ZtsGreenBright else ZtsBgCard
     val fg = if (pressed) Color.Black else ZtsTextPrimary
     val border = if (pressed) ZtsGreen else ZtsBorder
@@ -637,11 +638,11 @@ private fun RowScope.JpEscKey(
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
                             val dx = change.position.x - startX
                             val dy = change.position.y - startY
-                            if (!resolved && dy < -flickThreshold && abs(dy) > abs(dx)) {
+                            if (!resolved && abs(dy) > flickThreshold && abs(dy) > abs(dx)) {
                                 resolved = true
                                 hintJob.cancel()
                                 showHint = false
-                                currentOnFlickUp()
+                                if (dy < 0) currentOnFlickUp() else currentOnFlickDown()
                                 change.consume()
                             }
                             if (!change.pressed) {
@@ -665,7 +666,7 @@ private fun RowScope.JpEscKey(
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.align(Alignment.Center)
         )
-        // 上フリック先のヒント (かなキーの上段ヒントと同じ置き方・同じ薄さ)。
+        // 上下フリック先のヒント (かなキーの上下段ヒントと同じ置き方・同じ薄さ)。
         Text(
             text = PAD_HINT,
             color = fg.copy(alpha = 0.6f),
@@ -673,7 +674,57 @@ private fun RowScope.JpEscKey(
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.align(Alignment.TopCenter)
         )
-        if (showHint) FlickCommitPopup(text = PAD_HINT, style = style)
+        Text(
+            text = EMOJI_HINT,
+            color = fg.copy(alpha = 0.6f),
+            fontSize = style.flickHintFontSp.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+        if (showHint) JpEscHintPopup(style = style)
+    }
+}
+
+/**
+ * ESC を押しっぱなしにしたときのヒント。
+ *
+ * ⚠ [FlickCommitPopup] (1 文字) を使い回せない — 行き先が**上下 2 つ**あるので、
+ * 「どちらへ払うと何が出るか」を上下の並びそのもので示す必要がある。
+ * フリックはしきい値を越えた時点で発火するので、ここに出るのは常に**両方**
+ * (指が動く前 = まだどちらへ行くか決まっていない状態でしか出ない)。
+ */
+@Composable
+private fun JpEscHintPopup(style: KeyboardStyle) {
+    val density = LocalDensity.current
+    val lineHeight = style.keyFontSp * 1.35f
+    // 2 行 + 上下の余白。Popup は自分の高さを知らないので概算で持ち上げる。
+    val popupHeight = (lineHeight * 2f + 12f).dp
+    val gap = 6.dp
+    val offsetY = with(density) { -(popupHeight + gap).roundToPx() }
+    Popup(
+        alignment = Alignment.TopCenter,
+        offset = IntOffset(0, offsetY),
+        properties = PopupProperties(focusable = false, clippingEnabled = true)
+    ) {
+        Column(
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(ZtsGreen)
+                .border(2.dp, ZtsGreenBright, RoundedCornerShape(10.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            listOf("▲$PAD_HINT", "▼$EMOJI_HINT").forEach {
+                Text(
+                    text = it,
+                    color = Color.Black,
+                    fontSize = style.keyFontSp.sp,
+                    lineHeight = lineHeight.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
     }
 }
 

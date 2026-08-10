@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-04 / Target version: 0.8.305-alpha (versionCode 313)
+Last updated: 2026-08-10 / Target version: 0.8.306-alpha (versionCode 314)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1597,7 +1597,7 @@ On failure: fall back to launchAndroidSh
   - **The order is a choice of two** (`あ → A → 12` / `あ → 12 → A`). ⚠ **For three faces there are exactly two cycles up to rotation**, so those two exhaust every possibility (`A → 12 → あ` is the first one rotated — the same cycle). **A drag-to-reorder UI would not offer anything more**, so there is none. With only two faces (English, or numbers off) the notion of an order does not apply, and the setting is not shown at all.
   - Moving between faces **commits any pending kana first** (nothing is carried across a face change).
 - **Faces with no switch key (English locale ∧ numbers off)**: with Latin as the only face there is no switch key, so SPACIOUS drops ⇧/CTRL down one row to fill the gap at the home-row start. COMPACT has no left key on the home row to begin with, so it is unchanged. ⚠ The test is not "is this Japanese?" but "**does the switch key take a seat on this face?**". Turn numbers on in an English locale and the switch key takes its seat, so the arrangement goes back to the Japanese one.
-- **Paste / emoji on the Latin layout (`PadKey`, 0.8.281)**: the Latin layout had no entry point for either, so using it as the everyday keyboard in an English locale meant **no emoji and no paste** (the Japanese locale reaches both from the kana layout). ⚠ **There is no room for another key**, so the seats of keys that were **already duplicates** are used. ⚠ **The entry point only appears on a face with no switch key** (0.8.305); where the switch key does take that seat, the entry points live on the **kana face (😀 / ESC flick up) and the number face (😀)** instead — so one entry point survives in every language and every setting:
+- **Paste / emoji on the Latin layout (`PadKey`, 0.8.281)**: the Latin layout had no entry point for either, so using it as the everyday keyboard in an English locale meant **no emoji and no paste** (the Japanese locale reaches both from the kana layout). ⚠ **There is no room for another key**, so the seats of keys that were **already duplicates** are used. ⚠ **The entry point only appears on a face with no switch key** (0.8.305); where the switch key does take that seat, the entry points live on the **kana face (ESC flick up = paste / flick down = emoji) and the number face (😀)** instead — so one entry point survives in every language and every setting:
   - SPACIOUS = the old **META** at the left of Row 3 (the same modifier as ALT in Row 5).
   - COMPACT = the old **CTRL** at the left of Row 5 (the top bar already carries CTRL). ⚠ This is the seat the face-switch key occupies, which makes it a consistent home for a key that swaps the face.
   - **Tap = paste, flick up = emoji.** ⚠ The key draws 📋 in the middle and 😀 at the top edge, so **the key itself explains the entry point** — the lesson from the ESC up-flick on the Japanese layout, which went unused because it was invisible.
@@ -1627,7 +1627,7 @@ On failure: fall back to launchAndroidSh
   ```
   ESC      あ   か  さ   ⌫
   ◀/▼     た   な  は   ▶/▲
-  😀/␣    ま   や  ら   変換
+  ␣       ま   や  ら   変換
   ABC      小゛゜ わ  、。  ⏎    ← ABC = back to Latin
   ```
   Row 2's edges stack the cursor keys directly under the left/right keys, half a row each
@@ -1683,17 +1683,21 @@ English locale the kana layer is not offered at all, so the pads are unavailable
 (⌫ ⏎ ␣ ◀▶) stay**, so deleting what you just pasted or hitting return still works. ⚠ Do not turn ⌫
 into "close" — you would not be able to delete while the pad is open.
 
-- **Entry points**: the 😀 key (top half of the `␣` column, split with `JpEdgeStack`) = emoji, and
-  **flick up on ESC** = paste. ⚠ Splitting `␣` left/right would leave half of an already narrow edge
-  column, too small a target — hence the vertical split. ⚠ The ESC up-flick is an invisible entry, so
-  the pad carries 😀 / 📋 tabs and **paste is reachable from the visible 😀 key** too. Closing is
-  pressing **the same key you entered with** (toggle), or the × at the top left.
-- **Making the up-flick discoverable** (0.8.279): the tabs alone did not get people to "flick up on
-  ESC", so — exactly like the kana keys (`JpFlickKey`), which always show where each flick goes —
-  **a dim 📋 sits at the top edge of the ESC key**. On top of that, **holding ESC for 300ms** floats
-  `FlickCommitPopup` (the same part the kana keys use while pressed) with a large 📋 right above the
-  key. ⚠ A plain tap shows nothing — ESC is one of the most-pressed keys in a terminal, and popping
-  something up on every press would be in the way. The popup disappears as soon as the flick resolves.
+- **Both entry points are flicks on ESC** (0.8.306): **flick up** = paste, **flick down** = emoji.
+  ⚠ From 0.8.278 to 0.8.305 emoji had its own 😀 key in the top half of the `␣` column, which left
+  **the most-pressed key on the face at half the height of an already narrow edge column**. `␣` is
+  whole again and emoji moved to the free direction of the flick paste was already using — the key
+  count and the size of `␣` are back to what they were before 0.8.278, and both entries sit together.
+  The pad keeps its 😀 / 📋 tabs, so **either entry reaches both**. Closing is the × at the top left
+  (ESC is not on screen while the pad is open, so "press the key you entered with" cannot work here).
+- **Making the flicks discoverable** (0.8.279 / 0.8.306): the finger movement is invisible, so —
+  exactly like the kana keys (`JpFlickKey`), which always show where each flick goes —
+  **a dim 📋 sits at the top edge of the ESC key and a dim 😀 at the bottom edge**. On top of that,
+  **holding ESC for 300ms** floats `JpEscHintPopup` with "▲📋 / ▼😀" right above the key.
+  ⚠ The one-glyph `FlickCommitPopup` cannot be reused: with two destinations the hint has to show
+  **the up/down arrangement itself**. ⚠ A plain tap shows nothing — ESC is one of the most-pressed
+  keys in a terminal, and popping something up on every press would be in the way. The popup
+  disappears as soon as the flick resolves.
 - **Emoji** (`EmojiCatalog`): 8 categories, built from **a hand-picked table plus whole code-point
   blocks** (no attempt at full coverage — thousands of glyphs cannot be browsed).
   ⚠ **A table copied one glyph at a time always has holes in it.** 13 of the 80 characters in
