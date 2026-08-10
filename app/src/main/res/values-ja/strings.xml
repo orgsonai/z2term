@@ -56,6 +56,8 @@
     <string name="settings_battery_opt_toggle_desc">ON: バックグラウンドでセッションや実行中プロセスが OS に kill されにくくなります。OFF にするとシステム設定を開きます (除外の解除はアプリから直接できないため)。</string>
     <string name="settings_phantom_title">それでも消える場合 (Android 12/13)</string>
     <string name="settings_phantom_desc">Android 12/13 は proot が生む「phantom process」を kill することがあります。アプリ内からは変更できないため、PC から adb で以下を実行し端末を再起動してください。Android 14+ は既定で緩和済みのことが多いです。</string>
+    <string name="settings_low_power">省電力モード</string>
+    <string name="settings_low_power_desc">WakeLock/WifiLock を握りません。電池は減りにくくなりますが、画面消灯中は自動化の反応が鈍くなり、外部からの着信も遅延・取りこぼすことがあります。常駐サーバーと 🔒 バックグラウンド常駐の両方に効きます (常駐サーバーへは次回の起動から反映)。どちらも動いていないときは、この設定を変えても何も変わりません。</string>
     <string name="settings_landscape_keyboard_desc">横画面のときにキーボードを画面のどこに出すか。縦画面は常に下に出る。</string>
     <string name="settings_landscape_kb_left">左</string>
     <string name="settings_landscape_kb_bottom">下</string>
@@ -416,8 +418,6 @@
     <string name="servers_stop">停止</string>
     <string name="servers_autostart_boot">起動時に自動で常駐</string>
     <string name="servers_autostart_boot_desc">端末起動直後に、アプリを開かず有効なサーバーを自動で立ち上げます。</string>
-    <string name="servers_low_power">省電力モード</string>
-    <string name="servers_low_power_desc">WakeLock/WifiLock を握りません。電池は減りにくくなりますが、画面消灯中は外部からの着信が遅延・取りこぼすことがあります。🔒 バックグラウンド常駐にも同じ設定が効きます。常駐サーバーへは次回の起動から反映。</string>
     <string name="servers_no_command">(コマンド未設定)</string>
     <string name="servers_restart_info">再起動 %1$d 回 / 前回の終了コード %2$s</string>
     <string name="servers_log_title">このサーバーの出力 (%1$s)</string>

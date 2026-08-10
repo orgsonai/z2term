@@ -57,6 +57,8 @@
     <string name="settings_battery_opt_toggle_desc">ON: the OS is less likely to kill the session and its running processes in the background. Turning OFF opens system settings (Android does not allow apps to re-enable optimization directly).</string>
     <string name="settings_phantom_title">If processes still get killed (Android 12/13)</string>
     <string name="settings_phantom_desc">Android 12/13 may kill the \"phantom processes\" that proot spawns. This cannot be changed inside the app — run the following from a PC via adb, then reboot the device. Android 14+ is usually relaxed already.</string>
+    <string name="settings_low_power">Low-power mode</string>
+    <string name="settings_low_power_desc">Don\'t hold WakeLock/WifiLock — saves battery, but while the screen is off automation reacts more slowly and incoming connections may be delayed or dropped. It applies to both resident servers and 🔒 background keep-alive (servers pick it up on their next start). While neither of those is running, changing this setting changes nothing.</string>
     <string name="settings_landscape_keyboard_desc">Where to place the on-screen keyboard when the screen is in landscape. Portrait always uses Bottom.</string>
     <string name="settings_landscape_kb_left">Left</string>
     <string name="settings_landscape_kb_bottom">Bottom</string>
@@ -419,8 +421,6 @@
     <string name="servers_stop">Stop</string>
     <string name="servers_autostart_boot">Auto-start on boot</string>
     <string name="servers_autostart_boot_desc">Launch enabled servers right after the device boots, without opening the app.</string>
-    <string name="servers_low_power">Low-power mode</string>
-    <string name="servers_low_power_desc">Don\'t hold WakeLock/WifiLock — saves battery but incoming connections may be delayed or dropped while the screen is off. The same setting applies to 🔒 background keep-alive. Applies to resident servers on next start.</string>
     <string name="servers_no_command">(no command)</string>
     <string name="servers_restart_info">restarted %1$d× / last exit code %2$s</string>
     <string name="servers_log_title">Output from this server (%1$s)</string>

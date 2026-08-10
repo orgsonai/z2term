@@ -52,7 +52,6 @@ import com.zerotoship.z2term.R
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.service.ServerDaemonManager
 import com.zerotoship.z2term.service.ServerDaemonService
-import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.settings.ServerEntry
 import com.zerotoship.z2term.ui.components.ReorderHandle
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
@@ -234,19 +233,10 @@ fun ServersBody(session: TerminalSession) {
             onChange = { session.setServersAutostartOnBoot(it) }
         )
 
-        // 省電力モード (WakeLock/WifiLock を握らない)。常駐サーバーへは次回の起動から反映。
-        // ⚠ セッション常駐 (TerminalService) にも同じ設定が効く (0.8.269)。あちらは
-        // onStartCommand でしか判定しないので、ここで start を呼び直して**その場で**反映させる
-        // (呼び直しは idempotent。常駐 OFF なら何も起きない)。
-        ToggleRow(
-            title = stringResource(R.string.servers_low_power),
-            desc = stringResource(R.string.servers_low_power_desc),
-            checked = settings.serversLowPower,
-            onChange = {
-                session.setServersLowPower(it)
-                if (settings.keepAliveService) TerminalService.start(context)
-            }
-        )
+        // ⚠ **省電力モードはここに無い** (0.8.309 で ⚙設定 → 自動化 → プロセス保護へ移した)。
+        // あれは常駐サーバーだけの設定ではなく、🔒 バックグラウンド常駐にも自動化の反応速度にも
+        // 効く。サーバーを使っていない人からは「自分に関係のある設定」に見えなかった。
+        // ⛔ 両方に出さない (同じトグルが 2 か所にあると、どちらが効いているのか分からなくなる)。
 
         if (entries.isEmpty()) {
             HintBox(stringResource(R.string.servers_empty))

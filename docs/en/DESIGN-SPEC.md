@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-10 / Target version: 0.8.308-alpha (versionCode 316)
+Last updated: 2026-08-10 / Target version: 0.8.309-alpha (versionCode 317)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -125,7 +125,7 @@ emulator state updates are concentrated on a **dedicated single thread** (`z2ter
 
 While keep-alive is on it holds a `PARTIAL_WAKE_LOCK` (keeps the CPU running) and **nothing else**. It is released on detach (keep-alive off), stop and destroy.
 
-**It honours low-power mode (0.8.269)**: that `PARTIAL_WAKE_LOCK` is not taken when `serversLowPower` is on. Through 0.8.268 this service alone ignored the setting, so turning on low-power mode for resident servers **did not take full effect** — while resident servers ran, two services each held their own copy of the same WakeLock. Holding one of them anyway breaks the promise made to someone who chose battery over reachability, so a single flag covers both. ⚠ The check only happens in `onStartCommand`, so changing the setting must be followed by another `TerminalService.start` to re-evaluate it (the `ServersSheet` toggle does this; the call is idempotent).
+**It honours low-power mode (0.8.269)**: that `PARTIAL_WAKE_LOCK` is not taken when `serversLowPower` is on. Through 0.8.268 this service alone ignored the setting, so turning on low-power mode for resident servers **did not take full effect** — while resident servers ran, two services each held their own copy of the same WakeLock. Holding one of them anyway breaks the promise made to someone who chose battery over reachability, so a single flag covers both. ⚠ The check only happens in `onStartCommand`, so changing the setting must be followed by another `TerminalService.start` to re-evaluate it (the settings toggle does this; the call is idempotent). ⚠ **The toggle moved to Settings -> Automation -> process protection in 0.8.309** (`SettingsSheet`); the re-`start` call has to travel with it.
 
 **No `WifiLock` here (0.8.268)**: 0.8.143 through 0.8.267 also held a `WIFI_MODE_FULL_HIGH_PERF` `WifiLock`. That setting takes the Wi-Fi radio out of power-save (PSM) entirely, keeping it at full power even while the screen is off — which costs battery and generates heat directly. Keeping the radio awake belongs to the side that **accepts inbound connections**, i.e. resident servers (`ServerDaemonService`), which holds that same `WifiLock`. This service only has to keep the interactive session's process alive, so it no longer holds a duplicate.
 
@@ -218,7 +218,9 @@ The cost is that per-server on/off, additions, edits, deletions and crash-restar
 - Stopping — via the "Stop servers" notification action or the settings — **kills the supervisor engine = stops all servers at once** (children are reaped together)
 - Ports below 1024 cannot be bound by a non-root engine
 
-**Low-power mode (`serversLowPower`, 0.8.148 / 0.8.269)**: when on, no WakeLock/WifiLock is held and Doze is allowed (battery over reachability; incoming connections may be delayed/dropped while the screen is off; applies on next start). **Since 0.8.269 the same flag also covers `TerminalService` (the 🔒 keep-alive)** — while resident servers run, two services each hold their own copy of the same WakeLock, so honouring it in only one place left the setting ineffective.
+**Low-power mode (`serversLowPower`, 0.8.148 / 0.8.269 / 0.8.309)**: when on, no WakeLock/WifiLock is held and Doze is allowed (battery over reachability; incoming connections may be delayed/dropped while the screen is off; applies on next start). **Since 0.8.269 the same flag also covers `TerminalService` (the 🔒 keep-alive)** — while resident servers run, two services each hold their own copy of the same WakeLock, so honouring it in only one place left the setting ineffective.
+
+**The toggle moved to Settings -> Automation -> process protection (0.8.309)**: through 0.8.308 it lived in the servers tab (`ServersSheet`) and its text only mentioned incoming connections. ⚠ **It is not a server-only setting** — it covers the 🔒 keep-alive as well, and it changes **how quickly automation reacts**. ⚠ **Nothing holds a WakeLock on automation's behalf** (`HeadlessRun.launch` takes none), so the speed `z2-when` runs at is **borrowed from whatever lock a resident service is holding**. Someone who never opened the servers tab had no way to see that the setting concerned them, so it now sits with the battery-optimization exemption and the phantom-process workaround — the same "let the device sleep, or keep it awake" family. ⛔ **It is not shown in both places** (two copies of one toggle make it impossible to tell which one is in effect). ⛔ **The DataStore key `servers_low_power` does not change** (renaming it would reset everyone's setting to the default). ⚠ Conversely, **with no resident server and no 🔒, flipping this changes nothing at all** (nobody is holding a lock). That is the explanation for "I turned low-power off and it did not get faster"; time triggers using `setAndAllowWhileIdle` drift under Doze for a separate reason.
 
 **Notification presentation (0.8.160)**
 - The resident notification uses an `IMPORTANCE_MIN` channel (`z2term_servers_v2`) so it **shows no status-bar icon and collapses to the bottom of the shade** (a foreground service must have a notification, so it cannot be hidden entirely; this favours unobtrusiveness for the server-only case)

@@ -1268,8 +1268,8 @@ The trick is to explicitly say **stay within this guide** so the AI won't reach 
   keeps the device out of Doze, and every `sleep` and `wc` a watch loop starts costs thousands of
   ptrace-mediated syscalls inside the engine (a single 2-second watcher measured **3 seconds of CPU per
   minute**). ① Can that macro be expressed as a `z2-when` trigger? (then you need no resident script at
-  all → section 1, style A) ② If residency really is needed, widen `POLL` (15 s or more) ③ `⚙ Settings →
-  Low-power mode` stops the app from holding the WakeLock/WifiLock (at the cost of slower reactions
+  all → section 1, style A) ② If residency really is needed, widen `POLL` (15 s or more) ③ `⚙ Settings → Automation →
+  Background process protection → Low-power mode` stops the app from holding the WakeLock/WifiLock (at the cost of slower reactions
   while the screen is off).
 - **A tile does nothing when tapped** → the reason is in `~/.z2term/tile/run.log` (failures never
   reach the screen). `command not found` means you assigned something outside the macro folder by

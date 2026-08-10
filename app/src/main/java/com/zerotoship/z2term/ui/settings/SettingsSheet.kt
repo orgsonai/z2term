@@ -94,6 +94,7 @@ import com.zerotoship.z2term.service.ServerDaemonManager
 import com.zerotoship.z2term.service.ScreenTimeout
 import com.zerotoship.z2term.service.SmsLogReceiver
 import com.zerotoship.z2term.service.SystemEventService
+import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.BatteryGuard
 import com.zerotoship.z2term.settings.CustomThemeStore
@@ -939,6 +940,24 @@ fun SettingsSheet(
                     CopyableCommand(
                         label = stringResource(R.string.settings_cmd_copy_label),
                         command = BatteryGuard.PHANTOM_DISABLE_ADB
+                    )
+                    // 省電力モード (WakeLock/WifiLock を握らない)。0.8.309 で 📜 サーバータブから
+                    // ここへ移した。⚠ **サーバーだけの設定ではない** — 🔒 バックグラウンド常駐にも
+                    // 効き、自動化 (z2-when → HeadlessRun) は自前のロックを持たず**常駐側が握って
+                    // いるロックへの相乗り**で動くので、反応の速さもこれで変わる。上の 2 つと同じ
+                    // 「端末に眠らせるか / 起こしておくか」の設定なので、このセクションに並べる。
+                    // ⛔ **`TerminalService.start` の呼び直しを落とさない**。あちらは
+                    // onStartCommand でしか省電力を判定しないので (TerminalService.kt:98-106)、
+                    // これが無いとトグルしても次の起動までロックが切り替わらない。
+                    // 呼び直しは idempotent で、🔒 が OFF なら何も起きない。
+                    ToggleField(
+                        title = stringResource(R.string.settings_low_power),
+                        description = stringResource(R.string.settings_low_power_desc),
+                        checked = settings.serversLowPower,
+                        onChange = {
+                            session.setServersLowPower(it)
+                            if (settings.keepAliveService) TerminalService.start(context)
+                        }
                     )
                 }
 
