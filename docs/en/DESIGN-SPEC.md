@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-10 / Target version: 0.8.306-alpha (versionCode 314)
+Last updated: 2026-08-10 / Target version: 0.8.307-alpha (versionCode 315)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1878,6 +1878,15 @@ earlier `setComposingText` does not double up.
   `onJapaneseModeChange = {}`), so **which side remembers is visible from the call site alone**.
   ⚠ The face is only restored while `showJapaneseKeyboard` is true (in English there is no 「あ」 key,
   so opening on the Japanese face would make no sense).
+- **A reopened keyboard starts from a clean state (0.8.307)**. ⚠ The input view is **reused, not
+  destroyed, when the window closes**, so Compose's `remember` survives a close. Closing the keyboard
+  with a pad (emoji / paste) open therefore **reopened it still showing the pad** — the kana keys are
+  nowhere to be seen, which reads as broken. `onWindowHidden` bumps a key (`keyboardSession`) and
+  `key(keyboardSession) { TerminalKeyboard(…) }` rebuilds the subtree. ⚠ It is bumped **when the
+  window hides**, not in `onStartInputView` — that one also fires when **the keyboard stays up and
+  only the field changes**, which would drop the face and the modifiers mid-sentence.
+  ⚠ This is where "only the face is persistent" pays off: the face comes back from `initialFace`
+  (`ime_face` in the settings), and only **transient** state — the pad, ⇧/CTRL/ALT, `?#` — is dropped.
 
 **Candidates for the next stage**: adapting to `EditorInfo.inputType` (digits only for numeric
 fields, no learning in password fields), a key to hand back to the OS keyboard, and the globe key via

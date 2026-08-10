@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -154,6 +155,28 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         getInsets(WindowInsetsCompat.Type.tappableElement()).bottom
 
     /**
+     * キーボードを何回目に出したか。⚠ **数そのものに意味は無い** — キーボードのサブツリーを
+     * 作り直させるための鍵で、進めた瞬間に中の一時状態が捨てられる ([KeyboardContent])。
+     *
+     * ⚠ 進めるのは [onWindowHidden] (窓が隠れた = 閉じた)。[onStartInputView] ではない —
+     * そちらは**キーボードが出たまま入力欄が変わっただけ**でも呼ばれるので、打っている
+     * 最中に面や修飾が飛ぶ。
+     */
+    private val keyboardSession = mutableIntStateOf(0)
+
+    /**
+     * 入力メソッドの窓が隠れた。次に開くときは**素のキーボード**にしたいので鍵を進める。
+     *
+     * ⚠ ここを直すまで、パッド (絵文字 / 貼り付け) を開いたままキーボードを閉じると
+     * **次に開いたときもパッドのまま**だった。入力ビューは使い回されるので、Compose 側の
+     * `remember` は閉じただけでは捨てられない。
+     */
+    override fun onWindowHidden() {
+        super.onWindowHidden()
+        keyboardSession.intValue++
+    }
+
+    /**
      * 窓から今のナビゲーションバー高さを読み直す。
      * リスナー ([onCreateInputView]) が呼ばれないまま入力ビューが出る経路 (窓の作り直し・
      * 操作方法の変更直後) の取りこぼしを埋める。
@@ -249,19 +272,27 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                         .padding(bottom = navBarPadding)
                 ) {
                     Column(modifier = Modifier.fillMaxWidth().height(style.naturalHeight)) {
-                        TerminalKeyboard(
-                            onBytes = ::sendBytes,
-                            onCursorKey = ::sendCursorKey,
-                            composing = composing,
-                            style = style,
-                            showJapaneseKeyboard = isJa,
-                            faceOrder = KeyboardFace.orderFrom(
-                                settings.keyboardFaceOrder,
-                                settings.keyboardNumberFace
-                            ),
-                            initialFace = KeyboardFace.byId(settings.imeFace),
-                            onFaceChange = ::rememberFace
-                        )
+                        // ⚠ **開き直したキーボードは素の状態から出す** ([keyboardSession])。
+                        // 入力ビューは窓を閉じても壊されずに使い回されるので、キーボードの中の
+                        // 一時状態 (パッドの開閉・⇧/CTRL/ALT/?#) が composition ごと生き残り、
+                        // 絵文字や貼り付けを開いたまま閉じると**次に開いてもパッドのまま**出ていた。
+                        // ⚠ 覚えておきたいのは**面だけ** (`initialFace`)。面は設定に書いてあるので
+                        // 作り直しても復元される — 一時状態と永続する状態をここで分けている。
+                        key(keyboardSession.intValue) {
+                            TerminalKeyboard(
+                                onBytes = ::sendBytes,
+                                onCursorKey = ::sendCursorKey,
+                                composing = composing,
+                                style = style,
+                                showJapaneseKeyboard = isJa,
+                                faceOrder = KeyboardFace.orderFrom(
+                                    settings.keyboardFaceOrder,
+                                    settings.keyboardNumberFace
+                                ),
+                                initialFace = KeyboardFace.byId(settings.imeFace),
+                                onFaceChange = ::rememberFace
+                            )
+                        }
                     }
                 }
             }

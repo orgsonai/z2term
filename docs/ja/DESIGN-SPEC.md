@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-10 / 対象バージョン: 0.8.306-alpha (versionCode 314)
+最終更新: 2026-08-10 / 対象バージョン: 0.8.307-alpha (versionCode 315)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1816,6 +1816,15 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
   `onJapaneseModeChange = {}`) ので、**どちらの側が覚えるかは呼出し側だけを見れば分かる**。
   ⚠ 復元は `showJapaneseKeyboard` が true のときだけ (English 表示では「あ」キーが無いので、
   日本語面で開いても筋が通らない)。
+- **開き直したキーボードは素の状態から出す (0.8.307)**。⚠ 入力ビューは窓を閉じても
+  **壊されずに使い回される**ので、Compose の `remember` は閉じただけでは捨てられない。
+  結果、パッド (絵文字 / 貼り付け) を開いたまま閉じると**次に開いてもパッドのまま**出ていた
+  (かなキーが見当たらない = 壊れて見える)。`onWindowHidden` で鍵 (`keyboardSession`) を進め、
+  `key(keyboardSession) { TerminalKeyboard(…) }` でサブツリーごと作り直す。
+  ⚠ 進めるのは**窓が隠れたとき**であって `onStartInputView` ではない — そちらは
+  **キーボードが出たまま入力欄が変わっただけ**でも呼ばれるので、打っている最中に面や修飾が飛ぶ。
+  ⚠ **持ち越すのは面だけ**という切り分けがここで効く: 面は設定 (`ime_face`) に書いてあるので
+  作り直しても `initialFace` から戻り、パッド・⇧/CTRL/ALT・`?#` のような**一時状態だけ**が落ちる。
   - **検証**: 候補バーの出現前後で入力ビューの高さ (`View.onSizeChanged`) が変わらないこと、
     タップの `rawY - getLocationOnScreen()[1]` と `MotionEvent.y` が一致することを実機で確認する。
 
