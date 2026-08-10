@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-10 / Target version: 0.8.310-alpha (versionCode 318)
+Last updated: 2026-08-10 / Target version: 0.8.311-alpha (versionCode 319)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -450,6 +450,7 @@ open another working tab, place a command into a different tab, or grab what is 
 | `list` | one tab per line as TSV (`index / id / kind / marks / name`); marks are `*`=visible, `!`=busy, `?`=not started, `-`=neither |
 | `new [name]` | opens one terminal tab, **starts it**, and returns `index\tid` (the handle you then `send` to) |
 | `send <target> <text>… [--enter]` | **inserts** text into that tab; only runs it when `--enter` is given |
+| `key <target> <key>…` | send **keys** to that tab (`C-c` / `M-x` / `F5` / `Up` …); `--raw` takes bytes (0.8.311) |
 | `capture [target] [--all]` | returns that tab's on-screen text (`--all` includes the scrollback) |
 | `close <target>` | closes that tab (never the last one — the same promise as double-tap-to-close in the UI) |
 
@@ -468,6 +469,31 @@ go through `runOnMainSync`, putting them on the same thread assumption as drawin
 
 **`new` starts the tab too** (0.8.203). The screen-side autostart only fires for "the visible tab, if it is IDLE", so **a tab created while the app was closed stayed unstarted until it was opened** — and a following `send` did nothing, because there was no PTY (found on device). To make "open a tab and feed it a command" work from a macro, `new` calls `startTerminal` itself. A distro that would need a first-run download (Alpine on foss, …) is left alone, so nothing starts a transfer behind the user's back; the on-screen confirmation still handles it.
 `list` also gained a **`?` (not started)** mark: sending to an unstarted tab does nothing, and without the mark there is no way to tell why.
+
+**Keys get their own verb** (`key`, 0.8.311). ⚠ `send` goes through `pasteText`, so it is wrapped in
+**bracketed paste** (`ESC[200~ … ESC[201~`) and the shell reads it as "the characters `^C` were
+pasted" — passing `\x03` to `send` therefore **never raises SIGINT**. `key` writes straight to
+`writeBytes`. ⚠ Do not instead teach `send` to skip the wrapping for control codes: what "paste"
+means would then depend on the payload, which cannot be explained to anyone.
+
+- **The table lives in `AndroidKeyMapper`** (`keyBytesFor`). ⚠ If the built-in keyboard
+  (`mapKeyEvent`) and the CLI emitted different bytes, bugs would reproduce through one path only.
+  `KeyBytesForTest` pins that both go through the same table.
+- **Arrows are built by the emulator** (DECCKM-dependent). A hard-coded sequence would break arrows
+  in any application-cursor-keys program.
+- ⛔ **Shift-ed keys such as `C-S-a` are refused rather than sent** (the user's call). A terminal
+  folds Shift into the character, so it would be **the very same byte as `C-a`** (`controlByteFor`
+  collapsing `a..z` and `A..Z` is exactly that). ⚠ Sending `C-a` silently would make "I sent it and
+  nothing happened" untraceable, so the error **also says what to write instead**. The protocols that
+  can tell them apart (xterm's modifyOtherKeys, the Kitty keyboard protocol) are not implemented, and
+  would need the receiving program to cooperate anyway.
+  ⚠ **`S-Tab` is allowed**: the test is not "does it carry Shift" but "**can the terminal tell it
+  apart**", and backtab genuinely exists as `ESC [ Z`.
+- **`--raw` takes escape notation** (`\xHH` `\e` `\n` `\r` `\t` `\0`). ⚠ Real bytes are not
+  accepted as arguments because the request file is "one line = one argument", so a literal newline
+  would break the separator (the same reason `z2-icon` folds a drawing into base64).
+- ⚠ **Everything is converted before a single byte goes out.** Sending the keys up to a typo and
+  then failing would leave nobody able to tell what actually arrived.
 
 **A name given to `new` sticks** (0.8.202). `TerminalSession` carries `labelPinned`; while it is set, the label is **not** overwritten by the OS name (`spec.id`) at startup, by the `android-sh` fallback, by an SSH connection, or by a title the shell emits (OSC 0/2). Without it, the name from `z2-session new build` turned into the OS name moments later during startup, which made naming pointless (found on device).
 

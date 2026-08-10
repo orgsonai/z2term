@@ -474,7 +474,7 @@ class Z2ApiScriptTest {
     fun sessionHelperCoversAllSubcommands() {
         val body = scripts["z2-session"]
         assertTrue("z2-session が同梱されていない", body != null)
-        for (sub in listOf("list", "new", "send", "capture", "close")) {
+        for (sub in listOf("list", "new", "send", "key", "capture", "close")) {
             assertTrue("z2-session に $sub が無い", body!!.contains("session $sub"))
         }
     }

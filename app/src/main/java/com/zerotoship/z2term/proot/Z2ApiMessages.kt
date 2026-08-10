@@ -439,6 +439,11 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# z2-session new [name]               … open one terminal tab (returns index and id)
         |# z2-session send <tab> <text>...     … type text into that tab (does not run it)
         |# z2-session send <tab> <text> --enter … type it, then run it
+        |# z2-session key <tab> <key>...      … send **keys** to that tab (C-c / M-x / F5 / Up …)
+        |#   modifiers: C- (Ctrl) and M- (Meta=Alt); they stack, as in C-M-a
+        |#   special: Up Down Left Right Home End PgUp PgDn Ins Del Tab S-Tab Enter Esc Space BS F1-F12
+        |#   Shift-ed keys such as C-S-a are refused (a terminal cannot tell Shift apart: same bytes as C-a)
+        |# z2-session key <tab> --raw '\x1b[A' … anything else, as bytes (\xHH \e \n \r \t \0)
         |# z2-session capture [tab] [--all]    … take that tab's screen (--all includes scrollback)
         |# z2-session close <tab>              … close that tab (never the last one)
         |#
@@ -450,6 +455,11 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# z2-session new [名前]               … 端末タブを 1 枚開く (番号と id を返す)
         |# z2-session send <先> <文字列>...    … そのタブに文字を入れる (実行はしない)
         |# z2-session send <先> <文字列> --enter … 入れてから実行する
+        |# z2-session key <先> <キー>...      … そのタブに**キー**を送る (C-c / M-x / F5 / Up …)
+        |#   修飾は C- (Ctrl) と M- (Meta=Alt)。C-M-a のように重ねられる
+        |#   特殊キー: Up Down Left Right Home End PgUp PgDn Ins Del Tab S-Tab Enter Esc Space BS F1-F12
+        |#   ⛔ C-S-a のような Shift 付きは断る (端末は Shift を区別できず C-a と同じバイトになるため)
+        |# z2-session key <先> --raw '\x1b[A'  … 表に無いものはバイト列で (\xHH \e \n \r \t \0)
         |# z2-session capture [先] [--all]     … そのタブの画面を取り出す (--all は遡れる分も)
         |# z2-session close <先>               … そのタブを閉じる (最後の 1 枚は閉じない)
         |#
@@ -458,8 +468,49 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
     """.trimMargin()
 
     val sessionUsage: String =
-        if (en) "usage: z2-session list | new [name] | send <tab> <text>... [--enter] | capture [tab] [--all] | close <tab>"
-        else "usage: z2-session list | new [名前] | send <先> <文字列>... [--enter] | capture [先] [--all] | close <先>"
+        if (en) {
+            "usage: z2-session list | new [name] | send <tab> <text>... [--enter] | " +
+                "key <tab> <key>... | key <tab> --raw <bytes> | capture [tab] [--all] | close <tab>"
+        } else {
+            "usage: z2-session list | new [名前] | send <先> <文字列>... [--enter] | " +
+                "key <先> <キー>... | key <先> --raw <バイト列> | capture [先] [--all] | close <先>"
+        }
+
+    // --- z2-session key (別のタブへキーを送る) ---
+
+    /** 送るキーが 1 つも無い。 */
+    val keyNothing: String =
+        if (en) "z2-session key: no key given" else "z2-session key: 送るキーがありません"
+
+    /** `--raw` の後ろが空。 */
+    val keyRawEmpty: String =
+        if (en) "z2-session key: --raw needs the bytes to send"
+        else "z2-session key: --raw の後ろにバイト列がありません"
+
+    /** 表に無いキー名。⚠ **どこを見れば分かるか**まで書く。 */
+    val keyUnknown: String = if (en) {
+        "z2-session key: unknown key (see 'z2-session -h' for the list):"
+    } else {
+        "z2-session key: そんなキー名はありません ('z2-session -h' に一覧):"
+    }
+
+    /** `\\xHH` として読めなかった。 */
+    val keyBadEscape: String =
+        if (en) "z2-session key: cannot read the escape:" else "z2-session key: 読めないエスケープ:"
+
+    /**
+     * Shift 付きを断る文言。⚠ **なぜ送れないかと、代わりに何を書けばよいか**を必ず出す —
+     * 「送れません」だけだと、書き方が悪いのか端末の話なのか区別が付かない。
+     */
+    fun keyShiftNotDistinguishable(asWritten: String, equivalentTo: String): String = if (en) {
+        "z2-session key: the terminal cannot tell Shift apart, so '$asWritten' would be " +
+            "the very same bytes as '$equivalentTo'. Write '$equivalentTo' if that is what you meant."
+    } else {
+        // ⚠ 行の分け目は**句点**に置く (読点や助詞で割ると lint の TextConcatSpace が
+        // 「空白が抜けているのでは」と拾う。日本語では誤検知だが、警告 0 を保つ方を採る)。
+        "z2-session key: 端末は Shift を区別できないので、'$asWritten' は '$equivalentTo' とまったく同じバイトになります。" +
+            "それでよければ '$equivalentTo' と書いてください。"
+    }
 
     // --- z2-server ---
 

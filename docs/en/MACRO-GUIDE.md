@@ -570,6 +570,25 @@ z2-session close "$n"                # close it (never the last one)
 - **`send` only types — it does not run anything.** Add `--enter` when you do want it executed
   (so nothing starts running behind your back).
 - A name given with `new <name>` is **pinned**: neither the distro name nor the shell's title overwrites it.
+- **Keys go through `z2-session key`** (0.8.311). ⚠ `send` is a paste, so passing `\x03` to it
+  **does not make Ctrl+C** — you just get the characters `^C`.
+
+```sh
+z2-session key 2 C-c              # Ctrl+C (interrupt what is running)
+z2-session key 2 M-x              # Alt+x
+z2-session key 2 F5 Up Home       # specials, several at a time
+z2-session key 2 --raw '\x1b[A'   # anything else, as bytes (\xHH \e \n \r \t \0)
+```
+
+  - Modifiers are `C-` (Ctrl) and `M-` (Meta = Alt); they stack, as in `C-M-a`.
+  - Specials: `Up` `Down` `Left` `Right` `Home` `End` `PgUp` `PgDn` `Ins` `Del` `Tab` `S-Tab`
+    `Enter` `Esc` `Space` `BS` `F1`–`F12` (case does not matter).
+  - ⚠ **Shift-ed keys such as `C-S-a` are refused.** A terminal cannot tell Shift apart, so it would
+    be exactly the same as `C-a`. ⚠ Sending it silently would leave "I sent it and nothing happened"
+    unexplainable, so it stops and tells you what to write instead (`S-Tab` does go through — that
+    one the terminal can distinguish).
+  - ⚠ One bad name and **nothing at all is sent** (no half-delivered burst of keys).
+
 
 ### `z2-server` (start / stop a resident server)
 

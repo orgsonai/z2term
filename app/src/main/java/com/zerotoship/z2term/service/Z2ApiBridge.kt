@@ -54,6 +54,8 @@ import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.tile.TileStore
 import com.zerotoship.z2term.tile.Z2TileService
 import org.json.JSONObject
+import com.zerotoship.z2term.ui.terminal.input.AndroidKeyMapper
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
@@ -338,6 +340,47 @@ object Z2ApiBridge {
                 }
                 null
             }
+            /**
+             * そのタブへ**キー**を送る (0.8.311)。
+             *
+             * ⚠ `send` とは**出口が違う**。あちらは `pasteText` を通るので bracketed paste
+             * (`ESC[200~ … ESC[201~`) で囲まれ、シェルは「^C という文字が貼られた」と読む
+             * (= SIGINT にならない)。こちらは [TerminalSession.writeBytes] へ直に書く。
+             * `send` の「貼り付け」という意味を壊さないために、動詞を分けてある。
+             */
+            "key" -> {
+                val target = args.getOrNull(1).orEmpty()
+                val rest = args.drop(2).filter { it.isNotEmpty() }
+                val session = resolveSession(target) as? TerminalSession
+                    ?: throw IllegalArgumentException("session key: no such terminal tab: $target")
+                val m = cliMsg(context)
+                val payload = if (rest.firstOrNull() == "--raw") {
+                    val raw = rest.drop(1).joinToString(" ")
+                    if (raw.isEmpty()) throw IllegalArgumentException(m.keyRawEmpty)
+                    decodeEscapes(raw, m)
+                } else {
+                    if (rest.isEmpty()) throw IllegalArgumentException(m.keyNothing)
+                    // ⚠ **1 バイトも送る前に全部変換する**。途中で名前を間違えていたとき、
+                    // そこまでのキーだけが送られた状態にすると、何が届いたのか分からなくなる。
+                    val out = ByteArrayOutputStream()
+                    rest.forEach { keyName ->
+                        when (val r = AndroidKeyMapper.keyBytesFor(keyName) { k ->
+                            session.emulator.cursorKeyBytes(k)
+                        }) {
+                            is AndroidKeyMapper.KeyBytes.Ok -> out.write(r.bytes)
+                            is AndroidKeyMapper.KeyBytes.Unknown ->
+                                throw IllegalArgumentException("${m.keyUnknown} ${r.name}")
+                            is AndroidKeyMapper.KeyBytes.NotDistinguishable ->
+                                throw IllegalArgumentException(
+                                    m.keyShiftNotDistinguishable(r.asWritten, r.equivalentTo)
+                                )
+                        }
+                    }
+                    out.toByteArray()
+                }
+                runOnMainSync { session.writeBytes(payload) }
+                null
+            }
             // 画面のテキストを取り出す。既定は今見えている分だけ、--all で遡れる分も含める。
             "capture" -> {
                 val target = args.getOrNull(1).orEmpty().ifBlank { "." }
@@ -389,6 +432,47 @@ object Z2ApiBridge {
      */
     private fun cliMsg(context: Context): Z2ApiMsg =
         Z2ApiMsg(en = LocaleHelper.language(context) != LocaleHelper.LANG_JA, d = "$")
+
+    /**
+     * `\xHH` `\e` `\n` `\r` `\t` `\0` `\\` を実バイトへ (`z2-session key --raw`)。
+     *
+     * ⚠ **実バイトをそのまま引数で受け取らない**のが要点。`z2api` のリクエストファイルは
+     * 「1 行 = 1 引数」なので、生の改行が混ざった時点で引数の区切りが壊れる
+     * (`z2-icon` が絵を base64 に畳んで渡しているのと同じ事情)。エスケープ表記で受けて
+     * ここで開けば、どんなバイト列でも 1 行に収まる。
+     *
+     * ⚠ 知らないエスケープは**バックスラッシュごとそのまま**通す (`\d` は `\` と `d`)。
+     * 勝手に捨てると、書いたものと送られたものが食い違う。
+     */
+    private fun decodeEscapes(text: String, m: Z2ApiMsg): ByteArray {
+        val out = ByteArrayOutputStream()
+        var i = 0
+        while (i < text.length) {
+            val c = text[i]
+            if (c != '\\' || i == text.lastIndex) {
+                out.write(c.toString().toByteArray(Charsets.UTF_8))
+                i++
+                continue
+            }
+            when (val n = text[i + 1]) {
+                'x', 'X' -> {
+                    val hex = text.substring(i + 2).takeWhile { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }.take(2)
+                    val v = hex.toIntOrNull(16)
+                        ?: throw IllegalArgumentException("${m.keyBadEscape} \\$n$hex")
+                    out.write(v)
+                    i += 2 + hex.length
+                }
+                'e', 'E' -> { out.write(0x1B); i += 2 }
+                'n' -> { out.write(0x0A); i += 2 }
+                'r' -> { out.write(0x0D); i += 2 }
+                't' -> { out.write(0x09); i += 2 }
+                '0' -> { out.write(0x00); i += 2 }
+                '\\' -> { out.write('\\'.code); i += 2 }
+                else -> { out.write('\\'.code); i++ }
+            }
+        }
+        return out.toByteArray()
+    }
 
     /**
      * **登録済みの常駐サーバーを起こす / 落とす** (`z2-server`・0.8.310)。
