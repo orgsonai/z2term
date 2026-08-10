@@ -38,7 +38,9 @@ import android.view.KeyEvent
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import com.zerotoship.z2term.proot.Z2ApiMsg
 import com.zerotoship.z2term.settings.AppSettings
+import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.settings.ServerEntry
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -255,6 +257,8 @@ object Z2ApiBridge {
             // 「dispatch が返った値を書く」というここの約束に乗らない。
             "ask" -> throw IllegalStateException("ask is handled before dispatch")
             "session" -> sessionCmd(context, args)
+            // z2-server: 登録済みの常駐サーバーを起こす / 落とす (枠の中で上げるための唯一の CLI)。
+            "server" -> serverCmd(context, args)
             // z2-when がルールファイルを書き換えた後に呼ぶ。時刻トリガーの AlarmManager 予約を貼り直す。
             "when-reload" -> { WhenManager.reload(context); null }
             else -> throw IllegalArgumentException("unknown cmd: $cmd")
@@ -377,6 +381,130 @@ object Z2ApiBridge {
         sessions.firstOrNull { it.label.value == target }?.let { return it }
         val prefix = sessions.filter { it.label.value.startsWith(target) }
         return if (prefix.size == 1) prefix[0] else null
+    }
+
+    /**
+     * CLI へ返す文言 (ja/en)。⚠ ヘルプと**同じ表**から引く — 別々に持つと言い回しがズレ、
+     * `z2-server -h` に書いてあることとエラーの言い方が食い違う。
+     */
+    private fun cliMsg(context: Context): Z2ApiMsg =
+        Z2ApiMsg(en = LocaleHelper.language(context) != LocaleHelper.LANG_JA, d = "$")
+
+    /**
+     * **登録済みの常駐サーバーを起こす / 落とす** (`z2-server`・0.8.310)。
+     *
+     * **なぜ要るか**: `z2-when` のルールから `sshd` を直接叩くと、それは [ServerDaemonService] の枠
+     * (フォアグラウンドサービス + WakeLock + WifiLock) の**外**で上がる。[HeadlessRun] は
+     * `waitTracees` でデーモンを生き残らせはするが**ロックを一切取らない**ので、画面を消すと
+     * 無線と CPU が眠り、外から繋がらなくなる (「Wi-Fi に繋がったら sshd」が実機で使えなかった)。
+     * ⚠ **🔒 バックグラウンド常駐でも埋まらない** — WifiLock は 0.8.268 で [TerminalService] から
+     * 意図的に外してあり、自動化から起こしたサーバーはどちらの枠にも入らない隙間に落ちていた。
+     *
+     * ⛔ **却下した案: [HeadlessRun] 側にロックを持たせる。** マクロ 1 本ごとに端末が眠らなくなり、
+     * 0.8.268-269 で電池のためにやった切り分けを巻き戻すことになる。
+     * 穴は「**枠へ入れる経路が画面にしか無い**」ことなので、そこへの入口を CLI に開けるのが筋。
+     *
+     * ⚠ **登録済みのものを起こす / 落とすだけ**にする。コマンドをその場で渡して常駐させる形にすると
+     * アプリの一覧と二重管理になり、「画面に無いのに動いているサーバー」ができる。
+     */
+    private fun serverCmd(context: Context, args: List<String>): String {
+        val m = cliMsg(context)
+        val settings = runBlocking { AppSettings(context).flow.first() }
+        val entries = ServerEntry.decode(settings.serverEntries)
+        if (entries.isEmpty()) throw IllegalStateException(m.serverNone)
+        val statuses = ServerDaemonManager.readStatus(context)
+        // supervisor が動いていなければ status ファイルは古い残骸なので読まない ("-" を返す)。
+        fun stateOf(e: ServerEntry): String =
+            if (!ServerDaemonManager.isRunning) "-"
+            else statuses.firstOrNull { it.id == e.id }?.state ?: "-"
+
+        return when (val sub = args.getOrNull(0).orEmpty()) {
+            // 1 行 1 サーバーの TSV: <番号> <id> <状態> <印> <名前>。
+            // ⚠ 並びも印の付け方も `z2-session list` に揃える (2 つの一覧で書式を変えない)。
+            "list" -> entries.mapIndexed { i, e ->
+                "${i + 1}\t${e.id}\t${stateOf(e)}\t${if (e.enabled) "*" else "-"}\t${e.name}"
+            }.joinToString("\n")
+
+            // 状態はフラットな key=value の TSV (z2-state と同じ理由: jq 無しでも拾える)。
+            "status" -> {
+                val target = args.getOrNull(1).orEmpty()
+                val list = if (target.isBlank()) entries else listOf(resolveServer(entries, target, m))
+                list.joinToString("\n") { e ->
+                    val st = statuses.firstOrNull { it.id == e.id }
+                    listOf(
+                        "name=${e.name}",
+                        "id=${e.id}",
+                        "enabled=${if (e.enabled) 1 else 0}",
+                        "state=${stateOf(e)}",
+                        "pid=${st?.pid.orEmpty()}",
+                        "restarts=${st?.restarts ?: 0}",
+                        "last_exit=${st?.lastExit.orEmpty()}",
+                        "command=${st?.command ?: e.command}"
+                    ).joinToString("\t")
+                }
+            }
+
+            "start" -> {
+                val e = resolveServer(entries, args.getOrNull(1).orEmpty(), m)
+                // ⚠ **順序が要る**。supervisor は「enabled が 1 件も無ければ起動しない」ので、
+                // 登録を有効にするより先にサービスを起こすと空振りして即 stopSelf される。
+                if (!e.enabled) {
+                    persistServers(context, entries.map { if (it.id == e.id) it.copy(enabled = true) else it })
+                }
+                // 画面のトグルと同じ 2 段 (ServersSheet): 動いていれば該当 1 本だけを起こし、
+                // 止まっていれば枠 (FGS) ごと起こす。
+                if (ServerDaemonManager.isRunning) ServerDaemonManager.setWant(context, e.id, true)
+                else ServerDaemonService.start(context)
+                buildString {
+                    append(e.name)
+                    // ⚠ **起動そのものは成功している**ので失敗にはしない。ただし省電力モード中は
+                    // ロックを握らない (ServerDaemonService) ため、黙って上げると
+                    // 「起動したのにつながらない」を繰り返す。その場で理由を出す。
+                    if (settings.serversLowPower) append("\n").append(m.serverLowPowerWarn)
+                }
+            }
+
+            "stop" -> {
+                val e = resolveServer(entries, args.getOrNull(1).orEmpty(), m)
+                if (e.enabled) {
+                    persistServers(context, entries.map { if (it.id == e.id) it.copy(enabled = false) else it })
+                }
+                if (ServerDaemonManager.isRunning) ServerDaemonManager.setWant(context, e.id, false)
+                // ⚠ **最後の 1 本でも枠はここで畳まない。** 常駐トンネル (TunnelManager) だけが
+                // 残っている状態まで巻き添えにするため。全部止めるのは画面の [停止] の仕事。
+                e.name
+            }
+
+            else -> throw IllegalArgumentException("server: unknown subcommand: $sub")
+        }
+    }
+
+    /**
+     * `<サーバー>` を [ServerEntry] へ。番号 → id → 名前 (完全一致) → 名前 (前方一致) の順。
+     *
+     * ⚠ [resolveSession] と**同じ順序**にしてある (指定の書き方を 2 つ覚えさせない)。
+     * ⚠ 名前は一意ではない (画面は重複を止めていない) ので、**複数に当たったら選ばない** —
+     * 勝手にどれかを起こすと、止めたつもりの別のサーバーが動き続ける。
+     */
+    private fun resolveServer(entries: List<ServerEntry>, target: String, m: Z2ApiMsg): ServerEntry {
+        if (target.isBlank()) throw IllegalArgumentException("${m.serverNotFound} ''")
+        target.toIntOrNull()?.let { n ->
+            return entries.getOrNull(n - 1) ?: throw IllegalArgumentException("${m.serverNotFound} $target")
+        }
+        entries.firstOrNull { it.id == target }?.let { return it }
+        val exact = entries.filter { it.name == target }
+        if (exact.size == 1) return exact[0]
+        if (exact.size > 1) throw IllegalArgumentException("${m.serverAmbiguous} $target")
+        val prefix = entries.filter { it.name.startsWith(target) }
+        if (prefix.size == 1) return prefix[0]
+        if (prefix.size > 1) throw IllegalArgumentException("${m.serverAmbiguous} $target")
+        throw IllegalArgumentException("${m.serverNotFound} $target")
+    }
+
+    /** 登録の変更を保存し、稼働中の supervisor にも反映する (画面の `persist` と同じ 2 段)。 */
+    private fun persistServers(context: Context, list: List<ServerEntry>) {
+        runBlocking { AppSettings(context).setServerEntries(ServerEntry.encode(list)) }
+        ServerDaemonManager.syncEntries(context, list)
     }
 
     /**

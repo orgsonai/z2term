@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-10 / Target version: 0.8.309-alpha (versionCode 317)
+Last updated: 2026-08-10 / Target version: 0.8.310-alpha (versionCode 318)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -400,6 +400,42 @@ Appends an `alarm` event (with `{name}`) to events.jsonl at a given time.
 - Passing a key returns just the raw value → `[ "$(z2-state charging)" = "true" ]` works
 
 **Wi-Fi connectivity** comes from **`ConnectivityManager` + `NetworkCapabilities`**, not `WifiManager.connectionInfo`: the latter returns an invalid value (networkId=-1) on API31+ unless the caller is in the foreground, which made background queries — exactly what macros do — always look disconnected (confirmed on device). Only the SSID still needs `WifiInfo` and a location permission, so it is empty when unavailable.
+
+#### Starting / stopping resident servers from the CLI (`z2-server`, 0.8.310, F)
+
+**Background (a real failure on device)**: a rule like `z2-when wifi:connect run 'sshd --lan'` leaves the phone **unreachable over ssh while it sleeps**. The daemon a rule starts runs **outside the resident-server frame**: `HeadlessRun.launch` does keep daemons alive (`waitTracees` — without it `sshd --lan` dies together with the engine right after starting), but it **takes no locks and starts no foreground service**.
+
+| What is missing | What happens during sleep | Who does hold it |
+|---|---|---|
+| WifiLock (`WIFI_MODE_FULL_HIGH_PERF`) | the Wi-Fi radio powers down and reception is throttled while the screen is off | `ServerDaemonService` **only** |
+| WakeLock | the CPU sleeps and `sshd` never accepts | `ServerDaemonService` / `TerminalService` |
+| Foreground service | the process is cached and can be killed; `sshd` is a child of proot, so it **goes with it** | same |
+
+⚠ **The 🔒 keep-alive does not cover this.** The WifiLock was **deliberately removed** from `TerminalService` in 0.8.268 (keeping an interactive session alive does not need the radio). That call was right, but it left servers started by automation **in the gap between the two frames**.
+
+⛔ **Rejected: give `HeadlessRun` the locks.** Every single macro would then keep the device awake, undoing the separation made for battery in 0.8.268-269. **The actual hole is that the only way into the frame was the UI** (`ServerDaemonManager.setWant` had exactly one caller, `ServersSheet`), so the fix is to open that door to the CLI.
+
+**Subcommands**
+
+| | What it does |
+|---|---|
+| `list` | one server per line, TSV (`index / id / state / mark / name`); `*` = enabled, `-` = disabled. ⚠ Same shape as `z2-session list` |
+| `start <server>` | enable it and bring it up inside the frame: `setWant` for a single one if the supervisor runs, otherwise `ServerDaemonService.start` for the whole frame |
+| `stop <server>` | stop only that one (the rest keep running) |
+| `status [<server>]` | flat `name=` `state=` `pid=` `restarts=` `last_exit=` key/values (same reasoning as `z2-state`: usable without jq) |
+
+- **Resolution order: index → id → exact name → name prefix.** ⚠ Deliberately the same order as `resolveSession` (one syntax to learn, not two). ⚠ Names are not unique (the UI does not enforce it), so **an ambiguous match is refused rather than guessed** — picking one silently would leave another server running that you believed you had stopped.
+- ⚠ **`start` must enable the entry before starting the service.** The supervisor **refuses to start when nothing is enabled**, so the other order comes up empty and immediately calls `stopSelf`.
+- ⚠ **It only starts and stops registered servers.** Accepting a command inline would duplicate the app's list and produce "servers that run but do not appear anywhere".
+- ⚠ **With low-power mode on, no locks are taken even after a successful start** (`ServerDaemonService` honours the same `serversLowPower`). That is correct behaviour, but staying silent would recreate "it started and still won't connect", so **`start` prints the warning right there** (the start itself succeeded, so it is not an error).
+- ⚠ **Stopping the last server does not tear the frame down**, because a standing tunnel (`TunnelManager`) would go with it. Stopping everything is what [Stop] on the servers tab is for.
+
+Which makes this expressible:
+
+```sh
+z2-when wifi:connect    run 'z2-server start sshd'
+z2-when wifi:disconnect run 'z2-server stop sshd'
+```
 
 #### Driving the app's own tabs (`z2-session`, 0.8.199, A1)
 
@@ -1451,6 +1487,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   | `z2-alarm` | Time trigger (0.8.167) |
   | `z2-macro` | Install the bundled macro samples (0.8.167) |
   | `z2-session` | **Drives the app's own tabs** (0.8.199, A1) |
+  | `z2-server` | **Starts / stops a registered resident server** (0.8.310, F) |
 
   - **Banner notifications from `z2-notify` (0.8.163)**: with `-h`/`--high`/`--banner` it posts through a separate `IMPORTANCE_HIGH` channel (`z2term_api_high`) with `PRIORITY_HIGH`, giving a **heads-up banner at the top of the screen**. The default channel (`z2term_api`) was created as `IMPORTANCE_DEFAULT` and its importance cannot be raised afterwards (an Android rule), hence a separate channel id for banners
   - **`z2-say`**: speaks via the device's standard TTS (engine init is async, so utterances are queued until it is ready)

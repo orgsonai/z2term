@@ -452,6 +452,23 @@ class Z2ApiScriptTest {
         }
     }
 
+    /**
+     * F: 常駐サーバーを操る `z2-server` が同梱され、4 つのサブコマンドを持つこと。
+     *
+     * ⚠ **`z2-when` から枠 (FGS + WakeLock + WifiLock) の中でサーバーを上げる唯一の経路**なので、
+     * これが欠けると「ルールで起動したのに画面を消すとつながらない」に逆戻りする。
+     */
+    @Test
+    fun serverHelperCoversAllSubcommands() {
+        val body = scripts["z2-server"]
+        assertTrue("z2-server が同梱されていない", body != null)
+        for (sub in listOf("list", "status")) {
+            assertTrue("z2-server に $sub が無い", body!!.contains("server $sub"))
+        }
+        // start / stop は同じ枝から "$sub" で渡すので、分岐そのものを見る。
+        assertTrue("z2-server に start|stop の分岐が無い", body!!.contains("start|stop"))
+    }
+
     /** A1: タブを操る `z2-session` が同梱され、5 つのサブコマンドを持つこと。 */
     @Test
     fun sessionHelperCoversAllSubcommands() {

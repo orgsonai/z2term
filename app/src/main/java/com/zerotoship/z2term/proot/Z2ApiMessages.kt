@@ -461,6 +461,72 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         if (en) "usage: z2-session list | new [name] | send <tab> <text>... [--enter] | capture [tab] [--all] | close <tab>"
         else "usage: z2-session list | new [名前] | send <先> <文字列>... [--enter] | capture [先] [--all] | close <先>"
 
+    // --- z2-server ---
+
+    val serverHelp: String = if (en) """
+        |# z2-server list                … registered servers (index / id / state / mark / name, TSV)
+        |#   marks: * = enabled / - = disabled
+        |# z2-server start <server>      … run it as a resident server (keeps the device reachable)
+        |# z2-server stop <server>       … stop that one (the others keep running)
+        |# z2-server status [<server>]   … state, pid, restarts and last exit code
+        |#
+        |# <server> can be the index from list, an id, or the name you gave it in the app.
+        |# Only servers registered in the app can be started; this never registers a new one.
+        |#
+        |# Why this exists: a daemon started straight from a rule runs OUTSIDE the resident-server
+        |# frame (no WakeLock, no WifiLock, no foreground service), so it stops answering once the
+        |# screen goes off. Starting it through here puts it inside that frame.
+        |# e.g. z2-when wifi:connect run 'z2-server start sshd'
+        |#      z2-when wifi:disconnect run 'z2-server stop sshd'
+    """.trimMargin() else """
+        |# z2-server list                … 登録済みサーバー一覧 (番号 / id / 状態 / 印 / 名前 の TSV)
+        |#   印: * = 有効 / - = 無効
+        |# z2-server start <サーバー>    … 常駐サーバーとして起動する (画面消灯中も届く枠の中で上がる)
+        |# z2-server stop <サーバー>     … その 1 本だけ止める (他は動いたまま)
+        |# z2-server status [<サーバー>] … 状態・pid・再起動回数・前回の終了コード
+        |#
+        |# <サーバー> は list の番号 / id / アプリで付けた名前 のどれでもよい。
+        |# 起動できるのはアプリに登録済みのものだけ (ここから新しく登録はしない)。
+        |#
+        |# なぜ要るか: ルールから直接起こしたデーモンは**常駐サーバーの枠の外**で動くため
+        |# (WakeLock も WifiLock も FGS も付かない)、画面を消すと応答しなくなる。
+        |# ここから起こすと枠の中に入る。
+        |# 例: z2-when wifi:connect run 'z2-server start sshd'
+        |#     z2-when wifi:disconnect run 'z2-server stop sshd'
+    """.trimMargin()
+
+    val serverUsage: String =
+        if (en) "usage: z2-server list | start <server> | stop <server> | status [<server>]"
+        else "usage: z2-server list | start <サーバー> | stop <サーバー> | status [<サーバー>]"
+
+    /** 名前 / 番号 / id のどれにも当たらなかった。⚠ 一覧の出し方まで書く (次に何をすればよいか)。 */
+    val serverNotFound: String =
+        if (en) "z2-server: no such server (see 'z2-server list'):"
+        else "z2-server: そのサーバーはありません ('z2-server list' で一覧):"
+
+    /** 同じ名前が複数あった。⚠ id で指定し直せると分かるように。 */
+    val serverAmbiguous: String =
+        if (en) "z2-server: the name matches more than one server; use the id from 'z2-server list':"
+        else "z2-server: 同じ名前のサーバーが複数あります。'z2-server list' の id で指定してください:"
+
+    /** 1 件も登録が無い。 */
+    val serverNone: String =
+        if (en) "z2-server: no servers registered yet (add one in the app: 📜 -> Servers)."
+        else "z2-server: サーバーがまだ 1 件も登録されていません (アプリの 📜 → サーバー で登録します)。"
+
+    /**
+     * 省電力モード中の警告 (F-5)。⚠ **起動そのものは成功している**ので失敗にはしない。
+     * 黙って上げると「起動したのにつながらない」を繰り返すので、その場で理由を出す。
+     */
+    val serverLowPowerWarn: String = if (en) {
+        "z2-server: note - low-power mode is on, so no WakeLock/WifiLock is held. " +
+            "The server may stop answering while the screen is off " +
+            "(Settings -> Automation -> Background process protection)."
+    } else {
+        "z2-server: 注意 — 省電力モードが ON のため WakeLock/WifiLock を握りません。" +
+            "画面消灯中は応答しなくなることがあります (⚙設定 → 自動化 → バックグラウンドのプロセス保護)。"
+    }
+
     // --- z2-when ---
 
     val whenHelp: String = if (en) """

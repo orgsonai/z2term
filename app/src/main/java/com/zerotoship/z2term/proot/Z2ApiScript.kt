@@ -440,6 +440,26 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |esac
     """.trimMargin() + "\n"
 
+    // 常駐サーバーの起動 / 停止 (F・0.8.310)。⚠ ここから起こしたものだけが
+    // ServerDaemonService の枠 (FGS + WakeLock + WifiLock) に入る。ルールから直接デーモンを
+    // 叩くと枠の外で上がり、画面消灯中に応答しなくなる (実機で踏んだ実害)。
+    val server = "#!/bin/sh\n" + m.serverHelp + "\n" + """
+        |usage() {
+        |  echo "${m.serverUsage}" >&2
+        |  exit 1
+        |}
+        |[ ${d}# -ge 1 ] || usage
+        |sub="${d}1"; shift
+        |case "${d}sub" in
+        |  list)   exec /usr/local/bin/z2api 1 server list ;;
+        |  status) exec /usr/local/bin/z2api 1 server status "${d}1" ;;
+        |  start|stop)
+        |    [ ${d}# -ge 1 ] || usage
+        |    exec /usr/local/bin/z2api 1 server "${d}sub" "${d}1" ;;
+        |  *) usage ;;
+        |esac
+    """.trimMargin() + "\n"
+
     // 自動化ハブ (A6)。トリガー (充電/電池/時刻) を宣言すると、アプリ側 (WhenManager) が監視して
     // 発火時に run のコマンドを実行する。ルールは ~/.z2term/when/<id>.rule のテキスト (git 同期が効く)。
     // CLI はファイルを直接読み書きし、変更後に z2api when-reload で時刻トリガーを貼り直させる。
@@ -613,6 +633,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     return linkedMapOf(
         "z2api" to dispatcher,
         "z2-session" to session,
+        "z2-server" to server,
         "z2-when" to zwhen,
         "z2-notify" to notify,
         "z2-toast" to toast,

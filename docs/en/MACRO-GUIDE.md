@@ -278,6 +278,7 @@ prerequisite → 3-A).
 | `z2-when` | `z2-when <trigger> run <command>` etc. | **Register a trigger** (→ 3-A, and below) | the rule id |
 | `z2-noti` | `z2-noti list` | Read **the notifications on screen right now** (read-only, see below) | TSV |
 | `z2-session` | `z2-session list\|new\|send\|capture\|close` | Drive **the app's own tabs** (see below) | TSV / index |
+| `z2-server` | `z2-server list\|start\|stop\|status <server>` | Start / stop **a registered resident server** (see below) | TSV |
 | `z2-macro` | `z2-macro list\|install\|show\|run\|dir` | Manage the bundled samples | — |
 
 ### `z2-notify -b` (get an answer back = interactive macros)
@@ -569,6 +570,38 @@ z2-session close "$n"                # close it (never the last one)
 - **`send` only types — it does not run anything.** Add `--enter` when you do want it executed
   (so nothing starts running behind your back).
 - A name given with `new <name>` is **pinned**: neither the distro name nor the shell's title overwrites it.
+
+### `z2-server` (start / stop a resident server)
+
+Start or stop a server you registered in the app (📜 → Servers) from the terminal or from a rule.
+
+```sh
+z2-server list                 # registered servers (index / id / state / mark / name, TSV)
+z2-server start sshd           # run that one as a resident server
+z2-server stop sshd            # stop just that one (the others keep running)
+z2-server status sshd          # state, pid, restarts, last exit code
+```
+
+⚠ **This exists to fix "the server my rule started is unreachable".**
+A daemon started straight from a rule (`sshd --lan`, say) runs **outside the resident-server frame**.
+Outside it nothing keeps the device awake — no WakeLock, no WifiLock, no foreground service — so
+**once the screen goes off the radio and the CPU sleep and it stops answering**. Starting it through
+`z2-server start` puts it inside that frame.
+
+```sh
+z2-when wifi:connect    run 'z2-server start sshd'
+z2-when wifi:disconnect run 'z2-server stop sshd'
+```
+
+- `<server>` can be **the index from `list`, an id, or the name you gave it in the app**.
+  ⚠ If a name matches more than one, it refuses rather than guessing (use the id).
+- Only **registered** servers can be started (this never registers a new one — do that in the app).
+- Starting and stopping also **persists as the enabled/disabled state** (the same switch as in the app).
+- ⚠ **With low-power mode on, no locks are taken even after a start** (that setting chose battery on
+  purpose, so this is correct). `z2-server start` says so when it happens. The setting lives under
+  ⚙ Settings → Automation → Background process protection.
+- ⚠ Stopping the last one **does not tear the residency down** (that would take a standing tunnel with
+  it). Use [Stop] on the servers tab to stop everything.
 
 ### `z2-intent` (the workhorse action)
 
