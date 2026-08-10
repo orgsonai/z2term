@@ -3,7 +3,9 @@ package com.zerotoship.z2term.ime
 import android.content.res.Configuration
 import android.inputmethodservice.InputMethodService
 import android.inputmethodservice.InputMethodService.Insets
+import android.os.SystemClock
 import android.text.InputType
+import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
@@ -46,6 +48,7 @@ import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.ui.terminal.CandidateBar
 import com.zerotoship.z2term.ui.terminal.CandidateBarHeight
+import com.zerotoship.z2term.ui.terminal.input.TerminalInputView
 import com.zerotoship.z2term.ui.terminal.scaledKeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.ComposingState
 import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
@@ -341,7 +344,18 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         LaunchedEffect(Unit) {
             snapshotFlow { composing.text }.collect { text ->
                 val ic = currentInputConnection ?: return@collect
-                if (text.isEmpty()) ic.finishComposingText() else ic.setComposingText(text, 1)
+                if (text.isEmpty()) {
+                    // ⚠ `finishComposingText` **だけでは打ちかけのかなが確定されてしまう** —
+                    // このメソッドは「今の変換中をそのまま残して装飾だけ外す」ものだから。
+                    // 変換中が空になるのは (1) ⌫ の左右フリック等で**打ちかけを捨てた**とき、
+                    // (2) 確定して commitText した後、の 2 つ。(1) で確定されるのは誤りなので、
+                    // **先に空文字で置き換えてから**終える = 相手の欄からも消える。
+                    // (2) は commitText の時点で変換中が無くなっているので、空の置き換えは何もしない。
+                    ic.setComposingText("", 1)
+                    ic.finishComposingText()
+                } else {
+                    ic.setComposingText(text, 1)
+                }
             }
         }
     }
@@ -355,19 +369,52 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                 // ⚠ 削除は deleteSurroundingText ではなくキーイベントで送る — 範囲選択中は
                 // 前者では消えず、「選んでから ⌫」が効かない入力欄になる。
                 ImeKeyAction.DeleteBack -> sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
-                ImeKeyAction.DeleteWordBack -> deleteBefore(ic) { ImeKeyTranslator.wordBackLength(it) }
-                ImeKeyAction.DeleteToLineStart -> deleteBefore(ic) { ImeKeyTranslator.toLineStartLength(it) }
+                ImeKeyAction.DeleteWordBack ->
+                    deleteBefore(ic, KeyEvent.KEYCODE_W) { ImeKeyTranslator.wordBackLength(it) }
+                ImeKeyAction.DeleteToLineStart ->
+                    deleteBefore(ic, KeyEvent.KEYCODE_U) { ImeKeyTranslator.toLineStartLength(it) }
                 ImeKeyAction.Newline -> sendNewline(ic)
                 ImeKeyAction.Tab -> sendDownUpKeyEvents(KeyEvent.KEYCODE_TAB)
             }
         }
     }
 
-    /** キャレット前のテキストを見て、[length] が返す長さだけ消す。 */
-    private inline fun deleteBefore(ic: InputConnection, length: (CharSequence) -> Int) {
+    /**
+     * キャレット前のテキストを見て、[length] が返す長さだけ消す。
+     *
+     * ⚠ **相手が端末のときはこの数え方が成り立たない**。端末は編集中の文字列を持たない
+     * (`getTextBeforeCursor` が常に空) ので、どの欄でも長さ 0 = 何も起きない、になる。
+     * 端末には数えた結果ではなく **[ctrlKeyCode] の Ctrl+キーそのもの**を渡し、どこまで
+     * 消すかは shell に決めさせる (内蔵キーボードが Ctrl+W / Ctrl+U を送るのと同じ経路)。
+     */
+    private inline fun deleteBefore(ic: InputConnection, ctrlKeyCode: Int, length: (CharSequence) -> Int) {
+        if (currentInputEditorInfo?.privateImeOptions == TerminalInputView.TERMINAL_IME_OPTION) {
+            sendCtrlKey(ic, ctrlKeyCode)
+            return
+        }
         val before = ic.getTextBeforeCursor(MAX_LOOKBACK, 0) ?: return
         val n = length(before)
         if (n > 0) ic.deleteSurroundingText(n, 0)
+    }
+
+    /**
+     * Ctrl + [keyCode] を押して離すキーイベントを送る。
+     *
+     * `sendDownUpKeyEvents` は修飾キーを載せられないので自分で組む。端末側は
+     * `AndroidKeyMapper.mapKeyEvent` でこれを制御コード (Ctrl+W = 0x17 / Ctrl+U = 0x15) に
+     * 直して PTY へ流す。⚠ 端末以外の入力欄へは送らない ([deleteBefore] の判定を通すこと) —
+     * アプリによっては Ctrl+W 等に別の割り当てがある。
+     */
+    private fun sendCtrlKey(ic: InputConnection, keyCode: Int) {
+        val now = SystemClock.uptimeMillis()
+        val meta = KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON
+        fun event(action: Int) = KeyEvent(
+            now, now, action, keyCode, 0, meta,
+            KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
+            KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE
+        )
+        ic.sendKeyEvent(event(KeyEvent.ACTION_DOWN))
+        ic.sendKeyEvent(event(KeyEvent.ACTION_UP))
     }
 
     /**

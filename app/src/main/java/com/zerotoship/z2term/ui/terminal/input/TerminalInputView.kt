@@ -45,6 +45,14 @@ private const val MOUSE_WHEEL_STEP_PX = 40f
  */
 class TerminalInputView(context: Context) : View(context) {
 
+    companion object {
+        /**
+         * `EditorInfo.privateImeOptions` に載せる「この入力欄は端末だ」の印。
+         * 受け手は [com.zerotoship.z2term.ime.Z2ImeService]。
+         */
+        const val TERMINAL_IME_OPTION = "com.zerotoship.z2term.terminal"
+    }
+
     var session: TerminalSession? = null
 
     var ctrlSticky: Boolean = false
@@ -361,6 +369,12 @@ class TerminalInputView(context: Context) : View(context) {
                 EditorInfo.IME_FLAG_NO_FULLSCREEN or
                 EditorInfo.IME_ACTION_NONE
             )
+        // ⚠ **ここはテキスト欄ではなく端末だ**と入力メソッドへ知らせる印 ([TERMINAL_IME_OPTION])。
+        // 端末は編集中の文字列 (editable) を持たないので `getTextBeforeCursor` が常に空で、
+        // 「カーソル前を数えてから消す」形の操作 (単語削除・行削除) が組み立てられない。
+        // 印を見た z2term キーボードは、削除の指示ではなく Ctrl+W / Ctrl+U を**制御コードのまま**
+        // 送ってくる (どこまで消すかは shell が決める = 内蔵キーボードのときと同じ結果になる)。
+        outAttrs.privateImeOptions = TERMINAL_IME_OPTION
         return TerminalInputConnection(this)
     }
 

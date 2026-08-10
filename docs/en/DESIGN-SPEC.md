@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-10 / Target version: 0.8.311-alpha (versionCode 319)
+Last updated: 2026-08-11 / Target version: 0.8.312-alpha (versionCode 320)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1881,7 +1881,7 @@ both, so the keyboard does not change size when you switch).
 |---|---|
 | Printable characters (UTF-8) | `commitText` (runs are merged into one call) |
 | `0x7F` / `0x08` (⌫) | **a `KEYCODE_DEL` key event**. ⚠ `deleteSurroundingText` does **not** delete a selection |
-| `0x17` / `0x15` (⌫ flicks) | delete word / delete to line start, measured against `getTextBeforeCursor` (same counting as `readline`'s `unix-word-rubout`) |
+| `0x17` / `0x15` (⌫ flicks) | delete word / delete to line start, measured against `getTextBeforeCursor` (same counting as `readline`'s `unix-word-rubout`). ⚠ **Against z2term's own terminal they are sent as Ctrl+W / Ctrl+U key events instead** (0.8.312; see below) |
 | `0x0D` (⏎) | newline in a multi-line field; otherwise **the action the field asks for** (`performEditorAction`) |
 | `0x09` (TAB) | `KEYCODE_TAB` (next field) |
 | `0x1B` (ESC, and the ALT prefix) | **dropped**. ALT+key inserts just the character |
@@ -1897,6 +1897,25 @@ works in the terminal and does nothing in a text field breaks the illusion of on
 because they are not real text fields; here the OS draws it). Commits go through
 `ComposingState.onCommit` → `commitText`. ⚠ `commitText` **replaces** the composing region, so an
 earlier `setComposingText` does not double up.
+
+⚠ **Dropping a pending composition needs `setComposingText("")` first** (0.8.312). `finishComposingText`
+"leaves the text as-is and only removes the styling", so calling it alone **commits the kana you meant
+to throw away**. `composing.text` goes empty in two cases: (1) the composition was **dropped** (⌫ flicks
+and friends), and (2) right after a commit through `commitText`. Replacing with an empty string first
+keeps (1) from turning into a commit; in (2) there is no composing region left, so it is a no-op.
+⚠ This also covers `composing.reset()` in `onStartInputView` / `onFinishInputView` (drop the pending
+kana when the field changes) — until this fix, **kana meant for the previous field landed committed in
+the next one**.
+
+⚠ **"Count, then delete" cannot work against the terminal** (0.8.312). `TerminalInputView` holds no
+editable, so `getTextBeforeCursor` is always empty and word / line delete measure 0 = **nothing
+happens**. The terminal therefore marks itself in `EditorInfo.privateImeOptions`
+(`TerminalInputView.TERMINAL_IME_OPTION`), and only when the IME sees that mark does it send
+**Ctrl+W / Ctrl+U as `KeyEvent`s** (`sendDownUpKeyEvents` cannot carry modifiers, so the events are
+built by hand with `KeyCharacterMap.VIRTUAL_KEYBOARD`). The terminal turns them back into `0x17` /
+`0x15` in `AndroidKeyMapper.mapKeyEvent` and writes them to the PTY, so **the shell decides how far to
+delete** — the same result as typing on the built-in keyboard. ⚠ Never send those key events to an
+unmarked field: some apps bind Ctrl+W and friends to something else.
 
 **Implementation notes**:
 - ⚠ **`InputMethodService` is not a `LifecycleOwner`.** `ComposeView` looks up three owners

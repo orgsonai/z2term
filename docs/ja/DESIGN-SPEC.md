@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-10 / 対象バージョン: 0.8.311-alpha (versionCode 319)
+最終更新: 2026-08-11 / 対象バージョン: 0.8.312-alpha (versionCode 320)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1826,7 +1826,7 @@ OS が持っている品質を捨てて自前の不具合に置き換えるだ�
 |---|---|
 | 印字可能文字 (UTF-8) | `commitText` (連続分は 1 回にまとめる) |
 | `0x7F` / `0x08` (⌫) | **`KEYCODE_DEL` のキーイベント**。⚠ `deleteSurroundingText` だと**範囲選択中に消えない** |
-| `0x17` / `0x15` (⌫ の左右フリック) | 単語削除 / 行頭まで削除。`getTextBeforeCursor` を見て長さを出す (`readline` の `unix-word-rubout` と同じ数え方) |
+| `0x17` / `0x15` (⌫ の左右フリック) | 単語削除 / 行頭まで削除。`getTextBeforeCursor` を見て長さを出す (`readline` の `unix-word-rubout` と同じ数え方)。⚠ **相手が z2term の端末のときだけは Ctrl+W / Ctrl+U のキーイベントをそのまま送る** (0.8.312。下記) |
 | `0x0D` (⏎) | 複数行の欄なら改行、1 行の欄なら**その欄が求めている動作** (`performEditorAction`) |
 | `0x09` (TAB) | `KEYCODE_TAB` (次の欄へ) |
 | `0x1B` (ESC・ALT の前置) | **捨てる**。ALT+文字 は文字だけが入る |
@@ -1841,6 +1841,23 @@ OS が持っている品質を捨てて自前の不具合に置き換えるだ�
 へ流すだけ (端末と検索バーでは自前で下線を描いているが、相手が本物の入力欄ならプリエディットは
 OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `commitText` は composing 領域を
 **置き換える**仕様なので、先に `setComposingText` を出していても二重に入らない。
+
+⚠ **打ちかけを捨てるときは `setComposingText("")` を先に出す** (0.8.312)。`finishComposingText` は
+「今の変換中を**そのまま残して**装飾だけ外す」メソッドなので、これだけ呼ぶと**捨てたはずのかなが
+確定されて入力欄に残る**。`composing.text` が空になるのは (1) ⌫ の左右フリック等で打ちかけを
+**捨てた**とき、(2) 確定して `commitText` した後、の 2 つで、(1) を確定に化けさせないために空文字で
+置き換えてから終える。(2) では `commitText` の時点で変換中が無いので空の置き換えは何もしない。
+⚠ これは `onStartInputView` / `onFinishInputView` の `composing.reset()` (入力欄が変わったら打ちかけを
+捨てる) にも効く — 直すまでは**前の欄のかなが次の欄へ確定されて入る**経路が残っていた。
+
+⚠ **端末が相手のときは「数えて消す」が成り立たない** (0.8.312)。`TerminalInputView` は編集中の
+文字列 (editable) を持たないので `getTextBeforeCursor` が常に空になり、単語削除 / 行削除は長さ 0 =
+**何も起きない**。端末側は `EditorInfo.privateImeOptions` に印 (`TerminalInputView.TERMINAL_IME_OPTION`)
+を載せ、入力メソッドはそれを見たときだけ **Ctrl+W / Ctrl+U を `KeyEvent` として送る**
+(`sendDownUpKeyEvents` は修飾を載せられないので `KeyEvent` を自分で組み、`KeyCharacterMap.VIRTUAL_KEYBOARD`
+を使う)。端末は `AndroidKeyMapper.mapKeyEvent` でこれを `0x17` / `0x15` に直して PTY へ流すので、
+**どこまで消すかは shell が決める** = 内蔵キーボードで打っているときと同じ結果になる。
+⚠ 印が無い入力欄へこのキーイベントを送らないこと — アプリによっては Ctrl+W 等に別の割り当てがある。
 
 **実装上の注意**:
 - ⚠ **`InputMethodService` は `LifecycleOwner` ではない**。`ComposeView` は lifecycle /
