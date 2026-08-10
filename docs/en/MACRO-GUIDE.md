@@ -64,7 +64,7 @@ minute). **Do not write in style B what style A can express.**
    your script's start command; it then runs without opening the app and after reboot (also turn on
    "auto-start on boot").
 4. Handy tool: install `jq` (JSON parsing). e.g. Alpine `apk add jq` / Debian-family `apt install jq`.
-5. **If you would rather not start from a blank file**: `z2-macro list` shows the 9 bundled samples and
+5. **If you would rather not start from a blank file**: `z2-macro list` shows the 10 bundled samples and
    `z2-macro install <name>` copies one into `~/.z2term/macros/` (`z2-macro install all` for every one).
    ⚠ **The macro directory is on PATH** (since 0.8.287; appended, so it never shadows an OS command),
    so what you install runs by name: `remind.sh 30m pills`. ⚠ **Tabs opened before 0.8.287 carry the old

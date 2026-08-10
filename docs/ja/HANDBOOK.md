@@ -601,7 +601,7 @@ Z2Term がどのディストロにも自動で入れてくれる「Z2Term 専用
 | `z2-alarm at\|daily HH:MM [名前]` | **時刻トリガー**。その時刻に `events.jsonl` へ `alarm` イベントを書く（`in 5m` / `list` / `cancel <id\|名前\|all>` も）。cron と違い Doze 中でも起きる（数分ずれることあり）。⚠ **0.8.302 より前は、端末の中の時計が UTC 固定**だったため、`18:30` のような時刻の指定が時差のぶんずれていました（日本なら 9 時間）。0.8.302 からは端末と同じ時刻で動きます。**古い版で予約したものは登録し直してください** |
 | `z2-session list\|new\|send\|capture\|close` | **このアプリのタブを操る**。`list` で一覧（番号・id・名前・印。`*`=表示中 `!`=動作中 `?`=未起動）、`new [名前]` でタブを 1 枚追加、`send <先> "文字列"` でそのタブに**入れるだけ**（`--enter` を付けたときだけ実行）、`capture [先]` で画面のテキストを取り出し、`close <先>` で閉じる。`<先>` は `list` の番号 / id / タブ名。例: ``n=$(z2-session new build \| cut -f1); z2-session send "$n" 'make -j2' --enter`` |
 | `z2-when <トリガー> run <コマンド>` | **自動化ハブ**。充電・電池・時刻・端末イベントをきっかけにコマンドを自動実行（下記「自動化ハブ」参照）。`list` / `remove <id\|all>` / `on\|off <id>` / `log <id>` も。例: `z2-when charge:start run ~/.z2term/macros/backup.sh` |
-| `z2-macro list\|install <名前>` | **マクロのサンプル**を `~/.z2term/macros/` に導入（`show` / `run` / `dir` も）。最初の1本の雛形に。同梱は `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `unknown-call` / `remind` / `rss` / `rss-open`。導入すると**そのスクリプトの動かし方**（`z2-when` で回す／ウィジェットのボタンに割り当てる／常駐サーバーに登録する）が表示されます。⚠ **常駐サーバーに登録してよいのは `watch-basic` だけ**です（0.8.273。他は `z2-when` やボタンから 1 回走って終わる形なので、常駐にすると終わるたびに再起動されるうえ、待っているだけで電池を使います） |
+| `z2-macro list\|install <名前>` | **マクロのサンプル**を `~/.z2term/macros/` に導入（`show` / `run` / `dir` も）。最初の1本の雛形に。同梱は `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `unknown-call` / `remind` / `rss` / `rss-open` / `qr`。導入すると**そのスクリプトの動かし方**（`z2-when` で回す／ウィジェットのボタンに割り当てる／常駐サーバーに登録する）が表示されます。⚠ **常駐サーバーに登録してよいのは `watch-basic` だけ**です（0.8.273。他は `z2-when` やボタンから 1 回走って終わる形なので、常駐にすると終わるたびに再起動されるうえ、待っているだけで電池を使います） |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | 任意の Android Intent を発火（アプリ起動・設定画面・アラーム設定など。詳細は `docs/ja/MACRO-GUIDE.md`） |
 
 > 「トリガー（イベント検知）→ 判断（シェル）→ アクション（z2-*）」でスマホの自動化（マクロ）が組めます。書き方は **`docs/ja/MACRO-GUIDE.md`**（AI に読ませてそのままマクロ生成させることもできます）。
@@ -715,6 +715,28 @@ z2-when event:notify_action run '[ "$Z2_WHEN_EVENT_NAME" = rss ] && z2-open "$(h
 | `~/.z2term/rss/opened.txt` | `rss-open` で開いた記事 |
 
 全部消せば最初からやり直せます。1 本のフィードが落ちていても他は続きます。壊れた XML は黙って飛ばします。
+
+### QR にして別の端末へ渡す（0.8.308）
+
+長い URL や設定を**別の端末へ打ち直さずに渡す**ためのサンプルです。画面に QR を出して、相手のカメラで読んでもらいます。
+
+```sh
+z2-macro install qr                  # 入れる
+apk add libqrencode-tools            # Alpine（Arch: pacman -S qrencode / Ubuntu・Kali: apt install qrencode）
+
+qr.sh "https://example.com"          # 文字列を QR にして画面に出す
+qr.sh -f notes.txt                   # ファイルの中身を QR にする
+z2-clip get | qr.sh                  # いまコピーしているものを QR にする
+qr.sh -o ~/qr.png "text"             # PNG に保存する（画面には出さない）
+qr.sh -t "text"                      # 絵ではなく文字（ブロック）で出す
+qr.sh -h                             # 説明を全部見る
+```
+
+- ⚠ **QR を作る `qrencode` は自分で入れます**（タブごとに 1 回）。入っていなければ、そのタブでの入れ方を出して止まります。
+- ⚠ **絵で出せるのはこのアプリのタブの中だけ**です。`ssh` で入った先など画像を出せない端末では意味不明な文字が流れるので、`-t` を付けて文字で出してください。
+- ⚠ **カメラで読ませるなら絵か PNG が確実**です。文字（`-t`）はフォントによって行の間に隙間が出て、目で読めてもカメラが読み取れないことがあります。
+- 長い入力は**行の切れ目で自動的に何枚かに分かれ**、`[1/3]` と番号が付きます。順に読ませてください。
+- 潰れて見えるときは `Z2_QR_ASPECT=0.45 qr.sh "text"` のように縦横比を微調整できます（小さいほど縦長。既定 0.5）。
 
 ### 自動化ハブ（`z2-when`）
 

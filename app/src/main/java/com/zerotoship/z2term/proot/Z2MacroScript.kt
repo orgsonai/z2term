@@ -228,6 +228,19 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         append(remindBody(d, ja))
     }
 
+    // --- 10. 実用: QR にして渡す (端末に絵を出す / PNG に保存する・使い切り) ---
+    val qr = buildString {
+        appendLine("#!/bin/sh")
+        if (ja) {
+            appendLine("# qr.sh — テキストやファイルを QR にして、この端末に絵で出す / PNG に保存する。")
+            appendLine("# 別の端末やカメラへ「打ち直さずに渡す」ための道具。常駐しない使い切りのマクロ。")
+        } else {
+            appendLine("# qr.sh — turn text or a file into a QR code: drawn here, or saved as a PNG.")
+            appendLine("# Hands something to another device without retyping it. Runs once, no residency.")
+        }
+        append(qrBody(d, ja))
+    }
+
     return linkedMapOf(
         "watch-basic.sh" to watchBasic,
         "battery-alert.sh" to batteryAlert,
@@ -238,6 +251,7 @@ fun z2MacroSamples(lang: String): Map<String, String> {
         "remind.sh" to remind,
         "rss.sh" to rss,
         "rss-open.sh" to rssOpen,
+        "qr.sh" to qr,
     )
 }
 
@@ -1645,5 +1659,380 @@ case ${d}1 in
   -h|--help|help) awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 && NF { exit }' "${d}0" ;;
   *)           cmd_add "${d}@" ;;
 esac
+"""
+}
+
+/**
+ * QR サンプルの本体。
+ *
+ * **アプリ側に QR 機能を作り直さないための見本**でもある。0.8.219 で状態ウィジェットに
+ * SSH 接続 QR を載せ、0.8.220 に「やはり要らない」の判断で自前エンコーダ
+ * (`QrEncoder` / `ReedSolomon`) ごと撤去した経緯がある。⚠ **アプリ側へ復活させない** —
+ * 欲しいのは「いま手元にあるものを打ち直さずに別の端末へ渡す」ことであって、それは
+ * distro の `qrencode` と画像表示 (Kitty graphics) の組み合わせで足りる
+ * (同梱物ゼロ・F-Droid 適合。QR は壊れていても「それらしい模様」が出て目視で検証できない
+ * ので、**実績のある実装に任せる**方が結果も確か)。
+ *
+ * 設計上の要点:
+ *  - **前提が欠けたら、このタブでの入れ方を出して止まる**。`qrencode` はどの distro にも
+ *    あるが既定では入っていない。⚠ パッケージ名は distro ごとに違う (Alpine だけ
+ *    `libqrencode-tools`) ので、`command -v` で見えたパッケージマネージャに合わせて出す。
+ *  - **既定は絵、`-t` で文字**。⚠ ブロック文字は端末のフォント次第で行間に隙間が出て、
+ *    目で読めてもカメラが読み取れないことがある。カメラに読ませるなら絵か PNG。
+ *    逆に画像を出せない端末 (ssh で入った先など) では絵が意味不明な文字列として流れるので、
+ *    そこは `-t`。**どちらが正しいかは相手の端末次第**なので両方残す。
+ *  - **長い入力は行の区切りで分ける**。QR 1 枚の容量は決まっているので 900 バイトで切り、
+ *    `[1/3]` と番号を振る。⚠ 行の途中では切らない (日本語が混じっても壊れない)。
+ *  - **縦横比は仮定するしかない**。端末は「1 文字の大きさ」を教えてくれないので 1:2 と
+ *    決め打ちし、合わない環境向けに `Z2_QR_ASPECT` を残す。
+ */
+private fun qrBody(d: String, ja: Boolean): String {
+    // ⚠ 先頭の改行を落とす。`#!/bin/sh` と説明の間に**空行を作らない**ためで、
+    // 空行が入ると `usage()` の awk がそこで止まり、説明が冒頭 2 行しか出ない。
+    val head = (if (ja) """
+#
+# 使い方:
+#   qr.sh "https://example.com"       文字列を QR にしてこの端末に出す
+#   qr.sh -f notes.txt                ファイルの中身を QR にする
+#   z2-clip get | qr.sh               いまのクリップボードを QR にする
+#   qr.sh -o ~/qr.png "text"          PNG に保存する (画面には出さない)
+#   qr.sh -t "text"                   絵ではなく文字 (ブロック) で出す
+#   qr.sh -s 24 "text"                大きさを変える (画面の桁数。既定は画面幅なり)
+#
+# z2-run: qr.sh "https://example.com"   (入れた後は名前だけで打てる。常駐させない使い切り)
+#
+# ■ 前提条件 (これが揃っていないと動かない / 見え方が変わる)
+#
+#   1) qrencode が入っていること … QR を作る本体。タブ (distro) ごとに 1 回入れる
+#        Arch        : pacman -S qrencode
+#        Ubuntu/Kali : apt install qrencode
+#        Alpine      : apk add libqrencode-tools
+#      入っていなければ、その場で導入コマンドを出して止まる。
+#
+#   2) 絵で出す (既定) のはこのアプリのタブの中だけ … 画像は Kitty graphics で
+#      描いている。ssh で入った先の別の端末や、画像を出せない端末では絵が出ない
+#      (代わりに意味不明な文字列が流れる)。そこでは -t を付けて文字で出す。
+#
+#   3) -t (文字) は端末のフォント次第 … ブロック文字の行間に隙間が出るフォント
+#      だと、画面上は読めてもカメラが読み取れないことがある。カメラで読ませる
+#      なら既定の絵、もしくは -o の PNG のほうが確実。
+#
+#   4) 縦横比を仮定している … 後述の「表示の縦横比」。潰れて見えたら Z2_QR_ASPECT。
+#
+# オプション:
+#   -f FILE   入力をファイルから読む (省略時は引数、引数も無ければ標準入力)
+#   -o PNG    PNG に保存する。画面には出さない。複数枚になるときは
+#             qr-1.png / qr-2.png … と連番になる
+#   -t        文字 (ブロック) で出す。画像を出せない端末や SSH 先の端末向け
+#   -s N      画面に出す大きさ (桁数)。既定は画面幅に収まる最大 34 桁
+#   -h        この説明
+#
+# 長い入力について:
+#   QR は 1 枚に入る量が決まっている (英数字で 2953 バイトが上限。実際に
+#   カメラで読める大きさとなると数百バイト)。900 バイトを超える入力は
+#   行の区切りで自動的に複数枚に分け、[1/3] と番号を付けて順に出す。
+#   ⚠ 1 行が長すぎて 1 枚に入らないときは、その行だけ QR にできない。
+#
+# 表示の縦横比:
+#   端末が「1 文字ぶんの大きさ」を教えてくれないため、文字の縦横比を 1:2 と
+#   仮定して正方形に出している。潰れて見えるときは環境変数で微調整する:
+#     Z2_QR_ASPECT=0.45 qr.sh "text"     (小さいほど縦長になる。既定 0.5)
+""" else """
+#
+# Usage:
+#   qr.sh "https://example.com"       encode a string and draw it here
+#   qr.sh -f notes.txt                encode the contents of a file
+#   z2-clip get | qr.sh               encode what is on the clipboard
+#   qr.sh -o ~/qr.png "text"          save a PNG (nothing is drawn)
+#   qr.sh -t "text"                   print blocks instead of an image
+#   qr.sh -s 24 "text"                pick the size (in columns; default fits the width)
+#
+# z2-run: qr.sh "https://example.com"   (after installing, the name alone works. Runs once)
+#
+# # Requirements (without these it will not run, or will look different)
+#
+#   1) qrencode must be installed ... it does the encoding. Once per tab (distro):
+#        Arch        : pacman -S qrencode
+#        Ubuntu/Kali : apt install qrencode
+#        Alpine      : apk add libqrencode-tools
+#      If it is missing, the install command is printed and the script stops.
+#
+#   2) The image (default) only shows inside a tab of this app ... it is drawn with
+#      Kitty graphics. Over ssh, or on any terminal that cannot show images, you get
+#      a stream of gibberish instead. Use -t there.
+#
+#   3) -t (blocks) depends on the terminal font ... fonts that leave gaps between
+#      rows stay readable to the eye but not to a camera. To scan it with a camera,
+#      prefer the default image or the -o PNG.
+#
+#   4) The aspect ratio is assumed ... see "Aspect ratio" below. Squashed? Z2_QR_ASPECT.
+#
+# Options:
+#   -f FILE   read the input from a file (else the arguments, else stdin)
+#   -o PNG    save a PNG instead of drawing. Multiple codes become
+#             qr-1.png / qr-2.png ...
+#   -t        print blocks. For terminals that cannot show images, and over ssh
+#   -s N      size in columns when drawing. Default is up to 34, capped by the width
+#   -h        this help
+#
+# About long input:
+#   One code holds a fixed amount (2953 bytes of alphanumerics at most; a few hundred
+#   if it still has to be scannable). Input over 900 bytes is split at line breaks
+#   into several codes, numbered [1/3] and printed in order.
+#   WARNING a single line too long to fit in one code cannot be encoded at all.
+#
+# Aspect ratio:
+#   Terminals do not report their cell size, so a 1:2 character ratio is assumed to
+#   make the code square. If it looks squashed, adjust it with an environment variable:
+#     Z2_QR_ASPECT=0.45 qr.sh "text"     (smaller = taller. Default 0.5)
+""").trimStart('\n')
+    val cMaxBytes = if (ja) "1 枚に入れる上限 (これを超えたら分ける)" else "max bytes per code (split beyond this)"
+    val cPngModule = if (ja) "保存する PNG の 1 モジュールあたりのドット数" else "dots per module in a saved PNG"
+    val cTargetPx = if (ja) "画面に出すときの狙いのドット幅" else "target pixel width when drawing"
+    val cMargin = if (ja) "QR の周りの余白 (モジュール数。読み取りに必要)" else "quiet zone around the code (modules; needed to scan)"
+    val cUsageFn = if (ja) {
+        "先頭のコメントブロックをそのまま説明として出す (行数を固定しない)。\n" +
+            "# 空行では止めない (NF で判定する) — 説明を空行で区切っても途中で切れないように。"
+    } else {
+        "Print the leading comment block as the help text (no fixed line count).\n" +
+            "# Blank lines do not stop it (NF decides), so blank-separated sections stay intact."
+    }
+    val cNeedEncoder = if (ja) {
+        "前提条件 1: qrencode。無ければ、このタブでの入れ方を出して止まる。"
+    } else {
+        "Requirement 1: qrencode. If it is missing, print how to install it here and stop."
+    }
+    val mMissing = if (ja) {
+        "qr.sh: 前提条件が足りない — qrencode が入っていない"
+    } else {
+        "qr.sh: missing requirement - qrencode is not installed"
+    }
+    val mInstallOnce = if (ja) "  このタブで 1 回だけ入れてください:" else "  Install it once in this tab:"
+    // パッケージマネージャが見つからなかったときの控え (distro ごとに名前が違うので並べる)。
+    val mAnyPm = if (ja) {
+        "    Arch: pacman -S qrencode / Ubuntu・Kali: apt install qrencode"
+    } else {
+        "    Arch: pacman -S qrencode / Ubuntu, Kali: apt install qrencode"
+    }
+    val mNoTmp = if (ja) "作業場所を作れない" else "cannot create a work directory"
+    val mUnreadable = if (ja) "読めない:" else "cannot read:"
+    val mEmpty = if (ja) "入力が空" else "empty input"
+    val mSizeNum = if (ja) "-s は数字で" else "-s takes a number"
+    val mUsageHint = if (ja) "使い方は qr.sh -h" else "see qr.sh -h"
+    val mPieceFail = if (ja) "qr.sh: %d 枚目を作れない: %s" else "qr.sh: cannot build code %d: %s"
+    val cCollect = if (ja) "---- 入力を集める ----" else "---- collect the input ----"
+    val cSplit = if (ja) "---- 長ければ行の区切りで分ける ----" else "---- split at line breaks when too long ----"
+    val cSplit2 = if (ja) {
+        "累積バイト数が MAX_BYTES を超える手前で次のピースへ送る。行の途中では切らない\n# ので、日本語が混じっていても壊れない。"
+    } else {
+        "Move to the next piece just before the running total passes MAX_BYTES. Lines are\n# never cut in the middle, so multi-byte text survives."
+    }
+    val cTrim = if (ja) {
+        "末尾の改行を落とす (元の入力に無い改行を QR に混ぜないため)。"
+    } else {
+        "Drop the trailing newline (never encode a newline the input did not have)."
+    }
+    val cSize = if (ja) "---- 端末の幅から表示サイズを決める ----" else "---- pick the display size from the terminal width ----"
+    val cPngWidth = if (ja) {
+        "PNG の横ドット数を返す (IHDR の 16〜19 バイト目)。"
+    } else {
+        "Return the pixel width of a PNG (bytes 16-19, the IHDR)."
+    }
+    val cModulePx = if (ja) {
+        "1 モジュールを何ドットで描くかを、狙いのドット幅から逆算する。"
+    } else {
+        "Work back from the target pixel width to the dots per module."
+    }
+    val cInline = if (ja) {
+        "Kitty graphics protocol で PNG をその場に描く。\n# c/r を指定して占有セル数を確定させ、そのぶん改行してカーソルを絵の下へ運ぶ。"
+    } else {
+        "Draw a PNG in place with the Kitty graphics protocol.\n# c/r pin down how many cells it takes, then print that many newlines to move the cursor below it."
+    }
+    val cEmit = if (ja) "---- 出す ----" else "---- emit ----"
+    val cAnsi = if (ja) {
+        "ANSIUTF8 は色を付けて出すので、端末の配色に関係なく明暗が正しく出る。"
+    } else {
+        "ANSIUTF8 emits its own colours, so light/dark comes out right whatever the theme is."
+    }
+
+    return """$head
+set -u
+
+MAX_BYTES=900          # $cMaxBytes
+PNG_MODULE_PX=8        # $cPngModule
+TARGET_PX=600          # $cTargetPx
+MARGIN=2               # $cMargin
+
+die() { printf '%s\n' "qr.sh: ${d}*" >&2; exit 1; }
+
+# $cUsageFn
+usage() {
+    awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 && NF { exit }' "${d}0"
+    exit 0
+}
+
+infile=""
+outpng=""
+astext=0
+size=""
+
+while getopts "f:o:ts:h" opt; do
+    case "${d}opt" in
+        f) infile=${d}OPTARG ;;
+        o) outpng=${d}OPTARG ;;
+        t) astext=1 ;;
+        s) size=${d}OPTARG ;;
+        h) usage ;;
+        *) die "$mUsageHint" ;;
+    esac
+done
+shift ${d}((OPTIND - 1))
+
+# $cNeedEncoder
+if ! command -v qrencode >/dev/null 2>&1; then
+    printf '$mMissing\n' >&2
+    printf '$mInstallOnce\n' >&2
+    if   command -v pacman >/dev/null 2>&1; then printf '    pacman -S qrencode\n' >&2
+    elif command -v apt    >/dev/null 2>&1; then printf '    apt install qrencode\n' >&2
+    elif command -v apk    >/dev/null 2>&1; then printf '    apk add libqrencode-tools\n' >&2
+    elif command -v dnf    >/dev/null 2>&1; then printf '    dnf install qrencode\n' >&2
+    else
+        printf '$mAnyPm\n' >&2
+        printf '    Alpine: apk add libqrencode-tools\n' >&2
+    fi
+    exit 1
+fi
+
+TMP=${d}(mktemp -d) || die "$mNoTmp"
+trap 'rm -rf "${d}TMP"' EXIT INT TERM
+
+# $cCollect
+src=${d}TMP/src
+if [ -n "${d}infile" ]; then
+    [ -r "${d}infile" ] || die "$mUnreadable ${d}infile"
+    cat -- "${d}infile" > "${d}src"
+elif [ ${d}# -gt 0 ]; then
+    printf '%s' "${d}*" > "${d}src"
+else
+    cat > "${d}src"
+fi
+[ -s "${d}src" ] || die "$mEmpty"
+
+# $cSplit
+# $cSplit2
+LC_ALL=C awk -v max="${d}MAX_BYTES" -v dir="${d}TMP" '
+    BEGIN { n = 1; used = 0; out = dir "/piece-1" }
+    {
+        len = length(${d}0) + 1
+        if (used > 0 && used + len > max) {
+            close(out); n++; used = 0; out = dir "/piece-" n
+        }
+        printf "%s\n", ${d}0 > out
+        used += len
+    }
+    END { print n }
+' "${d}src" > "${d}TMP/count"
+pieces=${d}(cat "${d}TMP/count")
+
+# $cTrim
+i=1
+while [ "${d}i" -le "${d}pieces" ]; do
+    p=${d}TMP/piece-${d}i
+    LC_ALL=C awk '{ if (NR > 1) printf "\n"; printf "%s", ${d}0 }' "${d}p" > "${d}p.trim"
+    mv "${d}p.trim" "${d}p"
+    i=${d}((i + 1))
+done
+
+# $cSize
+cols=${d}(tput cols 2>/dev/null) || cols=""
+case "${d}cols" in ''|*[!0-9]*) cols=80 ;; esac
+if [ -n "${d}size" ]; then
+    case "${d}size" in *[!0-9]*|'') die "$mSizeNum" ;; esac
+    show_cols=${d}size
+else
+    show_cols=34
+    [ "${d}show_cols" -gt ${d}((cols - 2)) ] && show_cols=${d}((cols - 2))
+fi
+[ "${d}show_cols" -lt 8 ] && show_cols=8
+
+aspect=${d}{Z2_QR_ASPECT:-0.5}
+show_rows=${d}(awk -v c="${d}show_cols" -v a="${d}aspect" 'BEGIN { r = int(c * a + 0.5); if (r < 4) r = 4; print r }')
+
+# $cPngWidth
+png_width() {
+    od -An -tu1 -j16 -N4 "${d}1" | awk '{ print ${d}1 * 16777216 + ${d}2 * 65536 + ${d}3 * 256 + ${d}4 }'
+}
+
+# $cModulePx
+module_px_for() {
+    qrencode -s 1 -m "${d}MARGIN" -o "${d}TMP/probe.png" -r "${d}1" 2>/dev/null || return 1
+    w=${d}(png_width "${d}TMP/probe.png")
+    [ -n "${d}w" ] && [ "${d}w" -gt 0 ] || return 1
+    awk -v t="${d}TARGET_PX" -v w="${d}w" 'BEGIN { s = int(t / w); if (s < 2) s = 2; if (s > 20) s = 20; print s }'
+}
+
+# $cInline
+show_inline() {
+    base64 < "${d}1" | tr -d '\n' | fold -w 4096 > "${d}TMP/chunks"
+    n=${d}(awk 'END { print NR }' "${d}TMP/chunks")
+    i=0
+    while IFS= read -r chunk || [ -n "${d}chunk" ]; do
+        i=${d}((i + 1))
+        if [ "${d}i" -lt "${d}n" ]; then m=1; else m=0; fi
+        if [ "${d}i" -eq 1 ]; then
+            printf '\033_Ga=T,f=100,c=%s,r=%s,q=2,m=%s;%s\033\\' \
+                "${d}show_cols" "${d}show_rows" "${d}m" "${d}chunk"
+        else
+            printf '\033_Gm=%s;%s\033\\' "${d}m" "${d}chunk"
+        fi
+    done < "${d}TMP/chunks"
+    printf '\r'
+    i=0
+    while [ "${d}i" -le "${d}show_rows" ]; do printf '\n'; i=${d}((i + 1)); done
+}
+
+# $cEmit
+i=1
+failed=0
+while [ "${d}i" -le "${d}pieces" ]; do
+    p=${d}TMP/piece-${d}i
+
+    if [ "${d}pieces" -gt 1 ]; then
+        printf '[%d/%d]\n' "${d}i" "${d}pieces"
+    fi
+
+    if [ -n "${d}outpng" ]; then
+        if [ "${d}pieces" -gt 1 ]; then
+            base=${d}{outpng%.png}
+            dest=${d}base-${d}i.png
+        else
+            dest=${d}outpng
+        fi
+        if qrencode -s "${d}PNG_MODULE_PX" -m "${d}MARGIN" -o "${d}dest" -r "${d}p" 2>"${d}TMP/err"; then
+            printf '%s\n' "${d}dest"
+        else
+            printf '$mPieceFail\n' "${d}i" "${d}(cat "${d}TMP/err")" >&2
+            failed=1
+        fi
+    elif [ "${d}astext" -eq 1 ]; then
+        # $cAnsi
+        qrencode -t ANSIUTF8 -m "${d}MARGIN" -r "${d}p" 2>"${d}TMP/err" || {
+            printf '$mPieceFail\n' "${d}i" "${d}(cat "${d}TMP/err")" >&2
+            failed=1
+        }
+    else
+        s=${d}(module_px_for "${d}p") || s=${d}PNG_MODULE_PX
+        if qrencode -s "${d}s" -m "${d}MARGIN" -o "${d}TMP/out-${d}i.png" -r "${d}p" 2>"${d}TMP/err"; then
+            show_inline "${d}TMP/out-${d}i.png"
+        else
+            printf '$mPieceFail\n' "${d}i" "${d}(cat "${d}TMP/err")" >&2
+            failed=1
+        fi
+    fi
+
+    i=${d}((i + 1))
+done
+
+exit "${d}failed"
 """
 }

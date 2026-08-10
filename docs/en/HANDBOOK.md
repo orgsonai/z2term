@@ -602,7 +602,7 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-alarm at\|daily HH:MM [name]` | **Time trigger**: writes an `alarm` event into `events.jsonl` at that time (`in 5m` / `list` / `cancel <id\|name\|all>` too). Unlike cron it fires during Doze (may be a few minutes late). ⚠ **Before 0.8.302 the clock inside the distro was fixed to UTC**, so a wall-clock time like `18:30` was scheduled off by the zone offset (9 hours in Japan). From 0.8.302 it follows the device clock — **re-create anything you scheduled with an older build** |
 | `z2-session list\|new\|send\|capture\|close` | **Drives this app's own tabs.** `list` shows them (index, id, name, marks: `*`=visible, `!`=busy, `?`=not started), `new [name]` adds one, `send <target> "text"` **only inserts** into that tab (add `--enter` to actually run it), `capture [target]` pulls the on-screen text, `close <target>` closes it. `<target>` is the index from `list`, an id, or a tab name. E.g. ``n=$(z2-session new build \| cut -f1); z2-session send "$n" 'make -j2' --enter`` |
 | `z2-when <trigger> run <cmd>` | **Automation hub.** Auto-run a command on charge / battery / time / device events (see "Automation hub" below). Also `list` / `remove <id\|all>` / `on\|off <id>` / `log <id>`. E.g. `z2-when charge:start run ~/.z2term/macros/backup.sh` |
-| `z2-macro list\|install <name>` | **Bundled macro samples** into `~/.z2term/macros/` (`show` / `run` / `dir` too) — a starting point for your first macro. Bundled: `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `unknown-call` / `remind` / `rss` / `rss-open`. On install it also tells you **how that script is meant to be run** (drive it with `z2-when` / assign it to a widget button / register it as a resident server). ⚠ **`watch-basic` is the only one that belongs in a resident server** (0.8.273; the rest run once and exit from `z2-when` or a button, so residency both restarts them every time they finish and burns battery while idle) |
+| `z2-macro list\|install <name>` | **Bundled macro samples** into `~/.z2term/macros/` (`show` / `run` / `dir` too) — a starting point for your first macro. Bundled: `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `unknown-call` / `remind` / `rss` / `rss-open` / `qr`. On install it also tells you **how that script is meant to be run** (drive it with `z2-when` / assign it to a widget button / register it as a resident server). ⚠ **`watch-basic` is the only one that belongs in a resident server** (0.8.273; the rest run once and exit from `z2-when` or a button, so residency both restarts them every time they finish and burns battery while idle) |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | Fire an arbitrary Android Intent (launch apps, open settings, set alarms, … see `docs/en/MACRO-GUIDE.md`) |
 
 > Combine "trigger (event detection) → decide (shell) → action (z2-*)" to automate your phone (macros). See **`docs/en/MACRO-GUIDE.md`** for how — you can also feed it to an AI and have it generate the macro for you.
@@ -720,6 +720,28 @@ Everything it produces is plain text.
 | `~/.z2term/rss/opened.txt` | Articles `rss-open` has opened |
 
 Delete them all to start over. One dead feed does not stop the others, and broken XML is skipped silently.
+
+### Hand something to another device as a QR code (0.8.308)
+
+A sample for passing a long URL or a config **to another device without retyping it**: draw the code on screen and let the other device's camera read it.
+
+```sh
+z2-macro install qr                  # install it
+apk add libqrencode-tools            # Alpine (Arch: pacman -S qrencode / Ubuntu, Kali: apt install qrencode)
+
+qr.sh "https://example.com"          # encode a string and draw it
+qr.sh -f notes.txt                   # encode the contents of a file
+z2-clip get | qr.sh                  # encode what you just copied
+qr.sh -o ~/qr.png "text"             # save a PNG (nothing is drawn)
+qr.sh -t "text"                      # print blocks instead of an image
+qr.sh -h                             # the full help
+```
+
+- ⚠ **You install `qrencode` yourself** (once per tab). If it is missing, the script prints the install command for that tab and stops.
+- ⚠ **The image only shows inside a tab of this app.** On a terminal that cannot show images (over `ssh`, say) you get gibberish, so use `-t` there.
+- ⚠ **To scan with a camera, prefer the image or the PNG.** Blocks (`-t`) can leave gaps between rows depending on the font: readable to you, not to the camera.
+- Long input is **split into several codes at line breaks**, numbered `[1/3]`. Scan them in order.
+- If it looks squashed, adjust the ratio: `Z2_QR_ASPECT=0.45 qr.sh "text"` (smaller = taller; default 0.5).
 
 ### Automation hub (`z2-when`)
 

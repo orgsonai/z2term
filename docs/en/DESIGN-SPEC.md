@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-10 / Target version: 0.8.307-alpha (versionCode 315)
+Last updated: 2026-08-10 / Target version: 0.8.308-alpha (versionCode 316)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -758,7 +758,7 @@ The footer now shows **the macro that finished last**, since start times moved o
 
 **Background**: the barrier to macros was never the syntax but **writing the first one from scratch**.
 
-**Implementation**: seven working samples (event basics / battery alert / time trigger / one-time-code copy from notifications / one-time-code copy from SMS / feed subscription / opening what was collected) are placed in the rootfs at `/usr/local/share/z2term/macros/` and copied into `~/.z2term/macros/` by `z2-macro install <name|all>`.
+**Implementation**: ten working samples (event basics / battery alert / time trigger / one-time-code copy from notifications / one-time-code copy from SMS / calls from numbers not in the contacts / reminders by notification / feed subscription / opening what was collected / handing something over as a QR code) are placed in the rootfs at `/usr/local/share/z2term/macros/` and copied into `~/.z2term/macros/` by `z2-macro install <name|all>`.
 
 **Moving the samples off residency onto `z2-when` (0.8.273)**: up to 0.8.272 the battery-alert,
 daily-report and OTP samples were **resident scripts polling a log every 2 seconds**, and the macro
@@ -786,6 +786,30 @@ of Doze.
 - `list` shows each script's second-line comment as its description; `show` / `run` / `dir` are also provided
 - Comments inside the samples follow the app language (ja/en)
 - **Each script declares how it is meant to be run** (`# z2-run: <how>`, 0.8.247). Install prints that line when present and falls back to the old "register under Resident servers" otherwise. ⚠ The unconditional resident hint was actively telling users to **make a run-once script resident** — `rss.sh` exits every time, so the supervisor would restart it and it would poll feeds forever (caught on a device). Keep `# z2-run:` **below the description line (line 2)**; putting it first would make the widget's button description (`WidgetStore.describe`) pick it up instead
+
+**QR codes do not come back as an app feature** (`qr.sh`, 0.8.308): 0.8.219 put an SSH-connection QR on
+the status widget and 0.8.220 removed it again — "not needed after all" — together with the in-house
+encoder (`QrEncoder` / `ReedSolomon`). ⚠ **It does not return to the app side.** What is actually
+wanted is "hand what is in front of me to another device without retyping it", and the distro's
+`qrencode` plus image output (Kitty graphics) covers that (nothing bundled, F-Droid clean).
+⚠ **A broken QR code still looks like a plausible pattern**, so it cannot be checked by eye; leaving
+it to a proven implementation makes the result more trustworthy, not less (the in-house encoder had
+to be compared against `qrencode` module by module).
+
+- **A missing requirement prints how to install it in this tab, then stops.** `qrencode` exists in
+  every distro but is not installed by default. ⚠ The package name differs per distro (Alpine alone
+  calls it `libqrencode-tools`), so the hint follows whichever package manager `command -v` finds.
+- **Image by default, `-t` for blocks, `-o` for a PNG.** ⚠ Block characters can leave gaps between
+  rows depending on the terminal font — readable to the eye, not to a camera. The other way round,
+  terminals that cannot show images (over ssh, say) print the image as gibberish. **Which one is
+  right depends on the far end**, so both stay.
+- **Long input is split at line breaks** (900 bytes per code, numbered `[1/3]`). ⚠ Lines are never cut
+  in the middle, so multi-byte text survives; only a single line too long for one code cannot be sent.
+- **The aspect ratio has to be assumed.** Terminals do not report their cell size, so 1:2 is hard-coded
+  and `Z2_QR_ASPECT` is left for the environments where that is wrong.
+- ⚠ **The `usage()` awk must not stop on a blank line** (it tests `NF`). The help text is long and its
+  sections are separated by blank lines, so a stopping version prints only the first two lines — the
+  same hole `remind.sh` fell into in 0.8.288.
 
 **Reminders are deliberately not an app feature** (`remind.sh`, 0.8.275): the request was "remind me with a notification, repeating and one-shot, and it has to work with the app closed", and **no reminder screen and no reminder storage were added to the app**. Every part existed: one-shots are `z2-alarm`, repeats are `z2-when time:`, firing is `z2-notify -b`, the reply comes back through `event:notify_action`, and adding one without opening the app is `z2-tile` + `z2-ask`. Only the worked example was missing, which puts it in the same position as `rss.sh`.
 
