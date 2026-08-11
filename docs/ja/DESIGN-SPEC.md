@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-11 / 対象バージョン: 0.8.312-alpha (versionCode 320)
+最終更新: 2026-08-12 / 対象バージョン: 0.8.313-alpha (versionCode 321)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1405,7 +1405,9 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - **起動 distro はレース回避のため永続値を await**: `settingsFlow` は `stateIn(Eagerly)` の初期値が既定 Snapshot (`distroId=alpine`) なので、アプリ更新・端末再起動直後など DataStore の初回 emit が届く前に `startTerminal` が走ると、選択中の OS ではなく既定 Alpine で起動してしまうレースがあった（「希に Alpine が立ち上がる」現象）。`startTerminal` 内で `settings.flow.first()` を await してから distro を決定し、確実に選択中の OS を起動する（0.8.105）。
   - `StateFlow`: uiState / redrawTick(≈60fps コアレッシング) / scrollOffset / cellMetrics / selection / cwd / label / settingsFlow。
 - `TerminalSelection` / `CellMetrics`: 選択範囲 (絶対行) と 1 セル寸法。
-- `clipboard/ClipboardHistoryStore` (object): システムクリップボードは 1 件しか持てないので、変化を拾って履歴 (最大 50 件 / `filesDir/clipboard_history.json`) に貯める。取り込み経路は 3 つ: ①`OnPrimaryClipChangedListener` (前面中の変化)、②`MainActivity.onResume`、③`MainActivity.onWindowFocusChanged(true)`。Android 10+ の「クリップボードを読めるのはフォーカスのあるアプリだけ」制限は**ウィンドウフォーカス基準**で、`onResume` の時点ではまだフォーカスが確定せず空が返る端末があるため、③が無いと「他アプリでコピー → 戻る」を取りこぼす。裏で複数回コピーされても拾えるのは最後の 1 件だけ (OS の仕様上の限界)。重複は `record` が先頭一致/LRU で潰す。
+- `clipboard/ClipboardHistoryStore` (object): システムクリップボードは 1 件しか持てないので、変化を拾って履歴 (最大 50 件 / `filesDir/clipboard_history.json`) に貯める。取り込み経路は 4 つ: ①`OnPrimaryClipChangedListener` (前面中の変化)、②`MainActivity.onResume`、③`MainActivity.onWindowFocusChanged(true)`、④キーボードの 📋 パッドを開いたとき (`KeyboardPad` → `ensureLoaded` + `captureCurrent`)。Android 10+ の「クリップボードを読めるのはフォーカスのあるアプリだけ」制限は**ウィンドウフォーカス基準**で、`onResume` の時点ではまだフォーカスが確定せず空が返る端末があるため、③が無いと「他アプリでコピー → 戻る」を取りこぼす。裏で複数回コピーされても拾えるのは最後の 1 件だけ (OS の仕様上の限界)。重複は `record` が先頭一致/LRU で潰す。
+  ⚠ **履歴の実体はこの object ただ 1 つ** (0.8.313 で 1 本化)。それまではキーボードのパッド用に `ui/terminal/keyboard/ClipboardHistoryStore` という同名の別 object があり、**同じ `filesDir/clipboard_history.json` を別のキー (`entries` / `items`) で丸ごと上書きし合っていた**。片方が保存すると相手からは「中身の無いファイル」に見えるため、**パッドの履歴はアプリを起動し直すたびに空から始まり、端末でコピーした内容も現れなかった** (利用者の報告)。入口 (シート / パッド) は増やしてよいが、**ストアは増やさない**。読み込みは旧 `items` キーも拾って既存の履歴を引き継ぐ。
+  ⚠ 機微印 (`android.content.extra.IS_SENSITIVE`) の付いたクリップは取り込まない (パスワードマネージャ等が付ける。パッド側にあった安全策を 1 本化で統合先へ移した)。
 - `SessionStore`/`SessionManager` (M11): タブ構成 `{id,label,distro,cwd}` + activeId を DataStore に保存する（書き込みのみ）。**0.8.70 で起動時の自動復元を無効化**＝起動の度に複数タブが開く挙動を避けるため、`ensureFirst` は常に新規 1 タブだけを開く（ユーザー要望）。`save` は将来の復元 UI / デバッグ用に残すが読み戻し経路は持たない。**cwd は OSC7 で捕捉**（`ensureOsc7CwdConfig` が bash/zsh のプロンプトフックで OSC7 を吐かせる）。
 
 ### 4.7 通信チャネル (`channel/`)
@@ -1748,9 +1750,12 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
   ⚠ **端末フォントが持たない字は出さない** (`Paint.hasGlyph` で 1 度だけふるいに掛ける)。□ (豆腐) を
   打たせないためで、OS が新しくなれば表を触らずに増える。先頭タブは**最近使った順**
   (`RecentEmojiStore` → `filesDir/emoji_recent.json`、48 字) — 実際に使う絵文字は 20 字ほどに偏る。
-- **貼り付け** (`ClipboardHistoryStore` → `filesDir/clipboard_history.json`、50 件):
+- **貼り付け** (`clipboard/ClipboardHistoryStore` → `filesDir/clipboard_history.json`、50 件。
+  端末のコピーも 📋 履歴シートも**同じ 1 つのストア**を見る。⚠ **パッド用に別ストアを作らない** —
+  0.8.313 まで同名の別 object が同じファイルを別スキーマで奪い合い、パッドの履歴が毎回消えていた):
   ⚠ **常時監視はできない** — Android 10 以降、クリップボードを読めるのはフォアグラウンドのアプリか
-  現在の入力メソッドだけ。よって取り込みは**パッドを開いたときの 1 回**で、利用者から見ると
+  現在の入力メソッドだけ。よって取り込みは**パッドを開いたときの 1 回**と、開いている間の変化
+  (`OnPrimaryClipChangedListener`)。利用者から見ると
   「**コピーしてからキーボードを開くと履歴に入る**」。この順序は説明が要るので空のパッドに明記する。
   ⚠ パスワードマネージャ等が付ける機微印 (`android.content.extra.IS_SENSITIVE`) のクリップは
   取り込まない。1 件ずつ ✕ で削除、🗑 で全消去。

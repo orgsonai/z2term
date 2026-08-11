@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -19,7 +22,14 @@ import java.io.File
 /**
  * クリップボード履歴ストア。OS のシステムクリップボードは「現在の 1 件」しか保持しないため、
  * 変化を監視して履歴として貯める ([record])。端末からのコピー / 他アプリでのコピーを取り込み、
- * 貼り付けボタンのダブルタップで開く履歴シートから過去のコピーを選べるようにする。
+ * 貼り付けボタンのダブルタップで開く履歴シートと、キーボードの 📋 パッドから過去のコピーを
+ * 選べるようにする。
+ *
+ * ⚠ **履歴の実体はこの object ただ 1 つ**。以前はキーボードのパッド用に同名の別 object が
+ * あり、**同じ `filesDir/clipboard_history.json` を別のキー (`entries` / `items`) で丸ごと
+ * 上書きし合っていた** — 片方が保存すると、もう片方からは「中身の無いファイル」に見えるため、
+ * パッドの履歴は起動のたびに空から始まっていた (0.8.313 で 1 本化)。**入口を増やすときも
+ * ストアは増やさない**こと。
  *
  * 同期方針 (Android のクリップボード制約に合わせた現実解):
  *  - [registerSystemSync] で `OnPrimaryClipChangedListener` を張り、アプリ前面中のシステム
@@ -27,6 +37,9 @@ import java.io.File
  *  - 前面復帰時に [captureCurrent] を呼ぶ事で、裏で他アプリがコピーした内容も拾う
  *    (Android 10+ はフォーカス中のみクリップボード読取が許可されるため)。
  *  - 端末コピー経路からは [record] を直接呼んでも良い (重複は先頭一致で弾く)。
+ *
+ * ⚠ **機微なクリップは残さない。** パスワードマネージャ等が付ける [EXTRA_IS_SENSITIVE] 印の
+ * クリップは取り込まない。
  *
  * 保存場所: `filesDir/clipboard_history.json`
  */
@@ -42,6 +55,13 @@ object ClipboardHistoryStore {
     private const val MAX_TEXT_LEN = 20_000   // 巨大貼り付けの暴走を防ぐ上限
     private const val SAVE_DEBOUNCE_MS = 800L
 
+    /**
+     * 「この内容は機微」だとクリップに付く印 (`ClipDescription.EXTRA_IS_SENSITIVE`)。
+     * 定数自体は API 33 で公開されたが、値は文字列キーなのでそれ以前の OS でも
+     * 付いていれば読める。⚠ 定数を直接参照すると minSdk では解決できないので値で書く。
+     */
+    private const val EXTRA_IS_SENSITIVE = "android.content.extra.IS_SENSITIVE"
+
     /** 履歴 1 件。[text] はコピー本文、[copiedAt] は記録時刻 (epoch ms)。 */
     data class ClipEntry(val text: String, val copiedAt: Long)
 
@@ -50,6 +70,7 @@ object ClipboardHistoryStore {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var saveJob: Job? = null
+    private val loadMutex = Mutex()
     @Volatile private var loaded = false
     private var contextRef: Context? = null
     private var listener: ClipboardManager.OnPrimaryClipChangedListener? = null
@@ -58,23 +79,44 @@ object ClipboardHistoryStore {
     fun init(context: Context) {
         val app = context.applicationContext
         contextRef = app
-        scope.launch {
-            if (!loaded) {
-                runCatching { loadFromDisk(app) }
-                    .onFailure { Log.w(TAG, "load failed: ${it.message}") }
-                loaded = true
-            }
-        }
+        scope.launch { ensureLoaded(app) }
         registerSystemSync(app)
     }
 
-    /** 現在のシステムクリップボードを 1 件取り込む (前面復帰時などに呼ぶ)。 */
+    /**
+     * ディスクからの読込を 1 度だけ行う。[init] が済んでいれば何もしないので、履歴を見せる
+     * 入口 (シート / キーボードのパッド) を開く直前に呼んで読込完了を待ってよい。
+     */
+    suspend fun ensureLoaded(context: Context) {
+        if (loaded) return
+        val app = context.applicationContext
+        contextRef = app
+        loadMutex.withLock {
+            if (loaded) return
+            withContext(Dispatchers.IO) {
+                runCatching { loadFromDisk(app) }
+                    .onFailure { Log.w(TAG, "load failed: ${it.message}") }
+            }
+            loaded = true
+        }
+    }
+
+    /** 現在のシステムクリップボードを 1 件取り込む (前面復帰時・パッドを開いた時などに呼ぶ)。 */
     fun captureCurrent(context: Context) {
-        val cm = context.getSystemService(ClipboardManager::class.java) ?: return
-        val text = runCatching {
-            cm.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString()
-        }.getOrNull()
+        contextRef = context.applicationContext
+        val text = runCatching { readClip(context) }
+            .onFailure { Log.w(TAG, "clip read failed: ${it.message}") }
+            .getOrNull()
         if (!text.isNullOrEmpty()) record(text)
+    }
+
+    /** クリップボードの中身をテキストとして読む。機微印が付いていれば null。 */
+    private fun readClip(context: Context): String? {
+        val cm = context.getSystemService(ClipboardManager::class.java) ?: return null
+        val clip = cm.primaryClip ?: return null
+        if (clip.description?.extras?.getBoolean(EXTRA_IS_SENSITIVE, false) == true) return null
+        if (clip.itemCount == 0) return null
+        return clip.getItemAt(0)?.coerceToText(context)?.toString()
     }
 
     /**
@@ -112,8 +154,7 @@ object ClipboardHistoryStore {
         val cm = context.getSystemService(ClipboardManager::class.java) ?: return
         val l = ClipboardManager.OnPrimaryClipChangedListener {
             runCatching {
-                val text = cm.primaryClip?.takeIf { it.itemCount > 0 }
-                    ?.getItemAt(0)?.coerceToText(context)?.toString()
+                val text = readClip(context)
                 if (!text.isNullOrEmpty()) record(text)
             }.onFailure { Log.w(TAG, "clip read failed: ${it.message}") }
         }
@@ -138,7 +179,9 @@ object ClipboardHistoryStore {
         if (!f.exists()) return
         val obj = JSONObject(f.readText(Charsets.UTF_8))
         if (obj.optInt("version", 0) != VERSION) return
-        val arr = obj.optJSONArray("entries") ?: return
+        // `items` は 0.8.312 以前のキーボード側ストアが書いていたキー。同じファイルを別キーで
+        // 奪い合っていたので、1 本化 (0.8.313) の際に残っていた分もここで拾って引き継ぐ。
+        val arr = obj.optJSONArray("entries") ?: obj.optJSONArray("items") ?: return
         val out = ArrayList<ClipEntry>(arr.length())
         for (i in 0 until arr.length()) {
             val e = arr.optJSONObject(i) ?: continue

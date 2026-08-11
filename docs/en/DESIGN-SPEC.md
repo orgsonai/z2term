@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-11 / Target version: 0.8.312-alpha (versionCode 320)
+Last updated: 2026-08-12 / Target version: 0.8.313-alpha (versionCode 321)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1425,7 +1425,9 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   - **Startup distro awaits the persisted value to avoid a race**: `settingsFlow` is `stateIn(Eagerly)` whose initial value is the default Snapshot (`distroId=alpine`), so if `startTerminal` runs before DataStore's first emission lands (right after an app update or device reboot), it would launch the default Alpine instead of the selected OS (the "occasionally Alpine boots" symptom). `startTerminal` now awaits `settings.flow.first()` before choosing the distro, so the selected OS is launched reliably (0.8.105).
   - `StateFlow`: uiState / redrawTick (≈60fps coalescing) / scrollOffset / cellMetrics / selection / cwd / label / settingsFlow.
 - `TerminalSelection` / `CellMetrics`: selection range (absolute rows) and 1-cell dimensions.
-- `clipboard/ClipboardHistoryStore` (object): the system clipboard holds only one item, so changes are captured into a history (max 50 entries / `filesDir/clipboard_history.json`). Three capture paths: ① `OnPrimaryClipChangedListener` (changes while in the foreground), ② `MainActivity.onResume`, ③ `MainActivity.onWindowFocusChanged(true)`. The Android 10+ rule "only the focused app may read the clipboard" is based on **window focus**, and on some devices `onResume` runs before focus is settled and returns nothing — without ③, "copy in another app → come back" is missed. Only the last copy can be recovered if several were made in the background (an OS-level limit). Duplicates are collapsed by `record` (head match / LRU).
+- `clipboard/ClipboardHistoryStore` (object): the system clipboard holds only one item, so changes are captured into a history (max 50 entries / `filesDir/clipboard_history.json`). Four capture paths: ① `OnPrimaryClipChangedListener` (changes while in the foreground), ② `MainActivity.onResume`, ③ `MainActivity.onWindowFocusChanged(true)`, ④ opening the keyboard's 📋 pad (`KeyboardPad` → `ensureLoaded` + `captureCurrent`). The Android 10+ rule "only the focused app may read the clipboard" is based on **window focus**, and on some devices `onResume` runs before focus is settled and returns nothing — without ③, "copy in another app → come back" is missed. Only the last copy can be recovered if several were made in the background (an OS-level limit). Duplicates are collapsed by `record` (head match / LRU).
+  ⚠ **This object is the only history store** (unified in 0.8.313). Until then the keyboard pad had its own identically named object, `ui/terminal/keyboard/ClipboardHistoryStore`, and the two **overwrote the same `filesDir/clipboard_history.json` under different keys (`entries` / `items`)**. Whatever one of them saved looked like an empty file to the other, so **the pad's history started empty after every app restart and never showed anything copied in the terminal** (user report). Add entry points (sheet / pad) freely, but **never add another store**. Loading also accepts the old `items` key so existing history carries over.
+  ⚠ Clips flagged sensitive (`android.content.extra.IS_SENSITIVE`, set by password managers) are never captured — the safeguard that used to live in the pad's store moved here with the unification.
 - `SessionStore`/`SessionManager` (M11): saves tab layout `{id,label,distro,cwd}` + activeId to DataStore (write-only). **0.8.70 disables startup restore**: to avoid multiple tabs reopening on every launch, `ensureFirst` always opens just one fresh tab (user request). `save` is kept for a future restore UI / debugging but has no read-back path. **cwd is captured via OSC7** (`ensureOsc7CwdConfig` makes bash/zsh emit OSC7 in the prompt hook).
 
 ### 4.7 Communication channels (`channel/`)
@@ -1801,9 +1803,13 @@ into "close" — you would not be able to delete while the pad is open.
   (`Paint.hasGlyph`, filtered once). That keeps tofu (□) out of what people send, and new OS versions
   add emoji without touching the table. The first tab is **most recently used**
   (`RecentEmojiStore` to `filesDir/emoji_recent.json`, 48 entries) — real usage concentrates on ~20.
-- **Paste** (`ClipboardHistoryStore` to `filesDir/clipboard_history.json`, 50 entries):
+- **Paste** (`clipboard/ClipboardHistoryStore` to `filesDir/clipboard_history.json`, 50 entries —
+  **the same single store** the terminal's copy and the 📋 history sheet use. ⚠ **Never give the pad
+  its own store**: until 0.8.313 an identically named object fought over the same file with a
+  different schema and the pad's history was wiped every time):
   ⚠ **Continuous watching is impossible** — since Android 10 only the foreground app or the current
-  input method may read the clipboard. Capture therefore happens **once, when the pad opens**, which
+  input method may read the clipboard. Capture therefore happens **once when the pad opens**, plus
+  changes while it stays open (`OnPrimaryClipChangedListener`), which
   reads as "**copy first, then open the keyboard**" from the outside. That ordering needs saying, so
   the empty pad says it. ⚠ Clips flagged sensitive by password managers
   (`android.content.extra.IS_SENSITIVE`) are never stored. ✕ deletes one entry, 🗑 clears all.

@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
@@ -69,13 +70,16 @@ internal fun KeyboardPad(
 ) {
     if (mode == PadMode.NONE) return
     val context = LocalContext.current
-    // ⚠ クリップボードは**パッドを開いたときにしか読めない** (Android 10 以降、裏で見張れない)。
-    // 開くたびに 1 件取り込む = 利用者から見ると「コピーしてからキーボードを開くと入る」。
+    // ⚠ クリップボードは**フォアグラウンド (または現在の入力メソッド) の間しか読めない**
+    // (Android 10 以降、裏で見張れない)。開いたときに 1 件取り込み、開いている間の変化は
+    // [ClipboardHistoryStore] が張っている `OnPrimaryClipChangedListener` が拾う。
+    // ⚠ 履歴は端末のコピー・履歴シートと**同じ 1 つのストア**。ここ用に別のストアを作らない
+    // (同じファイルを別スキーマで奪い合って履歴が消えていた。0.8.313)。
     LaunchedEffect(mode) {
         when (mode) {
             PadMode.CLIPBOARD -> {
                 ClipboardHistoryStore.ensureLoaded(context)
-                ClipboardHistoryStore.capture(context)
+                ClipboardHistoryStore.captureCurrent(context)
             }
             PadMode.EMOJI -> RecentEmojiStore.ensureLoaded(context)
             PadMode.NONE -> Unit
@@ -172,7 +176,7 @@ private fun ColumnScope.EmojiPane(style: KeyboardStyle, onInsert: (String) -> Un
 /** 貼り付けパッド: 新しい順のリスト。タップで貼り付け、✕ で 1 件削除。 */
 @Composable
 private fun ColumnScope.ClipboardPane(style: KeyboardStyle, onInsert: (String) -> Unit) {
-    val items by ClipboardHistoryStore.items.collectAsState()
+    val items by ClipboardHistoryStore.history.collectAsState()
     if (items.isEmpty()) {
         PadEmptyText(stringResource(R.string.pad_clip_empty), style, Modifier.weight(1f))
         return
@@ -206,7 +210,7 @@ private fun ColumnScope.ClipboardPane(style: KeyboardStyle, onInsert: (String) -
                 Box(
                     modifier = Modifier
                         .size(32.dp)
-                        .clickable { ClipboardHistoryStore.remove(item.text) },
+                        .clickable { ClipboardHistoryStore.delete(item) },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
