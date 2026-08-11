@@ -57,12 +57,13 @@ Every release ships two APKs.
 
 | File | Contents | Which to pick |
 |---|---|---|
-| `app-full-release.apk` | PRoot and the Alpine rootfs bundled (~190MB) | **A fine default.** Self-contained — the distribution is already inside, so nothing downloads and it works fully offline from the start. Perfectly good long-term too if you update over Wi-Fi. |
-| `app-foss-release.apk` | No prebuilts (~21MB) | **Lighter updates.** Nine times smaller, so each update downloads ~21MB instead of ~190MB — handy on metered data or a slow link. It also bundles no third-party prebuilts (fewer license notices), for people who'd rather not carry them. Alpine is fetched once from the official CDN on first launch and verified by SHA-256; updates never re-download it. |
+| `app-foss-release.apk` | No prebuilts (~21MB) | **The recommended one.** Nine times smaller, and each update downloads ~21MB instead of ~190MB — handy on metered data or a slow link. It also bundles no third-party prebuilts (fewer license notices). Alpine is fetched once from the official CDN on first launch and verified by SHA-256; updates never re-download it. |
+| `app-full-release.apk` | PRoot and the Alpine rootfs bundled (~190MB) | **When you want it offline from the very first launch.** The distribution is already inside, so nothing downloads — at the cost of ~190MB for the app and for every update. |
 
-Same app either way. Note that automatic updates (below) still fetch the whole APK each time —
-there are no delta updates outside Google Play — so the download-size gap is the one real
-difference between them, and it simply doesn't matter on Wi-Fi.
+Same app either way; the feature sets are identical. The only difference is **whether Alpine is
+downloaded once on first launch**, so if you have a connection that first time, `foss` costs you
+nothing. Note that automatic updates (below) still fetch the whole APK each time — there are no
+delta updates outside Google Play — so the size gap keeps paying off on every update.
 
 Tap the APK on your Android device → allow "Install from unknown sources" to install.
 (Not distributed on Google Play.)
@@ -78,8 +79,8 @@ Pick whichever fits:
 - **Manual** — download the newer APK from Releases and tap it (installs over the top; your data stays).
 - **Automatic** — add `https://github.com/orgsonai/z2term` to
   [Obtainium](https://github.com/ImranR98/Obtainium). It watches these Releases and updates the app
-  with one tap when a new version appears — no app store involved. With `foss` selected, each such
-  update is only ~21MB.
+  with one tap when a new version appears — no app store involved. With the recommended `foss` APK,
+  each such update is only ~21MB.
 
 ## Current version
 
@@ -109,7 +110,7 @@ Pick whichever fits:
 - **First-run cards** — three small cards on the first launch (post a notification / flashlight / let a PC connect). Tapping one **puts the command on the input line — it never runs by itself**; they disappear once tapped and never return.
 - **Receive from Share** — pick z2term in another app's share sheet and the text (or, for files, a path under `~/z2term-inbox/`) is **inserted** on the terminal's input line — never executed.
 - **Tidy toolbar** — choose which buttons appear from settings (⚙ settings stays pinned to the right edge); long-press and drag to reorder.
-- **FOSS flavor** — bundles no third-party prebuilts; the distribution is downloaded at first launch and verified by SHA-256.
+- **FOSS flavor (the recommended download)** — bundles no third-party prebuilts (~21MB); the distribution is downloaded at first launch and verified by SHA-256.
 
 ### Not yet supported / under consideration
 
@@ -148,13 +149,17 @@ It runs all four generators in order and then verifies nothing is missing:
 3. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` `-Regular.ttf`
 4. `build-alpine-rootfs.sh` → `app/src/full/assets/alpine-minirootfs-aarch64.tgz` (`full` flavor only; `foss` downloads it at runtime)
 
-A final manifest step prints `OK` / `MISS` per artifact and exits non-zero if anything is missing. On a host where `fakeroot` cannot build the rootfs, run `SKIP_ROOTFS=1 bash scripts/build-bundle.sh` (collect everything else) and bring the rootfs `.tgz` over from a machine that can build it.
+A final manifest step prints `OK` / `MISS` per artifact and exits non-zero if anything is missing. If you only build the recommended `foss` flavor, the rootfs is not needed at all — `SKIP_ROOTFS=1 bash scripts/build-bundle.sh` is enough. The same applies on a host where `fakeroot` cannot build the rootfs: collect everything else and bring the rootfs `.tgz` over from a machine that can build it.
 
 Per-artifact details: [app/src/main/assets/README.md](app/src/main/assets/README.md) · [app/src/main/jniLibs/README.md](app/src/main/jniLibs/README.md)
 
 ### 2. Build
 
 ```bash
+./gradlew assembleFossRelease
+# Output: app/build/outputs/apk/foss/release/app-foss-release.apk
+
+# Bundled-rootfs variant (offline first run, ~190MB):
 ./gradlew assembleFullRelease
 # Output: app/build/outputs/apk/full/release/app-full-release.apk
 ```
@@ -164,7 +169,7 @@ Per-artifact details: [app/src/main/assets/README.md](app/src/main/assets/README
 ### 3. Install
 
 ```bash
-adb install -r app/build/outputs/apk/full/release/app-full-release.apk
+adb install -r app/build/outputs/apk/foss/release/app-foss-release.apk
 ```
 
 ## Project structure
@@ -224,12 +229,12 @@ z2term/
 
 | Flavor | Purpose | Bundled content |
 |---|---|---|
-| `full` | Internal / Play Store distribution | includes assets and prebuilt binaries (you must place them); offline first run |
-| `foss` | License-notice minimized | **Alpine rootfs excluded** → downloaded at runtime by `DistroDownloader` (SHA-256 verified). proot/talloc stay bundled (W^X requires execve from `nativeLibraryDir`), so their GPL-2.0/LGPL-3.0 notices remain. No offline first run. |
+| `foss` | **The distribution default (recommended)**; license notices minimized | **Alpine rootfs excluded** → downloaded at runtime by `DistroDownloader` (SHA-256 verified). proot/talloc stay bundled (W^X requires execve from `nativeLibraryDir`), so their GPL-2.0/LGPL-3.0 notices remain. No offline first run. |
+| `full` | When an offline first run is required | includes assets and prebuilt binaries (you must place them); offline first run |
 
 ```bash
-./gradlew assembleFullDebug   # normal development
-./gradlew assembleFossDebug   # license-minimized flavor (rootfs excluded, runtime DL)
+./gradlew assembleFossDebug   # normal development (rootfs excluded, runtime DL)
+./gradlew assembleFullDebug   # bundled-rootfs flavor (offline first run)
 ```
 
 ## Smoke-test flow
@@ -324,7 +329,7 @@ For which versions z2term fetches at build time, see `PROOT_VER_AARCH64` / `ALPI
 
 | Channel | Flavor | Status |
 |---|---|---|
-| **GitHub Releases / direct APK** | `full` (prebuilts bundled) / `foss` | Primary channel. Pushing a tag makes CI build and attach both |
+| **GitHub Releases / direct APK** | `foss` (**recommended**) / `full` (prebuilts bundled) | Primary channel. Pushing a tag makes CI build and attach both |
 | **F-Droid** | `foss` (rootfs excluded) | **Not targeted** (runtime download is allowed). The `foss` flavor exists to minimize third-party license notices, not for F-Droid. proot/talloc remain bundled, so full reproducible-build compliance is out of scope |
 | **Google Play** | — | proot's execution of external code likely conflicts with DPA §4.4, so **no distribution planned** |
 

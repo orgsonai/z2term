@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`app-foss-debug.apk`) on your phone.
+1. Put the APK file (`app-foss-release.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -30,7 +30,7 @@ On first launch, **Alpine Linux is set up automatically** (wait a moment and a `
 The first time, **three small cards** appear above the terminal. Tapping one only **puts a command on the input line**, so press the return key to run it (post a notification / turn on the flashlight / let a PC connect). Tap all three, or press the close button, and they never come back. To see them again: Settings > Maintenance > "Show the intro again".
 That's all the setup you need.
 
-> ℹ️ The `foss` build (for F-Droid / sideload) does not bundle Alpine itself, so it **needs a network connection on the first launch only** (it auto-downloads from the official site). The `full` build bundles it, so it starts instantly even offline.
+> ℹ️ **The `foss` build (~21MB) is the recommended one.** It does not bundle Alpine itself, which keeps it small — and keeps every update that small too. In exchange it **needs a network connection on the first launch only** (it auto-downloads from the official site and verifies the SHA-256). If you want it usable offline from the very first launch, take the `full` build (~190MB), which bundles Alpine. Both are the same app.
 
 ### Checking whether a newer version is out
 

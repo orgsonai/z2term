@@ -219,13 +219,13 @@ z2adb shell getprop ro.product.model</pre>
       <table>
         <thead><tr><th>ファイル</th><th>中身</th><th>選び方</th></tr></thead>
         <tbody>
-          <tr><td><code>app-full-release.apk</code></td><td>PRoot と Alpine rootfs を同梱（約 190 MB）</td><td><b>無難な既定。</b>ディストロが中にあり、初回起動時のダウンロード不要で最初からオフラインで動く。Wi-Fi で更新するなら長期利用でも問題ない</td></tr>
-          <tr><td><code>app-foss-release.apk</code></td><td>prebuilt 非同梱（約 21 MB）</td><td><b>更新が軽い。</b>約 9 分の 1 なので更新のたびのダウンロードが約 190 MB → 約 21 MB。従量制や遅い回線で効く。外部 prebuilt も同梱しない。Alpine は初回だけ取得し SHA-256 で検証、更新時に再取得しない</td></tr>
+          <tr><td><code>app-foss-release.apk</code></td><td>prebuilt 非同梱（約 21 MB）</td><td><b>こちらがおすすめ。</b>約 9 分の 1 で、更新のたびのダウンロードも約 21 MB。従量制や遅い回線で効く。外部 prebuilt も同梱しない。Alpine は初回だけ取得し SHA-256 で検証、更新時に再取得しない</td></tr>
+          <tr><td><code>app-full-release.apk</code></td><td>PRoot と Alpine rootfs を同梱（約 190 MB）</td><td><b>初回からオフラインで使いたいとき。</b>ディストロが中にあり初回のダウンロードが不要。そのぶん本体も更新も毎回約 190 MB</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="warn">どちらも同じアプリ。自動更新にしても毎回 APK 全体をダウンロードします（Play 以外に差分更新は無い）。
-      なので実質的な違いはダウンロード容量だけで、Wi-Fi なら気になりません。</p>
+    <p class="warn">どちらも同じアプリで、違いは <b>Alpine を初回に 1 回だけダウンロードするかどうか</b>だけです。
+      自動更新にしても毎回 APK 全体をダウンロードするので（Play 以外に差分更新は無い）、容量差は更新のたびに効きます。</p>
     <div class="cta">
       <a class="btn" href="https://github.com/orgsonai/z2term/releases/latest">最新リリース</a>
       <a class="btn ghost" href="https://github.com/orgsonai/z2term/blob/main/docs/ja/HANDBOOK.md">ハンドブック</a>

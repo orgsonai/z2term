@@ -221,13 +221,14 @@ z2adb shell getprop ro.product.model</pre>
       <table>
         <thead><tr><th>File</th><th>Contents</th><th>Which to pick</th></tr></thead>
         <tbody>
-          <tr><td><code>app-full-release.apk</code></td><td>PRoot and the Alpine rootfs bundled (~190 MB)</td><td><b>A fine default.</b> The distribution is inside, so nothing downloads and it works offline from the first launch. Perfectly good long-term if you update over Wi-Fi</td></tr>
-          <tr><td><code>app-foss-release.apk</code></td><td>No prebuilts (~21 MB)</td><td><b>Lighter updates.</b> 9× smaller, so each update downloads ~21 MB instead of ~190 MB — nice on metered data or slow links — and it carries no third-party prebuilts. Alpine is fetched once, verified by SHA-256; updates never re-download it</td></tr>
+          <tr><td><code>app-foss-release.apk</code></td><td>No prebuilts (~21 MB)</td><td><b>The recommended one.</b> 9× smaller, and each update downloads ~21 MB instead of ~190 MB — nice on metered data or slow links — and it carries no third-party prebuilts. Alpine is fetched once, verified by SHA-256; updates never re-download it</td></tr>
+          <tr><td><code>app-full-release.apk</code></td><td>PRoot and the Alpine rootfs bundled (~190 MB)</td><td><b>When you want it offline from the very first launch.</b> The distribution is inside, so nothing downloads — at the cost of ~190 MB for the app and for every update</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="warn">Same app either way. Automatic updates don't shrink the download — every update
-      fetches the whole APK — so the size gap is the one real difference: it just doesn't matter on Wi-Fi.</p>
+    <p class="warn">Same app either way; the only difference is whether Alpine is downloaded once on
+      first launch. Automatic updates don't shrink the download — every update fetches the whole APK —
+      so the size gap keeps paying off.</p>
     <div class="cta">
       <a class="btn" href="https://github.com/orgsonai/z2term/releases/latest">Latest release</a>
       <a class="btn ghost" href="https://github.com/orgsonai/z2term/blob/main/docs/en/HANDBOOK.md">Handbook</a>

@@ -57,12 +57,12 @@ Z2Term の存在理由は上の表の**2・3・4 行目**です。
 
 | ファイル | 中身 | 選び方 |
 |---|---|---|
-| `app-full-release.apk` | PRoot と Alpine rootfs を同梱（約 190MB） | **無難な既定。** ディストロが中に入っているので何もダウンロードせず、最初から完全オフラインで動く。Wi-Fi で更新するなら長く使う用途でも問題ない。 |
-| `app-foss-release.apk` | prebuilt 非同梱（約 21MB） | **更新が軽い。** 容量が約 9 分の 1 なので、更新のたびのダウンロードが約 190MB → 約 21MB で済む（従量制や回線が遅い環境で効く）。外部 prebuilt を一切同梱しない（ライセンス表記も少ない）ので、同梱物を持ちたくない人にも向く。Alpine は初回だけ公式 CDN から取得し SHA-256 で検証。更新時に再ダウンロードはしない。 |
+| `app-foss-release.apk` | prebuilt 非同梱（約 21MB） | **こちらがおすすめ。** 容量が約 9 分の 1 で、更新のたびのダウンロードも約 21MB で済む（従量制や回線が遅い環境で効く）。外部 prebuilt を一切同梱しない（ライセンス表記も少ない）。Alpine は初回だけ公式 CDN から取得し SHA-256 で検証。更新時に再ダウンロードはしない。 |
+| `app-full-release.apk` | PRoot と Alpine rootfs を同梱（約 190MB） | **初回からオフラインで使いたいとき。** ディストロが中に入っているので初回起動時のダウンロードが不要。そのぶん本体も更新も毎回約 190MB になる。 |
 
-どちらも同じアプリです。**自動更新（下記）にしても、毎回 APK 全体をダウンロードします**
-（Google Play 以外に差分更新は無い）。なので両者の実質的な違いはダウンロード容量だけで、
-Wi-Fi ならその差は気になりません。
+どちらも同じアプリで、機能に差はありません。違いは **Alpine を初回に 1 回だけダウンロードするかどうか**
+だけなので、初回にネットにつながる環境なら `foss` で困ることはありません。**自動更新（下記）にしても、
+毎回 APK 全体をダウンロードします**（Google Play 以外に差分更新は無い）ので、容量差は更新のたびに効きます。
 
 Android 端末で APK をタップ → 「提供元不明のアプリ」のインストールを許可するとインストールできます。
 （Google Play では配布していません）
@@ -77,7 +77,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 - **手動** — Releases から新しい APK を落としてタップ（上書きインストールされ、データは残ります）。
 - **自動** — [Obtainium](https://github.com/ImranR98/Obtainium) に
   `https://github.com/orgsonai/z2term` を登録します。Releases を監視し、新版が出ると**ワンタップで更新**（ストア不要）。
-  `foss` を選んでいれば、その更新は毎回わずか約 21MB です。
+  おすすめの `foss` を選んでいれば、その更新は毎回わずか約 21MB です。
 
 ## 現在のバージョン
 
@@ -107,7 +107,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 - **はじめの 3 枚** — 初回だけ小さなカードが 3 枚出ます（通知を出す／ライトを点ける／PC からつなぐ）。タップすると**入力欄に入るだけで、勝手には実行しません**。触ったら消え、二度と出ません。
 - **共有からの受け取り** — 他アプリの「共有」で z2term を選ぶと、テキストはそのまま、ファイルは `~/z2term-inbox/` に取り込んでパスを、端末の入力行に**入れるだけ**（実行はしない）。
 - **ツールバーの整理** — 出すボタンを設定で選べる（⚙ 設定は常に右端固定）。長押しドラッグで並べ替え。
-- **FOSS フレーバー** — 第三者 prebuilt を一切同梱せず、初回起動時にディストロを DL して SHA-256 で検証。
+- **FOSS フレーバー（おすすめの配布物）** — 第三者 prebuilt を一切同梱せず（約 21MB）、初回起動時にディストロを DL して SHA-256 で検証。
 
 ### 未対応 / 今後の検討
 
@@ -148,15 +148,20 @@ bash scripts/build-bundle.sh
 3. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` の `-Regular.ttf`
 4. `build-alpine-rootfs.sh` → `app/src/full/assets/alpine-minirootfs-aarch64.tgz`（`full` フレーバーのみ。`foss` は実行時に DL）
 
-最後の点検で同梱物ごとに `OK` / `MISS` を表示し、欠落があれば非ゼロ終了します。`fakeroot` が無くて
-rootfs を構築できない環境では `SKIP_ROOTFS=1 bash scripts/build-bundle.sh` で他を揃え、rootfs の
-`.tgz` は構築できる環境から持ち込みます。
+最後の点検で同梱物ごとに `OK` / `MISS` を表示し、欠落があれば非ゼロ終了します。おすすめの `foss`
+フレーバーだけをビルドするなら rootfs は不要なので `SKIP_ROOTFS=1 bash scripts/build-bundle.sh` で
+足ります。`fakeroot` が無くて rootfs を構築できない環境でも同様に他を揃え、rootfs の `.tgz` は
+構築できる環境から持ち込みます。
 
 同梱物ごとの詳細: [app/src/main/assets/README.md](app/src/main/assets/README.md) · [app/src/main/jniLibs/README.md](app/src/main/jniLibs/README.md)
 
 ### 2. ビルド
 
 ```bash
+./gradlew assembleFossRelease
+# 出力: app/build/outputs/apk/foss/release/app-foss-release.apk
+
+# rootfs 同梱版（初回オフライン起動・約 190MB）が要るとき:
 ./gradlew assembleFullRelease
 # 出力: app/build/outputs/apk/full/release/app-full-release.apk
 ```
@@ -166,7 +171,7 @@ rootfs を構築できない環境では `SKIP_ROOTFS=1 bash scripts/build-bundl
 ### 3. インストール
 
 ```bash
-adb install -r app/build/outputs/apk/full/release/app-full-release.apk
+adb install -r app/build/outputs/apk/foss/release/app-foss-release.apk
 ```
 
 ## プロジェクト構造
@@ -224,12 +229,12 @@ z2term/
 
 | Flavor | 用途 | 同梱内容 |
 |---|---|---|
-| `full` | 内部/Play Store 配布 | assets と prebuilt バイナリを含む (各自配置が必要)。初回オフライン起動可 |
-| `foss` | ライセンス表記の最小化 | **Alpine rootfs を除外** → 起動時に `DistroDownloader` で DL (SHA-256 検証)。proot/talloc は同梱継続 (W^X で `nativeLibraryDir` からの execve が必須) のため GPL-2.0/LGPL-3.0 表記は残る。初回オフライン起動は不可 |
+| `foss` | **配布の既定（おすすめ）**・ライセンス表記の最小化 | **Alpine rootfs を除外** → 起動時に `DistroDownloader` で DL (SHA-256 検証)。proot/talloc は同梱継続 (W^X で `nativeLibraryDir` からの execve が必須) のため GPL-2.0/LGPL-3.0 表記は残る。初回オフライン起動は不可 |
+| `full` | 初回オフライン起動が要るとき | assets と prebuilt バイナリを含む (各自配置が必要)。初回オフライン起動可 |
 
 ```bash
-./gradlew assembleFullDebug   # 通常開発
-./gradlew assembleFossDebug   # ライセンス最小化フレーバー (rootfs 除外・起動時 DL)
+./gradlew assembleFossDebug   # 通常開発 (rootfs 除外・起動時 DL)
+./gradlew assembleFullDebug   # rootfs 同梱フレーバー (初回オフライン起動可)
 ```
 
 ## 動作確認の流れ
@@ -321,7 +326,7 @@ z2term 自身のビルド時にどのバージョンが取得されるかは `sc
 
 | チャネル | フレーバー | 状況 |
 |---|---|---|
-| **GitHub Releases / 直接 APK 配布** | `full` (prebuilt 同梱) / `foss` | 主たる配布経路。タグを push すると CI が両方ビルドして添付する |
+| **GitHub Releases / 直接 APK 配布** | `foss`（**おすすめ**）/ `full` (prebuilt 同梱) | 主たる配布経路。タグを push すると CI が両方ビルドして添付する |
 | **F-Droid** | `foss` (rootfs 除外) | **非対象** (実行時 DL を許容)。`foss` は外部ライセンス表記の最小化が目的で F-Droid 向けではない。proot/talloc は同梱継続のため再現性ビルド適合は対象外 |
 | **Google Play** | — | proot による外部コード実行が DPA §4.4 に抵触する可能性が高く、**配布予定なし** |
 
