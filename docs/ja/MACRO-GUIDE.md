@@ -1073,7 +1073,8 @@ Android 15+ では **SMS の OTP は通知経由だと伏せ字**になり、通
 | 定期実行 | `z2-when time:every=30m run ~/.z2term/macros/rss.sh` |
 | 新着だけ拾う | `seen.txt` を**引き算**（`grep -Fxv`）。フィードの日付や並び順は当てにしない |
 | 知らせる | `z2-notify -b 開く`（ボタン付き通知） |
-| ボタンの返事 | `z2-when event:notify_action run '[ "$Z2_WHEN_EVENT_NAME" = rss ] && z2-open "$(head -1 ~/.z2term/rss/new.txt \| cut -f1)"'` |
+| 見逃さない | `~/.z2term/rss/important.txt` に語を 1 行 1 本。当たった記事は**1 本ずつ別の通知**（0.8.334。まとめ通知の本文には 3 件しか載らず、流量の多いフィードに押し出されるため） |
+| ボタンの返事 | `z2-when event:notify_action run 'case "$Z2_WHEN_EVENT_NAME" in rss:*) z2-open "${Z2_WHEN_EVENT_NAME#rss:}" ;; esac'`（通知の名前に URL が入っているので、**押した記事**が開く） |
 | 開く | `z2-open <URL>` |
 | 一覧を眺める | ライブ tail ウィジェットで `~/.z2term/rss/latest.txt` を「**先頭 (head)**」表示 |
 | 次の 1 本を開く | 状態ウィジェットのボタンに `rss-open` を割り当て（`opened.txt` を引き算するので同じ記事を二度開かない） |

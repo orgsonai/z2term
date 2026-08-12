@@ -270,6 +270,17 @@ fun z2MacroSamples(lang: String): Map<String, String> {
  *  - **1 本落ちても他は続ける**。取得失敗で全体が止まると、電波の悪い日に何も来なくなる。
  *  - `latest.txt` の行に **URL を残す**。ライブ tail ウィジェットは行に URL があれば
  *    タップでそれを開くので、一覧から直接読める。
+ *  - **見逃したくないものは通知を分ける** (`important.txt`・0.8.334)。まとめ通知の本文には
+ *    3 件しか載らないので、流量の多いフィードが同時に更新されると**大事な 1 本が押し出される**。
+ *    当たった記事は 1 件ずつ別の通知にする (通知 id はアプリ側で個別に振られるため、分ければ
+ *    上書きも省略もされない)。⚠ 個別通知は `HITMAX` 件まで — 語の書き方を間違えて全記事が
+ *    当たったときに通知シェードを埋め尽くさないため。
+ *  - **通知の名前に URL を入れる** (`-n "rss:<URL>"`)。ボタンを押すと `notify_action` の `name`
+ *    としてそのまま返るので、通知が何枚出ていても**押した記事**が開く。`new.txt` の先頭を読む
+ *    やり方だと、通知が複数あるとき常に最新の 1 本しか開けない。
+ *
+ * ⚠ この 2 つは**端末上で育った拡張をアプリへ取り込んだもの** (0.8.334)。同梱サンプルに無い
+ * まま端末側だけが進んでいたため、`z2-macro list` が「差分あり」と言い続ける状態だった。
  */
 private fun rssBody(d: String, ja: Boolean): String {
     val head = if (ja) """
@@ -278,9 +289,12 @@ private fun rssBody(d: String, ja: Boolean): String {
 #   1) 読みたい URL を 1 行 1 本で書く:  ~/.z2term/rss/feeds.txt
 #   2) 定期実行を仕掛ける (30 分ごと):
 #        z2-when time:every=30m run ~/.z2term/macros/rss.sh
-#   3) 通知の「開く」で最新の 1 本をブラウザへ (任意):
-#        z2-when event:notify_action run '[ "${d}Z2_WHEN_EVENT_NAME" = rss ] && z2-open "${d}(head -1 ~/.z2term/rss/new.txt | cut -f1)"'
-#   4) ウィジェット (任意): ライブ tail で ~/.z2term/rss/latest.txt を「先頭 (head)」表示。
+#   3) 見逃したくないフィード / 語を 1 行 1 本で書く (任意):  ~/.z2term/rss/important.txt
+#      ここに当たった記事は 1 本ずつ別の通知になるので、流量の多いフィードに埋もれない。
+#      書くのは URL の一部でも題名の一部でもよい (例: example.org)。
+#   4) 通知の「開く」でその記事をブラウザへ (任意):
+#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac'
+#   5) ウィジェット (任意): ライブ tail で ~/.z2term/rss/latest.txt を「先頭 (head)」表示。
 #      行に URL が入っているので、タップするとその記事が開く。
 #
 # 必要: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
@@ -293,9 +307,12 @@ private fun rssBody(d: String, ja: Boolean): String {
 #   1) One feed URL per line in:  ~/.z2term/rss/feeds.txt
 #   2) Poll every 30 minutes:
 #        z2-when time:every=30m run ~/.z2term/macros/rss.sh
-#   3) Optional - let the notification's button open the newest item:
-#        z2-when event:notify_action run '[ "${d}Z2_WHEN_EVENT_NAME" = rss ] && z2-open "${d}(head -1 ~/.z2term/rss/new.txt | cut -f1)"'
-#   4) Optional - widget: point a live tail at ~/.z2term/rss/latest.txt in "start (head)" mode.
+#   3) Optional - one feed or word per line that must not get buried:  ~/.z2term/rss/important.txt
+#      Anything matching gets a notification of its own, so a busy feed cannot push it out.
+#      Write part of a URL or part of a title (e.g. example.org).
+#   4) Optional - let the notification's button open that very article:
+#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac'
+#   5) Optional - widget: point a live tail at ~/.z2term/rss/latest.txt in "start (head)" mode.
 #      Each line carries its URL, so tapping a line opens that article.
 #
 # Needs: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
@@ -323,6 +340,33 @@ private fun rssBody(d: String, ja: Boolean): String {
     val cOpen = if (ja) "開く" else "Open"
     val cListNone = if (ja) "まだ何も集めていません。まず引数なしで実行してください。" else "Nothing collected yet — run it once with no arguments first."
     val cListHint = if (ja) "一覧: rss.sh list [件数]" else "List them with: rss.sh list [count]"
+    val cHitMax = if (ja) "1 回に出す個別通知の上限 (超えた分はまとめ通知へ回す)"
+    else "max number of per-article notifications in one run (the rest go to the summary)"
+    val cImportantTemplate = if (ja) listOf(
+        "# 見逃したくないフィード / 語を 1 行 1 本 (# で始まる行は無視)。",
+        "# URL の一部でも題名の一部でもよい。当たった記事は 1 本ずつ別の通知になる。",
+        "# 例:", "#example.org",
+    ) else listOf(
+        "# One feed or word per line that must not get buried (lines starting with # are ignored).",
+        "# Part of a URL or part of a title works. Each match gets its own notification.",
+        "# e.g.", "#example.org",
+    )
+    val cSplitDoc = if (ja) {
+        "# 見逃したくないものを切り分ける。まとめ通知は本文に 3 件しか載らないので、流量の多い\n" +
+            "# フィードが同時に更新されると重要な 1 本が押し出される。当たった記事は**通知を分ける**\n" +
+            "# (通知 ID はアプリ側で 1 件ずつ別に振られるので、分ければ上書きも省略もされない)。"
+    } else {
+        "# Split off what must not be missed. The summary body only carries 3 lines, so a busy feed\n" +
+            "# updating at the same time pushes the one that mattered out. Matches get **their own\n" +
+            "# notification** (the app hands out a separate id per notification, so nothing is replaced)."
+    }
+    val cNameDoc = if (ja) {
+        "# 通知の名前に URL を入れておく。ボタンを押すと notify_action の {name} でそのまま返るので、\n" +
+            "# どの通知の「開く」なのかを取り違えずに開ける (準備 4 のルール)。"
+    } else {
+        "# Put the URL in the notification's name: pressing the button hands it back as {name} in\n" +
+            "# notify_action, so the right article opens even with several notifications on screen (setup 4)."
+    }
     val cListDoc = if (ja) {
         "# 集めた記事を読みやすく並べて出す。色は使わない (ウィジェットやファイル表示と見え方を揃える)。\n" +
             "# 端末のときは OSC 8 で**題名そのものをリンク**にし、URL の行を並べない — 長い URL は\n" +
@@ -340,7 +384,11 @@ FEEDS="${d}DIR/feeds.txt"
 SEEN="${d}DIR/seen.txt"
 NEW="${d}DIR/new.txt"
 LATEST="${d}DIR/latest.txt"
+IMPORTANT="${d}DIR/important.txt"
+HITS="${d}DIR/.hits"
+REST="${d}DIR/.rest"
 KEEP=500                                  # $cKeep
+HITMAX=5                                  # $cHitMax
 
 $cListDoc
 if [ "${d}1" = list ]; then
@@ -368,6 +416,9 @@ if [ ! -f "${d}FEEDS" ]; then
   printf '%s\n' '$cFeedsHint' > "${d}FEEDS"
   echo "$cWriteFeeds ${d}FEEDS"
   exit 0
+fi
+if [ ! -f "${d}IMPORTANT" ]; then
+  printf '%s\n' ${cImportantTemplate.joinToString(" \\\n    ") { "'" + it + "'" }} > "${d}IMPORTANT"
 fi
 
 : > "${d}DIR/.raw"
@@ -411,7 +462,33 @@ $cPrepend
 { awk -F'\t' '{ print ${d}2 "  " ${d}1 }' "${d}NEW"; cat "${d}LATEST" 2>/dev/null; } \
   | head -n "${d}KEEP" > "${d}LATEST.t" && mv "${d}LATEST.t" "${d}LATEST"
 
-z2-notify -h -n rss -b "$cOpen" "${d}(printf '$cNotify' "${d}n")" "${d}(cut -f2 "${d}NEW" | head -3)"
+$cSplitDoc
+: > "${d}HITS"
+if grep -q '^[^#]' "${d}IMPORTANT" 2>/dev/null; then
+  grep -v '^[[:space:]]*#' "${d}IMPORTANT" | grep . > "${d}DIR/.pat"
+  [ -s "${d}DIR/.pat" ] && grep -F -f "${d}DIR/.pat" "${d}NEW" | head -n "${d}HITMAX" > "${d}HITS"
+  rm -f "${d}DIR/.pat"
+fi
+if [ -s "${d}HITS" ]; then
+  grep -Fxv -f "${d}HITS" "${d}NEW" > "${d}REST"
+else
+  cat "${d}NEW" > "${d}REST"
+fi
+
+$cNameDoc
+TAB=${d}(printf '\t')
+while IFS="${d}TAB" read -r u t; do
+  [ -n "${d}u" ] || continue
+  host=${d}{u#*://}; host=${d}{host%%/*}
+  z2-notify -h -n "rss:${d}u" -b "$cOpen" "${d}{t:-${d}u}" "${d}host"
+done < "${d}HITS"
+
+rn=${d}(grep -c . "${d}REST" 2>/dev/null)
+if [ "${d}{rn:-0}" -gt 0 ]; then
+  z2-notify -h -n "rss:${d}(head -1 "${d}REST" | cut -f1)" -b "$cOpen" \
+    "${d}(printf '$cNotify' "${d}rn")" "${d}(cut -f2 "${d}REST" | head -3)"
+fi
+rm -f "${d}HITS" "${d}REST"
 
 # 端末から直に走らせたときだけ一覧の出し方を案内する (自動実行のログを汚さない)。
 [ -t 1 ] && echo "$cListHint"

@@ -1093,7 +1093,8 @@ app**. Read them as a worked example of how the generic parts connect.
 | Polling | `z2-when time:every=30m run ~/.z2term/macros/rss.sh` |
 | Keeping only what is new | **Subtract** `seen.txt` (`grep -Fxv`). Feed dates and ordering are not trusted |
 | Telling you | `z2-notify -b Open` (a notification with a button) |
-| Handling the button | `z2-when event:notify_action run '[ "$Z2_WHEN_EVENT_NAME" = rss ] && z2-open "$(head -1 ~/.z2term/rss/new.txt \| cut -f1)"'` |
+| Not missing one | One word per line in `~/.z2term/rss/important.txt`; each match gets **its own notification** (0.8.334 — the summary body only carries 3 lines, so a busy feed pushes it out) |
+| Handling the button | `z2-when event:notify_action run 'case "$Z2_WHEN_EVENT_NAME" in rss:*) z2-open "${Z2_WHEN_EVENT_NAME#rss:}" ;; esac'` (the URL rides in the notification's name, so the article you pressed opens) |
 | Opening it | `z2-open <URL>` |
 | Browsing the list | A live-tail widget on `~/.z2term/rss/latest.txt` in **"start (head)"** mode |
 | Opening the next one | A status-widget button assigned to `rss-open` (it subtracts `opened.txt`, so nothing opens twice) |

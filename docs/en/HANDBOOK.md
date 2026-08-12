@@ -717,13 +717,25 @@ sh ~/.z2term/macros/rss.sh list 50    # pick a count
 
 One article per line, as `[ 1] Article title  (zenn.dev)`. **Tap the title to open the article** — the URL is not printed, because long URLs wrap and tangle with the titles until the list is unreadable. Piped or redirected, it falls back to plain text with the URLs shown.
 
-**3. Let the notification's button open the newest item** (optional)
+**3. Give the ones you must not miss their own notification** (optional, 0.8.334)
+
+Put one feed or word per line in `~/.z2term/rss/important.txt` (part of a URL or part of a title both work). Anything matching gets **a notification of its own**.
 
 ```sh
-z2-when event:notify_action run '[ "$Z2_WHEN_EVENT_NAME" = rss ] && z2-open "$(head -1 ~/.z2term/rss/new.txt | cut -f1)"'
+echo 'example.org' >> ~/.z2term/rss/important.txt
 ```
 
-**4. Read from a widget** (optional)
+The summary notification only carries 3 lines in its body, so a busy feed updating at the same time pushes the one that mattered out. Splitting it off keeps it visible. ⚠ At most **5 per run**, so a too-broad word cannot bury the shade under every article.
+
+**4. Let the notification's button open that very article** (optional)
+
+```sh
+z2-when event:notify_action run 'case "$Z2_WHEN_EVENT_NAME" in rss:*) z2-open "${Z2_WHEN_EVENT_NAME#rss:}" ;; esac'
+```
+
+The URL is in the notification's name, so the article you pressed is the one that opens — however many notifications are on screen.
+
+**5. Read from a widget** (optional)
 
 - Point a **live tail widget** at `~/.z2term/rss/latest.txt` in **"start (head)"** mode and the newest articles sit at the top
 - Assign `rss-open` to a button on the **status widget**, and each tap opens **the next article down the list** (it remembers what it opened, so nothing opens twice)

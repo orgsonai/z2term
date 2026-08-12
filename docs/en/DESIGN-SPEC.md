@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-13 / Target version: 0.8.333-alpha (versionCode 341)
+Last updated: 2026-08-13 / Target version: 0.8.334-alpha (versionCode 342)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -842,6 +842,21 @@ The footer now shows **the macro that finished last**, since start times moved o
 **Background**: the barrier to macros was never the syntax but **writing the first one from scratch**.
 
 **Implementation**: ten working samples (event basics / battery alert / time trigger / one-time-code copy from notifications / one-time-code copy from SMS / calls from numbers not in the contacts / reminders by notification / feed subscription / opening what was collected / handing something over as a QR code) are placed in the rootfs at `/usr/local/share/z2term/macros/` and copied into `~/.z2term/macros/` by `z2-macro install <name|all>`.
+
+**Folding the device-grown `rss.sh` back into the bundled sample (0.8.334)**: the state column added in
+0.8.332 marked the real `rss.sh` as "differs" — and **the copy on the device was the richer one** (an
+extension that had never been in the repository; `git log -S IMPORTANT` comes back empty). Pulling it into
+the bundled sample means a wiped device does not lose it.
+
+- **`important.txt` (feeds or words that must not get buried)**: the summary body only carries 3 lines, so a
+  busy feed updating at the same time pushes the one that mattered out. Matches now get a notification each
+  (the app hands out a separate id per notification, so nothing is replaced or dropped). ⚠ Capped at
+  `HITMAX` (5) so a too-broad word cannot bury the shade under every article.
+- **The URL goes in the notification's name (`-n "rss:<URL>"`)**: the button hands it back as `name` in
+  `notify_action`, so the article you pressed is the one that opens. Reading the top of `new.txt` could only
+  ever open the newest one, no matter which notification you pressed.
+- ⚠ Also the worked example for why "differs" **is not one-directional**. Had 0.8.332 shipped its first
+  label ("needs update"), `-f` would have deleted this extension — which is why the label is neutral now.
 
 **Exact when it can be (0.8.333, `ExactAlarm`)**: alarms were placed with `setAndAllowWhileIdle`
 (Doze-piercing but inexact), so **a phone left with the screen off fires several minutes to ~15 late**
