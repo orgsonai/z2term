@@ -3,7 +3,7 @@
 # app/src/main/jniLibs/<abi>/libz2root.so に PIE 実行ファイルとして配置する。
 #
 # 背景: FOSS フェーズ2 (99_private/HANDOFF/z2term/FOSS-PURE-HANDOFF.md §5)。proot/talloc を自前コードに
-# 置き換えて外部ライセンス表記をゼロ化する取り組みの土台。build-proot.sh と同じ
+# ソースから再現可能なz2rootエンジンを生成する。
 # 「jniLibs に lib*.so 名で実行バイナリを置く」方式に揃える (Android API29+ は
 # nativeLibraryDir からの execve のみ許可されるため、self-built でも同梱が必要)。
 #

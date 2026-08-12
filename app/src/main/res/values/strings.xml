@@ -102,7 +102,6 @@
 
     <!-- Hidden execution engine selector (unlocked by tapping the version 7x) -->
     <string name="settings_section_engine">Execution engine</string>
-    <string name="settings_engine_proot">PRoot (no root)</string>
     <string name="settings_engine_z2root">z2root (default, no root)</string>
     <string name="settings_engine_chroot">chroot (root)</string>
     <string name="settings_engine_desc">z2root is our own no-root ptrace engine. chroot runs natively as real root and needs a rooted device. New tabs use the selected engine.</string>
@@ -115,7 +114,7 @@
     <string name="tab_popup_engine_label">Engine</string>
     <string name="tab_popup_engine_gui">GUI (Linux)</string>
     <string name="settings_engine_unlock_ok">Engine selector unlocked. Pick the engine below.</string>
-    <string name="settings_engine_lock_ok">Engine selector hidden, reset to PRoot (default).</string>
+    <string name="settings_engine_lock_ok">Engine diagnostics hidden, reset to z2root.</string>
     <string name="settings_root_unlock_ok">Root unlocked — chroot is now available too.</string>
     <string name="settings_root_unlock_failed">Root was not granted. If no prompt appears, set Z2Term to "Grant" in your root manager (e.g. Magisk) and tap this button again (Magisk remembers a "Deny" and won\'t prompt again).</string>
     <string name="settings_root_chroot_blocked">Root works but the chroot test failed (possibly SELinux/rootfs): %1$s</string>
@@ -128,7 +127,7 @@
     </plurals>
 
     <!-- Banners shown during distro / GUI install (D2 batch) -->
-    <string name="banner_proot_missing">⚠️ PRoot binary not found — run scripts/build-proot.sh and rebuild. Falling back to Android sh.</string>
+    <string name="banner_z2root_missing">⚠️ z2root binary not found — run scripts/build-z2root.sh and rebuild. Falling back to Android sh.</string>
     <string name="banner_extracting_first">📦 Initial extraction of %1$s…</string>
     <string name="banner_extracting_update">📦 Updating %1$s…</string>
     <string name="banner_extraction_start">   extracting…</string>
@@ -285,23 +284,6 @@
 
     <!-- OSS component purposes (D3 batch 4) -->
     <string name="oss_purpose_z2term">This app itself (terminal UI, session/SSH/SFTP, settings)</string>
-    <string name="oss_purpose_proot">User-space chroot/ptrace runtime for running Linux distros</string>
-    <string name="oss_purpose_talloc">Memory management library dynamically linked by PRoot</string>
-    <string name="oss_purpose_alpine_base">Base system (alpine-base, baselayout, keys)</string>
-    <string name="oss_purpose_musl_libc">C standard library used by Alpine</string>
-    <string name="oss_purpose_busybox">Major UNIX tools for Alpine (sh/ls/cp/…)</string>
-    <string name="oss_purpose_bash">Interactive shell (from alpine-packages.txt)</string>
-    <string name="oss_purpose_zsh">Interactive shell</string>
-    <string name="oss_purpose_openssh">SSH client (sshd inside proot uses Dropbear)</string>
-    <string name="oss_purpose_dropbear">proot-compatible SSH server (started by z2term\'s sshd wrapper)</string>
-    <string name="oss_purpose_coreutils">GNU ls/cp/mv etc. (from alpine-packages.txt)</string>
-    <string name="oss_purpose_gnu_textutils">Text processing / file search</string>
-    <string name="oss_purpose_git">Version control</string>
-    <string name="oss_purpose_openssl">TLS / cryptography library</string>
-    <string name="oss_purpose_ncurses_readline">Terminal control / line editing (readline is also GPL-3.0)</string>
-    <string name="oss_purpose_vim">Text editor</string>
-    <string name="oss_purpose_tmux_screen">Terminal multiplexer</string>
-    <string name="oss_purpose_mosh">Roaming SSH alternative</string>
     <string name="oss_purpose_androidx_compose">UI / lifecycle / DataStore</string>
     <string name="oss_purpose_kotlin_stdlib">Kotlin runtime</string>
     <string name="oss_purpose_jsch">SSH client library</string>

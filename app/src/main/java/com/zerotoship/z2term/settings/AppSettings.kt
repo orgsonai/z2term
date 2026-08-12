@@ -121,7 +121,7 @@ class AppSettings(private val context: Context) {
         /**
          * 裏機能「エンジン選択」の解放フラグ。設定のバージョンを7回タップで true になる
          * (Android 開発者モードと同作法)。false の間はエンジン選択 UI を出さない。
-         * これ自体は root 不要 (非 root で proot⇄z2root を切替えるため)。chroot を選べるかは
+         * これ自体は root 不要。chroot を選べるかは
          * 別途 [rootChrootUnlocked] (root セルフテスト成功) が要る。
          */
         val engineSelectorUnlocked: Boolean = false,
@@ -131,10 +131,8 @@ class AppSettings(private val context: Context) {
          */
         val rootChrootUnlocked: Boolean = false,
         /**
-         * 端末セッションの実行エンジン。"z2root"(既定・非root・自前 ptrace) / "proot"(非root・PRoot) /
-         * "chroot"(root)。chroot は [rootChrootUnlocked] が true のときだけ有効 (それ以外は既定扱い)。
-         * 既定は 0.8.123 で proot から z2root へ変更 (full 側でも z2root を常用するため。
-         * foss は元々 proot 同梱なしで常に z2root 実走)。エンジン選択は 7 タップ解放後に切替可能。
+         * 端末セッションの実行エンジン。"z2root"(非root・自前 ptrace) / "chroot"(root)。
+         * chroot は [rootChrootUnlocked] が true のときだけ有効。それ以外は常に z2root。
          */
         val executionEngine: String = ENGINE_Z2ROOT,
         /**
@@ -578,7 +576,7 @@ class AppSettings(private val context: Context) {
         val normalized = when (value) {
             ENGINE_CHROOT -> ENGINE_CHROOT
             ENGINE_Z2ROOT -> ENGINE_Z2ROOT
-            else -> ENGINE_PROOT
+            else -> ENGINE_Z2ROOT
         }
         context.dataStore.edit { it[KEY_ENGINE] = normalized }
     }
@@ -746,13 +744,11 @@ class AppSettings(private val context: Context) {
         /** 補助キーバーは既定 ON (従来どおり OS キーボードの上に表示)。 */
         const val DEFAULT_SPECIAL_KEY_BAR = true
 
-        /** 実行エンジン: 非 root の PRoot (full のみ選択可・foss は非同梱) */
-        const val ENGINE_PROOT = "proot"
         /** 実行エンジン: 非 root の自前 ptrace エンジン z2root (既定エンジン。foss/full 共通で常用) */
         const val ENGINE_Z2ROOT = "z2root"
         /** 実行エンジン: root で実 chroot (裏機能・要解放) */
         const val ENGINE_CHROOT = "chroot"
-        /** 実行エンジン: proot/z2root 起動失敗時の Android /system/bin/sh フォールバック (選択不可・表示専用)。 */
+        /** 実行エンジン: z2root 起動失敗時の Android /system/bin/sh フォールバック (選択不可・表示専用)。 */
         const val ENGINE_ANDROID_SH = "android-sh"
         /** ダウンロード前確認は既定 ON (勝手に通信しない方針)。 */
         const val DEFAULT_CONFIRM_DOWNLOAD = true

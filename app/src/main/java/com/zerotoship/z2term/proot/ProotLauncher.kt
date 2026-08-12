@@ -88,15 +88,8 @@ class ProotLauncher(private val context: Context) {
         }
     }
 
-    /** proot バイナリのパス */
-    private val prootBinary: File
-        get() = File(context.applicationInfo.nativeLibraryDir, "libproot.so")
-
     /**
-     * z2root バイナリのパス (自前 ptrace エンジン)。proot 互換 argv subset を受けるので
-     * [launch] の引数・env はそのまま流用できる (PROOT_* / libtalloc は z2root が無視する)。
-     * APK に未同梱 (build-z2root.sh でビルドした .so を jniLibs に置いていない) の場合は
-     * 存在チェックで proot へフォールバックする。
+     * z2root バイナリのパス (自前 ptrace エンジン)。APK に未同梱なら明確に停止する。
      */
     private val z2rootBinary: File
         get() = File(context.applicationInfo.nativeLibraryDir, "libz2root.so")
@@ -114,44 +107,6 @@ class ProotLauncher(private val context: Context) {
 
     /** z2root エンジンで accept シムを LD_PRELOAD する guest パス。 */
     private val z2acceptShimGuestPath = "/usr/local/lib/libz2accept.so"
-
-    /**
-     * proot が動的リンクする libtalloc を、SONAME 通り `libtalloc.so.2` で
-     * 配置するディレクトリ。jniLibs は `lib<name>.so` 規約しか扱えないため、
-     * 実行時にコピーして提供する。`LD_LIBRARY_PATH` でこのパスを通す。
-     */
-    private val prootLibsDir: File
-        get() = File(context.filesDir, "proot-libs")
-
-    /** jniLibs の libtalloc.so を SONAME 名 (libtalloc.so.2) で展開 */
-    private fun ensureProotLibs() {
-        // libtalloc は SONAME が libtalloc.so.2 だが jniLibs に置けるのは lib*.so 形式のみ
-        // なので、jniLibs の libtalloc.so → proot-libs/libtalloc.so.2 にリネーム展開する。
-        provisionProotLib(srcName = "libtalloc.so", sonameFile = "libtalloc.so.2")
-        // libandroid-shmem は SONAME が無印 (libandroid-shmem.so) なのでリネーム不要。
-        // 新しい Termux proot がこれにリンクするようになったため (不在だと
-        // `library "libandroid-shmem.so" not found` で proot が即落ちする) 同様に展開する。
-        provisionProotLib(srcName = "libandroid-shmem.so", sonameFile = "libandroid-shmem.so")
-    }
-
-    /** nativeLibraryDir の [srcName] を proot-libs/[sonameFile] へ (必要時のみ) コピーする。 */
-    private fun provisionProotLib(srcName: String, sonameFile: String) {
-        val src = File(context.applicationInfo.nativeLibraryDir, srcName)
-        if (!src.exists()) {
-            Log.w(TAG, "$srcName not in nativeLibraryDir — proot may fail to link")
-            return
-        }
-        prootLibsDir.mkdirs()
-        val dst = File(prootLibsDir, sonameFile)
-        val needsCopy = !dst.exists() || dst.length() != src.length() ||
-            dst.lastModified() < src.lastModified()
-        if (needsCopy) {
-            src.copyTo(dst, overwrite = true)
-            dst.setReadable(true, false)
-            dst.setExecutable(true, false)
-            Log.i(TAG, "Provisioned $sonameFile at ${dst.absolutePath}")
-        }
-    }
 
     /**
      * accept→accept4 シム (libz2accept.so) を rootfs 内 [z2acceptShimGuestPath] へ配置する。
@@ -175,9 +130,8 @@ class ProotLauncher(private val context: Context) {
         }
     }
 
-    /** z2root エンジン専用 env: accept→accept4 シムを LD_PRELOAD する。proot/chroot では空。 */
-    private fun z2rootEnv(useZ2root: Boolean): List<String> {
-        if (!useZ2root) return emptyList()
+    /** z2root エンジン専用 env: accept→accept4 シムを LD_PRELOAD する。 */
+    private fun z2rootEnv(): List<String> {
         val out = mutableListOf<String>()
         if (z2acceptShim.exists()) out.add("LD_PRELOAD=$z2acceptShimGuestPath")
         // [DEBUG] 設定「トレースログ」(エンジン選択と同じ 7タップ裏機能内) が ON のときだけ
@@ -244,8 +198,7 @@ class ProotLauncher(private val context: Context) {
          * そのため `sshd --lan` のようにデーモンを起こすコマンドは、起動に成功した直後に
          * 道連れで消える。単発実行 ([com.zerotoship.z2term.service.HeadlessRun]) だけ true にする。
          *
-         * ⚠ proot エンジンには渡さない (未知オプションで起動に失敗するため)。proot を選んで
-         * いる場合はこの問題は残る — z2root が本線という前提。
+         * z2root 専用オプション。
          */
         waitTracees: Boolean = false
     ): PtyProcess {
@@ -253,13 +206,7 @@ class ProotLauncher(private val context: Context) {
         if (!rootfs.exists()) {
             throw IllegalStateException("Rootfs not found: ${rootfs.absolutePath}")
         }
-        // エンジン選択: 裏設定で z2root が選ばれ、かつ libz2root.so が同梱されていれば z2root を使う。
-        // foss は proot prebuilt を同梱しない (F-Droid 適合) ため、z2root が同梱されていれば
-        // 設定に関わらず z2root を既定エンジンとする (z2root は full/foss 共通で常に同梱)。
-        // full のみ: z2root 未同梱 (build-z2root.sh 未実行) なら proot へフォールバックする。
-        // foss には倒す先の proot が無いため、z2root 欠落時は下の exists チェックで明確に停止する。
-        val useZ2root = (BuildConfig.IS_FOSS || isZ2rootEngineSelected()) && z2rootBinary.exists()
-        val engineBinary = if (useZ2root) z2rootBinary else prootBinary
+        val engineBinary = z2rootBinary
         if (!engineBinary.exists()) {
             throw IllegalStateException("Engine binary not found: ${engineBinary.absolutePath}")
         }
@@ -278,11 +225,9 @@ class ProotLauncher(private val context: Context) {
         val shellForEnv =
             resolveLoginShell(rootfs, resolvedCommand, userLoginShell.ifBlank { fallbackShell })
 
-        // 共有ホーム作成 + libtalloc 配置 (talloc/loader は proot 専用。z2root では不要なので省く)
+        // 共有ホーム作成。
         sharedHomeDir.mkdirs()
-        if (!useZ2root) ensureProotLibs()
-        // z2root のときは accept→accept4 シムを rootfs に配置し、後で LD_PRELOAD する。
-        if (useZ2root) ensureAcceptShim(rootfs)
+        ensureAcceptShim(rootfs)
         // 設定のログインシェルを /etc/passwd(root) にも書き、SSH ログインにも効かせる。
         ensureRootLoginShell(rootfs, userLoginShell)
         // 再起動後もコマンド履歴を辿れるよう、shell rc に履歴設定を流し込む。
@@ -301,7 +246,7 @@ class ProotLauncher(private val context: Context) {
         // 自動起動 + z2term に「OPEN N」を通知 → 該当 GUI タブが自動的に開く / 前面化する。
         ensureZ2RunScript(rootfs)
         // `z2version` で端末からアプリ本体の版数を確認できるようにする (版数不一致の切り分け用)。
-        ensureVersionScript(rootfs, if (useZ2root) "z2root" else "proot")
+        ensureVersionScript(rootfs, "z2root")
         // 旧「GUI 自動連動」(preexec フック) の後始末。廃止したので既存 rootfs から取り除く。
         removeAutoGuiHook(rootfs)
         // Android API ブリッジのヘルパー (`z2-notify` 等) を配置 (Termux:API 相当)。
@@ -366,13 +311,11 @@ class ProotLauncher(private val context: Context) {
             File(rootfs, "apex").mkdirs()
         }
 
-        // PRoot 引数の組み立て
+        // z2root 引数の組み立て
         val args = mutableListOf<String>().apply {
-            add("proot")                                  // argv[0]
+            add("z2root")                                 // argv[0]
             add("--kill-on-exit")
-            // z2root 専用。背景に残ったデーモンを道連れにしないため (KDoc 参照)。
-            // proot には渡さない — 未知オプションで起動に失敗する。
-            if (useZ2root && waitTracees) add("--wait-tracees")
+            if (waitTracees) add("--wait-tracees")
             add("-0")                                     // fake root
             // ハードリンクを symlink でエミュレート。Android のアプリ内ストレージは
             // link() を拒否する (EACCES) ため、これが無いと dpkg が status-old の
@@ -462,21 +405,15 @@ class ProotLauncher(private val context: Context) {
             // ブラウザ等) が実機の pvr 等ハードドライバを掴もうとして "failed to load driver" で
             // 映像が出ない/化ける。Mesa を強制的にソフトウェア (llvmpipe/swrast) に倒して回避する。
             "LIBGL_ALWAYS_SOFTWARE=1",
-            // proot は libtalloc.so.2 にリンクされている (Termux RUNPATH 由来)。
-            // ensureProotLibs() で展開した SONAME 通りのファイルパスを LD_LIBRARY_PATH に追加。
-            "LD_LIBRARY_PATH=${prootLibsDir.absolutePath}",
             // AF_UNIX ソケットのパス翻訳の判断を残す先 (z2root が追記・アプリが次の起動で
             // logcat へ出して消す)。翻訳が黙って諦めると ENOENT になるだけで外からは
             // 「なぜか動かない」としか見えないため、判断そのものを残す。
             "Z2ROOT_SOCKLOG=${File(sharedHomeDir, ".z2term/socktrace.log").absolutePath}",
-            // PRoot 自身の動作用
-            "PROOT_TMP_DIR=${context.cacheDir.absolutePath}",
-            "PROOT_LOADER=${File(context.applicationInfo.nativeLibraryDir, "libproot_loader.so").absolutePath}"
+            "Z2ROOT_ENGINE=1"
         ) + listOfNotNull(xdgRuntimeDir?.let { "XDG_RUNTIME_DIR=$it" })
-            + displayEnv + z2rootEnv(useZ2root)).toTypedArray()
+            + displayEnv + z2rootEnv()).toTypedArray()
 
-        val engineName = if (useZ2root) "z2root" else "PRoot"
-        Log.i(TAG, "Launching $engineName: distro=$distroId, command=$resolvedCommand (requested=$command)")
+        Log.i(TAG, "Launching z2root: distro=$distroId, command=$resolvedCommand (requested=$command)")
         Log.d(TAG, "Args: ${args.joinToString(" ")}")
 
         return PtyProcess.create(
@@ -494,7 +431,7 @@ class ProotLauncher(private val context: Context) {
      *
      * rootfs・スクリプト注入 (履歴/OSC7/sshd/gui/z2run/z2-api) は PRoot 経路と共通で流用し、
      * proot バイナリの代わりに `su -c` でブートストラップ (bind mount → chroot → login shell) を起動する。
-     * libtalloc/proot loader は不要。未 root (su 解決不可) なら例外を投げる (呼び出し側で proot へフォールバック)。
+     * 未root（su解決不可）なら例外を投げ、呼び出し側はz2rootへ戻す。
      */
     fun launchChroot(
         distroId: String = "alpine",
@@ -853,14 +790,6 @@ class ProotLauncher(private val context: Context) {
      */
     private fun isAndroidHostBindEnabled(): Boolean = runCatching {
         runBlocking { AppSettings(context).flow.first().androidHostBindEnabled }
-    }.getOrDefault(false)
-
-    /**
-     * 設定「実行エンジン」が z2root を指しているかを同期的に読む ([isExternalStorageEnabled] と同方式)。
-     * 失敗時は false に倒して proot 既定へ。chroot は別経路 ([launchChroot]) なのでここでは扱わない。
-     */
-    private fun isZ2rootEngineSelected(): Boolean = runCatching {
-        runBlocking { AppSettings(context).flow.first().executionEngine == AppSettings.ENGINE_Z2ROOT }
     }.getOrDefault(false)
 
     /**
@@ -1484,19 +1413,14 @@ class ProotLauncher(private val context: Context) {
      * foss は proot を同梱しないため z2root の有無で判定する。full は proot を見る
      * (full でも z2root は別経路で使えるが、同梱保証されるのは proot 側)。
      */
-    fun isProotAvailable(): Boolean =
-        if (BuildConfig.IS_FOSS) z2rootBinary.exists() else prootBinary.exists()
+    fun isEngineAvailable(): Boolean = z2rootBinary.exists()
 
     /**
-     * [launch] が**実際に**使うエンジン名を返す ([AppSettings.ENGINE_PROOT] か [ENGINE_Z2ROOT])。
-     * 設定値そのものではなく、`isZ2rootEngineSelected() && z2rootBinary.exists()` の
-     * 実起動判定を反映する (設定で z2root でも `libz2root.so` 未同梱なら proot に倒れる)。
+     * [launch] が実際に使うエンジン名を返す。非 root 経路は常に z2root。
      * chroot は別経路 ([launchChroot]) なのでここでは扱わない (呼び出し側が判定する)。
      * 設定画面で「いま本当に動いているエンジン」を信頼できる形で出すために使う。
      */
-    fun resolveLaunchEngine(): String =
-        if ((BuildConfig.IS_FOSS || isZ2rootEngineSelected()) && z2rootBinary.exists()) AppSettings.ENGINE_Z2ROOT
-        else AppSettings.ENGINE_PROOT
+    fun resolveLaunchEngine(): String = AppSettings.ENGINE_Z2ROOT
 
     companion object {
         private const val TAG = "ProotLauncher"

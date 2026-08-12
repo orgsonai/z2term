@@ -11,9 +11,7 @@ UTF-8 で読み出して表示します。
 
 | ファイル名 | 取得元 |
 |---|---|
-| `GPL-2.0.txt` | https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt |
 | `GPL-3.0.txt` | https://www.gnu.org/licenses/gpl-3.0.txt |
-| `LGPL-3.0.txt` | https://www.gnu.org/licenses/lgpl-3.0.txt |
 | `Apache-2.0.txt` | https://www.apache.org/licenses/LICENSE-2.0.txt |
 | `MIT.txt` | https://spdx.org/licenses/MIT.txt |
 | `BSD-2-Clause.txt` | https://spdx.org/licenses/BSD-2-Clause.txt |
@@ -28,9 +26,7 @@ UTF-8 で読み出して表示します。
 ```sh
 cd app/src/main/assets/licenses
 for spec in \
-  "GPL-2.0       https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt" \
   "GPL-3.0       https://www.gnu.org/licenses/gpl-3.0.txt" \
-  "LGPL-3.0      https://www.gnu.org/licenses/lgpl-3.0.txt" \
   "Apache-2.0    https://www.apache.org/licenses/LICENSE-2.0.txt" \
   "MIT           https://spdx.org/licenses/MIT.txt" \
   "BSD-2-Clause  https://spdx.org/licenses/BSD-2-Clause.txt" \

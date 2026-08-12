@@ -55,23 +55,13 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', 'gradle/libs.versions.toml') }}
           restore-keys: gradle-${{ runner.os }}-
 
-      # full フレーバーは git 管理外の同梱物(フォント/PRoot/Alpine rootfs)を APK に同梱する。
-      # これらは生成スクリプトの成果物で .gitignore 対象のため fresh checkout の CI には存在せず、
-      # build.gradle.kts の verifyBundledFonts / verifyFullBundledArtifacts 検査でビルドが止まる。
-      # full のビルド(lint 含む)より前に生成しておく。z2root の .so は buildZ2rootNative が
-      # runner プリインストール NDK(ANDROID_NDK_ROOT)で自動生成するためここでは不要。
-      - name: Install host tools for bundled-asset generation
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fakeroot unzip xz-utils
-
-      - name: Generate bundled assets (fonts / PRoot / Alpine rootfs)
+      - name: Generate bundled fonts
         # フォント取得は api.github.com を叩く。未認証だと IP 単位 60 req/h でランナー間で
         # 食い合うため、組み込みトークンを渡してレート上限を上げる。
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           bash scripts/fetch-fonts.sh
-          bash scripts/build-proot.sh
-          bash scripts/build-alpine-rootfs.sh
 
       - name: Lint
         run: ./gradlew lintFullDebug --stacktrace
@@ -103,8 +93,7 @@ jobs:
 
   # tag (v*) を push すると、署名済み release APK を foss / full 両方ビルドして
   # GitHub Release に添付する。認証は Actions 組み込みの GITHUB_TOKEN (PAT 不要)。
-  # full は同梱物 (フォント/PRoot/Alpine rootfs) の生成が要るぶん時間がかかるが、
-  # 186MB 級の APK を手元の回線から上げるのは現実的でないため CI で出す。
+  # full/fossはapplicationId以外を共通化し、同じ手順でCIから出す。
   release:
     name: Publish release APKs to GitHub
     runs-on: ubuntu-latest
@@ -155,18 +144,11 @@ jobs:
       - name: Grant gradlew exec permission
         run: chmod +x ./gradlew
 
-      - name: Install host tools for bundled-asset generation
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fakeroot unzip xz-utils
-
-      # foss は fonts だけでよいが、full は PRoot と Alpine rootfs も要る。
-      # いずれも .gitignore 対象の生成物なので fresh checkout では作り直す。
-      - name: Generate bundled assets (fonts / PRoot / Alpine rootfs)
+      - name: Generate bundled fonts
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           bash scripts/fetch-fonts.sh
-          bash scripts/build-proot.sh
-          bash scripts/build-alpine-rootfs.sh
 
       # フレーバーは 1 回の gradle 実行にまとめず直列で回す。
       - name: Build FOSS release APK
@@ -183,13 +165,13 @@ jobs:
           FOSS=app/build/outputs/apk/foss/release/app-foss-release.apk
           FULL=app/build/outputs/apk/full/release/app-full-release.apk
           TAG="${{ inputs.tag || github.ref_name }}"
-          # foss は「prebuilt 非同梱」が存在意義なので、rootfs が紛れ込んでいないか確かめる。
-          # 生成物の置き場を 1 つ間違えるだけ (src/main/assets は全 flavor に寄与する) で
-          # 20MB 級のはずの foss が 190MB 級になり、気付かず公開してしまう。
-          if unzip -l "$FOSS" | grep -q 'assets/alpine-minirootfs'; then
-            echo "::error::$FOSS bundles the Alpine rootfs — the foss flavor must not ship prebuilts."
-            exit 1
-          fi
+          # 両 flavor とも rootfs / third-party native prebuilt を同梱しない。
+          for apk in "$FOSS" "$FULL"; do
+            if unzip -l "$apk" | grep -Eq 'assets/alpine-minirootfs|lib(proot|talloc|android-shmem)'; then
+              echo "::error::$apk contains a removed bundled artifact."
+              exit 1
+            fi
+          done
           # 署名が release 鍵であること (= debug 署名で公開していないこと) を出荷前に確かめる。
           # 鍵の有無は Decode keystore で既に落としているので、これは最終確認。
           APKSIGNER="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" -name apksigner 2>/dev/null | sort -V | tail -1)"

@@ -36,7 +36,7 @@ Termux が正解です。Z2Term は別の問いから作られています —
 
 | | Z2Term | Termux + アドオン群 |
 |---|---|---|
-| Linux ディストロ | `full` APK に Alpine 同梱で初回から使える。Ubuntu / Arch / Kali も導入可 | `proot-distro` パッケージで導入 |
+| Linux ディストロ | z2root で Alpine / Ubuntu / Arch / Kali を導入可 | `proot-distro` パッケージで導入 |
 | Linux GUI | **アプリ内に GUI タブ**（Xvnc + 内蔵 RFB クライアント）。音声・動画つき | 別途 X11 / VNC ビューアアプリ |
 | シェルから Android を操作 | **内蔵**（約 20 個の `z2-*`） | 別アプリ（コンパニオン）が必要 |
 | イベント駆動の自動化 | **内蔵**（`z2-when`: 充電・電池残量・時刻/cron・Wi-Fi・回線・起動・共有・SMS・センサー・通知・ファイル追加）。自動化タブ・実行ログ・一括停止つき | 別アプリ + 多くは市販の自動化アプリと併用 |
@@ -57,13 +57,11 @@ Z2Term の存在理由は上の表の**2・3・4 行目**です。
 
 | ファイル | 中身 | 選び方 |
 |---|---|---|
-| `app-foss-release.apk` | prebuilt 非同梱（約 21MB） | **こちらがおすすめ。** 容量が約 9 分の 1 で、更新のたびのダウンロードも約 21MB で済む（従量制や回線が遅い環境で効く）。外部 prebuilt を一切同梱しない（ライセンス表記も少ない）。OS は同梱しないので、**初回は ⚙設定 › Linux環境 から使いたい OS を選んで入れる**（0.8.314。Alpine なら公式 CDN から取得し SHA-256 で検証。更新時に再ダウンロードはしない）。 |
-| `app-full-release.apk` | PRoot と Alpine rootfs を同梱（約 190MB） | **初回からオフラインで使いたいとき。** ディストロが中に入っているので初回起動時のダウンロードが不要。そのぶん本体も更新も毎回約 190MB になる。 |
+| `app-foss-release.apk` | z2root 単独版 | **おすすめ。** 初回は ⚙設定 › Linux環境 から使いたい OS を選んで取得します。 |
+| `app-full-release.apk` | foss と同じ payload | 既存の full 利用者が同じ package ID のまま更新するために残しています。 |
 
-どちらも同じアプリで、機能に差はありません。違いは **OS を初回に 1 回だけダウンロードするかどうか**
-だけなので、初回にネットにつながる環境なら `foss` で困ることはありません（`foss` は**どの OS から始めるかを選べる**ぶん、
-最初に 1 タップだけ増えます）。**自動更新（下記）にしても、
-毎回 APK 全体をダウンロードします**（Google Play 以外に差分更新は無い）ので、容量差は更新のたびに効きます。
+0.8.328 以降は両方ともコード・native library・assets・機能が同じです。違いは package ID と版名の
+`-foss` 接尾辞だけです。OS はどちらも初回に公式配布元から取得します。
 
 Android 端末で APK をタップ → 「提供元不明のアプリ」のインストールを許可するとインストールできます。
 （Google Play では配布していません）
@@ -82,13 +80,13 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.327-alpha (versionCode 335).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.328-alpha (versionCode 336).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 
 - **ターミナルエミュレータ** — VT100 / xterm、256色・トゥルーカラー、9 テーマ、検索付きスクロールバック、UTF-8 と East Asian Width、代替スクリーン、OSC 4 / 7 / 8 / 10 / 11 / 12 / 52。
 - **root 不要の Linux ディストロ** — ユーザ空間エンジン（既定は z2root。下の「実行エンジン」参照）で Alpine / Ubuntu / Arch / Kali を動かし、`apk` / `apt` / `pacman` で何でも導入。
-- **実行エンジン** — z2root（既定・root 不要の ptrace ベースエンジン）、PRoot、chroot（root 端末向け）。バージョンを 7 回タップするとエンジン選択がアンロックされる。
+- **実行エンジン** — 非 root は z2root に完全移行。root 端末では裏機能の chroot も選択可能。
 - **マルチタブ** — CUI / GUI タブ、ドラッグで並べ替え、タブ長押しで実行エンジンを確認。**見ていないタブで何か動いていれば小さな点**、**見ていない間に終わっていれば ✓** が付く。
 - **Linux GUI** — Xvnc + openbox と内蔵 RFB クライアント。`z2gui` でデスクトップを起動し、`z2run <アプリ>` で GUI アプリを起動（GUI タブも自動で開く）。音声・動画つき。
 - **SSH / SFTP** — 公開鍵認証（**アプリ内で ed25519 鍵を作れて、公開鍵はその場でコピー/共有/この端末の sshd に登録**。秘匿フィールドは Android Keystore で暗号化）、known_hosts 確認、ファイル転送、**両方向のポート転送 (`-L` / `-R`) と、SSH タブを閉じても生き続ける常駐トンネル**、既定で localhost のみ bind する内蔵 `sshd`（dropbear）。
@@ -114,7 +112,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 - mosh プロトコル対応 (UDP ベース)
 - リバース DNS / IPv6 接続のリトライ強化
-- proot 自前実装でネイティブ外部表記を完全に無くす (FOSS-PURE フェーズ2)
+- z2root自前実装に完全移行し、第三者native prebuiltを同梱しない
 - IME 学習履歴のエクスポート / バックアップ（リセット UI は実装済み）
 
 ## ビルド要件
@@ -142,17 +140,12 @@ clone や clean の直後には存在しないので、マスタースクリプ�
 bash scripts/build-bundle.sh
 ```
 
-4 つの生成スクリプトを順に実行し、最後に欠落がないか点検します。
+2 つの生成スクリプトを順に実行し、最後に欠落がないか点検します。
 
-1. `build-proot.sh` → `libproot.so` / `libproot_loader.so` / `libtalloc.so` / `libandroid-shmem.so`
-2. `build-z2root.sh` → `libz2root.so` / `libz2accept.so`（NDK が必要。`local.properties` の `sdk.dir` + `ndk.version` から自動解決）
-3. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` の `-Regular.ttf`
-4. `build-alpine-rootfs.sh` → `app/src/full/assets/alpine-minirootfs-aarch64.tgz`（`full` フレーバーのみ。`foss` は実行時に DL）
+1. `build-z2root.sh` → `libz2root.so` / `libz2accept.so`（NDK が必要）
+2. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` の `-Regular.ttf`
 
-最後の点検で同梱物ごとに `OK` / `MISS` を表示し、欠落があれば非ゼロ終了します。おすすめの `foss`
-フレーバーだけをビルドするなら rootfs は不要なので `SKIP_ROOTFS=1 bash scripts/build-bundle.sh` で
-足ります。`fakeroot` が無くて rootfs を構築できない環境でも同様に他を揃え、rootfs の `.tgz` は
-構築できる環境から持ち込みます。
+最後の点検で共通同梱物の `OK` / `MISS` を表示します。rootfsは両フレーバーとも実行時取得です。
 
 同梱物ごとの詳細: [app/src/main/assets/README.md](app/src/main/assets/README.md) · [app/src/main/jniLibs/README.md](app/src/main/jniLibs/README.md)
 
@@ -162,7 +155,6 @@ bash scripts/build-bundle.sh
 ./gradlew assembleFossRelease
 # 出力: app/build/outputs/apk/foss/release/app-foss-release.apk
 
-# rootfs 同梱版（初回オフライン起動・約 190MB）が要るとき:
 ./gradlew assembleFullRelease
 # 出力: app/build/outputs/apk/full/release/app-full-release.apk
 ```
@@ -193,7 +185,7 @@ z2term/
 │       │   ├── channel/             ← ProcessChannel / SshChannel (M5)
 │       │   ├── core/                ← TerminalSession + SessionManager
 │       │   ├── pty/                 ← PTY 抽象化
-│       │   ├── proot/               ← PRoot 起動
+│       │   ├── proot/               ← Linux起動（legacy package名）
 │       │   ├── distro/              ← rootfs 展開 (Alpine + Ubuntu)
 │       │   ├── emulator/            ← VT100/xterm エミュレータコア
 │       │   ├── settings/            ← DataStore 永続化
@@ -205,7 +197,7 @@ z2term/
 │       │       ├── settings/        ← 設定 UI
 │       │       ├── ssh/             ← SSH プロファイル UI (M5)
 │       │       └── terminal/        ← ターミナル UI + Renderer + キーマッパー
-│       ├── jniLibs/                 ← proot バイナリを配置
+│       ├── jniLibs/                 ← z2root生成物
 │       └── res/                     ← リソース
 ├── build.gradle.kts
 ├── settings.gradle.kts
@@ -230,8 +222,8 @@ z2term/
 
 | Flavor | 用途 | 同梱内容 |
 |---|---|---|
-| `foss` | **配布の既定（おすすめ）**・ライセンス表記の最小化 | **Alpine rootfs を除外** → 起動時に `DistroDownloader` で DL (SHA-256 検証)。proot/talloc は同梱継続 (W^X で `nativeLibraryDir` からの execve が必須) のため GPL-2.0/LGPL-3.0 表記は残る。初回オフライン起動は不可 |
-| `full` | 初回オフライン起動が要るとき | assets と prebuilt バイナリを含む (各自配置が必要)。初回オフライン起動可 |
+| `foss` | **配布の既定（おすすめ）** | z2root。rootfs は初回取得 |
+| `full` | 既存 full 利用者の更新互換 | foss と同じ payload。rootfs は初回取得 |
 
 `applicationId` は `foss` だけ `.foss` が付く（`com.zerotoship.z2term.foss`）ので、両方を同時に入れられます。
 ⚠ **ランチャーの表示名はどちらも「Z2Term」**です（0.8.315。名前に配布形態を出さない方針）。両方入れたときは
@@ -239,22 +231,14 @@ z2term/
 debug ビルドだけは別名（`Z2Term dbg2`）のままです。
 
 ```bash
-./gradlew assembleFossDebug   # 通常開発 (rootfs 除外・起動時 DL)
-./gradlew assembleFullDebug   # rootfs 同梱フレーバー (初回オフライン起動可)
+./gradlew assembleFossDebug
+./gradlew assembleFullDebug   # applicationId以外は同じpayload
 ```
 
 ## 動作確認の流れ
 
-1. proot バイナリも Alpine rootfs もない状態でビルド・インストール
-   → Android `/system/bin/sh` フォールバックで動作するはず
-   → `ls /system/bin` などを試して動作確認
-
-2. Alpine rootfs を assets に配置してビルド・インストール
-   → 「PRoot バイナリが見つかりません」警告でフォールバックするはず
-
-3. proot バイナリも jniLibs に配置してビルド・インストール
-   → Alpine Linux が起動するはず
-   → `apk update && apk add zsh` を試す
+1. どちらかのフレーバーをビルド・インストールし、OSを選んで初回取得を完了する。
+2. `z2version` が `engine : z2root` を示すことと、各パッケージマネージャーの動作を確認する。
 
 ### z2root コマンド群テスト（`scripts/z2root-cmdtest.sh`）
 
@@ -283,8 +267,7 @@ canonicalize ⑧ディスク/FS（dd・mkfs・parted をファイル相手に。
 `RUN_PRIV`）⑨IPC/特殊 syscall（AF_UNIX・FIFO・flock・inotify・xattr・
 copy_file_range・nested ptrace(strace/gdb)・Go 生 syscall・sqlite3・rsync）
 ⑩名前解決/TLS（getent・curl TLS・nslookup）。出力は画面と
-`/tmp/z2root-cmdtest-<時刻>.log`、末尾に非ゼロ終了一覧。proot タブで同じものを
-流せば対照ログが取れる。
+`/tmp/z2root-cmdtest-<時刻>.log`、末尾に非ゼロ終了一覧。
 
 注: `io_uring`（ptrace/seccomp を丸ごとバイパス）や `statx`/`openat2` のフック漏れ
 はコマンドテストでは捕まらない＝seccomp フィルタ側で確認すること。
@@ -293,48 +276,24 @@ copy_file_range・nested ptrace(strace/gdb)・Go 生 syscall・sqlite3・rsync�
 
 本アプリ本体 (`app/src/main/java/com/zerotoship/z2term/**`) のライセンスは **GPL-3.0** です。
 Copyright (c) 2026 Zero to Ship。対応ソース（GPL v3 §6）: <https://github.com/orgsonai/z2term>（ルートの `LICENSE` に全文）。
-同梱バイナリ・rootfs・フォント等のライセンスは下記「同梱 OSS と対応ソース」を参照。
+同梱する第三者コンポーネントは設定画面の「OSSライセンス」で確認できます。
 
 ## 同梱 OSS と対応ソース（GPL/LGPL 頒布要件）
 
-`full` フレーバーの APK には以下の prebuilt が含まれます。各成果物の**対応ソース**は
-下記 URL から取得可能（GPL v2 §3 / GPL v3 §6 / LGPL v3 §4 への対応）。
-
 | 同梱物 | ライセンス | 対応ソース取得方法 |
 |---|---|---|
-| `libproot.so` / `libproot_loader.so` | GPL-2.0 | [termux/proot](https://github.com/termux/proot) / `scripts/build-proot.sh` が DL する Termux パッケージのバージョン参照 |
-| `libtalloc.so` | LGPL-3.0 | [Samba talloc](https://gitlab.com/samba-team/samba/-/tree/master/lib/talloc) / 同上 |
-| `libandroid-shmem.so` | MIT | [termux/libandroid-shmem](https://github.com/termux/libandroid-shmem) / `scripts/build-proot.sh` が DL する Termux パッケージ（proot が SysV 共有メモリのためにリンクする） |
-| `alpine-minirootfs-*.tgz` 内の各パッケージ | 個別 (GPL-2.0 / GPL-3.0 / MIT / BSD 他) | [Alpine aports](https://gitlab.alpinelinux.org/alpine/aports) — `scripts/alpine-packages.txt` の各パッケージ名で参照 |
 | Fira Code / IBM Plex Mono / JetBrains Mono | OFL-1.1 | [tonsky/FiraCode](https://github.com/tonsky/FiraCode) / [IBM/plex](https://github.com/IBM/plex) / [JetBrains/JetBrainsMono](https://github.com/JetBrains/JetBrainsMono) |
 
 設定画面 →「OSS ライセンス / 対応ソース」から、上記情報をアプリ内でも一覧/全文表示できます
 （`assets/licenses/` にライセンス全文を配置）。
 
-### 対応ソースの取得手順 (例)
-
-```sh
-# PRoot 同等のソース取得 (Termux パッケージ)
-git clone https://github.com/termux/proot.git
-
-# talloc 同等のソース取得
-git clone https://gitlab.com/samba-team/samba.git
-ls samba/lib/talloc
-
-# Alpine rootfs に入っている bash 等のソース
-curl -O https://gitlab.alpinelinux.org/alpine/aports/-/archive/master/aports-master.tar.gz
-```
-
-z2term 自身のビルド時にどのバージョンが取得されるかは `scripts/build-proot.sh` /
-`scripts/build-alpine-rootfs.sh` の `PROOT_VER_AARCH64` / `ALPINE_VERSION` を参照。
-
 ## 配布方針
 
 | チャネル | フレーバー | 状況 |
 |---|---|---|
-| **GitHub Releases / 直接 APK 配布** | `foss`（**おすすめ**）/ `full` (prebuilt 同梱) | 主たる配布経路。タグを push すると CI が両方ビルドして添付する |
-| **F-Droid** | `foss` (rootfs 除外) | **非対象** (実行時 DL を許容)。`foss` は外部ライセンス表記の最小化が目的で F-Droid 向けではない。proot/talloc は同梱継続のため再現性ビルド適合は対象外 |
-| **Google Play** | — | proot による外部コード実行が DPA §4.4 に抵触する可能性が高く、**配布予定なし** |
+| **GitHub Releases / 直接 APK 配布** | `foss`（**おすすめ**）/ `full` | 主たる配布経路。payloadは同一 |
+| **F-Droid** | `foss` | rootfs実行時取得・エンジンはソースビルド |
+| **Google Play** | — | 配布予定なし |
 
 ## SSH サーバ (sshd) の既定挙動
 
@@ -350,5 +309,5 @@ Z2_SSHD_LAN=1 sshd  # env でも可
 
 - [Zero to Ship Project](https://github.com/orgsonai)
 - [Termux](https://github.com/termux/termux-app) - 参考実装
-- [PRoot](https://proot-me.github.io/) - ユーザランド chroot
+- z2root — 本リポジトリでソースビルドするユーザー空間Linuxエンジン
 - [Alpine Linux](https://alpinelinux.org/) - メインディストロ

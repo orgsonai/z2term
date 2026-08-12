@@ -101,7 +101,6 @@
 
     <!-- 裏機能: 実行エンジン選択 (バージョン7回タップで解放) -->
     <string name="settings_section_engine">実行エンジン</string>
-    <string name="settings_engine_proot">PRoot (非 root)</string>
     <string name="settings_engine_z2root">z2root (既定・非 root)</string>
     <string name="settings_engine_chroot">chroot (root)</string>
     <string name="settings_engine_desc">z2root は非 root の自前 ptrace エンジンです。chroot は実 root でネイティブ実行し root 化端末が必要です。新しいタブから選択中のエンジンで起動します。</string>
@@ -114,7 +113,7 @@
     <string name="tab_popup_engine_label">エンジン</string>
     <string name="tab_popup_engine_gui">GUI (Linux)</string>
     <string name="settings_engine_unlock_ok">エンジン選択を解放しました。下でエンジンを選べます。</string>
-    <string name="settings_engine_lock_ok">エンジン選択を隠し、既定の PRoot に戻しました。</string>
+    <string name="settings_engine_lock_ok">エンジン診断を隠し、z2root に戻しました。</string>
     <string name="settings_root_unlock_ok">root を解放しました — chroot も選べます。</string>
     <string name="settings_root_unlock_failed">root 許可が得られませんでした。許可ダイアログが出ないときは、Magisk 等の root 管理アプリで Z2Term の root を「許可」に変えてから、もう一度このボタンを押してください（一度「拒否」すると Magisk が記憶し再表示しません）。</string>
     <string name="settings_root_chroot_blocked">root は使えますが chroot 実行に失敗しました（SELinux/rootfs 等の可能性）: %1$s</string>
@@ -126,7 +125,7 @@
     </plurals>
 
     <!-- distro / GUI 導入時のバナー (D2 バッチ) -->
-    <string name="banner_proot_missing">⚠️ PRoot バイナリが見つかりません — scripts/build-proot.sh を実行して再ビルドしてください。Android sh で起動します。</string>
+    <string name="banner_z2root_missing">⚠️ z2root バイナリが見つかりません — scripts/build-z2root.sh を実行して再ビルドしてください。Android sh で起動します。</string>
     <string name="banner_extracting_first">📦 %1$s を初回展開しています…</string>
     <string name="banner_extracting_update">📦 %1$s を更新展開しています…</string>
     <string name="banner_extraction_start">   展開開始…</string>
@@ -283,23 +282,6 @@
 
     <!-- OSS コンポーネント用途 (D3 バッチ 4) -->
     <string name="oss_purpose_z2term">本アプリ本体（ターミナル UI・セッション/SSH/SFTP・設定）</string>
-    <string name="oss_purpose_proot">ユーザー空間 chroot/ptrace で Linux ディストロを動作させる中核</string>
-    <string name="oss_purpose_talloc">PRoot が動的リンクするメモリ管理ライブラリ</string>
-    <string name="oss_purpose_alpine_base">ベースシステム (alpine-base, baselayout, keys)</string>
-    <string name="oss_purpose_musl_libc">Alpine の C 標準ライブラリ</string>
-    <string name="oss_purpose_busybox">Alpine の主要 UNIX ツール (sh/ls/cp/…)</string>
-    <string name="oss_purpose_bash">対話シェル (alpine-packages.txt より)</string>
-    <string name="oss_purpose_zsh">対話シェル</string>
-    <string name="oss_purpose_openssh">SSH クライアント (proot 内サーバは Dropbear を利用)</string>
-    <string name="oss_purpose_dropbear">proot 互換 SSH サーバ (z2term の sshd ラッパー実装で起動)</string>
-    <string name="oss_purpose_coreutils">ls/cp/mv 等の GNU 版 (alpine-packages.txt より)</string>
-    <string name="oss_purpose_gnu_textutils">テキスト処理 / ファイル検索</string>
-    <string name="oss_purpose_git">バージョン管理</string>
-    <string name="oss_purpose_openssl">TLS / 暗号ライブラリ</string>
-    <string name="oss_purpose_ncurses_readline">端末制御 / 行編集 (readline は GPL-3.0 の別ライセンスでもある)</string>
-    <string name="oss_purpose_vim">テキストエディタ</string>
-    <string name="oss_purpose_tmux_screen">端末多重化</string>
-    <string name="oss_purpose_mosh">ローミング SSH 代替</string>
     <string name="oss_purpose_androidx_compose">UI / ライフサイクル / DataStore</string>
     <string name="oss_purpose_kotlin_stdlib">Kotlin ランタイム</string>
     <string name="oss_purpose_jsch">SSH クライアントライブラリ</string>

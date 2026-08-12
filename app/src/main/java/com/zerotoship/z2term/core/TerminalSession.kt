@@ -111,7 +111,7 @@ class TerminalSession(
      * このタブが**実際に**起動したエンジン名 (起動成功時に確定)。設定値ではなく実起動結果なので
      * 「設定では z2root だが未同梱で proot に倒れた」「chroot 失敗で proot にフォールバックした」
      * といったケースも正しく反映する。設定画面の信頼できるエンジン表示用 (未起動は null)。
-     * 値は [AppSettings.ENGINE_PROOT]/[ENGINE_Z2ROOT]/[ENGINE_CHROOT] か [ENGINE_ANDROID_SH]。
+     * 値は [AppSettings.ENGINE_Z2ROOT]/[ENGINE_CHROOT] か [ENGINE_ANDROID_SH]。
      */
     private val _actualEngine = MutableStateFlow<String?>(null)
     val actualEngine: StateFlow<String?> = _actualEngine.asStateFlow()
@@ -446,12 +446,9 @@ class TerminalSession(
                 ?: DistroSpec.byId(persisted.distroId)
                 ?: DistroSpec.ALPINE
             try {
-                if (!launcher.isProotAvailable()) {
-                    // M7 同梱方針: PRoot は APK の jniLibs/<abi>/libproot.so に同梱されている
-                    // 前提なので、未配置はビルド事故。ユーザーに分かるよう警告を出してから
-                    // android-sh に退避する (起動不能で真っ黒画面より UX 良)。
-                    Log.w(TAG, "PRoot binary not present; falling back to android-sh")
-                    writeBanner(appContext.getString(R.string.banner_proot_missing))
+                if (!launcher.isEngineAvailable()) {
+                    Log.w(TAG, "z2root binary not present; falling back to android-sh")
+                    writeBanner(appContext.getString(R.string.banner_z2root_missing))
                     fallbackToAndroidSh()
                     return@launch
                 }
@@ -466,9 +463,7 @@ class TerminalSession(
                     writeBanner(banner)
                     _uiState.update { it.copy(state = TerminalState.INSTALLING) }
 
-                    // 非同梱 distro (Ubuntu/Arch/Kali、および foss の Alpine) で rootfs
-                    // アーカイブが未取得ならまずダウンロードする。full の同梱 Alpine は
-                    // effectivelyBundled=true なのでスキップし assets から直接展開される。
+                    // 全フレーバー共通で、rootfsアーカイブが未取得なら先にダウンロードする。
                     if (!spec.effectivelyBundled && downloader.resolveLocalArchive(spec, detectAbiId()) == null) {
                         val dlError = downloadDistroArchive(spec)
                         if (dlError != null) {
@@ -513,10 +508,10 @@ class TerminalSession(
                 val s = settingsFlow.value
                 val useChroot = s.executionEngine == AppSettings.ENGINE_CHROOT && s.rootChrootUnlocked
                 // 実際に起動したエンジンを確定して記録する (設定値ではなく実起動結果。
-                // 設定画面の信頼できるエンジン表示用)。chroot 失敗時は proot へ倒れるので個別に設定する。
+                // 設定画面の信頼できるエンジン表示用)。chroot 失敗時は z2root へ戻す。
                 val engineUsed: String
                 val pty = if (useChroot) {
-                    // 裏機能: root で実 chroot 起動。失敗時は PRoot へフォールバック。
+                    // 裏機能: root で実 chroot 起動。失敗時は z2root へフォールバック。
                     val chrootPty = runCatching {
                         launcher.launchChroot(
                             distroId = spec.id,
@@ -528,7 +523,7 @@ class TerminalSession(
                             display = display,
                         )
                     }.getOrElse { e ->
-                        Log.w(TAG, "chroot launch failed, falling back to proot", e)
+                        Log.w(TAG, "chroot launch failed, falling back to z2root", e)
                         null
                     }
                     if (chrootPty != null) {

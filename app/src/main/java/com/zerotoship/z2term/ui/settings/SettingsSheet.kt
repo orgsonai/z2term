@@ -688,7 +688,7 @@ fun SettingsSheet(
                             if (distroCleanArmed && spec != null) {
                                 // クリーンインストール: rootfs + DL キャッシュを消して入れ直す。
                                 // 非同梱 distro は再 DL が走るので確認 ON なら先にダイアログ
-                                // (foss の Alpine も effectivelyBundled=false で DL 対象)。
+                                // 全フレーバーでrootfsは実行時DL対象。
                                 if (!spec.effectivelyBundled && settings.confirmBeforeDownload) {
                                     pendingDistroSwitch = spec
                                     pendingCleanInstall = true
@@ -702,7 +702,7 @@ fun SettingsSheet(
                                     context.filesDir, "distros/$id/bin"
                                 ).exists()
                                 // 非同梱 distro が未展開なら初回切替でネットから DL が走る
-                                // (foss の Alpine も effectivelyBundled=false で DL 対象)。
+                                // 全フレーバーでrootfsは実行時DL対象。
                                 val needsDownload = spec != null && !spec.effectivelyBundled && !extracted
                                 // ⚠ **既に選ばれている OS でも、入っていなければ押せる** (0.8.314)。
                                 // foss の初回は既定 (Alpine) が選択済みなのに未導入という状態から
@@ -1525,28 +1525,18 @@ fun SettingsSheet(
                     }
                 }
 
-                // 裏機能で解放されたときだけ「実行エンジン」を表示。proot / z2root は非 root で選べ、
-                // chroot は root セルフテスト成功 (rootChrootUnlocked) のときだけ選択肢に出す。
+                // 裏機能で解放されたときだけ「実行エンジン」を表示。
+                // 非 root は z2root 固定、chroot は root セルフテスト成功時だけ選べる。
                 if (settings.engineSelectorUnlocked) {
                     Section(title = stringResource(R.string.settings_section_engine)) {
                         val engineOptions = buildList {
-                            // foss は proot prebuilt を同梱せず常に z2root 実走なので、選べても無意味な
-                            // PRoot チップは出さない (full のみ proot を選択肢に出す)。
-                            if (!BuildConfig.IS_FOSS) add(AppSettings.ENGINE_PROOT)
                             add(AppSettings.ENGINE_Z2ROOT)
                             if (settings.rootChrootUnlocked) add(AppSettings.ENGINE_CHROOT)
                         }
-                        // foss で既定値が proot のままだとどのチップも選択表示されないため、
-                        // 表示上は z2root を選択済みとして扱う (実走エンジンと一致)。
-                        val selectedEngine =
-                            if (BuildConfig.IS_FOSS && settings.executionEngine == AppSettings.ENGINE_PROOT)
-                                AppSettings.ENGINE_Z2ROOT
-                            else settings.executionEngine
                         ChipRow(
                             options = engineOptions,
-                            selected = selectedEngine,
+                            selected = settings.executionEngine,
                             labels = mapOf(
-                                AppSettings.ENGINE_PROOT to stringResource(R.string.settings_engine_proot),
                                 AppSettings.ENGINE_Z2ROOT to stringResource(R.string.settings_engine_z2root),
                                 AppSettings.ENGINE_CHROOT to stringResource(R.string.settings_engine_chroot),
                             ),
@@ -1561,7 +1551,6 @@ fun SettingsSheet(
                         // 実際に動いているエンジン (設定チップは「次に起動する選択値」だが、これは
                         // このタブが本当に起動したエンジン。未同梱で proot に倒れた等もここに出る)。
                         val actualEngineLabel = when (actualEngine) {
-                            AppSettings.ENGINE_PROOT -> stringResource(R.string.settings_engine_proot)
                             AppSettings.ENGINE_Z2ROOT -> stringResource(R.string.settings_engine_z2root)
                             AppSettings.ENGINE_CHROOT -> stringResource(R.string.settings_engine_chroot)
                             AppSettings.ENGINE_ANDROID_SH -> stringResource(R.string.settings_engine_android_sh)
@@ -1615,7 +1604,7 @@ fun SettingsSheet(
                     // 設定の初期化はアプリ情報とライセンスの間に置く (設定の一番下・要望)。
                     onResetSettings = { pendingReset = true },
                     onToggle = {
-                        // 7タップでエンジン選択 (proot / z2root) の表示をトグルする (root 不要)。
+                        // 7タップで z2root/chroot の診断設定を表示する。
                         if (settings.engineSelectorUnlocked) {
                             // 解除: 選択を隠し、既定 (z2root) へ戻す = 表示前の状態へ復帰。
                             session.setExecutionEngine(AppSettings.ENGINE_Z2ROOT)

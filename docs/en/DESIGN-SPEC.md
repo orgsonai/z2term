@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-12 / Target version: 0.8.327-alpha (versionCode 335)
+Last updated: 2026-08-13 / Target version: 0.8.328-alpha (versionCode 336)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -29,18 +29,18 @@ Last updated: 2026-08-12 / Target version: 0.8.327-alpha (versionCode 335)
 
 **Z2Term** is a custom-built terminal emulator + Linux runtime that runs standalone on Android.
 
-- **No root required**: using `forkpty(3)` + **PRoot** (userspace chroot/bind emulation), it deploys and runs a Linux distro (Alpine / Ubuntu / Arch / Kali) inside a normal-privilege app.
+- **No root required**: `forkpty(3)` plus the source-built **z2root** userspace runtime runs Alpine, Ubuntu, Arch, or Kali inside a normal-privilege app.
 - **Own terminal emulator**: xterm-compatible VT/ANSI interpretation implemented in Kotlin.
 - **Own UI / keyboard**: Jetpack Compose. A custom flick keyboard (Latin + Japanese/katakana + numbers) that can switch with the OS IME.
 - **Bidirectional SSH**: from the terminal to the outside (JSch client), and from a PC into the terminal (dropbear server).
-- **File integration**: SAF DocumentsProvider lets other apps R/W the rootfs/home; from inside proot you can `cd` into Android shared storage.
+- **File integration**: SAF DocumentsProvider lets other apps R/W the rootfs/home; Linux sessions can `cd` into Android shared storage.
 - **GUI desktop**: inside the distro, Xvnc + a lightweight WM/app launches and is displayed by the built-in RFB (VNC) client (`gui/` package). Video uses software rendering; audio is an opt-in PulseAudio→TCP→AudioTrack bridge (`AudioBridge`).
-- **Execution engine**: **z2root** by default (0.8.123 switched the full flavor from proot to z2root; foss has always been z2root-only). A hidden setting lets full switch to **PRoot**, and rooted devices to a **real `chroot`** (bind mounts + `chroot` via `su`) (`executionEngine`).
+- **Execution engine**: **z2root only**. Rooted devices may optionally select a real `chroot` through the hidden setting.
   - **Unlocking the hidden setting**: tap the version row in Settings → App info 7 times. For 3 seconds after the toggle fires the version row is made **untappable**, so rapid taps cannot immediately flip it back (0.8.70; it previously accepted taps and ignored them, which felt broken)
   - **Unlocking chroot**: it only joins the choices when the root self-test (`probeRootChroot`) succeeds. That test can be re-run **not just at the moment of the 7-tap unlock but from the "Enable chroot (check root)" button inside the engine selector** (0.8.106). Previously it ran once at unlock time, so declining the su permission dialog left `rootChrootUnlocked` false and chroot permanently unselectable (re-unlocking required a re-lock followed by another 7 taps — undiscoverable). While it is false, the button and an explanatory note are shown and can be retried any number of times (success unlocks chroot with a toast; only a button-initiated failure toasts the reason)
   - **Distinguishing failures** (0.8.107): `RootProbe.NoRoot` (no su / denied) and `RootProbe.ChrootBlocked(detail)` (root obtained but the chroot itself failed on SELinux, the rootfs, …) are reported separately
   - ⚠️ **Root managers such as Magisk remember a "deny" and from then on return an immediate denial without showing the su dialog again, so the in-app button alone cannot recover** (an app cannot change another app's root grant). The NoRoot toast and note direct the user to set Z2Term back to "allow" in Magisk (0.8.108)
-  - **No PRoot chip on foss** (0.8.93): foss ships no proot prebuilt and always runs z2root, so the choices are z2root plus (when unlocked) chroot. Previously it could be selected but silently fell back to z2root
+  - **0.8.328 complete migration**: removed the PRoot selector, fallback, prebuilts, and bundled Alpine archive. Both flavors use z2root and runtime rootfs downloads.
   - **z2root trace log** (developer-only, default OFF, `traceLogEnabled`): a toggle inside the same 7-tap unlock. When ON, every z2root syscall is recorded to `shared_home/z2root_trace.log` — useful for diagnosis, but the log grows enormous and fills device storage quickly, so the UI carries a "leave this OFF normally" warning (0.8.105; 0.8.107 reworded it from the self-contradictory "do not use with it left OFF"). It used to be switchable only through the `.z2root_trace_on` sentinel file (still honoured for backwards compatibility)
 
 Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
@@ -49,8 +49,10 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 
 | Flavor | applicationId | Purpose |
 |---|---|---|
-| `full` | `com.zerotoship.z2term` | Normal distribution (rootfs/proot bundled; offline first run) |
-| `foss` | `com.zerotoship.z2term.foss` | F-Droid compliant. Third-party prebuilts (proot/talloc) and the Alpine rootfs are excluded from the APK; the execution engine is z2root built from bundled source, and the rootfs is downloaded at runtime (no offline first run) |
+| `full` | `com.zerotoship.z2term` | Upgrade compatibility for existing installs |
+| `foss` | `com.zerotoship.z2term.foss` | Recommended distribution and F-Droid identity |
+
+Their payloads are identical: z2root is built from source and rootfs archives are downloaded at runtime.
 
 `debug` builds additionally carry a `.debug` suffix.
 
@@ -67,8 +69,8 @@ Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 | Persistence | DataStore Preferences | 1.1.2 (settings / SSH profiles) |
 | SSH client | JSch (mwiede fork) | 0.2.26 (+ BouncyCastle 1.84 enables ed25519/curve25519) |
 | Decompression | org.tukaani:xz | 1.10 (the downloaded distro's `.tar.xz`). gzip is JDK standard |
-| Linux runtime | PRoot + libtalloc + libandroid-shmem | `.so` bundled in jniLibs (from a Termux build) |
-| Bundled OS | Alpine Linux ARM minirootfs | full bundles `.tgz` under `src/full/assets`. foss excludes it and downloads from the official CDN at runtime |
+| Linux runtime | z2root | Built for every flavor from `app/src/main/cpp/z2root` |
+| Linux OS | Alpine / Ubuntu / Arch / Kali | Not bundled; official archives are downloaded at runtime |
 
 ---
 

@@ -2,7 +2,7 @@ Z2Term is a terminal for Android that is also a way to drive Android.
 
 It runs Alpine, Ubuntu, Arch and Kali without root, opens a Linux desktop in a tab, and lets the shell reach the phone itself: read a notification, ask you a question in the notification shade, or run a script when the battery, the network or an incoming SMS changes.
 
-* Linux distributions without root: the default execution engine, z2root, is a ptrace-based userspace implementation written for this app and built from source. PRoot and chroot (rooted devices) are also selectable.
+* Linux distributions without root: z2root is a ptrace-based userspace implementation written for this app and built from source. A real chroot is optionally available on rooted devices.
 * Terminal emulator: VT100/xterm, 256-colour and true colour, alternate screen, East Asian Width (CJK / emoji) rendered as 2 cells, OSC 4/7/8/10/11/12/52
 * 9 built-in themes plus a custom theme editor, and custom font loading
 * 5,000-line scrollback (configurable 500-50,000) with search

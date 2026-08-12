@@ -58,38 +58,8 @@ android {
         }
     }
 
-    /**
-     * F-Droid 適合化 (法的対応パッチ):
-     *
-     * F-Droid は **prebuilt バイナリの同梱を禁止** している。`full` フレーバーは
-     * APK 完結のため Alpine rootfs と PRoot/talloc バイナリを APK に同梱するが、
-     * `foss` フレーバーはこれらを APK から完全に外し、ユーザー実行時にダウンロード
-     * (DistroDownloader) して動作させる必要がある。
-     *
-     * 実現方法: third-party prebuilt (PRoot/talloc) と Alpine rootfs は `src/full/...`
-     * 配下に置き、`src/main/` には共通の Kotlin / リソースと、**ソースから再生成される**
-     * z2root/z2accept (build-z2root.sh) だけを残す。AGP の main sourceSet (`src/main/jniLibs`)
-     * は全 variant に寄与するため、foss でも z2root は同梱されるが proot は同梱されない。
-     *
-     * 配置:
-     *  - PRoot/talloc prebuilt          → `src/full/jniLibs/`   (full のみ。F-Droid 非適合)
-     *  - z2root/z2accept (source build) → `src/main/jniLibs/`   (full+foss 共通。F-Droid 適合)
-     *  - `src/main/assets/alpine-minirootfs-*.tgz` → `src/full/assets/` (full のみ。foss は実行時 DL)
-     *  - `src/main/assets/fonts/` (OFL) / `z2dict.txt` / `licenses/` は **共通** (src/main 据置)
-     */
-    sourceSets {
-        getByName("full") {
-            // src/main/jniLibs (z2root) は main から自動寄与。full は proot を追加するのみ。
-            jniLibs.srcDirs("src/full/jniLibs")
-            assets.srcDirs("src/main/assets", "src/full/assets")
-        }
-        getByName("foss") {
-            // foss は main の jniLibs (z2root/z2accept のみ) と共通アセットを使う。
-            // proot prebuilt と alpine rootfs は src/full にあるため foss には入らない。
-            jniLibs.srcDirs("src/foss/jniLibs")
-            assets.srcDirs("src/main/assets", "src/foss/assets")
-        }
-    }
+    // full / foss は package id だけを分け、実行コード・native library・assets は共通。
+    // Linux 実行エンジンはソースからビルドする z2root のみ。rootfs は両方とも初回取得する。
 
     // local.properties に ndk.version があればそれを使う (環境ごとに切替)。
     // 無ければ設定せず AGP 既定 NDK に任せる (= PC では普段どおり)。
@@ -101,8 +71,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 335
-        versionName = "0.8.327-alpha"
+        versionCode = 336
+        versionName = "0.8.328-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -111,7 +81,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            // M7 同梱方針: Alpine rootfs + PRoot は arm64-v8a のみ同梱する。
+            // z2root は arm64-v8a を対象とする。
             // 32bit デバイスは現代の Android では希少なので非対応。
             //noinspection ChromeOsAbiSupport
             abiFilters += listOf("arm64-v8a")
@@ -270,10 +240,8 @@ tasks.matching {
 // ---------------------------------------------------------------------------
 // git 管理外の「同梱必須物」の欠落検出。
 //
-// fonts(fetch-fonts.sh) / proot バイナリ(build-proot.sh) / Alpine rootfs
-// (build-alpine-rootfs.sh) は .gitignore 対象で、clone・clean 後に消えても git
-// では復元されない。これらが欠けたまま `assembleX` するとビルドは普通に通り、
-// 「フォント無し」「PRoot 無し」の壊れた APK を黙って出荷してしまう事故が起きた。
+// fonts(fetch-fonts.sh) は .gitignore 対象で、clone・clean 後に消えても git では
+// 復元されない。欠けたまま `assembleX` するとフォント無しの APK ができるため、
 // 対応する merge タスクの前段で実体を検査し、欠落時は再生成スクリプト名つきの
 // メッセージでビルドを止める(緊急時は -PallowMissingBundledAssets=true で警告に格下げ)。
 // z2root の .so は上の buildZ2rootNative が常に再生成するため、ここでは検査しない。
@@ -308,49 +276,10 @@ val verifyBundledFonts = tasks.register("verifyBundledFonts") {
     }
 }
 
-// PRoot バイナリ + Alpine rootfs は full フレーバーのみ APK 同梱(foss は実行時 DL)。
-val verifyFullBundled = tasks.register("verifyFullBundledArtifacts") {
-    group = "verification"
-    description = "full フレーバーの PRoot バイナリ / Alpine rootfs の同梱漏れを検査"
-    val root = repoRootDir
-    val allow = allowMissingBundled
-    doLast {
-        val missing = mutableListOf<String>()
-        listOf(
-            "app/src/full/jniLibs/arm64-v8a/libproot.so",
-            "app/src/full/jniLibs/arm64-v8a/libproot_loader.so",
-            "app/src/full/jniLibs/arm64-v8a/libtalloc.so",
-        ).filter { !File(root, it).exists() }
-            .forEach { missing += "  - $it\n      再生成: bash scripts/build-proot.sh" }
-        // rootfs は build-alpine-rootfs.sh が src/main/assets に出力し、F-Droid 対応で
-        // src/full/assets へ移動する運用。full の sourceSet は両方を読むため両方を検査する。
-        val rootfsRegex = Regex("""alpine-minirootfs-.*\.(tgz|tar\.gz)""")
-        val hasRootfs = listOf("app/src/main/assets", "app/src/full/assets").any { dir ->
-            File(root, dir).listFiles { f -> f.name.matches(rootfsRegex) }?.isNotEmpty() == true
-        }
-        if (!hasRootfs) {
-            missing += "  - app/src/{main,full}/assets/alpine-minirootfs-*.tgz\n      再生成: bash scripts/build-alpine-rootfs.sh"
-        }
-        if (missing.isNotEmpty()) {
-            val msg = "\n[full prebuilt] git 管理外の同梱必須ファイルが見つかりません:\n" +
-                missing.joinToString("\n") +
-                "\n  → 上記スクリプトを実行してから再ビルドしてください。" +
-                "\n  → 緊急回避: ./gradlew ... -PallowMissingBundledAssets=true (警告に格下げ)"
-            if (allow) println("WARNING:$msg") else throw GradleException(msg)
-        }
-    }
-}
-
 // fonts は全フレーバーの assets マージ前に検査。
 tasks.matching {
     it.name.startsWith("merge") && it.name.endsWith("Assets")
 }.configureEach { dependsOn(verifyBundledFonts) }
-
-// PRoot / rootfs は full フレーバーの jniLibs / assets マージ前に検査。
-tasks.matching {
-    it.name.startsWith("merge") && it.name.contains("Full") &&
-        (it.name.endsWith("JniLibFolders") || it.name.endsWith("Assets"))
-}.configureEach { dependsOn(verifyFullBundled) }
 
 kotlin {
     compilerOptions {

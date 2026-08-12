@@ -2411,7 +2411,6 @@ private fun TabChip(
     val engineText: String = if (session is TerminalSession) {
         val actual by session.actualEngine.collectAsState()
         when (actual) {
-            AppSettings.ENGINE_PROOT -> stringResource(R.string.settings_engine_proot)
             AppSettings.ENGINE_Z2ROOT -> stringResource(R.string.settings_engine_z2root)
             AppSettings.ENGINE_CHROOT -> stringResource(R.string.settings_engine_chroot)
             AppSettings.ENGINE_ANDROID_SH -> stringResource(R.string.settings_engine_android_sh)

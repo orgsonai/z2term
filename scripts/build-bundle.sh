@@ -5,36 +5,21 @@
 # clone/clean 直後の環境で最初にこれを実行すれば、PC でもスマホでも同じ手順で
 # 同じ同梱物セットが揃う (= 集め方が環境ごとにバラついて別物 APK ができる事故を防ぐ)。
 #
-# 1. PRoot バイナリ群を Termux deb から取得 (libproot/libproot_loader/libtalloc/libandroid-shmem)
-# 2. z2root 自前エンジンを NDK でクロスビルド (libz2root/libz2accept)
-# 3. プログラミングフォントを取得 (IBMPlex/JetBrainsMono/FiraCode)
-# 4. apk-tools-static で Alpine rootfs を構築し .tgz として assets に配置
+# 1. z2root 自前エンジンを NDK でクロスビルド (libz2root/libz2accept)
+# 2. プログラミングフォントを取得 (IBMPlex/JetBrainsMono/FiraCode)
 # 最後に全同梱物が揃ったかを点検し、欠落があれば非ゼロ終了する。
 #
 # 出力 (すべて gitignore):
-#   app/src/full/jniLibs/arm64-v8a/libproot.so           (full のみ)
-#   app/src/full/jniLibs/arm64-v8a/libproot_loader.so    (full のみ)
-#   app/src/full/jniLibs/arm64-v8a/libtalloc.so          (full のみ・proot の依存)
-#   app/src/full/jniLibs/arm64-v8a/libandroid-shmem.so   (full のみ・proot の依存)
 #   app/src/main/jniLibs/arm64-v8a/libz2root.so
 #   app/src/main/jniLibs/arm64-v8a/libz2accept.so
 #   app/src/main/assets/fonts/{IBMPlexMono,JetBrainsMono,FiraCode}-Regular.ttf
-#   app/src/full/assets/alpine-minirootfs-aarch64.tgz
 #
 # 前提: z2root のクロスビルドに NDK が要る。local.properties の sdk.dir+ndk.version
 #   から自動解決する (build-z2root.sh)。env ANDROID_NDK_HOME でも可。
 #
 # 環境変数:
-#   ARCHS         "aarch64" (既定) / "aarch64 armv7"
-#   FORCE         1 で既存 rootfs を上書き再生成 (既定 0)
-#   AUTO_LATEST   1 で Termux PRoot の最新版を自動選択 (既定 0)
-#   ALPINE_BRANCH 既定 v3.21
-#   SKIP_ROOTFS   1 で Alpine rootfs 構築を省略 (fakeroot が無い環境向け。
-#                 その場合 rootfs は別環境で生成して持ち込む)
-#
 # 使い方:
 #   bash scripts/build-bundle.sh
-#   ARCHS="aarch64 armv7" FORCE=1 bash scripts/build-bundle.sh
 
 set -euo pipefail
 
@@ -48,58 +33,25 @@ need() {
         exit 1
     fi
 }
-need curl
-need tar
-need gzip
-need ar
-need unzip
-# fakeroot は rootfs 構築 (build-alpine-rootfs.sh) でのみ使う。SKIP_ROOTFS 時は不要。
-[[ "${SKIP_ROOTFS:-0}" == "1" ]] || need fakeroot
-
-# --------- PRoot 取得 ---------
-echo "=== [1/4] PRoot fetch ==="
-bash "${SCRIPT_DIR}/build-proot.sh"
-
 # --------- z2root クロスビルド ---------
-echo ""
-echo "=== [2/4] z2root native build ==="
+echo "=== [1/2] z2root native build ==="
 bash "${SCRIPT_DIR}/build-z2root.sh"
 
 # --------- フォント取得 ---------
 echo ""
-echo "=== [3/4] Fonts fetch ==="
+echo "=== [2/2] Fonts fetch ==="
 bash "${SCRIPT_DIR}/fetch-fonts.sh"
-
-# --------- Alpine rootfs 構築 ---------
-echo ""
-if [[ "${SKIP_ROOTFS:-0}" == "1" ]]; then
-    echo "=== [4/4] Alpine rootfs build — SKIP (SKIP_ROOTFS=1) ==="
-    echo "[warn] rootfs は別環境で生成して app/src/full/assets/ に持ち込むこと"
-else
-    echo "=== [4/4] Alpine rootfs build ==="
-    # shellcheck disable=SC2086
-    bash "${SCRIPT_DIR}/build-alpine-rootfs.sh" ${ARCHS:-aarch64}
-fi
 
 # --------- 完了点検: git 管理外の同梱物が全部揃ったか ---------
 echo ""
 echo "=== [verify] 同梱物マニフェスト ==="
 REQUIRED=(
-    # PRoot 一式は full のみに同梱するので src/full/jniLibs (build-proot.sh の JNI_DIR)
-    "app/src/full/jniLibs/arm64-v8a/libproot.so"
-    "app/src/full/jniLibs/arm64-v8a/libproot_loader.so"
-    "app/src/full/jniLibs/arm64-v8a/libtalloc.so"
-    "app/src/full/jniLibs/arm64-v8a/libandroid-shmem.so"
     "app/src/main/jniLibs/arm64-v8a/libz2root.so"
     "app/src/main/jniLibs/arm64-v8a/libz2accept.so"
     "app/src/main/assets/fonts/IBMPlexMono-Regular.ttf"
     "app/src/main/assets/fonts/JetBrainsMono-Regular.ttf"
     "app/src/main/assets/fonts/FiraCode-Regular.ttf"
 )
-# rootfs は full フレーバーのみ同梱 (foss は実行時 DL)。SKIP_ROOTFS 時は必須から外す。
-if [[ "${SKIP_ROOTFS:-0}" != "1" ]]; then
-    REQUIRED+=("app/src/full/assets/alpine-minirootfs-aarch64.tgz")
-fi
 
 missing=0
 for rel in "${REQUIRED[@]}"; do

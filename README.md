@@ -36,7 +36,7 @@ phone, and everything came in one APK?**
 
 | | Z2Term | Termux + its add-ons |
 |---|---|---|
-| Full Linux distribution | Alpine bundled in the `full` APK, ready on first launch; Ubuntu / Arch / Kali installable | `proot-distro` package installs one |
+| Full Linux distribution | Alpine / Ubuntu / Arch / Kali on z2root | `proot-distro` package installs one |
 | Linux GUI | Built-in GUI tab (Xvnc + an RFB client inside the app), with audio and video | A separate X11 or VNC viewer app |
 | Drive Android from the shell | Built in — ~20 `z2-*` helpers | A separate companion app |
 | Event-driven automation | Built in — `z2-when` (charging, battery level, time / cron, Wi-Fi, connectivity, boot, share, SMS, sensors, notifications, new files) with an Automation tab, logs and a kill switch | A separate companion app, usually paired with a third-party automation app |
@@ -58,7 +58,7 @@ Every release ships two APKs.
 | File | Contents | Which to pick |
 |---|---|---|
 | `app-foss-release.apk` | No prebuilts (~21MB) | **The recommended one.** Nine times smaller, and each update downloads ~21MB instead of ~190MB — handy on metered data or a slow link. It also bundles no third-party prebuilts (fewer license notices). No OS is bundled, so **the first launch asks you to pick one in Settings › Linux environment** (0.8.314; Alpine is fetched from the official CDN and verified by SHA-256, and updates never re-download it). |
-| `app-full-release.apk` | PRoot and the Alpine rootfs bundled (~190MB) | **When you want it offline from the very first launch.** The distribution is already inside, so nothing downloads — at the cost of ~190MB for the app and for every update. |
+| `app-full-release.apk` | Same payload as foss | Kept so existing full users can update under the same package ID. |
 
 Same app either way; the feature sets are identical. The only difference is **whether an OS is
 downloaded once on first launch**, so if you have a connection that first time, `foss` costs you
@@ -84,13 +84,13 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.327-alpha (versionCode 335).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.328-alpha (versionCode 336).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
 - **Terminal emulator** — VT100 / xterm, 256-color and true color, 9 themes, scrollback with search, UTF-8 and East Asian Width, alternate screen, OSC 4 / 7 / 8 / 10 / 11 / 12 / 52.
 - **Linux distributions without root** — Alpine / Ubuntu / Arch / Kali on a userspace engine (z2root by default; see below). Install anything with `apk` / `apt` / `pacman`.
-- **Execution engines** — z2root (default; a ptrace-based engine that needs no root), PRoot, and chroot (rooted devices). The engine selector unlocks by tapping the version 7 times.
+- **Execution engine** — fully migrated to z2root for non-root use; rooted devices may optionally use the hidden chroot path.
 - **Multi-tab** — CUI and GUI tabs, drag to reorder, long-press a tab to see the engine it runs on. An inactive tab shows a small dot while something is running in it, and a ✓ when it finished while you were looking elsewhere.
 - **Linux GUI** — Xvnc + openbox with a built-in RFB client; `z2gui` starts a desktop and `z2run <app>` launches a GUI app (opening the GUI tab for you), with audio and video.
 - **SSH / SFTP** — public-key auth (**create an ed25519 key in the app, then copy/share the public key or add it to this device's sshd**; secrets encrypted by the Android Keystore), known_hosts confirmation, file transfer, port forwarding in both directions (`-L` / `-R`) that can **keep running after the SSH tab is closed**, and a built-in `sshd` (dropbear) that binds to localhost only by default.
@@ -116,7 +116,7 @@ Pick whichever fits:
 
 - mosh protocol support (UDP-based)
 - Reverse DNS / stronger IPv6 connection retry
-- Fully self-contained proot replacement to drop all third-party native notices (FOSS-PURE phase 2)
+- Fully self-contained z2root engine with no third-party native prebuilts
 - IME learning-history export / backup (the reset UI is implemented)
 
 ## Build requirements
@@ -142,14 +142,12 @@ Several artifacts are bundled into the APK but **kept out of git** (built/fetche
 bash scripts/build-bundle.sh
 ```
 
-It runs all four generators in order and then verifies nothing is missing:
+It runs the two generators and verifies the common payload:
 
-1. `build-proot.sh` → `libproot.so` / `libproot_loader.so` / `libtalloc.so` / `libandroid-shmem.so`
-2. `build-z2root.sh` → `libz2root.so` / `libz2accept.so` (needs an NDK; auto-resolved from `local.properties` `sdk.dir`+`ndk.version`)
-3. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` `-Regular.ttf`
-4. `build-alpine-rootfs.sh` → `app/src/full/assets/alpine-minirootfs-aarch64.tgz` (`full` flavor only; `foss` downloads it at runtime)
+1. `build-z2root.sh` → `libz2root.so` / `libz2accept.so` (needs an NDK)
+2. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` `-Regular.ttf`
 
-A final manifest step prints `OK` / `MISS` per artifact and exits non-zero if anything is missing. If you only build the recommended `foss` flavor, the rootfs is not needed at all — `SKIP_ROOTFS=1 bash scripts/build-bundle.sh` is enough. The same applies on a host where `fakeroot` cannot build the rootfs: collect everything else and bring the rootfs `.tgz` over from a machine that can build it.
+A final manifest step prints `OK` / `MISS` per artifact. Linux rootfs archives are downloaded at runtime and are never APK build inputs.
 
 Per-artifact details: [app/src/main/assets/README.md](app/src/main/assets/README.md) · [app/src/main/jniLibs/README.md](app/src/main/jniLibs/README.md)
 
@@ -159,7 +157,6 @@ Per-artifact details: [app/src/main/assets/README.md](app/src/main/assets/README
 ./gradlew assembleFossRelease
 # Output: app/build/outputs/apk/foss/release/app-foss-release.apk
 
-# Bundled-rootfs variant (offline first run, ~190MB):
 ./gradlew assembleFullRelease
 # Output: app/build/outputs/apk/full/release/app-full-release.apk
 ```
@@ -190,7 +187,7 @@ z2term/
 │       │   ├── channel/             ← ProcessChannel / SshChannel (M5)
 │       │   ├── core/                ← TerminalSession + SessionManager
 │       │   ├── pty/                 ← PTY abstraction
-│       │   ├── proot/               ← PRoot launch
+│       │   ├── proot/               ← Linux launch (legacy package name)
 │       │   ├── distro/              ← rootfs deployment (Alpine + Ubuntu)
 │       │   ├── emulator/            ← VT100/xterm emulator core
 │       │   ├── settings/            ← DataStore persistence
@@ -202,7 +199,7 @@ z2term/
 │       │       ├── settings/        ← settings UI
 │       │       ├── ssh/             ← SSH profile UI (M5)
 │       │       └── terminal/        ← terminal UI + Renderer + key mapper
-│       ├── jniLibs/                 ← place the proot binaries here
+│       ├── jniLibs/                 ← generated z2root binaries
 │       └── res/                     ← resources
 ├── build.gradle.kts
 ├── settings.gradle.kts
@@ -229,8 +226,8 @@ z2term/
 
 | Flavor | Purpose | Bundled content |
 |---|---|---|
-| `foss` | **The distribution default (recommended)**; license notices minimized | **Alpine rootfs excluded** → downloaded at runtime by `DistroDownloader` (SHA-256 verified). proot/talloc stay bundled (W^X requires execve from `nativeLibraryDir`), so their GPL-2.0/LGPL-3.0 notices remain. No offline first run. |
-| `full` | When an offline first run is required | includes assets and prebuilt binaries (you must place them); offline first run |
+| `foss` | **The distribution default (recommended)** | z2root; rootfs downloaded at runtime |
+| `full` | Existing-install upgrade compatibility | Same payload as `foss`; rootfs downloaded at runtime |
 
 Only `foss` carries the `.foss` `applicationId` suffix (`com.zerotoship.z2term.foss`), so both can be installed side by side.
 ⚠ **Both show the same launcher name, "Z2Term"** (0.8.315 — the distribution flavor does not belong in the app's name).
@@ -238,22 +235,14 @@ With both installed the name no longer tells them apart; use `z2version` or the 
 (`foss` ends in `-foss`). Only debug builds keep a separate name (`Z2Term dbg2`).
 
 ```bash
-./gradlew assembleFossDebug   # normal development (rootfs excluded, runtime DL)
-./gradlew assembleFullDebug   # bundled-rootfs flavor (offline first run)
+./gradlew assembleFossDebug
+./gradlew assembleFullDebug   # identical payload, different applicationId
 ```
 
 ## Smoke-test flow
 
-1. Build & install with neither the proot binaries nor the Alpine rootfs
-   → it should fall back to Android `/system/bin/sh`
-   → try `ls /system/bin` etc. to confirm it works
-
-2. Place the Alpine rootfs in assets, then build & install
-   → it should fall back with a "PRoot binary not found" warning
-
-3. Place the proot binaries in jniLibs too, then build & install
-   → Alpine Linux should start
-   → try `apk update && apk add zsh`
+1. Build and install either flavor; select an OS and complete the runtime download.
+2. Confirm `z2version` reports `engine : z2root`, then test the distro package manager.
 
 ### z2root command-group test (`scripts/z2root-cmdtest.sh`)
 
@@ -286,7 +275,7 @@ syscalls (AF_UNIX, FIFO, flock, inotify, xattr, copy_file_range, nested ptrace
 via strace/gdb, Go raw syscalls, sqlite3, rsync), ⑩ name resolution / TLS
 (getent, curl TLS, nslookup). Output goes to the screen and
 `/tmp/z2root-cmdtest-<timestamp>.log`; a trailing summary lists any non-zero
-exits. Run the same script on the proot tab for a reference log.
+exits.
 
 Note: `io_uring` (bypasses ptrace/seccomp entirely) and `statx`/`openat2` hook
 gaps can't be caught by command tests — verify those at the seccomp-filter level.
@@ -295,48 +284,24 @@ gaps can't be caught by command tests — verify those at the seccomp-filter lev
 
 The license of the app itself (`app/src/main/java/com/zerotoship/z2term/**`) is **GPL-3.0**.
 Copyright (c) 2026 Zero to Ship. Corresponding source (GPL v3 §6): <https://github.com/orgsonai/z2term> (full text in the root `LICENSE`).
-For the licenses of the bundled binaries, rootfs, fonts, etc., see "Bundled OSS and corresponding source" below.
+Bundled third-party notices are available from Settings → OSS licenses.
 
-## Bundled OSS and corresponding source (GPL/LGPL distribution requirements)
-
-The `full` flavor APK includes the following prebuilts. The **corresponding source** for each
-is obtainable from the URLs below (for GPL v2 §3 / GPL v3 §6 / LGPL v3 §4).
+## Bundled OSS and corresponding source
 
 | Bundled item | License | How to get the corresponding source |
 |---|---|---|
-| `libproot.so` / `libproot_loader.so` | GPL-2.0 | [termux/proot](https://github.com/termux/proot) / see the Termux package version downloaded by `scripts/build-proot.sh` |
-| `libtalloc.so` | LGPL-3.0 | [Samba talloc](https://gitlab.com/samba-team/samba/-/tree/master/lib/talloc) / same as above |
-| `libandroid-shmem.so` | MIT | [termux/libandroid-shmem](https://github.com/termux/libandroid-shmem) / Termux package downloaded by `scripts/build-proot.sh` (proot links it for SysV shared memory) |
-| each package in `alpine-minirootfs-*.tgz` | individual (GPL-2.0 / GPL-3.0 / MIT / BSD, etc.) | [Alpine aports](https://gitlab.alpinelinux.org/alpine/aports) — look up each package name in `scripts/alpine-packages.txt` |
 | Fira Code / IBM Plex Mono / JetBrains Mono | OFL-1.1 | [tonsky/FiraCode](https://github.com/tonsky/FiraCode) / [IBM/plex](https://github.com/IBM/plex) / [JetBrains/JetBrainsMono](https://github.com/JetBrains/JetBrainsMono) |
 
 From the settings screen → "OSS licenses / corresponding source", you can also browse/show this in-app
 (license full texts are placed in `assets/licenses/`).
 
-### How to obtain the corresponding source (examples)
-
-```sh
-# Get the PRoot-equivalent source (Termux package)
-git clone https://github.com/termux/proot.git
-
-# Get the talloc-equivalent source
-git clone https://gitlab.com/samba-team/samba.git
-ls samba/lib/talloc
-
-# Source of bash etc. in the Alpine rootfs
-curl -O https://gitlab.alpinelinux.org/alpine/aports/-/archive/master/aports-master.tar.gz
-```
-
-For which versions z2term fetches at build time, see `PROOT_VER_AARCH64` / `ALPINE_VERSION` in
-`scripts/build-proot.sh` / `scripts/build-alpine-rootfs.sh`.
-
 ## Distribution policy
 
 | Channel | Flavor | Status |
 |---|---|---|
-| **GitHub Releases / direct APK** | `foss` (**recommended**) / `full` (prebuilts bundled) | Primary channel. Pushing a tag makes CI build and attach both |
-| **F-Droid** | `foss` (rootfs excluded) | **Not targeted** (runtime download is allowed). The `foss` flavor exists to minimize third-party license notices, not for F-Droid. proot/talloc remain bundled, so full reproducible-build compliance is out of scope |
-| **Google Play** | — | proot's execution of external code likely conflicts with DPA §4.4, so **no distribution planned** |
+| **GitHub Releases / direct APK** | `foss` (**recommended**) / `full` | Primary channel; payloads are identical |
+| **F-Droid** | `foss` | Runtime-downloaded rootfs; fully source-built engine |
+| **Google Play** | — | No distribution planned |
 
 ## Default behavior of the SSH server (sshd)
 
@@ -352,5 +317,5 @@ Z2_SSHD_LAN=1 sshd  # also works via env
 
 - [Zero to Ship Project](https://github.com/orgsonai)
 - [Termux](https://github.com/termux/termux-app) - reference implementation
-- [PRoot](https://proot-me.github.io/) - userland chroot
+- z2root — source-built userspace Linux engine included in this repository
 - [Alpine Linux](https://alpinelinux.org/) - main distro

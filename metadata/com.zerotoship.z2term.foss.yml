@@ -6,10 +6,8 @@
 #    (full と同居させるための設計)。F-Droid は metadata のファイル名と
 #    applicationId の一致を要求するので、full 側の ID では登録できない。
 #
-# ⚠ **申請するのは foss フレーバーだけ。** F-Droid は prebuilt バイナリの同梱を
-#    禁止しており、full は PRoot/talloc の prebuilt と Alpine rootfs を APK に
-#    同梱するため適合しない。foss はそれらを一切含まず、z2root/z2accept は
-#    app/src/main/cpp/ のソースから NDK でビルドする。
+# F-DroidへはapplicationIdが固定されたfossフレーバーを申請する。
+# full/fossともz2root/z2acceptをソースからビルドし、rootfsは実行時取得する。
 
 Categories:
   - System
@@ -36,7 +34,7 @@ Description: |-
 
   * Linux distributions without root. The default execution engine, z2root, is a
     ptrace-based userspace implementation written for this app and built from
-    source. PRoot and chroot (rooted devices) are also selectable.
+    source. A real chroot is optionally available on rooted devices.
   * Terminal emulator: VT100/xterm, 256-colour and true colour, 9 themes plus a
     custom theme editor, alternate screen, East Asian Width, scrollback with
     search, OSC 4/7/8/10/11/12/52.

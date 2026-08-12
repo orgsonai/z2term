@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-12 / 対象バージョン: 0.8.327-alpha (versionCode 335)
+最終更新: 2026-08-13 / 対象バージョン: 0.8.328-alpha (versionCode 336)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -29,19 +29,19 @@
 
 **Z2Term** は Android 単体で動く独自実装のターミナルエミュレータ + Linux 実行環境。
 
-- **root 不要**: `forkpty(3)` + **PRoot** (ユーザー空間の chroot/bind エミュレーション) で、
+- **root 不要**: `forkpty(3)` + **z2root** (自前のユーザー空間chroot/bindエミュレーション) で、
   通常権限のアプリ内に Linux ディストロ (Alpine / Ubuntu / Arch / Kali) を展開して動かす。
 - **自前のターミナルエミュレータ**: xterm 互換の VT/ANSI 解釈を Kotlin で実装。
 - **自前の UI / キーボード**: Jetpack Compose。独自フリックキーボード (英字 + 日本語/カタカナ + 数字) と OS IME を切替可能。
 - **SSH 両方向**: 端末から外部へ (JSch クライアント)、PC から端末へ (dropbear サーバ)。
-- **ファイル連携**: SAF DocumentsProvider で他アプリから rootfs/ホームを R/W、proot 内から Android 共有ストレージへ `cd`。
+- **ファイル連携**: SAF DocumentsProviderで他アプリからrootfs/ホームをR/Wし、Linux内からAndroid共有ストレージへ`cd`。
 - **GUI デスクトップ**: distro 内で Xvnc + 軽量 WM/アプリを起動し、内蔵 RFB(VNC) クライアントで表示（`gui/` パッケージ）。動画はソフト描画、音声はオプトインで PulseAudio→TCP→AudioTrack ブリッジ（`AudioBridge`）。
-- **実行エンジン**: 既定は **z2root** (0.8.123 で full フレーバーも proot から z2root へ切替。foss は元から z2root 専用)。裏設定で full は **PRoot** にも、root 端末では **「実 chroot」** (`su` 経由 bind mount + `chroot`) にも切替できる (`executionEngine`)。
+- **実行エンジン**: **z2rootのみ**。root端末では裏設定から**実chroot** (`su`経由bind mount + `chroot`) も選べる。
   - **裏設定の解放**: 設定 → アプリ情報のバージョン行を 7 タップ。トグル発火後 3 秒はバージョン行を**タップ不可**にして連打による即時再トグルを防ぐ (0.8.70。従来はタップを受けるが無視で不自然だった)
   - **chroot の解放**: root セルフテスト (`probeRootChroot`) の成功時のみ選択肢に加わる。このテストは **7 タップ解放の瞬間だけでなく、エンジン選択内の「chroot を有効化 (root を確認)」ボタンからも再実行できる** (0.8.106)。従来は解放時に 1 度だけ走り、su 許可ダイアログを拒否すると `rootChrootUnlocked` が false のまま二度と chroot を選べなくなっていた (再解放には再ロック→再解放の二重 7 タップが必要で気付けなかった)。false の間はこのボタンと案内文を表示し、何度でも再試行できる (成功で chroot 解放＋トースト、ボタン経由の失敗時のみ理由をトースト)
   - **失敗の切り分け** (0.8.107): `RootProbe.NoRoot` (su 無し/拒否) と `RootProbe.ChrootBlocked(detail)` (root は取れたが chroot 実行が SELinux/rootfs 等で失敗) を区別して表示する
   - ⚠️ **Magisk 等の root 管理アプリは一度「拒否」を記憶すると以後 su 許可ダイアログを再表示せず即拒否を返すため、アプリ内ボタンだけでは復帰できない** (アプリから他アプリの root 権限は変更不可)。この場合 Magisk 側で Z2Term の root を「許可」に戻す必要がある旨を NoRoot トースト/案内文で誘導する (0.8.108)
-  - **foss には PRoot チップを出さない** (0.8.93): foss は proot prebuilt を同梱せず常に z2root 実走のため、選択肢は z2root と (root 解放時の) chroot のみ。従来は選べても z2root に倒れる見せかけだった
+  - **0.8.328完全移行**: PRoot選択肢・fallback・prebuilt・Alpine同梱を削除。full/fossともz2rootと実行時rootfs取得を使う。
   - **z2root トレースログ** (開発者用・既定 OFF・`traceLogEnabled`): 同じ 7 タップ解放枠内のトグル。ON で z2root の全 syscall を `shared_home/z2root_trace.log` へ記録する＝障害調査用だが、ログが膨大で端末容量をすぐ圧迫するため UI に「普段は OFF のままにする」警告を添える (0.8.105。0.8.107 で警告文を「OFF のまま使用しない」という矛盾表現から非矛盾表現へ修正)。従来は `.z2root_trace_on` sentinel ファイルでしか切替できなかった (sentinel も後方互換で有効)
 
 対応 ABI は **arm64-v8a のみ**。最低 Android 10 (API 29)、ターゲット API 35。
@@ -50,8 +50,10 @@
 
 | フレーバー | applicationId | 用途 |
 |---|---|---|
-| `full` | `com.zerotoship.z2term` | 通常配布 (rootfs/proot 同梱・初回オフライン起動可) |
-| `foss` | `com.zerotoship.z2term.foss` | F-Droid 適合。third-party prebuilt (proot/talloc) と Alpine rootfs を APK から外し、実行エンジンは同梱ソースからビルドする z2root、rootfs は起動時 DL (初回オフライン起動不可) |
+| `full` | `com.zerotoship.z2term` | 既存利用者の更新互換 |
+| `foss` | `com.zerotoship.z2term.foss` | 推奨配布・F-Droid用 |
+
+両者のpayloadは同一で、z2rootをソースビルドし、rootfsは実行時取得する。
 
 `debug` ビルドは更に `.debug` サフィックスが付く。
 
@@ -68,8 +70,8 @@
 | 永続化 | DataStore Preferences | 1.1.2 (設定 / SSH プロファイル) |
 | SSH クライアント | JSch (mwiede fork) | 0.2.26 (+ BouncyCastle 1.84 で ed25519/curve25519 を有効化) |
 | 解凍 | org.tukaani:xz | 1.10 (DL distro の `.tar.xz`)。gzip は JDK 標準 |
-| Linux 実行 | PRoot + libtalloc + libandroid-shmem | jniLibs に `.so` 同梱 (Termux ビルド由来) |
-| 同梱 OS | Alpine Linux ARM minirootfs | full は `src/full/assets` に `.tgz` 同梱。foss は非同梱で公式 CDN から起動時 DL |
+| Linux 実行 | z2root | `app/src/main/cpp/z2root`から全flavorでビルド |
+| Linux OS | Alpine / Ubuntu / Arch / Kali | APK非同梱。公式配布物を実行時取得 |
 
 ---
 
