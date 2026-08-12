@@ -465,6 +465,10 @@ class ProotLauncher(private val context: Context) {
             // proot は libtalloc.so.2 にリンクされている (Termux RUNPATH 由来)。
             // ensureProotLibs() で展開した SONAME 通りのファイルパスを LD_LIBRARY_PATH に追加。
             "LD_LIBRARY_PATH=${prootLibsDir.absolutePath}",
+            // AF_UNIX ソケットのパス翻訳の判断を残す先 (z2root が追記・アプリが次の起動で
+            // logcat へ出して消す)。翻訳が黙って諦めると ENOENT になるだけで外からは
+            // 「なぜか動かない」としか見えないため、判断そのものを残す。
+            "Z2ROOT_SOCKLOG=${File(sharedHomeDir, ".z2term/socktrace.log").absolutePath}",
             // PRoot 自身の動作用
             "PROOT_TMP_DIR=${context.cacheDir.absolutePath}",
             "PROOT_LOADER=${File(context.applicationInfo.nativeLibraryDir, "libproot_loader.so").absolutePath}"
@@ -1172,6 +1176,16 @@ class ProotLauncher(private val context: Context) {
      * から読めるようにする。読んだら消す (残しておく意味は無く、次の失敗と混ざる)。
      */
     private fun drainPacmanKeyringDiag(rootfs: File) {
+        // AF_UNIX 翻訳の記録も同じ作法で吸い上げる (溜め込まず、読んだら消す)。
+        runCatching {
+            val sock = File(sharedHomeDir, ".z2term/socktrace.log")
+            if (sock.isFile) {
+                sock.readText().lines().filter { it.isNotBlank() }.takeLast(40).forEach {
+                    Log.w(TAG, "socktrace: $it")
+                }
+                sock.delete()
+            }
+        }.onFailure { Log.w(TAG, "socktrace 読取失敗: ${it.message}") }
         // 正本は共有ホーム側 (rootfs の再展開で消えない)。`tmp/` は 0.8.317 の旧置き場で、
         // その版で書かれた分を取りこぼさないためだけに読む (読めたら消すので 1 度きり)。
         val candidates = listOf(
@@ -1181,7 +1195,8 @@ class ProotLauncher(private val context: Context) {
         for (f in candidates) {
             runCatching {
                 if (!f.isFile) return@runCatching
-                f.readText().lineSequence().filter { it.isNotBlank() }.forEach {
+                // 道具の出力ごと残しているので長くなりうる。末尾だけ出す (失敗の理由は末尾に出る)。
+                f.readText().lines().filter { it.isNotBlank() }.takeLast(40).forEach {
                     Log.w(TAG, "pacman-keyring: $it")
                 }
                 f.delete()

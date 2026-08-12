@@ -90,6 +90,18 @@ fun pacmanKeyringScript(lang: String): String {
         |DIAG=/root/.z2term/pacman-keyring.log
         |mkdir -p /root/.z2term 2>/dev/null
         |say_fail() { echo "${d}1" >&2; echo "${d}1" >> "${d}DIAG" 2>/dev/null; }
+        |# コマンドを **画面に出しながら、出力を丸ごと診断ファイルにも残して** 実行する。
+        |# ⚠ `cmd | tee` だと ${d}? は tee の結果になり、失敗を取りこぼす。サブシェル内で
+        |# 終了コードを別ファイルへ書いて拾う (POSIX sh で確実に動く形)。
+        |# ⚠ **自分のメッセージだけ残しても意味が無い。** 0.8.320 は「--populate に失敗」しか
+        |# 残らず、gpg が何と言ったのか分からないまま実機を往復した。道具の出力ごと残す。
+        |run_logged() {
+        |  : "${d}{Z2RC:=/tmp/z2-keyring-rc.${d}${d}}"   # ⚠ 先頭の : が無いと値をコマンドとして実行する
+        |  { "${d}@" 2>&1; echo ${d}? > "${d}Z2RC"; } | tee -a "${d}DIAG"
+        |  rc=${d}(cat "${d}Z2RC" 2>/dev/null || echo 1)
+        |  rm -f "${d}Z2RC" 2>/dev/null
+        |  return "${d}rc"
+        |}
         |
         |# 既に用意できていれば何もしない。
         |# ⚠ **判定は「z2term が populate に成功したときだけ書く印」で行う。** `trustdb.gpg` や
@@ -106,10 +118,35 @@ fun pacmanKeyringScript(lang: String): String {
         |# 中途半端な鍵束があっても、そのまま続きから作れる。
         |mkdir -p "${d}GNUPGDIR" 2>/dev/null
         |
+        |# 失敗したときに gpg-agent 側の理由を取る。gpg は agent の起動失敗を
+        |# 「exit status 2」としか伝えないので、**agent を直接起こして本人に喋らせる**。
+        |# あわせてソケットの実パスも出す — z2root は AF_UNIX のパスをホスト側へ翻訳するため、
+        |# sun_path の 108 バイト制限に当たると bind が失敗して agent が即死する。
+        |diag_gpg_agent() {
+        |  echo "--- z2diag: gpgconf --list-dirs ---" >> "${d}DIAG" 2>/dev/null
+        |  gpgconf --homedir "${d}GNUPGDIR" --list-dirs >> "${d}DIAG" 2>&1
+        |  # ⚠ **`--daemon` を付けること。** 付けないと gpg-agent は「起動しているか調べるだけ」の
+        |  # モードになり、"no gpg-agent running in this session" と言って rc=2 で終わる
+        |  # (0.8.322 の診断はこれを踏んで、起動失敗の理由を取れていなかった)。
+        |  echo "--- z2diag: ls ${d}GNUPGDIR ---" >> "${d}DIAG" 2>/dev/null
+        |  ls -la "${d}GNUPGDIR" >> "${d}DIAG" 2>&1
+        |  echo "--- z2diag: gpg-agent --daemon --no-detach (homedir) ---" >> "${d}DIAG" 2>/dev/null
+        |  timeout 8 gpg-agent --homedir "${d}GNUPGDIR" --daemon --no-detach -vv >> "${d}DIAG" 2>&1
+        |  echo "--- z2diag: rc=${d}? ---" >> "${d}DIAG" 2>/dev/null
+        |  # 同じ bind を **短い /tmp のパス**で試す差分テスト。
+        |  #   ここも ENOENT   → AF_UNIX の bind 翻訳そのものが効いていない (z2root 側)
+        |  #   ここは通る      → /etc/pacman.d/gnupg 固有 (置き場・存在・パス長の問題)
+        |  mkdir -p /tmp/z2gpgtest 2>/dev/null
+        |  echo "--- z2diag: gpg-agent (homedir=/tmp/z2gpgtest) ---" >> "${d}DIAG" 2>/dev/null
+        |  timeout 8 gpg-agent --homedir /tmp/z2gpgtest --daemon --no-detach -vv >> "${d}DIAG" 2>&1
+        |  echo "--- z2diag: rc=${d}? ---" >> "${d}DIAG" 2>/dev/null
+        |}
+        |
         |: > "${d}DIAG" 2>/dev/null
         |
-        |if ! pacman-key --init; then
+        |if ! run_logged pacman-key --init; then
         |  say_fail "$msgInitFail"
+        |  diag_gpg_agent
         |  # ⚠ **切り分け材料を必ず残す。** 「失敗しました」だけでは原因に辿り着けず、実機を
         |  # 何度も往復することになる (0.8.316 で実際にそうなった)。pacman-key が弾く条件は
         |  # `EUID != 0` の 1 つだけなので、**誰が 0 を返していないか**が分かれば足りる:
@@ -133,8 +170,9 @@ fun pacmanKeyringScript(lang: String): String {
         |  exit 1
         |fi
         |
-        |if ! pacman-key --populate ${d}KEYRINGS; then
+        |if ! run_logged pacman-key --populate ${d}KEYRINGS; then
         |  say_fail "$msgPopulateFail (keyrings:${d}KEYRINGS)"
+        |  diag_gpg_agent
         |  exit 1
         |fi
         |

@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -245,6 +246,39 @@ static int poke_write_tracee_mem(pid_t pid, unsigned long addr, const void *buf,
             if (cur >= addr && cur < addr + len) wb[i] = src[cur - addr];
         }
         if (ptrace(PTRACE_POKEDATA, pid, (void *)a, (void *)word) != 0) return -1;
+    }
+    return 0;
+}
+
+// tracee メモリを len バイト読む。process_vm_readv が短く読んだ / 失敗したときは
+// PTRACE_PEEKDATA で読み直す。
+//
+// ⚠ **読み出しにもフォールバックが要る。** 書込側 ([write_tracee_mem]) には最初から
+// POKEDATA の救済があったのに、読出側は「短く読めたら諦める」だけだった。process_vm_readv は
+// **プロセス起動直後にスタックがまだ grow していないページ**で EFAULT になり得るため、
+// 起動直後に AF_UNIX ソケットを bind するプログラム (gpg-agent) では sockaddr を読めず、
+// パス翻訳が丸ごと飛んでゲストのパスがホストのルートへ bind され ENOENT になっていた
+// (Arch で gpg-agent が起動できず pacman の鍵束が作れなかった件の真因)。
+// connect は起動から時間が経った所で呼ばれるので読めていた = **同じ関数なのに bind だけ
+// 失敗する**という分かりにくい形になっていた。
+static int read_tracee_mem(pid_t pid, unsigned long addr, void *buf, size_t len) {
+    struct iovec local = { buf, len };
+    struct iovec remote = { (void *)addr, len };
+    if (process_vm_readv(pid, &local, 1, &remote, 1, 0) == (ssize_t)len) return 0;
+
+    const unsigned long WS = sizeof(long);
+    unsigned char *dst = (unsigned char *)buf;
+    unsigned long start = addr & ~(WS - 1);
+    unsigned long stop  = (addr + len + WS - 1) & ~(WS - 1);
+    for (unsigned long a = start; a < stop; a += WS) {
+        errno = 0;
+        long peek = ptrace(PTRACE_PEEKDATA, pid, (void *)a, (void *)0);
+        if (peek == -1 && errno != 0) return -1;
+        unsigned char *wb = (unsigned char *)&peek;
+        for (unsigned long i = 0; i < WS; i++) {
+            unsigned long cur = a + i;
+            if (cur >= addr && cur < addr + len) dst[cur - addr] = wb[i];
+        }
     }
     return 0;
 }
@@ -1961,6 +1995,26 @@ static void linkat_exit(struct pid_state *st, pid_t pid) {
     set_regs(pid, &regs);
 }
 
+// AF_UNIX の bind/connect で「翻訳したのか・しなかったのか・なぜか」を 1 行残す。
+// 出力先は Z2ROOT_SOCKLOG が指すホストパス (未設定なら何もしない)。
+//
+// ⚠ **翻訳が黙って諦めると、ゲストのパスがそのままホストのルートに対して bind され、
+// ENOENT になる。** その形は呼び出し側からは「なぜか動かない」としか見えず、実機を
+// 何度も往復することになった (gpg-agent が起動できず Arch で pacman が使えなかった件)。
+// 判断を残しておけば一度で分かる。
+static void socklog(const char *fmt, ...) {
+    const char *p = getenv("Z2ROOT_SOCKLOG");
+    if (!p || !*p) return;
+    FILE *f = fopen(p, "a");
+    if (!f) return;
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(f, fmt, ap);
+    va_end(ap);
+    fputc('\n', f);
+    fclose(f);
+}
+
 // AF_UNIX の pathname ソケット (bind/connect) の sun_path をホスト実パスへ書き換える。
 // proot は connect/bind の sockaddr を翻訳するが z2root は未対応だった = Xvnc が作る
 // /tmp/.X11-unix/X1 や dbus/pulseaudio の unix ソケットが「ホストの実 /tmp」を指して
@@ -1968,19 +2022,18 @@ static void linkat_exit(struct pid_state *st, pid_t pid) {
 // abstract ソケット (sun_path[0]=='\0') は名前空間上の名前でファイルではないため翻訳しない
 // (共有 netns なのでそのまま通り、X クライアントの abstract 接続は元から動く)。
 static void maybe_rewrite_sockaddr(const struct config *cfg, pid_t pid, struct user_pt_regs *regs) {
+    const long nr = (long)regs->regs[8];   // 200=bind / 203=connect (記録用)
     unsigned long addr = regs->regs[1];
     unsigned long addrlen = regs->regs[2];
     const size_t path_off = offsetof(struct sockaddr_un, sun_path);
-    if (addr == 0 || addrlen <= path_off) return;
+    if (addr == 0 || addrlen <= path_off) { socklog("sock nr=%ld skip: addr=0x%lx addrlen=%lu", nr, addr, addrlen); return; }
 
     struct sockaddr_un un;
     memset(&un, 0, sizeof(un));
     size_t rd = addrlen > sizeof(un) ? sizeof(un) : addrlen;
-    struct iovec local = { &un, rd };
-    struct iovec remote = { (void *)addr, rd };
-    if (process_vm_readv(pid, &local, 1, &remote, 1, 0) != (ssize_t)rd) return;
-    if (un.sun_family != AF_UNIX) return;
-    if (un.sun_path[0] == '\0') return;  // abstract ソケットは翻訳しない
+    if (read_tracee_mem(pid, addr, &un, rd) != 0) { socklog("sock nr=%ld skip: read failed rd=%zu", nr, rd); return; }
+    if (un.sun_family != AF_UNIX) { socklog("sock nr=%ld skip: family=%d", nr, (int)un.sun_family); return; }
+    if (un.sun_path[0] == '\0') return;  // abstract ソケットは翻訳しない (よくあるので記録しない)
 
     // sun_path は最大 108B で必ずしも null 終端されない。読めた範囲で長さを確定する。
     size_t pathcap = rd - path_off;
@@ -1989,13 +2042,13 @@ static void maybe_rewrite_sockaddr(const struct config *cfg, pid_t pid, struct u
     char guest[sizeof(un.sun_path) + 1];
     memcpy(guest, un.sun_path, pl);
     guest[pl] = '\0';
-    if (guest[0] != '/') return;  // 相対ソケットパスは非対象
+    if (guest[0] != '/') { socklog("sock nr=%ld skip: relative '%s'", nr, guest); return; }
 
     char host[PATH_MAX_Z];
     // ソケット自体 (最終要素) は symlink を辿らない。deref=0。
-    if (host_path_for(cfg, pid, guest, 0, AT_FDCWD, host, sizeof(host)) != 0) return;
+    if (host_path_for(cfg, pid, guest, 0, AT_FDCWD, host, sizeof(host)) != 0) { socklog("sock nr=%ld skip: no host path for '%s'", nr, guest); return; }
     size_t hl = strlen(host);
-    if (hl >= sizeof(un.sun_path)) return;  // 108B に収まらなければ据え置き (安全側)
+    if (hl >= sizeof(un.sun_path)) { socklog("sock nr=%ld skip: host too long (%zu) '%s'", nr, hl, host); return; }  // 108B に収まらなければ据え置き (安全側)
 
     struct sockaddr_un nun;
     memset(&nun, 0, sizeof(nun));
@@ -2003,10 +2056,11 @@ static void maybe_rewrite_sockaddr(const struct config *cfg, pid_t pid, struct u
     memcpy(nun.sun_path, host, hl);  // null 終端は memset 済み
     socklen_t nlen = (socklen_t)(path_off + hl + 1);
     unsigned long base = scratch_base(regs->sp, sizeof(nun));
-    if (write_tracee_mem(pid, base, &nun, nlen) != 0) return;
+    if (write_tracee_mem(pid, base, &nun, nlen) != 0) { socklog("sock nr=%ld skip: write_tracee_mem failed base=0x%lx", nr, base); return; }
     regs->regs[1] = base;
     regs->regs[2] = nlen;
-    set_regs(pid, regs);
+    if (set_regs(pid, regs) != 0) { socklog("sock nr=%ld skip: set_regs failed", nr); return; }
+    socklog("sock nr=%ld ok: '%s' -> '%s'", nr, guest, host);
 }
 
 static void maybe_rewrite_path(const struct config *cfg, pid_t pid, struct user_pt_regs *regs) {
