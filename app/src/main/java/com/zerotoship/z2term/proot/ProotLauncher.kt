@@ -287,6 +287,8 @@ class ProotLauncher(private val context: Context) {
         ensureRootLoginShell(rootfs, userLoginShell)
         // 再起動後もコマンド履歴を辿れるよう、shell rc に履歴設定を流し込む。
         ensureShellHistoryConfig(rootfs)
+        // マクロ置き場を PATH に入れる設定を rootfs 側にも置く (env だけでは足りない経路がある)。
+        ensureMacroPathConfig(rootfs)
         // セッション復元の cwd 用に、プロンプト毎 OSC 7 (cwd 通知) を出すフックを仕込む。
         ensureOsc7CwdConfig(rootfs)
         // `sshd` コマンドで dropbear が立ち上がるよう wrapper を配置 (OpenSSH sshd は
@@ -508,6 +510,7 @@ class ProotLauncher(private val context: Context) {
             if (loginShell.isBlank()) "" else resolveShell(rootfs, loginShell, fallbackShell)
         )
         ensureShellHistoryConfig(rootfs)
+        ensureMacroPathConfig(rootfs)
         ensureOsc7CwdConfig(rootfs)
         ensureSshdWrapper(rootfs)
         ensureGuiScript(rootfs, guiTerminal)
@@ -897,6 +900,50 @@ class ProotLauncher(private val context: Context) {
         appendOnceWithMarker(File(rootfs, "etc/bash.bashrc"), marker, bashBlock)
         // zsh: /etc/zsh/zshrc (Alpine 等)。zsh が無い distro でも無害。
         appendOnceWithMarker(File(rootfs, "etc/zsh/zshrc"), marker, zshBlock)
+    }
+
+    /**
+     * マクロ置き場 (`~/.z2term/macros`) を **どの OS でも最初から PATH に入れる** (0.8.314)。
+     *
+     * `launch()` が渡す env には既に入っている ([MACRO_DIR]) が、それだけでは足りない経路がある:
+     * **ログインシェルは `/etc/profile` で PATH を丸ごと組み立て直す**ので、SSH ログイン
+     * (dropbear)・`su -`・GUI 内ターミナルでは足したはずの末尾が消え、`remind.sh help` が
+     * `command not found` になる。案内も docs も「名前で打てる」前提で書いてあるので、
+     * **rootfs 側にも設定を置いて、入口によらず通っている状態にする**。
+     *
+     *  - `/etc/profile.d/z2term-path.sh` … ログインシェル (Alpine/Debian/Arch/Kali いずれも
+     *    `/etc/profile` が `profile.d` 配下の `.sh` を読む)
+     *  - `/etc/bash.bashrc` / `/etc/zsh/zshrc` … profile を読まない非ログインの対話シェル
+     *
+     * 既に入っていれば足さない (`case` で判定) ので、何度読まれても PATH は伸びない。
+     * 置き場そのものも作っておく (無いディレクトリが PATH にあっても無害だが、`z2-macro`
+     * より先に自分でスクリプトを置きたい人がいる)。
+     */
+    private fun ensureMacroPathConfig(rootfs: File) {
+        val marker = "# >>> z2term macro path >>>"
+        // ⚠ **末尾**に足す。同名のコマンドがあったときに OS 側を覆わないため (env 側と同じ理由)。
+        val block = """
+            |$marker
+            |case ":${'$'}PATH:" in
+            |  *":${'$'}HOME/.z2term/macros:"*) ;;
+            |  *) PATH="${'$'}PATH:${'$'}HOME/.z2term/macros" ;;
+            |esac
+            |export PATH
+            |# <<< z2term macro path <<<
+        """.trimMargin()
+
+        runCatching {
+            File(sharedHomeDir, ".z2term/macros").mkdirs()
+            val profileD = File(rootfs, "etc/profile.d").apply { mkdirs() }
+            File(profileD, "z2term-path.sh").apply {
+                writeText("#!/bin/sh\n$block\n")
+                setReadable(true, false)
+                setExecutable(true, false)
+            }
+        }.onFailure { Log.w(TAG, "macro PATH profile.d 配置失敗", it) }
+
+        appendOnceWithMarker(File(rootfs, "etc/bash.bashrc"), marker, block)
+        appendOnceWithMarker(File(rootfs, "etc/zsh/zshrc"), marker, block)
     }
 
     /**
@@ -1292,6 +1339,14 @@ class ProotLauncher(private val context: Context) {
         )
         return rc
     }
+
+    /**
+     * **OS が 1 つでも入っているか** (0.8.314)。展開途中や版数落ちも「入っている」と数える
+     * ([isDistroReady] より緩い) — ここで見たいのは「まっさらかどうか」だけで、
+     * 半端に入っているものを「無い」と扱うと、入れ直しの案内ではなく初回案内が出てしまう。
+     */
+    fun hasAnyDistro(): Boolean =
+        distrosDir.listFiles()?.any { it.isDirectory && (it.list()?.isNotEmpty() == true) } == true
 
     /**
      * ディストロが展開済みか確認。

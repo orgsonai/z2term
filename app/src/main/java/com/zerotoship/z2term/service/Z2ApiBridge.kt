@@ -314,13 +314,18 @@ object Z2ApiBridge {
                     // pinned = true: この後の起動で OS 名 (spec.id) やシェルのタイトルに
                     // 上書きされないようにする。付けた名前が消えると指定の意味が無くなる。
                     if (name.isNotBlank()) s.setLabel(name.take(20), pinned = true)
-                    // **ここで起動まで済ませる**。画面側の自動起動は「表示中のタブが IDLE なら」
-                    // という条件なので、アプリを開いていない間に作ったタブは開くまで起動せず、
-                    // 続けて send しても PTY が無く何も起きない (実機で確認)。
-                    // マクロから「タブを開いてコマンドを流す」を成立させるにはここで立ち上げる。
-                    // ただし初回ダウンロードが要る distro は勝手に通信を始めない (画面で確認を出す)。
-                    if (s.downloadOnStartSpec() == null) s.startTerminal()
                     s
+                }
+                // **ここで起動まで済ませる**。画面側の自動起動は「表示中のタブが IDLE なら」
+                // という条件なので、アプリを開いていない間に作ったタブは開くまで起動せず、
+                // 続けて send しても PTY が無く何も起きない (実機で確認)。
+                // マクロから「タブを開いてコマンドを流す」を成立させるにはここで立ち上げる。
+                // ただし初回ダウンロードが要る distro / OS 未導入は勝手に通信を始めない
+                // (画面で確認ダイアログ or 案内を出す)。判定は永続値を await するので
+                // runOnMainSync の外で行う。
+                val plan = kotlinx.coroutines.runBlocking { created.startupPlan() }
+                if (plan is TerminalSession.StartupPlan.Start) {
+                    runOnMainSync { created.startTerminal() }
                 }
                 val index = SessionManager.sessions.value.indexOfFirst { it.id == created.id } + 1
                 "$index\t${created.id}"

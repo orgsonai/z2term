@@ -60,6 +60,10 @@ class SnippetStore(private val context: Context) {
      *
      * 既に `SEEDED=true` で過去にシード済みのユーザーには、別フラグ [SEEDED_APK] で
      * Alpine の apk サンプルだけ後追い投入する (既存スニペットに「追記」のみ、上書きしない)。
+     *
+     * ⚠ **ここに「入れてから使うコマンド」を置かないこと** (0.8.314)。スニペットは押せば
+     * そのまま走る場所なので、前提のあるコマンドを置くとエラーが出るだけになる。手順が要る
+     * ものは案内 ([com.zerotoship.z2term.ui.terminal.Guide]) の仕事。
      */
     suspend fun ensureSeeded() {
         context.snippetDataStore.edit { p ->
@@ -78,16 +82,18 @@ class SnippetStore(private val context: Context) {
                 p[KEY] = serialize(list)
             }
             p[SEEDED_APK] = true
-            // リマインドの書き方 (`remind.sh help`) を後追い投入 (0.8.286)。⚠ 書き方が増えて
-            // 覚えきれないので、**一覧をすぐ開ける場所**を 1 つ置く。初回シードにも含まれる
-            // ので、ここでは既に在れば何もしない。
-            if (p[SEEDED_REMIND] != true) {
-                val list = readList(p[KEY]).toMutableList()
-                for (s in remindSeeds()) {
-                    if (list.none { it.id == s.id }) list.add(s)
-                }
-                p[KEY] = serialize(list)
-                p[SEEDED_REMIND] = true
+            // ⚠ **`remind.sh help` のシードは撤去した** (0.8.314・利用者の指摘)。0.8.286 で
+            // 「書き方の一覧をすぐ開ける場所」として入れたが、**マクロを入れていない人が押すと
+            // 「見つからない」と出るだけ**で、そこから入れ方に辿り着けなかった。手順は
+            // ⚙設定 → メンテナンス → 案内を表示 (com.zerotoship.z2term.ui.terminal.Guide) に移した。
+            //
+            // 既にシード済みの人からは、**手を入れていない場合に限り**取り除く。編集した人の
+            // スニペットは触らない (自分で書き換えたものが黙って消えるのが一番困る)。
+            if (p[SEEDED_REMIND_REMOVED] != true) {
+                val list = readList(p[KEY])
+                val pruned = list.filterNot { it.id == LEGACY_REMIND_ID && it.command == LEGACY_REMIND_CMD }
+                if (pruned.size != list.size) p[KEY] = serialize(pruned)
+                p[SEEDED_REMIND_REMOVED] = true
             }
         }
     }
@@ -100,7 +106,6 @@ class SnippetStore(private val context: Context) {
             command = "ls -la --color=auto"
         ))
         addAll(apkSeeds())
-        addAll(remindSeeds())
     }
 
     /** Alpine 用 apk サンプル。pacman/apt は対象外 (Alpine 専用)。 */
@@ -115,18 +120,6 @@ class SnippetStore(private val context: Context) {
             // command 末尾を半角スペースで止めてユーザーがパッケージ名を追記できる形に。
             label = context.getString(com.zerotoship.z2term.R.string.snippet_sample_apk_add_label),
             command = "apk add ",
-        ),
-    )
-
-    /**
-     * リマインドの書き方を引く 1 件 (0.8.286)。⚠ マクロを入れていなければ「見つからない」と
-     * 出るだけなので、入れる前から置いてあってよい (押した人が入れ方に辿り着ける)。
-     */
-    private fun remindSeeds(): List<Snippet> = listOf(
-        Snippet(
-            id = "sample:remind-help",
-            label = context.getString(com.zerotoship.z2term.R.string.snippet_sample_remind_label),
-            command = "remind.sh help",
         ),
     )
 
@@ -184,6 +177,12 @@ class SnippetStore(private val context: Context) {
         private val KEY = stringPreferencesKey("snippets")
         private val SEEDED = booleanPreferencesKey("seeded")
         private val SEEDED_APK = booleanPreferencesKey("seeded_apk")
-        private val SEEDED_REMIND = booleanPreferencesKey("seeded_remind")
+        /**
+         * `remind.sh help` を取り除いたか (取り除きは 1 回だけ = 自分で足し直した人には戻らない)。
+         * ⚠ 投入側のフラグ `seeded_remind` (0.8.286〜0.8.313) は DataStore に残るが、参照は無い。
+         */
+        private val SEEDED_REMIND_REMOVED = booleanPreferencesKey("seeded_remind_removed")
+        private const val LEGACY_REMIND_ID = "sample:remind-help"
+        private const val LEGACY_REMIND_CMD = "remind.sh help"
     }
 }

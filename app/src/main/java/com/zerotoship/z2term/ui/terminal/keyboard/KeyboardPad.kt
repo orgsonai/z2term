@@ -196,7 +196,8 @@ private fun ColumnScope.ClipboardPane(style: KeyboardStyle, onInsert: (String) -
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = item.text,
+                    // 機微な行 (30 秒で消える) は 🔒 を付けて、消えるものだと分かるようにする。
+                    text = if (item.sensitive) "🔒 ${item.text}" else item.text,
                     color = ZtsTextPrimary,
                     fontSize = (style.keyFontSp * 0.8f).sp,
                     fontFamily = FontFamily.Monospace,

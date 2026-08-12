@@ -585,20 +585,47 @@ class TerminalSession(
     }
 
     /**
-     * 自動起動 (startTerminal) がそのまま走るとネットワーク DL が発生する場合、その対象
-     * spec を返す。確認不要 (確認 OFF / 同梱 / 導入済み / アーカイブ取得済み) なら null。
-     * UI 側はこれが非 null のとき先にダウンロード確認ダイアログを出す (foss の初回起動など)。
-     * pendingRestoreDistroId は消費せず peek するだけ (実際の消費は startTerminal が行う)。
+     * 自動起動でどうするか (0.8.314)。UI (タブを開いた直後) はこれを見て 3 通りに分かれる。
      */
-    fun downloadOnStartSpec(): DistroSpec? {
-        if (!settingsFlow.value.confirmBeforeDownload) return null
+    sealed interface StartupPlan {
+        /** そのまま [startTerminal] してよい (同梱 / 導入済み / 確認 OFF)。 */
+        data object Start : StartupPlan
+
+        /**
+         * **OS が 1 つも入っていない**。ダウンロードの催促ではなく、⚙設定 から選んで
+         * もらう案内を出す ([com.zerotoship.z2term.ui.terminal.NoOsNotice])。
+         */
+        data object NeedOsInstall : StartupPlan
+
+        /** 選んでいる OS がまだ無いので、先にダウンロード確認ダイアログを出す。 */
+        data class ConfirmDownload(val spec: DistroSpec) : StartupPlan
+    }
+
+    /**
+     * 自動起動 (startTerminal) をそのまま走らせてよいかを決める。
+     *
+     * ⚠ **永続値を await してから決める** (0.8.314)。以前は `settingsFlow.value` を見ていたが、
+     * これは `stateIn(Eagerly)` の初期値 = 既定 Snapshot (`distroId=alpine`) なので、DataStore の
+     * 初回 emit が届く前にここを通ると**選んでいる OS ではなく alpine の判定になる**。
+     * 「Arch で使っているのに、新しいタブを開くとタイミングによって Alpine のダウンロードを
+     * 催促される」の正体がこれ ([startTerminal] は既に同じ理由で await している)。
+     *
+     * pendingRestoreDistroId は消費せず peek するだけ (実際の消費は [startTerminal] が行う)。
+     */
+    suspend fun startupPlan(): StartupPlan {
+        val persisted = settings.flow.first()
         val spec = pendingRestoreDistroId?.let { DistroSpec.byId(it) }
-            ?: DistroSpec.byId(settingsFlow.value.distroId)
+            ?: DistroSpec.byId(persisted.distroId)
             ?: DistroSpec.ALPINE
-        if (spec.effectivelyBundled) return null
-        if (launcher.isDistroReady(spec.id)) return null
-        if (downloader.resolveLocalArchive(spec, detectAbiId()) != null) return null
-        return spec
+        // 入れる必要が無い (同梱 / 展開済み / アーカイブ取得済み) ならそのまま起動。
+        if (spec.effectivelyBundled) return StartupPlan.Start
+        if (launcher.isDistroReady(spec.id)) return StartupPlan.Start
+        if (downloader.resolveLocalArchive(spec, detectAbiId()) != null) return StartupPlan.Start
+        // ⚠ **OS が 1 つも無いときは、確認 ON/OFF に関わらず勝手に入れない。** どれから始めるかは
+        // 利用者が選ぶこと (foss の初回起動で既定の 1 本を押し付けない)。
+        if (!launcher.hasAnyDistro()) return StartupPlan.NeedOsInstall
+        if (!persisted.confirmBeforeDownload) return StartupPlan.Start
+        return StartupPlan.ConfirmDownload(spec)
     }
 
     /** SUPPORTED_ABIS の先頭。DistroDownloader/Installer と同じ判定。 */

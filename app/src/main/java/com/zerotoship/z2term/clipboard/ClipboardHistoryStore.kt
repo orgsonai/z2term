@@ -38,8 +38,20 @@ import java.io.File
  *    (Android 10+ はフォーカス中のみクリップボード読取が許可されるため)。
  *  - 端末コピー経路からは [record] を直接呼んでも良い (重複は先頭一致で弾く)。
  *
- * ⚠ **機微なクリップは残さない。** パスワードマネージャ等が付ける [EXTRA_IS_SENSITIVE] 印の
- * クリップは取り込まない。
+ * ## 機微なクリップ (0.8.314)
+ *
+ * パスワードマネージャ等が付ける [EXTRA_IS_SENSITIVE] 印のクリップは、**以前は丸ごと捨てて
+ * いた** — その結果、いちばん貼り付けたいもの (パスワード) だけが 📋 履歴に出ず、
+ * 「コピーしたのに入っていない」状態になっていた (利用者の指摘)。
+ *
+ * 取り込むように改めたうえで、残り続けないように次の 3 つで縛る:
+ *
+ *  - **[SENSITIVE_TTL_MS] (30 秒) で履歴から自動的に消える。** 貼るには足りて、放置はされない。
+ *  - **同じ値が OS のクリップボードにまだ載っていれば、そこからも消す。** 履歴だけ消しても
+ *    他アプリから貼れてしまうため。⚠ **値が変わっていたら触らない** — 別のアプリが後から
+ *    コピーしたものを奪うことになる (同梱サンプル `otp-clip.sh` と同じ作法)。
+ *  - **ディスクに書かない** ([saveToDisk] が落とす)。30 秒で消えるものを永続化しても、
+ *    アプリを殺した瞬間だけ残るという最悪の形になる。
  *
  * 保存場所: `filesDir/clipboard_history.json`
  */
@@ -55,6 +67,9 @@ object ClipboardHistoryStore {
     private const val MAX_TEXT_LEN = 20_000   // 巨大貼り付けの暴走を防ぐ上限
     private const val SAVE_DEBOUNCE_MS = 800L
 
+    /** 機微なクリップを履歴に置いておく時間。貼るには足りて、放置はされない長さ。 */
+    private const val SENSITIVE_TTL_MS = 30_000L
+
     /**
      * 「この内容は機微」だとクリップに付く印 (`ClipDescription.EXTRA_IS_SENSITIVE`)。
      * 定数自体は API 33 で公開されたが、値は文字列キーなのでそれ以前の OS でも
@@ -62,14 +77,20 @@ object ClipboardHistoryStore {
      */
     private const val EXTRA_IS_SENSITIVE = "android.content.extra.IS_SENSITIVE"
 
-    /** 履歴 1 件。[text] はコピー本文、[copiedAt] は記録時刻 (epoch ms)。 */
-    data class ClipEntry(val text: String, val copiedAt: Long)
+    /**
+     * 履歴 1 件。[text] はコピー本文、[copiedAt] は記録時刻 (epoch ms)。
+     *
+     * [sensitive] は「機微」印が付いていたクリップ (パスワード等)。この印が付いた行だけは
+     * [SENSITIVE_TTL_MS] で消え、ディスクにも書かれない。
+     */
+    data class ClipEntry(val text: String, val copiedAt: Long, val sensitive: Boolean = false)
 
     private val _history = MutableStateFlow<List<ClipEntry>>(emptyList())
     val history: StateFlow<List<ClipEntry>> = _history.asStateFlow()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var saveJob: Job? = null
+    private var purgeJob: Job? = null
     private val loadMutex = Mutex()
     @Volatile private var loaded = false
     private var contextRef: Context? = null
@@ -104,37 +125,91 @@ object ClipboardHistoryStore {
     /** 現在のシステムクリップボードを 1 件取り込む (前面復帰時・パッドを開いた時などに呼ぶ)。 */
     fun captureCurrent(context: Context) {
         contextRef = context.applicationContext
-        val text = runCatching { readClip(context) }
+        val clip = runCatching { readClip(context) }
             .onFailure { Log.w(TAG, "clip read failed: ${it.message}") }
             .getOrNull()
-        if (!text.isNullOrEmpty()) record(text)
+        if (clip != null && clip.text.isNotEmpty()) record(clip.text, clip.sensitive)
     }
 
-    /** クリップボードの中身をテキストとして読む。機微印が付いていれば null。 */
-    private fun readClip(context: Context): String? {
+    /** 読み取ったクリップ 1 件。[sensitive] は「機微」印が付いていたか。 */
+    private data class Clip(val text: String, val sensitive: Boolean)
+
+    /** クリップボードの中身をテキストとして読む。空 / 読めないときは null。 */
+    private fun readClip(context: Context): Clip? {
         val cm = context.getSystemService(ClipboardManager::class.java) ?: return null
         val clip = cm.primaryClip ?: return null
-        if (clip.description?.extras?.getBoolean(EXTRA_IS_SENSITIVE, false) == true) return null
         if (clip.itemCount == 0) return null
-        return clip.getItemAt(0)?.coerceToText(context)?.toString()
+        val text = clip.getItemAt(0)?.coerceToText(context)?.toString() ?: return null
+        val sensitive = clip.description?.extras?.getBoolean(EXTRA_IS_SENSITIVE, false) == true
+        return Clip(text, sensitive)
     }
 
     /**
      * 履歴へ 1 件追加する。直前 (先頭) と同一本文なら時刻だけ更新して重複を作らない。
      * 既出 (途中) の本文は削除して先頭へ繰り上げる (LRU)。上限超過分は末尾から切り捨て。
+     *
+     * @param sensitive 「機微」印が付いていたクリップなら true。30 秒で自動的に消える
+     *   ([SENSITIVE_TTL_MS]) 一時的な行として積む。
      */
-    fun record(text: String) {
+    fun record(text: String, sensitive: Boolean = false) {
         val body = text.take(MAX_TEXT_LEN)
         if (body.isEmpty() || body.isBlank()) return
         val now = System.currentTimeMillis()
         val cur = _history.value
         val rest = cur.filterNot { it.text == body }
-        if (rest.size == cur.size && cur.firstOrNull()?.text == body) {
+        val head = cur.firstOrNull()
+        if (rest.size == cur.size && head?.text == body && head.sensitive == sensitive) {
             // 既に先頭が同一: 何もしない (時刻だけ更新するほどの価値はない)。
+            // ⚠ 機微かどうかが変わったときだけは積み直す (消える行かどうかが変わるため)。
             return
         }
-        _history.value = (listOf(ClipEntry(body, now)) + rest).take(MAX_ENTRIES)
+        _history.value = (listOf(ClipEntry(body, now, sensitive)) + rest).take(MAX_ENTRIES)
+        if (sensitive) schedulePurge()
         scheduleSave()
+    }
+
+    /**
+     * 機微な行の期限切れを見張る 1 本のジョブ。次に切れる行まで待って消し、
+     * まだ機微な行が残っていれば繰り返す。残っていなければ止まる (常駐しない)。
+     */
+    private fun schedulePurge() {
+        if (purgeJob?.isActive == true) return
+        purgeJob = scope.launch {
+            while (true) {
+                val next = _history.value
+                    .filter { it.sensitive }
+                    .minOfOrNull { it.copiedAt + SENSITIVE_TTL_MS } ?: return@launch
+                val wait = next - System.currentTimeMillis()
+                if (wait > 0) delay(wait)
+                purgeExpired()
+            }
+        }
+    }
+
+    /** 期限の切れた機微な行を履歴から外し、OS のクリップボードにも残っていれば消す。 */
+    private fun purgeExpired() {
+        val now = System.currentTimeMillis()
+        val expired = _history.value.filter { it.sensitive && now - it.copiedAt >= SENSITIVE_TTL_MS }
+        if (expired.isEmpty()) return
+        val gone = expired.toSet()
+        _history.value = _history.value.filterNot { it in gone }
+        contextRef?.let { ctx -> expired.forEach { clearSystemClipIfUnchanged(ctx, it.text) } }
+        scheduleSave()
+    }
+
+    /**
+     * OS のクリップボードが**まだ同じ値**なら空にする。
+     *
+     * ⚠ 値が変わっていたら何もしない — 後から別のアプリがコピーしたものを奪ってしまうため。
+     * Android 10+ は前面 (フォーカスあり) でないとクリップボードを読めないので、読めなかった
+     * ときも「変わっているかもしれない」側に倒して触らない。
+     */
+    private fun clearSystemClipIfUnchanged(context: Context, text: String) {
+        runCatching {
+            val cm = context.getSystemService(ClipboardManager::class.java) ?: return
+            if (readClip(context)?.text != text) return
+            cm.clearPrimaryClip()
+        }.onFailure { Log.w(TAG, "clip clear failed: ${it.message}") }
     }
 
     /** 1 件削除。 */
@@ -154,8 +229,8 @@ object ClipboardHistoryStore {
         val cm = context.getSystemService(ClipboardManager::class.java) ?: return
         val l = ClipboardManager.OnPrimaryClipChangedListener {
             runCatching {
-                val text = readClip(context)
-                if (!text.isNullOrEmpty()) record(text)
+                val clip = readClip(context)
+                if (clip != null && clip.text.isNotEmpty()) record(clip.text, clip.sensitive)
             }.onFailure { Log.w(TAG, "clip read failed: ${it.message}") }
         }
         runCatching { cm.addPrimaryClipChangedListener(l); listener = l }
@@ -194,7 +269,9 @@ object ClipboardHistoryStore {
 
     private fun saveToDisk(context: Context) {
         val arr = JSONArray()
-        for (e in _history.value) {
+        // ⚠ 機微な行は書かない。30 秒で消えるものを永続化すると、アプリを殺した瞬間だけ
+        // ディスクに残るという最悪の形になる。
+        for (e in _history.value.filterNot { it.sensitive }) {
             arr.put(JSONObject().apply {
                 put("t", e.text)
                 put("at", e.copiedAt)

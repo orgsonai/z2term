@@ -282,6 +282,20 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     }
     // 自動起動前に DL 確認が要る spec (foss 初回など)。非 null の間ダイアログを出す。
     var pendingInitialDownload by remember(active.id) { mutableStateOf<DistroSpec?>(null) }
+    // OS が 1 つも入っていないとき出す案内 (0.8.314)。✕ で消した記憶はタブをまたいで残す
+    // ([NoOsNotice.dismissed]) ので、ここはこのタブで判定が出たかどうかだけを持つ。
+    var noOsNotice by remember(active.id) { mutableStateOf(false) }
+    // ⚠ 端末が動き出したら引っ込める。設定から OS を入れると起動が始まるので、それを合図にする
+    // (これが無いと「入れてください」の案内が動いている端末の上に残る)。
+    val terminalState by active.uiState.collectAsState()
+    LaunchedEffect(terminalState.state) {
+        if (terminalState.state != com.zerotoship.z2term.core.TerminalSession.TerminalState.IDLE) {
+            noOsNotice = false
+        }
+    }
+    // 手順の案内 (⚙設定 → メンテナンス → 案内を表示 / はじめの案内から開く)。非 null の間出す。
+    // GUI タブから選んだ案内もここへ流れてくるので、画面をまたぐ [GuideHost] に持たせる。
+    val activeGuide = GuideHost.current
     var snippetsSheetOpen by remember { mutableStateOf(false) }
     var clipHistoryOpen by remember { mutableStateOf(false) }
     // 端末ログ (⚪): 記録状態はセッションが持ち、詳細設定シートの開閉だけ画面側で持つ。
@@ -401,13 +415,17 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         // IDLE 状態のセッションだけ自動的にローカル PTY を立ち上げる。
         // SSH などで外部から STARTING に進められたセッションは触らない。
         if (active.uiState.value.state == com.zerotoship.z2term.core.TerminalSession.TerminalState.IDLE) {
-            // 確認 ON かつ初回 DL が走る非同梱 distro (foss の Alpine 等) は、先にダウンロード
-            // 確認ダイアログを出してからユーザー同意で起動する。それ以外はそのまま起動。
-            val dlSpec = active.downloadOnStartSpec()
-            if (dlSpec != null) {
-                pendingInitialDownload = dlSpec
-            } else {
-                active.startTerminal()
+            // 何をするかは永続値を await して決める (0.8.314・[TerminalSession.startupPlan])。
+            //  - Start           : そのまま起動
+            //  - ConfirmDownload : 選んだ OS がまだ無い → ダウンロード確認ダイアログ
+            //  - NeedOsInstall   : OS が 1 つも無い → 塞がない案内カード (催促しない)
+            when (val plan = active.startupPlan()) {
+                is com.zerotoship.z2term.core.TerminalSession.StartupPlan.Start ->
+                    active.startTerminal()
+                is com.zerotoship.z2term.core.TerminalSession.StartupPlan.ConfirmDownload ->
+                    pendingInitialDownload = plan.spec
+                is com.zerotoship.z2term.core.TerminalSession.StartupPlan.NeedOsInstall ->
+                    noOsNotice = true
             }
         }
     }
@@ -554,11 +572,30 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             }
         }
 
+        // OS が 1 つも無いときの案内 (0.8.314)。ダウンロードの催促ダイアログの代わりで、
+        // 画面を塞がない 1 枚。⚙設定 → Linux環境 で入れれば自然に出なくなる。
+        if (noOsNotice && !NoOsNotice.dismissed) {
+            NoOsNoticeCard(
+                onOpenSettings = { settingsOpen = true },
+                onDismiss = { NoOsNotice.dismissed = true }
+            )
+        }
+
+        // 手順の案内 (0.8.314)。⚙設定 → メンテナンス → 案内を表示 から開く。
+        // はじめの案内と同じ見た目・同じ送り方 (Ctrl-C → コマンド → ⏎)。
+        activeGuide?.let { guide ->
+            GuideCards(
+                guide = guide,
+                onRun = { cmd -> runGuideCommand(active, scope, cmd) },
+                onFinish = { GuideHost.current = null }
+            )
+        }
+
         // 初回だけ「最初の 3 枚」を出す (0.8.231)。触ったら消え、3 枚とも消えるか ✕ で二度と出ない。
-        // 実行はしない — タップで入力行に入るだけで、⏎ は人が押す (共有受け取りと同じ作法)。
         if (!settings.introDone) {
             IntroCards(
-                onInsert = { cmd -> active.writeBytes(cmd.toByteArray(Charsets.UTF_8)) },
+                onRun = { cmd -> runGuideCommand(active, scope, cmd) },
+                onOpenGuide = { GuideHost.current = it },
                 onFinish = { active.setIntroDone(true) }
             )
         }
@@ -759,7 +796,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         SettingsSheet(
             session = active,
             onDismiss = { settingsOpen = false },
-            onEditCustomTheme = { customThemeEditorOpen = true }
+            onEditCustomTheme = { customThemeEditorOpen = true },
+            // 案内はシートを閉じてから端末の上に出す (シートに隠れると手順が読めない)。
+            onShowGuide = { guide -> settingsOpen = false; GuideHost.current = guide }
         )
     }
     if (customThemeEditorOpen) {
@@ -846,6 +885,30 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onStopAll = { residentDialogOpen = false; stopEverythingAndQuit(context) },
             onCancel = { residentDialogOpen = false }
         )
+    }
+}
+
+/**
+ * 案内カードのコマンドを端末へ送る (0.8.314)。**Ctrl-C → コマンド → ⏎** の順。
+ *
+ * ⚠ **入力行に入れるだけ (⏎ は人が押す) をやめた**のは利用者の判断で、理由は
+ * **打ちかけの文字と混ざること**。案内は「打ちかけ」の途中でも押せてしまうので、入れるだけだと
+ * `ls -l` を打った後に案内を押して `ls -lz2-macro install remind` のような行ができ、⏎ で
+ * 意図しない行が走る。先に `Ctrl-C` (0x03) で行を捨てれば、何が打たれていても同じ結果になる。
+ *
+ * ⚠ **Ctrl-C の直後に続けて書かない**。tty は INTR を受けた時点で**入力待ち行列を捨てる**
+ * (`ISIG` かつ `NOFLSH` 無しの既定動作) ので、同じ塊で送るとコマンド側まで一緒に消えることが
+ * ある。少しだけ間を空けてから送る。
+ */
+private fun runGuideCommand(
+    session: com.zerotoship.z2term.core.TerminalSession,
+    scope: kotlinx.coroutines.CoroutineScope,
+    command: String,
+) {
+    scope.launch {
+        session.writeBytes(byteArrayOf(0x03))
+        delay(150)
+        session.writeBytes((command + "\n").toByteArray(Charsets.UTF_8))
     }
 }
 
@@ -1186,7 +1249,14 @@ private fun GuiTabScreen(
             session = terminalForSettings,
             onDismiss = { settingsOpen = false },
             // GUI からは独自テーマ編集シートまでは開かない (端末タブで)。
-            onEditCustomTheme = { }
+            onEditCustomTheme = { },
+            // 案内はコマンドの手順なので、GUI からでも**端末タブへ移ってから**出す
+            // (GUI の上に出しても打つ場所が無く、結果も見えない)。
+            onShowGuide = { guide ->
+                settingsOpen = false
+                GuideHost.current = guide
+                SessionManager.setActive(terminalForSettings.id)
+            }
         )
     }
     if (snippetsSheetOpen) {

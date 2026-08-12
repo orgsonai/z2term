@@ -22,6 +22,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -104,6 +106,7 @@ import com.zerotoship.z2term.settings.SettingsGroup
 import com.zerotoship.z2term.settings.SettingsGroupStore
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import com.zerotoship.z2term.ui.components.ResidentActionDialog
+import com.zerotoship.z2term.ui.terminal.Guide
 import com.zerotoship.z2term.ui.terminal.ToolbarButtons
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
@@ -148,12 +151,14 @@ import kotlinx.coroutines.withContext
  *
  * 値は変更と同時に `session.set*` を呼び DataStore に書き込まれる。
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsSheet(
     session: TerminalSession,
     onDismiss: () -> Unit,
-    onEditCustomTheme: () -> Unit = {}
+    onEditCustomTheme: () -> Unit = {},
+    /** メンテナンス →「案内を表示」で選ばれた案内。呼び出し側が端末の上に出す。 */
+    onShowGuide: (Guide) -> Unit = {}
 ) {
     val settings by session.settingsFlow.collectAsState()
     // このタブが実際に起動したエンジン (設定値ではなく実起動結果。信頼できるエンジン表示用)。
@@ -692,14 +697,22 @@ fun SettingsSheet(
                                     session.cleanInstallDistro(id)
                                     onDismiss()
                                 }
-                            } else if (id != settings.distroId) {
+                            } else {
                                 val extracted = java.io.File(
                                     context.filesDir, "distros/$id/bin"
                                 ).exists()
                                 // 非同梱 distro が未展開なら初回切替でネットから DL が走る
                                 // (foss の Alpine も effectivelyBundled=false で DL 対象)。
                                 val needsDownload = spec != null && !spec.effectivelyBundled && !extracted
-                                if (needsDownload && settings.confirmBeforeDownload) {
+                                // ⚠ **既に選ばれている OS でも、入っていなければ押せる** (0.8.314)。
+                                // foss の初回は既定 (Alpine) が選択済みなのに未導入という状態から
+                                // 始まるので、`id != 選択中` で弾くと**その OS だけ入れられなかった**
+                                // (自動ダウンロードの催促をやめた分、ここが唯一の入口になる)。
+                                val alreadyUsable =
+                                    id == settings.distroId && (extracted || spec?.effectivelyBundled == true)
+                                if (alreadyUsable) {
+                                    // 選択中でそのまま使える: 何もしない。
+                                } else if (needsDownload && settings.confirmBeforeDownload) {
                                     pendingDistroSwitch = spec   // 確認ダイアログを出す
                                     pendingCleanInstall = false
                                 } else {
@@ -1406,6 +1419,31 @@ fun SettingsSheet(
                             ).show()
                         }
                     )
+                }
+
+                // 案内を表示 (0.8.314)。同梱サンプルのマクロは「入れてから使う」ものなので、
+                // 入れる前は名前すら見えない。手順のカードをここから何度でも出せるようにする。
+                // ⚠ 以前はリマインドだけスニペットに `remind.sh help` を置いていたが、入れて
+                //   いない人が押すと「見つからない」と出るだけだった (利用者の指摘)。
+                Section(title = stringResource(R.string.settings_guides)) {
+                    Text(
+                        text = stringResource(R.string.settings_guides_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Guide.ALL.forEach { guide ->
+                            ActionButton(
+                                label = stringResource(guide.titleRes),
+                                onClick = { onShowGuide(guide) }
+                            )
+                        }
+                    }
                 }
 
                 // 端末リセット (アプリ初回起動時の状態に戻す = 端末タブ 1 つだけにして初期化)。

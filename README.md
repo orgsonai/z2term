@@ -57,12 +57,12 @@ Every release ships two APKs.
 
 | File | Contents | Which to pick |
 |---|---|---|
-| `app-foss-release.apk` | No prebuilts (~21MB) | **The recommended one.** Nine times smaller, and each update downloads ~21MB instead of ~190MB — handy on metered data or a slow link. It also bundles no third-party prebuilts (fewer license notices). Alpine is fetched once from the official CDN on first launch and verified by SHA-256; updates never re-download it. |
+| `app-foss-release.apk` | No prebuilts (~21MB) | **The recommended one.** Nine times smaller, and each update downloads ~21MB instead of ~190MB — handy on metered data or a slow link. It also bundles no third-party prebuilts (fewer license notices). No OS is bundled, so **the first launch asks you to pick one in Settings › Linux environment** (0.8.314; Alpine is fetched from the official CDN and verified by SHA-256, and updates never re-download it). |
 | `app-full-release.apk` | PRoot and the Alpine rootfs bundled (~190MB) | **When you want it offline from the very first launch.** The distribution is already inside, so nothing downloads — at the cost of ~190MB for the app and for every update. |
 
-Same app either way; the feature sets are identical. The only difference is **whether Alpine is
+Same app either way; the feature sets are identical. The only difference is **whether an OS is
 downloaded once on first launch**, so if you have a connection that first time, `foss` costs you
-nothing. Note that automatic updates (below) still fetch the whole APK each time — there are no
+nothing (and it lets you **choose which OS to start from**, at the cost of one extra tap). Note that automatic updates (below) still fetch the whole APK each time — there are no
 delta updates outside Google Play — so the size gap keeps paying off on every update.
 
 Tap the APK on your Android device → allow "Install from unknown sources" to install.
@@ -84,7 +84,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.313-alpha (versionCode 321).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.314-alpha (versionCode 322).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 

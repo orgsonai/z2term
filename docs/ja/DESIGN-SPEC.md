@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-12 / 対象バージョン: 0.8.313-alpha (versionCode 321)
+最終更新: 2026-08-12 / 対象バージョン: 0.8.314-alpha (versionCode 322)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -595,12 +595,29 @@ z2-when wifi:disconnect run 'z2-server stop sshd'
 - ⚠ **判定できないタブに印を出してはいけない**。`hasForegroundChild` は判定手段が無いとき**安全側の `true`** を返す（マウスレポート漏れ対策としてはそれが正しい）。そのまま表示に使うと **SSH タブに永久に「動作中」が点く**。`ProcessChannel.supportsForegroundChild`（ローカル PTY だけ true）と `AppSession.busyKnown` を足し、表示側はこちらを見る。閉じる確認は「多めに確認する」で済むが、表示は嘘が出っぱなしになるという非対称がある。
 - ポーリングは**タブバーで 1 回だけ**まとめて回す（1 秒 × タブ数の `tcgetpgrp` を避ける）。判定は `nextEndedIds` に切り出して `TabMarkTest` が固定する（「終わったのに出ない」「終わっていないのに `✓`」はどちらも気付きにくい）。
 
-**初回ガイド「最初の 3 枚」（`ui/terminal/IntroCards`、0.8.231）**: 入れた直後の画面は黒地に `#` だけで、Linux を知らない人はそこで止まる。知っている人にも「ふつうの端末」に見えて、**Z2Term の差（= Android を触れること）に気付かないまま終わる**。最初の 90 秒で「うごいた」を 1 回配るための 3 枚。
+**初回ガイド「最初の 3 枚」（`ui/terminal/IntroCards`、0.8.231）**: 入れた直後の画面は黒地に `#` だけで、Linux を知らない人はそこで止まる。知っている人にも「ふつうの端末」に見えて、**Z2Term の差（= Android を触れること）に気付かないまま終わる**。最初の 90 秒で「うごいた」を 1 回配るための 3 枚（0.8.286 でリマインドの 2 枚を足して 4 枚になったが、0.8.314 でその 2 枚を「案内を開く」1 枚に畳んで 3 枚へ戻した）。
 
-- 中身は「通知を出す」「ライトを点ける」「PC からつなぐ」。**Android を触れること 2 枚 + PC から入れること 1 枚**で、どれも 1 行で結果が出るものだけにする（待たされるものを最初に置かない）。
-- **勝手に実行しない**。タップで**入力行に入るだけ**で、⏎ は人が押す（共有受け取り B1 と同じ作法）。文言も「説明」ではなく**打つコマンドそのもの**を見せる — 読ませる画面ではなく、1 回動かしてもらう画面なので。
-- **触った枚は消える**。3 枚とも消えるか ✕ を押したら [AppSettings.introDone] を立てて**二度と出さない**。
-- ⚠ **32 件の提案で唯一「モードを増やすな」と正面衝突しうる案**だった。だから仕様を先に固めてある: **項目は 3 つまで・全画面ウィザードにしない・復活は設定の奥に 1 行**（メンテナンス）。4 枚目を足したくなったら、それは `z2help` の仕事。ここを緩めると 5 枚 6 枚と増える理由が毎回生まれ、二度と閉じられなくなる。
+- 中身は「通知を出す」「ライトを点ける」「リマインドの案内を開く」。**Android を触れること 2 枚 + 案内への入口 1 枚**で、どれも 1 行で結果が出るものだけにする（待たされるものを最初に置かない）。
+- **タップしたら実行する（0.8.314・利用者の判断で変更）**。0.8.313 までは「入力行に入るだけで ⏎ は人が押す」作法だったが、案内は**打ちかけの途中でも押せてしまう**ため、`ls -l` を打った後に押すと `ls -lz2-macro install remind` のような行ができ、⏎ で意図しない行が走る。**先に `Ctrl-C`（0x03）で行を捨ててから**コマンド＋改行を送る形にした（`runGuideCommand`）。⚠ `Ctrl-C` の直後に続けて書かないこと — tty は INTR を受けた時点で**入力待ち行列を捨てる**（`ISIG` かつ `NOFLSH` 無しの既定動作）ので、同じ塊で送るとコマンドまで一緒に消える。150ms 空ける。
+- 文言は「説明」ではなく**打つコマンドそのもの**を見せる — 読ませる画面ではなく、1 回動かしてもらう画面なので。
+- **カードごとに ✕ が付く（0.8.314）**。要らない手順を**送らずに**消せる。触った枚も消え、全部消えるか見出しの ✕ を押したら [AppSettings.introDone] を立てて**二度と出さない**。
+- ⚠ **32 件の提案で唯一「モードを増やすな」と正面衝突しうる案**だった。だから仕様を先に固めてある: **項目は 3 つまで・全画面ウィザードにしない・復活は設定の奥に 1 行**（メンテナンス）。4 枚目を足したくなったら、それは `z2help` と案内（下記）の仕事。ここを緩めると 5 枚 6 枚と増える理由が毎回生まれ、二度と閉じられなくなる。
+
+**案内（`ui/terminal/GuideCards`、0.8.314）**: 同梱サンプルのマクロは `z2-macro install <名前>` で入れてから使うものなので、**入れる前は名前すら見えない**。0.8.286 では「書き方の一覧をすぐ開ける場所」としてスニペットに `remind.sh help` を 1 件シードしていたが、**入れていない人が押すと「見つからない」と出るだけ**で、そこから入れ方に辿り着けなかった（利用者の指摘）。スニペットのシードを撤去し、**どのサンプルも手順のカードで出す**形に置き換えた。
+
+- 入口は **⚙設定 › メンテナンス › 「案内を表示」**。10 本のサンプル（`watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `unknown-call` / `remind` / `rss` / `rss-open` / `qr`）それぞれに 1 本ずつあり、何度でも出せる。
+- 見た目・送り方は初回ガイドと**同じ部品**（`GuideCardColumn` / `GuideCardRow`）。並べる順がそのまま手順の順で、タップで 1 行ずつ実行、要らない行は ✕ で捨てる。
+- ⚠ **カードのコマンドに翻訳が要る文字を入れないこと**。ここは `strings.xml` を通らないので、本文に日本語を混ぜると英語環境でも日本語のコマンドが送られる。例示は `remind.sh list` のように**言語に依らない形**で書く。
+- コマンドを持たないカード（⚙設定 を触る手順・前提パッケージの案内）は読むだけ。タップすると「読んだ」として消える。
+- **GUI タブから選んだときは端末タブへ移ってから出す**。案内はコマンドの手順なので、GUI の上に出しても打つ場所も結果も無い。画面をまたぐので `GuideHost`（object）に 1 つだけ持つ。
+- ⚠ **スニペットに「入れてから使うコマンド」を置かない**。スニペットは押せばそのまま走る場所なので、前提のあるコマンドを置くとエラーが出るだけになる。手順が要るものは案内の仕事。
+
+**OS が 1 つも無いときは、ダウンロードを催促しない（0.8.314）**: foss 版は rootfs を同梱しないので、初回起動でいきなり Alpine のダウンロード確認ダイアログが出ていた。これは**「どの OS から始めるか」を選ぶ前に既定の 1 本を押し付ける**形で、「Arch から始めたい」人は毎回断ることになる。しかも断っても状態は変わらないので、**タブを開くたびに同じダイアログが出る**（利用者の指摘）。
+
+- 判断は `TerminalSession.startupPlan()`（`suspend`）に集約し、`Start` / `ConfirmDownload(spec)` / `NeedOsInstall` の 3 通りを返す。`NeedOsInstall`（`ProotLauncher.hasAnyDistro()` が false）のときは**確認 ON/OFF に関わらず勝手に入れない**。
+- 代わりに画面を塞がない案内カード（`ui/terminal/NoOsNotice`）を 1 枚出す。押すと ⚙設定 › Linux環境 が開き、✕ で消せる。消した記憶は**アプリを開いている間だけ**（`NoOsNotice.dismissed`）＝タブを開き直しても出戻らないが、次に開くと出る（OS が無ければ端末は本当に使えないので「二度と出ない」にはしない）。
+- ⚠ **判定は永続値を await してから行う**。0.8.313 までの `downloadOnStartSpec()` は `settingsFlow.value` を見ていたが、これは `stateIn(Eagerly)` の初期値＝既定 Snapshot（`distroId=alpine`）なので、DataStore の初回 emit が届く前に通ると**選択中の OS ではなく Alpine の判定になる**。「Arch で使っているのに、新しいタブを開くとタイミングによって Alpine のダウンロードを催促される」の正体がこれで、`startTerminal` が同じ理由で既に await していた（0.8.105）のに、催促の判定だけ取り残されていた。
+- ⚠ **⚙設定の OS チップは「選択中でも未導入なら押せる」**必要がある。従来は `id != 選択中` で弾いていたが、foss の初回は**既定（Alpine）が選択済みなのに未導入**という状態から始まるため、そのままだと**その OS だけ入れられない**。自動催促をやめた分、ここが唯一の入口になる。
 
 **複数行の貼り付けだけ、貼る前に見せる（0.8.232）**: 📋 は押した瞬間に入るので、コピー元がコードのかたまりだと**何行入ったのか分からないまま** ⏎ を押すことになる。**改行を含むときだけ** 48dp の帯を出し、行数と先頭 2 行を見せてから貼る。
 
@@ -951,7 +968,8 @@ ptrace 越しに数千 syscall になるうえ、常駐中は WakeLock/WifiLock 
 - `resolveShell`: 指定シェルが rootfs に無ければ `defaultShell → /bin/sh` にフォールバック (usrmerge 考慮)。
 - **設定「ログインシェル」を全入口へ適用 (0.8.165)**: 従来は端末タブ (エンジンが直接 exec する `command`) にしか効かず、**SSH ログインと GUI 内ターミナルは distro 既定 (bash 等) のまま**だった (dropbear は `/etc/passwd` の shell を、GUI 内ターミナルは `$SHELL` を起動するため)。`launch()`/`launchChroot()` に `loginShell` を渡し、(1) `ensureRootLoginShell` が rootfs の `/etc/passwd` の root 行 7 番目のフィールドを設定値へ書き換える (= `chsh` 相当。`/etc/shells` にも追記)、(2) env `SHELL` / `Z2_LOGIN_SHELL` に流す、(3) `z2gui` の SHELL 張り直しが `Z2_LOGIN_SHELL` を最優先候補にする、の 3 点で端末タブ・SSH・GUI が同じシェルになる。rootfs に無いシェル (Ubuntu 素の zsh 等) を指定した場合は従来どおりフォールバックし、passwd は書き換えない。
 - `isDistroReady`: `bin/busybox|bin/bash` 等の実体 + `.z2term-version` マーカー (同梱 distro のみ `ROOTFS_VERSION` 比較)。
-- 起動毎に冪等で注入: `ensureShellHistoryConfig` (履歴 rc)、`ensureSshdWrapper` (`/usr/local/sbin/sshd` = dropbear ラッパー)、`ensureOsc7CwdConfig` (cwd 復元用 OSC7 フック)、`ensureZ2ApiScripts` (`z2-*` ブリッジ)、`ensureZ2AdbScript` (`/usr/local/bin/z2adb`)、`ensureZ2HelpScript` (`/usr/local/bin/z2help` + エイリアス `/usr/local/bin/z2term`)、`ensureZ2ScanScript` (`/usr/local/bin/z2scan`)、GUI/z2run スクリプト、`ensureVersionScript` (`/usr/local/bin/z2version`)。
+- 起動毎に冪等で注入: `ensureShellHistoryConfig` (履歴 rc)、`ensureMacroPathConfig` (マクロ置き場の PATH)、`ensureSshdWrapper` (`/usr/local/sbin/sshd` = dropbear ラッパー)、`ensureOsc7CwdConfig` (cwd 復元用 OSC7 フック)、`ensureZ2ApiScripts` (`z2-*` ブリッジ)、`ensureZ2AdbScript` (`/usr/local/bin/z2adb`)、`ensureZ2HelpScript` (`/usr/local/bin/z2help` + エイリアス `/usr/local/bin/z2term`)、`ensureZ2ScanScript` (`/usr/local/bin/z2scan`)、GUI/z2run スクリプト、`ensureVersionScript` (`/usr/local/bin/z2version`)。
+- **マクロ置き場 (`~/.z2term/macros`) はどの OS でも最初から PATH に入っている (0.8.314)**: 0.8.287 で `launch()` が渡す env の PATH **末尾**に足したが、それだけでは足りない経路があった — **ログインシェルは `/etc/profile` で PATH を丸ごと組み立て直す**ので、SSH ログイン (dropbear)・`su -`・GUI 内ターミナルでは足したはずの末尾が消え、`remind.sh help` が `command not found` になる (案内も docs も「名前で打てる」前提で書いてある)。`ensureMacroPathConfig` が rootfs 側にも同じ設定を置く: `/etc/profile.d/z2term-path.sh` (ログインシェル。Alpine/Debian/Arch/Kali いずれも `/etc/profile` が `profile.d` 配下の `.sh` を読む) と `/etc/bash.bashrc` / `/etc/zsh/zshrc` (profile を読まない非ログインの対話シェル)。⚠ **末尾に足す** (同名のコマンドがあったとき OS 側を覆わないため)、⚠ **既に入っていれば足さない** (`case` で判定＝何度読まれても PATH が伸びない)。置き場そのもの (`shared_home/.z2term/macros`) も作る。
 - **`z2version` コマンド (0.8.70)**: 端末から `z2version` でアプリ本体の版数 (`versionName`/`versionCode`/flavor/package/実行エンジン/rootfs 世代) を確認できる。launch 毎に書き直すので「今走っているアプリ」の版数が出る＝APK とゲストの版数不一致を即切り分け。`z2version --short` は版数 1 行のみ。proot/z2root/chroot の全起動経路に配置。
 - **`z2adb` コマンド (0.8.88・セルフ adb)**: PC を繋がず、端末が**自分自身**の adb デーモン (Android のワイヤレスデバッグ) に `localhost` で繋ぐヘルパー (root も USB も不要)。前提は Android 11+ の開発者オプション → ワイヤレスデバッグ ON。実装は [`Z2AdbScript.kt`](../../app/src/main/java/com/zerotoship/z2term/proot/Z2AdbScript.kt)。proot/z2root/chroot の全起動経路に配置。
 
@@ -1407,7 +1425,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - `TerminalSelection` / `CellMetrics`: 選択範囲 (絶対行) と 1 セル寸法。
 - `clipboard/ClipboardHistoryStore` (object): システムクリップボードは 1 件しか持てないので、変化を拾って履歴 (最大 50 件 / `filesDir/clipboard_history.json`) に貯める。取り込み経路は 4 つ: ①`OnPrimaryClipChangedListener` (前面中の変化)、②`MainActivity.onResume`、③`MainActivity.onWindowFocusChanged(true)`、④キーボードの 📋 パッドを開いたとき (`KeyboardPad` → `ensureLoaded` + `captureCurrent`)。Android 10+ の「クリップボードを読めるのはフォーカスのあるアプリだけ」制限は**ウィンドウフォーカス基準**で、`onResume` の時点ではまだフォーカスが確定せず空が返る端末があるため、③が無いと「他アプリでコピー → 戻る」を取りこぼす。裏で複数回コピーされても拾えるのは最後の 1 件だけ (OS の仕様上の限界)。重複は `record` が先頭一致/LRU で潰す。
   ⚠ **履歴の実体はこの object ただ 1 つ** (0.8.313 で 1 本化)。それまではキーボードのパッド用に `ui/terminal/keyboard/ClipboardHistoryStore` という同名の別 object があり、**同じ `filesDir/clipboard_history.json` を別のキー (`entries` / `items`) で丸ごと上書きし合っていた**。片方が保存すると相手からは「中身の無いファイル」に見えるため、**パッドの履歴はアプリを起動し直すたびに空から始まり、端末でコピーした内容も現れなかった** (利用者の報告)。入口 (シート / パッド) は増やしてよいが、**ストアは増やさない**。読み込みは旧 `items` キーも拾って既存の履歴を引き継ぐ。
-  ⚠ 機微印 (`android.content.extra.IS_SENSITIVE`) の付いたクリップは取り込まない (パスワードマネージャ等が付ける。パッド側にあった安全策を 1 本化で統合先へ移した)。
+  ⚠ **機微印 (`android.content.extra.IS_SENSITIVE`) の付いたクリップも取り込む (0.8.314)。** 0.8.313 までは丸ごと捨てていたが、その結果**いちばん貼り付けたいもの (パスワード) だけが履歴に出ず**、「コピーしたのに入っていない」状態になっていた (利用者の指摘)。取り込んだうえで 3 つで縛る: ①**30 秒 (`SENSITIVE_TTL_MS`) で履歴から自動的に消える** — 貼るには足りて、放置はされない長さ。②**同じ値が OS のクリップボードにまだ載っていれば、そこからも消す** (`clearPrimaryClip`)。履歴だけ消しても他アプリから貼れてしまうため。⚠ **値が変わっていたら触らない** — 後から別のアプリがコピーしたものを奪うことになる (同梱サンプル `otp-clip.sh` と同じ作法)。Android 10+ は前面でないとクリップボードを読めないので、**読めなかったときも触らない**側に倒す。③**ディスクに書かない** — 30 秒で消えるものを永続化すると、アプリを殺した瞬間だけ残るという最悪の形になる。UI では履歴シートに「🔒 機微なコピー — 30 秒で自動的に消えます」、キーボードのパッドでは行頭の 🔒 で示す (黙って消えると壊れて見えるため)。
 - `SessionStore`/`SessionManager` (M11): タブ構成 `{id,label,distro,cwd}` + activeId を DataStore に保存する（書き込みのみ）。**0.8.70 で起動時の自動復元を無効化**＝起動の度に複数タブが開く挙動を避けるため、`ensureFirst` は常に新規 1 タブだけを開く（ユーザー要望）。`save` は将来の復元 UI / デバッグ用に残すが読み戻し経路は持たない。**cwd は OSC7 で捕捉**（`ensureOsc7CwdConfig` が bash/zsh のプロンプトフックで OSC7 を吐かせる）。
 
 ### 4.7 通信チャネル (`channel/`)
@@ -1757,8 +1775,9 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
   現在の入力メソッドだけ。よって取り込みは**パッドを開いたときの 1 回**と、開いている間の変化
   (`OnPrimaryClipChangedListener`)。利用者から見ると
   「**コピーしてからキーボードを開くと履歴に入る**」。この順序は説明が要るので空のパッドに明記する。
-  ⚠ パスワードマネージャ等が付ける機微印 (`android.content.extra.IS_SENSITIVE`) のクリップは
-  取り込まない。1 件ずつ ✕ で削除、🗑 で全消去。
+  ⚠ パスワードマネージャ等が付ける機微印 (`android.content.extra.IS_SENSITIVE`) のクリップも
+  0.8.314 から取り込む。行頭に 🔒 を付け、**30 秒で自動的に消える** (§4.6 `ClipboardHistoryStore`)。
+  1 件ずつ ✕ で削除、🗑 で全消去。
 - **出口** (`ComposingState.commitExternalText`): 絵文字も貼り付けも**確定と同じ経路**を通す。
   ⚠ バイト列 (`onBytes`) で送ると、入力メソッド側で改行が `performEditorAction` (1 行欄では検索実行)
   へ読み替えられてしまう (§6.9 の表)。打ちかけのかなが残っていれば先に確定してから出し、

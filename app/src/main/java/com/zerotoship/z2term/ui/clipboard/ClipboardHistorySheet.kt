@@ -108,6 +108,7 @@ fun ClipboardHistorySheet(
                     key(entry.copiedAt, entry.text) {
                         ClipRow(
                             text = entry.text,
+                            sensitive = entry.sensitive,
                             onSelect = { onSelect(entry.text); closeSheet() },
                             onDelete = { ClipboardHistoryStore.delete(entry) }
                         )
@@ -159,6 +160,7 @@ private fun Header(count: Int, onClear: () -> Unit) {
 @Composable
 private fun ClipRow(
     text: String,
+    sensitive: Boolean,
     onSelect: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -170,18 +172,30 @@ private fun ClipRow(
             .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp)),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = text.trim(),
-            color = ZtsTextPrimary,
-            fontSize = 13.sp,
-            fontFamily = FontFamily.Monospace,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis,
+        Column(
             modifier = Modifier
                 .weight(1f)
                 .clickable(onClick = onSelect)
                 .padding(horizontal = 12.dp, vertical = 12.dp)
-        )
+        ) {
+            Text(
+                text = text.trim(),
+                color = ZtsTextPrimary,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+            // 機微な行は「消える行」だと分かるようにする (黙って消えると壊れて見えるため)。
+            if (sensitive) {
+                Text(
+                    text = stringResource(R.string.clip_history_sensitive),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
         Box(
             modifier = Modifier
                 .clickable(onClick = onDelete)

@@ -26,8 +26,9 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
-On first launch, **Alpine Linux is set up automatically** (wait a moment and a `#` prompt appears).
-The first time, **three small cards** appear above the terminal. Tapping one only **puts a command on the input line**, so press the return key to run it (post a notification / turn on the flashlight / let a PC connect). Tap all three, or press the close button, and they never come back. To see them again: Settings > Maintenance > "Show the intro again".
+In the **full build**, **Alpine Linux is set up automatically** on first launch (wait a moment and a `#` prompt appears).
+The **foss build** bundles no OS, so the first launch shows a single notice: "No Linux OS is installed yet" (0.8.314). Tap it to open Settings > Linux environment and **pick the OS you want** (Alpine / Ubuntu / Arch / Kali …; any of them is a fine place to start). ✕ closes it, but it comes back the next time you open the app, because the terminal cannot work without one.
+The first time, **three small cards** appear above the terminal (post a notification / turn on the flashlight / open the reminder guide). **Tapping one runs that line as it stands** — anything half-typed is thrown away with `Ctrl-C` first, so nothing mixes in. The ✕ on the right drops a card you do not want. Once all three are gone they never come back. To see them again: Settings > Maintenance > "Show the intro again".
 That's all the setup you need.
 
 > ℹ️ **The `foss` build (~21MB) is the recommended one.** It does not bundle Alpine itself, which keeps it small — and keeps every update that small too. In exchange it **needs a network connection on the first launch only** (it auto-downloads from the official site and verifies the SHA-256). If you want it usable offline from the very first launch, take the `full` build (~190MB), which bundles Alpine. Both are the same app.
@@ -152,7 +153,7 @@ Under Settings › **Keyboard style**:
 | Copy text | **Long-press** the screen → drag with your finger to select → "Copy" button (trailing blanks are trimmed and each row gets a **line break**) |
 | Magnify while selecting | While selecting, a **magnifier** appears above your finger |
 | Select beyond the screen | While selecting, move your **finger to the top/bottom edge** → it auto-scrolls so you can keep selecting |
-| Paste | The **📋** button in the toolbar. **When the text has line breaks**, a bar shows "3 lines …" first so you can look before pressing Paste (a single line still goes straight in). **Double-tap** it to open the **clipboard history** and pick a past copy to paste (pasting never rewrites the system clipboard, so it won't "copy what you just pasted"). **Picks from the history that contain line breaks get the same confirmation bar** (0.8.250) |
+| Paste | The **📋** button in the toolbar. **When the text has line breaks**, a bar shows "3 lines …" first so you can look before pressing Paste (a single line still goes straight in). **Double-tap** it to open the **clipboard history** and pick a past copy to paste (pasting never rewrites the system clipboard, so it won't "copy what you just pasted"). **Picks from the history that contain line breaks get the same confirmation bar** (0.8.250). **Sensitive copies (the ones shown as dots), e.g. from a password manager, now land in the history too** (0.8.314). ⚠ Those rows alone are marked **🔒 and clear themselves after 30 seconds** — if the phone's clipboard still holds the same value at that point, it is emptied too (if you have copied something else since, it is left alone) |
 | Use text copied in another app | Just come back to this app — **the clipboard content at that moment is added to the history** (pick it from the 📋 double-tap). Android only lets an app read the clipboard **while it is in the foreground**, so copies made while this app was in the background are picked up as a single entry when you return |
 | Scroll up/down | Drag with one finger. You can also **grab the scrollbar on the right edge** (it follows your finger from the moment you touch it). Use **↓** at the bottom-right to return to the latest |
 | Make text bigger/smaller | **Pinch** with two fingers (spread/squeeze) |
@@ -182,6 +183,16 @@ Under Settings › **Keyboard style**:
 When you hit one of the usual walls — `ping` not working, a port below 1024, `/sdcard` looking empty — **one line with the next step** appears at the bottom of the screen (it fades after a few seconds, or tap it to dismiss).
 The terminal output itself is **never modified**; this is just an extra line elsewhere.
 If you find it noisy, turn off Settings > Display > "Explain common stumbles".
+
+### Showing a guide (0.8.314)
+
+Settings > Maintenance > **"Show a guide"** puts the steps for using a bundled sample macro on cards above the terminal.
+
+- The order they appear in is the order to follow. **Tapping a card runs that one line** (anything half-typed is thrown away with `Ctrl-C` first, so nothing mixes in).
+- **The ✕ on the right drops a step you do not need** without sending it. When every card is gone the guide closes.
+- Cards without a command (turn a setting on, install a prerequisite package) are just to read; tapping one removes it.
+- Available guides: react to what happens (starter) / warn me when the battery is low / read out a report every morning / copy one-time codes from notifications / copy one-time codes from SMS / note calls from unknown numbers / remind me with a notification / get notified about new feed items / open collected articles one at a time / hand something over as a QR code
+- Chosen from a GUI tab, the guide opens **after switching to a terminal tab** (it needs somewhere to type).
 
 ### Taking your setup with you (for a new phone or a reinstall)
 
@@ -638,9 +649,10 @@ remind.sh every wed 19:00               #   weekly / every 15 19:00 -> monthly
 remind.sh every 07/30 19:00             #   yearly (the next word decides)
 ```
 
-**Forgot the syntax?** `remind.sh help` prints all of it (it is also one of the 📜 snippets).
-⚠ **If you get `remind.sh: command not found`, that tab still has the old PATH** (0.8.287 put the macro
-directory on it). **Open a new tab**, or run `export PATH=$HOME/.z2term/macros:$PATH` in that tab.
+**Forgot the syntax?** `remind.sh help` prints all of it. **To walk it from the install step, use Settings > Maintenance > "Show a guide" > "Remind me with a notification"** (0.8.314): step cards appear above the terminal and tapping one runs that line.
+⚠ Through 0.8.313 `remind.sh help` was also seeded as a 📜 snippet, but **without the macro installed it only printed "not found"**, so it was removed in favour of the guide above.
+⚠ **If you get `remind.sh: command not found`, that tab still has the old PATH** (0.8.314 puts the macro
+directory on PATH out of the box on every OS, including SSH logins and the GUI's terminal). **Open a new tab**, or run `export PATH=$HOME/.z2term/macros:$PATH` in that tab.
 
 **See and cancel**: `remind.sh list` (⏰ = one-shot / 🔁 = repeating / ✔ = already fired) and
 `remind.sh del 2` (`del all` clears everything). ⚠ **You can also remove one from the "list" tile**
