@@ -211,6 +211,8 @@ fun SettingsSheet(
     // 端末リセットの確認。タブが動作中かどうか・タブが何枚あるかに関係なく**常に**確認を挟む
     // (「リセットボタンとしての確認」なので、状態によって出たり出なかったりさせない)。
     var pendingTerminalReset by remember { mutableStateOf(false) }
+    // タスクキル相当の完全停止。常駐サーバーの有無に関係なくメンテナンスから使える出口。
+    var pendingTaskKill by remember { mutableStateOf(false) }
     // グループ (アコーディオン) の開閉状態を DataStore から読み込む (初回のみ実行)。
     SettingsGroupStore.ensureLoaded(context)
     // 掃除できる rootfs 内キャッシュ + アプリ一時をバックグラウンドで走査 (サイズ降順)。
@@ -1468,6 +1470,11 @@ fun SettingsSheet(
                         onClick = { pendingCacheClear = true }
                     )
                 }
+                ActionButton(
+                    label = stringResource(R.string.settings_task_kill),
+                    danger = true,
+                    onClick = { pendingTaskKill = true }
+                )
             }
 
             SettingsGroupSection(SettingsGroup.DEVELOPER) {
@@ -1724,6 +1731,21 @@ fun SettingsSheet(
                 ).show()
             },
             onCancel = { pendingTerminalReset = false }
+        )
+    }
+
+    // 端末リセットより強い完全停止。常駐サーバー・イベント検知・全セッション・常駐サービスを
+    // 止めてタスクを閉じる。保存済み設定や Linux 側のファイルは消さない。
+    if (pendingTaskKill) {
+        DownloadConfirmDialog(
+            title = stringResource(R.string.confirm_task_kill_title),
+            message = stringResource(R.string.confirm_task_kill_msg),
+            confirmLabel = stringResource(R.string.action_task_kill),
+            onConfirm = {
+                pendingTaskKill = false
+                stopEverythingAndQuit(context)
+            },
+            onCancel = { pendingTaskKill = false }
         )
     }
 

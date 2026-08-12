@@ -85,6 +85,10 @@
     <string name="confirm_reset_terminal_title">端末をリセットしますか？</string>
     <string name="confirm_reset_terminal_msg">アプリを最初に開いた状態に戻します。開いているタブは端末 1 つだけになり（他の端末タブと GUI タブは閉じます）、残った端末も実行中のプログラム終了・画面と履歴のクリアで初期状態に戻ります。\n\n常駐サーバー定義・設定・スニペット・OS 本体（インストール済みパッケージやファイル）は消えません。</string>
     <string name="action_reset_terminal">リセットする</string>
+    <string name="settings_task_kill">すべて停止して終了</string>
+    <string name="confirm_task_kill_title">すべて停止して終了しますか？</string>
+    <string name="confirm_task_kill_msg">端末リセットより強い操作です。常駐サーバー・システムイベント検知・すべての端末／GUI セッション・アプリの常駐サービスを停止し、アプリのタスクを終了します。\n\n設定・常駐サーバー定義・インストール済みパッケージ・作成したファイルは削除しません。設定済みの検知は次回アプリ起動時に再開します。</string>
+    <string name="action_task_kill">すべて停止する</string>
     <string name="settings_clear_cache">キャッシュ削除</string>
     <string name="settings_clear_cache_sized">キャッシュ削除（%1$s）</string>
     <string name="settings_clear_cache_done">キャッシュを削除しました（%1$s 解放）</string>

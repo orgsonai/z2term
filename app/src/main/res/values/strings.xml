@@ -86,6 +86,10 @@
     <string name="confirm_reset_terminal_title">Reset terminal?</string>
     <string name="confirm_reset_terminal_msg">This returns the app to the state it had when first opened. Only a single terminal tab is left open (other terminal tabs and GUI tabs are closed), and that terminal goes back to its initial state: running programs are terminated and the screen and scrollback are cleared.\n\nSaved servers, settings, snippets and the OS itself (installed packages and your files) are not affected.</string>
     <string name="action_reset_terminal">Reset</string>
+    <string name="settings_task_kill">Stop everything and quit</string>
+    <string name="confirm_task_kill_title">Stop everything and quit?</string>
+    <string name="confirm_task_kill_msg">This is stronger than Reset terminal. It stops resident servers, system event capture, every terminal and GUI session, and the app’s foreground service, then removes the app task.\n\nSettings, server definitions, installed packages and your files are not deleted. Detection configured in settings resumes the next time you open the app.</string>
+    <string name="action_task_kill">Stop everything</string>
     <string name="settings_clear_cache">Clear cache</string>
     <string name="settings_clear_cache_sized">Clear cache (%1$s)</string>
     <string name="settings_clear_cache_done">Cache cleared (%1$s freed)</string>
