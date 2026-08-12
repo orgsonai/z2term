@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-13 / Target version: 0.8.330-alpha (versionCode 338)
+Last updated: 2026-08-13 / Target version: 0.8.331-alpha (versionCode 339)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1014,6 +1014,14 @@ to be compared against `qrencode` module by module).
   - `Z2ApiScriptTest` runs the same checks (`sh -n`, margin leak, shebang) against **both languages**. Adding a branch must not leave room for one side to break silently.
   - `z2gui` already had `GuiScriptStrings` yet **15 lines were still Japanese** (Konsole rebuild, GUI install failure, audio, Qt fallback); they now go through the same mechanism.
   - Kotlin comments stay Japanese — they are for the developer and never reach the terminal.
+
+- **`--help` on every `z2-*` (0.8.331)**: those help blocks sat at the top of each script as `#` comments, and **nothing could print them**. `z2-tile help` answered with a one-line usage, so the long explanation was only readable via `cat $(command -v z2-tile)` — for a feature whose only door is the terminal, that is the same as having no explanation at all (reported by the user).
+  - **Add the way to show it, not another copy of it.** A one-liner at the top of each script uses `awk` to take "line 2 up to the first line of code" and strip the `#` (the trick `z2-macro` already used). Duplicating the text into a heredoc would leave the comment and the help to drift apart.
+  - ⚠ **Do not stop at blank lines** (test `NF`). Sections are separated by lines that are just `#`, so a version that stops at a blank line prints the first few lines only and still looks like it works (`z2-macro` did exactly that until 0.8.286).
+  - **Two spellings, on purpose.** Subcommand-style commands (`z2-tile` / `z2-icon` / `z2-when` / `z2-session`, …) take `-h|--help|help`; the ones that take a **sentence** (`z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-say` / `z2-ask`) take `--help` only, because `z2-toast help` has to keep showing "help". ⚠ No sentence-style command takes `-h`: `z2-notify -h` already means `--high` (banner), and a single exception to a rule is a rule nobody remembers.
+  - `z2-toast` / `z2-share` / `z2-open` had no leading comment at all, so `toastHelp` / `shareHelp` / `openHelp` were written for them.
+  - `z2help` now ends by saying that `--help` works on every command in the list — the list alone never told anyone where to go next.
+  - `Z2ApiScriptTest.everyScriptPrintsItsHelp` compares the `--help` output of **every script in both languages**, line by line, against the leading comment block recomputed on the Kotlin side. "Prints the first few lines" must not pass.
 
 - **`z2-ask` (0.8.267 — ask the person, get the answer back)**: `name=$(z2-ask "Branch name?")`. It asks **through a notification's reply field** (`RemoteInput`). `-t sec` (default 300) / `-H hint` / `-d default`.
   - **Why**: the only way to ask a person was `z2-notify -b <label>`, i.e. **buttons** — they could only answer with a choice you had prepared. Free-form answers ("which branch?", "where should it go?") could not be expressed at all, so macros gave up asking and hard-coded a value.

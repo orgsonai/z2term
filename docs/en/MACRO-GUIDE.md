@@ -254,6 +254,11 @@ Run them from the terminal and the app performs the Android side. **All permissi
 (the callee of `z2-intent` may need its own permissions, and each `z2-when` trigger has its own
 prerequisite → 3-A).
 
+> This table is a summary. **Add `--help` to any command for the long explanation** (e.g. `z2-tile --help`, since 0.8.331).
+> The ones that take subcommands (`z2-tile` / `z2-icon` / `z2-when` / `z2-session`) also answer to `-h` and `help`.
+> ⚠ The ones that take a sentence (`z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-say` / `z2-ask`) take
+> **`--help` only** — `z2-toast help` has to keep showing "help".
+
 | Command | Usage | What it does | Returns |
 |---|---|---|---|
 | `z2-notify` | `z2-notify [-h] [-n name] [-b label]... "title" "text"` | Post a notification (`-h` shows a banner, `-b` adds a **reply button**) | — |

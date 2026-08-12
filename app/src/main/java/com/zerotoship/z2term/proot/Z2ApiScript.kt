@@ -18,6 +18,30 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     // 端末に出る文言だけを言語で切り替える (ロジックは 1 つのまま。[Z2ApiMsg] のヘッダ参照)。
     val m = Z2ApiMsg(en = lang == "en", d = d)
 
+    // 各スクリプトの**先頭コメントをそのまま読み上げる** 1 行 (z2-macro と同じ手)。
+    // ヘルプ本文は冒頭コメントが正本で、ここでは出す手段だけを足す — 本文を 2 か所に持つと
+    // 片方だけ古くなり、端末でしか気付けない。
+    // ⚠ 空行では止めない (NF で判定する)。見出しの塊を `#` だけの行で区切ってあるので、
+    // 止めると冒頭の数行しか出ない (z2-macro が 0.8.286 まで実際そうだった)。
+    val showHelp =
+        "awk 'NR>1 && /^#/ { sub(/^# ?/, \"\"); print; next } NR>1 && NF { exit }' \"${d}0\"; exit 0"
+
+    // サブコマンド型 (最初の語が動詞) 用。`help` も受ける。
+    val helpCase = """
+        |case "${d}1" in
+        |  -h|--help|help) $showHelp ;;
+        |esac
+    """.trimMargin() + "\n"
+
+    // 文章を引数に取るもの (z2-notify / z2-toast / …) 用。⚠ **`--help` だけ**にする —
+    // `z2-toast help` は「help と表示する」が正しく、ヘルプに化けたら黙って動作が変わる。
+    // z2-notify の `-h` は既に `--high` なので、短い方はどれにも付けない (揃えないと覚えられない)。
+    val helpCaseLong = """
+        |case "${d}1" in
+        |  --help) $showHelp ;;
+        |esac
+    """.trimMargin() + "\n"
+
     val dispatcher = """
         |#!/bin/sh
         |# z2term Android API ブリッジ・ディスパッチャ (内部用)。
@@ -60,7 +84,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |fi
     """.trimMargin() + "\n"
 
-    val notify = "#!/bin/sh\n" + m.notifyHelp + "\n" + """
+    val notify = "#!/bin/sh\n" + m.notifyHelp + "\n" + helpCaseLong + """
         |high=""
         |name=""
         |b1=""; b2=""; b3=""
@@ -88,25 +112,22 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |fi
     """.trimMargin() + "\n"
 
-    val toast = """
-        |#!/bin/sh
+    val toast = "#!/bin/sh\n" + m.toastHelp + "\n" + helpCaseLong + """
         |[ ${d}# -ge 1 ] || { echo "usage: z2-toast <message>" >&2; exit 1; }
         |exec /usr/local/bin/z2api 0 toast "${d}*"
     """.trimMargin() + "\n"
 
-    val share = """
-        |#!/bin/sh
+    val share = "#!/bin/sh\n" + m.shareHelp + "\n" + helpCaseLong + """
         |[ ${d}# -ge 1 ] || { echo "usage: z2-share <text>" >&2; exit 1; }
         |exec /usr/local/bin/z2api 0 share "${d}*"
     """.trimMargin() + "\n"
 
-    val open = """
-        |#!/bin/sh
+    val open = "#!/bin/sh\n" + m.openHelp + "\n" + helpCaseLong + """
         |[ ${d}# -ge 1 ] || { echo "usage: z2-open <url|path>" >&2; exit 1; }
         |exec /usr/local/bin/z2api 0 open "${d}1"
     """.trimMargin() + "\n"
 
-    val clip = "#!/bin/sh\n" + m.clipHelp + "\n" + """
+    val clip = "#!/bin/sh\n" + m.clipHelp + "\n" + helpCase + """
         |case "${d}1" in
         |  get) exec /usr/local/bin/z2api 1 clip-get ;;
         |  set)
@@ -117,39 +138,39 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |esac
     """.trimMargin() + "\n"
 
-    val battery = "#!/bin/sh\n" + m.batteryHelp + "\n" + """
+    val battery = "#!/bin/sh\n" + m.batteryHelp + "\n" + helpCase + """
         |exec /usr/local/bin/z2api 1 battery
     """.trimMargin() + "\n"
 
-    val vibrate = "#!/bin/sh\n" + m.vibrateHelp + "\n" + """
+    val vibrate = "#!/bin/sh\n" + m.vibrateHelp + "\n" + helpCase + """
         |exec /usr/local/bin/z2api 0 vibrate "${d}{1:-200}"
     """.trimMargin() + "\n"
 
-    val say = "#!/bin/sh\n" + m.sayHelp + "\n" + """
+    val say = "#!/bin/sh\n" + m.sayHelp + "\n" + helpCaseLong + """
         |if [ ${d}# -ge 1 ]; then text="${d}*"; else text="${d}(cat)"; fi
         |[ -n "${d}text" ] || { echo "usage: z2-say <text>" >&2; exit 1; }
         |exec /usr/local/bin/z2api 0 say "${d}text"
     """.trimMargin() + "\n"
 
-    val torch = "#!/bin/sh\n" + m.torchHelp + "\n" + """
+    val torch = "#!/bin/sh\n" + m.torchHelp + "\n" + helpCase + """
         |exec /usr/local/bin/z2api 1 torch "${d}{1:-toggle}"
     """.trimMargin() + "\n"
 
-    val media = "#!/bin/sh\n" + m.mediaHelp + "\n" + """
+    val media = "#!/bin/sh\n" + m.mediaHelp + "\n" + helpCase + """
         |exec /usr/local/bin/z2api 0 media "${d}{1:-playpause}"
     """.trimMargin() + "\n"
 
-    val volume = "#!/bin/sh\n" + m.volumeHelp + "\n" + """
+    val volume = "#!/bin/sh\n" + m.volumeHelp + "\n" + helpCase + """
         |[ ${d}# -ge 1 ] || { echo "usage: z2-volume up|down|mute|unmute|N|N%" >&2; exit 1; }
         |exec /usr/local/bin/z2api 1 volume "${d}1"
     """.trimMargin() + "\n"
 
-    val intent = "#!/bin/sh\n" + m.intentHelp + "\n" + """
+    val intent = "#!/bin/sh\n" + m.intentHelp + "\n" + helpCase + """
         |[ ${d}# -ge 1 ] || { echo "usage: z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] ..." >&2; exit 1; }
         |exec /usr/local/bin/z2api 0 intent "${d}@"
     """.trimMargin() + "\n"
 
-    val sensor = "#!/bin/sh\n" + m.sensorHelp + "\n" + """
+    val sensor = "#!/bin/sh\n" + m.sensorHelp + "\n" + helpCase + """
         |exec /usr/local/bin/z2api 1 sensor "${d}{1:-light}"
     """.trimMargin() + "\n"
 
@@ -157,7 +178,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     // ので、この 1 本だけ Z2API_WAIT を伸ばす。既定 5 分は「通知に気付いて答えるまで」の実感値で、
     // -t で変えられる。答えずに通知を消したらブリッジが ERR を返す = 非ゼロ終了なので、
     // `ans=$(z2-ask ...) || 諦める` が書ける (待ちっぱなしで固まらない)。
-    val ask = "#!/bin/sh\n" + m.askHelp + "\n" + """
+    val ask = "#!/bin/sh\n" + m.askHelp + "\n" + helpCaseLong + """
         |secs=300
         |hint=""
         |preset=""
@@ -176,21 +197,21 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |Z2API_WAIT=${d}((secs*10)) exec /usr/local/bin/z2api 1 ask "${d}*" "${d}hint" "${d}preset"
     """.trimMargin() + "\n"
 
-    val noti = "#!/bin/sh\n" + m.notiHelp + "\n" + """
+    val noti = "#!/bin/sh\n" + m.notiHelp + "\n" + helpCase + """
         |case "${d}{1:-list}" in
         |  list) exec /usr/local/bin/z2api 1 noti list ;;
         |  *) echo "${m.notiUsage}" >&2; exit 1 ;;
         |esac
     """.trimMargin() + "\n"
 
-    val state = "#!/bin/sh\n" + m.stateHelp + "\n" + """
+    val state = "#!/bin/sh\n" + m.stateHelp + "\n" + helpCase + """
         |exec /usr/local/bin/z2api 1 state "${d}1"
     """.trimMargin() + "\n"
 
     // OS の自動画面消灯を期限つきで止める。⚠ ツールバーの 🔅 (アプリを開いている間だけ) とは別物。
     // 相対時間 (1h / 30m / 90s) の秒への変換だけここで行い、あとはアプリ側 (ScreenTimeout) が持つ
     // — z2-alarm in と同じ分担。時間を必須にしているのは、期限の無い「消灯しない」を作らないため。
-    val screen = "#!/bin/sh\n" + m.screenHelp + "\n" + """
+    val screen = "#!/bin/sh\n" + m.screenHelp + "\n" + helpCase + """
         |usage() {
         |  echo "${m.screenUsage}" >&2
         |  exit 1
@@ -223,7 +244,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     // クイック設定タイル (枠数は manifest 固定)。割り当てるのは「マクロのファイル名」か「そのまま走らせる
     // コマンド」で、どちらかはアプリ側 (TileStore.scriptFor) が名前で判別する — 打つ側に
     // 「これはマクロかコマンドか」を選ばせない。-l/--label は先に読み切ってから残りをコマンドにする。
-    val tile = "#!/bin/sh\n" + m.tileHelp + "\n" + """
+    val tile = "#!/bin/sh\n" + m.tileHelp + "\n" + helpCase + """
         |usage() {
         |  echo "${m.tileUsage}" >&2
         |  exit 1
@@ -282,7 +303,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     // 改行を含む数百バイトをそのまま引数に載せると、リクエストファイルの「1 行 = 1 引数」が壊れる。
     // 中身の検査 (大きさ・塗りの有無) はアプリ側 (IconStore.parse) の 1 か所だけに置き、
     // ここでは「どこから読むか」しか決めない。
-    val icon = "#!/bin/sh\n" + m.iconHelp + "\n" + """
+    val icon = "#!/bin/sh\n" + m.iconHelp + "\n" + helpCase + """
         |usage() {
         |  echo "${m.iconUsage}" >&2
         |  exit 1
@@ -369,7 +390,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |esac
     """.trimMargin() + "\n"
 
-    val alarm = "#!/bin/sh\n" + m.alarmHelp + "\n" + """
+    val alarm = "#!/bin/sh\n" + m.alarmHelp + "\n" + helpCase + """
         |usage() {
         |  echo "usage: z2-alarm at HH:MM [name] | daily HH:MM [name] | in <N[s|m|h]> [name] | list | cancel <id|name|all>" >&2
         |  exit 1
@@ -419,7 +440,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     // アプリ自身のタブを操る (A1)。他の z2-* が「Android を叩く」のに対し、これだけは内側を触る。
     // send は既定で「入れるだけ・実行しない」。実行させたいときだけ --enter を明示する
     // (共有の受け取りと同じ約束で、他のタブが勝手に走り出す状態を作らない)。
-    val session = "#!/bin/sh\n" + m.sessionHelp + "\n" + """
+    val session = "#!/bin/sh\n" + m.sessionHelp + "\n" + helpCase + """
         |usage() {
         |  echo "${m.sessionUsage}" >&2
         |  exit 1
@@ -446,7 +467,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     // 常駐サーバーの起動 / 停止 (F・0.8.310)。⚠ ここから起こしたものだけが
     // ServerDaemonService の枠 (FGS + WakeLock + WifiLock) に入る。ルールから直接デーモンを
     // 叩くと枠の外で上がり、画面消灯中に応答しなくなる (実機で踏んだ実害)。
-    val server = "#!/bin/sh\n" + m.serverHelp + "\n" + """
+    val server = "#!/bin/sh\n" + m.serverHelp + "\n" + helpCase + """
         |usage() {
         |  echo "${m.serverUsage}" >&2
         |  exit 1
@@ -466,7 +487,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     // 自動化ハブ (A6)。トリガー (充電/電池/時刻) を宣言すると、アプリ側 (WhenManager) が監視して
     // 発火時に run のコマンドを実行する。ルールは ~/.z2term/when/<id>.rule のテキスト (git 同期が効く)。
     // CLI はファイルを直接読み書きし、変更後に z2api when-reload で時刻トリガーを貼り直させる。
-    val zwhen = "#!/bin/sh\n" + m.whenHelp + "\n" + """
+    val zwhen = "#!/bin/sh\n" + m.whenHelp + "\n" + helpCase + """
         |DIR="${d}HOME/.z2term/when"
         |mkdir -p "${d}DIR" 2>/dev/null
         |reload() { /usr/local/bin/z2api 0 when-reload >/dev/null 2>&1 || true; }

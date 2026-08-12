@@ -64,6 +64,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |[Help]
         |  z2help | z2term                This list
         |
+        |Every command above explains itself: add --help (e.g. 'z2-tile --help').
         |More: 'z2adb help', run 'z2gui' with no args, or HANDBOOK section 11.
     """ else """
         |[版数・情報]
@@ -110,6 +111,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |[ヘルプ]
         |  z2help | z2term                この一覧
         |
+        |上のコマンドは自分で説明します: --help を付けてください (例: 'z2-tile --help')。
         |詳しくは: 'z2adb help' / 引数なしの 'z2gui' / HANDBOOK 第11節。
     """
 

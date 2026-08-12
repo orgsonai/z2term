@@ -47,6 +47,35 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
 
     // --- 単機能のもの (ヘルプ 1〜2 行) ---
 
+    val toastHelp: String = if (en) """
+        |# z2-toast <message> … a short message at the bottom of the screen (a toast).
+        |# It fades by itself and leaves nothing behind. Use z2-notify when it has to stay,
+        |# or when you want a button to press.
+    """.trimMargin() else """
+        |# z2-toast <メッセージ> … 画面下に短いメッセージを出す (トースト)。
+        |# 数秒で自分で消えて、何も残りません。残したい・押させたいときは z2-notify を使います。
+    """.trimMargin()
+
+    val shareHelp: String = if (en) """
+        |# z2-share <text> … hand text to Android's share sheet (send it on to another app).
+        |# All arguments are joined into one body. Which app it goes to is chosen on screen,
+        |# so this needs someone to be there — it is not for a macro running unattended.
+    """.trimMargin() else """
+        |# z2-share <テキスト> … Android の共有メニューに渡す (他アプリへ送る)。
+        |# 引数はつなげて 1 つの本文にします。送り先は画面で選ぶので、人がいるときのものです
+        |# (裏で走らせるマクロ向きではありません)。
+    """.trimMargin()
+
+    val openHelp: String = if (en) """
+        |# z2-open <url|path> … open it with the default app (https://… or /sdcard/…).
+        |# Which app opens it is Android's choice; z2term only hands it over.
+        |# A path is a path on the **phone** (/sdcard/…), not inside the distro.
+    """.trimMargin() else """
+        |# z2-open <URL かパス> … 既定のアプリで開く (https://… も /sdcard/… も)。
+        |# どのアプリで開くかを決めるのは Android で、z2term は渡すだけです。
+        |# パスは**スマホ側**のパス (/sdcard/…) で、ディストロの中のパスではありません。
+    """.trimMargin()
+
     val clipHelp: String = if (en) """
         |# z2-clip get        … print the clipboard to stdout
         |# z2-clip set [text] … put text (or stdin when omitted) on the clipboard

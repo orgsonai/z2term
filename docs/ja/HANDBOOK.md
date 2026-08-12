@@ -870,6 +870,7 @@ z2-when time:daily=03:00 run 'out=$(z2scan diff --quiet); [ -n "$out" ] && z2-no
 |---|---|
 | `z2help` | この `z2*` コマンド早見表を端末に表示（先頭にアプリ版数も併記） |
 | `z2term` | 当面は `z2help` のエイリアス（同じ一覧が出る予約コマンド）。将来 `z2term` を別用途に使えるよう名前だけ確保 |
+| `<コマンド> --help` | **そのコマンドの詳しい説明**（例: `z2-tile --help`、`z2-icon --help`）。0.8.331 から全 `z2-*` で使えます。サブコマンド式のもの（`z2-tile` / `z2-icon` / `z2-when` / `z2-session` …）は `-h` と `help` でも出ます。⚠ 文章を引数に取るもの（`z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-say` / `z2-ask`）は **`--help` だけ**です（`z2-toast help` は「help」と表示するのが正しいため）。`z2-notify` の `-h` は今までどおり「バナー表示」です |
 
 > メモ: 実行エンジン（proot / z2root / chroot）は `z2version` の `engine:` 行で分かります。
 

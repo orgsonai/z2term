@@ -64,6 +64,42 @@ class Z2ApiScriptTest {
     }
 
     /**
+     * すべての `z2-*` が `--help` で**先頭のヘルプコメントを出す**こと (0.8.331)。
+     *
+     * 元バグ: ヘルプ本文は各スクリプトの冒頭に `#` コメントで入っていたのに、それを表示する
+     * 手段がどこにも無く、`z2-tile help` は 1 行の usage を返して終わっていた
+     * (`cat $(command -v z2-tile)` しか読む方法が無かった)。
+     *
+     * ⚠ **冒頭だけ出て合格にしない**。取り出しは awk で「2 行目から最初のコード行まで」を拾う
+     * 作りなので、途中で止まっても「ヘルプは出ている」ように見える。ここでは Kotlin 側で数え直した
+     * 全文と**1 行ずつ突き合わせる** (z2-macro が 0.8.286 まで冒頭 3 行しか出していなかった罠)。
+     */
+    @Test
+    fun everyScriptPrintsItsHelp() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        for ((name, body) in scripts + scriptsEn.mapKeys { "${it.key} (en)" }) {
+            // z2api は内部用ディスパッチャで、人が直接叩くものではない。
+            if (name.startsWith("z2api")) continue
+            // シェバンの次から、最初のコード行までが本文 (`# ` を剥がしたもの)。
+            val want = body.lines().drop(1).takeWhile { it.startsWith("#") }
+                .map { it.removePrefix("#").removePrefix(" ") }
+            assertTrue("$name: 先頭にヘルプコメントが無い", want.isNotEmpty())
+            val tmp = File.createTempFile("z2help", ".sh")
+            try {
+                tmp.writeText(body)
+                val proc = ProcessBuilder(sh!!, tmp.absolutePath, "--help").redirectErrorStream(true).start()
+                val out = proc.inputStream.bufferedReader().readText()
+                val rc = proc.waitFor()
+                assertEquals("$name: --help が正常終了しない:\n$out", 0, rc)
+                assertEquals("$name: --help の出力が先頭コメントと違う", want, out.trimEnd('\n').lines())
+            } finally {
+                tmp.delete()
+            }
+        }
+    }
+
+    /**
      * A6: `z2-when` を**続けて実行してもルール id が衝突しない**こと (0.8.211 の回帰テスト)。
      *
      * 元バグ: id が `w<epoch><awk の乱数>` だったが、awk の `srand()` は**秒**で seed されるため

@@ -875,6 +875,7 @@ If the change was you (you opened that port on purpose), re-record with `z2scan 
 |---|---|
 | `z2help` | Prints this `z2*` quick reference in the terminal (with the app version at the top) |
 | `z2term` | For now an alias of `z2help` (a reserved command that prints the same list). The name is reserved so `z2term` can be repurposed later |
+| `<command> --help` | **The long explanation for that command** (e.g. `z2-tile --help`, `z2-icon --help`). Available on every `z2-*` since 0.8.331. Subcommand-style ones (`z2-tile` / `z2-icon` / `z2-when` / `z2-session` …) also answer to `-h` and `help`. ⚠ The ones that take a sentence (`z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-say` / `z2-ask`) take **`--help` only** — `z2-toast help` has to keep showing "help". `-h` on `z2-notify` still means "banner" |
 
 > Note: the execution engine (proot / z2root / chroot) is shown on the `engine:` line of `z2version`.
 
