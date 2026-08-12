@@ -288,6 +288,7 @@
 
     <!-- OSS component purposes (D3 batch 4) -->
     <string name="oss_purpose_z2term">This app itself (terminal UI, session/SSH/SFTP, settings)</string>
+    <string name="oss_purpose_alpine_bundle">Bundled offline Linux environment and command-line packages (full flavor only)</string>
     <string name="oss_purpose_androidx_compose">UI / lifecycle / DataStore</string>
     <string name="oss_purpose_kotlin_stdlib">Kotlin runtime</string>
     <string name="oss_purpose_jsch">SSH client library</string>

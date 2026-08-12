@@ -286,6 +286,7 @@
 
     <!-- OSS コンポーネント用途 (D3 バッチ 4) -->
     <string name="oss_purpose_z2term">本アプリ本体（ターミナル UI・セッション/SSH/SFTP・設定）</string>
+    <string name="oss_purpose_alpine_bundle">オフライン利用向けLinux環境・コマンド群（full版のみ同梱）</string>
     <string name="oss_purpose_androidx_compose">UI / ライフサイクル / DataStore</string>
     <string name="oss_purpose_kotlin_stdlib">Kotlin ランタイム</string>
     <string name="oss_purpose_jsch">SSH クライアントライブラリ</string>

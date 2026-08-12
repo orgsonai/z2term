@@ -80,7 +80,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.329-alpha (versionCode 337).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.330-alpha (versionCode 338).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 
@@ -291,7 +291,7 @@ Copyright (c) 2026 Zero to Ship。対応ソース（GPL v3 §6）: <https://gith
 
 | チャネル | フレーバー | 状況 |
 |---|---|---|
-| **GitHub Releases / 直接 APK 配布** | `foss`（**おすすめ**）/ `full` | 主たる配布経路。payloadは同一 |
+| **GitHub Releases / 直接 APK 配布** | `foss`（**おすすめ**）/ `full` | 主たる配布経路。fullはAlpine rootfs同梱、fossは初回取得 |
 | **F-Droid** | `foss` | rootfs実行時取得・エンジンはソースビルド |
 | **Google Play** | — | 配布予定なし |
 

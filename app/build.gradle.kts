@@ -58,8 +58,8 @@ android {
         }
     }
 
-    // full / foss は package id だけを分け、実行コード・native library・assets は共通。
-    // Linux 実行エンジンはソースからビルドする z2root のみ。rootfs は両方とも初回取得する。
+    // 実行エンジン z2root は共通。full のみ src/full/assets の Alpine rootfs を同梱し、
+    // foss は rootfs を初回取得する（標準 source set 分離を利用）。
 
     // local.properties に ndk.version があればそれを使う (環境ごとに切替)。
     // 無ければ設定せず AGP 既定 NDK に任せる (= PC では普段どおり)。
@@ -71,8 +71,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 337
-        versionName = "0.8.329-alpha"
+        versionCode = 338
+        versionName = "0.8.330-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -276,10 +276,28 @@ val verifyBundledFonts = tasks.register("verifyBundledFonts") {
     }
 }
 
+val verifyFullBundledRootfs = tasks.register("verifyFullBundledRootfs") {
+    group = "verification"
+    description = "full フレーバーの Alpine rootfs 同梱漏れを検査"
+    val rootfs = File(repoRootDir, "app/src/full/assets/alpine-minirootfs-aarch64.tgz")
+    val allow = allowMissingBundled
+    doLast {
+        if (!rootfs.isFile || rootfs.length() == 0L) {
+            val msg = "\n[full rootfs] ${rootfs.path} がありません。" +
+                "\n  → bash scripts/build-alpine-rootfs.sh を実行してください。"
+            if (allow) println("WARNING:$msg") else throw GradleException(msg)
+        }
+    }
+}
+
 // fonts は全フレーバーの assets マージ前に検査。
 tasks.matching {
     it.name.startsWith("merge") && it.name.endsWith("Assets")
 }.configureEach { dependsOn(verifyBundledFonts) }
+
+tasks.matching {
+    it.name.startsWith("merge") && it.name.contains("Full") && it.name.endsWith("Assets")
+}.configureEach { dependsOn(verifyFullBundledRootfs) }
 
 kotlin {
     compilerOptions {

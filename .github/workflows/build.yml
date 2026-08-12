@@ -55,13 +55,17 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', 'gradle/libs.versions.toml') }}
           restore-keys: gradle-${{ runner.os }}-
 
-      - name: Generate bundled fonts
+      - name: Install tools for bundled rootfs
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fakeroot
+
+      - name: Generate bundled assets
         # フォント取得は api.github.com を叩く。未認証だと IP 単位 60 req/h でランナー間で
         # 食い合うため、組み込みトークンを渡してレート上限を上げる。
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           bash scripts/fetch-fonts.sh
+          bash scripts/build-alpine-rootfs.sh
 
       - name: Lint
         run: ./gradlew lintFullDebug --stacktrace
@@ -93,7 +97,7 @@ jobs:
 
   # tag (v*) を push すると、署名済み release APK を foss / full 両方ビルドして
   # GitHub Release に添付する。認証は Actions 組み込みの GITHUB_TOKEN (PAT 不要)。
-  # full/fossはapplicationId以外を共通化し、同じ手順でCIから出す。
+  # full は Alpine rootfs 同梱、foss は実行時取得としてCIから出す。
   release:
     name: Publish release APKs to GitHub
     runs-on: ubuntu-latest
@@ -144,11 +148,15 @@ jobs:
       - name: Grant gradlew exec permission
         run: chmod +x ./gradlew
 
-      - name: Generate bundled fonts
+      - name: Install tools for bundled rootfs
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fakeroot
+
+      - name: Generate bundled assets
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           bash scripts/fetch-fonts.sh
+          bash scripts/build-alpine-rootfs.sh
 
       # フレーバーは 1 回の gradle 実行にまとめず直列で回す。
       - name: Build FOSS release APK
@@ -165,10 +173,18 @@ jobs:
           FOSS=app/build/outputs/apk/foss/release/app-foss-release.apk
           FULL=app/build/outputs/apk/full/release/app-full-release.apk
           TAG="${{ inputs.tag || github.ref_name }}"
-          # 両 flavor とも rootfs / third-party native prebuilt を同梱しない。
+          # flavor の役割をサイズだけで推測せず、APKの内容で強制する。
+          if unzip -l "$FOSS" | grep -q 'assets/alpine-minirootfs'; then
+            echo "::error::$FOSS bundles the Alpine rootfs."
+            exit 1
+          fi
+          if ! unzip -l "$FULL" | grep -q 'assets/alpine-minirootfs-aarch64.tgz'; then
+            echo "::error::$FULL does not bundle the Alpine rootfs."
+            exit 1
+          fi
           for apk in "$FOSS" "$FULL"; do
-            if unzip -l "$apk" | grep -Eq 'assets/alpine-minirootfs|lib(proot|talloc|android-shmem)'; then
-              echo "::error::$apk contains a removed bundled artifact."
+            if unzip -l "$apk" | grep -Eq 'lib(proot|talloc|android-shmem)'; then
+              echo "::error::$apk contains a removed third-party native engine."
               exit 1
             fi
           done
