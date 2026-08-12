@@ -36,14 +36,25 @@ package com.zerotoship.z2term.proot
  *
  * ## 作法
  *
- *  - **冪等**。`trustdb.gpg` があれば即 exit 0 (起動のたびに呼んでよい)。
+ *  - **冪等**。[PACMAN_KEYRING_MARKER] があれば即 exit 0 (起動のたびに呼んでよい)。
  *  - **pacman が無い distro では何もしない**。Alpine/Debian 系で呼ばれても無害。
  *  - **端末の画面で走らせる**。数十秒かかることがあるので、黙って待たせない。止めたければ
  *    Ctrl-C で止められる (次に開いたときにまたやり直す)。
  */
+/**
+ * 「z2term が鍵束を用意し終えた」印のファイル名 (`/etc/pacman.d/gnupg/` 配下)。
+ *
+ * ⚠ **pacman が作るファイルで判定しないこと。** pacman は鍵の取得に失敗する過程でも
+ * `trustdb.gpg` 等を作るため、それを「済み」と読むと**中身が空のまま初期化が二度と
+ * 走らない**状態に固定される (0.8.319 の退行)。印は [pacmanKeyringScript] が
+ * `--populate` に成功したときだけ書く。
+ */
+const val PACMAN_KEYRING_MARKER = ".z2term-keyring-ready"
+
 fun pacmanKeyringScript(lang: String): String {
     val ja = lang != "en"
     val d = "${'$'}"
+    val marker = PACMAN_KEYRING_MARKER
 
     val msgStart = if (ja)
         "🔑 pacman の鍵束を用意します (初回だけ・通信しません)。少し時間がかかります…"
@@ -80,8 +91,12 @@ fun pacmanKeyringScript(lang: String): String {
         |mkdir -p /root/.z2term 2>/dev/null
         |say_fail() { echo "${d}1" >&2; echo "${d}1" >> "${d}DIAG" 2>/dev/null; }
         |
-        |# 既に初期化済みなら何もしない。trustdb.gpg は --populate まで済んだ証。
-        |[ -f "${d}GNUPGDIR/trustdb.gpg" ] && exit 0
+        |# 既に用意できていれば何もしない。
+        |# ⚠ **判定は「z2term が populate に成功したときだけ書く印」で行う。** `trustdb.gpg` や
+        |# ディレクトリの有無で判定してはいけない — **pacman は鍵の取得に失敗する過程で
+        |# /etc/pacman.d/gnupg 配下にファイルを作る**ので、「入れ物はあるが中身は使えない」状態を
+        |# 初期化済みと誤判定し、**二度と初期化が走らなくなる** (0.8.319 で実際に踏んだ)。
+        |[ -f "${d}GNUPGDIR/$marker" ] && exit 0
         |# pacman を使わない distro では何もしない (Alpine/Debian 系で呼ばれても無害)。
         |command -v pacman-key >/dev/null 2>&1 || exit 0
         |
@@ -122,6 +137,10 @@ fun pacmanKeyringScript(lang: String): String {
         |  say_fail "$msgPopulateFail (keyrings:${d}KEYRINGS)"
         |  exit 1
         |fi
+        |
+        |# ここまで来たときだけ印を書く (= 次回から素通りしてよい状態)。
+        |: > "${d}GNUPGDIR/$marker" 2>/dev/null
+        |rm -f "${d}DIAG" 2>/dev/null
         |
         |echo "$msgOk"
     """.trimMargin() + "\n"

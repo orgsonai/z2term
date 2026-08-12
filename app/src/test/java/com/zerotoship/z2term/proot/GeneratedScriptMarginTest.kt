@@ -57,7 +57,19 @@ class GeneratedScriptMarginTest {
     fun pacmanKeyringScript_isIdempotentAndScoped() {
         for (lang in listOf("ja", "en")) {
             val body = pacmanKeyringScript(lang)
-            assertTrue("$lang: 済んでいるときに抜ける判定が無い", body.contains("trustdb.gpg"))
+            // ⚠ 判定は z2term が書く印であること。pacman が作るファイル (trustdb.gpg 等) で
+            // 判定すると「入れ物はあるが空」を済みと誤判定し、初期化が二度と走らなくなる。
+            assertTrue(
+                "$lang: 済み判定が z2term の印になっていない",
+                body.contains(PACMAN_KEYRING_MARKER)
+            )
+            // 判定に使っていないことを見るので、**コメント行は除いて**探す
+            // (なぜ trustdb.gpg で判定してはいけないかの説明はスクリプト内に残したい)。
+            val code = body.lines().filterNot { it.trimStart().startsWith("#") }
+            assertTrue(
+                "$lang: pacman が作るファイル (trustdb 等) で済み判定している",
+                code.none { it.contains("trustdb") }
+            )
             assertTrue(
                 "$lang: pacman-key が無い distro で抜ける判定が無い",
                 body.contains("command -v pacman-key")

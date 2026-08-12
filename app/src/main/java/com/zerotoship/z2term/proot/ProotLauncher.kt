@@ -1201,7 +1201,12 @@ class ProotLauncher(private val context: Context) {
     fun needsPacmanKeyring(distroId: String): Boolean {
         val rootfs = File(distrosDir, distroId)
         if (!File(rootfs, "etc/pacman.conf").isFile) return false
-        return !File(rootfs, "etc/pacman.d/gnupg/trustdb.gpg").isFile
+        // ⚠ **判定は z2term 自身が書く印だけで行う** ([PACMAN_KEYRING_MARKER])。0.8.319 まで
+        // `trustdb.gpg` の有無で見ていたが、**pacman は鍵の取得に失敗する過程でも
+        // /etc/pacman.d/gnupg 配下にファイルを作る**ため、「入れ物はあるが中身は空」を
+        // 初期化済みと誤判定し、**初期化が二度と走らない**状態に固定されていた
+        // (画面には 🔑 も ❌ も出ず、pacman だけが失敗し続ける = いちばん分かりにくい形)。
+        return !File(rootfs, "etc/pacman.d/gnupg/$PACMAN_KEYRING_MARKER").isFile
     }
 
     private fun ensureZ2ScanScript(rootfs: File) {
