@@ -63,6 +63,9 @@ B は「A で表現できないとき」の逃げ道です（5-5 のように、
 4. 便利ツール: `jq`（JSON 解析）を入れておくと楽。例: Alpine `apk add jq` / Debian系 `apt install jq`。
 5. **白紙から書きたくないとき**: `z2-macro list` で同梱サンプル 10 本を見て、`z2-macro install <名前>` で
    `~/.z2term/macros/` に置けます（`z2-macro install all` で全部）。中身は自由に書き換えて構いません。
+   ⚠ 書き換えを守るため **`install` は既存を上書きしません**。アプリの更新でサンプルが直っても
+   端末のコピーは古いままなので、`z2-macro list` に `要更新` が出ていたら
+   `z2-macro diff <名前>` で違いを見て、`z2-macro install -f <名前>` で更新してください。
    ⚠ **マクロ置き場は PATH に入っています**（0.8.287 から。末尾に足すので同名の OS コマンドは覆いません）。
    入れたものは `remind.sh 30m 薬` のように**名前で打てます**。⚠ **0.8.287 より前に開いたタブは古い PATH**
    なので、新しいタブを開くか `export PATH=$HOME/.z2term/macros:$PATH` を打ってください。
@@ -279,7 +282,7 @@ z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term
 | `z2-noti` | `z2-noti list` | **いま出ている通知**を読む（読むだけ・下記） | TSV |
 | `z2-session` | `z2-session list\|new\|send\|capture\|close` | **アプリ自身のタブ**を操る（下記） | TSV / 番号 |
 | `z2-server` | `z2-server list\|start\|stop\|status <サーバー>` | **登録済みの常駐サーバー**を起こす / 落とす（下記） | TSV |
-| `z2-macro` | `z2-macro list\|install\|show\|run\|dir` | 同梱サンプルの管理 | — |
+| `z2-macro` | `z2-macro list\|install\|diff\|show\|run\|dir` | 同梱サンプルの管理（`list` に `未導入` / `導入済` / `要更新` が出ます） | — |
 
 ### `z2-notify -b`（返事を受け取る＝対話型マクロ）
 

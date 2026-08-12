@@ -732,8 +732,9 @@ fun z2MacroScript(lang: String): String {
     val usage = if (ja) {
         listOf(
             "usage: z2-macro <サブコマンド>",
-            "  list                同梱サンプルの一覧",
+            "  list                同梱サンプルの一覧 (未導入 / 導入済 / 要更新 つき)",
             "  install <名前|all>  ~/.z2term/macros/ へコピー (既存は上書きしない。-f で上書き)",
+            "  diff <名前>         端末のコピーと同梱版の違いを見る",
             "  show <名前>         中身を表示",
             "  run <名前>          その場で実行 (Ctrl-C で止める)",
             "  dir                 マクロの置き場所を表示",
@@ -741,16 +742,35 @@ fun z2MacroScript(lang: String): String {
     } else {
         listOf(
             "usage: z2-macro <subcommand>",
-            "  list                list bundled samples",
+            "  list                list bundled samples (with new / installed / update)",
             "  install <name|all>  copy into ~/.z2term/macros/ (never overwrites; -f to force)",
+            "  diff <name>         what differs between your copy and the bundled one",
             "  show <name>         print the script",
             "  run <name>          run it here (Ctrl-C to stop)",
             "  dir                 print where macros live",
         )
     }
 
+    // `list` の状態列。幅は**バイト数**で 9 に揃える (printf の %-9s はバイトで数えるため。
+    // ja の全角 3 文字がちょうど 9 バイト、en は最長の "installed" が 9 文字)。揃わないと
+    // 説明の開始位置がずれて、どれが何の説明なのか目で追えなくなる。
+    val stNew = if (ja) "未導入" else "new"
+    val stSame = if (ja) "導入済" else "installed"
+    val stOld = if (ja) "要更新" else "update"
+
     val msgInstalled = if (ja) "導入しました:" else "installed:"
-    val msgExists = if (ja) "既にあります (上書きするには -f):" else "already exists (use -f to overwrite):"
+    // 「既にある」を**同じ / 違う**で言い分ける (0.8.332)。一律「既にあります」だと、同梱版が
+    // 直っていても気付けず、古いコピーを使い続けることになる (remind.sh で実際に起きた)。
+    val msgSame = if (ja) "同じ内容がすでに入っています:" else "the same thing is already installed:"
+    val msgOutdated = if (ja) "同梱版と中身が違います (同梱版が新しくなっています):"
+    else "yours differs from the bundled one (the bundled one has moved on):"
+    val msgHowUpdate = if (ja) "違いを見る: z2-macro diff %s   /   更新する: z2-macro install -f %s"
+    else "see what changed: z2-macro diff %s   /   update: z2-macro install -f %s"
+    val msgNotInstalled = if (ja) "まだ導入していません (先に z2-macro install):"
+    else "not installed yet (run z2-macro install first):"
+    val msgNoDiffTool = if (ja) "この環境に diff がありません。中身は z2-macro show で見られます。"
+    else "no diff here. You can still read the bundled one with z2-macro show."
+    val msgSameAsBundled = if (ja) "同梱版と同じです。" else "identical to the bundled one."
     val msgNotFound = if (ja) "そんなサンプルはありません:" else "no such sample:"
     val msgHintResident = if (ja)
         "常駐させるには ⚙設定 → 常駐サーバー に次を登録してください:"
@@ -770,6 +790,20 @@ fun z2MacroScript(lang: String): String {
         |usage() {
         |${usage.joinToString("\n|") { "  echo '${it.replace("'", "'\\''")}' >&2" }}
         |  exit 1
+        |}
+        |# `--help` は**間違いではない**ので、標準出力へ出して 0 で終わる (usage は stderr + 1)。
+        |helpme() {
+        |${usage.joinToString("\n|") { "  echo '${it.replace("'", "'\\''")}'" }}
+        |  exit 0
+        |}
+        |# 端末のコピー (${d}2) が同梱版 (${d}1) と同じ中身か。
+        |# ⚠ 比べる手段が無いときは「違う」と答える。「同じ」と嘘をつくと、直った同梱版があるのに
+        |#   一生気付けない (remind.sh が 2 週間ぶん古いまま使われていた実例)。
+        |same_as_bundled() {
+        |  [ -f "${d}2" ] || return 1
+        |  if command -v cmp >/dev/null 2>&1; then cmp -s "${d}1" "${d}2"; return; fi
+        |  a=${d}(cksum < "${d}1" 2>/dev/null); b=${d}(cksum < "${d}2" 2>/dev/null)
+        |  [ -n "${d}a" ] && [ "${d}a" = "${d}b" ]
         |}
         |# -f/--force はどこに書かれていてもよいよう、先に引数列から抜き出す
         |# (`install -f all` と `install all -f` のどちらでも同じ意味になる)。
@@ -792,7 +826,13 @@ fun z2MacroScript(lang: String): String {
         |      name=${d}(basename "${d}f")
         |      # 2 行目のコメント (= 説明) を要約として見せる
         |      desc=${d}(sed -n '2s/^# *//p' "${d}f")
-        |      printf '%-18s %s\n' "${d}name" "${d}desc"
+        |      # 状態を出す (0.8.332)。install は既存を上書きしない = 一度入れたコピーは
+        |      # **黙って古いまま**になるので、一覧の時点で「違う」と分かるようにする。
+        |      if [ ! -f "${d}DEST/${d}name" ]; then st='$stNew'
+        |      elif same_as_bundled "${d}SRC/${d}name" "${d}DEST/${d}name"; then st='$stSame'
+        |      else st='$stOld'
+        |      fi
+        |      printf '%-18s %-9s %s\n' "${d}name" "${d}st" "${d}desc"
         |    done ;;
         |  install)
         |    [ ${d}# -ge 2 ] || usage
@@ -803,7 +843,15 @@ fun z2MacroScript(lang: String): String {
         |      case "${d}name" in *.sh) ;; *) name="${d}name.sh" ;; esac
         |      if [ ! -f "${d}SRC/${d}name" ]; then echo "$msgNotFound ${d}name" >&2; continue; fi
         |      if [ -f "${d}DEST/${d}name" ] && [ "${d}force" != "1" ]; then
-        |        echo "$msgExists ${d}DEST/${d}name" >&2; continue
+        |        # 「既にあります」で終わらせない。同じなら安心してよく、違うなら**同梱版が
+        |        # 直っている**可能性があるので、次に打つ手まで出す。
+        |        if same_as_bundled "${d}SRC/${d}name" "${d}DEST/${d}name"; then
+        |          echo "$msgSame ${d}DEST/${d}name" >&2
+        |        else
+        |          echo "$msgOutdated ${d}DEST/${d}name" >&2
+        |          printf '  $msgHowUpdate\n' "${d}name" "${d}name" >&2
+        |        fi
+        |        continue
         |      fi
         |      cp "${d}SRC/${d}name" "${d}DEST/${d}name" && chmod +x "${d}DEST/${d}name" || continue
         |      echo "$msgInstalled ${d}DEST/${d}name"
@@ -816,6 +864,18 @@ fun z2MacroScript(lang: String): String {
         |        echo "  sh ${d}DEST/${d}name"
         |      fi
         |    done ;;
+        |  diff)
+        |    # 左が端末のコピー・右が同梱版 (`-` が自分の側、`+` が同梱版で増えた行)。
+        |    # ⚠ -f で上書きする前に**自分で書き換えていないか**を見るためのもの。
+        |    [ ${d}# -ge 2 ] || usage
+        |    name="${d}2"; case "${d}name" in *.sh) ;; *) name="${d}name.sh" ;; esac
+        |    [ -f "${d}SRC/${d}name" ] || { echo "$msgNotFound ${d}name" >&2; exit 1; }
+        |    [ -f "${d}DEST/${d}name" ] || { echo "$msgNotInstalled ${d}DEST/${d}name" >&2; exit 1; }
+        |    if same_as_bundled "${d}SRC/${d}name" "${d}DEST/${d}name"; then
+        |      echo "$msgSameAsBundled"; exit 0
+        |    fi
+        |    command -v diff >/dev/null 2>&1 || { echo "$msgNoDiffTool" >&2; exit 1; }
+        |    diff "${d}DEST/${d}name" "${d}SRC/${d}name" ;;
         |  show)
         |    [ ${d}# -ge 2 ] || usage
         |    name="${d}2"; case "${d}name" in *.sh) ;; *) name="${d}name.sh" ;; esac
@@ -829,6 +889,7 @@ fun z2MacroScript(lang: String): String {
         |    exec sh "${d}SRC/${d}name" ;;
         |  dir)
         |    echo "${d}DEST" ;;
+        |  -h|--help|help) helpme ;;
         |  *) usage ;;
         |esac
     """.trimMargin() + "\n"

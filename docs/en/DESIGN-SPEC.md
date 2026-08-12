@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-13 / Target version: 0.8.331-alpha (versionCode 339)
+Last updated: 2026-08-13 / Target version: 0.8.332-alpha (versionCode 340)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -842,6 +842,23 @@ The footer now shows **the macro that finished last**, since start times moved o
 **Background**: the barrier to macros was never the syntax but **writing the first one from scratch**.
 
 **Implementation**: ten working samples (event basics / battery alert / time trigger / one-time-code copy from notifications / one-time-code copy from SMS / calls from numbers not in the contacts / reminders by notification / feed subscription / opening what was collected / handing something over as a QR code) are placed in the rootfs at `/usr/local/share/z2term/macros/` and copied into `~/.z2term/macros/` by `z2-macro install <name|all>`.
+
+**Noticing that your copy has fallen behind (0.8.332)**: `install` **never overwrites** (your edits are
+yours; that call stands). The price is that when an app update fixes a bundled sample, **the copy on the
+device stays silently old**. `remind.sh` really did run two weeks behind, so the fix that made its result
+notifications use `-h` (banner) never took effect — from the outside it just looked like "the tile does not
+pop up", and the search went to Android's notification settings.
+
+- **Make it visible in the listing.** `z2-macro list` gains a state column (`new` / `installed` / `update`).
+  It compares with `cmp`, or `cksum` when there is no `cmp`. ⚠ **With neither, answer "differs"** — claiming
+  "identical" is how you never find out that a fixed version exists (exactly the failure above).
+- **`install` tells "same" apart from "different".** A flat "already exists (use -f to overwrite)" never says
+  whether there is a reason to overwrite. When they differ it prints `z2-macro diff <name>` and
+  `z2-macro install -f <name>` right after.
+- **`diff <name>` is new** (left = your copy, right = the bundled one). `-f` also throws away your own edits,
+  so whoever is told "these differ" needs a way to check whether overwriting is safe.
+- `Z2MacroScriptTest` pins all three states, the `install` wording, which side `diff` puts you on, and the
+  exit code of `--help`, by running the real `sh`.
 
 **Moving the samples off residency onto `z2-when` (0.8.273)**: up to 0.8.272 the battery-alert,
 daily-report and OTP samples were **resident scripts polling a log every 2 seconds**, and the macro

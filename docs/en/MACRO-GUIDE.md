@@ -66,6 +66,9 @@ minute). **Do not write in style B what style A can express.**
 4. Handy tool: install `jq` (JSON parsing). e.g. Alpine `apk add jq` / Debian-family `apt install jq`.
 5. **If you would rather not start from a blank file**: `z2-macro list` shows the 10 bundled samples and
    `z2-macro install <name>` copies one into `~/.z2term/macros/` (`z2-macro install all` for every one).
+   ⚠ To keep your edits, **`install` never overwrites**. An app update that fixes a sample therefore does
+   not reach a copy you already have: when `z2-macro list` marks one `update`, read `z2-macro diff <name>`
+   and then `z2-macro install -f <name>`.
    ⚠ **The macro directory is on PATH** (since 0.8.287; appended, so it never shadows an OS command),
    so what you install runs by name: `remind.sh 30m pills`. ⚠ **Tabs opened before 0.8.287 carry the old
    PATH** — open a new tab or run `export PATH=$HOME/.z2term/macros:$PATH`. ⚠ **An ssh session is
@@ -284,7 +287,7 @@ prerequisite → 3-A).
 | `z2-noti` | `z2-noti list` | Read **the notifications on screen right now** (read-only, see below) | TSV |
 | `z2-session` | `z2-session list\|new\|send\|capture\|close` | Drive **the app's own tabs** (see below) | TSV / index |
 | `z2-server` | `z2-server list\|start\|stop\|status <server>` | Start / stop **a registered resident server** (see below) | TSV |
-| `z2-macro` | `z2-macro list\|install\|show\|run\|dir` | Manage the bundled samples | — |
+| `z2-macro` | `z2-macro list\|install\|diff\|show\|run\|dir` | Manage the bundled samples (`list` marks each `new` / `installed` / `update`) | — |
 
 ### `z2-notify -b` (get an answer back = interactive macros)
 
