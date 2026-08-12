@@ -82,7 +82,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.314-alpha (versionCode 322).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.315-alpha (versionCode 323).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 
@@ -232,6 +232,11 @@ z2term/
 |---|---|---|
 | `foss` | **配布の既定（おすすめ）**・ライセンス表記の最小化 | **Alpine rootfs を除外** → 起動時に `DistroDownloader` で DL (SHA-256 検証)。proot/talloc は同梱継続 (W^X で `nativeLibraryDir` からの execve が必須) のため GPL-2.0/LGPL-3.0 表記は残る。初回オフライン起動は不可 |
 | `full` | 初回オフライン起動が要るとき | assets と prebuilt バイナリを含む (各自配置が必要)。初回オフライン起動可 |
+
+`applicationId` は `foss` だけ `.foss` が付く（`com.zerotoship.z2term.foss`）ので、両方を同時に入れられます。
+⚠ **ランチャーの表示名はどちらも「Z2Term」**です（0.8.315。名前に配布形態を出さない方針）。両方入れたときは
+名前で見分けが付かないので、`z2version` かアプリ情報の版数（`foss` は末尾が `-foss`）で判別してください。
+debug ビルドだけは別名（`Z2Term dbg2`）のままです。
 
 ```bash
 ./gradlew assembleFossDebug   # 通常開発 (rootfs 除外・起動時 DL)

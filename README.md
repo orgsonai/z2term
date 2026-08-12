@@ -84,7 +84,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.314-alpha (versionCode 322).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.315-alpha (versionCode 323).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
@@ -231,6 +231,11 @@ z2term/
 |---|---|---|
 | `foss` | **The distribution default (recommended)**; license notices minimized | **Alpine rootfs excluded** → downloaded at runtime by `DistroDownloader` (SHA-256 verified). proot/talloc stay bundled (W^X requires execve from `nativeLibraryDir`), so their GPL-2.0/LGPL-3.0 notices remain. No offline first run. |
 | `full` | When an offline first run is required | includes assets and prebuilt binaries (you must place them); offline first run |
+
+Only `foss` carries the `.foss` `applicationId` suffix (`com.zerotoship.z2term.foss`), so both can be installed side by side.
+⚠ **Both show the same launcher name, "Z2Term"** (0.8.315 — the distribution flavor does not belong in the app's name).
+With both installed the name no longer tells them apart; use `z2version` or the version in app info instead
+(`foss` ends in `-foss`). Only debug builds keep a separate name (`Z2Term dbg2`).
 
 ```bash
 ./gradlew assembleFossDebug   # normal development (rootfs excluded, runtime DL)

@@ -49,10 +49,12 @@ android {
             applicationIdSuffix = ".foss"
             versionNameSuffix = "-foss"
             buildConfigField("boolean", "IS_FOSS", "true")
-            // full と別 applicationId で共存するので、ランチャー表示名も分けて見分けられるようにする。
-            // release: "Z2Term FOSS" (full は "Z2Term")。debug は buildType が "Z2Term dbg2" に
-            // 上書きする (placeholder 優先順位: buildType > flavor) ので foss debug もそれを使う。
-            manifestPlaceholders["appLabel"] = "Z2Term FOSS"
+            // ⚠ **ランチャー表示名は full と同じ "Z2Term"** (0.8.315・利用者の判断)。
+            // 0.8.314 までは release を "Z2Term FOSS" にして見分けられるようにしていたが、
+            // **名前に配布形態が出るのは見た目が悪い**。両方入れたときは見分けが付かなくなるが、
+            // 見分けたいのは開発中の debug だけなので実害が無い (debug は buildType が
+            // "Z2Term dbg2" に上書きする。placeholder の優先順位は buildType > flavor)。
+            // どちらのビルドかは `z2version` / アプリ情報で分かる (versionName の `-foss`)。
         }
     }
 
@@ -99,8 +101,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 322
-        versionName = "0.8.314-alpha"
+        versionCode = 323
+        versionName = "0.8.315-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
