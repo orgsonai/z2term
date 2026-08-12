@@ -184,12 +184,10 @@ object ScreenTimeout {
 
     private fun schedule(context: Context, at: Long) {
         val am = context.getSystemService(AlarmManager::class.java) ?: return
-        // setExactAndAllowWhileIdle は API31+ で SCHEDULE_EXACT_ALARM が要る。数分のズレは
-        // 「消灯しない時間が少し延びる」だけで実害が小さいので、権限の要らない不正確版を使う
-        // (AlarmScheduler と同じ判断)。
-        runCatching {
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pendingIntent(context))
-        }.onFailure { Log.w(TAG, "schedule failed", it) }
+        // 置き方は [ExactAlarm] に 1 本化 (0.8.332・AlarmScheduler / WhenManager と同じ判断)。
+        // ここのズレは「消灯しない時間が少し延びる」だけだが、系統ごとに置き方を変えると
+        // 「どれが正確でどれが不正確か」を誰も覚えていられない。
+        ExactAlarm.setWakeup(am, at, pendingIntent(context), "screen keepon")
     }
 
     private fun unschedule(context: Context) {

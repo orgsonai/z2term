@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-13 / Target version: 0.8.332-alpha (versionCode 340)
+Last updated: 2026-08-13 / Target version: 0.8.333-alpha (versionCode 341)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -843,18 +843,44 @@ The footer now shows **the macro that finished last**, since start times moved o
 
 **Implementation**: ten working samples (event basics / battery alert / time trigger / one-time-code copy from notifications / one-time-code copy from SMS / calls from numbers not in the contacts / reminders by notification / feed subscription / opening what was collected / handing something over as a QR code) are placed in the rootfs at `/usr/local/share/z2term/macros/` and copied into `~/.z2term/macros/` by `z2-macro install <name|all>`.
 
+**Exact when it can be (0.8.333, `ExactAlarm`)**: alarms were placed with `setAndAllowWhileIdle`
+(Doze-piercing but inexact), so **a phone left with the screen off fires several minutes to ~15 late**
+(in Doze the OS only offers a slot every 9-15 minutes). Investigated after the user asked whether battery
+saver causes a large drift.
+
+- ⚠ **An app exempt from battery optimisation is allowed exact alarms without declaring
+  `SCHEDULE_EXACT_ALARM`** (the `AlarmManagerService` allow-list exemption; it shows up on a real
+  Android 16 device as `exactAllowReason=allow-listed` in `dumpsys alarm`). z2term already asks for that
+  exemption for its resident servers, so it can move to exact **without adding a single permission**.
+- It asks `canScheduleExactAlarms()` on every placement and falls back when the answer is no.
+  ⚠ **The answer is never cached** — the grant can change from Settings at any moment. A
+  `SecurityException` from losing it mid-flight is caught and re-placed inexactly: **never drop the
+  alarm** (silently vanishing is the worst outcome).
+- ⚠ **Fix all three at once.** Three things run on time: `z2-alarm` ([`AlarmScheduler`]),
+  `z2-when time:*` ([`WhenManager`]) and the deadline of `z2-screen keepon` ([`ScreenTimeout`]), each
+  calling `setAndAllowWhileIdle` on its own. Fixing only `z2-alarm` leaves **repeating reminders — which
+  go through `z2-when` — just as late**. Placement now lives in `ExactAlarm` alone.
+- **Make it visible from the terminal.** Each entry of `z2-alarm list` gains `exact`. ⚠ It stays an
+  array (`z2-alarm list | jq '.[0].at'` keeps working). Without it, a late alarm cannot be told apart
+  from a mis-scheduled one.
+
 **Noticing that your copy has fallen behind (0.8.332)**: `install` **never overwrites** (your edits are
 yours; that call stands). The price is that when an app update fixes a bundled sample, **the copy on the
 device stays silently old**. `remind.sh` really did run two weeks behind, so the fix that made its result
 notifications use `-h` (banner) never took effect — from the outside it just looked like "the tile does not
 pop up", and the search went to Android's notification settings.
 
-- **Make it visible in the listing.** `z2-macro list` gains a state column (`new` / `installed` / `update`).
+- **Make it visible in the listing.** `z2-macro list` gains a state column (`new` / `same` / `differs`).
   It compares with `cmp`, or `cksum` when there is no `cmp`. ⚠ **With neither, answer "differs"** — claiming
   "identical" is how you never find out that a fixed version exists (exactly the failure above).
+- ⚠ **Do not call it "update".** All that is known is that they *differ*; **which one is newer is not**.
+  The `rss.sh` on the device carries a feature the bundled one never had (per-item notifications driven by
+  `important.txt`, plus a `z2-when` rule that depends on it) — "update" would have talked someone into
+  `-f` and deleted it. It shipped as `要更新` first and hit exactly that on real data; the label is now the
+  neutral "differs", and "the bundled one has moved on" is gone from the `install` wording too.
 - **`install` tells "same" apart from "different".** A flat "already exists (use -f to overwrite)" never says
-  whether there is a reason to overwrite. When they differ it prints `z2-macro diff <name>` and
-  `z2-macro install -f <name>` right after.
+  whether there is a reason to overwrite. When they differ it prints **`diff` first** and `install -f`
+  second (the order is pinned by `Z2MacroScriptTest`), so nobody overwrites unseen.
 - **`diff <name>` is new** (left = your copy, right = the bundled one). `-f` also throws away your own edits,
   so whoever is told "these differ" needs a way to check whether overwriting is safe.
 - `Z2MacroScriptTest` pins all three states, the `install` wording, which side `diff` puts you on, and the

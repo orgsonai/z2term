@@ -7,12 +7,14 @@ import org.junit.Test
 import java.io.File
 
 /**
- * `z2-macro` の**「入れたコピーが古い」を見つけられるか**を実際の `sh` で確かめる (0.8.332)。
+ * `z2-macro` が**端末のコピーと同梱版の食い違いに気付かせるか**を実際の `sh` で確かめる (0.8.332)。
  *
  * ⚠ ここが要 — `install` は既存を上書きしない (自分で書き換えた分を守るため。この判断は変えない)。
- * その代わり、**同梱版が直っても端末のコピーは黙って古いまま**になる。実際 `remind.sh` は
+ * その代わり、**同梱版が直っても端末のコピーは黙ってそのまま**になる。実際 `remind.sh` は
  * 2 週間ぶん古いコピーのまま使われ、直したはずの「通知をバナーで出す」が効いていなかった。
- * 一覧に状態が出ること・`install` が「同じ」と「違う」を言い分けることを固定する。
+ *
+ * ⚠ ただし**どちらが新しいかは分からない**。端末側の方が進んでいる例 (アプリへ取り込んでいない
+ * 拡張) が実在するので、「要更新」と決めつけないこと・`-f` より先に `diff` を出すことも固定する。
  */
 class Z2MacroScriptTest {
 
@@ -59,12 +61,24 @@ class Z2MacroScriptTest {
 
             run(src, home, "install", "demo.sh")
             val (_, installed) = run(src, home, "list")
-            assertTrue("導入済と出ていない: $installed", installed.contains("導入済"))
+            assertTrue("「同じ」と出ていない: $installed", installed.contains("同じ"))
 
-            // 端末のコピーだけ古くする (= 同梱版が直った状態と同じ)。
+            // 端末のコピーだけ書き換える (同梱版が直った場合も、自分で足した場合も同じ見え方)。
             File(home, ".z2term/macros/demo.sh").writeText("#!/bin/sh\n# demo.sh — 見本\necho old\n")
-            val (_, outdated) = run(src, home, "list")
-            assertTrue("要更新と出ていない: $outdated", outdated.contains("要更新"))
+            val (_, differs) = run(src, home, "list")
+            assertTrue("差分ありと出ていない: $differs", differs.contains("差分あり"))
+            // ⚠ 「要更新」と書かない。どちらが新しいかは分からない (端末側の方が進んでいる例が実在する)。
+            assertTrue("どちらが新しいか断定している: $differs", !differs.contains("要更新"))
+
+            // ⚠ 状態が違っても**説明の開始位置が揃う**こと。printf の %-Ns はバイトで数えるので、
+            // 全角の状態語をそのまま流すと 2 桁ずれる (0.8.333 で実機の出力を見て気付いた)。
+            val both = (run(src, home, "list").second + notInstalled).lines().filter { it.contains("demo.sh —") }
+            // ⚠ 文字数ではなく**見た目の桁**で比べる (全角 1 文字 = 2 桁)。文字数で比べると、
+            // 正しく揃っている出力を「ずれている」と誤判定する。
+            val cols = both.map { line ->
+                line.take(line.indexOf("demo.sh —", 1)).sumOf { if (it.code < 0x80) 1 else 2 }
+            }.toSet()
+            assertEquals("状態によって説明の開始位置がずれている: $both", 1, cols.size)
         } finally {
             src.deleteRecursively(); home.deleteRecursively()
         }
@@ -86,8 +100,14 @@ class Z2MacroScriptTest {
             File(home, ".z2term/macros/demo.sh").writeText("#!/bin/sh\n# demo.sh — 見本\necho old\n")
             val (_, differs) = run(src, home, "install", "demo.sh")
             assertTrue("違いを伝えていない: $differs", differs.contains("同梱版と中身が違います"))
+            assertTrue("同梱版が新しいと断定している: $differs", !differs.contains("新しくなっています"))
             assertTrue("更新の仕方が出ていない: $differs", differs.contains("z2-macro install -f demo.sh"))
             assertTrue("差分の見方が出ていない: $differs", differs.contains("z2-macro diff demo.sh"))
+            // ⚠ diff が -f より**先**に出ること。順番が逆だと、中身を見ずに上書きしてしまう。
+            assertTrue(
+                "diff より先に -f を勧めている: $differs",
+                differs.indexOf("z2-macro diff") < differs.indexOf("z2-macro install -f")
+            )
         } finally {
             src.deleteRecursively(); home.deleteRecursively()
         }

@@ -23,9 +23,18 @@ import kotlin.random.Random
  * ため、実質的に画面を点けている間しか効かなかった。AlarmManager 経由なら Doze 中でも OS が
  * アプリを起こすので、時刻マクロが初めて実用になる。
  *
- * **精度と権限のトレードオフ**: `setExactAndAllowWhileIdle` は API31+ で `SCHEDULE_EXACT_ALARM`
- * (ユーザー許可) が要る。マクロ用途で数分のズレは許容できるので、**権限が要らない**
- * `setAndAllowWhileIdle` (Doze 貫通・不正確) を使う。実際の発火は指定時刻から**数分遅れることがある**。
+ * **精度と権限のトレードオフ**: `setExactAndAllowWhileIdle` は API31+ で「正確なアラーム」が要る。
+ * **manifest には権限を足さない** — 代わりに [canBeExact] で*その場で*可否を聞き、駄目なら
+ * `setAndAllowWhileIdle` (Doze 貫通・不正確) へ落ちる (0.8.332)。
+ *
+ * ⚠ **電池の最適化を除外しているアプリは、権限を宣言しなくても正確なアラームが許される**
+ * (AlarmManagerService の allow-list 免除。実機の `dumpsys alarm` に
+ * `exactAllowReason=allow-listed` として出る)。z2term は常駐サーバーのために最適化除外を
+ * お願いしているので、**実際にはほぼ常に正確側で動く**。除外を外されたときは自動的に
+ * 不正確側へ戻るだけで、落ちない。
+ *
+ * 不正確側に落ちたときの実害: Doze 中は発火の機会が概ね 9〜15 分に 1 回しか回ってこないため、
+ * **画面を消して放置していると数分〜15 分ほど遅れる**。可否は `z2-alarm list` の `exact` で見える。
  *
  * 永続化は `filesDir/alarms.json`。端末再起動で AlarmManager の予約は消えるため、
  * [BootReceiver] と [rescheduleAll] で貼り直す。
@@ -102,10 +111,17 @@ object AlarmScheduler {
         return entry.toJson().toString()
     }
 
-    /** 登録済みアラームを JSON 配列で返す (発火予定の早い順)。 */
+    /**
+     * 登録済みアラームを JSON 配列で返す (発火予定の早い順)。
+     *
+     * 各件に `exact` を足してある (0.8.332)。⚠ **配列のままにする** — `z2-alarm list | jq '.[0].at'`
+     * のような手元の書き方を壊さないため、器を変えずに項目を 1 つ増やす形にした。
+     * `false` の日は「画面を消していると数分〜15 分遅れる」の説明になる ([ExactAlarm])。
+     */
     fun listJson(context: Context): String {
+        val exact = isExact(context)
         val arr = JSONArray()
-        load(context).sortedBy { it.at }.forEach { arr.put(it.toJson()) }
+        load(context).sortedBy { it.at }.forEach { arr.put(it.toJson().put("exact", exact)) }
         return arr.toString()
     }
 
@@ -190,12 +206,13 @@ object AlarmScheduler {
     // events.jsonl への書き込みは EventEmitter に集約 (通知ボタンの応答と同じ経路)。
     private fun schedule(context: Context, entry: AlarmEntry) {
         val am = context.getSystemService(AlarmManager::class.java) ?: return
-        // setAndAllowWhileIdle: Doze を貫通しつつ SCHEDULE_EXACT_ALARM 権限が要らない
-        // (代わりに発火が数分ずれることがある。マクロ用途では許容)。
-        runCatching {
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, entry.at, pendingIntent(context, entry.id))
-        }.onFailure { Log.w(TAG, "schedule failed for ${entry.id}", it) }
+        // 置き方は [ExactAlarm] に 1 本化 (z2-when time:* / z2-screen keepon と同じ用件のため)。
+        ExactAlarm.setWakeup(am, entry.at, pendingIntent(context, entry.id), "alarm ${entry.id}")
     }
+
+    /** `z2-alarm list` に出す「いま正確に置けるか」。遅れの原因を端末から確かめられるようにする。 */
+    fun isExact(context: Context): Boolean =
+        context.getSystemService(AlarmManager::class.java)?.let { ExactAlarm.canBeExact(it) } ?: false
 
     private fun unschedule(context: Context, entry: AlarmEntry) {
         val am = context.getSystemService(AlarmManager::class.java) ?: return

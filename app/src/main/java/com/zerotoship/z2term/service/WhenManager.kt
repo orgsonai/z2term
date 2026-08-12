@@ -23,7 +23,7 @@ import java.util.Locale
  *  - 充電 (`charge:*`) / 電池 (`battery:*`) は manifest レシーバ ([WhenReceiver]) が受ける。
  *    `ACTION_POWER_CONNECTED` / `_DISCONNECTED` / `BATTERY_LOW` / `_OKAY` は暗黙ブロードキャスト
  *    制限の**例外**なので、専用のフォアグラウンドサービス (= 追加の常駐通知・WakeLock) 無しで拾える。
- *  - 時刻 (`time:*`) は [AlarmManager] (Doze 貫通・権限不要の `setAndAllowWhileIdle`)。
+ *  - 時刻 (`time:*`) は [AlarmManager] ([ExactAlarm]: 置けるなら正確・駄目なら Doze 貫通の不正確)。
  *
  * 実行は「そのとき選ばれている distro」で `sh -lc '<run>'` を headless に起動し、出力を
  * `~/.z2term/when/<id>.log` へ落とす ([ServerDaemonManager] と同じ launch パターン)。トリガー情報は
@@ -166,10 +166,9 @@ object WhenManager {
 
     private fun scheduleTime(context: Context, ruleId: String, at: Long) {
         val am = context.getSystemService(AlarmManager::class.java) ?: return
-        runCatching {
-            // setAndAllowWhileIdle: Doze 貫通・SCHEDULE_EXACT_ALARM 不要 (数分ずれることがある)。
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, timePending(context, ruleId))
-        }.onFailure { Log.w(TAG, "schedule time failed for $ruleId", it) }
+        // 置き方は [ExactAlarm] に 1 本化 (0.8.332)。⚠ 繰り返しのリマインドはここを通るので、
+        // z2-alarm 側だけ正確にしても「毎日 7 時」は遅れたままになる。3 系統を揃えること。
+        ExactAlarm.setWakeup(am, at, timePending(context, ruleId), "when $ruleId")
     }
 
     private fun cancelTime(context: Context, ruleId: String) {

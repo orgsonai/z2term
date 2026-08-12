@@ -732,9 +732,9 @@ fun z2MacroScript(lang: String): String {
     val usage = if (ja) {
         listOf(
             "usage: z2-macro <サブコマンド>",
-            "  list                同梱サンプルの一覧 (未導入 / 導入済 / 要更新 つき)",
+            "  list                同梱サンプルの一覧 (未導入 / 同じ / 差分あり つき)",
             "  install <名前|all>  ~/.z2term/macros/ へコピー (既存は上書きしない。-f で上書き)",
-            "  diff <名前>         端末のコピーと同梱版の違いを見る",
+            "  diff <名前>         端末のコピーと同梱版の違いを見る (左が自分の側)",
             "  show <名前>         中身を表示",
             "  run <名前>          その場で実行 (Ctrl-C で止める)",
             "  dir                 マクロの置き場所を表示",
@@ -742,30 +742,42 @@ fun z2MacroScript(lang: String): String {
     } else {
         listOf(
             "usage: z2-macro <subcommand>",
-            "  list                list bundled samples (with new / installed / update)",
+            "  list                list bundled samples (marked new / same / differs)",
             "  install <name|all>  copy into ~/.z2term/macros/ (never overwrites; -f to force)",
-            "  diff <name>         what differs between your copy and the bundled one",
+            "  diff <name>         what differs between your copy and the bundled one (yours on the left)",
             "  show <name>         print the script",
             "  run <name>          run it here (Ctrl-C to stop)",
             "  dir                 print where macros live",
         )
     }
 
-    // `list` の状態列。幅は**バイト数**で 9 に揃える (printf の %-9s はバイトで数えるため。
-    // ja の全角 3 文字がちょうど 9 バイト、en は最長の "installed" が 9 文字)。揃わないと
-    // 説明の開始位置がずれて、どれが何の説明なのか目で追えなくなる。
-    val stNew = if (ja) "未導入" else "new"
-    val stSame = if (ja) "導入済" else "installed"
-    val stOld = if (ja) "要更新" else "update"
+    // `list` の状態列。
+    //
+    // ⚠ 3 つ目を「要更新」と書かないこと。分かるのは**同梱版と違う**ことだけで、どちらが
+    // 新しいかは分からない。実際、端末側の `rss.sh` が同梱版より機能が多い (アプリへ
+    // 取り込んでいない拡張がある) 例があり、「要更新」に釣られて `-f` を打つと消える。
+    // ⚠ 幅揃えは **printf に任せない**。`%-Ns` が数えるのは**バイト数**で、全角 1 文字は
+    // 3 バイト・見た目 2 桁なので、`未導入` と `同じ` を同じ `%-12s` に流すと説明の開始位置が
+    // 2 桁ずれる (0.8.333 で実機の出力を見て気付いた)。ここで見た目の桁を数えて空白を足す。
+    fun padVisual(s: String, cols: Int): String =
+        s + " ".repeat((cols - s.sumOf { if (it.code < 0x80) 1 else 2 }).coerceAtLeast(0))
+
+    val stCols = if (ja) 8 else 7
+    val stNew = padVisual(if (ja) "未導入" else "new", stCols)
+    val stSame = padVisual(if (ja) "同じ" else "same", stCols)
+    val stDiff = padVisual(if (ja) "差分あり" else "differs", stCols)
 
     val msgInstalled = if (ja) "導入しました:" else "installed:"
     // 「既にある」を**同じ / 違う**で言い分ける (0.8.332)。一律「既にあります」だと、同梱版が
     // 直っていても気付けず、古いコピーを使い続けることになる (remind.sh で実際に起きた)。
     val msgSame = if (ja) "同じ内容がすでに入っています:" else "the same thing is already installed:"
-    val msgOutdated = if (ja) "同梱版と中身が違います (同梱版が新しくなっています):"
-    else "yours differs from the bundled one (the bundled one has moved on):"
-    val msgHowUpdate = if (ja) "違いを見る: z2-macro diff %s   /   更新する: z2-macro install -f %s"
-    else "see what changed: z2-macro diff %s   /   update: z2-macro install -f %s"
+    val msgOutdated = if (ja) "同梱版と中身が違います:" else "yours differs from the bundled one:"
+    // ⚠ 「同梱版が新しい」と断定しない。端末側の方が進んでいることが実際にある
+    //    (アプリへ取り込んでいない拡張)。**先に diff** を見せてから -f を出す順にする。
+    val msgHowUpdate = if (ja)
+        "まず違いを見る: z2-macro diff %s   /   同梱版で置き換える: z2-macro install -f %s (自分で書き換えた分は消えます)"
+    else
+        "look first: z2-macro diff %s   /   replace with the bundled one: z2-macro install -f %s (your own edits go too)"
     val msgNotInstalled = if (ja) "まだ導入していません (先に z2-macro install):"
     else "not installed yet (run z2-macro install first):"
     val msgNoDiffTool = if (ja) "この環境に diff がありません。中身は z2-macro show で見られます。"
@@ -827,12 +839,12 @@ fun z2MacroScript(lang: String): String {
         |      # 2 行目のコメント (= 説明) を要約として見せる
         |      desc=${d}(sed -n '2s/^# *//p' "${d}f")
         |      # 状態を出す (0.8.332)。install は既存を上書きしない = 一度入れたコピーは
-        |      # **黙って古いまま**になるので、一覧の時点で「違う」と分かるようにする。
+        |      # **同梱版が直っても黙ってそのまま**になるので、一覧の時点で違いが分かるようにする。
         |      if [ ! -f "${d}DEST/${d}name" ]; then st='$stNew'
         |      elif same_as_bundled "${d}SRC/${d}name" "${d}DEST/${d}name"; then st='$stSame'
-        |      else st='$stOld'
+        |      else st='$stDiff'
         |      fi
-        |      printf '%-18s %-9s %s\n' "${d}name" "${d}st" "${d}desc"
+        |      printf '%-18s %s %s\n' "${d}name" "${d}st" "${d}desc"
         |    done ;;
         |  install)
         |    [ ${d}# -ge 2 ] || usage

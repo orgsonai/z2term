@@ -443,18 +443,24 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# z2-alarm at HH:MM [name]     … once at the next HH:MM (tomorrow if already past)
         |# z2-alarm daily HH:MM [name]  … every day at HH:MM
         |# z2-alarm in <N|Ns|Nm|Nh> [name] … once, N seconds/minutes/hours from now
-        |# z2-alarm list                … list what is scheduled (JSON)
+        |# z2-alarm list                … list what is scheduled (JSON; "exact" says how punctual)
         |# z2-alarm cancel <id|name|all> … cancel
         |# When it fires, a line {"event":"alarm","name":…} is appended to ~/.z2term/events.jsonl.
-        |# It wakes the device even in Doze, but power saving can delay it by a few minutes.
+        |# It wakes the device even in Doze. "exact":true means it fires on the minute;
+        |# "exact":false means Doze only offers a slot every 9-15 min, so a phone left with the
+        |# screen off can be that late. Turning battery optimisation off for this app is what
+        |# flips it to true (no extra permission is asked for).
     """.trimMargin() else """
         |# z2-alarm at HH:MM [名前]     … 次の HH:MM に 1 回 (今日を過ぎていれば明日)
         |# z2-alarm daily HH:MM [名前]  … 毎日 HH:MM
         |# z2-alarm in <N|Ns|Nm|Nh> [名前] … N 秒/分/時間後に 1 回
-        |# z2-alarm list                … 予約一覧 (JSON)
+        |# z2-alarm list                … 予約一覧 (JSON。"exact" が時刻どおりに鳴るかどうか)
         |# z2-alarm cancel <id|名前|all> … 取り消し
         |# 発火すると ~/.z2term/events.jsonl に {"event":"alarm","name":…} が 1 行増える。
-        |# Doze 中でも起きるが、省電力のため発火が数分ずれることがある。
+        |# Doze 中でも起きる。"exact":true なら時刻ちょうどに鳴る。"exact":false のときは
+        |# Doze 中の発火の機会が 9〜15 分に 1 回しか無いため、画面を消して放置していると
+        |# それくらい遅れる。true にするのは**このアプリの電池の最適化を切る**ことで、
+        |# 追加の許可は求めない。
     """.trimMargin()
 
     val alarmNoDate: String =

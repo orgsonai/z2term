@@ -67,8 +67,9 @@ minute). **Do not write in style B what style A can express.**
 5. **If you would rather not start from a blank file**: `z2-macro list` shows the 10 bundled samples and
    `z2-macro install <name>` copies one into `~/.z2term/macros/` (`z2-macro install all` for every one).
    ⚠ To keep your edits, **`install` never overwrites**. An app update that fixes a sample therefore does
-   not reach a copy you already have: when `z2-macro list` marks one `update`, read `z2-macro diff <name>`
-   and then `z2-macro install -f <name>`.
+   not reach a copy you already have: when `z2-macro list` marks one `differs`, read `z2-macro diff <name>`
+   (yours on the left) and then, if the bundled one really is the one you want, `z2-macro install -f <name>`.
+   ⚠ **`differs` is not "out of date"** — your copy can be the one that is ahead, so never run `-f` unseen.
    ⚠ **The macro directory is on PATH** (since 0.8.287; appended, so it never shadows an OS command),
    so what you install runs by name: `remind.sh 30m pills`. ⚠ **Tabs opened before 0.8.287 carry the old
    PATH** — open a new tab or run `export PATH=$HOME/.z2term/macros:$PATH`. ⚠ **An ssh session is
@@ -287,7 +288,7 @@ prerequisite → 3-A).
 | `z2-noti` | `z2-noti list` | Read **the notifications on screen right now** (read-only, see below) | TSV |
 | `z2-session` | `z2-session list\|new\|send\|capture\|close` | Drive **the app's own tabs** (see below) | TSV / index |
 | `z2-server` | `z2-server list\|start\|stop\|status <server>` | Start / stop **a registered resident server** (see below) | TSV |
-| `z2-macro` | `z2-macro list\|install\|diff\|show\|run\|dir` | Manage the bundled samples (`list` marks each `new` / `installed` / `update`) | — |
+| `z2-macro` | `z2-macro list\|install\|diff\|show\|run\|dir` | Manage the bundled samples (`list` marks each `new` / `same` / `differs`) | — |
 
 ### `z2-notify -b` (get an answer back = interactive macros)
 
@@ -509,8 +510,15 @@ z2-alarm cancel morning        # cancel by name (id or all also work)
 
 - **Versus cron**: cron stops running once Android enters power-saving sleep (Doze). `z2-alarm`
   asks the OS to wake the app, so it fires with the screen off too.
-- It uses the battery-friendly alarm API, so **firing can be a few minutes late** — not suitable
-  when you need second-level accuracy.
+- **Whether it fires on the minute is in `z2-alarm list` as `exact`** (0.8.333).
+  - `"exact":true` … it fires on the minute.
+  - `"exact":false` … in Doze the OS only offers a slot every 9-15 minutes, so **a phone left with
+    the screen off can be that late**. Battery saver pushes it the same way.
+  - What flips it to `true` is **Settings › Apps › Z2Term › Battery › Unrestricted** (battery
+    optimisation off). ⚠ The app **never asks for the "alarms & reminders" permission** — Android
+    grants exact alarms to apps exempt from battery optimisation, so no extra permission is needed.
+    Where it is not exempt, scheduling quietly falls back to the inexact API; nothing is dropped.
+- The same applies to `z2-when time:` and the deadline of `z2-screen keepon` (one place decides).
 - Schedules survive a reboot (the app re-registers them on boot).
 - The name exists so one macro can tell its alarms apart; branch on `name` in your script.
 
