@@ -317,6 +317,8 @@ class ProotLauncher(private val context: Context) {
         ensureZ2MacroScripts(rootfs)
         // `z2-pacman-keyring`: Arch の鍵束を初期化するワンショット (pacman が無い distro では no-op)。
         ensurePacmanKeyringScript(rootfs)
+        // 前回の鍵束初期化が失敗を書き残していれば logcat へ出して消す (切り分け用)。
+        drainPacmanKeyringDiag(rootfs)
         // GUI 動画対策: mpv の既定をソフトウェア出力 (vo=x11) にする設定を配置。
         ensureMpvConfig(rootfs)
         // D-Bus セッションバスに必要な machine-id を用意 (空だと「Invalid machine ID」で bus が起動不可)。
@@ -531,6 +533,7 @@ class ProotLauncher(private val context: Context) {
         // `z2-macro`: 自動化マクロの同梱サンプル (list/install/show/run)。
         ensureZ2MacroScripts(rootfs)
         ensurePacmanKeyringScript(rootfs)
+        drainPacmanKeyringDiag(rootfs)
         ensureMpvConfig(rootfs)
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
@@ -1160,6 +1163,33 @@ class ProotLauncher(private val context: Context) {
     }
 
     /**
+     * 前回の `z2-pacman-keyring` が失敗を書き残していれば logcat へ出して消す (0.8.317)。
+     *
+     * ⚠ **端末タブの出力はアプリのログに流れない。** そのため 0.8.316 では、利用者から
+     * 「失敗しました」としか分からず、原因を掴むのに実機を何度も往復することになった
+     * (GUI 経由の出力だけが `GuiSession` 経由で logcat に載っていた)。ゲスト側は
+     * `/tmp/z2-pacman-keyring.log` に理由を書くので、**どの経路で走っても** `adb logcat`
+     * から読めるようにする。読んだら消す (残しておく意味は無く、次の失敗と混ざる)。
+     */
+    private fun drainPacmanKeyringDiag(rootfs: File) {
+        // 正本は共有ホーム側 (rootfs の再展開で消えない)。`tmp/` は 0.8.317 の旧置き場で、
+        // その版で書かれた分を取りこぼさないためだけに読む (読めたら消すので 1 度きり)。
+        val candidates = listOf(
+            File(sharedHomeDir, ".z2term/pacman-keyring.log"),
+            File(rootfs, "tmp/z2-pacman-keyring.log"),
+        )
+        for (f in candidates) {
+            runCatching {
+                if (!f.isFile) return@runCatching
+                f.readText().lineSequence().filter { it.isNotBlank() }.forEach {
+                    Log.w(TAG, "pacman-keyring: $it")
+                }
+                f.delete()
+            }.onFailure { Log.w(TAG, "pacman-keyring diag 読取失敗: ${it.message}") }
+        }
+    }
+
+    /**
      * この distro が **pacman を使うのに鍵束が未初期化** かどうか (0.8.316)。
      *
      * true なら、パッケージ導入は**何をしても**署名検証で失敗する (`z2-pacman-keyring` の
@@ -1393,12 +1423,20 @@ class ProotLauncher(private val context: Context) {
      */
     fun isDistroReady(distroId: String): Boolean {
         val rootfs = File(distrosDir, distroId)
-        if (!rootfs.exists()) return false
+        if (!rootfs.exists()) {
+            Log.i(TAG, "Distro $distroId has no rootfs directory -> not ready")
+            return false
+        }
         val hasBinaries = File(rootfs, "bin/busybox").exists() ||
             File(rootfs, "bin/bash").exists() ||
             File(rootfs, "usr/bin/busybox").exists() ||
             File(rootfs, "usr/bin/bash").exists()
-        if (!hasBinaries) return false
+        if (!hasBinaries) {
+            // ⚠ ここが false だと **rootfs を丸ごと消して展開し直す** (DistroInstaller.install)。
+            // 入れたパッケージも設定も全部消えるので、理由は必ず残す (0.8.318)。
+            Log.i(TAG, "Distro $distroId has no shell binary (bin/usr-bin bash|busybox) -> not ready")
+            return false
+        }
 
         // バージョンマーカーは postInstall の最後に書かれる = 「設定完了」の証。
         // 無い場合は展開途中 or postInstall 失敗の半端な状態なので再展開させる

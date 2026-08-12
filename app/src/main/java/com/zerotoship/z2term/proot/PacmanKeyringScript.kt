@@ -70,6 +70,15 @@ fun pacmanKeyringScript(lang: String): String {
         |#!/bin/sh
         |# z2term: pacman の鍵束を初期化する (冪等)。詳細は PacmanKeyringScript.kt を参照。
         |GNUPGDIR=/etc/pacman.d/gnupg
+        |# ⚠ 失敗の記録はファイルにも残す。端末タブの出力はアプリのログ (logcat) に流れないので、
+        |# これが無いと「失敗しました」の一行しか手元に残らない。アプリ側 (ProotLauncher) が次の
+        |# 起動でこれを読んで logcat へ出し、読んだら消す。
+        |# ⚠ **置き場は rootfs の外 (共有ホーム = /root)**。rootfs は再展開のたびに
+        |# `deleteRecursively` で丸ごと消える (DistroInstaller.install) ので、/tmp に置くと
+        |# **いちばん知りたい失敗の記録が、次の再展開で消える** (0.8.317 で実際に踏んだ)。
+        |DIAG=/root/.z2term/pacman-keyring.log
+        |mkdir -p /root/.z2term 2>/dev/null
+        |say_fail() { echo "${d}1" >&2; echo "${d}1" >> "${d}DIAG" 2>/dev/null; }
         |
         |# 既に初期化済みなら何もしない。trustdb.gpg は --populate まで済んだ証。
         |[ -f "${d}GNUPGDIR/trustdb.gpg" ] && exit 0
@@ -82,8 +91,18 @@ fun pacmanKeyringScript(lang: String): String {
         |# 中途半端な鍵束があっても、そのまま続きから作れる。
         |mkdir -p "${d}GNUPGDIR" 2>/dev/null
         |
+        |: > "${d}DIAG" 2>/dev/null
+        |
         |if ! pacman-key --init; then
-        |  echo "$msgInitFail" >&2
+        |  say_fail "$msgInitFail"
+        |  # ⚠ **切り分け材料を必ず残す。** 「失敗しました」だけでは原因に辿り着けず、実機を
+        |  # 何度も往復することになる (0.8.316 で実際にそうなった)。pacman-key が弾く条件は
+        |  # `EUID != 0` の 1 つだけなので、**誰が 0 を返していないか**が分かれば足りる:
+        |  #   id -u   … C から geteuid(2) を直に呼ぶ (coreutils)
+        |  #   sh/bash … シェルが起動時に geteuid(2) から作る変数
+        |  # エンジンの fakeroot 偽装が全体に効いていないのか、シェルにだけ効いていないのかが
+        |  # この 1 行で分かれる。
+        |  say_fail "z2diag: id-u=${d}(id -u 2>&1) id-ur=${d}(id -ur 2>&1) sh-EUID=${d}{EUID-unset} sh-UID=${d}{UID-unset} bash-EUID=${d}(bash -c 'echo ${d}EUID' 2>&1)"
         |  exit 1
         |fi
         |
@@ -95,12 +114,12 @@ fun pacmanKeyringScript(lang: String): String {
         |  [ -f "/usr/share/pacman/keyrings/${d}k.gpg" ] && KEYRINGS="${d}KEYRINGS ${d}k"
         |done
         |if [ -z "${d}KEYRINGS" ]; then
-        |  echo "$msgNoKeyrings" >&2
+        |  say_fail "$msgNoKeyrings"
         |  exit 1
         |fi
         |
         |if ! pacman-key --populate ${d}KEYRINGS; then
-        |  echo "$msgPopulateFail" >&2
+        |  say_fail "$msgPopulateFail (keyrings:${d}KEYRINGS)"
         |  exit 1
         |fi
         |

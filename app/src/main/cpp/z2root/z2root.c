@@ -137,6 +137,7 @@ struct pid_state {
     long entry_nr;          // entry で記録した syscall 番号 (exit 時の戻り値逆変換用)
     unsigned long aux_addr; // getcwd 等の対象バッファアドレス
     unsigned long aux_len;  // readlinkat の bufsiz(戻りバッファ逆変換でホストパス長の上限に使う)
+    unsigned long res_ptr[3]; // getresuid/getresgid の出力先(real/effective/saved)。exit で 0 を書き込む
     char aux_path[PATH_MAX_Z]; // readlinkat 対象 symlink のホスト実パス(exit で自前 readlink し直す用, 空=未確定)
     int aux_kind;           // read entry で控えた追跡 fd の種別(PROC_FD_*, exit で偽装を分岐)
     int pending_open_kind;  // fakeroot: openat entry で偽装対象 proc パスを検出した種別(exit で fd を採取)
@@ -2185,6 +2186,13 @@ static const int kTraceSyscallsFakeroot[] = {
     143, 144, 145, 146, 147, 149, 151, 152, 159, 54, 55, 80,
     // setregid/setgid/setreuid/setuid/setresuid/setresgid/setfsuid/setfsgid/
     // setgroups/fchownat/fchown/fstat(=fake_root_on_exit の対象)
+    // ⚠ **getres*id(148/150) を落とさないこと。** getuid/geteuid(174/175) だけ偽装しても、
+    // これらを使うプログラムには実 uid が見えてしまう。glibc の **bash は setuid 判定に
+    // getresuid を使う**ため、$UID/$EUID が Android のアプリ uid のままになり、`EUID != 0`
+    // で弾く shell スクリプトが軒並み「root で実行してください」と言って止まる
+    // (pacman-key --init が典型。0.8.318 まで Arch で pacman が一切使えなかった真因)。
+    // ここは setter(147/149)と getter(148/150)が**対**であることを意識して並べる。
+    148, 150,                 // getresuid / getresgid
     211, 212,                 // sendmsg / recvmsg (AF_UNIX SCM_CREDENTIALS の uid/gid 偽装)
 };
 
@@ -2329,6 +2337,7 @@ static int syscall_needs_exit(const struct config *cfg, const struct pid_state *
         case 143: case 144: case 145: case 146: case 147: case 149:
         case 151: case 152: case 159: case 54: case 55:
         case 52: case 53: return 1;  // 戻り値を 0(成功)へ(chmod/chown/set*id の EPERM 偽装)
+        case 148: case 150: return 1;  // getresuid/getresgid: 出力先の 3 つを 0 に書き換える
         case 212: return 1;          // recvmsg: 受信 SCM_CREDENTIALS の uid/gid を 0 へ
         default: return 0;                            // パス変換のみ(execve/unlinkat/sendmsg 等)
     }
@@ -2371,6 +2380,13 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
         st->aux_addr = 0;
         if (linkat_entry(cfg, pid, &regs, st)) return 1;
         st->link_pending = 0;  // 翻訳失敗 = 通常パス変換へフォールバック(コピー fallback 無し)
+    }
+    // getresuid/getresgid(148/150): 出力先 3 本(real/effective/saved)を控える。
+    // ⚠ **entry で控える**こと。exit では x0 が戻り値に潰れており、第 1 引数は読めない。
+    if (cfg->fake_root && (st->entry_nr == 148 || st->entry_nr == 150)) {
+        st->res_ptr[0] = regs.regs[0];
+        st->res_ptr[1] = regs.regs[1];
+        st->res_ptr[2] = regs.regs[2];
     }
     unsigned long aux = 0;
     if (st->entry_nr == 17) aux = regs.regs[0];      // getcwd buf
@@ -2442,6 +2458,20 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
     return syscall_needs_exit(cfg, st);
 }
 
+// getresuid/getresgid(148/150): 出力先の real/effective/saved をすべて 0 に書き換える。
+//
+// getuid/geteuid(174/175) は戻り値そのものを 0 にすれば済むが、こちらは **戻り値が 0(成功)で
+// 中身はポインタ渡し**なので、書き込まれた 3 つを潰さないと実 uid が漏れる。glibc の bash は
+// setuid 判定にこれを使うため、ここを落とすと $UID/$EUID がアプリの実 uid のままになる。
+static void fake_getres_on_exit(pid_t pid, const struct pid_state *st) {
+    struct user_pt_regs regs;
+    if (get_regs(pid, &regs) != 0) return;
+    if ((long)regs.regs[0] < 0) return;   // 失敗しているなら触らない(値は書かれていない)
+    unsigned int zero = 0;                 // uid_t / gid_t は 32bit
+    for (int i = 0; i < 3; i++)
+        if (st->res_ptr[i]) write_tracee_mem(pid, st->res_ptr[i], &zero, sizeof(zero));
+}
+
 // syscall-exit 時の処理(戻り値・構造体の逆変換 / 偽装)。
 static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_state *st) {
     if (st->link_pending && st->entry_nr == 37) {  // linkat: 失敗ならコピー fallback で成功偽装
@@ -2465,6 +2495,8 @@ static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_
             fake_proc_on_read(pid, st->aux_addr, st->aux_kind, st);
         } else if (st->entry_nr == 212 && st->aux_addr) {
             rewrite_recvmsg_creds(pid, st->aux_addr);
+        } else if (st->entry_nr == 148 || st->entry_nr == 150) {
+            fake_getres_on_exit(pid, st);
         } else {
             fake_root_on_exit(pid, st->entry_nr, st->aux_addr, st->linkcopy_hit);
         }

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-12 / 対象バージョン: 0.8.316-alpha (versionCode 324)
+最終更新: 2026-08-12 / 対象バージョン: 0.8.319-alpha (versionCode 327)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1199,6 +1199,18 @@ proot 相当に強化済み。
 **0.8.48 stale `libz2root.so` 事故の構造的防止**: 上記「ビルド成果物の stale 対策」参照。0.8.47 の git/npm 破壊が長引いた真因がこれだった。
 
 **0.8.49 node 製 CLI が起動しない (io_uring)**: node が起動直後に `node: src/unix/core.c:646: uv__close: Assertion 'fd > STDERR_FILENO' failed.` ＋ SIGABRT で落ちていた。原因＝SIGSYS ハンドラが禁止 syscall を**一律 0 (成功偽装)** で握り潰す fakeroot 方針が `io_uring_setup`(425) にも適用され、libuv が偽装された `0` を有効な ring fd と誤認→fd 0 をバックエンドとして保持→`uv__close(0)` で abort。修正＝io_uring 3 番号だけ `-ENOSYS` を返す (proot は元から io_uring 不可なので動いていた＝同じ状態に揃える)。検証＝dev シェルは proot 配下で z2root をネストすると二重 ptrace でマスクされるため、z2root エンジンで立てた sshd へ ssh (単一 ptrace の実条件) で再現・修正確認 (LD_PRELOAD で `io_uring_setup` を強制 ENOSYS にすると node も git も治ることを実証してから本体修正)。⚠️ この時点ではハードリンク方式の `git clone` が `fatal: hardlink different from source` で失敗する件が残っており、当面 `git clone --no-hardlinks` で回避していた (0.8.58〜0.8.64 の B-3 で解消)。
+
+**0.8.319 Arch でパッケージが一切入らない (`getresuid` の抜け)**: 利用者から「foss で GUI インストールが何度やっても失敗する」の報告。実機ログの一次エラーは `pacman-key needs to be run as root for this operation.` だった。⚠ **GUI 固有ではない** — `pacman` 本体は root として通る (ダウンロードは走る) のに、`pacman-key` (bash スクリプト・`EUID != 0` で弾く) だけが弾かれる、という**同じ実行の中での食い違い**が手掛かりだった。失敗時に `id` と shell の値を並べて残すようにして確定:
+
+```
+z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
+```
+
+`id` は 0、bash は実 uid。バイナリの動的シンボルを見ると **`id` は `getuid`/`geteuid`(174/175) を、`bash` は `getresuid`(148) を使う**。z2root の fakeroot 対象は `setresuid`(147)/`setresgid`(149) を含みながら、**対になる getter の `getresuid`(148)/`getresgid`(150) だけを落としていた**。glibc の bash は setuid 判定に `getresuid` を使うため、**glibc 系 distro (Arch/Ubuntu/Kali) では `$UID`/`$EUID` が常に Android のアプリ uid**で、`EUID` を見る shell スクリプトが軒並み「root で実行してください」で止まっていた (`pacman-key --init` はその 1 例で、鍵束が作れない → `SigLevel = Required` の Arch では**何一つインストールできない**)。
+
+- 修正: 148/150 をトレース対象に足し、**出力先の real/effective/saved 3 つを 0 に書き換える** (`fake_getres_on_exit`)。⚠ `getuid`/`geteuid` と違い**戻り値ではなくポインタ渡し**なので、戻り値だけ 0 にしても実 uid が漏れる。出力先ポインタは **entry で控える** — exit では x0 が戻り値に潰れていて第 1 引数を読めない。
+- ⚠ **setter と getter は対で入れる。** この抜けは「set 系を列挙して get 系の対を落とす」形で入り込み、`getuid`/`geteuid` だけ見ていると偽装が効いているように見えるので気付けない。
+- ⚠ **失敗の理由を必ず残す。** 0.8.316〜0.8.318 は「失敗しました」の一行しか残らず、原因の特定に実機を何往復もした。端末タブの出力は logcat に流れないので、`z2-pacman-keyring` は理由を**共有ホーム側**のファイルにも書き (rootfs 内に置くと再展開で消える)、`ProotLauncher` が次の起動で logcat へ出して消す。
 
 **0.8.53 GUI 音声が無音 (proot では動作済み)**: 原因は 2 つ。(1) PulseAudio の `--daemonize` は detach 時に `/proc/self/exe` を re-`execve` して自己 daemon 化するが、z2root では `/proc/self/exe` がランチャ (`libz2root.so`) に解決され「cannot self execute」で daemon が起動しない → `GuiScript.kt` を `--daemonize` 廃止＝`setsid pulseaudio -n --exit-idle-time=-1 … &` へ変更 (停止は `pactl exit`)。(2) PulseAudio クライアントは `AF_UNIX` ハンドシェイクで `SCM_CREDENTIALS` に自分の uid/gid を載せて `sendmsg` するが、カーネルは申告 uid が実/実効/保存 uid のいずれかと一致しないと `EPERM` を返す。fake_root は uid=0 を偽装する一方で非特権アプリの実 uid は非 0 のため不一致→クライアントが "Connection died" で死ぬ → ucred 書き換え (上記表)。検証＝z2root + GUI で音が出る・`/tmp/z2gui-audio-<display>.log` に "Connection died" が出ない・`pactl info` で `z2sink` が見える。
 

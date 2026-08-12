@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-12 / Target version: 0.8.316-alpha (versionCode 324)
+Last updated: 2026-08-12 / Target version: 0.8.319-alpha (versionCode 327)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1218,6 +1218,18 @@ The "Execution engine" section of the settings shows an "actual engine for this 
 **0.8.48 structurally preventing stale `libz2root.so`**: see "Guarding against stale build artifacts". This was the real reason the git/npm breakage in 0.8.47 dragged on.
 
 **0.8.49 node-based CLI not starting (io_uring)**: node died immediately with `node: src/unix/core.c:646: uv__close: Assertion 'fd > STDERR_FILENO' failed.` and SIGABRT. Cause: the fakeroot policy of swallowing Android-forbidden syscalls with a **blanket 0 (success)** also applied to `io_uring_setup`(425), so libuv mistook the spoofed `0` for a valid ring fd, kept fd 0 as its backend, and later aborted in `uv__close(0)`. Fix: return `-ENOSYS` for the io_uring trio only (proot never had io_uring, so this simply matches its behaviour). Verified by ssh'ing into an sshd started under the z2root engine (a single-ptrace condition), because a dev shell nesting z2root under proot masks it with double ptrace (first proving with `LD_PRELOAD` that forcing `io_uring_setup` to ENOSYS fixes both node and git). ⚠️ At this point `git clone` still failed with `fatal: hardlink different from source` and was worked around with `git clone --no-hardlinks` (resolved by B-3 in 0.8.58–0.8.64).
+
+**0.8.319 Nothing installs on Arch (a missing `getresuid`)**: a user reported that the GUI install kept failing on the foss build no matter how often they retried. The primary error on the device was `pacman-key needs to be run as root for this operation.` ⚠ **Not GUI-specific** — the clue was that `pacman` itself passed as root (downloads ran) while `pacman-key` (a bash script gated on `EUID != 0`) did not, **within the same run**. Recording `id` alongside the shell's own values on failure settled it:
+
+```
+z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
+```
+
+`id` sees 0, bash sees the real uid. Checking the binaries' dynamic symbols: **`id` uses `getuid`/`geteuid` (174/175) while `bash` uses `getresuid` (148)**. z2root's fakeroot set contained `setresuid`(147)/`setresgid`(149) but **dropped their paired getters, `getresuid`(148)/`getresgid`(150)**. glibc's bash uses `getresuid` for its setuid check, so on **glibc distros (Arch/Ubuntu/Kali) `$UID`/`$EUID` were always the Android app uid**, and every shell script gating on `EUID` refused to run ("must be run as root"). `pacman-key --init` is one such script — with no keyring, an Arch install with `SigLevel = Required` **cannot install anything at all**.
+
+- Fix: trace 148/150 as well and **zero all three outputs (real/effective/saved)** (`fake_getres_on_exit`). ⚠ Unlike `getuid`/`geteuid` these return values **through pointers**, so zeroing the return value alone still leaks the real uid. The output pointers are **captured at entry** — at exit x0 holds the return value and the first argument is gone.
+- ⚠ **Add setters and getters as pairs.** The gap arose from enumerating the `set*` calls and dropping the matching `get*` ones, and it is invisible if you only test `getuid`/`geteuid`.
+- ⚠ **Always leave the reason behind.** 0.8.316–0.8.318 left nothing but "it failed", costing several device round-trips. A terminal tab's output never reaches logcat, so `z2-pacman-keyring` also writes its reason to a file **in the shared home** (inside the rootfs it would be wiped by the next re-extraction) and `ProotLauncher` drains it into logcat on the next launch.
 
 **0.8.53 GUI audio silent (already working under proot)**: two causes. (1) PulseAudio's `--daemonize` re-`execve`s `/proc/self/exe` to daemonize, but under z2root that resolves to the launcher (`libz2root.so`) and the daemon never starts ("cannot self execute") → `GuiScript.kt` dropped `--daemonize` in favour of `setsid pulseaudio -n --exit-idle-time=-1 … &` (backgrounded with `setsid`+`&`, stopped via `pactl exit`). (2) PulseAudio clients put their own uid/gid in `SCM_CREDENTIALS` during the `AF_UNIX` handshake, and the kernel returns `EPERM` unless the declared uid matches the real/effective/saved uid; fake_root spoofs uid=0 while the unprivileged app's real uid is non-zero, so the mismatch killed the client with "Connection died" → ucred rewriting (see the table). Verified: audio plays under z2root + GUI, no "Connection died" in `/tmp/z2gui-audio-<display>.log`, and `pactl info` shows `z2sink`.
 
