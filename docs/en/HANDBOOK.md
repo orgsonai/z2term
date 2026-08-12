@@ -234,6 +234,11 @@ It depends on which Linux is running inside.
 
 You can switch distros in **⚙ Settings → Distro** (the first time triggers a download).
 
+**The first time you open Arch**, the tab prints "🔑 Setting up the pacman keyring" and takes tens of seconds (0.8.316).
+That builds the keys used to verify package signatures; it happens once and needs no network. Let it finish
+(Ctrl-C is fine — the next tab retries). ⚠ Until it completes, `pacman` fails to install **anything** with
+`error: required key missing from keyring` (the GUI install and `sshd` stop for the same reason).
+
 ---
 
 ## 6.5. Running `claude` (Claude Code)

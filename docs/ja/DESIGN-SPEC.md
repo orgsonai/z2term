@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-12 / 対象バージョン: 0.8.315-alpha (versionCode 323)
+最終更新: 2026-08-12 / 対象バージョン: 0.8.316-alpha (versionCode 324)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1248,6 +1248,12 @@ proot 相当に強化済み。
 - `DistroInstaller`: 依存無しの手書き tar パーサ (ustar/GNU `L`/PAX `x`/`g`、symlink/hardlink)。`decompress` がマジックバイトで gzip/xz 判定。
   - **Zip-Slip 対策 (0.8.141)**: 全展開先を `outputDir.canonicalFile` 配下に封じ込める (`isWithin`)。`canonicalFile` が既存プレフィックスの symlink を解決し `..` を正規化するため、悪意ある `../` エントリと「親に仕込んだ脱出 symlink を辿る write-through」の双方を弾く。ハードリンク元 (`linkname`) も同判定で rootfs 外読み出しを防ぐ。逸脱エントリは本体を `skipFully` で読み飛ばしつつストリーム整合を保ってスキップ。SHA 未固定で DL する Ubuntu/Arch/Kali の汚染 tar でアプリ領域外へ書き込まれるのを防ぐ (symlink の *ターゲット自体* は正 rootfs に多数ある正当な域外 (proot 名前空間内) リンクを壊さないよう制限しない — 危険なのは経由書き込みで、そちらを封じる)。手組み tar を実 `extractTar` に流す `ZipSlipExtractionTest` (正常展開 / `../` / write-through symlink / 域外 hardlink の 4 ケース) で回帰を防ぐ。JVM テストで `android.util.Log` を no-op 化するため `testOptions.unitTests.isReturnDefaultValues=true`。
   - `postInstallSetup`: resolv.conf/hosts、`pacman.conf` (sandbox/DownloadUser 無効化)、apt の Sandbox::User=root、version マーカー書込。
+  - **pacman の鍵束を初期化する (`z2-pacman-keyring`、0.8.316)**: Arch の rootfs は linuxcontainers のイメージ (`mirror.archlinuxarm.org` / repo は core・extra・alarm・aur) から取るが、**`/etc/pacman.d/gnupg` が入っていない**。通常は systemd の初回起動で `pacman-key --init` が走る前提で、**proot/z2root では systemd が動かないので誰も初期化しない**。一方 `pacman.conf` は `SigLevel = Required DatabaseOptional` なので、**パッケージを入れようとすると何をしても** `error: keyring is not writable` → `error: required key missing from keyring` で失敗する（GUI 導入も `sshd`=dropbear も同じ所で止まる。利用者の報告・実機ログで確定）。
+    - ⚠ **`SigLevel = Never` にはしない。** エラーは消えるが、以後この端末は署名を検証せずにパッケージを入れ続けることになる。原因は「鍵束が無い」ことなので、**鍵束を作って条件そのものを壊す**。
+    - ⚠ **通信しない。** イメージに `/usr/share/pacman/keyrings/archlinuxarm.gpg` と `archlinux.gpg` が同梱されているので、`pacman-key --init` + `--populate archlinuxarm archlinux` はローカルで完結する（**archlinuxarm を先に**書くこと — ミラーが ALARM なので archlinux の鍵だけでは検証が通らない）。
+    - 走らせる場所は 2 つ。①端末が RUNNING になった直後（`TerminalSession.scheduleStartupCommands` の**先頭**。利用者の初期化コマンドがパッケージ導入だった場合、順番が逆だと必ず失敗するため）②`z2gui` の `install_pkgs` / `clean_pkgs`（GUI から先に始めた人はまだ①を通っていない）。
+    - 判定はホスト側 (`ProotLauncher.needsPacmanKeyring`) で `etc/pacman.conf` の有無と `etc/pacman.d/gnupg/trustdb.gpg` の有無だけを見る。ゲストを起こさずに決まるので、**済んでいる端末では余計なコマンドが 1 行も出ない**。スクリプト自体も冪等で、pacman が無い distro では即 exit する。
+    - **画面の上で走らせる**（バナーではなく端末に出す）。数十秒かかることがあり、黙って待たせると「固まった」と区別が付かない。Ctrl-C で止めても次に開いたときにやり直す。
   - パーミッションは **owner-only** (`setUnixMode(ownerOnly=true)`)。world-writable だと sudo が拒否する。
 - `DistroDownloader`: HTTP DL + SHA256 検証、`cacheDir/distros/<id>-<abi>.tgz` にキャッシュ (インストール成功直後に `deleteCachedArchive` で消すため常時ほぼ空)。
 - `RootfsCacheCleaner`: 設定「キャッシュ削除」の実体。Android の `cacheDir` はほぼ空なので、実際に容量を食う **rootfs 内の再取得可能キャッシュ** を直接ファイル削除で掃除する。対象は全インストール OS (`filesDir/distros/<id>`) の `var/cache/pacman/pkg`・`var/cache/apt/archives`・`var/cache/apk`・`root`/各ユーザの `.cache`、および `cacheDir` 全体。**稼働中セッションが握る恐れのある `/tmp` やパッケージ本体・設定・ユーザファイルには触れない**。確認ダイアログで「項目名 … サイズ」を 1 件ずつ列挙してから削除する (ワンタップ即削除を廃止)。

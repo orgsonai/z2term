@@ -221,9 +221,19 @@ fun z2guiScript(
         |  return 0
         |}
         |
+        |# pacman の鍵束を用意する (0.8.316)。Arch の rootfs は /etc/pacman.d/gnupg を持たずに
+        |# 来るのに SigLevel=Required なので、初期化しないと **どのパッケージも入らない**
+        |# (「error: required key missing from keyring」で毎回ここで止まる)。端末タブの起動時にも
+        |# 流しているが、GUI から先に始めた人はまだ通っていないのでここでも呼ぶ。冪等。
+        |ensure_keyring() {
+        |  [ -x /usr/local/bin/z2-pacman-keyring ] || return 0
+        |  /usr/local/bin/z2-pacman-keyring || return 0
+        |}
+        |
         |install_pkgs() {
         |  detect_pm
         |  clear_pm_locks
+        |  ensure_keyring
         |  PKGS="${d}SRV_PKGS ${d}GUI_TERM_PKG"
         |  echo "${strings.installing} (${d}PM): ${d}PKGS"
         |  case "${d}PM" in
@@ -241,6 +251,7 @@ fun z2guiScript(
         |clean_pkgs() {
         |  detect_pm
         |  clear_pm_locks
+        |  ensure_keyring
         |  PKGS="${d}SRV_PKGS ${d}GUI_TERM_PKG"
         |  echo "${strings.cleanInstalling} (${d}PM)"
         |  case "${d}PM" in

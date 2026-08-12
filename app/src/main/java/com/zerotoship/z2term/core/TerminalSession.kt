@@ -573,7 +573,13 @@ class TerminalSession(
                 activeRootfsRoot = java.io.File(appContext.filesDir, "distros/${spec.id}")
                 applyKittyExternalTransferSetting(settingsFlow.value.kittyExternalFileEnabled)
                 startReadLoop(ch)
-                scheduleStartupCommands(settingsFlow.value.initCommand)
+                // ⚠ **鍵束の用意は初期化コマンドより先**に流す (0.8.316)。Arch は鍵束が無いまま
+                // では pacman が何も入れられない ([ProotLauncher.needsPacmanKeyring]) ので、
+                // 利用者の初期化コマンドがパッケージ導入だった場合、順番が逆だと必ず失敗する。
+                scheduleStartupCommands(
+                    pacmanKeyringCommandOrNull(spec.id),
+                    settingsFlow.value.initCommand
+                )
 
             } catch (e: Throwable) {
                 Log.e(TAG, "Failed to start terminal", e)
@@ -832,15 +838,35 @@ class TerminalSession(
     }
 
     /**
-     * 起動直後シーケンス。プロンプトが出る頃に init コマンドを送る。
+     * 起動直後シーケンス。プロンプトが出る頃に、渡された順にコマンドを送る。
+     *
+     * ⚠ **1 本のコルーチンでまとめて送る** (0.8.316)。呼び分けて 2 回起こすと、どちらが先に
+     * 書かれるか決まらない。鍵束の用意 → 利用者の初期化コマンド、のように**順番に意味がある**
+     * ものが混ざるので、順序は呼び出し側の並びで固定する。
      */
-    private fun scheduleStartupCommands(initCommand: String) {
-        if (initCommand.isBlank()) return
+    private fun scheduleStartupCommands(vararg commands: String?) {
+        val queued = commands.filterNot { it.isNullOrBlank() }.filterNotNull()
+        if (queued.isEmpty()) return
         scope.launch {
             delay(INIT_DELAY_MS)
-            writeBytes((initCommand + "\n").toByteArray(Charsets.UTF_8))
+            for (c in queued) writeBytes((c + "\n").toByteArray(Charsets.UTF_8))
         }
     }
+
+    /**
+     * この distro が pacman を使うのに鍵束が未初期化なら、直す 1 行を返す (0.8.316)。
+     *
+     * Arch (Arch Linux ARM) の rootfs は `/etc/pacman.d/gnupg` を持たずに来るのに
+     * `SigLevel = Required` なので、**放っておくと `pacman -S` が何をしても失敗する**
+     * (GUI の導入も `sshd` = dropbear も同じ所で落ちる)。systemd が動かない環境では
+     * 誰も初期化しないので、端末が立ち上がったところで 1 回だけ流して直す。
+     *
+     * 画面の上で走らせるのは**黙って待たせないため**。数十秒かかることがあり、
+     * バナーだけでは「固まった」と区別が付かない。止めたければ Ctrl-C で止められる
+     * (中身は冪等なので、次に開いたときにやり直す)。
+     */
+    private fun pacmanKeyringCommandOrNull(distroId: String): String? =
+        if (launcher.needsPacmanKeyring(distroId)) "z2-pacman-keyring" else null
 
     fun onResize(rows: Int, cols: Int) {
         // emulator buffer の resize は他の processBytes と排他するため emulator スレッドへ。

@@ -39,6 +39,39 @@ class GeneratedScriptMarginTest {
     }
 
     @Test
+    fun pacmanKeyringScript_hasNoMarginLeak() {
+        for (lang in listOf("ja", "en")) {
+            assertNoMarginLeak("pacmanKeyringScript($lang)", pacmanKeyringScript(lang))
+        }
+    }
+
+    /**
+     * 鍵束スクリプトが**冪等かつ pacman 以外では何もしない**形であること（0.8.316）。
+     *
+     * このスクリプトは端末を開くたびに流れるので、この 2 つが崩れると
+     * 「Alpine なのに毎回 gpg を起こす」「済んでいるのに毎回作り直す」になる。
+     * また `--populate` の対象に **archlinuxarm** が入っていることも押さえる — このイメージの
+     * ミラーは mirror.archlinuxarm.org で、archlinux の鍵だけでは検証が通らない。
+     */
+    @Test
+    fun pacmanKeyringScript_isIdempotentAndScoped() {
+        for (lang in listOf("ja", "en")) {
+            val body = pacmanKeyringScript(lang)
+            assertTrue("$lang: 済んでいるときに抜ける判定が無い", body.contains("trustdb.gpg"))
+            assertTrue(
+                "$lang: pacman-key が無い distro で抜ける判定が無い",
+                body.contains("command -v pacman-key")
+            )
+            assertTrue("$lang: archlinuxarm の鍵束を populate していない", body.contains("archlinuxarm"))
+            // ⚠ 通信しない (同梱の鍵束だけを使う) こと。ここが崩れると初回起動が回線に依存する。
+            assertTrue(
+                "$lang: 同梱の鍵束ではなくネットから引こうとしている",
+                body.contains("/usr/share/pacman/keyrings/") && !body.contains("--refresh-keys")
+            )
+        }
+    }
+
+    @Test
     fun z2MacroSamples_haveNoMarginLeak() {
         for (lang in listOf("ja", "en")) {
             for ((name, body) in z2MacroSamples(lang)) {
@@ -129,13 +162,15 @@ class GeneratedScriptMarginTest {
         }
     }
 
-    /** 同梱サンプルが実際の `sh` の構文検査を通ること（sh が無い環境ではスキップ）。 */
+    /** 生成スクリプトが実際の `sh` の構文検査を通ること（sh が無い環境ではスキップ）。 */
     @Test
     fun samples_areValidPosixShell() {
         val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
         assumeTrue("sh が無い環境なのでスキップ", sh != null)
         for (lang in listOf("ja", "en")) {
-            for ((name, body) in z2MacroSamples(lang)) {
+            val generated = z2MacroSamples(lang) +
+                mapOf("z2-pacman-keyring" to pacmanKeyringScript(lang))
+            for ((name, body) in generated) {
                 val tmp = File.createTempFile("macro-$lang-", "-$name")
                 try {
                     tmp.writeText(body)

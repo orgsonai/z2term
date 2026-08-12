@@ -315,6 +315,8 @@ class ProotLauncher(private val context: Context) {
         ensureZ2DoctorScript(rootfs)
         // `z2-macro`: 自動化マクロの同梱サンプル (list/install/show/run)。
         ensureZ2MacroScripts(rootfs)
+        // `z2-pacman-keyring`: Arch の鍵束を初期化するワンショット (pacman が無い distro では no-op)。
+        ensurePacmanKeyringScript(rootfs)
         // GUI 動画対策: mpv の既定をソフトウェア出力 (vo=x11) にする設定を配置。
         ensureMpvConfig(rootfs)
         // D-Bus セッションバスに必要な machine-id を用意 (空だと「Invalid machine ID」で bus が起動不可)。
@@ -528,6 +530,7 @@ class ProotLauncher(private val context: Context) {
         ensureZ2DoctorScript(rootfs)
         // `z2-macro`: 自動化マクロの同梱サンプル (list/install/show/run)。
         ensureZ2MacroScripts(rootfs)
+        ensurePacmanKeyringScript(rootfs)
         ensureMpvConfig(rootfs)
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
@@ -1140,6 +1143,35 @@ class ProotLauncher(private val context: Context) {
                 }
             }
         }.onFailure { Log.w(TAG, "z2-macro scripts 配置失敗", it) }
+    }
+
+    /**
+     * `/usr/local/bin/z2-pacman-keyring` を配置する ([pacmanKeyringScript])。
+     * pacman が無い distro では中身が即 exit するので、全 distro に置いてよい。launch 毎に上書き。
+     */
+    private fun ensurePacmanKeyringScript(rootfs: File) {
+        runCatching {
+            val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
+            val f = File(dir, "z2-pacman-keyring")
+            f.writeText(pacmanKeyringScript(lang = LocaleHelper.language(context)))
+            f.setReadable(true, false)
+            f.setExecutable(true, false)
+        }.onFailure { Log.w(TAG, "z2-pacman-keyring 配置失敗", it) }
+    }
+
+    /**
+     * この distro が **pacman を使うのに鍵束が未初期化** かどうか (0.8.316)。
+     *
+     * true なら、パッケージ導入は**何をしても**署名検証で失敗する (`z2-pacman-keyring` の
+     * 説明を参照)。呼び出し側は端末が立ち上がった直後に `z2-pacman-keyring` を流して直す。
+     *
+     * 判定はホスト側のファイル有無だけで済ませる — ゲストを起こさずに「流す必要があるか」を
+     * 決められるので、既に済んでいる端末では余計なコマンドが 1 行も出ない。
+     */
+    fun needsPacmanKeyring(distroId: String): Boolean {
+        val rootfs = File(distrosDir, distroId)
+        if (!File(rootfs, "etc/pacman.conf").isFile) return false
+        return !File(rootfs, "etc/pacman.d/gnupg/trustdb.gpg").isFile
     }
 
     private fun ensureZ2ScanScript(rootfs: File) {
