@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-12 / Target version: 0.8.326-alpha (versionCode 334)
+Last updated: 2026-08-12 / Target version: 0.8.327-alpha (versionCode 335)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1230,6 +1230,8 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 - Fix: trace 148/150 as well and **zero all three outputs (real/effective/saved)** (`fake_getres_on_exit`). ⚠ Unlike `getuid`/`geteuid` these return values **through pointers**, so zeroing the return value alone still leaks the real uid. The output pointers are **captured at entry** — at exit x0 holds the return value and the first argument is gone.
 - ⚠ **Add setters and getters as pairs.** The gap arose from enumerating the `set*` calls and dropping the matching `get*` ones, and it is invisible if you only test `getuid`/`geteuid`.
 - ⚠ **Always leave the reason behind.** 0.8.316–0.8.318 left nothing but "it failed", costing several device round-trips. A terminal tab's output never reaches logcat, so `z2-pacman-keyring` also writes its reason to a file **in the shared home** (inside the rootfs it would be wiped by the next re-extraction) and `ProotLauncher` drains it into logcat on the next launch.
+
+**0.8.327 gpg-agent becoming non-dumpable blocked Arch keyring initialization**: the remaining `gpg-agent: error binding socket ... No such file or directory` came from gpg-agent protecting secrets with `prctl(PR_SET_DUMPABLE, 0)`. That made z2root's `process_vm_readv` fail with `EPERM` and even `PTRACE_PEEKDATA` with `EIO`, so it could not read the following `bind(2)`'s `sockaddr_un`. Skipping translation then made the guest `/etc/...` bind against the host `/etc/...`, yielding ENOENT. Because this userspace-root engine fundamentally depends on reading and rewriting tracee memory, z2root rewrites only this prctl's argument to 1 and keeps the process dumpable. Verified on-device with the foss build: the ready marker was created, initialization did not rerun on the next launch, and `pacman -Sy --noconfirm` synchronized all core/extra/alarm/aur databases successfully.
 
 **0.8.53 GUI audio silent (already working under proot)**: two causes. (1) PulseAudio's `--daemonize` re-`execve`s `/proc/self/exe` to daemonize, but under z2root that resolves to the launcher (`libz2root.so`) and the daemon never starts ("cannot self execute") → `GuiScript.kt` dropped `--daemonize` in favour of `setsid pulseaudio -n --exit-idle-time=-1 … &` (backgrounded with `setsid`+`&`, stopped via `pactl exit`). (2) PulseAudio clients put their own uid/gid in `SCM_CREDENTIALS` during the `AF_UNIX` handshake, and the kernel returns `EPERM` unless the declared uid matches the real/effective/saved uid; fake_root spoofs uid=0 while the unprivileged app's real uid is non-zero, so the mismatch killed the client with "Connection died" → ucred rewriting (see the table). Verified: audio plays under z2root + GUI, no "Connection died" in `/tmp/z2gui-audio-<display>.log`, and `pactl info` shows `z2sink`.
 

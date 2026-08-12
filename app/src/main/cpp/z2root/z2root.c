@@ -261,10 +261,18 @@ static int poke_write_tracee_mem(pid_t pid, unsigned long addr, const void *buf,
 // (Arch で gpg-agent が起動できず pacman の鍵束が作れなかった件の真因)。
 // connect は起動から時間が経った所で呼ばれるので読めていた = **同じ関数なのに bind だけ
 // 失敗する**という分かりにくい形になっていた。
+static int g_read_vm_errno;
+static int g_read_peek_errno;
+static ssize_t g_read_vm_result;
+
 static int read_tracee_mem(pid_t pid, unsigned long addr, void *buf, size_t len) {
     struct iovec local = { buf, len };
     struct iovec remote = { (void *)addr, len };
-    if (process_vm_readv(pid, &local, 1, &remote, 1, 0) == (ssize_t)len) return 0;
+    errno = 0;
+    g_read_vm_result = process_vm_readv(pid, &local, 1, &remote, 1, 0);
+    g_read_vm_errno = errno;
+    g_read_peek_errno = 0;
+    if (g_read_vm_result == (ssize_t)len) return 0;
 
     const unsigned long WS = sizeof(long);
     unsigned char *dst = (unsigned char *)buf;
@@ -273,7 +281,10 @@ static int read_tracee_mem(pid_t pid, unsigned long addr, void *buf, size_t len)
     for (unsigned long a = start; a < stop; a += WS) {
         errno = 0;
         long peek = ptrace(PTRACE_PEEKDATA, pid, (void *)a, (void *)0);
-        if (peek == -1 && errno != 0) return -1;
+        if (peek == -1 && errno != 0) {
+            g_read_peek_errno = errno;
+            return -1;
+        }
         unsigned char *wb = (unsigned char *)&peek;
         for (unsigned long i = 0; i < WS; i++) {
             unsigned long cur = a + i;
@@ -2031,7 +2042,24 @@ static void maybe_rewrite_sockaddr(const struct config *cfg, pid_t pid, struct u
     struct sockaddr_un un;
     memset(&un, 0, sizeof(un));
     size_t rd = addrlen > sizeof(un) ? sizeof(un) : addrlen;
-    if (read_tracee_mem(pid, addr, &un, rd) != 0) { socklog("sock nr=%ld skip: read failed rd=%zu", nr, rd); return; }
+    if (read_tracee_mem(pid, addr, &un, rd) != 0) {
+        char comm[TASK_COMM_LEN] = "?";
+        char proc[64];
+        snprintf(proc, sizeof(proc), "/proc/%d/comm", (int)pid);
+        int fd = open(proc, O_RDONLY | O_CLOEXEC);
+        if (fd >= 0) {
+            ssize_t n = read(fd, comm, sizeof(comm) - 1);
+            close(fd);
+            if (n > 0) {
+                while (n > 0 && (comm[n - 1] == '\n' || comm[n - 1] == '\r')) n--;
+                comm[n] = '\0';
+            }
+        }
+        socklog("sock pid=%d comm=%s nr=%ld skip: read failed rd=%zu vm_rc=%zd vm_errno=%d peek_errno=%d x0=0x%lx x1=0x%lx x2=0x%lx sp=0x%lx",
+                (int)pid, comm, nr, rd, g_read_vm_result, g_read_vm_errno, g_read_peek_errno,
+                regs->regs[0], regs->regs[1], regs->regs[2], regs->sp);
+        return;
+    }
     if (un.sun_family != AF_UNIX) { socklog("sock nr=%ld skip: family=%d", nr, (int)un.sun_family); return; }
     if (un.sun_path[0] == '\0') return;  // abstract ソケットは翻訳しない (よくあるので記録しない)
 
@@ -2232,6 +2260,7 @@ static const int kTraceSyscallsBase[] = {
     57, 63,                   // close / read (fd 追跡・status/loginuid 偽装)
     29,                       // ioctl (glibc termios2 → legacy termios へ書換。isatty 回避)
     200, 203,                 // bind / connect (AF_UNIX pathname ソケットのパス翻訳。GUI/dbus/pulse)
+    167,                      // prctl (PR_SET_DUMPABLE=0 を防ぎ、tracee メモリ翻訳を維持)
 };
 // fakeroot(-0) のとき追加でトレースする syscall(戻り値/構造体を root に偽装)。
 static const int kTraceSyscallsFakeroot[] = {
@@ -2425,6 +2454,16 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
     st->aux_kind = PROC_FD_NONE;
     st->linkcopy_hit = -1;
     st->aux_is_self_exe = 0;
+    // z2root はパス引数を tracee メモリから読んでホスト実パスへ書き換える。
+    // gpg-agent などが PR_SET_DUMPABLE=0 にすると、既に ptrace 下にいても
+    // process_vm_readv=EPERM / PTRACE_PEEKDATA=EIO となり、bind(2) の sockaddr を
+    // 翻訳できない。アプリ sandbox 内の userspace root ではトレーサが必須なため、
+    // この指定だけ 1 へ書き換え、prctl 自体は成功させる (0.8.327)。
+    if (st->entry_nr == 167 && regs.regs[0] == PR_SET_DUMPABLE && regs.regs[1] == 0) {
+        regs.regs[1] = 1;
+        set_regs(pid, &regs);
+        return 0;
+    }
     if (st->entry_nr == 29) {                // ioctl: termios2→legacy 書換のみ(exit 後処理不要)
         st->aux_addr = 0;
         maybe_rewrite_ioctl(pid, &regs);

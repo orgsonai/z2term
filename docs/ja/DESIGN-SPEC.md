@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-12 / 対象バージョン: 0.8.326-alpha (versionCode 334)
+最終更新: 2026-08-12 / 対象バージョン: 0.8.327-alpha (versionCode 335)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1211,6 +1211,8 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 - 修正: 148/150 をトレース対象に足し、**出力先の real/effective/saved 3 つを 0 に書き換える** (`fake_getres_on_exit`)。⚠ `getuid`/`geteuid` と違い**戻り値ではなくポインタ渡し**なので、戻り値だけ 0 にしても実 uid が漏れる。出力先ポインタは **entry で控える** — exit では x0 が戻り値に潰れていて第 1 引数を読めない。
 - ⚠ **setter と getter は対で入れる。** この抜けは「set 系を列挙して get 系の対を落とす」形で入り込み、`getuid`/`geteuid` だけ見ていると偽装が効いているように見えるので気付けない。
 - ⚠ **失敗の理由を必ず残す。** 0.8.316〜0.8.318 は「失敗しました」の一行しか残らず、原因の特定に実機を何往復もした。端末タブの出力は logcat に流れないので、`z2-pacman-keyring` は理由を**共有ホーム側**のファイルにも書き (rootfs 内に置くと再展開で消える)、`ProotLauncher` が次の起動で logcat へ出して消す。
+
+**0.8.327 Arch の鍵束初期化を阻んだ gpg-agent の非 dumpable 化**: 残っていた `gpg-agent: error binding socket ... No such file or directory` は、gpg-agent が秘密情報保護のため `prctl(PR_SET_DUMPABLE, 0)` を呼ぶことで、z2root の `process_vm_readv` が `EPERM`、`PTRACE_PEEKDATA` も `EIO` になり、直後の `bind(2)` の `sockaddr_un` を読めなくなるのが真因だった。パス翻訳が飛ぶとゲストの `/etc/...` をホストの `/etc/...` に bind して ENOENT になる。z2root は tracee メモリを読み書きして成立する userspace root なので、この prctl だけ引数を 1 へ書き換えて dumpable を維持する。実機 foss 版で鍵束完了マーカー作成、次回起動で再実行なし、`pacman -Sy --noconfirm` が core/extra/alarm/aur の全 DB を正常同期することを確認済み。
 
 **0.8.53 GUI 音声が無音 (proot では動作済み)**: 原因は 2 つ。(1) PulseAudio の `--daemonize` は detach 時に `/proc/self/exe` を re-`execve` して自己 daemon 化するが、z2root では `/proc/self/exe` がランチャ (`libz2root.so`) に解決され「cannot self execute」で daemon が起動しない → `GuiScript.kt` を `--daemonize` 廃止＝`setsid pulseaudio -n --exit-idle-time=-1 … &` へ変更 (停止は `pactl exit`)。(2) PulseAudio クライアントは `AF_UNIX` ハンドシェイクで `SCM_CREDENTIALS` に自分の uid/gid を載せて `sendmsg` するが、カーネルは申告 uid が実/実効/保存 uid のいずれかと一致しないと `EPERM` を返す。fake_root は uid=0 を偽装する一方で非特権アプリの実 uid は非 0 のため不一致→クライアントが "Connection died" で死ぬ → ucred 書き換え (上記表)。検証＝z2root + GUI で音が出る・`/tmp/z2gui-audio-<display>.log` に "Connection died" が出ない・`pactl info` で `z2sink` が見える。
 
