@@ -11,7 +11,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -63,21 +67,37 @@ import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
  * @param command 実行するコマンド。null なら「読むだけ」のカード (⚙設定 を触る手順など)。
  *   ⚠ **言語に依らない形だけを置く**こと。ここは翻訳されないので、本文に日本語を混ぜると
  *   英語環境でも日本語のコマンドが送られる。
+ * @param askRes 人に入れてもらう値の見出し。**null 以外なら [command] の `%s` に入れる値を
+ *   先に聞く**。自分の値 (フィードの URL・時刻・しきい値) が要る手順は必ずこちらにする —
+ *   見本の値をそのまま実行させると、`https://example.com` のような**動くはずのない設定**が
+ *   黙って入る (利用者の指摘・0.8.335)。
+ * @param askDefault 入力欄の初期値。空なら空欄で出す (入れてもらうまで実行しない)。
  */
-data class GuideStep(@param:StringRes val labelRes: Int, val command: String? = null)
+data class GuideStep(
+    @param:StringRes val labelRes: Int,
+    val command: String? = null,
+    @param:StringRes val askRes: Int? = null,
+    val askDefault: String = "",
+) {
+    /** カードに見せる形。まだ入っていない値は初期値、初期値も無ければ `…` を埋めて見せる。 */
+    val preview: String?
+        get() = command?.let { if (askRes == null) it else it.format(askDefault.ifEmpty { "…" }) }
+}
 
 /**
  * 同梱サンプルマクロ 1 本ぶんの案内。
  *
  * [id] は設定画面から呼ぶときの識別子 (= サンプルのファイル名から `.sh` を除いたもの)。
- * **改名しないこと**。
+ * **改名しないこと**。⚠ 設定画面に並ぶのは**この id そのもの** (0.8.335)。説明文を並べていた
+ * ときは「入門: できごとに反応する」が何のことか分からず、どのマクロの話かも読めなかった
+ * (利用者の指摘)。名前は短いまま出し、何をするものかは開いた案内の見出しで言う。
  */
 enum class Guide(
     val id: String,
     @param:StringRes val titleRes: Int,
     val steps: List<GuideStep>
 ) {
-    /** 入門: できごとに反応する。常駐させて使う形の見本。 */
+    /** 充電やイヤホンの抜き差しに反応する。常駐させて使う形の見本。 */
     WATCH_BASIC("watch-basic", R.string.guide_title_watch_basic, listOf(
         GuideStep(R.string.guide_step_events_on),
         GuideStep(R.string.guide_step_install, "z2-macro install watch-basic"),
@@ -91,7 +111,9 @@ enum class Guide(
         GuideStep(R.string.guide_step_install, "z2-macro install battery-alert"),
         GuideStep(
             R.string.guide_step_when,
-            "z2-when battery:below=20 run ~/.z2term/macros/battery-alert.sh"
+            "z2-when battery:below=%s run ~/.z2term/macros/battery-alert.sh",
+            askRes = R.string.guide_ask_battery_level,
+            askDefault = "20"
         ),
         GuideStep(R.string.guide_step_try, "sh ~/.z2term/macros/battery-alert.sh"),
     )),
@@ -101,7 +123,9 @@ enum class Guide(
         GuideStep(R.string.guide_step_install, "z2-macro install daily-report"),
         GuideStep(
             R.string.guide_step_when,
-            "z2-when time:daily=07:00 run ~/.z2term/macros/daily-report.sh"
+            "z2-when time:daily=%s run ~/.z2term/macros/daily-report.sh",
+            askRes = R.string.guide_ask_daily_time,
+            askDefault = "07:00"
         ),
         GuideStep(R.string.guide_step_try, "sh ~/.z2term/macros/daily-report.sh"),
     )),
@@ -145,22 +169,30 @@ enum class Guide(
         GuideStep(R.string.guide_step_list, "remind.sh list"),
     )),
 
-    /** フィードの新着を通知する。前提 (python3) と置き場の用意まで並べる。 */
+    /**
+     * フィードの新着を通知する。前提 (python3) から、読む道具 (`rss-open`) の用意まで**1 本**。
+     *
+     * ⚠ `rss` と `rss-open` を別の案内に分けていたのをやめた (0.8.335・利用者の指摘)。
+     * 一覧に「フィードの新着を通知する」「集めた記事を 1 本ずつ開く」が並んでいても、
+     * **同じ 1 つの購読の話**だとは読めない。集めるのと読むのは続きなので、続けて並べる。
+     */
     RSS("rss", R.string.guide_title_rss, listOf(
         GuideStep(R.string.guide_step_needs_python),
         GuideStep(R.string.guide_step_install, "z2-macro install rss"),
         GuideStep(
             R.string.guide_step_feeds,
-            "mkdir -p ~/.z2term/rss && echo https://example.com/feed >> ~/.z2term/rss/feeds.txt"
+            "mkdir -p ~/.z2term/rss && echo \"%s\" >> ~/.z2term/rss/feeds.txt",
+            askRes = R.string.guide_ask_feed_url
         ),
-        GuideStep(R.string.guide_step_when, "z2-when time:every=30m run ~/.z2term/macros/rss.sh"),
+        GuideStep(
+            R.string.guide_step_when,
+            "z2-when time:every=%s run ~/.z2term/macros/rss.sh",
+            askRes = R.string.guide_ask_interval,
+            askDefault = "30m"
+        ),
         GuideStep(R.string.guide_step_try, "sh ~/.z2term/macros/rss.sh"),
-    )),
-
-    /** 集めた記事を 1 本ずつ開く (ウィジェットのボタン用)。 */
-    RSS_OPEN("rss-open", R.string.guide_title_rss_open, listOf(
-        GuideStep(R.string.guide_step_install, "z2-macro install rss-open"),
-        GuideStep(R.string.guide_step_try, "sh ~/.z2term/macros/rss-open.sh"),
+        GuideStep(R.string.guide_step_rss_open_install, "z2-macro install rss-open"),
+        GuideStep(R.string.guide_step_rss_open_try, "sh ~/.z2term/macros/rss-open.sh"),
         GuideStep(R.string.guide_step_widget),
     )),
 
@@ -169,7 +201,11 @@ enum class Guide(
         GuideStep(R.string.guide_step_needs_qrencode),
         GuideStep(R.string.guide_step_install, "z2-macro install qr"),
         GuideStep(R.string.guide_step_help, "qr.sh -h"),
-        GuideStep(R.string.guide_step_try, "qr.sh \"https://example.com\""),
+        GuideStep(
+            R.string.guide_step_try,
+            "qr.sh \"%s\"",
+            askRes = R.string.guide_ask_qr_text
+        ),
     ));
 
     companion object {
@@ -205,6 +241,13 @@ fun GuideCards(
 ) {
     // 触った / ✕ したカードはその場で消す (どこまで進んだかが見た目で分かる)。
     val remaining = remember(guide) { mutableStateListOf(*guide.steps.toTypedArray()) }
+    // 値を聞いている最中の手順 ([GuideStep.askRes] 付き)。聞き終わるまで実行しない。
+    var asking by remember(guide) { mutableStateOf<GuideStep?>(null) }
+
+    fun done(step: GuideStep) {
+        remaining.remove(step)
+        if (remaining.isEmpty()) onFinish()
+    }
 
     GuideCardColumn(
         title = stringResource(guide.titleRes),
@@ -214,19 +257,85 @@ fun GuideCards(
         remaining.forEach { step ->
             GuideCardRow(
                 label = stringResource(step.labelRes),
-                command = step.command,
+                command = step.preview,
                 onTap = {
-                    step.command?.let(onRun)
-                    remaining.remove(step)
-                    if (remaining.isEmpty()) onFinish()
+                    if (step.askRes != null && step.command != null) {
+                        // 自分の値が要る手順は、聞いてから送る (見本の値のまま実行させない)。
+                        asking = step
+                    } else {
+                        step.command?.let(onRun)
+                        done(step)
+                    }
                 },
-                onSkip = {
-                    remaining.remove(step)
-                    if (remaining.isEmpty()) onFinish()
-                }
+                onSkip = { done(step) }
             )
         }
     }
+
+    asking?.let { step ->
+        GuideAskDialog(
+            title = stringResource(step.askRes ?: return@let),
+            initial = step.askDefault,
+            onConfirm = { value ->
+                asking = null
+                step.command?.let { onRun(it.format(value)) }
+                done(step)
+            },
+            onDismiss = { asking = null }
+        )
+    }
+}
+
+/**
+ * 手順に入れる値を聞くダイアログ。
+ *
+ * **空のままでは送れない** (確定ボタンが効かない)。空で送れると `echo "" >> feeds.txt` の
+ * ような空振りの行が黙って積まれる。やめたときは手順を消さずに残す — 入れ直せるように。
+ */
+@Composable
+private fun GuideAskDialog(
+    title: String,
+    initial: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var value by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = ZtsBgCard,
+        titleContentColor = ZtsTextPrimary,
+        title = { Text(title, fontFamily = FontFamily.Monospace, fontSize = 14.sp) },
+        text = {
+            OutlinedTextField(
+                value = value,
+                onValueChange = { value = it },
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(value.trim()) },
+                enabled = value.isNotBlank()
+            ) {
+                Text(
+                    stringResource(R.string.guide_ask_run),
+                    color = if (value.isNotBlank()) ZtsGreen else ZtsTextSecondary,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    stringResource(R.string.action_cancel),
+                    color = ZtsTextSecondary,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+    )
 }
 
 /**

@@ -205,6 +205,9 @@
     <!-- Clipboard history sheet (double-tap the 📋 paste button) -->
     <string name="clip_history_title">Clipboard history</string>
     <string name="clip_history_clear">Clear</string>
+    <string name="notify_action_copy">Copy</string>
+    <string name="clip_copied">Copied</string>
+    <string name="clip_copy_failed">Could not copy</string>
     <string name="clip_history_empty">No history yet. Copies are captured automatically.</string>
     <string name="clip_history_hint">▸ Tap a row → pasted into the terminal\n▸ Synced with the system clipboard (captured on copy / when the app comes to the foreground)\n▸ Rows marked 🔒 disappear after 30 seconds (passwords and the like)\n▸ ✕ delete</string>
     <string name="clip_history_sensitive">🔒 Sensitive copy — clears itself after 30 seconds</string>
@@ -739,25 +742,24 @@
     <string name="intro_footer">z2help for the full list / z2doctor when something does not work</string>
     <string name="intro_card_notify">Post a notification on your phone</string>
     <string name="intro_card_torch">Turn the flashlight on</string>
-    <string name="intro_card_remind_guide">Get reminders as notifications (open the guide)</string>
+    <string name="intro_card_remind_guide">Get reminders as notifications (opens the remind guide)</string>
     <string name="settings_intro_again">Show the intro again</string>
     <string name="settings_intro_again_desc">The first three cards will appear again the next time you open the app.</string>
     <string name="settings_intro_again_done">It will show next time you open the app</string>
 
     <!-- Guides (step cards). Opened from Settings -> Maintenance -> Show a guide. -->
     <string name="settings_guides">Show a guide</string>
-    <string name="settings_guides_desc">Puts the steps for a bundled sample macro on cards above the terminal. Tapping a card runs that one line; ✕ drops the ones you do not need.</string>
+    <string name="settings_guides_desc">The names of the bundled sample macros. Pick one to put the steps for it on cards above the terminal. Tapping a card runs that one line (steps that need a value of your own ask first); ✕ drops the ones you do not need.</string>
     <string name="guide_hint">Tap to run (Ctrl-C first, so a half-typed line cannot mix in) / ✕ to skip a step</string>
-    <string name="guide_title_watch_basic">Starter: react to what happens</string>
-    <string name="guide_title_battery_alert">Warn me when the battery is low</string>
-    <string name="guide_title_daily_report">Read out a report every morning</string>
-    <string name="guide_title_otp_clip">Copy one-time codes from notifications</string>
-    <string name="guide_title_otp_sms">Copy one-time codes from SMS</string>
-    <string name="guide_title_unknown_call">Note calls from numbers I do not have</string>
-    <string name="guide_title_remind">Remind me with a notification</string>
-    <string name="guide_title_rss">Get notified about new feed items</string>
-    <string name="guide_title_rss_open">Open collected articles one at a time</string>
-    <string name="guide_title_qr">Hand something over as a QR code</string>
+    <string name="guide_title_watch_basic">watch-basic — react to charging and headsets</string>
+    <string name="guide_title_battery_alert">battery-alert — warn me when the battery is low</string>
+    <string name="guide_title_daily_report">daily-report — read out a report every morning</string>
+    <string name="guide_title_otp_clip">otp-clip — copy one-time codes from notifications</string>
+    <string name="guide_title_otp_sms">otp-sms — copy one-time codes from SMS</string>
+    <string name="guide_title_unknown_call">unknown-call — note calls from numbers I do not have</string>
+    <string name="guide_title_remind">remind — remind me with a notification</string>
+    <string name="guide_title_rss">rss — get notified about new feed items and read them</string>
+    <string name="guide_title_qr">qr — hand something over as a QR code</string>
     <string name="guide_step_install">Install the macro</string>
     <string name="guide_step_setup">Set up the hooks and tile slots (once)</string>
     <string name="guide_step_help">See how to write it (the full syntax)</string>
@@ -772,8 +774,16 @@
     <string name="guide_step_sms_on">Settings -> turn on "SMS detection" + grant the OS SMS permission</string>
     <string name="guide_step_needs_python">Needs python3 (Alpine: apk add python3 / Debian, Kali: apt install -y python3 / Arch: pacman -S python)</string>
     <string name="guide_step_needs_qrencode">Needs qrencode (Alpine: apk add libqrencode-tools / Debian, Kali: apt install qrencode / Arch: pacman -S qrencode)</string>
-    <string name="guide_step_feeds">Write the feed URLs you want (replace the example with your own)</string>
+    <string name="guide_step_feeds">Write the feed URL you want to read</string>
+    <string name="guide_step_rss_open_install">Also install the tool that opens them one at a time</string>
+    <string name="guide_step_rss_open_try">Open the newest article</string>
     <string name="guide_step_widget">In the status widget settings, assign rss-open to a button</string>
+    <string name="guide_ask_run">Run</string>
+    <string name="guide_ask_feed_url">Feed URL to read (one at a time; you can add more later)</string>
+    <string name="guide_ask_interval">How often to poll (30m / 1h …; do not go below 30 minutes)</string>
+    <string name="guide_ask_daily_time">What time to read it out (HH:MM)</string>
+    <string name="guide_ask_battery_level">Warn me below what battery %</string>
+    <string name="guide_ask_qr_text">Text or URL to turn into a QR code</string>
 
     <!-- Shown when no Linux OS is installed at all (first run of the foss build). -->
     <string name="no_os_title">No Linux OS is installed yet</string>

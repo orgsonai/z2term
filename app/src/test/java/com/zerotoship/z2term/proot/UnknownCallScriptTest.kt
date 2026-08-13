@@ -10,7 +10,7 @@ import java.io.File
  * 着信サンプル (`unknown-call.sh`) の**発信者の見分け方**を実際の `sh` で確かめる。
  *
  * ⚠ ここが要 — このマクロの答えは「電話帳に無い相手か」の 1 点で、判定を誤ると
- * **電話帳にいる相手の番号まで勝手にクリップボードへ入る**。通知に出るのが名前か番号かで
+ * **電話帳にいる相手にまで通知が出る**。通知に出るのが名前か番号かで
  * 決めているので、名前側 (かな・漢字・英字) と番号側 (区切り記号入り・国番号付き) の
  * 両方を固定する。
  *
@@ -76,12 +76,24 @@ class UnknownCallScriptTest {
     }
 
     @Test
-    fun `電話帳に無い番号はクリップボードへ入る`() {
+    fun `電話帳に無い番号は通知のコピーボタンで渡す`() {
         assumeTrue("sh が無い環境なのでスキップ", sh != null)
         for (num in listOf("09012345678", "090-1234-5678", "+81 90-1234-5678", "(03) 1234-5678")) {
             val trace = run(title = num)
-            assertTrue("[$num] をコピーしていない: $trace", trace.contains("z2-clip set $num"))
+            assertTrue("[$num] をコピーボタンに載せていない: $trace", trace.contains("-c $num"))
         }
+    }
+
+    /**
+     * ⚠ **裏から z2-clip set を呼ばないこと**。Android 10+ は前面のアプリしかクリップボードに
+     * 書けないので、着信中 (前面は電話アプリ) に呼んでも黙って捨てられる。「コピーしたつもり」
+     * で終わっていた退行を止める (0.8.335・実機で番号が入らなかった報告)。
+     */
+    @Test
+    fun `直にクリップボードへ書こうとしない`() {
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val trace = run(title = "09012345678")
+        assertTrue("z2-clip set を呼んでいる (裏では届かない): $trace", !trace.contains("z2-clip set"))
     }
 
     /** 題名が「着信中」等で、本文側に番号が出る電話アプリでも拾えること。 */
@@ -89,7 +101,7 @@ class UnknownCallScriptTest {
     fun `本文側に番号が出ていても拾う`() {
         assumeTrue("sh が無い環境なのでスキップ", sh != null)
         val trace = run(title = "着信中", text = "09012345678")
-        assertTrue("本文の番号を拾えていない: $trace", trace.contains("z2-clip set 09012345678"))
+        assertTrue("本文の番号を拾えていない: $trace", trace.contains("-c 09012345678"))
     }
 
     @Test

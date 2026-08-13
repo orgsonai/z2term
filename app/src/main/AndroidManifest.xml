@@ -441,6 +441,18 @@
             android:name=".service.AskReplyReceiver"
             android:exported="false" />
 
+        <!-- z2-notify -c の「コピー」ボタンの受け口。Android 10+ は前面のアプリしか
+             クリップボードに書けないため、押した瞬間だけフォーカスを取る透明な画面を通す
+             (詳細は ClipCopyActivity)。自アプリの PendingIntent からのみ起きる。
+             履歴に残さず、裏へ回ったら消える使い捨ての画面。 -->
+        <activity
+            android:name=".service.ClipCopyActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <!-- ロック解除の失敗監視 (盗難対策マクロの検知入口): 端末管理者として有効化されると
              OS がロック解除の失敗/成功コールバックを届ける。宣言ポリシーは watch-login のみで
              遠隔ロック/ワイプはしない。BIND_DEVICE_ADMIN でシステムからのみバインド可。 -->

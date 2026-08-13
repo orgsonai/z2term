@@ -218,7 +218,8 @@ object Z2ApiBridge {
     /** コマンド分岐。戻り値が要る場合は文字列を返す (それ以外は null)。 */
     private fun dispatch(context: Context, cmd: String, args: List<String>): String? {
         return when (cmd) {
-            // notify: title, text, high, name, buttons... (name/buttons は 0.8.169 で追加)
+            // notify: title, text, high, name, copy, buttons...
+            // (name/buttons は 0.8.169、copy は 0.8.335 で追加)
             "notify" -> {
                 doNotify(
                     context,
@@ -226,7 +227,8 @@ object Z2ApiBridge {
                     textArg = args.getOrNull(1).orEmpty(),
                     high = args.getOrNull(2) == "high",
                     name = args.getOrNull(3).orEmpty(),
-                    buttons = args.drop(4).filter { it.isNotBlank() }
+                    copy = args.getOrNull(4).orEmpty(),
+                    buttons = args.drop(5).filter { it.isNotBlank() }
                 )
                 null
             }
@@ -1080,6 +1082,7 @@ object Z2ApiBridge {
         textArg: String,
         high: Boolean = false,
         name: String = "",
+        copy: String = "",
         buttons: List<String> = emptyList()
     ) {
         // 引数が 1 つだけなら本文として扱い、タイトルはアプリ名にする。
@@ -1095,9 +1098,26 @@ object Z2ApiBridge {
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setAutoCancel(true)
             .setPriority(if (high) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
+        // --copy 付きなら「コピー」ボタンを先頭に出す (0.8.335)。**押した瞬間だけ前面に出る
+        // 画面**を通してコピーする — 裏で走ったマクロが直に z2-clip set を呼んでも、Android 10+
+        // では OS が黙って捨てるため ([ClipCopyActivity] に経緯)。着信・SMS・通知をきっかけに
+        // 走るマクロは常に裏にいるので、この道が無いと「コピーしたつもり」で終わる。
+        if (copy.isNotEmpty()) {
+            val intent = Intent(context, ClipCopyActivity::class.java)
+                .setAction(ClipCopyActivity.ACTION_COPY)
+                .putExtra(ClipCopyActivity.EXTRA_TEXT, copy)
+                .putExtra(ClipCopyActivity.EXTRA_NOTIF_ID, id)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val pi = PendingIntent.getActivity(
+                context, id, intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            builder.addAction(0, context.getString(R.string.notify_action_copy), pi)
+        }
         // ボタン付きなら、押されたラベルを events.jsonl へ返す (対話型マクロ)。
-        // Android の仕様上ボタンは 3 つまでしか表示されないので、超えた分は無視される。
-        buttons.take(MAX_NOTIFY_BUTTONS).forEachIndexed { i, label ->
+        // Android の仕様上ボタンは 3 つまでしか表示されないので、超えた分は無視される
+        // (「コピー」を出したときはその 1 枠ぶん少なくなる)。
+        buttons.take(MAX_NOTIFY_BUTTONS - (if (copy.isEmpty()) 0 else 1)).forEachIndexed { i, label ->
             val intent = Intent(context, NotifyActionReceiver::class.java)
                 .setAction(NotifyActionReceiver.ACTION_TAP)
                 .putExtra(NotifyActionReceiver.EXTRA_NAME, name)

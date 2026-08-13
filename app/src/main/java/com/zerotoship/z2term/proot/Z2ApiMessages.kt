@@ -26,24 +26,32 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
     // --- z2-notify ---
 
     val notifyHelp: String = if (en) """
-        |# z2-notify [-h] [-n NAME] [-b LABEL]... "title" "text"  /  z2-notify [-h] "text"
+        |# z2-notify [-h] [-n NAME] [-c TEXT] [-b LABEL]... "title" "text"  /  z2-notify [-h] "text"
         |#   -h / --high / --banner : show it as a banner (heads-up) at the top of the screen
         |#   -b <label>             : add a reply button (up to 3). Pressing one appends
         |#                            notify_action to ~/.z2term/events.jsonl
         |#                            ({"event":"notify_action","name":NAME,"action":LABEL})
         |#   -n <name>              : an identifier for this notification (to tell replies apart)
+        |#   -c <text>              : add a "Copy" button that puts <text> on the clipboard.
+        |#                            Use this instead of z2-clip set when the macro runs in the
+        |#                            background: Android 10+ only lets the app in front write to
+        |#                            the clipboard, so an unattended z2-clip set is dropped.
     """.trimMargin() else """
-        |# z2-notify [-h] [-n 名前] [-b ラベル]... "タイトル" "本文"  /  z2-notify [-h] "本文"
+        |# z2-notify [-h] [-n 名前] [-c 文字列] [-b ラベル]... "タイトル" "本文"  /  z2-notify [-h] "本文"
         |#   -h / --high / --banner : 画面上部にバナー(ヘッドアップ)表示する
         |#   -b <ラベル>            : 返事のボタンを付ける (最大 3 つ)。押すと
         |#                            ~/.z2term/events.jsonl に notify_action が 1 行増える
         |#                            ({"event":"notify_action","name":名前,"action":ラベル})
         |#   -n <名前>              : その通知の識別名 (どの問いかけへの返事か区別する用)
+        |#   -c <文字列>            : 「コピー」ボタンを付ける (押すとその文字列がクリップボードへ)。
+        |#                            裏で走るマクロは z2-clip set ではなくこちらを使う —
+        |#                            Android 10+ は前面のアプリしかクリップボードに書けないので、
+        |#                            見ていないときの z2-clip set は黙って捨てられる。
     """.trimMargin()
 
     val notifyUsage: String =
-        if (en) "usage: z2-notify [-h] [-n name] [-b label]... <title> [text]"
-        else "usage: z2-notify [-h] [-n 名前] [-b ラベル]... <タイトル> [本文]"
+        if (en) "usage: z2-notify [-h] [-n name] [-c text] [-b label]... <title> [text]"
+        else "usage: z2-notify [-h] [-n 名前] [-c 文字列] [-b ラベル]... <タイトル> [本文]"
 
     // --- 単機能のもの (ヘルプ 1〜2 行) ---
 
@@ -79,9 +87,15 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
     val clipHelp: String = if (en) """
         |# z2-clip get        … print the clipboard to stdout
         |# z2-clip set [text] … put text (or stdin when omitted) on the clipboard
+        |# ⚠ Android 10+ only lets the app in front (or the input method in use) touch the
+        |#   clipboard. From a macro running in the background this is dropped without a word,
+        |#   so use z2-notify -c <text> there: it adds a "Copy" button that always works.
     """.trimMargin() else """
         |# z2-clip get        … クリップボードを標準出力へ
         |# z2-clip set [text] … text (無ければ標準入力) をクリップボードへ
+        |# ⚠ Android 10+ は前面のアプリ (と使用中の入力方法) しかクリップボードを触れない。
+        |#   裏で走るマクロからは黙って捨てられるので、そこでは z2-notify -c <文字列> を使う
+        |#   (「コピー」ボタンが付き、押せば確実に入る)。
     """.trimMargin()
 
     val batteryHelp: String =

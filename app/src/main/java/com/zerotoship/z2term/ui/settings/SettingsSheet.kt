@@ -1439,9 +1439,12 @@ fun SettingsSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        // 並ぶのは**マクロの名前そのもの** (0.8.335)。説明文を並べていた頃は
+                        // 「入門: できごとに反応する」がどのマクロの話か読めなかった (利用者の指摘)。
+                        // 何をするものかは、開いた案内の見出しが言う。
                         Guide.ALL.forEach { guide ->
                             ActionButton(
-                                label = stringResource(guide.titleRes),
+                                label = guide.id,
                                 onClick = { onShowGuide(guide) }
                             )
                         }

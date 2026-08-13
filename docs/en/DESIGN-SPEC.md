@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-13 / Target version: 0.8.334-alpha (versionCode 342)
+Last updated: 2026-08-13 / Target version: 0.8.335-alpha (versionCode 343)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -617,7 +617,10 @@ means would then depend on the payload, which cannot be explained to anyone.
 
 **Guides (`ui/terminal/GuideCards`, 0.8.314)**: a bundled sample macro has to be installed with `z2-macro install <name>` before it can be used, so **before installing, not even its name is visible**. 0.8.286 seeded a single snippet, `remind.sh help`, as "somewhere to look the syntax up", but **someone who has not installed it only gets "not found"** and no path to the install step (user report). The snippet seed is gone; **every sample now gets a guide made of step cards** instead.
 
-- The entry point is **Settings › Maintenance › Show a guide**. There is one guide per sample (`watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `unknown-call` / `remind` / `rss` / `rss-open` / `qr`), openable as often as you like.
+- The entry point is **Settings › Maintenance › Show a guide**. There are nine guides, openable as often as you like.
+- ⚠ **The list shows the macro names themselves** (`watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `unknown-call` / `remind` / `rss` / `qr`; 0.8.335, user report). Up to 0.8.334 the list showed descriptions instead, and "Starter: react to what happens" said neither **what it was for** nor which macro it was about. The name stays short in the list; **what it does is said by the heading of the guide you opened** (`rss — get notified about new feed items and read them`).
+- ⚠ **`rss` and `rss-open` were merged into one guide** (0.8.335, user report). With "get notified about new feed items" and "open collected articles one at a time" sitting apart in the list, nothing says they are **two halves of the same subscription**. Collecting and reading are one sequence, so they are listed as one.
+- ⚠ **Steps that need a value of your own ask before running** (`GuideStep.askRes`, 0.8.335, user report). Up to 0.8.334, tapping "write the feed URLs you want" registered `https://example.com/feed` **as-is** — being able to run the sample value means **a setting that cannot possibly work goes in silently**. URLs, times, thresholds and the QR payload are taken in a text field and cannot be sent empty (the `%s` in the displayed command is filled in on the spot).
 - Look and send path are **the same components** as the intro cards (`GuideCardColumn` / `GuideCardRow`). Card order is step order: tap to run one line, ✕ to drop the ones you do not need.
 - ⚠ **Never put translatable text inside a card's command.** Commands do not go through `strings.xml`, so anything language-specific would be sent verbatim in every locale. Keep examples **language-neutral** (`remind.sh list`).
 - Cards without a command (turn a setting on, install a prerequisite package) are read-only; tapping one just marks it read and removes it.
@@ -1605,10 +1608,10 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
 
   | Command | Purpose |
   |---|---|
-  | `z2-notify` | Post a notification |
+  | `z2-notify` | Post a notification (`-b` reply buttons / `-c` copy button) |
   | `z2-toast` | Toast message |
   | `z2-share` / `z2-open` | Share / open a URL or file |
-  | `z2-clip (set/get)` | Clipboard |
+  | `z2-clip (set/get)` | Clipboard (**writable only while in front**, see below) |
   | `z2-battery` | Battery state |
   | `z2-vibrate` | Vibration |
   | `z2-say` | TTS speech |
@@ -1624,6 +1627,12 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   | `z2-server` | **Starts / stops a registered resident server** (0.8.310, F) |
 
   - **Banner notifications from `z2-notify` (0.8.163)**: with `-h`/`--high`/`--banner` it posts through a separate `IMPORTANCE_HIGH` channel (`z2term_api_high`) with `PRIORITY_HIGH`, giving a **heads-up banner at the top of the screen**. The default channel (`z2term_api`) was created as `IMPORTANCE_DEFAULT` and its importance cannot be raised afterwards (an Android rule), hence a separate channel id for banners
+  - **A macro running in the background cannot write the clipboard → the `z2-notify -c` copy button (0.8.335)**: since Android 10, `setPrimaryClip` is **refused for anything other than the focused app (and the input method in use)**. The refusal raises nothing — it only logs `E ClipboardService: Denying clipboard access to …, application is not in focus` — so **from the terminal side it looks like it worked**. Macros triggered by a call, an SMS or a notification are by their nature always in the background, so `z2-clip set` fell silently and `unknown-call` never delivered the number (device report, 2026-08-13).
+    - The fix is to provide **one path that can be relied on**: `z2-notify -c <text>` adds a "Copy" button; pressing it starts `service/ClipCopyActivity` (translucent, `noHistory`, `excludeFromRecents`), which **takes focus for that instant**, writes, and closes. Starting an activity from a notification action is a user gesture, so background-activity-launch limits do not apply either.
+    - ⚠ **Write in `onWindowFocusChanged(true)`**. At `onCreate` / `onResume` the window does not hold focus yet and hits the same refusal.
+    - ⚠ **Verify by reading it back** (`setPrimaryClip` → compare `primaryClip`). A refusal has neither a return value nor an exception, so there is no other way to know. The bundled samples (`otp-clip` / `otp-sms`) use that read-back to choose between "write directly while in front" and "hand it to the button".
+    - ⚠ **No toast of our own on Android 13+** (the OS shows its own copy confirmation; two would be redundant).
+    - ⚠ Android shows at most three notification buttons. A "Copy" button costs one of them, leaving fewer `-b` reply buttons.
   - **`z2-say`**: speaks via the device's standard TTS (engine init is async, so utterances are queued until it is ready)
   - **`z2-torch`**: controlled via `CameraManager.setTorchMode` (no permission needed) and returns the resulting torch state
   - **`z2-media` / `z2-volume`**: the former dispatches media keys via `AudioManager.dispatchMediaKeyEvent`, the latter operates `STREAM_MUSIC` (returning current/max)

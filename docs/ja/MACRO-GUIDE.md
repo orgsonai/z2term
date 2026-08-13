@@ -261,7 +261,7 @@ z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term
 
 | コマンド | 使い方 | 動作 | 戻り値 |
 |---|---|---|---|
-| `z2-notify` | `z2-notify [-h] [-n 名前] [-b ラベル]... "タイトル" "本文"` | 通知を出す（`-h` でバナー表示、`-b` で**返事のボタン**を付ける） | — |
+| `z2-notify` | `z2-notify [-h] [-n 名前] [-c 文字列] [-b ラベル]... "タイトル" "本文"` | 通知を出す（`-h` でバナー表示、`-b` で**返事のボタン**、`-c` で**「コピー」ボタン**を付ける） | — |
 | `z2-ask` | `z2-ask [-t 秒] [-H ヒント] [-d 既定] "質問"` | **通知の返信欄で聞く**（アプリを開かず答えられる）。答えずに消す / 時間切れは非ゼロ終了 | 答えの文字列 |
 | `z2-toast` | `z2-toast "メッセージ"` | 画面下に短いメッセージ | — |
 | `z2-say` | `z2-say "読み上げる文"`（引数なしで標準入力） | TTS で読み上げ | — |
@@ -270,7 +270,7 @@ z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term
 | `z2-media` | `z2-media playpause\|play\|pause\|next\|previous\|stop`（既定 playpause） | メディア再生キー送出 | — |
 | `z2-volume` | `z2-volume up\|down\|mute\|unmute\|N\|N%` | メディア音量 | `current/max` |
 | `z2-sensor` | `z2-sensor light\|accel\|proximity` | センサーを 1 回読む | light`{"lux":F}` / proximity`{"distance":F}` / accel`{"x":F,"y":F,"z":F}` |
-| `z2-clip` | `z2-clip get` / `z2-clip set [文字]` | クリップボード取得/設定 | get 時に内容 |
+| `z2-clip` | `z2-clip get` / `z2-clip set [文字]` | クリップボード取得/設定。⚠ **書けるのは z2term が前面のとき（と入力方法に選ばれているとき）だけ** — Android 10+ の制限で、裏で走るマクロからは黙って捨てられます。そこでは `z2-notify -c` の「コピー」ボタンを使ってください（0.8.335） | get 時に内容 |
 | `z2-battery` | `z2-battery` | 電池状態 | `{"level":N,"charging":bool}` |
 | `z2-share` | `z2-share "テキスト"` | 共有メニューへ | — |
 | `z2-open` | `z2-open <URL\|パス>` | 既定アプリで開く | — |
@@ -528,7 +528,7 @@ z2-alarm cancel morning        # 名前で取り消し（id でも all でも可
 ```sh
 z2-when battery:below=20 run 'z2-say "電池が減っています"'
 z2-when time:daily=07:00 run ~/.z2term/macros/morning.sh
-z2-when notify:otp run 'echo "$Z2_WHEN_OTP" | z2-clip set'
+z2-when notify:otp run 'z2-notify -h -c "$Z2_WHEN_OTP" "認証コード" "$Z2_WHEN_OTP"'
 ```
 
 | コマンド | 動作 |
@@ -729,7 +729,7 @@ z2-when list                       # 登録できたか確認
 z2-when charge:start  run 'z2-volume 30%'
 z2-when charge:stop   run 'z2-volume 70%'
 z2-when wifi:ssid=home run 'z2-toast "自宅 Wi-Fi"'
-z2-when notify:otp    run 'echo "$Z2_WHEN_OTP" | z2-clip set'
+z2-when notify:otp    run 'z2-notify -h -c "$Z2_WHEN_OTP" "認証コード" "$Z2_WHEN_OTP"'
 ```
 
 **うまく動かないとき**は、この順で見てください。
@@ -987,13 +987,22 @@ handle() {
 # 準備: ⚙設定 →「通知検知」ON ＋ OS の「通知アクセス」許可
 # z2-run: z2-when notify:otp run ~/.z2term/macros/otp-clip.sh
 
-TTL=60                                    # コピーから何秒でクリアするか
+TTL=60                                    # コピーから何秒でクリアするか (直に入れられたときだけ効く)
 
 # コードの抽出はアプリ側が済ませてある。取れなかったときは何もしない。
 code=$Z2_WHEN_OTP
 [ -n "$code" ] || exit 0
 
-z2-clip set "$code"
+# まず直に入れてみる。入るのは**この画面を見ているとき**だけ — Android 10+ は前面のアプリしか
+# クリップボードに書けないので、裏で走ったぶんは黙って捨てられる。
+# 入ったかどうかは読み返して確かめる (書けなくてもエラーにはならないため)。
+z2-clip set "$code" 2>/dev/null
+if [ "$(z2-clip get 2>/dev/null)" != "$code" ]; then
+  # 入らなかった = 画面を見ていない。通知の「コピー」ボタンで渡す (押した瞬間だけ前面に出る)。
+  # ⚠ この道で入れたぶんは下の TTL では消えない — 消すのにも前面にいることが要るため。
+  z2-notify -h -c "$code" "認証コード" "$code"
+  exit 0
+fi
 z2-toast "コードをコピー: ${code}"
 
 # TTL 秒後、クリップボードがコピー時の値のままなら空にする。
@@ -1010,10 +1019,17 @@ z2-toast "コピーしたコードをクリアしました"
 z2-when notify:otp run ~/.z2term/macros/otp-clip.sh
 ```
 
-> 💡 **クリアが要らないなら 1 行で済みます。**
+⚠ **裏で走るマクロは `z2-clip set` だけでは終われません**（0.8.335）。Android 10 以降、
+**前面にいないアプリはクリップボードに書けない**からです。コードが届くのはたいてい別のアプリを
+見ているときなので、`z2-notify -c` の「コピー」ボタンを必ず添えてください（押した瞬間だけ
+z2term が前面に出るので確実に入ります）。⚠ ただし**この端末で z2term を入力方法（IME）として
+使っている間**は、OS の例外で裏からでも書けます — 上の読み返しはその差も吸収します。
+
+> 💡 **クリアが要らないなら 1 行で済みます**（画面を見ているときだけ入ります。裏でも確実に
+> 受け取りたいならボタンを添えてください）。
 >
 > ```sh
-> z2-when notify:otp run 'echo "$Z2_WHEN_OTP" | z2-clip set'
+> z2-when notify:otp run 'z2-notify -h -c "$Z2_WHEN_OTP" "認証コード" "$Z2_WHEN_OTP"'
 > ```
 
 ⚠ **Android 15+ では通知経由の OTP が伏せ字になることがあります**（機微通知の保護。他の自動化
@@ -1046,8 +1062,12 @@ Android 15+ では **SMS の OTP は通知経由だと伏せ字**になり、通
 - **一番短い書き方**（`sms:otp` が抽出まで済ませます。記録の ON/OFF とは独立に動きます）:
 
   ```sh
-  z2-when sms:otp run 'echo "$Z2_WHEN_OTP" | z2-clip set'
+  z2-when sms:otp run 'z2-notify -h -c "$Z2_WHEN_OTP" "認証コード" "$Z2_WHEN_OTP"'
   ```
+
+  ⚠ ここで `z2-clip set` を直に呼ばないのは、**前面にいないアプリはクリップボードに書けない**
+  ためです（Android 10+）。SMS が来るのはたいてい別のことをしている最中なので、`-c` の
+  「コピー」ボタン越しに渡します（→ 5-6）。
 
 - **自動クリアまで欲しいとき**は 5-6 と同じ中身で、きっかけだけ差し替えます。
   `z2-macro install otp-sms` で入るので、そのまま登録するだけです:
@@ -1169,9 +1189,22 @@ sh ~/.z2term/macros/remind.sh 30m "洗濯物"
 
 ### 5-10. 実例：電話帳に無い番号からの着信を控える
 
-電話帳に載っていない番号から電話が来たら、その番号をクリップボードへ入れます。かけ直す・調べる・
-迷惑電話として登録する、のどれをするにも「番号を手で写す」が要らなくなります。
+電話帳に載っていない番号から電話が来たら、その番号を通知に出し、**「コピー」ボタン 1 つで
+クリップボードへ入れられる**ようにします。かけ直す・調べる・迷惑電話として登録する、のどれを
+するにも「番号を手で写す」が要らなくなります。
 （`z2-macro install unknown-call` で下と同じものが入ります）
+
+⚠ **なぜ自動でコピーせず、ボタンを押してもらうのか。** Android 10 以降、**前面にいないアプリは
+クリップボードに書けません**。着信中に前面にいるのは電話アプリなので、ここで `z2-clip set` を
+呼んでも OS が黙って捨てます（端末側には成功したように見えるので、余計に気付けません）。
+
+```
+E ClipboardService: Denying clipboard access to com.zerotoship.z2term,
+  application is not in focus nor is it a system service for user 0
+```
+
+`z2-notify -c <文字列>` で付く「コピー」ボタンは、**押した瞬間だけ z2term が前面に出る**ので
+この制限に当たりません（0.8.335）。
 
 **「電話帳に無い」をどう見分けているか。** 電話アプリは、電話帳にある相手なら**名前**を、
 無い相手なら**番号そのもの**を通知に出します。だから**通知の表示が番号の形なら、その相手は
@@ -1207,14 +1240,15 @@ done
 # 名前が出ていた = 電話帳にある相手。何もしない。
 [ -n "$num" ] || exit 0
 
-z2-clip set "$num"
-
 # 着信中と不在着信のどちらで動いたかは種別で分かる。
 case "$Z2_WHEN_NOTI_CATEGORY" in
   missed_call) what="不在着信" ;;
   *)           what="着信" ;;
 esac
-z2-notify -h "${what}: 電話帳に無い番号" "${num} をコピーしました"
+
+# 番号は通知の「コピー」ボタンで渡す (-c)。ここで z2-clip set を呼んでも入らない —
+# Android 10+ は前面のアプリしかクリップボードに書けず、着信中に前面にいるのは電話アプリだから。
+z2-notify -h -c "$num" "${what}: 電話帳に無い番号" "$num"
 ```
 
 登録はこれだけです。

@@ -203,6 +203,9 @@
     <!-- クリップボード履歴シート (📋 貼付ボタンをダブルタップで開く) -->
     <string name="clip_history_title">クリップボード履歴</string>
     <string name="clip_history_clear">クリア</string>
+    <string name="notify_action_copy">コピー</string>
+    <string name="clip_copied">コピーしました</string>
+    <string name="clip_copy_failed">コピーできませんでした</string>
     <string name="clip_history_empty">履歴はまだありません。コピーすると自動で取り込みます。</string>
     <string name="clip_history_hint">▸ 行をタップ → ターミナルに貼り付け\n▸ システムクリップボードと同期 (コピー時 / アプリ前面復帰時に取り込み)\n▸ 🔒 が付いた行は 30 秒で消えます (パスワード等)\n▸ ✕ 削除</string>
     <string name="clip_history_sensitive">🔒 機微なコピー — 30 秒で自動的に消えます</string>
@@ -726,25 +729,24 @@
     <string name="intro_footer">一覧は z2help ／ 動かないときは z2doctor</string>
     <string name="intro_card_notify">スマホに通知を出してみる</string>
     <string name="intro_card_torch">ライトを点けてみる</string>
-    <string name="intro_card_remind_guide">通知でリマインドする（案内を開く）</string>
+    <string name="intro_card_remind_guide">通知でリマインドする（remind の案内を開く）</string>
     <string name="settings_intro_again">はじめの案内をもう一度出す</string>
     <string name="settings_intro_again_desc">次にアプリを開いたとき、最初の 3 枚をもう一度表示します。</string>
     <string name="settings_intro_again_done">次に開いたときに出ます</string>
 
     <!-- 案内 (手順のカード)。設定 → メンテナンス → 案内を表示 から呼ぶ。 -->
     <string name="settings_guides">案内を表示</string>
-    <string name="settings_guides_desc">同梱サンプルのマクロを使うまでの手順を、端末の上にカードで出します。タップするとその 1 行を実行し、要らない行は ✕ で消せます。</string>
+    <string name="settings_guides_desc">同梱サンプルのマクロ名です。押すと、そのマクロを使うまでの手順が端末の上にカードで出ます。タップするとその 1 行を実行し（自分の値が要る行は先に聞きます）、要らない行は ✕ で消せます。</string>
     <string name="guide_hint">タップで実行（Ctrl-C で打ちかけを捨ててから送ります）／ 要らない行は ✕</string>
-    <string name="guide_title_watch_basic">入門: できごとに反応する</string>
-    <string name="guide_title_battery_alert">電池が減ったら知らせる</string>
-    <string name="guide_title_daily_report">毎朝きまった時刻に読み上げる</string>
-    <string name="guide_title_otp_clip">通知のワンタイムコードを自動コピー</string>
-    <string name="guide_title_otp_sms">SMS のワンタイムコードを自動コピー</string>
-    <string name="guide_title_unknown_call">電話帳に無い番号の着信を控える</string>
-    <string name="guide_title_remind">通知でリマインドする</string>
-    <string name="guide_title_rss">フィードの新着を通知する</string>
-    <string name="guide_title_rss_open">集めた記事を 1 本ずつ開く</string>
-    <string name="guide_title_qr">QR にして別の端末へ渡す</string>
+    <string name="guide_title_watch_basic">watch-basic — 充電やイヤホンの抜き差しに反応する</string>
+    <string name="guide_title_battery_alert">battery-alert — 電池が減ったら知らせる</string>
+    <string name="guide_title_daily_report">daily-report — 毎朝きまった時刻に読み上げる</string>
+    <string name="guide_title_otp_clip">otp-clip — 通知の認証コードをコピーする</string>
+    <string name="guide_title_otp_sms">otp-sms — SMS の認証コードをコピーする</string>
+    <string name="guide_title_unknown_call">unknown-call — 電話帳に無い番号の着信を控える</string>
+    <string name="guide_title_remind">remind — 通知でリマインドする</string>
+    <string name="guide_title_rss">rss — フィードの新着を通知して、1 本ずつ読む</string>
+    <string name="guide_title_qr">qr — QR にして別の端末へ渡す</string>
     <string name="guide_step_install">マクロを入れる</string>
     <string name="guide_step_setup">受け口とタイル枠を用意する（最初に 1 回）</string>
     <string name="guide_step_help">使い方（書き方の一覧）を見る</string>
@@ -759,8 +761,16 @@
     <string name="guide_step_sms_on">⚙設定 →「SMS 検知」を ON ＋ OS の SMS 受信を許可する</string>
     <string name="guide_step_needs_python">前提: python3（Alpine: apk add python3 ／ Debian・Kali: apt install -y python3 ／ Arch: pacman -S python）</string>
     <string name="guide_step_needs_qrencode">前提: qrencode（Alpine: apk add libqrencode-tools ／ Debian・Kali: apt install qrencode ／ Arch: pacman -S qrencode）</string>
-    <string name="guide_step_feeds">読みたいフィードの URL を書く（example の行は自分のものに置き換えて）</string>
+    <string name="guide_step_feeds">読みたいフィードの URL を書く</string>
+    <string name="guide_step_rss_open_install">集めた記事を 1 本ずつ開く道具も入れる</string>
+    <string name="guide_step_rss_open_try">いちばん新しい記事を開いてみる</string>
     <string name="guide_step_widget">状態ウィジェットの設定で、ボタンに rss-open を割り当てる</string>
+    <string name="guide_ask_run">実行</string>
+    <string name="guide_ask_feed_url">読みたいフィードの URL（1 本ずつ。あとから何本でも足せます）</string>
+    <string name="guide_ask_interval">どれくらいの間隔で見に行くか（30m / 1h など。30 分より短くしない）</string>
+    <string name="guide_ask_daily_time">何時に読み上げるか（HH:MM）</string>
+    <string name="guide_ask_battery_level">電池が何 % を切ったら知らせるか</string>
+    <string name="guide_ask_qr_text">QR にしたい文字列や URL</string>
 
     <!-- OS が 1 つも入っていないときの案内 (foss の初回など)。 -->
     <string name="no_os_title">Linux の OS がまだ入っていません</string>

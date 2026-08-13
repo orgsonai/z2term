@@ -169,14 +169,16 @@ fun z2MacroSamples(lang: String): Map<String, String> {
     val unknownCall = buildString {
         appendLine("#!/bin/sh")
         if (ja) {
-            appendLine("# unknown-call.sh — 電話帳に無い番号から電話が来たら、その番号をクリップボードへ入れる。")
+            appendLine("# unknown-call.sh — 電話帳に無い番号から電話が来たら、その番号を通知に出す。")
+            appendLine("# 通知の「コピー」ボタンで番号がクリップボードへ入る (押すまで待つ理由は下に)。")
             appendLine("# 準備: ⚙設定 →「通知検知」ON ＋ OS の「通知アクセス」許可")
             appendLine("# z2-run: z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh")
             appendLine("#")
             appendLine("# 不在着信も控えたいなら、種別違いでもう 1 本登録する (中身は同じでよい):")
             appendLine("#   z2-when notify:category=missed_call cooldown=20s run ~/.z2term/macros/unknown-call.sh")
         } else {
-            appendLine("# unknown-call.sh — when a number that is not in your contacts calls, copy it to the clipboard.")
+            appendLine("# unknown-call.sh — when a number that is not in your contacts calls, show it in a notification.")
+            appendLine("# Its \"Copy\" button puts the number on the clipboard (why it waits for a press: see below).")
             appendLine("# Setup: Settings -> \"Notification detection\" ON + grant OS notification access")
             appendLine("# z2-run: z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh")
             appendLine("#")
@@ -681,11 +683,33 @@ done
 private fun otpWhenBody(d: String, ja: Boolean): String {
     val copied = if (ja) "コードをコピー: ${d}{code}" else "Copied code: ${d}{code}"
     val cleared = if (ja) "コピーしたコードをクリアしました" else "Cleared the copied code"
-    val cTtl = if (ja) "コピーから何秒でクリアするか" else "seconds before the copy is cleared"
+    val otpTitle = if (ja) "認証コード" else "One-time code"
+    val cTtl = if (ja) {
+        "コピーから何秒でクリアするか (直に入れられたときだけ効く)"
+    } else {
+        "seconds before the copy is cleared (only applies when it went in directly)"
+    }
     val cCode = if (ja) {
         "# コードの抽出はアプリ側が済ませてある。取れなかったときは何もしない。"
     } else {
         "# The app already extracted the code. Do nothing when it could not."
+    }
+    val cTry = if (ja) {
+        "# まず直に入れてみる。入るのは**この画面を見ているとき**だけ — Android 10+ は前面の\n" +
+            "# アプリしかクリップボードに書けないので、裏で走ったぶんは黙って捨てられる。\n" +
+            "# 入ったかどうかは読み返して確かめる (書けなくてもエラーにはならないため)。"
+    } else {
+        "# Try to put it in directly. This only lands while you are **looking at the app**:\n" +
+            "# Android 10+ lets only the app in front write to the clipboard, so a run in the\n" +
+            "# background is dropped silently. Read it back to see whether it landed."
+    }
+    val cFallback = if (ja) {
+        "  # 入らなかった = 画面を見ていない。通知の「コピー」ボタンで渡す (押した瞬間だけ前面に出る)。\n" +
+            "  # ⚠ この道で入れたぶんは下の TTL では消えない — 消すのにも前面にいることが要るため。"
+    } else {
+        "  # It did not land = you are not looking at the app. Hand it over through the\n" +
+            "  # notification's \"Copy\" button instead (pressing it brings the app to the front).\n" +
+            "  # ⚠ What goes in that way is not cleared by TTL below: clearing also needs the front."
     }
     val cClear = if (ja) {
         "# TTL 秒後、クリップボードがコピー時の値のままなら空にする。\n" +
@@ -701,7 +725,13 @@ $cCode
 code=${d}Z2_WHEN_OTP
 [ -n "${d}code" ] || exit 0
 
-z2-clip set "${d}code"
+$cTry
+z2-clip set "${d}code" 2>/dev/null
+if [ "${d}(z2-clip get 2>/dev/null)" != "${d}code" ]; then
+$cFallback
+  z2-notify -h -c "${d}code" "$otpTitle" "${d}code"
+  exit 0
+fi
 z2-toast "$copied"
 
 $cClear
@@ -769,10 +799,22 @@ private fun unknownCallBody(d: String, ja: Boolean): String {
     } else {
         "# The category tells which one fired (same value as the notify:category= you registered)."
     }
+    val cCopy = if (ja) {
+        """
+# 番号は**通知の「コピー」ボタン**で渡す (-c)。ここで z2-clip set を呼んでも入らない —
+# Android 10+ は前面のアプリしかクリップボードに書けず、着信中に前面にいるのは電話アプリ
+# だから。ボタンを押した瞬間だけ z2term が前面に出るので、そのときに確実に入る。
+"""
+    } else {
+        """
+# Hand the number over through the notification's "Copy" button (-c). Calling z2-clip set here
+# would not land: Android 10+ only lets the app in front write to the clipboard, and during a
+# call that is the phone app. Pressing the button brings z2term to the front for that instant.
+"""
+    }
     val missed = if (ja) "不在着信" else "Missed call"
     val incoming = if (ja) "着信" else "Incoming call"
     val title = if (ja) "電話帳に無い番号" else "number not in contacts"
-    val body = if (ja) "${d}{num} をコピーしました" else "Copied ${d}{num}"
     return """$cHow$cIsNum
 is_number() {
   [ -z "${d}(printf '%s' "${d}1" | tr -d '0-9+() -')" ] || return 1
@@ -789,14 +831,13 @@ done
 $cSkip
 [ -n "${d}num" ] || exit 0
 
-z2-clip set "${d}num"
-
 $cWhat
 case "${d}Z2_WHEN_NOTI_CATEGORY" in
   missed_call) what="$missed" ;;
   *)           what="$incoming" ;;
 esac
-z2-notify -h "${d}{what}: $title" "$body"
+$cCopy
+z2-notify -h -c "${d}num" "${d}{what}: $title" "${d}num"
 """
 }
 

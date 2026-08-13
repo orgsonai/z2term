@@ -265,7 +265,7 @@ prerequisite → 3-A).
 
 | Command | Usage | What it does | Returns |
 |---|---|---|---|
-| `z2-notify` | `z2-notify [-h] [-n name] [-b label]... "title" "text"` | Post a notification (`-h` shows a banner, `-b` adds a **reply button**) | — |
+| `z2-notify` | `z2-notify [-h] [-n name] [-c text] [-b label]... "title" "text"` | Post a notification (`-h` shows a banner, `-b` adds a **reply button**, `-c` adds a **"Copy" button**) | — |
 | `z2-ask` | `z2-ask [-t sec] [-H hint] [-d default] "question"` | **Ask via a notification reply field** (answerable without opening the app). Dismissing or timing out exits non-zero | the answer |
 | `z2-toast` | `z2-toast "message"` | Short on-screen message | — |
 | `z2-say` | `z2-say "text to speak"` (stdin if no arg) | Speak via TTS | — |
@@ -274,7 +274,7 @@ prerequisite → 3-A).
 | `z2-media` | `z2-media playpause\|play\|pause\|next\|previous\|stop` (default playpause) | Send a media key | — |
 | `z2-volume` | `z2-volume up\|down\|mute\|unmute\|N\|N%` | Media volume | `current/max` |
 | `z2-sensor` | `z2-sensor light\|accel\|proximity` | Read a sensor once | light`{"lux":F}` / proximity`{"distance":F}` / accel`{"x":F,"y":F,"z":F}` |
-| `z2-clip` | `z2-clip get` / `z2-clip set [text]` | Clipboard get/set | content on get |
+| `z2-clip` | `z2-clip get` / `z2-clip set [text]` | Clipboard get/set. ⚠ **Writable only while z2term is in front** (or is the input method in use) — an Android 10+ rule; from a macro running in the background it is dropped silently, so use the `z2-notify -c` copy button there (0.8.335) | content on get |
 | `z2-battery` | `z2-battery` | Battery state | `{"level":N,"charging":bool}` |
 | `z2-share` | `z2-share "text"` | Share sheet | — |
 | `z2-open` | `z2-open <URL\|path>` | Open in the default app | — |
@@ -535,7 +535,7 @@ or where you want "the alarm went off" recorded in the log as well.
 ```sh
 z2-when battery:below=20 run 'z2-say "battery is getting low"'
 z2-when time:daily=07:00 run ~/.z2term/macros/morning.sh
-z2-when notify:otp run 'echo "$Z2_WHEN_OTP" | z2-clip set'
+z2-when notify:otp run 'z2-notify -h -c "$Z2_WHEN_OTP" "One-time code" "$Z2_WHEN_OTP"'
 ```
 
 | Command | What it does |
@@ -740,7 +740,7 @@ Short ones need no file at all:
 z2-when charge:start  run 'z2-volume 30%'
 z2-when charge:stop   run 'z2-volume 70%'
 z2-when wifi:ssid=home run 'z2-toast "home Wi-Fi"'
-z2-when notify:otp    run 'echo "$Z2_WHEN_OTP" | z2-clip set'
+z2-when notify:otp    run 'z2-notify -h -c "$Z2_WHEN_OTP" "One-time code" "$Z2_WHEN_OTP"'
 ```
 
 **When nothing happens**, walk this list:
@@ -1004,13 +1004,23 @@ hand it over in `$Z2_WHEN_OTP`, so all you write is "put it in" and "take it out
 # Setup: Settings -> "Notification detection" ON + grant OS notification access
 # z2-run: z2-when notify:otp run ~/.z2term/macros/otp-clip.sh
 
-TTL=60                                    # seconds before the copy is cleared
+TTL=60                                    # seconds before the copy is cleared (direct writes only)
 
 # The app already extracted the code. Do nothing when it could not.
 code=$Z2_WHEN_OTP
 [ -n "$code" ] || exit 0
 
-z2-clip set "$code"
+# Try to put it in directly. This only lands while you are **looking at the app**:
+# Android 10+ lets only the app in front write to the clipboard, so a run in the
+# background is dropped silently. Read it back to see whether it landed.
+z2-clip set "$code" 2>/dev/null
+if [ "$(z2-clip get 2>/dev/null)" != "$code" ]; then
+  # It did not land = you are not looking at the app. Hand it over through the
+  # notification's "Copy" button instead (pressing it brings the app to the front).
+  # ⚠ What goes in that way is not cleared by TTL below: clearing also needs the front.
+  z2-notify -h -c "$code" "One-time code" "$code"
+  exit 0
+fi
 z2-toast "Copied code: ${code}"
 
 # After TTL, clear the clipboard only if it still holds the code we copied
@@ -1027,10 +1037,18 @@ Registering it is one line.
 z2-when notify:otp run ~/.z2term/macros/otp-clip.sh
 ```
 
-> 💡 **If you do not need the auto-clear, the whole thing is one line.**
+⚠ **A macro running in the background cannot stop at `z2-clip set`** (0.8.335): since Android 10,
+**an app that is not in front cannot write the clipboard**. Codes almost always arrive while you
+are looking at some other app, so always add the `z2-notify -c` copy button (pressing it brings
+z2term to the front for that instant, so it always lands). ⚠ While **z2term is the input method
+(IME) you are using on this device**, the OS makes an exception and background writes do work —
+the read-back above absorbs that difference too.
+
+> 💡 **If you do not need the auto-clear, the whole thing is one line** (a direct `z2-clip set`
+> only lands while you are looking at the app, so keep the button when it matters).
 >
 > ```sh
-> z2-when notify:otp run 'echo "$Z2_WHEN_OTP" | z2-clip set'
+> z2-when notify:otp run 'z2-notify -h -c "$Z2_WHEN_OTP" "One-time code" "$Z2_WHEN_OTP"'
 > ```
 
 ⚠ **On Android 15+ a code delivered by notification may be redacted** (sensitive-notification
@@ -1065,8 +1083,12 @@ has "SMS detection", which **reads the SMS body itself** — redaction and the l
 - **Shortest form** (`sms:otp` does the extraction; it works whether or not logging is on):
 
   ```sh
-  z2-when sms:otp run 'echo "$Z2_WHEN_OTP" | z2-clip set'
+  z2-when sms:otp run 'z2-notify -h -c "$Z2_WHEN_OTP" "One-time code" "$Z2_WHEN_OTP"'
   ```
+
+  ⚠ `z2-clip set` is not called directly here because **an app that is not in front cannot write
+  the clipboard** (Android 10+). An SMS almost always arrives while you are doing something else,
+  so the code is handed over through the `-c` copy button (see 5-6).
 
 - **When you want the auto-clear too**, use the same file as 5-6 and just swap the trigger.
   `z2-macro install otp-sms` puts it in place, so registering it is all that is left:
@@ -1191,9 +1213,22 @@ reminder** — a note silently becoming an appointment is worse than no reminder
 
 ### 5-10. Worked example: capture calls from numbers not in your contacts
 
-When someone who is not in your contacts calls, copy their number to the clipboard. Whether you want
-to call back, look the number up, or block it, you no longer have to copy it down by hand.
+When someone who is not in your contacts calls, put their number in a notification with a
+**"Copy" button, one press away from the clipboard**. Whether you want to call back, look the number
+up, or block it, you no longer have to copy it down by hand.
 (`z2-macro install unknown-call` gives you exactly what is below.)
+
+⚠ **Why it waits for a press instead of copying by itself.** Since Android 10, **an app that is not
+in front cannot write the clipboard**. During a call the app in front is the phone app, so a
+`z2-clip set` here is dropped by the OS — silently, which is what makes it so easy to miss:
+
+```
+E ClipboardService: Denying clipboard access to com.zerotoship.z2term,
+  application is not in focus nor is it a system service for user 0
+```
+
+The "Copy" button added by `z2-notify -c <text>` **brings z2term to the front for that instant**, so
+it never hits that limit (0.8.335).
 
 **How "not in contacts" is decided.** A phone app shows the **name** for someone in your contacts and
 the **bare number** for someone who is not. So if **the notification shows a number**, that caller is
@@ -1230,14 +1265,16 @@ done
 # A name was shown = in contacts. Do nothing.
 [ -n "$num" ] || exit 0
 
-z2-clip set "$num"
-
 # The category tells which one fired.
 case "$Z2_WHEN_NOTI_CATEGORY" in
   missed_call) what="Missed call" ;;
   *)           what="Incoming call" ;;
 esac
-z2-notify -h "${what}: number not in contacts" "Copied ${num}"
+
+# Hand the number over through the notification's "Copy" button (-c). Calling z2-clip set here
+# would not land: Android 10+ only lets the app in front write to the clipboard, and during a
+# call that is the phone app.
+z2-notify -h -c "$num" "${what}: number not in contacts" "$num"
 ```
 
 That is the whole registration:

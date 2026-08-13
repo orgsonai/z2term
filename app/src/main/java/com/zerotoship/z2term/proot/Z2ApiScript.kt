@@ -84,14 +84,19 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |fi
     """.trimMargin() + "\n"
 
+    // ⚠ --copy は「通知のボタンでクリップボードへ入れる」ための唯一の道 (0.8.335)。裏で走った
+    //   マクロが直に z2-clip set を呼んでも Android 10+ は黙って捨てる (前面のアプリしか書けない)
+    //   ため、着信・SMS・通知をきっかけに動くマクロはこちらを使う。
     val notify = "#!/bin/sh\n" + m.notifyHelp + "\n" + helpCaseLong + """
         |high=""
         |name=""
+        |copy=""
         |b1=""; b2=""; b3=""
         |while [ ${d}# -gt 0 ]; do
         |  case "${d}1" in
         |    -h|--high|--banner) high="high"; shift ;;
         |    -n|--name) name="${d}2"; shift 2 || exit 1 ;;
+        |    -c|--copy) copy="${d}2"; shift 2 || exit 1 ;;
         |    -b|--button)
         |      # 先着 3 つを採用し、4 つ目以降は黙って無視する (Android が 3 つしか出さないため)。
         |      if   [ -z "${d}b1" ]; then b1="${d}2"
@@ -104,9 +109,9 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |  esac
         |done
         |if [ ${d}# -ge 2 ]; then
-        |  exec /usr/local/bin/z2api 0 notify "${d}1" "${d}2" "${d}high" "${d}name" "${d}b1" "${d}b2" "${d}b3"
+        |  exec /usr/local/bin/z2api 0 notify "${d}1" "${d}2" "${d}high" "${d}name" "${d}copy" "${d}b1" "${d}b2" "${d}b3"
         |elif [ ${d}# -eq 1 ]; then
-        |  exec /usr/local/bin/z2api 0 notify "${d}1" "" "${d}high" "${d}name" "${d}b1" "${d}b2" "${d}b3"
+        |  exec /usr/local/bin/z2api 0 notify "${d}1" "" "${d}high" "${d}name" "${d}copy" "${d}b1" "${d}b2" "${d}b3"
         |else
         |  echo "${m.notifyUsage}" >&2; exit 1
         |fi
