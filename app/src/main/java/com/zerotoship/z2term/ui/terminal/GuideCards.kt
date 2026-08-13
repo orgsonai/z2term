@@ -30,7 +30,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
-import com.zerotoship.z2term.proot.MACRO_POLL_SECONDS
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBorder
 import com.zerotoship.z2term.ui.theme.ZtsGreen
@@ -99,7 +98,7 @@ data class GuideStep(
  *
  * ⚠ **説明は「何をするか」を言い切る** (0.8.337・利用者の指摘)。「電池が減ったら知らせる」は
  * 何 % でなのか、「毎朝きまった時刻に読み上げる」は何を読み上げるのかが読めなかった。
- * 動かしてみないと分からない値・中身・遅れは、説明の側に出す ([guideDesc])。
+ * 動かしてみないと分からない値・中身は、説明の側に出す ([guideDesc])。
  */
 enum class Guide(
     val id: String,
@@ -107,17 +106,29 @@ enum class Guide(
     val steps: List<GuideStep>
 ) {
     /**
-     * 充電やイヤホンの抜き差しに反応する。常駐させて使う形の見本。
+     * 充電やイヤホンの抜き差しに反応する。`z2-when` で待ち受ける形の見本。
      *
-     * ⚠ **これはログを見に行く形なので、反応は最大 [MACRO_POLL_SECONDS] 秒遅れる。**
-     * 説明にその上限を出す ([guideDesc])。黙っていると「反応する」と読んだ人が
-     * 遅れを不具合として受け取る (利用者の指摘・0.8.337)。
+     * ⚠ **常駐スクリプトに戻さない** (0.8.338・利用者の判断)。0.8.337 まではログを 15 秒ごとに
+     * 見に行く形で、**反応が 10 秒近く遅れる**のを説明に書いていた。待ち受けはアプリ側が
+     * できる (`event:` はブロードキャストを受けたその場でルールを走らせる) ので、遅れも
+     * 待機中の電池消費も消える。⚠ **ワイルドカードで 2 本にまとめる** — 4 つのイベントに
+     * 4 本のルールを並べると、自動化タブが同じマクロで埋まる。
      */
     WATCH_BASIC("watch-basic", R.string.guide_desc_watch_basic, listOf(
         GuideStep(R.string.guide_step_events_on),
         GuideStep(R.string.guide_step_install, "z2-macro install watch-basic"),
-        GuideStep(R.string.guide_step_run_here, "sh ~/.z2term/macros/watch-basic.sh"),
-        GuideStep(R.string.guide_step_resident),
+        GuideStep(
+            R.string.guide_step_when_charge,
+            "z2-when 'event:power_*' run ~/.z2term/macros/watch-basic.sh"
+        ),
+        GuideStep(
+            R.string.guide_step_when_headset,
+            "z2-when 'event:headset_*' run ~/.z2term/macros/watch-basic.sh"
+        ),
+        GuideStep(
+            R.string.guide_step_try_event,
+            "Z2_WHEN_EVENT=power_connected sh ~/.z2term/macros/watch-basic.sh"
+        ),
     )),
 
     /** 電池が減ったら知らせる。z2-when が起こす「使い切り」の形。 */
@@ -232,17 +243,11 @@ enum class Guide(
 }
 
 /**
- * 案内の説明 1 行。**埋める値がある案内はここで入れる**ので、呼ぶ側は数字を知らなくてよい。
- *
- * `watch-basic` は「見に行く間隔ぶん反応が遅れる」形なので、その上限を説明に出す
- * (利用者の指摘: 充電とイヤホンの反応が 10 秒近く遅れる・0.8.337)。値は
- * [MACRO_POLL_SECONDS] から流し込む — サンプルの `POLL` と数字を 2 か所に書かない。
+ * 案内の説明 1 行。**埋める値がある案内はここで入れる**ので、呼ぶ側は値を知らなくてよい。
+ * いまはどの説明も埋める値を持たないが、入口を 1 か所にしておく (一覧と見出しで食い違わせない)。
  */
 @Composable
-fun guideDesc(guide: Guide): String = when (guide) {
-    Guide.WATCH_BASIC -> stringResource(guide.descRes, MACRO_POLL_SECONDS)
-    else -> stringResource(guide.descRes)
-}
+fun guideDesc(guide: Guide): String = stringResource(guide.descRes)
 
 /**
  * 案内の見出し 1 行 (`rss — フィードの新着を通知して、1 本ずつ読む`)。

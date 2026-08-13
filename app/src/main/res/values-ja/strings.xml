@@ -738,7 +738,7 @@
     <string name="settings_guides">案内を表示</string>
     <string name="settings_guides_desc">同梱サンプルのマクロです。押すと、そのマクロを使うまでの手順が端末の上にカードで出ます。タップするとその 1 行を実行し（自分の値が要る行は先に聞きます）、要らない行は ✕ で消せます。</string>
     <string name="guide_hint">タップで実行（Ctrl-C で打ちかけを捨ててから送ります）／ 要らない行は ✕</string>
-    <string name="guide_desc_watch_basic">充電やイヤホンの抜き差しに反応する（気付くまで最大 %1$d 秒）</string>
+    <string name="guide_desc_watch_basic">充電やイヤホンの抜き差しに、その場で反応する</string>
     <string name="guide_desc_battery_alert">電池が決めた % を切ったら知らせる</string>
     <string name="guide_desc_daily_report">毎朝きまった時刻に電池と接続を読み上げる</string>
     <string name="guide_desc_otp_clip">通知の認証コードをコピーする</string>
@@ -752,10 +752,11 @@
     <string name="guide_step_help">使い方（書き方の一覧）を見る</string>
     <string name="guide_step_list">登録したものを一覧する</string>
     <string name="guide_step_when">きっかけを登録する（⚙設定 → 自動化ルール にも出ます）</string>
+    <string name="guide_step_when_charge">充電のきっかけを登録する（⚙設定 → 自動化ルール にも出ます）</string>
+    <string name="guide_step_when_headset">イヤホンのきっかけも登録する</string>
+    <string name="guide_step_try_event">充電したことにして動かしてみる</string>
     <string name="guide_step_when_missed">不在着信も控えるなら、もう 1 本登録する</string>
-    <string name="guide_step_run_here">この場で動かしてみる（止めるのは Ctrl-C）</string>
     <string name="guide_step_try">試しに 1 回動かす</string>
-    <string name="guide_step_resident">動かし続けるなら、⚙設定 → 常駐サーバー に上と同じ行を登録する</string>
     <string name="guide_step_events_on">⚙設定 →「システムイベント検知」を ON にする</string>
     <string name="guide_step_notify_on">⚙設定 →「通知検知」を ON ＋ OS の「通知アクセス」を許可する</string>
     <string name="guide_step_sms_on">⚙設定 →「SMS 検知」を ON ＋ OS の SMS 受信を許可する</string>

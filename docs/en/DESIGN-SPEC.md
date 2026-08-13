@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-14 / Target version: 0.8.337-alpha (versionCode 345)
+Last updated: 2026-08-14 / Target version: 0.8.338-alpha (versionCode 346)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -620,7 +620,7 @@ means would then depend on the payload, which cannot be explained to anyone.
 - The entry point is **Settings › Maintenance › Show a guide**. There are nine guides, openable as often as you like.
 - ⚠ **Each row is two lines: the macro name plus what it does** (`watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `unknown-call` / `remind` / `rss` / `qr`; 0.8.335–0.8.336, user reports). Up to 0.8.334 the list showed **only descriptions**, and "Starter: react to what happens" said neither what it was for nor **which macro it was about**. 0.8.335 swung to **names only**, and the answer after trying it on-device was that you then **cannot tell what any of them do**. Neither half is enough alone, so the name leads and the description follows. A guide card has only one heading line, so `guideTitle()` folds them into `rss — get notified about new feed items and read them`. ⚠ **That is the only place they are joined** — never write the name into the description string (it would then live in two places).
 - ⚠ **A description has to say what the macro actually does** (0.8.337, user report). Pairing it with the name is not enough if the description itself is vague. All three that stalled a reader on-device were about **something you could only learn by running it**: "warn me when the battery is low" never said **at what %** (→ "warn me when the battery drops below a % I pick" — the guide asks for the % and puts it in `z2-when battery:below=`, so the description says so too), "read out a report every morning" never said **what** it reads out (→ "read out battery and connection every morning" — `daily-report.sh` speaks the level and Wi-Fi vs mobile), and "react to charging and headsets" does **not** react right away (→ below).
-- ⚠ **`watch-basic` states "up to N s to notice" in its description** (0.8.337, user report: reactions run about 10 s late). It is the skeleton that **polls a log**, so it notices on the next pass rather than at the moment you plug or unplug (`POLL`, 15 s by default). Saying only "react to" makes that lag read as **a defect**. ⚠ The number is fed in by `guideDesc()` from `MACRO_POLL_SECONDS` (`Z2MacroScript`), so it is **never written in two places** alongside the sample's `POLL`. ⚠ **Do not shorten the interval to close the gap** — as measured in 0.8.273, idling that way burns engine CPU and shows up as battery drain. A trigger whose lag matters belongs on `z2-when` instead (the app waits, so the rule runs right where `SystemEventService` receives the broadcast).
+- ⚠ **`watch-basic` was moved onto `z2-when`** (0.8.338, user's call). Up to 0.8.337 it was a resident script polling the log, and the answer to its lag was to write "up to 15 s to notice" into the description (`POLL`, 15 s by default). But the lag came from **doing the waiting yourself**, and what it waited for — charging and headsets — is expressible with `z2-when`. `event:` runs the rule right where the broadcast arrives (`SystemEventService`), so handing the waiting to the app removes both the lag and the idle battery cost. The guide now registers two rules ("the charging trigger", "the headset trigger") and ends with `Z2_WHEN_EVENT=power_connected sh …` to **pretend charging just started** and check it. ⚠ **Never spread four events over four rules** — fold them with wildcards (`event:power_*` / `event:headset_*`). An automation tab full of the same macro says nothing about what you armed.
 - ⚠ **`rss` and `rss-open` were merged into one guide** (0.8.335, user report). With "get notified about new feed items" and "open collected articles one at a time" sitting apart in the list, nothing says they are **two halves of the same subscription**. Collecting and reading are one sequence, so they are listed as one.
 - ⚠ **Steps that need a value of your own ask before running** (`GuideStep.askRes`, 0.8.335, user report). Up to 0.8.334, tapping "write the feed URLs you want" registered `https://example.com/feed` **as-is** — being able to run the sample value means **a setting that cannot possibly work goes in silently**. URLs, times, thresholds and the QR payload are taken in a text field and cannot be sent empty (the `%s` in the displayed command is filled in on the spot).
 - Look and send path are **the same components** as the intro cards (`GuideCardColumn` / `GuideCardRow`). Card order is step order: tap to run one line, ✕ to drop the ones you do not need.
@@ -917,13 +917,15 @@ of Doze.
 - **`z2-when` triggers express the same thing** (`battery:below=` / `time:daily=` / `notify:otp` /
   `sms:otp`). For OTPs in particular **the app has already extracted the code into `Z2_WHEN_OTP`**,
   so the body-parsing awk disappears entirely. All four lost their watch loops; idling now costs nothing.
-- **Only `watch-basic` stays resident.** It *is* the skeleton for "pick up something `z2-when` does not
-  have", so its watch loop is the point. Its `POLL` did move from **2 s to 15 s**, with the reason
-  written into the script's own comments (that number is the first thing a reader edits, so the
-  default has to be the answer).
-- `GeneratedScriptMarginTest.triggerBasedSamples_doNotPoll` pins "nothing but `watch-basic` has a
-  watch loop" and `pollingSample_usesARelaxedInterval` pins "`POLL` is at least 10". **Reverting to
-  the resident shape fails the tests.**
+- **`watch-basic` moved onto `z2-when` in 0.8.338 too, so no bundled sample is resident any more**
+  (user's call). Up to 0.8.337 it kept its watch loop as the skeleton for "pick up something
+  `z2-when` does not have", with `POLL` widened from **2 s to 15 s**. But **the skeleton was picking
+  up triggers `z2-when` can express** (charging, headsets), and on-device the polling interval showed
+  up as a lagging reaction. ⚠ **The diff-reading technique still lives in MACRO-GUIDE 5-0** — do not
+  bring a resident sample back (`diffSetup` / `diffLoop` are gone).
+- `GeneratedScriptMarginTest.samples_doNotPoll` pins "**no sample has a watch loop**" and
+  `watchBasicSample_reactsThroughWhen` pins "the starter sample branches on `Z2_WHEN_EVENT`".
+  **Reverting to the resident shape fails the tests.**
 - `samples_areValidPosixShell` was added at the same time, running every generated sample in both
   languages through a real `sh -n` (these are teaching material — shipping one with a syntax error
   breaks someone on their very first macro).

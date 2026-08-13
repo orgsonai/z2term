@@ -751,7 +751,7 @@
     <string name="settings_guides">Show a guide</string>
     <string name="settings_guides_desc">The bundled sample macros. Pick one to put the steps for it on cards above the terminal. Tapping a card runs that one line (steps that need a value of your own ask first); ✕ drops the ones you do not need.</string>
     <string name="guide_hint">Tap to run (Ctrl-C first, so a half-typed line cannot mix in) / ✕ to skip a step</string>
-    <string name="guide_desc_watch_basic">react to charging and headsets (up to %1$d s to notice)</string>
+    <string name="guide_desc_watch_basic">react to charging and headsets, right as it happens</string>
     <string name="guide_desc_battery_alert">warn me when the battery drops below a % I pick</string>
     <string name="guide_desc_daily_report">read out battery and connection every morning</string>
     <string name="guide_desc_otp_clip">copy one-time codes from notifications</string>
@@ -765,10 +765,11 @@
     <string name="guide_step_help">See how to write it (the full syntax)</string>
     <string name="guide_step_list">List what is registered</string>
     <string name="guide_step_when">Register the trigger (it also shows under Settings -> Automation rules)</string>
+    <string name="guide_step_when_charge">Register the charging trigger (it also shows under Settings -> Automation rules)</string>
+    <string name="guide_step_when_headset">Register the headset trigger too</string>
+    <string name="guide_step_try_event">Pretend charging just started and run it</string>
     <string name="guide_step_when_missed">Register a second one to catch missed calls too</string>
-    <string name="guide_step_run_here">Run it here (Ctrl-C to stop)</string>
     <string name="guide_step_try">Run it once to try it</string>
-    <string name="guide_step_resident">To keep it running, register the same line under Settings -> Resident servers</string>
     <string name="guide_step_events_on">Settings -> turn on "System event detection"</string>
     <string name="guide_step_notify_on">Settings -> turn on "Notification detection" + grant OS notification access</string>
     <string name="guide_step_sms_on">Settings -> turn on "SMS detection" + grant the OS SMS permission</string>

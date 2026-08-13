@@ -119,7 +119,7 @@ class GeneratedScriptMarginTest {
     }
 
     /**
-     * **`z2-when` で表現できるサンプルは監視ループを持たない**こと（0.8.273）。
+     * **どの同梱サンプルも監視ループを持たない**こと（0.8.273 → 0.8.338 で例外なしへ）。
      *
      * 0.8.272 まで OTP・電池・日報のサンプルは「ログを 2 秒ごとに見張る常駐スクリプト」で、
      * 常駐サーバーに登録して使う案内が付いていた。エンジン(proot/z2root)下では外部コマンドを
@@ -127,15 +127,15 @@ class GeneratedScriptMarginTest {
      * **待っているだけでエンジンが CPU を常時 5% 前後**使い続けていた（実測）。同じことが
      * `z2-when` のトリガーで常駐なしに書けるので、常駐版へ戻さないことをここで固定する。
      *
-     * `watch-basic.sh` だけは例外 — **ログ差分の読み方そのものを見せる教材**で、`z2-when` に
-     * 無いきっかけを自分で拾いたいときの雛形だから、監視ループがあることに意味がある。
+     * 0.8.337 まで `watch-basic.sh` だけを例外にしていた（ログ差分の読み方を見せる教材）が、
+     * **拾っていたのは `z2-when` で書けるきっかけ**（充電・イヤホン）だったため、見に行く間隔の
+     * ぶん反応が遅れていた（利用者の指摘）。教材としての差分読みは MACRO-GUIDE 5-0 に残し、
+     * 同梱サンプルからは例外を無くした。⚠ **待ち受けはアプリ側の仕事**。
      */
     @Test
-    fun triggerBasedSamples_doNotPoll() {
-        val mayPoll = setOf("watch-basic.sh")
+    fun samples_doNotPoll() {
         for (lang in listOf("ja", "en")) {
             for ((name, body) in z2MacroSamples(lang)) {
-                if (name in mayPoll) continue
                 assertTrue(
                     "$lang/$name が監視ループ (while :;) を持っている — z2-when で書けるはず",
                     !body.contains("while :;")
@@ -144,14 +144,25 @@ class GeneratedScriptMarginTest {
         }
     }
 
-    /** 雛形の見張り間隔が詰められていないこと（エンジン下ではここが電池に直結する）。 */
+    /**
+     * 入門サンプルが**`z2-when` から渡る出来事で分岐する**こと（0.8.338）。
+     *
+     * ここが `Z2_WHEN_EVENT` を見なくなると、待ち受けを自前でやる形（＝遅れる形）へ
+     * 逆戻りしたということなので、名前とワイルドカードの登録例ごと固定しておく。
+     */
     @Test
-    fun pollingSample_usesARelaxedInterval() {
-        val body = z2MacroSamples("ja")["watch-basic.sh"]!!
-        val poll = Regex("""^POLL=(\d+)""", RegexOption.MULTILINE)
-            .find(body)?.groupValues?.get(1)?.toInt()
-        assertTrue("watch-basic.sh に POLL が無い", poll != null)
-        assertTrue("POLL=$poll は短すぎる (エンジン下では電池に出る)", poll!! >= 10)
+    fun watchBasicSample_reactsThroughWhen() {
+        for (lang in listOf("ja", "en")) {
+            val body = z2MacroSamples(lang)["watch-basic.sh"]!!
+            assertTrue("$lang: Z2_WHEN_EVENT で分岐していない", body.contains("Z2_WHEN_EVENT"))
+            assertTrue(
+                "$lang: z2-run 行が event: の登録になっていない",
+                body.contains("# z2-run: z2-when 'event:power_*'")
+            )
+            for (event in listOf("power_connected", "power_disconnected", "headset_plugged", "headset_unplugged")) {
+                assertTrue("$lang: $event を拾っていない", body.contains("$event)"))
+            }
+        }
     }
 
     /**

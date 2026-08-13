@@ -826,8 +826,8 @@ done
 
 - **Matching on event names is format-independent.** `{event}` renders as `power_connected`
   verbatim in both JSON and a template, so `case "$rec" in *power_connected*)` always works.
-  The **five log-watching samples** (`watch-basic` / `battery-alert` / `daily-report` / `otp-clip` /
-  `otp-sms`) are written this way.
+  ⚠ Every bundled sample **moved onto `z2-when` in 0.8.338**, so this shape (polling the log
+  yourself) is for triggers `z2-when` does not have.
 - **Values** (battery level, etc.) come from `z2-state`, which never touches the log. Prefer this.
 - **Parsing a log field** (like `ssid`, which `z2-state` doesn't expose) is the one part that
   depends on the format you chose. Write it against the default JSONL and adjust if you change it.
@@ -888,7 +888,7 @@ A script is run in one of **two ways**, and **mixing them up causes real trouble
 
 | Kind | How you run it | What is in it |
 |---|---|---|
-| **Resident** (keeps running) | Register a start command in `⚙ Settings → Resident servers` (e.g. `sh ~/.z2term/macros/watch.sh`). Turn on "auto-start on boot" and it runs without opening the app and after a reboot | Anything built on the 5-0 skeleton (it has a watch loop) |
+| **Resident** (keeps running) | Register a start command in `⚙ Settings → Resident servers` (e.g. `sh ~/.z2term/macros/watch.sh`). Turn on "auto-start on boot" and it runs without opening the app and after a reboot | Anything built on the 5-0 skeleton (it has a watch loop; no bundled sample does) |
 | **One-shot** (runs once and exits) | Register it with `z2-when` / assign it to a widget button / run it by hand | Anything shaped like 5-A ("just the work") |
 
 ⚠ **Never register a one-shot script as a resident server.** The supervisor treats "it exited" as
@@ -901,7 +901,7 @@ holds a WakeLock and a WifiLock and keeps the device out of Doze. On top of that
 (proot/z2root). On a device running a single 2-second watcher the measurement was **3 seconds of CPU
 per minute (~5% continuously)**. **Always ask first whether a `z2-when` trigger can express it** —
 if it can, you need no resident script at all (0.8.273 moved the battery, daily-report and OTP
-samples from resident loops to `z2-when`). Residency is genuinely needed only when you are picking
+samples onto `z2-when`, and 0.8.338 the starter one, so **no bundled sample is resident**). Residency is genuinely needed only when you are picking
 up something `z2-when` does not have (the 5-0 skeleton).
 
 For a quick test, just run it in the terminal: `sh ~/.z2term/macros/watch.sh &` (resident) or

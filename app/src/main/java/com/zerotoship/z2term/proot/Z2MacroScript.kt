@@ -18,45 +18,46 @@ fun z2MacroSamples(lang: String): Map<String, String> {
     val ja = lang != "en"
     val d = "${'$'}"
 
-    // --- 1. 入門: イベントに反応する ---
+    // --- 1. 入門: 出来事に反応する (待ち受けは z2-when がやる) ---
     val watchBasic = buildString {
         appendLine("#!/bin/sh")
         if (ja) {
-            appendLine("# watch-basic.sh — 入門用マクロ。イベントを見て反応する。")
-            appendLine("# ログ形式・追記方向のどちらにも依存しない (差分を読み、イベント名で照合する)。")
+            appendLine("# watch-basic.sh — 入門用マクロ。端末の出来事に反応する。")
+            appendLine("# 待ち受けはアプリ側 (z2-when) がやるので常駐させない。起きたときに 1 回走って終わる。")
             appendLine("# 準備: ⚙設定 →「システムイベント検知」を ON")
-            appendLine("# 常駐: ⚙設定 → 常駐サーバー に  sh ~/.z2term/macros/watch-basic.sh  を登録")
+            appendLine("# z2-run: z2-when 'event:power_*' run ~/.z2term/macros/watch-basic.sh   (イヤホンは 'event:headset_*' でもう 1 本)")
         } else {
-            appendLine("# watch-basic.sh — starter macro. React to system events.")
-            appendLine("# Independent of log format and write direction (diffs the log, matches on event names).")
+            appendLine("# watch-basic.sh — starter macro. React to what happens on the device.")
+            appendLine("# The app (z2-when) does the waiting, so this is not resident: it runs once and exits.")
             appendLine("# Setup: Settings -> \"System event detection\" ON")
-            appendLine("# Resident: register  sh ~/.z2term/macros/watch-basic.sh  under Settings -> Resident servers")
+            appendLine("# z2-run: z2-when 'event:power_*' run ~/.z2term/macros/watch-basic.sh   (headsets: a second rule with 'event:headset_*')")
         }
-        append(diffSetup(d, ja, "events.jsonl", "watch-basic"))
         appendLine()
         if (ja) {
-            appendLine("# 新着の塊を 1 行ずつ見て、イベント名が含まれていたら反応する。")
-            appendLine("# JSON の \"event\":\"...\" もテンプレートの {event} も、名前がそのまま出るので同じ書き方で拾える。")
+            appendLine("# 何が起きたかは Z2_WHEN_EVENT に入る (使える名前は z2-when events で一覧できる)。")
+            appendLine("# 手で試すときは:  Z2_WHEN_EVENT=power_connected sh ~/.z2term/macros/watch-basic.sh")
         } else {
-            appendLine("# Walk the new chunk line by line and react when an event name appears.")
-            appendLine("# The name shows up verbatim in both JSON (\"event\":\"...\") and a {event} template.")
+            appendLine("# What happened arrives in Z2_WHEN_EVENT (z2-when events lists the names).")
+            appendLine("# To try it by hand:  Z2_WHEN_EVENT=power_connected sh ~/.z2term/macros/watch-basic.sh")
         }
-        appendLine("handle() {")
-        appendLine("  printf '%s\\n' \"${d}1\" | while IFS= read -r rec; do")
-        appendLine("    case \"${d}rec\" in")
+        appendLine("event=${d}{Z2_WHEN_EVENT:-}")
         if (ja) {
-            appendLine("      *power_connected*)    z2-toast \"充電を開始しました\" ;;")
-            appendLine("      *power_disconnected*) z2-toast \"充電をやめました\" ;;")
+            appendLine("[ -n \"${d}event\" ] || { echo \"Z2_WHEN_EVENT が空です。手で試すなら Z2_WHEN_EVENT=power_connected sh ${d}0\"; exit 0; }")
         } else {
-            appendLine("      *power_connected*)    z2-toast \"Charging started\" ;;")
-            appendLine("      *power_disconnected*) z2-toast \"Charging stopped\" ;;")
+            appendLine("[ -n \"${d}event\" ] || { echo \"Z2_WHEN_EVENT is empty. To try by hand: Z2_WHEN_EVENT=power_connected sh ${d}0\"; exit 0; }")
         }
-        appendLine("      *headset_plugged*)    z2-media play ;;")
-        appendLine("      *headset_unplugged*)  z2-media pause ;;")
-        appendLine("    esac")
-        appendLine("  done")
-        appendLine("}")
-        append(diffLoop(d, ja, "handle"))
+        appendLine()
+        appendLine("case \"${d}event\" in")
+        if (ja) {
+            appendLine("  power_connected)    z2-toast \"充電を開始しました\" ;;")
+            appendLine("  power_disconnected) z2-toast \"充電をやめました\" ;;")
+        } else {
+            appendLine("  power_connected)    z2-toast \"Charging started\" ;;")
+            appendLine("  power_disconnected) z2-toast \"Charging stopped\" ;;")
+        }
+        appendLine("  headset_plugged)    z2-media play ;;")
+        appendLine("  headset_unplugged)  z2-media pause ;;")
+        appendLine("esac")
     }
 
     // --- 2. z2-state を使う: 状況を見てから動く (z2-when が起こす「使い切り」の形) ---
@@ -553,135 +554,6 @@ echo "${d}url" >> "${d}OPENED"
 # $cCap
 tail -n 500 "${d}OPENED" > "${d}OPENED.t" && mv "${d}OPENED.t" "${d}OPENED"
 z2-open "${d}url"
-"""
-}
-
-/*
- * --- サンプル共通: ログの「新着だけ」を読む部品 ---
- *
- * 通知/イベントのログは**ユーザーが形式を自由に決められ**(任意テンプレート・改行入りも可)、
- * さらに ⚙設定の「新着を上」で**先頭追記**にも切り替えられる。そのため、素朴な
- * 「1 行 = 1 レコード」「`tail -F` で末尾を追う」実装は次の 2 通りで破綻する:
- *  - 複数行テンプレートでは 1 レコードが複数行に割れ、必要な情報が同じ行に揃わない。
- *  - 先頭追記ではファイル末尾に新着が来ないので `tail -F` が永久に何も拾わない。
- *
- * そこで**前回スナップショットとの差分**を見る。差分が前回内容の前後どちらに付いたかで
- * 追記方向を自動判別でき、差分は行に割らず塊のまま渡すので複数行テンプレートも扱える。
- *
- * [diffSetup] が変数と準備、[diffLoop] が監視ループを吐く。両者の間に各サンプル固有の
- * ハンドラ関数を置く。サンプルは `z2-macro install <名前>` で 1 ファイルずつ展開する
- * 教材なので、**生成後のスクリプトは自己完結**させる (共通ファイルへの依存を作らない)。
- */
-
-/**
- * 差分読みサンプルがログを見に行く間隔 (秒)。
- *
- * ⚠ **これは「出来事に気付くまでの最大の遅れ」でもある。** 抜き差しした瞬間ではなく、次に
- * 見に行ったときに気付くので、`watch-basic` の反応はここまで遅れる (利用者の指摘: 充電と
- * イヤホンの反応が 10 秒近く遅れる)。案内の説明にもこの値を流し込むので、**数字を 2 か所に
- * 書かない**こと ([R.string.guide_desc_watch_basic])。
- *
- * ⚠ **詰めないこと** (0.8.273)。2 秒だった頃、常駐させた端末で「待っているだけ」の CPU が
- * 常時 5% 前後になり、電池の減りとして表に出た (実測)。遅れが困るなら間隔ではなく
- * **`z2-when` で待ち受ける形**に変える (アプリ側が待つので遅れも待機コストも無い)。
- */
-const val MACRO_POLL_SECONDS = 15
-
-/** 差分読みの変数と準備。[log] は `~/.z2term/` 配下のファイル名、[tag] は作業ファイルの識別名。 */
-private fun diffSetup(d: String, ja: Boolean, log: String, tag: String): String {
-    val cPoll = if (ja) {
-        "ログを見に行く間隔(秒)。= 反応が遅れる上限。⚠ 詰めないこと (下記)"
-    } else {
-        "how often to poll the log (seconds) = the longest a reaction can lag. Do NOT shorten (see below)"
-    }
-    // ⚠ **この既定値を小さくしないこと** (0.8.273)。0.8.272 まで 2 秒だった結果、これを常駐させた
-    // 端末で「待っているだけ」の CPU が常時 5% 前後になり、電池の減りとして表に出た (実測)。
-    // 同じ理由でアプリ側の supervisor も 1 秒 → 5 秒へ広げてある (ServerSupervisorScript 参照)。
-    val cCost = if (ja) {
-        """
-# ⚠ **POLL を詰めないでください。** このスクリプトはエンジン (proot/z2root) の中で動くので、
-# 外部コマンドを 1 回起こすだけで ptrace 越しに数千 syscall になります。1 周で sleep と wc を
-# 起こすため、2 秒間隔にすると**待っているだけでエンジンが CPU を数 % 使い続け**、常駐中は
-# 端末が Doze に入れないぶん電池が目に見えて減ります (実測: 60 秒あたり CPU 3 秒)。
-# ⚠ そもそも **z2-when に登録できるきっかけなら、この形ではなく z2-when を使ってください。**
-# 待ち受けはアプリ側がやるので、常駐スクリプトが 1 本も要らず、待っている間のコストがゼロです。
-"""
-    } else {
-        """
-# ⚠ **Do not shorten POLL.** This script runs inside the engine (proot/z2root), where starting a
-# single external command costs thousands of ptrace-mediated syscalls. Each pass starts a sleep and
-# a wc, so a 2-second interval keeps **the engine burning a few percent of CPU while doing nothing**,
-# and a resident script also keeps the device out of Doze — visible as battery drain (measured:
-# ~3 seconds of CPU per minute).
-# ⚠ More importantly: **if z2-when can express your trigger, use z2-when instead of this shape.**
-# The app does the waiting, so no resident script is needed and idling costs nothing.
-"""
-    }
-    return """$cCost
-${"POLL=$MACRO_POLL_SECONDS".padEnd(42)}# $cPoll
-LOG=${d}HOME/.z2term/$log
-SNAP=${d}HOME/.z2term/.$tag.snap
-WORK=${d}HOME/.z2term/.$tag.work
-
-[ -f "${d}LOG" ] || : > "${d}LOG"
-"""
-}
-
-/** 差分読みの監視ループ。新着の塊を [handler] に渡す。 */
-private fun diffLoop(d: String, ja: Boolean, handler: String): String {
-    val cBase = if (ja) {
-        "# 初回は「今ある分」を既読の基準にするだけで、過去ログには反応しない。"
-    } else {
-        "# The first pass only records a baseline, so existing entries never fire."
-    }
-    val cSame = if (ja) "サイズが同じなら変化なしとみなす" else "same size = nothing new"
-    val cWhole = if (ja) {
-        "# 直前が空 = 全体が新着。(起動時に必ず基準を取るので過去ログの誤発火にはならない)"
-    } else {
-        "# Previously empty = all of it is new. (The startup baseline keeps old entries from firing.)"
-    }
-    val cAppend = if (ja) "前回内容で「始まる」→ 末尾追記(新着が下)" else "starts with the old content -> appended (newest last)"
-    val cPrepend = if (ja) "前回内容で「終わる」→ 先頭追記(新着が上)" else "ends with the old content -> prepended (newest first)"
-    val cElse = if (ja) {
-        "# どちらでもない = 書き換え/掃除。基準を貼り直すだけで発火しない。"
-    } else {
-        "# Neither = rewritten/cleaned. Just re-baseline without firing."
-    }
-    val cTrunc = if (ja) "# cn < pn (truncate された) も基準の貼り直しだけ。" else "# cn < pn (truncated) also just re-baselines."
-    return """
-$cBase
-cp "${d}LOG" "${d}SNAP" 2>/dev/null || : > "${d}SNAP"
-
-while :; do
-  sleep "${d}POLL"
-  [ -f "${d}LOG" ] || continue
-
-  cn=${d}(wc -c < "${d}LOG"  2>/dev/null || echo 0)
-  pn=${d}(wc -c < "${d}SNAP" 2>/dev/null || echo 0)
-  [ "${d}cn" = "${d}pn" ] && continue           # $cSame
-
-  new=''
-  if [ "${d}cn" -gt "${d}pn" ] && [ "${d}pn" -eq 0 ]; then
-    $cWhole
-    new=${d}(cat "${d}LOG")
-  elif [ "${d}cn" -gt "${d}pn" ]; then
-    grew=${d}((cn - pn))
-    head -c "${d}pn" "${d}LOG" > "${d}WORK" 2>/dev/null
-    if cmp -s "${d}WORK" "${d}SNAP"; then
-      new=${d}(tail -c "${d}grew" "${d}LOG")  # $cAppend
-    else
-      tail -c "${d}pn" "${d}LOG" > "${d}WORK" 2>/dev/null
-      if cmp -s "${d}WORK" "${d}SNAP"; then
-        new=${d}(head -c "${d}grew" "${d}LOG")  # $cPrepend
-      fi
-      $cElse
-    fi
-  fi
-  $cTrunc
-
-  cp "${d}LOG" "${d}SNAP" 2>/dev/null
-  [ -n "${d}new" ] && $handler "${d}new"
-done
 """
 }
 
