@@ -749,17 +749,17 @@
 
     <!-- Guides (step cards). Opened from Settings -> Maintenance -> Show a guide. -->
     <string name="settings_guides">Show a guide</string>
-    <string name="settings_guides_desc">The names of the bundled sample macros. Pick one to put the steps for it on cards above the terminal. Tapping a card runs that one line (steps that need a value of your own ask first); ✕ drops the ones you do not need.</string>
+    <string name="settings_guides_desc">The bundled sample macros. Pick one to put the steps for it on cards above the terminal. Tapping a card runs that one line (steps that need a value of your own ask first); ✕ drops the ones you do not need.</string>
     <string name="guide_hint">Tap to run (Ctrl-C first, so a half-typed line cannot mix in) / ✕ to skip a step</string>
-    <string name="guide_title_watch_basic">watch-basic — react to charging and headsets</string>
-    <string name="guide_title_battery_alert">battery-alert — warn me when the battery is low</string>
-    <string name="guide_title_daily_report">daily-report — read out a report every morning</string>
-    <string name="guide_title_otp_clip">otp-clip — copy one-time codes from notifications</string>
-    <string name="guide_title_otp_sms">otp-sms — copy one-time codes from SMS</string>
-    <string name="guide_title_unknown_call">unknown-call — note calls from numbers I do not have</string>
-    <string name="guide_title_remind">remind — remind me with a notification</string>
-    <string name="guide_title_rss">rss — get notified about new feed items and read them</string>
-    <string name="guide_title_qr">qr — hand something over as a QR code</string>
+    <string name="guide_desc_watch_basic">react to charging and headsets</string>
+    <string name="guide_desc_battery_alert">warn me when the battery is low</string>
+    <string name="guide_desc_daily_report">read out a report every morning</string>
+    <string name="guide_desc_otp_clip">copy one-time codes from notifications</string>
+    <string name="guide_desc_otp_sms">copy one-time codes from SMS</string>
+    <string name="guide_desc_unknown_call">note calls from numbers I do not have</string>
+    <string name="guide_desc_remind">remind me with a notification</string>
+    <string name="guide_desc_rss">get notified about new feed items and read them</string>
+    <string name="guide_desc_qr">hand something over as a QR code</string>
     <string name="guide_step_install">Install the macro</string>
     <string name="guide_step_setup">Set up the hooks and tile slots (once)</string>
     <string name="guide_step_help">See how to write it (the full syntax)</string>

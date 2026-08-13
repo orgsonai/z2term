@@ -1434,19 +1434,38 @@ fun SettingsSheet(
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )
-                    FlowRow(
+                    // **名前と説明を必ず並べて出す** (0.8.335・利用者の指摘)。説明文だけを
+                    // 横に並べていた頃は「入門: できごとに反応する」がどのマクロの話か読めず、
+                    // 名前だけにすると今度は何をするものか分からなかった。どちらか片方では
+                    // 足りないので、名前を主・説明を添えた 2 行の行リストにする。
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        // 並ぶのは**マクロの名前そのもの** (0.8.335)。説明文を並べていた頃は
-                        // 「入門: できごとに反応する」がどのマクロの話か読めなかった (利用者の指摘)。
-                        // 何をするものかは、開いた案内の見出しが言う。
                         Guide.ALL.forEach { guide ->
-                            ActionButton(
-                                label = guide.id,
-                                onClick = { onShowGuide(guide) }
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(ZtsBgCard)
+                                    .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+                                    .clickable { onShowGuide(guide) }
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = guide.id,
+                                    color = ZtsGreen,
+                                    fontSize = 13.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Text(
+                                    text = stringResource(guide.descRes),
+                                    color = ZtsTextSecondary,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
                         }
                     }
                 }

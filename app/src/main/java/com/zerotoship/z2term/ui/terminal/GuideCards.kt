@@ -88,17 +88,21 @@ data class GuideStep(
  * 同梱サンプルマクロ 1 本ぶんの案内。
  *
  * [id] は設定画面から呼ぶときの識別子 (= サンプルのファイル名から `.sh` を除いたもの)。
- * **改名しないこと**。⚠ 設定画面に並ぶのは**この id そのもの** (0.8.335)。説明文を並べていた
- * ときは「入門: できごとに反応する」が何のことか分からず、どのマクロの話かも読めなかった
- * (利用者の指摘)。名前は短いまま出し、何をするものかは開いた案内の見出しで言う。
+ * **改名しないこと**。
+ *
+ * ⚠ **名前 ([id]) と説明 ([descRes]) は必ず並べて出す** (0.8.335・利用者の指摘)。説明文だけを
+ * 並べていたときは「入門: できごとに反応する」が何のことか分からず、**どのマクロの話かも
+ * 読めなかった**。かといって名前だけにすると、今度は**何をするものか分からない**。
+ * どちらか片方では足りないので、一覧では名前を主・説明を添えて 2 行で出し ([guideTitle] は
+ * 案内の見出し用に 1 行へ畳む)。⚠ 説明の文言に名前を書き込まないこと — 二重管理になる。
  */
 enum class Guide(
     val id: String,
-    @param:StringRes val titleRes: Int,
+    @param:StringRes val descRes: Int,
     val steps: List<GuideStep>
 ) {
     /** 充電やイヤホンの抜き差しに反応する。常駐させて使う形の見本。 */
-    WATCH_BASIC("watch-basic", R.string.guide_title_watch_basic, listOf(
+    WATCH_BASIC("watch-basic", R.string.guide_desc_watch_basic, listOf(
         GuideStep(R.string.guide_step_events_on),
         GuideStep(R.string.guide_step_install, "z2-macro install watch-basic"),
         GuideStep(R.string.guide_step_run_here, "sh ~/.z2term/macros/watch-basic.sh"),
@@ -106,7 +110,7 @@ enum class Guide(
     )),
 
     /** 電池が減ったら知らせる。z2-when が起こす「使い切り」の形。 */
-    BATTERY_ALERT("battery-alert", R.string.guide_title_battery_alert, listOf(
+    BATTERY_ALERT("battery-alert", R.string.guide_desc_battery_alert, listOf(
         GuideStep(R.string.guide_step_events_on),
         GuideStep(R.string.guide_step_install, "z2-macro install battery-alert"),
         GuideStep(
@@ -119,7 +123,7 @@ enum class Guide(
     )),
 
     /** 毎朝きまった時刻に読み上げる。時刻トリガーの見本。 */
-    DAILY_REPORT("daily-report", R.string.guide_title_daily_report, listOf(
+    DAILY_REPORT("daily-report", R.string.guide_desc_daily_report, listOf(
         GuideStep(R.string.guide_step_install, "z2-macro install daily-report"),
         GuideStep(
             R.string.guide_step_when,
@@ -131,21 +135,21 @@ enum class Guide(
     )),
 
     /** 通知のワンタイムコードを自動でコピーする。 */
-    OTP_CLIP("otp-clip", R.string.guide_title_otp_clip, listOf(
+    OTP_CLIP("otp-clip", R.string.guide_desc_otp_clip, listOf(
         GuideStep(R.string.guide_step_notify_on),
         GuideStep(R.string.guide_step_install, "z2-macro install otp-clip"),
         GuideStep(R.string.guide_step_when, "z2-when notify:otp run ~/.z2term/macros/otp-clip.sh"),
     )),
 
     /** SMS のワンタイムコードを自動でコピーする (伏せ字を迂回できる確実な方)。 */
-    OTP_SMS("otp-sms", R.string.guide_title_otp_sms, listOf(
+    OTP_SMS("otp-sms", R.string.guide_desc_otp_sms, listOf(
         GuideStep(R.string.guide_step_sms_on),
         GuideStep(R.string.guide_step_install, "z2-macro install otp-sms"),
         GuideStep(R.string.guide_step_when, "z2-when sms:otp run ~/.z2term/macros/otp-sms.sh"),
     )),
 
     /** 電話帳に無い番号の着信を控える。 */
-    UNKNOWN_CALL("unknown-call", R.string.guide_title_unknown_call, listOf(
+    UNKNOWN_CALL("unknown-call", R.string.guide_desc_unknown_call, listOf(
         GuideStep(R.string.guide_step_notify_on),
         GuideStep(R.string.guide_step_install, "z2-macro install unknown-call"),
         GuideStep(
@@ -162,7 +166,7 @@ enum class Guide(
      * 通知でリマインドする。**以前スニペットに置いていた `remind.sh help` の行き先**で、
      * 入れる → 受け口とタイル → 使い方 の順に並べてある。
      */
-    REMIND("remind", R.string.guide_title_remind, listOf(
+    REMIND("remind", R.string.guide_desc_remind, listOf(
         GuideStep(R.string.guide_step_install, "z2-macro install remind"),
         GuideStep(R.string.guide_step_setup, "sh ~/.z2term/macros/remind.sh setup"),
         GuideStep(R.string.guide_step_help, "remind.sh help"),
@@ -176,7 +180,7 @@ enum class Guide(
      * 一覧に「フィードの新着を通知する」「集めた記事を 1 本ずつ開く」が並んでいても、
      * **同じ 1 つの購読の話**だとは読めない。集めるのと読むのは続きなので、続けて並べる。
      */
-    RSS("rss", R.string.guide_title_rss, listOf(
+    RSS("rss", R.string.guide_desc_rss, listOf(
         GuideStep(R.string.guide_step_needs_python),
         GuideStep(R.string.guide_step_install, "z2-macro install rss"),
         GuideStep(
@@ -197,7 +201,7 @@ enum class Guide(
     )),
 
     /** QR にして別の端末へ渡す。 */
-    QR("qr", R.string.guide_title_qr, listOf(
+    QR("qr", R.string.guide_desc_qr, listOf(
         GuideStep(R.string.guide_step_needs_qrencode),
         GuideStep(R.string.guide_step_install, "z2-macro install qr"),
         GuideStep(R.string.guide_step_help, "qr.sh -h"),
@@ -215,6 +219,15 @@ enum class Guide(
         fun byId(id: String): Guide? = entries.firstOrNull { it.id == id }
     }
 }
+
+/**
+ * 案内の見出し 1 行 (`rss — フィードの新着を通知して、1 本ずつ読む`)。
+ *
+ * 一覧では名前と説明を 2 行に分けて出すが、カードの見出しは 1 行しか無いのでここで畳む。
+ * **繋ぎ方はここ 1 か所**にして、`strings.xml` 側に名前を書き込まない。
+ */
+@Composable
+fun guideTitle(guide: Guide): String = "${guide.id} — ${stringResource(guide.descRes)}"
 
 /**
  * いま出している案内。**画面をまたいで 1 つだけ**持つ。
@@ -250,7 +263,7 @@ fun GuideCards(
     }
 
     GuideCardColumn(
-        title = stringResource(guide.titleRes),
+        title = guideTitle(guide),
         hint = stringResource(R.string.guide_hint),
         onClose = onFinish
     ) {
