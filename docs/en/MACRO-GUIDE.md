@@ -771,7 +771,7 @@ be 2). If you need second-level reactions, check first whether `z2-when` already
 ```sh
 #!/bin/sh
 # The shared skeleton. Change LOG, the work-file tag, and handle().
-POLL=15                                   # how often to poll the log (seconds). Do NOT shorten (below)
+POLL=15                                   # how often to poll the log (seconds) = the longest a reaction can lag. Do NOT shorten (below)
 LOG=$HOME/.z2term/events.jsonl
 SNAP=$HOME/.z2term/.mymacro.snap
 WORK=$HOME/.z2term/.mymacro.work

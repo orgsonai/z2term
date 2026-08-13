@@ -108,6 +108,7 @@ import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import com.zerotoship.z2term.ui.components.ResidentActionDialog
 import com.zerotoship.z2term.ui.terminal.Guide
 import com.zerotoship.z2term.ui.terminal.ToolbarButtons
+import com.zerotoship.z2term.ui.terminal.guideDesc
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
@@ -1460,7 +1461,7 @@ fun SettingsSheet(
                                     fontFamily = FontFamily.Monospace
                                 )
                                 Text(
-                                    text = stringResource(guide.descRes),
+                                    text = guideDesc(guide),
                                     color = ZtsTextSecondary,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace

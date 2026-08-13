@@ -573,9 +573,27 @@ z2-open "${d}url"
  * 教材なので、**生成後のスクリプトは自己完結**させる (共通ファイルへの依存を作らない)。
  */
 
+/**
+ * 差分読みサンプルがログを見に行く間隔 (秒)。
+ *
+ * ⚠ **これは「出来事に気付くまでの最大の遅れ」でもある。** 抜き差しした瞬間ではなく、次に
+ * 見に行ったときに気付くので、`watch-basic` の反応はここまで遅れる (利用者の指摘: 充電と
+ * イヤホンの反応が 10 秒近く遅れる)。案内の説明にもこの値を流し込むので、**数字を 2 か所に
+ * 書かない**こと ([R.string.guide_desc_watch_basic])。
+ *
+ * ⚠ **詰めないこと** (0.8.273)。2 秒だった頃、常駐させた端末で「待っているだけ」の CPU が
+ * 常時 5% 前後になり、電池の減りとして表に出た (実測)。遅れが困るなら間隔ではなく
+ * **`z2-when` で待ち受ける形**に変える (アプリ側が待つので遅れも待機コストも無い)。
+ */
+const val MACRO_POLL_SECONDS = 15
+
 /** 差分読みの変数と準備。[log] は `~/.z2term/` 配下のファイル名、[tag] は作業ファイルの識別名。 */
 private fun diffSetup(d: String, ja: Boolean, log: String, tag: String): String {
-    val cPoll = if (ja) "ログを見に行く間隔(秒)。⚠ 詰めないこと (下記)" else "how often to poll the log (seconds). Do NOT shorten (see below)"
+    val cPoll = if (ja) {
+        "ログを見に行く間隔(秒)。= 反応が遅れる上限。⚠ 詰めないこと (下記)"
+    } else {
+        "how often to poll the log (seconds) = the longest a reaction can lag. Do NOT shorten (see below)"
+    }
     // ⚠ **この既定値を小さくしないこと** (0.8.273)。0.8.272 まで 2 秒だった結果、これを常駐させた
     // 端末で「待っているだけ」の CPU が常時 5% 前後になり、電池の減りとして表に出た (実測)。
     // 同じ理由でアプリ側の supervisor も 1 秒 → 5 秒へ広げてある (ServerSupervisorScript 参照)。
@@ -600,7 +618,7 @@ private fun diffSetup(d: String, ja: Boolean, log: String, tag: String): String 
 """
     }
     return """$cCost
-POLL=15                                   # $cPoll
+${"POLL=$MACRO_POLL_SECONDS".padEnd(42)}# $cPoll
 LOG=${d}HOME/.z2term/$log
 SNAP=${d}HOME/.z2term/.$tag.snap
 WORK=${d}HOME/.z2term/.$tag.work

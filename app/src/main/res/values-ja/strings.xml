@@ -738,9 +738,9 @@
     <string name="settings_guides">案内を表示</string>
     <string name="settings_guides_desc">同梱サンプルのマクロです。押すと、そのマクロを使うまでの手順が端末の上にカードで出ます。タップするとその 1 行を実行し（自分の値が要る行は先に聞きます）、要らない行は ✕ で消せます。</string>
     <string name="guide_hint">タップで実行（Ctrl-C で打ちかけを捨ててから送ります）／ 要らない行は ✕</string>
-    <string name="guide_desc_watch_basic">充電やイヤホンの抜き差しに反応する</string>
-    <string name="guide_desc_battery_alert">電池が減ったら知らせる</string>
-    <string name="guide_desc_daily_report">毎朝きまった時刻に読み上げる</string>
+    <string name="guide_desc_watch_basic">充電やイヤホンの抜き差しに反応する（気付くまで最大 %1$d 秒）</string>
+    <string name="guide_desc_battery_alert">電池が決めた % を切ったら知らせる</string>
+    <string name="guide_desc_daily_report">毎朝きまった時刻に電池と接続を読み上げる</string>
     <string name="guide_desc_otp_clip">通知の認証コードをコピーする</string>
     <string name="guide_desc_otp_sms">SMS の認証コードをコピーする</string>
     <string name="guide_desc_unknown_call">電話帳に無い番号の着信を控える</string>

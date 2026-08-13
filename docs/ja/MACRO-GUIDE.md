@@ -759,7 +759,7 @@ CPU を数 % 使い続ける**ので、既定は 15 秒にしてあります（0
 ```sh
 #!/bin/sh
 # 全マクロ共通の雛形。LOG と tag（作業ファイル名）と handle() を書き換えて使う。
-POLL=15                                   # ログを見に行く間隔(秒)。⚠ 詰めないこと（下記）
+POLL=15                                   # ログを見に行く間隔(秒)。= 反応が遅れる上限。⚠ 詰めないこと（下記）
 LOG=$HOME/.z2term/events.jsonl
 SNAP=$HOME/.z2term/.mymacro.snap
 WORK=$HOME/.z2term/.mymacro.work

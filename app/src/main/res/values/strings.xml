@@ -751,9 +751,9 @@
     <string name="settings_guides">Show a guide</string>
     <string name="settings_guides_desc">The bundled sample macros. Pick one to put the steps for it on cards above the terminal. Tapping a card runs that one line (steps that need a value of your own ask first); ✕ drops the ones you do not need.</string>
     <string name="guide_hint">Tap to run (Ctrl-C first, so a half-typed line cannot mix in) / ✕ to skip a step</string>
-    <string name="guide_desc_watch_basic">react to charging and headsets</string>
-    <string name="guide_desc_battery_alert">warn me when the battery is low</string>
-    <string name="guide_desc_daily_report">read out a report every morning</string>
+    <string name="guide_desc_watch_basic">react to charging and headsets (up to %1$d s to notice)</string>
+    <string name="guide_desc_battery_alert">warn me when the battery drops below a % I pick</string>
+    <string name="guide_desc_daily_report">read out battery and connection every morning</string>
     <string name="guide_desc_otp_clip">copy one-time codes from notifications</string>
     <string name="guide_desc_otp_sms">copy one-time codes from SMS</string>
     <string name="guide_desc_unknown_call">note calls from numbers I do not have</string>
