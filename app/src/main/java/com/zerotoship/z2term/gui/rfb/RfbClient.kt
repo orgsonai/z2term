@@ -87,6 +87,18 @@ class RfbClient(
     @Volatile private var pendingFullRequest = false
 
     /**
+     * 起動直後の **要求 / 受信の噛み合い**を数えるための診断カウンタ (0.8.344)。
+     *
+     * RFB は「クライアントが要求 → サーバは変化があるまで保留 → 変化したら 1 回返す」の
+     * 往復で回る。どこかで往復が途切れると**画面が固まったまま何のエラーも出ない**ので、
+     * ログが無いと「要求が出ていない」のか「更新が来ていない」のかを区別できない
+     * (実機で「GUI を開いても、画面をタップするまで端末の窓が出ない」ときに区別できなかった)。
+     * 出すのは接続直後の [TRACE_LIMIT] 件だけ。定常状態では 1 行も出さない。
+     */
+    private var reqSeq = 0
+    private var updSeq = 0
+
+    /**
      * 同期接続 + RFB 3.8 ハンドシェイク。**IO スレッドで呼ぶこと**。失敗時は例外を投げる。
      */
     fun connect(timeoutMs: Int = 8000) {
@@ -194,6 +206,10 @@ class RfbClient(
         out.writeShort(width)
         out.writeShort(height)
         out.flush()
+        if (reqSeq < TRACE_LIMIT) {
+            reqSeq++
+            Log.d(TAG, "req#$reqSeq incremental=$incremental ${width}x$height")
+        }
     }
 
     /**
@@ -321,6 +337,11 @@ class RfbClient(
                     if (ry1 > maxY) maxY = ry1
                 }
             }
+        }
+        if (updSeq < TRACE_LIMIT) {
+            updSeq++
+            Log.d(TAG, "upd#$updSeq rects=$numRects dirty=$dirty " +
+                "bbox=($minX,$minY)-($maxX,$maxY) fb=${width}x$height")
         }
         if (dirty) pushFrame(minX, minY, maxX - minX, maxY - minY)
         // 解像度が変わった直後は全画面 (non-incremental) を要求し直す。それ以外は差分。
@@ -614,6 +635,9 @@ class RfbClient(
     companion object {
         private const val TAG = "RfbClient"
         private const val ALPHA = 0xFF shl 24
+
+        /** 起動直後の要求 / 受信を何件までログに出すか (0.8.344・定常状態では出さない)。 */
+        private const val TRACE_LIMIT = 40
 
         /** ServerCutText の取り込み上限 (byte)。これを超える分は読み捨てる。 */
         private const val MAX_CUT_TEXT = 256 * 1024

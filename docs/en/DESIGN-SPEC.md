@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-14 / Target version: 0.8.343-alpha (versionCode 351)
+Last updated: 2026-08-14 / Target version: 0.8.344-alpha (versionCode 352)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1621,6 +1621,13 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   - **Terminal packages were split out of the server set** (`TERM_PKGS`). apk / apt / pacman all **fail the whole command if a single name cannot be resolved**, so folding Konsole's Qt6 dependencies into `SRV_PKGS` meant **one wrong name kept tigervnc out too** (= no GUI at all). Split apart, a failed batch is retried with **just the terminal package**, and if that fails too it prints one line (never silently produce a GUI with no terminal).
   - **If it dies right after launch, say why**: three seconds after starting the terminal, if `/tmp/z2gui-term-<N>.log` is non-empty its last 8 lines go to the terminal. **A healthy terminal writes nothing there**, so content is itself the signal (Konsole is the exception — it writes a diagnostic header every time).
   - ⚠ **`GuiScriptSyntaxTest` runs `sh -n` over the generated shell** (all terminals × ja/en = 8 variants). `z2gui` is a string built in Kotlin, so **it can compile fine and still be broken as a shell script — and broken means no GUI at all**.
+- ⚠ **"The terminal window is not drawn until you tap" is not the RFB client's fault** (0.8.344, settled by an on-device log). `RfbClient` now logs its first 40 exchanges (`req#N` / `upd#N rects/dirty/bbox`), and on-device that read:
+  ```
+  21:00:28.350  req#4 incremental=true              ← request sent, now waiting
+        …15.8 seconds with zero updates…
+  21:00:44.122  upd#4 rects=12 bbox=(0,0)-(828,934) ← the instant the screen was tapped
+  ```
+  **The request was outstanding the whole time; Xvnc simply had nothing to report.** The rectangle that finally arrived, `(0,0)-(828,934)`, is the terminal window itself — **it was not painted until the tap**. ⚠ So the cause is **on the guest side: an X client that does not draw until some input event reaches it**. RFB is a round trip of "request → hold until something changes → answer once", so **a broken round trip produces no error at all**; without this log you cannot tell "no request went out" from "nothing changed". It stays in because it prints nothing once running steadily.
 - **The GUI never opens on its own (auto-launch removed in 0.8.254)**. A preexec hook in interactive shells (bash `DEBUG` trap / zsh `add-zsh-hook preexec`) used to pass the command about to run to `z2-autogui`, which **opened the GUI tab whenever it judged the binary to be a GUI app**. The test was "does it link `libX11` / `libxcb` / GTK / Qt", and **a CUI app that merely talks to X for clipboard support trips it every time** (reported on-device: opening a text editor pops the GUI tab). That steals the screen from someone who is only using the CUI, so the mechanism was **removed rather than made cleverer**, and no on/off setting was added — **there is no reason to offer a choice about a feature that misfires**. The GUI opens exactly two ways: you open the GUI tab, or you type `z2run <app>`. ⚠ The hook was written into the rootfs rc files, so **not installing it any more would leave it in place on existing setups**. `ProotLauncher.removeAutoGuiHook` strips the marked block on every launch and deletes `/usr/local/bin/z2-autogui`, leaving lines the user wrote alone.
 
 ### 4.13 Android API bridge (`Z2ApiBridge` / `Z2ApiScript`)
