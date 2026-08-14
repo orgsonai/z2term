@@ -957,6 +957,11 @@ internal fun stopEverythingAndQuit(context: Context) {
  *
  * 表示領域の実寸が確定してから Xvnc を起動 (解像度を倍率で決めるため寸法が要る)。タブ切替で離れても
  * [GuiSession] は SessionManager が保持し続けるので動き続ける (停止はタブ × のときのみ)。
+ *
+ * ⚠ **この画面自体はタブを離れるたびに捨てられる** ([TerminalScreen] が `activeSession is GuiSession`
+ * で分岐して早期 return するため)。`remember(gui.id)` も `LaunchedEffect(gui.id)` も戻るたびに
+ * 作り直される前提で書くこと。**セッションが持っている状態 ([GuiSession.state]) を見ずに
+ * 起動判断をすると、走っている GUI をやり直させてしまう** (0.8.341 で踏んだ。下記 LaunchedEffect)。
  */
 @Composable
 private fun GuiTabScreen(
@@ -1030,6 +1035,26 @@ private fun GuiTabScreen(
     //   毎回キャンセルされ、起動もダイアログも走らないまま IDLE で固まる (特にクリーンは
     //   DataStore 書込の suspend が挟まり再現性が高い)。最初の非ゼロ寸法で 1 度だけ起動する。
     LaunchedEffect(gui.id) {
+        // ⚠ **もう走っている GUI には手を出さない** (0.8.341・利用者の報告)。
+        //
+        // 端末タブへ移ると [TerminalScreen] は `activeSession is GuiSession` の分岐で早期 return し、
+        // **GuiTabScreen は composition ごと消える** ([guiAreaPx] も [pendingGuiStart] も
+        // `remember(gui.id)`)。戻ってくるとこの LaunchedEffect は必ず最初から走り直すので、
+        // 状態を見ずに判断すると**導入の途中でも「入れますか」の確認ダイアログからやり直し**になる。
+        // しかもそのダイアログの「やめる」は `SessionManager.close(gui.id)` = タブを閉じる
+        // → `GuiSession.stop()` → `z2gui stop` なので、**走っていた導入が本当に殺される**。
+        // 「GUI のインストール中に別のタブへ移ると導入が消える」の正体はこれ。
+        //
+        // 導入そのものは [GuiSession] の `SupervisorJob + Dispatchers.IO` で回っていて
+        // タブの表示には依存していない (前面通知で常駐させる必要は無い)。**画面が消えるたびに
+        // 起動判断をやり直していた**のが原因なので、判断する側を止める。
+        // 対象は [GuiSession.start] が早期 return するのと同じ 3 状態。ERROR / STOPPED から
+        // 戻ったときに入れ直せるのは今までどおり。
+        when (gui.state.value) {
+            GuiSession.State.STARTING, GuiSession.State.CONNECTING, GuiSession.State.CONNECTED ->
+                return@LaunchedEffect
+            else -> {}
+        }
         val size = snapshotFlow { guiAreaPx }.first { it.width > 0 && it.height > 0 }
         // 設定は最新を読む (初期 Snapshot の取りこぼし回避)。
         val snap = appSettings.flow.first()

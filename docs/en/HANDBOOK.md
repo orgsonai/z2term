@@ -158,6 +158,7 @@ Under Settings › **Keyboard style**:
 | Scroll up/down | Drag with one finger. You can also **grab the scrollbar on the right edge** (it follows your finger from the moment you touch it). Use **↓** at the bottom-right to return to the latest |
 | Make text bigger/smaller | **Pinch** with two fingers (spread/squeeze) |
 | Add a terminal | The tab **+** (terminal) / **🖥** (GUI desktop) |
+| Look at another tab while the GUI installs | **Go ahead.** The install keeps running in the background, and coming back picks the display up where it is (0.8.341. Before that, returning asked "install the GUI?" a second time, and answering "cancel" there **took the running install down with it**) |
 | Remove a terminal | **Double-tap** that tab (the last remaining one won't be removed). **If something is running in that tab, a confirmation dialog appears** (to prevent accidental removal while you are working). If nothing is running it closes right away |
 | Reorder tabs | **Long-press** a tab then **drag** left/right (you can move it edge to edge in one gesture) |
 | Tell which tabs are working | An inactive tab gets **a small dot** next to its name while something runs in it, and a **`✓`** if it finished while you were elsewhere (it clears when you open that tab). The tab you're on never gets a mark |

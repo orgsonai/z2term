@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-14 / 対象バージョン: 0.8.340-alpha (versionCode 348)
+最終更新: 2026-08-14 / 対象バージョン: 0.8.341-alpha (versionCode 349)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1584,6 +1584,8 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - **入力**: `GuiInputView` のジェスチャ — **2 本指 = ピンチ(ズーム/パン)**、**3 本指縦移動 = ホイール上/下スクロール**（一度 3 本指になったら全指が離れるまでスクロール扱い）。旧スクロールボタンと `RfbClient.scrollWheel` は撤去。
 - **動画**: GPU 無し端末で `gpu` 出力が失敗するため、mpv を **`vo=x11` 既定 + `LIBGL_ALWAYS_SOFTWARE`** でソフト描画させて正常再生。
 - **音声 (`service/AudioBridge.kt`)**: **オプトイン**（設定「GUI 音声」`guiAudioEnabled` ON 時のみ）。distro 内 PulseAudio(`-n` 方式で起動) → TCP → Android `AudioTrack` でブリッジ。
+- ⚠ **導入の途中で別のタブへ移っても、戻ってきたときに起動をやり直さない（0.8.341・実機報告）**。「GUI のインストール中に別のタブへ移ると導入が消える」の正体は、**画面が捨てられて起動判断からやり直していた**こと。端末タブへ移ると `TerminalScreen` は `activeSession is GuiSession` の分岐で早期 return するので **`GuiTabScreen` は composition ごと消える**（`guiAreaPx` も `pendingGuiStart` も `remember(gui.id)`）。戻ると `LaunchedEffect(gui.id)` が最初から走り直し、まだ導入中＝パッケージ未導入なので**「GUI を入れますか」の確認ダイアログが再び出る**。しかもその「やめる」は `SessionManager.close(gui.id)` ＝ タブを閉じる → `GuiSession.stop()` → `z2gui stop` なので、**走っていた導入が本当に殺される**。⚠ **導入そのものはタブの表示に依存していない**（`GuiSession` の `SupervisorJob + Dispatchers.IO` で回り、`stop()` を呼ぶのはタブ ✕ と `GuiActivity.onDestroy` だけ）ので、**前面通知で常駐させる必要は無い**。直すのは判断する側で、`GuiSession.state` が `STARTING` / `CONNECTING` / `CONNECTED` のときは `LaunchedEffect` が何もしない（= `GuiSession.start()` が早期 return するのと同じ 3 状態）。`ERROR` / `STOPPED` から戻ったときに入れ直せるのは今までどおり。進捗（`z2gui` の最新出力）は `GuiSession.message` に載っていて `GuiScreen` が購読しているので、**ダイアログが被らなくなれば戻った時点の続きがそのまま見える**。
+  - ⚠ **`GuiTabScreen` はタブを離れるたびに捨てられる前提で書くこと**。`remember(gui.id)` / `LaunchedEffect(gui.id)` は戻るたびに作り直される。**セッションが持っている状態を見ずに副作用を起こすと、走っているものをやり直させる**。
 - **GUI は自分から開かない（0.8.254 で自動連動を廃止）**。以前は interactive shell の preexec フック（bash = DEBUG トラップ / zsh = `add-zsh-hook preexec`）が実行前のコマンドを `z2-autogui` に渡し、**GUI バイナリと判定したら GUI タブを自動で開いて**いた。判定は「`libX11` / `libxcb` / GTK / Qt にリンクしているか」だったが、**クリップボード連携のために X を張るだけの CUI アプリが必ず引っかかる**（実機報告: テキストエディタを開いただけで GUI タブが出る）。CUI を使っているだけの人の画面を奪うので、**判定を賢くする方向ではなく仕掛けごと畳んだ**。設定での ON/OFF も足さない — **誤爆する機能を選べるようにしても選ぶ理由が無い**。GUI を開く道は「GUI タブを自分で開く」か「`z2run <アプリ>` と明示的に打つ」の 2 つだけ。⚠ フックは rootfs の rc に書き込み済みなので、**入れるのをやめるだけでは既存環境に残る**。`ProotLauncher.removeAutoGuiHook` が launch 毎にマーカー行ごと取り除き、`/usr/local/bin/z2-autogui` も消す（ユーザーが自分で書いた行は触らない）。
 
 ### 4.13 Android API ブリッジ (`Z2ApiBridge` / `Z2ApiScript`)
