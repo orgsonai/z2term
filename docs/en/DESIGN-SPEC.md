@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-14 / Target version: 0.8.344-alpha (versionCode 352)
+Last updated: 2026-08-14 / Target version: 0.8.345-alpha (versionCode 353)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1628,6 +1628,8 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   21:00:44.122  upd#4 rects=12 bbox=(0,0)-(828,934) ← the instant the screen was tapped
   ```
   **The request was outstanding the whole time; Xvnc simply had nothing to report.** The rectangle that finally arrived, `(0,0)-(828,934)`, is the terminal window itself — **it was not painted until the tap**. ⚠ So the cause is **on the guest side: an X client that does not draw until some input event reaches it**. RFB is a round trip of "request → hold until something changes → answer once", so **a broken round trip produces no error at all**; without this log you cannot tell "no request went out" from "nothing changed". It stays in because it prints nothing once running steadily.
+- ⚠ **z2root's switches only take effect at launch, so there is a hatch for them** (0.8.345). Put `KEY=VALUE` lines in `~/.z2root_env` (shared HOME) and they are passed to z2root as environment variables — `Z2ROOT_NO_READFREE=1` (trace `read` as well), `Z2ROOT_NO_SECCOMP=1`, `Z2ROOT_NO_LOADER=1` and friends can then be tried from a terminal or over ssh **without rebuilding the app**. ⚠ **With no such file, nothing changes** (the default). Delete it when the investigation is over (`Z2ROOT_NO_READFREE=1` traces every `read` and is far too heavy for daily use). Tracing itself is switched on by `~/.z2root_trace_on` (or the "trace log" setting) and lands in `~/z2root_trace.log`.
+  - ⚠ **`strace` is not an option**: z2root already ptraces these processes, and a second tracer cannot attach. Looking inside the guest always goes through this trace path.
 - **The GUI never opens on its own (auto-launch removed in 0.8.254)**. A preexec hook in interactive shells (bash `DEBUG` trap / zsh `add-zsh-hook preexec`) used to pass the command about to run to `z2-autogui`, which **opened the GUI tab whenever it judged the binary to be a GUI app**. The test was "does it link `libX11` / `libxcb` / GTK / Qt", and **a CUI app that merely talks to X for clipboard support trips it every time** (reported on-device: opening a text editor pops the GUI tab). That steals the screen from someone who is only using the CUI, so the mechanism was **removed rather than made cleverer**, and no on/off setting was added — **there is no reason to offer a choice about a feature that misfires**. The GUI opens exactly two ways: you open the GUI tab, or you type `z2run <app>`. ⚠ The hook was written into the rootfs rc files, so **not installing it any more would leave it in place on existing setups**. `ProotLauncher.removeAutoGuiHook` strips the marked block on every launch and deletes `/usr/local/bin/z2-autogui`, leaving lines the user wrote alone.
 
 ### 4.13 Android API bridge (`Z2ApiBridge` / `Z2ApiScript`)

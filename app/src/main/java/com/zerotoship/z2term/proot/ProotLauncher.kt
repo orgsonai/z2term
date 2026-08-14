@@ -139,6 +139,19 @@ class ProotLauncher(private val context: Context) {
         // 容量を圧迫するため一般ユーザーは使わない。旧来の .z2root_trace_on sentinel でも有効化できる。
         if (isTraceLogEnabled() || File(sharedHomeDir, ".z2root_trace_on").exists())
             out.add("Z2ROOT_TRACE=${File(sharedHomeDir, "z2root_trace.log").absolutePath}")
+        // [DEBUG] `~/.z2root_env` に `KEY=VALUE` を 1 行ずつ書いておくと、その環境変数を
+        // z2root へ渡す (0.8.345)。z2root のスイッチ (`Z2ROOT_NO_READFREE` /
+        // `Z2ROOT_NO_SECCOMP` / `Z2ROOT_NO_LOADER` 等) は **起動時にしか効かない**ので、
+        // 調べるたびにアプリを作り直していると 1 往復が長すぎる。ここに口を 1 つ開けておくと、
+        // 端末や ssh からファイルを置くだけで次の起動から試せる。
+        // ⚠ 既定では**ファイルが無いので何も起きない**。調査が終わったら消すこと
+        // (`Z2ROOT_NO_READFREE=1` は read を全部トレースするので実用には重い)。
+        runCatching {
+            File(sharedHomeDir, ".z2root_env").takeIf { it.isFile }?.readLines()
+                ?.map { it.trim() }
+                ?.filter { it.isNotEmpty() && !it.startsWith("#") && it.contains('=') }
+                ?.forEach { out.add(it) }
+        }
         return out
     }
 
