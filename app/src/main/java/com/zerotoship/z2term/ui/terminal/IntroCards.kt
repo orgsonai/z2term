@@ -20,6 +20,13 @@ import com.zerotoship.z2term.R
  *  - 触った / ✕ した枚は消え、全部消えるか見出しの ✕ を押したら**二度と出ない**
  *    ([com.zerotoship.z2term.settings.AppSettings.introDone])。
  *
+ * ⚠ **出すのは Linux の OS が 1 つ入ってから** (0.8.339・利用者の指摘)。まっさらな端末に出すと、
+ * カードを押しても走る先が無い ([com.zerotoship.z2term.core.TerminalSession.hasAnyDistro] が false の
+ * 間は端末が動いていない) のに**押した枚から消えていき**、3 枚とも消えた時点で `introDone` が立って
+ * **一度も動かないまま二度と出なくなる**。出す条件は [com.zerotoship.z2term.ui.terminal] の
+ * TerminalScreen 側が持ち、ここは「出すと決まった後」の見た目と送り方だけを持つ。
+ * OS が無い間に出るのは [NoOsNoticeCard] の方。
+ *
  * ⚠ **タップしたら実行する** (0.8.314・利用者の判断)。以前は「入力行に入れるだけで ⏎ は
  * 人が押す」作法だったが、**打ちかけの文字と混ざって意図しない行が走る**恐れがあるため、
  * `Ctrl-C` で行を捨ててから丸ごと送る形に変えた。送り方は [GuideCards] と共通。

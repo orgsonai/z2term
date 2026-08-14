@@ -629,6 +629,19 @@ class TerminalSession(
         return StartupPlan.ConfirmDownload(spec)
     }
 
+    /**
+     * **OS が 1 つでも入っているか** (0.8.339)。[StartupPlan.NeedOsInstall] と同じ判定を、
+     * 起動の筋道と関係なく UI から聞けるようにしたもの。
+     *
+     * UI 側はこれを見て「まっさらな人」と「もう入れた人」を分ける:
+     *  - まっさらな間は**はじめの案内を出さない** (押しても走る先が無く、案内だけ使い切ってしまう)。
+     *  - まっさらな間だけ ⚙設定 へ行く口をツールバーに出す ([com.zerotoship.z2term.ui.terminal.NoOsNotice] を
+     *    ✕ で消した後の戻り道)。
+     *
+     * ディレクトリを見に行くので IO へ逃がす。
+     */
+    suspend fun hasAnyDistro(): Boolean = withContext(Dispatchers.IO) { launcher.hasAnyDistro() }
+
     /** SUPPORTED_ABIS の先頭。DistroDownloader/Installer と同じ判定。 */
     private fun detectAbiId(): String =
         android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"

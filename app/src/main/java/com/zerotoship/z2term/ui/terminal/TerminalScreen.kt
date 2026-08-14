@@ -293,6 +293,12 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             noOsNotice = false
         }
     }
+    // OS が 1 つでも入っているか (0.8.339)。**null = まだ判定していない**。
+    // 判定が出るまではどちらも出さない (一瞬出て消えるのを避ける)。
+    // ⚠ 端末の状態が変わるたびに見直す。⚙設定 から OS を入れると起動が始まるので、
+    // そこで false → true に変わり、入れ終わった直後のこのタブではじめの案内が出る。
+    var hasOs by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(active.id, terminalState.state) { hasOs = active.hasAnyDistro() }
     // 手順の案内 (⚙設定 → メンテナンス → 案内を表示 / はじめの案内から開く)。非 null の間出す。
     // GUI タブから選んだ案内もここへ流れてくるので、画面をまたぐ [GuideHost] に持たせる。
     val activeGuide = GuideHost.current
@@ -592,7 +598,10 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         }
 
         // 初回だけ「最初の 3 枚」を出す (0.8.231)。触ったら消え、3 枚とも消えるか ✕ で二度と出ない。
-        if (!settings.introDone) {
+        // ⚠ **OS が 1 つ入ってから出す** (0.8.339)。まっさらな端末では押しても何も走らないのに
+        // 押した枚から消えていき、一度も動かないまま「二度と出ない」状態になっていた。
+        // 判定が出るまで (null) も出さない。
+        if (!settings.introDone && hasOs == true) {
             IntroCards(
                 onRun = { cmd -> runGuideCommand(active, scope, cmd) },
                 onOpenGuide = { GuideHost.current = it },
