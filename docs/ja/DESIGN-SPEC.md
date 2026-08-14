@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-14 / 対象バージョン: 0.8.346-alpha (versionCode 354)
+最終更新: 2026-08-14 / 対象バージョン: 0.8.347-alpha (versionCode 355)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1615,6 +1615,10 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - `Xvnc` の `/proc/<pid>/syscall` を 200 回サンプルすると、**pc が常に同じ 1 命令**（libc の `neg w0,w0` → `str w0,[errno]`）だった。これは **syscall がエラーを返した直後の errno 設定**そのもので、**失敗する syscall を高速に呼び直し続けている**ことを意味する。
   - この間、**新しい X クライアント（`xprop` 等）の接続にも一切応答しない**（10 秒でタイムアウト）。`_NET_CLIENT_LIST` が空なのは「窓が map されていない」ではなく「**クライアントが 1 つも受け付けられていない**」ため。
   - ⚠ **RFB クライアント（z2term 側）を繋がなくても再現する**。ssh から `z2gui start` を叩くだけで同じ状態になるので、**実機の画面を触らずに切り分けられる**（`DISPLAY=:N xprop -root _NET_CLIENT_LIST` が返るかどうかで数えられる）。
+- ⭐ **原因は `accept(2)` だった（0.8.347 で修正）**。回っていた syscall は **`accept`(202)** で、Xvnc の stderr（`/tmp/z2gui-xvnc-<N>.log`・z2gui スクリプトの出力とは**別ファイル**）に `_XSERVTransSocketUNIXAccept: accept() failed` が積もっていた。⚠ Android の untrusted_app seccomp は **`accept`(202) を禁じている**（bionic は `accept4` しか使わない）ので SIGSYS で弾かれ、z2root はそれを `ENOSYS` に化かす。**X サーバは listen fd が readable な限り accept をやり直す**作りなので、そこで**接続を 1 つも受け付けないまま CPU を焼き続ける**。
+  - これを塞ぐための `accept`→`accept4` シム（`z2accept`・`LD_PRELOAD`）は前からあるが、**Xvnc に載っていなかった**。エンジンは `LD_PRELOAD` を z2root へ渡しているのに、**環境変数を作り直す経路（ssh のログインシェル経由など）で落ちる**ためで、`/proc/<Xvnc>/maps` に `z2accept` が 1 つも出ない。
+  - **同じ手順で 3 回測って再現率 100%**（`:7`/`:9` = シムなし → `xprop` タイムアウト・accept 失敗 **232,454 回** と **229,579 回**・`_NET_CLIENT_LIST` 空 / `:8` = シムあり → `xprop` 即答・失敗 **0 回**・窓が出る）。
+  - **直し方**: `z2gui` が**自分で `LD_PRELOAD` を立てる**（渡ってきていればそのまま使う）。GUI 一式を起こすのはこのスクリプトだけなので、**どの経路から呼ばれてもシムが載る**。⚠ 環境変数の伝播に頼る形は、経路が 1 つ増えるたびに壊れる。
 - **GUI は自分から開かない（0.8.254 で自動連動を廃止）**。以前は interactive shell の preexec フック（bash = DEBUG トラップ / zsh = `add-zsh-hook preexec`）が実行前のコマンドを `z2-autogui` に渡し、**GUI バイナリと判定したら GUI タブを自動で開いて**いた。判定は「`libX11` / `libxcb` / GTK / Qt にリンクしているか」だったが、**クリップボード連携のために X を張るだけの CUI アプリが必ず引っかかる**（実機報告: テキストエディタを開いただけで GUI タブが出る）。CUI を使っているだけの人の画面を奪うので、**判定を賢くする方向ではなく仕掛けごと畳んだ**。設定での ON/OFF も足さない — **誤爆する機能を選べるようにしても選ぶ理由が無い**。GUI を開く道は「GUI タブを自分で開く」か「`z2run <アプリ>` と明示的に打つ」の 2 つだけ。⚠ フックは rootfs の rc に書き込み済みなので、**入れるのをやめるだけでは既存環境に残る**。`ProotLauncher.removeAutoGuiHook` が launch 毎にマーカー行ごと取り除き、`/usr/local/bin/z2-autogui` も消す（ユーザーが自分で書いた行は触らない）。
 
 ### 4.13 Android API ブリッジ (`Z2ApiBridge` / `Z2ApiScript`)

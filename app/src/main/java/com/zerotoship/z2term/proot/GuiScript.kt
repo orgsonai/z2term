@@ -184,6 +184,23 @@ fun z2guiScript(
         |done
         |export SHELL
         |
+        |# accept(2) の橋渡しシムを必ず立てる (0.8.347)。
+        |# Android の untrusted_app seccomp は accept(202) を禁じている (bionic は accept4 しか
+        |# 使わない) ため、X サーバの accept は SIGSYS で弾かれ ENOSYS になる。X サーバは
+        |# **listen fd が readable な限り accept をやり直す**作りなので、これに当たると
+        |# **接続を 1 つも受け付けないまま CPU を焼き続ける**: 実測で 30 秒に 23 万回の
+        |# `_XSERVTransSocketUNIXAccept: accept() failed`、CPU 40〜45%、端末の窓は一生出ない。
+        |# エンジンは LD_PRELOAD でこのシムを渡しているが、**環境変数を作り直す経路
+        |# (ssh のログインシェル経由など) では落ちる**。GUI を起こすのはここだけなので、
+        |# 渡ってこなかったときは自分で立てる (既にあれば触らない)。
+        |Z2_ACCEPT_SHIM=/usr/local/lib/libz2accept.so
+        |if [ -f "${d}Z2_ACCEPT_SHIM" ]; then
+        |  case ":${d}{LD_PRELOAD:-}:" in
+        |    *":${d}Z2_ACCEPT_SHIM:"*) ;;
+        |    *) LD_PRELOAD="${d}Z2_ACCEPT_SHIM${d}{LD_PRELOAD:+:${d}LD_PRELOAD}"; export LD_PRELOAD ;;
+        |  esac
+        |fi
+        |
         |has() { command -v "${d}1" >/dev/null 2>&1; }
         |
         |# X サーバの実体名を解決 (TigerVNC は distro により Xvnc または Xtigervnc)。
