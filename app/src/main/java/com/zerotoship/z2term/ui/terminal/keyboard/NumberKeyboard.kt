@@ -40,10 +40,19 @@ import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
  * パス・オプション) に絞る。⚠ **載せすぎると「記号面」になって狙いがぼける** —
  * 記号を一通り打ちたいときは ASCII 面の `?#` がある。
  *
- * **パッド (絵文字 / 貼り付け)**: 😀 キーから [KeyboardPad] を開く。かな面と同じ作りで、
- * 中央 3 列だけがパッドになり両端の列は残る。⚠ この入口は**アプリの言語が英語のとき本命**に
- * なる — 英語では「あ」キーが無く、その席を面の切替キーが使うため、ASCII 面から貼り付け /
- * 絵文字の入口が消える。数字面に置いておけば、どの言語でも入口が 1 つ残る。
+ * **パッド (絵文字 / 貼り付け)**: [KeyboardPad] を開く手は 2 つあり、**かな面と同じに揃えてある**
+ * (0.8.348):
+ *   - **ESC の上フリック = 貼り付け / 下フリック = 絵文字** ([JpEscKey]・かな面と同一)
+ *   - **😀 キーのタップ = 絵文字** (数字面だけの近道。Row 3 左上の席)
+ *
+ * ⚠ **面が変わると開き方が変わる、が一番戸惑う。** 0.8.347 まで数字面の ESC はタップのみで、
+ * **貼り付けを開く手が 1 つも無かった** (😀 は絵文字専用)。かな面で覚えた「ESC を上へ」が
+ * 数字面で効かないので、利用者からは「開かない」としか見えない。**入口を足すときは、
+ * 先に他の面と同じ動きになっているかを見ること。**
+ *
+ * どちらも中央 3 列だけがパッドになり両端の列は残る。⚠ 😀 の入口は**アプリの言語が英語のとき
+ * 本命**になる — 英語では「あ」キーが無く、その席を面の切替キーが使うため、ASCII 面から
+ * 貼り付け / 絵文字の入口が消える。数字面に置いておけば、どの言語でも入口が残る。
  */
 @Composable
 fun NumberKeyboard(
@@ -144,9 +153,18 @@ fun NumberKeyboard(
     ) {
         // Row 1: ESC  1 2 3  ⌫
         JpRow(rowSpacing) {
-            JpKey("ESC", style, fontScale = 0.7f, weight = JP_EDGE_WEIGHT) {
-                if (composing.isActive) composing.reset() else onBytes(byteArrayOf(0x1B))
-            }
+            // ESC: かな面 ([JapaneseFlickKeyboard]) と**同じ開き方**にする (0.8.348)。
+            //   タップ=ESC (変換中なら取り消し) / 上フリック=貼り付けパッド / 下フリック=絵文字パッド。
+            // ⚠ **面ごとに開き方が違うのが一番戸惑う。** ここは JpKey (タップのみ) だったので、
+            //   数字面では**貼り付けを開く手が 1 つも無く**、絵文字も 😀 の席にしか無かった。
+            //   かな面で覚えた指の動きがそのまま通らないので「開かない」としか見えない。
+            JpEscKey(
+                style = style,
+                weight = JP_EDGE_WEIGHT,
+                onTap = { if (composing.isActive) composing.reset() else onBytes(byteArrayOf(0x1B)) },
+                onFlickUp = { togglePad(PadMode.CLIPBOARD) },
+                onFlickDown = { togglePad(PadMode.EMOJI) }
+            )
             NumKey("1", style, digitScale, ::insert)
             NumKey("2", style, digitScale, ::insert)
             NumKey("3", style, digitScale, ::insert)

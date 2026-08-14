@@ -733,7 +733,7 @@ class AppSettings(private val context: Context) {
         /** 入力メソッドの初回は英字面から。以後は最後に使った面を覚える。 */
         const val DEFAULT_IME_FACE = FACE_ID_ASCII
         /** 数字面は既定 ON (この面を足すこと自体が 0.8.305 の要望)。 */
-        const val DEFAULT_KEYBOARD_NUMBER_FACE = true
+        const val DEFAULT_KEYBOARD_NUMBER_FACE = false
         /** 巡回順の既定は「あ → A → 12」(`KeyboardFace.ORDER_ASCII_FIRST_ID`)。 */
         const val DEFAULT_KEYBOARD_FACE_ORDER = "kana_ascii_number"
         const val DEFAULT_KEEP_ALIVE = true

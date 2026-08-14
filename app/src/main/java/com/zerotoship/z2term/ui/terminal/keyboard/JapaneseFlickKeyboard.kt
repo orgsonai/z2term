@@ -596,7 +596,7 @@ internal fun JpBackspaceKeyBody(
  * ([JpEscHintPopup])。ポップアップは指を離すかフリックが決まった時点で消える。
  */
 @Composable
-private fun RowScope.JpEscKey(
+internal fun RowScope.JpEscKey(
     style: KeyboardStyle,
     weight: Float,
     onTap: () -> Unit,
