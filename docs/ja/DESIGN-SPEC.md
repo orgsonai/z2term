@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-14 / 対象バージョン: 0.8.342-alpha (versionCode 350)
+最終更新: 2026-08-14 / 対象バージョン: 0.8.343-alpha (versionCode 351)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1592,6 +1592,12 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - **音声 (`service/AudioBridge.kt`)**: **オプトイン**（設定「GUI 音声」`guiAudioEnabled` ON 時のみ）。distro 内 PulseAudio(`-n` 方式で起動) → TCP → Android `AudioTrack` でブリッジ。
 - ⚠ **導入の途中で別のタブへ移っても、戻ってきたときに起動をやり直さない（0.8.341・実機報告）**。「GUI のインストール中に別のタブへ移ると導入が消える」の正体は、**画面が捨てられて起動判断からやり直していた**こと。端末タブへ移ると `TerminalScreen` は `activeSession is GuiSession` の分岐で早期 return するので **`GuiTabScreen` は composition ごと消える**（`guiAreaPx` も `pendingGuiStart` も `remember(gui.id)`）。戻ると `LaunchedEffect(gui.id)` が最初から走り直し、まだ導入中＝パッケージ未導入なので**「GUI を入れますか」の確認ダイアログが再び出る**。しかもその「やめる」は `SessionManager.close(gui.id)` ＝ タブを閉じる → `GuiSession.stop()` → `z2gui stop` なので、**走っていた導入が本当に殺される**。⚠ **導入そのものはタブの表示に依存していない**（`GuiSession` の `SupervisorJob + Dispatchers.IO` で回り、`stop()` を呼ぶのはタブ ✕ と `GuiActivity.onDestroy` だけ）ので、**前面通知で常駐させる必要は無い**。直すのは判断する側で、`GuiSession.state` が `STARTING` / `CONNECTING` / `CONNECTED` のときは `LaunchedEffect` が何もしない（= `GuiSession.start()` が早期 return するのと同じ 3 状態）。`ERROR` / `STOPPED` から戻ったときに入れ直せるのは今までどおり。進捗（`z2gui` の最新出力）は `GuiSession.message` に載っていて `GuiScreen` が購読しているので、**ダイアログが被らなくなれば戻った時点の続きがそのまま見える**。
   - ⚠ **`GuiTabScreen` はタブを離れるたびに捨てられる前提で書くこと**。`remember(gui.id)` / `LaunchedEffect(gui.id)` は戻るたびに作り直される。**セッションが持っている状態を見ずに副作用を起こすと、走っているものをやり直させる**。
+- ⚠ **GUI 内ターミナルは「入っているのに窓が出ない」形で壊れる**（0.8.343・実機報告: Alpine で rxvt-unicode / Konsole を選ぶと端末が出ない）。`ensure_pkgs` は **`has $GUI_TERM_BIN`（バイナリの有無）**で導入を判定するので、**入っているが起動に失敗する**ものはここをすり抜け、`z2gui` は最後まで進んで GUI だけが立つ。利用者からは「デスクトップは出るのに端末が無い」としか見えない。
+  - **真因（Alpine の urxvt）**: `apk` のサーバ一式に**コアフォントが無かった**。`apt` には `xfonts-base`、`pacman` には `xorg-fonts-misc` を入れていたのに、`apk` だけ `font-noto ttf-dejavu`（TrueType のみ）で、**コアフォント `fixed` を既定で使う端末が起動できない**。→ `font-misc-misc font-alias` を追加。
+  - **同時に urxvt にも Xft を明示**（`-fn xft:monospace:size=11`）。xterm が `-fa monospace` でコアフォント依存を切っているのと同じ理由で、フォントパッケージの有無に生死を預けない。⚠ `TERM_ARGS` は**語分割前提で展開する**ので、空白を含む書き方をしないこと。
+  - **端末パッケージをサーバ一式から分けた**（`TERM_PKGS`）。apk / apt / pacman は**解決できない名前が 1 つ混じるとコマンド全体が失敗する**ので、Konsole の Qt6 依存を `SRV_PKGS` に混ぜていた従来の作りでは、**名前が 1 つ違うだけで tigervnc まで入らない**（= GUI がまるごと立たない）。分けたうえで、まとめて失敗したら**端末本体だけでもう一度**試し、それも駄目なら 1 行出す（黙って端末の無い GUI にしない）。
+  - **起動直後に死んだら理由を出す**: 端末を起こして 3 秒後、`/tmp/z2gui-term-<N>.log` が空でなければ末尾 8 行を端末へ流す。**正常に動いている端末はここへ何も書かない**ので、中身があること自体が異常の印になる（Konsole だけは診断を先頭に書くので常に出る）。
+  - ⚠ **生成シェルの構文は `GuiScriptSyntaxTest` が `sh -n` で見る**（全端末 × 日英の 8 通り）。`z2gui` は Kotlin から生成する文字列なので、**Kotlin がコンパイルできてもシェルとして壊れていることがあり、壊れると GUI が一切立たない**。
 - **GUI は自分から開かない（0.8.254 で自動連動を廃止）**。以前は interactive shell の preexec フック（bash = DEBUG トラップ / zsh = `add-zsh-hook preexec`）が実行前のコマンドを `z2-autogui` に渡し、**GUI バイナリと判定したら GUI タブを自動で開いて**いた。判定は「`libX11` / `libxcb` / GTK / Qt にリンクしているか」だったが、**クリップボード連携のために X を張るだけの CUI アプリが必ず引っかかる**（実機報告: テキストエディタを開いただけで GUI タブが出る）。CUI を使っているだけの人の画面を奪うので、**判定を賢くする方向ではなく仕掛けごと畳んだ**。設定での ON/OFF も足さない — **誤爆する機能を選べるようにしても選ぶ理由が無い**。GUI を開く道は「GUI タブを自分で開く」か「`z2run <アプリ>` と明示的に打つ」の 2 つだけ。⚠ フックは rootfs の rc に書き込み済みなので、**入れるのをやめるだけでは既存環境に残る**。`ProotLauncher.removeAutoGuiHook` が launch 毎にマーカー行ごと取り除き、`/usr/local/bin/z2-autogui` も消す（ユーザーが自分で書いた行は触らない）。
 
 ### 4.13 Android API ブリッジ (`Z2ApiBridge` / `Z2ApiScript`)

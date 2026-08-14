@@ -55,6 +55,9 @@ data class GuiScriptStrings(
     val xvncFailed: String,           // "❌ Xvnc 起動失敗。ログ:"
     val noTermFlag: String,           // "ℹ Z2_NO_TERM=1: 端末を起動せず Xvnc+openbox のみ。"
     val terminalNotFound: String,     // "⚠ 端末 {BIN} が見つかりません ..."
+    // --- 0.8.343 で追加。端末だけ入らない / 端末だけ起動できない を見えるようにする。
+    val terminalInstallFailed: String, // "⚠ 端末パッケージを導入できませんでした ({PKGS})"
+    val terminalLog: String,           // "🧾 端末の出力" (ログの場所を添えて出す)
     val ready: String,                // "✅ GUI 準備完了。z2term の GUI タブから ..."
     val running: String,              // "✅ GUI 起動中 (DISPLAY=..., RFB ...)"
     val stopped: String,              // "⏹ GUI は停止中"
@@ -87,6 +90,8 @@ data class GuiScriptStrings(
             xvncFailed = "❌ Xvnc 起動失敗。ログ:",
             noTermFlag = "ℹ Z2_NO_TERM=1: 端末を起動せず Xvnc+openbox のみ。",
             terminalNotFound = "⚠ 端末が見つかりません (導入失敗?)。openbox のみ起動。",
+            terminalInstallFailed = "⚠ 端末パッケージを導入できませんでした。GUI は起動しますが端末の窓は出ません",
+            terminalLog = "🧾 端末の出力",
             ready = "✅ GUI 準備完了。z2term の GUI タブから接続してください。",
             running = "✅ GUI 起動中",
             stopped = "⏹ GUI は停止中",
@@ -117,6 +122,8 @@ data class GuiScriptStrings(
             xvncFailed = "❌ Xvnc startup failed. Log:",
             noTermFlag = "ℹ Z2_NO_TERM=1: no terminal, only Xvnc+openbox.",
             terminalNotFound = "⚠ terminal not found (install failed?). Starting openbox only.",
+            terminalInstallFailed = "⚠ Could not install the terminal package. The GUI will start, but no terminal window will appear",
+            terminalLog = "🧾 terminal output",
             ready = "✅ GUI ready. Connect from a z2term GUI tab.",
             running = "✅ GUI running",
             stopped = "⏹ GUI is stopped",
@@ -190,7 +197,12 @@ fun z2guiScript(
         |# 'fixed' 依存を回避する (distro により misc-fixed の Unicode 版が無く起動失敗するため)。
         |detect_pm() {
         |  if has apk; then
-        |    PM=apk;    SRV_PKGS="tigervnc openbox font-noto ttf-dejavu"
+        |    # ⚠ **コアフォント (font-misc-misc + エイリアス font-alias) を必ず入れる** (0.8.343)。
+        |    # apt の xfonts-base / pacman の xorg-fonts-misc に当たるものが apk だけ抜けていて、
+        |    # **コアフォント 'fixed' を既定で使う端末 (urxvt 等) が Alpine で起動できなかった**
+        |    # (パッケージは入るので `has urxvt` は true → GUI は立つのに窓だけ出ない、という
+        |    # 一番分かりにくい形で出る)。TrueType (font-noto / ttf-dejavu) では代わりにならない。
+        |    PM=apk;    SRV_PKGS="tigervnc openbox font-misc-misc font-alias font-noto ttf-dejavu"
         |  elif has apt-get; then
         |    PM=apt;    SRV_PKGS="tigervnc-standalone-server openbox xfonts-base fonts-noto-core fonts-dejavu"
         |  elif has pacman; then
@@ -198,16 +210,36 @@ fun z2guiScript(
         |  else
         |    PM=""
         |  fi
+        |  # 端末パッケージは**サーバ一式と分けて持つ** (0.8.343)。⚠ apk / apt / pacman はどれも
+        |  # **1 つでも解決できない名前が混じると、そのコマンド全体が失敗する**。端末の追加依存を
+        |  # SRV_PKGS に混ぜていたため、名前が 1 つ違うだけで **tigervnc まで入らなくなる**
+        |  # (= GUI がまるごと立たない) 作りになっていた。分けておけば端末側だけが失敗する。
+        |  TERM_PKGS="${d}GUI_TERM_PKG"
         |  # Konsole は DBus セッション必須 + Qt6 QuickWidgets/x11 プラグインが必要。Alpine の
         |  # `konsole` パッケージは qt6-qtdeclarative を hard-dep に引かないため、ここで明示追加する
         |  # (Debian/Arch は konsole 本体が依存解決するので dbus 系のみで足りる)。
         |  if [ "${d}GUI_TERM_BIN" = "konsole" ]; then
         |    case "${d}PM" in
-        |      apk)    SRV_PKGS="${d}SRV_PKGS dbus dbus-x11 qt6-qtbase-x11 qt6-qtdeclarative qt6-qt5compat" ;;
-        |      apt)    SRV_PKGS="${d}SRV_PKGS dbus dbus-x11 libqt6quickwidgets6" ;;
-        |      pacman) SRV_PKGS="${d}SRV_PKGS dbus qt6-declarative qt6-5compat" ;;
+        |      apk)    TERM_PKGS="${d}TERM_PKGS dbus dbus-x11 qt6-qtbase-x11 qt6-qtdeclarative qt6-qt5compat" ;;
+        |      apt)    TERM_PKGS="${d}TERM_PKGS dbus dbus-x11 libqt6quickwidgets6" ;;
+        |      pacman) TERM_PKGS="${d}TERM_PKGS dbus qt6-declarative qt6-5compat" ;;
         |    esac
         |  fi
+        |}
+        |
+        |# 端末パッケージを入れる (0.8.343)。**サーバ一式とは別のコマンドで**入れるので、端末側が
+        |# 失敗してもサーバ (Xvnc/openbox) は入る。追加依存 (Konsole の Qt6 等) の名前が distro で
+        |# 違っていた場合に端末本体まで巻き添えにしないよう、**まとめて失敗したら端末本体だけで
+        |# もう一度**試す。それも駄目なら理由を 1 行出す (黙って端末の無い GUI にしない)。
+        |install_term_pkgs() {
+        |  case "${d}PM" in
+        |    apk)    apk add --no-cache ${d}TERM_PKGS || apk add --no-cache ${d}GUI_TERM_PKG || return 1 ;;
+        |    apt)    DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}TERM_PKGS \
+        |            || DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}GUI_TERM_PKG || return 1 ;;
+        |    pacman) pacman -S --noconfirm ${d}TERM_PKGS || pacman -S --noconfirm ${d}GUI_TERM_PKG || return 1 ;;
+        |    *) return 1 ;;
+        |  esac
+        |  return 0
         |}
         |
         |# パッケージマネージャの stale ロックを除去する。前回の導入が途中で失敗 (ネット切れ等) すると
@@ -234,14 +266,14 @@ fun z2guiScript(
         |  detect_pm
         |  clear_pm_locks
         |  ensure_keyring
-        |  PKGS="${d}SRV_PKGS ${d}GUI_TERM_PKG"
-        |  echo "${strings.installing} (${d}PM): ${d}PKGS"
+        |  echo "${strings.installing} (${d}PM): ${d}SRV_PKGS ${d}TERM_PKGS"
         |  case "${d}PM" in
-        |    apk)    apk update && apk add --no-cache ${d}PKGS ;;
-        |    apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}PKGS ;;
-        |    pacman) pacman -Sy --noconfirm ${d}PKGS ;;
+        |    apk)    apk update && apk add --no-cache ${d}SRV_PKGS ;;
+        |    apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}SRV_PKGS ;;
+        |    pacman) pacman -Sy --noconfirm ${d}SRV_PKGS ;;
         |    *) echo "${strings.noPackageManager}"; return 1 ;;
         |  esac
+        |  install_term_pkgs || echo "${strings.terminalInstallFailed} (${d}TERM_PKGS)"
         |  ensure_konsole_qt6
         |}
         |
@@ -252,7 +284,7 @@ fun z2guiScript(
         |  detect_pm
         |  clear_pm_locks
         |  ensure_keyring
-        |  PKGS="${d}SRV_PKGS ${d}GUI_TERM_PKG"
+        |  PKGS="${d}SRV_PKGS ${d}TERM_PKGS"
         |  echo "${strings.cleanInstalling} (${d}PM)"
         |  case "${d}PM" in
         |    apk)
@@ -268,6 +300,8 @@ fun z2guiScript(
         |      pacman -Syy --noconfirm && pacman -S --noconfirm ${d}PKGS ;;
         |    *) echo "${strings.noPackageManager}"; return 1 ;;
         |  esac
+        |  # まとめ入れで端末が入らなかったときだけ、端末側をもう一度単体で試す (0.8.343)。
+        |  has "${d}GUI_TERM_BIN" || install_term_pkgs || echo "${strings.terminalInstallFailed} (${d}TERM_PKGS)"
         |  ensure_konsole_qt6
         |}
         |
@@ -570,7 +604,11 @@ fun z2guiScript(
         |  TERM_ARGS=""
         |  case "${d}GUI_TERM_BIN" in
         |    xterm) TERM_ARGS="-fa monospace -fs 11 -geometry ${d}{COLS}x${d}{ROWS}+0+0" ;;
-        |    urxvt) TERM_ARGS="-geometry ${d}{COLS}x${d}{ROWS}+0+0" ;;
+        |    # ⚠ urxvt も **Xft を明示する** (0.8.343)。既定はコアフォント 'fixed' で、無い distro では
+        |    # `unable to load base fontset` を吐いて**即死**する (窓が出ないだけで GUI は立つので
+        |    # 原因が見えない)。xft: 指定はコアフォントを一切見に行かない。⚠ TERM_ARGS は語分割前提で
+        |    # 展開するので、**空白を含む書き方 (xft:monospace:pixelsize=16 以外) にしないこと**。
+        |    urxvt) TERM_ARGS="-fn xft:monospace:size=11 -geometry ${d}{COLS}x${d}{ROWS}+0+0" ;;
         |    lxterminal) TERM_ARGS="--geometry=${d}{COLS}x${d}{ROWS}" ;;
         |    # Konsole は DBus session が必須。`--separate` で IPC fallback を回避し、
         |    # `--nofork` で foreground 起動 (setsid のため backgrounded 状態を維持)、
@@ -669,6 +707,17 @@ fun z2guiScript(
         |    echo "${strings.terminalNotFound} (${d}GUI_TERM_BIN)"
         |  fi
         |  echo "${strings.ready} (RFB 127.0.0.1:${d}RFBPORT)"
+        |  # 端末が**起動直後に死んでいたら理由を出す** (0.8.343)。窓が出ないだけだと
+        |  # 「GUI は映るのに端末が無い」としか分からず、原因 (フォント / Qt / DBus) に辿り着けない。
+        |  # 正常に動いている端末はここへ何も書かないので、中身があること自体が異常の印。
+        |  # (konsole だけは診断を先頭に書いてあるので、その分は常に出る。)
+        |  if [ "${d}{Z2_NO_TERM:-0}" != "1" ] && has "${d}GUI_TERM_BIN"; then
+        |    sleep 3
+        |    if [ -s "/tmp/z2gui-term-${d}{DISPLAY_NUM}.log" ]; then
+        |      echo "${strings.terminalLog} (/tmp/z2gui-term-${d}{DISPLAY_NUM}.log):"
+        |      tail -n 8 "/tmp/z2gui-term-${d}{DISPLAY_NUM}.log" 2>/dev/null
+        |    fi
+        |  fi
         |  # proot --kill-on-exit 対策: ここでブロックし続けることで Xvnc/WM を生かす。
         |  # setsid したプロセスはジョブ制御から外れるため wait では待てない。X ソケットの
         |  # 存在を監視し、Xvnc が生きている限り z2gui (= proot のルート) をブロックさせる。
