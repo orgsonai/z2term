@@ -108,6 +108,7 @@ struct config {
     int use_loader;                   // 1: rootfs ELF を自前ローダ(--loader)経由で起動
     char self_path[PATH_MAX_Z];       // /proc/self/exe (nativeLibraryDir の libz2root.so)
     int readfree;                     // /proc 偽装を openat 時 temp 差し替えにし read/close をトレース対象から外す(高速化・既定 ON・Z2ROOT_NO_READFREE で無効化)
+    int no_recvmsg;                   // [DEBUG] recvmsg(212) に一切介入しない(Z2ROOT_NO_RECVMSG=1)。GUI 停止の切り分け用。§recvmsg 参照
     uid_t real_uid;                   // トレーサ(=Android アプリ)の実 uid。fake_root で getuid を 0 に偽装しても
     gid_t real_gid;                   // SCM_CREDENTIALS は実 uid/gid でしか送れない(EPERM 回避)ため保持する。
 };
@@ -1413,14 +1414,14 @@ static int read_msg_control(pid_t pid, unsigned long msgp,
     return 0;
 }
 // 制御バッファを走査し、SCM_CREDENTIALS の ucred.uid/gid を (new_uid,new_gid) へ。
-// 変更があれば tracee メモリへ書き戻す。
-static void patch_scm_creds(pid_t pid, unsigned long ctrl, unsigned long ctrllen,
-                            unsigned int new_uid, unsigned int new_gid) {
-    if (ctrl == 0 || ctrllen < 16 || ctrllen > Z_CMSG_CTRL_MAX) return;
+// 変更があれば tracee メモリへ書き戻す。戻り値 1=書き戻した / 0=触っていない(診断用)。
+static int patch_scm_creds(pid_t pid, unsigned long ctrl, unsigned long ctrllen,
+                           unsigned int new_uid, unsigned int new_gid) {
+    if (ctrl == 0 || ctrllen < 16 || ctrllen > Z_CMSG_CTRL_MAX) return 0;
     char buf[Z_CMSG_CTRL_MAX];
     struct iovec lo = { buf, (size_t)ctrllen };
     struct iovec re = { (void *)ctrl, (size_t)ctrllen };
-    if (process_vm_readv(pid, &lo, 1, &re, 1, 0) != (ssize_t)ctrllen) return;
+    if (process_vm_readv(pid, &lo, 1, &re, 1, 0) != (ssize_t)ctrllen) return 0;
     size_t off = 0;
     int changed = 0;
     while (off + 16 <= (size_t)ctrllen) {
@@ -1440,6 +1441,7 @@ static void patch_scm_creds(pid_t pid, unsigned long ctrl, unsigned long ctrllen
         off += adv;
     }
     if (changed) write_tracee_mem(pid, ctrl, buf, (size_t)ctrllen);
+    return changed;
 }
 // sendmsg(entry): SCM_CREDENTIALS の uid/gid を実値へ(EPERM 回避)。msg=regs[1]。
 static void rewrite_sendmsg_creds(const struct config *cfg, pid_t pid,
@@ -1452,14 +1454,24 @@ static void rewrite_sendmsg_creds(const struct config *cfg, pid_t pid,
 }
 // recvmsg(exit): 受信した SCM_CREDENTIALS の uid/gid を 0 へ(root の見え方を一貫)。
 // カーネルが msg_controllen を書き戻すので exit で読む。msg ポインタは entry で控えた値。
-static void rewrite_recvmsg_creds(pid_t pid, unsigned long msgp) {
+//
+// [DEBUG] トレース ON のときは 1 行残す。X の通信は read ではなく recvmsg なので、GUI が
+// 「タップするまで描かれない」件ではここが唯一の介入点になる。SYS 行だけでは戻り値が
+// 分からず「EAGAIN が返るまで読む」Xorg の判断を狂わせていないかを見られない。
+//   ret  … 受信バイト数 / 負なら -errno (-11=EAGAIN)
+//   clen … カーネルが書き戻した msg_controllen (0 なら ancillary 無し=書き戻しは起きない)
+//   pat  … SCM_CREDENTIALS を見つけて制御バッファを書き戻したか
+static void rewrite_recvmsg_creds(pid_t pid, unsigned long msgp, int fd) {
     struct user_pt_regs regs;
     if (get_regs(pid, &regs) != 0) return;
-    if ((long)regs.regs[0] < 0) return;  // recvmsg 失敗
-    if (msgp == 0) return;
-    unsigned long ctrl, ctrllen;
-    if (read_msg_control(pid, msgp, &ctrl, &ctrllen) != 0) return;
-    patch_scm_creds(pid, ctrl, ctrllen, 0, 0);
+    long ret = (long)regs.regs[0];
+    unsigned long ctrl = 0, ctrllen = 0;
+    int patched = 0;
+    if (ret >= 0 && msgp != 0 && read_msg_control(pid, msgp, &ctrl, &ctrllen) == 0)
+        patched = patch_scm_creds(pid, ctrl, ctrllen, 0, 0);
+    if (g_trc_on)
+        fprintf(g_trc, "[z2trc] recvmsg pid=%d fd=%d ret=%ld clen=%lu pat=%d\n",
+                pid, fd, ret, ctrllen, patched);
 }
 
 // fakeroot(-0) の /proc 偽装: get*id syscall を 0 に偽装しても、ゲストが
@@ -2217,6 +2229,7 @@ static char *const *parse_args(int argc, char **argv, struct config *cfg) {
         else { /* 未知オプションは無視 (proot 互換のため寛容に) */ }
     }
     cfg->readfree = (getenv("Z2ROOT_NO_READFREE") == NULL);  // /proc 偽装の read 非トレース化(既定 ON・Z2ROOT_NO_READFREE で無効化)
+    cfg->no_recvmsg = (getenv("Z2ROOT_NO_RECVMSG") != NULL); // [DEBUG] recvmsg に介入しない(切り分け用・既定 OFF)
     if (cfg->rootfs[0] == '\0' || i >= argc) usage_die(argv[0]);
     canon_host_inplace(cfg->rootfs, sizeof(cfg->rootfs));  // bind と同様 /proc/<pid>/cwd と揃える
     cfg->rootfs_len = strlen(cfg->rootfs);
@@ -2304,7 +2317,12 @@ static int install_seccomp_filter(const struct config *cfg) {
         nrs[n++] = s;
     }
     if (cfg->fake_root)
-        for (size_t i = 0; i < sizeof(kTraceSyscallsFakeroot)/sizeof(int); i++) nrs[n++] = kTraceSyscallsFakeroot[i];
+        for (size_t i = 0; i < sizeof(kTraceSyscallsFakeroot)/sizeof(int); i++) {
+            // [DEBUG] Z2ROOT_NO_RECVMSG=1: recvmsg をフィルタから外す(= syscall 停止ごと無くす)。
+            // X の通信は recvmsg なので、GUI が「タップするまで描かれない」件の切り分けに使う。
+            if (cfg->no_recvmsg && kTraceSyscallsFakeroot[i] == 212) continue;
+            nrs[n++] = kTraceSyscallsFakeroot[i];
+        }
 
     int dnrs[16];
     int d = 0;
@@ -2421,7 +2439,7 @@ static int syscall_needs_exit(const struct config *cfg, const struct pid_state *
         case 151: case 152: case 159: case 54: case 55:
         case 52: case 53: return 1;  // 戻り値を 0(成功)へ(chmod/chown/set*id の EPERM 偽装)
         case 148: case 150: return 1;  // getresuid/getresgid: 出力先の 3 つを 0 に書き換える
-        case 212: return 1;          // recvmsg: 受信 SCM_CREDENTIALS の uid/gid を 0 へ
+        case 212: return !cfg->no_recvmsg;  // recvmsg: 受信 SCM_CREDENTIALS の uid/gid を 0 へ([DEBUG] スイッチで介入なし)
         default: return 0;                            // パス変換のみ(execve/unlinkat/sendmsg 等)
     }
 }
@@ -2542,8 +2560,10 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
         case 211:  // sendmsg: SCM_CREDENTIALS の uid/gid を実値へ(entry で完結)
             rewrite_sendmsg_creds(cfg, pid, &regs);
             break;
-        case 212:  // recvmsg: msg ポインタを控え、exit で受信 cred を 0 へ
-            aux = regs.regs[1];
+        case 212:  // recvmsg: msg ポインタと fd を控え、exit で受信 cred を 0 へ
+            // ⚠ aux_len は readlinkat の bufsiz 用だが 212 では未使用なので fd の控えに流用する
+            // (診断行に fd を出すため。exit では x0 が戻り値に潰れていて第 1 引数を読めない)。
+            if (!cfg->no_recvmsg) { aux = regs.regs[1]; st->aux_len = regs.regs[0]; }
             break;
     }
     st->aux_addr = aux;
@@ -2587,7 +2607,7 @@ static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_
         } else if (st->entry_nr == 63 && st->aux_addr) {
             fake_proc_on_read(pid, st->aux_addr, st->aux_kind, st);
         } else if (st->entry_nr == 212 && st->aux_addr) {
-            rewrite_recvmsg_creds(pid, st->aux_addr);
+            rewrite_recvmsg_creds(pid, st->aux_addr, (int)st->aux_len);
         } else if (st->entry_nr == 148 || st->entry_nr == 150) {
             fake_getres_on_exit(pid, st);
         } else {
