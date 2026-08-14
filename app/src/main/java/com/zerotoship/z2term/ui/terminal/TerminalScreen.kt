@@ -495,11 +495,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onToggleLog = { active.toggleLogging() },
             onOpenLogSettings = { logSheetOpen = true },
             searchActive = searchOpen,
-            onToggleSearch = { searchOpen = !searchOpen },
-            // OS が 1 つも入っていない間だけ 📥 を出す (0.8.340)。案内カードを ✕ で消した後の
-            // 戻り道で、行き先は案内カードと同じ ⚙設定 (→ Linux環境)。
-            showInstallOs = hasOs == false,
-            onInstallOs = { settingsOpen = true }
+            onToggleSearch = { searchOpen = !searchOpen }
         )
 
         TabBar(
@@ -584,11 +580,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
 
         // OS が 1 つも無いときの案内 (0.8.314)。ダウンロードの催促ダイアログの代わりで、
         // 画面を塞がない 1 枚。⚙設定 → Linux環境 で入れれば自然に出なくなる。
-        if (noOsNotice && !NoOsNotice.dismissed) {
-            NoOsNoticeCard(
-                onOpenSettings = { settingsOpen = true },
-                onDismiss = { NoOsNotice.dismissed = true }
-            )
+        // ⚠ **消せない** (0.8.342)。ここが「⚙設定 › Linux環境」を教える唯一の口なので、
+        // 消せると黒い画面と `#` だけが残る (経緯は [NoOsNotice])。塞がないカードなので
+        // 出ていても端末は触れる。
+        if (noOsNotice) {
+            NoOsNoticeCard(onOpenSettings = { settingsOpen = true })
         }
 
         // 手順の案内 (0.8.314)。⚙設定 → メンテナンス → 案内を表示 から開く。
@@ -1514,9 +1510,7 @@ private fun TopBar(
     onToggleLog: () -> Unit,
     onOpenLogSettings: () -> Unit,
     searchActive: Boolean = false,
-    onToggleSearch: () -> Unit = {},
-    showInstallOs: Boolean = false,
-    onInstallOs: () -> Unit = {}
+    onToggleSearch: () -> Unit = {}
 ) {
     val label by session.label.collectAsState()
     val ui by session.uiState.collectAsState()
@@ -1545,23 +1539,6 @@ private fun TopBar(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.widthIn(max = 96.dp)
         )
-        // 📥「OS を入れる」(0.8.340・利用者の指摘)。**Linux の OS が 1 つも入っていない間だけ**出す。
-        //
-        // OS が無い人には、画面を塞がない案内カード ([NoOsNoticeCard]) が「⚙設定 → Linux環境」を
-        // 教える唯一の口だった。だが**カードは ✕ で消せる**ので、消してしまうと黒い画面と `#` だけが
-        // 残り、何を押せば Linux が入るのか画面のどこにも出ていない状態になる (foss は rootfs を
-        // 同梱しないので、全員がこの状態から始まる)。
-        //
-        // ⚠ **カードを消せなくするのは違う** — 塞がないカードにした経緯が [NoOsNotice] の冒頭にある。
-        // 消せるままにして、**いつでも押せる口を 1 つ残す**のが答え。
-        // ⚠ **常設のボタンは増やさない**。OS が 1 つ入れば消えるので、使っている人のツールバーは
-        // 今までどおり。並べ替え ([ReorderableToolbar]) と非表示指定にも入れない — 戻り道が
-        // 隠せてしまっては意味が無いのと、一時的な id を保存順に混ぜないため (⚙ と同じ扱い)。
-        // active=true は「トグルが ON」ではなく**押してほしいボタン**として緑で出すため
-        // (出ている間は端末が本当に使えないので、ここだけは目立ってよい)。
-        if (showInstallOs) {
-            ToolbarChip(icon = "📥", active = true, enabled = true, onClick = onInstallOs)
-        }
         // 残り幅をすべて取る Box に収め、右寄せ。低解像度端末でボタン総幅が画面を超えると
         // 横スクロールで全ボタンに到達できる (はみ出して押せなくなるのを防ぐ・要望)。
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {

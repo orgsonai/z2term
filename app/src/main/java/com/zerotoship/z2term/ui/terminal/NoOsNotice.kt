@@ -1,9 +1,6 @@
 package com.zerotoship.z2term.ui.terminal
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import com.zerotoship.z2term.R
 
@@ -17,52 +14,74 @@ import com.zerotoship.z2term.R
  * 「Arch から始めたい」人は毎回断ることになる。しかも断っても状態は変わらないので、
  * **タブを開くたびに同じダイアログが出る**。ダイアログは画面を塞ぐので、これが一番うるさい。
  *
- * そこで **OS が 1 つも無いときだけ**、塞がない案内カードを出す形に変えた:
+ * そこで **OS が 1 つも無いときだけ**、塞がない案内カードを出す形に変えた。モーダルではないので、
+ * 出ていても端末は触れる。OS が 1 つでも入っていれば、この案内も自動ダウンロードの催促も出ない。
+ * 選んでいる OS がまだ無いときだけ、従来どおりダウンロード確認ダイアログが出る
+ * (= 利用者が選んだ結果なので)。
  *
- *  - モーダルではないので、閉じなくても端末は触れる。
- *  - **✕ で消せる**。消した状態はアプリを開いている間だけ覚える ([dismissed]) ので、
- *    タブを開き直しても出戻らない。
- *  - ただし**次にアプリを開くと出る**。OS が無ければ端末は本当に使えないので、
- *    「二度と出ない」にはしない (⚙設定から入れれば自然に出なくなる)。
+ * ## ⚠ 消せなくした (0.8.342・利用者の判断)
  *
- * OS が 1 つでも入っていれば、この案内も自動ダウンロードの催促も出ない。選んでいる OS が
- * まだ無いときだけ、従来どおりダウンロード確認ダイアログが出る (= 利用者が選んだ結果なので)。
+ * 0.8.341 まではこのカードに ✕ が付いていた。だが**ここは「⚙設定 › Linux環境」を教える唯一の口**
+ * なので、消すと**黒い画面と `#` だけが残り、何を押せば Linux が入るのか画面のどこにも出ていない**
+ * 状態になる (foss は rootfs を同梱しないので**全員がこの状態から始まる**)。
  *
- * ## ✕ で消した後の戻り道 (0.8.340)
+ * 0.8.340 では「消せるまま + OS が無い間だけツールバーに 📥」で戻り道を作ったが、
+ * **📥 を押しても設定画面が開くだけで次に何をすればいいか分からない**と実機で指摘され、撤回した。
+ * 今は:
  *
- * ここが「⚙設定 → Linux環境」を教える唯一の口だったので、**消すと何を押せばいいか分からなく
- * なる**という指摘を受けた (foss は rootfs を同梱しないので全員がこの状態から始まる)。
- * 消せなくするのではなく、**OS が 1 つも無い間だけ**ツールバーに 📥「OS を入れる」を出す形にした
- * (TerminalScreen の TopBar)。OS が 1 つ入れば 📥 は消えるので、常設のボタンは増えない。
+ *  - **OS が 1 つも無い間は消せない** (✕ を出さない)。塞がないカードなので、消せなくても端末は触れる。
+ *  - **⚙設定 の中でも同じ案内を上部に固定する** ([NoOsSettingsNotice])。設定画面まで来た人が
+ *    「どの項目か」で迷わないよう、押すと **Linux環境 のセクションまで運ぶ**。
+ *  - **OS が 1 つ入れば両方とも出ない。**
+ *
+ * ⚠ **消せなくしてよいのは「消すと詰む」ものだけ。** 手順の案内 ([GuideCards]) と
+ * はじめの案内 ([IntroCards]) には ✕ を残すこと — あちらは消しても端末が使える。
  */
-object NoOsNotice {
-    /**
-     * ✕ で消したか。**アプリを開いている間だけ**の記憶で、プロセスが死ねば戻る。
-     *
-     * タブをまたいで覚えておく必要があるので、Composable の `remember` ではなくここに置く
-     * (タブごとに覚えると「新しいタブを開くたびに出る」という元の不満に戻る)。
-     */
-    var dismissed by mutableStateOf(false)
-}
+object NoOsNotice
 
 /**
- * 案内カード本体。押すと ⚙設定 → Linux環境 を開き、✕ で閉じる。
+ * 端末の上に出す案内カード。押すと ⚙設定 (→ Linux環境) を開く。**消せない** (0.8.342)。
  */
 @Composable
 fun NoOsNoticeCard(
     onOpenSettings: () -> Unit,
-    onDismiss: () -> Unit,
 ) {
     GuideCardColumn(
         title = stringResource(R.string.no_os_title),
         hint = stringResource(R.string.no_os_hint),
-        onClose = onDismiss
+        onClose = null
     ) {
         GuideCardRow(
             label = stringResource(R.string.no_os_action),
             command = null,
             onTap = onOpenSettings,
-            onSkip = onDismiss
+            onSkip = null
+        )
+    }
+}
+
+/**
+ * ⚙設定 の上部に固定する同じ案内 (0.8.342)。
+ *
+ * 端末側のカードを押して設定画面に来ても、**項目が多いのでどこが「Linux環境」なのか分からない**
+ * (実機の指摘)。そこで設定画面でも同じ見た目の案内を上部に出し、押したら
+ * **Linux環境 のセクションまでスクロールして運ぶ** ([onGoToDistro])。
+ * スクロール領域の**外**に置くこと — 中に入れると下へスクロールした時点で見えなくなる。
+ */
+@Composable
+fun NoOsSettingsNotice(
+    onGoToDistro: () -> Unit,
+) {
+    GuideCardColumn(
+        title = stringResource(R.string.no_os_title),
+        hint = stringResource(R.string.no_os_settings_hint),
+        onClose = null
+    ) {
+        GuideCardRow(
+            label = stringResource(R.string.no_os_settings_action),
+            command = null,
+            onTap = onGoToDistro,
+            onSkip = null
         )
     }
 }

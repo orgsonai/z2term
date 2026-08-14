@@ -776,7 +776,9 @@
     <!-- OS が 1 つも入っていないときの案内 (foss の初回など)。 -->
     <string name="no_os_title">Linux の OS がまだ入っていません</string>
     <string name="no_os_action">⚙設定 → Linux環境 から、使いたい OS を選んで入れる</string>
-    <string name="no_os_hint">どれから始めても構いません。入れるまで端末は動きません（✕ で閉じても、上の 📥 からいつでも開けます）</string>
+    <string name="no_os_hint">どれから始めても構いません。入れるまで端末は動きません（入れるとこの案内は出なくなります）</string>
+    <string name="no_os_settings_action">ここをタップ → 「Linux環境」へ移動して、使いたい OS を選ぶ</string>
+    <string name="no_os_settings_hint">OS を 1 つ選ぶとダウンロードが始まります。入れ終わると、この案内は出なくなります</string>
     <plurals name="paste_preview_lines">
         <item quantity="other">%1$d 行</item>
     </plurals>

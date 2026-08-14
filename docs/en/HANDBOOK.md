@@ -27,7 +27,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 3. Open the app.
 
 In the **full build**, **Alpine Linux is set up automatically** on first launch (wait a moment and a `#` prompt appears).
-The **foss build** bundles no OS, so the first launch shows a single notice: "No Linux OS is installed yet" (0.8.314). Tap it to open Settings > Linux environment and **pick the OS you want** (Alpine / Ubuntu / Arch / Kali …; any of them is a fine place to start). ✕ closes it, but it comes back the next time you open the app, because the terminal cannot work without one.
+The **foss build** bundles no OS, so the first launch shows a single notice: "No Linux OS is installed yet" (0.8.314). Tap it to open Settings and **pick the OS you want** (Alpine / Ubuntu / Arch / Kali …; any of them is a fine place to start). ⚠ **The notice cannot be dismissed until an OS is installed** (0.8.342 — dismissing it left nothing on screen saying what to press to get Linux). **Settings pins the same notice at the top, and tapping it carries you to the "Linux environment" section.** Both go away once one OS is in.
 **Once one Linux OS is installed**, **three small cards** appear above the terminal (post a notification / turn on the flashlight / open the reminder guide) — the first time only. (Before 0.8.339 they also appeared before an OS was installed, where tapping them did nothing, so they now wait until the install is done.) **Tapping one runs that line as it stands** — anything half-typed is thrown away with `Ctrl-C` first, so nothing mixes in. The ✕ on the right drops a card you do not want. Once all three are gone they never come back. To see them again: Settings > Maintenance > "Show the intro again".
 That's all the setup you need.
 

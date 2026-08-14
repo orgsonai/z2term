@@ -635,8 +635,8 @@ class TerminalSession(
      *
      * UI 側はこれを見て「まっさらな人」と「もう入れた人」を分ける:
      *  - まっさらな間は**はじめの案内を出さない** (押しても走る先が無く、案内だけ使い切ってしまう)。
-     *  - まっさらな間だけ ⚙設定 へ行く口をツールバーに出す ([com.zerotoship.z2term.ui.terminal.NoOsNotice] を
-     *    ✕ で消した後の戻り道)。
+     *  - まっさらな間だけ ⚙設定 の上部に案内を固定する
+     *    ([com.zerotoship.z2term.ui.terminal.NoOsSettingsNotice]・0.8.342)。
      *
      * ディレクトリを見に行くので IO へ逃がす。
      */

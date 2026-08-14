@@ -57,11 +57,14 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
@@ -107,6 +110,7 @@ import com.zerotoship.z2term.settings.SettingsGroupStore
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import com.zerotoship.z2term.ui.components.ResidentActionDialog
 import com.zerotoship.z2term.ui.terminal.Guide
+import com.zerotoship.z2term.ui.terminal.NoOsSettingsNotice
 import com.zerotoship.z2term.ui.terminal.ToolbarButtons
 import com.zerotoship.z2term.ui.terminal.guideDesc
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace
@@ -128,8 +132,10 @@ import com.zerotoship.z2term.ui.theme.rememberTerminalFontFamily
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * 設定ページ (全画面)。従来は下から重なる ModalBottomSheet だったが、「別ページ」として
@@ -173,6 +179,15 @@ fun SettingsSheet(
     var pendingCleanInstall by remember { mutableStateOf(false) }
     // 「クリーンインストール」チェック。ON のまま OS を選ぶとその OS を入れ直す (シート内ローカル)。
     var distroCleanArmed by remember { mutableStateOf(false) }
+    // OS が 1 つも入っていないか (0.8.342)。true の間だけ上部に案内を固定する。
+    // ⚠ **端末の状態が変わるたびに見直す**。ここから OS を入れると端末が起動するので、
+    // それが「入れ終わった合図」になり、シートを開いたままでも案内が消える。
+    val terminalUiState by session.uiState.collectAsState()
+    var noOs by remember { mutableStateOf(false) }
+    LaunchedEffect(terminalUiState.state, settings.distroId) { noOs = !session.hasAnyDistro() }
+    // 上の案内から飛ぶ先 = Linux環境グループの先頭位置 (スクロール領域の先頭からの距離)。
+    // スクロール中に測っても一定の値になるよう、そのときのスクロール量を足して持つ。
+    var linuxGroupY by remember { mutableStateOf(0) }
     // IME 学習履歴の管理シート。非 null の間 [ImeHistorySheet] を表示する (キーボードパッチ)。
     var imeHistoryOpen by remember { mutableStateOf(false) }
     var serversOpen by remember { mutableStateOf(false) }
@@ -284,6 +299,27 @@ fun SettingsSheet(
         BackHandler(onBack = onDismiss)
         Column(modifier = Modifier.fillMaxSize()) {
         SettingsTopBar(onBack = onDismiss)
+        // OS が 1 つも入っていない間は、上部に案内を固定する (0.8.342・利用者の判断)。
+        // ⚠ **スクロール領域の外**に置くこと。中に入れると下へスクロールした時点で見えなくなり、
+        // 「設定画面まで来たのにどの項目か分からない」という元の詰まりに戻る。
+        // 押すと Linux環境 のセクションまで運ぶ (項目が多いので、開くだけでは辿り着けない)。
+        if (noOs) {
+            NoOsSettingsNotice(
+                onGoToDistro = {
+                    scope.launch {
+                        // ⚠ Linux環境グループは既定で**閉じている** ([SettingsGroup.LINUX])。
+                        // 開かずに運ぶと見出しだけ見えて中身が無く、詰まりが解けない。
+                        SettingsGroupStore.setOpen(SettingsGroup.LINUX, true)
+                        // 開いた分の高さがレイアウトに反映されるまで待つ。反映前に動かすと
+                        // スクロール可能量が足りず途中で止まる。待てないときは諦めて動かす。
+                        withTimeoutOrNull(300) {
+                            snapshotFlow { scrollState.maxValue }.first { it >= linuxGroupY }
+                        }
+                        scrollState.animateScrollTo(linuxGroupY)
+                    }
+                }
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -675,7 +711,14 @@ fun SettingsSheet(
                 }
             }
 
-            SettingsGroupSection(SettingsGroup.LINUX) {
+            SettingsGroupSection(
+                SettingsGroup.LINUX,
+                // OS 未導入の案内 ([NoOsSettingsNotice]) から飛ぶ先。スクロール量を足して
+                // 「先頭からの距離」にする (verticalScroll は子の位置をスクロール分ずらすため)。
+                modifier = Modifier.onGloballyPositioned {
+                    linuxGroupY = it.positionInParent().y.toInt() + scrollState.value
+                }
+            ) {
                 // バックグラウンド常駐トグルはツールバーの 🔒 ロックアイコンへ移動した (要望)。
                 // 設定からは出さない (ツールバーで ON/OFF する)。
 
@@ -2090,14 +2133,18 @@ private fun SettingsTopBar(onBack: () -> Unit) {
  * 重い項目 (OS 使用量の走査など) は開くまで走らない。
  */
 @Composable
-private fun SettingsGroupSection(group: SettingsGroup, content: @Composable () -> Unit) {
+private fun SettingsGroupSection(
+    group: SettingsGroup,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
     val openState by SettingsGroupStore.openState.collectAsState()
     val open = openState[group.id] ?: group.defaultOpen
     // 見出しがタップできる場所だと分かるように、カードと同じ枠 + 背景を付ける。
     // 開いている間はアクセント寄りの枠にして、開閉状態も枠だけで読めるようにする。
     val headerBg = if (open) ZtsGreen.copy(alpha = 0.10f) else ZtsBgCard
     val headerBorder = if (open) ZtsGreen.copy(alpha = 0.55f) else ZtsBorder
-    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

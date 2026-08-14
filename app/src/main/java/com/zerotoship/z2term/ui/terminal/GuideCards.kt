@@ -387,7 +387,12 @@ private fun GuideAskDialog(
 internal fun GuideCardColumn(
     title: String,
     hint: String,
-    onClose: () -> Unit,
+    /**
+     * ✕ を押したときの動作。**null なら ✕ を描かない** = 消せないカード (0.8.342)。
+     * 消せなくしてよいのは「消すと詰む」ものだけ (OS 未導入の案内 = [NoOsNoticeCard])。
+     * 手順の案内 ([GuideCards]) と はじめの案内 ([IntroCards]) には必ず逃げ道を残すこと。
+     */
+    onClose: (() -> Unit)?,
     content: @Composable () -> Unit,
 ) {
     Column(
@@ -404,19 +409,21 @@ internal fun GuideCardColumn(
                 fontFamily = FontFamily.Monospace,
                 modifier = Modifier.weight(1f)
             )
-            // ✕ はいつでも出せる逃げ道。押したら丸ごと閉じる。
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(4.dp))
-                    .clickable(onClick = onClose)
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = "✕",
-                    color = ZtsTextSecondary,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace
-                )
+            // ✕ はいつでも出せる逃げ道。押したら丸ごと閉じる。null のときは描かない (消せないカード)。
+            if (onClose != null) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable(onClick = onClose)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "✕",
+                        color = ZtsTextSecondary,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
         }
 
@@ -441,7 +448,8 @@ internal fun GuideCardRow(
     label: String,
     command: String?,
     onTap: () -> Unit,
-    onSkip: () -> Unit,
+    /** 送らずに消す ✕。**null なら描かない** = 消せない行 (0.8.342・[GuideCardColumn] と同じ理由)。 */
+    onSkip: (() -> Unit)?,
 ) {
     Row(
         modifier = Modifier
@@ -474,19 +482,21 @@ internal fun GuideCardRow(
                 )
             }
         }
-        // 要らない手順を「送らずに」消すための ✕ (要望)。
-        Box(
-            modifier = Modifier
-                .clickable(onClick = onSkip)
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "✕",
-                color = ZtsTextSecondary,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace
-            )
+        // 要らない手順を「送らずに」消すための ✕ (要望)。null のときは描かない。
+        if (onSkip != null) {
+            Box(
+                modifier = Modifier
+                    .clickable(onClick = onSkip)
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "✕",
+                    color = ZtsTextSecondary,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
         }
     }
 }

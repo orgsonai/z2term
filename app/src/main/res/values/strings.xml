@@ -789,7 +789,9 @@
     <!-- Shown when no Linux OS is installed at all (first run of the foss build). -->
     <string name="no_os_title">No Linux OS is installed yet</string>
     <string name="no_os_action">Settings -> Linux environment: pick the OS you want and install it</string>
-    <string name="no_os_hint">Any of them is a fine place to start. The terminal stays idle until one is installed (✕ closes this; the 📥 above reopens it any time)</string>
+    <string name="no_os_hint">Any of them is a fine place to start. The terminal stays idle until one is installed (this notice goes away once it is)</string>
+    <string name="no_os_settings_action">Tap here to jump to "Linux environment" and pick the OS you want</string>
+    <string name="no_os_settings_hint">Picking an OS starts the download. Once it is installed, this notice goes away</string>
     <plurals name="paste_preview_lines">
         <item quantity="one">%1$d line</item>
         <item quantity="other">%1$d lines</item>
