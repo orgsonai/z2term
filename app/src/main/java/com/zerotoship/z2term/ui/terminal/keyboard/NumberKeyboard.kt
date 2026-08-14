@@ -33,26 +33,25 @@ import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
  * 配列 (かな面と同じ骨格。両端の列は役割まで揃えてあるので指の運びが変わらない):
  *   ESC      1  2  3   ⌫
  *   ◀/▼      4  5  6   ▶/▲
- *   😀/␣     7  8  9   -//
+ *   ␣        7  8  9   -//
  *   面切替   .  0  :   ⏎
  *
  * **記号は 4 つだけ** (`.` `:` `-` `/`)。端末で数字と一緒に打つもの (IP・ポート・時刻・
  * パス・オプション) に絞る。⚠ **載せすぎると「記号面」になって狙いがぼける** —
  * 記号を一通り打ちたいときは ASCII 面の `?#` がある。
  *
- * **パッド (絵文字 / 貼り付け)**: [KeyboardPad] を開く手は 2 つあり、**かな面と同じに揃えてある**
- * (0.8.348):
- *   - **ESC の上フリック = 貼り付け / 下フリック = 絵文字** ([JpEscKey]・かな面と同一)
- *   - **😀 キーのタップ = 絵文字** (数字面だけの近道。Row 3 左上の席)
+ * **パッド (絵文字 / 貼り付け)**: **かな面とまったく同じ** — **ESC の上フリック = 貼り付け /
+ * 下フリック = 絵文字** ([JpEscKey])。中央 3 列だけがパッドになり両端の列は残る。
  *
- * ⚠ **面が変わると開き方が変わる、が一番戸惑う。** 0.8.347 まで数字面の ESC はタップのみで、
- * **貼り付けを開く手が 1 つも無かった** (😀 は絵文字専用)。かな面で覚えた「ESC を上へ」が
- * 数字面で効かないので、利用者からは「開かない」としか見えない。**入口を足すときは、
- * 先に他の面と同じ動きになっているかを見ること。**
+ * ⚠ **面が変わると開き方が変わる、が一番戸惑う。** 0.8.347 まで数字面の ESC はタップのみで
+ * **貼り付けを開く手が 1 つも無く**、絵文字は Row 3 左上の 😀 キーからしか開けなかった。
+ * かな面で覚えた「ESC を上へ」がここでは何も起きないので「開かない」としか見えない。
+ * 0.8.348 で ESC を揃え、**0.8.349 で 😀 の席を外して `␣` を縁 1 列まるごとに戻した**
+ * (かな面は 0.8.306 に同じ理由で戻している)。
  *
- * どちらも中央 3 列だけがパッドになり両端の列は残る。⚠ 😀 の入口は**アプリの言語が英語のとき
- * 本命**になる — 英語では「あ」キーが無く、その席を面の切替キーが使うため、ASCII 面から
- * 貼り付け / 絵文字の入口が消える。数字面に置いておけば、どの言語でも入口が残る。
+ * ⛔ **左端の列 (ESC / ◀▼ / ␣ / 面切替) は [JpEdgeArrows] などの共有部品を必ず通すこと**
+ * (0.8.349)。席の大きさをかな面と 1 か所で決めるための作りで、**面ごとに組み直すと今回のように
+ * 片方だけズレる**。⚠ 右端の列は役割が違う (かな面は変換、数字面は記号) ので共有しない。
  */
 @Composable
 fun NumberKeyboard(
@@ -178,18 +177,10 @@ fun NumberKeyboard(
         }
         // Row 2: [◀ / ▼]  4 5 6  [▶ / ▲]  — かな面と同じ積み方 ([JpEdgeStack])。
         JpRow(rowSpacing) {
-            JpEdgeStack(
-                weight = JP_EDGE_WEIGHT, spacing = rowSpacing,
-                top = {
-                    JpFuncKey("◀", style, Modifier.fillMaxSize(), repeatable = true) {
-                        onCursorKey(TerminalEmulator.CursorKey.LEFT)
-                    }
-                },
-                bottom = {
-                    JpFuncKey("▼", style, Modifier.fillMaxSize(), repeatable = true) {
-                        onCursorKey(TerminalEmulator.CursorKey.DOWN)
-                    }
-                }
+            JpEdgeArrows(
+                style = style, spacing = rowSpacing,
+                onLeft = { onCursorKey(TerminalEmulator.CursorKey.LEFT) },
+                onDown = { onCursorKey(TerminalEmulator.CursorKey.DOWN) }
             )
             NumKey("4", style, digitScale, ::insert)
             NumKey("5", style, digitScale, ::insert)
@@ -208,21 +199,15 @@ fun NumberKeyboard(
                 }
             )
         }
-        // Row 3: [😀 / ␣]  7 8 9  [- / /]
+        // Row 3: [␣]  7 8 9  [- / /]
+        //   ⚠ **ここを上下に割って 😀 を載せていたが、一番よく打つ ␣ が縁 1 列の半分**に
+        //   なって打ちにくかった。**かな面は 0.8.306 で同じ理由で戻している**
+        //   ([JapaneseFlickKeyboard] Row 3 のコメント) のに、数字面だけ割ったまま残っていた。
+        //   0.8.349 で揃え、**␣ を縁 1 列まるごと**にする。絵文字の入口は ESC の下フリック
+        //   (0.8.348 で付けた・かな面と同じ)なので、😀 の席を外しても入口は減らない。
         //   右端はかな面で「変換」が座る席。数字面に変換は無いので、残り 2 つの記号を積む。
         JpRow(rowSpacing) {
-            JpEdgeStack(
-                weight = JP_EDGE_WEIGHT, spacing = rowSpacing,
-                top = {
-                    JpFuncKey(
-                        "😀", style, Modifier.fillMaxSize(),
-                        fontScale = 0.85f, accent = pad == PadMode.EMOJI
-                    ) { togglePad(PadMode.EMOJI) }
-                },
-                bottom = {
-                    JpFuncKey("␣", style, Modifier.fillMaxSize(), repeatable = true) { insert(" ") }
-                }
-            )
+            JpEdgeSpace(style) { insert(" ") }
             NumKey("7", style, digitScale, ::insert)
             NumKey("8", style, digitScale, ::insert)
             NumKey("9", style, digitScale, ::insert)
@@ -238,9 +223,7 @@ fun NumberKeyboard(
         }
         // Row 4: 面切替(次の面へ)  .  0  :  ⏎
         JpRow(rowSpacing) {
-            JpKey(switchLabel, style, fontScale = 0.7f, accent = true, weight = JP_EDGE_WEIGHT) {
-                onSwitchFace()
-            }
+            JpEdgeSwitch(style, switchLabel) { onSwitchFace() }
             NumKey(".", style, digitScale, ::insert)
             NumKey("0", style, digitScale, ::insert)
             NumKey(":", style, digitScale, ::insert)

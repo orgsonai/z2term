@@ -286,21 +286,15 @@ fun JapaneseFlickKeyboard(
         //   になり、動かすたびに変換候補が追従する。かな=カーソル位置に挿入 / ⌫=カーソル直前を削除。
         //   composing が空のときだけ従来どおり端末カーソルキー送信。
         JpRow(rowSpacing) {
-            JpEdgeStack(
-                weight = JP_EDGE_WEIGHT, spacing = rowSpacing,
-                top = {
-                    JpFuncKey("◀", style, modifier = Modifier.fillMaxSize(), repeatable = true) {
-                        when {
-                            composing.isActive -> composing.moveCursorLeft()
-                            else -> { flush(); onCursorKey(TerminalEmulator.CursorKey.LEFT) }
-                        }
+            JpEdgeArrows(
+                style = style, spacing = rowSpacing,
+                onLeft = {
+                    when {
+                        composing.isActive -> composing.moveCursorLeft()
+                        else -> { flush(); onCursorKey(TerminalEmulator.CursorKey.LEFT) }
                     }
                 },
-                bottom = {
-                    JpFuncKey("▼", style, modifier = Modifier.fillMaxSize(), repeatable = true) {
-                        flush(); onCursorKey(TerminalEmulator.CursorKey.DOWN)
-                    }
-                }
+                onDown = { flush(); onCursorKey(TerminalEmulator.CursorKey.DOWN) }
             )
             JpFlickKey(KANA_TA, style, ::emitKana)
             JpFlickKey(KANA_NA, style, ::emitKana)
@@ -327,7 +321,7 @@ fun JapaneseFlickKeyboard(
         //   ⚠ ここを上下に割って絵文字キーを載せていた時期があるが、**一番よく打つ ␣ が
         //   縁 1 列の半分**になって打ちにくかったので戻した。絵文字の入口は ESC の下フリック。
         JpRow(rowSpacing) {
-            JpKey("␣", style, repeatable = true, weight = JP_EDGE_WEIGHT) {
+            JpEdgeSpace(style) {
                 if (composing.isActive) composing.append(' ')
                 else onBytes(byteArrayOf(0x20))
             }
@@ -344,7 +338,7 @@ fun JapaneseFlickKeyboard(
         }
         // Row 4: 面切替(次の面へ)  小゛゜  わ  、。  ⏎
         JpRow(rowSpacing) {
-            JpKey(switchLabel, style, fontScale = 0.7f, accent = true, weight = JP_EDGE_WEIGHT) { flush(); onSwitchFace() }
+            JpEdgeSwitch(style, switchLabel) { flush(); onSwitchFace() }
             JpKey("小゛゜", style, fontScale = 0.6f) { cycleDakuten() }
             JpFlickKey(KANA_WA, style, ::emitKana)
             JpFlickKey(PUNCT, style, ::emitPlain)
@@ -902,3 +896,52 @@ private val KANA_RA = KanaFlick('ら', 'り', 'る', 'れ', 'ろ')
 private val KANA_WA = KanaFlick('わ', 'を', 'ん', 'ー', '〜')
 // 記号キー: 、。?!…
 private val PUNCT = KanaFlick('、', '。', '？', '！', '…')
+
+// ---- 12 キー系の面で共有する「左端の列」(0.8.349) ------------------------------
+//
+// かな面 ([JapaneseFlickKeyboard]) と数字面 ([NumberKeyboard]) は**同じ 5 列 × 4 行の骨格**で、
+// 左端の列は 4 段とも役割が同じ (ESC / ◀▼ / ␣ / 面切替)。⚠ **にもかかわらず、席の組み方を
+// 面ごとに書いていたせいで実装がズレた** — かな面は 0.8.306 に「上下へ割ると一番よく打つ ␣ が
+// 縁 1 列の半分になって打ちにくい」と戻したのに、**数字面だけ ␣ を 😀 と 2 段に割ったまま
+// 0.8.348 まで残っていた**。同じ理由で ESC の上下フリック (貼り付け / 絵文字) も数字面には
+// 付いていなかった。
+//
+// ⇒ **左端の席は必ずここの関数を通す。** 大きさ・積み方をここ 1 か所で決めるので、
+//    片方の面だけ別物になることが**構造的に起きない**。振る舞い (composing を見るか等) は
+//    面ごとに違うのでコールバックで受け取る。
+// ⚠ 右端の列は役割が違う (かな面は ⌫ / ▲▶ / 変換 / ⏎、数字面は ⌫ / ▶▲ / 記号 2 つ / ⏎) ので
+//    共有しない。**揃っているものだけを揃える。**
+
+/** 左端 Row 2: [◀ / ▼] の 2 段積み。◀ の真下に ▼ を置き、4 方向キーを同じ大きさに揃える。 */
+@Composable
+internal fun RowScope.JpEdgeArrows(
+    style: KeyboardStyle,
+    spacing: androidx.compose.ui.unit.Dp,
+    onLeft: () -> Unit,
+    onDown: () -> Unit
+) {
+    JpEdgeStack(
+        weight = JP_EDGE_WEIGHT, spacing = spacing,
+        top = {
+            JpFuncKey("◀", style, modifier = Modifier.fillMaxSize(), repeatable = true) { onLeft() }
+        },
+        bottom = {
+            JpFuncKey("▼", style, modifier = Modifier.fillMaxSize(), repeatable = true) { onDown() }
+        }
+    )
+}
+
+/**
+ * 左端 Row 3: [␣]。⚠ **縁 1 列をまるごと使う。上下に割らない。**
+ * 一番よく打つキーなので、ここを半分にすると打ち間違いが増える (0.8.306 でかな面が戻した経緯)。
+ */
+@Composable
+internal fun RowScope.JpEdgeSpace(style: KeyboardStyle, onSpace: () -> Unit) {
+    JpKey("␣", style, repeatable = true, weight = JP_EDGE_WEIGHT) { onSpace() }
+}
+
+/** 左端 Row 4: 面の切替キー。ラベルは**押すと行く先**の面 ([KeyboardFace.switchLabel])。 */
+@Composable
+internal fun RowScope.JpEdgeSwitch(style: KeyboardStyle, label: String, onSwitch: () -> Unit) {
+    JpKey(label, style, fontScale = 0.7f, accent = true, weight = JP_EDGE_WEIGHT) { onSwitch() }
+}
