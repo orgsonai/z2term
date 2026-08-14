@@ -789,7 +789,7 @@
     <!-- Shown when no Linux OS is installed at all (first run of the foss build). -->
     <string name="no_os_title">No Linux OS is installed yet</string>
     <string name="no_os_action">Settings -> Linux environment: pick the OS you want and install it</string>
-    <string name="no_os_hint">Any of them is a fine place to start. The terminal stays idle until one is installed (✕ closes this)</string>
+    <string name="no_os_hint">Any of them is a fine place to start. The terminal stays idle until one is installed (✕ closes this; the 📥 above reopens it any time)</string>
     <plurals name="paste_preview_lines">
         <item quantity="one">%1$d line</item>
         <item quantity="other">%1$d lines</item>

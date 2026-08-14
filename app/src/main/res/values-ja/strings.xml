@@ -776,7 +776,7 @@
     <!-- OS が 1 つも入っていないときの案内 (foss の初回など)。 -->
     <string name="no_os_title">Linux の OS がまだ入っていません</string>
     <string name="no_os_action">⚙設定 → Linux環境 から、使いたい OS を選んで入れる</string>
-    <string name="no_os_hint">どれから始めても構いません。入れるまで端末は動きません（✕ で閉じられます）</string>
+    <string name="no_os_hint">どれから始めても構いません。入れるまで端末は動きません（✕ で閉じても、上の 📥 からいつでも開けます）</string>
     <plurals name="paste_preview_lines">
         <item quantity="other">%1$d 行</item>
     </plurals>

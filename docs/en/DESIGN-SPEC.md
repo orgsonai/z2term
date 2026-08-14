@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-14 / Target version: 0.8.339-alpha (versionCode 347)
+Last updated: 2026-08-14 / Target version: 0.8.340-alpha (versionCode 348)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -634,6 +634,7 @@ means would then depend on the payload, which cannot be explained to anyone.
 
 - The decision now lives in `TerminalSession.startupPlan()` (`suspend`), which returns one of `Start` / `ConfirmDownload(spec)` / `NeedOsInstall`. On `NeedOsInstall` (`ProotLauncher.hasAnyDistro()` is false) **nothing is installed regardless of the confirm setting**.
 - Instead a single non-blocking notice card appears (`ui/terminal/NoOsNotice`). Tapping it opens Settings › Linux environment; ✕ closes it. The dismissal is remembered **only while the app is open** (`NoOsNotice.dismissed`) — reopening a tab does not bring it back, but the next launch does (with no OS the terminal genuinely cannot work, so "never again" is wrong here).
+- ⚠ **Leave one way back after it is dismissed** (0.8.340, user report). This card was the only thing pointing at "Settings › Linux environment", so **✕ left nothing but a black screen and a `#`** — with no hint anywhere about what to press to get Linux (and since foss bundles no rootfs, **everyone starts there**). ⛔ **Making the card undismissable is the wrong fix**: it is non-blocking precisely because a dialog on every tab was the worst of it, and that is not somewhere to go back to. It stays dismissable, and **while no OS is installed** the toolbar carries a 📥 "install an OS" (a fixed chip in `TopBar`, going to the same place as the card). ⚠ **No permanent button is added** — 📥 disappears as soon as one OS is in, so an existing user's toolbar is unchanged. ⚠ **It is not in the reorder set or the hide list** (not added to `ToolbarButtons.CATALOG`): a way back that can be hidden is no way back, and a temporary id has no business in the saved order (same treatment as ⚙). ⚠ It is drawn green (`active`) not as a state but **because it is meant to be pressed** — while it shows, the terminal genuinely cannot be used, so this one may stand out.
 - ⚠ **The decision must await the persisted settings.** Through 0.8.313 `downloadOnStartSpec()` read `settingsFlow.value`, which is the `stateIn(Eagerly)` seed = the default snapshot (`distroId=alpine`). Reached before DataStore's first emit, it **judged Alpine instead of the selected OS** — that is exactly "running Arch, yet a new tab sometimes nags about downloading Alpine". `startTerminal` had already been awaiting for the same reason since 0.8.105; only this check was left behind.
 - ⚠ **The OS chips in Settings must be pressable even for the selected OS when it is not installed.** The old guard was `id != selected`, but the foss build starts with the default (Alpine) **selected yet absent**, which made that one OS the only one you could not install. With the automatic nag gone, this is the only entry point.
 
