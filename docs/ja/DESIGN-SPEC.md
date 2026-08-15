@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-15 / 対象バージョン: 0.8.352-alpha (versionCode 360)
+最終更新: 2026-08-15 / 対象バージョン: 0.8.353-alpha (versionCode 361)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1639,6 +1639,10 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - **なぜ「タップすると出る」に見えたか**: タップは X に入力イベントを届けるので、上記の「新しい動き」の 1 つになるだけ。⛔ **タップは本質ではない。** `xsetroot` で背景色を変えるだけでも、**タップせずに画面は更新される**（実機で確認）。⚠ **「タップするまで表示が更新されない」という症状の言葉自体が誤りだった。** 更新は普通に届いていて、**出ていなかったのは端末の窓だけ**。
   - **なぜ起きるか**: openbox は起動時に `SubstructureRedirect` を取ってから既存の窓を拾い集める。その最中に端末が `XMapWindow` すると、**MapRequest は openbox の（Xlib 内部の）待ち行列に入るだけで処理されず**、openbox は socket に読み残しが無いまま `ppoll` で寝てしまう。**待ち行列に残った要求は、次に別のイベントが来るまで誰も見に行かない。** ptrace 配下は全体が遅いので、端末の map がちょうどこの隙間に着弾しやすい。
   - **直し方（0.8.351）**: `z2gui` が **openbox の起動を待ってから端末を起こす**。Xvnc には元から起動待ちがあったのに **openbox だけ待ち合わせが無かった**。加えて**保険**として、端末を起こした後に `openbox --reconfigure` を 1 回だけ撃つ（待ち行列に残った MapRequest がここで処理される）。⚠ **突く手段に `xprop` を使わないこと** — どの distro でも導入対象に入っていないうえ、**X に接続するだけでは openbox は起きない**（実機で `xprop` を何度叩いても窓は出なかった）。**openbox 自身が選んでいるイベントを送る**必要があり、`openbox` は GUI 一式に必ず含まれるので確実に手元にある。
+- ⛔ **Alpine では Konsole を選べない（0.8.353）**。Alpine の konsole は**窓を作る最後の段階で必ず segfault する**（2026-08-15 に実機で確認）。⚠ **導入不足ではない**: 共有ライブラリの `not found` は 0 件、Qt の `libqxcb-egl-integration.so` あり、dbus あり、`apk info -R konsole` の依存も欠落 0、`apk info -L konsole` のファイルも欠落 0。**GL も健全**で、ドライバ導入後は `qt.qpa.gl: Xcb EGL gl-integration successfully initialized` と出て EGL が 9 個の設定を列挙する。フォントも正常（`fc-match monospace` が Noto Sans Mono を返し、Qt からは 24 ファミリ見える）。ロケール・`qmlcache`・キャッシュ汚染・konsole 自身のプラグイン・画像プラグイン・遅延シンボル解決・スタックサイズも全部外れ。⭐ **同じ画面で xterm / rxvt-unicode / LXTerminal は動く**し、**KDE の初期化自体は通る**（`konsole --list-profiles` は正常終了する）。⇒ **Alpine の konsole そのものの問題**として扱い、組み合わせの成立を止める。
+  - **止め方**: `GuiTerminal.isUnsupported(terminalId, distroId)` に置く（UI に条件を散らさない）。⭐ **断るだけで終わらせない** — Alpine を選ぼうとした側からは **「xterm に切り替えて開く」を 1 タップ**で実行できる（設定を往復させないため。`NoOsNoticeCard` で戻り道を残したのと同じ考え方）。逆向き（Alpine のまま Konsole を選ぶ）は説明して選択を適用しない。⚠ 切替の順序は **端末を先に確定 → distro を切替**。逆だと切替後の初回起動が Konsole のまま走る。
+  - ⚠ **選べてしまうことが一番の害だった**: GUI タブが理由も出ないまま真っ黒になり、原因がどこにも出ない。⭐ **動かないと分かっている組み合わせは、警告ではなく成立させないほうがよい。**
+  - ⚠ **`gdb` では追えない**。z2root が tracer なので `PTRACE_ATTACH` が `Operation not permitted` で弾かれる（1 プロセスに tracer は 1 つ）。**logcat / tombstone にも残らない**（SIGSEGV を z2root が先に受け取るので debuggerd まで届かない）。追うなら z2root 側に診断を足すことになる。
 - **GUI は自分から開かない（0.8.254 で自動連動を廃止）**。以前は interactive shell の preexec フック（bash = DEBUG トラップ / zsh = `add-zsh-hook preexec`）が実行前のコマンドを `z2-autogui` に渡し、**GUI バイナリと判定したら GUI タブを自動で開いて**いた。判定は「`libX11` / `libxcb` / GTK / Qt にリンクしているか」だったが、**クリップボード連携のために X を張るだけの CUI アプリが必ず引っかかる**（実機報告: テキストエディタを開いただけで GUI タブが出る）。CUI を使っているだけの人の画面を奪うので、**判定を賢くする方向ではなく仕掛けごと畳んだ**。設定での ON/OFF も足さない — **誤爆する機能を選べるようにしても選ぶ理由が無い**。GUI を開く道は「GUI タブを自分で開く」か「`z2run <アプリ>` と明示的に打つ」の 2 つだけ。⚠ フックは rootfs の rc に書き込み済みなので、**入れるのをやめるだけでは既存環境に残る**。`ProotLauncher.removeAutoGuiHook` が launch 毎にマーカー行ごと取り除き、`/usr/local/bin/z2-autogui` も消す（ユーザーが自分で書いた行は触らない）。
 
 ### 4.13 Android API ブリッジ (`Z2ApiBridge` / `Z2ApiScript`)

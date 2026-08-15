@@ -28,5 +28,20 @@ enum class GuiTerminal(
     companion object {
         val ALL: List<GuiTerminal> = values().toList()
         fun byId(id: String): GuiTerminal = ALL.firstOrNull { it.id == id } ?: XTERM
+
+        /**
+         * その distro でその端末が動かないと分かっている組み合わせ (0.8.353)。
+         *
+         * ⚠ **Alpine の Konsole は起動できない** — 窓を作る最後の段階で必ず segfault する
+         * (2026-08-15 に実機で確認)。GL・フォント・ロケール・キャッシュ・依存パッケージ・
+         * ファイル欠落はすべて否定済みで、**同じ画面で xterm / urxvt / LXTerminal は動く**。
+         * KDE の初期化自体は通る (`konsole --list-profiles` は正常終了する) ので、
+         * 導入不足ではなく Alpine の konsole そのものの問題。
+         *
+         * ⭐ **選べてしまうと「GUI を開いたが真っ黒のまま」になり、原因が分からない。**
+         * 組み合わせの成立を止めて、その場で別の端末に替えられるようにする。
+         */
+        fun isUnsupported(terminalId: String, distroId: String): Boolean =
+            terminalId == KONSOLE.id && distroId == "alpine"
     }
 }

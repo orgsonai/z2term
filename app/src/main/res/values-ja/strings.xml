@@ -488,6 +488,12 @@
     <string name="gui_terminal_urxvt_desc">軽量・日本語表示可</string>
     <string name="gui_terminal_lxterminal_desc">軽量 GTK</string>
     <string name="gui_terminal_konsole_desc">KDE 系・初回導入が大きい</string>
+    <!-- Konsole × Alpine は成立しない組み合わせ (0.8.353) -->
+    <string name="gui_term_unsupported_title">Alpine では Konsole は動きません</string>
+    <string name="gui_term_unsupported_switch_msg">Alpine の Konsole は窓を作る途中で落ちるため、GUI タブが理由も出ないまま真っ黒になります。GUI ターミナルを xterm に切り替えて Alpine を開きますか？ Alpine では xterm / rxvt-unicode / LXTerminal が動きます。あとから設定で選び直せます。</string>
+    <string name="gui_term_unsupported_pick_msg">いま使っている OS が Alpine で、Alpine の Konsole は窓を作る途中で落ちます。別の GUI ターミナル (xterm / rxvt-unicode / LXTerminal) を選ぶか、先に別の OS へ切り替えてください。</string>
+    <string name="action_switch_to_xterm_and_open">xterm に切り替えて開く</string>
+    <string name="action_got_it">わかった</string>
     <string name="keyboard_style_compact">シンプル</string>
     <string name="keyboard_style_spacious">4 方向フリック</string>
 

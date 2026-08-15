@@ -175,6 +175,10 @@ fun SettingsSheet(
     val scope = rememberCoroutineScope()
     // distro 切替でダウンロードが要るとき、確認ダイアログの対象 spec を保持 (M8-6 T7)。
     var pendingDistroSwitch by remember { mutableStateOf<DistroSpec?>(null) }
+    // Konsole × Alpine は成立しない組み合わせ (0.8.353)。どちら側から踏んだかで文面と
+    // 出せる逃げ道が変わるので、踏んだ側を覚えておく ("distro" = Alpine を選ぼうとした /
+    // "terminal" = Alpine のまま Konsole を選ぼうとした)。
+    var konsoleConflict by remember { mutableStateOf<String?>(null) }
     // 確認ダイアログがクリーンインストール (rootfs + DLキャッシュ削除) かどうか。
     var pendingCleanInstall by remember { mutableStateOf(false) }
     // 「クリーンインストール」チェック。ON のまま OS を選ぶとその OS を入れ直す (シート内ローカル)。
@@ -731,7 +735,12 @@ fun SettingsSheet(
                         selected = settings.distroId,
                         onSelect = { id ->
                             val spec = DistroSpec.byId(id)
-                            if (distroCleanArmed && spec != null) {
+                            // ⚠ 動かないと分かっている組み合わせは成立させない (0.8.353)。
+                            // 選べてしまうと「GUI を開いたが真っ黒のまま」になり、理由が
+                            // どこにも出ない。ここで止めて、その場で端末を替えられるようにする。
+                            if (GuiTerminal.isUnsupported(settings.guiTerminalId, id)) {
+                                konsoleConflict = "distro"
+                            } else if (distroCleanArmed && spec != null) {
                                 // クリーンインストール: rootfs + DL キャッシュを消して入れ直す。
                                 // 非同梱 distro は再 DL が走るので確認 ON なら先にダイアログ
                                 // 全フレーバーでrootfsは実行時DL対象。
@@ -922,7 +931,14 @@ fun SettingsSheet(
                         options = GuiTerminal.ALL.map { it.id },
                         labels = GuiTerminal.ALL.associate { it.id to it.displayName },
                         selected = settings.guiTerminalId,
-                        onSelect = { session.setGuiTerminal(it) }
+                        onSelect = { id ->
+                            // 逆向き (Alpine のまま Konsole を選ぶ) も同じく止める。
+                            if (GuiTerminal.isUnsupported(id, settings.distroId)) {
+                                konsoleConflict = "terminal"
+                            } else {
+                                session.setGuiTerminal(id)
+                            }
+                        }
                     )
                     ToggleField(
                         title = stringResource(R.string.settings_clean_install),
@@ -1729,6 +1745,31 @@ fun SettingsSheet(
                 onDismiss()
             },
             onCancel = { pendingDistroSwitch = null; pendingCleanInstall = false }
+        )
+    }
+
+    // Konsole × Alpine の衝突 (0.8.353)。⭐ **断るだけで終わらせない** — Alpine を選ぼうと
+    // した側からは「xterm に切り替えて開く」を 1 タップで実行できるようにする
+    // (設定を往復させないため。`NoOsNoticeCard` で戻り道を残したのと同じ考え方)。
+    konsoleConflict?.let { from ->
+        val fromDistro = from == "distro"
+        DownloadConfirmDialog(
+            title = stringResource(R.string.gui_term_unsupported_title),
+            message = if (fromDistro) stringResource(R.string.gui_term_unsupported_switch_msg)
+                      else stringResource(R.string.gui_term_unsupported_pick_msg),
+            confirmLabel = if (fromDistro) stringResource(R.string.action_switch_to_xterm_and_open)
+                           else stringResource(R.string.action_got_it),
+            onConfirm = {
+                konsoleConflict = null
+                if (fromDistro) {
+                    // 端末を先に確定させてから distro を切り替える。順序が逆だと
+                    // 切替後の初回起動が Konsole のまま走ってしまう。
+                    session.setGuiTerminal(GuiTerminal.XTERM.id)
+                    session.switchDistro("alpine")
+                    onDismiss()
+                }
+            },
+            onCancel = { konsoleConflict = null }
         )
     }
 

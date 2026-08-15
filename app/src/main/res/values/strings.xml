@@ -493,6 +493,12 @@
     <string name="gui_terminal_urxvt_desc">Light / Japanese-capable</string>
     <string name="gui_terminal_lxterminal_desc">Light GTK</string>
     <string name="gui_terminal_konsole_desc">KDE-based / heavy first-time install</string>
+    <!-- Konsole × Alpine は成立しない組み合わせ (0.8.353) -->
+    <string name="gui_term_unsupported_title">Konsole does not run on Alpine</string>
+    <string name="gui_term_unsupported_switch_msg">On Alpine, Konsole crashes while it builds its window, so the GUI tab would stay black with no explanation. Switch the GUI terminal to xterm and open Alpine? xterm, rxvt-unicode and LXTerminal all work on Alpine — you can pick another one later in Settings.</string>
+    <string name="gui_term_unsupported_pick_msg">Alpine is the OS in use, and Konsole crashes there while it builds its window. Pick a different GUI terminal (xterm, rxvt-unicode or LXTerminal), or switch to another OS first.</string>
+    <string name="action_switch_to_xterm_and_open">Switch to xterm and open</string>
+    <string name="action_got_it">Got it</string>
     <string name="keyboard_style_compact">Simple</string>
     <string name="keyboard_style_spacious">4-way flick</string>
 
