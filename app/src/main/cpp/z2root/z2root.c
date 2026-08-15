@@ -109,6 +109,7 @@ struct config {
     char self_path[PATH_MAX_Z];       // /proc/self/exe (nativeLibraryDir の libz2root.so)
     int readfree;                     // /proc 偽装を openat 時 temp 差し替えにし read/close をトレース対象から外す(高速化・既定 ON・Z2ROOT_NO_READFREE で無効化)
     int no_recvmsg;                   // [DEBUG] recvmsg(212) に一切介入しない(Z2ROOT_NO_RECVMSG=1)。GUI 停止の切り分け用。§recvmsg 参照
+    int no_epollet;                   // epoll_ctl(21) の EPOLLET を落としてレベルトリガへ倒す(既定 ON・Z2ROOT_KEEP_EPOLLET=1 で従来動作)。§epollet 参照
     uid_t real_uid;                   // トレーサ(=Android アプリ)の実 uid。fake_root で getuid を 0 に偽装しても
     gid_t real_gid;                   // SCM_CREDENTIALS は実 uid/gid でしか送れない(EPERM 回避)ため保持する。
 };
@@ -2230,6 +2231,7 @@ static char *const *parse_args(int argc, char **argv, struct config *cfg) {
     }
     cfg->readfree = (getenv("Z2ROOT_NO_READFREE") == NULL);  // /proc 偽装の read 非トレース化(既定 ON・Z2ROOT_NO_READFREE で無効化)
     cfg->no_recvmsg = (getenv("Z2ROOT_NO_RECVMSG") != NULL); // [DEBUG] recvmsg に介入しない(切り分け用・既定 OFF)
+    cfg->no_epollet = (getenv("Z2ROOT_KEEP_EPOLLET") == NULL); // epoll_ctl の EPOLLET を落とす(既定 ON・§epollet)
     if (cfg->rootfs[0] == '\0' || i >= argc) usage_die(argv[0]);
     canon_host_inplace(cfg->rootfs, sizeof(cfg->rootfs));  // bind と同様 /proc/<pid>/cwd と揃える
     cfg->rootfs_len = strlen(cfg->rootfs);
@@ -2323,6 +2325,11 @@ static int install_seccomp_filter(const struct config *cfg) {
             if (cfg->no_recvmsg && kTraceSyscallsFakeroot[i] == 212) continue;
             nrs[n++] = kTraceSyscallsFakeroot[i];
         }
+    // epoll_ctl(21): EPOLLET を落とすためにトレースする(既定 ON・§epollet)。
+    // epoll_ctl は **fd の登録時にしか呼ばれない**(通信のたびに呼ばれる read/recvmsg とは
+    // 桁が違う)ので、トレース対象に足しても実行速度への影響はほぼ無い。
+    // Z2ROOT_KEEP_EPOLLET=1 で従来動作(フィルタから外す = 停止ごと無くす)。
+    if (cfg->no_epollet) nrs[n++] = 21;
 
     int dnrs[16];
     int d = 0;
@@ -2465,6 +2472,50 @@ static void maybe_rewrite_ioctl(pid_t pid, struct user_pt_regs *regs) {
     set_regs(pid, regs);
 }
 
+// §epollet — epoll_ctl(21) の EPOLLET(エッジトリガ)を落としてレベルトリガへ倒す。
+//
+// **なぜ要るか**(2026-08-15 に実機で確定):
+// Xorg は X クライアント接続を **EPOLLET で登録**し、「`EAGAIN` が返るまで読み切る」
+// 前提で動く。ところが z2root(ptrace) 配下ではその読み切りが崩れることがあり、
+// **エッジトリガは一度取りこぼすと二度と通知を出さない**ため、クライアントが送った
+// 要求(端末の窓の作成など)が処理されないまま X も端末も epoll で寝てしまう。
+//
+// 実機で測った状態(GUI タブを開いて放置・moto g66j / Arch):
+//   Xvnc      Δcpu=0 ticks  wchan=do_epoll_wait  syscall 200/200 が epoll_pwait
+//   端末      Δcpu=0 ticks  wchan=do_epoll_wait  同上
+//   epoll 登録  tfd:14 events:80000019 (=EPOLLET) ← この fd が端末との接続
+//   _NET_CLIENT_LIST  空 (窓がまだ 1 つも作られていない)
+// = **誰も回していない。全員が「通知が来ない」と思って寝ている。**
+// 画面をタップすると入力イベントで新しいデータが流れ、そこで初めてエッジが立って
+// 溜まっていた要求がまとめて処理される = 「タップするまで端末の窓が出ない」の正体。
+// ⚠ 新しいクライアントを 1 つ繋いでも(xprop)動かない。取りこぼした fd は再チェック
+// されないため。**外から入力が入るまで永久に待つ。**
+//
+// **なぜレベルトリガで直るか**: レベルトリガは「まだ読めるデータがある限り毎回
+// 通知される」ので、取りこぼしが原理的に起きない。Xorg は EAGAIN まで読む作りなので
+// レベルトリガでも正しく動く(通知の回数が増える分だけ僅かに遅くなるだけ)。
+//
+// ⚠ **EPOLLONESHOT(1<<30) は落とさない**。あちらは「1 回通知したら無効化する」で、
+// 呼び出し側が毎回 MOD で再登録する前提。落とすと逆に多重通知で壊れる。
+//
+// **既定 ON**。従来動作に戻すには `~/.z2root_env` に `Z2ROOT_KEEP_EPOLLET=1` を書く
+// (症状が再発したときに「この修正のせいか」を切り分けられるように口を残してある)。
+static void maybe_drop_epollet(pid_t pid, struct user_pt_regs *regs) {
+    long op = (long)regs->regs[1];
+    unsigned long evp = regs->regs[3];
+    if (evp == 0) return;
+    if (op != 1 && op != 3) return;              // EPOLL_CTL_ADD(1) / MOD(3) のみ。DEL(2) は event を見ない
+    unsigned int events = 0;
+    // struct epoll_event の先頭 4 バイトが events (aarch64 では packed されないので
+    // data は +8。ここでは events しか触らないので先頭 4 バイトだけ読み書きする)。
+    struct iovec lo = { &events, sizeof events };
+    struct iovec re = { (void *)evp, sizeof events };
+    if (process_vm_readv(pid, &lo, 1, &re, 1, 0) != (ssize_t)sizeof events) return;
+    if (!(events & 0x80000000u)) return;         // EPOLLET が立っていない = 触らない
+    events &= ~0x80000000u;
+    write_tracee_mem(pid, evp, &events, sizeof events);
+}
+
 static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_state *st) {
     struct user_pt_regs regs;
     if (get_regs(pid, &regs) != 0) { st->entry_nr = -1; return 0; }
@@ -2485,6 +2536,15 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
     if (st->entry_nr == 29) {                // ioctl: termios2→legacy 書換のみ(exit 後処理不要)
         st->aux_addr = 0;
         maybe_rewrite_ioctl(pid, &regs);
+        return 0;
+    }
+    // epoll_ctl: EPOLLET を落とすだけ(exit 後処理不要・§epollet)。
+    // ⚠ cfg->no_epollet を必ず見ること。Z2ROOT_KEEP_EPOLLET=1 のときは seccomp フィルタに
+    // 21 を入れていないのでここへは来ないが、Z2ROOT_NO_SECCOMP=1(全 syscall トレースの
+    // フォールバック)では素通しの 21 も流れてくる。条件が無いと「戻したい」のに落としてしまう。
+    if (cfg->no_epollet && st->entry_nr == 21) {
+        st->aux_addr = 0;
+        maybe_drop_epollet(pid, &regs);
         return 0;
     }
     if (cfg->link2symlink && st->entry_nr == 37) {  // linkat: 実ハードリンク試行→exit でコピー fallback
