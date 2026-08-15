@@ -605,6 +605,30 @@ fun z2guiScript(
         |OBEOF
         |  setsid openbox --config-file "${d}OBRC" </dev/null >"/tmp/z2gui-wm-${d}{DISPLAY_NUM}.log" 2>&1 &
         |  echo ${d}! >> "${d}PIDFILE" 2>/dev/null
+        |  # WM が「窓の面倒を見られる状態」になるまで待つ (0.8.351)。
+        |  # ⚠ Xvnc には起動待ち (上の x_running ループ) があるのに **openbox には無く**、
+        |  #    起こした直後に端末を起こしていた。ptrace 配下は全体が遅いので、端末の
+        |  #    XMapWindow が **openbox の起動処理の最中** に着弾しうる。そうなると
+        |  #    MapRequest が openbox の待ち行列に残ったまま ppoll で寝てしまい、
+        |  #    **窓が永久に map されない** (X も端末も正常なのに画面だけ真っ黒)。
+        |  #    次に何か X の動きがあると溜まっていた分がまとめて処理されて窓が出るため、
+        |  #    「画面を触ると急に端末が現れる」ように見えていた (実機で 2026-08-15 に確認)。
+        |  wait_wm() {
+        |    # WM の名乗り (_NET_SUPPORTING_WM_CHECK) を待つ。⚠ xprop はどの distro でも
+        |    # 導入対象に入れていないので、無ければこの待ちは飛ばす。
+        |    if has xprop; then
+        |      k=0
+        |      while [ ${d}k -lt 50 ]; do
+        |        xprop -root _NET_SUPPORTING_WM_CHECK 2>/dev/null | grep -q '0x' && break
+        |        k=${d}((k+1)); sleep 0.1
+        |      done
+        |    fi
+        |    # ⚠ 名乗りは openbox が既存の窓を拾い終える **前** に立つので、名乗りだけでは
+        |    #    競合の窓を塞ぎ切れない。拾い終わるまでの分を一律で足す (この時点で窓は
+        |    #    1 つも無いので短くてよい)。
+        |    sleep 1
+        |  }
+        |  wait_wm
         |  # ターミナルは画面左上 (0,0) に、画面に対して控えめなサイズで開く (大きすぎ対策)。
         |  # 画面 (GEOM) の約 60% 幅 × 約 45% 高さ。文字セルは monospace fs 11 で概算 7x20px。
         |  # もっと大きくしたい時は WM (openbox) のタイトルバーや最大化ボタンで広げられる。
@@ -734,6 +758,17 @@ fun z2guiScript(
         |      echo "${strings.terminalLog} (/tmp/z2gui-term-${d}{DISPLAY_NUM}.log):"
         |      tail -n 8 "/tmp/z2gui-term-${d}{DISPLAY_NUM}.log" 2>/dev/null
         |    fi
+        |  fi
+        |  # 保険 (0.8.351): それでも窓が map されないまま残ったときのために、端末を起こした
+        |  # 後に **openbox を 1 回だけ突く**。`openbox --reconfigure` は動いている openbox へ
+        |  # X の ClientMessage を送るので、待ち行列に溜まっていた MapRequest がここで
+        |  # まとめて処理される。⚠ 突く手段に xprop 等を使わないこと (どの distro でも
+        |  # 導入対象に入っておらず、無い環境では保険が効かない)。openbox は GUI 一式に
+        |  # 必ず含まれるので、これなら確実に手元にある。
+        |  # ⚠ 単に X へ接続するだけでは駄目 (openbox は接続を通知されない。実機で xprop を
+        |  #    何度叩いても窓は出なかった)。**openbox 自身が選んでいるイベント**を送ること。
+        |  if [ "${d}{Z2_NO_TERM:-0}" != "1" ] && has "${d}GUI_TERM_BIN"; then
+        |    openbox --reconfigure >/dev/null 2>&1 || true
         |  fi
         |  # proot --kill-on-exit 対策: ここでブロックし続けることで Xvnc/WM を生かす。
         |  # setsid したプロセスはジョブ制御から外れるため wait では待てない。X ソケットの
