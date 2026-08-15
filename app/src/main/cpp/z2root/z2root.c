@@ -684,6 +684,12 @@ static int syscall_paths(long nr, struct sc_paths *out) {
             p[out->n++] = (struct path_arg){3, 2, 0, -1, 0, 0};
             break;
         case 45:  p[out->n++] = (struct path_arg){0, -1, 1, -1, 0, 0}; break;             // truncate (path arg0, dirfd 無し, follow。ftruncate(46) は fd なので対象外)
+        // inotify_add_watch(fd, path, mask) — path arg1。⚠ **arg0 は inotify fd であって
+        // dirfd ではない**ので dirfd 無し(-1)。既定は最終 symlink を辿り、mask に
+        // IN_DONT_FOLLOW(0x02000000) があるときだけ辿らない。
+        // ⚠ これが抜けていると **実在するディレクトリでも必ず ENOENT** になる(0.8.352 で追加)。
+        // ファイル監視を使うアプリが軒並み「対象が無い」と誤認する(実機で確認)。
+        case 27:  p[out->n++] = (struct path_arg){1, -1, 1, 2, 0, 0x02000000}; break;     // inotify_add_watch
         case 5: case 8: case 11: case 14:   // setxattr/getxattr/listxattr/removexattr (path arg0, follow)
             p[out->n++] = (struct path_arg){0, -1, 1, -1, 0, 0}; break;
         case 6: case 9: case 12: case 15:   // lsetxattr/lgetxattr/llistxattr/lremovexattr (path arg0, no-follow)
@@ -2267,6 +2273,7 @@ static const int kTraceSyscallsBase[] = {
     35, 34, 33,               // unlinkat / mkdirat / mknodat
     53, 88,                   // fchmodat / utimensat
     45,                       // truncate (path 版。ftruncate(46) は fd なので非対象)
+    27,                       // inotify_add_watch (path 版。inotify_init1(26)/inotify_rm_watch(28) は path 無=非対象)
     5, 6, 8, 9, 11, 12, 14, 15, // *setxattr/*getxattr/*listxattr/*removexattr の path 版(l*=no-follow)。f* は fd
     264,                      // name_to_handle_at (path 版。open_by_handle_at(265) は handle で path 無=非対象)
     49, 43,                   // chdir / statfs

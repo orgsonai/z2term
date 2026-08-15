@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-15 / 対象バージョン: 0.8.351-alpha (versionCode 359)
+最終更新: 2026-08-15 / 対象バージョン: 0.8.352-alpha (versionCode 360)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1224,6 +1224,7 @@ proot 相当に強化済み。
 | io_uring 3 番号 (`io_uring_setup`=425 / `io_uring_enter`=426 / `io_uring_register`=427) | SIGSYS ハンドラが 0 でなく **`-ENOSYS`(-38)** を返し libuv を epoll へフォールバックさせる (他の SIGSYS は従来どおり 0 偽装) | 0.8.49 |
 | `SCM_CREDENTIALS` の ucred | `sendmsg`(211)/`recvmsg`(212) をトレースし、送信時はプロセスの実 uid/gid へ、受信時は 0 へ戻す。カーネルは申告 uid が実/実効/保存 uid のいずれか (または `CAP_SETUID`) と一致しないと `EPERM` を返すため。`SCM_RIGHTS`/memfd は無変更 | 0.8.53 |
 | ハードリンク (`linkat`) | **まず実ハードリンクを試し**、Android が `EACCES`/`EPERM`/`EXDEV` 等で拒否したときだけトレーサ側で `copy_for_link` が `old` を `new` へコピーして成功(0)を返す。`new` が既に存在する (本来 `EEXIST`) 等の本物のエラーは保持 | 0.8.47 |
+| ファイル監視 (`inotify_add_watch`=27) | パス引数 (arg1) をホスト実パスへ書き換える。⚠ **arg0 は inotify fd であって dirfd ではない**ので dirfd 無しとして扱う。既定は最終 symlink を辿り、mask に `IN_DONT_FOLLOW`(0x02000000) があるときだけ辿らない。⚠ **これが抜けていると実在するディレクトリでも必ず `ENOENT`** になり、ファイル監視を使うアプリが軒並み「対象が無い」と誤認する (実機で確認: KDE の `KDirWatch` が既存ディレクトリに対して `inotify failed … No such file or directory` を出していた)。`inotify_init1`(26)/`inotify_rm_watch`(28) は path を取らないので非対象 | 0.8.352 |
 | copy-fallback 後の `st_dev`/`st_ino` | git 2.46+ の「`link()` 後に dest を lstat し src と一致検証」を通すため、**パス相関**で偽装する (`linkcopy_record` がコピー先のホスト実パスを記録し、`newfstatat`/`statx` の entry で stat 対象のホストパスを `host_path_for` で解決して `linkcopy_find` が一致を見たときだけ exit で `st_dev`/`st_ino`、statx は `stx_ino`＋`stx_dev_major/minor` を src 値へ偽装) | 0.8.58〜0.8.64 |
 
 `libz2accept.so` は `scripts/build-z2root.sh` が生成し gitignore される。`ProotLauncher` が rootfs の `/usr/local/lib/libz2accept.so` へ配置し `LD_PRELOAD` を env 注入する (読み込み失敗は ld.so が警告して無視する非致命)。`__errno_location` は `__attribute__((weak))` + NULL ガードで参照するため、bionic 製バイナリ (aapt2 等) に LD_PRELOAD が漏れても起動失敗しない (0.8.55)。
