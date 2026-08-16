@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-15 / Target version: 0.8.353-alpha (versionCode 361)
+Last updated: 2026-08-16 / Target version: 0.8.354-alpha (versionCode 362)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1381,6 +1381,7 @@ when `executionEngine = "chroot"`, `launchChroot()` is used.
   - Character width: East Asian Width aware (the `ambiguousAsWide` setting makes ambiguous widths 2 cells). Outside the BMP (emoji 😀 / CJK extensions) a surrogate pair is stored across 2 cells — high surrogate in the left cell, low surrogate in the right (`wideCont`). **Rendering (`TerminalRenderer.glyphAt`), selection copy (`getRangeText`) and row text (`toText`) recombine the two cells into a single glyph** (0.8.74). Previously the right cell was dropped and the lone high surrogate was rendered/emitted, producing a tofu (?) box.
   - SGR: bold/underline/inverse/strikethrough, 16/256/RGB (truecolor).
   - DEC modes: alternate screen, cursor keys (DECCKM), **mouse reporting** (X10/Normal/Button/Any × Legacy/SGR/urxvt).
+  - **Leaving the alternate screen resets the text state (0.8.354).** DECRST 1049/1047/47 put **SGR (colors and attributes), the OSC 8 link and mouse reporting** back to their defaults; **only the position (cursor, scroll region) is restored**. ⚠ **xterm's DECRST 1049 restores the SGR from just before the switch (DECRC semantics); this implementation does not.** The on-device failure looked like this: **inside an interactive CLI that keeps drawing on the normal screen** (no alternate screen, history stays in the scrollback), **opening a full-screen editor through that CLI and coming back made everything it printed afterwards underlined** (user report, fixed in 0.8.354). ⚠ **Launching the editor directly does not trigger it** — the CLI must be mid-attribute when the alternate screen is entered. There are two routes and **"default on exit" kills both**: (1) the attribute is saved and restored on the way back (the returning side believes it emitted nothing, so it draws without a leading `\e[0m`), (2) the editor exits without clearing its attributes and nobody resets them. ⚠ **Colors are reset too, not just attributes** — the same route can produce "everything is red", and fixing only the underline would earn the same report twice. ⚠ **The OSC 8 link is cleared as well**: there is no reason for a link to survive a whole-screen swap, and since it is not SGR **neither `\e[0m` nor `reset` can clear it** (leaving a state the user cannot repair). For the same reason **RIS (`reset`) clears the link too.** Forcing mouse reporting off has been the rule since 0.8.124; this is the same reasoning.
   - OSC: 7 (cwd) / 8 (hyperlink) / 10–12 (fg/bg/cursor colour, with `?` query response) / 52 (clipboard) / palette. OSC titles are UTF-8 decoded (prevents mojibake in Japanese tab names).
   - **Cells of URL/OSC8 links are underlined.** Long URLs are detected via a wrapped flag on the originating row (tap to open).
   - bracketed paste (DECSET 2004) supported.
@@ -2344,6 +2345,7 @@ The fix **distinguishes where the SIGSYS came from** and delivers it to the app'
 - **GUI video**: mpv's `gpu` output garbles / half-renders on GPU-less devices → `vo=x11` default + `LIBGL_ALWAYS_SOFTWARE`.
 - **GUI audio**: PulseAudio must start with the `-n` method or it conflicts with existing config. Passing `AudioBridge`'s target port as 0 yields silence (specify the default port explicitly). **Under z2root**: `--daemonize` fails because it re-execs `/proc/self/exe` (= the launcher) → background it with `setsid …&`. The AF_UNIX `SCM_CREDENTIALS` handshake gets `EPERM` from the kernel when fake-root reports uid 0 → z2root rewrites the `sendmsg`/`recvmsg` (211/212) ucred to the real uid (0.8.53).
 - **Wrapped URL detection**: the wrapped flag goes on the "wrap-origin row", not the "continuation row" (reversed, long URLs become untappable).
+- **Never write a raw ESC (0x1b) in a test** (0.8.354): spell it out, as in `private val ESC = "\u001b"`. A raw byte is invisible in an editor, so **nobody notices when it goes missing**. `SgrUnderlineAltScreenExitTest` had held an **empty** `ESC` since 0.8.139, which means the test for "no underline survives leaving the alternate screen" **had been passing without feeding a single control sequence** (found while investigating 0.8.354). ⚠ A test that passes while verifying nothing is harder to spot than one that fails.
 
 ### 10.4 Per-version fix record (0.8.110–0.8.139)
 

@@ -177,12 +177,10 @@ class TerminalEmulator(
     private var savedBg = SgrAttribute.DEFAULT
     private var savedFlags = 0
 
-    // --- ?1049 用: Primary 退避領域 (alt 切替前の状態を保存) ---
+    // --- ?1049 用: Primary 退避領域 (alt 切替前の位置を保存) ---
+    // ⚠ **色と装飾 (SGR) は退避しない**。戻すときは既定へ倒す ([resetTextStateOnPrimaryReturn])。
     private var altSavedCursorRow = 0
     private var altSavedCursorCol = 0
-    private var altSavedFg = SgrAttribute.DEFAULT
-    private var altSavedBg = SgrAttribute.DEFAULT
-    private var altSavedFlags = 0
     private var altSavedScrollTop = 0
     private var altSavedScrollBottom = 0
 
@@ -1022,15 +1020,13 @@ class TerminalEmulator(
                     mouseEncoding = if (set) MouseEncoding.URXVT else MouseEncoding.LEGACY
                 }
                 1049 -> {
-                    // DECSET 1049: カーソル + 属性 + スクロール領域を退避 → Alt 切替 (クリア)
-                    // DECRST 1049: Alt → Primary、退避していた状態を復元
+                    // DECSET 1049: カーソル + スクロール領域を退避 → Alt 切替 (クリア)
+                    // DECRST 1049: Alt → Primary、カーソルとスクロール領域を戻し、
+                    //              文字の状態は既定へ ([resetTextStateOnPrimaryReturn] に理由)
                     if (set) {
                         if (buffer.primaryActive) {
                             altSavedCursorRow = cursorRow
                             altSavedCursorCol = cursorCol
-                            altSavedFg = currentFg
-                            altSavedBg = currentBg
-                            altSavedFlags = currentFlags
                             altSavedScrollTop = scrollTop
                             altSavedScrollBottom = scrollBottom
                             buffer.switchToAlternate(clear = true, fg = currentFg, bg = currentBg)
@@ -1042,16 +1038,9 @@ class TerminalEmulator(
                             buffer.switchToPrimary()
                             cursorRow = altSavedCursorRow
                             cursorCol = altSavedCursorCol
-                            currentFg = altSavedFg
-                            currentBg = altSavedBg
-                            currentFlags = altSavedFlags
                             scrollTop = altSavedScrollTop
                             scrollBottom = altSavedScrollBottom
-                            // Alt → Primary に戻るタイミングでマウスレポートを OFF に強制。
-                            // 一部 TUI が DECRST 1049 だけ送って DECRST 1000/1006 を送り忘れる
-                            // ため、primary シェルでスワイプすると stale な mouseEnabled で
-                            // `\e[<...M` が PTY に流れ readline が壊れる症状を防ぐ。
-                            mouseProtocol = MouseProtocol.OFF
+                            resetTextStateOnPrimaryReturn()
                         }
                     }
                 }
@@ -1066,7 +1055,7 @@ class TerminalEmulator(
                         if (!buffer.primaryActive) {
                             buffer.clearScreen(currentFg, currentBg)
                             buffer.switchToPrimary()
-                            mouseProtocol = MouseProtocol.OFF
+                            resetTextStateOnPrimaryReturn()
                         }
                     }
                 }
@@ -1079,7 +1068,7 @@ class TerminalEmulator(
                     } else {
                         if (!buffer.primaryActive) {
                             buffer.switchToPrimary()
-                            mouseProtocol = MouseProtocol.OFF
+                            resetTextStateOnPrimaryReturn()
                         }
                     }
                 }
@@ -1090,6 +1079,39 @@ class TerminalEmulator(
                 else -> {}
             }
         }
+    }
+
+    /**
+     * Alt screen から Primary へ戻るときに、**画面を跨いで持ち越さない状態**を既定へ戻す。
+     *
+     * ⚠ **xterm の DECRST 1049 は DECRC 相当で「Alt に入る直前の SGR」を復元する**が、
+     * 本実装は**復元せず既定へ戻す**。実機の壊れ方がこうだったため:
+     * **primary で描き続ける対話型 CLI (alt screen を使わず履歴を scrollback に残す作り) の
+     * 中から、その CLI の機能で全画面エディタを起こして戻ると、以降の出力が全部下線になる**。
+     * 経路は 2 つあり、**どちらも「Alt を抜けたら既定」で消える**:
+     *
+     * 1. CLI が装飾を出している最中に Alt へ入ると、**その装飾が退避され、戻るときに復元される**。
+     *    戻った側は「自分は装飾を出していない」つもりなので `\e[0m` を挟まず描き、全部が装飾付きになる。
+     * 2. エディタが装飾を消さずに終了しても、**誰も既定へ戻さない**。
+     *
+     * ⚠ **引き継ぐ側の実害は無い** — Alt から戻った側は自分の色を出し直すのが普通で、
+     * **戻ってきた画面が読めなくなる方が重い**。⚠ 装飾だけでなく色も戻す — 同じ経路で
+     * 「全部赤い」も起こり得るのに、下線だけ直すと同じ報告をもう一度受けることになる。
+     *
+     * ⚠ **OSC 8 のリンクも切る**。画面がまるごと入れ替わるのにリンクだけ跨いで生き残る理由が
+     * 無く、しかも SGR ではないので **`\e[0m` でも `reset` でも消せない** (利用者に直す手が無い)。
+     *
+     * ⚠ **マウスレポートを OFF に倒すのも同じ考え方**。一部 TUI が DECRST 1049 だけ送って
+     * DECRST 1000/1006 を送り忘れるため、primary シェルでスワイプすると stale な状態で
+     * `\e[<...M` が PTY に流れ readline が壊れる。
+     */
+    private fun resetTextStateOnPrimaryReturn() {
+        currentFg = SgrAttribute.DEFAULT
+        currentBg = SgrAttribute.DEFAULT
+        currentFlags = 0
+        currentUnderlineColor = SgrAttribute.DEFAULT
+        currentLink = null
+        mouseProtocol = MouseProtocol.OFF
     }
 
     private fun applySgr() {
@@ -1387,6 +1409,10 @@ class TerminalEmulator(
         currentFg = SgrAttribute.DEFAULT
         currentBg = SgrAttribute.DEFAULT
         currentFlags = 0
+        currentUnderlineColor = SgrAttribute.DEFAULT
+        // ⚠ OSC 8 のリンクも切る。SGR ではないので `\e[0m` では消えず、ここで消さないと
+        //    **`reset` を打っても直せない状態**が残る (以降に書く文字が全部リンク = 下線になる)。
+        currentLink = null
         cursorRow = 0
         cursorCol = 0
         scrollTop = 0

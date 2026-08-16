@@ -2,11 +2,12 @@ package com.zerotoship.z2term.emulator
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SgrUnderlineSubparamTest {
-    private val ESC = ""
+    private val ESC = "\u001b"   // ⚠ 生の ESC を書かない (目に見えず、抜けてもテストが黙って空振りする)
 
     private fun emu() = TerminalEmulator(output = {}, initialRows = 3, initialColumns = 20)
     private fun feed(e: TerminalEmulator, s: String) = e.processBytes(s.toByteArray(Charsets.UTF_8))
@@ -59,7 +60,7 @@ class SgrUnderlineSubparamTest {
 }
 
 class SgrUnderlineAltScreenExitTest {
-    private val ESC = ""
+    private val ESC = "\u001b"   // ⚠ 生の ESC を書かない (目に見えず、抜けてもテストが黙って空振りする)
     private fun emu() = TerminalEmulator(output = {}, initialRows = 5, initialColumns = 20)
     private fun feed(e: TerminalEmulator, s: String) = e.processBytes(s.toByteArray(Charsets.UTF_8))
     private fun flagsAt(e: TerminalEmulator, row: Int, col: Int): Int =
@@ -77,5 +78,88 @@ class SgrUnderlineAltScreenExitTest {
         feed(e, "$ESC[24m")                // 下線オフ (shell が出すことがある)
         feed(e, "X")                       // 復帰後の通常文字
         org.junit.Assert.assertFalse("復帰後の通常テキストに下線が残ってはいけない", underline(flagsAt(e, 0, 1)))
+    }
+}
+
+/**
+ * Alt screen を抜けるときに、**文字の状態 (SGR / OSC 8 リンク) を持ち越さない**こと。
+ *
+ * 実機の報告 (0.8.354): **primary で描き続ける対話型 CLI** (alt screen を使わず履歴を
+ * scrollback に残す作り) の中から、その CLI の機能で**全画面エディタを起こして戻ると、
+ * 以降の出力が全部下線**になった。⚠ **エディタを直に起動して終了しても起きない** —
+ * CLI が装飾を出している最中に Alt へ入るのが条件だった。
+ *
+ * ⚠ xterm の DECRST 1049 は DECRC 相当で「Alt に入る直前の SGR」を**復元する**が、
+ * 本実装は**復元せず既定へ倒す** ([TerminalEmulator.resetTextStateOnPrimaryReturn])。
+ */
+class AltScreenExitTextStateTest {
+    private val ESC = "\u001b"   // ⚠ 生の ESC を書かない (目に見えず、抜けてもテストが黙って空振りする)
+    private fun emu() = TerminalEmulator(output = {}, initialRows = 5, initialColumns = 20)
+    private fun feed(e: TerminalEmulator, s: String) = e.processBytes(s.toByteArray(Charsets.UTF_8))
+    private fun cell(e: TerminalEmulator, row: Int, col: Int) = e.buffer.getScreenRow(row).getCell(col)
+    private fun underline(f: Int) = (f and SgrAttribute.FLAG_UNDERLINE) != 0
+
+    /** 症状そのもの: Alt に入る直前の下線を、抜けたときに持ち帰らないこと。 */
+    @Test
+    fun underlineBeforeAlt_isNotRestoredOnExit() {
+        val e = emu()
+        feed(e, "$ESC[4m")             // 装飾を出している最中に
+        feed(e, "$ESC[?1049h")         // Alt へ (ここで下線が退避されていた)
+        feed(e, "$ESC[0m")             // Alt の中では消えている
+        feed(e, "$ESC[?1049l")         // Primary へ戻る
+        feed(e, "X")
+        assertFalse("Alt に入る前の下線を持ち帰ってはいけない", underline(cell(e, 0, 0).fgAttr))
+    }
+
+    /** 下線だけ直すと同じ報告をもう一度受けるので、色も持ち帰らないことを固定する。 */
+    @Test
+    fun colorBeforeAlt_isNotRestoredOnExit() {
+        val e = emu()
+        feed(e, "$ESC[31m$ESC[?1049h$ESC[0m$ESC[?1049l")
+        feed(e, "X")
+        assertEquals("色も持ち帰らない", SgrAttribute.DEFAULT, cell(e, 0, 0).fgAttr)
+    }
+
+    /** OSC 8 は SGR ではないので `\e[0m` では消えない。Alt を跨いで残ると直す手が無くなる。 */
+    @Test
+    fun osc8Link_isClearedOnAltScreenExit() {
+        val e = emu()
+        feed(e, "$ESC]8;;https://example.com$ESC\\")  // リンクを開いたまま
+        feed(e, "$ESC[?1049h$ESC[?1049l")
+        feed(e, "X")
+        assertNull("Alt を跨いでリンクを持ち越さない", cell(e, 0, 0).link)
+    }
+
+    /** `reset` (RIS) でも消せること — ここが抜けていると利用者に直す手が無い。 */
+    @Test
+    fun osc8Link_isClearedByFullReset() {
+        val e = emu()
+        feed(e, "$ESC]8;;https://example.com$ESC\\")
+        feed(e, "${ESC}c")                            // RIS
+        feed(e, "X")
+        assertNull("RIS でリンクが消えること", cell(e, 0, 0).link)
+    }
+
+    /** 位置は今までどおり戻すこと (SGR を戻さないことと混ぜない)。 */
+    @Test
+    fun cursorPosition_isStillRestored() {
+        val e = emu()
+        feed(e, "$ESC[3;5H")           // 3 行 5 列 (1-origin)
+        feed(e, "$ESC[?1049h")
+        feed(e, "$ESC[1;1H")
+        feed(e, "$ESC[?1049l")
+        assertEquals("行は戻る", 2, e.cursorRow)
+        assertEquals("列は戻る", 4, e.cursorCol)
+    }
+
+    /** 1047 / 47 でも同じ約束にする (入口ごとに違う後始末をしない)。 */
+    @Test
+    fun decrst1047And47_alsoResetTextState() {
+        for (mode in listOf("1047", "47")) {
+            val e = emu()
+            feed(e, "$ESC[4m$ESC[?${mode}h$ESC[?${mode}l")
+            feed(e, "X")
+            assertFalse("DECRST $mode でも既定へ戻す", underline(cell(e, 0, 0).fgAttr))
+        }
     }
 }
