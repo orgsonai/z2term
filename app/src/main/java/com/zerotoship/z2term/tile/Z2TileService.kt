@@ -1,6 +1,7 @@
 package com.zerotoship.z2term.tile
 
 import android.app.PendingIntent
+import android.app.StatusBarManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -12,11 +13,14 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.icon.IconStore
 import com.zerotoship.z2term.service.HeadlessRun
 import com.zerotoship.z2term.service.ScreenTimeout
 import java.io.File
+import java.util.concurrent.Executor
+import java.util.function.Consumer
 
 /**
  * クイック設定タイル (`z2-tile`)。通知シェードを下ろした先からマクロ / コマンドを 1 タップで走らせる。
@@ -40,7 +44,10 @@ import java.io.File
  * 固定。並べる場所は利用者がクイック設定の「編集」から決める (アプリが勝手に置くことは OS が禁止)。
  *
  * アイコンは枠ごとに差し替えられる (`z2-icon set <枠> …` / [IconStore])。⚠ 差し替わるのは
- * **並べた後のタイル**だけで、「タイル編集」の一覧に出るアイコンは manifest 決め打ちのまま。
+ * **並べた後のタイル**だけで、「タイル編集」の一覧に出る名前とアイコンは manifest 決め打ち
+ * (`z2term 1`〜) のまま — **実行中に差し替える API が Android に無い**。⇒ 一覧を直す代わりに
+ * **「追加しますか」を OS に聞かせる** ([requestAdd]・Android 13 以降)。そちらには**本当の
+ * 名前と絵を渡せる**ので、編集画面で当てものをせずに済む (0.8.355)。
  */
 abstract class Z2TileService(private val slot: Int) : TileService() {
 
@@ -247,6 +254,55 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
             runCatching {
                 TileService.requestListeningState(context, ComponentName(context, cls))
             }.onFailure { Log.w(TAG, "requestListeningState failed for $slot", it) }
+        }
+
+        /**
+         * [slot] のタイルを「クイック設定に追加しますか」と **OS に聞かせる** (Android 13 以降)。
+         *
+         * ⚠ **これが要る理由**: 「タイル編集」の一覧に出る名前とアイコンは **manifest 決め打ち**
+         * (`z2term 1`〜`z2term 12` と既定の絵) で、**実行中に差し替える API が Android に無い**。
+         * 並べた後は [render] が本当の名前と絵を載せるが、**並べる前は何が何だか分からない**
+         * ため、利用者は「一覧に移動して初めて分かる」状態だった (実機で指摘)。
+         * ⭐ **この口だけはラベルとアイコンを引数で渡せる**ので、編集画面を探させずに
+         * 「〈割り当てた名前〉を追加しますか」と聞ける。
+         *
+         * ⚠ **勝手には置かない**。出るのは OS のダイアログで、利用者は断れる。**置く場所を
+         * 決めるのは利用者**という約束 ([Z2TileService] の KDoc) は変えない — アプリが自分で
+         * タイルを並べる API は Android に今も無い。
+         *
+         * ⚠ **前面にいないと出ない** (`TILE_ADD_REQUEST_ERROR_APP_NOT_IN_FOREGROUND`)。
+         * `z2-tile set` は端末タブから打つので普通は通るが、**裏で走るマクロから呼ぶと出ない**。
+         * ⚠ **同時に 2 つは頼めない** (`…_ERROR_REQUEST_IN_PROGRESS`)。2 枠まとめて登録する
+         * マクロ (`remind.sh setup` など) では 2 つめが黙って落ちる。⇒ **後から
+         * `z2-tile add <枠>` で聞き直せる**ようにしてある。どちらの失敗も**割り当て自体は
+         * 済んでいる**ので、ここでは握って log に流すだけにする。
+         *
+         * @return 頼めたら true (Android 12 以前・枠が空・OS が受けないときは false)
+         */
+        fun requestAdd(context: Context, slot: Int): Boolean {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
+            return requestAddTiramisu(context, slot)
+        }
+
+        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+        private fun requestAddTiramisu(context: Context, slot: Int): Boolean {
+            val cls = classFor(slot) ?: return false
+            val app = context.applicationContext
+            // 名前も絵も**割り当ての実体から取る** (並べた後に [render] が載せるものと同じ)。
+            val assigned = TileStore.get(app, slot) ?: return false
+            val sb = app.getSystemService(StatusBarManager::class.java) ?: return false
+            val icon = IconStore.tileIcon(app, slot)
+                ?: Icon.createWithResource(app, R.drawable.ic_notification)
+            return runCatching {
+                sb.requestAddTileService(
+                    ComponentName(app, cls),
+                    assigned.label,
+                    icon,
+                    Executor { it.run() },
+                    Consumer<Int> { Log.i(TAG, "requestAddTile $slot -> $it") },
+                )
+                true
+            }.onFailure { Log.w(TAG, "requestAddTile failed for $slot", it) }.getOrDefault(false)
         }
 
         /**

@@ -219,6 +219,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
     val tileHelp: String = if (en) """
         |# z2-tile set <1-$tiles> <macro.sh | command...> [--off <command...>] [-l <label>]
         |#                             … put something on quick-settings tile 1-$tiles
+        |# z2-tile add <1-$tiles>          … ask to put that slot on the panel (Android 13+)
         |# z2-tile list                … all $tiles slots as TSV (slot / label / command; '-' = empty)
         |# z2-tile clear <1-$tiles|all>    … empty a slot
         |# What you assign is either **the file name of a macro** in ~/.z2term/macros/ or
@@ -236,11 +237,18 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# rejected here — as a command it would be looked up in PATH (which does not include the
         |# macro folder), so the tile would do nothing at all and only say so in tile/run.log.
         |# The command runs with Z2_TILE=<slot> (and Z2_TILE_MACRO for a macro) in the environment.
-        |# ⚠ You still have to place the tile yourself, from the pencil/edit screen of the quick
-        |# settings panel — Android does not let an app put its own tiles there. There are exactly
-        |# $tiles slots: the number is fixed in the manifest and cannot grow at runtime.
-        |# Slots you have not assigned anything to do not show up in that edit screen at all,
-        |# so having $tiles of them costs you nothing.
+        |# On Android 13+ `set` asks you right away whether to put the tile on the panel, and that
+        |# dialog carries **the name and icon you just assigned**. Say no and nothing is placed.
+        |# ⚠ It only appears while z2term is in front, and only one can be asked at a time — a
+        |# macro that assigns two slots in a row will only ask about the first. Use z2-tile add
+        |# <slot> afterwards for the rest.
+        |# ⚠ Placing a tile is still your call — Android does not let an app put its own tiles
+        |# there. From the pencil/edit screen of the quick settings panel, look for **z2term <slot>**:
+        |# ⚠ that list shows the manifest name and icon, not the ones you assigned (Android has no
+        |# way to change them at runtime), so z2-tile list tells you which number is which.
+        |# There are exactly $tiles slots: the number is fixed in the manifest and cannot grow at
+        |# runtime. Slots you have not assigned anything to do not show up in that edit screen at
+        |# all, so having $tiles of them costs you nothing.
         |# A slot gets a matching icon by itself where the name gives it away (remind.sh -> a clock),
         |# and z2-icon replaces it with anything you like — once you do, it is left alone.
         |# e.g. z2-tile set 1 backup.sh
@@ -249,6 +257,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
     """.trimMargin() else """
         |# z2-tile set <1-$tiles> <マクロ.sh | コマンド...> [--off <コマンド...>] [-l <表示名>]
         |#                             … クイック設定タイル 1〜$tiles に割り当てる
+        |# z2-tile add <1-$tiles>          … その枠をパネルに置いてよいか聞く (Android 13 以降)
         |# z2-tile list                … $tiles 枠すべてを TSV で (枠 / 表示名 / コマンド。'-' は空き)
         |# z2-tile clear <1-$tiles|all>    … 割り当てを消す
         |# 割り当てるのは ~/.z2term/macros/ にある**マクロのファイル名**か、そのまま走らせる
@@ -266,10 +275,17 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# コマンド扱いになると PATH (マクロ置き場は入っていません) から探されて見つからず、
         |# タイルは押しても無反応・理由は tile/run.log にしか出ない、という壊れ方をするためです。
         |# 実行時、環境変数 Z2_TILE に枠番号 (マクロなら Z2_TILE_MACRO も) が入ります。
-        |# ⚠ タイルを**並べるのはご自身**で、クイック設定パネルの鉛筆(編集)から追加します
-        |# — アプリが勝手に置くことは Android が禁じています。枠はちょうど $tiles 個で、
-        |# manifest で決め打ちのため実行中に増やせません。まだ割り当てていない枠は編集画面の
-        |# 一覧にも出ないので、$tiles 個あっても邪魔になりません。
+        |# Android 13 以降では、set したその場で**パネルに置いてよいか聞きます**。そのダイアログには
+        |# **いま割り当てた名前とアイコン**が出るので、編集画面で当てものをせずに済みます。
+        |# 断れば何も置きません。⚠ 出るのは z2term が前面にいるときだけで、**一度に 1 つ**しか
+        |# 聞けません — 2 枠まとめて登録するマクロでは 1 つめしか聞かれないので、残りは
+        |# z2-tile add <枠> で聞き直してください。
+        |# ⚠ 置くかどうかは**ご自身の判断**です — アプリが勝手に置くことは Android が禁じています。
+        |# クイック設定パネルの鉛筆(編集)から探すときの目印は **z2term <枠番号>** です。
+        |# ⚠ その一覧に出る名前とアイコンは manifest 決め打ちで、**割り当てた名前ではありません**
+        |# (実行中に差し替える手段が Android にありません)。どの番号が何かは z2-tile list で見えます。
+        |# 枠はちょうど $tiles 個で、manifest で決め打ちのため実行中に増やせません。まだ割り当てて
+        |# いない枠は編集画面の一覧にも出ないので、$tiles 個あっても邪魔になりません。
         |# 名前から分かるものは**アイコンが自動で付きます** (remind.sh なら時計)。z2-icon で
         |# 好きな絵に変えられ、一度変えたらそれ以降は自動で触りません。
         |# 例: z2-tile set 1 backup.sh
@@ -279,9 +295,32 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
 
     val tileUsage: String =
         if (en) "usage: z2-tile set <1-$tiles> <macro.sh|command...> [--off <command...>] [-l label] | " +
-            "list | clear <1-$tiles|all>"
+            "add <1-$tiles> | list | clear <1-$tiles|all>"
         else "usage: z2-tile set <1-$tiles> <マクロ.sh|コマンド...> [--off <コマンド...>] [-l 表示名] | " +
-            "list | clear <1-$tiles|all>"
+            "add <1-$tiles> | list | clear <1-$tiles|all>"
+
+    /** `z2-tile add <枠>` で、割り当ての無い枠を指したとき。 */
+    fun tileAddEmpty(n: Int): String =
+        if (en) "z2-tile: slot $n has nothing on it yet (assign it first: z2-tile set $n <...>)"
+        else "z2-tile: 枠 $n はまだ空です (先に z2-tile set $n <…> で割り当ててください)"
+
+    /**
+     * 追加を頼めなかったとき。⚠ **Android 12 以前にはこの口が無い** (タイルの追加を頼む API は
+     * Android 13 から) し、**z2term が前面にいない**ときも OS が断る。どちらも
+     * **割り当て自体は済んでいる**ので、並べ方だけを案内する。
+     */
+    val tileAddUnsupported: String =
+        if (en) "z2-tile: cannot ask to add the tile here (needs Android 13, with z2term in the foreground). " +
+            "The slot is assigned — place it from the pencil (edit) screen of the quick settings panel."
+        else "z2-tile: ここでは追加を頼めません (Android 13 以降 + z2term が前面にいることが要ります)。" +
+            "割り当ては済んでいるので、クイック設定パネルの鉛筆(編集)から並べてください。"
+
+    /** 追加を頼めたとき。⚠ **答えるのは利用者**なので「追加した」とは言い切らない。 */
+    val tileAddAsked: String =
+        if (en) "asked Android whether to add the tile — answer the dialog. " +
+            "(Nothing showed up? Place it from the edit screen instead.)"
+        else "追加してよいか Android に聞いています。出たダイアログで答えてください。" +
+            "(何も出なければ、編集画面から並べてください)"
 
     // --- z2-icon ---
 

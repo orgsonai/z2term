@@ -855,7 +855,23 @@ object Z2ApiBridge {
             // 見分けが付かなくなったため。
             IconStore.autoAssign(context, n, args.getOrNull(2).orEmpty())
             Z2TileService.requestUpdate(context, n)
+            // 割り当てたら、その場で「クイック設定に追加しますか」と OS に聞かせる (0.8.355)。
+            // ⚠ 断れる OS のダイアログで、勝手に置くわけではない。⚠ 前面にいないと出ない・
+            // 同時に 2 つは頼めないので、出なかったときは `z2-tile add <枠>` で聞き直せる
+            // ([Z2TileService.requestAdd])。ここでは成否を返さない — **割り当ては済んでいる**
+            // ので、聞けなかったことを失敗として見せると「割り当てにも失敗した」と読める。
+            Z2TileService.requestAdd(context, n)
             tileListTsv(context)
+        }
+        // 割り当て済みの枠を、後から「追加しますか」と聞き直す (0.8.355)。set の直後に出なかった
+        // とき (裏で走るマクロから登録した / 2 枠まとめて登録した) の受け皿。
+        "add" -> {
+            val n = args.getOrNull(1)?.toIntOrNull()
+                ?: throw IllegalArgumentException("z2-tile: 枠は 1〜${TileStore.COUNT} です")
+            val m = cliMsg(context)
+            if (TileStore.get(context, n) == null) throw IllegalArgumentException(m.tileAddEmpty(n))
+            if (!Z2TileService.requestAdd(context, n)) throw IllegalArgumentException(m.tileAddUnsupported)
+            m.tileAddAsked
         }
         "clear" -> {
             val key = args.getOrNull(1).orEmpty()

@@ -260,6 +260,11 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |  clear)
         |    [ ${d}# -ge 2 ] || usage
         |    exec /usr/local/bin/z2api 1 tile clear "${d}2" ;;
+        |  # 割り当て済みの枠を「クイック設定に追加しますか」と OS に聞かせる (set の直後にも
+        |  # 自動で 1 回聞くが、裏で走るマクロからの登録や 2 枠まとめての登録では出ないため)。
+        |  add)
+        |    [ ${d}# -ge 2 ] || usage
+        |    exec /usr/local/bin/z2api 1 tile add "${d}2" ;;
         |  set)
         |    shift
         |    [ ${d}# -ge 2 ] || usage
