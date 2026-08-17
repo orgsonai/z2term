@@ -28,7 +28,9 @@ import java.util.concurrent.Executors
  * = 通知検知デーモン)。本文は [extractBody] で主要な通知スタイル (MessagingStyle の SMS/OTP・
  * InboxStyle・補助行など) まで走査して取り出す。設定 [AppSettings.notificationCaptureEnabled] が ON で、かつ
  * [AppSettings.notificationLogEnabled] が ON のとき、受け取った通知を **生のまま**
- * [logFile] (`~/.z2term/notifications.jsonl`) へ 1 行 1 通知 (JSON) で追記する。
+ * [logFile] (`~/.z2term/notifications.jsonl`) へ 1 行 1 通知 (JSON) で追記する
+ * (⚠ 唯一の例外が [stripBidi]。**画面にも出ない**双方向制御文字だけを落とすので、
+ * 読める中身は一字も変わらない)。
  * 保存を OFF にすると検知 (常駐) は続けたままファイルには一切書かない。
  *
  * **重複排除**: Android は 1 つの通知を内容が変わらなくても何度も再 post する (進捗更新・
@@ -76,8 +78,10 @@ class NotificationLogService : NotificationListenerService() {
         val n = sbn.notification ?: return
         if (sbn.packageName == applicationContext.packageName) return   // 自分の通知は除外
         val ex = n.extras
-        val title = ex.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
-        val text = extractBody(n, ex)
+        // 見えない双方向制御文字はここで落とす ([stripBidi])。**トリガーにもログにも効かせる**ため、
+        // 取り出した直後の 1 か所でやる (電話番号が U+202A で包まれて届く。理由は同関数の KDoc)。
+        val title = stripBidi(ex.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty())
+        val text = stripBidi(extractBody(n, ex))
         if (title.isEmpty() && text.isEmpty()) return                   // 実体のない通知は捨てる
         // 同じ通知の再掲 (進捗更新など) は 1 回だけ扱う。**トリガーの前に**判定するので、
         // ログを保存していなくても連続発火しない。
@@ -219,8 +223,8 @@ class NotificationLogService : NotificationListenerService() {
                 .joinToString("\n") { sbn ->
                     val n = sbn.notification
                     val ex = n?.extras
-                    val title = ex?.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
-                    val text = if (n != null && ex != null) svc.extractBody(n, ex) else ""
+                    val title = stripBidi(ex?.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty())
+                    val text = stripBidi(if (n != null && ex != null) svc.extractBody(n, ex) else "")
                     val app = runCatching {
                         val pm = svc.packageManager
                         pm.getApplicationLabel(pm.getApplicationInfo(sbn.packageName, 0)).toString()
@@ -254,6 +258,32 @@ class NotificationLogService : NotificationListenerService() {
 
         private fun oneline(s: String): String =
             s.replace("\r\n", " ").replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+
+        /**
+         * 双方向テキストの制御文字を落とす (0.8.356)。
+         *
+         * **なぜ要るか**: Android の電話アプリは電話番号を `BidiFormatter` で包んで通知に出すため、
+         * 表示は `0120-355-565` でも実体は `U+202A` + 番号 + `U+202C` になる。**画面にも
+         * ログにも見えない**ので、番号の形かどうかを見るマクロ (同梱の `unknown-call.sh` は
+         * `tr -d '0-9+() -'` で「何も残らない」ことを見る) が**名前と誤判定して黙って何もしない**。
+         * 実機で着信を取り落としていたのがこれで、`z2-when fired` には `run` と残るため
+         * 「動いているのに何も起きない」という一番読みにくい壊れ方になっていた。
+         *
+         * ⚠ **落とすのは表示に影響しない制御文字だけ** — 見た目が変わらないものを消しているので、
+         * ログの「生のまま残す」方針とはぶつからない。文字を並べ替えたり削ったりはしない。
+         * ⚠ トリガー判定 (`notify:title=` の部分一致) とログの**両方**に効かせること。
+         * 片方だけだと「ログでは番号なのにルールが一致しない」という食い違いが起きる。
+         */
+        fun stripBidi(s: String): String =
+            if (s.none(::isBidiControl)) s else s.filterNot(::isBidiControl)
+
+        /**
+         * 双方向テキストの制御文字か。LRM/RLM/ALM・埋め込みと上書き (`U+202A`〜`U+202E`)・
+         * 分離 (`U+2066`〜`U+2069`) の 3 組で、Unicode が定める全部。
+         */
+        private fun isBidiControl(c: Char): Boolean =
+            c == '\u200E' || c == '\u200F' || c == '\u061C' ||
+                c in '\u202A'..'\u202E' || c in '\u2066'..'\u2069'
 
         /**
          * 1 通知を [template] に沿って 1 行分の文字列 (末尾改行なし) にする。
