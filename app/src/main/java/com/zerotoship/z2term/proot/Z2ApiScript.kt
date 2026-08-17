@@ -273,10 +273,12 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    # (`z2-tile set 2 'z2-screen keepon 1h' -l 消灯しない`)、頭だけ見る作りにしない。
         |    # --off から後ろは「切るときのコマンド」。⚠ 引数を 2 つ並べるだけの形にはできない
         |    # (`z2-tile set 1 ls -la` が「入=ls / 切=-la」に化ける)。区切りを明示させる。
-        |    label=""; cmd=""; off=""; seen_off=0
+        |    label=""; cmd=""; off=""; icon=""; seen_off=0
         |    while [ ${d}# -gt 0 ]; do
         |      case "${d}1" in
         |        -l|--label) label="${d}2"; shift 2 2>/dev/null || usage ;;
+        |        # -i/--icon も -l と同じくどこに書かれていても拾う。名前は z2-icon の一覧から。
+        |        -i|--icon) icon="${d}2"; shift 2 2>/dev/null || usage ;;
         |        --off) seen_off=1; shift ;;
         |        *)
         |          if [ "${d}seen_off" = 1 ]; then
@@ -304,7 +306,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    }
         |    check_macro "${d}cmd"
         |    [ -z "${d}off" ] || check_macro "${d}off"
-        |    exec /usr/local/bin/z2api 1 tile set "${d}n" "${d}cmd" "${d}label" "${d}off" ;;
+        |    exec /usr/local/bin/z2api 1 tile set "${d}n" "${d}cmd" "${d}label" "${d}off" "${d}icon" ;;
         |  *) usage ;;
         |esac
     """.trimMargin() + "\n"

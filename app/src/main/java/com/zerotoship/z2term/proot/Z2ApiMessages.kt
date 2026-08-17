@@ -217,7 +217,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
     // --- z2-tile ---
 
     val tileHelp: String = if (en) """
-        |# z2-tile set <1-$tiles> <macro.sh | command...> [--off <command...>] [-l <label>]
+        |# z2-tile set <1-$tiles> <macro.sh | command...> [--off <command...>] [-l <label>] [-i <drawing>]
         |#                             … put something on quick-settings tile 1-$tiles
         |# z2-tile add <1-$tiles>          … ask to put that slot on the panel (Android 13+)
         |# z2-tile list                … all $tiles slots as TSV (slot / label / command; '-' = empty)
@@ -251,11 +251,16 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# all, so having $tiles of them costs you nothing.
         |# A slot gets a matching icon by itself where the name gives it away (remind.sh -> a clock),
         |# and z2-icon replaces it with anything you like — once you do, it is left alone.
+        |# -i settles the drawing **before** that dialog appears, so a single line decides the name
+        |# and the icon together (z2-icon sample lists the names you can pass).
+        |# ⚠ An unknown name is refused **before anything is assigned** — a slot that is set but
+        |# wearing the wrong drawing is harder to notice than one that was never set.
         |# e.g. z2-tile set 1 backup.sh
         |#      z2-tile set 2 'z2-screen keepon 1h' -l "no sleep"
         |#      z2-tile set 3 z2-torch on --off z2-torch off -l torch
+        |#      z2-tile set 4 backup.sh -l backup -i sync
     """.trimMargin() else """
-        |# z2-tile set <1-$tiles> <マクロ.sh | コマンド...> [--off <コマンド...>] [-l <表示名>]
+        |# z2-tile set <1-$tiles> <マクロ.sh | コマンド...> [--off <コマンド...>] [-l <表示名>] [-i <絵の名前>]
         |#                             … クイック設定タイル 1〜$tiles に割り当てる
         |# z2-tile add <1-$tiles>          … その枠をパネルに置いてよいか聞く (Android 13 以降)
         |# z2-tile list                … $tiles 枠すべてを TSV で (枠 / 表示名 / コマンド。'-' は空き)
@@ -288,16 +293,31 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# いない枠は編集画面の一覧にも出ないので、$tiles 個あっても邪魔になりません。
         |# 名前から分かるものは**アイコンが自動で付きます** (remind.sh なら時計)。z2-icon で
         |# 好きな絵に変えられ、一度変えたらそれ以降は自動で触りません。
+        |# -i を付けると、**上のダイアログが出る前に**絵まで決まります (1 行で名前も絵も済みます)。
+        |# 名前は z2-icon sample の一覧から選びます。
+        |# ⚠ 無い名前を書いたときは**割り当てごと断ります** — 割り当てだけ済んで絵が違うほうが、
+        |# 何も起きていない状態より気付きにくいためです。
         |# 例: z2-tile set 1 backup.sh
         |#     z2-tile set 2 'z2-screen keepon 1h' -l 消灯しない
         |#     z2-tile set 3 z2-torch on --off z2-torch off -l ライト
+        |#     z2-tile set 4 backup.sh -l バックアップ -i sync
     """.trimMargin()
 
     val tileUsage: String =
-        if (en) "usage: z2-tile set <1-$tiles> <macro.sh|command...> [--off <command...>] [-l label] | " +
-            "add <1-$tiles> | list | clear <1-$tiles|all>"
-        else "usage: z2-tile set <1-$tiles> <マクロ.sh|コマンド...> [--off <コマンド...>] [-l 表示名] | " +
-            "add <1-$tiles> | list | clear <1-$tiles|all>"
+        if (en) "usage: z2-tile set <1-$tiles> <macro.sh|command...> [--off <command...>] [-l label] " +
+            "[-i drawing] | add <1-$tiles> | list | clear <1-$tiles|all>"
+        else "usage: z2-tile set <1-$tiles> <マクロ.sh|コマンド...> [--off <コマンド...>] [-l 表示名] " +
+            "[-i 絵の名前] | add <1-$tiles> | list | clear <1-$tiles|all>"
+
+    /**
+     * `z2-tile set -i <名前>` に無い絵の名前を書いたとき (0.8.357)。
+     *
+     * ⚠ **割り当てる前に断る**ので「割り当ては済んだ」とは書かない。半端に割り当てが残ると、
+     * 打ち間違いに気付かないまま違う絵のタイルが置かれる。
+     */
+    fun tileNoSuchIcon(name: String): String =
+        if (en) "z2-tile: no such drawing: $name (list them with z2-icon sample). Nothing was assigned."
+        else "z2-tile: その絵はありません: $name (一覧は z2-icon sample)。割り当ては行いませんでした。"
 
     /** `z2-tile add <枠>` で、割り当ての無い枠を指したとき。 */
     fun tileAddEmpty(n: Int): String =

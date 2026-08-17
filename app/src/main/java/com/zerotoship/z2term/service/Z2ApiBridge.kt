@@ -843,6 +843,13 @@ object Z2ApiBridge {
         "set" -> {
             val n = args.getOrNull(1)?.toIntOrNull()
                 ?: throw IllegalArgumentException("z2-tile: 枠は 1〜${TileStore.COUNT} です")
+            // `-i <絵の名前>` は**割り当てるより先に引く** (0.8.357)。名前を打ち間違えたときに
+            // 「割り当ては済んだが絵は前のまま」を残さないため — 置いたタイルの絵が違うのは、
+            // 何も起きていないより気付きにくい。
+            val iconArt = args.getOrNull(5).orEmpty().trim().takeIf { it.isNotEmpty() }?.let { key ->
+                IconStore.findSample(context, key)
+                    ?: throw IllegalArgumentException(cliMsg(context).tileNoSuchIcon(key))
+            }
             TileStore.set(
                 context,
                 n,
@@ -853,6 +860,9 @@ object Z2ApiBridge {
             // 置いた中身に合う絵があれば入れておく。⚠ 自分で決めた絵は上書きしない
             // ([IconStore.autoAssign])。枠が 12 になり、並べるほど既定のアイコンだけでは
             // 見分けが付かなくなったため。
+            // ⚠ 順序を守る: `-i` を先に入れる。[IconStore.set] は「手で入れた」印を残すので
+            // [IconStore.autoAssign] はこの枠に触らない。逆に呼ぶと -i が自動の絵に負ける。
+            if (iconArt != null) IconStore.set(context, IconStore.tileTarget(n), iconArt)
             IconStore.autoAssign(context, n, args.getOrNull(2).orEmpty())
             Z2TileService.requestUpdate(context, n)
             // 割り当てたら、その場で「クイック設定に追加しますか」と OS に聞かせる (0.8.355)。
