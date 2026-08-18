@@ -25,15 +25,22 @@ object ShellPrompt {
     const val MARKER_BEGIN = "# >>> z2term prompt >>>"
     const val MARKER_END = "# <<< z2term prompt <<<"
 
-    /** 対象シェル。rc ファイルと PS1 の書き方がそれぞれ違う。 */
-    enum class Shell(val id: String, val label: String, val rcPath: String) {
+    /**
+     * 対象シェル。rc ファイル名と PS1 の書き方がそれぞれ違う。
+     *
+     * ⚠ **rc は rootfs の中ではなく共有ホームに置く**。`ProotLauncher` は `HOME=/root` を
+     * **`filesDir/shared_home` に bind する** (全ディストロ共有のため) ので、
+     * `distros/<id>/root/` へ書いても**誰も読まない**。0.8.364 で実際にそこへ書いてしまい、
+     * 「書き込みました」と出るのにプロンプトが一切変わらなかった。
+     */
+    enum class Shell(val id: String, val label: String, val rcName: String) {
         /** busybox ash / dash など POSIX sh。⚠ `\[ \]` も `%F{}` も使えない。 */
-        SH("sh", "sh", "root/.ashrc"),
-        BASH("bash", "bash", "root/.bashrc"),
-        ZSH("zsh", "zsh", "root/.zshrc");
+        SH("sh", "sh", ".ashrc"),
+        BASH("bash", "bash", ".bashrc"),
+        ZSH("zsh", "zsh", ".zshrc");
 
         /** 端末から見たパス (画面に出す用)。 */
-        val displayPath: String get() = "~/" + rcPath.removePrefix("root/")
+        val displayPath: String get() = "~/$rcName"
 
         companion object {
             fun of(id: String): Shell = entries.firstOrNull { it.id == id } ?: SH
@@ -230,12 +237,13 @@ object ShellPrompt {
         return if (needsEsc) "$head$arrow\n$assign" else "PS1='\\$ '"
     }
     /**
-     * [body] を rootfs の rc へ書き込む。既に z2term のブロックがあれば**その部分だけ差し替える**。
+     * [body] を共有ホーム (`HOME=/root` の実体) の rc へ書き込む。既に z2term のブロックがあれば**その部分だけ差し替える**。
      *
      * @return 書き込んだファイル。失敗時は null。
      */
-    fun apply(rootfsDir: File, shell: Shell, body: String): File? = runCatching {
-        val file = File(rootfsDir, shell.rcPath)
+    fun apply(homeDir: File, shell: Shell, body: String): File? = runCatching {
+        homeDir.mkdirs()
+        val file = File(homeDir, shell.rcName)
         file.parentFile?.mkdirs()
         val existing = if (file.exists()) file.readText() else ""
         val block = "$MARKER_BEGIN\n${body.trimEnd()}\n$MARKER_END"
@@ -248,8 +256,8 @@ object ShellPrompt {
     }.onFailure { Log.w(TAG, "prompt 書込失敗", it) }.getOrNull()
 
     /** 現在 rc に入っている z2term ブロックの中身 (マーカーの内側)。無ければ null。 */
-    fun current(rootfsDir: File, shell: Shell): String? = runCatching {
-        val text = File(rootfsDir, shell.rcPath).takeIf { it.isFile }?.readText() ?: return null
+    fun current(homeDir: File, shell: Shell): String? = runCatching {
+        val text = File(homeDir, shell.rcName).takeIf { it.isFile }?.readText() ?: return null
         val from = text.indexOf(MARKER_BEGIN)
         if (from < 0) return null
         val to = text.indexOf(MARKER_END, from)
@@ -258,8 +266,8 @@ object ShellPrompt {
     }.getOrNull()
 
     /** z2term のブロックを rc から取り除く (プロンプトを distro 既定へ戻す)。 */
-    fun clear(rootfsDir: File, shell: Shell): Boolean = runCatching {
-        val file = File(rootfsDir, shell.rcPath)
+    fun clear(homeDir: File, shell: Shell): Boolean = runCatching {
+        val file = File(homeDir, shell.rcName)
         if (!file.isFile) return false
         val text = file.readText()
         if (!text.contains(MARKER_BEGIN)) return false

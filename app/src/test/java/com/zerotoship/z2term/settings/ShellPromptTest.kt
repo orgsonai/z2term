@@ -18,13 +18,13 @@ import java.nio.file.Files
  */
 class ShellPromptTest {
 
-    private fun tmpRootfs(): File = Files.createTempDirectory("z2rootfs").toFile()
+    private fun tmpHome(): File = Files.createTempDirectory("z2home").toFile()
 
-    private fun rc(root: File, shell: ShellPrompt.Shell) = File(root, shell.rcPath)
+    private fun rc(home: File, shell: ShellPrompt.Shell) = File(home, shell.rcName)
 
     @Test
     fun writesIntoAnEmptyRc() {
-        val root = tmpRootfs()
+        val root = tmpHome()
         try {
             val body = ShellPrompt.body(ShellPrompt.Preset.USER_HOST, ShellPrompt.Shell.BASH)
             assertNotNull(ShellPrompt.apply(root, ShellPrompt.Shell.BASH, body))
@@ -39,7 +39,7 @@ class ShellPromptTest {
 
     @Test
     fun keepsWhatTheUserWroteThemselves() {
-        val root = tmpRootfs()
+        val root = tmpHome()
         try {
             val mine = "alias ll='ls -la'\nexport EDITOR=vi\n"
             rc(root, ShellPrompt.Shell.ZSH).apply { parentFile?.mkdirs(); writeText(mine) }
@@ -58,7 +58,7 @@ class ShellPromptTest {
 
     @Test
     fun applyingTwiceReplacesInsteadOfPilingUp() {
-        val root = tmpRootfs()
+        val root = tmpHome()
         try {
             val shell = ShellPrompt.Shell.BASH
             ShellPrompt.apply(root, shell, ShellPrompt.body(ShellPrompt.Preset.USER_HOST, shell))
@@ -80,7 +80,7 @@ class ShellPromptTest {
 
     @Test
     fun clearRemovesOnlyOurBlock() {
-        val root = tmpRootfs()
+        val root = tmpHome()
         try {
             val shell = ShellPrompt.Shell.SH
             rc(root, shell).apply { parentFile?.mkdirs(); writeText("export TZ=Asia/Tokyo\n") }
@@ -97,7 +97,7 @@ class ShellPromptTest {
 
     @Test
     fun clearOnAnUntouchedRcIsANoOp() {
-        val root = tmpRootfs()
+        val root = tmpHome()
         try {
             assertFalse("書いていないのに消せたと言っている", ShellPrompt.clear(root, ShellPrompt.Shell.BASH))
         } finally {

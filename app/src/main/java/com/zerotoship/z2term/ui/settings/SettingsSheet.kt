@@ -890,6 +890,11 @@ fun SettingsSheet(
                 // ⚠ アプリの設定として抱え込まず **rootfs の rc ファイルに書く** ([ShellPrompt])。
                 //   後から `vi ~/.bashrc` で直せることに意味があるので、真実は常にファイルにある。
                 Section(title = stringResource(R.string.settings_section_prompt)) {
+                    // ⚠ **rc の置き場は rootfs ではなく共有ホーム**。`ProotLauncher` が
+                    //   `HOME=/root` を `filesDir/shared_home` に bind するので、
+                    //   `distros/<id>/root/` へ書いても誰も読まない (0.8.364 で踏んだ)。
+                    val promptHomeDir = remember { java.io.File(context.filesDir, "shared_home") }
+                    // OS が入っているかだけは rootfs 側で見る (無ければ書いても意味が無い)。
                     val rootfsDir = remember(settings.distroId) {
                         java.io.File(context.filesDir, "distros/${settings.distroId}")
                     }
@@ -920,7 +925,7 @@ fun SettingsSheet(
                     // ⚠ 既に rc へ書いてあるならそれを出す。サンプルで上書きして見せると、
                     //   前に自分で直した内容が**画面から消えたように見える**。
                     fun refill(shell: ShellPrompt.Shell, preset: ShellPrompt.Preset, keepExisting: Boolean) {
-                        promptDraft = (if (keepExisting) ShellPrompt.current(rootfsDir, shell) else null)
+                        promptDraft = (if (keepExisting) ShellPrompt.current(promptHomeDir, shell) else null)
                             ?: ShellPrompt.body(preset, shell, promptRightClock)
                         promptResult = null
                     }
@@ -966,14 +971,14 @@ fun SettingsSheet(
                         ActionButton(label = stringResource(R.string.settings_prompt_apply)) {
                             promptResult = if (!rootfsDir.isDirectory) {
                                 appliedPromptNoOs
-                            } else if (ShellPrompt.apply(rootfsDir, promptShell, promptDraft) != null) {
+                            } else if (ShellPrompt.apply(promptHomeDir, promptShell, promptDraft) != null) {
                                 appliedPromptOk.format(promptShell.displayPath)
                             } else {
                                 appliedPromptNg
                             }
                         }
                         ActionButton(label = stringResource(R.string.settings_prompt_reset)) {
-                            val removed = ShellPrompt.clear(rootfsDir, promptShell)
+                            val removed = ShellPrompt.clear(promptHomeDir, promptShell)
                             promptDraft = ShellPrompt.body(promptPreset, promptShell, promptRightClock)
                             promptResult = if (removed) {
                                 removedPromptOk.format(promptShell.displayPath)
