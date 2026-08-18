@@ -61,13 +61,12 @@ object ShellPrompt {
         /** `┌──(user㉿host)-[~]` / `└─#`。Kali の既定そのもの (利用者が実際に使っている形)。 */
         KALI("kali"),
         /**
-         * 背景色の帯に user と path を白抜きで乗せ、区切りと右端を「くの字」で見せる。
+         * 背景色の帯に user と path を白抜きで乗せ、区切りと右端を「くの字」(``) で見せる。
          *
-         * ⚠ **区切りは `` (U+E0B0) ではなく `` (U+25B6)** を使う。前者は powerline 用の
-         * 私用領域の字で、同梱フォント (IBM Plex Mono / JetBrains Mono / Fira Code) にも
-         * Android の標準等幅フォントにも**入っていないので豆腐になる**。見た目のために
-         * 既定サンプルが化けるのは本末転倒なので、どのフォントにもある字で組む。
-         * powerline フォントを自分で入れている人は、ボックスで `` に打ち替えればよい。
+         * ⚠ `` は U+E0B0 (powerline)。**同梱フォントのうち Fira Code と JetBrains Mono は
+         * この字を持っている**ので、そのまま出る (cmap を実測して確認済み)。
+         * IBM Plex Mono だけは持たないので、そのフォントを選んでいるときは Android の
+         * フォールバックに委ねる形になる。出ないときはボックスで `▶` (U+25B6) 等へ打ち替える。
          */
         BAR("bar");
 
@@ -101,6 +100,20 @@ object ShellPrompt {
      * 代わりに `ESC[999C` で「右端まで動く」(端で止まる) → `ESC[<桁>D` で戻る → 書いたら
      * `ESC[u` で元の位置へ帰る。幅を知らなくても右端に揃う。
      */
+    /**
+     * 帯の区切りに使う powerline の「くの字」を **rc 側で組み立てるための 1 行** (利用者の案)。
+     *
+     * ⚠ **文字そのものをここに書かない**。`\uE0B0` を Kotlin ソースへ実文字で埋めると、
+     * 経路によっては黙って落ちて**区切りが空になる** (実際に一度そうなった)。
+     * rc には `$'\ue0b0'` というエスケープのまま書き、シェルに解釈させる —
+     * ソースも rc も ASCII のままなので、どこでも化けない。
+     *
+     * ⚠ おまけに **利用者が値を変えるだけで区切りを差し替えられる**。同梱フォントのうち
+     * Fira Code と JetBrains Mono はこの字を持つ (cmap を実測) が、IBM Plex Mono は持たない。
+     * 出ないときは `\u25b6` (▶) などに書き換えればよく、それがこの機能の使い方そのものになる。
+     */
+    private const val ARROW_VAR = "ARROW_RIGHT"
+
     private const val CLOCK_WIDTH = 21
 
     /** 右端の日時の中身 (シェル共通の書式)。 */
@@ -117,7 +130,8 @@ object ShellPrompt {
             "\\[\\e[s\\e[999C\\e[${CLOCK_WIDTH}D\\e[38;5;240m[$CLOCK_CMD]\\e[0m\\e[u\\]"
         // 直前のコマンドが成功したかで色を変える。⚠ `$?` は PS1 を展開する時点＝直前の結果。
         val okRed = "\\[\\e[\$( [ \$? -eq 0 ] && printf 32 || printf 31 )m\\]"
-        return "PS1='" + clock + when (preset) {
+        val arrow = if (preset != Preset.BAR) "" else "$ARROW_VAR=\$'\\ue0b0'\n"
+        return arrow + "PS1='" + clock + when (preset) {
             Preset.PLAIN -> "\\$ "
             Preset.USER_HOST ->
                 c("1;36") + "\\u@\\h" + off + ":" + c("1;33") + "\\w" + off + "\\n\\$ "
@@ -134,10 +148,10 @@ object ShellPrompt {
                 c("1;34") + "┌──(" + c("1;31") + "\\u㉿\\h" + c("1;34") + ")-[" +
                     c("1;33") + "\\w" + c("1;34") + "]\\n└─" + off + "\\$ "
             Preset.BAR ->
-                // 青の帯 → (境目のくの字) → 水色の帯 → (右端のくの字) → 改行して `$`。
+                // 青の帯 → (境目の ) → 水色の帯 → (右端の ) → 改行して `$`。
                 // 境目は「前の帯の色を前景に、次の帯の色を背景に」置くと繋がって見える。
-                c("44;97") + " \\u " + c("34;46") + "" + c("46;30") + " \\w " +
-                    off + c("36") + "" + off + "\\n\\$ "
+                c("44;97") + " \\u " + c("34;46") + "\${$ARROW_VAR}" + c("46;30") + " \\w " +
+                    off + c("36") + "\${$ARROW_VAR}" + off + "\\n\\$ "
         } + "'"
     }
 
@@ -161,8 +175,8 @@ object ShellPrompt {
             Preset.KALI ->
                 "PROMPT=\$'%F{blue}┌──(%F{red}%n㉿%m%F{blue})-[%F{yellow}%~%F{blue}]\\n└─%f%# '"
             Preset.BAR ->
-                "PROMPT=\$'%K{blue}%F{white} %n %K{cyan}%F{blue}%K{cyan}%F{black} %~ " +
-                    "%k%F{cyan}%f\\n%# '"
+                "PROMPT=\$'%K{blue}%F{white} %n %K{cyan}%F{blue}\\ue0b0" +
+                    "%K{cyan}%F{black} %~ %k%F{cyan}\\ue0b0%f\\n%# '"
         }
         return if (rightClock) "$main\nRPROMPT=\$'%F{240}[%D{%Y/%m/%d %H:%M:%S}]%f'" else main
     }
@@ -204,13 +218,16 @@ object ShellPrompt {
                 c("1;34") + "┌──(" + c("1;31") + "\\u㉿\\h" + c("1;34") + ")-[" +
                     c("1;33") + "\\w" + c("1;34") + "]\n└─" + off + "\\\$ "
             Preset.BAR ->
-                c("44;97") + " \\u " + c("34;46") + "" + c("46;30") + " \\w " +
-                    off + c("36") + "" + off + "\n\\\$ "
+                c("44;97") + " \\u " + c("34;46") + "\${$ARROW_VAR}" + c("46;30") + " \\w " +
+                    off + c("36") + "\${$ARROW_VAR}" + off + "\n\\\$ "
         }
         // PLAIN で時刻も無いなら ESC が要らないので、余計な行を足さない。
         val needsEsc = rightClock || preset != Preset.PLAIN
+        // ⚠ busybox の printf に `\u` は無いので、UTF-8 のバイト列を 8 進で書く (EE 82 B0)。
+        val arrow = if (preset != Preset.BAR) "" else
+            "\n$ARROW_VAR=\$(printf '\\356\\202\\260')"
         val assign = "PS1=\"$clock$bodyText\""
-        return if (needsEsc) "$head\n$assign" else "PS1='\\$ '"
+        return if (needsEsc) "$head$arrow\n$assign" else "PS1='\\$ '"
     }
     /**
      * [body] を rootfs の rc へ書き込む。既に z2term のブロックがあれば**その部分だけ差し替える**。

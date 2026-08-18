@@ -162,6 +162,41 @@ class ShellPromptTest {
         }
     }
 
+    /**
+     * ⚠ **生成物に私用領域 (U+E000..U+F8FF) の字を直に入れない**。
+     *
+     * powerline の「くの字」(U+E0B0) をソースへ実文字で埋めていたとき、経路の途中で**黙って落ちて
+     * 区切りが空になった**。目で見て分かる壊れ方をしないので、rc 側のエスケープ
+     * (`$'\ue0b0'` / `printf '\356\202\260'`) で組み、生成結果は ASCII だけにする。
+     */
+    @Test
+    fun samplesNeverCarryPrivateUseCharactersDirectly() {
+        for (shell in ShellPrompt.Shell.entries) {
+            for (preset in ShellPrompt.Preset.entries) {
+                for (clock in listOf(false, true)) {
+                    val b = ShellPrompt.body(preset, shell, clock)
+                    val pua = b.filter { it.code in 0xE000..0xF8FF }
+                    assertTrue("$shell/$preset: 私用領域の字が直に入っている: $pua", pua.isEmpty())
+                }
+            }
+        }
+    }
+
+    /** 帯の区切りは rc の中で組み立てる (利用者が値を変えれば別の字にできる)。 */
+    @Test
+    fun theRibbonBuildsItsWedgeInsideTheRc() {
+        for (shell in ShellPrompt.Shell.entries) {
+            val b = ShellPrompt.body(ShellPrompt.Preset.BAR, shell)
+            if (shell == ShellPrompt.Shell.ZSH) {
+                // zsh は $'...' がそのまま解釈するので変数を挟まない。
+                assertTrue("$shell: くの字のエスケープが無い: $b", b.contains("\\ue0b0"))
+            } else {
+                assertTrue("$shell: ARROW_RIGHT を定義していない: $b", b.contains("ARROW_RIGHT="))
+                assertTrue("$shell: ARROW_RIGHT を使っていない: $b", b.contains("\${ARROW_RIGHT}"))
+            }
+        }
+    }
+
     /** 色を使うサンプルは、bash では必ず幅を持たない印で囲む (囲み忘れると折り返しがずれる)。 */
     @Test
     fun bashWrapsColorsSoLineWrappingStaysCorrect() {
