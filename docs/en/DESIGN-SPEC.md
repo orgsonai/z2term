@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-18 / Target version: 0.8.361-alpha (versionCode 369)
+Last updated: 2026-08-18 / Target version: 0.8.362-alpha (versionCode 370)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1905,6 +1905,7 @@ On failure: fall back to launchAndroidSh
   - SPACIOUS = the old **META** at the left of Row 3 (the same modifier as ALT in Row 5).
   - COMPACT = the old **CTRL** at the left of Row 5 (the top bar already carries CTRL). ⚠ This is the seat the face-switch key occupies, which makes it a consistent home for a key that swaps the face.
   - **Tap = paste, flick up = emoji.** ⚠ The key draws 📋 in the middle and 😀 at the top edge, so **the key itself explains the entry point** — the lesson from the ESC up-flick on the Japanese layout, which went unused because it was invisible.
+  - ⚠ **The Latin ESC gets the same up/down flicks (`SilentEscKey`, 0.8.362, user request).** `PadKey`'s seat **only frees up on a face without a switch key**, so **in a Japanese locale the Latin face had no entry point at all** (you could go back to the kana face to open it, but that means hopping between faces mid-word). A flick on ESC costs no seat and gives the **same finger movement** as the kana and number faces. ⚠ **No marks and no popup (user's call).** The kana ESC prints hints on its top and bottom edges, but that face is already a grid of keys carrying extra glyphs, so they fit in; the Latin face is a grid of plain keys and marks there **change the look of the face**. Discoverability is handled in the HANDBOOK instead, and the key's appearance stays put. ⚠ **It behaves identically in an English locale** — keying the ESC behaviour off whether `PadKey` exists would mean **the same face responds to a different finger movement depending on the device language**.
   - While the pad is open the layer is swapped wholesale, **keeping only the bottom row of function keys (× ⌫ space ⏎ ← →)**. ⚠ Unlike the Japanese layout it does not keep the edge columns: with 10 columns they are too narrow to be a finger target. ⌫ is not replaced by "close", same as the Japanese layout (you would lose the ability to delete right after pasting).
 
 #### 6.1.1 The numbers-only face (0.8.305)

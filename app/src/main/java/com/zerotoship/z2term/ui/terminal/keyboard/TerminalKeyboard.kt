@@ -338,9 +338,14 @@ fun TerminalKeyboard(
         // 主行の左 1.4f 列を解放することで英字キーが少しずつ広くなる。
         if (isCompact) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-                BasicKey("ESC", weight = 1f, fontSp = smallFont, style = style) {
-                    emitSpecial(byteArrayOf(0x1B))
-                }
+                SilentEscKey(
+                    weight = 1f,
+                    fontSp = smallFont,
+                    style = style,
+                    onTap = { emitSpecial(byteArrayOf(0x1B)) },
+                    onFlickUp = { togglePad(PadMode.CLIPBOARD) },
+                    onFlickDown = { togglePad(PadMode.EMOJI) }
+                )
                 BasicKey("TAB", weight = 1f, fontSp = smallFont, style = style) {
                     emitSpecial(byteArrayOf(0x09))
                 }
@@ -357,9 +362,14 @@ fun TerminalKeyboard(
         // Row 1: (spacious のみ ESC) + 数字行 + ⌫
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
             if (!isCompact) {
-                BasicKey("ESC", weight = 1.4f, fontSp = smallFont, style = style) {
-                    emitSpecial(byteArrayOf(0x1B))
-                }
+                SilentEscKey(
+                    weight = 1.4f,
+                    fontSp = smallFont,
+                    style = style,
+                    onTap = { emitSpecial(byteArrayOf(0x1B)) },
+                    onFlickUp = { togglePad(PadMode.CLIPBOARD) },
+                    onFlickDown = { togglePad(PadMode.EMOJI) }
+                )
             }
             r1Labels.forEach { s ->
                 BasicKey(s, weight = 1f, fontSp = style.mainKeyFontSp, repeatable = true, style = style) { emitChar(s[0]) }
@@ -494,6 +504,87 @@ fun TerminalKeyboard(
             BasicKey("↑", weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) { emitCursor(TerminalEmulator.CursorKey.UP) }
             BasicKey("→", weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) { emitCursor(TerminalEmulator.CursorKey.RIGHT) }
         }
+    }
+}
+
+/**
+ * 英字面の ESC キー。**見た目は [BasicKey] のまま**で、上下フリックだけを足したもの。
+ *
+ * タップ = ESC 送出、**上フリック** = 貼り付けパッド、**下フリック** = 絵文字パッド。
+ * かな面 ([JpEscKey]) / 数字面と**同じ指の動き**を英字面でも通すためのもの (0.8.362・要望)。
+ *
+ * ⚠ **なぜ要るか**: 貼り付け / 絵文字の入口 ([PadKey]) は**面の切替キーが無い配列にしか置けない**
+ * (席が 1 つしか空かない)。日本語ロケールではその席が面切替に要るので、**英字面から貼り付けを
+ * 開く手が 1 つも無かった**。ESC のフリックなら席を増やさずに済む。
+ *
+ * ⚠ **印もポップアップも出さない (利用者の判断)**。かな面の ESC は上下端にヒントを出すが、
+ * あちらは元から記号を載せたキーが並ぶ面で馴染む。英字面の ESC は素のキーなので、ここに印を
+ * 足すと**英字面の見た目が変わってしまう**。狙いは「かな面で覚えた指の動きが英字面でも通る」
+ * ことなので、表示は据え置いて動きだけ揃える。
+ */
+@Composable
+private fun RowScope.SilentEscKey(
+    weight: Float,
+    fontSp: Float,
+    style: KeyboardStyle,
+    onTap: () -> Unit,
+    onFlickUp: () -> Unit,
+    onFlickDown: () -> Unit
+) {
+    var pressed by remember { mutableStateOf(false) }
+    val currentOnTap by rememberUpdatedState(onTap)
+    val currentOnFlickUp by rememberUpdatedState(onFlickUp)
+    val currentOnFlickDown by rememberUpdatedState(onFlickDown)
+    val bg = if (pressed) ZtsGreenBright else ZtsBgCard
+    val fg = if (pressed) Color.Black else ZtsTextPrimary
+    val border = if (pressed) ZtsGreen else ZtsBorder
+    Box(
+        modifier = Modifier
+            .weight(weight)
+            .height(style.keyHeight)
+            .clip(RoundedCornerShape(6.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(6.dp))
+            .pointerInput(Unit) {
+                // しきい値と判定順は [JpEscKey] と同じにする (面ごとに感度が違うと戸惑うため)。
+                val flickThreshold = viewConfiguration.touchSlop * 1.4f
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        pressed = true
+                        val startX = down.position.x
+                        val startY = down.position.y
+                        var resolved = false
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Main)
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            val dx = change.position.x - startX
+                            val dy = change.position.y - startY
+                            // 縦の移動が横より大きいときだけフリック扱い (横払いは誤爆させない)。
+                            if (!resolved && abs(dy) > flickThreshold && abs(dy) > abs(dx)) {
+                                resolved = true
+                                if (dy < 0) currentOnFlickUp() else currentOnFlickDown()
+                                change.consume()
+                            }
+                            if (!change.pressed) {
+                                // フリックが決まっていなければ通常の ESC として送る。
+                                if (!resolved) currentOnTap()
+                                break
+                            }
+                        }
+                        pressed = false
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "ESC",
+            color = fg,
+            fontSize = fontSp.sp,
+            fontWeight = FontWeight.Medium,
+            fontFamily = FontFamily.Monospace
+        )
     }
 }
 

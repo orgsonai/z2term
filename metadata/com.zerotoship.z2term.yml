@@ -72,9 +72,9 @@ RepoType: git
 Repo: https://github.com/orgsonai/z2term
 
 Builds:
-  - versionName: 0.8.361-alpha
-    versionCode: 369
-    commit: v0.8.361-alpha
+  - versionName: 0.8.362-alpha
+    versionCode: 370
+    commit: v0.8.362-alpha
     subdir: app
     # z2root / z2accept は prebuilt を同梱せず、app/src/main/cpp/ のソースから
     # NDK でビルドして jniLibs へ置く (Android 10+ は nativeLibraryDir からの
@@ -94,5 +94,5 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+-alpha$
-CurrentVersion: 0.8.361-alpha
-CurrentVersionCode: 369
+CurrentVersion: 0.8.362-alpha
+CurrentVersionCode: 370
