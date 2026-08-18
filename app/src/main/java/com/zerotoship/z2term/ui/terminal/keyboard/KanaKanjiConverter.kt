@@ -978,6 +978,11 @@ object KanaKanjiConverter {
         Triple("つく", "付く", Vk.GODAN),
         Triple("ひく", "引く", Vk.GODAN),
         Triple("おく", "置く", Vk.GODAN),
+        // ⚠ 対になる自動詞を落とさない。「開ける/閉める/閉まる/閉じる」はあるのに「開く」だけ
+        // 無く、**あかない → 開かない が一度も候補に出なかった** (利用者の指摘)。元辞書は
+        // `あく /悪/灰汁/…/` と名詞しか持たず、活用はこの表に無い語には生えない。
+        Triple("あく", "開く", Vk.GODAN),
+        Triple("ひらく", "開く", Vk.GODAN),
         Triple("およぐ", "泳ぐ", Vk.GODAN),
         Triple("いそぐ", "急ぐ", Vk.GODAN),
         Triple("ぬぐ", "脱ぐ", Vk.GODAN),
