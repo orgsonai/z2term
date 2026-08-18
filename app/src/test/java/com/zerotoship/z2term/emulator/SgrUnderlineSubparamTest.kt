@@ -130,6 +130,46 @@ class AltScreenExitTextStateTest {
         assertNull("Alt を跨いでリンクを持ち越さない", cell(e, 0, 0).link)
     }
 
+    /**
+     * ⚠ **ST (`ESC \`) は 2 バイト。`\` まで消費すること。**
+     *
+     * ESC を見た時点で OSC を終端して GROUND へ戻していた頃は、続く `\` が**通常の文字として
+     * 画面に出て**いた (OSC 8 でリンクを張る CLI を動かすと画面に `\` が散り、しかもその
+     * セルにはリンクが付く)。[osc8Link_isClearedOnAltScreenExit] が落ちていた真因もこれで、
+     * リンクの持ち越しではなく **(0,0) に `\` が居座っていた**。
+     */
+    @Test
+    fun osc8StringTerminatorIsFullyConsumed() {
+        val e = emu()
+        feed(e, "$ESC]8;;https://example.com$ESC\\")
+        feed(e, "X")
+        assertEquals("ST の `\\` が画面に出ている", 'X', cell(e, 0, 0).char)
+        assertEquals("X はリンクの中にある", "https://example.com", cell(e, 0, 0).link)
+    }
+
+    /** BEL 終端でも同じこと。こちらは 1 バイトなので元から漏れない。 */
+    @Test
+    fun osc8BelTerminatorAlsoWorks() {
+        val e = emu()
+        feed(e, "$ESC]8;;https://example.com\u0007")
+        feed(e, "X")
+        assertEquals('X', cell(e, 0, 0).char)
+        assertEquals("https://example.com", cell(e, 0, 0).link)
+    }
+
+    /**
+     * 終端不正 (`ESC` の次が `\` 以外) は xterm 流儀でその場で打ち切り、続くバイトを
+     * ESCAPE として読み直す。⚠ ここを「捨てる」にすると、後続のシーケンスが 1 つ消える。
+     */
+    @Test
+    fun osc8BrokenTerminatorFallsBackToEscape() {
+        val e = emu()
+        // OSC の途中で ESC [ が来る = ST ではない。OSC は打ち切り、続く CSI が効く。
+        feed(e, "$ESC]8;;https://example.com$ESC[2;3H")
+        feed(e, "X")
+        assertEquals("打ち切り後の CSI が効いていない", 'X', cell(e, 1, 2).char)
+    }
+
     /** `reset` (RIS) でも消せること — ここが抜けていると利用者に直す手が無い。 */
     @Test
     fun osc8Link_isClearedByFullReset() {

@@ -116,6 +116,8 @@ class TerminalEmulator(
     private var state = State.GROUND
     /** STRING 状態で直前に ESC を受けたか (次バイトが `\` なら ST=終端、それ以外なら継続 or 異常終了)。 */
     private var stringEscSeen = false
+    /** OSC 状態で直前に ESC を受けたか。STRING 側の [stringEscSeen] と同じ役割。 */
+    private var oscEscSeen = false
     /**
      * 進行中の文字列系シーケンスが Kitty graphics (APC `_`) かどうか。
      * 他 (DCS/PM/SOS) は本文を破棄するだけだが、APC はパーサに本文を流す。
@@ -407,6 +409,7 @@ class TerminalEmulator(
             ']' -> {
                 state = State.OSC
                 oscBuffer.reset()
+                oscEscSeen = false
             }
             '(', ')', '*', '+' -> {
                 state = State.CHARSET
@@ -743,19 +746,39 @@ class TerminalEmulator(
         }
     }
 
+    /**
+     * OSC 本体を読む。終端は BEL (0x07) か ST (`ESC \` = 0x1B 0x5C)。
+     *
+     * ⚠ **ST は 2 バイトなので、`\` まで消費してから GROUND へ戻す**。ESC を見た時点で
+     * 終端扱いにして GROUND へ戻していた頃は、続く `\` が**通常の文字として画面に出て**いた
+     * (OSC 8 でリンクを張る CLI を動かすと画面に `\` が散る。しかもその `\` のセルには
+     * リンクが付くので、後から画面を読む側にも紛れ込む)。
+     *
+     * 終端不正 (ESC + 非 `\`) は [processString] と同じ xterm 流儀で、その時点で打ち切り、
+     * 続くバイトを ESCAPE として再解釈する。
+     */
     private fun processOsc(b: Int) {
+        if (oscEscSeen) {
+            oscEscSeen = false
+            if (b == 0x5C) {
+                // ST 完成: 正常終端
+                dispatchOsc()
+                state = State.GROUND
+            } else {
+                // ESC のあとに `\` 以外: OSC は打ち切り、続くバイトを ESCAPE として処理
+                dispatchOsc()
+                state = State.ESCAPE
+                processEscape(b)
+            }
+            return
+        }
         when (b) {
             0x07 -> {
                 // BEL: OSC 終端
                 dispatchOsc()
                 state = State.GROUND
             }
-            0x1B -> {
-                // ESC: 次が \ なら ST (string terminator)
-                // 簡易実装: ESC で常に終了とみなす
-                dispatchOsc()
-                state = State.GROUND
-            }
+            0x1B -> oscEscSeen = true   // 次が `\` なら ST
             else -> {
                 if (oscBuffer.size() < 1024) {
                     oscBuffer.write(b)

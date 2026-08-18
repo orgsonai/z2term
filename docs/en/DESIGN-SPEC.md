@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-18 / Target version: 0.8.360-alpha (versionCode 368)
+Last updated: 2026-08-18 / Target version: 0.8.361-alpha (versionCode 369)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1406,6 +1406,24 @@ when `executionEngine = "chroot"`, `launchChroot()` is used.
 - `TerminalScrollbar`: the grabbable scrollbar on the right edge. To follow the finger **from the moment of touch down**, it runs its own `awaitPointerEventScope` loop instead of `detectDragGestures` (which stays idle until touch slop is exceeded). Events are taken on **`PointerEventPass.Initial` and consumed immediately**: if they survive to the Main pass they reach the overlapping `TerminalInputView` (AndroidView), which consumes the changes as "handled", and `drag`/`detectDragGestures` then treats the gesture as stolen and aborts at once. **Read `positionChange()` before calling `consume()`** — it returns `Offset.Zero` for an already-consumed change, so consuming first leaves the thumb frozen (the actual cause of "grabbable but immobile" in 0.8.190/0.8.191; fixed in 0.8.192). The `pointerInput` key is fixed to `Unit`, and changing values (`scrollbackSize`, thumb metrics) are read through `rememberUpdatedState` — putting `scrollbackSize` in the key **recreates the detector on every terminal write and drops the in-flight gesture**. While dragging, the thumb position is held in local state so it does not wait for the `scrollOffset` (StateFlow) → recomposition round trip. The hit area is 32dp wide (+10dp above/below), wider than the 8dp visual.
 - `TerminalBuffer`/`TerminalRow`/`TerminalCell`/`SgrAttribute`: cell storage and scrollback.
 - `TerminalColors`/`AvailableThemes`: 9 themes (ZTS / Solarized Dark / Dracula / Gruvbox Dark / Nord / Tokyo Night / Catppuccin Mocha / Catppuccin Latte / Monokai).
+
+#### OSC terminators consume both bytes of ST (0.8.361)
+
+An OSC (`ESC ]`) ends with **BEL (`0x07`) or ST (`ESC \` = `0x1B 0x5C`)**. ⚠ **ST is two bytes, so the
+`\` must be consumed before returning to GROUND.** `processOsc` treated the ESC alone as the
+terminator and returned to GROUND, so **the following `\` was written to the screen as an ordinary
+character**.
+
+- Symptom: **running a CLI that emits OSC 8 hyperlinks sprinkles `\` across the screen** — and since
+  `currentLink` is still live when that `\` is written, **the stray `\` carries the link too**.
+- ⚠ This is also why `AltScreenExitTextStateTest.osc8Link_isClearedOnAltScreenExit` sat red. It looked
+  like "the link survives the alt screen", but really **a leaked `\` was sitting at (0,0)** — the
+  0.8.354 reset worked all along. (The underline/colour tests in the same class send `\e[0m` *inside*
+  the alt screen, so they **pass even if the reset does nothing**, which hid the hole.)
+- A broken terminator (`ESC` + non-`\`) follows the same xterm convention as `processString`: cut the
+  string there and re-read the byte as ESCAPE (dropping it would swallow the next sequence).
+- Regression: three cases in `AltScreenExitTextStateTest` — full ST consumption, BEL terminator, and
+  the broken terminator.
 
 #### String-state absorption (0.8.127)
 

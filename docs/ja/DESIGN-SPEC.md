@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-18 / 対象バージョン: 0.8.360-alpha (versionCode 368)
+最終更新: 2026-08-18 / 対象バージョン: 0.8.361-alpha (versionCode 369)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1381,6 +1381,23 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 - `TerminalScrollbar`: 端末右端の掴めるスクロールバー。**タッチした瞬間から指に追従**させるため、`detectDragGestures` (タッチスロープ超過まで無反応) ではなく `awaitPointerEventScope` の自前ループで扱う。イベントは **`PointerEventPass.Initial` で受けて即 `consume`** する: Main パスまで残すと下に重なる `TerminalInputView` (AndroidView) に配られ、View 側が「処理した」として change を consume するため、`drag`/`detectDragGestures` は「他に取られた」と判断して即中断する。**移動量 `positionChange()` は `consume()` する前に読むこと** — consume 済みの change に対しては `Offset.Zero` を返す仕様なので、先に consume するとつまみが 1px も動かない (0.8.190/0.8.191 の「掴めるが動かない」の真因。0.8.192 で修正)。`pointerInput` の key は `Unit` 固定で、変化する値 (`scrollbackSize` / つまみ寸法) は `rememberUpdatedState` 経由で読む — key に `scrollbackSize` を入れると**端末出力のたびに検出器が作り直され、掴んだ指が外れる**。ドラッグ中のつまみ位置はローカル state に持ち、`scrollOffset` (StateFlow) → recomposition の往復を待たずに描く。当たり判定は見た目 (幅 8dp) より広い 32dp × 上下 +10dp。
 - `TerminalBuffer`/`TerminalRow`/`TerminalCell`/`SgrAttribute`: セル格納とスクロールバック。
 - `TerminalColors`/`AvailableThemes`: 9 テーマ (ZTS / Solarized Dark / Dracula / Gruvbox Dark / Nord / Tokyo Night / Catppuccin Mocha / Catppuccin Latte / Monokai)。
+
+#### OSC の終端は ST の 2 バイト目まで消費する (0.8.361)
+
+OSC (`ESC ]`) の終端は **BEL (`0x07`) か ST (`ESC \` = `0x1B 0x5C`)**。⚠ **ST は 2 バイトなので、
+`\` まで消費してから GROUND へ戻す**。`processOsc` は ESC を見た時点で終端扱いにして GROUND へ
+戻していたため、**続く `\` が通常の文字として画面に書かれていた**。
+
+- 症状: **OSC 8 でリンクを張る CLI を動かすと画面に `\` が散る**。しかもその `\` を書く時点では
+  `currentLink` が生きているので、**漏れた `\` のセルにリンクが付く**。
+- ⚠ この取りこぼしは `AltScreenExitTextStateTest.osc8Link_isClearedOnAltScreenExit` を
+  **赤いまま放置していた真因**でもある。「代替画面を跨いでリンクが残る」ように見えていたが、
+  実際は **(0,0) に漏れた `\` が居座っていた**だけで、0.8.354 のリセット自体は効いていた
+  (同クラスの下線・色のテストは代替画面の中で `\e[0m` を送る書き方だったので、
+  **リセットが動かなくても通ってしまい**、穴を隠していた)。
+- 終端不正 (`ESC` + 非 `\`) は `processString` と同じ xterm 流儀で、その場で打ち切り続くバイトを
+  ESCAPE として再解釈する (捨てると後続のシーケンスが 1 つ消える)。
+- 回帰は `AltScreenExitTextStateTest` の ST 完全消費 / BEL 終端 / 終端不正の 3 ケースで固定。
 
 #### 文字列系シーケンスの吸収 (0.8.127)
 
