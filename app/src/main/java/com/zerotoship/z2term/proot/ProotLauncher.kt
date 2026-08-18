@@ -402,6 +402,12 @@ class ProotLauncher(private val context: Context) {
             // 同名のコマンドがあったときに OS 側を覆わないため。
             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$MACRO_DIR",
             "TMPDIR=/tmp",
+            // ⚠ **sh (busybox ash) が rc を読む唯一の口** (0.8.364)。ash は非ログインの対話
+            // シェルでは `$ENV` が指すファイルしか読まないので、これが無いと **rc に何を書いても
+            // 効かない**。Alpine の既定シェルは ash なので、プロンプト設定 ([ShellPrompt]) が
+            // 一番効いてほしい相手がまさにここだった。ファイルが無ければ何も起きない (無害)。
+            // ⚠ bash/zsh はこの変数を見ない (bash は POSIX モードのみ) ので、他へ影響しない。
+            "ENV=/root/.ashrc",
             "SHELL=$shellForEnv",
             // GUI 内ターミナル (z2gui) 用。z2gui は SHELL を自分自身に上書きされる可能性が
             // あるため SHELL を実体シェルへ張り直すが、その候補としてこれを最優先で見る。

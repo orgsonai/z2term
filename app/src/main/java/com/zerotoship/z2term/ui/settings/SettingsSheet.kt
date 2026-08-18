@@ -107,6 +107,7 @@ import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.settings.RootfsCacheCleaner
 import com.zerotoship.z2term.settings.SettingsGroup
 import com.zerotoship.z2term.settings.SettingsGroupStore
+import com.zerotoship.z2term.settings.ShellPrompt
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import com.zerotoship.z2term.ui.components.ResidentActionDialog
 import com.zerotoship.z2term.ui.terminal.Guide
@@ -876,6 +877,123 @@ fun SettingsSheet(
                             fontFamily = FontFamily.Monospace
                         )
                     }
+                }
+
+                // ボタンの onClick は Composable ではないので、出す文言は先に解決しておく。
+                val appliedPromptOk = stringResource(R.string.settings_prompt_applied)
+                val appliedPromptNg = stringResource(R.string.settings_prompt_failed)
+                val appliedPromptNoOs = stringResource(R.string.settings_prompt_no_os)
+                val removedPromptOk = stringResource(R.string.settings_prompt_removed)
+                val removedPromptNone = stringResource(R.string.settings_prompt_removed_none)
+
+                // シェルのプロンプト。サンプルを選ぶ → 中身が出る → その場で直す → rc へ適用。
+                // ⚠ アプリの設定として抱え込まず **rootfs の rc ファイルに書く** ([ShellPrompt])。
+                //   後から `vi ~/.bashrc` で直せることに意味があるので、真実は常にファイルにある。
+                Section(title = stringResource(R.string.settings_section_prompt)) {
+                    val rootfsDir = remember(settings.distroId) {
+                        java.io.File(context.filesDir, "distros/${settings.distroId}")
+                    }
+                    // 対象シェルの初期値は「ログインシェル」設定から推測する。別々に選ばせると、
+                    // ash で使っているのに bash の rc へ書いて「適用したのに変わらない」になる。
+                    var promptShell by remember(settings.loginShell) {
+                        mutableStateOf(
+                            when {
+                                settings.loginShell.endsWith("zsh") -> ShellPrompt.Shell.ZSH
+                                settings.loginShell.endsWith("bash") -> ShellPrompt.Shell.BASH
+                                else -> ShellPrompt.Shell.SH
+                            }
+                        )
+                    }
+                    var promptPreset by remember { mutableStateOf(ShellPrompt.Preset.USER_HOST) }
+                    var promptRightClock by remember { mutableStateOf(false) }
+                    var promptDraft by remember { mutableStateOf("") }
+                    var promptResult by remember { mutableStateOf<String?>(null) }
+                    val presetLabels = mapOf(
+                        ShellPrompt.Preset.PLAIN.id to stringResource(R.string.settings_prompt_preset_plain),
+                        ShellPrompt.Preset.USER_HOST.id to stringResource(R.string.settings_prompt_preset_user_host),
+                        ShellPrompt.Preset.PATH_ONLY.id to stringResource(R.string.settings_prompt_preset_path_only),
+                        ShellPrompt.Preset.TWO_LINE.id to stringResource(R.string.settings_prompt_preset_two_line),
+                        ShellPrompt.Preset.WITH_TIME.id to stringResource(R.string.settings_prompt_preset_with_time)
+                    )
+                    // ⚠ 既に rc へ書いてあるならそれを出す。サンプルで上書きして見せると、
+                    //   前に自分で直した内容が**画面から消えたように見える**。
+                    fun refill(shell: ShellPrompt.Shell, preset: ShellPrompt.Preset, keepExisting: Boolean) {
+                        promptDraft = (if (keepExisting) ShellPrompt.current(rootfsDir, shell) else null)
+                            ?: ShellPrompt.body(preset, shell, promptRightClock)
+                        promptResult = null
+                    }
+                    LaunchedEffect(promptShell) { refill(promptShell, promptPreset, keepExisting = true) }
+
+                    ChipRow(
+                        options = ShellPrompt.Shell.entries.map { it.id },
+                        labels = ShellPrompt.Shell.entries.associate { it.id to it.label },
+                        selected = promptShell.id,
+                        onSelect = { id ->
+                            promptShell = ShellPrompt.Shell.of(id)
+                            refill(promptShell, promptPreset, keepExisting = true)
+                        }
+                    )
+                    ChipRow(
+                        options = ShellPrompt.Preset.entries.map { it.id },
+                        labels = presetLabels,
+                        selected = promptPreset.id,
+                        onSelect = { id ->
+                            promptPreset = ShellPrompt.Preset.of(id)
+                            // サンプルを選び直したときだけは、そのサンプルで作り直す。
+                            refill(promptShell, promptPreset, keepExisting = false)
+                        }
+                    )
+                    ToggleField(
+                        title = stringResource(R.string.settings_prompt_right_clock),
+                        description = stringResource(R.string.settings_prompt_right_clock_desc),
+                        checked = promptRightClock,
+                        onChange = {
+                            promptRightClock = it
+                            // 切り替えたら見本を作り直す (ボックスの中身と食い違わせない)。
+                            promptDraft = ShellPrompt.body(promptPreset, promptShell, it)
+                            promptResult = null
+                        }
+                    )
+                    TextField(
+                        title = stringResource(R.string.settings_prompt_body, promptShell.displayPath),
+                        placeholder = "PS1=...",
+                        value = promptDraft,
+                        onChange = { promptDraft = it; promptResult = null }
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ActionButton(label = stringResource(R.string.settings_prompt_apply)) {
+                            promptResult = if (!rootfsDir.isDirectory) {
+                                appliedPromptNoOs
+                            } else if (ShellPrompt.apply(rootfsDir, promptShell, promptDraft) != null) {
+                                appliedPromptOk.format(promptShell.displayPath)
+                            } else {
+                                appliedPromptNg
+                            }
+                        }
+                        ActionButton(label = stringResource(R.string.settings_prompt_reset)) {
+                            val removed = ShellPrompt.clear(rootfsDir, promptShell)
+                            promptDraft = ShellPrompt.body(promptPreset, promptShell, promptRightClock)
+                            promptResult = if (removed) {
+                                removedPromptOk.format(promptShell.displayPath)
+                            } else {
+                                removedPromptNone
+                            }
+                        }
+                    }
+                    promptResult?.let {
+                        Text(
+                            text = it,
+                            color = ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.settings_prompt_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
                 }
 
                 SshAccessHelper(session = session)
