@@ -40,21 +40,39 @@ object ShellPrompt {
         }
     }
 
-    /** サンプル。[body] がシェルごとの中身を組み立てる。 */
+    /**
+     * サンプル。
+     *
+     * ⚠ **見本は「そのまま使える出来のもの」を置く**。素っ気ない `user@host:~$` だけを並べても、
+     * 結局みんな自分で書き直すことになり、見本を置いた意味が無い (利用者の指摘)。
+     * 罫線・2 段・終了ステータスで色が変わる記号まで含めて、**選んだだけで仕上がっている**状態にする。
+     */
     enum class Preset(val id: String) {
-        /** 記号だけ。一番短く、幅を食わない。 */
+        /** 記号だけ。幅を食わないので、狭い画面や貼り付け用に。 */
         PLAIN("plain"),
-        /** `user@host:path$`。SSH でよく見る形。 */
+        /** `user@host:~` の下に `$`。2 段で、打つ場所が常に左端から始まる。 */
         USER_HOST("user_host"),
-        /** パスだけ。自分の端末しか触らないなら user@host は要らない。 */
-        PATH_ONLY("path_only"),
-        /** 2 行。パスが長くても打つ場所が左端から始まる。 */
-        TWO_LINE("two_line"),
-        /** 時刻つき。ログを遡るとき「いつ打ったか」が残る。 */
-        WITH_TIME("with_time");
+        /** `[時刻] ~` の下に `❯`。⚠ **直前のコマンドが失敗したら ❯ が赤くなる**。 */
+        ARROW("arrow"),
+        /** `╭─[user]─[~]` / `╰─⚡`。丸い罫線で囲む。 */
+        BOX("box"),
+        /** `┌─[~]` / `└─$`。角の罫線。パスだけを大きく見せる。 */
+        BRACKET("bracket"),
+        /** `┌──(user㉿host)-[~]` / `└─#`。Kali の既定そのもの (利用者が実際に使っている形)。 */
+        KALI("kali"),
+        /**
+         * 背景色の帯に user と path を白抜きで乗せ、区切りと右端を「くの字」で見せる。
+         *
+         * ⚠ **区切りは `` (U+E0B0) ではなく `` (U+25B6)** を使う。前者は powerline 用の
+         * 私用領域の字で、同梱フォント (IBM Plex Mono / JetBrains Mono / Fira Code) にも
+         * Android の標準等幅フォントにも**入っていないので豆腐になる**。見た目のために
+         * 既定サンプルが化けるのは本末転倒なので、どのフォントにもある字で組む。
+         * powerline フォントを自分で入れている人は、ボックスで `` に打ち替えればよい。
+         */
+        BAR("bar");
 
         companion object {
-            fun of(id: String): Preset = entries.firstOrNull { it.id == id } ?: USER_HOST
+            fun of(id: String): Preset = entries.firstOrNull { it.id == id } ?: ARROW
         }
     }
 
@@ -76,77 +94,124 @@ object ShellPrompt {
     }
 
     /**
-     * 右端に時刻を出す部分。⚠ **端末の幅を数えない**。
+     * 右端に出す日時の桁数 (`[YYYY/MM/DD HH:MM:SS]`)。
      *
-     * `COLUMNS` は sh (busybox ash) では設定されないことがあり、あっても画面を回したときに
-     * 更新されないので、幅から引き算する作り方は**回転や分割で必ずズレる**。
-     * 代わりに `ESC[999C` で「右端まで動く」(端で止まる) → `ESC[8D` で時刻の分だけ左へ戻る →
-     * 書いたら `ESC[u` で元の位置へ帰る。幅を知らなくても右端に揃う。
+     * ⚠ **端末の幅は数えない**。`COLUMNS` は sh (busybox ash) では設定されないことがあり、
+     * あっても画面を回したときに更新されないので、幅から引き算する作りは**回転や分割で必ずズレる**。
+     * 代わりに `ESC[999C` で「右端まで動く」(端で止まる) → `ESC[<桁>D` で戻る → 書いたら
+     * `ESC[u` で元の位置へ帰る。幅を知らなくても右端に揃う。
      */
-    private const val CLOCK_WIDTH = 8   // HH:MM:SS
+    private const val CLOCK_WIDTH = 21
+
+    /** 右端の日時の中身 (シェル共通の書式)。 */
+    private const val CLOCK_CMD = "$(date '+%Y/%m/%d %H:%M:%S')"
+
+    // ---- bash -----------------------------------------------------------------
 
     private fun bash(preset: Preset, rightClock: Boolean): String {
-        val g = "\\[\\e[1;32m\\]"   // 緑・太字
-        val b = "\\[\\e[1;34m\\]"   // 青・太字
-        val y = "\\[\\e[1;33m\\]"   // 黄・太字
-        val r = "\\[\\e[0m\\]"      // 戻す
-        // ⚠ カーソル移動と時刻を**まとめて** `\[ \]` に入れる。元の位置へ帰ってくるので
+        fun c(code: String) = "\\[\\e[${code}m\\]"
+        val off = c("0")
+        // ⚠ カーソル移動と日時を**まとめて** `\[ \]` に入れる。元の位置へ帰ってくるので
         //    実際の幅は 0 で、そう教えないと bash が行の折り返しを誤る。
         val clock = if (!rightClock) "" else
-            "\\[\\e[s\\e[999C\\e[${CLOCK_WIDTH}D\\e[1;30m\\t\\e[0m\\e[u\\]"
-        return when (preset) {
-            Preset.PLAIN -> "PS1='$clock\\$ '"
-            Preset.USER_HOST -> "PS1='$clock$g\\u@\\h$r:$b\\w$r\\$ '"
-            Preset.PATH_ONLY -> "PS1='$clock$b\\w$r\\$ '"
-            Preset.TWO_LINE -> "PS1='$clock$g\\u@\\h$r:$b\\w$r\\n\\$ '"
-            Preset.WITH_TIME -> "PS1='$clock$y\\t$r $b\\w$r\\$ '"
-        }
+            "\\[\\e[s\\e[999C\\e[${CLOCK_WIDTH}D\\e[38;5;240m[$CLOCK_CMD]\\e[0m\\e[u\\]"
+        // 直前のコマンドが成功したかで色を変える。⚠ `$?` は PS1 を展開する時点＝直前の結果。
+        val okRed = "\\[\\e[\$( [ \$? -eq 0 ] && printf 32 || printf 31 )m\\]"
+        return "PS1='" + clock + when (preset) {
+            Preset.PLAIN -> "\\$ "
+            Preset.USER_HOST ->
+                c("1;36") + "\\u@\\h" + off + ":" + c("1;33") + "\\w" + off + "\\n\\$ "
+            Preset.ARROW ->
+                c("38;5;244") + "[\\t]" + off + " " + c("1;36") + "\\w" + off + "\\n" +
+                    okRed + "❯" + off + " "
+            Preset.BOX ->
+                c("1;35") + "╭─[" + c("1;36") + "\\u" + c("1;35") + "]─[" +
+                    c("1;33") + "\\w" + c("1;35") + "]\\n╰─" + c("1;32") + "⚡" + off + " "
+            Preset.BRACKET ->
+                c("1;34") + "┌─[" + c("1;33") + "\\w" + c("1;34") + "]\\n└─" +
+                    c("1;32") + "\\$" + off + " "
+            Preset.KALI ->
+                c("1;34") + "┌──(" + c("1;31") + "\\u㉿\\h" + c("1;34") + ")-[" +
+                    c("1;33") + "\\w" + c("1;34") + "]\\n└─" + off + "\\$ "
+            Preset.BAR ->
+                // 青の帯 → (境目のくの字) → 水色の帯 → (右端のくの字) → 改行して `$`。
+                // 境目は「前の帯の色を前景に、次の帯の色を背景に」置くと繋がって見える。
+                c("44;97") + " \\u " + c("34;46") + "" + c("46;30") + " \\w " +
+                    off + c("36") + "" + off + "\\n\\$ "
+        } + "'"
     }
 
+    // ---- zsh ------------------------------------------------------------------
+
     /**
-     * zsh。⚠ 右端の時刻は **`RPROMPT` に任せる** — zsh が幅を数えて右へ寄せ、
+     * zsh。⚠ 右端の日時は **`RPROMPT` に任せる** — zsh が幅を数えて右へ寄せ、
      * 行が伸びたら自分で引っ込めてくれる。カーソルを動かす小細工より確実。
      */
     private fun zsh(preset: Preset, rightClock: Boolean): String {
         val main = when (preset) {
             Preset.PLAIN -> "PROMPT='%# '"
-            Preset.USER_HOST -> "PROMPT='%F{green}%n@%m%f:%F{blue}%~%f%# '"
-            Preset.PATH_ONLY -> "PROMPT='%F{blue}%~%f%# '"
-            Preset.TWO_LINE -> "PROMPT='%F{green}%n@%m%f:%F{blue}%~%f\n%# '"
-            Preset.WITH_TIME -> "PROMPT='%F{yellow}%*%f %F{blue}%~%f%# '"
+            Preset.USER_HOST -> "PROMPT=\$'%F{cyan}%n@%m%f:%F{yellow}%~%f\\n$ '"
+            Preset.ARROW ->
+                "PROMPT=\$'%F{244}[%D{%H:%M:%S}]%f %F{cyan}%~%f\\n%(?.%F{green}❯.%F{red}❯)%f '"
+            Preset.BOX ->
+                "PROMPT=\$'%F{magenta}╭─[%F{cyan}%n%F{magenta}]─[%F{yellow}%~%F{magenta}]\\n" +
+                    "%F{magenta}╰─%F{green}⚡%f '"
+            Preset.BRACKET ->
+                "PROMPT=\$'%F{blue}┌─[%F{yellow}%~%F{blue}]\\n└─%f%(!.%F{red}#.%F{green}$)%f '"
+            Preset.KALI ->
+                "PROMPT=\$'%F{blue}┌──(%F{red}%n㉿%m%F{blue})-[%F{yellow}%~%F{blue}]\\n└─%f%# '"
+            Preset.BAR ->
+                "PROMPT=\$'%K{blue}%F{white} %n %K{cyan}%F{blue}%K{cyan}%F{black} %~ " +
+                    "%k%F{cyan}%f\\n%# '"
         }
-        return if (rightClock) "$main\nRPROMPT='%F{240}%*%f'" else main
+        return if (rightClock) "$main\nRPROMPT=\$'%F{240}[%D{%Y/%m/%d %H:%M:%S}]%f'" else main
     }
+
+    // ---- sh (busybox ash) ------------------------------------------------------
 
     /**
      * sh (busybox ash)。
      *
-     * ⚠ ash は `\u` `\h` `\w` は解釈するが、**色を `\033` と書いても展開しない**ものがある。
-     * 実際の ESC を `printf` で作って変数へ入れ、二重引用符で PS1 に埋める。
-     * ⚠ 幅を持たない印 (`\[ \]`) が無いので、**色を使うと長い行の折り返しが 1 文字ずれる**。
-     * 短いプロンプトほど影響が出ないので、サンプルは色を控えめにしてある。
+     * ⚠ ash は `\u` `\h` `\w` `\$` は解釈するが、**色を `\033` と書いても展開しない**ものがある。
+     * 実際の ESC を `printf` で作って変数へ入れ、二重引用符で PS1 に埋める
+     * (`$(...)` は代入時に展開されないよう `\$(...)` と書く)。
+     * ⚠ 幅を持たない印 (`\[ \]`) が無いので、**色を使うと長い行の折り返しが 1 文字ずれる**ことがある。
+     * 位置そのものはカーソルの保存・復帰で保つ。
      */
     private fun sh(preset: Preset, rightClock: Boolean): String {
         val head = "__z2e=\$(printf '\\033')"
         val e = "\${__z2e}"
-        // ⚠ sh には幅を持たない印 (`\[ \]`) が無いので、行編集が幅を誤る余地は残る。
-        //    カーソルは保存・復帰するので**表示位置そのものはズレない**。
+        fun c(code: String) = "$e[${code}m"
+        val off = c("0")
         val clock = if (!rightClock) "" else
-            "$e[s$e[999C$e[${CLOCK_WIDTH}D$e[1;30m\\\$(date +%H:%M:%S)$e[0m$e[u"
-        return when (preset) {
-            Preset.PLAIN ->
-                if (!rightClock) "PS1='\\$ '" else "$head\nPS1=\"$clock\\\$ \""
+            "$e[s$e[999C$e[${CLOCK_WIDTH}D$e[38;5;240m[\\$(date '+%Y/%m/%d %H:%M:%S')]$e[0m$e[u"
+        // ash に EUID は無いので、成否は `$?` を直に見る。⚠ `\$` で代入時の展開を止める。
+        val okRed = "$e[\\$( [ \\$? -eq 0 ] && printf 32 || printf 31 )m"
+        val bodyText = when (preset) {
+            Preset.PLAIN -> "\\\$ "
             Preset.USER_HOST ->
-                "$head\nPS1=\"$clock$e[1;32m\\u@\\h$e[0m:$e[1;34m\\w$e[0m\\\$ \""
-            Preset.PATH_ONLY -> "$head\nPS1=\"$clock$e[1;34m\\w$e[0m\\\$ \""
-            Preset.TWO_LINE ->
-                "$head\nPS1=\"$clock$e[1;32m\\u@\\h$e[0m:$e[1;34m\\w$e[0m\n\\\$ \""
-            // ash に `\t` (時刻) は無いので date で作る。プロンプトを出すたびに評価される。
-            Preset.WITH_TIME ->
-                "$head\nPS1=\"$clock$e[1;33m\\\$(date +%H:%M:%S)$e[0m $e[1;34m\\w$e[0m\\\$ \""
+                c("1;36") + "\\u@\\h" + off + ":" + c("1;33") + "\\w" + off + "\n\\\$ "
+            Preset.ARROW ->
+                c("38;5;244") + "[\\$(date +%H:%M:%S)]" + off + " " + c("1;36") + "\\w" + off +
+                    "\n" + okRed + "❯" + off + " "
+            Preset.BOX ->
+                c("1;35") + "╭─[" + c("1;36") + "\\u" + c("1;35") + "]─[" +
+                    c("1;33") + "\\w" + c("1;35") + "]\n╰─" + c("1;32") + "⚡" + off + " "
+            Preset.BRACKET ->
+                c("1;34") + "┌─[" + c("1;33") + "\\w" + c("1;34") + "]\n└─" +
+                    c("1;32") + "\\\$" + off + " "
+            Preset.KALI ->
+                c("1;34") + "┌──(" + c("1;31") + "\\u㉿\\h" + c("1;34") + ")-[" +
+                    c("1;33") + "\\w" + c("1;34") + "]\n└─" + off + "\\\$ "
+            Preset.BAR ->
+                c("44;97") + " \\u " + c("34;46") + "" + c("46;30") + " \\w " +
+                    off + c("36") + "" + off + "\n\\\$ "
         }
+        // PLAIN で時刻も無いなら ESC が要らないので、余計な行を足さない。
+        val needsEsc = rightClock || preset != Preset.PLAIN
+        val assign = "PS1=\"$clock$bodyText\""
+        return if (needsEsc) "$head\n$assign" else "PS1='\\$ '"
     }
-
     /**
      * [body] を rootfs の rc へ書き込む。既に z2term のブロックがあれば**その部分だけ差し替える**。
      *

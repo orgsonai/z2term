@@ -45,7 +45,7 @@ class ShellPromptTest {
             rc(root, ShellPrompt.Shell.ZSH).apply { parentFile?.mkdirs(); writeText(mine) }
             ShellPrompt.apply(
                 root, ShellPrompt.Shell.ZSH,
-                ShellPrompt.body(ShellPrompt.Preset.TWO_LINE, ShellPrompt.Shell.ZSH)
+                ShellPrompt.body(ShellPrompt.Preset.BOX, ShellPrompt.Shell.ZSH)
             )
             val text = rc(root, ShellPrompt.Shell.ZSH).readText()
             assertTrue("自分で書いた alias が消えた: $text", text.contains("alias ll='ls -la'"))
@@ -62,7 +62,7 @@ class ShellPromptTest {
         try {
             val shell = ShellPrompt.Shell.BASH
             ShellPrompt.apply(root, shell, ShellPrompt.body(ShellPrompt.Preset.USER_HOST, shell))
-            ShellPrompt.apply(root, shell, ShellPrompt.body(ShellPrompt.Preset.PATH_ONLY, shell))
+            ShellPrompt.apply(root, shell, ShellPrompt.body(ShellPrompt.Preset.BRACKET, shell))
             val text = rc(root, shell).readText()
             assertEquals(
                 "目印が増えている (差し替えでなく追記されている): $text",
@@ -70,7 +70,7 @@ class ShellPromptTest {
             )
             // 2 回目に選んだ方だけが残る。
             assertEquals(
-                ShellPrompt.body(ShellPrompt.Preset.PATH_ONLY, shell),
+                ShellPrompt.body(ShellPrompt.Preset.BRACKET, shell),
                 ShellPrompt.current(root, shell)
             )
         } finally {
@@ -84,7 +84,7 @@ class ShellPromptTest {
         try {
             val shell = ShellPrompt.Shell.SH
             rc(root, shell).apply { parentFile?.mkdirs(); writeText("export TZ=Asia/Tokyo\n") }
-            ShellPrompt.apply(root, shell, ShellPrompt.body(ShellPrompt.Preset.WITH_TIME, shell))
+            ShellPrompt.apply(root, shell, ShellPrompt.body(ShellPrompt.Preset.KALI, shell))
             assertTrue(ShellPrompt.clear(root, shell))
             val text = rc(root, shell).readText()
             assertTrue("自分で書いた export が消えた: $text", text.contains("export TZ=Asia/Tokyo"))

@@ -23,10 +23,12 @@
     <string name="settings_section_login_shell">ログインシェル (次回セッション以降に反映)</string>
     <string name="settings_section_prompt">シェルのプロンプト</string>
     <string name="settings_prompt_preset_plain">記号だけ</string>
-    <string name="settings_prompt_preset_user_host">user@host:パス</string>
-    <string name="settings_prompt_preset_path_only">パスだけ</string>
-    <string name="settings_prompt_preset_two_line">2 行</string>
-    <string name="settings_prompt_preset_with_time">時刻つき</string>
+    <string name="settings_prompt_preset_user_host">user@host</string>
+    <string name="settings_prompt_preset_arrow">矢印</string>
+    <string name="settings_prompt_preset_box">丸枠</string>
+    <string name="settings_prompt_preset_bracket">角枠</string>
+    <string name="settings_prompt_preset_kali">Kali</string>
+    <string name="settings_prompt_preset_bar">帯</string>
     <string name="settings_prompt_right_clock">右端に時刻を出す</string>
     <string name="settings_prompt_right_clock_desc">行の右端に現在時刻を薄く出します。打った時刻が残るので、あとから画面を遡るときの目印になります。端末の幅は数えないので、画面を回しても分割してもズレません。</string>
     <string name="settings_prompt_body">%1$s に書き込む中身 (ここを直せば微調整できます)</string>

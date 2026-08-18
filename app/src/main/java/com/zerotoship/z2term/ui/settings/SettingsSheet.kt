@@ -904,16 +904,18 @@ fun SettingsSheet(
                             }
                         )
                     }
-                    var promptPreset by remember { mutableStateOf(ShellPrompt.Preset.USER_HOST) }
+                    var promptPreset by remember { mutableStateOf(ShellPrompt.Preset.ARROW) }
                     var promptRightClock by remember { mutableStateOf(false) }
                     var promptDraft by remember { mutableStateOf("") }
                     var promptResult by remember { mutableStateOf<String?>(null) }
                     val presetLabels = mapOf(
                         ShellPrompt.Preset.PLAIN.id to stringResource(R.string.settings_prompt_preset_plain),
                         ShellPrompt.Preset.USER_HOST.id to stringResource(R.string.settings_prompt_preset_user_host),
-                        ShellPrompt.Preset.PATH_ONLY.id to stringResource(R.string.settings_prompt_preset_path_only),
-                        ShellPrompt.Preset.TWO_LINE.id to stringResource(R.string.settings_prompt_preset_two_line),
-                        ShellPrompt.Preset.WITH_TIME.id to stringResource(R.string.settings_prompt_preset_with_time)
+                        ShellPrompt.Preset.ARROW.id to stringResource(R.string.settings_prompt_preset_arrow),
+                        ShellPrompt.Preset.BOX.id to stringResource(R.string.settings_prompt_preset_box),
+                        ShellPrompt.Preset.BRACKET.id to stringResource(R.string.settings_prompt_preset_bracket),
+                        ShellPrompt.Preset.KALI.id to stringResource(R.string.settings_prompt_preset_kali),
+                        ShellPrompt.Preset.BAR.id to stringResource(R.string.settings_prompt_preset_bar)
                     )
                     // ⚠ 既に rc へ書いてあるならそれを出す。サンプルで上書きして見せると、
                     //   前に自分で直した内容が**画面から消えたように見える**。

@@ -23,10 +23,12 @@
     <string name="settings_section_login_shell">Login shell (applies from the next session)</string>
     <string name="settings_section_prompt">Shell prompt</string>
     <string name="settings_prompt_preset_plain">Sign only</string>
-    <string name="settings_prompt_preset_user_host">user@host:path</string>
-    <string name="settings_prompt_preset_path_only">Path only</string>
-    <string name="settings_prompt_preset_two_line">Two lines</string>
-    <string name="settings_prompt_preset_with_time">With the time</string>
+    <string name="settings_prompt_preset_user_host">user@host</string>
+    <string name="settings_prompt_preset_arrow">Arrow</string>
+    <string name="settings_prompt_preset_box">Rounded</string>
+    <string name="settings_prompt_preset_bracket">Square</string>
+    <string name="settings_prompt_preset_kali">Kali</string>
+    <string name="settings_prompt_preset_bar">Ribbon</string>
     <string name="settings_prompt_right_clock">Clock at the right edge</string>
     <string name="settings_prompt_right_clock_desc">Prints the current time dimmed at the right edge of the line, so scrolling back shows when each command was typed. It does not count the terminal width, so rotating or splitting the screen never misaligns it.</string>
     <string name="settings_prompt_body">What gets written to %1$s (edit it here to fine-tune)</string>
