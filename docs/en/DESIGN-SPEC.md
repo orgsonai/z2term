@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-18 / Target version: 0.8.362-alpha (versionCode 370)
+Last updated: 2026-08-18 / Target version: 0.8.363-alpha (versionCode 371)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2164,6 +2164,18 @@ unmarked field: some apps bind Ctrl+W and friends to something else.
   keyboard (that path can pass control codes and modifiers through as they are).
 - ⚠ **Enabling and picking are the user's to do** (an OS rule). The app only opens
   `Settings.ACTION_INPUT_METHOD_SETTINGS` and `showInputMethodPicker()` from its settings screen.
+- **Three display languages — System / Japanese / English, defaulting to the system** (`LocaleHelper`, 0.8.363, user request).
+  ⚠ Through 0.8.362 the default was **pinned to `ja`**, so the app came up in Japanese on any phone —
+  leaving a screen you cannot read until you find the setting. ⚠ **The stored value and the effective
+  language are separate**: `languageSetting` returns `system`/`ja`/`en`, while `language` always returns
+  **`ja` or `en`**. There are 20+ callers of `language` and nearly all of them just test `== LANG_JA`
+  (kana face, `z2-*` message language, IME checks), so feeding `system` through would tip **all of them**
+  to the "not Japanese" side. The resolution stays inside `LocaleHelper`; only two values leave it.
+  ⚠ **`Locale.getDefault()` cannot be used** to read the phone language — `wrap` calls
+  `Locale.setDefault`, so once an app language has been applied the process default is overwritten and
+  "System" **sticks to whatever was picked last**. `Resources.getSystem()` bypasses the app
+  Configuration and stays clean. ⚠ Even on "System" the context is wrapped explicitly with the resolved
+  `ja`/`en` (returning `base` untouched would leave the previous `Locale.setDefault` in the process).
 - **The settings live in the "Keyboard and input" group** (0.8.277). In 0.8.276 they sat under
   "Resident servers and automation", where nobody looking for keyboard settings would find them.
   For the same reason the old "Input and language" group (IME learning history / language) was folded

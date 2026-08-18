@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.362-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.363-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -395,7 +395,7 @@ Settings are split into **7 groups** (Display / Keyboard and input / Linux envir
 | Keyboard height (landscape / portrait) | Slider 200–500 dp (remembered separately per orientation) |
 | GUI audio | Play sound (video, etc.) in the GUI (desktop) — only when ON |
 | GUI terminal | Pick which terminal app is used inside the GUI desktop |
-| Language / 言語 | Japanese / English (switches instantly) |
+| Language / 言語 | **System** (default) / Japanese / English (switches instantly). ⚠ The default follows **the phone's own language setting** (0.8.363 — before that the app started in Japanese whatever the phone was set to). Picking Japanese or English pins that language regardless of the phone |
 | Disable install timeout | Wait for OS / GUI downloads to finish completely |
 | Confirm before downloading | Show a confirmation dialog before fetching a distro / GUI |
 | SSH connection helper | Steps for connecting from a PC, with the IP shown |

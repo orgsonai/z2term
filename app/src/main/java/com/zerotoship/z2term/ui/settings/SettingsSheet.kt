@@ -685,13 +685,19 @@ fun SettingsSheet(
                     }
                 }
 
-                // 言語スイッチ。アプリ内で「日本語/English」を切替える (OS Locale ではなく独自管理)。
-                // 一度決めれば滅多に変えないため下部に配置。変更時は Activity を recreate() する。
+                // 言語スイッチ。アプリ内で「端末に合わせる/日本語/English」を切替える
+                // (OS Locale ではなく独自管理)。一度決めれば滅多に変えないため下部に配置。
+                // 変更時は Activity を recreate() する。
+                // ⚠ 選択状態は **languageSetting** (保存値) で持つ。`language` は解決後の ja/en を
+                //   返すので、そちらを使うと「端末に合わせる」を選んでも ja か en の側が点いて見える。
                 Section(title = stringResource(R.string.settings_section_language)) {
-                    val currentLang = remember { mutableStateOf(LocaleHelper.language(context)) }
+                    val currentLang = remember { mutableStateOf(LocaleHelper.languageSetting(context)) }
                     ChipRow(
-                        options = listOf(LocaleHelper.LANG_JA, LocaleHelper.LANG_EN),
+                        options = listOf(
+                            LocaleHelper.LANG_SYSTEM, LocaleHelper.LANG_JA, LocaleHelper.LANG_EN
+                        ),
                         labels = mapOf(
+                            LocaleHelper.LANG_SYSTEM to stringResource(R.string.settings_language_system),
                             LocaleHelper.LANG_JA to "日本語",
                             LocaleHelper.LANG_EN to "English"
                         ),
