@@ -280,7 +280,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     LaunchedEffect(Unit) {
         while (true) { serversRunning = ServerDaemonManager.isRunning; delay(1000) }
     }
-    // 自動起動前に DL 確認が要る spec (foss 初回など)。非 null の間ダイアログを出す。
+    // 自動起動前に DL 確認が要る spec (初回など)。非 null の間ダイアログを出す。
     var pendingInitialDownload by remember(active.id) { mutableStateOf<DistroSpec?>(null) }
     // OS が 1 つも入っていないとき出す案内 (0.8.314)。✕ で消した記憶はタブをまたいで残す
     // ([NoOsNotice.dismissed]) ので、ここはこのタブで判定が出たかどうかだけを持つ。
@@ -876,7 +876,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // SSH UI の表示状態に関わらずルートに常駐させる。
     HostKeyVerificationDialog()
 
-    // 自動起動前の DL 確認 (foss 初回など)。OK で起動 (DL→展開)、やめる→IDLE のまま。
+    // 自動起動前の DL 確認 (初回など)。OK で起動 (DL→展開)、やめる→IDLE のまま。
     pendingInitialDownload?.let { spec ->
         val sizeHint = spec.approxDownload?.let { " ($it)" } ?: ""
         DownloadConfirmDialog(

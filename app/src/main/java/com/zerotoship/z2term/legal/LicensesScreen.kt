@@ -115,7 +115,7 @@ fun LicensesSection(
     border: Color,
 ) {
     val context = LocalContext.current
-    val components = remember { OssComponents.forCurrentFlavor() }
+    val components = remember { OssComponents.list() }
     var openComponent by remember { mutableStateOf<OssComponent?>(null) }
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

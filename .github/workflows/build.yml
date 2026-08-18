@@ -55,49 +55,33 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', 'gradle/libs.versions.toml') }}
           restore-keys: gradle-${{ runner.os }}-
 
-      - name: Install tools for bundled rootfs
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fakeroot
-
       - name: Generate bundled assets
         # フォント取得は api.github.com を叩く。未認証だと IP 単位 60 req/h でランナー間で
         # 食い合うため、組み込みトークンを渡してレート上限を上げる。
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          bash scripts/fetch-fonts.sh
-          bash scripts/build-alpine-rootfs.sh
+        run: bash scripts/fetch-fonts.sh
 
       - name: Lint
-        run: ./gradlew lintFullDebug --stacktrace
+        run: ./gradlew lintDebug --stacktrace
 
-      - name: Build Full Debug APK
-        run: ./gradlew assembleFullDebug --stacktrace
-
-      - name: Build FOSS Debug APK
-        run: ./gradlew assembleFossDebug --stacktrace
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Unit tests
-        run: ./gradlew testFullDebugUnitTest testFossDebugUnitTest --stacktrace
+        run: ./gradlew testDebugUnitTest --stacktrace
 
-      - name: Upload full debug APK
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: z2term-full-debug-apk
-          path: app/build/outputs/apk/full/debug/app-full-debug.apk
+          name: z2term-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
 
-      - name: Upload foss debug APK
-        uses: actions/upload-artifact@v4
-        if: success()
-        with:
-          name: z2term-foss-debug-apk
-          path: app/build/outputs/apk/foss/debug/app-foss-debug.apk
-          retention-days: 14
-
-  # tag (v*) を push すると、署名済み release APK を foss / full 両方ビルドして
-  # GitHub Release に添付する。認証は Actions 組み込みの GITHUB_TOKEN (PAT 不要)。
-  # full は Alpine rootfs 同梱、foss は実行時取得としてCIから出す。
+  # tag (v*) を push すると、署名済み release APK をビルドして GitHub Release に添付する。
+  # 認証は Actions 組み込みの GITHUB_TOKEN (PAT 不要)。配布は 1 種類だけ (0.8.359 で
+  # full フレーバーを廃止した)。rootfs は同梱せず、初回起動時に公式 CDN から取得する。
   release:
     name: Publish release APKs to GitHub
     runs-on: ubuntu-latest
@@ -148,63 +132,49 @@ jobs:
       - name: Grant gradlew exec permission
         run: chmod +x ./gradlew
 
-      - name: Install tools for bundled rootfs
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends fakeroot
-
       - name: Generate bundled assets
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          bash scripts/fetch-fonts.sh
-          bash scripts/build-alpine-rootfs.sh
+        run: bash scripts/fetch-fonts.sh
 
-      # フレーバーは 1 回の gradle 実行にまとめず直列で回す。
-      - name: Build FOSS release APK
-        run: ./gradlew assembleFossRelease --stacktrace
-
-      - name: Build FULL release APK
-        run: ./gradlew assembleFullRelease --stacktrace
+      - name: Build release APK
+        run: ./gradlew assembleRelease --stacktrace
 
       - name: Publish to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          FOSS=app/build/outputs/apk/foss/release/app-foss-release.apk
-          FULL=app/build/outputs/apk/full/release/app-full-release.apk
+          APK=app/build/outputs/apk/release/app-release.apk
           TAG="${{ inputs.tag || github.ref_name }}"
-          # flavor の役割をサイズだけで推測せず、APKの内容で強制する。
-          if unzip -l "$FOSS" | grep -q 'assets/alpine-minirootfs'; then
-            echo "::error::$FOSS bundles the Alpine rootfs."
+          # 同梱しない約束をサイズで推測せず、APK の内容で強制する。
+          if unzip -l "$APK" | grep -q 'assets/alpine-minirootfs'; then
+            echo "::error::$APK bundles a rootfs — it must be fetched at first launch."
             exit 1
           fi
-          if ! unzip -l "$FULL" | grep -q 'assets/alpine-minirootfs-aarch64.tgz'; then
-            echo "::error::$FULL does not bundle the Alpine rootfs."
+          if unzip -l "$APK" | grep -Eq 'lib(proot|talloc|android-shmem)'; then
+            echo "::error::$APK contains a removed third-party native engine."
             exit 1
           fi
-          for apk in "$FOSS" "$FULL"; do
-            if unzip -l "$apk" | grep -Eq 'lib(proot|talloc|android-shmem)'; then
-              echo "::error::$apk contains a removed third-party native engine."
-              exit 1
-            fi
-          done
           # 署名が release 鍵であること (= debug 署名で公開していないこと) を出荷前に確かめる。
           # 鍵の有無は Decode keystore で既に落としているので、これは最終確認。
           APKSIGNER="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" -name apksigner 2>/dev/null | sort -V | tail -1)"
           if [ -n "$APKSIGNER" ]; then
-            for apk in "$FOSS" "$FULL"; do
-              if "$APKSIGNER" verify --print-certs "$apk" | grep -q 'CN=Android Debug'; then
-                echo "::error::$apk is debug-signed — refusing to publish."
-                exit 1
-              fi
-            done
+            if "$APKSIGNER" verify --print-certs "$APK" | grep -q 'CN=Android Debug'; then
+              echo "::error::$APK is debug-signed — refusing to publish."
+              exit 1
+            fi
           else
             echo "::warning::apksigner not found — skipped the signature check."
           fi
+          # 配布名はタグから作る (v0.8.359-alpha → z2term-0.8.359-alpha.apk)。
+          # ビルド成果物名 (app-release.apk) のままだと、どの版か落としてから分からない。
+          ASSET="z2term-${TAG#v}.apk"
+          cp "$APK" "$ASSET"
           # 既にリリースがある (手動作成含む) 場合はアセットだけ差し替え、無ければ新規作成 (Latest)。
           # 本文はリリースページ側で持つ。CI は本文を書かないし、既存の本文も上書きしない。
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$FOSS" "$FULL" --clobber
+            gh release upload "$TAG" "$ASSET" --clobber
           else
-            gh release create "$TAG" "$FOSS" "$FULL" --title "$TAG" --generate-notes --latest
+            gh release create "$TAG" "$ASSET" --title "$TAG" --generate-notes --latest
           fi

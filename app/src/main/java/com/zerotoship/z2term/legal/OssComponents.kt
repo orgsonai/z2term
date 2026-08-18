@@ -1,7 +1,6 @@
 package com.zerotoship.z2term.legal
 
 import androidx.annotation.StringRes
-import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.R
 
 /**
@@ -12,7 +11,6 @@ import com.zerotoship.z2term.R
  * OSS ライセンス画面 ([LicensesScreen]) でこのリストを一覧表示する。
  *
  * - 追加方針: APK の **実体に含まれる** ものだけ列挙する。設定で OFF にできる依存も実体は同梱しているため列挙対象。
- * - full は Alpine rootfs を同梱し、foss は実行時取得する。同梱物の表示は flavor に合わせる。
  *   実行エンジン z2root は本体ソースからビルドされるため本体 GPL-3.0 に含まれる。
  *
  * `purposeRes` は `R.string.oss_purpose_*` で言語スイッチに追従する。
@@ -28,8 +26,6 @@ data class OssComponent(
     val sourceUrl: String,
     /** 一言説明 (用途)。LocaleHelper により ja/en で切替わる。 */
     @StringRes val purposeRes: Int,
-    /** full APK にだけ含まれる成果物なら true。 */
-    val onlyFullFlavor: Boolean = false,
 )
 
 object OssComponents {
@@ -39,25 +35,13 @@ object OssComponents {
      * (d) フォント、の順で並べる。
      */
     private val all: List<OssComponent> = listOf(
-        // ===== 本アプリ本体 (全フレーバー共通・先頭固定) =====
+        // ===== 本アプリ本体 (先頭固定) =====
         OssComponent(
             name = "z2term（本アプリ本体）",
             licenseId = "GPL-3.0",
             copyright = "Copyright (c) 2026 Zero to Ship",
             sourceUrl = "https://github.com/orgsonai/z2term",
             purposeRes = R.string.oss_purpose_z2term,
-        ),
-
-        // ===== full APK のカスタム Alpine rootfs =====
-        // 個々のパッケージの著作権・ライセンス情報は rootfs 内の apk database と
-        // /usr/share/licenses に保持される。ここでは配布物全体の取得元を案内する。
-        OssComponent(
-            name = "Alpine Linux rootfs and packages",
-            licenseId = "Various OSS licenses",
-            copyright = "Copyright (c) Alpine Linux package maintainers and upstream authors",
-            sourceUrl = "https://gitlab.alpinelinux.org/alpine/aports",
-            purposeRes = R.string.oss_purpose_alpine_bundle,
-            onlyFullFlavor = true,
         ),
 
         // ===== Android / Java 依存 (gradle) =====
@@ -122,6 +106,5 @@ object OssComponents {
         ),
     )
 
-    fun forCurrentFlavor(): List<OssComponent> =
-        if (BuildConfig.IS_FOSS) all.filterNot { it.onlyFullFlavor } else all
+    fun list(): List<OssComponent> = all
 }

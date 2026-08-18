@@ -22,16 +22,15 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`app-foss-release.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.359-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
-In the **full build**, **Alpine Linux is set up automatically** on first launch (wait a moment and a `#` prompt appears).
-The **foss build** bundles no OS, so the first launch shows a single notice: "No Linux OS is installed yet" (0.8.314). Tap it to open Settings and **pick the OS you want** (Alpine / Ubuntu / Arch / Kali …; any of them is a fine place to start). ⚠ **The notice cannot be dismissed until an OS is installed** (0.8.342 — dismissing it left nothing on screen saying what to press to get Linux). **Settings pins the same notice at the top, and tapping it carries you to the "Linux environment" section.** Both go away once one OS is in.
+The app bundles no Linux OS, so the first launch shows a single notice: "No Linux OS is installed yet" (0.8.314). Tap it to open Settings and **pick the OS you want** (Alpine / Ubuntu / Arch / Kali …; any of them is a fine place to start). ⚠ **The notice cannot be dismissed until an OS is installed** (0.8.342 — dismissing it left nothing on screen saying what to press to get Linux). **Settings pins the same notice at the top, and tapping it carries you to the "Linux environment" section.** Both go away once one OS is in.
 **Once one Linux OS is installed**, **three small cards** appear above the terminal (post a notification / turn on the flashlight / open the reminder guide) — the first time only. (Before 0.8.339 they also appeared before an OS was installed, where tapping them did nothing, so they now wait until the install is done.) **Tapping one runs that line as it stands** — anything half-typed is thrown away with `Ctrl-C` first, so nothing mixes in. The ✕ on the right drops a card you do not want. Once all three are gone they never come back. To see them again: Settings > Maintenance > "Show the intro again".
 That's all the setup you need.
 
-> ℹ️ **The `foss` build (~21MB) is the recommended one.** It does not bundle Alpine itself, which keeps it small — and keeps every update that small too. In exchange it **needs a network connection on the first launch only** (it auto-downloads from the official site and verifies the SHA-256). If you want it usable offline from the very first launch, take the `full` build (~190MB), which bundles Alpine. Both are the same app.
+> ℹ️ **The APK is ~21MB.** It does not bundle the Linux OS itself, which keeps it small — and keeps every update that small too. In exchange it **needs a network connection on the first launch only** (it auto-downloads from the official site and verifies the SHA-256). ⚠ Up to 0.8.358 there was also a ~190MB build with the OS bundled (`full`); **0.8.359 dropped it and ships one build only** (it made you choose without offering anything beyond skipping that first download).
 
 ### Checking whether a newer version is out
 
@@ -246,7 +245,7 @@ That builds the keys used to verify package signatures; it happens once and need
 
 ## 6.5. Running `claude` (Claude Code)
 
-The FOSS build runs inside a custom ptrace-based engine (z2root). The `claude` distribution
+z2term runs inside a custom ptrace-based engine (z2root). The `claude` distribution
 comes in a **musl** flavor and a **glibc** flavor, and the musl one cannot start under z2root
 (musl's ld.so cannot launch a non-PIE executable). So install and use the **glibc** flavor.
 

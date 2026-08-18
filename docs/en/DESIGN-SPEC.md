@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-17 / Target version: 0.8.358-alpha (versionCode 366)
+Last updated: 2026-08-18 / Target version: 0.8.359-alpha (versionCode 367)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -40,19 +40,27 @@ Last updated: 2026-08-17 / Target version: 0.8.358-alpha (versionCode 366)
   - **Unlocking chroot**: it only joins the choices when the root self-test (`probeRootChroot`) succeeds. That test can be re-run **not just at the moment of the 7-tap unlock but from the "Enable chroot (check root)" button inside the engine selector** (0.8.106). Previously it ran once at unlock time, so declining the su permission dialog left `rootChrootUnlocked` false and chroot permanently unselectable (re-unlocking required a re-lock followed by another 7 taps — undiscoverable). While it is false, the button and an explanatory note are shown and can be retried any number of times (success unlocks chroot with a toast; only a button-initiated failure toasts the reason)
   - **Distinguishing failures** (0.8.107): `RootProbe.NoRoot` (no su / denied) and `RootProbe.ChrootBlocked(detail)` (root obtained but the chroot itself failed on SELinux, the rootfs, …) are reported separately
   - ⚠️ **Root managers such as Magisk remember a "deny" and from then on return an immediate denial without showing the su dialog again, so the in-app button alone cannot recover** (an app cannot change another app's root grant). The NoRoot toast and note direct the user to set Z2Term back to "allow" in Magisk (0.8.108)
-  - **0.8.328 complete migration**: removed the PRoot selector, fallback, prebuilts, and bundled Alpine archive. Both flavors use z2root and runtime rootfs downloads.
+  - **0.8.328 complete migration**: removed the PRoot selector, fallback, prebuilts, and bundled Alpine archive. Both flavors use z2root and runtime rootfs downloads. **0.8.359 dropped the flavors entirely** (below).
   - **z2root trace log** (developer-only, default OFF, `traceLogEnabled`): a toggle inside the same 7-tap unlock. When ON, every z2root syscall is recorded to `shared_home/z2root_trace.log` — useful for diagnosis, but the log grows enormous and fills device storage quickly, so the UI carries a "leave this OFF normally" warning (0.8.105; 0.8.107 reworded it from the self-contradictory "do not use with it left OFF"). It used to be switchable only through the `.z2root_trace_on` sentinel file (still honoured for backwards compatibility)
 
 Supported ABI is **arm64-v8a only**. Minimum Android 10 (API 29), target API 35.
 
-### Distribution flavors
+### Distribution
 
-| Flavor | applicationId | Purpose |
-|---|---|---|
-| `full` | `com.zerotoship.z2term` | Upgrade compatibility for existing installs |
-| `foss` | `com.zerotoship.z2term.foss` | Recommended distribution and F-Droid identity |
+There is **one build**. The applicationId is `com.zerotoship.z2term` and the launcher name is `Z2Term`.
+z2root is built from source and the rootfs is never bundled — it is downloaded at runtime.
 
-Their payloads are identical: z2root is built from source and rootfs archives are downloaded at runtime.
+⚠ **0.8.359 dropped the distribution flavors.** Until then there were two: `full`
+(`com.zerotoship.z2term`, Alpine rootfs bundled, ~190MB) and `foss`
+(`com.zerotoship.z2term.foss`, runtime download, ~21MB). They were dropped because **the name "full"
+read as the better one, so that is what everyone downloaded, while the only real difference was
+whether the first download was skipped** (user's call). The surviving applicationId is the one
+without a suffix — `.foss` existed solely to let the two live side by side, so it went with them.
+⚠ **Anyone on `com.zerotoship.z2term.foss` is a separate app to Android and will not be updated
+automatically**; they have to reinstall. (Downloads were still negligible at that point, and merging
+the two IDs only gets harder later — hence doing it early.)
+
+`debug` builds add a `.debug2` suffix and show as `Z2Term dbg2`, so they can sit next to a release build.
 
 `debug` builds additionally carry a `.debug` suffix.
 
@@ -69,7 +77,7 @@ Their payloads are identical: z2root is built from source and rootfs archives ar
 | Persistence | DataStore Preferences | 1.1.2 (settings / SSH profiles) |
 | SSH client | JSch (mwiede fork) | 0.2.26 (+ BouncyCastle 1.84 enables ed25519/curve25519) |
 | Decompression | org.tukaani:xz | 1.10 (the downloaded distro's `.tar.xz`). gzip is JDK standard |
-| Linux runtime | z2root | Built for every flavor from `app/src/main/cpp/z2root` |
+| Linux runtime | z2root | Built from `app/src/main/cpp/z2root` |
 | Linux OS | Alpine / Ubuntu / Arch / Kali | Not bundled; official archives are downloaded at runtime |
 
 ---
@@ -473,7 +481,7 @@ quietly type into "whichever tab happened to be first".
 factored out by B1, so A1 really was just adding verbs. Creating/destroying tabs and reading the buffer
 go through `runOnMainSync`, putting them on the same thread assumption as drawing.
 
-**`new` starts the tab too** (0.8.203). The screen-side autostart only fires for "the visible tab, if it is IDLE", so **a tab created while the app was closed stayed unstarted until it was opened** — and a following `send` did nothing, because there was no PTY (found on device). To make "open a tab and feed it a command" work from a macro, `new` calls `startTerminal` itself. A distro that would need a first-run download (Alpine on foss, …) is left alone, so nothing starts a transfer behind the user's back; the on-screen confirmation still handles it.
+**`new` starts the tab too** (0.8.203). The screen-side autostart only fires for "the visible tab, if it is IDLE", so **a tab created while the app was closed stayed unstarted until it was opened** — and a following `send` did nothing, because there was no PTY (found on device). To make "open a tab and feed it a command" work from a macro, `new` calls `startTerminal` itself. A distro that would need a first-run download is left alone, so nothing starts a transfer behind the user's back; the on-screen confirmation still handles it.
 `list` also gained a **`?` (not started)** mark: sending to an unstarted tab does nothing, and without the mark there is no way to tell why.
 
 **Keys get their own verb** (`key`, 0.8.311). ⚠ `send` goes through `pasteText`, so it is wrapped in
@@ -617,7 +625,7 @@ means would then depend on the payload, which cannot be explained to anyone.
 - **A tap runs it (0.8.314, changed at the user's call.)** Through 0.8.313 a tap only put the command on the input line and the user pressed return. But a card can be tapped **mid-typing**, so pressing one after typing `ls -l` produced a line like `ls -lz2-macro install remind`, and return then ran something nobody meant. Now **`Ctrl-C` (0x03) throws the line away first**, then the command plus a newline goes out (`runGuideCommand`). ⚠ Do not write the command in the same burst as `Ctrl-C`: the tty **flushes the input queue** the moment it sees INTR (the default with `ISIG` and without `NOFLSH`), so the command would be flushed along with it. Leave 150ms.
 - The wording shows **the command itself** rather than an explanation — this is not a screen to read, it is a screen to make something happen once.
 - **Every card carries its own ✕ (0.8.314)**, so a step you do not want can be dropped **without sending it**. Tapped cards disappear too; when all of them are gone, or the header's ✕ is pressed, [AppSettings.introDone] is set and it **never appears again**.
-- ⚠ **They only appear once one Linux OS is installed** (0.8.339, user report). Through 0.8.338 the condition was `introDone` alone, so the three cards also showed up on a device with **no OS at all** — where everyone starts after installing foss. Nothing is running there, so **a tap runs nothing**, yet **each tapped card still disappeared**, and once all three were gone `introDone` was set and they **never came back, without ever having done anything**. The check is `TerminalSession.hasAnyDistro()` (the same one behind `NeedOsInstall`) and is **re-evaluated whenever the terminal's state changes** — installing an OS from Settings starts the terminal, and that is the "install finished" signal, so the cards appear **right there in that tab, once**. ⚠ **Do not just suppress the display**: the point is to never spend `introDone` on a no-op, so leaving any path where it is set while the cards lose their turn is not a fix. ⚠ Anyone who already has an OS (`introDone=true`) must not get them back. What shows while there is no OS is `NoOsNotice` instead (below).
+- ⚠ **They only appear once one Linux OS is installed** (0.8.339, user report). Through 0.8.338 the condition was `introDone` alone, so the three cards also showed up on a device with **no OS at all** — where everyone starts after installing. Nothing is running there, so **a tap runs nothing**, yet **each tapped card still disappeared**, and once all three were gone `introDone` was set and they **never came back, without ever having done anything**. The check is `TerminalSession.hasAnyDistro()` (the same one behind `NeedOsInstall`) and is **re-evaluated whenever the terminal's state changes** — installing an OS from Settings starts the terminal, and that is the "install finished" signal, so the cards appear **right there in that tab, once**. ⚠ **Do not just suppress the display**: the point is to never spend `introDone` on a no-op, so leaving any path where it is set while the cards lose their turn is not a fix. ⚠ Anyone who already has an OS (`introDone=true`) must not get them back. What shows while there is no OS is `NoOsNotice` instead (below).
 - Of the 32 proposals this was **the only one that could collide head-on with "don't add modes"**. Hence the spec is fixed up front: **at most three items, never a full-screen wizard, and one line deep in Settings to bring it back** (Maintenance). If a fourth item feels necessary, that is the job of `z2help` and of the guides below.
 
 **Guides (`ui/terminal/GuideCards`, 0.8.314)**: a bundled sample macro has to be installed with `z2-macro install <name>` before it can be used, so **before installing, not even its name is visible**. 0.8.286 seeded a single snippet, `remind.sh help`, as "somewhere to look the syntax up", but **someone who has not installed it only gets "not found"** and no path to the install step (user report). The snippet seed is gone; **every sample now gets a guide made of step cards** instead.
@@ -634,11 +642,11 @@ means would then depend on the payload, which cannot be explained to anyone.
 - **Chosen from a GUI tab, the guide opens on a terminal tab.** A guide is a sequence of commands, and a GUI has nowhere to type them and nothing to show. Since it crosses screens, exactly one is held in `GuideHost` (an object).
 - ⚠ **Never seed a snippet with a command that needs installing first.** Snippets run as soon as they are pressed, so a command with prerequisites only produces an error there. Anything with steps belongs in a guide.
 
-**With no OS installed, nothing nags about downloading (0.8.314)**: the foss build bundles no rootfs, so the very first launch opened a download confirmation for Alpine. That **pushes one default before the user has chosen where to start**, and someone who wants to begin on Arch has to decline every time. Declining changes nothing, so **the same dialog returns with every new tab** (user report).
+**With no OS installed, nothing nags about downloading (0.8.314)**: the app bundles no rootfs, so the very first launch opened a download confirmation for Alpine. That **pushes one default before the user has chosen where to start**, and someone who wants to begin on Arch has to decline every time. Declining changes nothing, so **the same dialog returns with every new tab** (user report).
 
 - The decision now lives in `TerminalSession.startupPlan()` (`suspend`), which returns one of `Start` / `ConfirmDownload(spec)` / `NeedOsInstall`. On `NeedOsInstall` (`ProotLauncher.hasAnyDistro()` is false) **nothing is installed regardless of the confirm setting**.
 - Instead a single non-blocking notice card appears (`ui/terminal/NoOsNotice`). Tapping it opens Settings › Linux environment; ✕ closes it. The dismissal is remembered **only while the app is open** (`NoOsNotice.dismissed`) — reopening a tab does not bring it back, but the next launch does (with no OS the terminal genuinely cannot work, so "never again" is wrong here).
-- ⚠ **While there is no OS it cannot be dismissed, and Settings pins the same notice at the top** (0.8.342, user's call). This card is the only thing pointing at "Settings › Linux environment", so **✕ left nothing but a black screen and a `#`** — with no hint anywhere about what to press to get Linux (and since foss bundles no rootfs, **everyone starts there**).
+- ⚠ **While there is no OS it cannot be dismissed, and Settings pins the same notice at the top** (0.8.342, user's call). This card is the only thing pointing at "Settings › Linux environment", so **✕ left nothing but a black screen and a `#`** — with no hint anywhere about what to press to get Linux (and since no rootfs is bundled, **everyone starts there**).
   - ⛔ **0.8.340's "keep it dismissable, add 📥 to the toolbar" was withdrawn.** The idea was a 📥 "install an OS" chip shown only while no OS was installed, and the on-device verdict was **"pressing it just opens Settings and I still don't know what to do"**. **Adding an entrance does not help if the user gets lost past it.**
   - **It is undismissable** (passing `null` for `onClose` / `onSkip` makes `GuideCardColumn` / `GuideCardRow` draw no ✕). The card never blocks, so the terminal is still usable with it up. ⚠ **Only things that strand the user may be made undismissable** — the guides (`GuideCards`) and the intro cards (`IntroCards`) keep their ✕ (dismissing those still leaves a usable terminal).
   - **Settings pins the same notice at the top** (`NoOsSettingsNotice`). ⚠ It goes **outside the scrolling area** (directly under `SettingsTopBar`): inside, it disappears the moment you scroll down, which is exactly the "I reached Settings and still can't tell which item" complaint.
@@ -646,7 +654,7 @@ means would then depend on the payload, which cannot be explained to anyone.
   - The target offset is measured with `onGloballyPositioned` on `SettingsGroupSection(LINUX)` **plus the current scroll offset**, giving a "distance from the top" (`verticalScroll` shifts children by the scroll amount, so without it the value depends on where you happen to be scrolled).
   - **Both disappear once one OS is installed.** The Settings side re-checks `TerminalSession.hasAnyDistro()` whenever the terminal's state changes, so installing with the sheet still open clears it.
 - ⚠ **The decision must await the persisted settings.** Through 0.8.313 `downloadOnStartSpec()` read `settingsFlow.value`, which is the `stateIn(Eagerly)` seed = the default snapshot (`distroId=alpine`). Reached before DataStore's first emit, it **judged Alpine instead of the selected OS** — that is exactly "running Arch, yet a new tab sometimes nags about downloading Alpine". `startTerminal` had already been awaiting for the same reason since 0.8.105; only this check was left behind.
-- ⚠ **The OS chips in Settings must be pressable even for the selected OS when it is not installed.** The old guard was `id != selected`, but the foss build starts with the default (Alpine) **selected yet absent**, which made that one OS the only one you could not install. With the automatic nag gone, this is the only entry point.
+- ⚠ **The OS chips in Settings must be pressable even for the selected OS when it is not installed.** The old guard was `id != selected`, but a fresh install starts with the default (Alpine) **selected yet absent**, which made that one OS the only one you could not install. With the automatic nag gone, this is the only entry point.
 
 **Multi-line pastes are shown before they land (0.8.232)**: 📋 inserts the moment you press it, so when the source is a block of code you end up pressing return **without knowing how many lines went in**. Only **when the text contains a newline**, a 48dp bar appears with the line count and the first two lines.
 
@@ -1068,7 +1076,7 @@ to be compared against `qrencode` module by module).
 - `isDistroReady`: checks the actual presence of `bin/busybox|bin/bash` etc. + a `.z2term-version` marker (compares `ROOTFS_VERSION` for bundled distros only).
 - Idempotently injected on every launch: `ensureShellHistoryConfig` (history rc), `ensureMacroPathConfig` (macro dir on PATH), `ensureSshdWrapper` (`/usr/local/sbin/sshd` = dropbear wrapper), `ensureOsc7CwdConfig` (OSC7 hook for cwd restore), `ensureZ2ApiScripts` (`z2-*` bridge), `ensureZ2AdbScript` (`/usr/local/bin/z2adb`), `ensureZ2HelpScript` (`/usr/local/bin/z2help` + alias `/usr/local/bin/z2term`), `ensureZ2ScanScript` (`/usr/local/bin/z2scan`), GUI/z2run scripts, `ensureVersionScript` (`/usr/local/bin/z2version`).
 - **The macro directory (`~/.z2term/macros`) is on PATH out of the box on every OS (0.8.314)**: 0.8.287 appended it to the **end** of the PATH in the env `launch()` passes, but that misses a whole class of entry points — **a login shell rebuilds PATH from scratch in `/etc/profile`**, so over SSH (dropbear), under `su -`, and in the GUI's terminal the appended tail was gone and `remind.sh help` came back `command not found` (the guides and the docs both assume the name alone works). `ensureMacroPathConfig` puts the same setting inside the rootfs: `/etc/profile.d/z2term-path.sh` for login shells (Alpine/Debian/Arch/Kali all source `.sh` files under `profile.d` from `/etc/profile`) plus `/etc/bash.bashrc` and `/etc/zsh/zshrc` for interactive non-login shells that never read profile. ⚠ **Append at the end** (so a same-named command never shadows the OS one) and ⚠ **skip if already present** (a `case` test, so PATH cannot grow no matter how often it is sourced). The directory itself (`shared_home/.z2term/macros`) is created too.
-- **`z2version` command (0.8.70)**: from the terminal, `z2version` prints the host app version (`versionName`/`versionCode`/flavor/package/execution engine/rootfs generation). It is rewritten on every launch, so it always reflects the *currently running* app — making APK↔guest version mismatches trivial to diagnose. `z2version --short` prints just the version on one line. Installed on all launch paths (proot/z2root/chroot).
+- **`z2version` command (0.8.70)**: from the terminal, `z2version` prints the host app version (`versionName`/`versionCode`/package/execution engine/rootfs generation). It is rewritten on every launch, so it always reflects the *currently running* app — making APK↔guest version mismatches trivial to diagnose. `z2version --short` prints just the version on one line. Installed on all launch paths (proot/z2root/chroot).
 - **`z2adb` command (0.8.88, self-adb)**: a helper that connects the device to *its own* adb daemon (Android Wireless debugging) over `localhost`, with no PC, USB, or root. Requires Android 11+ with Settings > Developer options > Wireless debugging enabled. Implemented in [`Z2AdbScript.kt`](../../app/src/main/java/com/zerotoship/z2term/proot/Z2AdbScript.kt); installed on all launch paths (proot/z2root/chroot).
 
   | Subcommand | Action |
@@ -1216,9 +1224,9 @@ to be compared against `qrencode` module by module).
 
 When `executionEngine = "z2root"`, `launch()` swaps the binary for `nativeLibraryDir/libz2root.so` (our own ptrace engine). It accepts a proot-compatible argv subset, so arguments and env carry over unchanged (`PROOT_*`/talloc are ignored by z2root).
 
-If `libz2root.so` is not bundled (`scripts/build-z2root.sh` was not run), it falls back to proot (**full only**; foss has no proot, so z2root is mandatory there and its absence stops with "engine binary not found").
+If `libz2root.so` is not bundled (`scripts/build-z2root.sh` was not run), startup stops with "engine binary not found" — the proot prebuilts were removed in 0.8.328, so there is nothing to fall back to.
 
-**Guarding against stale build artifacts (0.8.48)**: the z2root/z2accept `.so` files are build artifacts (not in git) and are regenerated by neither `git pull` nor CMake, so fixing `z2root.c` can still ship an **old `.so` inside the APK**. The Gradle task `buildZ2rootNative` runs `scripts/build-z2root.sh` before the jniLibs merge, so an `assemble` alone always regenerates from current sources (zero manual steps). `build-z2root.sh` resolves the NDK path by itself (env vars / `sdk.dir`+`ndk.version` in `local.properties` / `$ANDROID_HOME`). ⚠ **This covers every flavor** — all `merge*JniLibFolders` tasks depend on `buildZ2rootNative` and the output goes to `src/main/jniLibs`, so **full and foss both bundle it**. **foss runs on z2root too**, so a `z2root.c` fix reaches foss unchanged (an older wording here claimed "foss downloads at runtime and is out of scope" — what foss fetches at runtime is the rootfs, not z2root).
+**Guarding against stale build artifacts (0.8.48)**: the z2root/z2accept `.so` files are build artifacts (not in git) and are regenerated by neither `git pull` nor CMake, so fixing `z2root.c` can still ship an **old `.so` inside the APK**. The Gradle task `buildZ2rootNative` runs `scripts/build-z2root.sh` before the jniLibs merge, so an `assemble` alone always regenerates from current sources (zero manual steps). `build-z2root.sh` resolves the NDK path by itself (env vars / `sdk.dir`+`ndk.version` in `local.properties` / `$ANDROID_HOME`). All `merge*JniLibFolders` tasks depend on `buildZ2rootNative` and the output goes to `src/main/jniLibs`. What is fetched at runtime is the rootfs, not z2root, so a `z2root.c` fix always ships inside the APK.
 
 ##### Path translation
 
@@ -1361,7 +1369,7 @@ when `executionEngine = "chroot"`, `launchChroot()` is used.
 - `probeRootChroot()`: a self-test of `su -c id` (uid=0) + `su -c "chroot <rootfs> /bin/sh -c echo"`. The result is `RootProbe` (Ok/NoRoot/ChrootBlocked).
 - `launchChroot()`: via `su -c`, bind mount (/dev, /dev/pts, /proc, /sys, /root, /sdcard) → `chroot` → login shell. The `ensure*` helpers (z2-*/OSC7/history/sshd/gui/z2run) are shared with the proot path.
 - **Ctrl+C / job control**: because the controlling terminal can't be owned via `su`, the login shell is launched **through `setsid -c`** to enable it.
-- On chroot launch failure, it auto-falls back to proot (`TerminalSession.startTerminal`). End-to-end verified on a rooted device under SELinux Enforcing (moto g13 / Magisk). `full` flavor only.
+- On chroot launch failure, it auto-falls back to proot (`TerminalSession.startTerminal`). End-to-end verified on a rooted device under SELinux Enforcing (moto g13 / Magisk).
 
 ### 4.4 Distro management (`distro/`)
 
@@ -2267,7 +2275,7 @@ built-in keyboard**".
 
 **Reset settings** (action): the "Reset settings" button at the end of the settings screen (between App info and Licenses) (`danger` style) shows a confirmation and then calls `AppSettings.resetToDefaults()` (which `clear()`s the `z2term_settings` DataStore). Clearing every key returns all values above, the hidden unlock flags, saved servers, toolbar order and log settings to their defaults (the execution engine goes back to the default z2root). The rootfs (installed OS), user files and language (separate SharedPrefs `z2term_locale`) are untouched.
 
-**Check for updates** (action, 0.8.290): a button placed directly under the version row in the App info section. Only when tapped does `UpdateChecker.check()` (`update/UpdateChecker.kt`) issue a single GET to the GitHub Releases API (`/releases/latest`) and compare the `tag_name`'s major.minor.patch numerically against `BuildConfig.VERSION_NAME`. **Merely opening settings touches no network; there is no automatic check, no launch-time check and no background traffic** (the network is contacted only on the user's tap). If a newer version exists it shows the number and "Open the release page" opens `html_url` via `ACTION_VIEW` — it does **not** download or install the APK (that stays manual). No setting is persisted (a transient state re-fetched on each tap). It works in both full and foss, but because foss is eventually updated by F-Droid / IzzyOnDroid, the feature stops at pointing to the page and deliberately omits in-app self-update (download+install), keeping foss F-Droid-clean. Version parsing (`numbersOf`) takes only the first three numbers so `-alpha` and the digit-bearing commit hashes of old tags never leak into the comparison.
+**Check for updates** (action, 0.8.290): a button placed directly under the version row in the App info section. Only when tapped does `UpdateChecker.check()` (`update/UpdateChecker.kt`) issue a single GET to the GitHub Releases API (`/releases/latest`) and compare the `tag_name`'s major.minor.patch numerically against `BuildConfig.VERSION_NAME`. **Merely opening settings touches no network; there is no automatic check, no launch-time check and no background traffic** (the network is contacted only on the user's tap). If a newer version exists it shows the number and "Open the release page" opens `html_url` via `ACTION_VIEW` — it does **not** download or install the APK (that stays manual). No setting is persisted (a transient state re-fetched on each tap). Because the app is eventually updated by F-Droid / IzzyOnDroid, the feature stops at pointing to the page and deliberately omits in-app self-update (download+install), keeping the build F-Droid-clean. Version parsing (`numbersOf`) takes only the first three numbers so `-alpha` and the digit-bearing commit hashes of old tags never leak into the comparison.
 
 ---
 
@@ -2295,18 +2303,17 @@ built-in keyboard**".
 bash scripts/build-bundle.sh          # generate all bundled assets at once
 # individually: build-proot.sh / build-alpine-rootfs.sh aarch64 / fetch-fonts.sh
 sh scripts/z2root-cmdtest.sh          # cross-test fragile commands that hit z2root's hard paths (10 groups; skips missing cmds; trailing non-zero summary. SKIP_NET/SKIP_BUILD/RUN_SSHD/RUN_PRIV)
-bash scripts/gw.sh :app:assembleFullDebug   # use this on-device (see below)
-./gradlew :app:assembleFullDebug      # APK (full = rootfs bundled)
-./gradlew :app:assembleFossDebug      # APK (foss = rootfs excluded, runtime DL)
-adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
+bash scripts/gw.sh :app:assembleDebug   # use this on-device (see below)
+./gradlew :app:assembleDebug          # APK (rootfs excluded, runtime DL)
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-- full bundle: `src/full/jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc,libandroid-shmem}.so` (full flavor only), `src/full/assets/alpine-minirootfs-aarch64.tgz` (full only), `assets/fonts/*.ttf` (shared).
-- foss excludes the rootfs and fetches it at startup via `DistroSpec.ALPINE`'s official CDN URL + SHA-256 (`DistroSpec.bundledInApk` returns false). foss also excludes the proot/talloc prebuilts (F-Droid non-compliant) and runs on z2root built from bundled source instead.
+- Bundled: `src/main/jniLibs/arm64-v8a/{libz2root,libz2accept}.so` (built from source), `assets/fonts/*.ttf`.
+- The rootfs is not bundled; it is fetched at startup via `DistroSpec.ALPINE`'s official CDN URL + SHA-256. There are no third-party native prebuilts (proot/talloc etc. are F-Droid non-compliant), so the engine is z2root built from bundled source.
 - **The rootfs in assets uses the `.tgz` extension** (with `.tar.gz`, aapt decompresses and renames it).
 - **`useLegacyPackaging=true` is required** (so the `.so` files that get execve'd are placed as real files in nativeLibraryDir).
 - **Build through `scripts/gw.sh` when building on-device (aarch64, under proot/z2root)**: in that environment libc's `accept()` returns ENOSYS, and because JDK17's `sun.nio.ch.Net.accept` calls libc `accept()`, the Gradle daemon's TCP IPC dies and the build fails with "Could not connect to the Gradle daemon". `gw.sh` `LD_PRELOAD`s an `accept4` shim (`scripts/accept4-shim.c`) **only where `accept()` is ENOSYS**, and otherwise just calls `./gradlew` (so it does not disturb multi-device use). The shim leaking into aapt2 (bionic) causes a different failure, `libc.so.6 not found`, so the aapt2 wrapper strips `LD_PRELOAD`. Run `bash scripts/gw.sh help` to check whether the shim is applied.
-- When the rootfs composition changes: edit `scripts/alpine-packages.txt` → bump `DistroBundle.ROOTFS_VERSION` by +1 → `FORCE=1 build-alpine-rootfs.sh` → assemble (users auto-redeploy by swapping the APK).
+- When the post-extraction setup (`DistroInstaller.postInstallSetup`) changes: bump `DistroBundle.ROOTFS_VERSION` by +1 (users auto-redeploy by swapping the APK).
 - **Keep lint at zero warnings** (`bash scripts/gw.sh :app:lintFullDebug`; reached in 0.8.190). A failing `Build & Lint` in CI causes the release job triggered by a tag push to be skipped, so passing lint is a precondition for releasing. Silencing is split into three tiers: `lint { disable }` in `app/build.gradle.kts` for checks that are **permanently meaningless here**, `<ignore path>` in `app/lint.xml` for **one specific location**, and `@Suppress`/`@SuppressLint`/`tools:ignore` with a reason comment at **the deliberate site itself**. Never bulk-move a check into `disable` and kill detection everywhere else.
 
 ---

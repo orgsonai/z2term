@@ -53,17 +53,16 @@ happy with, Z2Term's reason to exist is the second, third and fourth rows of tha
 
 - Go to the latest: **<https://github.com/orgsonai/z2term/releases/latest>**
 
-Every release ships two APKs.
+Every release ships one APK: `z2term-<version>.apk` (~21MB).
 
-| File | Contents | Which to pick |
-|---|---|---|
-| `app-foss-release.apk` | No prebuilts (~21MB) | **The recommended one.** Nine times smaller, and each update downloads ~21MB instead of ~190MB — handy on metered data or a slow link. It also bundles no third-party prebuilts (fewer license notices). No OS is bundled, so **the first launch asks you to pick one in Settings › Linux environment** (0.8.314; Alpine is fetched from the official CDN and verified by SHA-256, and updates never re-download it). |
-| `app-full-release.apk` | Same payload as foss | Kept so existing full users can update under the same package ID. |
+It bundles no OS and no third-party prebuilts, so **the first launch asks you to pick a distribution
+in Settings › Linux environment** (0.8.314; Alpine is fetched from the official CDN, verified by
+SHA-256, and updates never re-download it). That keeps every update at ~21MB, which matters because
+automatic updates (below) fetch the whole APK each time — there are no delta updates outside Google Play.
 
-Same app either way; the feature sets are identical. The only difference is **whether an OS is
-downloaded once on first launch**, so if you have a connection that first time, `foss` costs you
-nothing (and it lets you **choose which OS to start from**, at the cost of one extra tap). Note that automatic updates (below) still fetch the whole APK each time — there are no
-delta updates outside Google Play — so the size gap keeps paying off on every update.
+⚠ **Up to 0.8.358 there was a second, ~190MB APK with Alpine bundled (the `full` flavor).
+0.8.359 dropped it** — it only saved that one first download, while making everyone choose between
+two files. If you are on a `full` install, this APK updates it in place (same package ID).
 
 Tap the APK on your Android device → allow "Install from unknown sources" to install.
 (Not distributed on Google Play.)
@@ -79,12 +78,11 @@ Pick whichever fits:
 - **Manual** — download the newer APK from Releases and tap it (installs over the top; your data stays).
 - **Automatic** — add `https://github.com/orgsonai/z2term` to
   [Obtainium](https://github.com/ImranR98/Obtainium). It watches these Releases and updates the app
-  with one tap when a new version appears — no app store involved. With the recommended `foss` APK,
-  each such update is only ~21MB.
+  with one tap when a new version appears — no app store involved. Each such update is only ~21MB.
 
 ## Current version
 
-**0.8.358-alpha (versionCode 366).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.359-alpha (versionCode 367).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
@@ -110,7 +108,7 @@ Pick whichever fits:
 - **First-run cards** — three small cards on the first launch (post a notification / flashlight / let a PC connect). Tapping one **puts the command on the input line — it never runs by itself**; they disappear once tapped and never return.
 - **Receive from Share** — pick z2term in another app's share sheet and the text (or, for files, a path under `~/z2term-inbox/`) is **inserted** on the terminal's input line — never executed.
 - **Tidy toolbar** — choose which buttons appear from settings (⚙ settings stays pinned to the right edge); long-press and drag to reorder.
-- **FOSS flavor (the recommended download)** — bundles no third-party prebuilts (~21MB); the distribution is downloaded at first launch and verified by SHA-256.
+- **No prebuilts, one download** — a single ~21MB APK that bundles no third-party prebuilts; the distribution is downloaded at first launch and verified by SHA-256.
 
 ### Not yet supported / under consideration
 
@@ -154,11 +152,8 @@ Per-artifact details: [app/src/main/assets/README.md](app/src/main/assets/README
 ### 2. Build
 
 ```bash
-./gradlew assembleFossRelease
-# Output: app/build/outputs/apk/foss/release/app-foss-release.apk
-
-./gradlew assembleFullRelease
-# Output: app/build/outputs/apk/full/release/app-full-release.apk
+./gradlew assembleRelease
+# Output: app/build/outputs/apk/release/app-release.apk
 ```
 
 (No signing key required for forks — `build.gradle.kts` falls back to the debug key when `keystore.properties` is absent.)
@@ -166,7 +161,7 @@ Per-artifact details: [app/src/main/assets/README.md](app/src/main/assets/README
 ### 3. Install
 
 ```bash
-adb install -r app/build/outputs/apk/foss/release/app-foss-release.apk
+adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
 ## Project structure
@@ -219,29 +214,28 @@ z2term/
 │   ├── RELEASE.md                 ← release steps
 │   └── SSH-INTO-Z2TERM.md
 ├── metadata/                     ← F-Droid metadata
-└── .github/workflows/build.yml   ← CI (builds both full + foss)
+└── .github/workflows/build.yml   ← CI (build, lint, tests, signed release APK)
 ```
 
 ## Build variants
 
-| Flavor | Purpose | Bundled content |
-|---|---|---|
-| `foss` | **The distribution default (recommended)** | z2root; rootfs downloaded at runtime |
-| `full` | Existing-install upgrade compatibility | Same payload as `foss`; rootfs downloaded at runtime |
+Only build types differ. The distribution flavors (`full` / `foss`) were dropped in 0.8.359 —
+one build for everyone, with the rootfs always fetched at runtime.
 
-Only `foss` carries the `.foss` `applicationId` suffix (`com.zerotoship.z2term.foss`), so both can be installed side by side.
-⚠ **Both show the same launcher name, "Z2Term"** (0.8.315 — the distribution flavor does not belong in the app's name).
-With both installed the name no longer tells them apart; use `z2version` or the version in app info instead
-(`foss` ends in `-foss`). Only debug builds keep a separate name (`Z2Term dbg2`).
+| Build type | applicationId | Launcher name |
+|---|---|---|
+| `release` | `com.zerotoship.z2term` | `Z2Term` |
+| `debug` | `com.zerotoship.z2term.debug2` | `Z2Term dbg2` |
+
+The suffix lets a debug build sit next to a release one, and the name tells them apart.
 
 ```bash
-./gradlew assembleFossDebug
-./gradlew assembleFullDebug   # identical payload, different applicationId
+./gradlew assembleDebug
 ```
 
 ## Smoke-test flow
 
-1. Build and install either flavor; select an OS and complete the runtime download.
+1. Build and install; select an OS and complete the runtime download.
 2. Confirm `z2version` reports `engine : z2root`, then test the distro package manager.
 
 ### z2root command-group test (`scripts/z2root-cmdtest.sh`)
@@ -297,11 +291,11 @@ From the settings screen → "OSS licenses / corresponding source", you can also
 
 ## Distribution policy
 
-| Channel | Flavor | Status |
-|---|---|---|
-| **GitHub Releases / direct APK** | `foss` (**recommended**) / `full` | Primary channel; payloads are identical |
-| **F-Droid** | `foss` | Runtime-downloaded rootfs; fully source-built engine |
-| **Google Play** | — | No distribution planned |
+| Channel | Status |
+|---|---|
+| **GitHub Releases / direct APK** | Primary channel; one APK per release |
+| **F-Droid** | Runtime-downloaded rootfs; fully source-built engine |
+| **Google Play** | No distribution planned |
 
 ## Default behavior of the SSH server (sshd)
 

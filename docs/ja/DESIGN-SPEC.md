@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-17 / 対象バージョン: 0.8.358-alpha (versionCode 366)
+最終更新: 2026-08-18 / 対象バージョン: 0.8.359-alpha (versionCode 367)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -41,21 +41,25 @@
   - **chroot の解放**: root セルフテスト (`probeRootChroot`) の成功時のみ選択肢に加わる。このテストは **7 タップ解放の瞬間だけでなく、エンジン選択内の「chroot を有効化 (root を確認)」ボタンからも再実行できる** (0.8.106)。従来は解放時に 1 度だけ走り、su 許可ダイアログを拒否すると `rootChrootUnlocked` が false のまま二度と chroot を選べなくなっていた (再解放には再ロック→再解放の二重 7 タップが必要で気付けなかった)。false の間はこのボタンと案内文を表示し、何度でも再試行できる (成功で chroot 解放＋トースト、ボタン経由の失敗時のみ理由をトースト)
   - **失敗の切り分け** (0.8.107): `RootProbe.NoRoot` (su 無し/拒否) と `RootProbe.ChrootBlocked(detail)` (root は取れたが chroot 実行が SELinux/rootfs 等で失敗) を区別して表示する
   - ⚠️ **Magisk 等の root 管理アプリは一度「拒否」を記憶すると以後 su 許可ダイアログを再表示せず即拒否を返すため、アプリ内ボタンだけでは復帰できない** (アプリから他アプリの root 権限は変更不可)。この場合 Magisk 側で Z2Term の root を「許可」に戻す必要がある旨を NoRoot トースト/案内文で誘導する (0.8.108)
-  - **0.8.328完全移行**: PRoot選択肢・fallback・prebuiltを削除し、full/fossともz2rootを使う。0.8.330でfullのAlpine同梱を復元。
+  - **0.8.328完全移行**: PRoot選択肢・fallback・prebuiltを削除し、full/fossともz2rootを使う。0.8.330でfullのAlpine同梱を復元。**0.8.359でfullフレーバーごと廃止**（下記）。
   - **z2root トレースログ** (開発者用・既定 OFF・`traceLogEnabled`): 同じ 7 タップ解放枠内のトグル。ON で z2root の全 syscall を `shared_home/z2root_trace.log` へ記録する＝障害調査用だが、ログが膨大で端末容量をすぐ圧迫するため UI に「普段は OFF のままにする」警告を添える (0.8.105。0.8.107 で警告文を「OFF のまま使用しない」という矛盾表現から非矛盾表現へ修正)。従来は `.z2root_trace_on` sentinel ファイルでしか切替できなかった (sentinel も後方互換で有効)
 
 対応 ABI は **arm64-v8a のみ**。最低 Android 10 (API 29)、ターゲット API 35。
 
-### 配布フレーバー
+### 配布
 
-| フレーバー | applicationId | 用途 |
-|---|---|---|
-| `full` | `com.zerotoship.z2term` | 既存利用者の更新互換 |
-| `foss` | `com.zerotoship.z2term.foss` | 推奨配布・F-Droid用 |
+配布は **1 種類だけ**。applicationId は `com.zerotoship.z2term`、ランチャー表示名は `Z2Term`。
+z2root をソースからビルドし、rootfs は APK に同梱せず実行時に取得する。
 
-両者ともz2rootをソースビルドする。fullはカスタムAlpine rootfsを同梱し、fossはrootfsを実行時取得する。
+⚠ **0.8.359 で配布フレーバーを廃止した**。それまでは `full`（`com.zerotoship.z2term`・Alpine rootfs 同梱・約 190MB）と
+`foss`（`com.zerotoship.z2term.foss`・実行時取得・約 21MB）の 2 本立てだった。廃止の理由は
+**「full」という名前が上位版に読まれて全員がそちらを落とし、しかも実際の違いは初回ダウンロードが
+省けるかどうかだけだった**こと（利用者の判断）。残す applicationId はサフィックスの無い方にした
+（`.foss` サフィックスは full と同居させるためだけに存在していたので、同居する相手が消えれば不要）。
+⚠ **`com.zerotoship.z2term.foss` を入れている利用者は別アプリ扱いになるので自動更新に乗らない**。
+入れ直しが要る（廃止時点でダウンロード数がごく少なく、後になるほど統合が効かなくなるため早期に判断した）。
 
-`debug` ビルドは更に `.debug` サフィックスが付く。
+`debug` ビルドは `.debug2` サフィックスが付き、表示名も `Z2Term dbg2` になるので release と共存できる。
 
 ---
 
@@ -488,7 +492,7 @@ z2-when wifi:disconnect run 'z2-server stop sshd'
 - ⚠ **1 バイトも送る前に全部変換する**。途中で名前を間違えていたとき、そこまでのキーだけが
   届いた状態にすると何が起きたのか分からなくなる。
 
-**`new` は起動まで済ませる**（0.8.203）。画面側の自動起動は「表示中のタブが IDLE なら起動」という条件なので、**アプリを開いていない間に作ったタブは開くまで起動せず**、続けて `send` しても PTY が無く何も起きなかった（実機で確認）。マクロから「タブを開いてコマンドを流す」を成立させるため、`new` の中で `startTerminal` まで呼ぶ。ただし初回ダウンロードが要る distro（foss の Alpine 等）は勝手に通信を始めず、画面を開いたときの確認に委ねる。
+**`new` は起動まで済ませる**（0.8.203）。画面側の自動起動は「表示中のタブが IDLE なら起動」という条件なので、**アプリを開いていない間に作ったタブは開くまで起動せず**、続けて `send` しても PTY が無く何も起きなかった（実機で確認）。マクロから「タブを開いてコマンドを流す」を成立させるため、`new` の中で `startTerminal` まで呼ぶ。ただし初回ダウンロードが要る distro は勝手に通信を始めず、画面を開いたときの確認に委ねる。
 あわせて `list` の印に **`?`（未起動）** を足した。未起動のタブへ送っても何も起きないので、印が無いと「送ったのに動かない」理由が分からない。
 
 **`new <名前>` の名前は固定する**（0.8.202）。`TerminalSession` に `labelPinned` を持たせ、true の間は**起動時の OS 名（`spec.id`）・`android-sh` フォールバック・SSH 接続・シェルが出すタイトル（OSC 0/2）のどれでも上書きしない**。これが無いと `z2-session new build` で付けた名前が直後の起動で OS 名に化け、名前を指定した意味が無くなる（実機で確認した）。
@@ -607,7 +611,7 @@ z2-when wifi:disconnect run 'z2-server stop sshd'
 - **タップしたら実行する（0.8.314・利用者の判断で変更）**。0.8.313 までは「入力行に入るだけで ⏎ は人が押す」作法だったが、案内は**打ちかけの途中でも押せてしまう**ため、`ls -l` を打った後に押すと `ls -lz2-macro install remind` のような行ができ、⏎ で意図しない行が走る。**先に `Ctrl-C`（0x03）で行を捨ててから**コマンド＋改行を送る形にした（`runGuideCommand`）。⚠ `Ctrl-C` の直後に続けて書かないこと — tty は INTR を受けた時点で**入力待ち行列を捨てる**（`ISIG` かつ `NOFLSH` 無しの既定動作）ので、同じ塊で送るとコマンドまで一緒に消える。150ms 空ける。
 - 文言は「説明」ではなく**打つコマンドそのもの**を見せる — 読ませる画面ではなく、1 回動かしてもらう画面なので。
 - **カードごとに ✕ が付く（0.8.314）**。要らない手順を**送らずに**消せる。触った枚も消え、全部消えるか見出しの ✕ を押したら [AppSettings.introDone] を立てて**二度と出さない**。
-- ⚠ **出すのは Linux の OS が 1 つ入ってから**（0.8.339・利用者の指摘）。0.8.338 までは `introDone` だけを見ていたので、**OS が 1 つも無い端末（foss を入れた直後は全員そこから始まる）にも 3 枚が出ていた**。その状態では端末が動いていないので**押しても何も走らない**のに、**押した枚から消え**、3 枚とも消えると `introDone` が立って**一度も動かないまま二度と出ない**。判定は `TerminalSession.hasAnyDistro()`（`NeedOsInstall` と同じもの）で、**端末の状態が変わるたびに見直す** — ⚙設定 から OS を入れると起動が始まるので、それが「入れ終わった合図」になり、**そのタブでそのまま 1 回出る**。⚠ **表示を止めるだけにしないこと**。`introDone` を空振りで消費させないのが要点で、出番を失う経路を残すと直したことにならない。⚠ 既に OS がある人（`introDone=true`）には出戻らせない。OS が無い間に出るのは `NoOsNotice` の方（下記）。
+- ⚠ **出すのは Linux の OS が 1 つ入ってから**（0.8.339・利用者の指摘）。0.8.338 までは `introDone` だけを見ていたので、**OS が 1 つも無い端末（入れた直後は全員そこから始まる）にも 3 枚が出ていた**。その状態では端末が動いていないので**押しても何も走らない**のに、**押した枚から消え**、3 枚とも消えると `introDone` が立って**一度も動かないまま二度と出ない**。判定は `TerminalSession.hasAnyDistro()`（`NeedOsInstall` と同じもの）で、**端末の状態が変わるたびに見直す** — ⚙設定 から OS を入れると起動が始まるので、それが「入れ終わった合図」になり、**そのタブでそのまま 1 回出る**。⚠ **表示を止めるだけにしないこと**。`introDone` を空振りで消費させないのが要点で、出番を失う経路を残すと直したことにならない。⚠ 既に OS がある人（`introDone=true`）には出戻らせない。OS が無い間に出るのは `NoOsNotice` の方（下記）。
 - ⚠ **32 件の提案で唯一「モードを増やすな」と正面衝突しうる案**だった。だから仕様を先に固めてある: **項目は 3 つまで・全画面ウィザードにしない・復活は設定の奥に 1 行**（メンテナンス）。4 枚目を足したくなったら、それは `z2help` と案内（下記）の仕事。ここを緩めると 5 枚 6 枚と増える理由が毎回生まれ、二度と閉じられなくなる。
 
 **案内（`ui/terminal/GuideCards`、0.8.314）**: 同梱サンプルのマクロは `z2-macro install <名前>` で入れてから使うものなので、**入れる前は名前すら見えない**。0.8.286 では「書き方の一覧をすぐ開ける場所」としてスニペットに `remind.sh help` を 1 件シードしていたが、**入れていない人が押すと「見つからない」と出るだけ**で、そこから入れ方に辿り着けなかった（利用者の指摘）。スニペットのシードを撤去し、**どのサンプルも手順のカードで出す**形に置き換えた。
@@ -624,11 +628,11 @@ z2-when wifi:disconnect run 'z2-server stop sshd'
 - **GUI タブから選んだときは端末タブへ移ってから出す**。案内はコマンドの手順なので、GUI の上に出しても打つ場所も結果も無い。画面をまたぐので `GuideHost`（object）に 1 つだけ持つ。
 - ⚠ **スニペットに「入れてから使うコマンド」を置かない**。スニペットは押せばそのまま走る場所なので、前提のあるコマンドを置くとエラーが出るだけになる。手順が要るものは案内の仕事。
 
-**OS が 1 つも無いときは、ダウンロードを催促しない（0.8.314）**: foss 版は rootfs を同梱しないので、初回起動でいきなり Alpine のダウンロード確認ダイアログが出ていた。これは**「どの OS から始めるか」を選ぶ前に既定の 1 本を押し付ける**形で、「Arch から始めたい」人は毎回断ることになる。しかも断っても状態は変わらないので、**タブを開くたびに同じダイアログが出る**（利用者の指摘）。
+**OS が 1 つも無いときは、ダウンロードを催促しない（0.8.314）**: rootfs を同梱しないので、初回起動でいきなり Alpine のダウンロード確認ダイアログが出ていた。これは**「どの OS から始めるか」を選ぶ前に既定の 1 本を押し付ける**形で、「Arch から始めたい」人は毎回断ることになる。しかも断っても状態は変わらないので、**タブを開くたびに同じダイアログが出る**（利用者の指摘）。
 
 - 判断は `TerminalSession.startupPlan()`（`suspend`）に集約し、`Start` / `ConfirmDownload(spec)` / `NeedOsInstall` の 3 通りを返す。`NeedOsInstall`（`ProotLauncher.hasAnyDistro()` が false）のときは**確認 ON/OFF に関わらず勝手に入れない**。
 - 代わりに画面を塞がない案内カード（`ui/terminal/NoOsNotice`）を 1 枚出す。押すと ⚙設定 › Linux環境 が開き、✕ で消せる。消した記憶は**アプリを開いている間だけ**（`NoOsNotice.dismissed`）＝タブを開き直しても出戻らないが、次に開くと出る（OS が無ければ端末は本当に使えないので「二度と出ない」にはしない）。
-- ⚠ **OS が無い間は消せない。⚙設定 の中でも上部に固定する**（0.8.342・利用者の判断）。このカードが「⚙設定 › Linux環境」を教える唯一の口なので、**✕ で消すと黒い画面と `#` だけが残り、何を押せば Linux が入るのか画面のどこにも出ていない**状態になっていた（foss は rootfs を同梱しないので**全員がこの状態から始まる**）。
+- ⚠ **OS が無い間は消せない。⚙設定 の中でも上部に固定する**（0.8.342・利用者の判断）。このカードが「⚙設定 › Linux環境」を教える唯一の口なので、**✕ で消すと黒い画面と `#` だけが残り、何を押せば Linux が入るのか画面のどこにも出ていない**状態になっていた（rootfs を同梱しないので**全員がこの状態から始まる**）。
   - ⛔ **0.8.340 の「消せるまま + ツールバーに 📥」は撤回した**。OS が 1 つも無い間だけ 📥「OS を入れる」を出す案だったが、実機で**「押しても設定画面が開くだけで、何をすればいいのか分からない」**と指摘された。**入口を増やしても、その先で迷うなら解決していない。**
   - **消せなくする**（`GuideCardColumn` / `GuideCardRow` の `onClose` / `onSkip` に `null` を渡すと ✕ を描かない）。塞がないカードなので、消せなくても端末は触れる。⚠ **消せなくしてよいのは「消すと詰む」ものだけ** — 手順の案内（`GuideCards`）と はじめの案内（`IntroCards`）には ✕ を残す（あちらは消しても端末が使える）。
   - **⚙設定 の上部にも同じ案内を固定する**（`NoOsSettingsNotice`）。⚠ 置くのは**スクロール領域の外**（`SettingsTopBar` の直下）。中に入れると下へスクロールした時点で消え、「設定画面まで来たのにどの項目か分からない」に戻る。
@@ -636,7 +640,7 @@ z2-when wifi:disconnect run 'z2-server stop sshd'
   - 飛び先の座標は `SettingsGroupSection(LINUX)` の `onGloballyPositioned` で測り、**そのときのスクロール量を足して**「先頭からの距離」にする（`verticalScroll` は子の位置をスクロール分ずらすため、足さないとスクロール状態によって値が変わる）。
   - **どちらも OS が 1 つ入れば出ない**。設定側は端末の状態が変わるたびに `TerminalSession.hasAnyDistro()` を見直すので、シートを開いたまま入れても消える。
 - ⚠ **判定は永続値を await してから行う**。0.8.313 までの `downloadOnStartSpec()` は `settingsFlow.value` を見ていたが、これは `stateIn(Eagerly)` の初期値＝既定 Snapshot（`distroId=alpine`）なので、DataStore の初回 emit が届く前に通ると**選択中の OS ではなく Alpine の判定になる**。「Arch で使っているのに、新しいタブを開くとタイミングによって Alpine のダウンロードを催促される」の正体がこれで、`startTerminal` が同じ理由で既に await していた（0.8.105）のに、催促の判定だけ取り残されていた。
-- ⚠ **⚙設定の OS チップは「選択中でも未導入なら押せる」**必要がある。従来は `id != 選択中` で弾いていたが、foss の初回は**既定（Alpine）が選択済みなのに未導入**という状態から始まるため、そのままだと**その OS だけ入れられない**。自動催促をやめた分、ここが唯一の入口になる。
+- ⚠ **⚙設定の OS チップは「選択中でも未導入なら押せる」**必要がある。従来は `id != 選択中` で弾いていたが、初回は**既定（Alpine）が選択済みなのに未導入**という状態から始まるため、そのままだと**その OS だけ入れられない**。自動催促をやめた分、ここが唯一の入口になる。
 
 **複数行の貼り付けだけ、貼る前に見せる（0.8.232）**: 📋 は押した瞬間に入るので、コピー元がコードのかたまりだと**何行入ったのか分からないまま** ⏎ を押すことになる。**改行を含むときだけ** 48dp の帯を出し、行数と先頭 2 行を見せてから貼る。
 
@@ -1195,9 +1199,9 @@ ptrace 越しに数千 syscall になるうえ、常駐中は WakeLock/WifiLock 
 
 `executionEngine = "z2root"` のとき、`launch()` がバイナリを `nativeLibraryDir/libz2root.so` (自前 ptrace エンジン) に差し替える。proot 互換 argv subset を受けるので引数・env はそのまま流用する (`PROOT_*`/talloc は z2root が無視)。
 
-`libz2root.so` 未同梱 (`scripts/build-z2root.sh` 未実行) の場合は proot へフォールバックする (**full のみ**。foss は proot を持たないため z2root が必須で、欠落時は engine binary not found で停止)。
+`libz2root.so` 未同梱 (`scripts/build-z2root.sh` 未実行) の場合は engine binary not found で停止する (proot prebuilt は 0.8.328 で削除済みなので、フォールバック先が無い)。
 
-**ビルド成果物の stale 対策 (0.8.48)**: z2root/z2accept の `.so` はビルド成果物 (git 管理外) で `git pull` や CMake では再生成されないため、`z2root.c` を直しても古い `.so` が APK に同梱され続ける事故が起きる。Gradle タスク `buildZ2rootNative` が `full` フレーバーの jniLibs マージ前に `scripts/build-z2root.sh` を自動実行するので、`./gradlew assembleFull*` だけで常に現ソースから再生成される (手動手順ゼロ)。`build-z2root.sh` は NDK パスを自己解決する (環境変数 / `local.properties` の `sdk.dir`+`ndk.version` / `$ANDROID_HOME`)。⚠ **対象は全フレーバー** — `merge*JniLibFolders` すべてが `buildZ2rootNative` に依存し、`src/main/jniLibs` へ出すので **full / foss 共通で同梱される**。**foss の実行エンジンも z2root** なので、`z2root.c` の修正は foss にもそのまま届く (旧版の本文にあった「foss は実行時 DL のため対象外」は誤り。実行時に取得するのは rootfs であって z2root ではない)。
+**ビルド成果物の stale 対策 (0.8.48)**: z2root/z2accept の `.so` はビルド成果物 (git 管理外) で `git pull` や CMake では再生成されないため、`z2root.c` を直しても古い `.so` が APK に同梱され続ける事故が起きる。Gradle タスク `buildZ2rootNative` が jniLibs マージ前に `scripts/build-z2root.sh` を自動実行するので、`./gradlew assemble*` だけで常に現ソースから再生成される (手動手順ゼロ)。`build-z2root.sh` は NDK パスを自己解決する (環境変数 / `local.properties` の `sdk.dir`+`ndk.version` / `$ANDROID_HOME`)。`merge*JniLibFolders` すべてが `buildZ2rootNative` に依存し、`src/main/jniLibs` へ出す。実行時に取得するのは rootfs であって z2root ではないので、`z2root.c` の修正は常に APK 側に載る。
 
 ##### パス変換
 
@@ -1340,7 +1344,7 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
 - `probeRootChroot()`: `su -c id`(uid=0) + `su -c "chroot <rootfs> /bin/sh -c echo"` のセルフテスト。結果は `RootProbe`(Ok/NoRoot/ChrootBlocked)。
 - `launchChroot()`: `su -c` で bind mount(/dev,/dev/pts,/proc,/sys,/root,/sdcard) → `chroot` → login shell。`ensure*`(z2-*/OSC7/履歴/sshd/gui/z2run) は proot 経路と共通で流用。
 - **Ctrl+C / ジョブ制御**: su 経由だと制御端末を所有できないため、login shell を **`setsid -c` 経由**で起動して有効化。
-- chroot 起動失敗時は proot へ自動フォールバック（`TerminalSession.startTerminal`）。SELinux Enforcing 下の root 端末(moto g13/Magisk)で end-to-end 検証済み。`full` フレーバー専用。
+- chroot 起動失敗時は proot へ自動フォールバック（`TerminalSession.startTerminal`）。SELinux Enforcing 下の root 端末(moto g13/Magisk)で end-to-end 検証済み。
 
 ### 4.4 ディストロ管理 (`distro/`)
 
@@ -2199,7 +2203,7 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
 
 **設定を初期化**（アクション）: 設定末尾（アプリ情報とライセンスの間）の「設定を初期化」ボタン（`danger` 表示）は、確認ダイアログを挟んで `AppSettings.resetToDefaults()`（DataStore `z2term_settings` を `clear()`）を呼ぶ。全キーが消えるので上表の各値・裏設定の解放フラグ・常駐サーバー定義・ツールバー並び順・各種ログ設定がすべて既定へ戻る（実行エンジンも既定 z2root に戻る）。rootfs（インストール済み OS）・ユーザファイル・言語（別 SharedPrefs `z2term_locale`）には触れない。
 
-**更新を確認**（アクション、0.8.290）: アプリ情報セクションのバージョン行直下に置く「更新を確認」ボタン。押した瞬間だけ `UpdateChecker.check()`（`update/UpdateChecker.kt`）が GitHub Releases API（`/releases/latest`）へ 1 回 GET し、`tag_name` の major.minor.patch を `BuildConfig.VERSION_NAME` と数値比較する。**設定を開いただけでは通信せず、自動チェック・起動時チェック・バックグラウンド通信はしない**（ユーザーが押したときだけ通信する方針）。新版があれば版数を表示し「リリースページを開く」で `html_url` を `ACTION_VIEW` で開く — **APK の DL・インストールはしない**（手動のまま）。設定は保持しない（押すたびに問い合わせる一過性の状態）。full/foss 共通で動くが、foss はいずれ F-Droid / IzzyOnDroid が更新を担うため、この機能は「新版があればページへ誘導する」までに留め、アプリ内自己更新（DL+インストール）は入れない（F-Droid 適合）。判定の網羅は `numbersOf` の先頭 3 数値抽出で、`-alpha` や過去タグの commit ハッシュ（数字混じり）を比較に混ぜない。
+**更新を確認**（アクション、0.8.290）: アプリ情報セクションのバージョン行直下に置く「更新を確認」ボタン。押した瞬間だけ `UpdateChecker.check()`（`update/UpdateChecker.kt`）が GitHub Releases API（`/releases/latest`）へ 1 回 GET し、`tag_name` の major.minor.patch を `BuildConfig.VERSION_NAME` と数値比較する。**設定を開いただけでは通信せず、自動チェック・起動時チェック・バックグラウンド通信はしない**（ユーザーが押したときだけ通信する方針）。新版があれば版数を表示し「リリースページを開く」で `html_url` を `ACTION_VIEW` で開く — **APK の DL・インストールはしない**（手動のまま）。設定は保持しない（押すたびに問い合わせる一過性の状態）。いずれ F-Droid / IzzyOnDroid が更新を担うため、この機能は「新版があればページへ誘導する」までに留め、アプリ内自己更新（DL+インストール）は入れない（F-Droid 適合）。判定の網羅は `numbersOf` の先頭 3 数値抽出で、`-alpha` や過去タグの commit ハッシュ（数字混じり）を比較に混ぜない。
 
 ---
 
@@ -2225,21 +2229,19 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
 
 ```bash
 bash scripts/build-bundle.sh          # 同梱物一括生成
-# 個別: build-proot.sh / build-alpine-rootfs.sh aarch64 / fetch-fonts.sh
+# 個別: build-z2root.sh / fetch-fonts.sh
 sh scripts/z2root-cmdtest.sh          # z2root の難所を踏む壊れやすいコマンド群を横断テスト(全10グループ・未導入はskip・末尾に非ゼロ一覧。SKIP_NET/SKIP_BUILD/RUN_SSHD/RUN_PRIV)
-bash scripts/gw.sh :app:assembleFullDebug   # オンデバイスはこちら (下記)
-./gradlew :app:assembleFullDebug      # APK (full = rootfs 同梱)
-./gradlew :app:assembleFossDebug      # APK (foss = rootfs 非同梱・起動時 DL)
-adb install -r app/build/outputs/apk/full/debug/app-full-debug.apk
+bash scripts/gw.sh :app:assembleDebug   # オンデバイスはこちら (下記)
+./gradlew :app:assembleDebug          # APK (rootfs は非同梱・起動時 DL)
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-- full の同梱: `src/full/jniLibs/arm64-v8a/{libproot,libproot_loader,libtalloc,libandroid-shmem}.so`(full フレーバー専用)、`src/full/assets/alpine-minirootfs-aarch64.tgz`(full のみ)、`assets/fonts/*.ttf`(共通)。
-- foss は rootfs を含めず、`DistroSpec.ALPINE` の公式 CDN URL + SHA-256 で起動時に取得 (`DistroSpec.bundledInApk` が false)。proot/talloc prebuilt は F-Droid 非適合のため foss から除外し、実行エンジンは同梱ソースからビルドする z2root を使う。
-- **assets の rootfs は `.tgz` 拡張子**で置く (`.tar.gz` だと aapt が解凍リネームする)。
+- 同梱物: `src/main/jniLibs/arm64-v8a/{libz2root,libz2accept}.so`(ソースからビルド)、`assets/fonts/*.ttf`。
+- rootfs は APK に含めず、`DistroSpec.ALPINE` の公式 CDN URL + SHA-256 で起動時に取得する。第三者 native prebuilt (proot/talloc 等) は F-Droid 非適合なので持たず、実行エンジンは同梱ソースからビルドする z2root だけ。
 - **`useLegacyPackaging=true` 必須** (execve する .so を nativeLibraryDir に実体配置するため)。
 - **オンデバイス (aarch64・proot/z2root 下) では `scripts/gw.sh` 経由でビルドする**: この環境は libc の `accept()` が ENOSYS を返し、JDK17 の `sun.nio.ch.Net.accept` が libc `accept()` を呼ぶため Gradle デーモンの TCP IPC が落ちて "Could not connect to the Gradle daemon" でビルド不能になる。`gw.sh` は **`accept()` が ENOSYS の環境でだけ** `accept4` シム (`scripts/accept4-shim.c`) を `LD_PRELOAD` して `./gradlew` を呼ぶ (PC など正常な環境では素通しなのでマルチデバイス運用を壊さない)。シムが aapt2 (bionic) に継承されると `libc.so.6 not found` で別の失敗になるため、aapt2 ラッパー側で `LD_PRELOAD` を外している。`bash scripts/gw.sh help` で適用の有無を確認できる。
-- rootfs 構成変更時: `scripts/alpine-packages.txt` 編集 → `DistroBundle.ROOTFS_VERSION` を +1 → `FORCE=1 build-alpine-rootfs.sh` → assemble (利用者は APK 入替で自動再展開)。
-- **lint は警告 0 を維持する** (`bash scripts/gw.sh :app:lintFullDebug`、0.8.190 で達成)。CI の `Build & Lint` が落ちるとタグ push で走るリリースジョブが skip されるため、lint を通すことがリリースの前提になっている。黙らせ方は 3 段階に分ける: **恒常的に無意味な検査**だけ `app/build.gradle.kts` の `lint { disable }`、**特定の場所だけ外したいもの**は `app/lint.xml` の `<ignore path>`、**意図的な個別箇所**は現場に `@Suppress`/`@SuppressLint`/`tools:ignore` と理由コメント。一律に `disable` へ入れて他の場所の検出まで殺さない。
+- 展開後の初期設定 (`DistroInstaller.postInstallSetup`) を変えたら `DistroBundle.ROOTFS_VERSION` を +1 する (利用者は APK 入替で自動再展開)。
+- **lint は警告 0 を維持する** (`bash scripts/gw.sh :app:lintDebug`、0.8.190 で達成)。CI の `Build & Lint` が落ちるとタグ push で走るリリースジョブが skip されるため、lint を通すことがリリースの前提になっている。黙らせ方は 3 段階に分ける: **恒常的に無意味な検査**だけ `app/build.gradle.kts` の `lint { disable }`、**特定の場所だけ外したいもの**は `app/lint.xml` の `<ignore path>`、**意図的な個別箇所**は現場に `@Suppress`/`@SuppressLint`/`tools:ignore` と理由コメント。一律に `disable` へ入れて他の場所の検出まで殺さない。
 
 ---
 

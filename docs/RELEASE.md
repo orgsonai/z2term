@@ -1,19 +1,18 @@
 # Z2Term リリース手順
 
-最終更新: 2026-05-20
+最終更新: 2026-08-18
 
 リリースビルドは **R8 (minify) + リソース圧縮 + native シンボル除去** が有効。
-debug ビルド (104MB) に対し release は約 **53MB** まで縮む。
+debug ビルド (約 74MB) に対し release は約 **21MB** まで縮む (0.8.359 実測)。
 
-## 1. 同梱物の生成 (初回 / rootfs 変更時のみ)
+## 1. 同梱物の生成 (初回のみ)
 
 ```bash
-bash scripts/build-bundle.sh          # PRoot + Alpine rootfs + フォント一括
-# rootfs だけ作り直すなら:
-FORCE=1 bash scripts/build-alpine-rootfs.sh aarch64
+bash scripts/build-bundle.sh          # z2root エンジン + フォント一括
 ```
 
-rootfs の中身を変えたら `DistroBundle.ROOTFS_VERSION` を +1 すること
+rootfs は APK に同梱しない (初回起動時に公式 CDN から取得する)。
+展開後の初期設定を変えたときは `DistroBundle.ROOTFS_VERSION` を +1 すること
 (端末側が APK 入替で自動再展開する)。
 
 ## 2. 署名鍵の用意 (本番配布時)
@@ -36,13 +35,11 @@ $EDITOR keystore.properties
 
 ## 3. リリースビルド
 
-```bash
-# FOSS フレーバー (F-Droid 向け、rootfs は同梱)
-./gradlew :app:assembleFossRelease
-# 出力: app/build/outputs/apk/foss/release/app-foss-release.apk
+配布は 1 種類だけ (0.8.359 で full フレーバーを廃止した)。
 
-# full フレーバー
-./gradlew :app:assembleFullRelease
+```bash
+./gradlew :app:assembleRelease
+# 出力: app/build/outputs/apk/release/app-release.apk
 ```
 
 ## 4. 署名の確認
@@ -50,18 +47,18 @@ $EDITOR keystore.properties
 ```bash
 APKSIGNER=$(ls $ANDROID_HOME/build-tools/*/apksigner | tail -1)
 "$APKSIGNER" verify --print-certs \
-  app/build/outputs/apk/foss/release/app-foss-release.apk
+  app/build/outputs/apk/release/app-release.apk
 ```
 
 `CN=Android Debug` と出たら debug 鍵 (= keystore.properties 未設定)。
 本番鍵なら自分の DN が表示される。
 
-## 5. CI で PAT 無しリリース (tag push → GitHub Release, foss 版)
+## 5. CI で PAT 無しリリース (tag push → GitHub Release)
 
 `v*` タグを push すると、GitHub Actions (`.github/workflows/build.yml` の `release` ジョブ) が
-**署名済み FOSS release APK** をビルドして GitHub Release に添付する。認証は Actions 組み込みの
-`GITHUB_TOKEN`(自動発行)なので **PAT を手元に置く必要がない**。full 版は同梱 rootfs(≈195MB)が
-重いため当面 CI 対象外で、full だけ従来どおり手動リリースする(§3 でビルド → `gh release upload`)。
+**署名済み release APK** をビルドして GitHub Release に添付する。認証は Actions 組み込みの
+`GITHUB_TOKEN`(自動発行)なので **PAT を手元に置く必要がない**。
+添付名はタグから作る (`v0.8.359-alpha` → `z2term-0.8.359-alpha.apk`)。
 
 ### 一度だけ: リポジトリ Secrets を登録
 
@@ -90,10 +87,10 @@ git tag v0.8.xxx-alpha
 git push origin v0.8.xxx-alpha
 ```
 
-- `build` ジョブ(lint/テスト/full+foss debug)を通過後に `release` ジョブが走る。
-- リリースが未作成なら **新規作成して Latest** に、既にあれば **foss APK を差し替え** (`--clobber`)。
-  → 先に手動で `gh release create`(notes 付き)しておき、CI に foss APK を載せてもらう運用も可。
-- 初回は生成された foss APK が端末に正常インストールできるか(manifest/arsc 欠落が無いか)を確認する。
+- `build` ジョブ(lint/テスト/debug ビルド)を通過後に `release` ジョブが走る。
+- リリースが未作成なら **新規作成して Latest** に、既にあれば **APK を差し替え** (`--clobber`)。
+  → 先に手動で `gh release create`(notes 付き)しておき、CI に APK を載せてもらう運用も可。
+- 初回は生成された APK が端末に正常インストールできるか(manifest/arsc 欠落が無いか)を確認する。
   ローカルの box64 aapt2 問題は CI(x86_64 の素の aapt2)では起きない想定。
 
 ## R8 keep ルール (app/proguard-rules.pro)
@@ -114,5 +111,5 @@ R8 で壊れやすい箇所を明示 keep 済み:
 
 - リリース APK は debug 鍵フォールバックでも端末インストール可だが、
   debug 署名アプリと **applicationId が衝突**するとインストールできない
-  (foss は `.foss` suffix が付く)。
+  (debug は `.debug2` suffix が付くので、通常は共存できる)。
 - `lintVitalRelease` がエラーを出したら `app/build.gradle.kts` の lint 設定を確認。

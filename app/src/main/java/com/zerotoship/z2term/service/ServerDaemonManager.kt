@@ -98,14 +98,14 @@ object ServerDaemonManager {
                         distroId = distroId,
                         command = ServerSupervisorScript.SCRIPT_PATH,
                         rows = 24, cols = 80,
-                        fallbackShell = spec.effectiveDefaultShell,
+                        fallbackShell = spec.defaultShell,
                         loginShell = settings.loginShell,
                     )
                 }.getOrNull() ?: launcher.launch(
                     distroId = distroId,
                     command = ServerSupervisorScript.SCRIPT_PATH,
                     rows = 24, cols = 80,
-                    fallbackShell = spec.effectiveDefaultShell,
+                    fallbackShell = spec.defaultShell,
                     loginShell = settings.loginShell,
                 )
             } else {
@@ -113,7 +113,7 @@ object ServerDaemonManager {
                     distroId = distroId,
                     command = ServerSupervisorScript.SCRIPT_PATH,
                     rows = 24, cols = 80,
-                    fallbackShell = spec.effectiveDefaultShell,
+                    fallbackShell = spec.defaultShell,
                     loginShell = settings.loginShell,
                 )
             }

@@ -24,7 +24,7 @@ armv7 (32bit) は M7 同梱方針では生成しません。`build.gradle.kts` �
 
 ## z2root
 
-ソースは `app/src/main/cpp/z2root/z2root.c`。full/foss の両方がこのエンジンだけを使います。
+ソースは `app/src/main/cpp/z2root/z2root.c`。実行エンジンはこれだけです。
 
 ```bash
 bash scripts/build-z2root.sh

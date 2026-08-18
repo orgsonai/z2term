@@ -1000,7 +1000,6 @@ class ProotLauncher(private val context: Context) {
     private fun ensureVersionScript(rootfs: File, engine: String) {
         runCatching {
             val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
-            val flavor = if (BuildConfig.IS_FOSS) "FOSS" else "Full"
             val f = File(dir, "z2version")
             // 値は全てビルド定数 (外部入力なし)。`--short` は版数のみを 1 行で返す (スクリプト用)。
             f.writeText(
@@ -1012,7 +1011,6 @@ class ProotLauncher(private val context: Context) {
                   exit 0
                 fi
                 echo "z2term ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
-                echo "flavor : $flavor"
                 echo "package: ${BuildConfig.APPLICATION_ID}"
                 echo "engine : $engine"
                 echo "rootfs : gen ${DistroBundle.ROOTFS_VERSION}"
@@ -1423,8 +1421,7 @@ class ProotLauncher(private val context: Context) {
 
     /**
      * 実行エンジンのバイナリが配置されているか確認 (起動可否ゲート)。
-     * foss は proot を同梱しないため z2root の有無で判定する。full は proot を見る
-     * (full でも z2root は別経路で使えるが、同梱保証されるのは proot 側)。
+     * proot prebuilt は 0.8.328 で削除したので、z2root の有無だけで判定する。
      */
     fun isEngineAvailable(): Boolean = z2rootBinary.exists()
 

@@ -1,13 +1,12 @@
 # F-Droid metadata (fdroiddata へ提出する内容の控え)。
 #
-# ⚠ ファイル名は **foss フレーバーの applicationId** に合わせてある。
-#    foss は build.gradle.kts で applicationIdSuffix = ".foss" が付くため、
-#    実際にインストールされる ID は com.zerotoship.z2term.foss になる
-#    (full と同居させるための設計)。F-Droid は metadata のファイル名と
-#    applicationId の一致を要求するので、full 側の ID では登録できない。
+# ⚠ ファイル名は applicationId と一致させること (F-Droid の要求)。
+#    0.8.359 で full フレーバーを廃止し、配布は 1 種類だけになった。
+#    以前は foss に applicationIdSuffix = ".foss" が付いていて
+#    (full と同居させるための設計) ファイル名も .foss 付きだったが、
+#    同居する相手が無くなったのでサフィックスごと外してある。
 #
-# F-DroidへはapplicationIdが固定されたfossフレーバーを申請する。
-# full/fossともz2root/z2acceptをソースからビルドし、rootfsは実行時取得する。
+# z2root / z2accept はソースからビルドし、rootfs は実行時取得する。
 
 Categories:
   - System
@@ -63,9 +62,9 @@ Description: |-
   * Built-in help ("z2help") and a self-diagnosis command ("z2doctor") that
     answers "why isn't it working?" with a next step on every NG line.
 
-  No telemetry and no analytics. This FOSS build bundles no third-party
-  prebuilts: the Linux distribution is downloaded from the official CDN on first
-  launch and verified by SHA-256. Everything else works offline.
+  No telemetry and no analytics. This build bundles no third-party prebuilts:
+  the Linux distribution is downloaded from the official CDN on first launch and
+  verified by SHA-256. Everything else works offline.
 
   The 5th project of the Zero to Ship initiative.
 
@@ -73,9 +72,9 @@ RepoType: git
 Repo: https://github.com/orgsonai/z2term
 
 Builds:
-  - versionName: 0.8.293-alpha-foss
-    versionCode: 301
-    commit: v0.8.293-alpha
+  - versionName: 0.8.359-alpha
+    versionCode: 367
+    commit: v0.8.359-alpha
     subdir: app
     # z2root / z2accept は prebuilt を同梱せず、app/src/main/cpp/ のソースから
     # NDK でビルドして jniLibs へ置く (Android 10+ は nativeLibraryDir からの
@@ -85,7 +84,7 @@ Builds:
     ndk: r27c
     prebuild: ANDROID_NDK_HOME=$$NDK$$ bash ../scripts/build-z2root.sh
     gradle:
-      - foss
+      - yes
 
 # ⚠ プログラミングフォント (IBM Plex Mono / JetBrains Mono / Fira Code) は
 #    scripts/fetch-fonts.sh がネットワークから取得するもので git に入っていない。
@@ -95,5 +94,5 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+-alpha$
-CurrentVersion: 0.8.293-alpha-foss
-CurrentVersionCode: 301
+CurrentVersion: 0.8.359-alpha
+CurrentVersionCode: 367

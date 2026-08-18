@@ -51,22 +51,6 @@ docs/*HANDOFF*.md
 # 作業ディレクトリには symlink で置く: ln -s ../99_private/claude/z2term/CLAUDE.md CLAUDE.md
 CLAUDE.md
 
-# rootfs アーカイブ（scripts/build-alpine-rootfs.sh で生成、リポジトリには含めない）
-# full フレーバーは src/full/assets に同梱（foss は実行時 DL のため非同梱）
-app/src/main/assets/alpine-minirootfs-*.tar.gz
-app/src/main/assets/alpine-minirootfs-*.tgz
-app/src/full/assets/alpine-minirootfs-*.tar.gz
-app/src/full/assets/alpine-minirootfs-*.tgz
-
-# proot バイナリ + 依存ライブラリ（scripts/build-proot.sh で取得、含めない）
-# F-Droid 非適合の third-party prebuilt のため full フレーバー専用 src/full/jniLibs に置く。
-app/src/full/jniLibs/arm64-v8a/libproot.so
-app/src/full/jniLibs/arm64-v8a/libproot_loader.so
-app/src/full/jniLibs/arm64-v8a/libtalloc.so
-app/src/full/jniLibs/arm64-v8a/libandroid-shmem.so
-app/src/full/jniLibs/armeabi-v7a/libproot.so
-app/src/full/jniLibs/armeabi-v7a/libproot_loader.so
-
 # z2root 自前エンジン（scripts/build-z2root.sh で生成、含めない）
 app/src/main/jniLibs/arm64-v8a/libz2root.so
 # accept→accept4 LD_PRELOAD シム（scripts/build-z2root.sh で生成、含めない）

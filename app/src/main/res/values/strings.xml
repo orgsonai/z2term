@@ -174,7 +174,6 @@
 
     <!-- App info row labels (D3 batch 1) -->
     <string name="appinfo_version">Version</string>
-    <string name="appinfo_flavor">Flavor</string>
     <string name="appinfo_package">Package</string>
     <string name="appinfo_rootfs_generation">rootfs generation</string>
     <string name="appinfo_distro">Distro</string>
@@ -291,7 +290,6 @@
 
     <!-- OSS component purposes (D3 batch 4) -->
     <string name="oss_purpose_z2term">This app itself (terminal UI, session/SSH/SFTP, settings)</string>
-    <string name="oss_purpose_alpine_bundle">Bundled offline Linux environment and command-line packages (full flavor only)</string>
     <string name="oss_purpose_androidx_compose">UI / lifecycle / DataStore</string>
     <string name="oss_purpose_kotlin_stdlib">Kotlin runtime</string>
     <string name="oss_purpose_jsch">SSH client library</string>
@@ -792,7 +790,7 @@
     <string name="guide_ask_battery_level">Warn me below what battery %</string>
     <string name="guide_ask_qr_text">Text or URL to turn into a QR code</string>
 
-    <!-- Shown when no Linux OS is installed at all (first run of the foss build). -->
+    <!-- Shown when no Linux OS is installed at all (the state every fresh install starts in). -->
     <string name="no_os_title">No Linux OS is installed yet</string>
     <string name="no_os_action">Settings -> Linux environment: pick the OS you want and install it</string>
     <string name="no_os_hint">Any of them is a fine place to start. The terminal stays idle until one is installed (this notice goes away once it is)</string>

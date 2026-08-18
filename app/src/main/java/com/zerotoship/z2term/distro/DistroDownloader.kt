@@ -14,7 +14,7 @@ import java.net.URL
 /**
  * 公式 URL からディストロ rootfs (tar.gz) をダウンロードしてキャッシュへ保存する。
  *
- * FOSS フレーバー (assets に rootfs を含めないビルド) で利用。ダウンロード後は
+ * rootfs は APK に同梱しないので、全ての distro がこの経路を通る。ダウンロード後は
  * [DistroInstaller.install] にこのファイルパスを assets 経由ではなく直接渡せる
  * ように [resolveLocalArchive] で取り出せる。
  *
@@ -127,7 +127,7 @@ class DistroDownloader(private val context: Context) {
     /**
      * spec から実際のダウンロード URL を決定する。
      *  1. 直接 URL (downloadUrlArm64) があればそれ
-     *     (Alpine の foss 実行時 DL もこの固定 URL を使う)
+     *     (Alpine の実行時 DL もこの固定 URL を使う)
      *  2. index URL (indexUrlArm64) があれば、ディレクトリを取得して
      *     最新のタイムスタンプ付きサブディレクトリ + indexFileName を組み立てる
      *     (linuxcontainers の Arch arm64 など)

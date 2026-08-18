@@ -463,8 +463,8 @@ class TerminalSession(
                     writeBanner(banner)
                     _uiState.update { it.copy(state = TerminalState.INSTALLING) }
 
-                    // 全フレーバー共通で、rootfsアーカイブが未取得なら先にダウンロードする。
-                    if (!spec.effectivelyBundled && downloader.resolveLocalArchive(spec, detectAbiId()) == null) {
+                    // rootfs アーカイブが未取得なら先にダウンロードする。
+                    if (downloader.resolveLocalArchive(spec, detectAbiId()) == null) {
                         val dlError = downloadDistroArchive(spec)
                         if (dlError != null) {
                             writeBanner(appContext.getString(R.string.banner_download_failed, spec.displayName, dlError.message))
@@ -499,8 +499,8 @@ class TerminalSession(
                 writeBanner(appContext.getString(R.string.banner_distro_starting, spec.displayName))
 
                 val (rows, cols) = currentSize()
-                val shell = settingsFlow.value.loginShell.ifBlank { spec.effectiveDefaultShell }
-                // launcher 側で、指定シェルが rootfs に無ければ spec.effectiveDefaultShell → /bin/sh に
+                val shell = settingsFlow.value.loginShell.ifBlank { spec.defaultShell }
+                // launcher 側で、指定シェルが rootfs に無ければ spec.defaultShell → /bin/sh に
                 // フォールバックする (Ubuntu base に zsh が無い、等のケース)。
                 // P3 (CUI⇄GUI 連動): このタブの display 番号を proot env に渡す。
                 // exportDisplay=true で `DISPLAY=:N` も付与され、端末内 `z2run <gui-app>` が同じ
@@ -518,7 +518,7 @@ class TerminalSession(
                             command = shell,
                             rows = rows,
                             cols = cols,
-                            fallbackShell = spec.effectiveDefaultShell,
+                            fallbackShell = spec.defaultShell,
                             loginShell = shell,
                             display = display,
                         )
@@ -536,7 +536,7 @@ class TerminalSession(
                             command = shell,
                             rows = rows,
                             cols = cols,
-                            fallbackShell = spec.effectiveDefaultShell,
+                            fallbackShell = spec.defaultShell,
                             loginShell = shell,
                             display = display,
                             exportDisplay = true,
@@ -549,7 +549,7 @@ class TerminalSession(
                         command = shell,
                         rows = rows,
                         cols = cols,
-                        fallbackShell = spec.effectiveDefaultShell,
+                        fallbackShell = spec.defaultShell,
                         loginShell = shell,
                         display = display,
                         exportDisplay = true,
@@ -618,12 +618,11 @@ class TerminalSession(
         val spec = pendingRestoreDistroId?.let { DistroSpec.byId(it) }
             ?: DistroSpec.byId(persisted.distroId)
             ?: DistroSpec.ALPINE
-        // 入れる必要が無い (同梱 / 展開済み / アーカイブ取得済み) ならそのまま起動。
-        if (spec.effectivelyBundled) return StartupPlan.Start
+        // 入れる必要が無い (展開済み / アーカイブ取得済み) ならそのまま起動。
         if (launcher.isDistroReady(spec.id)) return StartupPlan.Start
         if (downloader.resolveLocalArchive(spec, detectAbiId()) != null) return StartupPlan.Start
         // ⚠ **OS が 1 つも無いときは、確認 ON/OFF に関わらず勝手に入れない。** どれから始めるかは
-        // 利用者が選ぶこと (foss の初回起動で既定の 1 本を押し付けない)。
+        // 利用者が選ぶこと (初回起動で既定の 1 本を押し付けない)。
         if (!launcher.hasAnyDistro()) return StartupPlan.NeedOsInstall
         if (!persisted.confirmBeforeDownload) return StartupPlan.Start
         return StartupPlan.ConfirmDownload(spec)
@@ -660,7 +659,7 @@ class TerminalSession(
         // 大物・低速回線でも最後まで待ち、途中打ち切りで最初からやり直す無駄をなくす。
         // 中断したいときは端末リセット (設定 → 端末リセット) でやり直せる。
         withContext(Dispatchers.IO) {
-            // 固定 URL の distro (foss Alpine) は SHA-256 を検証する。index 解決の
+            // 固定 URL の distro (Alpine) は SHA-256 を検証する。index 解決の
             // distro は spec.sha256 が null なので従来どおり HTTPS のみ。
             downloader.download(spec, abi, expectedSha256 = spec.sha256(abi), readTimeoutMs = 0).collect { p ->
                 when (p) {

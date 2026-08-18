@@ -744,7 +744,7 @@ class AppSettings(private val context: Context) {
         /** 補助キーバーは既定 ON (従来どおり OS キーボードの上に表示)。 */
         const val DEFAULT_SPECIAL_KEY_BAR = true
 
-        /** 実行エンジン: 非 root の自前 ptrace エンジン z2root (既定エンジン。foss/full 共通で常用) */
+        /** 実行エンジン: 非 root の自前 ptrace エンジン z2root (既定エンジン) */
         const val ENGINE_Z2ROOT = "z2root"
         /** 実行エンジン: root で実 chroot (裏機能・要解放) */
         const val ENGINE_CHROOT = "chroot"

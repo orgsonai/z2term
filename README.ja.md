@@ -53,15 +53,15 @@ Z2Term の存在理由は上の表の**2・3・4 行目**です。
 
 - 最新版に飛ぶ: **<https://github.com/orgsonai/z2term/releases/latest>**
 
-各リリースには APK が 2 つ付きます。
+各リリースに付く APK は `z2term-<版数>.apk` の 1 つだけです（約 21MB）。
 
-| ファイル | 中身 | 選び方 |
-|---|---|---|
-| `app-foss-release.apk` | z2root 単独版 | **おすすめ。** 初回は ⚙設定 › Linux環境 から使いたい OS を選んで取得します。 |
-| `app-full-release.apk` | foss と同じ payload | 既存の full 利用者が同じ package ID のまま更新するために残しています。 |
+OS も第三者 prebuilt も同梱していないので、初回は ⚙設定 › Linux環境 から使いたい OS を選んで
+取得します（0.8.314。公式配布元から取得して SHA-256 で検証。更新のたびに取り直すことはありません）。
+おかげで更新も毎回約 21MB で済みます。
 
-0.8.328 以降は両方ともコード・native library・assets・機能が同じです。違いは package ID と版名の
-`-foss` 接尾辞だけです。OS はどちらも初回に公式配布元から取得します。
+⚠ **0.8.358 までは Alpine を同梱した約 190MB の APK（`full`）も配っていましたが、0.8.359 で
+やめました。** 初回のダウンロードが省ける以外の違いが無いのに、どちらを落とすか迷わせるだけだった
+ためです。`full` を使っている場合は、この APK がそのまま上書き更新になります（package ID は同じ）。
 
 Android 端末で APK をタップ → 「提供元不明のアプリ」のインストールを許可するとインストールできます。
 （Google Play では配布していません）
@@ -76,11 +76,11 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 - **手動** — Releases から新しい APK を落としてタップ（上書きインストールされ、データは残ります）。
 - **自動** — [Obtainium](https://github.com/ImranR98/Obtainium) に
   `https://github.com/orgsonai/z2term` を登録します。Releases を監視し、新版が出ると**ワンタップで更新**（ストア不要）。
-  おすすめの `foss` を選んでいれば、その更新は毎回わずか約 21MB です。
+  その更新は毎回わずか約 21MB です。
 
 ## 現在のバージョン
 
-**0.8.358-alpha (versionCode 366).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.359-alpha (versionCode 367).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 
@@ -106,7 +106,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 - **はじめの 3 枚** — 初回だけ小さなカードが 3 枚出ます（通知を出す／ライトを点ける／PC からつなぐ）。タップすると**入力欄に入るだけで、勝手には実行しません**。触ったら消え、二度と出ません。
 - **共有からの受け取り** — 他アプリの「共有」で z2term を選ぶと、テキストはそのまま、ファイルは `~/z2term-inbox/` に取り込んでパスを、端末の入力行に**入れるだけ**（実行はしない）。
 - **ツールバーの整理** — 出すボタンを設定で選べる（⚙ 設定は常に右端固定）。長押しドラッグで並べ替え。
-- **FOSS フレーバー（おすすめの配布物）** — 第三者 prebuilt を一切同梱せず（約 21MB）、初回起動時にディストロを DL して SHA-256 で検証。
+- **同梱物なし・APK は 1 つだけ** — 第三者 prebuilt を一切同梱せず（約 21MB）、初回起動時にディストロを DL して SHA-256 で検証。
 
 ### 未対応 / 今後の検討
 
@@ -145,18 +145,15 @@ bash scripts/build-bundle.sh
 1. `build-z2root.sh` → `libz2root.so` / `libz2accept.so`（NDK が必要）
 2. `fetch-fonts.sh` → `IBMPlexMono` / `JetBrainsMono` / `FiraCode` の `-Regular.ttf`
 
-最後の点検で共通同梱物の `OK` / `MISS` を表示します。rootfsは両フレーバーとも実行時取得です。
+最後の点検で同梱物の `OK` / `MISS` を表示します。rootfs は実行時取得なのでビルド入力ではありません。
 
 同梱物ごとの詳細: [app/src/main/assets/README.md](app/src/main/assets/README.md) · [app/src/main/jniLibs/README.md](app/src/main/jniLibs/README.md)
 
 ### 2. ビルド
 
 ```bash
-./gradlew assembleFossRelease
-# 出力: app/build/outputs/apk/foss/release/app-foss-release.apk
-
-./gradlew assembleFullRelease
-# 出力: app/build/outputs/apk/full/release/app-full-release.apk
+./gradlew assembleRelease
+# 出力: app/build/outputs/apk/release/app-release.apk
 ```
 
 (fork 側で署名鍵が無くても OK — `build.gradle.kts` は `keystore.properties` 不在時 debug 鍵にフォールバックします)
@@ -164,7 +161,7 @@ bash scripts/build-bundle.sh
 ### 3. インストール
 
 ```bash
-adb install -r app/build/outputs/apk/foss/release/app-foss-release.apk
+adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
 ## プロジェクト構造
@@ -215,29 +212,28 @@ z2term/
 │   ├── RELEASE.md                 ← リリース手順
 │   └── SSH-INTO-Z2TERM.md
 ├── metadata/                     ← F-Droid メタデータ
-└── .github/workflows/build.yml   ← CI (full + foss 両ビルド)
+└── .github/workflows/build.yml   ← CI (ビルド・lint・テスト・署名済み release APK)
 ```
 
 ## ビルドバリアント
 
-| Flavor | 用途 | 同梱内容 |
-|---|---|---|
-| `foss` | **配布の既定（おすすめ）** | z2root。rootfs は初回取得 |
-| `full` | 既存 full 利用者の更新互換 | foss と同じ payload。rootfs は初回取得 |
+違いは build type だけです。配布フレーバー（`full` / `foss`）は 0.8.359 で廃止しました
+（全員が同じ 1 本を使い、rootfs は常に実行時取得）。
 
-`applicationId` は `foss` だけ `.foss` が付く（`com.zerotoship.z2term.foss`）ので、両方を同時に入れられます。
-⚠ **ランチャーの表示名はどちらも「Z2Term」**です（0.8.315。名前に配布形態を出さない方針）。両方入れたときは
-名前で見分けが付かないので、`z2version` かアプリ情報の版数（`foss` は末尾が `-foss`）で判別してください。
-debug ビルドだけは別名（`Z2Term dbg2`）のままです。
+| Build type | applicationId | ランチャー表示名 |
+|---|---|---|
+| `release` | `com.zerotoship.z2term` | `Z2Term` |
+| `debug` | `com.zerotoship.z2term.debug2` | `Z2Term dbg2` |
+
+接尾辞のおかげで debug を release の隣に入れられ、名前で見分けが付きます。
 
 ```bash
-./gradlew assembleFossDebug
-./gradlew assembleFullDebug   # applicationId以外は同じpayload
+./gradlew assembleDebug
 ```
 
 ## 動作確認の流れ
 
-1. どちらかのフレーバーをビルド・インストールし、OSを選んで初回取得を完了する。
+1. ビルド・インストールし、OSを選んで初回取得を完了する。
 2. `z2version` が `engine : z2root` を示すことと、各パッケージマネージャーの動作を確認する。
 
 ### z2root コマンド群テスト（`scripts/z2root-cmdtest.sh`）
@@ -289,11 +285,11 @@ Copyright (c) 2026 Zero to Ship。対応ソース（GPL v3 §6）: <https://gith
 
 ## 配布方針
 
-| チャネル | フレーバー | 状況 |
-|---|---|---|
-| **GitHub Releases / 直接 APK 配布** | `foss`（**おすすめ**）/ `full` | 主たる配布経路。fullはAlpine rootfs同梱、fossは初回取得 |
-| **F-Droid** | `foss` | rootfs実行時取得・エンジンはソースビルド |
-| **Google Play** | — | 配布予定なし |
+| チャネル | 状況 |
+|---|---|
+| **GitHub Releases / 直接 APK 配布** | 主たる配布経路。1 リリースにつき APK 1 つ |
+| **F-Droid** | rootfs実行時取得・エンジンはソースビルド |
+| **Google Play** | 配布予定なし |
 
 ## SSH サーバ (sshd) の既定挙動
 

@@ -172,7 +172,6 @@
 
     <!-- アプリ情報セクションの行ラベル (D3 バッチ 1) -->
     <string name="appinfo_version">バージョン</string>
-    <string name="appinfo_flavor">フレーバー</string>
     <string name="appinfo_package">パッケージ</string>
     <string name="appinfo_rootfs_generation">rootfs 世代</string>
     <string name="appinfo_distro">ディストロ</string>
@@ -289,7 +288,6 @@
 
     <!-- OSS コンポーネント用途 (D3 バッチ 4) -->
     <string name="oss_purpose_z2term">本アプリ本体（ターミナル UI・セッション/SSH/SFTP・設定）</string>
-    <string name="oss_purpose_alpine_bundle">オフライン利用向けLinux環境・コマンド群（full版のみ同梱）</string>
     <string name="oss_purpose_androidx_compose">UI / ライフサイクル / DataStore</string>
     <string name="oss_purpose_kotlin_stdlib">Kotlin ランタイム</string>
     <string name="oss_purpose_jsch">SSH クライアントライブラリ</string>
@@ -779,7 +777,7 @@
     <string name="guide_ask_battery_level">電池が何 % を切ったら知らせるか</string>
     <string name="guide_ask_qr_text">QR にしたい文字列や URL</string>
 
-    <!-- OS が 1 つも入っていないときの案内 (foss の初回など)。 -->
+    <!-- OS が 1 つも入っていないときの案内 (新規インストール直後は全員この状態)。 -->
     <string name="no_os_title">Linux の OS がまだ入っていません</string>
     <string name="no_os_action">⚙設定 → Linux環境 から、使いたい OS を選んで入れる</string>
     <string name="no_os_hint">どれから始めても構いません。入れるまで端末は動きません（入れるとこの案内は出なくなります）</string>

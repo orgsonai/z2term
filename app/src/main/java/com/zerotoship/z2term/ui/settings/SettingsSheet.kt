@@ -742,9 +742,8 @@ fun SettingsSheet(
                                 konsoleConflict = "distro"
                             } else if (distroCleanArmed && spec != null) {
                                 // クリーンインストール: rootfs + DL キャッシュを消して入れ直す。
-                                // 非同梱 distro は再 DL が走るので確認 ON なら先にダイアログ
-                                // 全フレーバーでrootfsは実行時DL対象。
-                                if (!spec.effectivelyBundled && settings.confirmBeforeDownload) {
+                                // 必ず再 DL が走るので、確認 ON なら先にダイアログを出す。
+                                if (settings.confirmBeforeDownload) {
                                     pendingDistroSwitch = spec
                                     pendingCleanInstall = true
                                 } else {
@@ -756,15 +755,13 @@ fun SettingsSheet(
                                 val extracted = java.io.File(
                                     context.filesDir, "distros/$id/bin"
                                 ).exists()
-                                // 非同梱 distro が未展開なら初回切替でネットから DL が走る
-                                // 全フレーバーでrootfsは実行時DL対象。
-                                val needsDownload = spec != null && !spec.effectivelyBundled && !extracted
+                                // 未展開なら初回切替でネットから DL が走る。
+                                val needsDownload = spec != null && !extracted
                                 // ⚠ **既に選ばれている OS でも、入っていなければ押せる** (0.8.314)。
-                                // foss の初回は既定 (Alpine) が選択済みなのに未導入という状態から
+                                // 初回は既定 (Alpine) が選択済みなのに未導入という状態から
                                 // 始まるので、`id != 選択中` で弾くと**その OS だけ入れられなかった**
                                 // (自動ダウンロードの催促をやめた分、ここが唯一の入口になる)。
-                                val alreadyUsable =
-                                    id == settings.distroId && (extracted || spec?.effectivelyBundled == true)
+                                val alreadyUsable = id == settings.distroId && extracted
                                 if (alreadyUsable) {
                                     // 選択中でそのまま使える: 何もしない。
                                 } else if (needsDownload && settings.confirmBeforeDownload) {
@@ -772,7 +769,7 @@ fun SettingsSheet(
                                     pendingCleanInstall = false
                                 } else {
                                     // 切替を保存して override 付きで再起動 (settingsFlow 反映待ちの
-                                    // race を回避)。同梱/展開済みなら DL は走らない。
+                                    // race を回避)。展開済みなら DL は走らない。
                                     session.switchDistro(id)
                                     onDismiss()
                                 }
@@ -1989,7 +1986,6 @@ private fun AppInfoSection(
             // クールダウン中は onClick=null で行を非タップ化 (ripple も出ない＝押せないことが分かる)。
             onClick = if (inCooldown) null else versionClick
         )
-        InfoRow(stringResource(R.string.appinfo_flavor), if (BuildConfig.IS_FOSS) "FOSS" else "Full")
         InfoRow(stringResource(R.string.appinfo_package), BuildConfig.APPLICATION_ID)
         InfoRow(stringResource(R.string.appinfo_rootfs_generation), DistroBundle.ROOTFS_VERSION.toString())
         InfoRow(stringResource(R.string.appinfo_distro), osPretty ?: distroId)

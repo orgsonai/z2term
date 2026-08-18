@@ -1,6 +1,6 @@
 # Z2Term assets
 
-`full` / `foss` 共通のアセットを配置します。Linux rootfs はAPKへ同梱せず、
+APK に同梱するアセットを配置します。Linux rootfs はAPKへ同梱せず、
 選択したOSの公式配布物を初回起動時にダウンロードします。
 
 ## 自動生成

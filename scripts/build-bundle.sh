@@ -72,5 +72,5 @@ fi
 
 echo "=== [done] git 管理外の同梱物が全て揃いました ==="
 echo "次のステップ:"
-echo "  ./gradlew :app:assembleFossDebug"
-echo "  adb install -r app/build/outputs/apk/foss/debug/app-foss-debug.apk"
+echo "  ./gradlew :app:assembleDebug"
+echo "  adb install -r app/build/outputs/apk/debug/app-debug.apk"

@@ -38,28 +38,10 @@ android {
         }
     }
 
-    flavorDimensions += "distribution"
-    productFlavors {
-        create("full") {
-            dimension = "distribution"
-            buildConfigField("boolean", "IS_FOSS", "false")
-        }
-        create("foss") {
-            dimension = "distribution"
-            applicationIdSuffix = ".foss"
-            versionNameSuffix = "-foss"
-            buildConfigField("boolean", "IS_FOSS", "true")
-            // ⚠ **ランチャー表示名は full と同じ "Z2Term"** (0.8.315・利用者の判断)。
-            // 0.8.314 までは release を "Z2Term FOSS" にして見分けられるようにしていたが、
-            // **名前に配布形態が出るのは見た目が悪い**。両方入れたときは見分けが付かなくなるが、
-            // 見分けたいのは開発中の debug だけなので実害が無い (debug は buildType が
-            // "Z2Term dbg2" に上書きする。placeholder の優先順位は buildType > flavor)。
-            // どちらのビルドかは `z2version` / アプリ情報で分かる (versionName の `-foss`)。
-        }
-    }
-
-    // 実行エンジン z2root は共通。full のみ src/full/assets の Alpine rootfs を同梱し、
-    // foss は rootfs を初回取得する（標準 source set 分離を利用）。
+    // 配布は 1 種類だけ (0.8.359)。以前は full (Alpine rootfs を APK 同梱) と
+    // foss (実行時取得) の 2 フレーバーに分けていたが、full は初回ダウンロードが省ける以外の
+    // 価値が無く、利用者に「どちらを入れるのか」を選ばせるだけだったので廃止した。
+    // 実行エンジン z2root もディストロも全ビルド共通で、rootfs は初回に公式 CDN から取得する。
 
     // local.properties に ndk.version があればそれを使う (環境ごとに切替)。
     // 無ければ設定せず AGP 既定 NDK に任せる (= PC では普段どおり)。
@@ -71,8 +53,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 366
-        versionName = "0.8.358-alpha"
+        versionCode = 367
+        versionName = "0.8.359-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -162,7 +144,7 @@ android {
             // 既定は **物理メモリの 1/4** なので、メモリの少ない端末では Gradle
             // デーモンの隣に 2GB 近い JVM がもう 1 本立ち、OS 側のメモリ回収に
             // 巻き込まれて **テストが無言で固まる**（オンデバイス開発で実際に踏んだ。
-            // コンパイルは通るのに testFullDebugUnitTest だけが進まなくなる）。
+            // コンパイルは通るのに testDebugUnitTest だけが進まなくなる）。
             // ここのテストは Android に触れない純ロジックなので 512MB で足りる。
             all { it.maxHeapSize = "512m" }
         }
@@ -230,9 +212,9 @@ val buildZ2rootNative = tasks.register<Exec>("buildZ2rootNative") {
     commandLine("bash", script.absolutePath)
 }
 
-// 全フレーバーの jniLibs マージ前に必ず z2root を再ビルドさせる(stale .so 同梱を構造的に防ぐ)。
-// z2root/z2accept は src/main/jniLibs に出力し full/foss 共通で同梱される(ソースビルドのため
-// F-Droid 適合)。foss の実行エンジンは proot ではなくこの z2root。
+// jniLibs マージ前に必ず z2root を再ビルドさせる(stale .so 同梱を構造的に防ぐ)。
+// z2root/z2accept は src/main/jniLibs に出力する(ソースビルドのため F-Droid 適合)。
+// 実行エンジンはこの z2root だけで、proot prebuilt は 0.8.328 で削除済み。
 tasks.matching {
     it.name.startsWith("merge") && it.name.endsWith("JniLibFolders")
 }.configureEach { dependsOn(buildZ2rootNative) }
@@ -253,7 +235,7 @@ val allowMissingBundled: Boolean =
     (project.findProperty("allowMissingBundledAssets") as String?)?.toBoolean() ?: false
 val repoRootDir: File = rootProject.projectDir
 
-// fonts は full / foss 共通(src/main/assets/fonts)。両フレーバーで検査する。
+// fonts は src/main/assets/fonts に置く。
 val verifyBundledFonts = tasks.register("verifyBundledFonts") {
     group = "verification"
     description = "プログラミングフォント(scripts/fetch-fonts.sh)の同梱漏れを検査"
@@ -276,28 +258,10 @@ val verifyBundledFonts = tasks.register("verifyBundledFonts") {
     }
 }
 
-val verifyFullBundledRootfs = tasks.register("verifyFullBundledRootfs") {
-    group = "verification"
-    description = "full フレーバーの Alpine rootfs 同梱漏れを検査"
-    val rootfs = File(repoRootDir, "app/src/full/assets/alpine-minirootfs-aarch64.tgz")
-    val allow = allowMissingBundled
-    doLast {
-        if (!rootfs.isFile || rootfs.length() == 0L) {
-            val msg = "\n[full rootfs] ${rootfs.path} がありません。" +
-                "\n  → bash scripts/build-alpine-rootfs.sh を実行してください。"
-            if (allow) println("WARNING:$msg") else throw GradleException(msg)
-        }
-    }
-}
-
-// fonts は全フレーバーの assets マージ前に検査。
+// fonts は assets マージ前に検査。
 tasks.matching {
     it.name.startsWith("merge") && it.name.endsWith("Assets")
 }.configureEach { dependsOn(verifyBundledFonts) }
-
-tasks.matching {
-    it.name.startsWith("merge") && it.name.contains("Full") && it.name.endsWith("Assets")
-}.configureEach { dependsOn(verifyFullBundledRootfs) }
 
 kotlin {
     compilerOptions {

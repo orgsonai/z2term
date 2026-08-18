@@ -1,9 +1,9 @@
 package com.zerotoship.z2term.distro
 
 /**
- * 同梱 rootfs の世代 / メタ情報。
+ * rootfs の世代 / メタ情報。
  *
- * APK ビルド時の rootfs (assets 配下の tgz) の中身が変わるたびに
+ * 展開後の初期設定 ([DistroInstaller] の postInstallSetup) が変わるたびに
  * [ROOTFS_VERSION] を +1 する。インストール時にこの値を
  * rootfs 直下の `.z2term-version` に書き込み、起動時に
  * [com.zerotoship.z2term.proot.ProotLauncher.isDistroReady] が比較する。
@@ -29,6 +29,6 @@ object DistroBundle {
     /** rootfs に書き込む version マーカーファイル名 (rootfs 直下) */
     const val VERSION_MARKER = ".z2term-version"
 
-    /** APK に同梱されている distro の id。これだけ ROOTFS_VERSION 比較の対象。 */
+    /** 既定の distro の id。これだけ ROOTFS_VERSION 比較の対象。 */
     const val BUNDLED_DISTRO_ID = "alpine"
 }

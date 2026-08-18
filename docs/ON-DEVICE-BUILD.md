@@ -1,7 +1,7 @@
 # スマホの z2term で Android アプリをビルドする (PRoot ビルド環境ガイド)
 
 最終更新: 2026-06-02 / 対象 z2term version: 0.8.4-alpha (12) 以降
-状態: **実機検証済み**（moto g66j / 非 root / proot で z2term 自身を `assembleFullDebug` →
+状態: **実機検証済み**（moto g66j / 非 root / proot で z2term 自身を `assembleDebug` →
 `BUILD SUCCESSFUL` を確認）
 
 スマホの z2term（PRoot 内 Arch Linux ARM64）で **任意の Android / Gradle プロジェクト**を
@@ -242,13 +242,12 @@ cd /root && git clone https://github.com/orgsonai/z2term.git && cd z2term
 printf 'sdk.dir=/root/android-sdk\nndk.version=29.0.14206865\n' > local.properties
 rm -rf app/.cxx app/build/intermediates/cxx
 sh ./gradlew --stop
-sh ./gradlew assembleFullDebug
-# → app/build/outputs/apk/full/debug/app-full-debug.apk
+sh ./gradlew assembleDebug
+# → app/build/outputs/apk/debug/app-debug.apk
 ```
 
 - 「Android ホスト bind」トグルの実装: `ProotLauncher.kt`（proot `-b /system -b /apex` /
   chroot `mount --bind`）、`AppSettings.kt`、`SettingsSheet.kt`
-- foss フレーバーは jniLibs/assets の物理移動が前提（`app/build.gradle.kts` のコメント参照）
 - PC ビルドの通常手順: `docs/RELEASE.md`
 
 ---
