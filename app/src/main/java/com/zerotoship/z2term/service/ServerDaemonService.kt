@@ -29,7 +29,13 @@ import kotlinx.coroutines.runBlocking
  * - [ACTION_START]: [ServerDaemonManager.start] で supervisor を起動し前面化。対象サーバーが
  *   無ければ即 stopSelf。
  * - [ACTION_STOP]: [ServerDaemonManager.stop] で全サーバー停止 → 前面解除 → stopSelf。
- * - 画面消灯中でも LAN から到達できるよう WakeLock + WifiLock を保持 (sshd 等と同じ理由)。
+ * - 画面消灯中でも CPU を止められないよう WakeLock を保持 (sshd 等と同じ理由)。
+ *
+ * ⚠⚠ **画面消灯中の「LAN から到達できる」は、このサービスのロックでは保証できない (0.8.367 に
+ * 実測で確定)。** WakeLock は効いていて CPU も FGS も生きているのに、**端末が何も送信しない間は
+ * 無線チップが省電力へ入り、他機からの ARP を取りこぼして LAN 上から消える** (実測で 37% の時間)。
+ * WifiLock も助けにならない ([acquireLocks] のコメント参照)。**端末側から定期的に喋ることだけが
+ * 効く** ので、根治は常駐トンネルの keepalive ([TunnelManager.KEEPALIVE_MS]) が担う。
  */
 class ServerDaemonService : Service() {
 
@@ -196,6 +202,15 @@ class ServerDaemonService : Service() {
                 acquire(MAX_WAKELOCK_MILLIS)
             }
         }
+        // ⚠ **WifiLock は今の Android では画面消灯中の到達性に効かない (0.8.367 に裏取り)。**
+        //  - `WIFI_MODE_FULL_HIGH_PERF` は非機能化していて `WIFI_MODE_FULL_LOW_LATENCY` に
+        //    読み替えられる。
+        //  - その `WIFI_MODE_FULL_LOW_LATENCY` は「AP に接続中」「**画面が点いている**」
+        //    「**アプリが前面**」が揃ったときだけ有効 = 常駐サービスの用途では常に無効。
+        // ⛔ **だから `WIFI_MODE_FULL_LOW_LATENCY` へ変えても直らない** (むしろ画面 ON + 前面の
+        //    ときだけ電力を食う方へ倒れる)。minSdk 29 の古い端末では HIGH_PERF がまだ効く可能性が
+        //    あるので握るのはやめないが、**これを到達性の担保として数えない**。
+        //    根治は端末側から定期的に喋ること = [TunnelManager.KEEPALIVE_MS]。
         if (wifiLock?.isHeld != true) {
             val wm = applicationContext.getSystemService(WIFI_SERVICE) as? WifiManager
             @Suppress("DEPRECATION")

@@ -213,6 +213,9 @@
     <string name="ssh_resident_tunnel">Keep this tunnel running</string>
     <string name="ssh_resident_tunnel_desc">Forwards stay alive even after the SSH tab is closed (runs alongside resident servers). The host key must already be trusted — connect once from the SSH tab first.</string>
     <string name="ssh_resident_tunnel_reverse_desc">⚠ Includes a -R forward: while this runs, the remote side can reach into this device. Forwards stay alive after the SSH tab is closed. The host key must already be trusted.</string>
+    <!-- 常駐トンネル (A2) の生死表示。0.8.367: LAN 到達性の担保になったので「張れているか」が見えないと困る。 -->
+    <string name="ssh_tunnel_stopped">tunnel not running</string>
+    <string name="ssh_tunnel_retry">retry %1$d</string>
     <string name="ssh_forward_local_desc">bring a remote service here</string>
     <string name="ssh_forward_reverse_desc">let the remote reach this device</string>
     <string name="history_search_hint">filter (space-separated words)</string>

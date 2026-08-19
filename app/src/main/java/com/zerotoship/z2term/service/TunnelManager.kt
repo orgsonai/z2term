@@ -4,9 +4,11 @@ import android.content.Context
 import android.util.Log
 import com.jcraft.jsch.Session
 import com.zerotoship.z2term.channel.KnownHostsHolder
+import com.zerotoship.z2term.channel.PortForward
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.channel.SshProfileStore
 import com.zerotoship.z2term.channel.SshSessionFactory
+import com.zerotoship.z2term.settings.AppSettings
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.ConcurrentHashMap
@@ -40,6 +42,50 @@ object TunnelManager {
 
     /** 再接続の待ち時間の上限 (5 分)。 */
     internal const val BACKOFF_MAX_MS = 300_000L
+
+    /**
+     * ⭐ **keepalive の間隔 (0.8.367)。この値には実測の裏付けがある。**
+     *
+     * 常駐トンネルは繋いだあと何も流さない状態になりうる。SSH は黙っていても切れないので一見
+     * それで良いのだが、**端末が黙ると無線チップが省電力へ入り、同じ LAN の他機から見えなく
+     * なる**（ARP はブロードキャストなので、省電力に入った子機が取りこぼす）。CPU は起きていて
+     * FGS も WakeLock も効いているのに、電波だけが消える。
+     *
+     * 実測 (画面消灯・充電中・Wi-Fi・常駐サーバー稼働中):
+     *
+     * | 端末側の送信 | 期間 | 他機から届かなかった率 |
+     * |---|---|---|
+     * | 無し (黙っている) | 9 分 | **37%** |
+     * | 10 秒ごとに外へ 1 本 | 19 分 | **1%** |
+     *
+     * ⚠ **[ServerDaemonService] の WifiLock では直せない。** `WIFI_MODE_FULL_HIGH_PERF` は
+     * 非機能化して `WIFI_MODE_FULL_LOW_LATENCY` に読み替えられ、そちらは**画面が点いていて
+     * アプリが前面のときだけ**効く（＝この用途では常に無効）。
+     * **端末側から定期的に喋ることだけが効く。**
+     */
+    internal const val KEEPALIVE_MS = 10_000
+
+    /**
+     * 省電力モード ([AppSettings.serversLowPower]) のときの keepalive 間隔。
+     *
+     * 省電力 ON は「電池優先・到達性は落ちてよい」という意思表示なので、切れていないかを見る
+     * ためだけの間隔まで広げる。**この間隔では [KEEPALIVE_MS] の「消えなくなる」効果は
+     * 期待できない。**
+     */
+    internal const val KEEPALIVE_LOW_POWER_MS = 60_000
+
+    /** 何回続けて返事が無ければ切れたとみなすか。[KEEPALIVE_MS] × これが切断検知にかかる時間。 */
+    internal const val KEEPALIVE_COUNT_MAX = 3
+
+    /**
+     * 張れなかった転送を張り直しに行く間隔。
+     *
+     * ⚠ **`-R` は繋ぎ直した直後の 1 回が失敗しうる。** 端末側が落ちても接続先の sshd は
+     * しばらく待ち受けポートを握ったままなので、`setPortForwardingR` が「そのポートは使用中」
+     * で弾かれる。ここで諦めると**繋がっているのに転送だけ死んだ**状態が固定してしまうため、
+     * セッションは畳まずに張り直しへ回す（畳むと生きている他の転送まで巻き添えになる）。
+     */
+    private const val FORWARD_RETRY_MS = 30_000L
 
     /** トンネル 1 本の状態。UI と通知に出す。 */
     data class Status(
@@ -80,6 +126,19 @@ object TunnelManager {
         }
         return ms.coerceAtMost(BACKOFF_MAX_MS)
     }
+
+    /** keepalive の間隔 (ミリ秒)。省電力モードでは広げる。 */
+    internal fun keepAliveMs(lowPower: Boolean): Int =
+        if (lowPower) KEEPALIVE_LOW_POWER_MS else KEEPALIVE_MS
+
+    /**
+     * 状態に出す 1 行。**張れなかった転送には `✗` を付ける**ので、繋がってはいるが転送だけ
+     * 死んでいる状態が一覧で分かる ([FORWARD_RETRY_MS] ごとに張り直しに行く)。
+     */
+    internal fun detailOf(forwards: List<PortForward>, pending: List<PortForward>): String =
+        forwards.joinToString(" / ") { f ->
+            if (pending.contains(f)) "✗ ${f.describe()}" else f.describe()
+        }
 
     /**
      * 常駐対象のプロファイルを読み直して、トンネルを張り直す。
@@ -137,15 +196,40 @@ object TunnelManager {
             while (!worker.stop) {
                 try {
                     val session = SshSessionFactory.create(profile, context)
+                    // ⭐ keepalive。**繋ぐ前に**入れること (JSch は接続の最後にこの値をソケットの
+                    // 読み取りタイムアウトへ写し、時間切れのたびに keepalive を 1 本送る)。
+                    // 省電力モードは接続のたびに読み直す (常駐中に切り替えられても次で効く)。
+                    val interval = keepAliveMs(lowPowerNow(context))
+                    session.serverAliveInterval = interval
+                    session.serverAliveCountMax = KEEPALIVE_COUNT_MAX
                     session.connect(CONNECT_TIMEOUT_MS)
                     worker.session = session
-                    val detail = applyForwards(session, profile)
                     retries = 0
-                    statuses[profile.id] = Status(profile.id, profile.name, true, detail, 0)
-                    Log.i(TAG, "tunnel up: ${profile.name} ($detail)")
+
+                    // 張れなかったものは捨てずに持っておき、繋がったまま張り直す。
+                    var pending = applyForwards(session, profile.forwards)
+                    statuses[profile.id] = Status(
+                        profile.id, profile.name, true, detailOf(profile.forwards, pending), 0
+                    )
+                    Log.i(TAG, "tunnel up: ${profile.name} (keepalive ${interval}ms)")
 
                     // 生きている間は待つだけ。転送は JSch 側のスレッドが捌く。
-                    while (!worker.stop && session.isConnected) Thread.sleep(POLL_MS)
+                    var sinceForwardRetry = 0L
+                    while (!worker.stop && session.isConnected) {
+                        Thread.sleep(POLL_MS)
+                        if (pending.isEmpty()) continue
+                        sinceForwardRetry += POLL_MS
+                        if (sinceForwardRetry < FORWARD_RETRY_MS) continue
+                        sinceForwardRetry = 0L
+                        val before = pending.size
+                        pending = applyForwards(session, pending)
+                        if (pending.size != before) {
+                            statuses[profile.id] = Status(
+                                profile.id, profile.name, true,
+                                detailOf(profile.forwards, pending), 0
+                            )
+                        }
+                    }
 
                     runCatching { session.disconnect() }
                     worker.session = null
@@ -178,24 +262,28 @@ object TunnelManager {
         t.start()
     }
 
-    /** 転送を張って、張れたものの説明を返す。 */
-    private fun applyForwards(session: Session, profile: SshProfile): String {
-        val ok = ArrayList<String>()
-        profile.forwards.forEach { f ->
+    /** 転送を張って、**張れなかったもの**を返す。空リストなら全部張れた。 */
+    private fun applyForwards(session: Session, forwards: List<PortForward>): List<PortForward> {
+        val failed = ArrayList<PortForward>()
+        forwards.forEach { f ->
             runCatching {
                 if (f.reverse) {
                     session.setPortForwardingR(f.bindAddress, f.remotePort, f.remoteHost, f.localPort)
                 } else {
                     session.setPortForwardingL(f.bindAddress, f.localPort, f.remoteHost, f.remotePort)
                 }
-                ok += f.describe()
             }.onFailure { e ->
                 Log.w(TAG, "forward failed (${f.describe()}): ${e.message}")
-                ok += "✗ ${f.describe()}"
+                failed += f
             }
         }
-        return ok.joinToString(" / ")
+        return failed
     }
+
+    /** 省電力モードか。読めなければ OFF 扱い ([ServerDaemonService] のロック取得と同じ既定)。 */
+    private fun lowPowerNow(context: Context): Boolean = runCatching {
+        runBlocking { AppSettings(context).flow.first().serversLowPower }
+    }.getOrDefault(false)
 
     /**
      * このホストの鍵が known_hosts にあるか。

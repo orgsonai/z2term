@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.366-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.367-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -322,6 +322,24 @@ Once at least one forward exists, a **"Keep this tunnel running"** toggle appear
   confirmation dialog, so it **refuses to connect** to an unknown host rather than trusting it silently.
 - If the link drops it reconnects on its own after 5s, 10s, … up to 5 minutes.
 - ⚠ `-R` makes this device reachable from the other end. Turn it on only when you need it.
+
+**⭐ A side effect worth having on its own: one resident tunnel stops the phone from
+"disappearing" off your Wi-Fi (0.8.367).**
+
+A phone that **sends nothing for a while lets its radio drop into power save, and other machines
+stop seeing it**. Even with `sshd` resident, `ssh` or `git push` from your PC fails with "no route
+to host" and then fixes itself a few minutes later — that is this. **It is not an app bug but the
+Wi-Fi chip's power saving**; the CPU is awake the whole time, even with the screen off.
+
+A resident tunnel **sends a small greeting (a keepalive) every 10 seconds**, so the phone never goes
+quiet. Measured: the share of time it was unreachable went from **37% to 1%**. It does not matter
+where the tunnel points (whatever host you already use is fine).
+
+- ⚠ With low-power mode on (Settings → Automation → process protection) the greeting stretches to
+  **60 seconds**. That setting asks for battery over reachability, so expect the effect to fade.
+- ⚠ If a `-R` forward is refused because the port is still in use, the forward is shown with a `✗`.
+  **This is common right after a reconnect** — the other end has not released the old port yet. It
+  is retried **every 30 seconds**, so the `✗` clears itself if you wait.
 
 ## 7.5. Using `adb` without a PC (`z2adb`)
 

@@ -26,12 +26,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import com.zerotoship.z2term.service.ServerDaemonService
 import com.zerotoship.z2term.service.TunnelManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -86,6 +88,22 @@ fun SshProfilesBody(
     val profiles by profilesFlow.collectAsState()
     var editing by remember { mutableStateOf<SshProfile?>(null) }
 
+    // 常駐トンネル (A2) が張れているかは、ここに出さないと**どこにも出ない**。⏻ の印だけでは
+    // 「設定が ON」しか分からず、0.8.367 で LAN 到達性の担保になった以上それでは足りない。
+    // ⚠ 常駐対象が 1 つも無いときはループを回さない (シートを開いている間ずっと動くため)。
+    val hasResidentTunnel = profiles.any { it.residentTunnel }
+    var tunnelStatuses by remember { mutableStateOf<List<TunnelManager.Status>>(emptyList()) }
+    LaunchedEffect(hasResidentTunnel) {
+        if (!hasResidentTunnel) {
+            tunnelStatuses = emptyList()
+            return@LaunchedEffect
+        }
+        while (true) {
+            tunnelStatuses = TunnelManager.statuses()
+            delay(2_000)
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -99,6 +117,7 @@ fun SshProfilesBody(
                 profiles.forEach { p ->
                     ProfileRow(
                         profile = p,
+                        tunnel = tunnelStatuses.firstOrNull { it.profileId == p.id },
                         onConnect = { onConnect(p) },
                         onSftp = { onSftp(p) },
                         onEdit = { editing = p },
@@ -199,6 +218,8 @@ private fun EmptyState() {
 @Composable
 private fun ProfileRow(
     profile: SshProfile,
+    /** 常駐トンネル (A2) のいまの状態。常駐対象でない / まだ起きていないときは null。 */
+    tunnel: TunnelManager.Status?,
     onConnect: () -> Unit,
     onSftp: () -> Unit,
     onEdit: () -> Unit,
@@ -230,6 +251,7 @@ private fun ProfileRow(
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace
         )
+        if (profile.residentTunnel) TunnelStatusLine(tunnel)
         Spacer(modifier = Modifier.height(4.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             SmallButton(label = stringResource(R.string.ssh_action_connect), accent = true, onClick = onConnect)
@@ -239,6 +261,44 @@ private fun ProfileRow(
             SmallButton(label = stringResource(R.string.ssh_action_delete), danger = true, onClick = onDelete)
         }
     }
+}
+
+/**
+ * 常駐トンネル (A2) の生死を 1 行で出す。
+ *
+ * ⚠ **[TunnelManager.Status.detail] は訳さない。** 中身は転送の指定そのもの
+ * (`-R 127.0.0.1:65152 → 127.0.0.1:65152`) か JSch が返した理由で、どちらも原文のほうが
+ * 検索できる。張れていない転送には `✗` が付く ([TunnelManager.detailOf])。
+ */
+@Composable
+private fun TunnelStatusLine(status: TunnelManager.Status?) {
+    val mark: String
+    val color: Color
+    val text: String
+    when {
+        // 常駐対象なのに居ない = 常駐サービスがまだ起きていない (ON にした直後・再起動直後)。
+        status == null -> {
+            mark = "○"; color = ZtsTextSecondary; text = stringResource(R.string.ssh_tunnel_stopped)
+        }
+        status.connected -> {
+            mark = "●"; color = ZtsGreen; text = status.detail
+        }
+        else -> {
+            mark = "○"; color = ZtsError
+            val retry = if (status.retries > 0) {
+                " (" + stringResource(R.string.ssh_tunnel_retry, status.retries) + ")"
+            } else ""
+            text = status.detail + retry
+        }
+    }
+    Text(
+        text = "$mark $text",
+        color = color,
+        fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis
+    )
 }
 
 @Composable

@@ -211,6 +211,8 @@
     <string name="ssh_resident_tunnel">このトンネルを常駐させる</string>
     <string name="ssh_resident_tunnel_desc">SSH タブを閉じても転送が生き続けます（常駐サーバーと同じ枠で動きます）。先に SSH タブで 1 度接続して、ホスト鍵を承認しておく必要があります。</string>
     <string name="ssh_resident_tunnel_reverse_desc">⚠ -R を含みます: 常駐中は接続先からこの端末へ入れる状態になります。SSH タブを閉じても転送は生き続けます。先にホスト鍵の承認が必要です。</string>
+    <string name="ssh_tunnel_stopped">常駐していません</string>
+    <string name="ssh_tunnel_retry">再接続 %1$d 回目</string>
     <string name="ssh_forward_local_desc">遠くのサービスをこちらへ</string>
     <string name="ssh_forward_reverse_desc">こちらを遠くから触れるように</string>
     <string name="history_search_hint">絞り込み（空白区切りで複数語）</string>

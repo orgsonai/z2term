@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-20 / Target version: 0.8.366-alpha (versionCode 374)
+Last updated: 2026-08-20 / Target version: 0.8.367-alpha (versionCode 375)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -143,10 +143,14 @@ While keep-alive is on it holds a `PARTIAL_WAKE_LOCK` (keeps the CPU running) an
 
 ⚠⚠ **But holding a `WifiLock` cannot be claimed to preserve reachability either (measured 2026-07-28).** On 0.8.267 — with `TerminalService` and `ServerDaemonService` each holding their own `WIFI_MODE_FULL_HIGH_PERF` lock, two in total — neither ping nor ssh reached the device from outside **right after a Wi-Fi reconnect**. dropbear was still listening and accepted logins from 127.0.0.1, so the server side was blameless and the failure was **below TCP (ARP)**. Reachability returned the instant the device sent anything outbound, which pins the cause to "Wi-Fi power save leaves the device unresponsive to ARP".
 
-`WIFI_MODE_FULL_HIGH_PERF` has been **deprecated since Android 10** and is effectively ignored on some devices. Therefore:
+✅✅ **Settled on 2026-08-20 (0.8.367); the guess above was right.** Through a 5½-minute disappearance **the device's own log had not a single gap in its 10-second entries** — the CPU, the FGS and the WakeLock were all working and only the radio was gone. ⭐ **Remember this way of measuring**: put a 10-second record on both sides and look for **gaps in the timestamps on the device's log**. Gaps mean the CPU was put to sleep (an app-side problem); no gaps means the radio path (an app fix will not help). That one test splits the two cases. ⚠ **Always run it before acting on a guess.**
+
+`WIFI_MODE_FULL_HIGH_PERF` is **non-functional and is read as `WIFI_MODE_FULL_LOW_LATENCY`**, and `WIFI_MODE_FULL_LOW_LATENCY` is only active while connected to an AP **with the screen on** and **the app in the foreground** — so it is **always inactive for a resident service** (screen off, background). Therefore:
 
 - **Do not treat a `WifiLock` as a guarantee of reachability when making design decisions.** Dropping it from `TerminalService` in 0.8.268 was justified as "no point holding a duplicate of something that isn't working" — reachability was never guaranteed to begin with, so nothing was lost
-- **Cover reachability from the device side.** In practice this is a `z2-when wifi:connect` rule in `~/.z2term` that pings the gateway and the peer once, a few seconds after reconnecting (the device announcing itself brings ARP back). It costs almost no battery since nothing runs periodically
+- ⛔ **Rewriting it to `WIFI_MODE_FULL_LOW_LATENCY` does not fix it either.** It is always inactive under the conditions above, and where it does apply it only burns power with the screen on and the app in front. minSdk is 29, so `HIGH_PERF` may still do something on older devices and the lock is not removed — but it **is not counted on**
+- ⭐ **The cure is "speak from the device periodically."** The resident tunnel's keepalive (`TunnelManager.KEEPALIVE_MS` = 10s, 0.8.367) does exactly that: measured **37% unreachable → 1%**. See the resident-tunnel section
+- **Without a tunnel, cover it from the device side.** A `z2-when wifi:connect` rule in `~/.z2term` that pings the gateway and the peer once, a few seconds after reconnecting (the device announcing itself brings ARP back). ⚠ But that fires **once, right after a reconnect**, so it does not stop the slow disappearance that comes from staying silent
 - To triage while the symptom is live, use `~/.z2term/macros/ssh-diag.sh`
 
 ⚠ **With resident servers or the capture services on, the process never dies**, so this service — and its "Z2Term running" notification — stays too. With them off, swiping the app from recents kills the process and the notification goes away. That is why residency notifications appear to multiply once resident servers are in use.
@@ -421,7 +425,7 @@ Appends an `alarm` event (with `{name}`) to events.jsonl at a given time.
 
 | What is missing | What happens during sleep | Who does hold it |
 |---|---|---|
-| WifiLock (`WIFI_MODE_FULL_HIGH_PERF`) | the Wi-Fi radio powers down and reception is throttled while the screen is off | `ServerDaemonService` **only** |
+| WifiLock (`WIFI_MODE_FULL_HIGH_PERF`) | ⚠ **nothing, in fact** (verified in 0.8.367: non-functional, and always inactive while the screen is off — see "Foreground residency and locks") | `ServerDaemonService` **only** |
 | WakeLock | the CPU sleeps and `sshd` never accepts | `ServerDaemonService` / `TerminalService` |
 | Foreground service | the process is cached and can be killed; `sshd` is a child of proot, so it **goes with it** | same |
 
@@ -763,6 +767,19 @@ Both are merged **newest first**, deduplicated (the timestamped zsh entry wins).
 1. **Explicit opt-in**: only profiles with `SshProfile.residentTunnel`. The toggle appears only once at least one forward exists, and its wording changes when a `-R` forward is present ("the remote side can reach into this device").
 2. **Only hosts already in known_hosts**: a resident tunnel cannot show a host-key prompt, so an unknown host is **not connected, and the reason is recorded** — never silently trusted. Connect once from the SSH tab first.
 3. **Exponential backoff on reconnect**: 5s doubling to a 5-minute ceiling (`TunnelManager.backoffMs`; `TunnelManagerTest` pins the boundaries and overflow). Never hammer a dead link.
+
+**⭐ Keepalive traffic (0.8.367) — the actual cure for "the phone disappears from the LAN"**: a resident tunnel can sit connected without sending anything. SSH does not mind, but **when the device stays silent its Wi-Fi chip enters power save and other machines on the same LAN stop seeing it** (ARP is broadcast, and a sleeping station drops it). The CPU is awake and the FGS and WakeLock are working — only the radio disappears. Measured (screen off, charging, Wi-Fi, resident servers running):
+
+| Traffic from the device | Duration | Share of the time it was unreachable |
+|---|---|---|
+| none (silent) | 9 min | **37%** |
+| one outbound connection every 10s | 19 min | **1%** |
+
+Hence `TunnelManager.KEEPALIVE_MS` = **10s** (`KEEPALIVE_LOW_POWER_MS` = 60s in low-power mode, where the user has asked for battery over reachability). With `serverAliveCountMax` = 3 a genuinely dead link is noticed in 30s and goes to backoff. **Set it before connecting** — JSch copies the value into the socket read timeout at the end of the handshake and sends one keepalive per timeout.
+
+⛔ **A WifiLock cannot fix this** (verified in 0.8.367). `WIFI_MODE_FULL_HIGH_PERF` is non-functional and is read as `WIFI_MODE_FULL_LOW_LATENCY`, which is only active while connected to an AP **with the screen on** and **the app in the foreground** — i.e. never, for a resident service. Switching to `WIFI_MODE_FULL_LOW_LATENCY` does not help. **Only speaking periodically from the device does.**
+
+**A forward that fails is retried in place (0.8.367)**: `-R` **can fail on the first attempt after a reconnect**. The remote sshd keeps the listening port bound for a while after the device drops, so `setPortForwardingR` is rejected with "port already in use". Giving up there would freeze the tunnel in a "connected but the forward is dead" state, so the session is kept and the forward retried every 30s (tearing the session down would take the healthy forwards with it). Forwards that are not up yet are marked `✗` in the status line (`TunnelManager.detailOf`).
 
 **Direction**: `PortForward.reverse`. `setPortForwardingR(bindAddress, remotePort, remoteHost, localPort)` listens on the remote's `bindAddress:remotePort` and connects to `remoteHost:localPort` as seen from the device. The field names date from the `-L`-only era, so **their meaning swaps with the direction** — the `PortForward` KDoc and `describe()` are the reference.
 
