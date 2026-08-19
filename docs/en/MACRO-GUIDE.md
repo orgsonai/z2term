@@ -286,7 +286,7 @@ prerequisite → 3-A).
 | `z2-alarm` | `z2-alarm at\|daily HH:MM [name]` etc. | Set a **time trigger** (see below) | JSON of the schedule |
 | `z2-when` | `z2-when <trigger> run <command>` etc. | **Register a trigger** (→ 3-A, and below) | the rule id |
 | `z2-noti` | `z2-noti list` | Read **the notifications on screen right now** (read-only, see below) | TSV |
-| `z2-session` | `z2-session list\|new\|send\|capture\|close` | Drive **the app's own tabs** (see below) | TSV / index |
+| `z2-session` | `z2-session list\|new\|send\|capture\|attach\|close` | Drive **the app's own tabs** (see below) | TSV / index |
 | `z2-server` | `z2-server list\|start\|stop\|status <server>` | Start / stop **a registered resident server** (see below) | TSV |
 | `z2-macro` | `z2-macro list\|install\|diff\|show\|run\|dir` | Manage the bundled samples (`list` marks each `new` / `same` / `differs`) | — |
 
@@ -579,6 +579,9 @@ n=$(z2-session new build | cut -f1)  # open one tab, take its index
 z2-session send "$n" 'make -j2' --enter
 z2-session capture "$n" --all        # grab that tab's screen (--all includes scrollback)
 z2-session close "$n"                # close it (never the last one)
+
+# Stay connected (0.8.366). After this you just type into that tab as usual.
+z2-session attach 2                  # leave with ~. at the start of a line (as in ssh)
 ```
 
 - Marks in `list`: `*` = the tab on screen / `!` = something is running / `?` = not started yet / `-` = other.

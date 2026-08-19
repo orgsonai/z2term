@@ -282,7 +282,7 @@ z2-when time:every=30m if=!screen between=22:00-07:00 days=mon-fri run ~/.z2term
 | `z2-alarm` | `z2-alarm at\|daily HH:MM [名前]` ほか | **時刻トリガー**を仕掛ける（下記） | 予約内容 JSON |
 | `z2-when` | `z2-when <トリガー> run <コマンド>` ほか | **きっかけを登録**する（→ 3-A・下記） | 登録した id |
 | `z2-noti` | `z2-noti list` | **いま出ている通知**を読む（読むだけ・下記） | TSV |
-| `z2-session` | `z2-session list\|new\|send\|capture\|close` | **アプリ自身のタブ**を操る（下記） | TSV / 番号 |
+| `z2-session` | `z2-session list\|new\|send\|capture\|attach\|close` | **アプリ自身のタブ**を操る（下記） | TSV / 番号 |
 | `z2-server` | `z2-server list\|start\|stop\|status <サーバー>` | **登録済みの常駐サーバー**を起こす / 落とす（下記） | TSV |
 | `z2-macro` | `z2-macro list\|install\|diff\|show\|run\|dir` | 同梱サンプルの管理（`list` に `未導入` / `同じ` / `差分あり` が出ます） | — |
 
@@ -572,6 +572,9 @@ n=$(z2-session new build | cut -f1)  # タブを 1 枚開いて番号を受け�
 z2-session send "$n" 'make -j2' --enter
 z2-session capture "$n" --all        # そのタブの画面を取り出す（--all は遡れる分も）
 z2-session close "$n"                # 閉じる（最後の 1 枚は閉じない）
+
+# 繋ぎっぱなしにする（0.8.366）。以後はそのタブを普通の端末のように打てます
+z2-session attach 2                  # 抜けるのは行頭で ~. （ssh と同じ）
 ```
 
 - `list` の印: `*` = 表示中のタブ / `!` = 何か動作中 / `?` = まだ起動していない / `-` = それ以外。

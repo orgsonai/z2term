@@ -399,6 +399,10 @@
     <string name="service_channel_desc">ターミナルセッションをバックグラウンドで維持</string>
     <string name="service_notification_title">Z2Term 稼働中</string>
     <string name="service_notification_text">ターミナルセッションが実行中です</string>
+    <!-- 繋ぎっぱなし (z2-session attach) の間だけ出る。常駐の理由が読めるようにする。 -->
+    <plurals name="service_notification_attached">
+        <item quantity="other">端末から接続中 (%1$d)</item>
+    </plurals>
     <string name="service_action_stop">停止</string>
     <string name="server_channel_name">Z2Term サーバー</string>
     <string name="server_channel_desc">常駐サーバー (sshd/http/smb 等) をバックグラウンドで維持</string>

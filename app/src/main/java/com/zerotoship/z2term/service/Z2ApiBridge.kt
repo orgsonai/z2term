@@ -303,6 +303,9 @@ object Z2ApiBridge {
                         val idle = (s as? TerminalSession)?.uiState?.value?.state ==
                             TerminalSession.TerminalState.IDLE
                         if (idle) append('?')
+                        // 外から繋がっている (z2-session attach)。印が無いと、PC から掴まれて
+                        // いるタブがスマホ側から見分けられない。⚠ 印は重なる (`*@` もある)。
+                        if (((s as? TerminalSession)?.attachedCount?.value ?: 0) > 0) append('@')
                         if (isEmpty()) append('-')
                     }
                     "${i + 1}\t${s.id}\t$kind\t$marks\t${s.label.value}"
@@ -421,7 +424,7 @@ object Z2ApiBridge {
      * タブ名は完全一致を優先し、無ければ前方一致で 1 件に絞れるときだけ採用する
      * (複数に当たる指定で「たまたま先頭のタブ」に文字が入る事故を作らない)。
      */
-    private fun resolveSession(target: String): com.zerotoship.z2term.core.AppSession? {
+    internal fun resolveSession(target: String): com.zerotoship.z2term.core.AppSession? {
         val sessions = SessionManager.sessions.value
         if (target.isBlank() || target == ".") {
             return sessions.firstOrNull { it.id == SessionManager.activeId.value } ?: sessions.firstOrNull()

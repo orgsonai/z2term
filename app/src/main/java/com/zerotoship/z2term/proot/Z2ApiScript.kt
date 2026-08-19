@@ -469,6 +469,9 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    [ ${d}# -ge 2 ] || usage
         |    exec /usr/local/bin/z2api 1 session key "${d}@" ;;
         |  capture) exec /usr/local/bin/z2api 1 session capture "${d}@" ;;
+        |  attach)
+        |    [ ${d}# -ge 1 ] || usage
+        |    exec /usr/local/bin/z2attach "${d}1" ;;
         |  close)
         |    [ ${d}# -ge 1 ] || usage
         |    exec /usr/local/bin/z2api 1 session close "${d}1" ;;

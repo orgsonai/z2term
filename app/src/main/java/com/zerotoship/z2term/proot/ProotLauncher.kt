@@ -130,6 +130,40 @@ class ProotLauncher(private val context: Context) {
         }
     }
 
+    /**
+     * `z2-session attach` の実体 (繋ぐ側)。
+     *
+     * ⚠ **jniLibs の `lib*.so` 名でしか APK 導入時に nativeLibraryDir へ展開されない**ので、
+     * 実行ファイルなのに `libz2attach.so` という名前で運ぶ (z2root エンジン本体と同じ事情)。
+     * rootfs 側では素直に `z2attach` として置く。
+     */
+    private val z2attachBin: File
+        get() = File(context.applicationInfo.nativeLibraryDir, "libz2attach.so")
+
+    private val z2attachGuestPath = "/usr/local/bin/z2attach"
+
+    /**
+     * 繋ぐ側のネイティブを rootfs 内 [z2attachGuestPath] へ配置する。
+     * 未同梱なら何もしない (`z2-session attach` だけが使えず、他は動く)。
+     */
+    private fun ensureAttachClient(rootfs: File) {
+        val src = z2attachBin
+        if (!src.exists()) {
+            Log.w(TAG, "libz2attach.so not in nativeLibraryDir — z2-session attach unavailable")
+            return
+        }
+        val dst = File(rootfs, z2attachGuestPath.trimStart('/'))
+        dst.parentFile?.mkdirs()
+        val needsCopy = !dst.exists() || dst.length() != src.length() ||
+            dst.lastModified() < src.lastModified()
+        if (needsCopy) {
+            src.copyTo(dst, overwrite = true)
+            dst.setReadable(true, false)
+            dst.setExecutable(true, false)
+            Log.i(TAG, "Provisioned attach client at ${dst.absolutePath}")
+        }
+    }
+
     /** z2root エンジン専用 env: accept→accept4 シムを LD_PRELOAD する。 */
     private fun z2rootEnv(): List<String> {
         val out = mutableListOf<String>()
@@ -241,6 +275,7 @@ class ProotLauncher(private val context: Context) {
         // 共有ホーム作成。
         sharedHomeDir.mkdirs()
         ensureAcceptShim(rootfs)
+        ensureAttachClient(rootfs)
         // 設定のログインシェルを /etc/passwd(root) にも書き、SSH ログインにも効かせる。
         ensureRootLoginShell(rootfs, userLoginShell)
         // 再起動後もコマンド履歴を辿れるよう、shell rc に履歴設定を流し込む。

@@ -169,3 +169,31 @@ fi
 chmod 0644 "${SHIM_OUT}"
 echo "[ok] wrote ${SHIM_OUT}"
 file "${SHIM_OUT}" 2>/dev/null || true
+
+# --- 繋ぐ側のネイティブ (libz2attach.so) --------------------------------------
+# `z2-session attach` の実体。端末を raw にして stdin とソケットを同時に待つので /bin/sh では
+# 書けない。⚠ 実行ファイルだが **lib*.so 名でしか APK 導入時に nativeLibraryDir へ展開されない**
+# ので、z2root 本体と同じ流儀で libz2attach.so として置く (rootfs へは z2attach として配る)。
+# -static: どの rootfs (musl/glibc) でもそのまま動かすため。
+ATT_SRC="${PROJECT_ROOT}/app/src/main/cpp/z2attach/z2attach.c"
+ATT_OUT="${OUT_DIR}/libz2attach.so"
+echo "[info] building z2attach (aarch64, API ${API}) ..."
+if [[ "${FALLBACK}" == "1" ]]; then
+    "${SYS_CC}" --target=aarch64-linux-android${API} --sysroot="${SYSROOT}" \
+        -std=c11 -O2 -Wall -Wextra -c "${ATT_SRC}" -o "${ATT_OUT}.o"
+    "${SYS_LD}" -EL -static -no-pie --hash-style=gnu -z noexecstack -z max-page-size=4096 \
+        -o "${ATT_OUT}" \
+        "${LIBDIR}/${API}/crtbegin_static.o" \
+        "${ATT_OUT}.o" \
+        -L"${LIBDIR}/${API}" -L"${LIBDIR}" \
+        --start-group -lc -lm -ldl --end-group \
+        "${BUILTINS}" \
+        "${LIBDIR}/${API}/crtend_android.o"
+    rm -f "${ATT_OUT}.o"
+    [[ -n "${STRIP}" ]] && "${STRIP}" "${ATT_OUT}" || true
+else
+    "${CC}" -std=c11 -O2 -Wall -Wextra -static -o "${ATT_OUT}" "${ATT_SRC}"
+fi
+chmod 0755 "${ATT_OUT}"
+echo "[ok] wrote ${ATT_OUT}"
+file "${ATT_OUT}" 2>/dev/null || true

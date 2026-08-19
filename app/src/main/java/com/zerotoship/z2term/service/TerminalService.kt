@@ -160,9 +160,16 @@ class TerminalService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        // ⚠ 常駐の理由が 🔒 なのか attach なのか読めないと、通知を見ても止め方が分からない。
+        val attached = AttachHold.attached
+        val text = if (attached > 0) {
+            resources.getQuantityString(R.plurals.service_notification_attached, attached, attached)
+        } else {
+            getString(R.string.service_notification_text)
+        }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.service_notification_title))
-            .setContentText(getString(R.string.service_notification_text))
+            .setContentText(text)
             .setZ2SmallIcon(this)
             .setOngoing(true)
             .setSilent(true)

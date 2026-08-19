@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-19 / Target version: 0.8.365-alpha (versionCode 373)
+Last updated: 2026-08-20 / Target version: 0.8.366-alpha (versionCode 374)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -461,11 +461,12 @@ open another working tab, place a command into a different tab, or grab what is 
 
 | | What it does |
 |---|---|
-| `list` | one tab per line as TSV (`index / id / kind / marks / name`); marks are `*`=visible, `!`=busy, `?`=not started, `-`=neither |
+| `list` | one tab per line as TSV (`index / id / kind / marks / name`); marks are `*`=visible, `!`=busy, `?`=not started, `@`=attached from a shell, `-`=neither |
 | `new [name]` | opens one terminal tab, **starts it**, and returns `index\tid` (the handle you then `send` to) |
 | `send <target> <text>… [--enter]` | **inserts** text into that tab; only runs it when `--enter` is given |
 | `key <target> <key>…` | send **keys** to that tab (`C-c` / `M-x` / `F5` / `Up` …); `--raw` takes bytes (0.8.311) |
 | `capture [target] [--all]` | returns that tab's on-screen text (`--all` includes the scrollback) |
+| `attach <target>` | **stay connected** to that tab and just type in it (0.8.366); leave with `~.` at the start of a line |
 | `close <target>` | closes that tab (never the last one — the same promise as double-tap-to-close in the UI) |
 
 **Safe by default**: `send` **inserts without executing** (no newline appended) — the same promise as
@@ -508,6 +509,20 @@ means would then depend on the payload, which cannot be explained to anyone.
   would break the separator (the same reason `z2-icon` folds a drawing into base64).
 - ⚠ **Everything is converted before a single byte goes out.** Sending the keys up to a typo and
   then failing would leave nobody able to tell what actually arrived.
+
+**Staying connected** (`attach`, 0.8.366). ⚠ **This is not "make `send` nicer"** — driving a tab one command at a time with `send --enter` then `capture` never tells you when the command finished, and the capture mixes in whatever was on screen before. `attach` is a handle that holds the tab open like ssh, so you can type into **the very tab that is on the phone's screen** (`sshd` gives you a *new* shell, unrelated to any tab). Both sides watch the same PTY, so what you type also appears on the phone.
+
+- **One AF_UNIX socket carries it** (`filesDir/shared_home/.z2term/attach.sock` on the host, `/root/.z2term/attach.sock` from the guest). `z2api` drops a file and polls for an answer every 100 ms, which **cannot serve anything interactive**. z2root translates the path on `bind`/`connect`, so the guest connects using the guest path (proven by the pacman/gpg-agent fix in 0.8.327).
+- ⚠⚠ **One socket for the whole app, never one per tab.** `sun_path` holds 107 bytes, and a per-tab path overflows it at **109** (`/data/user/0/com.zerotoship.z2term/files/shared_home/.z2term/attach/<uuid>.sock`); the single socket is 72. **This only fails on a real device**, never on the desktop, so do not change it. The target arrives in the first frame and is resolved by the same `resolveSession` (index → id → tab name).
+- **Frames are `[type 1 byte][length 2 bytes BE][payload]`.** Passing raw bytes leaves **no room to report a size change**, so everything travels in the same envelope: data / size / notice / target. ⚠ **Never split one frame across two writes** — the PTY reader thread and the reply path both write, and interleaving destroys the envelope boundary.
+- **The taps already existed.** Output is duplicated in the read loop **at the same place and in the same chunk as the session log (C1)** — rebuilding it elsewhere would let "it showed on screen but never reached the attached side" happen — and input goes through `writeBytes`, the same exit `key` uses, which bypasses bracketed paste so Ctrl+C arrives as Ctrl+C. ⚠ Unlike the log, **alt screen is always forwarded**: the other end is reproducing the screen, so filtering would freeze it the moment a full-screen program starts.
+- **The size follows the attached side** (user's choice). ⚠ **While attached, the tab on the phone wraps wrongly and looks broken**; that is the accepted trade, and it returns when the last client leaves. ⚠ **Restoring it requires remembering the size the screen asked for** — the screen's resize is driven by `LaunchedEffect(session.id, rows, cols)` and **never fires again unless rows/cols change**, so nobody re-announces the phone's size on detach.
+- **On attach, the current screen is rebuilt with its colours and sent.** ⚠ `getAllText()` is plain text and **drops every colour and attribute**; build it from `TerminalBuffer.getScreenRow` and `SgrAttribute` (32 bits per cell). ⚠ **Always re-emit SGR from `0`** — emitting only differences lets a forgotten attribute bleed down the rest of the screen. The scrollback is not sent (that is `capture --all`'s job).
+- **Leave with `~.` at the start of a line** (as in ssh). The check lives in **the client** and swallows it before the app sees it; a literal `~` at line start is `~~`. ⛔ Choosing this spelling **takes no Ctrl key away** from full-screen programs.
+- **The client is a small native program** (`app/src/main/cpp/z2attach/z2attach.c`): `/bin/sh` cannot put the terminal in raw mode, cannot wait on stdin and a socket at once, and cannot catch `SIGWINCH`. ⚠ Only `lib*.so` names are unpacked into `nativeLibraryDir` at install, so it ships as `libz2attach.so` and is provisioned into the rootfs as `z2attach` (the same trick as `libz2accept.so`). ⚠ **Always restore the terminal, even on an abnormal exit** — leaving it raw is the worst failure mode there is.
+- ⛔ **Refusals say why** (the promise `key` set): a GUI tab, a tab that has not started, a tab that already exited, and no such tab each get their own answer. ⚠ **Never start a stopped tab from here** — attaching must not kick off a first-run OS download.
+- **While attached the app is held resident** (`AttachHold`), because being killed mid-session from the PC is the worst outcome; it reuses the same `TerminalService` that 🔒 starts. ⚠ **The `keepAliveService` setting is never written** (that would leave the user's setting changed after detaching). ⚠ **Only release what you acquired** — if 🔒 is on or a resident server is running, residency belongs to them.
+- `list` gained the **`@` (attached)** mark; without it there is no way to tell from the phone which tab someone is holding from a PC. ⚠ **Marks stack** (`*@` = visible and attached).
 
 **A name given to `new` sticks** (0.8.202). `TerminalSession` carries `labelPinned`; while it is set, the label is **not** overwritten by the OS name (`spec.id`) at startup, by the `android-sh` fallback, by an SSH connection, or by a title the shell emits (OSC 0/2). Without it, the name from `z2-session new build` turned into the OS name moments later during startup, which made naming pointless (found on device).
 

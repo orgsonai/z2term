@@ -156,6 +156,65 @@ class TerminalSession(
     private val _cwd = MutableStateFlow("")
     val cwd: StateFlow<String> = _cwd.asStateFlow()
 
+    // --- 繋ぎっぱなしの相手 (z2-session attach) ------------------------------
+    //
+    // PTY から読んだ生バイトを、画面へ流すのと同時にここへも流す。⚠ **端末ログ (C1) と
+    // 同じ塊・同じ場所**で複製する: 別の所で作り直すと「画面には出たのに繋いだ先には来ない」
+    // 類のズレができる。
+    //
+    // CopyOnWriteArrayList: 読む側 (PTY 読み取りスレッド) が圧倒的に多く、足し引きは
+    // 繋ぐ/抜けるの瞬間だけ。ロックを取らずに回せる形にしておく。
+    private val attachSinks = java.util.concurrent.CopyOnWriteArrayList<(ByteArray) -> Unit>()
+
+    private val _attachedCount = MutableStateFlow(0)
+
+    /** 今このタブに外から繋がっている数 (`z2-session list` の `@` 印)。 */
+    val attachedCount: StateFlow<Int> = _attachedCount.asStateFlow()
+
+    /**
+     * 画面 (スマホ) 側が要求している広さ。⚠ **繋いでいる間は PTY へ渡さずここに覚えるだけ**で、
+     * 抜けたときにこれを流し直して元へ戻す。
+     *
+     * 覚えておかないと戻せない: 画面側の resize は `LaunchedEffect(session.id, rows, cols)` が
+     * 駆動していて、**行×列が変わらない限り二度と走らない** (`TerminalRenderer.kt`)。
+     * つまり抜けた瞬間に誰も「スマホの広さ」を教え直してくれない。
+     */
+    @Volatile private var screenRows = 0
+    @Volatile private var screenCols = 0
+
+    /**
+     * 繋ぎっぱなしの相手を 1 つ足す。**戻り値を呼ぶと外れる。**
+     *
+     * ⚠ 外し方を戻り値で渡すのは、繋いだ側が異常終了したときに確実に外させるため。
+     * 一覧を持たせて id で消す形にすると、消し忘れたぶんだけ PTY の出力が行き場を失う。
+     */
+    fun addAttachSink(sink: (ByteArray) -> Unit): () -> Unit {
+        attachSinks.add(sink)
+        _attachedCount.value = attachSinks.size
+        return {
+            if (attachSinks.remove(sink)) {
+                _attachedCount.value = attachSinks.size
+                if (attachSinks.isEmpty()) restoreScreenSize()
+            }
+        }
+    }
+
+    /**
+     * 繋いだ側の広さに合わせる (ユーザー判断・2026-08-20)。
+     *
+     * ⚠ **この間スマホ側のタブは折り返しが合わず崩れて見える**。承知のうえの選択で、
+     * 最後の 1 人が抜ければ [restoreScreenSize] で戻る。
+     */
+    fun setAttachSize(rows: Int, cols: Int) {
+        if (rows <= 0 || cols <= 0) return
+        applySize(rows, cols)
+    }
+
+    /** 誰も繋いでいない状態へ戻す。スマホ側の広さを流し直す。 */
+    private fun restoreScreenSize() {
+        if (screenRows > 0 && screenCols > 0) applySize(screenRows, screenCols)
+    }
+
     val emulator = TerminalEmulator(
         output = { bytes -> writeToPty(bytes) },
         initialRows = 24,
@@ -794,6 +853,13 @@ class TerminalSession(
                                     lg.append(chunk)
                                 }
                             }
+                            // 繋ぎっぱなしの相手へも同じ塊を流す (z2-session attach)。
+                            // ⚠ ログと違い **alt screen でも必ず流す** — 相手は画面を再現している
+                            // ので、間引くと vi 等に入った瞬間に表示が固まる。
+                            // ⚠ 1 人が詰まっても他へ流し続ける (相手の都合で PTY を止めない)。
+                            if (attachSinks.isNotEmpty()) {
+                                attachSinks.forEach { sink -> runCatching { sink(chunk) } }
+                            }
                             // つまずきの言い換え (0.8.237)。**出力は一切書き換えず**、
                             // 既知のパターンに当たったことだけを UI へ知らせる。
                             // alt screen (vim/less 等) の最中は見ない — 全画面アプリの描画に
@@ -875,7 +941,21 @@ class TerminalSession(
     private fun pacmanKeyringCommandOrNull(distroId: String): String? =
         if (launcher.needsPacmanKeyring(distroId)) "z2-pacman-keyring" else null
 
+    /**
+     * 画面 (スマホ) 側から要求される広さ。
+     *
+     * ⚠ **外から繋がっている間は PTY へ渡さない** — 繋いだ側 (PC) の広さに合わせると決めてある
+     * ([setAttachSize])。ここで上書きすると、タブを表示した瞬間にスマホの幅へ戻ってしまい、
+     * 繋いでいる側の画面が突然狭くなる。値は覚えておいて、最後の 1 人が抜けたときに流し直す。
+     */
     fun onResize(rows: Int, cols: Int) {
+        screenRows = rows
+        screenCols = cols
+        if (attachSinks.isNotEmpty()) return
+        applySize(rows, cols)
+    }
+
+    private fun applySize(rows: Int, cols: Int) {
         // emulator buffer の resize は他の processBytes と排他するため emulator スレッドへ。
         // resize 完了直後に bumpRedrawImmediate で coalesce を飛ばして即 tick を進め、
         // 「リサイズしたのに数フレーム古いバッファが残って見える」状態を消す。

@@ -543,7 +543,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
 
     val sessionHelp: String = if (en) """
         |# z2-session list                     … list tabs (index / id / kind / mark / name, TSV)
-        |#   marks: * = the tab on screen / ! = something is running / ? = not started yet / - = other
+        |#   marks: * = on screen / ! = running / ? = not started / @ = attached from a shell / - = other
         |# z2-session new [name]               … open one terminal tab (returns index and id)
         |# z2-session send <tab> <text>...     … type text into that tab (does not run it)
         |# z2-session send <tab> <text> --enter … type it, then run it
@@ -553,13 +553,16 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#   Shift-ed keys such as C-S-a are refused (a terminal cannot tell Shift apart: same bytes as C-a)
         |# z2-session key <tab> --raw '\x1b[A' … anything else, as bytes (\xHH \e \n \r \t \0)
         |# z2-session capture [tab] [--all]    … take that tab's screen (--all includes scrollback)
+        |# z2-session attach <tab>             … stay connected to that tab and just type in it
+        |#   leave with ~. at the start of a line (as in ssh); write ~~ for a literal ~ there
+        |#   while attached the tab follows YOUR window size; it goes back when you leave
         |# z2-session close <tab>              … close that tab (never the last one)
         |#
         |# <tab> can be the index from list, an id, or a tab name. '.' or omitted = the tab on screen.
         |# e.g. n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
     """.trimMargin() else """
         |# z2-session list                     … タブ一覧 (番号 / id / 種別 / 印 / 名前 の TSV)
-        |#   印: * = 表示中のタブ / ! = 何か動作中 / ? = まだ起動していない / - = それ以外
+        |#   印: * = 表示中 / ! = 何か動作中 / ? = まだ起動していない / @ = 端末から繋がっている / - = それ以外
         |# z2-session new [名前]               … 端末タブを 1 枚開く (番号と id を返す)
         |# z2-session send <先> <文字列>...    … そのタブに文字を入れる (実行はしない)
         |# z2-session send <先> <文字列> --enter … 入れてから実行する
@@ -569,6 +572,9 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#   ⛔ C-S-a のような Shift 付きは断る (端末は Shift を区別できず C-a と同じバイトになるため)
         |# z2-session key <先> --raw '\x1b[A'  … 表に無いものはバイト列で (\xHH \e \n \r \t \0)
         |# z2-session capture [先] [--all]     … そのタブの画面を取り出す (--all は遡れる分も)
+        |# z2-session attach <先>              … そのタブに繋ぎっぱなしにして、普通に打つ
+        |#   抜けるのは行頭で ~. (ssh と同じ)。行頭の ~ そのものは ~~ と 2 回打つ
+        |#   繋いでいる間、タブの広さは**繋いだ側**に合わせる。抜ければ元に戻る
         |# z2-session close <先>               … そのタブを閉じる (最後の 1 枚は閉じない)
         |#
         |# <先> は list の番号 / id / タブ名 のどれでもよい。'.' か省略で今表示しているタブ。
@@ -578,10 +584,12 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
     val sessionUsage: String =
         if (en) {
             "usage: z2-session list | new [name] | send <tab> <text>... [--enter] | " +
-                "key <tab> <key>... | key <tab> --raw <bytes> | capture [tab] [--all] | close <tab>"
+                "key <tab> <key>... | key <tab> --raw <bytes> | capture [tab] [--all] | " +
+                "attach <tab> | close <tab>"
         } else {
             "usage: z2-session list | new [名前] | send <先> <文字列>... [--enter] | " +
-                "key <先> <キー>... | key <先> --raw <バイト列> | capture [先] [--all] | close <先>"
+                "key <先> <キー>... | key <先> --raw <バイト列> | capture [先] [--all] | " +
+                "attach <先> | close <先>"
         }
 
     // --- z2-session key (別のタブへキーを送る) ---
@@ -618,6 +626,42 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         // 「空白が抜けているのでは」と拾う。日本語では誤検知だが、警告 0 を保つ方を採る)。
         "z2-session key: 端末は Shift を区別できないので、'$asWritten' は '$equivalentTo' とまったく同じバイトになります。" +
             "それでよければ '$equivalentTo' と書いてください。"
+    }
+
+    // --- z2-session attach (タブに繋ぎっぱなしにする) ---
+
+    /**
+     * 繋ぎ先が見つからない。⚠ **どう調べればよいか**まで書く
+     * (`key` の keyUnknown と同じ約束)。
+     */
+    fun attachNoSuchTab(target: String): String = if (en) {
+        "no such tab: '$target' (run 'z2-session list' to see the tabs)"
+    } else {
+        "そんなタブはありません: '$target' ('z2-session list' で一覧が出ます)"
+    }
+
+    /** GUI タブには繋げない (PTY が無い)。 */
+    val attachNotTerminal: String = if (en) {
+        "that is a GUI tab, which has no shell to attach to. Pick a terminal tab."
+    } else {
+        "それは GUI タブなのでシェルがありません。端末タブを指してください。"
+    }
+
+    /**
+     * まだ起動していないタブ。⛔ **こちらから勝手に起こさない** —
+     * 繋いだつもりが OS の初回ダウンロードを始める、を作らない。
+     */
+    val attachNotStarted: String = if (en) {
+        "that tab has not started yet (marked '?' in list). Open it once in the app, then attach."
+    } else {
+        "そのタブはまだ起動していません (list の印が '?')。アプリで一度開いてから繋いでください。"
+    }
+
+    /** プロセスが終わっているタブ。 */
+    val attachExited: String = if (en) {
+        "that tab has already exited. Its screen can still be read with 'z2-session capture'."
+    } else {
+        "そのタブはもう終わっています。画面は 'z2-session capture' で取り出せます。"
     }
 
     // --- z2-server ---

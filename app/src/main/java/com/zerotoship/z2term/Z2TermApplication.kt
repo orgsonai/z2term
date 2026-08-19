@@ -46,6 +46,8 @@ class Z2TermApplication : Application() {
         GuiEventWatcher.start(this)
         // Android API ブリッジ (`z2-notify` 等) のリクエスト監視を開始 (Termux:API 相当)。
         Z2ApiBridge.start(this)
+        // 繋ぎっぱなしの受付 (z2-session attach)。z2api と違い常時 listen しておく必要がある。
+        com.zerotoship.z2term.service.AttachServer.start(this)
         // クリップボード履歴: ディスク読込 + システムクリップボード変化の監視を開始。
         ClipboardHistoryStore.init(this)
         // z2-when (A6) の時刻トリガーを貼り直す (AlarmManager 予約は再起動で消えるため。

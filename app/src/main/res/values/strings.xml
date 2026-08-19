@@ -401,6 +401,11 @@
     <string name="service_channel_desc">Keeps the terminal session running in the background</string>
     <string name="service_notification_title">Z2Term running</string>
     <string name="service_notification_text">A terminal session is running</string>
+    <!-- 繋ぎっぱなし (z2-session attach) の間だけ出る。常駐の理由が読めるようにする。 -->
+    <plurals name="service_notification_attached">
+        <item quantity="one">Attached from the shell (%1$d)</item>
+        <item quantity="other">Attached from the shell (%1$d)</item>
+    </plurals>
     <string name="service_action_stop">Stop</string>
     <string name="server_channel_name">Z2Term servers</string>
     <string name="server_channel_desc">Keeps resident servers (sshd/http/smb, …) running</string>
