@@ -1,7 +1,14 @@
 // z2attach — アプリのタブに繋ぎっぱなしにするクライアント (GPL-3.0)。
 //
 // `z2-session attach <先>` の実体。アプリが開いている AF_UNIX の受付ソケットへ繋ぎ、
-// 自分の標準入出力とタブの PTY を素通しで繋ぐ。抜けるのは **行頭の `~.`**(ssh と同じ)。
+// 自分の標準入出力とタブの PTY を素通しで繋ぐ。抜けるのは **`Ctrl+]`**、または
+// **行頭の `~.`**(ssh と同じ)。
+//
+// ⚠ **`~.` だけでは SSH 越しに抜けられない**(0.8.369・実機で指摘)。ssh クライアントの
+// エスケープも「行頭の `~`」なので、SSH でログインした先で attach して `~.` を打つと、
+// **手前の ssh が先に食って SSH ごと切れる**(内側へは 1 バイトも届かない)。ssh 多段と同じ
+// `~~.` で抜けられはするが、覚え方を押し付けるだけなので、**ssh と衝突しないキーを併設する**。
+// `Ctrl+]`(0x1D) は ssh のエスケープ処理を素通りするので、何段越しでも必ずここへ届く。
 //
 // なぜ /bin/sh で書けないか:
 //   - 端末を raw にする (tcsetattr) 手段が無い。canonical のままだと Ctrl+C も矢印も
@@ -36,6 +43,11 @@
 #define F_TARGET 3  // 繋ぎ先の文字列 (client -> app・最初の 1 通)
 
 #define MAX_PAYLOAD 8192  // 読み取りの塊と同じ。長さ 2 byte に必ず収まる
+
+// 抜けるキー。⚠ **押した瞬間に抜ける**(次の 1 文字を待たない)。待つ作りにすると
+// 「押したのに抜けない」と見えるほうが害が大きい。この 1 文字をタブへ送りたいときは
+// 行頭で `~` に続けて打つ (`~` の次は素通し)。
+#define DETACH_KEY 0x1D  // Ctrl+]
 
 static struct termios saved_tio;
 static int tio_saved = 0;
@@ -195,10 +207,20 @@ int main(int argc, char **argv) {
     signal(SIGTERM, on_fatal_signal);
     signal(SIGPIPE, SIG_IGN);
 
-    fprintf(stderr, "[%s — 抜けるには行頭で ~. / detach with ~. at start of line]\r\n",
-            (char *)notice + 3);
+    // ⚠ SSH 越しでは `~.` は**手前の ssh に食われて届かない**ので、案内に出さない。
+    //    出すと「書いてあるとおり打ったら SSH ごと切れた」になる。
+    if (getenv("SSH_TTY") != NULL || getenv("SSH_CONNECTION") != NULL ||
+        getenv("SSH_CLIENT") != NULL) {
+        fprintf(stderr, "[%s — 抜けるには Ctrl+] / detach with Ctrl+]]\r\n",
+                (char *)notice + 3);
+    } else {
+        fprintf(stderr, "[%s — 抜けるには Ctrl+] か行頭で ~. / "
+                        "detach with Ctrl+] or ~. at start of line]\r\n",
+                (char *)notice + 3);
+    }
 
-    // 行頭で `~` を見たら次の 1 文字を待つ (ssh と同じ)。`~.` で抜け、`~~` は `~` 1 文字。
+    // 抜け方は 2 通り: `Ctrl+]` はどこでも即座に、`~.` は行頭のときだけ (ssh と同じ)。
+    // 行頭で `~` を見たら次の 1 文字を待つ。`~~` は `~` 1 文字、`~Ctrl+]` は Ctrl+] 1 文字。
     int at_line_start = 1;
     int in_escape = 0;
     int exit_code = 0;
@@ -232,13 +254,16 @@ int main(int argc, char **argv) {
                 if (in_escape) {
                     in_escape = 0;
                     if (c == '.') { detach = 1; break; }
-                    // `~~` なら `~` 1 文字。それ以外は `~` と本人の両方を通す
+                    // `~~` なら `~` 1 文字。`~Ctrl+]` なら Ctrl+] 1 文字 (抜けずにタブへ送る
+                    // 唯一の手段)。それ以外は `~` と本人の両方を通す。
+                    if (c == DETACH_KEY) { out_buf[out_len++] = DETACH_KEY; at_line_start = 0; continue; }
                     out_buf[out_len++] = '~';
                     if (c == '~') { at_line_start = 0; continue; }
                     out_buf[out_len++] = c;
                     at_line_start = (c == '\r' || c == '\n');
                     continue;
                 }
+                if (c == DETACH_KEY) { detach = 1; break; }
                 if (at_line_start && c == '~') { in_escape = 1; continue; }
                 out_buf[out_len++] = c;
                 at_line_start = (c == '\r' || c == '\n');

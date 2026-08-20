@@ -578,7 +578,9 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# z2-session key <tab> --raw '\x1b[A' … anything else, as bytes (\xHH \e \n \r \t \0)
         |# z2-session capture [tab] [--all]    … take that tab's screen (--all includes scrollback)
         |# z2-session attach <tab>             … stay connected to that tab and just type in it
-        |#   leave with ~. at the start of a line (as in ssh); write ~~ for a literal ~ there
+        |#   leave with Ctrl+] (any time), or with ~. at the start of a line (as in ssh)
+        |#   ⚠ over SSH only Ctrl+] works: the ssh in front of you eats ~. and drops the SSH session
+        |#   write ~~ for a literal ~ at the start of a line, ~ then Ctrl+] for a literal Ctrl+]
         |#   while attached the tab follows YOUR window size; it goes back when you leave
         |# z2-session close <tab>              … close that tab (never the last one)
         |#
@@ -597,7 +599,9 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# z2-session key <先> --raw '\x1b[A'  … 表に無いものはバイト列で (\xHH \e \n \r \t \0)
         |# z2-session capture [先] [--all]     … そのタブの画面を取り出す (--all は遡れる分も)
         |# z2-session attach <先>              … そのタブに繋ぎっぱなしにして、普通に打つ
-        |#   抜けるのは行頭で ~. (ssh と同じ)。行頭の ~ そのものは ~~ と 2 回打つ
+        |#   抜けるのは Ctrl+] (いつでも) か、行頭で ~. (ssh と同じ)
+        |#   ⚠ SSH 越しでは Ctrl+] だけが効く (~. は手前の ssh が食って SSH ごと切れる)
+        |#   行頭の ~ そのものは ~~、Ctrl+] そのものは 行頭の ~ に続けて Ctrl+]
         |#   繋いでいる間、タブの広さは**繋いだ側**に合わせる。抜ければ元に戻る
         |# z2-session close <先>               … そのタブを閉じる (最後の 1 枚は閉じない)
         |#

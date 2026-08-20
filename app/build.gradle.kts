@@ -53,8 +53,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 377
-        versionName = "0.8.369-alpha"
+        versionCode = 378
+        versionName = "0.8.370-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -206,14 +206,19 @@ android {
 // assembleX` だけで常にソースと一致した .so が再生成される(手動手順ゼロ)。
 val buildZ2rootNative = tasks.register<Exec>("buildZ2rootNative") {
     group = "build"
-    description = "z2root.c / z2accept.c を NDK clang で jniLibs/arm64-v8a の lib*.so へ再ビルド"
+    description = "z2root.c / z2accept.c / z2attach.c を NDK clang で jniLibs/arm64-v8a の lib*.so へ再ビルド"
     val script = rootProject.file("scripts/build-z2root.sh")
-    // z2root.c / z2accept.c / スクリプトのいずれかが変われば再ビルド。変わらなければ up-to-date。
+    // z2root.c / z2accept.c / z2attach.c / スクリプトのいずれかが変われば再ビルド。変わらなければ up-to-date。
+    // ⚠ **スクリプトがビルドする .c は 1 つ残らずここに並べる (0.8.370)**。z2attach.c が漏れていたため、
+    //    直しても入力が変わらず up-to-date で飛ばされ、**古い libz2attach.so が APK に入り続けた**。
+    //    「ソースは直っているのに実機の挙動が変わらない」という、原因の見えない形で出る。
     inputs.file(layout.projectDirectory.file("src/main/cpp/z2root/z2root.c"))
     inputs.file(layout.projectDirectory.file("src/main/cpp/z2accept/z2accept.c"))
+    inputs.file(layout.projectDirectory.file("src/main/cpp/z2attach/z2attach.c"))
     inputs.file(script)
     outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2root.so"))
     outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2accept.so"))
+    outputs.file(layout.projectDirectory.file("src/main/jniLibs/arm64-v8a/libz2attach.so"))
     // NDK は build-z2root.sh が自己解決する(ANDROID_NDK_HOME 等の env / local.properties の
     // sdk.dir+ndk.version / ANDROID_HOME 配下の ndk)。Exec は親 env を継承するため追加指定不要。
     commandLine("bash", script.absolutePath)

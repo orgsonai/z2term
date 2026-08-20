@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-20 / Target version: 0.8.369-alpha (versionCode 377)
+Last updated: 2026-08-20 / Target version: 0.8.370-alpha (versionCode 378)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -470,7 +470,7 @@ open another working tab, place a command into a different tab, or grab what is 
 | `send <target> <text>… [--enter]` | **inserts** text into that tab; only runs it when `--enter` is given |
 | `key <target> <key>…` | send **keys** to that tab (`C-c` / `M-x` / `F5` / `Up` …); `--raw` takes bytes (0.8.311) |
 | `capture [target] [--all]` | returns that tab's on-screen text (`--all` includes the scrollback) |
-| `attach <target>` | **stay connected** to that tab and just type in it (0.8.366); leave with `~.` at the start of a line |
+| `attach <target>` | **stay connected** to that tab and just type in it (0.8.366); leave with `Ctrl+]`, or with `~.` at the start of a line |
 | `close <target>` | closes that tab (never the last one — the same promise as double-tap-to-close in the UI) |
 
 **Safe by default**: `send` **inserts without executing** (no newline appended) — the same promise as
@@ -524,7 +524,11 @@ means would then depend on the payload, which cannot be explained to anyone.
 - **The taps already existed.** Output is duplicated in the read loop **at the same place and in the same chunk as the session log (C1)** — rebuilding it elsewhere would let "it showed on screen but never reached the attached side" happen — and input goes through `writeBytes`, the same exit `key` uses, which bypasses bracketed paste so Ctrl+C arrives as Ctrl+C. ⚠ Unlike the log, **alt screen is always forwarded**: the other end is reproducing the screen, so filtering would freeze it the moment a full-screen program starts.
 - **The size follows the attached side** (user's choice). ⚠ **While attached, the tab on the phone wraps wrongly and looks broken**; that is the accepted trade, and it returns when the last client leaves. ⚠ **Restoring it requires remembering the size the screen asked for** — the screen's resize is driven by `LaunchedEffect(session.id, rows, cols)` and **never fires again unless rows/cols change**, so nobody re-announces the phone's size on detach.
 - **On attach, the current screen is rebuilt with its colours and sent.** ⚠ `getAllText()` is plain text and **drops every colour and attribute**; build it from `TerminalBuffer.getScreenRow` and `SgrAttribute` (32 bits per cell). ⚠ **Always re-emit SGR from `0`** — emitting only differences lets a forgotten attribute bleed down the rest of the screen. The scrollback is not sent (that is `capture --all`'s job).
-- **Leave with `~.` at the start of a line** (as in ssh). The check lives in **the client** and swallows it before the app sees it; a literal `~` at line start is `~~`. ⛔ Choosing this spelling **takes no Ctrl key away** from full-screen programs.
+- **Leave with `Ctrl+]`, or with `~.` at the start of a line** (the latter as in ssh). The check lives in **the client** and swallows it before the app sees it; a literal `~` at line start is `~~`, and a literal `Ctrl+]` is **`~` at line start followed by `Ctrl+]`**.
+  - ⚠⚠ **`~.` alone cannot get you out over SSH (0.8.370, hit on a real device).** The ssh client escape is "a `~` at the start of a line" as well, so typing `~.` inside an attach on an SSH session makes **the ssh in front of you eat it and drop the whole SSH session** (not one byte reaches the client). `~~.` works, the same way it does for nested ssh, but that is **making the user carry the workaround**, not fixing it. ⇒ **add a key that does not collide with ssh**. `Ctrl+]` (0x1D) passes straight through every ssh escape handler, so it always reaches the client, however many hops away.
+  - ⛔ **The 0.8.366 rule of "take no Ctrl key away" was bent here (0.8.370).** One `Ctrl+]` is taken from full-screen programs, and in exchange **"cannot leave over SSH" is gone**. The key that was taken is still reachable: type `~` at the start of a line, then `Ctrl+]`.
+  - ⚠ **It leaves the moment it is pressed** (it does not wait for the next byte). `Ctrl+] Ctrl+]` for a literal is possible, but **a detach key that looks like it did nothing** is the worse failure.
+  - ⚠ **The one-line hint is written for the environment it runs in** (`SSH_TTY` / `SSH_CONNECTION` / `SSH_CLIENT`). Offering `~.` over SSH would mean "I typed what it said and my SSH session died".
 - **The client is a small native program** (`app/src/main/cpp/z2attach/z2attach.c`): `/bin/sh` cannot put the terminal in raw mode, cannot wait on stdin and a socket at once, and cannot catch `SIGWINCH`. ⚠ Only `lib*.so` names are unpacked into `nativeLibraryDir` at install, so it ships as `libz2attach.so` and is provisioned into the rootfs as `z2attach` (the same trick as `libz2accept.so`). ⚠ **Always restore the terminal, even on an abnormal exit** — leaving it raw is the worst failure mode there is.
 - ⛔ **Refusals say why** (the promise `key` set): a GUI tab, a tab that has not started, a tab that already exited, and no such tab each get their own answer. ⚠ **Never start a stopped tab from here** — attaching must not kick off a first-run OS download.
 - **While attached the app is held resident** (`AttachHold`), because being killed mid-session from the PC is the worst outcome; it reuses the same `TerminalService` that 🔒 starts. ⚠ **The `keepAliveService` setting is never written** (that would leave the user's setting changed after detaching). ⚠ **Only release what you acquired** — if 🔒 is on or a resident server is running, residency belongs to them.
