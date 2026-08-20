@@ -135,6 +135,9 @@ class MainActivity : ComponentActivity() {
         // 前面復帰時に現在のシステムクリップボードを履歴へ取り込む。Android 10+ は
         // フォーカス中のみ読取が許可されるため、裏で他アプリがコピーした内容はここで拾う。
         ClipboardHistoryStore.captureCurrent(this)
+        // 繋ぎっぱなしの受付 (z2-session attach) が落ちていたら張り直す。張れていれば何もしない。
+        // 入口が Application.onCreate だけだと、一度落ちた受付はアプリを開き直しても戻らない。
+        com.zerotoship.z2term.service.AttachServer.start(this)
     }
 
     /**

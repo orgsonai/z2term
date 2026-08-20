@@ -60,6 +60,15 @@ object AttachServer {
 
     @Volatile private var server: LocalServerSocket? = null
 
+    /**
+     * ⚠⚠ **bind した側を捨てない。** [LocalServerSocket] は渡された fd を **借りるだけ**で、
+     * bind した [LocalSocket] を手放すと GC がその finalize で同じ fd を閉じる。閉じても
+     * ソケットのファイルは残るので、外からは「ファイルはあるのに繋がらない」
+     * (`connect` が ECONNREFUSED) に見える。**繋いだ直後は動き、GC が回った頃に黙る**という
+     * 出方をするので原因が掴みにくい (0.8.367 の実機で踏んだ)。
+     */
+    @Volatile private var bound: LocalSocket? = null
+
     /** ホスト側の実体。ゲストからは `/root/.z2term/attach.sock`。 */
     fun socketFile(context: Context): File =
         File(context.filesDir, "shared_home/.z2term/attach.sock")
@@ -73,19 +82,30 @@ object AttachServer {
         //   落ち、以後どのタブにも繋げなくなる (プロセスが死んだ後もファイルだけ残る)。
         runCatching { if (sock.exists()) sock.delete() }
 
-        val srv = runCatching {
+        val opened = runCatching {
             val ls = LocalSocket(LocalSocket.SOCKET_STREAM)
             ls.bind(LocalSocketAddress(sock.absolutePath, LocalSocketAddress.Namespace.FILESYSTEM))
-            LocalServerSocket(ls.fileDescriptor)
+            ls to LocalServerSocket(ls.fileDescriptor)
         }.getOrElse { e ->
             Log.w(TAG, "cannot bind ${sock.absolutePath}: ${e.message}")
             return
         }
+        val (ls, srv) = opened
+        bound = ls
         server = srv
         thread(name = "z2term-attach-accept", isDaemon = true) {
             while (server === srv) {
                 val client = runCatching { srv.accept() }.getOrNull() ?: break
                 thread(name = "z2term-attach", isDaemon = true) { serve(appCtx, client) }
+            }
+            // ⚠ 落ちた受付を握ったままにしない。[start] は `server != null` で早々に戻るので、
+            //   ここで手放しておかないと以後どこから呼んでも張り直せない。
+            if (server === srv) {
+                Log.w(TAG, "accept loop ended; released for rebind")
+                server = null
+                bound = null
+                runCatching { srv.close() }
+                runCatching { ls.close() }
             }
         }
         Log.i(TAG, "listening on ${sock.absolutePath}")
@@ -94,7 +114,12 @@ object AttachServer {
     fun stop() {
         val srv = server ?: return
         server = null
+        val ls = bound
+        bound = null
         runCatching { srv.close() }
+        // ⚠ bind した側も閉じる。受付だけ閉じると fd が 1 本残り、次に [start] が
+        //   ソケットのファイルを消し損ねたとき EADDRINUSE で立ち上がらなくなる。
+        runCatching { ls?.close() }
     }
 
     // --- 1 本の接続の面倒を見る ---------------------------------------------
