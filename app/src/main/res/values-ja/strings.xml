@@ -735,6 +735,9 @@
     <string name="when_form_newline_stripped">改行を空白に直しました（ルールは 1 行しか読みません）。</string>
     <string name="when_script_title">このコマンドが呼ぶスクリプト</string>
     <string name="when_script_readonly">表示だけです。中身を直すときは端末で開いてください。</string>
+    <string name="when_cmd_title">端末で同じものを作るコマンド</string>
+    <string name="when_cmd_note">タップでコピーします。端末に貼れば同じルールがもう 1 本できます。</string>
+    <string name="when_cmd_hint">きっかけと実行するコマンドを入れると出ます。</string>
     <string name="when_kind_charge">充電</string>
     <string name="when_kind_battery">電池</string>
     <string name="when_kind_time">時刻</string>

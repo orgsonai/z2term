@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.ui.settings
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,6 +42,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import com.zerotoship.z2term.settings.WhenCommandLine
 import com.zerotoship.z2term.settings.WhenCondition
 import com.zerotoship.z2term.settings.WhenConditionSpec
 import androidx.compose.ui.Alignment
@@ -777,6 +779,73 @@ private fun WhenRuleEditForm(
         placeholder = "mon-fri"
     )
 
+    // --- 端末で言うとこう (0.8.375) ------------------------------------------
+    // ⚠ **保存する中身とプレビューは 1 か所で組む**。別々に組むと「画面に出ているコマンド」と
+    // 「保存されるルール」がズレて、コピーして貼った 1 行が別のルールになる。
+    val builtSpec = if (advanced) null else WhenConditionSpec.build(conds)
+    val edited = initial.copy(
+        name = name.trim(),
+        trigger = trigger.trim(),
+        run = run.trim(),
+        condition = when {
+            advanced -> condition.trim()
+            condMode == WhenConditionSpec.Mode.ALL -> builtSpec.orEmpty()
+            else -> ""
+        },
+        conditionAny = when {
+            advanced -> conditionAny.trim()
+            condMode == WhenConditionSpec.Mode.ANY -> builtSpec.orEmpty()
+            else -> ""
+        },
+        otherwise = elseCmd.trim(),
+        cooldown = cooldown.trim(),
+        between = between.trim(),
+        days = days.trim(),
+    )
+    Text(
+        text = stringResource(R.string.when_cmd_title),
+        color = ZtsTextSecondary,
+        fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace
+    )
+    if (edited.trigger.isEmpty() || edited.run.isEmpty()) {
+        // 中途半端な行を出さない (貼っても動かないコマンドを見せる方が混乱する)。
+        Text(
+            text = stringResource(R.string.when_cmd_hint),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    } else {
+        val commandLine = WhenCommandLine.of(edited)
+        val copied = stringResource(R.string.settings_cmd_copied)
+        Text(
+            text = commandLine,
+            color = ZtsGreen,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(6.dp))
+                .background(ZtsBgCard)
+                .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+                .clickable {
+                    val cm = context.getSystemService(android.content.ClipboardManager::class.java)
+                    cm?.setPrimaryClip(
+                        android.content.ClipData.newPlainText("z2term", commandLine)
+                    )
+                    Toast.makeText(context, copied, Toast.LENGTH_SHORT).show()
+                }
+                .padding(horizontal = 8.dp, vertical = 6.dp)
+        )
+        Text(
+            text = stringResource(R.string.when_cmd_note),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+
     error?.let { message ->
         Text(
             text = message,
@@ -793,8 +862,8 @@ private fun WhenRuleEditForm(
         PillButton(label = stringResource(R.string.action_cancel), onClick = onCancel)
         Box(modifier = Modifier.weight(1f))
         PillButton(label = stringResource(R.string.action_save), accent = true) {
-            val t = trigger.trim()
-            val r = run.trim()
+            val t = edited.trigger
+            val r = edited.run
             // 綴りが 1 文字違うだけで「一覧に並ぶのに一生動かないルール」になるので、
             // 保存の前に必ず見る（CLI が登録時に検査しているのと同じ理由・同じ判定）。
             val problem = when (WhenTriggerCatalog.triggerProblem(t)) {
@@ -812,34 +881,10 @@ private fun WhenRuleEditForm(
             }
             // ビルダーで組んだ条件は**往復で検証する** (組み立てた文字列を読み直せなければ、
             // 値の入れ忘れなどで画面の見た目と実際の式がズレている)。
-            val builtSpec = if (advanced) null else WhenConditionSpec.build(conds)
             val incomplete = builtSpec != null && WhenConditionSpec.parse(builtSpec) == null
             error = problem ?: if (incomplete) msgCondIncomplete else null
-            if (error == null) {
-                val cond = when {
-                    advanced -> condition.trim()
-                    condMode == WhenConditionSpec.Mode.ALL -> builtSpec.orEmpty()
-                    else -> ""
-                }
-                val condAny = when {
-                    advanced -> conditionAny.trim()
-                    condMode == WhenConditionSpec.Mode.ANY -> builtSpec.orEmpty()
-                    else -> ""
-                }
-                onSave(
-                    initial.copy(
-                        name = name.trim(),
-                        trigger = t,
-                        run = r,
-                        condition = cond,
-                        conditionAny = condAny,
-                        otherwise = elseCmd.trim(),
-                        cooldown = cooldown.trim(),
-                        between = between.trim(),
-                        days = days.trim(),
-                    )
-                )
-            }
+            // 画面に出ているコマンドと同じもの ([edited]) をそのまま保存する。
+            if (error == null) onSave(edited)
         }
     }
 }

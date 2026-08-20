@@ -750,6 +750,9 @@
     <string name="when_form_newline_stripped">Line breaks were turned into spaces (a rule reads one line only).</string>
     <string name="when_script_title">Script this command runs</string>
     <string name="when_script_readonly">Shown for reference. Edit it in the terminal.</string>
+    <string name="when_cmd_title">The same rule as a terminal command</string>
+    <string name="when_cmd_note">Tap to copy. Pasting it in the terminal makes the same rule again.</string>
+    <string name="when_cmd_hint">Shown once the trigger and the command are filled in.</string>
     <string name="when_kind_charge">Charging</string>
     <string name="when_kind_battery">Battery</string>
     <string name="when_kind_time">Time</string>
