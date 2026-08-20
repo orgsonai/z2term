@@ -218,85 +218,109 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
 
     val tileHelp: String = if (en) """
         |# z2-tile set <1-$tiles> <macro.sh | command...> [--off <command...>] [-l <label>] [-i <drawing>]
-        |#                             … put something on quick-settings tile 1-$tiles
-        |# z2-tile add <1-$tiles>          … ask to put that slot on the panel (Android 13+)
-        |# z2-tile list                … all $tiles slots as TSV (slot / label / command; '-' = empty)
-        |# z2-tile clear <1-$tiles|all>    … empty a slot
-        |# What you assign is either **the file name of a macro** in ~/.z2term/macros/ or
-        |# **a command** to run as typed — whichever it is, is worked out from the name.
-        |# Tap the tile to run it, tap again to stop (same deal as the widget's buttons).
-        |# The tile looks "on" while it runs (the colour is the OS accent, not ours).
-        |# With --off you get **two commands**: tapping alternates between them and the tile stays
-        |# "on"-looking while it is on. Use it where turning off is its own command (z2-torch on/off).
-        |# ⚠ That on/off is only what the app remembers — running z2-torch off in the terminal
-        |# instead leaves the tile showing "on". (z2-screen keepon is the exception: the app
-        |# holds that state for real, so its tile follows the terminal.)
-        |# A macro may take arguments ('remind.sh ask'): the first word decides whether this is a
-        |# macro, the rest is passed to it. Two slots running the same macro end up with the same
-        |# label, so give them -l. ⚠ A name ending in .sh that is not in ~/.z2term/macros/ is
-        |# rejected here — as a command it would be looked up in PATH (which does not include the
-        |# macro folder), so the tile would do nothing at all and only say so in tile/run.log.
-        |# The command runs with Z2_TILE=<slot> (and Z2_TILE_MACRO for a macro) in the environment.
-        |# On Android 13+ `set` asks you right away whether to put the tile on the panel, and that
-        |# dialog carries **the name and icon you just assigned**. Say no and nothing is placed.
-        |# ⚠ It only appears while z2term is in front, and only one can be asked at a time — a
-        |# macro that assigns two slots in a row will only ask about the first. Use z2-tile add
-        |# <slot> afterwards for the rest.
-        |# ⚠ Placing a tile is still your call — Android does not let an app put its own tiles
-        |# there. From the pencil/edit screen of the quick settings panel, look for **z2term <slot>**:
-        |# ⚠ that list shows the manifest name and icon, not the ones you assigned (Android has no
-        |# way to change them at runtime), so z2-tile list tells you which number is which.
-        |# There are exactly $tiles slots: the number is fixed in the manifest and cannot grow at
-        |# runtime. Slots you have not assigned anything to do not show up in that edit screen at
-        |# all, so having $tiles of them costs you nothing.
-        |# A slot gets a matching icon by itself where the name gives it away (remind.sh -> a clock),
-        |# and z2-icon replaces it with anything you like — once you do, it is left alone.
-        |# -i settles the drawing **before** that dialog appears, so a single line decides the name
-        |# and the icon together (z2-icon sample lists the names you can pass).
-        |# ⚠ An unknown name is refused **before anything is assigned** — a slot that is set but
-        |# wearing the wrong drawing is harder to notice than one that was never set.
+        |#                           … put something on quick-settings tile 1-$tiles
+        |# z2-tile add <1-$tiles>         … ask to put that slot on the panel (Android 13+)
+        |# z2-tile list              … all $tiles slots as TSV (slot / label / command; '-' = empty)
+        |# z2-tile clear <1-$tiles|all>   … empty a slot
+        |#
+        |# What you assign
+        |#   Either **the file name of a macro** in ~/.z2term/macros/ or **a command** run as
+        |#   typed — which one it is, is worked out from the name.
+        |#   A macro may take arguments ('remind.sh ask'): the first word decides whether this is
+        |#   a macro, the rest is passed to it. Two slots on the same macro end up with the same
+        |#   label, so give them -l.
+        |#   The command runs with Z2_TILE=<slot> (and Z2_TILE_MACRO for a macro) in the environment.
+        |#   ⚠ A name ending in .sh that is not in ~/.z2term/macros/ is rejected here — as a
+        |#     command it would be looked up in PATH (which does not include the macro folder),
+        |#     so the tile would do nothing at all and only say so in tile/run.log.
+        |#
+        |# What a tap does
+        |#   Tap to run it, tap again to stop (same deal as the widget's buttons).
+        |#   The tile looks "on" while it runs (the colour is the OS accent, not ours).
+        |#   With --off you get **two commands**: tapping alternates between them and the tile
+        |#   stays "on"-looking while it is on. Use it where turning off is its own command
+        |#   (z2-torch on / off).
+        |#   ⚠ That on/off is only what the app remembers — running z2-torch off in the terminal
+        |#     instead leaves the tile showing "on". (z2-screen keepon is the exception: the app
+        |#     holds that state for real, so its tile follows the terminal.)
+        |#
+        |# Putting it on the panel
+        |#   On Android 13+ `set` asks you right away whether to put the tile on the panel, and
+        |#   that dialog carries **the name and icon you just assigned**. Say no, nothing is placed.
+        |#   There are exactly $tiles slots: the number is fixed in the manifest and cannot grow at
+        |#   runtime. Slots you have not assigned anything to do not show up in the edit screen
+        |#   at all, so having $tiles of them costs you nothing.
+        |#   ⚠ It only appears while z2term is in front, and only one can be asked at a time — a
+        |#     macro that assigns two slots in a row will only ask about the first. Use
+        |#     z2-tile add <slot> afterwards for the rest.
+        |#   ⚠ Placing a tile is still your call — Android does not let an app put its own tiles
+        |#     there. From the pencil/edit screen of the quick settings panel, look for
+        |#     **z2term <slot>**.
+        |#   ⚠ That list shows the manifest name and icon, not the ones you assigned (Android has
+        |#     no way to change them at runtime), so z2-tile list tells you which number is which.
+        |#
+        |# The drawing (-i)
+        |#   A slot gets a matching icon by itself where the name gives it away (remind.sh -> a
+        |#   clock), and z2-icon replaces it with anything you like — once you do, it is left alone.
+        |#   -i settles the drawing **before** that dialog appears, so a single line decides the
+        |#   name and the icon together (z2-icon sample lists the names you can pass).
+        |#   ⚠ An unknown name is refused **before anything is assigned** — a slot that is set but
+        |#     wearing the wrong drawing is harder to notice than one that was never set.
+        |#
         |# e.g. z2-tile set 1 backup.sh
         |#      z2-tile set 2 'z2-screen keepon 1h' -l "no sleep"
         |#      z2-tile set 3 z2-torch on --off z2-torch off -l torch
         |#      z2-tile set 4 backup.sh -l backup -i sync
     """.trimMargin() else """
         |# z2-tile set <1-$tiles> <マクロ.sh | コマンド...> [--off <コマンド...>] [-l <表示名>] [-i <絵の名前>]
-        |#                             … クイック設定タイル 1〜$tiles に割り当てる
-        |# z2-tile add <1-$tiles>          … その枠をパネルに置いてよいか聞く (Android 13 以降)
-        |# z2-tile list                … $tiles 枠すべてを TSV で (枠 / 表示名 / コマンド。'-' は空き)
-        |# z2-tile clear <1-$tiles|all>    … 割り当てを消す
-        |# 割り当てるのは ~/.z2term/macros/ にある**マクロのファイル名**か、そのまま走らせる
-        |# **コマンド**のどちらでもよい (名前を見て自動で判別します)。
-        |# タイルを押すと実行、もう一度押すと停止 (ウィジェットのボタンと同じ約束)。
-        |# 実行中はタイルが ON の見た目になります (色は OS のもの)。
-        |# --off を付けると**入 / 切の 2 コマンド**になり、押すたびに交互に走ります
-        |# (入の間タイルは ON の見た目)。切るのが別コマンドのもの (z2-torch on / off) 向けです。
-        |# ⚠ この ON / 切は**アプリが覚えているだけ**です。端末から直接 z2-torch off を打つと
-        |# タイルは入のままになります (z2-screen keepon だけは例外で、アプリが実態を
-        |# 持っているので端末から切ってもタイルが揃います)。
-        |# マクロには**引数を付けられます** ('remind.sh ask')。マクロかどうかは**先頭の語**で決まり、
-        |# 残りはそのままマクロへ渡ります。同じマクロを 2 枠に置くと表示名が同じになるので -l を
-        |# 付けてください。⚠ .sh で終わるのに ~/.z2term/macros/ に無い名前は**ここで弾きます** —
-        |# コマンド扱いになると PATH (マクロ置き場は入っていません) から探されて見つからず、
-        |# タイルは押しても無反応・理由は tile/run.log にしか出ない、という壊れ方をするためです。
-        |# 実行時、環境変数 Z2_TILE に枠番号 (マクロなら Z2_TILE_MACRO も) が入ります。
-        |# Android 13 以降では、set したその場で**パネルに置いてよいか聞きます**。そのダイアログには
-        |# **いま割り当てた名前とアイコン**が出るので、編集画面で当てものをせずに済みます。
-        |# 断れば何も置きません。⚠ 出るのは z2term が前面にいるときだけで、**一度に 1 つ**しか
-        |# 聞けません — 2 枠まとめて登録するマクロでは 1 つめしか聞かれないので、残りは
-        |# z2-tile add <枠> で聞き直してください。
-        |# ⚠ 置くかどうかは**ご自身の判断**です — アプリが勝手に置くことは Android が禁じています。
-        |# クイック設定パネルの鉛筆(編集)から探すときの目印は **z2term <枠番号>** です。
-        |# ⚠ その一覧に出る名前とアイコンは manifest 決め打ちで、**割り当てた名前ではありません**
-        |# (実行中に差し替える手段が Android にありません)。どの番号が何かは z2-tile list で見えます。
-        |# 枠はちょうど $tiles 個で、manifest で決め打ちのため実行中に増やせません。まだ割り当てて
-        |# いない枠は編集画面の一覧にも出ないので、$tiles 個あっても邪魔になりません。
-        |# 名前から分かるものは**アイコンが自動で付きます** (remind.sh なら時計)。z2-icon で
-        |# 好きな絵に変えられ、一度変えたらそれ以降は自動で触りません。
-        |# -i を付けると、**上のダイアログが出る前に**絵まで決まります (1 行で名前も絵も済みます)。
-        |# 名前は z2-icon sample の一覧から選びます。
-        |# ⚠ 無い名前を書いたときは**割り当てごと断ります** — 割り当てだけ済んで絵が違うほうが、
-        |# 何も起きていない状態より気付きにくいためです。
+        |#                           … クイック設定タイル 1〜$tiles に割り当てる
+        |# z2-tile add <1-$tiles>         … その枠をパネルに置いてよいか聞く (Android 13 以降)
+        |# z2-tile list              … $tiles 枠すべてを TSV で (枠 / 表示名 / コマンド。'-' は空き)
+        |# z2-tile clear <1-$tiles|all>   … 割り当てを消す
+        |#
+        |# 割り当てるもの
+        |#   ~/.z2term/macros/ にある**マクロのファイル名**か、そのまま走らせる**コマンド**の
+        |#   どちらでもよい (名前を見て自動で判別します)。
+        |#   マクロには**引数を付けられます** ('remind.sh ask')。マクロかどうかは**先頭の語**で
+        |#   決まり、残りはそのままマクロへ渡ります。同じマクロを 2 枠に置くと表示名が同じに
+        |#   なるので -l を付けてください。
+        |#   実行時、環境変数 Z2_TILE に枠番号 (マクロなら Z2_TILE_MACRO も) が入ります。
+        |#   ⚠ .sh で終わるのに ~/.z2term/macros/ に無い名前は**ここで弾きます** — コマンド扱いに
+        |#     なると PATH (マクロ置き場は入っていません) から探されて見つからず、タイルは押しても
+        |#     無反応・理由は tile/run.log にしか出ない、という壊れ方をするためです。
+        |#
+        |# 押したときの動き
+        |#   押すと実行、もう一度押すと停止 (ウィジェットのボタンと同じ約束)。
+        |#   実行中はタイルが ON の見た目になります (色は OS のもの)。
+        |#   --off を付けると**入 / 切の 2 コマンド**になり、押すたびに交互に走ります
+        |#   (入の間タイルは ON の見た目)。切るのが別コマンドのもの (z2-torch on / off) 向けです。
+        |#   ⚠ この入 / 切は**アプリが覚えているだけ**です。端末から直接 z2-torch off を打つと
+        |#     タイルは入のままになります (z2-screen keepon だけは例外で、アプリが実態を
+        |#     持っているので端末から切ってもタイルが揃います)。
+        |#
+        |# パネルに置く
+        |#   Android 13 以降では、set したその場で**パネルに置いてよいか聞きます**。そのダイアログ
+        |#   には**いま割り当てた名前とアイコン**が出るので、編集画面で当てものをせずに済みます。
+        |#   断れば何も置きません。
+        |#   枠はちょうど $tiles 個で、manifest で決め打ちのため実行中に増やせません。まだ割り当てて
+        |#   いない枠は編集画面の一覧にも出ないので、$tiles 個あっても邪魔になりません。
+        |#   ⚠ 出るのは z2term が前面にいるときだけで、**一度に 1 つ**しか聞けません — 2 枠まとめて
+        |#     登録するマクロでは 1 つめしか聞かれないので、残りは z2-tile add <枠> で聞き直して
+        |#     ください。
+        |#   ⚠ 置くかどうかは**ご自身の判断**です — アプリが勝手に置くことは Android が禁じています。
+        |#     クイック設定パネルの鉛筆(編集)から探すときの目印は **z2term <枠番号>** です。
+        |#   ⚠ その一覧に出る名前とアイコンは manifest 決め打ちで、**割り当てた名前ではありません**
+        |#     (実行中に差し替える手段が Android にありません)。どの番号が何かは z2-tile list で
+        |#     見えます。
+        |#
+        |# アイコン (-i)
+        |#   名前から分かるものは**アイコンが自動で付きます** (remind.sh なら時計)。z2-icon で
+        |#   好きな絵に変えられ、一度変えたらそれ以降は自動で触りません。
+        |#   -i を付けると、**上のダイアログが出る前に**絵まで決まります (1 行で名前も絵も
+        |#   済みます)。名前は z2-icon sample の一覧から選びます。
+        |#   ⚠ 無い名前を書いたときは**割り当てごと断ります** — 割り当てだけ済んで絵が違うほうが、
+        |#     何も起きていない状態より気付きにくいためです。
+        |#
         |# 例: z2-tile set 1 backup.sh
         |#     z2-tile set 2 'z2-screen keepon 1h' -l 消灯しない
         |#     z2-tile set 3 z2-torch on --off z2-torch off -l ライト

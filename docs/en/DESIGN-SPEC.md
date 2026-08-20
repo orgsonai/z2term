@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-20 / Target version: 0.8.368-alpha (versionCode 376)
+Last updated: 2026-08-20 / Target version: 0.8.369-alpha (versionCode 377)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1143,6 +1143,7 @@ to be compared against `qrencode` module by module).
   - `z2-toast` / `z2-share` / `z2-open` had no leading comment at all, so `toastHelp` / `shareHelp` / `openHelp` were written for them.
   - `z2help` now ends by saying that `--help` works on every command in the list — the list alone never told anyone where to go next.
   - `Z2ApiScriptTest.everyScriptPrintsItsHelp` compares the `--help` output of **every script in both languages**, line by line, against the leading comment block recomputed on the Kotlin side. "Prints the first few lines" must not pass.
+  - **Break a long help into titled blocks (0.8.369)**: the `z2-tile` help ran for 33 lines with no paragraphs and no headings, so the one line you needed could not be found (reported by the user: "really hard to read"). ⇒ **the command list goes first, then blocks separated by `#`-only lines (= blank lines) under the headings "What you assign / What a tap does / Putting it on the panel / The drawing (-i) / e.g."**. Not one line of content was dropped. ⚠ **Line the `…` up by the width after expansion** — `$tiles` becomes a single digit on the Kotlin side, so a list that lines up in the source is crooked in the terminal.
 
 - **`z2-ask` (0.8.267 — ask the person, get the answer back)**: `name=$(z2-ask "Branch name?")`. It asks **through a notification's reply field** (`RemoteInput`). `-t sec` (default 300) / `-H hint` / `-d default`.
   - **Why**: the only way to ask a person was `z2-notify -b <label>`, i.e. **buttons** — they could only answer with a choice you had prepared. Free-form answers ("which branch?", "where should it go?") could not be expressed at all, so macros gave up asking and hard-coded a value.
