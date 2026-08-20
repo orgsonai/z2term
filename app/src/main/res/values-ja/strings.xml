@@ -690,6 +690,8 @@
     <string name="when_if_field">if = そのときの端末の状態</string>
     <!-- 自動化: 条件ビルダー (0.8.373) -->
     <string name="when_cond_title">どんなときに実行するか</string>
+    <string name="when_now_value">今: %1$s</string>
+    <string name="when_now_empty">今: (なし)</string>
     <string name="when_cond_mode_all">すべて満たす</string>
     <string name="when_cond_mode_any">どれか満たす</string>
     <string name="when_cond_add">＋ 条件を追加</string>

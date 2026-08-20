@@ -97,8 +97,11 @@ object WhenGuard {
     /**
      * 状態の値を真偽として読む。`z2-state` は真偽を `true`/`false` で返すが、`screen` だけは
      * `on`/`off` なので両方を受ける (`z2-state screen` の出力をそのまま書いて通じるように)。
+     *
+     * ⚠ **画面の「今の値」表示もここを通す** (0.8.374)。表示だけ別の読み方をすると、
+     * 「今: いいえ」と出ているのに条件は成立する、という一番たちの悪いズレになる。
      */
-    private fun truthy(value: String): Boolean =
+    fun truthy(value: String): Boolean =
         when (value.trim().lowercase()) {
             "true", "on", "1", "yes" -> true
             else -> false

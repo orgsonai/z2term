@@ -705,6 +705,8 @@
     <string name="when_if_field">if = device state at that moment</string>
     <!-- 自動化: 条件ビルダー (0.8.373) -->
     <string name="when_cond_title">When to run it</string>
+    <string name="when_now_value">now: %1$s</string>
+    <string name="when_now_empty">now: (none)</string>
     <string name="when_cond_mode_all">all of them</string>
     <string name="when_cond_mode_any">any one of them</string>
     <string name="when_cond_add">+ Add a condition</string>

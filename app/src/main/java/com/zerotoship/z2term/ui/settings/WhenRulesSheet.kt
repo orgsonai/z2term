@@ -55,6 +55,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.service.Z2ApiBridge
 import com.zerotoship.z2term.service.WhenGuard
 import com.zerotoship.z2term.service.WhenManager
 import com.zerotoship.z2term.settings.WhenRule
@@ -524,6 +525,11 @@ private fun WhenRuleEditForm(
     var conds by remember(initial.id) { mutableStateOf(builder.conditions) }
     val advanced = remember(initial.id) { builder.advanced }
     var elseCmd by remember(initial.id) { mutableStateOf(initial.otherwise) }
+    // 条件行に出す「今の値」(0.8.374)。⚠ **開いた時点で 1 回だけ**読む — 条件を組むのに要るのは
+    // 「いくつを境にすればいいか」の目安で、秒単位の追従ではない (常駐も通信も増やさない)。
+    // 元は `volume>77` のような**あり得ない閾値**が書けてしまい (実際は 0〜15 のステップ数)、
+    // 条件に合っていないつもりのルールが動いた (実機で指摘)。単位もスケールも画面から知りようが無かった。
+    val nowState = remember(initial.id) { Z2ApiBridge.stateSnapshot(context) }
     var cooldown by remember(initial.id) { mutableStateOf(initial.cooldown) }
     var between by remember(initial.id) { mutableStateOf(initial.between) }
     var days by remember(initial.id) { mutableStateOf(initial.days) }
@@ -722,6 +728,7 @@ private fun WhenRuleEditForm(
             key(index) {
                 ConditionRow(
                     cond = cond,
+                    now = nowState,
                     onChange = { updated -> conds = conds.toMutableList().also { it[index] = updated } },
                     onRemove = { conds = conds.toMutableList().also { it.removeAt(index) } },
                 )
@@ -863,6 +870,7 @@ private fun ModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun ConditionRow(
     cond: WhenCondition,
+    now: Map<String, String>,
     onChange: (WhenCondition) -> Unit,
     onRemove: () -> Unit,
 ) {
@@ -945,6 +953,17 @@ private fun ConditionRow(
                     }
                 }
             }
+            // 真偽のときは値の欄が要らないぶん、ここに「今の値」を出す。
+            if (kind == WhenConditionSpec.Kind.BOOL) {
+                conditionNowLabel(cond.key, now)?.let { nowText ->
+                    Text(
+                        text = nowText,
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+            }
             // 値が要るのは「一致」と「数値比較」だけ。真偽のときは欄そのものを出さない。
             if (kind != WhenConditionSpec.Kind.BOOL) {
                 Box(
@@ -976,9 +995,42 @@ private fun ConditionRow(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+                conditionNowLabel(cond.key, now)?.let { nowText ->
+                    Text(
+                        text = nowText,
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
             }
         }
     }
+}
+
+/**
+ * 条件行に添える「今の値」(0.8.374)。取れなければ null (何も出さない)。
+ *
+ * ⚠ **`volume` は上限も一緒に出す** — 0〜15 のような**端末ごとに違うステップ数**なので、
+ * % だと思って `volume>77` と書くと**永久に成立しない条件**ができる (実機で踏んだ)。
+ * ⚠ 真偽の読み方は [WhenGuard.truthy] を通す — 表示と判定を別々に書くと、「今: いいえ」と
+ * 出ているのに条件は成立する、という一番たちの悪いズレになる。
+ */
+@Composable
+private fun conditionNowLabel(key: String, now: Map<String, String>): String? {
+    val raw = now[key]?.trim().orEmpty()
+    if (raw.isEmpty()) {
+        // つないでいない Wi-Fi の名前など、「今は無い」ことに意味がある項目だけ出す。
+        return if (key == "ssid") stringResource(R.string.when_now_empty) else null
+    }
+    val shown = when {
+        key == "volume" -> now["volume_max"]?.let { "$raw / $it" } ?: raw
+        WhenConditionSpec.kindOf(key) == WhenConditionSpec.Kind.BOOL ->
+            if (WhenGuard.truthy(raw)) stringResource(R.string.when_op_yes)
+            else stringResource(R.string.when_op_no)
+        else -> raw
+    }
+    return stringResource(R.string.when_now_value, shown)
 }
 
 /** キーを選び直したときの既定。型に合う演算子から始める。 */
