@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.370-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.371-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -34,7 +34,15 @@ That's all the setup you need.
 
 ### Checking whether a newer version is out
 
-Settings > App info > **"Check for updates"** compares your version with the latest on GitHub. It talks to the network **only when you tap it** (there is no automatic check). If a newer version exists it shows the number, and **"Open the release page"** takes you to the download. Installing the new APK stays a manual step (same as "Installing" above).
+Settings > App info > **"Check for updates"** compares your version with the latest on GitHub. It talks to the network **only when you tap it** (there is no automatic check). If a newer version exists it shows the number.
+
+**You can update right there (0.8.371).** The **"Download and install"** button that follows fetches the APK and takes you to the install screen. ⚠ **The final "install?" tap is always yours** — Android does not let an app replace itself silently. ⚠ **The first time**, z2term needs "Install unknown apps" (a button appears if it is missing).
+
+The terminal has the same thing: **`z2-update`** (`--check` to only look, `--keep` to leave the APK behind, `--dir <folder>` to change where it lands). `z2-when time:daily=03:00 run 'z2-update'` looks every night (it still asks you).
+
+The downloaded APK is **deleted once the update goes through** (and on the next start, if the app was killed mid-install). Keep it with "Keep the .apk after updating" in Settings, or `--keep`; the download folder is next to it.
+
+⚠ **Installed from F-Droid or another store? Then it refuses** — that copy is theirs to replace, so update it there. **"Open the release page"** still works as before.
 
 ---
 
@@ -644,6 +652,7 @@ These are "Z2Term-only" commands that Z2Term automatically installs into every d
 | `z2-server list\|start\|stop\|status <server>` | Start / stop **a resident server you registered**. ⚠ A daemon started straight from a rule runs **outside the residency frame**, so it stops answering once the screen is off; starting it here puts it inside. `<server>` is the index from `list`, an id, or the name from the app. E.g. `z2-when wifi:connect run 'z2-server start sshd'` |
 | `z2-when <trigger> run <cmd>` | **Automation hub.** Auto-run a command on charge / battery / time / device events (see "Automation hub" below). Also `list` / `remove <id\|all>` / `on\|off <id>` / `log <id>`. E.g. `z2-when charge:start run ~/.z2term/macros/backup.sh` |
 | `z2-macro list\|install <name>` | **Bundled macro samples** into `~/.z2term/macros/` (`diff` / `show` / `run` / `dir` too) — a starting point for your first macro. **`list` shows the state of each one** (`new` / `same` / `differs`; 0.8.332). ⚠ `install` **never overwrites** (your edits are yours). That means a fixed sample never reaches a copy you already have, so `install` tells "the same thing is already installed" apart from "yours differs from the bundled one", and in the latter case points at `z2-macro diff <name>` (look first) and `z2-macro install -f <name>` (replace with the bundled one). ⚠ **`differs` does not mean "out of date"** — your copy can be the one that is ahead (an extension never folded back into the app), so always read the `diff` before you use `-f`. Bundled: `watch-basic` / `battery-alert` / `daily-report` / `otp-clip` / `otp-sms` / `unknown-call` / `remind` / `rss` / `rss-open` / `qr`. On install it also tells you **how that script is meant to be run** (drive it with `z2-when` / assign it to a widget button / register it as a resident server). ⚠ **No bundled sample belongs in a resident server** (0.8.338; they all run once and exit from `z2-when` or a button, so residency both restarts them every time they finish and burns battery while idle) |
+| `z2-update [--check] [--keep] [--dir <folder>]` | **Replace z2term itself with a newer version** (0.8.371). It checks GitHub Releases, and if there is a newer one, downloads the APK and takes you to **the install screen**. ⚠ **The last tap is yours** — Android has no way for an app to replace itself silently. ⚠ The first time it needs "Install unknown apps" (it says so if it is missing). `--check` only looks, `--keep` leaves the APK behind, `--dir` changes where it lands (by default it goes inside the app and is deleted once the update goes through). Settings > App info has the same button and the same two settings. ⚠ **Installed from F-Droid or a store? It refuses** — update it there. e.g. `z2-when time:daily=03:00 run 'z2-update'` |
 | `z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] …` | Fire an arbitrary Android Intent (launch apps, open settings, set alarms, … see `docs/en/MACRO-GUIDE.md`) |
 
 > Combine "trigger (event detection) → decide (shell) → action (z2-*)" to automate your phone (macros). See **`docs/en/MACRO-GUIDE.md`** for how — you can also feed it to an AI and have it generate the macro for you.

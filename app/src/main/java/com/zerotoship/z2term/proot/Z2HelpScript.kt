@@ -47,6 +47,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-when <trigger> run <cmd>    Auto-run on charge/battery/time/events (z2-when for usage)
         |  z2-macro list|install <name>   Bundled automation samples (see MACRO-GUIDE)
         |  z2-session list|new|send|...   Drive this app's own tabs (z2-session for usage)
+        |  z2-update [--check]            Update z2term itself from GitHub Releases (you approve it)
         |
         |[Graphical (GUI) apps]
         |  z2gui start [WxH] | stop | status   Linux desktop (e.g. z2gui start 1280x720)
@@ -94,6 +95,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-when <トリガー> run <コマンド> 充電/電池/時刻/端末イベントで自動実行(使い方は z2-when)
         |  z2-macro list|install <名前>   自動化マクロの同梱サンプル(MACRO-GUIDE 参照)
         |  z2-session list|new|send|...   このアプリのタブを操る(使い方は z2-session)
+        |  z2-update [--check]            z2term 自身を GitHub Releases から更新(承認は自分で押す)
         |
         |[画面つき(GUI)アプリ]
         |  z2gui start [横x縦] | stop | status   Linux デスクトップ(例 z2gui start 1280x720)

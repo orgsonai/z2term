@@ -311,6 +311,29 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |esac
     """.trimMargin() + "\n"
 
+    // アプリ自身の入れ替え (0.8.371)。⚠ **待ちを伸ばす** — 既定の 5 秒は「アプリが止まっている
+    // ときに延々と付き合わない」ための値で、20MB のダウンロードはその何倍もかかる。z2-ask と同じく、
+    // 本当に長い相手だけが Z2API_WAIT を伸ばす。
+    // ⚠ 問い合わせの前に 1 行出す。黙って数十秒待たせると「打ったのに何も起きない」に見える。
+    val update = "#!/bin/sh\n" + m.updateHelp + "\n" + helpCase + """
+        |sub="run"
+        |keep=0
+        |dir=""
+        |while [ ${d}# -gt 0 ]; do
+        |  case "${d}1" in
+        |    --check) sub="check"; shift ;;
+        |    --keep) keep=1; shift ;;
+        |    --dir) [ ${d}# -ge 2 ] || { echo "${m.updateUsage}" >&2; exit 1; }
+        |           dir="${d}2"; shift 2 ;;
+        |    *) echo "${m.updateUsage}" >&2; exit 1 ;;
+        |  esac
+        |done
+        |echo "${m.updateChecking}" >&2
+        |Z2API_WAIT=3000
+        |export Z2API_WAIT
+        |exec /usr/local/bin/z2api 1 update "${d}sub" "${d}keep" "${d}dir"
+    """.trimMargin() + "\n"
+
     // ステータスバー / タイルのアイコンをドット絵で差し替える。⚠ 絵は base64 にしてから渡す —
     // 改行を含む数百バイトをそのまま引数に載せると、リクエストファイルの「1 行 = 1 引数」が壊れる。
     // 中身の検査 (大きさ・塗りの有無) はアプリ側 (IconStore.parse) の 1 か所だけに置き、
@@ -694,5 +717,6 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         "z2-noti" to noti,
         "z2-ask" to ask,
         "z2-alarm" to alarm,
+        "z2-update" to update,
     )
 }

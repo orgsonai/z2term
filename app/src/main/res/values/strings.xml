@@ -202,6 +202,18 @@
     <string name="settings_check_update_checking">Checking…</string>
     <string name="settings_update_available">A newer version (%1$s) is available.</string>
     <string name="settings_update_open_page">Open the release page</string>
+    <string name="settings_update_install">Download and install</string>
+    <string name="settings_update_working">Working…</string>
+    <string name="settings_update_handed">The install screen is up on the device — approve it to finish.</string>
+    <string name="settings_update_need_permission">Allow "Install unknown apps" for z2term first, or the install screen never appears.</string>
+    <string name="settings_update_allow">Open the permission screen</string>
+    <string name="settings_update_store">This build came from a store (F-Droid / Play). Update it there.</string>
+    <string name="settings_update_no_apk">That release has no .apk attached — use the release page.</string>
+    <string name="settings_update_keep_apk">Keep the .apk after updating</string>
+    <string name="settings_update_keep_apk_desc">Off: the downloaded file is deleted once the update goes through (and on the next start).</string>
+    <string name="settings_update_dir">Where to download the .apk</string>
+    <string name="settings_update_dir_hint">empty = inside the app</string>
+    <string name="settings_update_dir_desc">Empty keeps it inside the app, where no other app can see it. e.g. /sdcard/Download</string>
     <string name="settings_update_uptodate">You\'re on the latest version.</string>
     <string name="settings_update_failed">Couldn\'t check for updates: %1$s</string>
 
@@ -548,6 +560,7 @@
     <string name="default_custom_theme_name">My theme</string>
     <string name="snippet_sample_ls_label">list (long)</string>
     <string name="snippet_sample_apk_update_label">apk: update (fetch index)</string>
+    <string name="snippet_sample_update_label">update z2term</string>
     <string name="snippet_sample_apk_add_label">apk: add (append package name)</string>
 
     <!-- IME learning history management (keyboard patch) -->

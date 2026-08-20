@@ -71,10 +71,13 @@ Tap the APK on your Android device → allow "Install from unknown sources" to i
 
 Pick whichever fits:
 
-- **In-app check** — *Settings → App info → Check for updates* asks GitHub for the latest release
-  **only when you tap the button** (nothing is checked automatically, and no network is touched until
-  then). If a newer version exists it shows the number and opens the release page for you; downloading
-  and installing the APK stays a manual step.
+- **In-app update (0.8.371)** — *Settings → App info → Check for updates* → **"Download and install"**.
+  It asks GitHub for the latest release **only when you tap the button** (nothing is checked
+  automatically, and no network is touched until then), downloads the new APK and takes you all the way
+  to the install screen. ⚠ Android always makes **the last tap yours** — no app can replace itself
+  silently. The first time, allow "Install unknown apps" for z2term. From the terminal it is
+  **`z2-update`** (`--check` / `--keep` / `--dir`). The downloaded APK is deleted after the update by
+  default. ⚠ Installed from F-Droid or a store? Then it refuses and points you back there.
 - **Manual** — download the newer APK from Releases and tap it (installs over the top; your data stays).
 - **Automatic** — add `https://github.com/orgsonai/z2term` to
   [Obtainium](https://github.com/ImranR98/Obtainium). It watches these Releases and updates the app
@@ -82,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.370-alpha (versionCode 378).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.371-alpha (versionCode 379).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 

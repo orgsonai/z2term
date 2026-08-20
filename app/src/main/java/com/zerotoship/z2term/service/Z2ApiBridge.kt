@@ -41,6 +41,7 @@ import androidx.core.app.NotificationManagerCompat
 import com.zerotoship.z2term.proot.Z2ApiMsg
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.LocaleHelper
+import com.zerotoship.z2term.update.UpdateFlow
 import com.zerotoship.z2term.settings.ServerEntry
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -121,6 +122,11 @@ object Z2ApiBridge {
     // FileObserver スレッドを塞がないよう、ハンドリングは専用シングルスレッドへ。
     private val worker = Executors.newSingleThreadExecutor { r ->
         Thread(r, "z2api-bridge").apply { isDaemon = true }
+    }
+    // 更新 (z2-update) だけは**別のスレッドで捌く**。20MB のダウンロードは数十秒かかるので、
+    // 上の 1 本しかない worker に載せると、その間 z2-notify も z2-session も止まって見える。
+    private val updateWorker = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "z2api-update").apply { isDaemon = true }
     }
     private val notifyId = AtomicInteger(7000)
 
@@ -207,6 +213,20 @@ object Z2ApiBridge {
                 askCmd(context, id, args, needResp)
                 return
             }
+            // `update` も**ここで抜ける**。答えを返すまで数十秒かかる (通信 + ダウンロード) ので、
+            // 他の動詞と同じ列に並べると全体が詰まる。応答は専用スレッドから書く。
+            if (cmd == "update") {
+                updateWorker.execute {
+                    try {
+                        val out = updateCmd(context, args)
+                        if (needResp) writeResponse(id, ok = true, data = out)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "update failed", e)
+                        if (needResp) writeResponse(id, ok = false, data = e.message ?: "error")
+                    }
+                }
+                return
+            }
             val result = dispatch(context, cmd, args)
             if (needResp) writeResponse(id, ok = true, data = result ?: "")
         } catch (e: Exception) {
@@ -260,6 +280,8 @@ object Z2ApiBridge {
             // `ask` はここには来ない ([handleRequestFile] が先に捌く)。応答が非同期なので、
             // 「dispatch が返った値を書く」というここの約束に乗らない。
             "ask" -> throw IllegalStateException("ask is handled before dispatch")
+            // `update` もここには来ない ([handleRequestFile] が専用スレッドへ回す)。
+            "update" -> throw IllegalStateException("update is handled before dispatch")
             "session" -> sessionCmd(context, args)
             // z2-server: 登録済みの常駐サーバーを起こす / 落とす (枠の中で上げるための唯一の CLI)。
             "server" -> serverCmd(context, args)
@@ -270,6 +292,33 @@ object Z2ApiBridge {
     }
 
     // --- 各機能 ---
+
+    /**
+     * `z2-update` — 新版の確認と入れ替え (0.8.371)。
+     *
+     * ⚠ 手順そのものは [UpdateFlow] 1 本に寄せてある (⚙設定のボタンと同じ道を通る)。
+     * ここがやるのは**引数を解いて文言を選ぶ**ことだけ。断る理由は例外にして stderr へ出す
+     * (`z2-update` が 0 で終わったのに入っていない、という終わり方を作らない)。
+     */
+    private fun updateCmd(context: Context, args: List<String>): String {
+        val m = cliMsg(context)
+        val checkOnly = args.getOrNull(0) == "check"
+        // --keep を渡したときだけ true。渡さなければ null = 設定に従う。
+        val keep = if (args.getOrNull(1) == "1") true else null
+        val dir = args.getOrNull(2).orEmpty()
+        return when (val outcome = runBlocking { UpdateFlow.run(context, checkOnly, keep, dir) }) {
+            is UpdateFlow.Outcome.UpToDate -> m.updateUpToDate(outcome.current)
+            is UpdateFlow.Outcome.Found ->
+                m.updateFound(outcome.current, outcome.latest, UpdateFlow.humanSize(outcome.size))
+            is UpdateFlow.Outcome.Handed ->
+                m.updateFound(outcome.current, outcome.latest, UpdateFlow.humanSize(outcome.size)) +
+                    "\n" + m.updateHandedToInstaller
+            is UpdateFlow.Outcome.NoApk -> throw IllegalStateException(m.updateNoApk(outcome.pageUrl))
+            UpdateFlow.Outcome.NeedPermission -> throw IllegalStateException(m.updateNeedPermission)
+            UpdateFlow.Outcome.ManagedByStore -> throw IllegalStateException(m.updateManagedByStore)
+            is UpdateFlow.Outcome.Failed -> throw IllegalStateException(m.updateFailed(outcome.reason))
+        }
+    }
 
     /**
      * **アプリ自身のタブを操る** (`z2-session`・A1)。

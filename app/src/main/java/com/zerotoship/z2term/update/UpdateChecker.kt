@@ -14,8 +14,19 @@ sealed interface UpdateResult {
     /** 現在が最新 (これ以上新しい公開版が無い)。 */
     data class UpToDate(val current: String) : UpdateResult
 
-    /** 新しい版がある。[latest] は表示用の版名、[url] は開くリリースページ。 */
-    data class Available(val latest: String, val url: String) : UpdateResult
+    /**
+     * 新しい版がある。[latest] は表示用の版名、[url] は開くリリースページ。
+     *
+     * [apkUrl] はその版の APK (`z2term-<版>.apk`) の在り処で、**入れ替えまでやる
+     * ([UpdateInstaller]) ときだけ**使う。リリースに APK が付いていない (作成直後など)
+     * ときは null になり、その場合はリリースページを開く従来どおりの案内しかできない。
+     */
+    data class Available(
+        val latest: String,
+        val url: String,
+        val apkUrl: String? = null,
+        val apkSize: Long = 0L,
+    ) : UpdateResult
 
     /** 通信・解析に失敗 (オフライン等)。[reason] は短い理由。 */
     data class Failed(val reason: String) : UpdateResult
@@ -26,8 +37,10 @@ sealed interface UpdateResult {
  *
  * ⚠ この [check] を呼ばない限りネットワークには一切触れない。自動チェック・
  * バックグラウンド通信・起動時通信はどれも行わない (ユーザーがボタンを押した
- * ときだけ通信する、という方針を守るため)。ダウンロードやインストールもしない
- * — 新版があればリリースページを開くところまでが役割。
+ * ときだけ通信する、という方針を守るため)。
+ *
+ * ⚠ **ダウンロードとインストールはここではやらない** — それは [UpdateInstaller] の役目で、
+ * こちらは「新しい版があるか」と「その APK がどこにあるか」を答えるだけに留める。
  */
 object UpdateChecker {
     // 公開リリースはこの 1 リポジトリの Releases だけ。API は latest を返す。
@@ -56,7 +69,13 @@ object UpdateChecker {
                 }
                 val htmlUrl = obj.optString("html_url").ifBlank { RELEASES_PAGE }
                 if (isNewer(numbersOf(tag), numbersOf(BuildConfig.VERSION_NAME))) {
-                    UpdateResult.Available(tag.removePrefix("v"), htmlUrl)
+                    val apk = apkAssetOf(obj)
+                    UpdateResult.Available(
+                        latest = tag.removePrefix("v"),
+                        url = htmlUrl,
+                        apkUrl = apk?.first,
+                        apkSize = apk?.second ?: 0L,
+                    )
                 } else {
                     UpdateResult.UpToDate(BuildConfig.VERSION_NAME)
                 }
@@ -66,6 +85,27 @@ object UpdateChecker {
         } catch (e: Exception) {
             UpdateResult.Failed(e.message ?: e.javaClass.simpleName)
         }
+    }
+
+    /**
+     * リリースに付いている APK (`browser_download_url` とバイト数) を 1 つ選ぶ。
+     *
+     * ⚠ **`.foss` の付いた過去の派生を掴まない**。0.8.359 まではリリースに 2 本
+     * (別 applicationId) 並んでいたので、名前で当てにいくと**入れ替えではなく別アプリの
+     * 導入**になる。今のリリースは 1 本だが、古い綴りが残っていても選ばないようにしておく。
+     */
+    private fun apkAssetOf(release: JSONObject): Pair<String, Long>? {
+        val assets = release.optJSONArray("assets") ?: return null
+        for (i in 0 until assets.length()) {
+            val a = assets.optJSONObject(i) ?: continue
+            val name = a.optString("name")
+            if (!name.endsWith(".apk", ignoreCase = true)) continue
+            if (name.contains("foss", ignoreCase = true)) continue
+            val url = a.optString("browser_download_url")
+            if (url.isBlank()) continue
+            return Pair(url, a.optLong("size", 0L))
+        }
+        return null
     }
 
     /**

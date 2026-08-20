@@ -48,6 +48,14 @@
         android:name="android.hardware.telephony"
         android:required="false" />
 
+    <!-- z2-update / ⚙設定の「ダウンロードしてインストール」で、GitHub Releases の APK を
+         そのままこのアプリの入れ替えに使うため (0.8.371)。
+         ⚠ 宣言しただけでは入らない。利用者が「不明なアプリのインストール」で z2term を許し、
+         さらに入れ替えごとに OS の確認画面を押す必要がある (無音インストールの手段は無い)。
+         ⚠ F-Droid のように更新を配る側から入った版では、この機能自体を断る
+         (UpdateInstaller.isManagedByStore)。 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- 端末から /sdcard (Android 共有ストレージ) を cd/読み書きするため。
          Android 11+ は全ファイルアクセス、〜10 は従来権限で対応。 -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
@@ -418,6 +426,17 @@
             android:permission="android.permission.BROADCAST_SMS">
             <intent-filter>
                 <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 入れ替え (PackageInstaller) の結果の受け口。OS は「入れていいか」の確認画面を
+             この結果に添えて返すだけなので、受けて startActivity するまで何も起きない。
+             自分が投げた PendingIntent にしか届かないため exported=false。 -->
+        <receiver
+            android:name=".update.UpdateStatusReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.zerotoship.z2term.action.UPDATE_STATUS" />
             </intent-filter>
         </receiver>
 

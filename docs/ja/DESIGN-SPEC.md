@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-20 / 対象バージョン: 0.8.370-alpha (versionCode 378)
+最終更新: 2026-08-20 / 対象バージョン: 0.8.371-alpha (versionCode 379)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -2274,7 +2274,17 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
 
 **設定を初期化**（アクション）: 設定末尾（アプリ情報とライセンスの間）の「設定を初期化」ボタン（`danger` 表示）は、確認ダイアログを挟んで `AppSettings.resetToDefaults()`（DataStore `z2term_settings` を `clear()`）を呼ぶ。全キーが消えるので上表の各値・裏設定の解放フラグ・常駐サーバー定義・ツールバー並び順・各種ログ設定がすべて既定へ戻る（実行エンジンも既定 z2root に戻る）。rootfs（インストール済み OS）・ユーザファイル・言語（別 SharedPrefs `z2term_locale`）には触れない。
 
-**更新を確認**（アクション、0.8.290）: アプリ情報セクションのバージョン行直下に置く「更新を確認」ボタン。押した瞬間だけ `UpdateChecker.check()`（`update/UpdateChecker.kt`）が GitHub Releases API（`/releases/latest`）へ 1 回 GET し、`tag_name` の major.minor.patch を `BuildConfig.VERSION_NAME` と数値比較する。**設定を開いただけでは通信せず、自動チェック・起動時チェック・バックグラウンド通信はしない**（ユーザーが押したときだけ通信する方針）。新版があれば版数を表示し「リリースページを開く」で `html_url` を `ACTION_VIEW` で開く — **APK の DL・インストールはしない**（手動のまま）。設定は保持しない（押すたびに問い合わせる一過性の状態）。いずれ F-Droid / IzzyOnDroid が更新を担うため、この機能は「新版があればページへ誘導する」までに留め、アプリ内自己更新（DL+インストール）は入れない（F-Droid 適合）。判定の網羅は `numbersOf` の先頭 3 数値抽出で、`-alpha` や過去タグの commit ハッシュ（数字混じり）を比較に混ぜない。
+**更新を確認**（アクション、0.8.290）: アプリ情報セクションのバージョン行直下に置く「更新を確認」ボタン。押した瞬間だけ `UpdateChecker.check()`（`update/UpdateChecker.kt`）が GitHub Releases API（`/releases/latest`）へ 1 回 GET し、`tag_name` の major.minor.patch を `BuildConfig.VERSION_NAME` と数値比較する。**設定を開いただけでは通信せず、自動チェック・起動時チェック・バックグラウンド通信はしない**（ユーザーが押したときだけ通信する方針）。新版があれば版数を表示し「リリースページを開く」で `html_url` を `ACTION_VIEW` で開く。設定は保持しない（押すたびに問い合わせる一過性の状態）。判定の網羅は `numbersOf` の先頭 3 数値抽出で、`-alpha` や過去タグの commit ハッシュ（数字混じり）を比較に混ぜない。
+
+**入れ替えまでやる（`z2-update` と「ダウンロードしてインストール」、0.8.371）**: 0.8.290 では「**アプリ内自己更新（DL+インストール）は入れない**（F-Droid 適合）」としていたが、**ここで方針を変えた**（利用者の要望: 「せっかくのターミナルアプリなのに、更新だけ手で APK を取ってくるのはおかしい」）。⚠ **F-Droid 適合は「機能を持たない」ことではなく「配布元から入った版では使わない」ことで守る** — [`UpdateInstaller.isManagedByStore`] が `getInstallSourceInfo`（API 30 未満は `getInstallerPackageName`）を見て、`org.fdroid*` / `com.android.vending` / `com.aurora.store*` から入った版では**確認より先に断る**。その版を入れ替えるのは配布元の仕事で、版の比較（GitHub Releases 決め打ち）自体が噛み合わない。⚠ **`REQUEST_INSTALL_PACKAGES` は宣言する**ので、F-Droid へ出すときはこの権限の説明が要る（申請前に必ず読み合わせること）。
+  - ⛔ **「自動更新」と書かない**。Android は自分自身の入れ替えに**必ず OS の確認画面**を挟む（端末オーナーか root 以外に例外は無い）。できるのは**確認画面が出るところまで**で、最後の 1 タップは必ず人が押す。押さないと入らないものを「自動」と呼ぶと、押し忘れた人が入ったつもりで古い版を使い続ける。
+  - **⚙設定のボタンと `z2-update` は [`UpdateFlow.run`] 1 本を通る**。片方にだけ条件や順番を書くと「端末からは入るのに設定からは入らない」という再現条件の見えない食い違いになる。文言だけを呼び出し側（GUI は strings.xml、CLI は `Z2ApiMsg`）が持つ。
+  - ⚠ **落とす前に「不明なアプリのインストール」を見る**（[`UpdateInstaller.canInstall`]）。許可が無いまま進めると 20MB 落とした末に**確認画面が出ないだけ**で終わり、何が足りないのか画面のどこにも出ない。
+  - ⚠ **`STATUS_PENDING_USER_ACTION` を捨てない**（[`UpdateStatusReceiver`]）。OS は確認画面を**結果に添えた Intent** としてよこすだけで、自分では出さない。受けて `startActivity`（`NEW_TASK` 必須 — `z2-update` は SSH の向こうから叩かれる）するまで「押したのに何も起きない」に見える。PendingIntent は **API 31+ で `FLAG_MUTABLE`**（不変にすると添えられた Intent を取り出せない）。
+  - ⚠ **後片付けは二重にする**。入れ替えの瞬間に自分が落とされるので「入り終わったら消す」は当てにできない。受け取れたら消し、**次の起動でも消す**（[`Z2TermApplication`] → [`UpdateInstaller.cleanupDownloads`]）。消す対象は `z2term-*.apk` と `*.apk.part` だけ（保存先を `/sdcard/Download` にもできるため、人のファイルに触らない）。⚠ **落とすファイル名はこちらで決める**（リリース側の名前を使わない）— 名前が揺れると掃除の網から外れて消し残る。
+  - ⚠ **ダウンロードは `.part` に書いて最後に rename**。途中で切れたものが正しい名前で残ると、壊れた APK を「もうある」と誤認して入れにいく。リリースが申告するバイト数と照合する。
+  - ⚠ **`z2api` の worker とは別スレッドで捌く**（`Z2ApiBridge.updateWorker`）。ブリッジの worker は 1 本なので、数十秒のダウンロードを載せると `z2-notify` も `z2-session` も止まって見える。CLI 側は `Z2API_WAIT=3000`（300 秒）まで待つ — 既定の 5 秒は「アプリが止まっているときに延々と付き合わない」ための値で、ダウンロードはその外側。
+  - **落とし先と自動削除は設定に置く**（`updateDownloadDir` / `updateKeepApk`、`z2-update --dir` / `--keep`）。既定はアプリ内 + 入れ替え後に削除。
 
 ---
 

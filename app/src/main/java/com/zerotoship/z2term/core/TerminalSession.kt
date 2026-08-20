@@ -440,6 +440,8 @@ class TerminalSession(
     fun setSpecialKeyBar(enabled: Boolean) { scope.launch { settings.setSpecialKeyBar(enabled) } }
     fun setToolbarOrder(csv: String) { scope.launch { settings.setToolbarOrder(csv) } }
     fun setToolbarHidden(csv: String) { scope.launch { settings.setToolbarHidden(csv) } }
+    fun setUpdateDownloadDir(value: String) { scope.launch { settings.setUpdateDownloadDir(value) } }
+    fun setUpdateKeepApk(value: Boolean) { scope.launch { settings.setUpdateKeepApk(value) } }
     fun setSessionLogDir(value: String) { scope.launch { settings.setSessionLogDir(value) } }
     fun setSessionLogNameTemplate(value: String) { scope.launch { settings.setSessionLogNameTemplate(value) } }
     fun setSessionLogTimeFormat(value: String) { scope.launch { settings.setSessionLogTimeFormat(value) } }

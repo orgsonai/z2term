@@ -179,6 +179,18 @@ class AppSettings(private val context: Context) {
         /** 端末ログのファイル名に埋める日時の書式 (`SimpleDateFormat` パターン)。 */
         val sessionLogTimeFormat: String = DEFAULT_SESSION_LOG_TIME,
         /**
+         * 更新の APK を落とす場所 (絶対パス)。空ならアプリ内の作業場所に落として片付ける。
+         * ⚠ ここを共有フォルダ (`/sdcard/Download` 等) にすると、落とした APK が
+         * 他のアプリからも見える場所に残る。片付けの対象は `z2term-*.apk` だけ。
+         */
+        val updateDownloadDir: String = DEFAULT_UPDATE_DOWNLOAD_DIR,
+        /**
+         * 入れ替えが済んでも APK を残すか (既定は消す)。
+         * ⚠ 「入れ終わったら消す」は入れ替えで自分が落とされると実行できないので、
+         * 次の起動でも掃除する ([com.zerotoship.z2term.update.UpdateInstaller.cleanupDownloads])。
+         */
+        val updateKeepApk: Boolean = DEFAULT_UPDATE_KEEP_APK,
+        /**
          * 記録を始めるとき、**それまで画面に出ていた分 (スクロールバック含む) も先頭に書く**か。
          * 既定 OFF (押した時点から先だけ)。ON にすると「あ、記録し忘れた」を後から拾える。
          */
@@ -365,6 +377,14 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_SESSION_LOG_NAME] = value }
     }
 
+    suspend fun setUpdateDownloadDir(value: String) {
+        context.dataStore.edit { it[KEY_UPDATE_DOWNLOAD_DIR] = value }
+    }
+
+    suspend fun setUpdateKeepApk(value: Boolean) {
+        context.dataStore.edit { it[KEY_UPDATE_KEEP_APK] = value }
+    }
+
     suspend fun setSessionLogTimeFormat(value: String) {
         context.dataStore.edit { it[KEY_SESSION_LOG_TIME] = value }
     }
@@ -450,6 +470,8 @@ class AppSettings(private val context: Context) {
             sessionLogDir = p[KEY_SESSION_LOG_DIR] ?: DEFAULT_SESSION_LOG_DIR,
             sessionLogNameTemplate = p[KEY_SESSION_LOG_NAME] ?: DEFAULT_SESSION_LOG_NAME,
             sessionLogTimeFormat = p[KEY_SESSION_LOG_TIME] ?: DEFAULT_SESSION_LOG_TIME,
+            updateDownloadDir = p[KEY_UPDATE_DOWNLOAD_DIR] ?: DEFAULT_UPDATE_DOWNLOAD_DIR,
+            updateKeepApk = p[KEY_UPDATE_KEEP_APK] ?: DEFAULT_UPDATE_KEEP_APK,
             sessionLogIncludeScrollback = p[KEY_SESSION_LOG_SCROLLBACK] ?: DEFAULT_SESSION_LOG_SCROLLBACK,
             sessionLogAppend = p[KEY_SESSION_LOG_APPEND] ?: DEFAULT_SESSION_LOG_APPEND,
             sessionLogRaw = p[KEY_SESSION_LOG_RAW] ?: DEFAULT_SESSION_LOG_RAW,
@@ -813,6 +835,8 @@ class AppSettings(private val context: Context) {
         private val KEY_SESSION_LOG_APPEND = booleanPreferencesKey("session_log_append")
         private val KEY_SESSION_LOG_RAW = booleanPreferencesKey("session_log_raw")
         private val KEY_SESSION_LOG_ALT_SCREEN = booleanPreferencesKey("session_log_alt_screen")
+        private val KEY_UPDATE_DOWNLOAD_DIR = stringPreferencesKey("update_download_dir")
+        private val KEY_UPDATE_KEEP_APK = booleanPreferencesKey("update_keep_apk")
 
         /** 端末ログの既定の保存先 (ホームからの相対)。 */
         const val DEFAULT_SESSION_LOG_DIR = "z2term-log"
@@ -820,6 +844,10 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_SESSION_LOG_NAME = "{date}-{tab}.txt"
         /** 端末ログの既定の日時書式。 */
         const val DEFAULT_SESSION_LOG_TIME = "yyyy-MM-dd_HHmm"
+        /** 更新 APK の既定の落とし先 (空 = アプリ内の作業場所。他アプリからは見えない)。 */
+        const val DEFAULT_UPDATE_DOWNLOAD_DIR = ""
+        /** 入れ替えの後に APK を残さない (既定)。 */
+        const val DEFAULT_UPDATE_KEEP_APK = false
         /** 記録開始時に過去分を書き出すか (既定 OFF = 押した時点から先だけ)。 */
         const val DEFAULT_SESSION_LOG_SCROLLBACK = false
         /** 同名ファイルへの追記 (既定 OFF = 毎回新しいファイル)。 */

@@ -50,6 +50,17 @@ class Z2TermApplication : Application() {
         com.zerotoship.z2term.service.AttachServer.start(this)
         // クリップボード履歴: ディスク読込 + システムクリップボード変化の監視を開始。
         ClipboardHistoryStore.init(this)
+        // 更新で落とした APK の後片付け (0.8.371)。⚠ **入れ替えの瞬間に自分は落とされる**ので、
+        // 「入れ終わったら消す」だけでは消し残る。設定で「残す」にしている人の分は触らない。
+        appScope.launch {
+            runCatching {
+                val s = com.zerotoship.z2term.settings.AppSettings(this@Z2TermApplication).flow.first()
+                if (!s.updateKeepApk) {
+                    com.zerotoship.z2term.update.UpdateInstaller
+                        .cleanupDownloads(this@Z2TermApplication, s.updateDownloadDir)
+                }
+            }
+        }
         // z2-when (A6) の時刻トリガーを貼り直す (AlarmManager 予約は再起動で消えるため。
         // BootReceiver でも貼るが、アプリを普通に開いた場合の取りこぼしをここで埋める)。idempotent。
         appScope.launch { runCatching { WhenManager.reload(this@Z2TermApplication) } }

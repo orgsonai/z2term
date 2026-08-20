@@ -1014,4 +1014,122 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |    # 上段は検知 ON が前提 (設定 › 常駐サーバー・自動化 › システムイベント検知)、
         |    # 下段は自分で仕掛けるものなので検知 OFF でも動く。
     """.trimMargin()
+
+    // --- z2-update (アプリ自身の入れ替え) ---
+
+    val updateHelp: String = if (en) """
+        |# z2-update                     … check, download and hand the new version to the installer
+        |# z2-update --check             … only say whether there is a newer version
+        |# z2-update --keep              … leave the downloaded .apk behind (it is deleted by default)
+        |# z2-update --dir <folder>      … download into that folder instead of the app's own
+        |#
+        |# Where it comes from
+        |#   The GitHub Releases page of z2term, the same file you would download by hand
+        |#   (z2term-<version>.apk, signed with the release key). Nothing else is contacted, and
+        |#   nothing is contacted at all until you run this.
+        |#
+        |# What it can and cannot do
+        |#   ⚠ **It cannot install silently.** Android always shows its own "install?" screen for
+        |#     an app replacing itself, so the last tap is always yours. This command does every
+        |#     step up to that screen.
+        |#   ⚠ The first time, allow **"Install unknown apps"** for z2term (it will say so, and
+        |#     ⚙Settings has the same button). Without it the install screen never appears.
+        |#   ⚠ Installed from F-Droid or a store? Then this refuses and tells you to update there —
+        |#     the version you have is theirs to replace, not ours.
+        |#
+        |# The downloaded file
+        |#   By default it lands in the app's own folder and is deleted once the install goes
+        |#   through (and on the next start, in case the app was killed mid-install — which is
+        |#   normal when replacing itself). --keep or --dir change that; ⚙Settings holds the same
+        |#   two settings for the button there.
+        |#
+        |# e.g. z2-update --check
+        |#      z2-update --dir /sdcard/Download --keep
+        |#      z2-when time:daily=03:00 run 'z2-update'   # look every night (still asks you)
+    """.trimMargin() else """
+        |# z2-update                     … 新版を確認して落とし、入れ替えの確認画面まで出す
+        |# z2-update --check             … 新しい版があるかどうかだけ言う
+        |# z2-update --keep              … 落とした .apk を残す (既定は入れ終わったら消す)
+        |# z2-update --dir <フォルダ>    … アプリ内ではなくそのフォルダへ落とす
+        |#
+        |# どこから来るか
+        |#   z2term の GitHub Releases (手で落とすときと同じ z2term-<版>.apk・公開鍵で署名済み)。
+        |#   他のどこにも繋ぎませんし、この命令を打つまでは**一切通信しません**。
+        |#
+        |# できること・できないこと
+        |#   ⚠ **黙って入れることはできません。** Android はアプリが自分を入れ替えるとき必ず
+        |#     「インストールしますか」を出します。最後の 1 タップは必ずご自身で押します。
+        |#     この命令はその画面が出るところまでを全部やります。
+        |#   ⚠ 初回だけ、z2term に**「不明なアプリのインストール」**を許可してください
+        |#     (足りなければそう言います。⚙設定にも同じボタンがあります)。許可が無いと確認画面が
+        |#     そもそも出ません。
+        |#   ⚠ F-Droid など**配布元から入れた版では断ります** — その版はあちらが入れ替えるものです。
+        |#
+        |# 落としたファイル
+        |#   既定ではアプリ内の作業場所に落とし、入れ替えが済んだら消します (入れ替えの途中で
+        |#   アプリは落とされるので、**次に起動したときにも掃除します**)。--keep / --dir で変えられ、
+        |#   ⚙設定にも同じ 2 つがあります (設定のボタンから更新するときはそちらが効きます)。
+        |#
+        |# 例: z2-update --check
+        |#     z2-update --dir /sdcard/Download --keep
+        |#     z2-when time:daily=03:00 run 'z2-update'   # 毎晩見に行く (確認画面は出ます)
+    """.trimMargin()
+
+    val updateUsage: String =
+        if (en) "usage: z2-update [--check] [--keep] [--dir <folder>]"
+        else "usage: z2-update [--check] [--keep] [--dir <フォルダ>]"
+
+    /** 最新だった。⚠ **版名を必ず出す** (「最新です」だけだと何と比べたのか分からない)。 */
+    fun updateUpToDate(current: String): String =
+        if (en) "z2-update: $current is the latest version." else "z2-update: $current が最新です。"
+
+    /** 新版が見つかった (1 行目)。 */
+    fun updateFound(current: String, latest: String, size: String): String =
+        if (en) "z2-update: $current -> $latest ($size)" else "z2-update: $current → $latest ($size)"
+
+    /**
+     * 問い合わせに入る前に CLI が出す 1 行。
+     * ⚠ **黙って数十秒待たせない** — 通信とダウンロードの間、端末には何も出ない。
+     */
+    val updateChecking: String = if (en) {
+        "z2-update: looking for a newer version ..."
+    } else {
+        "z2-update: 新しい版があるか見に行きます ..."
+    }
+
+    /**
+     * 確認画面を出した。⚠ **「更新しました」と書かない** — 押すまで入っていない。
+     */
+    val updateHandedToInstaller: String = if (en) {
+        "z2-update: the install screen is up on the device — approve it to finish."
+    } else {
+        "z2-update: 端末にインストール画面を出しました。承認すると入れ替わります。"
+    }
+
+    /** リリースに APK が付いていない。 */
+    fun updateNoApk(url: String): String = if (en) {
+        "z2-update: that release has no .apk attached. Get it from the release page: $url"
+    } else {
+        "z2-update: そのリリースに .apk が付いていません。リリースページから入れてください: $url"
+    }
+
+    /** 「不明なアプリのインストール」が未許可。⚠ **どこで許すか**まで書く。 */
+    val updateNeedPermission: String = if (en) {
+        "z2-update: allow \"Install unknown apps\" for z2term first " +
+            "(Settings > Apps > Special app access > Install unknown apps, or the button in z2term's Settings)."
+    } else {
+        "z2-update: 先に z2term へ「不明なアプリのインストール」を許可してください " +
+            "(設定 › アプリ › 特別なアプリアクセス › 不明なアプリのインストール。z2term の ⚙設定にもボタンがあります)。"
+    }
+
+    /** 配布元から入れた版なので断る。 */
+    val updateManagedByStore: String = if (en) {
+        "z2-update: this build was installed from a store (F-Droid / Play). Update it there."
+    } else {
+        "z2-update: この版は配布元 (F-Droid / Play) から入っています。更新はそちらから行ってください。"
+    }
+
+    /** 通信・保存・入れ替えのどこかで失敗した。 */
+    fun updateFailed(reason: String): String =
+        if (en) "z2-update: failed: $reason" else "z2-update: 失敗しました: $reason"
 }

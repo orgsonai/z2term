@@ -495,6 +495,58 @@ class Z2ApiScriptTest {
     }
 
     /**
+     * `z2-update` が**フラグをそのままアプリ側へ渡す**こと (0.8.371)。
+     *
+     * ⚠ 渡す欄は「サブコマンド / APK を残すか / 落とし先」の 3 つで、順番が入れ替わると
+     * **黙って別の意味になる** (`--keep` のつもりが保存先になる等)。実際の `sh` で押さえる。
+     * ⚠ 知らないフラグは**アプリを呼ばずに usage で終わる**こと。通すと「打ち間違えたのに
+     * 更新が走った」になり、確認画面まで出てしまう。
+     */
+    @Test
+    fun updatePassesFlagsThrough() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val dir = Files.createTempDirectory("z2update").toFile()
+        val stub = File(dir, "z2api").apply {
+            writeText("#!/bin/sh\nfor a in \"\$@\"; do echo \"[\$a]\"; done\n")
+            setExecutable(true)
+        }
+        val script = File(dir, "z2-update").apply {
+            writeText(scripts["z2-update"]!!.replace("/usr/local/bin/z2api", stub.absolutePath))
+        }
+        fun run(vararg args: String): String {
+            val proc = ProcessBuilder(listOf(sh!!, script.absolutePath) + args)
+                .redirectErrorStream(true).start()
+            val out = proc.inputStream.bufferedReader().readText().trim()
+            proc.waitFor()
+            return out
+        }
+        try {
+            // 引数なし = 落として入れ替えるところまで。keep は 0、落とし先は空 (= 設定に従う)。
+            assertTrue("run が渡っていない: ${run()}", run().endsWith("[1]\n[update]\n[run]\n[0]\n[]"))
+            assertTrue("check が渡っていない", run("--check").endsWith("[1]\n[update]\n[check]\n[0]\n[]"))
+            assertTrue("keep が渡っていない", run("--keep").endsWith("[1]\n[update]\n[run]\n[1]\n[]"))
+            assertTrue(
+                "dir が渡っていない",
+                run("--dir", "/sdcard/Download").endsWith("[1]\n[update]\n[run]\n[0]\n[/sdcard/Download]")
+            )
+            // 並べても取り違えないこと (--keep が保存先の欄へ回らない)。
+            assertTrue(
+                "並べたときに取り違えている",
+                run("--keep", "--dir", "/tmp/x").endsWith("[1]\n[update]\n[run]\n[1]\n[/tmp/x]")
+            )
+            // 知らないフラグ・値の無い --dir は usage で終わり、アプリを呼ばない。
+            for (args in listOf(listOf("--bogus"), listOf("--dir"), listOf("install"))) {
+                val out = run(*args.toTypedArray())
+                assertTrue("usage が出ていない (${args.joinToString(" ")}): $out", out.contains("usage:"))
+                assertFalse("アプリを呼んでしまった (${args.joinToString(" ")}): $out", out.contains("[update]"))
+            }
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    /**
      * F: 常駐サーバーを操る `z2-server` が同梱され、4 つのサブコマンドを持つこと。
      *
      * ⚠ **`z2-when` から枠 (FGS + WakeLock + WifiLock) の中でサーバーを上げる唯一の経路**なので、

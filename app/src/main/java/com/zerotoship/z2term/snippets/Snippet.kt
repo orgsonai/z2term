@@ -82,6 +82,15 @@ class SnippetStore(private val context: Context) {
                 p[KEY] = serialize(list)
             }
             p[SEEDED_APK] = true
+            // 既にシード済みの人へ z2-update を追記投入 (1 回だけ・既存は上書きしない)。
+            if (p[SEEDED_UPDATE] != true) {
+                val list = readList(p[KEY]).toMutableList()
+                for (s in updateSeeds()) {
+                    if (list.none { it.id == s.id }) list.add(s)
+                }
+                p[KEY] = serialize(list)
+                p[SEEDED_UPDATE] = true
+            }
             // ⚠ **`remind.sh help` のシードは撤去した** (0.8.314・利用者の指摘)。0.8.286 で
             // 「書き方の一覧をすぐ開ける場所」として入れたが、**マクロを入れていない人が押すと
             // 「見つからない」と出るだけ**で、そこから入れ方に辿り着けなかった。手順は
@@ -106,6 +115,7 @@ class SnippetStore(private val context: Context) {
             command = "ls -la --color=auto"
         ))
         addAll(apkSeeds())
+        addAll(updateSeeds())
     }
 
     /** Alpine 用 apk サンプル。pacman/apt は対象外 (Alpine 専用)。 */
@@ -120,6 +130,18 @@ class SnippetStore(private val context: Context) {
             // command 末尾を半角スペースで止めてユーザーがパッケージ名を追記できる形に。
             label = context.getString(com.zerotoship.z2term.R.string.snippet_sample_apk_add_label),
             command = "apk add ",
+        ),
+    )
+
+    /**
+     * z2term 自身の更新 (0.8.371)。⚠ **同梱コマンドなので前提が要らない** — 押せばそのまま動く、
+     * というこの場所の約束を満たす (入れてから使うものは置かない)。
+     */
+    private fun updateSeeds(): List<Snippet> = listOf(
+        Snippet(
+            id = "sample:z2-update",
+            label = context.getString(com.zerotoship.z2term.R.string.snippet_sample_update_label),
+            command = "z2-update",
         ),
     )
 
@@ -177,6 +199,7 @@ class SnippetStore(private val context: Context) {
         private val KEY = stringPreferencesKey("snippets")
         private val SEEDED = booleanPreferencesKey("seeded")
         private val SEEDED_APK = booleanPreferencesKey("seeded_apk")
+        private val SEEDED_UPDATE = booleanPreferencesKey("seeded_z2_update")
         /**
          * `remind.sh help` を取り除いたか (取り除きは 1 回だけ = 自分で足し直した人には戻らない)。
          * ⚠ 投入側のフラグ `seeded_remind` (0.8.286〜0.8.313) は DataStore に残るが、参照は無い。

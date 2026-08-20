@@ -200,6 +200,18 @@
     <string name="settings_check_update_checking">確認中…</string>
     <string name="settings_update_available">新しい版 (%1$s) があります。</string>
     <string name="settings_update_open_page">リリースページを開く</string>
+    <string name="settings_update_install">ダウンロードしてインストール</string>
+    <string name="settings_update_working">処理中…</string>
+    <string name="settings_update_handed">端末にインストール画面を出しました。承認すると入れ替わります。</string>
+    <string name="settings_update_need_permission">先に z2term へ「不明なアプリのインストール」を許可してください。許可が無いと確認画面が出ません。</string>
+    <string name="settings_update_allow">許可の画面を開く</string>
+    <string name="settings_update_store">この版は配布元 (F-Droid / Play) から入っています。更新はそちらから行ってください。</string>
+    <string name="settings_update_no_apk">そのリリースに .apk が付いていません。リリースページから入れてください。</string>
+    <string name="settings_update_keep_apk">更新後も .apk を残す</string>
+    <string name="settings_update_keep_apk_desc">OFF なら入れ替えが済んだ時点で消します (途中で落ちた場合は次の起動で消します)。</string>
+    <string name="settings_update_dir">.apk の保存先</string>
+    <string name="settings_update_dir_hint">空 = アプリ内</string>
+    <string name="settings_update_dir_desc">空ならアプリ内に落とすので他のアプリからは見えません。例: /sdcard/Download</string>
     <string name="settings_update_uptodate">お使いの版が最新です。</string>
     <string name="settings_update_failed">更新を確認できませんでした: %1$s</string>
 
@@ -540,6 +552,7 @@
     <string name="default_custom_theme_name">マイテーマ</string>
     <string name="snippet_sample_ls_label">一覧 (詳細)</string>
     <string name="snippet_sample_apk_update_label">apk: 更新 (index 取得)</string>
+    <string name="snippet_sample_update_label">z2term を更新</string>
     <string name="snippet_sample_apk_add_label">apk: 追加 (パッケージ名を追記)</string>
 
     <!-- IME 学習履歴管理 (キーボードパッチ) -->

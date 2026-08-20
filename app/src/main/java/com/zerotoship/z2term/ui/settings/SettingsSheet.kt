@@ -1818,6 +1818,10 @@ fun SettingsSheet(
                 AppInfoSection(
                     distroId = settings.distroId,
                     engineUnlocked = settings.engineSelectorUnlocked,
+                    updateKeepApk = settings.updateKeepApk,
+                    updateDownloadDir = settings.updateDownloadDir,
+                    onUpdateKeepApk = { session.setUpdateKeepApk(it) },
+                    onUpdateDownloadDir = { session.setUpdateDownloadDir(it) },
                     // 設定の初期化はアプリ情報とライセンスの間に置く (設定の一番下・要望)。
                     onResetSettings = { pendingReset = true },
                     onToggle = {
@@ -2055,6 +2059,10 @@ fun SettingsSheet(
 private fun AppInfoSection(
     distroId: String,
     engineUnlocked: Boolean,
+    updateKeepApk: Boolean,
+    updateDownloadDir: String,
+    onUpdateKeepApk: (Boolean) -> Unit,
+    onUpdateDownloadDir: (String) -> Unit,
     onResetSettings: () -> Unit,
     onToggle: () -> Unit
 ) {
@@ -2110,6 +2118,11 @@ private fun AppInfoSection(
     // UpdateChecker.check() が走り、それ以外ではネットワークに一切触れない。
     var updateChecking by remember { mutableStateOf(false) }
     var updateResult by remember { mutableStateOf<com.zerotoship.z2term.update.UpdateResult?>(null) }
+    // 入れ替え (ダウンロード → OS の確認画面) の進み具合。⚠ **押した後に何も出ない時間を作らない** —
+    // 20MB のダウンロードの間ボタンが黙っていると、押せていないのか進んでいるのか分からない。
+    var updateWorking by remember { mutableStateOf(false) }
+    var updateNote by remember { mutableStateOf<String?>(null) }
+    var updateNeedsPermission by remember { mutableStateOf(false) }
     Section(title = stringResource(R.string.settings_section_app_info)) {
         InfoRow(
             stringResource(R.string.appinfo_version),
@@ -2146,6 +2159,44 @@ private fun AppInfoSection(
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace
                 )
+                // ⚠ APK が付いているリリースのときだけ出す。付いていない (作りかけの) リリースで
+                //    押させると、落とすものが無いという分かりにくい断り方になる。
+                if (r.apkUrl != null) {
+                    ActionButton(
+                        label = if (updateWorking) stringResource(R.string.settings_update_working)
+                        else stringResource(R.string.settings_update_install),
+                        onClick = {
+                            if (updateWorking) return@ActionButton
+                            updateWorking = true
+                            updateNote = null
+                            updateNeedsPermission = false
+                            scope.launch {
+                                val outcome = com.zerotoship.z2term.update.UpdateFlow.run(
+                                    context, checkOnly = false
+                                )
+                                updateNote = when (outcome) {
+                                    is com.zerotoship.z2term.update.UpdateFlow.Outcome.Handed ->
+                                        context.getString(R.string.settings_update_handed)
+                                    com.zerotoship.z2term.update.UpdateFlow.Outcome.NeedPermission -> {
+                                        updateNeedsPermission = true
+                                        context.getString(R.string.settings_update_need_permission)
+                                    }
+                                    com.zerotoship.z2term.update.UpdateFlow.Outcome.ManagedByStore ->
+                                        context.getString(R.string.settings_update_store)
+                                    is com.zerotoship.z2term.update.UpdateFlow.Outcome.NoApk ->
+                                        context.getString(R.string.settings_update_no_apk)
+                                    is com.zerotoship.z2term.update.UpdateFlow.Outcome.Failed ->
+                                        context.getString(R.string.settings_update_failed, outcome.reason)
+                                    is com.zerotoship.z2term.update.UpdateFlow.Outcome.UpToDate ->
+                                        context.getString(R.string.settings_update_uptodate)
+                                    is com.zerotoship.z2term.update.UpdateFlow.Outcome.Found ->
+                                        context.getString(R.string.settings_update_available, outcome.latest)
+                                }
+                                updateWorking = false
+                            }
+                        }
+                    )
+                }
                 ActionButton(
                     label = stringResource(R.string.settings_update_open_page),
                     onClick = {
@@ -2172,6 +2223,46 @@ private fun AppInfoSection(
             )
             null -> {}
         }
+        updateNote?.let { note ->
+            Text(
+                text = note,
+                color = if (updateNeedsPermission) ZtsError else ZtsTextSecondary,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        // 許可が足りないときだけ、その設定画面への入口を出す (普段は出さない)。
+        if (updateNeedsPermission) {
+            ActionButton(
+                label = stringResource(R.string.settings_update_allow),
+                onClick = {
+                    runCatching {
+                        context.startActivity(
+                            com.zerotoship.z2term.update.UpdateInstaller.unknownSourcesIntent(context)
+                        )
+                    }
+                }
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        ToggleField(
+            title = stringResource(R.string.settings_update_keep_apk),
+            description = stringResource(R.string.settings_update_keep_apk_desc),
+            checked = updateKeepApk,
+            onChange = onUpdateKeepApk
+        )
+        TextField(
+            title = stringResource(R.string.settings_update_dir),
+            placeholder = stringResource(R.string.settings_update_dir_hint),
+            value = updateDownloadDir,
+            onChange = onUpdateDownloadDir
+        )
+        Text(
+            text = stringResource(R.string.settings_update_dir_desc),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
     }
     // 設定の初期化 (すべての設定を既定値へ戻す)。ワンタップでは戻さず確認ダイアログを挟む。
     // 普段触らない操作なので、設定の末尾 (ライセンスの直前) に置く。
