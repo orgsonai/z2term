@@ -35,6 +35,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import com.zerotoship.z2term.settings.WhenCondition
+import com.zerotoship.z2term.settings.WhenConditionSpec
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -506,6 +514,16 @@ private fun WhenRuleEditForm(
     var trigger by remember(initial.id) { mutableStateOf(initial.trigger) }
     var run by remember(initial.id) { mutableStateOf(initial.run) }
     var condition by remember(initial.id) { mutableStateOf(initial.condition) }
+    // 条件ビルダー (0.8.373)。⚠ 端末で書いた式が**組み立て直せないときはそのまま文字で見せる** —
+    // 画面が勝手に解釈して書き換えると、開いて閉じただけで動きの変わるルールができる。
+    val builder = remember(initial.id) {
+        WhenConditionSpec.builderOf(initial.condition, initial.conditionAny)
+    }
+    var conditionAny by remember(initial.id) { mutableStateOf(initial.conditionAny) }
+    var condMode by remember(initial.id) { mutableStateOf(builder.mode) }
+    var conds by remember(initial.id) { mutableStateOf(builder.conditions) }
+    val advanced = remember(initial.id) { builder.advanced }
+    var elseCmd by remember(initial.id) { mutableStateOf(initial.otherwise) }
     var cooldown by remember(initial.id) { mutableStateOf(initial.cooldown) }
     var between by remember(initial.id) { mutableStateOf(initial.between) }
     var days by remember(initial.id) { mutableStateOf(initial.days) }
@@ -530,6 +548,7 @@ private fun WhenRuleEditForm(
     val msgRunEmpty = stringResource(R.string.when_form_run_empty)
     val msgRunMultiline = stringResource(R.string.when_form_run_multiline)
     val msgIfUnknown = stringResource(R.string.when_form_if_unknown)
+    val msgCondIncomplete = stringResource(R.string.when_cond_incomplete)
 
     Text(
         text = if (isNew) stringResource(R.string.when_new_rule_title)
@@ -652,11 +671,85 @@ private fun WhenRuleEditForm(
         fontSize = 11.sp,
         fontFamily = FontFamily.Monospace
     )
+    // --- 条件 (0.8.373) -------------------------------------------------------
+    Text(
+        text = stringResource(R.string.when_cond_title),
+        color = ZtsTextSecondary,
+        fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace
+    )
+    if (advanced) {
+        // 端末で書いたもの。触らずにそのまま出す。
+        Text(
+            text = stringResource(R.string.when_cond_advanced),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Field(
+            label = stringResource(R.string.when_if_field),
+            value = condition,
+            onChange = { condition = it.trim() },
+            placeholder = "wifi,!screen"
+        )
+        Field(
+            label = stringResource(R.string.when_if_any_field),
+            value = conditionAny,
+            onChange = { conditionAny = it.trim() },
+            placeholder = "wifi,ssid=Home"
+        )
+    } else {
+        // 「すべて満たす」/「どれか満たす」= if= か if_any= か。
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            ModeChip(
+                label = stringResource(R.string.when_cond_mode_all),
+                selected = condMode == WhenConditionSpec.Mode.ALL,
+            ) { condMode = WhenConditionSpec.Mode.ALL }
+            ModeChip(
+                label = stringResource(R.string.when_cond_mode_any),
+                selected = condMode == WhenConditionSpec.Mode.ANY,
+            ) { condMode = WhenConditionSpec.Mode.ANY }
+        }
+        if (conds.isEmpty()) {
+            Text(
+                text = stringResource(R.string.when_cond_none),
+                color = ZtsTextSecondary,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        conds.forEachIndexed { index, cond ->
+            key(index) {
+                ConditionRow(
+                    cond = cond,
+                    onChange = { updated -> conds = conds.toMutableList().also { it[index] = updated } },
+                    onRemove = { conds = conds.toMutableList().also { it.removeAt(index) } },
+                )
+            }
+        }
+        PillButton(label = stringResource(R.string.when_cond_add)) {
+            conds = conds + WhenCondition("wifi", WhenCondition.Op.TRUTHY)
+        }
+    }
+
+    // --- 条件に合わないとき (0.8.373) ----------------------------------------
+    Text(
+        text = stringResource(R.string.when_else_title),
+        color = ZtsTextSecondary,
+        fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace
+    )
     Field(
-        label = stringResource(R.string.when_if_field),
-        value = condition,
-        onChange = { condition = it.trim() },
-        placeholder = "wifi,!screen"
+        label = stringResource(R.string.when_else_field),
+        value = elseCmd,
+        onChange = { elseCmd = it },
+        placeholder = stringResource(R.string.when_else_hint)
+    )
+    Text(
+        text = stringResource(R.string.when_else_note),
+        color = ZtsTextSecondary,
+        fontSize = 10.sp,
+        fontFamily = FontFamily.Monospace
     )
     Field(
         label = stringResource(R.string.when_cooldown_field),
@@ -704,17 +797,36 @@ private fun WhenRuleEditForm(
                 null -> when (WhenTriggerCatalog.runProblem(r)) {
                     WhenTriggerCatalog.RunProblem.EMPTY -> msgRunEmpty
                     WhenTriggerCatalog.RunProblem.MULTILINE -> msgRunMultiline
-                    null -> unknownConditionKey(condition)?.let { msgIfUnknown.format(it) }
+                    null -> if (advanced) {
+                        (unknownConditionKey(condition) ?: unknownConditionKey(conditionAny))
+                            ?.let { msgIfUnknown.format(it) }
+                    } else null
                 }
             }
-            error = problem
-            if (problem == null) {
+            // ビルダーで組んだ条件は**往復で検証する** (組み立てた文字列を読み直せなければ、
+            // 値の入れ忘れなどで画面の見た目と実際の式がズレている)。
+            val builtSpec = if (advanced) null else WhenConditionSpec.build(conds)
+            val incomplete = builtSpec != null && WhenConditionSpec.parse(builtSpec) == null
+            error = problem ?: if (incomplete) msgCondIncomplete else null
+            if (error == null) {
+                val cond = when {
+                    advanced -> condition.trim()
+                    condMode == WhenConditionSpec.Mode.ALL -> builtSpec.orEmpty()
+                    else -> ""
+                }
+                val condAny = when {
+                    advanced -> conditionAny.trim()
+                    condMode == WhenConditionSpec.Mode.ANY -> builtSpec.orEmpty()
+                    else -> ""
+                }
                 onSave(
                     initial.copy(
                         name = name.trim(),
                         trigger = t,
                         run = r,
-                        condition = condition.trim(),
+                        condition = cond,
+                        conditionAny = condAny,
+                        otherwise = elseCmd.trim(),
                         cooldown = cooldown.trim(),
                         between = between.trim(),
                         days = days.trim(),
@@ -723,6 +835,206 @@ private fun WhenRuleEditForm(
             }
         }
     }
+}
+
+/** 「すべて満たす」/「どれか満たす」の切り替え。選ばれている方だけ枠と字を強調する。 */
+@Composable
+private fun ModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Text(
+        text = label,
+        color = if (selected) ZtsGreen else ZtsTextSecondary,
+        fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace,
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .border(1.dp, if (selected) ZtsGreen else ZtsBorder, RoundedCornerShape(999.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    )
+}
+
+/**
+ * 条件 1 行 (0.8.373)。**選ぶだけで組める**ようにするのが目的なので、キーも演算子も
+ * プルダウンにし、値の欄はキーの型のときだけ出す。
+ *
+ * ⚠ **キーを変えたら演算子と値を既定へ戻す**。`level<30` のまま `wifi` へ変えると
+ * 「真偽キーに数値比較」という、端末では書けても画面では表せない組み合わせになる。
+ */
+@Composable
+private fun ConditionRow(
+    cond: WhenCondition,
+    onChange: (WhenCondition) -> Unit,
+    onRemove: () -> Unit,
+) {
+    val kind = WhenConditionSpec.kindOf(cond.key)
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+            .padding(8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.weight(1f)) {
+                var open by remember { mutableStateOf(false) }
+                Text(
+                    text = conditionKeyLabel(cond.key) + " ▾",
+                    color = ZtsTextPrimary,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { open = true }
+                        .padding(vertical = 2.dp)
+                )
+                DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                    WhenConditionSpec.KEYS.forEach { k ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    conditionKeyLabel(k),
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 12.sp,
+                                )
+                            },
+                            onClick = { open = false; onChange(defaultCondition(k)) }
+                        )
+                    }
+                }
+            }
+            Text(
+                text = "✕",
+                color = ZtsTextSecondary,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .clickable { onRemove() }
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box {
+                var open by remember { mutableStateOf(false) }
+                Text(
+                    text = conditionOpLabel(cond) + " ▾",
+                    color = ZtsGreen,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { open = true }
+                        .padding(vertical = 2.dp)
+                )
+                DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                    conditionOpChoices(cond).forEach { choice ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    conditionOpLabel(choice),
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 12.sp,
+                                )
+                            },
+                            onClick = { open = false; onChange(choice.copy(value = cond.value)) }
+                        )
+                    }
+                }
+            }
+            // 値が要るのは「一致」と「数値比較」だけ。真偽のときは欄そのものを出さない。
+            if (kind != WhenConditionSpec.Kind.BOOL) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(ZtsBgCard)
+                        .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                ) {
+                    if (cond.value.isEmpty()) {
+                        Text(
+                            text = if (kind == WhenConditionSpec.Kind.NUMBER) "30" else "Home",
+                            color = ZtsTextSecondary.copy(alpha = 0.55f),
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                        )
+                    }
+                    BasicTextField(
+                        value = cond.value,
+                        onValueChange = { onChange(cond.copy(value = it.trim())) },
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            color = ZtsTextPrimary,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                        ),
+                        cursorBrush = SolidColor(ZtsGreen),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** キーを選び直したときの既定。型に合う演算子から始める。 */
+private fun defaultCondition(key: String): WhenCondition = when (WhenConditionSpec.kindOf(key)) {
+    WhenConditionSpec.Kind.BOOL -> WhenCondition(key, WhenCondition.Op.TRUTHY)
+    WhenConditionSpec.Kind.TEXT -> WhenCondition(key, WhenCondition.Op.EQ)
+    WhenConditionSpec.Kind.NUMBER -> WhenCondition(key, WhenCondition.Op.LT)
+}
+
+/** その条件で選べる演算子 (値は呼び出し側が引き継ぐ)。 */
+private fun conditionOpChoices(cond: WhenCondition): List<WhenCondition> =
+    when (WhenConditionSpec.kindOf(cond.key)) {
+        WhenConditionSpec.Kind.BOOL -> listOf(
+            cond.copy(op = WhenCondition.Op.TRUTHY, negate = false),
+            cond.copy(op = WhenCondition.Op.TRUTHY, negate = true),
+        )
+        WhenConditionSpec.Kind.TEXT -> listOf(
+            cond.copy(op = WhenCondition.Op.EQ, negate = false),
+            cond.copy(op = WhenCondition.Op.EQ, negate = true),
+        )
+        WhenConditionSpec.Kind.NUMBER -> listOf(
+            cond.copy(op = WhenCondition.Op.GT, negate = false),
+            cond.copy(op = WhenCondition.Op.LT, negate = false),
+        )
+    }
+
+@Composable
+private fun conditionOpLabel(cond: WhenCondition): String =
+    when (WhenConditionSpec.kindOf(cond.key)) {
+        WhenConditionSpec.Kind.BOOL ->
+            if (cond.negate) stringResource(R.string.when_op_no) else stringResource(R.string.when_op_yes)
+        WhenConditionSpec.Kind.TEXT ->
+            if (cond.negate) stringResource(R.string.when_op_diff) else stringResource(R.string.when_op_same)
+        WhenConditionSpec.Kind.NUMBER ->
+            if (cond.op == WhenCondition.Op.LT) stringResource(R.string.when_op_less)
+            else stringResource(R.string.when_op_more)
+    }
+
+/** 条件キーの日本語 / 英語ラベル。⚠ 一覧は [WhenConditionSpec.KEYS] と揃えること。 */
+@Composable
+private fun conditionKeyLabel(key: String): String = when (key) {
+    "wifi" -> stringResource(R.string.when_key_wifi)
+    "charging" -> stringResource(R.string.when_key_charging)
+    "screen" -> stringResource(R.string.when_key_screen)
+    "locked" -> stringResource(R.string.when_key_locked)
+    "idle" -> stringResource(R.string.when_key_idle)
+    "headset" -> stringResource(R.string.when_key_headset)
+    "bt_audio" -> stringResource(R.string.when_key_bt_audio)
+    "airplane" -> stringResource(R.string.when_key_airplane)
+    "ssid" -> stringResource(R.string.when_key_ssid)
+    "plug" -> stringResource(R.string.when_key_plug)
+    "ringer" -> stringResource(R.string.when_key_ringer)
+    "level" -> stringResource(R.string.when_key_level)
+    "temp" -> stringResource(R.string.when_key_temp)
+    "volume" -> stringResource(R.string.when_key_volume)
+    else -> key
 }
 
 /**

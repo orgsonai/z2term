@@ -688,6 +688,39 @@
     <string name="when_run_field">実行するコマンド</string>
     <string name="when_filters_label">絞り込み（空欄なら絞りません）</string>
     <string name="when_if_field">if = そのときの端末の状態</string>
+    <!-- 自動化: 条件ビルダー (0.8.373) -->
+    <string name="when_cond_title">どんなときに実行するか</string>
+    <string name="when_cond_mode_all">すべて満たす</string>
+    <string name="when_cond_mode_any">どれか満たす</string>
+    <string name="when_cond_add">＋ 条件を追加</string>
+    <string name="when_cond_none">条件なし — きっかけが来れば必ず実行します。</string>
+    <string name="when_cond_advanced">端末で書いたルールなので、そのまま文字で出しています。ここで直しても文字のままです。</string>
+    <string name="when_cond_incomplete">条件の値を入れてください。</string>
+    <string name="when_if_any_field">if_any（どれか満たす）</string>
+    <string name="when_else_title">条件に合わないとき</string>
+    <string name="when_else_field">代わりに実行するコマンド</string>
+    <string name="when_else_hint">空なら何もしない</string>
+    <string name="when_else_note">効くのは上の条件で見送ったときだけです。時間帯・曜日・間隔で見送ったときは何も実行しません。</string>
+    <string name="when_op_yes">はい</string>
+    <string name="when_op_no">いいえ</string>
+    <string name="when_op_same">が次と同じ</string>
+    <string name="when_op_diff">が次と違う</string>
+    <string name="when_op_more">より多い</string>
+    <string name="when_op_less">より少ない</string>
+    <string name="when_key_wifi">Wi-Fi につながっている</string>
+    <string name="when_key_charging">充電している</string>
+    <string name="when_key_screen">画面がついている</string>
+    <string name="when_key_locked">画面がロックされている</string>
+    <string name="when_key_idle">端末が待機中</string>
+    <string name="when_key_headset">イヤホンがささっている</string>
+    <string name="when_key_bt_audio">Bluetooth 音声につながっている</string>
+    <string name="when_key_airplane">機内モード</string>
+    <string name="when_key_ssid">つないでいる Wi-Fi の名前</string>
+    <string name="when_key_plug">電源の種類</string>
+    <string name="when_key_ringer">着信音の設定</string>
+    <string name="when_key_level">電池残量 (%)</string>
+    <string name="when_key_temp">電池の温度 (\u00b0C)</string>
+    <string name="when_key_volume">音量</string>
     <string name="when_cooldown_field">cooldown = 前の実行からこの時間は動かさない</string>
     <string name="when_between_field">between = この時間帯だけ</string>
     <string name="when_days_field">days = この曜日だけ</string>

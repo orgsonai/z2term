@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.372-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.373-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -814,6 +814,8 @@ Auto-run a command **when you start charging / the battery drops / a set time ar
 **Rules may start servers too** (e.g. `z2-when wifi:connect run 'sshd --lan'`). A server started that way **keeps running** after the rule itself finishes (fixed in 0.8.253 — before that it was taken down the instant the run ended, so the log said "listening" while nothing answered). ⚠ It only survives **while the app is alive**; register anything that must stay up permanently as a **resident server**.
 
 **You can also build them on screen** (0.8.272). In 📜 → the "Automation" tab, **+ New** lets you pick a trigger from a list and type the command. Tap **✎** on an existing rule to see the full command and its filters (`if` / `cooldown` / `between` / `days`) and edit them. When the command points at a single script, **its contents are shown too** (edit the script itself in the terminal). Rules created with `z2-when` in the terminal can be edited the same way — both read the same files (`~/.z2term/when/*.rule`).
+
+**Conditions are built by picking, not typing (0.8.373).** Under "When to run it", choose **all of them / any one of them** and add rows with **+ Add a condition**. The item (`connected to Wi-Fi` / `battery level (%)` / `Wi-Fi network name`, …) comes from a dropdown, so a typo can no longer leave you with a rule that never fires. Boolean items take "yes / no", name items "is / is not", number items "more than / less than" plus a value. Right below, **"When it does not match"** takes a command to run instead (empty = do nothing). ⚠ **A condition written in the terminal that the screen cannot represent** (`screen=on`, or a rule carrying both `if` and `if_any`) is **shown as text** — the screen must never reinterpret and rewrite what you wrote.
 
 **Rules can be named** (0.8.303). "Name" is the first field of the form. Give a rule a name and it becomes the heading in the list (the trigger stays underneath in small type), and recent fires use it too — so several rules on the same trigger, say `event:screen_on`, are no longer indistinguishable. **Leave it empty and the trigger is the heading, as before.** The name is display only; it changes nothing about when a rule runs. From the terminal, put it right after the trigger and before `run`: `z2-when time:daily=07:00 name='Morning report' run ~/.z2term/macros/report.sh` (quote it if it contains spaces).
 

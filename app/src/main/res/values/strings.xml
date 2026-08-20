@@ -703,6 +703,39 @@
     <string name="when_run_field">Command to run</string>
     <string name="when_filters_label">Filters (leave empty for none)</string>
     <string name="when_if_field">if = device state at that moment</string>
+    <!-- 自動化: 条件ビルダー (0.8.373) -->
+    <string name="when_cond_title">When to run it</string>
+    <string name="when_cond_mode_all">all of them</string>
+    <string name="when_cond_mode_any">any one of them</string>
+    <string name="when_cond_add">+ Add a condition</string>
+    <string name="when_cond_none">No condition — runs whenever the trigger fires.</string>
+    <string name="when_cond_advanced">This rule was written in the terminal, so it is shown as text. Editing it here keeps it as text.</string>
+    <string name="when_cond_incomplete">Fill in the value of every condition.</string>
+    <string name="when_if_any_field">if_any (any one of them)</string>
+    <string name="when_else_title">When it does not match</string>
+    <string name="when_else_field">Command to run instead</string>
+    <string name="when_else_hint">empty = do nothing</string>
+    <string name="when_else_note">Only for the conditions above. A run skipped by the window, the days or the interval runs nothing at all.</string>
+    <string name="when_op_yes">yes</string>
+    <string name="when_op_no">no</string>
+    <string name="when_op_same">is</string>
+    <string name="when_op_diff">is not</string>
+    <string name="when_op_more">more than</string>
+    <string name="when_op_less">less than</string>
+    <string name="when_key_wifi">connected to Wi-Fi</string>
+    <string name="when_key_charging">charging</string>
+    <string name="when_key_screen">screen is on</string>
+    <string name="when_key_locked">screen is locked</string>
+    <string name="when_key_idle">device is idle</string>
+    <string name="when_key_headset">headset plugged in</string>
+    <string name="when_key_bt_audio">Bluetooth audio connected</string>
+    <string name="when_key_airplane">airplane mode</string>
+    <string name="when_key_ssid">Wi-Fi network name</string>
+    <string name="when_key_plug">power source</string>
+    <string name="when_key_ringer">ringer mode</string>
+    <string name="when_key_level">battery level (%)</string>
+    <string name="when_key_temp">battery temperature (\u00b0C)</string>
+    <string name="when_key_volume">volume</string>
     <string name="when_cooldown_field">cooldown = do not run again for this long</string>
     <string name="when_between_field">between = only in this time window</string>
     <string name="when_days_field">days = only on these days</string>
