@@ -63,6 +63,39 @@ class WhenRuleTest {
         assertEquals(r, WhenRule.parse("sync", r.serialize()))
     }
 
+    @Test fun parse_readsIfAnyAndElseAndRoundTrips() {
+        // 0.8.372: 「どれか満たす」と「そうでないとき」。
+        val text = """
+            trigger=time:daily=07:00
+            run=~/.z2term/macros/sync.sh
+            enabled=1
+            if=charging
+            if_any=wifi,ssid=Home
+            else=z2-notify "見送りました"
+        """.trimIndent()
+        val r = WhenRule.parse("sync", text)!!
+        assertEquals("charging", r.condition)
+        assertEquals("wifi,ssid=Home", r.conditionAny)
+        // else はコマンドなので中の空白と引用符をそのまま保つ。
+        assertEquals("""z2-notify "見送りました"""", r.otherwise)
+        assertTrue(r.hasFilters)
+        assertEquals(r, WhenRule.parse("sync", r.serialize()))
+    }
+
+    @Test fun parse_ifAnyAloneCountsAsFilter() {
+        // if= が無くても if_any= だけで絞り込みとして扱う (実行入口で判定させるため)。
+        val r = WhenRule.parse("r", "trigger=boot\nrun=true\nenabled=1\nif_any=wifi,charging\n")!!
+        assertEquals("", r.condition)
+        assertEquals("wifi,charging", r.conditionAny)
+        assertTrue(r.hasFilters)
+    }
+
+    @Test fun parse_unknownKeysAreIgnored() {
+        // 「知らないキーは無視」が効いていること = 新項目を足しても古い版が読める、の裏返し。
+        val r = WhenRule.parse("r", "trigger=boot\nrun=true\nenabled=1\nfuture_key=x\nelse=true\n")!!
+        assertEquals("true", r.otherwise)
+    }
+
     @Test fun parse_readsNameAndRoundTrips() {
         // 名前は表示だけの項目 (0.8.303)。中の空白は保つ (前後だけ落とす)。
         val r = WhenRule.parse("r", "trigger=boot\nrun=true\nenabled=1\nname=夜の バックアップ\n")!!

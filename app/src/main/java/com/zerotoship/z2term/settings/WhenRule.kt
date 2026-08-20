@@ -15,6 +15,8 @@ package com.zerotoship.z2term.settings
  * enabled=1
  * name=夜のバックアップ
  * if=wifi,!screen
+ * if_any=charging,plug=ac
+ * else=z2-notify "見送りました"
  * cooldown=30m
  * between=22:00-07:00
  * days=mon-fri
@@ -80,6 +82,25 @@ data class WhenRule(
      * トリガーが名前の代わりに出る ([label])。
      */
     val name: String = "",
+    /**
+     * `if_any=` … **このどれか 1 つ**を満たせばよい条件 (空 = 絞らない。0.8.372)。
+     *
+     * 書式は [condition] と同じで、区切りの意味だけが違う (`if=` は全部・`if_any=` はどれか)。
+     * 両方あれば「[condition] を全部満たし、**かつ** [conditionAny] のどれか」。
+     *
+     * ⛔ **1 つの式に `&&` `||` `()` を混ぜない**という判断でこの形にした。優先順位を覚えないと
+     * 読めない式は、画面の「すべて満たす / どれか満たす」とも 1:1 で対応しなくなる。
+     */
+    val conditionAny: String = "",
+    /**
+     * `else=` … [condition] / [conditionAny] に**合わなかったとき**に代わりに走るコマンド
+     * (空 = 何もしない。0.8.372)。
+     *
+     * ⚠ **効くのは `if` 系で見送ったときだけ**。`between` / `days` / `cooldown` で見送ったときは
+     * これも動かさない ([com.zerotoship.z2term.service.WhenManager] の実行入口)。「動かないはずの
+     * 時間帯」に通知が飛ぶのは驚きでしかないため。
+     */
+    val otherwise: String = "",
 ) {
     /**
      * トリガーの種別 (`:` の手前)。例: `charge` / `battery` / `time`。
@@ -104,7 +125,7 @@ data class WhenRule(
 
     /** 絞り込み ([condition] / [cooldown] / [between] / [days]) を 1 つでも持っているか。 */
     val hasFilters: Boolean
-        get() = condition.isNotEmpty() || cooldown.isNotEmpty() ||
+        get() = condition.isNotEmpty() || conditionAny.isNotEmpty() || cooldown.isNotEmpty() ||
             between.isNotEmpty() || days.isNotEmpty()
 
     fun serialize(): String = buildString {
@@ -114,6 +135,9 @@ data class WhenRule(
         // 未指定のときは書かない (端末から登録したままのルールに余計な行を足さない)。
         if (name.isNotEmpty()) append("name=").append(name).append('\n')
         if (condition.isNotEmpty()) append("if=").append(condition).append('\n')
+        if (conditionAny.isNotEmpty()) append("if_any=").append(conditionAny).append('\n')
+        // else はコマンドなので run と同じ扱い (中の空白を保つ)。
+        if (otherwise.isNotEmpty()) append("else=").append(otherwise).append('\n')
         if (cooldown.isNotEmpty()) append("cooldown=").append(cooldown).append('\n')
         if (between.isNotEmpty()) append("between=").append(between).append('\n')
         if (days.isNotEmpty()) append("days=").append(days).append('\n')
@@ -135,6 +159,8 @@ data class WhenRule(
             var between = ""
             var days = ""
             var name = ""
+            var conditionAny = ""
+            var otherwise = ""
             text.lineSequence().forEach { line ->
                 val eq = line.indexOf('=')
                 if (eq <= 0) return@forEach
@@ -151,6 +177,9 @@ data class WhenRule(
                     "order" -> order = value.trim().toIntOrNull()?.takeIf { it >= 0 } ?: NO_ORDER
                     // 絞り込みは空白を含まない書式なので trim する (手書きの余白で効かなくならないように)。
                     "if" -> condition = value.trim()
+                    "if_any" -> conditionAny = value.trim()
+                    // else はコマンド全体。run と同じく前後の空白を保つ (末尾 CR だけ落とす)。
+                    "else" -> otherwise = value.trimEnd('\r')
                     "cooldown" -> cooldown = value.trim()
                     "between" -> between = value.trim()
                     "days" -> days = value.trim()
@@ -159,7 +188,10 @@ data class WhenRule(
                 }
             }
             if (trigger.isBlank() || run.isBlank()) return null
-            return WhenRule(id, trigger, run, enabled, order, condition, cooldown, between, days, name)
+            return WhenRule(
+                id, trigger, run, enabled, order, condition, cooldown, between, days, name,
+                conditionAny, otherwise,
+            )
         }
     }
 }

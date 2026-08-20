@@ -664,10 +664,12 @@ object WhenManager {
                 return WhenGuard.SKIP_COOLDOWN
             }
         }
-        if (rule.condition.isNotEmpty()) {
-            if (!WhenGuard.conditionsMet(rule.condition, Z2ApiBridge.stateSnapshot(context))) {
-                return WhenGuard.SKIP_IF
-            }
+        // ⚠ 状態を集めるのは 1 回だけ。`if` と `if_any` で別々に集めると、その間に状態が
+        //    変わったとき「全部満たす」と「どれか満たす」が別の瞬間の端末を見ることになる。
+        if (rule.condition.isNotEmpty() || rule.conditionAny.isNotEmpty()) {
+            val state = Z2ApiBridge.stateSnapshot(context)
+            if (!WhenGuard.conditionsMet(rule.condition, state)) return WhenGuard.SKIP_IF
+            if (!WhenGuard.anyConditionMet(rule.conditionAny, state)) return WhenGuard.SKIP_IF
         }
         return null
     }
@@ -738,6 +740,17 @@ object WhenManager {
         if (!manual && rule.hasFilters) {
             val skip = skipReason(context, rule)
             if (skip != null) {
+                // ⚠ **`else=` が効くのは `if` 系で見送ったときだけ** (0.8.372)。between / days /
+                //    cooldown は「そもそも動かない時間」なので、そこで else まで動かすと
+                //    「深夜には動かないはずのルールから通知が来た」になる。
+                if (skip == WhenGuard.SKIP_IF && rule.otherwise.isNotEmpty()) {
+                    appendFired(context, rule, WhenGuard.SKIP_IF_ELSE)
+                    Log.i(TAG, "${WhenGuard.SKIP_IF_ELSE}: ${rule.id} (${rule.trigger})")
+                    // ⚠ cooldown は消費しない。走ったのは代わりの方で、本命はまだ 1 度も
+                    //    走っていない (次に条件が合ったらすぐ走ってよい)。
+                    execute(context, rule, rule.otherwise, level, extraEnv)
+                    return
+                }
                 appendFired(context, rule, skip)
                 Log.i(TAG, "$skip: ${rule.id} (${rule.trigger})")
                 return
@@ -745,15 +758,32 @@ object WhenManager {
         }
         appendFired(context, rule, if (manual) "manual" else "run")
         if (rule.cooldown.isNotEmpty()) markFired(context, rule.id)
+        execute(context, rule, rule.run, level, extraEnv)
+    }
+
+    /**
+     * ルールのコマンドを 1 本の `sh -lc` にして走らせる。
+     *
+     * ⚠ **`run` と `else` の両方がここを通る** (0.8.372)。環境変数の渡し方やログの置き場が
+     * 片方だけ違うと、「本命では使えた `$Z2_WHEN_TRIGGER` が else では空」のような、
+     * 再現条件の見えない食い違いになる。
+     */
+    private fun execute(
+        context: Context,
+        rule: WhenRule,
+        command: String,
+        level: Int,
+        extraEnv: Map<String, String>,
+    ) {
 
         // 環境変数 + ユーザーコマンドを 1 本の sh -lc へ。trigger や extraEnv の値 (SSID・SMS 本文
         // 等) は外部文字列を含み得るので単一引用符へ安全にエスケープする ([shSingleQuote])。level は
-        // 数値なのでそのまま。ユーザーコマンド (rule.run) は実行対象なのでクォートしない。
+        // 数値なのでそのまま。ユーザーコマンド ([command]) は実行対象なのでクォートしない。
         val levelExport = if (level in 0..100) " export Z2_WHEN_LEVEL='$level';" else ""
         val extraExport = extraEnv.entries.joinToString("") { (k, v) -> " export $k=${HeadlessRun.shSingleQuote(v)};" }
         val script = "export Z2_WHEN_TRIGGER=${HeadlessRun.shSingleQuote(rule.trigger)}; " +
             "export Z2_WHEN_NAME=${HeadlessRun.shSingleQuote(rule.id)};" +
-            "$levelExport$extraExport cd \"\$HOME\" 2>/dev/null; ${rule.run}"
+            "$levelExport$extraExport cd \"\$HOME\" 2>/dev/null; $command"
 
         val app = context.applicationContext
         HeadlessRun.launch(

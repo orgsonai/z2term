@@ -17,6 +17,15 @@ object WhenGuard {
     const val SKIP_COOLDOWN = "skip:cooldown"
 
     /**
+     * `if` 系で見送ったが、`else=` があったので**そちらを走らせた** (0.8.372)。
+     *
+     * ⚠ `skip:if` で始めてあるのは、既存の「見送り」を数えている読み手 (画面の絞り込み表示・
+     * 端末での grep) から見て**同じ仲間だと分かる**ようにするため。走ったのは else の方だと
+     * 矢印で示す。
+     */
+    const val SKIP_IF_ELSE = "skip:if→else"
+
+    /**
      * `if=` の条件をいまの状態 [state] が満たすか。
      *
      * 書式はカンマ区切りの **AND**。頭に `!` を付けると否定。値は `z2-state` が返すものと
@@ -39,6 +48,24 @@ object WhenGuard {
             val negate = term.startsWith("!")
             val body = if (negate) term.substring(1).trim() else term
             if (body.isEmpty()) return@all false
+            val ok = evalTerm(body, state)
+            if (negate) !ok else ok
+        }
+    }
+
+    /**
+     * `if_any=` の条件を [state] が満たすか — **どれか 1 つでも成り立てば true** (0.8.372)。
+     *
+     * 書式は [conditionsMet] と同じで、`,` の意味だけが AND から OR に変わる。空なら絞らない
+     * (true)。⚠ **空を false にしない** — `if_any=` を書いていないルールが全部止まる。
+     */
+    fun anyConditionMet(spec: String, state: Map<String, String>): Boolean {
+        val terms = spec.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        if (terms.isEmpty()) return true
+        return terms.any { term ->
+            val negate = term.startsWith("!")
+            val body = if (negate) term.substring(1).trim() else term
+            if (body.isEmpty()) return@any false
             val ok = evalTerm(body, state)
             if (negate) !ok else ok
         }
@@ -89,15 +116,15 @@ object WhenGuard {
      * `if=` の書式を検査して、問題があれば**その場で直せる 1 行**を返す (問題なければ null)。
      * 登録時 (CLI と画面) に使う — 実行時に黙って不成立にするより、書いた瞬間に気付ける方がよい。
      */
-    fun conditionError(spec: String): String? {
+    fun conditionError(spec: String, field: String = "if"): String? {
         val terms = spec.split(',').map { it.trim() }.filter { it.isNotEmpty() }
         if (terms.isEmpty()) return null
         terms.forEach { term ->
             val body = term.removePrefix("!").trim()
-            if (body.isEmpty()) return "if: 条件が空です: $term"
+            if (body.isEmpty()) return "$field: 条件が空です: $term"
             val key = body.takeWhile { it != '=' && it != '<' && it != '>' }.trim()
             if (!isKnownCondition(key)) {
-                return "if: 知らない条件です: $key (使えるもの: ${KNOWN_KEYS.sorted().joinToString(" ")})"
+                return "$field: 知らない条件です: $key (使えるもの: ${KNOWN_KEYS.sorted().joinToString(" ")})"
             }
         }
         return null

@@ -530,7 +530,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |mkdir -p "${d}DIR" 2>/dev/null
         |reload() { /usr/local/bin/z2api 0 when-reload >/dev/null 2>&1 || true; }
         |usage() {
-        |  echo "usage: z2-when <trigger> [name=..] [if=..] [cooldown=..] [between=..] [days=..] run <cmd...>" >&2
+        |  echo "usage: z2-when <trigger> [name=..] [if=..] [if_any=..] [else=..] [cooldown=..] [between=..] [days=..] run <cmd...>" >&2
         |  echo "       z2-when list | events | pause | resume | fired [n] | remove <id|all> | on <id> | off <id> | log <id>" >&2
         |  exit 1
         |}
@@ -564,7 +564,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |      # 名前 (0.8.303) と絞り込みが付いていれば末尾に足す。カラムを増やさないのは、
         |      # 既存の TSV を cut で読んでいる手元のスクリプトを壊さないため。
         |      w=""
-        |      for k in name if cooldown between days; do
+        |      for k in name if if_any else cooldown between days; do
         |        v=${d}(sed -n "s/^${d}k=//p" "${d}f")
         |        [ -n "${d}v" ] && w="${d}w ${d}k=${d}v"
         |      done
@@ -609,11 +609,17 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    trig="${d}1"; shift
         |    # 絞り込み (0.8.263) はトリガーの直後に置く。run の後ろは**全部コマンド**という
         |    # 今までの読み方を変えないため (コマンド側に if= が現れても誤解しない)。
-        |    zif=""; zcool=""; zbetw=""; zdays=""; zname=""
+        |    zif=""; zcool=""; zbetw=""; zdays=""; zname=""; zifany=""; zelse=""
         |    while [ ${d}# -ge 1 ]; do
         |      case "${d}1" in
         |        name=*)     zname="${d}{1#name=}"; shift ;;
+        |        # ⚠ if_any= を if= より先に見る必要は無い (`if=` では始まらない) が、
+        |        #   並べて書いて「どちらも受ける」ことを読み手に見せておく。
+        |        if_any=*)   zifany="${d}{1#if_any=}"; shift ;;
         |        if=*)       zif="${d}{1#if=}"; shift ;;
+        |        # else= は**コマンド**なので 1 引数にまとめて渡す (run の後ろは全部コマンド、
+        |        # という読み方を変えないため。例: else='z2-notify "見送りました"')。
+        |        else=*)     zelse="${d}{1#else=}"; shift ;;
         |        cooldown=*) zcool="${d}{1#cooldown=}"; shift ;;
         |        between=*)  zbetw="${d}{1#between=}"; shift ;;
         |        days=*)     zdays="${d}{1#days=}"; shift ;;
@@ -649,15 +655,16 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    [ "${d}badspec" = 0 ] || { echo "${m.whenBadTriggerSpec} ${d}trig" >&2; exit 1; }
         |    # if= のキーを登録時に検査する (実行時に黙って不成立になるより、書いた瞬間に気付ける)。
         |    # 一覧は WhenGuard.KNOWN_KEYS と揃えること。
-        |    if [ -n "${d}zif" ]; then
-        |      for t in ${d}(echo "${d}zif" | tr ',' ' '); do
+        |    for spec in "${d}zif" "${d}zifany"; do
+        |      [ -n "${d}spec" ] || continue
+        |      for t in ${d}(echo "${d}spec" | tr ',' ' '); do
         |        k=${d}(echo "${d}{t#!}" | sed 's/[<>=].*//')
         |        case " screen locked idle charging plug level wifi ssid ringer airplane headset bt_audio temp volume volume_max " in
         |          *" ${d}k "*) ;;
         |          *) echo "${m.whenUnknownIfKey} ${d}k" >&2; exit 1 ;;
         |        esac
         |      done
-        |    fi
+        |    done
         |    # ルールファイルは 1 行 1 項目。改行入りのまま書くと 2 行目以降が別の項目として
         |    # 読まれ、**途中で切れたコマンド**が黙って登録される (折り返して貼り付けると起きる)。
         |    # 弾くのではなく空白へ直して通し、直したことだけ伝える。
@@ -677,6 +684,9 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |      printf 'trigger=%s\n' "${d}trig"; printf 'run=%s\n' "${d}cmd"; printf 'enabled=1\n'
         |      [ -n "${d}zname" ] && printf 'name=%s\n' "${d}zname"
         |      [ -n "${d}zif" ] && printf 'if=%s\n' "${d}zif"
+        |      [ -n "${d}zifany" ] && printf 'if_any=%s\n' "${d}zifany"
+        |      # else もコマンドなので、run と同じく改行を空白へ直してから書く (1 行 1 項目)。
+        |      [ -n "${d}zelse" ] && printf 'else=%s\n' "${d}(printf '%s' "${d}zelse" | tr '\n\r' '  ')"
         |      [ -n "${d}zcool" ] && printf 'cooldown=%s\n' "${d}zcool"
         |      [ -n "${d}zbetw" ] && printf 'between=%s\n' "${d}zbetw"
         |      [ -n "${d}zdays" ] && printf 'days=%s\n' "${d}zdays"

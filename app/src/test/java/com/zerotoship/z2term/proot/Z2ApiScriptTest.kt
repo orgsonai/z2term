@@ -241,6 +241,61 @@ class Z2ApiScriptTest {
     }
 
     /**
+     * A6: 「どれか満たす」(`if_any=`) と「そうでないとき」(`else=`) をルールファイルへ書くこと (0.8.372)。
+     *
+     * ⚠ **`else=` は `run` の手前**に置く。`run` の後ろは全部コマンドという読み方は変えないので、
+     * 位置を間違えると else がコマンドの一部として食われる (逆も同じ)。else の中身は空白も引用符も
+     * 含むコマンドなので、1 引数のまま書かれることまで確かめる。
+     */
+    @Test
+    fun whenIfAnyAndElseAreWritten() {
+        val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() }
+        assumeTrue("sh が無い環境なのでスキップ", sh != null)
+        val script = File.createTempFile("z2when", ".sh").apply { writeText(scripts["z2-when"]!!) }
+        val home = Files.createTempDirectory("z2home").toFile()
+        try {
+            fun run(vararg args: String): String {
+                val pb = ProcessBuilder(listOf(sh!!, script.absolutePath) + args).redirectErrorStream(true)
+                pb.environment()["HOME"] = home.absolutePath
+                val proc = pb.start()
+                val out = proc.inputStream.bufferedReader().readText()
+                proc.waitFor()
+                return out
+            }
+            fun rules() = File(home, ".z2term/when").listFiles { f -> f.name.endsWith(".rule") }
+                .orEmpty().map { it.readText() }
+
+            run(
+                "time:daily=07:00", "if=charging", "if_any=wifi,ssid=Home",
+                "else=z2-notify \"見送りました\"", "run", "sync.sh", "--now",
+            )
+            val rule = rules().single()
+            assertTrue("if= が書かれていない: $rule", "if=charging\n" in rule)
+            assertTrue("if_any= が書かれていない: $rule", "if_any=wifi,ssid=Home\n" in rule)
+            assertTrue("else= が書かれていない: $rule", "else=z2-notify \"見送りました\"\n" in rule)
+            // ⚠ run の後ろは丸ごとコマンド。else に食われていないこと。
+            assertTrue("コマンドが欠けている: $rule", "run=sync.sh --now\n" in rule)
+
+            // 付けなければその行は付かない (既存ルールに余計な行を足さない)。
+            run("charge:stop", "run", "echo plain")
+            val plain = rules().single { "echo plain" in it }
+            assertTrue(
+                "余計な行が付いている: $plain",
+                plain.lines().none { it.startsWith("if_any=") || it.startsWith("else=") },
+            )
+
+            // if_any= のキーも if= と同じ語彙で検査する (打ち間違いを登録の時点で止める)。
+            val before = rules().size
+            val out = run("boot", "if_any=wifi,nosuchkey", "run", "echo x")
+            assertTrue("知らないキーを弾いていない: $out", out.isNotBlank())
+            assertEquals("弾いたのにルールが増えた", before, rules().size)
+        } finally {
+            script.delete()
+            home.deleteRecursively()
+        }
+    }
+
+    /**
      * A6: 綴り違いのトリガーを**登録の時点で**弾くこと (0.8.265)。
      *
      * トリガーが 1 文字違っても登録は成功し、**一度も発火しないルール**ができるだけだった。

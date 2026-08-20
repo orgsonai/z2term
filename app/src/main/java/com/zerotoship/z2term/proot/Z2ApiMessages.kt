@@ -789,10 +789,16 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#                             keys are the ones z2-state prints: wifi charging screen locked
         |#                             idle headset bt_audio airplane plug ssid ringer level temp volume
         |#                             e.g. if=wifi,!screen / if=ssid=Home / if=level<30
+        |#   if_any=<cond>[,<cond>...] … run when **any one** of them holds (the comma means OR)
+        |#                             together with if=: "all of if AND any one of if_any"
+        |#   else=<cmd>              … run this **instead**, when if / if_any did not hold
+        |#                             ⚠ only if / if_any reach it. A run skipped by between /
+        |#                             days / cooldown runs nothing at all — a rule that is off
+        |#                             at night has to stay silent at night, else included.
         |#   cooldown=30m            … do not run again within that time (10s / 30m / 2h)
         |#   between=22:00-07:00     … only inside that window (wraps past midnight)
         |#   days=mon-fri            … only on those days (names or cron numbers 0-7, 0/7 = Sunday)
-        |# Skipped runs are recorded too — z2-when fired shows skip:if / skip:between / skip:days
+        |# Skipped runs are recorded too — z2-when fired shows skip:if / skip:if→else / skip:between / skip:days
         |# / skip:cooldown, so a rule that never runs can be explained. The ▶ button in the app
         |# ignores every filter (it is there to try the rule out).
         |# z2-when events                        … list the names usable with event:
@@ -853,10 +859,16 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#                             使えるキーは z2-state が出すもの: wifi charging screen locked
         |#                             idle headset bt_audio airplane plug ssid ringer level temp volume
         |#                             例: if=wifi,!screen / if=ssid=Home / if=level<30
+        |#   if_any=<条件>[,<条件>...] … **このどれか 1 つ**を満たせば実行 (カンマが OR になる)
+        |#                             if= と併せると「if を全部満たし、かつ if_any のどれか」
+        |#   else=<コマンド>          … if / if_any に合わなかったとき、**代わりに**これを実行
+        |#                             ⚠ 効くのは if 系で見送ったときだけ。between / days /
+        |#                             cooldown で見送ったときは else も動かない (夜は動かない
+        |#                             はずのルールから、夜中に通知が飛ばないように)
         |#   cooldown=30m            … 前回の実行からこの時間は再実行しない (10s / 30m / 2h)
         |#   between=22:00-07:00     … この時間帯だけ実行 (日跨ぎ可)
         |#   days=mon-fri            … この曜日だけ実行 (曜日名か cron と同じ数字 0-7 / 0,7=日曜)
-        |# 弾いたことも記録する — z2-when fired に skip:if / skip:between / skip:days / skip:cooldown
+        |# 弾いたことも記録する — z2-when fired に skip:if / skip:if→else / skip:between / skip:days / skip:cooldown
         |# として出るので、「動かない理由」が分かる。アプリ画面の ▶ は絞り込みを無視する
         |# (試すためのボタンなので)。
         |# z2-when events                        … event: で使えるイベント名の一覧
