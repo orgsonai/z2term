@@ -275,6 +275,9 @@ object Z2ApiBridge {
             "icon" -> iconCmd(context, args)
             // z2doctor 用。**アプリ側にしか無い情報**（許可の有無・設定・常駐の数）をまとめて返す。
             "doctor" -> doctorRead(context)
+            // z2doctor 用。前回までの「なぜ落ちたか」を 1 件 1 行で返す (0.8.376)。
+            // ⚠ 返すのは **OS が言っている理由そのまま**。判定はしない ([ExitReasons])。
+            "exitinfo" -> ExitReasons.report(context)
             // z2-noti: いま出ている通知を読むだけ (押す・消すは提供しない)。
             "noti" -> notiCmd(args)
             // `ask` はここには来ない ([handleRequestFile] が先に捌く)。応答が非同期なので、

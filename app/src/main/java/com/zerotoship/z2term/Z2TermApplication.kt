@@ -5,6 +5,7 @@ import android.content.Context
 import android.util.Log
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.gui.GuiEventWatcher
+import com.zerotoship.z2term.service.ExitReasons
 import com.zerotoship.z2term.service.ScreenTimeout
 import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.service.WhenManager
@@ -61,6 +62,10 @@ class Z2TermApplication : Application() {
                 }
             }
         }
+        // 前回までの「なぜ落ちたか」を OS から拾って logcat と ~/.z2term/exits.jsonl へ (0.8.376)。
+        // ⚠ **アプリが自分の死に方を知る唯一の機会がここ**。メモリ不足で殺された場合はプロセスが
+        // 何も残さずに消えるので、次に起きたときに OS 側の記録を写しておくしかない。
+        appScope.launch { runCatching { ExitReasons.record(this@Z2TermApplication) } }
         // z2-when (A6) の時刻トリガーを貼り直す (AlarmManager 予約は再起動で消えるため。
         // BootReceiver でも貼るが、アプリを普通に開いた場合の取りこぼしをここで埋める)。idempotent。
         appScope.launch { runCatching { WhenManager.reload(this@Z2TermApplication) } }

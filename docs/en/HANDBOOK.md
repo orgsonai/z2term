@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.375-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.376-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -891,7 +891,7 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # on any ringe
 | Command | What it does |
 |---|---|
 | `z2-noti list` | **List the notifications on screen right now** (app, title, body). Read-only — it cannot press or dismiss them |
-| `z2doctor` | **Self-check for when something doesn't work.** Lists version, permissions, detection and automation state; every `NG` line tells you what to do. `z2doctor --clip` copies a report (SSIDs and IPs are left out) |
+| `z2doctor` | **Self-check for when something doesn't work.** Lists version, permissions, detection and automation state; every `NG` line tells you what to do. It also shows **how the app ended last time** (why it went away, 0.8.376), newest first (full history in `~/.z2term/exits.jsonl`). `z2doctor --clip` copies a report (SSIDs and IPs are left out) |
 | `z2adb …` | `adb` to this phone itself (no PC) → see **§7.5** |
 | `sshd` | Start an SSH server → see **§7** (defaults to "this device only" + key auth only) |
 

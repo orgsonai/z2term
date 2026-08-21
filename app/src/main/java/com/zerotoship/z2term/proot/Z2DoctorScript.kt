@@ -77,6 +77,18 @@ fun z2doctorScript(lang: String = "ja"): String {
     else "usage: z2doctor [--share | --clip]   (--share で報告文を共有シートに渡します)"
     val pausedYes = if (en) "paused" else "一時停止中"
 
+    // 前回までの終了 (0.8.376)。落ちた理由は OS しか知らないので、ここに出さないと
+    // 利用者からは「また消えた」以上のことが言えない。
+    val secExits = if (en) "-- how it ended last time --" else "-- 前回までの終了 --"
+    val lExitsNote = if (en) "recent abnormal exits (newest first):"
+    else "直近の異常終了 (新しい順):"
+    val lExitsNone = if (en) "abnormal exits: none recorded" else "異常終了: 記録なし"
+    val lExitsFile = if (en) "(full history: ~/.z2term/exits.jsonl)"
+    else "(全履歴: ~/.z2term/exits.jsonl)"
+    val hintExitMem = if (en)
+        "-> killed under memory pressure. Run fewer heavy jobs at once, or trim resident servers / tabs"
+    else "-> メモリ不足で終了しています。重い作業の同時実行を減らすか、常駐サーバー・タブを整理してください"
+
     return """
         |#!/bin/sh
         |# z2doctor: ${if (en) "self-check for \"it does not work\"" else "「動きません」の切り分け診断"}
@@ -175,6 +187,24 @@ fun z2doctorScript(lang: String = "ja"): String {
         |  bad "$lRules: ${d}{re:-?}/${d}{rt:-?} ($pausedYes)" "$fixPaused"
         |else
         |  say "    $lRules: ${d}{re:-?}/${d}{rt:-?}"
+        |fi
+        |
+        |say ""
+        |say "$secExits"
+        |# 直近の異常終了。OS が持っている記録 (ApplicationExitInfo) をアプリ経由で読む。
+        |# ⚠ パイプで while へ渡さないこと — 部分シェルになって OUT (報告文) が空になる。
+        |EX=${d}(/usr/local/bin/z2api 1 exitinfo 2>/dev/null)
+        |if [ -n "${d}EX" ]; then
+        |  say "    $lExitsNote"
+        |  while IFS= read -r xl; do
+        |    [ -n "${d}xl" ] && say "    ${d}xl"
+        |  done <<Z2EXITS
+        |${d}EX
+        |Z2EXITS
+        |  case "${d}EX" in *LOW_MEMORY*|*SIGKILL*) say "    $hintExitMem" ;; esac
+        |  say "    $lExitsFile"
+        |else
+        |  none "$lExitsNone"
         |fi
         |
         |say ""
