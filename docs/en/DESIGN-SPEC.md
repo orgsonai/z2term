@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-21 / Target version: 0.8.376-alpha (versionCode 384)
+Last updated: 2026-08-21 / Target version: 0.8.377-alpha (versionCode 385)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -179,6 +179,7 @@ not started yet and spawns a run loop for it.
 | `<id>.status` | supervisor | `state=` / `pid=` / `restarts=` / `last_exit=` / `cmd=` |
 | `<id>.log` | supervisor | that server's stdout and stderr |
 | `<id>.exits` | supervisor | exit history (`<epoch> <rc>`, last 20 lines) |
+| `<id>.jobstamp` | supervisor | marker for when `.job` was last read (0.8.377). Empty file: **only its mtime matters** |
 
 - **Adding, editing and deleting all apply without stopping the supervisor** (`ServerDaemonManager.syncEntries`).
   An addition is picked up within `POLL` seconds, a changed `<id>.job` restarts just that server, and removing
@@ -204,6 +205,17 @@ Three fixes:
 - **Stopped servers no longer rewrite `.status` every cycle** (only when the content changes)
 
 The cost is that per-server on/off, additions, edits, deletions and crash-restarts take up to 5s to apply. A resident server's job is to keep running, not to answer within a second, so battery wins. `ServerSupervisorScriptTest` pins all three ("no hardcoded `sleep`", "`.want` not read via `cat`", "stopped-state write is guarded").
+
+**Nothing spawned per cycle (`RECHECK_CYCLES`, 0.8.377)**
+
+Even after 0.8.268 widened the interval to 5s, **the watching alone burned about 1% of one core, around the clock** (measured on-device over 120s of `utime+stime`: 103 ticks for the supervisor's z2root plus 8 ticks for each of the three shells below it). Per server it spawned, every 5 seconds, two `sleep`s (the watch loop and the run loop) plus one `cat` — **roughly 50,000 execs a day**. Under the engine every exec is stopped by ptrace, and on this device each one also emits an SELinux audit line (**682 of the 737 lines** in a 13-minute logcat capture were exactly that). Meanwhile `ServerDaemonService` holds a WakeLock, so the device cannot drop into deep idle while this goes on.
+
+So the steady state now spawns **no external command at all**:
+- **Replace `sleep` with a shell built-in** (bash's loadable, `enable -f /usr/lib/bash/sleep sleep`). ⚠ busybox ash and friends have no `enable`, so **failure must pass silently and fall back to the external `sleep`** — surfacing an error here would stop the supervisor from starting at all, taking every resident server with it.
+- **Do not read `<id>.job` every cycle.** Compare the mtimes of `.job` and `<id>.jobstamp` with `test -nt` (a shell built-in) and **re-read with `cat` only when it moved** (`.job` may hold several lines, so the reading itself stays `cat`).  ⚠ **Touch the marker before reading** — marking after reading loses any write that lands in between, permanently.
+- ⚠ **Insurance against a miss**: mtimes that land on exactly the same instant read as "unchanged", so every `ServerSupervisorScript.RECHECK_CYCLES` cycles (12 = 60s) the job is re-read unconditionally. Even a miss is caught within `POLL × RECHECK_CYCLES` seconds.
+
+Measured (old and new run side by side for 60s on the same device): **44 ticks → 6 ticks, i.e. 0.73% → 0.10% of one core**. Edits applied without stopping, per-server on/off and cleanup on delete were all re-checked the same way. `ServerSupervisorScriptTest` pins that "only one `cat` reads `.job`", that "`enable` failures are swallowed", and that "the unconditional re-read is still there".
 
 **Per-server on/off (0.8.163)**
 - Each run loop watches the `<id>.want` flag (`1` = run)

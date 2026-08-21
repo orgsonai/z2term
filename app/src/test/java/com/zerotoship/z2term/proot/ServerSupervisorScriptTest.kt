@@ -148,4 +148,62 @@ class ServerSupervisorScriptTest {
         assertTrue(script.endsWith("\n"))
         assertFalse(script.endsWith("\n\n"))
     }
+    /**
+     * **定常状態で外部コマンドを 1 つも起こさないこと** (0.8.377)。
+     *
+     * 0.8.268 で間隔を 5 秒へ広げてもなお、見張りだけで 1 コアの約 1% を 24 時間焼いていた
+     * (サーバー 1 本につき 5 秒ごとに `sleep` 2 回 + `cat` 1 回 = 1 日およそ 5 万回の exec)。
+     * ここが戻ると**常駐しているだけで端末が温まる**ので、両方を固定する。
+     */
+    @Test
+    fun spawnsNothingWhileWatching() {
+        assertTrue(
+            "sleep をシェル組み込みへ差し替えていない",
+            script.contains("enable -f \"\$z2c\" sleep")
+        )
+        assertTrue(
+            "job の読み直しを mtime で絞っていない",
+            script.contains("[ \"\$jobf\" -nt \"\$stampf\" ]")
+        )
+        val cats = script.lines().count { it.contains("cat \"\$jobf\"") }
+        assertEquals("job を読む cat は read_job の 1 か所だけであるべき", 1, cats)
+    }
+
+    /**
+     * mtime が並んだときの取りこぼしに備えた保険 ([ServerSupervisorScript.RECHECK_CYCLES])
+     * が残っていること。これが無いと、同時刻に書かれた `.job` の変更を**二度と**拾えない。
+     */
+    @Test
+    fun rereadsTheJobUnconditionallyEverySoOften() {
+        assertTrue(
+            "RECHECK が焼き込まれていない",
+            script.contains("RECHECK=${ServerSupervisorScript.RECHECK_CYCLES}")
+        )
+        assertTrue(
+            "無条件の読み直しが無い",
+            script.contains("[ \"\$jobtick\" -ge \"\$RECHECK\" ]")
+        )
+    }
+
+    /**
+     * `sleep` の差し替えに失敗しても**素通りすること**。busybox ash には `enable` が無く、
+     * ここでエラーを表に出すと supervisor ごと起動しない (= 常駐サーバーが全滅する)。
+     */
+    @Test
+    fun survivesWithoutTheSleepBuiltin() {
+        assertTrue(
+            "enable の失敗を握りつぶしていない",
+            script.contains("enable -f \"\$z2c\" sleep 2>/dev/null && break")
+        )
+        assertTrue("差し替えループ全体の保険が無い", script.contains("done 2>/dev/null || true"))
+    }
+
+    /**
+     * 起動時に `.jobstamp` を掃除すること。前回の印が `.job` より新しいまま残ると、
+     * 変更を「無かったこと」にしてしまう。
+     */
+    @Test
+    fun clearsStaleJobStamps() {
+        assertTrue("起動時に .jobstamp を掃除していない", script.contains("*.jobstamp"))
+    }
 }

@@ -288,10 +288,11 @@ object ServerDaemonManager {
     }
 
     /** supervisor 起動時に消す残骸 (実行状態を表すもの)。ログと終了履歴は残す。 */
-    private val STALE_SUFFIXES = listOf(".status", ".want", ".claimed", ".job")
+    private val STALE_SUFFIXES = listOf(".status", ".want", ".claimed", ".job", ".jobstamp")
 
     /** サーバーが一覧から消えたときに片付ける対象。 */
-    private val ORPHAN_SUFFIXES = listOf(".job", ".want", ".status", ".claimed", ".log", ".exits")
+    private val ORPHAN_SUFFIXES =
+        listOf(".job", ".want", ".status", ".claimed", ".log", ".exits", ".jobstamp")
 
     /** UI に出すログの末尾サイズ。 */
     private const val LOG_TAIL_BYTES = 64 * 1024

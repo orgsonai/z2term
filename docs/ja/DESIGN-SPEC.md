@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-21 / 対象バージョン: 0.8.376-alpha (versionCode 384)
+最終更新: 2026-08-21 / 対象バージョン: 0.8.377-alpha (versionCode 385)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -175,6 +175,7 @@ run ループを起こす。
 | `<id>.status` | supervisor | `state=` / `pid=` / `restarts=` / `last_exit=` / `cmd=` |
 | `<id>.log` | supervisor | そのサーバーの標準出力・標準エラー |
 | `<id>.exits` | supervisor | 終了の履歴（`<epoch> <rc>` を直近 20 行） |
+| `<id>.jobstamp` | supervisor | `.job` を最後に読んだ印（0.8.377）。中身は空で、**mtime だけ**に意味がある |
 
 - **追加・編集・削除のどれも supervisor 全体を止めずに反映される**（`ServerDaemonManager.syncEntries`）。
   追加は `POLL` 秒以内に拾われ、`<id>.job` の中身が変わればそのサーバーだけ再起動し、`<id>.job` を消せば
@@ -199,6 +200,17 @@ supervisor は**エンジン（proot/z2root）の中**で動く。エンジン�
 - **停止中のサーバーは `.status` を毎周期書き直さない**（中身が変わったときだけ書く）
 
 代償として、個別 ON/OFF・追加・編集・削除の反映と、落ちたサーバーの再起動が最大 5 秒遅れる。常駐サーバーは「動き続けること」が仕事で秒単位の応答は要らないので、電池を採る。`ServerSupervisorScriptTest` が「`sleep` のハードコードが無い」「`.want` を `cat` で読んでいない」「停止中の書き込みにガードがある」を回帰テストで固定している。
+
+**1 周期あたりのプロセス生成をゼロにする（`RECHECK_CYCLES`、0.8.377）**
+
+0.8.268 で間隔を 5 秒へ広げてもなお、**見張りだけで 1 コアの約 1% を 24 時間焼き続けていた**（実機で 120 秒間の `utime+stime` を測定: supervisor の z2root が 103 ticks、配下のシェル 3 本が各 8 ticks）。サーバー 1 本につき 5 秒ごとに `sleep` 2 回（監視ループと run ループ）＋ `cat` 1 回＝**1 日およそ 5 万回**の exec を起こしていたため。エンジン下の exec は ptrace でひとつ残らず止められるうえ、この端末では 1 回ごとに SELinux の監査行まで出る（13 分間の logcat 737 行のうち **682 行**がこれだった）。しかも `ServerDaemonService` が WakeLock を握っているので、その間ずっと端末は深い休止へ入れない。
+
+そこで**定常状態では外部コマンドを 1 つも起こさない**ようにした:
+- **`sleep` をシェル組み込みへ差し替える**（bash の loadable を `enable -f /usr/lib/bash/sleep sleep`）。⚠ busybox ash 等には `enable` が無いので、**失敗は黙って素通りさせ、従来どおり外部 `sleep` で動かす** — ここでエラーを表に出すと supervisor ごと起動せず、常駐サーバーが全滅する。
+- **`<id>.job` を毎周期読まない**。`test -nt`（シェル組み込み）で `.job` と `<id>.jobstamp` の mtime を比べ、**動いたときだけ `cat` で読み直す**（`.job` は複数行になりうるので、読み方自体は `cat` のまま）。⚠ **印を先に新しくしてから読む** — 読んでから印を付けると、その間に書き換えられた分を二度と拾えない。
+- ⚠ **取りこぼしの保険**: mtime が完全に並ぶと「変わっていない」と誤るので、`ServerSupervisorScript.RECHECK_CYCLES`（12 周期＝60 秒）に 1 回は無条件で読み直す。誤っても最長 `POLL × RECHECK_CYCLES` 秒で必ず追いつく。
+
+実測（同じ端末で新旧を同時に 60 秒走らせた差分）: **44 ticks → 6 ticks ＝ 1 コアの 0.73% → 0.10%**。編集の無停止反映・個別 ON/OFF・削除の片付けが同じように動くことも同じ手順で確認した。`ServerSupervisorScriptTest` が「`.job` を読む `cat` は 1 か所だけ」「`enable` の失敗を握りつぶす」「無条件の読み直しがある」を固定する。
 
 **個別 ON/OFF（0.8.163）**
 - 各 run ループは `<id>.want` フラグ（`1`=起動）を監視する
