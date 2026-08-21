@@ -9,6 +9,7 @@ import com.zerotoship.z2term.channel.LocalPtyChannel
 import com.zerotoship.z2term.channel.ProcessChannel
 import com.zerotoship.z2term.channel.SshChannel
 import com.zerotoship.z2term.channel.SshProfile
+import com.zerotoship.z2term.service.ExitReasons
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.distro.DistroDownloader
 import com.zerotoship.z2term.distro.DistroInstaller
@@ -355,6 +356,27 @@ class TerminalSession(
 
     private var channel: ProcessChannel? = null
     private var readJob: Job? = null
+
+    /**
+     * **自分で畳んだのか、外から殺されたのか**の区別 (0.8.378)。
+     *
+     * タブを閉じる / 再起動 / distro 切替 / SSH へ切替は、どれも PTY のプロセスを
+     * シグナルで終わらせる = 外から殺されたときと**終了コードが見分けられない**。
+     * ここが false のまま終わったものだけを異常終了として記録する。
+     */
+    @Volatile private var selfClosed = false
+
+    /**
+     * 意図してチャネルを畳む。⚠ **畳むときは必ずここを通すこと** — 直接
+     * `channel?.close()` を書くと [selfClosed] が立たず、利用者がタブを閉じただけで
+     * 「外から殺された」と記録される。
+     */
+    private fun closeChannel() {
+        selfClosed = true
+        channel?.close()
+        channel = null
+        readJob?.cancel()
+    }
 
     val isRunning: Boolean get() = _uiState.value.state == TerminalState.RUNNING
 
@@ -800,9 +822,7 @@ class TerminalSession(
      * 既存のローカルシェルは終了する (別タブを残したい場合は新規タブで接続すること)。
      */
     fun connectSsh(profile: SshProfile) {
-        channel?.close()
-        channel = null
-        readJob?.cancel()
+        closeChannel()
         scope.launch(emulatorDispatcher) {
             emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
         }
@@ -813,6 +833,8 @@ class TerminalSession(
 
     private fun startReadLoop(ch: ProcessChannel) {
         readJob?.cancel()
+        // 新しいチャネルの分は「まだ自分では畳んでいない」から始める ([closeChannel])。
+        selfClosed = false
         // ⚪ の自動開始 (0.8.243)。**チャネルが繋がった直後 = タブに何か出る直前**のここ 1 か所で
         // 判定する。ローカル / android-sh フォールバック / SSH のどの経路も必ず通るので、
         // 起動経路を足したときに付け忘れが起きない。
@@ -885,8 +907,20 @@ class TerminalSession(
             } catch (e: Exception) {
                 Log.w(TAG, "Read loop ended: ${e.message}")
             } finally {
+                val code = ch.exitCode ?: -1
                 _uiState.update { it.copy(state = TerminalState.EXITED) }
-                writeBanner(appContext.getString(R.string.banner_process_exited, ch.exitCode ?: -1))
+                // タブの木が**外から**殺されたときは、理由をその場で残す (0.8.378)。
+                // ⚠ アプリのプロセスが死ぬ場合と違って OS の ApplicationExitInfo には残らない
+                //   ので、ここで書かないと後から辿る手段が無い ([ExitReasons] の KDoc 参照)。
+                val killed = !selfClosed && ExitReasons.isKilledBySignal(code)
+                val availMb =
+                    if (killed) ExitReasons.recordTabKill(appContext, label.value, code) else -1L
+                writeBanner(
+                    if (killed && availMb >= 0) appContext.getString(
+                        R.string.banner_process_killed,
+                        ExitReasons.signalLabel(code - 128), code, availMb
+                    ) else appContext.getString(R.string.banner_process_exited, code)
+                )
             }
         }
     }
@@ -1015,9 +1049,7 @@ class TerminalSession(
     fun switchDistro(id: String) {
         setDistro(id)
         val spec = DistroSpec.byId(id) ?: DistroSpec.ALPINE
-        channel?.close()
-        channel = null
-        readJob?.cancel()
+        closeChannel()
         scope.launch(emulatorDispatcher) {
             emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
         }
@@ -1027,9 +1059,7 @@ class TerminalSession(
     }
 
     fun restart() {
-        channel?.close()
-        channel = null
-        readJob?.cancel()
+        closeChannel()
         scope.launch(emulatorDispatcher) {
             emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
         }
@@ -1053,9 +1083,7 @@ class TerminalSession(
     fun cleanInstallDistro(id: String) {
         setDistro(id)
         val spec = DistroSpec.byId(id) ?: DistroSpec.ALPINE
-        channel?.close()
-        channel = null
-        readJob?.cancel()
+        closeChannel()
         scope.launch {
             val rootfs = java.io.File(appContext.filesDir, "distros/$id")
             if (rootfs.exists()) rootfs.deleteRecursively()
@@ -1210,9 +1238,7 @@ class TerminalSession(
     override fun shutdown() {
         // タブを閉じるときは書き残しを必ず吐き出す (バッファは数百 ms 分だけ残っている)。
         stopLogging()
-        channel?.close()
-        channel = null
-        readJob?.cancel()
+        closeChannel()
         scope.cancel()
         // 専用スレッドも片付ける (FG service 終了時のリーク防止)
         runCatching { emulatorDispatcher.close() }

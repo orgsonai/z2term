@@ -520,6 +520,8 @@
         <item quantity="other">コピー (%1$d 文字)</item>
     </plurals>
     <string name="banner_process_exited">[プロセス終了 exitCode=%1$d]</string>
+    <!-- 0.8.378: こちらが送っていないシグナルで終了した (多くは OS のメモリ回収)。 -->
+    <string name="banner_process_killed">[プロセスが外から止められました %1$s exitCode=%2$d 空き %3$d MB]</string>
     <string name="gui_terminal_xterm_desc">最軽量・全 distro 標準</string>
     <string name="gui_terminal_urxvt_desc">軽量・日本語表示可</string>
     <string name="gui_terminal_lxterminal_desc">軽量 GTK</string>

@@ -32,6 +32,17 @@ import java.util.Locale
  *
  * ための入口。z2doctor の「前回までの終了」欄もここを通る。
  *
+ * ## 落ち方は 2 通りある (0.8.378)
+ *
+ * 実機で観測した限り、**アプリのプロセスが死ぬ**場合と、**端末タブのプロセスツリー
+ * (エンジン + シェル + その子) だけが死んでアプリは生き残る**場合の両方がある
+ * (2026-08-21 の実測: アプリは同じ pid のまま、タブの木と別プロセスの JVM だけが消えた)。
+ * 利用者にはどちらも「落ちた」に見えるが、**後者は OS の [ApplicationExitInfo] に残らない**
+ * — あれはアプリのプロセスの記録で、`fork`/`exec` で起こした子は数えないため。
+ *
+ * そこで後者は [recordTabKill] が自分で書く。区別できるように `kind` を持たせ、
+ * `app:` / `tab:` の印を行の頭に付ける。
+ *
  * ⚠ **API 30 未満では OS がこの記録を持っていない**。その場合は静かに何もしない
  * (minSdk 29 なので存在しうる)。
  *
@@ -53,6 +64,24 @@ object ExitReasons {
 
     /** z2doctor に出す件数。 */
     const val REPORT_MAX = 5
+
+    /** 記録の出どころ。アプリのプロセス自体が死んだ (OS の記録)。 */
+    private const val KIND_APP = "app"
+
+    /** 記録の出どころ。端末タブのプロセスツリーだけが殺された (こちらで書く)。 */
+    private const val KIND_TAB = "tab"
+
+    /** JSON にする前の足切り用。自分で書いている形なので当てにしてよい。 */
+    private const val KIND_TAB_MARK = "\"kind\":\"tab\""
+
+    /**
+     * シグナルで殺された終了コードか。
+     *
+     * PTY の JNI は `WIFSIGNALED` のとき `128 + シグナル番号`を返す (`pty_jni.cpp`)。
+     * 普通に `exit` したときと区別できるのはこの範囲だけで、`exit 137` を返すプログラムが
+     * あれば取り違えるが、**取り違えて困るのは記録が 1 行増えることだけ**なので広く取る。
+     */
+    internal fun isKilledBySignal(exitCode: Int): Boolean = exitCode in 129..(128 + 64)
 
     // ⚠ SimpleDateFormat は**スレッド安全でない**。ここは起動時の記録 (IO) と z2doctor の
     // 問い合わせ (z2api のワーカー) から同時に呼ばれうるので、必ず下の 2 つを通す。
@@ -84,7 +113,7 @@ object ExitReasons {
         /** 人が読む 1 行。 */
         fun line(): String = buildString {
             append(shortTime(ts))
-            append("  ").append(reasonLabel(reason))
+            append("  ").append(KIND_APP).append(":").append(reasonLabel(reason))
             when (reason) {
                 ApplicationExitInfo.REASON_SIGNALED -> append("(").append(signalLabel(status)).append(")")
                 ApplicationExitInfo.REASON_EXIT_SELF -> append("(exit=").append(status).append(")")
@@ -99,6 +128,7 @@ object ExitReasons {
         fun json(): String = JSONObject().apply {
             put("ts", ts)
             put("time", isoTime(ts))
+            put("kind", KIND_APP)
             put("reason", reasonLabel(reason))
             put("reason_code", reason)
             put("status", status)
@@ -157,20 +187,112 @@ object ExitReasons {
             if (fresh.isEmpty()) return@runCatching
             f.parentFile?.mkdirs()
             fresh.forEach { f.appendText(it.json() + "\n") }
-            // 際限なく伸びないように後ろだけ残す (ここは解析対象ではなく、直近を見るためのもの)。
-            val lines = f.readLines()
-            if (lines.size > KEEP_LINES) {
-                f.writeText(lines.takeLast(KEEP_LINES).joinToString("\n") + "\n")
-            }
+            trimTo(f)
         }.onFailure { Log.w(TAG, "exits.jsonl 書き込み失敗: ${it.message}") }
+    }
+
+    /**
+     * **端末タブのプロセスツリーが外から殺された**ことを記録し、そのときの空きメモリ (MB) を返す
+     * (取れなければ -1)。呼ぶ側はそれを画面のバナーにも出す。
+     *
+     * ⚠ **自分で畳んだときは呼ばないこと。** タブを閉じた・再起動した・distro を切り替えたも
+     * 「シグナルで終了」に見えるので、区別は呼ぶ側 (`TerminalSession.selfClosed`) の責任。
+     *
+     * ⚠ **空きメモリをその場で採るのが肝。** 後から見ても「そのとき逼迫していたか」は分からず、
+     * ここが埋まっていないと OS に落とされたのか自分で落ちたのかを切り分けられない。
+     */
+    fun recordTabKill(context: Context, label: String, exitCode: Int): Long {
+        if (!isKilledBySignal(exitCode)) return -1L
+        val ts = System.currentTimeMillis()
+        val (availMb, low) = memorySnapshot(context)
+        Log.w(TAG, "タブが外から終了させられた: ${sessionLine(ts, exitCode, availMb, low)} (tab=$label)")
+        runCatching {
+            val f = logFile(context)
+            f.parentFile?.mkdirs()
+            f.appendText(
+                JSONObject().apply {
+                    put("ts", ts)
+                    put("time", isoTime(ts))
+                    put("kind", KIND_TAB)
+                    put("reason", "SIGNALED")
+                    put("signal", signalLabel(exitCode - 128))
+                    put("exit_code", exitCode)
+                    // ⚠ タブの名前は利用者が付けたもの。**ファイルには残すが z2doctor には出さない**
+                    // (報告文にホスト名が混ざる事故を作らない・[report] 参照)。
+                    put("tab", label)
+                    put("avail_mem_mb", availMb)
+                    put("low_memory", low)
+                    put("abnormal", true)
+                }.toString() + "\n"
+            )
+            trimTo(f)
+        }.onFailure { Log.w(TAG, "exits.jsonl 書き込み失敗: ${it.message}") }
+        return availMb
     }
 
     /**
      * z2doctor に出すテキスト (1 件 1 行・新しい順)。**気にすべき終了だけ**を出す。
      * 1 件も無ければ空文字を返す (呼ぶ側が「記録なし」と出す)。
+     *
+     * アプリのプロセスの分は OS から、タブの分は自分で書いたファイルから拾って**時刻で混ぜる**。
+     * 別々に出すと、どちらが先に起きたのかという一番知りたいことが分からなくなる。
+     *
+     * ⚠ **タブの名前は出さない。** 診断の出力はそのまま貼れる報告文で、SSID・IP・ホスト名を
+     * 伏せると約束している。利用者が付けたタブ名にホスト名が入っている可能性を排除できない。
      */
-    fun report(context: Context, max: Int = REPORT_MAX): String =
-        recent(context).filter { it.abnormal }.take(max).joinToString("\n") { it.line() }
+    fun report(context: Context, max: Int = REPORT_MAX): String {
+        val app = recent(context).filter { it.abnormal }.map { it.ts to it.line() }
+        return (app + tabKills(context))
+            .sortedByDescending { it.first }
+            .take(max)
+            .joinToString("\n") { it.second }
+    }
+
+    /** ファイルに残っているタブの異常終了 (時刻とともに返す)。壊れた行は黙って飛ばす。 */
+    private fun tabKills(context: Context): List<Pair<Long, String>> {
+        val f = logFile(context)
+        if (!f.isFile) return emptyList()
+        val out = ArrayList<Pair<Long, String>>()
+        for (l in runCatching { f.readLines() }.getOrDefault(emptyList())) {
+            if (!l.contains(KIND_TAB_MARK)) continue
+            val o = runCatching { JSONObject(l) }.getOrNull() ?: continue
+            val ts = o.optLong("ts", 0L)
+            if (ts <= 0L) continue
+            out += ts to sessionLine(
+                ts,
+                o.optInt("exit_code", -1),
+                o.optLong("avail_mem_mb", -1L),
+                o.optBoolean("low_memory", false),
+            )
+        }
+        return out
+    }
+
+    /** タブの異常終了の 1 行。⚠ タブ名は入れない ([report] の約束)。 */
+    internal fun sessionLine(ts: Long, exitCode: Int, availMb: Long, lowMemory: Boolean): String =
+        buildString {
+            append(shortTime(ts))
+            append("  ").append(KIND_TAB).append(":").append(signalLabel(exitCode - 128))
+            append("  exit=").append(exitCode)
+            if (availMb >= 0) append("  free=").append(availMb).append("MB")
+            if (lowMemory) append("  low-memory")
+        }
+
+    /** そのときの空きメモリ (MB) と、OS が「もう少ない」と判断しているか。 */
+    private fun memorySnapshot(context: Context): Pair<Long, Boolean> = runCatching {
+        val am = context.getSystemService(ActivityManager::class.java) ?: return@runCatching -1L to false
+        val mi = ActivityManager.MemoryInfo()
+        am.getMemoryInfo(mi)
+        (mi.availMem / (1024 * 1024)) to mi.lowMemory
+    }.getOrDefault(-1L to false)
+
+    /** 際限なく伸びないように後ろだけ残す (ここは解析対象ではなく、直近を見るためのもの)。 */
+    private fun trimTo(f: File) {
+        val lines = f.readLines()
+        if (lines.size > KEEP_LINES) {
+            f.writeText(lines.takeLast(KEEP_LINES).joinToString("\n") + "\n")
+        }
+    }
 
     /** 既存行から `ts` だけを抜く。 */
     private val TS_RE = Regex("\"ts\"\\s*:\\s*(\\d+)")

@@ -107,4 +107,54 @@ class ExitReasonsTest {
         )
         assertEquals(setOf(100L, 200L), ts)
     }
+
+    /**
+     * シグナルで殺された終了コードの見分け (0.8.378)。PTY の JNI は `WIFSIGNALED` のとき
+     * `128 + シグナル番号` を返す (`pty_jni.cpp`)。ここが崩れると、**普通に終了しただけの
+     * タブが「殺された」と記録される**か、その逆になる。
+     */
+    @Test
+    fun tellsSignalDeathsFromNormalExits() {
+        assertTrue("SIGKILL", ExitReasons.isKilledBySignal(137))
+        assertTrue("SIGTERM", ExitReasons.isKilledBySignal(143))
+        assertTrue("SIGHUP", ExitReasons.isKilledBySignal(129))
+        assertFalse("正常終了", ExitReasons.isKilledBySignal(0))
+        assertFalse("エラー終了", ExitReasons.isKilledBySignal(1))
+        assertFalse("128 はシグナル番号 0 なので数えない", ExitReasons.isKilledBySignal(128))
+        assertFalse("取れなかったとき", ExitReasons.isKilledBySignal(-1))
+    }
+
+    /**
+     * タブの異常終了の 1 行。
+     * ⚠ **タブの名前は入らない** — 診断の出力はそのまま貼れる報告文で、利用者が付けた
+     * タブ名にホスト名が入っている可能性を排除できない ([ExitReasons.report] の約束)。
+     */
+    @Test
+    fun buildsTabLineWithoutTheTabName() {
+        val line = ExitReasons.sessionLine(1_787_314_454_000L, 137, 180L, true)
+        assertTrue(line, line.contains("tab:SIGKILL"))
+        assertTrue(line, line.contains("exit=137"))
+        assertTrue(line, line.contains("free=180MB"))
+        assertTrue(line, line.contains("low-memory"))
+    }
+
+    /** 空きメモリが取れなかったときは、その欄ごと出さない (0 MB と嘘をつかない)。 */
+    @Test
+    fun omitsMemoryWhenItCouldNotBeRead() {
+        val line = ExitReasons.sessionLine(1_787_314_454_000L, 143, -1L, false)
+        assertTrue(line, line.contains("tab:SIGTERM"))
+        assertFalse(line, line.contains("free="))
+        assertFalse(line, line.contains("low-memory"))
+    }
+
+    /** アプリ側の行とタブ側の行は、頭の印で見分けられること (混ぜて時刻順に出すため)。 */
+    @Test
+    fun marksWhichSideTheRecordCameFrom() {
+        val app = ExitReasons.Record(
+            ts = 1_787_314_454_000L, reason = 3, status = 0, importance = 125,
+            rssKb = 409_600L, pid = 1, processName = "p", description = "",
+        ).line()
+        assertTrue(app, app.contains("app:LOW_MEMORY"))
+        assertTrue(ExitReasons.sessionLine(1_787_314_454_000L, 137, 180L, false).contains("tab:"))
+    }
 }

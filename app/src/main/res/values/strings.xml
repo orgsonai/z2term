@@ -527,6 +527,8 @@
         <item quantity="other">Copied (%1$d chars)</item>
     </plurals>
     <string name="banner_process_exited">[process exited exitCode=%1$d]</string>
+    <!-- 0.8.378: killed by a signal we did not send (most often the system reclaiming memory). -->
+    <string name="banner_process_killed">[process killed from outside %1$s exitCode=%2$d, %3$d MB free]</string>
     <string name="gui_terminal_xterm_desc">Lightest / standard for all distros</string>
     <string name="gui_terminal_urxvt_desc">Light / Japanese-capable</string>
     <string name="gui_terminal_lxterminal_desc">Light GTK</string>
