@@ -210,6 +210,9 @@ object UserDictStore {
 
     // ---- 内部 ----------------------------------------------------------------
 
+    /** 持ち出し用: 辞書ファイルの置き場 (`filesDir/user_dict`)。 */
+    fun dictDir(context: Context): File = dir(context)
+
     private fun dir(context: Context): File =
         File(context.filesDir, DIR_NAME).apply { if (!exists()) mkdirs() }
 

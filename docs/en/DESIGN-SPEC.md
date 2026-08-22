@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-22 / Target version: 0.8.379-alpha (versionCode 387)
+Last updated: 2026-08-22 / Target version: 0.8.380-alpha (versionCode 388)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -747,11 +747,16 @@ means would then depend on the payload, which cannot be explained to anyone.
 
 #### Taking it with you (`backup/BackupManager`, 0.8.239)
 
-**What it does**: writes settings, SSH connections, snippets, `z2-when` rules and macros into **one zip**, and restores them on another device. Until now a new phone, a factory reset or a reinstall meant **losing everything**; only once it can be carried does building a real setup feel worth it.
+**What it does**: writes settings, SSH connections, snippets, `z2-when` rules, macros and — since 0.8.380 — **your theme, tile assignments, icon drawings, dictionaries and what the keyboard has learned** into **one zip**, and restores them on another device. Until now a new phone, a factory reset or a reinstall meant **losing everything**; only once it can be carried does building a real setup feel worth it.
 
 **What is in and what is out**: the rootfs (hundreds of MB), logs and `events.jsonl` are **excluded**. Separating "what a reinstall restores" from "what is lost forever" *is* the design here — mixing them produces a several-hundred-megabyte file that nobody ever makes twice.
 
 **Settings are not copied field by field** (`settings/PrefsPortable`): the DataStore key/value pairs are serialised as-is. There are 60+ settings, and a hand-written mapping would **silently miss every newly added one** — a gap you only discover when changing phones. Types survive as one-character tags (`b`/`i`/`l`/`f`/`s`/`S`).
+
+**Five things kept somewhere else were added (0.8.380).** ⚠ **Carrying the settings brought none of them along**: a custom theme lives in **a different DataStore** from `AppSettings`, tile assignments and icon drawings live in **SharedPreferences** (they are read while the app's process is not alive), and dictionaries and the IME's learning history are files in `filesDir`. Every one of them is built up by hand and none comes back from a reinstall.
+- **A SharedPreferences counterpart of the whole-store conversion** (`settings/SharedPrefsPortable`), key-by-key mapping avoided for the same reason as `PrefsPortable`.
+- **Restoring is not finished until what is on screen follows.** Tiles need the list synced (`TileStore.syncEnabledTiles`) or a slot **has an assignment but never appears on the edit screen**; icons need the cached bitmaps dropped or **the old drawing keeps showing**; dictionaries and history keep an already-loaded table in front of the file, so both need a `reload` (`UserDictStore.reload` / `ImeHistoryStore.reload`). ⚠ Skip this and "what I restored is not there until I restart" is indistinguishable, from the outside, from a broken restore.
+- ⚠ **Home-screen widget assignments are excluded.** They are keyed by `appWidgetId` (a number the launcher hands out on placement), so on the other device they point **at a different widget or at none**. Carrying them needs an "apply to widgets as they are placed again" mechanism, which is a different design from taking a snapshot.
 
 **Secrets (the central judgement)**:
 - SSH passwords and private keys are encrypted with the Android Keystore, but **Keystore keys cannot leave the device**, so carrying the ciphertext produces something undecryptable on the other side. Exporting them means decrypting first.

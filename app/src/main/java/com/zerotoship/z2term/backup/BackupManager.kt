@@ -4,9 +4,16 @@ import android.content.Context
 import android.net.Uri
 import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.channel.SshProfileStore
+import com.zerotoship.z2term.icon.IconStore
+import com.zerotoship.z2term.icon.refreshActiveNotifications
 import com.zerotoship.z2term.service.WhenManager
 import com.zerotoship.z2term.settings.AppSettings
+import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.snippets.SnippetStore
+import com.zerotoship.z2term.tile.TileStore
+import com.zerotoship.z2term.tile.Z2TileService
+import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
+import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
 import com.zerotoship.z2term.widget.WidgetStore
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -25,11 +32,21 @@ import java.util.zip.ZipOutputStream
  * 本気の環境を作れない。持ち出せると分かって初めて、腰を据えて積み上げられる。
  *
  * **含めるもの**（= 二度と戻らないもの）: 設定 / SSH 接続先 / スニペット /
- * `~/.z2term/when/<id>.rule` / `~/.z2term/macros/<名前>.sh`。
+ * `~/.z2term/when/<id>.rule` / `~/.z2term/macros/<名前>.sh` /
+ * **自作テーマ・タイルの割り当て・アイコンのドット絵・ユーザー辞書・IME の学習履歴**（0.8.379）。
  * (Kotlin のブロックコメントはネストするので、KDoc 内で `/` + `*` を書かない)
+ *
+ * ⚠ **後から足した 5 つは、どれも「マクロは戻ったのに手で積み上げたものが消えている」を
+ * 埋めるためのもの**。テーマは [AppSettings] とは別の DataStore、タイルとアイコンは
+ * SharedPreferences（プロセスが生きていない状態で読まれるため）、辞書と学習履歴は
+ * `filesDir` のファイルと、置き場がばらばらで**設定を運ぶだけでは 1 つも付いてこなかった**。
  *
  * **含めないもの**: rootfs（数百 MB。入れ直せば戻る）・ログ・`events.jsonl`。
  * 「入れ直せば戻るもの」と「二度と戻らないもの」を分けるのがこの機能の設計そのもの。
+ *
+ * ⚠ **ホーム画面ウィジェットの割り当ては含めない**。保存のキーが `appWidgetId`（端末が置いた
+ * ときに配る番号）なので、**移した先では別のウィジェットを指すか、どれも指さない**。
+ * 運ぶには「置き直したウィジェットへ順に当てる」仕組みが要り、それは持ち出しとは別の設計になる。
  *
  * ## 秘密の扱い（ここが一番の判断）
  *
@@ -54,6 +71,16 @@ object BackupManager {
         val snippetCount: Int,
         val ruleCount: Int,
         val macroCount: Int,
+        /** 割り当ての入っているタイルの枠数 (0.8.379)。 */
+        val tileCount: Int = 0,
+        /** 絵の入っている対象の数 (通知 + タイル枠。0.8.379)。 */
+        val iconCount: Int = 0,
+        /** 自作テーマ (0 か 1。0.8.379)。 */
+        val themeCount: Int = 0,
+        /** ユーザー辞書のファイル数 (0.8.379)。 */
+        val dictCount: Int = 0,
+        /** IME が覚えている語数 (0.8.379)。 */
+        val learnedCount: Int = 0,
     )
 
     /** 書き出しの選択。 */
@@ -71,6 +98,11 @@ object BackupManager {
     private const val SSH_ENC = "ssh.enc"
     private const val WHEN_DIR = "when/"
     private const val MACRO_DIR = "macros/"
+    private const val THEME = "theme.json"
+    private const val TILES = "tiles.json"
+    private const val ICONS = "icons.json"
+    private const val DICT_DIR = "user_dict/"
+    private const val IME_HISTORY = "ime_history.json"
 
     /** ファイル名に使う日時 (`z2term-backup-20260725-2130.zip`)。 */
     fun suggestFileName(): String =
@@ -92,6 +124,14 @@ object BackupManager {
         val sshJson = SshProfileStore(app).exportRaw(includeSecrets = options.includeSecrets)
         val rules = filesIn(WhenManager.whenDir(app), ".rule")
         val macros = filesIn(WidgetStore.macroDir(app), ".sh")
+        val themeJson = CustomThemeStore.exportRaw(app)
+        val tilesJson = TileStore.exportRaw(app)
+        val iconsJson = IconStore.exportRaw(app)
+        // 辞書は拡張子を決めていない (利用者が持ち込んだファイル名のまま置く) ので、全部拾う。
+        val dicts = filesIn(UserDictStore.dictDir(app), "")
+        val imeHistory = ImeHistoryStore.historyFile(app).takeIf { it.isFile }
+        // 語数は読み込んでからでないと 0 に見える (数えるためだけに読む)。
+        ImeHistoryStore.ensureLoaded(app)
 
         ZipOutputStream(out).use { zip ->
             val manifest = JSONObject().apply {
@@ -104,6 +144,11 @@ object BackupManager {
                 put("snippetCount", countJsonArray(snippetsJson))
                 put("ruleCount", rules.size)
                 put("macroCount", macros.size)
+                put("tileCount", (1..TileStore.COUNT).count { TileStore.get(app, it) != null })
+                put("iconCount", IconStore.targets().count { IconStore.text(app, it) != null })
+                put("themeCount", if (themeJson.isNotEmpty()) 1 else 0)
+                put("dictCount", dicts.size)
+                put("learnedCount", ImeHistoryStore.approximateCount())
             }
             zip.putText(MANIFEST, manifest.toString())
             zip.putText(SETTINGS, settingsJson)
@@ -116,6 +161,11 @@ object BackupManager {
             }
             rules.forEach { zip.putText(WHEN_DIR + it.name, it.readText()) }
             macros.forEach { zip.putText(MACRO_DIR + it.name, it.readText()) }
+            if (themeJson.isNotEmpty()) zip.putText(THEME, themeJson)
+            zip.putText(TILES, tilesJson)
+            zip.putText(ICONS, iconsJson)
+            dicts.forEach { zip.putText(DICT_DIR + it.name, it.readText()) }
+            imeHistory?.let { zip.putBytes(IME_HISTORY, it.readBytes()) }
         }
     }
 
@@ -134,6 +184,12 @@ object BackupManager {
             snippetCount = o.optInt("snippetCount"),
             ruleCount = o.optInt("ruleCount"),
             macroCount = o.optInt("macroCount"),
+            // 0.8.379 より前のバックアップにはこれらが無い (optInt は 0 を返す = 「入っていない」)。
+            tileCount = o.optInt("tileCount"),
+            iconCount = o.optInt("iconCount"),
+            themeCount = o.optInt("themeCount"),
+            dictCount = o.optInt("dictCount"),
+            learnedCount = o.optInt("learnedCount"),
         )
     }
 
@@ -153,6 +209,10 @@ object BackupManager {
 
         entries[SETTINGS]?.let { AppSettings(app).importRaw(it.toString(Charsets.UTF_8)) }
         entries[SNIPPETS]?.let { SnippetStore(app).importRaw(it.toString(Charsets.UTF_8)) }
+        entries[THEME]?.let { CustomThemeStore.importRaw(app, it.toString(Charsets.UTF_8)) }
+        // ⚠ タイルは戻すだけでなく一覧の同期まで要る ([TileStore.importRaw] が通している)。
+        entries[TILES]?.let { TileStore.importRaw(app, it.toString(Charsets.UTF_8)) }
+        entries[ICONS]?.let { IconStore.importRaw(app, it.toString(Charsets.UTF_8)) }
 
         val ssh = when {
             entries[SSH_ENC] != null -> {
@@ -167,6 +227,8 @@ object BackupManager {
         // ルールとマクロはファイルなので、そのまま書き戻す (同名は置き換え)。
         val whenDir = WhenManager.whenDir(app).apply { mkdirs() }
         val macroDir = WidgetStore.macroDir(app).apply { mkdirs() }
+        val dictDir = UserDictStore.dictDir(app).apply { mkdirs() }
+        var dictRestored = false
         entries.forEach { (name, data) ->
             when {
                 name.startsWith(WHEN_DIR) && name.endsWith(".rule") ->
@@ -177,10 +239,28 @@ object BackupManager {
                         @Suppress("SetWorldReadable")
                         setExecutable(true, false)
                     }
+                // 辞書はファイル名が正本 (どの語がどこから来たのかを利用者が追える) ので、
+                // 名前ごと戻す。⚠ 拡張子で絞らない — 持ち込んだファイル名のまま置いてある。
+                name.startsWith(DICT_DIR) ->
+                    safeChild(dictDir, name.removePrefix(DICT_DIR))?.let {
+                        it.writeBytes(data)
+                        dictRestored = true
+                    }
             }
         }
+        entries[IME_HISTORY]?.let { File(app.filesDir, IME_HISTORY).writeBytes(it) }
+
         // 時刻トリガーを貼り直す (取り込んだルールをその場で効かせる)。
         runCatching { WhenManager.reload(app) }
+        // ⚠ ここから下は「戻したものを、いま出ているものへ効かせる」ぶん。**省くと、戻した
+        // はずのものが次の起動まで出てこない** (アイコンは使い回しの絵、辞書と学習は読み込み
+        // 済みの表がそれぞれ手前に残るため)。
+        if (entries[ICONS] != null) {
+            runCatching { refreshActiveNotifications(app) }
+            (1..TileStore.COUNT).forEach { runCatching { Z2TileService.requestUpdate(app, it) } }
+        }
+        if (dictRestored) runCatching { UserDictStore.reload(app) }
+        if (entries[IME_HISTORY] != null) runCatching { ImeHistoryStore.reload(app) }
         return true
     }
 

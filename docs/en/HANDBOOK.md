@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.379-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.380-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -211,6 +211,7 @@ Settings > Maintenance > **"Take it with you"** writes your current setup to a s
 
 - Included: **settings, SSH connections, snippets, automation rules, macros**
 - Not included: **the OS image** (hundreds of MB — a reinstall brings it back) and logs
+- In it: **settings, SSH connections, snippets, automation rules and macros**, plus **your theme, tile assignments, icon drawings, dictionaries and what the keyboard has learned** (0.8.380). Out of it: the **OS image** (hundreds of MB — a reinstall brings it back), logs, and **home-screen widget assignments** (they are keyed by the number the launcher hands out, so restoring them would point at a different widget).
 - **SSH passwords and keys are left out by default.** Tick the box to include them and you will be asked for a **passphrase** (without it the backup cannot be restored, so pick something you will remember).
 - When restoring, you see **what and how many** will be added before deciding. Nothing you already have is deleted; only matching items are replaced.
 

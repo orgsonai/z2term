@@ -2,6 +2,7 @@ package com.zerotoship.z2term.tile
 
 import android.content.ComponentName
 import android.content.Context
+import com.zerotoship.z2term.settings.SharedPrefsPortable
 import android.content.pm.PackageManager
 import androidx.core.content.edit
 import com.zerotoship.z2term.service.HeadlessRun
@@ -151,6 +152,20 @@ object TileStore {
      * もう一度割り当てても自動では戻らず並べ直しになるので、`z2-tile clear` は
      * 「割り当てを消す」だけでなく「タイルを 1 枚片付ける」操作でもある。
      */
+    /** 持ち出し用: 枠の割り当てをまるごと JSON へ ([SharedPrefsPortable])。 */
+    fun exportRaw(context: Context): String = SharedPrefsPortable.toJson(prefs(context))
+
+    /**
+     * 持ち出しから戻す。**追加・更新**なので、バックアップに無い枠はそのまま残る。
+     *
+     * ⚠ 戻したら [syncEnabledTiles] まで通すこと (ここで通している)。割り当てだけ戻して
+     * 一覧の同期を忘れると、**中身はあるのにクイック設定の編集画面に出てこない枠**ができる。
+     */
+    fun importRaw(context: Context, json: String) {
+        SharedPrefsPortable.applyTo(prefs(context), json)
+        syncEnabledTiles(context)
+    }
+
     fun syncEnabledTiles(context: Context) {
         val app = context.applicationContext
         val pm = app.packageManager

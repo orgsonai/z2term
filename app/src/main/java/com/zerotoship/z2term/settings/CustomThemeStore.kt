@@ -54,6 +54,28 @@ object CustomThemeStore {
         }
     }
 
+    /**
+     * 持ち出し用: 保存してあるテーマの JSON (未作成なら空文字)。
+     *
+     * ⚠ [AppSettings] とは**別の DataStore** なので、設定の持ち出しには乗ってこない。
+     * 手で作った配色は入れ直しでは戻らないものの筆頭なので、別のファイルとして運ぶ。
+     */
+    suspend fun exportRaw(context: Context): String =
+        context.applicationContext.customThemeDataStore.data.first()[KEY].orEmpty()
+
+    /**
+     * 持ち出しから戻す。⚠ **読めない / 空のときは何もしない** — バックアップにテーマが
+     * 無いというだけで、いま使っているテーマを消してしまわないため。
+     */
+    suspend fun importRaw(context: Context, raw: String) {
+        val parsed = runCatching { terminalThemeFromJson(JSONObject(raw)) }.getOrNull() ?: return
+        val ctx = context.applicationContext
+        appContext = ctx
+        ctx.customThemeDataStore.edit { it[KEY] = raw }
+        // 画面はこの StateFlow を見ているので、ここで入れれば戻した瞬間に配色が変わる。
+        _theme.value = parsed
+    }
+
     /** 保存 (null で削除)。永続化後に [theme] へ即反映。 */
     suspend fun save(theme: TerminalTheme?) {
         val ctx = appContext ?: return

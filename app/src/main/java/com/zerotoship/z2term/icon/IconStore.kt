@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.drawable.Icon
 import androidx.core.content.edit
 import androidx.core.graphics.drawable.IconCompat
+import com.zerotoship.z2term.settings.SharedPrefsPortable
 import com.zerotoship.z2term.tile.TileStore
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
@@ -374,6 +375,22 @@ object IconStore {
                 ?.let { runCatching { toText(parse(it)) }.getOrNull() }
                 ?.let { it to name }
         }.toMap()
+    }
+
+    // --- 持ち出し ---
+
+    /** 持ち出し用: 絵と一辺の設定をまるごと JSON へ ([SharedPrefsPortable])。 */
+    fun exportRaw(context: Context): String = SharedPrefsPortable.toJson(prefs(context))
+
+    /**
+     * 持ち出しから戻す。**追加・更新**なので、バックアップに無い絵はそのまま残る。
+     *
+     * ⚠ **使い回しの Bitmap を捨てること**。捨てないと、戻したのに**前の絵が出続ける**
+     * (キャッシュは対象の名前で引くので、中身が入れ替わったことに気付けない)。
+     */
+    fun importRaw(context: Context, json: String) {
+        SharedPrefsPortable.applyTo(prefs(context), json)
+        cache.clear()
     }
 
     // --- Android へ渡す形 ---

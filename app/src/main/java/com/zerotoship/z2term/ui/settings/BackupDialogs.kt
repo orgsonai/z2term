@@ -203,7 +203,9 @@ fun BackupImportDialog(uri: Uri, onDismiss: () -> Unit, onDone: () -> Unit) {
                             text = stringResource(
                                 R.string.backup_import_summary,
                                 s.createdAt, s.appVersion,
-                                s.sshCount, s.snippetCount, s.ruleCount, s.macroCount
+                                s.sshCount, s.snippetCount, s.ruleCount, s.macroCount,
+                                s.tileCount, s.iconCount,
+                                s.themeCount, s.dictCount, s.learnedCount
                             ),
                             color = ZtsTextPrimary,
                             fontSize = 12.sp,

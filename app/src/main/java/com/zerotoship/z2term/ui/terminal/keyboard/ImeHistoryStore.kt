@@ -137,6 +137,28 @@ object ImeHistoryStore {
         _versionFlow.update { it + 1 }
     }
 
+    /** 持ち出し用: 学習履歴のファイル (`filesDir/ime_history.json`)。 */
+    fun historyFile(context: Context): File = fileOf(context)
+
+    /**
+     * 持ち出しから戻した履歴を読み直す。
+     *
+     * ⚠ **これを呼ばないと、戻した学習は次に起動するまで効かない** — 読み込みは 1 度きりで、
+     * [ensureLoaded] は 2 回目から何もしないため (ファイルだけ新しくなって、机の上は古いまま)。
+     */
+    suspend fun reload(context: Context) {
+        val app = context.applicationContext
+        mutex.withLock {
+            contextRef = app
+            withContext(Dispatchers.IO) {
+                runCatching { loadFromDisk(app) }
+                    .onFailure { Log.w(TAG, "reload failed: ${it.message}") }
+            }
+            loaded = true
+        }
+        _versionFlow.update { it + 1 }
+    }
+
     /**
      * 確定された (読み, 単語) を記録する。1 文字単語はスキップ。同一 reading に同一 word が
      * 既にあれば count++ / 時刻更新、無ければ追加。書き込みは debounce で実 I/O を抑える。

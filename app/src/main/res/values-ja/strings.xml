@@ -883,11 +883,11 @@
     <string name="ssh_key_authorized">この端末の ~/.ssh/authorized_keys に登録しました</string>
     <string name="ssh_key_authorized_already">その鍵はすでに登録されています</string>
     <string name="settings_backup">持ち出し / 引き継ぎ</string>
-    <string name="settings_backup_desc">設定・SSH 接続先・スニペット・自動化ルール・マクロを 1 ファイルにまとめます。OS 本体（数百 MB）は含みません — 入れ直せば戻るものと、二度と戻らないものを分けています。</string>
+    <string name="settings_backup_desc">設定・SSH 接続先・スニペット・自動化ルール・マクロと、端末で積み上げたもの（テーマ・タイルの割り当て・アイコン・辞書・学習）を 1 ファイルにまとめます。OS 本体（数百 MB）は含みません — 入れ直せば戻るものと、二度と戻らないものを分けています。</string>
     <string name="settings_backup_export">バックアップを作る</string>
     <string name="settings_backup_import">バックアップから戻す</string>
     <string name="backup_export_title">バックアップを作る</string>
-    <string name="backup_export_body">設定・SSH 接続先・スニペット・自動化ルール・マクロを 1 ファイルに書き出します。保存先はこのあと選べます。</string>
+    <string name="backup_export_body">設定・SSH 接続先・スニペット・自動化ルール・マクロ・自作テーマ・タイルの割り当て・アイコン・ユーザー辞書・キーボードの学習を 1 ファイルに書き出します。保存先はこのあと選べます。</string>
     <string name="backup_include_secrets">SSH のパスワードと鍵も含める</string>
     <string name="backup_secrets_warning">⚠ 秘密を端末の外へ出します。合言葉での暗号化が必須です（合言葉が無いと戻せません）。</string>
     <string name="backup_passphrase">合言葉</string>
@@ -899,7 +899,9 @@
 SSH 接続先 %3$d 件
 スニペット %4$d 件
 自動化ルール %5$d 件
-マクロ %6$d 件</string>
+マクロ %6$d 件
+タイル %7$d 枠・アイコン %8$d 枚
+テーマ %9$d 件・辞書 %10$d 件・学習 %11$d 語</string>
     <string name="backup_import_merge_note">いま入っているものは消えません。同じものは置き換え、無いものは追加します。</string>
     <string name="backup_import_failed">取り込めませんでした（合言葉が違うか、ファイルが壊れています）。</string>
     <string name="backup_import_do">戻す</string>
