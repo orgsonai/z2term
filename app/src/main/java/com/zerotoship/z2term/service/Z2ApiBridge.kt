@@ -1004,9 +1004,11 @@ object Z2ApiBridge {
                 IconStore.preview(drawn)
             }
             // 編集用。未設定なら空のひな形を返す (`z2-icon edit` がこれを開く)。
+            // ⚠ ひな形の一辺は `z2-icon grid` で決めた値。すでに絵がある対象は**その絵の一辺のまま**
+            // 開く — 開いただけで一辺が変わると、直すつもりが描き直しになる。
             "get" -> {
                 val t = target(args.getOrNull(1))
-                IconStore.text(context, t) ?: IconStore.emptyText()
+                IconStore.text(context, t) ?: IconStore.emptyText(IconStore.defaultGrid(context))
             }
             "show" -> {
                 val t = target(args.getOrNull(1))
@@ -1061,14 +1063,38 @@ object Z2ApiBridge {
                 }
                 iconListTsv(context)
             }
+            // これから描く絵の一辺。⚠ **すでに入っている絵は作り直さない** (それは scale)。
+            "grid" -> {
+                val v = args.getOrNull(1).orEmpty().trim()
+                if (v.isNotEmpty()) {
+                    val n = v.toIntOrNull()
+                        ?: throw IllegalArgumentException(
+                            "z2-icon grid: 一辺は ${IconStore.GRIDS.joinToString(" / ")} から選びます: $v"
+                        )
+                    IconStore.setDefaultGrid(context, n)
+                }
+                IconStore.defaultGrid(context).toString()
+            }
+            // いま入っている絵を別のマス目へ敷き直す。**見た目は変えずに一辺だけ変える**もので、
+            // これを通してから角を削ると、細かい絵を一から描き直さずに済む。
+            "scale" -> {
+                val t = target(args.getOrNull(1))
+                val g = args.getOrNull(2).orEmpty().trim().toIntOrNull()
+                    ?: throw IllegalArgumentException(
+                        "z2-icon scale: 一辺は ${IconStore.GRIDS.joinToString(" / ")} から選びます: ${args.getOrNull(2)}"
+                    )
+                val m = IconStore.mask(context, t)
+                    ?: throw IllegalArgumentException("z2-icon scale: ${args.getOrNull(1)} は既定のアイコンのままです")
+                val drawn = IconStore.set(context, t, IconStore.zoomText(m, g), grid = g)
+                applyIconChange(context, t)
+                IconStore.preview(drawn)
+            }
             "list", null, "" -> iconListTsv(context)
             // 絵つきの一覧。⚠ **入れてある対象だけ**並べる (既定のままの枠まで空欄で並べると、
             // 見たいものが画面の外へ流れる)。名前だけでは形を思い出せないときの逃げ道。
             "list-preview" -> IconStore.targets().mapNotNull { t ->
                 val m = IconStore.mask(context, t) ?: return@mapNotNull null
-                val name = IconStore.slotOf(t)?.toString() ?: t
-                "$name\t${iconState(context, t)}\t${IconStore.nameOf(context, t) ?: "-"}\n" +
-                    IconStore.preview(m)
+                iconListHead(context, t) + "\n" + IconStore.preview(m)
             }.joinToString("\n\n").ifEmpty { "(まだどれも変えていません)" }
             else -> throw IllegalArgumentException("z2-icon: unknown subcommand: ${args[0]}")
         }
@@ -1088,15 +1114,23 @@ object Z2ApiBridge {
     }
 
     /**
-     * `z2-icon list` の TSV。列は **対象 / 状態** の 2 つ。`-` が「既定のアイコンのまま」で、
+     * `z2-icon list` の TSV。列は **対象 / 状態 / 絵の名前 / 一辺**。`-` が「既定のアイコンのまま」で、
      * `z2-tile list` の空き枠と同じ読み方に揃える。
      *
      * ⚠ `auto` (割り当てから自動で入った) と `custom` (自分で入れた) を**出し分ける**。
      * どちらなのかが見えないと、`z2-icon auto` で自動へ戻せることに気付けない。
+     *
+     * ⚠ 一辺は**末尾に足す**。既にある 3 列の意味を動かさないので、`cut -f3` で読んでいる
+     * 手元のスクリプトは黙って壊れない。
      */
-    private fun iconListTsv(context: Context): String = IconStore.targets().joinToString("\n") { t ->
-        val name = IconStore.slotOf(t)?.toString() ?: t
-        "$name\t${iconState(context, t)}\t${IconStore.nameOf(context, t) ?: "-"}"
+    private fun iconListTsv(context: Context): String =
+        IconStore.targets().joinToString("\n") { iconListHead(context, it) }
+
+    /** `list` と `list-preview` で共通の 1 行 (対象 / 状態 / 絵の名前 / 一辺)。 */
+    private fun iconListHead(context: Context, target: String): String {
+        val name = IconStore.slotOf(target)?.toString() ?: target
+        val grid = IconStore.mask(context, target)?.let { IconStore.gridOf(it).toString() } ?: "-"
+        return "$name\t${iconState(context, target)}\t${IconStore.nameOf(context, target) ?: "-"}\t$grid"
     }
 
     /** `-` = 既定のまま / `auto` = 割り当てから自動で入った / `custom` = 自分で入れた。 */

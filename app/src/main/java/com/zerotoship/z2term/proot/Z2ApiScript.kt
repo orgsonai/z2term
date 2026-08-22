@@ -375,6 +375,15 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |  auto)
         |    [ ${d}# -ge 2 ] || usage
         |    exec /usr/local/bin/z2api 1 icon auto "${d}2" ;;
+        |  grid)
+        |    # 引数なしは今の値を出すだけ。⚠ 空文字を渡して「設定した」ことにしない。
+        |    if [ ${d}# -ge 2 ]; then
+        |      exec /usr/local/bin/z2api 1 icon grid "${d}2"
+        |    fi
+        |    exec /usr/local/bin/z2api 1 icon grid ;;
+        |  scale)
+        |    [ ${d}# -ge 3 ] || usage
+        |    exec /usr/local/bin/z2api 1 icon scale "${d}2" "${d}3" ;;
         |  set)
         |    [ ${d}# -ge 2 ] || usage
         |    read_art "${d}{3:--}"

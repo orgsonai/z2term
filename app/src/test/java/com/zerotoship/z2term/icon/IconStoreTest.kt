@@ -22,7 +22,7 @@ class IconStoreTest {
     @Test
     fun singleDotLandsInTheMiddle() {
         val m = IconStore.parse("#")
-        val g = IconStore.GRID
+        val g = IconStore.gridOf(m)
         assertEquals(1, m.count { it })
         assertTrue(m[(g / 2) * g + g / 2])
     }
@@ -35,7 +35,7 @@ class IconStoreTest {
         assertThrows(IllegalArgumentException::class.java) { IconStore.parse(". 0-_") }
     }
 
-    /** 余白は無視して中央へ置き直す。行を [IconStore.GRID] に合わせなくてよい。 */
+    /** 余白は無視して中央へ置き直す。行を一辺に合わせなくてよい。 */
     @Test
     fun surroundingBlanksDoNotMoveTheDrawing() {
         val bare = IconStore.parse("##\n##")
@@ -48,10 +48,69 @@ class IconStoreTest {
      */
     @Test
     fun tooBigIsRejected() {
-        val wide = "#".repeat(IconStore.GRID + 1)
+        val max = IconStore.GRIDS.last()
+        val wide = "#".repeat(max + 1)
         assertThrows(IllegalArgumentException::class.java) { IconStore.parse(wide) }
-        val tall = (0..IconStore.GRID).joinToString("\n") { "#" }
+        val tall = (0..max).joinToString("\n") { "#" }
         assertThrows(IllegalArgumentException::class.java) { IconStore.parse(tall) }
+    }
+
+    /**
+     * 一辺は**塗った範囲が収まる最小**を選ぶ。
+     *
+     * ⚠ 大きい一辺へ勝手に移さないこと。一辺を上げても絵は大きくならないので、24 の絵を 64 の
+     * マス目へ入れると**タイルの中で小さくなる**だけになる。
+     */
+    @Test
+    fun gridIsTheSmallestOneThatFits() {
+        assertEquals(24, IconStore.gridOf(IconStore.parse("#".repeat(24))))
+        assertEquals(48, IconStore.gridOf(IconStore.parse("#".repeat(25))))
+        assertEquals(64, IconStore.gridOf(IconStore.parse("#".repeat(49))))
+        // 縦だけ大きい絵でも同じ (幅と高さの大きい方で決まる)。
+        assertEquals(48, IconStore.gridOf(IconStore.parse((1..30).joinToString("\n") { "#" })))
+        // 明示すればそれに従う (小さく描いた絵を細かいマス目のまま直したいとき)。
+        assertEquals(64, IconStore.gridOf(IconStore.parse("#", grid = 64)))
+    }
+
+    /**
+     * [IconStore.zoomText] は**見た目を変えずに一辺だけ上げる** (`z2-icon scale`)。
+     *
+     * 見た目 = **一辺に対して絵がどれだけを占めるか**。ここが変わると、細かくしたつもりが
+     * タイルの中で小さくなった (あるいは太った) ということになる。
+     */
+    @Test
+    fun scalingKeepsTheDrawingAndOnlyRaisesTheGrid() {
+        fun span(m: BooleanArray): Int {
+            val g = IconStore.gridOf(m)
+            val xs = (0 until g).filter { x -> (0 until g).any { y -> m[y * g + x] } }
+            return xs.last() - xs.first() + 1
+        }
+        // マス目いっぱいの絵で見る (余白があると parse が小さい一辺へ落とすため)。
+        val small = IconStore.parse("#".repeat(24))
+        val big = IconStore.parse(IconStore.zoomText(small, 48), grid = 48)
+        assertEquals(24, IconStore.gridOf(small))
+        assertEquals(48, IconStore.gridOf(big))
+        // 一辺に対する絵の幅の比が変わらない = タイルに出る大きさが変わらない。
+        assertEquals(span(small) * 2, span(big))
+        // 整数倍でない敷き直しでも比は保たれる (24 -> 64)。
+        val finer = IconStore.parse(IconStore.zoomText(small, 64), grid = 64)
+        assertEquals(64, IconStore.gridOf(finer))
+        assertEquals(64, span(finer))
+        // 用意していない一辺は弾く。
+        assertThrows(IllegalArgumentException::class.java) { IconStore.zoomText(small, 32) }
+    }
+
+    /**
+     * 一辺はどれも [IconStore.OUT_PX] を割り切ること。
+     *
+     * ⚠ 割り切れない一辺を混ぜると、点を敷くときの幅が 1px ずつずれて、**細かく描いた絵ほど
+     * かえって乱れる**。実機でしか見えない壊れ方なので、ここで止める。
+     */
+    @Test
+    fun everyGridDividesTheBitmapSize() {
+        IconStore.GRIDS.forEach { g ->
+            assertEquals("$g は ${IconStore.OUT_PX}px を割り切れない", 0, IconStore.OUT_PX % g)
+        }
     }
 
     /** 1 点も塗られていない絵は弾く (押しても何も見えないアイコンになる)。 */
@@ -61,13 +120,15 @@ class IconStoreTest {
         assertThrows(IllegalArgumentException::class.java) { IconStore.parse("") }
     }
 
-    /** 正規形は [IconStore.GRID] 行 x [IconStore.GRID] 桁。`z2-icon edit` がこれを開く。 */
+    /** 正規形は一辺の行数 x 桁数。`z2-icon edit` がこれを開く (行数がそのまま一辺)。 */
     @Test
     fun normalisedTextIsAlwaysTheFullGrid() {
-        val lines = IconStore.toText(IconStore.parse("#")).split("\n")
-        assertEquals(IconStore.GRID, lines.size)
-        assertTrue(lines.all { it.length == IconStore.GRID })
-        assertEquals(IconStore.GRID, IconStore.emptyText().split("\n").size)
+        IconStore.GRIDS.forEach { g ->
+            val lines = IconStore.toText(IconStore.parse("#", grid = g)).split("\n")
+            assertEquals(g, lines.size)
+            assertTrue(lines.all { it.length == g })
+            assertEquals(g, IconStore.emptyText(g).split("\n").size)
+        }
     }
 
     /** 正規形を読み直しても同じ絵になる (`edit` は書き出した絵をそのまま読み戻す)。 */
@@ -80,11 +141,27 @@ class IconStoreTest {
     /** プレビューは上下 2 行を 1 文字に畳む (端末の文字が縦長なので、そのままだと間延びする)。 */
     @Test
     fun previewFoldsTwoRowsIntoOne() {
-        val lines = IconStore.preview(IconStore.parse("#")).split("\n")
-        assertEquals(IconStore.GRID / 2, lines.size)
-        assertTrue(lines.all { it.length == IconStore.GRID })
+        val m = IconStore.parse("#")
+        val g = IconStore.gridOf(m)
+        val lines = IconStore.preview(m).split("\n")
+        assertEquals(g / 2, lines.size)
+        assertTrue(lines.all { it.length == g })
         // 1 点だけなら、上半分か下半分のどちらかしか塗られていない。
-        assertTrue(IconStore.preview(IconStore.parse("#")).any { it == '▀' || it == '▄' })
+        assertTrue(IconStore.preview(m).any { it == '▀' || it == '▄' })
+    }
+
+    /**
+     * 細かい絵のプレビューは**桁を畳んで**出す。
+     *
+     * ⚠ 64 桁のまま出すと携帯の画面幅で折り返し、形を確かめるという目的そのものが果たせない。
+     */
+    @Test
+    fun wideDrawingsAreFoldedToFitTheScreen() {
+        IconStore.GRIDS.forEach { g ->
+            val lines = IconStore.preview(IconStore.parse("#".repeat(g), grid = g)).split("\n")
+            assertTrue("$g マスのプレビューが ${lines[0].length} 桁ある", lines[0].length <= 32)
+            assertEquals(lines[0].length / 2, lines.size)
+        }
     }
 
     /** 対象は `notify` と枠番号。`z2-tile` が枠を番号で呼ぶので、こちらも番号で受ける。 */

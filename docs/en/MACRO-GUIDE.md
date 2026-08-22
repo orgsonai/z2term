@@ -424,7 +424,8 @@ z2-tile clear 2                                  # empty a slot (clear all works
 ### `z2-icon` (put your own drawing on the icons)
 
 The notification icon in the status bar and the quick-settings tile icons can be replaced with
-**a 24x24 drawing of your own** (0.8.294). Tiles get **one drawing per slot**.
+**a drawing of your own** (0.8.294). Tiles get **one drawing per slot**. The grid is
+**24 / 48 / 64** across (0.8.379; 24 unless you change it).
 
 ```sh
 z2-icon pick 1                 # choose one of the built-in drawings for slot 1
@@ -434,7 +435,9 @@ z2-icon sample notify bell     # put the bell on the notification icon
 z2-icon edit 1                 # draw it in $EDITOR (saving applies it)
 z2-icon show 1                 # print the current drawing
 z2-icon clear notify           # back to the built-in icon (clear all works too)
-z2-icon list                   # which ones you have changed
+z2-icon list                   # which ones you have changed (4th column: its grid)
+z2-icon grid 64                # draw new ones on a 64x64 grid from now on
+z2-icon scale 1 64             # lay slot 1 out on a 64x64 grid (it looks the same)
 ```
 
 The targets are **`notify`** (one drawing for every notification this app puts out) and
@@ -442,7 +445,23 @@ The targets are **`notify`** (one drawing for every notification this app puts o
 
 A drawing is a grid of characters. `.` `(space)` `0` `-` `_` leave a cell empty and **anything else
 fills it in**, so draw with whichever character you find easiest to see. Blank space around the
-drawing is ignored and it gets centred, so you need not fill all 24 lines exactly.
+drawing is ignored and it gets centred, so you need not fill every line exactly.
+
+**When a tile looks like a staircase, raise the grid** (0.8.379). The status bar shows these about
+24px across, so 24 dots are plenty there — but **a tile is drawn much larger**, and there 24 dots
+show as steps.
+
+```sh
+z2-icon grid 64                # the grid new drawings are made on (24 / 48 / 64; 24 by default)
+z2-icon grid                   # what it is now
+z2-icon scale 1 64             # lay the drawing on slot 1 out on a 64x64 grid
+```
+
+`scale` **does not change how it looks** (the drawing keeps the same share of the grid). All it
+adds is room to draw finer, so run it and then round off the corners with `z2-icon edit`.
+⚠ Laying a drawing out on a smaller grid **drops thin lines** (there is no way back).
+⚠ **A bigger grid does not make a bigger icon.** Fill the grid, or the drawing comes out smaller
+than the one it replaced.
 
 ```sh
 cat > /tmp/dot.txt <<'EOF'
@@ -459,8 +478,9 @@ printf '..##..\n.####.\n..##..\n' | z2-icon set 3 -   # from stdin
 
 - ⚠ **There is no colour.** Android **repaints these icons in a single colour of its own** (tiles
   change colour between on and off), so the only thing you decide is **the shape**.
-- ⚠ **They end up about 24px across.** Detail finer than the grid is lost — treat what `show`
-  prints as what will appear.
+- ⚠ **The status bar shows them about 24px across.** There, detail finer than 24 dots is lost —
+  treat what `show` prints as what will appear (a 48 or 64 drawing is printed with two cells
+  folded into one character, so the line does not wrap on a phone screen).
 - ⚠ **A drawing that is too big is refused**, rather than quietly clipped: clipping would deliver an
   icon with its edges missing to the one person who cannot tell why.
 - ⚠ **Three things cannot be changed** (Android fixes them at install time): the icon in the

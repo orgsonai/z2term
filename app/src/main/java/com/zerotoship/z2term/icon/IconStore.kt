@@ -7,14 +7,20 @@ import androidx.core.content.edit
 import androidx.core.graphics.drawable.IconCompat
 import com.zerotoship.z2term.tile.TileStore
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 /**
  * ステータスバーの通知アイコンとクイック設定タイルのアイコンを、端末から差し替える (`z2-icon`)。
  *
  * **なぜドット絵なのか**: ステータスバーのアイコンもタイルのアイコンも、**OS が単色で塗り直す**
- * (タイルは入 / 切で色が変わる)。色を持ち込む余地は最初から無く、実表示も 24px 前後しかない。
- * つまり指定できるのは**形 (どの点を塗るか) だけ**なので、24x24 の白黒グリッドがそのまま
- * 表現力の上限になる。PNG を受け取って縮小するより、書いたものと出るものが一致する。
+ * (タイルは入 / 切で色が変わる)。色を持ち込む余地は最初から無く、指定できるのは
+ * **形 (どの点を塗るか) だけ**。PNG を受け取って縮小するより、書いたものと出るものが一致する。
+ *
+ * **一辺は 1 つではない** ([GRIDS])。ステータスバーの実表示は 24dp なので 24 の点で足りるが、
+ * **タイルはもっと大きく出る**ので、そこでは 24 の点がそのまま階段に見える。一辺は絵 1 枚ごとの
+ * 持ちもので、[gridOf] が**保存された絵そのものから読む**。これから描く絵の一辺は
+ * [setDefaultGrid] で選ぶ。
  *
  * **保存は SharedPreferences**。タイルは[アプリのプロセスが生きていない状態]で読まれるので、
  * DataStore (非同期) は使えない ([TileStore] と同じ理由)。1 枚 600 バイト弱のテキストなので、
@@ -26,14 +32,32 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object IconStore {
 
-    /** ドット絵の一辺。ステータスバーの実表示 (24dp) と同じ。これより細かく描いても潰れる。 */
-    const val GRID = 24
+    /**
+     * 描ける一辺。細かいほど滑らかになるが、そのぶん打つ点が増える。
+     *
+     * ⚠ **どれも [OUT_PX] を割り切ること**。整数倍で敷けない一辺を混ぜると点の幅が 1px ずつ
+     * ずれて、細かく描いた絵ほどかえって乱れる。増やすときもこの条件で選ぶ。
+     */
+    val GRIDS = listOf(24, 48, 64)
+
+    /** 一辺を指定しなかったときに使う値 ([setDefaultGrid] で変えられる)。 */
+    const val DEFAULT_GRID = 24
 
     /**
-     * Bitmap を作るときの拡大率。24px のままだと OS 側の拡大で**にじむ**ので、
-     * こちらで整数倍に引き伸ばしてから渡す (点の角を保つ)。
+     * 出来上がる Bitmap の一辺 (px)。**絵の一辺によらずここへ揃える**。
+     *
+     * 点をそのまま渡すと OS 側の拡大で**にじむ**ので、こちらで整数倍に引き伸ばしてから渡す
+     * (点の角を保つ)。192 は [GRIDS] のどれでも割り切れる最小の数 (24x8 / 48x4 / 64x3)。
      */
-    private const val SCALE = 4
+    internal const val OUT_PX = 192
+
+    /**
+     * 端末で見るプレビューの桁数の上限。これを超える絵は 2x2 を 1 点に畳んで出す。
+     *
+     * ⚠ **携帯の画面幅で折り返さないこと**が条件。64 桁のまま出すと行が折り返して、
+     * 形の確認という目的そのものが果たせない。
+     */
+    private const val PREVIEW_COLS = 32
 
     /** 通知アイコン (常駐通知・`z2-notify`・`z2-ask` すべて共通の 1 枚)。 */
     const val TARGET_NOTIFY = "notify"
@@ -43,6 +67,9 @@ object IconStore {
 
     /** その枠の絵を [autoAssign] が入れたことの印。手で入れた絵と区別するためだけに持つ。 */
     private const val KEY_AUTO_PREFIX = "auto_"
+
+    /** これから描く絵の一辺 ([defaultGrid])。 */
+    private const val KEY_DEFAULT_GRID = "default_grid"
 
     /** 自分で描いて名前を付けた絵 (`z2-icon save`)。値は正規形テキスト。 */
     private const val KEY_USER_PREFIX = "sample_"
@@ -103,6 +130,40 @@ object IconStore {
     fun targets(): List<String> =
         listOf(TARGET_NOTIFY) + (1..TileStore.COUNT).map { tileTarget(it) }
 
+    // --- 一辺 ---
+
+    /**
+     * 絵 [m] の一辺。**絵そのものから読む**。
+     *
+     * ⚠ 一辺を絵と別の場所に持たない。持つと、保存し直しに失敗したときなどに絵と食い違い、
+     * どちらが正なのか決められなくなる (そして読み出しは必ず 1 か所ずれる)。
+     */
+    fun gridOf(m: BooleanArray): Int {
+        val g = sqrt(m.size.toDouble()).roundToInt()
+        require(g * g == m.size) { "z2-icon: 絵の点の数が正方形になっていません (${m.size})" }
+        return g
+    }
+
+    /** これから描く絵の一辺 (`z2-icon grid`)。 */
+    fun defaultGrid(context: Context): Int =
+        prefs(context).getInt(KEY_DEFAULT_GRID, DEFAULT_GRID).takeIf { it in GRIDS } ?: DEFAULT_GRID
+
+    /**
+     * これから描く絵の一辺を決める。
+     *
+     * ⚠ **もう入っている絵は作り直さない**。一辺を変えても絵の見た目は変わらない
+     * (変わるのは描き足せる細かさだけ) ので、頼まれていない絵にまで触る理由が無い。
+     * 手元の絵を細かい側へ移すのは [zoomText] (`z2-icon scale`)。
+     *
+     * @throws IllegalArgumentException [GRIDS] に無い値
+     */
+    fun setDefaultGrid(context: Context, grid: Int) {
+        require(grid in GRIDS) {
+            "z2-icon grid: 一辺は ${GRIDS.joinToString(" / ")} から選びます: $grid"
+        }
+        prefs(context).edit { putInt(KEY_DEFAULT_GRID, grid) }
+    }
+
     // --- 読み書き ---
 
     /** [target] のドット絵 (正規形テキスト)。未設定なら null。 */
@@ -126,10 +187,11 @@ object IconStore {
      * 返すのは、呼び出し側が保存し直したものを読み戻さずにそのままプレビューへ回せるようにするため
      * (読み戻す形にすると「保存できていない」場合に空の絵をプレビューしようとして落ちる)。
      *
+     * @param grid 一辺を指定する (省略時は [parse] が絵の大きさから決める)
      * @throws IllegalArgumentException 絵が読めない・大きすぎる・1 点も塗られていない
      */
-    fun set(context: Context, target: String, art: String): BooleanArray {
-        val parsed = parse(art)
+    fun set(context: Context, target: String, art: String, grid: Int? = null): BooleanArray {
+        val parsed = parse(art, grid)
         prefs(context).edit {
             putString(target, toText(parsed))
             // 手で入れた絵には印を残さない = 以後 [autoAssign] が触らない。
@@ -339,20 +401,23 @@ object IconStore {
         bitmap(context, tileTarget(n))?.let { Icon.createWithBitmap(it) }
 
     /**
-     * ドット絵を Bitmap にする (点を [SCALE] 倍の正方形で敷く)。
+     * ドット絵を Bitmap にする (点を正方形で敷いて [OUT_PX] 角にする)。
      *
      * 塗る点は**不透明な白**。OS がここへ状態の色を被せるので、こちらで色を決めても意味が無い
      * (被せない機種では白のまま出る — ステータスバーもタイルも暗い背景なので白で成り立つ)。
      */
     private fun render(m: BooleanArray): Bitmap {
-        val size = GRID * SCALE
+        val grid = gridOf(m)
+        // 一辺によらず [OUT_PX] へ揃える。割り切れる一辺しか [GRIDS] に無いので、点は必ず正方形。
+        val scale = OUT_PX / grid
+        val size = grid * scale
         val px = IntArray(size * size)
-        for (y in 0 until GRID) {
-            for (x in 0 until GRID) {
-                if (!m[y * GRID + x]) continue
-                for (dy in 0 until SCALE) {
-                    val row = (y * SCALE + dy) * size + x * SCALE
-                    for (dx in 0 until SCALE) px[row + dx] = 0xFFFFFFFF.toInt()
+        for (y in 0 until grid) {
+            for (x in 0 until grid) {
+                if (!m[y * grid + x]) continue
+                for (dy in 0 until scale) {
+                    val row = (y * scale + dy) * size + x * scale
+                    for (dx in 0 until scale) px[row + dx] = 0xFFFFFFFF.toInt()
                 }
             }
         }
@@ -362,18 +427,22 @@ object IconStore {
     // --- テキスト <-> ドット絵 (Android 非依存・テスト用) ---
 
     /**
-     * 書かれたドット絵を [GRID] x [GRID] の点へ読む。
+     * 書かれたドット絵を点へ読む。
      *
      * - 塗らない点は `.` ` ` `0` `-` `_`。**それ以外の文字はすべて塗る**ので、`#` でも `*` でも
      *   `X` でも好きな字で描ける (描いている本人が見分けやすい字を選べばよい)。
-     * - **余白は無視して中央へ置き直す**。行や桁を [GRID] にきっちり合わせなくてよく、
+     * - **余白は無視して中央へ置き直す**。行や桁をきっちり合わせなくてよく、
      *   `$(cat)` が末尾の空行を落とすことも気にしなくて済む。
-     * - 塗った範囲が [GRID] を超えたら弾く。⚠ 黙って切り詰めると、描いた本人にだけ
+     * - 一辺は [grid] 指定が無ければ**塗った範囲が収まる最小の [GRIDS]** にする。
+     *   ⚠ 描いた絵より大きい一辺へ勝手に移さない — 一辺を上げても絵は大きくならないので、
+     *   64 の枠に 24 の絵を入れると**タイルの中で小さくなる**だけになる。
+     * - 塗った範囲が [GRIDS] の最大を超えたら弾く。⚠ 黙って切り詰めると、描いた本人にだけ
      *   「なぜか端が欠けたアイコン」が届く。
      *
-     * @throws IllegalArgumentException 1 点も塗られていない・[GRID] に収まらない
+     * @param grid 一辺を指定する (省略時は上記のとおり自動)
+     * @throws IllegalArgumentException 1 点も塗られていない・一辺に収まらない
      */
-    internal fun parse(art: String): BooleanArray {
+    internal fun parse(art: String, grid: Int? = null): BooleanArray {
         val lines = art.replace("\r\n", "\n").replace('\r', '\n').split("\n")
         // 塗られた点だけを拾い、そのあと外接する四角を見る。
         val points = ArrayList<IntArray>()
@@ -389,23 +458,60 @@ object IconStore {
         val maxY = points.maxOf { it[1] }
         val w = maxX - minX + 1
         val h = maxY - minY + 1
-        require(w <= GRID && h <= GRID) { "z2-icon: 絵が大きすぎます (${w}x${h})。${GRID}x${GRID} 以内で描いてください" }
+        val need = maxOf(w, h)
+        val g = grid ?: GRIDS.firstOrNull { it >= need }
+        requireNotNull(g) {
+            "z2-icon: 絵が大きすぎます (${w}x${h})。${GRIDS.last()}x${GRIDS.last()} 以内で描いてください"
+        }
+        require(need <= g) { "z2-icon: 絵が大きすぎます (${w}x${h})。${g}x${g} 以内で描いてください" }
         // 幅や高さが奇数だと 1 点ぶんは必ずどちらかへ寄る。余りを上と左へ多く回す
         // (= 絵は気持ち下と右へ寄る) と決め打ちにして、絵ごとに寄る向きが変わらないようにする。
-        val offX = (GRID - w + 1) / 2 - minX
-        val offY = (GRID - h + 1) / 2 - minY
-        val mask = BooleanArray(GRID * GRID)
-        points.forEach { (x, y) -> mask[(y + offY) * GRID + (x + offX)] = true }
+        val offX = (g - w + 1) / 2 - minX
+        val offY = (g - h + 1) / 2 - minY
+        val mask = BooleanArray(g * g)
+        points.forEach { (x, y) -> mask[(y + offY) * g + (x + offX)] = true }
         return mask
     }
 
-    /** 点を正規形のテキストへ ([GRID] 行 x [GRID] 桁の `#` と `.`)。保存にも `z2-icon get` にも使う。 */
-    internal fun toText(m: BooleanArray): String = (0 until GRID).joinToString("\n") { y ->
-        (0 until GRID).map { x -> if (m[y * GRID + x]) INK else BLANK }.joinToString("")
+    /**
+     * 点を正規形のテキストへ (一辺の行数 x 桁数ぶんの `#` と `.`)。保存にも `z2-icon get` にも使う。
+     *
+     * ⚠ **行数がそのまま一辺**。保存してあるテキストを読み直すときの手掛かりがこれなので、
+     * 行を詰めたり余白を落としたりしない。
+     */
+    internal fun toText(m: BooleanArray): String {
+        val g = gridOf(m)
+        return (0 until g).joinToString("\n") { y ->
+            (0 until g).map { x -> if (m[y * g + x]) INK else BLANK }.joinToString("")
+        }
     }
 
     /** 何も無いドット絵のテキスト (`z2-icon edit` が新規に開くひな形)。 */
-    internal fun emptyText(): String = toText(BooleanArray(GRID * GRID))
+    internal fun emptyText(grid: Int = DEFAULT_GRID): String = toText(BooleanArray(grid * grid))
+
+    /**
+     * 絵を一辺 [grid] のマス目へ敷き直したテキスト (`z2-icon scale`)。
+     *
+     * **なぜ要るか**: 24 で描いた絵を 48 で描き直すのは、事実上の描き直しになる。敷き直して
+     * から角を削る方が手数がずっと少ない。
+     *
+     * ⚠ **見た目は変わらない**。マス目に対する絵の割合をそのまま保つので、タイルに出る大きさは
+     * 敷き直す前と同じ。増えるのは「描き足せる細かさ」だけで、これだけでは滑らかにならない
+     * (滑らかにするのはこの後の手直し)。
+     *
+     * ⚠ 小さいマス目へ敷き直すと**細い線は落ちる**。戻せないので、これは利用者が選んだときだけ。
+     */
+    fun zoomText(m: BooleanArray, grid: Int): String {
+        require(grid in GRIDS) {
+            "z2-icon scale: 一辺は ${GRIDS.joinToString(" / ")} から選びます: $grid"
+        }
+        val g = gridOf(m)
+        // 近い点を拾って敷き直す。整数倍でなくても形は保たれる (点の幅が 1 ずれるだけ)。
+        return (0 until grid).joinToString("\n") { y ->
+            val sy = y * g / grid
+            (0 until grid).map { x -> if (m[sy * g + x * g / grid]) INK else BLANK }.joinToString("")
+        }
+    }
 
     /**
      * 端末で見るためのプレビュー。
@@ -413,16 +519,43 @@ object IconStore {
      * ⚠ **上下 2 行を 1 文字に畳む** (`▀` `▄` `█`)。端末の文字は縦長なので、1 点 1 文字で出すと
      * 縦に間延びして**元の形に見えない**。半分に畳むとほぼ正方形になり、描いたものと同じ形が出る。
      */
-    internal fun preview(m: BooleanArray): String = (0 until GRID step 2).joinToString("\n") { y ->
-        (0 until GRID).map { x ->
-            val top = m[y * GRID + x]
-            val bottom = m[(y + 1) * GRID + x]
-            when {
-                top && bottom -> '█'
-                top -> '▀'
-                bottom -> '▄'
-                else -> ' '
+    internal fun preview(m: BooleanArray): String {
+        // 桁が多すぎる絵は、まず 2x2 を 1 点に畳んで幅を落とす (48 -> 24 / 64 -> 32)。
+        var mask = m
+        var g = gridOf(m)
+        while (g > PREVIEW_COLS) {
+            mask = shrink(mask, g)
+            g /= 2
+        }
+        return (0 until g step 2).joinToString("\n") { y ->
+            (0 until g).map { x ->
+                val top = mask[y * g + x]
+                val bottom = mask[(y + 1) * g + x]
+                when {
+                    top && bottom -> '█'
+                    top -> '▀'
+                    bottom -> '▄'
+                    else -> ' '
+                }
+            }.joinToString("")
+        }
+    }
+
+    /**
+     * 2x2 を 1 点へ畳む (プレビュー用)。
+     *
+     * ⚠ **どれか 1 つでも塗ってあれば塗る**。多数決や平均にすると 1 点幅の線が丸ごと消えて、
+     * 「描いたのに出ない」ように見える。太る方の誤差なら形は残る。
+     */
+    private fun shrink(m: BooleanArray, g: Int): BooleanArray {
+        val half = g / 2
+        val out = BooleanArray(half * half)
+        for (y in 0 until half) {
+            for (x in 0 until half) {
+                out[y * half + x] = m[(y * 2) * g + x * 2] || m[(y * 2) * g + x * 2 + 1] ||
+                    m[(y * 2 + 1) * g + x * 2] || m[(y * 2 + 1) * g + x * 2 + 1]
             }
-        }.joinToString("")
+        }
+        return out
     }
 }

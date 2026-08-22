@@ -368,7 +368,11 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
 
     // --- z2-icon ---
 
-    private val grid = IconStore.GRID
+    /** 選べる一辺 ([IconStore.GRIDS])。⚠ 文言へ数を書き写さない — 増やしたときにここだけ古くなる。 */
+    private val grids = IconStore.GRIDS.joinToString("|")
+
+    /** 何も指定しないときの一辺。 */
+    private val grid = IconStore.DEFAULT_GRID
 
     /**
      * `z2-icon` のヘルプ。
@@ -396,6 +400,14 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#   auto <1-$tiles|all>          pick again from what the tile runs
         |#   clear <target|all>       back to the built-in icon
         |#
+        |# How fine the grid is
+        |#   grid                     the size new drawings are made at
+        |#   grid <$grids>          set it ($grid unless you change it)
+        |#   scale <target> <$grids>  lay the drawing that is on <target> out on that grid.
+        |#                            It comes out looking exactly the same - only the grid
+        |#                            changes - so you can round off the corners of a drawing
+        |#                            you already have instead of starting over.
+        |#
         |# Keeping your own drawings in the list
         |#   save <target> <name>     name what is on <target> now and add it to the list
         |#   sample                   the list you can choose from (number / name /
@@ -405,15 +417,19 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#                            put on a target stays where it is)
         |#
         |# How to draw
-        |#   It is a ${grid}x${grid} grid of characters. '.' ' ' '0' '-' '_' leave a dot empty and
-        |#   anything else fills it in, so use whichever character you find easiest to see.
-        |#   Blank space around the drawing is ignored - it gets centred, so you do not have
-        |#   to fill all ${grid} lines exactly.
+        |#   It is a grid of characters. '.' ' ' '0' '-' '_' leave a dot empty and anything else
+        |#   fills it in, so use whichever character you find easiest to see. Blank space around
+        |#   the drawing is ignored - it gets centred, so you do not have to fill every line
+        |#   exactly. The grid is $grids ('z2-icon grid').
+        |#   ⚠ A bigger grid does not make a bigger icon. Fill the grid, or the drawing comes
+        |#     out smaller than the one you replaced.
         |#
         |# Worth knowing
-        |#   ⚠ Only the shape gets through. Android paints these icons a single colour of its
-        |#     own (tiles change colour between on and off) and shows them about ${grid}px across:
-        |#     there is no colour to pick, and detail finer than the grid is lost.
+        |#   ⚠ Only the shape gets through. Android paints these icons a single colour of its own
+        |#     (tiles change colour between on and off), so there is no colour to pick.
+        |#   ⚠ The status bar shows them about ${grid}px across, so $grid dots are plenty there -
+        |#     but a **tile is drawn much larger**, and there $grid dots look like a staircase.
+        |#     Draw tile icons at 48 or 64 ('z2-icon scale 1 64' moves one you already have).
         |#   ⚠ A tile gets a drawing by itself when the name gives it away ('z2-tile set 1
         |#     remind.sh' puts a clock there). Anything you set here wins and is never touched
         |#     again — 'z2-icon auto 1' hands that slot back to the automatic choice.
@@ -424,6 +440,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#      z2-icon edit 1              redraw it yourself
         |#      z2-icon save 1 my-face      name that drawing and add it to the list
         |#      z2-icon sample 3 my-face    put the same drawing on slot 3
+        |#      z2-icon grid 64             draw new ones on a 64x64 grid from now on
+        |#      z2-icon scale 1 64          move slot 1 onto a 64x64 grid to draw it finer
         |#      z2-icon list -p             check what is where, drawings and all
         |#      z2-icon clear notify        put the notification icon back
     """.trimMargin() else """
@@ -445,6 +463,13 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#   auto <1〜$tiles|all>         割り当てたコマンドから選び直す
         |#   clear <対象|all>         既定のアイコンに戻す
         |#
+        |# 細かさ (マス目の一辺)
+        |#   grid                     これから描く絵の一辺を出す
+        |#   grid <$grids>          これから描く絵の一辺を決める (既定は $grid)
+        |#   scale <対象> <$grids>    いま入っている絵をそのマス目へ敷き直す。
+        |#                            見た目は変わらず一辺だけ変わるので、いまある絵の角を
+        |#                            描き直さずに丸められます。
+        |#
         |# 自分の絵を一覧に残す
         |#   save <対象> <名前>       いま入っている絵に名前を付けて一覧に足す
         |#   sample                   選べる絵の一覧 (番号 / 名前 /
@@ -454,14 +479,19 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#                            (すでに入れてある絵はそのまま残ります)
         |#
         |# 描き方
-        |#   ${grid}x${grid} の文字のマス目です。'.' ' ' '0' '-' '_' が空きマスで、
-        |#   それ以外の文字はすべて塗りなので、自分が見やすい字で描けます。
-        |#   まわりの余白は無視して中央に置き直すので、${grid} 行きっちりでなくてかまいません。
+        |#   文字のマス目です。'.' ' ' '0' '-' '_' が空きマスで、それ以外の文字はすべて塗りなので、
+        |#   自分が見やすい字で描けます。まわりの余白は無視して中央に置き直すので、
+        |#   行きっちりでなくてかまいません。一辺は $grids から選べます (z2-icon grid)。
+        |#   ⚠ 一辺を大きくしても絵は大きくなりません。マス目いっぱいに描かないと、
+        |#     そのぶんアイコンが小さく出ます。
         |#
         |# 覚えておくこと
-        |#   ⚠ 伝わるのは形だけです。Android がこれらのアイコンを単色で塗り直し
-        |#     (タイルは入 / 切で色が変わります)、表示は ${grid}px 前後になります。
-        |#     色は選べず、マス目より細かい描き込みは消えます。
+        |#   ⚠ 伝わるのは形だけです。Android がこれらのアイコンを単色で塗り直します
+        |#     (タイルは入 / 切で色が変わります)。色は選べません。
+        |#   ⚠ ステータスバーの表示は ${grid}px 前後なので ${grid} マスで足りますが、
+        |#     **タイルはもっと大きく出る**ので、${grid} マスだと点が階段に見えます。
+        |#     タイルの絵は 48 か 64 で描くと滑らかです
+        |#     (いまある絵は z2-icon scale 1 64 で敷き直してから直せます)。
         |#   ⚠ タイルには、割り当てた名前から分かるものに絵が自動で付きます
         |#     (z2-tile set 1 remind.sh なら時計)。ここで入れた絵はそれより優先され、
         |#     以後は自動で触りません。自動に戻したいときは z2-icon auto 1 です。
@@ -473,6 +503,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#     z2-icon edit 1                自分で描き直す
         |#     z2-icon save 1 わたしの顔     その絵に名前を付けて一覧に足す
         |#     z2-icon sample 3 わたしの顔   枠 3 にも同じ絵を入れる
+        |#     z2-icon grid 64               これから描く絵を 64x64 のマス目にする
+        |#     z2-icon scale 1 64            枠 1 の絵を 64x64 に敷き直して細かく直せるようにする
         |#     z2-icon list -p               どこに何が入っているか絵つきで確かめる
         |#     z2-icon clear notify          通知のアイコンを元に戻す
     """.trimMargin()
@@ -481,11 +513,13 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         if (en) "usage: z2-icon pick <notify|1-$tiles> | sample [name|target name] | " +
             "edit <notify|1-$tiles> | set <notify|1-$tiles> [file|-] | " +
             "save <notify|1-$tiles> <name> | forget <name> | " +
-            "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | list [-p]"
+            "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | " +
+            "grid [$grids] | scale <notify|1-$tiles> <$grids> | list [-p]"
         else "usage: z2-icon pick <notify|1-$tiles> | sample [名前|対象 名前] | " +
             "edit <notify|1-$tiles> | set <notify|1-$tiles> [ファイル|-] | " +
             "save <notify|1-$tiles> <名前> | forget <名前> | " +
-            "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | list [-p]"
+            "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | " +
+            "grid [$grids] | scale <notify|1-$tiles> <$grids> | list [-p]"
 
     /** `z2-icon set` にファイルを指定したが無かったときの文言 (後ろにファイル名が付く)。 */
     val iconNoSuchFile: String =
