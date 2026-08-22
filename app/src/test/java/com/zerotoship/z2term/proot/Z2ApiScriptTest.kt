@@ -661,15 +661,20 @@ class Z2ApiScriptTest {
             proc.waitFor()
             return out
         }
+        // ⚠ 絵を返すものには**端末の桁数**が末尾に付く (プレビューを畳むかの判断に使う)。
+        // テストは tty ではないので 0 = 「分からない」。
         try {
-            assertEquals("[1]\n[icon]\n[set]\n[1]\n[$b64]", run(null, "set", "1", artFile.absolutePath))
+            assertEquals("[1]\n[icon]\n[set]\n[1]\n[$b64]\n[0]", run(null, "set", "1", artFile.absolutePath))
             // ファイルを省いたときと `-` は同じ = 標準入力から読む。
-            assertEquals("[1]\n[icon]\n[set]\n[notify]\n[$b64]", run(art, "set", "notify", "-"))
-            assertEquals("[1]\n[icon]\n[set]\n[notify]\n[$b64]", run(art, "set", "notify"))
+            assertEquals("[1]\n[icon]\n[set]\n[notify]\n[$b64]\n[0]", run(art, "set", "notify", "-"))
+            assertEquals("[1]\n[icon]\n[set]\n[notify]\n[$b64]\n[0]", run(art, "set", "notify"))
             // 引数の数で読み分ける (無し=一覧 / 1 つ=表示 / 2 つ=対象へ入れる)。
             assertEquals("[1]\n[icon]\n[samples]", run(null, "sample"))
-            assertEquals("[1]\n[icon]\n[sample-show]\n[bell]", run(null, "sample", "bell"))
-            assertEquals("[1]\n[icon]\n[sample]\n[2]\n[bell]", run(null, "sample", "2", "bell"))
+            assertEquals("[1]\n[icon]\n[sample-show]\n[bell]\n[0]", run(null, "sample", "bell"))
+            assertEquals("[1]\n[icon]\n[sample]\n[2]\n[bell]\n[0]", run(null, "sample", "2", "bell"))
+            assertEquals("[1]\n[icon]\n[scale]\n[2]\n[48]\n[0]", run(null, "scale", "2", "48"))
+            assertEquals("[1]\n[icon]\n[grid]\n[48]", run(null, "grid", "48"))
+            assertEquals("[1]\n[icon]\n[grid]", run(null, "grid"))
             assertEquals("[1]\n[icon]\n[list]", run(null))
             assertEquals("[1]\n[icon]\n[clear]\n[all]", run(null, "clear", "all"))
             // 自分で入れた絵を捨てて割り当てから選び直す道 (これが無いと自動へ戻せない)。

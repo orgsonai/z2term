@@ -352,23 +352,30 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    data=${d}(base64 < "${d}1" | tr -d '\n')
         |  fi
         |}
+# 端末の桁数。⚠ **プレビューを畳むかどうかにしか使わない** — 48 の絵を狭い画面に合わせて
+        |# 畳むと、せっかく均した斜めが元の階段に戻って見える。測れないときは 0 (アプリ側で既定)。
+        |cols=0
+        |if [ -t 0 ] && [ -t 1 ]; then
+        |  cols=${d}(stty size 2>/dev/null | cut -d' ' -f2)
+        |  case "${d}cols" in ''|*[!0-9]*) cols=0 ;; esac
+        |fi
         |sub="${d}{1:-list}"
         |case "${d}sub" in
         |  list)
         |    # -p は絵つき。名前だけでは形を思い出せないときに使う。
         |    case "${d}{2:-}" in
-        |      -p|--preview) exec /usr/local/bin/z2api 1 icon list-preview ;;
+        |      -p|--preview) exec /usr/local/bin/z2api 1 icon list-preview "${d}cols" ;;
         |    esac
         |    exec /usr/local/bin/z2api 1 icon list ;;
         |  save)
         |    [ ${d}# -ge 3 ] || usage
-        |    exec /usr/local/bin/z2api 1 icon save "${d}2" "${d}3" ;;
+        |    exec /usr/local/bin/z2api 1 icon save "${d}2" "${d}3" "${d}cols" ;;
         |  forget)
         |    [ ${d}# -ge 2 ] || usage
         |    exec /usr/local/bin/z2api 1 icon forget "${d}2" ;;
         |  show)
         |    [ ${d}# -ge 2 ] || usage
-        |    exec /usr/local/bin/z2api 1 icon show "${d}2" ;;
+        |    exec /usr/local/bin/z2api 1 icon show "${d}2" "${d}cols" ;;
         |  clear)
         |    [ ${d}# -ge 2 ] || usage
         |    exec /usr/local/bin/z2api 1 icon clear "${d}2" ;;
@@ -383,18 +390,18 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    exec /usr/local/bin/z2api 1 icon grid ;;
         |  scale)
         |    [ ${d}# -ge 3 ] || usage
-        |    exec /usr/local/bin/z2api 1 icon scale "${d}2" "${d}3" ;;
+        |    exec /usr/local/bin/z2api 1 icon scale "${d}2" "${d}3" "${d}cols" ;;
         |  set)
         |    [ ${d}# -ge 2 ] || usage
         |    read_art "${d}{3:--}"
-        |    exec /usr/local/bin/z2api 1 icon set "${d}2" "${d}data" ;;
+        |    exec /usr/local/bin/z2api 1 icon set "${d}2" "${d}data" "${d}cols" ;;
         |  sample)
         |    shift
         |    # 引数の数で読み分ける: 無し=一覧 / 1 つ=その絵を表示 / 2 つ=対象へ入れる。
         |    case ${d}# in
         |      0) exec /usr/local/bin/z2api 1 icon samples ;;
-        |      1) exec /usr/local/bin/z2api 1 icon sample-show "${d}1" ;;
-        |      *) exec /usr/local/bin/z2api 1 icon sample "${d}1" "${d}2" ;;
+        |      1) exec /usr/local/bin/z2api 1 icon sample-show "${d}1" "${d}cols" ;;
+        |      *) exec /usr/local/bin/z2api 1 icon sample "${d}1" "${d}2" "${d}cols" ;;
         |    esac ;;
         |  pick)
         |    [ ${d}# -ge 2 ] || usage
@@ -404,7 +411,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    # 中止する — 入力を待たずに既定を入れてしまうと、押した覚えの無い絵が入る。
         |    read -r choice || { echo ""; echo "${m.iconPickCancelled}"; exit 1; }
         |    [ -n "${d}choice" ] || { echo "${m.iconPickCancelled}"; exit 0; }
-        |    exec /usr/local/bin/z2api 1 icon sample "${d}2" "${d}choice" ;;
+        |    exec /usr/local/bin/z2api 1 icon sample "${d}2" "${d}choice" "${d}cols" ;;
         |  edit)
         |    [ ${d}# -ge 2 ] || usage
         |    # ${d}EDITOR が無い端末でも「開いて描く」が使えるように、よくあるものから探す。
@@ -429,7 +436,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    fi
         |    read_art "${d}tmp"
         |    rm -f "${d}tmp"
-        |    exec /usr/local/bin/z2api 1 icon set "${d}2" "${d}data" ;;
+        |    exec /usr/local/bin/z2api 1 icon set "${d}2" "${d}data" "${d}cols" ;;
         |  *) usage ;;
         |esac
     """.trimMargin() + "\n"

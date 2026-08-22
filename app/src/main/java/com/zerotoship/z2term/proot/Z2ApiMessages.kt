@@ -403,10 +403,10 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# How fine the grid is
         |#   grid                     the size new drawings are made at
         |#   grid <$grids>          set it ($grid unless you change it)
-        |#   scale <target> <$grids>  lay the drawing that is on <target> out on that grid.
-        |#                            **Diagonal steps are halved on the way** (Scale2x), so a
-        |#                            drawing you already have comes out smoother by itself.
-        |#                            24 -> 48 is the cleanest (exactly double).
+        |#   scale <target> <$grids>  lay the drawing that is on <target> out on that grid
+        |#                            (halving the diagonal steps on the way). **It gives you
+        |#                            room to draw finer** - the icon that comes out is
+        |#                            smoothed anyway, so you need not run this to get that.
         |#
         |# Keeping your own drawings in the list
         |#   save <target> <name>     name what is on <target> now and add it to the list
@@ -427,9 +427,10 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# Worth knowing
         |#   ⚠ Only the shape gets through. Android paints these icons a single colour of its own
         |#     (tiles change colour between on and off), so there is no colour to pick.
-        |#   ⚠ The status bar shows them about ${grid}px across, so $grid dots are plenty there -
-        |#     but a **tile is drawn much larger**, and there $grid dots look like a staircase.
-        |#     Draw tile icons at 48 or 64 ('z2-icon scale 1 48' smooths one you already have).
+        |#   ⚠ **The outline is smoothed when it goes out.** A drawing made on $grid dots still
+        |#     comes out smooth on a tile (which is drawn much larger than the status bar), so
+        |#     the grid is not something to worry about day to day. 48 / 64 are for when **you**
+        |#     want to draw finer. 'show' prints the drawing as you drew it; the tile is smoother.
         |#   ⚠ A tile gets a drawing by itself when the name gives it away ('z2-tile set 1
         |#     remind.sh' puts a clock there). Anything you set here wins and is never touched
         |#     again — 'z2-icon auto 1' hands that slot back to the automatic choice.
@@ -441,7 +442,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#      z2-icon save 1 my-face      name that drawing and add it to the list
         |#      z2-icon sample 3 my-face    put the same drawing on slot 3
         |#      z2-icon grid 64             draw new ones on a 64x64 grid from now on
-        |#      z2-icon scale 1 48          smooth slot 1 out onto a 48x48 grid
+        |#      z2-icon scale 1 48          move slot 1 onto a 48x48 grid to draw it finer
         |#      z2-icon list -p             check what is where, drawings and all
         |#      z2-icon clear notify        put the notification icon back
     """.trimMargin() else """
@@ -466,10 +467,10 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# 細かさ (マス目の一辺)
         |#   grid                     これから描く絵の一辺を出す
         |#   grid <$grids>          これから描く絵の一辺を決める (既定は $grid)
-        |#   scale <対象> <$grids>    いま入っている絵をそのマス目へ敷き直す。
-        |#                            **その途中で斜めの階段を均す**ので (Scale2x)、
-        |#                            いまある絵がそのまま滑らかになります。
-        |#                            24 → 48 がいちばんきれいです (ちょうど 2 倍)。
+        |#   scale <対象> <$grids>    いま入っている絵をそのマス目へ敷き直す (斜めの階段を
+        |#                            均しながら)。**描き足せる細かさが増えます** — 出る
+        |#                            アイコンはもともと均されるので、滑らかにするために
+        |#                            打つ必要はありません。
         |#
         |# 自分の絵を一覧に残す
         |#   save <対象> <名前>       いま入っている絵に名前を付けて一覧に足す
@@ -489,10 +490,10 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# 覚えておくこと
         |#   ⚠ 伝わるのは形だけです。Android がこれらのアイコンを単色で塗り直します
         |#     (タイルは入 / 切で色が変わります)。色は選べません。
-        |#   ⚠ ステータスバーの表示は ${grid}px 前後なので ${grid} マスで足りますが、
-        |#     **タイルはもっと大きく出る**ので、${grid} マスだと点が階段に見えます。
-        |#     タイルの絵は 48 か 64 で描くと滑らかです
-        |#     (いまある絵は z2-icon scale 1 48 で均せます)。
+        |#   ⚠ **出すときに輪郭は自動で均されます**。${grid} マスで描いた絵も、タイル
+        |#     (ステータスバーよりずっと大きく出ます) では滑らかに出るので、ふだん一辺を
+        |#     気にする必要はありません。48 / 64 は**自分で細かく描き込みたいとき**に選びます。
+        |#     show が出すのは描いたままの絵で、タイルにはそれより滑らかに出ます。
         |#   ⚠ タイルには、割り当てた名前から分かるものに絵が自動で付きます
         |#     (z2-tile set 1 remind.sh なら時計)。ここで入れた絵はそれより優先され、
         |#     以後は自動で触りません。自動に戻したいときは z2-icon auto 1 です。
@@ -505,7 +506,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#     z2-icon save 1 わたしの顔     その絵に名前を付けて一覧に足す
         |#     z2-icon sample 3 わたしの顔   枠 3 にも同じ絵を入れる
         |#     z2-icon grid 64               これから描く絵を 64x64 のマス目にする
-        |#     z2-icon scale 1 48            枠 1 の絵を 48x48 へ均す (斜めの階段が半分になる)
+        |#     z2-icon scale 1 48            枠 1 の絵を 48x48 へ (細かく描き込めるようにする)
         |#     z2-icon list -p               どこに何が入っているか絵つきで確かめる
         |#     z2-icon clear notify          通知のアイコンを元に戻す
     """.trimMargin()

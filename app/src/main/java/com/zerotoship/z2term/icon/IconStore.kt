@@ -53,10 +53,24 @@ object IconStore {
     internal const val OUT_PX = 192
 
     /**
-     * 端末で見るプレビューの桁数の上限。これを超える絵は 2x2 を 1 点に畳んで出す。
+     * Bitmap を作るときに**内部で上げる**一辺の上限 (0.8.382)。
+     *
+     * ⚠ **一辺を選べるようにしただけでは、誰のアイコンも滑らかにならなかった** — 手元の絵も
+     * 同梱の 14 種も 24 で描かれており、`z2-icon scale` を打った人にしか効かない
+     * (利用者の指摘:「解像度倍にしてるのに滑らかになってないのは欠陥」)。⇒ **出す直前に
+     * [scale2x] で均す**。絵そのものは 24 のまま、出るものだけが 96 相当の輪郭になる。
+     *
+     * ⚠ [OUT_PX] を割り切る値であること。64 の絵は倍にすると 128 で割り切れないので、
+     * そのまま 3 倍で敷く (64 まで描き込んだ絵は、均さなくても十分細かい)。
+     */
+    internal const val SMOOTH_GRID = 96
+
+    /**
+     * 端末の幅が分からないときのプレビュー桁数。これを超える絵は 2x2 を 1 点に畳んで出す。
      *
      * ⚠ **携帯の画面幅で折り返さないこと**が条件。64 桁のまま出すと行が折り返して、
-     * 形の確認という目的そのものが果たせない。
+     * 形の確認という目的そのものが果たせない。⚠ 逆に**畳めば滑らかさは消える**ので、
+     * 幅が分かるときは [preview] にそれを渡すこと (畳まずに出せるなら出す)。
      */
     private const val PREVIEW_COLS = 32
 
@@ -362,7 +376,24 @@ object IconStore {
     fun nameOf(context: Context, target: String): String? {
         val art = text(context, target) ?: return null
         builtinByArt[art]?.let { return it }
-        return userSampleNames(context).firstOrNull { userSample(context, it) == art }
+        // ⚠ 自分の絵も敷き直したもので引く。`z2-icon scale` を通しただけで名前が消えると、
+        // 一覧では「絵が入っているのに名前が無いもの」に見え、消えたのかと思わせる。
+        return userSampleNames(context).firstOrNull { name ->
+            userSample(context, name)?.let { it == art || sameShape(it, art) } == true
+        }
+    }
+
+    /**
+     * [source] を [art] と同じ一辺へ敷き直したら [art] になるか (= 同じ絵の敷き直しか)。
+     *
+     * **なぜ要るか**: 名前の逆引きは正規形テキストの一致で行うので、`z2-icon scale` を通した
+     * 絵は**一字も一致しない**。⚠ そこで名前を落とすと、`z2-icon list` に「絵はあるのに名前が
+     * `-`」の枠が並び、**入れた絵が消えたように見える**（利用者の報告）。
+     */
+    private fun sameShape(source: String, art: String): Boolean {
+        val g = art.count { it == '\n' } + 1
+        if (g !in GRIDS) return false
+        return runCatching { toText(parse(zoomText(parse(source), g), g)) }.getOrNull() == art
     }
 
     /**
@@ -370,10 +401,16 @@ object IconStore {
      * [parse] を通した**正規形**で引き当てる — 保存されている絵も正規形なので、これで一致する。
      */
     private val builtinByArt: Map<String, String> by lazy {
-        IconSamples.names().mapNotNull { name ->
-            IconSamples.get(name)
-                ?.let { runCatching { toText(parse(it)) }.getOrNull() }
-                ?.let { it to name }
+        IconSamples.names().flatMap { name ->
+            val base = IconSamples.get(name)?.let { runCatching { parse(it) }.getOrNull() }
+                ?: return@flatMap emptyList()
+            // 描かれたままの一辺と、[zoomText] で敷き直した一辺の全部を同じ名前へ寄せる
+            // (`z2-icon scale` を通した同梱の絵にも名前が出るように)。
+            val texts = listOf(toText(base)) + GRIDS.mapNotNull { g ->
+                if (g == gridOf(base)) null
+                else runCatching { toText(parse(zoomText(base, g), g)) }.getOrNull()
+            }
+            texts.map { it to name }
         }.toMap()
     }
 
@@ -422,16 +459,25 @@ object IconStore {
      *
      * 塗る点は**不透明な白**。OS がここへ状態の色を被せるので、こちらで色を決めても意味が無い
      * (被せない機種では白のまま出る — ステータスバーもタイルも暗い背景なので白で成り立つ)。
+     *
+     * ⚠ **出す直前に [SMOOTH_GRID] まで均す**。ここを通さないと、`z2-icon scale` を自分で
+     * 打った絵しか滑らかにならない。⚠ 均すのは**表示だけ**で、保存してある絵も `show` が
+     * 出す絵も触らない — 描いたものと編集で開くものは今までどおり一致する。
      */
     private fun render(m: BooleanArray): Bitmap {
-        val grid = gridOf(m)
-        // 一辺によらず [OUT_PX] へ揃える。割り切れる一辺しか [GRIDS] に無いので、点は必ず正方形。
+        var mask = m
+        var grid = gridOf(mask)
+        while (grid * 2 <= SMOOTH_GRID) {
+            mask = scale2x(mask, grid)
+            grid *= 2
+        }
+        // 一辺によらず [OUT_PX] へ揃える。割り切れる一辺しか通らないので、点は必ず正方形。
         val scale = OUT_PX / grid
         val size = grid * scale
         val px = IntArray(size * size)
         for (y in 0 until grid) {
             for (x in 0 until grid) {
-                if (!m[y * grid + x]) continue
+                if (!mask[y * grid + x]) continue
                 for (dy in 0 until scale) {
                     val row = (y * scale + dy) * size + x * scale
                     for (dx in 0 until scale) px[row + dx] = 0xFFFFFFFF.toInt()
@@ -580,11 +626,11 @@ object IconStore {
      * ⚠ **上下 2 行を 1 文字に畳む** (`▀` `▄` `█`)。端末の文字は縦長なので、1 点 1 文字で出すと
      * 縦に間延びして**元の形に見えない**。半分に畳むとほぼ正方形になり、描いたものと同じ形が出る。
      */
-    internal fun preview(m: BooleanArray): String {
-        // 桁が多すぎる絵は、まず 2x2 を 1 点に畳んで幅を落とす (48 -> 24 / 64 -> 32)。
+    internal fun preview(m: BooleanArray, cols: Int = 0): String {
         var mask = m
         var g = gridOf(m)
-        while (g > PREVIEW_COLS) {
+        val shown = previewGrid(g, cols)
+        while (g > shown) {
             mask = shrink(mask, g)
             g /= 2
         }
@@ -600,6 +646,21 @@ object IconStore {
                 }
             }.joinToString("")
         }
+    }
+
+    /**
+     * [grid] の絵を [cols] 桁の画面へ出すときに、実際に出る桁数。
+     *
+     * ⚠ **畳むのは入りきらないときだけ**。48 の絵を機械的に 24 桁へ畳むと、せっかく均した斜めが
+     * 元の階段に戻って見え、**「敷き直しても何も変わらない」ように映る**（利用者の報告）。
+     * 呼び出し側はこれで「畳んだかどうか」も判断できる（畳んだことを黙っていると、
+     * 出ている絵が本物だと思わせてしまう）。
+     */
+    internal fun previewGrid(grid: Int, cols: Int): Int {
+        val limit = if (cols >= GRIDS.first()) cols else PREVIEW_COLS
+        var g = grid
+        while (g > limit) g /= 2
+        return g
     }
 
     /**

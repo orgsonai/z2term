@@ -457,9 +457,12 @@ z2-icon grid                   # what it is now
 z2-icon scale 1 48             # smooth the drawing on slot 1 onto a 48x48 grid
 ```
 
-`scale` **halves the diagonal steps on the way** (0.8.381, Scale2x). The drawing keeps the same
-share of the grid, so **the size on the tile does not change** — only the outline gets smoother.
-Bundled drawings and your own alike move to the smoother side in one command.
+**The outline is smoothed on the way out** (0.8.382). A drawing made on 24 dots still comes out
+smooth on a tile — the grid is not something to worry about day to day. `z2-icon show` prints the
+drawing **as you drew it**; the tile is smoother than that.
+
+`grid` and `scale` are for when **you** want to draw finer. `scale` halves the diagonal steps as it
+lays the drawing out (Scale2x), so what you have becomes the base to draw on.
 ⚠ **24 → 48 is the cleanest** (exactly double). 24 → 64 smooths up to 48 and lays the rest out,
 so some steps remain.
 ⚠ Flat areas and lone dots are only **made thicker** (apart from four corners being rounded, the

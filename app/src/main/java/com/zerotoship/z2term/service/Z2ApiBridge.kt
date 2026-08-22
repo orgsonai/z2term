@@ -989,6 +989,17 @@ object Z2ApiBridge {
         // 選んだ直後の 1 回と、2 回目からの打ち方が食い違う。
         // ⚠ 引くのは同梱の絵**と自分で保存した絵の両方**から ([IconStore.findSample])。
         // 自分の絵を一覧に足せても番号や名前で選べなければ、足す意味が無い。
+        // 端末の桁数 (CLI が測って末尾に渡す。分からないときは 0)。⚠ プレビューを畳むかどうかの
+        // 判断にしか使わない — 畳むと均した斜めが元の階段に戻って見える。
+        fun cols(i: Int): Int = args.getOrNull(i)?.trim()?.toIntOrNull() ?: 0
+        // ⚠ 画面に入りきらず畳んだときは、そのことを 1 行添える。黙って畳むと、出ている絵が
+        // 本物だと思わせてしまう (48 の絵を 24 桁で見ると、均す前と同じに見える)。
+        fun preview(m: BooleanArray, cols: Int): String {
+            val g = IconStore.gridOf(m)
+            val shown = IconStore.previewGrid(g, cols)
+            val body = IconStore.preview(m, cols)
+            return if (shown < g) "$body\n(${g}x$g → ${shown}x$shown)" else body
+        }
         fun sample(raw: String?): String {
             val key = raw.orEmpty().trim()
             return IconStore.findSample(context, key)
@@ -1001,7 +1012,7 @@ object Z2ApiBridge {
                 val t = target(args.getOrNull(1))
                 val drawn = IconStore.set(context, t, decode(args.getOrNull(2).orEmpty()))
                 applyIconChange(context, t)
-                IconStore.preview(drawn)
+                preview(drawn, cols(3))
             }
             // 編集用。未設定なら空のひな形を返す (`z2-icon edit` がこれを開く)。
             // ⚠ ひな形の一辺は `z2-icon grid` で決めた値。すでに絵がある対象は**その絵の一辺のまま**
@@ -1014,7 +1025,7 @@ object Z2ApiBridge {
                 val t = target(args.getOrNull(1))
                 val m = IconStore.mask(context, t)
                     ?: throw IllegalArgumentException("z2-icon: ${args.getOrNull(1)} は既定のアイコンのままです")
-                IconStore.preview(m)
+                preview(m, cols(2))
             }
             "clear" -> {
                 val key = args.getOrNull(1).orEmpty()
@@ -1030,7 +1041,7 @@ object Z2ApiBridge {
             "save" -> {
                 val t = target(args.getOrNull(1))
                 val name = args.getOrNull(2).orEmpty()
-                IconStore.preview(IconStore.parse(IconStore.saveUserSample(context, t, name)))
+                preview(IconStore.parse(IconStore.saveUserSample(context, t, name)), cols(3))
             }
             // 一覧から下げるだけ。⚠ すでに入れてある絵はそのまま (戻すのは `z2-icon clear`)。
             "forget" -> {
@@ -1040,12 +1051,12 @@ object Z2ApiBridge {
                 }
                 iconSamplesTsv(context)
             }
-            "sample-show" -> IconStore.preview(IconStore.parse(sample(args.getOrNull(1))))
+            "sample-show" -> preview(IconStore.parse(sample(args.getOrNull(1))), cols(2))
             "sample" -> {
                 val t = target(args.getOrNull(1))
                 val drawn = IconStore.set(context, t, sample(args.getOrNull(2)))
                 applyIconChange(context, t)
-                IconStore.preview(drawn)
+                preview(drawn, cols(3))
             }
             // 割り当てから絵を選び直す。⚠ こちらは**手で入れた絵も上書きする** — 明示的に
             // 頼まれたときだけ通る道で、これが無いと一度手で入れた枠を自動へ戻せない。
@@ -1087,14 +1098,14 @@ object Z2ApiBridge {
                     ?: throw IllegalArgumentException("z2-icon scale: ${args.getOrNull(1)} は既定のアイコンのままです")
                 val drawn = IconStore.set(context, t, IconStore.zoomText(m, g), grid = g)
                 applyIconChange(context, t)
-                IconStore.preview(drawn)
+                preview(drawn, cols(3))
             }
             "list", null, "" -> iconListTsv(context)
             // 絵つきの一覧。⚠ **入れてある対象だけ**並べる (既定のままの枠まで空欄で並べると、
             // 見たいものが画面の外へ流れる)。名前だけでは形を思い出せないときの逃げ道。
             "list-preview" -> IconStore.targets().mapNotNull { t ->
                 val m = IconStore.mask(context, t) ?: return@mapNotNull null
-                iconListHead(context, t) + "\n" + IconStore.preview(m)
+                iconListHead(context, t) + "\n" + preview(m, cols(1))
             }.joinToString("\n\n").ifEmpty { "(まだどれも変えていません)" }
             else -> throw IllegalArgumentException("z2-icon: unknown subcommand: ${args[0]}")
         }

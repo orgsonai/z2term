@@ -179,6 +179,39 @@ class IconStoreTest {
     }
 
     /**
+     * ⚠ **出す直前に内部で均した一辺も [IconStore.OUT_PX] を割り切ること**。
+     *
+     * ここが割り切れないと点の幅が 1px ずつずれ、**均したせいでかえって乱れる**。
+     * 実機のタイルでしか見えない壊れ方なので、ここで止める。
+     */
+    @Test
+    fun everySmoothedGridDividesTheBitmapSize() {
+        IconStore.GRIDS.forEach { start ->
+            var g = start
+            while (g * 2 <= IconStore.SMOOTH_GRID) g *= 2
+            assertEquals("$start を均すと $g で、${IconStore.OUT_PX}px を割り切れない", 0, IconStore.OUT_PX % g)
+        }
+    }
+
+    /**
+     * プレビューは**入りきるなら畳まない**。
+     *
+     * ⚠ 48 の絵を機械的に 24 桁へ畳むと、均した斜めが元の階段に戻って見え、
+     * 「敷き直しても何も変わらない」ように映る (利用者の報告)。
+     */
+    @Test
+    fun previewKeepsTheGridWhenTheScreenIsWideEnough() {
+        val wide = IconStore.parse("#".repeat(48), grid = 48)
+        assertEquals(48, IconStore.previewGrid(48, 48))
+        assertEquals(48, IconStore.preview(wide, cols = 60).split("\n")[0].length)
+        // 狭い画面では畳む (折り返すと形が分からなくなる方が困る)。
+        assertEquals(24, IconStore.previewGrid(48, 30))
+        assertEquals(24, IconStore.preview(wide, cols = 30).split("\n")[0].length)
+        // 幅が分からないとき (0) は既定の 32 桁まで。
+        assertEquals(24, IconStore.previewGrid(48, 0))
+    }
+
+    /**
      * 細かい絵のプレビューは**桁を畳んで**出す。
      *
      * ⚠ 64 桁のまま出すと携帯の画面幅で折り返し、形を確かめるという目的そのものが果たせない。
