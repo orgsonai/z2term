@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.384-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.385-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -321,6 +321,32 @@ Editing a host in 📜 → "SSH / SFTP" lets you add **port forwards**, in one o
 |---|---|---|
 | **-L** | brings **a remote service here** | view your home PC's web server at `127.0.0.1:8080` on the phone |
 | **-R** | lets **the remote reach this device** | ssh into the phone from your home server while you are out |
+
+**What to type (making your home PC able to reach the phone)**
+
+1. First **add your PC as a connection** (host = the PC's IP, port = 22, user = your login on the PC).
+   ⚠ These are **not** the phone's details: this feature has **the phone dial out to the PC**.
+2. Connect once normally and accept the host key (a resident tunnel cannot show that prompt).
+3. Edit that connection → **"+ Add"** under port forwarding → pick **-R** on the left and fill in:
+
+   | Field | Value | What it means |
+   |---|---|---|
+   | on that PC | `127.0.0.1` : `65152` | the entrance appears on the PC |
+   | to here | `127.0.0.1` : `65152` | whatever arrives there goes to this device's `sshd` |
+
+   `65152` is **this device's `sshd` port** (whatever you passed to `sshd -p`). Both sides read
+   `127.0.0.1` because it means "from the PC itself" and "into the phone itself" —
+   ⚠ **neither is the other machine's IP**.
+4. Turn the toggle below on and save.
+
+From the PC you then go in via **the PC's own `127.0.0.1`** (no need to find the phone's IP):
+
+```sh
+ssh -p 65152 root@127.0.0.1
+```
+
+⚠ If you used to connect to `192.168.x.x`, the PC's `known_hosts` treats this as **a different
+host**, so it asks once.
 
 Once at least one forward exists, a **"Keep this tunnel running"** toggle appears. With it on, the
 **forwards survive closing the SSH tab** (they are treated like resident servers and come back after a reboot).

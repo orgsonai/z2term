@@ -627,8 +627,11 @@ private fun ForwardRow(
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
+            // ⚠ **どちらの端がどちらの欄なのか**をラベルで言い切る。-R では上下とも "Remote" と
+            // 出ていて、何をどこへ書くのか画面から読めなかった (利用者の指摘)。
             Text(
-                text = if (fw.reverse) "Remote" else "Local",
+                text = if (fw.reverse) stringResource(R.string.ssh_forward_side_listen_remote)
+                else stringResource(R.string.ssh_forward_side_listen_local),
                 color = ZtsGreen,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
@@ -672,7 +675,8 @@ private fun ForwardRow(
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Remote",
+                text = if (fw.reverse) stringResource(R.string.ssh_forward_side_dest_local)
+                else stringResource(R.string.ssh_forward_side_dest_remote),
                 color = ZtsGreen,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,

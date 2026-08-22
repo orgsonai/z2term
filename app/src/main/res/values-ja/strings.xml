@@ -225,6 +225,10 @@
     <string name="ssh_resident_tunnel_reverse_desc">⚠ -R を含みます: 常駐中は接続先からこの端末へ入れる状態になります。SSH タブを閉じても転送は生き続けます。先にホスト鍵の承認が必要です。</string>
     <string name="ssh_tunnel_stopped">常駐していません</string>
     <string name="ssh_tunnel_retry">再接続 %1$d 回目</string>
+    <string name="ssh_forward_side_listen_local">この端末</string>
+    <string name="ssh_forward_side_dest_remote">→ 接続先の</string>
+    <string name="ssh_forward_side_listen_remote">接続先で待つ</string>
+    <string name="ssh_forward_side_dest_local">→ この端末の</string>
     <string name="ssh_forward_local_desc">遠くのサービスをこちらへ</string>
     <string name="ssh_forward_reverse_desc">こちらを遠くから触れるように</string>
     <string name="history_search_hint">絞り込み（空白区切りで複数語）</string>

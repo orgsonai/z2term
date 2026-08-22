@@ -228,6 +228,10 @@
     <!-- 常駐トンネル (A2) の生死表示。0.8.367: LAN 到達性の担保になったので「張れているか」が見えないと困る。 -->
     <string name="ssh_tunnel_stopped">tunnel not running</string>
     <string name="ssh_tunnel_retry">retry %1$d</string>
+    <string name="ssh_forward_side_listen_local">here</string>
+    <string name="ssh_forward_side_dest_remote">to</string>
+    <string name="ssh_forward_side_listen_remote">on that PC</string>
+    <string name="ssh_forward_side_dest_local">to here</string>
     <string name="ssh_forward_local_desc">bring a remote service here</string>
     <string name="ssh_forward_reverse_desc">let the remote reach this device</string>
     <string name="history_search_hint">filter (space-separated words)</string>
