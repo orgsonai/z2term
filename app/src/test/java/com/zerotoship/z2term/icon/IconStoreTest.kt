@@ -129,15 +129,21 @@ class IconStoreTest {
     }
 
     /**
-     * 一辺はどれも [IconStore.OUT_PX] を割り切ること。
+     * ⚠ **細かい一辺ほど、出すときも細かいこと**。
      *
-     * ⚠ 割り切れない一辺を混ぜると、点を敷くときの幅が 1px ずつずれて、**細かく描いた絵ほど
-     * かえって乱れる**。実機でしか見えない壊れ方なので、ここで止める。
+     * ここが逆転すると `z2-icon scale` で細かくした人が損をする — 実際 0.8.382 では 64 の絵だけ
+     * 均されず、**24 のまま置いた方が滑らかに出る**状態になっていた (利用者の指摘で発覚)。
      */
     @Test
-    fun everyGridDividesTheBitmapSize() {
+    fun finerGridsNeverComeOutRougher() {
+        val smoothed = IconStore.GRIDS.map { IconStore.smoothedGrid(it) }
+        assertEquals(IconStore.GRIDS.sorted(), IconStore.GRIDS)
+        assertEquals(smoothed.sorted(), smoothed)
+        // どの一辺も、2 倍を繰り返して上限へ届くこと (届かない一辺は均されないまま残る)。
         IconStore.GRIDS.forEach { g ->
-            assertEquals("$g は ${IconStore.OUT_PX}px を割り切れない", 0, IconStore.OUT_PX % g)
+            val s = IconStore.smoothedGrid(g)
+            assertTrue("$g は均しても $s どまり", s * 2 > IconStore.SMOOTH_GRID)
+            assertEquals("$g -> $s は 2 のべき倍ではない", 0, s % g)
         }
     }
 
@@ -176,21 +182,6 @@ class IconStoreTest {
         assertTrue(lines.all { it.length == g })
         // 1 点だけなら、上半分か下半分のどちらかしか塗られていない。
         assertTrue(IconStore.preview(m).any { it == '▀' || it == '▄' })
-    }
-
-    /**
-     * ⚠ **出す直前に内部で均した一辺も [IconStore.OUT_PX] を割り切ること**。
-     *
-     * ここが割り切れないと点の幅が 1px ずつずれ、**均したせいでかえって乱れる**。
-     * 実機のタイルでしか見えない壊れ方なので、ここで止める。
-     */
-    @Test
-    fun everySmoothedGridDividesTheBitmapSize() {
-        IconStore.GRIDS.forEach { start ->
-            var g = start
-            while (g * 2 <= IconStore.SMOOTH_GRID) g *= 2
-            assertEquals("$start を均すと $g で、${IconStore.OUT_PX}px を割り切れない", 0, IconStore.OUT_PX % g)
-        }
     }
 
     /**

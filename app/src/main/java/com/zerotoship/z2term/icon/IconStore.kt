@@ -45,25 +45,28 @@ object IconStore {
     const val DEFAULT_GRID = 24
 
     /**
-     * 出来上がる Bitmap の一辺 (px)。**絵の一辺によらずここへ揃える**。
-     *
-     * 点をそのまま渡すと OS 側の拡大で**にじむ**ので、こちらで整数倍に引き伸ばしてから渡す
-     * (点の角を保つ)。192 は [GRIDS] のどれでも割り切れる最小の数 (24x8 / 48x4 / 64x3)。
-     */
-    internal const val OUT_PX = 192
-
-    /**
      * Bitmap を作るときに**内部で上げる**一辺の上限 (0.8.382)。
      *
      * ⚠ **一辺を選べるようにしただけでは、誰のアイコンも滑らかにならなかった** — 手元の絵も
      * 同梱の 14 種も 24 で描かれており、`z2-icon scale` を打った人にしか効かない
      * (利用者の指摘:「解像度倍にしてるのに滑らかになってないのは欠陥」)。⇒ **出す直前に
-     * [scale2x] で均す**。絵そのものは 24 のまま、出るものだけが 96 相当の輪郭になる。
+     * [scale2x] で均す**。絵そのものは触らず、出るものだけが細かい輪郭になる。
      *
-     * ⚠ [OUT_PX] を割り切る値であること。64 の絵は倍にすると 128 で割り切れないので、
-     * そのまま 3 倍で敷く (64 まで描き込んだ絵は、均さなくても十分細かい)。
+     * ⚠ **[GRIDS] のどれもが 2 倍を繰り返してここへ届くこと** (24 -> 96 / 48 -> 96 /
+     * 64 -> 128)。128 を外すと 64 の絵だけ均されず、**細かく描いた方が粗く出る**という
+     * 逆転が起きる (0.8.382 で実際にそうなっていた)。[smoothedGrid] が単調であることを
+     * `IconStoreTest.finerGridsNeverComeOutRougher` が固定する。
      */
-    internal const val SMOOTH_GRID = 96
+    internal const val SMOOTH_GRID = 128
+
+    /**
+     * 均した一辺を Bitmap にするときの倍率。
+     *
+     * 点をそのまま渡すと OS 側の拡大で**にじむ**ので、こちらで整数倍に引き伸ばしてから渡す
+     * (点の角を保つ)。⚠ **整数倍であること**が要点で、出来上がりの px 数は絵によって変わってよい
+     * (192px か 256px。OS はどのみち表示の大きさへ縮める)。
+     */
+    private const val RENDER_SCALE = 2
 
     /**
      * 端末の幅が分からないときのプレビュー桁数。これを超える絵は 2x2 を 1 点に畳んで出す。
@@ -455,7 +458,19 @@ object IconStore {
         bitmap(context, tileTarget(n))?.let { Icon.createWithBitmap(it) }
 
     /**
-     * ドット絵を Bitmap にする (点を正方形で敷いて [OUT_PX] 角にする)。
+     * 出す直前に上げる一辺 ([SMOOTH_GRID] を超えない範囲で 2 倍を繰り返す)。
+     *
+     * ⚠ **細かい一辺ほど、均した後も細かいこと**。ここが逆転すると `z2-icon scale` で
+     * 細かくした人が損をする (24 のまま置いた方が滑らかに出る、という状態になる)。
+     */
+    internal fun smoothedGrid(grid: Int): Int {
+        var g = grid
+        while (g * 2 <= SMOOTH_GRID) g *= 2
+        return g
+    }
+
+    /**
+     * ドット絵を Bitmap にする (点を [RENDER_SCALE] 倍の正方形で敷く)。
      *
      * 塗る点は**不透明な白**。OS がここへ状態の色を被せるので、こちらで色を決めても意味が無い
      * (被せない機種では白のまま出る — ステータスバーもタイルも暗い背景なので白で成り立つ)。
@@ -467,12 +482,12 @@ object IconStore {
     private fun render(m: BooleanArray): Bitmap {
         var mask = m
         var grid = gridOf(mask)
-        while (grid * 2 <= SMOOTH_GRID) {
+        val smoothed = smoothedGrid(grid)
+        while (grid < smoothed) {
             mask = scale2x(mask, grid)
             grid *= 2
         }
-        // 一辺によらず [OUT_PX] へ揃える。割り切れる一辺しか通らないので、点は必ず正方形。
-        val scale = OUT_PX / grid
+        val scale = RENDER_SCALE
         val size = grid * scale
         val px = IntArray(size * size)
         for (y in 0 until grid) {

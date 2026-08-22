@@ -458,7 +458,8 @@ z2-icon scale 1 48             # smooth the drawing on slot 1 onto a 48x48 grid
 ```
 
 **The outline is smoothed on the way out** (0.8.382). A drawing made on 24 dots still comes out
-smooth on a tile — the grid is not something to worry about day to day. `z2-icon show` prints the
+smooth on a tile — the grid is not something to worry about day to day. A finer grid is smoothed
+finer too (24 and 48 to the equivalent of 96, 64 to 128). `z2-icon show` prints the
 drawing **as you drew it**; the tile is smoother than that.
 
 `grid` and `scale` are for when **you** want to draw finer. `scale` halves the diagonal steps as it
