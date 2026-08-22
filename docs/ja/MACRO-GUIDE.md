@@ -423,7 +423,7 @@ z2-tile clear 2                                # 割り当てを消す（clear a
 
 ```sh
 z2-icon pick 1                 # 組み込みの絵から番号で選んで 1 番の枠へ
-z2-icon sample                 # 組み込みの絵の一覧（14 種）
+z2-icon sample                 # 組み込みの絵の一覧（15 種・どれも 64 マス）
 z2-icon sample bell            # その絵を表示してみる
 z2-icon sample notify bell     # 通知アイコンをベルにする
 z2-icon edit 1                 # $EDITOR で描く（保存すると即反映）

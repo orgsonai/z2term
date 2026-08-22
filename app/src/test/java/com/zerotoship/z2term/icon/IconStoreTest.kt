@@ -244,6 +244,22 @@ class IconStoreTest {
     }
 
     /**
+     * 同梱の絵は**いちばん細かい一辺で描いてあること**。
+     *
+     * ⚠ **24 で描いた絵を機械的に拡大しても粗さは消えない** — 元が 24 段の輪郭なら、いくら
+     * 大きく敷いても 24 段のままで、[IconStore.zoomText] が均せるのは段の大きさだけ
+     * (利用者の指摘:「サイズを大きくしただけで荒いことは変わらない」)。ここが 24 へ戻ると、
+     * `z2-icon pick` で入れた人のタイルだけまた階段に見える。
+     */
+    @Test
+    fun everySampleIsDrawnAtTheFinestGrid() {
+        val finest = IconStore.GRIDS.last()
+        IconSamples.ALL.forEach { (name, art) ->
+            assertEquals("$name の一辺", finest, IconStore.gridOf(IconStore.parse(art)))
+        }
+    }
+
+    /**
      * **同梱マクロは全部、タイルに置いた時点で絵が付く**こと。
      *
      * `z2-macro install` で入るものが「自分では絵を選べない人が最初に置くもの」なので、

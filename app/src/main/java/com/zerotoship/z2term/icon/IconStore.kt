@@ -247,12 +247,40 @@ object IconStore {
             return null
         }
         val parsed = runCatching { parse(IconSamples.get(name).orEmpty()) }.getOrNull() ?: return null
+        val art = toText(parsed)
+        // ⚠ 中身が同じなら書かない。[refreshAuto] が起動のたびに呼ぶので、ここで毎回
+        // 書き直すと SharedPreferences とタイルの再描画を無駄に起こす。
+        if (text(context, target) == art && wasAuto) return name
         prefs(context).edit {
-            putString(target, toText(parsed))
+            putString(target, art)
             putBoolean(KEY_AUTO_PREFIX + target, true)
         }
         cache.remove(target)
         return name
+    }
+
+    /**
+     * 自動で入れた絵を同梱の最新版へ入れ直す (0.8.383・起動時に 1 回)。
+     *
+     * **なぜ要るか**: 同梱の絵を描き直しても (0.8.383 で 15 種すべて 64 で描き起こした)、
+     * すでに入っている絵は古いままで、⚠ **「更新したのにタイルは前のまま」** になる。
+     * 自動で入った枠は本来こちらの持ちものなので、新しい絵に追いつかせる。
+     *
+     * ⚠ **手で入れた絵には触らない** ([autoAssign] が印で見分ける)。⚠ 中身が変わっていない
+     * ときは書き込みもタイルの再描画も起こさない (起動のたびに走るため)。
+     *
+     * @return 入れ直した枠の数
+     */
+    fun refreshAuto(context: Context, commandOf: (Int) -> String?): Int {
+        var changed = 0
+        (1..TileStore.COUNT).forEach { slot ->
+            val target = tileTarget(slot)
+            if (!isAuto(context, target)) return@forEach
+            val before = text(context, target)
+            autoAssign(context, slot, commandOf(slot).orEmpty())
+            if (text(context, target) != before) changed++
+        }
+        return changed
     }
 
     /**

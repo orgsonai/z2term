@@ -429,7 +429,7 @@ The notification icon in the status bar and the quick-settings tile icons can be
 
 ```sh
 z2-icon pick 1                 # choose one of the built-in drawings for slot 1
-z2-icon sample                 # list the built-in drawings (14 of them)
+z2-icon sample                 # list the built-in drawings (15 of them, all 64 dots)
 z2-icon sample bell            # print one of them
 z2-icon sample notify bell     # put the bell on the notification icon
 z2-icon edit 1                 # draw it in $EDITOR (saving applies it)

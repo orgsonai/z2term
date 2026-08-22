@@ -62,6 +62,21 @@ class Z2TermApplication : Application() {
                 }
             }
         }
+        // 自動で入ったタイルの絵を、同梱の最新版へ追いつかせる (0.8.383)。⚠ 手で入れた絵は
+        // 触らない。⚠ ここを省くと、絵を描き直しても**すでに置いてある枠だけ前のまま**になる。
+        appScope.launch {
+            runCatching {
+                val n = com.zerotoship.z2term.icon.IconStore.refreshAuto(this@Z2TermApplication) { slot ->
+                    com.zerotoship.z2term.tile.TileStore.get(this@Z2TermApplication, slot)?.command
+                }
+                if (n > 0) {
+                    Log.i(TAG, "refreshed $n auto tile icon(s)")
+                    (1..com.zerotoship.z2term.tile.TileStore.COUNT).forEach {
+                        com.zerotoship.z2term.tile.Z2TileService.requestUpdate(this@Z2TermApplication, it)
+                    }
+                }
+            }
+        }
         // 前回までの「なぜ落ちたか」を OS から拾って logcat と ~/.z2term/exits.jsonl へ (0.8.376)。
         // ⚠ **アプリが自分の死に方を知る唯一の機会がここ**。メモリ不足で殺された場合はプロセスが
         // 何も残さずに消えるので、次に起きたときに OS 側の記録を写しておくしかない。
