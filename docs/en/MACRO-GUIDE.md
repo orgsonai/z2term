@@ -437,7 +437,7 @@ z2-icon show 1                 # print the current drawing
 z2-icon clear notify           # back to the built-in icon (clear all works too)
 z2-icon list                   # which ones you have changed (4th column: its grid)
 z2-icon grid 64                # draw new ones on a 64x64 grid from now on
-z2-icon scale 1 64             # lay slot 1 out on a 64x64 grid (it looks the same)
+z2-icon scale 1 48             # smooth slot 1 out onto a 48x48 grid
 ```
 
 The targets are **`notify`** (one drawing for every notification this app puts out) and
@@ -454,11 +454,16 @@ show as steps.
 ```sh
 z2-icon grid 64                # the grid new drawings are made on (24 / 48 / 64; 24 by default)
 z2-icon grid                   # what it is now
-z2-icon scale 1 64             # lay the drawing on slot 1 out on a 64x64 grid
+z2-icon scale 1 48             # smooth the drawing on slot 1 onto a 48x48 grid
 ```
 
-`scale` **does not change how it looks** (the drawing keeps the same share of the grid). All it
-adds is room to draw finer, so run it and then round off the corners with `z2-icon edit`.
+`scale` **halves the diagonal steps on the way** (0.8.381, Scale2x). The drawing keeps the same
+share of the grid, so **the size on the tile does not change** — only the outline gets smoother.
+Bundled drawings and your own alike move to the smoother side in one command.
+⚠ **24 → 48 is the cleanest** (exactly double). 24 → 64 smooths up to 48 and lays the rest out,
+so some steps remain.
+⚠ Flat areas and lone dots are only **made thicker** (apart from four corners being rounded, the
+shape you drew is untouched).
 ⚠ Laying a drawing out on a smaller grid **drops thin lines** (there is no way back).
 ⚠ **A bigger grid does not make a bigger icon.** Fill the grid, or the drawing comes out smaller
 than the one it replaced.

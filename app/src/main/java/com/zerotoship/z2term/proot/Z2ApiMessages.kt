@@ -404,9 +404,9 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#   grid                     the size new drawings are made at
         |#   grid <$grids>          set it ($grid unless you change it)
         |#   scale <target> <$grids>  lay the drawing that is on <target> out on that grid.
-        |#                            It comes out looking exactly the same - only the grid
-        |#                            changes - so you can round off the corners of a drawing
-        |#                            you already have instead of starting over.
+        |#                            **Diagonal steps are halved on the way** (Scale2x), so a
+        |#                            drawing you already have comes out smoother by itself.
+        |#                            24 -> 48 is the cleanest (exactly double).
         |#
         |# Keeping your own drawings in the list
         |#   save <target> <name>     name what is on <target> now and add it to the list
@@ -429,7 +429,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#     (tiles change colour between on and off), so there is no colour to pick.
         |#   ⚠ The status bar shows them about ${grid}px across, so $grid dots are plenty there -
         |#     but a **tile is drawn much larger**, and there $grid dots look like a staircase.
-        |#     Draw tile icons at 48 or 64 ('z2-icon scale 1 64' moves one you already have).
+        |#     Draw tile icons at 48 or 64 ('z2-icon scale 1 48' smooths one you already have).
         |#   ⚠ A tile gets a drawing by itself when the name gives it away ('z2-tile set 1
         |#     remind.sh' puts a clock there). Anything you set here wins and is never touched
         |#     again — 'z2-icon auto 1' hands that slot back to the automatic choice.
@@ -441,7 +441,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#      z2-icon save 1 my-face      name that drawing and add it to the list
         |#      z2-icon sample 3 my-face    put the same drawing on slot 3
         |#      z2-icon grid 64             draw new ones on a 64x64 grid from now on
-        |#      z2-icon scale 1 64          move slot 1 onto a 64x64 grid to draw it finer
+        |#      z2-icon scale 1 48          smooth slot 1 out onto a 48x48 grid
         |#      z2-icon list -p             check what is where, drawings and all
         |#      z2-icon clear notify        put the notification icon back
     """.trimMargin() else """
@@ -467,8 +467,9 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#   grid                     これから描く絵の一辺を出す
         |#   grid <$grids>          これから描く絵の一辺を決める (既定は $grid)
         |#   scale <対象> <$grids>    いま入っている絵をそのマス目へ敷き直す。
-        |#                            見た目は変わらず一辺だけ変わるので、いまある絵の角を
-        |#                            描き直さずに丸められます。
+        |#                            **その途中で斜めの階段を均す**ので (Scale2x)、
+        |#                            いまある絵がそのまま滑らかになります。
+        |#                            24 → 48 がいちばんきれいです (ちょうど 2 倍)。
         |#
         |# 自分の絵を一覧に残す
         |#   save <対象> <名前>       いま入っている絵に名前を付けて一覧に足す
@@ -491,7 +492,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#   ⚠ ステータスバーの表示は ${grid}px 前後なので ${grid} マスで足りますが、
         |#     **タイルはもっと大きく出る**ので、${grid} マスだと点が階段に見えます。
         |#     タイルの絵は 48 か 64 で描くと滑らかです
-        |#     (いまある絵は z2-icon scale 1 64 で敷き直してから直せます)。
+        |#     (いまある絵は z2-icon scale 1 48 で均せます)。
         |#   ⚠ タイルには、割り当てた名前から分かるものに絵が自動で付きます
         |#     (z2-tile set 1 remind.sh なら時計)。ここで入れた絵はそれより優先され、
         |#     以後は自動で触りません。自動に戻したいときは z2-icon auto 1 です。
@@ -504,7 +505,7 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#     z2-icon save 1 わたしの顔     その絵に名前を付けて一覧に足す
         |#     z2-icon sample 3 わたしの顔   枠 3 にも同じ絵を入れる
         |#     z2-icon grid 64               これから描く絵を 64x64 のマス目にする
-        |#     z2-icon scale 1 64            枠 1 の絵を 64x64 に敷き直して細かく直せるようにする
+        |#     z2-icon scale 1 48            枠 1 の絵を 48x48 へ均す (斜めの階段が半分になる)
         |#     z2-icon list -p               どこに何が入っているか絵つきで確かめる
         |#     z2-icon clear notify          通知のアイコンを元に戻す
     """.trimMargin()

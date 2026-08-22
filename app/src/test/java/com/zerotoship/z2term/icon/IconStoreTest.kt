@@ -101,6 +101,34 @@ class IconStoreTest {
     }
 
     /**
+     * 敷き直しは**斜めの階段を均す** (Scale2x)。
+     *
+     * ⚠ 点をただ 2x2 に太らせるだけだと、細かいマス目へ移しても**階段は同じ大きさのまま残る** —
+     * それでは「かくかくして見える」ことが何も変わらない。
+     */
+    @Test
+    fun scalingSmoothsDiagonalSteps() {
+        val diag = IconStore.parse(".#\n#.")
+        val big = IconStore.parse(IconStore.zoomText(diag, 48), grid = 48)
+        // 太らせただけなら 4 倍ちょうど。斜めの隙間が埋まるぶん、それより多くなる。
+        assertTrue(
+            "${big.count { it }} は ${diag.count { it } * 4} より多くない",
+            big.count { it } > diag.count { it } * 4,
+        )
+    }
+
+    /**
+     * ⚠ **平らなところは太るだけ**。角が 4 つ丸まる以外は形が変わらないことを固定する —
+     * 均しの条件が緩むと、**描いた絵が勝手に別の形になる**。
+     */
+    @Test
+    fun scalingLeavesFlatAreasAlone() {
+        val block = IconStore.parse((1..6).joinToString("\n") { "######" })
+        val big = IconStore.parse(IconStore.zoomText(block, 48), grid = 48)
+        assertEquals(block.count { it } * 4 - 4, big.count { it })
+    }
+
+    /**
      * 一辺はどれも [IconStore.OUT_PX] を割り切ること。
      *
      * ⚠ 割り切れない一辺を混ぜると、点を敷くときの幅が 1px ずつずれて、**細かく描いた絵ほど

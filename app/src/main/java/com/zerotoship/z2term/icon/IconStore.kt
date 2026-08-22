@@ -507,14 +507,18 @@ object IconStore {
     internal fun emptyText(grid: Int = DEFAULT_GRID): String = toText(BooleanArray(grid * grid))
 
     /**
-     * 絵を一辺 [grid] のマス目へ敷き直したテキスト (`z2-icon scale`)。
+     * 絵を一辺 [grid] のマス目へ敷き直したテキスト (`z2-icon scale`)。**斜めの階段を均す**。
      *
-     * **なぜ要るか**: 24 で描いた絵を 48 で描き直すのは、事実上の描き直しになる。敷き直して
-     * から角を削る方が手数がずっと少ない。
+     * **なぜ要るか**: 24 で描いた絵を 48 で描き直すのは事実上の描き直しになる。一方、点をただ
+     * 2x2 に太らせただけでは**階段はそのままの大きさで残る**ので、細かいマス目へ移した意味が
+     * ほとんど無い。⇒ 2 倍にできるあいだは [scale2x] を通し、**斜めの段を半分の大きさに割る**。
+     * 手元の絵も同梱の絵も、これ 1 回で滑らかな側へ移せる。
      *
-     * ⚠ **見た目は変わらない**。マス目に対する絵の割合をそのまま保つので、タイルに出る大きさは
-     * 敷き直す前と同じ。増えるのは「描き足せる細かさ」だけで、これだけでは滑らかにならない
-     * (滑らかにするのはこの後の手直し)。
+     * ⚠ **見た目 (マス目に対する絵の割合) は変わらない**。タイルに出る大きさは敷き直す前と同じで、
+     * 変わるのは輪郭の細かさだけ。
+     *
+     * ⚠ **2 倍にならない端数は近い点を拾って敷き直す** (24 -> 64 なら 48 まで [scale2x] で上げて、
+     * 残りの 4/3 倍ぶん)。そこは階段が均されないので、24 -> 48 がいちばんきれいに決まる。
      *
      * ⚠ 小さいマス目へ敷き直すと**細い線は落ちる**。戻せないので、これは利用者が選んだときだけ。
      */
@@ -522,12 +526,52 @@ object IconStore {
         require(grid in GRIDS) {
             "z2-icon scale: 一辺は ${GRIDS.joinToString(" / ")} から選びます: $grid"
         }
-        val g = gridOf(m)
-        // 近い点を拾って敷き直す。整数倍でなくても形は保たれる (点の幅が 1 ずれるだけ)。
+        var cur = m
+        var g = gridOf(m)
+        while (g * 2 <= grid) {
+            cur = scale2x(cur, g)
+            g *= 2
+        }
+        // 近い点を拾って敷き直す (g == grid ならそのまま写す)。
         return (0 until grid).joinToString("\n") { y ->
             val sy = y * g / grid
-            (0 until grid).map { x -> if (m[sy * g + x * g / grid]) INK else BLANK }.joinToString("")
+            (0 until grid).map { x -> if (cur[sy * g + x * g / grid]) INK else BLANK }.joinToString("")
         }
+    }
+
+    /**
+     * ドット絵を 2 倍にする (Scale2x / EPX)。**斜めの段を半分の大きさに割る**。
+     *
+     * 1 点を 2x2 へ広げるとき、**上下左右のうち向かい合う 2 つが同じで、その 2 つが残りと違う
+     * 角だけ**を隣の値で埋める。斜めに並んだ点の隙間がそのぶん埋まり、輪郭が階段から
+     * 折れ線に近づく。⚠ **平らなところ・孤立した点は必ずそのまま太る** — 条件が成立しないので、
+     * 描いた形が勝手に崩れることが無い (ドット絵拡大にこれを選ぶ理由がそこにある)。
+     *
+     * ⚠ **枠の外は自分自身とみなす** (端の値で止める)。外を「空」として読むと、
+     * **マス目いっぱいに描いた絵の外周が削れる**。
+     */
+    private fun scale2x(m: BooleanArray, g: Int): BooleanArray {
+        val w = g * 2
+        val out = BooleanArray(w * w)
+        fun at(x: Int, y: Int): Boolean = m[y.coerceIn(0, g - 1) * g + x.coerceIn(0, g - 1)]
+        for (y in 0 until g) {
+            for (x in 0 until g) {
+                val p = at(x, y)
+                val up = at(x, y - 1)
+                val right = at(x + 1, y)
+                val left = at(x - 1, y)
+                val down = at(x, y + 1)
+                out[(y * 2) * w + x * 2] =
+                    if (left == up && left != down && up != right) up else p
+                out[(y * 2) * w + x * 2 + 1] =
+                    if (up == right && up != left && right != down) right else p
+                out[(y * 2 + 1) * w + x * 2] =
+                    if (down == left && down != right && left != up) left else p
+                out[(y * 2 + 1) * w + x * 2 + 1] =
+                    if (right == down && right != up && down != left) down else p
+            }
+        }
+        return out
     }
 
     /**
