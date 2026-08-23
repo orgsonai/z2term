@@ -959,4 +959,26 @@ SSH 接続先 %3$d 件
     <string name="snippets_group_delete_note">中のスニペットは消えません（未分類に戻ります）。</string>
     <string name="snippets_group_empty">このグループにはまだありません。「+ 新規」でここに追加できます。</string>
     <string name="snippets_group_hint">▸ グループを押すと、その中だけが出ます\n▸ 開いているグループの ✎ を押すと名前の変更・削除</string>
+    <!-- 通信量の上限 (0.8.388) -->
+    <string name="settings_net_limit">通信量の上限</string>
+    <string name="settings_net_limit_desc">今期の通信量が決めた量に達したら、z2term 自身の通信を止めます。ほかのアプリは止まりません（端末全体を止めるには VPN の枠を占有するしかないため、そこには踏み込みません）。</string>
+    <string name="net_limit_enable">上限に達したら止める</string>
+    <string name="net_limit_enable_desc">SSH とダウンロードを止めます。同じ家の中への接続と、Wi-Fi 経由の通信はそのまま使えます。</string>
+    <string name="net_limit_amount">上限</string>
+    <string name="net_limit_wifi_exempt">Wi-Fi は数えない</string>
+    <string name="net_limit_wifi_exempt_desc">数えるのはモバイル通信だけで、Wi-Fi につながっている間は止めません。OFF にすると両方を合算して数え、つながり方に関係なく止めます。</string>
+    <string name="net_limit_reset_day">数え直す日</string>
+    <string name="net_limit_reset_day_value" tools:ignore="PluralsCandidate">毎月 %1$d 日</string>
+    <string name="net_limit_used">今期 %1$s / %2$s（%3$s から）</string>
+    <string name="net_limit_unmeasurable">⚠ この端末では z2term の通信量を読み取れないため、止めません。（読むのはこのアプリのぶんだけで、追加の許可は要りません。）</string>
+    <string name="net_limit_blocked">⚠ 上限に達しています。モバイル通信での接続を止めています。</string>
+    <string name="net_limit_paused_on_wifi">いま Wi-Fi なので止めていません。</string>
+    <string name="net_limit_local_note">⚠ 止めている間も、同じ家の中（192.168.x.x / 10.x.x.x / localhost / nas.local のような名前）へはそのままつなげます。</string>
+    <string name="net_limit_shell_note">⚠ 端末（Linux）の中から出ていく通信（apk / curl / git など）は止められません。アプリが自分のプロセスの通信だけを止める手段を Android が持たないためです。数には入ります。</string>
+    <string name="net_limit_blocked_connect">今期の通信量が上限に達しているため接続しませんでした（設定 → 通信量の上限）。</string>
+    <string name="net_limit_disconnected">⚠ 通信量が上限に達したため切断しました（設定 → 通信量の上限）。</string>
+    <string name="net_limit_channel_name">通信量の上限</string>
+    <string name="net_limit_channel_desc">今期の通信量が上限に達したときに 1 度だけ知らせます。</string>
+    <string name="net_limit_notify_title">通信量が上限に達しました</string>
+    <string name="net_limit_notify_text">今期 %1$s / %2$s。次の期間まで z2term のモバイル通信を止めます（家の中への接続と Wi-Fi はそのまま使えます）。</string>
 </resources>

@@ -975,4 +975,26 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="snippets_group_delete_note">The snippets inside are kept — they move back to Ungrouped.</string>
     <string name="snippets_group_empty">Nothing in this group yet. Tap "+ New" to add one here.</string>
     <string name="snippets_group_hint">▸ Tap a group to show only what is in it\n▸ Tap the ✎ on the open group to rename or delete it</string>
+    <!-- 通信量の上限 (0.8.388) -->
+    <string name="settings_net_limit">Data limit</string>
+    <string name="settings_net_limit_desc">Stops z2term\'s own traffic once this month\'s usage reaches the amount you set. Other apps keep working — an app cannot cut off the whole device without taking over the VPN slot.</string>
+    <string name="net_limit_enable">Stop at the limit</string>
+    <string name="net_limit_enable_desc">SSH and downloads stop. Connections inside your home network keep working, and so does anything over Wi-Fi.</string>
+    <string name="net_limit_amount">Limit</string>
+    <string name="net_limit_wifi_exempt">Leave Wi-Fi out of it</string>
+    <string name="net_limit_wifi_exempt_desc">Only mobile data is counted, and nothing is stopped while you are on Wi-Fi. Turn this off to count both and stop regardless of how you are connected.</string>
+    <string name="net_limit_reset_day">Counting restarts on</string>
+    <string name="net_limit_reset_day_value" tools:ignore="PluralsCandidate">day %1$d</string>
+    <string name="net_limit_used">%1$s of %2$s used (since %3$s)</string>
+    <string name="net_limit_unmeasurable">⚠ This device will not report z2term\'s data usage, so nothing is stopped. (Usage is read for this app only; no extra permission is involved.)</string>
+    <string name="net_limit_blocked">⚠ The limit has been reached. Mobile connections are being refused.</string>
+    <string name="net_limit_paused_on_wifi">On Wi-Fi right now, so nothing is stopped.</string>
+    <string name="net_limit_local_note">⚠ Even while stopped, your home network (192.168.x.x, 10.x.x.x, localhost, names like nas.local) stays reachable.</string>
+    <string name="net_limit_shell_note">⚠ Traffic leaving from inside the Linux side (apk, curl, git…) cannot be stopped — Android gives an app no way to cut off only its own processes. It is still counted.</string>
+    <string name="net_limit_blocked_connect">Not connected: this month\'s data limit has been reached (Settings → Data limit).</string>
+    <string name="net_limit_disconnected">⚠ Disconnected: the data limit has been reached (Settings → Data limit).</string>
+    <string name="net_limit_channel_name">Data limit</string>
+    <string name="net_limit_channel_desc">Tells you once when this month\'s data limit is reached.</string>
+    <string name="net_limit_notify_title">Data limit reached</string>
+    <string name="net_limit_notify_text">%1$s of %2$s used. z2term\'s mobile connections are stopped until the next period (your home network and Wi-Fi still work).</string>
 </resources>

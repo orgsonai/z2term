@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.387-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.388-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -204,6 +204,18 @@ Settings > Maintenance > **"Show a guide"** puts the steps for using a bundled s
 - **A step that needs a value of yours asks first** (feed URL, polling interval, time of day, battery threshold, the text for a QR). It will not send an empty answer — this keeps the example values from being registered as they are.
 - ⚠ **`watch-basic` registers two triggers** (`event:power_*` for charging, `event:headset_*` for headsets). The app does the waiting, so it runs the moment you plug or unplug — no resident server needed. The last step is `Z2_WHEN_EVENT=power_connected sh …`, which **pretends charging just started** so you can check it.
 - Chosen from a GUI tab, the guide opens **after switching to a terminal tab** (it needs somewhere to type).
+
+### Stopping when you have used too much data (0.8.388)
+
+Settings > Resident servers & automation > **"Data limit"** stops **z2term's traffic** once this period's usage reaches the amount you set. You choose the limit, the day counting restarts, and whether Wi-Fi is counted.
+
+- What stops: **SSH connections, and downloads of the OS image, GUI packages and app updates**. SSH sessions already running are cut too (the reason is written into that terminal first).
+- ⚠ **Only z2term stops.** Other apps keep working — an app can only cut off the whole device by occupying the VPN slot, and z2term does not go there.
+- ⚠ **Your home network is never cut off.** `192.168.x.x`, `10.x.x.x`, `localhost`, names like `nas.local` stay reachable even at the limit (they cost no mobile data).
+- **Nothing stops while you are on Wi-Fi** (default), and only mobile data is counted. Turn "Leave Wi-Fi out of it" off to count both and stop regardless of the connection.
+- ⚠ **Traffic leaving from inside the Linux side (`apk`, `curl`, `git`…) cannot be stopped** — Android gives an app no way to cut off only its own processes. It **is counted**, so the limit is still reached.
+- No extra permission is needed (only z2term's own figures are read). ⚠ Some devices will not report them, and then **nothing is stopped** (blocking on an unreadable meter would leave you with no way out). The screen says which case you are in.
+- Reaching the limit notifies you **once per period**. Counting restarts on the day you chose.
 
 ### Taking your setup with you (for a new phone or a reinstall)
 

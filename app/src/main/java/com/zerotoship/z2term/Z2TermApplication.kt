@@ -91,6 +91,12 @@ class Z2TermApplication : Application() {
             runCatching { com.zerotoship.z2term.backup.AutoBackup.schedule(this@Z2TermApplication) }
                 .onFailure { Log.w(TAG, "auto backup schedule skipped: ${it.message}") }
         }
+        // 通信量の見張り (0.8.388) も置き直す。⚠ 予約は再起動で消えるので、置き直さないと
+        // 「上限を決めてあるのに止まらない」になる (そして気付くのは請求のとき)。
+        appScope.launch {
+            runCatching { com.zerotoship.z2term.service.NetGuard.schedule(this@Z2TermApplication) }
+                .onFailure { Log.w(TAG, "net guard schedule skipped: ${it.message}") }
+        }
         // z2-screen keepon も同様に、掛かったままなら予約を貼り直す (期限切れならその場で書き戻す)。
         // 消灯しない状態を取りこぼすと電池が静かに減り続けるので、入口を 2 つ持つ。
         appScope.launch {

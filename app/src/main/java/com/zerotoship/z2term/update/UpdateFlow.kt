@@ -65,6 +65,10 @@ object UpdateFlow {
                 // ⚠ 落とす前に許可を見る。許可が無いまま進めると 20MB 落とした末に
                 //    「確認画面が出ない」で終わり、何が足りないのか誰にも分からない。
                 if (!UpdateInstaller.canInstall(context)) return Outcome.NeedPermission
+                // ⚠ 通信量の上限 (0.8.388)。**確認 (数 KB) は通し、落とす (数十 MB) ところで
+                //    止める** — 上限に達している間も「新しい版が出ているか」は知れた方がいい。
+                com.zerotoship.z2term.service.NetGuard.blockReason(context, "")
+                    ?.let { return Outcome.Failed(it) }
 
                 val settings = runCatching { AppSettings(context).flow.first() }.getOrNull()
                 val keep = keepApk ?: (settings?.updateKeepApk ?: false)

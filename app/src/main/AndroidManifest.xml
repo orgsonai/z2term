@@ -333,6 +333,12 @@
         <!-- 端末起動時の常駐サーバー自動起動レシーバ (設定 ON かつ enabled サーバーがある時のみ動く)。 -->
         <!-- 定期バックアップ (0.8.386) の時刻発火の受け口。AlarmManager からの明示 Intent
              しか来ないので exported=false / intent-filter 無しでよい。 -->
+        <!-- 通信量の見張り (0.8.388)。AlarmManager からの明示 Intent だけが来る。 -->
+        <receiver
+            android:name=".service.NetGuardReceiver"
+            android:exported="false"
+            android:enabled="true" />
+
         <receiver
             android:name=".backup.AutoBackupReceiver"
             android:exported="false"

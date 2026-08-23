@@ -2,6 +2,7 @@ package com.zerotoship.z2term.distro
 
 import android.content.Context
 import android.util.Log
+import com.zerotoship.z2term.service.NetGuard
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -44,6 +45,9 @@ class DistroDownloader(private val context: Context) {
     ): Flow<Progress> = flow {
         val outFile = File(cacheDir().apply { mkdirs() }, "${spec.id}-$abi.tgz")
         try {
+            // ⚠ 通信量の上限 (0.8.388)。OS イメージは数百 MB あり、**上限に達したあとに
+            // 一番やってはいけない通信**なので、繋ぐ前に断る。
+            NetGuard.ensureAllowed(context, "")
             val url = resolveDownloadUrl(spec, abi)
                 ?: throw IllegalStateException("No download URL for ${spec.id} / $abi")
             if (outFile.exists()) outFile.delete()

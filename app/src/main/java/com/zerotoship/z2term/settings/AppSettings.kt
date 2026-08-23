@@ -392,7 +392,30 @@ class AppSettings(private val context: Context) {
          * 最後の結果。`ok:<ファイル名>` / `err:<短い符丁>` / 空 = まだ無い。
          * **画面に出すのは符丁ではなく文言**なので、訳し分けは画面側で行う。
          */
-        val autoBackupLastResult: String = ""
+        val autoBackupLastResult: String = "",
+        /**
+         * 通信量の上限に達したら z2term 自身の通信を止めるか (0.8.388・
+         * [com.zerotoship.z2term.service.NetGuard])。
+         *
+         * ⚠ **止まるのは z2term の通信だけ**。ほかのアプリのモバイル通信は止まらない
+         * (root なしで端末全体を止めるには VPN を張るしかなく、それは「ターミナルアプリが
+         * 常時 VPN を占有する」という別の重さを持ち込む)。
+         */
+        val netLimitEnabled: Boolean = false,
+        /** 上限 (MB)。既定 3000 = 3GB。 */
+        val netLimitMb: Int = DEFAULT_NET_LIMIT_MB,
+        /** 毎月の締め日 (1-28)。この日に使用量の数え直しが始まる。 */
+        val netLimitResetDay: Int = DEFAULT_NET_LIMIT_RESET_DAY,
+        /**
+         * Wi-Fi を数に入れず、Wi-Fi につながっている間は止めないか (既定 ON)。
+         * ⚠ OFF にすると Wi-Fi ぶんも合算して数え、つながり方に関係なく止める。
+         */
+        val netLimitWifiExempt: Boolean = DEFAULT_NET_LIMIT_WIFI_EXEMPT,
+        /**
+         * 上限に達したことを知らせた期間の開始時刻 (epoch ミリ秒)。0 = まだ知らせていない。
+         * **同じ期間に二度は知らせない**ため (毎回の見張りで通知が積み上がると読まれなくなる)。
+         */
+        val netLimitNotifiedPeriod: Long = 0L
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -541,7 +564,12 @@ class AppSettings(private val context: Context) {
             autoBackupMinute = p[KEY_AUTO_BACKUP_MINUTE] ?: DEFAULT_AUTO_BACKUP_MINUTE,
             autoBackupKeep = p[KEY_AUTO_BACKUP_KEEP] ?: DEFAULT_AUTO_BACKUP_KEEP,
             autoBackupLastAt = p[KEY_AUTO_BACKUP_LAST_AT] ?: 0L,
-            autoBackupLastResult = p[KEY_AUTO_BACKUP_LAST_RESULT] ?: ""
+            autoBackupLastResult = p[KEY_AUTO_BACKUP_LAST_RESULT] ?: "",
+            netLimitEnabled = p[KEY_NET_LIMIT] ?: false,
+            netLimitMb = p[KEY_NET_LIMIT_MB] ?: DEFAULT_NET_LIMIT_MB,
+            netLimitResetDay = p[KEY_NET_LIMIT_RESET_DAY] ?: DEFAULT_NET_LIMIT_RESET_DAY,
+            netLimitWifiExempt = p[KEY_NET_LIMIT_WIFI_EXEMPT] ?: DEFAULT_NET_LIMIT_WIFI_EXEMPT,
+            netLimitNotifiedPeriod = p[KEY_NET_LIMIT_NOTIFIED] ?: 0L
         )
     }
 
@@ -584,6 +612,29 @@ class AppSettings(private val context: Context) {
             it[KEY_AUTO_BACKUP_LAST_AT] = at
             it[KEY_AUTO_BACKUP_LAST_RESULT] = result
         }
+    }
+
+    // --- 通信量の上限 (0.8.388) ---
+
+    suspend fun setNetLimitEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_NET_LIMIT] = enabled }
+    }
+
+    suspend fun setNetLimitMb(mb: Int) {
+        context.dataStore.edit { it[KEY_NET_LIMIT_MB] = mb }
+    }
+
+    suspend fun setNetLimitResetDay(day: Int) {
+        context.dataStore.edit { it[KEY_NET_LIMIT_RESET_DAY] = day }
+    }
+
+    suspend fun setNetLimitWifiExempt(exempt: Boolean) {
+        context.dataStore.edit { it[KEY_NET_LIMIT_WIFI_EXEMPT] = exempt }
+    }
+
+    /** 「もう知らせた」印。期間が変われば 0 に戻して、次の期間ではまた 1 回だけ知らせる。 */
+    suspend fun setNetLimitNotifiedPeriod(periodStart: Long) {
+        context.dataStore.edit { it[KEY_NET_LIMIT_NOTIFIED] = periodStart }
     }
 
     suspend fun setSmsCaptureEnabled(enabled: Boolean) {
@@ -984,6 +1035,14 @@ class AppSettings(private val context: Context) {
         private val KEY_AUTO_BACKUP_KEEP = intPreferencesKey("auto_backup_keep")
         private val KEY_AUTO_BACKUP_LAST_AT = longPreferencesKey("auto_backup_last_at")
         private val KEY_AUTO_BACKUP_LAST_RESULT = stringPreferencesKey("auto_backup_last_result")
+        const val DEFAULT_NET_LIMIT_MB = 3000
+        const val DEFAULT_NET_LIMIT_RESET_DAY = 1
+        const val DEFAULT_NET_LIMIT_WIFI_EXEMPT = true
+        private val KEY_NET_LIMIT = booleanPreferencesKey("net_limit_enabled")
+        private val KEY_NET_LIMIT_MB = intPreferencesKey("net_limit_mb")
+        private val KEY_NET_LIMIT_RESET_DAY = intPreferencesKey("net_limit_reset_day")
+        private val KEY_NET_LIMIT_WIFI_EXEMPT = booleanPreferencesKey("net_limit_wifi_exempt")
+        private val KEY_NET_LIMIT_NOTIFIED = longPreferencesKey("net_limit_notified_period")
         private val KEY_SMS_LOG_FORMAT = stringPreferencesKey("sms_log_format")
         private val KEY_SMS_LOG_PREPEND = booleanPreferencesKey("sms_log_prepend")
 

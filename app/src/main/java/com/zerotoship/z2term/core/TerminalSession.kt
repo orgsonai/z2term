@@ -11,6 +11,7 @@ import com.zerotoship.z2term.backup.AutoBackup
 import com.zerotoship.z2term.channel.SshChannel
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.service.ExitReasons
+import com.zerotoship.z2term.service.NetGuard
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.distro.DistroDownloader
 import com.zerotoship.z2term.distro.DistroInstaller
@@ -359,6 +360,12 @@ class TerminalSession(
     private var readJob: Job? = null
 
     /**
+     * いま SSH で繋いでいる相手 (0.8.388)。通信量の上限で**切るかどうかの判断にだけ**使う —
+     * 家の中への接続はモバイル通信を使わないので切らない ([NetGuard.isLocalTarget])。
+     */
+    @Volatile private var sshHost: String? = null
+
+    /**
      * **自分で畳んだのか、外から殺されたのか**の区別 (0.8.378)。
      *
      * タブを閉じる / 再起動 / distro 切替 / SSH へ切替は、どれも PTY のプロセスを
@@ -376,7 +383,25 @@ class TerminalSession(
         selfClosed = true
         channel?.close()
         channel = null
+        sshHost = null
         readJob?.cancel()
+    }
+
+    /**
+     * 通信量の上限に達したので外向きの SSH を畳む (0.8.388・[NetGuard.enforce] から)。
+     *
+     * ⚠ **家の中への接続は畳まない**。モバイル通信を 1 バイトも使っていない接続を切るのは、
+     * 使いすぎを止めることと関係がない (利用者の要望でもある)。SSH でないタブも触らない。
+     * ⚠ 畳む前に**理由をその画面へ書く** — 黙って切れると、通信が悪いのか壊れたのか
+     * 分からないまま繋ぎ直しを繰り返すことになる。
+     */
+    fun disconnectForNetLimit() {
+        val host = sshHost ?: return
+        if (NetGuard.isLocalTarget(host)) return
+        scope.launch {
+            writeBanner(appContext.getString(R.string.net_limit_disconnected))
+            closeChannel()
+        }
     }
 
     val isRunning: Boolean get() = _uiState.value.state == TerminalState.RUNNING
@@ -473,6 +498,17 @@ class TerminalSession(
     fun setAutoBackupFolder(treeUri: String) {
         scope.launch { settings.setAutoBackupFolder(treeUri); AutoBackup.schedule(appContext) }
     }
+    // 通信量の上限 (0.8.388)。⚠ ON/OFF のときだけ見張りを置き直す (間隔は固定なので、
+    // 上限や締め日を変えても予約そのものは変わらない)。
+    fun setNetLimitEnabled(value: Boolean) {
+        scope.launch {
+            settings.setNetLimitEnabled(value)
+            withContext(Dispatchers.IO) { NetGuard.schedule(appContext) }
+        }
+    }
+    fun setNetLimitMb(value: Int) { scope.launch { settings.setNetLimitMb(value) } }
+    fun setNetLimitResetDay(value: Int) { scope.launch { settings.setNetLimitResetDay(value) } }
+    fun setNetLimitWifiExempt(value: Boolean) { scope.launch { settings.setNetLimitWifiExempt(value) } }
     fun setAutoBackupSchedule(
         interval: String,
         dayOfWeek: Int,
@@ -817,6 +853,7 @@ class TerminalSession(
                     SshChannel.connect(profile, rows, cols, appContext)
                 }
                 channel = ch
+                sshHost = profile.host
                 _uiState.update { it.copy(state = TerminalState.RUNNING, mode = "ssh") }
                 if (!labelPinned) _label.value = "ssh:${profile.name.ifEmpty { profile.host }}"
                 // ポート転送が定義されていれば結果をバナーに出す (UX)

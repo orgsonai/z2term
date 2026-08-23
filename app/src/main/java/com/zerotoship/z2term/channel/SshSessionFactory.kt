@@ -4,6 +4,7 @@ import android.content.Context
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
 import com.jcraft.jsch.UserInfo
+import com.zerotoship.z2term.service.NetGuard
 import java.util.Properties
 
 /**
@@ -19,8 +20,16 @@ object SshSessionFactory {
 
     const val CONNECT_TIMEOUT_MS = 15_000
 
-    /** プロファイルに従い未接続の Session を生成する。 */
+    /**
+     * プロファイルに従い未接続の Session を生成する。
+     *
+     * ⚠ **通信量の上限 (0.8.388) はここで見る**。シェルも SFTP も常駐トンネルもこの 1 か所を
+     * 通るので、入口を増やさずに全部を止められる。⚠ 家の中への接続は止めない
+     * ([NetGuard.isLocalTarget]) — モバイル通信を使わない相手を止める理由がない。
+     * ⚠ 名前解決を伴うので、**IO スレッドから呼ぶ**という元々の約束がここでも要る。
+     */
     fun create(profile: SshProfile, context: Context): Session {
+        NetGuard.ensureAllowed(context, profile.host)
         val jsch = JSch()
         jsch.hostKeyRepository = KnownHostsHolder.repository(context)
 

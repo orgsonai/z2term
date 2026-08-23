@@ -102,6 +102,7 @@ import com.zerotoship.z2term.service.SmsLogReceiver
 import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.backup.AutoBackup
+import com.zerotoship.z2term.service.NetGuard
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.BatteryGuard
 import com.zerotoship.z2term.settings.CustomThemeStore
@@ -1118,6 +1119,10 @@ fun SettingsSheet(
             }
 
             SettingsGroupSection(SettingsGroup.AUTOMATION) {
+                // 通信量の上限 (0.8.388)。使いすぎに気付くのはたいてい絞られてからなので、
+                // 自分で決めた量で止まれるようにする。
+                NetLimitSection(settings = settings, session = session)
+
                 // L1: バックグラウンドでのプロセス kill 対策。電池最適化の除外トグル +
                 // Android 12/13 の phantom process killing 無効化手順 (adb) の案内。
                 Section(title = stringResource(R.string.settings_section_process_guard)) {
@@ -2440,6 +2445,130 @@ private fun SettingsGroupSection(
             )
         }
         if (open) content()
+    }
+}
+
+/**
+ * 通信量の上限 (0.8.388)。今期の使用量・上限・締め日と、いま止めているかどうかを出す。
+ *
+ * ⚠ **止まる範囲を画面に書き切る**のがこの節の仕事。「ネットワークを遮断する」と読めてしまうと、
+ * ほかのアプリが止まらないことも、端末 (Linux) の中から出ていく通信が止まらないことも、
+ * 期待外れとしてしか受け取られない。
+ */
+@Composable
+private fun NetLimitSection(settings: AppSettings.Snapshot, session: TerminalSession) {
+    val context = LocalContext.current
+
+    // 使用量は問い合わせが重いので画面を止めない。設定を変えたら測り直す。
+    val status by produceState<NetGuard.Status?>(
+        initialValue = null,
+        settings.netLimitEnabled,
+        settings.netLimitMb,
+        settings.netLimitResetDay,
+        settings.netLimitWifiExempt
+    ) {
+        value = withContext(Dispatchers.IO) { runCatching { NetGuard.status(context) }.getOrNull() }
+    }
+
+    Section(title = stringResource(R.string.settings_net_limit)) {
+        Text(
+            text = stringResource(R.string.settings_net_limit_desc),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        ToggleField(
+            title = stringResource(R.string.net_limit_enable),
+            description = stringResource(R.string.net_limit_enable_desc),
+            checked = settings.netLimitEnabled,
+            onChange = { session.setNetLimitEnabled(it) }
+        )
+        if (!settings.netLimitEnabled) return@Section
+
+        // --- 上限 ---
+        val steps = NetGuard.LIMIT_STEPS_MB
+        SliderField(
+            title = stringResource(R.string.net_limit_amount),
+            value = NetGuard.stepIndexOf(settings.netLimitMb).toFloat(),
+            range = 0f..(steps.size - 1).toFloat(),
+            steps = steps.size - 2,
+            valueLabel = { NetGuard.formatBytes(steps[it.toInt().coerceIn(steps.indices)] * 1024L * 1024L) },
+            onChange = { session.setNetLimitMb(steps[it.toInt().coerceIn(steps.indices)]) }
+        )
+
+        // --- 数え直す日 ---
+        val dayFormat = stringResource(R.string.net_limit_reset_day_value)
+        SliderField(
+            title = stringResource(R.string.net_limit_reset_day),
+            value = settings.netLimitResetDay.toFloat(),
+            range = 1f..28f,
+            steps = 26,
+            valueLabel = { dayFormat.format(it.toInt()) },
+            onChange = { session.setNetLimitResetDay(it.toInt()) }
+        )
+
+        ToggleField(
+            title = stringResource(R.string.net_limit_wifi_exempt),
+            description = stringResource(R.string.net_limit_wifi_exempt_desc),
+            checked = settings.netLimitWifiExempt,
+            onChange = { session.setNetLimitWifiExempt(it) }
+        )
+
+        // --- いまの状況 ---
+        val st = status
+        when {
+            st == null -> Text(
+                text = "…",
+                color = ZtsTextSecondary,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            // ⚠ 測れない端末では**止めない**ので、そのことを先に言う (黙って効かないのが最悪)。
+            !st.measurable -> Text(
+                text = stringResource(R.string.net_limit_unmeasurable),
+                color = ZtsError,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            else -> {
+                val fmt = remember { SimpleDateFormat("M/d", Locale.getDefault()) }
+                Text(
+                    text = stringResource(
+                        R.string.net_limit_used,
+                        NetGuard.formatBytes(st.usedBytes),
+                        NetGuard.formatBytes(st.limitBytes),
+                        fmt.format(Date(st.periodStart))
+                    ),
+                    color = if (st.blocking) ZtsError else ZtsTextPrimary,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                if (st.blocking) {
+                    Text(
+                        text = stringResource(R.string.net_limit_blocked),
+                        color = ZtsError,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                } else if (st.over) {
+                    // 超えてはいるが Wi-Fi なので止めていない、という状態を隠さない。
+                    Text(
+                        text = stringResource(R.string.net_limit_paused_on_wifi),
+                        color = ZtsTextSecondary,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+
+        Text(
+            text = stringResource(R.string.net_limit_local_note) + "\n" +
+                stringResource(R.string.net_limit_shell_note),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
     }
 }
 

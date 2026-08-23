@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-23 / Target version: 0.8.387-alpha (versionCode 395)
+Last updated: 2026-08-23 / Target version: 0.8.388-alpha (versionCode 396)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -744,6 +744,30 @@ means would then depend on the payload, which cannot be explained to anyone.
 - ⚠ **JSch cannot create it.** `KeyPair.genKeyPair(…, ED25519)` generates, but `writePrivateKey` throws `UnsupportedOperationException` — JSch **reads** ed25519 and does not **write** it. Generation therefore uses **BouncyCastle** (already a dependency for SSH) and writes OpenSSH format (`openssh-key-v1`). `SshKeyGenTest` then feeds the result to `KeyPair.load` to prove **JSch can read what we produced** — a mismatch here would surface as "the key was created but nothing connects", the hardest failure to diagnose.
 - No passphrase. Requiring one on every connection lengthens the road to "it connects at all"; the private key stays on the device, encrypted by `KeystoreCrypt` as before.
 - The public key is **not persisted** (it is only handed over right after creation, and can be re-derived from the private key). `authorized_keys` de-duplicates **on the key body**, so the same key with a different comment is not added twice.
+
+#### Data limit (`service/NetGuard`, 0.8.388)
+
+**What it does**: once this period's mobile usage reaches the amount you set, **z2term's own traffic stops**. Running out is usually noticed **after the carrier throttles the line**, and z2term can keep talking quietly over SSH and downloads.
+
+**How far it goes (the judgement call here)**:
+- ⚠ **Only z2term's traffic stops.** Other apps keep going. Without root the only way to cut off the whole device is **standing up a VPN and dropping the packets**, which drags in a different weight entirely: a terminal app permanently occupying the device's VPN slot (no other VPN alongside it). **The user chose "stop only z2term".**
+- What stops: **new SSH / SFTP / resident-tunnel connections** (checked in the single spot `SshSessionFactory.create` — all three paths go through it, so no new entry point is needed), **SSH sessions already up** (the watcher cuts them), **OS image and GUI package downloads**, and **the APK download for app updates**.
+- ⚠ **The update *check* (a few KB) is let through.** Knowing a new version exists is worth having even at the limit; only the download (tens of MB) is stopped.
+- ⚠ **Traffic leaving from inside the Linux side (`apk`, `curl`, `git`…) cannot be stopped.** Android gives an app no way to cut off only its own processes. It is **still counted**, so the limit is still reached — and the screen says so outright (without that line, "it did not block anything" reads as a bug).
+
+**What is never stopped**:
+- ⚠ **Anything inside your home network** (the user asked for this): `192.168.*`, `10.*`, `172.16-31.*`, `127.*`, `169.254.*`, `fc00::/7`, `fe80::/10`, plus `localhost`, **single-label names**, `.local`, `.lan`, `.home`, `.internal`. **There is no reason to stop a peer that costs zero mobile bytes.** Names that fit none of those are resolved and treated as local if they land on a private address. ⚠ Resolution happens **only once blocking is decided** — doing it on every connect would just slow connections down while nothing is blocked.
+- **Nothing stops while on Wi-Fi** (default), and only mobile bytes are counted. Turning that off counts both and stops regardless of the connection. ⚠ "Over the limit but not stopping because you are on Wi-Fi" is shown on screen — silently letting traffic through looks like a setting that does not work.
+
+**Measuring**: `NetworkStatsManager`, asked **only for this app's own UID**. ⚠ Querying your own UID does not need the "usage access" permission (that is for other apps' figures), so **not one extra permission is added**. ⚠ Some devices refuse anyway, and then **nothing is stopped** (`measurable = false`) — blocking traffic because the meter is unreadable would be a lockout with no way out. Whether it can be read is shown in settings. ⚠ Nothing is measured while the feature is off (the query is not cheap).
+
+**The period** starts at 00:00 on the reset day (1-28). Allowing 29-31 would **skip the boundary in exactly the months that lack that day**.
+
+**The watcher**: an inexact repeating alarm every 15 minutes (`setInexactRepeating` — stopping overuse does not need seconds). Over the limit, it cuts outbound SSH and notifies **once per period** (a notice every 15 minutes buries the first one). ⚠ Alarms are forgotten on reboot, so `BootReceiver` and app start both re-arm it.
+
+**Refusal is an exception** (`NetGuard.ensureAllowed`): doing nothing quietly reads as breakage, so **the reason lands on screen as-is** and the user can get to the setting and raise the limit. Disconnects write the reason into that terminal **before** the channel is closed.
+
+`NetGuardTest` pins down what counts as home (`172.15`/`172.32` are not; single-label names are), when the period starts, that Wi-Fi suspends blocking, and that an unreadable meter never blocks.
 
 #### Taking it with you (`backup/BackupManager`, 0.8.239)
 

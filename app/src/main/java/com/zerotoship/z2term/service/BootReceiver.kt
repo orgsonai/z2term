@@ -36,6 +36,10 @@ class BootReceiver : BroadcastReceiver() {
         runCatching { runBlocking { com.zerotoship.z2term.backup.AutoBackup.schedule(context) } }
             .onFailure { Log.w("BootReceiver", "auto backup reschedule failed", it) }
 
+        // 通信量の見張り (0.8.388) も貼り直す。
+        runCatching { NetGuard.schedule(context) }
+            .onFailure { Log.w("BootReceiver", "net guard reschedule failed", it) }
+
         // z2-screen keepon が掛かったまま再起動した場合の後始末。期限を過ぎていればその場で
         // 書き戻し、まだなら予約を貼り直す。放っておくと「消灯しない」が永久に残る。
         runCatching { ScreenTimeout.restoreOrReschedule(context) }
