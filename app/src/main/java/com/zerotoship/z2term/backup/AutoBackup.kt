@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.backup
 
+import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -265,6 +266,10 @@ object AutoBackup {
 
     // --- 失敗の知らせ ---
 
+    // POST_NOTIFICATIONS 未許可は下の runCatching で握って Log に流すので、lint の権限チェックは
+    // 抑止する (Z2ApiBridge の通知と同じ扱い)。⚠ 通知が出せなくても書き出しの成否は
+    // 設定画面の「最後の書き出し」に残るので、知る手立てが消えるわけではない。
+    @SuppressLint("MissingPermission")
     private fun notifyFailure(context: Context, detail: String) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
         if (nm.getNotificationChannel(CHANNEL_ID) == null) {
