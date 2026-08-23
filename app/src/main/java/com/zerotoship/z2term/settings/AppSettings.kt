@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -358,7 +359,40 @@ class AppSettings(private val context: Context) {
         /**
          * SMS ログを **先頭追記** (新着が上) にするか。false で末尾追記 (新着が下)。
          */
-        val smsLogPrepend: Boolean = DEFAULT_LOG_PREPEND
+        val smsLogPrepend: Boolean = DEFAULT_LOG_PREPEND,
+        /**
+         * 定期バックアップを回すか (0.8.386)。ON のとき [autoBackupFolder] へ決まった日時に
+         * 書き出し、[autoBackupKeep] 世代だけ残して古いものから消す
+         * ([com.zerotoship.z2term.backup.AutoBackup])。
+         *
+         * ⚠ **自動で書き出すものに秘密 (SSH のパスワード・秘密鍵) は含めない**。含めるには
+         * 合言葉が要り、自動化するとその合言葉を端末に置くことになる。「合言葉なしで秘密を
+         * 出す経路は作らない」という手動書き出しの約束
+         * ([com.zerotoship.z2term.backup.BackupManager]) を、自動化のために崩さない。
+         * 秘密ごと持ち出したいときは手で 1 本作る。
+         */
+        val autoBackupEnabled: Boolean = false,
+        /** 書き出し先フォルダ (SAF の tree URI 文字列)。空 = 未選択 = 回せない。 */
+        val autoBackupFolder: String = "",
+        /** 間隔。`daily` / `weekly` / `monthly`。 */
+        val autoBackupInterval: String = DEFAULT_AUTO_BACKUP_INTERVAL,
+        /** `weekly` のときの曜日 ([java.util.Calendar.DAY_OF_WEEK] と同じ 1=日 … 7=土)。 */
+        val autoBackupDayOfWeek: Int = DEFAULT_AUTO_BACKUP_DOW,
+        /** `monthly` のときの日。**1-28 だけ**選ばせる (29 以降は無い月がある)。 */
+        val autoBackupDayOfMonth: Int = DEFAULT_AUTO_BACKUP_DOM,
+        /** 書き出す時刻 (時。0-23)。 */
+        val autoBackupHour: Int = DEFAULT_AUTO_BACKUP_HOUR,
+        /** 書き出す時刻 (分。0-59)。 */
+        val autoBackupMinute: Int = DEFAULT_AUTO_BACKUP_MINUTE,
+        /** 残す世代数 (1-30)。超えたぶんは**古いものから**消す。 */
+        val autoBackupKeep: Int = DEFAULT_AUTO_BACKUP_KEEP,
+        /** 最後に走った時刻 (epoch ミリ秒)。0 = まだ一度も走っていない。 */
+        val autoBackupLastAt: Long = 0L,
+        /**
+         * 最後の結果。`ok:<ファイル名>` / `err:<短い符丁>` / 空 = まだ無い。
+         * **画面に出すのは符丁ではなく文言**なので、訳し分けは画面側で行う。
+         */
+        val autoBackupLastResult: String = ""
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -497,8 +531,59 @@ class AppSettings(private val context: Context) {
             unlockWatchEnabled = p[KEY_UNLOCK_WATCH] ?: DEFAULT_UNLOCK_WATCH,
             smsCaptureEnabled = p[KEY_SMS_CAPTURE] ?: DEFAULT_SMS_CAPTURE,
             smsLogFormat = p[KEY_SMS_LOG_FORMAT] ?: DEFAULT_SMS_LOG_FORMAT,
-            smsLogPrepend = p[KEY_SMS_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND
+            smsLogPrepend = p[KEY_SMS_LOG_PREPEND] ?: DEFAULT_LOG_PREPEND,
+            autoBackupEnabled = p[KEY_AUTO_BACKUP] ?: false,
+            autoBackupFolder = p[KEY_AUTO_BACKUP_FOLDER] ?: "",
+            autoBackupInterval = p[KEY_AUTO_BACKUP_INTERVAL] ?: DEFAULT_AUTO_BACKUP_INTERVAL,
+            autoBackupDayOfWeek = p[KEY_AUTO_BACKUP_DOW] ?: DEFAULT_AUTO_BACKUP_DOW,
+            autoBackupDayOfMonth = p[KEY_AUTO_BACKUP_DOM] ?: DEFAULT_AUTO_BACKUP_DOM,
+            autoBackupHour = p[KEY_AUTO_BACKUP_HOUR] ?: DEFAULT_AUTO_BACKUP_HOUR,
+            autoBackupMinute = p[KEY_AUTO_BACKUP_MINUTE] ?: DEFAULT_AUTO_BACKUP_MINUTE,
+            autoBackupKeep = p[KEY_AUTO_BACKUP_KEEP] ?: DEFAULT_AUTO_BACKUP_KEEP,
+            autoBackupLastAt = p[KEY_AUTO_BACKUP_LAST_AT] ?: 0L,
+            autoBackupLastResult = p[KEY_AUTO_BACKUP_LAST_RESULT] ?: ""
         )
+    }
+
+    // --- 定期バックアップ (0.8.386) ---
+    //
+    // ⚠ 予約 (AlarmManager) の貼り直しはここでは行わない。設定を書くのと予約を置くのは
+    // 別の仕事で、混ぜると「設定を戻したら予約も勝手に動いた」が起きる。呼び元が書き終えて
+    // から [com.zerotoship.z2term.backup.AutoBackup.schedule] を 1 回呼ぶ。
+
+    suspend fun setAutoBackupEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_AUTO_BACKUP] = enabled }
+    }
+
+    suspend fun setAutoBackupFolder(treeUri: String) {
+        context.dataStore.edit { it[KEY_AUTO_BACKUP_FOLDER] = treeUri }
+    }
+
+    /** 日時と世代数はまとめて 1 回で書く (画面の「保存」1 回 = 書き込み 1 回)。 */
+    suspend fun setAutoBackupSchedule(
+        interval: String,
+        dayOfWeek: Int,
+        dayOfMonth: Int,
+        hour: Int,
+        minute: Int,
+        keep: Int
+    ) {
+        context.dataStore.edit {
+            it[KEY_AUTO_BACKUP_INTERVAL] = interval
+            it[KEY_AUTO_BACKUP_DOW] = dayOfWeek
+            it[KEY_AUTO_BACKUP_DOM] = dayOfMonth
+            it[KEY_AUTO_BACKUP_HOUR] = hour
+            it[KEY_AUTO_BACKUP_MINUTE] = minute
+            it[KEY_AUTO_BACKUP_KEEP] = keep
+        }
+    }
+
+    /** 走った結果を残す (画面の「最後の書き出し」に出す)。 */
+    suspend fun setAutoBackupResult(at: Long, result: String) {
+        context.dataStore.edit {
+            it[KEY_AUTO_BACKUP_LAST_AT] = at
+            it[KEY_AUTO_BACKUP_LAST_RESULT] = result
+        }
     }
 
     suspend fun setSmsCaptureEnabled(enabled: Boolean) {
@@ -881,6 +966,24 @@ class AppSettings(private val context: Context) {
         private val KEY_SYSTEM_EVENT_LOG_PREPEND = booleanPreferencesKey("system_event_log_prepend")
         private val KEY_UNLOCK_WATCH = booleanPreferencesKey("unlock_watch_enabled")
         private val KEY_SMS_CAPTURE = booleanPreferencesKey("sms_capture_enabled")
+        const val DEFAULT_AUTO_BACKUP_INTERVAL = "daily"
+        /** 既定の曜日 = 日曜 ([java.util.Calendar.SUNDAY])。 */
+        const val DEFAULT_AUTO_BACKUP_DOW = 1
+        const val DEFAULT_AUTO_BACKUP_DOM = 1
+        /** 既定の時刻 = 深夜 3:00 (寝ている間に済ませる)。 */
+        const val DEFAULT_AUTO_BACKUP_HOUR = 3
+        const val DEFAULT_AUTO_BACKUP_MINUTE = 0
+        const val DEFAULT_AUTO_BACKUP_KEEP = 5
+        private val KEY_AUTO_BACKUP = booleanPreferencesKey("auto_backup_enabled")
+        private val KEY_AUTO_BACKUP_FOLDER = stringPreferencesKey("auto_backup_folder")
+        private val KEY_AUTO_BACKUP_INTERVAL = stringPreferencesKey("auto_backup_interval")
+        private val KEY_AUTO_BACKUP_DOW = intPreferencesKey("auto_backup_day_of_week")
+        private val KEY_AUTO_BACKUP_DOM = intPreferencesKey("auto_backup_day_of_month")
+        private val KEY_AUTO_BACKUP_HOUR = intPreferencesKey("auto_backup_hour")
+        private val KEY_AUTO_BACKUP_MINUTE = intPreferencesKey("auto_backup_minute")
+        private val KEY_AUTO_BACKUP_KEEP = intPreferencesKey("auto_backup_keep")
+        private val KEY_AUTO_BACKUP_LAST_AT = longPreferencesKey("auto_backup_last_at")
+        private val KEY_AUTO_BACKUP_LAST_RESULT = stringPreferencesKey("auto_backup_last_result")
         private val KEY_SMS_LOG_FORMAT = stringPreferencesKey("sms_log_format")
         private val KEY_SMS_LOG_PREPEND = booleanPreferencesKey("sms_log_prepend")
 

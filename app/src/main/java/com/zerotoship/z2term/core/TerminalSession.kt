@@ -7,6 +7,7 @@ import android.util.Log
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.LocalPtyChannel
 import com.zerotoship.z2term.channel.ProcessChannel
+import com.zerotoship.z2term.backup.AutoBackup
 import com.zerotoship.z2term.channel.SshChannel
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.service.ExitReasons
@@ -464,6 +465,27 @@ class TerminalSession(
     fun setToolbarHidden(csv: String) { scope.launch { settings.setToolbarHidden(csv) } }
     fun setUpdateDownloadDir(value: String) { scope.launch { settings.setUpdateDownloadDir(value) } }
     fun setUpdateKeepApk(value: Boolean) { scope.launch { settings.setUpdateKeepApk(value) } }
+    // 定期バックアップ (0.8.386)。⚠ **設定を書いたらその場で予約を貼り直す** — 書いただけでは
+    // 次の書き出しは今までの時刻のまま動く (または止まったまま動かない)。
+    fun setAutoBackupEnabled(value: Boolean) {
+        scope.launch { settings.setAutoBackupEnabled(value); AutoBackup.schedule(appContext) }
+    }
+    fun setAutoBackupFolder(treeUri: String) {
+        scope.launch { settings.setAutoBackupFolder(treeUri); AutoBackup.schedule(appContext) }
+    }
+    fun setAutoBackupSchedule(
+        interval: String,
+        dayOfWeek: Int,
+        dayOfMonth: Int,
+        hour: Int,
+        minute: Int,
+        keep: Int
+    ) {
+        scope.launch {
+            settings.setAutoBackupSchedule(interval, dayOfWeek, dayOfMonth, hour, minute, keep)
+            AutoBackup.schedule(appContext)
+        }
+    }
     fun setSessionLogDir(value: String) { scope.launch { settings.setSessionLogDir(value) } }
     fun setSessionLogNameTemplate(value: String) { scope.launch { settings.setSessionLogNameTemplate(value) } }
     fun setSessionLogTimeFormat(value: String) { scope.launch { settings.setSessionLogTimeFormat(value) } }

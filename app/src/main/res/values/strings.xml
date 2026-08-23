@@ -925,4 +925,41 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="backup_import_merge_note">Nothing you have now is deleted. Matching items are replaced, new ones are added.</string>
     <string name="backup_import_failed">Could not restore (wrong passphrase, or the file is damaged).</string>
     <string name="backup_import_do">Restore</string>
+    <!-- 定期バックアップ (0.8.386) -->
+    <string name="settings_auto_backup">On a schedule</string>
+    <string name="settings_auto_backup_desc">Writes a backup by itself at the time you choose and keeps the newest few. Only the files it made are tidied up — a backup you created by hand is never deleted.</string>
+    <string name="auto_backup_enable">Back up on a schedule</string>
+    <string name="auto_backup_enable_desc">SSH passwords and keys are not included: that needs a passphrase, and automating it would mean keeping the passphrase on the device. Create one by hand to take secrets with you.</string>
+    <string name="auto_backup_folder">Folder</string>
+    <string name="auto_backup_folder_none">not chosen yet</string>
+    <string name="auto_backup_folder_pick">Choose folder</string>
+    <string name="auto_backup_interval">How often</string>
+    <string name="auto_backup_daily">Daily</string>
+    <string name="auto_backup_weekly">Weekly</string>
+    <string name="auto_backup_monthly">Monthly</string>
+    <string name="auto_backup_dow">Day of the week</string>
+    <string name="auto_backup_dom">Day of the month</string>
+    <string name="auto_backup_dom_value" tools:ignore="PluralsCandidate">day %1$d</string>
+    <string name="auto_backup_time">Time</string>
+    <string name="auto_backup_keep">Generations to keep</string>
+    <string name="auto_backup_keep_value" tools:ignore="PluralsCandidate">%1$d</string>
+    <string name="auto_backup_next">Next: %1$s</string>
+    <string name="auto_backup_last_never">Nothing written yet.</string>
+    <string name="auto_backup_last_ok">Last: %1$s (%2$s)</string>
+    <string name="auto_backup_last_err">Last: %1$s — failed: %2$s</string>
+    <string name="auto_backup_run_now">Back up now</string>
+    <string name="auto_backup_running">Writing…</string>
+    <string name="auto_backup_sun">Sun</string>
+    <string name="auto_backup_mon">Mon</string>
+    <string name="auto_backup_tue">Tue</string>
+    <string name="auto_backup_wed">Wed</string>
+    <string name="auto_backup_thu">Thu</string>
+    <string name="auto_backup_fri">Fri</string>
+    <string name="auto_backup_sat">Sat</string>
+    <string name="auto_backup_channel_name">Scheduled backup</string>
+    <string name="auto_backup_channel_desc">Tells you when a scheduled backup could not be written.</string>
+    <string name="auto_backup_failed_title">Scheduled backup failed</string>
+    <string name="auto_backup_err_nofolder">No folder is chosen. Pick one in Settings → Maintenance.</string>
+    <string name="auto_backup_err_noaccess">z2term can no longer write to that folder. Choose it again in Settings.</string>
+    <string name="auto_backup_err_write">Could not write the file (no space left, or the folder is gone).</string>
 </resources>

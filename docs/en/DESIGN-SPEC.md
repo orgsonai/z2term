@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-22 / Target version: 0.8.385-alpha (versionCode 393)
+Last updated: 2026-08-23 / Target version: 0.8.386-alpha (versionCode 394)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -766,6 +766,17 @@ means would then depend on the payload, which cannot be explained to anyone.
 **Restoring merges, it does not overwrite**: matching ids are replaced, anything absent from the backup is left alone — restoring an old backup must not delete what you built since. `peek` shows the counts **before** anything is applied. Zip entries containing `/` are dropped (this is a path where a file from someone else is opened, so nothing may escape the target directory).
 
 **The destination is the user's choice** (SAF `CreateDocument`); the app never drops the file somewhere on its own.
+
+**On a schedule (`backup/AutoBackup`, 0.8.386)**: the weakness of taking it with you was that **it only ever happened when you pressed the button** — and a new phone or a wipe arrives on the side that forgot to press it, so "there should be a backup" is the dangerous state. Settings > Maintenance takes an **interval (daily / weekly / monthly), a time, a folder and how many generations to keep**, and writes one file at that time, dropping the oldest beyond the limit.
+
+- ⚠ **Nothing written automatically carries secrets.** Including them needs a passphrase, and automating that means **keeping the passphrase on the device**. The promise above — no path that writes secrets without a passphrase — is not bent for the sake of automation. Create one by hand to take secrets along.
+- ⚠ **Only the files it made are tidied up.** They are named `z2term-auto-*`, apart from the hand-made `z2term-backup-*`, so pointing both at the same folder never costs you the one you made by hand. Sorting is **by name** (the name carries `YYYYMMDD-HHMM`, so that is chronological); modification times are not used because some destinations do not report them consistently.
+- **Tidy up after writing, never before.** The other way round, a day where the write fails is a day where only the old ones disappear.
+- **One alarm at a time**, re-armed on each firing (`ExactAlarm`: exact where allowed, Doze-piercing and inexact otherwise). ⚠ AlarmManager forgets its alarms on reboot, and **the only symptom is that backups stop appearing**, so both `BootReceiver` and app start re-arm it (idempotent). A failed run still arms the next one — failing once and never running again are different things.
+- **Only failures are notified.** A success notification every day trains you to ignore it, including on the day it failed. A good day leaves its mark only in "last written" on the settings screen.
+- ⚠ The folder is a SAF tree URI held by `takePersistableUriPermission`. Without it, **writing stops working the moment the app restarts, and fails quietly that night**. Access is checked before writing and reported as `err:noaccess` (i.e. "choose the folder again").
+- The monthly day is **clamped to 1-28**: allowing 29-31 would **skip exactly the months that lack that day**.
+- `AutoBackupScheduleTest` pins down "when is next" (daily / weekly / monthly, with the exact time pushed to the following run) and "what gets deleted" (never a hand-made file; at least one kept even at `keep=0`).
 
 #### History palette (`ui/snippets/ShellHistory`, 0.8.221, B2)
 

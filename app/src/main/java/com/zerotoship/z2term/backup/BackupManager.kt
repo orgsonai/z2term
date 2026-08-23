@@ -104,9 +104,15 @@ object BackupManager {
     private const val DICT_DIR = "user_dict/"
     private const val IME_HISTORY = "ime_history.json"
 
+    /**
+     * ファイル名に使う日時 (`20260725-2130`)。手で作るものと定期バックアップ
+     * ([AutoBackup]) で**同じ形に揃える** — 並べたときに時系列で並ぶことが、
+     * 世代整理 ([AutoBackup.stale]) の前提になっている。
+     */
+    fun stamp(): String = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
+
     /** ファイル名に使う日時 (`z2term-backup-20260725-2130.zip`)。 */
-    fun suggestFileName(): String =
-        "z2term-backup-" + SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date()) + ".zip"
+    fun suggestFileName(): String = "z2term-backup-" + stamp() + ".zip"
 
     /**
      * バックアップを [out] へ書き出す。

@@ -84,6 +84,13 @@ class Z2TermApplication : Application() {
         // z2-when (A6) の時刻トリガーを貼り直す (AlarmManager 予約は再起動で消えるため。
         // BootReceiver でも貼るが、アプリを普通に開いた場合の取りこぼしをここで埋める)。idempotent。
         appScope.launch { runCatching { WhenManager.reload(this@Z2TermApplication) } }
+        // 定期バックアップ (0.8.386) の予約も貼り直す。AlarmManager の予約は再起動で消え、
+        // ⚠ **消えたことは「バックアップが増えない」という形でしか表に出ない**ので、
+        // BootReceiver と普通の起動の 2 か所から均す (何度呼んでも同じ状態になる)。
+        appScope.launch {
+            runCatching { com.zerotoship.z2term.backup.AutoBackup.schedule(this@Z2TermApplication) }
+                .onFailure { Log.w(TAG, "auto backup schedule skipped: ${it.message}") }
+        }
         // z2-screen keepon も同様に、掛かったままなら予約を貼り直す (期限切れならその場で書き戻す)。
         // 消灯しない状態を取りこぼすと電池が静かに減り続けるので、入口を 2 つ持つ。
         appScope.launch {

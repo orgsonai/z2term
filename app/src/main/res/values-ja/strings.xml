@@ -909,4 +909,41 @@ SSH 接続先 %3$d 件
     <string name="backup_import_merge_note">いま入っているものは消えません。同じものは置き換え、無いものは追加します。</string>
     <string name="backup_import_failed">取り込めませんでした（合言葉が違うか、ファイルが壊れています）。</string>
     <string name="backup_import_do">戻す</string>
+    <!-- 定期バックアップ (0.8.386) -->
+    <string name="settings_auto_backup">決まった日時に自動で</string>
+    <string name="settings_auto_backup_desc">選んだ日時に自分でバックアップを書き出し、新しいものから決めた本数だけ残します。片付ける対象は自動で作ったものだけで、手で作ったバックアップは消しません。</string>
+    <string name="auto_backup_enable">定期バックアップを回す</string>
+    <string name="auto_backup_enable_desc">SSH のパスワードと秘密鍵は入りません。含めるには合言葉が要り、自動にすると合言葉を端末へ置くことになるためです。秘密ごと持ち出すときは手で 1 本作ってください。</string>
+    <string name="auto_backup_folder">保存フォルダ</string>
+    <string name="auto_backup_folder_none">まだ選んでいません</string>
+    <string name="auto_backup_folder_pick">フォルダを選ぶ</string>
+    <string name="auto_backup_interval">間隔</string>
+    <string name="auto_backup_daily">毎日</string>
+    <string name="auto_backup_weekly">毎週</string>
+    <string name="auto_backup_monthly">毎月</string>
+    <string name="auto_backup_dow">曜日</string>
+    <string name="auto_backup_dom">日</string>
+    <string name="auto_backup_dom_value" tools:ignore="PluralsCandidate">%1$d 日</string>
+    <string name="auto_backup_time">時刻</string>
+    <string name="auto_backup_keep">残す世代</string>
+    <string name="auto_backup_keep_value" tools:ignore="PluralsCandidate">%1$d 本</string>
+    <string name="auto_backup_next">次回 %1$s</string>
+    <string name="auto_backup_last_never">まだ 1 本も書き出していません。</string>
+    <string name="auto_backup_last_ok">最後 %1$s（%2$s）</string>
+    <string name="auto_backup_last_err">最後 %1$s — 失敗: %2$s</string>
+    <string name="auto_backup_run_now">今すぐ書き出す</string>
+    <string name="auto_backup_running">書き出し中…</string>
+    <string name="auto_backup_sun">日</string>
+    <string name="auto_backup_mon">月</string>
+    <string name="auto_backup_tue">火</string>
+    <string name="auto_backup_wed">水</string>
+    <string name="auto_backup_thu">木</string>
+    <string name="auto_backup_fri">金</string>
+    <string name="auto_backup_sat">土</string>
+    <string name="auto_backup_channel_name">定期バックアップ</string>
+    <string name="auto_backup_channel_desc">定期バックアップを書き出せなかったときに知らせます。</string>
+    <string name="auto_backup_failed_title">定期バックアップに失敗しました</string>
+    <string name="auto_backup_err_nofolder">保存フォルダが選ばれていません。設定 → メンテナンスで選んでください。</string>
+    <string name="auto_backup_err_noaccess">そのフォルダへ書けなくなりました。設定でもう一度選び直してください。</string>
+    <string name="auto_backup_err_write">ファイルを書けませんでした（空き容量が無いか、フォルダが無くなっています）。</string>
 </resources>

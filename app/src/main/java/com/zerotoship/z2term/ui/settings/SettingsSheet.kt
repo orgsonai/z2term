@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Icon
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
@@ -100,6 +101,7 @@ import com.zerotoship.z2term.service.ScreenTimeout
 import com.zerotoship.z2term.service.SmsLogReceiver
 import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.service.TerminalService
+import com.zerotoship.z2term.backup.AutoBackup
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.BatteryGuard
 import com.zerotoship.z2term.settings.CustomThemeStore
@@ -130,6 +132,9 @@ import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import com.zerotoship.z2term.ui.theme.ZtsWarning
 import com.zerotoship.z2term.ui.theme.rememberTerminalFontFamily
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -1591,6 +1596,10 @@ fun SettingsSheet(
                     }
                 }
 
+                // 決まった日時に自動で 1 本 (0.8.386)。手で押したときにしか残らないのが
+                // 持ち出しの弱点だったので、押し忘れても昨日の状態が残る形にする。
+                AutoBackupSection(settings = settings, session = session)
+
                 // 初回ガイドをもう一度。復活の導線は「設定の奥に 1 行」に留める
                 // (毎回出したい機能ではないので、目立つ場所には置かない)。
                 Section(title = stringResource(R.string.settings_intro_again)) {
@@ -2432,6 +2441,221 @@ private fun SettingsGroupSection(
         }
         if (open) content()
     }
+}
+
+/**
+ * 定期バックアップ (0.8.386)。日時と世代数を決めて、選んだフォルダへ自動で積む。
+ *
+ * **なぜ設定を即保存にしたか**: この画面には「保存」ボタンが無い (設定シート全体の作法)。
+ * 途中まで直して閉じても、直したところまでは効く。⚠ 保存のたびに予約を貼り直すのは
+ * [TerminalSession] 側の仕事 ([TerminalSession.setAutoBackupSchedule])。
+ *
+ * ⚠ **秘密は含めない**。理由は [AutoBackup] の KDoc に書いた。ここでは説明文でそう伝えるだけ。
+ */
+@Composable
+private fun AutoBackupSection(settings: AppSettings.Snapshot, session: TerminalSession) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var running by remember { mutableStateOf(false) }
+
+    // 保存先フォルダ。⚠ takePersistableUriPermission を忘れると、**アプリを再起動した時点で
+    // 書けなくなる** (その日の夜中に静かに失敗する)。
+    val folderPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            }
+            session.setAutoBackupFolder(uri.toString())
+        }
+    }
+
+    // 1 か所だけ変えて残りは今の値のまま保存する (画面のどの操作も「1 項目を直す」なので)。
+    fun save(
+        interval: String = settings.autoBackupInterval,
+        dayOfWeek: Int = settings.autoBackupDayOfWeek,
+        dayOfMonth: Int = settings.autoBackupDayOfMonth,
+        hour: Int = settings.autoBackupHour,
+        minute: Int = settings.autoBackupMinute,
+        keep: Int = settings.autoBackupKeep
+    ) = session.setAutoBackupSchedule(interval, dayOfWeek, dayOfMonth, hour, minute, keep)
+
+    Section(title = stringResource(R.string.settings_auto_backup)) {
+        Text(
+            text = stringResource(R.string.settings_auto_backup_desc),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        ToggleField(
+            title = stringResource(R.string.auto_backup_enable),
+            description = stringResource(R.string.auto_backup_enable_desc),
+            checked = settings.autoBackupEnabled,
+            onChange = { session.setAutoBackupEnabled(it) }
+        )
+        if (!settings.autoBackupEnabled) return@Section
+
+        // --- 保存先 ---
+        InfoRow(
+            label = stringResource(R.string.auto_backup_folder),
+            value = folderLabel(settings.autoBackupFolder)
+                ?: stringResource(R.string.auto_backup_folder_none)
+        )
+        ActionButton(
+            label = stringResource(R.string.auto_backup_folder_pick),
+            onClick = { runCatching { folderPicker.launch(null) } }
+        )
+
+        // --- 間隔 ---
+        Text(
+            text = stringResource(R.string.auto_backup_interval),
+            color = ZtsTextSecondary,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        ChipRow(
+            options = listOf(
+                AutoBackup.INTERVAL_DAILY, AutoBackup.INTERVAL_WEEKLY, AutoBackup.INTERVAL_MONTHLY
+            ),
+            selected = settings.autoBackupInterval,
+            labels = mapOf(
+                AutoBackup.INTERVAL_DAILY to stringResource(R.string.auto_backup_daily),
+                AutoBackup.INTERVAL_WEEKLY to stringResource(R.string.auto_backup_weekly),
+                AutoBackup.INTERVAL_MONTHLY to stringResource(R.string.auto_backup_monthly)
+            ),
+            onSelect = { save(interval = it) }
+        )
+        when (settings.autoBackupInterval) {
+            AutoBackup.INTERVAL_WEEKLY -> {
+                Text(
+                    text = stringResource(R.string.auto_backup_dow),
+                    color = ZtsTextSecondary,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                val dowLabels = listOf(
+                    R.string.auto_backup_sun, R.string.auto_backup_mon, R.string.auto_backup_tue,
+                    R.string.auto_backup_wed, R.string.auto_backup_thu, R.string.auto_backup_fri,
+                    R.string.auto_backup_sat
+                ).map { stringResource(it) }
+                ChipRow(
+                    // Calendar.DAY_OF_WEEK と同じ 1=日 … 7=土 で持つ (計算側と数え方を揃える)。
+                    options = (1..7).map { it.toString() },
+                    selected = settings.autoBackupDayOfWeek.toString(),
+                    labels = (1..7).associate { it.toString() to dowLabels[it - 1] },
+                    onSelect = { save(dayOfWeek = it.toIntOrNull() ?: Calendar.SUNDAY) }
+                )
+            }
+            AutoBackup.INTERVAL_MONTHLY -> {
+                // ⚠ 目盛りの文言はここで先に解いておく。valueLabel は @Composable ではないので
+                // 中で stringResource を呼べない。
+                val dayFormat = stringResource(R.string.auto_backup_dom_value)
+                SliderField(
+                    title = stringResource(R.string.auto_backup_dom),
+                    value = settings.autoBackupDayOfMonth.toFloat(),
+                    range = 1f..28f,
+                    steps = 26,
+                    valueLabel = { dayFormat.format(it.toInt()) },
+                    onChange = { save(dayOfMonth = it.toInt()) }
+                )
+            }
+        }
+
+        // --- 時刻 ---
+        // 端末標準の時刻ピッカーを使う。スライダー 2 本より速く、24 時間表示の指定も端末に従う。
+        InfoRow(
+            label = stringResource(R.string.auto_backup_time),
+            value = "%02d:%02d".format(settings.autoBackupHour, settings.autoBackupMinute),
+            onClick = {
+                runCatching {
+                    android.app.TimePickerDialog(
+                        context,
+                        { _, h, m -> save(hour = h, minute = m) },
+                        settings.autoBackupHour,
+                        settings.autoBackupMinute,
+                        android.text.format.DateFormat.is24HourFormat(context)
+                    ).show()
+                }
+            }
+        )
+
+        // --- 世代 ---
+        val keepFormat = stringResource(R.string.auto_backup_keep_value)
+        SliderField(
+            title = stringResource(R.string.auto_backup_keep),
+            value = settings.autoBackupKeep.toFloat(),
+            range = AutoBackup.KEEP_MIN.toFloat()..AutoBackup.KEEP_MAX.toFloat(),
+            steps = AutoBackup.KEEP_MAX - AutoBackup.KEEP_MIN - 1,
+            valueLabel = { keepFormat.format(it.toInt()) },
+            onChange = { save(keep = it.toInt()) }
+        )
+
+        // --- 次回と最後 ---
+        val fmt = remember { SimpleDateFormat("M/d HH:mm", Locale.getDefault()) }
+        val nextAt = AutoBackup.nextAt(
+            interval = settings.autoBackupInterval,
+            dayOfWeek = settings.autoBackupDayOfWeek,
+            dayOfMonth = settings.autoBackupDayOfMonth,
+            hour = settings.autoBackupHour,
+            minute = settings.autoBackupMinute,
+            from = System.currentTimeMillis()
+        )
+        Text(
+            text = stringResource(R.string.auto_backup_next, fmt.format(Date(nextAt))),
+            color = ZtsTextSecondary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        val lastResult = settings.autoBackupLastResult
+        val failed = lastResult.startsWith("err:")
+        Text(
+            text = when {
+                settings.autoBackupLastAt == 0L -> stringResource(R.string.auto_backup_last_never)
+                failed -> stringResource(
+                    R.string.auto_backup_last_err,
+                    fmt.format(Date(settings.autoBackupLastAt)),
+                    stringResource(AutoBackup.reasonRes(lastResult))
+                )
+                else -> stringResource(
+                    R.string.auto_backup_last_ok,
+                    fmt.format(Date(settings.autoBackupLastAt)),
+                    lastResult.removePrefix("ok:")
+                )
+            },
+            color = if (failed) ZtsError else ZtsTextSecondary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace
+        )
+
+        // 夜中まで待たずに 1 本作って、設定が本当に効いているかその場で確かめられるように。
+        ActionButton(
+            label = stringResource(
+                if (running) R.string.auto_backup_running else R.string.auto_backup_run_now
+            ),
+            onClick = {
+                if (running) return@ActionButton
+                running = true
+                scope.launch {
+                    withContext(Dispatchers.IO) { AutoBackup.runAndRecord(context) }
+                    running = false
+                }
+            }
+        )
+    }
+}
+
+/**
+ * 保存先フォルダの見せ方。SAF の tree URI は人に見せる形ではないので、
+ * ドキュメント ID (`primary:Download/z2term`) の末尾だけ出す。未選択なら null。
+ */
+private fun folderLabel(treeUri: String): String? {
+    if (treeUri.isEmpty()) return null
+    val decoded = Uri.decode(treeUri.substringAfterLast("/"))
+    return decoded.substringAfterLast(':').ifEmpty { decoded }
 }
 
 @Composable

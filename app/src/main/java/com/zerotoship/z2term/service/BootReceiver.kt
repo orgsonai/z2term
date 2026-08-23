@@ -31,6 +31,11 @@ class BootReceiver : BroadcastReceiver() {
         runCatching { AlarmScheduler.rescheduleAll(context) }
             .onFailure { Log.w("BootReceiver", "alarm reschedule failed", it) }
 
+        // 定期バックアップ (0.8.386) の予約も貼り直す。⚠ 貼り直さないと「設定は ON のまま
+        // バックアップだけ増えない」状態が、次に機種変するまで気付かれない。
+        runCatching { runBlocking { com.zerotoship.z2term.backup.AutoBackup.schedule(context) } }
+            .onFailure { Log.w("BootReceiver", "auto backup reschedule failed", it) }
+
         // z2-screen keepon が掛かったまま再起動した場合の後始末。期限を過ぎていればその場で
         // 書き戻し、まだなら予約を貼り直す。放っておくと「消灯しない」が永久に残る。
         runCatching { ScreenTimeout.restoreOrReschedule(context) }

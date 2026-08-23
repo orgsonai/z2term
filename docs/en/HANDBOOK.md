@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.385-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.386-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -214,6 +214,14 @@ Settings > Maintenance > **"Take it with you"** writes your current setup to a s
 - In it: **settings, SSH connections, snippets, automation rules and macros**, plus **your theme, tile assignments, icon drawings, dictionaries and what the keyboard has learned** (0.8.380). Out of it: the **OS image** (hundreds of MB — a reinstall brings it back), logs, and **home-screen widget assignments** (they are keyed by the number the launcher hands out, so restoring them would point at a different widget).
 - **SSH passwords and keys are left out by default.** Tick the box to include them and you will be asked for a **passphrase** (without it the backup cannot be restored, so pick something you will remember).
 - When restoring, you see **what and how many** will be added before deciding. Nothing you already have is deleted; only matching items are replaced.
+
+**It can also make one on a schedule** (0.8.386). On the same screen, turn on **"On a schedule"** and pick a **folder, an interval (daily / weekly / monthly), a time and how many generations to keep**.
+
+- The newest few are kept and older ones go automatically. ⚠ **Only the ones it made are removed** — a backup you created by hand survives even in the same folder.
+- ⚠ **SSH passwords and keys are not included.** Including them needs a passphrase, and automating that would mean keeping the passphrase on the device. To take secrets with you, create one by hand as before.
+- A good day passes quietly; **only a failure is notified** (a daily "it worked" notice trains you to skip the day it did not). When it last succeeded is shown on the same screen.
+- **"Back up now"** writes one on the spot, so you can check the setup without waiting for the middle of the night.
+- ⚠ Choosing a different folder, or revoking access on the device, stops the writing. You will be notified — **pick the folder again** when that happens.
 
 ### Creating an SSH key in the app
 
