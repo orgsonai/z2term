@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +59,7 @@ import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.snippets.Snippet
+import com.zerotoship.z2term.snippets.SnippetGroup
 import com.zerotoship.z2term.snippets.SnippetStore
 import com.zerotoship.z2term.ui.components.REORDER_SETTLE_MS
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
@@ -283,6 +285,21 @@ private fun SnippetsBody(
     }
     val snippets by snippetsFlow.collectAsState()
     var editing by remember { mutableStateOf<Snippet?>(null) }
+    // グループ (0.8.387)。"" = 「すべて」= 絞らない。
+    val groupsFlow = remember(store) {
+        store.groups.stateIn(scope, SharingStarted.Eagerly, emptyList())
+    }
+    val groups by groupsFlow.collectAsState()
+    var selectedGroup by remember { mutableStateOf("") }
+    var groupEditing by remember { mutableStateOf<SnippetGroup?>(null) }
+    // 開いていたグループが消えたら「すべて」へ戻す (**空の棚を開いたまま固まらせない**)。
+    LaunchedEffect(groups) {
+        if (selectedGroup.isNotEmpty() && groups.none { it.id == selectedGroup }) selectedGroup = ""
+    }
+    // いま出す行。「すべて」なら全部、グループを開いていればその中だけ。
+    val visible = remember(snippets, selectedGroup) {
+        if (selectedGroup.isEmpty()) snippets else snippets.filter { it.groupId == selectedGroup }
+    }
 
     // 初回だけサンプル (ls -la --color=auto) を投入。
     LaunchedEffect(Unit) { store.ensureSeeded() }
@@ -300,11 +317,11 @@ private fun SnippetsBody(
     // 保存した並び。保存 (DataStore への書き込み → flow で戻ってくる) が反映されるまでは
     // flow 側の古い並びで上書きしない — 取り込むと並びが一度戻ってからまた入れ替わる。
     var pendingIds by remember { mutableStateOf<List<String>?>(null) }
-    LaunchedEffect(snippets, draggingId) {
+    LaunchedEffect(visible, draggingId) {
         if (draggingId != null) return@LaunchedEffect
         val p = pendingIds
         if (p != null) {
-            val ids = snippets.map { it.id }
+            val ids = visible.map { it.id }
             when {
                 // 顔ぶれが変わった (追加・削除) なら flow 側が正しい。
                 ids.size != p.size || ids.toSet() != p.toSet() -> pendingIds = null
@@ -314,7 +331,7 @@ private fun SnippetsBody(
                 else -> return@LaunchedEffect
             }
         }
-        order = snippets
+        order = visible
     }
     // 1 行ぶんのピッチ (行高 + Column の spacedBy 10dp)。これを超えて動かしたら隣と入れ替える。
     val rowPitchPx = with(LocalDensity.current) { (SNIPPET_ROW_HEIGHT + 10.dp).toPx() }
@@ -324,10 +341,20 @@ private fun SnippetsBody(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         val currentEdit = editing
-        if (currentEdit == null) {
-            ListHeader(onNew = { editing = newSnippet() })
+        val currentGroupEdit = groupEditing
+        if (currentEdit == null && currentGroupEdit == null) {
+            // 新規は**開いているグループへ入れる**。開いてから「+ 新規」を押した人にとっては
+            // それが自然で、未分類へ落ちると毎回移し替える羽目になる。
+            ListHeader(onNew = { editing = newSnippet(selectedGroup) })
+            GroupBar(
+                groups = groups,
+                selected = selectedGroup,
+                onSelect = { selectedGroup = it },
+                onEditGroup = { groupEditing = it },
+                onAddGroup = { groupEditing = newGroup() }
+            )
             if (order.isEmpty()) {
-                EmptyState()
+                EmptyState(inGroup = selectedGroup.isNotEmpty())
             } else {
                 // key(s.id) でノード identity を固定 → 並べ替え中も掴んだ行に
                 // ポインタ(ドラッグ)が追従する (Column でも item が移動できる)。
@@ -374,7 +401,9 @@ private fun SnippetsBody(
                                 draggingId = null
                                 // 保存は待たずに投げる (離してすぐ閉じても並びが残るように)。
                                 pendingIds = finalOrder.map { it.id }
-                                scope.launch { store.replaceAll(finalOrder) }
+                                // ⚠ 絞り込み中は replaceAll に渡さない (出ていないグループが
+                                // まるごと消える)。見えている行の位置だけ入れ替える。
+                                scope.launch { store.replaceVisible(finalOrder) }
                                 if (id != null && dragDy != 0f) {
                                     // 半端に残ったズレを 0 まで滑らせる (即 0 にすると行が飛ぶ)。
                                     settlingId = id
@@ -398,26 +427,55 @@ private fun SnippetsBody(
             }
             Spacer(modifier = Modifier.height(4.dp))
             HintBlock()
-        } else {
+        } else if (currentEdit != null) {
             EditForm(
                 initial = currentEdit,
+                groups = groups,
                 onSave = { saved ->
                     scope.launch {
                         store.upsert(saved)
+                        // 別のグループへ移したなら、移した先を開いて**行方を見せる**。
+                        // 保存した途端に一覧から消えると、消えたのか移ったのか分からない。
+                        if (selectedGroup.isNotEmpty() && saved.groupId != selectedGroup) {
+                            selectedGroup = saved.groupId
+                        }
                         editing = null
                     }
                 },
                 onCancel = { editing = null }
             )
+        } else if (currentGroupEdit != null) {
+            GroupEditForm(
+                initial = currentGroupEdit,
+                isNew = groups.none { it.id == currentGroupEdit.id },
+                onSave = { saved ->
+                    scope.launch {
+                        store.upsertGroup(saved)
+                        selectedGroup = saved.id
+                        groupEditing = null
+                    }
+                },
+                onDelete = {
+                    scope.launch {
+                        store.deleteGroup(currentGroupEdit.id)
+                        selectedGroup = ""
+                        groupEditing = null
+                    }
+                },
+                onCancel = { groupEditing = null }
+            )
         }
     }
 }
 
-private fun newSnippet() = Snippet(
+private fun newSnippet(groupId: String = "") = Snippet(
     id = UUID.randomUUID().toString(),
     label = "",
-    command = ""
+    command = "",
+    groupId = groupId
 )
+
+private fun newGroup() = SnippetGroup(id = UUID.randomUUID().toString(), name = "")
 
 /** スニペット 1 行の固定高さ。ドラッグ並べ替えのピッチ計算に使うため固定にする。 */
 
@@ -583,8 +641,12 @@ private fun ListHeader(onNew: () -> Unit) {
     }
 }
 
+/**
+ * 1 件も出ていないときの箱。⚠ **「まだ 1 つも無い」と「このグループが空」を書き分ける** —
+ * 同じ文面だと、絞り込んだせいで消えたのか元から無いのかが読めない。
+ */
 @Composable
-private fun EmptyState() {
+private fun EmptyState(inGroup: Boolean) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -595,7 +657,9 @@ private fun EmptyState() {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = stringResource(R.string.snippets_empty),
+            text = stringResource(
+                if (inGroup) R.string.snippets_group_empty else R.string.snippets_empty
+            ),
             color = ZtsTextSecondary,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace
@@ -614,10 +678,143 @@ private fun HintBlock() {
             .padding(10.dp)
     ) {
         Text(
-            text = stringResource(R.string.snippets_hint),
+            text = stringResource(R.string.snippets_hint) + "\n" +
+                stringResource(R.string.snippets_group_hint),
             color = ZtsTextSecondary,
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+/**
+ * グループの帯 (0.8.387)。`[すべて] [日常] [git] [+ グループ]` を横に並べる。
+ *
+ * **なぜページではなく棚か**: 増えた順に区切るページだと、**どこに何があるかが増減のたびに
+ * 変わる**。自分で名前を付けた棚なら、中身が増えても場所は動かない
+ * (利用者: 「日常系のスニペットとかgit管理系とか」)。
+ *
+ * ⚠ **開いているグループのチップにだけ ✎ を出す**。名前の変更と削除の入口はここしかないので、
+ * 長押しのような隠し操作にはしない (見えないものは無いのと同じ)。
+ */
+@Composable
+private fun GroupBar(
+    groups: List<SnippetGroup>,
+    selected: String,
+    onSelect: (String) -> Unit,
+    onEditGroup: (SnippetGroup) -> Unit,
+    onAddGroup: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        GroupChip(
+            label = stringResource(R.string.snippets_group_all),
+            selected = selected.isEmpty(),
+            onClick = { onSelect("") }
+        )
+        groups.forEach { g ->
+            val open = g.id == selected
+            GroupChip(
+                label = if (open) g.name + " ✎" else g.name,
+                selected = open,
+                // 開いているものをもう一度押す = そのグループの編集。閉じているものは開くだけ。
+                onClick = { if (open) onEditGroup(g) else onSelect(g.id) }
+            )
+        }
+        GroupChip(
+            label = stringResource(R.string.snippets_group_add),
+            selected = false,
+            onClick = onAddGroup
+        )
+    }
+}
+
+@Composable
+private fun GroupChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val border = if (selected) ZtsGreen else ZtsBorder
+    val bg = if (selected) ZtsGreen.copy(alpha = 0.18f) else ZtsBgCard
+    val fg = if (selected) ZtsGreen else ZtsTextPrimary
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = label.ifBlank { stringResource(R.string.snippets_group_none) },
+            color = fg,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/**
+ * グループを作る / 名前を直す / 消す (0.8.387)。
+ *
+ * ⚠ **消すのは棚だけで、中身は消えない**ことをその場に書く。書いていないと、削除を押すのが
+ * 怖くて棚が増え続ける (そして怖いまま押した人は中身を失ったと思う)。
+ */
+@Composable
+private fun GroupEditForm(
+    initial: SnippetGroup,
+    isNew: Boolean,
+    onSave: (SnippetGroup) -> Unit,
+    onDelete: () -> Unit,
+    onCancel: () -> Unit
+) {
+    var name by remember(initial.id) { mutableStateOf(initial.name) }
+
+    Text(
+        text = stringResource(
+            if (isNew) R.string.snippets_group_new_title else R.string.snippets_group_edit_title
+        ),
+        color = ZtsGreen,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontFamily = FontFamily.Monospace
+    )
+    Field(
+        label = stringResource(R.string.snippets_group_name_field),
+        value = name,
+        onChange = { name = it },
+        placeholder = stringResource(R.string.snippets_group_name_placeholder)
+    )
+    if (!isNew) {
+        Text(
+            text = stringResource(R.string.snippets_group_delete_note),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        SmallButton(label = stringResource(R.string.action_cancel), onClick = onCancel)
+        if (!isNew) {
+            SmallButton(
+                label = stringResource(R.string.snippets_group_delete),
+                danger = true,
+                onClick = onDelete
+            )
+        }
+        Box(modifier = Modifier.weight(1f))
+        SmallButton(
+            label = stringResource(R.string.action_save),
+            accent = true,
+            onClick = { if (name.isNotBlank()) onSave(initial.copy(name = name.trim())) }
         )
     }
 }
@@ -737,11 +934,13 @@ private fun IconCell(
 @Composable
 private fun EditForm(
     initial: Snippet,
+    groups: List<SnippetGroup>,
     onSave: (Snippet) -> Unit,
     onCancel: () -> Unit
 ) {
     var label by remember(initial.id) { mutableStateOf(initial.label) }
     var command by remember(initial.id) { mutableStateOf(initial.command) }
+    var groupId by remember(initial.id) { mutableStateOf(initial.groupId) }
 
     Text(
         text = if (initial.label.isEmpty() && initial.command.isEmpty())
@@ -767,6 +966,31 @@ private fun EditForm(
         placeholder = "ls -la --color=auto",
         multiline = true
     )
+    // どのグループに置くか。⚠ **グループを 1 つも作っていない人には出さない** — 選べる先が
+    // 「未分類」しかない欄は、置き場所を選べるように見えて何も決められない。
+    if (groups.isNotEmpty()) {
+        Text(
+            text = stringResource(R.string.snippets_group_field),
+            color = ZtsTextSecondary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            GroupChip(
+                label = stringResource(R.string.snippets_group_none),
+                selected = groupId.isEmpty(),
+                onClick = { groupId = "" }
+            )
+            groups.forEach { g ->
+                GroupChip(label = g.name, selected = g.id == groupId, onClick = { groupId = g.id })
+            }
+        }
+    }
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -779,7 +1003,7 @@ private fun EditForm(
             accent = true,
             onClick = {
                 if (command.isNotBlank()) {
-                    onSave(initial.copy(label = label.trim(), command = command))
+                    onSave(initial.copy(label = label.trim(), command = command, groupId = groupId))
                 }
             }
         )

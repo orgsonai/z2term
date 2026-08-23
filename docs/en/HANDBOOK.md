@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.386-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.387-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -229,6 +229,16 @@ In 📜 > "SSH / SFTP", add a connection and set auth to public key: a **"Create
 Press it and the key is made, with **copy / share / add to this device's sshd** right there.
 Give the **public** key to whoever runs the server you connect to (the private key never leaves this device).
 The field for pasting your own private key is still there.
+
+### Grouping the commands you use most (0.8.387)
+
+A **group bar** sits at the top of the **snippet tab in 📜**.
+
+- **`+ Group`** makes a shelf ("daily", "git", …); tapping it lists only the snippets on that shelf. **"All"** brings everything back.
+- Which shelf a snippet sits on is chosen in the **Group field inside ✎ (edit)**. With a group open, "+ New" creates the snippet **already on that shelf**.
+- **Tap the name of the open shelf again** (it carries a `✎`) to rename or delete it. ⚠ **Deleting a shelf never deletes the snippets on it** — they go back to "Ungrouped" and stay listed under "All".
+- You can still **reorder with ≡** while a shelf is open. ⚠ Doing so leaves the order of snippets on other shelves untouched.
+- Shelves travel in the backup, so a new phone gets the same shelves back.
 
 ### Reusing a command you typed before (History)
 

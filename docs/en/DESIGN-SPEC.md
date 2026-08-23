@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-23 / Target version: 0.8.386-alpha (versionCode 394)
+Last updated: 2026-08-23 / Target version: 0.8.387-alpha (versionCode 395)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -777,6 +777,20 @@ means would then depend on the payload, which cannot be explained to anyone.
 - ⚠ The folder is a SAF tree URI held by `takePersistableUriPermission`. Without it, **writing stops working the moment the app restarts, and fails quietly that night**. Access is checked before writing and reported as `err:noaccess` (i.e. "choose the folder again").
 - The monthly day is **clamped to 1-28**: allowing 29-31 would **skip exactly the months that lack that day**.
 - `AutoBackupScheduleTest` pins down "when is next" (daily / weekly / monthly, with the exact time pushed to the following run) and "what gets deleted" (never a hand-made file; at least one kept even at `keep=0`).
+
+#### Snippet groups (`snippets/SnippetGroup`, 0.8.387)
+
+**What it does**: a **group bar** (`[All] [daily] [git] [+ Group]`) sits above the snippet tab in 📜, and tapping a group shows only what is inside it. **Why**: snippets grow downwards, so **the ones you use most sink out of reach** (from the user: "as they pile up they end up at the bottom and get hard to pick").
+
+**Shelves, not pages.** Pages that cut the list every N entries **move things around every time the count changes**. A shelf you named yourself stays where it is, however much goes into it ("everyday ones, git ones", as the user put it).
+
+- **A snippet holds an id, not a name** (`Snippet.groupId`; empty = ungrouped = only ever listed under "All"). Holding the name would mean rewriting every member whenever a group is renamed, and a crash mid-rewrite would leave **snippets that appear nowhere**.
+- ⚠ **Deleting a group never deletes what is in it.** The members go back to ungrouped and show up under "All". Losing the contents while tidying a shelf is the worst outcome, so the delete row says so out loud — without that line the button is too scary to press and shelves just accumulate.
+- ⚠ **A reorder made while filtered must not go to `replaceAll`** (`SnippetStore.replaceVisible` / `reorderWithin`): that would **wipe every group that is not on screen**. The new order is poured only into the slots the visible rows occupy, so **reordering inside a group leaves the relative order of everything else untouched**. `SnippetGroupTest` pins this down.
+- **Renaming and deleting live behind the `✎` on the open group's chip.** Not a long-press: an invisible gesture is the same as no gesture.
+- **A new snippet lands in the open group.** That is what someone who just opened a group expects, and dropping it into "ungrouped" would mean moving it every time. Editing one into a different group **opens that group** — vanishing from the list on save reads as deletion, not as a move.
+- **The group field stays out of the editor until at least one group exists.** A picker whose only choice is "ungrouped" pretends to offer a decision it cannot make.
+- **Backups carry groups as their own entry** (`snippet_groups.json`). ⚠ Mixing them into the snippet array would make 0.8.386 and earlier unable to read the file. Older backups have no such entry, and everything comes back ungrouped. ⚠ Import only happens **when the entry is present** — writing an empty array would delete the shelves and scatter their contents into ungrouped.
 
 #### History palette (`ui/snippets/ShellHistory`, 0.8.221, B2)
 

@@ -94,6 +94,12 @@ object BackupManager {
     private const val MANIFEST = "manifest.json"
     private const val SETTINGS = "settings.json"
     private const val SNIPPETS = "snippets.json"
+    /**
+     * スニペットのグループ (0.8.387)。⚠ **スニペット本体とは別のエントリにする** —
+     * 同じ配列に混ぜると、0.8.386 までの版が読めなくなる (向こうは 1 件ずつ Snippet として
+     * 読むため)。古いバックアップにこのファイルは無く、その場合は全部が未分類のまま戻る。
+     */
+    private const val SNIPPET_GROUPS = "snippet_groups.json"
     private const val SSH_PLAIN = "ssh.json"
     private const val SSH_ENC = "ssh.enc"
     private const val WHEN_DIR = "when/"
@@ -127,6 +133,7 @@ object BackupManager {
         val app = context.applicationContext
         val settingsJson = AppSettings(app).exportRaw()
         val snippetsJson = SnippetStore(app).exportRaw()
+        val snippetGroupsJson = SnippetStore(app).exportGroups()
         val sshJson = SshProfileStore(app).exportRaw(includeSecrets = options.includeSecrets)
         val rules = filesIn(WhenManager.whenDir(app), ".rule")
         val macros = filesIn(WidgetStore.macroDir(app), ".sh")
@@ -159,6 +166,7 @@ object BackupManager {
             zip.putText(MANIFEST, manifest.toString())
             zip.putText(SETTINGS, settingsJson)
             zip.putText(SNIPPETS, snippetsJson)
+            zip.putText(SNIPPET_GROUPS, snippetGroupsJson)
             if (options.includeSecrets) {
                 // 秘密を含むファイルだけを合言葉で暗号化する。設定やスニペットに秘密は無い。
                 zip.putBytes(SSH_ENC, BackupCrypt.encrypt(sshJson.toByteArray(), options.passphrase))
@@ -215,6 +223,9 @@ object BackupManager {
 
         entries[SETTINGS]?.let { AppSettings(app).importRaw(it.toString(Charsets.UTF_8)) }
         entries[SNIPPETS]?.let { SnippetStore(app).importRaw(it.toString(Charsets.UTF_8)) }
+        // ⚠ **グループはスニペットより先でも後でもよいが、無いときは何もしない**。
+        // 空配列で上書きすると、いま作ってある棚が消えて中身だけが未分類に散らばる。
+        entries[SNIPPET_GROUPS]?.let { SnippetStore(app).importGroups(it.toString(Charsets.UTF_8)) }
         entries[THEME]?.let { CustomThemeStore.importRaw(app, it.toString(Charsets.UTF_8)) }
         // ⚠ タイルは戻すだけでなく一覧の同期まで要る ([TileStore.importRaw] が通している)。
         entries[TILES]?.let { TileStore.importRaw(app, it.toString(Charsets.UTF_8)) }

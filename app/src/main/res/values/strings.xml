@@ -962,4 +962,17 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="auto_backup_err_nofolder">No folder is chosen. Pick one in Settings → Maintenance.</string>
     <string name="auto_backup_err_noaccess">z2term can no longer write to that folder. Choose it again in Settings.</string>
     <string name="auto_backup_err_write">Could not write the file (no space left, or the folder is gone).</string>
+    <!-- スニペットのグループ (0.8.387) -->
+    <string name="snippets_group_all">All</string>
+    <string name="snippets_group_add">+ Group</string>
+    <string name="snippets_group_field">Group</string>
+    <string name="snippets_group_none">Ungrouped</string>
+    <string name="snippets_group_name_field">Group name</string>
+    <string name="snippets_group_name_placeholder">git</string>
+    <string name="snippets_group_new_title">New group</string>
+    <string name="snippets_group_edit_title">Edit group</string>
+    <string name="snippets_group_delete">Delete this group</string>
+    <string name="snippets_group_delete_note">The snippets inside are kept — they move back to Ungrouped.</string>
+    <string name="snippets_group_empty">Nothing in this group yet. Tap "+ New" to add one here.</string>
+    <string name="snippets_group_hint">▸ Tap a group to show only what is in it\n▸ Tap the ✎ on the open group to rename or delete it</string>
 </resources>

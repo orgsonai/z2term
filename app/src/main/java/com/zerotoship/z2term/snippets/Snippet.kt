@@ -23,19 +23,53 @@ import org.json.JSONObject
 data class Snippet(
     val id: String,
     val label: String,
-    val command: String
+    val command: String,
+    /**
+     * 入っているグループ ([SnippetGroup.id])。**空 = どのグループにも入っていない** (0.8.387)。
+     *
+     * ⚠ **名前ではなく id で持つ**。名前で持つと、グループ名を直すたびに中身を全部書き換える
+     * ことになり、書き換えの途中で落ちると**どこにも出てこないスニペット**が残る。
+     */
+    val groupId: String = ""
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)
         put("label", label)
         put("command", command)
+        put("groupId", groupId)
     }
 
     companion object {
         fun fromJson(o: JSONObject): Snippet = Snippet(
             id = o.optString("id"),
             label = o.optString("label"),
-            command = o.optString("command")
+            command = o.optString("command"),
+            // 0.8.387 より前に書き出したものには無い = 未分類 (「すべて」には出る)。
+            groupId = o.optString("groupId")
+        )
+    }
+}
+
+/**
+ * スニペットのグループ (0.8.387)。「日常」「git」のように**まとめて畳んでおく棚**。
+ *
+ * **なぜ要るか**: スニペットは増えるほど下へ伸び、**よく使うものほど下に埋まる**
+ * (利用者の指摘: 「量が増えると下の方に行ってしまい選択するのが難しくなってくる」)。
+ * ページのように機械的に区切るのではなく、**自分で決めた棚**に置けることが要点。
+ *
+ * ⚠ **グループを消してもスニペットは消さない**。中身は未分類 ([Snippet.groupId] が空) へ
+ * 戻して「すべて」に出す — 棚を片付けたつもりで中身ごと失うのが一番困る。
+ */
+data class SnippetGroup(val id: String, val name: String) {
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("id", id)
+        put("name", name)
+    }
+
+    companion object {
+        fun fromJson(o: JSONObject): SnippetGroup = SnippetGroup(
+            id = o.optString("id"),
+            name = o.optString("name")
         )
     }
 }
@@ -52,6 +86,11 @@ class SnippetStore(private val context: Context) {
 
     val snippets: Flow<List<Snippet>> = context.snippetDataStore.data.map { p ->
         readList(p[KEY])
+    }
+
+    /** グループ一覧 (帯に出す順)。空 = まだ 1 つも作っていない (0.8.387)。 */
+    val groups: Flow<List<SnippetGroup>> = context.snippetDataStore.data.map { p ->
+        readGroups(p[KEY_GROUPS])
     }
 
     /**
@@ -166,6 +205,58 @@ class SnippetStore(private val context: Context) {
         context.snippetDataStore.edit { p -> p[KEY] = serialize(list) }
     }
 
+    /**
+     * 見えている並び [visible] だけを保存する (グループで絞っているときの並べ替え用・0.8.387)。
+     *
+     * ⚠ **絞り込んだ並びをそのまま [replaceAll] に渡してはいけない** — 出ていないグループの
+     * スニペットが全部消える。[reorderWithin] が「見えている行が占めている位置」にだけ
+     * 新しい並びを流し込む。
+     */
+    suspend fun replaceVisible(visible: List<Snippet>) {
+        context.snippetDataStore.edit { p ->
+            p[KEY] = serialize(reorderWithin(readList(p[KEY]), visible))
+        }
+    }
+
+    /** グループを作る / 名前を直す。 */
+    suspend fun upsertGroup(group: SnippetGroup) {
+        context.snippetDataStore.edit { p ->
+            val list = readGroups(p[KEY_GROUPS]).toMutableList()
+            val idx = list.indexOfFirst { it.id == group.id }
+            if (idx >= 0) list[idx] = group else list.add(group)
+            p[KEY_GROUPS] = serializeGroups(list)
+        }
+    }
+
+    /**
+     * グループを消す。⚠ **中のスニペットは消さず、未分類へ戻す** — 棚を片付けたつもりで
+     * 中身ごと失うのが一番困る。
+     */
+    suspend fun deleteGroup(id: String) {
+        context.snippetDataStore.edit { p ->
+            p[KEY_GROUPS] = serializeGroups(readGroups(p[KEY_GROUPS]).filterNot { it.id == id })
+            val moved = readList(p[KEY]).map { if (it.groupId == id) it.copy(groupId = "") else it }
+            p[KEY] = serialize(moved)
+        }
+    }
+
+    /** グループをまるごと JSON にする (持ち出し用・0.8.387)。 */
+    suspend fun exportGroups(): String = serializeGroups(groups.first())
+
+    /** 持ち出したグループを取り込む (同じ id は置き換え・無いものは追加)。 */
+    suspend fun importGroups(json: String) {
+        val arr = runCatching { JSONArray(json) }.getOrNull() ?: return
+        context.snippetDataStore.edit { p ->
+            val list = readGroups(p[KEY_GROUPS]).toMutableList()
+            for (i in 0 until arr.length()) {
+                val g = runCatching { SnippetGroup.fromJson(arr.getJSONObject(i)) }.getOrNull() ?: continue
+                val idx = list.indexOfFirst { it.id == g.id }
+                if (idx >= 0) list[idx] = g else list.add(g)
+            }
+            p[KEY_GROUPS] = serializeGroups(list)
+        }
+    }
+
     /** スニペットをまるごと JSON にする (持ち出し用・0.8.239)。秘密は含まれない。 */
     suspend fun exportRaw(): String = serialize(snippets.first())
 
@@ -183,6 +274,18 @@ class SnippetStore(private val context: Context) {
         }
     }
 
+    private fun readGroups(raw: String?): List<SnippetGroup> {
+        if (raw == null) return emptyList()
+        val arr = try { JSONArray(raw) } catch (e: Exception) { return emptyList() }
+        return List(arr.length()) { SnippetGroup.fromJson(arr.getJSONObject(it)) }
+    }
+
+    private fun serializeGroups(list: List<SnippetGroup>): String {
+        val arr = JSONArray()
+        list.forEach { arr.put(it.toJson()) }
+        return arr.toString()
+    }
+
     private fun readList(raw: String?): List<Snippet> {
         if (raw == null) return emptyList()
         val arr = try { JSONArray(raw) } catch (e: Exception) { return emptyList() }
@@ -197,6 +300,22 @@ class SnippetStore(private val context: Context) {
 
     companion object {
         private val KEY = stringPreferencesKey("snippets")
+        private val KEY_GROUPS = stringPreferencesKey("snippet_groups")
+
+        /**
+         * [all] のうち [visible] に含まれる行の位置だけを、[visible] の並びで置き換える
+         * (**純関数**・[SnippetGroupTest] が固定する)。
+         *
+         * 例: 全体が `[a1, b1, a2]`、グループ a を `[a2, a1]` に並べ替えたなら `[a2, b1, a1]`。
+         * b1 は動かない。**絞って並べ替えても、出ていないものの前後関係は変わらない**。
+         */
+        fun reorderWithin(all: List<Snippet>, visible: List<Snippet>): List<Snippet> {
+            val ids = visible.map { it.id }.toSet()
+            // 見えている行のうち、全体にまだ在るものだけを順に流し込む (消えた行は飛ばす)。
+            val queue = ArrayDeque(visible.filter { v -> all.any { it.id == v.id } })
+            return all.map { s -> if (s.id in ids && queue.isNotEmpty()) queue.removeFirst() else s }
+        }
+    
         private val SEEDED = booleanPreferencesKey("seeded")
         private val SEEDED_APK = booleanPreferencesKey("seeded_apk")
         private val SEEDED_UPDATE = booleanPreferencesKey("seeded_z2_update")

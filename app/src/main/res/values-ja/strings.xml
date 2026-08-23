@@ -946,4 +946,17 @@ SSH 接続先 %3$d 件
     <string name="auto_backup_err_nofolder">保存フォルダが選ばれていません。設定 → メンテナンスで選んでください。</string>
     <string name="auto_backup_err_noaccess">そのフォルダへ書けなくなりました。設定でもう一度選び直してください。</string>
     <string name="auto_backup_err_write">ファイルを書けませんでした（空き容量が無いか、フォルダが無くなっています）。</string>
+    <!-- スニペットのグループ (0.8.387) -->
+    <string name="snippets_group_all">すべて</string>
+    <string name="snippets_group_add">+ グループ</string>
+    <string name="snippets_group_field">グループ</string>
+    <string name="snippets_group_none">未分類</string>
+    <string name="snippets_group_name_field">グループ名</string>
+    <string name="snippets_group_name_placeholder">git</string>
+    <string name="snippets_group_new_title">新しいグループ</string>
+    <string name="snippets_group_edit_title">グループの変更</string>
+    <string name="snippets_group_delete">このグループを削除</string>
+    <string name="snippets_group_delete_note">中のスニペットは消えません（未分類に戻ります）。</string>
+    <string name="snippets_group_empty">このグループにはまだありません。「+ 新規」でここに追加できます。</string>
+    <string name="snippets_group_hint">▸ グループを押すと、その中だけが出ます\n▸ 開いているグループの ✎ を押すと名前の変更・削除</string>
 </resources>
