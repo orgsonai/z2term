@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-23 / 対象バージョン: 0.8.390-alpha (versionCode 398)
+最終更新: 2026-08-24 / 対象バージョン: 0.8.391-alpha (versionCode 399)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1511,6 +1511,8 @@ z2diag: id-u=0 id-ur=0 sh-EUID=10576 sh-UID=10576 bash-EUID=10576
   - OSC: 7(cwd)/8(hyperlink)/10-12(前景/背景/カーソル色、`?` で query 応答)/52(クリップボード)/palette。OSC タイトルは UTF-8 デコード（日本語タブ名の文字化け防止）。
   - **URL/OSC8 リンクのセルに下線表示**。長い URL は折り返し元の行に wrapped フラグを持たせて検出（タップで開く）。
   - bracketed paste (DECSET 2004) 対応。
+  - **問い合わせへの応答 (0.8.391)**: DSR 6 (カーソル位置) / **DA1** (`CSI c` -> `CSI ?62;22c` = VT220 相当 (62) + ANSI color (22) を名乗る) / OSC 10-12 の `?` / Kitty graphics の `a=q`。⚠ **DA1 は必ず返す** — TUI の土台になっているライブラリは端末機能の判定を「機能の問い合わせを先に投げ、DA1 の応答が返った時点で打ち切る」形で書くことが多く (未対応の端末は機能の問い合わせを黙って無視するので、必ず答えが返る DA1 を締め切りに使う)、応答しないと判定が終わらず**ライブラリのタイムアウトまで TUI が起動途中で待たされる**。DA2 (`CSI > c`) と XTVERSION (`CSI > q`) は現状応答しない。
+  - **CSI はプレフィックス (`?` / `>` / `<`) で振り分ける (0.8.391)**: 終端文字だけで振り分けると、TUI が起動時と終了時に**無条件で送る**次の 3 つが別の意味で実行される。`CSI > 4 ; N m` (XTMODKEYS = 修飾キー報告の指定) が SGR として適用されて**下線が点く**、`CSI > N u` (kitty keyboard protocol の push) と `CSI < u` (同 pop) が SCORC (カーソル復元) として実行されて**カーソルが飛ぶ**。z2term はこれらの機能を持たないので、`dispatchCsiSecondary` で受けて捨てるのが正しい。
   - `cursorKeyBytes`, `encodeMouseEvent`, `resize`(cursor-aware), scrollback。
 - `SearchEngine` (M11): スクロールバック全文検索。🔍 → 文字入力 → ↑↓ で前後ジャンプ。CJK は **セル列**でハイライト位置を計算。
   - 検索バーの入力欄は**内蔵キーボード時だけ自前描画** (`SearchQueryField`)。`BasicTextField(readOnly=true)` は OS IME を出さない代わりに**キャレットも出ない**ため、末尾の追記/削除しかできなかった。表示 (`Text`) + 点滅キャレットを自前で描き、キャレット位置 (`searchCursor`) を画面側の状態として持つ。タップ位置→文字位置は `TextLayoutResult.getOffsetForPosition`、キャレット x は `getHorizontalPosition`。**キャレット位置は必ず「そのレイアウト結果が実際に持つ文字列長」でクランプする** — 状態 (`query`) の更新とレイアウト結果の更新には 1 フレームのずれがあり、`query.length` で丸めると空レイアウトに対して `offset(n) is out of bounds` で落ちる (0.8.191 で修正)。内蔵キーボードの ←→ でキャレット移動 (↑=先頭 / ↓=末尾)、BS はキャレット直前を削除 (サロゲートペアは 2 code unit まとめて)。語が枠を超えたらキャレットが見える位置まで `horizontalScroll` を寄せる。**`Text` の末尾に 3dp の余白を入れる** — `horizontalScroll` は内容幅でクリップするので、余白が無いと末尾のキャレット (x = テキスト幅) がはみ出して**文字を打った瞬間に消える** (0.8.192 で修正)。システムキーボード時は従来どおり `BasicTextField` (OS IME 側がキャレットを描く)。

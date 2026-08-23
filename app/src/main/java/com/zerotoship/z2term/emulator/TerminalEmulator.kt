@@ -801,7 +801,32 @@ class TerminalEmulator(
     private fun dispatchCsi(finalChar: Char) {
         when (csiPrefix) {
             '?' -> dispatchCsiQuestion(finalChar)
+            '>', '<' -> dispatchCsiSecondary(finalChar)
             else -> dispatchCsiStandard(finalChar)
+        }
+    }
+
+    /**
+     * `CSI > ...` / `CSI < ...` — プレフィックス付きの「端末機能の指定」系。
+     *
+     * ⚠ **[dispatchCsiStandard] へ流してはいけない**。プレフィックスを見ずに終端文字だけで
+     * 振り分けると、TUI が起動時と終了時に送る次の 3 つが**別の意味で実行されてしまう**:
+     *
+     * | 送られてくるもの | 本来の意味 | standard へ流すと |
+     * |---|---|---|
+     * | `CSI > 4 ; N m` | XTMODKEYS (修飾キー報告の指定) | SGR として適用 → 下線が点く |
+     * | `CSI > N u` | kitty keyboard protocol の push | SCORC → カーソルが飛ぶ |
+     * | `CSI < u` | 同 pop (TUI 終了時) | SCORC → カーソルが飛ぶ |
+     *
+     * z2term はこれらの機能を持たないので、**受けて捨てるのが正しい**。
+     */
+    private fun dispatchCsiSecondary(finalChar: Char) {
+        when (finalChar) {
+            'm' -> { /* XTMODKEYS: 修飾キー報告の指定 (未対応・無視) */ }
+            'u' -> { /* kitty keyboard protocol の push / pop (未対応・無視) */ }
+            'c' -> { /* DA2 (二次デバイス属性): 現状応答しない。機能判定は DA1 で足りる */ }
+            'q' -> { /* XTVERSION: 端末名とバージョンの問い合わせ (未対応・無視) */ }
+            else -> Log.d(TAG, "Unhandled CSI $csiPrefix ${csiParams} $finalChar")
         }
     }
 
@@ -947,6 +972,19 @@ class TerminalEmulator(
             'm' -> {
                 // SGR
                 applySgr()
+            }
+            'c' -> {
+                // DA1 (Primary Device Attributes): 「そちらは何者か」の問い合わせ。
+                // `CSI ? 62 ; 22 c` = VT220 相当 (62) + ANSI color (22) を名乗る。
+                //
+                // ⚠ **必ず返す**。TUI やその土台のライブラリは端末機能の判定を
+                // 「機能の問い合わせを先に投げ、DA1 の応答が返った時点で打ち切る」形で
+                // 書くことが多い (未対応の端末は機能の問い合わせを黙って無視するので、
+                // 必ず答えが返る DA1 を締め切りに使う)。応答しないと判定が終わらず、
+                // ライブラリのタイムアウトまで TUI が起動途中で待たされる。
+                if (getCsiParamRaw(0) == 0) {
+                    output("\u001b[?62;22c".toByteArray(Charsets.US_ASCII))
+                }
             }
             'n' -> {
                 // DSR: device status report
