@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-23 / Target version: 0.8.388-alpha (versionCode 396)
+Last updated: 2026-08-23 / Target version: 0.8.389-alpha (versionCode 397)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -745,9 +745,9 @@ means would then depend on the payload, which cannot be explained to anyone.
 - No passphrase. Requiring one on every connection lengthens the road to "it connects at all"; the private key stays on the device, encrypted by `KeystoreCrypt` as before.
 - The public key is **not persisted** (it is only handed over right after creation, and can be re-derived from the private key). `authorized_keys` de-duplicates **on the key body**, so the same key with a different comment is not added twice.
 
-#### Data limit (`service/NetGuard`, 0.8.388)
+#### Data limit (`service/NetGuard`, 0.8.388; what is counted, 0.8.389)
 
-**What it does**: once this period's mobile usage reaches the amount you set, **z2term's own traffic stops**. Running out is usually noticed **after the carrier throttles the line**, and z2term can keep talking quietly over SSH and downloads.
+**What it does**: once **the whole phone's** mobile usage for this period reaches the amount you set, **z2term's own traffic stops**. Running out is usually noticed **after the carrier throttles the line**, and z2term can keep talking quietly over SSH and downloads.
 
 **How far it goes (the judgement call here)**:
 - ⚠ **Only z2term's traffic stops.** Other apps keep going. Without root the only way to cut off the whole device is **standing up a VPN and dropping the packets**, which drags in a different weight entirely: a terminal app permanently occupying the device's VPN slot (no other VPN alongside it). **The user chose "stop only z2term".**
@@ -759,7 +759,15 @@ means would then depend on the payload, which cannot be explained to anyone.
 - ⚠ **Anything inside your home network** (the user asked for this): `192.168.*`, `10.*`, `172.16-31.*`, `127.*`, `169.254.*`, `fc00::/7`, `fe80::/10`, plus `localhost`, **single-label names**, `.local`, `.lan`, `.home`, `.internal`. **There is no reason to stop a peer that costs zero mobile bytes.** Names that fit none of those are resolved and treated as local if they land on a private address. ⚠ Resolution happens **only once blocking is decided** — doing it on every connect would just slow connections down while nothing is blocked.
 - **Nothing stops while on Wi-Fi** (default), and only mobile bytes are counted. Turning that off counts both and stops regardless of the connection. ⚠ "Over the limit but not stopping because you are on Wi-Fi" is shown on screen — silently letting traffic through looks like a setting that does not work.
 
-**Measuring**: `NetworkStatsManager`, asked **only for this app's own UID**. ⚠ Querying your own UID does not need the "usage access" permission (that is for other apps' figures), so **not one extra permission is added**. ⚠ Some devices refuse anyway, and then **nothing is stopped** (`measurable = false`) — blocking traffic because the meter is unreadable would be a lockout with no way out. Whether it can be read is shown in settings. ⚠ Nothing is measured while the feature is off (the query is not cheap).
+**The whole phone is what gets counted (fixed in 0.8.389)**: the first cut counted only this app's own UID. ⚠ **What people want to know is "how many GB are left this month", not how many bytes z2term spent** (from the user: "unless it counts the whole of Android, it isn't usable"). **Stopping on your own share has nothing to do with the carrier's cap.** It now reads `querySummaryForDevice` per transport.
+
+- ⚠ **Reading the whole device requires the "usage access" permission** (querying your own UID did not). It cannot be requested with a normal dialog: the state is read through `AppOpsManager` (`hasUsageAccess`) and the settings screen is offered when it is missing (`openUsageAccessSettings`). Without `PACKAGE_USAGE_STATS` declared in the manifest the app **does not even appear in that list**, so it is declared (with the `ProtectedPermissions` lint suppressed).
+- ⚠ **The grant only ever changes in system settings**, so it is re-read on `ON_RESUME` (the same treatment as the battery-optimisation exemption).
+- ⚠ **No grant, or unreadable, means nothing is stopped** (`measurable = false`) — blocking traffic because the meter is unreadable would be a lockout with no way out. "Not granted" and "granted but unreadable" are **worded differently on screen** (the first carries a button into settings). Silently doing nothing is the worst outcome.
+- ⚠ **Two SIMs are counted together.** The subscriber id is unreadable to apps from API 29 on, so they cannot be told apart.
+- ⚠ Nothing is measured while the feature is off (the query is not cheap).
+
+**The limit is set by a slider *and* a field (0.8.389)**: the slider steps through 100MB-50GB on **deliberately uneven stops** (even spacing squeezes the 1-5GB range everyone actually uses into a few millimetres). ⚠ **A slider alone cannot land on a contract's number** (4.5GB, 100GB are on no stop; from the user: "a slider alone can't be adjusted"), so a **field taking MB** sits beside it (1MB-1TB). ⚠ When a typed value sits between stops the knob shows the nearest one, but **the number displayed is what was typed** (it comes from the setting, not the knob). ⚠ The field **may be left empty** — filling it in mid-edit would make it impossible to retype.
 
 **The period** starts at 00:00 on the reset day (1-28). Allowing 29-31 would **skip the boundary in exactly the months that lack that day**.
 

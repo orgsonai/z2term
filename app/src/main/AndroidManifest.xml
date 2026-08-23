@@ -5,6 +5,13 @@
     <!-- 必須権限 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- 通信量の上限 (0.8.389) で**端末全体**の通信量を読むために要る。⚠ 普通の権限ではなく
+         「使用状況へのアクセス」= 設定画面で利用者が 1 つずつ許すもの。宣言していないと
+         その一覧にすら出ないので、ここに書いたうえで画面から設定へ案内する。
+         ⚠ 許していない間は端末全体を読めないので、上限は働かない (止めない)。 -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <!-- Foreground Service（M3 で本格利用、M1 では宣言のみ） -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

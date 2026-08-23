@@ -40,6 +40,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Slider
@@ -2459,13 +2461,28 @@ private fun SettingsGroupSection(
 private fun NetLimitSection(settings: AppSettings.Snapshot, session: TerminalSession) {
     val context = LocalContext.current
 
-    // 使用量は問い合わせが重いので画面を止めない。設定を変えたら測り直す。
+    // 「使用状況へのアクセス」の許可。⚠ **システム設定でしか変えられない**ので、戻ってきた
+    // とき (ON_RESUME) に見直す (電池最適化の除外と同じ扱い)。
+    var usageAccess by remember { mutableStateOf(NetGuard.hasUsageAccess(context)) }
+    DisposableEffect(context) {
+        val owner = context as? androidx.lifecycle.LifecycleOwner
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                usageAccess = NetGuard.hasUsageAccess(context)
+            }
+        }
+        owner?.lifecycle?.addObserver(obs)
+        onDispose { owner?.lifecycle?.removeObserver(obs) }
+    }
+
+    // 使用量は問い合わせが重いので画面を止めない。設定を変えたら・許可が変わったら測り直す。
     val status by produceState<NetGuard.Status?>(
         initialValue = null,
         settings.netLimitEnabled,
         settings.netLimitMb,
         settings.netLimitResetDay,
-        settings.netLimitWifiExempt
+        settings.netLimitWifiExempt,
+        usageAccess
     ) {
         value = withContext(Dispatchers.IO) { runCatching { NetGuard.status(context) }.getOrNull() }
     }
@@ -2486,14 +2503,38 @@ private fun NetLimitSection(settings: AppSettings.Snapshot, session: TerminalSes
         if (!settings.netLimitEnabled) return@Section
 
         // --- 上限 ---
+        // つまみは目分量、欄はきっちり。⚠ **つまみだけでは契約の数字に合わせられない**
+        // (4.5GB や 100GB はどの段にも無い) ので、打てる欄を必ず添える。
         val steps = NetGuard.LIMIT_STEPS_MB
         SliderField(
             title = stringResource(R.string.net_limit_amount),
             value = NetGuard.stepIndexOf(settings.netLimitMb).toFloat(),
             range = 0f..(steps.size - 1).toFloat(),
             steps = steps.size - 2,
-            valueLabel = { NetGuard.formatBytes(steps[it.toInt().coerceIn(steps.indices)] * 1024L * 1024L) },
+            // ⚠ **つまみの位置ではなく、いまの設定値を出す**。手で打った値が段の上に無いとき、
+            // つまみは近い段を指すが、**数字は打ったとおりでなければならない**。
+            valueLabel = { NetGuard.formatBytes(settings.netLimitMb * 1024L * 1024L) },
             onChange = { session.setNetLimitMb(steps[it.toInt().coerceIn(steps.indices)]) }
+        )
+        var mbText by remember { mutableStateOf(settings.netLimitMb.toString()) }
+        // つまみを動かした / 別の端末から戻したときは欄も追いつかせる (打っている最中は触らない)。
+        LaunchedEffect(settings.netLimitMb) {
+            if (mbText.toIntOrNull() != settings.netLimitMb) mbText = settings.netLimitMb.toString()
+        }
+        TextField(
+            title = stringResource(R.string.net_limit_amount_field),
+            placeholder = AppSettings.DEFAULT_NET_LIMIT_MB.toString(),
+            value = mbText,
+            numeric = true,
+            onChange = { raw ->
+                // 数字だけ通す (単位や記号を打たれても壊れない)。空のままも許す —
+                // 消してから打ち直す間に勝手な値が入ると、打ち直せない欄になる。
+                val digits = raw.filter { it.isDigit() }.take(7)
+                mbText = digits
+                digits.toIntOrNull()
+                    ?.takeIf { it in NetGuard.TYPED_MIN_MB..NetGuard.TYPED_MAX_MB }
+                    ?.let { session.setNetLimitMb(it) }
+            }
         )
 
         // --- 数え直す日 ---
@@ -2517,13 +2558,27 @@ private fun NetLimitSection(settings: AppSettings.Snapshot, session: TerminalSes
         // --- いまの状況 ---
         val st = status
         when {
+            // ⚠ 許可が無い間は**何も止まらない**。ここが一番伝わらないと「設定したのに効かない」
+            // で終わるので、理由と行き先を先に出す。
+            !usageAccess -> {
+                Text(
+                    text = stringResource(R.string.net_limit_need_access),
+                    color = ZtsError,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                ActionButton(
+                    label = stringResource(R.string.net_limit_grant),
+                    onClick = { NetGuard.openUsageAccessSettings(context) }
+                )
+            }
             st == null -> Text(
                 text = "…",
                 color = ZtsTextSecondary,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace
             )
-            // ⚠ 測れない端末では**止めない**ので、そのことを先に言う (黙って効かないのが最悪)。
+            // 許可はあるのに読めない端末では**止めない**ので、そのことも言う。
             !st.measurable -> Text(
                 text = stringResource(R.string.net_limit_unmeasurable),
                 color = ZtsError,
@@ -3271,6 +3326,8 @@ private fun TextField(
     title: String,
     placeholder: String,
     value: String,
+    /** 数字しか入らない欄は数字のキーパッドで開く (0.8.389)。 */
+    numeric: Boolean = false,
     onChange: (String) -> Unit
 ) {
     // draft はローカルに保持し、外部 (プリセット選択等) で value が変わったときだけ同期する。
@@ -3317,6 +3374,11 @@ private fun TextField(
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace
                 ),
+                keyboardOptions = if (numeric) {
+                    KeyboardOptions(keyboardType = KeyboardType.Number)
+                } else {
+                    KeyboardOptions.Default
+                },
                 cursorBrush = androidx.compose.ui.graphics.SolidColor(ZtsGreen),
                 modifier = Modifier.fillMaxWidth()
             )

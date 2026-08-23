@@ -1,6 +1,7 @@
 package com.zerotoship.z2term.service
 
 import android.app.AlarmManager
+import android.app.AppOpsManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -11,6 +12,7 @@ import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Process
+import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -57,12 +59,19 @@ import java.util.TimeZone
  * - **Wi-Fi につながっている間は止めない** (既定)。数えるのもモバイルぶんだけ。
  *   OFF にすると Wi-Fi ぶんも合算して数え、つながり方に関係なく止める。
  *
- * ## 測り方
+ * ## 測り方 — 数えるのは端末全体
  *
- * `NetworkStatsManager` に**自分の UID ぶんだけ**を聞く。⚠ 自分の UID を聞くのに
- * 「使用状況へのアクセス」は要らない (他人のぶんを聞くときだけ要る)。端末によっては
- * それでも断られるので、**測れないときは止めない** — 測れないことを理由に通信を止めると、
- * 直しようのない締め出しになる。測れているかどうかは設定画面に出す。
+ * ⚠ **数えるのは端末全体の通信量**で、z2term 自身のぶんではない (0.8.389 で直した)。
+ * 利用者が知りたいのは「今月あと何 GB 使えるか」であって、そのうち z2term が何バイト
+ * 使ったかではない。**自分のぶんだけで止めても、契約の上限には何の関係もない**。
+ *
+ * `NetworkStatsManager.querySummaryForDevice` で回線ごとの合計を読む。⚠ **これには
+ * 「使用状況へのアクセス」の許可が要る** (自分の UID を聞くだけなら要らなかった)。
+ * 普通の権限ではなく設定画面で 1 つずつ許すものなので、[hasUsageAccess] で見て、
+ * 無ければ設定へ案内する ([openUsageAccessSettings])。
+ *
+ * ⚠ **許可が無い / 読めないときは止めない** — 測れないことを理由に通信を止めると、
+ * 直しようのない締め出しになる。どちらの状態かは設定画面に出す。
  */
 object NetGuard {
 
@@ -85,6 +94,14 @@ object NetGuard {
         1_000, 1_500, 2_000, 3_000, 5_000, 7_000,
         10_000, 15_000, 20_000, 30_000, 50_000
     )
+
+    /**
+     * 手で打つときに受け付ける幅 (MB)。⚠ **つまみの幅 ([LIMIT_STEPS_MB]) より広い** —
+     * つまみは目分量で合わせるためのもので、契約が 4.5GB や 100GB の人はそこに無い値を
+     * 打つ。打った値をつまみの幅へ丸めると、**打ったのに違う値になる**。
+     */
+    const val TYPED_MIN_MB = 1
+    const val TYPED_MAX_MB = 1_000_000
 
     /** [mb] にいちばん近い段の位置 (つまみの初期位置)。 */
     fun stepIndexOf(mb: Int): Int {
@@ -185,7 +202,8 @@ object NetGuard {
         val s = runCatching { runBlocking { AppSettings(app).flow.first() } }.getOrNull()
             ?: return Status(false, false, 0, 0, 0, false, true)
         // ⚠ OFF のときは**測りに行かない**。使用量の問い合わせは軽くないので、使っていない人の
-        // 画面や接続をそのぶん遅くしない。
+        // 画面や接続をそのぶん遅くしない。⚠ measurable=false は「許可が無い」も含む
+        // (画面はその 2 つを [hasUsageAccess] で書き分ける)。
         if (!s.netLimitEnabled) return Status(false, false, 0, 0, 0, onWifi(app), s.netLimitWifiExempt)
         val start = periodStart(System.currentTimeMillis(), s.netLimitResetDay)
         val used = usedBytes(app, start, System.currentTimeMillis(), includeWifi = !s.netLimitWifiExempt)
@@ -201,41 +219,64 @@ object NetGuard {
     }
 
     /**
-     * 自分の UID が [since]〜[until] に使った量。**測れなければ -1** (0 と区別する —
+     * **端末全体**が [since]〜[until] に使った量。**測れなければ -1** (0 と区別する —
      * 「まだ使っていない」と「読めない」を混ぜると、読めない端末で永久に止まらない or
      * 永久に止まったままになる)。
+     *
+     * ⚠ z2term のぶんではなく**端末全体**。契約の上限に効くのは端末全体の数字で、
+     * アプリ 1 つのぶんを見ても「あと何 GB か」は分からない。
      */
     fun usedBytes(context: Context, since: Long, until: Long, includeWifi: Boolean): Long {
+        if (!hasUsageAccess(context)) return -1
         val nsm = context.getSystemService(NetworkStatsManager::class.java) ?: return -1
-        val uid = Process.myUid()
         @Suppress("DEPRECATION")
-        val mobile = sumUid(nsm, ConnectivityManager.TYPE_MOBILE, since, until, uid)
+        val mobile = sumDevice(nsm, ConnectivityManager.TYPE_MOBILE, since, until)
         if (mobile < 0) return -1
         if (!includeWifi) return mobile
         @Suppress("DEPRECATION")
-        val wifi = sumUid(nsm, ConnectivityManager.TYPE_WIFI, since, until, uid)
+        val wifi = sumDevice(nsm, ConnectivityManager.TYPE_WIFI, since, until)
         return if (wifi < 0) mobile else mobile + wifi
     }
 
-    private fun sumUid(
+    private fun sumDevice(
         nsm: NetworkStatsManager,
         networkType: Int,
         since: Long,
-        until: Long,
-        uid: Int
+        until: Long
     ): Long = runCatching {
-        // subscriberId は null (= 全部の回線)。⚠ 端末の識別子を渡す形は API 29 以降
-        // アプリからは読めない。
-        nsm.queryDetailsForUid(networkType, null, since, until, uid).use { stats ->
-            var sum = 0L
-            val bucket = NetworkStats.Bucket()
-            while (stats.hasNextBucket()) {
-                stats.getNextBucket(bucket)
-                sum += bucket.rxBytes + bucket.txBytes
-            }
-            sum
-        }
+        // subscriberId は null (= 全部の回線)。⚠ 回線の識別子は API 29 以降アプリから
+        // 読めないので、SIM を選り分けることはできない (2 枚挿しなら合算になる)。
+        val bucket: NetworkStats.Bucket = nsm.querySummaryForDevice(networkType, null, since, until)
+        bucket.rxBytes + bucket.txBytes
     }.onFailure { Log.w(TAG, "usage unavailable (type=$networkType)", it) }.getOrDefault(-1L)
+
+    /**
+     * 端末全体の通信量を読む許可 (「使用状況へのアクセス」) があるか。
+     *
+     * ⚠ **普通の権限のように求めるダイアログが出せない**。利用者が設定画面で 1 つずつ
+     * 許すものなので、[openUsageAccessSettings] で案内する以外に道がない。
+     */
+    fun hasUsageAccess(context: Context): Boolean {
+        val ops = context.getSystemService(AppOpsManager::class.java) ?: return false
+        val mode = runCatching {
+            ops.unsafeCheckOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(),
+                context.packageName
+            )
+        }.getOrDefault(AppOpsManager.MODE_ERRORED)
+        return mode == AppOpsManager.MODE_ALLOWED
+    }
+
+    /** 「使用状況へのアクセス」の設定画面を開く。 */
+    fun openUsageAccessSettings(context: Context) {
+        runCatching {
+            context.startActivity(
+                Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }.onFailure { Log.w(TAG, "cannot open usage access settings", it) }
+    }
 
     /** いま Wi-Fi につながっているか (モバイルを使っていない = 止める理由がない)。 */
     fun onWifi(context: Context): Boolean {
