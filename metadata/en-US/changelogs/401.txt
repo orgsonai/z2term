@@ -1,0 +1,13 @@
+0.8.393-alpha
+
+- (0.8.393) Fixed dragging with a finger doing nothing at all while a full-screen
+  app (a pager, an editor, a "full transcript" view, ...) is open. Your drag is now
+  delivered to that app as up/down arrow keys, so anything that scrolls with the
+  arrow keys can be scrolled with a finger. The shell prompt is unchanged.
+- (0.8.392) Interactive apps running in the terminal no longer freeze on a
+  selection screen. The execution engine was rewriting a Linux notification
+  setting; it no longer does, which also stops a core from spinning at full load.
+- (0.8.391) The terminal now answers the queries interactive apps send at startup.
+  Startup no longer stalls waiting for a reply, and the queries are no longer
+  mistaken for text attributes (which switched underline on and made the cursor
+  jump).
