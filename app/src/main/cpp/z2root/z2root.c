@@ -109,7 +109,7 @@ struct config {
     char self_path[PATH_MAX_Z];       // /proc/self/exe (nativeLibraryDir の libz2root.so)
     int readfree;                     // /proc 偽装を openat 時 temp 差し替えにし read/close をトレース対象から外す(高速化・既定 ON・Z2ROOT_NO_READFREE で無効化)
     int no_recvmsg;                   // [DEBUG] recvmsg(212) に一切介入しない(Z2ROOT_NO_RECVMSG=1)。GUI 停止の切り分け用。§recvmsg 参照
-    int no_epollet;                   // epoll_ctl(21) の EPOLLET を落としてレベルトリガへ倒す(既定 ON・Z2ROOT_KEEP_EPOLLET=1 で従来動作)。§epollet 参照
+    int drop_epollet;                 // [DEBUG] epoll_ctl(21) の EPOLLET を落としてレベルトリガへ倒す(既定 OFF・Z2ROOT_DROP_EPOLLET=1 で ON)。§epollet 参照
     uid_t real_uid;                   // トレーサ(=Android アプリ)の実 uid。fake_root で getuid を 0 に偽装しても
     gid_t real_gid;                   // SCM_CREDENTIALS は実 uid/gid でしか送れない(EPERM 回避)ため保持する。
 };
@@ -2237,7 +2237,7 @@ static char *const *parse_args(int argc, char **argv, struct config *cfg) {
     }
     cfg->readfree = (getenv("Z2ROOT_NO_READFREE") == NULL);  // /proc 偽装の read 非トレース化(既定 ON・Z2ROOT_NO_READFREE で無効化)
     cfg->no_recvmsg = (getenv("Z2ROOT_NO_RECVMSG") != NULL); // [DEBUG] recvmsg に介入しない(切り分け用・既定 OFF)
-    cfg->no_epollet = (getenv("Z2ROOT_KEEP_EPOLLET") == NULL); // epoll_ctl の EPOLLET を落とす(既定 ON・§epollet)
+    cfg->drop_epollet = (getenv("Z2ROOT_DROP_EPOLLET") != NULL); // epoll_ctl の EPOLLET を落とす(既定 OFF・§epollet)
     if (cfg->rootfs[0] == '\0' || i >= argc) usage_die(argv[0]);
     canon_host_inplace(cfg->rootfs, sizeof(cfg->rootfs));  // bind と同様 /proc/<pid>/cwd と揃える
     cfg->rootfs_len = strlen(cfg->rootfs);
@@ -2332,11 +2332,11 @@ static int install_seccomp_filter(const struct config *cfg) {
             if (cfg->no_recvmsg && kTraceSyscallsFakeroot[i] == 212) continue;
             nrs[n++] = kTraceSyscallsFakeroot[i];
         }
-    // epoll_ctl(21): EPOLLET を落とすためにトレースする(既定 ON・§epollet)。
-    // epoll_ctl は **fd の登録時にしか呼ばれない**(通信のたびに呼ばれる read/recvmsg とは
-    // 桁が違う)ので、トレース対象に足しても実行速度への影響はほぼ無い。
-    // Z2ROOT_KEEP_EPOLLET=1 で従来動作(フィルタから外す = 停止ごと無くす)。
-    if (cfg->no_epollet) nrs[n++] = 21;
+    // epoll_ctl(21): EPOLLET を落とすためにトレースする(既定 OFF・§epollet)。
+    // ⚠ **既定では対象に入れない**。0.8.392 で既定 OFF へ倒したので、通常運用では
+    // epoll_ctl は素通し = 停止が 1 種類まるごと無くなる。Z2ROOT_DROP_EPOLLET=1 の
+    // ときだけトレースする(切り分け用)。
+    if (cfg->drop_epollet) nrs[n++] = 21;
 
     int dnrs[16];
     int d = 0;
@@ -2481,7 +2481,30 @@ static void maybe_rewrite_ioctl(pid_t pid, struct user_pt_regs *regs) {
 
 // §epollet — epoll_ctl(21) の EPOLLET(エッジトリガ)を落としてレベルトリガへ倒す。
 //
-// **なぜ要るか**(2026-08-15 に実機で確定):
+// ⛔⛔ **既定 OFF (0.8.392)。通常運用では落とさない。** 0.8.350 で「GUI の窓がタップするまで
+// 出ない」の対策として入れたが、**0.8.351 で原因ではなかったと棄却された**(真因は z2gui が
+// openbox の起動を待たずに端末を起こしていたこと。そちらで直っている)。当時は「害が無いので
+// 残す」と判断したが、**害はあった**:
+//
+// ⭐ **エッジトリガ前提の非同期ランタイム(Rust の tokio/mio 等)を壊す。** あの手の実装は
+// 「一度 readable と言われたら、EAGAIN まで読み切る責任は自分にある」前提で readiness を
+// 持ち回る。レベルトリガに倒されると **読み切るまで epoll_wait が即座に返り続ける**ので、
+// reactor が空転して CPU を焼き、その裏で回るはずの入力処理まで進まなくなる。
+// 実機で測った状態(2026-08-24 / TUI が選択肢の画面で固まる・moto g66j / Arch):
+//   codex-main      Δcpu=192 tick/2s (=ほぼ 100%)  syscall=running (ユーザー空間で空転)
+//   tokio-rt-worker Δcpu=80 tick/2s   同上
+//   epoll 登録        tfd:0 events:2019 (= EPOLLET が落ちている) ← この fd が端末の入力
+//   キー入力          Enter を 5 回送っても出力 0 バイト = 操作不能
+// = **画面は描けているのにキーが一切効かない**。利用者からは「TUI を開いて選択肢が出ると
+// フリーズする」に見える。Z2ROOT_DROP_EPOLLET を外した状態では `events:80002019` のまま
+// 通り、同じ TUI が普通に操作できることを実機で確認した。
+// ⚠ **レベルトリガで安全なのは「EAGAIN まで読み切る」設計のプログラムだけ**(Xorg はそう
+// 書かれている)。ptrace 配下の全プロセスに一律で掛けてよい変換ではなかった。
+//
+// 切り分け用に `~/.z2root_env` へ `Z2ROOT_DROP_EPOLLET=1` を書けば従来どおり落とせる。
+// 以下は 0.8.350 当時の測定記録として残す。
+//
+// **当時「なぜ要る」と考えたか**(2026-08-15 に実機で確定・のちに棄却):
 // Xorg は X クライアント接続を **EPOLLET で登録**し、「`EAGAIN` が返るまで読み切る」
 // 前提で動く。ところが z2root(ptrace) 配下ではその読み切りが崩れることがあり、
 // **エッジトリガは一度取りこぼすと二度と通知を出さない**ため、クライアントが送った
@@ -2505,8 +2528,8 @@ static void maybe_rewrite_ioctl(pid_t pid, struct user_pt_regs *regs) {
 // ⚠ **EPOLLONESHOT(1<<30) は落とさない**。あちらは「1 回通知したら無効化する」で、
 // 呼び出し側が毎回 MOD で再登録する前提。落とすと逆に多重通知で壊れる。
 //
-// **既定 ON**。従来動作に戻すには `~/.z2root_env` に `Z2ROOT_KEEP_EPOLLET=1` を書く
-// (症状が再発したときに「この修正のせいか」を切り分けられるように口を残してある)。
+// **既定 OFF (0.8.392)**。落としたいときは `~/.z2root_env` に `Z2ROOT_DROP_EPOLLET=1` を書く
+// (GUI 側で似た症状が再発したときに「これで変わるか」を試せるように口を残してある)。
 static void maybe_drop_epollet(pid_t pid, struct user_pt_regs *regs) {
     long op = (long)regs->regs[1];
     unsigned long evp = regs->regs[3];
@@ -2546,10 +2569,10 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
         return 0;
     }
     // epoll_ctl: EPOLLET を落とすだけ(exit 後処理不要・§epollet)。
-    // ⚠ cfg->no_epollet を必ず見ること。Z2ROOT_KEEP_EPOLLET=1 のときは seccomp フィルタに
-    // 21 を入れていないのでここへは来ないが、Z2ROOT_NO_SECCOMP=1(全 syscall トレースの
-    // フォールバック)では素通しの 21 も流れてくる。条件が無いと「戻したい」のに落としてしまう。
-    if (cfg->no_epollet && st->entry_nr == 21) {
+    // ⚠ cfg->drop_epollet を必ず見ること。既定 (OFF) では seccomp フィルタに 21 を入れて
+    // いないのでここへは来ないが、Z2ROOT_NO_SECCOMP=1(全 syscall トレースのフォールバック)
+    // では素通しの 21 も流れてくる。条件が無いと**既定 OFF のつもりで落としてしまう**。
+    if (cfg->drop_epollet && st->entry_nr == 21) {
         st->aux_addr = 0;
         maybe_drop_epollet(pid, &regs);
         return 0;
