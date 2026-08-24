@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-24 / Target version: 0.8.392-alpha (versionCode 400)
+Last updated: 2026-08-24 / Target version: 0.8.393-alpha (versionCode 401)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1532,7 +1532,7 @@ when `executionEngine = "chroot"`, `launchChroot()` is used.
 - `TerminalEmulator`: processes byte streams with a state machine (Ground/Escape/CSI/OSC/String).
   - Character width: East Asian Width aware (the `ambiguousAsWide` setting makes ambiguous widths 2 cells). Outside the BMP (emoji 😀 / CJK extensions) a surrogate pair is stored across 2 cells — high surrogate in the left cell, low surrogate in the right (`wideCont`). **Rendering (`TerminalRenderer.glyphAt`), selection copy (`getRangeText`) and row text (`toText`) recombine the two cells into a single glyph** (0.8.74). Previously the right cell was dropped and the lone high surrogate was rendered/emitted, producing a tofu (?) box.
   - SGR: bold/underline/inverse/strikethrough, 16/256/RGB (truecolor).
-  - DEC modes: alternate screen, cursor keys (DECCKM), **mouse reporting** (X10/Normal/Button/Any × Legacy/SGR/urxvt).
+  - DEC modes: alternate screen, cursor keys (DECCKM), **mouse reporting** (X10/Normal/Button/Any × Legacy/SGR/urxvt), **alternate scroll (1007)**.
   - **Leaving the alternate screen resets the text state (0.8.354).** DECRST 1049/1047/47 put **SGR (colors and attributes), the OSC 8 link and mouse reporting** back to their defaults; **only the position (cursor, scroll region) is restored**. ⚠ **xterm's DECRST 1049 restores the SGR from just before the switch (DECRC semantics); this implementation does not.** The on-device failure looked like this: **inside an interactive CLI that keeps drawing on the normal screen** (no alternate screen, history stays in the scrollback), **opening a full-screen editor through that CLI and coming back made everything it printed afterwards underlined** (user report, fixed in 0.8.354). ⚠ **Launching the editor directly does not trigger it** — the CLI must be mid-attribute when the alternate screen is entered. There are two routes and **"default on exit" kills both**: (1) the attribute is saved and restored on the way back (the returning side believes it emitted nothing, so it draws without a leading `\e[0m`), (2) the editor exits without clearing its attributes and nobody resets them. ⚠ **Colors are reset too, not just attributes** — the same route can produce "everything is red", and fixing only the underline would earn the same report twice. ⚠ **The OSC 8 link is cleared as well**: there is no reason for a link to survive a whole-screen swap, and since it is not SGR **neither `\e[0m` nor `reset` can clear it** (leaving a state the user cannot repair). For the same reason **RIS (`reset`) clears the link too.** Forcing mouse reporting off has been the rule since 0.8.124; this is the same reasoning.
   - OSC: 7 (cwd) / 8 (hyperlink) / 10–12 (fg/bg/cursor colour, with `?` query response) / 52 (clipboard) / palette. OSC titles are UTF-8 decoded (prevents mojibake in Japanese tab names).
   - **Cells of URL/OSC8 links are underlined.** Long URLs are detected via a wrapped flag on the originating row (tap to open).
@@ -1702,6 +1702,27 @@ While mouse reporting is on (the TUI asked via `?1000`/`?1006` etc.), `TerminalI
 **Notch conversion**: one notch is sent per `MOUSE_WHEEL_STEP_PX (=40px)` of accumulated dy, so a long swipe sends that many lines (on alt it accumulates signed, absorbing direction reversals naturally).
 
 **Fling**: the same branching applies. On primary it is a no-op only when `mouseEnabled && velocityY < 0 && scrollOffset==0`, otherwise it is an inertial scrollback scroll. On alt, `sendMouseWheelRows` converts the inertia into wheel events for the PTY, and **the coordinates keep the finger's cell from where the fling started** (0.8.124 — TUIs with multiple panes decide the target pane from the wheel's (col,row), so a fixed screen-centre coordinate would make an untouched pane scroll during the inertial phase).
+
+#### Alternate scroll (DECSET 1007) — swiping an alt screen that has no mouse reporting (0.8.393)
+
+**The symptom**: in a TUI that uses the alternate screen but **never enables mouse reporting** (full-screen pagers, editors, the full-transcript overlay of an interactive CLI, …), **swiping did nothing at all**. Every rule in the previous section assumes `mouseEnabled`; outside it the gesture falls back to scrollback, and the alternate screen has `scrollbackSize == 0`, so nothing happens. Such a TUI has no way to receive a wheel event either, so **unless the terminal provides a scrolling path, a finger cannot move it**.
+
+**The fix**: implement xterm's alternate scroll (DECSET 1007) — **while the alternate screen is active, a wheel event (a swipe here) is sent to the PTY as cursor up/down**.
+
+| Condition | Sent |
+|---|---|
+| alt screen + `mouseEnabled == false` + `alternateScrollMode == true` | finger down (wanting to see the past) = cursor **up** / finger up = cursor **down** |
+| Anything else | Unchanged (wheel output / scrollback fallback) |
+
+- **On by default** (`TerminalEmulator.alternateScrollMode = true`), matching xterm's `alternateScroll` resource set to true — the default most modern terminal emulators pick. The point is to work for the majority of full-screen TUIs, which **never send 1007 at all**; only a TUI that explicitly sends `DECRST 1007` (because it handles the wheel itself) goes back to the old behaviour.
+- **TUIs that do send `ESC[?1007h` exist**: an overlay that sends `1049h` and `1007h` together when it opens and prints "↑/↓ to scroll" in its footer. Without this implementation **that overlay alone refuses to move under a finger**.
+- **One line = one key**. A cursor key is emitted per `lineHeight` of accumulated dy, so the finger's travel and the TUI's scrolling stay 1:1 (a separate budget from the wheel path's `MOUSE_WHEEL_STEP_PX` = 40px notches). They go out in a single `writeBytes`, capped at `ARROW_SCROLL_MAX_ROWS (=24)` rows per gesture event / fling frame so a fast flick cannot flood the PTY with hundreds of arrows the TUI cannot repaint through.
+- **Fling (inertia) takes the same path**: `flingRunnable` now branches three ways — wheel when alt screen + `mouseEnabled`, cursor keys when alternate scroll applies, inertial scrollback otherwise.
+- **The cursor-key bytes follow DECCKM** (`cursorKeyBytes`). Full-screen TUIs commonly use application cursor keys (`ESC O A`), and a hard-coded `ESC [ A` would not be recognised as an arrow.
+- **Returning to the primary screen restores the default (on)**. A TUI that sends `DECRST 1049` but forgets `DECRST 1007` would otherwise kill swiping for the next TUI that uses the alternate screen (the same reasoning as forcing mouse reporting off in `resetTextStateOnPrimaryReturn`). RIS (`reset`) restores it too.
+- **The primary screen never gets this translation**, or every swipe at a shell prompt would recall command history. ⚠ An **interactive CLI that paints a full screen while staying on the primary screen** (no alternate screen; repaints with `ESC[1;1H` + `ESC[J` and pushes history up with `DECSTBM` + `RI`) **never grows the terminal's scrollback in the first place**, so there is nothing for the terminal to scroll back into — the way back is the full-transcript overlay such a CLI provides, which runs on the alternate screen and therefore takes the path above.
+- Tests: `AlternateScrollModeTest`, 6 cases (default on / `1007h`-`1007l` toggling / `1049h` + `1007h` applied together / back to primary restores the default / RIS restores the default / `cursorKeyBytes` follows DECCKM).
+- Spec: xterm `ctlseqs`, `Ps = 1 0 0 7` (Enable Alternate Scroll Mode).
 
 #### Scroll region (DECSTBM)
 

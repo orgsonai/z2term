@@ -24,6 +24,11 @@ private const val FLING_DECELERATION = 0.90f
 /** マウスレポーティング有効時、スワイプを 1 ホイールノッチに換算するピクセル量。 */
 private const val MOUSE_WHEEL_STEP_PX = 40f
 
+// alternate scroll (DECSET 1007) でカーソルキーへ読み替えるとき、1 回のジェスチャ
+// イベント / 1 フリングフレームで送る上限行数。指を勢いよく走らせたときに矢印キーが
+// 数百個 PTY へ流れ込み、TUI 側の描画が追いつかなくなるのを防ぐ。
+private const val ARROW_SCROLL_MAX_ROWS = 24
+
 /**
  * ターミナル入力専用 View。
  *
@@ -87,6 +92,7 @@ class TerminalInputView(context: Context) : View(context) {
     private var lastAppliedFontSp: Float = 0f
     private var scrollAccumDy: Float = 0f
     private var mouseWheelAccumDy: Float = 0f
+    private var arrowScrollAccumDy: Float = 0f
 
     // --- SGR mouse 入力 (opt-in: AppSettings.sgrMouseInputEnabled) のドラッグ状態 ---
     // ON 中 + TUI が mouse capture 有効化中の 1 指 swipe を button 0 の press → button 32 motion
@@ -140,6 +146,10 @@ class TerminalInputView(context: Context) : View(context) {
             // 慣性段階で勝手に動く)。
             if (sess.emulator.mouseEnabled && !sess.emulator.buffer.primaryActive) {
                 sendMouseWheelRows(delta, sess, flingPxX, flingPxY)
+            } else if (isAlternateScrollActive(sess)) {
+                // alt screen + マウスレポート無しの TUI は wheel を受け取れないので、
+                // 慣性ぶんもカーソルキー上下として送る ([sendArrowScrollRows])。
+                sendArrowScrollRows(delta, sess)
             } else {
                 sess.scrollBy(delta)
             }
@@ -187,6 +197,7 @@ class TerminalInputView(context: Context) : View(context) {
                 removeCallbacks(flingRunnable)
                 scrollAccumDy = 0f
                 mouseWheelAccumDy = 0f
+                arrowScrollAccumDy = 0f
                 return true
             }
 
@@ -220,6 +231,7 @@ class TerminalInputView(context: Context) : View(context) {
                 flingPxX = e2.x
                 flingPxY = e2.y
                 mouseWheelAccumDy = 0f
+                arrowScrollAccumDy = 0f
                 removeCallbacks(flingRunnable)
                 post(flingRunnable)
                 return true
@@ -294,6 +306,13 @@ class TerminalInputView(context: Context) : View(context) {
                         sendMouseWheelFromSwipe(e2.x, e2.y, distanceY, sess)
                         return true
                     }
+                }
+                // マウスレポートを使わない alt screen TUI (全画面の pager / エディタ /
+                // 全文表示など) は scrollback が無いためスワイプが完全に無反応になる。
+                // alternate scroll (DECSET 1007) が有効ならカーソルキー上下へ読み替える。
+                if (isAlternateScrollActive(sess)) {
+                    sendArrowScrollFromSwipe(distanceY, sess)
+                    return true
                 }
                 // 通常のドラッグ / scrollback で過去を見ている間 / マウスモードでも下方向は
                 // ターミナルをスクロール。
@@ -819,6 +838,56 @@ class TerminalInputView(context: Context) : View(context) {
             ) ?: return@repeat
             sess.writeBytes(bytes)
         }
+    }
+
+    /**
+     * alt screen 表示中 + マウスレポート OFF + alternate scroll (DECSET 1007) 有効か。
+     *
+     * この 3 つが揃うときだけスワイプをカーソルキー上下へ読み替える。alt screen には
+     * scrollback が無いので読み替えないとスワイプが無反応になり、逆にマウスレポートを
+     * 有効化している TUI へは wheel をそのまま送った方が正確 (水平位置やペインの区別が
+     * 効く) なので、そちらを優先する。
+     */
+    private fun isAlternateScrollActive(sess: TerminalSession): Boolean {
+        val emu = sess.emulator
+        return !emu.buffer.primaryActive && !emu.mouseEnabled && emu.alternateScrollMode
+    }
+
+    /**
+     * スワイプ量 [distanceY] (px, 正 = 指が上へ = 先へ進む方向) をカーソルキー上下へ
+     * 読み替えて送る。1 行ぶん動かすごとに 1 個送るので、指の移動量と TUI 側の
+     * スクロール量が 1:1 になり「掴んで動かす」感覚になる。
+     */
+    private fun sendArrowScrollFromSwipe(distanceY: Float, sess: TerminalSession) {
+        if (distanceY == 0f) return
+        val lineHeight = sess.cellMetrics.value.lineHeight
+        if (lineHeight <= 0f) return
+        arrowScrollAccumDy += distanceY
+        val rowDelta = (arrowScrollAccumDy / lineHeight).toInt()
+        if (rowDelta == 0) return
+        arrowScrollAccumDy -= rowDelta * lineHeight
+        // distanceY > 0 (指が上へ) は「先へ進む」= scrollback semantics では負。
+        sendArrowScrollRows(-rowDelta, sess)
+    }
+
+    /**
+     * カーソルキー上下を [rowDelta] 行ぶん PTY へ送る。[rowDelta] は scrollback semantics と
+     * 同じく **正 = 過去方向 (= カーソルキー上) / 負 = 最新方向 (= カーソルキー下)**。
+     *
+     * 1 行 = 1 個なので、まとめて 1 回の write にする (行ごとに write すると PTY への
+     * 書き込み回数だけ増えて取りこぼしやすくなる)。
+     */
+    private fun sendArrowScrollRows(rowDelta: Int, sess: TerminalSession) {
+        if (rowDelta == 0) return
+        val key = if (rowDelta > 0)
+            com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey.UP
+        else
+            com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey.DOWN
+        val one = sess.emulator.cursorKeyBytes(key)
+        val count = kotlin.math.abs(rowDelta).coerceAtMost(ARROW_SCROLL_MAX_ROWS)
+        val out = ByteArray(one.size * count)
+        for (i in 0 until count) System.arraycopy(one, 0, out, i * one.size, one.size)
+        sess.writeBytes(out)
     }
 
     private fun sendMouseClick(x: Float, y: Float, sess: TerminalSession): Boolean {

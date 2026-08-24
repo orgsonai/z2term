@@ -76,6 +76,22 @@ class TerminalEmulator(
     var bracketedPasteMode: Boolean = false
         private set
 
+    /**
+     * Alternate scroll (DECSET 1007)。**alt screen 表示中でマウスレポートが OFF のとき**、
+     * ホイール (本アプリではスワイプ) を **カーソルキー上下** に読み替えて PTY へ送ってよいか。
+     *
+     * alt screen には scrollback が無いため、この読み替えが無いとスワイプが完全に無反応になる
+     * (全画面の pager / エディタ / TUI で「指で動かせない」状態)。alt screen を使うが
+     * マウスレポートは有効化しない TUI が多く、その場合の唯一のスクロール手段になる。
+     *
+     * ⚠ **既定は ON**。xterm の `alternateScroll` リソースを true にした状態に相当し、
+     * 現代のターミナルエミュレータの多くが同じ既定を採る。明示的に `DECRST 1007` を送る
+     * TUI (ホイールを自前で扱うもの) はここが false になり、スワイプは従来どおり
+     * scrollback フォールバックに戻る。
+     */
+    var alternateScrollMode: Boolean = true
+        private set
+
     /** EAW Ambiguous を wide 扱いするか (CJK ロケール向け) */
     var ambiguousAsWide: Boolean = false
 
@@ -1076,6 +1092,10 @@ class TerminalEmulator(
                     // SGR encoding (xterm 1006)
                     mouseEncoding = if (set) MouseEncoding.SGR else MouseEncoding.LEGACY
                 }
+                1007 -> {
+                    // alternate scroll: alt screen のホイールをカーソルキー上下へ読み替える
+                    alternateScrollMode = set
+                }
                 1015 -> {
                     // URxvt encoding
                     mouseEncoding = if (set) MouseEncoding.URXVT else MouseEncoding.LEGACY
@@ -1173,6 +1193,9 @@ class TerminalEmulator(
         currentUnderlineColor = SgrAttribute.DEFAULT
         currentLink = null
         mouseProtocol = MouseProtocol.OFF
+        // alternate scroll も既定 (ON) へ戻す。DECRST 1049 だけ送って DECRST 1007 を
+        // 送り忘れる TUI が居ると、次に alt screen を使う TUI でスワイプが死ぬため。
+        alternateScrollMode = true
     }
 
     private fun applySgr() {
@@ -1483,6 +1506,7 @@ class TerminalEmulator(
         insertMode = false
         cursorVisible = true
         bracketedPasteMode = false
+        alternateScrollMode = true
         utf8.reset()
         // Alt → Primary に戻して両方クリア
         if (!buffer.primaryActive) buffer.switchToPrimary()

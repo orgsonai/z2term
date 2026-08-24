@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.392-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.393-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -163,7 +163,7 @@ Under Settings › **Keyboard style**:
 | Select beyond the screen | While selecting, move your **finger to the top/bottom edge** → it auto-scrolls so you can keep selecting |
 | Paste | The **📋** button in the toolbar. **When the text has line breaks**, a bar shows "3 lines …" first so you can look before pressing Paste (a single line still goes straight in). **Double-tap** it to open the **clipboard history** and pick a past copy to paste (pasting never rewrites the system clipboard, so it won't "copy what you just pasted"). **Picks from the history that contain line breaks get the same confirmation bar** (0.8.250). **Sensitive copies (the ones shown as dots), e.g. from a password manager, now land in the history too** (0.8.314). ⚠ Those rows alone are marked **🔒 and clear themselves after 30 seconds** — if the phone's clipboard still holds the same value at that point, it is emptied too (if you have copied something else since, it is left alone) |
 | Use text copied in another app | Just come back to this app — **the clipboard content at that moment is added to the history** (pick it from the 📋 double-tap). Android only lets an app read the clipboard **while it is in the foreground**, so copies made while this app was in the background are picked up as a single entry when you return |
-| Scroll up/down | Drag with one finger. You can also **grab the scrollbar on the right edge** (it follows your finger from the moment you touch it). Use **↓** at the bottom-right to return to the latest |
+| Scroll up/down | Drag with one finger. You can also **grab the scrollbar on the right edge** (it follows your finger from the moment you touch it). Use **↓** at the bottom-right to return to the latest. ⚠ **While a full-screen app is open** (a pager, an editor, a "full transcript" view, …) there is no terminal-side history to go back into, so your drag is **delivered to that app as ↑ / ↓** (0.8.393 — before that, a finger did nothing at all in full-screen apps) |
 | Make text bigger/smaller | **Pinch** with two fingers (spread/squeeze) |
 | Add a terminal | The tab **+** (terminal) / **🖥** (GUI desktop) |
 | Look at another tab while the GUI installs | **Go ahead.** The install keeps running in the background, and coming back picks the display up where it is (0.8.341. Before that, returning asked "install the GUI?" a second time, and answering "cancel" there **took the running install down with it**) |
