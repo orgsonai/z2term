@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.util.Log
+import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.LocalPtyChannel
 import com.zerotoship.z2term.channel.ProcessChannel
@@ -232,7 +233,10 @@ class TerminalSession(
         },
         // 名前を明示的に付けたタブ (labelPinned) は、シェルが出すタイトルでも上書きしない。
         titleSetter = { title -> if (title.isNotBlank() && !labelPinned) _label.value = title.take(20) },
-        cwdSetter = { path -> _cwd.value = path }
+        cwdSetter = { path -> _cwd.value = path },
+        // DA2 / XTVERSION で名乗る版数。エミュレータ側は Android に依存しないので here で渡す。
+        versionName = BuildConfig.VERSION_NAME,
+        versionCode = BuildConfig.VERSION_CODE
     )
 
     private val _uiState = MutableStateFlow(UiState())

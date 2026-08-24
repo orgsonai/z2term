@@ -29,7 +29,15 @@ class TerminalEmulator(
     /** OSC 0/1/2 (window title) のハンドラ。null なら無視。 */
     private val titleSetter: ((String) -> Unit)? = null,
     /** OSC 7 (current working directory) のハンドラ。null なら無視。 */
-    private val cwdSetter: ((String) -> Unit)? = null
+    private val cwdSetter: ((String) -> Unit)? = null,
+    /**
+     * DA2 / XTVERSION で名乗る版数。アプリ側は `BuildConfig` の値を渡す。
+     *
+     * ⚠ **エミュレータ本体は Android に依存させない** (ユニットテストが JVM だけで回る) ので、
+     * `BuildConfig` を直接読まずに渡してもらう。既定値は「名乗るものが無い」ことが分かる形。
+     */
+    private val versionName: String = "unknown",
+    private val versionCode: Int = 0
 ) {
 
     /** OSC 8 で設定された現在のハイパーリンク URI (アクティブな間に書かれるセルに付与) */
@@ -840,8 +848,30 @@ class TerminalEmulator(
         when (finalChar) {
             'm' -> { /* XTMODKEYS: 修飾キー報告の指定 (未対応・無視) */ }
             'u' -> { /* kitty keyboard protocol の push / pop (未対応・無視) */ }
-            'c' -> { /* DA2 (二次デバイス属性): 現状応答しない。機能判定は DA1 で足りる */ }
-            'q' -> { /* XTVERSION: 端末名とバージョンの問い合わせ (未対応・無視) */ }
+            'c' -> {
+                // DA2 (Secondary Device Attributes): 「型と版は何か」の問い合わせ。
+                // `CSI > 1 ; <versionCode> ; 0 c` = VT220 (1) / ファームウェア版 = versionCode /
+                // ROM カートリッジ無し (0)。
+                //
+                // ⚠ **他の端末を騙らない**。ここで xterm を名乗る (Pp = 41) と、xterm 固有の
+                // 機能を持っている前提で話しかけてくる実装が出てくるが、z2term はそれらを
+                // 持たないので壊れ方が分かりにくくなる (0.8.391 で踏んだ XTMODKEYS と同じ筋)。
+                // 名乗りは DA1 の `?62`(VT220 相当) と揃えて **1 = VT220** にする。名前で
+                // 機能を決める実装からは「知らない端末」として素通りされ、判定は DA1 に戻る。
+                if (csiPrefix == '>' && getCsiParamRaw(0) == 0) {
+                    output("\u001b[>1;$versionCode;0c".toByteArray(Charsets.US_ASCII))
+                }
+            }
+            'q' -> {
+                // XTVERSION: 端末の名前と版を**文字列で**返す。応答は DCS `> |` … ST。
+                // DA2 が数値なのに対しこちらは自由書式で、`z2term(<版数>)` と名乗る。
+                //
+                // ⚠ DA1 / DA2 と同じく **問い合わせには必ず答える**。答えない端末も普通に
+                // あるので待ち続ける実装は稀だが、答えれば「知らない端末」と即断してもらえる。
+                if (csiPrefix == '>' && getCsiParamRaw(0) == 0) {
+                    output("\u001bP>|z2term($versionName)\u001b\\".toByteArray(Charsets.US_ASCII))
+                }
+            }
             else -> Log.d(TAG, "Unhandled CSI $csiPrefix ${csiParams} $finalChar")
         }
     }

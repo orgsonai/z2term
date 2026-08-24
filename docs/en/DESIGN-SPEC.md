@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-24 / Target version: 0.8.393-alpha (versionCode 401)
+Last updated: 2026-08-24 / Target version: 0.8.394-alpha (versionCode 402)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1537,7 +1537,7 @@ when `executionEngine = "chroot"`, `launchChroot()` is used.
   - OSC: 7 (cwd) / 8 (hyperlink) / 10–12 (fg/bg/cursor colour, with `?` query response) / 52 (clipboard) / palette. OSC titles are UTF-8 decoded (prevents mojibake in Japanese tab names).
   - **Cells of URL/OSC8 links are underlined.** Long URLs are detected via a wrapped flag on the originating row (tap to open).
   - bracketed paste (DECSET 2004) supported.
-  - **Answering queries (0.8.391)**: DSR 6 (cursor position), **DA1** (`CSI c` -> `CSI ?62;22c`, announcing VT220-class (62) + ANSI colour (22)), the `?` form of OSC 10-12, and Kitty graphics `a=q`. ⚠ **DA1 must always be answered** — libraries behind TUIs usually probe terminal features by sending the feature query first and closing the judgement the moment the DA1 reply arrives (a terminal without the feature silently ignores the feature query, so the always-answered DA1 serves as the deadline). With no reply the judgement never finishes and **the TUI stalls mid-startup until the library times out**. DA2 (`CSI > c`) and XTVERSION (`CSI > q`) are not answered.
+  - **Answering queries (0.8.391)**: DSR 6 (cursor position), **DA1** (`CSI c` -> `CSI ?62;22c`, announcing VT220-class (62) + ANSI colour (22)), the `?` form of OSC 10-12, and Kitty graphics `a=q`. ⚠ **DA1 must always be answered** — libraries behind TUIs usually probe terminal features by sending the feature query first and closing the judgement the moment the DA1 reply arrives (a terminal without the feature silently ignores the feature query, so the always-answered DA1 serves as the deadline). With no reply the judgement never finishes and **the TUI stalls mid-startup until the library times out**. DA2 (`CSI > c`) and XTVERSION (`CSI > q`) are **answered as of 0.8.394** (see below).
   - **CSI dispatch keys on the prefix (`?` / `>` / `<`) (0.8.391)**: dispatching on the final byte alone let three sequences that TUIs send **unconditionally** at startup and exit run as something else. `CSI > 4 ; N m` (XTMODKEYS, which selects modifier-key reporting) applied as SGR and **turned underline on**; `CSI > N u` (kitty keyboard protocol push) and `CSI < u` (its pop) ran as SCORC (restore cursor) and **jumped the cursor**. z2term has none of those features, so `dispatchCsiSecondary` accepts and drops them.
   - `cursorKeyBytes`, `encodeMouseEvent`, `resize` (cursor-aware), scrollback.
 - `SearchEngine` (M11): full-text scrollback search. 🔍 → type → ↑↓ to jump between hits. For CJK the highlight position is computed in **cell columns**.
@@ -1702,6 +1702,31 @@ While mouse reporting is on (the TUI asked via `?1000`/`?1006` etc.), `TerminalI
 **Notch conversion**: one notch is sent per `MOUSE_WHEEL_STEP_PX (=40px)` of accumulated dy, so a long swipe sends that many lines (on alt it accumulates signed, absorbing direction reversals naturally).
 
 **Fling**: the same branching applies. On primary it is a no-op only when `mouseEnabled && velocityY < 0 && scrollOffset==0`, otherwise it is an inertial scrollback scroll. On alt, `sendMouseWheelRows` converts the inertia into wheel events for the PTY, and **the coordinates keep the finger's cell from where the fling started** (0.8.124 — TUIs with multiple panes decide the target pane from the wheel's (col,row), so a fixed screen-centre coordinate would make an untouched pane scroll during the inertial phase).
+
+#### DA2 / XTVERSION — answering "what model and version are you" (0.8.394)
+
+0.8.391 started answering DA1, but **DA2 (`CSI > c`) and XTVERSION (`CSI > q`) were accepted and
+dropped**. Both ask "what is this terminal"; plenty of terminals leave them unanswered, so an
+implementation that waits forever is rare — but **answering lets the caller settle on "a terminal I
+do not know" immediately** instead of waiting out a timeout.
+
+| Query | z2term's reply | Contents |
+|---|---|---|
+| DA2 `CSI > c` | `CSI > 1 ; <versionCode> ; 0 c` | model = **1 (VT220)** / firmware = versionCode / no ROM cartridge = 0 |
+| XTVERSION `CSI > q` | `DCS > \| z2term(<versionName>) ST` | name and version **as text**; free-form, unlike the numeric DA2 |
+
+- ⭐ **Do not impersonate another terminal.** DA2 could claim to be xterm (`Pp = 41`), but then
+  **callers talk to us assuming features we do not have**. That is the same trap as 0.8.391, where
+  the XTMODKEYS a TUI sends unconditionally was mistaken for SGR and switched underline on:
+  **whatever you announce, you get asked for.** Keeping `1 = VT220`, consistent with DA1's `?62`
+  (VT220 class), means feature-by-name implementations skip us and fall back to the DA1 judgement.
+- **Answered only when the parameter is 0 or omitted** (same as DA1). `CSI > 1 c` and friends are
+  other requests and stay unanswered.
+- ⚠ **The `<` prefix is never answered.** It shares the dispatch path with `CSI < u` (the kitty
+  keyboard protocol pop), so keying on the final byte alone would answer `CSI < c` too.
+- The version comes **from `BuildConfig`, passed in by `TerminalSession`**. `TerminalEmulator` only
+  takes `versionName` / `versionCode` so the emulator core stays free of Android dependencies and
+  its unit tests keep running on a plain JVM.
 
 #### Alternate scroll (DECSET 1007) — swiping an alt screen that has no mouse reporting (0.8.393)
 

@@ -2,6 +2,7 @@ package com.zerotoship.z2term.emulator
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -19,12 +20,17 @@ import org.junit.Test
  */
 class CsiPrefixAndQueryTest {
     private val ESC = "\u001b"   // ⚠ 生の ESC を書かない (目に見えず、抜けてもテストが黙って空振りする)
+    private val TEST_VERSION_NAME = "9.9.9-test"
+    private val TEST_VERSION_CODE = 12345
 
     private fun emu(sink: StringBuilder, rows: Int = 5, cols: Int = 20) =
         TerminalEmulator(
             output = { b -> sink.append(String(b, Charsets.US_ASCII)) },
             initialRows = rows,
-            initialColumns = cols
+            initialColumns = cols,
+            // 応答文字列を固定するため、実際の BuildConfig ではなく既知の値を渡す。
+            versionName = TEST_VERSION_NAME,
+            versionCode = TEST_VERSION_CODE
         )
 
     private fun feed(e: TerminalEmulator, s: String) = e.processBytes(s.toByteArray(Charsets.US_ASCII))
@@ -48,12 +54,62 @@ class CsiPrefixAndQueryTest {
         assertEquals("$ESC[?62;22c", out.toString())
     }
 
+    // --- DA2 / XTVERSION (0.8.394) ---------------------------------------------
+
     @Test
-    fun da2_isNotAnswered() {
+    fun da2_isAnswered() {
         val out = StringBuilder()
-        // `CSI > c` (DA2) は現状応答しない。⚠ ここで DA1 の応答を返してはいけない
+        // `CSI > c` (DA2) = 「型と版は何か」。⚠ DA1 の応答を返してはいけない
         // (問い合わせの種類が違うので、受け取った側の判定が食い違う)。
         feed(emu(out), "$ESC[>c")
+        assertEquals("$ESC[>1;$TEST_VERSION_CODE;0c", out.toString())
+    }
+
+    @Test
+    fun da2_withExplicitZero_isAnswered() {
+        val out = StringBuilder()
+        feed(emu(out), "$ESC[>0c")
+        assertEquals("$ESC[>1;$TEST_VERSION_CODE;0c", out.toString())
+    }
+
+    @Test
+    fun da2_announcesVt220_notXterm() {
+        val out = StringBuilder()
+        feed(emu(out), "$ESC[>c")
+        // ⭐ 他の端末を騙らない。xterm を名乗る (Pp = 41) と、持っていない機能を前提に
+        // 話しかけられて壊れ方が分かりにくくなる。DA1 の `?62`(VT220 相当) と揃える。
+        assertTrue(out.toString().startsWith("$ESC[>1;"))
+        assertFalse(out.toString().startsWith("$ESC[>41;"))
+    }
+
+    @Test
+    fun da2_withNonZeroParam_isIgnored() {
+        val out = StringBuilder()
+        feed(emu(out), "$ESC[>1c")
+        assertEquals("", out.toString())
+    }
+
+    @Test
+    fun xtversion_isAnswered() {
+        val out = StringBuilder()
+        // XTVERSION の応答は DCS `> |` … ST。DA2 が数値なのに対しこちらは自由書式。
+        feed(emu(out), "$ESC[>q")
+        assertEquals("${ESC}P>|z2term($TEST_VERSION_NAME)$ESC\\", out.toString())
+    }
+
+    @Test
+    fun xtversion_withNonZeroParam_isIgnored() {
+        val out = StringBuilder()
+        feed(emu(out), "$ESC[>2q")
+        assertEquals("", out.toString())
+    }
+
+    @Test
+    fun lessThanPrefix_isNeverAnswered() {
+        val out = StringBuilder()
+        // `<` プレフィックスは kitty keyboard protocol の pop で使われるだけで、
+        // 問い合わせではない。⚠ `>` と同じ経路に載っているので取り違えない。
+        feed(emu(out), "$ESC[<c$ESC[<q")
         assertEquals("", out.toString())
     }
 
