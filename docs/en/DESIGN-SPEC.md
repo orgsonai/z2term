@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-25 / Target version: 0.8.402-alpha (versionCode 410)
+Last updated: 2026-08-25 / Target version: 0.8.403-alpha (versionCode 411)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2170,6 +2170,29 @@ keyboard** (the same reasoning behind "the ASCII face always stays" in `Keyboard
 be hidden" in the toolbar).
 
 Locked down by `KeyLayoutTest` (redistribution, split depth, escape hatch, action sequences, layers).
+
+**Stage 1b (0.8.403): today's ASCII face expressed as a preset** (`AsciiKeyLayouts.kt`).
+`asciiKeyLayout(compact, hasFaceKey, symbols, fourWayFlick)` builds the current arrangement and
+`AsciiKeyLayoutTest` pins **"is this the same as what is on screen today"** (the renderer has not
+moved yet). The label and flick tables (`AsciiKeys`) are **shared with `TerminalKeyboard`** — keep
+two copies and the test will happily report a match after only one of them was edited.
+
+⚠ **Building it corrected three design assumptions**:
+
+- ⭐ **The symbol face (`?#`) cannot be a layer.** A layer swaps a key's appearance and **cannot
+  change the number of slots**, but the symbol face drops Row 4 from **10 keys to 8** (`?§°¥€£~…`).
+  Anything that changes slot counts has to be **its own layout**. Shift keeps the slot count, so it
+  stays a layer as planned.
+- ⭐ **Preset widths are all `KeyWidth.Fixed`.** `Auto` redistributes against a budget of "one per
+  slot", which changes the ratios away from today's `ESC 1.4 + letters 1.0×10 + ⌫ 1.4` (12.8 total)
+  and **moves the layout visibly**. Layouts authored from scratch use `Auto`, where the requested
+  "widen one and the rest shrink evenly" behaviour applies.
+- **The escape-hatch check was removed from `validate()`.** On the terminal screen the ⚙ button
+  lives **outside the keyboard**, and today's default arrangement genuinely has no face-switch key
+  when the ASCII face is the only one (CTRL takes that slot). Requiring it would **reject the
+  current layout itself**. ⛔ There is no toolbar when the keyboard runs as the OS input method,
+  so it stays available as a warning for the editor to raise on save (`hasEscapeHatch`).
+
 
 #### 6.1.1 The numbers-only face (0.8.305)
 

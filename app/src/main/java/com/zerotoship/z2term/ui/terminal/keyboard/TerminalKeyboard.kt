@@ -225,34 +225,21 @@ fun TerminalKeyboard(
         if (alt) alt = false
     }
 
-    val r1Labels = if (sym) listOf("!", "@", "#", "$", "%", "^", "&", "*", "(", ")")
-                   else listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
-    val r2Labels = if (sym) listOf("-", "_", "+", "=", "/", "\\", "[", "]", "{", "}")
-                   else listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p")
-    val r3Labels = if (sym) listOf("`", "~", "'", "\"", ";", ":", "<", ">", "|")
-                   else listOf("a", "s", "d", "f", "g", "h", "j", "k", "l")
-    val r4Labels = if (sym) listOf("?", "§", "°", "¥", "€", "£", "~", "…")
-                   else listOf("z", "x", "c", "v", "b", "n", "m", ",", ".", "/")
+    // ⚠ ラベルとフリックの表は [AsciiKeys] と**共有する** (0.8.403)。二重に持つと、片方だけ
+    //   直したときに「モデルはいまの配列と一致する」という `AsciiKeyLayoutTest` が嘘をつく。
+    val r1Labels = if (sym) AsciiKeys.SYM_ROW1 else AsciiKeys.ROW1
+    val r2Labels = if (sym) AsciiKeys.SYM_ROW2 else AsciiKeys.ROW2
+    val r3Labels = if (sym) AsciiKeys.SYM_ROW3 else AsciiKeys.ROW3
+    val r4Labels = if (sym) AsciiKeys.SYM_ROW4 else AsciiKeys.ROW4
 
-    // 上フリック (1 方向用) — 各行 10 個
-    val r2FlickUp = listOf('!', '@', '#', '$', '%', '^', '&', '*', '(', ')')
-    val r3FlickUp = listOf('-', '_', '+', '=', '|', '\\', '/', '[', ']')
-    val r4FlickUp = listOf('`', '~', '\'', '"', '<', '>', '?', ':', ';', '{')
+    // 上フリック (1 方向用)
+    val r2FlickUp = AsciiKeys.FLICK_UP_ROW2
+    val r3FlickUp = AsciiKeys.FLICK_UP_ROW3
+    val r4FlickUp = AsciiKeys.FLICK_UP_ROW4
 
     // 4 方向フリック (spacious 用) — Row 2 の up/left/right に記号を割当。
     // down は下フリック=大文字 (flickFor で動的に上書き) のため未指定。
-    val r2Flick4 = listOf(
-        FlickMap(up = '!', left = '`', right = '~'),
-        FlickMap(up = '@', left = '\'', right = '"'),
-        FlickMap(up = '#', left = '(', right = ')'),
-        FlickMap(up = '$', left = '[', right = ']'),
-        FlickMap(up = '%', left = '{', right = '}'),
-        FlickMap(up = '^', left = '<', right = '>'),
-        FlickMap(up = '&', left = ':', right = ';'),
-        FlickMap(up = '*', left = ',', right = '.'),
-        FlickMap(up = '(', left = '/', right = '\\'),
-        FlickMap(up = ')', left = '|', right = '?')
-    )
+    val r2Flick4 = AsciiKeys.FLICK4_ROW2
 
     // 下フリック = そのキーのローマ字大文字 (英字キーのみ)。数字は廃止。
     fun downUpperOf(rowIdx: Int, colIdx: Int): Char? {

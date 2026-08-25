@@ -279,9 +279,12 @@ data class KeyLayout(
     /**
      * ここから**設定か別の面へ抜けられる**キーが 1 つでもあるか。
      *
-     * ⛔ 無いレイアウトを保存させてはいけない。⚠ 面の切替も設定も無い配列を作って適用すると、
-     * **設定に戻る手段がキーボードから消える**（既存の [KeyboardFace] が「ASCII 面は必ず残す」、
-     * ツールバーの ⚙ が「隠せない」としているのと同じ理由）。
+     * ⚠ **[validate] では見ない**（0.8.403）。端末画面ではツールバーの ⚙ が**キーボードの外**に
+     * 常にあるので必須ではなく、現に「面が英字だけのとき」の既定の配列は面の切替キーを持たない
+     * （その席は CTRL が埋める）。ここで必須にすると**いまの配列そのものが弾かれる**。
+     *
+     * ⛔ ただし **OS の入力メソッドとして出しているときはツールバーが無い**。エディタで新しい
+     * 配列を保存するときに、これが false なら警告する（判断は呼出し側）。
      */
     fun hasEscapeHatch(): Boolean = allKeys().any { key ->
         (key.bindings.values.flatten() + key.layers.values.flatMap { it.bindings.values.flatten() })
@@ -302,7 +305,6 @@ data class KeyLayout(
                 }
             }
         }
-        if (!hasEscapeHatch()) problems.add("no way back: needs a face switch, settings or hide key")
         return problems
     }
 

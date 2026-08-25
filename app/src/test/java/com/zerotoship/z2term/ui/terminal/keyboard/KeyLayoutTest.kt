@@ -95,10 +95,13 @@ class KeyLayoutTest {
         )
     )
 
-    @Test fun layoutWithoutAWayBack_isRejected() {
+    @Test fun layoutWithoutAWayBack_isFlaggedButNotRejected() {
+        // ⚠ validate() では弾かない (0.8.403)。端末画面ではツールバーの ⚙ がキーボードの外に
+        // あり、現に「面が英字だけ」の既定の配列は面の切替キーを持たない。エディタが保存する
+        // ときの警告として使う。
         val layout = KeyLayout("test", "test", listOf(row(slot("a"), slot("b"))))
         assertFalse(layout.hasEscapeHatch())
-        assertTrue(layout.validate().any { it.contains("no way back") })
+        assertEquals(emptyList<String>(), layout.validate())
     }
 
     @Test fun wayBackOnALayer_counts() {
