@@ -2415,38 +2415,65 @@ private fun SettingsGroupSection(
 ) {
     val openState by SettingsGroupStore.openState.collectAsState()
     val open = openState[group.id] ?: group.defaultOpen
-    // 見出しがタップできる場所だと分かるように、カードと同じ枠 + 背景を付ける。
-    // 開いている間はアクセント寄りの枠にして、開閉状態も枠だけで読めるようにする。
+    // 見出しだけでなく展開内容まで 1 枚のカードに収め、次のグループとの境界を明示する。
+    // 見出しには内容の短い説明も常時出し、初見でも開く前に設定の種類を判断できるようにする。
     val headerBg = if (open) ZtsGreen.copy(alpha = 0.10f) else ZtsBgCard
     val headerBorder = if (open) ZtsGreen.copy(alpha = 0.55f) else ZtsBorder
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(ZtsBgCard)
+            .border(1.dp, headerBorder, RoundedCornerShape(8.dp))
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(6.dp))
                 .background(headerBg)
-                .border(1.dp, headerBorder, RoundedCornerShape(6.dp))
                 .clickable { SettingsGroupStore.setOpen(group, !open) }
-                .padding(horizontal = 10.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(group.titleRes),
+                    color = ZtsGreen,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    text = stringResource(group.descriptionRes),
+                    color = ZtsTextSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
             Text(
                 text = if (open) "▾" else "▸",
                 color = ZtsGreen,
-                fontSize = 13.sp,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace
             )
-            Text(
-                text = stringResource(group.titleRes),
-                color = ZtsGreen,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier.weight(1f)
-            )
         }
-        if (open) content()
+        if (open) {
+            // 区切り線と内側余白を残すことで、どこまでがこの見出しの設定かを目で追える。
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(headerBorder)
+            )
+            Column(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                content()
+            }
+        }
     }
 }
 
@@ -2845,12 +2872,25 @@ private fun folderLabel(treeUri: String): String? {
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = title,
-            color = ZtsTextSecondary,
-            fontSize = 12.sp,
-            fontFamily = FontFamily.Monospace
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(14.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(ZtsGreen.copy(alpha = 0.75f))
+            )
+            Text(
+                text = title,
+                color = ZtsTextPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = FontFamily.Monospace
+            )
+        }
         content()
     }
 }

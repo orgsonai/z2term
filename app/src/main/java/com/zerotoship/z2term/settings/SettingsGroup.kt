@@ -19,10 +19,16 @@ import com.zerotoship.z2term.R
 enum class SettingsGroup(
     val id: String,
     @param:StringRes val titleRes: Int,
+    @param:StringRes val descriptionRes: Int,
     val defaultOpen: Boolean
 ) {
     /** テーマ / フォントファミリー / フォントサイズ / スクロールバック行数 */
-    DISPLAY("display", R.string.settings_group_display, true),
+    DISPLAY(
+        "display",
+        R.string.settings_group_display,
+        R.string.settings_group_display_desc,
+        true
+    ),
 
     /**
      * キーボードの大きさ / 独自キーボードスタイル / キーボード位置 (横画面) /
@@ -32,22 +38,52 @@ enum class SettingsGroup(
      * キーボードを探した人が別のグループを開き直すことになっていたため。
      * 旧グループの id `"input"` は [SettingsGroupStore] に残るが、参照が無いので無視される。
      */
-    KEYBOARD("keyboard", R.string.settings_group_keyboard, true),
+    KEYBOARD(
+        "keyboard",
+        R.string.settings_group_keyboard,
+        R.string.settings_group_keyboard_desc,
+        true
+    ),
 
     /** ディストロ / OS データの削除 / ログインシェル / 外部ストレージ / GUI ターミナル */
-    LINUX("linux", R.string.settings_group_linux, false),
+    LINUX(
+        "linux",
+        R.string.settings_group_linux,
+        R.string.settings_group_linux_desc,
+        false
+    ),
 
     /** 常駐サーバー / 通知検知 / システムイベント検知 / ロック解除の失敗監視 / プロセス保護 */
-    AUTOMATION("automation", R.string.settings_group_automation, false),
+    AUTOMATION(
+        "automation",
+        R.string.settings_group_automation,
+        R.string.settings_group_automation_desc,
+        false
+    ),
 
     /** 端末リセット / キャッシュ削除 / 設定の初期化 */
-    MAINTENANCE("maintenance", R.string.settings_group_maintenance, false),
+    MAINTENANCE(
+        "maintenance",
+        R.string.settings_group_maintenance,
+        R.string.settings_group_maintenance_desc,
+        false
+    ),
 
     /** 実験的・開発者向け / 実行エンジン (裏設定。解放時のみ中身が出る) */
-    DEVELOPER("developer", R.string.settings_group_developer, false),
+    DEVELOPER(
+        "developer",
+        R.string.settings_group_developer,
+        R.string.settings_group_developer_desc,
+        false
+    ),
 
     /** アプリ情報 / OSS ライセンス */
-    ABOUT("about", R.string.settings_group_about, false);
+    ABOUT(
+        "about",
+        R.string.settings_group_about,
+        R.string.settings_group_about_desc,
+        false
+    );
 
     companion object {
         /** 画面上の表示順 (= 宣言順)。 */
