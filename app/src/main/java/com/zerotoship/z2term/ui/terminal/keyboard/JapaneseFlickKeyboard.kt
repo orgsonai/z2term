@@ -839,9 +839,12 @@ private fun RowScope.JpFlickKey(
  *
  * ⚠ 文字列を受けるのは絵文字 ([PAD_HINT]) がサロゲートペアで `Char` に収まらないため
  * (ESC キーの長押しヒントでも同じポップアップを使う)。
+ *
+ * ⚠ **英字面 ([TerminalKeyboard] の `FlickKey`) からも使う** (0.8.405)。面が違うだけで
+ * 同じ「フリック中の見え方」を出すためのもので、**片方だけ直さないこと**。
  */
 @Composable
-private fun FlickCommitPopup(
+internal fun FlickCommitPopup(
     text: String,
     style: KeyboardStyle
 ) {

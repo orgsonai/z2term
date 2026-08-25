@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.404-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.405-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -98,7 +98,7 @@ Z2Term comes with its **own in-app keyboard**.
 - Press `CTRL` or `ALT` then a letter → shortcuts like Ctrl+C. `ALT` **prefixes the next key with ESC**, which drives bash/zsh line editing: `ALT`+`.` inserts the last argument of the previous command, `ALT`+`b`/`f` moves the cursor by words, `ALT`+`d` deletes the word to the right. `ALT`+arrow keys are sent with the same ESC prefix. ⚠ The `META` key that used to sit on the English layout did exactly the same job as `ALT`, so in 0.8.281 it **became the paste / emoji key** (below). Use `ALT` for the Meta modifier.
 - **Paste and emoji (English display, 0.8.281)**: the key drawn with ↕ **pastes on tap** and **opens emoji when flicked down** (the small 📋 above it and 😀 below it are the cues; flicking up also pastes, so drifting upwards does not change where you land). ⚠ **Up and down match the ESC flicks** (aligned in 0.8.397 — before that, flicking up opened emoji, so the directions were reversed from one face to the next). It sits left of `a` on the 4-direction flick style, and at **the right end of the top row (right of ESC / TAB / ⇧)** on the simple style (0.8.397 — it used to be at the bottom left, but CTRL appeared both above and below, so the two swapped places). While open, the keys are replaced by the pad and **only the bottom row (× ⌫ space ⏎ ← →) stays**, so you can delete or start a new line right after pasting. Close it with × or by pressing the same key again. The 😀 / 📋 tabs at the top of the pad switch between emoji and paste.
 - **The key background turns bright green when pressed** (so you can see what you touched).
-- During a flick, once your finger passes the threshold, **the small hint character for the destination is enlarged and highlighted**, so you can confirm where it will land before lifting your finger.
+- **While you flick, the character you would get by letting go now appears in a large green square just above the key** (0.8.405). It swaps as you move, so you can check before lifting your finger. ⚠ This is now **exactly what the Japanese keyboard does** — before, only the alphabet face enlarged its own small hint, so the two faces behaved differently. The small hints printed on the key (green here, faint white on the Japanese face) are unchanged.
 
 ### Landscape keyboard
 - In settings, **"Keyboard position (landscape)"** lets you choose **left / bottom / right** (in portrait it's always at the bottom).

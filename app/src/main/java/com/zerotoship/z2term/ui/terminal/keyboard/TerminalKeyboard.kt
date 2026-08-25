@@ -861,13 +861,7 @@ private fun RowScope.FlickKey(
                 .padding(vertical = 1.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (flick?.up != null) {
-                HintText(
-                    flick.up.toString(),
-                    style,
-                    emphasized = flickPreview == flick.up
-                )
-            }
+            if (flick?.up != null) HintText(flick.up.toString(), style)
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -889,7 +883,6 @@ private fun RowScope.FlickKey(
             HintText(
                 flick.left.toString(),
                 style,
-                emphasized = flickPreview == flick.left,
                 modifier = Modifier.align(Alignment.CenterStart).padding(start = 3.dp)
             )
         }
@@ -897,9 +890,15 @@ private fun RowScope.FlickKey(
             HintText(
                 flick.right.toString(),
                 style,
-                emphasized = flickPreview == flick.right,
                 modifier = Modifier.align(Alignment.CenterEnd).padding(end = 3.dp)
             )
+        }
+        // 押下中: キー直上のポップアップに「今このまま離すと確定する 1 文字」を大きく出す
+        // (0.8.405)。⚠ **かな面と同じ [FlickCommitPopup]** — 面が違うだけで指の動きは同じ
+        // なのに、こちらだけキー上のヒントを一瞬大きくする作りで**見え方が揃っていなかった**
+        // (利用者指摘)。キー上のヒントは平常どおり (かな面は薄白、英字面は緑) のまま。
+        if (pressed) {
+            FlickCommitPopup(text = (flickPreview ?: label.firstOrNull())?.toString() ?: label, style = style)
         }
     }
 }
@@ -908,16 +907,15 @@ private fun RowScope.FlickKey(
 private fun HintText(
     text: String,
     style: KeyboardStyle,
-    emphasized: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Text(
         text = text,
-        color = if (emphasized) Color.Black else ZtsGreenBright,
-        fontSize = (if (emphasized) style.flickHintFontSp * 1.6f else style.flickHintFontSp).sp,
-        lineHeight = (if (emphasized) style.flickHintFontSp * 1.6f else style.flickHintFontSp).sp,
+        color = ZtsGreenBright,
+        fontSize = style.flickHintFontSp.sp,
+        lineHeight = style.flickHintFontSp.sp,
         fontFamily = FontFamily.Monospace,
-        fontWeight = if (emphasized) FontWeight.Bold else FontWeight.Medium,
+        fontWeight = FontWeight.Medium,
         modifier = modifier
     )
 }
