@@ -142,10 +142,12 @@ import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
 import com.zerotoship.z2term.ui.terminal.keyboard.KanaKanjiConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.KkcConverter
+import com.zerotoship.z2term.ui.terminal.keyboard.KeyLayout
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
+import com.zerotoship.z2term.ui.terminal.keyboard.activeKeyLayout
 import com.zerotoship.z2term.emulator.ZtsTheme
 import com.zerotoship.z2term.emulator.resolveTheme
 import com.zerotoship.z2term.settings.CustomThemeStore
@@ -538,6 +540,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         // 面 (かな / 英字 / 数字) の巡回順。設定の順序から、数字面が OFF ならそれを外す。
         // 日本語面を外すかどうかは TerminalKeyboard 側 (showJapaneseKeyboard) が決める。
         val faceOrder = KeyboardFace.orderFrom(settings.keyboardFaceOrder, settings.keyboardNumberFace)
+        // 自分で作ったキー配列 (0.8.408)。⚠ **読めなければ null** = 既定のプリセットで描く。
+        // 別の端末で作った設定を戻したときなど、束に無い id が選ばれている状況は普通に起きる。
+        val customLayout = remember(settings.keyboardLayoutsJson, settings.keyboardLayoutActiveId) {
+            activeKeyLayout(settings.keyboardLayoutsJson, settings.keyboardLayoutActiveId)
+        }
 
         // 検索バー入力のルーティング:
         //   検索バーを開いて独自(内蔵)キーボード使用中は、キーボード出力を PTY ではなく検索クエリへ流す。
@@ -620,6 +627,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         composing = composing,
                         showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
                         faceOrder = faceOrder,
+                        customLayout = customLayout,
                         widthDp = settings.landscapeKeyboardWidthDp,
                         onBytes = onKeyboardBytes,
                         onCursorKey = onKeyboardCursor
@@ -742,6 +750,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                         composing = composing,
                         showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
                         faceOrder = faceOrder,
+                        customLayout = customLayout,
                         widthDp = settings.landscapeKeyboardWidthDp,
                         onBytes = onKeyboardBytes,
                         onCursorKey = onKeyboardCursor
@@ -780,7 +789,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                                     style = kbStyle,
                                     // English モードでは日本語面を巡回から外す。
                                     showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
-                                    faceOrder = faceOrder
+                                    faceOrder = faceOrder,
+                                    customLayout = customLayout
                                 )
                             }
                         }
@@ -1179,6 +1189,11 @@ private fun GuiTabScreen(
         // 面 (かな / 英字 / 数字) の巡回順。設定の順序から、数字面が OFF ならそれを外す。
         // 日本語面を外すかどうかは TerminalKeyboard 側 (showJapaneseKeyboard) が決める。
         val faceOrder = KeyboardFace.orderFrom(settings.keyboardFaceOrder, settings.keyboardNumberFace)
+        // 自分で作ったキー配列 (0.8.408)。⚠ **読めなければ null** = 既定のプリセットで描く。
+        // 別の端末で作った設定を戻したときなど、束に無い id が選ばれている状況は普通に起きる。
+        val customLayout = remember(settings.keyboardLayoutsJson, settings.keyboardLayoutActiveId) {
+            activeKeyLayout(settings.keyboardLayoutsJson, settings.keyboardLayoutActiveId)
+        }
 
         Row(modifier = Modifier
             .fillMaxWidth()
@@ -1190,6 +1205,7 @@ private fun GuiTabScreen(
                     composing = composing,
                     showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
                     faceOrder = faceOrder,
+                    customLayout = customLayout,
                     widthDp = settings.landscapeKeyboardWidthDp,
                     onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
                     onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) }
@@ -1245,7 +1261,8 @@ private fun GuiTabScreen(
                                             composing = composing,
                                             style = kbStyleGui,
                                             showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
-                                            faceOrder = faceOrder
+                                            faceOrder = faceOrder,
+                                            customLayout = customLayout
                                         )
                                     }
                                 }
@@ -1270,6 +1287,7 @@ private fun GuiTabScreen(
                     composing = composing,
                     showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
                     faceOrder = faceOrder,
+                    customLayout = customLayout,
                     widthDp = settings.landscapeKeyboardWidthDp,
                     onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
                     onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) }
@@ -2692,6 +2710,8 @@ private fun SideKeyboardColumn(
     composing: ComposingState,
     showJapaneseKeyboard: Boolean,
     faceOrder: List<KeyboardFace>,
+    /** 自分で作ったキー配列 (0.8.408)。null = 既定のプリセット。 */
+    customLayout: KeyLayout?,
     widthDp: Float,
     onBytes: (ByteArray) -> Unit,
     onCursorKey: (com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey) -> Unit
@@ -2713,7 +2733,8 @@ private fun SideKeyboardColumn(
                 composing = composing,
                 style = style,
                 showJapaneseKeyboard = showJapaneseKeyboard,
-                faceOrder = faceOrder
+                faceOrder = faceOrder,
+                customLayout = customLayout
             )
         }
     }

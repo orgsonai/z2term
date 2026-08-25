@@ -70,6 +70,15 @@
     <string name="settings_keyboard_number_face">Show the number face</string>
     <string name="settings_keyboard_number_face_desc">Adds a numbers-only face (a keypad) to the built-in keyboard, so the switch key cycles through 12 as well. Turn it off and the cycle is あ → A → あ as before</string>
     <string name="settings_keyboard_face_order">Face switching order</string>
+    <!-- Custom key layouts (0.8.408, stage 2) -->
+    <string name="settings_section_key_layout">Key layout (your own)</string>
+    <string name="settings_key_layout_desc">Duplicate the letter layout and switch to your copy. Editing keys comes next; right now a copy differs from the default in one way: widths go back to sharing the row evenly, so changing one key later makes the others shrink to match.</string>
+    <string name="settings_key_layout_default">Default</string>
+    <string name="settings_key_layout_duplicate">Duplicate the letter layout</string>
+    <string name="settings_key_layout_new_name">My letters</string>
+    <string name="settings_key_layout_name">Name</string>
+    <string name="settings_key_layout_delete">Delete this layout</string>
+    <string name="settings_key_layout_symbols_note">The symbol face (?#) still uses the default. It has a different number of keys, so it needs a sheet of its own.</string>
     <string name="settings_keyboard_toggle_bar_desc">Show a show/hide bar above the keyboard. When off, double-tap the ⌨ button to toggle.</string>
     <string name="settings_section_user_dict">User dictionary</string>
     <!-- "candidate1" is part of the SKK dictionary format, not a typo for "candidate!". -->

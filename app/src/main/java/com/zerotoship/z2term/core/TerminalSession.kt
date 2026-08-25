@@ -480,6 +480,10 @@ class TerminalSession(
     fun setKeyboardStyleId(id: String) { scope.launch { settings.setKeyboardStyleId(id) } }
     fun setKeyboardNumberFace(enabled: Boolean) { scope.launch { settings.setKeyboardNumberFace(enabled) } }
     fun setKeyboardFaceOrder(orderId: String) { scope.launch { settings.setKeyboardFaceOrder(orderId) } }
+    /** 自分で作ったキー配列の束を丸ごと保存する (0.8.408)。⚠ 束は常に全体を渡す。 */
+    fun setKeyboardLayoutsJson(json: String) { scope.launch { settings.setKeyboardLayoutsJson(json) } }
+    /** いま使うキー配列を選ぶ (0.8.408)。**空文字 = 既定のプリセット**。 */
+    fun setKeyboardLayoutActiveId(id: String) { scope.launch { settings.setKeyboardLayoutActiveId(id) } }
     fun setLoginShell(shell: String) { scope.launch { settings.setLoginShell(shell) } }
     fun setKeyboardMode(mode: String) { scope.launch { settings.setKeyboardMode(mode) } }
     fun setKeepAliveService(enabled: Boolean) { scope.launch { settings.setKeepAliveService(enabled) } }

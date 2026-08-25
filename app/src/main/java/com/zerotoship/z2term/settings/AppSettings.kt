@@ -59,6 +59,24 @@ class AppSettings(private val context: Context) {
          * (`A → 12 → あ` は `あ → A → 12` を回しただけの同じ順)。
          */
         val keyboardFaceOrder: String = DEFAULT_KEYBOARD_FACE_ORDER,
+        /**
+         * 自分で作ったキー配列の束 (JSON の配列。空文字 = 1 つも作っていない)。0.8.408。
+         *
+         * ⚠ **JSON の文字列 1 本にまとめて持つ。** ここ (`AppSettings` の DataStore) に入れて
+         * おくと [PrefsPortable] がキーごと丸ごと運ぶので、**設定の持ち出し / 取り込みに
+         * 自動で乗る** (`exportRaw` は DataStore 全体を JSON にする)。項目を足すたびに
+         * バックアップ側へ書き写す方式では、書き忘れが機種変のときにしか分からない。
+         *
+         * 中身の読み書きは `KeyLayoutJson`。
+         */
+        val keyboardLayoutsJson: String = "",
+        /**
+         * いま使っているキー配列の id (空 = 既定のプリセット)。0.8.408。
+         *
+         * ⚠ **束に無い id が入っていることは普通に起きる** (別の端末で作った設定を戻した等)。
+         * 読む側 (`activeKeyLayout`) は見つからなければ黙って既定へ戻す。
+         */
+        val keyboardLayoutActiveId: String = "",
         /** フォアグラウンド常駐サービスを使うか (Activity 破棄後もセッション維持) */
         val keepAliveService: Boolean = DEFAULT_KEEP_ALIVE,
         /** 画面消灯ロック (ディスプレイを自動で消さない) の状態。次回起動時に復元 */
@@ -502,6 +520,8 @@ class AppSettings(private val context: Context) {
                 ?: if (p[KEY_IME_JAPANESE_MODE] == true) FACE_ID_KANA else DEFAULT_IME_FACE,
             keyboardNumberFace = p[KEY_KEYBOARD_NUMBER_FACE] ?: DEFAULT_KEYBOARD_NUMBER_FACE,
             keyboardFaceOrder = p[KEY_KEYBOARD_FACE_ORDER] ?: DEFAULT_KEYBOARD_FACE_ORDER,
+            keyboardLayoutsJson = p[KEY_KEYBOARD_LAYOUTS] ?: "",
+            keyboardLayoutActiveId = p[KEY_KEYBOARD_LAYOUT_ACTIVE] ?: "",
             keepAliveService = p[KEY_KEEP_ALIVE] ?: DEFAULT_KEEP_ALIVE,
             keepScreenOn = p[KEY_KEEP_SCREEN_ON] ?: DEFAULT_KEEP_SCREEN_ON,
             // キーが無い = 一度も触っていない or 「戻す」を押した = OS に任せる。
@@ -802,6 +822,21 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_KEYBOARD_FACE_ORDER] = orderId }
     }
 
+    /**
+     * 自分で作ったキー配列の束を丸ごと書き換える (0.8.408)。
+     *
+     * ⚠ **束は必ず全体を渡す。** 1 件だけ足す / 消す API にすると、読んで直して書くまでの間に
+     * 別の画面が書き込んだぶんを取りこぼす。呼出し側は「いまの束を読む → 直す → 全部渡す」。
+     */
+    suspend fun setKeyboardLayoutsJson(json: String) {
+        context.dataStore.edit { it[KEY_KEYBOARD_LAYOUTS] = json }
+    }
+
+    /** いま使うキー配列を選ぶ (0.8.408)。**空文字 = 既定のプリセットへ戻す**。 */
+    suspend fun setKeyboardLayoutActiveId(id: String) {
+        context.dataStore.edit { it[KEY_KEYBOARD_LAYOUT_ACTIVE] = id }
+    }
+
     suspend fun setKeepAliveService(enabled: Boolean) {
         context.dataStore.edit { it[KEY_KEEP_ALIVE] = enabled }
     }
@@ -952,6 +987,8 @@ class AppSettings(private val context: Context) {
         private val KEY_IME_FACE = stringPreferencesKey("ime_face")
         private val KEY_KEYBOARD_NUMBER_FACE = booleanPreferencesKey("keyboard_number_face")
         private val KEY_KEYBOARD_FACE_ORDER = stringPreferencesKey("keyboard_face_order")
+        private val KEY_KEYBOARD_LAYOUTS = stringPreferencesKey("keyboard_layouts")
+        private val KEY_KEYBOARD_LAYOUT_ACTIVE = stringPreferencesKey("keyboard_layout_active_id")
         private val KEY_KEEP_ALIVE = booleanPreferencesKey("keep_alive_service")
         private val KEY_KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
         private val KEY_SCREEN_BRIGHTNESS = floatPreferencesKey("screen_brightness")

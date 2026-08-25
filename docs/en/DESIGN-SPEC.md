@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-26 / Target version: 0.8.407-alpha (versionCode 415)
+Last updated: 2026-08-26 / Target version: 0.8.408-alpha (versionCode 416)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2243,6 +2243,51 @@ crossed), `pressFeedback`, `highlighted`, `labelTone`, `fontRole` and the repeat
 
 ⚠ The row under an open pad uses the same path (`asciiPadRow`). ⚠ Shift shows its three states in
 colour instead of a press highlight. ⚠ **Not yet verified on a device** (this build is not installed).
+
+**Stage 2 (0.8.408): layouts can be saved and picked.** A preset can be duplicated, named and
+switched to. ⚠ **There is no editor for the keys themselves yet** (that is the next stage).
+
+- **Storage is two string keys in the settings DataStore** — `keyboard_layouts` (the bundle, as
+  JSON) and `keyboard_layout_active_id` (empty = the built-in preset). ⭐ `PrefsPortable` carries
+  the DataStore key by key, so **layouts ride along with settings export/import for free** rather
+  than needing to be copied into the backup code every time a field is added.
+- **JSON goes through two layers.** ⚠ **`org.json` does not work in JVM unit tests** (`android.jar`
+  is a stub and `unitTests.isReturnDefaultValues = true` makes `put()` silently do nothing), so a
+  codec written directly against it **cannot be round-trip tested**. Hence `KeyLayoutCodec`
+  (`KeyLayout` ⇄ a tree of plain `Map`/`List`, no Android) and `KeyLayoutJson` (that tree ⇄ a JSON
+  string, the only place that touches `org.json`).
+- **Defaults are not written out.** Pasting JSON written by an AI is a first-class way to build a
+  layout, so being short enough to read is part of the feature: an ordinary key is just
+  `{"label":"a","bind":{"tap":[{"t":"text","s":"a"}]}}`.
+- ⚠ **An unknown value is dropped on its own and reading continues** — unknown gesture names,
+  action kinds and enum ids cost one binding, not the layout. A layout **vanishing** when an older
+  build opens JSON written by a newer one is the worst outcome. ⚠ Raw bytes travel as hex: put real
+  control characters in a JSON string and one trip through an editor or the clipboard breaks them.
+- ⭐ **Duplicating rewrites `Fixed(1.0)` to `Auto`** (`asTemplate`). Presets pin every width so the
+  screen does not move (stage 1b); copied as-is they would be templates where **widening one key
+  shrinks nothing else**, which is exactly the request. ⚠ Widths that were widened on purpose —
+  1.4 (edge keys), 1.2 (`?#`, ALT), 4.0 (space) — stay. ⚠ The cost is that a copy's proportions
+  shift slightly (Row 1 was drawn as `1.4 + 1.0×10 + 1.4` = 12.8; sharing a budget of 12 slots
+  makes the letters 1.0 → 0.92).
+- **Only the plain Latin face is replaced.** ⚠ The symbol face (`?#`) stays on the preset: its slot
+  count changes (10 → 8), so it cannot be a layer and needs a sheet of its own (stage 1b). ⚠ The
+  same layout is handed to **both the terminal screen and the OS input method** — leaving one on
+  the preset would mean "a different keyboard inside and outside the app".
+- ⚠ **Unreadable means falling back to the preset silently** (`activeKeyLayout` returns null). An id
+  that is not in the bundle happens routinely when settings from another device are restored;
+  throwing or returning an empty layout would produce a device with **no keyboard at all**.
+- **Keyboard style (simple / four-way flick) is unchanged.** ⚠ Key height, font sizes and row gaps
+  stay in `KeyboardStyle`; a layout carries **only order, widths and bindings**. Holding both would
+  make the keyboard-size setting apply to some layouts and not others.
+- ⚠ **A layout with a different row count gets its row height recomputed.** The keyboard's slot is
+  fixed at `style.naturalHeight`, which is derived from `keyHeight` assuming six rows (simple) or
+  five (four-way flick). A six-row copy made under the simple style would otherwise **overflow the
+  slot and paint over the terminal**. Presets match the expected count, so nothing changes for them.
+- ⚠ **Whether a face-switch key exists is frozen at duplication time** (the preset decides it live
+  from how many faces are available). Duplicating under an English UI with the number face off
+  yields a layout with no switch key, so turning the number face on later leaves no way to reach it.
+  The terminal's ⚙ toolbar still gets back to the default; the real fix is placing a switch key in
+  the editor, which stage 3's save-time `hasEscapeHatch` warning points at.
 
 #### 6.1.1 The numbers-only face (0.8.305)
 

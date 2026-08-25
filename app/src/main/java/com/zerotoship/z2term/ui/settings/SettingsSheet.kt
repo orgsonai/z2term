@@ -120,9 +120,18 @@ import com.zerotoship.z2term.ui.terminal.Guide
 import com.zerotoship.z2term.ui.terminal.NoOsSettingsNotice
 import com.zerotoship.z2term.ui.terminal.ToolbarButtons
 import com.zerotoship.z2term.ui.terminal.guideDesc
+import com.zerotoship.z2term.ui.terminal.keyboard.KeyLayoutJson
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
+import com.zerotoship.z2term.ui.terminal.keyboard.asTemplate
+import com.zerotoship.z2term.ui.terminal.keyboard.asciiKeyLayout
+import com.zerotoship.z2term.ui.terminal.keyboard.newKeyLayoutId
+import com.zerotoship.z2term.ui.terminal.keyboard.nextActiveAfterRemove
+import com.zerotoship.z2term.ui.terminal.keyboard.removeLayout
+import com.zerotoship.z2term.ui.terminal.keyboard.renameLayout
+import com.zerotoship.z2term.ui.terminal.keyboard.uniqueKeyLayoutName
+import com.zerotoship.z2term.ui.terminal.keyboard.upsertLayout
 import com.zerotoship.z2term.ui.terminal.stopEverythingAndQuit
 import com.zerotoship.z2term.ui.theme.TerminalFontOption
 import com.zerotoship.z2term.ui.theme.TerminalFontOptions
@@ -568,6 +577,11 @@ fun SettingsSheet(
                         onChange = { session.setSpecialKeyBar(it) }
                     )
                 }
+
+                // 自分で作るキー配列 (0.8.408・段階 2)。⚠ キーボードスタイル (高さ・字の
+                // 大きさ) は**そのまま残す** — 配列は「並び・幅・割り当て」だけを持ち、
+                // 大きさは今までどおり上の設定が全部の面にまとめて効く。
+                KeyLayoutSection(settings, session)
 
                 // 内蔵キーボードを OS の入力方法として出す (Z2ImeService)。⚠ 有効化も選択も
                 // ユーザーの操作でしか行えない (OS の決まり) ので、ここは 2 つの画面へ送るだけ。
@@ -2872,6 +2886,108 @@ private fun folderLabel(treeUri: String): String? {
     if (treeUri.isEmpty()) return null
     val decoded = Uri.decode(treeUri.substringAfterLast("/"))
     return decoded.substringAfterLast(':').ifEmpty { decoded }
+}
+
+/**
+ * 自分で作るキー配列 (0.8.408・段階 2)。
+ *
+ * ⚠ **まだ「複製して切り替える」まで。** キーの中身を編集する画面 (段の増減・幅・割り当て) は
+ * 次の段階。ここで先に一覧と切替を出しておくのは、エディタが「一覧から 1 枚を開く」形に
+ * なるので、入口が先に要るため。
+ *
+ * ⚠ 複製すると**幅が [KeyWidth.Auto] へ戻る** ([asTemplate])。プリセットは見た目を動かさない
+ * ために幅を全部固定で書いてあり、そのまま複製すると「1 つ広げても他が縮まない」テンプレートに
+ * なってしまう。説明文でその 1 点だけを断ってある。
+ */
+@Composable
+private fun KeyLayoutSection(settings: AppSettings.Snapshot, session: TerminalSession) {
+    val context = LocalContext.current
+    val layouts = remember(settings.keyboardLayoutsJson) {
+        KeyLayoutJson.listFromJsonString(settings.keyboardLayoutsJson)
+    }
+    // ⚠ 束に無い id が選ばれていることは普通に起きる (別の端末の設定を戻した等)。
+    // その場合は「既定」を選んでいる扱いにする — 一覧に無いものを選択中に見せない。
+    val active = layouts.firstOrNull { it.id == settings.keyboardLayoutActiveId }
+    val newName = stringResource(R.string.settings_key_layout_new_name)
+    val defaultLabel = stringResource(R.string.settings_key_layout_default)
+    // ⚠ 見出しは Composable の外で組む (`stringResource` を lambda の中で呼ばない)。
+    val chipLabels = remember(layouts, defaultLabel) {
+        LinkedHashMap<String, String>().apply {
+            put("", defaultLabel)
+            layouts.forEach { put(it.id, it.name.ifBlank { it.id }) }
+        }
+    }
+
+    Section(title = stringResource(R.string.settings_section_key_layout)) {
+        Text(
+            text = stringResource(R.string.settings_key_layout_desc),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
+        )
+        ChipRow(
+            options = listOf("") + layouts.map { it.id },
+            labels = chipLabels,
+            selected = active?.id ?: "",
+            onSelect = { session.setKeyboardLayoutActiveId(it) }
+        )
+        ActionButton(label = stringResource(R.string.settings_key_layout_duplicate)) {
+            val style = KeyboardStyle.byId(settings.keyboardStyleId)
+            // 複製元は**いま画面に出ているのと同じ英字面**にする。スタイルと面の数で
+            // 並びが変わるので、ここで同じ条件を組み直す (TerminalKeyboard と同じ引数)。
+            // ⚠ **ここで決まった「面の切替キーの有無」は配列に焼き付く** (プリセットは
+            // 毎回決め直している)。英語表示 ∧ 数字面 OFF で複製すると切替キーが無い配列に
+            // なり、あとで数字面を ON にしても数字面へ行けない。切替キーを自分で置けるように
+            // するのはエディタ (段階 3) の仕事。それまでは「既定」へ戻せば元に戻る。
+            val faces = KeyboardFace.available(
+                KeyboardFace.orderFrom(settings.keyboardFaceOrder, settings.keyboardNumberFace),
+                allowKana = LocaleHelper.language(context) == LocaleHelper.LANG_JA
+            )
+            val copy = asciiKeyLayout(
+                compact = style.id == KeyboardStyle.COMPACT.id,
+                hasFaceKey = faces.size > 1,
+                symbols = false,
+                fourWayFlick = style.fourDirectionFlick
+            ).asTemplate(
+                id = newKeyLayoutId(layouts),
+                name = uniqueKeyLayoutName(layouts, newName)
+            )
+            session.setKeyboardLayoutsJson(KeyLayoutJson.toJsonString(layouts.upsertLayout(copy)))
+            // 作ったらそのまま使う。作っただけで切り替わらないと、押した手応えが無い。
+            session.setKeyboardLayoutActiveId(copy.id)
+        }
+        if (active != null) {
+            TextField(
+                title = stringResource(R.string.settings_key_layout_name),
+                placeholder = newName,
+                value = active.name,
+                onChange = { name ->
+                    session.setKeyboardLayoutsJson(
+                        KeyLayoutJson.toJsonString(layouts.renameLayout(active.id, name))
+                    )
+                }
+            )
+            Text(
+                text = stringResource(R.string.settings_key_layout_symbols_note),
+                color = ZtsTextSecondary,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            ActionButton(
+                label = stringResource(R.string.settings_key_layout_delete),
+                danger = true
+            ) {
+                // ⚠ **先に選び直してから消す。** 逆にすると、消えた id を選んだままの一瞬が
+                // あり、その間キーボードは既定へ落ちて戻る (画面がちらつく)。
+                session.setKeyboardLayoutActiveId(
+                    nextActiveAfterRemove(settings.keyboardLayoutActiveId, active.id)
+                )
+                session.setKeyboardLayoutsJson(
+                    KeyLayoutJson.toJsonString(layouts.removeLayout(active.id))
+                )
+            }
+        }
+    }
 }
 
 /**

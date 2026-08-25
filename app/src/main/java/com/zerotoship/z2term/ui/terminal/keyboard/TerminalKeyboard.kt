@@ -111,6 +111,16 @@ fun TerminalKeyboard(
     initialFace: KeyboardFace = KeyboardFace.ASCII,
     /** 切替キーで面が変わったときの通知。面を永続化する呼出し側だけが受ける。 */
     onFaceChange: (KeyboardFace) -> Unit = {},
+    /**
+     * 自分で作ったキー配列 (0.8.408・段階 2)。**null = 既定のプリセット**。
+     *
+     * ⚠ 効くのは**英字面の素の姿だけ**。記号面 (`?#`) はまだプリセットのまま
+     * (枠の数が変わるので別の 1 枚が要る — 段階 3)。かな面 / 数字面は別の Composable。
+     *
+     * ⚠ **呼出し側は「読めなかったら null」を渡す。** 壊れた JSON でキーボードが
+     * 1 枚も出ない端末を作らないため (`activeKeyLayout` がその判断をしている)。
+     */
+    customLayout: KeyLayout? = null,
     modifier: Modifier = Modifier
 ) {
     var shift by remember { mutableStateOf(ShiftState.OFF) }
@@ -333,8 +343,14 @@ fun TerminalKeyboard(
     //   どの幅で**置くか」だけをデータへ移した。
     // ⚠ キーの描画を 1 つに統合する (= 専用部品をやめる) のは次の段階。ここで一緒にやると、
     //   壊れたときに「並びが悪いのか描画が悪いのか」を切り分けられなくなる。
-    val layout = remember(isCompact, hasFaceKey, sym, style.fourDirectionFlick) {
-        asciiKeyLayout(
+    //
+    // ⭐ 段階 2 (0.8.408): [customLayout] があればそれを描く。無ければ従来どおりプリセット。
+    // ⚠ **記号面 (`?#`) はまだプリセットのまま。** 記号面は Row 4 の枠が 10 → 8 個に減るので
+    //   レイヤーでは表せず、**別の 1 枚**として持つしかない (0.8.403 で分かったこと)。自分の
+    //   配列に記号面を持たせるのはエディタ (段階 3) と一緒に入れる。それまで `?#` を押したら
+    //   既定の記号面が出る — 記号が打てなくなるよりは、面が 1 枚だけ既定に戻る方がまし。
+    val layout = remember(isCompact, hasFaceKey, sym, style.fourDirectionFlick, customLayout) {
+        customLayout?.takeIf { !sym } ?: asciiKeyLayout(
             compact = isCompact,
             hasFaceKey = hasFaceKey,
             symbols = sym,
@@ -343,6 +359,16 @@ fun TerminalKeyboard(
     }
     // ⇧ は**キーの姿の差し替え** = レイヤーで表す。⚠ 記号面では大文字にしない (いまと同じ)。
     val activeLayer = if (!sym && shift != ShiftState.OFF) KeyLayout.LAYER_SHIFT else null
+
+    // ⚠ **段の数が違う配列は 1 段の高さを割り直す** (0.8.408)。キーボードの席は
+    // `style.naturalHeight` で固定してあり、その高さは「シンプル = 6 段 / 4 方向フリック =
+    // 5 段」を前提に `style.keyHeight` から作られている。自分で作った配列は段の数が違い得る
+    // (シンプルのときに複製した 6 段の配列を 4 方向フリックで使う等) ので、そのまま描くと
+    // **席からはみ出して端末の画面にかぶる**。プリセットは段の数が一致するので何も変わらない。
+    val presetRowCount = if (isCompact) 6 else 5
+    val rowHeight =
+        if (layout.rows.size == presetRowCount) style.keyHeight
+        else style.keyHeight * presetRowCount / layout.rows.size
 
     Column(
         modifier = modifier
@@ -358,7 +384,7 @@ fun TerminalKeyboard(
                     LayoutSlot(
                         content = keySlot.content,
                         // ⚠ 段の高さはここで決める。枠を割ったときは中で分け合う。
-                        modifier = Modifier.weight(weights[index]).height(style.keyHeight),
+                        modifier = Modifier.weight(weights[index]).height(rowHeight),
                         activeLayer = activeLayer,
                         style = style,
                         smallFont = smallFont,

@@ -22,6 +22,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
@@ -58,6 +59,7 @@ import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.KkcConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
+import com.zerotoship.z2term.ui.terminal.keyboard.activeKeyLayout
 import com.zerotoship.z2term.ui.theme.AppColors
 import com.zerotoship.z2term.ui.theme.Z2TermTheme
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -293,7 +295,18 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                                     settings.keyboardNumberFace
                                 ),
                                 initialFace = KeyboardFace.byId(settings.imeFace),
-                                onFaceChange = ::rememberFace
+                                onFaceChange = ::rememberFace,
+                                // ⚠ 入力メソッドでも同じ配列を使う (0.8.408)。ここだけ既定に
+                                // 戻ると「アプリの中と外で別のキーボード」になってしまう。
+                                customLayout = remember(
+                                    settings.keyboardLayoutsJson,
+                                    settings.keyboardLayoutActiveId
+                                ) {
+                                    activeKeyLayout(
+                                        settings.keyboardLayoutsJson,
+                                        settings.keyboardLayoutActiveId
+                                    )
+                                }
                             )
                         }
                     }

@@ -70,6 +70,15 @@
     <string name="settings_keyboard_number_face">数字の面を出す</string>
     <string name="settings_keyboard_number_face_desc">内蔵キーボードに数字だけの面（テンキー）を足します。切りかえキーの行き先に 12 が挟まります。切ると あ → A → あ の従来どおりに戻ります</string>
     <string name="settings_keyboard_face_order">面の切りかえ順</string>
+    <!-- 自分で作るキー配列 (0.8.408・段階 2) -->
+    <string name="settings_section_key_layout">キー配列（自分で作る）</string>
+    <string name="settings_key_layout_desc">英字の面を複製して、自分の配列に切り替えられます。キーの中身を編集できるようにするのは次の段階です。いまの複製が既定と違うのは 1 点だけ — 幅が「段を均等に分ける」に戻るので、あとで 1 つ広げると残りが均等に縮みます。</string>
+    <string name="settings_key_layout_default">既定</string>
+    <string name="settings_key_layout_duplicate">英字の面を複製する</string>
+    <string name="settings_key_layout_new_name">じぶんの英字</string>
+    <string name="settings_key_layout_name">名前</string>
+    <string name="settings_key_layout_delete">この配列を削除</string>
+    <string name="settings_key_layout_symbols_note">記号の面（?#）は既定のままです。キーの数が違うので、別の 1 枚として持つ必要があります。</string>
     <string name="settings_keyboard_toggle_bar_desc">キーボードの上に表示/非表示バーを出す。OFF のときは ⌨ ボタンのダブルタップで切り替え。</string>
     <string name="settings_section_user_dict">ユーザー辞書</string>
     <string name="settings_user_dict_desc">自分の語をファイルで足せます。1 行 1 語で、「よみ /候補1/候補2/」（SKK 形式）と「よみ〈タブ〉表記〈タブ〉品詞」（変換辞書ツールの書き出し）のどちらでも読めます。行頭 ; # はコメント。文字コードは UTF-8 / EUC-JP 対応。読みがひらがなの行だけを取り込みます。</string>
