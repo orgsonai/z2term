@@ -707,7 +707,7 @@ private fun RowScope.PadKey(
                 }
             }
     ) {
-        HintText("📋", style, modifier = Modifier.align(Alignment.TopCenter))
+        HintText("📋", style, pressed, modifier = Modifier.align(Alignment.TopCenter))
         Text(
             text = "↕",
             color = fg,
@@ -715,7 +715,7 @@ private fun RowScope.PadKey(
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.align(Alignment.Center)
         )
-        HintText("😀", style, modifier = Modifier.align(Alignment.BottomCenter))
+        HintText("😀", style, pressed, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 
@@ -861,7 +861,7 @@ private fun RowScope.FlickKey(
                 .padding(vertical = 1.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (flick?.up != null) HintText(flick.up.toString(), style)
+            if (flick?.up != null) HintText(flick.up.toString(), style, pressed)
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -883,6 +883,7 @@ private fun RowScope.FlickKey(
             HintText(
                 flick.left.toString(),
                 style,
+                pressed,
                 modifier = Modifier.align(Alignment.CenterStart).padding(start = 3.dp)
             )
         }
@@ -890,6 +891,7 @@ private fun RowScope.FlickKey(
             HintText(
                 flick.right.toString(),
                 style,
+                pressed,
                 modifier = Modifier.align(Alignment.CenterEnd).padding(end = 3.dp)
             )
         }
@@ -907,11 +909,16 @@ private fun RowScope.FlickKey(
 private fun HintText(
     text: String,
     style: KeyboardStyle,
+    pressed: Boolean,
     modifier: Modifier = Modifier
 ) {
     Text(
         text = text,
-        color = ZtsGreenBright,
+        // ⚠ **押下中はキーの背景が緑 (ZtsGreenBright) になる**ので、ヒントを緑のままにすると
+        //    背景に溶けて**押している間だけ消える** (0.8.406・利用者指摘)。かな面も同じ理由で
+        //    ヒント色を前景色から作っている (`fg.copy(alpha = 0.6f)`)。
+        //    ⚠ 平常時は緑のまま (利用者の指定。かな面は薄白、英字面は緑)。
+        color = if (pressed) Color.Black else ZtsGreenBright,
         fontSize = style.flickHintFontSp.sp,
         lineHeight = style.flickHintFontSp.sp,
         fontFamily = FontFamily.Monospace,

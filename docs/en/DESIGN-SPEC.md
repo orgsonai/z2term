@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-25 / Target version: 0.8.405-alpha (versionCode 413)
+Last updated: 2026-08-25 / Target version: 0.8.406-alpha (versionCode 414)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2114,7 +2114,10 @@ On failure: fall back to launchAndroidSh
   behaved differently (user report: "there is no consistency"). It now uses the **same composable**
   as the kana face (`FlickCommitPopup` in `JapaneseFlickKeyboard`, made `internal` to share).
   ⚠ **Never change only one of them.** The always-on hints on the key are unchanged (faint white
-  `hintColor` on kana, green `ZtsGreenBright` on the alphabet face).
+  `hintColor` on kana, green `ZtsGreenBright` on the alphabet face). ⚠ Except **while the key is
+  held, the alphabet hints turn black** (0.8.406): a pressed key's background is `ZtsGreenBright`,
+  so green hints **dissolve into it and vanish exactly while you need them** (user report). The kana
+  face avoids this by deriving its hint colour from the foreground (`fg.copy(alpha = 0.6f)`).
 - **Long-press repeat**: numbers / arrows / space / letter keys / **⏎** repeat while held (first 400ms→55ms). ⌫ is 500ms→60ms, with left/right flick = Ctrl+W / Ctrl+U. Modifier keys don't repeat. ⏎ carries the repeat in all three places — the Latin layout, the kana flick layout, and `SpecialKeyBar` shown with the system keyboard (0.8.193; wiring only one of them makes it "work on some keyboards only"). On the kana flick layout the first press commits the pending composition, and the rest send newlines.
 - **ALT / META**: both are the same modifier that prefixes the next key with ESC (Meta). ⚠ **META was removed in 0.8.281** and its seat became the entry point for the paste / emoji pad (`PadKey`, below); the Meta modifier now lives only on ALT in Row 5 (the two keys always did the same thing). It applies to `emitChar`/`emitSpecial` **and to `emitCursor`** — arrows used to drop the modifier, so ALT+arrow was just a plain arrow (fixed in 0.8.193). Since the arrow bytes depend on DECCKM and are built by the terminal, ESC is sent on its own first, followed by the arrow.
 - **Cycling through faces (`KeyboardFace`, 0.8.305)**: the left end of the bottom row (the seat "あ" used to occupy) is the **face-switch key**, and pressing it moves to the next face. ⚠ **Its label names the face you are going to, not the one you are on** (`あ` / `ABC` / `12`) — with two faces "the other one" needed no label, but with three there is nothing else to tell you where the key leads. The TopBar "あ" → switches the OS IME (a separate path).
