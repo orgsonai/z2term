@@ -83,7 +83,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.396-alpha (versionCode 404).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.398-alpha (versionCode 406).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 

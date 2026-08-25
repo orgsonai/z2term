@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.397-alpha (versionCode 405).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.398-alpha (versionCode 406).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 

@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.397-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.398-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -136,6 +136,8 @@ Under Settings › **Keyboard style**:
   - **Fix a typo in the middle**: move the cursor (the thin bar) to the spot with ◀ ▶, and you can **insert kana there or delete the char before it with ⌫** (the "小゛゜" key targets that position too). The cursor can reach the line start.
   - **Predictive conversion from what you've typed**: as you start typing a reading, previously confirmed phrases whose reading begins with it appear at the head of the candidate bar. For example, typing お surfaces phrases you confirmed before such as お願いします / 概ね as predictions you can tap directly. When you pick a prediction it is learned under its actual reading, so it keeps showing up under the same reading next time.
   - **Chunk boundaries are learned too**: e.g. if こまんど first splits into 「こ」「まんど」, merge it into 「こまんど」 with ◀ ▶ and confirm — from the next time it's auto-recognized as a single chunk (コマンド). The more often you use a reading-chunk, the higher its priority.
+  - **Words you use often come first inside sentences too** (0.8.398): typing 「きょうはあめがふるひだ」 used to offer **「教は雨が降る日だ」** first, and picking 今日 never changed that inside a sentence. How often and how recently you used a word now counts towards whole-sentence conversion, so your own words rise as you use them. It is staged: some change **after one pick** (今日), some **after a few** (話, 時), and words normally written in kana (「もの」 → 「物」) only **after repeated use**. ⚠ That last part is deliberate — a word you normally write in kana will not turn into kanji just because you picked it once.
+  - **Single kanji are learned too** (0.8.398): single-character confirmations were not learned before, so **the kanji you use most could stay at the back**. Single kanji and katakana are now learned (single hiragana and symbols such as 「の」「、」 still are not — they would fill the front of the candidate bar with particles).
   - **Words that share the reading are listed properly** (0.8.297 / 0.8.298): typing とく now also offers **説く / 解く / 溶く** next to 得 and 特 (likewise きく → 聞く / 効く / 聴く, みる → 見る / 診る / 観る). Before this, some words the dictionary knows never showed up in the candidate bar at all, so there was no way to pick them. Pick one once and it is learned and moves up next time.
   - **More candidates** (0.8.298): the bar used to stop at 16 candidates, and ⚠ **the more you used it, the more the learned entries pushed the rest out until some words could no longer be converted at all** (that is why とく offered no 説く). The cap is now 48, and conversions of the exact reading you typed sit **outside that cap**, so they show up no matter how much learning has piled up. The candidate bar **scrolls to the right**.
   - For **katakana**, tap the katakana candidate in the candidate bar.

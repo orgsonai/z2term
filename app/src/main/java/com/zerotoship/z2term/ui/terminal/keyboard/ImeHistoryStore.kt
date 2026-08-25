@@ -63,7 +63,7 @@ object ImeHistoryStore {
     private const val VERSION = 2           // v2: bigram テーブルを追加 (v1 = unigram のみ、読込互換)
     private const val MAX_ENTRIES = 4000
     private const val MAX_BIGRAMS = 8000
-    private const val MIN_WORD_LEN = 2     // 1 文字確定 (単打ひらがな等) は学習しない
+    private const val MIN_WORD_LEN = 2     // これ未満は [isLearnableWord] で文字種を見て決める
     private const val SAVE_DEBOUNCE_MS = 1000L
     private const val RECENT_WINDOW_MS = 7L * 24 * 60 * 60 * 1000  // 直近 7 日
     private const val MAX_RECENCY_BOOST = 5.0
@@ -78,6 +78,22 @@ object ImeHistoryStore {
     private const val BLOCK_BASE_BONUS = 3000    // count=1 の基本下げ幅
     private const val BLOCK_COUNT_STEP = 1500    // count が増えるごとの加算 (count 上限 4 で +4500)
     private const val BLOCK_RECENT_BONUS = 1000  // 直近 7 日内の追加 (線形減衰)
+
+    // unigram (読み → その表層) のコスト下げ幅 (0.8.398)。**文中のノード 1 つずつ**に効かせる。
+    //
+    // 値は実測で決めた (`UnigramLearningTest`)。同梱辞書に対して、頻度が上がるほど強い
+    // 「壁」を順に越えていく段階になっている:
+    //   count=1 (1200)  … 「きょう→今日」(文中で 教 に負けていた) が 1 回の確定で勝つ
+    //   count=3 (2800)  … 「はなし→話」(噺 に負けていた) / 「とき→時」が勝つ
+    //   count=8 (6800)  … 「もの→物」= **平仮名優先ペナルティ (KANA_PREFERRED_PENALTY=4000)** を越える
+    // ⚠ 平仮名で書くのが普通な語 (もの / こと / ある …) の既定を **1 回の確定では壊さない**のが
+    // 狙い。何度も自分で選んだ語だけが既定を上書きできる。
+    // ⚠ 学習ブロック (BLOCK_* 最大 8500) は越えさせない。塊の繋ぎ止めより語 1 つの頻度が
+    // 強くなると、覚えたはずの分割が崩れる。
+    private const val UNIGRAM_BASE_BONUS = 1200   // count=1 の基本下げ幅
+    private const val UNIGRAM_COUNT_STEP = 800    // count が増えるごとの加算 (上限 count 8 で +5600)
+    private const val UNIGRAM_MAX_COUNT = 8       // これ以上使い込んでも下げ幅は増やさない
+    private const val UNIGRAM_RECENT_BONUS = 500  // 直近 7 日内の追加 (線形減衰)
 
     /** UI へ公開する 1 エントリの値オブジェクト (内部 Entry とは別: 不変)。 */
     data class HistoryItem(
@@ -134,6 +150,8 @@ object ImeHistoryStore {
         )
         // 動的ブロック分割: ラティスから学習ブロックを参照させる (頻用読みを 1 ブロックへ)。
         KkcConverter.learnedBlock = ::learnedBlock
+        // 頻度優先: ラティスのノード 1 つずつに「その表層を選んだ実績」を効かせる (0.8.398)。
+        KkcConverter.unigramBonus = ::unigramBonus
         _versionFlow.update { it + 1 }
     }
 
@@ -160,13 +178,39 @@ object ImeHistoryStore {
     }
 
     /**
-     * 確定された (読み, 単語) を記録する。1 文字単語はスキップ。同一 reading に同一 word が
-     * 既にあれば count++ / 時刻更新、無ければ追加。書き込みは debounce で実 I/O を抑える。
+     * この確定を学習するか (0.8.398)。
+     *
+     * 2 文字以上は無条件。1 文字は**変換した結果だけ**覚える (漢字・カタカナ)。
+     * 単打のひらがな・記号・英数字は覚えない — 「か」「の」のような助詞が履歴に溜まると
+     * 候補の先頭を埋めるだけで、選び直す手間がかえって増える。
+     *
+     * ⭐ **1 文字の漢字を覚えないと、よく使う漢字ほど順位が上がらない**。長文を打つほど
+     * 効いてくるのは 1 文字の漢字 (時 / 事 / 物 / 方 …) なので、ここを一律に切っていたのが
+     * 「何度使っても前に来ない」の主因だった (利用者指摘)。
+     */
+    internal fun isLearnableWord(word: String): Boolean {
+        if (word.isEmpty()) return false
+        if (word.length >= MIN_WORD_LEN) return true
+        val c = word[0]
+        return isKanji(c) || isKatakana(c)
+    }
+
+    /** CJK 統合漢字 (拡張 A 含む) と、漢字と同じ扱いで使う繰り返し記号。 */
+    private fun isKanji(c: Char): Boolean =
+        c.code in 0x4E00..0x9FFF || c.code in 0x3400..0x4DBF || c == '々' || c == '〆'
+
+    /** 片仮名 (ヴ・ヵ・ヶ を含む)。長音符は単体で確定しないので入れない。 */
+    private fun isKatakana(c: Char): Boolean = c in 'ァ'..'ヶ'
+
+    /**
+     * 確定された (読み, 単語) を記録する。学習するかは [isLearnableWord] が決める。
+     * 同一 reading に同一 word が既にあれば count++ / 時刻更新、無ければ追加。
+     * 書き込みは debounce で実 I/O を抑える。
      */
     fun record(reading: String, word: String) {
         if (!loaded) return
         if (reading.isEmpty() || word.isEmpty()) return
-        if (word.length < MIN_WORD_LEN) return
+        if (!isLearnableWord(word)) return
         scope.launch {
             mutex.withLock {
                 val now = System.currentTimeMillis()
@@ -248,6 +292,35 @@ object ImeHistoryStore {
                       else (BLOCK_RECENT_BONUS * (1.0 - ageMs.toDouble() / RECENT_WINDOW_MS)).toInt()
         val freq = BLOCK_BASE_BONUS + BLOCK_COUNT_STEP * (e.count.coerceAtMost(4) - 1)
         return e.word to (freq + recency)
+    }
+
+    /**
+     * 頻度優先 (0.8.398): 読み [reading] をその表層 [surface] で確定した実績があれば、
+     * ラティスのノードコストから引く値を返す。実績が無ければ 0。
+     * [KkcConverter.unigramBonus] から変換のホットパスで参照される。
+     *
+     * ⚠ [learnedBlock] とは効き方が違う。learnedBlock は「読み完全一致の**最頻表層 1 つ**」を
+     * 塊として繋ぎ止めるためのもので、**2 文字以上の読みにしか効かない**。こちらは長さも
+     * 順位も問わず**どのノードにも**効くので、**長文の途中に出てくる頻用語**が上がる。
+     * ⭐ 「長文変換でも何度も使う漢字が前に来ない」(利用者) はここが無かったのが原因。
+     * 文まるごとの候補 ([KkcConverter.nbest]) は経路の総コストで並ぶので、語 1 つの頻度は
+     * ラティスへ入れない限り 1 ミリも反映されない。
+     *
+     * 錠は取らないが、見えるのは差し替え済みの不変な表なので走査中に中身は変わらない。
+     */
+    fun unigramBonus(reading: String, surface: String): Int {
+        if (!loaded || reading.isEmpty() || surface.isEmpty()) return 0
+        val list = byReading[reading] ?: return 0
+        var hit: Entry? = null
+        for (e in list) if (e.word == surface) { hit = e; break }
+        val e = hit ?: return 0
+        if (e.count <= 0) return 0
+        val now = System.currentTimeMillis()
+        val ageMs = (now - e.lastUsedAt).coerceAtLeast(0)
+        val recency = if (ageMs >= RECENT_WINDOW_MS) 0
+                      else (UNIGRAM_RECENT_BONUS * (1.0 - ageMs.toDouble() / RECENT_WINDOW_MS)).toInt()
+        val freq = UNIGRAM_BASE_BONUS + UNIGRAM_COUNT_STEP * (e.count.coerceAtMost(UNIGRAM_MAX_COUNT) - 1)
+        return freq + recency
     }
 
     /** 完全一致 reading の候補を score 降順で返す (履歴ヒットのみ。辞書とは別経路)。 */

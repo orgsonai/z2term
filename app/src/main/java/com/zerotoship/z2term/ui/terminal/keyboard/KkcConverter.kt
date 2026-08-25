@@ -299,6 +299,18 @@ object KkcConverter {
      */
     @Volatile var userDictBlock: ((String) -> Pair<String, Int>?)? = null
 
+    /**
+     * 頻度優先 (0.8.398): `(読み, 表層)` を確定した実績に応じたコスト下げ幅を返す。
+     * 実績が無ければ 0。[ImeHistoryStore] が配線する。
+     *
+     * ⚠ [learnedBlock] との違いは「どこに効くか」。learnedBlock は読み完全一致の**塊**を
+     * 繋ぎ止めるもので 2 文字以上の読みにしか効かないが、こちらは**ラティスのノード 1 つずつ**に
+     * 効くので、**長文の途中に出てくる頻用語**（とくに 1 文字の漢字）が上がる。
+     * ⭐ これが無いと、[nbest] は経路の総コストだけで並ぶので、語 1 つをどれだけ使い込んでも
+     * 文の中では 1 ミリも順位が変わらない。
+     */
+    @Volatile var unigramBonus: ((reading: String, surface: String) -> Int)? = null
+
     /** ラティスのノード。BOS/EOS は surface/reading 空・cost 0 で表す。 */
     private class Node(
         val begin: Int, val end: Int,
@@ -325,6 +337,7 @@ object KkcConverter {
         endsAt[0].add(bos)
         val blockFn = learnedBlock
         val userFn = userDictBlock
+        val uniFn = unigramBonus
         for (i in 0 until n) {
             for (j in i + 1..n) {
                 val r = reading.substring(i, j)
@@ -341,7 +354,10 @@ object KkcConverter {
                         // 学習しても 聞く が出続ける)。学習表層へ集中させることで「打ち慣れた変換」が
                         // 文中でも勝つようにする。
                         val applies = bonus > 0 && e.surface == learned?.first
-                        val c = if (applies) (e.cost - bonus).coerceAtLeast(1) else e.cost
+                        // 学習ブロックが効くノードに unigram を足さない (二重掛けで効きすぎ、
+                        // 一度の確定が文中の別の場所まで塗り替えてしまう)。どちらか一方だけ。
+                        val discount = if (applies) bonus else (uniFn?.invoke(r, e.surface) ?: 0)
+                        val c = if (discount > 0) (e.cost - discount).coerceAtLeast(1) else e.cost
                         val nd = Node(i, j, e.surface, r, e.lc, e.rc, c)
                         startsAt[i].add(nd); endsAt[j].add(nd)
                     }
