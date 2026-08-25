@@ -71,12 +71,13 @@ import kotlin.math.abs
  *   (切替キーが座らない分の縦 1 列を埋め、a 行頭の空きをなくす)。
  *
  * レイアウト (compact, 特殊キーを上に追い出して主キー幅を広く):
- *   Top  : [ ESC ][ TAB ][ ⇧ ][ CTRL ]
+ *   Top  : [ ESC ][ TAB ][ ⇧ ][ CTRL / 貼り付け・絵文字(切替キー無し) ]
  *   Row 1: 1〜0                                              ⌫
  *   Row 2: q w e r t y u i o p
  *   Row 3: a s d f g h j k l                                 ⏎
  *   Row 4: z x c v b n m , . /
  *   Row 5: 面切替 / CTRL(切替キー無し)  ?#  ALT  SPACE       ← ↓ ↑ →
+ *   切替キー無しの英字面では、右上を貼り付け・絵文字、左下を CTRL にする。
  *
  * 各英字キーの下フリック = そのローマ字の大文字 (ヒント非表示)。
  */
@@ -334,7 +335,7 @@ fun TerminalKeyboard(
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(rowSpacing)
     ) {
-        // Compact 限定: 特殊キー (ESC/TAB/⇧/CTRL) を主キー領域の上に追い出すバー。
+        // Compact 限定: ESC/TAB/⇧ と、CTRL または貼り付け・絵文字を上に出すバー。
         // 主行の左 1.4f 列を解放することで英字キーが少しずつ広くなる。
         if (isCompact) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
@@ -350,13 +351,24 @@ fun TerminalKeyboard(
                     emitSpecial(byteArrayOf(0x09))
                 }
                 ShiftKey(weight = 1f, state = shift, style = style, onCycle = { cycleShift() })
-                BasicKey(
-                    label = "CTRL",
-                    weight = 1f,
-                    fontSp = smallFont,
-                    active = ctrl,
-                    style = style
-                ) { ctrl = !ctrl }
+                if (hasFaceKey) {
+                    BasicKey(
+                        label = "CTRL",
+                        weight = 1f,
+                        fontSp = smallFont,
+                        active = ctrl,
+                        style = style
+                    ) { ctrl = !ctrl }
+                } else {
+                    // 英字面だけのときは、左下にあった複合キーを右上の CTRL と交換する。
+                    PadKey(
+                        weight = 1f,
+                        style = style,
+                        onTap = { togglePad(PadMode.CLIPBOARD) },
+                        onFlickUp = { togglePad(PadMode.CLIPBOARD) },
+                        onFlickDown = { togglePad(PadMode.EMOJI) }
+                    )
+                }
             }
         }
         // Row 1: (spacious のみ ESC) + 数字行 + ⌫
@@ -416,7 +428,8 @@ fun TerminalKeyboard(
                         weight = 1.4f,
                         style = style,
                         onTap = { togglePad(PadMode.CLIPBOARD) },
-                        onFlickUp = { togglePad(PadMode.EMOJI) }
+                        onFlickUp = { togglePad(PadMode.CLIPBOARD) },
+                        onFlickDown = { togglePad(PadMode.EMOJI) }
                     )
                 }
             }
@@ -464,23 +477,13 @@ fun TerminalKeyboard(
             }
         }
         // Row 5: 最下段の左端 = 面の切替キー (行き先の面のラベル: あ / 12)。
-        //   面が英字だけなら切替キーは要らないので、その空きを CTRL で埋める
-        //   (spacious は ⇧/CTRL を 1 段下げた結果として、compact は上部バーとは別にここへ)。
+        //   面が英字だけなら切替キーは要らないので、その空きを CTRL で埋める。
+        //   compact は右上へ移した貼り付け・絵文字キーとの交換、spacious は従来どおり。
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
             if (hasFaceKey) {
                 BasicKey(nextFace.switchLabel, weight = 1.4f, fontSp = style.keyFontSp, style = style) {
                     switchFace(nextFace)
                 }
-            } else if (isCompact) {
-                // compact の英語面は上部バーに CTRL があり、ここは**同じキーが 2 つ**あった。
-                // 日本語面で「あ」(面の切替) が座っている位置なので、面を差し替えるパッドの
-                // 入口をここに置く (spacious 英語は Row 3 左の旧 META がその役)。
-                PadKey(
-                    weight = 1.4f,
-                    style = style,
-                    onTap = { togglePad(PadMode.CLIPBOARD) },
-                    onFlickUp = { togglePad(PadMode.EMOJI) }
-                )
             } else {
                 BasicKey("CTRL", weight = 1.4f, fontSp = smallFont, active = ctrl, style = style) { ctrl = !ctrl }
             }
@@ -655,9 +658,10 @@ private fun RowScope.BasicKey(
 /**
  * 貼り付け / 絵文字パッド ([KeyboardPad]) の入口キー。**英語ロケールの英字面だけ**に出る。
  *
- * タップ = 貼り付け ([onTap])、**上フリック** = 絵文字 ([onFlickUp])。
+ * タップ = 貼り付け ([onTap])、**上フリック** = 貼り付け ([onFlickUp])、
+ * **下フリック** = 絵文字 ([onFlickDown])。上下は [JpEscKey] と同じ割り当て。
  *
- * ⚠ 中央に 📋、上端に 😀 を出して**どちらが何か見て分かる**ようにする — 日本語面の
+ * ⚠ 上端に 📋、下端に 😀 を出して**どちらが何か見て分かる**ようにする — 日本語面の
  * 「ESC の上フリック」は見えない入口だったため辿り着けない人がいた (0.8.279 でヒントを足した)。
  * 同じ轍を踏まないよう、こちらは最初からキーの表示そのものを入口の説明にする。
  */
@@ -666,11 +670,13 @@ private fun RowScope.PadKey(
     weight: Float,
     style: KeyboardStyle,
     onTap: () -> Unit,
-    onFlickUp: () -> Unit
+    onFlickUp: () -> Unit,
+    onFlickDown: () -> Unit
 ) {
     var pressed by remember { mutableStateOf(false) }
     val currentOnTap by rememberUpdatedState(onTap)
     val currentOnFlickUp by rememberUpdatedState(onFlickUp)
+    val currentOnFlickDown by rememberUpdatedState(onFlickDown)
     val bg = if (pressed) ZtsGreenBright else ZtsBgCard
     val fg = if (pressed) Color.Black else ZtsTextPrimary
     val border = if (pressed) ZtsGreen else ZtsBorder
@@ -695,9 +701,9 @@ private fun RowScope.PadKey(
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
                             val dx = change.position.x - startX
                             val dy = change.position.y - startY
-                            if (!resolved && dy < -flickThreshold && abs(dy) > abs(dx)) {
+                            if (!resolved && abs(dy) > flickThreshold && abs(dy) > abs(dx)) {
                                 resolved = true
-                                currentOnFlickUp()
+                                if (dy < 0) currentOnFlickUp() else currentOnFlickDown()
                                 change.consume()
                             }
                             if (!change.pressed) {
@@ -710,14 +716,15 @@ private fun RowScope.PadKey(
                 }
             }
     ) {
-        HintText("😀", style, modifier = Modifier.align(Alignment.TopCenter))
+        HintText("📋", style, modifier = Modifier.align(Alignment.TopCenter))
         Text(
-            text = "📋",
+            text = "↕",
             color = fg,
-            fontSize = style.keyFontSp.sp,
+            fontSize = (style.keyFontSp * 0.75f).sp,
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.align(Alignment.Center)
         )
+        HintText("😀", style, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 
