@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.400-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.401-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -462,7 +462,7 @@ Pressing ⚙ opens the **settings page (full screen)**. Go back with the **←**
 
 Settings are split into **8 groups** (Display / Keyboard and input / Linux environment / Resident servers and automation / Maintenance / Developer / How to use (Tips) / About this app), and **tapping a heading opens or closes it**. The open/closed state is **remembered even after you close the app**, so you can keep the groups you use often expanded.
 
-> **How to use (Tips)** (0.8.399): double taps, long presses, flicks — the gestures that **show nothing on screen** are collected here. That toolbar buttons have a second function, how to close and reorder tabs, the ESC and ⌫ flicks, scrolling inside a GUI app, that typing `z2` and pressing Tab lists the commands, and that an AI can write your macros. These are things you would never run into by accident, so open it once.
+> **How to use (Tips)** (0.8.399): double taps, long presses, flicks — the gestures that **show nothing on screen** are collected here. That toolbar buttons have a second function, how to close and reorder tabs, the ESC and ⌫ flicks, scrolling inside a GUI app, that typing `z2term` lists the built-in commands, and that an AI can write your macros. These are things you would never run into by accident, so open it once.
 
 | Setting | Description |
 |---|---|

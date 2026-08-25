@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-25 / Target version: 0.8.400-alpha (versionCode 408)
+Last updated: 2026-08-25 / Target version: 0.8.401-alpha (versionCode 409)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1723,7 +1723,7 @@ been told, they do not exist. In the user's words: "**nobody can tell**".
   each button** — "there is a second function" is enough, because one example is all anyone needs
   before trying the rest), closing a tab, reordering tabs, the ESC flicks, the ⌫ flicks, scrolling
   inside a GUI app (two fingers; three while zoomed in, because two fingers pan there),
-  `z2` + Tab for the command list plus `--help`, and that an AI can write macros (with reminders,
+  `z2term` for the command list plus `--help` (0.8.401 — it first said "type `z2` and press Tab", but ⚠ **completion depends on the shell and its completion setup**, so it now points at the existing command that always prints the list; `z2term` is a thin alias for `z2help`, placed by `ProotLauncher.ensureZ2HelpScript` on every launch), and that an AI can write macros (with reminders,
   RSS and logging unknown callers as examples of **things that are macros rather than app features**).
 
 #### DA2 / XTVERSION — answering "what model and version are you" (0.8.394)

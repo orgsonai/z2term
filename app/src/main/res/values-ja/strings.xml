@@ -34,8 +34,8 @@
     <string name="tip_backspace_flick_body">左へはらうと単語ごと、右へはらうと行の先頭まで消えます。⌫ を押し続けるより速く戻せます。</string>
     <string name="tip_gui_scroll_title">GUI の中のアプリは 2 本指で上下にスクロール</string>
     <string name="tip_gui_scroll_body">2 本指を上下へ動かします。拡大しているときは 2 本指が画面の移動になるので、そのときは 3 本指で上下へ動かしてください。</string>
-    <string name="tip_z2_commands_title">z2 と打って Tab キーで、使えるコマンドが並びます</string>
-    <string name="tip_z2_commands_body">z2 で始まるコマンドが端末に入っています。それぞれ --help を付けると、何ができるコマンドか・どう使うかが出ます。</string>
+    <string name="tip_z2_commands_title">z2term と打つと、独自コマンドの一覧が出ます</string>
+    <string name="tip_z2_commands_body">Z2Term は z2 で始まる独自コマンドを端末に足しています。z2term（z2help でも同じ）と打つと、全部の一覧と一行の説明が出ます。それぞれ --help を付けると詳しい使い方が出ます。</string>
     <string name="tip_macro_title">マクロは AI に作ってもらえます</string>
     <string name="tip_macro_body">リマインダー、RSS の巡回、知らない番号からの着信を控える — こうしたものはアプリの機能ではなく、マクロとして作れます。思いついたことを AI に頼めば形になります。</string>
     <string name="settings_group_about">このアプリについて</string>

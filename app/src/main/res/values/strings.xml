@@ -34,8 +34,8 @@
     <string name="tip_backspace_flick_body">Flick left to delete a word, flick right to delete back to the start of the line. Much faster than holding backspace down.</string>
     <string name="tip_gui_scroll_title">Scroll inside a GUI app with two fingers</string>
     <string name="tip_gui_scroll_body">Drag two fingers up or down. While zoomed in, two fingers pan the screen instead — use three fingers to scroll in that case.</string>
-    <string name="tip_z2_commands_title">Type z2 and press Tab to list the commands</string>
-    <string name="tip_z2_commands_body">Commands starting with z2 are built into the terminal. Add --help to any of them to see what it does and how to use it.</string>
+    <string name="tip_z2_commands_title">Type z2term for the list of built-in commands</string>
+    <string name="tip_z2_commands_body">Z2Term adds its own commands, all starting with z2, to the terminal. Run z2term (or z2help) for the full list with a one-line description of each, then add --help to any of them to see how to use it.</string>
     <string name="tip_macro_title">Ask an AI to write your macros</string>
     <string name="tip_macro_body">A reminder, an RSS check, keeping a note of calls from unknown numbers — these are not app features, they are macros. Describe what you want and an AI can write it for you.</string>
     <string name="settings_group_about">About this app</string>
