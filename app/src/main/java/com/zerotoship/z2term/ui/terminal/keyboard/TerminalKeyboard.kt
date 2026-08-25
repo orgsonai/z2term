@@ -225,46 +225,6 @@ fun TerminalKeyboard(
         if (alt) alt = false
     }
 
-    // ⚠ ラベルとフリックの表は [AsciiKeys] と**共有する** (0.8.403)。二重に持つと、片方だけ
-    //   直したときに「モデルはいまの配列と一致する」という `AsciiKeyLayoutTest` が嘘をつく。
-    val r1Labels = if (sym) AsciiKeys.SYM_ROW1 else AsciiKeys.ROW1
-    val r2Labels = if (sym) AsciiKeys.SYM_ROW2 else AsciiKeys.ROW2
-    val r3Labels = if (sym) AsciiKeys.SYM_ROW3 else AsciiKeys.ROW3
-    val r4Labels = if (sym) AsciiKeys.SYM_ROW4 else AsciiKeys.ROW4
-
-    // 上フリック (1 方向用)
-    val r2FlickUp = AsciiKeys.FLICK_UP_ROW2
-    val r3FlickUp = AsciiKeys.FLICK_UP_ROW3
-    val r4FlickUp = AsciiKeys.FLICK_UP_ROW4
-
-    // 4 方向フリック (spacious 用) — Row 2 の up/left/right に記号を割当。
-    // down は下フリック=大文字 (flickFor で動的に上書き) のため未指定。
-    val r2Flick4 = AsciiKeys.FLICK4_ROW2
-
-    // 下フリック = そのキーのローマ字大文字 (英字キーのみ)。数字は廃止。
-    fun downUpperOf(rowIdx: Int, colIdx: Int): Char? {
-        val list = when (rowIdx) { 2 -> r2Labels; 3 -> r3Labels; 4 -> r4Labels; else -> return null }
-        return list.getOrNull(colIdx)?.firstOrNull()?.takeIf { it.isLetter() }?.uppercaseChar()
-    }
-
-    fun flickFor(rowIdx: Int, colIdx: Int): FlickMap? {
-        if (sym) return null
-        val down = downUpperOf(rowIdx, colIdx)
-        return when (rowIdx) {
-            2 -> if (style.fourDirectionFlick) r2Flick4.getOrNull(colIdx)?.copy(down = down)
-                 else r2FlickUp.getOrNull(colIdx)?.let { FlickMap(up = it, down = down) }
-            3 -> {
-                val up = r3FlickUp.getOrNull(colIdx)
-                if (up == null && down == null) null else FlickMap(up = up, down = down)
-            }
-            4 -> {
-                val up = r4FlickUp.getOrNull(colIdx)
-                if (up == null && down == null) null else FlickMap(up = up, down = down)
-            }
-            else -> null
-        }
-    }
-
     val rowSpacing = if (style.keyHeight >= 56.dp) 4.dp else 3.dp
     val isCompact = style.id == "compact"
     val smallFont = (style.keyFontSp - 3f).coerceAtLeast(10f)
@@ -315,6 +275,76 @@ fun TerminalKeyboard(
         return
     }
 
+    // ⭐ 段階 1c (0.8.404): **並び・幅・ラベル・フリック先をレイアウト定義から引く**。
+    // ⚠ 見た目は 1 ドットも変えない。キーの描画そのもの (BasicKey / FlickKey / ShiftKey /
+    //   SilentEscKey / BackspaceKey / PadKey / SpaceKey) は据え置きで、「**どのキーを・どこに・
+    //   どの幅で**置くか」だけをデータへ移した。
+    // ⚠ キーの描画を 1 つに統合する (= 専用部品をやめる) のは次の段階。ここで一緒にやると、
+    //   壊れたときに「並びが悪いのか描画が悪いのか」を切り分けられなくなる。
+    val layout = remember(isCompact, hasFaceKey, sym, style.fourDirectionFlick) {
+        asciiKeyLayout(
+            compact = isCompact,
+            hasFaceKey = hasFaceKey,
+            symbols = sym,
+            fourWayFlick = style.fourDirectionFlick,
+        )
+    }
+    // ⇧ は**キーの姿の差し替え** = レイヤーで表す。⚠ 記号面では大文字にしない (いまと同じ)。
+    val activeLayer = if (!sym && shift != ShiftState.OFF) KeyLayout.LAYER_SHIFT else null
+
+    // アクション列を実行する。⚠ **タップとフリックで経路が違う** — タップは ⇧/CTRL/ALT を
+    // 適用し (emitChar)、フリックは文字をそのまま送る (emitFlick)。いまの挙動をそのまま保つ。
+    fun runActions(actions: List<KeyAction>, gesture: KeyGesture) {
+        val isFlick = gesture in KeyGesture.FLICKS
+        for (action in actions) {
+            when (action) {
+                is KeyAction.Text -> {
+                    val ch = action.text.firstOrNull() ?: continue
+                    if (isFlick) emitFlick(ch) else emitChar(ch)
+                }
+                is KeyAction.Named -> when (action.key) {
+                    NamedKey.ESC -> emitSpecial(byteArrayOf(0x1B))
+                    NamedKey.TAB -> emitSpecial(byteArrayOf(0x09))
+                    NamedKey.ENTER -> emitSpecial(byteArrayOf(0x0D))
+                    NamedKey.BACKSPACE -> emitSpecial(byteArrayOf(0x7F))
+                    NamedKey.UP -> emitCursor(TerminalEmulator.CursorKey.UP)
+                    NamedKey.DOWN -> emitCursor(TerminalEmulator.CursorKey.DOWN)
+                    NamedKey.LEFT -> emitCursor(TerminalEmulator.CursorKey.LEFT)
+                    NamedKey.RIGHT -> emitCursor(TerminalEmulator.CursorKey.RIGHT)
+                    // ⚠ Delete / Home / F キー等は**まだどの配列にも置いていない**。
+                    //    エディタで置けるようになる段階で、ここに送出を足す。
+                    else -> Unit
+                }
+                is KeyAction.Chord -> {
+                    // いまの配列で使うのは ⌫ の左右フリック (Ctrl+W / Ctrl+U) だけ。
+                    val ch = action.text?.firstOrNull()
+                    val b = if (ModKey.CTRL in action.mods && ch != null) {
+                        AndroidKeyMapper.controlByteFor(ch)
+                    } else null
+                    if (b != null) emitSpecial(byteArrayOf(b))
+                }
+                is KeyAction.Raw -> emitSpecial(action.bytes)
+                is KeyAction.Modifier -> when (action.mod) {
+                    ModKey.SHIFT -> cycleShift()
+                    ModKey.CTRL -> ctrl = !ctrl
+                    ModKey.ALT -> alt = !alt
+                }
+                // 記号面は**枠の数が変わる**ので、レイヤーではなく別レイアウトへ移る
+                // (`layout` が sym を見て組み直す)。
+                is KeyAction.Layer -> sym = action.layer == KeyLayout.LAYER_SYMBOL
+                is KeyAction.App -> when (action.action) {
+                    AppAction.NEXT_FACE -> switchFace(nextFace)
+                    AppAction.PAD_PASTE -> togglePad(PadMode.CLIPBOARD)
+                    AppAction.PAD_EMOJI -> togglePad(PadMode.EMOJI)
+                    // ⚠ 設定 / キーボードを閉じる / IME 切替は、この面のキーにはまだ無い。
+                    else -> Unit
+                }
+                // ⚠ スニペットとマクロもエディタが置けるようになってから配線する。
+                is KeyAction.Snippet, is KeyAction.Macro -> Unit
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -322,179 +352,153 @@ fun TerminalKeyboard(
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(rowSpacing)
     ) {
-        // Compact 限定: ESC/TAB/⇧ と、CTRL または貼り付け・絵文字を上に出すバー。
-        // 主行の左 1.4f 列を解放することで英字キーが少しずつ広くなる。
-        if (isCompact) {
+        layout.rows.forEach { keyRow ->
+            val weights = keyRow.weights()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-                SilentEscKey(
-                    weight = 1f,
-                    fontSp = smallFont,
-                    style = style,
-                    onTap = { emitSpecial(byteArrayOf(0x1B)) },
-                    onFlickUp = { togglePad(PadMode.CLIPBOARD) },
-                    onFlickDown = { togglePad(PadMode.EMOJI) }
-                )
-                BasicKey("TAB", weight = 1f, fontSp = smallFont, style = style) {
-                    emitSpecial(byteArrayOf(0x09))
-                }
-                ShiftKey(weight = 1f, state = shift, style = style, onCycle = { cycleShift() })
-                if (hasFaceKey) {
-                    BasicKey(
-                        label = "CTRL",
-                        weight = 1f,
-                        fontSp = smallFont,
-                        active = ctrl,
-                        style = style
-                    ) { ctrl = !ctrl }
-                } else {
-                    // 英字面だけのときは、左下にあった複合キーを右上の CTRL と交換する。
-                    PadKey(
-                        weight = 1f,
+                keyRow.slots.forEachIndexed { index, keySlot ->
+                    val content = keySlot.content
+                    if (content !is SlotContent.Single) {
+                        // ⚠ 枠の分割 (上下左右キーを 1 枠に収める等) は**まだ描けない**。
+                        //    いまの配列は分割を使っていないのでここには来ない。キーの描画を
+                        //    1 つに統合する段階で対応する (縦割りの中では RowScope が使えず、
+                        //    いまの専用部品 (RowScope 拡張) をそのままでは置けないため)。
+                        return@forEachIndexed
+                    }
+                    val key = content.key.onLayer(activeLayer)
+                    LayoutKey(
+                        key = key,
+                        weight = weights[index],
                         style = style,
-                        onTap = { togglePad(PadMode.CLIPBOARD) },
-                        onFlickUp = { togglePad(PadMode.CLIPBOARD) },
-                        onFlickDown = { togglePad(PadMode.EMOJI) }
+                        smallFont = smallFont,
+                        shift = shift,
+                        ctrl = ctrl,
+                        alt = alt,
+                        sym = sym,
+                        faceLabel = nextFace.switchLabel,
+                        onCycleShift = { cycleShift() },
+                        onGesture = { g -> runActions(key.actionsFor(g), g) },
+                        onFlickChar = { ch -> emitFlick(ch) },
                     )
                 }
             }
-        }
-        // Row 1: (spacious のみ ESC) + 数字行 + ⌫
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-            if (!isCompact) {
-                SilentEscKey(
-                    weight = 1.4f,
-                    fontSp = smallFont,
-                    style = style,
-                    onTap = { emitSpecial(byteArrayOf(0x1B)) },
-                    onFlickUp = { togglePad(PadMode.CLIPBOARD) },
-                    onFlickDown = { togglePad(PadMode.EMOJI) }
-                )
-            }
-            r1Labels.forEach { s ->
-                BasicKey(s, weight = 1f, fontSp = style.mainKeyFontSp, repeatable = true, style = style) { emitChar(s[0]) }
-            }
-            BackspaceKey(
-                weight = 1.4f,
-                style = style,
-                onTap = { emitSpecial(byteArrayOf(0x7F)) },
-                onFlickLeft = { emitSpecial(byteArrayOf(0x17)) },  // Ctrl+W: 単語削除
-                onFlickRight = { emitSpecial(byteArrayOf(0x15)) }  // Ctrl+U: 行頭まで削除
-            )
-        }
-        // Row 2: (spacious のみ TAB) + qwerty
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-            if (!isCompact) {
-                BasicKey("TAB", weight = 1.4f, fontSp = smallFont, style = style) {
-                    emitSpecial(byteArrayOf(0x09))
-                }
-            }
-            r2Labels.forEachIndexed { idx, s ->
-                val display = if (!sym && shift != ShiftState.OFF && s[0].isLetter()) s.uppercase() else s
-                FlickKey(
-                    label = display,
-                    flick = flickFor(2, idx),
-                    weight = 1f,
-                    style = style,
-                    onTap = { emitChar(s[0]) },
-                    onFlick = { ch -> emitFlick(ch) }
-                )
-            }
-        }
-        // Row 3: spacious 左端。最下段に面の切替キーがあるなら従来どおり ⇧ (配置は変えない)。
-        //        切替キーが無いとき (英語ロケール ∧ 数字面 OFF) だけ ⇧ を Row 4 へ 1 段下げ、
-        //        ここを貼り付け / 絵文字の入口にする — その面には他に入口が無いため。
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-            if (!isCompact) {
-                if (hasFaceKey) {
-                    ShiftKey(weight = 1.4f, state = shift, style = style, onCycle = { cycleShift() })
-                } else {
-                    // 切替キーが無い面のみ: 旧 META キーを**貼り付け / 絵文字の入口**にする (要望)。
-                    // ⚠ META は Row 5 の ALT と同じ修飾 (ESC プレフィックス) だったので、
-                    // 潰しても ALT で代わりが利く。英字面には絵文字も貼り付けも入口が無かった。
-                    PadKey(
-                        weight = 1.4f,
-                        style = style,
-                        onTap = { togglePad(PadMode.CLIPBOARD) },
-                        onFlickUp = { togglePad(PadMode.CLIPBOARD) },
-                        onFlickDown = { togglePad(PadMode.EMOJI) }
-                    )
-                }
-            }
-            r3Labels.forEachIndexed { idx, s ->
-                val display = if (!sym && shift != ShiftState.OFF && s[0].isLetter()) s.uppercase() else s
-                FlickKey(
-                    label = display,
-                    flick = flickFor(3, idx),
-                    weight = 1f,
-                    style = style,
-                    onTap = { emitChar(s[0]) },
-                    onFlick = { ch -> emitFlick(ch) }
-                )
-            }
-            // ⏎ も長押しで連打できる (矢印・space・⌫ と同じ扱い・要望)。
-            BasicKey("⏎", weight = 1.4f, fontSp = style.keyFontSp, repeatable = true, style = style) {
-                emitSpecial(byteArrayOf(0x0D))
-            }
-        }
-        // Row 4: spacious 左端。切替キーがあるなら CTRL (従来どおり)、無いなら ⇧ を 1 段下げてここへ。
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-            if (!isCompact) {
-                if (hasFaceKey) {
-                    BasicKey(
-                        label = "CTRL",
-                        weight = 1.4f,
-                        fontSp = smallFont,
-                        active = ctrl,
-                        style = style
-                    ) { ctrl = !ctrl }
-                } else {
-                    ShiftKey(weight = 1.4f, state = shift, style = style, onCycle = { cycleShift() })
-                }
-            }
-            r4Labels.forEachIndexed { idx, s ->
-                val display = if (!sym && shift != ShiftState.OFF && s[0].isLetter()) s.uppercase() else s
-                FlickKey(
-                    label = display,
-                    flick = flickFor(4, idx),
-                    weight = 1f,
-                    style = style,
-                    onTap = { emitChar(s[0]) },
-                    onFlick = { ch -> emitFlick(ch) }
-                )
-            }
-        }
-        // Row 5: 最下段の左端 = 面の切替キー (行き先の面のラベル: あ / 12)。
-        //   面が英字だけなら切替キーは要らないので、その空きを CTRL で埋める。
-        //   compact は右上へ移した貼り付け・絵文字キーとの交換、spacious は従来どおり。
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-            if (hasFaceKey) {
-                BasicKey(nextFace.switchLabel, weight = 1.4f, fontSp = style.keyFontSp, style = style) {
-                    switchFace(nextFace)
-                }
-            } else {
-                BasicKey("CTRL", weight = 1.4f, fontSp = smallFont, active = ctrl, style = style) { ctrl = !ctrl }
-            }
-            BasicKey(
-                label = if (sym) "ABC" else "?#",
-                weight = 1.2f,
-                fontSp = smallFont,
-                active = sym,
-                style = style
-            ) { sym = !sym }
-            BasicKey(
-                label = "ALT",
-                weight = 1.2f,
-                fontSp = smallFont,
-                active = alt,
-                style = style
-            ) { alt = !alt }
-            SpaceKey(weight = 4f, style = style) { emitChar(' ') }
-            BasicKey("←", weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) { emitCursor(TerminalEmulator.CursorKey.LEFT) }
-            BasicKey("↓", weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) { emitCursor(TerminalEmulator.CursorKey.DOWN) }
-            BasicKey("↑", weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) { emitCursor(TerminalEmulator.CursorKey.UP) }
-            BasicKey("→", weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) { emitCursor(TerminalEmulator.CursorKey.RIGHT) }
         }
     }
+}
+
+/**
+ * レイアウト定義のキー 1 つを、**いまの見た目のまま**描く (0.8.404・段階 1c)。
+ *
+ * ⚠ ここは「[KeyDef] を見て、いまある専用部品のどれを使うか選ぶ」だけの振り分け。
+ * ⭐ **次の段階でこの振り分けごと無くす** — 専用部品を 1 つの汎用キーに統合すれば、
+ * 「ESC だけ / ⌫ だけ」という特別扱いが本当に消えて、利用者が同じことを作れるようになる。
+ */
+@Composable
+private fun RowScope.LayoutKey(
+    key: KeyDef,
+    weight: Float,
+    style: KeyboardStyle,
+    smallFont: Float,
+    shift: ShiftState,
+    ctrl: Boolean,
+    alt: Boolean,
+    sym: Boolean,
+    faceLabel: String,
+    onCycleShift: () -> Unit,
+    onGesture: (KeyGesture) -> Unit,
+    onFlickChar: (Char) -> Unit,
+) {
+    val tap = key.actionsFor(KeyGesture.TAP).firstOrNull()
+    val fontSp = when (key.fontRole) {
+        KeyFontRole.SMALL -> smallFont
+        KeyFontRole.NORMAL -> style.keyFontSp
+        KeyFontRole.MAIN -> style.mainKeyFontSp
+    }
+    val hasFlick = key.bindings.keys.any { it in KeyGesture.FLICKS }
+    when {
+        // ⇧: OFF → 1 回だけ → 固定 の 3 状態を色で見せる。
+        tap is KeyAction.Modifier && tap.mod == ModKey.SHIFT ->
+            ShiftKey(weight = weight, state = shift, style = style, onCycle = onCycleShift)
+
+        // ESC: 上下フリックで貼り付け / 絵文字 (⚠ 印もポップアップも出さない)。
+        tap is KeyAction.Named && tap.key == NamedKey.ESC && hasFlick ->
+            SilentEscKey(
+                weight = weight,
+                fontSp = fontSp,
+                style = style,
+                onTap = { onGesture(KeyGesture.TAP) },
+                onFlickUp = { onGesture(KeyGesture.UP) },
+                onFlickDown = { onGesture(KeyGesture.DOWN) },
+            )
+
+        // ⌫: 左右フリックでまとめて削除 (⚠ こちらも印を出さない)。
+        tap is KeyAction.Named && tap.key == NamedKey.BACKSPACE ->
+            BackspaceKey(
+                weight = weight,
+                style = style,
+                onTap = { onGesture(KeyGesture.TAP) },
+                onFlickLeft = { onGesture(KeyGesture.LEFT) },
+                onFlickRight = { onGesture(KeyGesture.RIGHT) },
+            )
+
+        // 貼り付け / 絵文字の入口 (面の切替キーが要らない面でだけ席が空く)。
+        tap is KeyAction.App && tap.action == AppAction.PAD_PASTE && hasFlick ->
+            PadKey(
+                weight = weight,
+                style = style,
+                onTap = { onGesture(KeyGesture.TAP) },
+                onFlickUp = { onGesture(KeyGesture.UP) },
+                onFlickDown = { onGesture(KeyGesture.DOWN) },
+            )
+
+        // スペース。
+        tap is KeyAction.Text && tap.text == " " ->
+            SpaceKey(weight = weight, style = style) { onGesture(KeyGesture.TAP) }
+
+        // 打つための文字キー。⚠ フリック先の文字は [FlickKey] が方向から選んで返すので、
+        //   ここでは受け取った文字をそのまま送る (いまと同じ経路)。
+        // ⚠ **記号面はフリックが無いが、それでも [FlickKey] で描く** — いまの実装がそうして
+        //   おり (`flick = null` を渡している)、[BasicKey] とは中央テキストの行間と 1dp の
+        //   余白がわずかに違う。ここで [BasicKey] に寄せると記号面だけ字がずれる。
+        // ⚠ 数字と英字を [KeyDef.repeatable] で振り分けているのは**いまの部品の都合**。
+        //   数字は連打を [BasicKey] に任せ、英字は [FlickKey] が自前で連打する。部品を 1 つに
+        //   統合する段階で、この分岐ごと消える。
+        tap is KeyAction.Text && key.fontRole == KeyFontRole.MAIN && !key.repeatable ->
+            FlickKey(
+                label = key.label,
+                flick = flickMapOf(key),
+                weight = weight,
+                style = style,
+                onTap = { onGesture(KeyGesture.TAP) },
+                onFlick = onFlickChar,
+            )
+
+        else -> BasicKey(
+            // ⚠ 面の切替キーだけラベルが空。「押すと**行く**面」を出すのは呼出し側の仕事。
+            label = key.label.ifEmpty { faceLabel },
+            weight = weight,
+            fontSp = fontSp,
+            active = when {
+                tap is KeyAction.Modifier && tap.mod == ModKey.CTRL -> ctrl
+                tap is KeyAction.Modifier && tap.mod == ModKey.ALT -> alt
+                tap is KeyAction.Layer -> sym
+                else -> false
+            },
+            style = style,
+            repeatable = key.repeatable,
+        ) { onGesture(KeyGesture.TAP) }
+    }
+}
+
+/** [KeyDef] の 4 方向から、いまの [FlickKey] が受け取る形へ。割り当てが無ければ null。 */
+private fun flickMapOf(key: KeyDef): FlickMap? {
+    fun charOf(g: KeyGesture): Char? =
+        (key.actionsFor(g).firstOrNull() as? KeyAction.Text)?.text?.firstOrNull()
+    val up = charOf(KeyGesture.UP)
+    val down = charOf(KeyGesture.DOWN)
+    val left = charOf(KeyGesture.LEFT)
+    val right = charOf(KeyGesture.RIGHT)
+    return if (up == null && down == null && left == null && right == null) null
+    else FlickMap(up = up, down = down, left = left, right = right)
 }
 
 /**

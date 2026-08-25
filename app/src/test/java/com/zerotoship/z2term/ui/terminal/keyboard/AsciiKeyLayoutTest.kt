@@ -151,6 +151,19 @@ class AsciiKeyLayoutTest {
         assertEquals(flicksOf(q), flicksOf(shifted))
     }
 
+    @Test fun digitsRepeatButLettersLeaveItToTheFlickKey() {
+        // ⚠ いまの部品の都合をモデル側で固定しておく: 数字は BasicKey に連打を任せ (repeatable)、
+        // 英字は FlickKey が自前で連打する (repeatable=false)。描画の振り分けがこれを見ている。
+        val l = asciiKeyLayout(compact = false, hasFaceKey = true)
+        assertTrue(keyOf(l, 0, 1).repeatable)      // 数字
+        assertTrue(!keyOf(l, 1, 1).repeatable)     // 英字
+        assertEquals(KeyFontRole.MAIN, keyOf(l, 0, 1).fontRole)
+        assertEquals(KeyFontRole.MAIN, keyOf(l, 1, 1).fontRole)
+        // 機能キーの文字サイズも役割で持つ (ESC / TAB / CTRL / ALT / ?# は小さめ)。
+        assertEquals(KeyFontRole.SMALL, keyOf(l, 0, 0).fontRole)
+        assertEquals(KeyFontRole.NORMAL, keyOf(l, 4, 4).fontRole)   // 矢印
+    }
+
     @Test fun digitsHaveNoShiftLayer() {
         val l = asciiKeyLayout(compact = false, hasFaceKey = true)
         assertTrue(keyOf(l, 0, 1).layers.isEmpty())

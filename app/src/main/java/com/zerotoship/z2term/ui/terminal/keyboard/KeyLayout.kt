@@ -157,6 +157,7 @@ data class KeyDef(
     val bindings: Map<KeyGesture, List<KeyAction>> = emptyMap(),
     val showHint: Boolean = true,
     val repeatable: Boolean = false,
+    val fontRole: KeyFontRole = KeyFontRole.NORMAL,
     val layers: Map<String, KeyDef> = emptyMap(),
 ) {
     /** [layer] での姿。無ければ自分自身。 */
@@ -167,20 +168,53 @@ data class KeyDef(
 
     companion object {
         /** タップで文字を送るだけのキー（一番よく使う形）。 */
-        fun text(label: String, send: String = label): KeyDef =
-            KeyDef(label = label, bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Text(send))))
+        fun text(label: String, send: String = label, fontRole: KeyFontRole = KeyFontRole.MAIN): KeyDef =
+            KeyDef(
+                label = label,
+                bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Text(send))),
+                fontRole = fontRole,
+            )
 
         /** タップで特殊キーを送るキー。 */
-        fun named(label: String, key: NamedKey, repeatable: Boolean = false): KeyDef =
+        fun named(
+            label: String,
+            key: NamedKey,
+            repeatable: Boolean = false,
+            fontRole: KeyFontRole = KeyFontRole.NORMAL,
+        ): KeyDef =
             KeyDef(
                 label = label,
                 bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Named(key))),
                 repeatable = repeatable,
+                fontRole = fontRole,
             )
 
         /** 修飾のトグルキー（CTRL / ALT / ⇧）。 */
-        fun modifier(label: String, mod: ModKey): KeyDef =
-            KeyDef(label = label, bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Modifier(mod))))
+        fun modifier(label: String, mod: ModKey, fontRole: KeyFontRole = KeyFontRole.SMALL): KeyDef =
+            KeyDef(
+                label = label,
+                bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Modifier(mod))),
+                fontRole = fontRole,
+            )
+    }
+}
+
+/**
+ * ラベルの大きさの役割（0.8.404）。実寸は [KeyboardStyle] が持つので、レイアウト側は
+ * 「どの役どころか」だけを持つ — キーボードの大きさ設定で全部が一緒に伸び縮みする。
+ */
+enum class KeyFontRole(val id: String) {
+    /** 機能キーの小さめ（ESC / TAB / CTRL / ALT / `?#`）。`keyFontSp - 3`。 */
+    SMALL("small"),
+
+    /** ふつうの機能キー（⏎ / 矢印 / 面の切替）。`keyFontSp`。 */
+    NORMAL("normal"),
+
+    /** 打つためのキー（英字・数字）。`mainKeyFontSp` で少し大きい。 */
+    MAIN("main");
+
+    companion object {
+        fun byId(id: String): KeyFontRole? = entries.firstOrNull { it.id == id }
     }
 }
 

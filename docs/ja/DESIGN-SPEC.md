@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-25 / 対象バージョン: 0.8.403-alpha (versionCode 411)
+最終更新: 2026-08-25 / 対象バージョン: 0.8.404-alpha (versionCode 412)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -2156,6 +2156,30 @@ TerminalScreen: active が IDLE なら startTerminal()
   埋める）。必須にすると**いまの配列自体が弾かれる**。⛔ ただし OS の入力メソッドとして出して
   いるときはツールバーが無いので、エディタで保存するときの警告としては残す (`hasEscapeHatch`)。
 
+
+**段階 1c（0.8.404）: 描画がレイアウト定義を見るようになった。** `TerminalKeyboard` の 5 段
+べた書きを消し、**並び・幅・ラベル・フリック先を `asciiKeyLayout(...)` から引く**形にした。
+⚠ **見た目は 1 ドットも変えていない** — キーの描画そのもの（`BasicKey` / `FlickKey` /
+`ShiftKey` / `SilentEscKey` / `BackspaceKey` / `PadKey` / `SpaceKey`）は据え置きで、
+`LayoutKey` が `KeyDef` を見てどれを使うか振り分ける。⭐ **次の段階でこの振り分けごと無くす**
+（部品を 1 つの汎用キーに統合すれば「ESC だけ / ⌫ だけ」という特別扱いが本当に消え、利用者が
+同じものを作れるようになる）。
+
+- **アクションの実行** (`runActions`): ⚠ **タップとフリックで経路が違う**のをそのまま保つ —
+  タップは ⇧/CTRL/ALT を適用し (`emitChar`)、フリックは文字をそのまま送る (`emitFlick`)。
+  `Chord`（`Ctrl+W` / `Ctrl+U`）は `AndroidKeyMapper.controlByteFor` で組む。
+- **⇧ はレイヤー**: `shift != OFF ∧ ¬記号面` のとき `KeyDef.onLayer("shift")` の姿を描く。
+- **記号面はレイアウトごと差し替え**: `?#` の `KeyAction.Layer("sym")` が `sym` を立て、
+  `asciiKeyLayout` が組み直す（枠の数が変わるのでレイヤーでは表せない・段階 1b 参照）。
+- **文字サイズは役割で持つ** (`KeyFontRole`): SMALL（`keyFontSp-3`。ESC/TAB/CTRL/ALT/`?#`）/
+  NORMAL（`keyFontSp`。⏎・矢印・面切替）/ MAIN（`mainKeyFontSp`。英字・数字）。実寸は
+  `KeyboardStyle` が持つので、キーボードの大きさ設定で全部が一緒に伸び縮みする。
+- ⚠ **数字と英字の振り分けに `KeyDef.repeatable` を使っている**のは**いまの部品の都合**。
+  数字は連打を `BasicKey` に任せ、英字は `FlickKey` が自前で連打する。⚠ 記号面は
+  フリックが無いが、それでも `FlickKey` で描く — `BasicKey` とは中央テキストの行間と 1dp の
+  余白が違い、寄せると**記号面だけ字がずれる**。統合の段階でこの分岐ごと消える。
+- ⚠ **枠の分割はまだ描けない**（いまの配列は使っていない）。縦割りの中では `RowScope` が
+  使えず、いまの部品（`RowScope` 拡張）をそのまま置けないため。統合の段階で対応する。
 
 ### 6.2 日本語 フリックキーボード
 

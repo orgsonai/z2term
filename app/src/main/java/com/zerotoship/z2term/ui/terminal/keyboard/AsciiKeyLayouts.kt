@@ -113,7 +113,7 @@ fun asciiKeyLayout(
             KeyRow(
                 listOf(
                     slot(escKey(), AsciiKeys.W_KEY),
-                    slot(KeyDef.named("TAB", NamedKey.TAB), AsciiKeys.W_KEY),
+                    slot(KeyDef.named("TAB", NamedKey.TAB, fontRole = KeyFontRole.SMALL), AsciiKeys.W_KEY),
                     slot(KeyDef.modifier("⇧", ModKey.SHIFT), AsciiKeys.W_KEY),
                     slot(if (hasFaceKey) ctrlKey() else padKey(), AsciiKeys.W_KEY),
                 )
@@ -136,7 +136,9 @@ fun asciiKeyLayout(
     rows.add(
         KeyRow(
             buildList {
-                if (!compact) add(slot(KeyDef.named("TAB", NamedKey.TAB), AsciiKeys.W_SIDE))
+                if (!compact) {
+                    add(slot(KeyDef.named("TAB", NamedKey.TAB, fontRole = KeyFontRole.SMALL), AsciiKeys.W_SIDE))
+                }
                 r2.forEachIndexed { i, label ->
                     add(slot(letterKey(label, flickRow2(i, symbols, fourWayFlick)), AsciiKeys.W_KEY))
                 }
@@ -199,6 +201,7 @@ private fun slot(key: KeyDef, width: Float) = KeySlot.of(key, KeyWidth.Fixed(wid
  * ⚠ 印もポップアップも出さない（利用者判断・英字面の見た目を変えないため）。
  */
 private fun escKey() = KeyDef(
+    fontRole = KeyFontRole.SMALL,
     label = "ESC",
     bindings = mapOf(
         KeyGesture.TAP to listOf(KeyAction.Named(NamedKey.ESC)),
@@ -241,6 +244,7 @@ private fun faceKey() = KeyDef(
 
 /** `?#` / `ABC`。⚠ 記号面は**枠の数が変わる**ので、レイヤーではなく別レイアウトへ移る。 */
 private fun symbolToggleKey(symbols: Boolean) = KeyDef(
+    fontRole = KeyFontRole.SMALL,
     label = if (symbols) "ABC" else "?#",
     bindings = mapOf(
         KeyGesture.TAP to listOf(
@@ -250,15 +254,18 @@ private fun symbolToggleKey(symbols: Boolean) = KeyDef(
 )
 
 private fun spaceKey() = KeyDef(
+    fontRole = KeyFontRole.NORMAL,
     label = "SPACE",
     bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Text(" "))),
     repeatable = true,
 )
 
-private fun arrowKey(label: String, key: NamedKey) = KeyDef.named(label, key, repeatable = true)
+private fun arrowKey(label: String, key: NamedKey) =
+    KeyDef.named(label, key, repeatable = true, fontRole = KeyFontRole.NORMAL)
 
 /** 数字キー（連打あり・フリック無し）。 */
 private fun digitKey(label: String) = KeyDef(
+    fontRole = KeyFontRole.MAIN,
     label = label,
     bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Text(label))),
     repeatable = true,
@@ -275,10 +282,12 @@ private fun letterKey(label: String, flick: Map<KeyGesture, List<KeyAction>>): K
     return KeyDef(
         label = label,
         bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Text(label))) + flick,
+        fontRole = KeyFontRole.MAIN,
         layers = if (upper == null) emptyMap() else mapOf(
             KeyLayout.LAYER_SHIFT to KeyDef(
                 label = upper,
                 bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Text(upper))) + flick,
+                fontRole = KeyFontRole.MAIN,
             )
         ),
     )

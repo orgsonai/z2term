@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-25 / Target version: 0.8.403-alpha (versionCode 411)
+Last updated: 2026-08-25 / Target version: 0.8.404-alpha (versionCode 412)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2193,6 +2193,32 @@ two copies and the test will happily report a match after only one of them was e
   current layout itself**. ⛔ There is no toolbar when the keyboard runs as the OS input method,
   so it stays available as a warning for the editor to raise on save (`hasEscapeHatch`).
 
+
+**Stage 1c (0.8.404): the renderer now reads the layout.** The five hand-written rows in
+`TerminalKeyboard` are gone; **order, width, label and flick targets come from
+`asciiKeyLayout(...)`**. ⚠ **Not one pixel moved** — the key widgets themselves (`BasicKey`,
+`FlickKey`, `ShiftKey`, `SilentEscKey`, `BackspaceKey`, `PadKey`, `SpaceKey`) are untouched, and
+`LayoutKey` inspects a `KeyDef` to pick between them. ⭐ **The next stage removes that dispatch
+entirely** — merging the widgets into one generic key is what finally deletes the "ESC only /
+⌫ only" special cases and lets a user build the same thing.
+
+- **Running actions** (`runActions`) keeps today's split: ⚠ **tap and flick take different paths** —
+  a tap applies shift/CTRL/ALT (`emitChar`) while a flick sends the character as-is (`emitFlick`).
+  `Chord` (`Ctrl+W` / `Ctrl+U`) is assembled through `AndroidKeyMapper.controlByteFor`.
+- **Shift is a layer**: while `shift != OFF ∧ not the symbol face`, `KeyDef.onLayer("shift")` is drawn.
+- **The symbol face swaps the whole layout**: `?#` carries `KeyAction.Layer("sym")`, which sets
+  `sym` and has `asciiKeyLayout` rebuild (slot counts change, so it cannot be a layer — see 1b).
+- **Font size is held as a role** (`KeyFontRole`): SMALL (`keyFontSp-3`, for ESC/TAB/CTRL/ALT/`?#`),
+  NORMAL (`keyFontSp`, for ⏎/arrows/face switch), MAIN (`mainKeyFontSp`, for letters and digits).
+  The actual sizes stay in `KeyboardStyle`, so the keyboard-size setting still scales everything.
+- ⚠ **Digits and letters are told apart by `KeyDef.repeatable`**, which is **an artefact of today's
+  widgets**: digits let `BasicKey` handle key repeat, letters get it from `FlickKey` itself.
+  ⚠ The symbol face has no flicks yet is still drawn with `FlickKey` — `BasicKey` differs by a 1dp
+  inset and the centre line height, so switching would **shift the glyphs on the symbol face only**.
+  Both quirks disappear with the merge.
+- ⚠ **Split slots are not rendered yet** (today's layout has none): a `RowScope` is unavailable
+  inside a vertical split, so the current `RowScope`-scoped widgets cannot be placed there. The
+  merge stage handles it.
 
 #### 6.1.1 The numbers-only face (0.8.305)
 
