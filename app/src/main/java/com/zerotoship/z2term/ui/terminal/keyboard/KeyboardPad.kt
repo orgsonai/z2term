@@ -104,7 +104,11 @@ internal fun KeyboardPad(
         }
         when (mode) {
             PadMode.EMOJI -> EmojiPane(style = style, onInsert = onInsert)
-            PadMode.CLIPBOARD -> ClipboardPane(style = style, onInsert = onInsert)
+            PadMode.CLIPBOARD -> ClipboardPane(
+                style = style,
+                onInsert = onInsert,
+                onClose = { onMode(PadMode.NONE) }
+            )
             PadMode.NONE -> Unit
         }
     }
@@ -173,9 +177,19 @@ private fun ColumnScope.EmojiPane(style: KeyboardStyle, onInsert: (String) -> Un
     }
 }
 
-/** 貼り付けパッド: 新しい順のリスト。タップで貼り付け、✕ で 1 件削除。 */
+/**
+ * 貼り付けパッド: 新しい順のリスト。タップで貼り付け、✕ で 1 件削除。
+ *
+ * ⚠ **貼ったらパッドを閉じてキーへ戻る** ([onClose])。貼り付けは 1 回で終わる操作なので、
+ * 開いたままだと毎回 × を押させることになる (利用者の指摘)。絵文字パッドは続けて打つ
+ * ことがあるので閉じない — **閉じる / 閉じないの違いは「続けて打つか」で決めている**。
+ */
 @Composable
-private fun ColumnScope.ClipboardPane(style: KeyboardStyle, onInsert: (String) -> Unit) {
+private fun ColumnScope.ClipboardPane(
+    style: KeyboardStyle,
+    onInsert: (String) -> Unit,
+    onClose: () -> Unit
+) {
     val items by ClipboardHistoryStore.history.collectAsState()
     if (items.isEmpty()) {
         PadEmptyText(stringResource(R.string.pad_clip_empty), style, Modifier.weight(1f))
@@ -205,7 +219,7 @@ private fun ColumnScope.ClipboardPane(style: KeyboardStyle, onInsert: (String) -
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .weight(1f)
-                        .clickable { onInsert(item.text) }
+                        .clickable { onInsert(item.text); onClose() }
                         .padding(horizontal = 6.dp, vertical = 6.dp)
                 )
                 Box(

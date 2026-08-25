@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-24 / Target version: 0.8.394-alpha (versionCode 402)
+Last updated: 2026-08-25 / Target version: 0.8.395-alpha (versionCode 403)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2226,6 +2226,7 @@ into "close" — you would not be able to delete while the pad is open.
   (`android.content.extra.IS_SENSITIVE`) are stored too since 0.8.314, prefixed with 🔒 and
   **cleared automatically after 30 seconds** (§4.6 `ClipboardHistoryStore`).
   ✕ deletes one entry, 🗑 clears all.
+- **Pasting closes the pad** (0.8.395): tapping a row inserts the text and returns to `PadMode.NONE`, i.e. back to the keys. ⚠ Before this the pad stayed open and **the × in the top-left had to be pressed after every paste** (the user's report). ⚠ **The emoji pad does not close** — typing several emoji in a row is normal. The line between closing and staying open is **"is this something you keep doing?"**, not entry-point or visual symmetry. ⚠ The behaviour lives in one place inside the pad (`ClipboardPane` -> `onMode(PadMode.NONE)`): there are three call sites (kana / latin / number faces) and per-face copies would leave one behind.
 - **Exit** (`ComposingState.commitExternalText`): emoji and pasted text go out through **the same
   path as a confirmation**. ⚠ Sent as bytes (`onBytes`) they would be re-read by the input method,
   turning newlines into `performEditorAction` (= running the search in a single-line field, §6.9).
