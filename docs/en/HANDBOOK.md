@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.399-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.400-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -472,7 +472,7 @@ Settings are split into **8 groups** (Display / Keyboard and input / Linux envir
 | Scrollback lines | How many lines you can scroll back through |
 | Toolbar | **Choose which buttons appear above the terminal.** The real buttons are laid out; tap to remove or bring one back. A removed button's position is remembered. ⚙ is always rightmost and cannot be removed. If you remove 🔅 screen-on lock or 🔒 keep-alive, a switch for it appears in this section |
 | Distro | Alpine / Ubuntu / Arch / Kali |
-| Login shell | zsh / bash / sh — **the same shell is used for the terminal tab, SSH logins and the GUI's inner terminal** (the distro's `/etc/passwd` login shell is updated too). If the chosen shell is not installed in that distro, the default shell is used as before |
+| Login shell | zsh / bash / sh — **the same shell is used for the terminal tab, SSH logins and the GUI's inner terminal** (the distro's `/etc/passwd` login shell is updated too). If the chosen shell is not installed in that distro, the default shell is used as before. **It starts out as bash** (0.8.400; it used to be zsh, but the bundled OS ships no zsh, so you ended up in a shell you never chose) |
 | Shell prompt | **Pick a sample, tweak it on the spot, write it to the config file** (0.8.364). The first row picks the shell (sh / bash / zsh), the second picks a sample (sign only / user@host / arrow / rounded / square / Kali / ribbon), and **the box below fills in with what will be written**. Edit it freely — colours, order, whatever — then press Apply. The destination depends on the shell: `~/.ashrc` (sh) / `~/.bashrc` / `~/.zshrc`, and **the name shown above the box is exactly where it goes**. ⚠ **Only the part between the z2term markers is written**, so your own `alias` and `export` lines stay. Opening it with `vi ~/.bashrc` from the terminal shows the same thing, and editing it there is fine too (the settings box picks that up next time you open it). ⚠ **New tabs pick it up** — tabs already open keep the old prompt. Remove takes out just the marked part and restores the distro default. The samples are meant to be **usable as they are** (two-line box-drawing frames, an `❯` that turns red when the last command failed, Kali's `┌──(user㉿host)-[~]`, a coloured ribbon joined by a wedge). The wedge is powerline's `` (U+E0B0), built inside the rc itself (`ARROW_RIGHT=$'\ue0b0'`, or `printf` for sh) so no raw glyph ever sits in the file. ⚠ **Fira Code and JetBrains Mono both carry it** (verified by reading the font tables); only IBM Plex Mono does not, so if you use that font and see a square, change the escape to `\u25b6` (▶) in the box. **Clock at the right edge** adds a dimmed timestamp to the right of any sample, so scrolling back shows when each command was typed. ⚠ It **does not count the terminal width**, so rotating or splitting the screen never misaligns it |
 | Keyboard style | Simple / 4-direction flick |
 | Show the number face | Adds a **numbers-only face** (a keypad) to the built-in keyboard (0.8.305), so the switch key cycles through `12` as well. Turn it off and you are back to **あ → A → あ** as before |

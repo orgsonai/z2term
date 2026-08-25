@@ -919,8 +919,17 @@ class AppSettings(private val context: Context) {
         /** 0.5 = 仮想画面を 2 倍解像度にして縮小表示 (より細かく・広く)。1.0 が等倍。 */
         const val MIN_GUI_MAGNIFICATION = 0.5f
         const val MAX_GUI_MAGNIFICATION = 3.0f
-        /** Alpine 同梱で zsh が利用可能なので既定 zsh。`-l` でログインシェル動作。 */
-        const val DEFAULT_LOGIN_SHELL = "/bin/zsh"
+        /**
+         * 既定のログインシェル。`-l` でログインシェル動作。
+         *
+         * ⚠ **同梱の OS に zsh が入っていないので bash にした** (0.8.400)。既定が zsh だった頃は、
+         * 何も設定していない利用者が毎回 `ProotLauncher.resolveShell` のフォールバック
+         * (distro 既定 → `/bin/sh`) に落ちていて、**選んでいないシェルが立ち上がっていた**。
+         * ⚠ 設定を保存済みの利用者には影響しない (保存が無いときだけこの値を使う)。
+         * ⚠ bash を持たない rootfs でも `resolveShell` が distro 既定 → `/bin/sh` の順に落とすので、
+         * 起動できなくなることはない。
+         */
+        const val DEFAULT_LOGIN_SHELL = "/bin/bash"
         val AVAILABLE_SHELLS = listOf("/bin/zsh", "/bin/bash", "/bin/sh")
 
         const val MIN_FONT_SIZE_SP = 4f

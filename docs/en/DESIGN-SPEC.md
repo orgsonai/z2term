@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-25 / Target version: 0.8.399-alpha (versionCode 407)
+Last updated: 2026-08-25 / Target version: 0.8.400-alpha (versionCode 408)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2471,7 +2471,7 @@ built-in keyboard**".
 | Distro | distroId | "alpine" | alpine / ubuntu / archlinux / kali |
 | Ambiguous as wide | ambiguousAsWide | false | true/false |
 | Initial command | initCommand | "" | any |
-| Login shell | loginShell | "/bin/zsh" | /bin/zsh, /bin/bash, /bin/sh |
+| Login shell | loginShell | "/bin/bash" (0.8.400, because the bundled OS ships no zsh; "/bin/zsh" before that) | /bin/zsh, /bin/bash, /bin/sh |
 | Keyboard style | keyboardStyleId | "spacious" | compact / spacious |
 | Keyboard mode | keyboardMode | "custom" | custom / system |
 | Landscape keyboard position | landscapeKeyboardPosition | "bottom" | left / bottom / right |

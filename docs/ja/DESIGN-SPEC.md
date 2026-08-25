@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-25 / 対象バージョン: 0.8.399-alpha (versionCode 407)
+最終更新: 2026-08-25 / 対象バージョン: 0.8.400-alpha (versionCode 408)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -2393,7 +2393,7 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
 | ディストロ | distroId | "alpine" | alpine / ubuntu / archlinux / kali |
 | 曖昧幅を全角 | ambiguousAsWide | false | true/false |
 | 初期コマンド | initCommand | "" | 任意 |
-| ログインシェル | loginShell | "/bin/zsh" | /bin/zsh, /bin/bash, /bin/sh |
+| ログインシェル | loginShell | "/bin/bash" (0.8.400。同梱の OS に zsh が無いため。それ以前は "/bin/zsh") | /bin/zsh, /bin/bash, /bin/sh |
 | キーボードスタイル | keyboardStyleId | "spacious" | compact / spacious |
 | キーボードモード | keyboardMode | "custom" | custom / system |
 | 横画面キーボード位置 | landscapeKeyboardPosition | "bottom" | left / bottom / right |
