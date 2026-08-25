@@ -77,6 +77,22 @@ enum class SettingsGroup(
         false
     ),
 
+    /**
+     * 使い方 (Tips) — **画面に出ていない操作**の一覧 (0.8.399)。
+     *
+     * ⛔ ここに設定は置かない。トグルが混ざると読み物でなくなり、設定を探しに来た人と
+     * 使い方を知りたい人の両方が迷う。
+     *
+     * 既定は閉じた状態。見出しと説明だけ見えていれば「何かある」ことは伝わるので、
+     * 毎回開いて設定の上を長くする必要は無い (利用者判断)。
+     */
+    TIPS(
+        "tips",
+        R.string.settings_group_tips,
+        R.string.settings_group_tips_desc,
+        false
+    ),
+
     /** アプリ情報 / OSS ライセンス */
     ABOUT(
         "about",

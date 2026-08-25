@@ -22,6 +22,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -1830,6 +1831,10 @@ fun SettingsSheet(
                 }
             }
 
+            SettingsGroupSection(SettingsGroup.TIPS) {
+                TipsSection()
+            }
+
             SettingsGroupSection(SettingsGroup.ABOUT) {
                 AppInfoSection(
                     distroId = settings.distroId,
@@ -2867,6 +2872,44 @@ private fun folderLabel(treeUri: String): String? {
     if (treeUri.isEmpty()) return null
     val decoded = Uri.decode(treeUri.substringAfterLast("/"))
     return decoded.substringAfterLast(':').ifEmpty { decoded }
+}
+
+/**
+ * 使い方 (Tips) — **画面に出ていない操作**を並べる読み物 (0.8.399)。
+ *
+ * ⛔ **持っていない機能を書かない。** 1 つでも「書いてあるのに効かない」があると Tips 全体が
+ * 信用されなくなる (「Ctrl+T でスクロール」は z2term の機能ではないので載せていない)。
+ * ⛔ ここに設定 (トグル) を混ぜない。読み物として上から読めることに価値がある。
+ *
+ * 見た目は他の設定セクションと同じ [Section] を使う。Tips だけ別の意匠にすると、
+ * 設定の中に別のアプリが挟まったように見える。
+ */
+@Composable
+private fun TipsSection() {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        TipItem(R.string.tip_toolbar_title, R.string.tip_toolbar_body)
+        TipItem(R.string.tip_tab_close_title, R.string.tip_tab_close_body)
+        TipItem(R.string.tip_tab_reorder_title, R.string.tip_tab_reorder_body)
+        TipItem(R.string.tip_esc_flick_title, R.string.tip_esc_flick_body)
+        TipItem(R.string.tip_backspace_flick_title, R.string.tip_backspace_flick_body)
+        TipItem(R.string.tip_gui_scroll_title, R.string.tip_gui_scroll_body)
+        TipItem(R.string.tip_z2_commands_title, R.string.tip_z2_commands_body)
+        TipItem(R.string.tip_macro_title, R.string.tip_macro_body)
+    }
+}
+
+/** Tips 1 件 = 「操作」の見出し + 「何が起きるか」の本文。 */
+@Composable
+private fun TipItem(@StringRes titleRes: Int, @StringRes bodyRes: Int) {
+    Section(title = stringResource(titleRes)) {
+        Text(
+            text = stringResource(bodyRes),
+            color = ZtsTextSecondary,
+            fontSize = 12.sp,
+            lineHeight = 18.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
 }
 
 @Composable
