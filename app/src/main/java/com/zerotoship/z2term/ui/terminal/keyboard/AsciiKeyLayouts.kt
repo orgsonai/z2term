@@ -192,6 +192,30 @@ fun asciiKeyLayout(
     return KeyLayout(id = id, name = id, rows = rows)
 }
 
+/**
+ * パッド（貼り付け / 絵文字）を開いている間、下に残す 1 段。
+ *
+ * ⚠ **⌫ を「閉じる」に置き換えない** — 置き換えるとパッドを開いている間に文字を消せなくなる。
+ * 閉じるのは `×` か、開いた入口キーをもう一度押す。
+ */
+fun asciiPadRow(): KeyRow = KeyRow(
+    listOf(
+        slot(
+            KeyDef(
+                label = "×",
+                bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.App(AppAction.CLOSE_PAD))),
+                highlighted = true,
+            ),
+            AsciiKeys.W_MOD,
+        ),
+        slot(backspaceKey(), AsciiKeys.W_SIDE),
+        slot(spaceKey(), 3f),
+        slot(KeyDef.named("⏎", NamedKey.ENTER, repeatable = true), AsciiKeys.W_SIDE),
+        slot(arrowKey("←", NamedKey.LEFT), AsciiKeys.W_KEY),
+        slot(arrowKey("→", NamedKey.RIGHT), AsciiKeys.W_KEY),
+    )
+)
+
 // ---- 部品 ---------------------------------------------------------------------------------
 
 private fun slot(key: KeyDef, width: Float) = KeySlot.of(key, KeyWidth.Fixed(width))
@@ -202,13 +226,14 @@ private fun slot(key: KeyDef, width: Float) = KeySlot.of(key, KeyWidth.Fixed(wid
  */
 private fun escKey() = KeyDef(
     fontRole = KeyFontRole.SMALL,
+    // ⚠ しきい値を超えた瞬間に開く（行き先を出さない隠し操作なので迷う余地が無い）。
+    flickOnRelease = false,
     label = "ESC",
     bindings = mapOf(
         KeyGesture.TAP to listOf(KeyAction.Named(NamedKey.ESC)),
         KeyGesture.UP to listOf(KeyAction.App(AppAction.PAD_PASTE)),
         KeyGesture.DOWN to listOf(KeyAction.App(AppAction.PAD_EMOJI)),
     ),
-    showHint = false,
 )
 
 /** ⌫。左右フリックで単語削除 / 行頭まで削除。⚠ こちらも印を出さない（隠し機能のまま）。 */
@@ -219,8 +244,12 @@ private fun backspaceKey() = KeyDef(
         KeyGesture.LEFT to listOf(KeyAction.Chord(mods = setOf(ModKey.CTRL), text = "w")),
         KeyGesture.RIGHT to listOf(KeyAction.Chord(mods = setOf(ModKey.CTRL), text = "u")),
     ),
-    showHint = false,
+    // ⚠ しきい値を超えた瞬間に消す（ESC と同じ。隠し操作なので速い方がよい）。
+    flickOnRelease = false,
+    // ⚠ ⌫ だけ連打の出だしが遅い (500ms)。速いと、消そうとしただけで消しすぎる。
     repeatable = true,
+    repeatInitialMs = 500L,
+    repeatIntervalMs = 60L,
 )
 
 /** 貼り付け / 絵文字の入口（面の切替キーが要らない面でだけ席が空く）。 */
@@ -231,9 +260,14 @@ private fun padKey() = KeyDef(
         KeyGesture.UP to listOf(KeyAction.App(AppAction.PAD_PASTE)),
         KeyGesture.DOWN to listOf(KeyAction.App(AppAction.PAD_EMOJI)),
     ),
+    // ⚠ ここだけ**上下にヒントを出す** (📋 / 😀)。行き先が分からないと押されないため。
+    hintGestures = setOf(KeyGesture.UP, KeyGesture.DOWN),
+    flickOnRelease = false,
 )
 
-private fun shiftKey() = KeyDef.modifier("⇧", ModKey.SHIFT)
+// ⚠ ⇧ は押下で背景を変えない。OFF / 1 回だけ / 固定 の 3 状態を色で見せており、
+// そこに押下中の色を重ねると「いまどの状態か」が読めなくなる。
+private fun shiftKey() = KeyDef.modifier("⇧", ModKey.SHIFT).copy(pressFeedback = false)
 private fun ctrlKey() = KeyDef.modifier("CTRL", ModKey.CTRL)
 
 /** 面の切替。⚠ ラベルは描画側が「押すと行く面」で差し替える（`あ` / `12`）。 */
@@ -254,8 +288,11 @@ private fun symbolToggleKey(symbols: Boolean) = KeyDef(
 )
 
 private fun spaceKey() = KeyDef(
-    fontRole = KeyFontRole.NORMAL,
-    label = "SPACE",
+    // ⚠ 表示は小文字の `space`・控えめな色・押しても背景を変えない (いまのまま)。
+    fontRole = KeyFontRole.SMALL,
+    labelTone = LabelTone.SECONDARY,
+    pressFeedback = false,
+    label = "space",
     bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Text(" "))),
     repeatable = true,
 )
@@ -279,14 +316,18 @@ private fun digitKey(label: String) = KeyDef(
  */
 private fun letterKey(label: String, flick: Map<KeyGesture, List<KeyAction>>): KeyDef {
     val upper = label.firstOrNull()?.takeIf { it.isLetter() }?.uppercaseChar()?.toString()
+    // ⚠ ヒントは**上・左右だけ**。下 (大文字) は出さない — 出すと 10 個並ぶ段が字だらけになる。
+    val hints = flick.keys.filter { it != KeyGesture.DOWN }.toSet()
     return KeyDef(
         label = label,
         bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Text(label))) + flick,
+        hintGestures = hints,
         fontRole = KeyFontRole.MAIN,
         layers = if (upper == null) emptyMap() else mapOf(
             KeyLayout.LAYER_SHIFT to KeyDef(
                 label = upper,
                 bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Text(upper))) + flick,
+                hintGestures = hints,
                 fontRole = KeyFontRole.MAIN,
             )
         ),

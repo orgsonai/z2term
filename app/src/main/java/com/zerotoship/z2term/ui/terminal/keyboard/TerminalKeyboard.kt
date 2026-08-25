@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -229,69 +230,6 @@ fun TerminalKeyboard(
     val isCompact = style.id == "compact"
     val smallFont = (style.keyFontSp - 3f).coerceAtLeast(10f)
 
-    if (pad != PadMode.NONE) {
-        // パッド表示中: キーの面をまるごとパッドへ差し替え、**最下段だけ機能キーを残す**。
-        // ⚠ 日本語面 ([JapaneseFlickKeyboard]) は両端の列を残せるが、こちらは 10 列あって
-        // 縁が細いので、残すのは行単位にする。貼った直後に消す・改行するのは同じようにできる。
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .background(ZtsBgSecondary)
-                .padding(horizontal = 4.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(rowSpacing)
-        ) {
-            KeyboardPad(
-                mode = pad,
-                onMode = { pad = it },
-                style = style,
-                onInsert = ::insertText,
-                modifier = Modifier.fillMaxWidth().weight(1f)
-            )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
-                // ⚠ 閉じるのはここか、入口キー ([PadKey]) をもう一度押すか。⌫ を「閉じる」に
-                // 置き換えない (パッドを開いている間に文字を消せなくなる)。
-                BasicKey("×", weight = 1.2f, fontSp = style.keyFontSp, active = true, style = style) {
-                    pad = PadMode.NONE
-                }
-                BackspaceKey(
-                    weight = 1.4f,
-                    style = style,
-                    onTap = { emitSpecial(byteArrayOf(0x7F)) },
-                    onFlickLeft = { emitSpecial(byteArrayOf(0x17)) },
-                    onFlickRight = { emitSpecial(byteArrayOf(0x15)) }
-                )
-                SpaceKey(weight = 3f, style = style) { emitChar(' ') }
-                BasicKey("⏎", weight = 1.4f, fontSp = style.keyFontSp, repeatable = true, style = style) {
-                    emitSpecial(byteArrayOf(0x0D))
-                }
-                BasicKey("←", weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) {
-                    emitCursor(TerminalEmulator.CursorKey.LEFT)
-                }
-                BasicKey("→", weight = 1f, fontSp = style.keyFontSp, repeatable = true, style = style) {
-                    emitCursor(TerminalEmulator.CursorKey.RIGHT)
-                }
-            }
-        }
-        return
-    }
-
-    // ⭐ 段階 1c (0.8.404): **並び・幅・ラベル・フリック先をレイアウト定義から引く**。
-    // ⚠ 見た目は 1 ドットも変えない。キーの描画そのもの (BasicKey / FlickKey / ShiftKey /
-    //   SilentEscKey / BackspaceKey / PadKey / SpaceKey) は据え置きで、「**どのキーを・どこに・
-    //   どの幅で**置くか」だけをデータへ移した。
-    // ⚠ キーの描画を 1 つに統合する (= 専用部品をやめる) のは次の段階。ここで一緒にやると、
-    //   壊れたときに「並びが悪いのか描画が悪いのか」を切り分けられなくなる。
-    val layout = remember(isCompact, hasFaceKey, sym, style.fourDirectionFlick) {
-        asciiKeyLayout(
-            compact = isCompact,
-            hasFaceKey = hasFaceKey,
-            symbols = sym,
-            fourWayFlick = style.fourDirectionFlick,
-        )
-    }
-    // ⇧ は**キーの姿の差し替え** = レイヤーで表す。⚠ 記号面では大文字にしない (いまと同じ)。
-    val activeLayer = if (!sym && shift != ShiftState.OFF) KeyLayout.LAYER_SHIFT else null
-
     // アクション列を実行する。⚠ **タップとフリックで経路が違う** — タップは ⇧/CTRL/ALT を
     // 適用し (emitChar)、フリックは文字をそのまま送る (emitFlick)。いまの挙動をそのまま保つ。
     fun runActions(actions: List<KeyAction>, gesture: KeyGesture) {
@@ -336,6 +274,7 @@ fun TerminalKeyboard(
                     AppAction.NEXT_FACE -> switchFace(nextFace)
                     AppAction.PAD_PASTE -> togglePad(PadMode.CLIPBOARD)
                     AppAction.PAD_EMOJI -> togglePad(PadMode.EMOJI)
+                    AppAction.CLOSE_PAD -> pad = PadMode.NONE
                     // ⚠ 設定 / キーボードを閉じる / IME 切替は、この面のキーにはまだ無い。
                     else -> Unit
                 }
@@ -344,6 +283,66 @@ fun TerminalKeyboard(
             }
         }
     }
+
+    if (pad != PadMode.NONE) {
+        // パッド表示中: キーの面をまるごとパッドへ差し替え、**最下段だけ機能キーを残す**。
+        // ⚠ 日本語面 ([JapaneseFlickKeyboard]) は両端の列を残せるが、こちらは 10 列あって
+        // 縁が細いので、残すのは行単位にする。貼った直後に消す・改行するのは同じようにできる。
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(ZtsBgSecondary)
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(rowSpacing)
+        ) {
+            KeyboardPad(
+                mode = pad,
+                onMode = { pad = it },
+                style = style,
+                onInsert = ::insertText,
+                modifier = Modifier.fillMaxWidth().weight(1f)
+            )
+            // ⚠ 閉じるのはここ (×) か、開いた入口キーをもう一度押すか。⌫ を「閉じる」に
+            // 置き換えない (パッドを開いている間に文字を消せなくなる)。
+            val padRow = remember { asciiPadRow() }
+            val padWeights = padRow.weights()
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
+                padRow.slots.forEachIndexed { index, keySlot ->
+                    LayoutSlot(
+                        content = keySlot.content,
+                        modifier = Modifier.weight(padWeights[index]).height(style.keyHeight),
+                        activeLayer = null,
+                        style = style,
+                        smallFont = smallFont,
+                        shift = shift,
+                        ctrl = ctrl,
+                        alt = alt,
+                        sym = sym,
+                        faceLabel = nextFace.switchLabel,
+                        onGesture = { key, g -> runActions(key.actionsFor(g), g) },
+                    )
+                }
+            }
+        }
+        return
+    }
+
+    // ⭐ 段階 1c (0.8.404): **並び・幅・ラベル・フリック先をレイアウト定義から引く**。
+    // ⚠ 見た目は 1 ドットも変えない。キーの描画そのもの (BasicKey / FlickKey / ShiftKey /
+    //   SilentEscKey / BackspaceKey / PadKey / SpaceKey) は据え置きで、「**どのキーを・どこに・
+    //   どの幅で**置くか」だけをデータへ移した。
+    // ⚠ キーの描画を 1 つに統合する (= 専用部品をやめる) のは次の段階。ここで一緒にやると、
+    //   壊れたときに「並びが悪いのか描画が悪いのか」を切り分けられなくなる。
+    val layout = remember(isCompact, hasFaceKey, sym, style.fourDirectionFlick) {
+        asciiKeyLayout(
+            compact = isCompact,
+            hasFaceKey = hasFaceKey,
+            symbols = sym,
+            fourWayFlick = style.fourDirectionFlick,
+        )
+    }
+    // ⇧ は**キーの姿の差し替え** = レイヤーで表す。⚠ 記号面では大文字にしない (いまと同じ)。
+    val activeLayer = if (!sym && shift != ShiftState.OFF) KeyLayout.LAYER_SHIFT else null
 
     Column(
         modifier = modifier
@@ -356,18 +355,11 @@ fun TerminalKeyboard(
             val weights = keyRow.weights()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(rowSpacing)) {
                 keyRow.slots.forEachIndexed { index, keySlot ->
-                    val content = keySlot.content
-                    if (content !is SlotContent.Single) {
-                        // ⚠ 枠の分割 (上下左右キーを 1 枠に収める等) は**まだ描けない**。
-                        //    いまの配列は分割を使っていないのでここには来ない。キーの描画を
-                        //    1 つに統合する段階で対応する (縦割りの中では RowScope が使えず、
-                        //    いまの専用部品 (RowScope 拡張) をそのままでは置けないため)。
-                        return@forEachIndexed
-                    }
-                    val key = content.key.onLayer(activeLayer)
-                    LayoutKey(
-                        key = key,
-                        weight = weights[index],
+                    LayoutSlot(
+                        content = keySlot.content,
+                        // ⚠ 段の高さはここで決める。枠を割ったときは中で分け合う。
+                        modifier = Modifier.weight(weights[index]).height(style.keyHeight),
+                        activeLayer = activeLayer,
                         style = style,
                         smallFont = smallFont,
                         shift = shift,
@@ -375,9 +367,7 @@ fun TerminalKeyboard(
                         alt = alt,
                         sym = sym,
                         faceLabel = nextFace.switchLabel,
-                        onCycleShift = { cycleShift() },
-                        onGesture = { g -> runActions(key.actionsFor(g), g) },
-                        onFlickChar = { ch -> emitFlick(ch) },
+                        onGesture = { key, g -> runActions(key.actionsFor(g), g) },
                     )
                 }
             }
@@ -386,16 +376,18 @@ fun TerminalKeyboard(
 }
 
 /**
- * レイアウト定義のキー 1 つを、**いまの見た目のまま**描く (0.8.404・段階 1c)。
+ * レイアウト定義の枠 1 つを描く (0.8.407・段階 1d)。
  *
- * ⚠ ここは「[KeyDef] を見て、いまある専用部品のどれを使うか選ぶ」だけの振り分け。
- * ⭐ **次の段階でこの振り分けごと無くす** — 専用部品を 1 つの汎用キーに統合すれば、
- * 「ESC だけ / ⌫ だけ」という特別扱いが本当に消えて、利用者が同じことを作れるようになる。
+ * ⭐ **枠の分割はここで再帰する** — 縦割り・横割りを向き自由で深さ 2 まで
+ * ([KeyLayout.MAX_SPLIT_DEPTH])。「上下左右キーは 1 つのキーの半分」(利用者) が
+ * これで描けるようになった。⚠ 分割の中で `weight` を使うので、[modifier] は
+ * **呼出し側が幅と高さを決めて渡す**（この関数は Row/Column どちらの中でも置ける）。
  */
 @Composable
-private fun RowScope.LayoutKey(
-    key: KeyDef,
-    weight: Float,
+private fun LayoutSlot(
+    content: SlotContent,
+    modifier: Modifier,
+    activeLayer: String?,
     style: KeyboardStyle,
     smallFont: Float,
     shift: ShiftState,
@@ -403,505 +395,288 @@ private fun RowScope.LayoutKey(
     alt: Boolean,
     sym: Boolean,
     faceLabel: String,
-    onCycleShift: () -> Unit,
-    onGesture: (KeyGesture) -> Unit,
-    onFlickChar: (Char) -> Unit,
+    onGesture: (KeyDef, KeyGesture) -> Unit,
 ) {
+    when (content) {
+        is SlotContent.Single -> {
+            val key = content.key.onLayer(activeLayer)
+            KeyCell(
+                key = key,
+                modifier = modifier,
+                style = style,
+                smallFont = smallFont,
+                shift = shift,
+                ctrl = ctrl,
+                alt = alt,
+                sym = sym,
+                faceLabel = faceLabel,
+                onGesture = { g -> onGesture(key, g) },
+            )
+        }
+        is SlotContent.Split -> {
+            // 区画の間は狭めに空ける (段と段の間より詰める。1 つの枠に見えるように)。
+            val gap = 2.dp
+            if (content.dir == SplitDir.VERTICAL) {
+                Column(modifier, verticalArrangement = Arrangement.spacedBy(gap)) {
+                    content.parts.forEach { part ->
+                        LayoutSlot(
+                            content = part.content,
+                            modifier = Modifier.weight(part.ratio).fillMaxWidth(),
+                            activeLayer = activeLayer,
+                            style = style,
+                            smallFont = smallFont,
+                            shift = shift,
+                            ctrl = ctrl,
+                            alt = alt,
+                            sym = sym,
+                            faceLabel = faceLabel,
+                            onGesture = onGesture,
+                        )
+                    }
+                }
+            } else {
+                Row(modifier, horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    content.parts.forEach { part ->
+                        LayoutSlot(
+                            content = part.content,
+                            modifier = Modifier.weight(part.ratio).fillMaxHeight(),
+                            activeLayer = activeLayer,
+                            style = style,
+                            smallFont = smallFont,
+                            shift = shift,
+                            ctrl = ctrl,
+                            alt = alt,
+                            sym = sym,
+                            faceLabel = faceLabel,
+                            onGesture = onGesture,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * キー 1 つ。⭐ **これがキーボードの唯一のキー部品** (0.8.407・段階 1d)。
+ *
+ * それまでは ESC / ⌫ / ⇧ / 貼り付け / スペース / 文字キーが**それぞれ専用の部品**で、
+ * 隠し機能もその中に直接書いてあった。ここに統合したことで、**利用者が同じものを
+ * [KeyDef] だけで作れる**ようになった（= カスタム配列の土台）。
+ *
+ * 見た目と手触りの違いは、すべて [KeyDef] のフィールドで表す:
+ *
+ * - [KeyDef.hintGestures] … どの方向の行き先をキーの上に小さく出すか
+ *   (英字は上・左右だけ / 貼り付けは上下 / ESC・⌫ は**出さない**＝隠し操作のまま)
+ * - [KeyDef.flickOnRelease] … 指を離したときに確定する (文字キー) か、しきい値を超えた
+ *   瞬間に発火する (ESC・⌫・貼り付け) か
+ * - [KeyDef.pressFeedback] … 押している間に背景を明るくするか (`space` は変えない)
+ * - [KeyDef.labelTone] / [KeyDef.fontRole] … 字の色と大きさの役どころ
+ * - [KeyDef.repeatable] / [KeyDef.repeatInitialMs] / [KeyDef.repeatIntervalMs] … 長押し連打
+ *
+ * ⚠ **⇧ だけは 3 状態 (OFF / 1 回だけ / 固定) を色で見せる**。これは修飾キーの状態表示で、
+ * CTRL・ALT が `active` で緑になるのと同じ筋（[ShiftState] が 3 値なぶん色が 1 つ多い）。
+ */
+@Composable
+private fun KeyCell(
+    key: KeyDef,
+    modifier: Modifier,
+    style: KeyboardStyle,
+    smallFont: Float,
+    shift: ShiftState,
+    ctrl: Boolean,
+    alt: Boolean,
+    sym: Boolean,
+    faceLabel: String,
+    onGesture: (KeyGesture) -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    val currentOnGesture by rememberUpdatedState(onGesture)
+    var pressed by remember { mutableStateOf(false) }
+    // いま指が向いている方向 (null = しきい値未到達 = このまま離せばタップ)。
+    var flickTo by remember { mutableStateOf<KeyGesture?>(null) }
+
     val tap = key.actionsFor(KeyGesture.TAP).firstOrNull()
+    val isShiftKey = tap is KeyAction.Modifier && tap.mod == ModKey.SHIFT
+    val active = key.highlighted || when {
+        tap is KeyAction.Modifier && tap.mod == ModKey.CTRL -> ctrl
+        tap is KeyAction.Modifier && tap.mod == ModKey.ALT -> alt
+        tap is KeyAction.Layer -> sym
+        else -> false
+    }
+    val lit = pressed && key.pressFeedback
+
+    val bg: Color
+    val fg: Color
+    val border: Color
+    val label: String
+    if (isShiftKey) {
+        when (shift) {
+            ShiftState.OFF -> { bg = ZtsBgCard; fg = ZtsTextPrimary; border = ZtsBorder; label = "⇧" }
+            ShiftState.ONESHOT -> { bg = ZtsGreen; fg = Color.Black; border = ZtsGreen; label = "⇧" }
+            ShiftState.LOCKED -> { bg = ZtsGreenDim; fg = Color.Black; border = ZtsGreen; label = "⇪" }
+        }
+    } else {
+        bg = when {
+            lit -> ZtsGreenBright
+            active -> ZtsGreen
+            else -> ZtsBgCard
+        }
+        fg = when {
+            lit || active -> Color.Black
+            key.labelTone == LabelTone.SECONDARY -> ZtsTextSecondary
+            else -> ZtsTextPrimary
+        }
+        border = if (lit || active) ZtsGreen else ZtsBorder
+        // ⚠ 面の切替キーだけラベルが空。「押すと**行く**面」を入れるのは呼出し側の仕事。
+        label = key.label.ifEmpty { faceLabel }
+    }
     val fontSp = when (key.fontRole) {
         KeyFontRole.SMALL -> smallFont
         KeyFontRole.NORMAL -> style.keyFontSp
         KeyFontRole.MAIN -> style.mainKeyFontSp
     }
-    val hasFlick = key.bindings.keys.any { it in KeyGesture.FLICKS }
-    when {
-        // ⇧: OFF → 1 回だけ → 固定 の 3 状態を色で見せる。
-        tap is KeyAction.Modifier && tap.mod == ModKey.SHIFT ->
-            ShiftKey(weight = weight, state = shift, style = style, onCycle = onCycleShift)
+    val hasFlick = key.hasFlick()
 
-        // ESC: 上下フリックで貼り付け / 絵文字 (⚠ 印もポップアップも出さない)。
-        tap is KeyAction.Named && tap.key == NamedKey.ESC && hasFlick ->
-            SilentEscKey(
-                weight = weight,
-                fontSp = fontSp,
-                style = style,
-                onTap = { onGesture(KeyGesture.TAP) },
-                onFlickUp = { onGesture(KeyGesture.UP) },
-                onFlickDown = { onGesture(KeyGesture.DOWN) },
-            )
-
-        // ⌫: 左右フリックでまとめて削除 (⚠ こちらも印を出さない)。
-        tap is KeyAction.Named && tap.key == NamedKey.BACKSPACE ->
-            BackspaceKey(
-                weight = weight,
-                style = style,
-                onTap = { onGesture(KeyGesture.TAP) },
-                onFlickLeft = { onGesture(KeyGesture.LEFT) },
-                onFlickRight = { onGesture(KeyGesture.RIGHT) },
-            )
-
-        // 貼り付け / 絵文字の入口 (面の切替キーが要らない面でだけ席が空く)。
-        tap is KeyAction.App && tap.action == AppAction.PAD_PASTE && hasFlick ->
-            PadKey(
-                weight = weight,
-                style = style,
-                onTap = { onGesture(KeyGesture.TAP) },
-                onFlickUp = { onGesture(KeyGesture.UP) },
-                onFlickDown = { onGesture(KeyGesture.DOWN) },
-            )
-
-        // スペース。
-        tap is KeyAction.Text && tap.text == " " ->
-            SpaceKey(weight = weight, style = style) { onGesture(KeyGesture.TAP) }
-
-        // 打つための文字キー。⚠ フリック先の文字は [FlickKey] が方向から選んで返すので、
-        //   ここでは受け取った文字をそのまま送る (いまと同じ経路)。
-        // ⚠ **記号面はフリックが無いが、それでも [FlickKey] で描く** — いまの実装がそうして
-        //   おり (`flick = null` を渡している)、[BasicKey] とは中央テキストの行間と 1dp の
-        //   余白がわずかに違う。ここで [BasicKey] に寄せると記号面だけ字がずれる。
-        // ⚠ 数字と英字を [KeyDef.repeatable] で振り分けているのは**いまの部品の都合**。
-        //   数字は連打を [BasicKey] に任せ、英字は [FlickKey] が自前で連打する。部品を 1 つに
-        //   統合する段階で、この分岐ごと消える。
-        tap is KeyAction.Text && key.fontRole == KeyFontRole.MAIN && !key.repeatable ->
-            FlickKey(
-                label = key.label,
-                flick = flickMapOf(key),
-                weight = weight,
-                style = style,
-                onTap = { onGesture(KeyGesture.TAP) },
-                onFlick = onFlickChar,
-            )
-
-        else -> BasicKey(
-            // ⚠ 面の切替キーだけラベルが空。「押すと**行く**面」を出すのは呼出し側の仕事。
-            label = key.label.ifEmpty { faceLabel },
-            weight = weight,
-            fontSp = fontSp,
-            active = when {
-                tap is KeyAction.Modifier && tap.mod == ModKey.CTRL -> ctrl
-                tap is KeyAction.Modifier && tap.mod == ModKey.ALT -> alt
-                tap is KeyAction.Layer -> sym
-                else -> false
-            },
-            style = style,
-            repeatable = key.repeatable,
-        ) { onGesture(KeyGesture.TAP) }
-    }
-}
-
-/** [KeyDef] の 4 方向から、いまの [FlickKey] が受け取る形へ。割り当てが無ければ null。 */
-private fun flickMapOf(key: KeyDef): FlickMap? {
-    fun charOf(g: KeyGesture): Char? =
-        (key.actionsFor(g).firstOrNull() as? KeyAction.Text)?.text?.firstOrNull()
-    val up = charOf(KeyGesture.UP)
-    val down = charOf(KeyGesture.DOWN)
-    val left = charOf(KeyGesture.LEFT)
-    val right = charOf(KeyGesture.RIGHT)
-    return if (up == null && down == null && left == null && right == null) null
-    else FlickMap(up = up, down = down, left = left, right = right)
-}
-
-/**
- * 英字面の ESC キー。**見た目は [BasicKey] のまま**で、上下フリックだけを足したもの。
- *
- * タップ = ESC 送出、**上フリック** = 貼り付けパッド、**下フリック** = 絵文字パッド。
- * かな面 ([JpEscKey]) / 数字面と**同じ指の動き**を英字面でも通すためのもの (0.8.362・要望)。
- *
- * ⚠ **なぜ要るか**: 貼り付け / 絵文字の入口 ([PadKey]) は**面の切替キーが無い配列にしか置けない**
- * (席が 1 つしか空かない)。日本語ロケールではその席が面切替に要るので、**英字面から貼り付けを
- * 開く手が 1 つも無かった**。ESC のフリックなら席を増やさずに済む。
- *
- * ⚠ **印もポップアップも出さない (利用者の判断)**。かな面の ESC は上下端にヒントを出すが、
- * あちらは元から記号を載せたキーが並ぶ面で馴染む。英字面の ESC は素のキーなので、ここに印を
- * 足すと**英字面の見た目が変わってしまう**。狙いは「かな面で覚えた指の動きが英字面でも通る」
- * ことなので、表示は据え置いて動きだけ揃える。
- */
-@Composable
-private fun RowScope.SilentEscKey(
-    weight: Float,
-    fontSp: Float,
-    style: KeyboardStyle,
-    onTap: () -> Unit,
-    onFlickUp: () -> Unit,
-    onFlickDown: () -> Unit
-) {
-    var pressed by remember { mutableStateOf(false) }
-    val currentOnTap by rememberUpdatedState(onTap)
-    val currentOnFlickUp by rememberUpdatedState(onFlickUp)
-    val currentOnFlickDown by rememberUpdatedState(onFlickDown)
-    val bg = if (pressed) ZtsGreenBright else ZtsBgCard
-    val fg = if (pressed) Color.Black else ZtsTextPrimary
-    val border = if (pressed) ZtsGreen else ZtsBorder
     Box(
-        modifier = Modifier
-            .weight(weight)
-            .height(style.keyHeight)
+        modifier = modifier
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
             .border(1.dp, border, RoundedCornerShape(6.dp))
-            .pointerInput(Unit) {
-                // しきい値と判定順は [JpEscKey] と同じにする (面ごとに感度が違うと戸惑うため)。
-                val flickThreshold = viewConfiguration.touchSlop * 1.4f
+            .pointerInput(key) {
+                val threshold = viewConfiguration.touchSlop * 1.4f
                 awaitPointerEventScope {
                     while (true) {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         pressed = true
+                        flickTo = null
                         val startX = down.position.x
                         val startY = down.position.y
-                        var resolved = false
-                        while (true) {
-                            val event = awaitPointerEvent(PointerEventPass.Main)
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            val dx = change.position.x - startX
-                            val dy = change.position.y - startY
-                            // 縦の移動が横より大きいときだけフリック扱い (横払いは誤爆させない)。
-                            if (!resolved && abs(dy) > flickThreshold && abs(dy) > abs(dx)) {
-                                resolved = true
-                                if (dy < 0) currentOnFlickUp() else currentOnFlickDown()
-                                change.consume()
-                            }
-                            if (!change.pressed) {
-                                // フリックが決まっていなければ通常の ESC として送る。
-                                if (!resolved) currentOnTap()
-                                break
-                            }
-                        }
-                        pressed = false
-                    }
-                }
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "ESC",
-            color = fg,
-            fontSize = fontSp.sp,
-            fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace
-        )
-    }
-}
-
-@Composable
-private fun RowScope.BasicKey(
-    label: String,
-    weight: Float,
-    fontSp: Float,
-    active: Boolean = false,
-    repeatable: Boolean = false,
-    style: KeyboardStyle,
-    onClick: () -> Unit
-) {
-    // タップ中は背景を明るい緑に変えて「ここを押した」が見えるようにする (`active` は別系統)。
-    var pressed by remember { mutableStateOf(false) }
-    val bg = when {
-        pressed -> ZtsGreenBright
-        active -> ZtsGreen
-        else -> ZtsBgCard
-    }
-    val fg = if (active || pressed) Color.Black else ZtsTextPrimary
-    val border = if (active || pressed) ZtsGreen else ZtsBorder
-    val scope = rememberCoroutineScope()
-    val currentOnClick by rememberUpdatedState(onClick)
-    val tapModifier = if (repeatable) {
-        Modifier.pointerInput(Unit) {
-            detectTapWithRepeat(scope, onPressedChange = { pressed = it }) { currentOnClick() }
-        }
-    } else {
-        Modifier.pointerInput(Unit) {
-            awaitPointerEventScope {
-                while (true) {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    pressed = true
-                    var fired = false
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Main)
-                        val change = event.changes.firstOrNull { it.id == down.id }
-                        if (change == null) break
-                        if (!change.pressed) { fired = true; break }
-                    }
-                    pressed = false
-                    if (fired) currentOnClick()
-                }
-            }
-        }
-    }
-    Box(
-        modifier = Modifier
-            .weight(weight)
-            .height(style.keyHeight)
-            .clip(RoundedCornerShape(6.dp))
-            .background(bg)
-            .border(1.dp, border, RoundedCornerShape(6.dp))
-            .then(tapModifier),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            color = fg,
-            fontSize = fontSp.sp,
-            fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace
-        )
-    }
-}
-
-/**
- * 貼り付け / 絵文字パッド ([KeyboardPad]) の入口キー。**英語ロケールの英字面だけ**に出る。
- *
- * タップ = 貼り付け ([onTap])、**上フリック** = 貼り付け ([onFlickUp])、
- * **下フリック** = 絵文字 ([onFlickDown])。上下は [JpEscKey] と同じ割り当て。
- *
- * ⚠ 上端に 📋、下端に 😀 を出して**どちらが何か見て分かる**ようにする — 日本語面の
- * 「ESC の上フリック」は見えない入口だったため辿り着けない人がいた (0.8.279 でヒントを足した)。
- * 同じ轍を踏まないよう、こちらは最初からキーの表示そのものを入口の説明にする。
- */
-@Composable
-private fun RowScope.PadKey(
-    weight: Float,
-    style: KeyboardStyle,
-    onTap: () -> Unit,
-    onFlickUp: () -> Unit,
-    onFlickDown: () -> Unit
-) {
-    var pressed by remember { mutableStateOf(false) }
-    val currentOnTap by rememberUpdatedState(onTap)
-    val currentOnFlickUp by rememberUpdatedState(onFlickUp)
-    val currentOnFlickDown by rememberUpdatedState(onFlickDown)
-    val bg = if (pressed) ZtsGreenBright else ZtsBgCard
-    val fg = if (pressed) Color.Black else ZtsTextPrimary
-    val border = if (pressed) ZtsGreen else ZtsBorder
-    Box(
-        modifier = Modifier
-            .weight(weight)
-            .height(style.keyHeight)
-            .clip(RoundedCornerShape(6.dp))
-            .background(bg)
-            .border(1.dp, border, RoundedCornerShape(6.dp))
-            .pointerInput(Unit) {
-                val flickThreshold = viewConfiguration.touchSlop * 1.4f
-                awaitPointerEventScope {
-                    while (true) {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        pressed = true
-                        val startX = down.position.x
-                        val startY = down.position.y
-                        var resolved = false
-                        while (true) {
-                            val event = awaitPointerEvent(PointerEventPass.Main)
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            val dx = change.position.x - startX
-                            val dy = change.position.y - startY
-                            if (!resolved && abs(dy) > flickThreshold && abs(dy) > abs(dx)) {
-                                resolved = true
-                                if (dy < 0) currentOnFlickUp() else currentOnFlickDown()
-                                change.consume()
-                            }
-                            if (!change.pressed) {
-                                if (!resolved) currentOnTap()
-                                break
-                            }
-                        }
-                        pressed = false
-                    }
-                }
-            }
-    ) {
-        HintText("📋", style, pressed, modifier = Modifier.align(Alignment.TopCenter))
-        Text(
-            text = "↕",
-            color = fg,
-            fontSize = (style.keyFontSp * 0.75f).sp,
-            fontFamily = FontFamily.Monospace,
-            modifier = Modifier.align(Alignment.Center)
-        )
-        HintText("😀", style, pressed, modifier = Modifier.align(Alignment.BottomCenter))
-    }
-}
-
-/**
- * ⇧ キー: OFF / ONESHOT / LOCKED の 3 状態を視覚化。
- *  - OFF: 通常配色
- *  - ONESHOT: 緑背景 (1 回大文字 → 自動 OFF)
- *  - LOCKED: 緑暗色 + 「⇪」アイコン (連続大文字、再タップで OFF)
- */
-@Composable
-private fun RowScope.ShiftKey(
-    weight: Float,
-    state: ShiftState,
-    style: KeyboardStyle,
-    onCycle: () -> Unit
-) {
-    val bg: Color
-    val fg: Color
-    val border: Color
-    val label: String
-    when (state) {
-        ShiftState.OFF -> { bg = ZtsBgCard; fg = ZtsTextPrimary; border = ZtsBorder; label = "⇧" }
-        ShiftState.ONESHOT -> { bg = ZtsGreen; fg = Color.Black; border = ZtsGreen; label = "⇧" }
-        ShiftState.LOCKED -> { bg = ZtsGreenDim; fg = Color.Black; border = ZtsGreen; label = "⇪" }
-    }
-    Box(
-        modifier = Modifier
-            .weight(weight)
-            .height(style.keyHeight)
-            .clip(RoundedCornerShape(6.dp))
-            .background(bg)
-            .border(1.dp, border, RoundedCornerShape(6.dp))
-            .clickable(onClick = onCycle),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            color = fg,
-            fontSize = style.keyFontSp.sp,
-            fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace
-        )
-    }
-}
-
-/**
- * 4 方向フリック対応キー (compact 時は up のみ、spacious 時は up/down/left/right)。
- *
- * 視覚レイアウト:
- *  - 主文字は Column 内で中央配置。上フリックが定義されているときは
- *    Column の上端にヒントを並べて **主文字と重ならない** ようにする。
- *  - 左右フリックは Box overlay で中央左端/中央右端に置く (Column と直交)。
- *  - 下フリック (= ローマ字大文字) はヒントを出さない (隠し動作)。
- *  - ヒント色は `ZtsGreenBright` で主文字 (白) と明確に区別。
- *
- * インタラクション:
- *  - 短いタップ → onTap
- *  - 上下左右どれかに touchSlop * 1.4 px 以上で離す → onFlick(対応する char)
- */
-@Composable
-private fun RowScope.FlickKey(
-    label: String,
-    flick: FlickMap?,
-    weight: Float,
-    style: KeyboardStyle,
-    onTap: () -> Unit,
-    onFlick: (Char) -> Unit
-) {
-    val scope = rememberCoroutineScope()
-    val currentOnTap by rememberUpdatedState(onTap)
-    val currentOnFlick by rememberUpdatedState(onFlick)
-    // 押し中か / 押し中に向かっているフリック方向の文字。null = しきい値未到達 (= タップ予定)
-    var pressed by remember { mutableStateOf(false) }
-    var flickPreview by remember { mutableStateOf<Char?>(null) }
-    val bg = if (pressed) ZtsGreenBright else ZtsBgCard
-    val fg = if (pressed) Color.Black else ZtsTextPrimary
-    val border = if (pressed) ZtsGreen else ZtsBorder
-    Box(
-        modifier = Modifier
-            .weight(weight)
-            .height(style.keyHeight)
-            .clip(RoundedCornerShape(6.dp))
-            .background(bg)
-            .border(1.dp, border, RoundedCornerShape(6.dp))
-            .pointerInput(label, flick) {
-                val flickThreshold = viewConfiguration.touchSlop * 1.4f
-                awaitPointerEventScope {
-                    while (true) {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        pressed = true
-                        flickPreview = null
-                        val startX = down.position.x
-                        val startY = down.position.y
-                        var repeated = false  // 長押し連打開始済み
-                        // 押しっぱなしで連打 (フリックされたらキャンセル)
-                        val repeatJob = scope.launch {
-                            delay(KEY_REPEAT_INITIAL_MS)
-                            if (flickPreview == null) {
-                                repeated = true
-                                while (isActive) { currentOnTap(); delay(KEY_REPEAT_INTERVAL_MS) }
+                        var fired = false        // しきい値到達で発火済み (flickOnRelease=false)
+                        var repeating = false    // 長押し連打が始まった
+                        var repeatJob: Job? = null
+                        if (key.repeatable) {
+                            repeatJob = scope.launch {
+                                delay(key.repeatInitialMs)
+                                // フリックへ向かっている最中は連打を始めない。
+                                if (flickTo == null && !fired) {
+                                    repeating = true
+                                    while (isActive) {
+                                        currentOnGesture(KeyGesture.TAP)
+                                        delay(key.repeatIntervalMs)
+                                    }
+                                }
                             }
                         }
                         while (true) {
                             val event = awaitPointerEvent(PointerEventPass.Main)
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            val dx = change.position.x - startX
-                            val dy = change.position.y - startY
-                            // 移動量に応じてプレビューを更新 (確定はしない)
-                            if (!repeated && flick != null &&
-                                (abs(dx) > flickThreshold || abs(dy) > flickThreshold)
-                            ) {
-                                val ch = if (abs(dx) > abs(dy)) {
-                                    if (dx < 0) flick.left else flick.right
+                            if (hasFlick && !fired && !repeating) {
+                                val dx = change.position.x - startX
+                                val dy = change.position.y - startY
+                                val dir = directionOf(dx, dy, threshold, key)
+                                if (dir != null && !key.flickOnRelease) {
+                                    // ESC / ⌫ / 貼り付け: しきい値を超えた瞬間に発火する。
+                                    fired = true
+                                    repeatJob?.cancel()
+                                    currentOnGesture(dir)
+                                    change.consume()
                                 } else {
-                                    if (dy < 0) flick.up else flick.down
+                                    // 文字キー: 離すまで確定しない (途中で方向を変えられる)。
+                                    flickTo = dir
+                                    if (dir != null) repeatJob?.cancel()
                                 }
-                                flickPreview = ch  // null でもよい (該当方向に割当無し)
-                            } else {
-                                flickPreview = null
                             }
                             if (!change.pressed) {
-                                repeatJob.cancel()
-                                val committed = flickPreview
-                                if (!repeated) {
-                                    if (committed != null) currentOnFlick(committed) else currentOnTap()
+                                repeatJob?.cancel()
+                                if (!repeating && !fired) {
+                                    val dir = flickTo
+                                    currentOnGesture(dir ?: KeyGesture.TAP)
                                 }
-                                pressed = false
-                                flickPreview = null
                                 break
                             }
                         }
-                        repeatJob.cancel()
+                        repeatJob?.cancel()
                         pressed = false
-                        flickPreview = null
+                        flickTo = null
                     }
                 }
-            }
+            },
+        contentAlignment = Alignment.Center
     ) {
-        // 中央は常に主文字、背景色も不変。フリック方向の強調はヒント側 (四隅) だけで行う。
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(vertical = 1.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (flick?.up != null) HintText(flick.up.toString(), style, pressed)
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+        // ⚠ 上のヒントがあるときだけ Column にする。⚠ ヒントの無いキーまで Column にすると
+        //   縦の余白 1dp のぶん中央の字が動く (統合前の [BasicKey] と揃わない)。
+        if (key.showsHintFor(KeyGesture.UP) || key.showsHintFor(KeyGesture.DOWN)) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(vertical = 1.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = label,
-                    color = fg,
-                    fontSize = style.mainKeyFontSp.sp,
-                    lineHeight = style.mainKeyFontSp.sp,
-                    fontWeight = FontWeight.Medium,
-                    fontFamily = FontFamily.Monospace
-                )
+                hintTextOrNull(key, KeyGesture.UP)?.let { HintText(it, style, pressed) }
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        color = fg,
+                        fontSize = fontSp.sp,
+                        lineHeight = fontSp.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+                hintTextOrNull(key, KeyGesture.DOWN)?.let { HintText(it, style, pressed) }
             }
-        }
-        // 左右ヒントは Box overlay (Column と独立)
-        if (flick?.left != null) {
-            HintText(
-                flick.left.toString(),
-                style,
-                pressed,
-                modifier = Modifier.align(Alignment.CenterStart).padding(start = 3.dp)
+        } else {
+            Text(
+                text = label,
+                color = fg,
+                fontSize = fontSp.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = FontFamily.Monospace
             )
         }
-        if (flick?.right != null) {
-            HintText(
-                flick.right.toString(),
-                style,
-                pressed,
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 3.dp)
-            )
+        // 左右のヒントは Box に重ねる (縦の並びと独立)。
+        hintTextOrNull(key, KeyGesture.LEFT)?.let {
+            HintText(it, style, pressed, Modifier.align(Alignment.CenterStart).padding(start = 3.dp))
         }
-        // 押下中: キー直上のポップアップに「今このまま離すと確定する 1 文字」を大きく出す
-        // (0.8.405)。⚠ **かな面と同じ [FlickCommitPopup]** — 面が違うだけで指の動きは同じ
-        // なのに、こちらだけキー上のヒントを一瞬大きくする作りで**見え方が揃っていなかった**
-        // (利用者指摘)。キー上のヒントは平常どおり (かな面は薄白、英字面は緑) のまま。
-        if (pressed) {
-            FlickCommitPopup(text = (flickPreview ?: label.firstOrNull())?.toString() ?: label, style = style)
+        hintTextOrNull(key, KeyGesture.RIGHT)?.let {
+            HintText(it, style, pressed, Modifier.align(Alignment.CenterEnd).padding(end = 3.dp))
         }
+        // 押下中: キー直上に「今このまま離すと確定する 1 文字」を大きく出す (かな面と同じ)。
+        // ⚠ **離してから確定するキーだけ**。しきい値で即発火するキー (ESC・⌫・貼り付け) では
+        //   出しても見る間が無いうえ、行き先を隠す約束と食い違う。
+        if (pressed && hasFlick && key.flickOnRelease) {
+            val text = flickTo?.let { g ->
+                (key.actionsFor(g).firstOrNull() as? KeyAction.Text)?.text
+            } ?: label
+            FlickCommitPopup(text = text, style = style)
+        }
+    }
+}
+
+/** 指の動きから向きを決める。⚠ 割り当ての無い向きは null (= タップ扱い)。 */
+private fun directionOf(dx: Float, dy: Float, threshold: Float, key: KeyDef): KeyGesture? {
+    val horizontal = abs(dx) > abs(dy)
+    val g = when {
+        horizontal && abs(dx) > threshold -> if (dx < 0) KeyGesture.LEFT else KeyGesture.RIGHT
+        !horizontal && abs(dy) > threshold -> if (dy < 0) KeyGesture.UP else KeyGesture.DOWN
+        else -> null
+    } ?: return null
+    return if (key.bindings.containsKey(g)) g else null
+}
+
+/** その向きのヒントに出す文字。出さない設定 / 割り当て無しなら null。 */
+private fun hintTextOrNull(key: KeyDef, gesture: KeyGesture): String? {
+    if (!key.showsHintFor(gesture)) return null
+    return when (val a = key.actionsFor(gesture).firstOrNull()) {
+        is KeyAction.Text -> a.text
+        is KeyAction.App -> when (a.action) {
+            AppAction.PAD_PASTE -> "📋"
+            AppAction.PAD_EMOJI -> "😀"
+            else -> null
+        }
+        else -> null
     }
 }
 
@@ -925,111 +700,4 @@ private fun HintText(
         fontWeight = FontWeight.Medium,
         modifier = modifier
     )
-}
-
-/**
- * ⌫ 専用キー: タップ単発、長押し連打 (500ms 後から 60ms 間隔)、
- * 左フリックで onFlickLeft (Ctrl+W)、右フリックで onFlickRight (Ctrl+U)。
- */
-@Composable
-private fun RowScope.BackspaceKey(
-    weight: Float,
-    style: KeyboardStyle,
-    onTap: () -> Unit,
-    onFlickLeft: () -> Unit,
-    onFlickRight: () -> Unit
-) {
-    val scope = rememberCoroutineScope()
-    val currentOnTap by rememberUpdatedState(onTap)
-    val currentOnFlickLeft by rememberUpdatedState(onFlickLeft)
-    val currentOnFlickRight by rememberUpdatedState(onFlickRight)
-    Box(
-        modifier = Modifier
-            .weight(weight)
-            .height(style.keyHeight)
-            .clip(RoundedCornerShape(6.dp))
-            .background(ZtsBgCard)
-            .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
-            .pointerInput(Unit) {
-                val flickThreshold = viewConfiguration.touchSlop * 1.4f
-                awaitPointerEventScope {
-                    while (true) {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        val startX = down.position.x
-                        val startY = down.position.y
-                        var resolved = false       // フリック発火済み
-                        var repeatStarted = false  // 長押し連打開始
-                        var repeatJob: Job? = null
-
-                        repeatJob = scope.launch {
-                            delay(500)
-                            if (!resolved) {
-                                repeatStarted = true
-                                currentOnTap()
-                                while (isActive) {
-                                    delay(60)
-                                    currentOnTap()
-                                }
-                            }
-                        }
-
-                        while (true) {
-                            val event = awaitPointerEvent(PointerEventPass.Main)
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            val dx = change.position.x - startX
-                            val dy = change.position.y - startY
-                            if (!resolved && !repeatStarted &&
-                                abs(dx) > flickThreshold && abs(dx) > abs(dy)
-                            ) {
-                                resolved = true
-                                repeatJob.cancel()
-                                if (dx < 0) currentOnFlickLeft() else currentOnFlickRight()
-                                change.consume()
-                            }
-                            if (!change.pressed) {
-                                repeatJob.cancel()
-                                if (!resolved && !repeatStarted) currentOnTap()
-                                break
-                            }
-                        }
-                    }
-                }
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        // BS は ⌫ のみを表示。左右フリック (Ctrl+W / Ctrl+U) は隠し機能として
-        // ヒント表示せずに残す。
-        Text(
-            text = "⌫",
-            color = ZtsTextPrimary,
-            fontSize = style.keyFontSp.sp,
-            lineHeight = style.keyFontSp.sp,
-            fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace,
-            modifier = Modifier.align(Alignment.Center)
-        )
-    }
-}
-
-@Composable
-private fun RowScope.SpaceKey(weight: Float, style: KeyboardStyle, onClick: () -> Unit) {
-    val scope = rememberCoroutineScope()
-    val currentOnClick by rememberUpdatedState(onClick)
-    Box(
-        modifier = Modifier
-            .weight(weight)
-            .height(style.keyHeight)
-            .clip(RoundedCornerShape(6.dp))
-            .background(ZtsBgCard)
-            .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
-            .pointerInput(Unit) { detectTapWithRepeat(scope) { currentOnClick() } },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "space",
-            color = ZtsTextSecondary,
-            fontSize = (style.keyFontSp - 3f).coerceAtLeast(10f).sp,
-            fontFamily = FontFamily.Monospace
-        )
-    }
 }

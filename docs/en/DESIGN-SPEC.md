@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-25 / Target version: 0.8.406-alpha (versionCode 414)
+Last updated: 2026-08-26 / Target version: 0.8.407-alpha (versionCode 415)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2229,6 +2229,20 @@ entirely** — merging the widgets into one generic key is what finally deletes 
 - ⚠ **Split slots are not rendered yet** (today's layout has none): a `RowScope` is unavailable
   inside a vertical split, so the current `RowScope`-scoped widgets cannot be placed there. The
   merge stage handles it.
+
+**Stage 1d (0.8.407): the key widgets are merged into one, and split slots render.** ESC, ⌫,
+shift, the paste entry, space and letter keys each used to be **their own composable**, with the
+hidden gestures written inside them. ⭐ **Merging them into `KeyCell` is what lets a user build the
+same keys from a `KeyDef` alone** (the foundation for custom layouts). ⭐ `LayoutSlot` renders
+splits recursively, so "the arrow keys are half a key each" (user) can now actually be laid out.
+
+Every difference in looks and feel is now a `KeyDef` field: `hintGestures` (per direction),
+`flickOnRelease` (⚠ letter keys commit on release, ESC/⌫/paste fire the moment the threshold is
+crossed), `pressFeedback`, `highlighted`, `labelTone`, `fontRole` and the repeat timings
+(⚠ ⌫ starts repeating at 500ms — faster deletes too much).
+
+⚠ The row under an open pad uses the same path (`asciiPadRow`). ⚠ Shift shows its three states in
+colour instead of a press highlight. ⚠ **Not yet verified on a device** (this build is not installed).
 
 #### 6.1.1 The numbers-only face (0.8.305)
 

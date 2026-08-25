@@ -77,6 +77,9 @@ enum class AppAction(val id: String) {
     PAD_PASTE("pad_paste"),
     PAD_EMOJI("pad_emoji"),
 
+    /** 開いているパッドを閉じる（パッドの下に出る行の `×`）。 */
+    CLOSE_PAD("close_pad"),
+
     /** 内蔵キーボードを閉じる / OS のキーボードへ渡す。 */
     HIDE_KEYBOARD("hide_keyboard"),
     SWITCH_IME("switch_ime"),
@@ -146,7 +149,19 @@ sealed interface KeyAction {
  *
  * @param label 表に出す文字。空なら描画側が [bindings] の TAP から起こす。
  * @param bindings どのイベントで何が起きるか。載っていない [KeyGesture] は「割り当て無し」。
- * @param showHint フリック先の小さな表示を出すか（複数選択で一括変更できるようにする・要望）。
+ * @param hintGestures 行き先をキーの上に小さく出す方向（0.8.407）。⚠ **方向ごとに持つ** —
+ *   英字キーは上・左右だけ出して下（大文字）は出さず、貼り付けキーは上下だけ出す。キー単位の
+ *   ON/OFF では今の見た目を表せない。複数選択の一括変更（要望）は「全部入れる / 空にする」。
+ * @param repeatInitialMs 長押しから連打が始まるまで。⚠ ⌫ だけ 500ms と遅い（誤爆を減らすため）。
+ * @param repeatIntervalMs 連打の間隔。
+ * @param pressFeedback 押している間、背景を明るい緑にするか。⚠ `space` と ⇧ は変えない。
+ * @param flickOnRelease フリックを**指を離したとき**に確定するか（0.8.407）。⚠ 文字キーは
+ *   離すまで確定しない（途中で方向を変えられる・確定する文字がポップアップに出る）が、
+ *   **ESC / ⌫ / 貼り付けの入口はしきい値を超えた瞬間に発火する**。行き先を出さない隠し操作
+ *   なので、迷う余地が無く、そのぶん速い。ここを揃えると操作感が変わる。
+ * @param labelTone ラベルの色。`space` だけ控えめ。
+ * @param highlighted 押していなくても目立たせる（緑地）。パッドの `×` のように、
+ *   「いまここを押せば戻れる」と分かってほしいキーに使う。
  * @param repeatable 長押しで連打するか（⌫ や矢印）。⚠ 修飾やレイヤー切替では OFF にする。
  * @param layers 状況別の上書き。キーは layer 名（`shift` / `sym` / 自作）。
  *   ⚠ **差分ではなく丸ごと差し替え**にする。差分にすると「どこが継承でどこが上書きか」が
@@ -155,8 +170,14 @@ sealed interface KeyAction {
 data class KeyDef(
     val label: String = "",
     val bindings: Map<KeyGesture, List<KeyAction>> = emptyMap(),
-    val showHint: Boolean = true,
+    val hintGestures: Set<KeyGesture> = emptySet(),
     val repeatable: Boolean = false,
+    val repeatInitialMs: Long = DEFAULT_REPEAT_INITIAL_MS,
+    val repeatIntervalMs: Long = DEFAULT_REPEAT_INTERVAL_MS,
+    val pressFeedback: Boolean = true,
+    val flickOnRelease: Boolean = true,
+    val highlighted: Boolean = false,
+    val labelTone: LabelTone = LabelTone.PRIMARY,
     val fontRole: KeyFontRole = KeyFontRole.NORMAL,
     val layers: Map<String, KeyDef> = emptyMap(),
 ) {
@@ -166,7 +187,17 @@ data class KeyDef(
     /** [gesture] に割り当てられたアクション列（無ければ空）。 */
     fun actionsFor(gesture: KeyGesture): List<KeyAction> = bindings[gesture].orEmpty()
 
+    /** フリックの割り当てが 1 つでもあるか。 */
+    fun hasFlick(): Boolean = KeyGesture.FLICKS.any { bindings.containsKey(it) }
+
+    /** [gesture] の行き先を、キーの上に小さく出すか。 */
+    fun showsHintFor(gesture: KeyGesture): Boolean = gesture in hintGestures
+
     companion object {
+        /** 長押し連打の既定。 */
+        const val DEFAULT_REPEAT_INITIAL_MS = 400L
+        const val DEFAULT_REPEAT_INTERVAL_MS = 55L
+
         /** タップで文字を送るだけのキー（一番よく使う形）。 */
         fun text(label: String, send: String = label, fontRole: KeyFontRole = KeyFontRole.MAIN): KeyDef =
             KeyDef(
@@ -196,6 +227,19 @@ data class KeyDef(
                 bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.Modifier(mod))),
                 fontRole = fontRole,
             )
+    }
+}
+
+/** ラベルの色の役どころ（0.8.407）。⚠ `space` だけ控えめな色で描くために要る。 */
+enum class LabelTone(val id: String) {
+    /** ふつうのキー。 */
+    PRIMARY("primary"),
+
+    /** 主役ではないキー（`space`）。字を控えめにして、隣の文字キーを目立たせる。 */
+    SECONDARY("secondary");
+
+    companion object {
+        fun byId(id: String): LabelTone? = entries.firstOrNull { it.id == id }
     }
 }
 

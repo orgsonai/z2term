@@ -35,7 +35,7 @@ class AsciiKeyLayoutTest {
         assertEquals(listOf("⇧") + AsciiKeys.ROW3 + "⏎", labelsOf(l.rows[2]))
         assertEquals(listOf("CTRL") + AsciiKeys.ROW4, labelsOf(l.rows[3]))
         // 最下段の左端は面の切替キー。⚠ ラベルは「押すと行く面」なので描画側が入れる（空）。
-        assertEquals(listOf("", "?#", "ALT", "SPACE", "←", "↓", "↑", "→"), labelsOf(l.rows[4]))
+        assertEquals(listOf("", "?#", "ALT", "space", "←", "↓", "↑", "→"), labelsOf(l.rows[4]))
     }
 
     // ---- シンプル版（COMPACT）: 上にバーが増えて 6 段 --------------------------------------
@@ -188,7 +188,9 @@ class AsciiKeyLayoutTest {
             bs.actionsFor(KeyGesture.RIGHT),
         )
         // ⚠ どちらも印を出さない（隠したままにするのが利用者の判断）。
-        assertTrue(!esc.showHint && !bs.showHint)
+        assertTrue(esc.hintGestures.isEmpty() && bs.hintGestures.isEmpty())
+        // ⚠ しきい値を超えた瞬間に発火する（文字キーのように離すまで待たない）。
+        assertTrue(!esc.flickOnRelease && !bs.flickOnRelease)
     }
 
     // ---- 全プリセットが壊れていない -----------------------------------------------------------
