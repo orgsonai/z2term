@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-25 / Target version: 0.8.401-alpha (versionCode 409)
+Last updated: 2026-08-25 / Target version: 0.8.402-alpha (versionCode 410)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2123,6 +2123,53 @@ On failure: fall back to launchAndroidSh
   - **Tap = paste, flick up = paste, flick down = emoji (0.8.397).** ⚠ **Same up/down assignment as ESC on the kana and number faces** — up to 0.8.396 flick up meant emoji, so **the same two pads were reached by opposite directions depending on the face** (on ESC, up is paste and down is emoji). ⚠ Flick up maps to paste rather than emoji so that it matches the tap: **drifting upwards does not change where you land**. ⚠ The key draws 📋 at the top edge, 😀 at the bottom edge and ↕ in the middle, so **the key itself explains the entry point** — the lesson from the ESC up-flick on the Japanese layout, which went unused because it was invisible. The middle changed from 📋 to ↕ to **show first that there is somewhere to go up and down**; the tap target is covered by the 📋 on the top edge.
   - ⚠ **The Latin ESC gets the same up/down flicks (`SilentEscKey`, 0.8.362, user request).** `PadKey`'s seat **only frees up on a face without a switch key**, so **in a Japanese locale the Latin face had no entry point at all** (you could go back to the kana face to open it, but that means hopping between faces mid-word). A flick on ESC costs no seat and gives the **same finger movement** as the kana and number faces. ⚠ **No marks and no popup (user's call).** The kana ESC prints hints on its top and bottom edges, but that face is already a grid of keys carrying extra glyphs, so they fit in; the Latin face is a grid of plain keys and marks there **change the look of the face**. Discoverability is handled in the HANDBOOK instead, and the key's appearance stays put. ⚠ **It behaves identically in an English locale** — keying the ESC behaviour off whether `PadKey` exists would mean **the same face responds to a different finger movement depending on the device language**.
   - While the pad is open the layer is swapped wholesale, **keeping only the bottom row of function keys (× ⌫ space ⏎ ← →)**. ⚠ Unlike the Japanese layout it does not keep the edge columns: with 10 columns they are too narrow to be a finger target. ⌫ is not replaced by "close", same as the Japanese layout (you would lose the ability to delete right after pasting).
+
+#### 6.1.0 Custom key mapping — the layout model (0.8.402, stage 1a)
+
+⚠ **Nothing uses this yet.** The renderer (`TerminalKeyboard`) is still five hand-written rows and
+the screen has not moved by a single pixel. **What the model can express is locked down by tests
+before the renderer moves onto it** — swap the renderer at the same time and a breakage cannot be
+attributed to the model or to the drawing.
+
+**The core idea is to remove special cases**: today ESC, ⌫ and the face-switch key are each their own
+Composable, with the hidden gestures written inside them. Once every key has the same shape, "flick
+ESC up/down" and "flick ⌫ left/right" become **ordinary bindings a user can author**.
+
+`ui/terminal/keyboard/KeyLayout.kt`, in five layers:
+
+1. **Container**: `KeyLayout` → `KeyRow` → `KeySlot` → `SlotContent` (one key, or a split)
+2. **Gestures**: `KeyGesture` = `tap / up / down / left / right / long press / double tap`.
+   ⭐ **There is no "1-way / 2-way / 3-way flick" concept in the model** — it is only which entries
+   are filled in, so rules like "two-way means left/right or up/down" become **editor affordances**
+3. **Actions**: a **sequence** of `KeyAction`. `Text` / `Named` (arrows, F1-F12 — ⚠ held **as IDs, never
+   as baked-in byte strings**, because DECCKM changes what they send) / `Chord` (`Ctrl+C`, i.e. the
+   aux-bar equivalent) / `Raw` (an escape hatch for sequences we have no name for) / `Modifier` /
+   `Layer` / `App` / `Snippet` / `Macro`. ⭐ Being a sequence, `Ctrl+A` → `d` fits on one key
+4. **Layers**: `KeyDef.layers` (shift / symbol / a home-made Fn). ⚠ **A layer replaces the key
+   wholesale, not by diff** — with diffs, an editor cannot show what is inherited and what is
+   overridden, and edits appear not to take
+5. **Faces**: hold several `KeyLayout`s and cycle them (the caller's job)
+
+**Width redistribution** (`KeyRow.weights`): a row's budget is its slot count; the sum of
+`KeyWidth.Fixed` (a multiple of one even slot) is subtracted and the remainder split across the
+`KeyWidth.Auto` slots. ⭐ This is exactly the requested behaviour: pin one key and the rest
+redistribute evenly; pin another and only the remainder redistributes again (**pinned keys never
+move**). ⚠ Even when fixed widths exceed the budget, Auto never drops to zero (`MIN_WEIGHT`) —
+a zero-width key **stays in the row but cannot be pressed**, which reads as breakage.
+
+**Splitting a slot** (`SlotContent.Split`): ⭐ **either direction (vertical / horizontal), up to
+depth 2**. This is the answer to the user's observation that "**the arrow keys are half a key each**"
+(split vertically, then each half horizontally = a 2×2 pad). ⛔ A third level is rejected
+(`MAX_SPLIT_DEPTH`) — a finger can no longer land on the intended region. ⛔ A true 2-D grid
+(rowSpan/colSpan) is also rejected: it cannot be edited with a finger, whereas rows + splits always
+reach any key in two steps ("pick the row, pick the region").
+
+**A way back** (`KeyLayout.hasEscapeHatch`): `validate()` rejects a layout with no face switch, no
+settings key and no hide key. ⛔ Applying one **removes every route back to Settings from the
+keyboard** (the same reasoning behind "the ASCII face always stays" in `KeyboardFace` and "⚙ cannot
+be hidden" in the toolbar).
+
+Locked down by `KeyLayoutTest` (redistribution, split depth, escape hatch, action sequences, layers).
 
 #### 6.1.1 The numbers-only face (0.8.305)
 
