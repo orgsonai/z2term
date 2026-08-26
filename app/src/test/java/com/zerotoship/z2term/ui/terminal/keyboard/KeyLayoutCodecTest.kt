@@ -47,6 +47,22 @@ class KeyLayoutCodecTest {
         assertEquals(original, roundTrip(original))
     }
 
+    /** 日本語・数字の対象面と編集用プリセットが欠けずに往復する。 */
+    @Test fun twelveKeyFaces_surviveTheRoundTrip() {
+        listOf(japaneseKeyLayout(), numberKeyLayout()).forEach { original ->
+            assertTrue(original.validate().isEmpty())
+            assertEquals(original, roundTrip(original))
+            assertEquals(original.faceId, KeyLayoutCodec.encode(original)["face"])
+        }
+    }
+
+    /** 旧JSONは face 省略 = 英字として読み、保存済み配列との互換を保つ。 */
+    @Test fun missingFace_meansAscii() {
+        val encoded = KeyLayoutCodec.encode(oneKeyLayout(KeyDef.text("a")))
+        assertEquals(null, encoded["face"])
+        assertEquals(KeyboardFace.ASCII.id, KeyLayoutCodec.decode(encoded)?.faceId)
+    }
+
     // ---- 表せることの網羅 ------------------------------------------------------------------
 
     /** ⭐ 分割は**向き自由で深さ 2**（矢印の田の字）。取り分もそのまま戻ること。 */
@@ -223,6 +239,30 @@ class KeyLayoutCodecTest {
         assertEquals(KeyWidth.Fixed(2f), row.slots[0].width)
         assertEquals(KeyWidth.Fixed(1.4f), row.slots[1].width)
         assertEquals(500L, (row.slots[0].content as SlotContent.Single).key.repeatInitialMs)
+    }
+
+    @Test fun nonFiniteRatios_fallBackToSafeDefaults() {
+        val node = mapOf(
+            "id" to "x", "name" to "x",
+            "rows" to listOf(
+                mapOf(
+                    "slots" to listOf(
+                        mapOf(
+                            "w" to Double.MAX_VALUE,
+                            "split" to "h",
+                            "parts" to listOf(
+                                mapOf("r" to Double.MAX_VALUE, "key" to mapOf("label" to "a")),
+                                mapOf("r" to Double.NaN, "key" to mapOf("label" to "b")),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val slot = KeyLayoutCodec.decode(node)!!.rows[0].slots[0]
+        assertEquals(KeyWidth.Auto, slot.width)
+        val parts = (slot.content as SlotContent.Split).parts
+        assertEquals(listOf(1f, 1f), parts.map { it.ratio })
     }
 
     /** 書き出したものに既定値が入っていないこと（AI に読み書きさせるので短さが機能のうち）。 */

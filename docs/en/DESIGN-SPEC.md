@@ -2193,10 +2193,9 @@ two copies and the test will happily report a match after only one of them was e
   change the number of slots**, but the symbol face drops Row 4 from **10 keys to 8** (`?§°¥€£~…`).
   Anything that changes slot counts has to be **its own layout**. Shift keeps the slot count, so it
   stays a layer as planned.
-- ⭐ **Preset widths are all `KeyWidth.Fixed`.** `Auto` redistributes against a budget of "one per
-  slot", which changes the ratios away from today's `ESC 1.4 + letters 1.0×10 + ⌫ 1.4` (12.8 total)
-  and **moves the layout visibly**. Layouts authored from scratch use `Auto`, where the requested
-  "widen one and the rest shrink evenly" behaviour applies.
+- ⭐ **Through 0.8.410 preset widths were all `KeyWidth.Fixed`.** At Stage 1b this preserved the
+  then-current `ESC 1.4 + letters 1.0×10 + ⌫ 1.4` proportions. 0.8.411 deliberately replaces that
+  historical sizing: typing keys now use `Auto` and only function keys keep explicit widths (see below).
 - **The escape-hatch check was removed from `validate()`.** On the terminal screen the ⚙ button
   lives **outside the keyboard**, and today's default arrangement genuinely has no face-switch key
   when the ASCII face is the only one (CTRL takes that slot). Requiring it would **reject the
@@ -2263,12 +2262,10 @@ switched to. ⚠ **There is no editor for the keys themselves yet** (that is the
   action kinds and enum ids cost one binding, not the layout. A layout **vanishing** when an older
   build opens JSON written by a newer one is the worst outcome. ⚠ Raw bytes travel as hex: put real
   control characters in a JSON string and one trip through an editor or the clipboard breaks them.
-- ⭐ **Duplicating rewrites `Fixed(1.0)` to `Auto`** (`asTemplate`). Presets pin every width so the
-  screen does not move (stage 1b); copied as-is they would be templates where **widening one key
-  shrinks nothing else**, which is exactly the request. ⚠ Widths that were widened on purpose —
-  1.4 (edge keys), 1.2 (`?#`, ALT), 4.0 (space) — stay. ⚠ The cost is that a copy's proportions
-  shift slightly (Row 1 was drawn as `1.4 + 1.0×10 + 1.4` = 12.8; sharing a budget of 12 slots
-  makes the letters 1.0 → 0.92).
+- ⭐ **Duplicating rewrites `Fixed(1.0)` to `Auto`** (`asTemplate`). This originally converted the
+  all-fixed Stage 1b preset into an editable template. Since 0.8.411, typing keys are already `Auto`;
+  the conversion remains for a fixed-width face key and layouts saved by older builds. Deliberate
+  widths such as 1.4 (ESC/⌫/CTRL), 0.8 (`?#`/ALT) and 2.0 (space) remain fixed.
 - **Only the plain Latin face is replaced.** ⚠ The symbol face (`?#`) stays on the preset: its slot
   count changes (10 → 8), so it cannot be a layer and needs a sheet of its own (stage 1b). ⚠ The
   same layout is handed to **both the terminal screen and the OS input method** — leaving one on
@@ -2288,6 +2285,64 @@ switched to. ⚠ **There is no editor for the keys themselves yet** (that is the
   yields a layout with no switch key, so turning the number face on later leaves no way to reach it.
   The terminal's ⚙ toolbar still gets back to the default; the real fix is placing a switch key in
   the editor, which stage 3's save-time `hasEscapeHatch` warning points at.
+
+**Stage 3 (0.8.409): one layout can now be edited as JSON.** A saved layout has an “Edit contents
+(JSON)” entry. `KeyLayoutJson.toPrettyJsonString` indents the **same codec tree** used for persistence,
+so rows, frames, widths, vertical/horizontal splits, all seven gestures, action sequences and layers all
+round-trip without loss. JSON is not merely an export: it is the supported entry for pasting a layout
+drafted with an AI. A partial form would otherwise drop any action it did not know merely by opening and
+saving a layout, so the lossless full-model entry comes first.
+
+- **Typing never changes the live layout.** An incomplete document does not reach DataStore; Save is
+  enabled only after both `fromJsonString` and `KeyLayout.validate()` succeed.
+- **The edited layout keeps its id.** A pasted `id` is replaced by the selected layout's id. It is an
+  identity referenced by the active selection, not a renameable label; changing it would make the saved
+  layout disappear from its own selection immediately. Name and contents still come from the JSON.
+- ⚠ **No escape hatch warns rather than rejects.** When `hasEscapeHatch()` is false, Save explains that
+  the OS input-method surface has no terminal toolbar and may offer no way out. Saving remains possible
+  for layouts intentionally used only inside the terminal, preserving Stage 1b's validation decision.
+- **Unsaved changes are confirmed before closing**, including the downward sheet gesture. Stored JSON
+  stays compact; indentation exists only for the one object currently shown to a person.
+
+**Stage 4 (0.8.410): a layout-shaped GUI now edits the layout in place.** “Edit contents” opens a
+preview first. Tap a key to edit its label, outer-frame width, appearance and per-gesture action sequence;
+parts inside a split are recursively selectable. Rows and outer frames can be added, removed and moved,
+and a key can be split left/right or top/bottom (to depth two) or collapsed to the selected part.
+
+- ⭐ **Visual and JSON modes share one draft.** There are not two states to synchronise: every visual
+  operation serialises through `KeyLayoutJson.toPrettyJsonString` back into the same `source`. JSON mode
+  shows that result, and returning to Visual shows the same parsed object. A visual edit therefore cannot
+  be silently replaced by a stale JSON copy on Save.
+- **`KeyCellPath(row, slot, parts)` identifies a leaf.** `parts` is the index trail through splits, so
+  even the bottom-right key of a four-way frame is unambiguous. Android-free transforms live in
+  `KeyLayoutEditing.kt`: invalid paths are no-ops and the last row/frame cannot be removed.
+  `KeyLayoutEditingTest` pins nested single-key replacement, the depth-three rejection, collapsing a
+  two-part split after deletion, moves, widths and row/frame guards.
+- **All seven gestures own an action sequence.** Actions can be added, removed and reordered, and the GUI
+  can create every kind: `Text`, `Named`, `Chord`, `Raw`, `Modifier`, `Layer`, `App`, `Snippet`, `Macro`.
+  A chord keeps at least one modifier and chooses text or named-key output. Raw input only applies complete
+  pairs of hex digits, so an odd digit being typed cannot destroy the current bytes.
+- ⚠ **Fields the GUI does not touch are preserved.** Even a label edit uses `KeyDef.copy`, retaining repeat
+  timing, layers and future fields. Layer contents remain an advanced JSON edit; the GUI names the layers
+  it is preserving so their existence is not hidden.
+- **Structural deletion edits only the draft and still requires Save.** Cancel restores everything, so
+  every key deletion does not stack another confirmation dialog; Stage 3's unsaved-close confirmation
+  remains the single safety boundary.
+
+**Default Latin/symbol sizing (0.8.411).** The default spacious Latin face now uses the requested
+proportions: ESC/⌫/CTRL = 1.4, TAB/Enter = 1.2, Shift = 1.3, face switch = 1.0, `?#`/ALT = 0.8 and
+space = 2.0. Digits, letters, punctuation and arrows use `Auto`, sharing what remains in their row.
+The symbol sheet is still separate because its fourth row has eight keys, but it is built with the
+same row/role width rules, so switching to `?#` no longer restores the older wider modifiers and space.
+No labels, flick destinations or actions changed.
+
+**Fixed multi-face layout editor (0.8.412).** The editor is now a non-dismissible full-screen dialog,
+not a draggable temporary sheet. A saved layout carries a backward-compatible `face` (`ascii` when
+omitted), so the built-in Latin, Japanese and number presets and another custom layout can all be
+duplicated and edited. Only the matching face consumes the active custom layout. Multi-selection
+applies outer width, appearance fields and an explicitly copied gesture to all selected keys; width
+also has a 0.2–5.0 slider. The numeric draft is remembered by key rather than by parsed width, which
+keeps transient but meaningful text such as `1.` while typing.
 
 #### 6.1.1 The numbers-only face (0.8.305)
 

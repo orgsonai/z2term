@@ -121,6 +121,7 @@ import com.zerotoship.z2term.ui.terminal.NoOsSettingsNotice
 import com.zerotoship.z2term.ui.terminal.ToolbarButtons
 import com.zerotoship.z2term.ui.terminal.guideDesc
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyLayoutJson
+import com.zerotoship.z2term.ui.terminal.keyboard.KeyLayout
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
@@ -128,6 +129,8 @@ import com.zerotoship.z2term.ui.terminal.keyboard.asTemplate
 import com.zerotoship.z2term.ui.terminal.keyboard.asciiKeyLayout
 import com.zerotoship.z2term.ui.terminal.keyboard.newKeyLayoutId
 import com.zerotoship.z2term.ui.terminal.keyboard.nextActiveAfterRemove
+import com.zerotoship.z2term.ui.terminal.keyboard.japaneseKeyLayout
+import com.zerotoship.z2term.ui.terminal.keyboard.numberKeyLayout
 import com.zerotoship.z2term.ui.terminal.keyboard.removeLayout
 import com.zerotoship.z2term.ui.terminal.keyboard.renameLayout
 import com.zerotoship.z2term.ui.terminal.keyboard.uniqueKeyLayoutName
@@ -2889,15 +2892,14 @@ private fun folderLabel(treeUri: String): String? {
 }
 
 /**
- * 自分で作るキー配列 (0.8.408・段階 2)。
+ * 自分で作るキー配列 (0.8.408〜0.8.411・段階 2〜4 + 既定サイズ改定)。
  *
- * ⚠ **まだ「複製して切り替える」まで。** キーの中身を編集する画面 (段の増減・幅・割り当て) は
- * 次の段階。ここで先に一覧と切替を出しておくのは、エディタが「一覧から 1 枚を開く」形に
- * なるので、入口が先に要るため。
+ * 段階 3 の JSON 全量編集に加え、段階 4 では見た形のプレビューからキーを選ぶ GUI を追加。
+ * 段・幅・分割・各ジェスチャのアクション列を触れ、レイヤー等の高度な項目は JSON で編集する。
+ * 両モードは同じ下書きを共有し、保存時に構造検証と「逃げ場」の警告を通す。
  *
- * ⚠ 複製すると**幅が [KeyWidth.Auto] へ戻る** ([asTemplate])。プリセットは見た目を動かさない
- * ために幅を全部固定で書いてあり、そのまま複製すると「1 つ広げても他が縮まない」テンプレートに
- * なってしまう。説明文でその 1 点だけを断ってある。
+ * 文字・数字・記号・矢印は既定プリセットから [KeyWidth.Auto]。複製時は旧プリセット等に残る
+ * `Fixed(1.0)` も [asTemplate] が Auto へ読み替え、1 枠を広げると残りが均等に縮む。
  */
 @Composable
 private fun KeyLayoutSection(settings: AppSettings.Snapshot, session: TerminalSession) {
@@ -2908,14 +2910,35 @@ private fun KeyLayoutSection(settings: AppSettings.Snapshot, session: TerminalSe
     // ⚠ 束に無い id が選ばれていることは普通に起きる (別の端末の設定を戻した等)。
     // その場合は「既定」を選んでいる扱いにする — 一覧に無いものを選択中に見せない。
     val active = layouts.firstOrNull { it.id == settings.keyboardLayoutActiveId }
+    var editingId by remember { mutableStateOf<String?>(null) }
     val newName = stringResource(R.string.settings_key_layout_new_name)
+    val newKanaName = stringResource(R.string.settings_key_layout_new_kana_name)
+    val newNumberName = stringResource(R.string.settings_key_layout_new_number_name)
+    val copyName = stringResource(R.string.settings_key_layout_copy_name)
     val defaultLabel = stringResource(R.string.settings_key_layout_default)
     // ⚠ 見出しは Composable の外で組む (`stringResource` を lambda の中で呼ばない)。
     val chipLabels = remember(layouts, defaultLabel) {
         LinkedHashMap<String, String>().apply {
             put("", defaultLabel)
-            layouts.forEach { put(it.id, it.name.ifBlank { it.id }) }
+            layouts.forEach {
+                val face = when (KeyboardFace.byId(it.faceId)) {
+                    KeyboardFace.ASCII -> "ABC"
+                    KeyboardFace.KANA -> "あ"
+                    KeyboardFace.NUMBER -> "12"
+                }
+                put(it.id, "$face  ${it.name.ifBlank { it.id }}")
+            }
         }
+    }
+
+    fun duplicate(source: KeyLayout, baseName: String) {
+        val copy = source.asTemplate(
+            id = newKeyLayoutId(layouts),
+            name = uniqueKeyLayoutName(layouts, baseName),
+        )
+        session.setKeyboardLayoutsJson(KeyLayoutJson.toJsonString(layouts.upsertLayout(copy)))
+        if (copy.faceId == KeyboardFace.NUMBER.id) session.setKeyboardNumberFace(true)
+        session.setKeyboardLayoutActiveId(copy.id)
     }
 
     Section(title = stringResource(R.string.settings_section_key_layout)) {
@@ -2938,25 +2961,31 @@ private fun KeyLayoutSection(settings: AppSettings.Snapshot, session: TerminalSe
             // ⚠ **ここで決まった「面の切替キーの有無」は配列に焼き付く** (プリセットは
             // 毎回決め直している)。英語表示 ∧ 数字面 OFF で複製すると切替キーが無い配列に
             // なり、あとで数字面を ON にしても数字面へ行けない。切替キーを自分で置けるように
-            // するのはエディタ (段階 3) の仕事。それまでは「既定」へ戻せば元に戻る。
+            // するのは GUI / JSON エディタ (段階 4) の仕事。「既定」へ戻せば元にも戻せる。
             val faces = KeyboardFace.available(
                 KeyboardFace.orderFrom(settings.keyboardFaceOrder, settings.keyboardNumberFace),
                 allowKana = LocaleHelper.language(context) == LocaleHelper.LANG_JA
             )
-            val copy = asciiKeyLayout(
-                compact = style.id == KeyboardStyle.COMPACT.id,
-                hasFaceKey = faces.size > 1,
-                symbols = false,
-                fourWayFlick = style.fourDirectionFlick
-            ).asTemplate(
-                id = newKeyLayoutId(layouts),
-                name = uniqueKeyLayoutName(layouts, newName)
+            duplicate(
+                asciiKeyLayout(
+                    compact = style.id == KeyboardStyle.COMPACT.id,
+                    hasFaceKey = faces.size > 1,
+                    symbols = false,
+                    fourWayFlick = style.fourDirectionFlick,
+                ),
+                newName,
             )
-            session.setKeyboardLayoutsJson(KeyLayoutJson.toJsonString(layouts.upsertLayout(copy)))
-            // 作ったらそのまま使う。作っただけで切り替わらないと、押した手応えが無い。
-            session.setKeyboardLayoutActiveId(copy.id)
+        }
+        ActionButton(label = stringResource(R.string.settings_key_layout_duplicate_kana)) {
+            duplicate(japaneseKeyLayout(), newKanaName)
+        }
+        ActionButton(label = stringResource(R.string.settings_key_layout_duplicate_number)) {
+            duplicate(numberKeyLayout(), newNumberName)
         }
         if (active != null) {
+            ActionButton(label = stringResource(R.string.settings_key_layout_duplicate_active)) {
+                duplicate(active, copyName)
+            }
             TextField(
                 title = stringResource(R.string.settings_key_layout_name),
                 placeholder = newName,
@@ -2968,11 +2997,14 @@ private fun KeyLayoutSection(settings: AppSettings.Snapshot, session: TerminalSe
                 }
             )
             Text(
-                text = stringResource(R.string.settings_key_layout_symbols_note),
+                text = stringResource(R.string.settings_key_layout_target_note),
                 color = ZtsTextSecondary,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace
             )
+            ActionButton(label = stringResource(R.string.settings_key_layout_edit)) {
+                editingId = active.id
+            }
             ActionButton(
                 label = stringResource(R.string.settings_key_layout_delete),
                 danger = true
@@ -2987,6 +3019,19 @@ private fun KeyLayoutSection(settings: AppSettings.Snapshot, session: TerminalSe
                 )
             }
         }
+    }
+
+    // 保存済みの 1 枚だけを編集する。編集中は DataStore を触らず、保存が成立した瞬間に
+    // upsert するので、途中の壊れた JSON がいま使っているキーボードへ流れない。
+    layouts.firstOrNull { it.id == editingId }?.let { editing ->
+        KeyLayoutEditorSheet(
+            initial = editing,
+            onSave = { saved ->
+                session.setKeyboardLayoutsJson(KeyLayoutJson.toJsonString(layouts.upsertLayout(saved)))
+                editingId = null
+            },
+            onDismiss = { editingId = null },
+        )
     }
 }
 

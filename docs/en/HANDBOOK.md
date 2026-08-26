@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.408-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.412-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -477,7 +477,7 @@ Settings are split into **8 groups** (Display / Keyboard and input / Linux envir
 | Keyboard style | Simple / 4-direction flick |
 | Show the number face | Adds a **numbers-only face** (a keypad) to the built-in keyboard (0.8.305), so the switch key cycles through `12` as well. Turn it off and you are back to **あ → A → あ** as before |
 | Face switching order | **あ → A → 12** or **あ → 12 → A** (0.8.305). ⚠ Those two are all there is — the faces cycle round, so `A → 12 → あ` is the same rotation as the first. Shown **only when the number face is on and the app language is Japanese**, since with two faces there is no order to speak of |
-| Key layout (your own) | **Duplicate the letter face and switch to your copy** (0.8.408). "Duplicate the letter layout" copies exactly the face you are looking at and starts using it; rename it as you like. ⚠ **There is no editor for the keys yet** (it lands in the next stage). ⚠ A copy differs from the default in one way: **widths go back to sharing the row evenly**, so widening one key later makes the others shrink to match. (The built-in face pins its widths so the screen never moves, and a straight copy of that would be a layout where widening one key shrinks nothing.) ⚠ **The symbol face (`?#`) stays on the default** — it has a different number of keys, so it needs a sheet of its own. ⚠ Layouts you make **travel with settings export/import** |
+| Key layout (your own) | Duplicate the built-in **letter, Japanese or number face**, or any selected custom layout, then edit the copy (0.8.412). The editor is a fixed full-screen window with a layout preview and JSON mode. Tap several keys to apply width (text or slider), font role, repeat/feedback/highlight/tone/hints, or one gesture assignment to all of them; structural edits and labels stay on the primary key. A partially typed decimal such as `1.` is preserved. Each saved layout targets ABC, あ or 12; other faces retain their defaults. Invalid structures cannot be saved and a missing escape action is warned. Layouts **travel with settings export/import**. |
 | User dictionary | **Add your own words from a file** (0.8.280). "Choose a dictionary file" picks a text file on the phone and its words start appearing in conversion straight away. One word per line, in **either of two layouts** (0.8.282): `reading /candidate1/candidate2/` (the SKK dictionary format, e.g. `ずーたーむ /Z2Term/z2term/`) or `reading<TAB>word<TAB>part-of-speech` (what dictionary tools export, e.g. `あいぎょう→愛楽→名詞`; a fourth note column is fine). Lines starting with `;` or `#` are treated as notes and skipped. ⚠ **Write readings in hiragana.** UTF-8 and EUC-JP files are both read. Imported files are listed so you can remove one when you no longer want it. ⚠ Up to 8MB per file. If no words could be read you are told immediately, so a format mistake is not silent |
 | Special key bar (with the OS keyboard) | Whether the **ESC, TAB, CTRL and arrow keys** appear above your phone's own keyboard while it is selected (0.8.279). Turn it off and they are not shown. The built-in keyboard never had them, so it is unaffected |
 | Japanese IME learning history | The phrases the converter has learned. Search and delete them one by one, or clear them all |

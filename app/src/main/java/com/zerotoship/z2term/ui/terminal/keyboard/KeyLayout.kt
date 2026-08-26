@@ -85,7 +85,13 @@ enum class AppAction(val id: String) {
     SWITCH_IME("switch_ime"),
 
     /** 設定を開く。⚠ これも逃げ場になる。 */
-    SETTINGS("settings");
+    SETTINGS("settings"),
+
+    /** かな漢字変換 / 再変換。かな面の編集可能プリセットで使う。 */
+    IME_CONVERT("ime_convert"),
+
+    /** カーソル直前のかなを濁点 → 半濁点 → 小書き → 元へ巡回する。 */
+    IME_DAKUTEN("ime_dakuten");
 
     companion object {
         fun byId(id: String): AppAction? = entries.firstOrNull { it.id == id }
@@ -348,6 +354,8 @@ data class KeyLayout(
     val id: String,
     val name: String,
     val rows: List<KeyRow>,
+    /** この 1 枚を使う面。既存保存値は省略 = 英字として読み、後方互換を保つ。 */
+    val faceId: String = KeyboardFace.ASCII.id,
 ) {
     /** すべてのキー（分割の中も含む。レイヤーでの姿は含まない）。 */
     fun allKeys(): List<KeyDef> = rows.flatMap { row ->
@@ -378,8 +386,8 @@ data class KeyLayout(
             row.slots.forEachIndexed { j, slot ->
                 checkContent(slot.content, depth = 1, where = "row $i slot $j", into = problems)
                 val w = slot.width
-                if (w is KeyWidth.Fixed && w.ratio <= 0f) {
-                    problems.add("row $i slot $j has a non-positive fixed width")
+                if (w is KeyWidth.Fixed && (!w.ratio.isFinite() || w.ratio <= 0f)) {
+                    problems.add("row $i slot $j has an invalid fixed width")
                 }
             }
         }
@@ -397,7 +405,9 @@ data class KeyLayout(
                 if (content.parts.size !in MIN_SPLIT_PARTS..MAX_SPLIT_PARTS) {
                     into.add("$where splits into ${content.parts.size} (allowed $MIN_SPLIT_PARTS..$MAX_SPLIT_PARTS)")
                 }
-                if (content.parts.any { it.ratio <= 0f }) into.add("$where has a non-positive part ratio")
+                if (content.parts.any { !it.ratio.isFinite() || it.ratio <= 0f }) {
+                    into.add("$where has an invalid part ratio")
+                }
                 content.parts.forEach { checkContent(it.content, depth + 1, where, into) }
             }
         }

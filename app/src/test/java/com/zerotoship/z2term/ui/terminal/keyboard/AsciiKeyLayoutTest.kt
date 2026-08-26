@@ -19,6 +19,8 @@ class AsciiKeyLayoutTest {
     private fun keyOf(layout: KeyLayout, row: Int, col: Int): KeyDef =
         (layout.rows[row].slots[col].content as SlotContent.Single).key
 
+    private fun widthsOf(row: KeyRow): List<KeyWidth> = row.slots.map { it.width }
+
     /** フリック先を「方向 → 送る文字列」で取り出す（比べやすくするため）。 */
     private fun flicksOf(key: KeyDef): Map<KeyGesture, String> =
         KeyGesture.FLICKS.mapNotNull { g ->
@@ -88,6 +90,22 @@ class AsciiKeyLayoutTest {
         assertTrue(keyOf(l, 1, 1).layers.isEmpty())
     }
 
+    @Test fun symbolFace_usesTheSameRequestedWidthRules() {
+        val normal = asciiKeyLayout(compact = false, hasFaceKey = true)
+        val symbols = asciiKeyLayout(compact = false, hasFaceKey = true, symbols = true)
+
+        // 枠数が同じ段と最下段は、通常面と幅指定が完全に同じ。
+        for (row in listOf(0, 1, 2, 4)) {
+            assertEquals("row $row", widthsOf(normal.rows[row]), widthsOf(symbols.rows[row]))
+        }
+        // 記号面だけ 8 キーの段も、CTRL=1.4 / 残り Auto という同じ規則を使う。
+        assertEquals(
+            listOf<KeyWidth>(KeyWidth.Fixed(AsciiKeys.W_SIDE)) +
+                List(AsciiKeys.SYM_ROW4.size) { KeyWidth.Auto },
+            widthsOf(symbols.rows[3]),
+        )
+    }
+
     // ---- フリック ---------------------------------------------------------------------------
 
     @Test fun spacious_row2_isFourWayPlusUppercase() {
@@ -125,16 +143,38 @@ class AsciiKeyLayoutTest {
 
     // ---- 幅（いまの weight と一致すること） --------------------------------------------------
 
-    @Test fun widths_matchTodaysWeights() {
+    @Test fun widths_matchTheRequestedDefaultLayout() {
         val l = asciiKeyLayout(compact = false, hasFaceKey = true)
-        // ⚠ プリセットは全部 Fixed。Auto にすると「予算 = 枠の数」で分け直され、
-        //    いまの 1.4 + 1.0×10 + 1.4 (合計 12.8) と比率が変わって見た目が動く。
         assertEquals(
-            listOf(1.4f) + List(10) { 1f } + 1.4f,
-            l.rows[0].weights(),
+            listOf<KeyWidth>(KeyWidth.Fixed(AsciiKeys.W_SIDE)) +
+                List(10) { KeyWidth.Auto } + KeyWidth.Fixed(AsciiKeys.W_SIDE),
+            widthsOf(l.rows[0]),
         )
         assertEquals(
-            listOf(1.4f, 1.2f, 1.2f, 4f, 1f, 1f, 1f, 1f),
+            listOf<KeyWidth>(KeyWidth.Fixed(AsciiKeys.W_TAB)) + List(10) { KeyWidth.Auto },
+            widthsOf(l.rows[1]),
+        )
+        assertEquals(
+            listOf<KeyWidth>(KeyWidth.Fixed(AsciiKeys.W_SHIFT)) +
+                List(9) { KeyWidth.Auto } + KeyWidth.Fixed(AsciiKeys.W_ENTER),
+            widthsOf(l.rows[2]),
+        )
+        assertEquals(
+            listOf<KeyWidth>(KeyWidth.Fixed(AsciiKeys.W_SIDE)) + List(10) { KeyWidth.Auto },
+            widthsOf(l.rows[3]),
+        )
+        assertEquals(
+            listOf<KeyWidth>(
+                KeyWidth.Fixed(AsciiKeys.W_FACE),
+                KeyWidth.Fixed(AsciiKeys.W_MOD),
+                KeyWidth.Fixed(AsciiKeys.W_MOD),
+                KeyWidth.Fixed(AsciiKeys.W_SPACE),
+            ) + List(4) { KeyWidth.Auto },
+            widthsOf(l.rows[4]),
+        )
+        // 最下段の予算 8 - 固定幅 4.6 = 3.4 を、矢印 4 個で 0.85 ずつ分ける。
+        assertEquals(
+            listOf(1f, 0.8f, 0.8f, 2f, 0.85f, 0.85f, 0.85f, 0.85f),
             l.rows[4].weights(),
         )
     }

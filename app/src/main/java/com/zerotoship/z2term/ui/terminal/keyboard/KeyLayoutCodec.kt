@@ -52,12 +52,14 @@ object KeyLayoutCodec {
 
     // ---- 書き出す ----------------------------------------------------------------------
 
-    fun encode(layout: KeyLayout): Map<String, Any?> = linkedMapOf(
+    fun encode(layout: KeyLayout): Map<String, Any?> = linkedMapOf<String, Any?>(
         "v" to VERSION,
         "id" to layout.id,
         "name" to layout.name,
-        "rows" to layout.rows.map { encodeRow(it) },
-    )
+    ).apply {
+        if (layout.faceId != KeyboardFace.ASCII.id) put("face", layout.faceId)
+        put("rows", layout.rows.map { encodeRow(it) })
+    }
 
     fun encodeAll(layouts: List<KeyLayout>): List<Map<String, Any?>> = layouts.map { encode(it) }
 
@@ -166,7 +168,8 @@ object KeyLayoutCodec {
             (r as? Map<*, *>)?.let { decodeRow(it) }
         }
         if (rows.isEmpty()) return null
-        return KeyLayout(id = id, name = name, rows = rows)
+        val faceId = node.str("face")?.let { KeyboardFace.byId(it).id } ?: KeyboardFace.ASCII.id
+        return KeyLayout(id = id, name = name, rows = rows, faceId = faceId)
     }
 
     /** 束をまとめて読む。⚠ **読めない 1 件のために他を落とさない**。 */
@@ -184,7 +187,11 @@ object KeyLayoutCodec {
     private fun decodeSlot(node: Map<*, *>): KeySlot? {
         val content = decodeContent(node) ?: return null
         val fixed = node.num("w")?.toFloat()
-        val width = if (fixed != null && fixed > 0f) KeyWidth.Fixed(fixed) else KeyWidth.Auto
+        val width = if (fixed != null && fixed.isFinite() && fixed > 0f) {
+            KeyWidth.Fixed(fixed)
+        } else {
+            KeyWidth.Auto
+        }
         return KeySlot(content, width)
     }
 
@@ -195,7 +202,8 @@ object KeyLayoutCodec {
             val parts = (node.list("parts") ?: return null).mapNotNull { p ->
                 val pm = p as? Map<*, *> ?: return@mapNotNull null
                 val c = decodeContent(pm) ?: return@mapNotNull null
-                SlotPart(c, pm.num("r")?.toFloat()?.takeIf { it > 0f } ?: 1f)
+                val ratio = pm.num("r")?.toFloat()?.takeIf { it.isFinite() && it > 0f } ?: 1f
+                SlotPart(c, ratio)
             }
             // ⚠ 割った先が 1 つしか読めなかったら、割らないより悪い（片側が消えた枠になる）。
             return if (parts.size < KeyLayout.MIN_SPLIT_PARTS) null else SlotContent.Split(dir, parts)

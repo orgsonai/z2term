@@ -22,7 +22,7 @@ class KeyLayoutLibraryTest {
         val preset = asciiKeyLayout(compact = false, hasFaceKey = true)
         val copy = preset.asTemplate(id = "mine", name = "じぶんの英字")
 
-        // Row 1 は ESC(1.4) + 数字 10 個(1.0) + ⌫(1.4)。
+        // Row 1 は既定から ESC(1.4) + 数字 Auto 10 個 + ⌫(1.4)。
         val expected: List<KeyWidth> =
             listOf<KeyWidth>(KeyWidth.Fixed(AsciiKeys.W_SIDE)) +
                 List(10) { KeyWidth.Auto } +

@@ -114,8 +114,8 @@ fun TerminalKeyboard(
     /**
      * 自分で作ったキー配列 (0.8.408・段階 2)。**null = 既定のプリセット**。
      *
-     * ⚠ 効くのは**英字面の素の姿だけ**。記号面 (`?#`) はまだプリセットのまま
-     * (枠の数が変わるので別の 1 枚が要る — 段階 3)。かな面 / 数字面は別の Composable。
+     * 0.8.412 から [KeyLayout.faceId] と一致する英字・かな・数字の 1 面へ適用する。
+     * 記号面 (`?#`) は英字面と枠数が違うため、引き続き既定プリセットを使う。
      *
      * ⚠ **呼出し側は「読めなかったら null」を渡す。** 壊れた JSON でキーボードが
      * 1 枚も出ない端末を作らないため (`activeKeyLayout` がその判断をしている)。
@@ -150,11 +150,15 @@ fun TerminalKeyboard(
     // 面を移る。⚠ 打ちかけのかなは**先に確定**する (面をまたいで持ち越さない)。
     fun switchFace(to: KeyboardFace) {
         composing.commitRaw()
+        sym = false
+        pad = PadMode.NONE
         face = to
         onFaceChange(to)
     }
 
-    if (face == KeyboardFace.KANA) {
+    val customForFace = customLayout?.takeIf { it.faceId == face.id }
+
+    if (face == KeyboardFace.KANA && customForFace == null) {
         JapaneseFlickKeyboard(
             onBytes = onBytes,
             onCursorKey = onCursorKey,
@@ -167,7 +171,7 @@ fun TerminalKeyboard(
         return
     }
 
-    if (face == KeyboardFace.NUMBER) {
+    if (face == KeyboardFace.NUMBER && customForFace == null) {
         NumberKeyboard(
             onBytes = onBytes,
             onCursorKey = onCursorKey,
@@ -236,9 +240,43 @@ fun TerminalKeyboard(
         if (alt) alt = false
     }
 
-    val rowSpacing = if (style.keyHeight >= 56.dp) 4.dp else 3.dp
-    val isCompact = style.id == "compact"
-    val smallFont = (style.keyFontSp - 3f).coerceAtLeast(10f)
+    fun handleConvert() {
+        if (composing.isActive) {
+            composing.convert()
+        } else if (composing.canReconvert) {
+            val toErase = composing.restoreLastCommit()
+            if (toErase > 0) onBytes(ByteArray(toErase) { 0x7F.toByte() })
+            composing.convert()
+        }
+    }
+
+    fun cycleDakuten() {
+        val current = composing.charBeforeCaret() ?: return
+        val (forms, index) = CYCLE_INDEX[current] ?: return
+        composing.replaceLast(forms[(index + 1) % forms.size])
+    }
+
+    fun emitFaceText(text: String, isFlick: Boolean) {
+        if (text.isEmpty()) return
+        when (face) {
+            KeyboardFace.ASCII -> {
+                val ch = text.first()
+                if (isFlick) emitFlick(ch) else emitChar(ch)
+            }
+            KeyboardFace.KANA -> {
+                val ch = text.first()
+                if (ch in '\u3040'..'\u309f' || ch == 'ー') composing.emitKana(ch)
+                else if (composing.isActive) composing.append(ch)
+                else onBytes(ch.toString().toByteArray(Charsets.UTF_8))
+            }
+            KeyboardFace.NUMBER -> composing.commitExternalText(text)
+        }
+    }
+
+    val renderStyle = if (face == KeyboardFace.ASCII) style else style.forTwelveKeyFace()
+    val rowSpacing = if (renderStyle.keyHeight >= 56.dp) 4.dp else 3.dp
+    val isCompact = renderStyle.id == "compact"
+    val smallFont = (renderStyle.keyFontSp - 3f).coerceAtLeast(10f)
 
     // アクション列を実行する。⚠ **タップとフリックで経路が違う** — タップは ⇧/CTRL/ALT を
     // 適用し (emitChar)、フリックは文字をそのまま送る (emitFlick)。いまの挙動をそのまま保つ。
@@ -247,18 +285,17 @@ fun TerminalKeyboard(
         for (action in actions) {
             when (action) {
                 is KeyAction.Text -> {
-                    val ch = action.text.firstOrNull() ?: continue
-                    if (isFlick) emitFlick(ch) else emitChar(ch)
+                    emitFaceText(action.text, isFlick)
                 }
                 is KeyAction.Named -> when (action.key) {
-                    NamedKey.ESC -> emitSpecial(byteArrayOf(0x1B))
+                    NamedKey.ESC -> if (composing.isActive) composing.reset() else emitSpecial(byteArrayOf(0x1B))
                     NamedKey.TAB -> emitSpecial(byteArrayOf(0x09))
-                    NamedKey.ENTER -> emitSpecial(byteArrayOf(0x0D))
-                    NamedKey.BACKSPACE -> emitSpecial(byteArrayOf(0x7F))
-                    NamedKey.UP -> emitCursor(TerminalEmulator.CursorKey.UP)
-                    NamedKey.DOWN -> emitCursor(TerminalEmulator.CursorKey.DOWN)
-                    NamedKey.LEFT -> emitCursor(TerminalEmulator.CursorKey.LEFT)
-                    NamedKey.RIGHT -> emitCursor(TerminalEmulator.CursorKey.RIGHT)
+                    NamedKey.ENTER -> if (!composing.commitRaw()) emitSpecial(byteArrayOf(0x0D))
+                    NamedKey.BACKSPACE -> if (!composing.backspace()) emitSpecial(byteArrayOf(0x7F))
+                    NamedKey.UP -> { composing.commitRaw(); emitCursor(TerminalEmulator.CursorKey.UP) }
+                    NamedKey.DOWN -> { composing.commitRaw(); emitCursor(TerminalEmulator.CursorKey.DOWN) }
+                    NamedKey.LEFT -> if (composing.isActive) composing.moveCursorLeft() else emitCursor(TerminalEmulator.CursorKey.LEFT)
+                    NamedKey.RIGHT -> if (composing.isActive) composing.moveCursorRight() else emitCursor(TerminalEmulator.CursorKey.RIGHT)
                     // ⚠ Delete / Home / F キー等は**まだどの配列にも置いていない**。
                     //    エディタで置けるようになる段階で、ここに送出を足す。
                     else -> Unit
@@ -269,7 +306,13 @@ fun TerminalKeyboard(
                     val b = if (ModKey.CTRL in action.mods && ch != null) {
                         AndroidKeyMapper.controlByteFor(ch)
                     } else null
-                    if (b != null) emitSpecial(byteArrayOf(b))
+                    if (b != null) {
+                        if (composing.isActive && ModKey.CTRL in action.mods && ch in listOf('w', 'u')) {
+                            composing.reset()
+                        } else {
+                            emitSpecial(byteArrayOf(b))
+                        }
+                    }
                 }
                 is KeyAction.Raw -> emitSpecial(action.bytes)
                 is KeyAction.Modifier -> when (action.mod) {
@@ -285,6 +328,8 @@ fun TerminalKeyboard(
                     AppAction.PAD_PASTE -> togglePad(PadMode.CLIPBOARD)
                     AppAction.PAD_EMOJI -> togglePad(PadMode.EMOJI)
                     AppAction.CLOSE_PAD -> pad = PadMode.NONE
+                    AppAction.IME_CONVERT -> handleConvert()
+                    AppAction.IME_DAKUTEN -> cycleDakuten()
                     // ⚠ 設定 / キーボードを閉じる / IME 切替は、この面のキーにはまだ無い。
                     else -> Unit
                 }
@@ -297,7 +342,6 @@ fun TerminalKeyboard(
     if (pad != PadMode.NONE) {
         // パッド表示中: キーの面をまるごとパッドへ差し替え、**最下段だけ機能キーを残す**。
         // ⚠ 日本語面 ([JapaneseFlickKeyboard]) は両端の列を残せるが、こちらは 10 列あって
-        // 縁が細いので、残すのは行単位にする。貼った直後に消す・改行するのは同じようにできる。
         Column(
             modifier = modifier
                 .fillMaxSize()
@@ -308,7 +352,7 @@ fun TerminalKeyboard(
             KeyboardPad(
                 mode = pad,
                 onMode = { pad = it },
-                style = style,
+                style = renderStyle,
                 onInsert = ::insertText,
                 modifier = Modifier.fillMaxWidth().weight(1f)
             )
@@ -320,9 +364,9 @@ fun TerminalKeyboard(
                 padRow.slots.forEachIndexed { index, keySlot ->
                     LayoutSlot(
                         content = keySlot.content,
-                        modifier = Modifier.weight(padWeights[index]).height(style.keyHeight),
+                        modifier = Modifier.weight(padWeights[index]).height(renderStyle.keyHeight),
                         activeLayer = null,
-                        style = style,
+                        style = renderStyle,
                         smallFont = smallFont,
                         shift = shift,
                         ctrl = ctrl,
@@ -345,16 +389,15 @@ fun TerminalKeyboard(
     //   壊れたときに「並びが悪いのか描画が悪いのか」を切り分けられなくなる。
     //
     // ⭐ 段階 2 (0.8.408): [customLayout] があればそれを描く。無ければ従来どおりプリセット。
-    // ⚠ **記号面 (`?#`) はまだプリセットのまま。** 記号面は Row 4 の枠が 10 → 8 個に減るので
-    //   レイヤーでは表せず、**別の 1 枚**として持つしかない (0.8.403 で分かったこと)。自分の
-    //   配列に記号面を持たせるのはエディタ (段階 3) と一緒に入れる。それまで `?#` を押したら
-    //   既定の記号面が出る — 記号が打てなくなるよりは、面が 1 枚だけ既定に戻る方がまし。
-    val layout = remember(isCompact, hasFaceKey, sym, style.fourDirectionFlick, customLayout) {
-        customLayout?.takeIf { !sym } ?: asciiKeyLayout(
+    // ⚠ **記号面 (`?#`) はプリセットのまま。** 記号面は Row 4 の枠が 10 → 8 個に減るので
+    //   レイヤーでは表せず、別の 1 枚として持つしかない (0.8.403)。0.8.411 では既定英字面と
+    //   同じ幅規則へ揃えた。自作の記号面はまだ持たないため、`?#` ではこの 1 枚へ切り替える。
+    val layout = remember(isCompact, hasFaceKey, sym, renderStyle.fourDirectionFlick, customForFace, face) {
+        customForFace?.takeIf { !sym } ?: asciiKeyLayout(
             compact = isCompact,
             hasFaceKey = hasFaceKey,
             symbols = sym,
-            fourWayFlick = style.fourDirectionFlick,
+            fourWayFlick = renderStyle.fourDirectionFlick,
         )
     }
     // ⇧ は**キーの姿の差し替え** = レイヤーで表す。⚠ 記号面では大文字にしない (いまと同じ)。
@@ -367,8 +410,8 @@ fun TerminalKeyboard(
     // **席からはみ出して端末の画面にかぶる**。プリセットは段の数が一致するので何も変わらない。
     val presetRowCount = if (isCompact) 6 else 5
     val rowHeight =
-        if (layout.rows.size == presetRowCount) style.keyHeight
-        else style.keyHeight * presetRowCount / layout.rows.size
+        if (layout.rows.size == presetRowCount) renderStyle.keyHeight
+        else renderStyle.keyHeight * presetRowCount / layout.rows.size
 
     Column(
         modifier = modifier
@@ -386,7 +429,7 @@ fun TerminalKeyboard(
                         // ⚠ 段の高さはここで決める。枠を割ったときは中で分け合う。
                         modifier = Modifier.weight(weights[index]).height(rowHeight),
                         activeLayer = activeLayer,
-                        style = style,
+                        style = renderStyle,
                         smallFont = smallFont,
                         shift = shift,
                         ctrl = ctrl,

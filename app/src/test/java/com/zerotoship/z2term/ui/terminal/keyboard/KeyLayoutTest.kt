@@ -49,6 +49,16 @@ class KeyLayoutTest {
         assertEquals(KeyRow.MIN_WEIGHT, r.weights()[2], 0.0001f)
     }
 
+    @Test fun nonFiniteWidths_areRejected() {
+        val nanWidth = KeyLayout("nan", "nan", listOf(row(slot("a", KeyWidth.Fixed(Float.NaN)))))
+        val infiniteWidth = KeyLayout(
+            "infinite", "infinite",
+            listOf(row(slot("a", KeyWidth.Fixed(Float.POSITIVE_INFINITY)))),
+        )
+        assertTrue(nanWidth.validate().any { it.contains("invalid fixed width") })
+        assertTrue(infiniteWidth.validate().any { it.contains("invalid fixed width") })
+    }
+
     // ---- 枠の分割（「上下左右キーは 1 キーの半分」への答え） -------------------------------
 
     /** 矢印 4 つを 1 枠に田の字で置く（縦 2 分割 → 各段を横 2 分割 = 深さ 2）。 */
@@ -84,6 +94,18 @@ class KeyLayoutTest {
         val bad = SlotContent.Split(SplitDir.VERTICAL, listOf(SlotPart(SlotContent.Single(key("x")))))
         val layout = KeyLayout("test", "test", listOf(row(KeySlot(bad), faceSlot())))
         assertTrue(layout.validate().any { it.contains("splits into 1") })
+    }
+
+    @Test fun nonFiniteSplitRatios_areRejected() {
+        val bad = SlotContent.Split(
+            SplitDir.HORIZONTAL,
+            listOf(
+                SlotPart(SlotContent.Single(key("a")), Float.NaN),
+                SlotPart(SlotContent.Single(key("b")), Float.POSITIVE_INFINITY),
+            ),
+        )
+        val layout = KeyLayout("test", "test", listOf(row(KeySlot(bad))))
+        assertTrue(layout.validate().any { it.contains("invalid part ratio") })
     }
 
     // ---- 逃げ場（戻る手段） ---------------------------------------------------------------

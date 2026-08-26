@@ -21,6 +21,15 @@ object KeyLayoutJson {
     fun toJsonString(layout: KeyLayout): String =
         toJsonObject(KeyLayoutCodec.encode(layout)).toString()
 
+    /**
+     * 画面で編集するための、字下げした 1 枚分の JSON（0.8.409・段階 3）。
+     *
+     * 保存値は短い [toJsonString] のままにし、**人が触る画面だけ**読みやすくする。同じ木から
+     * 起こすので、整形版だけ項目名や既定値の扱いがずれることはない。
+     */
+    fun toPrettyJsonString(layout: KeyLayout): String =
+        toJsonObject(KeyLayoutCodec.encode(layout)).toString(2)
+
     fun toJsonString(layouts: List<KeyLayout>): String =
         JSONArray().apply {
             KeyLayoutCodec.encodeAll(layouts).forEach { put(toJsonObject(it)) }

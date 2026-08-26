@@ -17,10 +17,9 @@ package com.zerotoship.z2term.ui.terminal.keyboard
  * 変えられないが、記号面は Row 4 が **10 個 → 8 個**に減る（`?§°¥€£~…`）。枠の数が変わる
  * ものは**別のレイアウト**にするしかない。⇧ は枠が変わらないので予定どおりレイヤーで表す。
  *
- * ⭐ **プリセットの幅はすべて [KeyWidth.Fixed] にする。** [KeyWidth.Auto] は「段の予算 = 枠の数」
- * で分け直すので、いまの `ESC 1.4 + 英字 1.0 × 10 + ⌫ 1.4`（合計 12.8）とは比率が変わって
- * しまい、**見た目が動く**。利用者が一から作るレイアウトは Auto を使い、そちらでは要望どおり
- * 「1 つ広げたら残りが均等に縮む」が効く。
+ * ⭐ 0.8.411 から、文字・数字・記号・矢印は [KeyWidth.Auto]、機能キーだけ指定幅にした。
+ * たとえば 1 段目は `ESC 1.4 + Auto × 10 + ⌫ 1.4`。端の幅を先に確保し、残りを入力キーへ
+ * 均等配分する。記号面にも同じ規則を使うので、`?#` を押しても機能キーの幅は動かない。
  */
 object AsciiKeys {
 
@@ -63,17 +62,32 @@ object AsciiKeys {
 
     // ---- 幅（いまの `weight` をそのまま） ------------------------------------------------
 
-    /** 端の機能キー（ESC / TAB / ⇧ / CTRL / ⌫ / ⏎ / 面切替）。 */
+    /** ESC / ⌫ / CTRL。 */
     const val W_SIDE = 1.4f
 
+    /** TAB。 */
+    const val W_TAB = 1.2f
+
+    /** ⇧。 */
+    const val W_SHIFT = 1.3f
+
+    /** ⏎。 */
+    const val W_ENTER = 1.2f
+
+    /** 最下段の面切替。Fixed(1) として Auto の矢印とは区別する。 */
+    const val W_FACE = 1f
+
     /** 最下段の `?#` と ALT。 */
-    const val W_MOD = 1.2f
+    const val W_MOD = 0.8f
 
     /** 最下段のスペース。 */
-    const val W_SPACE = 4f
+    const val W_SPACE = 2f
 
-    /** 英字・数字と、COMPACT の上バーのキー。 */
+    /** COMPACT の上バーと、パッドを開いている間の補助行で使う標準幅。 */
     const val W_KEY = 1f
+
+    /** パッドを閉じる ×。最下段の修飾キーとは別に、従来の押しやすさを保つ。 */
+    const val W_PAD_CLOSE = 1.2f
 }
 
 /**
@@ -126,7 +140,7 @@ fun asciiKeyLayout(
         KeyRow(
             buildList {
                 if (!compact) add(slot(escKey(), AsciiKeys.W_SIDE))
-                r1.forEach { add(slot(digitKey(it), AsciiKeys.W_KEY)) }
+                r1.forEach { add(slot(digitKey(it))) }
                 add(slot(backspaceKey(), AsciiKeys.W_SIDE))
             }
         )
@@ -137,10 +151,10 @@ fun asciiKeyLayout(
         KeyRow(
             buildList {
                 if (!compact) {
-                    add(slot(KeyDef.named("TAB", NamedKey.TAB, fontRole = KeyFontRole.SMALL), AsciiKeys.W_SIDE))
+                    add(slot(KeyDef.named("TAB", NamedKey.TAB, fontRole = KeyFontRole.SMALL), AsciiKeys.W_TAB))
                 }
                 r2.forEachIndexed { i, label ->
-                    add(slot(letterKey(label, flickRow2(i, symbols, fourWayFlick)), AsciiKeys.W_KEY))
+                    add(slot(letterKey(label, flickRow2(i, symbols, fourWayFlick))))
                 }
             }
         )
@@ -151,12 +165,12 @@ fun asciiKeyLayout(
         KeyRow(
             buildList {
                 if (!compact) {
-                    add(slot(if (hasFaceKey) shiftKey() else padKey(), AsciiKeys.W_SIDE))
+                    add(slot(if (hasFaceKey) shiftKey() else padKey(), AsciiKeys.W_SHIFT))
                 }
                 r3.forEachIndexed { i, label ->
-                    add(slot(letterKey(label, flickUpRow(AsciiKeys.FLICK_UP_ROW3, i, label, symbols)), AsciiKeys.W_KEY))
+                    add(slot(letterKey(label, flickUpRow(AsciiKeys.FLICK_UP_ROW3, i, label, symbols))))
                 }
-                add(slot(KeyDef.named("⏎", NamedKey.ENTER, repeatable = true), AsciiKeys.W_SIDE))
+                add(slot(KeyDef.named("⏎", NamedKey.ENTER, repeatable = true), AsciiKeys.W_ENTER))
             }
         )
     )
@@ -167,7 +181,7 @@ fun asciiKeyLayout(
             buildList {
                 if (!compact) add(slot(if (hasFaceKey) ctrlKey() else shiftKey(), AsciiKeys.W_SIDE))
                 r4.forEachIndexed { i, label ->
-                    add(slot(letterKey(label, flickUpRow(AsciiKeys.FLICK_UP_ROW4, i, label, symbols)), AsciiKeys.W_KEY))
+                    add(slot(letterKey(label, flickUpRow(AsciiKeys.FLICK_UP_ROW4, i, label, symbols))))
                 }
             }
         )
@@ -177,14 +191,14 @@ fun asciiKeyLayout(
     rows.add(
         KeyRow(
             listOf(
-                slot(if (hasFaceKey) faceKey() else ctrlKey(), AsciiKeys.W_SIDE),
+                slot(if (hasFaceKey) faceKey() else ctrlKey(), AsciiKeys.W_FACE),
                 slot(symbolToggleKey(symbols), AsciiKeys.W_MOD),
                 slot(KeyDef.modifier("ALT", ModKey.ALT), AsciiKeys.W_MOD),
                 slot(spaceKey(), AsciiKeys.W_SPACE),
-                slot(arrowKey("←", NamedKey.LEFT), AsciiKeys.W_KEY),
-                slot(arrowKey("↓", NamedKey.DOWN), AsciiKeys.W_KEY),
-                slot(arrowKey("↑", NamedKey.UP), AsciiKeys.W_KEY),
-                slot(arrowKey("→", NamedKey.RIGHT), AsciiKeys.W_KEY),
+                slot(arrowKey("←", NamedKey.LEFT)),
+                slot(arrowKey("↓", NamedKey.DOWN)),
+                slot(arrowKey("↑", NamedKey.UP)),
+                slot(arrowKey("→", NamedKey.RIGHT)),
             )
         )
     )
@@ -206,11 +220,11 @@ fun asciiPadRow(): KeyRow = KeyRow(
                 bindings = mapOf(KeyGesture.TAP to listOf(KeyAction.App(AppAction.CLOSE_PAD))),
                 highlighted = true,
             ),
-            AsciiKeys.W_MOD,
+            AsciiKeys.W_PAD_CLOSE,
         ),
         slot(backspaceKey(), AsciiKeys.W_SIDE),
         slot(spaceKey(), 3f),
-        slot(KeyDef.named("⏎", NamedKey.ENTER, repeatable = true), AsciiKeys.W_SIDE),
+        slot(KeyDef.named("⏎", NamedKey.ENTER, repeatable = true), AsciiKeys.W_ENTER),
         slot(arrowKey("←", NamedKey.LEFT), AsciiKeys.W_KEY),
         slot(arrowKey("→", NamedKey.RIGHT), AsciiKeys.W_KEY),
     )
@@ -218,6 +232,7 @@ fun asciiPadRow(): KeyRow = KeyRow(
 
 // ---- 部品 ---------------------------------------------------------------------------------
 
+private fun slot(key: KeyDef) = KeySlot.of(key)
 private fun slot(key: KeyDef, width: Float) = KeySlot.of(key, KeyWidth.Fixed(width))
 
 /**
