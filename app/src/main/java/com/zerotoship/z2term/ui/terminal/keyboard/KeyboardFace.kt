@@ -96,3 +96,157 @@ enum class KeyboardFace(val id: String) {
         }
     }
 }
+
+/**
+ * `next_face` が巡回する 1 枚。内蔵面と保存済みカスタム配列を同じ列で扱う。
+ * [id] は並び順・ON/OFF保存用の安定IDで、カスタム配列は元の layout id を含む。
+ */
+data class KeyboardFaceEntry(
+    val id: String,
+    val face: KeyboardFace,
+    val customLayout: KeyLayout? = null,
+) {
+    val switchLabel: String
+        get() = customLayout?.name?.trim()?.takeIf { it.isNotEmpty() }?.take(4) ?: face.switchLabel
+
+    companion object {
+        const val BUILTIN_KANA_ID = "builtin:kana"
+        const val BUILTIN_ASCII_ID = "builtin:ascii"
+        const val BUILTIN_NUMBER_ID = "builtin:number"
+        private const val CUSTOM_PREFIX = "custom:"
+
+        fun builtin(face: KeyboardFace): KeyboardFaceEntry = KeyboardFaceEntry(
+            id = when (face) {
+                KeyboardFace.KANA -> BUILTIN_KANA_ID
+                KeyboardFace.ASCII -> BUILTIN_ASCII_ID
+                KeyboardFace.NUMBER -> BUILTIN_NUMBER_ID
+            },
+            face = face,
+        )
+
+        fun custom(layout: KeyLayout): KeyboardFaceEntry = KeyboardFaceEntry(
+            id = customId(layout.id),
+            face = KeyboardFace.byId(layout.faceId),
+            customLayout = layout,
+        )
+
+        fun customId(layoutId: String): String = "$CUSTOM_PREFIX$layoutId"
+    }
+}
+
+/** 面の全順序と有効集合を、旧3面設定との互換を保って解決する。 */
+object KeyboardFaceConfig {
+    private const val SEPARATOR = ","
+
+    /** 内蔵3面 + 保存済みカスタム面を、保存順に並べる。未知・削除済みIDは落とす。 */
+    fun allEntries(orderValue: String?, layouts: List<KeyLayout>): List<KeyboardFaceEntry> {
+        val known = buildList {
+            add(KeyboardFaceEntry.builtin(KeyboardFace.KANA))
+            add(KeyboardFaceEntry.builtin(KeyboardFace.ASCII))
+            add(KeyboardFaceEntry.builtin(KeyboardFace.NUMBER))
+            layouts.forEach { add(KeyboardFaceEntry.custom(it)) }
+        }
+        val byId = known.associateBy { it.id }
+        val requested = parseOrder(orderValue)
+        return buildList {
+            requested.mapNotNullTo(this) { byId[it] }
+            known.filterTo(this) { entry -> none { it.id == entry.id } }
+        }
+    }
+
+    /**
+     * 有効ID。新設定が空なら旧設定から移行する。英語UIで旧設定を読む場合だけかなを外すが、
+     * 一度ユーザーがONにすれば言語に関係なく日本語面を使える。
+     */
+    fun enabledIds(
+        enabledValue: String?,
+        entries: List<KeyboardFaceEntry>,
+        legacyNumberEnabled: Boolean,
+        legacyActiveLayoutId: String,
+        legacyKanaAvailable: Boolean,
+    ): LinkedHashSet<String> {
+        val known = entries.mapTo(HashSet()) { it.id }
+        val explicit = enabledValue.orEmpty().split(SEPARATOR)
+            .map(String::trim)
+            .filterTo(LinkedHashSet()) { it in known }
+        if (enabledValue?.isNotBlank() == true) {
+            return explicit.ifEmpty { linkedSetOf(entries.first().id) }
+        }
+
+        val migrated = linkedSetOf(KeyboardFaceEntry.BUILTIN_ASCII_ID)
+        if (legacyKanaAvailable) migrated += KeyboardFaceEntry.BUILTIN_KANA_ID
+        if (legacyNumberEnabled) migrated += KeyboardFaceEntry.BUILTIN_NUMBER_ID
+        entries.firstOrNull { it.customLayout?.id == legacyActiveLayoutId }?.let { custom ->
+            migrated -= KeyboardFaceEntry.builtin(custom.face).id
+            migrated += custom.id
+        }
+        migrated.retainAll(known)
+        if (migrated.isEmpty() && entries.isNotEmpty()) migrated += entries.first().id
+        return migrated
+    }
+
+    fun enabledEntries(
+        orderValue: String?,
+        enabledValue: String?,
+        layouts: List<KeyLayout>,
+        legacyNumberEnabled: Boolean,
+        legacyActiveLayoutId: String,
+        legacyKanaAvailable: Boolean,
+    ): List<KeyboardFaceEntry> {
+        val entries = allEntries(orderValue, layouts)
+        if (entries.isEmpty()) return listOf(KeyboardFaceEntry.builtin(KeyboardFace.ASCII))
+        val enabled = enabledIds(
+            enabledValue,
+            entries,
+            legacyNumberEnabled,
+            legacyActiveLayoutId,
+            legacyKanaAvailable,
+        )
+        return entries.filter { it.id in enabled }.ifEmpty { listOf(entries.first()) }
+    }
+
+    fun enabledEntriesFromJson(
+        orderValue: String?,
+        enabledValue: String?,
+        layoutsJson: String,
+        legacyNumberEnabled: Boolean,
+        legacyActiveLayoutId: String,
+        legacyKanaAvailable: Boolean,
+    ): List<KeyboardFaceEntry> = enabledEntries(
+        orderValue = orderValue,
+        enabledValue = enabledValue,
+        layouts = KeyLayoutJson.listFromJsonString(layoutsJson),
+        legacyNumberEnabled = legacyNumberEnabled,
+        legacyActiveLayoutId = legacyActiveLayoutId,
+        legacyKanaAvailable = legacyKanaAvailable,
+    )
+
+    fun encodeOrder(entries: List<KeyboardFaceEntry>): String = entries.joinToString(SEPARATOR) { it.id }
+
+    fun encodeEnabled(entries: List<KeyboardFaceEntry>, enabledIds: Set<String>): String =
+        entries.filter { it.id in enabledIds }.joinToString(SEPARATOR) { it.id }
+
+    /** 旧IME保存値 (`ascii` 等) も新しい面IDへ解決する。 */
+    fun initialEntryId(saved: String?, entries: List<KeyboardFaceEntry>): String {
+        entries.firstOrNull { it.id == saved }?.let { return it.id }
+        val legacyFace = KeyboardFace.entries.firstOrNull { it.id == saved }
+        entries.firstOrNull { it.customLayout == null && it.face == legacyFace }?.let { return it.id }
+        return entries.firstOrNull { it.id == KeyboardFaceEntry.BUILTIN_ASCII_ID }?.id
+            ?: entries.firstOrNull()?.id
+            ?: KeyboardFaceEntry.BUILTIN_ASCII_ID
+    }
+
+    private fun parseOrder(value: String?): List<String> = when (value) {
+        KeyboardFace.ORDER_NUMBER_FIRST_ID -> listOf(
+            KeyboardFaceEntry.BUILTIN_KANA_ID,
+            KeyboardFaceEntry.BUILTIN_NUMBER_ID,
+            KeyboardFaceEntry.BUILTIN_ASCII_ID,
+        )
+        KeyboardFace.ORDER_ASCII_FIRST_ID, null, "" -> listOf(
+            KeyboardFaceEntry.BUILTIN_KANA_ID,
+            KeyboardFaceEntry.BUILTIN_ASCII_ID,
+            KeyboardFaceEntry.BUILTIN_NUMBER_ID,
+        )
+        else -> value.split(SEPARATOR).map(String::trim).filter(String::isNotEmpty).distinct()
+    }
+}

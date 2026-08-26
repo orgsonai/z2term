@@ -8,13 +8,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -36,8 +33,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.ui.components.ConfirmDialog
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyLayout
@@ -97,44 +92,19 @@ fun KeyLayoutEditorSheet(
         if (value.hasEscapeHatch()) onSave(value) else escapeWarningPending = true
     }
 
-    Dialog(
-        onDismissRequest = ::requestClose,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false,
-        ),
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = ZtsBgPrimary,
+        contentColor = ZtsTextPrimary,
     ) {
-        Surface(
+        BackHandler(onBack = ::requestClose)
+        Column(
             modifier = Modifier.fillMaxSize(),
-            color = ZtsBgPrimary,
-            contentColor = ZtsTextPrimary,
         ) {
-            BackHandler(onBack = ::requestClose)
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.systemBars),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(ZtsBgCard)
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    EditorButton(label = "‹", onClick = ::requestClose)
-                    Text(
-                        text = stringResource(R.string.settings_key_layout_editor_title, initial.name),
-                        modifier = Modifier.weight(1f),
-                        color = ZtsTextPrimary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace,
-                    )
-                }
+                SettingsPageTopBar(
+                    title = stringResource(R.string.settings_key_layout_editor_title, initial.name),
+                    onBack = ::requestClose,
+                )
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -244,25 +214,28 @@ fun KeyLayoutEditorSheet(
                     fontFamily = FontFamily.Monospace,
                 )
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                EditorButton(
-                    label = stringResource(R.string.action_cancel),
-                    modifier = Modifier.weight(1f),
-                    onClick = ::requestClose,
-                )
-                EditorButton(
-                    label = stringResource(R.string.settings_key_layout_editor_save),
-                    modifier = Modifier.weight(1f),
-                    enabled = candidate != null,
-                    primary = true,
-                    onClick = ::requestSave,
-                )
-            }
                 }
-            }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(ZtsBgPrimary)
+                        .border(1.dp, ZtsBorder)
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    EditorButton(
+                        label = stringResource(R.string.action_cancel),
+                        modifier = Modifier.weight(1f),
+                        onClick = ::requestClose,
+                    )
+                    EditorButton(
+                        label = stringResource(R.string.settings_key_layout_editor_save),
+                        modifier = Modifier.weight(1f),
+                        enabled = candidate != null,
+                        primary = true,
+                        onClick = ::requestSave,
+                    )
+                }
         }
     }
 

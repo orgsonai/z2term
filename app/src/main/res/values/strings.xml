@@ -72,8 +72,14 @@
     <string name="settings_keyboard_face_order">Face switching order</string>
     <!-- Custom key layouts (0.8.408–0.8.411, stages 2–4 + default sizing) -->
     <string name="settings_section_key_layout">Key layout (your own)</string>
-    <string name="settings_key_layout_desc">Duplicate the letter, Japanese, number or selected custom face and edit the copy. Tap more than one key to edit their width and appearance together, or switch to JSON for every field.</string>
-    <string name="settings_key_layout_default">Default</string>
+    <string name="settings_key_layout_desc">Duplicate the letter, Japanese, number or selected custom face and edit the copy. Custom faces remain independent, and can be enabled or reordered below.</string>
+    <string name="settings_keyboard_faces_title">Faces used by the keyboard</string>
+    <string name="settings_keyboard_faces_desc">Turn each built-in or custom face on or off, then use the arrows to set the order used by the next-face key. At least one face stays enabled.</string>
+    <string name="settings_keyboard_faces_preview">Next-face order: %1$s</string>
+    <string name="settings_keyboard_face_builtin_kana">Japanese (built in)</string>
+    <string name="settings_keyboard_face_builtin_ascii">Letters (built in)</string>
+    <string name="settings_keyboard_face_builtin_number">Numbers (built in)</string>
+    <string name="settings_key_layout_default">Select a custom layout</string>
     <string name="settings_key_layout_duplicate">Duplicate the letter layout</string>
     <string name="settings_key_layout_new_name">My letters</string>
     <string name="settings_key_layout_duplicate_kana">Duplicate the Japanese layout</string>
@@ -85,7 +91,7 @@
     <string name="settings_key_layout_name">Name</string>
     <string name="settings_key_layout_edit">Edit contents</string>
     <string name="settings_key_layout_delete">Delete this layout</string>
-    <string name="settings_key_layout_target_note">ABC, あ or 12 before the name shows which face this layout replaces. The other faces keep their defaults.</string>
+    <string name="settings_key_layout_target_note">ABC, あ or 12 shows this custom layout’s type. Its use and position are controlled independently in “Faces used by the keyboard” above.</string>
     <string name="settings_key_layout_editor_title">Edit %1$s</string>
     <string name="settings_key_layout_editor_desc">This is one layout as JSON. rows are keyboard rows; slots are frames; w is a fixed width where one even frame equals 1 (omit it to share the remainder); bind assigns tap / up / down / left / right / long / double. Splits, layers and action sequences round-trip here without being dropped.</string>
     <string name="settings_key_layout_editor_invalid_json">This is not a readable layout object. Check that it is one layout beginning with { and ending with }.</string>
@@ -95,7 +101,7 @@
     <string name="settings_key_layout_editor_id_note">ID %1$s stays fixed so the current selection is not broken. A different id in the JSON is saved as this value.</string>
     <string name="settings_key_layout_editor_save">Save these contents</string>
     <string name="settings_key_layout_editor_discard_title">Discard your edits?</string>
-    <string name="settings_key_layout_editor_discard_msg">The unsaved JSON changes cannot be recovered.</string>
+    <string name="settings_key_layout_editor_discard_msg">The unsaved changes cannot be recovered.</string>
     <string name="settings_key_layout_editor_discard">Discard</string>
     <string name="settings_key_layout_editor_escape_title">You may be unable to leave this layout</string>
     <string name="settings_key_layout_editor_escape_msg">No key switches face, opens Settings, hides the keyboard or switches to another input method. The terminal screen still has Settings in its toolbar, but screens using this as the OS input method do not.</string>
@@ -103,7 +109,9 @@
     <string name="settings_key_layout_visual_intro">Tap a key in the layout to edit it. Visual and JSON modes share one draft, so your changes remain when you switch between them.</string>
     <string name="settings_key_layout_mode_visual">Visual</string>
     <string name="settings_key_layout_mode_json">JSON</string>
-    <string name="settings_key_layout_visual_desc">Tap keys to add them to the green selection. Tap a selected key to remove it when two or more are selected. Width, appearance and a gesture can be applied to all selected keys.</string>
+    <string name="settings_key_layout_visual_desc">A tap selects one key by default. Enable multiple selection only when you want to apply width, appearance or gestures to several keys together.</string>
+    <string name="settings_key_layout_multi_select">Multiple selection</string>
+    <string name="settings_key_layout_multi_select_desc">Keep selected keys while you tap additional keys</string>
     <string name="settings_key_layout_selected">Row %1$d / frame %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">%1$d key(s) selected</string>
     <string name="settings_key_layout_label">Key label</string>
@@ -111,6 +119,7 @@
     <string name="settings_key_layout_width_auto">Share the remainder</string>
     <string name="settings_key_layout_width_fixed">Fixed</string>
     <string name="settings_key_layout_width_ratio">Width where one even frame is 1</string>
+    <string name="settings_key_layout_width_slider">Width (0.1 steps)</string>
     <string name="settings_key_layout_appearance">Appearance and feel</string>
     <string name="settings_key_layout_repeat">Hold to repeat</string>
     <string name="settings_key_layout_press_feedback">Press colour</string>

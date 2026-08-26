@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,14 +31,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.zIndex
 import com.zerotoship.z2term.emulator.TerminalEmulator
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -610,8 +609,8 @@ internal fun RowScope.JpEscKey(
         modifier = Modifier
             .weight(weight)
             .fillMaxHeight()
-            .clip(RoundedCornerShape(6.dp))
-            .background(bg)
+            .zIndex(if (showHint) 1f else 0f)
+            .background(bg, RoundedCornerShape(6.dp))
             .border(1.dp, border, RoundedCornerShape(6.dp))
             .pointerInput(Unit) {
                 val flickThreshold = viewConfiguration.touchSlop * 1.4f
@@ -688,36 +687,30 @@ internal fun RowScope.JpEscKey(
  * (指が動く前 = まだどちらへ行くか決まっていない状態でしか出ない)。
  */
 @Composable
-private fun JpEscHintPopup(style: KeyboardStyle) {
-    val density = LocalDensity.current
+private fun BoxScope.JpEscHintPopup(style: KeyboardStyle) {
     val lineHeight = style.keyFontSp * 1.35f
-    // 2 行 + 上下の余白。Popup は自分の高さを知らないので概算で持ち上げる。
+    // 同一レイアウト内へ描くので別 Window が周囲のキーのタッチを奪わない。
     val popupHeight = (lineHeight * 2f + 12f).dp
     val gap = 6.dp
-    val offsetY = with(density) { -(popupHeight + gap).roundToPx() }
-    Popup(
-        alignment = Alignment.TopCenter,
-        offset = IntOffset(0, offsetY),
-        properties = PopupProperties(focusable = false, clippingEnabled = true)
+    Column(
+        modifier = Modifier
+            .align(Alignment.TopCenter)
+            .offset(y = -(popupHeight + gap))
+            .zIndex(10f)
+            .background(ZtsGreen, RoundedCornerShape(10.dp))
+            .border(2.dp, ZtsGreenBright, RoundedCornerShape(10.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(
-            modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(ZtsGreen)
-                .border(2.dp, ZtsGreenBright, RoundedCornerShape(10.dp))
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            listOf("▲$PAD_HINT", "▼$EMOJI_HINT").forEach {
-                Text(
-                    text = it,
-                    color = Color.Black,
-                    fontSize = style.keyFontSp.sp,
-                    lineHeight = lineHeight.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
+        listOf("▲$PAD_HINT", "▼$EMOJI_HINT").forEach {
+            Text(
+                text = it,
+                color = Color.Black,
+                fontSize = style.keyFontSp.sp,
+                lineHeight = lineHeight.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+            )
         }
     }
 }
@@ -746,8 +739,8 @@ private fun RowScope.JpFlickKey(
         modifier = Modifier
             .weight(1f)
             .fillMaxHeight()
-            .clip(RoundedCornerShape(6.dp))
-            .background(bg)
+            .zIndex(if (pressed) 1f else 0f)
+            .background(bg, RoundedCornerShape(6.dp))
             .border(1.dp, border, RoundedCornerShape(6.dp))
             .pointerInput(km) {
                 val flickThreshold = viewConfiguration.touchSlop * 1.4f
@@ -834,8 +827,7 @@ private fun RowScope.JpFlickKey(
  *
  * 「今このまま指を離すと送出される 1 文字」だけを大きく表示する (緑地に黒文字)。
  * フリック方向を変えると [text] が差し替わり、何が確定するか一目で分かる。
- * Popup を使うことでキー本体の境界を越えて画面上方へ描けるので、最上段のキーでも
- * 端末画面側に重ねて表示できる。
+ * キー本体のクリップ外へ同一レイアウト内で描くため、見た目が重なっても周囲のキー操作を遮らない。
  *
  * ⚠ 文字列を受けるのは絵文字 ([PAD_HINT]) がサロゲートペアで `Char` に収まらないため
  * (ESC キーの長押しヒントでも同じポップアップを使う)。
@@ -844,36 +836,30 @@ private fun RowScope.JpFlickKey(
  * 同じ「フリック中の見え方」を出すためのもので、**片方だけ直さないこと**。
  */
 @Composable
-internal fun FlickCommitPopup(
+internal fun BoxScope.FlickCommitPopup(
     text: String,
     style: KeyboardStyle
 ) {
-    val density = LocalDensity.current
     // 1 文字を大きく見せる正方形 (キーフォント sp に比例)。
     val popupSize = (style.keyFontSp * 2.7f).dp
     val gap = 6.dp
-    val offsetY = with(density) { -(popupSize + gap).roundToPx() }
-    Popup(
-        alignment = Alignment.TopCenter,
-        offset = IntOffset(0, offsetY),
-        properties = PopupProperties(focusable = false, clippingEnabled = true)
+    Box(
+        modifier = Modifier
+            .size(popupSize, popupSize)
+            .align(Alignment.TopCenter)
+            .offset(y = -(popupSize + gap))
+            .zIndex(10f)
+            .background(ZtsGreen, RoundedCornerShape(10.dp))
+            .border(2.dp, ZtsGreenBright, RoundedCornerShape(10.dp)),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(popupSize, popupSize)
-                .clip(RoundedCornerShape(10.dp))
-                .background(ZtsGreen)
-                .border(2.dp, ZtsGreenBright, RoundedCornerShape(10.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = text,
-                color = Color.Black,
-                fontSize = (style.keyFontSp * 1.5f).sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace
-            )
-        }
+        Text(
+            text = text,
+            color = Color.Black,
+            fontSize = (style.keyFontSp * 1.5f).sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace,
+        )
     }
 }
 

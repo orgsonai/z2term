@@ -59,6 +59,8 @@ class AppSettings(private val context: Context) {
          * (`A → 12 → あ` は `あ → A → 12` を回しただけの同じ順)。
          */
         val keyboardFaceOrder: String = DEFAULT_KEYBOARD_FACE_ORDER,
+        /** 内蔵面・カスタム面の有効ID列。空 = 旧設定から初回移行。 */
+        val keyboardFaceEnabledIds: String = "",
         /**
          * 自分で作ったキー配列の束 (JSON の配列。空文字 = 1 つも作っていない)。0.8.408。
          *
@@ -520,6 +522,7 @@ class AppSettings(private val context: Context) {
                 ?: if (p[KEY_IME_JAPANESE_MODE] == true) FACE_ID_KANA else DEFAULT_IME_FACE,
             keyboardNumberFace = p[KEY_KEYBOARD_NUMBER_FACE] ?: DEFAULT_KEYBOARD_NUMBER_FACE,
             keyboardFaceOrder = p[KEY_KEYBOARD_FACE_ORDER] ?: DEFAULT_KEYBOARD_FACE_ORDER,
+            keyboardFaceEnabledIds = p[KEY_KEYBOARD_FACE_ENABLED] ?: "",
             keyboardLayoutsJson = p[KEY_KEYBOARD_LAYOUTS] ?: "",
             keyboardLayoutActiveId = p[KEY_KEYBOARD_LAYOUT_ACTIVE] ?: "",
             keepAliveService = p[KEY_KEEP_ALIVE] ?: DEFAULT_KEEP_ALIVE,
@@ -822,6 +825,10 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_KEYBOARD_FACE_ORDER] = orderId }
     }
 
+    suspend fun setKeyboardFaceEnabledIds(ids: String) {
+        context.dataStore.edit { it[KEY_KEYBOARD_FACE_ENABLED] = ids }
+    }
+
     /**
      * 自分で作ったキー配列の束を丸ごと書き換える (0.8.408)。
      *
@@ -987,6 +994,7 @@ class AppSettings(private val context: Context) {
         private val KEY_IME_FACE = stringPreferencesKey("ime_face")
         private val KEY_KEYBOARD_NUMBER_FACE = booleanPreferencesKey("keyboard_number_face")
         private val KEY_KEYBOARD_FACE_ORDER = stringPreferencesKey("keyboard_face_order")
+        private val KEY_KEYBOARD_FACE_ENABLED = stringPreferencesKey("keyboard_face_enabled_ids")
         private val KEY_KEYBOARD_LAYOUTS = stringPreferencesKey("keyboard_layouts")
         private val KEY_KEYBOARD_LAYOUT_ACTIVE = stringPreferencesKey("keyboard_layout_active_id")
         private val KEY_KEEP_ALIVE = booleanPreferencesKey("keep_alive_service")

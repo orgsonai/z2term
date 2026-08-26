@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.zerotoship.z2term.emulator.TerminalEmulator
 import com.zerotoship.z2term.ui.terminal.input.AndroidKeyMapper
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
@@ -88,19 +89,8 @@ fun TerminalKeyboard(
     onCursorKey: (TerminalEmulator.CursorKey) -> Unit,
     composing: ComposingState,
     style: KeyboardStyle = KeyboardStyle.COMPACT,
-    /**
-     * 日本語面 ([KeyboardFace.KANA]) を巡回に入れるか。English モードでは false で外す
-     * (Locale=en のとき呼出し側で false を渡す)。
-     */
-    showJapaneseKeyboard: Boolean = true,
-    /**
-     * 面 ([KeyboardFace]) の巡回順。設定 (巡回順のプリセット + 数字面の有無) から
-     * `KeyboardFace.orderFrom(...)` で組んで渡す。
-     *
-     * ⚠ 日本語面はここに入っていても [showJapaneseKeyboard] が false なら飛ばす。
-     * 巡回は「**設定の順序 ∩ いま出せる面**」で回る ([KeyboardFace.available])。
-     */
-    faceOrder: List<KeyboardFace> = KeyboardFace.ORDER_ASCII_FIRST,
+    /** `next_face` が巡回する有効面。内蔵面とカスタム面を保存順のまま受け取る。 */
+    faceEntries: List<KeyboardFaceEntry> = listOf(KeyboardFaceEntry.builtin(KeyboardFace.ASCII)),
     /**
      * 開いたときの面。既定は英字面。
      *
@@ -108,35 +98,21 @@ fun TerminalKeyboard(
      * OS の入力メソッド ([com.zerotoship.z2term.ime.Z2ImeService]) だけが前回の面を渡す —
      * 端末では英字で打ち始めることが多く、他アプリでは日本語で打ち始めることが多いため。
      */
-    initialFace: KeyboardFace = KeyboardFace.ASCII,
+    initialFaceId: String = KeyboardFaceEntry.BUILTIN_ASCII_ID,
     /** 切替キーで面が変わったときの通知。面を永続化する呼出し側だけが受ける。 */
-    onFaceChange: (KeyboardFace) -> Unit = {},
-    /**
-     * 自分で作ったキー配列 (0.8.408・段階 2)。**null = 既定のプリセット**。
-     *
-     * 0.8.412 から [KeyLayout.faceId] と一致する英字・かな・数字の 1 面へ適用する。
-     * 記号面 (`?#`) は英字面と枠数が違うため、引き続き既定プリセットを使う。
-     *
-     * ⚠ **呼出し側は「読めなかったら null」を渡す。** 壊れた JSON でキーボードが
-     * 1 枚も出ない端末を作らないため (`activeKeyLayout` がその判断をしている)。
-     */
-    customLayout: KeyLayout? = null,
+    onFaceChange: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var shift by remember { mutableStateOf(ShiftState.OFF) }
     var ctrl by remember { mutableStateOf(false) }
     var alt by remember { mutableStateOf(false) }
     var sym by remember { mutableStateOf(false) }
-    // いま回せる面。⚠ 日本語面はアプリの言語が日本語のときだけ、数字面は設定 ON のときだけ
-    // (= 呼出し側が [faceOrder] から外している)。英字面は必ず残る。
-    val faces = KeyboardFace.available(faceOrder, allowKana = showJapaneseKeyboard)
-
-    // いま出している面。⚠ 始まりの面は [initialFace] (= 呼出し側が覚えている面) だが、
-    // 巡回に無い面では開かない — 「あ」キーの出ない英語ロケールで日本語面から開いたり、
-    // 設定で切った数字面が復元されたりするのは筋が通らない。
-    var face by remember(initialFace, faces) {
-        mutableStateOf(if (initialFace in faces) initialFace else KeyboardFace.ASCII)
+    val faces = faceEntries.ifEmpty { listOf(KeyboardFaceEntry.builtin(KeyboardFace.ASCII)) }
+    var faceEntryId by remember(initialFaceId, faces.map { it.id }) {
+        mutableStateOf(KeyboardFaceConfig.initialEntryId(initialFaceId, faces))
     }
+    val currentFace = faces.firstOrNull { it.id == faceEntryId } ?: faces.first()
+    val face = currentFace.face
     // 開いているパッド (絵文字 / 貼り付け)。⚠ 入口は**面の切替キーがこの面に無いときだけ**出す。
     // 切替キーがあるときは、その席 (日本語面の「あ」の位置) を切替キーが使うため。
     // 入口はかな面 (ESC の上下フリック) と数字面 (😀 キー) にもある。
@@ -145,18 +121,19 @@ fun TerminalKeyboard(
     // 面が 2 つ以上あるなら、最下段の左端は面の切替キー (= 日本語面の「あ」の席)。
     // ⛔ 切替キーを新設しない — 面が増えても画面に見えるキーの数は変わらない。
     val hasFaceKey = faces.size > 1
-    val nextFace = KeyboardFace.next(faces, face)
+    val currentIndex = faces.indexOfFirst { it.id == currentFace.id }.coerceAtLeast(0)
+    val nextFace = faces[(currentIndex + 1) % faces.size]
 
     // 面を移る。⚠ 打ちかけのかなは**先に確定**する (面をまたいで持ち越さない)。
-    fun switchFace(to: KeyboardFace) {
+    fun switchFace(to: KeyboardFaceEntry) {
         composing.commitRaw()
         sym = false
         pad = PadMode.NONE
-        face = to
-        onFaceChange(to)
+        faceEntryId = to.id
+        onFaceChange(to.id)
     }
 
-    val customForFace = customLayout?.takeIf { it.faceId == face.id }
+    val customForFace = currentFace.customLayout
 
     if (face == KeyboardFace.KANA && customForFace == null) {
         JapaneseFlickKeyboard(
@@ -388,7 +365,7 @@ fun TerminalKeyboard(
     // ⚠ キーの描画を 1 つに統合する (= 専用部品をやめる) のは次の段階。ここで一緒にやると、
     //   壊れたときに「並びが悪いのか描画が悪いのか」を切り分けられなくなる。
     //
-    // ⭐ 段階 2 (0.8.408): [customLayout] があればそれを描く。無ければ従来どおりプリセット。
+    // ⭐ 段階 2 (0.8.408): カスタム面ならその配列、内蔵面なら従来プリセットを描く。
     // ⚠ **記号面 (`?#`) はプリセットのまま。** 記号面は Row 4 の枠が 10 → 8 個に減るので
     //   レイヤーでは表せず、別の 1 枚として持つしかない (0.8.403)。0.8.411 では既定英字面と
     //   同じ幅規則へ揃えた。自作の記号面はまだ持たないため、`?#` ではこの 1 枚へ切り替える。
@@ -609,8 +586,8 @@ private fun KeyCell(
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(bg)
+            .zIndex(if (pressed) 1f else 0f)
+            .background(bg, RoundedCornerShape(6.dp))
             .border(1.dp, border, RoundedCornerShape(6.dp))
             .pointerInput(key) {
                 val threshold = viewConfiguration.touchSlop * 1.4f

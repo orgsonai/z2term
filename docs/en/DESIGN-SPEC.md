@@ -2336,13 +2336,16 @@ The symbol sheet is still separate because its fourth row has eight keys, but it
 same row/role width rules, so switching to `?#` no longer restores the older wider modifiers and space.
 No labels, flick destinations or actions changed.
 
-**Fixed multi-face layout editor (0.8.412).** The editor is now a non-dismissible full-screen dialog,
-not a draggable temporary sheet. A saved layout carries a backward-compatible `face` (`ascii` when
-omitted), so the built-in Latin, Japanese and number presets and another custom layout can all be
-duplicated and edited. Only the matching face consumes the active custom layout. Multi-selection
-applies outer width, appearance fields and an explicitly copied gesture to all selected keys; width
-also has a 0.2–5.0 slider. The numeric draft is remembered by key rather than by parsed width, which
-keeps transient but meaningful text such as `1.` while typing.
+**Fixed configurable-face layout editor (0.8.413).** The editor is a page in the existing Settings
+window rather than another dialog. It shares the full-width back bar and system-bar insets, while Save
+and Cancel stay outside the scrolling body. A saved layout carries a backward-compatible `face`
+(`ascii` when omitted), so the built-in Latin, Japanese and number presets and another custom layout
+can all be duplicated and edited. Built-ins and every custom layout are independent face entries;
+each can be enabled and freely reordered for `next_face`. Selection starts in single-key mode and only
+accumulates after the explicit multi-select toggle is enabled. The 0.2–5.0 width slider reuses Settings
+styling and has 0.1 ticks; the text draft remains keyed by selection so transient input such as `1.` is
+not normalized away. Flick commit helpers draw outside the key in the same Compose tree, not a Popup
+window, so their visible overlay does not prevent surrounding keys from receiving touches.
 
 #### 6.1.1 The numbers-only face (0.8.305)
 

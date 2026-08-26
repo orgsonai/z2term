@@ -16,7 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -76,13 +75,15 @@ import com.zerotoship.z2term.ui.theme.ZtsWarning
  */
 @Composable
 fun KeyLayoutVisualEditor(layout: KeyLayout, onChange: (KeyLayout) -> Unit) {
+    var multiSelect by remember(layout.id) { mutableStateOf(false) }
     var selected by remember(layout.id) {
         mutableStateOf(layout.keyPaths().firstOrNull()?.let(::setOf).orEmpty())
     }
     val paths = layout.keyPaths()
-    LaunchedEffect(paths, selected) {
+    LaunchedEffect(paths, selected, multiSelect) {
         val valid = selected.filterTo(LinkedHashSet()) { it in paths }
-        selected = if (valid.isEmpty()) paths.firstOrNull()?.let(::setOf).orEmpty() else valid
+        val repaired = if (valid.isEmpty()) paths.firstOrNull()?.let(::setOf).orEmpty() else valid
+        selected = if (multiSelect) repaired else repaired.firstOrNull()?.let(::setOf).orEmpty()
     }
     val path = selected.firstOrNull { it in paths }
     val key = path?.let(layout::keyAt)
@@ -95,11 +96,22 @@ fun KeyLayoutVisualEditor(layout: KeyLayout, onChange: (KeyLayout) -> Unit) {
             lineHeight = 15.sp,
             fontFamily = FontFamily.Monospace,
         )
+        ToggleField(
+            title = stringResource(R.string.settings_key_layout_multi_select),
+            description = stringResource(R.string.settings_key_layout_multi_select_desc),
+            checked = multiSelect,
+            onChange = { enabled ->
+                multiSelect = enabled
+                if (!enabled) selected = selected.firstOrNull()?.let(::setOf).orEmpty()
+            },
+        )
         LayoutPreview(
             layout = layout,
             selected = selected,
             onSelect = { tapped ->
-                selected = when {
+                selected = if (!multiSelect) {
+                    setOf(tapped)
+                } else when {
                     tapped !in selected -> selected + tapped
                     selected.size > 1 -> selected - tapped
                     else -> selected
@@ -295,15 +307,17 @@ private fun WidthEditor(
                     }
                 },
             )
-            Slider(
+            SliderField(
+                title = stringResource(R.string.settings_key_layout_width_slider),
                 value = (draft.toFloatOrNull() ?: (width as? KeyWidth.Fixed)?.ratio ?: 1f)
                     .coerceIn(0.2f, 5f),
-                onValueChange = { value ->
+                range = 0.2f..5f,
+                steps = 47,
+                valueLabel = { it.trimmed() },
+                onChange = { value ->
                     draft = value.trimmed()
                     onChange(layout.updateSlotWidths(paths, KeyWidth.Fixed(value)))
                 },
-                valueRange = 0.2f..5f,
-                modifier = Modifier.fillMaxWidth(),
             )
         }
     }

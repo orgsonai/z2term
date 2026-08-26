@@ -54,12 +54,11 @@ import com.zerotoship.z2term.ui.terminal.scaledKeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.ComposingState
 import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
 import com.zerotoship.z2term.ui.terminal.keyboard.KanaKanjiConverter
-import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace
+import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFaceConfig
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.KkcConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
-import com.zerotoship.z2term.ui.terminal.keyboard.activeKeyLayout
 import com.zerotoship.z2term.ui.theme.AppColors
 import com.zerotoship.z2term.ui.theme.Z2TermTheme
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -284,29 +283,31 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                         // ⚠ 覚えておきたいのは**面だけ** (`initialFace`)。面は設定に書いてあるので
                         // 作り直しても復元される — 一時状態と永続する状態をここで分けている。
                         key(keyboardSession.intValue) {
+                            val faceEntries = remember(
+                                settings.keyboardFaceOrder,
+                                settings.keyboardFaceEnabledIds,
+                                settings.keyboardLayoutsJson,
+                                settings.keyboardNumberFace,
+                                settings.keyboardLayoutActiveId,
+                                isJa,
+                            ) {
+                                KeyboardFaceConfig.enabledEntriesFromJson(
+                                    orderValue = settings.keyboardFaceOrder,
+                                    enabledValue = settings.keyboardFaceEnabledIds,
+                                    layoutsJson = settings.keyboardLayoutsJson,
+                                    legacyNumberEnabled = settings.keyboardNumberFace,
+                                    legacyActiveLayoutId = settings.keyboardLayoutActiveId,
+                                    legacyKanaAvailable = isJa,
+                                )
+                            }
                             TerminalKeyboard(
                                 onBytes = ::sendBytes,
                                 onCursorKey = ::sendCursorKey,
                                 composing = composing,
                                 style = style,
-                                showJapaneseKeyboard = isJa,
-                                faceOrder = KeyboardFace.orderFrom(
-                                    settings.keyboardFaceOrder,
-                                    settings.keyboardNumberFace
-                                ),
-                                initialFace = KeyboardFace.byId(settings.imeFace),
+                                faceEntries = faceEntries,
+                                initialFaceId = settings.imeFace,
                                 onFaceChange = ::rememberFace,
-                                // ⚠ 入力メソッドでも同じ配列を使う (0.8.408)。ここだけ既定に
-                                // 戻ると「アプリの中と外で別のキーボード」になってしまう。
-                                customLayout = remember(
-                                    settings.keyboardLayoutsJson,
-                                    settings.keyboardLayoutActiveId
-                                ) {
-                                    activeKeyLayout(
-                                        settings.keyboardLayoutsJson,
-                                        settings.keyboardLayoutActiveId
-                                    )
-                                }
                             )
                         }
                     }
@@ -347,8 +348,8 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
      * ⚠ **端末画面の内蔵キーボードは覚えない** (常に英字面から始まる)。端末は英字で、
      * 他アプリは日本語で打ち始めることが多く、同じ設定を共有すると片方が必ず外れる。
      */
-    private fun rememberFace(face: KeyboardFace) {
-        lifecycleScope.launch { appSettings.setImeFace(face.id) }
+    private fun rememberFace(faceEntryId: String) {
+        lifecycleScope.launch { appSettings.setImeFace(faceEntryId) }
     }
 
     /** [composing] の変化を `setComposingText` / `finishComposingText` へ流す。 */

@@ -72,8 +72,14 @@
     <string name="settings_keyboard_face_order">面の切りかえ順</string>
     <!-- 自分で作るキー配列 (0.8.408〜0.8.411・段階 2〜4 + 既定サイズ) -->
     <string name="settings_section_key_layout">キー配列（自分で作る）</string>
-    <string name="settings_key_layout_desc">英字・日本語・数字、または選択中の自作配列を複製して編集できます。複数のキーを選ぶと幅や見た目を一括変更でき、JSON に切り替えると全項目を直接触れます。</string>
-    <string name="settings_key_layout_default">既定</string>
+    <string name="settings_key_layout_desc">英字・日本語・数字、または選択中の自作配列を複製して編集できます。自作面はそれぞれ独立したまま、下で使用と順番を設定できます。</string>
+    <string name="settings_keyboard_faces_title">使用するキーボード面</string>
+    <string name="settings_keyboard_faces_desc">内蔵面と自作面を個別に ON/OFF し、矢印でネクストフェイスの順番を決めます。最低 1 面は ON のままです。</string>
+    <string name="settings_keyboard_faces_preview">ネクストフェイスの順番: %1$s</string>
+    <string name="settings_keyboard_face_builtin_kana">日本語（内蔵）</string>
+    <string name="settings_keyboard_face_builtin_ascii">英字（内蔵）</string>
+    <string name="settings_keyboard_face_builtin_number">数字（内蔵）</string>
+    <string name="settings_key_layout_default">編集する自作配列を選択</string>
     <string name="settings_key_layout_duplicate">英字の面を複製する</string>
     <string name="settings_key_layout_new_name">じぶんの英字</string>
     <string name="settings_key_layout_duplicate_kana">日本語キーボードを複製する</string>
@@ -85,7 +91,7 @@
     <string name="settings_key_layout_name">名前</string>
     <string name="settings_key_layout_edit">中身を編集</string>
     <string name="settings_key_layout_delete">この配列を削除</string>
-    <string name="settings_key_layout_target_note">名前の前の ABC・あ・12 は、この配列が置き換える面です。それ以外の面は既定のままです。</string>
+    <string name="settings_key_layout_target_note">ABC・あ・12 は自作配列の種類です。使用するかと順番は、上の「使用するキーボード面」で個別に設定します。</string>
     <string name="settings_key_layout_editor_title">%1$s を編集</string>
     <string name="settings_key_layout_editor_desc">1 枚分の JSON です。rows は段、slots は枠、w は均等な 1 枠を 1 とした固定幅（省略すると残りを均等分け）、bind は tap / up / down / left / right / long / double の割り当てです。分割・レイヤー・複数アクションも、この JSON のまま欠けずに保存されます。</string>
     <string name="settings_key_layout_editor_invalid_json">JSON として読み取れません。先頭が {、末尾が } の 1 枚分になっているか確認してください。</string>
@@ -95,7 +101,7 @@
     <string name="settings_key_layout_editor_id_note">ID %1$s は選択状態を切らないため固定です。JSON 内の id を変えても、この値で保存します。</string>
     <string name="settings_key_layout_editor_save">この内容を保存</string>
     <string name="settings_key_layout_editor_discard_title">編集を破棄しますか？</string>
-    <string name="settings_key_layout_editor_discard_msg">保存していない JSON の変更は元に戻せません。</string>
+    <string name="settings_key_layout_editor_discard_msg">保存していない変更は元に戻せません。</string>
     <string name="settings_key_layout_editor_discard">破棄する</string>
     <string name="settings_key_layout_editor_escape_title">この配列から抜けられない可能性があります</string>
     <string name="settings_key_layout_editor_escape_msg">面切替・設定・キーボードを閉じる・OS の入力方法へ切り替える、のどれも割り当てられていません。端末画面ではツールバーの設定から戻せますが、OS の入力方法として使う画面にはツールバーがありません。</string>
@@ -103,7 +109,9 @@
     <string name="settings_key_layout_visual_intro">配列のキーをタップして編集します。GUI と JSON は同じ下書きを見ているので、途中で切り替えても変更は残ります。</string>
     <string name="settings_key_layout_mode_visual">見た形で編集</string>
     <string name="settings_key_layout_mode_json">JSON</string>
-    <string name="settings_key_layout_visual_desc">キーをタップすると緑の選択へ追加します。複数選択中に選択済みのキーをタップすると外せます。幅・見た目・ジェスチャを選択キーへ一括適用できます。</string>
+    <string name="settings_key_layout_visual_desc">通常はタップした 1 キーだけを選択します。幅・見た目・ジェスチャを複数キーへ一括適用するときだけ複数選択を ON にしてください。</string>
+    <string name="settings_key_layout_multi_select">複数選択</string>
+    <string name="settings_key_layout_multi_select_desc">ON の間は選択を残したまま別のキーを追加します</string>
     <string name="settings_key_layout_selected">段 %1$d / 枠 %2$d%3$s</string>
     <string name="settings_key_layout_selected_count">%1$d キーを選択中</string>
     <string name="settings_key_layout_label">キーに出す文字</string>
@@ -111,6 +119,7 @@
     <string name="settings_key_layout_width_auto">残りを均等分け</string>
     <string name="settings_key_layout_width_fixed">固定</string>
     <string name="settings_key_layout_width_ratio">均等な 1 枠を 1 とした幅</string>
+    <string name="settings_key_layout_width_slider">幅（0.1 刻み）</string>
     <string name="settings_key_layout_appearance">見た目と手触り</string>
     <string name="settings_key_layout_repeat">長押し連打</string>
     <string name="settings_key_layout_press_feedback">押下色</string>

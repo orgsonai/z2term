@@ -142,12 +142,11 @@ import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
 import com.zerotoship.z2term.ui.terminal.keyboard.KanaKanjiConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.KkcConverter
-import com.zerotoship.z2term.ui.terminal.keyboard.KeyLayout
-import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace
+import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFaceConfig
+import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFaceEntry
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
-import com.zerotoship.z2term.ui.terminal.keyboard.activeKeyLayout
 import com.zerotoship.z2term.emulator.ZtsTheme
 import com.zerotoship.z2term.emulator.resolveTheme
 import com.zerotoship.z2term.settings.CustomThemeStore
@@ -537,13 +536,23 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             baseStyle,
             if (isLandscape) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp
         )
-        // 面 (かな / 英字 / 数字) の巡回順。設定の順序から、数字面が OFF ならそれを外す。
-        // 日本語面を外すかどうかは TerminalKeyboard 側 (showJapaneseKeyboard) が決める。
-        val faceOrder = KeyboardFace.orderFrom(settings.keyboardFaceOrder, settings.keyboardNumberFace)
-        // 自分で作ったキー配列 (0.8.408)。⚠ **読めなければ null** = 既定のプリセットで描く。
-        // 別の端末で作った設定を戻したときなど、束に無い id が選ばれている状況は普通に起きる。
-        val customLayout = remember(settings.keyboardLayoutsJson, settings.keyboardLayoutActiveId) {
-            activeKeyLayout(settings.keyboardLayoutsJson, settings.keyboardLayoutActiveId)
+        val legacyKanaAvailable = LocaleHelper.language(context) == LocaleHelper.LANG_JA
+        val faceEntries = remember(
+            settings.keyboardFaceOrder,
+            settings.keyboardFaceEnabledIds,
+            settings.keyboardLayoutsJson,
+            settings.keyboardNumberFace,
+            settings.keyboardLayoutActiveId,
+            legacyKanaAvailable,
+        ) {
+            KeyboardFaceConfig.enabledEntriesFromJson(
+                orderValue = settings.keyboardFaceOrder,
+                enabledValue = settings.keyboardFaceEnabledIds,
+                layoutsJson = settings.keyboardLayoutsJson,
+                legacyNumberEnabled = settings.keyboardNumberFace,
+                legacyActiveLayoutId = settings.keyboardLayoutActiveId,
+                legacyKanaAvailable = legacyKanaAvailable,
+            )
         }
 
         // 検索バー入力のルーティング:
@@ -625,9 +634,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     SideKeyboardColumn(
                         style = kbStyle,
                         composing = composing,
-                        showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
-                        faceOrder = faceOrder,
-                        customLayout = customLayout,
+                        faceEntries = faceEntries,
                         widthDp = settings.landscapeKeyboardWidthDp,
                         onBytes = onKeyboardBytes,
                         onCursorKey = onKeyboardCursor
@@ -748,9 +755,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     SideKeyboardColumn(
                         style = kbStyle,
                         composing = composing,
-                        showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
-                        faceOrder = faceOrder,
-                        customLayout = customLayout,
+                        faceEntries = faceEntries,
                         widthDp = settings.landscapeKeyboardWidthDp,
                         onBytes = onKeyboardBytes,
                         onCursorKey = onKeyboardCursor
@@ -787,10 +792,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                                     onCursorKey = onKeyboardCursor,
                                     composing = composing,
                                     style = kbStyle,
-                                    // English モードでは日本語面を巡回から外す。
-                                    showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
-                                    faceOrder = faceOrder,
-                                    customLayout = customLayout
+                                    faceEntries = faceEntries,
                                 )
                             }
                         }
@@ -1186,13 +1188,23 @@ private fun GuiTabScreen(
             baseStyleGui,
             if (isLandscapeGui) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp
         )
-        // 面 (かな / 英字 / 数字) の巡回順。設定の順序から、数字面が OFF ならそれを外す。
-        // 日本語面を外すかどうかは TerminalKeyboard 側 (showJapaneseKeyboard) が決める。
-        val faceOrder = KeyboardFace.orderFrom(settings.keyboardFaceOrder, settings.keyboardNumberFace)
-        // 自分で作ったキー配列 (0.8.408)。⚠ **読めなければ null** = 既定のプリセットで描く。
-        // 別の端末で作った設定を戻したときなど、束に無い id が選ばれている状況は普通に起きる。
-        val customLayout = remember(settings.keyboardLayoutsJson, settings.keyboardLayoutActiveId) {
-            activeKeyLayout(settings.keyboardLayoutsJson, settings.keyboardLayoutActiveId)
+        val legacyKanaAvailableGui = LocaleHelper.language(context) == LocaleHelper.LANG_JA
+        val faceEntries = remember(
+            settings.keyboardFaceOrder,
+            settings.keyboardFaceEnabledIds,
+            settings.keyboardLayoutsJson,
+            settings.keyboardNumberFace,
+            settings.keyboardLayoutActiveId,
+            legacyKanaAvailableGui,
+        ) {
+            KeyboardFaceConfig.enabledEntriesFromJson(
+                orderValue = settings.keyboardFaceOrder,
+                enabledValue = settings.keyboardFaceEnabledIds,
+                layoutsJson = settings.keyboardLayoutsJson,
+                legacyNumberEnabled = settings.keyboardNumberFace,
+                legacyActiveLayoutId = settings.keyboardLayoutActiveId,
+                legacyKanaAvailable = legacyKanaAvailableGui,
+            )
         }
 
         Row(modifier = Modifier
@@ -1203,9 +1215,7 @@ private fun GuiTabScreen(
                 SideKeyboardColumn(
                     style = kbStyleGui,
                     composing = composing,
-                    showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
-                    faceOrder = faceOrder,
-                    customLayout = customLayout,
+                    faceEntries = faceEntries,
                     widthDp = settings.landscapeKeyboardWidthDp,
                     onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
                     onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) }
@@ -1260,9 +1270,7 @@ private fun GuiTabScreen(
                                             onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) },
                                             composing = composing,
                                             style = kbStyleGui,
-                                            showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
-                                            faceOrder = faceOrder,
-                                            customLayout = customLayout
+                                            faceEntries = faceEntries,
                                         )
                                     }
                                 }
@@ -1285,9 +1293,7 @@ private fun GuiTabScreen(
                 SideKeyboardColumn(
                     style = kbStyleGui,
                     composing = composing,
-                    showJapaneseKeyboard = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
-                    faceOrder = faceOrder,
-                    customLayout = customLayout,
+                    faceEntries = faceEntries,
                     widthDp = settings.landscapeKeyboardWidthDp,
                     onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
                     onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) }
@@ -2708,10 +2714,7 @@ internal fun scaledKeyboardStyle(base: KeyboardStyle, targetHeightDp: Float): Ke
 private fun SideKeyboardColumn(
     style: KeyboardStyle,
     composing: ComposingState,
-    showJapaneseKeyboard: Boolean,
-    faceOrder: List<KeyboardFace>,
-    /** 自分で作ったキー配列 (0.8.408)。null = 既定のプリセット。 */
-    customLayout: KeyLayout?,
+    faceEntries: List<KeyboardFaceEntry>,
     widthDp: Float,
     onBytes: (ByteArray) -> Unit,
     onCursorKey: (com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey) -> Unit
@@ -2732,9 +2735,7 @@ private fun SideKeyboardColumn(
                 onCursorKey = onCursorKey,
                 composing = composing,
                 style = style,
-                showJapaneseKeyboard = showJapaneseKeyboard,
-                faceOrder = faceOrder,
-                customLayout = customLayout
+                faceEntries = faceEntries,
             )
         }
     }
