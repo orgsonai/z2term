@@ -356,11 +356,46 @@ data class KeyLayout(
     val rows: List<KeyRow>,
     /** この 1 枚を使う面。既存保存値は省略 = 英字として読み、後方互換を保つ。 */
     val faceId: String = KeyboardFace.ASCII.id,
+    /** この面を描くスタイル。スタイル選択廃止後は、面ごとに保持する。 */
+    val styleId: String = KeyboardStyle.SPACIOUS.id,
+    /** 英字面の `?#` で開く子配列。英字以外では null。 */
+    val symbolRows: List<KeyRow>? = null,
+    /** 複製した瞬間の名前と配列。保存後でも「デフォルトに戻す」ための不変スナップショット。 */
+    val defaultName: String? = null,
+    val defaultRows: List<KeyRow>? = null,
+    val defaultSymbolRows: List<KeyRow>? = null,
 ) {
-    /** すべてのキー（分割の中も含む。レイヤーでの姿は含まない）。 */
-    fun allKeys(): List<KeyDef> = rows.flatMap { row ->
+    /** すべてのキー（記号子面・分割の中も含む。レイヤーでの姿は含まない）。 */
+    fun allKeys(): List<KeyDef> = (rows + symbolRows.orEmpty()).flatMap { row ->
         row.slots.flatMap { keysIn(it.content) }
     }
+
+    /** 古い保存データに、記号子面と「複製時点」の基準を安全に補う。 */
+    fun withEditorDefaults(): KeyLayout {
+        val inferredStyle = if (styleId in KeyboardStyle.ALL.map { it.id }) styleId
+            else if (rows.size >= 6) KeyboardStyle.COMPACT.id else KeyboardStyle.SPACIOUS.id
+        val symbols = if (faceId == KeyboardFace.ASCII.id) {
+            symbolRows ?: asciiKeyLayout(
+                compact = inferredStyle == KeyboardStyle.COMPACT.id,
+                hasFaceKey = true,
+                symbols = true,
+                fourWayFlick = inferredStyle == KeyboardStyle.SPACIOUS.id,
+            ).rows
+        } else null
+        val enriched = copy(styleId = inferredStyle, symbolRows = symbols)
+        return if (enriched.defaultRows != null) enriched else enriched.copy(
+            defaultName = enriched.name,
+            defaultRows = enriched.rows,
+            defaultSymbolRows = enriched.symbolRows,
+        )
+    }
+
+    /** 保存済みの編集内容ではなく、複製した最初の状態へ戻す。 */
+    fun restoreDefaults(): KeyLayout = if (defaultRows == null) this else copy(
+        name = defaultName ?: name,
+        rows = defaultRows,
+        symbolRows = defaultSymbolRows,
+    )
 
     /**
      * ここから**設定か別の面へ抜けられる**キーが 1 つでもあるか。
@@ -380,18 +415,25 @@ data class KeyLayout(
     /** 壊れたレイアウトを弾く。空 = 問題なし。 */
     fun validate(): List<String> {
         val problems = ArrayList<String>()
-        if (rows.isEmpty()) problems.add("rows is empty")
-        rows.forEachIndexed { i, row ->
-            if (row.slots.isEmpty()) problems.add("row $i has no slots")
+        validateRows(rows, "", problems)
+        symbolRows?.let { validateRows(it, "symbols ", problems) }
+        defaultRows?.let { validateRows(it, "default ", problems) }
+        defaultSymbolRows?.let { validateRows(it, "default symbols ", problems) }
+        return problems
+    }
+
+    private fun validateRows(source: List<KeyRow>, prefix: String, problems: MutableList<String>) {
+        if (source.isEmpty()) problems.add("${prefix}rows is empty")
+        source.forEachIndexed { i, row ->
+            if (row.slots.isEmpty()) problems.add("${prefix}row $i has no slots")
             row.slots.forEachIndexed { j, slot ->
-                checkContent(slot.content, depth = 1, where = "row $i slot $j", into = problems)
+                checkContent(slot.content, depth = 1, where = "${prefix}row $i slot $j", into = problems)
                 val w = slot.width
                 if (w is KeyWidth.Fixed && (!w.ratio.isFinite() || w.ratio <= 0f)) {
-                    problems.add("row $i slot $j has an invalid fixed width")
+                    problems.add("${prefix}row $i slot $j has an invalid fixed width")
                 }
             }
         }
-        return problems
     }
 
     private fun checkContent(content: SlotContent, depth: Int, where: String, into: MutableList<String>) {

@@ -239,7 +239,7 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
         val customTheme by CustomThemeStore.theme.collectAsState()
         val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
         val style = scaledKeyboardStyle(
-            KeyboardStyle.byId(settings.keyboardStyleId),
+            KeyboardStyle.SPACIOUS,
             if (isLandscape) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp
         )
         // 配色もアプリで選んだテーマに揃える。⚠ AppColors を更新するのは端末画面なので、

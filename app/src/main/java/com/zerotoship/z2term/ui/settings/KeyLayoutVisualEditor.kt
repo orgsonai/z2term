@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,6 +67,8 @@ import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import com.zerotoship.z2term.ui.theme.ZtsWarning
+import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * 配列を見た形のまま複数選択し、基本項目とアクション列を編集する（0.8.410〜0.8.412・段階 4）。
@@ -74,52 +77,92 @@ import com.zerotoship.z2term.ui.theme.ZtsWarning
  * 将来の項目を、GUI でラベルを 1 文字直しただけで落とさないことが最優先。
  */
 @Composable
-fun KeyLayoutVisualEditor(layout: KeyLayout, onChange: (KeyLayout) -> Unit) {
-    var multiSelect by remember(layout.id) { mutableStateOf(false) }
-    var selected by remember(layout.id) {
-        mutableStateOf(layout.keyPaths().firstOrNull()?.let(::setOf).orEmpty())
+fun KeyLayoutVisualEditor(
+    layout: KeyLayout,
+    modifier: Modifier = Modifier,
+    onChange: (KeyLayout) -> Unit,
+) {
+    val settingsScroll = rememberScrollState()
+    val supportsSymbols = layout.faceId == com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFace.ASCII.id &&
+        layout.symbolRows != null
+    var editingSymbols by remember(layout.id) { mutableStateOf(false) }
+    LaunchedEffect(supportsSymbols) {
+        if (!supportsSymbols) editingSymbols = false
     }
-    val paths = layout.keyPaths()
+    val workingLayout = if (editingSymbols) layout.copy(rows = layout.symbolRows.orEmpty()) else layout
+    val surfaceKey = "${layout.id}:${if (editingSymbols) "symbols" else "main"}"
+    fun publish(changed: KeyLayout) {
+        onChange(
+            if (editingSymbols) layout.copy(name = changed.name, symbolRows = changed.rows)
+            else changed,
+        )
+    }
+    var multiSelect by remember(surfaceKey) { mutableStateOf(false) }
+    var selected by remember(surfaceKey) {
+        mutableStateOf(workingLayout.keyPaths().firstOrNull()?.let(::setOf).orEmpty())
+    }
+    val paths = workingLayout.keyPaths()
     LaunchedEffect(paths, selected, multiSelect) {
         val valid = selected.filterTo(LinkedHashSet()) { it in paths }
         val repaired = if (valid.isEmpty()) paths.firstOrNull()?.let(::setOf).orEmpty() else valid
         selected = if (multiSelect) repaired else repaired.firstOrNull()?.let(::setOf).orEmpty()
     }
     val path = selected.firstOrNull { it in paths }
-    val key = path?.let(layout::keyAt)
+    val key = path?.let(workingLayout::keyAt)
+    val selectPath: (KeyCellPath) -> Unit = { tapped ->
+        selected = if (!multiSelect) {
+            setOf(tapped)
+        } else when {
+            tapped !in selected -> selected + tapped
+            selected.size > 1 -> selected - tapped
+            else -> selected
+        }
+    }
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            text = stringResource(R.string.settings_key_layout_visual_desc),
-            color = ZtsTextSecondary,
-            fontSize = 10.sp,
-            lineHeight = 15.sp,
-            fontFamily = FontFamily.Monospace,
-        )
-        ToggleField(
-            title = stringResource(R.string.settings_key_layout_multi_select),
-            description = stringResource(R.string.settings_key_layout_multi_select_desc),
-            checked = multiSelect,
-            onChange = { enabled ->
-                multiSelect = enabled
-                if (!enabled) selected = selected.firstOrNull()?.let(::setOf).orEmpty()
-            },
-        )
-        LayoutPreview(
-            layout = layout,
-            selected = selected,
-            onSelect = { tapped ->
-                selected = if (!multiSelect) {
-                    setOf(tapped)
-                } else when {
-                    tapped !in selected -> selected + tapped
-                    selected.size > 1 -> selected - tapped
-                    else -> selected
+    Column(modifier = modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(settingsScroll)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (supportsSymbols) {
+                ChoiceRow {
+                    ChoiceChip(
+                        label = stringResource(R.string.settings_key_layout_child_letters),
+                        selected = !editingSymbols,
+                    ) { editingSymbols = false }
+                    ChoiceChip(
+                        label = stringResource(R.string.settings_key_layout_child_symbols),
+                        selected = editingSymbols,
+                    ) { editingSymbols = true }
                 }
-            },
-        )
+            }
+            VisualTextField(
+                label = stringResource(R.string.settings_key_layout_name),
+                value = layout.name,
+                onChange = { publish(workingLayout.copy(name = it)) },
+            )
+            Text(
+                text = stringResource(R.string.settings_key_layout_visual_desc),
+                color = ZtsTextSecondary,
+                fontSize = 10.sp,
+                lineHeight = 15.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+            ToggleField(
+                title = stringResource(R.string.settings_key_layout_multi_select),
+                description = stringResource(R.string.settings_key_layout_multi_select_desc),
+                checked = multiSelect,
+                onChange = { enabled ->
+                    multiSelect = enabled
+                    if (!enabled) selected = selected.firstOrNull()?.let(::setOf).orEmpty()
+                },
+            )
 
-        if (path != null && key != null) {
+            if (path != null && key != null) {
             Text(
                 text = stringResource(
                     R.string.settings_key_layout_selected,
@@ -142,19 +185,19 @@ fun KeyLayoutVisualEditor(layout: KeyLayout, onChange: (KeyLayout) -> Unit) {
             VisualTextField(
                 label = stringResource(R.string.settings_key_layout_label),
                 value = key.label,
-                onChange = { value -> onChange(layout.updateKey(path) { it.copy(label = value) }) },
+                onChange = { value -> publish(workingLayout.updateKey(path) { it.copy(label = value) }) },
             )
-            WidthEditor(layout, selected, path, onChange)
-            AppearanceEditor(layout, selected, key, onChange)
+            WidthEditor(workingLayout, selected, path, ::publish)
+            AppearanceEditor(workingLayout, selected, key, ::publish)
             if (selected.size == 1) {
                 StructureEditor(
-                    layout = layout,
+                    layout = workingLayout,
                     path = path,
-                    onChange = onChange,
+                    onChange = ::publish,
                     onSelect = { selected = it?.let(::setOf).orEmpty() },
                 )
             }
-            BindingEditor(layout, selected, path, key, onChange)
+            BindingEditor(workingLayout, selected, path, key, ::publish)
 
             if (key.layers.isNotEmpty()) {
                 Text(
@@ -165,6 +208,41 @@ fun KeyLayoutVisualEditor(layout: KeyLayout, onChange: (KeyLayout) -> Unit) {
                     fontFamily = FontFamily.Monospace,
                 )
             }
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(ZtsBgSecondary)
+                .border(1.dp, ZtsBorder)
+                .padding(horizontal = 8.dp, vertical = 7.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_key_layout_preview_title),
+                    modifier = Modifier.weight(1f),
+                    color = ZtsTextPrimary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = FontFamily.Monospace,
+                )
+                Text(
+                    text = stringResource(R.string.settings_key_layout_preview_desc),
+                    color = ZtsTextSecondary,
+                    fontSize = 9.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+            LayoutPreview(
+                layout = workingLayout,
+                selected = selected,
+                onSelect = selectPath,
+            )
         }
     }
 }
@@ -175,6 +253,8 @@ private fun LayoutPreview(
     selected: Set<KeyCellPath>,
     onSelect: (KeyCellPath) -> Unit,
 ) {
+    // 実際のキーボードと同じく、段数が増えたら 1 段を縮めて下部の占有高をほぼ一定に保つ。
+    val rowHeight = (240f / layout.rows.size.coerceAtLeast(1)).coerceIn(28f, 48f).dp
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -186,7 +266,7 @@ private fun LayoutPreview(
         layout.rows.forEachIndexed { rowIndex, row ->
             val weights = row.weights()
             Row(
-                modifier = Modifier.fillMaxWidth().height(48.dp),
+                modifier = Modifier.fillMaxWidth().height(rowHeight),
                 horizontalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 row.slots.forEachIndexed { slotIndex, slot ->
@@ -214,10 +294,27 @@ private fun PreviewContent(
     when (content) {
         is SlotContent.Single -> {
             val isSelected = path in selected
+            val key = content.key
+            val isHighlighted = key.highlighted
+            val background = when {
+                isSelected -> ZtsGreen.copy(alpha = 0.32f)
+                isHighlighted -> ZtsGreen.copy(alpha = 0.75f)
+                else -> ZtsBgCard
+            }
+            val foreground = when {
+                isHighlighted && !isSelected -> ZtsBgSecondary
+                key.labelTone == LabelTone.SECONDARY -> ZtsTextSecondary
+                else -> ZtsTextPrimary
+            }
+            val fontSize = when (key.fontRole) {
+                KeyFontRole.SMALL -> 9.sp
+                KeyFontRole.NORMAL -> 11.sp
+                KeyFontRole.MAIN -> 14.sp
+            }
             Box(
                 modifier = modifier
                     .background(
-                        if (isSelected) ZtsGreen.copy(alpha = 0.26f) else ZtsBgCard,
+                        background,
                         RoundedCornerShape(5.dp),
                     )
                     .border(
@@ -230,13 +327,25 @@ private fun PreviewContent(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = content.key.label.ifEmpty { "+" },
-                    color = if (content.key.label.isEmpty()) ZtsTextSecondary else ZtsTextPrimary,
-                    fontSize = 10.sp,
+                    text = previewKeyLabel(key),
+                    color = foreground,
+                    fontSize = fontSize,
                     fontFamily = FontFamily.Monospace,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                previewHint(key, KeyGesture.UP)?.let {
+                    PreviewHint(it, Modifier.align(Alignment.TopCenter))
+                }
+                previewHint(key, KeyGesture.DOWN)?.let {
+                    PreviewHint(it, Modifier.align(Alignment.BottomCenter))
+                }
+                previewHint(key, KeyGesture.LEFT)?.let {
+                    PreviewHint(it, Modifier.align(Alignment.CenterStart).padding(start = 2.dp))
+                }
+                previewHint(key, KeyGesture.RIGHT)?.let {
+                    PreviewHint(it, Modifier.align(Alignment.CenterEnd).padding(end = 2.dp))
+                }
             }
         }
         is SlotContent.Split -> {
@@ -270,6 +379,56 @@ private fun PreviewContent(
 }
 
 @Composable
+private fun PreviewHint(text: String, modifier: Modifier) {
+    Text(
+        text = text,
+        modifier = modifier,
+        color = ZtsGreen,
+        fontSize = 7.sp,
+        lineHeight = 7.sp,
+        fontFamily = FontFamily.Monospace,
+        maxLines = 1,
+    )
+}
+
+private fun previewKeyLabel(key: KeyDef): String =
+    key.label.ifEmpty { previewActionLabel(key.actionsFor(KeyGesture.TAP).firstOrNull()) ?: "+" }
+
+private fun previewHint(key: KeyDef, gesture: KeyGesture): String? =
+    if (gesture in key.hintGestures) previewActionLabel(key.actionsFor(gesture).firstOrNull()) else null
+
+private fun previewActionLabel(action: KeyAction?): String? = when (action) {
+    is KeyAction.Text -> action.text
+    is KeyAction.Named -> when (action.key) {
+        NamedKey.BACKSPACE -> "⌫"
+        NamedKey.ENTER -> "⏎"
+        NamedKey.UP -> "↑"
+        NamedKey.DOWN -> "↓"
+        NamedKey.LEFT -> "←"
+        NamedKey.RIGHT -> "→"
+        else -> action.key.id.uppercase()
+    }
+    is KeyAction.Modifier -> action.mod.id.uppercase()
+    is KeyAction.App -> when (action.action) {
+        AppAction.NEXT_FACE -> "↻"
+        AppAction.PAD_PASTE -> "📋"
+        AppAction.PAD_EMOJI -> "😀"
+        AppAction.CLOSE_PAD -> "×"
+        AppAction.HIDE_KEYBOARD -> "⌄"
+        AppAction.SWITCH_IME -> "⌨"
+        AppAction.SETTINGS -> "⚙"
+        AppAction.IME_CONVERT -> "変換"
+        AppAction.IME_DAKUTEN -> "゛"
+    }
+    is KeyAction.Chord -> action.text ?: action.key?.id?.uppercase()
+    is KeyAction.Raw -> "0x"
+    is KeyAction.Layer -> action.layer
+    is KeyAction.Snippet -> action.id
+    is KeyAction.Macro -> action.name
+    null -> null
+}
+
+@Composable
 private fun WidthEditor(
     layout: KeyLayout,
     paths: Set<KeyCellPath>,
@@ -280,7 +439,7 @@ private fun WidthEditor(
     // ⚠ width を remember key に入れない。入力途中の `1.` も Float 化できる直前値 `1` で
     // layout が更新されるため、width で初期化し直すと末尾の小数点が消えてしまう。
     var draft by remember(path) {
-        mutableStateOf(((width as? KeyWidth.Fixed)?.ratio ?: 1f).trimmed())
+        mutableStateOf(formatEditorFloat((width as? KeyWidth.Fixed)?.ratio ?: 1f))
     }
     EditorSection(stringResource(R.string.settings_key_layout_width)) {
         ChoiceRow {
@@ -313,10 +472,11 @@ private fun WidthEditor(
                     .coerceIn(0.2f, 5f),
                 range = 0.2f..5f,
                 steps = 47,
-                valueLabel = { it.trimmed() },
+                valueLabel = { formatKeyWidthSliderValue(it) },
                 onChange = { value ->
-                    draft = value.trimmed()
-                    onChange(layout.updateSlotWidths(paths, KeyWidth.Fixed(value)))
+                    val snapped = snapKeyWidthToTenth(value)
+                    draft = formatKeyWidthSliderValue(snapped)
+                    onChange(layout.updateSlotWidths(paths, KeyWidth.Fixed(snapped)))
                 },
             )
         }
@@ -770,7 +930,14 @@ private fun <T> List<T>.swap(a: Int, b: Int): List<T> = toMutableList().also {
     it[b] = value
 }
 
-private fun Float.trimmed(): String = if (this == toInt().toFloat()) toInt().toString() else toString()
+/** Float の丸め誤差 (`1.3000001` 等) を編集欄へ見せず、通常入力の精度は 3 桁まで保つ。 */
+internal fun formatEditorFloat(value: Float): String = if (!value.isFinite()) value.toString() else
+    String.format(Locale.US, "%.3f", value).trimEnd('0').trimEnd('.')
+
+/** 幅スライダーは表示だけでなく保存値そのものも必ず 0.1 刻みにそろえる。 */
+internal fun snapKeyWidthToTenth(value: Float): Float = (value * 10f).roundToInt() / 10f
+internal fun formatKeyWidthSliderValue(value: Float): String =
+    String.format(Locale.US, "%.1f", snapKeyWidthToTenth(value))
 private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
 private fun String.hexToBytesOrNull(): ByteArray? {
     val value = trim()

@@ -203,7 +203,12 @@ fun asciiKeyLayout(
         )
     )
 
-    return KeyLayout(id = id, name = id, rows = rows)
+    return KeyLayout(
+        id = id,
+        name = id,
+        rows = rows,
+        styleId = if (compact) KeyboardStyle.COMPACT.id else KeyboardStyle.SPACIOUS.id,
+    )
 }
 
 /**

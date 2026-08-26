@@ -107,11 +107,18 @@ data class KeyboardFaceEntry(
     val customLayout: KeyLayout? = null,
 ) {
     val switchLabel: String
-        get() = customLayout?.name?.trim()?.takeIf { it.isNotEmpty() }?.take(4) ?: face.switchLabel
+        get() = customLayout?.name?.trim()?.takeIf { it.isNotEmpty() }?.take(4)
+            ?: if (id == BUILTIN_ASCII_SIMPLE_ID) "ABC-S" else face.switchLabel
+
+    /** グローバル選択ではなく、この面自身が使う描画スタイル。 */
+    val styleId: String
+        get() = customLayout?.styleId
+            ?: if (id == BUILTIN_ASCII_SIMPLE_ID) KeyboardStyle.COMPACT.id else KeyboardStyle.SPACIOUS.id
 
     companion object {
         const val BUILTIN_KANA_ID = "builtin:kana"
         const val BUILTIN_ASCII_ID = "builtin:ascii"
+        const val BUILTIN_ASCII_SIMPLE_ID = "builtin:ascii_simple"
         const val BUILTIN_NUMBER_ID = "builtin:number"
         private const val CUSTOM_PREFIX = "custom:"
 
@@ -122,6 +129,11 @@ data class KeyboardFaceEntry(
                 KeyboardFace.NUMBER -> BUILTIN_NUMBER_ID
             },
             face = face,
+        )
+
+        fun builtinAsciiSimple(): KeyboardFaceEntry = KeyboardFaceEntry(
+            id = BUILTIN_ASCII_SIMPLE_ID,
+            face = KeyboardFace.ASCII,
         )
 
         fun custom(layout: KeyLayout): KeyboardFaceEntry = KeyboardFaceEntry(
@@ -138,11 +150,12 @@ data class KeyboardFaceEntry(
 object KeyboardFaceConfig {
     private const val SEPARATOR = ","
 
-    /** 内蔵3面 + 保存済みカスタム面を、保存順に並べる。未知・削除済みIDは落とす。 */
+    /** 内蔵面（シンプル英字を含む）+ 保存済みカスタム面を、保存順に並べる。 */
     fun allEntries(orderValue: String?, layouts: List<KeyLayout>): List<KeyboardFaceEntry> {
         val known = buildList {
             add(KeyboardFaceEntry.builtin(KeyboardFace.KANA))
             add(KeyboardFaceEntry.builtin(KeyboardFace.ASCII))
+            add(KeyboardFaceEntry.builtinAsciiSimple())
             add(KeyboardFaceEntry.builtin(KeyboardFace.NUMBER))
             layouts.forEach { add(KeyboardFaceEntry.custom(it)) }
         }
@@ -241,10 +254,12 @@ object KeyboardFaceConfig {
             KeyboardFaceEntry.BUILTIN_KANA_ID,
             KeyboardFaceEntry.BUILTIN_NUMBER_ID,
             KeyboardFaceEntry.BUILTIN_ASCII_ID,
+            KeyboardFaceEntry.BUILTIN_ASCII_SIMPLE_ID,
         )
         KeyboardFace.ORDER_ASCII_FIRST_ID, null, "" -> listOf(
             KeyboardFaceEntry.BUILTIN_KANA_ID,
             KeyboardFaceEntry.BUILTIN_ASCII_ID,
+            KeyboardFaceEntry.BUILTIN_ASCII_SIMPLE_ID,
             KeyboardFaceEntry.BUILTIN_NUMBER_ID,
         )
         else -> value.split(SEPARATOR).map(String::trim).filter(String::isNotEmpty).distinct()

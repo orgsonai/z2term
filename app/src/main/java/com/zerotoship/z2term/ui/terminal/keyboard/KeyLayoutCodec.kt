@@ -48,7 +48,7 @@ package com.zerotoship.z2term.ui.terminal.keyboard
 object KeyLayoutCodec {
 
     /** 書き出す形の版。⚠ 読むときは**版が違っても捨てない**（知らない項目を無視するだけ）。 */
-    const val VERSION = 1
+    const val VERSION = 2
 
     // ---- 書き出す ----------------------------------------------------------------------
 
@@ -58,7 +58,17 @@ object KeyLayoutCodec {
         "name" to layout.name,
     ).apply {
         if (layout.faceId != KeyboardFace.ASCII.id) put("face", layout.faceId)
+        if (layout.styleId != KeyboardStyle.SPACIOUS.id) put("style", layout.styleId)
         put("rows", layout.rows.map { encodeRow(it) })
+        layout.symbolRows?.let { put("symbols", it.map(::encodeRow)) }
+        layout.defaultRows?.let { defaults ->
+            put("default", linkedMapOf<String, Any?>(
+                "name" to (layout.defaultName ?: layout.name),
+                "rows" to defaults.map(::encodeRow),
+            ).apply {
+                layout.defaultSymbolRows?.let { put("symbols", it.map(::encodeRow)) }
+            })
+        }
     }
 
     fun encodeAll(layouts: List<KeyLayout>): List<Map<String, Any?>> = layouts.map { encode(it) }
@@ -164,18 +174,36 @@ object KeyLayoutCodec {
     fun decode(node: Map<*, *>): KeyLayout? {
         val id = node.str("id")?.takeIf { it.isNotBlank() } ?: return null
         val name = node.str("name") ?: id
-        val rows = (node.list("rows") ?: return null).mapNotNull { r ->
-            (r as? Map<*, *>)?.let { decodeRow(it) }
-        }
+        val rows = decodeRows(node.list("rows")) ?: return null
         if (rows.isEmpty()) return null
         val faceId = node.str("face")?.let { KeyboardFace.byId(it).id } ?: KeyboardFace.ASCII.id
-        return KeyLayout(id = id, name = name, rows = rows, faceId = faceId)
+        // v1 には style が無い。6 段ならシンプル、5 段以下なら4方向として復元する。
+        val styleId = node.str("style")?.takeIf { raw -> KeyboardStyle.ALL.any { it.id == raw } }
+            ?: if (rows.size >= 6) KeyboardStyle.COMPACT.id else KeyboardStyle.SPACIOUS.id
+        val symbols = decodeRows(node.list("symbols"))
+        val defaults = node.map("default")
+        val defaultRows = defaults?.let { decodeRows(it.list("rows")) }
+        return KeyLayout(
+            id = id,
+            name = name,
+            rows = rows,
+            faceId = faceId,
+            styleId = styleId,
+            symbolRows = symbols,
+            defaultName = defaults?.str("name"),
+            defaultRows = defaultRows,
+            defaultSymbolRows = defaults?.let { decodeRows(it.list("symbols")) },
+        )
     }
 
     /** 束をまとめて読む。⚠ **読めない 1 件のために他を落とさない**。 */
     fun decodeAll(nodes: List<*>): List<KeyLayout> = nodes.mapNotNull { n ->
         (n as? Map<*, *>)?.let { decode(it) }
     }
+
+    private fun decodeRows(raw: List<*>?): List<KeyRow>? = raw?.mapNotNull { row ->
+        (row as? Map<*, *>)?.let(::decodeRow)
+    }?.takeIf { it.isNotEmpty() }
 
     private fun decodeRow(node: Map<*, *>): KeyRow? {
         val slots = (node.list("slots") ?: return null).mapNotNull { s ->

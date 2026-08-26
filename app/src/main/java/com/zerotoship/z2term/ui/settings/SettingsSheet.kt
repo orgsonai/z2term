@@ -56,6 +56,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -134,7 +135,6 @@ import com.zerotoship.z2term.ui.terminal.keyboard.nextActiveAfterRemove
 import com.zerotoship.z2term.ui.terminal.keyboard.japaneseKeyLayout
 import com.zerotoship.z2term.ui.terminal.keyboard.numberKeyLayout
 import com.zerotoship.z2term.ui.terminal.keyboard.removeLayout
-import com.zerotoship.z2term.ui.terminal.keyboard.renameLayout
 import com.zerotoship.z2term.ui.terminal.keyboard.uniqueKeyLayoutName
 import com.zerotoship.z2term.ui.terminal.keyboard.upsertLayout
 import com.zerotoship.z2term.ui.terminal.stopEverythingAndQuit
@@ -336,6 +336,28 @@ fun SettingsSheet(
                 onSave = { saved ->
                     val latest = KeyLayoutJson.listFromJsonString(settings.keyboardLayoutsJson)
                     session.setKeyboardLayoutsJson(KeyLayoutJson.toJsonString(latest.upsertLayout(saved)))
+                    keyLayoutEditingId = null
+                },
+                onDelete = { deleted ->
+                    val latest = KeyLayoutJson.listFromJsonString(settings.keyboardLayoutsJson)
+                    val remaining = latest.removeLayout(deleted.id)
+                    val entries = KeyboardFaceConfig.allEntries(settings.keyboardFaceOrder, remaining)
+                    val enabled = KeyboardFaceConfig.enabledIds(
+                        enabledValue = settings.keyboardFaceEnabledIds,
+                        entries = entries,
+                        legacyNumberEnabled = settings.keyboardNumberFace,
+                        legacyActiveLayoutId = nextActiveAfterRemove(
+                            settings.keyboardLayoutActiveId,
+                            deleted.id,
+                        ),
+                        legacyKanaAvailable = LocaleHelper.language(context) == LocaleHelper.LANG_JA,
+                    )
+                    session.setKeyboardLayoutActiveId(
+                        nextActiveAfterRemove(settings.keyboardLayoutActiveId, deleted.id)
+                    )
+                    session.setKeyboardLayoutsJson(KeyLayoutJson.toJsonString(remaining))
+                    session.setKeyboardFaceOrder(KeyboardFaceConfig.encodeOrder(entries))
+                    session.setKeyboardFaceEnabledIds(KeyboardFaceConfig.encodeEnabled(entries, enabled))
                     keyLayoutEditingId = null
                 },
                 onDismiss = { keyLayoutEditingId = null },
@@ -548,14 +570,8 @@ fun SettingsSheet(
                     }
                 }
 
-                // キーボードスタイル (配列) も入力系なので表示設定の近くに置く。
+                // シンプル / 4方向は「使用するキーボード面」へ統合したため、ここでは共通操作だけ。
                 Section(title = stringResource(R.string.settings_section_keyboard_style)) {
-                    ChipRow(
-                        options = KeyboardStyle.ALL.map { it.id },
-                        labels = KeyboardStyle.ALL.associate { it.id to stringResource(it.displayNameRes) },
-                        selected = settings.keyboardStyleId,
-                        onSelect = { session.setKeyboardStyleId(it) }
-                    )
                     ToggleField(
                         title = stringResource(R.string.settings_keyboard_toggle_bar),
                         description = stringResource(R.string.settings_keyboard_toggle_bar_desc),
@@ -646,6 +662,17 @@ fun SettingsSheet(
                 Section(title = stringResource(R.string.settings_section_user_dict)) {
                     val dictFiles by UserDictStore.files.collectAsState()
                     val dictWords by UserDictStore.wordCount.collectAsState()
+                    val newDictionaryTarget = "__new_dictionary__"
+                    val newDictionaryLabel = stringResource(R.string.settings_user_dict_new_dictionary)
+                    var dictionaryTarget by remember { mutableStateOf(newDictionaryTarget) }
+                    var newDictionaryName by remember { mutableStateOf("") }
+                    var registrationReading by remember { mutableStateOf("") }
+                    var registrationWord by remember { mutableStateOf("") }
+                    LaunchedEffect(dictFiles) {
+                        if (dictionaryTarget != newDictionaryTarget && dictFiles.none { it.name == dictionaryTarget }) {
+                            dictionaryTarget = newDictionaryTarget
+                        }
+                    }
                     Text(
                         text = stringResource(R.string.settings_user_dict_desc),
                         color = ZtsTextSecondary,
@@ -659,6 +686,83 @@ fun SettingsSheet(
                         color = ZtsTextSecondary,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_user_dict_register_title),
+                        color = ZtsTextPrimary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                    ChipRow(
+                        options = listOf(newDictionaryTarget) + dictFiles.map { it.name },
+                        labels = buildMap {
+                            put(newDictionaryTarget, newDictionaryLabel)
+                            dictFiles.forEach { put(it.name, it.name) }
+                        },
+                        selected = dictionaryTarget,
+                        onSelect = { dictionaryTarget = it },
+                    )
+                    if (dictionaryTarget == newDictionaryTarget) {
+                        key("user-dict-new-name") {
+                            TextField(
+                                title = stringResource(R.string.settings_user_dict_new_name),
+                                placeholder = stringResource(R.string.settings_user_dict_new_name_placeholder),
+                                value = newDictionaryName,
+                                onChange = { newDictionaryName = it },
+                            )
+                        }
+                    }
+                    key("user-dict-reading") {
+                        TextField(
+                            title = stringResource(R.string.settings_user_dict_reading),
+                            placeholder = stringResource(R.string.settings_user_dict_reading_placeholder),
+                            value = registrationReading,
+                            onChange = { registrationReading = it },
+                        )
+                    }
+                    key("user-dict-word") {
+                        TextField(
+                            title = stringResource(R.string.settings_user_dict_word),
+                            placeholder = stringResource(R.string.settings_user_dict_word_placeholder),
+                            value = registrationWord,
+                            onChange = { registrationWord = it },
+                        )
+                    }
+                    ActionButton(
+                        label = stringResource(R.string.settings_user_dict_register),
+                        onClick = {
+                            scope.launch {
+                                val creating = dictionaryTarget == newDictionaryTarget
+                                val result = UserDictStore.registerWord(
+                                    context = context,
+                                    dictionaryName = if (creating) newDictionaryName else dictionaryTarget,
+                                    createNew = creating,
+                                    reading = registrationReading,
+                                    word = registrationWord,
+                                )
+                                val msg = when (result) {
+                                    is UserDictStore.RegisterResult.Success -> {
+                                        dictionaryTarget = result.name
+                                        newDictionaryName = ""
+                                        registrationReading = ""
+                                        registrationWord = ""
+                                        context.getString(R.string.settings_user_dict_registered, result.name)
+                                    }
+                                    UserDictStore.RegisterResult.InvalidReading ->
+                                        context.getString(R.string.settings_user_dict_invalid_reading)
+                                    UserDictStore.RegisterResult.InvalidWord ->
+                                        context.getString(R.string.settings_user_dict_invalid_word)
+                                    UserDictStore.RegisterResult.DictionaryMissing ->
+                                        context.getString(R.string.settings_user_dict_dictionary_missing)
+                                    UserDictStore.RegisterResult.TooLarge ->
+                                        context.getString(R.string.settings_user_dict_too_large)
+                                    is UserDictStore.RegisterResult.Failed ->
+                                        context.getString(R.string.settings_user_dict_failed, result.message)
+                                }
+                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            }
+                        },
                     )
                     val dictPicker = rememberLauncherForActivityResult(
                         ActivityResultContracts.OpenDocument()
@@ -2915,17 +3019,15 @@ private fun KeyLayoutSection(
     val layouts = remember(settings.keyboardLayoutsJson) {
         KeyLayoutJson.listFromJsonString(settings.keyboardLayoutsJson)
     }
-    // ⚠ 束に無い id が選ばれていることは普通に起きる (別の端末の設定を戻した等)。
-    // その場合は「既定」を選んでいる扱いにする — 一覧に無いものを選択中に見せない。
-    val active = layouts.firstOrNull { it.id == settings.keyboardLayoutActiveId }
     val newName = stringResource(R.string.settings_key_layout_new_name)
     val newKanaName = stringResource(R.string.settings_key_layout_new_kana_name)
     val newNumberName = stringResource(R.string.settings_key_layout_new_number_name)
     val copyName = stringResource(R.string.settings_key_layout_copy_name)
-    val defaultLabel = stringResource(R.string.settings_key_layout_default)
     val builtinKanaLabel = stringResource(R.string.settings_keyboard_face_builtin_kana)
     val builtinAsciiLabel = stringResource(R.string.settings_keyboard_face_builtin_ascii)
+    val builtinAsciiSimpleLabel = stringResource(R.string.settings_keyboard_face_builtin_ascii_simple)
     val builtinNumberLabel = stringResource(R.string.settings_keyboard_face_builtin_number)
+    var keyboardTestText by remember { mutableStateOf("") }
     val legacyKanaAvailable = LocaleHelper.language(context) == LocaleHelper.LANG_JA
     val faceEntries = remember(settings.keyboardFaceOrder, layouts) {
         KeyboardFaceConfig.allEntries(settings.keyboardFaceOrder, layouts)
@@ -2945,21 +3047,6 @@ private fun KeyLayoutSection(
             legacyKanaAvailable = legacyKanaAvailable,
         )
     }
-    // ⚠ 見出しは Composable の外で組む (`stringResource` を lambda の中で呼ばない)。
-    val chipLabels = remember(layouts, defaultLabel) {
-        LinkedHashMap<String, String>().apply {
-            put("", defaultLabel)
-            layouts.forEach {
-                val face = when (KeyboardFace.byId(it.faceId)) {
-                    KeyboardFace.ASCII -> "ABC"
-                    KeyboardFace.KANA -> "あ"
-                    KeyboardFace.NUMBER -> "12"
-                }
-                put(it.id, "$face  ${it.name.ifBlank { it.id }}")
-            }
-        }
-    }
-
     fun saveFaceConfig(entries: List<KeyboardFaceEntry>, enabled: Set<String>) {
         val known = entries.mapTo(HashSet()) { it.id }
         val safeEnabled = enabled.filterTo(LinkedHashSet()) { it in known }
@@ -2969,7 +3056,7 @@ private fun KeyLayoutSection(
     }
 
     fun duplicate(source: KeyLayout, baseName: String) {
-        val copy = source.asTemplate(
+        val copy = source.withEditorDefaults().asTemplate(
             id = newKeyLayoutId(layouts),
             name = uniqueKeyLayoutName(layouts, baseName),
         )
@@ -2977,6 +3064,25 @@ private fun KeyLayoutSection(
         session.setKeyboardLayoutActiveId(copy.id)
         val copyFace = KeyboardFaceEntry.custom(copy)
         saveFaceConfig(faceEntries + copyFace, enabledFaceIds + copyFace.id)
+        // 複製した直後に同じ流れで編集へ入る。DataStore の反映後に editingLayout が見つかり、
+        // 固定エディタへ切り替わる。
+        onEditLayout(copy.id)
+    }
+
+    fun asciiSource(compact: Boolean): KeyLayout {
+        val main = asciiKeyLayout(
+            compact = compact,
+            hasFaceKey = true,
+            symbols = false,
+            fourWayFlick = !compact,
+        )
+        val symbols = asciiKeyLayout(
+            compact = compact,
+            hasFaceKey = true,
+            symbols = true,
+            fourWayFlick = !compact,
+        )
+        return main.copy(symbolRows = symbols.rows)
     }
 
     Section(title = stringResource(R.string.settings_section_key_layout)) {
@@ -3003,11 +3109,13 @@ private fun KeyLayoutSection(
             val label = entry.customLayout?.let { layout ->
                 val target = when (entry.face) {
                     KeyboardFace.KANA -> "あ"
-                    KeyboardFace.ASCII -> "ABC"
+                    KeyboardFace.ASCII -> if (layout.styleId == KeyboardStyle.COMPACT.id) "ABC-S" else "ABC"
                     KeyboardFace.NUMBER -> "12"
                 }
                 "★ ${layout.name.ifBlank { layout.id }}  [$target]"
-            } ?: when (entry.face) {
+            } ?: if (entry.id == KeyboardFaceEntry.BUILTIN_ASCII_SIMPLE_ID) {
+                builtinAsciiSimpleLabel
+            } else when (entry.face) {
                 KeyboardFace.KANA -> builtinKanaLabel
                 KeyboardFace.ASCII -> builtinAsciiLabel
                 KeyboardFace.NUMBER -> builtinNumberLabel
@@ -3018,6 +3126,7 @@ private fun KeyLayoutSection(
                 canDisable = enabledFaceIds.size > 1 || entry.id !in enabledFaceIds,
                 canMoveUp = index > 0,
                 canMoveDown = index < faceEntries.lastIndex,
+                canEdit = entry.customLayout != null,
                 onEnabledChange = { enable ->
                     val changed = LinkedHashSet(enabledFaceIds)
                     if (enable) changed += entry.id else if (changed.size > 1) changed -= entry.id
@@ -3032,6 +3141,17 @@ private fun KeyLayoutSection(
                         saveFaceConfig(changed, enabledFaceIds)
                     }
                 },
+                onDuplicate = {
+                    when {
+                        entry.customLayout != null -> duplicate(entry.customLayout, copyName)
+                        entry.id == KeyboardFaceEntry.BUILTIN_ASCII_SIMPLE_ID ->
+                            duplicate(asciiSource(compact = true), newName)
+                        entry.face == KeyboardFace.KANA -> duplicate(japaneseKeyLayout(), newKanaName)
+                        entry.face == KeyboardFace.NUMBER -> duplicate(numberKeyLayout(), newNumberName)
+                        else -> duplicate(asciiSource(compact = false), newName)
+                    }
+                },
+                onEdit = entry.customLayout?.let { layout -> { onEditLayout(layout.id) } },
             )
         }
         Text(
@@ -3043,79 +3163,18 @@ private fun KeyLayoutSection(
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace,
         )
-        ChipRow(
-            options = listOf("") + layouts.map { it.id },
-            labels = chipLabels,
-            selected = active?.id ?: "",
-            onSelect = { session.setKeyboardLayoutActiveId(it) }
+        TextField(
+            title = stringResource(R.string.settings_keyboard_test_title),
+            placeholder = stringResource(R.string.settings_keyboard_test_placeholder),
+            value = keyboardTestText,
+            onChange = { keyboardTestText = it },
         )
-        ActionButton(label = stringResource(R.string.settings_key_layout_duplicate)) {
-            val style = KeyboardStyle.byId(settings.keyboardStyleId)
-            // 複製元は**いま画面に出ているのと同じ英字面**にする。スタイルと面の数で
-            // 並びが変わるので、ここで同じ条件を組み直す (TerminalKeyboard と同じ引数)。
-            // ⚠ **ここで決まった「面の切替キーの有無」は配列に焼き付く** (プリセットは
-            // 毎回決め直している)。英語表示 ∧ 数字面 OFF で複製すると切替キーが無い配列に
-            // なり、あとで数字面を ON にしても数字面へ行けない。切替キーを自分で置けるように
-            // するのは GUI / JSON エディタ (段階 4) の仕事。「既定」へ戻せば元にも戻せる。
-            duplicate(
-                asciiKeyLayout(
-                    compact = style.id == KeyboardStyle.COMPACT.id,
-                    // 複製した面は自動でONになり、既存面との2面以上になるため必ず出口を持たせる。
-                    hasFaceKey = true,
-                    symbols = false,
-                    fourWayFlick = style.fourDirectionFlick,
-                ),
-                newName,
-            )
-        }
-        ActionButton(label = stringResource(R.string.settings_key_layout_duplicate_kana)) {
-            duplicate(japaneseKeyLayout(), newKanaName)
-        }
-        ActionButton(label = stringResource(R.string.settings_key_layout_duplicate_number)) {
-            duplicate(numberKeyLayout(), newNumberName)
-        }
-        if (active != null) {
-            ActionButton(label = stringResource(R.string.settings_key_layout_duplicate_active)) {
-                duplicate(active, copyName)
-            }
-            TextField(
-                title = stringResource(R.string.settings_key_layout_name),
-                placeholder = newName,
-                value = active.name,
-                onChange = { name ->
-                    session.setKeyboardLayoutsJson(
-                        KeyLayoutJson.toJsonString(layouts.renameLayout(active.id, name))
-                    )
-                }
-            )
-            Text(
-                text = stringResource(R.string.settings_key_layout_target_note),
-                color = ZtsTextSecondary,
-                fontSize = 10.sp,
-                fontFamily = FontFamily.Monospace
-            )
-            ActionButton(label = stringResource(R.string.settings_key_layout_edit)) {
-                onEditLayout(active.id)
-            }
-            ActionButton(
-                label = stringResource(R.string.settings_key_layout_delete),
-                danger = true
-            ) {
-                // ⚠ **先に選び直してから消す。** 逆にすると、消えた id を選んだままの一瞬が
-                // あり、その間キーボードは既定へ落ちて戻る (画面がちらつく)。
-                session.setKeyboardLayoutActiveId(
-                    nextActiveAfterRemove(settings.keyboardLayoutActiveId, active.id)
-                )
-                session.setKeyboardLayoutsJson(
-                    KeyLayoutJson.toJsonString(layouts.removeLayout(active.id))
-                )
-                val removedFaceId = KeyboardFaceEntry.customId(active.id)
-                saveFaceConfig(
-                    faceEntries.filterNot { it.id == removedFaceId },
-                    enabledFaceIds - removedFaceId,
-                )
-            }
-        }
+        Text(
+            text = stringResource(R.string.settings_keyboard_test_desc),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace,
+        )
     }
 
 }
@@ -3127,39 +3186,87 @@ private fun FaceOrderRow(
     canDisable: Boolean,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
+    canEdit: Boolean,
     onEnabledChange: (Boolean) -> Unit,
     onMove: (Int) -> Unit,
+    onDuplicate: () -> Unit,
+    onEdit: (() -> Unit)?,
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(ZtsBgCard, RoundedCornerShape(8.dp))
             .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp))
             .padding(horizontal = 10.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = label,
+                modifier = Modifier.weight(1f),
+                color = if (enabled) ZtsTextPrimary else ZtsTextSecondary,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Switch(
+                checked = enabled,
+                onCheckedChange = if (canDisable) onEnabledChange else null,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.Black,
+                    checkedTrackColor = ZtsGreen,
+                    uncheckedThumbColor = ZtsTextSecondary,
+                    uncheckedTrackColor = ZtsBgSecondary,
+                    uncheckedBorderColor = ZtsBorder,
+                ),
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FaceMoveButton("↑", canMoveUp) { onMove(-1) }
+            FaceMoveButton("↓", canMoveDown) { onMove(1) }
+            FaceRowAction(
+                label = stringResource(R.string.settings_key_layout_duplicate_action),
+                modifier = Modifier.weight(1f),
+                enabled = true,
+                onClick = onDuplicate,
+            )
+            FaceRowAction(
+                label = stringResource(R.string.settings_key_layout_edit_action),
+                modifier = Modifier.weight(1f),
+                enabled = canEdit,
+                onClick = { onEdit?.invoke() },
+            )
+        }
+    }
+}
+
+@Composable
+private fun FaceRowAction(
+    label: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .background(ZtsBgSecondary, RoundedCornerShape(6.dp))
+            .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
+            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
+            .alpha(if (enabled) 1f else 0.35f)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
-            modifier = Modifier.weight(1f),
             color = if (enabled) ZtsTextPrimary else ZtsTextSecondary,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
             fontFamily = FontFamily.Monospace,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        FaceMoveButton("↑", canMoveUp) { onMove(-1) }
-        FaceMoveButton("↓", canMoveDown) { onMove(1) }
-        Switch(
-            checked = enabled,
-            onCheckedChange = if (canDisable) onEnabledChange else null,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.Black,
-                checkedTrackColor = ZtsGreen,
-                uncheckedThumbColor = ZtsTextSecondary,
-                uncheckedTrackColor = ZtsBgSecondary,
-                uncheckedBorderColor = ZtsBorder,
-            ),
+            fontWeight = FontWeight.Medium,
         )
     }
 }

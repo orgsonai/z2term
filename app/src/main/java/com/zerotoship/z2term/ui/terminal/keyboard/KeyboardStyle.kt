@@ -50,6 +50,19 @@ data class KeyboardStyle(
         )
     }
 
+    /** 面ごとのスタイルを、設定されたキーボード総高さへ収める。 */
+    fun scaledToHeight(targetHeight: Dp): KeyboardStyle {
+        val scale = (targetHeight.value / naturalHeight.value).coerceIn(0.6f, 2.5f)
+        val fontScale = scale.coerceIn(0.85f, 1.4f)
+        return copy(
+            keyHeight = (keyHeight.value * scale).dp,
+            keyFontSp = keyFontSp * fontScale,
+            mainKeyFontSp = mainKeyFontSp * fontScale,
+            flickHintFontSp = flickHintFontSp * fontScale,
+            naturalHeight = targetHeight,
+        )
+    }
+
     companion object {
         val COMPACT = KeyboardStyle(
             id = "compact",

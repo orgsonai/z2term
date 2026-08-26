@@ -22,12 +22,24 @@ package com.zerotoship.z2term.ui.terminal.keyboard
  * 0.8.410 以前の全幅固定プリセットを複製した場合だけ、Auto への読み替えで比率がわずかに
  * 変わり得る。現在の文字・数字・記号・矢印は既定から Auto なので見た目は変わらない。
  */
-fun KeyLayout.asTemplate(id: String, name: String): KeyLayout = KeyLayout(
-    id = id,
-    name = name,
-    rows = rows.map { row -> KeyRow(row.slots.map { it.copy(width = it.width.toTemplateWidth()) }) },
-    faceId = faceId,
-)
+fun KeyLayout.asTemplate(id: String, name: String): KeyLayout {
+    fun templateRows(source: List<KeyRow>): List<KeyRow> = source.map { row ->
+        KeyRow(row.slots.map { it.copy(width = it.width.toTemplateWidth()) })
+    }
+    val main = templateRows(rows)
+    val symbols = symbolRows?.let(::templateRows)
+    return KeyLayout(
+        id = id,
+        name = name,
+        rows = main,
+        faceId = faceId,
+        styleId = styleId,
+        symbolRows = symbols,
+        defaultName = name,
+        defaultRows = main,
+        defaultSymbolRows = symbols,
+    )
+}
 
 /** 均等 1 枠ぶんちょうどの固定幅だけを [KeyWidth.Auto] へ戻す。 */
 private fun KeyWidth.toTemplateWidth(): KeyWidth = when (this) {

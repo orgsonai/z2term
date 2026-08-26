@@ -134,6 +134,8 @@ fun TerminalKeyboard(
     }
 
     val customForFace = currentFace.customLayout
+    // シンプル / 4方向はグローバル設定ではなく面自身が決める。総高さだけ呼出し側の設定へ揃える。
+    val entryStyle = KeyboardStyle.byId(currentFace.styleId).scaledToHeight(style.naturalHeight)
 
     if (face == KeyboardFace.KANA && customForFace == null) {
         JapaneseFlickKeyboard(
@@ -142,7 +144,7 @@ fun TerminalKeyboard(
             onSwitchFace = { switchFace(nextFace) },
             switchLabel = nextFace.switchLabel,
             composing = composing,
-            selectedStyle = style,
+            selectedStyle = entryStyle,
             modifier = modifier
         )
         return
@@ -155,7 +157,7 @@ fun TerminalKeyboard(
             onSwitchFace = { switchFace(nextFace) },
             switchLabel = nextFace.switchLabel,
             composing = composing,
-            selectedStyle = style,
+            selectedStyle = entryStyle,
             modifier = modifier
         )
         return
@@ -250,7 +252,7 @@ fun TerminalKeyboard(
         }
     }
 
-    val renderStyle = if (face == KeyboardFace.ASCII) style else style.forTwelveKeyFace()
+    val renderStyle = if (face == KeyboardFace.ASCII) entryStyle else entryStyle.forTwelveKeyFace()
     val rowSpacing = if (renderStyle.keyHeight >= 56.dp) 4.dp else 3.dp
     val isCompact = renderStyle.id == "compact"
     val smallFont = (renderStyle.keyFontSp - 3f).coerceAtLeast(10f)
@@ -365,17 +367,20 @@ fun TerminalKeyboard(
     // ⚠ キーの描画を 1 つに統合する (= 専用部品をやめる) のは次の段階。ここで一緒にやると、
     //   壊れたときに「並びが悪いのか描画が悪いのか」を切り分けられなくなる。
     //
-    // ⭐ 段階 2 (0.8.408): カスタム面ならその配列、内蔵面なら従来プリセットを描く。
-    // ⚠ **記号面 (`?#`) はプリセットのまま。** 記号面は Row 4 の枠が 10 → 8 個に減るので
-    //   レイヤーでは表せず、別の 1 枚として持つしかない (0.8.403)。0.8.411 では既定英字面と
-    //   同じ幅規則へ揃えた。自作の記号面はまだ持たないため、`?#` ではこの 1 枚へ切り替える。
+    // カスタム英字面は `symbolRows` を子配列として持つ。古い保存データだけは内蔵記号面へ
+    // フォールバックし、エディタで開いた時点で編集可能な子配列が補われる。
     val layout = remember(isCompact, hasFaceKey, sym, renderStyle.fourDirectionFlick, customForFace, face) {
-        customForFace?.takeIf { !sym } ?: asciiKeyLayout(
-            compact = isCompact,
-            hasFaceKey = hasFaceKey,
-            symbols = sym,
-            fourWayFlick = renderStyle.fourDirectionFlick,
-        )
+        when {
+            customForFace != null && !sym -> customForFace
+            customForFace != null && sym && customForFace.symbolRows != null ->
+                customForFace.copy(rows = customForFace.symbolRows)
+            else -> asciiKeyLayout(
+                compact = isCompact,
+                hasFaceKey = hasFaceKey,
+                symbols = sym,
+                fourWayFlick = renderStyle.fourDirectionFlick,
+            )
+        }
     }
     // ⇧ は**キーの姿の差し替え** = レイヤーで表す。⚠ 記号面では大文字にしない (いまと同じ)。
     val activeLayer = if (!sym && shift != ShiftState.OFF) KeyLayout.LAYER_SHIFT else null

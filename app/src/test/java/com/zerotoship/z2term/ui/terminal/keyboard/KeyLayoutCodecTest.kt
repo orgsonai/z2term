@@ -63,6 +63,27 @@ class KeyLayoutCodecTest {
         assertEquals(KeyboardFace.ASCII.id, KeyLayoutCodec.decode(encoded)?.faceId)
     }
 
+    @Test fun symbolChildAndResetBaseline_surviveTheRoundTrip() {
+        val main = asciiKeyLayout(compact = true, hasFaceKey = true)
+        val symbols = asciiKeyLayout(compact = true, hasFaceKey = true, symbols = true).rows
+        val template = main.copy(symbolRows = symbols).asTemplate("mine", "My keys")
+        val original = template
+            .copy(name = "Saved mistake", rows = main.rows.drop(1))
+
+        val back = roundTrip(original)
+        assertEquals(KeyboardStyle.COMPACT.id, back.styleId)
+        assertEquals(template.symbolRows, back.symbolRows)
+        assertEquals("My keys", back.restoreDefaults().name)
+        assertEquals(template.rows, back.restoreDefaults().rows)
+        assertEquals(template.symbolRows, back.restoreDefaults().symbolRows)
+    }
+
+    @Test fun oldLayoutWithoutStyle_infersSimpleFromSixRows() {
+        val old = KeyLayoutCodec.encode(asciiKeyLayout(compact = true, hasFaceKey = true)).toMutableMap()
+        old.remove("style")
+        assertEquals(KeyboardStyle.COMPACT.id, KeyLayoutCodec.decode(old)?.styleId)
+    }
+
     // ---- 表せることの網羅 ------------------------------------------------------------------
 
     /** ⭐ 分割は**向き自由で深さ 2**（矢印の田の字）。取り分もそのまま戻ること。 */

@@ -530,7 +530,8 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             && (landscapePos == AppSettings.LANDSCAPE_KB_LEFT || landscapePos == AppSettings.LANDSCAPE_KB_RIGHT)
             && !keyboardCollapsed
             && keyboardMode == KeyboardMode.CUSTOM
-        val baseStyle = KeyboardStyle.byId(settings.keyboardStyleId)
+        // スタイルは面ごとに決まる。外枠の基準は4方向フリック面に固定する。
+        val baseStyle = KeyboardStyle.SPACIOUS
         // キーボード高さは縦/横で別々の設定値を使う (向きが変わると自動で切り替わる)。
         val kbStyle = scaledKeyboardStyle(
             baseStyle,
@@ -1183,7 +1184,7 @@ private fun GuiTabScreen(
             && (landscapePosGui == AppSettings.LANDSCAPE_KB_LEFT || landscapePosGui == AppSettings.LANDSCAPE_KB_RIGHT)
             && !keyboardCollapsed
             && keyboardMode == KeyboardMode.CUSTOM
-        val baseStyleGui = KeyboardStyle.byId(settings.keyboardStyleId)
+        val baseStyleGui = KeyboardStyle.SPACIOUS
         val kbStyleGui = scaledKeyboardStyle(
             baseStyleGui,
             if (isLandscapeGui) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp
@@ -2691,16 +2692,7 @@ private fun KeyboardToggleBar(
  * 高さの設定は端末とアプリ内の入力欄で同じものが効かないと、切り替えるたびに背丈が変わる。
  */
 internal fun scaledKeyboardStyle(base: KeyboardStyle, targetHeightDp: Float): KeyboardStyle {
-    val baseNat = base.naturalHeight.value
-    val scale = (targetHeightDp / baseNat).coerceIn(0.6f, 2.5f)
-    val fontScale = scale.coerceIn(0.85f, 1.4f)
-    return base.copy(
-        keyHeight = (base.keyHeight.value * scale).dp,
-        keyFontSp = base.keyFontSp * fontScale,
-        mainKeyFontSp = base.mainKeyFontSp * fontScale,
-        flickHintFontSp = base.flickHintFontSp * fontScale,
-        naturalHeight = targetHeightDp.dp
-    )
+    return base.scaledToHeight(targetHeightDp.dp)
 }
 
 /**

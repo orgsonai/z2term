@@ -12,6 +12,11 @@ import org.junit.Test
  * 0.8.280 は、変換辞書ツールが書き出す表形式 (よみ→表記→品詞→注釈) を 1 語も読めなかった。
  */
 class UserDictParseTest {
+    @Test
+    fun registeredLineCanCreateAnEntryIncludingSlashPrefix() {
+        val line = UserDictStore.registrationLine("ぱす", "/usr/local")
+        assertEquals(listOf("/usr/local"), UserDictStore.parse(line!!)["ぱす"])
+    }
 
     @Test
     fun `表形式 (タブ区切り) を読む`() {

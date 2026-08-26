@@ -90,6 +90,16 @@ object UserDictStore {
         data class Failed(val message: String) : ImportResult
     }
 
+    /** 設定画面から 1 語登録する結果。 */
+    sealed interface RegisterResult {
+        data class Success(val name: String) : RegisterResult
+        data object InvalidReading : RegisterResult
+        data object InvalidWord : RegisterResult
+        data object DictionaryMissing : RegisterResult
+        data object TooLarge : RegisterResult
+        data class Failed(val message: String) : RegisterResult
+    }
+
     /**
      * 見出しソート済みの表。完全一致は二分探索、前方一致は挿入位置から前進で引く
      * ([KanaKanjiConverter] と同じ作法)。
@@ -151,6 +161,46 @@ object UserDictStore {
             }
         }
         if (result is ImportResult.Success) reload(app)
+        return result
+    }
+
+    /**
+     * 既存辞書または新規辞書へ 1 語を登録する。既存の EUC-JP 辞書も一度読み取り、UTF-8 で
+     * 書き直してから追記するため、異なる文字コードを 1 ファイルへ混在させない。
+     */
+    suspend fun registerWord(
+        context: Context,
+        dictionaryName: String,
+        createNew: Boolean,
+        reading: String,
+        word: String,
+    ): RegisterResult {
+        val cleanReading = reading.trim()
+        if (!isPlainKanaReading(cleanReading)) return RegisterResult.InvalidReading
+        val cleanWord = word.trim()
+        val line = registrationLine(cleanReading, cleanWord) ?: return RegisterResult.InvalidWord
+        val app = context.applicationContext
+        val result = withContext(Dispatchers.IO) {
+            runCatching {
+                val file = if (createNew) {
+                    newDictionaryFile(app, dictionaryName)
+                } else {
+                    dir(app).listFiles()?.firstOrNull { it.isFile && it.name == dictionaryName }
+                        ?: return@runCatching RegisterResult.DictionaryMissing
+                }
+                val before = if (file.length() > 0L) decode(file.readBytes()).trimEnd() + "\n" else ""
+                val text = before + line
+                if (text.toByteArray(Charsets.UTF_8).size > MAX_FILE_BYTES) {
+                    return@runCatching RegisterResult.TooLarge
+                }
+                file.writeText(text, Charsets.UTF_8)
+                RegisterResult.Success(file.name)
+            }.getOrElse { e ->
+                Log.w(TAG, "register failed: ${e.message}")
+                RegisterResult.Failed(e.message ?: e.javaClass.simpleName)
+            }
+        }
+        if (result is RegisterResult.Success) reload(app)
         return result
     }
 
@@ -286,7 +336,7 @@ object UserDictStore {
             val cols = line.split(COLUMN_SEP).filter { it.isNotEmpty() }
             // 表形式か SKK 形式かは **2 列目が `/` で始まるか**で見分ける。
             // タブ区切りで書かれた SKK 形式 (よみ→/候補/) も取りこぼさない。
-            if (cols.size >= 2 && !cols[1].startsWith("/")) {
+            if (cols.size >= 2 && (cols.size >= 3 || !cols[1].startsWith("/"))) {
                 val reading = cols[0]
                 if (!isPlainKanaReading(reading)) return@forEach
                 addCandidate(out, reading, cols[1])
@@ -322,6 +372,14 @@ object UserDictStore {
     private fun isPlainKanaReading(s: String): Boolean {
         if (s.isEmpty() || s.length > MAX_READING_LEN) return false
         return s.all { it in 'ぁ'..'ゖ' || it == 'ー' || it == 'ゔ' }
+    }
+
+    /** 3 列目の印で、候補が `/` から始まっても表形式だと判別できる。 */
+    internal fun registrationLine(reading: String, word: String): String? {
+        if (!isPlainKanaReading(reading)) return null
+        if (word.isBlank() || word.any { it == '\n' || it == '\r' || it == '\t' }) return null
+        if (word == reading) return null
+        return "$reading\t$word\tz2term\n"
     }
 
     /**
@@ -380,6 +438,22 @@ object UserDictStore {
             n++
         }
         candidate.writeBytes(bytes)
+        return candidate
+    }
+
+    /** 新規作成は必ず UTF-8 の .txt。衝突時は既存辞書を上書きせず連番にする。 */
+    private fun newDictionaryFile(context: Context, rawName: String): File {
+        val sanitized = rawName.trim().replace(Regex("""[/\\:*?"<>|]"""), "_")
+            .ifBlank { "my-dictionary" }
+        val withExtension = if (sanitized.contains('.')) sanitized else "$sanitized.txt"
+        val base = withExtension.substringBeforeLast('.', withExtension)
+        val ext = withExtension.substringAfterLast('.', "")
+        var candidate = File(dir(context), withExtension)
+        var n = 2
+        while (candidate.exists()) {
+            candidate = File(dir(context), if (ext.isEmpty()) "$base-$n" else "$base-$n.$ext")
+            n++
+        }
         return candidate
     }
 }

@@ -172,4 +172,21 @@ class KeyboardFaceTest {
             KeyboardFaceConfig.initialEntryId(KeyboardFace.KANA.id, entries),
         )
     }
+
+    @Test
+    fun simpleFaceExistsButStartsDisabled() {
+        val entries = KeyboardFaceConfig.allEntries(null, emptyList())
+        val enabled = KeyboardFaceConfig.enabledIds(
+            enabledValue = null,
+            entries = entries,
+            legacyNumberEnabled = false,
+            legacyActiveLayoutId = "",
+            legacyKanaAvailable = true,
+        )
+
+        val simple = entries.single { it.id == KeyboardFaceEntry.BUILTIN_ASCII_SIMPLE_ID }
+        assertEquals(KeyboardStyle.COMPACT.id, simple.styleId)
+        assertTrue(simple.id !in enabled)
+        assertTrue(KeyboardFaceEntry.BUILTIN_ASCII_ID in enabled)
+    }
 }

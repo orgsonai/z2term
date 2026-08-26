@@ -20,7 +20,7 @@
     <string name="settings_group_maintenance_desc">Backup, guides, cache cleanup and reset</string>
     <string name="settings_group_developer">Developer</string>
     <string name="settings_group_developer_desc">Experimental features and execution engine</string>
-    <string name="settings_group_tips">How to use (Tips)</string>
+    <string name="settings_group_tips">Tips and tricks</string>
     <string name="settings_group_tips_desc">Gestures that are not shown on screen — double taps, long presses, flicks</string>
     <string name="tip_toolbar_title">Toolbar buttons have a second function on double-tap</string>
     <string name="tip_toolbar_body">Each button does something else when you double-tap it. Double-tap 📋, for example, and the paste history opens. Try it on the other buttons too.</string>
@@ -65,19 +65,20 @@
     <string name="settings_prompt_failed">Could not write it.</string>
     <string name="settings_prompt_no_os">Install a Linux OS first.</string>
     <string name="settings_prompt_desc">Pick a sample to fill the box, edit it if you like, then press Apply to write it into the config file of the shell you picked. Only the part between the z2term markers is written, so anything you wrote yourself stays. Opening the file from the terminal with vi shows the same thing.</string>
-    <string name="settings_section_keyboard_style">Keyboard style</string>
+    <string name="settings_section_keyboard_style">Keyboard behavior</string>
     <string name="settings_keyboard_toggle_bar">Keyboard toggle bar</string>
     <string name="settings_keyboard_number_face">Show the number face</string>
     <string name="settings_keyboard_number_face_desc">Adds a numbers-only face (a keypad) to the built-in keyboard, so the switch key cycles through 12 as well. Turn it off and the cycle is あ → A → あ as before</string>
     <string name="settings_keyboard_face_order">Face switching order</string>
     <!-- Custom key layouts (0.8.408–0.8.411, stages 2–4 + default sizing) -->
     <string name="settings_section_key_layout">Key layout (your own)</string>
-    <string name="settings_key_layout_desc">Duplicate the letter, Japanese, number or selected custom face and edit the copy. Custom faces remain independent, and can be enabled or reordered below.</string>
+    <string name="settings_key_layout_desc">Choose the faces to use and their order here. Duplicate any face to make your own; use Edit on a custom face to rename it or change its keys.</string>
     <string name="settings_keyboard_faces_title">Faces used by the keyboard</string>
     <string name="settings_keyboard_faces_desc">Turn each built-in or custom face on or off, then use the arrows to set the order used by the next-face key. At least one face stays enabled.</string>
     <string name="settings_keyboard_faces_preview">Next-face order: %1$s</string>
     <string name="settings_keyboard_face_builtin_kana">Japanese (built in)</string>
-    <string name="settings_keyboard_face_builtin_ascii">Letters (built in)</string>
+    <string name="settings_keyboard_face_builtin_ascii">Letters — four-way flick (built in)</string>
+    <string name="settings_keyboard_face_builtin_ascii_simple">Letters — simple (built in, initially off)</string>
     <string name="settings_keyboard_face_builtin_number">Numbers (built in)</string>
     <string name="settings_key_layout_default">Select a custom layout</string>
     <string name="settings_key_layout_duplicate">Duplicate the letter layout</string>
@@ -92,6 +93,11 @@
     <string name="settings_key_layout_edit">Edit contents</string>
     <string name="settings_key_layout_delete">Delete this layout</string>
     <string name="settings_key_layout_target_note">ABC, あ or 12 shows this custom layout’s type. Its use and position are controlled independently in “Faces used by the keyboard” above.</string>
+    <string name="settings_key_layout_duplicate_action">Duplicate</string>
+    <string name="settings_key_layout_edit_action">Edit</string>
+    <string name="settings_keyboard_test_title">Keyboard input test</string>
+    <string name="settings_keyboard_test_placeholder">Type anything here</string>
+    <string name="settings_keyboard_test_desc">This text is not saved. Use the field to try typing and conversion with the selected keyboard.</string>
     <string name="settings_key_layout_editor_title">Edit %1$s</string>
     <string name="settings_key_layout_editor_desc">This is one layout as JSON. rows are keyboard rows; slots are frames; w is a fixed width where one even frame equals 1 (omit it to share the remainder); bind assigns tap / up / down / left / right / long / double. Splits, layers and action sequences round-trip here without being dropped.</string>
     <string name="settings_key_layout_editor_invalid_json">This is not a readable layout object. Check that it is one layout beginning with { and ending with }.</string>
@@ -106,10 +112,19 @@
     <string name="settings_key_layout_editor_escape_title">You may be unable to leave this layout</string>
     <string name="settings_key_layout_editor_escape_msg">No key switches face, opens Settings, hides the keyboard or switches to another input method. The terminal screen still has Settings in its toolbar, but screens using this as the OS input method do not.</string>
     <string name="settings_key_layout_editor_save_anyway">Save anyway</string>
-    <string name="settings_key_layout_visual_intro">Tap a key in the layout to edit it. Visual and JSON modes share one draft, so your changes remain when you switch between them.</string>
+    <string name="settings_key_layout_visual_intro">Select a key on the keyboard at the bottom, then change its settings above. Changes appear on the keyboard immediately.</string>
     <string name="settings_key_layout_mode_visual">Visual</string>
     <string name="settings_key_layout_mode_json">JSON</string>
-    <string name="settings_key_layout_visual_desc">A tap selects one key by default. Enable multiple selection only when you want to apply width, appearance or gestures to several keys together.</string>
+    <string name="settings_key_layout_visual_desc">Tap a key at the bottom to show its settings here. Use multiple selection only to change width, appearance or gestures for several keys together.</string>
+    <string name="settings_key_layout_preview_title">Tap a key to edit it</string>
+    <string name="settings_key_layout_preview_desc">The selected key is highlighted in green</string>
+    <string name="settings_key_layout_child_letters">Letters</string>
+    <string name="settings_key_layout_child_symbols">Symbols (?#)</string>
+    <string name="settings_key_layout_restore_default">Restore duplicated defaults</string>
+    <string name="settings_key_layout_restore_default_title">Restore the original duplicated layout?</string>
+    <string name="settings_key_layout_restore_default_msg">This restores the name, letter layout and symbol layout to the state created by Duplicate, including changes already saved. Press Save afterward to keep the restored result.</string>
+    <string name="settings_key_layout_delete_confirm_title">Delete this keyboard face?</string>
+    <string name="settings_key_layout_delete_confirm_msg">“%1$s” will be deleted and cannot be restored.</string>
     <string name="settings_key_layout_multi_select">Multiple selection</string>
     <string name="settings_key_layout_multi_select_desc">Keep selected keys while you tap additional keys</string>
     <string name="settings_key_layout_selected">Row %1$d / frame %2$d%3$s</string>
@@ -146,15 +161,28 @@
     <string name="settings_keyboard_toggle_bar_desc">Show a show/hide bar above the keyboard. When off, double-tap the ⌨ button to toggle.</string>
     <string name="settings_section_user_dict">User dictionary</string>
     <!-- "candidate1" is part of the SKK dictionary format, not a typo for "candidate!". -->
-    <string name="settings_user_dict_desc" tools:ignore="Typos">Add your own words from a file, one word per line. Both "reading /candidate1/candidate2/" (SKK format) and "reading&lt;TAB&gt;word&lt;TAB&gt;part-of-speech" (what IME dictionary tools export) are read. Lines starting with ; or # are comments. UTF-8 and EUC-JP are both read. Only lines whose reading is hiragana are imported.</string>
+    <string name="settings_user_dict_desc">Register words here or import a dictionary file. SKK and tab-separated files are supported in UTF-8 or EUC-JP.</string>
     <string name="settings_user_dict_count" tools:ignore="PluralsCandidate">%1$d words / %2$d files</string>
-    <string name="settings_user_dict_add">Choose a dictionary file</string>
+    <string name="settings_user_dict_add">Import a dictionary file</string>
     <string name="settings_user_dict_file" tools:ignore="PluralsCandidate">%1$s  %2$d words</string>
     <string name="settings_user_dict_remove">Remove</string>
     <string name="settings_user_dict_added" tools:ignore="PluralsCandidate">Imported %1$s (%2$d words)</string>
     <string name="settings_user_dict_too_large">That file is too large (8MB limit)</string>
     <string name="settings_user_dict_no_entries">No words could be read. Check that each line looks like "reading /candidate/" or tab-separated "reading&lt;TAB&gt;word", and that readings are hiragana</string>
     <string name="settings_user_dict_failed">Could not import: %1$s</string>
+    <string name="settings_user_dict_register_title">Register a word</string>
+    <string name="settings_user_dict_new_dictionary">＋ New dictionary</string>
+    <string name="settings_user_dict_new_name">New dictionary name</string>
+    <string name="settings_user_dict_new_name_placeholder">Example: My words</string>
+    <string name="settings_user_dict_reading">Reading (hiragana)</string>
+    <string name="settings_user_dict_reading_placeholder">Example: ずーたーむ</string>
+    <string name="settings_user_dict_word">Word to register</string>
+    <string name="settings_user_dict_word_placeholder">Example: Z2Term</string>
+    <string name="settings_user_dict_register">Register this word</string>
+    <string name="settings_user_dict_registered">Registered in %1$s</string>
+    <string name="settings_user_dict_invalid_reading">Enter a hiragana reading of no more than 32 characters</string>
+    <string name="settings_user_dict_invalid_word">Enter a word without tabs or line breaks</string>
+    <string name="settings_user_dict_dictionary_missing">The selected dictionary no longer exists. Choose it again</string>
     <string name="settings_special_key_bar">Special key bar (with the OS keyboard)</string>
     <string name="settings_special_key_bar_desc">While the OS keyboard is selected, show ESC, TAB, CTRL and arrow keys above it. Turn off to hide the bar (the built-in keyboard is unaffected).</string>
     <string name="settings_section_gui_terminal">GUI terminal</string>
