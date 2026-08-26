@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.413-alpha (versionCode 421).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.414-alpha (versionCode 422).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
@@ -216,8 +216,9 @@ z2term/
 │   │   └── MACRO-GUIDE.md         ← phone-automation macro guide (AI-friendly)
 │   ├── images/                    ← screenshots etc. (shared)
 │   ├── RELEASE.md                 ← release steps
+│   ├── FDROID.md                  ← F-Droid submission steps
 │   └── SSH-INTO-Z2TERM.md
-├── metadata/                     ← F-Droid metadata
+├── metadata/                     ← F-Droid metadata (store listing)
 └── .github/workflows/build.yml   ← CI (build, lint, tests, signed release APK)
 ```
 

@@ -6,7 +6,8 @@
 #    (full と同居させるための設計) ファイル名も .foss 付きだったが、
 #    同居する相手が無くなったのでサフィックスごと外してある。
 #
-# z2root / z2accept はソースからビルドし、rootfs は実行時取得する。
+# z2root / z2accept / z2attach はソースからビルドし、rootfs は実行時取得する。
+# 提出手順は docs/FDROID.md にある。
 
 Categories:
   - System
@@ -55,7 +56,8 @@ Description: |-
     background without the app being open.
   * Japanese IME: kana-kanji conversion with prediction and learning, plus a
     custom on-screen keyboard that can also be enabled as an OS-wide input
-    method. Your own words load from a file (SKK format).
+    method. Its key layout is editable on every face and can be saved under a
+    name. Your own words load from a file (SKK format).
   * Terminal log, home screen widgets, backup and restore of settings, and
     receiving text or files from another app's share sheet (inserted into the
     input line, never executed).
@@ -72,17 +74,36 @@ RepoType: git
 Repo: https://github.com/orgsonai/z2term
 
 Builds:
-  - versionName: 0.8.393-alpha
-    versionCode: 401
-    commit: v0.8.393-alpha
+  - versionName: 0.8.414-alpha
+    versionCode: 422
+    commit: v0.8.414-alpha
     subdir: app
-    # z2root / z2accept は prebuilt を同梱せず、app/src/main/cpp/ のソースから
-    # NDK でビルドして jniLibs へ置く (Android 10+ は nativeLibraryDir からの
-    # execve しか許さないため、自前ビルドでも .so 名での同梱が要る)。
-    # ⚠ NDK バージョンは F-Droid のビルドサーバーが持つものに合わせて要調整。
-    #    ソースは NDK 27 以降で確認している。
+    # NDK は fdroidserver が sdkmanager で自動導入し、パスを $$NDK$$ で渡してくる。
+    # ソースは NDK 27 以降で確認している。
     ndk: r27c
-    prebuild: ANDROID_NDK_HOME=$$NDK$$ bash ../scripts/build-z2root.sh
+    # prebuild 1: AGP に使わせる NDK 版を local.properties へ書く。
+    #   fdroidserver が local.properties に書くのは ndk.dir だけだが、
+    #   app/build.gradle.kts が見るのは ndk.version (PC と実機で必要な NDK が
+    #   違うため、直書きせず環境ごとに切り替える作りにしてある)。NDK 同梱の
+    #   source.properties から Pkg.Revision を写して渡す。
+    #   local.properties は prebuild より前に作られるので追記でよい。
+    # prebuild 2: z2root / z2accept / z2attach を app/src/main/cpp/ のソースから
+    #   NDK clang でビルドし jniLibs へ置く。prebuilt は同梱していない
+    #   (Android 10+ は nativeLibraryDir からの execve しか許さないため、
+    #   自前ビルドでも .so という名前での同梱が要る)。
+    prebuild:
+      - "grep Pkg.Revision $$NDK$$/source.properties | tr -d ' ' | sed s/Pkg.Revision=/ndk.version=/ >> ../local.properties"
+      - "ANDROID_NDK_HOME=$$NDK$$ bash ../scripts/build-z2root.sh"
+    # scanner は「ソースツリーに置かれたバイナリ」を一律で弾く (scan は prebuild の
+    # 後に走るので、生成したばかりの .so も対象に入る)。次の 2 つは正当な例外:
+    #   - jniLibs/arm64-v8a  : 直前の prebuild が **ソースから生成した** 実行体。
+    #                          git には入っておらず (.gitignore 済み)、同梱物ではない。
+    #   - kkc_matrix.bin     : かな漢字変換の品詞接続コスト表。int16 の数表であって
+    #                          実行コードではない。出典と著作権表示は
+    #                          app/src/main/assets/KKC-DICT-NOTICE.txt にある。
+    scanignore:
+      - app/src/main/jniLibs/arm64-v8a
+      - app/src/main/assets/kkc_matrix.bin
     gradle:
       - yes
 
@@ -94,5 +115,5 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+-alpha$
-CurrentVersion: 0.8.393-alpha
-CurrentVersionCode: 401
+CurrentVersion: 0.8.414-alpha
+CurrentVersionCode: 422

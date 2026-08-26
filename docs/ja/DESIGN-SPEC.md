@@ -2706,8 +2706,9 @@ bash scripts/gw.sh :app:assembleDebug   # オンデバイスはこちら (下記
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-- 同梱物: `src/main/jniLibs/arm64-v8a/{libz2root,libz2accept}.so`(ソースからビルド)、`assets/fonts/*.ttf`。
+- 同梱物: `src/main/jniLibs/arm64-v8a/{libz2root,libz2accept,libz2attach}.so`(ソースからビルド)、`assets/fonts/*.ttf`。
 - rootfs は APK に含めず、`DistroSpec.ALPINE` の公式 CDN URL + SHA-256 で起動時に取得する。第三者 native prebuilt (proot/talloc 等) は F-Droid 非適合なので持たず、実行エンジンは同梱ソースからビルドする z2root だけ。
+- **F-Droid のビルドでは署名設定が機械的に削除される (0.8.414)。** ビルドサーバーは `signingConfigs { ... }` ブロックと `signingConfig = <空白を含まない式>` の行を消してから `assembleRelease` する (署名は F-Droid 自身が行うため)。そのため **`release { }` の中で `?:` を使って 2 行に跨いで書いてはいけない** — 1 行目だけが消えて `?:` の行が孤立し、Kotlin の構文エラーでビルドが落ちる。解決は `buildTypes` の外の `val releaseSigningConfig` で行い、`release` の中は 1 行の代入にしておく。提出手順とその他の適合条件 (scanignore・NDK の渡し方) は `docs/FDROID.md`。
 - **`useLegacyPackaging=true` 必須** (execve する .so を nativeLibraryDir に実体配置するため)。
 - **オンデバイス (aarch64・proot/z2root 下) では `scripts/gw.sh` 経由でビルドする**: この環境は libc の `accept()` が ENOSYS を返し、JDK17 の `sun.nio.ch.Net.accept` が libc `accept()` を呼ぶため Gradle デーモンの TCP IPC が落ちて "Could not connect to the Gradle daemon" でビルド不能になる。`gw.sh` は **`accept()` が ENOSYS の環境でだけ** `accept4` シム (`scripts/accept4-shim.c`) を `LD_PRELOAD` して `./gradlew` を呼ぶ (PC など正常な環境では素通しなのでマルチデバイス運用を壊さない)。シムが aapt2 (bionic) に継承されると `libc.so.6 not found` で別の失敗になるため、aapt2 ラッパー側で `LD_PRELOAD` を外している。`bash scripts/gw.sh help` で適用の有無を確認できる。
 - 展開後の初期設定 (`DistroInstaller.postInstallSetup`) を変えたら `DistroBundle.ROOTFS_VERSION` を +1 する (利用者は APK 入替で自動再展開)。

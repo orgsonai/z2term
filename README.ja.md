@@ -83,7 +83,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.413-alpha (versionCode 421).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.414-alpha (versionCode 422).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 
@@ -214,8 +214,9 @@ z2term/
 │   │   └── HANDBOOK.md            ← getting started handbook
 │   ├── images/                    ← スクリーンショット等（共通）
 │   ├── RELEASE.md                 ← リリース手順
+│   ├── FDROID.md                  ← F-Droid 提出手順
 │   └── SSH-INTO-Z2TERM.md
-├── metadata/                     ← F-Droid メタデータ
+├── metadata/                     ← F-Droid メタデータ（店頭表示）
 └── .github/workflows/build.yml   ← CI (ビルド・lint・テスト・署名済み release APK)
 ```
 

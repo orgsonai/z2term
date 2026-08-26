@@ -1,0 +1,9 @@
+0.8.414-alpha
+
+- The on-screen keyboard is yours to shape: edit the key layout on every face
+  (kana, letters, symbols), save layouts by name, switch between them. Face and
+  layout settings now live in one place.
+- Flick popups look the same on every face, and the hint characters no longer
+  vanish while your finger is down.
+- Paste moved to the top row, and the paste pad closes once you paste.
+- Settings gained "Tips": gestures that are not visible on screen.

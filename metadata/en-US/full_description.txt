@@ -13,7 +13,7 @@ It runs Alpine, Ubuntu, Arch and Kali without root, opens a Linux desktop in a t
 * It can ask you things: "z2-ask" puts a question in the notification shade and reads your reply into a shell variable
 * Automation hub: "z2-when" runs scripts on device events (charging, battery level, time or cron, Wi-Fi, connectivity, boot, a share from another app, an incoming SMS, sensors, an arriving notification, a new file), narrowed by filters. Rules are plain text and survive reboots without opening the app.
 * Resident servers: register any server as a start command and keep it running in the background without the app being open
-* Japanese IME: kana-kanji conversion with prediction and learning, and a custom on-screen keyboard that can also be enabled as an OS-wide input method
+* Japanese IME: kana-kanji conversion with prediction and learning, and a custom on-screen keyboard that can also be enabled as an OS-wide input method. Its key layout is editable on every face (kana, letters, symbols) and can be saved under a name
 * Terminal log: record what a tab shows to a plain text file with one tap
 * Home screen widgets: a status and macro launcher, and a live tail of any file
 * Receive from other apps' share sheet (inserted into the input line, never executed)

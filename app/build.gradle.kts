@@ -53,8 +53,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 421
-        versionName = "0.8.413-alpha"
+        versionCode = 422
+        versionName = "0.8.414-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -80,6 +80,19 @@ android {
         }
     }
 
+    // release の署名設定。keystore.properties があればその鍵、無ければ debug 鍵
+    // (鍵の無い環境でも assembleRelease が通るように)。
+    //
+    // ⚠ **解決は buildTypes の外で、代入は 1 行で書くこと。**
+    //    F-Droid のビルドサーバーは署名を自分で行うため、ビルド前に
+    //    `signingConfigs { ... }` ブロックと「`signingConfig = <空白を含まない式>`」の
+    //    行を機械的に削除する。release の中で `?:` を使って 2 行に跨いで書くと
+    //    1 行目だけが消えて `?: signingConfigs.getByName("debug")` が孤立し、
+    //    Kotlin の構文エラーでビルドが落ちる。下のように 1 行へ収めておけば
+    //    行ごと消えて署名なしの APK ができる (= F-Droid が期待する状態)。
+    val releaseSigningConfig = signingConfigs.findByName("release")
+        ?: signingConfigs.getByName("debug")
+
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -95,9 +108,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // keystore.properties が無ければ debug 鍵で署名 (CI なし環境向け)
-            signingConfig = signingConfigs.findByName("release")
-                ?: signingConfigs.getByName("debug")
+            // 上で解決した署名設定。この 1 行は F-Droid のビルドで削除される。
+            signingConfig = releaseSigningConfig
         }
     }
 
