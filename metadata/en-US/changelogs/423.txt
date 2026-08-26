@@ -1,12 +1,11 @@
 0.8.415-alpha
 
-- Keyboard face settings now provide enable, reorder, duplicate and edit actions
-  together, plus a field for testing keyboard input.
-- The layout editor now uses a fixed keyboard preview: tap a key to edit it and
-  adjust widths in exact 0.1 steps.
-- The symbols (?#) face can now be edited as a child of a letter layout.
-- Simple letters are now a built-in face that starts disabled; the global style
-  selector has been removed.
-- Added restore-to-duplicated-defaults, direct word registration and new user
-  dictionary creation.
-- Renamed the Tips section to “Tips and tricks.”
+- Keyboard faces can be enabled, reordered, duplicated and edited in one
+  place, with a test input field.
+- The layout editor was rebuilt: tap a key on the fixed preview to edit it;
+  widths now step by 0.1.
+- The symbols (?#) face is editable under a letter layout.
+- Simple letters is a new built-in face, off by default; the global style
+  selector is gone.
+- Added restore to duplicated state, word registration and new dictionaries.
+- Tips is now "Tips and tricks."

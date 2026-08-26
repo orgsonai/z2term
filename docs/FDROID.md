@@ -81,9 +81,9 @@ F-Droid は**タグを指定してビルドする**ので、先にリリース�
 
 ```sh
 cd /root/tmp/app_project/05_z2term
-git tag v0.8.414-alpha
-git push origin v0.8.414-alpha
-git push github v0.8.414-alpha
+git tag v0.8.415-alpha
+git push origin v0.8.415-alpha
+git push github v0.8.415-alpha
 ```
 
 ⚠ **yml の `commit:` に書いたタグが GitHub に無いとビルドできない。**
@@ -92,7 +92,22 @@ git push github v0.8.414-alpha
 
 また、店頭に出る「更新内容」は**ビルドするタグの中にある**
 `metadata/<locale>/changelogs/<versionCode>.txt` から読まれる。
-タグを打つ前にこのファイルを入れておくこと (422 は用意済み)。
+タグを打つ前にこのファイルを入れ、**500 文字以内か確かめる** (§7)。
+
+```sh
+# タグを打つ前に必ず流す。500 を超えていたら削る
+for f in metadata/*/changelogs/*.txt; do printf "%5d  %s\n" "$(wc -m < "$f")" "$f"; done
+```
+
+⛔ **タグの中身は後から直せない。** タグを push すると GitHub Actions が
+署名済み APK を作って GitHub Release を公開し、アプリ内更新 (`z2-update`) が
+それを配り始めるので、タグの打ち直しは事実上できない。上限超過に気付いても
+その版の更新内容は切られたまま出る。
+
+⚠ 現時点の `v0.8.415-alpha` タグの中の `en-US/changelogs/423.txt` は **597 文字**で、
+末尾 2 項目が切られる (手元では 487 文字に直してあるが、タグには入っていない)。
+**初回提出をこのタグへ向けるとその状態で店頭に出る**。次に版を上げたときの
+タグへ向けて出せば解消する。
 
 ---
 

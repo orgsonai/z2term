@@ -74,9 +74,9 @@ RepoType: git
 Repo: https://github.com/orgsonai/z2term
 
 Builds:
-  - versionName: 0.8.414-alpha
-    versionCode: 422
-    commit: v0.8.414-alpha
+  - versionName: 0.8.415-alpha
+    versionCode: 423
+    commit: v0.8.415-alpha
     subdir: app
     # NDK は fdroidserver が sdkmanager で自動導入し、パスを $$NDK$$ で渡してくる。
     # ソースは NDK 27 以降で確認している。
@@ -115,5 +115,5 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+-alpha$
-CurrentVersion: 0.8.414-alpha
-CurrentVersionCode: 422
+CurrentVersion: 0.8.415-alpha
+CurrentVersionCode: 423
