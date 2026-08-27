@@ -27,6 +27,9 @@ IMAGES="$Z2C_HOME/images"
 META="$Z2C_HOME/meta"
 CACHE="$Z2C_HOME/cache"
 
+# 取得するアーキテクチャ。既定は動作中の CPU (arm64)。amd64 を選ぶとエミュレータ越しの実行になる。
+Z2C_ARCH="${Z2C_ARCH:-arm64}"
+
 A_IDX="application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json"
 A_MAN="application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json"
 A_CFG="application/vnd.oci.image.config.v1+json,application/vnd.docker.container.image.v1+json"
@@ -69,9 +72,11 @@ parse_ref() {
 
 # 保存名: library/alpine:latest → alpine_latest / foo/bar:v1 → foo_bar_v1
 safe_name() {
-    local repo="$1" tag="$2"
+    local repo="$1" tag="$2" suffix=""
     repo="${repo#library/}"
-    printf '%s' "${repo//\//_}_${tag}" | tr -c 'A-Za-z0-9._-' '_'
+    # arm64 は無印。他アーキは名前で区別できるようにする (同じイメージを並べて置けるように)
+    [ "$Z2C_ARCH" != "arm64" ] && suffix="_$Z2C_ARCH"
+    printf '%s' "${repo//\//_}_${tag}${suffix}" | tr -c 'A-Za-z0-9._-' '_'
 }
 
 # ---- 認証 -----------------------------------------------------------------------
@@ -119,7 +124,15 @@ apply_whiteouts() {
 
 # ---- pull -----------------------------------------------------------------------
 cmd_pull() {
-    [ $# -ge 1 ] || die "使い方: z2c pull <イメージ>[:<タグ>]"
+    while [ $# -ge 1 ]; do
+        case "$1" in
+            --arch) [ $# -ge 2 ] || die "--arch の後にアーキテクチャが要る (arm64 / amd64)"
+                    Z2C_ARCH="$2"; shift 2 ;;
+            --arch=*) Z2C_ARCH="${1#--arch=}"; shift ;;
+            *) break ;;
+        esac
+    done
+    [ $# -ge 1 ] || die "使い方: z2c pull [--arch <arm64|amd64>] <イメージ>[:<タグ>]"
     local ref="$1" reg repo tag name
     read -r reg repo tag <<<"$(parse_ref "$ref")"
     name="$(safe_name "$repo" "$tag")"
@@ -139,7 +152,7 @@ cmd_pull() {
     info "  [1/4] 認証"
     local tok; tok="$(get_token "$reg" "$repo")"
 
-    info "  [2/4] マニフェスト (arm64 を選ぶ)"
+    info "  [2/4] マニフェスト ($Z2C_ARCH を選ぶ)"
     curl -s -H "$(auth_hdr "$tok")" -H "Accept: $A_IDX,$A_MAN" \
          "https://$reg/v2/$repo/manifests/$tag" -o "$tmp/idx.json" \
         || die "マニフェストを取得できない"
@@ -149,19 +162,20 @@ import sys,json; json.load(open(sys.argv[1]))
 PY
 
     local dig
-    dig="$(python3 - "$tmp/idx.json" <<'PY'
+    dig="$(python3 - "$tmp/idx.json" "$Z2C_ARCH" <<'PY'
 import sys, json
 d = json.load(open(sys.argv[1]))
+want = sys.argv[2]
 if "errors" in d:
     print("ERR:" + d["errors"][0].get("message", "unknown")); raise SystemExit
 if "manifests" in d:                      # index / manifest list
     for m in d["manifests"]:
         p = m.get("platform", {})
-        if p.get("architecture") == "arm64" and p.get("os") == "linux":
+        if p.get("architecture") == want and p.get("os") == "linux":
             print(m["digest"]); break
     else:
         arch = sorted({m.get("platform", {}).get("architecture", "?") for m in d["manifests"]})
-        print("ERR:arm64 版が無い (ある版: %s)" % ", ".join(arch))
+        print("ERR:%s 版が無い (ある版: %s)" % (want, ", ".join(arch)))
 else:
     print("")                             # 単一プラットフォームのマニフェスト
 PY
@@ -213,15 +227,15 @@ PY
         curl -sL -H "$(auth_hdr "$tok")" -H "Accept: $A_CFG" \
              "https://$reg/v2/$repo/blobs/$cfgdig" -o "$tmp/config.json" 2>/dev/null
     fi
-    python3 - "$name" "$reg" "$repo" "$tag" "$tmp/config.json" "$META/$name.json" <<'PY'
+    python3 - "$name" "$reg" "$repo" "$tag" "$tmp/config.json" "$META/$name.json" "$Z2C_ARCH" <<'PY'
 import sys, json, os
-name, reg, repo, tag, cfgpath, out = sys.argv[1:7]
+name, reg, repo, tag, cfgpath, out, arch = sys.argv[1:8]
 cfg = {}
 if os.path.exists(cfgpath):
     try: cfg = json.load(open(cfgpath)).get("config", {})
     except Exception: pass
 json.dump({
-    "name": name, "registry": reg, "repository": repo, "tag": tag,
+    "name": name, "registry": reg, "repository": repo, "tag": tag, "arch": arch,
     "env": cfg.get("Env", []), "cmd": cfg.get("Cmd"),
     "entrypoint": cfg.get("Entrypoint"), "workdir": cfg.get("WorkingDir") or "/",
 }, open(out, "w"), ensure_ascii=False, indent=2)
@@ -231,6 +245,9 @@ PY
     info "完了: $name  ($(du -sh "$dest" 2>/dev/null | cut -f1))"
     info "  場所: $dest"
     info "  確認: z2c verify $name"
+    if [ "$Z2C_ARCH" != "arm64" ]; then
+        info "  ⚠ $Z2C_ARCH のイメージなので、中のバイナリの実行にはエミュレータ (qemu-$(emu_for_arch "$Z2C_ARCH")) が要る"
+    fi
 }
 
 # ---- ls -------------------------------------------------------------------------
@@ -243,10 +260,36 @@ cmd_ls() {
         found=1
         local n; n="$(basename "$d")"
         local src="-"
-        [ -f "$META/$n.json" ] && src="$(python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d["repository"]+":"+d["tag"])' "$META/$n.json" 2>/dev/null || echo -)"
+        [ -f "$META/$n.json" ] && src="$(python3 -c 'import json,sys
+d = json.load(open(sys.argv[1]))
+a = d.get("arch", "arm64")
+print(d["repository"] + ":" + d["tag"] + ("" if a == "arm64" else "  [" + a + " / エミュレータ必須]"))' "$META/$n.json" 2>/dev/null || echo -)"
         printf '%-24s %-8s %s\n' "$n" "$(du -sh "$d" 2>/dev/null | cut -f1)" "$src"
     done
     [ "$found" = 1 ] || info "まだ何も無い (z2c pull alpine で取得)"
+}
+
+# アーキテクチャ名 (OCI の呼び方) を qemu のエミュレータ名へ。
+emu_for_arch() {
+    case "$1" in
+        amd64|x86_64) echo "x86_64" ;;
+        386|i386)     echo "i386" ;;
+        arm)          echo "arm" ;;
+        riscv64)      echo "riscv64" ;;
+        ppc64le)      echo "ppc64le" ;;
+        s390x)        echo "s390x" ;;
+        *)            echo "$1" ;;
+    esac
+}
+
+# そのイメージを動かすのに要るエミュレータのコマンド名 (native なら空)。
+emu_cmd_for_image() {
+    local r="$1" n a
+    n="$(basename "$r")"
+    a="arm64"
+    [ -f "$META/$n.json" ] && a="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("arch","arm64"))' "$META/$n.json" 2>/dev/null || echo arm64)"
+    [ "$a" = "arm64" ] && { echo ""; return 0; }
+    echo "qemu-$(emu_for_arch "$a")"
 }
 
 # ---- rootfs のローダーを見つける -------------------------------------------------
@@ -256,11 +299,14 @@ find_loader() {
     for l in "$r"/lib/ld-musl-aarch64.so.1 \
              "$r"/lib/ld-linux-aarch64.so.1 \
              "$r"/lib64/ld-linux-aarch64.so.1 \
-             "$r"/usr/lib/ld-linux-aarch64.so.1; do
+             "$r"/usr/lib/ld-linux-aarch64.so.1 \
+             "$r"/lib/ld-musl-x86_64.so.1 \
+             "$r"/lib64/ld-linux-x86-64.so.2 \
+             "$r"/lib/ld-linux-x86-64.so.2; do
         [ -x "$l" ] && { echo "$l"; return 0; }
     done
     # symlink をたどれない場合に備えて総当たり
-    l="$(find "$r/lib" "$r/lib64" "$r/usr/lib" -maxdepth 1 -name 'ld-*aarch64*.so*' -print -quit 2>/dev/null)"
+    l="$(find "$r/lib" "$r/lib64" "$r/usr/lib" -maxdepth 1 \( -name 'ld-*aarch64*.so*' -o -name 'ld-*x86*64*.so*' \) -print -quit 2>/dev/null)"
     [ -n "$l" ] && { echo "$l"; return 0; }
     return 1
 }
@@ -311,27 +357,44 @@ cmd_verify() {
         echo "  ✓ 削除マーカーは残っていない"
     fi
 
-    local ld
-    if ld="$(find_loader "$r")"; then
-        echo "  ✓ ローダー: ${ld#$r}"
-        # rootfs 内のバイナリを実際に動かす。
-        # ⚠ 隔離はされない (パスは外側のまま) が「中身が本物か」は確かめられる。
-        local sh_bin="" sh_arg=""
-        for c in "$r/bin/sh" "$r/bin/bash" "$r/usr/bin/sh"; do
-            { [ -e "$c" ] || [ -L "$c" ]; } && { sh_bin="$(resolve_in_rootfs "$r" "$c")"; break; }
-        done
-        if [ -n "$sh_bin" ] && [ -f "$sh_bin" ]; then
-            [ "$(basename "$sh_bin")" = "busybox" ] && sh_arg="sh"
-            local out
-            out="$("$ld" --library-path "$r/lib:$r/lib64:$r/usr/lib" "$sh_bin" $sh_arg -c 'echo 中で echo が動いた' 2>&1 | head -1)"
-            if [ -n "$out" ]; then
-                echo "  ✓ 中のバイナリが動いた: ${sh_bin#$r} → ${out:0:60}"
-            else
-                echo "  ✗ 中のバイナリが動かない"; ok=0
-            fi
+    local emu; emu="$(emu_cmd_for_image "$r")"
+    local ld=""
+    if [ -n "$emu" ]; then
+        # 別アーキのイメージ。qemu が rootfs を sysroot (-L) として使うので
+        # ローダーを明示的に呼ぶ必要は無い。
+        if command -v "$emu" >/dev/null 2>&1; then
+            echo "  ✓ エミュレータ: $emu"
+        else
+            echo "  ✗ エミュレータ $emu が無い (pacman -S qemu-user)"; ok=0
         fi
+    elif ld="$(find_loader "$r")"; then
+        echo "  ✓ ローダー: ${ld#$r}"
     else
         echo "  ✗ ローダーが見つからない"; ok=0
+    fi
+
+    # rootfs 内のバイナリを実際に動かす。
+    # ⚠ 隔離はされない (パスは外側のまま) が「中身が本物か」は確かめられる。
+    local sh_bin="" sh_arg=""
+    for c in "$r/bin/sh" "$r/bin/bash" "$r/usr/bin/sh"; do
+        { [ -e "$c" ] || [ -L "$c" ]; } && { sh_bin="$(resolve_in_rootfs "$r" "$c")"; break; }
+    done
+    if [ -n "$sh_bin" ] && [ -f "$sh_bin" ]; then
+        [ "$(basename "$sh_bin")" = "busybox" ] && sh_arg="sh"
+        local out=""
+        if [ -n "$emu" ]; then
+            command -v "$emu" >/dev/null 2>&1 &&
+                out="$(env -u LD_PRELOAD "$emu" -L "$r" "$sh_bin" $sh_arg -c 'echo 中で echo が動いた' 2>&1 | head -1)"
+        elif [ -n "$ld" ]; then
+            out="$(env -u LD_PRELOAD "$ld" --library-path "$r/lib:$r/lib64:$r/usr/lib" "$sh_bin" $sh_arg -c 'echo 中で echo が動いた' 2>&1 | head -1)"
+        fi
+        if [ -n "$out" ]; then
+            echo "  ✓ 中のバイナリが動いた: ${sh_bin#$r} → ${out:0:60}"
+        elif [ -n "$emu" ] && ! command -v "$emu" >/dev/null 2>&1; then
+            echo "  ・実行確認は省略 ($emu が無いため)"
+        else
+            echo "  ✗ 中のバイナリが動かない"; ok=0
+        fi
     fi
 
     [ -f "$r/etc/os-release" ] && echo "  ・中身: $(sed -n 's/^PRETTY_NAME="\(.*\)"/\1/p' "$r/etc/os-release")"
@@ -349,7 +412,13 @@ cmd_verify() {
 cmd_sh() {
     [ $# -ge 1 ] || die "使い方: z2c sh <名前>"
     local r; r="$(resolve_image "$1")" || die "そんなイメージは無い: $1  (z2c ls で一覧)"
-    local ld; ld="$(find_loader "$r")" || die "ローダーが見つからない"
+    local emu; emu="$(emu_cmd_for_image "$r")"
+    local ld=""
+    if [ -n "$emu" ]; then
+        command -v "$emu" >/dev/null 2>&1 || die "$emu が要る (pacman -S qemu-user)"
+    else
+        ld="$(find_loader "$r")" || die "ローダーが見つからない"
+    fi
 
     local sh_bin="" sh_arg=""
     for c in "$r/bin/sh" "$r/bin/bash" "$r/bin/busybox"; do
@@ -369,7 +438,12 @@ cmd_sh() {
    抜けるのは exit。
 
 EOF
-    "$ld" --library-path "$r/lib:$r/lib64:$r/usr/lib" "$sh_bin" $sh_arg
+    [ -n "$emu" ] && echo "   ⚠ $emu によるエミュレーション実行なので、その分遅い。" >&2 && echo >&2
+    if [ -n "$emu" ]; then
+        env -u LD_PRELOAD "$emu" -L "$r" "$sh_bin" $sh_arg
+    else
+        env -u LD_PRELOAD "$ld" --library-path "$r/lib:$r/lib64:$r/usr/lib" "$sh_bin" $sh_arg
+    fi
 }
 
 cmd_path() {
@@ -389,7 +463,9 @@ usage() {
     cat >&2 <<'EOF'
 z2c — Docker/OCI イメージを取得して rootfs にする (z2term コンテナ機構 フェーズ1)
 
-  z2c pull <イメージ>[:<タグ>]   取得して展開   例: z2c pull alpine / z2c pull node:22-alpine
+  z2c pull [--arch <arm64|amd64>] <イメージ>[:<タグ>]
+                                 取得して展開   例: z2c pull alpine / z2c pull node:22-alpine
+                                 --arch amd64 は実行にエミュレータ (qemu-user) が要る
   z2c ls                         取得済み一覧
   z2c verify <名前>              展開結果が正しいか確認
   z2c sh <名前>                  中のシェルを起動 (⚠ 隔離なし・暫定)
