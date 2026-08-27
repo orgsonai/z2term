@@ -1,0 +1,6 @@
+0.8.417-alpha
+
+- Switching into another Linux environment now actually works. On 0.8.416
+  the way the target was specified did not match up, so entering an
+  environment failed to start. You can now give the path exactly as you
+  see it from inside the terminal.

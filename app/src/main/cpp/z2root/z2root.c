@@ -1029,10 +1029,14 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
 static FILE *g_trc;       // 定義は下方(trc_init 付近)。診断ログ用に前方宣言。
 static int  g_trc_on;
 
-// execve(at) の envp に Z2ROOT_ROOTFS=<ホスト実パス> があれば、この tracee の
-// rootfs を差し替える(以降 fork する子孫も継承する)。空文字なら既定へ戻す。
+// execve(at) の envp に Z2ROOT_ROOTFS=<パス> があれば、この tracee の rootfs を
+// 差し替える(以降 fork する子孫も継承する)。空文字なら既定へ戻す。
 // これが「シェルから別 rootfs へ入る」唯一の経路 — 入れ子 z2root は動かないため。
-static void apply_rootfs_env(struct pid_state *st, pid_t pid, unsigned long envp_addr) {
+// 値は「いま居る環境から見えているパス」で書く。ゲスト内のプロセスは自分のホスト
+// 実パスを知りようがない(HOME は rootfs 配下ではなく shared_home へ bind している
+// ように、rootfs との機械的な連結では出せない)ので、ここで変換する。
+static void apply_rootfs_env(const struct config *cfg, struct pid_state *st, pid_t pid,
+                             unsigned long envp_addr) {
     if (!st || !envp_addr) return;
     static const char KEY[] = "Z2ROOT_ROOTFS=";
     const size_t KEYLEN = sizeof(KEY) - 1;
@@ -1046,7 +1050,14 @@ static void apply_rootfs_env(struct pid_state *st, pid_t pid, unsigned long envp
         if (read_tracee_str(pid, ep, buf, sizeof(buf)) < 0) continue;
         if (strncmp(buf, KEY, KEYLEN) != 0) continue;
         const char *val = buf + KEYLEN;
-        st->rootfs_idx = (val[0] == '\0') ? -1 : rootfs_intern(val);
+        if (val[0] == '\0') { st->rootfs_idx = -1; return; }   // 既定へ戻す
+        // host_path_for が -1 を返すのは「変換の必要が無い」= 既にいまの rootfs 配下の
+        // ホスト実パスを書いているとき。そのときだけ値をそのまま採る。それ以外の
+        // ホスト実パス(bind 先など rootfs の外)はゲストパスとして変換されるので通らない
+        // — 指定はゲスト視点で書く。rootfs 自体が symlink でも指せるよう最後まで解決する。
+        char host[PATH_MAX_Z];
+        st->rootfs_idx = rootfs_intern(
+            host_path_for(cfg, pid, val, 1, AT_FDCWD, host, sizeof(host)) == 0 ? host : val);
         return;   // 同名は先頭優先(execve の envp は重複しない前提)
     }
 }
@@ -1171,7 +1182,7 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
         record_exec_argv(st, guest_prog, args, n);
         // envp の Z2ROOT_ROOTFS で rootfs を差し替える。plan_exec より前に効かせる
         // 必要がある(exec するプログラム自体を新しい rootfs から解決するため)。
-        apply_rootfs_env(st, pid, regs->regs[path_idx + 2]);
+        apply_rootfs_env(cfg, st, pid, regs->regs[path_idx + 2]);
         rootfs_select(pid);
     }
 
