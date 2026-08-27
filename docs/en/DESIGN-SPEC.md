@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-26 / Target version: 0.8.408-alpha (versionCode 416)
+Last updated: 2026-08-27 / Target version: 0.8.418-alpha (versionCode 426)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1926,6 +1926,14 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   - ⚠ **`gdb` cannot chase this**. z2root is already the tracer, so `PTRACE_ATTACH` fails with `Operation not permitted` (one tracer per process). **Nothing lands in logcat or a tombstone either**, because z2root receives the SIGSEGV before debuggerd would. Chasing it further means adding diagnostics inside z2root.
 - **The GUI never opens on its own (auto-launch removed in 0.8.254)**. A preexec hook in interactive shells (bash `DEBUG` trap / zsh `add-zsh-hook preexec`) used to pass the command about to run to `z2-autogui`, which **opened the GUI tab whenever it judged the binary to be a GUI app**. The test was "does it link `libX11` / `libxcb` / GTK / Qt", and **a CUI app that merely talks to X for clipboard support trips it every time** (reported on-device: opening a text editor pops the GUI tab). That steals the screen from someone who is only using the CUI, so the mechanism was **removed rather than made cleverer**, and no on/off setting was added — **there is no reason to offer a choice about a feature that misfires**. The GUI opens exactly two ways: you open the GUI tab, or you type `z2run <app>`. ⚠ The hook was written into the rootfs rc files, so **not installing it any more would leave it in place on existing setups**. `ProotLauncher.removeAutoGuiHook` strips the marked block on every launch and deletes `/usr/local/bin/z2-autogui`, leaving lines the user wrote alone.
 
+- **Remote VNC (A1, 0.8.418)**: `GuiSession(remote = VncTarget(host, port, password, name))` turns the tab into **nothing but an RFB connection to an outside server** — no z2gui, no proot. Drawing, input, the keyboard, the clipboard and zoom/pan all sit on the same `RfbClient` / `GuiScreen` / `GuiInputView` as the local GUI, so **what is new is only "a way to point somewhere else" and "VNC authentication"**.
+  - **Only three things differ from local**: (1) nothing is started on the Linux side (no `connectWithRetry` retry loop — if it does not connect, say why immediately); (2) `requestResize` is never sent (**it would change the resolution of someone's real screen**; fitting into the frame is the job of centre-fit and zoom/pan); (3) no audio bridge.
+  - **It does not consume a display number** (`display = 0`). No Xvnc is started, so there is no `:N` to hold, and it cannot collide with terminal tabs or local GUI tabs (1 and up). Opening the same host twice is allowed (no focus-existing-tab behaviour).
+  - **Authentication is None (1) and VNC auth (2)** (`gui/rfb/VncAuth.kt`). VeNCrypt (19)/TLS is unsupported and **says so by name** instead of failing silently. ⚠ **The DES key has the bits of every byte reversed** — an RFB quirk; skip it and the password is "correct" yet rejected every time. ⭐ Everything that does not touch the socket (picking the type, the key, the response) lives in `VncAuth`, and `VncAuthTest` checks it against **vectors produced with openssl**.
+  - **ProtocolVersion negotiates 3.8 / 3.7 / 3.3**, because remote servers that only speak 3.3 exist. Vendor versions such as Apple's "RFB 003.889" are treated as 3.8. ⭐ **Connecting to something that is not a VNC server also shows up here** (point it at sshd and you can read "SSH-2.0-Open", which goes straight into the message).
+  - ⚠ **`SecurityResult` is read only for 3.8, or when VNC auth was used.** With None on 3.3/3.7 nothing is sent, so reading it would eat the next message and leave a blank screen.
+  - **`connect()` clears the previous attempt** (closes the socket and **`reset`s the ZRLE `Inflater`**) so reconnecting works. The zlib stream restarts with every connection; reusing it decodes the new stream as a continuation of the old one and the picture breaks.
+
 ### 4.13 Android API bridge (`Z2ApiBridge` / `Z2ApiScript`)
 
 - Commands that drive Android features from the terminal. Macros are built as "trigger (register it with `z2-when`; diff events.jsonl for what `z2-when` does not cover) → logic (shell) → action (`z2-*`)". [See `docs/en/MACRO-GUIDE.md` for how to write them](MACRO-GUIDE.md).
@@ -2494,6 +2502,15 @@ into "close" — you would not be able to delete while the pad is open.
 
 - `SshProfilesSheet` edits host/port/user/auth (password or private key + passphrase)/initCommand/`-L` forwarding.
 - On connect, `SessionManager.openNew` + `startSsh(profile)`. The host key is confirmed in `HostKeyVerificationDialog` (saved to `KnownHosts`).
+
+### 6.3.1 Remote VNC (the screen, A1, 0.8.418)
+
+- **One host, one entry.** `SshProfile` carries `vncPort` / `vncPassword`, so a single row in `SshProfilesSheet` offers three ways in: shell (Connect), files (SFTP) and **the screen (VNC)**. **No new tab and no new button** — the row's actions were split over two lines.
+- **[VNC] calls `SessionManager.openRemoteVnc(context, profile.toVncTarget())`** → a `GuiSession` in remote mode (see 4.12). It is a **separate connection** that does not go through SSH, so the SSH port and password are unrelated.
+- **The default port is 5901** (`VncTarget.DEFAULT_PORT`); display `:N` is `5900+N`. Desktop sharing on Windows and macOS is usually `:0` = 5900.
+- ⭐ **If the server only listens on `127.0.0.1`, nothing has to be added to the app** — forward it from a terminal tab with `ssh -L 5901:localhost:5901 <host>` and point the entry at `127.0.0.1` (the "if a Linux package covers it, it does not go in the app" rule).
+- **Failures are matched by type and translated into advice** (`GuiSession.remoteFailureMessage`): no password set, wrong password, unsupported method, nothing listening, no answer. ⚠ The exception's own message is never shown as-is — this is the **only** explanation on screen, and `java.net.ConnectException: …` does not tell anyone what to fix.
+- ⚠ **A VNC password is 8 characters at most** (RFB drops the rest). It is encrypted with the Keystore like the other secrets, and is left out of an export that excludes secrets.
 
 ### 6.4 SSH server (PC → terminal) — dropbear
 

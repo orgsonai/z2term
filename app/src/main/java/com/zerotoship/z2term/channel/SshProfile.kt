@@ -1,6 +1,7 @@
 package com.zerotoship.z2term.channel
 
 import android.content.Context
+import com.zerotoship.z2term.gui.rfb.VncTarget
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -101,8 +102,27 @@ data class SshProfile(
      * 既定 false = 明示 opt-in。`-R` は常駐と組み合わせて初めて意味を持つので、
      * 実質ここが `-R` の opt-in も兼ねる。
      */
-    val residentTunnel: Boolean = false
+    val residentTunnel: Boolean = false,
+    /**
+     * **リモート VNC (A1)** の RFB ポート。画面 `:N` は `5900+N` なので `:1` なら 5901。
+     * SSH で入るのと同じサーバのデスクトップを、同じ登録から開けるようにするためのもの。
+     * ⚠ SSH の [port] とは無関係 (VNC は SSH を経由しない別の接続)。
+     */
+    val vncPort: Int = VncTarget.DEFAULT_PORT,
+    /**
+     * VNC 認証のパスワード (平文。永続化時に暗号化)。
+     * ⚠ **SSH の [password] とは別物**。VNC 側は 8 文字までしか効かない (RFB の仕様)。
+     */
+    val vncPassword: String = ""
 ) {
+
+    /** この接続先のデスクトップを開くための接続情報 (A1)。 */
+    fun toVncTarget(): VncTarget = VncTarget(
+        host = host,
+        port = vncPort,
+        password = vncPassword,
+        name = name
+    )
 
     enum class AuthType { PASSWORD, PUBLIC_KEY }
 
@@ -115,6 +135,8 @@ data class SshProfile(
         put("user", user)
         put("authType", authType.name)
         put("residentTunnel", residentTunnel)
+        put("vncPort", vncPort)
+        put("vncPassword", KeystoreCrypt.encrypt(vncPassword))
         put("password", KeystoreCrypt.encrypt(password))
         put("privateKey", KeystoreCrypt.encrypt(privateKey))
         put("keyPassphrase", KeystoreCrypt.encrypt(keyPassphrase))
@@ -140,6 +162,8 @@ data class SshProfile(
         put("user", user)
         put("authType", authType.name)
         put("residentTunnel", residentTunnel)
+        put("vncPort", vncPort)
+        put("vncPassword", vncPassword)
         put("password", password)
         put("privateKey", privateKey)
         put("keyPassphrase", keyPassphrase)
@@ -158,6 +182,8 @@ data class SshProfile(
             authType = runCatching {
                 AuthType.valueOf(o.optString("authType", AuthType.PASSWORD.name))
             }.getOrDefault(AuthType.PASSWORD),
+            vncPort = o.optInt("vncPort", VncTarget.DEFAULT_PORT),
+            vncPassword = o.optString("vncPassword"),
             password = o.optString("password"),
             privateKey = o.optString("privateKey"),
             keyPassphrase = o.optString("keyPassphrase"),
@@ -178,6 +204,8 @@ data class SshProfile(
             authType = runCatching {
                 AuthType.valueOf(o.optString("authType", AuthType.PASSWORD.name))
             }.getOrDefault(AuthType.PASSWORD),
+            vncPort = o.optInt("vncPort", VncTarget.DEFAULT_PORT),
+            vncPassword = runCatching { KeystoreCrypt.decrypt(o.optString("vncPassword")) }.getOrDefault(""),
             password = runCatching { KeystoreCrypt.decrypt(o.optString("password")) }.getOrDefault(""),
             privateKey = runCatching { KeystoreCrypt.decrypt(o.optString("privateKey")) }.getOrDefault(""),
             keyPassphrase = runCatching { KeystoreCrypt.decrypt(o.optString("keyPassphrase")) }.getOrDefault(""),
@@ -227,7 +255,8 @@ class SshProfileStore(private val context: Context) {
         val list = profiles.first()
         val arr = JSONArray()
         list.forEach { p ->
-            val strip = if (includeSecrets) p else p.copy(password = "", privateKey = "", keyPassphrase = "")
+            val strip = if (includeSecrets) p else
+                p.copy(password = "", privateKey = "", keyPassphrase = "", vncPassword = "")
             arr.put(strip.toPlainJson())
         }
         return arr.toString()

@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.417-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.418-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -248,6 +248,30 @@ In 📜 > "SSH / SFTP", add a connection and set auth to public key: a **"Create
 Press it and the key is made, with **copy / share / add to this device's sshd** right there.
 Give the **public** key to whoever runs the server you connect to (the private key never leaves this device).
 The field for pasting your own private key is still there.
+
+### Open a remote machine's screen (VNC, 0.8.418)
+
+Every host in 📜 → "SSH / SFTP" now has a **[VNC]** button. It opens **that server's desktop in a new
+tab** — the machine over there, not the Linux inside the app.
+
+Before using it, fill in two fields under **✎ (Edit)** for the host:
+
+- **VNC port** — display `:1` is **5901**, `:2` is 5902 (`5900 + number`). "Screen sharing" on
+  Windows and macOS is usually **5900**.
+- **VNC password** — **not the SSH password**; it is the one set on the VNC side.
+  ⚠ **Only the first 8 characters count** (that is how VNC works). Leave it empty for a server that
+  asks for no password.
+
+Once it is up, it behaves like the app's own GUI tab: two fingers to zoom and pan, three fingers to
+scroll, and the same keyboard.
+
+- ⚠ **The server decides the size of the screen.** z2term never resizes it to fit your frame — it may
+  well be a screen somebody is sitting in front of. If it looks small, pinch to zoom.
+- ⚠ **A server that only listens to itself will not accept you** (the default on most Linux boxes).
+  Open a terminal tab, run `ssh -L 5901:localhost:5901 <host>` to forward it, and point the host
+  field at **`127.0.0.1`**.
+- When it fails, the middle of the screen tells you **what to fix** (nothing listening / wrong
+  password / a password is needed / an unsupported method).
 
 ### Grouping the commands you use most (0.8.387)
 

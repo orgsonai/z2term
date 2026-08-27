@@ -2,6 +2,7 @@ package com.zerotoship.z2term.core
 
 import android.content.Context
 import com.zerotoship.z2term.gui.GuiSession
+import com.zerotoship.z2term.gui.rfb.VncTarget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -168,6 +169,22 @@ object SessionManager {
     fun openNewGui(context: Context): GuiSession = synchronized(lock) {
         val display = allocateDisplay()
         val s = GuiSession(context.applicationContext, display = display)
+        mutableSessions.add(s)
+        _sessions.value = mutableSessions.toList()
+        _activeId.value = s.id
+        s
+    }
+
+    /**
+     * **リモート VNC タブ**を開く (A1)。
+     *
+     * ローカル GUI と違って Xvnc を立てないので、**ディスプレイ番号を消費しない**
+     * ([display] = 0)。端末タブ・ローカル GUI が使う番号は 1 以上なので衝突しないし、
+     * 同じ相手へ 2 枚開くのも自由にしてある (別の画面を並べて見たいことがあるため、
+     * [openGuiForDisplay] のような前面化はしない)。
+     */
+    fun openRemoteVnc(context: Context, target: VncTarget): GuiSession = synchronized(lock) {
+        val s = GuiSession(context.applicationContext, display = 0, remote = target)
         mutableSessions.add(s)
         _sessions.value = mutableSessions.toList()
         _activeId.value = s.id

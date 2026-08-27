@@ -409,6 +409,19 @@
     <string name="ssh_field_password">Password</string>
     <string name="ssh_field_private_key">Private key (PEM)</string>
     <string name="ssh_field_passphrase">Passphrase (if set on the key)</string>
+    <!-- Remote VNC (A1): reach the same host's desktop from the same entry -->
+    <string name="ssh_vnc_section">VNC (desktop)</string>
+    <string name="ssh_field_vnc_port">VNC port</string>
+    <string name="ssh_field_vnc_password">VNC password</string>
+    <string name="ssh_vnc_note">[VNC] opens this host\'s desktop in a new tab. Display :N is port 5900+N (:1 = 5901). This password is the VNC one, not the SSH one (8 characters max). If the server only listens on 127.0.0.1, forward it first with ssh -L 5901:localhost:5901 and point this entry at 127.0.0.1.</string>
+    <string name="vnc_connecting">Connecting to %1$s:%2$d…</string>
+    <string name="vnc_disconnected">Disconnected by the server.</string>
+    <string name="vnc_error_password_required">This VNC server wants a password. Set "VNC password" for this host in Tools (📜) › SSH / SFTP.</string>
+    <string name="vnc_error_auth_failed">The VNC password was rejected. Check "VNC password" for this host (RFB only uses the first 8 characters).</string>
+    <string name="vnc_error_security_unsupported">This server asks for an authentication method z2term does not speak (VeNCrypt/TLS). Turn it off on the server, or reach it through an SSH tunnel.</string>
+    <string name="vnc_error_refused">Nothing is listening on %1$s. Check that the VNC server is running and that the port is right (display :N = 5900+N).</string>
+    <string name="vnc_error_timeout">%1$s did not answer in time. Check the network and any firewall.</string>
+    <string name="vnc_error_generic">Connection failed: %1$s</string>
     <string name="ssh_field_init_cmd">init command (run automatically on connect, optional)</string>
     <string name="ssh_port_forward">Port forwarding (-L)</string>
     <string name="ssh_port_forward_add">+ Add</string>

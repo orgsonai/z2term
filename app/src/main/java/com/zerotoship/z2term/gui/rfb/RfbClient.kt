@@ -19,10 +19,13 @@ import java.util.concurrent.RejectedExecutionException
 /**
  * RFB (VNC) 3.8 クライアント。表示 (M8-2) + 入力 (M8-3) に対応（None 認証 + Raw/CopyRect デコード）。
  *
- * 127.0.0.1:5901 の Xvnc (z2gui が起動) に接続し、フレームバッファを ARGB_8888 [Bitmap] に描く。
+ * 既定では 127.0.0.1:5901 の Xvnc (z2gui が起動) に、[host]/[port] を変えれば**リモートの VNC
+ * サーバ**に接続し (A1)、フレームバッファを ARGB_8888 [Bitmap] に描く。
  * 受信ループ [run] は呼び出し側 (GuiSession) が IO コルーチンで回す。再描画は [redraw] StateFlow
  * で Compose に伝える（端末の redrawTick と同じ方式）。
  *
+ * - 認証は **None (1)** と **VNC 認証 (2)** に対応 ([VncAuth])。VeNCrypt/TLS は未対応。
+ *   ProtocolVersion は 3.8 / 3.7 / 3.3 に合わせられる (リモートには古いサーバが居るため)。
  * - PixelFormat は 32bpp little-endian truecolor を要求し、各ピクセルを 0xAARRGGBB へ直変換。
  * - 入力 (M8-3): [sendPointerEvent] (type 5) / [sendKeyEvent] (type 4)。送信は [writeLock] で直列化し、
  *   受信ループ側の `FramebufferUpdateRequest` 送出と混線しないようにする。
@@ -32,7 +35,15 @@ import java.util.concurrent.RejectedExecutionException
 class RfbClient(
     private val host: String = "127.0.0.1",
     private val port: Int = 5901,
+    password: String = "",
 ) {
+    /**
+     * VNC 認証 (security type 2) のパスワード。空ならパスワードを要求しないサーバ専用
+     * (ローカルの Xvnc はこちら)。入れ直して [connect] をやり直せるよう var にしてある。
+     */
+    @Volatile
+    var password: String = password
+
     /** ServerInit で受け取る画面サイズ。connect 後に有効。ExtendedDesktopSize で動的に変わる。 */
     @Volatile
     var width = 0
@@ -102,16 +113,36 @@ class RfbClient(
      * 同期接続 + RFB 3.8 ハンドシェイク。**IO スレッドで呼ぶこと**。失敗時は例外を投げる。
      */
     fun connect(timeoutMs: Int = 8000) {
+        // 繋ぎ直し (切断された / パスワードを入れ直した) に備え、前回の残骸を先に畳む。
+        // ZRLE の zlib ストリームは接続ごとに最初からなので、[inflater] も巻き戻す
+        // (使い回すと前の接続の続きとして展開してしまい、画面が壊れる)。
+        runCatching { socket?.close() }
+        inflater.reset()
         val s = Socket()
         s.tcpNoDelay = true
-        s.connect(InetSocketAddress(host, port), timeoutMs)
+        try {
+            s.connect(InetSocketAddress(host, port), timeoutMs)
+        } catch (e: Exception) {
+            runCatching { s.close() }  // 未接続のソケットを積み残さない
+            throw e
+        }
         socket = s
         val inp = DataInputStream(BufferedInputStream(s.getInputStream(), 1 shl 16))
         val out = DataOutputStream(BufferedOutputStream(s.getOutputStream(), 1 shl 16))
         input = inp
         output = out
 
-        handshake(inp, out)
+        try {
+            handshake(inp, out)
+        } catch (e: Exception) {
+            // 認証失敗などで途中終了したソケットを掴んだままにしない。[closed] は立てないので、
+            // パスワードを入れ直して同じインスタンスで繋ぎ直せる。
+            runCatching { s.close() }
+            socket = null
+            input = null
+            output = null
+            throw e
+        }
 
         pixels = IntArray(width * height)
         frame = createBitmap(width, height)
@@ -123,25 +154,22 @@ class RfbClient(
     }
 
     private fun handshake(inp: DataInputStream, out: DataOutputStream) {
-        // 1. ProtocolVersion (サーバ→) を読み、3.8 を要求 (→サーバ)
+        // 1. ProtocolVersion (サーバ→) を読み、こちらの上限 (3.8) との低い方に合わせる。
+        //    リモートには 3.3 しか話さないサーバ (組込み・古い実装) が居るので、そこまで落とせる。
         val server = ByteArray(12).also { inp.readFully(it) }
-        Log.d(TAG, "server ProtocolVersion=${String(server, Charsets.US_ASCII).trim()}")
-        out.write("RFB 003.008\n".toByteArray(Charsets.US_ASCII))
+        val serverVersion = String(server, Charsets.US_ASCII).trim()
+        val minor = negotiateVersion(serverVersion)
+        Log.d(TAG, "server ProtocolVersion=$serverVersion (using 3.$minor)")
+        out.write("RFB 003.00$minor\n".toByteArray(Charsets.US_ASCII))
         out.flush()
 
-        // 2. Security types (3.7+: U8 個数 + リスト)
-        val count = inp.readUnsignedByte()
-        if (count == 0) throw IOException("VNC security negotiation failed: ${readReason(inp)}")
-        val types = ByteArray(count).also { inp.readFully(it) }
-        if (types.none { it.toInt() == SEC_NONE }) {
-            throw IOException("VNC: no None(1) security type advertised (types=${types.joinToString { it.toInt().toString() }})")
-        }
-        out.writeByte(SEC_NONE)
-        out.flush()
+        // 2. Security type の決定。3.7+ は「サーバが並べた中から選ぶ」、3.3 は「サーバが 1 つ指定」。
+        val secType = if (minor >= 7) negotiateSecurity(inp, out) else readSecurity33(inp)
+        if (secType == VncAuth.SEC_VNC_AUTH) answerVncAuth(inp, out)
 
-        // 3. SecurityResult (3.8 は None でも必ず来る)
-        val secResult = inp.readInt()
-        if (secResult != 0) throw IOException("VNC SecurityResult=$secResult: ${readReason(inp)}")
+        // 3. SecurityResult。3.8 は必ず来る / 3.3・3.7 は VNC 認証のときだけ来る
+        //    (None では何も来ずに ClientInit へ進むので、読みに行くと次のメッセージを食う)。
+        if (minor >= 8 || secType == VncAuth.SEC_VNC_AUTH) readSecurityResult(inp, minor, secType)
 
         // 4. ClientInit (shared=1: 他クライアントを切らない)
         out.writeByte(1)
@@ -165,6 +193,63 @@ class RfbClient(
         //    擬似エンコーディング ExtendedDesktopSize を併せて通知し、サーバ側の解像度変更
         //    (回転時の再ネゴ) と、クライアントからの SetDesktopSize 要求を有効にする。
         setEncodings(out, intArrayOf(ENC_ZRLE, ENC_COPYRECT, ENC_RAW, ENC_EXT_DESKTOP_SIZE))
+    }
+
+    /**
+     * ProtocolVersion 文字列 ("RFB 003.008") から、こちらが使う minor 版数を決める。
+     *
+     * 返すのは 8 / 7 / 3 の 3 通りだけ。Apple の "RFB 003.889" のような独自版は 3.8 として扱う
+     * (他のクライアントも同じ)。**VNC ではない相手に繋いだ場合もここで分かる** — ポートを
+     * 間違えて sshd に繋ぐと "SSH-2.0-Open" が読めるので、そのまま理由に出す。
+     */
+    private fun negotiateVersion(version: String): Int {
+        // 版数は行全体で一致させる (末尾 $ を生文字列に置くと Kotlin の文字列テンプレートと
+        // 紛らわしいので matchEntire を使う)。
+        val m = Regex("""RFB (\d{3})\.(\d{3})""").matchEntire(version)
+            ?: throw IOException("not a VNC server (got \"" + version.take(24) + "\")")
+        if (m.groupValues[1].toInt() != 3) throw IOException("unsupported RFB version: $version")
+        val minor = m.groupValues[2].toInt()
+        return when {
+            minor >= 8 -> 8
+            minor == 7 -> 7
+            else -> 3
+        }
+    }
+
+    /** 3.7+ の security 交渉: サーバが並べた型から 1 つ選んで返事する。 */
+    private fun negotiateSecurity(inp: DataInputStream, out: DataOutputStream): Int {
+        val count = inp.readUnsignedByte()
+        if (count == 0) throw IOException("VNC security negotiation failed: ${readReason(inp)}")
+        val types = ByteArray(count).also { inp.readFully(it) }
+        val chosen = VncAuth.pickSecurityType(types.map { it.toInt() and 0xFF }, password.isNotEmpty())
+        out.writeByte(chosen)
+        out.flush()
+        return chosen
+    }
+
+    /** 3.3 の security: サーバが U32 で 1 つ指定してくる (こちらに選択権が無い)。 */
+    private fun readSecurity33(inp: DataInputStream): Int {
+        val type = inp.readInt()
+        if (type == VncAuth.SEC_INVALID) throw IOException("VNC connection refused: ${readReason(inp)}")
+        // 「パスワードを持っているか」等の判断は 3.7+ と同じ規則に乗せる。
+        return VncAuth.pickSecurityType(listOf(type), password.isNotEmpty())
+    }
+
+    /** VNC 認証 (2): 16 バイトのチャレンジを DES で暗号化して返す。 */
+    private fun answerVncAuth(inp: DataInputStream, out: DataOutputStream) {
+        val challenge = ByteArray(VncAuth.CHALLENGE_BYTES).also { inp.readFully(it) }
+        out.write(VncAuth.challengeResponse(password, challenge))
+        out.flush()
+    }
+
+    /** SecurityResult (0 = OK)。失敗理由の文字列が付くのは 3.8 だけ。 */
+    private fun readSecurityResult(inp: DataInputStream, minor: Int, secType: Int) {
+        val result = inp.readInt()
+        if (result == 0) return
+        val reason = if (minor >= 8) runCatching { readReason(inp) }.getOrDefault("") else ""
+        val tail = if (reason.isEmpty()) "" else ": $reason"
+        if (secType == VncAuth.SEC_VNC_AUTH) throw RfbAuthFailedException("VNC authentication failed$tail")
+        throw IOException("VNC SecurityResult=$result$tail")
     }
 
     private fun readReason(inp: DataInputStream): String {
@@ -641,8 +726,6 @@ class RfbClient(
 
         /** ServerCutText の取り込み上限 (byte)。これを超える分は読み捨てる。 */
         private const val MAX_CUT_TEXT = 256 * 1024
-
-        private const val SEC_NONE = 1
 
         // client→server message types
         private const val MSG_SET_PIXEL_FORMAT = 0

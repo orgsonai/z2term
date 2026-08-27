@@ -406,6 +406,19 @@
     <string name="ssh_field_password">パスワード</string>
     <string name="ssh_field_private_key">秘密鍵 (PEM)</string>
     <string name="ssh_field_passphrase">パスフレーズ (鍵に設定されていれば)</string>
+    <!-- リモート VNC (A1): 同じ接続先の画面を同じ入口から開く -->
+    <string name="ssh_vnc_section">VNC (画面)</string>
+    <string name="ssh_field_vnc_port">VNC ポート</string>
+    <string name="ssh_field_vnc_password">VNC パスワード</string>
+    <string name="ssh_vnc_note">[VNC] でこのホストのデスクトップを新しいタブに開く。画面 :N はポート 5900+N (:1 なら 5901)。パスワードは VNC 用で SSH のものとは別 (8 文字まで有効)。相手が 127.0.0.1 でしか待っていないときは、先に端末で ssh -L 5901:localhost:5901 を張り、ここを 127.0.0.1 にする。</string>
+    <string name="vnc_connecting">%1$s:%2$d へ接続中…</string>
+    <string name="vnc_disconnected">相手から切断されました。</string>
+    <string name="vnc_error_password_required">この VNC サーバはパスワードを要求しています。ツール (📜) › SSH / SFTP でこの接続先の「VNC パスワード」を設定してください。</string>
+    <string name="vnc_error_auth_failed">VNC パスワードが違います。この接続先の「VNC パスワード」を確認してください (RFB は先頭 8 文字しか使いません)。</string>
+    <string name="vnc_error_security_unsupported">このサーバは z2term が話せない認証方式 (VeNCrypt/TLS) を要求しています。サーバ側で切るか、SSH トンネル越しに繋いでください。</string>
+    <string name="vnc_error_refused">%1$s で待ち受けていません。VNC サーバが動いているか、ポートが合っているか (画面 :N は 5900+N) を確認してください。</string>
+    <string name="vnc_error_timeout">%1$s から応答がありません。回線とファイアウォールを確認してください。</string>
+    <string name="vnc_error_generic">接続に失敗しました: %1$s</string>
     <string name="ssh_field_init_cmd">init コマンド (接続後に自動実行、任意)</string>
     <string name="ssh_port_forward">ポート転送 (-L)</string>
     <string name="ssh_port_forward_add">+ 追加</string>

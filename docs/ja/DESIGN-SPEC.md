@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-26 / 対象バージョン: 0.8.408-alpha (versionCode 416)
+最終更新: 2026-08-27 / 対象バージョン: 0.8.418-alpha (versionCode 426)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1894,6 +1894,14 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - ⚠ **`gdb` では追えない**。z2root が tracer なので `PTRACE_ATTACH` が `Operation not permitted` で弾かれる（1 プロセスに tracer は 1 つ）。**logcat / tombstone にも残らない**（SIGSEGV を z2root が先に受け取るので debuggerd まで届かない）。追うなら z2root 側に診断を足すことになる。
 - **GUI は自分から開かない（0.8.254 で自動連動を廃止）**。以前は interactive shell の preexec フック（bash = DEBUG トラップ / zsh = `add-zsh-hook preexec`）が実行前のコマンドを `z2-autogui` に渡し、**GUI バイナリと判定したら GUI タブを自動で開いて**いた。判定は「`libX11` / `libxcb` / GTK / Qt にリンクしているか」だったが、**クリップボード連携のために X を張るだけの CUI アプリが必ず引っかかる**（実機報告: テキストエディタを開いただけで GUI タブが出る）。CUI を使っているだけの人の画面を奪うので、**判定を賢くする方向ではなく仕掛けごと畳んだ**。設定での ON/OFF も足さない — **誤爆する機能を選べるようにしても選ぶ理由が無い**。GUI を開く道は「GUI タブを自分で開く」か「`z2run <アプリ>` と明示的に打つ」の 2 つだけ。⚠ フックは rootfs の rc に書き込み済みなので、**入れるのをやめるだけでは既存環境に残る**。`ProotLauncher.removeAutoGuiHook` が launch 毎にマーカー行ごと取り除き、`/usr/local/bin/z2-autogui` も消す（ユーザーが自分で書いた行は触らない）。
 
+- **リモート VNC (A1・0.8.418)**: `GuiSession(remote = VncTarget(host, port, password, name))` で、**z2gui も proot も起動せずに外の VNC サーバへ繋ぐだけ**のタブになる。描画・入力・キーボード・クリップボード・ズーム/パンはローカル GUI と同じ `RfbClient` / `GuiScreen` / `GuiInputView` の上に乗るので、**新しく作ったのは「接続先を差し替える口」と「VNC 認証」だけ**。
+  - **ローカルとの違いは 3 つだけ**: ①Linux 側を起動しない（`connectWithRetry` で粘らず、繋がらなければその場で理由を出す）②`requestResize` を送らない（**相手の実画面の解像度を勝手に変えてしまう**ため。枠に収めるのは中央フィットとズーム/パン）③音声ブリッジを張らない。
+  - **ディスプレイ番号を消費しない**（`display = 0`）。Xvnc を立てないので `:N` を取る理由が無く、端末タブ・ローカル GUI（1 以上）と衝突しない。同じ相手へ 2 枚開くのも自由（前面化しない）。
+  - **認証は None (1) と VNC 認証 (2)**（`gui/rfb/VncAuth.kt`）。VeNCrypt (19)/TLS は未対応で、**名指しで「未対応」と伝える**（黙って失敗させない）。⚠ **DES 鍵は各バイトのビット順を反転する**のが RFB の癖で、ここを飛ばすと「パスワードは合っているのに毎回拒否される」になる。⭐ ソケットに触らない部分（方式の選択・鍵・応答）だけを `VncAuth` に切り出してあり、`VncAuthTest` が **openssl で作った期待値**と突き合わせる。
+  - **ProtocolVersion は 3.8 / 3.7 / 3.3 に合わせられる**。リモートには 3.3 しか話さないサーバが居るため。Apple の "RFB 003.889" のような独自版は 3.8 として扱う。⭐ **VNC でない相手に繋いだ場合もここで分かる**（sshd に繋ぐと "SSH-2.0-Open" が読めるので、そのまま理由に出す）。
+  - ⚠ **`SecurityResult` を読むのは「3.8」か「VNC 認証のとき」だけ**。3.3/3.7 の None では何も来ないので、読みに行くと次のメッセージを食って画面が出ない。
+  - **繋ぎ直しに備えて `connect()` は前の残骸を畳む**（ソケットを閉じ、**ZRLE の `Inflater` を `reset`**）。zlib ストリームは接続ごとに最初からなので、使い回すと前の接続の続きとして展開して画面が壊れる。
+
 ### 4.13 Android API ブリッジ (`Z2ApiBridge` / `Z2ApiScript`)
 
 - 端末から Android 機能を叩くコマンド群。マクロは「トリガー (`z2-when` に登録。無いきっかけは events.jsonl の差分監視) → ロジック (シェル) → アクション (`z2-*`)」で組む。[マクロの書き方は `docs/ja/MACRO-GUIDE.md`](MACRO-GUIDE.md) を参照。
@@ -2422,6 +2430,15 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 
 - `SshProfilesSheet` で host/port/user/認証 (パスワード or 秘密鍵+パスフレーズ)/initCommand/`-L` 転送を編集。
 - 接続時は `SessionManager.openNew` + `startSsh(profile)`。host key は `HostKeyVerificationDialog` で確認 (`KnownHosts` に保存)。
+
+### 6.3.1 リモート VNC (画面・A1・0.8.418)
+
+- **接続先を 3 か所に登録させない。** `SshProfile` に `vncPort` / `vncPassword` を持たせ、`SshProfilesSheet` の1 件から「シェル (接続) / ファイル (SFTP) / **画面 (VNC)**」の 3 通りで入る。**タブもボタンも増やしていない**（行の中で 2 段に分けただけ）。
+- **[VNC] は `SessionManager.openRemoteVnc(context, profile.toVncTarget())`** → リモートモードの `GuiSession`（→ 4.12）。SSH は経由しない**別の接続**なので、SSH のポートやパスワードとは無関係。
+- **既定ポートは 5901**（`VncTarget.DEFAULT_PORT`）。画面 `:N` は `5900+N`。Windows / macOS のデスクトップ共有は`:0` = 5900 が多い。
+- ⭐ **相手が `127.0.0.1` でしか待っていないときは、アプリに機能を足さずに済む** — 端末タブで`ssh -L 5901:localhost:5901 <host>` を張り、接続先を `127.0.0.1` にすればトンネル越しに映る（**Linux 側で埋まるものはアプリに入れない**方針どおり）。
+- **失敗は型で見分けて案内に訳す**（`GuiSession.remoteFailureMessage`）。パスワード未設定 / 違う / 未対応方式 /待ち受けていない / 応答なし をそれぞれ別の文にする。⚠ 例外のメッセージをそのまま出さない —画面の真ん中に出る**唯一の説明**なので、`java.net.ConnectException: …` では何を直せばよいか伝わらない。
+- ⚠ **VNC のパスワードは 8 文字までしか効かない**（RFB の仕様。9 文字目以降は捨てられる）。保存時は SSH の秘密と同じく Keystore で暗号化し、設定の持ち出しでは「秘密を含めない」選択で落ちる。
 
 ### 6.4 SSH サーバ (PC → 端末) ※dropbear
 

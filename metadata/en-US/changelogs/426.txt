@@ -1,0 +1,6 @@
+0.8.418-alpha
+
+- You can now connect to a remote VNC server. Hosts saved under
+  "SSH / SFTP" in the tools sheet get a [VNC] button that opens that
+  machine's desktop in a tab. Set the VNC port and password when you
+  edit the host.

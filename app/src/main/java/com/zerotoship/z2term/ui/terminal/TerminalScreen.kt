@@ -855,6 +855,10 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             },
             onConnect = { profile -> active.connectSsh(profile) },
             onSftp = { profile -> sftpProfile = profile },
+            // 同じ接続先の**デスクトップ**を新しいタブで開く (A1)。SSH は経由せず、
+            // 相手の VNC ポートへ直接繋ぐ (127.0.0.1 でしか待っていない相手には
+            // 端末で `ssh -L` を張ってから 127.0.0.1 を指す)。
+            onVnc = { profile -> SessionManager.openRemoteVnc(context, profile.toVncTarget()) },
             // 常駐サーバーの管理をここからも行えるようにする (設定シートを経由しなくてよい)。
             serverSession = active
         )
@@ -1063,6 +1067,12 @@ private fun GuiTabScreen(
             GuiSession.State.STARTING, GuiSession.State.CONNECTING, GuiSession.State.CONNECTED ->
                 return@LaunchedEffect
             else -> {}
+        }
+        // リモート VNC (A1) は Linux 側を起動しない = 解像度もパッケージ導入も要らない。
+        // 表示領域の実寸を待たずにそのまま繋ぎに行く (待っても使い道が無い)。
+        if (gui.remote != null) {
+            gui.start(0, 0)
+            return@LaunchedEffect
         }
         val size = snapshotFlow { guiAreaPx }.first { it.width > 0 && it.height > 0 }
         // 設定は最新を読む (初期 Snapshot の取りこぼし回避)。

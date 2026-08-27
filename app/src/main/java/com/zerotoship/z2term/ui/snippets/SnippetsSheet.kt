@@ -95,7 +95,8 @@ private enum class ToolsTab { SNIPPETS, HISTORY, SSH, SERVERS, WHEN }
  *  - スニペット: よく使うコマンドを挿入 ([onRun])。並べ替え / 編集 / 削除可。
  *  - 履歴 (B2): 端末で実行した過去コマンドを絞り込んでタップで挿入。読み取り専用で、
  *    シェルの履歴ファイル (`~/.bash_history` / `~/.zsh_history`) をそのまま見る。
- *  - SSH / SFTP: 保存したホストへ接続 ([onConnect]) / SFTP で開く ([onSftp])。
+ *  - SSH / SFTP: 保存したホストへ接続 ([onConnect]) / SFTP で開く ([onSftp]) /
+ *    そのホストのデスクトップを VNC で開く ([onVnc]・A1)。
  *  - サーバー: 常駐サーバーの起動/停止・ON/OFF・編集 (設定シートと同じ [ServersBody])。
  *    毎回設定画面を開かずここから管理できる。
  *
@@ -111,6 +112,7 @@ fun SnippetsSheet(
     onRun: (String) -> Unit,
     onConnect: (SshProfile) -> Unit = {},
     onSftp: (SshProfile) -> Unit = {},
+    onVnc: (SshProfile) -> Unit = {},
     showSshTab: Boolean = true,
     serverSession: TerminalSession? = null
 ) {
@@ -171,7 +173,8 @@ fun SnippetsSheet(
                 ToolsTab.HISTORY -> HistoryBody(onRun = { cmd -> onRun(cmd); onDismiss() })
                 ToolsTab.SSH -> SshProfilesBody(
                     onConnect = { p -> onConnect(p); onDismiss() },
-                    onSftp = { p -> onSftp(p); onDismiss() }
+                    onSftp = { p -> onSftp(p); onDismiss() },
+                    onVnc = { p -> onVnc(p); onDismiss() }
                 )
                 ToolsTab.SERVERS -> serverSession?.let { ServersBody(session = it) }
                 ToolsTab.WHEN -> WhenRulesBody()

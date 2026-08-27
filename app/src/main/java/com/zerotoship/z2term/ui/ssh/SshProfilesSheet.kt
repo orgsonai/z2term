@@ -49,6 +49,7 @@ import com.zerotoship.z2term.channel.PortForward
 import com.zerotoship.z2term.channel.SshKeyGen
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.channel.SshProfileStore
+import com.zerotoship.z2term.gui.rfb.VncTarget
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -70,6 +71,8 @@ import java.util.UUID
  *
  * リスト表示 → 追加/編集/削除/接続。
  * 接続時は [onConnect] (TerminalScreen 側で新規セッション作成 + startSsh) に委譲。
+ * 同じ 1 件から入り方を 3 通り出す: **シェル ([onConnect]) / ファイル ([onSftp]) /
+ * 画面 ([onVnc] = リモート VNC・A1)**。接続先を 3 か所に登録させないための形。
  *
  * SshProfileStore は本コンポーザブル内で直接インスタンス化する (DataStore 自体が
  * プロセスシングルトンなのでデータの一貫性は保たれる)。
@@ -77,7 +80,8 @@ import java.util.UUID
 @Composable
 fun SshProfilesBody(
     onConnect: (SshProfile) -> Unit,
-    onSftp: (SshProfile) -> Unit = {}
+    onSftp: (SshProfile) -> Unit = {},
+    onVnc: (SshProfile) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -120,6 +124,7 @@ fun SshProfilesBody(
                         tunnel = tunnelStatuses.firstOrNull { it.profileId == p.id },
                         onConnect = { onConnect(p) },
                         onSftp = { onSftp(p) },
+                        onVnc = { onVnc(p) },
                         onEdit = { editing = p },
                         onDelete = {
                             scope.launch { store.delete(p.id) }
@@ -222,6 +227,7 @@ private fun ProfileRow(
     tunnel: TunnelManager.Status?,
     onConnect: () -> Unit,
     onSftp: () -> Unit,
+    onVnc: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -253,9 +259,14 @@ private fun ProfileRow(
         )
         if (profile.residentTunnel) TunnelStatusLine(tunnel)
         Spacer(modifier = Modifier.height(4.dp))
+        // 1 行目は「この接続先への入り方」(シェル / ファイル / 画面)、2 行目は登録の操作。
+        // 5 つを 1 行に並べると英語表示の狭い画面で入りきらず、右端の [削除] が押せなくなる。
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             SmallButton(label = stringResource(R.string.ssh_action_connect), accent = true, onClick = onConnect)
             SmallButton(label = "SFTP", onClick = onSftp)
+            SmallButton(label = "VNC", onClick = onVnc)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             SmallButton(label = stringResource(R.string.ssh_action_edit), onClick = onEdit)
             Box(modifier = Modifier.weight(1f))
             SmallButton(label = stringResource(R.string.ssh_action_delete), danger = true, onClick = onDelete)
@@ -318,6 +329,8 @@ private fun EditForm(
     // いつでも作り直せるし、渡すのは作った直後だけなので、状態を増やす理由がない。
     var generatedPublicLine by remember(initial.id) { mutableStateOf("") }
     var keyPassphrase by remember(initial.id) { mutableStateOf(initial.keyPassphrase) }
+    var vncPort by remember(initial.id) { mutableStateOf(initial.vncPort.toString()) }
+    var vncPassword by remember(initial.id) { mutableStateOf(initial.vncPassword) }
     var initCmd by remember(initial.id) { mutableStateOf(initial.initCommand) }
     var forwards by remember(initial.id) { mutableStateOf(initial.forwards) }
     var resident by remember(initial.id) { mutableStateOf(initial.residentTunnel) }
@@ -395,6 +408,40 @@ private fun EditForm(
         }
     }
 
+    // --- VNC (A1): 同じサーバのデスクトップを開くための設定 ---
+    // ⚠ SSH とは別の接続。ここが空でも SSH には一切影響しない。
+    Text(
+        text = stringResource(R.string.ssh_vnc_section),
+        color = ZtsTextSecondary,
+        fontSize = 12.sp,
+        fontFamily = FontFamily.Monospace
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(modifier = Modifier.weight(1f)) {
+            Field(
+                label = stringResource(R.string.ssh_field_vnc_port),
+                value = vncPort,
+                onChange = { vncPort = it.filter { ch -> ch.isDigit() } },
+                placeholder = "5901"
+            )
+        }
+        Box(modifier = Modifier.weight(2f)) {
+            Field(
+                label = stringResource(R.string.ssh_field_vnc_password),
+                value = vncPassword,
+                onChange = { vncPassword = it },
+                placeholder = "********",
+                secret = true
+            )
+        }
+    }
+    Text(
+        text = stringResource(R.string.ssh_vnc_note),
+        color = ZtsTextSecondary,
+        fontSize = 11.sp,
+        fontFamily = FontFamily.Monospace
+    )
+
     Field(
         label = stringResource(R.string.ssh_field_init_cmd),
         value = initCmd,
@@ -436,6 +483,8 @@ private fun EditForm(
                     password = if (auth == SshProfile.AuthType.PASSWORD) password else "",
                     privateKey = if (auth == SshProfile.AuthType.PUBLIC_KEY) privateKey else "",
                     keyPassphrase = if (auth == SshProfile.AuthType.PUBLIC_KEY) keyPassphrase else "",
+                    vncPort = vncPort.toIntOrNull()?.coerceIn(1, 65535) ?: VncTarget.DEFAULT_PORT,
+                    vncPassword = vncPassword,
                     initCommand = initCmd,
                     forwards = forwards.filter { it.localPort in 1..65535 && it.remotePort in 1..65535 && it.remoteHost.isNotBlank() },
                     residentTunnel = resident && forwards.isNotEmpty()
