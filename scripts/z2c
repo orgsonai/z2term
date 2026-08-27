@@ -446,6 +446,69 @@ EOF
     fi
 }
 
+# ---- run --------------------------------------------------------------------------
+# rootfs を切り替えて起動する = 本来の「コンテナに入る」。
+# z2root は入れ子で起動できないので、切り替えは execve の envp (Z2ROOT_ROOTFS) で
+# 走っている z2root へ伝える。対応した z2root を積んだ版でのみ効く。
+cmd_run() {
+    [ $# -ge 1 ] || die "使い方: z2c run <名前> [コマンド...]"
+    local r; r="$(resolve_image "$1")" || die "そんなイメージは無い: $1  (z2c ls で一覧)"
+    shift
+
+    local emu; emu="$(emu_cmd_for_image "$r")"
+    if [ -n "$emu" ]; then
+        die "別アーキのイメージは run できない (z2root がエミュレータを挟まないため)。中を見るだけなら z2c sh $(basename "$r")"
+    fi
+
+    local n; n="$(basename "$r")"
+    local tmpf; tmpf="$(mktemp "${TMPDIR:-/tmp}/z2c.run.XXXXXX")" || die "作業ファイルを作れない"
+
+    # 起動するコマンド: 引数 > イメージの entrypoint+cmd > /bin/sh
+    local -a cmd=()
+    if [ $# -ge 1 ]; then
+        cmd=("$@")
+    elif [ -f "$META/$n.json" ]; then
+        python3 - "$META/$n.json" > "$tmpf" <<'PY'
+import sys, json
+d = json.load(open(sys.argv[1]))
+for a in (d.get("entrypoint") or []) + (d.get("cmd") or []):
+    print(a)
+PY
+        while IFS= read -r line; do [ -n "$line" ] && cmd+=("$line"); done < "$tmpf"
+    fi
+    [ ${#cmd[@]} -eq 0 ] && cmd=(/bin/sh)
+
+    # 絶対パスでなければ rootfs 内の PATH から引く。外側の PATH で引くと
+    # ホスト側のコマンドを起動してしまう (rootfs を切り替える意味が無くなる)。
+    case "${cmd[0]}" in
+        /*) ;;
+        *)  local found=""
+            for d in bin usr/bin sbin usr/sbin usr/local/bin; do
+                [ -e "$r/$d/${cmd[0]}" ] || [ -L "$r/$d/${cmd[0]}" ] && { found="/$d/${cmd[0]}"; break; }
+            done
+            [ -n "$found" ] || die "イメージの中に ${cmd[0]} が無い"
+            cmd[0]="$found" ;;
+    esac
+
+    # イメージが持つ環境変数 (PATH 等) を引き継ぐ
+    local -a envs=()
+    if [ -f "$META/$n.json" ]; then
+        python3 - "$META/$n.json" > "$tmpf" <<'PY'
+import sys, json
+d = json.load(open(sys.argv[1]))
+for e in (d.get("env") or []):
+    if "=" in e:
+        print(e)
+PY
+        while IFS= read -r line; do [ -n "$line" ] && envs+=("$line"); done < "$tmpf"
+    fi
+    rm -f "$tmpf"
+
+    # LD_PRELOAD は今の rootfs 向けの .so を指しているので必ず外す (別 rootfs では
+    # 中身が違う / 無い)。TERM 等はそのまま渡す。
+    exec env -u LD_PRELOAD "Z2ROOT_ROOTFS=$r" "${envs[@]}" "${cmd[@]}"
+}
+
 cmd_path() {
     [ $# -ge 1 ] || die "使い方: z2c path <名前>"
     local r; r="$(resolve_image "$1")" || die "そんなイメージは無い: $1"
@@ -468,13 +531,18 @@ z2c — Docker/OCI イメージを取得して rootfs にする (z2term コン�
                                  --arch amd64 は実行にエミュレータ (qemu-user) が要る
   z2c ls                         取得済み一覧
   z2c verify <名前>              展開結果が正しいか確認
-  z2c sh <名前>                  中のシェルを起動 (⚠ 隔離なし・暫定)
+  z2c run <名前> [コマンド...]   rootfs を切り替えて起動する (= コンテナに入る)
+                                 ⚠ 対応した z2root を積んだ版でのみ効く
+  z2c sh <名前>                  中のシェルを起動 (⚠ 隔離なし。別アーキの確認用)
   z2c path <名前>                rootfs の絶対パスを表示
   z2c rm <名前>                  削除
 
 置き場: ~/.z2c/images/<名前>   (Z2C_HOME で変えられる)
 
-⚠ 現状は「取得と展開」まで。隔離して起動する機能は z2root 側の対応待ち。
+run は rootfs を切り替えて起動する。切り替えは execve の envp (Z2ROOT_ROOTFS) で
+走っている z2root へ伝わるので、対応した z2root を積んだ版が要る。
+namespace も cgroup も無いので、分けられるのはファイルシステムだけ
+(プロセス・ネットワークは共有。セキュリティ隔離ではない)。
 EOF
     exit 1
 }
@@ -485,6 +553,7 @@ case "$sub" in
     pull)   cmd_pull "$@" ;;
     ls|list) cmd_ls "$@" ;;
     verify) cmd_verify "$@" ;;
+    run)    cmd_run "$@" ;;
     sh|shell) cmd_sh "$@" ;;
     path)   cmd_path "$@" ;;
     rm|remove) cmd_rm "$@" ;;

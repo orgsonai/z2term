@@ -1,0 +1,8 @@
+0.8.416-alpha
+
+- You can now switch to a different Linux environment from inside the
+  terminal. The execution engine can hold a separate environment per
+  process, so files are separated per environment (processes and the
+  network are still shared).
+- Added scripts/z2c for fetching environments: it pulls a published image,
+  extracts it, and hands you something you can switch into.

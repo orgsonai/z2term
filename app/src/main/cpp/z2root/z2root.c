@@ -157,8 +157,57 @@ struct pid_state {
     char proc_cmdline[CMDLINE_MAX]; // /proc/<pid>/cmdline 用に控えた元 argv(NUL 連結。length 保存・NUL 終端不要)
     size_t proc_cmdline_len;        // proc_cmdline の有効バイト数(0=未記録)
     char proc_comm[TASK_COMM_LEN];  // /proc/<pid>/comm 用 argv0 basename(NUL 終端、最大 15 文字)
+    int rootfs_idx;         // この tracee が見る rootfs(g_rootfs_tab の添字)。-1 = 既定(cfg->rootfs)
 };
 static struct pid_state g_map[MAP_CAP];
+
+// ---- tracee ごとの rootfs (コンテナ相当) --------------------------------------
+// z2root は 1 プロセスの下でしか動けない(入れ子起動は static PIE をローダで展開
+// できず SIGSEGV する)。そこで「別 rootfs で起動する」を入れ子ではなく、1 つの
+// z2root が tracee ごとに rootfs を持つ形で実現する。
+// 切り替えの伝え方は execve の envp: Z2ROOT_ROOTFS=<ホスト実パス> を付けて exec
+// すると、そのプロセスと以降の子孫がその rootfs を見る。
+#define MAX_ROOTFS 16
+static struct { char path[PATH_MAX_Z]; size_t len; } g_rootfs_tab[MAX_ROOTFS];
+static int g_rootfs_n = 0;
+
+// 同じパスは 1 スロットに集約する。戻り値は添字、入らなければ -1。
+static int rootfs_intern(const char *path) {
+    if (!path || path[0] != '/') return -1;
+    char norm[PATH_MAX_Z];
+    snprintf(norm, sizeof(norm), "%s", path);
+    size_t l = strlen(norm);
+    while (l > 1 && norm[l - 1] == '/') norm[--l] = '\0';
+    for (int i = 0; i < g_rootfs_n; i++)
+        if (strcmp(g_rootfs_tab[i].path, norm) == 0) return i;
+    if (g_rootfs_n >= MAX_ROOTFS) return -1;
+    snprintf(g_rootfs_tab[g_rootfs_n].path, PATH_MAX_Z, "%s", norm);
+    g_rootfs_tab[g_rootfs_n].len = l;
+    return g_rootfs_n++;
+}
+
+// waitpid ループの先頭で「今どの tracee を処理しているか」に合わせて差し替える。
+// NULL のときは cfg->rootfs(既定)を使う。syscall の処理は 1 プロセスずつ順に
+// 進むので、グローバル 1 個で足りる。
+static const char *g_rootfs_cur = NULL;
+static size_t g_rootfs_cur_len = 0;
+
+static void rootfs_select(pid_t pid) {
+    struct pid_state *st = NULL;
+    for (int i = 0; i < MAP_CAP; i++)
+        if (g_map[i].used && g_map[i].pid == pid) { st = &g_map[i]; break; }
+    if (st && st->rootfs_idx >= 0 && st->rootfs_idx < g_rootfs_n) {
+        g_rootfs_cur = g_rootfs_tab[st->rootfs_idx].path;
+        g_rootfs_cur_len = g_rootfs_tab[st->rootfs_idx].len;
+    } else {
+        g_rootfs_cur = NULL;
+        g_rootfs_cur_len = 0;
+    }
+}
+
+// パス変換で使う実効 rootfs。切り替えていなければ cfg のもの。
+#define EFF_ROOTFS(cfg)     (g_rootfs_cur ? g_rootfs_cur : (cfg)->rootfs)
+#define EFF_ROOTFS_LEN(cfg) (g_rootfs_cur ? g_rootfs_cur_len : (cfg)->rootfs_len)
 
 static struct pid_state *state_for(pid_t pid) {
     int free_slot = -1;
@@ -179,6 +228,7 @@ static struct pid_state *state_for(pid_t pid) {
     g_map[free_slot].aux_is_self_exe = 0;
     g_map[free_slot].proc_cmdline_len = 0;
     g_map[free_slot].proc_comm[0] = '\0';
+    g_map[free_slot].rootfs_idx = -1;
     for (int k = 0; k < STATUS_FD_MAX; k++) {
         g_map[free_slot].status_fds[k] = -1;
         g_map[free_slot].status_fd_kind[k] = PROC_FD_NONE;
@@ -340,7 +390,7 @@ static int translate_abs(const struct config *cfg, const char *guest_path, char 
     if (guest_path[0] != '/') return 0;  // 相対パスは最小版では非対象 (TODO)
 
     // 二重変換防止: 既にホスト rootfs を指していれば触らない。
-    if (strncmp(guest_path, cfg->rootfs, cfg->rootfs_len) == 0) return 0;
+    if (strncmp(guest_path, EFF_ROOTFS(cfg), EFF_ROOTFS_LEN(cfg)) == 0) return 0;
 
     // bind 優先。重なり合う bind (例: /root と /root/.claude/downloads) では
     // 最長一致 = 最も具体的な bind を採用する。登録順の最初一致だと先に登録した
@@ -358,7 +408,7 @@ static int translate_abs(const struct config *cfg, const char *guest_path, char 
         snprintf(out, cap, "%s%s", best->host, guest_path + best->guest_len);
         return 1;
     }
-    snprintf(out, cap, "%s%s", cfg->rootfs, guest_path);
+    snprintf(out, cap, "%s%s", EFF_ROOTFS(cfg), guest_path);
     return 1;
 }
 
@@ -383,9 +433,9 @@ static const char *host_to_guest(const struct config *cfg, const char *host,
         snprintf(buf, cap, "%s%s", best->guest, host + best_hl);
         return buf;
     }
-    if (strncmp(host, cfg->rootfs, cfg->rootfs_len) == 0 &&
-        (host[cfg->rootfs_len] == '/' || host[cfg->rootfs_len] == '\0')) {
-        const char *g = host + cfg->rootfs_len;
+    if (strncmp(host, EFF_ROOTFS(cfg), EFF_ROOTFS_LEN(cfg)) == 0 &&
+        (host[EFF_ROOTFS_LEN(cfg)] == '/' || host[EFF_ROOTFS_LEN(cfg)] == '\0')) {
+        const char *g = host + EFF_ROOTFS_LEN(cfg);
         snprintf(buf, cap, "%s", g[0] ? g : "/");
         return buf;
     }
@@ -520,7 +570,7 @@ static int host_path_for(const struct config *cfg, pid_t pid, const char *in_pat
                          int deref_final, long dirfd, char *host_out, size_t cap) {
     if (in_path[0] == '\0') return -1;
     // 自前で書いた scratch(既にホスト rootfs 配下)を二重変換しない。
-    if (strncmp(in_path, cfg->rootfs, cfg->rootfs_len) == 0) return -1;
+    if (strncmp(in_path, EFF_ROOTFS(cfg), EFF_ROOTFS_LEN(cfg)) == 0) return -1;
 
     char guest_abs[PATH_MAX_Z];
     if (in_path[0] == '/') {
@@ -979,6 +1029,28 @@ static int plan_exec(const struct config *cfg, pid_t pid, const char *guest_prog
 static FILE *g_trc;       // 定義は下方(trc_init 付近)。診断ログ用に前方宣言。
 static int  g_trc_on;
 
+// execve(at) の envp に Z2ROOT_ROOTFS=<ホスト実パス> があれば、この tracee の
+// rootfs を差し替える(以降 fork する子孫も継承する)。空文字なら既定へ戻す。
+// これが「シェルから別 rootfs へ入る」唯一の経路 — 入れ子 z2root は動かないため。
+static void apply_rootfs_env(struct pid_state *st, pid_t pid, unsigned long envp_addr) {
+    if (!st || !envp_addr) return;
+    static const char KEY[] = "Z2ROOT_ROOTFS=";
+    const size_t KEYLEN = sizeof(KEY) - 1;
+    for (int i = 0;; i++) {
+        unsigned long ep = 0;
+        struct iovec lo = { &ep, 8 };
+        struct iovec re = { (void *)(envp_addr + (unsigned long)i * 8), 8 };
+        if (process_vm_readv(pid, &lo, 1, &re, 1, 0) != 8) break;
+        if (ep == 0) break;
+        char buf[PATH_MAX_Z];
+        if (read_tracee_str(pid, ep, buf, sizeof(buf)) < 0) continue;
+        if (strncmp(buf, KEY, KEYLEN) != 0) continue;
+        const char *val = buf + KEYLEN;
+        st->rootfs_idx = (val[0] == '\0') ? -1 : rootfs_intern(val);
+        return;   // 同名は先頭優先(execve の envp は重複しない前提)
+    }
+}
+
 // execve(at) 時に元 argv と argv0 basename を per-tracee に控える。
 // /proc/<pid>/cmdline・/proc/<pid>/comm・/proc/<pid>/status:Name を本来の(ローダ包み前の)
 // 表記で返すため。argv が NULL/空のときは guest_prog 単体で控える。
@@ -1097,6 +1169,10 @@ static void rewrite_execve(const struct config *cfg, pid_t pid,
     {
         struct pid_state *st = state_lookup(pid);
         record_exec_argv(st, guest_prog, args, n);
+        // envp の Z2ROOT_ROOTFS で rootfs を差し替える。plan_exec より前に効かせる
+        // 必要がある(exec するプログラム自体を新しい rootfs から解決するため)。
+        apply_rootfs_env(st, pid, regs->regs[path_idx + 2]);
+        rootfs_select(pid);
     }
 
     struct exec_plan plan;
@@ -2743,6 +2819,9 @@ static int run_tracer(const struct config *cfg, pid_t child) {
             if (errno == EINTR) continue;
             break;
         }
+        // このイベントを処理する間だけ、その tracee の rootfs を実効値にする。
+        // パス変換 3 関数がこれを見るので、cfg を触らずに tracee ごとの rootfs が効く。
+        rootfs_select(pid);
 
         if (WIFEXITED(status) || WIFSIGNALED(status)) {
             if (g_trace) fprintf(g_trc, "[z2trc] pid=%d %s code/sig=%d\n", pid,
@@ -2856,6 +2935,8 @@ static int run_tracer(const struct config *cfg, pid_t child) {
             // execve した時点で子側 record_exec_guest が上書きするので二重指定の害は無い。
             if (nst && pst && pst->exe_guest[0])
                 snprintf(nst->exe_guest, sizeof(nst->exe_guest), "%s", pst->exe_guest);
+            // rootfs も継承する(コンテナの中で fork した子はそのコンテナに居る)。
+            if (nst && pst) nst->rootfs_idx = pst->rootfs_idx;
             // cmdline/comm も同様に継承(execve まで親と同じ argv を見せる)。
             if (nst && pst && pst->proc_cmdline_len) {
                 memcpy(nst->proc_cmdline, pst->proc_cmdline, pst->proc_cmdline_len);

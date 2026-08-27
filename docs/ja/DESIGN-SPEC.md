@@ -1338,6 +1338,16 @@ ptrace 越しに数千 syscall になるうえ、常駐中は WakeLock/WifiLock 
 
 `libz2root.so` 未同梱 (`scripts/build-z2root.sh` 未実行) の場合は engine binary not found で停止する (proot prebuilt は 0.8.328 で削除済みなので、フォールバック先が無い)。
 
+**tracee ごとの rootfs (0.8.416)**: `execve` の envp に `Z2ROOT_ROOTFS=<ホスト実パス>` があると、そのプロセスと以降の子孫が **その rootfs を "/" として見る**。空文字を渡すと既定 (`-r` で指定したもの) に戻る。コンテナ相当の「別環境に入る」を、入れ子起動 (10.1 により不可) ではなくこの形で実現している。
+
+- 実装: `struct pid_state` に `rootfs_idx` (rootfs テーブル `g_rootfs_tab` の添字。文字列を直に持つと `PATH_MAX_Z` × `MAP_CAP` で 1MB 増えるため添字にした) を持たせ、`waitpid` ループの先頭で `rootfs_select(pid)` が実効 rootfs を選ぶ。パス変換は `translate_abs` / `host_to_guest` / `host_path_for` の 3 関数に集約されているので、そこが `EFF_ROOTFS()` を見るだけで全 syscall に効く (`struct config` は 1 個のまま = 157 箇所の `cfg` を触らずに済む)。
+- 継承: `fork`/`clone` で親から引き継ぐ (コンテナの中で fork した子は同じコンテナに居る)。`execve` の envp で明示されたときだけ切り替わる。
+- 適用順: `record_exec_argv` の直後 = `plan_exec` の**前**に効かせる。exec するプログラム自体を新しい rootfs から解決する必要があるため。
+- bind (`-b`) は切り替えても有効なまま。`/dev`・`/proc`・`/sys` は別環境でも要るので、これが望ましい。
+- 分けられるのは**ファイルシステムだけ**。namespace が無いのでプロセス表もネットワークも共有で、ptrace 方式ゆえ tracee 側から迂回できる。**環境の分離であってセキュリティ隔離ではない**。
+- 上限は `MAX_ROOTFS` = 16 環境。
+- 使う側は `scripts/z2c run <イメージ>` (9 章)。
+
 **ビルド成果物の stale 対策 (0.8.48)**: z2root/z2accept の `.so` はビルド成果物 (git 管理外) で `git pull` や CMake では再生成されないため、`z2root.c` を直しても古い `.so` が APK に同梱され続ける事故が起きる。Gradle タスク `buildZ2rootNative` が jniLibs マージ前に `scripts/build-z2root.sh` を自動実行するので、`./gradlew assemble*` だけで常に現ソースから再生成される (手動手順ゼロ)。`build-z2root.sh` は NDK パスを自己解決する (環境変数 / `local.properties` の `sdk.dir`+`ndk.version` / `$ANDROID_HOME`)。`merge*JniLibFolders` すべてが `buildZ2rootNative` に依存し、`src/main/jniLibs` へ出す。実行時に取得するのは rootfs であって z2root ではないので、`z2root.c` の修正は常に APK 側に載る。
 
 ##### パス変換
@@ -2711,7 +2721,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - rootfs は APK に含めず、`DistroSpec.ALPINE` の公式 CDN URL + SHA-256 で起動時に取得する。第三者 native prebuilt (proot/talloc 等) は F-Droid 非適合なので持たず、実行エンジンは同梱ソースからビルドする z2root だけ。
 - **F-Droid のビルドでは署名設定が機械的に削除される (0.8.414)。** ビルドサーバーは `signingConfigs { ... }` ブロックと `signingConfig = <空白を含まない式>` の行を消してから `assembleRelease` する (署名は F-Droid 自身が行うため)。そのため **`release { }` の中で `?:` を使って 2 行に跨いで書いてはいけない** — 1 行目だけが消えて `?:` の行が孤立し、Kotlin の構文エラーでビルドが落ちる。解決は `buildTypes` の外の `val releaseSigningConfig` で行い、`release` の中は 1 行の代入にしておく。提出手順とその他の適合条件 (scanignore・NDK の渡し方) は `docs/FDROID.md`。
 - **`useLegacyPackaging=true` 必須** (execve する .so を nativeLibraryDir に実体配置するため)。
-- **`scripts/z2c` (OCI イメージ取得)**: OCI/Docker レジストリ (Docker Hub・ghcr.io 等) から arm64 のイメージを取得し、レイヤを whiteout (`.wh.*`) と opaque (`.wh..wh..opq`) の規約どおりに合成して rootfs を作る。認証トークンとマニフェスト取得は HTTPS GET のみで特権を要さず、レイヤは digest 単位で `~/.z2c/cache` に共有キャッシュする (別イメージが同じ下層を共有する)。サブコマンドは `pull` / `ls` / `verify` / `path` / `sh` / `rm`。**取得と展開までで、隔離起動は未対応** (10.1 の入れ子制約による)。`verify` は rootfs 内のローダー (`ld-musl-*` / `ld-linux-*`) を直接呼んで中のバイナリを実行し、合成結果が使える状態かを確かめる。`sh` も同じ経路なので **rootfs は切り替わらない** (絶対パスは外側を指す) — 中身の確認用と割り切る。 **別アーキのイメージも扱える** (`z2c pull --arch amd64 …`、保存名に `_amd64` が付く)。その場合 `verify`/`sh` はローダー直呼びではなくエミュレータ (`qemu-x86_64` 等。`qemu-user` パッケージ) を `-L <rootfs>` 付きで呼ぶ (`-L` が rootfs を sysroot にするのでローダーの明示は不要)。実測では native の約 11 倍遅い (busybox の算術ループ 2 万回で 0.10 秒 → 1.09 秒)。**実行時は `LD_PRELOAD` を 外す**必要がある — 理由は 4 章の z2accept の項。
+- **`scripts/z2c` (OCI イメージ取得)**: OCI/Docker レジストリ (Docker Hub・ghcr.io 等) から arm64 のイメージを取得し、レイヤを whiteout (`.wh.*`) と opaque (`.wh..wh..opq`) の規約どおりに合成して rootfs を作る。認証トークンとマニフェスト取得は HTTPS GET のみで特権を要さず、レイヤは digest 単位で `~/.z2c/cache` に共有キャッシュする (別イメージが同じ下層を共有する)。サブコマンドは `pull` / `ls` / `verify` / `run` / `path` / `sh` / `rm`。`run` は `Z2ROOT_ROOTFS` を付けて exec することで rootfs を切り替えて起動する (= コンテナに入る。4 章「tracee ごとの rootfs」。対応した z2root を積んだ 0.8.416 以降でのみ効く)。イメージの `entrypoint`/`cmd`/`env` を尊重し、コマンドは rootfs 内の PATH から引く (外側の PATH で引くとホスト側のコマンドが起動してしまうため)。別アーキのイメージは `run` できない (z2root がエミュレータを挟まないため) ので `sh` を使う。**取得と展開までで、隔離起動は未対応** (10.1 の入れ子制約による)。`verify` は rootfs 内のローダー (`ld-musl-*` / `ld-linux-*`) を直接呼んで中のバイナリを実行し、合成結果が使える状態かを確かめる。`sh` も同じ経路なので **rootfs は切り替わらない** (絶対パスは外側を指す) — 中身の確認用と割り切る。 **別アーキのイメージも扱える** (`z2c pull --arch amd64 …`、保存名に `_amd64` が付く)。その場合 `verify`/`sh` はローダー直呼びではなくエミュレータ (`qemu-x86_64` 等。`qemu-user` パッケージ) を `-L <rootfs>` 付きで呼ぶ (`-L` が rootfs を sysroot にするのでローダーの明示は不要)。実測では native の約 11 倍遅い (busybox の算術ループ 2 万回で 0.10 秒 → 1.09 秒)。**実行時は `LD_PRELOAD` を 外す**必要がある — 理由は 4 章の z2accept の項。
 - **オンデバイス (aarch64・proot/z2root 下) では `scripts/gw.sh` 経由でビルドする**: この環境は libc の `accept()` が ENOSYS を返し、JDK17 の `sun.nio.ch.Net.accept` が libc `accept()` を呼ぶため Gradle デーモンの TCP IPC が落ちて "Could not connect to the Gradle daemon" でビルド不能になる。`gw.sh` は **`accept()` が ENOSYS の環境でだけ** `accept4` シム (`scripts/accept4-shim.c`) を `LD_PRELOAD` して `./gradlew` を呼ぶ (PC など正常な環境では素通しなのでマルチデバイス運用を壊さない)。シムが aapt2 (bionic) に継承されると `libc.so.6 not found` で別の失敗になるため、aapt2 ラッパー側で `LD_PRELOAD` を外している。`bash scripts/gw.sh help` で適用の有無を確認できる。
 - 展開後の初期設定 (`DistroInstaller.postInstallSetup`) を変えたら `DistroBundle.ROOTFS_VERSION` を +1 する (利用者は APK 入替で自動再展開)。
 - **lint は警告 0 を維持する** (`bash scripts/gw.sh :app:lintDebug`、0.8.190 で達成)。CI の `Build & Lint` が落ちるとタグ push で走るリリースジョブが skip されるため、lint を通すことがリリースの前提になっている。黙らせ方は 3 段階に分ける: **恒常的に無意味な検査**だけ `app/build.gradle.kts` の `lint { disable }`、**特定の場所だけ外したいもの**は `app/lint.xml` の `<ignore path>`、**意図的な個別箇所**は現場に `@Suppress`/`@SuppressLint`/`tools:ignore` と理由コメント。一律に `disable` へ入れて他の場所の検出まで殺さない。
@@ -2724,7 +2734,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 **PRoot のカーネル特権制約 (修正不能)**: root に見えても `ip`/`nmap -sS`/`ping`/特権ポート bind は不可。代替は `nmap -sT` 等。OpenSSH sshd も privsep 破綻のため dropbear を使う。
 
-**z2root の入れ子起動が不可 (現状の実装制約)**: z2root の下でもう 1 つ z2root を起動すると、引数解析に到達する前に SIGSEGV で落ちる (rootfs 指定の有無・`-r /` でも同じ)。外側 z2root は execve をフックして自前ローダー経由で対象を map するが、z2root 自身は **static PIE** のためこの経路で展開できない。`Z2ROOT_NO_LOADER=1` は内側プロセスの挙動しか変えないので回避にならない。帰結として「シェルから別 rootfs のコンテナを起動する」形は取れない。複数 rootfs を同時に扱うなら、入れ子ではなく **1 つの z2root が tracee ごとにrootfs を持つ** 設計になる (現状 `struct config` はプロセス全体で 1 個、パス変換は `translate_abs` の 1 箇所に集約されているので拡張の起点はそこ)。
+**z2root の入れ子起動が不可 (現状の実装制約)**: z2root の下でもう 1 つ z2root を起動すると、引数解析に到達する前に SIGSEGV で落ちる (rootfs 指定の有無・`-r /` でも同じ)。外側 z2root は execve をフックして自前ローダー経由で対象を map するが、z2root 自身は **static PIE** のためこの経路で展開できない。`Z2ROOT_NO_LOADER=1` は内側プロセスの挙動しか変えないので回避にならない。帰結として「シェルから別 rootfs のコンテナを起動する」形は取れない。複数 rootfs を同時に扱うなら、入れ子ではなく **1 つの z2root が tracee ごとにrootfs を持つ** 形にするしかない。**0.8.416 でそうした** — 下の 「tracee ごとの rootfs」を参照。
 
 **コンテナのカーネル隔離は不可 (カーネル由来・修正不能)**: `unshare` は EINVAL (namespace 不可)、`/sys/fs/cgroup` は書き込み不可、overlayfs も netfilter も使えず `CapEff` は 0。したがってコンテナのデーモンは動かない。**一方でイメージの配布形式 (レジストリ API と tar.gz レイヤ) は特権を要さない**ので、取得・合成・rootfs 化までは `scripts/z2c` で成立する。得られるのは「環境の分離」であって「セキュリティ隔離」ではない (ptrace 方式のため tracee 側から迂回できる)。
 
