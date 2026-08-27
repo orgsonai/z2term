@@ -2787,6 +2787,7 @@ built-in keyboard**".
 bash scripts/build-bundle.sh          # generate all bundled assets at once
 # individually: build-proot.sh / build-alpine-rootfs.sh aarch64 / fetch-fonts.sh
 sh scripts/z2root-cmdtest.sh          # cross-test fragile commands that hit z2root's hard paths (10 groups; skips missing cmds; trailing non-zero summary. SKIP_NET/SKIP_BUILD/RUN_SSHD/RUN_PRIV)
+bash scripts/z2c pull alpine          # fetch an OCI image into a rootfs (fetch/extract only; no isolated launch. See 10.1)
 bash scripts/gw.sh :app:assembleDebug   # use this on-device (see below)
 ./gradlew :app:assembleDebug          # APK (rootfs excluded, runtime DL)
 adb install -r app/build/outputs/apk/debug/app-debug.apk
@@ -2808,6 +2809,10 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ### 10.1 Unfixable constraints
 
 **PRoot kernel-privilege constraints (unfixable)**: even appearing as root, `ip`/`nmap -sS`/`ping`/privileged-port bind are unavailable. Alternatives include `nmap -sT`. OpenSSH sshd also breaks privsep, so dropbear is used.
+
+**Nested z2root launch is impossible (current implementation constraint)**: starting a second z2root underneath a running one crashes with SIGSEGV before argument parsing is reached (with or without `-r`, including `-r /`). The outer z2root hooks execve and maps the target through its own loader, but z2root itself is a **static PIE** and cannot be mapped that way. `Z2ROOT_NO_LOADER=1` only changes the inner process's behaviour, so it is not a workaround. Consequently "launch a container on another rootfs from the shell" is not achievable. Handling multiple rootfs at once therefore means **one z2root holding a per-tracee rootfs** rather than nesting (today `struct config` is a single process-wide instance, and path translation is funnelled through `translate_abs`, which is where such an extension would start).
+
+**Kernel-level container isolation is impossible (kernel-imposed, unfixable)**: `unshare` returns EINVAL (no namespaces), `/sys/fs/cgroup` is not writable, neither overlayfs nor netfilter is available, and `CapEff` is 0, so a container daemon cannot run. **The image distribution format (registry API plus tar.gz layers) requires no privilege**, however, so fetching, merging and materialising a rootfs does work via `scripts/z2c`. What this yields is environment separation, not security isolation (being ptrace-based, a tracee can work around it).
 
 **SysV shared memory (`shmget`) returns ENOSYS (kernel-level, unfixable from the app)**: Android kernels are built without `CONFIG_SYSVIPC`, so `shmget`/`shmat` fail with "Function not implemented". This is **a separate mechanism from POSIX shared memory (`shm_open` = `/dev/shm`)**, which the 0.8.177 bind made available; this one remains. The practical effect is that the X11 **MIT-SHM extension** is unusable, so GUI drawing falls back to transferring pixels over the server socket and is correspondingly slower. Major toolkits detect MIT-SHM availability and fall back automatically, so the usual outcome is "works but slower"; a small number of apps that assume the extension exists may render incorrectly. Where that happens, disable MIT-SHM in the app's own settings.
 

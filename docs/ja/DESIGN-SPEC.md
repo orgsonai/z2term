@@ -2701,6 +2701,7 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
 bash scripts/build-bundle.sh          # 同梱物一括生成
 # 個別: build-z2root.sh / fetch-fonts.sh
 sh scripts/z2root-cmdtest.sh          # z2root の難所を踏む壊れやすいコマンド群を横断テスト(全10グループ・未導入はskip・末尾に非ゼロ一覧。SKIP_NET/SKIP_BUILD/RUN_SSHD/RUN_PRIV)
+bash scripts/z2c pull alpine          # OCI イメージを取得して rootfs 化 (取得と展開のみ・隔離起動は未対応。10.1 参照)
 bash scripts/gw.sh :app:assembleDebug   # オンデバイスはこちら (下記)
 ./gradlew :app:assembleDebug          # APK (rootfs は非同梱・起動時 DL)
 adb install -r app/build/outputs/apk/debug/app-debug.apk
@@ -2710,6 +2711,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - rootfs は APK に含めず、`DistroSpec.ALPINE` の公式 CDN URL + SHA-256 で起動時に取得する。第三者 native prebuilt (proot/talloc 等) は F-Droid 非適合なので持たず、実行エンジンは同梱ソースからビルドする z2root だけ。
 - **F-Droid のビルドでは署名設定が機械的に削除される (0.8.414)。** ビルドサーバーは `signingConfigs { ... }` ブロックと `signingConfig = <空白を含まない式>` の行を消してから `assembleRelease` する (署名は F-Droid 自身が行うため)。そのため **`release { }` の中で `?:` を使って 2 行に跨いで書いてはいけない** — 1 行目だけが消えて `?:` の行が孤立し、Kotlin の構文エラーでビルドが落ちる。解決は `buildTypes` の外の `val releaseSigningConfig` で行い、`release` の中は 1 行の代入にしておく。提出手順とその他の適合条件 (scanignore・NDK の渡し方) は `docs/FDROID.md`。
 - **`useLegacyPackaging=true` 必須** (execve する .so を nativeLibraryDir に実体配置するため)。
+- **`scripts/z2c` (OCI イメージ取得)**: OCI/Docker レジストリ (Docker Hub・ghcr.io 等) から arm64 のイメージを取得し、レイヤを whiteout (`.wh.*`) と opaque (`.wh..wh..opq`) の規約どおりに合成して rootfs を作る。認証トークンとマニフェスト取得は HTTPS GET のみで特権を要さず、レイヤは digest 単位で `~/.z2c/cache` に共有キャッシュする (別イメージが同じ下層を共有する)。サブコマンドは `pull` / `ls` / `verify` / `path` / `sh` / `rm`。**取得と展開までで、隔離起動は未対応** (10.1 の入れ子制約による)。`verify` は rootfs 内のローダー (`ld-musl-*` / `ld-linux-*`) を直接呼んで中のバイナリを実行し、合成結果が使える状態かを確かめる。`sh` も同じ経路なので **rootfs は切り替わらない** (絶対パスは外側を指す) — 中身の確認用と割り切る。
 - **オンデバイス (aarch64・proot/z2root 下) では `scripts/gw.sh` 経由でビルドする**: この環境は libc の `accept()` が ENOSYS を返し、JDK17 の `sun.nio.ch.Net.accept` が libc `accept()` を呼ぶため Gradle デーモンの TCP IPC が落ちて "Could not connect to the Gradle daemon" でビルド不能になる。`gw.sh` は **`accept()` が ENOSYS の環境でだけ** `accept4` シム (`scripts/accept4-shim.c`) を `LD_PRELOAD` して `./gradlew` を呼ぶ (PC など正常な環境では素通しなのでマルチデバイス運用を壊さない)。シムが aapt2 (bionic) に継承されると `libc.so.6 not found` で別の失敗になるため、aapt2 ラッパー側で `LD_PRELOAD` を外している。`bash scripts/gw.sh help` で適用の有無を確認できる。
 - 展開後の初期設定 (`DistroInstaller.postInstallSetup`) を変えたら `DistroBundle.ROOTFS_VERSION` を +1 する (利用者は APK 入替で自動再展開)。
 - **lint は警告 0 を維持する** (`bash scripts/gw.sh :app:lintDebug`、0.8.190 で達成)。CI の `Build & Lint` が落ちるとタグ push で走るリリースジョブが skip されるため、lint を通すことがリリースの前提になっている。黙らせ方は 3 段階に分ける: **恒常的に無意味な検査**だけ `app/build.gradle.kts` の `lint { disable }`、**特定の場所だけ外したいもの**は `app/lint.xml` の `<ignore path>`、**意図的な個別箇所**は現場に `@Suppress`/`@SuppressLint`/`tools:ignore` と理由コメント。一律に `disable` へ入れて他の場所の検出まで殺さない。
@@ -2721,6 +2723,10 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ### 10.1 修正不能な制約
 
 **PRoot のカーネル特権制約 (修正不能)**: root に見えても `ip`/`nmap -sS`/`ping`/特権ポート bind は不可。代替は `nmap -sT` 等。OpenSSH sshd も privsep 破綻のため dropbear を使う。
+
+**z2root の入れ子起動が不可 (現状の実装制約)**: z2root の下でもう 1 つ z2root を起動すると、引数解析に到達する前に SIGSEGV で落ちる (rootfs 指定の有無・`-r /` でも同じ)。外側 z2root は execve をフックして自前ローダー経由で対象を map するが、z2root 自身は **static PIE** のためこの経路で展開できない。`Z2ROOT_NO_LOADER=1` は内側プロセスの挙動しか変えないので回避にならない。帰結として「シェルから別 rootfs のコンテナを起動する」形は取れない。複数 rootfs を同時に扱うなら、入れ子ではなく **1 つの z2root が tracee ごとにrootfs を持つ** 設計になる (現状 `struct config` はプロセス全体で 1 個、パス変換は `translate_abs` の 1 箇所に集約されているので拡張の起点はそこ)。
+
+**コンテナのカーネル隔離は不可 (カーネル由来・修正不能)**: `unshare` は EINVAL (namespace 不可)、`/sys/fs/cgroup` は書き込み不可、overlayfs も netfilter も使えず `CapEff` は 0。したがってコンテナのデーモンは動かない。**一方でイメージの配布形式 (レジストリ API と tar.gz レイヤ) は特権を要さない**ので、取得・合成・rootfs 化までは `scripts/z2c` で成立する。得られるのは「環境の分離」であって「セキュリティ隔離」ではない (ptrace 方式のため tracee 側から迂回できる)。
 
 **SysV 共有メモリ (`shmget`) が ENOSYS (カーネル由来・アプリ側では修正不能)**: Android のカーネルは `CONFIG_SYSVIPC` を落としているため、`shmget`/`shmat` が "Function not implemented" で失敗する。**POSIX 共有メモリ (`shm_open` = `/dev/shm`) とは別系統**で、そちらは 0.8.177 の bind で使えるようになったがこちらは残る。影響は X11 の **MIT-SHM 拡張**が使えないこと (GUI の描画がサーバ経由のソケット転送になり、その分遅い)。主要ツールキットは MIT-SHM の可否を検出して自動でフォールバックするので通常は「動くが遅い」で済むが、拡張の存在を前提に握り決め打ちする少数のアプリは表示が壊れうる。回避したい場合はアプリ側の設定で MIT-SHM を切る。
 

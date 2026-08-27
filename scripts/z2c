@@ -1,0 +1,417 @@
+#!/usr/bin/env bash
+# z2c — OCI/Docker イメージを取得して rootfs に展開する (z2term コンテナ機構 フェーズ1)
+#
+# 背景:
+#   z2term の Linux 環境は z2root (ptrace 方式) の上にある。カーネルの namespace /
+#   cgroup / overlayfs は一切使えないが、Docker の「イメージ配布」は HTTPS GET と
+#   tar.gz だけで成り立っているため、特権なしで完全に再現できる。
+#   本スクリプトはその取得・展開・レイヤ合成までを担う。
+#
+#   起動 (= コンテナとして隔離実行) は z2root 側の対応が要るためフェーズ2。
+#   現状 z2root は rootfs を 1 プロセス 1 枚しか持てず、入れ子起動もできない
+#   (外側 z2root の自前ローダーが static PIE を展開できず SIGSEGV する)。
+#
+# 使い方:
+#   z2c pull alpine              イメージを取得して展開
+#   z2c pull node:22-alpine      タグ指定
+#   z2c ls                       取得済み一覧
+#   z2c verify <名前>            展開した rootfs が実際に動くか確認
+#   z2c sh <名前>                rootfs の中のシェルを起動 (⚠ 隔離なし・暫定)
+#   z2c path <名前>              rootfs の絶対パスを表示
+#   z2c rm <名前>                削除
+
+set -uo pipefail
+
+Z2C_HOME="${Z2C_HOME:-$HOME/.z2c}"
+IMAGES="$Z2C_HOME/images"
+META="$Z2C_HOME/meta"
+CACHE="$Z2C_HOME/cache"
+
+A_IDX="application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json"
+A_MAN="application/vnd.oci.image.manifest.v1+json,application/vnd.docker.distribution.manifest.v2+json"
+A_CFG="application/vnd.oci.image.config.v1+json,application/vnd.docker.container.image.v1+json"
+
+die() { echo "z2c: $*" >&2; exit 1; }
+info() { echo "$*" >&2; }
+
+need() { command -v "$1" >/dev/null 2>&1 || die "$1 が要る (pacman -S $2)"; }
+need curl curl
+need python3 python
+
+# ---- イメージ参照の分解 ---------------------------------------------------------
+# alpine → registry-1.docker.io / library/alpine : latest
+# node:22-alpine → registry-1.docker.io / library/node : 22-alpine
+# ghcr.io/foo/bar:v1 → ghcr.io / foo/bar : v1
+parse_ref() {
+    local ref="$1" reg repo tag
+    tag=latest
+    # タグを切り離す (ホストのポート番号 : と間違えないよう最後の / の後ろだけ見る)
+    case "${ref##*/}" in
+        *:*) tag="${ref##*:}"; ref="${ref%:*}" ;;
+    esac
+    # レジストリのホスト名が付いているか (. か : を含む最初の要素)
+    case "$ref" in
+        */*)
+            local first="${ref%%/*}"
+            case "$first" in
+                *.*|*:*|localhost) reg="$first"; repo="${ref#*/}" ;;
+                *)                 reg="registry-1.docker.io"; repo="$ref" ;;
+            esac
+            ;;
+        *) reg="registry-1.docker.io"; repo="library/$ref" ;;
+    esac
+    # Docker Hub の 1 階層名は library/ 補完
+    if [ "$reg" = "registry-1.docker.io" ]; then
+        case "$repo" in */*) ;; *) repo="library/$repo" ;; esac
+    fi
+    echo "$reg" "$repo" "$tag"
+}
+
+# 保存名: library/alpine:latest → alpine_latest / foo/bar:v1 → foo_bar_v1
+safe_name() {
+    local repo="$1" tag="$2"
+    repo="${repo#library/}"
+    printf '%s' "${repo//\//_}_${tag}" | tr -c 'A-Za-z0-9._-' '_'
+}
+
+# ---- 認証 -----------------------------------------------------------------------
+get_token() {
+    local reg="$1" repo="$2" realm service
+    case "$reg" in
+        registry-1.docker.io) realm="https://auth.docker.io/token"; service="registry.docker.io" ;;
+        ghcr.io)              realm="https://ghcr.io/token";        service="ghcr.io" ;;
+        *)
+            # WWW-Authenticate から realm/service を拾う
+            local hdr; hdr=$(curl -sI "https://$reg/v2/" 2>/dev/null | tr -d '\r' | grep -i '^www-authenticate:')
+            realm=$(sed -n 's/.*realm="\([^"]*\)".*/\1/p' <<<"$hdr")
+            service=$(sed -n 's/.*service="\([^"]*\)".*/\1/p' <<<"$hdr")
+            [ -n "$realm" ] || { echo ""; return 0; }   # 認証不要なレジストリ
+            ;;
+    esac
+    curl -s "${realm}?service=${service}&scope=repository:${repo}:pull" \
+        | python3 -c 'import sys,json;d=json.load(sys.stdin);print(d.get("token") or d.get("access_token") or "")' 2>/dev/null
+}
+
+auth_hdr() { [ -n "${1:-}" ] && printf 'Authorization: Bearer %s' "$1" || printf 'X-z2c: noauth'; }
+
+# ---- whiteout の適用 ------------------------------------------------------------
+# OCI のレイヤは削除を「消したという印のファイル」で表す。
+#   .wh.<名前>      → その名前を消す
+#   .wh..wh..opq    → そのディレクトリの中身を全部消してから重ねる
+apply_whiteouts() {
+    local layer="$1" dest="$2"
+    # opaque を先に処理する (ディレクトリごと消してから中身を重ねるため)
+    find "$layer" -name '.wh..wh..opq' -print0 2>/dev/null |
+    while IFS= read -r -d '' opq; do
+        rel="${opq#$layer/}"; dir="$(dirname "$rel")"
+        [ -d "$dest/$dir" ] && find "$dest/$dir" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null
+        rm -f "$opq"
+    done
+
+    find "$layer" -name '.wh.*' -print0 2>/dev/null |
+    while IFS= read -r -d '' wh; do
+        rel="${wh#$layer/}"
+        target="$(dirname "$rel")/$(basename "$rel" | sed 's/^\.wh\.//')"
+        rm -rf "$dest/${target#./}" 2>/dev/null
+        rm -f "$wh"
+    done
+}
+
+# ---- pull -----------------------------------------------------------------------
+cmd_pull() {
+    [ $# -ge 1 ] || die "使い方: z2c pull <イメージ>[:<タグ>]"
+    local ref="$1" reg repo tag name
+    read -r reg repo tag <<<"$(parse_ref "$ref")"
+    name="$(safe_name "$repo" "$tag")"
+    local dest="$IMAGES/$name"
+
+    if [ -e "$dest" ]; then
+        info "既にある: $name  (消して取り直すなら z2c rm $name)"
+        return 0
+    fi
+
+    mkdir -p "$IMAGES" "$META" "$CACHE"
+    local tmp; tmp="$(mktemp -d "$CACHE/pull.XXXXXX")" || die "作業ディレクトリを作れない"
+    trap 'rm -rf "$tmp"' RETURN
+
+    info "取得: $reg/$repo:$tag  → $name"
+
+    info "  [1/4] 認証"
+    local tok; tok="$(get_token "$reg" "$repo")"
+
+    info "  [2/4] マニフェスト (arm64 を選ぶ)"
+    curl -s -H "$(auth_hdr "$tok")" -H "Accept: $A_IDX,$A_MAN" \
+         "https://$reg/v2/$repo/manifests/$tag" -o "$tmp/idx.json" \
+        || die "マニフェストを取得できない"
+
+    python3 - "$tmp/idx.json" <<'PY' >/dev/null 2>&1 || die "マニフェストが読めない (イメージ名/タグを確認)"
+import sys,json; json.load(open(sys.argv[1]))
+PY
+
+    local dig
+    dig="$(python3 - "$tmp/idx.json" <<'PY'
+import sys, json
+d = json.load(open(sys.argv[1]))
+if "errors" in d:
+    print("ERR:" + d["errors"][0].get("message", "unknown")); raise SystemExit
+if "manifests" in d:                      # index / manifest list
+    for m in d["manifests"]:
+        p = m.get("platform", {})
+        if p.get("architecture") == "arm64" and p.get("os") == "linux":
+            print(m["digest"]); break
+    else:
+        arch = sorted({m.get("platform", {}).get("architecture", "?") for m in d["manifests"]})
+        print("ERR:arm64 版が無い (ある版: %s)" % ", ".join(arch))
+else:
+    print("")                             # 単一プラットフォームのマニフェスト
+PY
+)"
+    case "$dig" in ERR:*) die "${dig#ERR:}" ;; esac
+
+    if [ -n "$dig" ]; then
+        curl -s -H "$(auth_hdr "$tok")" -H "Accept: $A_MAN" \
+             "https://$reg/v2/$repo/manifests/$dig" -o "$tmp/man.json" || die "マニフェスト取得に失敗"
+    else
+        cp "$tmp/idx.json" "$tmp/man.json"
+    fi
+
+    # レイヤと config の digest
+    local layers cfgdig
+    layers="$(python3 -c 'import json,sys;print(" ".join(l["digest"] for l in json.load(open(sys.argv[1]))["layers"]))' "$tmp/man.json")" \
+        || die "レイヤ情報が読めない"
+    cfgdig="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["config"]["digest"])' "$tmp/man.json" 2>/dev/null)"
+
+    local total; total="$(wc -w <<<"$layers")"
+    info "  [3/4] レイヤ $total 枚を取得して重ねる"
+
+    mkdir -p "$dest" || die "$dest を作れない"
+    local i=0
+    for L in $layers; do
+        i=$((i + 1))
+        local blob="$CACHE/${L#sha256:}.tar.gz"
+        if [ -s "$blob" ]; then
+            info "        $i/$total ${L:7:12}  (キャッシュ)"
+        else
+            info "        $i/$total ${L:7:12}  取得中..."
+            curl -sL -H "$(auth_hdr "$tok")" "https://$reg/v2/$repo/blobs/$L" -o "$blob.part" \
+                || { rm -f "$blob.part"; rm -rf "$dest"; die "レイヤの取得に失敗"; }
+            mv "$blob.part" "$blob"
+        fi
+
+        # 一旦ばらして whiteout を適用してから重ねる。
+        # (tar を直接 dest へ展開すると削除マーカーが実ファイルとして残る)
+        local ldir="$tmp/layer.$i"
+        mkdir -p "$ldir"
+        tar -xf "$blob" -C "$ldir" --no-same-owner --delay-directory-restore 2>/dev/null
+        apply_whiteouts "$ldir" "$dest"
+        cp -a "$ldir/." "$dest/" 2>/dev/null
+        rm -rf "$ldir"
+    done
+
+    info "  [4/4] メタ情報を保存"
+    if [ -n "$cfgdig" ]; then
+        curl -sL -H "$(auth_hdr "$tok")" -H "Accept: $A_CFG" \
+             "https://$reg/v2/$repo/blobs/$cfgdig" -o "$tmp/config.json" 2>/dev/null
+    fi
+    python3 - "$name" "$reg" "$repo" "$tag" "$tmp/config.json" "$META/$name.json" <<'PY'
+import sys, json, os
+name, reg, repo, tag, cfgpath, out = sys.argv[1:7]
+cfg = {}
+if os.path.exists(cfgpath):
+    try: cfg = json.load(open(cfgpath)).get("config", {})
+    except Exception: pass
+json.dump({
+    "name": name, "registry": reg, "repository": repo, "tag": tag,
+    "env": cfg.get("Env", []), "cmd": cfg.get("Cmd"),
+    "entrypoint": cfg.get("Entrypoint"), "workdir": cfg.get("WorkingDir") or "/",
+}, open(out, "w"), ensure_ascii=False, indent=2)
+PY
+
+    info ""
+    info "完了: $name  ($(du -sh "$dest" 2>/dev/null | cut -f1))"
+    info "  場所: $dest"
+    info "  確認: z2c verify $name"
+}
+
+# ---- ls -------------------------------------------------------------------------
+cmd_ls() {
+    [ -d "$IMAGES" ] || { info "まだ何も無い (z2c pull alpine で取得)"; return 0; }
+    local found=0
+    printf '%-24s %-8s %s\n' "名前" "大きさ" "元"
+    for d in "$IMAGES"/*/; do
+        [ -d "$d" ] || continue
+        found=1
+        local n; n="$(basename "$d")"
+        local src="-"
+        [ -f "$META/$n.json" ] && src="$(python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d["repository"]+":"+d["tag"])' "$META/$n.json" 2>/dev/null || echo -)"
+        printf '%-24s %-8s %s\n' "$n" "$(du -sh "$d" 2>/dev/null | cut -f1)" "$src"
+    done
+    [ "$found" = 1 ] || info "まだ何も無い (z2c pull alpine で取得)"
+}
+
+# ---- rootfs のローダーを見つける -------------------------------------------------
+# musl (Alpine) と glibc (Debian 系) で名前が違うので両方さがす。
+find_loader() {
+    local r="$1" l
+    for l in "$r"/lib/ld-musl-aarch64.so.1 \
+             "$r"/lib/ld-linux-aarch64.so.1 \
+             "$r"/lib64/ld-linux-aarch64.so.1 \
+             "$r"/usr/lib/ld-linux-aarch64.so.1; do
+        [ -x "$l" ] && { echo "$l"; return 0; }
+    done
+    # symlink をたどれない場合に備えて総当たり
+    l="$(find "$r/lib" "$r/lib64" "$r/usr/lib" -maxdepth 1 -name 'ld-*aarch64*.so*' -print -quit 2>/dev/null)"
+    [ -n "$l" ] && { echo "$l"; return 0; }
+    return 1
+}
+
+# rootfs 内の symlink を rootfs 基準でたどる。
+# /bin/sh -> /bin/busybox のような絶対リンクを外側の / で解決すると迷子になるため。
+resolve_in_rootfs() {
+    local r="$1" p="$2" n=0 tgt
+    while [ -L "$p" ] && [ $n -lt 16 ]; do
+        tgt="$(readlink "$p")"
+        case "$tgt" in
+            /*) p="$r$tgt" ;;
+            *)  p="$(dirname "$p")/$tgt" ;;
+        esac
+        n=$((n + 1))
+    done
+    echo "$p"
+}
+
+resolve_image() {
+    local n="$1"
+    [ -d "$IMAGES/$n" ] && { echo "$IMAGES/$n"; return 0; }
+    # タグ省略を許す (alpine → alpine_latest)
+    [ -d "$IMAGES/${n}_latest" ] && { echo "$IMAGES/${n}_latest"; return 0; }
+    # pull に渡したのと同じ書き方でも引けるようにする (nginx:alpine → nginx_alpine)
+    local reg repo tag sn
+    read -r reg repo tag <<<"$(parse_ref "$n")"
+    sn="$(safe_name "$repo" "$tag")"
+    [ -d "$IMAGES/$sn" ] && { echo "$IMAGES/$sn"; return 0; }
+    return 1
+}
+
+# ---- verify ---------------------------------------------------------------------
+cmd_verify() {
+    [ $# -ge 1 ] || die "使い方: z2c verify <名前>"
+    local r; r="$(resolve_image "$1")" || die "そんなイメージは無い: $1  (z2c ls で一覧)"
+
+    echo "検査: $r"
+    local ok=1
+    for d in bin etc lib usr; do
+        if [ -e "$r/$d" ]; then echo "  ✓ /$d がある"; else echo "  ✗ /$d が無い"; ok=0; fi
+    done
+
+    if find "$r" -name '.wh.*' -print -quit 2>/dev/null | grep -q .; then
+        echo "  ✗ 削除マーカー (.wh.*) が残っている — レイヤ合成に失敗している"
+        ok=0
+    else
+        echo "  ✓ 削除マーカーは残っていない"
+    fi
+
+    local ld
+    if ld="$(find_loader "$r")"; then
+        echo "  ✓ ローダー: ${ld#$r}"
+        # rootfs 内のバイナリを実際に動かす。
+        # ⚠ 隔離はされない (パスは外側のまま) が「中身が本物か」は確かめられる。
+        local sh_bin="" sh_arg=""
+        for c in "$r/bin/sh" "$r/bin/bash" "$r/usr/bin/sh"; do
+            { [ -e "$c" ] || [ -L "$c" ]; } && { sh_bin="$(resolve_in_rootfs "$r" "$c")"; break; }
+        done
+        if [ -n "$sh_bin" ] && [ -f "$sh_bin" ]; then
+            [ "$(basename "$sh_bin")" = "busybox" ] && sh_arg="sh"
+            local out
+            out="$("$ld" --library-path "$r/lib:$r/lib64:$r/usr/lib" "$sh_bin" $sh_arg -c 'echo 中で echo が動いた' 2>&1 | head -1)"
+            if [ -n "$out" ]; then
+                echo "  ✓ 中のバイナリが動いた: ${sh_bin#$r} → ${out:0:60}"
+            else
+                echo "  ✗ 中のバイナリが動かない"; ok=0
+            fi
+        fi
+    else
+        echo "  ✗ ローダーが見つからない"; ok=0
+    fi
+
+    [ -f "$r/etc/os-release" ] && echo "  ・中身: $(sed -n 's/^PRETTY_NAME="\(.*\)"/\1/p' "$r/etc/os-release")"
+
+    echo
+    if [ "$ok" = 1 ]; then
+        echo "結果: 正常。rootfs として使える。"
+    else
+        echo "結果: 問題あり。取り直しを勧める (z2c rm $1 && z2c pull ...)"
+        return 1
+    fi
+}
+
+# ---- sh (暫定) ------------------------------------------------------------------
+cmd_sh() {
+    [ $# -ge 1 ] || die "使い方: z2c sh <名前>"
+    local r; r="$(resolve_image "$1")" || die "そんなイメージは無い: $1  (z2c ls で一覧)"
+    local ld; ld="$(find_loader "$r")" || die "ローダーが見つからない"
+
+    local sh_bin="" sh_arg=""
+    for c in "$r/bin/sh" "$r/bin/bash" "$r/bin/busybox"; do
+        { [ -e "$c" ] || [ -L "$c" ]; } && { sh_bin="$(resolve_in_rootfs "$r" "$c")"; break; }
+    done
+    [ -n "$sh_bin" ] && [ -f "$sh_bin" ] || die "シェルが見つからない"
+    # busybox は argv[0] で振る舞いを決める。ローダー越しでは argv[0] が実体名に
+    # なってしまうので、用途を引数で渡す。
+    [ "$(basename "$sh_bin")" = "busybox" ] && sh_arg="sh"
+
+    cat >&2 <<EOF
+⚠ これはコンテナではない。
+   rootfs の中のシェルを動かすだけで、隔離はされていない:
+   / は今の Arch のまま、絶対パスは全部そちらを指す。
+   中身を覗いたり動作確認をするための暫定機能。
+   本物の隔離起動は z2root 側の対応 (フェーズ2) が要る。
+   抜けるのは exit。
+
+EOF
+    "$ld" --library-path "$r/lib:$r/lib64:$r/usr/lib" "$sh_bin" $sh_arg
+}
+
+cmd_path() {
+    [ $# -ge 1 ] || die "使い方: z2c path <名前>"
+    local r; r="$(resolve_image "$1")" || die "そんなイメージは無い: $1"
+    echo "$r"
+}
+
+cmd_rm() {
+    [ $# -ge 1 ] || die "使い方: z2c rm <名前>"
+    local r; r="$(resolve_image "$1")" || die "そんなイメージは無い: $1  (z2c ls で一覧)"
+    rm -rf "$r" "$META/$(basename "$r").json"
+    info "消した: $(basename "$r")"
+}
+
+usage() {
+    cat >&2 <<'EOF'
+z2c — Docker/OCI イメージを取得して rootfs にする (z2term コンテナ機構 フェーズ1)
+
+  z2c pull <イメージ>[:<タグ>]   取得して展開   例: z2c pull alpine / z2c pull node:22-alpine
+  z2c ls                         取得済み一覧
+  z2c verify <名前>              展開結果が正しいか確認
+  z2c sh <名前>                  中のシェルを起動 (⚠ 隔離なし・暫定)
+  z2c path <名前>                rootfs の絶対パスを表示
+  z2c rm <名前>                  削除
+
+置き場: ~/.z2c/images/<名前>   (Z2C_HOME で変えられる)
+
+⚠ 現状は「取得と展開」まで。隔離して起動する機能は z2root 側の対応待ち。
+EOF
+    exit 1
+}
+
+[ $# -ge 1 ] || usage
+sub="$1"; shift
+case "$sub" in
+    pull)   cmd_pull "$@" ;;
+    ls|list) cmd_ls "$@" ;;
+    verify) cmd_verify "$@" ;;
+    sh|shell) cmd_sh "$@" ;;
+    path)   cmd_path "$@" ;;
+    rm|remove) cmd_rm "$@" ;;
+    -h|--help|help) usage ;;
+    *) die "知らないコマンド: $sub  (z2c --help)" ;;
+esac
