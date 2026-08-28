@@ -406,6 +406,11 @@ private fun previewActionLabel(action: KeyAction?): String? = when (action) {
         NamedKey.DOWN -> "↓"
         NamedKey.LEFT -> "←"
         NamedKey.RIGHT -> "→"
+        NamedKey.ZENKAKU_HANKAKU -> "半/全"
+        NamedKey.HENKAN -> "変換"
+        NamedKey.MUHENKAN -> "無変換"
+        NamedKey.KATAKANA_HIRAGANA -> "かな"
+        NamedKey.EISU -> "英数"
         else -> action.key.id.uppercase()
     }
     is KeyAction.Modifier -> action.mod.id.uppercase()
@@ -715,7 +720,7 @@ private fun ActionFields(action: KeyAction, onChange: (KeyAction) -> Unit) {
     }
     when (action) {
         is KeyAction.Text -> VisualTextField("text", action.text) { onChange(action.copy(text = it)) }
-        is KeyAction.Named -> EnumChoiceRow(NamedKey.entries, action.key, { it.id }) {
+        is KeyAction.Named -> EnumChoiceRow(NamedKey.entries, action.key, ::namedKeyChoiceLabel) {
             onChange(action.copy(key = it))
         }
         is KeyAction.Modifier -> EnumChoiceRow(ModKey.entries, action.mod, { it.id }) {
@@ -776,13 +781,16 @@ private fun ChordEditor(action: KeyAction.Chord, onChange: (KeyAction) -> Unit) 
         }
     }
     if (named) {
-        EnumChoiceRow(NamedKey.entries, action.key ?: NamedKey.ESC, { it.id }) {
+        EnumChoiceRow(NamedKey.entries, action.key ?: NamedKey.ESC, ::namedKeyChoiceLabel) {
             onChange(action.copy(text = null, key = it))
         }
     } else {
         VisualTextField("text", action.text.orEmpty()) { onChange(action.copy(text = it, key = null)) }
     }
 }
+
+private fun namedKeyChoiceLabel(key: NamedKey): String =
+    previewActionLabel(KeyAction.Named(key)) ?: key.id
 
 @Composable
 private fun <T> EnumChoiceRow(values: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {

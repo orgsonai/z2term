@@ -96,6 +96,12 @@ class GuiSession(
     /** ズーム/パンの表示変換。GuiScreen(描画) と GuiInputView(入力) で共有。タブ切替・回転でも保持。 */
     val viewport = GuiViewport()
 
+    /**
+     * 仮想カーソルの位置と形。View の寿命から切り離し、タブ切替・再接続でも保持する。
+     * GuiInputView(入力) と GuiScreen(描画) が共有する。
+     */
+    val cursor = GuiCursor()
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pty: PtyProcess? = null
     private var rxJob: Job? = null
@@ -186,6 +192,7 @@ class GuiSession(
                     fail("GUI の起動に失敗しました (z2gui が終了)。端末タブで z2gui を実行してログを確認してください。")
                     return@launch
                 }
+                syncCursorAfterConnect()
                 _state.value = State.CONNECTED
                 _message.value = "${rfb.width}x${rfb.height}  ${rfb.desktopName}"
                 rxJob = scope.launch { rfb.run() }
@@ -221,6 +228,7 @@ class GuiSession(
                 fail(remoteFailureMessage(e))
                 return@launch
             }
+            syncCursorAfterConnect()
             _state.value = State.CONNECTED
             _message.value = "${rfb.width}x${rfb.height}  ${rfb.desktopName}"
             rxJob = scope.launch {
@@ -232,6 +240,16 @@ class GuiSession(
                 }
             }
         }
+    }
+
+    /**
+     * 接続先のカーソルを、こちらが保持している仮想カーソル位置へ 1 回だけ同期する。
+     * 初回は中央、再接続時は以前の位置。GuiInputView の再生成時には呼ばれないため、
+     * タブへ戻るたび中央へワープすることはない。
+     */
+    private fun syncCursorAfterConnect() {
+        val pos = cursor.fitTo(rfb.width, rfb.height) ?: return
+        rfb.sendPointerEvent(0, pos.x.toInt(), pos.y.toInt())
     }
 
     /**

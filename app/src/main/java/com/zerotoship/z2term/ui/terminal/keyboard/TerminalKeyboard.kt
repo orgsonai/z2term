@@ -87,6 +87,8 @@ import kotlin.math.abs
 fun TerminalKeyboard(
     onBytes: (ByteArray) -> Unit,
     onCursorKey: (TerminalEmulator.CursorKey) -> Unit,
+    /** GUI タブだけが使う日本語入力方式キーの出口。null の端末/IME では完全な no-op。 */
+    onNamedKey: ((NamedKey) -> Unit)? = null,
     composing: ComposingState,
     style: KeyboardStyle = KeyboardStyle.COMPACT,
     /** `next_face` が巡回する有効面。内蔵面とカスタム面を保存順のまま受け取る。 */
@@ -275,6 +277,16 @@ fun TerminalKeyboard(
                     NamedKey.DOWN -> { composing.commitRaw(); emitCursor(TerminalEmulator.CursorKey.DOWN) }
                     NamedKey.LEFT -> if (composing.isActive) composing.moveCursorLeft() else emitCursor(TerminalEmulator.CursorKey.LEFT)
                     NamedKey.RIGHT -> if (composing.isActive) composing.moveCursorRight() else emitCursor(TerminalEmulator.CursorKey.RIGHT)
+                    NamedKey.ZENKAKU_HANKAKU,
+                    NamedKey.HENKAN,
+                    NamedKey.MUHENKAN,
+                    NamedKey.KATAKANA_HIRAGANA,
+                    NamedKey.EISU -> onNamedKey?.let { send ->
+                        // リモート側の入力方式を切り替える前に、z2term 側の打ちかけだけは確定する。
+                        // onNamedKey=null の端末タブでは状態も送出も変えない（完全な no-op）。
+                        composing.commitRaw()
+                        send(action.key)
+                    }
                     // ⚠ Delete / Home / F キー等は**まだどの配列にも置いていない**。
                     //    エディタで置けるようになる段階で、ここに送出を足す。
                     else -> Unit

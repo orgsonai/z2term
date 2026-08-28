@@ -145,6 +145,7 @@ import com.zerotoship.z2term.ui.terminal.keyboard.KkcConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFaceConfig
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardFaceEntry
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
+import com.zerotoship.z2term.ui.terminal.keyboard.NamedKey
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
 import com.zerotoship.z2term.emulator.ZtsTheme
@@ -1143,6 +1144,7 @@ private fun GuiTabScreen(
             },
             onPasteHistory = { clipHistoryOpen = true },
             onOpenSnippets = { snippetsSheetOpen = true },
+            onTogglePointerMode = { gui.cursor.toggleMode() },
             onToggleKeyboardMode = {
                 val next = if (keyboardMode == KeyboardMode.CUSTOM)
                     KeyboardMode.SYSTEM else KeyboardMode.CUSTOM
@@ -1229,7 +1231,8 @@ private fun GuiTabScreen(
                     faceEntries = faceEntries,
                     widthDp = settings.landscapeKeyboardWidthDp,
                     onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
-                    onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) }
+                    onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) },
+                    onNamedKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForNamed(key)) }
                 )
             }
             // GUI 領域を枠線で囲って範囲を明示し、内側の実寸 (onSizeChanged) で解像度を決める。
@@ -1279,6 +1282,7 @@ private fun GuiTabScreen(
                                         TerminalKeyboard(
                                             onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
                                             onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) },
+                                            onNamedKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForNamed(key)) },
                                             composing = composing,
                                             style = kbStyleGui,
                                             faceEntries = faceEntries,
@@ -1307,7 +1311,8 @@ private fun GuiTabScreen(
                     faceEntries = faceEntries,
                     widthDp = settings.landscapeKeyboardWidthDp,
                     onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
-                    onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) }
+                    onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) },
+                    onNamedKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForNamed(key)) }
                 )
             }
         }
@@ -1398,6 +1403,7 @@ private fun GuiTopBar(
     onPaste: () -> Unit,
     onPasteHistory: () -> Unit,
     onOpenSnippets: () -> Unit,
+    onTogglePointerMode: () -> Unit,
     onToggleKeyboardMode: () -> Unit,
     onToggleKeyboardVisible: () -> Unit,
     keepScreenOn: Boolean,
@@ -1441,7 +1447,9 @@ private fun GuiTopBar(
             ReorderableToolbar(
                 items = listOf(
                     ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
-                    ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
+                    // GUI だけは 📜 のダブルタップで相対/絶対カーソルを切り替える。
+                    // 画面を見ながら変えられ、ボタンを増やさない。現在モードはカーソル根元の輪で分かる。
+                    ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets, onDoubleClick = onTogglePointerMode),
                     ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
                     keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
                     ToolbarItem(ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible)
@@ -2719,7 +2727,8 @@ private fun SideKeyboardColumn(
     faceEntries: List<KeyboardFaceEntry>,
     widthDp: Float,
     onBytes: (ByteArray) -> Unit,
-    onCursorKey: (com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey) -> Unit
+    onCursorKey: (com.zerotoship.z2term.emulator.TerminalEmulator.CursorKey) -> Unit,
+    onNamedKey: ((NamedKey) -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
@@ -2735,6 +2744,7 @@ private fun SideKeyboardColumn(
             TerminalKeyboard(
                 onBytes = onBytes,
                 onCursorKey = onCursorKey,
+                onNamedKey = onNamedKey,
                 composing = composing,
                 style = style,
                 faceEntries = faceEntries,

@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.426-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.427-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -266,7 +266,7 @@ Before using it, fill in two fields under **✎ (Edit)** for the host:
 Once it is up, it behaves like the app's own GUI tab: two fingers to zoom and pan, three fingers to
 scroll, and the same keyboard.
 
-- **The white arrow is the cursor you control** (0.8.426). Its position survives leaving the tab and reconnecting.
+- **The white arrow is the cursor you control** (0.8.427). Its position survives leaving the tab and reconnecting.
 - The default is **relative mode**: the cursor moves by the distance your finger moves. Double-tap **📜 in the GUI toolbar** to switch to **absolute mode**, where the cursor jumps to the place you touch. A green ring at the arrow root marks absolute mode. A single tap on 📜 still opens snippets.
 - For a **right click**, keep the second tap still for at least 350 ms, then release. You can still move after holding to turn it into a left drag.
 - To switch the remote Japanese input method, place **Half/Full** (or Convert, Non-convert, Kana or Eisu) anywhere in the custom key-layout editor. If the remote uses `Ctrl+Space` or `Super+Space`, place that modified key instead.

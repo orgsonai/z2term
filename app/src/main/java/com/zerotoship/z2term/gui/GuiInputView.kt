@@ -48,6 +48,9 @@ class GuiInputView(context: Context) : View(context) {
     /** ズーム/パンの表示変換 (GuiScreen と共有)。null の間は等倍フィット相当。 */
     var viewport: GuiViewport? = null
 
+    /** 仮想カーソルの位置と形 (GuiSession / GuiScreen と共有)。 */
+    var cursor: GuiCursor? = null
+
     /** SYSTEM キーボード時の sticky Ctrl。ON の間、OS IME 確定文字を Ctrl 修飾付きで送る。 */
     var ctrlSticky: Boolean = false
 
@@ -57,22 +60,21 @@ class GuiInputView(context: Context) : View(context) {
     private var imeShown: Boolean = false
 
     // --- 仮想カーソル（トラックパッド式の相対移動）---
-    // RFB は絶対座標しか送れないので、こちらで仮想カーソル位置 (FB 座標) を保持し、
+    // RFB は絶対座標しか送れないので、GuiSession の GuiCursor に位置 (FB 座標) を保持し、
     // 指の移動量ぶんだけ動かして「現在位置」へ PointerEvent を送る。タップは現在位置で
-    // クリック（タッチ位置へはジャンプしない）。リモート側 X サーバが実カーソルを描く。
-    private var cursorFx = 0f
-    private var cursorFy = 0f
-    private var cursorInit = false
+    // クリック（タッチ位置へはジャンプしない）。カーソルの絵は GuiScreen が必ず描く。
     private var dragHeld = false          // 左ボタン押下保持中（ダブルタップ→ドラッグ）
     private var lastTouchX = 0f
     private var lastTouchY = 0f
 
     // --- ダブルタップ後の「右クリック or 左ドラッグ」判定 (M8-6 T4) ---
-    // ダブルタップで 2 回目の指が下りた直後はまだ右ドラッグか左ドラッグか不明なので保留する。
-    //  - 一定時間 (RIGHT_HOLD_MS) 動かさず保持 → 右クリック (メニュー)
-    //  - touchSlop を超えて動く            → 左ドラッグ (ウィンドウ移動/選択) へ切替
-    //  - すぐ離す                          → 左クリック (= ダブルクリック)
+    // ダブルタップで 2 回目の指が下りた直後はまだ右クリックか左ドラッグか不明なので保留する。
+    //  - 一定時間 (RIGHT_HOLD_MS) 動かさず保持して離す → 右クリック (メニュー)
+    //  - いつでも touchSlop を超えて動く                → 左ドラッグへ切替
+    //  - 一定時間より前に離す                            → 左クリック (= ダブルクリック)
+    // タイマーは触覚で「今離せば右クリック」を知らせるだけで、右クリック自体は確定しない。
     private var pendingRightClick = false
+    private var rightClickReady = false
     private var dtDownX = 0f
     private var dtDownY = 0f
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
@@ -98,6 +100,16 @@ class GuiInputView(context: Context) : View(context) {
         super.onAttachedToWindow()
         // 物理キーボード / キー注入が即届くようフォーカスを確保（ソフト IME は FAB で出す）。
         requestFocus()
+    }
+
+    override fun onDetachedFromWindow() {
+        // タブ切替や切断で View が破棄されても、相手側の左ボタンと共有カーソルの
+        // 押下表示を保持したままにしない。
+        cancelRightClickReadyTimer()
+        pendingRightClick = false
+        rightClickReady = false
+        releaseDrag()
+        super.onDetachedFromWindow()
     }
 
     /** 表示座標 (x,y) → FB 座標。ズーム/パン (viewport) を反映。FB 未確定・画面外は null。 */
@@ -126,53 +138,55 @@ class GuiInputView(context: Context) : View(context) {
         return fit * (viewport?.scale ?: 1f)
     }
 
-    /** 仮想カーソルを FB 中央に初期化（接続直後の 1 回）。実カーソルを表示するため move も送る。 */
-    private fun ensureCursor() {
-        if (cursorInit) return
-        val c = rfb ?: return
-        if (c.width <= 0 || c.height <= 0) return
-        cursorFx = c.width / 2f
-        cursorFy = c.height / 2f
-        cursorInit = true
-        c.sendPointerEvent(0, cursorFx.toInt(), cursorFy.toInt())
+    /** 仮想カーソルを FB 中央に初期化（セッション中の初回だけ）。 */
+    private fun ensureCursor(): GuiCursor.Snapshot? {
+        val c = rfb ?: return null
+        return cursor?.fitTo(c.width, c.height)
     }
 
     /** 指の移動量 (画面 px) ぶん仮想カーソルを動かし、現在位置へ送る（ドラッグ中は左押下のまま）。 */
     private fun moveCursorBy(dxScreen: Float, dyScreen: Float) {
         val c = rfb ?: return
-        ensureCursor()
         val eff = effScale() ?: return
-        cursorFx = (cursorFx + dxScreen / eff).coerceIn(0f, (c.width - 1).toFloat())
-        cursorFy = (cursorFy + dyScreen / eff).coerceIn(0f, (c.height - 1).toFloat())
-        c.sendPointerEvent(if (dragHeld) RfbClient.BTN_LEFT else 0, cursorFx.toInt(), cursorFy.toInt())
+        val pos = cursor?.moveBy(dxScreen / eff, dyScreen / eff, c.width, c.height) ?: return
+        c.sendPointerEvent(if (dragHeld) RfbClient.BTN_LEFT else 0, pos.x.toInt(), pos.y.toInt())
+    }
+
+    /** 画面上で触れている位置へ仮想カーソルを直接移動する（絶対座標モード）。 */
+    private fun moveCursorTo(xScreen: Float, yScreen: Float) {
+        val c = rfb ?: return
+        val (fx, fy) = toFb(xScreen, yScreen) ?: return
+        val pos = cursor?.moveTo(fx.toFloat(), fy.toFloat(), c.width, c.height) ?: return
+        c.sendPointerEvent(if (dragHeld) RfbClient.BTN_LEFT else 0, pos.x.toInt(), pos.y.toInt())
     }
 
     /** 現在のカーソル位置で 1 クリック（ボタン押下→解放）。 */
     private fun clickAtCursor(button: Int) {
         val c = rfb ?: return
-        ensureCursor()
-        c.sendPointerEvent(button, cursorFx.toInt(), cursorFy.toInt())
-        c.sendPointerEvent(0, cursorFx.toInt(), cursorFy.toInt())
+        val pos = ensureCursor() ?: return
+        c.sendPointerEvent(button, pos.x.toInt(), pos.y.toInt())
+        c.sendPointerEvent(0, pos.x.toInt(), pos.y.toInt())
     }
 
     /** 保持中の左ドラッグを解放する。 */
     private fun releaseDrag() {
         if (!dragHeld) return
         dragHeld = false
-        rfb?.sendPointerEvent(0, cursorFx.toInt(), cursorFy.toInt())
+        cursor?.setPressed(false)
+        val pos = ensureCursor() ?: return
+        rfb?.sendPointerEvent(0, pos.x.toInt(), pos.y.toInt())
     }
 
-    /** ダブルタップ後、指を動かさず保持し続けたら発火 = 右クリック。 */
-    private val rightClickRunnable = Runnable {
+    /** ダブルタップ後、右クリックとして離せる時間に達したことだけを触覚で知らせる。 */
+    private val rightClickReadyRunnable = Runnable {
         if (!pendingRightClick) return@Runnable
-        pendingRightClick = false
+        rightClickReady = true
         performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-        clickAtCursor(RfbClient.BTN_RIGHT)
     }
 
-    /** 保留中の右クリック判定 (タイマー) を取り消す。 */
-    private fun cancelRightClickTimer() {
-        if (pendingRightClick) removeCallbacks(rightClickRunnable)
+    /** 保留中の触覚通知タイマーを取り消す。 */
+    private fun cancelRightClickReadyTimer() {
+        removeCallbacks(rightClickReadyRunnable)
     }
 
     private val gesture = GestureDetector(
@@ -189,17 +203,18 @@ class GuiInputView(context: Context) : View(context) {
             }
 
             // ダブルタップ = 2 回目の指が下りた。ここでは判定を保留するだけ:
-            //  保持(動かさない)→右クリック / 移動→左ドラッグ / すぐ離す→左クリック。
-            //  実際の分岐は onTouchEvent の MOVE/UP で行う (タイマーは rightClickRunnable)。
+            //  保持して離す→右クリック / 移動→左ドラッグ / すぐ離す→左クリック。
+            //  実際の確定は onTouchEvent の MOVE/UP で行い、タイマーは触覚通知だけを担う。
             override fun onDoubleTap(e: MotionEvent): Boolean {
                 ensureCursor()
                 pendingRightClick = true
+                rightClickReady = false
                 dtDownX = e.x
                 dtDownY = e.y
                 lastTouchX = e.x
                 lastTouchY = e.y
-                removeCallbacks(rightClickRunnable)
-                postDelayed(rightClickRunnable, RIGHT_HOLD_MS)
+                removeCallbacks(rightClickReadyRunnable)
+                postDelayed(rightClickReadyRunnable, RIGHT_HOLD_MS)
                 return true
             }
         }
@@ -219,8 +234,9 @@ class GuiInputView(context: Context) : View(context) {
         if (event.pointerCount >= 2) {
             if (dragHeld) releaseDrag() // 1→2 本指に増えたらドラッグ保持を解除
             if (pendingRightClick) {    // 2 本指へ移行 → 保留中の右クリック判定は破棄 (T3)
-                cancelRightClickTimer()
+                cancelRightClickReadyTimer()
                 pendingRightClick = false
+                rightClickReady = false
             }
             // 一度でも 3 本指になったら、指が 2 本に減っても全部離すまでスクロール扱い。
             if (event.pointerCount >= 3) scrollGesture = true
@@ -261,17 +277,31 @@ class GuiInputView(context: Context) : View(context) {
             MotionEvent.ACTION_DOWN -> {
                 lastTouchX = event.x
                 lastTouchY = event.y
+                if (cursor?.snapshot()?.mode == GuiCursor.Mode.ABSOLUTE) {
+                    moveCursorTo(event.x, event.y)
+                }
             }
             MotionEvent.ACTION_MOVE -> {
                 if (pendingRightClick) {
                     // 右クリック判定中。slop を超えて動いたら左ドラッグへ切替、slop 内なら静止維持。
                     val moved = kotlin.math.hypot(event.x - dtDownX, event.y - dtDownY)
                     if (moved > touchSlop) {
-                        cancelRightClickTimer()
+                        cancelRightClickReadyTimer()
                         pendingRightClick = false
+                        rightClickReady = false
                         dragHeld = true
-                        ensureCursor()
-                        rfb?.sendPointerEvent(RfbClient.BTN_LEFT, cursorFx.toInt(), cursorFy.toInt())
+                        val pos = ensureCursor()
+                        if (pos != null) {
+                            cursor?.setPressed(true)
+                            rfb?.sendPointerEvent(RfbClient.BTN_LEFT, pos.x.toInt(), pos.y.toInt())
+                            // ボタンを押した位置から、slop を越えた現在位置までの最初の移動も
+                            // 捨てずに送る。絶対は現在の指位置、相対はその差分を使う。
+                            if (cursor?.snapshot()?.mode == GuiCursor.Mode.ABSOLUTE) {
+                                moveCursorTo(event.x, event.y)
+                            } else {
+                                moveCursorBy(event.x - lastTouchX, event.y - lastTouchY)
+                            }
+                        }
                         lastTouchX = event.x
                         lastTouchY = event.y
                     }
@@ -281,14 +311,25 @@ class GuiInputView(context: Context) : View(context) {
                 val dy = event.y - lastTouchY
                 lastTouchX = event.x
                 lastTouchY = event.y
-                if (dx != 0f || dy != 0f) moveCursorBy(dx, dy)
+                if (cursor?.snapshot()?.mode == GuiCursor.Mode.ABSOLUTE) {
+                    moveCursorTo(event.x, event.y)
+                } else if (dx != 0f || dy != 0f) {
+                    moveCursorBy(dx, dy)
+                }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 if (pendingRightClick) {
-                    // タイマー前に離した = 動かさず素早いダブルタップ → 2 発目の左クリック (ダブルクリック)。
-                    cancelRightClickTimer()
+                    // 確定は必ず指を離した時。長く保持して離したら右クリック、短ければ
+                    // 2 発目の左クリック（ダブルクリック）。保持後に動いた場合は MOVE 側で
+                    // pendingRightClick=false になり、左ドラッグとしてここへ来る。
+                    cancelRightClickReadyTimer()
+                    val heldMs = event.eventTime - event.downTime
+                    val rightClick = rightClickReady || heldMs >= RIGHT_HOLD_MS
                     pendingRightClick = false
-                    if (action == MotionEvent.ACTION_UP) clickAtCursor(RfbClient.BTN_LEFT)
+                    rightClickReady = false
+                    if (action == MotionEvent.ACTION_UP) {
+                        clickAtCursor(if (rightClick) RfbClient.BTN_RIGHT else RfbClient.BTN_LEFT)
+                    }
                 }
                 if (dragHeld) releaseDrag() // ドラッグ保持の終了 = 左ボタン解放
             }
@@ -457,7 +498,7 @@ class GuiInputView(context: Context) : View(context) {
         const val WHEEL_STEP = 40f
         /** ピンチズームの最大倍率 (フィット基準)。 */
         const val MAX_ZOOM = 5f
-        /** ダブルタップ後、これだけ動かさず保持し続けたら右クリックにする (ms)。 */
+        /** ダブルタップ後、これだけ動かさず保持して離したら右クリックにする (ms)。 */
         const val RIGHT_HOLD_MS = 350L
     }
 

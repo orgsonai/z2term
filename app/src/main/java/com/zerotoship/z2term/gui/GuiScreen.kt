@@ -16,8 +16,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
@@ -55,6 +58,7 @@ fun GuiScreen(
     val message by session.message.collectAsState()
     val tick by session.rfb.redraw.collectAsState()
     val vrev by session.viewport.rev.collectAsState()
+    val crev by session.cursor.rev.collectAsState()
 
     Box(
         modifier = modifier
@@ -66,7 +70,7 @@ fun GuiScreen(
         contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            @Suppress("UNUSED_EXPRESSION") run { tick; vrev } // FB 更新 / ズーム・パン変更で再描画
+            @Suppress("UNUSED_EXPRESSION") run { tick; vrev; crev } // FB / 表示変換 / カーソル変更で再描画
             val bmp = session.rfb.frame ?: return@Canvas
             val bw = bmp.width.toFloat()
             val bh = bmp.height.toFloat()
@@ -82,6 +86,18 @@ fun GuiScreen(
                     canvas.nativeCanvas.drawBitmap(bmp, null, RectF(left, top, left + dw, top + dh), null)
                 }
             }
+
+            // 相手が framebuffer にカーソルを焼き込むかどうかへ依存せず、こちらが持つ
+            // 仮想カーソルを必ず重ねる。形は GuiCursor.Visual 経由で差し替え可能にしておき、
+            // RichCursor / XCursor 受信時も二重描画せず同じ 1 個を描く。
+            val cursor = session.cursor.snapshot()
+            if (cursor.initialized) {
+                val cx = left + cursor.x * eff
+                val cy = top + cursor.y * eff
+                when (cursor.visual) {
+                    GuiCursor.Visual.Arrow -> drawCursorArrow(cx, cy, cursor.pressed, cursor.mode)
+                }
+            }
         }
 
         if (state == GuiSession.State.CONNECTED) {
@@ -91,6 +107,7 @@ fun GuiScreen(
                     GuiInputView(ctx).also {
                         it.rfb = session.rfb
                         it.viewport = session.viewport
+                        it.cursor = session.cursor
                         it.ctrlSticky = ctrlSticky
                         it.onCtrlConsumed = onCtrlConsumed
                     }
@@ -98,6 +115,7 @@ fun GuiScreen(
                 update = {
                     it.rfb = session.rfb
                     it.viewport = session.viewport
+                    it.cursor = session.cursor
                     it.ctrlSticky = ctrlSticky
                     it.onCtrlConsumed = onCtrlConsumed
                     if (imeVisible) it.showIme() else it.hideIme()
@@ -133,5 +151,36 @@ fun GuiScreen(
                 )
             }
         }
+    }
+}
+
+/** Canvas Path だけで描く既定カーソル。第三者画像アセットは使わない。 */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCursorArrow(
+    x: Float,
+    y: Float,
+    pressed: Boolean,
+    mode: GuiCursor.Mode,
+) {
+    val u = density
+    val path = Path().apply {
+        moveTo(x, y)
+        lineTo(x, y + 21f * u)
+        lineTo(x + 5.5f * u, y + 15.5f * u)
+        lineTo(x + 10f * u, y + 25f * u)
+        lineTo(x + 14f * u, y + 23f * u)
+        lineTo(x + 9.5f * u, y + 14f * u)
+        lineTo(x + 17f * u, y + 14f * u)
+        close()
+    }
+    drawPath(path, color = if (pressed) Color(0xFF22C55E) else Color.White)
+    drawPath(path, color = Color.Black, style = Stroke(width = 1.5f * u))
+    if (mode == GuiCursor.Mode.ABSOLUTE) {
+        // 絶対座標モードは矢印の根元に緑の輪を出し、設定を開かなくても状態を判別できる。
+        drawCircle(
+            color = Color(0xFF22C55E),
+            radius = 4f * u,
+            center = Offset(x, y),
+            style = Stroke(width = 1.5f * u),
+        )
     }
 }

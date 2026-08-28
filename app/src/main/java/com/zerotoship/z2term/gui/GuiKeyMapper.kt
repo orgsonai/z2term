@@ -3,6 +3,7 @@ package com.zerotoship.z2term.gui
 import android.view.KeyEvent
 import com.zerotoship.z2term.emulator.TerminalEmulator
 import com.zerotoship.z2term.gui.rfb.RfbClient
+import com.zerotoship.z2term.ui.terminal.keyboard.NamedKey
 
 /**
  * Android の入力 → **X11 keysym** 変換テーブル（GUI = VNC 用）。
@@ -37,6 +38,13 @@ object GuiKeyMapper {
     const val XK_Delete = 0xFFFF
     private const val XK_F1 = 0xFFBE // F1..F12 は連番 (F_n = XK_F1 + n-1)
 
+    // --- 日本語入力方式キー (X11 keysymdef.h) ---
+    const val XK_Muhenkan = 0xFF22
+    const val XK_Henkan = 0xFF23
+    const val XK_Zenkaku_Hankaku = 0xFF2A
+    const val XK_Hiragana_Katakana = 0xFF27
+    const val XK_Eisu_toggle = 0xFF30
+
     // --- 修飾キー ---
     private const val XK_Shift_L = 0xFFE1
     private const val XK_Shift_R = 0xFFE2
@@ -65,38 +73,45 @@ object GuiKeyMapper {
      * @return keysym。0 なら「このイベントは送らない」。
      */
     fun keysymForKeyEvent(event: KeyEvent): Int {
-        when (event.keyCode) {
-            KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> return XK_Return
-            KeyEvent.KEYCODE_TAB -> return XK_Tab
-            KeyEvent.KEYCODE_ESCAPE -> return XK_Escape
-            KeyEvent.KEYCODE_DEL -> return XK_BackSpace       // 端末では DEL=0x7F だが GUI は BackSpace
-            KeyEvent.KEYCODE_FORWARD_DEL -> return XK_Delete
-            KeyEvent.KEYCODE_DPAD_UP -> return XK_Up
-            KeyEvent.KEYCODE_DPAD_DOWN -> return XK_Down
-            KeyEvent.KEYCODE_DPAD_LEFT -> return XK_Left
-            KeyEvent.KEYCODE_DPAD_RIGHT -> return XK_Right
-            KeyEvent.KEYCODE_MOVE_HOME -> return XK_Home
-            KeyEvent.KEYCODE_MOVE_END -> return XK_End
-            KeyEvent.KEYCODE_PAGE_UP -> return XK_Page_Up
-            KeyEvent.KEYCODE_PAGE_DOWN -> return XK_Page_Down
-            KeyEvent.KEYCODE_INSERT -> return XK_Insert
-            KeyEvent.KEYCODE_SHIFT_LEFT -> return XK_Shift_L
-            KeyEvent.KEYCODE_SHIFT_RIGHT -> return XK_Shift_R
-            KeyEvent.KEYCODE_CTRL_LEFT -> return XK_Control_L
-            KeyEvent.KEYCODE_CTRL_RIGHT -> return XK_Control_R
-            KeyEvent.KEYCODE_ALT_LEFT -> return XK_Alt_L
-            KeyEvent.KEYCODE_ALT_RIGHT -> return XK_Alt_R
-            KeyEvent.KEYCODE_META_LEFT -> return XK_Super_L
-            KeyEvent.KEYCODE_META_RIGHT -> return XK_Super_R
-            KeyEvent.KEYCODE_CAPS_LOCK -> return XK_Caps_Lock
-        }
-        if (event.keyCode in KeyEvent.KEYCODE_F1..KeyEvent.KEYCODE_F12) {
-            return XK_F1 + (event.keyCode - KeyEvent.KEYCODE_F1)
-        }
+        keysymForKeyCode(event.keyCode).takeIf { it != 0 }?.let { return it }
         // 印字キー: 修飾も含めた現在の metaState で Unicode を取得（Shift+a → 'A' 等）。
         val unicode = event.unicodeChar
         if (unicode != 0) return keysymForCodePoint(unicode)
         return 0
+    }
+
+    /** Android keyCode のうち、文字入力を伴わない機能キーを keysym へ変換する。 */
+    fun keysymForKeyCode(keyCode: Int): Int = when (keyCode) {
+        KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> XK_Return
+        KeyEvent.KEYCODE_TAB -> XK_Tab
+        KeyEvent.KEYCODE_ESCAPE -> XK_Escape
+        KeyEvent.KEYCODE_DEL -> XK_BackSpace       // 端末では DEL=0x7F だが GUI は BackSpace
+        KeyEvent.KEYCODE_FORWARD_DEL -> XK_Delete
+        KeyEvent.KEYCODE_DPAD_UP -> XK_Up
+        KeyEvent.KEYCODE_DPAD_DOWN -> XK_Down
+        KeyEvent.KEYCODE_DPAD_LEFT -> XK_Left
+        KeyEvent.KEYCODE_DPAD_RIGHT -> XK_Right
+        KeyEvent.KEYCODE_MOVE_HOME -> XK_Home
+        KeyEvent.KEYCODE_MOVE_END -> XK_End
+        KeyEvent.KEYCODE_PAGE_UP -> XK_Page_Up
+        KeyEvent.KEYCODE_PAGE_DOWN -> XK_Page_Down
+        KeyEvent.KEYCODE_INSERT -> XK_Insert
+        KeyEvent.KEYCODE_SHIFT_LEFT -> XK_Shift_L
+        KeyEvent.KEYCODE_SHIFT_RIGHT -> XK_Shift_R
+        KeyEvent.KEYCODE_CTRL_LEFT -> XK_Control_L
+        KeyEvent.KEYCODE_CTRL_RIGHT -> XK_Control_R
+        KeyEvent.KEYCODE_ALT_LEFT -> XK_Alt_L
+        KeyEvent.KEYCODE_ALT_RIGHT -> XK_Alt_R
+        KeyEvent.KEYCODE_META_LEFT -> XK_Super_L
+        KeyEvent.KEYCODE_META_RIGHT -> XK_Super_R
+        KeyEvent.KEYCODE_CAPS_LOCK -> XK_Caps_Lock
+        KeyEvent.KEYCODE_ZENKAKU_HANKAKU -> XK_Zenkaku_Hankaku
+        KeyEvent.KEYCODE_HENKAN -> XK_Henkan
+        KeyEvent.KEYCODE_MUHENKAN -> XK_Muhenkan
+        KeyEvent.KEYCODE_KATAKANA_HIRAGANA -> XK_Hiragana_Katakana
+        KeyEvent.KEYCODE_EISU -> XK_Eisu_toggle
+        in KeyEvent.KEYCODE_F1..KeyEvent.KEYCODE_F12 -> XK_F1 + (keyCode - KeyEvent.KEYCODE_F1)
+        else -> 0
     }
 
     /** カーソルキー (端末用 enum) → keysym。GUI の独自キーボード矢印で使う。 */
@@ -105,6 +120,16 @@ object GuiKeyMapper {
         TerminalEmulator.CursorKey.DOWN -> XK_Down
         TerminalEmulator.CursorKey.LEFT -> XK_Left
         TerminalEmulator.CursorKey.RIGHT -> XK_Right
+    }
+
+    /** カスタムキーボードの日本語入力方式キー → X11 keysym。端末側にはこの経路を配線しない。 */
+    fun keysymForNamed(key: NamedKey): Int = when (key) {
+        NamedKey.ZENKAKU_HANKAKU -> XK_Zenkaku_Hankaku
+        NamedKey.HENKAN -> XK_Henkan
+        NamedKey.MUHENKAN -> XK_Muhenkan
+        NamedKey.KATAKANA_HIRAGANA -> XK_Hiragana_Katakana
+        NamedKey.EISU -> XK_Eisu_toggle
+        else -> 0
     }
 
     /** 確定文字列を 1 コードポイントずつ keysym で送る（かな漢字変換の確定・OS IME 確定で使う）。 */
