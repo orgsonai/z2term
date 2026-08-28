@@ -47,43 +47,54 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-usb list              … 列出连接到手机的 USB 设备
         |# z2-usb allow [编号]      … 请求 Android 允许 Linux 程序使用该设备
         |# 插入设备后执行一次 allow。权限在拔出设备前一直有效。
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-usb list              … 列出連線到手機的 USB 裝置
+        |# z2-usb allow [編號]      … 請求 Android 允許 Linux 程式使用該裝置
+        |# 插入裝置後執行一次 allow。權限在拔出裝置前一直有效。
     """.trimMargin()
     )
 
     val usbUsage: String = t(
         en = "usage: z2-usb list | z2-usb allow [number|path|VID:PID]",
         ja = "usage: z2-usb list | z2-usb allow [番号|パス|VID:PID]",
-        "zh-CN" to "usage: z2-usb list | z2-usb allow [编号|路径|VID:PID]"
+        "zh-CN" to "usage: z2-usb list | z2-usb allow [编号|路径|VID:PID]",
+        "zh-TW" to "usage: z2-usb list | z2-usb allow [編號|路徑|VID:PID]"
     )
 
     val usbNoDevices: String = t(
         en = "No USB device is connected to the phone.",
         ja = "スマホに USB 機器が接続されていません。",
-        "zh-CN" to "手机上没有连接 USB 设备。"
+        "zh-CN" to "手机上没有连接 USB 设备。",
+        "zh-TW" to "手機上沒有連線 USB 裝置。"
     )
 
     val usbNeedSelector: String = t(
         en = "More than one USB device is connected; specify its number from z2-usb list.",
         ja = "USB 機器が複数あります。z2-usb list の番号を指定してください。",
-        "zh-CN" to "连接了多个 USB 设备。请指定 z2-usb list 中的编号。"
+        "zh-CN" to "连接了多个 USB 设备。请指定 z2-usb list 中的编号。",
+        "zh-TW" to "連線了多個 USB 裝置。請指定 z2-usb list 中的編號。"
     )
 
     fun usbPermissionRequested(path: String): String = t(
         en = "Approve USB access on the Android screen: $path",
         ja = "Android の画面で USB アクセスを許可してください: $path",
-        "zh-CN" to "请在 Android 屏幕上允许 USB 访问：$path"
+        "zh-CN" to "请在 Android 屏幕上允许 USB 访问：$path",
+        "zh-TW" to "請在 Android 螢幕上允許 USB 存取：$path"
     )
 
     fun usbAlreadyAllowed(path: String): String = t(
         en = "USB access is already allowed: $path",
         ja = "USB アクセスは許可済みです: $path",
-        "zh-CN" to "USB 访问已经允许：$path"
+        "zh-CN" to "USB 访问已经允许：$path",
+        "zh-TW" to "USB 存取已經允許：$path"
     )
 
     fun usbNotFound(selector: String): String = t(
         en = "USB device not found: $selector",
         ja = "USB 機器が見つかりません: $selector",
-        "zh-CN" to "找不到 USB 设备：$selector"
+        "zh-CN" to "找不到 USB 设备：$selector",
+        "zh-TW" to "找不到 USB 裝置：$selector"
     )
 
     fun usbDeviceLine(
@@ -95,9 +106,9 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         allowed: Boolean
     ): String {
         val state = if (allowed) {
-            t(en = "allowed", ja = "許可済み", "zh-CN" to "已允许")
+            t(en = "allowed", ja = "許可済み", "zh-CN" to "已允许", "zh-TW" to "已允許")
         } else {
-            t(en = "needs allow", ja = "要許可", "zh-CN" to "需要允许")
+            t(en = "needs allow", ja = "要許可", "zh-CN" to "需要允许", "zh-TW" to "需要允許")
         }
         val name = productName.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()
         return "%d  %04x:%04x  %s  %s%s".format(index, vendorId, productId, state, path, name)
@@ -144,6 +155,18 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#                            在后台运行的宏里请用它，而不是 z2-clip set —
         |#                            Android 10+ 只让前台应用写剪贴板，
         |#                            没人看着时的 z2-clip set 会被默默丢掉。
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-notify [-h] [-n 名稱] [-c 文字] [-b 標籤]... "標題" "正文"  /  z2-notify [-h] "正文"
+        |#   -h / --high / --banner : 以橫幅(浮動通知)的形式顯示在螢幕頂部
+        |#   -b <標籤>              : 加一個回覆按鈕 (最多 3 個)。按下後
+        |#                            ~/.z2term/events.jsonl 裡會多出一行 notify_action
+        |#                            ({"event":"notify_action","name":名稱,"action":標籤})
+        |#   -n <名稱>              : 這條通知的標識名 (用來區分是對哪次提問的回覆)
+        |#   -c <文字>              : 加一個“複製”按鈕 (按下就把該文字放進剪貼簿)。
+        |#                            在背景執行的巨集裡請用它，而不是 z2-clip set —
+        |#                            Android 10+ 只讓前景應用程式寫剪貼簿，
+        |#                            沒人看著時的 z2-clip set 會被默默丟掉。
     """.trimMargin()
     )
 
@@ -151,7 +174,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "usage: z2-notify [-h] [-n name] [-c text] [-b label]... <title> [text]",
             ja = "usage: z2-notify [-h] [-n 名前] [-c 文字列] [-b ラベル]... <タイトル> [本文]",
-            "zh-CN" to "usage: z2-notify [-h] [-n 名称] [-c 文本] [-b 标签]... <标题> [正文]"
+            "zh-CN" to "usage: z2-notify [-h] [-n 名称] [-c 文本] [-b 标签]... <标题> [正文]",
+            "zh-TW" to "usage: z2-notify [-h] [-n 名稱] [-c 文字] [-b 標籤]... <標題> [正文]"
         )
 
     // --- 単機能のもの (ヘルプ 1〜2 行) ---
@@ -169,6 +193,10 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         "zh-CN" to """
         |# z2-toast <消息> … 在屏幕下方显示一条短消息 (吐司)。
         |# 它过几秒会自己消失，什么都不留下。想留下来、或者想让人按一下时，请用 z2-notify。
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-toast <訊息> … 在螢幕下方顯示一條短訊息 (Toast)。
+        |# 它過幾秒會自己消失，什麼都不留下。想留下來、或者想讓人按一下時，請用 z2-notify。
     """.trimMargin()
     )
 
@@ -187,6 +215,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-share <文本> … 交给 Android 的分享菜单 (转交给其他应用)。
         |# 所有参数会拼成一段正文。发给哪个应用要在屏幕上选，所以这是给有人在的时候用的
         |# (不适合在后台自己跑的宏)。
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-share <文字> … 交給 Android 的分享選單 (轉交給其他應用程式)。
+        |# 所有參數會拼成一段正文。發給哪個應用程式要在螢幕上選，所以這是給有人在的時候用的
+        |# (不適合在背景自己跑的巨集)。
     """.trimMargin()
     )
 
@@ -205,6 +238,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-open <URL 或路径> … 用默认应用打开 (https://… 和 /sdcard/… 都行)。
         |# 用哪个应用打开是 Android 决定的，z2term 只负责递过去。
         |# 路径是**手机一侧**的路径 (/sdcard/…)，不是发行版里面的路径。
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-open <URL 或路徑> … 用預設應用程式開啟 (https://… 和 /sdcard/… 都行)。
+        |# 用哪個應用程式開啟是 Android 決定的，z2term 只負責遞過去。
+        |# 路徑是**手機一側**的路徑 (/sdcard/…)，不是發行版裡面的路徑。
     """.trimMargin()
     )
 
@@ -229,6 +267,13 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# ⚠ Android 10+ 只让前台应用 (和正在使用的输入法) 碰剪贴板。
         |#   从后台运行的宏里调用会被默默丢掉，那种场合请用 z2-notify -c <文本>
         |#   (它会加一个“复制”按钮，按下就一定能进去)。
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-clip get        … 把剪貼簿內容輸出到標準輸出
+        |# z2-clip set [文字] … 把文字 (不給則讀標準輸入) 放進剪貼簿
+        |# ⚠ Android 10+ 只讓前景應用程式 (和正在使用的輸入法) 碰剪貼簿。
+        |#   從背景執行的巨集裡呼叫會被默默丟掉，那種場合請用 z2-notify -c <文字>
+        |#   (它會加一個“複製”按鈕，按下就一定能進去)。
     """.trimMargin()
     )
 
@@ -236,49 +281,56 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "# Print level / charging state as JSON ({\"level\":N,\"charging\":bool}).",
             ja = "# 残量/充電状態を JSON ({\"level\":N,\"charging\":bool}) で出力。",
-            "zh-CN" to "# 以 JSON ({\"level\":N,\"charging\":bool}) 输出电量/充电状态。"
+            "zh-CN" to "# 以 JSON ({\"level\":N,\"charging\":bool}) 输出电量/充电状态。",
+            "zh-TW" to "# 以 JSON ({\"level\":N,\"charging\":bool}) 輸出電量/充電狀態。"
         )
 
     val vibrateHelp: String =
         t(
             en = "# z2-vibrate [ms]  (default 200ms)",
             ja = "# z2-vibrate [ms]  (既定 200ms)",
-            "zh-CN" to "# z2-vibrate [ms]  (默认 200ms)"
+            "zh-CN" to "# z2-vibrate [ms]  (默认 200ms)",
+            "zh-TW" to "# z2-vibrate [ms]  (預設 200ms)"
         )
 
     val sayHelp: String =
         t(
             en = "# z2-say <text>       … speak with the device TTS (reads stdin when no argument)",
             ja = "# z2-say <text>       … 端末標準の TTS で読み上げ (引数無しなら標準入力を読む)",
-            "zh-CN" to "# z2-say <text>       … 用设备自带的 TTS 朗读 (不带参数则读标准输入)"
+            "zh-CN" to "# z2-say <text>       … 用设备自带的 TTS 朗读 (不带参数则读标准输入)",
+            "zh-TW" to "# z2-say <text>       … 用裝置自帶的 TTS 朗讀 (不帶參數則讀標準輸入)"
         )
 
     val torchHelp: String =
         t(
             en = "# z2-torch on|off|toggle  (default toggle). Prints the resulting state (on/off).",
             ja = "# z2-torch on|off|toggle  (既定 toggle)。結果の点灯状態 (on/off) を出力。",
-            "zh-CN" to "# z2-torch on|off|toggle  (默认 toggle)。输出结果的点亮状态 (on/off)。"
+            "zh-CN" to "# z2-torch on|off|toggle  (默认 toggle)。输出结果的点亮状态 (on/off)。",
+            "zh-TW" to "# z2-torch on|off|toggle  (預設 toggle)。輸出結果的點亮狀態 (on/off)。"
         )
 
     val mediaHelp: String =
         t(
             en = "# z2-media play|pause|playpause|next|previous|stop  (default playpause)",
             ja = "# z2-media play|pause|playpause|next|previous|stop  (既定 playpause)",
-            "zh-CN" to "# z2-media play|pause|playpause|next|previous|stop  (默认 playpause)"
+            "zh-CN" to "# z2-media play|pause|playpause|next|previous|stop  (默认 playpause)",
+            "zh-TW" to "# z2-media play|pause|playpause|next|previous|stop  (預設 playpause)"
         )
 
     val volumeHelp: String =
         t(
             en = "# z2-volume up|down|mute|unmute|N|N%   Media volume. Prints the resulting current/max.",
             ja = "# z2-volume up|down|mute|unmute|N|N%   メディア音量を操作。結果の current/max を出力。",
-            "zh-CN" to "# z2-volume up|down|mute|unmute|N|N%   操作媒体音量。输出结果的 current/max。"
+            "zh-CN" to "# z2-volume up|down|mute|unmute|N|N%   操作媒体音量。输出结果的 current/max。",
+            "zh-TW" to "# z2-volume up|down|mute|unmute|N|N%   操作媒體音量。輸出結果的 current/max。"
         )
 
     val sensorHelp: String =
         t(
             en = "# z2-sensor light|accel|proximity  (default light). Reads one sample and returns JSON.",
             ja = "# z2-sensor light|accel|proximity  (既定 light)。センサーを 1 回読んで JSON で返す。",
-            "zh-CN" to "# z2-sensor light|accel|proximity  (默认 light)。读一次传感器并以 JSON 返回。"
+            "zh-CN" to "# z2-sensor light|accel|proximity  (默认 light)。读一次传感器并以 JSON 返回。",
+            "zh-TW" to "# z2-sensor light|accel|proximity  (預設 light)。讀一次感測器並以 JSON 返回。"
         )
 
     val intentHelp: String = t(
@@ -296,6 +348,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# 触发任意 Android Intent (默认是 startActivity)。开头的非选项参数即 ACTION。
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
+        |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
+        |# 觸發任意 Android Intent (預設是 startActivity)。開頭的非選項參數即 ACTION。
     """.trimMargin()
     )
 
@@ -320,6 +377,13 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# 键: screen(on/off) locked idle charging plug(ac/usb/wireless/none) level temp(℃)
         |#       wifi ssid ringer(normal/vibrate/silent) airplane headset bt_audio volume volume_max
         |# 例: [ "${d}(z2-state charging)" = "true" ] && echo 充电中
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-state            … 把裝置現在的狀態整個以 JSON 返回
+        |# z2-state <鍵>       … 只返回那個值的原始形式 (可以直接寫進條件式)
+        |# 鍵: screen(on/off) locked idle charging plug(ac/usb/wireless/none) level temp(℃)
+        |#       wifi ssid ringer(normal/vibrate/silent) airplane headset bt_audio volume volume_max
+        |# 例: [ "${d}(z2-state charging)" = "true" ] && echo 充電中
     """.trimMargin()
     )
 
@@ -365,6 +429,19 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# 所以“不回答就放弃”可以直接这么写:
         |#   name=${d}(z2-ask "分支名叫什么?") || exit 1
         |# 如果只是让人从准备好的选项里挑，用 z2-notify -b <标签> 更合适。
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-ask [-t 秒] [-H 提示] [-d 預設值] <問題>
+        |#   向人提問，把答案返回到標準輸出。
+        |#   問題會以**帶回覆框的通知**送達，所以不用開啟應用程式，在通知列裡就能回答
+        |#   (在背景跑著的巨集也能提問)。
+        |#   -t <秒>     等待答案的時間 (預設 300 = 5 分鐘)
+        |#   -H <提示>   回覆框裡顯示的標題
+        |#   -d <文字>   答案的候選 (顯示在通知裡)
+        |# 不回答就滑掉通知、或者逾時的時候，會**以非零退出**且什麼都不輸出，
+        |# 所以“不回答就放棄”可以直接這麼寫:
+        |#   name=${d}(z2-ask "分支名叫什麼?") || exit 1
+        |# 如果只是讓人從準備好的選項裡挑，用 z2-notify -b <標籤> 更合適。
     """.trimMargin()
     )
 
@@ -372,7 +449,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "usage: z2-ask [-t sec] [-H hint] [-d default] <question>",
             ja = "usage: z2-ask [-t 秒] [-H ヒント] [-d 既定] <質問>",
-            "zh-CN" to "usage: z2-ask [-t 秒] [-H 提示] [-d 默认值] <问题>"
+            "zh-CN" to "usage: z2-ask [-t 秒] [-H 提示] [-d 默认值] <问题>",
+            "zh-TW" to "usage: z2-ask [-t 秒] [-H 提示] [-d 預設值] <問題>"
         )
 
     // --- z2-screen ---
@@ -414,6 +492,18 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# 一次最多只能设 24h。
         |# 需要“修改系统设置”的授权 (设置 › 屏幕自动熄灭 › 允许)。
         |# 例: z2-screen keepon 1h; make; z2-screen keepon off
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-screen keepon <N|Ns|Nm|Nh> … 在這段時間內，讓螢幕不會自己熄滅
+        |# z2-screen keepon off          … 不等到期，現在就還原原樣
+        |# z2-screen status              … 以 JSON 輸出當前狀態
+        |#   (allowed / keepon / timeout_ms / until / remaining_sec / original_ms)
+        |# 它改的是 OS 全域的“螢幕熄滅時間”，所以把應用程式收到背景也照樣有效。
+        |# 和工具列的🔅 (只在開啟應用程式期間不熄滅) 是兩回事，那個不會被碰。
+        |# 原來的值會被儲存，到期時一定會寫回去 (即使應用程式被殺、裝置重新啟動也一樣)。
+        |# 一次最多只能設 24h。
+        |# 需要“修改系統設定”的授權 (設定 › 螢幕自動熄滅 › 允許)。
+        |# 例: z2-screen keepon 1h; make; z2-screen keepon off
     """.trimMargin()
     )
 
@@ -421,7 +511,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "usage: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status",
             ja = "usage: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status",
-            "zh-CN" to "usage: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status"
+            "zh-CN" to "usage: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status",
+            "zh-TW" to "usage: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status"
         )
 
     // --- z2-tile ---
@@ -588,6 +679,57 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#     z2-tile set 2 'z2-screen keepon 1h' -l 不熄屏
         |#     z2-tile set 3 z2-torch on --off z2-torch off -l 手电
         |#     z2-tile set 4 backup.sh -l 备份 -i sync
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-tile set <1-$tiles> <巨集.sh | 指令...> [--off <指令...>] [-l <顯示名>] [-i <圖案名>]
+        |#                           … 分配到快速設定圖塊 1〜$tiles
+        |# z2-tile add <1-$tiles>         … 詢問是否把那個位放到面板上 (Android 13 以上)
+        |# z2-tile list              … 以 TSV 列出全部 $tiles 個位 (位 / 顯示名 / 指令。'-' 表示空)
+        |# z2-tile clear <1-$tiles|all>   … 清掉分配
+        |#
+        |# 可以分配什麼
+        |#   既可以是 ~/.z2term/macros/ 裡**巨集的檔名**，也可以是照原樣執行的**指令**
+        |#   (會根據名字自動判斷)。
+        |#   巨集**可以帶參數** ('remind.sh ask')。是不是巨集由**開頭那個詞**決定，
+        |#   其餘部分原樣傳給巨集。同一個巨集放到 2 個位上顯示名會重複，請用 -l 區分。
+        |#   執行時，環境變數 Z2_TILE 裡是位號 (巨集的話還有 Z2_TILE_MACRO)。
+        |#   ⚠ 以 .sh 結尾卻不在 ~/.z2term/macros/ 裡的名字**會在這裡被拒絕** — 因為它會被
+        |#     當成指令去 PATH (裡面沒有巨集的目錄) 裡找，結果找不到，圖塊按了毫無反應、
+        |#     原因只出現在 tile/run.log 裡，是一種很難察覺的壞法。
+        |#
+        |# 按下時的動作
+        |#   按一下執行，再按一下停止 (和小工具按鈕的約定一樣)。
+        |#   執行期間圖塊看起來是“開”的 (顏色是 OS 的，不是我們的)。
+        |#   加上 --off 就變成**開 / 關兩條指令**，每按一次交替執行
+        |#   (開著的期間圖塊顯示為“開”)。適合關閉需要另一條指令的場合 (z2-torch on / off)。
+        |#   ⚠ 這個開 / 關**只是應用程式自己記著的**。如果直接在終端機裡敲 z2-torch off，
+        |#     圖塊仍然顯示為開 (只有 z2-screen keepon 是例外，因為應用程式持有真實狀態，
+        |#     從終端機關掉圖塊也會跟著變)。
+        |#
+        |# 放到面板上
+        |#   Android 13 以上會在 set 的當場**詢問是否放到面板上**，而且那個對話方塊裡會顯示
+        |#   **你剛剛分配的名字和圖示**，不用在編輯介面裡猜。拒絕的話就什麼都不放。
+        |#   位正好有 $tiles 個，在 manifest 裡寫死，執行時無法增加。還沒分配過的位不會
+        |#   出現在編輯介面的列表裡，所以有 $tiles 個也不礙事。
+        |#   ⚠ 只有 z2term 在前景時才會出現，而且**一次只能問一個** — 一口氣登記 2 個位的巨集
+        |#     只會被問第一個，剩下的請用 z2-tile add <位> 重新詢問。
+        |#   ⚠ 放不放**由你自己決定** — Android 禁止應用程式擅自放置。在快速設定面板的
+        |#     鉛筆(編輯)裡找的時候，認準 **z2term <位號>**。
+        |#   ⚠ 那個列表裡顯示的名字和圖示是 manifest 寫死的，**不是你分配的名字**
+        |#     (Android 沒有在執行時替換它們的手段)。哪個號是什麼，用 z2-tile list 可以看到。
+        |#
+        |# 圖案 (-i)
+        |#   能從名字看出來的**會自動配上圖示** (remind.sh 就是時鐘)。可以用 z2-icon 換成
+        |#   喜歡的圖案，換過一次之後就不再自動改動。
+        |#   加上 -i 的話，**在上面那個對話方塊出現之前**圖案就定下來了 (一行就把名字和圖案
+        |#   都辦完)。名字從 z2-icon sample 的列表裡選。
+        |#   ⚠ 寫了不存在的名字時**連分配一起拒絕** — 因為只分配好了卻配著錯圖案，
+        |#     比什麼都沒發生更難察覺。
+        |#
+        |# 例: z2-tile set 1 backup.sh
+        |#     z2-tile set 2 'z2-screen keepon 1h' -l 螢幕常亮
+        |#     z2-tile set 3 z2-torch on --off z2-torch off -l 手電
+        |#     z2-tile set 4 backup.sh -l 備份 -i sync
     """.trimMargin()
     )
 
@@ -598,7 +740,9 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "usage: z2-tile set <1-$tiles> <マクロ.sh|コマンド...> [--off <コマンド...>] [-l 表示名] " +
                 "[-i 絵の名前] | add <1-$tiles> | list | clear <1-$tiles|all>",
             "zh-CN" to "usage: z2-tile set <1-$tiles> <宏.sh|命令...> [--off <命令...>] [-l 显示名] " +
-                "[-i 图案名] | add <1-$tiles> | list | clear <1-$tiles|all>"
+                "[-i 图案名] | add <1-$tiles> | list | clear <1-$tiles|all>",
+            "zh-TW" to "usage: z2-tile set <1-$tiles> <巨集.sh|指令...> [--off <指令...>] [-l 顯示名] " +
+                "[-i 圖案名] | add <1-$tiles> | list | clear <1-$tiles|all>"
         )
 
     /**
@@ -611,7 +755,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "z2-tile: no such drawing: $name (list them with z2-icon sample). Nothing was assigned.",
             ja = "z2-tile: その絵はありません: $name (一覧は z2-icon sample)。割り当ては行いませんでした。",
-            "zh-CN" to "z2-tile: 没有这个图案: $name (列表见 z2-icon sample)。没有进行分配。"
+            "zh-CN" to "z2-tile: 没有这个图案: $name (列表见 z2-icon sample)。没有进行分配。",
+            "zh-TW" to "z2-tile: 沒有這個圖案: $name (列表見 z2-icon sample)。沒有進行分配。"
         )
 
     /** `z2-tile add <枠>` で、割り当ての無い枠を指したとき。 */
@@ -619,7 +764,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "z2-tile: slot $n has nothing on it yet (assign it first: z2-tile set $n <...>)",
             ja = "z2-tile: 枠 $n はまだ空です (先に z2-tile set $n <…> で割り当ててください)",
-            "zh-CN" to "z2-tile: 位 $n 还是空的 (请先用 z2-tile set $n <…> 分配)"
+            "zh-CN" to "z2-tile: 位 $n 还是空的 (请先用 z2-tile set $n <…> 分配)",
+            "zh-TW" to "z2-tile: 位 $n 還是空的 (請先用 z2-tile set $n <…> 分配)"
         )
 
     /**
@@ -634,7 +780,9 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "z2-tile: ここでは追加を頼めません (Android 13 以降 + z2term が前面にいることが要ります)。" +
                 "割り当ては済んでいるので、クイック設定パネルの鉛筆(編集)から並べてください。",
             "zh-CN" to "z2-tile: 这里没法请求添加 (需要 Android 13 以上，并且 z2term 在前台)。" +
-                "分配已经完成，请从快捷设置面板的铅笔(编辑)里摆上去。"
+                "分配已经完成，请从快捷设置面板的铅笔(编辑)里摆上去。",
+            "zh-TW" to "z2-tile: 這裡沒法請求新增 (需要 Android 13 以上，並且 z2term 在前景)。" +
+                "分配已經完成，請從快速設定面板的鉛筆(編輯)裡擺上去。"
         )
 
     /** 追加を頼めたとき。⚠ **答えるのは利用者**なので「追加した」とは言い切らない。 */
@@ -645,7 +793,9 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "追加してよいか Android に聞いています。出たダイアログで答えてください。" +
                 "(何も出なければ、編集画面から並べてください)",
             "zh-CN" to "已经在问 Android 是否添加磁贴，请在弹出的对话框里回答。" +
-                "(如果什么都没出现，请从编辑界面摆上去)"
+                "(如果什么都没出现，请从编辑界面摆上去)",
+            "zh-TW" to "已經在問 Android 是否新增圖塊，請在彈出的對話方塊裡回答。" +
+                "(如果什麼都沒出現，請從編輯介面擺上去)"
         )
 
     // --- z2-icon ---
@@ -856,6 +1006,69 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#     z2-icon scale 1 48            把位 1 的图案挪到 48x48 (好画得更细)
         |#     z2-icon list -p               连图案一起确认哪里放着什么
         |#     z2-icon clear notify          把通知的图标恢复原样
+    """.trimMargin(),
+        "zh-TW" to """
+        |# 把狀態列和快速設定圖塊的圖示，換成你自己的點陣圖案。
+        |#
+        |# 先做這些就夠
+        |#   z2-icon pick 1     ... 從列表裡選一個圖案放進圖塊的位 1
+        |#   z2-icon list       ... 現在哪個位放著什麼圖案 (加 -p 會連圖案一起顯示)
+        |#
+        |# <目標> 怎麼寫
+        |#   notify    這個應用程式發出的所有通知的圖示 (顯示在狀態列上的那個)
+        |#   1〜$tiles      快速設定圖塊的位號 - 和 z2-tile 的位是同一個號
+        |#
+        |# 放入圖案
+        |#   pick <目標>              列出來按編號選 (最簡單)
+        |#   sample <目標> <名字>     已經知道名字的時候
+        |#   edit <目標>              在 ${d}EDITOR 裡畫 / 修改現在的圖案
+        |#   set <目標> <檔案>        從檔案讀入 (- 表示標準輸入)
+        |#   auto <1〜$tiles|all>         根據分配的指令重新選一次
+        |#   clear <目標|all>         還原成內建圖示
+        |#
+        |# 精細程度 (格子的邊長)
+        |#   grid                     顯示接下來畫圖的邊長
+        |#   grid <$grids>          決定接下來畫圖的邊長 (預設是 $grid)
+        |#   scale <目標> <$grids>    把現在的圖案重新鋪到那個格子上 (順便把斜邊的鋸齒
+        |#                            抹平)。**能畫得更細了** — 輸出的圖示本來就會被抹平，
+        |#                            所以不必為了變平滑而執行它。
+        |#
+        |# 把自己的圖案留在列表裡
+        |#   save <目標> <名字>       給現在放著的圖案起個名字，加進列表
+        |#   sample                   可選圖案的列表 (編號 / 名字 /
+        |#                            builtin = 隨附的圖案、mine = 自己儲存的圖案)
+        |#   sample <名字>            顯示那個圖案
+        |#   forget <名字>            把自己的圖案從列表裡撤下
+        |#                            (已經放進去的圖案仍然留在原處)
+        |#
+        |# 怎麼畫
+        |#   它是一張字元格子。'.' ' ' '0' '-' '_' 表示空格，其他任何字元都表示填充，
+        |#   所以用你自己看得最清楚的字來畫就行。周圍的空白會被忽略並重新居中，
+        |#   所以不必把每行都填滿。邊長可以從 $grids 裡選 (z2-icon grid)。
+        |#   ⚠ 把邊長調大並不會讓圖案變大。不把格子畫滿的話，圖示就會顯得小。
+        |#
+        |# 需要記住的
+        |#   ⚠ 能傳達的只有形狀。Android 會把這些圖示重新塗成單色
+        |#     (圖塊在開 / 關時顏色不同)。顏色是選不了的。
+        |#   ⚠ **輸出時輪廓會自動抹平**。用 ${grid} 格畫的圖案，在圖塊上
+        |#     (顯示得比狀態列大得多) 也會很平滑，所以平時不用在意邊長。
+        |#     48 / 64 是留給**想自己畫得更細**的時候選的。
+        |#     show 顯示的是你畫的原樣，圖塊上會比它更平滑。
+        |#   ⚠ 圖塊會根據分配的名字自動配上圖案
+        |#     (z2-tile set 1 remind.sh 就是時鐘)。這裡放進去的圖案優先級更高，
+        |#     之後不再自動改動。想還原自動，用 z2-icon auto 1。
+        |#   ⚠ 有 2 個圖示改不了: 快速設定的**編輯**介面
+        |#     (往外拖圖塊的地方) 的圖示，以及啟動器的圖示。
+        |#     因為 Android 在安裝時就把它們固定了。
+        |#
+        |# 例: z2-icon pick 1                從列表裡選位 1 的圖案
+        |#     z2-icon edit 1                自己重新畫
+        |#     z2-icon save 1 我的臉         給那個圖案起名字並加進列表
+        |#     z2-icon sample 3 我的臉       位 3 也放同一個圖案
+        |#     z2-icon grid 64               接下來畫的圖案改用 64x64 的格子
+        |#     z2-icon scale 1 48            把位 1 的圖案挪到 48x48 (好畫得更細)
+        |#     z2-icon list -p               連圖案一起確認哪裡放著什麼
+        |#     z2-icon clear notify          把通知的圖示還原原樣
     """.trimMargin()
     )
 
@@ -875,31 +1088,37 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
                 "edit <notify|1-$tiles> | set <notify|1-$tiles> [文件|-] | " +
                 "save <notify|1-$tiles> <名字> | forget <名字> | " +
                 "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | " +
+                "grid [$grids] | scale <notify|1-$tiles> <$grids> | list [-p]",
+            "zh-TW" to "usage: z2-icon pick <notify|1-$tiles> | sample [名字|目標 名字] | " +
+                "edit <notify|1-$tiles> | set <notify|1-$tiles> [檔案|-] | " +
+                "save <notify|1-$tiles> <名字> | forget <名字> | " +
+                "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | " +
                 "grid [$grids] | scale <notify|1-$tiles> <$grids> | list [-p]"
         )
 
     /** `z2-icon set` にファイルを指定したが無かったときの文言 (後ろにファイル名が付く)。 */
     val iconNoSuchFile: String =
-        t(en = "no such file:", ja = "そのファイルはありません:", "zh-CN" to "没有这个文件:")
+        t(en = "no such file:", ja = "そのファイルはありません:", "zh-CN" to "没有这个文件:", "zh-TW" to "沒有這個檔案:")
 
     /** `z2-icon edit` で何も変えずに終わったときの文言。 */
     val iconEditUnchanged: String =
-        t(en = "unchanged.", ja = "変更なしで終了しました。", "zh-CN" to "没有改动就结束了。")
+        t(en = "unchanged.", ja = "変更なしで終了しました。", "zh-CN" to "没有改动就结束了。", "zh-TW" to "沒有改動就結束了。")
 
     /** `z2-icon pick` が番号を尋ねるときの文言 (行末で入力を待つので改行を入れない)。 */
     val iconPickPrompt: String =
-        t(en = "number (or name), blank to cancel: ", ja = "番号 (または名前) を入力 (空欄で中止): ", "zh-CN" to "请输入编号 (或名字)，留空则中止: ")
+        t(en = "number (or name), blank to cancel: ", ja = "番号 (または名前) を入力 (空欄で中止): ", "zh-CN" to "请输入编号 (或名字)，留空则中止: ", "zh-TW" to "請輸入編號 (或名字)，留空則中止: ")
 
     /** `z2-icon pick` を空欄で抜けたときの文言。 */
     val iconPickCancelled: String =
-        t(en = "cancelled.", ja = "中止しました。", "zh-CN" to "已中止。")
+        t(en = "cancelled.", ja = "中止しました。", "zh-CN" to "已中止。", "zh-TW" to "已中止。")
 
     /** `z2-icon edit` で開くエディタが見つからないときの文言。 */
     val iconNoEditor: String =
         t(
             en = "no editor found. Set ${d}EDITOR, or use: z2-icon set <target> <file>",
             ja = "エディタが見つかりません。${d}EDITOR を設定するか z2-icon set <対象> <ファイル> をお使いください",
-            "zh-CN" to "找不到编辑器。请设置 ${d}EDITOR，或者用 z2-icon set <目标> <文件>"
+            "zh-CN" to "找不到编辑器。请设置 ${d}EDITOR，或者用 z2-icon set <目标> <文件>",
+            "zh-TW" to "找不到編輯器。請設定 ${d}EDITOR，或者用 z2-icon set <目標> <檔案>"
         )
 
     /** 置き場に無いマクロ名を弾くときの文言 (後ろに名前が付く)。 */
@@ -907,7 +1126,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "no such macro in ~/.z2term/macros/ (use a full path to run it as a command):",
             ja = "そのマクロは ~/.z2term/macros/ にありません (コマンドとして走らせるならフルパスで):",
-            "zh-CN" to "~/.z2term/macros/ 里没有这个宏 (要当成命令运行请写完整路径):"
+            "zh-CN" to "~/.z2term/macros/ 里没有这个宏 (要当成命令运行请写完整路径):",
+            "zh-TW" to "~/.z2term/macros/ 裡沒有這個巨集 (要當成指令執行請寫完整路徑):"
         )
 
     // --- z2-noti ---
@@ -936,11 +1156,19 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# (那样连其他应用的支付、发送按钮都能按下去)。
         |# 需要通知使用权 (设置 › 常驻服务与自动化 › 通知检测)。
         |# 另见: z2-when notify:otp / notify:pkg=<片段> / notify:contains=<片段>
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-noti list  … 以 TSV 顯示當前正在顯示的通知
+        |#                 (key / 套件名稱 / 應用程式名 / 標題 / 正文)
+        |# 只是讀取。“按下”“清除”通知是**有意**沒有提供的
+        |# (那樣連其他應用程式的支付、發送按鈕都能按下去)。
+        |# 需要通知使用權 (設定 › 常駐服務與自動化 › 通知偵測)。
+        |# 另見: z2-when notify:otp / notify:pkg=<片段> / notify:contains=<片段>
     """.trimMargin()
     )
 
     val notiUsage: String =
-        t(en = "usage: z2-noti list", ja = "usage: z2-noti list", "zh-CN" to "usage: z2-noti list")
+        t(en = "usage: z2-noti list", ja = "usage: z2-noti list", "zh-CN" to "usage: z2-noti list", "zh-TW" to "usage: z2-noti list")
 
     // --- z2-alarm ---
 
@@ -979,11 +1207,22 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# 即使在 Doze 中也会唤醒。"exact":true 表示准点响。"exact":false 时，
         |# Doze 中每 9〜15 分钟才有一次触发机会，所以熄屏放着会晚这么多。
         |# 让它变成 true 的办法是**关掉这个应用的电池优化**，不会额外索要权限。
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-alarm at HH:MM [名稱]     … 在下一個 HH:MM 響一次 (今天已過就是明天)
+        |# z2-alarm daily HH:MM [名稱]  … 每天 HH:MM
+        |# z2-alarm in <N|Ns|Nm|Nh> [名稱] … N 秒/分鐘/小時後響一次
+        |# z2-alarm list                … 列出預約 (JSON。"exact" 表示是否準點響)
+        |# z2-alarm cancel <id|名稱|all> … 取消
+        |# 觸發時 ~/.z2term/events.jsonl 會多出一行 {"event":"alarm","name":…}。
+        |# 即使在 Doze 中也會喚醒。"exact":true 表示準點響。"exact":false 時，
+        |# Doze 中每 9〜15 分鐘才有一次觸發機會，所以螢幕熄滅放著會晚這麼多。
+        |# 讓它變成 true 的辦法是**關掉這個應用程式的電池最佳化**，不會額外索要權限。
     """.trimMargin()
     )
 
     val alarmNoDate: String =
-        t(en = "z2-alarm: no usable date command", ja = "z2-alarm: date が使えません", "zh-CN" to "z2-alarm: date 用不了")
+        t(en = "z2-alarm: no usable date command", ja = "z2-alarm: date が使えません", "zh-CN" to "z2-alarm: date 用不了", "zh-TW" to "z2-alarm: date 用不了")
 
     // --- z2-session ---
 
@@ -1053,6 +1292,28 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#
         |# <目标> 可以是 list 的编号 / id / 标签页名称。写 '.' 或者省略表示当前显示的标签页。
         |# 例: n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-session list                     … 分頁一覽 (編號 / id / 類別 / 標記 / 名稱 的 TSV)
+        |#   標記: * = 正在顯示 / ! = 有東西在執行 / ? = 還沒啟動 / @ = 已從終端機接入 / - = 其他
+        |# z2-session new [名稱]               … 開一個終端機分頁 (返回編號和 id)
+        |# z2-session send <目標> <文字>...    … 往那個分頁裡輸入文字 (不執行)
+        |# z2-session send <目標> <文字> --enter … 輸入之後再執行
+        |# z2-session key <目標> <鍵>...      … 往那個分頁送**按鍵** (C-c / M-x / F5 / Up …)
+        |#   修飾鍵是 C- (Ctrl) 和 M- (Meta=Alt)。可以疊加，如 C-M-a
+        |#   特殊鍵: Up Down Left Right Home End PgUp PgDn Ins Del Tab S-Tab Enter Esc Space BS F1-F12
+        |#   ⛔ 像 C-S-a 這樣帶 Shift 的會被拒絕 (終端機分辨不出 Shift，位元組和 C-a 完全一樣)
+        |# z2-session key <目標> --raw '\x1b[A' … 表裡沒有的就用位元組序列 (\xHH \e \n \r \t \0)
+        |# z2-session capture [目標] [--all]   … 取出那個分頁的畫面 (--all 連可回捲的部分)
+        |# z2-session attach <目標>            … 一直連著那個分頁，像平常一樣打字
+        |#   退出用 Ctrl+] (隨時)，或在行首打 ~. (和 ssh 一樣)
+        |#   ⚠ 透過 SSH 只有 Ctrl+] 有效 (~. 會被前面那層 ssh 吃掉，連 SSH 一起斷)
+        |#   行首想打出 ~ 本身就寫 ~~，想送出 Ctrl+] 本身就在行首的 ~ 之後按 Ctrl+]
+        |#   連著的期間，分頁的寬高跟隨**連過去的這一側**。退出後還原原樣
+        |# z2-session close <目標>             … 關掉那個分頁 (最後一個不會關)
+        |#
+        |# <目標> 可以是 list 的編號 / id / 分頁名稱。寫 '.' 或者省略表示當前顯示的分頁。
+        |# 例: n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
     """.trimMargin()
     )
 
@@ -1066,28 +1327,33 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
                 "attach <先> | close <先>",
             "zh-CN" to "usage: z2-session list | new [名称] | send <目标> <文本>... [--enter] | " +
                 "key <目标> <键>... | key <目标> --raw <字节序列> | capture [目标] [--all] | " +
-                "attach <目标> | close <目标>"
+                "attach <目标> | close <目标>",
+            "zh-TW" to "usage: z2-session list | new [名稱] | send <目標> <文字>... [--enter] | " +
+                "key <目標> <鍵>... | key <目標> --raw <位元組序列> | capture [目標] [--all] | " +
+                "attach <目標> | close <目標>"
         )
 
     // --- z2-session key (別のタブへキーを送る) ---
 
     /** 送るキーが 1 つも無い。 */
     val keyNothing: String =
-        t(en = "z2-session key: no key given", ja = "z2-session key: 送るキーがありません", "zh-CN" to "z2-session key: 没有给出要送的键")
+        t(en = "z2-session key: no key given", ja = "z2-session key: 送るキーがありません", "zh-CN" to "z2-session key: 没有给出要送的键", "zh-TW" to "z2-session key: 沒有給出要送的鍵")
 
     /** `--raw` の後ろが空。 */
     val keyRawEmpty: String =
         t(
             en = "z2-session key: --raw needs the bytes to send",
             ja = "z2-session key: --raw の後ろにバイト列がありません",
-            "zh-CN" to "z2-session key: --raw 后面没有字节序列"
+            "zh-CN" to "z2-session key: --raw 后面没有字节序列",
+            "zh-TW" to "z2-session key: --raw 後面沒有位元組序列"
         )
 
     /** 表に無いキー名。⚠ **どこを見れば分かるか**まで書く。 */
     val keyUnknown: String = t(
         en = "z2-session key: unknown key (see 'z2-session -h' for the list):",
         ja = "z2-session key: そんなキー名はありません ('z2-session -h' に一覧):",
-        "zh-CN" to "z2-session key: 没有这个键名 (一览见 'z2-session -h'):"
+        "zh-CN" to "z2-session key: 没有这个键名 (一览见 'z2-session -h'):",
+        "zh-TW" to "z2-session key: 沒有這個鍵名 (一覽見 'z2-session -h'):"
     )
 
     /** `\\xHH` として読めなかった。 */
@@ -1095,7 +1361,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "z2-session key: cannot read the escape:",
             ja = "z2-session key: 読めないエスケープ:",
-            "zh-CN" to "z2-session key: 读不懂的转义:"
+            "zh-CN" to "z2-session key: 读不懂的转义:",
+            "zh-TW" to "z2-session key: 讀不懂的轉義:"
         )
 
     /**
@@ -1110,7 +1377,9 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "z2-session key: 端末は Shift を区別できないので、'$asWritten' は '$equivalentTo' とまったく同じバイトになります。" +
                 "それでよければ '$equivalentTo' と書いてください。",
         "zh-CN" to "z2-session key: 终端分辨不出 Shift，所以 '$asWritten' 和 '$equivalentTo' 会是完全一样的字节。" +
-                "如果这正是你想要的，请写成 '$equivalentTo'。"
+                "如果这正是你想要的，请写成 '$equivalentTo'。",
+        "zh-TW" to "z2-session key: 終端機分辨不出 Shift，所以 '$asWritten' 和 '$equivalentTo' 會是完全一樣的位元組。" +
+                "如果這正是你想要的，請寫成 '$equivalentTo'。"
     )
 
     // --- z2-session attach (タブに繋ぎっぱなしにする) ---
@@ -1122,14 +1391,16 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
     fun attachNoSuchTab(target: String): String = t(
         en = "no such tab: '$target' (run 'z2-session list' to see the tabs)",
         ja = "そんなタブはありません: '$target' ('z2-session list' で一覧が出ます)",
-        "zh-CN" to "没有这个标签页: '$target' (用 'z2-session list' 可以看到一览)"
+        "zh-CN" to "没有这个标签页: '$target' (用 'z2-session list' 可以看到一览)",
+        "zh-TW" to "沒有這個分頁: '$target' (用 'z2-session list' 可以看到一覽)"
     )
 
     /** GUI タブには繋げない (PTY が無い)。 */
     val attachNotTerminal: String = t(
         en = "that is a GUI tab, which has no shell to attach to. Pick a terminal tab.",
         ja = "それは GUI タブなのでシェルがありません。端末タブを指してください。",
-        "zh-CN" to "那是图形标签页，没有 shell。请指定一个终端标签页。"
+        "zh-CN" to "那是图形标签页，没有 shell。请指定一个终端标签页。",
+        "zh-TW" to "那是圖形分頁，沒有 shell。請指定一個終端機分頁。"
     )
 
     /**
@@ -1139,14 +1410,16 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
     val attachNotStarted: String = t(
         en = "that tab has not started yet (marked '?' in list). Open it once in the app, then attach.",
         ja = "そのタブはまだ起動していません (list の印が '?')。アプリで一度開いてから繋いでください。",
-        "zh-CN" to "那个标签页还没启动 (list 里的标记是 '?')。请先在应用里打开一次再连接。"
+        "zh-CN" to "那个标签页还没启动 (list 里的标记是 '?')。请先在应用里打开一次再连接。",
+        "zh-TW" to "那個分頁還沒啟動 (list 裡的標記是 '?')。請先在應用程式裡開啟一次再連線。"
     )
 
     /** プロセスが終わっているタブ。 */
     val attachExited: String = t(
         en = "that tab has already exited. Its screen can still be read with 'z2-session capture'.",
         ja = "そのタブはもう終わっています。画面は 'z2-session capture' で取り出せます。",
-        "zh-CN" to "那个标签页已经结束了。画面还可以用 'z2-session capture' 取出来。"
+        "zh-CN" to "那个标签页已经结束了。画面还可以用 'z2-session capture' 取出来。",
+        "zh-TW" to "那個分頁已經結束了。畫面還可以用 'z2-session capture' 取出來。"
     )
 
     /**
@@ -1160,7 +1433,9 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "それは今あなたが打っているタブ自身です。自分に繋ぐと、そのタブの出力がそのまま" +
             "自分へ戻り続けて止められなくなります。別のタブを指してください。",
         "zh-CN" to "那就是你正在打字的这个标签页。连到自己身上的话，它自己的输出会原样回到" +
-            "自己这边，一直循环停不下来。请指定别的标签页。"
+            "自己这边，一直循环停不下来。请指定别的标签页。",
+        "zh-TW" to "那就是你正在打字的這個分頁。連到自己身上的話，它自己的輸出會原樣回到" +
+            "自己這邊，一直循環停不下來。請指定別的分頁。"
     )
 
     /**
@@ -1173,7 +1448,9 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "そのタブは既にこちら側へ繋がっているので、互いに送り合って止まらなくなります。" +
             "どちらかを先に外してください (Ctrl+])。",
         "zh-CN" to "那个标签页已经连回到这一边了，两边会互相发送、停不下来。" +
-            "请先断开其中一边 (Ctrl+])。"
+            "请先断开其中一边 (Ctrl+])。",
+        "zh-TW" to "那個分頁已經連回到這一邊了，兩邊會互相發送、停不下來。" +
+            "請先中斷其中一邊 (Ctrl+])。"
     )
 
     // --- z2-server ---
@@ -1226,6 +1503,22 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# 从这里起就进到框架里面了。
         |# 例: z2-when wifi:connect run 'z2-server start sshd'
         |#     z2-when wifi:disconnect run 'z2-server stop sshd'
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-server list                … 已登記的伺服器一覽 (編號 / id / 狀態 / 標記 / 名稱 的 TSV)
+        |#   標記: * = 已啟用 / - = 已停用
+        |# z2-server start <伺服器>      … 作為常駐服務啟動 (在螢幕熄滅時也能收到請求的框架裡)
+        |# z2-server stop <伺服器>       … 只停這一個 (其他照常執行)
+        |# z2-server status [<伺服器>]   … 狀態、pid、重新啟動次數、上次的退出碼
+        |#
+        |# <伺服器> 可以是 list 的編號 / id / 你在應用程式裡起的名字。
+        |# 能啟動的只有已經在應用程式裡登記過的 (這裡不會新登記)。
+        |#
+        |# 為什麼需要它: 直接從規則裡起的守護行程跑在**常駐服務的框架之外**
+        |# (沒有 WakeLock、沒有 WifiLock、也沒有前景服務)，螢幕一熄滅就不再回應。
+        |# 從這裡起就進到框架裡面了。
+        |# 例: z2-when wifi:connect run 'z2-server start sshd'
+        |#     z2-when wifi:disconnect run 'z2-server stop sshd'
     """.trimMargin()
     )
 
@@ -1233,7 +1526,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "usage: z2-server list | start <server> | stop <server> | status [<server>]",
             ja = "usage: z2-server list | start <サーバー> | stop <サーバー> | status [<サーバー>]",
-            "zh-CN" to "usage: z2-server list | start <服务器> | stop <服务器> | status [<服务器>]"
+            "zh-CN" to "usage: z2-server list | start <服务器> | stop <服务器> | status [<服务器>]",
+            "zh-TW" to "usage: z2-server list | start <伺服器> | stop <伺服器> | status [<伺服器>]"
         )
 
     /** 名前 / 番号 / id のどれにも当たらなかった。⚠ 一覧の出し方まで書く (次に何をすればよいか)。 */
@@ -1241,7 +1535,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "z2-server: no such server (see 'z2-server list'):",
             ja = "z2-server: そのサーバーはありません ('z2-server list' で一覧):",
-            "zh-CN" to "z2-server: 没有这个服务器 (一览见 'z2-server list'):"
+            "zh-CN" to "z2-server: 没有这个服务器 (一览见 'z2-server list'):",
+            "zh-TW" to "z2-server: 沒有這個伺服器 (一覽見 'z2-server list'):"
         )
 
     /** 同じ名前が複数あった。⚠ id で指定し直せると分かるように。 */
@@ -1249,7 +1544,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "z2-server: the name matches more than one server; use the id from 'z2-server list':",
             ja = "z2-server: 同じ名前のサーバーが複数あります。'z2-server list' の id で指定してください:",
-            "zh-CN" to "z2-server: 有多个同名的服务器。请用 'z2-server list' 里的 id 指定:"
+            "zh-CN" to "z2-server: 有多个同名的服务器。请用 'z2-server list' 里的 id 指定:",
+            "zh-TW" to "z2-server: 有多個同名的伺服器。請用 'z2-server list' 裡的 id 指定:"
         )
 
     /** 1 件も登録が無い。 */
@@ -1257,7 +1553,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "z2-server: no servers registered yet (add one in the app: 📜 -> Servers).",
             ja = "z2-server: サーバーがまだ 1 件も登録されていません (アプリの 📜 → サーバー で登録します)。",
-            "zh-CN" to "z2-server: 还没有登记任何服务器 (在应用的 📜 → 服务器 里登记)。"
+            "zh-CN" to "z2-server: 还没有登记任何服务器 (在应用的 📜 → 服务器 里登记)。",
+            "zh-TW" to "z2-server: 還沒有登記任何伺服器 (在應用程式的 📜 → 伺服器 裡登記)。"
         )
 
     /**
@@ -1271,7 +1568,9 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "z2-server: 注意 — 省電力モードが ON のため WakeLock/WifiLock を握りません。" +
             "画面消灯中は応答しなくなることがあります (⚙設定 → 自動化 → バックグラウンドのプロセス保護)。",
         "zh-CN" to "z2-server: 注意 — 省电模式是开着的，所以不持有 WakeLock/WifiLock。" +
-            "熄屏期间服务器可能不再响应 (⚙设置 → 自动化 → 后台进程保护)。"
+            "熄屏期间服务器可能不再响应 (⚙设置 → 自动化 → 后台进程保护)。",
+        "zh-TW" to "z2-server: 注意 — 省電模式是開著的，所以不持有 WakeLock/WifiLock。" +
+            "螢幕熄滅期間伺服器可能不再回應 (⚙設定 → 自動化 → 背景行程保護)。"
     )
 
     // --- z2-when ---
@@ -1489,6 +1788,77 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#     z2-when boot run 'sshd --lan'
         |#     z2-when share:text run '~/.z2term/macros/fetch.sh "${d}Z2_WHEN_SHARE"'
         |#     z2-when time:daily=07:00 name='早间日报' run ~/.z2term/macros/report.sh
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-when <觸發條件> run <指令...>      … 登記一條規則
+        |#   觸發條件: charge:start | charge:stop  (前提是偵測已開啟)
+        |#            battery:below=N | battery:above=N  (前提是偵測已開啟)
+        |#            time:daily=HH:MM | time:at=HH:MM | time:every=Nm|Nh
+        |#            time:cron='分 時 日 月 星期'  (星期 0-7 / 0,7=週日。含空格，要加引號)
+        |#            wifi:connect | wifi:disconnect | wifi:ssid=<名稱>  (前提是偵測已開啟)
+        |#            net:online | net:offline  … 有了能通的網路 / 網路沒了
+        |#            net:wifi | net:mobile | net:ethernet  … 在用的網路切換成了它
+        |#                                        (前提是偵測已開啟。不只看 Wi-Fi，也看行動數據)
+        |#            share:any | share:text | share:file | share:contains=<片段> | share:ext=<副檔名>
+        |#                                        … 別的應用程式透過分享選單發到 z2term 時
+        |#            boot                        … 裝置啟動完成時 (偵測關閉也能用)
+        |#            sms:any | sms:from=<片段> | sms:contains=<片段> | sms:otp  (前提是 RECEIVE_SMS 權限)
+        |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (前提是偵測已開啟)
+        |#            file:new=<資料夾>[,ext=<副檔名>]  … 那個資料夾裡來了新檔案時 (前提是偵測已開啟)
+        |#            notify:any | notify:otp | notify:pkg=<片段> | notify:title=<片段> | notify:contains=<片段>
+        |#                                        … 收到通知時 (前提是通知使用權)
+        |#            event:<名稱> | event:<前綴>* | event:*  … 按名字捕捉裝置事件
+        |#              (名字用 z2-when events 列出。和 events.jsonl 裡的一樣)
+        |# 名稱 (可選。放在觸發條件之後、run 之前):
+        |#   name=<文字>             … 表示這是什麼自動化，會成為自動化分頁裡的標題
+        |#                             (含空格要加引號)。留空則照舊顯示觸發條件。
+        |#                             只是顯示用，什麼時候執行完全不受影響。
+        |# 篩選 (任何觸發條件都能用。放在觸發條件之後、run 之前):
+        |#   if=<條件>[,<條件>...]   … 只在裝置處於那個狀態時執行 (逗號是 AND。開頭加 ! 表示否定)
+        |#                             可用的鍵就是 z2-state 輸出的那些: wifi charging screen locked
+        |#                             idle headset bt_audio airplane plug ssid ringer level temp volume
+        |#                             例: if=wifi,!screen / if=ssid=Home / if=level<30
+        |#   if_any=<條件>[,<條件>...] … **滿足其中任意一個**就執行 (逗號變成 OR)
+        |#                             和 if= 一起用就是「if 全部滿足，並且 if_any 滿足其一」
+        |#   else=<指令>              … 不滿足 if / if_any 時，**改為**執行這個
+        |#                             ⚠ 只有被 if 系篩掉時才生效。被 between / days /
+        |#                             cooldown 篩掉時 else 也不會執行 (免得本該夜裡不動的
+        |#                             規則，半夜反而發來通知)
+        |#   cooldown=30m            … 距上次執行這段時間內不再執行 (10s / 30m / 2h)
+        |#   between=22:00-07:00     … 只在這個時間段執行 (可以跨零點)
+        |#   days=mon-fri            … 只在這些星期執行 (星期名，或和 cron 一樣的數字 0-7 / 0,7=週日)
+        |# 篩掉的也會記錄 — z2-when fired 裡會出現 skip:if / skip:if→else / skip:between / skip:days / skip:cooldown，
+        |# 所以「為什麼不動」是查得出來的。應用程式介面上的 ▶ 會無視所有篩選
+        |# (它是用來試跑的按鈕)。
+        |# z2-when events                        … 列出 event: 可以用的事件名
+        |# z2-when pause / resume                … 暫停 / 還原自動執行 (規則不會被刪)
+        |# z2-when fired [n]                     … 最近的觸發 (時刻 / id / 觸發條件 / run|paused)
+        |# z2-when list                          … 已登記的規則 (id / on|off / 觸發條件 / -> / 指令 的 TSV。
+        |#                                         名稱和篩選如果有，會出現在末尾的 [] 裡)
+        |# z2-when remove <id|all>  (rm 也可以)  … 刪除
+        |# z2-when on <id> / off <id>            … 啟用 / 停用
+        |# z2-when log <id>                      … 那條規則的執行日誌 (末尾)
+        |# 觸發時，指令在當前選中的發行版上執行，環境變數裡會有 Z2_WHEN_TRIGGER / Z2_WHEN_LEVEL
+        |# / Z2_WHEN_SSID (wifi) / Z2_WHEN_SMS_FROM / Z2_WHEN_SMS_BODY / Z2_WHEN_OTP (sms)
+        |# / Z2_WHEN_SENSOR / Z2_WHEN_LUX (sensor)。
+        |# net: 時會有 Z2_WHEN_NET (現在的網路) 和 Z2_WHEN_NET_PREV (之前的網路)。
+        |# share: 時會有 Z2_WHEN_SHARE (文字本身，或者收進來的檔案路徑) 和
+        |# Z2_WHEN_SHARE_KIND (text|file)。分享過來的內容照舊也會進到輸入行。
+        |# file: 時會有 Z2_WHEN_FILE (完整路徑) 和 Z2_WHEN_DIR。
+        |# notify: 時會有 Z2_WHEN_NOTI_PKG / _APP / _TITLE / _TEXT / _CATEGORY
+        |# (notify:otp 還會有 Z2_WHEN_OTP)。notify:category= 是完全匹配: call, missed_call, msg, ...
+        |# event: 時會有 Z2_WHEN_EVENT (事件名)。alarm / notify_action 還會有
+        |# Z2_WHEN_EVENT_NAME (設下時的標識名) 和 Z2_WHEN_ACTION (按了哪個按鈕)。
+        |# 同一條規則在 10 秒內不會連續觸發兩次 (針對 screen_on 這類數量多的事件)。
+        |# 例: z2-when charge:start run ~/.z2term/macros/backup.sh
+        |#     z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
+        |#     z2-when event:headset_plugged run ~/.z2term/macros/play.sh
+        |#     z2-when 'event:ringer_*' run 'z2-toast "響鈴模式: ${d}Z2_WHEN_EVENT"'
+        |#     z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
+        |#     z2-when net:online cooldown=5m run ~/.z2term/macros/sync.sh
+        |#     z2-when boot run 'sshd --lan'
+        |#     z2-when share:text run '~/.z2term/macros/fetch.sh "${d}Z2_WHEN_SHARE"'
+        |#     z2-when time:daily=07:00 name='早間日報' run ~/.z2term/macros/report.sh
     """.trimMargin()
     )
 
@@ -1496,34 +1866,37 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "Automatic runs paused (z2-when resume to start again)",
             ja = "自動実行を一時停止しました (z2-when resume で再開)",
-            "zh-CN" to "已暂停自动运行 (用 z2-when resume 恢复)"
+            "zh-CN" to "已暂停自动运行 (用 z2-when resume 恢复)",
+            "zh-TW" to "已暫停自動執行 (用 z2-when resume 還原)"
         )
 
     val whenResumed: String =
-        t(en = "Automatic runs resumed", ja = "自動実行を再開しました", "zh-CN" to "已恢复自动运行")
+        t(en = "Automatic runs resumed", ja = "自動実行を再開しました", "zh-CN" to "已恢复自动运行", "zh-TW" to "已還原自動執行")
 
     val whenNoFires: String =
-        t(en = "(nothing has fired yet)", ja = "(まだ発火していません)", "zh-CN" to "(还没有触发过)")
+        t(en = "(nothing has fired yet)", ja = "(まだ発火していません)", "zh-CN" to "(还没有触发过)", "zh-TW" to "(還沒有觸發過)")
 
     val whenPausedNote: String =
         t(
             en = "# paused (z2-when resume to start again)",
             ja = "# 一時停止中 (z2-when resume で再開)",
-            "zh-CN" to "# 已暂停 (用 z2-when resume 恢复)"
+            "zh-CN" to "# 已暂停 (用 z2-when resume 恢复)",
+            "zh-TW" to "# 已暫停 (用 z2-when resume 還原)"
         )
 
     val whenNoLog: String =
-        t(en = "(no log yet)", ja = "(ログはまだありません)", "zh-CN" to "(还没有日志)")
+        t(en = "(no log yet)", ja = "(ログはまだありません)", "zh-CN" to "(还没有日志)", "zh-TW" to "(還沒有日誌)")
 
     val whenWriteFailed: String =
-        t(en = "z2-when: could not write the rule", ja = "z2-when: 書き込みに失敗しました", "zh-CN" to "z2-when: 写入失败")
+        t(en = "z2-when: could not write the rule", ja = "z2-when: 書き込みに失敗しました", "zh-CN" to "z2-when: 写入失败", "zh-TW" to "z2-when: 寫入失敗")
 
     /** `if=` に知らないキーを書いたとき。**キー名は呼び元がこの後ろに足す**。 */
     val whenUnknownIfKey: String =
         t(
             en = "z2-when: unknown if= key (z2-state lists what you can use):",
             ja = "z2-when: if= に書けない条件です (使えるものは z2-state が出す項目):",
-            "zh-CN" to "z2-when: if= 里写不了这个条件 (可用的就是 z2-state 输出的那些项):"
+            "zh-CN" to "z2-when: if= 里写不了这个条件 (可用的就是 z2-state 输出的那些项):",
+            "zh-TW" to "z2-when: if= 裡寫不了這個條件 (可用的就是 z2-state 輸出的那些項):"
         )
 
     /** 知らない種別のトリガー (`:` の手前) を書いたとき。**種別は呼び元がこの後ろに足す**。 */
@@ -1531,7 +1904,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "z2-when: unknown trigger (z2-when with no arguments lists them):",
             ja = "z2-when: そんなきっかけはありません (一覧は引数なしの z2-when で出ます):",
-            "zh-CN" to "z2-when: 没有这个触发条件 (一览请看不带参数的 z2-when):"
+            "zh-CN" to "z2-when: 没有这个触发条件 (一览请看不带参数的 z2-when):",
+            "zh-TW" to "z2-when: 沒有這個觸發條件 (一覽請看不帶參數的 z2-when):"
         )
 
     /** 種別は合っているが引数の書き方が違うとき。**トリガー全体は呼び元がこの後ろに足す**。 */
@@ -1539,14 +1913,16 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "z2-when: that trigger does not take this argument:",
             ja = "z2-when: そのきっかけにその書き方はできません:",
-            "zh-CN" to "z2-when: 那个触发条件不能这么写:"
+            "zh-CN" to "z2-when: 那个触发条件不能这么写:",
+            "zh-TW" to "z2-when: 那個觸發條件不能這麼寫:"
         )
 
     val whenPausedWarn: String =
         t(
             en = "note: automatic runs are paused (z2-when resume to start again)",
             ja = "注意: 自動実行は一時停止中です (z2-when resume で再開)",
-            "zh-CN" to "注意: 自动运行正处于暂停 (用 z2-when resume 恢复)"
+            "zh-CN" to "注意: 自动运行正处于暂停 (用 z2-when resume 恢复)",
+            "zh-TW" to "注意: 自動執行正處於暫停 (用 z2-when resume 還原)"
         )
 
     /**
@@ -1560,7 +1936,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "note: line breaks in the command were turned into spaces (a rule reads one line only)",
             ja = "注意: コマンドの改行を空白に直しました (ルールは 1 行しか読みません)",
-            "zh-CN" to "注意: 已把命令里的换行改成空格 (一条规则只读一行)"
+            "zh-CN" to "注意: 已把命令里的换行改成空格 (一条规则只读一行)",
+            "zh-TW" to "注意: 已把指令裡的換行改成空格 (一條規則只讀一行)"
         )
 
     /**
@@ -1657,6 +2034,36 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |notify_action          按了通知上的按钮          [总是]
         |unlock_failed          解锁失败了                [总是，需设置]
         |unlock_succeeded       失败之后解锁成功          [总是，需设置]
+    """.trimMargin(),
+        "zh-TW" to """
+        |screen_on              螢幕點亮了                [偵測 ON]
+        |screen_off             螢幕熄滅了                [偵測 ON]
+        |unlocked               解鎖了裝置                [偵測 ON]
+        |power_connected        開始充電                  [偵測 ON]
+        |power_disconnected     停止充電                  [偵測 ON]
+        |battery_low            電量變少了                [偵測 ON]
+        |battery_okay           電量還原了                [偵測 ON]
+        |battery_level          電量跨過 10% 的刻度       [偵測 ON]
+        |wifi_connected         連上了 Wi-Fi              [偵測 ON]
+        |wifi_disconnected      中斷了 Wi-Fi              [偵測 ON]
+        |net_online             有了能通的網路            [偵測 ON]
+        |net_offline            沒有能通的網路            [偵測 ON]
+        |net_wifi               在用的網路變成 Wi-Fi      [偵測 ON]
+        |net_mobile             在用的網路變成行動數據    [偵測 ON]
+        |headset_plugged        插入了有線耳機            [偵測 ON]
+        |headset_unplugged      拔出了有線耳機            [偵測 ON]
+        |bt_audio_connected     藍牙音訊連上了            [偵測 ON]
+        |bt_audio_disconnected  藍牙音訊中斷了            [偵測 ON]
+        |airplane_on            開啟了飛行模式            [偵測 ON]
+        |airplane_off           關閉了飛行模式            [偵測 ON]
+        |ringer_normal          改成了響鈴                [偵測 ON]
+        |ringer_vibrate         改成了振動                [偵測 ON]
+        |ringer_silent          改成了靜音                [偵測 ON]
+        |boot                   裝置啟動完成              [總是]
+        |alarm                  z2-alarm 響了             [總是]
+        |notify_action          按了通知上的按鈕          [總是]
+        |unlock_failed          解鎖失敗了                [總是，需設定]
+        |unlock_succeeded       失敗之後解鎖成功          [總是，需設定]
     """.trimMargin()
     )
 
@@ -1676,6 +2083,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |    # event:<名称> 里可以写的名字。顺序和 events.jsonl 里出现的一样。
         |    # 上面一组的前提是检测已开启 (设置 › 常驻服务与自动化 › 系统事件检测)，
         |    # 下面一组是你自己设下的，所以检测关闭也能用。
+    """.trimMargin(),
+        "zh-TW" to """
+        |    # event:<名稱> 裡可以寫的名字。順序和 events.jsonl 裡出現的一樣。
+        |    # 上面一組的前提是偵測已開啟 (設定 › 常駐服務與自動化 › 系統事件偵測)，
+        |    # 下面一組是你自己設下的，所以偵測關閉也能用。
     """.trimMargin()
     )
 
@@ -1765,6 +2177,32 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# 例: z2-update --check
         |#     z2-update --dir /sdcard/Download --keep
         |#     z2-when time:daily=03:00 run 'z2-update'   # 每晚看一次 (确认界面还是会出现)
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-update                     … 檢查新版本、下載，並把安裝確認介面調出來
+        |# z2-update --check             … 只說有沒有更新的版本
+        |# z2-update --keep              … 保留下載的 .apk (預設裝完就刪)
+        |# z2-update --dir <資料夾>      … 下載到那個資料夾，而不是應用程式內部
+        |#
+        |# 從哪裡來
+        |#   z2term 的 GitHub Releases (和你手動下載的是同一個 z2term-<版本>.apk，用發布金鑰簽名)。
+        |#   不會連線任何別的地方，而且在你敲這條指令之前**完全不聯網**。
+        |#
+        |# 能做什麼、不能做什麼
+        |#   ⚠ **它沒法悄悄安裝。** 應用程式替換自己時，Android 一定會彈出自己的
+        |#     「要安裝嗎」介面，最後那一下必須由你自己按。這條指令負責做到那個介面出現為止。
+        |#   ⚠ 第一次要給 z2term 允許**「安裝未知應用程式」**
+        |#     (不夠時它會提示。⚙設定裡也有同樣的按鈕)。沒有授權的話，確認介面根本不會出現。
+        |#   ⚠ 如果是從 F-Droid 之類的應用程式商店裝的版本，**它會拒絕** — 那個版本該由商店來替換。
+        |#
+        |# 下載的檔案
+        |#   預設落在應用程式內部的工作目錄裡，裝完就刪 (替換過程中應用程式會被殺掉，所以
+        |#   **下次啟動時也會再清理一遍**)。用 --keep / --dir 可以改，
+        |#   ⚙設定裡也有同樣的兩項 (從設定的按鈕更新時以那邊為準)。
+        |#
+        |# 例: z2-update --check
+        |#     z2-update --dir /sdcard/Download --keep
+        |#     z2-when time:daily=03:00 run 'z2-update'   # 每晚看一次 (確認介面還是會出現)
     """.trimMargin()
     )
 
@@ -1772,7 +2210,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "usage: z2-update [--check] [--keep] [--dir <folder>]",
             ja = "usage: z2-update [--check] [--keep] [--dir <フォルダ>]",
-            "zh-CN" to "usage: z2-update [--check] [--keep] [--dir <文件夹>]"
+            "zh-CN" to "usage: z2-update [--check] [--keep] [--dir <文件夹>]",
+            "zh-TW" to "usage: z2-update [--check] [--keep] [--dir <資料夾>]"
         )
 
     /** 最新だった。⚠ **版名を必ず出す** (「最新です」だけだと何と比べたのか分からない)。 */
@@ -1780,7 +2219,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "z2-update: $current is the latest version.",
             ja = "z2-update: $current が最新です。",
-            "zh-CN" to "z2-update: $current 已经是最新的了。"
+            "zh-CN" to "z2-update: $current 已经是最新的了。",
+            "zh-TW" to "z2-update: $current 已經是最新的了。"
         )
 
     /** 新版が見つかった (1 行目)。 */
@@ -1788,7 +2228,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         t(
             en = "z2-update: $current -> $latest ($size)",
             ja = "z2-update: $current → $latest ($size)",
-            "zh-CN" to "z2-update: $current → $latest ($size)"
+            "zh-CN" to "z2-update: $current → $latest ($size)",
+            "zh-TW" to "z2-update: $current → $latest ($size)"
         )
 
     /**
@@ -1798,7 +2239,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
     val updateChecking: String = t(
         en =         "z2-update: looking for a newer version ...",
         ja =         "z2-update: 新しい版があるか見に行きます ...",
-        "zh-CN" to "z2-update: 去看看有没有新版本 ..."
+        "zh-CN" to "z2-update: 去看看有没有新版本 ...",
+        "zh-TW" to "z2-update: 去看看有沒有新版本 ..."
     )
 
     /**
@@ -1807,14 +2249,16 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
     val updateHandedToInstaller: String = t(
         en = "z2-update: the install screen is up on the device — approve it to finish.",
         ja = "z2-update: 端末にインストール画面を出しました。承認すると入れ替わります。",
-        "zh-CN" to "z2-update: 已在设备上打开安装界面 — 确认后即可完成替换。"
+        "zh-CN" to "z2-update: 已在设备上打开安装界面 — 确认后即可完成替换。",
+        "zh-TW" to "z2-update: 已在裝置上開啟安裝介面 — 確認後即可完成替換。"
     )
 
     /** リリースに APK が付いていない。 */
     fun updateNoApk(url: String): String = t(
         en = "z2-update: that release has no .apk attached. Get it from the release page: $url",
         ja = "z2-update: そのリリースに .apk が付いていません。リリースページから入れてください: $url",
-        "zh-CN" to "z2-update: 那个发布里没有附带 .apk。请从发布页面安装: $url"
+        "zh-CN" to "z2-update: 那个发布里没有附带 .apk。请从发布页面安装: $url",
+        "zh-TW" to "z2-update: 那個發布裡沒有附帶 .apk。請從發布頁面安裝: $url"
     )
 
     /** 「不明なアプリのインストール」が未許可。⚠ **どこで許すか**まで書く。 */
@@ -1824,17 +2268,20 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "z2-update: 先に z2term へ「不明なアプリのインストール」を許可してください " +
             "(設定 › アプリ › 特別なアプリアクセス › 不明なアプリのインストール。z2term の ⚙設定にもボタンがあります)。",
         "zh-CN" to "z2-update: 请先给 z2term 允许“安装未知应用” " +
-            "(设置 › 应用 › 特殊应用权限 › 安装未知应用。z2term 的 ⚙设置里也有按钮)。"
+            "(设置 › 应用 › 特殊应用权限 › 安装未知应用。z2term 的 ⚙设置里也有按钮)。",
+        "zh-TW" to "z2-update: 請先給 z2term 允許“安裝未知應用程式” " +
+            "(設定 › 應用程式 › 特殊應用程式權限 › 安裝未知應用程式。z2term 的 ⚙設定裡也有按鈕)。"
     )
 
     /** 配布元から入れた版なので断る。 */
     val updateManagedByStore: String = t(
         en = "z2-update: this build was installed from a store (F-Droid / Play). Update it there.",
         ja = "z2-update: この版は配布元 (F-Droid / Play) から入っています。更新はそちらから行ってください。",
-        "zh-CN" to "z2-update: 这个版本是从应用商店 (F-Droid / Play) 装的。请从那里更新。"
+        "zh-CN" to "z2-update: 这个版本是从应用商店 (F-Droid / Play) 装的。请从那里更新。",
+        "zh-TW" to "z2-update: 這個版本是從應用程式商店 (F-Droid / Play) 裝的。請從那裡更新。"
     )
 
     /** 通信・保存・入れ替えのどこかで失敗した。 */
     fun updateFailed(reason: String): String =
-        t(en = "z2-update: failed: $reason", ja = "z2-update: 失敗しました: $reason", "zh-CN" to "z2-update: 失败了: $reason")
+        t(en = "z2-update: failed: $reason", ja = "z2-update: 失敗しました: $reason", "zh-CN" to "z2-update: 失败了: $reason", "zh-TW" to "z2-update: 失敗了: $reason")
 }

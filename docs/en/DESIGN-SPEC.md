@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-29 / Target version: 0.8.425-alpha (versionCode 433)
+Last updated: 2026-08-29 / Target version: 0.8.426-alpha (versionCode 434)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1947,6 +1947,9 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   - **ProtocolVersion negotiates 3.8 / 3.7 / 3.3**, because remote servers that only speak 3.3 exist. Vendor versions such as Apple's "RFB 003.889" are treated as 3.8. ⭐ **Connecting to something that is not a VNC server also shows up here** (point it at sshd and you can read "SSH-2.0-Open", which goes straight into the message).
   - ⚠ **`SecurityResult` is read only for 3.8, or when VNC auth was used.** With None on 3.3/3.7 nothing is sent, so reading it would eat the next message and leave a blank screen.
   - **`connect()` clears the previous attempt** (closes the socket and **`reset`s the ZRLE `Inflater`**) so reconnecting works. The zlib stream restarts with every connection; reusing it decodes the new stream as a continuation of the old one and the picture breaks.
+  - **Cursor and pointer controls (0.8.426)**: `GuiSession` owns one `GuiCursor`, shared by `GuiInputView` (input) and `GuiScreen` (drawing). Its arrow is always drawn locally even when the server does not include a cursor in the framebuffer, and its position survives tab changes, View recreation and reconnects (centred only once and clamped when the framebuffer shrinks). The default remains **relative mode**, where finger motion moves the cursor by the same delta. Double-tap 📜 in the GUI toolbar to switch to **absolute mode**, where touching a framebuffer position moves the cursor there directly; a green ring at the arrow root marks absolute mode. A single tap on 📜 still opens snippets.
+  - **Double-tap gesture (0.8.426)**: hold the second tap still for at least 350 ms and **release** for a right click; release sooner for the second click of a double-click; move beyond touch slop for a left drag. The 350 ms timer now only gives haptic feedback and never commits the right click while the finger is still down, so pausing to aim before moving can still become a drag.
+  - **Remote Japanese input keys (0.8.426)**: the key-layout `NamedKey` roster adds Half/Full, Convert, Non-convert, Kana and Eisu. They are no-ops in terminal tabs; GUI tabs send the corresponding X11 keysyms (`Zenkaku_Hankaku`, `Henkan`, `Muhenkan`, `Hiragana_Katakana`, `Eisu_toggle`) directly. The matching Android key codes from a physical keyboard follow the same mapping. If the remote input method uses `Ctrl+Space` or `Super+Space` instead of Half/Full, place that existing modified one-shot action on the custom layout.
 
 ### 4.13 Android API bridge (`Z2ApiBridge` / `Z2ApiScript`)
 
@@ -2575,7 +2578,7 @@ place where a third language can go.**
 | | Where | Count | How |
 |---|---|---|---|
 | App screens | `res/values[-<lang>]/strings.xml` | 1,041 | Android standard |
-| Text in the terminal | `t(en = …, ja = …)` in `proot/*.kt` | 337 | `CliText` (these are the bodies of shell scripts written into the rootfs, so `res` cannot hold them) |
+| Text in the terminal | `t(en = …, ja = …)` in `proot/*.kt` | 346 | `CliText` (these are the bodies of shell scripts written into the rootfs, so `res` cannot hold them) |
 
 - ⭐ **One roster: [`AppLanguages`](../../app/src/main/java/com/zerotoship/z2term/settings/AppLanguages.kt).** Adding a line there makes the settings screen, the terminal-side text and the `Locale` all learn about the language at once. The step-by-step for adding one is at the top of that file.
 - ⛔ **Never write "not English means Japanese".** Up to 0.8.421 `val ja = lang != "en"` would have handed **Japanese** to anyone picking a third language (`z2-macro` and `pacman-keyring` really were written that way). The fallback is always English, and `CliTextTest` pins that **at the level of the generated output** (a script built for an untranslated language must not differ from the English one by a single byte).
@@ -2609,6 +2612,21 @@ the socket built in 0.8.422 works.
 - **`z2scan` baselines are per language.** It compares findings as text, so switching language makes every item look changed. `z2scan` records the language code in the baseline and asks you to re-save when it differs (that code is itself one of the `t(…)` values, carrying `zh-CN`).
 - ⛔ **No Chinese input method is bundled.** Pinyin/zhuyin-to-hanzi conversion is a job the size of the Japanese IME, and what you type at a shell is commands (ASCII), so hanzi belong to the OS input method. **Only the UI and messages are translated; the keyboard explicitly does not cover Chinese** (stated in both the README and the HANDBOOK).
 - ⚠ **The bundled terminal fonts have no CJK.** JetBrains Mono / Fira Code / IBM Plex Mono fall through to the system font (already the case for Japanese, so nothing new). ⛔ Bundling a CJK font collides head-on with the "21MB, no third-party prebuilts" policy, so it is not done.
+
+#### Traditional Chinese added (the second B3 language, 0.8.426)
+
+**The fourth language: 1,041 `res` strings and 346 terminal-side strings translated in full, then marked
+`cliComplete`.** The path opened by Simplified Chinese worked unchanged, and again **not one line of the
+code that uses those strings changed** — one line in the roster, a `res/values-zh-rTW/`, and a
+`"zh-TW" to …` on each `t(…)`.
+
+- ⛔ **Traditional Chinese is not Simplified with the characters swapped.** Converting glyphs alone leaves mainland wording in place. The vocabulary was moved to what Taiwan uses: 软件→軟體, 文件→檔案, 程序→程式, 进程→行程, 默认→預設, 界面→介面, 数据→資料, 服务器→伺服器, 软件包→套件, 屏幕→螢幕, 鼠标→滑鼠, 用户→使用者, 缓存→快取, 保存→儲存, 宏→巨集, 磁贴→圖塊, 密钥→金鑰, 短信→簡訊, 检测→偵測, 会话→工作階段, 终端→終端機, …
+- ⚠ **The trap is a word that carries two meanings.** `应用` appears both as a noun (app = 應用程式) and as a verb (apply = 套用); replacing it blindly produces sentences like "常駐服務從下次啟動開始應用程式". `运行时` (runtime = 執行環境 vs. "while running" = 執行時) and `对象` (object = 物件 vs. target = 對象) are the same. **Each was split by context.**
+- ⚠ **Match phrases left-to-right, longest first.** Replacing one phrase at a time eats across word boundaries — `打开发布页面` was consumed by `开发` and came out as "打開發布". Phrases that are already correct (`控制`, `公里`, `表示`, …) are likewise **shielded from per-character conversion** (without that, `制` defaults to `製` and yields "控製").
+- ⭐ **The en / ja / zh-CN output was shown to be byte-for-byte identical on the artefacts** (same procedure as for Simplified: write every generated script out per language and `diff -r` before and after). On the zh-TW side, 44 of 45 scripts differ from the English ones (the remaining one is an internal dispatcher that carries no text).
+- **On the roster it goes after `zh-CN`.** A bare `zh` with no region lands on whichever is listed first (Simplified). `zh-Hant-*` is picked up by its script subtag, so Hong Kong and Macau arrive here too (`AppLanguages.SCRIPT_ALIASES`).
+- **The language code `z2scan` writes into its baseline** carries `zh-TW` as well (itself one of the `t(…)` values). Forget it and every item looks changed the moment the language is switched.
+- ⛔ **No Traditional Chinese input method either** (same reason as Simplified), and there is not even a single method to bundle — Taiwan uses zhuyin, Hong Kong cangjie/quick — which makes it all the less something the app should carry.
 
 **Relationship to the built-in keyboard**: display language and input method are **kept separate**. The kana
 face is enabled by default only when the app language is Japanese (`legacyKanaAvailable`); other languages
@@ -2731,7 +2749,7 @@ unmarked field: some apps bind Ctrl+W and friends to something else.
   keyboard (that path can pass control codes and modifiers through as they are).
 - ⚠ **Enabling and picking are the user's to do** (an OS rule). The app only opens
   `Settings.ACTION_INPUT_METHOD_SETTINGS` and `showInputMethodPicker()` from its settings screen.
-- **Display language is "System" plus every language on the roster, defaulting to the system** (`LocaleHelper`, 0.8.363, user request; Simplified Chinese joined in 0.8.424, making it four).
+- **Display language is "System" plus every language on the roster, defaulting to the system** (`LocaleHelper`, 0.8.363, user request; Simplified Chinese joined in 0.8.424 and Traditional Chinese in 0.8.426, making it five).
   ⚠ Through 0.8.362 the default was **pinned to `ja`**, so the app came up in Japanese on any phone —
   leaving a screen you cannot read until you find the setting. ⚠ **The stored value and the effective
   language are separate**: `languageSetting` returns `system`/`ja`/`en`, while `language` always returns

@@ -72,8 +72,9 @@ object AppLanguages {
         // en/ja は `t(en = …, ja = …)` の名前つき引数なので、構造上つねに 100%。
         Entry("en", "English", cliComplete = true),
         Entry("ja", "日本語", cliComplete = true),
-        // ⚠ 素の `zh` はここに先に置いた方 (簡体字) へ行く。繁体字を足すときは後ろへ。
+        // ⚠ 素の `zh` はここに先に置いた方 (簡体字) へ行く。繁体字はこの後ろ。
         Entry("zh-CN", "简体中文", cliComplete = true),
+        Entry("zh-TW", "繁體中文", cliComplete = true),
     )
 
     /** 対応言語のコードだけ。 */

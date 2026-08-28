@@ -60,27 +60,32 @@ fun pacmanKeyringScript(lang: String): String {
     val msgStart = t(
         en = "🔑 Setting up the pacman keyring (first time only, no network). This takes a moment…",
         ja = "🔑 pacman の鍵束を用意します (初回だけ・通信しません)。少し時間がかかります…",
-        "zh-CN" to "🔑 正在准备 pacman 的密钥环 (只有第一次，不联网)。需要稍等一会儿…"
+        "zh-CN" to "🔑 正在准备 pacman 的密钥环 (只有第一次，不联网)。需要稍等一会儿…",
+        "zh-TW" to "🔑 正在準備 pacman 的金鑰環 (只有第一次，不聯網)。需要稍等一會兒…"
     )
     val msgOk = t(
         en = "✅ Keyring ready. Packages can be installed now.",
         ja = "✅ 鍵束の用意ができました。パッケージを入れられます。",
-        "zh-CN" to "✅ 密钥环准备好了。现在可以安装软件包了。"
+        "zh-CN" to "✅ 密钥环准备好了。现在可以安装软件包了。",
+        "zh-TW" to "✅ 金鑰環準備好了。現在可以安裝套件了。"
     )
     val msgInitFail = t(
         en = "❌ pacman-key --init failed. It will be retried the next time this tab opens.",
         ja = "❌ pacman-key --init に失敗しました。次にこのタブを開いたときにやり直します。",
-        "zh-CN" to "❌ pacman-key --init 失败了。下次打开这个标签页时会再试一次。"
+        "zh-CN" to "❌ pacman-key --init 失败了。下次打开这个标签页时会再试一次。",
+        "zh-TW" to "❌ pacman-key --init 失敗了。下次開啟這個分頁時會再試一次。"
     )
     val msgNoKeyrings = t(
         en = "❌ No bundled keyrings found under /usr/share/pacman/keyrings.",
         ja = "❌ 同梱の鍵束 (/usr/share/pacman/keyrings) が見つかりません。",
-        "zh-CN" to "❌ 找不到随附的密钥环 (/usr/share/pacman/keyrings)。"
+        "zh-CN" to "❌ 找不到随附的密钥环 (/usr/share/pacman/keyrings)。",
+        "zh-TW" to "❌ 找不到隨附的金鑰環 (/usr/share/pacman/keyrings)。"
     )
     val msgPopulateFail = t(
         en = "❌ pacman-key --populate failed. It will be retried the next time this tab opens.",
         ja = "❌ pacman-key --populate に失敗しました。次にこのタブを開いたときにやり直します。",
-        "zh-CN" to "❌ pacman-key --populate 失败了。下次打开这个标签页时会再试一次。"
+        "zh-CN" to "❌ pacman-key --populate 失败了。下次打开这个标签页时会再试一次。",
+        "zh-TW" to "❌ pacman-key --populate 失敗了。下次開啟這個分頁時會再試一次。"
     )
 
     return """

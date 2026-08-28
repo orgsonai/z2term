@@ -28,37 +28,44 @@ fun z2adbScript(lang: String = "ja"): String {
     val mNoPm = t(
         en = "z2adb: no supported package manager (apk/apt-get/pacman) found.",
         ja = "z2adb: 対応パッケージマネージャ (apk/apt-get/pacman) が見つかりません。",
-        "zh-CN" to "z2adb: 找不到支持的包管理器 (apk/apt-get/pacman)。"
+        "zh-CN" to "z2adb: 找不到支持的包管理器 (apk/apt-get/pacman)。",
+        "zh-TW" to "z2adb: 找不到支援的套件管理器 (apk/apt-get/pacman)。"
     )
     val mInstalling = t(
         en = "z2adb: installing adb client (${d}ADB_PKG) via ${d}PM ...",
         ja = "z2adb: adb クライアント (${d}ADB_PKG) を ${d}PM で導入します ...",
-        "zh-CN" to "z2adb: 正在用 ${d}PM 安装 adb 客户端 (${d}ADB_PKG) ..."
+        "zh-CN" to "z2adb: 正在用 ${d}PM 安装 adb 客户端 (${d}ADB_PKG) ...",
+        "zh-TW" to "z2adb: 正在用 ${d}PM 安裝 adb 用戶端 (${d}ADB_PKG) ..."
     )
     val mInstallFail = t(
         en = "z2adb: failed to install adb. Install it manually, then retry.",
         ja = "z2adb: adb の導入に失敗しました。手動で導入してから再実行してください。",
-        "zh-CN" to "z2adb: adb 安装失败。请手动安装后再试。"
+        "zh-CN" to "z2adb: adb 安装失败。请手动安装后再试。",
+        "zh-TW" to "z2adb: adb 安裝失敗。請手動安裝後再試。"
     )
     val mHaveAdb = t(
         en = "z2adb: adb is already installed.",
         ja = "z2adb: adb は導入済みです。",
-        "zh-CN" to "z2adb: adb 已经安装过了。"
+        "zh-CN" to "z2adb: adb 已经安装过了。",
+        "zh-TW" to "z2adb: adb 已經安裝過了。"
     )
     val mNeedWireless = t(
         en = "z2adb: if pairing fails, enable Settings > Developer options > Wireless debugging (Android 11+).",
         ja = "z2adb: 失敗する場合は 設定 > 開発者向けオプション > ワイヤレスデバッグ を ON にしてください (Android 11+)。",
-        "zh-CN" to "z2adb: 如果失败，请打开 设置 > 开发者选项 > 无线调试 (Android 11+)。"
+        "zh-CN" to "z2adb: 如果失败，请打开 设置 > 开发者选项 > 无线调试 (Android 11+)。",
+        "zh-TW" to "z2adb: 如果失敗，請開啟 設定 > 開發者選項 > 無線偵錯 (Android 11+)。"
     )
     val mPairPort = t(
         en = "Pairing port (Pair device with pairing code): ",
         ja = "ペアリング用ポート (「ペアリングコードによるデバイスのペア設定」の表示): ",
-        "zh-CN" to "配对用端口 (“使用配对码配对设备”处显示的): "
+        "zh-CN" to "配对用端口 (“使用配对码配对设备”处显示的): ",
+        "zh-TW" to "配對用連接埠 (“使用配對碼配對裝置”處顯示的): "
     )
     val mConnPort = t(
         en = "Connect port (shown under Wireless debugging): ",
         ja = "接続用ポート (「ワイヤレスデバッグ」直下に表示): ",
-        "zh-CN" to "连接用端口 (显示在“无线调试”正下方): "
+        "zh-CN" to "连接用端口 (显示在“无线调试”正下方): ",
+        "zh-TW" to "連線用連接埠 (顯示在“無線偵錯”正下方): "
     )
 
     // 使い方テキスト (heredoc で素のまま出すので margin マーカーは付けない)。
@@ -103,6 +110,20 @@ fun z2adbScript(lang: String = "ja"): String {
           z2adb <其他任何内容>       原样交给 adb (shell, logcat, install, ...)
 
         目标默认是 127.0.0.1。传 host:port 可以覆盖 (也可以用 Z2ADB_HOST)。
+        例:  z2adb pair 37115 123456  →  z2adb connect 40123  →  z2adb shell
+    """.trimIndent(),
+        "zh-TW" to """
+        z2adb - 透過無線偵錯連線本機自己的 adb (自連 adb，不需要電腦)。
+
+        前提: 開啟 設定 > 開發者選項 > 無線偵錯 (Android 11+)。
+
+          z2adb setup                安裝 adb 用戶端 (自動判斷 apk/apt-get/pacman)
+          z2adb pair  <port> [code]  配對 (用設定裡的配對連接埠 + 6 位配對碼)
+          z2adb connect <port>       連線 (用“無線偵錯”正下方的連接埠)
+          z2adb status               顯示 'adb devices -l'
+          z2adb <其他任何內容>       原樣交給 adb (shell, logcat, install, ...)
+
+        目標預設是 127.0.0.1。傳 host:port 可以覆寫 (也可以用 Z2ADB_HOST)。
         例:  z2adb pair 37115 123456  →  z2adb connect 40123  →  z2adb shell
     """.trimIndent()
     )

@@ -177,6 +177,38 @@ data class GuiScriptStrings(
             qtFallback = "📚 已把 PySide6 自带的 Qt6 加入 LD_LIBRARY_PATH (救 Konsole):",
             qtFallbackFound = "📚 发现了 libQt6QuickWidgets.so.6 → 已加入 LD_LIBRARY_PATH:"
         )
+        fun zhTW(): GuiScriptStrings = GuiScriptStrings(
+            installing = "📦 正在安裝整套圖形環境",
+            cleanInstalling = "🧹 正在全新安裝圖形環境",
+            noPackageManager = "❌ 找不到支援的套件管理器 (apk/apt-get/pacman)。",
+            invalidGeometry = "❌ 解析度的寫法不正確",
+            noXvnc = "❌ 沒有 Xvnc/Xtigervnc (tigervnc 未安裝)",
+            alreadyRunning = "✅ 圖形環境已經在執行",
+            startingXvnc = "▶ 啟動",
+            xvncFailed = "❌ Xvnc 啟動失敗。日誌:",
+            noTermFlag = "ℹ Z2_NO_TERM=1: 不啟動終端機，只啟動 Xvnc+openbox。",
+            terminalNotFound = "⚠ 找不到終端機 (是不是安裝失敗了?)。只啟動 openbox。",
+            terminalInstallFailed = "⚠ 沒能安裝終端機套件。圖形環境會啟動，但不會出現終端機視窗",
+            terminalLog = "🧾 終端機的輸出",
+            ready = "✅ 圖形環境準備完成。請從 z2term 的圖形分頁連線。",
+            running = "✅ 圖形環境執行中",
+            stopped = "⏹ 圖形環境已停止",
+            stoppedMsg = "⏹ 已停止",
+            usage = "用法: z2gui [start [WxH] [clean] | stop | status | install | clean | check]",
+            konsoleRebuild = "🔧 Konsole 相關檔案缺失 — 正在從本機快取重建 (不聯網)",
+            extracting = "📦 解壓縮",
+            konsoleRebuilt = "✅ 已從本機快取重建 Konsole + Qt6",
+            konsoleCacheShort = "⚠️ 光靠本機快取湊不齊 — 請在設定裡開啟“全新安裝”後按 🖥",
+            installFailed = "❌ 沒能安裝整套圖形環境 (Xvnc / openbox / 終端機)。",
+            installFailedHint = "   請確認網路連線，或者在設定裡開啟“全新安裝”後按 🖥。",
+            audioInstalling = "🔊 圖形介面聲音: 正在安裝 PulseAudio",
+            audioNoPulse = "⚠️ 圖形介面聲音: 沒有 pulseaudio，將以無聲繼續",
+            audioNoPactl = "⚠️ 圖形介面聲音: 沒有 pactl，將以無聲繼續",
+            audioStartFailed = "⚠️ 圖形介面聲音: PulseAudio 啟動失敗",
+            audioReady = "🔊 圖形介面聲音: z2sink.monitor →",
+            qtFallback = "📚 已把 PySide6 自帶的 Qt6 加入 LD_LIBRARY_PATH (救 Konsole):",
+            qtFallbackFound = "📚 發現了 libQt6QuickWidgets.so.6 → 已加入 LD_LIBRARY_PATH:"
+        )
         /**
          * 言語ごとの組。⭐ **3 言語目はここに 1 行足す** (言語コード to その組を返す関数)。
          * 名簿 ([AppLanguages]) にあっても訳が無い言語は英語へ落ちる。
@@ -185,6 +217,7 @@ data class GuiScriptStrings(
             "en" to ::en,
             "ja" to ::ja,
             "zh-CN" to ::zhCN,
+            "zh-TW" to ::zhTW,
         )
 
         /** ⚠ **知らない言語は英語**。「英語でなければ日本語」と書かないこと。 */

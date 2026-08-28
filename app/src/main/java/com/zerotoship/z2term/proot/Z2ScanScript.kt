@@ -32,116 +32,136 @@ fun z2scanScript(lang: String = "ja"): String {
     val mNoPm = t(
         en = "z2scan: no supported package manager (apk/apt-get/pacman) found.",
         ja = "z2scan: 対応パッケージマネージャ (apk/apt-get/pacman) が見つかりません。",
-        "zh-CN" to "z2scan: 找不到支持的包管理器 (apk/apt-get/pacman)。"
+        "zh-CN" to "z2scan: 找不到支持的包管理器 (apk/apt-get/pacman)。",
+        "zh-TW" to "z2scan: 找不到支援的套件管理器 (apk/apt-get/pacman)。"
     )
-    val mInstalling = t(en = "z2scan: installing", ja = "z2scan: 導入します:", "zh-CN" to "z2scan: 将要安装:")
-    val mInstallFail = t(en = "z2scan: failed to install", ja = "z2scan: 導入に失敗しました:", "zh-CN" to "z2scan: 安装失败:")
+    val mInstalling = t(en = "z2scan: installing", ja = "z2scan: 導入します:", "zh-CN" to "z2scan: 将要安装:", "zh-TW" to "z2scan: 將要安裝:")
+    val mInstallFail = t(en = "z2scan: failed to install", ja = "z2scan: 導入に失敗しました:", "zh-CN" to "z2scan: 安装失败:", "zh-TW" to "z2scan: 安裝失敗:")
     val mRemoteBlocked = t(
         en = "z2scan: remote target refused. Scan localhost only, or pass --allow-remote for a target you are authorized to test.",
         ja = "z2scan: 外部ターゲットは拒否しました。localhost のみを対象にするか、試験許可のある対象に限り --allow-remote を付けてください。",
-        "zh-CN" to "z2scan: 已拒绝外部目标。请只扫描 localhost，或者仅对已获授权测试的目标加上 --allow-remote。"
+        "zh-CN" to "z2scan: 已拒绝外部目标。请只扫描 localhost，或者仅对已获授权测试的目标加上 --allow-remote。",
+        "zh-TW" to "z2scan: 已拒絕外部目標。請只掃描 localhost，或者僅對已獲授權測試的目標加上 --allow-remote。"
     )
     val mRemoteWarn = t(
         en = "z2scan: WARNING scanning a remote host. Only scan systems you are explicitly authorized to test.",
         ja = "z2scan: 警告 外部ホストをスキャンします。明示的に試験を許可された対象のみにしてください。",
-        "zh-CN" to "z2scan: 警告 即将扫描外部主机。请只针对明确获得测试授权的对象。"
+        "zh-CN" to "z2scan: 警告 即将扫描外部主机。请只针对明确获得测试授权的对象。",
+        "zh-TW" to "z2scan: 警告 即將掃描外部主機。請只針對明確獲得測試授權的對象。"
     )
     val mNoLynis = t(
         en = "z2scan: lynis not found; falling back to built-in self-check ('z2scan self'). Install via 'z2scan setup'.",
         ja = "z2scan: lynis が無いため内蔵自己診断 ('z2scan self') にフォールバックします。'z2scan setup' で導入できます。",
-        "zh-CN" to "z2scan: 没有 lynis，改用内置的自检 ('z2scan self')。可以用 'z2scan setup' 安装。"
+        "zh-CN" to "z2scan: 没有 lynis，改用内置的自检 ('z2scan self')。可以用 'z2scan setup' 安装。",
+        "zh-TW" to "z2scan: 沒有 lynis，改用內建的自檢 ('z2scan self')。可以用 'z2scan setup' 安裝。"
     )
     val mNoCve = t(
         en = "z2scan: no CVE scanner (trivy/grype) found. Install trivy or grype, then retry.",
         ja = "z2scan: CVE スキャナ (trivy/grype) が見つかりません。trivy か grype を導入してから再実行してください。",
-        "zh-CN" to "z2scan: 找不到 CVE 扫描器 (trivy/grype)。请先安装 trivy 或 grype 再重新执行。"
+        "zh-CN" to "z2scan: 找不到 CVE 扫描器 (trivy/grype)。请先安装 trivy 或 grype 再重新执行。",
+        "zh-TW" to "z2scan: 找不到 CVE 掃描器 (trivy/grype)。請先安裝 trivy 或 grype 再重新執行。"
     )
 
     // self 診断のラベル
     val mSelfHead = t(
         en = "== z2scan self-check (this device / localhost) ==",
         ja = "== z2scan 自己診断 (自端末 / localhost) ==",
-        "zh-CN" to "== z2scan 自检 (本设备 / localhost) =="
+        "zh-CN" to "== z2scan 自检 (本设备 / localhost) ==",
+        "zh-TW" to "== z2scan 自檢 (本裝置 / localhost) =="
     )
     val mUidRoot = t(
         en = "running as uid 0 (note: proot/z2root provides a fake root)",
         ja = "uid 0 で実行中 (注: proot/z2root の擬似 root)",
-        "zh-CN" to "正以 uid 0 运行 (注: proot/z2root 提供的是伪 root)"
+        "zh-CN" to "正以 uid 0 运行 (注: proot/z2root 提供的是伪 root)",
+        "zh-TW" to "正以 uid 0 執行 (注: proot/z2root 提供的是偽 root)"
     )
     val mPubPort = t(
         en = "TCP port listening on all interfaces (not localhost-only), port",
         ja = "全インタフェースで待ち受け中の TCP ポート (localhost 限定でない), ポート",
-        "zh-CN" to "在所有网络接口上监听的 TCP 端口 (不限于 localhost), 端口"
+        "zh-CN" to "在所有网络接口上监听的 TCP 端口 (不限于 localhost), 端口",
+        "zh-TW" to "在所有網路介面上監聽的 TCP 連接埠 (不限於 localhost), 連接埠"
     )
     val mSshdEmpty = t(
         en = "sshd_config allows empty-password login (PermitEmptyPasswords yes)",
         ja = "sshd_config が空パスワードログインを許可 (PermitEmptyPasswords yes)",
-        "zh-CN" to "sshd_config 允许空密码登录 (PermitEmptyPasswords yes)"
+        "zh-CN" to "sshd_config 允许空密码登录 (PermitEmptyPasswords yes)",
+        "zh-TW" to "sshd_config 允許空密碼登入 (PermitEmptyPasswords yes)"
     )
     val mSshdPass = t(
         en = "sshd_config enables password auth (PasswordAuthentication yes); key auth is safer",
         ja = "sshd_config がパスワード認証を有効化 (PasswordAuthentication yes); 鍵認証が安全",
-        "zh-CN" to "sshd_config 启用了密码认证 (PasswordAuthentication yes); 密钥认证更安全"
+        "zh-CN" to "sshd_config 启用了密码认证 (PasswordAuthentication yes); 密钥认证更安全",
+        "zh-TW" to "sshd_config 啟用了密碼認證 (PasswordAuthentication yes); 金鑰認證更安全"
     )
     val mSshdRoot = t(
         en = "sshd_config permits root login (PermitRootLogin yes)",
         ja = "sshd_config が root ログインを許可 (PermitRootLogin yes)",
-        "zh-CN" to "sshd_config 允许 root 登录 (PermitRootLogin yes)"
+        "zh-CN" to "sshd_config 允许 root 登录 (PermitRootLogin yes)",
+        "zh-TW" to "sshd_config 允許 root 登入 (PermitRootLogin yes)"
     )
     val mKeyPerm = t(
         en = "~/.ssh/authorized_keys has loose permissions, mode",
         ja = "~/.ssh/authorized_keys のパーミッションが緩い, mode",
-        "zh-CN" to "~/.ssh/authorized_keys 的权限过松, mode"
+        "zh-CN" to "~/.ssh/authorized_keys 的权限过松, mode",
+        "zh-TW" to "~/.ssh/authorized_keys 的權限過鬆, mode"
     )
     val mSshDir = t(
         en = "~/.ssh has loose permissions, mode",
         ja = "~/.ssh のパーミッションが緩い, mode",
-        "zh-CN" to "~/.ssh 的权限过松, mode"
+        "zh-CN" to "~/.ssh 的权限过松, mode",
+        "zh-TW" to "~/.ssh 的權限過鬆, mode"
     )
     val mWorldWrite = t(
         en = "world-writable files found (showing up to 20):",
         ja = "誰でも書き込めるファイルを検出 (最大20件表示):",
-        "zh-CN" to "发现任何人都可写的文件 (最多显示 20 条):"
+        "zh-CN" to "发现任何人都可写的文件 (最多显示 20 条):",
+        "zh-TW" to "發現任何人都可寫的檔案 (最多顯示 20 條):"
     )
     val mSuid = t(
         en = "SUID binaries present (informational; fake root under proot/z2root):",
         ja = "SUID バイナリあり (参考; proot/z2root では擬似 root):",
-        "zh-CN" to "存在 SUID 可执行文件 (仅供参考; 在 proot/z2root 下是伪 root):"
+        "zh-CN" to "存在 SUID 可执行文件 (仅供参考; 在 proot/z2root 下是伪 root):",
+        "zh-TW" to "存在 SUID 可執行檔案 (僅供參考; 在 proot/z2root 下是偽 root):"
     )
     val mPath = t(
         en = "PATH contains an empty/'.' element (current dir in PATH is risky)",
         ja = "PATH に空要素/'.' が含まれる (カレントディレクトリの PATH 混入は危険)",
-        "zh-CN" to "PATH 中含有空元素或 '.' (把当前目录混进 PATH 很危险)"
+        "zh-CN" to "PATH 中含有空元素或 '.' (把当前目录混进 PATH 很危险)",
+        "zh-TW" to "PATH 中含有空元素或 '.' (把當前目錄混進 PATH 很危險)"
     )
-    val mFound = t(en = "findings:", ja = "検出件数:", "zh-CN" to "检出条数:")
-    val mClean = t(en = "no obvious issues found.", ja = "目立った問題は見つかりませんでした。", "zh-CN" to "没有发现明显的问题。")
+    val mFound = t(en = "findings:", ja = "検出件数:", "zh-CN" to "检出条数:", "zh-TW" to "檢出條數:")
+    val mClean = t(en = "no obvious issues found.", ja = "目立った問題は見つかりませんでした。", "zh-CN" to "没有发现明显的问题。", "zh-TW" to "沒有發現明顯的問題。")
 
     // ベースライン差分 (0.8.243)
-    val mSaved = t(en = "z2scan: baseline saved:", ja = "z2scan: 基準を保存しました:", "zh-CN" to "z2scan: 已保存基准:")
+    val mSaved = t(en = "z2scan: baseline saved:", ja = "z2scan: 基準を保存しました:", "zh-CN" to "z2scan: 已保存基准:", "zh-TW" to "z2scan: 已儲存基準:")
     val mSaveFail = t(
         en = "z2scan: could not write the baseline:",
         ja = "z2scan: 基準を保存できませんでした:",
-        "zh-CN" to "z2scan: 无法保存基准:"
+        "zh-CN" to "z2scan: 无法保存基准:",
+        "zh-TW" to "z2scan: 無法儲存基準:"
     )
     val mNoBase = t(
         en = "z2scan: no baseline yet. Run 'z2scan self --save' once to record the current state.",
         ja = "z2scan: 基準がまだありません。'z2scan self --save' を 1 回実行して今の状態を記録してください。",
-        "zh-CN" to "z2scan: 还没有基准。请先执行一次 'z2scan self --save' 记录当前状态。"
+        "zh-CN" to "z2scan: 还没有基准。请先执行一次 'z2scan self --save' 记录当前状态。",
+        "zh-TW" to "z2scan: 還沒有基準。請先執行一次 'z2scan self --save' 記錄當前狀態。"
     )
     val mNoChange = t(
         en = "[ OK ] no change since the baseline.",
         ja = "[ OK ] 基準から変化はありません。",
-        "zh-CN" to "[ OK ] 与基准相比没有变化。"
+        "zh-CN" to "[ OK ] 与基准相比没有变化。",
+        "zh-TW" to "[ OK ] 與基準相比沒有變化。"
     )
-    val mAdded = t(en = "== new since the baseline ==", ja = "== 基準から増えたもの ==", "zh-CN" to "== 相对基准新增的 ==")
-    val mRemoved = t(en = "== gone since the baseline ==", ja = "== 基準から無くなったもの ==", "zh-CN" to "== 相对基准消失的 ==")
-    val mCleared = t(en = "z2scan: baseline cleared.", ja = "z2scan: 基準を削除しました。", "zh-CN" to "z2scan: 已删除基准。")
+    val mAdded = t(en = "== new since the baseline ==", ja = "== 基準から増えたもの ==", "zh-CN" to "== 相对基准新增的 ==", "zh-TW" to "== 相對基準新增的 ==")
+    val mRemoved = t(en = "== gone since the baseline ==", ja = "== 基準から無くなったもの ==", "zh-CN" to "== 相对基准消失的 ==", "zh-TW" to "== 相對基準消失的 ==")
+    val mCleared = t(en = "z2scan: baseline cleared.", ja = "z2scan: 基準を削除しました。", "zh-CN" to "z2scan: 已删除基准。", "zh-TW" to "z2scan: 已刪除基準。")
     val mLangDiff = t(
         en = "z2scan: WARNING the baseline was saved in another language, so everything will look changed. Re-save with 'z2scan self --save'.",
         ja = "z2scan: 警告 基準が別の言語で保存されているため、すべて変化として出ます。'z2scan self --save' で取り直してください。",
-        "zh-CN" to "z2scan: 警告 基准是用另一种语言保存的，所以全部都会显示为变化。请用 'z2scan self --save' 重新记录。"
+        "zh-CN" to "z2scan: 警告 基准是用另一种语言保存的，所以全部都会显示为变化。请用 'z2scan self --save' 重新记录。",
+        "zh-TW" to "z2scan: 警告 基準是用另一種語言儲存的，所以全部都會顯示為變化。請用 'z2scan self --save' 重新記錄。"
     )
-    val langTag = t(en = "en", ja = "ja", "zh-CN" to "zh-CN")
+    val langTag = t(en = "en", ja = "ja", "zh-CN" to "zh-CN", "zh-TW" to "zh-TW")
 
     val usageText = t(
         en = """
@@ -211,6 +231,28 @@ fun z2scanScript(lang: String = "ja"): String {
           z2scan cve                   有 trivy/grype 时扫描 rootfs 的已知 CVE
 
         请只扫描明确获得测试授权的对象。
+    """.trimIndent(),
+        "zh-TW" to """
+        z2scan - 面向本裝置 / localhost 的漏洞偵測 (防禦用途，不向外發送任何資料)。
+
+        預設只以 localhost 為對象。掃描器從發行版官方套件 (nmap/lynis/trivy) 安裝，
+        不增加隨附內容，結果也只留在本機。
+
+          z2scan self [--save]         內建的自檢 (不需要外部工具): 開放連接埠、sshd 設定、
+                                       SSH 金鑰權限、world-writable/SUID、PATH 衛生。
+                                       加上 --save 會把結果儲存為“基準”。
+          z2scan diff [--quiet]        再檢一次，只輸出相對基準**變化了的部分**。
+                                       有新增時退出碼為 1，可以直接掛到 z2-when 上。
+                                       --quiet 在沒有變化時什麼都不輸出。
+          z2scan baseline [clear]      顯示儲存的基準 (clear 為刪除)
+          z2scan setup                 用 apk/apt-get/pacman 安裝掃描器 (nmap, lynis)
+          z2scan net [--allow-remote] [目標]
+                                       nmap 的 TCP 掃描。目標預設是 127.0.0.1。
+                                       localhost 以外的目標必須加 --allow-remote。
+          z2scan host                  用 lynis 做主機審計 (沒有則退回到 'self')
+          z2scan cve                   有 trivy/grype 時掃描 rootfs 的已知 CVE
+
+        請只掃描明確獲得測試授權的對象。
     """.trimIndent()
     )
 
