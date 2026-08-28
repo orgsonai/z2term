@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.423-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.424-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -513,7 +513,7 @@ Settings are split into **9 groups** (Display / Keyboard and input / Linux envir
 | Keyboard height (landscape / portrait) | Slider 200–500 dp (remembered separately per orientation) |
 | GUI audio | Play sound (video, etc.) in the GUI (desktop) — only when ON |
 | GUI terminal | Pick which terminal app is used inside the GUI desktop |
-| Language / 言語 | **System** (default) / Japanese / English (switches instantly). ⚠ The default follows **the phone's own language setting** (0.8.363 — before that the app started in Japanese whatever the phone was set to). Picking one pins that language regardless of the phone. **The terminal follows too** — the help and messages of the `z2-*` commands use the same setting. ⚠ **Anything not translated yet appears in English** (0.8.422; before that it stayed in Japanese). The Japanese flick keyboard is offered only in Japanese (other languages get the ASCII and numeric faces). ⚠ **No Chinese/Japanese conversion engine is bundled for other languages** — switch to your OS input method for that |
+| Language / 言語 | **System** (default) / Japanese / English / Simplified Chinese (switches instantly; Chinese since 0.8.424). ⚠ The default follows **the phone's own language setting** (0.8.363 — before that the app started in Japanese whatever the phone was set to). Picking one pins that language regardless of the phone. **The terminal follows too** — the help and messages of the `z2-*` commands use the same setting. ⚠ **Anything not translated yet appears in English** (0.8.422; before that it stayed in Japanese). The Japanese flick keyboard is offered only in Japanese (other languages get the ASCII and numeric faces). ⚠ **No Chinese/Japanese conversion engine is bundled for other languages** — switch to your OS input method for that |
 | Disable install timeout | Wait for OS / GUI downloads to finish completely |
 | Confirm before downloading | Show a confirmation dialog before fetching a distro / GUI |
 | SSH connection helper | Steps for connecting from a PC, with the IP shown |

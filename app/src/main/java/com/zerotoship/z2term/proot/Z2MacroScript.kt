@@ -35,6 +35,12 @@ fun z2MacroSamples(lang: String): Map<String, String> {
                 "# 準備: ⚙設定 →「システムイベント検知」を ON",
                 "# z2-run: z2-when 'event:power_*' run ~/.z2term/macros/watch-basic.sh   (イヤホンは 'event:headset_*' でもう 1 本)",
             ),
+            "zh-CN" to listOf(
+                "# watch-basic.sh — 入门用的宏。对设备上发生的事情做出反应。",
+                "# 等待由应用一侧 (z2-when) 负责，所以它不常驻: 事情发生时跑一次就结束。",
+                "# 准备: ⚙设置 → 打开“系统事件检测”",
+                "# z2-run: z2-when 'event:power_*' run ~/.z2term/macros/watch-basic.sh   (耳机再登记一条 'event:headset_*')",
+            ),
         ).forEach { appendLine(it) }
         appendLine()
         t.lines(
@@ -46,6 +52,10 @@ fun z2MacroSamples(lang: String): Map<String, String> {
             "# 何が起きたかは Z2_WHEN_EVENT に入る (使える名前は z2-when events で一覧できる)。",
                 "# 手で試すときは:  Z2_WHEN_EVENT=power_connected sh ~/.z2term/macros/watch-basic.sh",
             ),
+            "zh-CN" to listOf(
+                "# 发生了什么会放进 Z2_WHEN_EVENT (可用的名字用 z2-when events 列出)。",
+                "# 想手动试的话:  Z2_WHEN_EVENT=power_connected sh ~/.z2term/macros/watch-basic.sh",
+            ),
         ).forEach { appendLine(it) }
         appendLine("event=${d}{Z2_WHEN_EVENT:-}")
         t.lines(
@@ -54,6 +64,9 @@ fun z2MacroSamples(lang: String): Map<String, String> {
             ),
             ja = listOf(
             "[ -n \"${d}event\" ] || { echo \"Z2_WHEN_EVENT が空です。手で試すなら Z2_WHEN_EVENT=power_connected sh ${d}0\"; exit 0; }",
+            ),
+            "zh-CN" to listOf(
+                "[ -n \"${d}event\" ] || { echo \"Z2_WHEN_EVENT 是空的。想手动试就用 Z2_WHEN_EVENT=power_connected sh ${d}0\"; exit 0; }",
             ),
         ).forEach { appendLine(it) }
         appendLine()
@@ -66,6 +79,10 @@ fun z2MacroSamples(lang: String): Map<String, String> {
             ja = listOf(
             "  power_connected)    z2-toast \"充電を開始しました\" ;;",
                 "  power_disconnected) z2-toast \"充電をやめました\" ;;",
+            ),
+            "zh-CN" to listOf(
+                "  power_connected)    z2-toast \"开始充电了\" ;;",
+                "  power_disconnected) z2-toast \"停止充电了\" ;;",
             ),
         ).forEach { appendLine(it) }
         appendLine("  headset_plugged)    z2-media play ;;")
@@ -93,6 +110,14 @@ fun z2MacroSamples(lang: String): Map<String, String> {
                 "",
                 "# 残量は z2-when が渡してくれる。手で試すときのために z2-state も見ておく。",
             ),
+            "zh-CN" to listOf(
+                "# battery-alert.sh — 电量低了就通知，但要看当时的情况分开处理。",
+                "# 用 z2-state 看“屏幕是否亮着”: 亮着就用吐司，熄着就用通知。",
+                "# 准备: ⚙设置 → 打开“系统事件检测”",
+                "# z2-run: z2-when battery:below=20 run ~/.z2term/macros/battery-alert.sh",
+                "",
+                "# 电量由 z2-when 传过来。为了手动试也能跑，再用 z2-state 兜一下底。",
+            ),
         ).forEach { appendLine(it) }
         appendLine("level=${d}{Z2_WHEN_LEVEL:-${d}(z2-state level)}")
         appendLine()
@@ -102,6 +127,9 @@ fun z2MacroSamples(lang: String): Map<String, String> {
             ),
             ja = listOf(
             "# 充電中なら知らせない (勝手に減っているわけではないので)",
+            ),
+            "zh-CN" to listOf(
+                "# 正在充电时就不通知 (并不是电量自己在掉)",
             ),
         ).forEach { appendLine(it) }
         appendLine("[ \"${d}(z2-state charging)\" = \"true\" ] && exit 0")
@@ -117,6 +145,11 @@ fun z2MacroSamples(lang: String): Map<String, String> {
             "  z2-toast \"電池 ${d}{level}%\"",
                 "else",
                 "  z2-notify -h \"電池注意\" \"残り ${d}{level}% です\"",
+            ),
+            "zh-CN" to listOf(
+                "  z2-toast \"电量 ${d}{level}%\"",
+                "else",
+                "  z2-notify -h \"电量偏低\" \"还剩 ${d}{level}%\"",
             ),
         ).forEach { appendLine(it) }
         appendLine("fi")
@@ -138,6 +171,12 @@ fun z2MacroSamples(lang: String): Map<String, String> {
                 "# 時刻は OS のアラームで起こすので Doze 中でも動く (省電力のため数分ずれることはある)。",
                 "# 検知の ON/OFF には依存しない。",
             ),
+            "zh-CN" to listOf(
+                "# daily-report.sh — 每天早上定时播报电量和连接状况。",
+                "# z2-run: z2-when time:daily=07:00 run ~/.z2term/macros/daily-report.sh",
+                "# 时刻由 OS 的闹钟唤醒，所以 Doze 中也会响 (为了省电可能晚几分钟)。",
+                "# 不依赖检测开关的开关状态。",
+            ),
         ).forEach { appendLine(it) }
         appendLine()
         appendLine("level=${d}(z2-state level)")
@@ -149,6 +188,10 @@ fun z2MacroSamples(lang: String): Map<String, String> {
             ja = listOf(
             "if [ \"${d}(z2-state wifi)\" = \"true\" ]; then net=Wi-Fi; else net=モバイル; fi",
                 "z2-say \"おはようございます。電池は ${d}{level} パーセント、接続は ${d}{net} です\"",
+            ),
+            "zh-CN" to listOf(
+                "if [ \"${d}(z2-state wifi)\" = \"true\" ]; then net=Wi-Fi; else net=移动数据; fi",
+                "z2-say \"早上好。电量 ${d}{level} 个百分点，网络是 ${d}{net}\"",
             ),
         ).forEach { appendLine(it) }
     }
@@ -173,6 +216,14 @@ fun z2MacroSamples(lang: String): Map<String, String> {
                 "# ⚠ Android 15+ は機微通知のコードを伏せ字にすることがある。確実に取るなら SMS 版",
                 "#    (otp-sms.sh) を使う — SMS 本文は伏せ字にならない。",
             ),
+            "zh-CN" to listOf(
+                "# otp-clip.sh — 把通知里的一次性验证码自动放进剪贴板，",
+                "# 过 TTL 秒后，如果剪贴板里还是那个值就自动清掉。",
+                "# 准备: ⚙设置 → 打开“通知检测” ＋ 授予系统的“通知使用权”",
+                "# z2-run: z2-when notify:otp run ~/.z2term/macros/otp-clip.sh",
+                "# ⚠ Android 15+ 有时会把敏感通知里的验证码遮蔽掉。想要可靠就用短信版",
+                "#    (otp-sms.sh) — 短信正文不会被遮蔽。",
+            ),
         ).forEach { appendLine(it) }
         append(otpWhenBody(d, t))
     }
@@ -194,6 +245,14 @@ fun z2MacroSamples(lang: String): Map<String, String> {
                 "# TTL 秒後に「値が変わっていなければ」自動で消す。otp-clip.sh の SMS 版。",
                 "# 通知と違い SMS 本文は機微通知の伏せ字(Android 15+)やロック状態の影響を受けないので確実。",
                 "# 準備: ⚙設定 →「SMS 検知」ON ＋ OS の SMS 受信許可",
+                "# z2-run: z2-when sms:otp run ~/.z2term/macros/otp-sms.sh",
+            ),
+            "zh-CN" to listOf(
+                "# otp-sms.sh — 把收到的短信里的一次性验证码自动放进剪贴板，",
+                "# 过 TTL 秒后，如果剪贴板里还是那个值就自动清掉。",
+                "# 这是 otp-clip.sh 的短信版。和通知不同，短信正文永远不会被敏感通知保护",
+                "# (Android 15+) 遮蔽，锁屏状态下也照样能取到。",
+                "# 准备: ⚙设置 → 打开“短信检测” ＋ 授予系统的接收短信权限",
                 "# z2-run: z2-when sms:otp run ~/.z2term/macros/otp-sms.sh",
             ),
         ).forEach { appendLine(it) }
@@ -222,6 +281,15 @@ fun z2MacroSamples(lang: String): Map<String, String> {
                 "# 不在着信も控えたいなら、種別違いでもう 1 本登録する (中身は同じでよい):",
                 "#   z2-when notify:category=missed_call cooldown=20s run ~/.z2term/macros/unknown-call.sh",
             ),
+            "zh-CN" to listOf(
+                "# unknown-call.sh — 通讯录里没有的号码打来电话时，把号码显示在通知里。",
+                "# 通知上的“复制”按钮会把号码放进剪贴板 (为什么要等人按，见下面)。",
+                "# 准备: ⚙设置 → 打开“通知检测” ＋ 授予系统的“通知使用权”",
+                "# z2-run: z2-when notify:category=call cooldown=20s run ~/.z2term/macros/unknown-call.sh",
+                "#",
+                "# 也想记未接来电的话，用不同的类别再登记一条 (脚本还是这个):",
+                "#   z2-when notify:category=missed_call cooldown=20s run ~/.z2term/macros/unknown-call.sh",
+            ),
         ).forEach { appendLine(it) }
         append(unknownCallBody(d, t))
     }
@@ -239,6 +307,10 @@ fun z2MacroSamples(lang: String): Map<String, String> {
             "# rss.sh — フィードを見に行って、新着だけを通知とテキストに残す。",
                 "# 他のサンプルと違い**常駐しない**。時刻トリガーで 1 回走って終わる形の見本でもある。",
             ),
+            "zh-CN" to listOf(
+                "# rss.sh — 去看订阅源，只留下新的内容，做成通知和文本。",
+                "# 和其他示例不同，这个**不常驻**: 它是“由时间触发跑一次就结束”的形态。",
+            ),
         ).forEach { appendLine(it) }
         append(rssBody(d, t))
     }
@@ -254,6 +326,10 @@ fun z2MacroSamples(lang: String): Map<String, String> {
             ja = listOf(
             "# rss-open.sh — rss.sh が集めた記事を、新しいものから 1 本ずつブラウザで開く。",
                 "# 状態ウィジェットのマクロボタンに出るので、タップするたびに次の 1 本が開く。",
+            ),
+            "zh-CN" to listOf(
+                "# rss-open.sh — 把 rss.sh 收集到的文章从新到旧，每点一次打开一篇。",
+                "# 它会出现在状态小组件的宏按钮上，所以每点一下就打开下一篇。",
             ),
         ).forEach { appendLine(it) }
         append(rssOpenBody(d, t))
@@ -273,6 +349,11 @@ fun z2MacroSamples(lang: String): Map<String, String> {
                 "# アプリを閉じていても鳴る (OS のアラームで起こされるため。「検知」ON も不要)。",
                 "# 通知のボタンからスヌーズできる。**アプリ側に予定機能を作らないための見本**でもある。",
             ),
+            "zh-CN" to listOf(
+                "# remind.sh — 用通知来提醒: 一次性 (30 分钟后、18:30) 或者",
+                "# 重复 (每天 / 工作日 / 每周)。关着应用也会响 (由 OS 的闹钟唤醒，",
+                "# 也不需要打开检测开关)。可以从通知上的按钮小睡。",
+            ),
         ).forEach { appendLine(it) }
         append(remindBody(d, t))
     }
@@ -288,6 +369,10 @@ fun z2MacroSamples(lang: String): Map<String, String> {
             ja = listOf(
             "# qr.sh — テキストやファイルを QR にして、この端末に絵で出す / PNG に保存する。",
                 "# 別の端末やカメラへ「打ち直さずに渡す」ための道具。常駐しない使い切りのマクロ。",
+            ),
+            "zh-CN" to listOf(
+                "# qr.sh — 把文本或文件变成二维码: 在这里画出来，或者存成 PNG。",
+                "# 不用重新敲一遍就能交给另一台设备。跑一次就结束，不常驻。",
             ),
         ).forEach { appendLine(it) }
         append(qrBody(d, t))
@@ -373,35 +458,75 @@ private fun rssBody(d: String, t: CliText): String {
 # 電池: 取りに行くほど食う。30 分より短くしないこと。
 #
 # z2-run: z2-when time:every=30m run ~/.z2term/macros/rss.sh
+""",
+        "zh-CN" to """
+#
+# 准备:
+#   1) 在这里一行写一个订阅源 URL:  ~/.z2term/rss/feeds.txt
+#   2) 每 30 分钟看一次:
+#        z2-when time:every=30m run ~/.z2term/macros/rss.sh
+#   3) 可选 - 一行一个、不想被埋掉的订阅源或词:  ~/.z2term/rss/important.txt
+#      命中的文章会单独发一条通知，这样流量大的源就压不掉它。
+#      写 URL 的一部分或标题的一部分都行 (例: example.org)。
+#   4) 可选 - 让通知上的按钮直接打开那一篇:
+#        z2-when event:notify_action run 'case "${d}Z2_WHEN_EVENT_NAME" in rss:*) z2-open "${d}{Z2_WHEN_EVENT_NAME#rss:}" ;; esac'
+#   5) 可选 - 小组件: 用实时 tail 以“开头 (head)”模式看 ~/.z2term/rss/latest.txt。
+#      每行都带着自己的 URL，所以点一行就能打开那篇文章。
+#
+# 需要: python3 (Alpine: apk add python3 / Debian: apt-get install -y python3 / Arch: pacman -S python)
+# 电池: 取得越勤耗得越多。不要短于 30 分钟。
+#
+# z2-run: z2-when time:every=30m run ~/.z2term/macros/rss.sh
 """
     )
 
-    val cKeep = t(en = "max lines kept in seen/latest", ja = "seen/latest に残す行数の上限")
-    val cNoPy = t(en = "python3 is required (e.g. apk add python3)", ja = "python3 が要ります (apk add python3 など)")
-    val cWriteFeeds = t(en = "Write one feed URL per line in:", ja = "フィードの URL を 1 行に 1 本書いてください:")
+    val cKeep = t(en = "max lines kept in seen/latest", ja = "seen/latest に残す行数の上限", "zh-CN" to "seen/latest 里保留的行数上限")
+    val cNoPy = t(
+        en = "python3 is required (e.g. apk add python3)",
+        ja = "python3 が要ります (apk add python3 など)",
+        "zh-CN" to "需要 python3 (例如 apk add python3)"
+    )
+    val cWriteFeeds = t(
+        en = "Write one feed URL per line in:",
+        ja = "フィードの URL を 1 行に 1 本書いてください:",
+        "zh-CN" to "请在这里一行写一个订阅源 URL:"
+    )
     val cFeedsHint = t(
         en = "# One feed URL per line (lines starting with # are ignored)",
-        ja = "# 1 行に 1 本、フィードの URL を書く (# で始まる行は無視)"
+        ja = "# 1 行に 1 本、フィードの URL を書く (# で始まる行は無視)",
+        "zh-CN" to "# 一行写一个订阅源 URL (以 # 开头的行会被忽略)"
     )
     val cSkipFail = t(
         en = "silently skip a feed that fails to fetch or parse (the rest continue)",
-        ja = "取得や解析に失敗した 1 本は黙って飛ばす (他のフィードは続ける)"
+        ja = "取得や解析に失敗した 1 本は黙って飛ばす (他のフィードは続ける)",
+        "zh-CN" to "取得或解析失败的那一条就默默跳过 (其他订阅源继续)"
     )
     val cDiff = t(
         en = "# Subtract what we have seen to leave only what is new (same trick as z2scan's baseline diff).\n# Feed dates and ordering are not trusted; neither is reliable.",
-        ja = "# 既読を引いて新着だけにする (z2scan のベースライン差分と同じやり方)。\n# フィードの日付や並び順は当てにしない — どちらも当てにならない。"
+        ja = "# 既読を引いて新着だけにする (z2scan のベースライン差分と同じやり方)。\n# フィードの日付や並び順は当てにしない — どちらも当てにならない。",
+        "zh-CN" to "# 减去已读的部分，只留下新的 (和 z2scan 的基准差分是同一个套路)。\n# 不相信订阅源的日期和排列顺序 — 这两样都靠不住。"
     )
     val cPrepend = t(
         en = "# Stack newest-first so the widget's \"start (head)\" mode reads correctly.",
-        ja = "# 新着が上に来るように積む (ウィジェットの「先頭 (head)」表示でそのまま読める)。"
+        ja = "# 新着が上に来るように積む (ウィジェットの「先頭 (head)」表示でそのまま読める)。",
+        "zh-CN" to "# 新的堆在上面，这样小组件的“开头 (head)”模式读起来才顺。"
     )
-    val cNotify = t(en = "%s new", ja = "新着 %s 件")
-    val cOpen = t(en = "Open", ja = "開く")
-    val cListNone = t(en = "Nothing collected yet — run it once with no arguments first.", ja = "まだ何も集めていません。まず引数なしで実行してください。")
-    val cListHint = t(en = "List them with: rss.sh list [count]", ja = "一覧: rss.sh list [件数]")
+    val cNotify = t(en = "%s new", ja = "新着 %s 件", "zh-CN" to "新增 %s 条")
+    val cOpen = t(en = "Open", ja = "開く", "zh-CN" to "打开")
+    val cListNone = t(
+        en = "Nothing collected yet — run it once with no arguments first.",
+        ja = "まだ何も集めていません。まず引数なしで実行してください。",
+        "zh-CN" to "还什么都没收集到 — 请先不带参数运行一次。"
+    )
+    val cListHint = t(
+        en = "List them with: rss.sh list [count]",
+        ja = "一覧: rss.sh list [件数]",
+        "zh-CN" to "列出来的方法: rss.sh list [条数]"
+    )
     val cHitMax = t(
         en = "max number of per-article notifications in one run (the rest go to the summary)",
-        ja = "1 回に出す個別通知の上限 (超えた分はまとめ通知へ回す)"
+        ja = "1 回に出す個別通知の上限 (超えた分はまとめ通知へ回す)",
+        "zh-CN" to "一次运行里单独通知的条数上限 (超出的并到汇总通知里)"
     )
     val cImportantTemplate = t.lines(
         en = listOf(
@@ -413,6 +538,11 @@ private fun rssBody(d: String, t: CliText): String {
             "# 見逃したくないフィード / 語を 1 行 1 本 (# で始まる行は無視)。",
                 "# URL の一部でも題名の一部でもよい。当たった記事は 1 本ずつ別の通知になる。",
                 "# 例:", "#example.org",
+            ),
+        "zh-CN" to listOf(
+                "# 一行一个、不想被埋掉的订阅源或词 (以 # 开头的行会被忽略)。",
+                "# 写 URL 的一部分或标题的一部分都行。命中的文章会各自单独发一条通知。",
+                "# 例:", "#example.org",
             )
     )
     val cSplitDoc = t(
@@ -421,13 +551,18 @@ private fun rssBody(d: String, t: CliText): String {
             "# notification** (the app hands out a separate id per notification, so nothing is replaced).",
         ja = "# 見逃したくないものを切り分ける。まとめ通知は本文に 3 件しか載らないので、流量の多い\n" +
             "# フィードが同時に更新されると重要な 1 本が押し出される。当たった記事は**通知を分ける**\n" +
-            "# (通知 ID はアプリ側で 1 件ずつ別に振られるので、分ければ上書きも省略もされない)。"
+            "# (通知 ID はアプリ側で 1 件ずつ別に振られるので、分ければ上書きも省略もされない)。",
+        "zh-CN" to "# 把不能错过的挑出来。汇总通知的正文只放得下 3 条，流量大的\n" +
+            "# 订阅源要是同时更新，重要的那一条就被挤出去了。命中的文章**单独发通知**\n" +
+            "# (通知 ID 由应用一条一条分开发放，所以分开之后既不会被覆盖也不会被省略)。"
     )
     val cNameDoc = t(
         en = "# Put the URL in the notification's name: pressing the button hands it back as {name} in\n" +
             "# notify_action, so the right article opens even with several notifications on screen (setup 4).",
         ja = "# 通知の名前に URL を入れておく。ボタンを押すと notify_action の {name} でそのまま返るので、\n" +
-            "# どの通知の「開く」なのかを取り違えずに開ける (準備 4 のルール)。"
+            "# どの通知の「開く」なのかを取り違えずに開ける (準備 4 のルール)。",
+        "zh-CN" to "# 把 URL 放进通知的名字里。按下按钮时它会原样作为 notify_action 的 {name} 回来，\n" +
+            "# 所以即使屏幕上有好几条通知，也不会搞错是哪一条的“打开”(准备 4 的规则)。"
     )
     val cListDoc = t(
         en = "# Print what was collected as a readable list (no colour — it should look the same as the file/widget).\n" +
@@ -436,7 +571,9 @@ private fun rssBody(d: String, t: CliText): String {
             "# 端末のときは OSC 8 で**題名そのものをリンク**にし、URL の行を並べない — 長い URL は\n" +
             "# 折り返して題名と混ざり、一覧として読めなくなるため。端末以外 (パイプ・リダイレクト) では\n" +
             "# エスケープが邪魔なので素のテキストに落とし、URL も見えるようにする。\n" +
-            "# latest.txt は 1 行 1 記事の素データのままにしておく (ウィジェットの tail と rss-open.sh が読む)。"
+            "# latest.txt は 1 行 1 記事の素データのままにしておく (ウィジェットの tail と rss-open.sh が読む)。",
+        "zh-CN" to "# 把收集到的文章排得好读一些输出。不用颜色 — 要和文件、小组件里看到的一致。\n" +
+            "# latest.txt 本身保持一行一篇的原始数据 (小组件的 tail 和 rss-open.sh 会读它)。"
     )
 
     return """$head
@@ -589,15 +726,28 @@ private fun rssOpenBody(d: String, t: CliText): String {
 # ウィジェット: 状態ウィジェットの設定で「rss-open」をボタンに割り当てる。
 #
 # z2-run: 状態ウィジェットのボタンに rss-open を割り当てる (端末で試すなら sh ~/.z2term/macros/rss-open.sh)
+""",
+        "zh-CN" to """
+#
+# 准备: 先把收集的那一侧装好
+#   z2-macro install rss
+# 小组件: 在状态小组件的设置里，把“rss-open”分配给一个按钮。
+#
+# z2-run: 把 rss-open 分配给状态小组件的按钮 (想在终端里试就用 sh ~/.z2term/macros/rss-open.sh)
 """
     )
-    val cNone = t(en = "No articles yet", ja = "まだ記事がありません")
-    val cAllRead = t(en = "Nothing new to open", ja = "新しい記事はありません")
+    val cNone = t(en = "No articles yet", ja = "まだ記事がありません", "zh-CN" to "还没有文章")
+    val cAllRead = t(en = "Nothing new to open", ja = "新しい記事はありません", "zh-CN" to "没有新的可以打开了")
     val cPick = t(
         en = "# latest.txt lines are \"title  URL\". Take the first URL that has not been opened yet.",
-        ja = "# latest.txt は「タイトル  URL」。まだ開いていない先頭の URL を 1 本だけ取る。"
+        ja = "# latest.txt は「タイトル  URL」。まだ開いていない先頭の URL を 1 本だけ取る。",
+        "zh-CN" to "# latest.txt 的每行是“标题  URL”。取出还没打开过的第一个 URL。"
     )
-    val cCap = t(en = "cap the opened list so it cannot grow forever", ja = "開いた記録が増え続けないよう上限をかける")
+    val cCap = t(
+        en = "cap the opened list so it cannot grow forever",
+        ja = "開いた記録が増え続けないよう上限をかける",
+        "zh-CN" to "给已打开的记录设上限，免得一直涨下去"
+    )
 
     return """$head
 DIR="${d}HOME/.z2term/rss"
@@ -631,16 +781,18 @@ z2-open "${d}url"
  * `z2-when` に無いきっかけで同じことをしたくなったときのために MACRO-GUIDE 5-6 に残してある。
  */
 private fun otpWhenBody(d: String, t: CliText): String {
-    val copied = t(en = "Copied code: ${d}{code}", ja = "コードをコピー: ${d}{code}")
-    val cleared = t(en = "Cleared the copied code", ja = "コピーしたコードをクリアしました")
-    val otpTitle = t(en = "One-time code", ja = "認証コード")
+    val copied = t(en = "Copied code: ${d}{code}", ja = "コードをコピー: ${d}{code}", "zh-CN" to "已复制验证码: ${d}{code}")
+    val cleared = t(en = "Cleared the copied code", ja = "コピーしたコードをクリアしました", "zh-CN" to "已清除复制的验证码")
+    val otpTitle = t(en = "One-time code", ja = "認証コード", "zh-CN" to "一次性验证码")
     val cTtl = t(
         en = "seconds before the copy is cleared (only applies when it went in directly)",
-        ja = "コピーから何秒でクリアするか (直に入れられたときだけ効く)"
+        ja = "コピーから何秒でクリアするか (直に入れられたときだけ効く)",
+        "zh-CN" to "复制之后过多少秒清除 (只有直接放进去时才生效)"
     )
     val cCode = t(
         en = "# The app already extracted the code. Do nothing when it could not.",
-        ja = "# コードの抽出はアプリ側が済ませてある。取れなかったときは何もしない。"
+        ja = "# コードの抽出はアプリ側が済ませてある。取れなかったときは何もしない。",
+        "zh-CN" to "# 验证码的提取应用一侧已经做好了。取不到的时候什么都不做。"
     )
     val cTry = t(
         en = "# Try to put it in directly. This only lands while you are **looking at the app**:\n" +
@@ -648,20 +800,28 @@ private fun otpWhenBody(d: String, t: CliText): String {
             "# background is dropped silently. Read it back to see whether it landed.",
         ja = "# まず直に入れてみる。入るのは**この画面を見ているとき**だけ — Android 10+ は前面の\n" +
             "# アプリしかクリップボードに書けないので、裏で走ったぶんは黙って捨てられる。\n" +
-            "# 入ったかどうかは読み返して確かめる (書けなくてもエラーにはならないため)。"
+            "# 入ったかどうかは読み返して確かめる (書けなくてもエラーにはならないため)。",
+        "zh-CN" to "# 先试着直接放进去。只有**你正在看着这个应用**的时候才放得进去 —\n" +
+            "# Android 10+ 只让前台应用写剪贴板，在后台跑的那次会被默默丢掉。\n" +
+            "# 放没放进去，读回来看一眼就知道 (写不进去也不会报错)。"
     )
     val cFallback = t(
         en = "  # It did not land = you are not looking at the app. Hand it over through the\n" +
             "  # notification's \"Copy\" button instead (pressing it brings the app to the front).\n" +
             "  # ⚠ What goes in that way is not cleared by TTL below: clearing also needs the front.",
         ja = "  # 入らなかった = 画面を見ていない。通知の「コピー」ボタンで渡す (押した瞬間だけ前面に出る)。\n" +
-            "  # ⚠ この道で入れたぶんは下の TTL では消えない — 消すのにも前面にいることが要るため。"
+            "  # ⚠ この道で入れたぶんは下の TTL では消えない — 消すのにも前面にいることが要るため。",
+        "zh-CN" to "  # 没放进去 = 你没在看这个应用。改用通知上的“复制”按钮交给你\n" +
+            "  # (按下的那一瞬间应用会到前台)。\n" +
+            "  # ⚠ 走这条路放进去的，下面的 TTL 清不掉 — 因为清除同样需要在前台。"
     )
     val cClear = t(
         en = "# After TTL, clear the clipboard only if it still holds the code we copied\n" +
             "# (anything copied since then is left alone).",
         ja = "# TTL 秒後、クリップボードがコピー時の値のままなら空にする。\n" +
-            "# その間に別のものをコピーしていたら、そちらは消さずに残す。"
+            "# その間に別のものをコピーしていたら、そちらは消さずに残す。",
+        "zh-CN" to "# 过了 TTL 秒，只有剪贴板里还是我们复制的那个验证码时才清空\n" +
+            "# (这期间复制过别的东西的话，那些不动)。"
     )
     return """
 TTL=60                                    # $cTtl
@@ -713,6 +873,13 @@ private fun unknownCallBody(d: String, t: CliText): String {
 #   だから通知の表示が番号の形なら、その相手は電話帳に載っていない。
 #   ⚠ この形にしているのは、z2term に連絡先 (READ_CONTACTS) も通話履歴 (READ_CALL_LOG) も
 #      持たせないため。通知アクセスだけで同じ答えが出るので、権限は 1 つも増えない。
+""",
+        "zh-CN" to """
+# ■ 「不在通讯录里」是怎么判断的
+#   电话应用对通讯录里的人显示**名字**，对不在通讯录里的人显示**号码本身**。
+#   所以只要通知上显示的是号码，那位来电者就不在通讯录里。
+#   ⚠ 之所以做成这个样子，是为了让 z2term 既不要通讯录 (READ_CONTACTS) 也不要通话记录
+#      (READ_CALL_LOG) 权限: 只靠通知使用权就能得到同样的答案。
 """
     )
     val cIsNum = t(
@@ -729,16 +896,29 @@ private fun unknownCallBody(d: String, t: CliText): String {
 #   → かな・漢字・英字が混ざる = 名前 = 電話帳にある相手なので、何もしない。
 #   → 「非通知」「不明な発信者」も数字が足りずここで外れる (拾いたいなら下の判定を緩める)。
 # ⚠ case の [!...] で書かないこと — パターン中の ) が case の区切りに読まれて構文エラーになる。
+""",
+        "zh-CN" to """
+# 是不是「号码本身」? 把电话号码会用到的字符 (数字 + - ( ) 空格) 全部去掉，如果**什么都不剩**，
+# 并且数字有 7〜15 位，就当成号码。
+#   -> 混着字母 = 名字 = 通讯录里的人，什么都不做。
+#   -> 「未知」「隐藏号码」也会因为数字不够而在这里被排除 (想收就把下面的判断放宽)。
+# ⚠ 不要写成 case [!...]: 模式里的 ) 会被当成 case 的分隔符。
 """
     )
     val cScan = t(
         en = "# The caller is usually the title, but some phone apps put it in the text. Check both.",
-        ja = "# 発信者は題名に出るのが普通だが、電話アプリによっては本文側に出る。両方を見る。"
+        ja = "# 発信者は題名に出るのが普通だが、電話アプリによっては本文側に出る。両方を見る。",
+        "zh-CN" to "# 来电者一般在标题里，但有的电话应用会放在正文里。两边都看。"
     )
-    val cSkip = t(en = "# A name was shown = in contacts. Do nothing.", ja = "# 名前が出ていた = 電話帳にある相手。何もしない。")
+    val cSkip = t(
+        en = "# A name was shown = in contacts. Do nothing.",
+        ja = "# 名前が出ていた = 電話帳にある相手。何もしない。",
+        "zh-CN" to "# 显示的是名字 = 通讯录里的人。什么都不做。"
+    )
     val cWhat = t(
         en = "# The category tells which one fired (same value as the notify:category= you registered).",
-        ja = "# 着信中と不在着信のどちらで動いたかは種別で分かる (登録した notify:category= と同じ値)。"
+        ja = "# 着信中と不在着信のどちらで動いたかは種別で分かる (登録した notify:category= と同じ値)。",
+        "zh-CN" to "# 是哪一种触发的，看类别就知道 (和登记时的 notify:category= 是同一个值)。"
     )
     val cCopy = t(
         en = """
@@ -750,11 +930,16 @@ private fun unknownCallBody(d: String, t: CliText): String {
 # 番号は**通知の「コピー」ボタン**で渡す (-c)。ここで z2-clip set を呼んでも入らない —
 # Android 10+ は前面のアプリしかクリップボードに書けず、着信中に前面にいるのは電話アプリ
 # だから。ボタンを押した瞬間だけ z2term が前面に出るので、そのときに確実に入る。
+""",
+        "zh-CN" to """
+# 号码通过**通知上的「复制」按钮**交给你 (-c)。在这里调用 z2-clip set 是放不进去的 —
+# Android 10+ 只让前台应用写剪贴板，而来电时在前台的是电话应用。
+# 按下按钮的那一瞬间 z2term 会到前台，所以那时一定放得进去。
 """
     )
-    val missed = t(en = "Missed call", ja = "不在着信")
-    val incoming = t(en = "Incoming call", ja = "着信")
-    val title = t(en = "number not in contacts", ja = "電話帳に無い番号")
+    val missed = t(en = "Missed call", ja = "不在着信", "zh-CN" to "未接来电")
+    val incoming = t(en = "Incoming call", ja = "着信", "zh-CN" to "来电")
+    val title = t(en = "number not in contacts", ja = "電話帳に無い番号", "zh-CN" to "不在通讯录里的号码")
     return """$cHow$cIsNum
 is_number() {
   [ -z "${d}(printf '%s' "${d}1" | tr -d '0-9+() -')" ] || return 1
@@ -806,6 +991,15 @@ fun z2MacroScript(lang: String): String {
                 "  show <名前>         中身を表示",
                 "  run <名前>          その場で実行 (Ctrl-C で止める)",
                 "  dir                 マクロの置き場所を表示",
+            ),
+        "zh-CN" to listOf(
+                "usage: z2-macro <子命令>",
+                "  list                列出随附的示例 (带 未安装 / 相同 / 有差异 标记)",
+                "  install <名字|all>  复制到 ~/.z2term/macros/ (不覆盖已有的。-f 强制覆盖)",
+                "  diff <名字>         看设备上的副本和随附版有什么不同 (左边是你自己的)",
+                "  show <名字>         显示脚本内容",
+                "  run <名字>          就地运行 (Ctrl-C 停止)",
+                "  dir                 显示宏放在哪里",
             )
     )
 
@@ -820,38 +1014,45 @@ fun z2MacroScript(lang: String): String {
     fun padVisual(s: String, cols: Int): String =
         s + " ".repeat((cols - s.sumOf { if (it.code < 0x80) 1 else 2 }).coerceAtLeast(0))
 
-    val stCols = t.of(en = 7, ja = 8)
-    val stNew = padVisual(t(en = "new", ja = "未導入"), stCols)
-    val stSame = padVisual(t(en = "same", ja = "同じ"), stCols)
-    val stDiff = padVisual(t(en = "differs", ja = "差分あり"), stCols)
+    val stCols = t.of(en = 7, ja = 8, "zh-CN" to 7)
+    val stNew = padVisual(t(en = "new", ja = "未導入", "zh-CN" to "未安装"), stCols)
+    val stSame = padVisual(t(en = "same", ja = "同じ", "zh-CN" to "相同"), stCols)
+    val stDiff = padVisual(t(en = "differs", ja = "差分あり", "zh-CN" to "有差异"), stCols)
 
-    val msgInstalled = t(en = "installed:", ja = "導入しました:")
+    val msgInstalled = t(en = "installed:", ja = "導入しました:", "zh-CN" to "已安装:")
     // 「既にある」を**同じ / 違う**で言い分ける (0.8.332)。一律「既にあります」だと、同梱版が
     // 直っていても気付けず、古いコピーを使い続けることになる (remind.sh で実際に起きた)。
-    val msgSame = t(en = "the same thing is already installed:", ja = "同じ内容がすでに入っています:")
-    val msgOutdated = t(en = "yours differs from the bundled one:", ja = "同梱版と中身が違います:")
+    val msgSame = t(en = "the same thing is already installed:", ja = "同じ内容がすでに入っています:", "zh-CN" to "同样的内容已经装过了:")
+    val msgOutdated = t(en = "yours differs from the bundled one:", ja = "同梱版と中身が違います:", "zh-CN" to "和随附版的内容不一样:")
     // ⚠ 「同梱版が新しい」と断定しない。端末側の方が進んでいることが実際にある
     //    (アプリへ取り込んでいない拡張)。**先に diff** を見せてから -f を出す順にする。
     val msgHowUpdate = t(
         en = "look first: z2-macro diff %s   /   replace with the bundled one: z2-macro install -f %s (your own edits go too)",
-        ja = "まず違いを見る: z2-macro diff %s   /   同梱版で置き換える: z2-macro install -f %s (自分で書き換えた分は消えます)"
+        ja = "まず違いを見る: z2-macro diff %s   /   同梱版で置き換える: z2-macro install -f %s (自分で書き換えた分は消えます)",
+        "zh-CN" to "先看看差别: z2-macro diff %s   /   用随附版替换: z2-macro install -f %s (你自己改的部分会没了)"
     )
-    val msgNotInstalled = t(en = "not installed yet (run z2-macro install first):", ja = "まだ導入していません (先に z2-macro install):")
+    val msgNotInstalled = t(
+        en = "not installed yet (run z2-macro install first):",
+        ja = "まだ導入していません (先に z2-macro install):",
+        "zh-CN" to "还没有安装 (请先 z2-macro install):"
+    )
     val msgNoDiffTool = t(
         en = "no diff here. You can still read the bundled one with z2-macro show.",
-        ja = "この環境に diff がありません。中身は z2-macro show で見られます。"
+        ja = "この環境に diff がありません。中身は z2-macro show で見られます。",
+        "zh-CN" to "这个环境里没有 diff。内容可以用 z2-macro show 查看。"
     )
-    val msgSameAsBundled = t(en = "identical to the bundled one.", ja = "同梱版と同じです。")
-    val msgNotFound = t(en = "no such sample:", ja = "そんなサンプルはありません:")
+    val msgSameAsBundled = t(en = "identical to the bundled one.", ja = "同梱版と同じです。", "zh-CN" to "和随附版相同。")
+    val msgNotFound = t(en = "no such sample:", ja = "そんなサンプルはありません:", "zh-CN" to "没有这个示例:")
     val msgHintResident = t(
         en = "To keep it running, register this under Settings -> Resident servers:",
-        ja = "常駐させるには ⚙設定 → 常駐サーバー に次を登録してください:"
+        ja = "常駐させるには ⚙設定 → 常駐サーバー に次を登録してください:",
+        "zh-CN" to "要让它常驻，请在 ⚙设置 → 常驻服务 里登记下面这条:"
     )
     // 常駐させないサンプル (時刻トリガーで 1 回走るもの・ウィジェットのボタンから叩くもの) がある。
     // そういうスクリプトは先頭に `# z2-run: <動かし方>` を書いておき、install はそれを出す。
     // ⚠ 一律に「常駐サーバーに登録」と案内すると、**使い切りのスクリプトを常駐させてしまう**
     //   (終了するたび supervisor が再起動するので、フィード取得なら延々と取りに行く)。
-    val msgHintRun = t(en = "How to run it:", ja = "動かし方:")
+    val msgHintRun = t(en = "How to run it:", ja = "動かし方:", "zh-CN" to "怎么运行:")
 
     return """
         |#!/bin/sh
@@ -1067,6 +1268,46 @@ private fun remindBody(d: String, t: CliText): String {
 #   remind.sh del 1
 #
 # z2-run: sh ~/.z2term/macros/remind.sh setup   (以降は remind.sh 30m … で足すだけ)
+""",
+        "zh-CN" to """
+#
+# 准备 (只做一次):
+#   sh ~/.z2term/macros/remind.sh setup   登记两个接口和两个磁贴
+#
+# 语法:
+#   remind.sh <什么时候> <正文>      添加一条提醒
+#   remind.sh list                   列出来 (开头是编号)
+#   remind.sh del <编号|all>         取消 (rm 也可以)
+#   remind.sh peek                   用通知看一览 (带「删除」按钮)
+#   remind.sh ask                    在通知的回复框里问 (给磁贴用)
+#   remind.sh setup                  登记接口和磁贴 (最开始做一次)
+#   remind.sh help                   这段说明
+#
+# <什么时候> — 一次性:
+#   30m / 90s / 2h                   从现在算起
+#   18:30                            下一个 18:30 (过了就是明天)
+#   tomorrow 18:30 / 3d 07:00        按天 (3d = 3 天后)
+#   07/30 19:00                      月/日 (过了就是明年)
+#   2030 07/30 19:00                 带年份
+#   203007301900 / 07301900          只写数字 (YYYYMMDDHHMM / MMDDHHMM)
+#   ⚠ 不写时刻的话就保持**当前的时刻** (3d / 07/30 …)
+#
+# <什么时候> — 重复:
+#   daily 07:00 / weekday 09:00      每天 / 周一到周五
+#   weekly mon 09:00                 那个星期几
+#   monthly 15 09:00                 那个日子
+#   yearly 07/30 19:00               那个月日
+#   every 19:00 / every wed 19:00    只写 every 也行 (由后面那个词决定)
+#   every 15 19:00 / every 07/30 19:00  -> 每天 / 每周 / 每月 / 每年
+#
+# 例:
+#   remind.sh 30m 吃药
+#   remind.sh tomorrow 18:30 倒垃圾
+#   remind.sh monthly 25 10:00 房租
+#   remind.sh list        ->  1  ⏰ 07/30 18:30  倒垃圾
+#   remind.sh del 1
+#
+# z2-run: sh ~/.z2term/macros/remind.sh setup   (之后只要 remind.sh 30m ... 就行)
 """
     )
     val cStore = t(
@@ -1077,26 +1318,36 @@ private fun remindBody(d: String, t: CliText): String {
         ja = """# 予定 1 件 = ${d}DIR/<id>.txt の 1 行。TAB 区切りで  種別 / 予定の表記 / when の id / 本文。
 #   種別: once (これから鳴る単発) / fired (鳴った単発) / repeat (繰り返し)
 #   when の id: repeat のときだけ入る (削除で z2-when remove するため)。それ以外は '-'。
-# 本文を末尾に置くのは、TAB 以外の文字をそのまま持たせるため。"""
+# 本文を末尾に置くのは、TAB 以外の文字をそのまま持たせるため。""",
+        "zh-CN" to """# 一条提醒 = ${d}DIR/<id>.txt 里的一行，用制表符分隔: 种类 / 显示的写法 / when 的 id / 正文。
+#   种类: once (还没响的一次性) / fired (已经响过的一次性) / repeat (重复)
+#   when 的 id: 只有 repeat 才有 (删除时要调 z2-when remove)。其余是 '-'。
+# 正文放在最后，是为了让它能装下除 TAB 以外的任何字符。"""
     )
     val cParse = t(
         en = """# Read 1-3 words and decide:
 #   KIND ... once|repeat   PLAN ... label to show   SPEC ... what z2-alarm/z2-when takes   USED ... words used""",
         ja = """# 引数 (1〜3 語) を読んで下記を決める。
-#   KIND … once|repeat   PLAN … 一覧に出す表記   SPEC … z2-alarm/z2-when へ渡す形   USED … 使った語数"""
+#   KIND … once|repeat   PLAN … 一覧に出す表記   SPEC … z2-alarm/z2-when へ渡す形   USED … 使った語数""",
+        "zh-CN" to """# 读 1〜3 个词，决定下面这些。
+#   KIND … once|repeat   PLAN … 列表里显示的写法   SPEC … 交给 z2-alarm/z2-when 的形式   USED … 用掉了几个词"""
     )
-    val pDaily = t(en = "daily ", ja = "毎日 ")
-    val pWeekday = t(en = "weekdays ", ja = "平日 ")
-    val pWeekly = t(en = "weekly ", ja = "毎週")
-    val pMonthly = t(en = "monthly ", ja = "毎月 ")
-    val pYearly = t(en = "yearly ", ja = "毎年 ")
-    val mDay = t(en = "", ja = "日")
+    val pDaily = t(en = "daily ", ja = "毎日 ", "zh-CN" to "每天 ")
+    val pWeekday = t(en = "weekdays ", ja = "平日 ", "zh-CN" to "工作日 ")
+    val pWeekly = t(en = "weekly ", ja = "毎週", "zh-CN" to "每周")
+    val pMonthly = t(en = "monthly ", ja = "毎月 ", "zh-CN" to "每月 ")
+    val pYearly = t(en = "yearly ", ja = "毎年 ", "zh-CN" to "每年 ")
+    val mDay = t(en = "", ja = "日", "zh-CN" to "日")
     // 「毎 …」の展開先。⚠ **その言語で case が拾える語**であること (日本語面なら「毎日」等)。
-    val eDaily = t(en = "daily", ja = "毎日")
-    val eWeekly = t(en = "weekly", ja = "毎週")
-    val eMonthly = t(en = "monthly", ja = "毎月")
-    val eYearly = t(en = "yearly", ja = "毎年")
-    val mBadDate = t(en =         "no such date (e.g. 07/30):", ja =         "その日付はありません (例: 07/30):")
+    val eDaily = t(en = "daily", ja = "毎日", "zh-CN" to "每天")
+    val eWeekly = t(en = "weekly", ja = "毎週", "zh-CN" to "每周")
+    val eMonthly = t(en = "monthly", ja = "毎月", "zh-CN" to "每月")
+    val eYearly = t(en = "yearly", ja = "毎年", "zh-CN" to "每年")
+    val mBadDate = t(
+        en =         "no such date (e.g. 07/30):",
+        ja =         "その日付はありません (例: 07/30):",
+        "zh-CN" to "没有这个日期 (例: 07/30):"
+    )
     val cEvery = t(
         en = """  # The short "every ..." form. **The shape of the next word** picks daily/weekly/monthly/yearly:
   #   every 19:00 -> daily / every wed 19:00 -> weekly / every 15 19:00 -> monthly /
@@ -1104,21 +1355,29 @@ private fun remindBody(d: String, t: CliText): String {
   # ⚠ The word count does not change (one word swapped for another), so USED still holds.""",
         ja = """  # 「毎 …」の簡易指定 (要望)。**次の語の形**で 毎日 / 毎週 / 毎月 / 毎年 を決める。
   #   毎 19:00 → 毎日 / 毎 水 19:00 → 毎週 / 毎 15 19:00 → 毎月 / 毎 07/30 19:00 → 毎年
-  # ⚠ 語数は変わらない (「毎」1 語が「毎日」等に置き換わるだけ) ので USED はそのままでよい。"""
+  # ⚠ 語数は変わらない (「毎」1 語が「毎日」等に置き換わるだけ) ので USED はそのままでよい。""",
+        "zh-CN" to """  # 「every …」的简写。**后面那个词的形状**决定是每天/每周/每月/每年:
+  #   every 19:00 -> 每天 / every wed 19:00 -> 每周 / every 15 19:00 -> 每月 /
+  #   every 07/30 19:00 -> 每年
+  # ⚠ 词的个数不变 (只是一个词换成了另一个词)，所以 USED 保持原样即可。"""
     )
     val cExpand = t(
         en = "# Decide which recurrence \"every\" meant, from the word that follows it.",
-        ja = "# 「毎」の次に来た語から、どの繰り返しかを決める。"
+        ja = "# 「毎」の次に来た語から、どの繰り返しかを決める。",
+        "zh-CN" to "# 从 every 后面来的那个词，决定它指的是哪一种重复。"
     )
     val cDigits = t(
         en = """    # All-digit forms: 202607301900 = YYYYMMDDHHMM / 07301900 = MMDDHHMM.
     # ⚠ Check 12 digits before 8 (the 8-digit pattern also matches a 12-digit string).""",
         ja = """    # 数字だけで書く形 (要望): 202607301900 = 年月日時分 / 07301900 = 月日時分。
-    # ⚠ 12 桁 → 8 桁の順に見る (8 桁のパターンは 12 桁にも当たってしまうため)。"""
+    # ⚠ 12 桁 → 8 桁の順に見る (8 桁のパターンは 12 桁にも当たってしまうため)。""",
+        "zh-CN" to """    # 只写数字的形式: 202607301900 = YYYYMMDDHHMM / 07301900 = MMDDHHMM。
+    # ⚠ 要先看 12 位再看 8 位 (8 位的模式对 12 位的串也会命中)。"""
     )
     val cYmd = t(
         en = """  # Written as a date. ⚠ z2-alarm cannot take a date, so this also folds into a delay.""",
-        ja = """  # 年月日で書かれたもの。⚠ z2-alarm は日付を渡せないので、ここでも秒差へ寄せる。"""
+        ja = """  # 年月日で書かれたもの。⚠ z2-alarm は日付を渡せないので、ここでも秒差へ寄せる。""",
+        "zh-CN" to """  # 用年月日写的。⚠ z2-alarm 不能接收日期，所以这里也折算成时间差。"""
     )
     val cCivil = t(
         en = """# Civil date -> days since 1970-01-01 (leap years included; Howard Hinnant's days_from_civil).
@@ -1126,7 +1385,10 @@ private fun remindBody(d: String, t: CliText): String {
 # ⚠ Only the day difference is used and the time is left to [day_epoch], which cancels out the zone.""",
         ja = """# 年月日 → 1970-01-01 からの通算日 (うるう年込み・Howard Hinnant の days_from_civil)。
 # ⚠ date -d "2026-07-30" は busybox で当てにならないので自前で数える。
-# ⚠ 日数の差だけを使い、時刻は [day_epoch] に任せる (こうするとタイムゾーンが相殺される)。"""
+# ⚠ 日数の差だけを使い、時刻は [day_epoch] に任せる (こうするとタイムゾーンが相殺される)。""",
+        "zh-CN" to """# 年月日 → 从 1970-01-01 起的天数 (含闰年・Howard Hinnant 的 days_from_civil)。
+# ⚠ date -d "2026-07-30" 在 busybox 上靠不住，所以自己数。
+# ⚠ 只用天数之差，时刻交给 [day_epoch]，这样时区就相互抵消了。"""
     )
     val cCron = t(
         en = """# Build a cron expression (min hour dom month dow) from HH:MM and a weekday field.
@@ -1134,7 +1396,10 @@ private fun remindBody(d: String, t: CliText): String {
 # side of `expr "${d}m" + 0 || echo "${d}m"` also runs and the value ends up two lines long.""",
         ja = """# HH:MM と曜日欄から cron 式を作る (分 時 日 月 曜日)。
 # ⚠ 先頭 0 を落とすのに expr を使わないこと — 結果が 0 のとき終了コードが 1 になり、
-#   `expr "${d}m" + 0 || echo "${d}m"` の右側まで走って値が 2 行に化ける (実際に踏んだ)。"""
+#   `expr "${d}m" + 0 || echo "${d}m"` の右側まで走って値が 2 行に化ける (実際に踏んだ)。""",
+        "zh-CN" to """# 从 HH:MM 和星期字段做出 cron 表达式 (分 时 日 月 星期)。
+# ⚠ 不要用 expr 去掉开头的 0 — 结果为 0 时退出码是 1，
+#   `expr "${d}m" + 0 || echo "${d}m"` 右边也会跑，值就变成两行了。"""
     )
     val afterLabel = t(
         en = """# "30m" -> "in 30m (14:35)". Showing the wall-clock time lets you check it right away.
@@ -1150,23 +1415,49 @@ after_label() {
   case ${d}u in s) sec=${d}num; unit=秒 ;; m) sec=${d}((num*60)); unit=分 ;; h) sec=${d}((num*3600)); unit=時間 ;; esac
   at=${d}(date -d "@${d}(( ${d}(date +%s) + sec ))" +%H:%M 2>/dev/null) || at=
   [ -n "${d}at" ] && echo "${d}num${d}unit後 (${d}at)" || echo "${d}num${d}unit後"
+}""",
+        "zh-CN" to """# "30m" → "30分钟后 (14:35)"。把钟点也显示出来，是为了登记完能马上核对。
+after_label() {
+  num=${d}{1%[smh]}; u=${d}{1#${d}num}
+  case ${d}u in s) sec=${d}num; unit=秒 ;; m) sec=${d}((num*60)); unit=分钟 ;; h) sec=${d}((num*3600)); unit=小时 ;; esac
+  at=${d}(date -d "@${d}(( ${d}(date +%s) + sec ))" +%H:%M 2>/dev/null) || at=
+  [ -n "${d}at" ] && echo "${d}num${d}unit后 (${d}at)" || echo "${d}num${d}unit后"
 }"""
     )
-    val mUsageAdd = t(en = "usage: remind.sh <when> <text>", ja = "usage: remind.sh <いつ> <本文>")
+    val mUsageAdd = t(
+        en = "usage: remind.sh <when> <text>",
+        ja = "usage: remind.sh <いつ> <本文>",
+        "zh-CN" to "usage: remind.sh <什么时候> <正文>"
+    )
     val mBadWhen = t(
         en = "cannot read the time (try: 30m / 18:30 / tomorrow 18:30 / 3d 09:00 / daily 07:00):",
-        ja = "いつ？ が分かりません (例: 30m / 18:30 / 明日 18:30 / 3日後 09:00 / 毎日 07:00):"
+        ja = "いつ？ が分かりません (例: 30m / 18:30 / 明日 18:30 / 3日後 09:00 / 毎日 07:00):",
+        "zh-CN" to "看不懂时间 (例: 30m / 18:30 / tomorrow 18:30 / 3d 09:00 / daily 07:00):"
     )
-    val mBadTime = t(en = "write the time as HH:MM:", ja = "時刻は HH:MM で書いてください:")
-    val mBadRange = t(en =         "time out of range (00:00-23:59):", ja =         "時刻の範囲が違います (00:00〜23:59):")
-    val mNoTime = t(en =         "no time given (e.g. daily 07:00):", ja =         "時刻が書かれていません (例: 毎日 07:00):")
-    val mBadDow = t(en = "unknown weekday:", ja = "曜日が分かりません:")
-    val mPastTime = t(en =         "that time has already passed:", ja =         "その時刻はもう過ぎています:")
+    val mBadTime = t(en = "write the time as HH:MM:", ja = "時刻は HH:MM で書いてください:", "zh-CN" to "时刻请写成 HH:MM:")
+    val mBadRange = t(
+        en =         "time out of range (00:00-23:59):",
+        ja =         "時刻の範囲が違います (00:00〜23:59):",
+        "zh-CN" to "时刻超出范围 (00:00〜23:59):"
+    )
+    val mNoTime = t(
+        en =         "no time given (e.g. daily 07:00):",
+        ja =         "時刻が書かれていません (例: 毎日 07:00):",
+        "zh-CN" to "没有写时刻 (例: daily 07:00):"
+    )
+    val mBadDow = t(en = "unknown weekday:", ja = "曜日が分かりません:", "zh-CN" to "看不懂是星期几:")
+    val mPastTime = t(
+        en =         "that time has already passed:",
+        ja =         "その時刻はもう過ぎています:",
+        "zh-CN" to "那个时刻已经过去了:"
+    )
     val cDays = t(
         en = """    # Day-based wording. With no time, keep **the current time of day** (never invent a default).
     # It can also arrive as a single word, so the glued form is accepted too.""",
         ja = """    # 日付で書く言い方。時刻を省いたら**今と同じ時刻**にする (既定時刻を勝手に決めない)。
-    # 「明日の18:30」のように 1 語で来ることもあるので、くっついた形も受ける。"""
+    # 「明日の18:30」のように 1 語で来ることもあるので、くっついた形も受ける。""",
+        "zh-CN" to """    # 按日期写的说法。不写时刻就保持**当前的时刻** (不擅自定一个默认时刻)。
+    # 也可能整个连成一个词送过来，所以粘在一起的写法也接受。"""
     )
     val cDayEpoch = t(
         en = """# Turn "HH:MM, N days from now" into epoch seconds. ⚠ busybox has no date -d "tomorrow",
@@ -1176,69 +1467,96 @@ after_label() {
         ja = """# 「N 日後の HH:MM」を epoch 秒にする。⚠ date -d "tomorrow" は busybox に無いので、
 # 今日の 0 時を出してから日数と時刻を足す。
 # ⚠ 先頭 0 の付いた値 ("08") を ${d}(()) に渡すと 8 進数と解釈されるので必ず落とす。
-# ⚠ 1 日 = 86400 秒として足すので、夏時間のある地域では切り替え日に 1 時間ずれる。"""
+# ⚠ 1 日 = 86400 秒として足すので、夏時間のある地域では切り替え日に 1 時間ずれる。""",
+        "zh-CN" to """# 把「N 天后的 HH:MM」换算成 epoch 秒。⚠ busybox 没有 date -d \"tomorrow\"，
+# 所以先求出今天的 0 点，再把天数和时刻加上去。
+# ⚠ 带前导 0 的值 (\"08\") 交给 ${d}(()) 会被当成八进制，一定要去掉。
+# ⚠ 一天按 86400 秒相加，所以在有夏令时的地区，切换那天会差一小时。"""
     )
     val cFmtAt = t(
         en = """# The label shown in the list. ⚠ Keeping "tomorrow" would read wrong once the date rolls over.""",
-        ja = """# 一覧に出す日時。⚠ 「明日」のまま覚えると日付が変わった後にズレて見えるので、実日付にする。"""
+        ja = """# 一覧に出す日時。⚠ 「明日」のまま覚えると日付が変わった後にズレて見えるので、実日付にする。""",
+        "zh-CN" to """# 列表里显示的日期时间。⚠ 要是照原样记成「明天」，日期一变就看错了，所以存实际日期。"""
     )
-    val mNoBody = t(en = "say what to remind you about", ja = "リマインドの本文を書いてください")
-    val mNoAlarm = t(en = "could not schedule it", ja = "予約できませんでした")
-    val mNone = t(en = "nothing scheduled", ja = "予定はありません")
-    val mFired = t(en = " (fired)", ja = " (通知済)")
-    val mRemoved = t(en = "removed:", ja = "消しました:")
-    val mNoSuchNum = t(en =         "no such entry (check remind.sh list):", ja =         "その番号はありません (remind.sh list で確認):")
-    val mUsageDel = t(en = "usage: remind.sh del <n|all>", ja = "usage: remind.sh del <番号|all>")
-    val bDone = t(en = "Done", ja = "完了")
+    val mNoBody = t(en = "say what to remind you about", ja = "リマインドの本文を書いてください", "zh-CN" to "请写上要提醒什么")
+    val mNoAlarm = t(en = "could not schedule it", ja = "予約できませんでした", "zh-CN" to "没能预约成功")
+    val mNone = t(en = "nothing scheduled", ja = "予定はありません", "zh-CN" to "没有预定")
+    val mFired = t(en = " (fired)", ja = " (通知済)", "zh-CN" to " (已通知)")
+    val mRemoved = t(en = "removed:", ja = "消しました:", "zh-CN" to "已删除:")
+    val mNoSuchNum = t(
+        en =         "no such entry (check remind.sh list):",
+        ja =         "その番号はありません (remind.sh list で確認):",
+        "zh-CN" to "没有这个编号 (用 remind.sh list 确认):"
+    )
+    val mUsageDel = t(
+        en = "usage: remind.sh del <n|all>",
+        ja = "usage: remind.sh del <番号|all>",
+        "zh-CN" to "usage: remind.sh del <编号|all>"
+    )
+    val bDone = t(en = "Done", ja = "完了", "zh-CN" to "完成")
     // ⚠ 通知のボタンは 1 語で書く (空白があると引数が割れる)。
-    val bDelete = t(en = "Delete", ja = "消す")
-    val mAskDel = t(en = "Remove which one?", ja = "どれを消す？")
-    val mAskDelH = t(en = "number / all", ja = "番号 / all")
-    val mDeletedTitle = t(en = "🗑 Removed", ja = "🗑 消しました")
+    val bDelete = t(en = "Delete", ja = "消す", "zh-CN" to "删除")
+    val mAskDel = t(en = "Remove which one?", ja = "どれを消す？", "zh-CN" to "要删哪一条？")
+    val mAskDelH = t(en = "number / all", ja = "番号 / all", "zh-CN" to "编号 / all")
+    val mDeletedTitle = t(en = "🗑 Removed", ja = "🗑 消しました", "zh-CN" to "🗑 已删除")
     val cPeek = t(
         en = """# Show the list in a notification (from the "list" tile). **Keep the numbers** — they are what
 # you point at to remove one. ⚠ Listing without a way to remove was the complaint; hence the button.""",
         ja = """# 一覧を通知で見せる (タイル「予定」から)。**番号を残す** — 消すときに指すものだから。
-# ⚠ 一覧を出したのに消す手段が無く、set したら消せないと言われた (要望) ので「消す」を付ける。"""
+# ⚠ 一覧を出したのに消す手段が無く、set したら消せないと言われた (要望) ので「消す」を付ける。""",
+        "zh-CN" to """# 用通知显示一览 (从「一览」磁贴)。**保留编号** — 删除的时候要靠它来指。
+# ⚠ 之前被反映过「列出来了却没法删」，所以加了这个按钮。"""
     )
     val cAskDel = t(
         en = """# The "delete" button: ask for a number and hand it to [cmd_del] (the same path as the CLI).""",
-        ja = """# 「消す」ボタン。番号を聞いて [cmd_del] へ渡すだけ (端末の remind.sh del と同じ経路)。"""
+        ja = """# 「消す」ボタン。番号を聞いて [cmd_del] へ渡すだけ (端末の remind.sh del と同じ経路)。""",
+        "zh-CN" to """# 「删除」按钮。只是问一个编号再交给 [cmd_del] (和终端里的 remind.sh del 同一条路)。"""
     )
-    val bS1 = t(en = "+10min", ja = "10分後")
-    val bS2 = t(en = "+1h", ja = "1時間後")
-    val mAgain = t(en = "- again in", ja = "にもう一度:")
-    val mTitle = t(en = "⏰ Reminders", ja = "⏰ リマインド")
-    val mAsk1 = t(en = "Remind you about what?", ja = "何をリマインド？")
-    val mAsk1H = t(en = "e.g. take pills", ja = "例: 薬を飲む")
-    val mAsk2 = t(en = "When?", ja = "いつ？")
-    val mAsk2H = t(en = "30m / 18:30 / tomorrow 18:30 / 3d / daily 07:00", ja = "30m / 18:30 / 明日 18:30 / 3日後 / 毎日 07:00")
-    val mAskAgain = t(en = "please enter it again", ja = "もう一度入力してください")
+    val bS1 = t(en = "+10min", ja = "10分後", "zh-CN" to "10分钟后")
+    val bS2 = t(en = "+1h", ja = "1時間後", "zh-CN" to "1小时后")
+    val mAgain = t(en = "- again in", ja = "にもう一度:", "zh-CN" to "再提醒一次:")
+    val mTitle = t(en = "⏰ Reminders", ja = "⏰ リマインド", "zh-CN" to "⏰ 提醒")
+    val mAsk1 = t(en = "Remind you about what?", ja = "何をリマインド？", "zh-CN" to "要提醒什么？")
+    val mAsk1H = t(en = "e.g. take pills", ja = "例: 薬を飲む", "zh-CN" to "例: 吃药")
+    val mAsk2 = t(en = "When?", ja = "いつ？", "zh-CN" to "什么时候？")
+    val mAsk2H = t(
+        en = "30m / 18:30 / tomorrow 18:30 / 3d / daily 07:00",
+        ja = "30m / 18:30 / 明日 18:30 / 3日後 / 毎日 07:00",
+        "zh-CN" to "30m / 18:30 / tomorrow 18:30 / 3d / daily 07:00"
+    )
+    val mAskAgain = t(en = "please enter it again", ja = "もう一度入力してください", "zh-CN" to "请再输入一次")
     val mAskGiveUp = t(
         en = "Could not read it ${ASK_TRIES} times. You can also add it from the terminal: remind.sh 30m take pills",
-        ja = "${ASK_TRIES} 回とも読めませんでした。端末からも登録できます: remind.sh 30m 薬を飲む"
+        ja = "${ASK_TRIES} 回とも読めませんでした。端末からも登録できます: remind.sh 30m 薬を飲む",
+        "zh-CN" to "${ASK_TRIES} 次都没读懂。也可以从终端登记: remind.sh 30m 吃药"
     )
-    val mOkTitle = t(en = "⏰ Reminder set", ja = "⏰ 登録しました")
-    val mNgTitle = t(en = "⚠ Not set", ja = "⚠ 登録できませんでした")
+    val mOkTitle = t(en = "⏰ Reminder set", ja = "⏰ 登録しました", "zh-CN" to "⏰ 已登记")
+    val mNgTitle = t(en = "⚠ Not set", ja = "⚠ 登録できませんでした", "zh-CN" to "⚠ 没能登记")
     val cHooks = t(
         en = """  # One hook for "a reminder fired", one for "a notification button was tapped". Just these
   # two, no matter how many reminders you add. Neither depends on the detection switches.""",
         ja = """  # 予定が鳴ったのを拾う 1 本と、通知ボタンの返事を拾う 1 本。**この 2 本だけ**で、
-  # 予定を何件足しても増えない。どちらも「検知」の ON/OFF に関係なく働く。"""
+  # 予定を何件足しても増えない。どちらも「検知」の ON/OFF に関係なく働く。""",
+        "zh-CN" to """  # 一条用来接「提醒响了」，一条用来接「按了通知上的按钮」。**就这两条**，
+  # 不管你加多少条提醒都不会变多。两条都和检测开关的开关状态无关。"""
     )
     val cTiles = t(
         en = """  # Only fill empty slots and slots already ours (never overwrite someone else's).
   # A macro name with arguments works from 0.8.275 on (before that, write sh + full path).""",
         ja = """  # 空いている枠と、すでに自分が使っている枠だけに置く (他人の割り当ては触らない)。
-  # 引数付きのマクロ名は 0.8.275 からそのまま書ける (それより前は sh + フルパスで書くこと)。"""
+  # 引数付きのマクロ名は 0.8.275 からそのまま書ける (それより前は sh + フルパスで書くこと)。""",
+        "zh-CN" to """  # 只往空着的位和已经属于自己的位上放 (绝不覆盖别人的分配)。
+  # 带参数的宏名从 0.8.275 起可以直接写 (在那之前要写 sh + 完整路径)。"""
     )
-    val mSetupHooks = t(en = "hooks registered:", ja = "受け口を登録しました:")
-    val mSetupTiles = t(en = "tiles:", ja = "タイル:")
+    val mSetupHooks = t(en = "hooks registered:", ja = "受け口を登録しました:", "zh-CN" to "已登记接口:")
+    val mSetupTiles = t(en = "tiles:", ja = "タイル:", "zh-CN" to "磁贴:")
     val mPathHint = t(
         en = "Note: this tab cannot run remind.sh by name yet. Open a new tab, or run " +
             "export PATH=${d}HOME/.z2term/macros:${d}PATH here.",
         ja = "⚠ このタブでは remind.sh を名前で打てません。新しいタブを開くか、" +
-            "このタブで export PATH=${d}HOME/.z2term/macros:${d}PATH を打ってください。"
+            "このタブで export PATH=${d}HOME/.z2term/macros:${d}PATH を打ってください。",
+        "zh-CN" to "⚠ 这个标签页还不能用名字直接敲 remind.sh。请开一个新标签页，" +
+            "或者在这个标签页里敲 export PATH=${d}HOME/.z2term/macros:${d}PATH。"
     )
     val cPathHint = t(
         en = """  # ⚠ The macro directory has only been on PATH since 0.8.287, so **tabs opened before that**
@@ -1246,21 +1564,27 @@ after_label() {
   # (otherwise `command not found` has no visible reason).""",
         ja = """  # ⚠ マクロ置き場が PATH に入るのは 0.8.287 から。**それ以前に開いたタブ**は古い PATH の
   # ままなので、名前で打てるか確かめて、駄目なら開き直しを案内する (黙っていると
-  # `command not found` の理由が分からない)。"""
+  # `command not found` の理由が分からない)。""",
+        "zh-CN" to """  # ⚠ 宏的目录进入 PATH 是从 0.8.287 开始的。**在那之前打开的标签页**
+  # 还带着旧的 PATH，所以先确认名字能不能解析，不行就提示怎么办 (不说的话，
+  # `command not found` 的原因根本看不出来)。"""
     )
     val mPlace = t(
         en = "Note: you still have to place the tiles yourself, from the quick-settings pencil/edit screen.",
-        ja = "⚠ タイルはご自身でクイック設定パネルの鉛筆(編集)から並べてください。"
+        ja = "⚠ タイルはご自身でクイック設定パネルの鉛筆(編集)から並べてください。",
+        "zh-CN" to "⚠ 磁贴请你自己从快捷设置面板的铅笔(编辑)里摆上去。"
     )
-    val lRemind = t(en = "remind", ja = "リマインド")
-    val lList = t(en = "list", ja = "予定")
+    val lRemind = t(en = "remind", ja = "リマインド", "zh-CN" to "提醒")
+    val lList = t(en = "list", ja = "予定", "zh-CN" to "一览")
     val cSelf = t(
         en = "# Only react to our own notifications (our ids always start with r)",
-        ja = "# 自分が出した通知だけ相手にする (id は必ず r で始まる)"
+        ja = "# 自分が出した通知だけ相手にする (id は必ず r で始まる)",
+        "zh-CN" to "# 只搭理自己发出的通知 (id 一定以 r 开头)"
     )
     val cKeepRepeat = t(
         en = "      # Do not delete a repeating one here: it should fire again tomorrow.",
-        ja = "      # 繰り返しはここで消さない (明日もまた鳴ってほしいので)。単発だけ片付ける。"
+        ja = "      # 繰り返しはここで消さない (明日もまた鳴ってほしいので)。単発だけ片付ける。",
+        "zh-CN" to "      # 重复的不在这里删 (明天还要再响)。只收拾一次性的。"
     )
     val cAsk = t(
         en = """# The path used from the tile / a notification. ⚠ **Always answer with a notification**:
@@ -1272,9 +1596,18 @@ after_label() {
 # 入口なので、エラーを標準エラーへ出して終わると「押したのに何も起きない」になる
 # (実際そうなっていた。理由はタイルの run.log にしか残らなかった)。
 #   読めなかったら → 何が駄目かを付けて $ASK_TRIES 回まで聞き直す (前の入力は返信欄に残す)
-#   登録できたら   → 予定と本文を通知で見せる"""
+#   登録できたら   → 予定と本文を通知で見せる""",
+        "zh-CN" to """# 从磁贴/通知过来的这条路。⚠ **结果一定要用通知回复** —
+# 这是个默认没人在看屏幕的入口，把错误丢到标准错误就结束的话，就成了「按了却什么都没发生」
+# (实际就是这样，原因只留在磁贴的 run.log 里)。
+#   读不懂    -> 说清哪里不对，最多再问 $ASK_TRIES 次 (上次输入的内容会留在回复框里)
+#   登记成功  -> 用通知把预定和正文显示出来"""
     )
-    val cSnoozeCancel = t(en =         "drop the snooze alarm if it was snoozed before being done", ja =         "スヌーズ中に完了を押したときの予約を残さない")
+    val cSnoozeCancel = t(
+        en =         "drop the snooze alarm if it was snoozed before being done",
+        ja =         "スヌーズ中に完了を押したときの予約を残さない",
+        "zh-CN" to "小睡期间按了完成时，不要把小睡的预约留下"
+    )
 
     return """$head
 DIR="${d}HOME/.z2term/remind"
@@ -1874,65 +2207,151 @@ private fun qrBody(d: String, t: CliText): String {
 #   端末が「1 文字ぶんの大きさ」を教えてくれないため、文字の縦横比を 1:2 と
 #   仮定して正方形に出している。潰れて見えるときは環境変数で微調整する:
 #     Z2_QR_ASPECT=0.45 qr.sh "text"     (小さいほど縦長になる。既定 0.5)
+""",
+        "zh-CN" to """
+#
+# 用法:
+#   qr.sh \"https://example.com\"       把字符串编成二维码，在这里画出来
+#   qr.sh -f notes.txt                把文件的内容编成二维码
+#   z2-clip get | qr.sh               把当前剪贴板的内容编成二维码
+#   qr.sh -o ~/qr.png \"text\"          存成 PNG (画面上不显示)
+#   qr.sh -t \"text\"                   用方块字符输出，而不是图片
+#   qr.sh -s 24 \"text\"                指定大小 (以列数计。默认按画面宽度)
+#
+# z2-run: qr.sh \"https://example.com\"   (装好之后只写名字就行。跑一次就结束)
+#
+# # 前提条件 (不满足就跑不起来，或者看到的样子会不一样)
+#
+#   1) 必须装了 qrencode … 编码由它来做。每个标签页 (发行版) 装一次:
+#        Arch        : pacman -S qrencode
+#        Ubuntu/Kali : apt install qrencode
+#        Alpine      : apk add libqrencode-tools
+#      没有的话会当场打出安装命令并停下。
+#
+#   2) 图片 (默认) 只有在这个应用的标签页里才看得到 … 它是用 Kitty graphics 画的。
+#      通过 ssh 连到别的机器，或者在显示不了图片的终端上，看到的会是一堆乱码。
+#      那种场合请加 -t。
+#
+#   3) -t (方块) 取决于终端字体 … 行与行之间会留缝的字体，眼睛看得清，摄像头却读不出来。
+#      要让摄像头扫的话，还是用默认的图片或者 -o 存 PNG 更稳。
+#
+#   4) 纵横比是假定出来的 … 见下面的「纵横比」。看着被压扁了就用 Z2_QR_ASPECT 调。
+#
+# 选项:
+#   -f FILE   从文件读取输入 (省略则用参数，没有参数就读标准输入)
+#   -o PNG    存成 PNG 而不是画出来。多张时会变成
+#             qr-1.png / qr-2.png … 这样的连号
+#   -t        用方块字符输出。给显示不了图片的终端和 ssh 用
+#   -s N      画出来时的大小 (列数)。默认最多 34 列，并受画面宽度限制
+#   -h        这段说明
+#
+# 关于长输入:
+#   一张二维码能装的量是固定的 (字母数字最多 2953 字节; 要真能扫得动的话就是几百字节)。
+#   超过 900 字节的输入会在换行处切分成好几张，编上 [1/3] 这样的号按顺序输出。
+#   ⚠ 单独一行长到一张都装不下时，那一行根本编不出来。
+#
+# 纵横比:
+#   终端不会告诉别人一个字符格有多大，所以这里假定字符的纵横比是 1:2 来把码画成正方形。
+#   看着被压扁的话，用环境变量微调:
+#     Z2_QR_ASPECT=0.45 qr.sh \"text\"     (越小越竖长。默认 0.5)
 """
     )).trimStart('\n')
-    val cMaxBytes = t(en = "max bytes per code (split beyond this)", ja = "1 枚に入れる上限 (これを超えたら分ける)")
-    val cPngModule = t(en = "dots per module in a saved PNG", ja = "保存する PNG の 1 モジュールあたりのドット数")
-    val cTargetPx = t(en = "target pixel width when drawing", ja = "画面に出すときの狙いのドット幅")
-    val cMargin = t(en = "quiet zone around the code (modules; needed to scan)", ja = "QR の周りの余白 (モジュール数。読み取りに必要)")
+    val cMaxBytes = t(
+        en = "max bytes per code (split beyond this)",
+        ja = "1 枚に入れる上限 (これを超えたら分ける)",
+        "zh-CN" to "一张里装的字节上限 (超过就分开)"
+    )
+    val cPngModule = t(
+        en = "dots per module in a saved PNG",
+        ja = "保存する PNG の 1 モジュールあたりのドット数",
+        "zh-CN" to "保存的 PNG 里每个模块占几个点"
+    )
+    val cTargetPx = t(en = "target pixel width when drawing", ja = "画面に出すときの狙いのドット幅", "zh-CN" to "画出来时想要的像素宽度")
+    val cMargin = t(
+        en = "quiet zone around the code (modules; needed to scan)",
+        ja = "QR の周りの余白 (モジュール数。読み取りに必要)",
+        "zh-CN" to "二维码周围的静区 (模块数。扫描时需要)"
+    )
     val cUsageFn = t(
         en = "Print the leading comment block as the help text (no fixed line count).\n" +
             "# Blank lines do not stop it (NF decides), so blank-separated sections stay intact.",
         ja = "先頭のコメントブロックをそのまま説明として出す (行数を固定しない)。\n" +
-            "# 空行では止めない (NF で判定する) — 説明を空行で区切っても途中で切れないように。"
+            "# 空行では止めない (NF で判定する) — 説明を空行で区切っても途中で切れないように。",
+        "zh-CN" to "把开头的注释块原样当作说明输出 (不固定行数)。\n" +
+            "# 空行不会让它停下 (由 NF 判断)，所以用空行分段的说明也不会被截断。"
     )
     val cNeedEncoder = t(
         en = "Requirement 1: qrencode. If it is missing, print how to install it here and stop.",
-        ja = "前提条件 1: qrencode。無ければ、このタブでの入れ方を出して止まる。"
+        ja = "前提条件 1: qrencode。無ければ、このタブでの入れ方を出して止まる。",
+        "zh-CN" to "前提条件 1: qrencode。没有的话，打出在这个标签页里的安装方法并停下。"
     )
     val mMissing = t(
         en = "qr.sh: missing requirement - qrencode is not installed",
-        ja = "qr.sh: 前提条件が足りない — qrencode が入っていない"
+        ja = "qr.sh: 前提条件が足りない — qrencode が入っていない",
+        "zh-CN" to "qr.sh: 前提条件不满足 — 没有安装 qrencode"
     )
-    val mInstallOnce = t(en = "  Install it once in this tab:", ja = "  このタブで 1 回だけ入れてください:")
+    val mInstallOnce = t(
+        en = "  Install it once in this tab:",
+        ja = "  このタブで 1 回だけ入れてください:",
+        "zh-CN" to "  请在这个标签页里装一次:"
+    )
     // パッケージマネージャが見つからなかったときの控え (distro ごとに名前が違うので並べる)。
     val mAnyPm = t(
         en = "    Arch: pacman -S qrencode / Ubuntu, Kali: apt install qrencode",
-        ja = "    Arch: pacman -S qrencode / Ubuntu・Kali: apt install qrencode"
+        ja = "    Arch: pacman -S qrencode / Ubuntu・Kali: apt install qrencode",
+        "zh-CN" to "    Arch: pacman -S qrencode / Ubuntu、Kali: apt install qrencode"
     )
-    val mNoTmp = t(en = "cannot create a work directory", ja = "作業場所を作れない")
-    val mUnreadable = t(en = "cannot read:", ja = "読めない:")
-    val mEmpty = t(en = "empty input", ja = "入力が空")
-    val mSizeNum = t(en = "-s takes a number", ja = "-s は数字で")
-    val mUsageHint = t(en = "see qr.sh -h", ja = "使い方は qr.sh -h")
-    val mPieceFail = t(en = "qr.sh: cannot build code %d: %s", ja = "qr.sh: %d 枚目を作れない: %s")
-    val cCollect = t(en = "---- collect the input ----", ja = "---- 入力を集める ----")
-    val cSplit = t(en = "---- split at line breaks when too long ----", ja = "---- 長ければ行の区切りで分ける ----")
+    val mNoTmp = t(en = "cannot create a work directory", ja = "作業場所を作れない", "zh-CN" to "建不了工作目录")
+    val mUnreadable = t(en = "cannot read:", ja = "読めない:", "zh-CN" to "读不了:")
+    val mEmpty = t(en = "empty input", ja = "入力が空", "zh-CN" to "输入是空的")
+    val mSizeNum = t(en = "-s takes a number", ja = "-s は数字で", "zh-CN" to "-s 要跟数字")
+    val mUsageHint = t(en = "see qr.sh -h", ja = "使い方は qr.sh -h", "zh-CN" to "用法见 qr.sh -h")
+    val mPieceFail = t(
+        en = "qr.sh: cannot build code %d: %s",
+        ja = "qr.sh: %d 枚目を作れない: %s",
+        "zh-CN" to "qr.sh: 做不出第 %d 张: %s"
+    )
+    val cCollect = t(en = "---- collect the input ----", ja = "---- 入力を集める ----", "zh-CN" to "---- 收集输入 ----")
+    val cSplit = t(
+        en = "---- split at line breaks when too long ----",
+        ja = "---- 長ければ行の区切りで分ける ----",
+        "zh-CN" to "---- 太长就在换行处切分 ----"
+    )
     val cSplit2 = t(
         en = "Move to the next piece just before the running total passes MAX_BYTES. Lines are\n# never cut in the middle, so multi-byte text survives.",
-        ja = "累積バイト数が MAX_BYTES を超える手前で次のピースへ送る。行の途中では切らない\n# ので、日本語が混じっていても壊れない。"
+        ja = "累積バイト数が MAX_BYTES を超える手前で次のピースへ送る。行の途中では切らない\n# ので、日本語が混じっていても壊れない。",
+        "zh-CN" to "在累计字节数超过 MAX_BYTES 之前就换到下一片。绝不在行的中间切，\n# 所以多字节的文字也不会被弄坏。"
     )
     val cTrim = t(
         en = "Drop the trailing newline (never encode a newline the input did not have).",
-        ja = "末尾の改行を落とす (元の入力に無い改行を QR に混ぜないため)。"
+        ja = "末尾の改行を落とす (元の入力に無い改行を QR に混ぜないため)。",
+        "zh-CN" to "去掉末尾的换行 (不把原输入里没有的换行编进二维码)。"
     )
-    val cSize = t(en = "---- pick the display size from the terminal width ----", ja = "---- 端末の幅から表示サイズを決める ----")
+    val cSize = t(
+        en = "---- pick the display size from the terminal width ----",
+        ja = "---- 端末の幅から表示サイズを決める ----",
+        "zh-CN" to "---- 根据终端宽度决定显示大小 ----"
+    )
     val cPngWidth = t(
         en = "Return the pixel width of a PNG (bytes 16-19, the IHDR).",
-        ja = "PNG の横ドット数を返す (IHDR の 16〜19 バイト目)。"
+        ja = "PNG の横ドット数を返す (IHDR の 16〜19 バイト目)。",
+        "zh-CN" to "返回 PNG 的像素宽度 (IHDR 的第 16〜19 字节)。"
     )
     val cModulePx = t(
         en = "Work back from the target pixel width to the dots per module.",
-        ja = "1 モジュールを何ドットで描くかを、狙いのドット幅から逆算する。"
+        ja = "1 モジュールを何ドットで描くかを、狙いのドット幅から逆算する。",
+        "zh-CN" to "从想要的像素宽度倒推出每个模块画几个点。"
     )
     val cInline = t(
         en = "Draw a PNG in place with the Kitty graphics protocol.\n# c/r pin down how many cells it takes, then print that many newlines to move the cursor below it.",
-        ja = "Kitty graphics protocol で PNG をその場に描く。\n# c/r を指定して占有セル数を確定させ、そのぶん改行してカーソルを絵の下へ運ぶ。"
+        ja = "Kitty graphics protocol で PNG をその場に描く。\n# c/r を指定して占有セル数を確定させ、そのぶん改行してカーソルを絵の下へ運ぶ。",
+        "zh-CN" to "用 Kitty graphics protocol 就地画出 PNG。\n# 指定 c/r 把占用的格数定下来，再输出相应的换行，把光标送到图的下方。"
     )
-    val cEmit = t(en = "---- emit ----", ja = "---- 出す ----")
+    val cEmit = t(en = "---- emit ----", ja = "---- 出す ----", "zh-CN" to "---- 输出 ----")
     val cAnsi = t(
         en = "ANSIUTF8 emits its own colours, so light/dark comes out right whatever the theme is.",
-        ja = "ANSIUTF8 は色を付けて出すので、端末の配色に関係なく明暗が正しく出る。"
+        ja = "ANSIUTF8 は色を付けて出すので、端末の配色に関係なく明暗が正しく出る。",
+        "zh-CN" to "ANSIUTF8 会自己带上颜色，所以不管终端配色如何，明暗都能正确显示。"
     )
 
     return """$head

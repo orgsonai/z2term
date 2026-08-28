@@ -69,7 +69,10 @@ class CliTextTest {
      */
     @Test
     fun generatedScriptsFallBackToEnglishForAnUnknownLanguage() {
-        val unknown = "zh-CN"
+        // ⛔ **名簿に載る予定のある言語をここに書かないこと。** 0.8.424 まで "zh-CN" だったが、
+        // 簡体字を実際に足した時点で「訳の無い言語」ではなくなり、このテストの前提が崩れた。
+        // `zz` は ISO 639-1 で割り当てられない領域なので、名簿に載ることがない。
+        val unknown = "zz"
         for ((name, build) in listOf<Pair<String, (String) -> String>>(
             "z2doctor" to ::z2doctorScript,
             "z2scan" to ::z2scanScript,

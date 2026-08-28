@@ -18,7 +18,7 @@ fun z2helpScript(lang: String = "ja"): String {
     // 言語ごとの文言を選ぶ道具。3 言語目は t(en = …, ja = …) の後ろへ変わり値を足す ([CliText])。
     val t = CliText(lang)
 
-    val header = t(en = "Z2Term own commands", ja = "Z2Term 独自コマンド")
+    val header = t(en = "Z2Term own commands", ja = "Z2Term 独自コマンド", "zh-CN" to "Z2Term 自有命令")
 
     val list = t(
         en = """
@@ -118,6 +118,55 @@ fun z2helpScript(lang: String = "ja"): String {
         |
         |上のコマンドは自分で説明します: --help を付けてください (例: 'z2-tile --help')。
         |詳しくは: 'z2adb help' / 引数なしの 'z2gui' / HANDBOOK 第11節。
+    """,
+        "zh-CN" to """
+        |[版本、信息]
+        |  z2version [--short]            应用版本、执行引擎、系统(发行版)、kernel
+        |  z2doctor [--share|--clip]      跑不起来时的排查诊断＋可以直接贴出去的报告
+        |
+        |[调用手机的功能]
+        |  z2-notify [-h] [-b 标签]...    通知(-h: 横幅, -b: 回复按钮)
+        |  z2-ask "问题"                  用通知的回复框提问，把答案送到标准输出
+        |  z2-toast "消息"                吐司(屏幕下方的短消息)
+        |  z2-share "文本"                交给 Android 的分享菜单
+        |  z2-open <URL 或路径>           用默认应用打开 URL/文件
+        |  z2-clip get | set [文本]       获取/设置剪贴板(set 不带参数则读标准输入)
+        |  z2-battery                     电量、充电状态(JSON)
+        |  z2-vibrate [毫秒]              震动(默认 200ms)
+        |  z2-say "文本"                  用设备自带 TTS 朗读(不带参数则读标准输入)
+        |  z2-torch [on|off|toggle]       手电筒(默认 toggle)
+        |  z2-media [play|pause|next]     发送媒体键(也支持 previous/stop)
+        |  z2-volume up|down|N|N%         媒体音量(输出结果的 current/max)
+        |  z2-sensor [light|accel|prox]   读一次传感器(JSON，光照/加速度/接近)
+        |  z2-intent -a ACT -d URI ...    触发任意 Android Intent(见 MACRO-GUIDE)
+        |  z2-state [键]                  用 JSON 输出当前状态(指定键则只出那个值)
+        |  z2-screen keepon 1h | off      在这段时间内让屏幕不会自己熄灭
+        |  z2-tile set 1 backup.sh        把宏/命令分配到快捷设置磁贴(12 个位)
+        |  z2-icon edit 1 | edit notify   自己画磁贴/状态栏图标(24〜64 格)
+        |  z2-alarm at|daily HH:MM [名称] 时间触发→events.jsonl(也有 list/cancel)
+        |  z2-when <触发条件> run <命令>  按充电/电池/时刻/设备事件自动运行(用法见 z2-when)
+        |  z2-macro list|install <名称>   自动化宏的随附示例(见 MACRO-GUIDE)
+        |  z2-session list|new|send|...   操作这个应用的标签页(用法见 z2-session)
+        |  z2-update [--check]            从 GitHub Releases 更新 z2term 自身(确认要自己按)
+        |
+        |[带界面(GUI)的应用]
+        |  z2gui start [宽x高] | stop | status Linux 桌面(例 z2gui start 1280x720)
+        |  z2run <GUI应用>                启动图形应用(也会自动打开图形标签页)
+        |
+        |[连接]
+        |  z2adb pair/connect/shell ...   给这台手机自己上 adb(不需要电脑)  (z2adb help)
+        |  sshd [-p N]                    SSH 服务器(默认只监听 127.0.0.1、密钥认证)
+        |
+        |[安全]
+        |  z2scan self [--save]           自检本设备/localhost(z2scan help)
+        |  z2scan diff                    只列出相对基准变化的部分(有增加则退出码 1)
+        |  z2scan net|host|cve            对 localhost 跑 nmap/lynis/trivy(外部需显式许可)
+        |
+        |[帮助]
+        |  z2help | z2term                这个列表
+        |
+        |上面的命令都会自己说明用法: 加上 --help (例: 'z2-tile --help')。
+        |详情: 'z2adb help' / 不带参数的 'z2gui' / HANDBOOK 第 11 节。
     """
     )
 

@@ -24,94 +24,126 @@ fun z2doctorScript(lang: String = "ja"): String {
     // 言語ごとの文言を選ぶ道具。3 言語目は t(en = …, ja = …) の後ろへ変わり値を足す ([CliText])。
     val t = CliText(lang)
 
-    val head = t(en = "== z2doctor (this device) ==", ja = "== z2doctor (この端末の状態) ==")
-    val secApp = t(en = "-- app --", ja = "-- アプリ --")
-    val secLinux = t(en = "-- linux side --", ja = "-- Linux 側 --")
-    val secPerm = t(en = "-- permissions --", ja = "-- 許可 --")
-    val secAuto = t(en = "-- automation --", ja = "-- 自動化 --")
-    val secReport = t(en = "-- copy this when asking for help --", ja = "-- 助けを求めるときはここを貼る --")
+    val head = t(
+        en = "== z2doctor (this device) ==",
+        ja = "== z2doctor (この端末の状態) ==",
+        "zh-CN" to "== z2doctor (这台设备的状态) =="
+    )
+    val secApp = t(en = "-- app --", ja = "-- アプリ --", "zh-CN" to "-- 应用 --")
+    val secLinux = t(en = "-- linux side --", ja = "-- Linux 側 --", "zh-CN" to "-- Linux 一侧 --")
+    val secPerm = t(en = "-- permissions --", ja = "-- 許可 --", "zh-CN" to "-- 权限 --")
+    val secAuto = t(en = "-- automation --", ja = "-- 自動化 --", "zh-CN" to "-- 自动化 --")
+    val secReport = t(
+        en = "-- copy this when asking for help --",
+        ja = "-- 助けを求めるときはここを貼る --",
+        "zh-CN" to "-- 求助时请贴这一段 --"
+    )
 
-    val lVersion = t(en = "version", ja = "版数")
-    val lEngine = t(en = "engine", ja = "実行エンジン")
-    val lDistro = t(en = "distro", ja = "ディストロ")
-    val lKernel = t(en = "kernel", ja = "kernel")
-    val lDisk = t(en = "free space", ja = "空き容量")
-    val lHome = t(en = "home", ja = "ホーム")
-    val lSdcard = t(en = "/sdcard", ja = "/sdcard")
-    val lNotify = t(en = "notifications", ja = "通知を出せる")
-    val lNotifyRead = t(en = "notification access", ja = "通知を読める")
-    val lBattOpt = t(en = "battery optimization", ja = "電池最適化から除外")
-    val lStorage = t(en = "storage (all files)", ja = "ストレージ全体")
-    val lSms = t(en = "SMS receive", ja = "SMS 受信")
-    val lCapture = t(en = "event detection", ja = "システムイベント検知")
-    val lServers = t(en = "resident servers", ja = "常駐サーバー")
-    val lRules = t(en = "automation rules", ja = "自動化ルール")
-    val lSshd = t(en = "sshd", ja = "sshd")
+    val lVersion = t(en = "version", ja = "版数", "zh-CN" to "版本")
+    val lEngine = t(en = "engine", ja = "実行エンジン", "zh-CN" to "执行引擎")
+    val lDistro = t(en = "distro", ja = "ディストロ", "zh-CN" to "发行版")
+    val lKernel = t(en = "kernel", ja = "kernel", "zh-CN" to "kernel")
+    val lDisk = t(en = "free space", ja = "空き容量", "zh-CN" to "可用空间")
+    val lHome = t(en = "home", ja = "ホーム", "zh-CN" to "主目录")
+    val lSdcard = t(en = "/sdcard", ja = "/sdcard", "zh-CN" to "/sdcard")
+    val lNotify = t(en = "notifications", ja = "通知を出せる", "zh-CN" to "能发通知")
+    val lNotifyRead = t(en = "notification access", ja = "通知を読める", "zh-CN" to "能读通知")
+    val lBattOpt = t(en = "battery optimization", ja = "電池最適化から除外", "zh-CN" to "已排除电池优化")
+    val lStorage = t(en = "storage (all files)", ja = "ストレージ全体", "zh-CN" to "全部存储")
+    val lSms = t(en = "SMS receive", ja = "SMS 受信", "zh-CN" to "接收短信")
+    val lCapture = t(en = "event detection", ja = "システムイベント検知", "zh-CN" to "系统事件检测")
+    val lServers = t(en = "resident servers", ja = "常駐サーバー", "zh-CN" to "常驻服务")
+    val lRules = t(en = "automation rules", ja = "自動化ルール", "zh-CN" to "自动化规则")
+    val lSshd = t(en = "sshd", ja = "sshd", "zh-CN" to "sshd")
 
     // NG のときに出す「次の一手」。ここが書けない項目は診断に出さない。
     val fixNotify = t(
         en = "-> Android settings > Apps > Z2Term > Notifications: allow",
-        ja = "-> Android の設定 › アプリ › Z2Term › 通知 を許可してください"
+        ja = "-> Android の設定 › アプリ › Z2Term › 通知 を許可してください",
+        "zh-CN" to "-> 请到 Android 的 设置 › 应用 › Z2Term › 通知 里允许"
     )
     val fixNotifyRead = t(
         en = "-> Settings > resident servers & automation > notification detection",
-        ja = "-> 設定 › 常駐サーバー・自動化 › 通知検知 から許可してください"
+        ja = "-> 設定 › 常駐サーバー・自動化 › 通知検知 から許可してください",
+        "zh-CN" to "-> 请到 设置 › 常驻服务与自动化 › 通知检测 里允许"
     )
     val fixBattOpt = t(
         en = "-> Settings > background process protection > exclude from battery optimization",
-        ja = "-> 設定 › バックグラウンド動作の保護 › 電池最適化から除外 を ON にしてください"
+        ja = "-> 設定 › バックグラウンド動作の保護 › 電池最適化から除外 を ON にしてください",
+        "zh-CN" to "-> 请打开 设置 › 后台进程保护 › 从电池优化中排除"
     )
     val fixStorage = t(
         en = "-> Settings > allow access to all files (needed to see /sdcard)",
-        ja = "-> 設定 › ストレージ全体を許可 を ON にしてください (/sdcard を見るのに必要)"
+        ja = "-> 設定 › ストレージ全体を許可 を ON にしてください (/sdcard を見るのに必要)",
+        "zh-CN" to "-> 请打开 设置 › 授予全部存储权限 (看 /sdcard 需要它)"
     )
     val fixSms = t(
         en = "-> Settings > SMS detection (only needed for sms: triggers)",
-        ja = "-> 設定 › SMS 検知 から許可してください (sms: トリガーを使うときだけ必要)"
+        ja = "-> 設定 › SMS 検知 から許可してください (sms: トリガーを使うときだけ必要)",
+        "zh-CN" to "-> 请到 设置 › 短信检测 里允许 (只有用 sms: 触发条件时才需要)"
     )
     val fixCapture = t(
         en = "-> Settings > system event detection (needed by charge/battery/wifi/sensor/event triggers)",
-        ja = "-> 設定 › システムイベント検知 を ON にしてください (充電/電池/wifi/センサー/event の各トリガーに必要)"
+        ja = "-> 設定 › システムイベント検知 を ON にしてください (充電/電池/wifi/センサー/event の各トリガーに必要)",
+        "zh-CN" to "-> 请打开 设置 › 系统事件检测 (充电/电池/wifi/传感器/event 各触发条件都需要它)"
     )
     val fixPaused = t(
         en = "-> automation is paused. 'z2-when resume' or the Automation tab",
-        ja = "-> 自動化が一時停止中です。z2-when resume か 📜 の自動化タブで再開できます"
+        ja = "-> 自動化が一時停止中です。z2-when resume か 📜 の自動化タブで再開できます",
+        "zh-CN" to "-> 自动化正处于暂停。可以用 z2-when resume 或 📜 的自动化标签页恢复"
     )
     val fixDisk = t(
         en = "-> less than 500MB free. Delete unused OS data in Settings",
-        ja = "-> 空きが 500MB を切っています。設定の「OS データ削除」で使っていない OS を消せます"
+        ja = "-> 空きが 500MB を切っています。設定の「OS データ削除」で使っていない OS を消せます",
+        "zh-CN" to "-> 可用空间不足 500MB。可以在设置的“删除系统数据”里清掉不用的系统"
     )
     val fixSdcard = t(
         en = "-> /sdcard is empty here; the storage permission above is what makes it visible",
-        ja = "-> /sdcard が空に見えます。上の「ストレージ全体」の許可が要ります"
+        ja = "-> /sdcard が空に見えます。上の「ストレージ全体」の許可が要ります",
+        "zh-CN" to "-> /sdcard 看起来是空的。需要上面那项“全部存储”的授权"
     )
 
-    val noteRedacted = t(en = "(SSID / IP / host names are left out on purpose)", ja = "(SSID・IP・ホスト名は意図的に伏せています)")
-    val allGood = t(en = "No problems found.", ja = "問題は見つかりませんでした。")
-    val someBad = t(en = "issues found:", ja = "気になる点:")
+    val noteRedacted = t(
+        en = "(SSID / IP / host names are left out on purpose)",
+        ja = "(SSID・IP・ホスト名は意図的に伏せています)",
+        "zh-CN" to "(SSID、IP、主机名是有意隐去的)"
+    )
+    val allGood = t(en = "No problems found.", ja = "問題は見つかりませんでした。", "zh-CN" to "没有发现问题。")
+    val someBad = t(en = "issues found:", ja = "気になる点:", "zh-CN" to "值得注意的地方:")
     val usage = t(
         en = "usage: z2doctor [--share | --clip]   (--share hands the report to Android's share sheet)",
-        ja = "usage: z2doctor [--share | --clip]   (--share で報告文を共有シートに渡します)"
+        ja = "usage: z2doctor [--share | --clip]   (--share で報告文を共有シートに渡します)",
+        "zh-CN" to "usage: z2doctor [--share | --clip]   (--share 会把报告交给 Android 的分享菜单)"
     )
-    val pausedYes = t(en = "paused", ja = "一時停止中")
+    val pausedYes = t(en = "paused", ja = "一時停止中", "zh-CN" to "已暂停")
 
     // 前回までの終了 (0.8.376)。落ちた理由は OS しか知らないので、ここに出さないと
     // 利用者からは「また消えた」以上のことが言えない。
-    val secExits = t(en = "-- how it ended last time --", ja = "-- 前回までの終了 --")
-    val lExitsNote = t(en = "recent abnormal exits (newest first):", ja = "直近の異常終了 (新しい順):")
-    val lExitsNone = t(en = "abnormal exits: none recorded", ja = "異常終了: 記録なし")
-    val lExitsFile = t(en = "(full history: ~/.z2term/exits.jsonl)", ja = "(全履歴: ~/.z2term/exits.jsonl)")
+    val secExits = t(en = "-- how it ended last time --", ja = "-- 前回までの終了 --", "zh-CN" to "-- 上次是怎么结束的 --")
+    val lExitsNote = t(
+        en = "recent abnormal exits (newest first):",
+        ja = "直近の異常終了 (新しい順):",
+        "zh-CN" to "最近的异常结束 (新的在前):"
+    )
+    val lExitsNone = t(en = "abnormal exits: none recorded", ja = "異常終了: 記録なし", "zh-CN" to "异常结束: 没有记录")
+    val lExitsFile = t(
+        en = "(full history: ~/.z2term/exits.jsonl)",
+        ja = "(全履歴: ~/.z2term/exits.jsonl)",
+        "zh-CN" to "(完整历史: ~/.z2term/exits.jsonl)"
+    )
     val hintExitMem = t(
         en = "-> killed under memory pressure. Run fewer heavy jobs at once, or trim resident servers / tabs",
-        ja = "-> メモリ不足で終了しています。重い作業の同時実行を減らすか、常駐サーバー・タブを整理してください"
+        ja = "-> メモリ不足で終了しています。重い作業の同時実行を減らすか、常駐サーバー・タブを整理してください",
+        "zh-CN" to "-> 因为内存不足而被结束。请减少同时进行的重活，或者整理一下常驻服务和标签页"
     )
 
     return """
         |#!/bin/sh
-        |# z2doctor: ${t(en = "self-check for \"it does not work\"", ja = "「動きません」の切り分け診断")}
+        |# z2doctor: ${t(en = "self-check for \"it does not work\"", ja = "「動きません」の切り分け診断", "zh-CN" to "给“跑不起来”做的自检")}
         |# ${t(
             en = "See also: z2scan self (security check, a different tool)",
-            ja = "似た名前の z2scan self は「危ない設定を探す」別のコマンドです"
+            ja = "似た名前の z2scan self は「危ない設定を探す」別のコマンドです",
+            "zh-CN" to "名字相近的 z2scan self 是另一条命令，用来“找出危险的设置”"
         )}
         |NG=0
         |OUT=""

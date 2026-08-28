@@ -30,7 +30,8 @@ fun z2runScript(lang: String = "ja"): String {
     val t = CliText(lang)
     val errMsg = t(
         en = "z2run: Xvnc :${d}{DISPLAY_NUM} did not start. See /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log.",
-        ja = "z2run: Xvnc :${d}{DISPLAY_NUM} が起動しませんでした。/tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log を確認してください。"
+        ja = "z2run: Xvnc :${d}{DISPLAY_NUM} が起動しませんでした。/tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log を確認してください。",
+        "zh-CN" to "z2run: Xvnc :${d}{DISPLAY_NUM} 没有启动。请查看 /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log。"
     )
     return """
         |#!/bin/sh

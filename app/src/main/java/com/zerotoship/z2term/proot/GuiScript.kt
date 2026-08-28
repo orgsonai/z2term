@@ -145,6 +145,38 @@ data class GuiScriptStrings(
             qtFallback = "📚 Added PySide6's bundled Qt6 to LD_LIBRARY_PATH (Konsole fallback):",
             qtFallbackFound = "📚 Found a libQt6QuickWidgets.so.6 → added to LD_LIBRARY_PATH:"
         )
+        fun zhCN(): GuiScriptStrings = GuiScriptStrings(
+            installing = "📦 正在安装整套图形环境",
+            cleanInstalling = "🧹 正在全新安装图形环境",
+            noPackageManager = "❌ 找不到支持的包管理器 (apk/apt-get/pacman)。",
+            invalidGeometry = "❌ 分辨率的写法不正确",
+            noXvnc = "❌ 没有 Xvnc/Xtigervnc (tigervnc 未安装)",
+            alreadyRunning = "✅ 图形环境已经在运行",
+            startingXvnc = "▶ 启动",
+            xvncFailed = "❌ Xvnc 启动失败。日志:",
+            noTermFlag = "ℹ Z2_NO_TERM=1: 不启动终端，只启动 Xvnc+openbox。",
+            terminalNotFound = "⚠ 找不到终端 (是不是安装失败了?)。只启动 openbox。",
+            terminalInstallFailed = "⚠ 没能安装终端软件包。图形环境会启动，但不会出现终端窗口",
+            terminalLog = "🧾 终端的输出",
+            ready = "✅ 图形环境准备完成。请从 z2term 的图形标签页连接。",
+            running = "✅ 图形环境运行中",
+            stopped = "⏹ 图形环境已停止",
+            stoppedMsg = "⏹ 已停止",
+            usage = "用法: z2gui [start [WxH] [clean] | stop | status | install | clean | check]",
+            konsoleRebuild = "🔧 Konsole 相关文件缺失 — 正在从本地缓存重建 (不联网)",
+            extracting = "📦 解压",
+            konsoleRebuilt = "✅ 已从本地缓存重建 Konsole + Qt6",
+            konsoleCacheShort = "⚠️ 光靠本地缓存凑不齐 — 请在设置里打开“全新安装”后按 🖥",
+            installFailed = "❌ 没能安装整套图形环境 (Xvnc / openbox / 终端)。",
+            installFailedHint = "   请确认网络连接，或者在设置里打开“全新安装”后按 🖥。",
+            audioInstalling = "🔊 图形界面声音: 正在安装 PulseAudio",
+            audioNoPulse = "⚠️ 图形界面声音: 没有 pulseaudio，将以无声继续",
+            audioNoPactl = "⚠️ 图形界面声音: 没有 pactl，将以无声继续",
+            audioStartFailed = "⚠️ 图形界面声音: PulseAudio 启动失败",
+            audioReady = "🔊 图形界面声音: z2sink.monitor →",
+            qtFallback = "📚 已把 PySide6 自带的 Qt6 加入 LD_LIBRARY_PATH (救 Konsole):",
+            qtFallbackFound = "📚 发现了 libQt6QuickWidgets.so.6 → 已加入 LD_LIBRARY_PATH:"
+        )
         /**
          * 言語ごとの組。⭐ **3 言語目はここに 1 行足す** (言語コード to その組を返す関数)。
          * 名簿 ([AppLanguages]) にあっても訳が無い言語は英語へ落ちる。
@@ -152,6 +184,7 @@ data class GuiScriptStrings(
         private val byLang: Map<String, () -> GuiScriptStrings> = mapOf(
             "en" to ::en,
             "ja" to ::ja,
+            "zh-CN" to ::zhCN,
         )
 
         /** ⚠ **知らない言語は英語**。「英語でなければ日本語」と書かないこと。 */

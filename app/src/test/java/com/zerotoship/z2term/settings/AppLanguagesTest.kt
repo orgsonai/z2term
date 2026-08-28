@@ -58,8 +58,10 @@ class AppLanguagesTest {
     fun resolveKeepsKnownAndDropsUnknown() {
         assertEquals("ja", AppLanguages.resolve("ja"))
         assertEquals("en", AppLanguages.resolve("en"))
+        assertEquals("zh-CN", AppLanguages.resolve("zh-CN"))
         // ⛔ 名簿に無い言語は**英語**。日本語へ倒さない。
-        assertEquals(AppLanguages.FALLBACK, AppLanguages.resolve("zh-CN"))
+        // ⚠ ここに「そのうち載せる言語」を書かないこと (載せた日にこのテストが嘘になる)。
+        assertEquals(AppLanguages.FALLBACK, AppLanguages.resolve("zz"))
         assertEquals(AppLanguages.FALLBACK, AppLanguages.resolve(""))
     }
 

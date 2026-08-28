@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-28 / Target version: 0.8.423-alpha (versionCode 431)
+Last updated: 2026-08-28 / Target version: 0.8.424-alpha (versionCode 432)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2586,6 +2586,20 @@ real device as the only place anyone would notice. ⚠ **This starts the moment 
 - ⚠ **The test skips where `python3` is absent** (the same treatment `GuiScriptSyntaxTest` gives `sh`). python3 is not a build requirement, so its absence must not fail a developer's test run; CI (ubuntu-latest) has it, so **anything pushed is always checked**.
 - **`--check` does not look at `res`.** lint already guards that as an error, and judging it twice leaves you unsure which complaint to fix.
 
+#### Simplified Chinese added (the first B3 language, 0.8.424)
+
+**The third language: 1,041 `res` strings and 337 terminal-side strings translated in full, then marked
+`cliComplete`.** It took one line in `AppLanguages.ALL`, a `res/values-zh-rCN/`, and a `"zh-CN" to …` on
+each `t(…)` — **not one line of the code that uses those strings changed**, which is also the proof that
+the socket built in 0.8.422 works.
+
+- ⭐ **The en/ja output was mechanically shown to be byte-for-byte identical.** Every generated script was written out per language, and `diff -r` taken before and after adding the variants. `pick()` looks at the variants first and otherwise splits on `lang == "ja"`, so a `"zh-CN"` entry **structurally cannot** affect the en/ja result — but when 345 sites are rewritten by machine, the artefact gets checked anyway.
+- ⚠ **Never build a test on "a language not on the roster yet".** `CliTextTest` used `"zh-CN"` as its untranslated language, so the premise collapsed the day Chinese landed. It now uses `zz`, which ISO 639-1 leaves unassigned. `AppLanguagesTest.resolve` was corrected for the same reason.
+- **The counting skips comments** (found right after 0.8.423). Notes explaining the syntax, such as `// a third language goes after t(en = …, ja = …)`, were being counted as strings, inflating the total by 8. Since a marked language must reach 100%, **no amount of translating would have got there**.
+- **`z2scan` baselines are per language.** It compares findings as text, so switching language makes every item look changed. `z2scan` records the language code in the baseline and asks you to re-save when it differs (that code is itself one of the `t(…)` values, carrying `zh-CN`).
+- ⛔ **No Chinese input method is bundled.** Pinyin/zhuyin-to-hanzi conversion is a job the size of the Japanese IME, and what you type at a shell is commands (ASCII), so hanzi belong to the OS input method. **Only the UI and messages are translated; the keyboard explicitly does not cover Chinese** (stated in both the README and the HANDBOOK).
+- ⚠ **The bundled terminal fonts have no CJK.** JetBrains Mono / Fira Code / IBM Plex Mono fall through to the system font (already the case for Japanese, so nothing new). ⛔ Bundling a CJK font collides head-on with the "21MB, no third-party prebuilts" policy, so it is not done.
+
 **Relationship to the built-in keyboard**: display language and input method are **kept separate**. The kana
 face is enabled by default only when the app language is Japanese (`legacyKanaAvailable`); other languages
 get the ASCII and numeric faces. ⛔ **No Chinese conversion engine (pinyin/zhuyin) is carried** — what you
@@ -2707,7 +2721,7 @@ unmarked field: some apps bind Ctrl+W and friends to something else.
   keyboard (that path can pass control codes and modifiers through as they are).
 - ⚠ **Enabling and picking are the user's to do** (an OS rule). The app only opens
   `Settings.ACTION_INPUT_METHOD_SETTINGS` and `showInputMethodPicker()` from its settings screen.
-- **Three display languages — System / Japanese / English, defaulting to the system** (`LocaleHelper`, 0.8.363, user request).
+- **Display language is "System" plus every language on the roster, defaulting to the system** (`LocaleHelper`, 0.8.363, user request; Simplified Chinese joined in 0.8.424, making it four).
   ⚠ Through 0.8.362 the default was **pinned to `ja`**, so the app came up in Japanese on any phone —
   leaving a screen you cannot read until you find the setting. ⚠ **The stored value and the effective
   language are separate**: `languageSetting` returns `system`/`ja`/`en`, while `language` always returns

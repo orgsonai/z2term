@@ -96,6 +96,24 @@ data class SshdScriptStrings(
             authKeysHint = "ℹ ~/.ssh/authorized_keys is empty. Register a client public key to connect.",
             authKeysExample = "   e.g. cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
         )
+        fun zhCN(): SshdScriptStrings = SshdScriptStrings(
+            invalidPort = "❌ 端口号不正确",
+            configOk = "sshd(dropbear) 配置 OK",
+            installingDropbear = "📦 没有 dropbear，正在安装…",
+            dropbearInstallFailed = "❌ 无法安装 dropbear。请确认网络连接和软件包名称。",
+            privilegedPortWarn = "⚠️ 特权端口。在 proot(非 root) 下很可能 bind 不上 (建议用 1024 以上)。",
+            lanExposeWarn = "⚠️ 局域网/广域网开放模式: 必须用密钥认证，并且要用强密钥。",
+            noAuthorizedKeys = "⛔ ~/.ssh/authorized_keys 还没有设置。已中止以局域网开放方式启动。",
+            noAuthorizedKeysHint = "   请先把公钥登记到 ~/.ssh/authorized_keys 再重新执行。",
+            loopbackBind = "🔒 只在 loopback 上启动。要对局域网开放请用 --lan 或 Z2_SSHD_LAN=1。",
+            foregroundStart = "▶ 以前台方式启动 dropbear (Ctrl-C 停止)",
+            listeningLan = "✅ dropbear listening (root，仅密钥认证)",
+            listeningLoopback = "✅ dropbear listening (root，仅密钥认证，仅 loopback)",
+            startupFailed = "❌ dropbear 启动失败。日志:",
+            deviceIp = "设备IP",
+            authKeysHint = "ℹ ~/.ssh/authorized_keys 还没有设置。登记客户端的公钥之后就能连接了。",
+            authKeysExample = "   例: cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+        )
         /**
          * 言語ごとの組。⭐ **3 言語目はここに 1 行足す** (言語コード to その組を返す関数)。
          * 名簿 ([AppLanguages]) にあっても訳が無い言語は英語へ落ちる。
@@ -103,6 +121,7 @@ data class SshdScriptStrings(
         private val byLang: Map<String, () -> SshdScriptStrings> = mapOf(
             "en" to ::en,
             "ja" to ::ja,
+            "zh-CN" to ::zhCN,
         )
 
         /** ⚠ **知らない言語は英語**。「英語でなければ日本語」と書かないこと。 */
