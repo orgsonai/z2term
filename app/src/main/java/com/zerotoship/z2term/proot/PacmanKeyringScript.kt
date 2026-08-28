@@ -52,30 +52,28 @@ package com.zerotoship.z2term.proot
 const val PACMAN_KEYRING_MARKER = ".z2term-keyring-ready"
 
 fun pacmanKeyringScript(lang: String): String {
-    val ja = lang != "en"
+    // 言語ごとの文言を選ぶ道具。3 言語目は t(en = …, ja = …) の後ろへ変わり値を足す ([CliText])。
+    val t = CliText(lang)
     val d = "${'$'}"
     val marker = PACMAN_KEYRING_MARKER
 
-    val msgStart = if (ja)
-        "🔑 pacman の鍵束を用意します (初回だけ・通信しません)。少し時間がかかります…"
-    else
-        "🔑 Setting up the pacman keyring (first time only, no network). This takes a moment…"
-    val msgOk = if (ja)
-        "✅ 鍵束の用意ができました。パッケージを入れられます。"
-    else
-        "✅ Keyring ready. Packages can be installed now."
-    val msgInitFail = if (ja)
-        "❌ pacman-key --init に失敗しました。次にこのタブを開いたときにやり直します。"
-    else
-        "❌ pacman-key --init failed. It will be retried the next time this tab opens."
-    val msgNoKeyrings = if (ja)
-        "❌ 同梱の鍵束 (/usr/share/pacman/keyrings) が見つかりません。"
-    else
-        "❌ No bundled keyrings found under /usr/share/pacman/keyrings."
-    val msgPopulateFail = if (ja)
-        "❌ pacman-key --populate に失敗しました。次にこのタブを開いたときにやり直します。"
-    else
-        "❌ pacman-key --populate failed. It will be retried the next time this tab opens."
+    val msgStart = t(
+        en = "🔑 Setting up the pacman keyring (first time only, no network). This takes a moment…",
+        ja = "🔑 pacman の鍵束を用意します (初回だけ・通信しません)。少し時間がかかります…"
+    )
+    val msgOk = t(en = "✅ Keyring ready. Packages can be installed now.", ja = "✅ 鍵束の用意ができました。パッケージを入れられます。")
+    val msgInitFail = t(
+        en = "❌ pacman-key --init failed. It will be retried the next time this tab opens.",
+        ja = "❌ pacman-key --init に失敗しました。次にこのタブを開いたときにやり直します。"
+    )
+    val msgNoKeyrings = t(
+        en = "❌ No bundled keyrings found under /usr/share/pacman/keyrings.",
+        ja = "❌ 同梱の鍵束 (/usr/share/pacman/keyrings) が見つかりません。"
+    )
+    val msgPopulateFail = t(
+        en = "❌ pacman-key --populate failed. It will be retried the next time this tab opens.",
+        ja = "❌ pacman-key --populate に失敗しました。次にこのタブを開いたときにやり直します。"
+    )
 
     return """
         |#!/bin/sh

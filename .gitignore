@@ -61,3 +61,7 @@ app/src/main/jniLibs/arm64-v8a/libz2attach.so
 # プログラミングフォント（scripts/fetch-fonts.sh で取得、含めない）
 app/src/main/assets/fonts/*.ttf
 app/src/main/assets/fonts/*.otf
+
+# python の生成物（scripts/ の補助スクリプトを import したときに出る）
+__pycache__/
+*.pyc

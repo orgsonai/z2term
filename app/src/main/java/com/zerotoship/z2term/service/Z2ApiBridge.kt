@@ -493,7 +493,7 @@ object Z2ApiBridge {
      * `z2-server -h` に書いてあることとエラーの言い方が食い違う。
      */
     private fun cliMsg(context: Context): Z2ApiMsg =
-        Z2ApiMsg(en = LocaleHelper.language(context) != LocaleHelper.LANG_JA, d = "$")
+        Z2ApiMsg(lang = LocaleHelper.language(context), d = "$")
 
     /**
      * `\xHH` `\e` `\n` `\r` `\t` `\0` `\\` を実バイトへ (`z2-session key --raw`)。

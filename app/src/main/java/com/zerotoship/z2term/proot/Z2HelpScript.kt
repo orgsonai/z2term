@@ -15,11 +15,13 @@ package com.zerotoship.z2term.proot
  */
 fun z2helpScript(lang: String = "ja"): String {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
-    val en = lang == "en"
+    // 言語ごとの文言を選ぶ道具。3 言語目は t(en = …, ja = …) の後ろへ変わり値を足す ([CliText])。
+    val t = CliText(lang)
 
-    val header = if (en) "Z2Term own commands" else "Z2Term 独自コマンド"
+    val header = t(en = "Z2Term own commands", ja = "Z2Term 独自コマンド")
 
-    val list = if (en) """
+    val list = t(
+        en = """
         |[Version / info]
         |  z2version [--short]            App version, engine, OS (distro), kernel
 |  z2doctor [--share|--clip]      Why isn't it working? Self-check + a report you can paste
@@ -67,7 +69,8 @@ fun z2helpScript(lang: String = "ja"): String {
         |
         |Every command above explains itself: add --help (e.g. 'z2-tile --help').
         |More: 'z2adb help', run 'z2gui' with no args, or HANDBOOK section 11.
-    """ else """
+    """,
+        ja = """
         |[版数・情報]
         |  z2version [--short]            アプリ版数・実行エンジン・OS(ディストロ)・kernel
 |  z2doctor [--share|--clip]      動かないときの切り分け診断＋貼れる報告文
@@ -116,6 +119,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |上のコマンドは自分で説明します: --help を付けてください (例: 'z2-tile --help')。
         |詳しくは: 'z2adb help' / 引数なしの 'z2gui' / HANDBOOK 第11節。
     """
+    )
 
     return """
         |#!/bin/sh

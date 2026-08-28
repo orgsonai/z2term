@@ -1,5 +1,7 @@
 package com.zerotoship.z2term.proot
 
+import com.zerotoship.z2term.settings.AppLanguages
+
 /**
  * `sshd` が設定/引数が無いときに使う既定ポート。
  * 1024 未満は proot(非root) で bind できないため高ポートを既定にする。
@@ -94,7 +96,18 @@ data class SshdScriptStrings(
             authKeysHint = "ℹ ~/.ssh/authorized_keys is empty. Register a client public key to connect.",
             authKeysExample = "   e.g. cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
         )
-        fun forLang(lang: String): SshdScriptStrings = if (lang == "en") en() else ja()
+        /**
+         * 言語ごとの組。⭐ **3 言語目はここに 1 行足す** (言語コード to その組を返す関数)。
+         * 名簿 ([AppLanguages]) にあっても訳が無い言語は英語へ落ちる。
+         */
+        private val byLang: Map<String, () -> SshdScriptStrings> = mapOf(
+            "en" to ::en,
+            "ja" to ::ja,
+        )
+
+        /** ⚠ **知らない言語は英語**。「英語でなければ日本語」と書かないこと。 */
+        fun forLang(lang: String): SshdScriptStrings =
+            (byLang[AppLanguages.resolve(lang)] ?: byLang.getValue(AppLanguages.FALLBACK))()
     }
 }
 

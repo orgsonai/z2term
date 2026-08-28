@@ -53,8 +53,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 429
-        versionName = "0.8.421-alpha"
+        versionCode = 430
+        versionName = "0.8.422-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -143,6 +143,16 @@ android {
             // targetSdk は実機検証済みの版に意図的に固定している (上げるのは検証とセット)。
             "OldTargetApi",
         )
+
+        // ⛔ **訳し忘れの検査は止めない** (0.8.422)。多言語化は一度の作業ではなく毎回の税で、
+        // 文言は版ごとに増える。res に言語を足したその日から「1 つだけ訳し忘れた」を
+        // CI (lintDebug) が落とすのが唯一の守りになる。明示的に error にして、
+        // 既定の重大度が変わっても効き目が残るようにする。
+        //   MissingTranslation … values/ にあって values-<言語>/ に無い
+        //   ExtraTranslation   … values-<言語>/ にあって values/ に無い (キー名の打ち間違い)
+        // ⚠ **端末に出る文言 (z2-* CLI) はここでは見られない** — res ではなく Kotlin に
+        //   あるため。両方の埋まり具合は `bash scripts/i18n-status.sh` で数える。
+        error += setOf("MissingTranslation", "ExtraTranslation")
     }
 
     testOptions {

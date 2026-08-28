@@ -17,10 +17,17 @@ import java.util.Locale
  * 走らせるのは避けたい)。`AppSettings` 経由でも参照したいときは [language] を読めばよい。
  *
  * ⚠ **保存値 ([languageSetting]) と実効言語 ([language]) を分ける** (0.8.363)。
- * [language] は常に `ja` か `en` のどちらかを返す — 呼び出し側は 20 か所以上あり、
- * ほぼ全てが `== LANG_JA` で日本語かどうかを見ている (かな面の有無・シェルスクリプトの言語・
- * IME の判定など)。ここに `system` を混ぜると**その全てが「日本語ではない」側に倒れる**ので、
- * 解決はこの中で終わらせ、外へは 2 値しか出さない。
+ * [language] は必ず [AppLanguages.CODES] のどれかを返す — 呼び出し側は 20 か所以上あり、
+ * `system` をそのまま渡すと**全ての判定が的外れ**になる。解決はこの中で終わらせ、
+ * 外へは実在する言語コードしか出さない。
+ *
+ * ⚠ **対応言語の名簿は [AppLanguages] が持つ** (0.8.422)。ここに一覧を書かない —
+ * 2 か所に持つと言語を増やしたとき片方だけ古くなる。
+ *
+ * ⚠ **`== LANG_JA` で日本語かを見ている箇所は、日本語固有の機能の話** (かな面の有無・
+ * IME のかな入力判定)。⛔ **文言の出し分けにこれを使わないこと** — 「日本語でなければ英語」
+ * と書くと 3 言語目が英語に化ける。端末に出る文言は
+ * [com.zerotoship.z2term.proot.CliText]、画面の文言は `res/values-<言語>/` が受け持つ。
  *
  * 設定変更時は呼び出し側で `Activity.recreate()` し、新ロケールでの再構築を起こす。
  */
@@ -29,10 +36,13 @@ object LocaleHelper {
     private const val PREFS = "z2term_locale"
     private const val KEY_LANG = "lang"
 
-    /** 端末の言語に従う (既定)。[language] は解決結果として `ja`/`en` を返す。 */
+    /** 端末の言語に従う (既定)。[language] は解決結果として実在する言語コードを返す。 */
     const val LANG_SYSTEM = "system"
     const val LANG_JA = "ja"
     const val LANG_EN = "en"
+
+    /** 設定画面に並べる選択肢 (`system` + 対応言語)。⭐ 言語を増やすのは [AppLanguages]。 */
+    val SETTING_OPTIONS: List<String> = listOf(LANG_SYSTEM) + AppLanguages.CODES
 
     /**
      * 未保存のときの既定。
@@ -49,12 +59,12 @@ object LocaleHelper {
     }
 
     /**
-     * 実効言語。**常に [LANG_JA] か [LANG_EN] のどちらか**を返す。
-     * 設定が [LANG_SYSTEM] のときは端末の言語から解決する。
+     * 実効言語。**必ず [AppLanguages.CODES] のどれか**を返す。
+     * 設定が [LANG_SYSTEM] のときや名簿に無い言語のときは端末の言語から解決する。
      */
-    fun language(context: Context): String = when (val saved = languageSetting(context)) {
-        LANG_JA, LANG_EN -> saved
-        else -> systemLanguage()
+    fun language(context: Context): String {
+        val saved = languageSetting(context)
+        return if (saved in AppLanguages.CODES) saved else systemLanguage()
     }
 
     /**
@@ -66,7 +76,7 @@ object LocaleHelper {
      * 通さない OS 側の設定を返すので、ここだけは汚れない。
      */
     private fun systemLanguage(): String =
-        if (Resources.getSystem().configuration.locales[0].language == LANG_JA) LANG_JA else LANG_EN
+        AppLanguages.matchDeviceLocale(Resources.getSystem().configuration.locales[0].toLanguageTag())
 
     /** 言語を保存する (`system`/`ja`/`en`)。反映には Activity の `recreate()` を呼ぶこと。 */
     fun setLanguage(context: Context, lang: String) {

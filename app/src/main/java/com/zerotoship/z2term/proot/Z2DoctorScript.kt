@@ -21,78 +21,98 @@ package com.zerotoship.z2term.proot
 @Suppress("SdCardPath")
 fun z2doctorScript(lang: String = "ja"): String {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
-    val en = lang == "en"
+    // 言語ごとの文言を選ぶ道具。3 言語目は t(en = …, ja = …) の後ろへ変わり値を足す ([CliText])。
+    val t = CliText(lang)
 
-    val head = if (en) "== z2doctor (this device) ==" else "== z2doctor (この端末の状態) =="
-    val secApp = if (en) "-- app --" else "-- アプリ --"
-    val secLinux = if (en) "-- linux side --" else "-- Linux 側 --"
-    val secPerm = if (en) "-- permissions --" else "-- 許可 --"
-    val secAuto = if (en) "-- automation --" else "-- 自動化 --"
-    val secReport = if (en) "-- copy this when asking for help --" else "-- 助けを求めるときはここを貼る --"
+    val head = t(en = "== z2doctor (this device) ==", ja = "== z2doctor (この端末の状態) ==")
+    val secApp = t(en = "-- app --", ja = "-- アプリ --")
+    val secLinux = t(en = "-- linux side --", ja = "-- Linux 側 --")
+    val secPerm = t(en = "-- permissions --", ja = "-- 許可 --")
+    val secAuto = t(en = "-- automation --", ja = "-- 自動化 --")
+    val secReport = t(en = "-- copy this when asking for help --", ja = "-- 助けを求めるときはここを貼る --")
 
-    val lVersion = if (en) "version" else "版数"
-    val lEngine = if (en) "engine" else "実行エンジン"
-    val lDistro = if (en) "distro" else "ディストロ"
-    val lKernel = if (en) "kernel" else "kernel"
-    val lDisk = if (en) "free space" else "空き容量"
-    val lHome = if (en) "home" else "ホーム"
-    val lSdcard = if (en) "/sdcard" else "/sdcard"
-    val lNotify = if (en) "notifications" else "通知を出せる"
-    val lNotifyRead = if (en) "notification access" else "通知を読める"
-    val lBattOpt = if (en) "battery optimization" else "電池最適化から除外"
-    val lStorage = if (en) "storage (all files)" else "ストレージ全体"
-    val lSms = if (en) "SMS receive" else "SMS 受信"
-    val lCapture = if (en) "event detection" else "システムイベント検知"
-    val lServers = if (en) "resident servers" else "常駐サーバー"
-    val lRules = if (en) "automation rules" else "自動化ルール"
-    val lSshd = if (en) "sshd" else "sshd"
+    val lVersion = t(en = "version", ja = "版数")
+    val lEngine = t(en = "engine", ja = "実行エンジン")
+    val lDistro = t(en = "distro", ja = "ディストロ")
+    val lKernel = t(en = "kernel", ja = "kernel")
+    val lDisk = t(en = "free space", ja = "空き容量")
+    val lHome = t(en = "home", ja = "ホーム")
+    val lSdcard = t(en = "/sdcard", ja = "/sdcard")
+    val lNotify = t(en = "notifications", ja = "通知を出せる")
+    val lNotifyRead = t(en = "notification access", ja = "通知を読める")
+    val lBattOpt = t(en = "battery optimization", ja = "電池最適化から除外")
+    val lStorage = t(en = "storage (all files)", ja = "ストレージ全体")
+    val lSms = t(en = "SMS receive", ja = "SMS 受信")
+    val lCapture = t(en = "event detection", ja = "システムイベント検知")
+    val lServers = t(en = "resident servers", ja = "常駐サーバー")
+    val lRules = t(en = "automation rules", ja = "自動化ルール")
+    val lSshd = t(en = "sshd", ja = "sshd")
 
     // NG のときに出す「次の一手」。ここが書けない項目は診断に出さない。
-    val fixNotify = if (en) "-> Android settings > Apps > Z2Term > Notifications: allow"
-    else "-> Android の設定 › アプリ › Z2Term › 通知 を許可してください"
-    val fixNotifyRead = if (en) "-> Settings > resident servers & automation > notification detection"
-    else "-> 設定 › 常駐サーバー・自動化 › 通知検知 から許可してください"
-    val fixBattOpt = if (en) "-> Settings > background process protection > exclude from battery optimization"
-    else "-> 設定 › バックグラウンド動作の保護 › 電池最適化から除外 を ON にしてください"
-    val fixStorage = if (en) "-> Settings > allow access to all files (needed to see /sdcard)"
-    else "-> 設定 › ストレージ全体を許可 を ON にしてください (/sdcard を見るのに必要)"
-    val fixSms = if (en) "-> Settings > SMS detection (only needed for sms: triggers)"
-    else "-> 設定 › SMS 検知 から許可してください (sms: トリガーを使うときだけ必要)"
-    val fixCapture = if (en) "-> Settings > system event detection (needed by charge/battery/wifi/sensor/event triggers)"
-    else "-> 設定 › システムイベント検知 を ON にしてください (充電/電池/wifi/センサー/event の各トリガーに必要)"
-    val fixPaused = if (en) "-> automation is paused. 'z2-when resume' or the Automation tab"
-    else "-> 自動化が一時停止中です。z2-when resume か 📜 の自動化タブで再開できます"
-    val fixDisk = if (en) "-> less than 500MB free. Delete unused OS data in Settings"
-    else "-> 空きが 500MB を切っています。設定の「OS データ削除」で使っていない OS を消せます"
-    val fixSdcard = if (en) "-> /sdcard is empty here; the storage permission above is what makes it visible"
-    else "-> /sdcard が空に見えます。上の「ストレージ全体」の許可が要ります"
+    val fixNotify = t(
+        en = "-> Android settings > Apps > Z2Term > Notifications: allow",
+        ja = "-> Android の設定 › アプリ › Z2Term › 通知 を許可してください"
+    )
+    val fixNotifyRead = t(
+        en = "-> Settings > resident servers & automation > notification detection",
+        ja = "-> 設定 › 常駐サーバー・自動化 › 通知検知 から許可してください"
+    )
+    val fixBattOpt = t(
+        en = "-> Settings > background process protection > exclude from battery optimization",
+        ja = "-> 設定 › バックグラウンド動作の保護 › 電池最適化から除外 を ON にしてください"
+    )
+    val fixStorage = t(
+        en = "-> Settings > allow access to all files (needed to see /sdcard)",
+        ja = "-> 設定 › ストレージ全体を許可 を ON にしてください (/sdcard を見るのに必要)"
+    )
+    val fixSms = t(
+        en = "-> Settings > SMS detection (only needed for sms: triggers)",
+        ja = "-> 設定 › SMS 検知 から許可してください (sms: トリガーを使うときだけ必要)"
+    )
+    val fixCapture = t(
+        en = "-> Settings > system event detection (needed by charge/battery/wifi/sensor/event triggers)",
+        ja = "-> 設定 › システムイベント検知 を ON にしてください (充電/電池/wifi/センサー/event の各トリガーに必要)"
+    )
+    val fixPaused = t(
+        en = "-> automation is paused. 'z2-when resume' or the Automation tab",
+        ja = "-> 自動化が一時停止中です。z2-when resume か 📜 の自動化タブで再開できます"
+    )
+    val fixDisk = t(
+        en = "-> less than 500MB free. Delete unused OS data in Settings",
+        ja = "-> 空きが 500MB を切っています。設定の「OS データ削除」で使っていない OS を消せます"
+    )
+    val fixSdcard = t(
+        en = "-> /sdcard is empty here; the storage permission above is what makes it visible",
+        ja = "-> /sdcard が空に見えます。上の「ストレージ全体」の許可が要ります"
+    )
 
-    val noteRedacted = if (en)
-        "(SSID / IP / host names are left out on purpose)"
-    else "(SSID・IP・ホスト名は意図的に伏せています)"
-    val allGood = if (en) "No problems found." else "問題は見つかりませんでした。"
-    val someBad = if (en) "issues found:" else "気になる点:"
-    val usage = if (en)
-        "usage: z2doctor [--share | --clip]   (--share hands the report to Android's share sheet)"
-    else "usage: z2doctor [--share | --clip]   (--share で報告文を共有シートに渡します)"
-    val pausedYes = if (en) "paused" else "一時停止中"
+    val noteRedacted = t(en = "(SSID / IP / host names are left out on purpose)", ja = "(SSID・IP・ホスト名は意図的に伏せています)")
+    val allGood = t(en = "No problems found.", ja = "問題は見つかりませんでした。")
+    val someBad = t(en = "issues found:", ja = "気になる点:")
+    val usage = t(
+        en = "usage: z2doctor [--share | --clip]   (--share hands the report to Android's share sheet)",
+        ja = "usage: z2doctor [--share | --clip]   (--share で報告文を共有シートに渡します)"
+    )
+    val pausedYes = t(en = "paused", ja = "一時停止中")
 
     // 前回までの終了 (0.8.376)。落ちた理由は OS しか知らないので、ここに出さないと
     // 利用者からは「また消えた」以上のことが言えない。
-    val secExits = if (en) "-- how it ended last time --" else "-- 前回までの終了 --"
-    val lExitsNote = if (en) "recent abnormal exits (newest first):"
-    else "直近の異常終了 (新しい順):"
-    val lExitsNone = if (en) "abnormal exits: none recorded" else "異常終了: 記録なし"
-    val lExitsFile = if (en) "(full history: ~/.z2term/exits.jsonl)"
-    else "(全履歴: ~/.z2term/exits.jsonl)"
-    val hintExitMem = if (en)
-        "-> killed under memory pressure. Run fewer heavy jobs at once, or trim resident servers / tabs"
-    else "-> メモリ不足で終了しています。重い作業の同時実行を減らすか、常駐サーバー・タブを整理してください"
+    val secExits = t(en = "-- how it ended last time --", ja = "-- 前回までの終了 --")
+    val lExitsNote = t(en = "recent abnormal exits (newest first):", ja = "直近の異常終了 (新しい順):")
+    val lExitsNone = t(en = "abnormal exits: none recorded", ja = "異常終了: 記録なし")
+    val lExitsFile = t(en = "(full history: ~/.z2term/exits.jsonl)", ja = "(全履歴: ~/.z2term/exits.jsonl)")
+    val hintExitMem = t(
+        en = "-> killed under memory pressure. Run fewer heavy jobs at once, or trim resident servers / tabs",
+        ja = "-> メモリ不足で終了しています。重い作業の同時実行を減らすか、常駐サーバー・タブを整理してください"
+    )
 
     return """
         |#!/bin/sh
-        |# z2doctor: ${if (en) "self-check for \"it does not work\"" else "「動きません」の切り分け診断"}
-        |# ${if (en) "See also: z2scan self (security check, a different tool)" else "似た名前の z2scan self は「危ない設定を探す」別のコマンドです"}
+        |# z2doctor: ${t(en = "self-check for \"it does not work\"", ja = "「動きません」の切り分け診断")}
+        |# ${t(
+            en = "See also: z2scan self (security check, a different tool)",
+            ja = "似た名前の z2scan self は「危ない設定を探す」別のコマンドです"
+        )}
         |NG=0
         |OUT=""
         |say() { printf '%s\n' "${d}*"; OUT="${d}OUT${d}*

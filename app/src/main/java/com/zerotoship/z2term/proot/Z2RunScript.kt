@@ -26,11 +26,12 @@ package com.zerotoship.z2term.proot
  */
 fun z2runScript(lang: String = "ja"): String {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
-    // Xvnc 起動失敗時のエラー文 (z2run は 1 行しかメッセージを出さないので簡易切替)
-    val errMsg = if (lang == "en")
-        "z2run: Xvnc :${d}{DISPLAY_NUM} did not start. See /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log."
-    else
-        "z2run: Xvnc :${d}{DISPLAY_NUM} が起動しませんでした。/tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log を確認してください。"
+    // Xvnc 起動失敗時のエラー文 (z2run は 1 行しかメッセージを出さない)
+    val t = CliText(lang)
+    val errMsg = t(
+        en = "z2run: Xvnc :${d}{DISPLAY_NUM} did not start. See /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log.",
+        ja = "z2run: Xvnc :${d}{DISPLAY_NUM} が起動しませんでした。/tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log を確認してください。"
+    )
     return """
         |#!/bin/sh
         |# z2term: CUI⇄GUI 連動ランチャ (端末から GUI アプリを起動すると GUI タブが自動で開く)。

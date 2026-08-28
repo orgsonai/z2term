@@ -25,58 +25,85 @@ package com.zerotoship.z2term.proot
  */
 fun z2scanScript(lang: String = "ja"): String {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
-    val en = lang == "en"
+    // 言語ごとの文言を選ぶ道具。3 言語目は t(en = …, ja = …) の後ろへ変わり値を足す ([CliText])。
+    val t = CliText(lang)
 
     // --- メッセージ (ja/en) ---
-    val mNoPm = if (en)
-        "z2scan: no supported package manager (apk/apt-get/pacman) found." else
-        "z2scan: 対応パッケージマネージャ (apk/apt-get/pacman) が見つかりません。"
-    val mInstalling = if (en) "z2scan: installing" else "z2scan: 導入します:"
-    val mInstallFail = if (en) "z2scan: failed to install" else "z2scan: 導入に失敗しました:"
-    val mRemoteBlocked = if (en)
-        "z2scan: remote target refused. Scan localhost only, or pass --allow-remote for a target you are authorized to test." else
-        "z2scan: 外部ターゲットは拒否しました。localhost のみを対象にするか、試験許可のある対象に限り --allow-remote を付けてください。"
-    val mRemoteWarn = if (en)
-        "z2scan: WARNING scanning a remote host. Only scan systems you are explicitly authorized to test." else
-        "z2scan: 警告 外部ホストをスキャンします。明示的に試験を許可された対象のみにしてください。"
-    val mNoLynis = if (en)
-        "z2scan: lynis not found; falling back to built-in self-check ('z2scan self'). Install via 'z2scan setup'." else
-        "z2scan: lynis が無いため内蔵自己診断 ('z2scan self') にフォールバックします。'z2scan setup' で導入できます。"
-    val mNoCve = if (en)
-        "z2scan: no CVE scanner (trivy/grype) found. Install trivy or grype, then retry." else
-        "z2scan: CVE スキャナ (trivy/grype) が見つかりません。trivy か grype を導入してから再実行してください。"
+    val mNoPm = t(
+        en = "z2scan: no supported package manager (apk/apt-get/pacman) found.",
+        ja = "z2scan: 対応パッケージマネージャ (apk/apt-get/pacman) が見つかりません。"
+    )
+    val mInstalling = t(en = "z2scan: installing", ja = "z2scan: 導入します:")
+    val mInstallFail = t(en = "z2scan: failed to install", ja = "z2scan: 導入に失敗しました:")
+    val mRemoteBlocked = t(
+        en = "z2scan: remote target refused. Scan localhost only, or pass --allow-remote for a target you are authorized to test.",
+        ja = "z2scan: 外部ターゲットは拒否しました。localhost のみを対象にするか、試験許可のある対象に限り --allow-remote を付けてください。"
+    )
+    val mRemoteWarn = t(
+        en = "z2scan: WARNING scanning a remote host. Only scan systems you are explicitly authorized to test.",
+        ja = "z2scan: 警告 外部ホストをスキャンします。明示的に試験を許可された対象のみにしてください。"
+    )
+    val mNoLynis = t(
+        en = "z2scan: lynis not found; falling back to built-in self-check ('z2scan self'). Install via 'z2scan setup'.",
+        ja = "z2scan: lynis が無いため内蔵自己診断 ('z2scan self') にフォールバックします。'z2scan setup' で導入できます。"
+    )
+    val mNoCve = t(
+        en = "z2scan: no CVE scanner (trivy/grype) found. Install trivy or grype, then retry.",
+        ja = "z2scan: CVE スキャナ (trivy/grype) が見つかりません。trivy か grype を導入してから再実行してください。"
+    )
 
     // self 診断のラベル
-    val mSelfHead = if (en) "== z2scan self-check (this device / localhost) ==" else "== z2scan 自己診断 (自端末 / localhost) =="
-    val mUidRoot = if (en) "running as uid 0 (note: proot/z2root provides a fake root)" else "uid 0 で実行中 (注: proot/z2root の擬似 root)"
-    val mPubPort = if (en) "TCP port listening on all interfaces (not localhost-only), port" else "全インタフェースで待ち受け中の TCP ポート (localhost 限定でない), ポート"
-    val mSshdEmpty = if (en) "sshd_config allows empty-password login (PermitEmptyPasswords yes)" else "sshd_config が空パスワードログインを許可 (PermitEmptyPasswords yes)"
-    val mSshdPass = if (en) "sshd_config enables password auth (PasswordAuthentication yes); key auth is safer" else "sshd_config がパスワード認証を有効化 (PasswordAuthentication yes); 鍵認証が安全"
-    val mSshdRoot = if (en) "sshd_config permits root login (PermitRootLogin yes)" else "sshd_config が root ログインを許可 (PermitRootLogin yes)"
-    val mKeyPerm = if (en) "~/.ssh/authorized_keys has loose permissions, mode" else "~/.ssh/authorized_keys のパーミッションが緩い, mode"
-    val mSshDir = if (en) "~/.ssh has loose permissions, mode" else "~/.ssh のパーミッションが緩い, mode"
-    val mWorldWrite = if (en) "world-writable files found (showing up to 20):" else "誰でも書き込めるファイルを検出 (最大20件表示):"
-    val mSuid = if (en) "SUID binaries present (informational; fake root under proot/z2root):" else "SUID バイナリあり (参考; proot/z2root では擬似 root):"
-    val mPath = if (en) "PATH contains an empty/'.' element (current dir in PATH is risky)" else "PATH に空要素/'.' が含まれる (カレントディレクトリの PATH 混入は危険)"
-    val mFound = if (en) "findings:" else "検出件数:"
-    val mClean = if (en) "no obvious issues found." else "目立った問題は見つかりませんでした。"
+    val mSelfHead = t(en = "== z2scan self-check (this device / localhost) ==", ja = "== z2scan 自己診断 (自端末 / localhost) ==")
+    val mUidRoot = t(en = "running as uid 0 (note: proot/z2root provides a fake root)", ja = "uid 0 で実行中 (注: proot/z2root の擬似 root)")
+    val mPubPort = t(
+        en = "TCP port listening on all interfaces (not localhost-only), port",
+        ja = "全インタフェースで待ち受け中の TCP ポート (localhost 限定でない), ポート"
+    )
+    val mSshdEmpty = t(
+        en = "sshd_config allows empty-password login (PermitEmptyPasswords yes)",
+        ja = "sshd_config が空パスワードログインを許可 (PermitEmptyPasswords yes)"
+    )
+    val mSshdPass = t(
+        en = "sshd_config enables password auth (PasswordAuthentication yes); key auth is safer",
+        ja = "sshd_config がパスワード認証を有効化 (PasswordAuthentication yes); 鍵認証が安全"
+    )
+    val mSshdRoot = t(
+        en = "sshd_config permits root login (PermitRootLogin yes)",
+        ja = "sshd_config が root ログインを許可 (PermitRootLogin yes)"
+    )
+    val mKeyPerm = t(en = "~/.ssh/authorized_keys has loose permissions, mode", ja = "~/.ssh/authorized_keys のパーミッションが緩い, mode")
+    val mSshDir = t(en = "~/.ssh has loose permissions, mode", ja = "~/.ssh のパーミッションが緩い, mode")
+    val mWorldWrite = t(en = "world-writable files found (showing up to 20):", ja = "誰でも書き込めるファイルを検出 (最大20件表示):")
+    val mSuid = t(
+        en = "SUID binaries present (informational; fake root under proot/z2root):",
+        ja = "SUID バイナリあり (参考; proot/z2root では擬似 root):"
+    )
+    val mPath = t(
+        en = "PATH contains an empty/'.' element (current dir in PATH is risky)",
+        ja = "PATH に空要素/'.' が含まれる (カレントディレクトリの PATH 混入は危険)"
+    )
+    val mFound = t(en = "findings:", ja = "検出件数:")
+    val mClean = t(en = "no obvious issues found.", ja = "目立った問題は見つかりませんでした。")
 
     // ベースライン差分 (0.8.243)
-    val mSaved = if (en) "z2scan: baseline saved:" else "z2scan: 基準を保存しました:"
-    val mSaveFail = if (en) "z2scan: could not write the baseline:" else "z2scan: 基準を保存できませんでした:"
-    val mNoBase = if (en)
-        "z2scan: no baseline yet. Run 'z2scan self --save' once to record the current state." else
-        "z2scan: 基準がまだありません。'z2scan self --save' を 1 回実行して今の状態を記録してください。"
-    val mNoChange = if (en) "[ OK ] no change since the baseline." else "[ OK ] 基準から変化はありません。"
-    val mAdded = if (en) "== new since the baseline ==" else "== 基準から増えたもの =="
-    val mRemoved = if (en) "== gone since the baseline ==" else "== 基準から無くなったもの =="
-    val mCleared = if (en) "z2scan: baseline cleared." else "z2scan: 基準を削除しました。"
-    val mLangDiff = if (en)
-        "z2scan: WARNING the baseline was saved in another language, so everything will look changed. Re-save with 'z2scan self --save'." else
-        "z2scan: 警告 基準が別の言語で保存されているため、すべて変化として出ます。'z2scan self --save' で取り直してください。"
-    val langTag = if (en) "en" else "ja"
+    val mSaved = t(en = "z2scan: baseline saved:", ja = "z2scan: 基準を保存しました:")
+    val mSaveFail = t(en = "z2scan: could not write the baseline:", ja = "z2scan: 基準を保存できませんでした:")
+    val mNoBase = t(
+        en = "z2scan: no baseline yet. Run 'z2scan self --save' once to record the current state.",
+        ja = "z2scan: 基準がまだありません。'z2scan self --save' を 1 回実行して今の状態を記録してください。"
+    )
+    val mNoChange = t(en = "[ OK ] no change since the baseline.", ja = "[ OK ] 基準から変化はありません。")
+    val mAdded = t(en = "== new since the baseline ==", ja = "== 基準から増えたもの ==")
+    val mRemoved = t(en = "== gone since the baseline ==", ja = "== 基準から無くなったもの ==")
+    val mCleared = t(en = "z2scan: baseline cleared.", ja = "z2scan: 基準を削除しました。")
+    val mLangDiff = t(
+        en = "z2scan: WARNING the baseline was saved in another language, so everything will look changed. Re-save with 'z2scan self --save'.",
+        ja = "z2scan: 警告 基準が別の言語で保存されているため、すべて変化として出ます。'z2scan self --save' で取り直してください。"
+    )
+    val langTag = t(en = "en", ja = "ja")
 
-    val usageText = if (en) """
+    val usageText = t(
+        en = """
         z2scan - vulnerability testing for this device / localhost (defensive, no data sent out).
 
         Scans only localhost by default. Scanners are installed from your distro's official
@@ -98,7 +125,8 @@ fun z2scanScript(lang: String = "ja"): String {
           z2scan cve                   known-CVE scan of the rootfs via trivy/grype if present
 
         Only scan systems you are explicitly authorized to test.
-    """.trimIndent() else """
+    """.trimIndent(),
+        ja = """
         z2scan - 自端末 / localhost 向けの脆弱性試験 (防御目的・外部送信なし)。
 
         既定では localhost のみを対象にします。スキャナは distro 公式パッケージ
@@ -121,6 +149,7 @@ fun z2scanScript(lang: String = "ja"): String {
 
         明示的に試験を許可された対象のみをスキャンしてください。
     """.trimIndent()
+    )
 
     val head = """
         |#!/bin/sh

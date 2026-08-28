@@ -4,7 +4,7 @@ import com.zerotoship.z2term.icon.IconStore
 import com.zerotoship.z2term.tile.TileStore
 
 /**
- * `z2-*` CLI が**端末に出す文言**（先頭のヘルプコメント・usage・メッセージ）の日英。
+ * `z2-*` CLI が**端末に出す文言**（先頭のヘルプコメント・usage・メッセージ）を言語ごとに持つ。
  *
  * **なぜ分けたか**: アプリの画面は `values/` と `values-ja/` で日英そろっているのに、
  * 端末側の CLI だけが日本語ベタ書きで、英語話者には使えない状態だった（GitHub 直配布なので
@@ -15,17 +15,28 @@ import com.zerotoship.z2term.tile.TileStore
  * 挙動がズレる（そして端末でしか気付けない）。ここで持つのは**文言だけ**で、
  * [z2ApiScripts] 側は言語に関係なく同じ制御フローを組み立てる。
  *
+ * ⚠ 0.8.421 までは `en: Boolean` の 2 値だった（= 3 言語目を置く場所が無かった）。
+ * 今は言語コードを受け取り、[CliText] が文言を選ぶ。**挙げていない言語は英語**へ落ちる。
+ *
  * ヘルプは行頭 `#` ・末尾改行つきの**完成形**で持つ（`trimMargin` の外で連結するため、
  * マージン `|` の剥がし漏れが起きない）。[d] はシェルの `$`。
  */
-internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
+internal class Z2ApiMsg(lang: String, private val d: String) {
+
+    /**
+     * 言語ごとの文言を選ぶ道具。⭐ **3 言語目はここを通して足す** —
+     * `t(en = "…", ja = "…")` の後ろへ変わり値を足す。詳しくは [CliText] と
+     * [com.zerotoship.z2term.settings.AppLanguages]。
+     */
+    private val t = CliText(lang)
 
     /** タイルの枠数 ([TileStore.COUNT])。文言へ数を**書き写さない** — 増やしたときにここだけ古くなる。 */
     private val tiles = TileStore.COUNT
 
     // --- z2-notify ---
 
-    val notifyHelp: String = if (en) """
+    val notifyHelp: String = t(
+        en = """
         |# z2-notify [-h] [-n NAME] [-c TEXT] [-b LABEL]... "title" "text"  /  z2-notify [-h] "text"
         |#   -h / --high / --banner : show it as a banner (heads-up) at the top of the screen
         |#   -b <label>             : add a reply button (up to 3). Pressing one appends
@@ -36,7 +47,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#                            Use this instead of z2-clip set when the macro runs in the
         |#                            background: Android 10+ only lets the app in front write to
         |#                            the clipboard, so an unattended z2-clip set is dropped.
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-notify [-h] [-n 名前] [-c 文字列] [-b ラベル]... "タイトル" "本文"  /  z2-notify [-h] "本文"
         |#   -h / --high / --banner : 画面上部にバナー(ヘッドアップ)表示する
         |#   -b <ラベル>            : 返事のボタンを付ける (最大 3 つ)。押すと
@@ -48,111 +60,144 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#                            Android 10+ は前面のアプリしかクリップボードに書けないので、
         |#                            見ていないときの z2-clip set は黙って捨てられる。
     """.trimMargin()
+    )
 
     val notifyUsage: String =
-        if (en) "usage: z2-notify [-h] [-n name] [-c text] [-b label]... <title> [text]"
-        else "usage: z2-notify [-h] [-n 名前] [-c 文字列] [-b ラベル]... <タイトル> [本文]"
+        t(
+            en = "usage: z2-notify [-h] [-n name] [-c text] [-b label]... <title> [text]",
+            ja = "usage: z2-notify [-h] [-n 名前] [-c 文字列] [-b ラベル]... <タイトル> [本文]"
+        )
 
     // --- 単機能のもの (ヘルプ 1〜2 行) ---
 
-    val toastHelp: String = if (en) """
+    val toastHelp: String = t(
+        en = """
         |# z2-toast <message> … a short message at the bottom of the screen (a toast).
         |# It fades by itself and leaves nothing behind. Use z2-notify when it has to stay,
         |# or when you want a button to press.
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-toast <メッセージ> … 画面下に短いメッセージを出す (トースト)。
         |# 数秒で自分で消えて、何も残りません。残したい・押させたいときは z2-notify を使います。
     """.trimMargin()
+    )
 
-    val shareHelp: String = if (en) """
+    val shareHelp: String = t(
+        en = """
         |# z2-share <text> … hand text to Android's share sheet (send it on to another app).
         |# All arguments are joined into one body. Which app it goes to is chosen on screen,
         |# so this needs someone to be there — it is not for a macro running unattended.
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-share <テキスト> … Android の共有メニューに渡す (他アプリへ送る)。
         |# 引数はつなげて 1 つの本文にします。送り先は画面で選ぶので、人がいるときのものです
         |# (裏で走らせるマクロ向きではありません)。
     """.trimMargin()
+    )
 
-    val openHelp: String = if (en) """
+    val openHelp: String = t(
+        en = """
         |# z2-open <url|path> … open it with the default app (https://… or /sdcard/…).
         |# Which app opens it is Android's choice; z2term only hands it over.
         |# A path is a path on the **phone** (/sdcard/…), not inside the distro.
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-open <URL かパス> … 既定のアプリで開く (https://… も /sdcard/… も)。
         |# どのアプリで開くかを決めるのは Android で、z2term は渡すだけです。
         |# パスは**スマホ側**のパス (/sdcard/…) で、ディストロの中のパスではありません。
     """.trimMargin()
+    )
 
-    val clipHelp: String = if (en) """
+    val clipHelp: String = t(
+        en = """
         |# z2-clip get        … print the clipboard to stdout
         |# z2-clip set [text] … put text (or stdin when omitted) on the clipboard
         |# ⚠ Android 10+ only lets the app in front (or the input method in use) touch the
         |#   clipboard. From a macro running in the background this is dropped without a word,
         |#   so use z2-notify -c <text> there: it adds a "Copy" button that always works.
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-clip get        … クリップボードを標準出力へ
         |# z2-clip set [text] … text (無ければ標準入力) をクリップボードへ
         |# ⚠ Android 10+ は前面のアプリ (と使用中の入力方法) しかクリップボードを触れない。
         |#   裏で走るマクロからは黙って捨てられるので、そこでは z2-notify -c <文字列> を使う
         |#   (「コピー」ボタンが付き、押せば確実に入る)。
     """.trimMargin()
+    )
 
     val batteryHelp: String =
-        if (en) "# Print level / charging state as JSON ({\"level\":N,\"charging\":bool})."
-        else "# 残量/充電状態を JSON ({\"level\":N,\"charging\":bool}) で出力。"
+        t(
+            en = "# Print level / charging state as JSON ({\"level\":N,\"charging\":bool}).",
+            ja = "# 残量/充電状態を JSON ({\"level\":N,\"charging\":bool}) で出力。"
+        )
 
     val vibrateHelp: String =
-        if (en) "# z2-vibrate [ms]  (default 200ms)"
-        else "# z2-vibrate [ms]  (既定 200ms)"
+        t(en = "# z2-vibrate [ms]  (default 200ms)", ja = "# z2-vibrate [ms]  (既定 200ms)")
 
     val sayHelp: String =
-        if (en) "# z2-say <text>       … speak with the device TTS (reads stdin when no argument)"
-        else "# z2-say <text>       … 端末標準の TTS で読み上げ (引数無しなら標準入力を読む)"
+        t(
+            en = "# z2-say <text>       … speak with the device TTS (reads stdin when no argument)",
+            ja = "# z2-say <text>       … 端末標準の TTS で読み上げ (引数無しなら標準入力を読む)"
+        )
 
     val torchHelp: String =
-        if (en) "# z2-torch on|off|toggle  (default toggle). Prints the resulting state (on/off)."
-        else "# z2-torch on|off|toggle  (既定 toggle)。結果の点灯状態 (on/off) を出力。"
+        t(
+            en = "# z2-torch on|off|toggle  (default toggle). Prints the resulting state (on/off).",
+            ja = "# z2-torch on|off|toggle  (既定 toggle)。結果の点灯状態 (on/off) を出力。"
+        )
 
     val mediaHelp: String =
-        if (en) "# z2-media play|pause|playpause|next|previous|stop  (default playpause)"
-        else "# z2-media play|pause|playpause|next|previous|stop  (既定 playpause)"
+        t(
+            en = "# z2-media play|pause|playpause|next|previous|stop  (default playpause)",
+            ja = "# z2-media play|pause|playpause|next|previous|stop  (既定 playpause)"
+        )
 
     val volumeHelp: String =
-        if (en) "# z2-volume up|down|mute|unmute|N|N%   Media volume. Prints the resulting current/max."
-        else "# z2-volume up|down|mute|unmute|N|N%   メディア音量を操作。結果の current/max を出力。"
+        t(
+            en = "# z2-volume up|down|mute|unmute|N|N%   Media volume. Prints the resulting current/max.",
+            ja = "# z2-volume up|down|mute|unmute|N|N%   メディア音量を操作。結果の current/max を出力。"
+        )
 
     val sensorHelp: String =
-        if (en) "# z2-sensor light|accel|proximity  (default light). Reads one sample and returns JSON."
-        else "# z2-sensor light|accel|proximity  (既定 light)。センサーを 1 回読んで JSON で返す。"
+        t(
+            en = "# z2-sensor light|accel|proximity  (default light). Reads one sample and returns JSON.",
+            ja = "# z2-sensor light|accel|proximity  (既定 light)。センサーを 1 回読んで JSON で返す。"
+        )
 
-    val intentHelp: String = if (en) """
+    val intentHelp: String = t(
+        en = """
         |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# Fire any Android Intent (startActivity by default). A leading non-flag argument is the ACTION.
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# 任意の Android Intent を発火 (既定は startActivity)。先頭の非フラグ引数は ACTION。
     """.trimMargin()
+    )
 
-    val stateHelp: String = if (en) """
+    val stateHelp: String = t(
+        en = """
         |# z2-state            … the device's current state, all of it, as JSON
         |# z2-state <key>      … just that value, raw (drops straight into a test)
         |# keys: screen(on/off) locked idle charging plug(ac/usb/wireless/none) level temp(C)
         |#       wifi ssid ringer(normal/vibrate/silent) airplane headset bt_audio volume volume_max
         |# e.g. [ "${d}(z2-state charging)" = "true" ] && echo charging
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-state            … 今の端末の状態をまとめて JSON で返す
         |# z2-state <キー>     … その値だけを生で返す (条件式にそのまま書ける)
         |# キー: screen(on/off) locked idle charging plug(ac/usb/wireless/none) level temp(℃)
         |#       wifi ssid ringer(normal/vibrate/silent) airplane headset bt_audio volume volume_max
         |# 例: [ "${d}(z2-state charging)" = "true" ] && echo 充電中
     """.trimMargin()
+    )
 
     // --- z2-ask ---
 
-    val askHelp: String = if (en) """
+    val askHelp: String = t(
+        en = """
         |# z2-ask [-t SEC] [-H HINT] [-d DEFAULT] <question>
         |#   Ask the person a question and print their answer on stdout.
         |#   The question arrives as a notification with a **reply field**, so it can be
@@ -165,7 +210,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# non-zero and prints nothing — so you can write "or give up":
         |#   name=${d}(z2-ask "Branch name?") || exit 1
         |# Compare with z2-notify -b <label>, which only offers the choices you prepared.
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-ask [-t 秒] [-H ヒント] [-d 既定] <質問>
         |#   人に質問して、答えを標準出力へ返す。
         |#   質問は**返信欄つきの通知**で届くので、アプリを開かずシェードのまま答えられる
@@ -178,14 +224,18 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#   name=${d}(z2-ask "ブランチ名は?") || exit 1
         |# 用意した選択肢から選ばせるだけなら z2-notify -b <ラベル> の方が向いている。
     """.trimMargin()
+    )
 
     val askUsage: String =
-        if (en) "usage: z2-ask [-t sec] [-H hint] [-d default] <question>"
-        else "usage: z2-ask [-t 秒] [-H ヒント] [-d 既定] <質問>"
+        t(
+            en = "usage: z2-ask [-t sec] [-H hint] [-d default] <question>",
+            ja = "usage: z2-ask [-t 秒] [-H ヒント] [-d 既定] <質問>"
+        )
 
     // --- z2-screen ---
 
-    val screenHelp: String = if (en) """
+    val screenHelp: String = t(
+        en = """
         |# z2-screen keepon <N|Ns|Nm|Nh> … stop the screen from turning off by itself, for that long
         |# z2-screen keepon off          … put it back now, without waiting for the deadline
         |# z2-screen status              … current state as JSON
@@ -197,7 +247,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# is killed or the device reboots). Max 24h in one go.
         |# Needs "modify system settings" (Settings > screen timeout > allow).
         |# e.g. z2-screen keepon 1h; make; z2-screen keepon off
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-screen keepon <N|Ns|Nm|Nh> … その時間だけ、画面が自分で消えないようにする
         |# z2-screen keepon off          … 期限を待たずに今すぐ元へ戻す
         |# z2-screen status              … 今の状態を JSON で
@@ -209,14 +260,18 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# 「システム設定の変更」の許可が要ります (設定 › 画面の自動消灯 › 許可)。
         |# 例: z2-screen keepon 1h; make; z2-screen keepon off
     """.trimMargin()
+    )
 
     val screenUsage: String =
-        if (en) "usage: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status"
-        else "usage: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status"
+        t(
+            en = "usage: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status",
+            ja = "usage: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status"
+        )
 
     // --- z2-tile ---
 
-    val tileHelp: String = if (en) """
+    val tileHelp: String = t(
+        en = """
         |# z2-tile set <1-$tiles> <macro.sh | command...> [--off <command...>] [-l <label>] [-i <drawing>]
         |#                           … put something on quick-settings tile 1-$tiles
         |# z2-tile add <1-$tiles>         … ask to put that slot on the panel (Android 13+)
@@ -271,7 +326,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#      z2-tile set 2 'z2-screen keepon 1h' -l "no sleep"
         |#      z2-tile set 3 z2-torch on --off z2-torch off -l torch
         |#      z2-tile set 4 backup.sh -l backup -i sync
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-tile set <1-$tiles> <マクロ.sh | コマンド...> [--off <コマンド...>] [-l <表示名>] [-i <絵の名前>]
         |#                           … クイック設定タイル 1〜$tiles に割り当てる
         |# z2-tile add <1-$tiles>         … その枠をパネルに置いてよいか聞く (Android 13 以降)
@@ -326,12 +382,15 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#     z2-tile set 3 z2-torch on --off z2-torch off -l ライト
         |#     z2-tile set 4 backup.sh -l バックアップ -i sync
     """.trimMargin()
+    )
 
     val tileUsage: String =
-        if (en) "usage: z2-tile set <1-$tiles> <macro.sh|command...> [--off <command...>] [-l label] " +
-            "[-i drawing] | add <1-$tiles> | list | clear <1-$tiles|all>"
-        else "usage: z2-tile set <1-$tiles> <マクロ.sh|コマンド...> [--off <コマンド...>] [-l 表示名] " +
-            "[-i 絵の名前] | add <1-$tiles> | list | clear <1-$tiles|all>"
+        t(
+            en = "usage: z2-tile set <1-$tiles> <macro.sh|command...> [--off <command...>] [-l label] " +
+                "[-i drawing] | add <1-$tiles> | list | clear <1-$tiles|all>",
+            ja = "usage: z2-tile set <1-$tiles> <マクロ.sh|コマンド...> [--off <コマンド...>] [-l 表示名] " +
+                "[-i 絵の名前] | add <1-$tiles> | list | clear <1-$tiles|all>"
+        )
 
     /**
      * `z2-tile set -i <名前>` に無い絵の名前を書いたとき (0.8.357)。
@@ -340,13 +399,17 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
      * 打ち間違いに気付かないまま違う絵のタイルが置かれる。
      */
     fun tileNoSuchIcon(name: String): String =
-        if (en) "z2-tile: no such drawing: $name (list them with z2-icon sample). Nothing was assigned."
-        else "z2-tile: その絵はありません: $name (一覧は z2-icon sample)。割り当ては行いませんでした。"
+        t(
+            en = "z2-tile: no such drawing: $name (list them with z2-icon sample). Nothing was assigned.",
+            ja = "z2-tile: その絵はありません: $name (一覧は z2-icon sample)。割り当ては行いませんでした。"
+        )
 
     /** `z2-tile add <枠>` で、割り当ての無い枠を指したとき。 */
     fun tileAddEmpty(n: Int): String =
-        if (en) "z2-tile: slot $n has nothing on it yet (assign it first: z2-tile set $n <...>)"
-        else "z2-tile: 枠 $n はまだ空です (先に z2-tile set $n <…> で割り当ててください)"
+        t(
+            en = "z2-tile: slot $n has nothing on it yet (assign it first: z2-tile set $n <...>)",
+            ja = "z2-tile: 枠 $n はまだ空です (先に z2-tile set $n <…> で割り当ててください)"
+        )
 
     /**
      * 追加を頼めなかったとき。⚠ **Android 12 以前にはこの口が無い** (タイルの追加を頼む API は
@@ -354,17 +417,21 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
      * **割り当て自体は済んでいる**ので、並べ方だけを案内する。
      */
     val tileAddUnsupported: String =
-        if (en) "z2-tile: cannot ask to add the tile here (needs Android 13, with z2term in the foreground). " +
-            "The slot is assigned — place it from the pencil (edit) screen of the quick settings panel."
-        else "z2-tile: ここでは追加を頼めません (Android 13 以降 + z2term が前面にいることが要ります)。" +
-            "割り当ては済んでいるので、クイック設定パネルの鉛筆(編集)から並べてください。"
+        t(
+            en = "z2-tile: cannot ask to add the tile here (needs Android 13, with z2term in the foreground). " +
+                "The slot is assigned — place it from the pencil (edit) screen of the quick settings panel.",
+            ja = "z2-tile: ここでは追加を頼めません (Android 13 以降 + z2term が前面にいることが要ります)。" +
+                "割り当ては済んでいるので、クイック設定パネルの鉛筆(編集)から並べてください。"
+        )
 
     /** 追加を頼めたとき。⚠ **答えるのは利用者**なので「追加した」とは言い切らない。 */
     val tileAddAsked: String =
-        if (en) "asked Android whether to add the tile — answer the dialog. " +
-            "(Nothing showed up? Place it from the edit screen instead.)"
-        else "追加してよいか Android に聞いています。出たダイアログで答えてください。" +
-            "(何も出なければ、編集画面から並べてください)"
+        t(
+            en = "asked Android whether to add the tile — answer the dialog. " +
+                "(Nothing showed up? Place it from the edit screen instead.)",
+            ja = "追加してよいか Android に聞いています。出たダイアログで答えてください。" +
+                "(何も出なければ、編集画面から並べてください)"
+        )
 
     // --- z2-icon ---
 
@@ -381,7 +448,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
      * 「まず何を打てばよいか」が読み取れなかった (利用者の指摘)。いちばん多い用途 (一覧から
      * 選んで入れる) を先頭に置き、残りを「入れる / 自分の絵を残す / 描き方 / 注意」へ分ける。
      */
-    val iconHelp: String = if (en) """
+    val iconHelp: String = t(
+        en = """
         |# Replace the status bar and quick-settings tile icons with your own pixel drawing.
         |#
         |# Start here
@@ -445,7 +513,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#      z2-icon scale 1 48          move slot 1 onto a 48x48 grid to draw it finer
         |#      z2-icon list -p             check what is where, drawings and all
         |#      z2-icon clear notify        put the notification icon back
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# ステータスバーとタイルのアイコンを、自分のドット絵に差し替えます。
         |#
         |# まずこれだけ
@@ -510,55 +579,64 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#     z2-icon list -p               どこに何が入っているか絵つきで確かめる
         |#     z2-icon clear notify          通知のアイコンを元に戻す
     """.trimMargin()
+    )
 
     val iconUsage: String =
-        if (en) "usage: z2-icon pick <notify|1-$tiles> | sample [name|target name] | " +
-            "edit <notify|1-$tiles> | set <notify|1-$tiles> [file|-] | " +
-            "save <notify|1-$tiles> <name> | forget <name> | " +
-            "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | " +
-            "grid [$grids] | scale <notify|1-$tiles> <$grids> | list [-p]"
-        else "usage: z2-icon pick <notify|1-$tiles> | sample [名前|対象 名前] | " +
-            "edit <notify|1-$tiles> | set <notify|1-$tiles> [ファイル|-] | " +
-            "save <notify|1-$tiles> <名前> | forget <名前> | " +
-            "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | " +
-            "grid [$grids] | scale <notify|1-$tiles> <$grids> | list [-p]"
+        t(
+            en = "usage: z2-icon pick <notify|1-$tiles> | sample [name|target name] | " +
+                "edit <notify|1-$tiles> | set <notify|1-$tiles> [file|-] | " +
+                "save <notify|1-$tiles> <name> | forget <name> | " +
+                "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | " +
+                "grid [$grids] | scale <notify|1-$tiles> <$grids> | list [-p]",
+            ja = "usage: z2-icon pick <notify|1-$tiles> | sample [名前|対象 名前] | " +
+                "edit <notify|1-$tiles> | set <notify|1-$tiles> [ファイル|-] | " +
+                "save <notify|1-$tiles> <名前> | forget <名前> | " +
+                "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | " +
+                "grid [$grids] | scale <notify|1-$tiles> <$grids> | list [-p]"
+        )
 
     /** `z2-icon set` にファイルを指定したが無かったときの文言 (後ろにファイル名が付く)。 */
     val iconNoSuchFile: String =
-        if (en) "no such file:" else "そのファイルはありません:"
+        t(en = "no such file:", ja = "そのファイルはありません:")
 
     /** `z2-icon edit` で何も変えずに終わったときの文言。 */
     val iconEditUnchanged: String =
-        if (en) "unchanged." else "変更なしで終了しました。"
+        t(en = "unchanged.", ja = "変更なしで終了しました。")
 
     /** `z2-icon pick` が番号を尋ねるときの文言 (行末で入力を待つので改行を入れない)。 */
     val iconPickPrompt: String =
-        if (en) "number (or name), blank to cancel: " else "番号 (または名前) を入力 (空欄で中止): "
+        t(en = "number (or name), blank to cancel: ", ja = "番号 (または名前) を入力 (空欄で中止): ")
 
     /** `z2-icon pick` を空欄で抜けたときの文言。 */
     val iconPickCancelled: String =
-        if (en) "cancelled." else "中止しました。"
+        t(en = "cancelled.", ja = "中止しました。")
 
     /** `z2-icon edit` で開くエディタが見つからないときの文言。 */
     val iconNoEditor: String =
-        if (en) "no editor found. Set ${d}EDITOR, or use: z2-icon set <target> <file>"
-        else "エディタが見つかりません。${d}EDITOR を設定するか z2-icon set <対象> <ファイル> をお使いください"
+        t(
+            en = "no editor found. Set ${d}EDITOR, or use: z2-icon set <target> <file>",
+            ja = "エディタが見つかりません。${d}EDITOR を設定するか z2-icon set <対象> <ファイル> をお使いください"
+        )
 
     /** 置き場に無いマクロ名を弾くときの文言 (後ろに名前が付く)。 */
     val tileNoSuchMacro: String =
-        if (en) "no such macro in ~/.z2term/macros/ (use a full path to run it as a command):"
-        else "そのマクロは ~/.z2term/macros/ にありません (コマンドとして走らせるならフルパスで):"
+        t(
+            en = "no such macro in ~/.z2term/macros/ (use a full path to run it as a command):",
+            ja = "そのマクロは ~/.z2term/macros/ にありません (コマンドとして走らせるならフルパスで):"
+        )
 
     // --- z2-noti ---
 
-    val notiHelp: String = if (en) """
+    val notiHelp: String = t(
+        en = """
         |# z2-noti list  … the notifications currently on screen, as TSV
         |#                 (key / package / app name / title / body)
         |# Reading only. There is deliberately no way to press or dismiss a notification:
         |# that would also press other apps' pay and send buttons.
         |# Needs notification access (Settings > resident servers & automation).
         |# See also: z2-when notify:otp / notify:pkg=<part> / notify:contains=<part>
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-noti list  … いま出ている通知を TSV で表示
         |#                 (key / パッケージ / アプリ名 / タイトル / 本文)
         |# 読むだけです。通知のボタンを「押す」「消す」は意図的に用意していません
@@ -566,13 +644,15 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# 通知アクセスの許可が要ります (設定 › 常駐サーバー・自動化 › 通知検知)。
         |# 併せて: z2-when notify:otp / notify:pkg=<部分> / notify:contains=<部分>
     """.trimMargin()
+    )
 
     val notiUsage: String =
-        if (en) "usage: z2-noti list" else "usage: z2-noti list"
+        t(en = "usage: z2-noti list", ja = "usage: z2-noti list")
 
     // --- z2-alarm ---
 
-    val alarmHelp: String = if (en) """
+    val alarmHelp: String = t(
+        en = """
         |# z2-alarm at HH:MM [name]     … once at the next HH:MM (tomorrow if already past)
         |# z2-alarm daily HH:MM [name]  … every day at HH:MM
         |# z2-alarm in <N|Ns|Nm|Nh> [name] … once, N seconds/minutes/hours from now
@@ -583,7 +663,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# "exact":false means Doze only offers a slot every 9-15 min, so a phone left with the
         |# screen off can be that late. Turning battery optimisation off for this app is what
         |# flips it to true (no extra permission is asked for).
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-alarm at HH:MM [名前]     … 次の HH:MM に 1 回 (今日を過ぎていれば明日)
         |# z2-alarm daily HH:MM [名前]  … 毎日 HH:MM
         |# z2-alarm in <N|Ns|Nm|Nh> [名前] … N 秒/分/時間後に 1 回
@@ -595,13 +676,15 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# それくらい遅れる。true にするのは**このアプリの電池の最適化を切る**ことで、
         |# 追加の許可は求めない。
     """.trimMargin()
+    )
 
     val alarmNoDate: String =
-        if (en) "z2-alarm: no usable date command" else "z2-alarm: date が使えません"
+        t(en = "z2-alarm: no usable date command", ja = "z2-alarm: date が使えません")
 
     // --- z2-session ---
 
-    val sessionHelp: String = if (en) """
+    val sessionHelp: String = t(
+        en = """
         |# z2-session list                     … list tabs (index / id / kind / mark / name, TSV)
         |#   marks: * = on screen / ! = running / ? = not started / @ = attached from a shell / - = other
         |# z2-session new [name]               … open one terminal tab (returns index and id)
@@ -622,7 +705,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#
         |# <tab> can be the index from list, an id, or a tab name. '.' or omitted = the tab on screen.
         |# e.g. n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-session list                     … タブ一覧 (番号 / id / 種別 / 印 / 名前 の TSV)
         |#   印: * = 表示中 / ! = 何か動作中 / ? = まだ起動していない / @ = 端末から繋がっている / - = それ以外
         |# z2-session new [名前]               … 端末タブを 1 枚開く (番号と id を返す)
@@ -644,53 +728,50 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# <先> は list の番号 / id / タブ名 のどれでもよい。'.' か省略で今表示しているタブ。
         |# 例: n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
     """.trimMargin()
+    )
 
     val sessionUsage: String =
-        if (en) {
-            "usage: z2-session list | new [name] | send <tab> <text>... [--enter] | " +
+        t(
+            en = "usage: z2-session list | new [name] | send <tab> <text>... [--enter] | " +
                 "key <tab> <key>... | key <tab> --raw <bytes> | capture [tab] [--all] | " +
-                "attach <tab> | close <tab>"
-        } else {
-            "usage: z2-session list | new [名前] | send <先> <文字列>... [--enter] | " +
+                "attach <tab> | close <tab>",
+            ja = "usage: z2-session list | new [名前] | send <先> <文字列>... [--enter] | " +
                 "key <先> <キー>... | key <先> --raw <バイト列> | capture [先] [--all] | " +
                 "attach <先> | close <先>"
-        }
+        )
 
     // --- z2-session key (別のタブへキーを送る) ---
 
     /** 送るキーが 1 つも無い。 */
     val keyNothing: String =
-        if (en) "z2-session key: no key given" else "z2-session key: 送るキーがありません"
+        t(en = "z2-session key: no key given", ja = "z2-session key: 送るキーがありません")
 
     /** `--raw` の後ろが空。 */
     val keyRawEmpty: String =
-        if (en) "z2-session key: --raw needs the bytes to send"
-        else "z2-session key: --raw の後ろにバイト列がありません"
+        t(en = "z2-session key: --raw needs the bytes to send", ja = "z2-session key: --raw の後ろにバイト列がありません")
 
     /** 表に無いキー名。⚠ **どこを見れば分かるか**まで書く。 */
-    val keyUnknown: String = if (en) {
-        "z2-session key: unknown key (see 'z2-session -h' for the list):"
-    } else {
-        "z2-session key: そんなキー名はありません ('z2-session -h' に一覧):"
-    }
+    val keyUnknown: String = t(
+        en = "z2-session key: unknown key (see 'z2-session -h' for the list):",
+        ja = "z2-session key: そんなキー名はありません ('z2-session -h' に一覧):"
+    )
 
     /** `\\xHH` として読めなかった。 */
     val keyBadEscape: String =
-        if (en) "z2-session key: cannot read the escape:" else "z2-session key: 読めないエスケープ:"
+        t(en = "z2-session key: cannot read the escape:", ja = "z2-session key: 読めないエスケープ:")
 
     /**
      * Shift 付きを断る文言。⚠ **なぜ送れないかと、代わりに何を書けばよいか**を必ず出す —
      * 「送れません」だけだと、書き方が悪いのか端末の話なのか区別が付かない。
      */
-    fun keyShiftNotDistinguishable(asWritten: String, equivalentTo: String): String = if (en) {
-        "z2-session key: the terminal cannot tell Shift apart, so '$asWritten' would be " +
-            "the very same bytes as '$equivalentTo'. Write '$equivalentTo' if that is what you meant."
-    } else {
+    fun keyShiftNotDistinguishable(asWritten: String, equivalentTo: String): String = t(
+        en = "z2-session key: the terminal cannot tell Shift apart, so '$asWritten' would be " +
+            "the very same bytes as '$equivalentTo'. Write '$equivalentTo' if that is what you meant.",
         // ⚠ 行の分け目は**句点**に置く (読点や助詞で割ると lint の TextConcatSpace が
         // 「空白が抜けているのでは」と拾う。日本語では誤検知だが、警告 0 を保つ方を採る)。
-        "z2-session key: 端末は Shift を区別できないので、'$asWritten' は '$equivalentTo' とまったく同じバイトになります。" +
-            "それでよければ '$equivalentTo' と書いてください。"
-    }
+        ja = "z2-session key: 端末は Shift を区別できないので、'$asWritten' は '$equivalentTo' とまったく同じバイトになります。" +
+                "それでよければ '$equivalentTo' と書いてください。"
+    )
 
     // --- z2-session attach (タブに繋ぎっぱなしにする) ---
 
@@ -698,64 +779,59 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
      * 繋ぎ先が見つからない。⚠ **どう調べればよいか**まで書く
      * (`key` の keyUnknown と同じ約束)。
      */
-    fun attachNoSuchTab(target: String): String = if (en) {
-        "no such tab: '$target' (run 'z2-session list' to see the tabs)"
-    } else {
-        "そんなタブはありません: '$target' ('z2-session list' で一覧が出ます)"
-    }
+    fun attachNoSuchTab(target: String): String = t(
+        en = "no such tab: '$target' (run 'z2-session list' to see the tabs)",
+        ja = "そんなタブはありません: '$target' ('z2-session list' で一覧が出ます)"
+    )
 
     /** GUI タブには繋げない (PTY が無い)。 */
-    val attachNotTerminal: String = if (en) {
-        "that is a GUI tab, which has no shell to attach to. Pick a terminal tab."
-    } else {
-        "それは GUI タブなのでシェルがありません。端末タブを指してください。"
-    }
+    val attachNotTerminal: String = t(
+        en = "that is a GUI tab, which has no shell to attach to. Pick a terminal tab.",
+        ja = "それは GUI タブなのでシェルがありません。端末タブを指してください。"
+    )
 
     /**
      * まだ起動していないタブ。⛔ **こちらから勝手に起こさない** —
      * 繋いだつもりが OS の初回ダウンロードを始める、を作らない。
      */
-    val attachNotStarted: String = if (en) {
-        "that tab has not started yet (marked '?' in list). Open it once in the app, then attach."
-    } else {
-        "そのタブはまだ起動していません (list の印が '?')。アプリで一度開いてから繋いでください。"
-    }
+    val attachNotStarted: String = t(
+        en = "that tab has not started yet (marked '?' in list). Open it once in the app, then attach.",
+        ja = "そのタブはまだ起動していません (list の印が '?')。アプリで一度開いてから繋いでください。"
+    )
 
     /** プロセスが終わっているタブ。 */
-    val attachExited: String = if (en) {
-        "that tab has already exited. Its screen can still be read with 'z2-session capture'."
-    } else {
-        "そのタブはもう終わっています。画面は 'z2-session capture' で取り出せます。"
-    }
+    val attachExited: String = t(
+        en = "that tab has already exited. Its screen can still be read with 'z2-session capture'.",
+        ja = "そのタブはもう終わっています。画面は 'z2-session capture' で取り出せます。"
+    )
 
     /**
      * 自分自身のタブ。⛔ **繋がせない。** 繋ぐとそのタブの出力がそのタブへ書き戻され、
      * それがまた出力として送られて**止まらなくなる**。
      * ⚠ 「できません」で終えず、**なぜ止められないのか**まで書く (この断りだけが唯一の説明)。
      */
-    val attachSelf: String = if (en) {
-        "that is the tab you are typing in. Attaching a tab to itself makes its own output " +
-            "come back as input forever, so it cannot be undone. Pick another tab."
-    } else {
-        "それは今あなたが打っているタブ自身です。自分に繋ぐと、そのタブの出力がそのまま" +
+    val attachSelf: String = t(
+        en = "that is the tab you are typing in. Attaching a tab to itself makes its own output " +
+            "come back as input forever, so it cannot be undone. Pick another tab.",
+        ja = "それは今あなたが打っているタブ自身です。自分に繋ぐと、そのタブの出力がそのまま" +
             "自分へ戻り続けて止められなくなります。別のタブを指してください。"
-    }
+    )
 
     /**
      * 遠回りで輪になる指定 (A から B へ繋いだ状態で、その中から A へ繋ぐ)。
      * [attachSelf] と同じ暴走の遠回り版。
      */
-    val attachLoop: String = if (en) {
-        "that tab is already attached back to this one, so the two would feed each other " +
-            "forever. Detach one of them first (Ctrl+])."
-    } else {
-        "そのタブは既にこちら側へ繋がっているので、互いに送り合って止まらなくなります。" +
+    val attachLoop: String = t(
+        en = "that tab is already attached back to this one, so the two would feed each other " +
+            "forever. Detach one of them first (Ctrl+]).",
+        ja = "そのタブは既にこちら側へ繋がっているので、互いに送り合って止まらなくなります。" +
             "どちらかを先に外してください (Ctrl+])。"
-    }
+    )
 
     // --- z2-server ---
 
-    val serverHelp: String = if (en) """
+    val serverHelp: String = t(
+        en = """
         |# z2-server list                … registered servers (index / id / state / mark / name, TSV)
         |#   marks: * = enabled / - = disabled
         |# z2-server start <server>      … run it as a resident server (keeps the device reachable)
@@ -770,7 +846,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# screen goes off. Starting it through here puts it inside that frame.
         |# e.g. z2-when wifi:connect run 'z2-server start sshd'
         |#      z2-when wifi:disconnect run 'z2-server stop sshd'
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-server list                … 登録済みサーバー一覧 (番号 / id / 状態 / 印 / 名前 の TSV)
         |#   印: * = 有効 / - = 無効
         |# z2-server start <サーバー>    … 常駐サーバーとして起動する (画面消灯中も届く枠の中で上がる)
@@ -786,42 +863,51 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# 例: z2-when wifi:connect run 'z2-server start sshd'
         |#     z2-when wifi:disconnect run 'z2-server stop sshd'
     """.trimMargin()
+    )
 
     val serverUsage: String =
-        if (en) "usage: z2-server list | start <server> | stop <server> | status [<server>]"
-        else "usage: z2-server list | start <サーバー> | stop <サーバー> | status [<サーバー>]"
+        t(
+            en = "usage: z2-server list | start <server> | stop <server> | status [<server>]",
+            ja = "usage: z2-server list | start <サーバー> | stop <サーバー> | status [<サーバー>]"
+        )
 
     /** 名前 / 番号 / id のどれにも当たらなかった。⚠ 一覧の出し方まで書く (次に何をすればよいか)。 */
     val serverNotFound: String =
-        if (en) "z2-server: no such server (see 'z2-server list'):"
-        else "z2-server: そのサーバーはありません ('z2-server list' で一覧):"
+        t(
+            en = "z2-server: no such server (see 'z2-server list'):",
+            ja = "z2-server: そのサーバーはありません ('z2-server list' で一覧):"
+        )
 
     /** 同じ名前が複数あった。⚠ id で指定し直せると分かるように。 */
     val serverAmbiguous: String =
-        if (en) "z2-server: the name matches more than one server; use the id from 'z2-server list':"
-        else "z2-server: 同じ名前のサーバーが複数あります。'z2-server list' の id で指定してください:"
+        t(
+            en = "z2-server: the name matches more than one server; use the id from 'z2-server list':",
+            ja = "z2-server: 同じ名前のサーバーが複数あります。'z2-server list' の id で指定してください:"
+        )
 
     /** 1 件も登録が無い。 */
     val serverNone: String =
-        if (en) "z2-server: no servers registered yet (add one in the app: 📜 -> Servers)."
-        else "z2-server: サーバーがまだ 1 件も登録されていません (アプリの 📜 → サーバー で登録します)。"
+        t(
+            en = "z2-server: no servers registered yet (add one in the app: 📜 -> Servers).",
+            ja = "z2-server: サーバーがまだ 1 件も登録されていません (アプリの 📜 → サーバー で登録します)。"
+        )
 
     /**
      * 省電力モード中の警告 (F-5)。⚠ **起動そのものは成功している**ので失敗にはしない。
      * 黙って上げると「起動したのにつながらない」を繰り返すので、その場で理由を出す。
      */
-    val serverLowPowerWarn: String = if (en) {
-        "z2-server: note - low-power mode is on, so no WakeLock/WifiLock is held. " +
+    val serverLowPowerWarn: String = t(
+        en = "z2-server: note - low-power mode is on, so no WakeLock/WifiLock is held. " +
             "The server may stop answering while the screen is off " +
-            "(Settings -> Automation -> Background process protection)."
-    } else {
-        "z2-server: 注意 — 省電力モードが ON のため WakeLock/WifiLock を握りません。" +
+            "(Settings -> Automation -> Background process protection).",
+        ja = "z2-server: 注意 — 省電力モードが ON のため WakeLock/WifiLock を握りません。" +
             "画面消灯中は応答しなくなることがあります (⚙設定 → 自動化 → バックグラウンドのプロセス保護)。"
-    }
+    )
 
     // --- z2-when ---
 
-    val whenHelp: String = if (en) """
+    val whenHelp: String = t(
+        en = """
         |# z2-when <trigger> run <cmd...>        … register a rule
         |#   triggers: charge:start | charge:stop  (needs detection ON)
         |#            battery:below=N | battery:above=N  (needs detection ON)
@@ -891,7 +977,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#      z2-when boot run 'sshd --lan'
         |#      z2-when share:text run '~/.z2term/macros/fetch.sh "${d}Z2_WHEN_SHARE"'
         |#      z2-when time:daily=07:00 name='Morning report' run ~/.z2term/macros/report.sh
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-when <トリガー> run <コマンド...>   … ルールを登録
         |#   トリガー: charge:start | charge:stop  (検知 ON が前提)
         |#            battery:below=N | battery:above=N  (検知 ON が前提)
@@ -962,45 +1049,49 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#     z2-when share:text run '~/.z2term/macros/fetch.sh "${d}Z2_WHEN_SHARE"'
         |#     z2-when time:daily=07:00 name='朝の日報' run ~/.z2term/macros/report.sh
     """.trimMargin()
+    )
 
     val whenPaused: String =
-        if (en) "Automatic runs paused (z2-when resume to start again)"
-        else "自動実行を一時停止しました (z2-when resume で再開)"
+        t(en = "Automatic runs paused (z2-when resume to start again)", ja = "自動実行を一時停止しました (z2-when resume で再開)")
 
     val whenResumed: String =
-        if (en) "Automatic runs resumed" else "自動実行を再開しました"
+        t(en = "Automatic runs resumed", ja = "自動実行を再開しました")
 
     val whenNoFires: String =
-        if (en) "(nothing has fired yet)" else "(まだ発火していません)"
+        t(en = "(nothing has fired yet)", ja = "(まだ発火していません)")
 
     val whenPausedNote: String =
-        if (en) "# paused (z2-when resume to start again)"
-        else "# 一時停止中 (z2-when resume で再開)"
+        t(en = "# paused (z2-when resume to start again)", ja = "# 一時停止中 (z2-when resume で再開)")
 
     val whenNoLog: String =
-        if (en) "(no log yet)" else "(ログはまだありません)"
+        t(en = "(no log yet)", ja = "(ログはまだありません)")
 
     val whenWriteFailed: String =
-        if (en) "z2-when: could not write the rule" else "z2-when: 書き込みに失敗しました"
+        t(en = "z2-when: could not write the rule", ja = "z2-when: 書き込みに失敗しました")
 
     /** `if=` に知らないキーを書いたとき。**キー名は呼び元がこの後ろに足す**。 */
     val whenUnknownIfKey: String =
-        if (en) "z2-when: unknown if= key (z2-state lists what you can use):"
-        else "z2-when: if= に書けない条件です (使えるものは z2-state が出す項目):"
+        t(
+            en = "z2-when: unknown if= key (z2-state lists what you can use):",
+            ja = "z2-when: if= に書けない条件です (使えるものは z2-state が出す項目):"
+        )
 
     /** 知らない種別のトリガー (`:` の手前) を書いたとき。**種別は呼び元がこの後ろに足す**。 */
     val whenUnknownTrigger: String =
-        if (en) "z2-when: unknown trigger (z2-when with no arguments lists them):"
-        else "z2-when: そんなきっかけはありません (一覧は引数なしの z2-when で出ます):"
+        t(
+            en = "z2-when: unknown trigger (z2-when with no arguments lists them):",
+            ja = "z2-when: そんなきっかけはありません (一覧は引数なしの z2-when で出ます):"
+        )
 
     /** 種別は合っているが引数の書き方が違うとき。**トリガー全体は呼び元がこの後ろに足す**。 */
     val whenBadTriggerSpec: String =
-        if (en) "z2-when: that trigger does not take this argument:"
-        else "z2-when: そのきっかけにその書き方はできません:"
+        t(en = "z2-when: that trigger does not take this argument:", ja = "z2-when: そのきっかけにその書き方はできません:")
 
     val whenPausedWarn: String =
-        if (en) "note: automatic runs are paused (z2-when resume to start again)"
-        else "注意: 自動実行は一時停止中です (z2-when resume で再開)"
+        t(
+            en = "note: automatic runs are paused (z2-when resume to start again)",
+            ja = "注意: 自動実行は一時停止中です (z2-when resume で再開)"
+        )
 
     /**
      * `run` に改行が入っていたので空白へ直したとき。
@@ -1010,14 +1101,17 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
      * 弾くのではなく直して通すが、直したことは必ず伝える。
      */
     val whenRunJoined: String =
-        if (en) "note: line breaks in the command were turned into spaces (a rule reads one line only)"
-        else "注意: コマンドの改行を空白に直しました (ルールは 1 行しか読みません)"
+        t(
+            en = "note: line breaks in the command were turned into spaces (a rule reads one line only)",
+            ja = "注意: コマンドの改行を空白に直しました (ルールは 1 行しか読みません)"
+        )
 
     /**
      * `z2-when events` が出すイベント名の一覧。**名前 (1 列目) は言語を問わず同じ**で、
      * 説明と注記だけを訳す（名前はルールに書く識別子なので訳してはいけない）。
      */
-    val whenEventList: String = if (en) """
+    val whenEventList: String = t(
+        en = """
         |screen_on              screen turned on          [detection ON]
         |screen_off             screen turned off         [detection ON]
         |unlocked               device was unlocked       [detection ON]
@@ -1046,7 +1140,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |notify_action          a notification button     [always]
         |unlock_failed          failed to unlock          [always, needs setup]
         |unlock_succeeded       unlocked after a failure  [always, needs setup]
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |screen_on              画面が点いた            [検知 ON]
         |screen_off             画面が消えた            [検知 ON]
         |unlocked               ロックを解除した        [検知 ON]
@@ -1076,21 +1171,26 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |unlock_failed          ロック解除に失敗した    [常に・要設定]
         |unlock_succeeded       失敗のあと解除できた    [常に・要設定]
     """.trimMargin()
+    )
 
     /** `z2-when events` の一覧の前に置くコメント（どちらの段が検知 ON を要るか）。 */
-    val whenEventListNote: String = if (en) """
+    val whenEventListNote: String = t(
+        en = """
         |    # Names you can put in event:<name>. Same order as they appear in events.jsonl.
         |    # The upper group needs detection ON (Settings > resident servers & automation),
         |    # the lower group is armed by you, so it works with detection OFF.
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |    # event:<名前> に書ける名前。events.jsonl に出るものと同じ並び。
         |    # 上段は検知 ON が前提 (設定 › 常駐サーバー・自動化 › システムイベント検知)、
         |    # 下段は自分で仕掛けるものなので検知 OFF でも動く。
     """.trimMargin()
+    )
 
     // --- z2-update (アプリ自身の入れ替え) ---
 
-    val updateHelp: String = if (en) """
+    val updateHelp: String = t(
+        en = """
         |# z2-update                     … check, download and hand the new version to the installer
         |# z2-update --check             … only say whether there is a newer version
         |# z2-update --keep              … leave the downloaded .apk behind (it is deleted by default)
@@ -1119,7 +1219,8 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |# e.g. z2-update --check
         |#      z2-update --dir /sdcard/Download --keep
         |#      z2-when time:daily=03:00 run 'z2-update'   # look every night (still asks you)
-    """.trimMargin() else """
+    """.trimMargin(),
+        ja = """
         |# z2-update                     … 新版を確認して落とし、入れ替えの確認画面まで出す
         |# z2-update --check             … 新しい版があるかどうかだけ言う
         |# z2-update --keep              … 落とした .apk を残す (既定は入れ終わったら消す)
@@ -1147,62 +1248,57 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         |#     z2-update --dir /sdcard/Download --keep
         |#     z2-when time:daily=03:00 run 'z2-update'   # 毎晩見に行く (確認画面は出ます)
     """.trimMargin()
+    )
 
     val updateUsage: String =
-        if (en) "usage: z2-update [--check] [--keep] [--dir <folder>]"
-        else "usage: z2-update [--check] [--keep] [--dir <フォルダ>]"
+        t(
+            en = "usage: z2-update [--check] [--keep] [--dir <folder>]",
+            ja = "usage: z2-update [--check] [--keep] [--dir <フォルダ>]"
+        )
 
     /** 最新だった。⚠ **版名を必ず出す** (「最新です」だけだと何と比べたのか分からない)。 */
     fun updateUpToDate(current: String): String =
-        if (en) "z2-update: $current is the latest version." else "z2-update: $current が最新です。"
+        t(en = "z2-update: $current is the latest version.", ja = "z2-update: $current が最新です。")
 
     /** 新版が見つかった (1 行目)。 */
     fun updateFound(current: String, latest: String, size: String): String =
-        if (en) "z2-update: $current -> $latest ($size)" else "z2-update: $current → $latest ($size)"
+        t(en = "z2-update: $current -> $latest ($size)", ja = "z2-update: $current → $latest ($size)")
 
     /**
      * 問い合わせに入る前に CLI が出す 1 行。
      * ⚠ **黙って数十秒待たせない** — 通信とダウンロードの間、端末には何も出ない。
      */
-    val updateChecking: String = if (en) {
-        "z2-update: looking for a newer version ..."
-    } else {
-        "z2-update: 新しい版があるか見に行きます ..."
-    }
+    val updateChecking: String = t(en =         "z2-update: looking for a newer version ...", ja =         "z2-update: 新しい版があるか見に行きます ...")
 
     /**
      * 確認画面を出した。⚠ **「更新しました」と書かない** — 押すまで入っていない。
      */
-    val updateHandedToInstaller: String = if (en) {
-        "z2-update: the install screen is up on the device — approve it to finish."
-    } else {
-        "z2-update: 端末にインストール画面を出しました。承認すると入れ替わります。"
-    }
+    val updateHandedToInstaller: String = t(
+        en = "z2-update: the install screen is up on the device — approve it to finish.",
+        ja = "z2-update: 端末にインストール画面を出しました。承認すると入れ替わります。"
+    )
 
     /** リリースに APK が付いていない。 */
-    fun updateNoApk(url: String): String = if (en) {
-        "z2-update: that release has no .apk attached. Get it from the release page: $url"
-    } else {
-        "z2-update: そのリリースに .apk が付いていません。リリースページから入れてください: $url"
-    }
+    fun updateNoApk(url: String): String = t(
+        en = "z2-update: that release has no .apk attached. Get it from the release page: $url",
+        ja = "z2-update: そのリリースに .apk が付いていません。リリースページから入れてください: $url"
+    )
 
     /** 「不明なアプリのインストール」が未許可。⚠ **どこで許すか**まで書く。 */
-    val updateNeedPermission: String = if (en) {
-        "z2-update: allow \"Install unknown apps\" for z2term first " +
-            "(Settings > Apps > Special app access > Install unknown apps, or the button in z2term's Settings)."
-    } else {
-        "z2-update: 先に z2term へ「不明なアプリのインストール」を許可してください " +
+    val updateNeedPermission: String = t(
+        en = "z2-update: allow \"Install unknown apps\" for z2term first " +
+            "(Settings > Apps > Special app access > Install unknown apps, or the button in z2term's Settings).",
+        ja = "z2-update: 先に z2term へ「不明なアプリのインストール」を許可してください " +
             "(設定 › アプリ › 特別なアプリアクセス › 不明なアプリのインストール。z2term の ⚙設定にもボタンがあります)。"
-    }
+    )
 
     /** 配布元から入れた版なので断る。 */
-    val updateManagedByStore: String = if (en) {
-        "z2-update: this build was installed from a store (F-Droid / Play). Update it there."
-    } else {
-        "z2-update: この版は配布元 (F-Droid / Play) から入っています。更新はそちらから行ってください。"
-    }
+    val updateManagedByStore: String = t(
+        en = "z2-update: this build was installed from a store (F-Droid / Play). Update it there.",
+        ja = "z2-update: この版は配布元 (F-Droid / Play) から入っています。更新はそちらから行ってください。"
+    )
 
     /** 通信・保存・入れ替えのどこかで失敗した。 */
     fun updateFailed(reason: String): String =
-        if (en) "z2-update: failed: $reason" else "z2-update: 失敗しました: $reason"
+        t(en = "z2-update: failed: $reason", ja = "z2-update: 失敗しました: $reason")
 }

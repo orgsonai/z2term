@@ -7,7 +7,7 @@
     <string name="settings_header">Z2Term 設定</string>
     <string name="settings_section_language">言語 / Language</string>
     <string name="settings_language_system">端末に合わせる</string>
-    <string name="settings_section_language_desc">アプリ内の表示言語を切替えます。既定は「端末に合わせる」で、スマホの言語設定に従います。日本語 / English を選ぶと、端末の設定に関わらずその言語で固定されます。English のときは未翻訳の箇所が日本語のまま残ります (順次翻訳予定)。日本語フリックキーボードは English のときは非表示になります。</string>
+    <string name="settings_section_language_desc">アプリ内の表示言語を切替えます。既定は「端末に合わせる」で、スマホの言語設定に従います。選ぶと端末の設定に関わらずその言語で固定されます。端末側も一緒に変わります — z2-* コマンドのヘルプやメッセージも同じ設定に従います。まだ訳されていないところは英語で出ます。日本語フリックキーボードは「日本語」のときだけ出ます。</string>
     <string name="settings_group_display">表示</string>
     <string name="settings_group_display_desc">配色・文字・上部ツールバー・画面に残す行数</string>
     <string name="settings_group_keyboard">キーボード・入力・言語 / Language</string>

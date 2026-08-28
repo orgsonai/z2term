@@ -108,6 +108,7 @@ import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.backup.AutoBackup
 import com.zerotoship.z2term.service.NetGuard
 import com.zerotoship.z2term.security.AppLock
+import com.zerotoship.z2term.settings.AppLanguages
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.BatteryGuard
 import com.zerotoship.z2term.settings.CustomThemeStore
@@ -819,15 +820,16 @@ fun SettingsSheet(
                 //   返すので、そちらを使うと「端末に合わせる」を選んでも ja か en の側が点いて見える。
                 Section(title = stringResource(R.string.settings_section_language)) {
                     val currentLang = remember { mutableStateOf(LocaleHelper.languageSetting(context)) }
+                    // ⭐ 並びも名前も名簿 (AppLanguages) から作る。言語を増やしてもここは触らない。
+                    // ⚠ 言語名は**その言語で**書く (AppLanguages.Entry.nativeName)。翻訳対象ではないので
+                    //   strings.xml には置かない — 「日本語」を英語話者向けに訳しても誰も得をしない。
+                    val systemLabel = stringResource(R.string.settings_language_system)
                     ChipRow(
-                        options = listOf(
-                            LocaleHelper.LANG_SYSTEM, LocaleHelper.LANG_JA, LocaleHelper.LANG_EN
-                        ),
-                        labels = mapOf(
-                            LocaleHelper.LANG_SYSTEM to stringResource(R.string.settings_language_system),
-                            LocaleHelper.LANG_JA to "日本語",
-                            LocaleHelper.LANG_EN to "English"
-                        ),
+                        options = LocaleHelper.SETTING_OPTIONS,
+                        labels = buildMap {
+                            put(LocaleHelper.LANG_SYSTEM, systemLabel)
+                            AppLanguages.ALL.forEach { put(it.code, it.nativeName) }
+                        },
                         selected = currentLang.value,
                         onSelect = { lang ->
                             if (lang != currentLang.value) {

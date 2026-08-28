@@ -1,5 +1,7 @@
 package com.zerotoship.z2term.proot
 
+import com.zerotoship.z2term.settings.AppLanguages
+
 /**
  * z2term 内蔵 VNC クライアントが接続する RFB(VNC) ポート。
  * Xvnc は `:1` で起動するので RFB ポートは 5900 + 1 = 5901。
@@ -143,7 +145,18 @@ data class GuiScriptStrings(
             qtFallback = "📚 Added PySide6's bundled Qt6 to LD_LIBRARY_PATH (Konsole fallback):",
             qtFallbackFound = "📚 Found a libQt6QuickWidgets.so.6 → added to LD_LIBRARY_PATH:"
         )
-        fun forLang(lang: String): GuiScriptStrings = if (lang == "en") en() else ja()
+        /**
+         * 言語ごとの組。⭐ **3 言語目はここに 1 行足す** (言語コード to その組を返す関数)。
+         * 名簿 ([AppLanguages]) にあっても訳が無い言語は英語へ落ちる。
+         */
+        private val byLang: Map<String, () -> GuiScriptStrings> = mapOf(
+            "en" to ::en,
+            "ja" to ::ja,
+        )
+
+        /** ⚠ **知らない言語は英語**。「英語でなければ日本語」と書かないこと。 */
+        fun forLang(lang: String): GuiScriptStrings =
+            (byLang[AppLanguages.resolve(lang)] ?: byLang.getValue(AppLanguages.FALLBACK))()
     }
 }
 

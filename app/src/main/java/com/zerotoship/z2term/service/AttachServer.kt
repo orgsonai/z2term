@@ -144,7 +144,7 @@ object AttachServer {
             val nl = hello.indexOf('\n')
             val target = if (nl >= 0) hello.substring(0, nl) else hello
             val callerId = if (nl >= 0) hello.substring(nl + 1).trim() else ""
-            val m = Z2ApiMsg(en = LocaleHelper.language(context) != LocaleHelper.LANG_JA, d = "$")
+            val m = Z2ApiMsg(lang = LocaleHelper.language(context), d = "$")
 
             val session = onMain { Z2ApiBridge.resolveSession(target) }
             val refusal = refusalFor(session, target, callerId, m)

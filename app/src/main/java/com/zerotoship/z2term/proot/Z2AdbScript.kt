@@ -22,28 +22,32 @@ package com.zerotoship.z2term.proot
  */
 fun z2adbScript(lang: String = "ja"): String {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
-    val en = lang == "en"
+    // 言語ごとの文言を選ぶ道具。3 言語目は t(en = …, ja = …) の後ろへ変わり値を足す ([CliText])。
+    val t = CliText(lang)
 
-    val mNoPm = if (en)
-        "z2adb: no supported package manager (apk/apt-get/pacman) found." else
-        "z2adb: 対応パッケージマネージャ (apk/apt-get/pacman) が見つかりません。"
-    val mInstalling = if (en)
-        "z2adb: installing adb client (${d}ADB_PKG) via ${d}PM ..." else
-        "z2adb: adb クライアント (${d}ADB_PKG) を ${d}PM で導入します ..."
-    val mInstallFail = if (en)
-        "z2adb: failed to install adb. Install it manually, then retry." else
-        "z2adb: adb の導入に失敗しました。手動で導入してから再実行してください。"
-    val mHaveAdb = if (en) "z2adb: adb is already installed." else "z2adb: adb は導入済みです。"
-    val mNeedWireless = if (en)
-        "z2adb: if pairing fails, enable Settings > Developer options > Wireless debugging (Android 11+)." else
-        "z2adb: 失敗する場合は 設定 > 開発者向けオプション > ワイヤレスデバッグ を ON にしてください (Android 11+)。"
-    val mPairPort = if (en) "Pairing port (Pair device with pairing code): " else
-        "ペアリング用ポート (「ペアリングコードによるデバイスのペア設定」の表示): "
-    val mConnPort = if (en) "Connect port (shown under Wireless debugging): " else
-        "接続用ポート (「ワイヤレスデバッグ」直下に表示): "
+    val mNoPm = t(
+        en = "z2adb: no supported package manager (apk/apt-get/pacman) found.",
+        ja = "z2adb: 対応パッケージマネージャ (apk/apt-get/pacman) が見つかりません。"
+    )
+    val mInstalling = t(
+        en = "z2adb: installing adb client (${d}ADB_PKG) via ${d}PM ...",
+        ja = "z2adb: adb クライアント (${d}ADB_PKG) を ${d}PM で導入します ..."
+    )
+    val mInstallFail = t(
+        en = "z2adb: failed to install adb. Install it manually, then retry.",
+        ja = "z2adb: adb の導入に失敗しました。手動で導入してから再実行してください。"
+    )
+    val mHaveAdb = t(en = "z2adb: adb is already installed.", ja = "z2adb: adb は導入済みです。")
+    val mNeedWireless = t(
+        en = "z2adb: if pairing fails, enable Settings > Developer options > Wireless debugging (Android 11+).",
+        ja = "z2adb: 失敗する場合は 設定 > 開発者向けオプション > ワイヤレスデバッグ を ON にしてください (Android 11+)。"
+    )
+    val mPairPort = t(en = "Pairing port (Pair device with pairing code): ", ja = "ペアリング用ポート (「ペアリングコードによるデバイスのペア設定」の表示): ")
+    val mConnPort = t(en = "Connect port (shown under Wireless debugging): ", ja = "接続用ポート (「ワイヤレスデバッグ」直下に表示): ")
 
     // 使い方テキスト (heredoc で素のまま出すので margin マーカーは付けない)。
-    val usageText = if (en) """
+    val usageText = t(
+        en = """
         z2adb - connect to this device's own adb over Wireless debugging (self-adb, no PC).
 
         Prereq: enable Settings > Developer options > Wireless debugging (Android 11+).
@@ -56,7 +60,8 @@ fun z2adbScript(lang: String = "ja"): String {
 
         Host defaults to 127.0.0.1; pass host:port to override (or set Z2ADB_HOST).
         Example:  z2adb pair 37115 123456  ->  z2adb connect 40123  ->  z2adb shell
-    """.trimIndent() else """
+    """.trimIndent(),
+        ja = """
         z2adb - 端末自身の adb にワイヤレスデバッグ経由で繋ぐ (セルフ adb・PC 不要)。
 
         前提: 設定 > 開発者向けオプション > ワイヤレスデバッグ を ON (Android 11+)。
@@ -70,6 +75,7 @@ fun z2adbScript(lang: String = "ja"): String {
         宛先は既定で 127.0.0.1。host:port を渡せば上書き可 (Z2ADB_HOST でも可)。
         例:  z2adb pair 37115 123456  →  z2adb connect 40123  →  z2adb shell
     """.trimIndent()
+    )
 
     val head = """
         |#!/bin/sh

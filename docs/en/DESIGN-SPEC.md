@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-28 / Target version: 0.8.421-alpha (versionCode 429)
+Last updated: 2026-08-28 / Target version: 0.8.422-alpha (versionCode 430)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2553,6 +2553,41 @@ into "close" — you would not be able to delete while the pad is open.
 
 - Multiple tabs (**long-press → drag left/right to reorder**, double-tap to close. **A close-confirm dialog is shown only when a child process is running in the foreground of that tab** — to prevent an accidental tap from discarding work; if the login shell is in the foreground it closes immediately as before. The check compares PTY master `tcgetpgrp` against the **idle-prompt foreground pgid (measured once at startup)**. 0.8.157 compared it against `shellPid`, but `shellPid` is the forkpty child = the **engine (proot/z2root) process pid**, a different pgid from the guest login shell, so it never matched → **always flagged "busy"**; switching to the measured baseline fixes it. 0.8.157, fixed 0.8.160), pinch font zoom (8–32sp), scroll + a ↓ to return to latest, snippets, live theme/font preview.
 - Settings (`SettingsSheet`): in 0.8.14, dropped the old bottom sheet stacking from below and now shows as a **full-screen "separate page"** (back arrow ← at top + system-back support).
+
+### 6.8.2 Groundwork for more languages (B1, 0.8.422)
+
+**The English/Japanese boolean is gone; text is now picked by language code.** Behaviour is unchanged
+(the generated output is byte-for-byte identical). The point of the change is one thing: **to create a
+place where a third language can go.**
+
+⚠ **There are two bodies of text.** Translating only one of them leaves the product half-translated.
+
+| | Where | Count | How |
+|---|---|---|---|
+| App screens | `res/values[-<lang>]/strings.xml` | 1,041 | Android standard |
+| Text in the terminal | `t(en = …, ja = …)` in `proot/*.kt` | 345 | `CliText` (these are the bodies of shell scripts written into the rootfs, so `res` cannot hold them) |
+
+- ⭐ **One roster: [`AppLanguages`](../../app/src/main/java/com/zerotoship/z2term/settings/AppLanguages.kt).** Adding a line there makes the settings screen, the terminal-side text and the `Locale` all learn about the language at once. The step-by-step for adding one is at the top of that file.
+- ⛔ **Never write "not English means Japanese".** Up to 0.8.421 `val ja = lang != "en"` would have handed **Japanese** to anyone picking a third language (`z2-macro` and `pacman-keyring` really were written that way). The fallback is always English, and `CliTextTest` pins that **at the level of the generated output** (a script built for an untranslated language must not differ from the English one by a single byte).
+- **`LocaleHelper.language` returns a real language code** (it used to return only `ja`/`en`). The places that test `== LANG_JA` are asking about **Japanese-specific features** (the kana keyboard face, kana input in the IME), not about which text to show.
+- **Device-locale matching looks at the script subtag.** ⚠ **Simplified and Traditional Chinese are separate languages** — the content differs, so serving one to a reader of the other produces characters they cannot read. Android reports either `zh-CN` or `zh-Hans-CN` depending on the phone, and both must land on the same answer (Hong Kong and Macau arrive as `Hant`, so no extra region codes are needed). **This is pinned by tests before the languages are on the roster** (`AppLanguagesTest`).
+- **Two guards against forgotten translations.** (1) lint in `app/build.gradle.kts` raises `MissingTranslation` / `ExtraTranslation` to errors, so CI (`lintDebug`) fails on them; (2) `bash scripts/i18n-status.sh` counts both bodies of text, and `--missing <lang>` lists the untranslated keys with their English source. ⚠ **Localization is not a one-off job but a tax on every release** — strings keep arriving, so the tool that fills them and the guard that catches them belong together.
+- ⚠ **The moment `values-<lang>/` exists, lint counts every untranslated key**, so finish `res` before adding the directory. Terminal-side text tolerates being half-done (it shows English), which makes `res` → CLI the easier order.
+
+**Relationship to the built-in keyboard**: display language and input method are **kept separate**. The kana
+face is enabled by default only when the app language is Japanese (`legacyKanaAvailable`); other languages
+get the ASCII and numeric faces. ⛔ **No Chinese conversion engine (pinyin/zhuyin) is carried** — what you
+type at a shell is commands (ASCII), and for the occasional Chinese text the OS input method is one switch
+away. The built-in keyboard exists so the terminal can be typed *without* the OS input method; it is not a
+container for a per-language IME. ⭐ **Accented letters (`ñ`, `á`, `¿` …) are a key-layout matter** and the
+existing flick mechanism (up/down/left/right per key) already covers them.
+
+⚠ **Using the keyboard as an OS input method (0.8.276) is a different matter.** Inside the terminal, autocorrect is actively *harmful* (having `ls -la` "fixed" for you is worse than no help at all), so leaving the ASCII face without prediction is right. As a system-wide input method, though, it is typing into chat and mail, and **it is useless unless ordinary prose can be written in that language**.
+
+- **English**: needs no conversion, so it **already works**.
+- **Spanish**: needs only the letters (`ñ`, accented vowels, `¿` `¡`) — **no conversion engine**. One extra key layout makes it work as a system input method too.
+- **Chinese (Simplified and Traditional)**: ⛔ **does not work.** It needs pinyin/zhuyin → hanzi conversion, and Traditional has no single input method (Taiwan uses zhuyin, Hong Kong uses Cangjie/Quick). **Translate the UI and messages only, and say plainly that the keyboard does not do Chinese input.**
+- ⚠ "Predictive input" exists everywhere but means **different things**: Japanese and Chinese need **conversion** (a reading turned into another script — without it you cannot type at all), Korean needs **composition** of jamo, and Latin-script languages get **prediction and autocorrect** (convenient, never required). **Only the first two are mandatory**, and conflating them leads to estimating an IME for every language.
 
 ### 6.8.1 App lock (A2, 0.8.421)
 

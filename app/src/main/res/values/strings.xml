@@ -7,7 +7,7 @@
     <string name="settings_header">Z2Term Settings</string>
     <string name="settings_section_language">Language / 言語</string>
     <string name="settings_language_system">System</string>
-    <string name="settings_section_language_desc">Switches the in-app display language. The default (System) follows the phone language setting. Picking 日本語 or English pins that language regardless of the phone. In English, untranslated parts remain in Japanese (more translation coming), and the Japanese flick keyboard is hidden.</string>
+    <string name="settings_section_language_desc">Switches the in-app display language. The default (System) follows the phone language setting; picking one pins it regardless of the phone. This covers the terminal too — the help and messages of the z2-* commands follow the same setting. Anything not translated yet falls back to English. The Japanese flick keyboard is shown only in 日本語.</string>
     <string name="settings_group_display">Display</string>
     <string name="settings_group_display_desc">Colors, text, toolbar and terminal history</string>
     <string name="settings_group_keyboard">Keyboard, input and language</string>

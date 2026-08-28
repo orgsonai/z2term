@@ -16,7 +16,7 @@ package com.zerotoship.z2term.proot
 fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
     // 端末に出る文言だけを言語で切り替える (ロジックは 1 つのまま。[Z2ApiMsg] のヘッダ参照)。
-    val m = Z2ApiMsg(en = lang == "en", d = d)
+    val m = Z2ApiMsg(lang = lang, d = d)
 
     // 各スクリプトの**先頭コメントをそのまま読み上げる** 1 行 (z2-macro と同じ手)。
     // ヘルプ本文は冒頭コメントが正本で、ここでは出す手段だけを足す — 本文を 2 か所に持つと
