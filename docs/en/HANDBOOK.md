@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.427-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.428-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -73,7 +73,7 @@ The downloaded APK is **deleted once the update goes through** (and on the next 
 | 🔅 | Screen-on lock (when ON, the screen won't auto-dim; the icon changes to 💡 while ON). **Double-tap for a slider that dims this app only** (for dark rooms; going home restores it, and Reset clears it any time). **The level you pick is remembered, so the app opens at that brightness next time** (press Reset to go back to normal) |
 | 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF). **While resident servers are running, 🔒 is dimmed and can't be toggled** (the servers already keep the app alive, so turning it OFF here would do nothing). Tapping 🔒 in that state opens a screen to choose **"End session only" / "Stop everything and quit"** (see below). Note: **keeping the device reachable from outside (ssh, etc.) is the job of "resident servers"**, not 🔒 (0.8.268 — 🔒 used to keep Wi-Fi at full power too, which cost a lot of battery, so it no longer does). ⚠ Even with resident servers running, **the device can be unreachable from outside right after rejoining Wi-Fi** (power save stops it answering "where I am"). This is Android's behaviour and the app cannot prevent it. **Any single outbound packet from the device fixes it**, so run `ping -c 1 <router IP>`, or put the same thing on a `z2-when wifi:connect` rule to have it recover automatically |
 | 🔍 | Search the on-screen text (jump back/forward with ↑↓; **while searching, the scrollbar shows a tick for every hit** so you can see where they cluster — tap a tick to jump there; **tap in the input field to move the caret** and fix a typo in the middle). **You can search in Japanese without leaving the built-in keyboard** — text being converted appears underlined in the field and lands in the search term once you commit it (0.8.275; before that nothing changed on screen until you committed, so it looked as if typing did not work). With the OS keyboard selected the field behaves as an ordinary OS text field, as before) |
-| ⌨ | Switch between the phone's standard keyboard ⇄ the in-app keyboard. Even with the phone's keyboard, **the text being composed (before you confirm) shows inline at the terminal cursor** |
+| ⌨ | Switch between the phone's standard keyboard ⇄ the in-app keyboard. **Double-tap to show/hide it; triple-tap for the size slider** (0.8.428). Even with the phone's keyboard, **the text being composed (before you confirm) shows inline at the terminal cursor** |
 | 🔴 / ⚪ | Record a terminal log (tap to start, tap again to stop; **🔴 while recording, ⚪ when idle**; **double-tap for the details**) |
 | ⚙ | Settings (**always the rightmost**; it never moves when you reorder, and cannot be removed) |
 
@@ -103,6 +103,8 @@ Z2Term comes with its **own in-app keyboard**.
 ### Landscape keyboard
 - In settings, **"Keyboard position (landscape)"** lets you choose **left / bottom / right** (in portrait it's always at the bottom).
 - The **"Side keyboard width (landscape)"** slider adjusts the width when docked to a side, and the **"Keyboard height (landscape)"** slider adjusts the overall height. Bigger keys are easier to press; smaller keys give you more screen — your trade-off.
+
+> To adjust it without opening Settings, **triple-tap ⌨ in the toolbar**. You can resize the current orientation while watching the keyboard; a left/right landscape keyboard adjusts its width instead. This works even when the keyboard toggle bar is hidden (0.8.428).
 
 ### Switching keyboard "faces" (0.8.305)
 

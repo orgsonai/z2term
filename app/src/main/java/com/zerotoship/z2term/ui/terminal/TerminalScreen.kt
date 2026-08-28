@@ -162,6 +162,7 @@ import com.zerotoship.z2term.ui.theme.ZtsGreenDim
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -274,6 +275,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // 複数行の貼り付けを確認する帯。null の間は出さない (= 1 行の貼り付けでは何も起きない)。
     var pastePreview by remember { mutableStateOf<String?>(null) }
     var keyboardCollapsed by remember { mutableStateOf(false) }
+    // ⌨ ツールバーボタンのトリプルタップで開く、その場でのサイズ調整。
+    // トグルバーを非表示にしている利用者にも必ず入り口が残る。
+    var keyboardSizeBarOpen by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
     // 常駐サーバーが稼働中か (🔒 の薄くロック表示・タップ時ダイアログの出し分けに使う)。
     // supervisor の起動/停止は UI 外で起きるので周期ポーリングで追従する (ServersSheet と同方式)。
@@ -473,12 +477,20 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             },
             onPasteHistory = { clipHistoryOpen = true },
             onToggleKeyboardMode = {
+                keyboardSizeBarOpen = false
                 val next = if (keyboardMode == KeyboardMode.CUSTOM)
                     KeyboardMode.SYSTEM else KeyboardMode.CUSTOM
                 keyboardMode = next
                 active.setKeyboardMode(if (next == KeyboardMode.SYSTEM) "system" else "custom")
             },
-            onToggleKeyboardVisible = { keyboardCollapsed = !keyboardCollapsed },
+            onToggleKeyboardVisible = {
+                keyboardSizeBarOpen = false
+                keyboardCollapsed = !keyboardCollapsed
+            },
+            onOpenKeyboardSize = {
+                keyboardCollapsed = false
+                keyboardSizeBarOpen = true
+            },
             onOpenSettings = { settingsOpen = true },
             keepScreenOn = keepScreenOn,
             onToggleKeepScreenOn = { active.setKeepScreenOn(!settings.keepScreenOn) },
@@ -766,12 +778,43 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             }
         }
 
+        if (keyboardSizeBarOpen) {
+            val adjustsWidth = isSideKB
+            KeyboardSizeBar(
+                title = stringResource(
+                    if (adjustsWidth) R.string.settings_landscape_kb_width
+                    else if (isLandscape) R.string.settings_kb_height_landscape
+                    else R.string.settings_kb_height_portrait
+                ),
+                value = if (adjustsWidth) settings.landscapeKeyboardWidthDp
+                    else if (isLandscape) settings.landscapeKeyboardHeightDp
+                    else settings.portraitKeyboardHeightDp,
+                range = if (adjustsWidth) {
+                    AppSettings.MIN_LANDSCAPE_KB_WIDTH_DP..AppSettings.MAX_LANDSCAPE_KB_WIDTH_DP
+                } else if (isLandscape) {
+                    AppSettings.MIN_LANDSCAPE_KB_HEIGHT_DP..AppSettings.MAX_LANDSCAPE_KB_HEIGHT_DP
+                } else {
+                    AppSettings.MIN_PORTRAIT_KB_HEIGHT_DP..AppSettings.MAX_PORTRAIT_KB_HEIGHT_DP
+                },
+                steps = if (adjustsWidth) 13 else if (isLandscape) 14 else 12,
+                onChange = { value ->
+                    if (adjustsWidth) active.setLandscapeKeyboardWidthDp(value)
+                    else if (isLandscape) active.setLandscapeKeyboardHeightDp(value)
+                    else active.setPortraitKeyboardHeightDp(value)
+                },
+                onClose = { keyboardSizeBarOpen = false }
+            )
+        }
+
         // キーボード表示/非表示バー。設定 (keyboardToggleBar) が ON のときだけ、従来どおり
         // キーボードの「上」に置く。OFF の人は ⌨ ボタンのダブルタップで表示/非表示する。
         if (settings.keyboardToggleBar) {
             KeyboardToggleBar(
                 collapsed = keyboardCollapsed,
-                onToggle = { keyboardCollapsed = !keyboardCollapsed }
+                onToggle = {
+                    if (!keyboardCollapsed) keyboardSizeBarOpen = false
+                    keyboardCollapsed = !keyboardCollapsed
+                }
             )
         }
 
@@ -1008,6 +1051,7 @@ private fun GuiTabScreen(
     // (オーバーレイ) で出すので解像度は変えない。▾ で折りたたんで GUI を広く使うこともできる。
     var keyboardMode by remember { mutableStateOf(KeyboardMode.CUSTOM) }
     var keyboardCollapsed by remember { mutableStateOf(false) }
+    var keyboardSizeBarOpen by remember { mutableStateOf(false) }
     var ctrlSticky by remember { mutableStateOf(false) }
     // 画面消灯ロックは設定 (keepScreenOn) に永続化した端末タブ共通の状態 (画面跨ぎで維持・再起動で復元)。
     val keepScreenOn = settings.keepScreenOn
@@ -1146,6 +1190,7 @@ private fun GuiTabScreen(
             onOpenSnippets = { snippetsSheetOpen = true },
             onTogglePointerMode = { gui.cursor.toggleMode() },
             onToggleKeyboardMode = {
+                keyboardSizeBarOpen = false
                 val next = if (keyboardMode == KeyboardMode.CUSTOM)
                     KeyboardMode.SYSTEM else KeyboardMode.CUSTOM
                 keyboardMode = next
@@ -1153,7 +1198,14 @@ private fun GuiTabScreen(
                     appSettings.setKeyboardMode(if (next == KeyboardMode.SYSTEM) "system" else "custom")
                 }
             },
-            onToggleKeyboardVisible = { keyboardCollapsed = !keyboardCollapsed },
+            onToggleKeyboardVisible = {
+                keyboardSizeBarOpen = false
+                keyboardCollapsed = !keyboardCollapsed
+            },
+            onOpenKeyboardSize = {
+                keyboardCollapsed = false
+                keyboardSizeBarOpen = true
+            },
             keepScreenOn = keepScreenOn,
             onToggleKeepScreenOn = { scope.launch { appSettings.setKeepScreenOn(!settings.keepScreenOn) } },
             keepAlive = settings.keepAliveService,
@@ -1219,6 +1271,23 @@ private fun GuiTabScreen(
                 legacyKanaAvailable = legacyKanaAvailableGui,
             )
         }
+        val adjustsWidthGui = isSideKBGui
+        val keyboardSizeTitleGui = stringResource(
+            if (adjustsWidthGui) R.string.settings_landscape_kb_width
+            else if (isLandscapeGui) R.string.settings_kb_height_landscape
+            else R.string.settings_kb_height_portrait
+        )
+        val keyboardSizeValueGui = if (adjustsWidthGui) settings.landscapeKeyboardWidthDp
+            else if (isLandscapeGui) settings.landscapeKeyboardHeightDp
+            else settings.portraitKeyboardHeightDp
+        val keyboardSizeRangeGui = if (adjustsWidthGui) {
+            AppSettings.MIN_LANDSCAPE_KB_WIDTH_DP..AppSettings.MAX_LANDSCAPE_KB_WIDTH_DP
+        } else if (isLandscapeGui) {
+            AppSettings.MIN_LANDSCAPE_KB_HEIGHT_DP..AppSettings.MAX_LANDSCAPE_KB_HEIGHT_DP
+        } else {
+            AppSettings.MIN_PORTRAIT_KB_HEIGHT_DP..AppSettings.MAX_PORTRAIT_KB_HEIGHT_DP
+        }
+        val keyboardOutsideGui = !isLandscapeGui && keyboardMode == KeyboardMode.CUSTOM
 
         Row(modifier = Modifier
             .fillMaxWidth()
@@ -1235,73 +1304,94 @@ private fun GuiTabScreen(
                     onNamedKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForNamed(key)) }
                 )
             }
-            // GUI 領域を枠線で囲って範囲を明示し、内側の実寸 (onSizeChanged) で解像度を決める。
-            Box(
+            // 縦画面の独自キーボードだけは GUI 枠の外へ出す。枠の内側に重ねると、
+            // 枠高さよりキーボードが高いとき Compose の制約で下段が欠ける。
+            // 横画面は枠を上下に割ると GUI が潰れるので、従来どおりオーバーレイのままにする。
+            Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .padding(4.dp)
-                    .border(2.dp, ZtsGreen)
-                    .padding(2.dp)
-                    .onSizeChanged { guiAreaPx = it }
             ) {
-                GuiScreen(
-                    session = gui,
-                    // 設定シートを開いている間は OS IME を隠す (シートと重ならないように)。
-                    imeVisible = keyboardMode == KeyboardMode.SYSTEM && !keyboardCollapsed && !settingsOpen,
-                    ctrlSticky = ctrlSticky,
-                    onCtrlConsumed = { ctrlSticky = false },
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                // キーボードを GUI に上乗せ (オーバーレイ。解像度は変えない)。▾ で折りたためる。
-                // SYSTEM 時は OS IME の上に出すため imePadding。
-                // サイド配置 (横画面 左/右) のときはここに本体は出さない (Row の左/右にある)。
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
+                Box(
+                    modifier = (if (keyboardOutsideGui) Modifier.weight(1f) else Modifier.fillMaxHeight())
                         .fillMaxWidth()
-                        .imePadding()
+                        .padding(4.dp)
+                        .border(2.dp, ZtsGreen)
+                        .padding(2.dp)
+                        .onSizeChanged { guiAreaPx = it }
                 ) {
-                    CandidateBar(composing = composing)
-                    // キーボードの上のトグルバー。設定 (keyboardToggleBar) が ON のときだけ表示。
-                    if (settings.keyboardToggleBar) {
-                        KeyboardToggleBar(
-                            collapsed = keyboardCollapsed,
-                            onToggle = { keyboardCollapsed = !keyboardCollapsed }
+                    GuiScreen(
+                        session = gui,
+                        // 設定シートを開いている間は OS IME を隠す (シートと重ならないように)。
+                        imeVisible = keyboardMode == KeyboardMode.SYSTEM && !keyboardCollapsed && !settingsOpen,
+                        ctrlSticky = ctrlSticky,
+                        onCtrlConsumed = { ctrlSticky = false },
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    if (!keyboardOutsideGui) {
+                        GuiKeyboardPanel(
+                            keyboardMode = keyboardMode,
+                            keyboardCollapsed = keyboardCollapsed,
+                            onToggleCollapsed = {
+                                if (!keyboardCollapsed) keyboardSizeBarOpen = false
+                                keyboardCollapsed = !keyboardCollapsed
+                            },
+                            keyboardToggleBar = settings.keyboardToggleBar,
+                            specialKeyBar = settings.specialKeyBar,
+                            isSideKeyboard = isSideKBGui,
+                            style = kbStyleGui,
+                            composing = composing,
+                            faceEntries = faceEntries,
+                            rfb = gui.rfb,
+                            ctrlSticky = ctrlSticky,
+                            onCtrlToggle = { ctrlSticky = !ctrlSticky },
+                            sizeBarOpen = keyboardSizeBarOpen,
+                            sizeTitle = keyboardSizeTitleGui,
+                            sizeValue = keyboardSizeValueGui,
+                            sizeRange = keyboardSizeRangeGui,
+                            sizeSteps = if (adjustsWidthGui) 13 else if (isLandscapeGui) 14 else 12,
+                            onSizeChange = { value ->
+                                scope.launch {
+                                    if (adjustsWidthGui) appSettings.setLandscapeKeyboardWidthDp(value)
+                                    else if (isLandscapeGui) appSettings.setLandscapeKeyboardHeightDp(value)
+                                    else appSettings.setPortraitKeyboardHeightDp(value)
+                                }
+                            },
+                            onCloseSizeBar = { keyboardSizeBarOpen = false },
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .imePadding()
                         )
                     }
-                    if (!keyboardCollapsed) {
-                        when (keyboardMode) {
-                            KeyboardMode.CUSTOM -> {
-                                if (!isSideKBGui) {
-                                    Box(modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(kbStyleGui.naturalHeight)
-                                    ) {
-                                        TerminalKeyboard(
-                                            onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
-                                            onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) },
-                                            onNamedKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForNamed(key)) },
-                                            composing = composing,
-                                            style = kbStyleGui,
-                                            faceEntries = faceEntries,
-                                        )
-                                    }
-                                }
-                            }
-                            KeyboardMode.SYSTEM -> {
-                                // 端末側と同じ設定で GUI の補助キーバーも出し入れする。
-                                if (settings.specialKeyBar) {
-                                    GuiSpecialKeyBar(
-                                        rfb = gui.rfb,
-                                        ctrlSticky = ctrlSticky,
-                                        onCtrlToggle = { ctrlSticky = !ctrlSticky }
-                                    )
-                                }
-                            }
-                        }
-                    }
+                }
+                if (keyboardOutsideGui) {
+                    GuiKeyboardPanel(
+                        keyboardMode = keyboardMode,
+                        keyboardCollapsed = keyboardCollapsed,
+                        onToggleCollapsed = {
+                            if (!keyboardCollapsed) keyboardSizeBarOpen = false
+                            keyboardCollapsed = !keyboardCollapsed
+                        },
+                        keyboardToggleBar = settings.keyboardToggleBar,
+                        specialKeyBar = settings.specialKeyBar,
+                        isSideKeyboard = false,
+                        style = kbStyleGui,
+                        composing = composing,
+                        faceEntries = faceEntries,
+                        rfb = gui.rfb,
+                        ctrlSticky = ctrlSticky,
+                        onCtrlToggle = { ctrlSticky = !ctrlSticky },
+                        sizeBarOpen = keyboardSizeBarOpen,
+                        sizeTitle = keyboardSizeTitleGui,
+                        sizeValue = keyboardSizeValueGui,
+                        sizeRange = keyboardSizeRangeGui,
+                        sizeSteps = 12,
+                        onSizeChange = { value ->
+                            scope.launch { appSettings.setPortraitKeyboardHeightDp(value) }
+                        },
+                        onCloseSizeBar = { keyboardSizeBarOpen = false }
+                    )
                 }
             }
             if (isSideKBGui && landscapePosGui == AppSettings.LANDSCAPE_KB_RIGHT) {
@@ -1379,6 +1469,75 @@ private fun GuiTabScreen(
     }
 }
 
+/** GUI タブのキーボード帯。縦画面では枠の兄弟、横画面では枠内オーバーレイとして使う。 */
+@Composable
+private fun GuiKeyboardPanel(
+    keyboardMode: KeyboardMode,
+    keyboardCollapsed: Boolean,
+    onToggleCollapsed: () -> Unit,
+    keyboardToggleBar: Boolean,
+    specialKeyBar: Boolean,
+    isSideKeyboard: Boolean,
+    style: KeyboardStyle,
+    composing: ComposingState,
+    faceEntries: List<KeyboardFaceEntry>,
+    rfb: RfbClient,
+    ctrlSticky: Boolean,
+    onCtrlToggle: () -> Unit,
+    sizeBarOpen: Boolean,
+    sizeTitle: String,
+    sizeValue: Float,
+    sizeRange: ClosedFloatingPointRange<Float>,
+    sizeSteps: Int,
+    onSizeChange: (Float) -> Unit,
+    onCloseSizeBar: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        CandidateBar(composing = composing)
+        if (sizeBarOpen) {
+            KeyboardSizeBar(
+                title = sizeTitle,
+                value = sizeValue,
+                range = sizeRange,
+                steps = sizeSteps,
+                onChange = onSizeChange,
+                onClose = onCloseSizeBar
+            )
+        }
+        if (keyboardToggleBar) {
+            KeyboardToggleBar(collapsed = keyboardCollapsed, onToggle = onToggleCollapsed)
+        }
+        if (!keyboardCollapsed) {
+            when (keyboardMode) {
+                KeyboardMode.CUSTOM -> if (!isSideKeyboard) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(style.naturalHeight)
+                    ) {
+                        TerminalKeyboard(
+                            onBytes = { GuiKeyMapper.sendBytes(rfb, it) },
+                            onCursorKey = { key -> rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) },
+                            onNamedKey = { key -> rfb.tapKey(GuiKeyMapper.keysymForNamed(key)) },
+                            composing = composing,
+                            style = style,
+                            faceEntries = faceEntries,
+                        )
+                    }
+                }
+                KeyboardMode.SYSTEM -> if (specialKeyBar) {
+                    GuiSpecialKeyBar(
+                        rfb = rfb,
+                        ctrlSticky = ctrlSticky,
+                        onCtrlToggle = onCtrlToggle
+                    )
+                }
+            }
+        }
+    }
+}
+
 /**
  * GUI 一式 (X サーバ + WM + 選択端末) が選択中 distro に導入済みかを、rootfs のバイナリ有無で判定する
  * (M8-6 T7 のダウンロード確認ゲート用)。z2gui の `check` と同じ条件を Android 側から軽量に判定する。
@@ -1406,6 +1565,7 @@ private fun GuiTopBar(
     onTogglePointerMode: () -> Unit,
     onToggleKeyboardMode: () -> Unit,
     onToggleKeyboardVisible: () -> Unit,
+    onOpenKeyboardSize: () -> Unit,
     keepScreenOn: Boolean,
     onToggleKeepScreenOn: () -> Unit,
     keepAlive: Boolean,
@@ -1452,7 +1612,13 @@ private fun GuiTopBar(
                     ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets, onDoubleClick = onTogglePointerMode),
                     ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
                     keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
-                    ToolbarItem(ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible)
+                    ToolbarItem(
+                        ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard),
+                        active = keyboardMode == KeyboardMode.SYSTEM,
+                        onClick = onToggleKeyboardMode,
+                        onDoubleClick = onToggleKeyboardVisible,
+                        onTripleClick = onOpenKeyboardSize
+                    )
                 ),
                 hidden = toolbarHidden,
                 savedOrder = toolbarOrder,
@@ -1537,6 +1703,7 @@ private fun TopBar(
     onPasteHistory: () -> Unit,
     onToggleKeyboardMode: () -> Unit,
     onToggleKeyboardVisible: () -> Unit,
+    onOpenKeyboardSize: () -> Unit,
     onOpenSettings: () -> Unit,
     keepScreenOn: Boolean,
     onToggleKeepScreenOn: () -> Unit,
@@ -1596,7 +1763,13 @@ private fun TopBar(
                     ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn, onDoubleClick = onOpenBrightness),
                     keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
                     ToolbarItem(ToolbarButtons.SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
-                    ToolbarItem(ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard), active = keyboardMode == KeyboardMode.SYSTEM, onClick = onToggleKeyboardMode, onDoubleClick = onToggleKeyboardVisible),
+                    ToolbarItem(
+                        ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard),
+                        active = keyboardMode == KeyboardMode.SYSTEM,
+                        onClick = onToggleKeyboardMode,
+                        onDoubleClick = onToggleKeyboardVisible,
+                        onTripleClick = onOpenKeyboardSize
+                    ),
                     // 端末ログ: 短押し=記録の開始/停止、ダブルタップ=詳細設定。記録中は 🔴、停止中は ⚪
                     // (録画ボタンの慣習で状態が一目で分かる。active の緑ハイライトも併せて点く)。
                     ToolbarItem(ToolbarButtons.LOG, if (logRecording) "🔴" else "⚪", stringResource(R.string.tb_log), active = logRecording, onClick = onToggleLog, onDoubleClick = onOpenLogSettings)
@@ -1633,8 +1806,9 @@ private class ToolbarItem(
     // タップ自体は受け付ける (タップで代替アクションのダイアログを開くため)。
     val dimmed: Boolean = false,
     val onClick: () -> Unit,
-    // 設定時のみ有効化されるダブルタップ動作 (📋 貼付ボタンでクリップボード履歴を開く等)。
-    val onDoubleClick: (() -> Unit)? = null
+    // 設定時のみ有効化されるダブル/トリプルタップ動作。
+    val onDoubleClick: (() -> Unit)? = null,
+    val onTripleClick: (() -> Unit)? = null
 )
 
 /**
@@ -1760,7 +1934,8 @@ private fun ReorderableToolbar(
                         enabled = item.enabled,
                         dimmed = item.dimmed,
                         onClick = item.onClick,
-                        onDoubleClick = item.onDoubleClick
+                        onDoubleClick = item.onDoubleClick,
+                        onTripleClick = item.onTripleClick
                     )
                     if (isDrag) ToolbarTooltip(item.description)
                 }
@@ -1778,7 +1953,8 @@ private fun ToolbarChip(
     enabled: Boolean,
     dimmed: Boolean = false,
     onClick: () -> Unit,
-    onDoubleClick: (() -> Unit)? = null
+    onDoubleClick: (() -> Unit)? = null,
+    onTripleClick: (() -> Unit)? = null
 ) {
     // dimmed = 押せるが薄く (常駐ロック等)。enabled=false のグレーアウトとは別で、色は活かしたまま
     // 半透明にして「有効だが今は解除できない」を伝える。
@@ -1806,6 +1982,11 @@ private fun ToolbarChip(
             .then(
                 when {
                     !enabled -> Modifier
+                    onTripleClick != null -> Modifier.multiTapClickable(
+                        onClick = onClick,
+                        onDoubleClick = onDoubleClick ?: onClick,
+                        onTripleClick = onTripleClick
+                    )
                     onDoubleClick != null -> Modifier.combinedClickable(
                         onClick = onClick,
                         onDoubleClick = onDoubleClick
@@ -1817,6 +1998,57 @@ private fun ToolbarChip(
         contentAlignment = Alignment.Center
     ) {
         Text(text = icon, color = fg, fontSize = 13.sp, fontFamily = FontFamily.Monospace)
+    }
+}
+
+/**
+ * 1 / 2 / 3 回タップを同じボタンで共存させる。
+ *
+ * Compose の [combinedClickable] はダブルまでなので、3 回目を待てる項目だけ自前で
+ * 確定する。単タップを 1 回目で即実行すると、トリプルタップの途中でキーボード方式が
+ * 切り替わってしまう。ダブルも同様に、3 回目の待ち時間が終わったときだけ確定する。
+ */
+@Composable
+private fun Modifier.multiTapClickable(
+    onClick: () -> Unit,
+    onDoubleClick: () -> Unit,
+    onTripleClick: () -> Unit,
+): Modifier {
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnDoubleClick by rememberUpdatedState(onDoubleClick)
+    val currentOnTripleClick by rememberUpdatedState(onTripleClick)
+    val timeoutMs = LocalViewConfiguration.current.doubleTapTimeoutMillis.toLong()
+    val scope = rememberCoroutineScope()
+    return pointerInput(timeoutMs) {
+        var tapCount = 0
+        var lastTapAt = 0L
+        var resolveJob: Job? = null
+        detectTapGestures(
+            onTap = {
+                val now = SystemClock.uptimeMillis()
+                tapCount = if (lastTapAt != 0L && now - lastTapAt <= timeoutMs) {
+                    tapCount + 1
+                } else {
+                    1
+                }
+                lastTapAt = now
+                resolveJob?.cancel()
+
+                if (tapCount >= 3) {
+                    tapCount = 0
+                    lastTapAt = 0L
+                    currentOnTripleClick()
+                } else {
+                    resolveJob = scope.launch {
+                        delay(timeoutMs)
+                        val resolvedCount = tapCount
+                        tapCount = 0
+                        lastTapAt = 0L
+                        if (resolvedCount == 2) currentOnDoubleClick() else currentOnClick()
+                    }
+                }
+            }
+        )
     }
 }
 
@@ -2698,6 +2930,68 @@ private fun KeyboardToggleBar(
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace
         )
+    }
+}
+
+/**
+ * ツールバーの ⌨ をトリプルタップしたときだけ出すキーボードサイズ調整帯。
+ *
+ * 縦/横の高さ、サイド配置の幅は呼び出し側が選び、既存の設定値へそのまま書き戻す。
+ * 常設ボタンは増やさず、トグルバーを非表示にしていても使える。
+ */
+@Composable
+private fun KeyboardSizeBar(
+    title: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    onChange: (Float) -> Unit,
+    onClose: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .background(ZtsBgSecondary)
+            .border(width = 1.dp, color = ZtsBorder)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = title,
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1
+        )
+        Slider(
+            value = value.coerceIn(range.start, range.endInclusive),
+            onValueChange = onChange,
+            valueRange = range,
+            steps = steps,
+            colors = SliderDefaults.colors(
+                thumbColor = ZtsGreen,
+                activeTrackColor = ZtsGreen,
+                inactiveTrackColor = ZtsBorder
+            ),
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = "%.0fdp".format(value),
+            color = ZtsGreen,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1
+        )
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .clickable(onClick = onClose)
+                .padding(horizontal = 8.dp, vertical = 6.dp)
+        ) {
+            Text(text = "✕", color = ZtsTextSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+        }
     }
 }
 
