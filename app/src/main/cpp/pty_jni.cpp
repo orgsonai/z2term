@@ -13,9 +13,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
+#include <linux/usbdevice_fs.h>
+#include <poll.h>
 #include <pty.h>
 #include <signal.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <termios.h>
@@ -327,5 +330,158 @@ Java_com_zerotoship_z2term_pty_PtyProcess_createFileDescriptor(
     }
     return fdObject;
 }
+
+#ifndef NDEBUG
+/**
+ * USB Host API が開いた usbfs fd を別プロセスへ SCM_RIGHTS で渡し、受信側から
+ * USBDEVFS_CONNECTINFO を実行できるかを確かめる debug 専用スパイク。
+ *
+ * 子は fork 時に継承した元 fd を先に閉じ、recvmsg() で受け取った fd だけを使う。
+ * これにより「同じ fd を子がたまたま継承して動いた」を成功と数えない。
+ */
+JNIEXPORT jstring JNICALL
+Java_com_zerotoship_z2term_usb_UsbHostProbeActivity_nativeProbeUsbFd(
+        JNIEnv* env,
+        jobject /* activity */,
+        jint usb_fd) {
+    struct ProbeResult {
+        int stage;
+        int rc;
+        int error_no;
+        unsigned int devnum;
+        unsigned char slow;
+        unsigned char padding[3];
+    };
+
+    int sockets[2] = {-1, -1};
+    if (socketpair(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0, sockets) != 0) {
+        char text[160];
+        snprintf(text, sizeof(text), "socketpair failed: errno=%d (%s)", errno, strerror(errno));
+        return env->NewStringUTF(text);
+    }
+
+    pid_t child = fork();
+    if (child < 0) {
+        int saved_errno = errno;
+        close(sockets[0]);
+        close(sockets[1]);
+        char text[160];
+        snprintf(text, sizeof(text), "fork failed: errno=%d (%s)", saved_errno, strerror(saved_errno));
+        return env->NewStringUTF(text);
+    }
+
+    if (child == 0) {
+        close(sockets[0]);
+        close(usb_fd);
+
+        ProbeResult result{};
+        result.stage = 1;
+
+        char marker = 0;
+        struct iovec iov = {&marker, sizeof(marker)};
+        char control[CMSG_SPACE(sizeof(int))] = {};
+        struct msghdr message = {};
+        message.msg_iov = &iov;
+        message.msg_iovlen = 1;
+        message.msg_control = control;
+        message.msg_controllen = sizeof(control);
+
+        int received_fd = -1;
+        if (recvmsg(sockets[1], &message, 0) < 0) {
+            result.error_no = errno;
+        } else {
+            for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&message);
+                 cmsg != nullptr;
+                 cmsg = CMSG_NXTHDR(&message, cmsg)) {
+                if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS &&
+                    cmsg->cmsg_len >= CMSG_LEN(sizeof(int))) {
+                    memcpy(&received_fd, CMSG_DATA(cmsg), sizeof(received_fd));
+                    break;
+                }
+            }
+            if (received_fd < 0) {
+                result.error_no = EBADMSG;
+            } else {
+                result.stage = 2;
+                struct usbdevfs_connectinfo info = {};
+                errno = 0;
+                result.rc = ioctl(received_fd, USBDEVFS_CONNECTINFO, &info);
+                result.error_no = result.rc == 0 ? 0 : errno;
+                result.devnum = info.devnum;
+                result.slow = info.slow;
+                close(received_fd);
+            }
+        }
+
+        (void) send(sockets[1], &result, sizeof(result), 0);
+        close(sockets[1]);
+        _exit(0);
+    }
+
+    close(sockets[1]);
+
+    char marker = 1;
+    struct iovec iov = {&marker, sizeof(marker)};
+    char control[CMSG_SPACE(sizeof(int))] = {};
+    struct msghdr message = {};
+    message.msg_iov = &iov;
+    message.msg_iovlen = 1;
+    message.msg_control = control;
+    message.msg_controllen = sizeof(control);
+    struct cmsghdr* cmsg = CMSG_FIRSTHDR(&message);
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+    memcpy(CMSG_DATA(cmsg), &usb_fd, sizeof(usb_fd));
+
+    if (sendmsg(sockets[0], &message, 0) < 0) {
+        int saved_errno = errno;
+        kill(child, SIGKILL);
+        waitpid(child, nullptr, 0);
+        close(sockets[0]);
+        char text[160];
+        snprintf(text, sizeof(text), "SCM_RIGHTS send failed: errno=%d (%s)",
+                 saved_errno, strerror(saved_errno));
+        return env->NewStringUTF(text);
+    }
+
+    struct pollfd poll_fd = {sockets[0], POLLIN, 0};
+    if (poll(&poll_fd, 1, 5000) <= 0) {
+        int saved_errno = errno;
+        kill(child, SIGKILL);
+        waitpid(child, nullptr, 0);
+        close(sockets[0]);
+        char text[160];
+        snprintf(text, sizeof(text), "probe timed out: errno=%d (%s)",
+                 saved_errno, strerror(saved_errno));
+        return env->NewStringUTF(text);
+    }
+
+    ProbeResult result{};
+    ssize_t received = recv(sockets[0], &result, sizeof(result), 0);
+    close(sockets[0]);
+    waitpid(child, nullptr, 0);
+    if (received != sizeof(result)) {
+        char text[160];
+        snprintf(text, sizeof(text), "invalid probe reply: bytes=%zd", received);
+        return env->NewStringUTF(text);
+    }
+
+    char text[240];
+    if (result.stage < 2) {
+        snprintf(text, sizeof(text), "SCM_RIGHTS receive failed: errno=%d (%s)",
+                 result.error_no, strerror(result.error_no));
+    } else if (result.rc != 0) {
+        snprintf(text, sizeof(text),
+                 "USBDEVFS_CONNECTINFO failed after SCM_RIGHTS: errno=%d (%s)",
+                 result.error_no, strerror(result.error_no));
+    } else {
+        snprintf(text, sizeof(text),
+                 "PASS: SCM_RIGHTS + USBDEVFS_CONNECTINFO (devnum=%u, slow=%u)",
+                 result.devnum, result.slow);
+    }
+    return env->NewStringUTF(text);
+}
+#endif
 
 } // extern "C"

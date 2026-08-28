@@ -41,6 +41,7 @@ import androidx.core.app.NotificationManagerCompat
 import com.zerotoship.z2term.proot.Z2ApiMsg
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.LocaleHelper
+import com.zerotoship.z2term.usb.UsbHostAccess
 import com.zerotoship.z2term.update.UpdateFlow
 import com.zerotoship.z2term.settings.ServerEntry
 import kotlinx.coroutines.flow.first
@@ -286,6 +287,8 @@ object Z2ApiBridge {
             // `update` もここには来ない ([handleRequestFile] が専用スレッドへ回す)。
             "update" -> throw IllegalStateException("update is handled before dispatch")
             "session" -> sessionCmd(context, args)
+            // z2-usb: Android USB Host API の列挙と、機器ごとの明示許可。
+            "usb" -> usbCmd(context, args)
             // z2-server: 登録済みの常駐サーバーを起こす / 落とす (枠の中で上げるための唯一の CLI)。
             "server" -> serverCmd(context, args)
             // z2-when がルールファイルを書き換えた後に呼ぶ。時刻トリガーの AlarmManager 予約を貼り直す。
@@ -295,6 +298,35 @@ object Z2ApiBridge {
     }
 
     // --- 各機能 ---
+
+    private fun usbCmd(context: Context, args: List<String>): String {
+        val m = cliMsg(context)
+        return when (args.getOrNull(0).orEmpty()) {
+            "list" -> {
+                val devices = UsbHostAccess.devices(context)
+                if (devices.isEmpty()) m.usbNoDevices
+                else devices.joinToString("\n") { d ->
+                    m.usbDeviceLine(
+                        d.index,
+                        d.path,
+                        d.vendorId,
+                        d.productId,
+                        d.productName,
+                        d.allowed
+                    )
+                }
+            }
+            "allow" -> when (val result = UsbHostAccess.allow(context, args.getOrNull(1).orEmpty())) {
+                is UsbHostAccess.AllowResult.Requested -> m.usbPermissionRequested(result.device.path)
+                is UsbHostAccess.AllowResult.AlreadyAllowed -> m.usbAlreadyAllowed(result.device.path)
+                UsbHostAccess.AllowResult.NoDevices -> m.usbNoDevices
+                UsbHostAccess.AllowResult.NeedSelector -> throw IllegalArgumentException(m.usbNeedSelector)
+                is UsbHostAccess.AllowResult.NotFound ->
+                    throw IllegalArgumentException(m.usbNotFound(result.selector))
+            }
+            else -> throw IllegalArgumentException(m.usbUsage)
+        }
+    }
 
     /**
      * `z2-update` — 新版の確認と入れ替え (0.8.371)。

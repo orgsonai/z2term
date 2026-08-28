@@ -13,6 +13,7 @@ import com.zerotoship.z2term.service.Z2ApiBridge
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.tile.TileStore
+import com.zerotoship.z2term.usb.UsbFdBroker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -49,6 +50,9 @@ class Z2TermApplication : Application() {
         Z2ApiBridge.start(this)
         // 繋ぎっぱなしの受付 (z2-session attach)。z2api と違い常時 listen しておく必要がある。
         com.zerotoship.z2term.service.AttachServer.start(this)
+        // Android USB Host API で開いた usbfs fd を、同じ UID の Linux プロセスへ渡す受付。
+        // USB 機器が無い間は abstract socket で accept 待ちするだけで、デバイスは開かない。
+        UsbFdBroker.start(this)
         // クリップボード履歴: ディスク読込 + システムクリップボード変化の監視を開始。
         ClipboardHistoryStore.init(this)
         // 更新で落とした APK の後片付け (0.8.371)。⚠ **入れ替えの瞬間に自分は落とされる**ので、

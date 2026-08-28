@@ -30,6 +30,79 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
      */
     private val t = CliText(lang)
 
+    // --- z2-usb ---
+
+    val usbHelp: String = t(
+        en = """
+        |# z2-usb list              … list USB devices connected to the phone
+        |# z2-usb allow [number]    … ask Android to let Linux programs use a device
+        |# Run allow once after connecting a device. Permission lasts until it is unplugged.
+    """.trimMargin(),
+        ja = """
+        |# z2-usb list              … スマホに接続された USB 機器を一覧表示
+        |# z2-usb allow [番号]      … Linux プログラムから使う許可を Android に求める
+        |# 機器を挿した後に allow を 1 回実行します。許可は抜くまで有効です。
+    """.trimMargin(),
+        "zh-CN" to """
+        |# z2-usb list              … 列出连接到手机的 USB 设备
+        |# z2-usb allow [编号]      … 请求 Android 允许 Linux 程序使用该设备
+        |# 插入设备后执行一次 allow。权限在拔出设备前一直有效。
+    """.trimMargin()
+    )
+
+    val usbUsage: String = t(
+        en = "usage: z2-usb list | z2-usb allow [number|path|VID:PID]",
+        ja = "usage: z2-usb list | z2-usb allow [番号|パス|VID:PID]",
+        "zh-CN" to "usage: z2-usb list | z2-usb allow [编号|路径|VID:PID]"
+    )
+
+    val usbNoDevices: String = t(
+        en = "No USB device is connected to the phone.",
+        ja = "スマホに USB 機器が接続されていません。",
+        "zh-CN" to "手机上没有连接 USB 设备。"
+    )
+
+    val usbNeedSelector: String = t(
+        en = "More than one USB device is connected; specify its number from z2-usb list.",
+        ja = "USB 機器が複数あります。z2-usb list の番号を指定してください。",
+        "zh-CN" to "连接了多个 USB 设备。请指定 z2-usb list 中的编号。"
+    )
+
+    fun usbPermissionRequested(path: String): String = t(
+        en = "Approve USB access on the Android screen: $path",
+        ja = "Android の画面で USB アクセスを許可してください: $path",
+        "zh-CN" to "请在 Android 屏幕上允许 USB 访问：$path"
+    )
+
+    fun usbAlreadyAllowed(path: String): String = t(
+        en = "USB access is already allowed: $path",
+        ja = "USB アクセスは許可済みです: $path",
+        "zh-CN" to "USB 访问已经允许：$path"
+    )
+
+    fun usbNotFound(selector: String): String = t(
+        en = "USB device not found: $selector",
+        ja = "USB 機器が見つかりません: $selector",
+        "zh-CN" to "找不到 USB 设备：$selector"
+    )
+
+    fun usbDeviceLine(
+        index: Int,
+        path: String,
+        vendorId: Int,
+        productId: Int,
+        productName: String,
+        allowed: Boolean
+    ): String {
+        val state = if (allowed) {
+            t(en = "allowed", ja = "許可済み", "zh-CN" to "已允许")
+        } else {
+            t(en = "needs allow", ja = "要許可", "zh-CN" to "需要允许")
+        }
+        val name = productName.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()
+        return "%d  %04x:%04x  %s  %s%s".format(index, vendorId, productId, state, path, name)
+    }
+
     /** タイルの枠数 ([TileStore.COUNT])。文言へ数を**書き写さない** — 増やしたときにここだけ古くなる。 */
     private val tiles = TileStore.COUNT
 

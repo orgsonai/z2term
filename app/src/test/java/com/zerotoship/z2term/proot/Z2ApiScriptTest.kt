@@ -628,6 +628,15 @@ class Z2ApiScriptTest {
         }
     }
 
+    /** USB Host の列挙・許可 helper が同梱されること。 */
+    @Test
+    fun usbHelperIsBundled() {
+        val body = scripts["z2-usb"]
+        assertTrue("z2-usb が同梱されていない", body != null)
+        assertTrue("z2-usb list が usb API を呼ばない", body!!.contains(" usb list"))
+        assertTrue("z2-usb allow が usb API を呼ばない", body.contains(" usb allow"))
+    }
+
     /**
      * `z2-icon` が**絵をそのまま届ける**こと。
      *

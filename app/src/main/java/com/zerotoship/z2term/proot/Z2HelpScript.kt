@@ -49,6 +49,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-when <trigger> run <cmd>    Auto-run on charge/battery/time/events (z2-when for usage)
         |  z2-macro list|install <name>   Bundled automation samples (see MACRO-GUIDE)
         |  z2-session list|new|send|...   Drive this app's own tabs (z2-session for usage)
+        |  z2-usb list | allow [device]   Use a USB device from Linux (Android asks permission)
         |  z2-update [--check]            Update z2term itself from GitHub Releases (you approve it)
         |
         |[Graphical (GUI) apps]
@@ -98,6 +99,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-when <トリガー> run <コマンド> 充電/電池/時刻/端末イベントで自動実行(使い方は z2-when)
         |  z2-macro list|install <名前>   自動化マクロの同梱サンプル(MACRO-GUIDE 参照)
         |  z2-session list|new|send|...   このアプリのタブを操る(使い方は z2-session)
+        |  z2-usb list | allow [機器]     USB機器をLinuxから使う(Androidの許可あり)
         |  z2-update [--check]            z2term 自身を GitHub Releases から更新(承認は自分で押す)
         |
         |[画面つき(GUI)アプリ]
@@ -147,6 +149,7 @@ fun z2helpScript(lang: String = "ja"): String {
         |  z2-when <触发条件> run <命令>  按充电/电池/时刻/设备事件自动运行(用法见 z2-when)
         |  z2-macro list|install <名称>   自动化宏的随附示例(见 MACRO-GUIDE)
         |  z2-session list|new|send|...   操作这个应用的标签页(用法见 z2-session)
+        |  z2-usb list | allow [设备]     从Linux使用USB设备(Android会请求许可)
         |  z2-update [--check]            从 GitHub Releases 更新 z2term 自身(确认要自己按)
         |
         |[带界面(GUI)的应用]

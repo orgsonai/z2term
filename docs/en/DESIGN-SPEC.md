@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-28 / Target version: 0.8.424-alpha (versionCode 432)
+Last updated: 2026-08-29 / Target version: 0.8.425-alpha (versionCode 433)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -551,6 +551,16 @@ means would then depend on the payload, which cannot be explained to anyone.
 - `list` gained the **`@` (attached)** mark; without it there is no way to tell from the phone which tab someone is holding from a PC. ⚠ **Marks stack** (`*@` = visible and attached).
 
 **A name given to `new` sticks** (0.8.202). `TerminalSession` carries `labelPinned`; while it is set, the label is **not** overwritten by the OS name (`spec.id`) at startup, by the `android-sh` fallback, by an SSH connection, or by a title the shell emits (OSC 0/2). Without it, the name from `z2-session new build` turned into the OS name moments later during startup, which made naming pointless (found on device).
+
+#### Passing an Android USB Host fd into Linux (`z2-usb`, 0.8.425)
+
+An Android app UID cannot directly `open` `/dev/bus/usb/...`, while `UsbManager.openDevice()` returns an ordinary usbfs fd after the user approves Android's per-device permission. `z2-usb list` / `allow [number|path|VID:PID]` is the explicit permission entry point; `UsbFdBroker` opens the device on Android and passes the fd to a Linux process of the same UID over an **abstract AF_UNIX socket with `SCM_RIGHTS`**. This needs neither `usbip` nor the kernel's `vhci-hcd`.
+
+- The socket is named `z2term-usb-v1-<uid>`. It still checks `peerCredentials.uid == Process.myUid()` after accept, so an approved fd never goes to another UID. The one-request protocol accepts only `OPEN /dev/bus/usb/BBB/DDD` and rejects paths outside that canonical shape.
+- z2root preloads the libc-independent `libz2usb.so`. Its `open` / `open64` / `openat` family hooks send only absolute usbfs paths to the broker and pass every other path to a raw `openat` syscall. Ordinary libusb consumers therefore need no patch.
+- Android's permission lasts until unplug. Run `z2-usb allow` again after reconnecting the device. Any ordinary USB-A-to-USB-C adapter or hub is sufficient when the phone supports USB Host/OTG and the cable carries data; a charge-only adapter is not.
+- ⛔ This stops at the `LD_PRELOAD` boundary: statically linked executables and implementations that issue syscalls without going through libc are not covered. It is not network-style "port forwarding"; it transparently bridges the fd of the connected USB device.
+- The device spike passed an Android-opened fd with `SCM_RIGHTS` to a post-fork process and successfully issued `USBDEVFS_CONNECTINFO`. The finished path also opened `/dev/bus/usb/001/002` through `libz2usb.so` and reached the broker's fd send on a real device.
 
 #### Automation hub (`z2-when` / `WhenManager` / `WhenReceiver`, 0.8.205, A6 stage 1)
 

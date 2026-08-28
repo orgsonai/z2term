@@ -12,6 +12,7 @@
 # 出力 (すべて gitignore):
 #   app/src/main/jniLibs/arm64-v8a/libz2root.so
 #   app/src/main/jniLibs/arm64-v8a/libz2accept.so
+#   app/src/main/jniLibs/arm64-v8a/libz2usb.so
 #   app/src/main/jniLibs/arm64-v8a/libz2attach.so
 #   app/src/main/assets/fonts/{IBMPlexMono,JetBrainsMono,FiraCode}-Regular.ttf
 #
@@ -49,6 +50,7 @@ echo "=== [verify] 同梱物マニフェスト ==="
 REQUIRED=(
     "app/src/main/jniLibs/arm64-v8a/libz2root.so"
     "app/src/main/jniLibs/arm64-v8a/libz2accept.so"
+    "app/src/main/jniLibs/arm64-v8a/libz2usb.so"
     "app/src/main/jniLibs/arm64-v8a/libz2attach.so"
     "app/src/main/assets/fonts/IBMPlexMono-Regular.ttf"
     "app/src/main/assets/fonts/JetBrainsMono-Regular.ttf"

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-28 / 対象バージョン: 0.8.424-alpha (versionCode 432)
+最終更新: 2026-08-29 / 対象バージョン: 0.8.425-alpha (versionCode 433)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -536,6 +536,16 @@ z2-when wifi:disconnect run 'z2-server stop sshd'
 - `list` の印に **`@`（外から繋がっている）** を足した。印が無いと、PC から掴まれているタブがスマホ側から見分けられない。⚠ **印は重なる**（表示中かつ繋がっていれば `*@`）。
 
 **`new <名前>` の名前は固定する**（0.8.202）。`TerminalSession` に `labelPinned` を持たせ、true の間は**起動時の OS 名（`spec.id`）・`android-sh` フォールバック・SSH 接続・シェルが出すタイトル（OSC 0/2）のどれでも上書きしない**。これが無いと `z2-session new build` で付けた名前が直後の起動で OS 名に化け、名前を指定した意味が無くなる（実機で確認した）。
+
+#### Android USB Host の fd を Linux へ渡す（`z2-usb`、0.8.425）
+
+Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが、利用者が機器ごとのシステム許可を押せば `UsbManager.openDevice()` は通常の usbfs fd を返す。そこで `z2-usb list` / `allow [番号|パス|VID:PID]` を許可の入口にし、`UsbFdBroker` が Android 側で開いた fd を **abstract AF_UNIX socket + `SCM_RIGHTS`** で同じ UID の Linux プロセスへ渡す。`usbip` やカーネルの `vhci-hcd` は使わない。
+
+- ソケット名は `z2term-usb-v1-<uid>`。接続後も `peerCredentials.uid == Process.myUid()` を検証し、他 UID へ許可済み fd を渡さない。要求は 1 接続 1 行の `OPEN /dev/bus/usb/BBB/DDD` に限定し、正規表現外のパスを断る。
+- z2root 起動時に libc 非依存の `libz2usb.so` を `LD_PRELOAD` する。`open` / `open64` / `openat` 系で絶対 usbfs パスだけをブローカーへ回し、それ以外は生の `openat` syscall へ流す。これにより通常の libusb 利用側を変更しない。
+- Android の許可は機器を抜くまで。挿し直したら再度 `z2-usb allow` が必要。USB Host/OTG とデータ線があれば通常の USB-A → USB-C 変換やハブでよく、形状だけ Type-C で充電専用の変換は使えない。
+- ⛔ `LD_PRELOAD` の境界なので、静的リンクされた実行ファイルと libc の関数を通さず syscall を直接発行する実装は対象外。これはネットワークの「ポート転送」ではなく、接続された USB 機器の fd を透過的に橋渡しする機能。
+- 実機スパイクでは Android が開いた fd を fork 後の別プロセスへ `SCM_RIGHTS` で渡し、`USBDEVFS_CONNECTINFO` が成功することを確認。本実装でも `libz2usb.so` から `/dev/bus/usb/001/002` を通常の `open` として開き、`UsbFdBroker` の fd 送信まで確認した。
 
 #### 自動化ハブ（`z2-when` / `WhenManager` / `WhenReceiver`、0.8.205・A6 stage 1）
 

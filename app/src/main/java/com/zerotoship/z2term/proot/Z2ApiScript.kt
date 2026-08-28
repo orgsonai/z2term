@@ -518,6 +518,15 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |esac
     """.trimMargin() + "\n"
 
+    val usb = "#!/bin/sh\n" + m.usbHelp + "\n" + helpCase + """
+        |usage() { echo "${m.usbUsage}" >&2; exit 1; }
+        |case "${d}1" in
+        |  list) exec /usr/local/bin/z2api 1 usb list ;;
+        |  allow) exec /usr/local/bin/z2api 1 usb allow "${d}2" ;;
+        |  *) usage ;;
+        |esac
+    """.trimMargin() + "\n"
+
     // 常駐サーバーの起動 / 停止 (F・0.8.310)。⚠ ここから起こしたものだけが
     // ServerDaemonService の枠 (FGS + WakeLock + WifiLock) に入る。ルールから直接デーモンを
     // 叩くと枠の外で上がり、画面消灯中に応答しなくなる (実機で踏んだ実害)。
@@ -721,6 +730,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     return linkedMapOf(
         "z2api" to dispatcher,
         "z2-session" to session,
+        "z2-usb" to usb,
         "z2-server" to server,
         "z2-when" to zwhen,
         "z2-notify" to notify,

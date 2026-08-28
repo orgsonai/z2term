@@ -9,6 +9,7 @@ import com.zerotoship.z2term.pty.PtyProcess
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.storage.ExternalStorageDetector
+import com.zerotoship.z2term.usb.UsbFdBroker
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.flow.first
@@ -108,6 +109,12 @@ class ProotLauncher(private val context: Context) {
     /** z2root エンジンで accept シムを LD_PRELOAD する guest パス。 */
     private val z2acceptShimGuestPath = "/usr/local/lib/libz2accept.so"
 
+    /** Android USB Host API の fd を受け取る open/openat シム。 */
+    private val z2usbShim: File
+        get() = File(context.applicationInfo.nativeLibraryDir, "libz2usb.so")
+
+    private val z2usbShimGuestPath = "/usr/local/lib/libz2usb.so"
+
     /**
      * accept→accept4 シム (libz2accept.so) を rootfs 内 [z2acceptShimGuestPath] へ配置する。
      * z2root エンジンのときだけ呼ぶ。未同梱なら何もしない (LD_PRELOAD は ld.so が無視する)。
@@ -127,6 +134,25 @@ class ProotLauncher(private val context: Context) {
             dst.setReadable(true, false)
             dst.setExecutable(true, false)
             Log.i(TAG, "Provisioned accept shim at ${dst.absolutePath}")
+        }
+    }
+
+    /** USB fd シムを rootfs へ配置する。USB 機器の有無にかかわらず同じ環境を作る。 */
+    private fun ensureUsbShim(rootfs: File) {
+        val src = z2usbShim
+        if (!src.exists()) {
+            Log.w(TAG, "libz2usb.so not in nativeLibraryDir — USB forwarding unavailable")
+            return
+        }
+        val dst = File(rootfs, z2usbShimGuestPath.trimStart('/'))
+        dst.parentFile?.mkdirs()
+        val needsCopy = !dst.exists() || dst.length() != src.length() ||
+            dst.lastModified() < src.lastModified()
+        if (needsCopy) {
+            src.copyTo(dst, overwrite = true)
+            dst.setReadable(true, false)
+            dst.setExecutable(true, false)
+            Log.i(TAG, "Provisioned USB shim at ${dst.absolutePath}")
         }
     }
 
@@ -164,10 +190,15 @@ class ProotLauncher(private val context: Context) {
         }
     }
 
-    /** z2root エンジン専用 env: accept→accept4 シムを LD_PRELOAD する。 */
+    /** z2root エンジン専用 env: 互換シムを LD_PRELOAD し、USB broker の入口を渡す。 */
     private fun z2rootEnv(): List<String> {
         val out = mutableListOf<String>()
-        if (z2acceptShim.exists()) out.add("LD_PRELOAD=$z2acceptShimGuestPath")
+        val preloads = buildList {
+            if (z2acceptShim.exists()) add(z2acceptShimGuestPath)
+            if (z2usbShim.exists()) add(z2usbShimGuestPath)
+        }
+        if (preloads.isNotEmpty()) out.add("LD_PRELOAD=${preloads.joinToString(":")}")
+        if (z2usbShim.exists()) out.add("Z2USB_SOCKET=${UsbFdBroker.socketName()}")
         // [DEBUG] 設定「トレースログ」(エンジン選択と同じ 7タップ裏機能内) が ON のときだけ
         // z2root の全 syscall を shared_home/z2root_trace.log へ出す。既定 OFF。ログは膨大で
         // 容量を圧迫するため一般ユーザーは使わない。旧来の .z2root_trace_on sentinel でも有効化できる。
@@ -291,6 +322,7 @@ class ProotLauncher(private val context: Context) {
         // 共有ホーム作成。
         sharedHomeDir.mkdirs()
         ensureAcceptShim(rootfs)
+        ensureUsbShim(rootfs)
         ensureAttachClient(rootfs)
         // 設定のログインシェルを /etc/passwd(root) にも書き、SSH ログインにも効かせる。
         ensureRootLoginShell(rootfs, userLoginShell)

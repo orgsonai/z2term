@@ -43,6 +43,11 @@
          生体センサーは必須にしない (uses-feature を書かない = 無い端末も導入できる)。 -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
+    <!-- USB フォワーディング。任意機能なので、USB Host 非対応端末への導入は妨げない。 -->
+    <uses-feature
+        android:name="android.hardware.usb.host"
+        android:required="false" />
+
     <!-- z2-screen: OS の自動画面消灯までの時間 (SCREEN_OFF_TIMEOUT) を期限つきで延ばすため。
          宣言しただけでは効かない特別権限で、利用者が「システム設定の変更」画面で明示的に
          許可したときだけ書き換えられる (設定 › 画面の自動消灯 から誘導する)。
@@ -348,6 +353,12 @@
         <!-- 通信量の見張り (0.8.388)。AlarmManager からの明示 Intent だけが来る。 -->
         <receiver
             android:name=".service.NetGuardReceiver"
+            android:exported="false"
+            android:enabled="true" />
+
+        <!-- z2-usb allow のシステム許可画面から返る明示 PendingIntent だけを受ける。 -->
+        <receiver
+            android:name=".usb.UsbPermissionReceiver"
             android:exported="false"
             android:enabled="true" />
 
