@@ -2492,7 +2492,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 | | 置き場 | 量 | 持ち方 |
 |---|---|---|---|
 | アプリ画面 | `res/values[-<言語>]/strings.xml` | 1,041 件 | Android 標準 |
-| 端末に出る文言 | `proot/*.kt` の `t(en = …, ja = …)` | 345 件 | `CliText`（rootfs へ書き出すシェルスクリプトの中身なので res では持てない） |
+| 端末に出る文言 | `proot/*.kt` の `t(en = …, ja = …)` | 337 件 | `CliText`（rootfs へ書き出すシェルスクリプトの中身なので res では持てない） |
 
 - ⭐ **名簿は [`AppLanguages`](../../app/src/main/java/com/zerotoship/z2term/settings/AppLanguages.kt) 1 か所。** ここに 1 行足すと、設定画面の選択肢・端末に出る文言の選択・`Locale` の適用がまとめてその言語を知る。言語を増やす手順もこのファイルの先頭に書いてある。
 - ⛔ **「英語ではない = 日本語」と書かない。** 0.8.421 までの `val ja = lang != "en"` は、**3 言語目を選んだ利用者に日本語を出す**書き方だった（`z2-macro` と `pacman-keyring` が実際にそう）。落とし先は必ず英語。`CliTextTest` が**生成物のレベルで**これを縛る（訳の無い言語で組んだスクリプトが英語版と 1 バイトも違わないこと）。

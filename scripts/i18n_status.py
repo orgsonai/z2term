@@ -78,18 +78,61 @@ def read_strings(path: Path) -> dict[str, str]:
     return out
 
 
+def comment_spans(src: str) -> list[tuple[int, int]]:
+    """`//` と `/* */` の範囲。⚠ 文字列の中の `//` はコメントではない (URL 等)。
+
+    ⛔ **コメントを飛ばさないと、書き方を説明した注記まで文言として数えてしまう。**
+    実際 `// 3 言語目は t(en = …, ja = …) の後ろへ` のような行が 8 か所あり、
+    総数が 8 件多く出ていた (訳しても 100% に届かない = --check が永遠に通らない)。
+    """
+    spans, i, n = [], 0, len(src)
+    while i < n:
+        if src[i] == '"':
+            if src.startswith('"""', i):
+                end = src.find('"""', i + 3)
+                i = (end + 3) if end != -1 else n
+                continue
+            i += 1
+            while i < n and src[i] != '"':
+                i += 2 if src[i] == "\\" else 1
+            i += 1
+            continue
+        if src.startswith("//", i):
+            end = src.find("\n", i)
+            end = n if end == -1 else end
+            spans.append((i, end))
+            i = end
+            continue
+        if src.startswith("/*", i):
+            end = src.find("*/", i + 2)
+            end = n if end == -1 else end + 2
+            spans.append((i, end))
+            i = end
+            continue
+        i += 1
+    return spans
+
+
+def count_outside_comments(src: str, pattern: str) -> int:
+    spans = comment_spans(src)
+    return sum(
+        1 for m in re.finditer(pattern, src)
+        if not any(a <= m.start() < b for a, b in spans)
+    )
+
+
 def count_cli(lang: str) -> tuple[int, int]:
     """(その言語の変わり値がある数, 文言の総数) を返す。"""
     have = total = 0
     for name in CLI_FILES:
         src = (PROOT / name).read_text(encoding="utf-8")
-        # t( / t.lines( / t.of( の呼び出しを 1 件と数える
-        calls = len(re.findall(r"\bt(?:\.lines|\.of)?\(\s*\n?\s*en\s*=", src))
+        # t( / t.lines( / t.of( の呼び出しを 1 件と数える (コメント内の説明は除く)
+        calls = count_outside_comments(src, r"\bt(?:\.lines|\.of)?\(\s*\n?\s*en\s*=")
         total += calls
         if lang in ("en", "ja"):
             have += calls          # en/ja は名前つき引数なので必ず埋まっている
         else:
-            have += len(re.findall(r'"' + re.escape(lang) + r'"\s+to\b', src))
+            have += count_outside_comments(src, r'"' + re.escape(lang) + r'"\s+to\b')
     for name in CLI_BUNDLES:
         src = (PROOT / name).read_text(encoding="utf-8")
         total += 1

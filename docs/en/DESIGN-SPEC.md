@@ -2565,7 +2565,7 @@ place where a third language can go.**
 | | Where | Count | How |
 |---|---|---|---|
 | App screens | `res/values[-<lang>]/strings.xml` | 1,041 | Android standard |
-| Text in the terminal | `t(en = …, ja = …)` in `proot/*.kt` | 345 | `CliText` (these are the bodies of shell scripts written into the rootfs, so `res` cannot hold them) |
+| Text in the terminal | `t(en = …, ja = …)` in `proot/*.kt` | 337 | `CliText` (these are the bodies of shell scripts written into the rootfs, so `res` cannot hold them) |
 
 - ⭐ **One roster: [`AppLanguages`](../../app/src/main/java/com/zerotoship/z2term/settings/AppLanguages.kt).** Adding a line there makes the settings screen, the terminal-side text and the `Locale` all learn about the language at once. The step-by-step for adding one is at the top of that file.
 - ⛔ **Never write "not English means Japanese".** Up to 0.8.421 `val ja = lang != "en"` would have handed **Japanese** to anyone picking a third language (`z2-macro` and `pacman-keyring` really were written that way). The fallback is always English, and `CliTextTest` pins that **at the level of the generated output** (a script built for an untranslated language must not differ from the English one by a single byte).
