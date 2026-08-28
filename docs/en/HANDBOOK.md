@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.419-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.420-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -161,6 +161,7 @@ Under Settings › **Keyboard style**:
 | What you want | How |
 |---|---|
 | Copy text | **Long-press** the screen → drag with your finger to select → "Copy" button (trailing blanks are trimmed and each row gets a **line break**) |
+| Select just one word | **Double-tap** the screen (0.8.420). `/usr/local/bin/z2attach`, `root@192.168.10.20` and `~/.bashrc` come out **whole** (even when the line wrapped in the middle of them). `src/main.kt:42:` stops at the `:`, so you get the file name alone. Japanese is cut at word boundaries. Drag the ends afterwards to widen the selection. ⚠ On top of an app that reads the mouse (one you can operate by tapping), the double-tap goes to that app instead — while you are scrolled back through history it selects as usual |
 | Magnify while selecting | While selecting, a **magnifier** appears above your finger |
 | Select beyond the screen | While selecting, move your **finger to the top/bottom edge** → it auto-scrolls so you can keep selecting |
 | Paste | The **📋** button in the toolbar. **When the text has line breaks**, a bar shows "3 lines …" first so you can look before pressing Paste (a single line still goes straight in). **Double-tap** it to open the **clipboard history** and pick a past copy to paste (pasting never rewrites the system clipboard, so it won't "copy what you just pasted"). **Picks from the history that contain line breaks get the same confirmation bar** (0.8.250). **Sensitive copies (the ones shown as dots), e.g. from a password manager, now land in the history too** (0.8.314). ⚠ Those rows alone are marked **🔒 and clear themselves after 30 seconds** — if the phone's clipboard still holds the same value at that point, it is emptied too (if you have copied something else since, it is left alone) |
@@ -671,7 +672,7 @@ when a `z2-when` rule fired **without opening the app**.
 → Switch to Japanese flick with the "あ" key on the left of the keyboard. Typing kana shows the candidate bar, so you can convert to kanji with the "変換" key or by tapping a candidate (long sentences are predicted automatically per chunk). If you want smarter conversion, switch to the phone's standard keyboard (Gboard, etc.) with the "⌨" toolbar button.
 
 **Q. I can't select text well / can't select to the edge**
-→ Long-press first, then drag with your finger. To reach the edge, move your finger toward the top/bottom edge of the screen and it auto-scrolls. Drag near the end of the selection to change its range.
+→ Long-press first, then drag with your finger. **If one word is all you need, double-tap is quicker** (0.8.420). To reach the edge, move your finger toward the top/bottom edge of the screen and it auto-scrolls. Drag near the end of the selection to change its range.
 
 **Q. My resident servers (sshd, …) were stopped after updating the app**
 → **That is expected.** Replacing the app makes Android shut it down once, which takes the resident servers with it. "Auto-start on boot" applies when the **phone** boots, so it does not bring them back after an app update. After updating, open ⚙ Settings → "Resident servers and automation" → "Resident servers" → "Manage servers" → **Start** again.

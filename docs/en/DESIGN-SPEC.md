@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-28 / Target version: 0.8.419-alpha (versionCode 427)
+Last updated: 2026-08-28 / Target version: 0.8.420-alpha (versionCode 428)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2532,6 +2532,13 @@ into "close" — you would not be able to delete while the pad is open.
 - **Magnifier**: during selection, the terminal render View is shown above the finger via `android.widget.Magnifier`.
 - **Edge auto-scroll**: detection zone row height × 2.5 / min 80px. Top edge → past / bottom edge → latest, scrolling every 45ms while extending the selection off-screen.
 - During selection, a floating "Copy" button; tap to clear the selection.
+- **Double-tap selects a word (0.8.420, `WordFinder`).** Faster than long-press-and-drag, and grabbing one path or one host name now takes a single gesture.
+  - ⭐ **A word in a terminal is not a word in prose.** What you reach for is a path, a host name, a hash, an option — so alongside letters and digits, **`@-./_~`** counts as part of a word (the same set xterm-family terminals default to). `/usr/local/bin/z2attach`, `root@192.168.10.20` and `~/.bashrc` each come out whole. ⚠ **`:` is left out** — pulling just the file name out of `src/main.kt:42:` is the more common need.
+  - **Soft wraps are crossed.** The narrower the screen, the more often one path is split across two or three rows; not crossing them would fail exactly where this helps most. Capped at 16 rows in each direction.
+  - **Han and kana let `BreakIterator` decide.** Japanese has no spaces to stop at, so the same rule would select **the whole line of Japanese**. ⚠ Android's `BreakIterator` is ICU-backed and breaks by word on a device, but **the unit-test JVM breaks per character** (rules only, no dictionary). The test pins "not the whole line" and deliberately does not pin where the break falls.
+  - **A word ending in a wide character includes its right-hand cell** — the text taken is the same either way, but without it the highlight appears to cut a character in half.
+  - ⛔ **Never taken from a TUI that reads the mouse.** Those interpret a double click themselves (single taps already go to the PTY). While scrolled back through history nothing reaches the PTY, so there it selects.
+  - ⚠ **Opening a link moved from `onSingleTapUp` to `onSingleTapConfirmed`.** Opening on touch-up means **the first tap of a double-tap launches the browser** — and a URL is exactly where word selection matters most. Only link opening is delayed; focus and the IME stay immediate. Whether a tap may open a link (not the focus-grabbing first tap, not the tap that cleared a selection, not a tap forwarded to the mouse) is decided in `onSingleTapUp` and passed along in `linkTapCandidate`.
 
 ### 6.6 Command history persistence
 

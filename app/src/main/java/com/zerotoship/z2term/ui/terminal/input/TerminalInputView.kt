@@ -90,6 +90,12 @@ class TerminalInputView(context: Context) : View(context) {
     private var initialFontSizeSp: Float = 13f
     private var initialSpan: Float = 0f
     private var lastAppliedFontSp: Float = 0f
+    /**
+     * 直前の単タップが「リンクを開いてよいもの」だったか。
+     * [GestureDetector.SimpleOnGestureListener.onSingleTapUp] が決め、
+     * `onSingleTapConfirmed` (2 度目が来なかったと分かってから) が使う。
+     */
+    private var linkTapCandidate: Boolean = false
     private var scrollAccumDy: Float = 0f
     private var mouseWheelAccumDy: Float = 0f
     private var arrowScrollAccumDy: Float = 0f
@@ -329,6 +335,9 @@ class TerminalInputView(context: Context) : View(context) {
 
             override fun onSingleTapUp(e: MotionEvent): Boolean {
                 val sess = session ?: return false
+                // このタップがリンクを開いてよいものかを、ここで決めて [onSingleTapConfirmed]
+                // へ渡す。あちらは「2 度目が来なかった」ことしか知らないため。
+                linkTapCandidate = false
                 // 選択中ならタップで解除 (マウスモードでも選択操作を優先)
                 if (sess.selection.value != null) {
                     sess.clearSelection()
@@ -342,19 +351,54 @@ class TerminalInputView(context: Context) : View(context) {
                 if (sess.emulator.mouseEnabled && sendMouseClick(e.x, e.y, sess)) {
                     return true
                 }
-                val wasFocused = isFocused
+                // 既にフォーカス済みのタップだけがリンクを開く候補 (フォーカス目的の
+                // 初回タップで開くと誤爆になる)。
+                linkTapCandidate = isFocused
                 if (!isFocused) requestFocus()
-                // 既にフォーカス済みのタップが URL / OSC8 リンク上なら開く。
-                // フォーカス目的の初回タップでは開かない (誤爆防止)。
-                if (wasFocused) {
-                    val cell = pixelToAbsCell(e.x, e.y)
-                    if (cell != null) {
-                        val url = UrlFinder.urlAt(sess.emulator.buffer, cell.first, cell.second)
-                        if (url != null && openUri(url)) return true
-                    }
-                }
                 if (imeEnabled) requestKeyboard()
                 performClick()
+                return true
+            }
+
+            /**
+             * リンクを開くのは**2 度目が来ないと確かめてから** (0.8.420)。
+             *
+             * ⚠ 押した瞬間 ([onSingleTapUp]) に開くと、**ダブルタップで単語を選ぼうとした
+             * 1 度目でブラウザが起動する**。URL の上は単語選択が一番効いてほしい場所なので、
+             * ここだけ「タップが確定してから」に遅らせる (遅れるのはリンクを開くときだけ)。
+             */
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                val sess = session ?: return false
+                if (!linkTapCandidate) return false
+                linkTapCandidate = false
+                val cell = pixelToAbsCell(e.x, e.y) ?: return false
+                val url = UrlFinder.urlAt(sess.emulator.buffer, cell.first, cell.second)
+                    ?: return false
+                return openUri(url)
+            }
+
+            /**
+             * ダブルタップで単語を選ぶ (0.8.420)。長押し → ドラッグより速く、
+             * パス 1 つ・ホスト名 1 つを掴むのに要る操作がこれだけになる。
+             *
+             * ⛔ **マウスを読んでいる TUI からは奪わない** — その手の TUI は自前で
+             * ダブルクリックを解釈する (単タップは既に PTY へ送っている)。過去を遡って
+             * 見ている間 (scrollback) は PTY へ届かないので、そのときは選択に使う。
+             */
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                val sess = session ?: return false
+                val cell = pixelToAbsCell(e.x, e.y) ?: return false
+                if (sess.emulator.mouseEnabled) {
+                    val screenRow = cell.first - sess.emulator.buffer.scrollbackSize
+                    if (screenRow in 0 until sess.emulator.buffer.rows) return false
+                }
+                val word = WordFinder.wordAt(sess.emulator.buffer, cell.first, cell.second)
+                    ?: return false
+                // 掴んだ後にハンドルで伸ばせるよう、長押し選択と同じ状態にしておく。
+                selectionAnchorRow = word.startAbsRow
+                selectionAnchorCol = word.startCol
+                sess.setSelection(word)
+                performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                 return true
             }
         }
