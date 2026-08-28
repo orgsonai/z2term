@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.429-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.430-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -104,7 +104,7 @@ Z2Term comes with its **own in-app keyboard**.
 - In settings, **"Keyboard position (landscape)"** lets you choose **left / bottom / right** (in portrait it's always at the bottom).
 - The **"Side keyboard width (landscape)"** slider adjusts the width when docked to a side, and the **"Keyboard height (landscape)"** slider adjusts the overall height. Bigger keys are easier to press; smaller keys give you more screen — your trade-off.
 
-> To adjust it without opening Settings, **triple-tap ⌨ in the toolbar**. You can resize the current orientation while watching the keyboard; a left/right landscape keyboard adjusts its width instead. This works even when the keyboard toggle bar is hidden (0.8.428).
+> To adjust it without opening Settings, **triple-tap ⌨ in the toolbar**. You can resize the current orientation while watching the keyboard; a left/right landscape keyboard adjusts its width instead. This works even when the keyboard toggle bar is hidden (0.8.428). It is also listed under ⚙ Settings → **Tips** (0.8.430).
 
 ### Switching keyboard "faces" (0.8.305)
 

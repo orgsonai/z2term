@@ -26,6 +26,8 @@
     <string name="settings_group_tips_desc">Gestures that are not shown on screen — double taps, long presses, flicks</string>
     <string name="tip_toolbar_title">Toolbar buttons have a second function on double-tap</string>
     <string name="tip_toolbar_body">Each button does something else when you double-tap it. Double-tap 📋, for example, and the paste history opens. Try it on the other buttons too.</string>
+    <string name="tip_kb_resize_title">Triple-tap ⌨ to resize the keyboard</string>
+    <string name="tip_kb_resize_body">A size bar appears right there, so you can adjust the keyboard while looking at it. It changes the height for the orientation you are in — the width when the keyboard sits on the left or right in landscape. It works even with the toggle bar on the keyboard turned off.</string>
     <string name="tip_tab_close_title">Double-tap a tab to close it</string>
     <string name="tip_tab_close_body">There is no × button, so a stray touch cannot close a tab. Closing a tab that is still running asks for confirmation first.</string>
     <string name="tip_tab_reorder_title">Long-press a tab and slide it to reorder</string>

@@ -24,6 +24,8 @@
     <string name="settings_group_tips_desc">介面上看不到的操作 — 點兩下、長按、滑動</string>
     <string name="tip_toolbar_title">工具列按鈕點兩下還有一層功能</string>
     <string name="tip_toolbar_body">每個按鈕點兩下時會做另一件事。例如點兩下 📋 就會開啟貼上歷史。其他按鈕也不妨試試。</string>
+    <string name="tip_kb_resize_title">工具列的 ⌨ 連點三次可以改大小</string>
+    <string name="tip_kb_resize_body">會就地出現一條調整列，可以一邊看著鍵盤一邊調。改的是目前方向的高度，橫向放在左右兩側時改的是寬度。即使關掉了鍵盤上方的那條列也能用。</string>
     <string name="tip_tab_close_title">點兩下分頁即可關閉</string>
     <string name="tip_tab_close_body">這裡沒有 × 按鈕，所以不會因為誤觸而關掉分頁。關閉仍在執行的分頁時會先請你確認。</string>
     <string name="tip_tab_reorder_title">長按分頁並拖曳可以重新排序</string>

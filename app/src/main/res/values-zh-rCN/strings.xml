@@ -24,6 +24,8 @@
     <string name="settings_group_tips_desc">界面上看不到的操作 — 双击、长按、滑动</string>
     <string name="tip_toolbar_title">工具栏按钮双击还有一层功能</string>
     <string name="tip_toolbar_body">每个按钮双击时会做另一件事。例如双击 📋 就会打开粘贴历史。其他按钮也不妨试试。</string>
+    <string name="tip_kb_resize_title">工具栏的 ⌨ 连点三次可以改大小</string>
+    <string name="tip_kb_resize_body">会就地出现一条调整栏，可以一边看着键盘一边调。改的是当前方向的高度，横屏放在左右两侧时改的是宽度。即使关掉了键盘上方的那条栏也能用。</string>
     <string name="tip_tab_close_title">双击标签页即可关闭</string>
     <string name="tip_tab_close_body">这里没有 × 按钮，所以不会因为误触而关掉标签页。关闭仍在运行的标签页时会先请你确认。</string>
     <string name="tip_tab_reorder_title">长按标签页并拖动可以重新排序</string>

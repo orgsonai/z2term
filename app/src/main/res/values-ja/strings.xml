@@ -26,6 +26,8 @@
     <string name="settings_group_tips_desc">画面に出ていない操作 — ダブルタップ・長押し・はらう</string>
     <string name="tip_toolbar_title">ツールバーのボタンは、ダブルタップでもう一段</string>
     <string name="tip_toolbar_body">ボタンには、短く押したときとは別の機能が入っています。たとえば 📋 をダブルタップすると貼り付け履歴が開きます。ほかのボタンでも試してみてください。</string>
+    <string name="tip_kb_resize_title">ツールバーの ⌨ はトリプルタップで大きさ調整</string>
+    <string name="tip_kb_resize_body">その場に調整バーが出るので、キーボードを見ながら合わせられます。変わるのは今の向きの高さで、横画面で左右に寄せているときは幅です。キーボードの上のバーを消していても使えます。</string>
     <string name="tip_tab_close_title">タブはダブルタップで閉じます</string>
     <string name="tip_tab_close_body">× ボタンはありません（うっかり触って消えないようにするためです）。動いているタブを閉じるときだけ、確認が出ます。</string>
     <string name="tip_tab_reorder_title">タブは長押ししたまま動かすと並べ替えられます</string>

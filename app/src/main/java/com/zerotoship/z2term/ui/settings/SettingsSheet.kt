@@ -3382,6 +3382,7 @@ private fun appLockGraceLabel(sec: Int): Int = when (sec) {
 private fun TipsSection() {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         TipItem(R.string.tip_toolbar_title, R.string.tip_toolbar_body)
+        TipItem(R.string.tip_kb_resize_title, R.string.tip_kb_resize_body)
         TipItem(R.string.tip_tab_close_title, R.string.tip_tab_close_body)
         TipItem(R.string.tip_tab_reorder_title, R.string.tip_tab_reorder_body)
         TipItem(R.string.tip_esc_flick_title, R.string.tip_esc_flick_body)
