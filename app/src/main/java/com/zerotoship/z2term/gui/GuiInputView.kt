@@ -69,12 +69,14 @@ class GuiInputView(context: Context) : View(context) {
 
     // --- ダブルタップ後の「右クリック or 左ドラッグ」判定 (M8-6 T4) ---
     // ダブルタップで 2 回目の指が下りた直後はまだ右クリックか左ドラッグか不明なので保留する。
-    //  - 一定時間 (RIGHT_HOLD_MS) 動かさず保持して離す → 右クリック (メニュー)
-    //  - いつでも touchSlop を超えて動く                → 左ドラッグへ切替
-    //  - 一定時間より前に離す                            → 左クリック (= ダブルクリック)
-    // タイマーは触覚で「今離せば右クリック」を知らせるだけで、右クリック自体は確定しない。
+    //  - RIGHT_HOLD_MS 動かさず保持   → **その場で右クリックを送る**（指を離すのを待たない）
+    //  - それより前に touchSlop 超え  → 左ドラッグへ切替
+    //  - それより前に離す             → 左クリック (= ダブルクリック)
+    // ⭐ **0.8.429 で「離した時に確定」をやめた。** 利用者から「どれくらい待てばいいのか
+    // 分からない」という指摘が出た。待ち時間を触覚で知らせても、離す操作が要る限り
+    // 「いつ離すか」の判断が残る。時間が来たら自動で送れば、判断そのものが消える。
     private var pendingRightClick = false
-    private var rightClickReady = false
+    private var rightClickFired = false   // このタッチで右クリックを送り終えた
     private var dtDownX = 0f
     private var dtDownY = 0f
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
@@ -105,9 +107,9 @@ class GuiInputView(context: Context) : View(context) {
     override fun onDetachedFromWindow() {
         // タブ切替や切断で View が破棄されても、相手側の左ボタンと共有カーソルの
         // 押下表示を保持したままにしない。
-        cancelRightClickReadyTimer()
+        cancelRightClickTimer()
         pendingRightClick = false
-        rightClickReady = false
+        rightClickFired = false
         releaseDrag()
         super.onDetachedFromWindow()
     }
@@ -177,16 +179,20 @@ class GuiInputView(context: Context) : View(context) {
         rfb?.sendPointerEvent(0, pos.x.toInt(), pos.y.toInt())
     }
 
-    /** ダブルタップ後、右クリックとして離せる時間に達したことだけを触覚で知らせる。 */
-    private val rightClickReadyRunnable = Runnable {
+    /** ダブルタップ後 [RIGHT_HOLD_MS] 保持したら、指を離すのを待たずに右クリックを送る。 */
+    private val rightClickRunnable = Runnable {
         if (!pendingRightClick) return@Runnable
-        rightClickReady = true
+        pendingRightClick = false
+        rightClickFired = true
+        // 触覚は「右クリックを送った」合図。⚠ 送る前に鳴らすと、メニューが出ないときに
+        // 何が起きたのか分からなくなるので、送出と同じ場所に置く。
         performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        clickAtCursor(RfbClient.BTN_RIGHT)
     }
 
-    /** 保留中の触覚通知タイマーを取り消す。 */
-    private fun cancelRightClickReadyTimer() {
-        removeCallbacks(rightClickReadyRunnable)
+    /** 保留中の右クリックタイマーを取り消す。 */
+    private fun cancelRightClickTimer() {
+        removeCallbacks(rightClickRunnable)
     }
 
     private val gesture = GestureDetector(
@@ -208,13 +214,13 @@ class GuiInputView(context: Context) : View(context) {
             override fun onDoubleTap(e: MotionEvent): Boolean {
                 ensureCursor()
                 pendingRightClick = true
-                rightClickReady = false
+                rightClickFired = false
                 dtDownX = e.x
                 dtDownY = e.y
                 lastTouchX = e.x
                 lastTouchY = e.y
-                removeCallbacks(rightClickReadyRunnable)
-                postDelayed(rightClickReadyRunnable, RIGHT_HOLD_MS)
+                removeCallbacks(rightClickRunnable)
+                postDelayed(rightClickRunnable, RIGHT_HOLD_MS)
                 return true
             }
         }
@@ -234,10 +240,10 @@ class GuiInputView(context: Context) : View(context) {
         if (event.pointerCount >= 2) {
             if (dragHeld) releaseDrag() // 1→2 本指に増えたらドラッグ保持を解除
             if (pendingRightClick) {    // 2 本指へ移行 → 保留中の右クリック判定は破棄 (T3)
-                cancelRightClickReadyTimer()
+                cancelRightClickTimer()
                 pendingRightClick = false
-                rightClickReady = false
             }
+            rightClickFired = false
             // 一度でも 3 本指になったら、指が 2 本に減っても全部離すまでスクロール扱い。
             if (event.pointerCount >= 3) scrollGesture = true
             if (!twoFingerActive) {
@@ -286,9 +292,8 @@ class GuiInputView(context: Context) : View(context) {
                     // 右クリック判定中。slop を超えて動いたら左ドラッグへ切替、slop 内なら静止維持。
                     val moved = kotlin.math.hypot(event.x - dtDownX, event.y - dtDownY)
                     if (moved > touchSlop) {
-                        cancelRightClickReadyTimer()
+                        cancelRightClickTimer()
                         pendingRightClick = false
-                        rightClickReady = false
                         dragHeld = true
                         val pos = ensureCursor()
                         if (pos != null) {
@@ -319,18 +324,20 @@ class GuiInputView(context: Context) : View(context) {
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 if (pendingRightClick) {
-                    // 確定は必ず指を離した時。長く保持して離したら右クリック、短ければ
-                    // 2 発目の左クリック（ダブルクリック）。保持後に動いた場合は MOVE 側で
-                    // pendingRightClick=false になり、左ドラッグとしてここへ来る。
-                    cancelRightClickReadyTimer()
-                    val heldMs = event.eventTime - event.downTime
-                    val rightClick = rightClickReady || heldMs >= RIGHT_HOLD_MS
+                    // ここへ来るのは [RIGHT_HOLD_MS] より前に離した時 = ダブルクリックの 2 発目。
+                    // それ以降はタイマーが右クリックを送り終えていて pendingRightClick は false。
+                    // ⚠ ただしタイマーが遅れて UP が先に届くことがあるので、経過時間でも判定する
+                    //   （そうしないと、待ったのに左クリックが出る取りこぼしが残る）。
+                    cancelRightClickTimer()
                     pendingRightClick = false
-                    rightClickReady = false
+                    val heldMs = event.eventTime - event.downTime
                     if (action == MotionEvent.ACTION_UP) {
-                        clickAtCursor(if (rightClick) RfbClient.BTN_RIGHT else RfbClient.BTN_LEFT)
+                        clickAtCursor(
+                            if (heldMs >= RIGHT_HOLD_MS) RfbClient.BTN_RIGHT else RfbClient.BTN_LEFT
+                        )
                     }
                 }
+                rightClickFired = false
                 if (dragHeld) releaseDrag() // ドラッグ保持の終了 = 左ボタン解放
             }
         }
@@ -498,8 +505,12 @@ class GuiInputView(context: Context) : View(context) {
         const val WHEEL_STEP = 40f
         /** ピンチズームの最大倍率 (フィット基準)。 */
         const val MAX_ZOOM = 5f
-        /** ダブルタップ後、これだけ動かさず保持して離したら右クリックにする (ms)。 */
-        const val RIGHT_HOLD_MS = 350L
+        /**
+         * ダブルタップ後、これだけ動かさず保持したら**その場で**右クリックを送る (ms)。
+         * ⚠ 短くしすぎると、ダブルタップからの左ドラッグを始める余裕が無くなる
+         * （ドラッグしたい人はこの時間内に動かし始める必要がある）。
+         */
+        const val RIGHT_HOLD_MS = 150L
     }
 
     /** IME の確定文字を keysym で送る InputConnection。 */
