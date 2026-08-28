@@ -39,6 +39,21 @@ class AppLanguagesTest {
         }
     }
 
+    /**
+     * ⭐ **落とし先の言語は必ず「完訳」でなければならない。**
+     * 訳の無い文言は [AppLanguages.FALLBACK] で出るので、その言語自体に穴があると
+     * どこへも落ちられない（英語が欠けた文言は空文字や別言語になる）。
+     * 実際の埋まり具合は [com.zerotoship.z2term.proot.CliTranslationCheckTest] が数える。
+     */
+    @Test
+    fun theFallbackLanguageIsMarkedComplete() {
+        val fallback = AppLanguages.ALL.first { it.code == AppLanguages.FALLBACK }
+        assertTrue(
+            "落とし先の ${AppLanguages.FALLBACK} に cliComplete が付いていない",
+            fallback.cliComplete
+        )
+    }
+
     @Test
     fun resolveKeepsKnownAndDropsUnknown() {
         assertEquals("ja", AppLanguages.resolve("ja"))

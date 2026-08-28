@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-28 / Target version: 0.8.422-alpha (versionCode 430)
+Last updated: 2026-08-28 / Target version: 0.8.423-alpha (versionCode 431)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2571,8 +2571,20 @@ place where a third language can go.**
 - ⛔ **Never write "not English means Japanese".** Up to 0.8.421 `val ja = lang != "en"` would have handed **Japanese** to anyone picking a third language (`z2-macro` and `pacman-keyring` really were written that way). The fallback is always English, and `CliTextTest` pins that **at the level of the generated output** (a script built for an untranslated language must not differ from the English one by a single byte).
 - **`LocaleHelper.language` returns a real language code** (it used to return only `ja`/`en`). The places that test `== LANG_JA` are asking about **Japanese-specific features** (the kana keyboard face, kana input in the IME), not about which text to show.
 - **Device-locale matching looks at the script subtag.** ⚠ **Simplified and Traditional Chinese are separate languages** — the content differs, so serving one to a reader of the other produces characters they cannot read. Android reports either `zh-CN` or `zh-Hans-CN` depending on the phone, and both must land on the same answer (Hong Kong and Macau arrive as `Hant`, so no extra region codes are needed). **This is pinned by tests before the languages are on the roster** (`AppLanguagesTest`).
-- **Two guards against forgotten translations.** (1) lint in `app/build.gradle.kts` raises `MissingTranslation` / `ExtraTranslation` to errors, so CI (`lintDebug`) fails on them; (2) `bash scripts/i18n-status.sh` counts both bodies of text, and `--missing <lang>` lists the untranslated keys with their English source. ⚠ **Localization is not a one-off job but a tax on every release** — strings keep arriving, so the tool that fills them and the guard that catches them belong together.
+- **Three guards against forgotten translations.** (1) lint in `app/build.gradle.kts` raises `MissingTranslation` / `ExtraTranslation` to errors, so CI (`lintDebug`) fails on them (**`res` only**); (2) `bash scripts/i18n-status.sh` counts both bodies of text, and `--missing <lang>` lists the untranslated keys with their English source; (3) **terminal-side text is failed by `--check`** (below, 0.8.423). ⚠ **Localization is not a one-off job but a tax on every release** — strings keep arriving, so the tool that fills them and the guard that catches them belong together.
 - ⚠ **The moment `values-<lang>/` exists, lint counts every untranslated key**, so finish `res` before adding the directory. Terminal-side text tolerates being half-done (it shows English), which makes `res` → CLI the easier order.
+
+#### Stopping terminal-side text from rotting quietly (0.8.423)
+
+⚠ **lint only guards `res`.** Terminal-side text falls back to English when untranslated and **nothing
+breaks**, so every new feature quietly pushes a translated language's `z2-*` output back toward English
+(app screens in Chinese, `z2-notify --help` in English). Unlike `res`, **CI stays green**, which leaves a
+real device as the only place anyone would notice. ⚠ **This starts the moment a second language lands.**
+
+- **`cliComplete` on `AppLanguages.Entry` is the declaration "this language is fully translated".** For a marked language, `bash scripts/i18n-status.sh --check` demands 100% of the terminal-side text and exits 1 when any is missing. ⛔ **Do not set it before finishing** — it fails the moment it is set. Leaving it `false` mid-translation is fine (untranslated text shows English, so nothing is broken).
+- **A unit test (`CliTranslationCheckTest`) is what makes it bite in CI.** CI runs exactly three things — `lintDebug`, `assembleDebug`, `testDebugUnitTest` — so **hanging the guard off the tests is the cheapest way to add one without touching the workflow**. ⭐ **The counting lives only in `scripts/i18n_status.py`; the Kotlin side does not judge** — two copies of the same counting rule eventually disagree, producing the worst possible shape: "the table says 98% but the test passes". The test just runs the same tool and checks its exit code.
+- ⚠ **The test skips where `python3` is absent** (the same treatment `GuiScriptSyntaxTest` gives `sh`). python3 is not a build requirement, so its absence must not fail a developer's test run; CI (ubuntu-latest) has it, so **anything pushed is always checked**.
+- **`--check` does not look at `res`.** lint already guards that as an error, and judging it twice leaves you unsure which complaint to fix.
 
 **Relationship to the built-in keyboard**: display language and input method are **kept separate**. The kana
 face is enabled by default only when the app language is Japanese (`legacyKanaAvailable`); other languages

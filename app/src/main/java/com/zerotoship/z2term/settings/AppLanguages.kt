@@ -20,6 +20,18 @@ package com.zerotoship.z2term.settings
  *    ⚠ **足さなくても壊れない** — 変わり値の無い文言は [FALLBACK]（英語）で出る。
  * 4. `bash scripts/i18n-status.sh` で埋まり具合を見る。
  *    未訳の一覧は `bash scripts/i18n-status.sh --missing <コード>`。
+ * 5. 端末に出る文言が 100% になったら [Entry.cliComplete] に `true` を付ける。
+ *    ⭐ **ここまでやって初めて「その言語は腐らない」状態になる**（下の注記）。
+ *
+ * ## ⚠ 端末に出る文言は、印を付けないと静かに腐る
+ *
+ * lint の `MissingTranslation` が守るのは **res だけ**。端末に出る文言は未訳でも英語が出て
+ * **CI は緑のまま通る**ので、新しい機能を足すたび、訳した言語の `z2-*` の表示だけが
+ * 少しずつ英語へ戻っていく（画面は中国語なのに `z2-notify --help` は英語、という形）。
+ *
+ * これを止めるのが [Entry.cliComplete]。印の付いた言語は
+ * `bash scripts/i18n-status.sh --check` が 100% を要求し、**欠けていればテストが落ちる**
+ * ([com.zerotoship.z2term.proot.CliTranslationCheckTest])。
  *
  * ⛔ **res だけは全部埋めきってから足すこと。** `values-<コード>/` を作った時点で lint の
  * `MissingTranslation` が全ての未訳を数え上げ、**CI が赤になる**（`app/build.gradle.kts` の
@@ -42,13 +54,24 @@ object AppLanguages {
      * @param nativeName 設定画面に出す名前。⚠ **その言語で書く**（英語話者向けに "Japanese" と
      *   書くと、日本語しか読めない利用者が自分の言語を見つけられない）。翻訳対象ではないので
      *   `strings.xml` には置かない。
+     * @param cliComplete **端末に出る文言（`z2-*` CLI）を訳しきった**という印。
+     *   ⭐ 付けると `scripts/i18n-status.sh --check` がその言語に 100% を要求するようになり、
+     *   訳を足さずに新しい文言を書いた時点でテストが落ちる。⚠ **付け忘れると腐る**
+     *   （クラス説明の「静かに腐る」を参照）。res は lint が別途守るのでここには含めない。
+     *   ⛔ **訳しきる前に付けないこと** — 付けた瞬間に落ちる。訳の途中は `false` のままでよい
+     *   （未訳の文言は英語で出るので、アプリは壊れない）。
      */
-    data class Entry(val code: String, val nativeName: String)
+    data class Entry(
+        val code: String,
+        val nativeName: String,
+        val cliComplete: Boolean = false,
+    )
 
     /** 対応言語（設定画面の並び順）。⛔ 増やすときはクラス説明の手順を最後まで行うこと。 */
     val ALL: List<Entry> = listOf(
-        Entry("en", "English"),
-        Entry("ja", "日本語"),
+        // en/ja は `t(en = …, ja = …)` の名前つき引数なので、構造上つねに 100%。
+        Entry("en", "English", cliComplete = true),
+        Entry("ja", "日本語", cliComplete = true),
     )
 
     /** 対応言語のコードだけ。 */

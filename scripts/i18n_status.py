@@ -3,6 +3,10 @@
 
 ⚠ **対応言語の名簿を二重に持たない。** 名簿は AppLanguages.kt が正本で、ここはそれを
 読み取る。ここに一覧を書くと、言語を増やしたとき片方だけ古くなる。
+
+⭐ `--check` は「端末に出る文言を訳しきった」印 (AppLanguages の `cliComplete`) が付いた
+言語だけを検査し、欠けていれば終了コード 1 で落ちる。CI ではユニットテスト
+(CliTranslationCheckTest) がこれを呼ぶので、訳を足さずに新しい文言を書くと落ちる。
 """
 from __future__ import annotations
 
@@ -27,13 +31,22 @@ CLI_FILES = [
 CLI_BUNDLES = ["GuiScript.kt", "SshdScript.kt"]
 
 
-def roster() -> list[str]:
-    """AppLanguages.ALL に並んでいる言語コードを読む。"""
+def roster() -> list[tuple[str, bool]]:
+    """AppLanguages.ALL を (言語コード, CLI 完訳の印) の並びで読む。
+
+    印は `Entry("zh-CN", "简体中文", cliComplete = true)` の形。⚠ 引数の中に丸括弧を
+    書くとこの読み取りが壊れる（名簿は文字列と真偽値だけにしておくこと）。
+    """
     text = ROSTER.read_text(encoding="utf-8")
     block = re.search(r"val ALL: List<Entry> = listOf\((.*?)\n    \)", text, re.S)
     if not block:
         sys.exit("AppLanguages.ALL を読めない。名簿の書き方を変えたなら、この正規表現も直すこと。")
-    return re.findall(r'Entry\("([^"]+)"', block.group(1))
+    out = []
+    for args in re.findall(r"Entry\((.*?)\)", block.group(1), re.S):
+        code = re.search(r'"([^"]+)"', args)
+        if code:
+            out.append((code.group(1), re.search(r"cliComplete\s*=\s*true", args) is not None))
+    return out
 
 
 def res_dir(lang: str) -> Path:
@@ -89,22 +102,72 @@ def pct(have: int, total: int) -> str:
     return "  --  " if total == 0 else f"{have * 100 // total:3d}%  "
 
 
-def show_table(langs: list[str]) -> None:
+def show_table(langs: list[tuple[str, bool]]) -> None:
     base = read_strings(res_dir("en"))
-    print(f"対応言語: {', '.join(langs)}    (名簿: {ROSTER.relative_to(ROOT)})\n")
-    print(f"{'言語':<8} {'アプリ画面 (res)':<24} {'端末に出る文言 (CLI)':<24}")
-    print("-" * 60)
-    for lang in langs:
+    codes = ", ".join(c for c, _ in langs)
+    print(f"対応言語: {codes}    (名簿: {ROSTER.relative_to(ROOT)})\n")
+    print(f"{'言語':<8} {'アプリ画面 (res)':<24} {'端末に出る文言 (CLI)':<22} 印")
+    print("-" * 64)
+    for lang, cli_complete in langs:
         got = read_strings(res_dir(lang))
         r_have = len([k for k in base if k in got])
         c_have, c_total = count_cli(lang)
         print(
             f"{lang:<8} {pct(r_have, len(base))}{r_have:>5}/{len(base):<5}        "
-            f"{pct(c_have, c_total)}{c_have:>5}/{c_total:<5}"
+            f"{pct(c_have, c_total)}{c_have:>5}/{c_total:<5}  "
+            f"{'✔' if cli_complete else '-'}"
         )
     print()
     print("未訳のキーを出す:  bash scripts/i18n-status.sh --missing <言語>")
     print("⛔ 未訳のまま出しても壊れない（英語が出る）。⚠ 日本語には落ちない。")
+    print()
+    print("印 (✔) = 端末に出る文言を訳しきったという宣言 (AppLanguages の cliComplete)。")
+    print("  印のある言語は `--check` が 100% を要求する ⇒ 訳を足さずに文言を増やすと落ちる。")
+
+
+def run_check(langs: list[tuple[str, bool]]) -> int:
+    """印の付いた言語の CLI 文言が 100% かを検査する。落ちるなら 1 を返す。
+
+    ⚠ **res はここで見ない。** そちらは lint の MissingTranslation が error で守っている
+    （二重に判断すると、どちらの言い分を直せばよいのか分からなくなる）。
+    """
+    marked = [c for c, done in langs if done]
+    if not marked:
+        print("⚠ CLI 完訳の印 (cliComplete) が付いた言語がありません。")
+        return 0
+
+    failed = []
+    for lang in marked:
+        have, total = count_cli(lang)
+        status = "OK" if have == total else f"未訳 {total - have} 件"
+        print(f"  {lang:<8} 端末に出る文言 {have}/{total}   {status}")
+        if have < total:
+            failed.append((lang, total - have))
+
+    # 印は無いが 100% に届いた言語は、印を付ければ以後守られる。落とさずに知らせるだけ。
+    for lang, done in langs:
+        if not done:
+            have, total = count_cli(lang)
+            if total and have == total:
+                print(f"  {lang:<8} 端末に出る文言 {have}/{total}   "
+                      f"⭐ 100% です。AppLanguages の {lang} に cliComplete = true を付けられます")
+
+    if not failed:
+        print("\n✅ 印の付いた言語はすべて端末に出る文言まで訳せています。")
+        return 0
+
+    print("\n⛔ 端末に出る文言の未訳があります:")
+    for lang, missing in failed:
+        print(f"  - {lang}: {missing} 件")
+    print(
+        "\n直し方は 2 つのどちらか:\n"
+        "  a) 訳を足す … bash scripts/i18n-status.sh --missing <言語> で残りを出し、\n"
+        '     t(en = \"…\", ja = \"…\") の後ろへ \"<言語>\" to \"…\" を足す (CliText.kt 参照)\n'
+        "  b) 印を外す … その言語を完訳として出さないと決めたなら、AppLanguages.ALL の\n"
+        "     cliComplete を false にする (未訳の文言は英語で出る)\n"
+        "⛔ 印を付けたまま未訳を残さないこと。画面はその言語なのに z2-* だけ英語、になる。"
+    )
+    return 1
 
 
 def show_missing(lang: str, as_xml: bool) -> None:
@@ -136,14 +199,17 @@ def main() -> None:
     ap = argparse.ArgumentParser(add_help=False)
     ap.add_argument("--missing", metavar="言語")
     ap.add_argument("--xml", action="store_true")
+    ap.add_argument("--check", action="store_true")
     ap.add_argument("-h", "--help", action="store_true")
     args = ap.parse_args()
     if args.help:
         print(__doc__)
         return
     langs = roster()
-    if args.missing:
-        if args.missing not in langs:
+    if args.check:
+        sys.exit(run_check(langs))
+    elif args.missing:
+        if args.missing not in [c for c, _ in langs]:
             sys.exit(f"{args.missing} は名簿にありません。まず AppLanguages.ALL に足すこと。")
         show_missing(args.missing, args.xml)
     else:

@@ -15,9 +15,16 @@
 #   bash scripts/i18n-status.sh --missing ja    # その言語で未訳の res キーを出す
 #   bash scripts/i18n-status.sh --missing ja --xml
 #                                               # 未訳キーを strings.xml に貼れる形で出す
+#   bash scripts/i18n-status.sh --check         # 完訳を宣言した言語を検査する (落ちる)
 #
-# 終了コード: 未訳があっても 0。⚠ **落とすのは lint の仕事** (MissingTranslation)。
+# 終了コード: --check 以外は、未訳があっても 0。
 # ここは「あとどれだけか」を見るための道具で、作業を止めるためのものではない。
+#
+# ⭐ **--check だけは落とすためにある。** AppLanguages.kt で cliComplete = true を付けた
+# 言語（= 端末に出る文言まで訳しきったと宣言した言語）に未訳があれば終了コード 1 を返す。
+# ⚠ res は見ない — そちらは lint の MissingTranslation が error で守っている。
+# CI ではユニットテスト CliTranslationCheckTest がこれを呼ぶので、訳を足さずに
+# 新しい文言を書くと testDebugUnitTest が落ちる。
 
 set -euo pipefail
 
