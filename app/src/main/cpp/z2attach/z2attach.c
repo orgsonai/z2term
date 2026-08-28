@@ -161,7 +161,32 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if (send_frame(fd, F_TARGET, (const unsigned char *)target, strlen(target)) < 0 ||
+    // 繋ぎ先と「自分が居るタブ」を 1 通で渡す。改行より後ろが自分の id (無ければ省く)。
+    //
+    // ⭐ **自分自身へ繋ぐと暴走する。** 送った先の出力はこちらの標準出力へ書かれ、それは
+    // 同じタブの出力なので、また送られてくる。止まらないので、アプリ側 (AttachServer) が
+    // 断れるように「呼んだ側がどのタブか」を渡す。ゲストの中からタブを知る手段はこの
+    // 環境変数だけ ([ProotLauncher] が起動時に入れる)。
+    //
+    // ⚠ 古いアプリと新しい z2attach の組み合わせでは、改行から後ろは
+    // 「繋ぎ先の名前の一部」として扱われて**そんなタブは無いと言われる**。z2attach は
+    // 起動のたびにアプリが rootfs へ配り直すので実運用では起きないが、id が無いときに
+    // 改行ごと省いておけば、少なくとも普段の使い方では以前と同じバイト列になる。
+    const char *self = getenv("Z2_SESSION_ID");
+    unsigned char hello[MAX_PAYLOAD];
+    size_t hello_len = strlen(target);
+    if (hello_len > sizeof(hello)) hello_len = sizeof(hello);
+    memcpy(hello, target, hello_len);
+    if (self != NULL && self[0] != '\0') {
+        size_t self_len = strlen(self);
+        if (hello_len + 1 + self_len <= sizeof(hello)) {
+            hello[hello_len++] = '\n';
+            memcpy(hello + hello_len, self, self_len);
+            hello_len += self_len;
+        }
+    }
+
+    if (send_frame(fd, F_TARGET, hello, hello_len) < 0 ||
         send_size(fd) < 0) {
         fprintf(stderr, "z2-session attach: cannot talk to the app\n");
         close(fd);

@@ -108,6 +108,11 @@ fun dropbearBootstrapScript(
         |# z2term: sshd 互換ラッパー (バックエンド dropbear。OpenSSH sshd は proot 不可)
         |# 既定で安全側 (127.0.0.1 のみ bind / パスワード認証禁止 / 空パスワード root 禁止)。
         |# LAN/WAN 公開したい場合は `sshd --lan` または env Z2_SSHD_LAN=1 で明示有効化。
+        |
+        |# ⚠ タブの id を SSH ログインへ持ち込まない。これを手で起動したタブの
+        |# Z2_SESSION_ID を dropbear の子 (ログインシェル) が受け継ぐと、別の端末から繋いだ
+        |# 人がそのタブへ `z2-session attach` できなくなる (自分自身と誤判定される)。
+        |unset Z2_SESSION_ID
         |DEFAULT_PORT=$defaultPort
         |CONFIG=/etc/ssh/sshd_config
         |PORT=""

@@ -130,6 +130,7 @@ object AttachServer {
         val writeLock = Any()
         var detach: (() -> Unit)? = null
         var held = false
+        var linked: Pair<String, String>? = null
         try {
             // 最初のフレームは必ず繋ぎ先。
             val first = readFrame(input) ?: return
@@ -137,16 +138,26 @@ object AttachServer {
                 sendFrame(output, writeLock, F_NOTICE, "ERR protocol".toByteArray())
                 return
             }
-            val target = String(first.payload, Charsets.UTF_8)
+            // 「繋ぎ先」＋改行＋「呼んだ側のタブ id」。id は付かないこともある
+            // (SSH ログインや自動化からの呼び出し = どのタブにも属さない)。
+            val hello = String(first.payload, Charsets.UTF_8)
+            val nl = hello.indexOf('\n')
+            val target = if (nl >= 0) hello.substring(0, nl) else hello
+            val callerId = if (nl >= 0) hello.substring(nl + 1).trim() else ""
             val m = Z2ApiMsg(en = LocaleHelper.language(context) != LocaleHelper.LANG_JA, d = "$")
 
             val session = onMain { Z2ApiBridge.resolveSession(target) }
-            val refusal = refusalFor(session, target, m)
+            val refusal = refusalFor(session, target, callerId, m)
             if (refusal != null) {
                 sendFrame(output, writeLock, F_NOTICE, "ERR $refusal".toByteArray(Charsets.UTF_8))
                 return
             }
             val term = session as TerminalSession
+            // 輪の見張りに登録する (id が無い呼び出しは辿りようがないので登録しない)。
+            if (callerId.isNotEmpty()) {
+                linked = callerId to term.id
+                link(callerId, term.id)
+            }
             sendFrame(
                 output, writeLock, F_NOTICE,
                 "OK ${term.label.value}".toByteArray(Charsets.UTF_8)
@@ -188,6 +199,9 @@ object AttachServer {
             // ⚠ 外し忘れると PTY の出力が閉じた接続へ流れ続け、広さも戻らない。
             runCatching { onMain { detach?.invoke() } }
             if (held) runCatching { AttachHold.release(context) }
+            // ⚠ 輪の記録も必ず外す。残すと**もう繋がっていない相手のせいで断られる**ようになり、
+            //   アプリを立ち上げ直すまで直らない。
+            linked?.let { (from, to) -> unlink(from, to) }
             runCatching { client.close() }
         }
     }
@@ -199,12 +213,63 @@ object AttachServer {
      * 同じ約束。特に「まだ起動していない」は **こちらから勝手に起こさない**
      * (繋いだつもりが OS の初回ダウンロードを始める、を作らない)。
      */
-    private fun refusalFor(session: Any?, target: String, m: Z2ApiMsg): String? = when {
+    private fun refusalFor(
+        session: Any?,
+        target: String,
+        callerId: String,
+        m: Z2ApiMsg
+    ): String? = when {
         session == null -> m.attachNoSuchTab(target)
         session !is TerminalSession -> m.attachNotTerminal
         session.uiState.value.state == TerminalSession.TerminalState.IDLE -> m.attachNotStarted
         session.uiState.value.state == TerminalSession.TerminalState.EXITED -> m.attachExited
+        // ⛔ 自分自身。繋ぐと**そのタブの出力がそのタブへ書き戻され続けて止まらない**。
+        callerId.isNotEmpty() && callerId == session.id -> m.attachSelf
+        // ⛔ 遠回りの同じ罠 (A から B へ繋いでいる状態で、その中から A へ繋ぐ)。
+        makesLoop(callerId, session.id) -> m.attachLoop
         else -> null
+    }
+
+    // --- 輪の見張り ---------------------------------------------------------
+    //
+    // ⭐ **繋ぎ方が輪になると暴走する。** A の出力を B へ、B の出力を A へ流すと、
+    // 片方が出した 1 文字が永久に往復して増え続ける (自分自身はその最小形)。断るには
+    // 「今どのタブがどのタブへ繋いでいるか」だけ分かればよいので、それだけを持つ。
+    //
+    // ⚠ **同じ組を 2 本繋げる**ことがあるので集合ではなく並びで持つ。集合にすると
+    // 1 本外しただけで両方外れたことになり、見張りが緩む。
+
+    /** 呼んだ側のタブ id → 繋ぎ先のタブ id (今つながっているぶんだけ)。 */
+    private val links = HashMap<String, MutableList<String>>()
+
+    private fun link(from: String, to: String) {
+        synchronized(links) { links.getOrPut(from) { ArrayList(1) }.add(to) }
+    }
+
+    private fun unlink(from: String, to: String) {
+        synchronized(links) {
+            val list = links[from] ?: return
+            list.remove(to)
+            if (list.isEmpty()) links.remove(from)
+        }
+    }
+
+    /** [target] から辿っていくと [callerId] へ戻ってくるか (= 輪になるか)。 */
+    private fun makesLoop(callerId: String, target: String): Boolean {
+        if (callerId.isEmpty()) return false
+        synchronized(links) {
+            val seen = HashSet<String>()
+            val queue = ArrayDeque<String>()
+            queue.add(target)
+            while (queue.isNotEmpty()) {
+                val cur = queue.removeFirst()
+                if (cur == callerId) return true
+                // ⚠ 既に見た所で止める。輪が既に出来ていた場合にここが回り続けないため。
+                if (!seen.add(cur)) continue
+                links[cur]?.let { queue.addAll(it) }
+            }
+        }
+        return false
     }
 
     // --- 画面を色ごと組み直す -----------------------------------------------

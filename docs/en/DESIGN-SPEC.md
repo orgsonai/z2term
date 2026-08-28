@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-27 / Target version: 0.8.418-alpha (versionCode 426)
+Last updated: 2026-08-28 / Target version: 0.8.419-alpha (versionCode 427)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -543,6 +543,10 @@ means would then depend on the payload, which cannot be explained to anyone.
   - ⚠ **The one-line hint is written for the environment it runs in** (`SSH_TTY` / `SSH_CONNECTION` / `SSH_CLIENT`). Offering `~.` over SSH would mean "I typed what it said and my SSH session died".
 - **The client is a small native program** (`app/src/main/cpp/z2attach/z2attach.c`): `/bin/sh` cannot put the terminal in raw mode, cannot wait on stdin and a socket at once, and cannot catch `SIGWINCH`. ⚠ Only `lib*.so` names are unpacked into `nativeLibraryDir` at install, so it ships as `libz2attach.so` and is provisioned into the rootfs as `z2attach` (the same trick as `libz2accept.so`). ⚠ **Always restore the terminal, even on an abnormal exit** — leaving it raw is the worst failure mode there is.
 - ⛔ **Refusals say why** (the promise `key` set): a GUI tab, a tab that has not started, a tab that already exited, and no such tab each get their own answer. ⚠ **Never start a stopped tab from here** — attaching must not kick off a first-run OS download.
+- ⛔ **A loop is refused (0.8.419).** Attaching the tab you are typing in makes **its own output come back as its own output, forever** (`z2attach`'s stdout *is* that tab's PTY, so everything sent comes straight back). There is no way for a person to stop it, so **not allowing it** is the only answer.
+  - **Only an environment variable can tell the caller which tab it sits in.** `Z2_SESSION_ID=<tab id>` goes in at launch (`ProotLauncher.launch` / `launchChroot` — the chroot path builds its environment with `env -i`, so it has to be added explicitly), and `z2attach` sends **target + newline + its own id** in the first frame. With no id the newline is left out too, so calls that belong to no tab (SSH logins, automation) go through exactly as before.
+  - ⚠ **Do not leak it into SSH logins.** Starting `sshd` by hand from a tab hands the value to dropbear's children, and **someone connecting from another machine could no longer attach to that tab** (they would be mistaken for it). The sshd wrapper starts with `unset Z2_SESSION_ID`. sshd started as a resident server comes from `HeadlessRun` and never had it.
+  - **The long way round is refused too.** With A attached to B, attaching back to A from inside it sends A's output to B and B's output to A — the same runaway. `AttachServer` keeps only "which tab is attached to which" (`links`) and refuses when following the target leads back to the caller. ⚠ The **same pair can be attached twice**, so it is a list, not a set (a set would loosen the guard as soon as one of them detaches). ⚠ Always remove the link on the way out — a stale one refuses on behalf of a connection that no longer exists, and nothing but restarting the app clears it.
 - **While attached the app is held resident** (`AttachHold`), because being killed mid-session from the PC is the worst outcome; it reuses the same `TerminalService` that 🔒 starts. ⚠ **The `keepAliveService` setting is never written** (that would leave the user's setting changed after detaching). ⚠ **Only release what you acquired** — if 🔒 is on or a resident server is running, residency belongs to them.
 - `list` gained the **`@` (attached)** mark; without it there is no way to tell from the phone which tab someone is holding from a PC. ⚠ **Marks stack** (`*@` = visible and attached).
 

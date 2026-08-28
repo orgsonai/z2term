@@ -728,6 +728,31 @@ internal class Z2ApiMsg(private val en: Boolean, private val d: String) {
         "そのタブはもう終わっています。画面は 'z2-session capture' で取り出せます。"
     }
 
+    /**
+     * 自分自身のタブ。⛔ **繋がせない。** 繋ぐとそのタブの出力がそのタブへ書き戻され、
+     * それがまた出力として送られて**止まらなくなる**。
+     * ⚠ 「できません」で終えず、**なぜ止められないのか**まで書く (この断りだけが唯一の説明)。
+     */
+    val attachSelf: String = if (en) {
+        "that is the tab you are typing in. Attaching a tab to itself makes its own output " +
+            "come back as input forever, so it cannot be undone. Pick another tab."
+    } else {
+        "それは今あなたが打っているタブ自身です。自分に繋ぐと、そのタブの出力がそのまま" +
+            "自分へ戻り続けて止められなくなります。別のタブを指してください。"
+    }
+
+    /**
+     * 遠回りで輪になる指定 (A から B へ繋いだ状態で、その中から A へ繋ぐ)。
+     * [attachSelf] と同じ暴走の遠回り版。
+     */
+    val attachLoop: String = if (en) {
+        "that tab is already attached back to this one, so the two would feed each other " +
+            "forever. Detach one of them first (Ctrl+])."
+    } else {
+        "そのタブは既にこちら側へ繋がっているので、互いに送り合って止まらなくなります。" +
+            "どちらかを先に外してください (Ctrl+])。"
+    }
+
     // --- z2-server ---
 
     val serverHelp: String = if (en) """

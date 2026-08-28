@@ -671,6 +671,7 @@ class TerminalSession(
                             fallbackShell = spec.defaultShell,
                             loginShell = shell,
                             display = display,
+                            sessionId = id,
                         )
                     }.getOrElse { e ->
                         Log.w(TAG, "chroot launch failed, falling back to z2root", e)
@@ -690,6 +691,7 @@ class TerminalSession(
                             loginShell = shell,
                             display = display,
                             exportDisplay = true,
+                            sessionId = id,
                         )
                     }
                 } else {
@@ -703,6 +705,7 @@ class TerminalSession(
                         loginShell = shell,
                         display = display,
                         exportDisplay = true,
+                        sessionId = id,
                     )
                 }
                 _actualEngine.value = engineUsed

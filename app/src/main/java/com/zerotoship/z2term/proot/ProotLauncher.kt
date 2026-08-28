@@ -247,7 +247,23 @@ class ProotLauncher(private val context: Context) {
          *
          * z2root 専用オプション。
          */
-        waitTracees: Boolean = false
+        waitTracees: Boolean = false,
+        /**
+         * このタブの id (空なら付けない)。`Z2_SESSION_ID` として端末の中へ流す。
+         *
+         * ⭐ **用途は「自分自身に繋ごうとしているか」の判定 1 つだけ**
+         * ([com.zerotoship.z2term.service.AttachServer])。タブの中から `z2-session attach` で
+         * 同じタブへ繋ぐと、そのタブの出力がそのタブの出力として書き戻され続ける
+         * **暴走ループ**になる。断るには「呼んだ側がどのタブか」が要るが、ゲストの中から
+         * それを知る手段は他に無い。
+         *
+         * ⚠ **SSH ログインへ漏らさない。** これを持ったタブから `sshd` を手で起動すると
+         * dropbear の子 (= SSH ログインのシェル) がこの値を受け継ぎ、**別の端末から繋いだ
+         * 人が、そのタブへ attach できなくなる**。sshd ラッパーの先頭で `unset` している
+         * ([dropbearBootstrapScript])。常駐サーバー経由の sshd は [HeadlessRun] 起動なので
+         * 元から空。
+         */
+        sessionId: String = ""
     ): PtyProcess {
         val rootfs = File(distrosDir, distroId)
         if (!rootfs.exists()) {
@@ -464,7 +480,11 @@ class ProotLauncher(private val context: Context) {
             // 「なぜか動かない」としか見えないため、判断そのものを残す。
             "Z2ROOT_SOCKLOG=${File(sharedHomeDir, ".z2term/socktrace.log").absolutePath}",
             "Z2ROOT_ENGINE=1"
-        ) + listOfNotNull(xdgRuntimeDir?.let { "XDG_RUNTIME_DIR=$it" })
+        ) + listOfNotNull(
+            xdgRuntimeDir?.let { "XDG_RUNTIME_DIR=$it" },
+            // 自分自身への attach を断るための目印 (詳細は [sessionId])。
+            sessionId.takeIf { it.isNotBlank() }?.let { "Z2_SESSION_ID=$it" }
+        )
             + displayEnv + z2rootEnv()).toTypedArray()
 
         Log.i(TAG, "Launching z2root: distro=$distroId, command=$resolvedCommand (requested=$command)")
@@ -496,7 +516,9 @@ class ProotLauncher(private val context: Context) {
         /** 設定「ログインシェル」。proot 経路と同じく `/etc/passwd`(root) に反映して SSH にも効かせる。 */
         loginShell: String = "",
         guiTerminal: GuiTerminal = GuiTerminal.XTERM,
-        display: Int? = null
+        display: Int? = null,
+        /** proot 経路と同じ (`launch` の `sessionId`)。自分自身への attach を断るための目印。 */
+        sessionId: String = ""
     ): PtyProcess {
         val rootfs = File(distrosDir, distroId)
         if (!rootfs.exists()) throw IllegalStateException("Rootfs not found: ${rootfs.absolutePath}")
@@ -547,7 +569,7 @@ class ProotLauncher(private val context: Context) {
         val resolvedShell = resolveShell(rootfs, command, fallbackShell)
         val script = chrootBootstrap(
             rootfs.absolutePath, sharedHomeDir.absolutePath, resolvedShell,
-            display, externalVolumes, androidHostBind, isolatedHomeBinds(distroId)
+            display, externalVolumes, androidHostBind, isolatedHomeBinds(distroId), sessionId
         )
 
         Log.i(TAG, "Launching chroot: distro=$distroId, su=$su, shell=$resolvedShell")
@@ -609,12 +631,16 @@ class ProotLauncher(private val context: Context) {
         display: Int?,
         externalVolumes: List<String> = emptyList(),
         androidHostBind: Boolean = false,
-        homeOverlayBinds: List<Pair<File, String>> = emptyList()
+        homeOverlayBinds: List<Pair<File, String>> = emptyList(),
+        sessionId: String = ""
     ): String {
         val rfs = shq(rootfs)
         val home = shq(sharedHome)
         val sh = shq(shell)
         val displayEnv = if (display != null) " DISPLAY=:$display Z2_DISPLAY=$display Z2_RFBPORT=${5900 + display}" else ""
+        // 自分自身への attach を断るための目印 (proot 経路の `Z2_SESSION_ID` と同じ)。
+        // ⚠ `env -i` で組み立てているので、ここに書かない限り渡らない。
+        val sessionEnv = if (sessionId.isNotBlank()) " Z2_SESSION_ID=${shq(sessionId)}" else ""
         return buildString {
             append("export PATH=/system/bin:/system/xbin:/vendor/bin:\$PATH\n")
             append("RFS=").append(rfs).append('\n')
@@ -674,6 +700,7 @@ class ProotLauncher(private val context: Context) {
             // ⚠ proot 経路と同じくマクロ置き場を末尾に足す (0.8.287)。
             append("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$MACRO_DIR TMPDIR=/tmp")
             append(displayEnv)
+            append(sessionEnv)
             // 制御端末を取り直してジョブ制御 / Ctrl+C を効かせる。
             // chroot は su(magiskd)経由で起動するため root shell が PTY を制御端末として
             // 所有できず "no job control" になり、Ctrl+C(VINTR)の SIGINT が走行中コマンドへ
