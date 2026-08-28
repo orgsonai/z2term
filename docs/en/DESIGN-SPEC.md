@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-28 / Target version: 0.8.420-alpha (versionCode 428)
+Last updated: 2026-08-28 / Target version: 0.8.421-alpha (versionCode 429)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2553,6 +2553,22 @@ into "close" — you would not be able to delete while the pad is open.
 
 - Multiple tabs (**long-press → drag left/right to reorder**, double-tap to close. **A close-confirm dialog is shown only when a child process is running in the foreground of that tab** — to prevent an accidental tap from discarding work; if the login shell is in the foreground it closes immediately as before. The check compares PTY master `tcgetpgrp` against the **idle-prompt foreground pgid (measured once at startup)**. 0.8.157 compared it against `shellPid`, but `shellPid` is the forkpty child = the **engine (proot/z2root) process pid**, a different pgid from the guest login shell, so it never matched → **always flagged "busy"**; switching to the measured baseline fixes it. 0.8.157, fixed 0.8.160), pinch font zoom (8–32sp), scroll + a ↓ to return to latest, snippets, live theme/font preview.
 - Settings (`SettingsSheet`): in 0.8.14, dropped the old bottom sheet stacking from below and now shows as a **full-screen "separate page"** (back arrow ← at top + system-back support).
+
+### 6.8.1 App lock (A2, 0.8.421)
+
+Confirms who you are before the screen appears (`security/AppLock.kt` + `ui/lock/LockScreen.kt`). Off by default.
+
+- ⛔ **It protects the screen and nothing else.** Sessions, resident servers and `z2-session attach` **keep running while locked**. Stopping them would break automation and residency — "I turned the lock on and the overnight build was dead". ⚠ **This boundary is written both in the settings screen and in the HANDBOOK** — without it, a lock reads as protecting what is inside.
+- ⭐ **No dependency added.** `androidx.biometric` is not pulled in; the platform's `android.hardware.biometrics.BiometricPrompt` (API 28+, min 29) is used directly, in keeping with shipping nothing extra and with the F-Droid submission. The cost is absorbing the API split ourselves (`setAllowedAuthenticators` from API 30, `setDeviceCredentialAllowed` before that).
+- ⛔ **Not fingerprint-only.** A wet finger, a broken sensor, or no enrolled biometrics would each lock the owner out. `DEVICE_CREDENTIAL` (the screen-lock PIN/pattern) is allowed. ⭐ Allowing it also **removes the need for a negative button** — with both authenticators set, adding `setNegativeButton` makes `build()` throw, so the code gets simpler.
+- ⛔ **It cannot be switched on where nothing can confirm you** (`isAvailable`) — that would create an app that can never be opened again. API 30+ asks `BiometricManager.canAuthenticate(BIOMETRIC_WEAK or DEVICE_CREDENTIAL)`; API 29 cannot ask per authenticator, so `KeyguardManager.isDeviceSecure` stands in.
+- **Three states (`UNKNOWN` / `LOCKED` / `UNLOCKED`).** ⚠ **"Settings not read yet" must not fall through to "not locked"** — DataStore is asynchronous, so falling through **shows the terminal for a few frames** (and can leave it in the recents thumbnail). While `UNKNOWN`, the terminal screen is not composed at all.
+- **When it locks is chosen in settings** (the user's call): at once / after 30s / after 1 min / after 5 min / on launch only. Default 30s — ⭐ so a single round trip to another app (copy from the browser, glance at a notification) is not interrupted. ⚠ **Launching always locks**, whatever the grace is (the grace is about coming back).
+- ⚠ **A rotation or a language switch is not "leaving".** Recreating the Activity also passes through `onStop`, so without the `isChangingConfigurations` guard, **the "at once" grace would lock on every rotation**.
+- ⚠ **Never re-lock while it is in use.** A lock screen appearing the moment the setting is turned on shuts out the person who just turned it on. Turning it on takes effect from the next time you leave and come back; turning it off unlocks immediately.
+- **The prompt is driven by the state change** (`repeatOnLifecycle(RESUMED)` collecting `AppLock.state`). ⚠ **`onResume` cannot do it** — on a cold start the state is still `UNKNOWN` there, which would show up as "it only fails to prompt on a cold start". ⚠ **Never re-prompt after a refusal** (`unlockFailed`) — that walks into the platform lockout without anyone pressing anything. Re-trying is the button on the lock screen.
+- **`FLAG_SECURE` only while away.** ⭐ So the recent-apps thumbnail does not keep the contents — a lock is not a lock if the switcher still shows the last screen. ⚠ **Not permanently**, or screenshots while actually using the terminal would be blocked too. ⚠ It goes up in `onPause`, so its ordering against the snapshot is up to the device.
+- **Its own settings group** (`SettingsGroup.APP_LOCK`). ⚠ **The heading is the feature's own name** — a container name like "Security" hides that there is only one thing inside, and any existing group would make it the last place someone looks.
 
 ### 6.9 Offering the built-in keyboard as an OS input method (`Z2ImeService`, 0.8.276)
 

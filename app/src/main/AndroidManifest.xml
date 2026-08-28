@@ -38,6 +38,11 @@
     <!-- Android API ブリッジ: z2-vibrate 用 (通常権限・実行時要求不要) -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- アプリロック (設定で ON にしたときだけ使う)。通常権限・実行時要求不要。
+         ⚠ 生体が無い端末でも画面ロック (PIN/パターン) で確認できるようにしてあるので、
+         生体センサーは必須にしない (uses-feature を書かない = 無い端末も導入できる)。 -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
     <!-- z2-screen: OS の自動画面消灯までの時間 (SCREEN_OFF_TIMEOUT) を期限つきで延ばすため。
          宣言しただけでは効かない特別権限で、利用者が「システム設定の変更」画面で明示的に
          許可したときだけ書き換えられる (設定 › 画面の自動消灯 から誘導する)。

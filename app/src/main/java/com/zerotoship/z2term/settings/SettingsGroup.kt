@@ -61,6 +61,20 @@ enum class SettingsGroup(
         false
     ),
 
+    /**
+     * アプリロック (本人確認) — 0.8.421。
+     *
+     * ⚠ **見出しをそのまま機能の名前にしてある。** 「セキュリティ」のような入れ物の名前に
+     * すると、中に 1 つしかないのに開けるまで何があるか分からない。表示・キーボード・Linux の
+     * どれにも属さないので、既存のグループへ押し込むと**探す人が最後に開く場所**になる。
+     */
+    APP_LOCK(
+        "app_lock",
+        R.string.settings_group_app_lock,
+        R.string.settings_group_app_lock_desc,
+        false
+    ),
+
     /** 端末リセット / キャッシュ削除 / 設定の初期化 */
     MAINTENANCE(
         "maintenance",

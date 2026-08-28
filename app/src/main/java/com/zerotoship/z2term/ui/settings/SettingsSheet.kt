@@ -107,6 +107,7 @@ import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.backup.AutoBackup
 import com.zerotoship.z2term.service.NetGuard
+import com.zerotoship.z2term.security.AppLock
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.BatteryGuard
 import com.zerotoship.z2term.settings.CustomThemeStore
@@ -1686,6 +1687,64 @@ fun SettingsSheet(
                     )
                     Text(
                         text = stringResource(R.string.settings_unlock_watch_help),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+
+            SettingsGroupSection(SettingsGroup.APP_LOCK) {
+                // 本人確認の手段が端末に無ければ、ON にさせない。⛔ ON にできてしまうと
+                // 「二度と開けないアプリ」を作ることになる。判定は OS の状態なので
+                // remember しない (設定画面で PIN を掛けて戻ってきたら効いてほしい)。
+                val lockAvailable = AppLock.isAvailable(context)
+                Section(title = stringResource(R.string.settings_section_app_lock)) {
+                    if (!lockAvailable) {
+                        Text(
+                            text = stringResource(R.string.settings_app_lock_unavailable),
+                            color = ZtsWarning,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                    ToggleField(
+                        title = stringResource(R.string.settings_app_lock_toggle),
+                        description = stringResource(R.string.settings_app_lock_toggle_desc),
+                        checked = settings.appLockEnabled && lockAvailable,
+                        onChange = { session.setAppLockEnabled(it) },
+                        locked = !lockAvailable
+                    )
+                    // 猶予は ON のときだけ出す (OFF のまま並べても意味を持たない)。
+                    if (settings.appLockEnabled && lockAvailable) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.settings_app_lock_grace),
+                            color = ZtsTextPrimary,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_app_lock_grace_desc),
+                            color = ZtsTextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        ChipRow(
+                            options = AppSettings.APP_LOCK_GRACE_CHOICES.map { it.toString() },
+                            selected = settings.appLockGraceSec.toString(),
+                            labels = AppSettings.APP_LOCK_GRACE_CHOICES.associate { sec ->
+                                sec.toString() to stringResource(appLockGraceLabel(sec))
+                            },
+                            onSelect = { v -> v.toIntOrNull()?.let { session.setAppLockGraceSec(it) } }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    // ⚠ 何を守れないかを画面に書く。ここを書かないと「ロックしたのだから
+                    //    裏の作業も止まる/守られる」と読まれる。
+                    Text(
+                        text = stringResource(R.string.settings_app_lock_note),
                         color = ZtsTextSecondary,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
@@ -3302,6 +3361,21 @@ private fun FaceMoveButton(label: String, enabled: Boolean, onClick: () -> Unit)
  * 見た目は他の設定セクションと同じ [Section] を使う。Tips だけ別の意匠にすると、
  * 設定の中に別のアプリが挟まったように見える。
  */
+/**
+ * アプリロックの猶予 (秒) → 画面の文言。
+ *
+ * ⚠ **秒数を組み立てて表示しない** (`"%d秒後"`)。「すぐ」と「起動時だけ」は秒では
+ * 言い表せず、数字で出すと 0 秒・-1 秒という意味の分からない選択肢になる。
+ */
+@StringRes
+private fun appLockGraceLabel(sec: Int): Int = when (sec) {
+    AppSettings.APP_LOCK_GRACE_IMMEDIATE -> R.string.settings_app_lock_grace_0
+    60 -> R.string.settings_app_lock_grace_60
+    300 -> R.string.settings_app_lock_grace_300
+    AppSettings.APP_LOCK_GRACE_LAUNCH_ONLY -> R.string.settings_app_lock_grace_launch
+    else -> R.string.settings_app_lock_grace_30
+}
+
 @Composable
 private fun TipsSection() {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {

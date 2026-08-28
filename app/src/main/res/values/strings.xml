@@ -16,6 +16,8 @@
     <string name="settings_group_linux_desc">OS, shell, storage and GUI terminal</string>
     <string name="settings_group_automation">Resident servers and automation</string>
     <string name="settings_group_automation_desc">Background operation, servers, notifications and event integration</string>
+    <string name="settings_group_app_lock">App lock</string>
+    <string name="settings_group_app_lock_desc">Ask who you are before opening</string>
     <string name="settings_group_maintenance">Maintenance</string>
     <string name="settings_group_maintenance_desc">Backup, guides, cache cleanup and reset</string>
     <string name="settings_group_developer">Developer</string>
@@ -1139,4 +1141,24 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="net_limit_grant">Open usage access settings</string>
     <string name="net_limit_notify_title">Data limit reached</string>
     <string name="net_limit_notify_text">The phone has used %1$s of %2$s. z2term\'s mobile connections are stopped until the next period (your home network and Wi-Fi still work).</string>
+
+    <!-- App lock (0.8.419) -->
+    <string name="lock_title">z2term is locked</string>
+    <string name="lock_desc">Confirm it is you to open the terminal.</string>
+    <string name="lock_unlock">Unlock</string>
+    <string name="lock_failed">Not confirmed. Tap “Unlock” to try again.</string>
+    <string name="lock_prompt_title">Unlock z2term</string>
+    <string name="lock_prompt_subtitle">Fingerprint, face, or your screen lock.</string>
+    <string name="settings_section_app_lock">App lock</string>
+    <string name="settings_app_lock_toggle">Ask before showing the screen</string>
+    <string name="settings_app_lock_toggle_desc">Asks for your fingerprint, face, or screen lock (PIN/pattern) before the terminal is shown.</string>
+    <string name="settings_app_lock_unavailable">⚠ This phone has no screen lock set, so there is nothing to check against. Set a PIN, pattern, or password in the system settings first.</string>
+    <string name="settings_app_lock_grace">When it locks</string>
+    <string name="settings_app_lock_grace_desc">It always locks when the app starts. This is about coming back after leaving it.</string>
+    <string name="settings_app_lock_grace_0">at once</string>
+    <string name="settings_app_lock_grace_30">after 30s</string>
+    <string name="settings_app_lock_grace_60">after 1 min</string>
+    <string name="settings_app_lock_grace_300">after 5 min</string>
+    <string name="settings_app_lock_grace_launch">on launch only</string>
+    <string name="settings_app_lock_note">⚠ This hides the screen, nothing more. Sessions, resident servers and “z2-session attach” keep running while locked — stopping them would break anything left working overnight.</string>
 </resources>

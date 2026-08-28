@@ -16,6 +16,8 @@
     <string name="settings_group_linux_desc">OS・シェル・ストレージ・GUI ターミナル</string>
     <string name="settings_group_automation">常駐サーバー・自動化</string>
     <string name="settings_group_automation_desc">バックグラウンド動作・サーバー・通知やイベント連携</string>
+    <string name="settings_group_app_lock">アプリロック</string>
+    <string name="settings_group_app_lock_desc">開くときに本人確認を求める</string>
     <string name="settings_group_maintenance">メンテナンス</string>
     <string name="settings_group_maintenance_desc">バックアップ・案内・キャッシュ整理・設定の初期化</string>
     <string name="settings_group_developer">開発者向け</string>
@@ -1123,4 +1125,24 @@ SSH 接続先 %3$d 件
     <string name="net_limit_grant">許可の画面を開く</string>
     <string name="net_limit_notify_title">通信量が上限に達しました</string>
     <string name="net_limit_notify_text">スマホ全体で %1$s / %2$s を使いました。次の期間まで z2term のモバイル通信を止めます（家の中への接続と Wi-Fi はそのまま使えます）。</string>
+
+    <!-- アプリロック (0.8.419) -->
+    <string name="lock_title">z2term はロック中です</string>
+    <string name="lock_desc">本人確認をすると端末の画面が出ます。</string>
+    <string name="lock_unlock">ロックを解除</string>
+    <string name="lock_failed">確認できませんでした。「ロックを解除」でやり直せます。</string>
+    <string name="lock_prompt_title">z2term のロックを解除</string>
+    <string name="lock_prompt_subtitle">指紋・顔、または画面ロック（PIN／パターン）で確認します。</string>
+    <string name="settings_section_app_lock">アプリロック</string>
+    <string name="settings_app_lock_toggle">画面を出す前に本人確認をする</string>
+    <string name="settings_app_lock_toggle_desc">端末の画面を出す前に、指紋・顔・画面ロック（PIN／パターン）で確認します。</string>
+    <string name="settings_app_lock_unavailable">⚠ この端末には画面ロックが設定されていないため、確認する手段がありません。先に本体の設定で PIN・パターン・パスワードのどれかを設定してください。</string>
+    <string name="settings_app_lock_grace">ロックが掛かるまで</string>
+    <string name="settings_app_lock_grace_desc">アプリを起動したときは必ず掛かります。ここで決めるのは「離れて戻ってきたとき」です。</string>
+    <string name="settings_app_lock_grace_0">すぐ</string>
+    <string name="settings_app_lock_grace_30">30秒後</string>
+    <string name="settings_app_lock_grace_60">1分後</string>
+    <string name="settings_app_lock_grace_300">5分後</string>
+    <string name="settings_app_lock_grace_launch">起動時だけ</string>
+    <string name="settings_app_lock_note">⚠ 隠せるのは画面だけです。ロック中もセッション・常駐サーバー・「z2-session attach」は動き続けます（止めると、夜通し走らせている作業が壊れるため）。</string>
 </resources>

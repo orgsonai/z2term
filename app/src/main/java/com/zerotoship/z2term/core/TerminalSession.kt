@@ -561,6 +561,8 @@ class TerminalSession(
     fun setServerEntries(json: String) { scope.launch { settings.setServerEntries(json) } }
     fun setServersAutostartOnBoot(enabled: Boolean) { scope.launch { settings.setServersAutostartOnBoot(enabled) } }
     fun setServersLowPower(enabled: Boolean) { scope.launch { settings.setServersLowPower(enabled) } }
+    fun setAppLockEnabled(enabled: Boolean) { scope.launch { settings.setAppLockEnabled(enabled) } }
+    fun setAppLockGraceSec(seconds: Int) { scope.launch { settings.setAppLockGraceSec(seconds) } }
     fun setNotificationCaptureEnabled(enabled: Boolean) { scope.launch { settings.setNotificationCaptureEnabled(enabled) } }
     fun setNotificationLogEnabled(enabled: Boolean) { scope.launch { settings.setNotificationLogEnabled(enabled) } }
     fun setNotificationLogFormat(template: String) { scope.launch { settings.setNotificationLogFormat(template) } }

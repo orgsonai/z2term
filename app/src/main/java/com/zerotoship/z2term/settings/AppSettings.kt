@@ -435,7 +435,24 @@ class AppSettings(private val context: Context) {
          * 上限に達したことを知らせた期間の開始時刻 (epoch ミリ秒)。0 = まだ知らせていない。
          * **同じ期間に二度は知らせない**ため (毎回の見張りで通知が積み上がると読まれなくなる)。
          */
-        val netLimitNotifiedPeriod: Long = 0L
+        val netLimitNotifiedPeriod: Long = 0L,
+        /**
+         * アプリロック (0.8.421)。ON のとき、画面を出す前に**端末の本人確認**
+         * (指紋/顔、無ければ画面ロックの PIN/パターン) を求める。既定 OFF。
+         *
+         * ⚠ **守れるのは「画面」だけ**。裏で走っているセッション・常駐サーバー・
+         * `z2-session attach` はロック中も動き続ける (止めると自動化が壊れる)。
+         * 端末を人に渡したときに**画面を見られない**ためのもので、遠隔からの侵入を
+         * 防ぐものではない。docs にもそう書く。
+         */
+        val appLockEnabled: Boolean = DEFAULT_APP_LOCK,
+        /**
+         * ロックが掛かるまでの猶予 (秒)。**離れていた時間**がこれを超えたら次に戻るとき掛かる。
+         *
+         * `0` = すぐ (離れたら毎回) / `-1` = [APP_LOCK_GRACE_LAUNCH_ONLY] = アプリの起動時だけ。
+         * ⚠ 起動時は猶予に関係なく必ず掛かる (猶予は「戻ってきたとき」の話)。
+         */
+        val appLockGraceSec: Int = DEFAULT_APP_LOCK_GRACE
     )
 
     suspend fun setToolbarOrder(csv: String) {
@@ -592,7 +609,9 @@ class AppSettings(private val context: Context) {
             netLimitMb = p[KEY_NET_LIMIT_MB] ?: DEFAULT_NET_LIMIT_MB,
             netLimitResetDay = p[KEY_NET_LIMIT_RESET_DAY] ?: DEFAULT_NET_LIMIT_RESET_DAY,
             netLimitWifiExempt = p[KEY_NET_LIMIT_WIFI_EXEMPT] ?: DEFAULT_NET_LIMIT_WIFI_EXEMPT,
-            netLimitNotifiedPeriod = p[KEY_NET_LIMIT_NOTIFIED] ?: 0L
+            netLimitNotifiedPeriod = p[KEY_NET_LIMIT_NOTIFIED] ?: 0L,
+            appLockEnabled = p[KEY_APP_LOCK] ?: DEFAULT_APP_LOCK,
+            appLockGraceSec = p[KEY_APP_LOCK_GRACE] ?: DEFAULT_APP_LOCK_GRACE
         )
     }
 
@@ -731,6 +750,14 @@ class AppSettings(private val context: Context) {
 
     suspend fun setServersLowPower(enabled: Boolean) {
         context.dataStore.edit { it[KEY_SERVERS_LOW_POWER] = enabled }
+    }
+
+    suspend fun setAppLockEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_APP_LOCK] = enabled }
+    }
+
+    suspend fun setAppLockGraceSec(seconds: Int) {
+        context.dataStore.edit { it[KEY_APP_LOCK_GRACE] = seconds }
     }
 
     suspend fun setKittyExternalFileEnabled(value: Boolean) {
@@ -1097,6 +1124,8 @@ class AppSettings(private val context: Context) {
         private val KEY_NET_LIMIT_RESET_DAY = intPreferencesKey("net_limit_reset_day")
         private val KEY_NET_LIMIT_WIFI_EXEMPT = booleanPreferencesKey("net_limit_wifi_exempt")
         private val KEY_NET_LIMIT_NOTIFIED = longPreferencesKey("net_limit_notified_period")
+        private val KEY_APP_LOCK = booleanPreferencesKey("app_lock_enabled")
+        private val KEY_APP_LOCK_GRACE = intPreferencesKey("app_lock_grace_sec")
         private val KEY_SMS_LOG_FORMAT = stringPreferencesKey("sms_log_format")
         private val KEY_SMS_LOG_PREPEND = booleanPreferencesKey("sms_log_prepend")
 
@@ -1127,6 +1156,28 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_SERVERS_AUTOSTART = false
         /** 常駐サーバーの省電力モードは既定 OFF (既定は到達性優先で WakeLock/WifiLock を握る)。 */
         const val DEFAULT_SERVERS_LOW_POWER = false
+
+        /**
+         * アプリロックは既定 OFF。⛔ **勝手に ON にしない** — 本人確認の手段が
+         * 端末に登録されていない人を締め出すことになる。
+         */
+        const val DEFAULT_APP_LOCK = false
+
+        /** 猶予の選択肢 (秒)。`-1` は「アプリの起動時だけ」。 */
+        const val APP_LOCK_GRACE_LAUNCH_ONLY = -1
+        const val APP_LOCK_GRACE_IMMEDIATE = 0
+
+        /**
+         * 猶予の既定は 30 秒。⭐ **他のアプリへ 1 往復する操作を邪魔しない**ため
+         * (ブラウザからコピーして戻る・通知を見て戻る)。守りとしては「端末を置いて
+         * 離れた後」を押さえられる。
+         */
+        const val DEFAULT_APP_LOCK_GRACE = 30
+
+        /** 画面に並べる猶予の選択肢。 */
+        val APP_LOCK_GRACE_CHOICES = listOf(
+            APP_LOCK_GRACE_IMMEDIATE, 30, 60, 300, APP_LOCK_GRACE_LAUNCH_ONLY
+        )
 
         /** z2root syscall トレースログは既定 OFF (開発者用。ログが膨大で容量を圧迫する)。 */
         const val DEFAULT_TRACE_LOG = false

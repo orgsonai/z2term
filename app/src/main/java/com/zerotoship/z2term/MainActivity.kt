@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -14,16 +15,25 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
 import com.zerotoship.z2term.core.SessionManager
+import com.zerotoship.z2term.security.AppLock
 import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.service.WhenManager
+import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.share.SharedIntake
+import com.zerotoship.z2term.ui.lock.LockScreen
 import com.zerotoship.z2term.ui.terminal.TerminalScreen
 import com.zerotoship.z2term.ui.theme.Z2TermTheme
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
@@ -47,6 +57,12 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { /* granted/denied どちらでもアプリは継続。永続通知が出ないだけ。 */ }
 
+    /** 直前の本人確認が通らなかったか (ロック画面の文言に出す)。 */
+    private var unlockFailed by mutableStateOf(false)
+
+    /** 本人確認のダイアログを出している最中か。⚠ 二重に出さないための見張り。 */
+    private var unlockPromptShowing = false
+
     /**
      * アプリ内言語スイッチ ([LocaleHelper]) を反映する。OS Locale ではなく
      * `z2term_locale` SharedPreferences の値で `Configuration.setLocale` を上書き。
@@ -69,13 +85,47 @@ class MainActivity : ComponentActivity() {
         // 最初のセッションを必ず確保 (TerminalScreen は SessionManager を直接観測)
         SessionManager.ensureFirst(applicationContext)
 
+        // アプリロックの設定を読み続ける。⚠ **画面より先にここが要る** —
+        // 読めるまでの数フレームは [AppLock.State.UNKNOWN] で何も出さない (下の setContent)。
+        lifecycleScope.launch {
+            AppSettings(applicationContext).flow.collect { s ->
+                AppLock.applyPolicy(s.appLockEnabled, s.appLockGraceSec)
+            }
+        }
+
+        // ロックが掛かったら、前面に居る間だけ自動で本人確認を出す (ボタンを押させない)。
+        // ⚠ **`onResume` では出せない。** 起動直後はまだ設定を読めておらず状態が
+        // `UNKNOWN` なので、`onResume` の時点では「掛かっている」と分からない
+        // (= 冷えた起動でだけ自動で出ない、という形で抜ける)。
+        // ⚠ 断られた直後 ([unlockFailed]) は出し直さない — 押してもいないのに
+        //   端末側のロックアウトまで進んでしまう。押し直しはロック画面のボタンから。
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                AppLock.state.collect { st ->
+                    if (st == AppLock.State.LOCKED && !unlockFailed) promptUnlock()
+                }
+            }
+        }
+
         setContent {
             Z2TermTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = ZtsBgPrimary
                 ) {
-                    TerminalScreen()
+                    val lock by AppLock.state.collectAsState()
+                    when (lock) {
+                        // 設定を読んでいる最中。⛔ ここで端末を出さない (一瞬でも見えれば
+                        // ロックの意味が無く、履歴画面の縮小画像にも残る)。
+                        AppLock.State.UNKNOWN -> Unit
+                        AppLock.State.LOCKED -> LockScreen(
+                            failed = unlockFailed,
+                            onUnlock = { promptUnlock() }
+                        )
+                        // ⚠ 端末画面は**解除後に初めて組み立てる**。ロック中も裏の
+                        // セッションは動き続けるが、画面としては存在させない。
+                        AppLock.State.UNLOCKED -> TerminalScreen()
+                    }
                 }
             }
         }
@@ -130,14 +180,65 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        // 離れていた時間が猶予を超えていたら掛け直す (判断は [AppLock] が持つ)。
+        AppLock.onEnterForeground()
+    }
+
+    /**
+     * ⚠ **画面回転や言語切替では「離れた」ことにしない。** Activity の作り直しも
+     * `onStop` を通るので、弾かないと猶予「すぐ」のとき画面を回すたびにロックが掛かる。
+     */
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) {
+            AppLock.onLeaveForeground()
+            // 失敗の跡は持ち越さない。次に戻ってきたときは自動でもう一度尋ねる。
+            unlockFailed = false
+        }
+    }
+
     override fun onResume() {
         super.onResume()
+        // 隠していた幕を外す (ロックを使っていないときは何もしていない)。
+        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         // 前面復帰時に現在のシステムクリップボードを履歴へ取り込む。Android 10+ は
         // フォーカス中のみ読取が許可されるため、裏で他アプリがコピーした内容はここで拾う。
         ClipboardHistoryStore.captureCurrent(this)
         // 繋ぎっぱなしの受付 (z2-session attach) が落ちていたら張り直す。張れていれば何もしない。
         // 入口が Application.onCreate だけだと、一度落ちた受付はアプリを開き直しても戻らない。
         com.zerotoship.z2term.service.AttachServer.start(this)
+    }
+
+    /**
+     * 離れる直前に `FLAG_SECURE` を立てる。⭐ **履歴画面 (最近使ったアプリ) の縮小画像に
+     * 端末の中身を残さない**ため — ロックを掛けても、切り替え画面にさっきの画面が
+     * 出ているなら隠せていない。
+     *
+     * ⚠ 立てるのは離れている間だけ。ずっと立てておくと**使っている最中のスクリーン
+     * ショットまで撮れなくなる** (端末アプリでそれは邪魔になる)。
+     */
+    override fun onPause() {
+        super.onPause()
+        if (AppLock.isEnabledNow()) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
+
+    /** 本人確認を求め、通ればロックを解く。 */
+    private fun promptUnlock() {
+        if (unlockPromptShowing) return
+        unlockPromptShowing = true
+        unlockFailed = false
+        AppLock.authenticate(
+            activity = this,
+            title = getString(R.string.lock_prompt_title),
+            subtitle = getString(R.string.lock_prompt_subtitle)
+        ) { ok ->
+            unlockPromptShowing = false
+            if (ok) AppLock.unlock() else unlockFailed = true
+        }
     }
 
     /**
