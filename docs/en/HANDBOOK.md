@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.431-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.432-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -103,8 +103,21 @@ Z2Term comes with its **own in-app keyboard**.
 ### Landscape keyboard
 - In settings, **"Keyboard position (landscape)"** lets you choose **left / bottom / right** (in portrait it's always at the bottom).
 - The **"Side keyboard width (landscape)"** slider adjusts the width when docked to a side, and the **"Keyboard height (landscape)"** slider adjusts the overall height. Bigger keys are easier to press; smaller keys give you more screen — your trade-off.
+- **A bottom-docked keyboard can be narrowed too**, with "Keyboard width (bottom)" (0.8.431; 100% fills the screen, less centres it. Portrait and landscape remember their own value).
 
-> To adjust it without opening Settings, **triple-tap ⌨ in the toolbar**. You can resize the current orientation while watching the keyboard; a left/right landscape keyboard adjusts its width instead. This works even when the keyboard toggle bar is hidden (0.8.428). It is also listed under ⚙ Settings → **Tips** (0.8.430).
+### Landscape stands the toolbar and tabs on their side (0.8.431)
+
+In landscape, **the toolbar and tab bar that used to stack on top move into a single vertical column on
+the left or right edge**. A landscape screen has height to spare nowhere and width to spare everywhere,
+so the space is taken from the side that has it — **roughly 90dp of height goes straight back to the
+terminal / GUI**.
+
+- **Which edge follows the keyboard**: keyboard on the **left** ⇒ the rail is on the **right**; otherwise
+  it is on the left. No new setting.
+- **Reordering is unchanged** — long-press and drag (up and down now).
+- Tab names are cut short to fit; **long-press a tab to read its full name and engine**.
+
+> To adjust it without opening Settings, **triple-tap ⌨ in the toolbar**. **Two sliders — height and width** — let you resize while watching the keyboard (0.8.431; before that only one of them was offered, and a side-docked landscape keyboard could only change its width). This works even when the keyboard toggle bar is hidden (0.8.428). It is also listed under ⚙ Settings → **Tips** (0.8.430).
 
 ### Switching keyboard "faces" (0.8.305)
 
@@ -519,6 +532,7 @@ Settings are split into **9 groups** (Display / Keyboard and input / Linux envir
 | Which face it opens on (ASCII / Japanese) | **Only when used as an OS input method does it reopen on the face you last used** (0.8.295). Switch to the Japanese flick face with 「あ」 and close it, and the next time it opens in another app it is still on the Japanese face (press ABC and the next one is ASCII again). ⚠ **The built-in keyboard on the terminal screen always starts on ASCII, as before** — people start typing ASCII in a terminal and Japanese in other apps, so only the other-apps side remembers. There is no setting to turn this on (each switch is remembered automatically) |
 | Keyboard position (landscape) | Left / bottom / right — effective only in landscape |
 | Side keyboard width (landscape) | Slider 280–700 dp |
+| Keyboard width (bottom) | Slider 40–100% of the screen width (100% fills it, less centres the keyboard; portrait and landscape are remembered separately, 0.8.431) |
 | Keyboard height (landscape / portrait) | Slider 200–500 dp (remembered separately per orientation) |
 | GUI audio | Play sound (video, etc.) in the GUI (desktop) — only when ON |
 | GUI terminal | Pick which terminal app is used inside the GUI desktop |

@@ -18,9 +18,11 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -454,15 +456,41 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         if (settingsOpen) inputViewRef?.hideKeyboard()
     }
 
-    Column(
+    // 横画面 + 左/右配置 + 独自キーボード + 折りたたまれていない時のみ、サイド配置に切替。
+    // (OS IME=SYSTEM モードは OS が下端に描くので無条件で下配置)
+    // 向きは View.OnLayoutChangeListener で実寸を監視して State に流す
+    // (configChanges を declare 済の Activity では LocalConfiguration が即座に
+    //  再評価されない事例が報告されているため、Compose に確実に届く経路で更新する)。
+    // ⚠ **ツールバー/タブの置き場 (縦レール) もこの値で決める**ので、画面を組み立てる前に要る。
+    var isLandscape by remember { mutableStateOf(rootView.width > rootView.height) }
+    DisposableEffect(rootView) {
+        val listener = android.view.View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            val landscape = v.width > v.height
+            if (landscape != isLandscape) isLandscape = landscape
+        }
+        rootView.addOnLayoutChangeListener(listener)
+        // 初期値の補正 (factory 直後で 0×0 だったケース)
+        isLandscape = rootView.width > rootView.height
+        onDispose { rootView.removeOnLayoutChangeListener(listener) }
+    }
+    val landscapePos = settings.landscapeKeyboardPosition
+    val isSideKB = isLandscape
+        && (landscapePos == AppSettings.LANDSCAPE_KB_LEFT || landscapePos == AppSettings.LANDSCAPE_KB_RIGHT)
+        && !keyboardCollapsed
+        && keyboardMode == KeyboardMode.CUSTOM
+
+    TabScaffold(
+        railVertical = isLandscape,
+        // キーボードが左ならレールは右。両方が同じ側に来ると片側だけ重くなる。
+        railOnLeft = landscapePos != AppSettings.LANDSCAPE_KB_LEFT,
         modifier = modifier
             .fillMaxSize()
             .background(ZtsBgPrimary)
             // safeDrawing = systemBars ∪ ime ∪ displayCutout を 1 つの inset で適用。
             // systemBarsPadding().imePadding() の連鎖は消費順序の都合で 3 ボタンナビ
             // (下部) の inset が効かずキーボード最下段が被ることがあったため統一。
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-    ) {
+            .windowInsetsPadding(WindowInsets.safeDrawing),
+        rail = { railVertical ->
         TopBar(
             session = active,
             keyboardMode = keyboardMode,
@@ -510,7 +538,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onToggleLog = { active.toggleLogging() },
             onOpenLogSettings = { logSheetOpen = true },
             searchActive = searchOpen,
-            onToggleSearch = { searchOpen = !searchOpen }
+            onToggleSearch = { searchOpen = !searchOpen },
+            vertical = railVertical,
+            // 縦レールではツールバーが伸びすぎないよう「要るぶんだけ」に留め、
+            // 残りをタブに渡す (タブは 1 手で切り替えたいので、押し出されない方を優先)。
+            modifier = if (railVertical) Modifier.weight(1f, fill = false) else Modifier
         )
 
         TabBar(
@@ -519,31 +551,12 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onSelect = { SessionManager.setActive(it) },
             onClose = { SessionManager.close(it) },
             onNew = { SessionManager.openNew(context) },
-            onNewGui = { SessionManager.openLinkedGui(context) }
+            onNewGui = { SessionManager.openLinkedGui(context) },
+            vertical = railVertical,
+            modifier = if (railVertical) Modifier.weight(1f) else Modifier
         )
-
-        // 横画面 + 左/右配置 + 独自キーボード + 折りたたまれていない時のみ、サイド配置に切替。
-        // (OS IME=SYSTEM モードは OS が下端に描くので無条件で下配置)
-        // 向きは View.OnLayoutChangeListener で実寸を監視して State に流す
-        // (configChanges を declare 済の Activity では LocalConfiguration が即座に
-        //  再評価されない事例が報告されているため、Compose に確実に届く経路で更新する)。
-        val rootView = LocalView.current
-        var isLandscape by remember { mutableStateOf(rootView.width > rootView.height) }
-        DisposableEffect(rootView) {
-            val listener = android.view.View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
-                val landscape = v.width > v.height
-                if (landscape != isLandscape) isLandscape = landscape
-            }
-            rootView.addOnLayoutChangeListener(listener)
-            // 初期値の補正 (factory 直後で 0×0 だったケース)
-            isLandscape = rootView.width > rootView.height
-            onDispose { rootView.removeOnLayoutChangeListener(listener) }
         }
-        val landscapePos = settings.landscapeKeyboardPosition
-        val isSideKB = isLandscape
-            && (landscapePos == AppSettings.LANDSCAPE_KB_LEFT || landscapePos == AppSettings.LANDSCAPE_KB_RIGHT)
-            && !keyboardCollapsed
-            && keyboardMode == KeyboardMode.CUSTOM
+    ) {
         // スタイルは面ごとに決まる。外枠の基準は4方向フリック面に固定する。
         val baseStyle = KeyboardStyle.SPACIOUS
         // キーボード高さは縦/横で別々の設定値を使う (向きが変わると自動で切り替わる)。
@@ -1170,18 +1183,34 @@ private fun GuiTabScreen(
     // GUI だけのときは ⚙ をグレーアウト (端末タブを開けば設定できる)。
     val terminalForSettings = sessions.firstOrNull { it is TerminalSession } as? TerminalSession
 
-    Column(
+    // 🖱 の点灯用。GuiCursor は rev が上がるたびに中身が変わるので、そこから読み直す。
+    val cursorRev by gui.cursor.rev.collectAsState()
+    val pointerAbsolute = remember(cursorRev) {
+        gui.cursor.snapshot().mode == com.zerotoship.z2term.gui.GuiCursor.Mode.ABSOLUTE
+    }
+    // 向き。端末タブと同じく実寸で監視する (§12-7 のレール向きにも使うので画面を組む前に要る)。
+    val rootViewGui = LocalView.current
+    var isLandscapeGui by remember { mutableStateOf(rootViewGui.width > rootViewGui.height) }
+    DisposableEffect(rootViewGui) {
+        val listener = android.view.View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            val landscape = v.width > v.height
+            if (landscape != isLandscapeGui) isLandscapeGui = landscape
+        }
+        rootViewGui.addOnLayoutChangeListener(listener)
+        isLandscapeGui = rootViewGui.width > rootViewGui.height
+        onDispose { rootViewGui.removeOnLayoutChangeListener(listener) }
+    }
+    val landscapePosGui = settings.landscapeKeyboardPosition
+
+    TabScaffold(
+        railVertical = isLandscapeGui,
+        railOnLeft = landscapePosGui != AppSettings.LANDSCAPE_KB_LEFT,
         modifier = modifier
             .fillMaxSize()
             .background(ZtsBgPrimary)
             // OS IME はオーバーレイで出すので解像度に影響させない → systemBars のみ。
-            .windowInsetsPadding(WindowInsets.systemBars)
-    ) {
-        // 🖱 の点灯用。GuiCursor は rev が上がるたびに中身が変わるので、そこから読み直す。
-        val cursorRev by gui.cursor.rev.collectAsState()
-        val pointerAbsolute = remember(cursorRev) {
-            gui.cursor.snapshot().mode == com.zerotoship.z2term.gui.GuiCursor.Mode.ABSOLUTE
-        }
+            .windowInsetsPadding(WindowInsets.systemBars),
+        rail = { railVertical ->
         GuiTopBar(
             session = gui,
             keyboardMode = keyboardMode,
@@ -1222,7 +1251,9 @@ private fun GuiTabScreen(
             toolbarHidden = settings.toolbarHidden,
             onReorderToolbar = { scope.launch { appSettings.setToolbarOrder(it) } },
             settingsEnabled = terminalForSettings != null,
-            onOpenSettings = { settingsOpen = true }
+            onOpenSettings = { settingsOpen = true },
+            vertical = railVertical,
+            modifier = if (railVertical) Modifier.weight(1f, fill = false) else Modifier
         )
 
         TabBar(
@@ -1231,25 +1262,16 @@ private fun GuiTabScreen(
             onSelect = { SessionManager.setActive(it) },
             onClose = { SessionManager.close(it) },
             onNew = { SessionManager.openNew(context) },
-            onNewGui = { SessionManager.openLinkedGui(context) }
+            onNewGui = { SessionManager.openLinkedGui(context) },
+            vertical = railVertical,
+            modifier = if (railVertical) Modifier.weight(1f) else Modifier
         )
+        }
+    ) {
 
         // 横画面 + 左/右配置 + 独自キーボード + 折りたたまれていない時のみ、サイド配置に切替。
         // (GUI 領域は onSizeChanged で実寸を測って VNC 解像度を決めるので、サイド配置で
         //  Box が縮めば自動的に GUI もその領域に再ネゴしてフィットする)
-        // 向きは View.OnLayoutChangeListener 経由で State 化 (§端末タブと同方針)
-        val rootViewGui = LocalView.current
-        var isLandscapeGui by remember { mutableStateOf(rootViewGui.width > rootViewGui.height) }
-        DisposableEffect(rootViewGui) {
-            val listener = android.view.View.OnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
-                val landscape = v.width > v.height
-                if (landscape != isLandscapeGui) isLandscapeGui = landscape
-            }
-            rootViewGui.addOnLayoutChangeListener(listener)
-            isLandscapeGui = rootViewGui.width > rootViewGui.height
-            onDispose { rootViewGui.removeOnLayoutChangeListener(listener) }
-        }
-        val landscapePosGui = settings.landscapeKeyboardPosition
         val isSideKBGui = isLandscapeGui
             && (landscapePosGui == AppSettings.LANDSCAPE_KB_LEFT || landscapePosGui == AppSettings.LANDSCAPE_KB_RIGHT)
             && !keyboardCollapsed
@@ -1566,11 +1588,63 @@ private fun GuiTopBar(
     toolbarHidden: String,
     onReorderToolbar: (String) -> Unit,
     settingsEnabled: Boolean,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    /** true = 横画面の縦レール (0.8.431・§12-7)。 */
+    vertical: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
     val label by session.label.collectAsState()
+    val toolbarItems = guiToolbarItems(
+        keyboardMode = keyboardMode,
+        onPaste = onPaste,
+        onPasteHistory = onPasteHistory,
+        onOpenSnippets = onOpenSnippets,
+        pointerAbsolute = pointerAbsolute,
+        onTogglePointerMode = onTogglePointerMode,
+        onToggleKeyboardMode = onToggleKeyboardMode,
+        onToggleKeyboardVisible = onToggleKeyboardVisible,
+        onOpenKeyboardSize = onOpenKeyboardSize,
+        keepScreenOn = keepScreenOn,
+        onToggleKeepScreenOn = onToggleKeepScreenOn,
+        keepAlive = keepAlive,
+        onToggleKeepAlive = onToggleKeepAlive,
+        residentLocked = residentLocked,
+        onLockedKeepAliveTap = onLockedKeepAliveTap,
+    )
+    if (vertical) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .background(ZtsBgSecondary)
+                .padding(horizontal = 4.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = label.take(8),
+                color = ZtsGreen,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            ReorderableToolbar(
+                items = toolbarItems,
+                hidden = toolbarHidden,
+                savedOrder = toolbarOrder,
+                onReorder = onReorderToolbar,
+                vertical = true,
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+            )
+            ToolbarChip(icon = "⚙", active = false, enabled = settingsEnabled, onClick = onOpenSettings)
+        }
+        return
+    }
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(48.dp)  // 端末 TopBar と同じく高さ固定 (折り返しで縦に伸びるのを防ぐ)
             .background(ZtsBgSecondary)
@@ -1595,29 +1669,7 @@ private fun GuiTopBar(
             // 端末 TopBar と同じ並べ替え可能ツールバー。GUI は検索が無く、📋/📜 は keysym 橋渡しで
             // GUI へタイプする (M8-6 T1)。⚙ は端末セッションが無いと押せない (settingsEnabled)。
             ReorderableToolbar(
-                items = listOf(
-                    ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
-                    ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
-                    // 🖱 カーソルの相対/絶対切替 (0.8.431)。⭐ **GUI タブにしか出さない。**
-                    // 0.8.430 まではこれが 📜 のダブルタップに隠れていて、⚠ **画面のどこにも
-                    // 出ていないうえ「コマンド一覧」と意味が繋がらない**ので誰も辿り着けなかった
-                    // (利用者の指摘)。GUI ではボタンが 5 個しか無く枠が空いているので、
-                    // 隠すのをやめて 1 個のボタンにする。点灯 = 絶対モード。
-                    ToolbarItem(
-                        ToolbarButtons.POINTER_MODE, "🖱", stringResource(R.string.tb_pointer_mode),
-                        active = pointerAbsolute,
-                        onClick = onTogglePointerMode
-                    ),
-                    ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
-                    keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
-                    ToolbarItem(
-                        ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard),
-                        active = keyboardMode == KeyboardMode.SYSTEM,
-                        onClick = onToggleKeyboardMode,
-                        onDoubleClick = onToggleKeyboardVisible,
-                        onTripleClick = onOpenKeyboardSize
-                    )
-                ),
+                items = toolbarItems,
                 hidden = toolbarHidden,
                 savedOrder = toolbarOrder,
                 onReorder = onReorderToolbar,
@@ -1634,6 +1686,53 @@ private fun GuiTopBar(
         // 状態名 (CONNECTED 等) は表示しない: 幅が狭いと崩れる & 実用上見ないため (要望で削除)。
     }
 }
+
+/**
+ * GUI タブのツールバー項目 (横並び / 縦レールで共有する)。
+ *
+ * 端末との違いは、検索とログが無いことと **🖱 (カーソルの相対/絶対) が在ること**。
+ * 📋/📜 は keysym 橋渡しで GUI へタイプする (M8-6 T1)。
+ */
+@Composable
+private fun guiToolbarItems(
+    keyboardMode: KeyboardMode,
+    onPaste: () -> Unit,
+    onPasteHistory: () -> Unit,
+    onOpenSnippets: () -> Unit,
+    pointerAbsolute: Boolean,
+    onTogglePointerMode: () -> Unit,
+    onToggleKeyboardMode: () -> Unit,
+    onToggleKeyboardVisible: () -> Unit,
+    onOpenKeyboardSize: () -> Unit,
+    keepScreenOn: Boolean,
+    onToggleKeepScreenOn: () -> Unit,
+    keepAlive: Boolean,
+    onToggleKeepAlive: () -> Unit,
+    residentLocked: Boolean,
+    onLockedKeepAliveTap: () -> Unit,
+): List<ToolbarItem> = listOf(
+    ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
+    ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
+    // 🖱 カーソルの相対/絶対切替 (0.8.431)。⭐ **GUI タブにしか出さない。**
+    // 0.8.430 まではこれが 📜 のダブルタップに隠れていて、⚠ **画面のどこにも出ていないうえ
+    // 「コマンド一覧」と意味が繋がらない**ので誰も辿り着けなかった (利用者の指摘)。
+    // GUI ではボタンが 5 個しか無く枠が空いているので、隠すのをやめて 1 個のボタンにする。
+    // 点灯 = 絶対モード。
+    ToolbarItem(
+        ToolbarButtons.POINTER_MODE, "🖱", stringResource(R.string.tb_pointer_mode),
+        active = pointerAbsolute,
+        onClick = onTogglePointerMode
+    ),
+    ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
+    keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
+    ToolbarItem(
+        ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard),
+        active = keyboardMode == KeyboardMode.SYSTEM,
+        onClick = onToggleKeyboardMode,
+        onDoubleClick = onToggleKeyboardVisible,
+        onTripleClick = onOpenKeyboardSize
+    )
+)
 
 /**
  * GUI 用の特殊キーバー (端末 [com.zerotoship.z2term.ui.terminal.components.SpecialKeyBar] の keysym 版)。
@@ -1718,12 +1817,72 @@ private fun TopBar(
     onToggleLog: () -> Unit,
     onOpenLogSettings: () -> Unit,
     searchActive: Boolean = false,
-    onToggleSearch: () -> Unit = {}
+    onToggleSearch: () -> Unit = {},
+    /** true = 横画面の縦レール (0.8.431・§12-7)。並びを縦にし、ラベルを短く出す。 */
+    vertical: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
     val label by session.label.collectAsState()
     val ui by session.uiState.collectAsState()
+    // タブ名 (シェルのタイトル等) は出さず、OS 識別子だけを固定字数で表示する (要望)。
+    // これでラベルが伸びて右側のボタンを押し出す事故が無くなり、ボタンが必ず収まる。
+    val toolbarItems = terminalToolbarItems(
+        keyboardMode = keyboardMode,
+        onPaste = onPaste,
+        onPasteHistory = onPasteHistory,
+        onToggleKeyboardMode = onToggleKeyboardMode,
+        onToggleKeyboardVisible = onToggleKeyboardVisible,
+        onOpenKeyboardSize = onOpenKeyboardSize,
+        keepScreenOn = keepScreenOn,
+        onToggleKeepScreenOn = onToggleKeepScreenOn,
+        onOpenBrightness = onOpenBrightness,
+        keepAlive = keepAlive,
+        onToggleKeepAlive = onToggleKeepAlive,
+        residentLocked = residentLocked,
+        onLockedKeepAliveTap = onLockedKeepAliveTap,
+        onOpenSnippets = onOpenSnippets,
+        logRecording = logRecording,
+        onToggleLog = onToggleLog,
+        onOpenLogSettings = onOpenLogSettings,
+        searchActive = searchActive,
+        onToggleSearch = onToggleSearch,
+    )
+    if (vertical) {
+        // 縦レール: ラベル → ツールバー (縦スクロール) → ⚙ (下端固定)。
+        // ⚠ ⚙ はレールでも「いちばん端に固定」を守る (横並びのときの右端と同じ約束)。
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .background(ZtsBgSecondary)
+                .padding(horizontal = 4.dp, vertical = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = ui.mode.ifBlank { label }.take(8),
+                color = ZtsGreen,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            ReorderableToolbar(
+                items = toolbarItems,
+                hidden = toolbarHidden,
+                savedOrder = toolbarOrder,
+                onReorder = onReorderToolbar,
+                vertical = true,
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+            )
+            ToolbarChip(icon = "⚙", active = false, enabled = true, onClick = onOpenSettings)
+        }
+        return
+    }
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             // 高さを固定。以前はラベル(タブ名)が長いと折り返して Row が縦に伸び、
             // 右端のステータスも押し出されて見えなくなっていた。固定高 + 各テキスト 1 行で防ぐ。
@@ -1734,8 +1893,6 @@ private fun TopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // タブ名 (シェルのタイトル等) は出さず、OS 識別子だけを固定字数で表示する (要望)。
-        // これでラベルが伸びて右側のボタンを押し出す事故が無くなり、ボタンが必ず収まる。
         val osLabel = ui.mode.ifBlank { label }.take(10)
         Text(
             text = osLabel,
@@ -1750,28 +1907,8 @@ private fun TopBar(
         // 残り幅をすべて取る Box に収め、右寄せ。低解像度端末でボタン総幅が画面を超えると
         // 横スクロールで全ボタンに到達できる (はみ出して押せなくなるのを防ぐ・要望)。
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-            // 既定の並び (左→右): 貼付 / コマンド一覧 / 画面消灯ロック / 常駐ロック / 検索 / キーボード切替。
-            // 常駐ロック (バックグラウンド常駐トグル) は画面消灯ロックの右に置く (要望)。
-            // 各ボタンは長押しドラッグで並べ替え可・長押し中は簡易説明をポップアップ表示する。
-            // 設定で隠したボタンは [hidden] で除かれる (設定 › ツールバー)。
             ReorderableToolbar(
-                items = listOf(
-                    ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
-                    ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
-                    ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn, onDoubleClick = onOpenBrightness),
-                    keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
-                    ToolbarItem(ToolbarButtons.SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
-                    ToolbarItem(
-                        ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard),
-                        active = keyboardMode == KeyboardMode.SYSTEM,
-                        onClick = onToggleKeyboardMode,
-                        onDoubleClick = onToggleKeyboardVisible,
-                        onTripleClick = onOpenKeyboardSize
-                    ),
-                    // 端末ログ: 短押し=記録の開始/停止、ダブルタップ=詳細設定。記録中は 🔴、停止中は ⚪
-                    // (録画ボタンの慣習で状態が一目で分かる。active の緑ハイライトも併せて点く)。
-                    ToolbarItem(ToolbarButtons.LOG, if (logRecording) "🔴" else "⚪", stringResource(R.string.tb_log), active = logRecording, onClick = onToggleLog, onDoubleClick = onOpenLogSettings)
-                ),
+                items = toolbarItems,
                 hidden = toolbarHidden,
                 savedOrder = toolbarOrder,
                 onReorder = onReorderToolbar,
@@ -1789,6 +1926,106 @@ private fun TopBar(
         // 状態名 (RUNNING 等) は表示しない: 幅が狭いと崩れる & 実用上見ないため (要望で削除)。
     }
 }
+
+/** 横画面の縦レール幅。タブ名が 6 字ぶん読めて、かつ本体を圧迫しない値 (0.8.431)。 */
+private val RAIL_WIDTH = 76.dp
+
+/**
+ * ツールバーとタブの置き場 (§12-7・0.8.431)。
+ *
+ * ⛔ **縦画面でも横画面でも上に 2 段積む**のが 0.8.430 までの形だった。横画面は画面高さが
+ * 350〜400dp しか無いので、**48dp + 約 40dp = 高さの 1/4** をここで失っていた
+ * (キーボードを出すと本体がほとんど残らない)。
+ * ⇒ **横画面ではツールバーとタブを縦のレールにして左右どちらかへ寄せる。** 横は幅が余っていて
+ * 高さが足りないので、余っている方から取る。
+ *
+ * ⭐ **どちら側に寄せるかは設定を増やさず、キーボードのサイド配置 ([railOnLeft] の呼び出し側)
+ * から決める** — キーボードが左ならレールは右。両方が同じ側に来ると片側だけ重くなる。
+ *
+ * @param railVertical true = 横画面 (縦レール)。false なら従来どおり上に 2 段積む。
+ * @param rail ツールバーとタブ。引数の Boolean をそのまま各バーの `vertical` へ渡す。
+ */
+@Composable
+private fun TabScaffold(
+    railVertical: Boolean,
+    railOnLeft: Boolean,
+    modifier: Modifier = Modifier,
+    rail: @Composable ColumnScope.(vertical: Boolean) -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    if (!railVertical) {
+        Column(modifier = modifier) {
+            rail(false)
+            content()
+        }
+        return
+    }
+    Row(modifier = modifier) {
+        @Composable
+        fun Rail() {
+            Column(
+                modifier = Modifier
+                    .width(RAIL_WIDTH)
+                    .fillMaxHeight()
+                    .background(ZtsBgSecondary)
+                    .border(width = 1.dp, color = ZtsBorder),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                rail(true)
+            }
+        }
+        if (railOnLeft) Rail()
+        Column(modifier = Modifier.weight(1f).fillMaxHeight()) { content() }
+        if (!railOnLeft) Rail()
+    }
+}
+
+/**
+ * 端末タブのツールバー項目 (横並び / 縦レールで共有する)。
+ *
+ * 既定の並び (左→右・上→下): 貼付 / コマンド一覧 / 画面消灯ロック / 常駐ロック / 検索 / キーボード切替 / ログ。
+ * 常駐ロック (バックグラウンド常駐トグル) は画面消灯ロックの次に置く (要望)。
+ * 各ボタンは長押しドラッグで並べ替え可・長押し中は簡易説明をポップアップ表示する。
+ * 設定で隠したボタンは [ReorderableToolbar] の `hidden` で除かれる (設定 › ツールバー)。
+ */
+@Composable
+private fun terminalToolbarItems(
+    keyboardMode: KeyboardMode,
+    onPaste: () -> Unit,
+    onPasteHistory: () -> Unit,
+    onToggleKeyboardMode: () -> Unit,
+    onToggleKeyboardVisible: () -> Unit,
+    onOpenKeyboardSize: () -> Unit,
+    keepScreenOn: Boolean,
+    onToggleKeepScreenOn: () -> Unit,
+    onOpenBrightness: () -> Unit,
+    keepAlive: Boolean,
+    onToggleKeepAlive: () -> Unit,
+    residentLocked: Boolean,
+    onLockedKeepAliveTap: () -> Unit,
+    onOpenSnippets: () -> Unit,
+    logRecording: Boolean,
+    onToggleLog: () -> Unit,
+    onOpenLogSettings: () -> Unit,
+    searchActive: Boolean,
+    onToggleSearch: () -> Unit,
+): List<ToolbarItem> = listOf(
+    ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
+    ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
+    ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn, onDoubleClick = onOpenBrightness),
+    keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
+    ToolbarItem(ToolbarButtons.SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
+    ToolbarItem(
+        ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard),
+        active = keyboardMode == KeyboardMode.SYSTEM,
+        onClick = onToggleKeyboardMode,
+        onDoubleClick = onToggleKeyboardVisible,
+        onTripleClick = onOpenKeyboardSize
+    ),
+    // 端末ログ: 短押し=記録の開始/停止、ダブルタップ=詳細設定。記録中は 🔴、停止中は ⚪
+    // (録画ボタンの慣習で状態が一目で分かる。active の緑ハイライトも併せて点く)。
+    ToolbarItem(ToolbarButtons.LOG, if (logRecording) "🔴" else "⚪", stringResource(R.string.tb_log), active = logRecording, onClick = onToggleLog, onDoubleClick = onOpenLogSettings)
+)
 
 // ツールバーのアクション id (並び順・非表示指定の永続化キー) は [ToolbarButtons] に集約。
 // 設定シートの「ツールバー」セクションと同じ定義を共有するため。
@@ -1850,7 +2087,9 @@ private fun ReorderableToolbar(
     savedOrder: String,
     onReorder: (String) -> Unit,
     modifier: Modifier = Modifier,
-    hidden: String = ""
+    hidden: String = "",
+    /** true = 横画面の縦レール。並びも長押しドラッグの向きも縦になる (0.8.431)。 */
+    vertical: Boolean = false
 ) {
     val hiddenIds = remember(hidden) { ToolbarButtons.parseHidden(hidden) }
     val shown = items.filter { it.id !in hiddenIds }
@@ -1873,6 +2112,8 @@ private fun ReorderableToolbar(
             order.clear(); order.addAll(ToolbarButtons.mergeOrder(savedIds, present))
         }
     }
+    // ⚠ 実測サイズは**主軸ぶんだけ**覚える (横並びなら幅・縦並びなら高さ)。
+    // 入れ替えの判定は「隣の中心を越えたか」だけなので、軸さえ合っていれば同じ式で足りる。
     val widths = remember { mutableStateMapOf<String, Int>() }
     var dragOffset by remember { mutableStateOf(0f) }
     val gapPx = with(LocalDensity.current) { 8.dp.roundToPx() }
@@ -1903,41 +2144,60 @@ private fun ReorderableToolbar(
         }
     }
 
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        order.forEach { id ->
-            val item = byId[id] ?: return@forEach
-            key(id) {
-                val isDrag = dragging == id
-                Box(
-                    modifier = Modifier
-                        .onSizeChanged { widths[id] = it.width }
-                        .zIndex(if (isDrag) 1f else 0f)
-                        .graphicsLayer { translationX = if (isDrag) dragOffset else 0f }
-                        .pointerInput(id) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = { dragging = id; dragOffset = 0f },
-                                onDragEnd = { dragging = null; dragOffset = 0f; onReorder(persistOrder(order)) },
-                                onDragCancel = { dragging = null; dragOffset = 0f; onReorder(persistOrder(order)) },
-                                onDrag = { change, amount -> change.consume(); dragOffset += amount.x; trySwap() }
-                            )
-                        }
-                ) {
-                    ToolbarChip(
-                        icon = item.icon,
-                        active = item.active,
-                        enabled = item.enabled,
-                        dimmed = item.dimmed,
-                        onClick = item.onClick,
-                        onDoubleClick = item.onDoubleClick,
-                        onTripleClick = item.onTripleClick
-                    )
-                    if (isDrag) ToolbarTooltip(item.description)
-                }
+    // 1 ボタンぶんの中身。並べる向きが変わっても中身は同じなので、ここで 1 回だけ書く。
+    val chips: @Composable (String) -> Unit = { id ->
+        val item = byId[id]
+        if (item != null) {
+            val isDrag = dragging == id
+            Box(
+                modifier = Modifier
+                    .onSizeChanged { widths[id] = if (vertical) it.height else it.width }
+                    .zIndex(if (isDrag) 1f else 0f)
+                    .graphicsLayer {
+                        val off = if (isDrag) dragOffset else 0f
+                        if (vertical) translationY = off else translationX = off
+                    }
+                    .pointerInput(id, vertical) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { dragging = id; dragOffset = 0f },
+                            onDragEnd = { dragging = null; dragOffset = 0f; onReorder(persistOrder(order)) },
+                            onDragCancel = { dragging = null; dragOffset = 0f; onReorder(persistOrder(order)) },
+                            onDrag = { change, amount ->
+                                change.consume()
+                                dragOffset += if (vertical) amount.y else amount.x
+                                trySwap()
+                            }
+                        )
+                    }
+            ) {
+                ToolbarChip(
+                    icon = item.icon,
+                    active = item.active,
+                    enabled = item.enabled,
+                    dimmed = item.dimmed,
+                    onClick = item.onClick,
+                    onDoubleClick = item.onDoubleClick,
+                    onTripleClick = item.onTripleClick
+                )
+                if (isDrag) ToolbarTooltip(item.description)
             }
+        }
+    }
+    if (vertical) {
+        Column(
+            modifier = modifier,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            order.forEach { id -> key(id) { chips(id) } }
+        }
+    } else {
+        Row(
+            modifier = modifier,
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            order.forEach { id -> key(id) { chips(id) } }
         }
     }
 }
@@ -2054,10 +2314,30 @@ private fun Modifier.multiTapClickable(
 @Composable
 private fun ToolbarTooltip(text: String) {
     val density = LocalDensity.current
-    val offsetY = with(density) { -(40.dp).roundToPx() }
+    // チップの上に出しつつ、**必ず画面内に収める**。⚠ 縦レール (横画面) ではチップが
+    // 画面の端から 40dp ほどの所に居るので、中央揃えのままだと説明が画面外へ出て読めない
+    // (0.8.431)。タブの長押しポップアップと同じクランプの作法に揃える。
+    val gapPx = with(density) { 8.dp.roundToPx() }
+    val marginPx = with(density) { 4.dp.roundToPx() }
+    val positionProvider = remember(gapPx, marginPx) {
+        object : PopupPositionProvider {
+            override fun calculatePosition(
+                anchorBounds: IntRect,
+                windowSize: IntSize,
+                layoutDirection: LayoutDirection,
+                popupContentSize: IntSize
+            ): IntOffset {
+                val centerX = anchorBounds.left + anchorBounds.width / 2
+                val maxX = (windowSize.width - popupContentSize.width - marginPx).coerceAtLeast(marginPx)
+                val x = (centerX - popupContentSize.width / 2).coerceIn(marginPx, maxX)
+                val maxY = (windowSize.height - popupContentSize.height - marginPx).coerceAtLeast(marginPx)
+                val y = (anchorBounds.top - popupContentSize.height - gapPx).coerceIn(marginPx, maxY)
+                return IntOffset(x, y)
+            }
+        }
+    }
     Popup(
-        alignment = Alignment.TopCenter,
-        offset = IntOffset(0, offsetY),
+        popupPositionProvider = positionProvider,
         properties = PopupProperties(focusable = false, clippingEnabled = false)
     ) {
         Box(
@@ -2522,11 +2802,15 @@ private fun TabBar(
     onSelect: (String) -> Unit,
     onClose: (String) -> Unit,
     onNew: () -> Unit,
-    onNewGui: () -> Unit
+    onNewGui: () -> Unit,
+    /** true = 横画面の縦レール。並びもドラッグ並べ替えも縦になる (0.8.431)。 */
+    vertical: Boolean = false,
+    modifier: Modifier = Modifier
 ) {
-    // ドラッグ並べ替え (要望): タブを長押ししてから左右にドラッグすると並びを入れ替えられる。
-    // 各タブの実測幅 (id -> px) を覚えておき、ドラッグ中のタブが隣のタブの中心を越えたら
-    // SessionManager.moveSession で即スワップし、その分だけ dragOffset を戻して連続移動を続ける。
+    // ドラッグ並べ替え (要望): タブを長押ししてからドラッグすると並びを入れ替えられる。
+    // 各タブの実測サイズ (id -> px。**主軸ぶんだけ**) を覚えておき、ドラッグ中のタブが
+    // 隣のタブの中心を越えたら SessionManager.moveSession で即スワップし、
+    // その分だけ dragOffset を戻して連続移動を続ける。
     val tabWidths = remember { mutableStateMapOf<String, Int>() }
     val draggingId = remember { mutableStateOf<String?>(null) }
     val dragOffset = remember { mutableStateOf(0f) }
@@ -2576,8 +2860,69 @@ private fun TabBar(
         }
     }
 
+    // タブ 1 枚ぶん。並べる向きが変わっても中身は同じなので、ここで 1 回だけ書く。
+    // key(sess.id): 並べ替えで順序が変わっても各タブの合成 (とドラッグ中の pointerInput) を
+    // 同一視して保持する。これが無いと位置ベースのキーになり、1 回スワップするたびに
+    // ドラッグジェスチャが切れて連続移動できない (要望)。
+    val chips: @Composable (AppSession) -> Unit = { sess ->
+        val isDragging = draggingId.value == sess.id
+        TabChip(
+            session = sess,
+            active = sess.id == activeId,
+            // アクティブなタブには印を出さない (見ているものに状態表示は要らない)。
+            mark = when {
+                sess.id == activeId -> TabMark.NONE
+                sess.id in busyIds -> TabMark.BUSY
+                sess.id in endedIds -> TabMark.ENDED
+                else -> TabMark.NONE
+            },
+            canClose = sessions.size > 1,
+            dragging = isDragging,
+            dragOffsetMain = if (isDragging) dragOffset.value else 0f,
+            vertical = vertical,
+            onMainSize = { tabWidths[sess.id] = it },
+            onSelect = { activeBeforeTap = activeId; onSelect(sess.id) },
+            onClose = {
+                activeBeforeTap
+                    ?.takeIf { prev -> prev != sess.id && sessions.any { it.id == prev } }
+                    ?.let { prev -> onSelect(prev) }
+                onClose(sess.id)
+            },
+            onDragStart = { draggingId.value = sess.id; dragOffset.value = 0f },
+            onDrag = { d -> dragOffset.value += d; trySwap() },
+            onDragEnd = { draggingId.value = null; dragOffset.value = 0f }
+        )
+    }
+
+    if (vertical) {
+        // 縦レール: タブは縦スクロール領域 (残り高さ) に収め、+ / 🖥 は下端に固定する。
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .background(ZtsBgPrimary)
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                sessions.forEach { sess -> key(sess.id) { chips(sess) } }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                NewTabButton(label = "+", onClick = onNew, compact = true)
+                NewTabButton(label = "🖥", onClick = onNewGui, compact = true)
+            }
+        }
+        return
+    }
+
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(ZtsBgPrimary)
             .border(width = 1.dp, color = ZtsBorder)
@@ -2594,39 +2939,7 @@ private fun TabBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            // key(sess.id): 並べ替えで順序が変わっても各タブの合成 (とドラッグ中の
-            // pointerInput) を同一視して保持する。これが無いと位置ベースのキーになり、
-            // 1 回スワップするたびにドラッグジェスチャが切れて連続移動できない (要望)。
-            sessions.forEach { sess ->
-                key(sess.id) {
-                    val isDragging = draggingId.value == sess.id
-                    TabChip(
-                        session = sess,
-                        active = sess.id == activeId,
-                        // アクティブなタブには印を出さない (見ているものに状態表示は要らない)。
-                        mark = when {
-                            sess.id == activeId -> TabMark.NONE
-                            sess.id in busyIds -> TabMark.BUSY
-                            sess.id in endedIds -> TabMark.ENDED
-                            else -> TabMark.NONE
-                        },
-                        canClose = sessions.size > 1,
-                        dragging = isDragging,
-                        dragOffsetX = if (isDragging) dragOffset.value else 0f,
-                        onWidth = { tabWidths[sess.id] = it },
-                        onSelect = { activeBeforeTap = activeId; onSelect(sess.id) },
-                        onClose = {
-                            activeBeforeTap
-                                ?.takeIf { prev -> prev != sess.id && sessions.any { it.id == prev } }
-                                ?.let { prev -> onSelect(prev) }
-                            onClose(sess.id)
-                        },
-                        onDragStart = { draggingId.value = sess.id; dragOffset.value = 0f },
-                        onDrag = { dx -> dragOffset.value += dx; trySwap() },
-                        onDragEnd = { draggingId.value = null; dragOffset.value = 0f }
-                    )
-                }
-            }
+            sessions.forEach { sess -> key(sess.id) { chips(sess) } }
         }
         // 新規端末タブ
         NewTabButton(label = "+", onClick = onNew)
@@ -2636,14 +2949,15 @@ private fun TabBar(
 }
 
 @Composable
-private fun NewTabButton(label: String, onClick: () -> Unit) {
+private fun NewTabButton(label: String, onClick: () -> Unit, compact: Boolean = false) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
             .background(ZtsBgCard)
             .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 5.dp)
+            // 縦レールでは + と 🖥 が 76dp 幅に 2 個並ぶので左右の余白を詰める。
+            .padding(horizontal = if (compact) 7.dp else 12.dp, vertical = 5.dp)
     ) {
         Text(
             text = label,
@@ -2694,8 +3008,12 @@ private fun TabChip(
     mark: TabMark,
     canClose: Boolean,
     dragging: Boolean,
-    dragOffsetX: Float,
-    onWidth: (Int) -> Unit,
+    /** 主軸方向のドラッグ量 (横並びなら X・縦レールなら Y)。 */
+    dragOffsetMain: Float,
+    /** true = 横画面の縦レール。名前を短く切り、レール幅いっぱいに置く (0.8.431)。 */
+    vertical: Boolean,
+    /** 主軸方向の実測サイズ (px)。並べ替えの入れ替え判定に使う。 */
+    onMainSize: (Int) -> Unit,
     onSelect: () -> Unit,
     onClose: () -> Unit,
     onDragStart: () -> Unit,
@@ -2753,34 +3071,41 @@ private fun TabChip(
     // 長押し→左右ドラッグ=並べ替え (要望)。ドラッグ中のタブは前面 (zIndex) + 平行移動で追従。
     Box(
         modifier = Modifier
-            .onSizeChanged { onWidth(it.width) }
+            .onSizeChanged { onMainSize(if (vertical) it.height else it.width) }
             .zIndex(if (dragging) 1f else 0f)
-            .graphicsLayer { translationX = dragOffsetX }
+            .graphicsLayer { if (vertical) translationY = dragOffsetMain else translationX = dragOffsetMain }
+            .then(if (vertical) Modifier.fillMaxWidth() else Modifier)
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
             .border(1.dp, border, RoundedCornerShape(6.dp))
             .clickable(onClick = onTap)
-            .pointerInput(session.id) {
+            .pointerInput(session.id, vertical) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = { showInfo = true; onDragStart() },
-                    onDrag = { change, amount -> change.consume(); onDrag(amount.x) },
+                    onDrag = { change, amount ->
+                        change.consume()
+                        onDrag(if (vertical) amount.y else amount.x)
+                    },
                     onDragEnd = { showInfo = false; onDragEnd() },
                     onDragCancel = { showInfo = false; onDragEnd() }
                 )
             }
-            .padding(horizontal = 10.dp, vertical = 5.dp)
+            .padding(horizontal = if (vertical) 4.dp else 10.dp, vertical = 5.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 // タブ名は最大固定字数で切り詰める (要望)。チップが伸びて新規タブボタンを
                 // 押し出さないよう、字数制限 + 上限幅 + 省略を併用する。
-                text = label.take(12),
+                // ⚠ 縦レールはレール幅 (約 76dp) しか無いので、さらに短く切る。
+                // 全名と実行エンジンは**長押しのポップアップ**で読める (切り詰めの逃げ道)。
+                text = if (vertical) label.take(6) else label.take(12),
                 color = fg,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 84.dp)
+                modifier = if (vertical) Modifier.weight(1f, fill = false)
+                    else Modifier.widthIn(max = 84.dp)
             )
             when (mark) {
                 // 動作中。4dp の塗り四角だけで、**点滅させない** (暗所で目障りになるうえ、
