@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.433-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.434-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -286,7 +286,7 @@ Once it is up, it behaves like the app's own GUI tab: two fingers to zoom and pa
 scroll, and the same keyboard.
 
 - **The white arrow is the cursor you control** (0.8.427). Its position survives leaving the tab and reconnecting. **It is the only arrow on screen** (0.8.431; before that the pointer drawn by the server sat next to it and you saw **two**).
-- The default is **relative mode**: the cursor moves by the distance your finger moves. Press **↖️ in the GUI toolbar** to switch to **absolute mode**, where the cursor jumps to the place you touch (0.8.431; ↖️ lights up in absolute mode, and a green ring appears at the arrow root). ⚠ Through 0.8.430 this lived on a **double-tap of 📜**, which is visible nowhere on screen and has nothing to do with a command list, so it is now **a button of its own, shown only on GUI tabs** (never on terminal tabs; hide it under ⚙ Settings › Display › Toolbar).
+- The default is **relative mode**: the cursor moves by the distance your finger moves. Press **🖱 in the GUI toolbar** to switch to **absolute mode**, where the cursor jumps to the place you touch (0.8.431; 🖱 lights up in absolute mode, and a green ring appears at the arrow root). ⚠ Through 0.8.430 this lived on a **double-tap of 📜**, which is visible nowhere on screen and has nothing to do with a command list, so it is now **a button of its own, shown only on GUI tabs** (never on terminal tabs; hide it under ⚙ Settings › Display › Toolbar).
 - **A single tap is a left click** and **a double tap is a double click**, as before.
 - **A press and hold now also gives you a right click** (0.8.431). Keep your finger still and **a green ring sweeps around the arrow tip; the right click fires the moment it closes** (**0.3 s**, with no need to lift your finger; 0.8.433). Move while the ring is running and it is cancelled, leaving you with plain cursor movement. ⚠ The older route still works: **hold the second tap of a double tap** (0.8.429; the same 0.3 s wait). Use whichever is easier.
 - ⚠ **Tapping or dragging shows no ring** (0.8.433). **The ring only appears once the touch is clearly not a tap** (after 0.15 s) and then closes over the next 0.15 s — it no longer flashes on every tap.

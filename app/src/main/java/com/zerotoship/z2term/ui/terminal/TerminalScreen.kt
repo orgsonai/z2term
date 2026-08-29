@@ -1185,7 +1185,7 @@ private fun GuiTabScreen(
     // GUI だけのときは ⚙ をグレーアウト (端末タブを開けば設定できる)。
     val terminalForSettings = sessions.firstOrNull { it is TerminalSession } as? TerminalSession
 
-    // ↖ の点灯用。GuiCursor は rev が上がるたびに中身が変わるので、そこから読み直す。
+    // 🖱 の点灯用。GuiCursor は rev が上がるたびに中身が変わるので、そこから読み直す。
     val cursorRev by gui.cursor.rev.collectAsState()
     val pointerAbsolute = remember(cursorRev) {
         gui.cursor.snapshot().mode == com.zerotoship.z2term.gui.GuiCursor.Mode.ABSOLUTE
@@ -1575,7 +1575,7 @@ private fun GuiTopBar(
     onPaste: () -> Unit,
     onPasteHistory: () -> Unit,
     onOpenSnippets: () -> Unit,
-    /** true = 絶対モード (↖ を点灯させる)。 */
+    /** true = 絶対モード (🖱 を点灯させる)。 */
     pointerAbsolute: Boolean,
     onTogglePointerMode: () -> Unit,
     onToggleKeyboardMode: () -> Unit,
@@ -1693,7 +1693,7 @@ private fun GuiTopBar(
 /**
  * GUI タブのツールバー項目 (横並び / 縦レールで共有する)。
  *
- * 端末との違いは、検索とログが無いことと **↖ (カーソルの相対/絶対) が在ること**。
+ * 端末との違いは、検索とログが無いことと **🖱 (カーソルの相対/絶対) が在ること**。
  * 📋/📜 は keysym 橋渡しで GUI へタイプする (M8-6 T1)。
  */
 @Composable
@@ -1716,13 +1716,13 @@ private fun guiToolbarItems(
 ): List<ToolbarItem> = listOf(
     ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
     ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
-    // ↖ (マウスポインター) カーソルの相対/絶対切替 (0.8.431)。⭐ **GUI タブにしか出さない。**
+    // 🖱 カーソルの相対/絶対切替 (0.8.431)。⭐ **GUI タブにしか出さない。**
     // 0.8.430 まではこれが 📜 のダブルタップに隠れていて、⚠ **画面のどこにも出ていないうえ
     // 「コマンド一覧」と意味が繋がらない**ので誰も辿り着けなかった (利用者の指摘)。
     // GUI ではボタンが 5 個しか無く枠が空いているので、隠すのをやめて 1 個のボタンにする。
     // 点灯 = 絶対モード。
     ToolbarItem(
-        ToolbarButtons.POINTER_MODE, "\u2196\uFE0F", stringResource(R.string.tb_pointer_mode),
+        ToolbarButtons.POINTER_MODE, "🖱", stringResource(R.string.tb_pointer_mode),
         active = pointerAbsolute,
         onClick = onTogglePointerMode
     ),
@@ -2938,9 +2938,14 @@ private fun TabBar(
             ) {
                 sessions.forEach { sess -> key(sess.id) { chips(sess) } }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                NewTabButton(label = "+", onClick = onNew, compact = true)
-                NewTabButton(label = "🖥", onClick = onNewGui, compact = true)
+            // ⚠ **縦に積む** (0.8.434)。タブ列は 44dp しか無いので、横に 2 個並べると
+            // 2 個目 (🖥 = GUI タブ) が列からはみ出して見えなくなる。
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                NewTabButton(label = "+", onClick = onNew, modifier = Modifier.fillMaxWidth())
+                NewTabButton(label = "🖥", onClick = onNewGui, modifier = Modifier.fillMaxWidth())
             }
         }
         return
@@ -2974,15 +2979,15 @@ private fun TabBar(
 }
 
 @Composable
-private fun NewTabButton(label: String, onClick: () -> Unit, compact: Boolean = false) {
+private fun NewTabButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(6.dp))
             .background(ZtsBgCard)
             .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
             .clickable(onClick = onClick)
-            // 縦レールでは + と 🖥 が 76dp 幅に 2 個並ぶので左右の余白を詰める。
-            .padding(horizontal = if (compact) 7.dp else 12.dp, vertical = 5.dp)
+            .padding(horizontal = 12.dp, vertical = 5.dp),
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
