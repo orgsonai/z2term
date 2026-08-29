@@ -2,6 +2,7 @@ package com.zerotoship.z2term.gui
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.SystemClock
 import android.text.InputType
 import android.view.GestureDetector
 import android.view.HapticFeedbackConstants
@@ -23,15 +24,20 @@ import com.zerotoship.z2term.gui.rfb.RfbClient
  *
  * ポインタ（トラックパッド式の「相対移動」。仮想カーソルを保持し触った位置へは飛ばない）:
  *  - 1 本指移動        : カーソルを相対移動（リモート側 X カーソルが動く）
- *  - 単タップ          : 現在位置で左クリック
+ *  - 単タップ          : 現在位置で左クリック（タッチ位置へは飛ばない）
+ *  - 長押し            : 動かさず [GuiCursor.HOLD_MS] 保持＝現在位置で右クリック（保持中は輪が出る）
  *  - ダブルタップ＋保持 : 2 回目を動かさず保持＝現在位置で右クリック（メニュー）
  *  - ダブルタップ＋移動 : 左押下を保持したまま移動（ウィンドウ移動・選択。離すと解放）
  *  - ピンチ            : ズーム（[GuiViewport] を更新、[GuiScreen] と共有）
  *  - 2 本指移動        : ズーム中はパン / 等倍時はホイールスクロール
  *
- * ※ 単タップ長押しの右クリックは廃止した。長押しタイマーがピンチや
- *   ダブルタップドラッグと干渉して誤右クリック・ドラッグ解除を起こしていたため
- *   (M8-6 T3/T4/T5)。右クリックは「ダブルタップして 2 回目を保持」へ統一。
+ * ※ 単タップ長押しの右クリックは M8-6 T3/T4/T5 で一度**廃止**した。長押しタイマーがピンチや
+ *   ダブルタップドラッグと干渉して誤右クリック・ドラッグ解除を起こしていたため。
+ *   ⭐ **0.8.431 で戻した**（利用者の要望。右クリックはメニューを出す一番よく使う操作なので、
+ *   ダブルタップの 2 回目を保持する道だけでは遠い）。今度干渉しないのは、①ダブルタップの
+ *   2 回目 (`pendingRightClick` 中) では長押しを始めない ②2 本指になった時点で捨てる
+ *   ③touch slop を超えたら捨てる ④成立したら同じタッチの `onSingleTapUp` を握り潰す、を
+ *   入口で守っているから。
  *
  * キーボード:
  *  - OS ソフト IME の確定文字 (commitText) → 文字ごとに keysym down/up
@@ -81,6 +87,17 @@ class GuiInputView(context: Context) : View(context) {
     private var dtDownY = 0f
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
 
+    // --- 1 本指長押し → 右クリック (0.8.431) ---
+    // **動かさずに [GuiCursor.HOLD_MS] 保持したら右クリック**を送る。押している間は
+    // [GuiCursor.holdStart] を立てて [GuiScreen] に輪を描かせる（何も出ないと「押しているつもり」
+    // がどこまで進んだのか分からない）。ダブルタップ側と同じく**指を離すのを待たない**。
+    // ⚠ [holdFired] を立てないと、離した時に `onSingleTapUp` が走って**右クリックの直後に
+    // 左クリックが出る**（長押しを無効化してあるので GestureDetector はこれをタップとみなす）。
+    private var pendingHoldClick = false
+    private var holdFired = false
+    private var holdDownX = 0f
+    private var holdDownY = 0f
+
     // --- 2 本指ジェスチャ（ピンチ=ズーム / ドラッグ=パン or ホイール）---
     private var twoFinger = false        // 2 本指中フラグ (1 本に戻った後のクリック抑止)
     private var twoFingerActive = false  // span/centroid 追跡中
@@ -110,6 +127,8 @@ class GuiInputView(context: Context) : View(context) {
         cancelRightClickTimer()
         pendingRightClick = false
         rightClickFired = false
+        cancelHoldClick()
+        holdFired = false
         releaseDrag()
         super.onDetachedFromWindow()
     }
@@ -179,6 +198,37 @@ class GuiInputView(context: Context) : View(context) {
         rfb?.sendPointerEvent(0, pos.x.toInt(), pos.y.toInt())
     }
 
+    /** 1 本指を動かさず [GuiCursor.HOLD_MS] 保持したら、指を離すのを待たずに右クリックを送る。 */
+    private val holdClickRunnable = Runnable {
+        if (!pendingHoldClick) return@Runnable
+        pendingHoldClick = false
+        holdFired = true            // この指を離しても左クリックにしない
+        cursor?.endHold()
+        // 触覚は「右クリックを送った」合図。輪が閉じるのと同時に鳴らす。
+        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        clickAtCursor(RfbClient.BTN_RIGHT)
+    }
+
+    /** 長押し判定を開始する（指を置いた所を覚え、輪を出し、タイマーを張る）。 */
+    private fun beginHoldClick(e: MotionEvent) {
+        pendingHoldClick = true
+        holdFired = false
+        holdDownX = e.x
+        holdDownY = e.y
+        removeCallbacks(holdClickRunnable)
+        // postDelayed と同じ時計 (uptimeMillis) で輪の進み具合を計る。イベントの時刻を使うと
+        // 数 ms 過去から数え始めて、輪が閉じた後に少し間があく。
+        cursor?.beginHold(SystemClock.uptimeMillis())
+        postDelayed(holdClickRunnable, GuiCursor.HOLD_MS)
+    }
+
+    /** 長押し判定を捨てる（移動・2 本指・指を離した・ダブルタップへ移行）。輪も消す。 */
+    private fun cancelHoldClick() {
+        pendingHoldClick = false
+        removeCallbacks(holdClickRunnable)
+        cursor?.endHold()
+    }
+
     /** ダブルタップ後 [RIGHT_HOLD_MS] 保持したら、指を離すのを待たずに右クリックを送る。 */
     private val rightClickRunnable = Runnable {
         if (!pendingRightClick) return@Runnable
@@ -201,8 +251,10 @@ class GuiInputView(context: Context) : View(context) {
             override fun onDown(e: MotionEvent): Boolean = true
 
             // タップ = 現在のカーソル位置で左クリック（タッチ位置へは飛ばない）。
+            // ⚠ 長押し検出を切ってあるので、GestureDetector は**何秒押していてもここへ来る**。
+            //   長押しで右クリックを送り終えた指 ([holdFired]) はここで握り潰す。
             override fun onSingleTapUp(e: MotionEvent): Boolean {
-                if (dragHeld) return false
+                if (dragHeld || holdFired) return false
                 clickAtCursor(RfbClient.BTN_LEFT)
                 performClick()
                 return true
@@ -213,6 +265,7 @@ class GuiInputView(context: Context) : View(context) {
             //  実際の確定は onTouchEvent の MOVE/UP で行い、タイマーは触覚通知だけを担う。
             override fun onDoubleTap(e: MotionEvent): Boolean {
                 ensureCursor()
+                cancelHoldClick()   // 2 回目の指は右クリック / ドラッグ側の判定に渡す
                 pendingRightClick = true
                 rightClickFired = false
                 dtDownX = e.x
@@ -243,6 +296,8 @@ class GuiInputView(context: Context) : View(context) {
                 cancelRightClickTimer()
                 pendingRightClick = false
             }
+            cancelHoldClick()           // 2 本指はズーム/パン。長押し右クリックにはしない
+            holdFired = false
             rightClickFired = false
             // 一度でも 3 本指になったら、指が 2 本に減っても全部離すまでスクロール扱い。
             if (event.pointerCount >= 3) scrollGesture = true
@@ -286,6 +341,9 @@ class GuiInputView(context: Context) : View(context) {
                 if (cursor?.snapshot()?.mode == GuiCursor.Mode.ABSOLUTE) {
                     moveCursorTo(event.x, event.y)
                 }
+                // ⚠ gesture.onTouchEvent が先に走るので、ダブルタップの 2 回目ならここは
+                // すでに pendingRightClick=true。その指は右クリック / ドラッグの判定に任せる。
+                if (!pendingRightClick) beginHoldClick(event)
             }
             MotionEvent.ACTION_MOVE -> {
                 if (pendingRightClick) {
@@ -312,6 +370,12 @@ class GuiInputView(context: Context) : View(context) {
                     }
                     return true
                 }
+                if (pendingHoldClick &&
+                    kotlin.math.hypot(event.x - holdDownX, event.y - holdDownY) > touchSlop
+                ) {
+                    // 指が動いた = カーソルを運びたいだけ。右クリックにはしない。
+                    cancelHoldClick()
+                }
                 val dx = event.x - lastTouchX
                 val dy = event.y - lastTouchY
                 lastTouchX = event.x
@@ -323,6 +387,10 @@ class GuiInputView(context: Context) : View(context) {
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                // 時間前に離した = ただのタップ。輪を消すだけで、左クリックは
+                // GestureDetector の onSingleTapUp が出す
+                // (時間が来ていればタイマーが右クリックを送り終えていて、ここは何もしない)。
+                cancelHoldClick()
                 if (pendingRightClick) {
                     // ここへ来るのは [RIGHT_HOLD_MS] より前に離した時 = ダブルクリックの 2 発目。
                     // それ以降はタイマーが右クリックを送り終えていて pendingRightClick は false。
@@ -509,8 +577,10 @@ class GuiInputView(context: Context) : View(context) {
          * ダブルタップ後、これだけ動かさず保持したら**その場で**右クリックを送る (ms)。
          * ⚠ 短くしすぎると、ダブルタップからの左ドラッグを始める余裕が無くなる
          * （ドラッグしたい人はこの時間内に動かし始める必要がある）。
+         * ⭐ **1 本指長押しの右クリックと同じ値**にしてある ([GuiCursor.HOLD_MS])。同じ
+         * 「保持したら右クリック」なのに待ち時間が違うと、体で覚えられない。
          */
-        const val RIGHT_HOLD_MS = 150L
+        const val RIGHT_HOLD_MS = GuiCursor.HOLD_MS
     }
 
     /** IME の確定文字を keysym で送る InputConnection。 */

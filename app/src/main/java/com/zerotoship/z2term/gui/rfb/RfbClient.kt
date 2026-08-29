@@ -192,7 +192,14 @@ class RfbClient(
         //    更新矩形が小さくなり、差分 setPixels と相性が良い。Raw は常に保険で残す。
         //    擬似エンコーディング ExtendedDesktopSize を併せて通知し、サーバ側の解像度変更
         //    (回転時の再ネゴ) と、クライアントからの SetDesktopSize 要求を有効にする。
-        setEncodings(out, intArrayOf(ENC_ZRLE, ENC_COPYRECT, ENC_RAW, ENC_EXT_DESKTOP_SIZE))
+        //    ⭐ カーソル擬似エンコーディング (Cursor / XCursor) も通知する。これを送らない限り
+        //    サーバは**ポインタを framebuffer に焼き込む**ので、こちらが描く仮想カーソルと
+        //    合わせて 2 個見えてしまう (0.8.431)。通知したサーバは形状だけを別の矩形で送り、
+        //    画面には焼き込まなくなる。
+        setEncodings(
+            out,
+            intArrayOf(ENC_ZRLE, ENC_COPYRECT, ENC_RAW, ENC_EXT_DESKTOP_SIZE, ENC_CURSOR, ENC_X_CURSOR),
+        )
     }
 
     /**
@@ -408,10 +415,13 @@ class RfbClient(
                     if (!zrleSeen) { zrleSeen = true; Log.i(TAG, "ZRLE decoding active") }
                 }
                 ENC_EXT_DESKTOP_SIZE -> handleExtendedDesktopSize(inp, x, w, h)
+                ENC_CURSOR -> skipRichCursor(inp, w, h)
+                ENC_X_CURSOR -> skipXCursor(inp, w, h)
                 else -> throw IOException("unsupported encoding=$enc (rect $x,$y ${w}x$h)")
             }
-            // 擬似エンコーディング (解像度変更) は描画矩形ではないのでバウンディング対象外。
-            if (enc != ENC_EXT_DESKTOP_SIZE) {
+            // 擬似エンコーディング (解像度変更・カーソル形状) は描画矩形ではないので
+            // バウンディング対象外。
+            if (!isPseudoEncoding(enc)) {
                 val rx0 = x.coerceIn(0, width); val ry0 = y.coerceIn(0, height)
                 val rx1 = (x + w).coerceIn(0, width); val ry1 = (y + h).coerceIn(0, height)
                 if (rx1 > rx0 && ry1 > ry0) {
@@ -433,6 +443,31 @@ class RfbClient(
         val full = pendingFullRequest
         pendingFullRequest = false
         sendFramebufferUpdateRequest(out, incremental = !full)
+    }
+
+    /** 描画矩形ではない擬似エンコーディングか (バウンディング計算から外す)。 */
+    private fun isPseudoEncoding(enc: Int): Boolean =
+        enc == ENC_EXT_DESKTOP_SIZE || enc == ENC_CURSOR || enc == ENC_X_CURSOR
+
+    /**
+     * Cursor (RichCursor) 擬似矩形 (-239) を読み捨てる。
+     *
+     * 中身はピクセル (w*h*4 byte。[setPixelFormat] で 32bpp に固定してあるので 4) と
+     * 1bit 透過マスク (`((w+7)/8)*h` byte)。**形は使わない** — こちらは画面倍率に依らず
+     * 同じ大きさで見える自前の矢印を描くため (縮小表示だと相手の 24px カーソルは指で
+     * 狙えない大きさになる)。それでも要求しておくのは、要求しないとサーバが
+     * framebuffer にポインタを焼き込んでカーソルが 2 個に見えるから (0.8.431)。
+     * ⚠ **バイト数はきっちり読み飛ばす。** 1 バイトでもずれるとストリームが壊れる。
+     */
+    private fun skipRichCursor(inp: DataInputStream, w: Int, h: Int) {
+        if (w <= 0 || h <= 0) return // w*h==0 は「カーソル無し」。本体は付いてこない
+        skipFully(inp, w.toLong() * h.toLong() * 4L + ((w + 7) / 8).toLong() * h.toLong())
+    }
+
+    /** XCursor 擬似矩形 (-240) を読み捨てる。前景/背景色 6 byte + 1bit ビットマップ 2 枚 (source/mask)。 */
+    private fun skipXCursor(inp: DataInputStream, w: Int, h: Int) {
+        if (w <= 0 || h <= 0) return
+        skipFully(inp, 6L + ((w + 7) / 8).toLong() * h.toLong() * 2L)
     }
 
     /**
@@ -754,5 +789,8 @@ class RfbClient(
         private const val ENC_ZRLE = 16
         // pseudo-encoding: 解像度変更 (TigerVNC/RFB ExtendedDesktopSize)
         private const val ENC_EXT_DESKTOP_SIZE = -308
+        // pseudo-encoding: カーソル形状。要求するとサーバは framebuffer へ焼き込まなくなる
+        private const val ENC_CURSOR = -239
+        private const val ENC_X_CURSOR = -240
     }
 }

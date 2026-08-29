@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
@@ -779,29 +780,23 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         }
 
         if (keyboardSizeBarOpen) {
-            val adjustsWidth = isSideKB
+            // ⚠ 帯は**キーボードの外・画面幅いっぱい**に置く。キーボード側に置くと、
+            // 幅を動かすたびに帯自身が伸び縮みして狙いが定まらない。
             KeyboardSizeBar(
-                title = stringResource(
-                    if (adjustsWidth) R.string.settings_landscape_kb_width
-                    else if (isLandscape) R.string.settings_kb_height_landscape
-                    else R.string.settings_kb_height_portrait
+                axes = keyboardSizeAxes(
+                    settings = settings,
+                    isLandscape = isLandscape,
+                    isSideKeyboard = isSideKB,
+                    onHeightChange = { value ->
+                        if (isLandscape) active.setLandscapeKeyboardHeightDp(value)
+                        else active.setPortraitKeyboardHeightDp(value)
+                    },
+                    onWidthChange = { value ->
+                        if (isSideKB) active.setLandscapeKeyboardWidthDp(value)
+                        else if (isLandscape) active.setLandscapeBottomKeyboardWidthPercent(value)
+                        else active.setPortraitKeyboardWidthPercent(value)
+                    },
                 ),
-                value = if (adjustsWidth) settings.landscapeKeyboardWidthDp
-                    else if (isLandscape) settings.landscapeKeyboardHeightDp
-                    else settings.portraitKeyboardHeightDp,
-                range = if (adjustsWidth) {
-                    AppSettings.MIN_LANDSCAPE_KB_WIDTH_DP..AppSettings.MAX_LANDSCAPE_KB_WIDTH_DP
-                } else if (isLandscape) {
-                    AppSettings.MIN_LANDSCAPE_KB_HEIGHT_DP..AppSettings.MAX_LANDSCAPE_KB_HEIGHT_DP
-                } else {
-                    AppSettings.MIN_PORTRAIT_KB_HEIGHT_DP..AppSettings.MAX_PORTRAIT_KB_HEIGHT_DP
-                },
-                steps = if (adjustsWidth) 13 else if (isLandscape) 14 else 12,
-                onChange = { value ->
-                    if (adjustsWidth) active.setLandscapeKeyboardWidthDp(value)
-                    else if (isLandscape) active.setLandscapeKeyboardHeightDp(value)
-                    else active.setPortraitKeyboardHeightDp(value)
-                },
                 onClose = { keyboardSizeBarOpen = false }
             )
         }
@@ -824,8 +819,13 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     if (!isSideKB) {
                         // 高さはスタイルの naturalHeight 固定。これでキーサイズと領域高さが
                         // 常に一致する (旧: 高さ可変でキーサイズが追従せずズレていた)。
+                        // 幅は設定の % で中央寄せ (0.8.431。100% なら従来どおり画面いっぱい)。
                         Box(modifier = Modifier
-                            .fillMaxWidth()
+                            .align(Alignment.CenterHorizontally)
+                            .bottomKeyboardWidth(
+                                if (isLandscape) settings.landscapeBottomKeyboardWidthPercent
+                                else settings.portraitKeyboardWidthPercent
+                            )
                             .height(kbStyle.naturalHeight)
                         ) {
                             // タブ切替でキーボードのサブツリーを作り直す。pointerInput など
@@ -1177,6 +1177,11 @@ private fun GuiTabScreen(
             // OS IME はオーバーレイで出すので解像度に影響させない → systemBars のみ。
             .windowInsetsPadding(WindowInsets.systemBars)
     ) {
+        // 🖱 の点灯用。GuiCursor は rev が上がるたびに中身が変わるので、そこから読み直す。
+        val cursorRev by gui.cursor.rev.collectAsState()
+        val pointerAbsolute = remember(cursorRev) {
+            gui.cursor.snapshot().mode == com.zerotoship.z2term.gui.GuiCursor.Mode.ABSOLUTE
+        }
         GuiTopBar(
             session = gui,
             keyboardMode = keyboardMode,
@@ -1188,6 +1193,7 @@ private fun GuiTabScreen(
             },
             onPasteHistory = { clipHistoryOpen = true },
             onOpenSnippets = { snippetsSheetOpen = true },
+            pointerAbsolute = pointerAbsolute,
             onTogglePointerMode = { gui.cursor.toggleMode() },
             onToggleKeyboardMode = {
                 keyboardSizeBarOpen = false
@@ -1271,22 +1277,8 @@ private fun GuiTabScreen(
                 legacyKanaAvailable = legacyKanaAvailableGui,
             )
         }
-        val adjustsWidthGui = isSideKBGui
-        val keyboardSizeTitleGui = stringResource(
-            if (adjustsWidthGui) R.string.settings_landscape_kb_width
-            else if (isLandscapeGui) R.string.settings_kb_height_landscape
-            else R.string.settings_kb_height_portrait
-        )
-        val keyboardSizeValueGui = if (adjustsWidthGui) settings.landscapeKeyboardWidthDp
-            else if (isLandscapeGui) settings.landscapeKeyboardHeightDp
-            else settings.portraitKeyboardHeightDp
-        val keyboardSizeRangeGui = if (adjustsWidthGui) {
-            AppSettings.MIN_LANDSCAPE_KB_WIDTH_DP..AppSettings.MAX_LANDSCAPE_KB_WIDTH_DP
-        } else if (isLandscapeGui) {
-            AppSettings.MIN_LANDSCAPE_KB_HEIGHT_DP..AppSettings.MAX_LANDSCAPE_KB_HEIGHT_DP
-        } else {
-            AppSettings.MIN_PORTRAIT_KB_HEIGHT_DP..AppSettings.MAX_PORTRAIT_KB_HEIGHT_DP
-        }
+        val guiBottomKbWidthPercent = if (isLandscapeGui) settings.landscapeBottomKeyboardWidthPercent
+            else settings.portraitKeyboardWidthPercent
         val keyboardOutsideGui = !isLandscapeGui && keyboardMode == KeyboardMode.CUSTOM
 
         Row(modifier = Modifier
@@ -1346,19 +1338,7 @@ private fun GuiTabScreen(
                             rfb = gui.rfb,
                             ctrlSticky = ctrlSticky,
                             onCtrlToggle = { ctrlSticky = !ctrlSticky },
-                            sizeBarOpen = keyboardSizeBarOpen,
-                            sizeTitle = keyboardSizeTitleGui,
-                            sizeValue = keyboardSizeValueGui,
-                            sizeRange = keyboardSizeRangeGui,
-                            sizeSteps = if (adjustsWidthGui) 13 else if (isLandscapeGui) 14 else 12,
-                            onSizeChange = { value ->
-                                scope.launch {
-                                    if (adjustsWidthGui) appSettings.setLandscapeKeyboardWidthDp(value)
-                                    else if (isLandscapeGui) appSettings.setLandscapeKeyboardHeightDp(value)
-                                    else appSettings.setPortraitKeyboardHeightDp(value)
-                                }
-                            },
-                            onCloseSizeBar = { keyboardSizeBarOpen = false },
+                            bottomWidthPercent = guiBottomKbWidthPercent,
                             modifier = Modifier
                                 .align(Alignment.BottomStart)
                                 .imePadding()
@@ -1382,15 +1362,7 @@ private fun GuiTabScreen(
                         rfb = gui.rfb,
                         ctrlSticky = ctrlSticky,
                         onCtrlToggle = { ctrlSticky = !ctrlSticky },
-                        sizeBarOpen = keyboardSizeBarOpen,
-                        sizeTitle = keyboardSizeTitleGui,
-                        sizeValue = keyboardSizeValueGui,
-                        sizeRange = keyboardSizeRangeGui,
-                        sizeSteps = 12,
-                        onSizeChange = { value ->
-                            scope.launch { appSettings.setPortraitKeyboardHeightDp(value) }
-                        },
-                        onCloseSizeBar = { keyboardSizeBarOpen = false }
+                        bottomWidthPercent = guiBottomKbWidthPercent
                     )
                 }
             }
@@ -1405,6 +1377,33 @@ private fun GuiTabScreen(
                     onNamedKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForNamed(key)) }
                 )
             }
+        }
+
+        // ⭐ サイズ調整帯は**緑枠の外**、画面のいちばん下に画面幅いっぱいで出す (0.8.431)。
+        // 枠の中に置くと、キーボードの大きさを変えた瞬間に枠が伸び縮みし、
+        // その中に居るスライダーの幅まで変わって掴み直しになる (利用者の指摘)。
+        if (keyboardSizeBarOpen) {
+            KeyboardSizeBar(
+                axes = keyboardSizeAxes(
+                    settings = settings,
+                    isLandscape = isLandscapeGui,
+                    isSideKeyboard = isSideKBGui,
+                    onHeightChange = { value ->
+                        scope.launch {
+                            if (isLandscapeGui) appSettings.setLandscapeKeyboardHeightDp(value)
+                            else appSettings.setPortraitKeyboardHeightDp(value)
+                        }
+                    },
+                    onWidthChange = { value ->
+                        scope.launch {
+                            if (isSideKBGui) appSettings.setLandscapeKeyboardWidthDp(value)
+                            else if (isLandscapeGui) appSettings.setLandscapeBottomKeyboardWidthPercent(value)
+                            else appSettings.setPortraitKeyboardWidthPercent(value)
+                        }
+                    },
+                ),
+                onClose = { keyboardSizeBarOpen = false }
+            )
         }
     }
 
@@ -1484,27 +1483,15 @@ private fun GuiKeyboardPanel(
     rfb: RfbClient,
     ctrlSticky: Boolean,
     onCtrlToggle: () -> Unit,
-    sizeBarOpen: Boolean,
-    sizeTitle: String,
-    sizeValue: Float,
-    sizeRange: ClosedFloatingPointRange<Float>,
-    sizeSteps: Int,
-    onSizeChange: (Float) -> Unit,
-    onCloseSizeBar: () -> Unit,
+    /** 下配置キーボードの幅 (画面幅に対する %)。サイド配置では使わない。 */
+    bottomWidthPercent: Float,
     modifier: Modifier = Modifier,
 ) {
+    // ⚠ サイズ調整帯はここに置かない (0.8.431)。この帯は横画面だと**緑枠の内側**の
+    // オーバーレイとして描かれるので、キーボードの大きさを変えると枠ごと寸法が変わり、
+    // スライダー自身の幅まで動いて操作できなかった。呼び出し側の画面幅いっぱいの場所へ出す。
     Column(modifier = modifier.fillMaxWidth()) {
         CandidateBar(composing = composing)
-        if (sizeBarOpen) {
-            KeyboardSizeBar(
-                title = sizeTitle,
-                value = sizeValue,
-                range = sizeRange,
-                steps = sizeSteps,
-                onChange = onSizeChange,
-                onClose = onCloseSizeBar
-            )
-        }
         if (keyboardToggleBar) {
             KeyboardToggleBar(collapsed = keyboardCollapsed, onToggle = onToggleCollapsed)
         }
@@ -1513,7 +1500,8 @@ private fun GuiKeyboardPanel(
                 KeyboardMode.CUSTOM -> if (!isSideKeyboard) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .align(Alignment.CenterHorizontally)
+                            .bottomKeyboardWidth(bottomWidthPercent)
                             .height(style.naturalHeight)
                     ) {
                         TerminalKeyboard(
@@ -1562,6 +1550,8 @@ private fun GuiTopBar(
     onPaste: () -> Unit,
     onPasteHistory: () -> Unit,
     onOpenSnippets: () -> Unit,
+    /** true = 絶対モード (🖱 を点灯させる)。 */
+    pointerAbsolute: Boolean,
     onTogglePointerMode: () -> Unit,
     onToggleKeyboardMode: () -> Unit,
     onToggleKeyboardVisible: () -> Unit,
@@ -1607,9 +1597,17 @@ private fun GuiTopBar(
             ReorderableToolbar(
                 items = listOf(
                     ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
-                    // GUI だけは 📜 のダブルタップで相対/絶対カーソルを切り替える。
-                    // 画面を見ながら変えられ、ボタンを増やさない。現在モードはカーソル根元の輪で分かる。
-                    ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets, onDoubleClick = onTogglePointerMode),
+                    ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
+                    // 🖱 カーソルの相対/絶対切替 (0.8.431)。⭐ **GUI タブにしか出さない。**
+                    // 0.8.430 まではこれが 📜 のダブルタップに隠れていて、⚠ **画面のどこにも
+                    // 出ていないうえ「コマンド一覧」と意味が繋がらない**ので誰も辿り着けなかった
+                    // (利用者の指摘)。GUI ではボタンが 5 個しか無く枠が空いているので、
+                    // 隠すのをやめて 1 個のボタンにする。点灯 = 絶対モード。
+                    ToolbarItem(
+                        ToolbarButtons.POINTER_MODE, "🖱", stringResource(R.string.tb_pointer_mode),
+                        active = pointerAbsolute,
+                        onClick = onTogglePointerMode
+                    ),
                     ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
                     keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
                     ToolbarItem(
@@ -2934,66 +2932,163 @@ private fun KeyboardToggleBar(
 }
 
 /**
+ * サイズ調整帯の 1 軸。高さと幅で中身が違うだけなので、同じ形にして並べる。
+ *
+ * @param unit 値の後ろに出す単位 ("dp" / "%")。幅を % で持つ配置があるため可変にしてある。
+ */
+private class SizeAxis(
+    val title: String,
+    val value: Float,
+    val range: ClosedFloatingPointRange<Float>,
+    val steps: Int,
+    val unit: String,
+    val onChange: (Float) -> Unit,
+)
+
+/**
  * ツールバーの ⌨ をトリプルタップしたときだけ出すキーボードサイズ調整帯。
  *
- * 縦/横の高さ、サイド配置の幅は呼び出し側が選び、既存の設定値へそのまま書き戻す。
+ * ⭐ **高さと幅を必ず両方出す (0.8.431)。** 0.8.430 までは配置によって片方しか出せず、
+ * 横画面のサイド配置では**幅しか変えられなかった**（高さの設定自体は前からあったのに、
+ * この帯からは届かなかった）。下配置には幅の設定が無かったので新設した。
+ * ⚠ **この帯を、サイズ変更で寸法が変わる入れ物の中に置かないこと。** 中に置くと、
+ * スライダーを動かすたびに帯自身の幅が変わって狙いが定まらない（GUI タブの緑枠の中に
+ * 置いていて実際にそうなっていた）。呼び出し側は必ず画面幅いっぱいの場所に置く。
+ *
  * 常設ボタンは増やさず、トグルバーを非表示にしていても使える。
  */
 @Composable
 private fun KeyboardSizeBar(
-    title: String,
-    value: Float,
-    range: ClosedFloatingPointRange<Float>,
-    steps: Int,
-    onChange: (Float) -> Unit,
+    axes: List<SizeAxis>,
     onClose: () -> Unit,
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
             .background(ZtsBgSecondary)
             .border(width = 1.dp, color = ZtsBorder)
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 8.dp, vertical = 2.dp)
     ) {
-        Text(
-            text = title,
-            color = ZtsTextSecondary,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace,
-            maxLines = 1
-        )
-        Slider(
-            value = value.coerceIn(range.start, range.endInclusive),
-            onValueChange = onChange,
-            valueRange = range,
-            steps = steps,
-            colors = SliderDefaults.colors(
-                thumbColor = ZtsGreen,
-                activeTrackColor = ZtsGreen,
-                inactiveTrackColor = ZtsBorder
-            ),
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = "%.0fdp".format(value),
-            color = ZtsGreen,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace,
-            maxLines = 1
-        )
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
-                .clickable(onClick = onClose)
-                .padding(horizontal = 8.dp, vertical = 6.dp)
-        ) {
-            Text(text = "✕", color = ZtsTextSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+        axes.forEachIndexed { index, axis ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = axis.title,
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 104.dp)
+                )
+                Slider(
+                    value = axis.value.coerceIn(axis.range.start, axis.range.endInclusive),
+                    onValueChange = axis.onChange,
+                    valueRange = axis.range,
+                    steps = axis.steps,
+                    colors = SliderDefaults.colors(
+                        thumbColor = ZtsGreen,
+                        activeTrackColor = ZtsGreen,
+                        inactiveTrackColor = ZtsBorder
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "%.0f%s".format(axis.value, axis.unit),
+                    color = ZtsGreen,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    modifier = Modifier.widthIn(min = 44.dp)
+                )
+                // ✕ は 1 行目にだけ置く (軸ごとに閉じるボタンが並ぶと押し間違える)。
+                if (index == 0) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable(onClick = onClose)
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Text(text = "✕", color = ZtsTextSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(28.dp))
+                }
+            }
         }
     }
 }
+
+/**
+ * いまの向き・配置に応じたサイズ調整帯の軸を組み立てる (端末タブ / GUI タブ共通)。
+ *
+ * - サイド配置 (横画面 左/右): 幅 = `landscapeKeyboardWidthDp` (実寸) / 高さ = `landscapeKeyboardHeightDp`
+ * - 下配置 (縦画面・横画面下): 高さ = 向きごとの dp / 幅 = 向きごとの **%** (0.8.431 で新設)
+ *
+ * ⚠ **高さを先に置く。** よく触るのは高さで、幅は「はみ出す/届かない」を直すときだけ触る。
+ */
+@Composable
+private fun keyboardSizeAxes(
+    settings: AppSettings.Snapshot,
+    isLandscape: Boolean,
+    isSideKeyboard: Boolean,
+    onHeightChange: (Float) -> Unit,
+    onWidthChange: (Float) -> Unit,
+): List<SizeAxis> {
+    val height = SizeAxis(
+        title = stringResource(
+            if (isLandscape) R.string.settings_kb_height_landscape
+            else R.string.settings_kb_height_portrait
+        ),
+        value = if (isLandscape) settings.landscapeKeyboardHeightDp else settings.portraitKeyboardHeightDp,
+        range = if (isLandscape) {
+            AppSettings.MIN_LANDSCAPE_KB_HEIGHT_DP..AppSettings.MAX_LANDSCAPE_KB_HEIGHT_DP
+        } else {
+            AppSettings.MIN_PORTRAIT_KB_HEIGHT_DP..AppSettings.MAX_PORTRAIT_KB_HEIGHT_DP
+        },
+        steps = if (isLandscape) 14 else 12,
+        unit = "dp",
+        onChange = onHeightChange,
+    )
+    val width = if (isSideKeyboard) {
+        SizeAxis(
+            title = stringResource(R.string.settings_landscape_kb_width),
+            value = settings.landscapeKeyboardWidthDp,
+            range = AppSettings.MIN_LANDSCAPE_KB_WIDTH_DP..AppSettings.MAX_LANDSCAPE_KB_WIDTH_DP,
+            steps = 13,
+            unit = "dp",
+            onChange = onWidthChange,
+        )
+    } else {
+        SizeAxis(
+            title = stringResource(R.string.settings_kb_width_bottom),
+            value = if (isLandscape) settings.landscapeBottomKeyboardWidthPercent
+                else settings.portraitKeyboardWidthPercent,
+            range = AppSettings.MIN_KB_WIDTH_PERCENT..AppSettings.MAX_KB_WIDTH_PERCENT,
+            steps = 11,
+            unit = "%",
+            onChange = onWidthChange,
+        )
+    }
+    return listOf(height, width)
+}
+
+/**
+ * 下配置キーボードの幅 (%) を横並びの中央寄せに変換する Modifier (0.8.431)。
+ * 100% では従来どおり [Modifier.fillMaxWidth] と同じ。
+ */
+private fun Modifier.bottomKeyboardWidth(percent: Float): Modifier =
+    this.fillMaxWidth(
+        (percent / 100f).coerceIn(
+            AppSettings.MIN_KB_WIDTH_PERCENT / 100f,
+            AppSettings.MAX_KB_WIDTH_PERCENT / 100f,
+        )
+    )
 
 /**
  * [KeyboardStyle] を縦方向だけ拡縮して総高さを [targetHeightDp] にそろえる (縦画面・横画面共通)。

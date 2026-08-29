@@ -42,6 +42,16 @@ class GuiCursor {
     /** 位置・押下状態・形の変更ごとに増え、Compose のカーソル再描画を促す。 */
     val rev: StateFlow<Int> = _rev.asStateFlow()
 
+    private val _holdStart = MutableStateFlow(0L)
+    /**
+     * 長押し右クリックを計り始めた時刻 (`SystemClock.uptimeMillis`)。**0 = 長押ししていない**。
+     *
+     * [GuiInputView] が指を置いた時に立て、[GuiScreen] がこれを見てカーソルの先端に
+     * 「あと少しで右クリック」の輪を描く。時間そのものを渡すのは、描画側が毎フレーム
+     * 進み具合を計算するため（位置と違って「今どこまで進んだか」は時刻からしか出せない）。
+     */
+    val holdStart: StateFlow<Long> = _holdStart.asStateFlow()
+
     @Synchronized
     fun snapshot(): Snapshot = Snapshot(initialized, x, y, pressed, mode, visual)
 
@@ -99,6 +109,16 @@ class GuiCursor {
         bump()
     }
 
+    /** 長押し右クリックの計測開始を描画側へ知らせる。[now] は `SystemClock.uptimeMillis()`。 */
+    fun beginHold(now: Long) {
+        _holdStart.value = now
+    }
+
+    /** 長押しの終了（成立・取消のどちらでも呼ぶ）。輪を消す。 */
+    fun endHold() {
+        if (_holdStart.value != 0L) _holdStart.value = 0L
+    }
+
     @Synchronized
     fun toggleMode(): Mode {
         mode = if (mode == Mode.RELATIVE) Mode.ABSOLUTE else Mode.RELATIVE
@@ -115,5 +135,14 @@ class GuiCursor {
 
     private fun bump() {
         _rev.value = _rev.value + 1
+    }
+
+    companion object {
+        /**
+         * 1 本指を動かさず保持してから右クリックが出るまでの時間 (ms)。
+         * **入力側の判定 ([GuiInputView]) と輪のエフェクトの尺 ([GuiScreen]) で共有する** —
+         * 別々に持つと「輪が閉じたのにまだ押されない」がすぐ起きる。
+         */
+        const val HOLD_MS = 150L
     }
 }

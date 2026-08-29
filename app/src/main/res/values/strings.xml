@@ -214,6 +214,7 @@
     <string name="settings_landscape_kb_bottom">Bottom</string>
     <string name="settings_landscape_kb_right">Right</string>
     <string name="settings_landscape_kb_width">Side keyboard width (landscape)</string>
+    <string name="settings_kb_width_bottom">Keyboard width (bottom)</string>
     <string name="settings_section_keyboard_size">Keyboard size</string>
     <string name="settings_kb_height_portrait">Keyboard height (portrait)</string>
     <string name="settings_kb_height_landscape">Keyboard height (landscape)</string>
@@ -753,6 +754,7 @@
     <string name="tb_keyboard">Switch keyboard</string>
     <string name="tb_settings">Settings</string>
     <string name="tb_log">Record terminal log</string>
+    <string name="tb_pointer_mode">Cursor: relative / absolute</string>
     <string name="log_sheet_title">Terminal log</string>
     <string name="log_recording">Record this tab</string>
     <string name="log_recording_desc">Keeps writing what appears on screen to a text file</string>

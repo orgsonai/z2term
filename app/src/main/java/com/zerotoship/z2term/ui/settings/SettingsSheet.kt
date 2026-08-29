@@ -538,6 +538,22 @@ fun SettingsSheet(
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )
+                    // 下配置キーボードの幅 (0.8.431)。縦画面と横画面下配置で別々に持つ。
+                    // 左/右配置のときは実寸の幅 (下の settings_landscape_kb_width) が効くので出さない。
+                    if (!isLandscape || settings.landscapeKeyboardPosition == AppSettings.LANDSCAPE_KB_BOTTOM) {
+                        SliderField(
+                            title = stringResource(R.string.settings_kb_width_bottom),
+                            value = if (isLandscape) settings.landscapeBottomKeyboardWidthPercent
+                                    else settings.portraitKeyboardWidthPercent,
+                            range = AppSettings.MIN_KB_WIDTH_PERCENT..AppSettings.MAX_KB_WIDTH_PERCENT,
+                            steps = 11,  // 40 → 100 を 5% 刻み (13 段)
+                            valueLabel = { "%.0f%%".format(it) },
+                            onChange = {
+                                if (isLandscape) session.setLandscapeBottomKeyboardWidthPercent(it)
+                                else session.setPortraitKeyboardWidthPercent(it)
+                            }
+                        )
+                    }
                     // 配置 (左/下/右) とサイドキーボード幅は横画面でのみ意味があるので横画面の時だけ出す。
                     if (isLandscape) {
                         val posOptions = listOf(

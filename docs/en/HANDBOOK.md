@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.430-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.431-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -73,7 +73,7 @@ The downloaded APK is **deleted once the update goes through** (and on the next 
 | 🔅 | Screen-on lock (when ON, the screen won't auto-dim; the icon changes to 💡 while ON). **Double-tap for a slider that dims this app only** (for dark rooms; going home restores it, and Reset clears it any time). **The level you pick is remembered, so the app opens at that brightness next time** (press Reset to go back to normal) |
 | 🔒 | Background keep-alive (while ON, the terminal keeps running even if you close the screen; 🔒 = ON, 🔓 = OFF). **While resident servers are running, 🔒 is dimmed and can't be toggled** (the servers already keep the app alive, so turning it OFF here would do nothing). Tapping 🔒 in that state opens a screen to choose **"End session only" / "Stop everything and quit"** (see below). Note: **keeping the device reachable from outside (ssh, etc.) is the job of "resident servers"**, not 🔒 (0.8.268 — 🔒 used to keep Wi-Fi at full power too, which cost a lot of battery, so it no longer does). ⚠ Even with resident servers running, **the device can be unreachable from outside right after rejoining Wi-Fi** (power save stops it answering "where I am"). This is Android's behaviour and the app cannot prevent it. **Any single outbound packet from the device fixes it**, so run `ping -c 1 <router IP>`, or put the same thing on a `z2-when wifi:connect` rule to have it recover automatically |
 | 🔍 | Search the on-screen text (jump back/forward with ↑↓; **while searching, the scrollbar shows a tick for every hit** so you can see where they cluster — tap a tick to jump there; **tap in the input field to move the caret** and fix a typo in the middle). **You can search in Japanese without leaving the built-in keyboard** — text being converted appears underlined in the field and lands in the search term once you commit it (0.8.275; before that nothing changed on screen until you committed, so it looked as if typing did not work). With the OS keyboard selected the field behaves as an ordinary OS text field, as before) |
-| ⌨ | Switch between the phone's standard keyboard ⇄ the in-app keyboard. **Double-tap to show/hide it; triple-tap for the size slider** (0.8.428). Even with the phone's keyboard, **the text being composed (before you confirm) shows inline at the terminal cursor** |
+| ⌨ | Switch between the phone's standard keyboard ⇄ the in-app keyboard. **Double-tap to show/hide it; triple-tap for the size slider** (0.8.428; **two sliders — height and width** since 0.8.431). Even with the phone's keyboard, **the text being composed (before you confirm) shows inline at the terminal cursor** |
 | 🔴 / ⚪ | Record a terminal log (tap to start, tap again to stop; **🔴 while recording, ⚪ when idle**; **double-tap for the details**) |
 | ⚙ | Settings (**always the rightmost**; it never moves when you reorder, and cannot be removed) |
 
@@ -268,9 +268,11 @@ Before using it, fill in two fields under **✎ (Edit)** for the host:
 Once it is up, it behaves like the app's own GUI tab: two fingers to zoom and pan, three fingers to
 scroll, and the same keyboard.
 
-- **The white arrow is the cursor you control** (0.8.427). Its position survives leaving the tab and reconnecting.
-- The default is **relative mode**: the cursor moves by the distance your finger moves. Double-tap **📜 in the GUI toolbar** to switch to **absolute mode**, where the cursor jumps to the place you touch. A green ring at the arrow root marks absolute mode. A single tap on 📜 still opens snippets.
-- For a **right click**, just hold the second tap still — **it fires on its own after 0.15 s**, with no need to lift your finger (0.8.429; before that you held for 0.35 s and then released). ⚠ For a **left drag**, start moving before those 0.15 s are up.
+- **The white arrow is the cursor you control** (0.8.427). Its position survives leaving the tab and reconnecting. **It is the only arrow on screen** (0.8.431; before that the pointer drawn by the server sat next to it and you saw **two**).
+- The default is **relative mode**: the cursor moves by the distance your finger moves. Press **🖱 in the GUI toolbar** to switch to **absolute mode**, where the cursor jumps to the place you touch (0.8.431; 🖱 lights up in absolute mode, and a green ring appears at the arrow root). ⚠ Through 0.8.430 this lived on a **double-tap of 📜**, which is visible nowhere on screen and has nothing to do with a command list, so it is now **a button of its own, shown only on GUI tabs** (never on terminal tabs; hide it under ⚙ Settings › Display › Toolbar).
+- **A single tap is a left click** and **a double tap is a double click**, as before.
+- **A press and hold now also gives you a right click** (0.8.431). Keep your finger still and **a green ring sweeps around the arrow tip; the right click fires the moment it closes** (0.15 s, with no need to lift your finger). Move while the ring is running and it is cancelled, leaving you with plain cursor movement. ⚠ The older route still works: **hold the second tap of a double tap** (0.8.429; the same 0.15 s wait). Use whichever is easier.
+- To **drag** (move a window, select a range), **double-tap and keep moving**. No long press needed. ⚠ Start moving before those 0.15 s are up, or you get a right click instead.
 - To switch the remote Japanese input method, place **Half/Full** (or Convert, Non-convert, Kana or Eisu) anywhere in the custom key-layout editor. If the remote uses `Ctrl+Space` or `Super+Space`, place that modified key instead.
 
 - ⚠ **The server decides the size of the screen.** z2term never resizes it to fit your frame — it may

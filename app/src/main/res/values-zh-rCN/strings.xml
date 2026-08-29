@@ -210,6 +210,7 @@
     <string name="settings_landscape_kb_bottom">下</string>
     <string name="settings_landscape_kb_right">右</string>
     <string name="settings_landscape_kb_width">侧边键盘宽度 (横屏)</string>
+    <string name="settings_kb_width_bottom">键盘宽度 (底部)</string>
     <string name="settings_section_keyboard_size">键盘大小</string>
     <string name="settings_kb_height_portrait">键盘高度（竖屏）</string>
     <string name="settings_kb_height_landscape">键盘高度（横屏）</string>
@@ -685,6 +686,7 @@
     <string name="tb_keyboard">切换键盘</string>
     <string name="tb_settings">设置</string>
     <string name="tb_log">记录终端日志</string>
+    <string name="tb_pointer_mode">光标 相对 / 绝对</string>
     <string name="log_sheet_title">终端日志</string>
     <string name="log_recording">记录这个标签页</string>
     <string name="log_recording_desc">持续把屏幕上出现的内容写入文本文件</string>

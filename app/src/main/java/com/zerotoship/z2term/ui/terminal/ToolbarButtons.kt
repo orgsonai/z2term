@@ -15,13 +15,15 @@ import com.zerotoship.z2term.R
  * @param labelRes ボタンの説明 (ツールバー長押しのポップアップと設定画面で共用)。
  * @param canHide  false のボタンは設定画面から隠せない。⚙ 設定を隠すと設定画面に戻れなくなるため。
  * @param terminalOnly 端末タブにしか無いボタン (GUI タブでは一覧に出さない)。
+ * @param guiOnly GUI タブにしか無いボタン (端末タブでは一覧に出さない)。
  */
 data class ToolbarButtonSpec(
     val id: String,
     val icon: String,
     @param:StringRes val labelRes: Int,
     val canHide: Boolean = true,
-    val terminalOnly: Boolean = false
+    val terminalOnly: Boolean = false,
+    val guiOnly: Boolean = false
 )
 
 /**
@@ -42,12 +44,16 @@ object ToolbarButtons {
     const val SEARCH = "search"
     const val KEYBOARD = "keyboard"
     const val LOG = "log"
+    const val POINTER_MODE = "pointer_mode"
     const val SETTINGS = "settings"
 
     /** 設定画面に並べる既定順 (= ツールバーの既定の並び)。 */
     val CATALOG: List<ToolbarButtonSpec> = listOf(
         ToolbarButtonSpec(PASTE, "📋", R.string.tb_paste),
         ToolbarButtonSpec(SNIPPETS, "📜", R.string.tb_snippets),
+        // 🖱 は GUI タブだけ。カーソルの相対/絶対を切り替える (0.8.431)。
+        // 以前は 📜 のダブルタップに隠れていて、**画面のどこにも出ていない**ため誰も辿り着けなかった。
+        ToolbarButtonSpec(POINTER_MODE, "🖱", R.string.tb_pointer_mode, guiOnly = true),
         ToolbarButtonSpec(SCREEN_ON, "🔅", R.string.tb_screen_on),
         ToolbarButtonSpec(KEEP_ALIVE, "🔓", R.string.tb_keep_alive),
         ToolbarButtonSpec(SEARCH, "🔍", R.string.tb_search, terminalOnly = true),

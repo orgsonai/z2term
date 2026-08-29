@@ -140,6 +140,17 @@ class AppSettings(private val context: Context) {
          */
         val portraitKeyboardHeightDp: Float = DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP,
         /**
+         * 下に置いたキーボードの幅 (画面幅に対する %)。縦画面用 (0.8.431)。
+         * 100 = 従来どおり画面いっぱい。狭めると中央寄せになり、両脇が背景色で空く。
+         * ⚠ 左右配置のときは使わない (そちらは [landscapeKeyboardWidthDp] が実寸で決める)。
+         */
+        val portraitKeyboardWidthPercent: Float = DEFAULT_KEYBOARD_WIDTH_PERCENT,
+        /**
+         * 下に置いたキーボードの幅 (画面幅に対する %)。横画面・下配置用 (0.8.431)。
+         * 縦とは別に持つ。横は画面が倍近く広く、同じ % でも指の届き方が別物になるため。
+         */
+        val landscapeBottomKeyboardWidthPercent: Float = DEFAULT_KEYBOARD_WIDTH_PERCENT,
+        /**
          * 裏機能「エンジン選択」の解放フラグ。設定のバージョンを7回タップで true になる
          * (Android 開発者モードと同作法)。false の間はエンジン選択 UI を出さない。
          * これ自体は root 不要。chroot を選べるかは
@@ -557,6 +568,9 @@ class AppSettings(private val context: Context) {
             landscapeKeyboardWidthDp = p[KEY_LANDSCAPE_KB_WIDTH] ?: DEFAULT_LANDSCAPE_KEYBOARD_WIDTH_DP,
             landscapeKeyboardHeightDp = p[KEY_LANDSCAPE_KB_HEIGHT] ?: DEFAULT_LANDSCAPE_KEYBOARD_HEIGHT_DP,
             portraitKeyboardHeightDp = p[KEY_PORTRAIT_KB_HEIGHT] ?: DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP,
+            portraitKeyboardWidthPercent = p[KEY_PORTRAIT_KB_WIDTH_PCT] ?: DEFAULT_KEYBOARD_WIDTH_PERCENT,
+            landscapeBottomKeyboardWidthPercent =
+                p[KEY_LANDSCAPE_BOTTOM_KB_WIDTH_PCT] ?: DEFAULT_KEYBOARD_WIDTH_PERCENT,
             engineSelectorUnlocked = p[KEY_ENGINE_UNLOCKED] ?: false,
             rootChrootUnlocked = p[KEY_ROOT_UNLOCKED] ?: false,
             executionEngine = p[KEY_ENGINE] ?: ENGINE_Z2ROOT,
@@ -817,6 +831,22 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_LANDSCAPE_KB_POS] = normalized }
     }
 
+    /** 縦画面で下に置いたキーボードの幅 (%)。 */
+    suspend fun setPortraitKeyboardWidthPercent(value: Float) {
+        context.dataStore.edit {
+            it[KEY_PORTRAIT_KB_WIDTH_PCT] =
+                value.coerceIn(MIN_KB_WIDTH_PERCENT, MAX_KB_WIDTH_PERCENT)
+        }
+    }
+
+    /** 横画面で下に置いたキーボードの幅 (%)。 */
+    suspend fun setLandscapeBottomKeyboardWidthPercent(value: Float) {
+        context.dataStore.edit {
+            it[KEY_LANDSCAPE_BOTTOM_KB_WIDTH_PCT] =
+                value.coerceIn(MIN_KB_WIDTH_PERCENT, MAX_KB_WIDTH_PERCENT)
+        }
+    }
+
     suspend fun setLandscapeKeyboardWidthDp(value: Float) {
         context.dataStore.edit {
             it[KEY_LANDSCAPE_KB_WIDTH] = value.coerceIn(MIN_LANDSCAPE_KB_WIDTH_DP, MAX_LANDSCAPE_KB_WIDTH_DP)
@@ -1038,6 +1068,9 @@ class AppSettings(private val context: Context) {
         private val KEY_LANDSCAPE_KB_WIDTH = floatPreferencesKey("landscape_kb_width_dp")
         private val KEY_LANDSCAPE_KB_HEIGHT = floatPreferencesKey("landscape_kb_height_dp")
         private val KEY_PORTRAIT_KB_HEIGHT = floatPreferencesKey("portrait_kb_height_dp")
+        private val KEY_PORTRAIT_KB_WIDTH_PCT = floatPreferencesKey("portrait_kb_width_pct")
+        private val KEY_LANDSCAPE_BOTTOM_KB_WIDTH_PCT =
+            floatPreferencesKey("landscape_bottom_kb_width_pct")
         private val KEY_ENGINE_UNLOCKED = booleanPreferencesKey("engine_selector_unlocked")
         private val KEY_ROOT_UNLOCKED = booleanPreferencesKey("root_chroot_unlocked")
         private val KEY_ENGINE = stringPreferencesKey("execution_engine")
@@ -1223,5 +1256,14 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP = 320f
         const val MIN_PORTRAIT_KB_HEIGHT_DP = 200f
         const val MAX_PORTRAIT_KB_HEIGHT_DP = 460f
+
+        /**
+         * 下配置キーボードの幅 (%)。⭐ **dp ではなく画面幅に対する割合**にしてある —
+         * 端末ごとに画面幅が違うので、dp で持つと上限が機種依存になり、
+         * 「いっぱいに広げる」が値からは分からなくなる。100 = 画面いっぱい (従来と同じ)。
+         */
+        const val DEFAULT_KEYBOARD_WIDTH_PERCENT = 100f
+        const val MIN_KB_WIDTH_PERCENT = 40f
+        const val MAX_KB_WIDTH_PERCENT = 100f
     }
 }

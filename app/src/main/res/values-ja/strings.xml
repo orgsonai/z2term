@@ -213,6 +213,7 @@
     <string name="settings_landscape_kb_bottom">下</string>
     <string name="settings_landscape_kb_right">右</string>
     <string name="settings_landscape_kb_width">サイドキーボード幅 (横画面)</string>
+    <string name="settings_kb_width_bottom">キーボード幅 (下配置)</string>
     <string name="settings_section_keyboard_size">キーボードの大きさ</string>
     <string name="settings_kb_height_portrait">キーボードの高さ（縦画面）</string>
     <string name="settings_kb_height_landscape">キーボードの高さ（横画面）</string>
@@ -743,6 +744,7 @@
     <string name="tb_keyboard">キーボード切替</string>
     <string name="tb_settings">設定</string>
     <string name="tb_log">端末ログを記録</string>
+    <string name="tb_pointer_mode">カーソル 相対 / 絶対</string>
     <string name="log_sheet_title">端末ログ</string>
     <string name="log_recording">このタブを記録する</string>
     <string name="log_recording_desc">画面に出た内容をテキストファイルに書き続けます</string>

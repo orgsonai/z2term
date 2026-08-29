@@ -210,6 +210,7 @@
     <string name="settings_landscape_kb_bottom">下</string>
     <string name="settings_landscape_kb_right">右</string>
     <string name="settings_landscape_kb_width">側邊鍵盤寬度 (橫向)</string>
+    <string name="settings_kb_width_bottom">鍵盤寬度 (底部)</string>
     <string name="settings_section_keyboard_size">鍵盤大小</string>
     <string name="settings_kb_height_portrait">鍵盤高度（直向）</string>
     <string name="settings_kb_height_landscape">鍵盤高度（橫向）</string>
@@ -685,6 +686,7 @@
     <string name="tb_keyboard">切換鍵盤</string>
     <string name="tb_settings">設定</string>
     <string name="tb_log">記錄終端機日誌</string>
+    <string name="tb_pointer_mode">游標 相對 / 絕對</string>
     <string name="log_sheet_title">終端機日誌</string>
     <string name="log_recording">記錄這個分頁</string>
     <string name="log_recording_desc">持續把螢幕上出現的內容寫入純文字檔</string>

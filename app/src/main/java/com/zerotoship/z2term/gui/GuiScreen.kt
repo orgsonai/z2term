@@ -1,6 +1,7 @@
 package com.zerotoship.z2term.gui
 
 import android.graphics.RectF
+import android.os.SystemClock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -11,14 +12,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
@@ -60,6 +68,18 @@ fun GuiScreen(
     val vrev by session.viewport.rev.collectAsState()
     val crev by session.cursor.rev.collectAsState()
 
+    // 長押し右クリックの輪。押している間だけフレームごとに現在時刻を更新して弧を伸ばす
+    // (0.8.431)。押していない間 (holdStart == 0) はループを回さないので、通常の描画負荷は
+    // 変わらない。
+    val holdStart by session.cursor.holdStart.collectAsState()
+    var holdNow by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(holdStart) {
+        if (holdStart == 0L) return@LaunchedEffect
+        while (true) {
+            withFrameMillis { holdNow = SystemClock.uptimeMillis() }
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -87,15 +107,21 @@ fun GuiScreen(
                 }
             }
 
-            // 相手が framebuffer にカーソルを焼き込むかどうかへ依存せず、こちらが持つ
-            // 仮想カーソルを必ず重ねる。形は GuiCursor.Visual 経由で差し替え可能にしておき、
-            // RichCursor / XCursor 受信時も二重描画せず同じ 1 個を描く。
+            // 画面に出るポインタはこの 1 個だけ。RfbClient がカーソル擬似エンコーディングを
+            // 要求しているので、対応するサーバは framebuffer へ焼き込まない (0.8.431。要求する
+            // 前は焼き込まれた相手のポインタとこの矢印が並んで 2 個に見えていた)。要求を
+            // 無視するサーバでも位置が分かるよう、こちらの矢印は常に描く。形は
+            // GuiCursor.Visual 経由で差し替え可能にしてある。
             val cursor = session.cursor.snapshot()
             if (cursor.initialized) {
                 val cx = left + cursor.x * eff
                 val cy = top + cursor.y * eff
                 when (cursor.visual) {
                     GuiCursor.Visual.Arrow -> drawCursorArrow(cx, cy, cursor.pressed, cursor.mode)
+                }
+                if (holdStart != 0L) {
+                    val elapsed = (holdNow - holdStart).toFloat()
+                    drawHoldRing(cx, cy, (elapsed / GuiCursor.HOLD_MS).coerceIn(0f, 1f))
                 }
             }
         }
@@ -183,4 +209,37 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCursorArrow(
             style = Stroke(width = 1.5f * u),
         )
     }
+}
+
+/**
+ * 長押し右クリックの進み具合 (0.8.431)。矢印の先端 = クリックされる点を中心に、
+ * [GuiCursor.HOLD_MS] で 1 周する緑の弧を描く。
+ *
+ * ⚠ **大きさは画面の密度で決める（表示倍率に掛けない）。** 縮小表示のときに輪まで小さくなると、
+ * 指の下に隠れて「押せているのか」が分からなくなる。薄い白の輪を下に敷くのは、明るい壁紙の上でも
+ * 弧の始点と終点が読めるようにするため。
+ */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHoldRing(
+    x: Float,
+    y: Float,
+    progress: Float,
+) {
+    val u = density
+    val r = 13f * u
+    val w = 2.5f * u
+    drawCircle(
+        color = Color(0x66FFFFFF),
+        radius = r,
+        center = Offset(x, y),
+        style = Stroke(width = w),
+    )
+    drawArc(
+        color = Color(0xFF22C55E),
+        startAngle = -90f,
+        sweepAngle = 360f * progress,
+        useCenter = false,
+        topLeft = Offset(x - r, y - r),
+        size = Size(r * 2f, r * 2f),
+        style = Stroke(width = w, cap = StrokeCap.Round),
+    )
 }
