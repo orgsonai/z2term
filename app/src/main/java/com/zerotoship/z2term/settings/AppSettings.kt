@@ -123,6 +123,11 @@ class AppSettings(private val context: Context) {
          */
         val landscapeKeyboardPosition: String = DEFAULT_LANDSCAPE_KEYBOARD_POSITION,
         /**
+         * 横画面でツールバー / タブのレールを出す側 ("left" / "right")。縦画面では使わない
+         * (縦画面は従来どおり画面の上に 2 段)。既定は左 (0.8.433)。
+         */
+        val landscapeRailPosition: String = DEFAULT_LANDSCAPE_RAIL_POSITION,
+        /**
          * 横画面で左/右配置にしたときのキーボード列の幅 (dp)。大きいほどキーが押しやすく、
          * その分端末/GUI 領域が狭くなる。下/縦画面では使われない。
          */
@@ -565,6 +570,7 @@ class AppSettings(private val context: Context) {
             guiMagnification = p[KEY_GUI_MAGNIFICATION] ?: DEFAULT_GUI_MAGNIFICATION,
             cleanInstallGuiArmed = p[KEY_CLEAN_INSTALL_GUI] ?: false,
             landscapeKeyboardPosition = p[KEY_LANDSCAPE_KB_POS] ?: DEFAULT_LANDSCAPE_KEYBOARD_POSITION,
+            landscapeRailPosition = p[KEY_LANDSCAPE_RAIL_POS] ?: DEFAULT_LANDSCAPE_RAIL_POSITION,
             landscapeKeyboardWidthDp = p[KEY_LANDSCAPE_KB_WIDTH] ?: DEFAULT_LANDSCAPE_KEYBOARD_WIDTH_DP,
             landscapeKeyboardHeightDp = p[KEY_LANDSCAPE_KB_HEIGHT] ?: DEFAULT_LANDSCAPE_KEYBOARD_HEIGHT_DP,
             portraitKeyboardHeightDp = p[KEY_PORTRAIT_KB_HEIGHT] ?: DEFAULT_PORTRAIT_KEYBOARD_HEIGHT_DP,
@@ -831,6 +837,15 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_LANDSCAPE_KB_POS] = normalized }
     }
 
+    /** 横画面でツールバー / タブのレールを出す側 ("left" / "right")。 */
+    suspend fun setLandscapeRailPosition(value: String) {
+        val normalized = when (value) {
+            LANDSCAPE_RAIL_LEFT, LANDSCAPE_RAIL_RIGHT -> value
+            else -> DEFAULT_LANDSCAPE_RAIL_POSITION
+        }
+        context.dataStore.edit { it[KEY_LANDSCAPE_RAIL_POS] = normalized }
+    }
+
     /** 縦画面で下に置いたキーボードの幅 (%)。 */
     suspend fun setPortraitKeyboardWidthPercent(value: Float) {
         context.dataStore.edit {
@@ -1065,6 +1080,7 @@ class AppSettings(private val context: Context) {
         private val KEY_GUI_MAGNIFICATION = floatPreferencesKey("gui_magnification")
         private val KEY_CLEAN_INSTALL_GUI = booleanPreferencesKey("clean_install_gui_armed")
         private val KEY_LANDSCAPE_KB_POS = stringPreferencesKey("landscape_kb_position")
+        private val KEY_LANDSCAPE_RAIL_POS = stringPreferencesKey("landscape_rail_position")
         private val KEY_LANDSCAPE_KB_WIDTH = floatPreferencesKey("landscape_kb_width_dp")
         private val KEY_LANDSCAPE_KB_HEIGHT = floatPreferencesKey("landscape_kb_height_dp")
         private val KEY_PORTRAIT_KB_HEIGHT = floatPreferencesKey("portrait_kb_height_dp")
@@ -1239,6 +1255,12 @@ class AppSettings(private val context: Context) {
         const val LANDSCAPE_KB_RIGHT = "right"
         /** 既定: 横画面でも下 (従来挙動と同じ) */
         const val DEFAULT_LANDSCAPE_KEYBOARD_POSITION = LANDSCAPE_KB_BOTTOM
+
+        /** 横画面のツールバー / タブのレールを出す側 (0.8.433) */
+        const val LANDSCAPE_RAIL_LEFT = "left"
+        const val LANDSCAPE_RAIL_RIGHT = "right"
+        /** 既定: 左 (0.8.432 でレールを入れたときの既定位置と同じ) */
+        const val DEFAULT_LANDSCAPE_RAIL_POSITION = LANDSCAPE_RAIL_LEFT
 
         /** 横画面サイド配置のキーボード列の幅 (dp)。10 キー幅で 1 キー = 幅/10 dp。 */
         const val DEFAULT_LANDSCAPE_KEYBOARD_WIDTH_DP = 420f

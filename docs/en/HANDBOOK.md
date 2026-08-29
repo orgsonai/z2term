@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.432-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.433-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -105,17 +105,21 @@ Z2Term comes with its **own in-app keyboard**.
 - The **"Side keyboard width (landscape)"** slider adjusts the width when docked to a side, and the **"Keyboard height (landscape)"** slider adjusts the overall height. Bigger keys are easier to press; smaller keys give you more screen — your trade-off.
 - **A bottom-docked keyboard can be narrowed too**, with "Keyboard width (bottom)" (0.8.431; 100% fills the screen, less centres it. Portrait and landscape remember their own value).
 
-### Landscape stands the toolbar and tabs on their side (0.8.431)
+### Landscape stands the toolbar and tabs on their side (0.8.431; two columns since 0.8.433)
 
-In landscape, **the toolbar and tab bar that used to stack on top move into a single vertical column on
-the left or right edge**. A landscape screen has height to spare nowhere and width to spare everywhere,
-so the space is taken from the side that has it — **roughly 90dp of height goes straight back to the
+In landscape, **the toolbar and tab bar that used to stack on top move into two vertical columns on the
+left or right edge**. A landscape screen has height to spare nowhere and width to spare everywhere, so
+the space is taken from the side that has it — **roughly 90dp of height goes straight back to the
 terminal / GUI**.
 
-- **Which edge follows the keyboard**: keyboard on the **left** ⇒ the rail is on the **right**; otherwise
-  it is on the left. No new setting.
+- **It is the portrait two-row layout turned 90°** (0.8.433; before that both shared one column and the
+  boundary between toolbar and tabs was invisible). **The outer column is the toolbar, the one touching
+  the content is the tabs** — the same relation as "toolbar on top, tabs below" in portrait. Each column
+  is framed.
+- **Pick the edge under ⚙ Settings › Display › Toolbar ("Left / Right")** (0.8.433; left by default).
+- **Tab names are written vertically** (0.8.433), with a "…" after 8 characters.
+  **Long-press a tab to read its full name and engine.**
 - **Reordering is unchanged** — long-press and drag (up and down now).
-- Tab names are cut short to fit; **long-press a tab to read its full name and engine**.
 
 > To adjust it without opening Settings, **triple-tap ⌨ in the toolbar**. **Two sliders — height and width** — let you resize while watching the keyboard (0.8.431; before that only one of them was offered, and a side-docked landscape keyboard could only change its width). This works even when the keyboard toggle bar is hidden (0.8.428). It is also listed under ⚙ Settings → **Tips** (0.8.430).
 
@@ -282,10 +286,11 @@ Once it is up, it behaves like the app's own GUI tab: two fingers to zoom and pa
 scroll, and the same keyboard.
 
 - **The white arrow is the cursor you control** (0.8.427). Its position survives leaving the tab and reconnecting. **It is the only arrow on screen** (0.8.431; before that the pointer drawn by the server sat next to it and you saw **two**).
-- The default is **relative mode**: the cursor moves by the distance your finger moves. Press **🖱 in the GUI toolbar** to switch to **absolute mode**, where the cursor jumps to the place you touch (0.8.431; 🖱 lights up in absolute mode, and a green ring appears at the arrow root). ⚠ Through 0.8.430 this lived on a **double-tap of 📜**, which is visible nowhere on screen and has nothing to do with a command list, so it is now **a button of its own, shown only on GUI tabs** (never on terminal tabs; hide it under ⚙ Settings › Display › Toolbar).
+- The default is **relative mode**: the cursor moves by the distance your finger moves. Press **↖️ in the GUI toolbar** to switch to **absolute mode**, where the cursor jumps to the place you touch (0.8.431; ↖️ lights up in absolute mode, and a green ring appears at the arrow root). ⚠ Through 0.8.430 this lived on a **double-tap of 📜**, which is visible nowhere on screen and has nothing to do with a command list, so it is now **a button of its own, shown only on GUI tabs** (never on terminal tabs; hide it under ⚙ Settings › Display › Toolbar).
 - **A single tap is a left click** and **a double tap is a double click**, as before.
-- **A press and hold now also gives you a right click** (0.8.431). Keep your finger still and **a green ring sweeps around the arrow tip; the right click fires the moment it closes** (0.15 s, with no need to lift your finger). Move while the ring is running and it is cancelled, leaving you with plain cursor movement. ⚠ The older route still works: **hold the second tap of a double tap** (0.8.429; the same 0.15 s wait). Use whichever is easier.
-- To **drag** (move a window, select a range), **double-tap and keep moving**. No long press needed. ⚠ Start moving before those 0.15 s are up, or you get a right click instead.
+- **A press and hold now also gives you a right click** (0.8.431). Keep your finger still and **a green ring sweeps around the arrow tip; the right click fires the moment it closes** (**0.3 s**, with no need to lift your finger; 0.8.433). Move while the ring is running and it is cancelled, leaving you with plain cursor movement. ⚠ The older route still works: **hold the second tap of a double tap** (0.8.429; the same 0.3 s wait). Use whichever is easier.
+- ⚠ **Tapping or dragging shows no ring** (0.8.433). **The ring only appears once the touch is clearly not a tap** (after 0.15 s) and then closes over the next 0.15 s — it no longer flashes on every tap.
+- To **drag** (move a window, select a range), **double-tap and keep moving**. No long press needed. ⚠ Start moving before those 0.3 s are up, or you get a right click instead (it was 0.15 s through 0.8.432, so **you now have twice as long to begin**).
 - To switch the remote Japanese input method, place **Half/Full** (or Convert, Non-convert, Kana or Eisu) anywhere in the custom key-layout editor. If the remote uses `Ctrl+Space` or `Super+Space`, place that modified key instead.
 
 - ⚠ **The server decides the size of the screen.** z2term never resizes it to fit your frame — it may
@@ -518,6 +523,7 @@ Settings are split into **9 groups** (Display / Keyboard and input / Linux envir
 | Font size | 4–32 (also changeable by pinching) |
 | Scrollback lines | How many lines you can scroll back through |
 | Toolbar | **Choose which buttons appear above the terminal.** The real buttons are laid out; tap to remove or bring one back. A removed button's position is remembered. ⚙ is always rightmost and cannot be removed. If you remove 🔅 screen-on lock or 🔒 keep-alive, a switch for it appears in this section |
+| Toolbar / tab position (landscape) | **Left / Right** — which edge the two vertical columns stand on in landscape (0.8.433; left by default) |
 | Distro | Alpine / Ubuntu / Arch / Kali |
 | Login shell | zsh / bash / sh — **the same shell is used for the terminal tab, SSH logins and the GUI's inner terminal** (the distro's `/etc/passwd` login shell is updated too). If the chosen shell is not installed in that distro, the default shell is used as before. **It starts out as bash** (0.8.400; it used to be zsh, but the bundled OS ships no zsh, so you ended up in a shell you never chose) |
 | Shell prompt | **Pick a sample, tweak it on the spot, write it to the config file** (0.8.364). The first row picks the shell (sh / bash / zsh), the second picks a sample (sign only / user@host / arrow / rounded / square / Kali / ribbon), and **the box below fills in with what will be written**. Edit it freely — colours, order, whatever — then press Apply. The destination depends on the shell: `~/.ashrc` (sh) / `~/.bashrc` / `~/.zshrc`, and **the name shown above the box is exactly where it goes**. ⚠ **Only the part between the z2term markers is written**, so your own `alias` and `export` lines stay. Opening it with `vi ~/.bashrc` from the terminal shows the same thing, and editing it there is fine too (the settings box picks that up next time you open it). ⚠ **New tabs pick it up** — tabs already open keep the old prompt. Remove takes out just the marked part and restores the distro default. The samples are meant to be **usable as they are** (two-line box-drawing frames, an `❯` that turns red when the last command failed, Kali's `┌──(user㉿host)-[~]`, a coloured ribbon joined by a wedge). The wedge is powerline's `` (U+E0B0), built inside the rc itself (`ARROW_RIGHT=$'\ue0b0'`, or `printf` for sh) so no raw glyph ever sits in the file. ⚠ **Fira Code and JetBrains Mono both carry it** (verified by reading the font tables); only IBM Plex Mono does not, so if you use that font and see a square, change the escape to `\u25b6` (▶) in the box. **Clock at the right edge** adds a dimmed timestamp to the right of any sample, so scrolling back shows when each command was typed. ⚠ It **does not count the terminal width**, so rotating or splitting the screen never misaligns it |

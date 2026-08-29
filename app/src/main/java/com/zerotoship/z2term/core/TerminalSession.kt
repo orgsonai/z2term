@@ -547,6 +547,7 @@ class TerminalSession(
     fun setGuiMagnification(value: Float) { scope.launch { settings.setGuiMagnification(value) } }
     fun setCleanInstallGuiArmed(armed: Boolean) { scope.launch { settings.setCleanInstallGuiArmed(armed) } }
     fun setLandscapeKeyboardPosition(value: String) { scope.launch { settings.setLandscapeKeyboardPosition(value) } }
+    fun setLandscapeRailPosition(value: String) { scope.launch { settings.setLandscapeRailPosition(value) } }
     fun setLandscapeKeyboardWidthDp(value: Float) { scope.launch { settings.setLandscapeKeyboardWidthDp(value) } }
     fun setLandscapeKeyboardHeightDp(value: Float) { scope.launch { settings.setLandscapeKeyboardHeightDp(value) } }
     fun setPortraitKeyboardHeightDp(value: Float) { scope.launch { settings.setPortraitKeyboardHeightDp(value) } }

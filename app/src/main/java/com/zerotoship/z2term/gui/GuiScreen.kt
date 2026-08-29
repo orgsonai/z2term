@@ -120,8 +120,9 @@ fun GuiScreen(
                     GuiCursor.Visual.Arrow -> drawCursorArrow(cx, cy, cursor.pressed, cursor.mode)
                 }
                 if (holdStart != 0L) {
+                    // holdStart は「輪を出し始めた時刻」なので、尺は遅らせたぶんを引いた残り。
                     val elapsed = (holdNow - holdStart).toFloat()
-                    drawHoldRing(cx, cy, (elapsed / GuiCursor.HOLD_MS).coerceIn(0f, 1f))
+                    drawHoldRing(cx, cy, (elapsed / GuiCursor.HOLD_RING_MS).coerceIn(0f, 1f))
                 }
             }
         }
@@ -213,7 +214,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCursorArrow(
 
 /**
  * 長押し右クリックの進み具合 (0.8.431)。矢印の先端 = クリックされる点を中心に、
- * [GuiCursor.HOLD_MS] で 1 周する緑の弧を描く。
+ * [GuiCursor.HOLD_RING_MS] で 1 周する緑の弧を描く。
  *
  * ⚠ **大きさは画面の密度で決める（表示倍率に掛けない）。** 縮小表示のときに輪まで小さくなると、
  * 指の下に隠れて「押せているのか」が分からなくなる。薄い白の輪を下に敷くのは、明るい壁紙の上でも

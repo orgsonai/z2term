@@ -25,7 +25,8 @@ import com.zerotoship.z2term.gui.rfb.RfbClient
  * ポインタ（トラックパッド式の「相対移動」。仮想カーソルを保持し触った位置へは飛ばない）:
  *  - 1 本指移動        : カーソルを相対移動（リモート側 X カーソルが動く）
  *  - 単タップ          : 現在位置で左クリック（タッチ位置へは飛ばない）
- *  - 長押し            : 動かさず [GuiCursor.HOLD_MS] 保持＝現在位置で右クリック（保持中は輪が出る）
+ *  - 長押し            : 動かさず [GuiCursor.HOLD_MS] 保持＝現在位置で右クリック
+ *                        （タップの時間を越えてから輪が出る。タップでは何も出ない）
  *  - ダブルタップ＋保持 : 2 回目を動かさず保持＝現在位置で右クリック（メニュー）
  *  - ダブルタップ＋移動 : 左押下を保持したまま移動（ウィンドウ移動・選択。離すと解放）
  *  - ピンチ            : ズーム（[GuiViewport] を更新、[GuiScreen] と共有）
@@ -209,22 +210,36 @@ class GuiInputView(context: Context) : View(context) {
         clickAtCursor(RfbClient.BTN_RIGHT)
     }
 
-    /** 長押し判定を開始する（指を置いた所を覚え、輪を出し、タイマーを張る）。 */
+    /**
+     * 輪を出し始める（指を置いてから [GuiCursor.HOLD_RING_DELAY_MS] 後）。
+     *
+     * ⛔ **指を置いた瞬間には出さない。** タップやドラッグのたびに一瞬光ってうるさい
+     * (0.8.433・利用者の指摘)。**タップと長押しは別の操作**なので、タップの時間を
+     * 越えて初めて「長押しが始まった」ことを見せる。
+     */
+    private val holdRingRunnable = Runnable {
+        if (!pendingHoldClick) return@Runnable
+        // postDelayed と同じ時計 (uptimeMillis) で輪の進み具合を計る。イベントの時刻を使うと
+        // 数 ms 過去から数え始めて、輪が閉じた後に少し間があく。
+        cursor?.beginHold(SystemClock.uptimeMillis())
+    }
+
+    /** 長押し判定を開始する（指を置いた所を覚え、輪と右クリックのタイマーを張る）。 */
     private fun beginHoldClick(e: MotionEvent) {
         pendingHoldClick = true
         holdFired = false
         holdDownX = e.x
         holdDownY = e.y
+        removeCallbacks(holdRingRunnable)
         removeCallbacks(holdClickRunnable)
-        // postDelayed と同じ時計 (uptimeMillis) で輪の進み具合を計る。イベントの時刻を使うと
-        // 数 ms 過去から数え始めて、輪が閉じた後に少し間があく。
-        cursor?.beginHold(SystemClock.uptimeMillis())
+        postDelayed(holdRingRunnable, GuiCursor.HOLD_RING_DELAY_MS)
         postDelayed(holdClickRunnable, GuiCursor.HOLD_MS)
     }
 
     /** 長押し判定を捨てる（移動・2 本指・指を離した・ダブルタップへ移行）。輪も消す。 */
     private fun cancelHoldClick() {
         pendingHoldClick = false
+        removeCallbacks(holdRingRunnable)
         removeCallbacks(holdClickRunnable)
         cursor?.endHold()
     }

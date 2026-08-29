@@ -95,11 +95,13 @@ import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -482,7 +484,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     TabScaffold(
         railVertical = isLandscape,
         // キーボードが左ならレールは右。両方が同じ側に来ると片側だけ重くなる。
-        railOnLeft = landscapePos != AppSettings.LANDSCAPE_KB_LEFT,
+        railOnLeft = settings.landscapeRailPosition != AppSettings.LANDSCAPE_RAIL_RIGHT,
         modifier = modifier
             .fillMaxSize()
             .background(ZtsBgPrimary)
@@ -490,7 +492,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             // systemBarsPadding().imePadding() の連鎖は消費順序の都合で 3 ボタンナビ
             // (下部) の inset が効かずキーボード最下段が被ることがあったため統一。
             .windowInsetsPadding(WindowInsets.safeDrawing),
-        rail = { railVertical ->
+        toolbar = { railVertical ->
         TopBar(
             session = active,
             keyboardMode = keyboardMode,
@@ -540,11 +542,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             searchActive = searchOpen,
             onToggleSearch = { searchOpen = !searchOpen },
             vertical = railVertical,
-            // 縦レールではツールバーが伸びすぎないよう「要るぶんだけ」に留め、
-            // 残りをタブに渡す (タブは 1 手で切り替えたいので、押し出されない方を優先)。
-            modifier = if (railVertical) Modifier.weight(1f, fill = false) else Modifier
+            // 縦レールはツールバー列とタブ列が別なので、どちらも列いっぱいを使う。
+            modifier = if (railVertical) Modifier.fillMaxHeight() else Modifier
         )
-
+        },
+        tabs = { railVertical ->
         TabBar(
             sessions = sessions,
             activeId = activeId,
@@ -553,7 +555,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onNew = { SessionManager.openNew(context) },
             onNewGui = { SessionManager.openLinkedGui(context) },
             vertical = railVertical,
-            modifier = if (railVertical) Modifier.weight(1f) else Modifier
+            modifier = if (railVertical) Modifier.fillMaxHeight() else Modifier
         )
         }
     ) {
@@ -1183,7 +1185,7 @@ private fun GuiTabScreen(
     // GUI だけのときは ⚙ をグレーアウト (端末タブを開けば設定できる)。
     val terminalForSettings = sessions.firstOrNull { it is TerminalSession } as? TerminalSession
 
-    // 🖱 の点灯用。GuiCursor は rev が上がるたびに中身が変わるので、そこから読み直す。
+    // ↖ の点灯用。GuiCursor は rev が上がるたびに中身が変わるので、そこから読み直す。
     val cursorRev by gui.cursor.rev.collectAsState()
     val pointerAbsolute = remember(cursorRev) {
         gui.cursor.snapshot().mode == com.zerotoship.z2term.gui.GuiCursor.Mode.ABSOLUTE
@@ -1204,13 +1206,13 @@ private fun GuiTabScreen(
 
     TabScaffold(
         railVertical = isLandscapeGui,
-        railOnLeft = landscapePosGui != AppSettings.LANDSCAPE_KB_LEFT,
+        railOnLeft = settings.landscapeRailPosition != AppSettings.LANDSCAPE_RAIL_RIGHT,
         modifier = modifier
             .fillMaxSize()
             .background(ZtsBgPrimary)
             // OS IME はオーバーレイで出すので解像度に影響させない → systemBars のみ。
             .windowInsetsPadding(WindowInsets.systemBars),
-        rail = { railVertical ->
+        toolbar = { railVertical ->
         GuiTopBar(
             session = gui,
             keyboardMode = keyboardMode,
@@ -1253,9 +1255,10 @@ private fun GuiTabScreen(
             settingsEnabled = terminalForSettings != null,
             onOpenSettings = { settingsOpen = true },
             vertical = railVertical,
-            modifier = if (railVertical) Modifier.weight(1f, fill = false) else Modifier
+            modifier = if (railVertical) Modifier.fillMaxHeight() else Modifier
         )
-
+        },
+        tabs = { railVertical ->
         TabBar(
             sessions = sessions,
             activeId = activeId,
@@ -1264,7 +1267,7 @@ private fun GuiTabScreen(
             onNew = { SessionManager.openNew(context) },
             onNewGui = { SessionManager.openLinkedGui(context) },
             vertical = railVertical,
-            modifier = if (railVertical) Modifier.weight(1f) else Modifier
+            modifier = if (railVertical) Modifier.fillMaxHeight() else Modifier
         )
         }
     ) {
@@ -1572,7 +1575,7 @@ private fun GuiTopBar(
     onPaste: () -> Unit,
     onPasteHistory: () -> Unit,
     onOpenSnippets: () -> Unit,
-    /** true = 絶対モード (🖱 を点灯させる)。 */
+    /** true = 絶対モード (↖ を点灯させる)。 */
     pointerAbsolute: Boolean,
     onTogglePointerMode: () -> Unit,
     onToggleKeyboardMode: () -> Unit,
@@ -1690,7 +1693,7 @@ private fun GuiTopBar(
 /**
  * GUI タブのツールバー項目 (横並び / 縦レールで共有する)。
  *
- * 端末との違いは、検索とログが無いことと **🖱 (カーソルの相対/絶対) が在ること**。
+ * 端末との違いは、検索とログが無いことと **↖ (カーソルの相対/絶対) が在ること**。
  * 📋/📜 は keysym 橋渡しで GUI へタイプする (M8-6 T1)。
  */
 @Composable
@@ -1713,13 +1716,13 @@ private fun guiToolbarItems(
 ): List<ToolbarItem> = listOf(
     ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
     ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
-    // 🖱 カーソルの相対/絶対切替 (0.8.431)。⭐ **GUI タブにしか出さない。**
+    // ↖ (マウスポインター) カーソルの相対/絶対切替 (0.8.431)。⭐ **GUI タブにしか出さない。**
     // 0.8.430 まではこれが 📜 のダブルタップに隠れていて、⚠ **画面のどこにも出ていないうえ
     // 「コマンド一覧」と意味が繋がらない**ので誰も辿り着けなかった (利用者の指摘)。
     // GUI ではボタンが 5 個しか無く枠が空いているので、隠すのをやめて 1 個のボタンにする。
     // 点灯 = 絶対モード。
     ToolbarItem(
-        ToolbarButtons.POINTER_MODE, "🖱", stringResource(R.string.tb_pointer_mode),
+        ToolbarButtons.POINTER_MODE, "\u2196\uFE0F", stringResource(R.string.tb_pointer_mode),
         active = pointerAbsolute,
         onClick = onTogglePointerMode
     ),
@@ -1927,11 +1930,21 @@ private fun TopBar(
     }
 }
 
-/** 横画面の縦レール幅。タブ名が 6 字ぶん読めて、かつ本体を圧迫しない値 (0.8.431)。 */
-private val RAIL_WIDTH = 76.dp
+/**
+ * 縦書きタブ名の最大文字数。これを超えたら「…」を足して打ち切る。
+ * ⚠ **高さの上限**として効く (1 文字 = 1 行なので、増やすとタブ 1 枚が縦に伸びて
+ * 一度に見えるタブが減る)。
+ */
+private const val VERTICAL_TAB_CHARS = 8
+
+/** 横画面レールのツールバー列の幅。チップ (約 36dp) + 左右の余白。 */
+private val RAIL_TOOLBAR_WIDTH = 48.dp
+
+/** 横画面レールのタブ列の幅。タブ名は縦書きなので 1 文字ぶん + 余白で足りる。 */
+private val RAIL_TAB_WIDTH = 44.dp
 
 /**
- * ツールバーとタブの置き場 (§12-7・0.8.431)。
+ * ツールバーとタブの置き場 (§12-7・0.8.431 / 0.8.433 で 2 列化)。
  *
  * ⛔ **縦画面でも横画面でも上に 2 段積む**のが 0.8.430 までの形だった。横画面は画面高さが
  * 350〜400dp しか無いので、**48dp + 約 40dp = 高さの 1/4** をここで失っていた
@@ -1939,44 +1952,56 @@ private val RAIL_WIDTH = 76.dp
  * ⇒ **横画面ではツールバーとタブを縦のレールにして左右どちらかへ寄せる。** 横は幅が余っていて
  * 高さが足りないので、余っている方から取る。
  *
- * ⭐ **どちら側に寄せるかは設定を増やさず、キーボードのサイド配置 ([railOnLeft] の呼び出し側)
- * から決める** — キーボードが左ならレールは右。両方が同じ側に来ると片側だけ重くなる。
+ * ⛔ **2 つを 1 列に積まない (0.8.433・利用者の指摘)。** 0.8.432 は 1 列にツールバーとタブを
+ * 縦に並べたが、**縦画面では 2 段なのに横画面だけ 1 段**になり、境目が分からず狭かった。
+ * ⇒ **縦画面の 2 段をそのまま 90 度倒した「2 列」にする。** 列ごとに枠線を引いて境目を出す。
+ * ⭐ **並びは縦画面と同じ順**: 本体から遠い側がツールバー、本体に接する側がタブ
+ * (縦画面の 上=ツールバー / その下=タブ と同じ関係)。
  *
  * @param railVertical true = 横画面 (縦レール)。false なら従来どおり上に 2 段積む。
- * @param rail ツールバーとタブ。引数の Boolean をそのまま各バーの `vertical` へ渡す。
+ * @param railOnLeft   レールを画面の左に出すか (設定 `landscapeRailPosition`)。
+ * @param toolbar ツールバー列。引数の Boolean をそのまま `vertical` へ渡す。
+ * @param tabs    タブ列。同上。
  */
 @Composable
 private fun TabScaffold(
     railVertical: Boolean,
     railOnLeft: Boolean,
     modifier: Modifier = Modifier,
-    rail: @Composable ColumnScope.(vertical: Boolean) -> Unit,
+    toolbar: @Composable ColumnScope.(vertical: Boolean) -> Unit,
+    tabs: @Composable ColumnScope.(vertical: Boolean) -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     if (!railVertical) {
         Column(modifier = modifier) {
-            rail(false)
+            toolbar(false)
+            tabs(false)
             content()
         }
         return
     }
     Row(modifier = modifier) {
         @Composable
-        fun Rail() {
+        fun Lane(width: Dp, body: @Composable ColumnScope.() -> Unit) {
             Column(
                 modifier = Modifier
-                    .width(RAIL_WIDTH)
+                    .width(width)
                     .fillMaxHeight()
                     .background(ZtsBgSecondary)
                     .border(width = 1.dp, color = ZtsBorder),
                 horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                rail(true)
-            }
+                content = body,
+            )
         }
-        if (railOnLeft) Rail()
+        if (railOnLeft) {
+            Lane(RAIL_TOOLBAR_WIDTH) { toolbar(true) }
+            Lane(RAIL_TAB_WIDTH) { tabs(true) }
+        }
         Column(modifier = Modifier.weight(1f).fillMaxHeight()) { content() }
-        if (!railOnLeft) Rail()
+        if (!railOnLeft) {
+            Lane(RAIL_TAB_WIDTH) { tabs(true) }
+            Lane(RAIL_TOOLBAR_WIDTH) { toolbar(true) }
+        }
     }
 }
 
@@ -3092,27 +3117,13 @@ private fun TabChip(
             }
             .padding(horizontal = if (vertical) 4.dp else 10.dp, vertical = 5.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                // タブ名は最大固定字数で切り詰める (要望)。チップが伸びて新規タブボタンを
-                // 押し出さないよう、字数制限 + 上限幅 + 省略を併用する。
-                // ⚠ 縦レールはレール幅 (約 76dp) しか無いので、さらに短く切る。
-                // 全名と実行エンジンは**長押しのポップアップ**で読める (切り詰めの逃げ道)。
-                text = if (vertical) label.take(6) else label.take(12),
-                color = fg,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = if (vertical) Modifier.weight(1f, fill = false)
-                    else Modifier.widthIn(max = 84.dp)
-            )
+        // 状態の印。⚠ 横並びと縦書きで**同じものを同じ意味で**出す (置き場所だけ変える)。
+        val mark: @Composable () -> Unit = {
             when (mark) {
                 // 動作中。4dp の塗り四角だけで、**点滅させない** (暗所で目障りになるうえ、
                 // ターミナルの静かな見た目を壊す)。
                 TabMark.BUSY -> Box(
                     modifier = Modifier
-                        .padding(start = 5.dp)
                         .size(4.dp)
                         .clip(RoundedCornerShape(2.dp))
                         .background(ZtsGreen)
@@ -3123,9 +3134,49 @@ private fun TabChip(
                     color = ZtsTextSecondary,
                     fontSize = 9.sp,
                     fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.padding(start = 4.dp)
                 )
                 TabMark.NONE -> Unit
+            }
+        }
+        if (vertical) {
+            // ⭐ **縦レールのタブ名は縦書き** (0.8.433・利用者の要望)。1 文字ずつ改行して積む。
+            // 横倒し (回転) にはしない — 首を傾けないと読めないうえ、日本語のタブ名が
+            // 寝てしまう。等幅フォントなので 1 字ずつ折ると字送りが揃う。
+            // ⚠ 切り詰めたことが分かるよう、溢れた時だけ最後に「…」を積む
+            // (全名と実行エンジンは長押しのポップアップで読める)。
+            val shown = if (label.length > VERTICAL_TAB_CHARS) {
+                label.take(VERTICAL_TAB_CHARS) + "…"
+            } else {
+                label
+            }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    text = shown.toCharArray().joinToString("\n"),
+                    color = fg,
+                    fontSize = 10.sp,
+                    lineHeight = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    textAlign = TextAlign.Center,
+                )
+                mark()
+            }
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    // タブ名は最大固定字数で切り詰める (要望)。チップが伸びて新規タブボタンを
+                    // 押し出さないよう、字数制限 + 上限幅 + 省略を併用する。
+                    text = label.take(12),
+                    color = fg,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 84.dp)
+                )
+                Box(modifier = Modifier.padding(start = 5.dp)) { mark() }
             }
         }
 

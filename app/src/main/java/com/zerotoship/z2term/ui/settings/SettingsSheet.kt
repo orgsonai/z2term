@@ -479,6 +479,26 @@ fun SettingsSheet(
                             session.setToolbarHidden(ToolbarButtons.toggleHidden(settings.toolbarHidden, id))
                         }
                     )
+                    // 横画面ではツールバーとタブが縦 2 列のレールになる (0.8.432)。
+                    // 左右どちら側に出すかを選べるようにする (0.8.433・要望)。
+                    Text(
+                        text = stringResource(R.string.settings_landscape_rail_desc),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    ChipRow(
+                        options = listOf(
+                            AppSettings.LANDSCAPE_RAIL_LEFT,
+                            AppSettings.LANDSCAPE_RAIL_RIGHT
+                        ),
+                        labels = mapOf(
+                            AppSettings.LANDSCAPE_RAIL_LEFT to stringResource(R.string.settings_landscape_rail_left),
+                            AppSettings.LANDSCAPE_RAIL_RIGHT to stringResource(R.string.settings_landscape_rail_right)
+                        ),
+                        selected = settings.landscapeRailPosition,
+                        onSelect = { session.setLandscapeRailPosition(it) }
+                    )
                     // 隠したボタンのうちトグル系 (🔅 画面消灯ロック / 🔒 常駐) は、
                     // ツールバー以外に切り替える場所が無い。隠しているときだけここに出す。
                     val hiddenIds = ToolbarButtons.parseHidden(settings.toolbarHidden)

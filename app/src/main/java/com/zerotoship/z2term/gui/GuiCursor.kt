@@ -46,7 +46,7 @@ class GuiCursor {
     /**
      * 長押し右クリックを計り始めた時刻 (`SystemClock.uptimeMillis`)。**0 = 長押ししていない**。
      *
-     * [GuiInputView] が指を置いた時に立て、[GuiScreen] がこれを見てカーソルの先端に
+     * [GuiInputView] が指を置いてから [HOLD_RING_DELAY_MS] 後に立て、[GuiScreen] がこれを見てカーソルの先端に
      * 「あと少しで右クリック」の輪を描く。時間そのものを渡すのは、描画側が毎フレーム
      * 進み具合を計算するため（位置と違って「今どこまで進んだか」は時刻からしか出せない）。
      */
@@ -143,6 +143,20 @@ class GuiCursor {
          * **入力側の判定 ([GuiInputView]) と輪のエフェクトの尺 ([GuiScreen]) で共有する** —
          * 別々に持つと「輪が閉じたのにまだ押されない」がすぐ起きる。
          */
-        const val HOLD_MS = 150L
+        const val HOLD_MS = 300L
+
+        /**
+         * 指を置いてから輪を出し始めるまでの間 (ms)。
+         *
+         * ⛔ **0 にしない (= 触れた瞬間に出さない)。** タップやドラッグのたびに輪が一瞬光って
+         * うるさい (0.8.433・利用者の指摘)。**タップと長押しは別物**なので、まず
+         * 「タップではない」と分かるまで何も出さず、そこから輪を描き始める。
+         * ⚠ Android のタップ判定 (`ViewConfiguration.getTapTimeout()`) は 100ms なので、
+         * それを確実に超える値にする。
+         */
+        const val HOLD_RING_DELAY_MS = 150L
+
+        /** 輪が一周するのにかける時間 (ms)。遅らせたぶんを引いた残り = 右クリックが出るまで。 */
+        const val HOLD_RING_MS = HOLD_MS - HOLD_RING_DELAY_MS
     }
 }

@@ -51,9 +51,9 @@ object ToolbarButtons {
     val CATALOG: List<ToolbarButtonSpec> = listOf(
         ToolbarButtonSpec(PASTE, "📋", R.string.tb_paste),
         ToolbarButtonSpec(SNIPPETS, "📜", R.string.tb_snippets),
-        // 🖱 は GUI タブだけ。カーソルの相対/絶対を切り替える (0.8.431)。
+        // ↖ (マウスポインター) は GUI タブだけ。カーソルの相対/絶対を切り替える (0.8.431)。
         // 以前は 📜 のダブルタップに隠れていて、**画面のどこにも出ていない**ため誰も辿り着けなかった。
-        ToolbarButtonSpec(POINTER_MODE, "🖱", R.string.tb_pointer_mode, guiOnly = true),
+        ToolbarButtonSpec(POINTER_MODE, "\u2196\uFE0F", R.string.tb_pointer_mode, guiOnly = true),
         ToolbarButtonSpec(SCREEN_ON, "🔅", R.string.tb_screen_on),
         ToolbarButtonSpec(KEEP_ALIVE, "🔓", R.string.tb_keep_alive),
         ToolbarButtonSpec(SEARCH, "🔍", R.string.tb_search, terminalOnly = true),

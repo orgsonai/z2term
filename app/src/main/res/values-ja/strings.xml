@@ -745,6 +745,9 @@
     <string name="tb_settings">設定</string>
     <string name="tb_log">端末ログを記録</string>
     <string name="tb_pointer_mode">カーソル 相対 / 絶対</string>
+    <string name="settings_landscape_rail_desc">横画面ではツールバーとタブが縦 2 列で立ちます。どちら側に出すか選べます。</string>
+    <string name="settings_landscape_rail_left">左</string>
+    <string name="settings_landscape_rail_right">右</string>
     <string name="log_sheet_title">端末ログ</string>
     <string name="log_recording">このタブを記録する</string>
     <string name="log_recording_desc">画面に出た内容をテキストファイルに書き続けます</string>

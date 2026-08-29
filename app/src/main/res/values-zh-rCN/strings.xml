@@ -687,6 +687,9 @@
     <string name="tb_settings">设置</string>
     <string name="tb_log">记录终端日志</string>
     <string name="tb_pointer_mode">光标 相对 / 绝对</string>
+    <string name="settings_landscape_rail_desc">横屏时工具栏与标签会竖排成两列。可选择放在哪一侧。</string>
+    <string name="settings_landscape_rail_left">左</string>
+    <string name="settings_landscape_rail_right">右</string>
     <string name="log_sheet_title">终端日志</string>
     <string name="log_recording">记录这个标签页</string>
     <string name="log_recording_desc">持续把屏幕上出现的内容写入文本文件</string>
