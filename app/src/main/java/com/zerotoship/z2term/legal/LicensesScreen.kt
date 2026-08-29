@@ -2,21 +2,23 @@ package com.zerotoship.z2term.legal
 
 import android.content.Context
 import android.content.Intent
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -81,19 +83,14 @@ fun LicensesDialog(
                     Box(modifier = Modifier.weight(1f))
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close_dialog), color = textPrimary) }
                 }
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                ) {
-                    LicensesSection(
-                        textPrimary = textPrimary,
-                        textSecondary = textSecondary,
-                        accent = accent,
-                        border = border,
-                    )
-                }
+                LicensesSection(
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary,
+                    accent = accent,
+                    border = border,
+                    background = background,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
     }
@@ -113,19 +110,35 @@ fun LicensesSection(
     textSecondary: Color,
     accent: Color,
     border: Color,
+    background: Color,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val components = remember { OssComponents.list() }
     var openComponent by remember { mutableStateOf<OssComponent?>(null) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            text = stringResource(R.string.licenses_section_summary),
-            color = textSecondary,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace,
-        )
-        components.forEach { c ->
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = stringResource(R.string.licenses_section_summary),
+                    color = textSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                )
+                Text(
+                    text = stringResource(R.string.licenses_component_count, components.size),
+                    color = accent,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+        items(components, key = { it.name }) { c ->
             LicenseRow(
                 component = c,
                 textPrimary = textPrimary,
@@ -141,6 +154,11 @@ fun LicensesSection(
     openComponent?.let { c ->
         LicenseFullTextDialog(
             component = c,
+            textPrimary = textPrimary,
+            textSecondary = textSecondary,
+            accent = accent,
+            border = border,
+            background = background,
             onDismiss = { openComponent = null },
             onOpenSource = { openUrl(context, c.sourceUrl) },
         )
@@ -157,48 +175,74 @@ private fun LicenseRow(
     onClick: () -> Unit,
     onOpenSource: () -> Unit,
 ) {
-    Column(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.Black.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+            .clickable { onClick() },
+        color = Color.Black.copy(alpha = 0.15f),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, border.copy(alpha = 0.75f)),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = component.name,
+                    color = textPrimary,
+                    fontSize = 15.sp,
+                    lineHeight = 19.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                LicenseBadge(component.licenseId, accent)
+            }
             Text(
-                text = component.name,
-                color = textPrimary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                fontFamily = FontFamily.Monospace,
+                text = stringResource(component.purposeRes),
+                color = textSecondary,
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
             )
-            Box(modifier = Modifier.weight(1f))
             Text(
-                text = component.licenseId,
-                color = accent,
+                text = component.copyright,
+                color = textSecondary,
                 fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
+                lineHeight = 15.sp,
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onClick) {
+                    Text(stringResource(R.string.licenses_view_full_text), color = accent)
+                }
+                TextButton(onClick = onOpenSource) {
+                    Text(stringResource(R.string.action_open_source), color = accent)
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun LicenseBadge(
+    licenseId: String,
+    accent: Color,
+) {
+    Surface(
+        color = accent.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(5.dp),
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.65f)),
+    ) {
         Text(
-            text = stringResource(component.purposeRes),
-            color = textSecondary,
-            fontSize = 10.sp,
+            text = licenseId,
+            color = accent,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
             fontFamily = FontFamily.Monospace,
-        )
-        Text(
-            text = component.copyright,
-            color = textSecondary,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace,
-        )
-        Text(
-            text = stringResource(R.string.licenses_source_line, component.sourceUrl),
-            color = textSecondary,
-            fontSize = 10.sp,
-            fontFamily = FontFamily.Monospace,
-            modifier = Modifier.clickable { onOpenSource() },
+            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
         )
     }
 }
@@ -206,45 +250,124 @@ private fun LicenseRow(
 @Composable
 private fun LicenseFullTextDialog(
     component: OssComponent,
+    textPrimary: Color,
+    textSecondary: Color,
+    accent: Color,
+    border: Color,
+    background: Color,
     onDismiss: () -> Unit,
     onOpenSource: () -> Unit,
 ) {
     val context = LocalContext.current
-    val body = remember(component.licenseId) { readLicenseText(context, component.licenseId) }
-    AlertDialog(
+    val body = remember(component.licenseAsset) { readLicenseText(context, component) }
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text("${component.name}  (${component.licenseId})") },
-        text = {
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            color = background,
+            modifier = Modifier
+                .fillMaxSize()
+                .border(width = 1.dp, color = border),
+        ) {
             Column(
-                modifier = Modifier
-                    .heightIn(min = 240.dp, max = 480.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.fillMaxSize(),
             ) {
-                Text(text = component.copyright, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                Text(text = stringResource(R.string.licenses_source_line, component.sourceUrl), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                Text(text = "—", fontSize = 11.sp)
-                Text(text = body, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.licenses_full_text_title),
+                        color = accent,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.action_close_dialog), color = textPrimary)
+                    }
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, border.copy(alpha = 0.75f)),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(7.dp),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = component.name,
+                                    color = textPrimary,
+                                    fontSize = 17.sp,
+                                    lineHeight = 22.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                LicenseBadge(component.licenseId, accent)
+                            }
+                            Text(
+                                text = stringResource(component.purposeRes),
+                                color = textSecondary,
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp,
+                            )
+                            SelectionContainer {
+                                Text(
+                                    text = component.copyright,
+                                    color = textSecondary,
+                                    fontSize = 12.sp,
+                                    lineHeight = 17.sp,
+                                )
+                            }
+                            TextButton(onClick = onOpenSource) {
+                                Text(stringResource(R.string.action_open_source), color = accent)
+                            }
+                        }
+                    }
+                    Text(
+                        text = stringResource(R.string.licenses_license_text_heading),
+                        color = accent,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    SelectionContainer {
+                        Text(
+                            text = body,
+                            color = textPrimary,
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                            fontFamily = FontFamily.Monospace,
+                        )
+                    }
+                }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onOpenSource) { Text(stringResource(R.string.action_open_source)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close_dialog)) }
-        },
-    )
+        }
+    }
 }
 
 /**
  * `assets/licenses/<id>.txt` を UTF-8 で読む。無ければ「公式 URL を参照」のフォールバック文字列。
  * プレースホルダ TXT を同梱する運用では、ファイル内に curl コマンドの取得手順が書かれている。
  */
-private fun readLicenseText(context: Context, licenseId: String): String =
+private fun readLicenseText(context: Context, component: OssComponent): String =
     runCatching {
-        context.assets.open("licenses/$licenseId.txt").use { it.readBytes().toString(Charsets.UTF_8) }
+        context.assets.open("licenses/${component.licenseAsset}.txt").use {
+            it.readBytes().toString(Charsets.UTF_8)
+        }
     }.getOrElse {
-        context.getString(R.string.licenses_full_text_missing, licenseId)
+        context.getString(R.string.licenses_full_text_missing, component.licenseId)
     }
 
 private fun openUrl(context: Context, url: String) {

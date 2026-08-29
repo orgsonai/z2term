@@ -1,0 +1,5 @@
+0.8.448-alpha
+
+- Completed OSS license, copyright, and corresponding-source notices, including SMBJ's transitive dependencies.
+- Removed the obsolete LGPL-2.1 text left over from jCIFS.
+- Redesigned the OSS license list with readable cards and a full-screen, larger, selectable license-text view.

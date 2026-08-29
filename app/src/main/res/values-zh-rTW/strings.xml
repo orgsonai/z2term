@@ -303,6 +303,10 @@
     <string name="licenses_open_button">開啟隨附開源元件的清單</string>
     <string name="licenses_summary">把授權條款全文、版權聲明和對應原始碼 URL 集中顯示。</string>
     <string name="licenses_section_summary">隨附開源元件的授權條款 / 對應原始碼 URL。點選可查看全文。</string>
+    <string name="licenses_component_count">%1$d 個元件</string>
+    <string name="licenses_view_full_text">授權條款全文</string>
+    <string name="licenses_full_text_title">授權條款全文</string>
+    <string name="licenses_license_text_heading">授權條款原文</string>
     <string name="licenses_source_line">原始碼: %1$s</string>
     <string name="licenses_full_text_missing">（本授權條款的全文未隨附。SPDX: %1$s\n官方原文請參見 https://spdx.org/licenses/%1$s.html。）</string>
     <string name="confirm_clean_install_title">全新安裝 %1$s</string>
@@ -475,9 +479,16 @@
     <string name="oss_purpose_z2term">本應用程式本體（終端機 UI、工作階段、遠端檔案、設定）</string>
     <string name="oss_purpose_androidx_compose">UI / 生命週期 / DataStore</string>
     <string name="oss_purpose_kotlin_stdlib">Kotlin 執行環境</string>
+    <string name="oss_purpose_kotlin_coroutines">非同步處理與協程</string>
     <string name="oss_purpose_jsch">SSH 用戶端函式庫</string>
+    <string name="oss_purpose_jzlib">JSch 隨附的 SSH 壓縮實作</string>
+    <string name="oss_purpose_jbcrypt">JSch 隨附的 bcrypt 實作</string>
     <string name="oss_purpose_okhttp">WebDAV HTTP 用戶端</string>
+    <string name="oss_purpose_okio">OkHttp 與 DataStore 使用的 I/O 函式庫</string>
     <string name="oss_purpose_smbj">SMB2/3 用戶端函式庫</string>
+    <string name="oss_purpose_asn_one">SMBJ 的 ASN.1 編碼與解碼</string>
+    <string name="oss_purpose_mbassador">SMBJ 使用的事件匯流排</string>
+    <string name="oss_purpose_slf4j">SMBJ 使用的記錄 API</string>
     <string name="oss_purpose_bouncycastle">加密提供者 (JSch 的 ed25519/curve25519 等)</string>
     <string name="oss_purpose_xz_java">XZ (LZMA2) 解壓縮 (Kali rootfs 等的 .tar.xz)</string>
     <string name="oss_purpose_fira_code">終端機用等寬字型 (支援連字)</string>

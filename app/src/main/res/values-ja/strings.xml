@@ -312,6 +312,10 @@
     <string name="licenses_open_button">同梱 OSS の一覧を開く</string>
     <string name="licenses_summary">ライセンス全文・著作権表示・対応ソース URL をまとめて表示。</string>
     <string name="licenses_section_summary">同梱 OSS のライセンス / 対応ソース URL。タップで全文を表示。</string>
+    <string name="licenses_component_count">%1$d 件のコンポーネント</string>
+    <string name="licenses_view_full_text">ライセンス全文</string>
+    <string name="licenses_full_text_title">ライセンス全文</string>
+    <string name="licenses_license_text_heading">ライセンス原文</string>
     <string name="licenses_source_line">ソース: %1$s</string>
     <string name="licenses_full_text_missing">（このライセンスの全文は同梱されていません。SPDX: %1$s\n公式テキスト: https://spdx.org/licenses/%1$s.html を参照してください。）</string>
     <string name="confirm_clean_install_title">%1$s をクリーンインストール</string>
@@ -502,9 +506,16 @@
     <string name="oss_purpose_z2term">本アプリ本体（ターミナル UI・セッション・リモートファイル・設定）</string>
     <string name="oss_purpose_androidx_compose">UI / ライフサイクル / DataStore</string>
     <string name="oss_purpose_kotlin_stdlib">Kotlin ランタイム</string>
+    <string name="oss_purpose_kotlin_coroutines">非同期処理 / コルーチン</string>
     <string name="oss_purpose_jsch">SSH クライアントライブラリ</string>
+    <string name="oss_purpose_jzlib">JSch に同梱された SSH 圧縮実装</string>
+    <string name="oss_purpose_jbcrypt">JSch に同梱された bcrypt 実装</string>
     <string name="oss_purpose_okhttp">WebDAV HTTP クライアント</string>
+    <string name="oss_purpose_okio">OkHttp / DataStore の I/O ライブラリ</string>
     <string name="oss_purpose_smbj">SMB2/3 クライアントライブラリ</string>
+    <string name="oss_purpose_asn_one">SMBJ の ASN.1 エンコード / デコード</string>
+    <string name="oss_purpose_mbassador">SMBJ のイベントバス</string>
+    <string name="oss_purpose_slf4j">SMBJ のロギング API</string>
     <string name="oss_purpose_bouncycastle">暗号プロバイダ (JSch の ed25519/curve25519 等)</string>
     <string name="oss_purpose_xz_java">XZ (LZMA2) 解凍 (Kali rootfs などの .tar.xz)</string>
     <string name="oss_purpose_fira_code">ターミナル用等幅フォント (合字対応)</string>

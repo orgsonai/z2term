@@ -314,6 +314,10 @@
     <string name="licenses_open_button">Open the bundled OSS list</string>
     <string name="licenses_summary">Shows license texts, copyrights, and corresponding-source URLs in one place.</string>
     <string name="licenses_section_summary">Bundled OSS licenses and corresponding source URLs. Tap to view the full text.</string>
+    <string name="licenses_component_count">%1$d components</string>
+    <string name="licenses_view_full_text">Full license</string>
+    <string name="licenses_full_text_title">Full license</string>
+    <string name="licenses_license_text_heading">License text</string>
     <string name="licenses_source_line">Source: %1$s</string>
     <string name="licenses_full_text_missing">(The full text for this license is not bundled. SPDX: %1$s\nSee the official text at https://spdx.org/licenses/%1$s.html.)</string>
     <string name="confirm_clean_install_title">Clean install %1$s</string>
@@ -505,9 +509,16 @@
     <string name="oss_purpose_z2term">This app itself (terminal UI, sessions, remote files, settings)</string>
     <string name="oss_purpose_androidx_compose">UI / lifecycle / DataStore</string>
     <string name="oss_purpose_kotlin_stdlib">Kotlin runtime</string>
+    <string name="oss_purpose_kotlin_coroutines">Asynchronous processing and coroutines</string>
     <string name="oss_purpose_jsch">SSH client library</string>
+    <string name="oss_purpose_jzlib">SSH compression implementation bundled with JSch</string>
+    <string name="oss_purpose_jbcrypt">bcrypt implementation bundled with JSch</string>
     <string name="oss_purpose_okhttp">WebDAV HTTP client</string>
+    <string name="oss_purpose_okio">I/O library used by OkHttp and DataStore</string>
     <string name="oss_purpose_smbj">SMB2/3 client library</string>
+    <string name="oss_purpose_asn_one">ASN.1 encoding and decoding for SMBJ</string>
+    <string name="oss_purpose_mbassador">Event bus used by SMBJ</string>
+    <string name="oss_purpose_slf4j">Logging API used by SMBJ</string>
     <string name="oss_purpose_bouncycastle">Crypto provider (ed25519/curve25519 for JSch)</string>
     <string name="oss_purpose_xz_java">XZ (LZMA2) decompression (Kali rootfs .tar.xz etc.)</string>
     <string name="oss_purpose_fira_code">Monospaced terminal font (with ligatures)</string>

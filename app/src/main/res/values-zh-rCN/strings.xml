@@ -303,6 +303,10 @@
     <string name="licenses_open_button">打开随附开源组件的清单</string>
     <string name="licenses_summary">把许可证全文、版权声明和对应源码 URL 集中显示。</string>
     <string name="licenses_section_summary">随附开源组件的许可证 / 对应源码 URL。点击可查看全文。</string>
+    <string name="licenses_component_count">%1$d 个组件</string>
+    <string name="licenses_view_full_text">许可证全文</string>
+    <string name="licenses_full_text_title">许可证全文</string>
+    <string name="licenses_license_text_heading">许可证原文</string>
     <string name="licenses_source_line">源码: %1$s</string>
     <string name="licenses_full_text_missing">（本许可证的全文未随附。SPDX: %1$s\n官方文本请参见 https://spdx.org/licenses/%1$s.html。）</string>
     <string name="confirm_clean_install_title">全新安装 %1$s</string>
@@ -475,9 +479,16 @@
     <string name="oss_purpose_z2term">本应用本体（终端 UI、会话、远程文件、设置）</string>
     <string name="oss_purpose_androidx_compose">UI / 生命周期 / DataStore</string>
     <string name="oss_purpose_kotlin_stdlib">Kotlin 运行时</string>
+    <string name="oss_purpose_kotlin_coroutines">异步处理和协程</string>
     <string name="oss_purpose_jsch">SSH 客户端库</string>
+    <string name="oss_purpose_jzlib">JSch 随附的 SSH 压缩实现</string>
+    <string name="oss_purpose_jbcrypt">JSch 随附的 bcrypt 实现</string>
     <string name="oss_purpose_okhttp">WebDAV HTTP 客户端</string>
+    <string name="oss_purpose_okio">OkHttp 和 DataStore 使用的 I/O 库</string>
     <string name="oss_purpose_smbj">SMB2/3 客户端库</string>
+    <string name="oss_purpose_asn_one">SMBJ 的 ASN.1 编码和解码</string>
+    <string name="oss_purpose_mbassador">SMBJ 使用的事件总线</string>
+    <string name="oss_purpose_slf4j">SMBJ 使用的日志 API</string>
     <string name="oss_purpose_bouncycastle">加密提供程序 (JSch 的 ed25519/curve25519 等)</string>
     <string name="oss_purpose_xz_java">XZ (LZMA2) 解压 (Kali rootfs 等的 .tar.xz)</string>
     <string name="oss_purpose_fira_code">终端用等宽字体 (支持连字)</string>

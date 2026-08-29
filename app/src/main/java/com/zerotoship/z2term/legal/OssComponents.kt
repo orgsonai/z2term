@@ -26,6 +26,8 @@ data class OssComponent(
     val sourceUrl: String,
     /** 一言説明 (用途)。LocaleHelper により ja/en で切替わる。 */
     @StringRes val purposeRes: Int,
+    /** 同一 SPDX ID でも著作権者ごとの原文が必要な場合に使う assets/licenses/ 配下のファイル名（拡張子なし）。 */
+    val licenseAsset: String = licenseId,
 )
 
 object OssComponents {
@@ -60,11 +62,34 @@ object OssComponents {
             purposeRes = R.string.oss_purpose_kotlin_stdlib,
         ),
         OssComponent(
+            name = "Kotlin Coroutines 1.7.3",
+            licenseId = "Apache-2.0",
+            copyright = "Copyright (c) JetBrains s.r.o. and Kotlin contributors",
+            sourceUrl = "https://github.com/Kotlin/kotlinx.coroutines/tree/1.7.3",
+            purposeRes = R.string.oss_purpose_kotlin_coroutines,
+        ),
+        OssComponent(
             name = "JSch",
             licenseId = "BSD-3-Clause",
             copyright = "Copyright (c) ymnk, JCraft, Inc.",
             sourceUrl = "https://github.com/mwiede/jsch",
             purposeRes = R.string.oss_purpose_jsch,
+        ),
+        OssComponent(
+            name = "JZlib (JSch bundled copy)",
+            licenseId = "BSD-3-Clause",
+            copyright = "Copyright (c) 2000-2011 ymnk, JCraft, Inc. All rights reserved.",
+            sourceUrl = "https://github.com/ymnk/jzlib",
+            purposeRes = R.string.oss_purpose_jzlib,
+            licenseAsset = "JZlib-BSD-3-Clause",
+        ),
+        OssComponent(
+            name = "jBCrypt (JSch bundled copy)",
+            licenseId = "ISC",
+            copyright = "Copyright (c) 2006 Damien Miller <djm@mindrot.org>",
+            sourceUrl = "https://www.mindrot.org/projects/jBCrypt/",
+            purposeRes = R.string.oss_purpose_jbcrypt,
+            licenseAsset = "jBCrypt-ISC",
         ),
         OssComponent(
             name = "OkHttp 5.3.0",
@@ -74,19 +99,50 @@ object OssComponents {
             purposeRes = R.string.oss_purpose_okhttp,
         ),
         OssComponent(
+            name = "Okio 3.16.2",
+            licenseId = "Apache-2.0",
+            copyright = "Copyright (c) 2013 Square, Inc. and contributors",
+            sourceUrl = "https://github.com/square/okio/tree/3.16.2",
+            purposeRes = R.string.oss_purpose_okio,
+        ),
+        OssComponent(
             name = "SMBJ 0.15.0",
             licenseId = "Apache-2.0",
-            copyright = "Copyright (c) SMBJ contributors",
+            copyright = "Copyright (c) 2016 SMBJ Contributors",
             sourceUrl = "https://github.com/hierynomus/smbj/tree/v0.15.0",
             purposeRes = R.string.oss_purpose_smbj,
+        ),
+        OssComponent(
+            name = "asn-one 0.6.0",
+            licenseId = "Apache-2.0",
+            copyright = "Copyright 2016 Jeroen van Erp <jeroen@hierynomus.com>",
+            sourceUrl = "https://github.com/hierynomus/asn-one/tree/v0.6.0",
+            purposeRes = R.string.oss_purpose_asn_one,
+        ),
+        OssComponent(
+            name = "MBassador 1.3.2",
+            licenseId = "MIT",
+            copyright = "Copyright (c) 2012 Benjamin Diedrichsen",
+            sourceUrl = "https://github.com/bennidi/mbassador",
+            purposeRes = R.string.oss_purpose_mbassador,
+            licenseAsset = "MBassador-MIT",
+        ),
+        OssComponent(
+            name = "SLF4J API 2.0.18",
+            licenseId = "MIT",
+            copyright = "Copyright (c) 2004-2022 QOS.ch Sarl (Switzerland)",
+            sourceUrl = "https://github.com/qos-ch/slf4j/tree/v_2.0.18",
+            purposeRes = R.string.oss_purpose_slf4j,
+            licenseAsset = "SLF4J-MIT",
         ),
         OssComponent(
             // BouncyCastle License は MIT X11 ライセンスの改変版のため SPDX 代表は MIT。
             name = "Bouncy Castle",
             licenseId = "MIT",
-            copyright = "Copyright (c) 2000-2024 The Legion of the Bouncy Castle Inc.",
-            sourceUrl = "https://github.com/bcgit/bc-java",
+            copyright = "Copyright (c) 2000-2026 The Legion of the Bouncy Castle Inc.",
+            sourceUrl = "https://github.com/bcgit/bc-java/tree/r1rv85v2",
             purposeRes = R.string.oss_purpose_bouncycastle,
+            licenseAsset = "Bouncy-Castle-MIT",
         ),
         OssComponent(
             name = "XZ for Java",
