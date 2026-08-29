@@ -68,7 +68,17 @@ data class PortForward(
 }
 
 /**
- * SSH 接続プロファイル。
+ * 接続先の主な入口。旧データにはこの項目が無いため、読み込み時の既定は [SSH]。
+ * SSH の無い NAS / WebDAV サーバーも同じ接続先一覧へ登録できるようにする。
+ */
+enum class ConnectionProtocol {
+    SSH,
+    WEBDAV,
+    SMB
+}
+
+/**
+ * SSH / WebDAV / SMB 共通接続先。クラス名は保存互換のため維持する。
  *
  * - PASSWORD 認証: password フィールドを使う
  * - PUBLIC_KEY 認証: privateKey (PEM テキスト) + 任意の keyPassphrase
@@ -81,6 +91,7 @@ data class PortForward(
 data class SshProfile(
     val id: String,
     val name: String,
+    val protocol: ConnectionProtocol = ConnectionProtocol.SSH,
     val host: String,
     val port: Int = 22,
     val user: String,
@@ -113,8 +124,28 @@ data class SshProfile(
      * VNC 認証のパスワード (平文。永続化時に暗号化)。
      * ⚠ **SSH の [password] とは別物**。VNC 側は 8 文字までしか効かない (RFB の仕様)。
      */
-    val vncPassword: String = ""
+    val vncPassword: String = "",
+    /** WebDAV の URL 内パスとは別に使う SMB の共有名。 */
+    val remotePath: String = "",
+    /** SMB の認証ドメイン。SSH / WebDAV では空。 */
+    val domain: String = ""
 ) {
+    val hasSsh: Boolean get() = protocol == ConnectionProtocol.SSH
+
+    val fileProtocolLabel: String get() = when (protocol) {
+        ConnectionProtocol.SSH -> "SFTP"
+        ConnectionProtocol.WEBDAV -> "WebDAV"
+        ConnectionProtocol.SMB -> "SMB"
+    }
+
+    fun endpointDescription(): String = when (protocol) {
+        ConnectionProtocol.SSH -> "$user@$host:$port"
+        ConnectionProtocol.WEBDAV -> host
+        ConnectionProtocol.SMB -> buildString {
+            append("//").append(host).append(':').append(port)
+            if (remotePath.isNotBlank()) append('/').append(remotePath.trim('/'))
+        }
+    }
 
     /** この接続先のデスクトップを開くための接続情報 (A1)。 */
     fun toVncTarget(): VncTarget = VncTarget(
@@ -133,6 +164,7 @@ data class SshProfile(
         put("host", host)
         put("port", port)
         put("user", user)
+        put("protocol", protocol.name)
         put("authType", authType.name)
         put("residentTunnel", residentTunnel)
         put("vncPort", vncPort)
@@ -144,6 +176,8 @@ data class SshProfile(
         put("forwards", JSONArray().also { arr ->
             forwards.forEach { arr.put(it.toJson()) }
         })
+        put("remotePath", remotePath)
+        put("domain", domain)
     }
 
     /**
@@ -157,6 +191,7 @@ data class SshProfile(
     fun toPlainJson(): JSONObject = JSONObject().apply {
         put("id", id)
         put("name", name)
+        put("protocol", protocol.name)
         put("host", host)
         put("port", port)
         put("user", user)
@@ -168,6 +203,8 @@ data class SshProfile(
         put("privateKey", privateKey)
         put("keyPassphrase", keyPassphrase)
         put("initCommand", initCommand)
+        put("remotePath", remotePath)
+        put("domain", domain)
         put("forwards", JSONArray().also { arr -> forwards.forEach { arr.put(it.toJson()) } })
     }
 
@@ -176,6 +213,9 @@ data class SshProfile(
         fun fromPlainJson(o: JSONObject): SshProfile = SshProfile(
             id = o.optString("id"),
             name = o.optString("name"),
+            protocol = runCatching {
+                ConnectionProtocol.valueOf(o.optString("protocol", ConnectionProtocol.SSH.name))
+            }.getOrDefault(ConnectionProtocol.SSH),
             host = o.optString("host"),
             port = o.optInt("port", 22),
             user = o.optString("user"),
@@ -188,6 +228,8 @@ data class SshProfile(
             privateKey = o.optString("privateKey"),
             keyPassphrase = o.optString("keyPassphrase"),
             initCommand = o.optString("initCommand"),
+            remotePath = o.optString("remotePath"),
+            domain = o.optString("domain"),
             forwards = runCatching {
                 val arr = o.optJSONArray("forwards") ?: return@runCatching emptyList()
                 List(arr.length()) { PortForward.fromJson(arr.getJSONObject(it)) }
@@ -198,6 +240,9 @@ data class SshProfile(
         fun fromJson(o: JSONObject): SshProfile = SshProfile(
             id = o.optString("id"),
             name = o.optString("name"),
+            protocol = runCatching {
+                ConnectionProtocol.valueOf(o.optString("protocol", ConnectionProtocol.SSH.name))
+            }.getOrDefault(ConnectionProtocol.SSH),
             host = o.optString("host"),
             port = o.optInt("port", 22),
             user = o.optString("user"),
@@ -210,6 +255,8 @@ data class SshProfile(
             privateKey = runCatching { KeystoreCrypt.decrypt(o.optString("privateKey")) }.getOrDefault(""),
             keyPassphrase = runCatching { KeystoreCrypt.decrypt(o.optString("keyPassphrase")) }.getOrDefault(""),
             initCommand = o.optString("initCommand"),
+            remotePath = o.optString("remotePath"),
+            domain = o.optString("domain"),
             forwards = runCatching {
                 val arr = o.optJSONArray("forwards") ?: return@runCatching emptyList()
                 List(arr.length()) { PortForward.fromJson(arr.getJSONObject(it)) }

@@ -56,7 +56,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
-import com.zerotoship.z2term.channel.SftpClient
+import com.zerotoship.z2term.channel.RemoteFs
+import com.zerotoship.z2term.channel.RemoteFsFactory
+import com.zerotoship.z2term.channel.RemotePath
 import com.zerotoship.z2term.channel.SftpEntry
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
@@ -74,9 +76,9 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * SFTP ファイルブラウザ (全画面ページ)。
+ * SFTP / WebDAV / SMB 共通ファイルブラウザ (全画面ページ)。
  *
- * 指定 [profile] へ SFTP 接続し、リモートのファイルを一覧 / 移動 / ダウンロード /
+ * 指定 [profile] のプロトコルで接続し、リモートのファイルを一覧 / 移動 / ダウンロード /
  * アップロード / 削除 / 名前変更 / フォルダ作成できる。ダウンロード/アップロードは
  * Android の SAF (CreateDocument / OpenDocument) と連携する。
  *
@@ -94,7 +96,7 @@ fun SftpSheet(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
-    var client by remember { mutableStateOf<SftpClient?>(null) }
+    var client by remember { mutableStateOf<RemoteFs?>(null) }
     var connecting by remember { mutableStateOf(true) }
     var connError by remember { mutableStateOf<String?>(null) }
     var currentPath by remember { mutableStateOf("/") }
@@ -114,7 +116,7 @@ fun SftpSheet(
     LaunchedEffect(profile.id) {
         connecting = true
         connError = null
-        runCatching { SftpClient.connect(profile, context) }
+        runCatching { RemoteFsFactory.connect(profile, context) }
             .onSuccess { c ->
                 client = c
                 currentPath = c.home
@@ -147,7 +149,7 @@ fun SftpSheet(
         val entry = pendingDownload
         pendingDownload = null
         if (uri != null && entry != null) {
-            val remote = SftpClient.resolve(currentPath, entry.name)
+            val remote = RemotePath.resolve(currentPath, entry.name)
             scope.launch {
                 runCatching {
                     withContext(Dispatchers.IO) {
@@ -168,7 +170,7 @@ fun SftpSheet(
             scope.launch {
                 runCatching {
                     val name = queryDisplayName(context, uri) ?: "uploaded_file"
-                    val remote = SftpClient.resolve(currentPath, name)
+                    val remote = RemotePath.resolve(currentPath, name)
                     withContext(Dispatchers.IO) {
                         context.contentResolver.openInputStream(uri)?.use { ins ->
                             client?.upload(ins, remote)
@@ -194,7 +196,7 @@ fun SftpSheet(
         Column(modifier = Modifier.fillMaxSize()) {
         // ヘッダ: 戻る矢印 + プロファイル名 (設定ページと同じ上部バー)
         SftpTopBar(
-            title = "SFTP : ${profile.user}@${profile.host}",
+            title = "${profile.fileProtocolLabel} : ${profile.endpointDescription()}",
             onBack = onDismiss
         )
         Column(
@@ -224,7 +226,7 @@ fun SftpSheet(
                     Spacer(Modifier.width(8.dp))
                 }
                 PillButton(stringResource(R.string.sftp_button_up), enabled = client != null && currentPath != "/") {
-                    currentPath = SftpClient.resolve(currentPath, "..")
+                    currentPath = RemotePath.resolve(currentPath, "..")
                 }
                 Spacer(Modifier.width(6.dp))
                 PillButton("⟳", enabled = client != null) { refreshTick++ }
@@ -248,7 +250,7 @@ fun SftpSheet(
                                 entry = entry,
                                 onOpen = {
                                     if (entry.isDir || entry.isLink) {
-                                        currentPath = SftpClient.resolve(currentPath, entry.name)
+                                        currentPath = RemotePath.resolve(currentPath, entry.name)
                                     }
                                 },
                                 onDownload = {
@@ -296,8 +298,8 @@ fun SftpSheet(
             onConfirm = { newName ->
                 renameTarget = null
                 if (newName.isNotBlank() && newName != target.name) {
-                    val from = SftpClient.resolve(currentPath, target.name)
-                    val to = SftpClient.resolve(currentPath, newName)
+                    val from = RemotePath.resolve(currentPath, target.name)
+                    val to = RemotePath.resolve(currentPath, newName)
                     scope.launch {
                         runCatching { client?.rename(from, to) }
                             .onSuccess { toast(context.getString(R.string.sftp_toast_renamed)); refreshTick++ }
@@ -318,7 +320,7 @@ fun SftpSheet(
             onConfirm = { name ->
                 mkdirOpen = false
                 if (name.isNotBlank()) {
-                    val path = SftpClient.resolve(currentPath, name)
+                    val path = RemotePath.resolve(currentPath, name)
                     scope.launch {
                         runCatching { client?.mkdir(path) }
                             .onSuccess { toast(context.getString(R.string.sftp_toast_created)); refreshTick++ }
@@ -354,7 +356,7 @@ fun SftpSheet(
             confirmButton = {
                 TextButton(onClick = {
                     deleteTarget = null
-                    val path = SftpClient.resolve(currentPath, target.name)
+                    val path = RemotePath.resolve(currentPath, target.name)
                     scope.launch {
                         runCatching {
                             if (target.isDir) client?.rmdir(path) else client?.rm(path)

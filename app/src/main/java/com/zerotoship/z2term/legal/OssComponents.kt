@@ -67,6 +67,20 @@ object OssComponents {
             purposeRes = R.string.oss_purpose_jsch,
         ),
         OssComponent(
+            name = "OkHttp 5.3.0",
+            licenseId = "Apache-2.0",
+            copyright = "Copyright (c) Square, Inc. and contributors",
+            sourceUrl = "https://github.com/square/okhttp",
+            purposeRes = R.string.oss_purpose_okhttp,
+        ),
+        OssComponent(
+            name = "jcifs-ng 2.1.9",
+            licenseId = "LGPL-2.1",
+            copyright = "Copyright (c) AgNO3 GmbH & Co. KG and jCIFS contributors",
+            sourceUrl = "https://github.com/AgNO3/jcifs-ng/tree/jcifs-ng-2.1.9",
+            purposeRes = R.string.oss_purpose_jcifs,
+        ),
+        OssComponent(
             // BouncyCastle License は MIT X11 ライセンスの改変版のため SPDX 代表は MIT。
             name = "Bouncy Castle",
             licenseId = "MIT",

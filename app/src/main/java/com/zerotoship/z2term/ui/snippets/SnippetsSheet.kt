@@ -95,8 +95,7 @@ private enum class ToolsTab { SNIPPETS, HISTORY, SSH, SERVERS, WHEN }
  *  - スニペット: よく使うコマンドを挿入 ([onRun])。並べ替え / 編集 / 削除可。
  *  - 履歴 (B2): 端末で実行した過去コマンドを絞り込んでタップで挿入。読み取り専用で、
  *    シェルの履歴ファイル (`~/.bash_history` / `~/.zsh_history`) をそのまま見る。
- *  - SSH / SFTP: 保存したホストへ接続 ([onConnect]) / SFTP で開く ([onSftp]) /
- *    そのホストのデスクトップを VNC で開く ([onVnc]・A1)。
+ *  - 接続先: SSH はシェル / SFTP / VNC、WebDAV と SMB は共通ファイル画面で開く。
  *  - サーバー: 常駐サーバーの起動/停止・ON/OFF・編集 (設定シートと同じ [ServersBody])。
  *    毎回設定画面を開かずここから管理できる。
  *

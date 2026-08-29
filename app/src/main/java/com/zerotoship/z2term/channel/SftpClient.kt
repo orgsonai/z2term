@@ -33,14 +33,14 @@ data class SftpEntry(
 class SftpClient private constructor(
     private val session: Session,
     private val channel: ChannelSftp
-) {
+) : RemoteFs {
     /** リモートのホームディレクトリ (取得不能なら "/") */
-    val home: String = runCatching { channel.home }.getOrNull()?.takeIf { it.isNotBlank() } ?: "/"
+    override val home: String = runCatching { channel.home }.getOrNull()?.takeIf { it.isNotBlank() } ?: "/"
 
-    val isAlive: Boolean get() = channel.isConnected && session.isConnected
+    override val isAlive: Boolean get() = channel.isConnected && session.isConnected
 
     /** path 配下のエントリ一覧 (`.` 除外、`..` は最上位以外で先頭、フォルダ→ファイル名順) */
-    suspend fun list(path: String): List<SftpEntry> = withContext(Dispatchers.IO) {
+    override suspend fun list(path: String): List<SftpEntry> = withContext(Dispatchers.IO) {
         val out = ArrayList<SftpEntry>()
         @Suppress("UNCHECKED_CAST")
         val entries = channel.ls(path) as java.util.Vector<ChannelSftp.LsEntry>
@@ -68,26 +68,26 @@ class SftpClient private constructor(
     }
 
     /** remotePath の内容を sink へ書き出す (ダウンロード)。sink は呼び出し側で close。 */
-    suspend fun download(remotePath: String, sink: OutputStream) = withContext(Dispatchers.IO) {
+    override suspend fun download(remotePath: String, sink: OutputStream) = withContext(Dispatchers.IO) {
         channel.get(remotePath, sink)
     }
 
     /** source の内容を remotePath へ書き込む (アップロード、上書き)。source は呼び出し側で close。 */
-    suspend fun upload(source: InputStream, remotePath: String) = withContext(Dispatchers.IO) {
+    override suspend fun upload(source: InputStream, remotePath: String) = withContext(Dispatchers.IO) {
         channel.put(source, remotePath, ChannelSftp.OVERWRITE)
     }
 
-    suspend fun mkdir(path: String) = withContext(Dispatchers.IO) { channel.mkdir(path) }
+    override suspend fun mkdir(path: String) = withContext(Dispatchers.IO) { channel.mkdir(path) }
 
-    suspend fun rename(from: String, to: String) = withContext(Dispatchers.IO) { channel.rename(from, to) }
+    override suspend fun rename(from: String, to: String) = withContext(Dispatchers.IO) { channel.rename(from, to) }
 
     /** ファイル削除。ディレクトリは [rmdir] を使う。 */
-    suspend fun rm(path: String) = withContext(Dispatchers.IO) { channel.rm(path) }
+    override suspend fun rm(path: String) = withContext(Dispatchers.IO) { channel.rm(path) }
 
     /** 空ディレクトリ削除。 */
-    suspend fun rmdir(path: String) = withContext(Dispatchers.IO) { channel.rmdir(path) }
+    override suspend fun rmdir(path: String) = withContext(Dispatchers.IO) { channel.rmdir(path) }
 
-    fun close() {
+    override fun close() {
         runCatching { channel.disconnect() }
         runCatching { session.disconnect() }
     }

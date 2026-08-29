@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.436-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.438-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -264,14 +264,16 @@ Settings > Maintenance > **"Take it with you"** writes your current setup to a s
 
 ### Creating an SSH key in the app
 
-In 📜 > "SSH / SFTP", add a connection and set auth to public key: a **"Create a key (ed25519)"** button appears.
+In 📜 > **Connections**, add an SSH connection and set auth to public key: a **"Create a key (ed25519)"** button appears.
 Press it and the key is made, with **copy / share / add to this device's sshd** right there.
 Give the **public** key to whoever runs the server you connect to (the private key never leaves this device).
 The field for pasting your own private key is still there.
 
+The same **Connections** list also accepts **WebDAV** and **SMB** destinations. Pick the connection type when adding an entry; these two types open the shared file browser directly and do not use or require SSH. WebDAV takes a full `http://` or `https://` base URL. SMB takes a host, port (normally 445), share name and optional domain; SMB1 is disabled.
+
 ### Open a remote machine's screen (VNC, 0.8.418)
 
-Every host in 📜 → "SSH / SFTP" now has a **[VNC]** button. It opens **that server's desktop in a new
+Every SSH host in 📜 → **Connections** has a **[VNC]** button. It opens **that server's desktop in a new
 tab** — the machine over there, not the Linux inside the app.
 
 Before using it, fill in two fields under **✎ (Edit)** for the host:
@@ -288,8 +290,8 @@ scroll, and the same keyboard.
 - **The white arrow is the cursor you control** (0.8.427). Its position survives leaving the tab and reconnecting. **It is the only arrow on screen** (0.8.431; before that the pointer drawn by the server sat next to it and you saw **two**).
 - The default is **relative mode**: the cursor moves by the distance your finger moves. Press **🖱 in the GUI toolbar** to switch to **absolute mode**, where the cursor jumps to the place you touch (0.8.431; 🖱 lights up in absolute mode, and a green ring appears at the arrow root). ⚠ Through 0.8.430 this lived on a **double-tap of 📜**, which is visible nowhere on screen and has nothing to do with a command list, so it is now **a button of its own, shown only on GUI tabs** (never on terminal tabs; hide it under ⚙ Settings › Display › Toolbar).
 - **A single tap is a left click** and **a double tap is a double click**, as before.
-- **A right click is a press and hold** (0.8.431). Keep your finger still and **a green ring sweeps around the arrow tip; the right click fires the moment it closes** (**0.3 s**, with no need to lift your finger; 0.8.433). Move while the ring is running and it is cancelled, leaving you with plain cursor movement.
-- ⚠ **Tapping or dragging shows no ring** (0.8.433). **The ring only appears once the touch is clearly not a tap** (after 0.15 s) and then closes over the next 0.15 s — it no longer flashes on every tap.
+- **A right click is a press and hold** (0.8.431). Keep your finger still and **a green ring sweeps around the arrow tip; the right click fires the moment it closes** (**0.5 s**, with no need to lift your finger; 0.8.438). The ring itself waits 0.25 s before appearing, so slow pointer movement is less likely to be mistaken for a hold. Move while the ring is running and it is cancelled, leaving you with plain cursor movement.
+- ⚠ **Tapping or dragging shows no ring**. **The ring only appears once the touch is clearly not a tap** (after 0.25 s) and then closes over the next 0.25 s (0.8.438) — it does not flash on every tap.
 - To **drag** (move a window, select a range), **double-tap and keep moving**. ⭐ **Move straight away — no pause needed** (0.8.436). ⭐ **And no time limit** (0.8.435): holding the second tap still never ends the decision, so you can take aim first. ⚠ **Holding the second tap for a right click is gone** — the press-and-hold covers it, and it was getting in the way of dragging.
 - ⚠ **A single tap's left click reaches the server 0.3 s after you lift** (0.8.436). Sent any sooner, a drag that follows looks to the server like **a double click that was then dragged** (through 0.8.435 you had to pause after a double tap for a drag to work). ⭐ **The on-screen cursor still follows your finger instantly** — only the button press waits. The next tap flushes it immediately, so tapping in quick succession never loses a click.
 - To switch the remote Japanese input method, place **Half/Full** (or Convert, Non-convert, Kana or Eisu) anywhere in the custom key-layout editor. If the remote uses `Ctrl+Space` or `Super+Space`, place that modified key instead.

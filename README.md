@@ -41,7 +41,7 @@ phone, and everything came in one APK?**
 | Drive Android from the shell | Built in — ~20 `z2-*` helpers | A separate companion app |
 | Event-driven automation | Built in — `z2-when` (charging, battery level, time / cron, Wi-Fi, connectivity, boot, share, SMS, sensors, notifications, new files) with an Automation tab, logs and a kill switch | A separate companion app, usually paired with a third-party automation app |
 | Japanese input | Built-in IME (conversion, prediction, learning), also selectable as the OS input method | The OS keyboard |
-| SSH / SFTP client and `sshd` | Built in, keys held by the Android Keystore | Install the packages yourself |
+| SSH / SFTP, WebDAV and SMB clients, plus `sshd` | Built in; one connection list, SSH keys held by the Android Keystore | Install the packages yourself |
 | Distribution | GitHub Releases (this repo) | F-Droid and its own repository |
 
 Both are GPL-3.0 and neither collects telemetry. If you already have a Termux setup you are
@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.436-alpha (versionCode 444).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.438-alpha (versionCode 446).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
@@ -95,7 +95,7 @@ Pick whichever fits:
 - **USB Host bridge** — use a USB device connected to the phone from ordinary dynamically linked Linux programs. Run `z2-usb list`, then `z2-usb allow [number]` and approve Android's device permission; programs using libusb or `/dev/bus/usb/...` can then open it without being patched. A normal data-capable USB-A-to-USB-C adapter or hub works when the phone supports USB Host/OTG.
 - **Multi-tab** — CUI and GUI tabs, drag to reorder, long-press a tab to see the engine it runs on. An inactive tab shows a small dot while something is running in it, and a ✓ when it finished while you were looking elsewhere.
 - **Linux GUI** — Xvnc + openbox with a built-in RFB client; `z2gui` starts a desktop and `z2run <app>` launches a GUI app (opening the GUI tab for you), with audio and video. The same viewer also connects to a **remote VNC server**: a saved host gets a **[VNC]** button that opens that machine's desktop in a tab (RFB 3.3–3.8, None / VNC-password auth).
-- **SSH / SFTP** — public-key auth (**create an ed25519 key in the app, then copy/share the public key or add it to this device's sshd**; secrets encrypted by the Android Keystore), known_hosts confirmation, file transfer, port forwarding in both directions (`-L` / `-R`) that can **keep running after the SSH tab is closed**, and a built-in `sshd` (dropbear) that binds to localhost only by default.
+- **SSH / SFTP, WebDAV and SMB2/3** — saved destinations share one list and one file browser. WebDAV and SMB connect directly and do **not** require an SSH server. SSH adds public-key auth (**create an ed25519 key in the app, then copy/share the public key or add it to this device's sshd**; secrets encrypted by the Android Keystore), known_hosts confirmation, port forwarding in both directions (`-L` / `-R`) that can **keep running after the Connections tab is closed**, and a built-in `sshd` (dropbear) that binds to localhost only by default.
 - **English, Japanese, Simplified and Traditional Chinese throughout** — the in-app UI *and* the `z2-*` command-line helpers follow the language setting, so the help text, usage lines and messages you get in the terminal are localized too. Both bodies of text are keyed by language code, so further languages drop in without touching the code that uses them; anything not translated yet falls back to English. ⚠ The keyboard is a separate matter: no Chinese input method is bundled, so type Chinese with your OS input method.
 - **Japanese IME** — Viterbi kana-kanji conversion, prediction, frequency/recency learning, and a custom on-screen keyboard. It can also be **offered as an OS input method**, so once enabled the same keyboard and conversion work in the app's own text fields and in other apps (switching is the OS keyboard switcher). **Your own words can be added from a file** (SKK format: `reading /candidate/`), so names and private abbreviations convert from the first keystroke.
 - **Android bridge** — call host features from the shell: `z2-noti` (read the notifications on screen; read-only) / `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip` / `z2-battery` / `z2-vibrate` / `z2-say` / `z2-torch` / `z2-media` / `z2-volume` / `z2-sensor` / `z2-intent` / `z2-state` / `z2-screen` (stop the screen turning off by itself, for a while) / `z2-usb` / `z2-tile` (put a macro on a quick-settings tile; 12 slots) / `z2-icon` (draw the status-bar and tile icons yourself) / `z2-alarm` / `z2-macro` / `z2-session` (drives the app's own tabs; `attach` stays connected to one and types in it) / `z2-server` (start/stop a registered resident server).
@@ -291,6 +291,8 @@ Bundled third-party notices are available from Settings → OSS licenses.
 
 | Bundled item | License | How to get the corresponding source |
 |---|---|---|
+| OkHttp 5.3.0 | Apache-2.0 | [square/okhttp](https://github.com/square/okhttp) |
+| jcifs-ng 2.1.9 | LGPL | [AgNO3/jcifs-ng 2.1.9](https://github.com/AgNO3/jcifs-ng/tree/jcifs-ng-2.1.9) |
 | Fira Code / IBM Plex Mono / JetBrains Mono | OFL-1.1 | [tonsky/FiraCode](https://github.com/tonsky/FiraCode) / [IBM/plex](https://github.com/IBM/plex) / [JetBrains/JetBrainsMono](https://github.com/JetBrains/JetBrainsMono) |
 
 From the settings screen → "OSS licenses / corresponding source", you can also browse/show this in-app

@@ -41,7 +41,7 @@ Termux が正解です。Z2Term は別の問いから作られています —
 | シェルから Android を操作 | **内蔵**（約 20 個の `z2-*`） | 別アプリ（コンパニオン）が必要 |
 | イベント駆動の自動化 | **内蔵**（`z2-when`: 充電・電池残量・時刻/cron・Wi-Fi・回線・起動・共有・SMS・センサー・通知・ファイル追加）。自動化タブ・実行ログ・一括停止つき | 別アプリ + 多くは市販の自動化アプリと併用 |
 | 日本語入力 | **IME 内蔵**（変換・予測・学習）。OS の入力メソッドとしても選べる | OS のキーボード |
-| SSH / SFTP クライアントと `sshd` | 内蔵。鍵は Android Keystore が保持 | 自分でパッケージを入れる |
+| SSH / SFTP・WebDAV・SMB クライアントと `sshd` | 内蔵。接続先一覧を共用し、SSH 鍵は Android Keystore が保持 | 自分でパッケージを入れる |
 | 配布 | GitHub Releases（本リポジトリ） | F-Droid と独自リポジトリ |
 
 どちらも GPL-3.0 で、どちらもテレメトリを取りません。既に満足している Termux 環境がある人にとって、
@@ -83,7 +83,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.430-alpha (versionCode 438).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.438-alpha (versionCode 446).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 
@@ -93,7 +93,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 - **USB Host ブリッジ** — スマホに挿した USB 機器を、通常の動的リンクされた Linux プログラムから利用できます。`z2-usb list` → `z2-usb allow [番号]` の順に実行して Android の機器許可を押すと、libusb や `/dev/bus/usb/...` を使うプログラムを修正せずに開けます。スマホが USB Host/OTG 対応で、充電専用ではない通常の USB-A → USB-C 変換アダプタやハブなら使えます。
 - **マルチタブ** — CUI / GUI タブ、ドラッグで並べ替え、タブ長押しで実行エンジンを確認。**見ていないタブで何か動いていれば小さな点**、**見ていない間に終わっていれば ✓** が付く。
 - **Linux GUI** — Xvnc + openbox と内蔵 RFB クライアント。`z2gui` でデスクトップを起動し、`z2run <アプリ>` で GUI アプリを起動（GUI タブも自動で開く）。音声・動画つき。**同じビューアでリモートの VNC サーバにも繋がります** — 保存した接続先に **[VNC]** ボタンが付き、そのサーバのデスクトップをタブで開けます（RFB 3.3〜3.8 / None・VNC パスワード認証）。
-- **SSH / SFTP** — 公開鍵認証（**アプリ内で ed25519 鍵を作れて、公開鍵はその場でコピー/共有/この端末の sshd に登録**。秘匿フィールドは Android Keystore で暗号化）、known_hosts 確認、ファイル転送、**両方向のポート転送 (`-L` / `-R`) と、SSH タブを閉じても生き続ける常駐トンネル**、既定で localhost のみ bind する内蔵 `sshd`（dropbear）。
+- **SSH / SFTP・WebDAV・SMB2/3** — 保存した接続先は 1 つの一覧とファイル画面を共用。WebDAV と SMB は直接接続するため、接続先に **SSH サーバーは不要**です。SSH では公開鍵認証（**アプリ内で ed25519 鍵を作れて、公開鍵はその場でコピー/共有/この端末の sshd に登録**。秘匿フィールドは Android Keystore で暗号化）、known_hosts 確認、**両方向のポート転送 (`-L` / `-R`) と、接続先タブを閉じても生き続ける常駐トンネル**、既定で localhost のみ bind する内蔵 `sshd`（dropbear）を利用できます。
 - **日本語・英語・簡体字中国語・繁体字中国語** — アプリの画面だけでなく **`z2-*` コマンドの表示も言語設定に追従**します（ヘルプ・usage・メッセージまで）。訳の無いところは英語で出ます。⚠ キーボードは別の話で、**中国語の入力方式は内蔵していません** — 中国語を打つときは OS の入力方法に切り替えてください。
 - **日本語 IME** — Viterbi かな漢字変換、予測、頻度/新しさ学習、独自オンスクリーンキーボード。**OS の入力方法としても出せる**ので、有効にすればアプリ内の入力欄でも他アプリでも同じキーボード・同じ変換で打てます（切り替えは OS のキーボード切替）。**自分の語をファイルで足せます**（SKK 形式の `よみ /候補/`）ので、人名や自分だけの略語も最初から変換に出せます。
 - **Android ブリッジ** — 端末から本体機能を呼ぶ: `z2-noti`（いま出ている通知を読む・読むだけ）/ `z2-notify` / `z2-toast` / `z2-share` / `z2-open` / `z2-clip` / `z2-battery` / `z2-vibrate` / `z2-say` / `z2-torch` / `z2-media` / `z2-volume` / `z2-sensor` / `z2-intent` / `z2-state` / `z2-screen`（その時間だけ画面が自分で消えないようにする）/ `z2-usb` / `z2-tile`（クイック設定タイルにマクロを載せる・12 枠）/ `z2-icon`（ステータスバーとタイルのアイコンをドット絵で描き替える）/ `z2-alarm` / `z2-macro` / `z2-session`（アプリ自身のタブを操る）/ `z2-server`（登録済みの常駐サーバーを起こす・落とす）。
@@ -285,6 +285,8 @@ Copyright (c) 2026 Zero to Ship。対応ソース（GPL v3 §6）: <https://gith
 
 | 同梱物 | ライセンス | 対応ソース取得方法 |
 |---|---|---|
+| OkHttp 5.3.0 | Apache-2.0 | [square/okhttp](https://github.com/square/okhttp) |
+| jcifs-ng 2.1.9 | LGPL | [AgNO3/jcifs-ng 2.1.9](https://github.com/AgNO3/jcifs-ng/tree/jcifs-ng-2.1.9) |
 | Fira Code / IBM Plex Mono / JetBrains Mono | OFL-1.1 | [tonsky/FiraCode](https://github.com/tonsky/FiraCode) / [IBM/plex](https://github.com/IBM/plex) / [JetBrains/JetBrainsMono](https://github.com/JetBrains/JetBrainsMono) |
 
 設定画面 →「OSS ライセンス / 対応ソース」から、上記情報をアプリ内でも一覧/全文表示できます

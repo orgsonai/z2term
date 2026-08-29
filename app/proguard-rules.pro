@@ -37,6 +37,13 @@
 -keep class org.bouncycastle.** { *; }
 -dontwarn org.bouncycastle.**
 
+# ───────── Remote files (WebDAV / SMB) ─────────
+# OkHttp は consumer rules を同梱。jcifs-ng は設定値から内部実装を選ぶ箇所があるため、
+# release の R8 でプロトコル実装を削らせない。
+-keep class jcifs.** { *; }
+-dontwarn jcifs.**
+-dontwarn org.slf4j.**
+
 # ───────── XZ (DL distro の .tar.xz 解凍) ─────────
 -dontwarn org.tukaani.xz.**
 

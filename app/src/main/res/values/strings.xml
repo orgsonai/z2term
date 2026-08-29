@@ -350,7 +350,7 @@
 
     <!-- Tools sheet tabs -->
     <string name="tools_tab_snippets">Snippets</string>
-    <string name="tools_tab_ssh">SSH / SFTP</string>
+    <string name="tools_tab_ssh">Connections</string>
     <string name="tools_tab_servers">Servers</string>
     <string name="tools_tab_history">History</string>
     <string name="ssh_resident_tunnel">Keep this tunnel running</string>
@@ -395,16 +395,21 @@
     <string name="action_save">Save</string>
 
     <!-- SSH profile sheet (D3 batch 2) -->
-    <string name="ssh_title">SSH profiles</string>
+    <string name="ssh_title">Connections</string>
     <string name="ssh_new">+ New</string>
-    <string name="ssh_empty">No profiles. Tap "+ New" to add one.</string>
+    <string name="ssh_empty">No connections. Tap "+ New" to add one.</string>
     <string name="ssh_unnamed">(unnamed)</string>
     <string name="ssh_action_connect">Connect</string>
     <string name="ssh_action_edit">Edit</string>
     <string name="ssh_action_delete">Delete</string>
-    <string name="ssh_new_profile_title">New profile</string>
-    <string name="ssh_edit_profile_title">Edit: %1$s</string>
+    <string name="ssh_new_profile_title">New connection</string>
+    <string name="ssh_edit_profile_title">Edit connection: %1$s</string>
     <string name="ssh_field_name">Name</string>
+    <string name="connection_protocol">Connection type</string>
+    <string name="connection_field_webdav_url">WebDAV URL</string>
+    <string name="connection_field_smb_host">SMB host</string>
+    <string name="connection_field_smb_share">Share name</string>
+    <string name="connection_field_smb_domain">Domain (optional)</string>
     <string name="ssh_field_host">Host</string>
     <string name="ssh_field_port">Port</string>
     <string name="ssh_field_user">User</string>
@@ -421,7 +426,7 @@
     <string name="ssh_vnc_note">[VNC] opens this host\'s desktop in a new tab. Display :N is port 5900+N (:1 = 5901). This password is the VNC one, not the SSH one (8 characters max). If the server only listens on 127.0.0.1, forward it first with ssh -L 5901:localhost:5901 and point this entry at 127.0.0.1.</string>
     <string name="vnc_connecting">Connecting to %1$s:%2$d…</string>
     <string name="vnc_disconnected">Disconnected by the server.</string>
-    <string name="vnc_error_password_required">This VNC server wants a password. Set "VNC password" for this host in Tools (📜) › SSH / SFTP.</string>
+    <string name="vnc_error_password_required">This VNC server wants a password. Set "VNC password" for this host in Tools (📜) › Connections.</string>
     <string name="vnc_error_auth_failed">The VNC password was rejected. Check "VNC password" for this host (RFB only uses the first 8 characters).</string>
     <string name="vnc_error_security_unsupported">This server asks for an authentication method z2term does not speak (VeNCrypt/TLS). Turn it off on the server, or reach it through an SSH tunnel.</string>
     <string name="vnc_error_refused">Nothing is listening on %1$s. Check that the VNC server is running and that the port is right (display :N = 5900+N).</string>
@@ -472,10 +477,12 @@
     <string name="sftp_action_rename">Rename</string>
 
     <!-- OSS component purposes (D3 batch 4) -->
-    <string name="oss_purpose_z2term">This app itself (terminal UI, session/SSH/SFTP, settings)</string>
+    <string name="oss_purpose_z2term">This app itself (terminal UI, sessions, remote files, settings)</string>
     <string name="oss_purpose_androidx_compose">UI / lifecycle / DataStore</string>
     <string name="oss_purpose_kotlin_stdlib">Kotlin runtime</string>
     <string name="oss_purpose_jsch">SSH client library</string>
+    <string name="oss_purpose_okhttp">WebDAV HTTP client</string>
+    <string name="oss_purpose_jcifs">SMB2/3 client library</string>
     <string name="oss_purpose_bouncycastle">Crypto provider (ed25519/curve25519 for JSch)</string>
     <string name="oss_purpose_xz_java">XZ (LZMA2) decompression (Kali rootfs .tar.xz etc.)</string>
     <string name="oss_purpose_fira_code">Monospaced terminal font (with ligatures)</string>

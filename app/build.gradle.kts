@@ -53,8 +53,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 444
-        versionName = "0.8.436-alpha"
+        versionCode = 446
+        versionName = "0.8.438-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -334,6 +334,10 @@ dependencies {
 
     // XZ 解凍 (DL distro の .tar.xz、例: Kali rootfs)
     implementation(libs.xz)
+
+    // 共通ファイル画面から WebDAV / SMB へ直接接続する。
+    implementation(libs.okhttp)
+    implementation(libs.jcifs)
 
     // Debug
     debugImplementation(libs.androidx.ui.tooling)

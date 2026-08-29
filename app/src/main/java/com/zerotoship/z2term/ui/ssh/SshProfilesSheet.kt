@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.channel.ConnectionProtocol
 import com.zerotoship.z2term.channel.PortForward
 import com.zerotoship.z2term.channel.SshKeyGen
 import com.zerotoship.z2term.channel.SshProfile
@@ -64,15 +65,15 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 /**
- * SSH プロファイル一覧本体 (タブのコンテンツ)。
+ * SSH / WebDAV / SMB 接続先一覧本体 (タブのコンテンツ)。
  *
- * ツールシート ([com.zerotoship.z2term.ui.snippets.SnippetsSheet]) の「SSH / SFTP」タブから
+ * ツールシート ([com.zerotoship.z2term.ui.snippets.SnippetsSheet]) の「接続先」タブから
  * 呼ばれる。スクロール / シート開閉は呼び出し側が持つので、ここは Column の中身だけを描く。
  *
  * リスト表示 → 追加/編集/削除/接続。
  * 接続時は [onConnect] (TerminalScreen 側で新規セッション作成 + startSsh) に委譲。
- * 同じ 1 件から入り方を 3 通り出す: **シェル ([onConnect]) / ファイル ([onSftp]) /
- * 画面 ([onVnc] = リモート VNC・A1)**。接続先を 3 か所に登録させないための形。
+ * SSH はシェル / SFTP / VNC、WebDAV と SMB は共通ファイル画面へ進む。
+ * 一覧と保存先は相乗りしつつ、SSH を持たない接続先に SSH 操作を要求しない。
  *
  * SshProfileStore は本コンポーザブル内で直接インスタンス化する (DataStore 自体が
  * プロセスシングルトンなのでデータの一貫性は保たれる)。
@@ -95,7 +96,7 @@ fun SshProfilesBody(
     // 常駐トンネル (A2) が張れているかは、ここに出さないと**どこにも出ない**。⏻ の印だけでは
     // 「設定が ON」しか分からず、0.8.367 で LAN 到達性の担保になった以上それでは足りない。
     // ⚠ 常駐対象が 1 つも無いときはループを回さない (シートを開いている間ずっと動くため)。
-    val hasResidentTunnel = profiles.any { it.residentTunnel }
+    val hasResidentTunnel = profiles.any { it.hasSsh && it.residentTunnel }
     var tunnelStatuses by remember { mutableStateOf<List<TunnelManager.Status>>(emptyList()) }
     LaunchedEffect(hasResidentTunnel) {
         if (!hasResidentTunnel) {
@@ -141,7 +142,7 @@ fun SshProfilesBody(
                         editing = null
                         // 常駐トンネル (A2) を ON にしたら、その場で張り始める。
                         // 常駐サーバーが 1 つも無くてもトンネルだけで常駐してよい。
-                        if (saved.residentTunnel) {
+                        if (saved.hasSsh && saved.residentTunnel) {
                             ServerDaemonService.start(context.applicationContext)
                         } else {
                             // OFF にしたぶんを畳む (サービス自体は他の常駐が残っていれば生きる)。
@@ -248,23 +249,27 @@ private fun ProfileRow(
             fontFamily = FontFamily.Monospace
         )
         Text(
-            text = "${profile.user}@${profile.host}:${profile.port} " +
-                "[${profile.authType.name.lowercase()}]" +
-                (if (profile.forwards.isNotEmpty()) " 🔀${profile.forwards.size}" else "") +
+            text = "${profile.endpointDescription()} [${profile.fileProtocolLabel}]" +
+                (if (profile.hasSsh) " [${profile.authType.name.lowercase()}]" else "") +
+                (if (profile.hasSsh && profile.forwards.isNotEmpty()) " 🔀${profile.forwards.size}" else "") +
                 // 常駐トンネル (A2) はタブを閉じても生きるので、一覧で分かるようにする。
-                (if (profile.residentTunnel) " ⏻" else ""),
+                (if (profile.hasSsh && profile.residentTunnel) " ⏻" else ""),
             color = ZtsTextSecondary,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace
         )
-        if (profile.residentTunnel) TunnelStatusLine(tunnel)
+        if (profile.hasSsh && profile.residentTunnel) TunnelStatusLine(tunnel)
         Spacer(modifier = Modifier.height(4.dp))
         // 1 行目は「この接続先への入り方」(シェル / ファイル / 画面)、2 行目は登録の操作。
         // 5 つを 1 行に並べると英語表示の狭い画面で入りきらず、右端の [削除] が押せなくなる。
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            SmallButton(label = stringResource(R.string.ssh_action_connect), accent = true, onClick = onConnect)
-            SmallButton(label = "SFTP", onClick = onSftp)
-            SmallButton(label = "VNC", onClick = onVnc)
+            if (profile.hasSsh) {
+                SmallButton(label = stringResource(R.string.ssh_action_connect), accent = true, onClick = onConnect)
+                SmallButton(label = "SFTP", onClick = onSftp)
+                SmallButton(label = "VNC", onClick = onVnc)
+            } else {
+                SmallButton(label = profile.fileProtocolLabel, accent = true, onClick = onSftp)
+            }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             SmallButton(label = stringResource(R.string.ssh_action_edit), onClick = onEdit)
@@ -319,9 +324,12 @@ private fun EditForm(
     onCancel: () -> Unit
 ) {
     var name by remember(initial.id) { mutableStateOf(initial.name) }
+    var protocol by remember(initial.id) { mutableStateOf(initial.protocol) }
     var host by remember(initial.id) { mutableStateOf(initial.host) }
     var port by remember(initial.id) { mutableStateOf(initial.port.toString()) }
     var user by remember(initial.id) { mutableStateOf(initial.user) }
+    var remotePath by remember(initial.id) { mutableStateOf(initial.remotePath) }
+    var domain by remember(initial.id) { mutableStateOf(initial.domain) }
     var auth by remember(initial.id) { mutableStateOf(initial.authType) }
     var password by remember(initial.id) { mutableStateOf(initial.password) }
     var privateKey by remember(initial.id) { mutableStateOf(initial.privateKey) }
@@ -347,120 +355,201 @@ private fun EditForm(
     )
 
     Field(label = stringResource(R.string.ssh_field_name), value = name, onChange = { name = it }, placeholder = "my-server")
-    Field(label = stringResource(R.string.ssh_field_host), value = host, onChange = { host = it }, placeholder = "example.com or 192.168.0.10")
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(modifier = Modifier.weight(1f)) {
-            Field(
-                label = stringResource(R.string.ssh_field_port),
-                value = port,
-                onChange = { port = it.filter { ch -> ch.isDigit() } },
-                placeholder = "22"
-            )
-        }
-        Box(modifier = Modifier.weight(2f)) {
-            Field(label = stringResource(R.string.ssh_field_user), value = user, onChange = { user = it }, placeholder = "ubuntu")
-        }
-    }
-
     Text(
-        text = stringResource(R.string.ssh_auth_method),
+        text = stringResource(R.string.connection_protocol),
         color = ZtsTextSecondary,
         fontSize = 12.sp,
         fontFamily = FontFamily.Monospace
     )
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        AuthChip(
-            label = stringResource(R.string.ssh_auth_password),
-            selected = auth == SshProfile.AuthType.PASSWORD,
-            onSelect = { auth = SshProfile.AuthType.PASSWORD }
-        )
-        AuthChip(
-            label = stringResource(R.string.ssh_auth_publickey),
-            selected = auth == SshProfile.AuthType.PUBLIC_KEY,
-            onSelect = { auth = SshProfile.AuthType.PUBLIC_KEY }
-        )
-    }
-
-    when (auth) {
-        SshProfile.AuthType.PASSWORD -> {
-            Field(label = stringResource(R.string.ssh_field_password), value = password, onChange = { password = it }, placeholder = "********", secret = true)
-        }
-        SshProfile.AuthType.PUBLIC_KEY -> {
-            // 鍵を「作る」導線 (0.8.238)。貼り付け欄はそのまま残す — 作る／貼る の 2 択で、
-            // モード分けはしない。PEM を自分で用意できる人はこれまでどおり貼ればよい。
-            SshKeyRow(
-                hasKey = privateKey.isNotBlank(),
-                publicLine = generatedPublicLine,
-                onGenerate = {
-                    val gen = SshKeyGen.generate(comment = "z2term")
-                    privateKey = gen.privatePem
-                    generatedPublicLine = gen.publicLine
+        ConnectionProtocol.entries.forEach { item ->
+            AuthChip(
+                label = when (item) {
+                    ConnectionProtocol.SSH -> "SSH / SFTP"
+                    ConnectionProtocol.WEBDAV -> "WebDAV"
+                    ConnectionProtocol.SMB -> "SMB"
+                },
+                selected = protocol == item,
+                onSelect = {
+                    protocol = item
+                    port = when (item) {
+                        ConnectionProtocol.SSH -> "22"
+                        ConnectionProtocol.WEBDAV -> "443"
+                        ConnectionProtocol.SMB -> "445"
+                    }
                 }
             )
-            Field(
-                label = stringResource(R.string.ssh_field_private_key),
-                value = privateKey,
-                onChange = { privateKey = it; generatedPublicLine = "" },
-                placeholder = "-----BEGIN OPENSSH PRIVATE KEY-----\n...",
-                multiline = true
-            )
-            Field(label = stringResource(R.string.ssh_field_passphrase), value = keyPassphrase, onChange = { keyPassphrase = it }, secret = true)
         }
     }
 
-    // --- VNC (A1): 同じサーバのデスクトップを開くための設定 ---
-    // ⚠ SSH とは別の接続。ここが空でも SSH には一切影響しない。
-    Text(
-        text = stringResource(R.string.ssh_vnc_section),
-        color = ZtsTextSecondary,
-        fontSize = 12.sp,
-        fontFamily = FontFamily.Monospace
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(modifier = Modifier.weight(1f)) {
-            Field(
-                label = stringResource(R.string.ssh_field_vnc_port),
-                value = vncPort,
-                onChange = { vncPort = it.filter { ch -> ch.isDigit() } },
-                placeholder = "5901"
+    when (protocol) {
+        ConnectionProtocol.SSH -> {
+            Field(label = stringResource(R.string.ssh_field_host), value = host, onChange = { host = it }, placeholder = "example.com or 192.168.0.10")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(modifier = Modifier.weight(1f)) {
+                    Field(
+                        label = stringResource(R.string.ssh_field_port),
+                        value = port,
+                        onChange = { port = it.filter { ch -> ch.isDigit() } },
+                        placeholder = "22"
+                    )
+                }
+                Box(modifier = Modifier.weight(2f)) {
+                    Field(label = stringResource(R.string.ssh_field_user), value = user, onChange = { user = it }, placeholder = "ubuntu")
+                }
+            }
+
+            Text(
+                text = stringResource(R.string.ssh_auth_method),
+                color = ZtsTextSecondary,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace
             )
-        }
-        Box(modifier = Modifier.weight(2f)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                AuthChip(
+                    label = stringResource(R.string.ssh_auth_password),
+                    selected = auth == SshProfile.AuthType.PASSWORD,
+                    onSelect = { auth = SshProfile.AuthType.PASSWORD }
+                )
+                AuthChip(
+                    label = stringResource(R.string.ssh_auth_publickey),
+                    selected = auth == SshProfile.AuthType.PUBLIC_KEY,
+                    onSelect = { auth = SshProfile.AuthType.PUBLIC_KEY }
+                )
+            }
+
+            when (auth) {
+                SshProfile.AuthType.PASSWORD -> {
+                    Field(label = stringResource(R.string.ssh_field_password), value = password, onChange = { password = it }, placeholder = "********", secret = true)
+                }
+                SshProfile.AuthType.PUBLIC_KEY -> {
+                    SshKeyRow(
+                        hasKey = privateKey.isNotBlank(),
+                        publicLine = generatedPublicLine,
+                        onGenerate = {
+                            val gen = SshKeyGen.generate(comment = "z2term")
+                            privateKey = gen.privatePem
+                            generatedPublicLine = gen.publicLine
+                        }
+                    )
+                    Field(
+                        label = stringResource(R.string.ssh_field_private_key),
+                        value = privateKey,
+                        onChange = { privateKey = it; generatedPublicLine = "" },
+                        placeholder = "-----BEGIN OPENSSH PRIVATE KEY-----\n...",
+                        multiline = true
+                    )
+                    Field(label = stringResource(R.string.ssh_field_passphrase), value = keyPassphrase, onChange = { keyPassphrase = it }, secret = true)
+                }
+            }
+
+            // VNC は SSH 接続先からだけ利用できる付加機能。
+            Text(
+                text = stringResource(R.string.ssh_vnc_section),
+                color = ZtsTextSecondary,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(modifier = Modifier.weight(1f)) {
+                    Field(
+                        label = stringResource(R.string.ssh_field_vnc_port),
+                        value = vncPort,
+                        onChange = { vncPort = it.filter { ch -> ch.isDigit() } },
+                        placeholder = "5901"
+                    )
+                }
+                Box(modifier = Modifier.weight(2f)) {
+                    Field(
+                        label = stringResource(R.string.ssh_field_vnc_password),
+                        value = vncPassword,
+                        onChange = { vncPassword = it },
+                        placeholder = "********",
+                        secret = true
+                    )
+                }
+            }
+            Text(
+                text = stringResource(R.string.ssh_vnc_note),
+                color = ZtsTextSecondary,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace
+            )
+
             Field(
-                label = stringResource(R.string.ssh_field_vnc_password),
-                value = vncPassword,
-                onChange = { vncPassword = it },
+                label = stringResource(R.string.ssh_field_init_cmd),
+                value = initCmd,
+                onChange = { initCmd = it },
+                placeholder = "tmux a || tmux"
+            )
+
+            PortForwardSection(forwards = forwards, onChange = { forwards = it })
+            if (forwards.isNotEmpty()) {
+                ResidentTunnelToggle(
+                    checked = resident,
+                    hasReverse = forwards.any { it.reverse },
+                    onChange = { resident = it }
+                )
+            }
+        }
+
+        ConnectionProtocol.WEBDAV -> {
+            Field(
+                label = stringResource(R.string.connection_field_webdav_url),
+                value = host,
+                onChange = { host = it },
+                placeholder = "https://example.com/dav/"
+            )
+            Field(label = stringResource(R.string.ssh_field_user), value = user, onChange = { user = it })
+            Field(
+                label = stringResource(R.string.ssh_field_password),
+                value = password,
+                onChange = { password = it },
                 placeholder = "********",
                 secret = true
             )
         }
-    }
-    Text(
-        text = stringResource(R.string.ssh_vnc_note),
-        color = ZtsTextSecondary,
-        fontSize = 11.sp,
-        fontFamily = FontFamily.Monospace
-    )
 
-    Field(
-        label = stringResource(R.string.ssh_field_init_cmd),
-        value = initCmd,
-        onChange = { initCmd = it },
-        placeholder = "tmux a || tmux"
-    )
-
-    PortForwardSection(
-        forwards = forwards,
-        onChange = { forwards = it }
-    )
-
-    // 常駐トンネル (A2)。明示 opt-in。転送が 1 つも無ければ意味が無いので出さない。
-    if (forwards.isNotEmpty()) {
-        ResidentTunnelToggle(
-            checked = resident,
-            hasReverse = forwards.any { it.reverse },
-            onChange = { resident = it }
-        )
+        ConnectionProtocol.SMB -> {
+            Field(
+                label = stringResource(R.string.connection_field_smb_host),
+                value = host,
+                onChange = { host = it },
+                placeholder = "server.local or 192.168.0.10"
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(modifier = Modifier.weight(1f)) {
+                    Field(
+                        label = stringResource(R.string.ssh_field_port),
+                        value = port,
+                        onChange = { port = it.filter { ch -> ch.isDigit() } },
+                        placeholder = "445"
+                    )
+                }
+                Box(modifier = Modifier.weight(2f)) {
+                    Field(label = stringResource(R.string.ssh_field_user), value = user, onChange = { user = it })
+                }
+            }
+            Field(
+                label = stringResource(R.string.connection_field_smb_share),
+                value = remotePath,
+                onChange = { remotePath = it },
+                placeholder = "share"
+            )
+            Field(
+                label = stringResource(R.string.connection_field_smb_domain),
+                value = domain,
+                onChange = { domain = it },
+                placeholder = "WORKGROUP"
+            )
+            Field(
+                label = stringResource(R.string.ssh_field_password),
+                value = password,
+                onChange = { password = it },
+                placeholder = "********",
+                secret = true
+            )
+        }
     }
 
     Row(
@@ -473,21 +562,32 @@ private fun EditForm(
             label = stringResource(R.string.action_save),
             accent = true,
             onClick = {
-                val portNum = port.toIntOrNull()?.coerceIn(1, 65535) ?: 22
+                val defaultPort = when (protocol) {
+                    ConnectionProtocol.SSH -> 22
+                    ConnectionProtocol.WEBDAV -> 443
+                    ConnectionProtocol.SMB -> 445
+                }
+                val portNum = port.toIntOrNull()?.coerceIn(1, 65535) ?: defaultPort
+                val ssh = protocol == ConnectionProtocol.SSH
                 val saved = initial.copy(
                     name = name,
+                    protocol = protocol,
                     host = host,
                     port = portNum,
                     user = user,
-                    authType = auth,
-                    password = if (auth == SshProfile.AuthType.PASSWORD) password else "",
-                    privateKey = if (auth == SshProfile.AuthType.PUBLIC_KEY) privateKey else "",
-                    keyPassphrase = if (auth == SshProfile.AuthType.PUBLIC_KEY) keyPassphrase else "",
+                    remotePath = if (protocol == ConnectionProtocol.SMB) remotePath.trim('/') else "",
+                    domain = if (protocol == ConnectionProtocol.SMB) domain else "",
+                    authType = if (ssh) auth else SshProfile.AuthType.PASSWORD,
+                    password = if (!ssh || auth == SshProfile.AuthType.PASSWORD) password else "",
+                    privateKey = if (ssh && auth == SshProfile.AuthType.PUBLIC_KEY) privateKey else "",
+                    keyPassphrase = if (ssh && auth == SshProfile.AuthType.PUBLIC_KEY) keyPassphrase else "",
                     vncPort = vncPort.toIntOrNull()?.coerceIn(1, 65535) ?: VncTarget.DEFAULT_PORT,
-                    vncPassword = vncPassword,
-                    initCommand = initCmd,
-                    forwards = forwards.filter { it.localPort in 1..65535 && it.remotePort in 1..65535 && it.remoteHost.isNotBlank() },
-                    residentTunnel = resident && forwards.isNotEmpty()
+                    vncPassword = if (ssh) vncPassword else "",
+                    initCommand = if (ssh) initCmd else "",
+                    forwards = if (ssh) forwards.filter {
+                        it.localPort in 1..65535 && it.remotePort in 1..65535 && it.remoteHost.isNotBlank()
+                    } else emptyList(),
+                    residentTunnel = ssh && resident && forwards.isNotEmpty()
                 )
                 onSave(saved)
             }

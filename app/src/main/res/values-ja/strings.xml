@@ -348,7 +348,7 @@
 
     <!-- ツールシートのタブ -->
     <string name="tools_tab_snippets">スニペット</string>
-    <string name="tools_tab_ssh">SSH / SFTP</string>
+    <string name="tools_tab_ssh">接続先</string>
     <string name="tools_tab_servers">サーバー</string>
     <string name="tools_tab_history">履歴</string>
     <string name="ssh_resident_tunnel">このトンネルを常駐させる</string>
@@ -392,16 +392,21 @@
     <string name="action_save">保存</string>
 
     <!-- SSH プロファイル シート (D3 バッチ 2) -->
-    <string name="ssh_title">SSH プロファイル</string>
+    <string name="ssh_title">接続先</string>
     <string name="ssh_new">+ 新規</string>
-    <string name="ssh_empty">プロファイル未登録。「+ 新規」から追加してください。</string>
+    <string name="ssh_empty">接続先は未登録です。「+ 新規」から追加してください。</string>
     <string name="ssh_unnamed">(無名)</string>
     <string name="ssh_action_connect">接続</string>
     <string name="ssh_action_edit">編集</string>
     <string name="ssh_action_delete">削除</string>
-    <string name="ssh_new_profile_title">新規プロファイル</string>
-    <string name="ssh_edit_profile_title">編集: %1$s</string>
+    <string name="ssh_new_profile_title">新規接続先</string>
+    <string name="ssh_edit_profile_title">接続先を編集: %1$s</string>
     <string name="ssh_field_name">名前</string>
+    <string name="connection_protocol">接続方式</string>
+    <string name="connection_field_webdav_url">WebDAV URL</string>
+    <string name="connection_field_smb_host">SMB ホスト</string>
+    <string name="connection_field_smb_share">共有名</string>
+    <string name="connection_field_smb_domain">ドメイン（任意）</string>
     <string name="ssh_field_host">ホスト</string>
     <string name="ssh_field_port">ポート</string>
     <string name="ssh_field_user">ユーザー</string>
@@ -418,7 +423,7 @@
     <string name="ssh_vnc_note">[VNC] でこのホストのデスクトップを新しいタブに開く。画面 :N はポート 5900+N (:1 なら 5901)。パスワードは VNC 用で SSH のものとは別 (8 文字まで有効)。相手が 127.0.0.1 でしか待っていないときは、先に端末で ssh -L 5901:localhost:5901 を張り、ここを 127.0.0.1 にする。</string>
     <string name="vnc_connecting">%1$s:%2$d へ接続中…</string>
     <string name="vnc_disconnected">相手から切断されました。</string>
-    <string name="vnc_error_password_required">この VNC サーバはパスワードを要求しています。ツール (📜) › SSH / SFTP でこの接続先の「VNC パスワード」を設定してください。</string>
+    <string name="vnc_error_password_required">この VNC サーバはパスワードを要求しています。ツール (📜) › 接続先 でこの接続先の「VNC パスワード」を設定してください。</string>
     <string name="vnc_error_auth_failed">VNC パスワードが違います。この接続先の「VNC パスワード」を確認してください (RFB は先頭 8 文字しか使いません)。</string>
     <string name="vnc_error_security_unsupported">このサーバは z2term が話せない認証方式 (VeNCrypt/TLS) を要求しています。サーバ側で切るか、SSH トンネル越しに繋いでください。</string>
     <string name="vnc_error_refused">%1$s で待ち受けていません。VNC サーバが動いているか、ポートが合っているか (画面 :N は 5900+N) を確認してください。</string>
@@ -469,10 +474,12 @@
     <string name="sftp_action_rename">名前変更</string>
 
     <!-- OSS コンポーネント用途 (D3 バッチ 4) -->
-    <string name="oss_purpose_z2term">本アプリ本体（ターミナル UI・セッション/SSH/SFTP・設定）</string>
+    <string name="oss_purpose_z2term">本アプリ本体（ターミナル UI・セッション・リモートファイル・設定）</string>
     <string name="oss_purpose_androidx_compose">UI / ライフサイクル / DataStore</string>
     <string name="oss_purpose_kotlin_stdlib">Kotlin ランタイム</string>
     <string name="oss_purpose_jsch">SSH クライアントライブラリ</string>
+    <string name="oss_purpose_okhttp">WebDAV HTTP クライアント</string>
+    <string name="oss_purpose_jcifs">SMB2/3 クライアントライブラリ</string>
     <string name="oss_purpose_bouncycastle">暗号プロバイダ (JSch の ed25519/curve25519 等)</string>
     <string name="oss_purpose_xz_java">XZ (LZMA2) 解凍 (Kali rootfs などの .tar.xz)</string>
     <string name="oss_purpose_fira_code">ターミナル用等幅フォント (合字対応)</string>

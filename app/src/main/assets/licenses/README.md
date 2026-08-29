@@ -12,6 +12,7 @@ UTF-8 で読み出して表示します。
 | ファイル名 | 取得元 |
 |---|---|
 | `GPL-3.0.txt` | https://www.gnu.org/licenses/gpl-3.0.txt |
+| `LGPL-2.1.txt` | https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt |
 | `Apache-2.0.txt` | https://www.apache.org/licenses/LICENSE-2.0.txt |
 | `MIT.txt` | https://spdx.org/licenses/MIT.txt |
 | `BSD-2-Clause.txt` | https://spdx.org/licenses/BSD-2-Clause.txt |

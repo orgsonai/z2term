@@ -143,7 +143,7 @@ class GuiCursor {
          * **入力側の判定 ([GuiInputView]) と輪のエフェクトの尺 ([GuiScreen]) で共有する** —
          * 別々に持つと「輪が閉じたのにまだ押されない」がすぐ起きる。
          */
-        const val HOLD_MS = 300L
+        const val HOLD_MS = 500L
 
         /**
          * 指を置いてから輪を出し始めるまでの間 (ms)。
@@ -154,7 +154,7 @@ class GuiCursor {
          * ⚠ Android のタップ判定 (`ViewConfiguration.getTapTimeout()`) は 100ms なので、
          * それを確実に超える値にする。
          */
-        const val HOLD_RING_DELAY_MS = 150L
+        const val HOLD_RING_DELAY_MS = 250L
 
         /** 輪が一周するのにかける時間 (ms)。遅らせたぶんを引いた残り = 右クリックが出るまで。 */
         const val HOLD_RING_MS = HOLD_MS - HOLD_RING_DELAY_MS
