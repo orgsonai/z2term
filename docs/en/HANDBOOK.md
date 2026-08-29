@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.434-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.435-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -288,9 +288,9 @@ scroll, and the same keyboard.
 - **The white arrow is the cursor you control** (0.8.427). Its position survives leaving the tab and reconnecting. **It is the only arrow on screen** (0.8.431; before that the pointer drawn by the server sat next to it and you saw **two**).
 - The default is **relative mode**: the cursor moves by the distance your finger moves. Press **🖱 in the GUI toolbar** to switch to **absolute mode**, where the cursor jumps to the place you touch (0.8.431; 🖱 lights up in absolute mode, and a green ring appears at the arrow root). ⚠ Through 0.8.430 this lived on a **double-tap of 📜**, which is visible nowhere on screen and has nothing to do with a command list, so it is now **a button of its own, shown only on GUI tabs** (never on terminal tabs; hide it under ⚙ Settings › Display › Toolbar).
 - **A single tap is a left click** and **a double tap is a double click**, as before.
-- **A press and hold now also gives you a right click** (0.8.431). Keep your finger still and **a green ring sweeps around the arrow tip; the right click fires the moment it closes** (**0.3 s**, with no need to lift your finger; 0.8.433). Move while the ring is running and it is cancelled, leaving you with plain cursor movement. ⚠ The older route still works: **hold the second tap of a double tap** (0.8.429; the same 0.3 s wait). Use whichever is easier.
+- **A right click is a press and hold** (0.8.431). Keep your finger still and **a green ring sweeps around the arrow tip; the right click fires the moment it closes** (**0.3 s**, with no need to lift your finger; 0.8.433). Move while the ring is running and it is cancelled, leaving you with plain cursor movement.
 - ⚠ **Tapping or dragging shows no ring** (0.8.433). **The ring only appears once the touch is clearly not a tap** (after 0.15 s) and then closes over the next 0.15 s — it no longer flashes on every tap.
-- To **drag** (move a window, select a range), **double-tap and keep moving**. No long press needed. ⚠ Start moving before those 0.3 s are up, or you get a right click instead (it was 0.15 s through 0.8.432, so **you now have twice as long to begin**).
+- To **drag** (move a window, select a range), **double-tap and keep moving**. ⭐ **There is no time limit** (0.8.435): holding the second tap still never ends the decision, so **you can take aim before you move**. ⚠ Through 0.8.434, staying still for 0.3 s fired a right click and closed the decision, after which moving **could no longer start a drag**. ⚠ **Holding the second tap for a right click is gone** — the press-and-hold covers it, and it was getting in the way of dragging.
 - To switch the remote Japanese input method, place **Half/Full** (or Convert, Non-convert, Kana or Eisu) anywhere in the custom key-layout editor. If the remote uses `Ctrl+Space` or `Super+Space`, place that modified key instead.
 
 - ⚠ **The server decides the size of the screen.** z2term never resizes it to fit your frame — it may
