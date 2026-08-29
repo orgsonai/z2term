@@ -410,6 +410,26 @@
     <string name="connection_field_smb_host">SMB host</string>
     <string name="connection_field_smb_share">Share name</string>
     <string name="connection_field_smb_domain">Domain (optional)</string>
+    <string name="connection_legacy_direct">Legacy direct connection. New FTP/SMB/WebDAV/VNC entries are added under an SSH profile.</string>
+    <string name="remote_services_title">Services via this SSH host</string>
+    <string name="remote_services_desc">Add services outside SSH/SFTP. SSH port forwarding is enabled by default; leave the local port blank to choose a free port automatically.</string>
+    <string name="remote_service_name">Button name</string>
+    <string name="remote_service_host">Service host (as seen from the SSH server)</string>
+    <string name="remote_service_smb_host_hint">* SMB cannot connect using localhost. Enter the SMB server IP address or host name as seen from the SSH server (for example, %1$s).</string>
+    <string name="remote_service_remote_port">Service port</string>
+    <string name="remote_service_local_port">Local port (optional)</string>
+    <string name="remote_service_auto">auto</string>
+    <string name="remote_service_start_path">Start folder (optional)</string>
+    <string name="remote_service_base_path">Base path (optional)</string>
+    <string name="remote_service_smb_anonymous_hint">Leave both user and password blank for anonymous access.</string>
+    <string name="remote_service_webdav_scheme">WebDAV transport</string>
+    <string name="remote_service_use_ssh">SSH port forwarding</string>
+    <string name="remote_service_use_ssh_desc">Encrypted through this SSH connection</string>
+    <string name="remote_service_direct_desc">Direct to SSH host; SSH encryption is disabled</string>
+    <string name="remote_service_direct_target">Direct target (SSH host): %1$s:%2$d</string>
+    <string name="remote_direct_warning_title">Disable SSH encryption?</string>
+    <string name="remote_direct_warning_message">%1$s will connect directly to SSH host %2$s without SSH encryption. FTP and VNC are normally plaintext; WebDAV and SMB are protected only when their own protocol/server encryption is enabled. Credentials and data may be exposed on the network.</string>
+    <string name="remote_direct_warning_confirm">Connect directly</string>
     <string name="ssh_field_host">Host</string>
     <string name="ssh_field_port">Port</string>
     <string name="ssh_field_user">User</string>
@@ -417,6 +437,8 @@
     <string name="ssh_auth_password">Password</string>
     <string name="ssh_auth_publickey">Public key</string>
     <string name="ssh_field_password">Password</string>
+    <string name="password_show">Show</string>
+    <string name="password_hide">Hide</string>
     <string name="ssh_field_private_key">Private key (PEM)</string>
     <string name="ssh_field_passphrase">Passphrase (if set on the key)</string>
     <!-- Remote VNC (A1): reach the same host's desktop from the same entry -->
@@ -475,6 +497,9 @@
     <string name="sftp_action_delete">Delete</string>
     <string name="sftp_action_download">Download</string>
     <string name="sftp_action_rename">Rename</string>
+    <string name="sftp_exit_title">Close this connection?</string>
+    <string name="sftp_exit_message">There is no parent folder. Close this connection and return to the terminal?</string>
+    <string name="sftp_exit_confirm">Return to terminal</string>
 
     <!-- OSS component purposes (D3 batch 4) -->
     <string name="oss_purpose_z2term">This app itself (terminal UI, sessions, remote files, settings)</string>
@@ -482,7 +507,7 @@
     <string name="oss_purpose_kotlin_stdlib">Kotlin runtime</string>
     <string name="oss_purpose_jsch">SSH client library</string>
     <string name="oss_purpose_okhttp">WebDAV HTTP client</string>
-    <string name="oss_purpose_jcifs">SMB2/3 client library</string>
+    <string name="oss_purpose_smbj">SMB2/3 client library</string>
     <string name="oss_purpose_bouncycastle">Crypto provider (ed25519/curve25519 for JSch)</string>
     <string name="oss_purpose_xz_java">XZ (LZMA2) decompression (Kali rootfs .tar.xz etc.)</string>
     <string name="oss_purpose_fira_code">Monospaced terminal font (with ligatures)</string>

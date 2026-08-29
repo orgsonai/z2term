@@ -225,6 +225,7 @@ class GuiSession(
             try {
                 rfb.connect()
             } catch (e: Exception) {
+                target.closeTransport()
                 fail(remoteFailureMessage(e))
                 return@launch
             }
@@ -236,6 +237,7 @@ class GuiSession(
                 // 受信ループが返る = 相手が切った / 回線が落ちた。こちらから閉じたときは
                 // stop() が STOPPED にしているので、CONNECTED のままのときだけ知らせる。
                 if (_state.value == State.CONNECTED) {
+                    target.closeTransport()
                     fail(context.getString(R.string.vnc_disconnected))
                 }
             }
@@ -395,6 +397,7 @@ class GuiSession(
             runCatching { audioBridge?.stop() }
             audioBridge = null
             runCatching { rfb.close() }
+            remote?.closeTransport()
             runCatching { rxJob?.cancel() }
             // Xvnc は proot の ptrace 対象。pty.close() は proot に SIGHUP を送るだけで、
             // シグナルで proot が死ぬとカーネルがトレースを外すため --kill-on-exit が

@@ -1,0 +1,85 @@
+package com.zerotoship.z2term.channel
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class RemoteServiceProfileTest {
+    @Test
+    fun automaticLocalPortIsTheDefault() {
+        val service = RemoteService(
+            id = "svc-1",
+            protocol = RemoteServiceProtocol.WEBDAV,
+        )
+
+        assertEquals(0, service.localPort)
+        assertEquals(443, service.remotePort)
+        assertTrue(service.useSshTunnel)
+    }
+
+    @Test
+    fun everyServiceHasTheExpectedDefaultPort() {
+        assertEquals(21, RemoteServiceProtocol.FTP.defaultPort)
+        assertEquals(445, RemoteServiceProtocol.SMB.defaultPort)
+        assertEquals(443, RemoteServiceProtocol.WEBDAV.defaultPort)
+        assertEquals(5901, RemoteServiceProtocol.VNC.defaultPort)
+    }
+
+    @Test
+    fun directModeIsExplicitOptOut() {
+        val tunneled = RemoteService(id = "vnc", protocol = RemoteServiceProtocol.VNC)
+        val direct = tunneled.copy(useSshTunnel = false)
+
+        assertTrue(tunneled.useSshTunnel)
+        assertFalse(direct.useSshTunnel)
+    }
+
+    @Test
+    fun directModeUsesTheParentSshHost() {
+        val profile = SshProfile(
+            id = "ssh-1",
+            name = "server",
+            host = "192.168.10.12",
+            user = "user",
+        )
+        val service = RemoteService(
+            id = "smb",
+            protocol = RemoteServiceProtocol.SMB,
+            useSshTunnel = false,
+            host = "localhost",
+        )
+
+        assertEquals("192.168.10.12", service.connectionHost(profile))
+    }
+
+    @Test
+    fun tunneledModeUsesTheServiceHost() {
+        val profile = SshProfile(
+            id = "ssh-1",
+            name = "server",
+            host = "192.168.10.12",
+            user = "user",
+        )
+        val service = RemoteService(
+            id = "smb",
+            protocol = RemoteServiceProtocol.SMB,
+            host = "nas.internal",
+        )
+
+        assertEquals("nas.internal", service.connectionHost(profile))
+    }
+
+    @Test
+    fun browserBackMovesToTheParentAndStopsAtRoot() {
+        assertEquals("/share/folder", RemotePath.resolve("/share/folder/deep", ".."))
+        assertEquals("/", RemotePath.resolve("/share", ".."))
+        assertEquals("/", RemotePath.resolve("/", ".."))
+    }
+
+    @Test
+    fun smbPathUsesBackslashesWithoutEncodingNames() {
+        assertEquals("写真\\2026 年\\sample.png", SmbClient.relativePath("/写真/2026 年/sample.png"))
+        assertEquals("", SmbClient.relativePath("/"))
+    }
+}

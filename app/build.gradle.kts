@@ -53,8 +53,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 446
-        versionName = "0.8.438-alpha"
+        versionCode = 455
+        versionName = "0.8.447-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
@@ -337,7 +337,9 @@ dependencies {
 
     // 共通ファイル画面から WebDAV / SMB へ直接接続する。
     implementation(libs.okhttp)
-    implementation(libs.jcifs)
+    // SMB2/3。jcifs-ng は現行 Bouncy Castle で削除済みの ASN.1 クラスを参照するため、
+    // 同じ現行 Bouncy Castle を使う SMBJ に統一する。
+    implementation(libs.smbj)
 
     // Debug
     debugImplementation(libs.androidx.ui.tooling)

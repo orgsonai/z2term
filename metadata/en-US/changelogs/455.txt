@@ -1,0 +1,7 @@
+0.8.447-alpha
+
+- Added FTP, SMB, WebDAV and VNC services under SSH destinations with SSH port forwarding enabled by default. Blank local ports are selected automatically.
+- Improved SMB2/3 and anonymous-share compatibility.
+- Android Back now moves to the parent folder and asks before disconnecting only at the root.
+- Made the connection list more compact with horizontal actions.
+- Added show/hide buttons to password fields in connection settings.

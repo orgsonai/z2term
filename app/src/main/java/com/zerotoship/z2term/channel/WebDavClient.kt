@@ -3,6 +3,7 @@ package com.zerotoship.z2term.channel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Credentials
+import okhttp3.Dns
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType
@@ -17,6 +18,7 @@ import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.InetAddress
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
@@ -25,9 +27,13 @@ import java.util.concurrent.TimeUnit
 class WebDavClient private constructor(
     private val baseUrl: HttpUrl,
     private val user: String,
-    private val password: String
+    private val password: String,
+    private val dns: Dns? = null,
+    private val hostHeader: String? = null,
 ) : RemoteFs {
-    private val http = OkHttpClient.Builder()
+    private val http = OkHttpClient.Builder().apply {
+        dns?.let { dns(it) }
+    }
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
@@ -124,6 +130,7 @@ class WebDavClient private constructor(
         .url(url)
         .header("Accept", "*/*")
         .apply {
+            hostHeader?.let { header("Host", it) }
             if (user.isNotBlank()) header("Authorization", Credentials.basic(user, password))
         }
 
@@ -217,6 +224,42 @@ class WebDavClient private constructor(
             }
             val normalized = profile.host.trim().let { if (it.endsWith('/')) it else "$it/" }
             WebDavClient(normalized.toHttpUrl(), profile.user, profile.password)
+        }
+
+        /** SSH 転送時も URL のホスト名を保ち、HTTPS の SNI / 証明書検証を壊さない。 */
+        suspend fun connect(
+            service: RemoteService,
+            routeHost: String,
+            routePort: Int,
+        ): WebDavClient = withContext(Dispatchers.IO) {
+            require(service.host.isNotBlank()) { "WebDAV host is required" }
+            val scheme = if (service.webDavHttps) "https" else "http"
+            val base = HttpUrl.Builder()
+                .scheme(scheme)
+                .host(service.host)
+                .port(routePort)
+                .apply {
+                    RemotePath.segments(service.path).forEach(::addPathSegment)
+                    addPathSegment("")
+                }
+                .build()
+            val tunneled = service.useSshTunnel
+            val routeDns = if (tunneled) Dns { hostname ->
+                if (hostname == service.host) InetAddress.getAllByName(routeHost).toList()
+                else Dns.SYSTEM.lookup(hostname)
+            } else null
+            val defaultPort = if (service.webDavHttps) 443 else 80
+            val originalAuthority = buildString {
+                append(service.host)
+                if (service.remotePort != defaultPort) append(':').append(service.remotePort)
+            }
+            WebDavClient(
+                baseUrl = base,
+                user = service.user,
+                password = service.password,
+                dns = routeDns,
+                hostHeader = originalAuthority,
+            )
         }
     }
 }

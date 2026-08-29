@@ -1,158 +1,217 @@
 package com.zerotoship.z2term.channel
 
-import jcifs.CIFSContext
-import jcifs.SmbResource
-import jcifs.config.PropertyConfiguration
-import jcifs.context.BaseContext
-import jcifs.smb.NtlmPasswordAuthenticator
+import com.hierynomus.msdtyp.AccessMask
+import com.hierynomus.msfscc.FileAttributes
+import com.hierynomus.mssmb2.SMB2CreateDisposition
+import com.hierynomus.mssmb2.SMB2CreateOptions
+import com.hierynomus.mssmb2.SMB2Dialect
+import com.hierynomus.mssmb2.SMB2ShareAccess
+import com.hierynomus.smbj.SMBClient
+import com.hierynomus.smbj.SmbConfig
+import com.hierynomus.smbj.auth.AuthenticationContext
+import com.hierynomus.smbj.connection.Connection
+import com.hierynomus.smbj.session.Session
+import com.hierynomus.smbj.share.DiskShare
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.io.OutputStream
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
-import java.util.Properties
+import java.util.EnumSet
+import java.util.concurrent.TimeUnit
 
-/** SMB2/3 の共有を共通ファイル画面へ載せるクライアント。SMB1 は明示的に無効。 */
+/** SMB2/3 の共有を共通ファイル画面へ載せるクライアント。SMB1 は使用しない。 */
 class SmbClient private constructor(
-    private val context: CIFSContext,
-    private val rootUrl: String
+    private val smbClient: SMBClient,
+    private val connection: Connection,
+    private val session: Session,
+    private val share: DiskShare,
 ) : RemoteFs {
     override val home: String = "/"
+
     @Volatile
-    override var isAlive: Boolean = true
-        private set
+    private var open: Boolean = true
+
+    override val isAlive: Boolean
+        get() = open && connection.isConnected && share.isConnected
 
     override suspend fun list(path: String): List<SftpEntry> = io {
-        val out = ArrayList<SftpEntry>()
-        resource(path).use { directory ->
-            directory.children().use { children ->
-                while (children.hasNext()) {
-                    children.next().use { child ->
-                        val name = child.name.trimEnd('/')
-                        if (name.isNotEmpty()) {
-                            val isDir = child.isDirectory
-                            out += SftpEntry(
-                                name = name,
-                                isDir = isDir,
-                                isLink = false,
-                                size = if (isDir) 0 else child.length(),
-                                mtimeSec = child.lastModified() / 1000,
-                                permissions = ""
-                            )
-                        }
-                    }
-                }
+        val entries = share.list(relativePath(path))
+            .asSequence()
+            .filterNot { it.fileName == "." || it.fileName == ".." }
+            .map { entry ->
+                val isDirectory = entry.fileAttributes and
+                    FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value != 0L
+                SftpEntry(
+                    name = entry.fileName,
+                    isDir = isDirectory,
+                    isLink = false,
+                    size = if (isDirectory) 0 else entry.endOfFile,
+                    mtimeSec = entry.lastWriteTime.toEpochMillis() / 1000,
+                    permissions = "",
+                )
             }
-        }
-        out.sortWith(compareByDescending<SftpEntry> { it.isDir }.thenBy { it.name.lowercase() })
-        if (path != "/") out.add(0, SftpEntry("..", true, false, 0, 0, ""))
-        out
+            .sortedWith(compareByDescending<SftpEntry> { it.isDir }.thenBy { it.name.lowercase() })
+            .toMutableList()
+        if (path != "/") entries.add(0, SftpEntry("..", true, false, 0, 0, ""))
+        entries
     }
 
     override suspend fun download(remotePath: String, sink: OutputStream) = io {
-        resource(remotePath).use { file ->
-            file.openInputStream().use { it.copyTo(sink) }
+        share.openFile(
+            relativePath(remotePath),
+            EnumSet.of(AccessMask.FILE_READ_DATA, AccessMask.FILE_READ_ATTRIBUTES),
+            EnumSet.noneOf(FileAttributes::class.java),
+            SMB2ShareAccess.ALL,
+            SMB2CreateDisposition.FILE_OPEN,
+            EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE),
+        ).use { file ->
+            file.inputStream.use { it.copyTo(sink) }
         }
         Unit
     }
 
     override suspend fun upload(source: InputStream, remotePath: String) = io {
-        resource(remotePath).use { file ->
-            file.openOutputStream().use { source.copyTo(it) }
+        share.openFile(
+            relativePath(remotePath),
+            EnumSet.of(AccessMask.FILE_WRITE_DATA, AccessMask.FILE_WRITE_ATTRIBUTES),
+            EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL),
+            SMB2ShareAccess.ALL,
+            SMB2CreateDisposition.FILE_OVERWRITE_IF,
+            EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE),
+        ).use { file ->
+            file.outputStream.use { source.copyTo(it) }
         }
         Unit
     }
 
     override suspend fun mkdir(path: String) = io {
-        resource(path).use { it.mkdir() }
+        share.mkdir(relativePath(path))
     }
 
     override suspend fun rename(from: String, to: String) = io {
-        resource(from).use { source ->
-            resource(to).use { destination ->
-                source.renameTo(destination, true)
-            }
+        val source = relativePath(from)
+        val options = if (share.folderExists(source)) {
+            EnumSet.of(SMB2CreateOptions.FILE_DIRECTORY_FILE)
+        } else {
+            EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE)
+        }
+        share.open(
+            source,
+            EnumSet.of(AccessMask.DELETE, AccessMask.FILE_READ_ATTRIBUTES),
+            EnumSet.noneOf(FileAttributes::class.java),
+            SMB2ShareAccess.ALL,
+            SMB2CreateDisposition.FILE_OPEN,
+            options,
+        ).use { entry ->
+            entry.rename(relativePath(to), true)
         }
     }
 
     override suspend fun rm(path: String) = io {
-        resource(path).use {
-            check(!it.isDirectory) { "Not a file" }
-            it.delete()
-        }
+        share.rm(relativePath(path))
     }
 
     override suspend fun rmdir(path: String) = io {
-        resource(path).use { directory ->
-            directory.children().use { children ->
-                check(!children.hasNext()) { "Directory is not empty" }
-            }
-            directory.delete()
-        }
+        share.rmdir(relativePath(path), false)
     }
 
     override fun close() {
-        isAlive = false
-        runCatching { context.close() }
+        if (!open) return
+        open = false
+        runCatching { share.close() }
+        runCatching { session.close() }
+        runCatching { connection.close() }
+        runCatching { smbClient.close() }
     }
 
     private suspend fun <T> io(block: () -> T): T = withContext(Dispatchers.IO) {
         try {
             block()
         } catch (e: Throwable) {
-            isAlive = false
+            if (!connection.isConnected) open = false
             throw e
         }
     }
 
-    private fun resource(path: String): SmbResource {
-        val suffix = RemotePath.segments(path).joinToString("/") { encodeSegment(it) }
-        return context.get(if (suffix.isEmpty()) rootUrl else "$rootUrl$suffix")
-    }
-
-    private fun encodeSegment(value: String): String =
-        URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20")
-
     companion object {
         suspend fun connect(profile: SshProfile): SmbClient = withContext(Dispatchers.IO) {
-            require(profile.host.isNotBlank()) { "SMB host is required" }
-            val share = profile.remotePath.trim('/')
-            require(share.isNotBlank()) { "SMB share is required" }
+            connectInternal(
+                host = profile.host,
+                port = profile.port,
+                shareName = profile.remotePath,
+                domain = profile.domain,
+                user = profile.user,
+                password = profile.password,
+            )
+        }
 
-            val properties = Properties().apply {
-                setProperty("jcifs.smb.client.minVersion", "SMB202")
-                setProperty("jcifs.smb.client.maxVersion", "SMB311")
-                setProperty("jcifs.smb.client.connTimeout", "15000")
-                setProperty("jcifs.smb.client.responseTimeout", "30000")
-                setProperty("jcifs.smb.client.soTimeout", "35000")
-            }
-            val base = BaseContext(PropertyConfiguration(properties))
-            val authenticated = if (profile.user.isBlank()) {
-                base.withGuestCrendentials()
-            } else {
-                base.withCredentials(
-                    NtlmPasswordAuthenticator(profile.domain, profile.user, profile.password)
+        suspend fun connect(service: RemoteService, routeHost: String, routePort: Int): SmbClient =
+            withContext(Dispatchers.IO) {
+                connectInternal(
+                    host = routeHost,
+                    port = routePort,
+                    shareName = service.path,
+                    domain = service.domain,
+                    user = service.user,
+                    password = service.password,
                 )
             }
-            val authority = buildString {
-                append(profile.host.trim())
-                if (profile.port != 445) append(':').append(profile.port)
+
+        private fun connectInternal(
+            host: String,
+            port: Int,
+            shareName: String,
+            domain: String,
+            user: String,
+            password: String,
+        ): SmbClient {
+            require(host.isNotBlank()) { "SMB host is required" }
+            require(port in 1..65535) { "SMB port is invalid" }
+            val normalizedShare = shareName.trim().trim('/', '\\')
+            require(normalizedShare.isNotBlank()) { "SMB share is required" }
+            require('/' !in normalizedShare && '\\' !in normalizedShare) {
+                "SMB share must be a share name, not a path"
             }
-            val root = "smb://$authority/${encodeStatic(share)}/"
-            val client = SmbClient(authenticated, root)
+
+            val anonymous = user.isBlank()
+            val configBuilder = SmbConfig.builder()
+                .withTimeout(30, TimeUnit.SECONDS)
+                .withSoTimeout(35, TimeUnit.SECONDS)
+                // SSH 転送先から DFS の別ホストへ迂回するとトンネル外へ出るため無効化する。
+                .withDfsEnabled(false)
+            if (anonymous) {
+                // SMBJ 0.15.0 は Samba の SMB 3.x 匿名セッションで鍵導出に失敗する。
+                // 匿名時だけ SMB 2.1 に限定する。ユーザー認証時は SMB 3.x を含む既定値を維持。
+                configBuilder.withDialects(SMB2Dialect.SMB_2_1)
+            }
+            val config = configBuilder.build()
+            val client = SMBClient(config)
+            var connection: Connection? = null
+            var session: Session? = null
+            var diskShare: DiskShare? = null
             try {
-                client.resource("/").use { check(it.exists()) { "SMB share not found" } }
-                client
+                connection = client.connect(host.trim(), port)
+                val authentication = if (anonymous) {
+                    AuthenticationContext.anonymous()
+                } else {
+                    AuthenticationContext(user, password.toCharArray(), domain)
+                }
+                session = connection.authenticate(authentication)
+                diskShare = session.connectShare(normalizedShare) as? DiskShare
+                    ?: error("SMB share is not a disk share")
+                // 接続時点で共有ルートを列挙し、認証・共有名の誤りを早期に表示する。
+                diskShare.list("")
+                return SmbClient(client, connection, session, diskShare)
             } catch (e: Throwable) {
-                client.close()
+                runCatching { diskShare?.close() }
+                runCatching { session?.close() }
+                runCatching { connection?.close() }
+                runCatching { client.close() }
                 throw e
             }
         }
 
-        private fun encodeStatic(path: String): String =
-            path.split('/').filter { it.isNotBlank() }.joinToString("/") {
-                URLEncoder.encode(it, StandardCharsets.UTF_8.name()).replace("+", "%20")
-            }
+        internal fun relativePath(path: String): String =
+            RemotePath.segments(path).joinToString("\\")
     }
 }

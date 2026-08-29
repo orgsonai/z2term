@@ -407,6 +407,26 @@
     <string name="connection_field_smb_host">SMB ホスト</string>
     <string name="connection_field_smb_share">共有名</string>
     <string name="connection_field_smb_domain">ドメイン（任意）</string>
+    <string name="connection_legacy_direct">旧形式の直通接続です。新しい FTP / SMB / WebDAV / VNC は SSH 接続先の中へ追加します。</string>
+    <string name="remote_services_title">この SSH を経由するサービス</string>
+    <string name="remote_services_desc">SSH / SFTP の外にサービスを追加します。既定は SSH ポートフォワードです。ローカルポートを空欄にすると空いている番号を自動で選びます。</string>
+    <string name="remote_service_name">ボタン名</string>
+    <string name="remote_service_host">サービスのホスト（SSH サーバーから見た名前）</string>
+    <string name="remote_service_smb_host_hint">※ SMB は localhost では接続できません。SSH サーバーから見た SMB 接続先の IP アドレスまたはホスト名を入力してください（例: %1$s）。</string>
+    <string name="remote_service_remote_port">サービス側ポート</string>
+    <string name="remote_service_local_port">ローカルポート（任意）</string>
+    <string name="remote_service_auto">自動</string>
+    <string name="remote_service_start_path">開始フォルダ（任意）</string>
+    <string name="remote_service_base_path">ベースパス（任意）</string>
+    <string name="remote_service_smb_anonymous_hint">匿名接続ではユーザーとパスワードを両方空欄にしてください。</string>
+    <string name="remote_service_webdav_scheme">WebDAV の通信方式</string>
+    <string name="remote_service_use_ssh">SSH ポートフォワード</string>
+    <string name="remote_service_use_ssh_desc">この SSH 接続で暗号化します</string>
+    <string name="remote_service_direct_desc">SSH ホストへ直通（SSH の暗号化なし）</string>
+    <string name="remote_service_direct_target">直通先（SSH ホスト）: %1$s:%2$d</string>
+    <string name="remote_direct_warning_title">SSH の暗号化を外しますか？</string>
+    <string name="remote_direct_warning_message">%1$s は SSH で暗号化せず、SSH ホスト %2$s へ直接接続します。FTP と VNC は通常は平文です。WebDAV と SMB も、それぞれのプロトコル／サーバー側で暗号化を有効にした場合だけ保護されます。認証情報やデータがネットワーク上へ露出する可能性があります。</string>
+    <string name="remote_direct_warning_confirm">直通にする</string>
     <string name="ssh_field_host">ホスト</string>
     <string name="ssh_field_port">ポート</string>
     <string name="ssh_field_user">ユーザー</string>
@@ -414,6 +434,8 @@
     <string name="ssh_auth_password">パスワード</string>
     <string name="ssh_auth_publickey">公開鍵</string>
     <string name="ssh_field_password">パスワード</string>
+    <string name="password_show">表示</string>
+    <string name="password_hide">隠す</string>
     <string name="ssh_field_private_key">秘密鍵 (PEM)</string>
     <string name="ssh_field_passphrase">パスフレーズ (鍵に設定されていれば)</string>
     <!-- リモート VNC (A1): 同じ接続先の画面を同じ入口から開く -->
@@ -472,6 +494,9 @@
     <string name="sftp_action_delete">削除</string>
     <string name="sftp_action_download">ダウンロード</string>
     <string name="sftp_action_rename">名前変更</string>
+    <string name="sftp_exit_title">接続を終了しますか？</string>
+    <string name="sftp_exit_message">これ以上上のフォルダはありません。接続を終了してターミナルへ戻りますか？</string>
+    <string name="sftp_exit_confirm">ターミナルへ戻る</string>
 
     <!-- OSS コンポーネント用途 (D3 バッチ 4) -->
     <string name="oss_purpose_z2term">本アプリ本体（ターミナル UI・セッション・リモートファイル・設定）</string>
@@ -479,7 +504,7 @@
     <string name="oss_purpose_kotlin_stdlib">Kotlin ランタイム</string>
     <string name="oss_purpose_jsch">SSH クライアントライブラリ</string>
     <string name="oss_purpose_okhttp">WebDAV HTTP クライアント</string>
-    <string name="oss_purpose_jcifs">SMB2/3 クライアントライブラリ</string>
+    <string name="oss_purpose_smbj">SMB2/3 クライアントライブラリ</string>
     <string name="oss_purpose_bouncycastle">暗号プロバイダ (JSch の ed25519/curve25519 等)</string>
     <string name="oss_purpose_xz_java">XZ (LZMA2) 解凍 (Kali rootfs などの .tar.xz)</string>
     <string name="oss_purpose_fira_code">ターミナル用等幅フォント (合字対応)</string>

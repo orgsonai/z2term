@@ -38,10 +38,11 @@
 -dontwarn org.bouncycastle.**
 
 # ───────── Remote files (WebDAV / SMB) ─────────
-# OkHttp は consumer rules を同梱。jcifs-ng は設定値から内部実装を選ぶ箇所があるため、
-# release の R8 でプロトコル実装を削らせない。
--keep class jcifs.** { *; }
--dontwarn jcifs.**
+# OkHttp は consumer rules を同梱。SMBJ とイベント配送は認証・イベント実装を動的に扱う。
+-keep class com.hierynomus.** { *; }
+-keep class net.engio.mbassy.** { *; }
+-dontwarn com.hierynomus.**
+-dontwarn net.engio.mbassy.**
 -dontwarn org.slf4j.**
 
 # ───────── XZ (DL distro の .tar.xz 解凍) ─────────

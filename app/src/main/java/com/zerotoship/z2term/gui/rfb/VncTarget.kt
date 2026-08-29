@@ -19,9 +19,17 @@ data class VncTarget(
     val password: String = "",
     /** タブに出す名前。空なら `host:port`。 */
     val name: String = "",
+    /** SSH 一時転送など、この VNC タブと同じ寿命を持つ通信経路。 */
+    internal val transportCloser: (() -> Unit)? = null,
 ) {
+    private val transportClosed = java.util.concurrent.atomic.AtomicBoolean(false)
+
     /** タブ名 (名前が無ければ接続先そのもの)。 */
     val label: String get() = name.ifBlank { "$host:$port" }
+
+    fun closeTransport() {
+        if (transportClosed.compareAndSet(false, true)) transportCloser?.invoke()
+    }
 
     companion object {
         /** 既定ポート。TigerVNC の `vncserver` が最初に使う `:1` に合わせてある。 */

@@ -3,6 +3,7 @@ package com.zerotoship.z2term.ui.ssh
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,12 +16,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,6 +51,8 @@ import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.ConnectionProtocol
 import com.zerotoship.z2term.channel.PortForward
+import com.zerotoship.z2term.channel.RemoteService
+import com.zerotoship.z2term.channel.RemoteServiceProtocol
 import com.zerotoship.z2term.channel.SshKeyGen
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.channel.SshProfileStore
@@ -65,15 +71,15 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 /**
- * SSH / WebDAV / SMB 接続先一覧本体 (タブのコンテンツ)。
+ * SSH 接続先と、その SSH を経由する FTP / SMB / WebDAV / VNC 一覧本体。
  *
  * ツールシート ([com.zerotoship.z2term.ui.snippets.SnippetsSheet]) の「接続先」タブから
  * 呼ばれる。スクロール / シート開閉は呼び出し側が持つので、ここは Column の中身だけを描く。
  *
  * リスト表示 → 追加/編集/削除/接続。
  * 接続時は [onConnect] (TerminalScreen 側で新規セッション作成 + startSsh) に委譲。
- * SSH はシェル / SFTP / VNC、WebDAV と SMB は共通ファイル画面へ進む。
- * 一覧と保存先は相乗りしつつ、SSH を持たない接続先に SSH 操作を要求しない。
+ * SSH はシェル / SFTP、追加サービスは共通ファイル画面または VNC タブへ進む。
+ * 0.8.438 で保存した直接 WebDAV / SMB は読み込み・編集互換だけを維持する。
  *
  * SshProfileStore は本コンポーザブル内で直接インスタンス化する (DataStore 自体が
  * プロセスシングルトンなのでデータの一貫性は保たれる)。
@@ -82,7 +88,7 @@ import java.util.UUID
 fun SshProfilesBody(
     onConnect: (SshProfile) -> Unit,
     onSftp: (SshProfile) -> Unit = {},
-    onVnc: (SshProfile) -> Unit = {}
+    onService: (SshProfile, RemoteService) -> Unit = { _, _ -> },
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -125,7 +131,7 @@ fun SshProfilesBody(
                         tunnel = tunnelStatuses.firstOrNull { it.profileId == p.id },
                         onConnect = { onConnect(p) },
                         onSftp = { onSftp(p) },
-                        onVnc = { onVnc(p) },
+                        onService = { service -> onService(p, service) },
                         onEdit = { editing = p },
                         onDelete = {
                             scope.launch { store.delete(p.id) }
@@ -228,7 +234,7 @@ private fun ProfileRow(
     tunnel: TunnelManager.Status?,
     onConnect: () -> Unit,
     onSftp: () -> Unit,
-    onVnc: () -> Unit,
+    onService: (RemoteService) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -241,13 +247,24 @@ private fun ProfileRow(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(
-            text = profile.name.ifEmpty { stringResource(R.string.ssh_unnamed) },
-            color = ZtsTextPrimary,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            fontFamily = FontFamily.Monospace
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = profile.name.ifEmpty { stringResource(R.string.ssh_unnamed) },
+                color = ZtsTextPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = FontFamily.Monospace,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            SmallButton(label = stringResource(R.string.ssh_action_edit), onClick = onEdit)
+            SmallButton(label = stringResource(R.string.ssh_action_delete), danger = true, onClick = onDelete)
+        }
         Text(
             text = "${profile.endpointDescription()} [${profile.fileProtocolLabel}]" +
                 (if (profile.hasSsh) " [${profile.authType.name.lowercase()}]" else "") +
@@ -259,22 +276,26 @@ private fun ProfileRow(
             fontFamily = FontFamily.Monospace
         )
         if (profile.hasSsh && profile.residentTunnel) TunnelStatusLine(tunnel)
-        Spacer(modifier = Modifier.height(4.dp))
-        // 1 行目は「この接続先への入り方」(シェル / ファイル / 画面)、2 行目は登録の操作。
-        // 5 つを 1 行に並べると英語表示の狭い画面で入りきらず、右端の [削除] が押せなくなる。
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        // 接続操作は横 1 列。幅を超えた分だけ横スクロールし、カードの高さを増やさない。
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             if (profile.hasSsh) {
                 SmallButton(label = stringResource(R.string.ssh_action_connect), accent = true, onClick = onConnect)
                 SmallButton(label = "SFTP", onClick = onSftp)
-                SmallButton(label = "VNC", onClick = onVnc)
+                profile.services.forEach { service ->
+                    SmallButton(
+                        label = service.label,
+                        accent = service.protocol == RemoteServiceProtocol.VNC,
+                        onClick = { onService(service) },
+                    )
+                }
             } else {
                 SmallButton(label = profile.fileProtocolLabel, accent = true, onClick = onSftp)
             }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            SmallButton(label = stringResource(R.string.ssh_action_edit), onClick = onEdit)
-            Box(modifier = Modifier.weight(1f))
-            SmallButton(label = stringResource(R.string.ssh_action_delete), danger = true, onClick = onDelete)
         }
     }
 }
@@ -337,8 +358,7 @@ private fun EditForm(
     // いつでも作り直せるし、渡すのは作った直後だけなので、状態を増やす理由がない。
     var generatedPublicLine by remember(initial.id) { mutableStateOf("") }
     var keyPassphrase by remember(initial.id) { mutableStateOf(initial.keyPassphrase) }
-    var vncPort by remember(initial.id) { mutableStateOf(initial.vncPort.toString()) }
-    var vncPassword by remember(initial.id) { mutableStateOf(initial.vncPassword) }
+    var services by remember(initial.id) { mutableStateOf(initial.services) }
     var initCmd by remember(initial.id) { mutableStateOf(initial.initCommand) }
     var forwards by remember(initial.id) { mutableStateOf(initial.forwards) }
     var resident by remember(initial.id) { mutableStateOf(initial.residentTunnel) }
@@ -355,31 +375,14 @@ private fun EditForm(
     )
 
     Field(label = stringResource(R.string.ssh_field_name), value = name, onChange = { name = it }, placeholder = "my-server")
-    Text(
-        text = stringResource(R.string.connection_protocol),
-        color = ZtsTextSecondary,
-        fontSize = 12.sp,
-        fontFamily = FontFamily.Monospace
-    )
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        ConnectionProtocol.entries.forEach { item ->
-            AuthChip(
-                label = when (item) {
-                    ConnectionProtocol.SSH -> "SSH / SFTP"
-                    ConnectionProtocol.WEBDAV -> "WebDAV"
-                    ConnectionProtocol.SMB -> "SMB"
-                },
-                selected = protocol == item,
-                onSelect = {
-                    protocol = item
-                    port = when (item) {
-                        ConnectionProtocol.SSH -> "22"
-                        ConnectionProtocol.WEBDAV -> "443"
-                        ConnectionProtocol.SMB -> "445"
-                    }
-                }
-            )
-        }
+    // 新規登録は SSH だけ。0.8.438 で作成済みの直接 WebDAV/SMB は編集互換のため残す。
+    if (protocol != ConnectionProtocol.SSH) {
+        Text(
+            text = stringResource(R.string.connection_legacy_direct),
+            color = ZtsTextSecondary,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+        )
     }
 
     when (protocol) {
@@ -443,37 +446,10 @@ private fun EditForm(
                 }
             }
 
-            // VNC は SSH 接続先からだけ利用できる付加機能。
-            Text(
-                text = stringResource(R.string.ssh_vnc_section),
-                color = ZtsTextSecondary,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Monospace
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(modifier = Modifier.weight(1f)) {
-                    Field(
-                        label = stringResource(R.string.ssh_field_vnc_port),
-                        value = vncPort,
-                        onChange = { vncPort = it.filter { ch -> ch.isDigit() } },
-                        placeholder = "5901"
-                    )
-                }
-                Box(modifier = Modifier.weight(2f)) {
-                    Field(
-                        label = stringResource(R.string.ssh_field_vnc_password),
-                        value = vncPassword,
-                        onChange = { vncPassword = it },
-                        placeholder = "********",
-                        secret = true
-                    )
-                }
-            }
-            Text(
-                text = stringResource(R.string.ssh_vnc_note),
-                color = ZtsTextSecondary,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace
+            RemoteServicesSection(
+                sshHost = host,
+                services = services,
+                onChange = { services = it },
             )
 
             Field(
@@ -581,17 +557,346 @@ private fun EditForm(
                     password = if (!ssh || auth == SshProfile.AuthType.PASSWORD) password else "",
                     privateKey = if (ssh && auth == SshProfile.AuthType.PUBLIC_KEY) privateKey else "",
                     keyPassphrase = if (ssh && auth == SshProfile.AuthType.PUBLIC_KEY) keyPassphrase else "",
-                    vncPort = vncPort.toIntOrNull()?.coerceIn(1, 65535) ?: VncTarget.DEFAULT_PORT,
-                    vncPassword = if (ssh) vncPassword else "",
                     initCommand = if (ssh) initCmd else "",
                     forwards = if (ssh) forwards.filter {
                         it.localPort in 1..65535 && it.remotePort in 1..65535 && it.remoteHost.isNotBlank()
                     } else emptyList(),
-                    residentTunnel = ssh && resident && forwards.isNotEmpty()
+                    residentTunnel = ssh && resident && forwards.isNotEmpty(),
+                    services = if (ssh) services.filter {
+                        (!it.useSshTunnel || it.host.isNotBlank()) &&
+                            it.remotePort in 1..65535 && it.localPort in 0..65535
+                    } else initial.services,
                 )
                 onSave(saved)
             }
         )
+    }
+}
+
+/** SSH 接続先にぶら下がる FTP / SMB / WebDAV / VNC の編集。 */
+@Composable
+private fun RemoteServicesSection(
+    sshHost: String,
+    services: List<RemoteService>,
+    onChange: (List<RemoteService>) -> Unit,
+) {
+    var pendingDirectId by remember { mutableStateOf<String?>(null) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.remote_services_title),
+            color = ZtsTextSecondary,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace,
+        )
+        Text(
+            text = stringResource(R.string.remote_services_desc),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            RemoteServiceProtocol.entries.forEach { protocol ->
+                val exists = services.any { it.protocol == protocol }
+                AuthChip(
+                    label = if (exists) "✓ ${protocol.name}" else "+ ${protocol.name}",
+                    selected = exists,
+                    onSelect = {
+                        if (!exists) {
+                            onChange(
+                                services + RemoteService(
+                                    id = UUID.randomUUID().toString(),
+                                    protocol = protocol,
+                                    name = protocol.name,
+                                    host = if (protocol == RemoteServiceProtocol.SMB) {
+                                        sshHost.ifBlank { "localhost" }
+                                    } else {
+                                        "localhost"
+                                    },
+                                    remotePort = protocol.defaultPort,
+                                    webDavHttps = protocol == RemoteServiceProtocol.WEBDAV,
+                                )
+                            )
+                        }
+                    },
+                )
+            }
+        }
+        services.forEach { service ->
+            RemoteServiceEditor(
+                sshHost = sshHost,
+                service = service,
+                onChange = { updated ->
+                    onChange(services.map { if (it.id == updated.id) updated else it })
+                },
+                onRequestDirect = { pendingDirectId = service.id },
+                onDelete = { onChange(services.filterNot { it.id == service.id }) },
+            )
+        }
+    }
+
+    val pending = services.firstOrNull { it.id == pendingDirectId }
+    if (pending != null) {
+        AlertDialog(
+            onDismissRequest = { pendingDirectId = null },
+            title = { Text(stringResource(R.string.remote_direct_warning_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.remote_direct_warning_message,
+                        pending.protocol.name,
+                        sshHost,
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onChange(services.map {
+                        if (it.id == pending.id) it.copy(useSshTunnel = false) else it
+                    })
+                    pendingDirectId = null
+                }) {
+                    Text(stringResource(R.string.remote_direct_warning_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDirectId = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun RemoteServiceEditor(
+    sshHost: String,
+    service: RemoteService,
+    onChange: (RemoteService) -> Unit,
+    onRequestDirect: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(ZtsBgCard)
+            .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = service.protocol.name,
+                color = ZtsGreen,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = FontFamily.Monospace,
+            )
+            Box(Modifier.weight(1f))
+            SmallButton(label = "×", danger = true, onClick = onDelete)
+        }
+        Field(
+            label = stringResource(R.string.remote_service_name),
+            value = service.name,
+            onChange = { onChange(service.copy(name = it)) },
+            placeholder = service.protocol.name,
+        )
+        ServiceTunnelToggle(
+            checked = service.useSshTunnel,
+            onChange = { checked ->
+                if (checked) onChange(service.copy(useSshTunnel = true)) else onRequestDirect()
+            },
+        )
+        if (service.useSshTunnel) {
+            Field(
+                label = stringResource(R.string.remote_service_host),
+                value = service.host,
+                onChange = { onChange(service.copy(host = it)) },
+                placeholder = if (service.protocol == RemoteServiceProtocol.SMB) {
+                    sshHost.ifBlank { "192.168.1.10" }
+                } else {
+                    "localhost"
+                },
+            )
+            if (service.protocol == RemoteServiceProtocol.SMB) {
+                Text(
+                    text = stringResource(
+                        R.string.remote_service_smb_host_hint,
+                        sshHost.ifBlank { "192.168.1.10" },
+                    ),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        } else {
+            Text(
+                text = stringResource(
+                    R.string.remote_service_direct_target,
+                    sshHost.ifBlank { "-" },
+                    service.remotePort,
+                ),
+                color = ZtsTextSecondary,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.weight(1f)) {
+                Field(
+                    label = stringResource(R.string.remote_service_remote_port),
+                    value = service.remotePort.toString().takeIf { it != "0" } ?: "",
+                    onChange = {
+                        onChange(service.copy(remotePort = it.filter(Char::isDigit).toIntOrNull() ?: 0))
+                    },
+                    placeholder = service.protocol.defaultPort.toString(),
+                )
+            }
+            if (service.useSshTunnel) {
+                Box(Modifier.weight(1f)) {
+                    Field(
+                        label = stringResource(R.string.remote_service_local_port),
+                        value = service.localPort.toString().takeIf { it != "0" } ?: "",
+                        onChange = {
+                            onChange(service.copy(localPort = it.filter(Char::isDigit).toIntOrNull() ?: 0))
+                        },
+                        placeholder = stringResource(R.string.remote_service_auto),
+                    )
+                }
+            }
+        }
+        when (service.protocol) {
+            RemoteServiceProtocol.FTP -> {
+                ServiceCredentials(service, onChange)
+                Field(
+                    label = stringResource(R.string.remote_service_start_path),
+                    value = service.path,
+                    onChange = { onChange(service.copy(path = it)) },
+                    placeholder = "/",
+                )
+            }
+            RemoteServiceProtocol.SMB -> {
+                ServiceCredentials(service, onChange)
+                Text(
+                    text = stringResource(R.string.remote_service_smb_anonymous_hint),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+                Field(
+                    label = stringResource(R.string.connection_field_smb_share),
+                    value = service.path,
+                    onChange = { onChange(service.copy(path = it)) },
+                    placeholder = "share",
+                )
+                Field(
+                    label = stringResource(R.string.connection_field_smb_domain),
+                    value = service.domain,
+                    onChange = { onChange(service.copy(domain = it)) },
+                    placeholder = "WORKGROUP",
+                )
+            }
+            RemoteServiceProtocol.WEBDAV -> {
+                Text(
+                    text = stringResource(R.string.remote_service_webdav_scheme),
+                    color = ZtsTextSecondary,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    AuthChip("HTTPS", service.webDavHttps) {
+                        onChange(service.copy(webDavHttps = true))
+                    }
+                    AuthChip("HTTP", !service.webDavHttps) {
+                        onChange(service.copy(webDavHttps = false))
+                    }
+                }
+                ServiceCredentials(service, onChange)
+                Field(
+                    label = stringResource(R.string.remote_service_base_path),
+                    value = service.path,
+                    onChange = { onChange(service.copy(path = it)) },
+                    placeholder = "/dav/",
+                )
+            }
+            RemoteServiceProtocol.VNC -> {
+                Field(
+                    label = stringResource(R.string.ssh_field_vnc_password),
+                    value = service.password,
+                    onChange = { onChange(service.copy(password = it)) },
+                    placeholder = "********",
+                    secret = true,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ServiceCredentials(
+    service: RemoteService,
+    onChange: (RemoteService) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.weight(1f)) {
+            Field(
+                label = stringResource(R.string.ssh_field_user),
+                value = service.user,
+                onChange = { onChange(service.copy(user = it)) },
+            )
+        }
+        Box(Modifier.weight(1f)) {
+            Field(
+                label = stringResource(R.string.ssh_field_password),
+                value = service.password,
+                onChange = { onChange(service.copy(password = it)) },
+                placeholder = "********",
+                secret = true,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ServiceTunnelToggle(
+    checked: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(ZtsBgPrimary)
+            .border(1.dp, if (checked) ZtsGreen else ZtsError, RoundedCornerShape(8.dp))
+            .clickable { onChange(!checked) }
+            .padding(9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = if (checked) "[x]" else "[ ]",
+            color = if (checked) ZtsGreen else ZtsError,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 12.sp,
+        )
+        Column {
+            Text(
+                text = stringResource(R.string.remote_service_use_ssh),
+                color = if (checked) ZtsGreen else ZtsError,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 12.sp,
+            )
+            Text(
+                text = stringResource(
+                    if (checked) R.string.remote_service_use_ssh_desc
+                    else R.string.remote_service_direct_desc
+                ),
+                color = ZtsTextSecondary,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp,
+            )
+        }
     }
 }
 
@@ -905,6 +1210,7 @@ private fun Field(
     secret: Boolean = false,
     multiline: Boolean = false
 ) {
+    var secretVisible by remember(label) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
         Text(
             text = label,
@@ -912,36 +1218,53 @@ private fun Field(
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace
         )
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(6.dp))
                 .background(ZtsBgCard)
                 .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (value.isEmpty()) {
-                Text(
-                    text = placeholder,
-                    color = ZtsTextSecondary.copy(alpha = 0.55f),
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    maxLines = if (multiline) 6 else 1
+            Box(modifier = Modifier.weight(1f)) {
+                if (value.isEmpty()) {
+                    Text(
+                        text = placeholder,
+                        color = ZtsTextSecondary.copy(alpha = 0.55f),
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = if (multiline) 6 else 1
+                    )
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onChange,
+                    singleLine = !multiline,
+                    visualTransformation = if (secret && !secretVisible) {
+                        PasswordVisualTransformation()
+                    } else {
+                        VisualTransformation.None
+                    },
+                    textStyle = TextStyle(
+                        color = ZtsTextPrimary,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace
+                    ),
+                    cursorBrush = SolidColor(ZtsGreen),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
-            BasicTextField(
-                value = value,
-                onValueChange = onChange,
-                singleLine = !multiline,
-                visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
-                textStyle = TextStyle(
-                    color = ZtsTextPrimary,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace
-                ),
-                cursorBrush = SolidColor(ZtsGreen),
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (secret) {
+                SmallButton(
+                    label = stringResource(
+                        if (secretVisible) R.string.password_hide else R.string.password_show
+                    ),
+                    accent = secretVisible,
+                    onClick = { secretVisible = !secretVisible },
+                )
+            }
         }
     }
 }
@@ -1001,7 +1324,8 @@ private fun SmallButton(
             text = label,
             color = fg,
             fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
         )
     }
 }

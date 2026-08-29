@@ -59,8 +59,10 @@ import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.RemoteFs
 import com.zerotoship.z2term.channel.RemoteFsFactory
 import com.zerotoship.z2term.channel.RemotePath
+import com.zerotoship.z2term.channel.RemoteService
 import com.zerotoship.z2term.channel.SftpEntry
 import com.zerotoship.z2term.channel.SshProfile
+import com.zerotoship.z2term.ui.components.ConfirmDialog
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
@@ -76,7 +78,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * SFTP / WebDAV / SMB 共通ファイルブラウザ (全画面ページ)。
+ * SFTP / FTP / WebDAV / SMB 共通ファイルブラウザ (全画面ページ)。
  *
  * 指定 [profile] のプロトコルで接続し、リモートのファイルを一覧 / 移動 / ダウンロード /
  * アップロード / 削除 / 名前変更 / フォルダ作成できる。ダウンロード/アップロードは
@@ -84,12 +86,14 @@ import java.util.Locale
  *
  * 従来は下から重なる ModalBottomSheet だったが、一覧を下へスクロールする操作が
  * 「シートを閉じる」ドラッグと競合して勝手に閉じてしまうため、設定ページと同じ
- * 「別ページ (全画面)」に変更した (要望)。戻る矢印 / システムバックで前の画面へ戻る。
+ * 「別ページ (全画面)」に変更した (要望)。戻る矢印 / システムバックはフォルダ内なら
+ * 1 階層上へ移動し、ルートでだけ接続終了の確認を出す。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SftpSheet(
     profile: SshProfile,
+    service: RemoteService? = null,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -109,14 +113,22 @@ fun SftpSheet(
     var deleteTarget by remember { mutableStateOf<SftpEntry?>(null) }
     var mkdirOpen by remember { mutableStateOf(false) }
     var pendingDownload by remember { mutableStateOf<SftpEntry?>(null) }
+    var exitConfirmOpen by remember { mutableStateOf(false) }
 
     fun toast(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+    fun requestBack() {
+        if (currentPath != "/") {
+            currentPath = RemotePath.resolve(currentPath, "..")
+        } else {
+            exitConfirmOpen = true
+        }
+    }
 
     // 接続 (1 度だけ)
-    LaunchedEffect(profile.id) {
+    LaunchedEffect(profile.id, service?.id) {
         connecting = true
         connError = null
-        runCatching { RemoteFsFactory.connect(profile, context) }
+        runCatching { RemoteFsFactory.connect(profile, context, service) }
             .onSuccess { c ->
                 client = c
                 currentPath = c.home
@@ -184,7 +196,7 @@ fun SftpSheet(
     }
 
     // 全画面の「別ページ」として表示する。背景はバー裏まで塗りつつ、中身はシステムバー
-    // (上=ステータス / 下=ナビゲーション) の内側に収める。戻る矢印 / システムバックで前へ戻る。
+    // (上=ステータス / 下=ナビゲーション) の内側に収める。
     Surface(
         modifier = Modifier
             .fillMaxSize()
@@ -192,12 +204,16 @@ fun SftpSheet(
         color = ZtsBgPrimary,
         contentColor = ZtsTextPrimary
     ) {
-        BackHandler(onBack = onDismiss)
+        BackHandler(onBack = ::requestBack)
         Column(modifier = Modifier.fillMaxSize()) {
         // ヘッダ: 戻る矢印 + プロファイル名 (設定ページと同じ上部バー)
         SftpTopBar(
-            title = "${profile.fileProtocolLabel} : ${profile.endpointDescription()}",
-            onBack = onDismiss
+            title = if (service == null) {
+                "${profile.fileProtocolLabel} : ${profile.endpointDescription()}"
+            } else {
+                "${service.protocol.name} : ${service.endpointDescription(profile)}"
+            },
+            onBack = ::requestBack
         )
         Column(
             modifier = Modifier
@@ -371,6 +387,19 @@ fun SftpSheet(
                     Text(stringResource(R.string.action_cancel), color = ZtsTextSecondary, fontFamily = FontFamily.Monospace)
                 }
             }
+        )
+    }
+
+    if (exitConfirmOpen) {
+        ConfirmDialog(
+            title = stringResource(R.string.sftp_exit_title),
+            message = stringResource(R.string.sftp_exit_message),
+            confirmLabel = stringResource(R.string.sftp_exit_confirm),
+            onConfirm = {
+                exitConfirmOpen = false
+                onDismiss()
+            },
+            onCancel = { exitConfirmOpen = false },
         )
     }
 }

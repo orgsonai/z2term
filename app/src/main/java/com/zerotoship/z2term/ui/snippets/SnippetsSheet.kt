@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.SshProfile
+import com.zerotoship.z2term.channel.RemoteService
 import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.snippets.Snippet
 import com.zerotoship.z2term.snippets.SnippetGroup
@@ -95,7 +96,7 @@ private enum class ToolsTab { SNIPPETS, HISTORY, SSH, SERVERS, WHEN }
  *  - スニペット: よく使うコマンドを挿入 ([onRun])。並べ替え / 編集 / 削除可。
  *  - 履歴 (B2): 端末で実行した過去コマンドを絞り込んでタップで挿入。読み取り専用で、
  *    シェルの履歴ファイル (`~/.bash_history` / `~/.zsh_history`) をそのまま見る。
- *  - 接続先: SSH はシェル / SFTP / VNC、WebDAV と SMB は共通ファイル画面で開く。
+ *  - 接続先: SSH / SFTP と、その SSH に追加した FTP / SMB / WebDAV / VNC を開く。
  *  - サーバー: 常駐サーバーの起動/停止・ON/OFF・編集 (設定シートと同じ [ServersBody])。
  *    毎回設定画面を開かずここから管理できる。
  *
@@ -111,7 +112,7 @@ fun SnippetsSheet(
     onRun: (String) -> Unit,
     onConnect: (SshProfile) -> Unit = {},
     onSftp: (SshProfile) -> Unit = {},
-    onVnc: (SshProfile) -> Unit = {},
+    onService: (SshProfile, RemoteService) -> Unit = { _, _ -> },
     showSshTab: Boolean = true,
     serverSession: TerminalSession? = null
 ) {
@@ -173,7 +174,7 @@ fun SnippetsSheet(
                 ToolsTab.SSH -> SshProfilesBody(
                     onConnect = { p -> onConnect(p); onDismiss() },
                     onSftp = { p -> onSftp(p); onDismiss() },
-                    onVnc = { p -> onVnc(p); onDismiss() }
+                    onService = { p, service -> onService(p, service); onDismiss() }
                 )
                 ToolsTab.SERVERS -> serverSession?.let { ServersBody(session = it) }
                 ToolsTab.WHEN -> WhenRulesBody()

@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.438-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.439-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -269,7 +269,9 @@ Press it and the key is made, with **copy / share / add to this device's sshd** 
 Give the **public** key to whoever runs the server you connect to (the private key never leaves this device).
 The field for pasting your own private key is still there.
 
-The same **Connections** list also accepts **WebDAV** and **SMB** destinations. Pick the connection type when adding an entry; these two types open the shared file browser directly and do not use or require SSH. WebDAV takes a full `http://` or `https://` base URL. SMB takes a host, port (normally 445), share name and optional domain; SMB1 is disabled.
+In an SSH destination’s editor you can add **FTP, SMB, WebDAV and VNC** services. After saving, each gets its own button outside SSH/SFTP and opens either the shared file browser or a VNC tab. The default is a local port forward through that SSH destination. Set the service port and, optionally, a local port; leaving the local side blank chooses a free port automatically. FTP passive data ports are forwarded automatically for each transfer. Clearing “SSH port forwarding” connects directly to the SSH destination’s host, not the service-specific host, and first warns that SSH encryption will be lost. WebDAV supports HTTP/HTTPS; SMB supports SMB2/3 with SMB1 disabled.
+
+In the SFTP / FTP / SMB / WebDAV file screen, both Android Back and the top-left arrow move up one folder. At the root, they ask before closing the connection and returning to the terminal.
 
 ### Open a remote machine's screen (VNC, 0.8.418)
 

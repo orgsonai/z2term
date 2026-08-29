@@ -22,15 +22,15 @@ jsch = "0.2.26"
 # BouncyCastle — JSch(mwiede) が Android 上で ed25519 / curve25519 / mlkem を扱うのに必須。
 # Android は jsch の JCE(JDK15+ MR-jar) 実装を取り込めず、JCE にも Ed25519 が無いため、
 # BouncyCastle が無いと「ssh-ed25519 is not available」で公開鍵認証が失敗する。
-bouncycastle = "1.84"
+bouncycastle = "1.85.2"
 
 # XZ 解凍 (DL distro の .tar.xz 用、pure-Java 軽量)
 xz = "1.10"
 
 # Remote files
 okhttp = "5.3.0"
-# jcifs-ng は長期安定版 2.1 系。SMB2 を既定で有効化し、一部 SMB3 に対応。
-jcifs = "2.1.9"
+# SMBJ は SMB2/3 専用。現行 Bouncy Castle と同じ版へ揃える。
+smbj = "0.15.0"
 
 # Testing
 junit = "4.13.2"
@@ -66,7 +66,7 @@ xz = { group = "org.tukaani", name = "xz", version.ref = "xz" }
 
 # Remote files
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
-jcifs = { group = "eu.agno3.jcifs", name = "jcifs-ng", version.ref = "jcifs" }
+smbj = { group = "com.hierynomus", name = "smbj", version.ref = "smbj" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

@@ -136,6 +136,9 @@ import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.service.TerminalService
 import com.zerotoship.z2term.ui.components.ResidentActionDialog
 import com.zerotoship.z2term.channel.SshProfile
+import com.zerotoship.z2term.channel.RemoteService
+import com.zerotoship.z2term.channel.RemoteServiceConnector
+import com.zerotoship.z2term.channel.RemoteServiceProtocol
 import com.zerotoship.z2term.ui.settings.SettingsSheet
 import com.zerotoship.z2term.ui.sftp.SftpSheet
 import com.zerotoship.z2term.ui.snippets.SnippetsSheet
@@ -318,8 +321,10 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // 端末ログ (⚪): 記録状態はセッションが持ち、詳細設定シートの開閉だけ画面側で持つ。
     var logSheetOpen by remember { mutableStateOf(false) }
     val logState by active.logState.collectAsState()
-    // SFTP ファイルブラウザ対象のプロファイル (非 null の間シートを表示)
-    var sftpProfile by remember { mutableStateOf<SshProfile?>(null) }
+    // SFTP / FTP / SMB / WebDAV ファイルブラウザ対象 (service=null は SFTP)。
+    // profile と service を別々に更新すると、SMB 等を押した瞬間だけ service=null の
+    // SFTP 接続が先に起動できてしまう。1 値として更新し、別プロトコルへの誤接続を防ぐ。
+    var remoteFileTarget by remember { mutableStateOf<RemoteFileTarget?>(null) }
     var customThemeEditorOpen by remember { mutableStateOf(false) }
     // スクロールバック検索: 検索バーの開閉 / クエリ / ヒット一覧 / 現在ヒット位置。タブ毎にリセット。
     var searchOpen by remember(active.id) { mutableStateOf(false) }
@@ -913,11 +918,26 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                 active.writeBytes(command.toByteArray(Charsets.UTF_8))
             },
             onConnect = { profile -> active.connectSsh(profile) },
-            onSftp = { profile -> sftpProfile = profile },
-            // 同じ接続先の**デスクトップ**を新しいタブで開く (A1)。SSH は経由せず、
-            // 相手の VNC ポートへ直接繋ぐ (127.0.0.1 でしか待っていない相手には
-            // 端末で `ssh -L` を張ってから 127.0.0.1 を指す)。
-            onVnc = { profile -> SessionManager.openRemoteVnc(context, profile.toVncTarget()) },
+            onSftp = { profile -> remoteFileTarget = RemoteFileTarget(profile, null) },
+            onService = { profile, service ->
+                if (service.protocol == RemoteServiceProtocol.VNC) {
+                    scope.launch {
+                        runCatching {
+                            RemoteServiceConnector.vncTarget(profile, service, context)
+                        }.onSuccess { target ->
+                            SessionManager.openRemoteVnc(context, target)
+                        }.onFailure { error ->
+                            android.widget.Toast.makeText(
+                                context,
+                                error.message ?: error.javaClass.simpleName,
+                                android.widget.Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                    }
+                } else {
+                    remoteFileTarget = RemoteFileTarget(profile, service)
+                }
+            },
             // 常駐サーバーの管理をここからも行えるようにする (設定シートを経由しなくてよい)。
             serverSession = active
         )
@@ -942,10 +962,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onDismiss = { logSheetOpen = false }
         )
     }
-    sftpProfile?.let { profile ->
+    remoteFileTarget?.let { target ->
         SftpSheet(
-            profile = profile,
-            onDismiss = { sftpProfile = null }
+            profile = target.profile,
+            service = target.service,
+            onDismiss = { remoteFileTarget = null }
         )
     }
     // ホスト鍵検証はワーカースレッドからブロッキングで呼ばれるため、
@@ -972,6 +993,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
         )
     }
 }
+
+private data class RemoteFileTarget(
+    val profile: SshProfile,
+    val service: RemoteService?,
+)
 
 /**
  * 案内カードのコマンドを端末へ送る (0.8.314)。**Ctrl-C → コマンド → ⏎** の順。

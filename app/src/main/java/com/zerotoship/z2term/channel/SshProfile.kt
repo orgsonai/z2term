@@ -77,6 +77,93 @@ enum class ConnectionProtocol {
     SMB
 }
 
+/** SSH 接続先の外側に並べるリモートサービス。 */
+enum class RemoteServiceProtocol(val defaultPort: Int) {
+    FTP(21),
+    SMB(445),
+    WEBDAV(443),
+    VNC(VncTarget.DEFAULT_PORT)
+}
+
+/**
+ * 1 件の FTP / SMB / WebDAV / VNC 接続設定。
+ *
+ * [useSshTunnel] が true のとき、[host]:[remotePort] は SSH サーバーから見た接続先で、
+ * Android 側の 127.0.0.1:[localPort] へ一時的に `-L` 転送する。[localPort] が 0 なら
+ * OS に空きポートを選ばせる。false のときはサービス個別の [host] を使わず、親の
+ * [SshProfile.host]:[remotePort] へ直接接続する。
+ */
+data class RemoteService(
+    val id: String,
+    val protocol: RemoteServiceProtocol,
+    val name: String = "",
+    val useSshTunnel: Boolean = true,
+    val host: String = "localhost",
+    val remotePort: Int = protocol.defaultPort,
+    val localPort: Int = 0,
+    val user: String = "",
+    /** 平文。永続化時は [KeystoreCrypt] で暗号化する。 */
+    val password: String = "",
+    /** FTP の開始フォルダ / SMB 共有名 / WebDAV のベースパス。 */
+    val path: String = "",
+    /** SMB 認証ドメイン。 */
+    val domain: String = "",
+    /** WebDAV だけで使用。true=https / false=http。 */
+    val webDavHttps: Boolean = true,
+) {
+    val label: String get() = name.ifBlank { protocol.name }
+
+    /** 転送時はサービスホスト、直通時はこのサービスを登録した SSH ホストを使う。 */
+    fun connectionHost(sshProfile: SshProfile): String =
+        if (useSshTunnel) host else sshProfile.host
+
+    fun endpointDescription(sshProfile: SshProfile? = null): String = buildString {
+        append(if (sshProfile == null) host else connectionHost(sshProfile))
+            .append(':').append(remotePort)
+        if (path.isNotBlank()) append('/').append(path.trim('/'))
+    }
+
+    fun toJson(encryptSecrets: Boolean): JSONObject = JSONObject().apply {
+        put("id", id)
+        put("protocol", protocol.name)
+        put("name", name)
+        put("useSshTunnel", useSshTunnel)
+        put("host", host)
+        put("remotePort", remotePort)
+        put("localPort", localPort)
+        put("user", user)
+        put("password", if (encryptSecrets) KeystoreCrypt.encrypt(password) else password)
+        put("path", path)
+        put("domain", domain)
+        put("webDavHttps", webDavHttps)
+    }
+
+    companion object {
+        fun fromJson(o: JSONObject, encryptedSecrets: Boolean): RemoteService {
+            val protocol = runCatching {
+                RemoteServiceProtocol.valueOf(o.optString("protocol"))
+            }.getOrDefault(RemoteServiceProtocol.VNC)
+            val rawPassword = o.optString("password")
+            return RemoteService(
+                id = o.optString("id"),
+                protocol = protocol,
+                name = o.optString("name"),
+                useSshTunnel = o.optBoolean("useSshTunnel", true),
+                host = o.optString("host", "localhost"),
+                remotePort = o.optInt("remotePort", protocol.defaultPort),
+                localPort = o.optInt("localPort", 0),
+                user = o.optString("user"),
+                password = if (encryptedSecrets) {
+                    runCatching { KeystoreCrypt.decrypt(rawPassword) }.getOrDefault("")
+                } else rawPassword,
+                path = o.optString("path"),
+                domain = o.optString("domain"),
+                webDavHttps = o.optBoolean("webDavHttps", true),
+            )
+        }
+    }
+}
+
 /**
  * SSH / WebDAV / SMB 共通接続先。クラス名は保存互換のため維持する。
  *
@@ -128,7 +215,9 @@ data class SshProfile(
     /** WebDAV の URL 内パスとは別に使う SMB の共有名。 */
     val remotePath: String = "",
     /** SMB の認証ドメイン。SSH / WebDAV では空。 */
-    val domain: String = ""
+    val domain: String = "",
+    /** SSH を踏み台にして開く FTP / SMB / WebDAV / VNC。 */
+    val services: List<RemoteService> = emptyList(),
 ) {
     val hasSsh: Boolean get() = protocol == ConnectionProtocol.SSH
 
@@ -178,6 +267,9 @@ data class SshProfile(
         })
         put("remotePath", remotePath)
         put("domain", domain)
+        put("services", JSONArray().also { arr ->
+            services.forEach { arr.put(it.toJson(encryptSecrets = true)) }
+        })
     }
 
     /**
@@ -205,6 +297,9 @@ data class SshProfile(
         put("initCommand", initCommand)
         put("remotePath", remotePath)
         put("domain", domain)
+        put("services", JSONArray().also { arr ->
+            services.forEach { arr.put(it.toJson(encryptSecrets = false)) }
+        })
         put("forwards", JSONArray().also { arr -> forwards.forEach { arr.put(it.toJson()) } })
     }
 
@@ -230,6 +325,7 @@ data class SshProfile(
             initCommand = o.optString("initCommand"),
             remotePath = o.optString("remotePath"),
             domain = o.optString("domain"),
+            services = servicesFromJson(o, encryptedSecrets = false),
             forwards = runCatching {
                 val arr = o.optJSONArray("forwards") ?: return@runCatching emptyList()
                 List(arr.length()) { PortForward.fromJson(arr.getJSONObject(it)) }
@@ -257,12 +353,41 @@ data class SshProfile(
             initCommand = o.optString("initCommand"),
             remotePath = o.optString("remotePath"),
             domain = o.optString("domain"),
+            services = servicesFromJson(o, encryptedSecrets = true),
             forwards = runCatching {
                 val arr = o.optJSONArray("forwards") ?: return@runCatching emptyList()
                 List(arr.length()) { PortForward.fromJson(arr.getJSONObject(it)) }
             }.getOrDefault(emptyList()),
             residentTunnel = o.optBoolean("residentTunnel", false)
         )
+
+        /** 0.8.438 以前の VNC 欄は、初回読込時だけ新しいサービス 1 件として扱う。 */
+        private fun servicesFromJson(o: JSONObject, encryptedSecrets: Boolean): List<RemoteService> {
+            if (o.has("services")) {
+                val arr = o.optJSONArray("services") ?: return emptyList()
+                return List(arr.length()) {
+                    RemoteService.fromJson(arr.getJSONObject(it), encryptedSecrets)
+                }
+            }
+            val protocol = runCatching {
+                ConnectionProtocol.valueOf(o.optString("protocol", ConnectionProtocol.SSH.name))
+            }.getOrDefault(ConnectionProtocol.SSH)
+            if (protocol != ConnectionProtocol.SSH) return emptyList()
+            val rawPassword = o.optString("vncPassword")
+            val password = if (encryptedSecrets) {
+                runCatching { KeystoreCrypt.decrypt(rawPassword) }.getOrDefault("")
+            } else rawPassword
+            return listOf(
+                RemoteService(
+                    id = "legacy-vnc-" + o.optString("id"),
+                    protocol = RemoteServiceProtocol.VNC,
+                    name = "VNC",
+                    host = "localhost",
+                    remotePort = o.optInt("vncPort", VncTarget.DEFAULT_PORT),
+                    password = password,
+                )
+            )
+        }
     }
 }
 
@@ -303,7 +428,13 @@ class SshProfileStore(private val context: Context) {
         val arr = JSONArray()
         list.forEach { p ->
             val strip = if (includeSecrets) p else
-                p.copy(password = "", privateKey = "", keyPassphrase = "", vncPassword = "")
+                p.copy(
+                    password = "",
+                    privateKey = "",
+                    keyPassphrase = "",
+                    vncPassword = "",
+                    services = p.services.map { it.copy(password = "") },
+                )
             arr.put(strip.toPlainJson())
         }
         return arr.toString()
