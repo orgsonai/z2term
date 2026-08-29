@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.435-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.436-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -290,7 +290,8 @@ scroll, and the same keyboard.
 - **A single tap is a left click** and **a double tap is a double click**, as before.
 - **A right click is a press and hold** (0.8.431). Keep your finger still and **a green ring sweeps around the arrow tip; the right click fires the moment it closes** (**0.3 s**, with no need to lift your finger; 0.8.433). Move while the ring is running and it is cancelled, leaving you with plain cursor movement.
 - ⚠ **Tapping or dragging shows no ring** (0.8.433). **The ring only appears once the touch is clearly not a tap** (after 0.15 s) and then closes over the next 0.15 s — it no longer flashes on every tap.
-- To **drag** (move a window, select a range), **double-tap and keep moving**. ⭐ **There is no time limit** (0.8.435): holding the second tap still never ends the decision, so **you can take aim before you move**. ⚠ Through 0.8.434, staying still for 0.3 s fired a right click and closed the decision, after which moving **could no longer start a drag**. ⚠ **Holding the second tap for a right click is gone** — the press-and-hold covers it, and it was getting in the way of dragging.
+- To **drag** (move a window, select a range), **double-tap and keep moving**. ⭐ **Move straight away — no pause needed** (0.8.436). ⭐ **And no time limit** (0.8.435): holding the second tap still never ends the decision, so you can take aim first. ⚠ **Holding the second tap for a right click is gone** — the press-and-hold covers it, and it was getting in the way of dragging.
+- ⚠ **A single tap's left click reaches the server 0.3 s after you lift** (0.8.436). Sent any sooner, a drag that follows looks to the server like **a double click that was then dragged** (through 0.8.435 you had to pause after a double tap for a drag to work). ⭐ **The on-screen cursor still follows your finger instantly** — only the button press waits. The next tap flushes it immediately, so tapping in quick succession never loses a click.
 - To switch the remote Japanese input method, place **Half/Full** (or Convert, Non-convert, Kana or Eisu) anywhere in the custom key-layout editor. If the remote uses `Ctrl+Space` or `Super+Space`, place that modified key instead.
 
 - ⚠ **The server decides the size of the screen.** z2term never resizes it to fit your frame — it may
