@@ -220,6 +220,13 @@
     <string name="settings_delete_os_empty">目前還沒有可刪除的系統資料。</string>
     <string name="settings_delete_os_button">刪除</string>
     <string name="settings_delete_os_in_use">使用中（無法刪除）</string>
+    <!-- 一覧からの削除確認 (0.8.452)。UI のミスタップだけを止める。CLI からの削除は通さない。 -->
+    <string name="confirm_delete_item_msg">「%1$s」將被刪除，且無法復原。</string>
+    <string name="confirm_delete_ssh_profile_title">刪除此連線？</string>
+    <string name="confirm_delete_remote_service_title">刪除此服務？</string>
+    <string name="confirm_delete_forward_title">刪除此連接埠轉送？</string>
+    <string name="confirm_delete_server_title">刪除此伺服器？</string>
+    <string name="confirm_delete_when_rule_title">刪除此規則？</string>
     <string name="confirm_delete_os_title">要刪除 %1$s 的資料嗎？</string>
     <string name="confirm_delete_os_msg">裝在 %1$s 裡的套件、設定和檔案都會消失。此操作無法復原。確定要刪除嗎？</string>
     <string name="action_delete_os">刪除</string>

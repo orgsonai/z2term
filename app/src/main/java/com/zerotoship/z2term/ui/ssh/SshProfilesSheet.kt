@@ -61,6 +61,7 @@ import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
+import com.zerotoship.z2term.ui.components.ConfirmDialog
 import com.zerotoship.z2term.ui.theme.ZtsError
 import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
@@ -98,6 +99,9 @@ fun SshProfilesBody(
     }
     val profiles by profilesFlow.collectAsState()
     var editing by remember { mutableStateOf<SshProfile?>(null) }
+    // 「削除」は「編集」の隣にあり、押し間違えると接続先が鍵ごと消える (0.8.452)。
+    // ⚠ **CLI (z2-ssh) からの削除には確認を挟まない** — 打った時点で明示的なので。
+    var pendingDelete by remember { mutableStateOf<SshProfile?>(null) }
 
     // 常駐トンネル (A2) が張れているかは、ここに出さないと**どこにも出ない**。⏻ の印だけでは
     // 「設定が ON」しか分からず、0.8.367 で LAN 到達性の担保になった以上それでは足りない。
@@ -133,9 +137,7 @@ fun SshProfilesBody(
                         onSftp = { onSftp(p) },
                         onService = { service -> onService(p, service) },
                         onEdit = { editing = p },
-                        onDelete = {
-                            scope.launch { store.delete(p.id) }
-                        }
+                        onDelete = { pendingDelete = p }
                     )
                 }
             }
@@ -161,6 +163,23 @@ fun SshProfilesBody(
                 onCancel = { editing = null }
             )
         }
+    }
+
+    pendingDelete?.let { target ->
+        ConfirmDialog(
+            title = stringResource(R.string.confirm_delete_ssh_profile_title),
+            message = stringResource(
+                R.string.confirm_delete_item_msg,
+                target.name.ifBlank { target.endpointDescription() },
+            ),
+            confirmLabel = stringResource(R.string.ssh_action_delete),
+            confirmColor = ZtsError,
+            onConfirm = {
+                pendingDelete = null
+                scope.launch { store.delete(target.id) }
+            },
+            onCancel = { pendingDelete = null },
+        )
     }
 }
 
@@ -286,12 +305,10 @@ private fun ProfileRow(
             if (profile.hasSsh) {
                 SmallButton(label = stringResource(R.string.ssh_action_connect), accent = true, onClick = onConnect)
                 SmallButton(label = "SFTP", onClick = onSftp)
+                // ⚠ **サービスの緑 (accent) は付けない。** 緑は「そのカードの主アクション」= 接続
+                // だけの印で、種類による色分けではない。VNC だけ緑にすると選択中のように見える。
                 profile.services.forEach { service ->
-                    SmallButton(
-                        label = service.label,
-                        accent = service.protocol == RemoteServiceProtocol.VNC,
-                        onClick = { onService(service) },
-                    )
+                    SmallButton(label = service.label, onClick = { onService(service) })
                 }
             } else {
                 SmallButton(label = profile.fileProtocolLabel, accent = true, onClick = onSftp)
@@ -581,6 +598,8 @@ private fun RemoteServicesSection(
     onChange: (List<RemoteService>) -> Unit,
 ) {
     var pendingDirectId by remember { mutableStateOf<String?>(null) }
+    // × はサービスの見出し行にあり、押すと入力済みのホスト・利用者・パスワードごと消える。
+    var pendingDeleteId by remember { mutableStateOf<String?>(null) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -630,7 +649,7 @@ private fun RemoteServicesSection(
                     onChange(services.map { if (it.id == updated.id) updated else it })
                 },
                 onRequestDirect = { pendingDirectId = service.id },
-                onDelete = { onChange(services.filterNot { it.id == service.id }) },
+                onDelete = { pendingDeleteId = service.id },
             )
         }
     }
@@ -664,6 +683,21 @@ private fun RemoteServicesSection(
                     Text(stringResource(R.string.action_cancel))
                 }
             },
+        )
+    }
+
+    val pendingDelete = services.firstOrNull { it.id == pendingDeleteId }
+    if (pendingDelete != null) {
+        ConfirmDialog(
+            title = stringResource(R.string.confirm_delete_remote_service_title),
+            message = stringResource(R.string.confirm_delete_item_msg, pendingDelete.label),
+            confirmLabel = stringResource(R.string.ssh_action_delete),
+            confirmColor = ZtsError,
+            onConfirm = {
+                pendingDeleteId = null
+                onChange(services.filterNot { it.id == pendingDelete.id })
+            },
+            onCancel = { pendingDeleteId = null },
         )
     }
 }
@@ -913,6 +947,9 @@ private fun PortForwardSection(
     forwards: List<PortForward>,
     onChange: (List<PortForward>) -> Unit
 ) {
+    // × は各行の右端にあり、押すと転送 1 本の設定がまるごと消える (0.8.452)。
+    var pendingDeleteIndex by remember { mutableStateOf<Int?>(null) }
+
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -959,11 +996,34 @@ private fun PortForwardSection(
                     onChange = { newFw ->
                         onChange(forwards.toMutableList().also { it[idx] = newFw })
                     },
-                    onDelete = {
-                        onChange(forwards.toMutableList().also { it.removeAt(idx) })
-                    }
+                    onDelete = { pendingDeleteIndex = idx }
                 )
             }
+        }
+    }
+
+    // 行が減ると添字がずれるので、確認中に消える可能性のある添字は毎回見直す。
+    pendingDeleteIndex?.let { idx ->
+        val target = forwards.getOrNull(idx)
+        if (target == null) {
+            pendingDeleteIndex = null
+        } else {
+            ConfirmDialog(
+                title = stringResource(R.string.confirm_delete_forward_title),
+                // ⚠ 転送の指定は訳さない (一覧の状態表示と同じ理由 — そのまま検索できる形)。
+                message = stringResource(
+                    R.string.confirm_delete_item_msg,
+                    "${if (target.reverse) "-R" else "-L"} ${target.localPort} → " +
+                        "${target.remoteHost}:${target.remotePort}",
+                ),
+                confirmLabel = stringResource(R.string.ssh_action_delete),
+                confirmColor = ZtsError,
+                onConfirm = {
+                    pendingDeleteIndex = null
+                    onChange(forwards.toMutableList().also { it.removeAt(idx) })
+                },
+                onCancel = { pendingDeleteIndex = null },
+            )
         }
     }
 }

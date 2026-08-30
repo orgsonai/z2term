@@ -224,6 +224,13 @@
     <string name="settings_delete_os_empty">No OS data to delete yet.</string>
     <string name="settings_delete_os_button">Delete</string>
     <string name="settings_delete_os_in_use">In use (can\'t delete)</string>
+    <!-- 一覧からの削除確認 (0.8.452)。UI のミスタップだけを止める。CLI からの削除は通さない。 -->
+    <string name="confirm_delete_item_msg">“%1$s” will be deleted and cannot be restored.</string>
+    <string name="confirm_delete_ssh_profile_title">Delete this connection?</string>
+    <string name="confirm_delete_remote_service_title">Delete this service?</string>
+    <string name="confirm_delete_forward_title">Delete this port forward?</string>
+    <string name="confirm_delete_server_title">Delete this server?</string>
+    <string name="confirm_delete_when_rule_title">Delete this rule?</string>
     <string name="confirm_delete_os_title">Delete %1$s data?</string>
     <string name="confirm_delete_os_msg">All packages, settings and files inside %1$s will be erased. This cannot be undone. Delete anyway?</string>
     <string name="action_delete_os">Delete</string>

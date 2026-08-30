@@ -223,6 +223,13 @@
     <string name="settings_delete_os_empty">削除できる OS データはまだありません。</string>
     <string name="settings_delete_os_button">削除</string>
     <string name="settings_delete_os_in_use">使用中（削除不可）</string>
+    <!-- 一覧からの削除確認 (0.8.452)。UI のミスタップだけを止める。CLI からの削除は通さない。 -->
+    <string name="confirm_delete_item_msg">「%1$s」は削除され、元に戻せません。</string>
+    <string name="confirm_delete_ssh_profile_title">この接続先を削除しますか？</string>
+    <string name="confirm_delete_remote_service_title">このサービスを削除しますか？</string>
+    <string name="confirm_delete_forward_title">この転送を削除しますか？</string>
+    <string name="confirm_delete_server_title">このサーバーを削除しますか？</string>
+    <string name="confirm_delete_when_rule_title">このルールを削除しますか？</string>
     <string name="confirm_delete_os_title">%1$s のデータを削除しますか？</string>
     <string name="confirm_delete_os_msg">%1$s に入れたパッケージ・設定・ファイルがすべて消えます。この操作は元に戻せません。本当に削除しますか？</string>
     <string name="action_delete_os">削除する</string>

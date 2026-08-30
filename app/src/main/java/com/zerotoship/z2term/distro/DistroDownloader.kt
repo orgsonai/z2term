@@ -137,9 +137,20 @@ class DistroDownloader(private val context: Context) {
      *     (linuxcontainers の Arch arm64 など)
      */
     private fun resolveDownloadUrl(spec: DistroSpec, abi: String): String? {
-        spec.downloadUrl(abi)?.let { return it }
-        spec.indexUrl(abi)?.let { return resolveFromIndex(it, spec.indexFileName) }
+        spec.downloadUrl(abi)?.let { return requireHttps(it) }
+        spec.indexUrl(abi)?.let { return resolveFromIndex(requireHttps(it), spec.indexFileName) }
         return null
+    }
+
+    /**
+     * rootfs は「端末で動くもの」そのものなので、**平文 HTTP では取りに行かない**。
+     *
+     * ⚠ 0.8.452 でアプリ全体の cleartext 禁止を解いた (利用者が指定する WebDAV が
+     * http:// でも繋がるようにするため)。配布元の保護はネットワーク設定を離れ、ここが持つ。
+     */
+    private fun requireHttps(url: String): String {
+        require(url.startsWith("https://")) { "rootfs は HTTPS でのみ取得する: $url" }
+        return url
     }
 
     /**

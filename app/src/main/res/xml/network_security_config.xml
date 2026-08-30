@@ -2,16 +2,24 @@
 <!--
   Z2Term ネットワークセキュリティ設定。
 
-  - cleartext (平文 HTTP) を全面禁止。distro rootfs のダウンロードは全て HTTPS、
-    SSH (JSch) は HTTP の枠外なので影響しない。
   - 信頼アンカーはシステム CA のみ (ユーザー追加 CA を使わない = MITM 耐性)。
-
-  targetSdk 28+ の既定も no-cleartext だが、配布物として方針を明示しておく。
+  - ⚠ **cleartext (平文 HTTP) は既定で許可する (0.8.452)。** 利用者が自分で指定する接続先
+    (WebDAV) は http:// が普通にあり得るうえ、SSH トンネル経由の WebDAV も
+    `http://<host>:<転送ポート>` になる。ここを禁止すると OkHttp が接続前に例外を投げ、
+    サーバーへ 1 バイトも出さないまま「一覧取得に失敗」で終わる。平文で繋ぐことの危険は
+    接続先の編集画面で警告している (remote_direct_warning) ので、判断は利用者に委ねる。
+  - ⚠ **アプリ自身が使う固定の宛先は個別に平文を禁止する。** 更新確認と APK の入手先は
+    ここで押さえ、rootfs のダウンロードは [DistroDownloader] が URL の scheme を検証する
+    (ホストを列挙しないので、配布元が増えても取りこぼさない)。
 -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false">
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+    <!-- 更新確認 (api.github.com) と APK の入手先 (github.com)。平文へ落とさせない。 -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">github.com</domain>
+    </domain-config>
 </network-security-config>

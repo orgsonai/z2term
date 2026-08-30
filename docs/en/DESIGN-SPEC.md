@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-31 / Target version: 0.8.455-alpha (versionCode 463)
+Last updated: 2026-08-31 / Target version: 0.8.456-alpha (versionCode 464)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2543,6 +2543,9 @@ into "close" — you would not be able to delete while the pad is open.
 - `SshProfilesSheet` is the shared destination list. SSH edits host/port/user/auth (password or private key + passphrase)/initCommand/forwarding; WebDAV edits a base URL and basic-auth credentials; SMB edits host/port/share/domain/credentials. Only SSH rows expose terminal, VNC and resident-tunnel actions.
 - `RemoteFs` is the file-screen boundary (`list`, stream upload/download, mkdir, rename and delete). `RemoteFsFactory` selects SFTP, direct WebDAV or direct SMB, so WebDAV/SMB do not depend on an SSH server. WebDAV uses standard TLS verification. SMB negotiates SMB2/3 only and refuses SMB1.
 - On SSH shell connect, `SessionManager.openNew` + `startSsh(profile)`. The host key is confirmed in `HostKeyVerificationDialog` (saved to `KnownHosts`).
+- ⚠ **Cleartext HTTP is no longer blocked (0.8.452)**: WebDAV peers commonly speak `http://`, and even a tunnelled service is reached as `http://<host>:<forwarded port>`. While the app banned cleartext globally, OkHttp raised before opening the socket, so **not a single byte reached the server and the user only saw "failed to list"** (with no trace in the server log either). The risk of an unencrypted hop is already warned about in the service editor, so the choice is left to the user. ⚠ **What the app itself fetches still requires HTTPS**: update checks and APKs via a `domain-config` in `network_security_config.xml`, and rootfs downloads via `DistroDownloader.requireHttps`, which validates the URL scheme instead of listing hosts.
+- **Deleting from a list asks first (0.8.452)**: the ✕ / delete controls for connections, services and port forwards all sit next to the edit button, so a mistap used to destroy stored keys and passwords outright. A shared `ConfirmDialog` intercepts them and names what is about to go. ⚠ **Deletes issued from the CLI are not intercepted** — a typed command is explicit by construction. Resident servers (`ServersBody`) and automation rules (`WhenRulesBody`) follow the same rule.
+- **Green (accent) marks only the primary action of a card (0.8.452)**: connect is green; SFTP and every service is outline-only. VNC used to be green too, which read either as a per-protocol colour code or as a selected state.
 
 ### 6.3.1 Remote VNC (the screen, A1, 0.8.418)
 

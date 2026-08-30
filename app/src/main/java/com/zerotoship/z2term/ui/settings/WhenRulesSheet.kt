@@ -65,6 +65,7 @@ import com.zerotoship.z2term.settings.WhenTriggerCatalog
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
+import com.zerotoship.z2term.ui.components.ConfirmDialog
 import com.zerotoship.z2term.ui.theme.ZtsError
 import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextPrimary
@@ -175,6 +176,10 @@ fun WhenRulesBody() {
     // 編集中はフォームだけを出す (常駐サーバータブと同じ作り)。
     var editing by remember { mutableStateOf<WhenRule?>(null) }
     var isNew by remember { mutableStateOf(false) }
+    // ✕ で消す前に一度止める (0.8.452)。一覧の ✕ は編集ボタンの隣にあり、ミスタップが
+    // そのままルールの消失になっていた。⚠ **`z2-when` からの削除には確認を挟まない** —
+    // コマンドは打った時点で明示的で、対話の余地がない。
+    var pendingDelete by remember { mutableStateOf<WhenRule?>(null) }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -269,12 +274,7 @@ fun WhenRulesBody() {
                         },
                         onRunNow = { scope.launch(Dispatchers.IO) { WhenManager.runNow(context, rule) } },
                         onEdit = { isNew = false; editing = rule },
-                        onDelete = {
-                            scope.launch(Dispatchers.IO) {
-                                WhenManager.removeRule(context, rule.id)
-                                reloadTick++
-                            }
-                        }
+                        onDelete = { pendingDelete = rule }
                     )
                 }
             }
@@ -326,6 +326,27 @@ fun WhenRulesBody() {
 
         Spacer(modifier = Modifier.height(2.dp))
         HintBox(stringResource(R.string.when_hint))
+    }
+
+    pendingDelete?.let { target ->
+        ConfirmDialog(
+            title = stringResource(R.string.confirm_delete_when_rule_title),
+            // 名前は任意なので、無ければトリガーで指す (一覧の見出しと同じ出し方)。
+            message = stringResource(
+                R.string.confirm_delete_item_msg,
+                target.name.ifBlank { target.trigger },
+            ),
+            confirmLabel = stringResource(R.string.ssh_action_delete),
+            confirmColor = ZtsError,
+            onConfirm = {
+                pendingDelete = null
+                scope.launch(Dispatchers.IO) {
+                    WhenManager.removeRule(context, target.id)
+                    reloadTick++
+                }
+            },
+            onCancel = { pendingDelete = null },
+        )
     }
 }
 

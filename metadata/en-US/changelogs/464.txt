@@ -1,0 +1,5 @@
+0.8.456-alpha
+
+- WebDAV now connects over plain http:// (the app used to block every cleartext HTTP request, so choosing HTTP always failed to list files).
+- Deleting a destination, service, port forward, resident server or automation rule from the app now asks for confirmation; deleting from the command line is unchanged.
+- Fixed the VNC button on a destination row looking selected by being the only green service button.

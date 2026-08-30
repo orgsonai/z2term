@@ -220,6 +220,13 @@
     <string name="settings_delete_os_empty">目前还没有可删除的系统数据。</string>
     <string name="settings_delete_os_button">删除</string>
     <string name="settings_delete_os_in_use">使用中（无法删除）</string>
+    <!-- 一覧からの削除確認 (0.8.452)。UI のミスタップだけを止める。CLI からの削除は通さない。 -->
+    <string name="confirm_delete_item_msg">“%1$s”将被删除，且无法恢复。</string>
+    <string name="confirm_delete_ssh_profile_title">删除此连接？</string>
+    <string name="confirm_delete_remote_service_title">删除此服务？</string>
+    <string name="confirm_delete_forward_title">删除此端口转发？</string>
+    <string name="confirm_delete_server_title">删除此服务器？</string>
+    <string name="confirm_delete_when_rule_title">删除此规则？</string>
     <string name="confirm_delete_os_title">要删除 %1$s 的数据吗？</string>
     <string name="confirm_delete_os_msg">装在 %1$s 里的软件包、设置和文件都会消失。此操作无法撤销。确定要删除吗？</string>
     <string name="action_delete_os">删除</string>

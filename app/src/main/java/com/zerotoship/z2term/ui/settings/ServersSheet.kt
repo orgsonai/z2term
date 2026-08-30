@@ -53,6 +53,7 @@ import com.zerotoship.z2term.core.TerminalSession
 import com.zerotoship.z2term.service.ServerDaemonManager
 import com.zerotoship.z2term.service.ServerDaemonService
 import com.zerotoship.z2term.settings.ServerEntry
+import com.zerotoship.z2term.ui.components.ConfirmDialog
 import com.zerotoship.z2term.ui.components.ReorderHandle
 import com.zerotoship.z2term.ui.components.Z2TermDragHandle
 import com.zerotoship.z2term.ui.components.rememberReorderState
@@ -142,6 +143,9 @@ fun ServersBody(session: TerminalSession) {
 
     var editing by remember { mutableStateOf<ServerEntry?>(null) }
     var isNew by remember { mutableStateOf(false) }
+    // ✕ で消す前に一度止める (0.8.452)。✕ は ✎ の隣にあり、ミスタップがそのまま
+    // サーバー定義の消失になっていた。⚠ **`z2-server` からの削除には確認を挟まない**。
+    var pendingDelete by remember { mutableStateOf<ServerEntry?>(null) }
 
     // ドラッグ並べ替え (スニペットタブと同じ操作)。指を離したところで並びを保存する。
     val reorder = rememberReorderState(spacing = 10.dp) { ids ->
@@ -262,7 +266,7 @@ fun ServersBody(session: TerminalSession) {
                             if (running) ServerDaemonManager.setWant(context, e.id, checked)
                         },
                         onEdit = { isNew = false; editing = e },
-                        onDelete = { persist(entries.filterNot { it.id == e.id }) }
+                        onDelete = { pendingDelete = e }
                     )
                 }
             }
@@ -270,6 +274,23 @@ fun ServersBody(session: TerminalSession) {
 
         Spacer(modifier = Modifier.height(2.dp))
         HintBox(stringResource(R.string.servers_hint))
+    }
+
+    pendingDelete?.let { target ->
+        ConfirmDialog(
+            title = stringResource(R.string.confirm_delete_server_title),
+            message = stringResource(
+                R.string.confirm_delete_item_msg,
+                target.name.ifBlank { target.command },
+            ),
+            confirmLabel = stringResource(R.string.ssh_action_delete),
+            confirmColor = ZtsError,
+            onConfirm = {
+                pendingDelete = null
+                persist(entries.filterNot { it.id == target.id })
+            },
+            onCancel = { pendingDelete = null },
+        )
     }
 }
 

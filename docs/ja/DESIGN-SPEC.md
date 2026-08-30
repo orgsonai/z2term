@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-31 / 対象バージョン: 0.8.455-alpha (versionCode 463)
+最終更新: 2026-08-31 / 対象バージョン: 0.8.456-alpha (versionCode 464)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -2471,6 +2471,9 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 - `SshProfilesSheet` は共通接続先一覧。SSHではhost/port/user/認証（パスワード or 秘密鍵+パスフレーズ）/initCommand/転送、WebDAVではベースURLとBasic認証、SMBではhost/port/共有名/domain/認証を編集する。端末・VNC・常駐トンネル操作はSSH行だけに出す。
 - ファイル画面との境界は `RemoteFs`（一覧・ストリームupload/download・mkdir・rename・delete）。`RemoteFsFactory` がSFTP・直接WebDAV・直接SMBを選ぶので、WebDAV/SMBはSSHサーバーに依存しない。WebDAVは通常のTLS証明書検証、SMBはSMB2/3だけを許可してSMB1を拒否する。
 - SSHシェル接続時は `SessionManager.openNew` + `startSsh(profile)`。host key は `HostKeyVerificationDialog` で確認 (`KnownHosts` に保存)。
+- ⚠ **平文 HTTP を禁止しない (0.8.452)**: WebDAV は `http://` の相手が普通にあるうえ、SSH 転送越しでも `http://<host>:<転送ポート>` になる。アプリ全体で cleartext を禁じていた頃は、OkHttp が接続を張る前に例外を投げ、**サーバーへ 1 バイトも出さないまま「一覧取得に失敗」で終わっていた** (相手側のログにも痕跡が残らない)。平文で繋ぐ危険は接続先の編集画面が警告するので、判断は利用者に委ねる。⚠ **アプリ自身が取りに行くものだけは HTTPS を強制する** — 更新確認と APK は `network_security_config.xml` の domain-config、rootfs は `DistroDownloader.requireHttps` が URL の scheme を検証する (ホストを列挙しないので配布元が増えても取りこぼさない)。
+- **一覧から消すときだけ確認を挟む (0.8.452)**: 接続先・サービス・ポート転送の ✕ / 削除はいずれも編集ボタンの隣にあり、ミスタップがそのまま鍵やパスワードごとの消失になる。共通の `ConfirmDialog` で 1 度止め、消える対象の名前を出す。⚠ **CLI からの削除には確認を挟まない** — コマンドは打った時点で明示的で、対話の余地がない。常駐サーバー (`ServersBody`) と自動化ルール (`WhenRulesBody`) の ✕ も同じ扱い。
+- **緑 (accent) は「そのカードの主アクション」だけに付ける (0.8.452)**: 接続だけが緑で、SFTP と各サービスは枠線のみ。以前は VNC にも緑が付いており、種類による色分けとも選択状態とも読めた。
 
 ### 6.3.1 リモート VNC (画面・A1・0.8.418)
 
