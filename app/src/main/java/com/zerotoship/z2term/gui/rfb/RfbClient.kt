@@ -3,6 +3,7 @@ package com.zerotoship.z2term.gui.rfb
 import android.graphics.Bitmap
 import android.util.Log
 import androidx.core.graphics.createBitmap
+import com.zerotoship.z2term.gui.RemoteDesktopClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,7 +37,7 @@ class RfbClient(
     private val host: String = "127.0.0.1",
     private val port: Int = 5901,
     password: String = "",
-) {
+) : RemoteDesktopClient {
     /**
      * VNC 認証 (security type 2) のパスワード。空ならパスワードを要求しないサーバ専用
      * (ローカルの Xvnc はこちら)。入れ直して [connect] をやり直せるよう var にしてある。
@@ -46,23 +47,23 @@ class RfbClient(
 
     /** ServerInit で受け取る画面サイズ。connect 後に有効。ExtendedDesktopSize で動的に変わる。 */
     @Volatile
-    var width = 0
+    override var width = 0
         private set
     @Volatile
-    var height = 0
+    override var height = 0
         private set
-    var desktopName = ""
+    override var desktopName = ""
         private set
 
     /** 描画対象 Bitmap。connect 成功後に確保。setPixels と描画は [frameLock] で直列化する。 */
     @Volatile
-    var frame: Bitmap? = null
+    override var frame: Bitmap? = null
         private set
-    val frameLock = Any()
+    override val frameLock = Any()
 
     private val _redraw = MutableStateFlow(0)
     /** フレーム更新の度にインクリメント。Compose 側はこれを collect して再描画する。 */
-    val redraw: StateFlow<Int> = _redraw.asStateFlow()
+    override val redraw: StateFlow<Int> = _redraw.asStateFlow()
 
     private val _connected = MutableStateFlow(false)
     val connected: StateFlow<Boolean> = _connected.asStateFlow()
@@ -71,7 +72,7 @@ class RfbClient(
      * サーバ (xterm 等) が選択/コピーしたテキストを受け取るコールバック (M8-6 T6)。
      * 受信ループ (IO スレッド) から呼ばれる。Android クリップボードへ反映するのは呼び出し側 ([GuiSession])。
      */
-    var onServerCutText: ((String) -> Unit)? = null
+    override var onRemoteClipboardText: ((String) -> Unit)? = null
 
     private var socket: Socket? = null
     private var input: DataInputStream? = null
@@ -112,7 +113,7 @@ class RfbClient(
     /**
      * 同期接続 + RFB 3.8 ハンドシェイク。**IO スレッドで呼ぶこと**。失敗時は例外を投げる。
      */
-    fun connect(timeoutMs: Int = 8000) {
+    override fun connect(timeoutMs: Int) {
         // 繋ぎ直し (切断された / パスワードを入れ直した) に備え、前回の残骸を先に畳む。
         // ZRLE の zlib ストリームは接続ごとに最初からなので、[inflater] も巻き戻す
         // (使い回すと前の接続の続きとして展開してしまい、画面が壊れる)。
@@ -311,7 +312,7 @@ class RfbClient(
      * @param buttonMask ボタン状態のビットマスク。bit0=左, bit1=中, bit2=右, bit3=ホイール上, bit4=ホイール下。
      * @param x,y フレームバッファ座標（呼び出し側で表示→FB 変換済み。範囲外はクランプ）。
      */
-    fun sendPointerEvent(buttonMask: Int, x: Int, y: Int) {
+    override fun sendPointerEvent(buttonMask: Int, x: Int, y: Int) {
         if (closed) return
         val cx = x.coerceIn(0, (width - 1).coerceAtLeast(0))
         val cy = y.coerceIn(0, (height - 1).coerceAtLeast(0))
@@ -331,7 +332,7 @@ class RfbClient(
      * キーイベント (RFB type 4) を送る。**UI スレッドから呼んでよい**（書き込みは [sender] に退避）。
      * keysym は X11 の値（[com.zerotoship.z2term.gui.GuiKeyMapper] で変換）。
      */
-    fun sendKeyEvent(keysym: Int, down: Boolean) {
+    override fun sendKeyEvent(keysym: Int, down: Boolean) {
         if (closed || keysym == 0) return
         submitWrite {
             val out = output ?: return@submitWrite
@@ -363,7 +364,7 @@ class RfbClient(
     }
 
     /** keysym を down→up でまとめて送る（タップ入力や文字確定で使う）。 */
-    fun tapKey(keysym: Int) {
+    override fun tapKey(keysym: Int) {
         sendKeyEvent(keysym, down = true)
         sendKeyEvent(keysym, down = false)
     }
@@ -372,7 +373,7 @@ class RfbClient(
      * サーバ→クライアントのメッセージを処理し続ける。**IO スレッドで呼ぶ**。
      * [close] されるか接続が切れると返る。
      */
-    fun run() {
+    override fun run() {
         val inp = input ?: return
         val out = output ?: return
         try {
@@ -510,25 +511,25 @@ class RfbClient(
      * クライアントから解像度変更を要求する (SetDesktopSize, type 251)。**UI スレッドから呼んでよい**。
      * 1 スクリーン構成 (0,0 起点) で要求する。サーバが対応していれば ExtendedDesktopSize 矩形で応答が返る。
      */
-    fun requestDesktopSize(reqW: Int, reqH: Int) {
-        if (closed || reqW !in 1..8192 || reqH !in 1..8192) return
-        if (reqW == width && reqH == height) return
+    override fun requestDesktopSize(width: Int, height: Int) {
+        if (closed || width !in 1..8192 || height !in 1..8192) return
+        if (width == this.width && height == this.height) return
         val id = if (hasScreenId) screenId else 1
         submitWrite {
             val out = output ?: return@submitWrite
             synchronized(writeLock) {
                 out.writeByte(MSG_SET_DESKTOP_SIZE)
                 out.writeByte(0)            // padding
-                out.writeShort(reqW)
-                out.writeShort(reqH)
+                out.writeShort(width)
+                out.writeShort(height)
                 out.writeByte(1)            // number-of-screens
                 out.writeByte(0)            // padding
                 // screen[0]
                 out.writeInt(id)
                 out.writeShort(0)           // x
                 out.writeShort(0)           // y
-                out.writeShort(reqW)
-                out.writeShort(reqH)
+                out.writeShort(width)
+                out.writeShort(height)
                 out.writeInt(0)             // flags
                 out.flush()
             }
@@ -726,7 +727,7 @@ class RfbClient(
         val body = ByteArray(cap)
         inp.readFully(body)
         if (len > cap) skipFully(inp, len - cap)
-        runCatching { onServerCutText?.invoke(String(body, Charsets.ISO_8859_1)) }
+        runCatching { onRemoteClipboardText?.invoke(String(body, Charsets.ISO_8859_1)) }
     }
 
     private fun skipFully(inp: DataInputStream, n: Long) {
@@ -742,7 +743,7 @@ class RfbClient(
         }
     }
 
-    fun close() {
+    override fun close() {
         closed = true
         _connected.value = false
         runCatching { sender.shutdownNow() }
@@ -769,13 +770,6 @@ class RfbClient(
         private const val MSG_KEY_EVENT = 4
         private const val MSG_POINTER_EVENT = 5
         private const val MSG_SET_DESKTOP_SIZE = 251
-
-        // pointer button masks (RFB)
-        const val BTN_LEFT = 1 shl 0
-        const val BTN_MIDDLE = 1 shl 1
-        const val BTN_RIGHT = 1 shl 2
-        const val BTN_WHEEL_UP = 1 shl 3
-        const val BTN_WHEEL_DOWN = 1 shl 4
 
         // server→client message types
         private const val SRV_FB_UPDATE = 0

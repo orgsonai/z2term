@@ -37,7 +37,7 @@ import java.net.SocketTimeoutException
  *  1. PRoot で `z2gui start <W>x<H>` を起動（[ProotLauncher] 流用）。z2gui は内部で apk add 済み確認 →
  *     Xvnc + openbox を起動し、`wait` でブロックし続ける（proot が生き続ける）。
  *  2. RFB ポート (127.0.0.1:5901) が開くのを待つ。
- *  3. [RfbClient] で接続し、受信ループを IO で回す → [RfbClient.frame] が更新され GuiScreen が描画。
+ *  3. [RemoteDesktopClient] で接続し、受信ループを IO で回す → frame が更新され GuiScreen が描画。
  *  4. [stop] で PtyProcess を閉じる → proot 終了 → `--kill-on-exit` で Xvnc も停止。
  *
  * 入力（ポインタ/キー）は M8-3、タブ統合・ズーム/パン等は M8-4。
@@ -84,13 +84,13 @@ class GuiSession(
     private val _message = MutableStateFlow("")
     val message: StateFlow<String> = _message.asStateFlow()
 
-    val rfb = RfbClient(
+    val desktopClient: RemoteDesktopClient = RfbClient(
         host = remote?.host ?: "127.0.0.1",
         port = rfbPort,
         password = remote?.password ?: "",
     ).also { client ->
         // GUI (xterm 等) で選択/コピーしたテキストを Android クリップボードへ反映 (M8-6 T6)。
-        client.onServerCutText = { text -> copyToAndroidClipboard(text) }
+        client.onRemoteClipboardText = { text -> copyToAndroidClipboard(text) }
     }
 
     /** ズーム/パンの表示変換。GuiScreen(描画) と GuiInputView(入力) で共有。タブ切替・回転でも保持。 */
@@ -194,8 +194,8 @@ class GuiSession(
                 }
                 syncCursorAfterConnect()
                 _state.value = State.CONNECTED
-                _message.value = "${rfb.width}x${rfb.height}  ${rfb.desktopName}"
-                rxJob = scope.launch { rfb.run() }
+                _message.value = "${desktopClient.width}x${desktopClient.height}  ${desktopClient.desktopName}"
+                rxJob = scope.launch { desktopClient.run() }
                 // GUI 音声 ON のとき: PulseAudio の TCP 出力 (127.0.0.1:audioPort) を AudioTrack で再生開始。
                 // PulseAudio 側の起動より先でも接続拒否はリトライするので、ここで張っておいて問題ない。
                 if (audioPort != null) {
@@ -223,7 +223,7 @@ class GuiSession(
         _message.value = context.getString(R.string.vnc_connecting, target.host, target.port)
         scope.launch {
             try {
-                rfb.connect()
+                desktopClient.connect()
             } catch (e: Exception) {
                 target.closeTransport()
                 fail(remoteFailureMessage(e))
@@ -231,9 +231,9 @@ class GuiSession(
             }
             syncCursorAfterConnect()
             _state.value = State.CONNECTED
-            _message.value = "${rfb.width}x${rfb.height}  ${rfb.desktopName}"
+            _message.value = "${desktopClient.width}x${desktopClient.height}  ${desktopClient.desktopName}"
             rxJob = scope.launch {
-                rfb.run()
+                desktopClient.run()
                 // 受信ループが返る = 相手が切った / 回線が落ちた。こちらから閉じたときは
                 // stop() が STOPPED にしているので、CONNECTED のままのときだけ知らせる。
                 if (_state.value == State.CONNECTED) {
@@ -250,8 +250,8 @@ class GuiSession(
      * タブへ戻るたび中央へワープすることはない。
      */
     private fun syncCursorAfterConnect() {
-        val pos = cursor.fitTo(rfb.width, rfb.height) ?: return
-        rfb.sendPointerEvent(0, pos.x.toInt(), pos.y.toInt())
+        val pos = cursor.fitTo(desktopClient.width, desktopClient.height) ?: return
+        desktopClient.sendPointerEvent(0, pos.x.toInt(), pos.y.toInt())
     }
 
     /**
@@ -366,7 +366,7 @@ class GuiSession(
         // z2gui (proot) が終了したら Xvnc はもう立たない → 待たずに失敗扱い。
         while (!ptyClosed) {
             try {
-                rfb.connect()
+                desktopClient.connect()
                 return true
             } catch (_: ConnectException) {
                 delay(300) // ポート未起動 (接続拒否) → 少し待って再試行
@@ -386,7 +386,7 @@ class GuiSession(
         if (remote != null) return
         if (_state.value != State.CONNECTED) return
         if (width <= 0 || height <= 0) return
-        rfb.requestDesktopSize(width, height)
+        desktopClient.requestDesktopSize(width, height)
     }
 
     /** [com.zerotoship.z2term.core.AppSession] 実装。タブクローズ時に呼ばれる。 */
@@ -396,7 +396,7 @@ class GuiSession(
         scope.launch {
             runCatching { audioBridge?.stop() }
             audioBridge = null
-            runCatching { rfb.close() }
+            runCatching { desktopClient.close() }
             remote?.closeTransport()
             runCatching { rxJob?.cancel() }
             // Xvnc は proot の ptrace 対象。pty.close() は proot に SIGHUP を送るだけで、

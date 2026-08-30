@@ -41,9 +41,9 @@ import androidx.compose.foundation.layout.widthIn
 /**
  * GUI セッションのリモート画面 (M8-2 表示 + M8-3 入力)。
  *
- * [RfbClient][com.zerotoship.z2term.gui.rfb.RfbClient] が更新する Bitmap を、アスペクト比を保ったまま
- * 中央にフィット表示する。再描画は `rfb.redraw` の collect で発火（端末 TerminalRenderer と同方式）。
- * CONNECTED 後は [GuiInputView] を上に重ねてタッチ/キー入力を RFB へ送る（座標フィット計算は
+ * [RemoteDesktopClient] が更新する Bitmap を、アスペクト比を保ったまま
+ * 中央にフィット表示する。再描画は `desktopClient.redraw` の collect で発火（端末 TerminalRenderer と同方式）。
+ * CONNECTED 後は [GuiInputView] を上に重ねてタッチ/キー入力を接続先へ送る（座標フィット計算は
  * GuiInputView 側と一致させてある）。
  *
  * キーボードは端末と共通の「ツールバー仕様」を [GuiTabScreen][com.zerotoship.z2term.ui.terminal] 側で
@@ -64,7 +64,7 @@ fun GuiScreen(
 ) {
     val state by session.state.collectAsState()
     val message by session.message.collectAsState()
-    val tick by session.rfb.redraw.collectAsState()
+    val tick by session.desktopClient.redraw.collectAsState()
     val vrev by session.viewport.rev.collectAsState()
     val crev by session.cursor.rev.collectAsState()
 
@@ -91,7 +91,7 @@ fun GuiScreen(
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             @Suppress("UNUSED_EXPRESSION") run { tick; vrev; crev } // FB / 表示変換 / カーソル変更で再描画
-            val bmp = session.rfb.frame ?: return@Canvas
+            val bmp = session.desktopClient.frame ?: return@Canvas
             val bw = bmp.width.toFloat()
             val bh = bmp.height.toFloat()
             if (bw <= 0f || bh <= 0f) return@Canvas
@@ -102,12 +102,12 @@ fun GuiScreen(
             val left = (size.width - dw) / 2f + session.viewport.panX
             val top = (size.height - dh) / 2f + session.viewport.panY
             drawIntoCanvas { canvas ->
-                synchronized(session.rfb.frameLock) {
+                synchronized(session.desktopClient.frameLock) {
                     canvas.nativeCanvas.drawBitmap(bmp, null, RectF(left, top, left + dw, top + dh), null)
                 }
             }
 
-            // 画面に出るポインタはこの 1 個だけ。RfbClient がカーソル擬似エンコーディングを
+            // 画面に出るポインタはこの 1 個だけ。RFB クライアントがカーソル擬似エンコーディングを
             // 要求しているので、対応するサーバは framebuffer へ焼き込まない (0.8.431。要求する
             // 前は焼き込まれた相手のポインタとこの矢印が並んで 2 個に見えていた)。要求を
             // 無視するサーバでも位置が分かるよう、こちらの矢印は常に描く。形は
@@ -128,11 +128,11 @@ fun GuiScreen(
         }
 
         if (state == GuiSession.State.CONNECTED) {
-            // 透明オーバーレイ: タッチ/キー → RFB 入力。OS IME 表示はキーボードモードに追従。
+            // 透明オーバーレイ: タッチ/キー → リモート入力。OS IME 表示はキーボードモードに追従。
             AndroidView(
                 factory = { ctx ->
                     GuiInputView(ctx).also {
-                        it.rfb = session.rfb
+                        it.desktopClient = session.desktopClient
                         it.viewport = session.viewport
                         it.cursor = session.cursor
                         it.ctrlSticky = ctrlSticky
@@ -140,7 +140,7 @@ fun GuiScreen(
                     }
                 },
                 update = {
-                    it.rfb = session.rfb
+                    it.desktopClient = session.desktopClient
                     it.viewport = session.viewport
                     it.cursor = session.cursor
                     it.ctrlSticky = ctrlSticky

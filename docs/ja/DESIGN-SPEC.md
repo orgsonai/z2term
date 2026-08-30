@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-30 / 対象バージョン: 0.8.449-alpha (versionCode 457)
+最終更新: 2026-08-30 / 対象バージョン: 0.8.450-alpha (versionCode 458)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1851,7 +1851,8 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 
 - distro 内で **Xvnc**(VNC サーバ) + 軽量 WM/アプリを起動（`proot/GuiScript.kt` が冪等で配置・起動。GUI 自動起動 / 横画面対応）。
 - **GUI 一式の導入 (`ensure_pkgs`)**: Xvnc / openbox / 選択ターミナルが揃っていれば**無通信で即起動**（導入済みを毎回 update/再取得しないポリシー）。**未導入のときだけ**不足分を `install_pkgs`（apk add / apt install / pacman -S）で取得し、取れなければ明確に案内して失敗する。app 側 (`TerminalScreen`) のダウンロード確認ゲート (`confirmBeforeDownload`) が同意を取ってから走る。`clean` 指定時のみ cache を消して入れ直す (`clean_pkgs`、破損状態の救済)。
-- `GuiSession`/`GuiActivity`/`GuiScreen`/`GuiViewport`/`GuiInputView`/`GuiKeyMapper`/`GuiEventWatcher` + `gui/rfb/RfbClient.kt`(内蔵 RFB クライアント)。端末タブと GUI タブをペアリングし IME 連動。
+- `GuiSession`/`GuiActivity`/`GuiScreen`/`GuiViewport`/`GuiInputView`/`GuiKeyMapper`/`GuiEventWatcher` + `gui/RemoteDesktopClient.kt`（描画・入力の共通境界）+ `gui/rfb/RfbClient.kt`（内蔵 RFB 実装）。端末タブと GUI タブをペアリングし IME 連動。`GuiSession`・Compose 描画・入力 View・GUI キーボードは `RfbClient` 型を直接要求せず、同じ境界へ RDP 実装を差せる（0.8.450）。
+- **RDP はまだ利用者向け機能ではない（0.8.450 の NLA スパイク）**: `gui/rdp/` に X.224 の Enhanced Security negotiation（TLS + CredSSP 要求）、同じ TCP 接続の TLS 昇格、証明書 fingerprint 承認を差し込む境界、CredSSP `TSRequest` の ASN.1 DER、NTLMv2 の MD4/HMAC-MD5 応答・セッション基底鍵までを依存追加なしで実装した。⚠ 接続先 UI、NTLM の3メッセージ/SPNEGOと sealing、公開鍵 binding の送受信、MCS・画面・入力は未接続なので、現時点で `[RDP]` は表示しない。
 - **入力**: `GuiInputView` のジェスチャ — **2 本指 = ピンチ(ズーム/パン)**、**3 本指縦移動 = ホイール上/下スクロール**（一度 3 本指になったら全指が離れるまでスクロール扱い）。旧スクロールボタンと `RfbClient.scrollWheel` は撤去。
 - **動画**: GPU 無し端末で `gpu` 出力が失敗するため、mpv を **`vo=x11` 既定 + `LIBGL_ALWAYS_SOFTWARE`** でソフト描画させて正常再生。
 - **音声 (`service/AudioBridge.kt`)**: **オプトイン**（設定「GUI 音声」`guiAudioEnabled` ON 時のみ）。distro 内 PulseAudio(`-n` 方式で起動) → TCP → Android `AudioTrack` でブリッジ。

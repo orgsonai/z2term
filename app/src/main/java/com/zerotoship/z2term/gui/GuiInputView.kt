@@ -13,13 +13,12 @@ import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
-import com.zerotoship.z2term.gui.rfb.RfbClient
 
 /**
  * GUI セッションの入力オーバーレイ View (M8-3)。
  *
- * [GuiScreen] の Compose Canvas の上に透明で重ね、タッチとキーを RFB の
- * [PointerEvent][RfbClient.sendPointerEvent] / [KeyEvent][RfbClient.sendKeyEvent] へ変換して送る。
+ * [GuiScreen] の Compose Canvas の上に透明で重ね、タッチとキーを
+ * [RemoteDesktopClient.sendPointerEvent] / [RemoteDesktopClient.sendKeyEvent] へ変換して送る。
  *
  * ポインタ（トラックパッド式の「相対移動」。仮想カーソルを保持し触った位置へは飛ばない）:
  *  - 1 本指移動        : カーソルを相対移動（リモート側 X カーソルが動く）
@@ -57,7 +56,7 @@ import com.zerotoship.z2term.gui.rfb.RfbClient
  */
 class GuiInputView(context: Context) : View(context) {
 
-    var rfb: RfbClient? = null
+    var desktopClient: RemoteDesktopClient? = null
 
     /** ズーム/パンの表示変換 (GuiScreen と共有)。null の間は等倍フィット相当。 */
     var viewport: GuiViewport? = null
@@ -158,7 +157,7 @@ class GuiInputView(context: Context) : View(context) {
 
     /** 表示座標 (x,y) → FB 座標。ズーム/パン (viewport) を反映。FB 未確定・画面外は null。 */
     private fun toFb(x: Float, y: Float): Pair<Int, Int>? {
-        val client = rfb ?: return null
+        val client = desktopClient ?: return null
         val fbW = client.width
         val fbH = client.height
         if (fbW <= 0 || fbH <= 0 || width <= 0 || height <= 0) return null
@@ -175,7 +174,7 @@ class GuiInputView(context: Context) : View(context) {
 
     /** 表示倍率 (フィット × ズーム)。未確定なら null。相対移動量を FB 量へ換算するのに使う。 */
     private fun effScale(): Float? {
-        val c = rfb ?: return null
+        val c = desktopClient ?: return null
         if (c.width <= 0 || c.height <= 0 || width <= 0 || height <= 0) return null
         val fit = minOf(width.toFloat() / c.width, height.toFloat() / c.height)
         if (fit <= 0f) return null
@@ -184,29 +183,29 @@ class GuiInputView(context: Context) : View(context) {
 
     /** 仮想カーソルを FB 中央に初期化（セッション中の初回だけ）。 */
     private fun ensureCursor(): GuiCursor.Snapshot? {
-        val c = rfb ?: return null
+        val c = desktopClient ?: return null
         return cursor?.fitTo(c.width, c.height)
     }
 
     /** 指の移動量 (画面 px) ぶん仮想カーソルを動かし、現在位置へ送る（ドラッグ中は左押下のまま）。 */
     private fun moveCursorBy(dxScreen: Float, dyScreen: Float) {
-        val c = rfb ?: return
+        val c = desktopClient ?: return
         val eff = effScale() ?: return
         val pos = cursor?.moveBy(dxScreen / eff, dyScreen / eff, c.width, c.height) ?: return
-        c.sendPointerEvent(if (dragHeld) RfbClient.BTN_LEFT else 0, pos.x.toInt(), pos.y.toInt())
+        c.sendPointerEvent(if (dragHeld) RemoteDesktopClient.BUTTON_LEFT else 0, pos.x.toInt(), pos.y.toInt())
     }
 
     /** 画面上で触れている位置へ仮想カーソルを直接移動する（絶対座標モード）。 */
     private fun moveCursorTo(xScreen: Float, yScreen: Float) {
-        val c = rfb ?: return
+        val c = desktopClient ?: return
         val (fx, fy) = toFb(xScreen, yScreen) ?: return
         val pos = cursor?.moveTo(fx.toFloat(), fy.toFloat(), c.width, c.height) ?: return
-        c.sendPointerEvent(if (dragHeld) RfbClient.BTN_LEFT else 0, pos.x.toInt(), pos.y.toInt())
+        c.sendPointerEvent(if (dragHeld) RemoteDesktopClient.BUTTON_LEFT else 0, pos.x.toInt(), pos.y.toInt())
     }
 
     /** 現在のカーソル位置で 1 クリック（ボタン押下→解放）。 */
     private fun clickAtCursor(button: Int) {
-        val c = rfb ?: return
+        val c = desktopClient ?: return
         val pos = ensureCursor() ?: return
         c.sendPointerEvent(button, pos.x.toInt(), pos.y.toInt())
         c.sendPointerEvent(0, pos.x.toInt(), pos.y.toInt())
@@ -218,7 +217,7 @@ class GuiInputView(context: Context) : View(context) {
         dragHeld = false
         cursor?.setPressed(false)
         val pos = ensureCursor() ?: return
-        rfb?.sendPointerEvent(0, pos.x.toInt(), pos.y.toInt())
+        desktopClient?.sendPointerEvent(0, pos.x.toInt(), pos.y.toInt())
     }
 
     /** 1 本指を動かさず [GuiCursor.HOLD_MS] 保持したら、指を離すのを待たずに右クリックを送る。 */
@@ -229,7 +228,7 @@ class GuiInputView(context: Context) : View(context) {
         cursor?.endHold()
         // 触覚は「右クリックを送った」合図。輪が閉じるのと同時に鳴らす。
         performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-        clickAtCursor(RfbClient.BTN_RIGHT)
+        clickAtCursor(RemoteDesktopClient.BUTTON_RIGHT)
     }
 
     /**
@@ -270,7 +269,7 @@ class GuiInputView(context: Context) : View(context) {
     private val singleClickRunnable = Runnable {
         if (!pendingClick) return@Runnable
         pendingClick = false
-        clickAtCursor(RfbClient.BTN_LEFT)
+        clickAtCursor(RemoteDesktopClient.BUTTON_LEFT)
         performClick()
     }
 
@@ -379,7 +378,7 @@ class GuiInputView(context: Context) : View(context) {
                         val pos = ensureCursor()
                         if (pos != null) {
                             cursor?.setPressed(true)
-                            rfb?.sendPointerEvent(RfbClient.BTN_LEFT, pos.x.toInt(), pos.y.toInt())
+                            desktopClient?.sendPointerEvent(RemoteDesktopClient.BUTTON_LEFT, pos.x.toInt(), pos.y.toInt())
                             // ボタンを押した位置から、slop を越えた現在位置までの最初の移動も
                             // 捨てずに送る。絶対は現在の指位置、相対はその差分を使う。
                             if (cursor?.snapshot()?.mode == GuiCursor.Mode.ABSOLUTE) {
@@ -417,8 +416,8 @@ class GuiInputView(context: Context) : View(context) {
                         // ダブルクリックにする (押していた長さは見ない)。
                         dtHolding = false
                         if (action == MotionEvent.ACTION_UP) {
-                            clickAtCursor(RfbClient.BTN_LEFT)
-                            clickAtCursor(RfbClient.BTN_LEFT)
+                            clickAtCursor(RemoteDesktopClient.BUTTON_LEFT)
+                            clickAtCursor(RemoteDesktopClient.BUTTON_LEFT)
                         }
                     }
                     action == MotionEvent.ACTION_UP && !holdFired && !movedFar -> {
@@ -490,7 +489,7 @@ class GuiInputView(context: Context) : View(context) {
 
     /** centroid (cx,cy) の下の FB 点を固定したまま [newScale] へズーム。 */
     private fun zoomAround(vp: GuiViewport, newScale: Float, cx: Float, cy: Float) {
-        val client = rfb ?: return
+        val client = desktopClient ?: return
         val fbW = client.width; val fbH = client.height
         if (fbW <= 0 || fbH <= 0 || width <= 0 || height <= 0) return
         val fitScale = minOf(width.toFloat() / fbW, height.toFloat() / fbH)
@@ -509,7 +508,7 @@ class GuiInputView(context: Context) : View(context) {
     }
 
     private fun panBy(vp: GuiViewport, dx: Float, dy: Float) {
-        val client = rfb ?: return
+        val client = desktopClient ?: return
         val fbW = client.width; val fbH = client.height
         if (fbW <= 0 || fbH <= 0 || width <= 0 || height <= 0) return
         val eff = minOf(width.toFloat() / fbW, height.toFloat() / fbH) * vp.scale
@@ -527,15 +526,15 @@ class GuiInputView(context: Context) : View(context) {
     /** 等倍時の 2 本指縦移動 (画面 px) を貯めて一定量ごとにホイール 1 ノッチを送る。 */
     private fun accumulateWheel(dyScreen: Float, cx: Float, cy: Float) {
         val (fx, fy) = toFb(cx, cy) ?: return
-        val c = rfb ?: return
+        val c = desktopClient ?: return
         scrollAccumY += dyScreen
         while (scrollAccumY <= -WHEEL_STEP) {     // 指を上へ → コンテンツ下スクロール
-            c.sendPointerEvent(RfbClient.BTN_WHEEL_DOWN, fx, fy)
+            c.sendPointerEvent(RemoteDesktopClient.BUTTON_WHEEL_DOWN, fx, fy)
             c.sendPointerEvent(0, fx, fy)
             scrollAccumY += WHEEL_STEP
         }
         while (scrollAccumY >= WHEEL_STEP) {      // 指を下へ → コンテンツ上スクロール
-            c.sendPointerEvent(RfbClient.BTN_WHEEL_UP, fx, fy)
+            c.sendPointerEvent(RemoteDesktopClient.BUTTON_WHEEL_UP, fx, fy)
             c.sendPointerEvent(0, fx, fy)
             scrollAccumY -= WHEEL_STEP
         }
@@ -577,7 +576,7 @@ class GuiInputView(context: Context) : View(context) {
         if (keyCode == KeyEvent.KEYCODE_BACK) return super.onKeyDown(keyCode, event)
         val keysym = GuiKeyMapper.keysymForKeyEvent(event)
         if (keysym == 0) return super.onKeyDown(keyCode, event)
-        rfb?.sendKeyEvent(keysym, down = true)
+        desktopClient?.sendKeyEvent(keysym, down = true)
         return true
     }
 
@@ -585,7 +584,7 @@ class GuiInputView(context: Context) : View(context) {
         if (keyCode == KeyEvent.KEYCODE_BACK) return super.onKeyUp(keyCode, event)
         val keysym = GuiKeyMapper.keysymForKeyEvent(event)
         if (keysym == 0) return super.onKeyUp(keyCode, event)
-        rfb?.sendKeyEvent(keysym, down = false)
+        desktopClient?.sendKeyEvent(keysym, down = false)
         return true
     }
 
@@ -617,7 +616,7 @@ class GuiInputView(context: Context) : View(context) {
         }
 
         override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
-            val c = view.rfb ?: return true
+            val c = view.desktopClient ?: return true
             repeat(beforeLength.coerceAtLeast(0)) { c.tapKey(GuiKeyMapper.XK_BackSpace) }
             return true
         }
@@ -626,14 +625,14 @@ class GuiInputView(context: Context) : View(context) {
             // 一部 IME は Enter/Backspace 等を KeyEvent で送ってくる。
             val keysym = GuiKeyMapper.keysymForKeyEvent(event)
             if (keysym != 0) {
-                view.rfb?.sendKeyEvent(keysym, down = event.action == KeyEvent.ACTION_DOWN)
+                view.desktopClient?.sendKeyEvent(keysym, down = event.action == KeyEvent.ACTION_DOWN)
                 return true
             }
             return super.sendKeyEvent(event)
         }
 
         private fun sendAsKeysyms(text: CharSequence?) {
-            val c = view.rfb ?: return
+            val c = view.desktopClient ?: return
             val s = text?.toString() ?: return
             var i = 0
             while (i < s.length) {

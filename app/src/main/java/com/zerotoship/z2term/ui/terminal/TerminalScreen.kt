@@ -119,7 +119,7 @@ import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.gui.GuiKeyMapper
 import com.zerotoship.z2term.gui.GuiScreen
 import com.zerotoship.z2term.gui.GuiSession
-import com.zerotoship.z2term.gui.rfb.RfbClient
+import com.zerotoship.z2term.gui.RemoteDesktopClient
 import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.ui.clipboard.ClipboardHistorySheet
@@ -1124,7 +1124,7 @@ private fun GuiTabScreen(
 
     // かな漢字変換: 確定文字列は keysym で GUI へ送る (端末はバイト送出、GUI は keysym 経路)。
     val composing = remember(gui.id) {
-        ComposingState(onCommit = { GuiKeyMapper.sendText(gui.rfb, it) })
+        ComposingState(onCommit = { GuiKeyMapper.sendText(gui.desktopClient, it) })
     }
     LaunchedEffect(keyboardMode, keyboardCollapsed) { composing.reset() }
 
@@ -1185,7 +1185,7 @@ private fun GuiTabScreen(
 
     // 回転・分割で GUI 領域の実寸が変わったら、接続後に Xvnc へ解像度を再ネゴする (P-横画面)。
     // 横画面では幅広の解像度を要求し直すので「縦画面を横に引き伸ばした窮屈な表示」を避け、
-    // 枠全体を使える。初回 (起動時サイズ) は rfb と同寸なので RfbClient 側で無視される。
+    // 枠全体を使える。初回 (起動時サイズ) は接続先と同寸なのでクライアント側で無視される。
     // 連続するレイアウト確定を debounce で 1 回にまとめる。
     val guiState by gui.state.collectAsState()
     LaunchedEffect(gui.id) {
@@ -1246,7 +1246,7 @@ private fun GuiTabScreen(
                 // Android クリップボードのテキストを keysym 橋渡しで GUI へタイプする。
                 val cm = context.getSystemService(ClipboardManager::class.java)
                 val text = cm?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
-                if (!text.isNullOrEmpty()) GuiKeyMapper.sendText(gui.rfb, text)
+                if (!text.isNullOrEmpty()) GuiKeyMapper.sendText(gui.desktopClient, text)
             },
             onPasteHistory = { clipHistoryOpen = true },
             onOpenSnippets = { snippetsSheetOpen = true },
@@ -1342,9 +1342,9 @@ private fun GuiTabScreen(
                     composing = composing,
                     faceEntries = faceEntries,
                     widthDp = settings.landscapeKeyboardWidthDp,
-                    onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
-                    onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) },
-                    onNamedKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForNamed(key)) }
+                    onBytes = { GuiKeyMapper.sendBytes(gui.desktopClient, it) },
+                    onCursorKey = { key -> gui.desktopClient.tapKey(GuiKeyMapper.keysymForCursor(key)) },
+                    onNamedKey = { key -> gui.desktopClient.tapKey(GuiKeyMapper.keysymForNamed(key)) }
                 )
             }
             // 縦画面の独自キーボードだけは GUI 枠の外へ出す。枠の内側に重ねると、
@@ -1386,7 +1386,7 @@ private fun GuiTabScreen(
                             style = kbStyleGui,
                             composing = composing,
                             faceEntries = faceEntries,
-                            rfb = gui.rfb,
+                            client = gui.desktopClient,
                             ctrlSticky = ctrlSticky,
                             onCtrlToggle = { ctrlSticky = !ctrlSticky },
                             bottomWidthPercent = guiBottomKbWidthPercent,
@@ -1410,7 +1410,7 @@ private fun GuiTabScreen(
                         style = kbStyleGui,
                         composing = composing,
                         faceEntries = faceEntries,
-                        rfb = gui.rfb,
+                        client = gui.desktopClient,
                         ctrlSticky = ctrlSticky,
                         onCtrlToggle = { ctrlSticky = !ctrlSticky },
                         bottomWidthPercent = guiBottomKbWidthPercent
@@ -1423,9 +1423,9 @@ private fun GuiTabScreen(
                     composing = composing,
                     faceEntries = faceEntries,
                     widthDp = settings.landscapeKeyboardWidthDp,
-                    onBytes = { GuiKeyMapper.sendBytes(gui.rfb, it) },
-                    onCursorKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) },
-                    onNamedKey = { key -> gui.rfb.tapKey(GuiKeyMapper.keysymForNamed(key)) }
+                    onBytes = { GuiKeyMapper.sendBytes(gui.desktopClient, it) },
+                    onCursorKey = { key -> gui.desktopClient.tapKey(GuiKeyMapper.keysymForCursor(key)) },
+                    onNamedKey = { key -> gui.desktopClient.tapKey(GuiKeyMapper.keysymForNamed(key)) }
                 )
             }
         }
@@ -1477,7 +1477,7 @@ private fun GuiTabScreen(
         SnippetsSheet(
             onDismiss = { snippetsSheetOpen = false },
             // 端末は writeBytes だが GUI は keysym 橋渡しで送る (M8-6 T1)。
-            onRun = { command -> GuiKeyMapper.sendText(gui.rfb, command) },
+            onRun = { command -> GuiKeyMapper.sendText(gui.desktopClient, command) },
             // GUI タブからは SSH 接続の概念が無いので SSH タブは出さない。
             showSshTab = false,
             // 常駐サーバーの管理は端末タブが 1 つでもあれば GUI からも行える。
@@ -1490,7 +1490,7 @@ private fun GuiTabScreen(
             // GUI では選んだ本文を keysym 橋渡しでタイプするだけ。システムクリップボードへは
             // 書き戻さない (書き戻すと「貼り付けたのにコピーされた」= 履歴が積み替わるため)。
             onSelect = { text ->
-                GuiKeyMapper.sendText(gui.rfb, text)
+                GuiKeyMapper.sendText(gui.desktopClient, text)
             }
         )
     }
@@ -1531,7 +1531,7 @@ private fun GuiKeyboardPanel(
     style: KeyboardStyle,
     composing: ComposingState,
     faceEntries: List<KeyboardFaceEntry>,
-    rfb: RfbClient,
+    client: RemoteDesktopClient,
     ctrlSticky: Boolean,
     onCtrlToggle: () -> Unit,
     /** 下配置キーボードの幅 (画面幅に対する %)。サイド配置では使わない。 */
@@ -1556,9 +1556,9 @@ private fun GuiKeyboardPanel(
                             .height(style.naturalHeight)
                     ) {
                         TerminalKeyboard(
-                            onBytes = { GuiKeyMapper.sendBytes(rfb, it) },
-                            onCursorKey = { key -> rfb.tapKey(GuiKeyMapper.keysymForCursor(key)) },
-                            onNamedKey = { key -> rfb.tapKey(GuiKeyMapper.keysymForNamed(key)) },
+                            onBytes = { GuiKeyMapper.sendBytes(client, it) },
+                            onCursorKey = { key -> client.tapKey(GuiKeyMapper.keysymForCursor(key)) },
+                            onNamedKey = { key -> client.tapKey(GuiKeyMapper.keysymForNamed(key)) },
                             composing = composing,
                             style = style,
                             faceEntries = faceEntries,
@@ -1567,7 +1567,7 @@ private fun GuiKeyboardPanel(
                 }
                 KeyboardMode.SYSTEM -> if (specialKeyBar) {
                     GuiSpecialKeyBar(
-                        rfb = rfb,
+                        client = client,
                         ctrlSticky = ctrlSticky,
                         onCtrlToggle = onCtrlToggle
                     )
@@ -1769,7 +1769,7 @@ private fun guiToolbarItems(
  */
 @Composable
 private fun GuiSpecialKeyBar(
-    rfb: RfbClient,
+    client: RemoteDesktopClient,
     ctrlSticky: Boolean,
     onCtrlToggle: () -> Unit,
     modifier: Modifier = Modifier
@@ -1783,17 +1783,17 @@ private fun GuiSpecialKeyBar(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        GuiSpecialKey("ESC") { rfb.tapKey(GuiKeyMapper.XK_Escape) }
-        GuiSpecialKey("TAB") { rfb.tapKey(GuiKeyMapper.XK_Tab) }
+        GuiSpecialKey("ESC") { client.tapKey(GuiKeyMapper.XK_Escape) }
+        GuiSpecialKey("TAB") { client.tapKey(GuiKeyMapper.XK_Tab) }
         GuiSpecialKey("CTRL", active = ctrlSticky, onClick = onCtrlToggle)
-        GuiSpecialKey("←") { rfb.tapKey(GuiKeyMapper.XK_Left) }
-        GuiSpecialKey("↓") { rfb.tapKey(GuiKeyMapper.XK_Down) }
-        GuiSpecialKey("↑") { rfb.tapKey(GuiKeyMapper.XK_Up) }
-        GuiSpecialKey("→") { rfb.tapKey(GuiKeyMapper.XK_Right) }
-        GuiSpecialKey("⏎") { rfb.tapKey(GuiKeyMapper.XK_Return) }
-        GuiSpecialKey("^C") { GuiKeyMapper.sendCtrlCombo(rfb, 'c'.code) }
-        GuiSpecialKey("^D") { GuiKeyMapper.sendCtrlCombo(rfb, 'd'.code) }
-        GuiSpecialKey("^L") { GuiKeyMapper.sendCtrlCombo(rfb, 'l'.code) }
+        GuiSpecialKey("←") { client.tapKey(GuiKeyMapper.XK_Left) }
+        GuiSpecialKey("↓") { client.tapKey(GuiKeyMapper.XK_Down) }
+        GuiSpecialKey("↑") { client.tapKey(GuiKeyMapper.XK_Up) }
+        GuiSpecialKey("→") { client.tapKey(GuiKeyMapper.XK_Right) }
+        GuiSpecialKey("⏎") { client.tapKey(GuiKeyMapper.XK_Return) }
+        GuiSpecialKey("^C") { GuiKeyMapper.sendCtrlCombo(client, 'c'.code) }
+        GuiSpecialKey("^D") { GuiKeyMapper.sendCtrlCombo(client, 'd'.code) }
+        GuiSpecialKey("^L") { GuiKeyMapper.sendCtrlCombo(client, 'l'.code) }
     }
 }
 
