@@ -8,6 +8,7 @@ internal object Der {
     const val INTEGER = 0x02
     const val BIT_STRING = 0x03
     const val OCTET_STRING = 0x04
+    const val OBJECT_IDENTIFIER = 0x06
     const val SEQUENCE = 0x30
 
     fun integer(value: Long): ByteArray {

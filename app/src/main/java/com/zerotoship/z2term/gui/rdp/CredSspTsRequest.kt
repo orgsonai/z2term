@@ -46,7 +46,13 @@ internal data class CredSspTsRequest(
             while (fields.hasRemaining()) {
                 val field = fields.read()
                 when (field.tag) {
-                    0xA0 -> version = field.singleInteger().toInt()
+                    0xA0 -> {
+                        val value = field.singleInteger()
+                        if (value !in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()) {
+                            throw IOException("CredSSP version is out of range: $value")
+                        }
+                        version = value.toInt()
+                    }
                     0xA1 -> negoToken = decodeNegoToken(field)
                     0xA2 -> authInfo = field.singleOctetString()
                     0xA3 -> pubKeyAuth = field.singleOctetString()

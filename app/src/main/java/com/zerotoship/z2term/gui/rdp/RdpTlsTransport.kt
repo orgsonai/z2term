@@ -25,6 +25,11 @@ internal class RdpTlsTransport private constructor(
     /** CredSSP v5+ の binding hash に入れる SubjectPublicKey の BIT STRING 本体。 */
     val subjectPublicKey: ByteArray = subjectPublicKey(serverCertificate.publicKey.encoded)
 
+    /** TLS の内側で NLA (CredSSP/NTLMv2) を完了し、後続の RDP MCS PDU を送れる状態にする。 */
+    fun authenticate(credentials: CredSspNtlm.Credentials) {
+        CredSspNtlm.authenticate(input, output, subjectPublicKey, credentials)
+    }
+
     override fun close() {
         runCatching { input.close() }
         runCatching { output.close() }

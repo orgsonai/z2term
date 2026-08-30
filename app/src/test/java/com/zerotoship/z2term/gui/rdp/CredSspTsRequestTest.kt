@@ -38,6 +38,13 @@ class CredSspTsRequestTest {
         }
     }
 
+    @Test
+    fun oversizedVersionCannotWrapIntoASupportedInt() {
+        assertThrows(IOException::class.java) {
+            CredSspTsRequest.decode("3009a00702050100000006".hexBytes())
+        }
+    }
+
     private fun ByteArray.hex(): String = joinToString("") { "%02x".format(it.toInt() and 0xFF) }
 
     private fun String.hexBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()
