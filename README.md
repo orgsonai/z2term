@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.448-alpha (versionCode 456).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.449-alpha (versionCode 457).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
@@ -111,7 +111,7 @@ Pick whichever fits:
 - **Home screen widgets** — *Status & launcher*: shows the state as running/registered counts (ssh endpoint / resident servers / automation rules / battery) and runs a macro you picked **in the background with one tap, without opening the app**; tap a running macro again to stop it. *Live tail*: keeps the last or the first lines of any file under `~` on your home screen (`tail` or `head`, your choice).
 - **Data limit** — once **the whole phone's** mobile usage for the period hits the amount you set, z2term's own traffic (SSH, downloads) stops. Set the limit with the slider or type it exactly. ⚠ Your home network (`192.168.x.x` and friends) and anything over Wi-Fi keep working, and other apps are untouched (reading the device-wide figure asks for the "usage access" permission once).
 - **Snippet groups** — sort the commands you use most onto shelves ("daily", "git", …) and list only what is on the shelf you tapped, so nothing sinks out of reach as they pile up. Deleting a shelf keeps its snippets (they move back to ungrouped).
-- **Take it with you** — bundle settings, SSH connections, snippets, automation rules, macros, your theme, tile assignments, icons, dictionaries and what the keyboard has learned into one file and restore them on another device. The OS image is excluded. **SSH secrets are left out by default; including them requires a passphrase.** It can also **write one on a schedule** (interval, time, folder and generations to keep) — only the files it made are tidied up, never one you created by hand.
+- **Take it with you** — bundle settings, SSH connections, snippets, automation rules, macros, your theme, tile assignments, icons, dictionaries and what the keyboard has learned into one file and restore them on another device. The OS image is excluded. **SSH secrets are left out by default; including them requires a passphrase.** In that case the **whole backup except its manifest is encrypted**, including snippets, macros and learned text that may themselves contain secrets. It can also **write one on a schedule** (interval, time, folder and generations to keep) — only the files it made are tidied up, never one you created by hand.
 - **First-run cards** — three small cards on the first launch (post a notification / flashlight / let a PC connect). Tapping one **puts the command on the input line — it never runs by itself**; they disappear once tapped and never return.
 - **Receive from Share** — pick z2term in another app's share sheet and the text (or, for files, a path under `~/z2term-inbox/`) is **inserted** on the terminal's input line — never executed.
 - **Tidy toolbar** — choose which buttons appear from settings (⚙ settings stays pinned to the right edge); long-press and drag to reorder.

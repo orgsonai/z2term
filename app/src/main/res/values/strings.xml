@@ -1100,7 +1100,7 @@
     <string name="backup_export_title">Create a backup</string>
     <string name="backup_export_body">Writes settings, SSH connections, snippets, automation rules, macros, your theme, tile assignments, icons, dictionaries and what the keyboard has learned to a single file. You choose where to save it next.</string>
     <string name="backup_include_secrets">Include SSH passwords and keys</string>
-    <string name="backup_secrets_warning">⚠ This takes secrets off the device. A passphrase is required (without it, the backup cannot be restored).</string>
+    <string name="backup_secrets_warning">⚠ This takes secrets off the device. The whole backup except its manifest is encrypted with a passphrase (without it, the backup cannot be restored).</string>
     <string name="backup_passphrase">Passphrase</string>
     <string name="backup_export_do">Create</string>
     <string name="backup_import_title">Restore from a backup</string>

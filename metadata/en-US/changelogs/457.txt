@@ -1,0 +1,5 @@
+0.8.449-alpha
+
+- Backups that include SSH secrets now encrypt all data, including settings, snippets, macros, automation rules, dictionaries and IME learning history; only the item-count manifest stays readable.
+- A wrong passphrase or damaged file can no longer leave a partially restored setup.
+- Existing backups remain importable.

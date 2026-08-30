@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-30 / Target version: 0.8.448-alpha (versionCode 456)
+Last updated: 2026-08-30 / Target version: 0.8.449-alpha (versionCode 457)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -808,6 +808,8 @@ An Android app UID cannot directly `open` `/dev/bus/usb/...`, while `UsbManager.
 - SSH passwords and private keys are encrypted with the Android Keystore, but **Keystore keys cannot leave the device**, so carrying the ciphertext produces something undecryptable on the other side. Exporting them means decrypting first.
 - Therefore secrets are **excluded by default** (only names, hosts and ports travel). Including them **requires a passphrase**, and **no path — in the UI or the API — writes secrets without one** (`BackupManager.export` enforces it with `require`). One remaining path is all it takes for an accident.
 - The crypto lives in `backup/BackupCrypt`: PBKDF2WithHmacSHA256 (210,000 iterations) derives a 256-bit key, AES-GCM wraps the payload. A wrong passphrase fails GCM authentication, so **"wrong passphrase" and "corrupted file" need not be distinguished**. `BackupCryptTest` pins that the output is not plaintext, that a wrong passphrase never passes, and that two exports of the same data differ.
+- **Format 2 encrypts everything except the manifest (0.8.449).** Through 0.8.448 only `ssh.enc` was wrapped; settings, snippets, macros, rules and IME learning history remained plaintext inside the ZIP. Tokens, passphrases and typed text can live in any of them, so format 2 removes the need to maintain a list of which files are “secret”. Its outer ZIP has exactly two entries: `manifest.json`, left readable so item counts can be previewed without a passphrase, and `payload.enc`, an AES-GCM-wrapped inner ZIP containing everything else. Ordinary and scheduled backups that exclude SSH secrets remain plaintext format 1. Format 1 import compatibility, including its old `ssh.enc`, is retained.
+- **Decryption and inner-ZIP expansion finish before any setting is applied.** The old path applied settings and snippets before trying `ssh.enc`, so a wrong passphrase could partly restore a backup. Legacy format 1 now also decrypts SSH first; a wrong passphrase or damaged archive changes nothing. `BackupArchiveTest` pins that no payload plaintext remains visible, every entry round-trips, a wrong passphrase is rejected, and format 1 remains readable.
 
 **Restoring merges, it does not overwrite**: matching ids are replaced, anything absent from the backup is left alone — restoring an old backup must not delete what you built since. `peek` shows the counts **before** anything is applied. Zip entries containing `/` are dropped (this is a path where a file from someone else is opened, so nothing may escape the target directory).
 

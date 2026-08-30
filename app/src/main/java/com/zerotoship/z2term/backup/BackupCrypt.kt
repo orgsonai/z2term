@@ -8,14 +8,15 @@ import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * 持ち出したファイルの中の**秘密だけ**を合言葉で包む (0.8.239)。
+ * 持ち出したファイルを合言葉で包む (0.8.239、全 payload は 0.8.449)。
  *
  * **なぜ Keystore を使わないか**: Android Keystore の鍵は**その端末から出せない**。
  * 端末内で守るには最適だが、持ち出しには使えない (移した先で復号できない)。だから
  * ここだけは「合言葉から鍵を作る」方式にする。
  *
  * 形式は自前だが中身は標準的なもの: `PBKDF2WithHmacSHA256` (salt 16B / [ITERATIONS] 回) で
- * 256bit 鍵を作り、`AES/GCM/NoPadding` (iv 12B) で包む。出力は
+ * 256bit 鍵を作り、`AES/GCM/NoPadding` (iv 12B) で包む。format 1 では SSH の秘密だけ、
+ * format 2 では manifest を除くバックアップ全体を対象にする。出力は
  * `"Z2BK1" | salt(16) | iv(12) | ciphertext+tag` の連結。
  *
  * 合言葉が違えば GCM の認証が失敗して復号できない = **「合言葉が違う」と「壊れている」を

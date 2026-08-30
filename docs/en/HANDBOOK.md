@@ -251,7 +251,7 @@ Settings > Maintenance > **"Take it with you"** writes your current setup to a s
 - Included: **settings, SSH connections, snippets, automation rules, macros**
 - Not included: **the OS image** (hundreds of MB — a reinstall brings it back) and logs
 - In it: **settings, SSH connections, snippets, automation rules and macros**, plus **your theme, tile assignments, icon drawings, dictionaries and what the keyboard has learned** (0.8.380). Out of it: the **OS image** (hundreds of MB — a reinstall brings it back), logs, and **home-screen widget assignments** (they are keyed by the number the launcher hands out, so restoring them would point at a different widget).
-- **SSH passwords and keys are left out by default.** Tick the box to include them and you will be asked for a **passphrase** (without it the backup cannot be restored, so pick something you will remember).
+- **SSH passwords and keys are left out by default.** Tick the box to include them and you will be asked for a **passphrase** (without it the backup cannot be restored, so pick something you will remember). In that case **all data except the manifest used to show the item counts is encrypted**, including snippets, macros, automation rules and keyboard learning (0.8.449).
 - When restoring, you see **what and how many** will be added before deciding. Nothing you already have is deleted; only matching items are replaced.
 
 **It can also make one on a schedule** (0.8.386). On the same screen, turn on **"On a schedule"** and pick a **folder, an interval (daily / weekly / monthly), a time and how many generations to keep**.

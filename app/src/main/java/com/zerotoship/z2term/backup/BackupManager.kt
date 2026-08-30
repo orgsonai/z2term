@@ -16,14 +16,10 @@ import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
 import com.zerotoship.z2term.widget.WidgetStore
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
-import java.util.zip.ZipOutputStream
 
 /**
  * 設定ごと持ち出す / 戻す (0.8.239)。
@@ -58,6 +54,10 @@ import java.util.zip.ZipOutputStream
  *    運ぶが、パスワードと鍵は空で書き出す。
  *  - 含めるときは**パスフレーズ必須**。合言葉なしで秘密を書き出す経路は**作らない** —
  *    1 つでも残すと、そこから事故る。
+ *  - 秘密を含む format 2 (0.8.449) は manifest 以外の**全データ**を 1 つの暗号化 payload に包む。
+ *    スニペット・マクロ・ルール・ユーザー辞書・IME 学習履歴にも秘密が入り得るため、項目ごとに
+ *    「秘密か」を判断しない。秘密なしの平文 format 1 は引き続き書き出し、旧 format 1 の
+ *    `ssh.enc` も取り込める。
  */
 object BackupManager {
 
@@ -91,7 +91,7 @@ object BackupManager {
         val passphrase: String = "",
     )
 
-    private const val MANIFEST = "manifest.json"
+    private const val MANIFEST = BackupArchive.MANIFEST
     private const val SETTINGS = "settings.json"
     private const val SNIPPETS = "snippets.json"
     /**
@@ -146,47 +146,52 @@ object BackupManager {
         // 語数は読み込んでからでないと 0 に見える (数えるためだけに読む)。
         ImeHistoryStore.ensureLoaded(app)
 
-        ZipOutputStream(out).use { zip ->
-            val manifest = JSONObject().apply {
-                put("format", 1)
-                put("createdAt", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(Date()))
-                put("appVersion", BuildConfig.VERSION_NAME)
-                put("hasSecrets", options.includeSecrets)
-                put("encrypted", options.includeSecrets)
-                put("sshCount", countJsonArray(sshJson))
-                put("snippetCount", countJsonArray(snippetsJson))
-                put("ruleCount", rules.size)
-                put("macroCount", macros.size)
-                put("tileCount", (1..TileStore.COUNT).count { TileStore.get(app, it) != null })
-                put("iconCount", IconStore.targets().count { IconStore.text(app, it) != null })
-                put("themeCount", if (themeJson.isNotEmpty()) 1 else 0)
-                put("dictCount", dicts.size)
-                put("learnedCount", ImeHistoryStore.approximateCount())
-            }
-            zip.putText(MANIFEST, manifest.toString())
-            zip.putText(SETTINGS, settingsJson)
-            zip.putText(SNIPPETS, snippetsJson)
-            zip.putText(SNIPPET_GROUPS, snippetGroupsJson)
-            if (options.includeSecrets) {
-                // 秘密を含むファイルだけを合言葉で暗号化する。設定やスニペットに秘密は無い。
-                zip.putBytes(SSH_ENC, BackupCrypt.encrypt(sshJson.toByteArray(), options.passphrase))
-            } else {
-                zip.putText(SSH_PLAIN, sshJson)
-            }
-            rules.forEach { zip.putText(WHEN_DIR + it.name, it.readText()) }
-            macros.forEach { zip.putText(MACRO_DIR + it.name, it.readText()) }
-            if (themeJson.isNotEmpty()) zip.putText(THEME, themeJson)
-            zip.putText(TILES, tilesJson)
-            zip.putText(ICONS, iconsJson)
-            dicts.forEach { zip.putText(DICT_DIR + it.name, it.readText()) }
-            imeHistory?.let { zip.putBytes(IME_HISTORY, it.readBytes()) }
+        val payload = linkedMapOf<String, ByteArray>().apply {
+            put(SETTINGS, settingsJson.toByteArray())
+            put(SNIPPETS, snippetsJson.toByteArray())
+            put(SNIPPET_GROUPS, snippetGroupsJson.toByteArray())
+            // format 2 では payload 全体が暗号化されるので、内側は常に通常の ssh.json でよい。
+            put(SSH_PLAIN, sshJson.toByteArray())
+            rules.forEach { put(WHEN_DIR + it.name, it.readBytes()) }
+            macros.forEach { put(MACRO_DIR + it.name, it.readBytes()) }
+            if (themeJson.isNotEmpty()) put(THEME, themeJson.toByteArray())
+            put(TILES, tilesJson.toByteArray())
+            put(ICONS, iconsJson.toByteArray())
+            dicts.forEach { put(DICT_DIR + it.name, it.readBytes()) }
+            imeHistory?.let { put(IME_HISTORY, it.readBytes()) }
         }
+        val manifest = JSONObject().apply {
+            put(
+                "format",
+                if (options.includeSecrets) BackupArchive.FORMAT_ENCRYPTED_PAYLOAD
+                else BackupArchive.FORMAT_FLAT,
+            )
+            put("createdAt", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(Date()))
+            put("appVersion", BuildConfig.VERSION_NAME)
+            put("hasSecrets", options.includeSecrets)
+            put("encrypted", options.includeSecrets)
+            put("sshCount", countJsonArray(sshJson))
+            put("snippetCount", countJsonArray(snippetsJson))
+            put("ruleCount", rules.size)
+            put("macroCount", macros.size)
+            put("tileCount", (1..TileStore.COUNT).count { TileStore.get(app, it) != null })
+            put("iconCount", IconStore.targets().count { IconStore.text(app, it) != null })
+            put("themeCount", if (themeJson.isNotEmpty()) 1 else 0)
+            put("dictCount", dicts.size)
+            put("learnedCount", ImeHistoryStore.approximateCount())
+        }
+        BackupArchive.write(
+            out = out,
+            manifest = manifest.toString().toByteArray(),
+            payload = payload,
+            passphrase = options.passphrase.takeIf { options.includeSecrets },
+        )
     }
 
     /** バックアップの中身を**適用せずに**読む (「これを入れます」を見せるため)。 */
     fun peek(context: Context, uri: Uri): Summary? {
         val bytes = readAll(context, uri) ?: return null
-        val entries = unzip(bytes)
+        val entries = BackupArchive.readOuter(bytes) ?: return null
         val manifest = entries[MANIFEST]?.toString(Charsets.UTF_8) ?: return null
         val o = runCatching { JSONObject(manifest) }.getOrNull() ?: return null
         return Summary(
@@ -218,8 +223,26 @@ object BackupManager {
     suspend fun import(context: Context, uri: Uri, passphrase: String): Boolean {
         val app = context.applicationContext
         val bytes = readAll(context, uri) ?: return false
-        val entries = unzip(bytes)
-        if (entries[MANIFEST] == null) return false
+        val outer = BackupArchive.readOuter(bytes) ?: return false
+        val manifestBytes = outer[MANIFEST] ?: return false
+        val manifest = runCatching { JSONObject(manifestBytes.toString(Charsets.UTF_8)) }.getOrNull()
+            ?: return false
+        val entries = BackupArchive.payloadForImport(
+            outer = outer,
+            format = manifest.optInt("format", BackupArchive.FORMAT_FLAT),
+            passphrase = passphrase,
+        ) ?: return false
+
+        // format 1 の旧バックアップだけが ssh.enc を持つ。復号を全変更の前に済ませ、合言葉が
+        // 違うときに設定やスニペットだけが部分的に戻るのを防ぐ。
+        val ssh = when {
+            entries[SSH_ENC] != null -> {
+                if (passphrase.isEmpty()) return false
+                runCatching { BackupCrypt.decrypt(entries.getValue(SSH_ENC), passphrase) }.getOrNull()
+                    ?: return false
+            }
+            else -> entries[SSH_PLAIN]
+        }
 
         entries[SETTINGS]?.let { AppSettings(app).importRaw(it.toString(Charsets.UTF_8)) }
         entries[SNIPPETS]?.let { SnippetStore(app).importRaw(it.toString(Charsets.UTF_8)) }
@@ -231,14 +254,6 @@ object BackupManager {
         entries[TILES]?.let { TileStore.importRaw(app, it.toString(Charsets.UTF_8)) }
         entries[ICONS]?.let { IconStore.importRaw(app, it.toString(Charsets.UTF_8)) }
 
-        val ssh = when {
-            entries[SSH_ENC] != null -> {
-                if (passphrase.isEmpty()) return false
-                runCatching { BackupCrypt.decrypt(entries[SSH_ENC]!!, passphrase) }.getOrNull()
-                    ?: return false   // 合言葉が違う
-            }
-            else -> entries[SSH_PLAIN]
-        }
         ssh?.let { SshProfileStore(app).importRaw(it.toString(Charsets.UTF_8)) }
 
         // ルールとマクロはファイルなので、そのまま書き戻す (同名は置き換え)。
@@ -300,29 +315,4 @@ object BackupManager {
         context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
     }.getOrNull()
 
-    private fun unzip(bytes: ByteArray): Map<String, ByteArray> {
-        val out = HashMap<String, ByteArray>()
-        runCatching {
-            ZipInputStream(bytes.inputStream()).use { zin ->
-                while (true) {
-                    val e: ZipEntry = zin.nextEntry ?: break
-                    if (!e.isDirectory) {
-                        val buf = ByteArrayOutputStream()
-                        zin.copyTo(buf)
-                        out[e.name] = buf.toByteArray()
-                    }
-                    zin.closeEntry()
-                }
-            }
-        }
-        return out
-    }
-
-    private fun ZipOutputStream.putText(name: String, text: String) = putBytes(name, text.toByteArray())
-
-    private fun ZipOutputStream.putBytes(name: String, data: ByteArray) {
-        putNextEntry(ZipEntry(name))
-        write(data)
-        closeEntry()
-    }
 }

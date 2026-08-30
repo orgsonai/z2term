@@ -1010,7 +1010,7 @@
     <string name="backup_export_title">建立備份</string>
     <string name="backup_export_body">把設定、SSH 連線目標、程式碼片段、自動化規則、巨集、自訂主題、圖塊分配、圖示、使用者詞典和鍵盤的學習記錄寫到一個檔案裡。儲存位置稍後可以選。</string>
     <string name="backup_include_secrets">同時包含 SSH 的密碼和金鑰</string>
-    <string name="backup_secrets_warning">⚠ 這會把機密帶出裝置。必須用金鑰密語加密（沒有金鑰密語就無法還原）。</string>
+    <string name="backup_secrets_warning">⚠ 這會把機密帶出裝置。除資訊清單外，整個備份都會用金鑰密語加密（沒有金鑰密語就無法還原）。</string>
     <string name="backup_passphrase">金鑰密語</string>
     <string name="backup_export_do">建立</string>
     <string name="backup_import_title">從備份還原</string>

@@ -1010,7 +1010,7 @@
     <string name="backup_export_title">创建备份</string>
     <string name="backup_export_body">把设置、SSH 连接目标、代码片段、自动化规则、宏、自制主题、磁贴分配、图标、用户词典和键盘的学习记录写到一个文件里。保存位置稍后可以选。</string>
     <string name="backup_include_secrets">同时包含 SSH 的密码和密钥</string>
-    <string name="backup_secrets_warning">⚠ 这会把机密带出设备。必须用口令加密（没有口令就无法恢复）。</string>
+    <string name="backup_secrets_warning">⚠ 这会把机密带出设备。除清单外，整个备份都会用口令加密（没有口令就无法恢复）。</string>
     <string name="backup_passphrase">口令</string>
     <string name="backup_export_do">创建</string>
     <string name="backup_import_title">从备份恢复</string>

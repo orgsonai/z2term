@@ -1084,7 +1084,7 @@
     <string name="backup_export_title">バックアップを作る</string>
     <string name="backup_export_body">設定・SSH 接続先・スニペット・自動化ルール・マクロ・自作テーマ・タイルの割り当て・アイコン・ユーザー辞書・キーボードの学習を 1 ファイルに書き出します。保存先はこのあと選べます。</string>
     <string name="backup_include_secrets">SSH のパスワードと鍵も含める</string>
-    <string name="backup_secrets_warning">⚠ 秘密を端末の外へ出します。合言葉での暗号化が必須です（合言葉が無いと戻せません）。</string>
+    <string name="backup_secrets_warning">⚠ 秘密を端末の外へ出します。目録以外のバックアップ全体を合言葉で暗号化します（合言葉が無いと戻せません）。</string>
     <string name="backup_passphrase">合言葉</string>
     <string name="backup_export_do">作る</string>
     <string name="backup_import_title">バックアップから戻す</string>
