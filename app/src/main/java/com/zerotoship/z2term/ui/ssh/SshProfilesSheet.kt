@@ -57,6 +57,7 @@ import com.zerotoship.z2term.channel.SshKeyGen
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.channel.SshProfileStore
 import com.zerotoship.z2term.gui.rfb.VncTarget
+import com.zerotoship.z2term.net.HostAddress
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
@@ -404,7 +405,12 @@ private fun EditForm(
 
     when (protocol) {
         ConnectionProtocol.SSH -> {
-            Field(label = stringResource(R.string.ssh_field_host), value = host, onChange = { host = it }, placeholder = "example.com or 192.168.0.10")
+            Field(
+                label = stringResource(R.string.ssh_field_host),
+                value = host,
+                onChange = { host = it },
+                placeholder = "example.com / 192.168.0.10 / 2001:db8::10",
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(modifier = Modifier.weight(1f)) {
                     Field(
@@ -440,7 +446,14 @@ private fun EditForm(
 
             when (auth) {
                 SshProfile.AuthType.PASSWORD -> {
-                    Field(label = stringResource(R.string.ssh_field_password), value = password, onChange = { password = it }, placeholder = "********", secret = true)
+                    Field(
+                        label = stringResource(R.string.ssh_field_password),
+                        value = password,
+                        onChange = { password = it },
+                        placeholder = "********",
+                        secret = true,
+                        visibilityKey = "${initial.id}:ssh-password",
+                    )
                 }
                 SshProfile.AuthType.PUBLIC_KEY -> {
                     SshKeyRow(
@@ -457,9 +470,17 @@ private fun EditForm(
                         value = privateKey,
                         onChange = { privateKey = it; generatedPublicLine = "" },
                         placeholder = "-----BEGIN OPENSSH PRIVATE KEY-----\n...",
+                        secret = true,
+                        visibilityKey = "${initial.id}:private-key",
                         multiline = true
                     )
-                    Field(label = stringResource(R.string.ssh_field_passphrase), value = keyPassphrase, onChange = { keyPassphrase = it }, secret = true)
+                    Field(
+                        label = stringResource(R.string.ssh_field_passphrase),
+                        value = keyPassphrase,
+                        onChange = { keyPassphrase = it },
+                        secret = true,
+                        visibilityKey = "${initial.id}:key-passphrase",
+                    )
                 }
             }
 
@@ -499,7 +520,8 @@ private fun EditForm(
                 value = password,
                 onChange = { password = it },
                 placeholder = "********",
-                secret = true
+                secret = true,
+                visibilityKey = "${initial.id}:webdav-password",
             )
         }
 
@@ -508,7 +530,7 @@ private fun EditForm(
                 label = stringResource(R.string.connection_field_smb_host),
                 value = host,
                 onChange = { host = it },
-                placeholder = "server.local or 192.168.0.10"
+                placeholder = "server.local / 192.168.0.10 / 2001:db8::10"
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(modifier = Modifier.weight(1f)) {
@@ -540,7 +562,8 @@ private fun EditForm(
                 value = password,
                 onChange = { password = it },
                 placeholder = "********",
-                secret = true
+                secret = true,
+                visibilityKey = "${initial.id}:smb-password",
             )
         }
     }
@@ -565,7 +588,11 @@ private fun EditForm(
                 val saved = initial.copy(
                     name = name,
                     protocol = protocol,
-                    host = host,
+                    host = if (protocol == ConnectionProtocol.WEBDAV) {
+                        host.trim()
+                    } else {
+                        HostAddress.normalize(host)
+                    },
                     port = portNum,
                     user = user,
                     remotePath = if (protocol == ConnectionProtocol.SMB) remotePath.trim('/') else "",
@@ -577,11 +604,18 @@ private fun EditForm(
                     initCommand = if (ssh) initCmd else "",
                     forwards = if (ssh) forwards.filter {
                         it.localPort in 1..65535 && it.remotePort in 1..65535 && it.remoteHost.isNotBlank()
+                    }.map {
+                        it.copy(
+                            bindAddress = HostAddress.normalize(it.bindAddress),
+                            remoteHost = HostAddress.normalize(it.remoteHost),
+                        )
                     } else emptyList(),
                     residentTunnel = ssh && resident && forwards.isNotEmpty(),
                     services = if (ssh) services.filter {
                         (!it.useSshTunnel || it.host.isNotBlank()) &&
                             it.remotePort in 1..65535 && it.localPort in 0..65535
+                    }.map {
+                        it.copy(host = HostAddress.normalize(it.host))
                     } else initial.services,
                 )
                 onSave(saved)
@@ -861,6 +895,7 @@ private fun RemoteServiceEditor(
                     onChange = { onChange(service.copy(password = it)) },
                     placeholder = "********",
                     secret = true,
+                    visibilityKey = "${service.id}:vnc-password",
                 )
             }
         }
@@ -887,6 +922,7 @@ private fun ServiceCredentials(
                 onChange = { onChange(service.copy(password = it)) },
                 placeholder = "********",
                 secret = true,
+                visibilityKey = "${service.id}:service-password",
             )
         }
     }
@@ -1268,9 +1304,11 @@ private fun Field(
     onChange: (String) -> Unit,
     placeholder: String = "",
     secret: Boolean = false,
+    /** 別の接続先へ切り替わったら、前の接続先で「表示」にしていても必ず伏せ字へ戻す。 */
+    visibilityKey: Any? = null,
     multiline: Boolean = false
 ) {
-    var secretVisible by remember(label) { mutableStateOf(false) }
+    var secretVisible by remember(label, visibilityKey) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
         Text(
             text = label,

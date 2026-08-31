@@ -1,0 +1,5 @@
+0.8.457-alpha
+
+- Scheduled-backup and manual-backup passphrases are now masked by default, with an explicit Show/Hide control.
+- The private-key field in Connections is now masked by default and can be revealed only when needed.
+- Connection hosts now accept IPv6 literals with or without brackets; SSH, forwarding, SMB, WebDAV and VNC handle and display IPv6 authorities correctly.

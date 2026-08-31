@@ -56,6 +56,9 @@ class NetGuardTest {
         assertTrue(NetGuard.isLocalName("pi.lan"))
         // ドットを含まない一語の名前は LAN の相手 (外の名前にはならない)。
         assertTrue(NetGuard.isLocalName("myserver"))
+        // IPv6 はドットを含まなくても「一語の LAN 名」ではない。
+        assertFalse(NetGuard.isLocalName("2001:4860:4860::8888"))
+        assertFalse(NetGuard.isLocalName("[2001:4860:4860::8888]"))
         assertFalse(NetGuard.isLocalName("example.com"))
         assertFalse(NetGuard.isLocalName("github.com"))
     }

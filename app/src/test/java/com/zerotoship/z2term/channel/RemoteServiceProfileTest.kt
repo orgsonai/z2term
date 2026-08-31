@@ -71,6 +71,28 @@ class RemoteServiceProfileTest {
     }
 
     @Test
+    fun ipv6EndpointsAreBracketedAndBracketedInputIsNormalized() {
+        val profile = SshProfile(
+            id = "ssh-v6",
+            name = "server-v6",
+            host = "[2001:db8::10]",
+            port = 2222,
+            user = "user",
+        )
+        val service = RemoteService(
+            id = "webdav-v6",
+            protocol = RemoteServiceProtocol.WEBDAV,
+            host = "[fd00::20]",
+            remotePort = 8443,
+        )
+
+        assertEquals("user@[2001:db8::10]:2222", profile.endpointDescription())
+        assertEquals("2001:db8::10", profile.toVncTarget().host)
+        assertEquals("fd00::20", service.connectionHost(profile))
+        assertEquals("[fd00::20]:8443", service.endpointDescription())
+    }
+
+    @Test
     fun browserBackMovesToTheParentAndStopsAtRoot() {
         assertEquals("/share/folder", RemotePath.resolve("/share/folder/deep", ".."))
         assertEquals("/", RemotePath.resolve("/share", ".."))

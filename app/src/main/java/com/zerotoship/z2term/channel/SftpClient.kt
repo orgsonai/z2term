@@ -6,6 +6,7 @@ import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.Session
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.zerotoship.z2term.net.HostAddress
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -103,7 +104,7 @@ class SftpClient private constructor(
                 try {
                     val channel = session.openChannel("sftp") as ChannelSftp
                     channel.connect(SshSessionFactory.CONNECT_TIMEOUT_MS)
-                    Log.i(TAG, "SFTP connected to ${profile.user}@${profile.host}:${profile.port}")
+                    Log.i(TAG, "SFTP connected to ${profile.user}@${HostAddress.hostPort(profile.host, profile.port)}")
                     SftpClient(session, channel)
                 } catch (e: Throwable) {
                     runCatching { session.disconnect() }

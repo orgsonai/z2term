@@ -163,6 +163,9 @@ object NetGuard {
     fun isLocalName(host: String): Boolean {
         val h = host.trim().lowercase(Locale.US).trimEnd('.')
         if (h.isEmpty()) return false
+        // IPv6 リテラルを「ドットのない LAN 名」と混同しない。私設 IPv6 は
+        // isPrivateLiteral() が先に判定し、公開 IPv6 は通常の通信量制限対象にする。
+        if (':' in h) return false
         if (h == "localhost") return true
         if (!h.contains('.')) return true
         return h.endsWith(".local") || h.endsWith(".lan") ||

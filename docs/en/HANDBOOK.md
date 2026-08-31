@@ -258,7 +258,7 @@ Settings > Maintenance > **"Take it with you"** writes your current setup to a s
 
 - The newest few are kept and older ones go automatically. ⚠ **Only the ones it made are removed** — a backup you created by hand survives even in the same folder.
 - ⚠ **SSH passwords and keys are not included.** Including them automatically would mean keeping the passphrase that opens them on the device. To take secrets with you, create one by hand as before.
-- **Set a passphrase and the files it writes are encrypted** (0.8.452). SSH secrets still stay out, but snippets, macros, automation rules and what the keyboard learned go in as you wrote them — worth doing if the folder syncs to the cloud. ⚠ Forget it and they cannot be restored. ⚠ The passphrase is **never stored inside the backup**, so enter it again on a new device. Left empty, nothing is encrypted, exactly as before.
+- **Set a passphrase and the files it writes are encrypted** (0.8.452). SSH secrets still stay out, but snippets, macros, automation rules and what the keyboard learned go in as you wrote them — worth doing if the folder syncs to the cloud. ⚠ Forget it and they cannot be restored. ⚠ The passphrase is **never stored inside the backup**, so enter it again on a new device. Left empty, nothing is encrypted, exactly as before. The field is masked by default; use Show only when you need to check it.
 - A good day passes quietly; **only a failure is notified** (a daily "it worked" notice trains you to skip the day it did not). When it last succeeded is shown on the same screen.
 - **"Back up now"** writes one on the spot, so you can check the setup without waiting for the middle of the night.
 - ⚠ Choosing a different folder, or revoking access on the device, stops the writing. You will be notified — **pick the folder again** when that happens.
@@ -268,7 +268,9 @@ Settings > Maintenance > **"Take it with you"** writes your current setup to a s
 In 📜 > **Connections**, add an SSH connection and set auth to public key: a **"Create a key (ed25519)"** button appears.
 Press it and the key is made, with **copy / share / add to this device's sshd** right there.
 Give the **public** key to whoever runs the server you connect to (the private key never leaves this device).
-The field for pasting your own private key is still there.
+The field for pasting your own private key is still there. Its contents are masked by default and can be toggled with Show/Hide.
+
+The host field accepts DNS names, IPv4 and IPv6 literals (with or without surrounding brackets); IPv6 is displayed as `[address]:port` so the port is unambiguous.
 
 In an SSH destination’s editor you can add **FTP, SMB, WebDAV and VNC** services. After saving, each gets its own button outside SSH/SFTP and opens either the shared file browser or a VNC tab. The default is a local port forward through that SSH destination. Set the service port and, optionally, a local port; leaving the local side blank chooses a free port automatically. FTP passive data ports are forwarded automatically for each transfer. Clearing “SSH port forwarding” connects directly to the SSH destination’s host, not the service-specific host, and first warns that SSH encryption will be lost. WebDAV supports HTTP/HTTPS; SMB supports SMB2/3 with SMB1 disabled. Plain `http://` WebDAV works too (0.8.452; before that the app blocked every cleartext HTTP request, so choosing HTTP always ended in “failed to list”).
 ⚠ **Delete on a destination, and the ✕ on a service or a port forward, now ask first** (0.8.452). Each sits right next to Edit, and a mistap used to take the host, user and password with it. Deleting from the terminal (`z2-ssh` and friends) is not intercepted — a typed command is explicit already.

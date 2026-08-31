@@ -1,5 +1,7 @@
 package com.zerotoship.z2term.gui.rfb
 
+import com.zerotoship.z2term.net.HostAddress
+
 /**
  * リモート VNC の接続先 1 件 (A1)。
  *
@@ -25,7 +27,7 @@ data class VncTarget(
     private val transportClosed = java.util.concurrent.atomic.AtomicBoolean(false)
 
     /** タブ名 (名前が無ければ接続先そのもの)。 */
-    val label: String get() = name.ifBlank { "$host:$port" }
+    val label: String get() = name.ifBlank { HostAddress.hostPort(host, port) }
 
     fun closeTransport() {
         if (transportClosed.compareAndSet(false, true)) transportCloser?.invoke()

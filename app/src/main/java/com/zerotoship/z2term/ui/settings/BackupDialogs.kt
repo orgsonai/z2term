@@ -100,7 +100,8 @@ fun BackupExportDialog(onDismiss: () -> Unit, onDone: () -> Unit) {
                     Field(
                         label = stringResource(R.string.backup_passphrase),
                         value = passphrase,
-                        onChange = { passphrase = it }
+                        onChange = { passphrase = it },
+                        secret = true,
                     )
                 }
             }
@@ -222,7 +223,8 @@ fun BackupImportDialog(uri: Uri, onDismiss: () -> Unit, onDone: () -> Unit) {
                             Field(
                                 label = stringResource(R.string.backup_passphrase),
                                 value = passphrase,
-                                onChange = { passphrase = it; failed = false }
+                                onChange = { passphrase = it; failed = false },
+                                secret = true,
                             )
                         }
                         if (failed) {

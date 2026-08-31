@@ -3,6 +3,7 @@ package com.zerotoship.z2term.channel
 import android.content.Context
 import com.jcraft.jsch.Session
 import com.zerotoship.z2term.gui.rfb.VncTarget
+import com.zerotoship.z2term.net.HostAddress
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.InetSocketAddress
@@ -38,7 +39,7 @@ class ServiceRoute private constructor(
             return RoutedSocket(connect(host, remotePort, timeoutMs), null)
         }
         val assigned = session.setPortForwardingL(
-            LOOPBACK, 0, service.host, remotePort
+            LOOPBACK, 0, HostAddress.normalize(service.host), remotePort
         )
         extraLocalPorts += assigned
         return try {
@@ -83,7 +84,7 @@ class ServiceRoute private constructor(
         ): ServiceRoute = withContext(Dispatchers.IO) {
             require(service.remotePort in 1..65535) { "Invalid remote port" }
             require(service.localPort in 0..65535) { "Invalid local port" }
-            val targetHost = service.connectionHost(sshProfile)
+            val targetHost = HostAddress.normalize(service.connectionHost(sshProfile))
             require(targetHost.isNotBlank()) { "${service.protocol} host is required" }
 
             if (!service.useSshTunnel) {

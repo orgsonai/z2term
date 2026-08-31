@@ -2,6 +2,7 @@ package com.zerotoship.z2term.channel
 
 import android.content.Context
 import com.zerotoship.z2term.gui.rfb.VncTarget
+import com.zerotoship.z2term.net.HostAddress
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -52,9 +53,9 @@ data class PortForward(
 
     /** 一覧に出す 1 行 (`-L 127.0.0.1:8080 → localhost:80` のような形)。 */
     fun describe(): String = if (reverse)
-        "-R $bindAddress:$remotePort → $remoteHost:$localPort"
+        "-R ${HostAddress.hostPort(bindAddress, remotePort)} → ${HostAddress.hostPort(remoteHost, localPort)}"
     else
-        "-L $bindAddress:$localPort → $remoteHost:$remotePort"
+        "-L ${HostAddress.hostPort(bindAddress, localPort)} → ${HostAddress.hostPort(remoteHost, remotePort)}"
 
     companion object {
         fun fromJson(o: JSONObject): PortForward = PortForward(
@@ -114,12 +115,15 @@ data class RemoteService(
     val label: String get() = name.ifBlank { protocol.name }
 
     /** 転送時はサービスホスト、直通時はこのサービスを登録した SSH ホストを使う。 */
-    fun connectionHost(sshProfile: SshProfile): String =
+    fun connectionHost(sshProfile: SshProfile): String = HostAddress.normalize(
         if (useSshTunnel) host else sshProfile.host
+    )
 
     fun endpointDescription(sshProfile: SshProfile? = null): String = buildString {
-        append(if (sshProfile == null) host else connectionHost(sshProfile))
-            .append(':').append(remotePort)
+        append(HostAddress.hostPort(
+            if (sshProfile == null) host else connectionHost(sshProfile),
+            remotePort,
+        ))
         if (path.isNotBlank()) append('/').append(path.trim('/'))
     }
 
@@ -228,17 +232,17 @@ data class SshProfile(
     }
 
     fun endpointDescription(): String = when (protocol) {
-        ConnectionProtocol.SSH -> "$user@$host:$port"
+        ConnectionProtocol.SSH -> "$user@${HostAddress.hostPort(host, port)}"
         ConnectionProtocol.WEBDAV -> host
         ConnectionProtocol.SMB -> buildString {
-            append("//").append(host).append(':').append(port)
+            append("//").append(HostAddress.hostPort(host, port))
             if (remotePath.isNotBlank()) append('/').append(remotePath.trim('/'))
         }
     }
 
     /** この接続先のデスクトップを開くための接続情報 (A1)。 */
     fun toVncTarget(): VncTarget = VncTarget(
-        host = host,
+        host = HostAddress.normalize(host),
         port = vncPort,
         password = vncPassword,
         name = name

@@ -46,6 +46,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
@@ -595,35 +597,55 @@ internal fun Field(
     value: String,
     onChange: (String) -> Unit,
     placeholder: String = "",
+    secret: Boolean = false,
     multiline: Boolean = false
 ) {
+    var secretVisible by remember(label) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
         Text(text = label, color = ZtsTextSecondary, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(6.dp))
                 .background(ZtsBgCard)
                 .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (value.isEmpty()) {
-                Text(
-                    text = placeholder,
-                    color = ZtsTextSecondary.copy(alpha = 0.55f),
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    maxLines = if (multiline) 4 else 1
+            Box(Modifier.weight(1f)) {
+                if (value.isEmpty()) {
+                    Text(
+                        text = placeholder,
+                        color = ZtsTextSecondary.copy(alpha = 0.55f),
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = if (multiline) 4 else 1
+                    )
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onChange,
+                    singleLine = !multiline,
+                    visualTransformation = if (secret && !secretVisible) {
+                        PasswordVisualTransformation()
+                    } else {
+                        VisualTransformation.None
+                    },
+                    textStyle = TextStyle(color = ZtsTextPrimary, fontSize = 12.sp, fontFamily = FontFamily.Monospace),
+                    cursorBrush = SolidColor(ZtsGreen),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
-            BasicTextField(
-                value = value,
-                onValueChange = onChange,
-                singleLine = !multiline,
-                textStyle = TextStyle(color = ZtsTextPrimary, fontSize = 12.sp, fontFamily = FontFamily.Monospace),
-                cursorBrush = SolidColor(ZtsGreen),
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (secret) {
+                PillButton(
+                    label = stringResource(
+                        if (secretVisible) R.string.password_hide else R.string.password_show
+                    ),
+                    accent = secretVisible,
+                    onClick = { secretVisible = !secretVisible },
+                )
+            }
         }
     }
 }

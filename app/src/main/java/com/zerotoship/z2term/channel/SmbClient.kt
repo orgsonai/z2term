@@ -14,6 +14,7 @@ import com.hierynomus.smbj.session.Session
 import com.hierynomus.smbj.share.DiskShare
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.zerotoship.z2term.net.HostAddress
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.EnumSet
@@ -190,7 +191,7 @@ class SmbClient private constructor(
             var session: Session? = null
             var diskShare: DiskShare? = null
             try {
-                connection = client.connect(host.trim(), port)
+                connection = client.connect(HostAddress.normalize(host), port)
                 val authentication = if (anonymous) {
                     AuthenticationContext.anonymous()
                 } else {

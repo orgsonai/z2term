@@ -19,6 +19,7 @@ import org.xmlpull.v1.XmlPullParserFactory
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetAddress
+import com.zerotoship.z2term.net.HostAddress
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
@@ -232,27 +233,32 @@ class WebDavClient private constructor(
             routeHost: String,
             routePort: Int,
         ): WebDavClient = withContext(Dispatchers.IO) {
-            require(service.host.isNotBlank()) { "WebDAV host is required" }
+            val serviceHost = HostAddress.normalize(service.host)
+            require(serviceHost.isNotBlank()) { "WebDAV host is required" }
             val scheme = if (service.webDavHttps) "https" else "http"
             val base = HttpUrl.Builder()
                 .scheme(scheme)
-                .host(service.host)
+                .host(serviceHost)
                 .port(routePort)
                 .apply {
                     RemotePath.segments(service.path).forEach(::addPathSegment)
                     addPathSegment("")
                 }
                 .build()
+            // HttpUrl は IPv6 を正規形へ畳むことがある。入力文字列ではなく、実際に Request が
+            // Dns へ渡す canonical host と比べないと SSH 転送を迂回してしまう。
+            val canonicalHost = base.host
             val tunneled = service.useSshTunnel
             val routeDns = if (tunneled) Dns { hostname ->
-                if (hostname == service.host) InetAddress.getAllByName(routeHost).toList()
+                if (hostname == canonicalHost) InetAddress.getAllByName(routeHost).toList()
                 else Dns.SYSTEM.lookup(hostname)
             } else null
             val defaultPort = if (service.webDavHttps) 443 else 80
-            val originalAuthority = buildString {
-                append(service.host)
-                if (service.remotePort != defaultPort) append(':').append(service.remotePort)
-            }
+            val originalAuthority = HostAddress.authority(
+                canonicalHost,
+                service.remotePort,
+                defaultPort,
+            )
             WebDavClient(
                 baseUrl = base,
                 user = service.user,

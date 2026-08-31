@@ -3,6 +3,7 @@ package com.zerotoship.z2term.channel
 import android.content.Context
 import android.util.Log
 import com.jcraft.jsch.ChannelShell
+import com.zerotoship.z2term.net.HostAddress
 import com.jcraft.jsch.Session
 import java.io.InputStream
 import java.io.OutputStream
@@ -65,10 +66,14 @@ class SshChannel private constructor(
             for (fwd in profile.forwards) {
                 try {
                     val assigned = session.setPortForwardingL(
-                        fwd.bindAddress, fwd.localPort, fwd.remoteHost, fwd.remotePort
+                        HostAddress.normalize(fwd.bindAddress),
+                        fwd.localPort,
+                        HostAddress.normalize(fwd.remoteHost),
+                        fwd.remotePort,
                     )
-                    summary += "${fwd.bindAddress}:${assigned} → ${fwd.remoteHost}:${fwd.remotePort}"
-                    Log.i(TAG, "PortForwardL: ${fwd.bindAddress}:$assigned → ${fwd.remoteHost}:${fwd.remotePort}")
+                    summary += "${HostAddress.hostPort(fwd.bindAddress, assigned)} → " +
+                        HostAddress.hostPort(fwd.remoteHost, fwd.remotePort)
+                    Log.i(TAG, "PortForwardL: ${summary.last()}")
                 } catch (e: Exception) {
                     Log.w(TAG, "PortForwardL failed for $fwd: ${e.message}")
                     summary += "✗ ${fwd.bindAddress}:${fwd.localPort} (${e.message})"
@@ -79,7 +84,7 @@ class SshChannel private constructor(
             channel.setPtyType("xterm-256color")
             channel.setPtySize(cols, rows, cols * 8, rows * 16)
             channel.connect(CONNECT_TIMEOUT_MS)
-            Log.i(TAG, "SSH connected to ${profile.user}@${profile.host}:${profile.port}")
+            Log.i(TAG, "SSH connected to ${profile.user}@${HostAddress.hostPort(profile.host, profile.port)}")
             return SshChannel(session, channel, summary)
         }
 

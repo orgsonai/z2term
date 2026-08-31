@@ -43,6 +43,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Slider
@@ -2957,6 +2959,7 @@ private fun AutoBackupSection(settings: AppSettings.Snapshot, session: TerminalS
             title = stringResource(R.string.auto_backup_passphrase),
             placeholder = stringResource(R.string.auto_backup_passphrase_hint),
             value = settings.autoBackupPassphrase,
+            secret = true,
             onChange = { session.setAutoBackupPassphrase(it) }
         )
         Text(
@@ -3958,6 +3961,8 @@ private fun TextField(
     title: String,
     placeholder: String,
     value: String,
+    /** 合言葉などは初期状態を伏せ字にし、利用者が明示した間だけ表示する。 */
+    secret: Boolean = false,
     /** 数字しか入らない欄は数字のキーパッドで開く (0.8.389)。 */
     numeric: Boolean = false,
     onChange: (String) -> Unit
@@ -3972,6 +3977,7 @@ private fun TextField(
             draft = TextFieldValue(value, TextRange(value.length))
         }
     }
+    var secretVisible by remember(title) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = title,
@@ -3979,41 +3985,58 @@ private fun TextField(
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace
         )
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(6.dp))
                 .background(ZtsBgCard)
                 .border(1.dp, ZtsBorder, RoundedCornerShape(6.dp))
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (draft.text.isEmpty()) {
-                Text(
-                    text = placeholder,
-                    color = ZtsTextSecondary.copy(alpha = 0.6f),
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace
+            Box(modifier = Modifier.weight(1f)) {
+                if (draft.text.isEmpty()) {
+                    Text(
+                        text = placeholder,
+                        color = ZtsTextSecondary.copy(alpha = 0.6f),
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+                BasicTextField(
+                    value = draft,
+                    onValueChange = {
+                        draft = it
+                        onChange(it.text)
+                    },
+                    visualTransformation = if (secret && !secretVisible) {
+                        PasswordVisualTransformation()
+                    } else {
+                        VisualTransformation.None
+                    },
+                    textStyle = TextStyle(
+                        color = ZtsTextPrimary,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace
+                    ),
+                    keyboardOptions = if (numeric) {
+                        KeyboardOptions(keyboardType = KeyboardType.Number)
+                    } else {
+                        KeyboardOptions.Default
+                    },
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(ZtsGreen),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
-            BasicTextField(
-                value = draft,
-                onValueChange = {
-                    draft = it
-                    onChange(it.text)
-                },
-                textStyle = TextStyle(
-                    color = ZtsTextPrimary,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace
-                ),
-                keyboardOptions = if (numeric) {
-                    KeyboardOptions(keyboardType = KeyboardType.Number)
-                } else {
-                    KeyboardOptions.Default
-                },
-                cursorBrush = androidx.compose.ui.graphics.SolidColor(ZtsGreen),
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (secret) {
+                ActionButton(
+                    label = stringResource(
+                        if (secretVisible) R.string.password_hide else R.string.password_show
+                    ),
+                    onClick = { secretVisible = !secretVisible },
+                )
+            }
         }
     }
 }

@@ -13,6 +13,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.IOException
 import java.net.InetSocketAddress
+import com.zerotoship.z2term.net.HostAddress
 import java.net.Socket
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
@@ -122,7 +123,7 @@ class RfbClient(
         val s = Socket()
         s.tcpNoDelay = true
         try {
-            s.connect(InetSocketAddress(host, port), timeoutMs)
+            s.connect(InetSocketAddress(HostAddress.normalize(host), port), timeoutMs)
         } catch (e: Exception) {
             runCatching { s.close() }  // 未接続のソケットを積み残さない
             throw e

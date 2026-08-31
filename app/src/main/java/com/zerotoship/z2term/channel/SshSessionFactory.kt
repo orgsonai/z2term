@@ -5,6 +5,7 @@ import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
 import com.jcraft.jsch.UserInfo
 import com.zerotoship.z2term.service.NetGuard
+import com.zerotoship.z2term.net.HostAddress
 import java.util.Properties
 
 /**
@@ -29,7 +30,8 @@ object SshSessionFactory {
      * ⚠ 名前解決を伴うので、**IO スレッドから呼ぶ**という元々の約束がここでも要る。
      */
     fun create(profile: SshProfile, context: Context): Session {
-        NetGuard.ensureAllowed(context, profile.host)
+        val host = HostAddress.normalize(profile.host)
+        NetGuard.ensureAllowed(context, host)
         val jsch = JSch()
         jsch.hostKeyRepository = KnownHostsHolder.repository(context)
 
@@ -40,7 +42,7 @@ object SshSessionFactory {
             jsch.addIdentity(profile.id, keyBytes, null, passphrase)
         }
 
-        val session = jsch.getSession(profile.user, profile.host, profile.port)
+        val session = jsch.getSession(profile.user, host, profile.port)
         if (profile.authType == SshProfile.AuthType.PASSWORD && profile.password.isNotEmpty()) {
             session.setPassword(profile.password)
         }
@@ -88,7 +90,7 @@ internal class VerifyingUserInfo(private val profile: SshProfile) : UserInfo {
         val keyType = extractKeyType(msg)
         return HostKeyVerifier.requestVerify(
             HostKeyVerifier.Prompt(
-                host = "${profile.user}@${profile.host}:${profile.port}",
+                host = "${profile.user}@${HostAddress.hostPort(profile.host, profile.port)}",
                 keyType = keyType,
                 fingerprint = fingerprint,
                 message = msg

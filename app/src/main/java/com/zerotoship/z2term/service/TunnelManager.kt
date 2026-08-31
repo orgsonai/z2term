@@ -6,6 +6,7 @@ import com.jcraft.jsch.Session
 import com.zerotoship.z2term.channel.KnownHostsHolder
 import com.zerotoship.z2term.channel.PortForward
 import com.zerotoship.z2term.channel.SshProfile
+import com.zerotoship.z2term.net.HostAddress
 import com.zerotoship.z2term.channel.SshProfileStore
 import com.zerotoship.z2term.channel.SshSessionFactory
 import com.zerotoship.z2term.settings.AppSettings
@@ -268,9 +269,19 @@ object TunnelManager {
         forwards.forEach { f ->
             runCatching {
                 if (f.reverse) {
-                    session.setPortForwardingR(f.bindAddress, f.remotePort, f.remoteHost, f.localPort)
+                    session.setPortForwardingR(
+                        HostAddress.normalize(f.bindAddress),
+                        f.remotePort,
+                        HostAddress.normalize(f.remoteHost),
+                        f.localPort,
+                    )
                 } else {
-                    session.setPortForwardingL(f.bindAddress, f.localPort, f.remoteHost, f.remotePort)
+                    session.setPortForwardingL(
+                        HostAddress.normalize(f.bindAddress),
+                        f.localPort,
+                        HostAddress.normalize(f.remoteHost),
+                        f.remotePort,
+                    )
                 }
             }.onFailure { e ->
                 Log.w(TAG, "forward failed (${f.describe()}): ${e.message}")
@@ -293,7 +304,7 @@ object TunnelManager {
     private fun isKnownHost(context: Context, profile: SshProfile): Boolean = runCatching {
         val repo = KnownHostsHolder.repository(context)
         // JSch は既定ポート以外を `[host]:port` の形で記録する (SSH タブでの承認時と同じ形)。
-        val key = if (profile.port == 22) profile.host else "[${profile.host}]:${profile.port}"
+        val key = HostAddress.knownHostKey(profile.host, profile.port)
         repo.getHostKey(key, null).isNotEmpty()
     }.getOrDefault(false)
 }
