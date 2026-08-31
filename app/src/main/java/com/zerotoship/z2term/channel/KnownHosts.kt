@@ -182,7 +182,9 @@ object HostKeyVerifier {
         val host: String,
         val keyType: String,
         val fingerprint: String,
-        val message: String
+        val message: String,
+        /** 見出し。空なら SSH ホスト鍵の見出しを使う (RDP 証明書などが差し替える)。 */
+        val title: String = ""
     )
 
     @Volatile

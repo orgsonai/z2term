@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-31 / 対象バージョン: 0.8.458-alpha (versionCode 466)
+最終更新: 2026-08-31 / 対象バージョン: 0.8.459-alpha (versionCode 467)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1845,7 +1845,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - `settings/SettingsSheet.kt` + `SshAccessHelper.kt`: 設定ページ (全画面) + SSH/ストレージ ヘルパー。
   - 項目は **8 グループのアコーディオン** (`settings/SettingsGroup.kt`) に束ねる: 表示 / キーボード・入力 / Linux 環境 / 常駐サーバー・自動化 / メンテナンス / 開発者向け / **使い方 (Tips)** / このアプリについて。宣言順が表示順。開閉状態は `settings/SettingsGroupStore.kt` が `settings_group_open_<id>` の固定キー 1 本ずつで DataStore に永続化する (グループを増減しても既存の状態が壊れない。保存が無いグループは `defaultOpen` にフォールバック)。閉じている間は中身を composition しない。見出し行は「タップできる場所」だと分かるように**カード背景 + 1dp の枠**（他のタップ可能カードと同じ意匠）を付け、**開いている間は枠と背景をアクセント寄り**にして開閉状態も色で読めるようにする (0.8.184。それ以前は文字と ▸/▾ だけで、周囲の項目と見分けが付きにくかった)。
   - **端末リセット**は `SessionManager.resetToInitial()` を呼び、**端末タブ 1 つだけを残して他タブ (端末・GUI) を全部閉じ**、残した 1 つを `TerminalSession.restart()` で初期化する (= アプリ初回起動時の状態)。タブ数や動作中かに関わらず**常に**確認ダイアログを挟み、実行後はトーストで結果を出す。設定値・常駐サーバー・rootfs には触れない。
-- `ssh/SshProfilesSheet.kt` + `HostKeyVerificationDialog.kt`: SSH 接続先と、それに紐づく FTP / SMB / WebDAV / VNC サービスの UI + SSH 鍵検証。各サービスは既定で SSH ローカルポート転送を使い、ローカルポート未指定時は空きポートを自動取得する。転送を外した場合は暗号化されない旨を警告し、サービス固有ホストではなく親 SSH 接続先のホストへ直接接続する。
+- `ssh/SshProfilesSheet.kt` + `HostKeyVerificationDialog.kt`: SSH 接続先と、それに紐づく FTP / SMB / WebDAV / VNC / RDP サービスの UI + SSH 鍵検証。各サービスは既定で SSH ローカルポート転送を使い、ローカルポート未指定時は空きポートを自動取得する。転送を外した場合は暗号化されない旨を警告し、サービス固有ホストではなく親 SSH 接続先のホストへ直接接続する。
 - `sftp/SftpSheet.kt`: `RemoteFs` を使う SFTP / FTP / SMB / WebDAV 共通ファイルブラウザ (**全画面ページ**)。WebDAV は通常のTLS証明書検証を行う OkHttp、SMB は SMB1 を扱わない SMBJ を使う。Android の戻るボタンと左上矢印は親フォルダへ移動し、ルートでだけ接続終了を確認する。一覧の下方向スクロールが ModalBottomSheet の「閉じる」ドラッグと競合して勝手に閉じるため、設定ページと同じ別ページ方式に変更した。
 - `snippets/SnippetsSheet.kt`: ツールシート (ツールバー 📜)。タブで **スニペット** (1 行タップで挿入、並替/編集) / **SSH・SFTP** (`ssh/SshProfilesBody`) / **サーバー** (`settings/ServersBody` = 常駐サーバー管理を設定シートと共有) を切替える。SSH タブは端末タブのみ、サーバータブは端末セッションがあるときだけ出る。**シートはどのタブでも全高で開く（0.8.252）**: 中身の量に任せると項目の少ないタブでシートが縮み、**タブバーの位置がタブごとに動いて誤タップになる**（切り替えた先で、前のタブのタブバーがあった場所を押してしまう）。中身の Column に `weight(1f)` を与えて残り全部を取らせる — `fillMaxHeight` ではないのは、上のドラッグハンドルの分だけはみ出すため。
 - `components/ReorderList.kt`: **縦リストのドラッグ並べ替え** (0.8.249)。スニペットタブの操作感 (≡ を掴んで上下) を、**行の高さが可変な一覧**でも使えるようにした共通部品で、サーバータブと自動化タブが使う。スニペットは行が固定高なのでピッチを定数で持てたが、サーバー / ルールの行は状態表示やログの開閉で高さが変わるため、各行が `onSizeChanged` で高さを報告し、入れ替えの判定に**隣の行の実測高さ**を使う。掴んでいる間は外側の一覧で並びを上書きしない (指の下から行が飛ばないように)。⚠ 行には `key(id)` を付けること — ノード identity が固定されないと掴んだ行からポインタが外れる。⚠ ドラッグは**ハンドルだけ**に付ける (行全体だと ON/OFF やログ開閉のタップと競合する)。永続化は呼び出し側の責任 (サーバー = `ServerEntry` の並びをそのまま保存、自動化 = 各ルールファイルの `order=`)。
@@ -1854,8 +1854,8 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 
 - distro 内で **Xvnc**(VNC サーバ) + 軽量 WM/アプリを起動（`proot/GuiScript.kt` が冪等で配置・起動。GUI 自動起動 / 横画面対応）。
 - **GUI 一式の導入 (`ensure_pkgs`)**: Xvnc / openbox / 選択ターミナルが揃っていれば**無通信で即起動**（導入済みを毎回 update/再取得しないポリシー）。**未導入のときだけ**不足分を `install_pkgs`（apk add / apt install / pacman -S）で取得し、取れなければ明確に案内して失敗する。app 側 (`TerminalScreen`) のダウンロード確認ゲート (`confirmBeforeDownload`) が同意を取ってから走る。`clean` 指定時のみ cache を消して入れ直す (`clean_pkgs`、破損状態の救済)。
-- `GuiSession`/`GuiActivity`/`GuiScreen`/`GuiViewport`/`GuiInputView`/`GuiKeyMapper`/`GuiEventWatcher` + `gui/RemoteDesktopClient.kt`（描画・入力の共通境界）+ `gui/rfb/RfbClient.kt`（内蔵 RFB 実装）。端末タブと GUI タブをペアリングし IME 連動。`GuiSession`・Compose 描画・入力 View・GUI キーボードは `RfbClient` 型を直接要求せず、同じ境界へ RDP 実装を差せる（0.8.450）。
-- **RDP はまだ利用者向け機能ではない（0.8.450〜0.8.458）**: `gui/rdp/` は X.224/TLS、CredSSP/NTLMv2、T.124 GCC・T.125 MCS、Client Info、license、Demand/Confirm Active、connection finalization、slow-path の従来型 Bitmap Update 受信まで実装。内部 `RdpClient` は 15/16/24bpp の非圧縮・Interleaved RLE 更新を複数矩形と画面外クリップ込みで ARGB framebuffer へ展開し、dirty 領域の redraw を通知する。Fast-Path、Surface Commands、Bitmap Codecs、個別の描画 Order、32bpp RDP 6.0 圧縮、入力、clipboard、resize、接続 UI は意図的に広告・接続しないため、現時点で `[RDP]` は表示しない。
+- `GuiSession`/`GuiActivity`/`GuiScreen`/`GuiViewport`/`GuiInputView`/`GuiKeyMapper`/`GuiEventWatcher` + `gui/RemoteDesktopClient.kt`（描画・入力の共通境界）+ `gui/rfb/RfbClient.kt`（内蔵 RFB 実装）。端末タブと GUI タブをペアリングし IME 連動。`GuiSession`・Compose 描画・入力 View・GUI キーボードは `RfbClient` 型を直接要求せず、同じ境界へ RDP 実装を差せる（0.8.450）。**接続先そのものは `gui/RemoteTarget.kt`**（`VncTarget` / `RdpTarget` が実装）で表し、`GuiSession` は `remote.createClient()` を呼ぶだけでプロトコルを知らない（0.8.459）。
+- **RDP（0.8.450〜0.8.459）**: `gui/rdp/` は X.224/TLS、CredSSP/NTLMv2、T.124 GCC・T.125 MCS、Client Info、license、Demand/Confirm Active、connection finalization、slow-path の従来型 Bitmap Update 受信までを**外部ライブラリ無し**で実装（MD4 / RC4 / NTLM も自前）。`RdpClient` は 15/16/24bpp の非圧縮・Interleaved RLE 更新を複数矩形と画面外クリップ込みで ARGB framebuffer へ展開し、dirty 領域の redraw を通知する。**0.8.459 で接続 UI を付け、SSH 接続先のサービスとして `[RDP]` から開けるようにした**（→ §6.3.1）。⚠ **まだ画面を見るだけで、入力・clipboard・resize は無い**。Fast-Path、Surface Commands、Bitmap Codecs、個別の描画 Order、32bpp RDP 6.0 圧縮は **capability で 1 つも広告しない**ので、サーバーは従来型 Bitmap Update を送ってくる（`orderSupport[32]` 全ゼロ・General cap の extraFlags = 0。**実装していないものは受け取らないと宣言する**のであって、来たものを握り潰すのではない）。
 - **入力**: `GuiInputView` のジェスチャ — **2 本指 = ピンチ(ズーム/パン)**、**3 本指縦移動 = ホイール上/下スクロール**（一度 3 本指になったら全指が離れるまでスクロール扱い）。旧スクロールボタンと `RfbClient.scrollWheel` は撤去。
 - **動画**: GPU 無し端末で `gpu` 出力が失敗するため、mpv を **`vo=x11` 既定 + `LIBGL_ALWAYS_SOFTWARE`** でソフト描画させて正常再生。
 - **音声 (`service/AudioBridge.kt`)**: **オプトイン**（設定「GUI 音声」`guiAudioEnabled` ON 時のみ）。distro 内 PulseAudio(`-n` 方式で起動) → TCP → Android `AudioTrack` でブリッジ。
@@ -2476,14 +2476,21 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 - **一覧から消すときだけ確認を挟む (0.8.452)**: 接続先・サービス・ポート転送の ✕ / 削除はいずれも編集ボタンの隣にあり、ミスタップがそのまま鍵やパスワードごとの消失になる。共通の `ConfirmDialog` で 1 度止め、消える対象の名前を出す。⚠ **CLI からの削除には確認を挟まない** — コマンドは打った時点で明示的で、対話の余地がない。常駐サーバー (`ServersBody`) と自動化ルール (`WhenRulesBody`) の ✕ も同じ扱い。
 - **緑 (accent) は「そのカードの主アクション」だけに付ける (0.8.452)**: 接続だけが緑で、SFTP と各サービスは枠線のみ。以前は VNC にも緑が付いており、種類による色分けとも選択状態とも読めた。
 
-### 6.3.1 リモート VNC (画面・A1・0.8.418)
+### 6.3.1 リモートの画面 (VNC / RDP・A1・0.8.418／0.8.459)
 
-- **接続先を 3 か所に登録させない。** `SshProfile` に `vncPort` / `vncPassword` を持たせ、`SshProfilesSheet` の1 件から「シェル (接続) / ファイル (SFTP) / **画面 (VNC)**」の 3 通りで入る。**タブもボタンも増やしていない**（行の中で 2 段に分けただけ）。
-- **[VNC] は `SessionManager.openRemoteVnc(context, profile.toVncTarget())`** → リモートモードの `GuiSession`（→ 4.12）。SSH は経由しない**別の接続**なので、SSH のポートやパスワードとは無関係。
+- **接続先を 3 か所に登録させない。** `SshProfile` の 1 件から「シェル (接続) / ファイル (SFTP) / **画面 (VNC・RDP)**」で入る。**タブもボタンも増やしていない**（行の中で 2 段に分けただけ）。画面のサービスは FTP / SMB / WebDAV と同じ `RemoteService` に相乗りし、`RemoteServiceProtocol.opensDesktopTab` の印だけで「GUI タブか、ファイル画面か」が決まる（呼び出し側にプロトコル名を並べない）。
+- **[VNC] / [RDP] は `RemoteServiceConnector.desktopTarget()` → `SessionManager.openRemoteDesktop()`** → リモートモードの `GuiSession`（→ 4.12）。既定では**同じ SSH を踏み台にした一時ポートフォワード**（`ServiceRoute`）を通り、タブを閉じると転送も消える。「SSH ポートフォワード」を外すと SSH 接続先ホストへ直通する（暗号化が無くなる旨の確認つき）。
 - **既定ポートは 5901**（`VncTarget.DEFAULT_PORT`）。画面 `:N` は `5900+N`。Windows / macOS のデスクトップ共有は`:0` = 5900 が多い。
 - ⭐ **相手が `127.0.0.1` でしか待っていないときは、アプリに機能を足さずに済む** — 端末タブで`ssh -L 5901:localhost:5901 <host>` を張り、接続先を `127.0.0.1` にすればトンネル越しに映る（**Linux 側で埋まるものはアプリに入れない**方針どおり）。
 - **失敗は型で見分けて案内に訳す**（`GuiSession.remoteFailureMessage`）。パスワード未設定 / 違う / 未対応方式 /待ち受けていない / 応答なし をそれぞれ別の文にする。⚠ 例外のメッセージをそのまま出さない —画面の真ん中に出る**唯一の説明**なので、`java.net.ConnectException: …` では何を直せばよいか伝わらない。
 - ⚠ **VNC のパスワードは 8 文字までしか効かない**（RFB の仕様。9 文字目以降は捨てられる）。保存時は SSH の秘密と同じく Keystore で暗号化し、設定の持ち出しでは「秘密を含めない」選択で落ちる。
+
+**RDP 固有の 3 点（0.8.459）**
+
+- **ネットワークレベル認証 (NLA) だけを話す。** CredSSP + NTLMv2 なのでユーザー名とパスワードが要る（ドメインは任意。SMB と同じ `RemoteService.domain` に入れる）。相手が NLA を選ばなかったときは `RdpNlaUnsupportedException` で**名指しの案内**を出す — 打ち間違いと「相手の設定がそもそも違う」は直し方が別なので、同じ「接続に失敗しました」に混ぜない。
+- ⭐ **画面の大きさはこちらが決める。** RFB は**もう立っている画面を後から覗きに行く**のでサーバーの解像度をそのまま受け取るが、RDP は**接続のたびに新しいセッションを作らせる**ので、要求しなければ相手の既定（1024x768 等）になる。`RdpTarget.fitDesktopSize` が端末の画面 px から**長辺を幅にした横長・4 の倍数・640〜4096** を出す（GUI タブは横で使う／半端な端の帯を作らない／相手が拒否する大きさを出さない）。⚠ VNC の `requestResize` を送らない理由（相手の実画面を勝手に変えてしまう）とは**別の話**で、矛盾していない。
+- **証明書は相手ごとに 1 度だけ確かめて覚える**（`RdpCertificateTrust`・SSH の known_hosts と同じ考え方）。RDP の証明書は自己署名が普通でシステム CA では検証できず、かといって全部受け入れると中間者に気付けない。⇒ **初回だけ SHA-256 指紋を見せて決めてもらい、次からは一致を要求する**（変わっていたらもう一度出す）。⚠⚠ **覚える名前は SSH 転送を通す前の本来の宛先**（`RdpTarget.trustKey`）。転送中の `127.0.0.1:<毎回変わるポート>` で覚えると、**次の接続で必ず「初めての相手」になり、確認が確認でなくなる**。確認のダイアログは SSH のホスト鍵と同じ `HostKeyVerifier` に相乗りし、見出しだけ差し替える（利用者が覚える画面を増やさない）。
+- ⚠ **まだ画面を見るだけ**（`sendPointerEvent` / `sendKeyEvent` は空実装）。UI にもその旨を書いてある — **できないことを黙っていると「壊れている」と読まれる**。
 
 ### 6.4 SSH サーバ (PC → 端末) ※dropbear
 

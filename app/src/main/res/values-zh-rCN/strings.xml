@@ -410,6 +410,7 @@
     <string name="remote_service_start_path">起始文件夹（可选）</string>
     <string name="remote_service_base_path">基础路径（可选）</string>
     <string name="remote_service_smb_anonymous_hint">匿名连接时请将用户名和密码都留空。</string>
+    <string name="remote_service_rdp_hint">RDP 需要网络级别身份验证 (NLA)。必须填写用户名与密码，没有域则留空。首次连接时会确认对方证书的指纹。⚠ 目前只能查看画面，尚不能发送鼠标与键盘。</string>
     <string name="remote_service_webdav_scheme">WebDAV 传输方式</string>
     <string name="remote_service_use_ssh">SSH 端口转发</string>
     <string name="remote_service_use_ssh_desc">通过此 SSH 连接加密</string>
@@ -441,6 +442,15 @@
     <string name="vnc_error_refused">%1$s 上没有在监听。请确认 VNC 服务器是否在运行，端口是否正确 (显示 :N 对应 5900+N)。</string>
     <string name="vnc_error_timeout">%1$s 没有在规定时间内响应。请检查网络和防火墙。</string>
     <string name="vnc_error_generic">连接失败: %1$s</string>
+    <string name="rdp_cert_title">⚠️  服务器证书验证</string>
+    <string name="rdp_cert_keytype">RDP 服务器证书 (SHA-256)</string>
+    <string name="rdp_cert_unknown">这是首次连接 %1$s 的 RDP 服务器。请先核对指纹再信任。</string>
+    <string name="rdp_cert_changed">%1$s 的 RDP 服务器证书与上次不同。对方可能已被替换。</string>
+    <string name="rdp_error_auth_failed">用户名或密码被拒绝。如果对方需要域，请一并填写「域」。</string>
+    <string name="rdp_error_nla_required">该 RDP 服务器未提供网络级别身份验证 (NLA)。请在 Windows 端开启要求网络级别身份验证的设置。</string>
+    <string name="rdp_error_certificate_rejected">未信任证书，已停止连接。</string>
+    <string name="rdp_error_timeout">%1$s 未在时间内响应。请检查网络与防火墙。</string>
+    <string name="rdp_error_refused">%1$s 上没有程序在监听。请确认对方已启用远程桌面，且端口正确（默认 3389）。</string>
     <string name="ssh_field_init_cmd">init 命令 (连接后自动执行，可选)</string>
     <string name="ssh_port_forward">端口转发 (-L)</string>
     <string name="ssh_port_forward_add">+ 添加</string>

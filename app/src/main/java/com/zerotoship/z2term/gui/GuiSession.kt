@@ -7,11 +7,13 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.gui.rdp.CredSspAuthenticationException
+import com.zerotoship.z2term.gui.rdp.RdpNlaUnsupportedException
+import com.zerotoship.z2term.gui.rdp.RdpTarget
 import com.zerotoship.z2term.gui.rfb.RfbAuthFailedException
 import com.zerotoship.z2term.gui.rfb.RfbClient
 import com.zerotoship.z2term.gui.rfb.RfbPasswordRequiredException
 import com.zerotoship.z2term.gui.rfb.RfbSecurityUnsupportedException
-import com.zerotoship.z2term.gui.rfb.VncTarget
 import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.proot.Z2TERM_VNC_DISPLAY
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.net.ConnectException
 import java.net.SocketTimeoutException
+import java.security.cert.CertificateException
 
 /**
  * Linux GUI セッションのライフサイクル (M8-2: 表示のみ)。
@@ -42,10 +45,11 @@ import java.net.SocketTimeoutException
  *
  * 入力（ポインタ/キー）は M8-3、タブ統合・ズーム/パン等は M8-4。
  *
- * **リモート VNC (A1)**: [remote] を渡すと 1.〜4. をまるごと飛ばし、**そのホストへ RFB で繋ぐだけ**
- * のタブになる。描画・入力・キーボード・クリップボードは同じ [RfbClient] の上に乗るので、ローカル
- * GUI と見た目も操作も変わらない。違いは「Linux 側を起動しない / 解像度を要求しない / 音を運ばない」
- * の 3 点だけ。
+ * **リモートの画面 (A1)**: [remote] を渡すと 1.〜4. をまるごと飛ばし、**その相手へ繋ぐだけ**の
+ * タブになる。描画・入力・キーボード・クリップボードは同じ [RemoteDesktopClient] の上に乗るので、
+ * ローカル GUI と見た目も操作も変わらない。違いは「Linux 側を起動しない / 解像度を要求しない /
+ * 音を運ばない」の 3 点だけ。プロトコル (RFB / RDP) の違いは [RemoteTarget.createClient] の中に
+ * 閉じていて、ここから先は区別しない。
  */
 class GuiSession(
     private val context: Context,
@@ -58,19 +62,19 @@ class GuiSession(
     override val display: Int = Z2TERM_VNC_DISPLAY,
     override val id: String = java.util.UUID.randomUUID().toString(),
     /**
-     * 非 null なら**リモート VNC タブ** (A1)。z2gui を起動せず、この接続先へ繋ぐ。
+     * 非 null なら**リモート画面のタブ** (A1)。z2gui を起動せず、この接続先へ繋ぐ。
      * null なら従来どおりローカルの Xvnc を立てる。
      */
-    val remote: VncTarget? = null,
+    val remote: RemoteTarget? = null,
 ) : com.zerotoship.z2term.core.AppSession {
 
     enum class State { IDLE, STARTING, CONNECTING, CONNECTED, ERROR, STOPPED }
 
     /**
-     * RFB ポート = 5900 + ディスプレイ番号 (VNC 標準慣例。:1→5901, :2→5902 …)。
+     * ローカル GUI の RFB ポート = 5900 + ディスプレイ番号 (VNC 標準慣例。:1→5901, :2→5902 …)。
      * リモート ([remote]) のときは相手が待ち受けているポートをそのまま使う。
      */
-    private val rfbPort: Int = remote?.port ?: (5900 + display)
+    private val remotePort: Int = remote?.port ?: (5900 + display)
 
     private val _state = MutableStateFlow(State.IDLE)
     val state: StateFlow<State> = _state.asStateFlow()
@@ -84,10 +88,8 @@ class GuiSession(
     private val _message = MutableStateFlow("")
     val message: StateFlow<String> = _message.asStateFlow()
 
-    val desktopClient: RemoteDesktopClient = RfbClient(
-        host = remote?.host ?: "127.0.0.1",
-        port = rfbPort,
-        password = remote?.password ?: "",
+    val desktopClient: RemoteDesktopClient = (
+        remote?.createClient() ?: RfbClient(host = "127.0.0.1", port = remotePort)
     ).also { client ->
         // GUI (xterm 等) で選択/コピーしたテキストを Android クリップボードへ反映 (M8-6 T6)。
         client.onRemoteClipboardText = { text -> copyToAndroidClipboard(text) }
@@ -125,8 +127,9 @@ class GuiSession(
      * @param clean true なら z2gui に `clean` を渡し、GUI パッケージをキャッシュごと
      *   入れ直す (ダウンロード/解凍失敗で詰まった状態からの救済)。
      *
-     * リモート VNC ([remote]) のときは引数を 3 つとも使わない (Linux 側を起動しないので
-     * 解像度も導入も無い)。呼び出し側で分岐させないよう、入口は 1 つのままにしてある。
+     * リモート ([remote]) のときは引数を 3 つとも使わない (Linux 側を起動しないので導入が無く、
+     * 大きさは接続先 ([RemoteTarget]) が既に持っている)。呼び出し側で分岐させないよう、入口は
+     * 1 つのままにしてある。
      */
     fun start(width: Int, height: Int, clean: Boolean = false) {
         when (_state.value) {
@@ -208,7 +211,7 @@ class GuiSession(
     }
 
     /**
-     * リモートの VNC サーバへ繋ぐ (A1)。やるのは「TCP を張って RFB のハンドシェイクをする」だけ。
+     * リモートの相手へ繋ぐ (A1)。やるのは「TCP を張ってプロトコルのハンドシェイクをする」だけ。
      *
      * ⚠ **ローカル GUI と違って待たない。** 相手はもう立っているはずなので、繋がらなければ
      * その場で理由を出す ([connectWithRetry] のように粘ると「何も起きない」に見えるだけで、
@@ -218,7 +221,7 @@ class GuiSession(
      * **相手の実画面の解像度を変えてしまう**ので送らない。枠に収める仕事は GuiScreen の
      * 中央フィットとズーム/パンが持つ。
      */
-    private fun startRemote(target: VncTarget) {
+    private fun startRemote(target: RemoteTarget) {
         _state.value = State.CONNECTING
         _message.value = context.getString(R.string.vnc_connecting, target.host, target.port)
         scope.launch {
@@ -261,7 +264,26 @@ class GuiSession(
      * `java.net.ConnectException: failed to connect to /192.168.10.20 (port 5901)` では
      * 何を直せばいいのか伝わらない。型で分かるものは日本語/英語の案内に置き換える。
      */
-    private fun remoteFailureMessage(e: Exception): String = when (e) {
+    private fun remoteFailureMessage(e: Exception): String =
+        if (remote is RdpTarget) rdpFailureMessage(e) else vncFailureMessage(e)
+
+    /**
+     * RDP の失敗。**打ち間違いと「相手の設定がそもそも違う」を分けて出す**のが要点で、
+     * どちらも `java.io.IOException` で来るため型で見分けてから訳す。
+     */
+    private fun rdpFailureMessage(e: Exception): String = when (e) {
+        is CredSspAuthenticationException -> context.getString(R.string.rdp_error_auth_failed)
+        is RdpNlaUnsupportedException -> context.getString(R.string.rdp_error_nla_required)
+        is CertificateException -> context.getString(R.string.rdp_error_certificate_rejected)
+        is SocketTimeoutException -> context.getString(R.string.rdp_error_timeout, rfbHostLabel())
+        is ConnectException -> context.getString(R.string.rdp_error_refused, rfbHostLabel())
+        else -> context.getString(
+            R.string.vnc_error_generic,
+            e.message ?: e.javaClass.simpleName
+        )
+    }
+
+    private fun vncFailureMessage(e: Exception): String = when (e) {
         is RfbPasswordRequiredException -> context.getString(R.string.vnc_error_password_required)
         is RfbAuthFailedException -> context.getString(R.string.vnc_error_auth_failed)
         is RfbSecurityUnsupportedException -> context.getString(R.string.vnc_error_security_unsupported)
@@ -274,7 +296,7 @@ class GuiSession(
     }
 
     /** 案内文に出す接続先 (`192.168.10.20:5901`)。 */
-    private fun rfbHostLabel(): String = "${remote?.host ?: "127.0.0.1"}:$rfbPort"
+    private fun rfbHostLabel(): String = "${remote?.host ?: "127.0.0.1"}:$remotePort"
 
     private fun fail(msg: String) {
         Log.w(TAG, msg)

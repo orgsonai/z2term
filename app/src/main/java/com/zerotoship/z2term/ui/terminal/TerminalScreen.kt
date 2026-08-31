@@ -138,7 +138,6 @@ import com.zerotoship.z2term.ui.components.ResidentActionDialog
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.channel.RemoteService
 import com.zerotoship.z2term.channel.RemoteServiceConnector
-import com.zerotoship.z2term.channel.RemoteServiceProtocol
 import com.zerotoship.z2term.ui.settings.SettingsSheet
 import com.zerotoship.z2term.ui.sftp.SftpSheet
 import com.zerotoship.z2term.ui.snippets.SnippetsSheet
@@ -245,6 +244,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // タブバーは GuiTabScreen 側にも置くので端末↔GUI の切替はできる。
     if (activeSession is GuiSession) {
         GuiTabScreen(sessions = sessions, activeId = activeId, modifier = modifier)
+        // ⚠ **接続中の確認ダイアログはここにも要る。** この分岐は端末 UI ごと早期 return するので、
+        // 下 (端末タブ側) に 1 つ置いてあるだけでは GUI タブの間だけ**誰も出さないダイアログ**になる。
+        // RDP の証明書確認は GUI タブが前面に出た後 (GuiSession.start → connect) に走るため、
+        // 無いと応答を待って固まる。
+        HostKeyVerificationDialog()
         return
     }
 
@@ -920,12 +924,13 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onConnect = { profile -> active.connectSsh(profile) },
             onSftp = { profile -> remoteFileTarget = RemoteFileTarget(profile, null) },
             onService = { profile, service ->
-                if (service.protocol == RemoteServiceProtocol.VNC) {
+                // 画面を開くサービス (VNC / RDP) は GUI タブへ、それ以外はファイル画面へ。
+                if (service.protocol.opensDesktopTab) {
                     scope.launch {
                         runCatching {
-                            RemoteServiceConnector.vncTarget(profile, service, context)
+                            RemoteServiceConnector.desktopTarget(profile, service, context)
                         }.onSuccess { target ->
-                            SessionManager.openRemoteVnc(context, target)
+                            SessionManager.openRemoteDesktop(context, target)
                         }.onFailure { error ->
                             android.widget.Toast.makeText(
                                 context,

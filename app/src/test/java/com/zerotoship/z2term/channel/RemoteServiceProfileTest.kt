@@ -24,6 +24,28 @@ class RemoteServiceProfileTest {
         assertEquals(445, RemoteServiceProtocol.SMB.defaultPort)
         assertEquals(443, RemoteServiceProtocol.WEBDAV.defaultPort)
         assertEquals(5901, RemoteServiceProtocol.VNC.defaultPort)
+        assertEquals(3389, RemoteServiceProtocol.RDP.defaultPort)
+    }
+
+    @Test
+    fun onlyTheScreenProtocolsOpenAGuiTab() {
+        // 呼び出し側はプロトコル名を並べず、この印だけで GUI タブ / ファイル画面を分ける。
+        assertTrue(RemoteServiceProtocol.VNC.opensDesktopTab)
+        assertTrue(RemoteServiceProtocol.RDP.opensDesktopTab)
+        assertFalse(RemoteServiceProtocol.FTP.opensDesktopTab)
+        assertFalse(RemoteServiceProtocol.SMB.opensDesktopTab)
+        assertFalse(RemoteServiceProtocol.WEBDAV.opensDesktopTab)
+    }
+
+    @Test
+    fun rdpDefaultsToTheTunneledStandardPort() {
+        // 追加した直後のまま繋げること。既定は SSH 転送あり + 3389。
+        val service = RemoteService(id = "rdp-1", protocol = RemoteServiceProtocol.RDP)
+
+        assertTrue(service.useSshTunnel)
+        assertEquals(3389, service.remotePort)
+        assertEquals(0, service.localPort)
+        assertEquals("localhost:3389", service.endpointDescription())
     }
 
     @Test

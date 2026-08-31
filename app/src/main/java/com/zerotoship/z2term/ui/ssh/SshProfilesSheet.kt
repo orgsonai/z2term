@@ -624,7 +624,7 @@ private fun EditForm(
     }
 }
 
-/** SSH 接続先にぶら下がる FTP / SMB / WebDAV / VNC の編集。 */
+/** SSH 接続先にぶら下がる FTP / SMB / WebDAV / VNC / RDP の編集。 */
 @Composable
 private fun RemoteServicesSection(
     sshHost: String,
@@ -896,6 +896,22 @@ private fun RemoteServiceEditor(
                     placeholder = "********",
                     secret = true,
                     visibilityKey = "${service.id}:vnc-password",
+                )
+            }
+            RemoteServiceProtocol.RDP -> {
+                ServiceCredentials(service, onChange)
+                Field(
+                    // NTLM のドメイン。SMB と同じ意味なので文言を共有する。
+                    label = stringResource(R.string.connection_field_smb_domain),
+                    value = service.domain,
+                    onChange = { onChange(service.copy(domain = it)) },
+                    placeholder = "WORKGROUP",
+                )
+                Text(
+                    text = stringResource(R.string.remote_service_rdp_hint),
+                    color = ZtsTextSecondary,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
                 )
             }
         }

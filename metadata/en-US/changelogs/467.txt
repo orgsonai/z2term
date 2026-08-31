@@ -1,0 +1,5 @@
+0.8.459-alpha
+
+- Added [RDP] to SSH destinations: open a remote desktop in a tab through SSH port forwarding.
+- Network Level Authentication (NLA) is supported; the server certificate is confirmed once and remembered.
+- RDP still only shows the screen - mouse and keyboard input is not sent yet.

@@ -79,7 +79,7 @@ internal class RdpTlsTransport private constructor(
                 output.flush()
                 val selected = RdpNegotiation.selectedProtocol(readTpkt(input))
                 if (selected and RdpNegotiation.PROTOCOL_HYBRID == 0) {
-                    throw IOException("RDP server did not select CredSSP: 0x${selected.toUInt().toString(16)}")
+                    throw RdpNlaUnsupportedException(selected)
                 }
 
                 val trustManager = RecordingTrustManager()

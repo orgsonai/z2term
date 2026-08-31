@@ -1,6 +1,7 @@
 package com.zerotoship.z2term.channel
 
 import android.content.Context
+import com.zerotoship.z2term.gui.rdp.RdpTarget
 import com.zerotoship.z2term.gui.rfb.VncTarget
 import com.zerotoship.z2term.net.HostAddress
 import androidx.datastore.core.DataStore
@@ -78,16 +79,22 @@ enum class ConnectionProtocol {
     SMB
 }
 
-/** SSH 接続先の外側に並べるリモートサービス。 */
-enum class RemoteServiceProtocol(val defaultPort: Int) {
+/**
+ * SSH 接続先の外側に並べるリモートサービス。
+ *
+ * [opensDesktopTab] が true のものは**ファイル画面ではなく GUI タブ**を開く。呼び出し側が
+ * プロトコル名を並べて分岐しなくて済むよう、どちら側の入口かをここに持たせている。
+ */
+enum class RemoteServiceProtocol(val defaultPort: Int, val opensDesktopTab: Boolean = false) {
     FTP(21),
     SMB(445),
     WEBDAV(443),
-    VNC(VncTarget.DEFAULT_PORT)
+    VNC(VncTarget.DEFAULT_PORT, opensDesktopTab = true),
+    RDP(RdpTarget.DEFAULT_PORT, opensDesktopTab = true)
 }
 
 /**
- * 1 件の FTP / SMB / WebDAV / VNC 接続設定。
+ * 1 件の FTP / SMB / WebDAV / VNC / RDP 接続設定。
  *
  * [useSshTunnel] が true のとき、[host]:[remotePort] は SSH サーバーから見た接続先で、
  * Android 側の 127.0.0.1:[localPort] へ一時的に `-L` 転送する。[localPort] が 0 なら
@@ -107,7 +114,7 @@ data class RemoteService(
     val password: String = "",
     /** FTP の開始フォルダ / SMB 共有名 / WebDAV のベースパス。 */
     val path: String = "",
-    /** SMB 認証ドメイン。 */
+    /** SMB / RDP (NTLM) の認証ドメイン。 */
     val domain: String = "",
     /** WebDAV だけで使用。true=https / false=http。 */
     val webDavHttps: Boolean = true,

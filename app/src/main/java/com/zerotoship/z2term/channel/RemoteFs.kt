@@ -53,14 +53,16 @@ object RemoteFsFactory {
             ConnectionProtocol.SMB -> SmbClient.connect(profile)
         }
 
-        require(service.protocol != RemoteServiceProtocol.VNC) { "VNC is not a file service" }
+        // 画面を開くサービス (VNC / RDP) はここへ来ない。来たら呼び出し側の分岐の取りこぼし。
+        require(!service.protocol.opensDesktopTab) { "${service.protocol} is not a file service" }
         val route = ServiceRoute.open(profile, service, context)
         return try {
             val client = when (service.protocol) {
                 RemoteServiceProtocol.FTP -> FtpClient.connect(route, service)
                 RemoteServiceProtocol.SMB -> SmbClient.connect(service, route.host, route.port)
                 RemoteServiceProtocol.WEBDAV -> WebDavClient.connect(service, route.host, route.port)
-                RemoteServiceProtocol.VNC -> error("VNC is not a file service")
+                RemoteServiceProtocol.VNC, RemoteServiceProtocol.RDP ->
+                    error("${service.protocol} is not a file service")
             }
             RoutedRemoteFs(client, route)
         } catch (e: Throwable) {

@@ -433,6 +433,7 @@
     <string name="remote_service_start_path">Start folder (optional)</string>
     <string name="remote_service_base_path">Base path (optional)</string>
     <string name="remote_service_smb_anonymous_hint">Leave both user and password blank for anonymous access.</string>
+    <string name="remote_service_rdp_hint">RDP needs Network Level Authentication (NLA). User name and password are required; leave Domain blank if there is none. The certificate fingerprint is confirmed once, on the first connection. ⚠ For now this only shows the screen — mouse and keyboard are not sent yet.</string>
     <string name="remote_service_webdav_scheme">WebDAV transport</string>
     <string name="remote_service_use_ssh">SSH port forwarding</string>
     <string name="remote_service_use_ssh_desc">Encrypted through this SSH connection</string>
@@ -465,6 +466,15 @@
     <string name="vnc_error_refused">Nothing is listening on %1$s. Check that the VNC server is running and that the port is right (display :N = 5900+N).</string>
     <string name="vnc_error_timeout">%1$s did not answer in time. Check the network and any firewall.</string>
     <string name="vnc_error_generic">Connection failed: %1$s</string>
+    <string name="rdp_cert_title">⚠️  Server certificate verification</string>
+    <string name="rdp_cert_keytype">RDP server certificate (SHA-256)</string>
+    <string name="rdp_cert_unknown">This is the first time you connect to the RDP server at %1$s. Check the fingerprint before you trust it.</string>
+    <string name="rdp_cert_changed">The RDP server certificate for %1$s is different from last time. The host may have been replaced.</string>
+    <string name="rdp_error_auth_failed">The user name or password was rejected. If the host needs one, fill in Domain as well.</string>
+    <string name="rdp_error_nla_required">This RDP server did not offer Network Level Authentication (NLA). On Windows, turn on the Network Level Authentication option for Remote Desktop.</string>
+    <string name="rdp_error_certificate_rejected">The certificate was not trusted, so the connection was stopped.</string>
+    <string name="rdp_error_timeout">%1$s did not answer in time. Check the network and any firewall.</string>
+    <string name="rdp_error_refused">Nothing is listening on %1$s. Check that Remote Desktop is enabled on the host and that the port is right (3389 by default).</string>
     <string name="ssh_field_init_cmd">init command (run automatically on connect, optional)</string>
     <string name="ssh_port_forward">Port forwarding (-L)</string>
     <string name="ssh_port_forward_add">+ Add</string>

@@ -272,7 +272,7 @@ The field for pasting your own private key is still there. Its contents are mask
 
 The host field accepts DNS names, IPv4 and IPv6 literals (with or without surrounding brackets); IPv6 is displayed as `[address]:port` so the port is unambiguous.
 
-In an SSH destination’s editor you can add **FTP, SMB, WebDAV and VNC** services. After saving, each gets its own button outside SSH/SFTP and opens either the shared file browser or a VNC tab. The default is a local port forward through that SSH destination. Set the service port and, optionally, a local port; leaving the local side blank chooses a free port automatically. FTP passive data ports are forwarded automatically for each transfer. Clearing “SSH port forwarding” connects directly to the SSH destination’s host, not the service-specific host, and first warns that SSH encryption will be lost. WebDAV supports HTTP/HTTPS; SMB supports SMB2/3 with SMB1 disabled. Plain `http://` WebDAV works too (0.8.452; before that the app blocked every cleartext HTTP request, so choosing HTTP always ended in “failed to list”).
+In an SSH destination’s editor you can add **FTP, SMB, WebDAV, VNC and RDP** services. After saving, each gets its own button outside SSH/SFTP and opens either the shared file browser or a screen tab (VNC / RDP). The default is a local port forward through that SSH destination. Set the service port and, optionally, a local port; leaving the local side blank chooses a free port automatically. FTP passive data ports are forwarded automatically for each transfer. Clearing “SSH port forwarding” connects directly to the SSH destination’s host, not the service-specific host, and first warns that SSH encryption will be lost. WebDAV supports HTTP/HTTPS; SMB supports SMB2/3 with SMB1 disabled. Plain `http://` WebDAV works too (0.8.452; before that the app blocked every cleartext HTTP request, so choosing HTTP always ended in “failed to list”).
 ⚠ **Delete on a destination, and the ✕ on a service or a port forward, now ask first** (0.8.452). Each sits right next to Edit, and a mistap used to take the host, user and password with it. Deleting from the terminal (`z2-ssh` and friends) is not intercepted — a typed command is explicit already.
 
 In the SFTP / FTP / SMB / WebDAV file screen, both Android Back and the top-left arrow move up one folder. At the root, they ask before closing the connection and returning to the terminal.
@@ -292,6 +292,33 @@ Before using it, fill in two fields under **✎ (Edit)** for the host:
 
 Once it is up, it behaves like the app's own GUI tab: two fingers to zoom and pan, three fingers to
 scroll, and the same keyboard.
+
+### Open a Windows desktop (RDP, 0.8.459)
+
+**[RDP]** sits in the same place as VNC. In 📜 → **Connections** → **✎ (Edit)** → "Services via this SSH
+host", press **+ RDP** and the destination gains an RDP button.
+
+Three things go in:
+
+- **Service host** — the address of the machine **as seen from the SSH server**. If it is the machine
+  you SSH into, leave it as `localhost`.
+- **User / password** — the login on the far side (**RDP requires them**).
+- **Domain** — only for a machine joined to a domain. Leave it blank otherwise.
+
+**Leave the port at 3389 and leave SSH port forwarding on.** Pressing the button connects over SSH
+first and opens the desktop through that tunnel, so the desktop never has to be reachable from
+outside — being able to SSH in is enough.
+
+**The first time, a dialog shows the fingerprint of the host's certificate.** It works like an SSH host
+key: press "Trust and connect" and it is remembered. It stays quiet after that, and only asks again if
+the fingerprint ever changes.
+
+⚠ **The far side must require Network Level Authentication.** On Windows, turn on the Network Level
+Authentication option for Remote Desktop. If it is off, you get a message that says exactly that
+rather than a bare "could not connect".
+
+⚠ **RDP only shows the screen for now.** Mouse and keyboard are not sent yet (that comes next). What
+works today is seeing the desktop and watching it change.
 
 - **The white arrow is the cursor you control** (0.8.427). Its position survives leaving the tab and reconnecting. **It is the only arrow on screen** (0.8.431; before that the pointer drawn by the server sat next to it and you saw **two**).
 - The default is **relative mode**: the cursor moves by the distance your finger moves. Press **🖱 in the GUI toolbar** to switch to **absolute mode**, where the cursor jumps to the place you touch (0.8.431; 🖱 lights up in absolute mode, and a green ring appears at the arrow root). ⚠ Through 0.8.430 this lived on a **double-tap of 📜**, which is visible nowhere on screen and has nothing to do with a command list, so it is now **a button of its own, shown only on GUI tabs** (never on terminal tabs; hide it under ⚙ Settings › Display › Toolbar).

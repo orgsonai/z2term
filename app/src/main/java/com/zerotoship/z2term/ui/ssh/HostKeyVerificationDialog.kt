@@ -68,7 +68,7 @@ fun HostKeyVerificationDialog() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = stringResource(R.string.hostkey_title),
+                text = current.title.ifEmpty { stringResource(R.string.hostkey_title) },
                 color = ZtsWarning,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,

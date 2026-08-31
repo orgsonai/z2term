@@ -430,6 +430,7 @@
     <string name="remote_service_start_path">開始フォルダ（任意）</string>
     <string name="remote_service_base_path">ベースパス（任意）</string>
     <string name="remote_service_smb_anonymous_hint">匿名接続ではユーザーとパスワードを両方空欄にしてください。</string>
+    <string name="remote_service_rdp_hint">RDP はネットワークレベル認証 (NLA) が要る。ユーザー名とパスワードは必須で、ドメインは無ければ空でよい。初回だけ相手の証明書の指紋を確認する。⚠ いまは画面を見るだけで、マウスとキーボードはまだ送れない。</string>
     <string name="remote_service_webdav_scheme">WebDAV の通信方式</string>
     <string name="remote_service_use_ssh">SSH ポートフォワード</string>
     <string name="remote_service_use_ssh_desc">この SSH 接続で暗号化します</string>
@@ -462,6 +463,15 @@
     <string name="vnc_error_refused">%1$s で待ち受けていません。VNC サーバが動いているか、ポートが合っているか (画面 :N は 5900+N) を確認してください。</string>
     <string name="vnc_error_timeout">%1$s から応答がありません。回線とファイアウォールを確認してください。</string>
     <string name="vnc_error_generic">接続に失敗しました: %1$s</string>
+    <string name="rdp_cert_title">⚠️  サーバー証明書の検証</string>
+    <string name="rdp_cert_keytype">RDP サーバー証明書 (SHA-256)</string>
+    <string name="rdp_cert_unknown">%1$s の RDP サーバー証明書は初めてです。指紋を確かめてから信頼してください。</string>
+    <string name="rdp_cert_changed">%1$s の RDP サーバー証明書が前回と違います。相手が入れ替わった可能性があります。</string>
+    <string name="rdp_error_auth_failed">ユーザー名かパスワードが違います。ドメインが要る相手なら「ドメイン」も入れてください。</string>
+    <string name="rdp_error_nla_required">この RDP サーバーはネットワークレベル認証 (NLA) を返しませんでした。Windows 側でネットワークレベル認証を必須にする設定を ON にしてください。</string>
+    <string name="rdp_error_certificate_rejected">証明書を信頼しなかったので接続をやめました。</string>
+    <string name="rdp_error_timeout">%1$s が時間内に応答しません。ネットワークとファイアウォールを確認してください。</string>
+    <string name="rdp_error_refused">%1$s で誰も待っていません。相手でリモートデスクトップが有効か、ポート (既定 3389) が合っているか確認してください。</string>
     <string name="ssh_field_init_cmd">init コマンド (接続後に自動実行、任意)</string>
     <string name="ssh_port_forward">ポート転送 (-L)</string>
     <string name="ssh_port_forward_add">+ 追加</string>
