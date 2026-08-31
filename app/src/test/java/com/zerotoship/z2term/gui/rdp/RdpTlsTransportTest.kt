@@ -2,6 +2,8 @@ package com.zerotoship.z2term.gui.rdp
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -36,4 +38,18 @@ class RdpTlsTransportTest {
     }
 
     private fun String.hexBytes(): ByteArray = chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+
+    @Test
+    fun onlyACertificateThatForbidsSigningTriggersTheRsaRetry() {
+        // Windows が自動生成する RDP 証明書 = keyEncipherment / dataEncipherment だけ。
+        // digitalSignature が無いので TLS 1.3 と ECDHE では相手が署名できない。
+        val windowsSelfSigned = booleanArrayOf(false, false, true, true, false, false, false, false, false)
+        assertTrue(RdpTlsTransport.signingIsForbidden(windowsSelfSigned))
+
+        // 署名できる証明書、拡張そのものが無い証明書、空の拡張はやり直しの対象にしない
+        // (握手の失敗を別の理由で握り潰さないため)。
+        assertFalse(RdpTlsTransport.signingIsForbidden(booleanArrayOf(true, false, true)))
+        assertFalse(RdpTlsTransport.signingIsForbidden(null))
+        assertFalse(RdpTlsTransport.signingIsForbidden(booleanArrayOf()))
+    }
 }

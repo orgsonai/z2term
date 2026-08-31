@@ -1,0 +1,4 @@
+0.8.460-alpha
+
+- Connects to RDP servers that use the certificate Windows generates automatically.
+- Only when that certificate cannot be used for signing, the handshake is retried with a key exchange that needs no signature.

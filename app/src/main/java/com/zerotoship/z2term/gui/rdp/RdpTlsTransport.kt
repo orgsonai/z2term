@@ -12,8 +12,16 @@ import java.security.SecureRandom
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
 import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLException
+import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.X509TrustManager
+
+/**
+ * 相手が出した証明書では**署名ができない** (`keyUsage` に `digitalSignature` が無い)。
+ * 握手をやり直す判断だけに使う内部の印で、外へは出ない。
+ */
+private class UnsignableCertificateException(cause: Exception) : IOException(cause)
 
 /** X.224 で CredSSP を選び、その同じ TCP 接続を TLS へ昇格させた結果。 */
 internal class RdpTlsTransport private constructor(
@@ -59,14 +67,60 @@ internal class RdpTlsTransport private constructor(
         private const val MAX_NEGOTIATION_PACKET = 64 * 1024
 
         /**
+         * 署名に使えない証明書を出す相手のために、**署名を要求しない鍵交換**へ絞る組み合わせ。
+         * 優先順に並べてあり、端末が実際に持っているものだけを使う。
+         *
+         * RSA 鍵交換ではクライアントが premaster secret を証明書の公開鍵で**暗号化**するだけで、
+         * サーバーは署名しない。よって `keyEncipherment` しか持たない証明書でも成立する。
+         * TLS 1.3 には RSA 鍵交換が無い (必ず署名する) ので、この経路は TLS 1.2 に限られる。
+         */
+        private val RSA_KEY_EXCHANGE_SUITES = listOf(
+            "TLS_RSA_WITH_AES_256_GCM_SHA384",
+            "TLS_RSA_WITH_AES_128_GCM_SHA256",
+            "TLS_RSA_WITH_AES_256_CBC_SHA256",
+            "TLS_RSA_WITH_AES_128_CBC_SHA256",
+            "TLS_RSA_WITH_AES_256_CBC_SHA",
+            "TLS_RSA_WITH_AES_128_CBC_SHA",
+        )
+
+        /**
          * Windows の RDP 証明書は自己署名が一般的なので、暗黙にシステム CA だけへも、全許可へも
          * 寄せない。[certificateVerifier] は UI 側の保存済み fingerprint / 明示承認を受け取る境界。
+         *
+         * ⚠⚠ **Windows が自動生成する RDP 証明書は `digitalSignature` を持たない**
+         * (`keyUsage` が `keyEncipherment, dataEncipherment` だけ)。TLS 1.3 と ECDHE では
+         * **サーバーが証明書の鍵で署名する**ので、Android の TLS 実装はこれを規格違反として
+         * `KEY_USAGE_BIT_INCORRECT` で拒否する (PC 側の OpenSSL は見逃すため、同じ相手へ
+         * PC からは繋がるのに端末からは繋がらない、という形で出る)。
+         * ⇒ **証明書に `digitalSignature` が無いと分かったときだけ**、署名を要求しない
+         * RSA 鍵交換へ絞って 1 度だけやり直す。⛔ 常に絞ってはいけない — まともな証明書の
+         * 相手まで前方秘匿性を失う。⭐ 鍵交換が RSA になっても**認証情報は守られる**:
+         * CredSSP は NTLM のセッション鍵で TLS の公開鍵をバインドする ([CredSspBinding]) ので、
+         * 中間者がいれば公開鍵が一致せず検出できる。
          */
         fun connect(
             host: String,
             port: Int,
             timeoutMs: Int,
             certificateVerifier: (X509Certificate) -> Boolean,
+        ): RdpTlsTransport {
+            try {
+                return connectOnce(host, port, timeoutMs, certificateVerifier, rsaKeyExchangeOnly = false)
+            } catch (e: UnsignableCertificateException) {
+                return connectOnce(host, port, timeoutMs, certificateVerifier, rsaKeyExchangeOnly = true)
+            }
+        }
+
+        /** `keyUsage` の 0 番目が `digitalSignature`。拡張自体が無ければ用途の制限が無い。 */
+        internal fun signingIsForbidden(keyUsage: BooleanArray?): Boolean =
+            keyUsage != null && keyUsage.isNotEmpty() && !keyUsage[0]
+
+        private fun connectOnce(
+            host: String,
+            port: Int,
+            timeoutMs: Int,
+            certificateVerifier: (X509Certificate) -> Boolean,
+            rsaKeyExchangeOnly: Boolean,
         ): RdpTlsTransport {
             val plain = Socket()
             try {
@@ -87,7 +141,18 @@ internal class RdpTlsTransport private constructor(
                 context.init(null, arrayOf(trustManager), SecureRandom())
                 val ssl = context.socketFactory.createSocket(plain, host, port, true) as SSLSocket
                 ssl.soTimeout = timeoutMs
-                ssl.startHandshake()
+                if (rsaKeyExchangeOnly) restrictToRsaKeyExchange(ssl)
+                try {
+                    ssl.startHandshake()
+                } catch (e: SSLException) {
+                    // 相手の証明書が署名に使えないだけなら、握手のやり直しで通る余地がある。
+                    // それ以外の失敗 (本物の異常) は、隠さずそのまま上へ返す。
+                    val offered = trustManager.serverChain?.firstOrNull()
+                    if (!rsaKeyExchangeOnly && offered != null && signingIsForbidden(offered.keyUsage)) {
+                        throw UnsignableCertificateException(e)
+                    }
+                    throw e
+                }
                 val certificate = trustManager.serverChain?.firstOrNull()
                     ?: (ssl.session.peerCertificates.firstOrNull() as? X509Certificate)
                     ?: throw CertificateException("RDP server sent no X.509 certificate")
@@ -105,6 +170,20 @@ internal class RdpTlsTransport private constructor(
                 runCatching { plain.close() }
                 throw e
             }
+        }
+
+        /**
+         * この 1 回の握手を TLS 1.2 + RSA 鍵交換だけに絞る。端末がどれも持っていなければ、
+         * 絞る意味が無いので**元の失敗を返す** (無音で別の失敗に化けさせない)。
+         */
+        private fun restrictToRsaKeyExchange(ssl: SSLSocket) {
+            val protocols = ssl.supportedProtocols.filter { it == "TLSv1.2" }
+            val suites = RSA_KEY_EXCHANGE_SUITES.filter { it in ssl.supportedCipherSuites }
+            if (protocols.isEmpty() || suites.isEmpty()) {
+                throw SSLHandshakeException("no RSA key exchange suite is available on this device")
+            }
+            ssl.enabledProtocols = protocols.toTypedArray()
+            ssl.enabledCipherSuites = suites.toTypedArray()
         }
 
         internal fun readTpkt(input: DataInputStream): ByteArray {
