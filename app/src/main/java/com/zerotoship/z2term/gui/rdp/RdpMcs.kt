@@ -130,7 +130,7 @@ internal object RdpMcs {
             le16(1)
             le32(0)
             le16(24) // 24bpp fallback
-            le16(0x000F) // 15/16/24/32bpp supported
+            le16(0x0007) // 15/16/24bpp supported; 32bpp RDP 6.0 compression is not implemented
             le16(0x0001 or 0x0002 or CLIENT_SUPPORT_SKIP_CHANNEL_JOIN)
             zeros(64) // clientDigProductId
             u8(0) // connection type not advertised

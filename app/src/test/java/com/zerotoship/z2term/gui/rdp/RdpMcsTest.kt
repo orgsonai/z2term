@@ -28,6 +28,8 @@ class RdpMcsTest {
         val payload = core + 4
         assertArrayEquals(byteArrayOf(0x20, 0x03), packet.copyOfRange(payload + 4, payload + 6))
         assertArrayEquals(byteArrayOf(0x58, 0x02), packet.copyOfRange(payload + 6, payload + 8))
+        assertArrayEquals(byteArrayOf(24, 0), packet.copyOfRange(payload + 136, payload + 138))
+        assertArrayEquals(byteArrayOf(7, 0), packet.copyOfRange(payload + 138, payload + 140))
         assertArrayEquals(byteArrayOf(2, 0, 0, 0), packet.copyOfRange(payload + 208, payload + 212))
 
         assertTrue(packet.containsSequence(byteArrayOf(0x04, 0xC0.toByte(), 12, 0)))

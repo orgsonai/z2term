@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-31 / 対象バージョン: 0.8.457-alpha (versionCode 465)
+最終更新: 2026-08-31 / 対象バージョン: 0.8.458-alpha (versionCode 466)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1855,7 +1855,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - distro 内で **Xvnc**(VNC サーバ) + 軽量 WM/アプリを起動（`proot/GuiScript.kt` が冪等で配置・起動。GUI 自動起動 / 横画面対応）。
 - **GUI 一式の導入 (`ensure_pkgs`)**: Xvnc / openbox / 選択ターミナルが揃っていれば**無通信で即起動**（導入済みを毎回 update/再取得しないポリシー）。**未導入のときだけ**不足分を `install_pkgs`（apk add / apt install / pacman -S）で取得し、取れなければ明確に案内して失敗する。app 側 (`TerminalScreen`) のダウンロード確認ゲート (`confirmBeforeDownload`) が同意を取ってから走る。`clean` 指定時のみ cache を消して入れ直す (`clean_pkgs`、破損状態の救済)。
 - `GuiSession`/`GuiActivity`/`GuiScreen`/`GuiViewport`/`GuiInputView`/`GuiKeyMapper`/`GuiEventWatcher` + `gui/RemoteDesktopClient.kt`（描画・入力の共通境界）+ `gui/rfb/RfbClient.kt`（内蔵 RFB 実装）。端末タブと GUI タブをペアリングし IME 連動。`GuiSession`・Compose 描画・入力 View・GUI キーボードは `RfbClient` 型を直接要求せず、同じ境界へ RDP 実装を差せる（0.8.450）。
-- **RDP はまだ利用者向け機能ではない（0.8.450〜0.8.455）**: `gui/rdp/` は X.224/TLS、CredSSP/NTLMv2、T.124 GCC・T.125 MCS、Client Info、license、Demand/Confirm Active、connection finalization まで実装。opt-in live test は端末内 NLA 強制 FreeRDP server に対して Client Synchronize、Control Cooperate/Request/Granted、Font List/Map を完走する。Surface Commands / Bitmap Codecs は意図的に広告せず、次段を従来型 bitmap update に絞る。⚠ bitmap decode・入力・接続 UI は未接続のため、現時点で `[RDP]` は表示しない。
+- **RDP はまだ利用者向け機能ではない（0.8.450〜0.8.458）**: `gui/rdp/` は X.224/TLS、CredSSP/NTLMv2、T.124 GCC・T.125 MCS、Client Info、license、Demand/Confirm Active、connection finalization、slow-path の従来型 Bitmap Update 受信まで実装。内部 `RdpClient` は 15/16/24bpp の非圧縮・Interleaved RLE 更新を複数矩形と画面外クリップ込みで ARGB framebuffer へ展開し、dirty 領域の redraw を通知する。Fast-Path、Surface Commands、Bitmap Codecs、個別の描画 Order、32bpp RDP 6.0 圧縮、入力、clipboard、resize、接続 UI は意図的に広告・接続しないため、現時点で `[RDP]` は表示しない。
 - **入力**: `GuiInputView` のジェスチャ — **2 本指 = ピンチ(ズーム/パン)**、**3 本指縦移動 = ホイール上/下スクロール**（一度 3 本指になったら全指が離れるまでスクロール扱い）。旧スクロールボタンと `RfbClient.scrollWheel` は撤去。
 - **動画**: GPU 無し端末で `gpu` 出力が失敗するため、mpv を **`vo=x11` 既定 + `LIBGL_ALWAYS_SOFTWARE`** でソフト描画させて正常再生。
 - **音声 (`service/AudioBridge.kt`)**: **オプトイン**（設定「GUI 音声」`guiAudioEnabled` ON 時のみ）。distro 内 PulseAudio(`-n` 方式で起動) → TCP → Android `AudioTrack` でブリッジ。

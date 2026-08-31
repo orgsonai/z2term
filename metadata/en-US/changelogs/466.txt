@@ -1,0 +1,5 @@
+0.8.458-alpha
+
+- Added internal slow-path classic RDP Bitmap Update reception and ARGB framebuffer drawing.
+- Added safe decoding for clipped multi-rectangle 15/16/24bpp raw and Interleaved RLE updates.
+- RDP remains under development; connection UI, input, clipboard, and resize are not available yet.

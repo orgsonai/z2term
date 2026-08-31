@@ -1,0 +1,5 @@
+0.8.458-alpha
+
+- RDP slow-path の従来型 Bitmap Update 受信と ARGB framebuffer 描画を内部実装しました。
+- 15/16/24bpp の非圧縮・Interleaved RLE、複数矩形、画面外クリップを安全に処理します。
+- RDP は引き続き開発中で、接続 UI・入力・clipboard・resize はまだ利用できません。

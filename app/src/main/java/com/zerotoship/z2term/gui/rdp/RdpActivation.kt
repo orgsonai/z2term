@@ -3,6 +3,7 @@ package com.zerotoship.z2term.gui.rdp
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
+import java.io.EOFException
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 
@@ -12,6 +13,11 @@ internal object RdpActivation {
     const val CAP_ORDER = 3
     const val CAP_SURFACE_COMMANDS = 0x1C
     const val CAP_BITMAP_CODECS = 0x1D
+    private const val PDUTYPE_DEACTIVATE_ALL = 6
+    private const val PDUTYPE_DATAPDU = 7
+    private const val PDUTYPE2_UPDATE = 0x02
+    private const val PDUTYPE2_SET_ERROR_INFO = 0x2F
+    private const val UPDATETYPE_BITMAP = 0x0001
     private const val SEC_INFO_PKT = 0x40
     private const val SEC_LICENSE_PKT = 0x80
 
@@ -101,6 +107,35 @@ internal object RdpActivation {
             if (received == 0x0F) return
         }
         throw IOException("RDP connection finalization did not complete")
+    }
+
+    /** 通常状態のslow-path PDUを1つ読み、Bitmap Update本体なら返す。 */
+    fun readBitmapUpdate(
+        input: DataInputStream,
+        session: RdpMcs.Session,
+        active: ActiveSession,
+    ): ByteArray? = bitmapUpdate(RdpTlsTransport.readTpkt(input), session, active)
+
+    internal fun bitmapUpdate(
+        packet: ByteArray,
+        session: RdpMcs.Session,
+        active: ActiveSession,
+    ): ByteArray? {
+        val payload = mcsData(packet, session.ioChannelId) ?: return null
+        val data = readShareData(payload, active.shareId) ?: return null
+        return when (data.type) {
+            PDUTYPE2_UPDATE -> {
+                val body = Cursor(data.body)
+                if (body.le16() == UPDATETYPE_BITMAP) data.body else null
+            }
+            PDUTYPE2_SET_ERROR_INFO -> {
+                val body = Cursor(data.body)
+                val error = body.le32()
+                body.end()
+                throw IOException("RDP server reported errorInfo=0x${error.toUInt().toString(16)}")
+            }
+            else -> null
+        }
     }
 
     internal fun finalizationPackets(
@@ -235,9 +270,12 @@ internal object RdpActivation {
                 le16(0); le16(0); le16(0); u8(0); u8(0)
             },
             cap(CAP_BITMAP) {
-                le16(32); le16(1); le16(1); le16(1); le16(s.width); le16(s.height)
+                // 24bppを優先する。32bpp圧縮はRDP 6.0 planar codecになり、今回広告しない。
+                le16(24); le16(1); le16(1); le16(1); le16(s.width); le16(s.height)
                 le16(0); le16(1); le16(1); u8(0); u8(0); le16(1); le16(0)
             },
+            // Capability Set自体はconnection sequenceの必須集合。orderSupport[32]を全ゼロにし、
+            // 実装していないPrimary/Secondary drawing orderは一つも広告しない。
             cap(CAP_ORDER) {
                 zero(16); le32(0); le16(1); le16(20); le16(0); le16(1); le16(0)
                 le16(2); zero(32); le16(0); le16(0); le32(0); le32(230400)
@@ -306,7 +344,11 @@ internal object RdpActivation {
         val pduType = c.le16()
         c.le16()
         if (totalLength != payload.size) throw IOException("invalid Share Control PDU length")
-        if (pduType and 0x0F != 7) return null
+        when (pduType and 0x0F) {
+            PDUTYPE_DEACTIVATE_ALL -> throw EOFException("RDP session was deactivated")
+            PDUTYPE_DATAPDU -> Unit
+            else -> return null
+        }
         val shareId = c.le32()
         c.u8()
         c.u8()

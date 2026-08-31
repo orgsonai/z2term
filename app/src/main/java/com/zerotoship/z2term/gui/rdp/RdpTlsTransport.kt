@@ -45,6 +45,10 @@ internal class RdpTlsTransport private constructor(
     fun finalizeConnection(session: RdpMcs.Session, active: RdpActivation.ActiveSession) =
         RdpActivation.finalizeConnection(input, output, session, active)
 
+    /** 通常状態のslow-path PDUを1つ読み、classic Bitmap Updateならその本体を返す。 */
+    fun readBitmapUpdate(session: RdpMcs.Session, active: RdpActivation.ActiveSession): ByteArray? =
+        RdpActivation.readBitmapUpdate(input, session, active)
+
     override fun close() {
         runCatching { input.close() }
         runCatching { output.close() }
