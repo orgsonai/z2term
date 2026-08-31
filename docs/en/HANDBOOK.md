@@ -317,8 +317,8 @@ the fingerprint ever changes.
 Authentication option for Remote Desktop. If it is off, you get a message that says exactly that
 rather than a bare "could not connect".
 
-⚠ **RDP only shows the screen for now.** Mouse and keyboard are not sent yet (that comes next). What
-works today is seeing the desktop and watching it change.
+⚠ **RDP is still being built.** Connecting (through authentication) works, but **against Windows the
+screen does not appear yet** — that is under investigation. Mouse and keyboard are not sent either.
 
 - **The white arrow is the cursor you control** (0.8.427). Its position survives leaving the tab and reconnecting. **It is the only arrow on screen** (0.8.431; before that the pointer drawn by the server sat next to it and you saw **two**).
 - The default is **relative mode**: the cursor moves by the distance your finger moves. Press **🖱 in the GUI toolbar** to switch to **absolute mode**, where the cursor jumps to the place you touch (0.8.431; 🖱 lights up in absolute mode, and a green ring appears at the arrow root). ⚠ Through 0.8.430 this lived on a **double-tap of 📜**, which is visible nowhere on screen and has nothing to do with a command list, so it is now **a button of its own, shown only on GUI tabs** (never on terminal tabs; hide it under ⚙ Settings › Display › Toolbar).

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-08-31 / 対象バージョン: 0.8.460-alpha (versionCode 468)
+最終更新: 2026-08-31 / 対象バージョン: 0.8.472-alpha (versionCode 480)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -2485,13 +2485,23 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
 - **失敗は型で見分けて案内に訳す**（`GuiSession.remoteFailureMessage`）。パスワード未設定 / 違う / 未対応方式 /待ち受けていない / 応答なし をそれぞれ別の文にする。⚠ 例外のメッセージをそのまま出さない —画面の真ん中に出る**唯一の説明**なので、`java.net.ConnectException: …` では何を直せばよいか伝わらない。
 - ⚠ **VNC のパスワードは 8 文字までしか効かない**（RFB の仕様。9 文字目以降は捨てられる）。保存時は SSH の秘密と同じく Keystore で暗号化し、設定の持ち出しでは「秘密を含めない」選択で落ちる。
 
-**RDP 固有の要点（0.8.459〜0.8.460）**
+**RDP 固有の要点（0.8.459〜0.8.472）**
 
 - **ネットワークレベル認証 (NLA) だけを話す。** CredSSP + NTLMv2 なのでユーザー名とパスワードが要る（ドメインは任意。SMB と同じ `RemoteService.domain` に入れる）。相手が NLA を選ばなかったときは `RdpNlaUnsupportedException` で**名指しの案内**を出す — 打ち間違いと「相手の設定がそもそも違う」は直し方が別なので、同じ「接続に失敗しました」に混ぜない。
 - ⭐ **画面の大きさはこちらが決める。** RFB は**もう立っている画面を後から覗きに行く**のでサーバーの解像度をそのまま受け取るが、RDP は**接続のたびに新しいセッションを作らせる**ので、要求しなければ相手の既定（1024x768 等）になる。`RdpTarget.fitDesktopSize` が端末の画面 px から**長辺を幅にした横長・4 の倍数・640〜4096** を出す（GUI タブは横で使う／半端な端の帯を作らない／相手が拒否する大きさを出さない）。⚠ VNC の `requestResize` を送らない理由（相手の実画面を勝手に変えてしまう）とは**別の話**で、矛盾していない。
 - **証明書は相手ごとに 1 度だけ確かめて覚える**（`RdpCertificateTrust`・SSH の known_hosts と同じ考え方）。RDP の証明書は自己署名が普通でシステム CA では検証できず、かといって全部受け入れると中間者に気付けない。⇒ **初回だけ SHA-256 指紋を見せて決めてもらい、次からは一致を要求する**（変わっていたらもう一度出す）。⚠⚠ **覚える名前は SSH 転送を通す前の本来の宛先**（`RdpTarget.trustKey`）。転送中の `127.0.0.1:<毎回変わるポート>` で覚えると、**次の接続で必ず「初めての相手」になり、確認が確認でなくなる**。確認のダイアログは SSH のホスト鍵と同じ `HostKeyVerifier` に相乗りし、見出しだけ差し替える（利用者が覚える画面を増やさない）。
 - ⚠⚠ **Windows が自動生成する RDP 証明書では TLS 1.3 / ECDHE の握手が通らない（0.8.460・実機で判明）。** その証明書の `keyUsage` は **`keyEncipherment, dataEncipherment` だけで `digitalSignature` が無い**が、TLS 1.3 と ECDHE では**サーバーが証明書の鍵で署名する**。Android の TLS 実装はこれを規格違反として `KEY_USAGE_BIT_INCORRECT` で拒否する。⚠ **PC 側の OpenSSL は同じ矛盾を見逃す**ため、**同じ相手へ PC からは繋がるのに端末からだけ繋がらない**という、一番疑いにくい形で出る（切り分けには「PC で繋がるか」ではなく**証明書の `keyUsage` を見る**）。⇒ **証明書に `digitalSignature` が無いと分かったときだけ**、署名を要求しない **RSA 鍵交換（TLS 1.2）**へ絞って 1 度だけ握手をやり直す（`RdpTlsTransport.signingIsForbidden` → `restrictToRsaKeyExchange`）。⛔ **常に絞ってはいけない** — まともな証明書の相手まで前方秘匿性を失う。⛔ **例外メッセージの文字列では判定しない** — 判断の根拠は相手が出した証明書そのものに置く。⭐ 鍵交換が RSA になっても**認証情報は守られる**: CredSSP は NTLM のセッション鍵で TLS の公開鍵をバインドする（`CredSspBinding`）ので、中間者がいれば公開鍵が一致せず検出できる。
-- ⚠ **まだ画面を見るだけ**（`sendPointerEvent` / `sendKeyEvent` は空実装）。UI にもその旨を書いてある — **できないことを黙っていると「壊れている」と読まれる**。
+- ⚠⚠⚠ **緩い実装だけで確かめても、本番の相手には通らない（0.8.461〜0.8.472・実 Windows で連続して判明）。** 端末内の検証台（`scripts/rdp-testbed.sh`）は寛容なので**全部通ってしまい**、実 Windows で初めて 7 つの欠陥が順に出た。⭐ **プロトコル実装は「1 つの相手で通った」を根拠にしない。**
+  - **licensing は来ないことがある** — ライセンスの要らない相手は License Error PDU を送らず Demand Active へ進む。「必ず来る」と書くと一切繋がらない。
+  - **security header の有無は「長さ」で見分ける** — TLS では通常の PDU に security header が付かない。⛔ フラグのビットで見分けると、Share Control PDU の totalLength がたまたま `SEC_LICENSE_PKT` (0x80) を含んだときに画面更新を licensing と誤読する（`isShareControlPdu`）。
+  - **Client Info は最後まで書く** — `TS_EXTENDED_INFO_PACKET` を clientAddress で止めると Windows が `errorInfo 0x1118`（SECURITYDATATOOSHORT9）で断る。タイムゾーン 172 バイトまで必要。
+  - **`uncompressedLength` を正しさの判定に使わない** — 「PDU 全体の長さ」を入れる実装と「本体だけ」を入れる実装があり、どちらかに合わせるともう一方を必ず弾く。
+  - **`errorInfo = 0` は「エラー無し」** — Windows は接続が落ち着いた直後にこれを 1 つ送る。値を見ずに投げると**繋がった瞬間に必ず切れる**。
+  - **サーバーの苦情を捨てない** — Set Error Info は接続シーケンス・finalization・受信ループの**3 か所すべて**で拾う。1 か所でも読み飛ばすと、断られた理由が消えて「理由の無い EOF」にしか見えなくなる。
+  - **必須の capability を省かない** — `orderFlags` の `ZEROBOUNDSDELTASSUPPORT` は描画 Order を 1 つも使わなくても立てる決まりで、Offscreen Bitmap Cache も「対応しない」と明示して送る。集合から抜くと必須欠けとみなす相手がいる。
+  - **主張を食い違わせない** — `RNS_UD_CS_WANT_32BPP_SESSION` を立てながら「24/16/15bpp しか受け取れない」と言うと、サーバーは送る形式を決められない。
+- ⛔⛔ **未解決（0.8.472 時点）: 実 Windows では接続が成立しても画面が 1 バイトも来ない。** NLA → MCS → activate → finalization まで完走し、`2400x1080` で `CONNECTED` になり、Save Session Info（`pduType2=0x26`）まで受け取るが、その後は `readTpkt` が 1 バイトも読めないまま止まる（fast-path なら TPKT ヘッダ検査で例外になるので、fast-path でもない）。`refreshRectSupport=1` にして接続直後に Refresh Rect で全画面を要求しても変わらない。⇒ **次は推測をやめて `xfreerdp3` の TRACE と突き合わせる**（`scripts/rdp-testbed.sh trace` を実 Windows へ向ける。要・接続先の資格情報）。詳細は `99_private/HANDOFF/z2term/RDP-HANDOFF.md`。
+- ⚠ **入力は未実装**（`sendPointerEvent` / `sendKeyEvent` は空実装）。UI にもその旨を書いてある — **できないことを黙っていると「壊れている」と読まれる**。
 
 ### 6.4 SSH サーバ (PC → 端末) ※dropbear
 

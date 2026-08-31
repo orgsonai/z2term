@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.gui.rdp
 
+import android.util.Log
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -9,13 +10,18 @@ import java.nio.charset.StandardCharsets
 
 /** Client Info、licensing、Demand/Confirm Active による RDP connection sequence。 */
 internal object RdpActivation {
+    private const val TAG = "RdpActivation"
     const val CAP_BITMAP = 2
     const val CAP_ORDER = 3
     const val CAP_SURFACE_COMMANDS = 0x1C
     const val CAP_BITMAP_CODECS = 0x1D
+    /** TS_TIME_ZONE_INFORMATION の大きさ (Bias + 名前 2 つ + 切替日 2 つ + Bias 2 つ)。 */
+    private const val TIME_ZONE_INFORMATION_BYTES = 172
+    private const val PDUTYPE_DEMAND_ACTIVE = 1
     private const val PDUTYPE_DEACTIVATE_ALL = 6
     private const val PDUTYPE_DATAPDU = 7
     private const val PDUTYPE2_UPDATE = 0x02
+    private const val PDUTYPE2_REFRESH_RECT = 0x21
     private const val PDUTYPE2_SET_ERROR_INFO = 0x2F
     private const val UPDATETYPE_BITMAP = 0x0001
     private const val SEC_INFO_PKT = 0x40
@@ -40,15 +46,34 @@ internal object RdpActivation {
     ): ActiveSession {
         output.write(clientInfo(session, credentials))
         output.flush()
-        var licensed = false
         repeat(16) {
             val data = mcsData(RdpTlsTransport.readTpkt(input), session.ioChannelId) ?: return@repeat
-            if (securityFlags(data) and SEC_LICENSE_PKT != 0) {
-                readLicense(data)
-                licensed = true
+            if (!isShareControlPdu(data)) {
+                // security header が付く PDU。⚠ **licensing は来ないことがある** — ライセンスの
+                // 要らない相手 (ワークステーション版の Windows など) は License Error PDU を送らず
+                // そのまま Demand Active へ進む。「必ず来る」と書くとそういう相手に一切繋がらない
+                // (0.8.461・実機で判明)。auto-detect / multitransport / heartbeat は**応答しなくても
+                // 接続は進む**ので読み飛ばす (こちらは capability で何も広告していない)。
+                val flags = securityFlags(data)
+                if (flags and SEC_LICENSE_PKT != 0) readLicense(data)
+                else Log.i(TAG, "RDP: skipped PDU with security flags 0x%04X".format(flags))
                 return@repeat
             }
-            if (!licensed) throw IOException("RDP Demand Active arrived before licensing completed")
+            // Share Control PDU だが Demand Active とは限らない。Windows は capability 交換の
+            // 直前に Monitor Layout などの Data PDU を挟むことがある。⛔ **知らない PDU で
+            // 接続ごと諦めない** — 応答の要らないものは読み飛ばして Demand Active を待つ。
+            // ⚠ セッションを畳む Deactivate All だけは読み飛ばさず、その場で終わらせる。
+            val pduType = shareControlType(data)
+            if (pduType != PDUTYPE_DEMAND_ACTIVE) {
+                if (pduType == PDUTYPE_DEACTIVATE_ALL) throw EOFException("RDP session was deactivated")
+                // ⚠ **サーバーからの苦情を読み飛ばさない。** 断られた理由はここにしか出てこないので、
+                // 黙って捨てると「何か落ちた」としか分からなくなる (0.8.465)。
+                connectionErrorInfo(data)?.let { error ->
+                    throw IOException("RDP server reported errorInfo=0x${error.toString(16)}")
+                }
+                Log.i(TAG, "RDP: skipped share control PDU type $pduType (${data.size} bytes) ${head(data)}")
+                return@repeat
+            }
             val demand = readDemand(data)
             val confirmation = confirmActive(session, demand, settings)
             output.write(confirmation.first)
@@ -70,7 +95,19 @@ internal object RdpActivation {
         var received = 0
         repeat(32) {
             val payload = mcsData(RdpTlsTransport.readTpkt(input), session.ioChannelId) ?: return@repeat
-            val data = readShareData(payload, active.shareId) ?: return@repeat
+            val data = readShareData(payload, active.shareId) ?: run {
+                Log.i(TAG, "RDP finalize: skipped ${payload.size} bytes ${head(payload)}")
+                return@repeat
+            }
+            Log.i(TAG, "RDP finalize: pduType2=0x%02X received=0x%X".format(data.type, received))
+            // ⚠ **ここでも苦情を捨てない。** Confirm Active を断られるとサーバーは Set Error Info を
+            // 送ってから切るので、拾わないと理由の無い EOF にしか見えない (0.8.468)。
+            if (data.type == PDUTYPE2_SET_ERROR_INFO) {
+                val body = Cursor(data.body)
+                val error = body.le32().toLong() and 0xFFFFFFFFL
+                if (error != 0L) throw IOException("RDP server reported errorInfo=0x${error.toString(16)}")
+                return@repeat
+            }
             when (data.type) {
                 0x1F -> {
                     val body = Cursor(data.body)
@@ -121,21 +158,57 @@ internal object RdpActivation {
         session: RdpMcs.Session,
         active: ActiveSession,
     ): ByteArray? {
-        val payload = mcsData(packet, session.ioChannelId) ?: return null
-        val data = readShareData(payload, active.shareId) ?: return null
+        val payload = mcsData(packet, session.ioChannelId) ?: run {
+            Log.i(TAG, "RDP rx: other channel (${packet.size} bytes)")
+            return null
+        }
+        val data = readShareData(payload, active.shareId) ?: run {
+            Log.i(TAG, "RDP rx: not share data (${payload.size} bytes) ${head(payload)}")
+            return null
+        }
         return when (data.type) {
             PDUTYPE2_UPDATE -> {
                 val body = Cursor(data.body)
-                if (body.le16() == UPDATETYPE_BITMAP) data.body else null
+                val updateType = body.le16()
+                Log.i(TAG, "RDP rx: update type=$updateType (${data.body.size} bytes)")
+                if (updateType == UPDATETYPE_BITMAP) data.body else null
             }
             PDUTYPE2_SET_ERROR_INFO -> {
                 val body = Cursor(data.body)
-                val error = body.le32()
+                val error = body.le32().toLong() and 0xFFFFFFFFL
                 body.end()
-                throw IOException("RDP server reported errorInfo=0x${error.toUInt().toString(16)}")
+                // ⚠⚠ **errorInfo = 0 は「エラー無し」** (ERRINFO_NONE)。Windows は接続が
+                // 落ち着いた直後にこれを 1 つ送ってくるので、値を見ずに投げると
+                // **繋がった瞬間に必ず切れる** (0.8.469・実機で判明)。
+                if (error != 0L) throw IOException("RDP server reported errorInfo=0x${error.toString(16)}")
+                null
             }
-            else -> null
+            else -> {
+                Log.i(TAG, "RDP rx: pduType2=0x%02X (${data.body.size} bytes)".format(data.type))
+                null
+            }
         }
+    }
+
+    /**
+     * 画面全体を送り直すよう頼む (Refresh Rect PDU)。
+     *
+     * 接続直後にサーバーが自発的に描いてくれるとは限らない。Windows は Save Session Info を
+     * 最後に黙り込むことがあり、こちらから要求しないと**何も届かない**。
+     * ⚠ 矩形の right / bottom は**内側を含む**座標なので 1 引く。
+     */
+    fun refreshRect(
+        session: RdpMcs.Session,
+        active: ActiveSession,
+        width: Int,
+        height: Int,
+    ): ByteArray {
+        val body = Writer().apply {
+            u8(1)                    // numberOfAreas
+            zero(3)                  // pad3Octets
+            le16(0); le16(0); le16(width - 1); le16(height - 1)
+        }.array()
+        return shareData(session, active.shareId, PDUTYPE2_REFRESH_RECT, body)
     }
 
     internal fun finalizationPackets(
@@ -177,8 +250,17 @@ internal object RdpActivation {
             values.forEach { le16(it.size) }
             le16(0); le16(0)
             (values + listOf(ByteArray(0), ByteArray(0))).forEach { bytes(it); le16(0) }
+            // TS_EXTENDED_INFO_PACKET。⚠ **最後まで書かないと Windows に拒否される**
+            // (errorInfo 0x1118 = SECURITYDATATOOSHORT9。0.8.465・実機で判明)。clientAddress で
+            // 止めても寛容な実装は通してしまうので、緩い相手だけで確かめると気付けない。
             val address = utf16("127.0.0.1\u0000")
-            le16(2); le16(address.size); bytes(address); le16(0)
+            val clientDir = utf16("\u0000")
+            le16(2); le16(address.size); bytes(address)   // clientAddressFamily(AF_INET), cbClientAddress
+            le16(clientDir.size); bytes(clientDir)        // cbClientDir, clientDir
+            zero(TIME_ZONE_INFORMATION_BYTES)             // clientTimeZone: 全ゼロ = UTC
+            le32(0)                                       // clientSessionId
+            le32(0)                                       // performanceFlags
+            le16(0)                                       // cbAutoReconnectCookie
         }.array()
         val secured = Writer().apply { le16(SEC_INFO_PKT); le16(0); bytes(info) }.array()
         return sendData(session.userChannelId, session.ioChannelId, secured)
@@ -266,8 +348,11 @@ internal object RdpActivation {
         }
         return listOf(
             cap(1) {
+                // 末尾は refreshRectSupport / suppressOutputSupport。⭐ **refreshRect を 1 にする** —
+                // これが 0 だと「画面を送り直して」と頼む手段が無く、サーバーが自発的に送って
+                // こないときに黒い画面のまま待つしかない (0.8.471・実機で判明)。
                 le16(4); le16(7); le16(0x200); le16(0); le16(0); le16(0)
-                le16(0); le16(0); le16(0); u8(0); u8(0)
+                le16(0); le16(0); le16(0); u8(1); u8(0)
             },
             cap(CAP_BITMAP) {
                 // 24bppを優先する。32bpp圧縮はRDP 6.0 planar codecになり、今回広告しない。
@@ -277,8 +362,11 @@ internal object RdpActivation {
             // Capability Set自体はconnection sequenceの必須集合。orderSupport[32]を全ゼロにし、
             // 実装していないPrimary/Secondary drawing orderは一つも広告しない。
             cap(CAP_ORDER) {
+                // orderFlags = NEGOTIATEORDERSUPPORT | ZEROBOUNDSDELTASSUPPORT。
+                // ⚠ 後者は仕様上**必ず立てる**ことになっている (MS-RDPBCGR 2.2.7.1.3)。
+                // 描画 Order を 1 つも使わなくても、立てないと弾く相手がいる。
                 zero(16); le32(0); le16(1); le16(20); le16(0); le16(1); le16(0)
-                le16(2); zero(32); le16(0); le16(0); le32(0); le32(230400)
+                le16(0x000A); zero(32); le16(0); le16(0); le32(0); le32(230400)
                 le16(0); le16(0); le16(0); le16(0)
             },
             cap(0x13) { le16(2); u8(0); u8(0); zero(32) },
@@ -286,6 +374,9 @@ internal object RdpActivation {
             cap(0x0D) { le16(1); le16(0); le32(s.keyboardLayout); le32(4); le32(0); le32(12); zero(64) },
             cap(0x0F) { le32(0) },
             cap(0x10) { zero(48) },
+            // Offscreen Bitmap Cache。使わないので支援レベル 0 だが、**集合から抜くと
+            // 必須が欠けたとみなす相手がいる**ので「対応しない」と明示して送る。
+            cap(0x11) { le32(0); le16(0); le16(0) },
             cap(0x14) { le32(0); le32(1600) },
             cap(0x0C) { le16(0); le16(0) },
             cap(9) { le16(0); le16(0) },
@@ -311,6 +402,45 @@ internal object RdpActivation {
         c.end()
         if (status != 7) throw IOException("RDP licensing failed")
     }
+
+    /**
+     * この PDU が **security header の付かない Share Control PDU** か。
+     *
+     * TLS (Enhanced RDP Security) では、Demand Active や Share Data のような通常の PDU に
+     * security header が**付かない**。付くのは licensing / auto-detect / multitransport /
+     * heartbeat のような特定の PDU だけなので、受信側は毎回どちらなのかを見分ける必要がある。
+     *
+     * 見分けは **先頭 2 バイト (Share Control Header の totalLength) が PDU 全体の長さと
+     * 一致するか**で行う。
+     * ⛔ **security flag のビットで見分けてはいけない** — Share Control PDU の totalLength が
+     * たまたま `SEC_LICENSE_PKT` (0x80) 等のビットを含むことがあり、通常の画面更新を
+     * licensing と誤読する (0.8.463)。
+     */
+    private fun isShareControlPdu(payload: ByteArray): Boolean =
+        payload.size >= 6 &&
+            ((payload[0].toInt() and 0xFF) or ((payload[1].toInt() and 0xFF) shl 8)) == payload.size
+
+    /**
+     * capability 交換より前に届いた Data PDU が Set Error Info なら、その errorInfo。
+     * shareId がまだ決まっていない段階なので [readShareData] は使えない。
+     */
+    private fun connectionErrorInfo(payload: ByteArray): Long? = runCatching {
+        val c = Cursor(payload)
+        c.le16(); c.le16(); c.le16()          // Share Control Header
+        c.le32(); c.u8(); c.u8(); c.le16()    // shareId, pad1, streamId, uncompressedLength
+        if (c.u8() != PDUTYPE2_SET_ERROR_INFO) return null
+        c.u8(); c.le16()                      // compressedType, compressedLength
+        // 0 は ERRINFO_NONE (エラー無し)。理由として扱わない。
+        (c.le32().toLong() and 0xFFFFFFFFL).takeIf { it != 0L }
+    }.getOrNull()
+
+    /** Share Control Header の pduType (下位 4 bit)。[isShareControlPdu] が true のときだけ意味を持つ。 */
+    private fun shareControlType(payload: ByteArray): Int =
+        ((payload[2].toInt() and 0xFF) or ((payload[3].toInt() and 0xFF) shl 8)) and 0x0F
+
+    /** 診断用。読み飛ばした PDU が何だったかを後から突き合わせられるように先頭だけ残す。 */
+    private fun head(payload: ByteArray): String =
+        payload.take(24).joinToString(" ") { "%02X".format(it) }
 
     private fun securityFlags(payload: ByteArray): Int =
         if (payload.size < 2) 0 else (payload[0].toInt() and 0xFF) or
@@ -339,11 +469,14 @@ internal object RdpActivation {
     }
 
     private fun readShareData(payload: ByteArray, expectedShareId: Int): ShareData? {
+        // security header が付く PDU (auto-detect / multitransport / heartbeat 等) は
+        // Share Data ではない。⛔ 長さ違いとして例外にしてはいけない — 接続シーケンスの
+        // 途中にも受信ループ中にも普通に混ざる。
+        if (!isShareControlPdu(payload)) return null
         val c = Cursor(payload)
-        val totalLength = c.le16()
+        c.le16()
         val pduType = c.le16()
         c.le16()
-        if (totalLength != payload.size) throw IOException("invalid Share Control PDU length")
         when (pduType and 0x0F) {
             PDUTYPE_DEACTIVATE_ALL -> throw EOFException("RDP session was deactivated")
             PDUTYPE_DATAPDU -> Unit
@@ -352,7 +485,11 @@ internal object RdpActivation {
         val shareId = c.le32()
         c.u8()
         c.u8()
-        val uncompressedLength = c.le16()
+        // uncompressedLength。⛔ **正しさの判定に使わない** — 「PDU 全体の長さ」を入れる実装と
+        // 「本体だけの長さ」を入れる実装があり、どちらかに合わせるともう一方を必ず弾く
+        // (0.8.466・実機で判明)。圧縮された PDU は下で明示的に断っているので、展開のための
+        // この値をここで使う理由が無い。
+        c.le16()
         val type = c.u8()
         val compressedType = c.u8()
         val compressedLength = c.le16()
@@ -360,9 +497,7 @@ internal object RdpActivation {
         if (compressedType != 0 || compressedLength != 0) {
             throw IOException("compressed Share Data PDU is not supported")
         }
-        val body = c.bytes(c.remaining)
-        if (uncompressedLength != body.size) throw IOException("invalid Share Data PDU length")
-        return ShareData(type, body)
+        return ShareData(type, c.bytes(c.remaining))
     }
     private fun mcsData(packet: ByteArray, channel: Int): ByteArray? {
         val c = Cursor(x224(packet))

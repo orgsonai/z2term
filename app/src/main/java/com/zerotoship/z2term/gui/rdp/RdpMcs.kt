@@ -131,7 +131,11 @@ internal object RdpMcs {
             le32(0)
             le16(24) // 24bpp fallback
             le16(0x0007) // 15/16/24bpp supported; 32bpp RDP 6.0 compression is not implemented
-            le16(0x0001 or 0x0002 or CLIENT_SUPPORT_SKIP_CHANNEL_JOIN)
+            // earlyCapabilityFlags。⛔ **RNS_UD_CS_WANT_32BPP_SESSION (0x0002) を立てない** —
+            // 上で「24/16/15bpp しか受け取れない」と言っているのに 32bpp のセッションを求めると
+            // 主張が食い違い、サーバーは送る形式を決められずに**何も描かなくなる**
+            // (0.8.472・実機で判明。接続は成立したまま画面だけ来ない、という形で出る)。
+            le16(0x0001 or CLIENT_SUPPORT_SKIP_CHANNEL_JOIN)
             zeros(64) // clientDigProductId
             u8(0) // connection type not advertised
             u8(0)

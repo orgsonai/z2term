@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.gui.rdp
 
+import android.util.Log
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.Closeable
@@ -16,12 +17,6 @@ import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.X509TrustManager
-
-/**
- * 相手が出した証明書では**署名ができない** (`keyUsage` に `digitalSignature` が無い)。
- * 握手をやり直す判断だけに使う内部の印で、外へは出ない。
- */
-private class UnsignableCertificateException(cause: Exception) : IOException(cause)
 
 /** X.224 で CredSSP を選び、その同じ TCP 接続を TLS へ昇格させた結果。 */
 internal class RdpTlsTransport private constructor(
@@ -53,6 +48,12 @@ internal class RdpTlsTransport private constructor(
     fun finalizeConnection(session: RdpMcs.Session, active: RdpActivation.ActiveSession) =
         RdpActivation.finalizeConnection(input, output, session, active)
 
+    /** 画面全体を送り直すよう頼む。接続直後に何も描かれないときの取っかかり。 */
+    fun requestRefresh(session: RdpMcs.Session, active: RdpActivation.ActiveSession, width: Int, height: Int) {
+        output.write(RdpActivation.refreshRect(session, active, width, height))
+        output.flush()
+    }
+
     /** 通常状態のslow-path PDUを1つ読み、classic Bitmap Updateならその本体を返す。 */
     fun readBitmapUpdate(session: RdpMcs.Session, active: RdpActivation.ActiveSession): ByteArray? =
         RdpActivation.readBitmapUpdate(input, session, active)
@@ -64,6 +65,7 @@ internal class RdpTlsTransport private constructor(
     }
 
     companion object {
+        private const val TAG = "RdpTlsTransport"
         private const val MAX_NEGOTIATION_PACKET = 64 * 1024
 
         /**
@@ -106,8 +108,28 @@ internal class RdpTlsTransport private constructor(
         ): RdpTlsTransport {
             try {
                 return connectOnce(host, port, timeoutMs, certificateVerifier, rsaKeyExchangeOnly = false)
-            } catch (e: UnsignableCertificateException) {
-                return connectOnce(host, port, timeoutMs, certificateVerifier, rsaKeyExchangeOnly = true)
+            } catch (first: SSLException) {
+                // ⚠ **やり直すかどうかを、記録した証明書では決められない。** keyUsage の検査は
+                // 証明書チェーンを受け取った直後 = TrustManager が呼ばれる**前**に走るので、
+                // ここで弾かれた相手の証明書は 1 枚も手に入らない (0.8.461・実機で判明)。
+                // ⇒ **TLS の握手が成立しなかったこと自体**を条件にする。TCP 接続の失敗や
+                // NLA 非対応 ([RdpNlaUnsupportedException]) は SSLException ではないので、
+                // ここには落ちてこない。
+                val fallback = try {
+                    connectOnce(host, port, timeoutMs, certificateVerifier, rsaKeyExchangeOnly = true)
+                } catch (second: Exception) {
+                    // ⛔ **落とした側の失敗で元の理由を隠さない。** 利用者が見るのは 1 行だけなので、
+                    // 「弱い設定でも駄目だった」ではなく最初に断られた理由を返す。
+                    throw first
+                }
+                if (signingIsForbidden(fallback.serverCertificate.keyUsage)) {
+                    Log.i(TAG, "RDP: certificate forbids signing; using RSA key exchange")
+                } else {
+                    // 署名できる証明書なのに TLS 1.3/ECDHE が通らなかった = 別の理由がある。
+                    // 繋がってはいるので止めないが、握り潰さず残す。
+                    Log.w(TAG, "RDP: fell back to RSA key exchange for another reason", first)
+                }
+                return fallback
             }
         }
 
@@ -142,17 +164,7 @@ internal class RdpTlsTransport private constructor(
                 val ssl = context.socketFactory.createSocket(plain, host, port, true) as SSLSocket
                 ssl.soTimeout = timeoutMs
                 if (rsaKeyExchangeOnly) restrictToRsaKeyExchange(ssl)
-                try {
-                    ssl.startHandshake()
-                } catch (e: SSLException) {
-                    // 相手の証明書が署名に使えないだけなら、握手のやり直しで通る余地がある。
-                    // それ以外の失敗 (本物の異常) は、隠さずそのまま上へ返す。
-                    val offered = trustManager.serverChain?.firstOrNull()
-                    if (!rsaKeyExchangeOnly && offered != null && signingIsForbidden(offered.keyUsage)) {
-                        throw UnsignableCertificateException(e)
-                    }
-                    throw e
-                }
+                ssl.startHandshake()
                 val certificate = trustManager.serverChain?.firstOrNull()
                     ?: (ssl.session.peerCertificates.firstOrNull() as? X509Certificate)
                     ?: throw CertificateException("RDP server sent no X.509 certificate")
@@ -160,6 +172,7 @@ internal class RdpTlsTransport private constructor(
                     throw CertificateException("RDP server certificate was not accepted")
                 }
                 ssl.soTimeout = 0
+                Log.i(TAG, "RDP TLS: ${ssl.session.protocol} / ${ssl.session.cipherSuite}")
                 return RdpTlsTransport(
                     socket = ssl,
                     input = DataInputStream(BufferedInputStream(ssl.inputStream)),

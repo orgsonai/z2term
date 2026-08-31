@@ -1,0 +1,5 @@
+0.8.472-alpha
+
+- A batch of fixes for connecting to real Windows over RDP (through authentication and connection setup).
+- Handles skipped licensing, error notifications and mandatory capabilities that differ between server implementations.
+- The screen does not appear against Windows yet; the investigation continues.

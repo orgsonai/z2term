@@ -58,9 +58,13 @@ internal class RdpClient(
         )
         try {
             candidate.authenticate(credentials)
+            Log.i(TAG, "RDP: NLA authenticated")
             val connected = candidate.connectMcs(settings)
+            Log.i(TAG, "RDP: MCS connected (user=${connected.userChannelId} io=${connected.ioChannelId})")
             val activated = candidate.activate(connected, credentials, settings)
+            Log.i(TAG, "RDP: activated (server caps=${activated.serverCapabilities.sorted()})")
             candidate.finalizeConnection(connected, activated)
+            Log.i(TAG, "RDP: connection finalized")
             val count = width.toLong() * height.toLong()
             require(count in 1..MAX_FRAME_PIXELS.toLong()) { "RDP framebuffer is too large: ${width}x$height" }
             synchronized(frameLock) {
@@ -70,6 +74,8 @@ internal class RdpClient(
             session = connected
             active = activated
             transport = candidate
+            // 相手が自分から描き始めるとは限らないので、こちらから 1 度だけ全画面を要求する。
+            candidate.requestRefresh(connected, activated, width, height)
             Log.i(TAG, "RDP connected: ${width}x$height '$desktopName'")
         } catch (e: Exception) {
             candidate.close()
