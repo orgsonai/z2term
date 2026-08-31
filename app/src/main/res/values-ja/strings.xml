@@ -1104,10 +1104,13 @@ SSH 接続先 %3$d 件
     <string name="settings_auto_backup">決まった日時に自動で</string>
     <string name="settings_auto_backup_desc">選んだ日時に自分でバックアップを書き出し、新しいものから決めた本数だけ残します。片付ける対象は自動で作ったものだけで、手で作ったバックアップは消しません。</string>
     <string name="auto_backup_enable">定期バックアップを回す</string>
-    <string name="auto_backup_enable_desc">SSH のパスワードと秘密鍵は入りません。含めるには合言葉が要り、自動にすると合言葉を端末へ置くことになるためです。秘密ごと持ち出すときは手で 1 本作ってください。</string>
+    <string name="auto_backup_enable_desc">SSH のパスワードと秘密鍵は入りません。自動で含めると、それを開ける合言葉を端末へ置くことになるためです。秘密ごと持ち出すときは手で 1 本作ってください。</string>
     <string name="auto_backup_folder">保存フォルダ</string>
     <string name="auto_backup_folder_none">まだ選んでいません</string>
     <string name="auto_backup_folder_pick">フォルダを選ぶ</string>
+    <string name="auto_backup_passphrase">合言葉（ファイルを暗号化）</string>
+    <string name="auto_backup_passphrase_hint">空 = 暗号化しない</string>
+    <string name="auto_backup_passphrase_desc">決めると、書き出したファイルは合言葉なしでは開けなくなります。SSH のパスワードと鍵が入らないのは変わりませんが、スニペット・マクロ・自動化ルール・キーボードの学習は書いたまま入ります。⚠ 忘れると戻せません（合言葉自体はファイルの中に入りません）。</string>
     <string name="auto_backup_interval">間隔</string>
     <string name="auto_backup_daily">毎日</string>
     <string name="auto_backup_weekly">毎週</string>

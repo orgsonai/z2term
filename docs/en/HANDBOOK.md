@@ -257,7 +257,8 @@ Settings > Maintenance > **"Take it with you"** writes your current setup to a s
 **It can also make one on a schedule** (0.8.386). On the same screen, turn on **"On a schedule"** and pick a **folder, an interval (daily / weekly / monthly), a time and how many generations to keep**.
 
 - The newest few are kept and older ones go automatically. ⚠ **Only the ones it made are removed** — a backup you created by hand survives even in the same folder.
-- ⚠ **SSH passwords and keys are not included.** Including them needs a passphrase, and automating that would mean keeping the passphrase on the device. To take secrets with you, create one by hand as before.
+- ⚠ **SSH passwords and keys are not included.** Including them automatically would mean keeping the passphrase that opens them on the device. To take secrets with you, create one by hand as before.
+- **Set a passphrase and the files it writes are encrypted** (0.8.452). SSH secrets still stay out, but snippets, macros, automation rules and what the keyboard learned go in as you wrote them — worth doing if the folder syncs to the cloud. ⚠ Forget it and they cannot be restored. ⚠ The passphrase is **never stored inside the backup**, so enter it again on a new device. Left empty, nothing is encrypted, exactly as before.
 - A good day passes quietly; **only a failure is notified** (a daily "it worked" notice trains you to skip the day it did not). When it last succeeded is shown on the same screen.
 - **"Back up now"** writes one on the spot, so you can check the setup without waiting for the middle of the night.
 - ⚠ Choosing a different folder, or revoking access on the device, stops the writing. You will be notified — **pick the folder again** when that happens.

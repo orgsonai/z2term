@@ -33,13 +33,21 @@ import java.util.TimeZone
  *
  * ## 決めたこと
  *
- * 1. ⚠ **秘密 (SSH のパスワード・秘密鍵) は含めない**。含めるには合言葉が要り、自動で
- *    書き出すには合言葉を端末へ置くことになる。「合言葉なしで秘密を出す経路は作らない」
- *    という手動書き出しの約束を、自動化のために崩さない。秘密ごと運ぶときは手で 1 本作る。
- * 2. **自動で作ったものだけを世代整理の対象にする**。ファイル名の頭を [AUTO_PREFIX]
+ * 1. ⚠ **秘密 (SSH のパスワード・秘密鍵) は含めない**。自動で書き出すには合言葉を端末へ
+ *    置くことになるので、含めてしまうと「合言葉なしで秘密を出す経路は作らない」という
+ *    手動書き出しの約束が、端末ごと取られたときに意味を失う。秘密ごと運ぶときは手で 1 本作る。
+ * 2. **秘密を含めないことと、中身を読まれないことは別** (0.8.452)。合言葉
+ *    ([com.zerotoship.z2term.settings.AppSettings.Snapshot.autoBackupPassphrase]) を決めれば、
+ *    秘密を含めないまま目録以外の全体を暗号化する。スニペット・マクロ・自動化ルール・
+ *    キーボードの学習には利用者が書いたトークンが入り得るので、「SSH の秘密が入っていない
+ *    から平文でよい」とは言えない。合言葉が空なら従来どおり平文で積む (決めなければ何も
+ *    変わらない)。⚠ 合言葉自体は持ち出しに載せない
+ *    ([com.zerotoship.z2term.settings.AppSettings.EXPORT_EXCLUDE]) — 載せると、そのファイルを
+ *    開ける合言葉がファイルの中に入る。
+ * 3. **自動で作ったものだけを世代整理の対象にする**。ファイル名の頭を [AUTO_PREFIX]
  *    (`z2term-auto-`) にして、手で作った `z2term-backup-*.zip` とは名前で分ける。
  *    同じフォルダを選んでも**手で作った 1 本が世代整理で消えることはない**。
- * 3. **失敗したときだけ通知する**。毎日成功の通知が出ると読まなくなり、失敗したその日も
+ * 4. **失敗したときだけ通知する**。毎日成功の通知が出ると読まなくなり、失敗したその日も
  *    読み飛ばす。うまくいった日は設定画面の「最後の書き出し」にだけ残す。
  *
  * ## 眠っている端末で動かす
@@ -186,7 +194,8 @@ object AutoBackup {
     /**
      * いま 1 本書き出す (画面の「今すぐ書き出す」からも呼ぶ)。
      *
-     * 秘密は含めない ([BackupManager.Options] の既定のまま)。書き終えてから世代整理をする —
+     * 秘密は含めない ([BackupManager.Options.includeSecrets] は既定の false のまま)。
+     * 合言葉が決めてあれば**中身は暗号化する**。書き終えてから世代整理をする —
      * 逆にすると、書き出しに失敗した日に古いものだけ消えて**手元が減る**。
      */
     suspend fun runOnce(context: Context): Result {
@@ -206,7 +215,9 @@ object AutoBackup {
             val target = DocumentsContract.createDocument(cr, dir, "application/zip", name)
                 ?: error("createDocument returned null")
             cr.openOutputStream(target)?.use { out ->
-                BackupManager.export(app, out, BackupManager.Options())
+                BackupManager.export(
+                    app, out, BackupManager.Options(passphrase = s.autoBackupPassphrase)
+                )
             } ?: error("cannot open output")
             true
         }.onFailure { Log.w(TAG, "auto backup failed", it) }.getOrDefault(false)

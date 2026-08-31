@@ -23,10 +23,17 @@ import org.json.JSONObject
  */
 object PrefsPortable {
 
-    /** [prefs] を `{"key":{"t":"s","v":…}}` の JSON にする。 */
-    fun toJson(prefs: Preferences): String {
+    /**
+     * [prefs] を `{"key":{"t":"s","v":…}}` の JSON にする。
+     *
+     * [exclude] に挙げたキー名は載せない。⚠ **秘密を持つ設定はここで落とす** —
+     * 「キーと値をそのまま運ぶ」方式は項目が増えても漏れない代わりに、**秘密も自動で乗る**
+     * ([AppSettings.EXPORT_EXCLUDE])。
+     */
+    fun toJson(prefs: Preferences, exclude: Set<String> = emptySet()): String {
         val o = JSONObject()
         prefs.asMap().forEach { (key, value) ->
+            if (key.name in exclude) return@forEach
             val e = JSONObject()
             when (value) {
                 is Boolean -> { e.put("t", "b"); e.put("v", value) }
@@ -51,9 +58,10 @@ object PrefsPortable {
      * 「追加・更新」で、バックアップに無い設定はそのまま残る（新しい版で増えた設定を、
      * 古いバックアップを戻したときに巻き戻さないため）。
      */
-    fun applyTo(prefs: MutablePreferences, json: String) {
+    fun applyTo(prefs: MutablePreferences, json: String, exclude: Set<String> = emptySet()) {
         val o = runCatching { JSONObject(json) }.getOrNull() ?: return
         o.keys().forEach { name ->
+            if (name in exclude) return@forEach
             val e = o.optJSONObject(name) ?: return@forEach
             when (e.optString("t")) {
                 "b" -> prefs[booleanPreferencesKey(name)] = e.optBoolean("v")

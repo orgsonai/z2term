@@ -1029,10 +1029,13 @@ SSH 連線目標 %3$d 個
     <string name="settings_auto_backup">在指定的日期時間自動進行</string>
     <string name="settings_auto_backup_desc">會在你選定的時間自動寫出備份，並保留最新的若干份。清理的對象只有自動建立的備份，手動建立的不會被刪除。</string>
     <string name="auto_backup_enable">啟用定期備份</string>
-    <string name="auto_backup_enable_desc">不包含 SSH 的密碼和私鑰: 要包含就需要金鑰密語，而自動化就意味著把金鑰密語留在裝置上。要連機密一起帶走，請手動建立一份。</string>
+    <string name="auto_backup_enable_desc">不包含 SSH 的密碼和私鑰: 自動包含就意味著把能打開它們的金鑰密語留在裝置上。要連機密一起帶走，請手動建立一份。</string>
     <string name="auto_backup_folder">儲存資料夾</string>
     <string name="auto_backup_folder_none">還沒有選擇</string>
     <string name="auto_backup_folder_pick">選擇資料夾</string>
+    <string name="auto_backup_passphrase">金鑰密語（加密檔案）</string>
+    <string name="auto_backup_passphrase_hint">留空 = 不加密</string>
+    <string name="auto_backup_passphrase_desc">設定後，寫出的檔案沒有金鑰密語就打不開。SSH 的密碼和金鑰依然不會包含，但程式碼片段、巨集、自動化規則和鍵盤的學習記錄都會原樣寫入。⚠ 忘記就無法還原（金鑰密語本身不會寫進檔案裡）。</string>
     <string name="auto_backup_interval">間隔</string>
     <string name="auto_backup_daily">每天</string>
     <string name="auto_backup_weekly">每週</string>

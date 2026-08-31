@@ -2889,6 +2889,8 @@ private fun NetLimitSection(settings: AppSettings.Snapshot, session: TerminalSes
  * [TerminalSession] 側の仕事 ([TerminalSession.setAutoBackupSchedule])。
  *
  * ⚠ **秘密は含めない**。理由は [AutoBackup] の KDoc に書いた。ここでは説明文でそう伝えるだけ。
+ * 秘密が入らないことと**中身を読まれないこと**は別なので、合言葉の欄を別に置く (0.8.452)。
+ * 空のままなら従来どおり平文で積むので、**決めなければ何も変わらない**。
  */
 @Composable
 private fun AutoBackupSection(settings: AppSettings.Snapshot, session: TerminalSession) {
@@ -2946,6 +2948,22 @@ private fun AutoBackupSection(settings: AppSettings.Snapshot, session: TerminalS
         ActionButton(
             label = stringResource(R.string.auto_backup_folder_pick),
             onClick = { runCatching { folderPicker.launch(null) } }
+        )
+
+        // --- 合言葉 (0.8.452) ---
+        // ⚠ 保存先の直後に置く。「どこへ置くか」と「読まれても平気か」は同じ判断で、
+        // 間隔や世代より先に決めるものだから。
+        TextField(
+            title = stringResource(R.string.auto_backup_passphrase),
+            placeholder = stringResource(R.string.auto_backup_passphrase_hint),
+            value = settings.autoBackupPassphrase,
+            onChange = { session.setAutoBackupPassphrase(it) }
+        )
+        Text(
+            text = stringResource(R.string.auto_backup_passphrase_desc),
+            color = ZtsTextSecondary,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace
         )
 
         // --- 間隔 ---

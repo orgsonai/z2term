@@ -1029,10 +1029,13 @@ SSH 连接目标 %3$d 个
     <string name="settings_auto_backup">在指定的日期时间自动进行</string>
     <string name="settings_auto_backup_desc">会在你选定的时间自动写出备份，并保留最新的若干份。清理的对象只有自动创建的备份，手动创建的不会被删除。</string>
     <string name="auto_backup_enable">启用定期备份</string>
-    <string name="auto_backup_enable_desc">不包含 SSH 的密码和私钥: 要包含就需要口令，而自动化就意味着把口令留在设备上。要连机密一起带走，请手动创建一份。</string>
+    <string name="auto_backup_enable_desc">不包含 SSH 的密码和私钥: 自动包含就意味着把能打开它们的口令留在设备上。要连机密一起带走，请手动创建一份。</string>
     <string name="auto_backup_folder">保存文件夹</string>
     <string name="auto_backup_folder_none">还没有选择</string>
     <string name="auto_backup_folder_pick">选择文件夹</string>
+    <string name="auto_backup_passphrase">口令（加密文件）</string>
+    <string name="auto_backup_passphrase_hint">留空 = 不加密</string>
+    <string name="auto_backup_passphrase_desc">设置后，写出的文件没有口令就打不开。SSH 的密码和密钥依然不会包含，但代码片段、宏、自动化规则和键盘的学习记录都会原样写入。⚠ 忘记就无法恢复（口令本身不会写进文件里）。</string>
     <string name="auto_backup_interval">间隔</string>
     <string name="auto_backup_daily">每天</string>
     <string name="auto_backup_weekly">每周</string>

@@ -1120,10 +1120,13 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="settings_auto_backup">On a schedule</string>
     <string name="settings_auto_backup_desc">Writes a backup by itself at the time you choose and keeps the newest few. Only the files it made are tidied up — a backup you created by hand is never deleted.</string>
     <string name="auto_backup_enable">Back up on a schedule</string>
-    <string name="auto_backup_enable_desc">SSH passwords and keys are not included: that needs a passphrase, and automating it would mean keeping the passphrase on the device. Create one by hand to take secrets with you.</string>
+    <string name="auto_backup_enable_desc">SSH passwords and keys are not included: automating that would mean keeping the passphrase that opens them on the device. Create one by hand to take secrets with you.</string>
     <string name="auto_backup_folder">Folder</string>
     <string name="auto_backup_folder_none">not chosen yet</string>
     <string name="auto_backup_folder_pick">Choose folder</string>
+    <string name="auto_backup_passphrase">Passphrase (encrypts the file)</string>
+    <string name="auto_backup_passphrase_hint">empty = not encrypted</string>
+    <string name="auto_backup_passphrase_desc">Set one and every scheduled backup is encrypted: the file cannot be opened without it. SSH passwords and keys still stay out, but snippets, macros, rules and what the keyboard has learned go in exactly as you wrote them. ⚠ Forget it and those files cannot be restored (the passphrase itself is never written inside them).</string>
     <string name="auto_backup_interval">How often</string>
     <string name="auto_backup_daily">Daily</string>
     <string name="auto_backup_weekly">Weekly</string>

@@ -87,7 +87,14 @@ object BackupManager {
     data class Options(
         /** SSH のパスワード・秘密鍵を含めるか。含めるなら [passphrase] 必須。 */
         val includeSecrets: Boolean = false,
-        /** 秘密を含めるときの合言葉。 */
+        /**
+         * 合言葉。**空でなければ暗号化する** (目録以外の全体・format 2)。
+         *
+         * ⚠ [includeSecrets] とは別の軸 (0.8.452)。秘密を含めるには必ず合言葉が要るが、
+         * 逆は成り立たない — 秘密を含めなくても、スニペット・マクロ・自動化ルール・
+         * キーボードの学習には利用者が書いたトークンが入り得る。「秘密を含めるときだけ
+         * 暗号化する」にしていたため、定期バックアップは中身が平文のまま積まれていた。
+         */
         val passphrase: String = "",
     )
 
@@ -160,16 +167,18 @@ object BackupManager {
             dicts.forEach { put(DICT_DIR + it.name, it.readBytes()) }
             imeHistory?.let { put(IME_HISTORY, it.readBytes()) }
         }
+        // 暗号化するかは**合言葉の有無だけ**で決まる (秘密を含めるかとは別)。
+        val encrypted = options.passphrase.isNotEmpty()
         val manifest = JSONObject().apply {
             put(
                 "format",
-                if (options.includeSecrets) BackupArchive.FORMAT_ENCRYPTED_PAYLOAD
+                if (encrypted) BackupArchive.FORMAT_ENCRYPTED_PAYLOAD
                 else BackupArchive.FORMAT_FLAT,
             )
             put("createdAt", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(Date()))
             put("appVersion", BuildConfig.VERSION_NAME)
             put("hasSecrets", options.includeSecrets)
-            put("encrypted", options.includeSecrets)
+            put("encrypted", encrypted)
             put("sshCount", countJsonArray(sshJson))
             put("snippetCount", countJsonArray(snippetsJson))
             put("ruleCount", rules.size)
@@ -184,7 +193,7 @@ object BackupManager {
             out = out,
             manifest = manifest.toString().toByteArray(),
             payload = payload,
-            passphrase = options.passphrase.takeIf { options.includeSecrets },
+            passphrase = options.passphrase.takeIf { encrypted },
         )
     }
 

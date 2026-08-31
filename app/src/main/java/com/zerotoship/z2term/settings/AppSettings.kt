@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.zerotoship.z2term.channel.KeystoreCrypt
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -402,10 +403,12 @@ class AppSettings(private val context: Context) {
          * ([com.zerotoship.z2term.backup.AutoBackup])。
          *
          * ⚠ **自動で書き出すものに秘密 (SSH のパスワード・秘密鍵) は含めない**。含めるには
-         * 合言葉が要り、自動化するとその合言葉を端末に置くことになる。「合言葉なしで秘密を
-         * 出す経路は作らない」という手動書き出しの約束
-         * ([com.zerotoship.z2term.backup.BackupManager]) を、自動化のために崩さない。
-         * 秘密ごと持ち出したいときは手で 1 本作る。
+         * その合言葉を端末に置くことになり、「合言葉なしで秘密を出す経路は作らない」という
+         * 手動書き出しの約束 ([com.zerotoship.z2term.backup.BackupManager]) が、端末を取られた
+         * ときに意味を失う。秘密ごと持ち出したいときは手で 1 本作る。
+         *
+         * 秘密を含めないことと**中身を読まれないこと**は別なので、[autoBackupPassphrase] を
+         * 決めれば書き出したファイルは暗号化される (0.8.452)。
          */
         val autoBackupEnabled: Boolean = false,
         /** 書き出し先フォルダ (SAF の tree URI 文字列)。空 = 未選択 = 回せない。 */
@@ -429,6 +432,16 @@ class AppSettings(private val context: Context) {
          * **画面に出すのは符丁ではなく文言**なので、訳し分けは画面側で行う。
          */
         val autoBackupLastResult: String = "",
+        /**
+         * 定期バックアップの合言葉 (0.8.452)。**空 = 暗号化しない** (従来どおり平文の
+         * format 1)。決めると、秘密を含めないまま目録以外の全体が暗号化される
+         * ([com.zerotoship.z2term.backup.BackupArchive] の format 2)。
+         *
+         * ⚠ **DataStore には [com.zerotoship.z2term.channel.KeystoreCrypt] で包んで置く**
+         * (SSH のパスワードと同じ扱い)。⚠ **持ち出しには載せない** ([EXPORT_EXCLUDE]) —
+         * 載せると、その合言葉で開けるファイルの中に合言葉自身が入る。
+         */
+        val autoBackupPassphrase: String = "",
         /**
          * 通信量の上限に達したら z2term 自身の通信を止めるか (0.8.388・
          * [com.zerotoship.z2term.service.NetGuard])。
@@ -625,6 +638,11 @@ class AppSettings(private val context: Context) {
             autoBackupKeep = p[KEY_AUTO_BACKUP_KEEP] ?: DEFAULT_AUTO_BACKUP_KEEP,
             autoBackupLastAt = p[KEY_AUTO_BACKUP_LAST_AT] ?: 0L,
             autoBackupLastResult = p[KEY_AUTO_BACKUP_LAST_RESULT] ?: "",
+            // 鍵が消えている (ファクトリリセット等) なら空 = 暗号化なしへ倒す。読めない
+            // 合言葉で暗号化すると、戻せないファイルを積み続けることになる。
+            autoBackupPassphrase = runCatching {
+                KeystoreCrypt.decrypt(p[KEY_AUTO_BACKUP_PASSPHRASE] ?: "")
+            }.getOrDefault(""),
             netLimitEnabled = p[KEY_NET_LIMIT] ?: false,
             netLimitMb = p[KEY_NET_LIMIT_MB] ?: DEFAULT_NET_LIMIT_MB,
             netLimitResetDay = p[KEY_NET_LIMIT_RESET_DAY] ?: DEFAULT_NET_LIMIT_RESET_DAY,
@@ -674,6 +692,12 @@ class AppSettings(private val context: Context) {
             it[KEY_AUTO_BACKUP_LAST_AT] = at
             it[KEY_AUTO_BACKUP_LAST_RESULT] = result
         }
+    }
+
+    /** 定期バックアップの合言葉を決める (空 = 暗号化しない)。⚠ 置くのは暗号化した形だけ。 */
+    suspend fun setAutoBackupPassphrase(passphrase: String) {
+        val stored = if (passphrase.isEmpty()) "" else KeystoreCrypt.encrypt(passphrase)
+        context.dataStore.edit { it[KEY_AUTO_BACKUP_PASSPHRASE] = stored }
     }
 
     // --- 通信量の上限 (0.8.388) ---
@@ -741,11 +765,12 @@ class AppSettings(private val context: Context) {
     }
 
     /** 設定をまるごと JSON にする (持ち出し用・0.8.239)。 */
-    suspend fun exportRaw(): String = PrefsPortable.toJson(context.dataStore.data.first())
+    suspend fun exportRaw(): String =
+        PrefsPortable.toJson(context.dataStore.data.first(), EXPORT_EXCLUDE)
 
     /** 持ち出した設定を書き戻す (既存は消さず、あるものだけ更新する)。 */
     suspend fun importRaw(json: String) {
-        context.dataStore.edit { PrefsPortable.applyTo(it, json) }
+        context.dataStore.edit { PrefsPortable.applyTo(it, json, EXPORT_EXCLUDE) }
     }
 
     suspend fun setSystemEventLogFormat(template: String) {
@@ -1165,6 +1190,17 @@ class AppSettings(private val context: Context) {
         private val KEY_AUTO_BACKUP_KEEP = intPreferencesKey("auto_backup_keep")
         private val KEY_AUTO_BACKUP_LAST_AT = longPreferencesKey("auto_backup_last_at")
         private val KEY_AUTO_BACKUP_LAST_RESULT = stringPreferencesKey("auto_backup_last_result")
+        private val KEY_AUTO_BACKUP_PASSPHRASE = stringPreferencesKey("auto_backup_passphrase")
+
+        /**
+         * 持ち出し ([exportRaw]) に載せず、取り込み ([importRaw]) でも書き換えないキー。
+         *
+         * ⚠ **バックアップを開ける合言葉を、そのバックアップの中に入れない**。ここに書き忘れると
+         * 定期バックアップの合言葉が `settings.json` に入り、暗号化そのものが意味を失う
+         * (平文 format 1 のバックアップなら、そのまま読める)。取り込みで書き換えないのは、
+         * 別の端末の合言葉で上書きされると**その端末で戻せないファイルを積み始める**ため。
+         */
+        internal val EXPORT_EXCLUDE = setOf("auto_backup_passphrase")
         const val DEFAULT_NET_LIMIT_MB = 3000
         const val DEFAULT_NET_LIMIT_RESET_DAY = 1
         const val DEFAULT_NET_LIMIT_WIFI_EXEMPT = true

@@ -507,6 +507,10 @@ class TerminalSession(
     fun setAutoBackupFolder(treeUri: String) {
         scope.launch { settings.setAutoBackupFolder(treeUri); AutoBackup.schedule(appContext) }
     }
+    /** 定期バックアップの合言葉 (0.8.452)。⚠ 予約は貼り直さない (時刻に関係しないため)。 */
+    fun setAutoBackupPassphrase(value: String) {
+        scope.launch { settings.setAutoBackupPassphrase(value) }
+    }
     // 通信量の上限 (0.8.388)。⚠ ON/OFF のときだけ見張りを置き直す (間隔は固定なので、
     // 上限や締め日を変えても予約そのものは変わらない)。
     fun setNetLimitEnabled(value: Boolean) {

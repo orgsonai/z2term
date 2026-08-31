@@ -1,0 +1,5 @@
+0.8.452-alpha
+
+- Scheduled backups can now take a passphrase; with one set, the whole file is encrypted apart from its item-count manifest.
+- SSH passwords and keys still stay out of scheduled backups. Snippets, macros, automation rules and learned text do go in, which is why they can now be encrypted.
+- Leave the passphrase empty and nothing is encrypted, exactly as before.
