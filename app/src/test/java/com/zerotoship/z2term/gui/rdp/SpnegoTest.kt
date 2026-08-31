@@ -24,6 +24,13 @@ class SpnegoTest {
     }
 
     @Test
+    fun directNtlmTokenRoundTripsWithoutSpnegoWrapper() {
+        val authenticate = "NTLMSSP\u0000".toByteArray(Charsets.US_ASCII) + ByteArray(72) { it.toByte() }
+
+        assertArrayEquals(authenticate, Spnego.ntlmToken(authenticate))
+    }
+
+    @Test
     fun rejectsResponseWithoutNtlmToken() {
         assertThrows(IOException::class.java) { Spnego.ntlmToken(Der.sequence(Der.integer(1))) }
     }

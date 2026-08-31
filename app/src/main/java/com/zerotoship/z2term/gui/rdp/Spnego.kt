@@ -25,9 +25,12 @@ internal object Spnego {
     fun responseToken(ntlmAuthenticate: ByteArray): ByteArray =
         Der.context(1, Der.sequence(Der.context(2, Der.octetString(ntlmAuthenticate))))
 
-    /** server の NegTokenResp から NTLM CHALLENGE_MESSAGE を取り出す。 */
-    fun ntlmToken(encoded: ByteArray): ByteArray = findNtlmToken(Der.Reader(encoded))
-        ?: throw IOException("SPNEGO response has no NTLM token")
+    /** server の raw NTLM token または NegTokenResp から NTLM message を取り出す。 */
+    fun ntlmToken(encoded: ByteArray): ByteArray {
+        if (encoded.startsWith(NTLM_SIGNATURE)) return encoded.copyOf()
+        return findNtlmToken(Der.Reader(encoded))
+            ?: throw IOException("SPNEGO response has no NTLM token")
+    }
 
     private fun findNtlmToken(reader: Der.Reader): ByteArray? {
         while (reader.hasRemaining()) {

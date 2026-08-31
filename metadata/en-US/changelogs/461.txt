@@ -1,0 +1,5 @@
+0.8.453-alpha
+
+- Added a reproducible on-device RDP/NLA testbed and live-server authentication test.
+- Fixed a CredSSP token interoperability issue hidden by the scripted peer and verified the real server reaches the post-NLA MCS wait.
+- RDP remains under development and is not shown in the connection screen yet.

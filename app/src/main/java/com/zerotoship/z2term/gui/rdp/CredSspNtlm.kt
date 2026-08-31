@@ -23,13 +23,15 @@ internal object CredSspNtlm {
         secureRandom: SecureRandom = SecureRandom(),
     ) {
         val negotiate = NtlmWire.negotiate()
-        writeRequest(output, CredSspTsRequest(negoToken = Spnego.initialToken(negotiate)))
+        // Negotiate SSP は raw NTLM token も受理する。実際の FreeRDP client と同じ経路に
+        // 揃え、SPNEGO mechListMIC を別途実装しない direct NTLM を明示的に選ぶ。
+        writeRequest(output, CredSspTsRequest(negoToken = negotiate))
 
         val challengeRequest = readRequest(input)
         checkError(challengeRequest)
         val serverVersion = minOf(challengeRequest.version, CredSspTsRequest.VERSION)
         if (serverVersion < 5) throw IOException("CredSSP v5 or newer is required for secure public-key binding")
-        val challengeToken = challengeRequest.negoToken ?: throw IOException("CredSSP response has no SPNEGO token")
+        val challengeToken = challengeRequest.negoToken ?: throw IOException("CredSSP response has no negotiation token")
         val challenge = NtlmWire.parseChallenge(Spnego.ntlmToken(challengeToken))
         val authentication = NtlmWire.authenticate(
             negotiateMessage = negotiate,
@@ -47,7 +49,7 @@ internal object CredSspNtlm {
             output,
             CredSspTsRequest(
                 version = serverVersion,
-                negoToken = Spnego.responseToken(authentication.message),
+                negoToken = authentication.message,
                 pubKeyAuth = security.wrap(clientBinding),
                 clientNonce = nonce,
             ),
