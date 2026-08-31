@@ -1,15 +1,15 @@
 package com.zerotoship.z2term.gui.rdp
 
-import java.net.SocketTimeoutException
 import javax.net.ssl.SSLSocket
-import org.junit.Assert.assertThrows
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /** scripts/rdp-testbed.sh probe からだけ実行する、端末内 FreeRDP server との実 wire 検証。 */
 class RdpTlsTransportLiveTest {
     @Test
-    fun authenticatesAgainstLocalNlaServer() {
+    fun authenticatesAndConnectsMcsAgainstLocalNlaServer() {
         assumeTrue("set Z2TERM_RDP_TESTBED=1 to run", System.getenv("Z2TERM_RDP_TESTBED") == "1")
 
         RdpTlsTransport.connect(
@@ -18,19 +18,23 @@ class RdpTlsTransportLiveTest {
             timeoutMs = 5_000,
             certificateVerifier = { true },
         ).use { transport ->
-            transport.authenticate(
-                CredSspNtlm.Credentials(
-                    user = "z2test",
-                    password = "z2pass",
-                ),
-            )
+            val credentials = CredSspNtlm.Credentials(user = "z2test", password = "z2pass")
+            transport.authenticate(credentials)
+            val session = transport.connectMcs()
+            assertTrue(session.userChannelId >= 1001)
+            assertEquals(1003, session.ioChannelId)
+            val active = transport.activate(session, credentials)
+            assertTrue(active.serverCapabilities.contains(RdpActivation.CAP_BITMAP))
+            assertTrue(active.clientCapabilities.contains(RdpActivation.CAP_BITMAP))
+            assertTrue(active.clientCapabilities.contains(RdpActivation.CAP_ORDER))
+            assertTrue(active.clientCapabilities.none {
+                it == RdpActivation.CAP_SURFACE_COMMANDS || it == RdpActivation.CAP_BITMAP_CODECS
+            })
 
-            // authInfo 後、成功時は server が MCS Connect-Initial を待つ。拒否なら
-            // TSRequest(errorCode) または EOF が返るため、無通信 timeout だけを成功とする。
-            transport.sslSocketForTest().soTimeout = 1_000
-            assertThrows(SocketTimeoutException::class.java) {
-                transport.input.read()
-            }
+            // Confirm Active 後は server の connection finalization PDU が続く。
+            transport.sslSocketForTest().soTimeout = 2_000
+            val finalization = RdpTlsTransport.readTpkt(transport.input)
+            assertTrue(finalization.size > 7)
         }
     }
 

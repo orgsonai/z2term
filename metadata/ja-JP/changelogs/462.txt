@@ -1,0 +1,5 @@
+0.8.454-alpha
+
+- MCS/GCC 接続、Client Info、license 処理、Demand/Confirm Active の capability 交換を実装しました。
+- 端末内 FreeRDP server で NLA から capability 交換までの実経路を確認しました。
+- RDP は引き続き開発中で、接続画面にはまだ表示されません。

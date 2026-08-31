@@ -1,0 +1,5 @@
+0.8.454-alpha
+
+- Added MCS/GCC connection, Client Info, licensing, and Demand/Confirm Active capability exchange.
+- Verified the full NLA-to-capability path against the on-device FreeRDP server.
+- RDP remains under development and is not shown in the connection screen yet.

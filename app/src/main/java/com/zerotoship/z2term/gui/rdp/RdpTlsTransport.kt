@@ -30,6 +30,17 @@ internal class RdpTlsTransport private constructor(
         CredSspNtlm.authenticate(input, output, subjectPublicKey, credentials)
     }
 
+    /** NLA 後の Basic Settings Exchange と MCS channel connection を完了する。 */
+    fun connectMcs(settings: RdpMcs.ClientSettings = RdpMcs.ClientSettings()): RdpMcs.Session =
+        RdpMcs.connect(input, output, settings)
+
+    /** Client Info、licensing、Demand/Confirm Active を完了し、画面更新を受けられる状態にする。 */
+    fun activate(
+        session: RdpMcs.Session,
+        credentials: CredSspNtlm.Credentials,
+        settings: RdpMcs.ClientSettings = RdpMcs.ClientSettings(),
+    ): RdpActivation.ActiveSession = RdpActivation.activate(input, output, session, credentials, settings)
+
     override fun close() {
         runCatching { input.close() }
         runCatching { output.close() }
