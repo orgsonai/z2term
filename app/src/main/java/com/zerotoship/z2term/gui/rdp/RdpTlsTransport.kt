@@ -41,6 +41,10 @@ internal class RdpTlsTransport private constructor(
         settings: RdpMcs.ClientSettings = RdpMcs.ClientSettings(),
     ): RdpActivation.ActiveSession = RdpActivation.activate(input, output, session, credentials, settings)
 
+    /** Synchronize / Control / Font List/Map を交換し、通常の画面更新を受信できる状態にする。 */
+    fun finalizeConnection(session: RdpMcs.Session, active: RdpActivation.ActiveSession) =
+        RdpActivation.finalizeConnection(input, output, session, active)
+
     override fun close() {
         runCatching { input.close() }
         runCatching { output.close() }

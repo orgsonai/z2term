@@ -1,0 +1,5 @@
+0.8.455-alpha
+
+- capability 交換後の RDP connection finalization を実装しました。
+- Synchronize、Control、Font List/Map を端末内 FreeRDP server で実経路確認しました。
+- RDP は引き続き開発中で、bitmap decode・入力・接続 UI はまだ利用できません。

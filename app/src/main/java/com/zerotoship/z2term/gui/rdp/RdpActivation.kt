@@ -23,6 +23,7 @@ internal object RdpActivation {
     )
 
     private data class Demand(val shareId: Int, val source: Int, val caps: Set<Int>)
+    private data class ShareData(val type: Int, val body: ByteArray)
 
     fun activate(
         input: DataInputStream,
@@ -49,6 +50,82 @@ internal object RdpActivation {
             return ActiveSession(demand.shareId, demand.source, demand.caps, confirmation.second)
         }
         throw IOException("RDP server did not send Demand Active")
+    }
+
+    fun finalizeConnection(
+        input: DataInputStream,
+        output: DataOutputStream,
+        session: RdpMcs.Session,
+        active: ActiveSession,
+    ) {
+        finalizationPackets(session, active).forEach(output::write)
+        output.flush()
+
+        var received = 0
+        repeat(32) {
+            val payload = mcsData(RdpTlsTransport.readTpkt(input), session.ioChannelId) ?: return@repeat
+            val data = readShareData(payload, active.shareId) ?: return@repeat
+            when (data.type) {
+                0x1F -> {
+                    val body = Cursor(data.body)
+                    if (body.le16() != 1) throw IOException("invalid Server Synchronize PDU")
+                    body.le16()
+                    body.end()
+                    received = received or 0x01
+                }
+                0x14 -> {
+                    val body = Cursor(data.body)
+                    val action = body.le16()
+                    body.le16()
+                    body.le32()
+                    body.end()
+                    received = when (action) {
+                        4 -> received or 0x02
+                        2 -> received or 0x04
+                        else -> throw IOException("unexpected Server Control action: " + action)
+                    }
+                }
+                0x28 -> {
+                    val body = Cursor(data.body)
+                    if (body.remaining != 0) {
+                        body.le16()
+                        body.le16()
+                        val flags = body.le16()
+                        val entrySize = body.le16()
+                        if (flags != 3 || entrySize != 4) throw IOException("invalid Server Font Map PDU")
+                    }
+                    body.end()
+                    received = received or 0x08
+                }
+            }
+            if (received == 0x0F) return
+        }
+        throw IOException("RDP connection finalization did not complete")
+    }
+
+    internal fun finalizationPackets(
+        session: RdpMcs.Session,
+        active: ActiveSession,
+    ): List<ByteArray> {
+        fun control(action: Int) = Writer().apply {
+            le16(action)
+            le16(0)
+            le32(0)
+        }.array()
+        return listOf(
+            shareData(session, active.shareId, 0x1F, Writer().apply {
+                le16(1)
+                le16(session.userChannelId)
+            }.array()),
+            shareData(session, active.shareId, 0x14, control(4)),
+            shareData(session, active.shareId, 0x14, control(1)),
+            shareData(session, active.shareId, 0x27, Writer().apply {
+                le16(0)
+                le16(0)
+                le16(3)
+                le16(50)
+            }.array()),
+        )
     }
 
     internal fun clientInfo(
@@ -200,6 +277,51 @@ internal object RdpActivation {
     private fun securityFlags(payload: ByteArray): Int =
         if (payload.size < 2) 0 else (payload[0].toInt() and 0xFF) or
             ((payload[1].toInt() and 0xFF) shl 8)
+
+    private fun shareData(
+        session: RdpMcs.Session,
+        shareId: Int,
+        type: Int,
+        body: ByteArray,
+    ): ByteArray {
+        val payload = Writer().apply {
+            le16(18 + body.size)
+            le16(0x17)
+            le16(session.userChannelId)
+            le32(shareId)
+            u8(0)
+            u8(1)
+            le16(body.size)
+            u8(type)
+            u8(0)
+            le16(0)
+            bytes(body)
+        }.array()
+        return sendData(session.userChannelId, session.ioChannelId, payload)
+    }
+
+    private fun readShareData(payload: ByteArray, expectedShareId: Int): ShareData? {
+        val c = Cursor(payload)
+        val totalLength = c.le16()
+        val pduType = c.le16()
+        c.le16()
+        if (totalLength != payload.size) throw IOException("invalid Share Control PDU length")
+        if (pduType and 0x0F != 7) return null
+        val shareId = c.le32()
+        c.u8()
+        c.u8()
+        val uncompressedLength = c.le16()
+        val type = c.u8()
+        val compressedType = c.u8()
+        val compressedLength = c.le16()
+        if (shareId != expectedShareId) throw IOException("Share Data PDU has a different shareId")
+        if (compressedType != 0 || compressedLength != 0) {
+            throw IOException("compressed Share Data PDU is not supported")
+        }
+        val body = c.bytes(c.remaining)
+        if (uncompressedLength != body.size) throw IOException("invalid Share Data PDU length")
+        return ShareData(type, body)
+    }
     private fun mcsData(packet: ByteArray, channel: Int): ByteArray? {
         val c = Cursor(x224(packet))
         if (c.u8() ushr 2 != 26) throw IOException("expected MCS Send Data Indication")

@@ -31,10 +31,8 @@ class RdpTlsTransportLiveTest {
                 it == RdpActivation.CAP_SURFACE_COMMANDS || it == RdpActivation.CAP_BITMAP_CODECS
             })
 
-            // Confirm Active 後は server の connection finalization PDU が続く。
-            transport.sslSocketForTest().soTimeout = 2_000
-            val finalization = RdpTlsTransport.readTpkt(transport.input)
-            assertTrue(finalization.size > 7)
+            transport.sslSocketForTest().soTimeout = 5_000
+            transport.finalizeConnection(session, active)
         }
     }
 

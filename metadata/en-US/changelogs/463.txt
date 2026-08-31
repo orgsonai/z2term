@@ -1,0 +1,5 @@
+0.8.455-alpha
+
+- Completed the RDP connection-finalization exchange after capability negotiation.
+- Verified Synchronize, Control, and Font List/Map PDUs against the on-device FreeRDP server.
+- RDP remains under development; bitmap decoding, input, and connection UI are not available yet.
