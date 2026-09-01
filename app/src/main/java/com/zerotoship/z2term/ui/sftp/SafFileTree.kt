@@ -3,11 +3,26 @@ package com.zerotoship.z2term.ui.sftp
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.webkit.MimeTypeMap
 import com.zerotoship.z2term.channel.RemoteFs
 import com.zerotoship.z2term.channel.RemotePath
 import com.zerotoship.z2term.channel.SftpEntry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.io.OutputStream
+import java.util.Locale
+
+internal interface LocalFileTree {
+    val rootId: String
+    suspend fun list(documentId: String): List<LocalFileEntry>
+    suspend fun ensureDirectory(parentId: String, name: String): String
+    suspend fun openOutput(parentId: String, name: String, mimeType: String): OutputStream
+    fun openInput(entry: LocalFileEntry): InputStream
+}
 
 /**
  * SAF のツリー権限内を、システムのファイル選択画面へ移動せずアプリ内で表示するための薄い境界。
@@ -16,13 +31,13 @@ import kotlinx.coroutines.withContext
 internal class SafFileTree(
     private val resolver: ContentResolver,
     val treeUri: Uri,
-) {
-    val rootId: String = DocumentsContract.getTreeDocumentId(treeUri)
+) : LocalFileTree {
+    override val rootId: String = DocumentsContract.getTreeDocumentId(treeUri)
 
     fun documentUri(documentId: String): Uri =
         DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
 
-    suspend fun list(documentId: String): List<LocalFileEntry> = withContext(Dispatchers.IO) {
+    override suspend fun list(documentId: String): List<LocalFileEntry> = withContext(Dispatchers.IO) {
         val children = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
         val columns = arrayOf(
             DocumentsContract.Document.COLUMN_DOCUMENT_ID,
@@ -57,7 +72,7 @@ internal class SafFileTree(
         } ?: error("The selected local folder is no longer available")
     }
 
-    suspend fun ensureDirectory(parentId: String, name: String): String = withContext(Dispatchers.IO) {
+    override suspend fun ensureDirectory(parentId: String, name: String): String = withContext(Dispatchers.IO) {
         list(parentId).firstOrNull { it.isDir && it.name == name }?.documentId
             ?: DocumentsContract.createDocument(
                 resolver,
@@ -68,23 +83,90 @@ internal class SafFileTree(
             ?: error("Could not create local folder: $name")
     }
 
-    suspend fun ensureFile(parentId: String, name: String, mimeType: String): Uri =
-        withContext(Dispatchers.IO) {
-            list(parentId).firstOrNull { !it.isDir && it.name == name }?.uri
-                ?: DocumentsContract.createDocument(
-                    resolver,
-                    documentUri(parentId),
-                    mimeType.ifBlank { "application/octet-stream" },
-                    name,
+    override suspend fun openOutput(
+        parentId: String,
+        name: String,
+        mimeType: String,
+    ): OutputStream = withContext(Dispatchers.IO) {
+        val uri = list(parentId).firstOrNull { !it.isDir && it.name == name }?.uri
+            ?: DocumentsContract.createDocument(
+                resolver,
+                documentUri(parentId),
+                mimeType.ifBlank { "application/octet-stream" },
+                name,
+            )
+            ?: error("Could not create local file: $name")
+        resolver.openOutputStream(uri, "wt") ?: error("Could not write the selected local file")
+    }
+
+    override fun openInput(entry: LocalFileEntry) =
+        resolver.openInputStream(entry.uri) ?: error("Could not open local file: ${entry.name}")
+}
+
+/**
+ * 全ファイルアクセスが許可された端末共有ストレージ／物理 SD カードを直接辿る。
+ * canonical path を選択ルート内に制限し、リンク等で外へ抜けないようにする。
+ */
+internal class FileSystemTree(root: File) : LocalFileTree {
+    private val root = root.canonicalFile.also {
+        require(it.isDirectory) { "Local storage is not available: ${it.path}" }
+    }
+    override val rootId: String = this.root.path
+
+    override suspend fun list(documentId: String): List<LocalFileEntry> = withContext(Dispatchers.IO) {
+        val directory = resolve(documentId)
+        check(directory.isDirectory) { "Not a folder: ${directory.path}" }
+        val children = directory.listFiles() ?: error("Could not read folder: ${directory.path}")
+        children.mapNotNull { child ->
+            runCatching {
+                val file = child.canonicalFile
+                requireInsideRoot(file)
+                LocalFileEntry(
+                    uri = Uri.fromFile(file),
+                    documentId = file.path,
+                    name = file.name,
+                    mimeType = if (file.isDirectory) DocumentsContract.Document.MIME_TYPE_DIR
+                        else mimeTypeForLocalName(file.name),
+                    isDir = file.isDirectory,
+                    size = if (file.isFile) file.length() else 0L,
+                    modifiedMs = file.lastModified(),
                 )
-                ?: error("Could not create local file: $name")
+            }.getOrNull()
+        }.sortedWith(compareByDescending<LocalFileEntry> { it.isDir }.thenBy { it.name.lowercase() })
+    }
+
+    override suspend fun ensureDirectory(parentId: String, name: String): String =
+        withContext(Dispatchers.IO) {
+            val directory = File(resolve(parentId), name).canonicalFile
+            requireInsideRoot(directory)
+            check((directory.isDirectory || directory.mkdirs()) && directory.isDirectory) {
+                "Could not create local folder: $name"
+            }
+            directory.path
         }
 
-    fun openInput(entry: LocalFileEntry) =
-        resolver.openInputStream(entry.uri) ?: error("Could not open local file: ${entry.name}")
+    override suspend fun openOutput(
+        parentId: String,
+        name: String,
+        mimeType: String,
+    ): OutputStream = withContext(Dispatchers.IO) {
+        val file = File(resolve(parentId), name).canonicalFile
+        requireInsideRoot(file)
+        check(!file.isDirectory) { "A local folder already uses this name: $name" }
+        FileOutputStream(file, false)
+    }
 
-    fun openOutput(uri: Uri) =
-        resolver.openOutputStream(uri, "wt") ?: error("Could not write the selected local file")
+    override fun openInput(entry: LocalFileEntry): InputStream =
+        FileInputStream(resolve(entry.documentId))
+
+    private fun resolve(documentId: String): File =
+        File(documentId).canonicalFile.also(::requireInsideRoot)
+
+    private fun requireInsideRoot(file: File) {
+        check(file.path == root.path || file.path.startsWith(root.path + File.separator)) {
+            "Local path is outside the selected storage"
+        }
+    }
 }
 
 internal data class LocalFileEntry(
@@ -108,7 +190,7 @@ internal data class LocalFolder(
  */
 internal suspend fun uploadLocalTree(
     client: RemoteFs,
-    local: SafFileTree,
+    local: LocalFileTree,
     entry: LocalFileEntry,
     remoteParent: String,
     onProgress: (String) -> Unit,
@@ -138,7 +220,7 @@ internal suspend fun uploadLocalTree(
  */
 internal suspend fun downloadRemoteTree(
     client: RemoteFs,
-    local: SafFileTree,
+    local: LocalFileTree,
     entry: SftpEntry,
     remotePath: String,
     localParentId: String,
@@ -149,8 +231,11 @@ internal suspend fun downloadRemoteTree(
     check(depth <= MAX_TRANSFER_DEPTH) { "Folder nesting is too deep" }
     onProgress(entry.name)
     if (!entry.isDir || entry.isLink) {
-        val target = local.ensureFile(localParentId, entry.name, mimeType(entry.name))
-        withContext(Dispatchers.IO) { local.openOutput(target).use { client.download(remotePath, it) } }
+        withContext(Dispatchers.IO) {
+            local.openOutput(localParentId, entry.name, mimeType(entry.name)).use {
+                client.download(remotePath, it)
+            }
+        }
         return
     }
 
@@ -170,3 +255,9 @@ internal suspend fun downloadRemoteTree(
 }
 
 private const val MAX_TRANSFER_DEPTH = 64
+
+private fun mimeTypeForLocalName(name: String): String {
+    val extension = name.substringAfterLast('.', "").lowercase(Locale.ROOT)
+    return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+        ?: "application/octet-stream"
+}

@@ -1,16 +1,21 @@
 package com.zerotoship.z2term.ui.sftp
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.Settings
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,6 +35,7 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -55,12 +61,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
@@ -70,6 +82,7 @@ import com.zerotoship.z2term.channel.RemotePath
 import com.zerotoship.z2term.channel.RemoteService
 import com.zerotoship.z2term.channel.SftpEntry
 import com.zerotoship.z2term.channel.SshProfile
+import com.zerotoship.z2term.storage.ExternalStorageDetector
 import com.zerotoship.z2term.ui.components.ConfirmDialog
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
@@ -81,6 +94,9 @@ import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.charset.CodingErrorAction
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -126,13 +142,27 @@ fun SftpSheet(
     var localTreeUri by remember {
         mutableStateOf(localPrefs.getString(LOCAL_TREE_URI, null)?.let(Uri::parse))
     }
-    val localTree = remember(localTreeUri) {
-        localTreeUri?.let { uri -> runCatching { SafFileTree(context.contentResolver, uri) }.getOrNull() }
+    var localTreePath by remember {
+        mutableStateOf(localPrefs.getString(LOCAL_TREE_PATH, null))
     }
-    var localFolders by remember(localTreeUri) {
+    var localTreeLabel by remember {
         mutableStateOf(
-            localTree?.let { listOf(LocalFolder(it.rootId, context.getString(R.string.sftp_local_root))) }
-                ?: emptyList()
+            localPrefs.getString(LOCAL_TREE_LABEL, null)
+                ?: context.getString(R.string.sftp_local_root)
+        )
+    }
+    val localTree: LocalFileTree? = remember(localTreeUri, localTreePath) {
+        when {
+            localTreePath != null -> runCatching { FileSystemTree(File(localTreePath!!)) }.getOrNull()
+            localTreeUri != null -> runCatching {
+                SafFileTree(context.contentResolver, localTreeUri!!)
+            }.getOrNull()
+            else -> null
+        }
+    }
+    var localFolders by remember(localTreeUri, localTreePath, localTreeLabel) {
+        mutableStateOf(
+            localTree?.let { listOf(LocalFolder(it.rootId, localTreeLabel)) } ?: emptyList()
         )
     }
     var localEntries by remember { mutableStateOf<List<LocalFileEntry>>(emptyList()) }
@@ -142,6 +172,30 @@ fun SftpSheet(
     var transferLabel by remember { mutableStateOf<String?>(null) }
     var preview by remember { mutableStateOf<FilePreview?>(null) }
     var previewLoading by remember { mutableStateOf(false) }
+    var localLocationOpen by remember { mutableStateOf(false) }
+    var pendingLocalRoot by remember { mutableStateOf<LocalRootOption?>(null) }
+    val localRootOptions = remember {
+        buildList {
+            @Suppress("DEPRECATION")
+            add(
+                LocalRootOption(
+                    Environment.getExternalStorageDirectory().absolutePath,
+                    context.getString(R.string.sftp_local_device_storage),
+                )
+            )
+            ExternalStorageDetector.detect(context).forEach { path ->
+                add(
+                    LocalRootOption(
+                        path,
+                        context.getString(
+                            R.string.sftp_local_sd_card,
+                            path.substringAfterLast('/'),
+                        ),
+                    )
+                )
+            }
+        }
+    }
 
     // ダイアログ状態
     var renameTarget by remember { mutableStateOf<SftpEntry?>(null) }
@@ -162,6 +216,11 @@ fun SftpSheet(
             exitConfirmOpen = true
         }
     }
+    fun requestExit() {
+        if (transferLabel != null || previewLoading) return
+        onDismiss()
+    }
+
 
     // 接続 (1 度だけ)
     LaunchedEffect(profile.id, service?.id) {
@@ -208,6 +267,63 @@ fun SftpSheet(
         onDispose { val c = client; if (c != null) Thread { c.close() }.start() }
     }
 
+    fun activateLocalRoot(option: LocalRootOption) {
+        localPrefs.edit()
+            .putString(LOCAL_TREE_PATH, option.path)
+            .putString(LOCAL_TREE_LABEL, option.label)
+            .remove(LOCAL_TREE_URI)
+            .apply()
+        localTreeUri = null
+        localTreePath = option.path
+        localTreeLabel = option.label
+        side = FileSide.LOCAL
+    }
+
+    val storageSettingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        val option = pendingLocalRoot
+        pendingLocalRoot = null
+        if (option != null && canUseDirectStorage(context)) {
+            activateLocalRoot(option)
+        } else if (option != null) {
+            toast(context.getString(R.string.sftp_local_storage_permission_required))
+        }
+    }
+    val legacyStorageLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        val option = pendingLocalRoot
+        pendingLocalRoot = null
+        if (option != null && canUseDirectStorage(context)) {
+            activateLocalRoot(option)
+        } else if (option != null) {
+            toast(context.getString(R.string.sftp_local_storage_permission_required))
+        }
+    }
+    fun selectDirectRoot(option: LocalRootOption) {
+        localLocationOpen = false
+        if (canUseDirectStorage(context)) {
+            activateLocalRoot(option)
+            return
+        }
+        pendingLocalRoot = option
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            storageSettingsLauncher.launch(
+                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    data = Uri.parse("package:${context.packageName}")
+                }
+            )
+        } else {
+            legacyStorageLauncher.launch(
+                arrayOf(
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                )
+            )
+        }
+    }
+
     val localFolderLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri: Uri? ->
@@ -218,7 +334,13 @@ fun SftpSheet(
                     Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
                 )
             }
-            localPrefs.edit().putString(LOCAL_TREE_URI, uri.toString()).apply()
+            localPrefs.edit()
+                .putString(LOCAL_TREE_URI, uri.toString())
+                .remove(LOCAL_TREE_PATH)
+                .remove(LOCAL_TREE_LABEL)
+                .apply()
+            localTreePath = null
+            localTreeLabel = context.getString(R.string.sftp_local_root)
             localTreeUri = uri
             side = FileSide.LOCAL
         }
@@ -285,10 +407,6 @@ fun SftpSheet(
     fun previewRemote(entry: SftpEntry) {
         if (previewLoading || transferLabel != null) return
         val c = client ?: return
-        if (!isPreviewable(entry.name)) {
-            toast(context.getString(R.string.sftp_preview_unsupported))
-            return
-        }
         previewLoading = true
         scope.launch {
             val remote = RemotePath.resolve(currentPath, entry.name)
@@ -296,7 +414,14 @@ fun SftpSheet(
                 val bytes = readLimited(previewByteLimit(entry.name)) { sink -> c.download(remote, sink) }
                 decodePreview(entry.name, bytes)
             }.onSuccess { preview = it }
-                .onFailure { toast(context.getString(R.string.sftp_preview_failed, it.message ?: "")) }
+                .onFailure {
+                    val message = if (it is UnsupportedPreviewException) {
+                        context.getString(R.string.sftp_preview_unsupported)
+                    } else {
+                        context.getString(R.string.sftp_preview_failed, it.message ?: "")
+                    }
+                    toast(message)
+                }
             previewLoading = false
         }
     }
@@ -304,10 +429,6 @@ fun SftpSheet(
     fun previewLocal(entry: LocalFileEntry) {
         if (previewLoading || transferLabel != null) return
         val tree = localTree ?: return
-        if (!isPreviewable(entry.name, entry.mimeType)) {
-            toast(context.getString(R.string.sftp_preview_unsupported))
-            return
-        }
         previewLoading = true
         scope.launch {
             runCatching {
@@ -318,7 +439,14 @@ fun SftpSheet(
                 }
                 decodePreview(entry.name, bytes, entry.mimeType)
             }.onSuccess { preview = it }
-                .onFailure { toast(context.getString(R.string.sftp_preview_failed, it.message ?: "")) }
+                .onFailure {
+                    val message = if (it is UnsupportedPreviewException) {
+                        context.getString(R.string.sftp_preview_unsupported)
+                    } else {
+                        context.getString(R.string.sftp_preview_failed, it.message ?: "")
+                    }
+                    toast(message)
+                }
             previewLoading = false
         }
     }
@@ -334,14 +462,14 @@ fun SftpSheet(
     ) {
         BackHandler(onBack = ::requestBack)
         Column(modifier = Modifier.fillMaxSize()) {
-        // ヘッダ: 戻る矢印 + プロファイル名 (設定ページと同じ上部バー)
+        // 上部バーはファイル画面を終了。システムの戻るだけが 1 階層上へ移動する。
         SftpTopBar(
             title = if (service == null) {
                 "${profile.fileProtocolLabel} : ${profile.endpointDescription()}"
             } else {
                 "${service.protocol.name} : ${service.endpointDescription(profile)}"
             },
-            onBack = ::requestBack
+            onBack = ::requestExit
         )
         Column(
             modifier = Modifier
@@ -487,7 +615,7 @@ fun SftpSheet(
                                     fontFamily = FontFamily.Monospace,
                                 )
                                 PillButton(stringResource(R.string.sftp_local_choose)) {
-                                    localFolderLauncher.launch(null)
+                                    localLocationOpen = true
                                 }
                             }
                         }
@@ -495,7 +623,7 @@ fun SftpSheet(
                     localError != null -> {
                         CenterStatus(localError ?: "", isError = true)
                         PillButton(stringResource(R.string.sftp_local_choose_again)) {
-                            localFolderLauncher.launch(localTreeUri)
+                            localLocationOpen = true
                         }
                     }
                     else -> {
@@ -535,7 +663,7 @@ fun SftpSheet(
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             PillButton(stringResource(R.string.sftp_local_change_folder)) {
-                                localFolderLauncher.launch(localTreeUri)
+                                localLocationOpen = true
                             }
                             PillButton(stringResource(R.string.sftp_tab_remote)) {
                                 side = FileSide.REMOTE
@@ -546,6 +674,64 @@ fun SftpSheet(
             }
         }
         }
+    }
+
+    if (localLocationOpen) {
+        AlertDialog(
+            onDismissRequest = { localLocationOpen = false },
+            containerColor = ZtsBgCard,
+            titleContentColor = ZtsTextPrimary,
+            title = {
+                Text(
+                    stringResource(R.string.sftp_local_location_title),
+                    fontFamily = FontFamily.Monospace,
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    localRootOptions.forEach { option ->
+                        TextButton(
+                            onClick = { selectDirectRoot(option) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                option.label,
+                                color = ZtsTextPrimary,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                    TextButton(
+                        onClick = {
+                            localLocationOpen = false
+                            localFolderLauncher.launch(localTreeUri)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            stringResource(R.string.sftp_local_system_picker),
+                            color = ZtsGreen,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { localLocationOpen = false }) {
+                    Text(
+                        stringResource(R.string.action_cancel),
+                        color = ZtsTextSecondary,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+            },
+        )
     }
 
     if (previewLoading) {
@@ -938,24 +1124,30 @@ private fun PreviewDialog(value: FilePreview, onDismiss: () -> Unit) {
         },
         text = {
             when {
-                value.bitmap != null -> Image(
-                    bitmap = value.bitmap.asImageBitmap(),
-                    contentDescription = value.name,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 120.dp, max = 520.dp),
-                )
-                value.text != null -> Text(
-                    value.text,
-                    color = ZtsTextPrimary,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
+                value.bitmap != null -> Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    ZoomablePreviewImage(value.bitmap, value.name)
+                    Text(
+                        stringResource(R.string.sftp_preview_zoom_hint),
+                        color = ZtsTextSecondary,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp,
+                    )
+                }
+                value.text != null -> SelectionContainer(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 520.dp)
                         .verticalScroll(rememberScrollState()),
-                )
+                ) {
+                    Text(
+                        value.text,
+                        color = ZtsTextPrimary,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp,
+                    )
+                }
             }
         },
         confirmButton = {
@@ -964,6 +1156,52 @@ private fun PreviewDialog(value: FilePreview, onDismiss: () -> Unit) {
             }
         },
     )
+}
+
+@Composable
+private fun ZoomablePreviewImage(bitmap: Bitmap, name: String) {
+    var scale by remember(bitmap) { mutableStateOf(1f) }
+    var offset by remember(bitmap) { mutableStateOf(Offset.Zero) }
+    var viewport by remember(bitmap) { mutableStateOf(IntSize.Zero) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 120.dp, max = 520.dp)
+            .clipToBounds()
+            .onSizeChanged { viewport = it }
+            .pointerInput(bitmap) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    val nextScale = (scale * zoom).coerceIn(1f, MAX_IMAGE_SCALE)
+                    if (nextScale == 1f) {
+                        offset = Offset.Zero
+                    } else {
+                        val maxX = viewport.width * (nextScale - 1f) / 2f
+                        val maxY = viewport.height * (nextScale - 1f) / 2f
+                        offset = Offset(
+                            x = (offset.x + pan.x).coerceIn(-maxX, maxX),
+                            y = (offset.y + pan.y).coerceIn(-maxY, maxY),
+                        )
+                    }
+                    scale = nextScale
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = name,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    translationX = offset.x
+                    translationY = offset.y
+                },
+        )
+    }
 }
 
 @Composable
@@ -1070,15 +1308,9 @@ private fun mimeTypeForName(name: String): String {
         ?: if (extension in TEXT_EXTENSIONS) "text/plain" else "application/octet-stream"
 }
 
-private fun isPreviewable(name: String, declaredMime: String = ""): Boolean {
-    val mime = declaredMime.ifBlank { mimeTypeForName(name) }
-    val extension = name.substringAfterLast('.', "").lowercase(Locale.ROOT)
-    return mime.startsWith("image/") || mime.startsWith("text/") || extension in TEXT_EXTENSIONS
-}
-
 private fun decodePreview(name: String, bytes: ByteArray, declaredMime: String = ""): FilePreview {
     val mime = declaredMime.ifBlank { mimeTypeForName(name) }
-    if (mime.startsWith("image/")) {
+    if (mime.startsWith("image/") || hasImageSignature(bytes)) {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         check(bounds.outWidth > 0 && bounds.outHeight > 0) { "Unsupported or damaged image" }
@@ -1095,11 +1327,10 @@ private fun decodePreview(name: String, bytes: ByteArray, declaredMime: String =
             ?: error("Unsupported or damaged image")
         return FilePreview(name = name, bitmap = bitmap)
     }
-    check(bytes.none { it == 0.toByte() }) { "This file is binary, not text" }
-    return FilePreview(
-        name = name,
-        text = bytes.toString(Charsets.UTF_8).removePrefix("\uFEFF"),
-    )
+    val extension = name.substringAfterLast('.', "").lowercase(Locale.ROOT)
+    val trustedText = mime.startsWith("text/") || extension in TEXT_EXTENSIONS
+    val text = decodePreviewText(bytes, trustedText) ?: throw UnsupportedPreviewException()
+    return FilePreview(name = name, text = text)
 }
 
 private fun previewByteLimit(name: String, declaredMime: String = ""): Int {
@@ -1127,12 +1358,98 @@ private suspend fun readLimited(
 }
 
 private class PreviewTooLargeException : IllegalStateException("This file is too large to preview")
+private class UnsupportedPreviewException : IllegalArgumentException()
+
+private data class LocalRootOption(val path: String, val label: String)
+
+private fun canUseDirectStorage(context: Context): Boolean =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        Environment.isExternalStorageManager()
+    } else {
+        androidx.core.content.ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED &&
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
+internal fun decodePreviewText(bytes: ByteArray, trustedText: Boolean = false): String? {
+    if (bytes.isEmpty()) return ""
+    val decoded = when {
+        bytes.startsWithBytes(0xEF, 0xBB, 0xBF) ->
+            decodeStrict(bytes.copyOfRange(3, bytes.size), Charsets.UTF_8)
+        bytes.startsWithBytes(0xFF, 0xFE) ->
+            decodeStrict(bytes.copyOfRange(2, bytes.size), Charsets.UTF_16LE)
+        bytes.startsWithBytes(0xFE, 0xFF) ->
+            decodeStrict(bytes.copyOfRange(2, bytes.size), Charsets.UTF_16BE)
+        looksLikeUtf16(bytes, littleEndian = true) ->
+            decodeStrict(bytes, Charsets.UTF_16LE)
+        looksLikeUtf16(bytes, littleEndian = false) ->
+            decodeStrict(bytes, Charsets.UTF_16BE)
+        bytes.none { it == 0.toByte() } ->
+            decodeStrict(bytes, Charsets.UTF_8)
+        else -> null
+    }
+    if (decoded != null && looksLikeText(decoded)) return decoded.removePrefix("\uFEFF")
+    if (!trustedText || bytes.any { it == 0.toByte() }) return null
+    return bytes.toString(Charsets.UTF_8).takeIf(::looksLikeText)?.removePrefix("\uFEFF")
+}
+
+private fun decodeStrict(bytes: ByteArray, charset: java.nio.charset.Charset): String? =
+    runCatching {
+        charset.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+            .decode(ByteBuffer.wrap(bytes))
+            .toString()
+    }.getOrNull()
+
+private fun looksLikeUtf16(bytes: ByteArray, littleEndian: Boolean): Boolean {
+    if (bytes.size < 4 || bytes.size % 2 != 0) return false
+    var expectedZero = 0
+    var otherZero = 0
+    var index = 0
+    while (index < bytes.size) {
+        val firstZero = bytes[index] == 0.toByte()
+        val secondZero = bytes[index + 1] == 0.toByte()
+        if (if (littleEndian) secondZero else firstZero) expectedZero++
+        if (if (littleEndian) firstZero else secondZero) otherZero++
+        index += 2
+    }
+    return expectedZero >= bytes.size / 8 && otherZero <= bytes.size / 32
+}
+
+private fun looksLikeText(text: String): Boolean {
+    if (text.isEmpty()) return true
+    val disallowed = text.count { ch ->
+        ch == '\u0000' || (ch.isISOControl() && ch !in "\n\r\t\u000C")
+    }
+    return disallowed <= maxOf(1, text.length / 100)
+}
+
+private fun hasImageSignature(bytes: ByteArray): Boolean =
+    bytes.startsWithBytes(0x89, 0x50, 0x4E, 0x47) ||
+        bytes.startsWithBytes(0xFF, 0xD8, 0xFF) ||
+        bytes.startsWithBytes(0x47, 0x49, 0x46, 0x38) ||
+        bytes.startsWithBytes(0x42, 0x4D) ||
+        (bytes.size >= 12 &&
+            bytes.copyOfRange(0, 4).toString(Charsets.US_ASCII) == "RIFF" &&
+            bytes.copyOfRange(8, 12).toString(Charsets.US_ASCII) == "WEBP")
+
+private fun ByteArray.startsWithBytes(vararg prefix: Int): Boolean =
+    size >= prefix.size && prefix.indices.all { this[it].toInt() and 0xFF == prefix[it] }
 
 private const val MAX_IMAGE_PREVIEW_BYTES = 24 * 1024 * 1024
 private const val MAX_TEXT_PREVIEW_BYTES = 2 * 1024 * 1024
 private const val MAX_PREVIEW_PIXELS = 16L * 1024 * 1024
+private const val MAX_IMAGE_SCALE = 8f
 private const val LOCAL_PREFS = "remote_file_browser"
 private const val LOCAL_TREE_URI = "local_tree_uri"
+private const val LOCAL_TREE_PATH = "local_tree_path"
+private const val LOCAL_TREE_LABEL = "local_tree_label"
 private val TEXT_EXTENSIONS = setOf(
     "txt", "md", "markdown", "log", "csv", "tsv", "json", "xml", "yaml", "yml",
     "ini", "conf", "cfg", "properties", "html", "htm", "css", "js", "ts", "kt",
