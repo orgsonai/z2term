@@ -35,7 +35,10 @@ object GuiKeyMapper {
     const val XK_End = 0xFF57
     const val XK_Insert = 0xFF63
     const val XK_Delete = 0xFFFF
-    private const val XK_F1 = 0xFFBE // F1..F12 は連番 (F_n = XK_F1 + n-1)
+    const val XK_F1 = 0xFFBE
+    const val XK_F10 = 0xFFC7
+    const val XK_F11 = 0xFFC8
+    const val XK_F12 = 0xFFC9
 
     // --- 日本語入力方式キー (X11 keysymdef.h) ---
     const val XK_Muhenkan = 0xFF22
@@ -45,15 +48,15 @@ object GuiKeyMapper {
     const val XK_Eisu_toggle = 0xFF30
 
     // --- 修飾キー ---
-    private const val XK_Shift_L = 0xFFE1
-    private const val XK_Shift_R = 0xFFE2
-    private const val XK_Control_L = 0xFFE3
-    private const val XK_Control_R = 0xFFE4
-    private const val XK_Caps_Lock = 0xFFE5
-    private const val XK_Alt_L = 0xFFE9
-    private const val XK_Alt_R = 0xFFEA
-    private const val XK_Super_L = 0xFFEB
-    private const val XK_Super_R = 0xFFEC
+    const val XK_Shift_L = 0xFFE1
+    const val XK_Shift_R = 0xFFE2
+    const val XK_Control_L = 0xFFE3
+    const val XK_Control_R = 0xFFE4
+    const val XK_Caps_Lock = 0xFFE5
+    const val XK_Alt_L = 0xFFE9
+    const val XK_Alt_R = 0xFFEA
+    const val XK_Super_L = 0xFFEB
+    const val XK_Super_R = 0xFFEC
 
     /** Unicode コードポイント → keysym。 */
     fun keysymForCodePoint(cp: Int): Int = when {

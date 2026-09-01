@@ -1,5 +1,7 @@
 package com.zerotoship.z2term.gui.rdp
 
+import com.zerotoship.z2term.gui.GuiKeyMapper
+import com.zerotoship.z2term.gui.RemoteDesktopClient
 import javax.net.ssl.SSLSocket
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -33,6 +35,21 @@ class RdpTlsTransportLiveTest {
 
             transport.sslSocketForTest().soTimeout = 5_000
             transport.finalizeConnection(session, active)
+
+            // Xvnc の root window へ実際に注入される。probe の外で xev を併用すれば
+            // pointer 321,222 と Return の Press/Release まで wire 結合確認できる。
+            val rdpInput = RdpInput()
+            val events =
+                rdpInput.pointerEvents(RemoteDesktopClient.BUTTON_LEFT, 321, 222) +
+                    rdpInput.pointerEvents(0, 321, 222) +
+                    rdpInput.keyEvents(GuiKeyMapper.XK_Return, down = true) +
+                    rdpInput.keyEvents(GuiKeyMapper.XK_Return, down = false)
+            transport.sendInputEvents(
+                session,
+                active,
+                events,
+            )
+            Thread.sleep(100)
         }
     }
 

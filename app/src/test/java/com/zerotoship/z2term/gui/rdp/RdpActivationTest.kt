@@ -42,6 +42,10 @@ class RdpActivationTest {
         assertTrue(confirmation.second.contains(RdpActivation.CAP_ORDER))
         assertFalse(confirmation.second.contains(RdpActivation.CAP_SURFACE_COMMANDS))
         assertFalse(confirmation.second.contains(RdpActivation.CAP_BITMAP_CODECS))
+        // CAPSTYPE_INPUT, length 88, INPUT_FLAG_SCANCODES | INPUT_FLAG_UNICODE。
+        assertTrue(
+            confirmation.first.containsSequence(byteArrayOf(0x0D, 0, 0x58, 0, 0x11, 0)),
+        )
     }
 
     @Test

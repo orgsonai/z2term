@@ -430,7 +430,7 @@
     <string name="remote_service_start_path">開始フォルダ（任意）</string>
     <string name="remote_service_base_path">ベースパス（任意）</string>
     <string name="remote_service_smb_anonymous_hint">匿名接続ではユーザーとパスワードを両方空欄にしてください。</string>
-    <string name="remote_service_rdp_hint">RDP はネットワークレベル認証 (NLA) が要る。ユーザー名とパスワードは必須で、ドメインは無ければ空でよい。初回だけ相手の証明書の指紋を確認する。⚠ いまは画面を見るだけで、マウスとキーボードはまだ送れない。</string>
+    <string name="remote_service_rdp_hint">RDP はネットワークレベル認証 (NLA) が要る。ユーザー名とパスワードは必須で、ドメインは無ければ空でよい。初回だけ相手の証明書の指紋を確認する。マウス・キーボード操作とテキストのコピー共有に対応する。</string>
     <string name="remote_service_webdav_scheme">WebDAV の通信方式</string>
     <string name="remote_service_use_ssh">SSH ポートフォワード</string>
     <string name="remote_service_use_ssh_desc">この SSH 接続で暗号化します</string>

@@ -410,7 +410,7 @@
     <string name="remote_service_start_path">起始資料夾（選填）</string>
     <string name="remote_service_base_path">基礎路徑（選填）</string>
     <string name="remote_service_smb_anonymous_hint">匿名連線時請將使用者名稱和密碼都留空。</string>
-    <string name="remote_service_rdp_hint">RDP 需要網路層級驗證 (NLA)。必須填寫使用者名稱與密碼，沒有網域則留空。首次連線時會確認對方憑證的指紋。⚠ 目前只能檢視畫面，尚無法傳送滑鼠與鍵盤。</string>
+    <string name="remote_service_rdp_hint">RDP 需要網路層級驗證 (NLA)。必須填寫使用者名稱與密碼，沒有網域則留空。首次連線時會確認對方憑證的指紋。支援滑鼠、鍵盤操作與文字剪貼簿共享。</string>
     <string name="remote_service_webdav_scheme">WebDAV 傳輸方式</string>
     <string name="remote_service_use_ssh">SSH 連接埠轉送</string>
     <string name="remote_service_use_ssh_desc">透過此 SSH 連線加密</string>

@@ -433,7 +433,7 @@
     <string name="remote_service_start_path">Start folder (optional)</string>
     <string name="remote_service_base_path">Base path (optional)</string>
     <string name="remote_service_smb_anonymous_hint">Leave both user and password blank for anonymous access.</string>
-    <string name="remote_service_rdp_hint">RDP needs Network Level Authentication (NLA). User name and password are required; leave Domain blank if there is none. The certificate fingerprint is confirmed once, on the first connection. ⚠ For now this only shows the screen — mouse and keyboard are not sent yet.</string>
+    <string name="remote_service_rdp_hint">RDP needs Network Level Authentication (NLA). User name and password are required; leave Domain blank if there is none. The certificate fingerprint is confirmed once, on the first connection. Mouse and keyboard input and text clipboard sharing are supported.</string>
     <string name="remote_service_webdav_scheme">WebDAV transport</string>
     <string name="remote_service_use_ssh">SSH port forwarding</string>
     <string name="remote_service_use_ssh_desc">Encrypted through this SSH connection</string>

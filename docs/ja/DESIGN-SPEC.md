@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-01 / 対象バージョン: 0.8.475-alpha (versionCode 483)
+最終更新: 2026-09-01 / 対象バージョン: 0.8.476-alpha (versionCode 484)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1857,7 +1857,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - distro 内で **Xvnc**(VNC サーバ) + 軽量 WM/アプリを起動（`proot/GuiScript.kt` が冪等で配置・起動。GUI 自動起動 / 横画面対応）。
 - **GUI 一式の導入 (`ensure_pkgs`)**: Xvnc / openbox / 選択ターミナルが揃っていれば**無通信で即起動**（導入済みを毎回 update/再取得しないポリシー）。**未導入のときだけ**不足分を `install_pkgs`（apk add / apt install / pacman -S）で取得し、取れなければ明確に案内して失敗する。app 側 (`TerminalScreen`) のダウンロード確認ゲート (`confirmBeforeDownload`) が同意を取ってから走る。`clean` 指定時のみ cache を消して入れ直す (`clean_pkgs`、破損状態の救済)。
 - `GuiSession`/`GuiActivity`/`GuiScreen`/`GuiViewport`/`GuiInputView`/`GuiKeyMapper`/`GuiEventWatcher` + `gui/RemoteDesktopClient.kt`（描画・入力の共通境界）+ `gui/rfb/RfbClient.kt`（内蔵 RFB 実装）。端末タブと GUI タブをペアリングし IME 連動。`GuiSession`・Compose 描画・入力 View・GUI キーボードは `RfbClient` 型を直接要求せず、同じ境界へ RDP 実装を差せる（0.8.450）。**接続先そのものは `gui/RemoteTarget.kt`**（`VncTarget` / `RdpTarget` が実装）で表し、`GuiSession` は `remote.createClient()` を呼ぶだけでプロトコルを知らない（0.8.459）。
-- **RDP（0.8.450〜0.8.459）**: `gui/rdp/` は X.224/TLS、CredSSP/NTLMv2、T.124 GCC・T.125 MCS、Client Info、license、Demand/Confirm Active、connection finalization、slow-path の従来型 Bitmap Update 受信までを**外部ライブラリ無し**で実装（MD4 / RC4 / NTLM も自前）。`RdpClient` は 15/16/24bpp の非圧縮・Interleaved RLE 更新を複数矩形と画面外クリップ込みで ARGB framebuffer へ展開し、dirty 領域の redraw を通知する。**0.8.459 で接続 UI を付け、SSH 接続先のサービスとして `[RDP]` から開けるようにした**（→ §6.3.1）。⚠ **まだ画面を見るだけで、入力・clipboard・resize は無い**。Fast-Path、Surface Commands、Bitmap Codecs、個別の描画 Order、32bpp RDP 6.0 圧縮は **capability で 1 つも広告しない**ので、サーバーは従来型 Bitmap Update を送ってくる（`orderSupport[32]` 全ゼロ・General cap の extraFlags = 0。**実装していないものは受け取らないと宣言する**のであって、来たものを握り潰すのではない）。
+- **RDP（0.8.450〜0.8.476）**: `gui/rdp/` は X.224/TLS、CredSSP/NTLMv2、T.124 GCC・T.125 MCS、Client Info、license、Demand/Confirm Active、connection finalization、slow-path の従来型 Bitmap Update 受信までを**外部ライブラリ無し**で実装（MD4 / RC4 / NTLM も自前）。`RdpClient` は 15/16/24bpp の非圧縮・Interleaved RLE 更新を複数矩形と画面外クリップ込みで ARGB framebuffer へ展開し、dirty 領域の redraw を通知する。**0.8.459 で接続 UI を付け、SSH 接続先のサービスとして `[RDP]` から開けるようにした**（→ §6.3.1）。CLIPRDR のテキスト共有に加え、**0.8.476 で slow-path のマウス・キーボード入力**にも対応し、未対応なのは動的 resize。Fast-Path、Surface Commands、Bitmap Codecs、個別の描画 Order、32bpp RDP 6.0 圧縮は **capability で 1 つも広告しない**ので、サーバーは従来型 Bitmap Update を送ってくる（`orderSupport[32]` 全ゼロ・General cap の extraFlags = 0。**実装していないものは受け取らないと宣言する**のであって、来たものを握り潰すのではない）。
 - **入力**: `GuiInputView` のジェスチャ — **2 本指 = ピンチ(ズーム/パン)**、**3 本指縦移動 = ホイール上/下スクロール**（一度 3 本指になったら全指が離れるまでスクロール扱い）。旧スクロールボタンと `RfbClient.scrollWheel` は撤去。
 - **動画**: GPU 無し端末で `gpu` 出力が失敗するため、mpv を **`vo=x11` 既定 + `LIBGL_ALWAYS_SOFTWARE`** でソフト描画させて正常再生。
 - **音声 (`service/AudioBridge.kt`)**: **オプトイン**（設定「GUI 音声」`guiAudioEnabled` ON 時のみ）。distro 内 PulseAudio(`-n` 方式で起動) → TCP → Android `AudioTrack` でブリッジ。
@@ -2519,7 +2519,7 @@ SKK 辞書 (`assets/z2dict.txt` 約16万行) + 常用動詞/形容詞の活用�
   - **必須の capability を省かない** — `orderFlags` の `ZEROBOUNDSDELTASSUPPORT` は描画 Order を 1 つも使わなくても立てる決まりで、Offscreen Bitmap Cache も「対応しない」と明示して送る。集合から抜くと必須欠けとみなす相手がいる。
   - **主張を食い違わせない** — `RNS_UD_CS_WANT_32BPP_SESSION` を立てながら「24/16/15bpp しか受け取れない」と言うと、サーバーは送る形式を決められない。
 - ⛔⛔ **未解決（0.8.472 時点）: 実 Windows では接続が成立しても画面が 1 バイトも来ない。** NLA → MCS → activate → finalization まで完走し、`2400x1080` で `CONNECTED` になり、Save Session Info（`pduType2=0x26`）まで受け取るが、その後は `readTpkt` が 1 バイトも読めないまま止まる（fast-path なら TPKT ヘッダ検査で例外になるので、fast-path でもない）。`refreshRectSupport=1` にして接続直後に Refresh Rect で全画面を要求しても変わらない。⇒ **次は推測をやめて `xfreerdp3` の TRACE と突き合わせる**（`scripts/rdp-testbed.sh trace` を実 Windows へ向ける。要・接続先の資格情報）。詳細は `99_private/HANDOFF/z2term/RDP-HANDOFF.md`。
-- ⚠ **入力は未実装**（`sendPointerEvent` / `sendKeyEvent` は空実装）。UI にもその旨を書いてある — **できないことを黙っていると「壊れている」と読まれる**。
+- **slow-path 入力**: `RdpInput` が共通 GUI 入力を TS_INPUT_PDU_DATA へ変換する。pointer の「現在のボタン状態」は直前との差から Move / Press / Release に分け、ホイールは符号つき 9-bit rotation で送る。機能・修飾キーと Ctrl/Alt/Meta shortcut は scancode、通常文字は接続先の配列に依存しない Unicode Keyboard Event にする。送信は `RdpClient` の単一 sender thread に退避し、CLIPRDR と同じ `RdpTlsTransport.writeLock` で直列化する。
 
 ### 6.4 SSH サーバ (PC → 端末) ※dropbear
 

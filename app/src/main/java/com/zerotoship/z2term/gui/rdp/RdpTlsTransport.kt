@@ -57,6 +57,19 @@ internal class RdpTlsTransport private constructor(
         }
     }
 
+    /** ポインター／キーの slow-path Input Event を、他の送信と混線しないようまとめて送る。 */
+    fun sendInputEvents(
+        session: RdpMcs.Session,
+        active: RdpActivation.ActiveSession,
+        events: List<RdpInput.Event>,
+    ) {
+        if (events.isEmpty()) return
+        synchronized(writeLock) {
+            output.write(RdpActivation.inputEvents(session, active, events))
+            output.flush()
+        }
+    }
+
     /** 通常状態のslow-path PDUを1つ読み、classic Bitmap Updateならその本体を返す。 */
     fun readBitmapUpdate(session: RdpMcs.Session, active: RdpActivation.ActiveSession): ByteArray? =
         RdpActivation.readBitmapUpdate(input, session, active)

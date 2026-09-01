@@ -21,6 +21,7 @@ internal object RdpActivation {
     private const val PDUTYPE_DEACTIVATE_ALL = 6
     private const val PDUTYPE_DATAPDU = 7
     private const val PDUTYPE2_UPDATE = 0x02
+    private const val PDUTYPE2_INPUT = 0x1C
     private const val PDUTYPE2_REFRESH_RECT = 0x21
     private const val PDUTYPE2_SET_ERROR_INFO = 0x2F
     private const val UPDATETYPE_BITMAP = 0x0001
@@ -238,6 +239,13 @@ internal object RdpActivation {
         return shareData(session, active.shareId, PDUTYPE2_REFRESH_RECT, body)
     }
 
+    /** GUI 入力を slow-path Input Event PDU として I/O channel へ送る。 */
+    fun inputEvents(
+        session: RdpMcs.Session,
+        active: ActiveSession,
+        events: List<RdpInput.Event>,
+    ): ByteArray = shareData(session, active.shareId, PDUTYPE2_INPUT, RdpInput.encode(events))
+
     internal fun finalizationPackets(
         session: RdpMcs.Session,
         active: ActiveSession,
@@ -398,7 +406,10 @@ internal object RdpActivation {
             },
             cap(0x13) { le16(2); u8(0); u8(0); zero(32) },
             cap(8) { le16(1); le16(25); le16(25) },
-            cap(0x0D) { le16(1); le16(0); le32(s.keyboardLayout); le32(4); le32(0); le32(12); zero(64) },
+            // INPUT_FLAG_SCANCODES | INPUT_FLAG_UNICODE。
+            cap(0x0D) {
+                le16(0x0011); le16(0); le32(s.keyboardLayout); le32(4); le32(0); le32(12); zero(64)
+            },
             cap(0x0F) { le32(0) },
             cap(0x10) { zero(48) },
             // Offscreen Bitmap Cache。使わないので支援レベル 0 だが、**集合から抜くと

@@ -6,8 +6,11 @@ import androidx.core.graphics.createBitmap
 import com.zerotoship.z2term.gui.RemoteDesktopClient
 import com.zerotoship.z2term.net.HostAddress
 import java.io.EOFException
+import java.io.IOException
 import java.net.SocketException
 import java.security.cert.X509Certificate
+import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * TLS/NLA/MCS/Activationの上でclassic Bitmap Updateだけを描画するRDPクライアント。
  *
- * 画面更新とCLIPRDRテキスト共有に対応する。ポインタ・キー入力とresizeはまだ送らない。
+ * 画面更新、ポインター・キー入力、CLIPRDRテキスト共有に対応する。resizeはまだ送らない。
  */
 internal class RdpClient(
     private val host: String,
@@ -48,10 +51,16 @@ internal class RdpClient(
     private var cliprdr: RdpCliprdr? = null
     private var cliprdrChannelId: Int? = null
     private var pixels = IntArray(0)
+    private val rdpInput = RdpInput()
+    /** UI thread で network I/O をせず、入力と clipboard の送信順を保つ。 */
+    private val sender = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "rdp-sender").apply { isDaemon = true }
+    }
 
     override fun connect(timeoutMs: Int) {
         closeTransport()
         closed = false
+        rdpInput.reset()
         val candidate = RdpTlsTransport.connect(
             host = HostAddress.normalize(host),
             port = port,
@@ -131,16 +140,57 @@ internal class RdpClient(
         }
     }
 
-    // ポインタ・キー入力は未実装。対応していないwireデータは送らない。
-    override fun sendPointerEvent(buttonMask: Int, x: Int, y: Int) = Unit
-    override fun sendKeyEvent(keysym: Int, down: Boolean) = Unit
+    override fun sendPointerEvent(buttonMask: Int, x: Int, y: Int) {
+        if (closed) return
+        val px = x.coerceIn(0, (width - 1).coerceAtLeast(0))
+        val py = y.coerceIn(0, (height - 1).coerceAtLeast(0))
+        submitWrite {
+            val current = transport ?: return@submitWrite
+            val mcs = session ?: return@submitWrite
+            val activated = active ?: return@submitWrite
+            current.sendInputEvents(
+                mcs,
+                activated,
+                rdpInput.pointerEvents(buttonMask, px, py),
+            )
+        }
+    }
+
+    override fun sendKeyEvent(keysym: Int, down: Boolean) {
+        if (closed || keysym == 0) return
+        submitWrite {
+            val current = transport ?: return@submitWrite
+            val mcs = session ?: return@submitWrite
+            val activated = active ?: return@submitWrite
+            current.sendInputEvents(mcs, activated, rdpInput.keyEvents(keysym, down))
+        }
+    }
+
     override fun sendClipboardText(text: String) {
-        cliprdr?.announceLocalText(text)
+        if (closed) return
+        submitWrite { cliprdr?.announceLocalText(text) }
     }
 
     override fun close() {
         closed = true
+        runCatching { sender.shutdownNow() }
         closeTransport()
+    }
+
+    private fun submitWrite(block: () -> Unit) {
+        if (closed) return
+        try {
+            sender.execute {
+                if (closed) return@execute
+                try {
+                    block()
+                } catch (e: IOException) {
+                    if (!closed) Log.w(TAG, "RDP input send failed", e)
+                }
+            }
+        } catch (_: RejectedExecutionException) {
+            // close 後。無視。
+        }
     }
 
     private fun closeTransport() {

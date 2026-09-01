@@ -320,7 +320,7 @@ Authentication option for Remote Desktop. If it is off, you get a message that s
 rather than a bare "could not connect".
 
 ⚠ **RDP is still being built.** Connecting (through authentication) works, but **against Windows the
-screen does not appear yet** — that is under investigation. Mouse and keyboard are not sent either.
+screen does not appear yet** — that is under investigation. Peers that do send a screen can be controlled with the mouse and keyboard (0.8.476). Dynamic resize is not supported yet.
 
 **Copied text travels both ways** (0.8.475). While you are looking at a VNC or RDP screen, text you copy on the phone reaches the far side, and text copied there arrives on the phone. Japanese text survives the trip.
 

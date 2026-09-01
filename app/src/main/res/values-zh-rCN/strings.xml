@@ -410,7 +410,7 @@
     <string name="remote_service_start_path">起始文件夹（可选）</string>
     <string name="remote_service_base_path">基础路径（可选）</string>
     <string name="remote_service_smb_anonymous_hint">匿名连接时请将用户名和密码都留空。</string>
-    <string name="remote_service_rdp_hint">RDP 需要网络级别身份验证 (NLA)。必须填写用户名与密码，没有域则留空。首次连接时会确认对方证书的指纹。⚠ 目前只能查看画面，尚不能发送鼠标与键盘。</string>
+    <string name="remote_service_rdp_hint">RDP 需要网络级别身份验证 (NLA)。必须填写用户名与密码，没有域则留空。首次连接时会确认对方证书的指纹。支持鼠标、键盘操作和文本剪贴板共享。</string>
     <string name="remote_service_webdav_scheme">WebDAV 传输方式</string>
     <string name="remote_service_use_ssh">SSH 端口转发</string>
     <string name="remote_service_use_ssh_desc">通过此 SSH 连接加密</string>
