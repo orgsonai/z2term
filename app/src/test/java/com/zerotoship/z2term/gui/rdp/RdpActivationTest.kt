@@ -12,6 +12,46 @@ class RdpActivationTest {
     private val session = RdpMcs.Session(1004, 1003, 0x00080004, 8)
 
     @Test
+    fun showProtocolFlagFollowsTheDeclaredChannelOption() {
+        val channels = RdpMcs.Session(
+            userChannelId = 1004,
+            ioChannelId = 1003,
+            serverVersion = 0x00080004,
+            serverEarlyCapabilityFlags = 8,
+            staticChannels = mapOf("cliprdr" to 1005, "drdynvc" to 1006),
+            channelOptions = mapOf(1005 to 0xC0200000.toInt(), 1006 to 0xC0800000.toInt()),
+        )
+
+        val cliprdr = RdpActivation.virtualChannelPackets(channels, 1005, byteArrayOf(1, 2, 3)).single()
+        val drdynvc = RdpActivation.virtualChannelPackets(channels, 1006, byteArrayOf(1, 2, 3)).single()
+
+        // Channel PDU Header は payload の先頭 8 バイト (長さ 4 + flags 4)。data は 3 バイト。
+        assertEquals(3, le32At(cliprdr, cliprdr.size - 11))
+        // FIRST | LAST | SHOW_PROTOCOL を宣言どおりに立てる / 立てない。
+        assertEquals(0x13, le32At(cliprdr, cliprdr.size - 7))
+        assertEquals(0x03, le32At(drdynvc, drdynvc.size - 7))
+    }
+
+    @Test
+    fun oversizedChannelMessageIsSplitAtTheServerChunkSize() {
+        val channels = RdpMcs.Session(
+            userChannelId = 1004,
+            ioChannelId = 1003,
+            serverVersion = 0x00080004,
+            serverEarlyCapabilityFlags = 8,
+            staticChannels = mapOf("drdynvc" to 1006),
+            channelOptions = mapOf(1006 to 0xC0800000.toInt()),
+        )
+
+        val packets = RdpActivation.virtualChannelPackets(channels, 1006, ByteArray(2600), chunkSize = 1600)
+
+        assertEquals(2, packets.size)
+        assertEquals(2600, le32At(packets[0], packets[0].size - 1608))
+        assertEquals(0x01, le32At(packets[0], packets[0].size - 1604))
+        assertEquals(0x02, le32At(packets[1], packets[1].size - 1004))
+    }
+
+    @Test
     fun clientInfoCarriesUnicodeCredentials() {
         val packet = RdpActivation.clientInfo(
             session,
@@ -90,4 +130,8 @@ class RdpActivationTest {
     private fun ByteArray.containsSequence(needle: ByteArray): Boolean = indices.any { start ->
         start + needle.size <= size && needle.indices.all { this[start + it] == needle[it] }
     }
+
+    private fun le32At(data: ByteArray, offset: Int): Int =
+        (data[offset].toInt() and 0xFF) or ((data[offset + 1].toInt() and 0xFF) shl 8) or
+            ((data[offset + 2].toInt() and 0xFF) shl 16) or ((data[offset + 3].toInt() and 0xFF) shl 24)
 }

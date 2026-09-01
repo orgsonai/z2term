@@ -13,6 +13,7 @@ internal object RdpActivation {
     private const val TAG = "RdpActivation"
     const val CAP_BITMAP = 2
     const val CAP_ORDER = 3
+    const val CAP_VIRTUAL_CHANNEL = 0x14
     const val CAP_SURFACE_COMMANDS = 0x1C
     const val CAP_BITMAP_CODECS = 0x1D
     /** TS_TIME_ZONE_INFORMATION の大きさ (Bias + 名前 2 つ + 切替日 2 つ + Bias 2 つ)。 */
@@ -25,6 +26,11 @@ internal object RdpActivation {
     private const val PDUTYPE2_REFRESH_RECT = 0x21
     private const val PDUTYPE2_SET_ERROR_INFO = 0x2F
     private const val UPDATETYPE_BITMAP = 0x0001
+    private const val CHANNEL_FLAG_FIRST = 0x00000001
+    private const val CHANNEL_FLAG_LAST = 0x00000002
+    private const val CHANNEL_FLAG_SHOW_PROTOCOL = 0x00000010
+    private const val MIN_VC_CHUNK_SIZE = 256
+    private const val MAX_VC_CHUNK_SIZE = 16 * 1024
     private const val SEC_INFO_PKT = 0x40
     private const val SEC_LICENSE_PKT = 0x80
 
@@ -33,9 +39,23 @@ internal object RdpActivation {
         val pduSource: Int,
         val serverCapabilities: Set<Int>,
         val clientCapabilities: Set<Int>,
+        /**
+         * 仮想チャネルへ 1 度に送ってよいバイト数 (Virtual Channel Capability Set の VCChunkSize)。
+         *
+         * ⛔ **決めるのはサーバー側**。こちらが広告する値は関係しない ([MS-RDPBCGR] 2.2.7.1.10)。
+         */
+        val virtualChannelChunkSize: Int = DEFAULT_VC_CHUNK_SIZE,
     )
 
-    private data class Demand(val shareId: Int, val source: Int, val caps: Set<Int>)
+    /** VCChunkSize を相手が言ってこないときの既定値。mstsc / FreeRDP と同じ。 */
+    const val DEFAULT_VC_CHUNK_SIZE = 1600
+
+    private data class Demand(
+        val shareId: Int,
+        val source: Int,
+        val caps: Set<Int>,
+        val chunkSize: Int = DEFAULT_VC_CHUNK_SIZE,
+    )
     private data class ShareData(val type: Int, val body: ByteArray)
 
     fun activate(
@@ -44,11 +64,17 @@ internal object RdpActivation {
         session: RdpMcs.Session,
         credentials: CredSspNtlm.Credentials,
         settings: RdpMcs.ClientSettings = RdpMcs.ClientSettings(),
+        onOtherChannel: (ChannelData) -> Unit = {},
     ): ActiveSession {
         output.write(clientInfo(session, credentials))
         output.flush()
         repeat(16) {
-            val data = mcsData(RdpTlsTransport.readTpkt(input), session.ioChannelId) ?: return@repeat
+            val incoming = channelData(RdpTlsTransport.readTpkt(input))
+            if (incoming.channelId != session.ioChannelId) {
+                onOtherChannel(incoming)
+                return@repeat
+            }
+            val data = incoming.payload
             if (!isShareControlPdu(data)) {
                 // security header が付く PDU。⚠ **licensing は来ないことがある** — ライセンスの
                 // 要らない相手 (ワークステーション版の Windows など) は License Error PDU を送らず
@@ -79,7 +105,9 @@ internal object RdpActivation {
             val confirmation = confirmActive(session, demand, settings)
             output.write(confirmation.first)
             output.flush()
-            return ActiveSession(demand.shareId, demand.source, demand.caps, confirmation.second)
+            return ActiveSession(
+                demand.shareId, demand.source, demand.caps, confirmation.second, demand.chunkSize,
+            )
         }
         throw IOException("RDP server did not send Demand Active")
     }
@@ -89,13 +117,19 @@ internal object RdpActivation {
         output: DataOutputStream,
         session: RdpMcs.Session,
         active: ActiveSession,
+        onOtherChannel: (ChannelData) -> Unit = {},
     ) {
         finalizationPackets(session, active).forEach(output::write)
         output.flush()
 
         var received = 0
         repeat(32) {
-            val payload = mcsData(RdpTlsTransport.readTpkt(input), session.ioChannelId) ?: return@repeat
+            val incoming = channelData(RdpTlsTransport.readTpkt(input))
+            if (incoming.channelId != session.ioChannelId) {
+                onOtherChannel(incoming)
+                return@repeat
+            }
+            val payload = incoming.payload
             val data = readShareData(payload, active.shareId) ?: run {
                 Log.i(TAG, "RDP finalize: skipped ${payload.size} bytes ${head(payload)}")
                 return@repeat
@@ -203,7 +237,8 @@ internal object RdpActivation {
 
     internal fun channelData(packet: ByteArray): ChannelData {
         val c = Cursor(x224(packet))
-        if (c.u8() ushr 2 != 26) throw IOException("expected MCS Send Data Indication")
+        val domainPdu = c.u8() ushr 2
+        if (domainPdu != 26) throw IOException("expected MCS Send Data Indication, got $domainPdu")
         c.be16()
         val channel = c.be16()
         c.u8()
@@ -217,6 +252,47 @@ internal object RdpActivation {
         channelId: Int,
         payload: ByteArray,
     ): ByteArray = sendData(session.userChannelId, channelId, payload)
+
+    /**
+     * 仮想チャネルへ送る Channel PDU を [chunkSize] ごとに分けて組み立てる。
+     *
+     * ⛔ **`CHANNEL_FLAG_SHOW_PROTOCOL` は `CHANNEL_OPTION_SHOW_PROTOCOL` を宣言した channel
+     * だけに立てる** ([MS-RDPBCGR] 2.2.6.1)。宣言していない drdynvc に立てると、相手の endpoint は
+     * Channel PDU Header 8 バイトごとデータとして受け取り、解釈できずに黙り込む
+     * (0.8.477・実 Windows で判明。Graphics DVC は開くのに capability 応答が返ってこない形で出る)。
+     */
+    internal fun virtualChannelPackets(
+        session: RdpMcs.Session,
+        channelId: Int,
+        message: ByteArray,
+        chunkSize: Int = DEFAULT_VC_CHUNK_SIZE,
+    ): List<ByteArray> {
+        require(chunkSize > 0)
+        val showProtocol = (session.channelOptions[channelId] ?: 0) and
+            RdpMcs.CHANNEL_OPTION_SHOW_PROTOCOL != 0
+        val packets = mutableListOf<ByteArray>()
+        var offset = 0
+        do {
+            val count = minOf(chunkSize, message.size - offset)
+            val payload = ByteArray(8 + count)
+            putLe32(payload, 0, message.size)
+            putLe32(
+                payload,
+                4,
+                (if (offset == 0) CHANNEL_FLAG_FIRST else 0) or
+                    (if (offset + count >= message.size) CHANNEL_FLAG_LAST else 0) or
+                    (if (showProtocol) CHANNEL_FLAG_SHOW_PROTOCOL else 0),
+            )
+            if (count > 0) message.copyInto(payload, 8, offset, offset + count)
+            packets += virtualChannelPacket(session, channelId, payload)
+            offset += count
+        } while (offset < message.size)
+        return packets
+    }
+
+    private fun putLe32(target: ByteArray, offset: Int, value: Int) {
+        repeat(4) { target[offset + it] = (value ushr (it * 8)).toByte() }
+    }
 
     /**
      * 画面全体を送り直すよう頼む (Refresh Rect PDU)。
@@ -303,7 +379,7 @@ internal object RdpActivation {
 
     internal fun parseDemandActive(payload: ByteArray): ActiveSession {
         val demand = readDemand(payload)
-        return ActiveSession(demand.shareId, demand.source, demand.caps, emptySet())
+        return ActiveSession(demand.shareId, demand.source, demand.caps, emptySet(), demand.chunkSize)
     }
 
     internal fun confirmActive(
@@ -330,17 +406,24 @@ internal object RdpActivation {
         val count = caps.le16()
         caps.le16()
         val types = linkedSetOf<Int>()
+        var chunkSize = DEFAULT_VC_CHUNK_SIZE
         repeat(count) {
             val capType = caps.le16()
             val length = caps.le16()
             if (length < 4) throw IOException("invalid RDP capability length")
-            caps.bytes(length - 4)
+            val body = caps.bytes(length - 4)
+            // Virtual Channel Capability Set。VCChunkSize は省略されることがあるので長さで見る。
+            if (capType == CAP_VIRTUAL_CHANNEL && body.size >= 8) {
+                val advertised = (body[4].toInt() and 0xFF) or ((body[5].toInt() and 0xFF) shl 8) or
+                    ((body[6].toInt() and 0xFF) shl 16) or ((body[7].toInt() and 0xFF) shl 24)
+                if (advertised in MIN_VC_CHUNK_SIZE..MAX_VC_CHUNK_SIZE) chunkSize = advertised
+            }
             types += capType
         }
         caps.end()
         c.le32()
         c.end()
-        return Demand(shareId, source, types)
+        return Demand(shareId, source, types, chunkSize)
     }
 
     private fun confirmActive(

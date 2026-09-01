@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * TLS/NLA/MCS/Activationの上でclassic Bitmap Updateだけを描画するRDPクライアント。
+ * TLS/NLA/MCS/Activationの上でclassic Bitmap UpdateとRDP Graphics Pipelineを描画する。
  *
  * 画面更新、ポインター・キー入力、CLIPRDRテキスト共有に対応する。resizeはまだ送らない。
  */
@@ -50,6 +50,8 @@ internal class RdpClient(
     private var active: RdpActivation.ActiveSession? = null
     private var cliprdr: RdpCliprdr? = null
     private var cliprdrChannelId: Int? = null
+    private var dynamicChannel: RdpDynamicChannel? = null
+    private var drdynvcChannelId: Int? = null
     private var pixels = IntArray(0)
     private val rdpInput = RdpInput()
     /** UI thread で network I/O をせず、入力と clipboard の送信順を保つ。 */
@@ -71,7 +73,11 @@ internal class RdpClient(
             candidate.authenticate(credentials)
             Log.i(TAG, "RDP: NLA authenticated")
             val connected = candidate.connectMcs(settings)
-            Log.i(TAG, "RDP: MCS connected (user=${connected.userChannelId} io=${connected.ioChannelId})")
+            Log.i(
+                TAG,
+                "RDP: MCS connected (user=${connected.userChannelId} io=${connected.ioChannelId} " +
+                    "channels=${connected.staticChannels})",
+            )
             val activated = candidate.activate(connected, credentials, settings)
             Log.i(TAG, "RDP: activated (server caps=${activated.serverCapabilities.sorted()})")
             candidate.finalizeConnection(connected, activated)
@@ -94,10 +100,26 @@ internal class RdpClient(
                     onRemoteText = { text -> onRemoteClipboardText?.invoke(text) },
                 ).also { it.start() }
             }
+            connected.staticChannels["drdynvc"]?.let { channelId ->
+                lateinit var dynamic: RdpDynamicChannel
+                val graphics = RdpGfx(
+                    send = { message -> dynamic.sendGraphics(message) },
+                    onFrame = { frameWidth, frameHeight, framePixels, dirty ->
+                        publishGraphicsFrame(frameWidth, frameHeight, framePixels, dirty)
+                    },
+                )
+                dynamic = RdpDynamicChannel(
+                    sendStatic = { message -> candidate.sendVirtualChannel(connected, channelId, message) },
+                    graphics = graphics,
+                )
+                drdynvcChannelId = channelId
+                dynamicChannel = dynamic
+            }
             // 相手が自分から描き始めるとは限らないので、こちらから 1 度だけ全画面を要求する。
             candidate.requestRefresh(connected, activated, width, height)
             Log.i(TAG, "RDP connected: ${width}x$height '$desktopName'")
         } catch (e: Exception) {
+            Log.e(TAG, "RDP connect failed", e)
             candidate.close()
             throw e
         }
@@ -112,6 +134,10 @@ internal class RdpClient(
                 val incoming = connected.readChannelData()
                 if (incoming.channelId == cliprdrChannelId) {
                     cliprdr?.acceptChannelChunk(incoming.payload)
+                    continue
+                }
+                if (incoming.channelId == drdynvcChannelId) {
+                    dynamicChannel?.acceptStaticChunk(incoming.payload)
                     continue
                 }
                 if (incoming.channelId != mcs.ioChannelId) continue
@@ -200,7 +226,38 @@ internal class RdpClient(
         active = null
         cliprdr = null
         cliprdrChannelId = null
+        dynamicChannel = null
+        drdynvcChannelId = null
         runCatching { current?.close() }
+    }
+
+    private fun publishGraphicsFrame(
+        frameWidth: Int,
+        frameHeight: Int,
+        framePixels: IntArray,
+        dirty: android.graphics.Rect,
+    ) {
+        if (frameWidth <= 0 || frameHeight <= 0 || framePixels.size != frameWidth * frameHeight) return
+        synchronized(frameLock) {
+            if (width != frameWidth || height != frameHeight || frame == null) {
+                width = frameWidth
+                height = frameHeight
+                pixels = IntArray(framePixels.size)
+                frame = createBitmap(frameWidth, frameHeight)
+                Log.i(TAG, "RDPGFX framebuffer: ${frameWidth}x$frameHeight")
+            }
+            framePixels.copyInto(pixels)
+            frame?.setPixels(
+                pixels,
+                dirty.top * frameWidth + dirty.left,
+                frameWidth,
+                dirty.left,
+                dirty.top,
+                dirty.width(),
+                dirty.height(),
+            )
+        }
+        _redraw.value = _redraw.value + 1
     }
 
     companion object {

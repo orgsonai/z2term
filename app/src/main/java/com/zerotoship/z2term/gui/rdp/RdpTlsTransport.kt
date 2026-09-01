@@ -12,6 +12,7 @@ import java.net.Socket
 import java.security.SecureRandom
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
+import java.util.ArrayDeque
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
@@ -26,6 +27,10 @@ internal class RdpTlsTransport private constructor(
     val serverCertificate: X509Certificate,
 ) : Closeable {
     private val writeLock = Any()
+    private val pendingChannelData = ArrayDeque<RdpActivation.ChannelData>()
+    /** 仮想チャネルの分割単位。capability 交換でサーバーが指定した値に差し替わる。 */
+    @Volatile
+    private var chunkSize = RdpActivation.DEFAULT_VC_CHUNK_SIZE
     /** CredSSP v5+ の binding hash に入れる SubjectPublicKey の BIT STRING 本体。 */
     val subjectPublicKey: ByteArray = subjectPublicKey(serverCertificate.publicKey.encoded)
 
@@ -43,11 +48,13 @@ internal class RdpTlsTransport private constructor(
         session: RdpMcs.Session,
         credentials: CredSspNtlm.Credentials,
         settings: RdpMcs.ClientSettings = RdpMcs.ClientSettings(),
-    ): RdpActivation.ActiveSession = RdpActivation.activate(input, output, session, credentials, settings)
+    ): RdpActivation.ActiveSession = RdpActivation.activate(
+        input, output, session, credentials, settings, pendingChannelData::addLast,
+    ).also { chunkSize = it.virtualChannelChunkSize }
 
     /** Synchronize / Control / Font List/Map を交換し、通常の画面更新を受信できる状態にする。 */
     fun finalizeConnection(session: RdpMcs.Session, active: RdpActivation.ActiveSession) =
-        RdpActivation.finalizeConnection(input, output, session, active)
+        RdpActivation.finalizeConnection(input, output, session, active, pendingChannelData::addLast)
 
     /** 画面全体を送り直すよう頼む。接続直後に何も描かれないときの取っかかり。 */
     fun requestRefresh(session: RdpMcs.Session, active: RdpActivation.ActiveSession, width: Int, height: Int) {
@@ -75,27 +82,13 @@ internal class RdpTlsTransport private constructor(
         RdpActivation.readBitmapUpdate(input, session, active)
 
     fun readChannelData(): RdpActivation.ChannelData =
-        RdpActivation.channelData(readTpkt(input))
+        if (pendingChannelData.isNotEmpty()) pendingChannelData.removeFirst()
+        else RdpActivation.channelData(readTpkt(input))
 
     fun sendVirtualChannel(session: RdpMcs.Session, channelId: Int, message: ByteArray) {
+        val packets = RdpActivation.virtualChannelPackets(session, channelId, message, chunkSize)
         synchronized(writeLock) {
-            var offset = 0
-            do {
-                val count = minOf(CHANNEL_CHUNK_BYTES, message.size - offset)
-                val first = offset == 0
-                val last = offset + count >= message.size
-                val payload = ByteArray(8 + count)
-                putLe32(payload, 0, message.size)
-                putLe32(
-                    payload,
-                    4,
-                    (if (first) CHANNEL_FLAG_FIRST else 0) or
-                        (if (last) CHANNEL_FLAG_LAST else 0) or CHANNEL_FLAG_SHOW_PROTOCOL,
-                )
-                if (count > 0) message.copyInto(payload, 8, offset, offset + count)
-                output.write(RdpActivation.virtualChannelPacket(session, channelId, payload))
-                offset += count
-            } while (offset < message.size)
+            packets.forEach(output::write)
             output.flush()
         }
     }
@@ -109,14 +102,6 @@ internal class RdpTlsTransport private constructor(
     companion object {
         private const val TAG = "RdpTlsTransport"
         private const val MAX_NEGOTIATION_PACKET = 64 * 1024
-        private const val CHANNEL_FLAG_FIRST = 0x00000001
-        private const val CHANNEL_FLAG_LAST = 0x00000002
-        private const val CHANNEL_FLAG_SHOW_PROTOCOL = 0x00000010
-        private const val CHANNEL_CHUNK_BYTES = 16 * 1024
-
-        private fun putLe32(target: ByteArray, offset: Int, value: Int) {
-            repeat(4) { target[offset + it] = (value ushr (it * 8)).toByte() }
-        }
 
         /**
          * 署名に使えない証明書を出す相手のために、**署名を要求しない鍵交換**へ絞る組み合わせ。

@@ -22,6 +22,8 @@ internal object RdpMcs {
     private const val SC_NET = 0x0C03
 
     private const val CLIENT_SUPPORT_SKIP_CHANNEL_JOIN = 0x0800
+    private const val CLIENT_SUPPORT_DYNVC_GFX_PROTOCOL = 0x0100
+    private const val CLIENT_WANT_32BPP_SESSION = 0x0002
     private const val SERVER_SUPPORT_SKIP_CHANNEL_JOIN = 0x00000008
 
     data class ClientSettings(
@@ -42,6 +44,15 @@ internal object RdpMcs {
         val serverVersion: Int,
         val serverEarlyCapabilityFlags: Int,
         val staticChannels: Map<String, Int> = emptyMap(),
+        /**
+         * channel id ごとの Channel Definition の option。
+         *
+         * ⛔ **送信時の flag は宣言した option と一致させる。** `CHANNEL_FLAG_SHOW_PROTOCOL` は
+         * `CHANNEL_OPTION_SHOW_PROTOCOL` を宣言した channel でだけ立てられる ([MS-RDPBCGR] 2.2.6.1)。
+         * 宣言していない channel (drdynvc) に立てると、相手側の endpoint は 8 バイトの
+         * Channel PDU Header まで**データとして**受け取り、解釈できずに黙り込む。
+         */
+        val channelOptions: Map<Int, Int> = emptyMap(),
     )
 
     private data class ServerSettings(
@@ -76,8 +87,11 @@ internal object RdpMcs {
             ioChannelId = server.ioChannelId,
             serverVersion = server.version,
             serverEarlyCapabilityFlags = server.earlyCapabilityFlags,
-            staticChannels = STATIC_CHANNELS.mapIndexedNotNull { index, name ->
-                server.channelIds.getOrNull(index)?.let { name to it }
+            staticChannels = STATIC_CHANNELS.mapIndexedNotNull { index, channel ->
+                server.channelIds.getOrNull(index)?.let { channel.first to it }
+            }.toMap(),
+            channelOptions = STATIC_CHANNELS.mapIndexedNotNull { index, channel ->
+                server.channelIds.getOrNull(index)?.let { it to channel.second }
             }.toMap(),
         )
     }
@@ -137,12 +151,13 @@ internal object RdpMcs {
             le16(1)
             le32(0)
             le16(24) // 24bpp fallback
-            le16(0x0007) // 15/16/24bpp supported; 32bpp RDP 6.0 compression is not implemented
-            // earlyCapabilityFlags。⛔ **RNS_UD_CS_WANT_32BPP_SESSION (0x0002) を立てない** —
-            // 上で「24/16/15bpp しか受け取れない」と言っているのに 32bpp のセッションを求めると
-            // 主張が食い違い、サーバーは送る形式を決められずに**何も描かなくなる**
-            // (0.8.472・実機で判明。接続は成立したまま画面だけ来ない、という形で出る)。
-            le16(0x0001 or CLIENT_SUPPORT_SKIP_CHANNEL_JOIN)
+            // Classic の 15/16/24bpp に加え、Graphics Pipeline の XRGB_8888 を受け取る。
+            // GFX を宣言しながら 32bpp を省くと Windows 11 は Basic Settings Exchange で切断する。
+            le16(0x000F)
+            le16(
+                0x0001 or CLIENT_WANT_32BPP_SESSION or
+                    CLIENT_SUPPORT_DYNVC_GFX_PROTOCOL or CLIENT_SUPPORT_SKIP_CHANNEL_JOIN,
+            )
             zeros(64) // clientDigProductId
             u8(0) // connection type not advertised
             u8(0)
@@ -170,12 +185,12 @@ internal object RdpMcs {
 
         val network = Bytes().apply {
             le32(STATIC_CHANNELS.size)
-            for (name in STATIC_CHANNELS) {
+            for ((name, options) in STATIC_CHANNELS) {
                 val encoded = name.toByteArray(StandardCharsets.US_ASCII)
                 require(encoded.size <= 8)
                 bytes(encoded)
                 zeros(8 - encoded.size)
-                le32(CHANNEL_OPTIONS)
+                le32(options)
             }
         }.array()
         userDataBlock(CS_NET, network)
@@ -397,9 +412,15 @@ internal object RdpMcs {
         }
     }
 
-    private val STATIC_CHANNELS = listOf("cliprdr")
-    // INITIALIZED | ENCRYPT_RDP | SHOW_PROTOCOL。圧縮は実装していないので宣言しない。
-    private val CHANNEL_OPTIONS = 0xC0200000.toInt()
+    const val CHANNEL_OPTION_SHOW_PROTOCOL = 0x00200000
+
+    private val STATIC_CHANNELS = listOf(
+        // INITIALIZED | ENCRYPT_RDP | SHOW_PROTOCOL。CLIPRDR 自身では圧縮を使わない。
+        "cliprdr" to 0xC0200000.toInt(),
+        // FreeRDP / mstsc と同じ INITIALIZED | ENCRYPT_RDP | COMPRESS_RDP。
+        // ⛔ **SHOW_PROTOCOL を入れない** — drdynvc は Channel PDU Header を見せない channel。
+        "drdynvc" to 0xC0800000.toInt(),
+    )
 
     private class Cursor(private val data: ByteArray) {
         private var offset = 0

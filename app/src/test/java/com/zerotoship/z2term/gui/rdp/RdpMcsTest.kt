@@ -9,7 +9,7 @@ import org.junit.Test
 
 class RdpMcsTest {
     @Test
-    fun connectInitialCarriesBasicClientSettingsAndClipboardChannel() {
+    fun connectInitialCarriesBasicClientSettingsAndDesktopChannels() {
         val packet = RdpMcs.connectInitial(
             RdpMcs.ClientSettings(width = 800, height = 600, clientName = "Z2"),
         )
@@ -28,13 +28,15 @@ class RdpMcsTest {
         assertArrayEquals(byteArrayOf(0x20, 0x03), packet.copyOfRange(payload + 4, payload + 6))
         assertArrayEquals(byteArrayOf(0x58, 0x02), packet.copyOfRange(payload + 6, payload + 8))
         assertArrayEquals(byteArrayOf(24, 0), packet.copyOfRange(payload + 136, payload + 138))
-        assertArrayEquals(byteArrayOf(7, 0), packet.copyOfRange(payload + 138, payload + 140))
+        assertArrayEquals(byteArrayOf(15, 0), packet.copyOfRange(payload + 138, payload + 140))
+        assertArrayEquals(byteArrayOf(3, 9), packet.copyOfRange(payload + 140, payload + 142))
         assertArrayEquals(byteArrayOf(2, 0, 0, 0), packet.copyOfRange(payload + 208, payload + 212))
 
         assertTrue(packet.containsSequence(byteArrayOf(0x04, 0xC0.toByte(), 12, 0)))
         assertTrue(packet.containsSequence(byteArrayOf(0x02, 0xC0.toByte(), 12, 0)))
         assertTrue(packet.containsSequence(byteArrayOf(0x03, 0xC0.toByte())))
         assertTrue(packet.containsSequence("cliprdr".toByteArray()))
+        assertTrue(packet.containsSequence("drdynvc".toByteArray()))
     }
 
     @Test
