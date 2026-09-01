@@ -1,29 +1,81 @@
-かな漢字変換アセット (kkc_lex.tsv / kkc_matrix.bin) について
-============================================================
+かな漢字変換アセットの出典と著作権表示
+======================================
 
-これらは IPADIC (mecab-ipadic 2.7.0-20070801) を加工して作成した、
-かな漢字「文」変換 (Viterbi/最小コスト経路) 用のデータです。
+z2term (GPL-3.0) が同梱する、かな漢字変換用データ 4 点の出所です。
+ライセンス全文は assets/licenses/ に置いてあり、アプリの
+設定 →「OSS ライセンス / 対応ソース」からも読めます。
+
+
+------------------------------------------------------------------
+1. kkc_lex.tsv / kkc_matrix.bin — IPADIC (mecab-ipadic 2.7.0-20070801)
+------------------------------------------------------------------
 
 - kkc_lex.tsv    : IPADIC の語彙 (表層形・左右文脈ID・単語コスト・読み) を
                    読み(ひらがな)索引に並べ替えたもの。固有名詞/人名/地名/組織は
                    軽量化と誤変換抑制のため除外している。
 - kkc_matrix.bin : IPADIC の品詞接続コスト行列 (matrix.bin)。
 
-IPADIC 著作権表示 (mecab-ipadic COPYING より):
+出典: https://github.com/taku910/mecab (mecab-ipadic)
+ライセンス全文: assets/licenses/IPADIC-NAIST.txt
+  (NAIST ライセンス。語彙の多くが由来する ICOT Free Software の条件も
+   同ファイルに含まれるため、全文をそのまま同梱している)
 
-  Copyright (c) 2001-2007, Nara Institute of Science and Technology.
-  All Rights Reserved.
+  Copyright 2000, 2001, 2002, 2003 Nara Institute of Science
+  and Technology.  All Rights Reserved.
 
   Use, reproduction, and distribution of this software is permitted.
   Any copy of this software, whether in its original form or modified,
-  must include both the above copyright notice and the end of this paragraph.
-  Nara Institute of Science and Technology (NAIST), the copyright holders,
-  disclaims all warranties with regard to this software, including all
-  implied warranties of merchantability and fitness, in no event shall
-  NAIST be liable for any special, indirect or consequential damages or
-  any damages whatsoever resulting from loss of use, data or profits,
-  whether in an action of contract, negligence or other tortuous action,
-  arising out of or in connection with the use or performance of this
-  software.
+  must include both the above copyright notice and the following
+  paragraphs.
 
-出典: https://github.com/taku910/mecab (mecab-ipadic)
+  Nara Institute of Science and Technology (NAIST),
+  the copyright holders, disclaims all warranties with regard to this
+  software, including all implied warranties of merchantability and
+  fitness, in no event shall NAIST be liable for
+  any special, indirect or consequential damages or any damages
+  whatsoever resulting from loss of use, data or profits, whether in an
+  action of contract, negligence or other tortuous action, arising out
+  of or in connection with the use or performance of this software.
+
+
+------------------------------------------------------------------
+2. z2dict.txt — SKK-JISYO.L (GPL-2.0-or-later)
+------------------------------------------------------------------
+
+SKK Development Team の SKK-JISYO.L から、送り仮名なし (okuri-nasi) の
+見出しだけを取り出し、候補の「;注釈」を除いて UTF-8 へ変換したもの。
+見出し語は原本の okuri-nasi 部と同一 (159,794 件)。
+
+著作権表示とライセンス通知は z2dict.txt の先頭にそのまま残してある。
+
+出典: https://github.com/skk-dev/dict
+ライセンス全文: assets/licenses/GPL-2.0.txt
+
+  Copyright (C) 1988-1995, 1997, 1999-2014
+  Masahiko Sato, Hironobu Takahashi, Masahiro Doteguchi, Miki Inooka,
+  Yukiyoshi Kameyama, Akihiko Sasaki, Dai Ando, Junichi Okukawa,
+  Katsushi Sato, Nobuhiro Yamagishi, NAKAJIMA Mikio, MITA Yuusuke,
+  SKK Development Team <skk@ring.gr.jp>
+
+  This dictionary is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as
+  published by the Free Software Foundation; either version 2, or
+  (at your option) any later version.
+
+
+------------------------------------------------------------------
+3. kkc_colloc.bloom — 日本語版ウィキペディア (CC BY-SA 4.0)
+------------------------------------------------------------------
+
+日本語版ウィキペディアの記事ダンプから「内容語 × 内容語」の共起 2-gram を
+数え、頻度で足切りしたうえで Bloom フィルタ (存在ビットの集合) にしたもの。
+候補の並べ替えにのみ使い、原文は保持しない。生成手順は
+scripts/build-collocation.sh にある。
+
+出典: https://dumps.wikimedia.org/jawiki/ (jawiki-latest-pages-articles)
+      記事の著者は各記事の履歴ページに記載されている
+ライセンス全文: assets/licenses/CC-BY-SA-4.0.txt
+
+  Wikipedia® の記事本文は、ウィキペディアの執筆者による著作物であり、
+  クリエイティブ・コモンズ 表示-継承 4.0 国際 (CC BY-SA 4.0) の下で
+  提供されています。

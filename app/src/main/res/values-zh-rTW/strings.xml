@@ -508,9 +508,14 @@
     <string name="oss_purpose_slf4j">SMBJ 使用的記錄 API</string>
     <string name="oss_purpose_bouncycastle">加密提供者 (JSch 的 ed25519/curve25519 等)</string>
     <string name="oss_purpose_xz_java">XZ (LZMA2) 解壓縮 (Kali rootfs 等的 .tar.xz)</string>
+    <string name="oss_purpose_listenablefuture">DataStore 使用的非同步結果型別</string>
+    <string name="oss_purpose_jetbrains_annotations">Kotlin 標準函式庫引用的註解</string>
     <string name="oss_purpose_fira_code">終端機用等寬字型 (支援連字)</string>
     <string name="oss_purpose_ibm_plex_mono">終端機用等寬字型</string>
     <string name="oss_purpose_jetbrains_mono">終端機用等寬字型</string>
+    <string name="oss_purpose_skk_jisyo">內建假名漢字轉換字典的原始字典</string>
+    <string name="oss_purpose_ipadic">假名漢字轉換的詞彙與詞性連接成本</string>
+    <string name="oss_purpose_jawiki_collocation">用於候選重新排序的共現資料來源</string>
     <string name="settings_create_custom_theme">建立自訂主題…</string>
     <string name="settings_edit_custom_theme">編輯自訂主題…</string>
     <string name="settings_custom_theme_note">可以自己配色做一個主題。背景/前景/強調色等會反映到整個應用程式。</string>

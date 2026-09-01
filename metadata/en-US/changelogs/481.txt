@@ -1,0 +1,4 @@
+0.8.473-alpha
+
+- Completed the attribution for the bundled dictionaries and data (SKK-JISYO.L, IPADIC and the Wikipedia co-occurrence data used by kana-kanji conversion). Settings → "OSS licenses" now shows their provenance and full license texts.
+- Removed license texts for software that is no longer bundled (Vim / Zsh).

@@ -34,7 +34,12 @@ object OssComponents {
 
     /**
      * 一覧。読みやすさのため、(a) ネイティブ実行物 (b) rootfs 同梱パッケージ (c) Android/Java 依存
-     * (d) フォント、の順で並べる。
+     * (d) フォント (e) かな漢字変換データ、の順で並べる。
+     *
+     * ⚠ **コードだけでなく assets の「データ」も告知対象**。辞書・統計データにも著作権があり、
+     * SKK 辞書は GPL-2.0-or-later、IPADIC は NAIST ライセンス、共起データの元は CC BY-SA の
+     * ウィキペディアで、いずれも著作権表示と対応ソースの明示を求めている。ここに並べるのを
+     * 忘れると、告知義務を果たさないまま配布することになる (0.8.473 で 3 件まとめて補完)。
      */
     private val all: List<OssComponent> = listOf(
         // ===== 本アプリ本体 (先頭固定) =====
@@ -151,6 +156,20 @@ object OssComponents {
             sourceUrl = "https://tukaani.org/xz/java.html",
             purposeRes = R.string.oss_purpose_xz_java,
         ),
+        OssComponent(
+            name = "Guava ListenableFuture 1.0",
+            licenseId = "Apache-2.0",
+            copyright = "Copyright (c) The Guava Authors",
+            sourceUrl = "https://github.com/google/guava",
+            purposeRes = R.string.oss_purpose_listenablefuture,
+        ),
+        OssComponent(
+            name = "JetBrains Java Annotations 23.0.0",
+            licenseId = "Apache-2.0",
+            copyright = "Copyright 2000-2022 JetBrains s.r.o.",
+            sourceUrl = "https://github.com/JetBrains/java-annotations",
+            purposeRes = R.string.oss_purpose_jetbrains_annotations,
+        ),
 
         // ===== (d) フォント (assets/fonts/) =====
         OssComponent(
@@ -173,6 +192,40 @@ object OssComponents {
             copyright = "Copyright (c) 2020 The JetBrains Mono Project Authors",
             sourceUrl = "https://github.com/JetBrains/JetBrainsMono",
             purposeRes = R.string.oss_purpose_jetbrains_mono,
+        ),
+
+        // ===== (e) かな漢字変換データ (assets/) =====
+        // 出所の詳細は assets/KKC-DICT-NOTICE.txt にまとめてある。
+        OssComponent(
+            // 送り仮名なしの見出しだけを取り出し、注釈を除いて UTF-8 化した派生物。
+            // 著作権表示は z2dict.txt の先頭にそのまま残してある。
+            name = "SKK-JISYO.L（同梱辞書 z2dict.txt の原本）",
+            licenseId = "GPL-2.0",
+            copyright = "Copyright (C) 1988-1995, 1997, 1999-2014 " +
+                "Masahiko Sato, Hironobu Takahashi, Yukiyoshi Kameyama, NAKAJIMA Mikio, " +
+                "MITA Yuusuke and SKK Development Team <skk@ring.gr.jp>",
+            sourceUrl = "https://github.com/skk-dev/dict",
+            purposeRes = R.string.oss_purpose_skk_jisyo,
+        ),
+        OssComponent(
+            // SPDX に該当 ID が無いため原文 (mecab-ipadic の COPYING) を丸ごと同梱する。
+            // 語彙の多くが由来する ICOT Free Software の条件も同ファイルに含まれる。
+            name = "IPADIC（mecab-ipadic 2.7.0-20070801）",
+            licenseId = "IPADIC",
+            copyright = "Copyright 2000, 2001, 2002, 2003 " +
+                "Nara Institute of Science and Technology. All Rights Reserved.",
+            sourceUrl = "https://github.com/taku910/mecab",
+            purposeRes = R.string.oss_purpose_ipadic,
+            licenseAsset = "IPADIC-NAIST",
+        ),
+        OssComponent(
+            // 共起 2-gram を頻度で足切りして Bloom フィルタ化したもの (原文は保持しない)。
+            // 生成手順は scripts/build-collocation.sh。
+            name = "日本語版ウィキペディア（共起データ kkc_colloc.bloom の元）",
+            licenseId = "CC-BY-SA-4.0",
+            copyright = "Copyright (c) Wikipedia contributors",
+            sourceUrl = "https://dumps.wikimedia.org/jawiki/",
+            purposeRes = R.string.oss_purpose_jawiki_collocation,
         ),
     )
 

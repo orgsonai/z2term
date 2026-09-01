@@ -1,3 +1,69 @@
+;; -*- mode: fundamental; coding: utf-8 -*-
+;;
+;; z2term 同梱かな漢字変換辞書 — SKK-JISYO.L の派生物 (GPL-2.0-or-later)
+;;
+;; 本ファイルは SKK Development Team の SKK-JISYO.L を加工したものです。
+;; 加工者: Zero to Ship (2026年) / 加工内容:
+;;   - 送り仮名あり (okuri-ari) の見出しを除き、送り仮名なし (okuri-nasi) だけを残した
+;;   - 候補に付いていた「;注釈」を除いた
+;;   - 文字コードを EUC-JP から UTF-8 へ変換した
+;;   - 先頭のモード行のみ上記へ書き換えた (以降のヘッダは原文のまま)
+;; 見出し語は SKK-JISYO.L の okuri-nasi 部と同一 (159,794 件) です。
+;; 原本: https://github.com/skk-dev/dict
+;; GPL-2.0 全文: assets/licenses/GPL-2.0.txt (アプリの設定 →「OSS ライセンス」からも読めます)
+;;
+;; ============ 以下、SKK-JISYO.L のヘッダ (原文) ============
+;; Large size dictionary for SKK system
+;; Copyright (C) 1988-1995, 1997, 1999-2014
+;;
+;; Masahiko Sato <masahiko@kuis.kyoto-u.ac.jp>
+;; Hironobu Takahashi <takahasi@tiny.or.jp>,
+;; Masahiro Doteguchi, Miki Inooka,
+;; Yukiyoshi Kameyama <kameyama@kuis.kyoto-u.ac.jp>,
+;; Akihiko Sasaki, Dai Ando, Junichi Okukawa,
+;; Katsushi Sato and Nobuhiro Yamagishi
+;; NAKAJIMA Mikio <minakaji@osaka.email.ne.jp>
+;; MITA Yuusuke <clefs@mail.goo.ne.jp>
+;; SKK Development Team <skk@ring.gr.jp>
+;;
+;; Maintainer: SKK Development Team <skk@ring.gr.jp>
+;; Keywords: japanese
+;;
+;; This dictionary is free software; you can redistribute it and/or
+;; modify it under the terms of the GNU General Public License as
+;; published by the Free Software Foundation; either version 2, or
+;; (at your option) any later version.
+;;
+;; This dictionary is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;; General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with Daredevil SKK, see the file COPYING.  If not, write to
+;; the Free Software Foundation Inc., 59 Temple Place - Suite 330,
+;; Boston, MA 02111-1307, USA.
+;;
+;; ACKNOWLEDGEMENT
+;;
+;; この辞書は、SKK 原作者の佐藤雅彦先生が、第 1 版作成のために東北大学
+;; 電気通信研究所佐藤研究室 (当時) の学生さん達とともに scratch から作
+;; 成されたのをその起源とし、その後、無数のユーザからのユーザ辞書の提
+;; 供やフォームによる追加・校閲によって今尚日々メンテナンスされている日
+;; 本で最大規模の、GPL による copy free の辞書です。
+;;
+;; この辞書の作成にご尽力頂いた全ての方に感謝すると共に、これをお読み
+;; のあなたのご協力を是非ともお待ちしております。
+;;
+;;   https://github.com/skk-dev/dict
+;;
+;; にアクセスし、Issue や Pull request をお寄せください。
+;;
+;; 辞書の編集方針は committers.md をご参照下さい。
+;; そこに記載のない事項、またその変更については、その都度 github.com/skk-dev/dict/Issue
+;; で話し合いで決められます。
+;;
+;; okuri-nasi entries.
 ! /！/感嘆符/
 !! /！！/
 != /≠/

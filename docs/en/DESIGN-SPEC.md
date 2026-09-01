@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-08-31 / Target version: 0.8.472-alpha (versionCode 480)
+Last updated: 2026-09-01 / Target version: 0.8.473-alpha (versionCode 481)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2447,6 +2447,16 @@ window, so their visible overlay does not prevent surrounding keys from receivin
 #### 6.2.1 Kana-kanji conversion (`KanaKanjiConverter` / `ComposingState`)
 
 A best-effort conversion that binary-searches an SKK dictionary (`assets/z2dict.txt`, ~160k lines) + conjugation completion for common verbs/adjectives. The candidate bar (`CandidateBar`) updates on every keystroke.
+
+⚠ **All three bundled conversion data sets are derived from someone else's work**, and each carries an attribution obligation (the notices were completed in 0.8.473). Provenance, copyright notices and the location of each license text are consolidated in [`assets/KKC-DICT-NOTICE.txt`](../../app/src/main/assets/KKC-DICT-NOTICE.txt), and surfaced through `legal/OssComponents.kt` under Settings → "OSS licenses".
+
+| Data | Origin | License |
+|---|---|---|
+| `z2dict.txt` | The okuri-nasi part of SKK-JISYO.L (the 159,794 headwords are identical to the original; annotations stripped, converted to UTF-8) | GPL-2.0-or-later |
+| `kkc_lex.tsv` / `kkc_matrix.bin` | mecab-ipadic 2.7.0-20070801 | NAIST license |
+| `kkc_colloc.bloom` | Co-occurrence 2-grams from Japanese Wikipedia, stored as a Bloom filter | CC BY-SA 4.0 |
+
+The copyright notice for `z2dict.txt` is **kept verbatim at the top of the file** (the loader skips lines starting with `;`). ⛔ **When you swap a dictionary, fix the notices in the same change** — unlike code, data does not look "borrowed", and shipping it without attribution breaks the distribution terms.
 
 - **Candidate generation (`convertFlexible`)**: learning history (exact match) → learning history (prefix match = predictive conversion) → whole-sentence best conversion (`nbest`) → **single words whose reading matches exactly (`KkcConverter.wordsFor`)** → exact match (`convert`) / okurigana conjugation (`okuriForms`) → prefix-match prediction (`predict`). Raw kana / katakana always remain as confirmed candidates.
 - **Common-word conjugation supplement** (`SUPPLEMENT_WORDS`): the source dictionary carries almost no verb/adjective dictionary forms or conjugations (`あく /悪/灰汁/…/` holds nouns only), so **the only conjugations that convert are those of words listed in the built-in common-word table**. ⚠ **Drop one entry and that verb's entire conjugation becomes unconvertible.** 0.8.360 added 開く ("to open", intransitive) — 開ける/閉める/閉まる/閉じる were all present while **the intransitive 開く was missing, so あかない → 開かない never appeared** (user report). Both readings go in (`あく` / `ひらく`; the source dictionary's `ひらく` only has `啓`). ⚠ **Never add just one side of a transitive/intransitive pair.** Regression: `VerbConjugationCandidateTest`. ⚠ `mergeDict` puts supplement candidates **ahead of the source dictionary**, so an added word becomes the first candidate for that reading (`あき` shows `開き` before `秋` — the same existing behaviour that puts `付き` before `月` for `つき`).
