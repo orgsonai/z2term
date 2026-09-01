@@ -277,6 +277,8 @@ In an SSH destination’s editor you can add **FTP, SMB, WebDAV, VNC and RDP** s
 
 In the SFTP / FTP / SMB / WebDAV file screen, both Android Back and the top-left arrow move up one folder. At the root, they ask before closing the connection and returning to the terminal.
 
+**The same screen can also show the files on this device** (0.8.474). The tabs at the top switch between "Server" and "This device". Start by picking one folder on the device with "Choose a folder". **That choice is remembered, so uploads no longer send you out to the system file picker every time.** You can send a single file or a whole folder. Tap a name to look inside text files and images right there (files that are too large, and other kinds of files, do not open).
+
 ### Open a remote machine's screen (VNC, 0.8.418)
 
 Every SSH host in 📜 → **Connections** has a **[VNC]** button. It opens **that server's desktop in a new

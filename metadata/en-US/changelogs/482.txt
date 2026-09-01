@@ -1,0 +1,4 @@
+0.8.474-alpha
+
+- Added a "This device" tab to the file screen. Pick a device folder once and it is remembered, so uploads no longer send you out to the system file picker every time.
+- Single files and whole folders both transfer. Tap a name to look inside text files and images right there.
