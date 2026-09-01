@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-01 / 対象バージョン: 0.8.477-alpha (versionCode 485)
+最終更新: 2026-09-01 / 対象バージョン: 0.8.478-alpha (versionCode 486)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1861,7 +1861,10 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - **RDPGFX（0.8.477）**: ⛔ **Windows 11 は RDPGFX を使えない相手へ従来型 Bitmap Update を送らない。** GFX を無効にした `xfreerdp3` でも同じ無音になることを実測して確かめた（接続も finalization も通り、画面 PDU だけが 1 バイトも来ない）。そこで GCC の CS_NET で **`drdynvc`** を要求し（`RdpDynamicChannel`）、DVC の capability / create を経て `Microsoft::Windows::RDS::Graphics` を開き、**RDPGFX**（`RdpGfx`）で画面を受け取る。GCC CS_CORE では 32bpp と `RNS_UD_CS_SUPPORT_DYNVC_GFX_PROTOCOL` を宣言する（⚠ **GFX を宣言しながら 32bpp を省くと主張が食い違う**）。CAPVERSION_8 の thin-client capability だけを広告し、surface の作成・削除・出力への割り付け、frame acknowledgement、solid fill、surface 間コピー、surface cache、32bpp 非圧縮、**ClearCodec**（`RdpClearCodec`）に対応する。受信データは RDP 8.0 bulk 圧縮（`Rdp8Bulk`）で包まれているので展開器も自前で持つ（送信側は FreeRDP と同じく非圧縮のまま送る）。
   - ⛔ **未対応の command / codec で例外を投げない。** RDPGFX の PDU は長さで区切られているので読み飛ばせる。投げると受信ループごと落ちて**描ける部分まで消える**。何が来たかは 1 度だけログに残し、次に書く decoder を推測ではなく実測で決める。
   - ⛔ **仮想チャネルの `CHANNEL_FLAG_SHOW_PROTOCOL` は `CHANNEL_OPTION_SHOW_PROTOCOL` を宣言した channel にだけ立てる**（[MS-RDPBCGR] 2.2.6.1）。宣言していない `drdynvc` に立てると、Windows は Channel PDU Header 8 バイトごとデータとして受け取り**黙り込む**（0.8.477・実 Windows で判明。Graphics DVC は開くのに capability 応答が返ってこない形で出た）。分割サイズも同様に**サーバーが広告した VCChunkSize** に従う（こちらの広告値ではない）。
-  - ⚠ **この Windows 11 が選んだのは RemoteFX（CAVIDEO, codec 0x3）と非圧縮（0x0）**で、RemoteFX の decoder はまだ無いため画面は黒いまま（0.8.477 時点）。次はここ。
+- **RemoteFX（0.8.478）**: ⭐ **実 Windows 11 が RDPGFX で選んだのは RemoteFX（CAVIDEO, codec 0x3）と非圧縮（0x0）だった**（0.8.477 で実測。推測ではなく届いた codec を数えて決めた）。`RdpRemoteFx` は 64x64 タイルを **RLGR1/RLGR3 展開 → 差分復元（最下位帯のみ）→ 逆量子化 → 3 段の逆ウェーブレット → YCbCr→RGB** の順に戻し、`TS_RFX_REGION` の矩形で切り抜いて surface へ貼る。⭐ **これで実 Windows の画面が出た**（0.8.478）。
+  - 単体テストは**手で組んだ RLGR ビット列**（零 4032 個 + 値 72 を 1 記号で符号化）で、連長の積み上げ・差分・逆ウェーブレット 3 段・色変換を**通しで**固定してある。係数が空なら中間グレーになることも合わせて押さえた。
+  - ⚠ **中間値は 16bit で丸める。** 32bit のまま持つと桁が溢れる場面で出力が食い違う。
+  - ⚠ 等倍表示の画面合成は**行単位のコピー**にしてある。2400x1080 を毎フレーム舐めるので、1 画素ずつ拡大率を割り算すると重い。
 - **入力**: `GuiInputView` のジェスチャ — **2 本指 = ピンチ(ズーム/パン)**、**3 本指縦移動 = ホイール上/下スクロール**（一度 3 本指になったら全指が離れるまでスクロール扱い）。旧スクロールボタンと `RfbClient.scrollWheel` は撤去。
 - **動画**: GPU 無し端末で `gpu` 出力が失敗するため、mpv を **`vo=x11` 既定 + `LIBGL_ALWAYS_SOFTWARE`** でソフト描画させて正常再生。
 - **音声 (`service/AudioBridge.kt`)**: **オプトイン**（設定「GUI 音声」`guiAudioEnabled` ON 時のみ）。distro 内 PulseAudio(`-n` 方式で起動) → TCP → Android `AudioTrack` でブリッジ。

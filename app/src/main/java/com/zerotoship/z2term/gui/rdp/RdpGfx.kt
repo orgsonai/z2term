@@ -43,6 +43,7 @@ internal class RdpGfx(
     private var currentFrameId: Int? = null
     private val bulk = Rdp8Bulk()
     private val clear = RdpClearCodec()
+    private val remoteFx = RdpRemoteFx()
     private val cache = mutableMapOf<Int, Surface>()
     private var cachedPixels = 0
     /** どの codec / command が実際に来たかを 1 度だけ残す。decoder を足す順番はこれで決める。 */
@@ -122,6 +123,7 @@ internal class RdpGfx(
         clear.reset()
         cache.clear()
         cachedPixels = 0
+        remoteFx.reset()
         reportedCodecs.clear()
         reportedCommands.clear()
         codecCounts.clear()
@@ -151,6 +153,7 @@ internal class RdpGfx(
         output = IntArray(checkedPixelCount(width, height))
         mappings.clear()
         clear.reset()
+        remoteFx.reset()
         Log.i(TAG, "RDPGFX: reset ${width}x$height")
     }
 
@@ -230,6 +233,8 @@ internal class RdpGfx(
         when (codecId) {
             CODEC_UNCOMPRESSED -> decodeUncompressed(encoded, surface, left, top, width, height, pixelFormat)
             CODEC_CLEAR -> clear.decode(surfaceId, encoded, surface.pixels, surface.width, surface.height, left, top, width, height)
+            // ⭐ 実 Windows 11 が選ぶのはこれ。矩形は RFX message の region が持っている。
+            CODEC_REMOTEFX -> remoteFx.decode(encoded, surface.pixels, surface.width, surface.height, left, top)
             else -> Unit // countCodec が 1 度だけ記録している。未実装の矩形はそのまま残す。
         }
     }
@@ -252,7 +257,8 @@ internal class RdpGfx(
     private fun countCodec(codecId: Int) {
         codecCounts[codecId] = (codecCounts[codecId] ?: 0) + 1
         if (reportedCodecs.add(codecId)) {
-            val known = codecId == CODEC_UNCOMPRESSED || codecId == CODEC_CLEAR
+            val known = codecId == CODEC_UNCOMPRESSED || codecId == CODEC_CLEAR ||
+                codecId == CODEC_REMOTEFX
             Log.i(TAG, "RDPGFX: codec 0x${codecId.toString(16)}" + if (known) "" else " is not implemented; skipped")
         }
     }
@@ -401,6 +407,11 @@ internal class RdpGfx(
             val targetWidth = mapping.targetWidth ?: surface.width
             val targetHeight = mapping.targetHeight ?: surface.height
             if (targetWidth <= 0 || targetHeight <= 0) continue
+            if (targetWidth == surface.width && targetHeight == surface.height) {
+                // ⭐ 等倍。1 画素ずつ割り算するのと比べて桁違いに速く、実際にはほぼこの経路。
+                copyRows(surface, mapping.x, mapping.y)
+                continue
+            }
             for (dy in 0 until targetHeight) {
                 val oy = mapping.y + dy
                 if (oy !in 0 until outputHeight) continue
@@ -414,6 +425,16 @@ internal class RdpGfx(
             }
         }
         onFrame(outputWidth, outputHeight, output, Rect(0, 0, outputWidth, outputHeight))
+    }
+
+    private fun copyRows(surface: Surface, x: Int, y: Int) {
+        val left = maxOf(x, 0)
+        val right = minOf(x + surface.width, outputWidth)
+        if (left >= right) return
+        for (row in maxOf(y, 0) until minOf(y + surface.height, outputHeight)) {
+            val source = (row - y) * surface.width + (left - x)
+            surface.pixels.copyInto(output, row * outputWidth + left, source, source + (right - left))
+        }
     }
 
     private fun fill(surface: Surface, left: Int, top: Int, right: Int, bottom: Int, color: Int) {
@@ -483,6 +504,7 @@ internal class RdpGfx(
         private const val CAPVERSION_8 = 0x00080004
         private const val CAPS_FLAG_THINCLIENT = 0x00000001
         private const val CODEC_UNCOMPRESSED = 0x0000
+        private const val CODEC_REMOTEFX = 0x0003
         private const val CODEC_CLEAR = 0x0008
         private const val PIXEL_FORMAT_XRGB = 0x20
         private const val PIXEL_FORMAT_ARGB = 0x21

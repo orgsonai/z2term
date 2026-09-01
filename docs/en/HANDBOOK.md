@@ -319,10 +319,8 @@ the fingerprint ever changes.
 Authentication option for Remote Desktop. If it is off, you get a message that says exactly that
 rather than a bare "could not connect".
 
-⚠ **RDP is still being built.** Connecting (through authentication) works, and **0.8.477 receives the
-screen the way Windows actually sends it (the RDP 8 graphics pipeline)**. The image format Windows
-picks (RemoteFX) is **not decoded yet, so against Windows the screen is still black**. Peers that do
-send a screen can be controlled with the mouse and keyboard (0.8.476). Dynamic resize is not supported yet.
+⚠ **RDP is still being built.** **0.8.478 puts a Windows screen on the phone** (the RDP 8 graphics
+pipeline plus RemoteFX). The mouse and keyboard work too (0.8.476). Dynamic resize is not supported yet.
 
 **Copied text travels both ways** (0.8.475). While you are looking at a VNC or RDP screen, text you copy on the phone reaches the far side, and text copied there arrives on the phone. Japanese text survives the trip.
 
