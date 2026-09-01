@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-01 / Target version: 0.8.474-alpha (versionCode 482)
+Last updated: 2026-09-01 / Target version: 0.8.475-alpha (versionCode 483)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1974,6 +1974,12 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   - **Remote Japanese input keys (0.8.427)**: the key-layout `NamedKey` roster adds Half/Full, Convert, Non-convert, Kana and Eisu. They are no-ops in terminal tabs; GUI tabs send the corresponding X11 keysyms (`Zenkaku_Hankaku`, `Henkan`, `Muhenkan`, `Hiragana_Katakana`, `Eisu_toggle`) directly. The matching Android key codes from a physical keyboard follow the same mapping. If the remote input method uses `Ctrl+Space` or `Super+Space` instead of Half/Full, place that existing modified one-shot action on the custom layout.
 
   - **The hold threshold becomes 500ms (0.8.438, user report: slow pointer movement triggers a hold)**: at 300ms, a deliberately slow move could still be inside `touchSlop` when the hold timer fired. ⇒ increase `GuiCursor.HOLD_MS` from 300ms to **500ms**, close to the platform's ordinary long-press timing, and delay the ring from 150ms to **250ms**. Moving beyond `touchSlop` still cancels both timers immediately; this change only gives slow motion more time to declare itself before a right click is committed.
+
+- **Sharing the clipboard with the far side (0.8.475)**: while the GUI tab is in front, text copied on Android is sent to the far side and text copied there is pulled into Android. The outbound door is `RemoteDesktopClient.sendClipboardText`, which defaults to doing nothing so implementations without clipboard support need no changes.
+  ⚠ **This needs an echo breaker.** `setPrimaryClip` on the remote-to-Android path also fires `OnPrimaryClipChangedListener`, so wiring the two together naively keeps bouncing the same text back. `GuiSession.syncAndroidClipboardToRemote` skips exactly the one write it just made itself.
+  - **VNC (RFB)**: `ClientCutText` (type 6). Classic RFB is Latin-1, but current TigerVNC / x11vnc also accept UTF-8 bodies. ⇒ **send Latin-1 only when the text fits in Latin-1, and UTF-8 otherwise.** Forcing Latin-1 everywhere flattens Japanese into `?`.
+  - **RDP (CLIPRDR)**: request the `cliprdr` static virtual channel through GCC `CS_NET`, lay down MCS channel routing (`RdpActivation.channelData` / `RdpMcs.sendVirtualChannel`), and then speak only the text part of [MS-RDPECLIP] (`gui/rdp/RdpCliprdr.kt`). Only `CF_UNICODETEXT` is advertised — no file transfer, no HTML (advertising what you cannot accept makes the server send it). Bodies over 16KB are chunked with `CHANNEL_FLAG_FIRST` / `CHANNEL_FLAG_LAST`.
+- **Connections and brightness from the GUI tab (0.8.475)**: the Connections tab under 📜 used to be hidden on the grounds that "a GUI tab has no notion of SSH", but **wanting to reach another host while looking at a GUI is entirely ordinary**. SSH connections, SFTP and service launches now open from the GUI tab too, and double-tapping 🔅 brings up the same brightness bar as the terminal tab. `showSshTab` now means "only a special screen whose caller cannot provide connections sets this to false".
 
 ### 4.13 Android API bridge (`Z2ApiBridge` / `Z2ApiScript`)
 

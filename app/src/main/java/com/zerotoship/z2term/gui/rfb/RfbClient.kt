@@ -347,6 +347,30 @@ class RfbClient(
         }
     }
 
+    /** Android → VNC の ClientCutText (type 6)。classic RFB の文字集合に合わせ Latin-1 で送る。 */
+    override fun sendClipboardText(text: String) {
+        if (closed) return
+        val body = if (text.all { it.code <= 0xFF }) {
+            text.take(MAX_CUT_TEXT).toByteArray(Charsets.ISO_8859_1)
+        } else {
+            // classic RFB は Latin-1 だが、現行 TigerVNC/x11vnc は UTF-8 の ClientCutText も
+            // 受け付ける。Latin-1 に無い文字だけ UTF-8 にし、日本語を '?' に潰さない。
+            text.take(MAX_CUT_TEXT / 4).toByteArray(Charsets.UTF_8)
+        }
+        submitWrite {
+            val out = output ?: return@submitWrite
+            synchronized(writeLock) {
+                out.writeByte(MSG_CLIENT_CUT_TEXT)
+                out.writeByte(0)
+                out.writeByte(0)
+                out.writeByte(0)
+                out.writeInt(body.size)
+                out.write(body)
+                out.flush()
+            }
+        }
+    }
+
     /** 入力送信を [sender] スレッドで実行する。IOException は接続断とみなして握り潰す。 */
     private fun submitWrite(block: () -> Unit) {
         if (closed) return
@@ -721,14 +745,33 @@ class RfbClient(
 
     private fun handleServerCutText(inp: DataInputStream) {
         inp.readByte(); inp.readByte(); inp.readByte() // padding
-        val len = inp.readInt().toLong() and 0xFFFFFFFFL // CARD32 (符号なし)
+        val wireLength = inp.readInt()
+        // ExtendedClipboard は負の length で識別する。こちらは拡張形式を宣言していないため
+        // 本文を解釈せず読み捨てるが、符号無し長さ (数GB) と誤認して受信ループを塞がない。
+        if (wireLength < 0) {
+            val extendedLength = -wireLength.toLong()
+            if (extendedLength > MAX_CUT_TEXT_WIRE) {
+                throw IOException("RFB extended clipboard payload is too large")
+            }
+            skipFully(inp, extendedLength)
+            return
+        }
+        val len = wireLength.toLong()
         if (len == 0L) return
-        // ペースト爆弾対策に上限を設け、超過分は読み捨てる。RFB の cut-text は Latin-1。
+        if (len > MAX_CUT_TEXT_WIRE) throw IOException("RFB clipboard payload is too large")
+        // ペースト爆弾対策に上限を設け、超過分は読み捨てる。規格上は Latin-1 だが、
+        // UTF-8 を送る現行サーバーもあるため、正しい UTF-8 ならそちらを優先する。
         val cap = minOf(len, MAX_CUT_TEXT.toLong()).toInt()
         val body = ByteArray(cap)
         inp.readFully(body)
         if (len > cap) skipFully(inp, len - cap)
-        runCatching { onRemoteClipboardText?.invoke(String(body, Charsets.ISO_8859_1)) }
+        val utf8 = body.toString(Charsets.UTF_8)
+        val text = if (utf8.toByteArray(Charsets.UTF_8).contentEquals(body)) {
+            utf8
+        } else {
+            body.toString(Charsets.ISO_8859_1)
+        }
+        runCatching { onRemoteClipboardText?.invoke(text) }
     }
 
     private fun skipFully(inp: DataInputStream, n: Long) {
@@ -763,6 +806,7 @@ class RfbClient(
 
         /** ServerCutText の取り込み上限 (byte)。これを超える分は読み捨てる。 */
         private const val MAX_CUT_TEXT = 256 * 1024
+        private const val MAX_CUT_TEXT_WIRE = 16L * 1024 * 1024
 
         // client→server message types
         private const val MSG_SET_PIXEL_FORMAT = 0
@@ -770,6 +814,7 @@ class RfbClient(
         private const val MSG_FB_UPDATE_REQUEST = 3
         private const val MSG_KEY_EVENT = 4
         private const val MSG_POINTER_EVENT = 5
+        private const val MSG_CLIENT_CUT_TEXT = 6
         private const val MSG_SET_DESKTOP_SIZE = 251
 
         // server→client message types

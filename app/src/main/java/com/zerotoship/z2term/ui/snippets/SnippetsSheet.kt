@@ -100,7 +100,7 @@ private enum class ToolsTab { SNIPPETS, HISTORY, SSH, SERVERS, WHEN }
  *  - サーバー: 常駐サーバーの起動/停止・ON/OFF・編集 (設定シートと同じ [ServersBody])。
  *    毎回設定画面を開かずここから管理できる。
  *
- * GUI タブからは SSH 接続の概念が無いので [showSshTab] = false で SSH タブを隠す。
+ * [showSshTab] は呼び出し元が接続先機能を提供できない特殊画面だけ false にできる。
  * サーバータブは [serverSession] が渡されたときだけ出す。
  *
  * 永続化はそれぞれ [SnippetStore] / SshProfileStore / AppSettings (DataStore)。

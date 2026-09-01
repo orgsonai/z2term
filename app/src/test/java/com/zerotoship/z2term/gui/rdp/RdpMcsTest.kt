@@ -3,14 +3,13 @@ package com.zerotoship.z2term.gui.rdp
 import java.io.IOException
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RdpMcsTest {
     @Test
-    fun connectInitialCarriesBasicClientSettingsWithoutVirtualChannels() {
+    fun connectInitialCarriesBasicClientSettingsAndClipboardChannel() {
         val packet = RdpMcs.connectInitial(
             RdpMcs.ClientSettings(width = 800, height = 600, clientName = "Z2"),
         )
@@ -34,7 +33,8 @@ class RdpMcsTest {
 
         assertTrue(packet.containsSequence(byteArrayOf(0x04, 0xC0.toByte(), 12, 0)))
         assertTrue(packet.containsSequence(byteArrayOf(0x02, 0xC0.toByte(), 12, 0)))
-        assertFalse(packet.containsSequence(byteArrayOf(0x03, 0xC0.toByte())))
+        assertTrue(packet.containsSequence(byteArrayOf(0x03, 0xC0.toByte())))
+        assertTrue(packet.containsSequence("cliprdr".toByteArray()))
     }
 
     @Test

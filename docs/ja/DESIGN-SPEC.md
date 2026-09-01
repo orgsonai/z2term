@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-01 / 対象バージョン: 0.8.474-alpha (versionCode 482)
+最終更新: 2026-09-01 / 対象バージョン: 0.8.475-alpha (versionCode 483)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1942,6 +1942,12 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - **リモート日本語入力キー（0.8.427）**: キー配列の `NamedKey` に「半/全」「変換」「無変換」「かな」「英数」を追加する。端末タブでは no-op、GUI タブでは対応する X11 keysym (`Zenkaku_Hankaku` / `Henkan` / `Muhenkan` / `Hiragana_Katakana` / `Eisu_toggle`) を直接送る。物理キーボードの同名 Android keyCode も同じ keysym へ変換する。相手の入力方式が半角/全角ではなく `Ctrl+Space` / `Super+Space` を使う場合は、既存の修飾つき一撃をキー配列へ置く。
 
   - **長押し成立を 500ms へ遅らせる（0.8.438・利用者の報告「ポインターをゆっくり動かすだけで長押しになる」）**: 300ms では、意図的にゆっくり動かした指がまだ `touchSlop` 内にいるうちに長押しタイマーが成立し得た。⇒ `GuiCursor.HOLD_MS` を 300ms から標準的な長押しに近い **500ms** へ、リング開始を 150ms から **250ms** へ延ばす。`touchSlop` を越えれば従来どおり両タイマーを即座に取り消すので、変えるのは「右クリックを確定する前に、ゆっくりした移動が移動として確定できる猶予」だけ。
+
+- **クリップボードを相手と共有する (0.8.475)**: GUI タブが前面の間、Android でコピーされた本文を相手へ送り、相手でコピーされた本文を Android へ取り込む。送る口は `RemoteDesktopClient.sendClipboardText` で、対応しない実装のために「何もしない」既定を持たせてある。
+  ⚠ **エコーループを止める仕掛けが要る。** リモート → Android の `setPrimaryClip` でも `OnPrimaryClipChangedListener` は発火するので、素直に繋ぐと受け取った本文をそのまま相手へ送り返し続ける。`GuiSession.syncAndroidClipboardToRemote` は**自分が直前に入れた 1 回だけ**送り返さない。
+  - **VNC (RFB)**: `ClientCutText` (type 6)。classic RFB の文字集合は Latin-1 だが、現行の TigerVNC / x11vnc は UTF-8 の本文も受け付ける。⇒ **Latin-1 に収まる本文だけ Latin-1、収まらない本文は UTF-8** で送る。一律 Latin-1 にすると日本語が `?` に潰れる。
+  - **RDP (CLIPRDR)**: GCC `CS_NET` で静的仮想チャネル `cliprdr` を要求し、MCS のチャネル routing (`RdpActivation.channelData` / `RdpMcs.sendVirtualChannel`) を敷いたうえで [MS-RDPECLIP] のテキストだけを話す (`gui/rdp/RdpCliprdr.kt`)。宣言するのは `CF_UNICODETEXT` だけで、ファイル転送や HTML 形式は宣言しない (受け取れないものを宣言すると相手が送ってくる)。16KB を超える本文は `CHANNEL_FLAG_FIRST` / `CHANNEL_FLAG_LAST` で分割して送る。
+- **GUI タブでも「接続先」と明るさを使う (0.8.475)**: 📜 の接続先タブは「GUI タブに SSH の概念は無い」として隠していたが、**GUI を見ている最中に別のホストへ繋ぎたい場面は普通にある**。GUI タブからも SSH 接続 / SFTP / サービス起動を開けるようにし、🔅 のダブルタップも端末タブと同じ明るさ帯を出す。`showSshTab` の意味は「呼び出し元が接続先機能を提供できない特殊画面だけが false にする」へ変えた。
 
 ### 4.13 Android API ブリッジ (`Z2ApiBridge` / `Z2ApiScript`)
 

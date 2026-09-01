@@ -322,6 +322,10 @@ rather than a bare "could not connect".
 ⚠ **RDP is still being built.** Connecting (through authentication) works, but **against Windows the
 screen does not appear yet** — that is under investigation. Mouse and keyboard are not sent either.
 
+**Copied text travels both ways** (0.8.475). While you are looking at a VNC or RDP screen, text you copy on the phone reaches the far side, and text copied there arrives on the phone. Japanese text survives the trip.
+
+**📜 → Connections works from the GUI screen too** (0.8.475). It used to be hidden, so reaching another server meant going back to a terminal tab first. Double-tapping 🔅 for the brightness bar works there as well now.
+
 - **The white arrow is the cursor you control** (0.8.427). Its position survives leaving the tab and reconnecting. **It is the only arrow on screen** (0.8.431; before that the pointer drawn by the server sat next to it and you saw **two**).
 - The default is **relative mode**: the cursor moves by the distance your finger moves. Press **🖱 in the GUI toolbar** to switch to **absolute mode**, where the cursor jumps to the place you touch (0.8.431; 🖱 lights up in absolute mode, and a green ring appears at the arrow root). ⚠ Through 0.8.430 this lived on a **double-tap of 📜**, which is visible nowhere on screen and has nothing to do with a command list, so it is now **a button of its own, shown only on GUI tabs** (never on terminal tabs; hide it under ⚙ Settings › Display › Toolbar).
 - **A single tap is a left click** and **a double tap is a double click**, as before.

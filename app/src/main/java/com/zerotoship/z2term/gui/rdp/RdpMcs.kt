@@ -15,6 +15,7 @@ internal object RdpMcs {
 
     private const val CS_CORE = 0xC001
     private const val CS_SECURITY = 0xC002
+    private const val CS_NET = 0xC003
     private const val CS_CLUSTER = 0xC004
     private const val SC_CORE = 0x0C01
     private const val SC_SECURITY = 0x0C02
@@ -40,12 +41,14 @@ internal object RdpMcs {
         val ioChannelId: Int,
         val serverVersion: Int,
         val serverEarlyCapabilityFlags: Int,
+        val staticChannels: Map<String, Int> = emptyMap(),
     )
 
     private data class ServerSettings(
         val ioChannelId: Int,
         val version: Int,
         val earlyCapabilityFlags: Int,
+        val channelIds: List<Int>,
     )
 
     fun connect(
@@ -65,6 +68,7 @@ internal object RdpMcs {
         if (server.earlyCapabilityFlags and SERVER_SUPPORT_SKIP_CHANNEL_JOIN == 0) {
             joinChannel(input, output, userChannelId, userChannelId)
             joinChannel(input, output, userChannelId, server.ioChannelId)
+            server.channelIds.forEach { joinChannel(input, output, userChannelId, it) }
         }
 
         return Session(
@@ -72,6 +76,9 @@ internal object RdpMcs {
             ioChannelId = server.ioChannelId,
             serverVersion = server.version,
             serverEarlyCapabilityFlags = server.earlyCapabilityFlags,
+            staticChannels = STATIC_CHANNELS.mapIndexedNotNull { index, name ->
+                server.channelIds.getOrNull(index)?.let { name to it }
+            }.toMap(),
         )
     }
 
@@ -160,7 +167,18 @@ internal object RdpMcs {
             le32(0x0000001B) // compatible methods field used by Enhanced Security clients
         }.array()
         userDataBlock(CS_SECURITY, security)
-        // No CS_NET block: z2term does not request static virtual channels at this stage.
+
+        val network = Bytes().apply {
+            le32(STATIC_CHANNELS.size)
+            for (name in STATIC_CHANNELS) {
+                val encoded = name.toByteArray(StandardCharsets.US_ASCII)
+                require(encoded.size <= 8)
+                bytes(encoded)
+                zeros(8 - encoded.size)
+                le32(CHANNEL_OPTIONS)
+            }
+        }.array()
+        userDataBlock(CS_NET, network)
     }.array()
 
     private fun parseConnectResponse(packet: ByteArray): ServerSettings {
@@ -203,6 +221,7 @@ internal object RdpMcs {
         var ioChannelId: Int? = null
         var encryptionMethod: Int? = null
         var encryptionLevel: Int? = null
+        var channelIds = emptyList<Int>()
         while (serverData.remaining > 0) {
             val type = serverData.le16()
             val length = serverData.le16()
@@ -221,7 +240,7 @@ internal object RdpMcs {
                 SC_NET -> {
                     ioChannelId = block.le16()
                     val channelCount = block.le16()
-                    repeat(channelCount) { block.le16() }
+                    channelIds = List(channelCount) { block.le16() }
                     if (channelCount % 2 == 1 && block.remaining >= 2) block.le16()
                 }
             }
@@ -237,6 +256,7 @@ internal object RdpMcs {
             ioChannelId = ioChannelId ?: throw IOException("GCC response has no I/O channel"),
             version = version ?: throw IOException("GCC response has no Server Core Data"),
             earlyCapabilityFlags = earlyCapabilities,
+            channelIds = channelIds,
         )
     }
 
@@ -376,6 +396,10 @@ internal object RdpMcs {
             bytes(body)
         }
     }
+
+    private val STATIC_CHANNELS = listOf("cliprdr")
+    // INITIALIZED | ENCRYPT_RDP | SHOW_PROTOCOL。圧縮は実装していないので宣言しない。
+    private val CHANNEL_OPTIONS = 0xC0200000.toInt()
 
     private class Cursor(private val data: ByteArray) {
         private var offset = 0

@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * TLS/NLA/MCS/Activationの上でclassic Bitmap Updateだけを描画するRDPクライアント。
  *
- * 接続先画面・入力・clipboard・resizeは次段階なので、この実装は現時点では内部APIである。
+ * 画面更新とCLIPRDRテキスト共有に対応する。ポインタ・キー入力とresizeはまだ送らない。
  */
 internal class RdpClient(
     private val host: String,
@@ -45,6 +45,8 @@ internal class RdpClient(
     @Volatile private var transport: RdpTlsTransport? = null
     private var session: RdpMcs.Session? = null
     private var active: RdpActivation.ActiveSession? = null
+    private var cliprdr: RdpCliprdr? = null
+    private var cliprdrChannelId: Int? = null
     private var pixels = IntArray(0)
 
     override fun connect(timeoutMs: Int) {
@@ -74,6 +76,15 @@ internal class RdpClient(
             session = connected
             active = activated
             transport = candidate
+            connected.staticChannels["cliprdr"]?.let { channelId ->
+                cliprdrChannelId = channelId
+                cliprdr = RdpCliprdr(
+                    sendMessage = { message ->
+                        candidate.sendVirtualChannel(connected, channelId, message)
+                    },
+                    onRemoteText = { text -> onRemoteClipboardText?.invoke(text) },
+                ).also { it.start() }
+            }
             // 相手が自分から描き始めるとは限らないので、こちらから 1 度だけ全画面を要求する。
             candidate.requestRefresh(connected, activated, width, height)
             Log.i(TAG, "RDP connected: ${width}x$height '$desktopName'")
@@ -89,7 +100,13 @@ internal class RdpClient(
         val activated = active ?: return
         try {
             while (!closed) {
-                val update = connected.readBitmapUpdate(mcs, activated) ?: continue
+                val incoming = connected.readChannelData()
+                if (incoming.channelId == cliprdrChannelId) {
+                    cliprdr?.acceptChannelChunk(incoming.payload)
+                    continue
+                }
+                if (incoming.channelId != mcs.ioChannelId) continue
+                val update = RdpActivation.bitmapUpdatePayload(incoming.payload, activated) ?: continue
                 val dirty = RdpBitmap.applyUpdate(update, pixels, width, height) ?: continue
                 val bitmap = frame ?: continue
                 synchronized(frameLock) {
@@ -114,9 +131,12 @@ internal class RdpClient(
         }
     }
 
-    // 今回は受信・描画だけ。未実装機能をwireへ送らない。
+    // ポインタ・キー入力は未実装。対応していないwireデータは送らない。
     override fun sendPointerEvent(buttonMask: Int, x: Int, y: Int) = Unit
     override fun sendKeyEvent(keysym: Int, down: Boolean) = Unit
+    override fun sendClipboardText(text: String) {
+        cliprdr?.announceLocalText(text)
+    }
 
     override fun close() {
         closed = true
@@ -128,6 +148,8 @@ internal class RdpClient(
         transport = null
         session = null
         active = null
+        cliprdr = null
+        cliprdrChannelId = null
         runCatching { current?.close() }
     }
 

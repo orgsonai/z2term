@@ -1104,6 +1104,13 @@ private fun GuiTabScreen(
     var settingsOpen by remember { mutableStateOf(false) }
     var snippetsSheetOpen by remember { mutableStateOf(false) }
     var clipHistoryOpen by remember { mutableStateOf(false) }
+    // GUI タブからコマンド一覧を開いたときも「接続先」を使えるよう、端末タブと同じ
+    // リモートファイル画面の対象をここで持つ。
+    var remoteFileTarget by remember { mutableStateOf<RemoteFileTarget?>(null) }
+    // 🔅 のダブルタップは端末タブと同じ明るさ調整。
+    var brightness by remember { mutableStateOf(settings.screenBrightness) }
+    var brightnessBarOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(settings.screenBrightness) { brightness = settings.screenBrightness }
     // 端末タブと同じく常駐サーバー稼働中は🔒を薄くロックし、タップで終了ダイアログを出す。
     var serversRunning by remember { mutableStateOf(ServerDaemonManager.isRunning) }
     var residentDialogOpen by remember { mutableStateOf(false) }
@@ -1193,6 +1200,24 @@ private fun GuiTabScreen(
     // 枠全体を使える。初回 (起動時サイズ) は接続先と同寸なのでクライアント側で無視される。
     // 連続するレイアウト確定を debounce で 1 回にまとめる。
     val guiState by gui.state.collectAsState()
+    LaunchedEffect(guiState) {
+        if (guiState == GuiSession.State.CONNECTED) {
+            val manager = context.getSystemService(ClipboardManager::class.java)
+            val text = manager?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
+            if (!text.isNullOrEmpty()) gui.syncAndroidClipboardToRemote(text)
+        }
+    }
+    // GUI タブが見えている間は Android で新しくコピーされたテキストをリモートの
+    // クリップボードへ同期する。リモート→Android は GuiSession 側で既に処理している。
+    DisposableEffect(gui, context) {
+        val manager = context.getSystemService(ClipboardManager::class.java)
+        val listener = ClipboardManager.OnPrimaryClipChangedListener {
+            val text = manager?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
+            if (!text.isNullOrEmpty()) gui.syncAndroidClipboardToRemote(text)
+        }
+        manager?.addPrimaryClipChangedListener(listener)
+        onDispose { manager?.removePrimaryClipChangedListener(listener) }
+    }
     LaunchedEffect(gui.id) {
         snapshotFlow {
             val px = guiAreaPx
@@ -1276,6 +1301,7 @@ private fun GuiTabScreen(
             },
             keepScreenOn = keepScreenOn,
             onToggleKeepScreenOn = { scope.launch { appSettings.setKeepScreenOn(!settings.keepScreenOn) } },
+            onOpenBrightness = { brightnessBarOpen = true },
             keepAlive = settings.keepAliveService,
             onToggleKeepAlive = { scope.launch { appSettings.setKeepAliveService(!settings.keepAliveService) } },
             residentLocked = serversRunning,
@@ -1376,6 +1402,24 @@ private fun GuiTabScreen(
                         onCtrlConsumed = { ctrlSticky = false },
                         modifier = Modifier.fillMaxSize()
                     )
+
+                    if (brightnessBarOpen) {
+                        BrightnessBar(
+                            level = brightness,
+                            onChange = { value ->
+                                brightness = value
+                                applyScreenBrightness(context, value)
+                            },
+                            onCommit = { scope.launch { appSettings.setScreenBrightness(brightness) } },
+                            onReset = {
+                                brightness = null
+                                applyScreenBrightness(context, null)
+                                scope.launch { appSettings.setScreenBrightness(null) }
+                            },
+                            onClose = { brightnessBarOpen = false },
+                            modifier = Modifier.align(Alignment.TopStart),
+                        )
+                    }
 
                     if (!keyboardOutsideGui) {
                         GuiKeyboardPanel(
@@ -1483,8 +1527,32 @@ private fun GuiTabScreen(
             onDismiss = { snippetsSheetOpen = false },
             // 端末は writeBytes だが GUI は keysym 橋渡しで送る (M8-6 T1)。
             onRun = { command -> GuiKeyMapper.sendText(gui.desktopClient, command) },
-            // GUI タブからは SSH 接続の概念が無いので SSH タブは出さない。
-            showSshTab = false,
+            onConnect = { profile ->
+                val terminal = terminalForSettings ?: SessionManager.openNew(context)
+                terminal.connectSsh(profile)
+                SessionManager.setActive(terminal.id)
+            },
+            onSftp = { profile -> remoteFileTarget = RemoteFileTarget(profile, null) },
+            onService = { profile, service ->
+                if (service.protocol.opensDesktopTab) {
+                    scope.launch {
+                        runCatching {
+                            RemoteServiceConnector.desktopTarget(profile, service, context)
+                        }.onSuccess { target ->
+                            SessionManager.openRemoteDesktop(context, target)
+                        }.onFailure { error ->
+                            android.widget.Toast.makeText(
+                                context,
+                                error.message ?: error.javaClass.simpleName,
+                                android.widget.Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                    }
+                } else {
+                    remoteFileTarget = RemoteFileTarget(profile, service)
+                }
+            },
+            showSshTab = true,
             // 常駐サーバーの管理は端末タブが 1 つでもあれば GUI からも行える。
             serverSession = terminalForSettings
         )
@@ -1497,6 +1565,13 @@ private fun GuiTabScreen(
             onSelect = { text ->
                 GuiKeyMapper.sendText(gui.desktopClient, text)
             }
+        )
+    }
+    remoteFileTarget?.let { target ->
+        SftpSheet(
+            profile = target.profile,
+            service = target.service,
+            onDismiss = { remoteFileTarget = null },
         )
     }
     // GUI 起動確認 (初回 DL / クリーンインストール)。OK で起動、やめる→タブを閉じる
@@ -1614,6 +1689,7 @@ private fun GuiTopBar(
     onOpenKeyboardSize: () -> Unit,
     keepScreenOn: Boolean,
     onToggleKeepScreenOn: () -> Unit,
+    onOpenBrightness: () -> Unit,
     keepAlive: Boolean,
     onToggleKeepAlive: () -> Unit,
     residentLocked: Boolean,
@@ -1640,6 +1716,7 @@ private fun GuiTopBar(
         onOpenKeyboardSize = onOpenKeyboardSize,
         keepScreenOn = keepScreenOn,
         onToggleKeepScreenOn = onToggleKeepScreenOn,
+        onOpenBrightness = onOpenBrightness,
         keepAlive = keepAlive,
         onToggleKeepAlive = onToggleKeepAlive,
         residentLocked = residentLocked,
@@ -1740,6 +1817,7 @@ private fun guiToolbarItems(
     onOpenKeyboardSize: () -> Unit,
     keepScreenOn: Boolean,
     onToggleKeepScreenOn: () -> Unit,
+    onOpenBrightness: () -> Unit,
     keepAlive: Boolean,
     onToggleKeepAlive: () -> Unit,
     residentLocked: Boolean,
@@ -1757,7 +1835,7 @@ private fun guiToolbarItems(
         active = pointerAbsolute,
         onClick = onTogglePointerMode
     ),
-    ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn),
+    ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn, onDoubleClick = onOpenBrightness),
     keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
     ToolbarItem(
         ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard),

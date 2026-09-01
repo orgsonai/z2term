@@ -38,6 +38,9 @@ interface RemoteDesktopClient {
     /** X11 keysym の押下・解放を送る。UI スレッドから呼んでよい。 */
     fun sendKeyEvent(keysym: Int, down: Boolean)
 
+    /** Android 側でコピーされたテキストを相手のクリップボードへ送る。非対応なら何もしない。 */
+    fun sendClipboardText(text: String) = Unit
+
     fun tapKey(keysym: Int) {
         sendKeyEvent(keysym, down = true)
         sendKeyEvent(keysym, down = false)

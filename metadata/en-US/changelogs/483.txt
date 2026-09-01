@@ -1,0 +1,4 @@
+0.8.475-alpha
+
+- Text copied on a VNC or RDP screen now travels both ways between the phone and the far side (Japanese included).
+- 📜 → Connections now works from the GUI screen, and double-tapping 🔅 adjusts brightness there too.

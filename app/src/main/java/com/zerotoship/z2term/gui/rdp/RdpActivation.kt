@@ -158,10 +158,18 @@ internal object RdpActivation {
         session: RdpMcs.Session,
         active: ActiveSession,
     ): ByteArray? {
-        val payload = mcsData(packet, session.ioChannelId) ?: run {
+        val channel = channelData(packet)
+        val payload = channel.payload.takeIf { channel.channelId == session.ioChannelId } ?: run {
             Log.i(TAG, "RDP rx: other channel (${packet.size} bytes)")
             return null
         }
+        return bitmapUpdatePayload(payload, active)
+    }
+
+    internal fun bitmapUpdatePayload(
+        payload: ByteArray,
+        active: ActiveSession,
+    ): ByteArray? {
         val data = readShareData(payload, active.shareId) ?: run {
             Log.i(TAG, "RDP rx: not share data (${payload.size} bytes) ${head(payload)}")
             return null
@@ -189,6 +197,25 @@ internal object RdpActivation {
             }
         }
     }
+
+    internal data class ChannelData(val channelId: Int, val payload: ByteArray)
+
+    internal fun channelData(packet: ByteArray): ChannelData {
+        val c = Cursor(x224(packet))
+        if (c.u8() ushr 2 != 26) throw IOException("expected MCS Send Data Indication")
+        c.be16()
+        val channel = c.be16()
+        c.u8()
+        val payload = c.bytes(c.perLength())
+        c.end()
+        return ChannelData(channel, payload)
+    }
+
+    internal fun virtualChannelPacket(
+        session: RdpMcs.Session,
+        channelId: Int,
+        payload: ByteArray,
+    ): ByteArray = sendData(session.userChannelId, channelId, payload)
 
     /**
      * 画面全体を送り直すよう頼む (Refresh Rect PDU)。

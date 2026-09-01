@@ -107,6 +107,7 @@ class GuiSession(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pty: PtyProcess? = null
     private var rxJob: Job? = null
+    @Volatile private var clipboardEchoToIgnore: String? = null
 
     /**
      * z2gui (proot) の PTY が閉じた = z2gui が終了した (パッケージ導入失敗で exit 等)。
@@ -307,12 +308,28 @@ class GuiSession(
     /** ServerCutText を Android クリップボードへ。RFB 受信スレッドから呼ばれるのでメインに渡す。 */
     private fun copyToAndroidClipboard(text: String) {
         if (text.isEmpty()) return
+        clipboardEchoToIgnore = text
         Handler(Looper.getMainLooper()).post {
             runCatching {
                 val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 cm.setPrimaryClip(ClipData.newPlainText("z2term GUI", text))
             }
         }
+    }
+
+    /**
+     * GUI タブが前面の間に Android でコピーされた本文を VNC/RDP へ送る。
+     * リモート→Android の setPrimaryClip でも listener が発火するため、その 1 回だけは
+     * 元の相手へ送り返さずエコーループを止める。
+     */
+    fun syncAndroidClipboardToRemote(text: String) {
+        if (text.isEmpty() || _state.value != State.CONNECTED) return
+        if (clipboardEchoToIgnore == text) {
+            clipboardEchoToIgnore = null
+            return
+        }
+        clipboardEchoToIgnore = null
+        desktopClient.sendClipboardText(text)
     }
 
     private fun drainPty(p: PtyProcess) {
