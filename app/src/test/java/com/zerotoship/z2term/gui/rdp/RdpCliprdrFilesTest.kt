@@ -347,6 +347,68 @@ class RdpCliprdrFilesTest {
         assertEquals(clipDataId, le32(unlock, 8))
     }
 
+    /**
+     * ⭐ **末尾は要求より短く返すのが EOF の伝え方。** 相手は最後まで同じ大きさで要求してくるので、
+     * 残りが足りないことを理由に FAIL を返すと、最後の端数だけ落ちて転送全体が失敗する。
+     */
+    @Test
+    fun theLastPartialChunkIsServedInsteadOfRefused() {
+        val size = 100
+        val clip = cliprdr()
+        clip.start()
+        clip.announceLocalFiles(object : ClipboardFiles.Source {
+            override val entries = listOf(ClipboardFiles.Entry("tail.bin", size.toLong()))
+            override fun read(index: Int, position: Long, length: Int) = ByteArray(length)
+        })
+        sent.clear()
+
+        // 残り 40 バイトしか無いところへ、相手はいつもどおり 256 バイトを要求してくる。
+        clip.acceptChannelChunk(chunk(fileContentsRequest(streamId = 7, position = 60, requested = 256)))
+
+        val response = sent.single()
+        assertEquals(0x0009, le16(response, 0))
+        assertEquals(0x0001, le16(response, 2)) // CB_RESPONSE_OK — FAIL ではない
+        assertEquals(40 + 4, le32(response, 4)) // streamId + 残り 40 バイト
+    }
+
+    /** ⚠ 位置がファイルの外なら、そこで初めて断る。 */
+    @Test
+    fun aRequestPastTheEndOfTheFileIsRefused() {
+        val clip = cliprdr()
+        clip.start()
+        clip.announceLocalFiles(object : ClipboardFiles.Source {
+            override val entries = listOf(ClipboardFiles.Entry("tail.bin", 100))
+            override fun read(index: Int, position: Long, length: Int) = ByteArray(length)
+        })
+        sent.clear()
+
+        clip.acceptChannelChunk(chunk(fileContentsRequest(streamId = 7, position = 101, requested = 8)))
+
+        assertEquals(0x0002, le16(sent.single(), 2)) // CB_RESPONSE_FAIL
+    }
+
+    /**
+     * ⚠ **1 回のチャネル書き込みに PDU が 2 つ入っていることがある。**
+     * 先頭だけ見て残りを捨てると、応答を取りこぼしたうえ通ごと落とす。
+     */
+    @Test
+    fun twoMessagesInOneChunkAreBothHandled() {
+        val clip = cliprdr()
+        clip.start()
+        sent.clear()
+
+        clip.acceptChannelChunk(
+            chunk(
+                formatList(0xC104 to "FileGroupDescriptorW") +
+                    message(0x0005, 0x0001, descriptors(descriptor("note.txt", 6))),
+            ),
+        )
+
+        // 1 つ目で Format List Response と Format Data Request、2 つ目で一覧が出る。
+        assertEquals(listOf(listOf(ClipboardFiles.Entry("note.txt", 6))), offered)
+        assertEquals(0x0003, le16(sent.first(), 0)) // CB_FORMAT_LIST_RESPONSE
+    }
+
     /** Clipboard の破損 1 通でデスクトップ接続まで落とさない。 */
     @Test
     fun anInvalidClipboardChunkOnlyResetsClipboard() {
@@ -381,6 +443,20 @@ class RdpCliprdrFilesTest {
         }.toByteArray()
         return message(0x0002, 0, body)
     }
+
+    /** 相手からの CLIPRDR_FILECONTENTS_REQUEST (RANGE)。 */
+    private fun fileContentsRequest(streamId: Int, position: Long, requested: Int): ByteArray = message(
+        0x0008,
+        0,
+        ByteArrayOutputStream().apply {
+            write(le32Bytes(streamId))
+            write(le32Bytes(0)) // lindex
+            write(le32Bytes(0x02)) // RANGE
+            write(le32Bytes(position.toInt()))
+            write(le32Bytes((position ushr 32).toInt()))
+            write(le32Bytes(requested))
+        }.toByteArray(),
+    )
 
     /** 相手の Clipboard Capabilities PDU。ロックを名乗るかどうかだけを変える。 */
     private fun peerCaps(canLock: Boolean): ByteArray = message(

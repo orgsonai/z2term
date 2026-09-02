@@ -126,29 +126,54 @@ internal class RdpCliprdr(
         localFiles = null
     }
 
+    /**
+     * 組み立てた 1 通を CLIPRDR の PDU として読む。
+     *
+     * ⚠⚠ **1 通に PDU が 2 つ以上入っていることがある** (0.8.486)。相手は複数の PDU を
+     * まとめて 1 回のチャネル書き込みで送ってよい。先頭 1 つだけを見て「宣言された長さと
+     * 全体の長さが違う」と判断すると、**正しい応答を取りこぼしたうえ通ごと捨てる**ことになる。
+     * ⇒ **端から順に切り出す。**
+     */
     private fun handle(message: ByteArray) {
-        if (message.size < CLIP_HEADER_SIZE) throw IOException("truncated CLIPRDR message")
-        val type = le16(message, 0)
-        val flags = le16(message, 2)
-        val length = le32(message, 4)
-        if (length < 0 || length != message.size - CLIP_HEADER_SIZE) {
-            throw IOException("invalid CLIPRDR message length")
-        }
-        val body = message.copyOfRange(CLIP_HEADER_SIZE, message.size)
-        when (type) {
-            CB_MONITOR_READY -> {
-                serverReady = true
-                send(capabilities())
-                send(formatList())
+        var offset = 0
+        while (offset < message.size) {
+            if (message.size - offset < CLIP_HEADER_SIZE) {
+                Log.w(TAG, "CLIPRDR: trailing ${message.size - offset} byte(s): ${hex(message, offset)}")
+                throw IOException("truncated CLIPRDR message")
             }
-            CB_CLIP_CAPS -> peerCapabilitiesArrived(body)
-            CB_FORMAT_LIST -> formatListArrived(body)
-            CB_FORMAT_DATA_REQUEST -> formatDataRequested(body)
-            CB_FORMAT_DATA_RESPONSE -> formatDataArrived(flags, body)
-            CB_FILECONTENTS_REQUEST -> fileContentsRequested(body)
-            CB_FILECONTENTS_RESPONSE -> fileContentsArrived(flags, body)
+            val type = le16(message, offset)
+            val flags = le16(message, offset + 2)
+            val length = le32(message, offset + 4)
+            if (length < 0 || offset + CLIP_HEADER_SIZE + length > message.size) {
+                Log.w(
+                    TAG,
+                    "CLIPRDR: bad length $length at $offset of ${message.size}: ${hex(message, offset)}",
+                )
+                throw IOException("invalid CLIPRDR message length")
+            }
+            val body = message.copyOfRange(offset + CLIP_HEADER_SIZE, offset + CLIP_HEADER_SIZE + length)
+            offset += CLIP_HEADER_SIZE + length
+            when (type) {
+                CB_MONITOR_READY -> {
+                    serverReady = true
+                    send(capabilities())
+                    send(formatList())
+                }
+                CB_CLIP_CAPS -> peerCapabilitiesArrived(body)
+                CB_FORMAT_LIST -> formatListArrived(body)
+                CB_FORMAT_DATA_REQUEST -> formatDataRequested(body)
+                CB_FORMAT_DATA_RESPONSE -> formatDataArrived(flags, body)
+                CB_FILECONTENTS_REQUEST -> fileContentsRequested(body)
+                CB_FILECONTENTS_RESPONSE -> fileContentsArrived(flags, body)
+            }
         }
     }
+
+    /** 壊れた通を切り分けるための先頭 32 バイト。 */
+    private fun hex(data: ByteArray, offset: Int): String =
+        data.copyOfRange(offset, minOf(offset + 32, data.size)).joinToString(" ") {
+            "%02x".format(it)
+        }
 
     /**
      * 相手の General Capability Set を読む。⭐ 見るのは **`CB_CAN_LOCK_CLIPDATA` だけ** —
@@ -410,14 +435,17 @@ internal class RdpCliprdr(
             "CLIPRDR: the peer wants index=$index position=$position bytes=$requested " +
                 "flags=$requestFlags",
         )
-        if (position < 0 || position > entry.size || requested.toLong() > entry.size - position) {
-            Log.w(TAG, "CLIPRDR: refused out-of-range file request index=$index position=$position bytes=$requested")
+        if (position < 0 || position > entry.size) {
+            Log.w(TAG, "CLIPRDR: refused out-of-range file request index=$index position=$position")
             send(message(CB_FILECONTENTS_RESPONSE, CB_RESPONSE_FAIL, le32Bytes(streamId)))
             return
         }
-        // ⛔ requested を受信側の 64 KiB chunk に丸めない。Windows は通常これより大きい範囲を
-        // 1 回で要求し、短い成功応答を EOF と扱うため、途中でファイルが切れて貼り付けに失敗する。
-        val data = runCatching { source.read(index, position, requested) }.getOrNull()
+        // ⛔ requested を**こちらの都合で刻まない**。相手は 64 KiB より大きい範囲を 1 回で要求し、
+        //    要求より短い成功応答を EOF と扱うので、途中で刻むとそこでファイルが切れる。
+        // ⭐ ただし**末尾は別**: 残りが要求より少なければ、短い応答を返すのが EOF の伝え方である
+        //    (0.8.486。ここで FAIL を返していたため、最後の端数だけ落ちて転送が失敗していた)。
+        val want = minOf(requested.toLong(), entry.size - position).toInt()
+        val data = runCatching { source.read(index, position, want) }.getOrNull()
         if (data == null) {
             send(message(CB_FILECONTENTS_RESPONSE, CB_RESPONSE_FAIL, le32Bytes(streamId)))
             return
