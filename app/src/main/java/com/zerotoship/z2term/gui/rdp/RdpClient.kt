@@ -53,6 +53,9 @@ internal class RdpClient(
     private var dynamicChannel: RdpDynamicChannel? = null
     private var drdynvcChannelId: Int? = null
     @Volatile private var displayControl: RdpDisplayControl? = null
+    private var sound: RdpSound? = null
+    private var rdpsndChannelId: Int? = null
+    private val audio = RdpAudioSink()
     private var pixels = IntArray(0)
     private val rdpInput = RdpInput()
     /** UI thread で network I/O をせず、入力と clipboard の送信順を保つ。 */
@@ -101,6 +104,16 @@ internal class RdpClient(
                     onRemoteText = { text -> onRemoteClipboardText?.invoke(text) },
                 ).also { it.start() }
             }
+            connected.staticChannels[RdpSound.CHANNEL_NAME]?.let { channelId ->
+                rdpsndChannelId = channelId
+                sound = RdpSound(
+                    sendMessage = { message ->
+                        candidate.sendVirtualChannel(connected, channelId, message)
+                    },
+                    onFormat = { sampleRate, channels, _ -> audio.open(sampleRate, channels) },
+                    onSamples = { samples -> audio.write(samples) },
+                )
+            }
             connected.staticChannels["drdynvc"]?.let { channelId ->
                 lateinit var dynamic: RdpDynamicChannel
                 val graphics = RdpGfx(
@@ -142,6 +155,12 @@ internal class RdpClient(
                 }
                 if (incoming.channelId == drdynvcChannelId) {
                     dynamicChannel?.acceptStaticChunk(incoming.payload)
+                    continue
+                }
+                if (incoming.channelId == rdpsndChannelId) {
+                    // ⚠ ここで音を鳴らしきらない。[RdpAudioSink] が別スレッドへ渡す
+                    //    (AudioTrack を待つと画面と入力まで止まる)。
+                    sound?.acceptChannelChunk(incoming.payload)
                     continue
                 }
                 if (incoming.channelId != mcs.ioChannelId) continue
@@ -219,6 +238,7 @@ internal class RdpClient(
     override fun close() {
         closed = true
         runCatching { sender.shutdownNow() }
+        audio.close()
         closeTransport()
     }
 

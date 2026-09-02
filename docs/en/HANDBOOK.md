@@ -326,6 +326,10 @@ while it is rebuilt. VNC deliberately does not do this: there you are looking at
 is already running**, and resizing it would change someone else's environment. An RDP connection
 creates its own session every time, so nothing is left behind on the peer.
 
+**The peer's audio plays on the phone** (0.8.481), with nothing to configure. ⚠ It stays silent if the
+host is set up not to redirect audio. Sound drops out when the link is congested, but **the screen and
+your input never stall for it** — audio is never waited on.
+
 **Copied text travels both ways** (0.8.475). While you are looking at a VNC or RDP screen, text you copy on the phone reaches the far side, and text copied there arrives on the phone. Japanese text survives the trip.
 
 **📜 → Connections works from the GUI screen too** (0.8.475). It used to be hidden, so reaching another server meant going back to a terminal tab first. Double-tapping 🔅 for the brightness bar works there as well now.

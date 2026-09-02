@@ -420,6 +420,9 @@ internal object RdpMcs {
         // FreeRDP / mstsc と同じ INITIALIZED | ENCRYPT_RDP | COMPRESS_RDP。
         // ⛔ **SHOW_PROTOCOL を入れない** — drdynvc は Channel PDU Header を見せない channel。
         "drdynvc" to 0xC0800000.toInt(),
+        // INITIALIZED | ENCRYPT_RDP。⛔ **SHOW_PROTOCOL を入れない** (FreeRDP / mstsc と同じ)。
+        // 音は途切れても構わないが、⚠ 宣言と送信フラグが食い違うと相手が黙る (→ drdynvc の教訓)。
+        "rdpsnd" to 0xC0000000.toInt(),
     )
 
     private class Cursor(private val data: ByteArray) {

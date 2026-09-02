@@ -13,8 +13,7 @@ internal class RdpCliprdr(
 ) {
     private var serverReady = false
     private var localText: String? = null
-    private var fragmentLength = 0
-    private var fragments = ByteArrayOutputStream()
+    private val reassembler = RdpChannelReassembler("CLIPRDR", MAX_MESSAGE_BYTES) { handle(it) }
 
     @Synchronized
     fun start() {
@@ -31,26 +30,7 @@ internal class RdpCliprdr(
     }
 
     @Synchronized
-    fun acceptChannelChunk(payload: ByteArray) {
-        if (payload.size < CHANNEL_HEADER_SIZE) throw IOException("truncated CLIPRDR channel header")
-        val totalLength = le32(payload, 0)
-        val flags = le32(payload, 4)
-        if (totalLength !in 0..MAX_MESSAGE_BYTES) throw IOException("invalid CLIPRDR length: $totalLength")
-        if (flags and CHANNEL_FLAG_FIRST != 0) {
-            fragmentLength = totalLength
-            fragments = ByteArrayOutputStream(totalLength)
-        }
-        if (fragmentLength == 0 && totalLength != 0) throw IOException("CLIPRDR continuation without first chunk")
-        fragments.write(payload, CHANNEL_HEADER_SIZE, payload.size - CHANNEL_HEADER_SIZE)
-        if (fragments.size() > fragmentLength) throw IOException("CLIPRDR message exceeds declared length")
-        if (flags and CHANNEL_FLAG_LAST != 0) {
-            if (fragments.size() != fragmentLength) throw IOException("incomplete CLIPRDR message")
-            val message = fragments.toByteArray()
-            fragmentLength = 0
-            fragments.reset()
-            handle(message)
-        }
-    }
+    fun acceptChannelChunk(payload: ByteArray) = reassembler.accept(payload)
 
     private fun handle(message: ByteArray) {
         if (message.size < CLIP_HEADER_SIZE) throw IOException("truncated CLIPRDR message")
@@ -139,10 +119,7 @@ internal class RdpCliprdr(
     }
 
     companion object {
-        private const val CHANNEL_HEADER_SIZE = 8
         private const val CLIP_HEADER_SIZE = 8
-        private const val CHANNEL_FLAG_FIRST = 0x00000001
-        private const val CHANNEL_FLAG_LAST = 0x00000002
 
         private const val CB_MONITOR_READY = 0x0001
         private const val CB_FORMAT_LIST = 0x0002

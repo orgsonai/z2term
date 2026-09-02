@@ -53,8 +53,8 @@ android {
         applicationId = "com.zerotoship.z2term"
         minSdk = 29  // Android 10
         targetSdk = 35
-        versionCode = 488
-        versionName = "0.8.480-alpha"
+        versionCode = 489
+        versionName = "0.8.481-alpha"
 
         // ランチャー表示名 (build type で上書き可)。debug は別 applicationId で
         // release と共存できるので、名前を分けて見分けられるようにする。
