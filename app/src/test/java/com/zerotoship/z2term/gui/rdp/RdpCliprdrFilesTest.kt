@@ -28,10 +28,15 @@ class RdpCliprdrFilesTest {
         override fun finish(complete: Boolean) { finished += complete }
     }
 
+    private val offered = mutableListOf<List<ClipboardFiles.Entry>>()
+    private var receivedCount = 0
+
     private fun cliprdr(withSink: Boolean = true) = RdpCliprdr(
         sendMessage = sent::add,
         onRemoteText = { },
         fileSink = if (withSink) sink else null,
+        onFilesOffered = offered::add,
+        onFilesReceived = { receivedCount++ },
     )
 
     /** ⚠ 受け取れないものを宣言しない: sink が無いならファイルの対応も宣言しない。 */
@@ -67,19 +72,51 @@ class RdpCliprdrFilesTest {
         assertEquals(0xC104, le32(request, 8))
     }
 
+    /**
+     * ⛔⛔ **コピーしただけでは中身を 1 バイトも取り寄せない。** 相手のコピーは相手の中だけで
+     * 完結することも多く、そのたびに端末へ落としていたら通信も置き場も浪費する。
+     */
     @Test
-    fun descriptorsAreFetchedChunkByChunkAndWrittenToTheSink() {
+    fun copyingOnThePeerOnlyOffersTheList() {
         val clip = cliprdr()
         clip.start()
         clip.acceptChannelChunk(chunk(formatList(0xC104 to "FileGroupDescriptorW")))
         sent.clear()
 
+        clip.acceptChannelChunk(chunk(message(0x0005, 0x0001, descriptors(descriptor("note.txt", 6)))))
+
+        assertEquals(listOf(listOf(ClipboardFiles.Entry("note.txt", 6))), offered)
+        assertTrue("要求は 1 つも出さない", sent.isEmpty())
+        assertTrue("受け皿にも触らない", sink.started.isEmpty())
+    }
+
+    /** 相手がコピーし直したら、出していた一覧は取り下げる。 */
+    @Test
+    fun aNewFormatListWithdrawsTheOffer() {
+        val clip = cliprdr()
+        clip.start()
+        clip.acceptChannelChunk(chunk(formatList(0xC104 to "FileGroupDescriptorW")))
+        clip.acceptChannelChunk(chunk(message(0x0005, 0x0001, descriptors(descriptor("note.txt", 6)))))
+
+        clip.acceptChannelChunk(chunk(formatList(13 to "")))
+
+        assertEquals(emptyList<ClipboardFiles.Entry>(), offered.last())
+    }
+
+    @Test
+    fun descriptorsAreFetchedChunkByChunkAndWrittenToTheSink() {
+        val clip = cliprdr()
+        clip.start()
+        clip.acceptChannelChunk(chunk(formatList(0xC104 to "FileGroupDescriptorW")))
         clip.acceptChannelChunk(chunk(message(0x0005, 0x0001, descriptors(
             descriptor("note.txt", 6),
             descriptor("sub\\deep.bin", 2),
         ))))
+        sent.clear()
 
-        // 1 件目の取り寄せが始まる。
+        // ⭐ ここで初めて中身が流れる。
+        clip.receiveOfferedFiles()
+
         val first = sent.single()
         assertEquals(0x0008, le16(first, 0)) // CB_FILECONTENTS_REQUEST
         val streamId = le32(first, 8)
@@ -117,8 +154,10 @@ class RdpCliprdrFilesTest {
             descriptor("folder", 0, directory = true),
             descriptor("real.txt", 1),
         ))))
+        clip.receiveOfferedFiles()
 
         assertEquals(listOf("real.txt"), sink.started.map { it.name })
+        assertEquals(listOf(listOf(ClipboardFiles.Entry("real.txt", 1))), offered)
     }
 
     /** ⚠ 空の応答は「もう出せない」。足りていなければ未完了として畳む。 */
@@ -128,11 +167,13 @@ class RdpCliprdrFilesTest {
         clip.start()
         clip.acceptChannelChunk(chunk(formatList(0xC104 to "FileGroupDescriptorW")))
         clip.acceptChannelChunk(chunk(message(0x0005, 0x0001, descriptors(descriptor("big.bin", 10)))))
+        clip.receiveOfferedFiles()
         val streamId = le32(sent.last(), 8)
 
         clip.acceptChannelChunk(chunk(message(0x0009, 0x0001, le32Bytes(streamId))))
 
         assertEquals(listOf(false), sink.finished)
+        assertEquals("終わったことは伝える (帯を消すため)", 1, receivedCount)
     }
 
     @Test
@@ -141,6 +182,7 @@ class RdpCliprdrFilesTest {
         clip.start()
         clip.acceptChannelChunk(chunk(formatList(0xC104 to "FileGroupDescriptorW")))
         clip.acceptChannelChunk(chunk(message(0x0005, 0x0001, descriptors(descriptor("big.bin", 10)))))
+        clip.receiveOfferedFiles()
         val streamId = le32(sent.last(), 8)
 
         clip.acceptChannelChunk(chunk(message(0x0009, 0x0002, le32Bytes(streamId))))
@@ -157,6 +199,7 @@ class RdpCliprdrFilesTest {
         sent.clear()
 
         clip.acceptChannelChunk(chunk(message(0x0005, 0x0001, descriptors(descriptor("skip.bin", 4)))))
+        clip.receiveOfferedFiles()
 
         assertTrue("取り寄せを始めない", sent.isEmpty())
         assertTrue(sink.finished.isEmpty())

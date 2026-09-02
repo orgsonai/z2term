@@ -50,6 +50,20 @@ interface RemoteDesktopClient {
     /** Android 側でコピーされたファイルを相手へ差し出す。null で取り下げる。非対応なら何もしない。 */
     fun offerClipboardFiles(source: ClipboardFiles.Source?) = Unit
 
+    /**
+     * 相手がコピーしたファイルの一覧が変わったときの通知先 (空 = 何も無くなった)。
+     *
+     * ⛔ **この時点では中身を取り寄せていない。** コピーは相手の中だけで完結することも多いので、
+     * 取りに行くのは [receiveClipboardFiles] を呼んだときだけにする。
+     */
+    fun setClipboardFilesListener(
+        onOffered: ((List<ClipboardFiles.Entry>) -> Unit)?,
+        onReceived: (() -> Unit)? = null,
+    ) = Unit
+
+    /** [setClipboardFilesListener] で知らされた一覧の中身を取りに行く。非対応なら何もしない。 */
+    fun receiveClipboardFiles() = Unit
+
     fun tapKey(keysym: Int) {
         sendKeyEvent(keysym, down = true)
         sendKeyEvent(keysym, down = false)

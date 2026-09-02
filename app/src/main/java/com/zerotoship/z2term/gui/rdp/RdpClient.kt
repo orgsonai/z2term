@@ -60,6 +60,8 @@ internal class RdpClient(
     private val audio = RdpAudioSink()
     /** ⚠ connect() で CLIPRDR を作るときに読むので、それより前に渡されている必要がある。 */
     @Volatile private var clipboardFileSink: ClipboardFiles.Sink? = null
+    @Volatile private var clipboardFilesOffered: ((List<ClipboardFiles.Entry>) -> Unit)? = null
+    @Volatile private var clipboardFilesReceived: (() -> Unit)? = null
     private var pixels = IntArray(0)
     private val rdpInput = RdpInput()
     /** UI thread で network I/O をせず、入力と clipboard の送信順を保つ。 */
@@ -107,6 +109,8 @@ internal class RdpClient(
                     },
                     onRemoteText = { text -> onRemoteClipboardText?.invoke(text) },
                     fileSink = clipboardFileSink,
+                    onFilesOffered = { entries -> clipboardFilesOffered?.invoke(entries) },
+                    onFilesReceived = { clipboardFilesReceived?.invoke() },
                 ).also { it.start() }
             }
             connected.staticChannels[RdpSound.CHANNEL_NAME]?.let { channelId ->
@@ -227,6 +231,19 @@ internal class RdpClient(
 
     override fun setClipboardFileSink(sink: ClipboardFiles.Sink?) {
         clipboardFileSink = sink
+    }
+
+    override fun setClipboardFilesListener(
+        onOffered: ((List<ClipboardFiles.Entry>) -> Unit)?,
+        onReceived: (() -> Unit)?,
+    ) {
+        clipboardFilesOffered = onOffered
+        clipboardFilesReceived = onReceived
+    }
+
+    override fun receiveClipboardFiles() {
+        if (closed) return
+        submitWrite { cliprdr?.receiveOfferedFiles() }
     }
 
     override fun offerClipboardFiles(source: ClipboardFiles.Source?) {

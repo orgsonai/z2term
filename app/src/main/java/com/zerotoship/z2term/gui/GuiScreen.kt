@@ -4,11 +4,15 @@ import android.graphics.RectF
 import android.os.SystemClock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,12 +35,12 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.foundation.layout.widthIn
 
 /**
  * GUI セッションのリモート画面 (M8-2 表示 + M8-3 入力)。
@@ -67,6 +71,7 @@ fun GuiScreen(
     val tick by session.desktopClient.redraw.collectAsState()
     val vrev by session.viewport.rev.collectAsState()
     val crev by session.cursor.rev.collectAsState()
+    val clipboardFiles by session.clipboardFiles.collectAsState()
 
     // 長押し右クリックの輪。押している間だけフレームごとに現在時刻を更新して弧を伸ばす
     // (0.8.431)。押していない間 (holdStart == 0) はループを回さないので、通常の描画負荷は
@@ -177,6 +182,60 @@ fun GuiScreen(
                     modifier = Modifier.widthIn(max = 360.dp),
                 )
             }
+        }
+
+        clipboardFiles?.let { offer ->
+            ClipboardFileBar(
+                offer = offer,
+                onReceive = session::receiveClipboardFiles,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+    }
+}
+
+/**
+ * 相手がコピーしたファイルの受け取り口 (0.8.483)。
+ *
+ * ⭐ **コピーしただけでは何も落ちてこない。** 相手側のコピーは相手の中で完結することも多く、
+ * そのたびに端末へ保存していたら通信も置き場も浪費する。⇒ ここに何が来ているかだけ出し、
+ * **押されたときに初めて中身を取り寄せる**。⚠ 無視すればそのまま消えるので、操作を増やさない。
+ */
+@Composable
+private fun ClipboardFileBar(
+    offer: GuiSession.ClipboardFileOffer,
+    onReceive: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val first = offer.entries.firstOrNull()?.name.orEmpty()
+    val label = when {
+        offer.entries.size > 1 -> "$first ほか${offer.entries.size - 1}件"
+        else -> first
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier
+            .padding(12.dp)
+            .background(Color(0xE6111827), RoundedCornerShape(8.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = if (offer.receiving) "📎 受け取っています…" else "📎 $label",
+            color = Color.White,
+            fontSize = 13.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 220.dp),
+        )
+        if (!offer.receiving) {
+            Text(
+                text = "受け取る",
+                color = Color(0xFF22C55E),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.clickable(onClick = onReceive),
+            )
         }
     }
 }

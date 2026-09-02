@@ -20,6 +20,17 @@ internal class RdpCliprdr(
     private val onRemoteText: (String) -> Unit,
     /** 相手が渡してきたファイルの置き場。null ならファイルの形式を宣言しない。 */
     private val fileSink: ClipboardFiles.Sink? = null,
+    /**
+     * 相手がコピーしたファイルの一覧が変わったとき (空 = 何も無くなった)。
+     *
+     * ⛔ **ここで中身を取り寄せない。** コピーは Windows の中だけで完結することも多く、
+     * そのたびに端末へ落としていたら通信も置き場も浪費する。⇒ **中身は [receiveOfferedFiles]
+     * を呼ばれたときだけ**取りに行く。⭐ RDP は元々この作法 (こちらのファイルを渡すときも、
+     * 相手は貼り付けた瞬間に初めて中身を要求してくる)。
+     */
+    private val onFilesOffered: (List<ClipboardFiles.Entry>) -> Unit = {},
+    /** 取り寄せが終わった (成功・失敗によらず)。 */
+    private val onFilesReceived: () -> Unit = {},
 ) {
     private var serverReady = false
     private var localText: String? = null
@@ -28,6 +39,8 @@ internal class RdpCliprdr(
     private var remoteFileFormatId: Int? = null
     /** 直前に投げた Format Data Request。応答がテキストかファイルかを見分けるために覚える。 */
     private var pendingFormat: Int? = null
+    /** 相手が今コピーしているファイルの一覧。⚠ **中身はまだ 1 バイトも取り寄せていない。** */
+    private var offered: List<ClipboardFiles.Entry> = emptyList()
     private var incoming: Incoming? = null
     private var nextStreamId = 1
 
@@ -69,6 +82,20 @@ internal class RdpCliprdr(
     @Synchronized
     fun acceptChannelChunk(payload: ByteArray) = reassembler.accept(payload)
 
+    /**
+     * [onFilesOffered] で知らせた一覧の**中身を取りに行く**。利用者が受け取ると決めたときだけ呼ぶ。
+     *
+     * 取り寄せ中の呼び出しは無視する (二重に走らせない)。
+     */
+    @Synchronized
+    fun receiveOfferedFiles() {
+        val sink = fileSink ?: return
+        if (offered.isEmpty() || incoming != null) return
+        Log.i(TAG, "CLIPRDR: receiving ${offered.size} file(s)")
+        incoming = Incoming(offered)
+        advanceIncoming(sink)
+    }
+
     @Synchronized
     fun close() {
         abortIncoming()
@@ -102,8 +129,12 @@ internal class RdpCliprdr(
 
     private fun formatListArrived(body: ByteArray) {
         send(message(CB_FORMAT_LIST_RESPONSE, CB_RESPONSE_OK, byteArrayOf()))
-        // 相手のコピー内容が入れ替わったので、取り寄せかけていたものは畳む。
+        // 相手のコピー内容が入れ替わった。取り寄せかけていたものを畳み、出していた一覧も取り下げる。
         abortIncoming()
+        if (offered.isNotEmpty()) {
+            offered = emptyList()
+            onFilesOffered(emptyList())
+        }
         val formats = formats(body)
         val fileFormat = formats.firstOrNull { it.second.equals(FILE_FORMAT_NAME, ignoreCase = true) }?.first
         remoteFileFormatId = fileFormat
@@ -139,7 +170,7 @@ internal class RdpCliprdr(
         pendingFormat = null
         if (flags and CB_RESPONSE_OK == 0 || body.isEmpty()) return
         if (requested != null && requested == remoteFileFormatId) {
-            startIncoming(body)
+            offerIncoming(body)
             return
         }
         val evenLength = body.size - (body.size % 2)
@@ -147,9 +178,14 @@ internal class RdpCliprdr(
         if (text.isNotEmpty()) onRemoteText(text.take(MAX_TEXT_CHARS))
     }
 
-    /** 相手の一覧が届いた。⚠ フォルダは飛ばす (中身の一覧は別に来ない)。 */
-    private fun startIncoming(body: ByteArray) {
-        val sink = fileSink ?: return
+    /**
+     * 相手の一覧が届いた。⚠ フォルダは飛ばす (中身の一覧は別に来ない)。
+     *
+     * ⛔ **ここで中身を取り寄せない。** 一覧 (名前と大きさ) は 1 件 592 バイトで軽く、
+     * 「何が来ているか」を見せるのに要る。中身は [receiveOfferedFiles] まで待つ。
+     */
+    private fun offerIncoming(body: ByteArray) {
+        if (fileSink == null) return
         if (body.size < 4) return
         val count = le32(body, 0)
         if (count <= 0 || count > MAX_FILES) return
@@ -169,9 +205,9 @@ internal class RdpCliprdr(
             if (leaf.isNotEmpty()) entries += ClipboardFiles.Entry(leaf, (sizeHigh shl 32) or sizeLow)
         }
         if (entries.isEmpty()) return
-        Log.i(TAG, "CLIPRDR: receiving ${entries.size} file(s)")
-        incoming = Incoming(entries)
-        advanceIncoming(sink)
+        Log.i(TAG, "CLIPRDR: the peer is offering ${entries.size} file(s)")
+        offered = entries
+        onFilesOffered(entries)
     }
 
     /** 次のファイルへ進む。⚠ 受信スレッドから呼ばれるので、ここで待たない。 */
@@ -185,6 +221,7 @@ internal class RdpCliprdr(
             state.index++
             if (state.index >= state.entries.size) {
                 incoming = null
+                onFilesReceived()
                 return
             }
             val entry = state.entries[state.index]
@@ -280,6 +317,7 @@ internal class RdpCliprdr(
         val state = incoming ?: return
         incoming = null
         if (state.receiving) fileSink?.finish(false)
+        onFilesReceived()
     }
 
     private fun capabilities(): ByteArray {

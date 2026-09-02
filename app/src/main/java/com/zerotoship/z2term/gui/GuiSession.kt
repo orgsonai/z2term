@@ -100,6 +100,15 @@ class GuiSession(
         putUrisOnAndroidClipboard(uris)
     }
 
+    /**
+     * 相手がコピーしたファイル。⚠ **中身はまだ取り寄せていない** ([receiveClipboardFiles] を
+     * 押されたときだけ取りに行く)。null なら何も来ていない。
+     *
+     * ⚠ [desktopClient] より**先に**宣言すること (初期化の順に依存する)。
+     */
+    private val _clipboardFiles = MutableStateFlow<ClipboardFileOffer?>(null)
+    val clipboardFiles: StateFlow<ClipboardFileOffer?> = _clipboardFiles.asStateFlow()
+
     val desktopClient: RemoteDesktopClient = (
         remote?.createClient() ?: RfbClient(host = "127.0.0.1", port = remotePort)
     ).also { client ->
@@ -107,6 +116,27 @@ class GuiSession(
         client.onRemoteClipboardText = { text -> copyToAndroidClipboard(text) }
         // ⚠ **接続する前に渡す。** 相手にファイル形式を宣言するかどうかがこれで決まる。
         client.setClipboardFileSink(clipboardFileSink)
+        client.setClipboardFilesListener(
+            onOffered = { entries ->
+                _clipboardFiles.value = entries.takeIf { it.isNotEmpty() }
+                    ?.let { ClipboardFileOffer(it, receiving = false) }
+            },
+            onReceived = { _clipboardFiles.value = null },
+        )
+    }
+
+    /** 相手が差し出しているファイルと、いま取り寄せ中かどうか。 */
+    data class ClipboardFileOffer(
+        val entries: List<ClipboardFiles.Entry>,
+        val receiving: Boolean,
+    )
+
+    /** 「受け取る」を押されたとき。ここで初めて中身が流れる。 */
+    fun receiveClipboardFiles() {
+        val current = _clipboardFiles.value ?: return
+        if (current.receiving) return
+        _clipboardFiles.value = current.copy(receiving = true)
+        desktopClient.receiveClipboardFiles()
     }
 
     /** ズーム/パンの表示変換。GuiScreen(描画) と GuiInputView(入力) で共有。タブ切替・回転でも保持。 */
