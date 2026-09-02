@@ -159,7 +159,9 @@ internal class RdpClient(
             while (!closed) {
                 val incoming = connected.readChannelData()
                 if (incoming.channelId == cliprdrChannelId) {
-                    cliprdr?.acceptChannelChunk(incoming.payload)
+                    // Clipboard は任意チャネル。壊れた／未対応の clipboard PDU 1 通のために
+                    // 画面・入力・音を含む RDP セッション全体を切断してはいけない。
+                    cliprdr?.acceptChannelChunkSafely(incoming.payload)
                     continue
                 }
                 if (incoming.channelId == drdynvcChannelId) {
@@ -250,6 +252,8 @@ internal class RdpClient(
         if (closed) return
         submitWrite { cliprdr?.announceLocalFiles(source) }
     }
+
+    override val supportsClipboardFiles: Boolean = true
 
     /**
      * ⭐ **RDP のデスクトップはこちらのもの。** 接続のたびに新しいセッションを作らせるので、

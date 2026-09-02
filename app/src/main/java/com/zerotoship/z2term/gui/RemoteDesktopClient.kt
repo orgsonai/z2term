@@ -50,6 +50,9 @@ interface RemoteDesktopClient {
     /** Android 側でコピーされたファイルを相手へ差し出す。null で取り下げる。非対応なら何もしない。 */
     fun offerClipboardFiles(source: ClipboardFiles.Source?) = Unit
 
+    /** ファイル clipboard を実装するクライアントだけ、GUI に選択ボタンを出す。 */
+    val supportsClipboardFiles: Boolean get() = false
+
     /**
      * 相手がコピーしたファイルの一覧が変わったときの通知先 (空 = 何も無くなった)。
      *

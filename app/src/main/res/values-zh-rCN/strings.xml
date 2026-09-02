@@ -774,6 +774,8 @@
     <string name="tb_settings">设置</string>
     <string name="tb_log">记录终端日志</string>
     <string name="tb_pointer_mode">光标 相对 / 绝对</string>
+    <string name="tb_clipboard_file">向远程桌面发送文件</string>
+    <string name="clipboard_file_unavailable">无法读取此文件，请选择其他文件。</string>
     <string name="settings_landscape_rail_desc">横屏时工具栏与标签会竖排成两列。可选择放在哪一侧。</string>
     <string name="settings_landscape_rail_left">左</string>
     <string name="settings_landscape_rail_right">右</string>

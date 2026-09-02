@@ -83,6 +83,23 @@ internal class RdpCliprdr(
     fun acceptChannelChunk(payload: ByteArray) = reassembler.accept(payload)
 
     /**
+     * CLIPRDR は画面・入力とは独立した任意チャネル。相手の clipboard PDU が壊れていても
+     * **RDP セッション全体を切らない**。分割途中を捨て、進行中のファイルだけ失敗として畳む。
+     *
+     * @return true if the chunk was accepted; false if only CLIPRDR was reset.
+     */
+    @Synchronized
+    fun acceptChannelChunkSafely(payload: ByteArray): Boolean = try {
+        reassembler.accept(payload)
+        true
+    } catch (e: Exception) {
+        Log.w(TAG, "CLIPRDR: discarded an invalid channel message; desktop stays connected", e)
+        reassembler.reset()
+        abortIncoming()
+        false
+    }
+
+    /**
      * [onFilesOffered] で知らせた一覧の**中身を取りに行く**。利用者が受け取ると決めたときだけ呼ぶ。
      *
      * 取り寄せ中の呼び出しは無視する (二重に走らせない)。
@@ -284,7 +301,10 @@ internal class RdpCliprdr(
     }
 
     private fun fileContentsRequested(body: ByteArray) {
-        if (body.size < 24) return
+        if (body.size < FILECONTENTS_REQUEST_BYTES) {
+            Log.w(TAG, "CLIPRDR: ignored truncated file request (${body.size} bytes)")
+            return
+        }
         val streamId = le32(body, 0)
         val index = le32(body, 4)
         val requestFlags = le32(body, 8)
@@ -297,15 +317,26 @@ internal class RdpCliprdr(
             send(message(CB_FILECONTENTS_RESPONSE, CB_RESPONSE_FAIL, le32Bytes(streamId)))
             return
         }
-        if (requestFlags and FILECONTENTS_SIZE != 0) {
+        if (requestFlags == FILECONTENTS_SIZE) {
             val reply = le32Bytes(streamId) + le32Bytes(entry.size.toInt()) +
                 le32Bytes((entry.size ushr 32).toInt())
             send(message(CB_FILECONTENTS_RESPONSE, CB_RESPONSE_OK, reply))
             return
         }
+        if (requestFlags != FILECONTENTS_RANGE || requested < 0 || requested > MAX_OUTGOING_CHUNK_BYTES) {
+            Log.w(TAG, "CLIPRDR: refused invalid file request flags=$requestFlags bytes=$requested")
+            send(message(CB_FILECONTENTS_RESPONSE, CB_RESPONSE_FAIL, le32Bytes(streamId)))
+            return
+        }
         val position = (positionHigh shl 32) or positionLow
-        val want = requested.coerceIn(0, CHUNK_BYTES)
-        val data = runCatching { source.read(index, position, want) }.getOrNull()
+        if (position < 0 || position > entry.size || requested.toLong() > entry.size - position) {
+            Log.w(TAG, "CLIPRDR: refused out-of-range file request index=$index position=$position bytes=$requested")
+            send(message(CB_FILECONTENTS_RESPONSE, CB_RESPONSE_FAIL, le32Bytes(streamId)))
+            return
+        }
+        // ⛔ requested を受信側の 64 KiB chunk に丸めない。Windows は通常これより大きい範囲を
+        // 1 回で要求し、短い成功応答を EOF と扱うため、途中でファイルが切れて貼り付けに失敗する。
+        val data = runCatching { source.read(index, position, requested) }.getOrNull()
         if (data == null) {
             send(message(CB_FILECONTENTS_RESPONSE, CB_RESPONSE_FAIL, le32Bytes(streamId)))
             return
@@ -453,6 +484,7 @@ internal class RdpCliprdr(
 
         private const val FILECONTENTS_SIZE = 0x0001
         private const val FILECONTENTS_RANGE = 0x0002
+        private const val FILECONTENTS_REQUEST_BYTES = 24
 
         private const val FILEDESCRIPTOR_SIZE = 592
         private const val FILENAME_BYTES = 520
@@ -469,6 +501,8 @@ internal class RdpCliprdr(
         private const val MAX_FILES = 512
         /** 1 回に取り寄せる大きさ。⚠ CLIPRDR の 1 通の上限より十分小さくしておく。 */
         private const val CHUNK_BYTES = 64 * 1024
+        /** Windows からの要求は 64 KiB を超える。要求より短い成功応答を返さないための安全上限。 */
+        private const val MAX_OUTGOING_CHUNK_BYTES = 4 * 1024 * 1024
 
         private fun le16(data: ByteArray, offset: Int): Int =
             (data[offset].toInt() and 0xFF) or ((data[offset + 1].toInt() and 0xFF) shl 8)

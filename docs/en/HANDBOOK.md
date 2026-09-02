@@ -332,8 +332,13 @@ your input never stall for it** — audio is never waited on.
 
 **Files travel by copy and paste too** (0.8.482), though the two directions differ slightly.
 
-- **Phone → peer**: copy a file on the phone, then paste (Ctrl+V) on the remote screen. It arrives as
-  an ordinary file copy.
+- **Phone → peer**: press the **📎 button** in the GUI toolbar, pick your files (several at once is
+  fine), then paste (Ctrl+V) on the remote screen. They arrive as an ordinary file copy.
+  ⭐ **The 📎 button is new in 0.8.484.** It used to be "copy on the phone, then paste", but
+  **many Android file managers keep a "copy" inside their own app**, where nothing else can see it.
+  📎 always gets the files through.
+  ⚠ The button appears **on RDP screens only** (VNC shares text alone). You can hide it under
+  ⚙ Settings › Display › Toolbar.
 - **Peer → phone**: copying a file on the remote screen shows **a small "📎 name and N more
   [Receive]" strip along the bottom of the screen**. ⭐ **Nothing is transferred until you tap it**, so
   copying a file to move it around on the remote machine sends nothing to the phone; ignore the strip

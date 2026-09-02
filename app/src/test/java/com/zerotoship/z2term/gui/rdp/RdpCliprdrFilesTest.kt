@@ -246,6 +246,46 @@ class RdpCliprdrFilesTest {
         assertArrayEquals("234".toByteArray(), contents.copyOfRange(12, contents.size))
     }
 
+    /** Windows の read は 64 KiB より大きい。短く丸めると Windows は EOF と見なす。 */
+    @Test
+    fun aLargeRequestedRangeIsReturnedAtTheRequestedLength() {
+        val requested = 128 * 1024
+        val clip = cliprdr()
+        clip.start()
+        clip.announceLocalFiles(object : ClipboardFiles.Source {
+            override val entries = listOf(ClipboardFiles.Entry("large.bin", requested.toLong()))
+            override fun read(index: Int, position: Long, length: Int): ByteArray =
+                ByteArray(length) { ((position + it) and 0xFF).toByte() }
+        })
+        sent.clear()
+
+        clip.acceptChannelChunk(chunk(message(0x0008, 0, ByteArrayOutputStream().apply {
+            write(le32Bytes(91))
+            write(le32Bytes(0))
+            write(le32Bytes(0x02)) // RANGE
+            write(le32Bytes(0))
+            write(le32Bytes(0))
+            write(le32Bytes(requested))
+        }.toByteArray())))
+
+        val response = sent.single()
+        assertEquals(0x0001, le16(response, 2))
+        assertEquals(requested + 4, le32(response, 4)) // streamId + requested bytes
+        assertEquals(requested + 12, response.size)
+    }
+
+    /** Clipboard の破損 1 通でデスクトップ接続まで落とさない。 */
+    @Test
+    fun anInvalidClipboardChunkOnlyResetsClipboard() {
+        val clip = cliprdr()
+
+        assertFalse(clip.acceptChannelChunkSafely(byteArrayOf(1, 2, 3)))
+
+        // reset 後の正しい通は再び処理できる。
+        assertTrue(clip.acceptChannelChunkSafely(chunk(message(0x0001, 0, byteArrayOf()))))
+        assertTrue(sent.isNotEmpty())
+    }
+
     @Test
     fun aRequestForAnUnknownFileFails() {
         val clip = cliprdr()

@@ -139,6 +139,15 @@ class GuiSession(
         desktopClient.receiveClipboardFiles()
     }
 
+    /** Android のファイル選択で選ばれた実体を Windows の clipboard へ差し出す。 */
+    fun offerClipboardUris(uris: List<Uri>): Boolean {
+        if (_state.value != State.CONNECTED) return false
+        val source = ClipboardFileTransfer.fromUris(context, uris) ?: return false
+        clipboardUrisToIgnore = emptyList()
+        desktopClient.offerClipboardFiles(source)
+        return true
+    }
+
     /** ズーム/パンの表示変換。GuiScreen(描画) と GuiInputView(入力) で共有。タブ切替・回転でも保持。 */
     val viewport = GuiViewport()
 

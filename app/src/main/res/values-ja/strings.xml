@@ -832,6 +832,8 @@
     <string name="tb_settings">設定</string>
     <string name="tb_log">端末ログを記録</string>
     <string name="tb_pointer_mode">カーソル 相対 / 絶対</string>
+    <string name="tb_clipboard_file">端末のファイルを相手へ送る</string>
+    <string name="clipboard_file_unavailable">このファイルを読み込めません。別のファイルを選んでください。</string>
     <string name="settings_landscape_rail_desc">横画面ではツールバーとタブが縦 2 列で立ちます。どちら側に出すか選べます。</string>
     <string name="settings_landscape_rail_left">左</string>
     <string name="settings_landscape_rail_right">右</string>

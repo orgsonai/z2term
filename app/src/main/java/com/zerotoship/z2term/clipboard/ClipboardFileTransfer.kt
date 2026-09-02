@@ -130,7 +130,16 @@ object ClipboardFileTransfer {
      */
     fun fromClip(context: Context, clip: ClipData?): ClipboardFiles.Source? {
         val uris = (0 until (clip?.itemCount ?: 0)).mapNotNull { clip?.getItemAt(it)?.uri }
-            .filter { it.scheme == "content" }
+        return fromUris(context, uris)
+    }
+
+    /**
+     * ファイル選択から受け取った URI を RDP の遅延読み込み source にする。
+     * Android の「コピー」はファイル管理アプリ内部だけで完結して system clipboard に URI を
+     * 載せない実装も多いため、明示的なファイル選択経路でも同じ source を使う。
+     */
+    fun fromUris(context: Context, candidates: List<Uri>): ClipboardFiles.Source? {
+        val uris = candidates.filter { it.scheme == "content" }.distinct().take(MAX_FILES)
         if (uris.isEmpty()) return null
         val described = uris.mapNotNull { uri -> describe(context, uri)?.let { uri to it } }
         if (described.isEmpty()) return null
@@ -205,7 +214,9 @@ object ClipboardFileTransfer {
                     ?: uri.lastPathSegment
                     ?: return@use null
                 val size = sizeIndex.takeIf { it >= 0 && !cursor.isNull(it) }?.let { cursor.getLong(it) }
+                    ?: context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length }
                     ?: return@use null
+                if (size < 0) return@use null
                 ClipboardFiles.Entry(name.substringAfterLast('/'), size)
             }
         }.getOrNull()
@@ -216,4 +227,6 @@ object ClipboardFileTransfer {
         return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
             ?: "application/octet-stream"
     }
+
+    private const val MAX_FILES = 512
 }

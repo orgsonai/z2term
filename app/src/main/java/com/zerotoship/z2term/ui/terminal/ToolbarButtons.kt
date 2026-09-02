@@ -45,6 +45,7 @@ object ToolbarButtons {
     const val KEYBOARD = "keyboard"
     const val LOG = "log"
     const val POINTER_MODE = "pointer_mode"
+    const val CLIPBOARD_FILE = "clipboard_file"
     const val SETTINGS = "settings"
 
     /** 設定画面に並べる既定順 (= ツールバーの既定の並び)。 */
@@ -54,6 +55,7 @@ object ToolbarButtons {
         // 🖱 は GUI タブだけ。カーソルの相対/絶対を切り替える (0.8.431)。
         // 以前は 📜 のダブルタップに隠れていて、**画面のどこにも出ていない**ため誰も辿り着けなかった。
         ToolbarButtonSpec(POINTER_MODE, "🖱", R.string.tb_pointer_mode, guiOnly = true),
+        ToolbarButtonSpec(CLIPBOARD_FILE, "📎", R.string.tb_clipboard_file, guiOnly = true),
         ToolbarButtonSpec(SCREEN_ON, "🔅", R.string.tb_screen_on),
         ToolbarButtonSpec(KEEP_ALIVE, "🔓", R.string.tb_keep_alive),
         ToolbarButtonSpec(SEARCH, "🔍", R.string.tb_search, terminalOnly = true),

@@ -4,10 +4,14 @@ import android.app.Activity
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
 import android.content.res.Configuration
 import android.os.SystemClock
 import android.view.View
 import android.view.WindowManager
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -1075,6 +1079,22 @@ private fun GuiTabScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val gui = sessions.firstOrNull { it.id == activeId } as? GuiSession ?: return
+    val clipboardFilePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        uris.forEach { uri ->
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+        }
+        if (!gui.offerClipboardUris(uris)) {
+            Toast.makeText(context, R.string.clipboard_file_unavailable, Toast.LENGTH_LONG).show()
+        }
+    }
 
     // GUI タブには TerminalSession が無いので、設定は AppSettings を直接購読する。
     val appSettings = remember { AppSettings(context.applicationContext) }
@@ -1277,6 +1297,9 @@ private fun GuiTabScreen(
                 if (!text.isNullOrEmpty()) GuiKeyMapper.sendText(gui.desktopClient, text)
             },
             onPasteHistory = { clipHistoryOpen = true },
+            onOfferClipboardFiles = if (gui.desktopClient.supportsClipboardFiles) {
+                { clipboardFilePicker.launch(arrayOf("*/*")) }
+            } else null,
             onOpenSnippets = { snippetsSheetOpen = true },
             pointerAbsolute = pointerAbsolute,
             onTogglePointerMode = { gui.cursor.toggleMode() },
@@ -1678,6 +1701,7 @@ private fun GuiTopBar(
     keyboardMode: KeyboardMode,
     onPaste: () -> Unit,
     onPasteHistory: () -> Unit,
+    onOfferClipboardFiles: (() -> Unit)?,
     onOpenSnippets: () -> Unit,
     /** true = 絶対モード (🖱 を点灯させる)。 */
     pointerAbsolute: Boolean,
@@ -1706,6 +1730,7 @@ private fun GuiTopBar(
         keyboardMode = keyboardMode,
         onPaste = onPaste,
         onPasteHistory = onPasteHistory,
+        onOfferClipboardFiles = onOfferClipboardFiles,
         onOpenSnippets = onOpenSnippets,
         pointerAbsolute = pointerAbsolute,
         onTogglePointerMode = onTogglePointerMode,
@@ -1807,6 +1832,7 @@ private fun guiToolbarItems(
     keyboardMode: KeyboardMode,
     onPaste: () -> Unit,
     onPasteHistory: () -> Unit,
+    onOfferClipboardFiles: (() -> Unit)?,
     onOpenSnippets: () -> Unit,
     pointerAbsolute: Boolean,
     onTogglePointerMode: () -> Unit,
@@ -1820,8 +1846,16 @@ private fun guiToolbarItems(
     onToggleKeepAlive: () -> Unit,
     residentLocked: Boolean,
     onLockedKeepAliveTap: () -> Unit,
-): List<ToolbarItem> = listOf(
+): List<ToolbarItem> = listOfNotNull(
     ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
+    onOfferClipboardFiles?.let { offer ->
+        ToolbarItem(
+            ToolbarButtons.CLIPBOARD_FILE,
+            "📎",
+            stringResource(R.string.tb_clipboard_file),
+            onClick = offer,
+        )
+    },
     ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
     // 🖱 カーソルの相対/絶対切替 (0.8.431)。⭐ **GUI タブにしか出さない。**
     // 0.8.430 まではこれが 📜 のダブルタップに隠れていて、⚠ **画面のどこにも出ていないうえ
