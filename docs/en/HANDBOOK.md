@@ -330,6 +330,19 @@ creates its own session every time, so nothing is left behind on the peer.
 host is set up not to redirect audio. Sound drops out when the link is congested, but **the screen and
 your input never stall for it** — audio is never waited on.
 
+**Files travel by copy and paste too** (0.8.482), though the two directions differ slightly.
+
+- **Phone → peer**: copy a file on the phone, then paste (Ctrl+V) on the remote screen. It arrives as
+  an ordinary file copy.
+- **Peer → phone**: copying a file on the remote screen **saves it into the `z2term` folder inside
+  Downloads** — you are never asked where to put it. ⭐ It also goes onto the phone's clipboard, so
+  **apps that accept a pasted file take it directly**; apps that do not can still open it from their
+  own file picker under Downloads → z2term.
+
+⚠ Whole folders are not sent (only the files inside). ⚠ A transfer that breaks is deleted rather than
+left half-written. ⚠ Files that arrive while the app is in the background are still saved, but they do
+not reach the clipboard — Android only lets the foreground app write to it.
+
 **Copied text travels both ways** (0.8.475). While you are looking at a VNC or RDP screen, text you copy on the phone reaches the far side, and text copied there arrives on the phone. Japanese text survives the trip.
 
 **📜 → Connections works from the GUI screen too** (0.8.475). It used to be hidden, so reaching another server meant going back to a terminal tab first. Double-tapping 🔅 for the brightness bar works there as well now.

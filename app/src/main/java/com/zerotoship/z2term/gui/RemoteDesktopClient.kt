@@ -41,6 +41,15 @@ interface RemoteDesktopClient {
     /** Android 側でコピーされたテキストを相手のクリップボードへ送る。非対応なら何もしない。 */
     fun sendClipboardText(text: String) = Unit
 
+    /**
+     * 相手がコピーしたファイルの置き場を渡す。⚠ **接続する前に渡すこと** (対応を宣言するかどうかが
+     * これで決まる)。非対応のプロトコルでは何もしない。
+     */
+    fun setClipboardFileSink(sink: ClipboardFiles.Sink?) = Unit
+
+    /** Android 側でコピーされたファイルを相手へ差し出す。null で取り下げる。非対応なら何もしない。 */
+    fun offerClipboardFiles(source: ClipboardFiles.Source?) = Unit
+
     fun tapKey(keysym: Int) {
         sendKeyEvent(keysym, down = true)
         sendKeyEvent(keysym, down = false)

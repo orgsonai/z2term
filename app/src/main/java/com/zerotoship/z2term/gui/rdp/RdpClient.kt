@@ -3,6 +3,7 @@ package com.zerotoship.z2term.gui.rdp
 import android.graphics.Bitmap
 import android.util.Log
 import androidx.core.graphics.createBitmap
+import com.zerotoship.z2term.gui.ClipboardFiles
 import com.zerotoship.z2term.gui.RemoteDesktopClient
 import com.zerotoship.z2term.net.HostAddress
 import java.io.EOFException
@@ -18,7 +19,8 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * TLS/NLA/MCS/Activationの上でclassic Bitmap UpdateとRDP Graphics Pipelineを描画する。
  *
- * 画面更新、ポインター・キー入力、CLIPRDRテキスト共有に対応する。resizeはまだ送らない。
+ * 画面更新、ポインター・キー入力、CLIPRDR のテキストとファイルの共有、rdpsnd の音、
+ * Display Control による動的 resize に対応する。
  */
 internal class RdpClient(
     private val host: String,
@@ -56,6 +58,8 @@ internal class RdpClient(
     private var sound: RdpSound? = null
     private var rdpsndChannelId: Int? = null
     private val audio = RdpAudioSink()
+    /** ⚠ connect() で CLIPRDR を作るときに読むので、それより前に渡されている必要がある。 */
+    @Volatile private var clipboardFileSink: ClipboardFiles.Sink? = null
     private var pixels = IntArray(0)
     private val rdpInput = RdpInput()
     /** UI thread で network I/O をせず、入力と clipboard の送信順を保つ。 */
@@ -102,6 +106,7 @@ internal class RdpClient(
                         candidate.sendVirtualChannel(connected, channelId, message)
                     },
                     onRemoteText = { text -> onRemoteClipboardText?.invoke(text) },
+                    fileSink = clipboardFileSink,
                 ).also { it.start() }
             }
             connected.staticChannels[RdpSound.CHANNEL_NAME]?.let { channelId ->
@@ -220,6 +225,15 @@ internal class RdpClient(
         submitWrite { cliprdr?.announceLocalText(text) }
     }
 
+    override fun setClipboardFileSink(sink: ClipboardFiles.Sink?) {
+        clipboardFileSink = sink
+    }
+
+    override fun offerClipboardFiles(source: ClipboardFiles.Source?) {
+        if (closed) return
+        submitWrite { cliprdr?.announceLocalFiles(source) }
+    }
+
     /**
      * ⭐ **RDP のデスクトップはこちらのもの。** 接続のたびに新しいセッションを作らせるので、
      * 端末を回したら作り直させてよい (→ [RemoteDesktopClient.ownsDesktopSize])。
@@ -239,6 +253,8 @@ internal class RdpClient(
         closed = true
         runCatching { sender.shutdownNow() }
         audio.close()
+        // 取り寄せ途中のファイルを畳む (書きかけを残さない)。
+        runCatching { cliprdr?.close() }
         closeTransport()
     }
 

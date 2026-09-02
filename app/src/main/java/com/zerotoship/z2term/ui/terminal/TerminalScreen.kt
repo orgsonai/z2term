@@ -1203,17 +1203,15 @@ private fun GuiTabScreen(
     LaunchedEffect(guiState) {
         if (guiState == GuiSession.State.CONNECTED) {
             val manager = context.getSystemService(ClipboardManager::class.java)
-            val text = manager?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
-            if (!text.isNullOrEmpty()) gui.syncAndroidClipboardToRemote(text)
+            gui.syncAndroidClipboardToRemote(manager?.primaryClip)
         }
     }
-    // GUI タブが見えている間は Android で新しくコピーされたテキストをリモートの
-    // クリップボードへ同期する。リモート→Android は GuiSession 側で既に処理している。
+    // GUI タブが見えている間は Android で新しくコピーされたものをリモートのクリップボードへ
+    // 同期する (テキストとファイルの選り分けは GuiSession 側)。リモート→Android も同様。
     DisposableEffect(gui, context) {
         val manager = context.getSystemService(ClipboardManager::class.java)
         val listener = ClipboardManager.OnPrimaryClipChangedListener {
-            val text = manager?.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString()
-            if (!text.isNullOrEmpty()) gui.syncAndroidClipboardToRemote(text)
+            gui.syncAndroidClipboardToRemote(manager?.primaryClip)
         }
         manager?.addPrimaryClipChangedListener(listener)
         onDispose { manager?.removePrimaryClipChangedListener(listener) }

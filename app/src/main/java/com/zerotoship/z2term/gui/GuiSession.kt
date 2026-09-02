@@ -3,10 +3,12 @@ package com.zerotoship.z2term.gui
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.clipboard.ClipboardFileTransfer
 import com.zerotoship.z2term.gui.rdp.CredSspAuthenticationException
 import com.zerotoship.z2term.gui.rdp.RdpNlaUnsupportedException
 import com.zerotoship.z2term.gui.rdp.RdpTarget
@@ -88,11 +90,23 @@ class GuiSession(
     private val _message = MutableStateFlow("")
     val message: StateFlow<String> = _message.asStateFlow()
 
+    /**
+     * 相手がコピーしたファイルの置き場。「ダウンロード / z2term」へ保存し、保存できたものを
+     * Android のクリップボードにも載せる (対応するアプリならそのまま貼り付けられる)。
+     *
+     * ⚠ [desktopClient] より**先に**宣言すること (初期化の順に依存する)。
+     */
+    private val clipboardFileSink = ClipboardFileTransfer.Downloads(context) { uris ->
+        putUrisOnAndroidClipboard(uris)
+    }
+
     val desktopClient: RemoteDesktopClient = (
         remote?.createClient() ?: RfbClient(host = "127.0.0.1", port = remotePort)
     ).also { client ->
         // GUI (xterm 等) で選択/コピーしたテキストを Android クリップボードへ反映 (M8-6 T6)。
         client.onRemoteClipboardText = { text -> copyToAndroidClipboard(text) }
+        // ⚠ **接続する前に渡す。** 相手にファイル形式を宣言するかどうかがこれで決まる。
+        client.setClipboardFileSink(clipboardFileSink)
     }
 
     /** ズーム/パンの表示変換。GuiScreen(描画) と GuiInputView(入力) で共有。タブ切替・回転でも保持。 */
@@ -108,6 +122,8 @@ class GuiSession(
     private var pty: PtyProcess? = null
     private var rxJob: Job? = null
     @Volatile private var clipboardEchoToIgnore: String? = null
+    /** こちらが置いたファイルの URI。次の 1 回だけ相手へ送り返さない (エコー止め)。 */
+    @Volatile private var clipboardUrisToIgnore: List<Uri> = emptyList()
 
     /**
      * z2gui (proot) の PTY が閉じた = z2gui が終了した (パッケージ導入失敗で exit 等)。
@@ -319,12 +335,49 @@ class GuiSession(
     }
 
     /**
-     * GUI タブが前面の間に Android でコピーされた本文を VNC/RDP へ送る。
-     * リモート→Android の setPrimaryClip でも listener が発火するため、その 1 回だけは
-     * 元の相手へ送り返さずエコーループを止める。
+     * 相手から受け取って保存できたファイルを Android のクリップボードへ載せる。
+     *
+     * ⭐ これで、**対応するアプリならそのまま貼り付けられる**。対応していないアプリでも
+     * 「ダウンロード / z2term」に実体があるので、そのアプリのファイル選択から開ける。
+     * ⚠ Android 10 以降は**前面のアプリしかクリップボードに書けない**ので、画面を見ている
+     * 間だけ効く (裏に回っている間に届いた分は、保存はされるがクリップボードには載らない)。
      */
-    fun syncAndroidClipboardToRemote(text: String) {
-        if (text.isEmpty() || _state.value != State.CONNECTED) return
+    private fun putUrisOnAndroidClipboard(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        clipboardUrisToIgnore = uris
+        Handler(Looper.getMainLooper()).post {
+            runCatching {
+                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newUri(context.contentResolver, "z2term", uris.first())
+                uris.drop(1).forEach { clip.addItem(ClipData.Item(it)) }
+                cm.setPrimaryClip(clip)
+            }
+        }
+    }
+
+    /**
+     * GUI タブが前面の間に Android でコピーされたものを VNC/RDP へ送る。
+     *
+     * ⭐ **ファイルがあればファイルを優先する。** ファイルをコピーすると、その置き場を指す
+     * 文字列も一緒に入ることがあり、テキストとして送ると**中身の代わりにパスが渡る**。
+     * ⚠ リモート→Android の setPrimaryClip でも listener が発火するため、こちらが置いた
+     * 1 回だけは送り返さずエコーループを止める。
+     */
+    fun syncAndroidClipboardToRemote(clip: ClipData?) {
+        if (clip == null || _state.value != State.CONNECTED) return
+        val files = ClipboardFileTransfer.fromClip(context, clip)
+        if (files != null) {
+            val uris = (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }
+            if (uris == clipboardUrisToIgnore) {
+                clipboardUrisToIgnore = emptyList()
+                return
+            }
+            clipboardUrisToIgnore = emptyList()
+            desktopClient.offerClipboardFiles(files)
+            return
+        }
+        val text = clip.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
+        if (text.isEmpty()) return
         if (clipboardEchoToIgnore == text) {
             clipboardEchoToIgnore = null
             return
@@ -440,6 +493,7 @@ class GuiSession(
             runCatching { audioBridge?.stop() }
             audioBridge = null
             runCatching { desktopClient.close() }
+            runCatching { clipboardFileSink.close() }
             remote?.closeTransport()
             runCatching { rxJob?.cancel() }
             // Xvnc は proot の ptrace 対象。pty.close() は proot に SIGHUP を送るだけで、
