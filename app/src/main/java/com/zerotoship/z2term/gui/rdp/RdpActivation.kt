@@ -35,6 +35,32 @@ internal object RdpActivation {
     private const val SEC_INFO_PKT = 0x40
     private const val SEC_LICENSE_PKT = 0x80
 
+    // [MS-RDPBCGR] 2.2.1.11.1.1 Info Packet の flags。
+    // ⛔⛔ **ここは必ず名前で書く。** 0.8.487 まで数字を or で並べていて、その中に
+    //    `INFO_NOAUDIOPLAYBACK` (0x00080000) が紛れていた。**こちらから「音は要らない」と
+    //    宣言していた**ので、相手は rdpsnd にも AUDIO_PLAYBACK_DVC にも 1 通も流さない。
+    //    数字の羅列では、音を実装した 0.8.481 の時点でも誰も気付けなかった。
+    private const val INFO_MOUSE = 0x00000001
+    private const val INFO_DISABLECTRLALTDEL = 0x00000002
+    private const val INFO_AUTOLOGON = 0x00000008
+    private const val INFO_UNICODE = 0x00000010
+    private const val INFO_MAXIMIZESHELL = 0x00000020
+    private const val INFO_ENABLEWINDOWSKEY = 0x00000100
+    private const val INFO_FORCE_ENCRYPTED_CS_PDU = 0x00004000
+    private const val INFO_LOGONERRORS = 0x00010000
+    private const val INFO_MOUSE_HAS_WHEEL = 0x00020000
+
+    /**
+     * Client Info PDU で名乗る内容。
+     *
+     * ⭐ **音を「要らない」と言わないことが、音を受け取る唯一の条件。** リダイレクトは既定で
+     * 有効なので、`INFO_NOAUDIOPLAYBACK` を**立てない**ことがそのまま「鳴らしてくれ」になる
+     * (`INFO_REMOTECONSOLEAUDIO` も立てない — あれは相手側で鳴らさせる指定)。
+     */
+    internal const val CLIENT_INFO_FLAGS = INFO_MOUSE or INFO_DISABLECTRLALTDEL or
+        INFO_AUTOLOGON or INFO_UNICODE or INFO_MAXIMIZESHELL or INFO_ENABLEWINDOWSKEY or
+        INFO_FORCE_ENCRYPTED_CS_PDU or INFO_LOGONERRORS or INFO_MOUSE_HAS_WHEEL
+
     // [ActiveSession.firstOfKind] に渡す種類の印。下位バイトの PDU 種別とぶつからないよう、
     // 種類ごとに上位バイトを分ける。
     private const val KIND_OTHER_CHANNEL = 0x0100_0000
@@ -389,8 +415,7 @@ internal object RdpActivation {
         fun utf16(value: String) = value.toByteArray(StandardCharsets.UTF_16LE)
         val values = listOf(utf16(credentials.domain), utf16(credentials.user), utf16(credentials.password))
         require(values.all { it.size <= 510 }) { "RDP Client Info credential is too long" }
-        val flags = 0x00000001 or 0x00000002 or 0x00000008 or 0x00000010 or 0x00000020 or
-            0x00000100 or 0x00004000 or 0x00010000 or 0x00020000 or 0x00080000
+        val flags = CLIENT_INFO_FLAGS
         val info = Writer().apply {
             le32(0); le32(flags)
             values.forEach { le16(it.size) }

@@ -11,6 +11,23 @@ import org.junit.Test
 class RdpActivationTest {
     private val session = RdpMcs.Session(1004, 1003, 0x00080004, 8)
 
+    /**
+     * ⛔⛔ **音を「要らない」と言わないことが、音を受け取る唯一の条件。**
+     * `INFO_NOAUDIOPLAYBACK` が 1 ビット紛れているだけで、相手は rdpsnd にも
+     * AUDIO_PLAYBACK_DVC にも 1 通も流さない (0.8.487 の実機ログで判明)。
+     */
+    @Test
+    fun theClientNeverDeclaresThatItWantsNoAudio() {
+        val flags = RdpActivation.CLIENT_INFO_FLAGS
+
+        assertEquals("INFO_NOAUDIOPLAYBACK", 0, flags and 0x00080000)
+        assertEquals("INFO_REMOTECONSOLEAUDIO", 0, flags and 0x00002000)
+        // 名前で書き直しても、それまで名乗っていた内容は変えない。
+        assertEquals(0x00000001, flags and 0x00000001) // INFO_MOUSE
+        assertEquals(0x00000010, flags and 0x00000010) // INFO_UNICODE
+        assertEquals(0x00020000, flags and 0x00020000) // INFO_MOUSE_HAS_WHEEL
+    }
+
     @Test
     fun showProtocolFlagFollowsTheDeclaredChannelOption() {
         val channels = RdpMcs.Session(
