@@ -7,6 +7,7 @@ import java.io.DataOutputStream
 import java.io.EOFException
 import java.io.IOException
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.ConcurrentHashMap
 
 /** Client Info、licensing、Demand/Confirm Active による RDP connection sequence。 */
 internal object RdpActivation {
@@ -34,6 +35,13 @@ internal object RdpActivation {
     private const val SEC_INFO_PKT = 0x40
     private const val SEC_LICENSE_PKT = 0x80
 
+    // [ActiveSession.firstOfKind] に渡す種類の印。下位バイトの PDU 種別とぶつからないよう、
+    // 種類ごとに上位バイトを分ける。
+    private const val KIND_OTHER_CHANNEL = 0x0100_0000
+    private const val KIND_NOT_SHARE_DATA = 0x0200_0000
+    private const val KIND_UPDATE = 0x0300_0000
+    private const val KIND_DATA_PDU = 0x0400_0000
+
     data class ActiveSession(
         val shareId: Int,
         val pduSource: Int,
@@ -45,7 +53,26 @@ internal object RdpActivation {
          * ⛔ **決めるのはサーバー側**。こちらが広告する値は関係しない ([MS-RDPBCGR] 2.2.7.1.10)。
          */
         val virtualChannelChunkSize: Int = DEFAULT_VC_CHUNK_SIZE,
-    )
+    ) {
+        /**
+         * 受信ループで「初めて見た種類」だけを残すための記録 (→ [firstOfKind])。
+         *
+         * ⚠ **接続ごとに別で持つ。** 抑止を object 側に置くと、2 本目のタブや繋ぎ直しで
+         * 1 行も出なくなり、切り分けの材料が消える。⚠ data class の本体に置いた
+         * プロパティなので equals / copy には入らない (ログの状態で 2 つの
+         * ActiveSession が別物になってしまわない)。
+         */
+        private val reportedKinds = ConcurrentHashMap.newKeySet<Int>()
+
+        /**
+         * この接続で [kind] を初めて見たときだけ true。
+         *
+         * ⭐ 画面更新は毎フレーム来るので、種類ごとに 1 度だけ残す (RDPGFX の
+         * command / codec の数え方と同じ)。「何が来ているか」は残しつつ、ログが
+         * 更新のたびに流れて他が読めなくなるのを防ぐ。
+         */
+        internal fun firstOfKind(kind: Int): Boolean = reportedKinds.add(kind)
+    }
 
     /** VCChunkSize を相手が言ってこないときの既定値。mstsc / FreeRDP と同じ。 */
     const val DEFAULT_VC_CHUNK_SIZE = 1600
@@ -195,7 +222,9 @@ internal object RdpActivation {
     ): ByteArray? {
         val channel = channelData(packet)
         val payload = channel.payload.takeIf { channel.channelId == session.ioChannelId } ?: run {
-            Log.i(TAG, "RDP rx: other channel (${packet.size} bytes)")
+            if (active.firstOfKind(KIND_OTHER_CHANNEL or channel.channelId)) {
+                Log.i(TAG, "RDP rx: other channel ${channel.channelId} (${packet.size} bytes)")
+            }
             return null
         }
         return bitmapUpdatePayload(payload, active)
@@ -206,14 +235,18 @@ internal object RdpActivation {
         active: ActiveSession,
     ): ByteArray? {
         val data = readShareData(payload, active.shareId) ?: run {
-            Log.i(TAG, "RDP rx: not share data (${payload.size} bytes) ${head(payload)}")
+            if (active.firstOfKind(KIND_NOT_SHARE_DATA)) {
+                Log.i(TAG, "RDP rx: not share data (${payload.size} bytes) ${head(payload)}")
+            }
             return null
         }
         return when (data.type) {
             PDUTYPE2_UPDATE -> {
                 val body = Cursor(data.body)
                 val updateType = body.le16()
-                Log.i(TAG, "RDP rx: update type=$updateType (${data.body.size} bytes)")
+                if (active.firstOfKind(KIND_UPDATE or updateType)) {
+                    Log.i(TAG, "RDP rx: update type=$updateType (${data.body.size} bytes)")
+                }
                 if (updateType == UPDATETYPE_BITMAP) data.body else null
             }
             PDUTYPE2_SET_ERROR_INFO -> {
@@ -227,7 +260,9 @@ internal object RdpActivation {
                 null
             }
             else -> {
-                Log.i(TAG, "RDP rx: pduType2=0x%02X (${data.body.size} bytes)".format(data.type))
+                if (active.firstOfKind(KIND_DATA_PDU or data.type)) {
+                    Log.i(TAG, "RDP rx: pduType2=0x%02X (${data.body.size} bytes)".format(data.type))
+                }
                 null
             }
         }

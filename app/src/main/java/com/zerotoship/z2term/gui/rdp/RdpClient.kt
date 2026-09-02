@@ -52,6 +52,7 @@ internal class RdpClient(
     private var cliprdrChannelId: Int? = null
     private var dynamicChannel: RdpDynamicChannel? = null
     private var drdynvcChannelId: Int? = null
+    @Volatile private var displayControl: RdpDisplayControl? = null
     private var pixels = IntArray(0)
     private val rdpInput = RdpInput()
     /** UI thread で network I/O をせず、入力と clipboard の送信順を保つ。 */
@@ -108,12 +109,15 @@ internal class RdpClient(
                         publishGraphicsFrame(frameWidth, frameHeight, framePixels, dirty)
                     },
                 )
+                val display = RdpDisplayControl(send = { message -> dynamic.sendDisplayControl(message) })
                 dynamic = RdpDynamicChannel(
                     sendStatic = { message -> candidate.sendVirtualChannel(connected, channelId, message) },
                     graphics = graphics,
+                    displayControl = display,
                 )
                 drdynvcChannelId = channelId
                 dynamicChannel = dynamic
+                displayControl = display
             }
             // 相手が自分から描き始めるとは限らないので、こちらから 1 度だけ全画面を要求する。
             candidate.requestRefresh(connected, activated, width, height)
@@ -195,6 +199,21 @@ internal class RdpClient(
     override fun sendClipboardText(text: String) {
         if (closed) return
         submitWrite { cliprdr?.announceLocalText(text) }
+    }
+
+    /**
+     * ⭐ **RDP のデスクトップはこちらのもの。** 接続のたびに新しいセッションを作らせるので、
+     * 端末を回したら作り直させてよい (→ [RemoteDesktopClient.ownsDesktopSize])。
+     */
+    override val ownsDesktopSize: Boolean = true
+
+    override fun requestDesktopSize(width: Int, height: Int) {
+        if (closed || width <= 0 || height <= 0) return
+        val display = displayControl ?: return
+        // ⚠ **接続時と同じ丸め方を通す** ([RdpTarget.fitDesktopSize]: 横長・4 の倍数・640〜4096)。
+        //   ここだけ別の決め方をすると、回すたびに端の帯の出方が変わる。
+        val (fitWidth, fitHeight) = RdpTarget.fitDesktopSize(width, height)
+        submitWrite { display.requestSize(fitWidth, fitHeight) }
     }
 
     override fun close() {

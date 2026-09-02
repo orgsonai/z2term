@@ -8,18 +8,24 @@ import java.nio.charset.StandardCharsets
 /**
  * [MS-RDPEDYC] の `drdynvc` static virtual channel。
  *
- * Windows が作る Dynamic Virtual Channel のうち Graphics だけを受け入れ、それ以外には
- * STATUS_NOT_FOUND を返す。static channel の分割と DVC 自身の DATA_FIRST/DATA 分割は別階層なので、
- * それぞれ独立して復元する。
+ * Windows が作る Dynamic Virtual Channel のうち Graphics と Display Control だけを受け入れ、
+ * それ以外には STATUS_NOT_FOUND を返す。static channel の分割と DVC 自身の DATA_FIRST/DATA 分割は
+ * 別階層なので、それぞれ独立して復元する。
  */
 internal class RdpDynamicChannel(
     private val sendStatic: (ByteArray) -> Unit,
     private val graphics: RdpGfx,
+    /** 端末の枠に合わせて相手のデスクトップを作り直させる口。渡さなければそのチャネルを開かない。 */
+    private val displayControl: RdpDisplayControl? = null,
 ) {
+    /** 受け入れる DVC の種類。⚠ 名前ではなくこれで振り分ける (相手は id しか言ってこない)。 */
+    private enum class Endpoint { GRAPHICS, DISPLAY_CONTROL }
+
     private var staticLength = 0
     private var staticFragments = ByteArrayOutputStream()
     private var version = 3
-    private var graphicsChannelId: Int? = null
+    /** 開いている DVC。2 本しか受け入れないので、種類からの逆引きは線形で足りる。 */
+    private val openChannels = mutableMapOf<Int, Endpoint>()
     private val dynamicFragments = mutableMapOf<Int, Fragment>()
 
     @Synchronized
@@ -83,20 +89,27 @@ internal class RdpDynamicChannel(
         val nameBytes = cursor.bytesUntilZero()
         cursor.requireEnd()
         val name = nameBytes.toString(StandardCharsets.US_ASCII)
-        val accepted = name == GRAPHICS_CHANNEL_NAME
-        Log.i(TAG, "drdynvc: create id=$channelId name='$name' accepted=$accepted")
+        val endpoint = when (name) {
+            GRAPHICS_CHANNEL_NAME -> Endpoint.GRAPHICS
+            RdpDisplayControl.CHANNEL_NAME -> displayControl?.let { Endpoint.DISPLAY_CONTROL }
+            else -> null
+        }
+        Log.i(TAG, "drdynvc: create id=$channelId name='$name' accepted=${endpoint != null}")
         val response = Writer().apply {
             u8((CMD_CREATE shl 4) or cbChannelId)
             variableUInt(channelId, cbChannelId)
-            le32(if (accepted) 0 else STATUS_NOT_FOUND)
+            le32(if (endpoint != null) 0 else STATUS_NOT_FOUND)
         }.array()
         sendStatic(response)
-        if (accepted) {
-            graphicsChannelId = channelId
-            dynamicFragments.remove(channelId)
+        if (endpoint == null) return
+        openChannels[channelId] = endpoint
+        dynamicFragments.remove(channelId)
+        if (endpoint == Endpoint.GRAPHICS) {
             sendDynamic(channelId, graphics.capabilitiesAdvertise())
             Log.i(TAG, "drdynvc: graphics capabilities sent")
         }
+        // ⚠ Display Control へはここで何も送らない。**先に CAPS が来る**ので、Monitor Layout は
+        //   それを受け取ってから (→ [RdpDisplayControl])。
     }
 
     private fun dataFirst(cursor: Cursor, cbChannelId: Int, cbLength: Int) {
@@ -132,17 +145,22 @@ internal class RdpDynamicChannel(
     }
 
     private fun deliver(channelId: Int, body: ByteArray) {
-        if (channelId == graphicsChannelId) graphics.accept(body)
-        // Windows は未登録 DVC にも DATA を送ることがある。CREATE で拒否済みなので無視する。
+        when (openChannels[channelId]) {
+            Endpoint.GRAPHICS -> graphics.accept(body)
+            Endpoint.DISPLAY_CONTROL -> displayControl?.accept(body)
+            // Windows は未登録 DVC にも DATA を送ることがある。CREATE で拒否済みなので無視する。
+            null -> Unit
+        }
     }
 
     private fun close(cursor: Cursor, cbChannelId: Int) {
         val channelId = cursor.variableUInt(cbChannelId)
         cursor.requireEnd()
         dynamicFragments.remove(channelId)
-        if (channelId == graphicsChannelId) {
-            graphicsChannelId = null
-            graphics.reset()
+        when (openChannels.remove(channelId)) {
+            Endpoint.GRAPHICS -> graphics.reset()
+            Endpoint.DISPLAY_CONTROL -> displayControl?.reset()
+            null -> Unit
         }
         sendStatic(Writer().apply {
             u8((CMD_CLOSE shl 4) or cbChannelId)
@@ -152,8 +170,15 @@ internal class RdpDynamicChannel(
 
     /** Graphics の client-to-server PDU を DVC orderへ包む。 */
     @Synchronized
-    fun sendGraphics(message: ByteArray) {
-        graphicsChannelId?.let { sendDynamic(it, message) }
+    fun sendGraphics(message: ByteArray) = sendTo(Endpoint.GRAPHICS, message)
+
+    /** Display Control の client-to-server PDU を DVC order へ包む。開いていなければ捨てる。 */
+    @Synchronized
+    fun sendDisplayControl(message: ByteArray) = sendTo(Endpoint.DISPLAY_CONTROL, message)
+
+    private fun sendTo(endpoint: Endpoint, message: ByteArray) {
+        val channelId = openChannels.entries.firstOrNull { it.value == endpoint }?.key ?: return
+        sendDynamic(channelId, message)
     }
 
     private fun sendDynamic(channelId: Int, message: ByteArray) {

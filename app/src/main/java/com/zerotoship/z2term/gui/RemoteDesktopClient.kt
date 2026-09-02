@@ -46,6 +46,15 @@ interface RemoteDesktopClient {
         sendKeyEvent(keysym, down = false)
     }
 
+    /**
+     * 端末の枠に合わせてデスクトップの大きさを変えてよい相手か。
+     *
+     * ⚠ **決めるのはプロトコルではなく「その画面が誰のものか」。** RDP は接続のたびに
+     * こちら専用のセッションを作らせるので変えてよい。RFB で覗きに行く先は**もう立っている
+     * 実画面**なので、こちらの枠に合わせると相手の画面まで変えてしまう。
+     */
+    val ownsDesktopSize: Boolean get() = false
+
     /** 対応する相手へデスクトップサイズ変更を要求する。非対応なら何もしない。 */
     fun requestDesktopSize(width: Int, height: Int) = Unit
 

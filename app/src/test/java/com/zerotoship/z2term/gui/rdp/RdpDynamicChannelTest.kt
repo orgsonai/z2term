@@ -44,6 +44,64 @@ class RdpDynamicChannelTest {
         assertEquals(0xC0000225.toInt(), le32(sent.single(), 2))
     }
 
+    /**
+     * Display Control を渡したときだけそのチャネルを受け入れ、⚠ **こちらからは先に何も送らない**
+     * (CAPS が来てから Monitor Layout を送る)。
+     */
+    @Test
+    fun displayControlChannelIsOpenedAndDrivenByItsCaps() {
+        val sent = mutableListOf<ByteArray>()
+        lateinit var dynamic: RdpDynamicChannel
+        val display = RdpDisplayControl { message -> dynamic.sendDisplayControl(message) }
+        dynamic = RdpDynamicChannel(
+            sent::add,
+            RdpGfx({ dynamic.sendGraphics(it) }) { _, _, _, _ -> },
+            display,
+        )
+
+        val create = byteArrayOf(0x10, 9) +
+            "Microsoft::Windows::RDS::DisplayControl".toByteArray() + byteArrayOf(0)
+        dynamic.acceptStaticChunk(staticChunk(create))
+
+        assertArrayEquals(hex("10 09 00 00 00 00"), sent.removeAt(0))
+        assertTrue("CAPS の前に送るものは無い", sent.isEmpty())
+
+        display.requestSize(1920, 1080)
+        assertTrue("CAPS がまだなので保留される", sent.isEmpty())
+
+        val caps = ByteArray(20).also {
+            it[0] = 0x05 // DISPLAYCONTROL_PDU_TYPE_CAPS
+            it[4] = 20 // length
+            it[8] = 1 // MaxNumMonitors
+            it[13] = 0x20 // MaxMonitorAreaFactorA = 8192
+            it[17] = 0x20 // MaxMonitorAreaFactorB = 8192
+        }
+        dynamic.acceptStaticChunk(staticChunk(byteArrayOf(0x30, 9) + caps))
+
+        // DVC data ヘッダ (2) + Monitor Layout PDU (56)。
+        val layout = sent.single()
+        assertEquals(58, layout.size)
+        assertEquals(0x30, layout[0].toInt() and 0xFF)
+        assertEquals(9, layout[1].toInt())
+        assertEquals(0x02, le32(layout, 2)) // DISPLAYCONTROL_PDU_TYPE_MONITOR_LAYOUT
+        assertEquals(1920, le32(layout, 30))
+        assertEquals(1080, le32(layout, 34))
+    }
+
+    /** Display Control を渡していなければ、そのチャネルは開かない。 */
+    @Test
+    fun displayControlIsRejectedWhenNotWired() {
+        val sent = mutableListOf<ByteArray>()
+        lateinit var dynamic: RdpDynamicChannel
+        dynamic = RdpDynamicChannel(sent::add, RdpGfx({ dynamic.sendGraphics(it) }) { _, _, _, _ -> })
+        val create = byteArrayOf(0x10, 9) +
+            "Microsoft::Windows::RDS::DisplayControl".toByteArray() + byteArrayOf(0)
+
+        dynamic.acceptStaticChunk(staticChunk(create))
+
+        assertEquals(0xC0000225.toInt(), le32(sent.single(), 2))
+    }
+
     @Test
     fun staticChannelChunksAreReassembledBeforeParsing() {
         val sent = mutableListOf<ByteArray>()

@@ -218,9 +218,10 @@ class GuiSession(
      * その場で理由を出す ([connectWithRetry] のように粘ると「何も起きない」に見えるだけで、
      * 待って直る相手ではない)。
      *
-     * ⚠ **解像度はサーバが決める。** こちらの表示領域に合わせて [requestResize] を送ると
+     * ⚠ **VNC の解像度はサーバが決める。** こちらの表示領域に合わせて [requestResize] を送ると
      * **相手の実画面の解像度を変えてしまう**ので送らない。枠に収める仕事は GuiScreen の
-     * 中央フィットとズーム/パンが持つ。
+     * 中央フィットとズーム/パンが持つ。⭐ **RDP は逆で、こちらが決める** — 接続のたびに
+     * こちら専用のセッションを作らせるため ([RemoteDesktopClient.ownsDesktopSize])。
      */
     private fun startRemote(target: RemoteTarget) {
         _state.value = State.CONNECTING
@@ -416,13 +417,16 @@ class GuiSession(
 
     /**
      * 端末枠 (回転や分割サイズ変更) に合わせて GUI 解像度を再ネゴする (P-横画面)。
-     * 接続済みのときだけ SetDesktopSize を送る。サーバ (TigerVNC) が応答すると
-     * ExtendedDesktopSize 矩形で [RfbClient] 側が frame を作り直し、GuiScreen が新サイズで描画する。
-     * 連続呼び出しを抑えるため、現在サイズと同じなら [RfbClient] 側で無視される。
+     * 接続済みのときだけ送る。ローカル GUI (TigerVNC) は SetDesktopSize に ExtendedDesktopSize
+     * 矩形で応え、[RfbClient] 側が frame を作り直して GuiScreen が新サイズで描画する。RDP は
+     * Display Control で相手にセッションを作り直させ、RDPGFX の Reset Graphics で戻ってくる。
+     * 連続呼び出しを抑えるため、現在サイズと同じなら各クライアント側で無視される。
      */
     fun requestResize(width: Int, height: Int) {
-        // リモート (A1) は相手の実画面。こちらの枠に合わせて解像度を変えさせない。
-        if (remote != null) return
+        // ⚠ リモート (A1) の VNC は**相手の実画面**なので、こちらの枠に合わせて変えさせない。
+        //   ⭐ RDP は接続のたびにこちら専用のセッションを作らせるので変えてよい。判断はプロトコル名
+        //   ではなく [RemoteDesktopClient.ownsDesktopSize] に置く (相手ごとの性質だから)。
+        if (remote != null && !desktopClient.ownsDesktopSize) return
         if (_state.value != State.CONNECTED) return
         if (width <= 0 || height <= 0) return
         desktopClient.requestDesktopSize(width, height)

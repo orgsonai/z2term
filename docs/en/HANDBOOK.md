@@ -320,7 +320,11 @@ Authentication option for Remote Desktop. If it is off, you get a message that s
 rather than a bare "could not connect".
 
 ⚠ **RDP is still being built.** **0.8.478 puts a Windows screen on the phone** (the RDP 8 graphics
-pipeline plus RemoteFX). The mouse and keyboard work too (0.8.476). Dynamic resize is not supported yet.
+pipeline plus RemoteFX). The mouse and keyboard work too (0.8.476). **Rotating the phone or resizing
+the split rebuilds the remote desktop at that size** (0.8.480); ⚠ the screen goes blank for a moment
+while it is rebuilt. VNC deliberately does not do this: there you are looking at **a real screen that
+is already running**, and resizing it would change someone else's environment. An RDP connection
+creates its own session every time, so nothing is left behind on the peer.
 
 **Copied text travels both ways** (0.8.475). While you are looking at a VNC or RDP screen, text you copy on the phone reaches the far side, and text copied there arrives on the phone. Japanese text survives the trip.
 
