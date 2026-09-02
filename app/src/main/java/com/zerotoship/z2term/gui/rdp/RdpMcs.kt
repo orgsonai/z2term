@@ -23,6 +23,17 @@ internal object RdpMcs {
 
     private const val CLIENT_SUPPORT_SKIP_CHANNEL_JOIN = 0x0800
     private const val CLIENT_SUPPORT_DYNVC_GFX_PROTOCOL = 0x0100
+
+    /**
+     * ⛔⛔ **回線の速さを名乗らないと、相手は帯域を食う機能を切る。**
+     *
+     * `connectionType` は **このビットが立っているときしか読まれない** ([MS-RDPBCGR] 2.2.1.3.2)。
+     * 立てずに 0 を置いていたので、相手からは「不明＝遅い回線」に見え、**音声のリダイレクトが
+     * 丸ごと無効**になっていた (0.8.490。mstsc の「エクスペリエンス」でモデムを選んだのと同じ状態)。
+     * FreeRDP は `RNS_UD_CS_VALID_CONNECTION_TYPE` を立てて LAN を名乗る。
+     */
+    private const val CLIENT_VALID_CONNECTION_TYPE = 0x0020
+    private const val CONNECTION_TYPE_LAN = 0x06
     private const val CLIENT_WANT_32BPP_SESSION = 0x0002
     private const val SERVER_SUPPORT_SKIP_CHANNEL_JOIN = 0x00000008
 
@@ -155,11 +166,13 @@ internal object RdpMcs {
             // GFX を宣言しながら 32bpp を省くと Windows 11 は Basic Settings Exchange で切断する。
             le16(0x000F)
             le16(
-                0x0001 or CLIENT_WANT_32BPP_SESSION or
+                0x0001 or CLIENT_WANT_32BPP_SESSION or CLIENT_VALID_CONNECTION_TYPE or
                     CLIENT_SUPPORT_DYNVC_GFX_PROTOCOL or CLIENT_SUPPORT_SKIP_CHANNEL_JOIN,
             )
             zeros(64) // clientDigProductId
-            u8(0) // connection type not advertised
+            // ⭐ LAN を名乗る (→ [CLIENT_VALID_CONNECTION_TYPE])。⚠ **速さの申告ではなく、
+            //    相手が機能を削るかどうかの判断材料**。ここが不明だと音から先に切られる。
+            u8(CONNECTION_TYPE_LAN)
             u8(0)
             le32(PROTOCOL_HYBRID)
             le32(0) // desktopPhysicalWidth: unspecified

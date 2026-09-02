@@ -29,7 +29,11 @@ class RdpMcsTest {
         assertArrayEquals(byteArrayOf(0x58, 0x02), packet.copyOfRange(payload + 6, payload + 8))
         assertArrayEquals(byteArrayOf(24, 0), packet.copyOfRange(payload + 136, payload + 138))
         assertArrayEquals(byteArrayOf(15, 0), packet.copyOfRange(payload + 138, payload + 140))
-        assertArrayEquals(byteArrayOf(3, 9), packet.copyOfRange(payload + 140, payload + 142))
+        // earlyCapabilityFlags: ERRINFO | WANT_32BPP | VALID_CONNECTION_TYPE | DYNVC_GFX | SKIP_CHANNELJOIN
+        assertArrayEquals(byteArrayOf(0x23, 0x09), packet.copyOfRange(payload + 140, payload + 142))
+        // ⛔ connectionType は VALID_CONNECTION_TYPE が立っているときしか読まれない。
+        //    ここが不明のままだと、相手は遅い回線とみなして音声のリダイレクトごと切る。
+        assertEquals(6, packet[payload + 206].toInt()) // CONNECTION_TYPE_LAN
         assertArrayEquals(byteArrayOf(2, 0, 0, 0), packet.copyOfRange(payload + 208, payload + 212))
 
         assertTrue(packet.containsSequence(byteArrayOf(0x04, 0xC0.toByte(), 12, 0)))
