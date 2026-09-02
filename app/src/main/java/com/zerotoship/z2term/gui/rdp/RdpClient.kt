@@ -57,6 +57,9 @@ internal class RdpClient(
     @Volatile private var displayControl: RdpDisplayControl? = null
     private var sound: RdpSound? = null
     private var rdpsndChannelId: Int? = null
+    /** ⛔ 音を鳴らすためだけに開く。デバイスは 1 つも渡さない (→ [RdpDeviceRedirection])。 */
+    private var deviceRedirection: RdpDeviceRedirection? = null
+    private var rdpdrChannelId: Int? = null
     private val audio = RdpAudioSink()
     /** ⚠ connect() で CLIPRDR を作るときに読むので、それより前に渡されている必要がある。 */
     @Volatile private var clipboardFileSink: ClipboardFiles.Sink? = null
@@ -113,6 +116,16 @@ internal class RdpClient(
                     onFilesReceived = { clipboardFilesReceived?.invoke() },
                 ).also { it.start() }
             }
+            // ⭐ 音より先に開ける。相手は名乗りの往復が終わってから音を回し始める。
+            connected.staticChannels[RdpDeviceRedirection.CHANNEL_NAME]?.let { channelId ->
+                rdpdrChannelId = channelId
+                deviceRedirection = RdpDeviceRedirection(
+                    sendMessage = { message ->
+                        candidate.sendVirtualChannel(connected, channelId, message)
+                    },
+                    clientName = settings.clientName,
+                )
+            }
             connected.staticChannels[RdpSound.CHANNEL_NAME]?.let { channelId ->
                 rdpsndChannelId = channelId
                 sound = RdpSound(
@@ -166,6 +179,11 @@ internal class RdpClient(
                 }
                 if (incoming.channelId == drdynvcChannelId) {
                     dynamicChannel?.acceptStaticChunk(incoming.payload)
+                    continue
+                }
+                if (incoming.channelId == rdpdrChannelId) {
+                    // ⚠ 任意チャネル。壊れた 1 通で画面・入力・音まで落とさない。
+                    deviceRedirection?.acceptChannelChunkSafely(incoming.payload)
                     continue
                 }
                 if (incoming.channelId == rdpsndChannelId) {
