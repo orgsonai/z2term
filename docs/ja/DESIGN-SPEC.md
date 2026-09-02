@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-02 / 対象バージョン: 0.8.486-alpha (versionCode 494)
+最終更新: 2026-09-02 / 対象バージョン: 0.8.487-alpha (versionCode 495)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1857,7 +1857,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - distro 内で **Xvnc**(VNC サーバ) + 軽量 WM/アプリを起動（`proot/GuiScript.kt` が冪等で配置・起動。GUI 自動起動 / 横画面対応）。
 - **GUI 一式の導入 (`ensure_pkgs`)**: Xvnc / openbox / 選択ターミナルが揃っていれば**無通信で即起動**（導入済みを毎回 update/再取得しないポリシー）。**未導入のときだけ**不足分を `install_pkgs`（apk add / apt install / pacman -S）で取得し、取れなければ明確に案内して失敗する。app 側 (`TerminalScreen`) のダウンロード確認ゲート (`confirmBeforeDownload`) が同意を取ってから走る。`clean` 指定時のみ cache を消して入れ直す (`clean_pkgs`、破損状態の救済)。
 - `GuiSession`/`GuiActivity`/`GuiScreen`/`GuiViewport`/`GuiInputView`/`GuiKeyMapper`/`GuiEventWatcher` + `gui/RemoteDesktopClient.kt`（描画・入力の共通境界）+ `gui/rfb/RfbClient.kt`（内蔵 RFB 実装）。端末タブと GUI タブをペアリングし IME 連動。`GuiSession`・Compose 描画・入力 View・GUI キーボードは `RfbClient` 型を直接要求せず、同じ境界へ RDP 実装を差せる（0.8.450）。**接続先そのものは `gui/RemoteTarget.kt`**（`VncTarget` / `RdpTarget` が実装）で表し、`GuiSession` は `remote.createClient()` を呼ぶだけでプロトコルを知らない（0.8.459）。
-- **RDP（0.8.450〜0.8.486）**: `gui/rdp/` は X.224/TLS、CredSSP/NTLMv2、T.124 GCC・T.125 MCS、Client Info、license、Demand/Confirm Active、connection finalization、slow-path の従来型 Bitmap Update 受信、**Graphics Pipeline（RDPGFX）**までを**外部ライブラリ無し**で実装（MD4 / RC4 / NTLM も自前）。`RdpClient` は 15/16/24bpp の非圧縮・Interleaved RLE 更新を複数矩形と画面外クリップ込みで ARGB framebuffer へ展開し、dirty 領域の redraw を通知する。**0.8.459 で接続 UI を付け、SSH 接続先のサービスとして `[RDP]` から開けるようにした**（→ §6.3.1）。CLIPRDR のテキスト共有に加え、**0.8.476 で slow-path のマウス・キーボード入力**、**0.8.480 で動的 resize**（→ 下の「Display Control」）にも対応した。Fast-Path、Surface Commands、Bitmap Codecs、個別の描画 Order、32bpp RDP 6.0 圧縮は**従来型の capability では 1 つも広告しない**（`orderSupport[32]` 全ゼロ・General cap の extraFlags = 0。**実装していないものは受け取らないと宣言する**のであって、来たものを握り潰すのではない）。
+- **RDP（0.8.450〜0.8.487）**: `gui/rdp/` は X.224/TLS、CredSSP/NTLMv2、T.124 GCC・T.125 MCS、Client Info、license、Demand/Confirm Active、connection finalization、slow-path の従来型 Bitmap Update 受信、**Graphics Pipeline（RDPGFX）**までを**外部ライブラリ無し**で実装（MD4 / RC4 / NTLM も自前）。`RdpClient` は 15/16/24bpp の非圧縮・Interleaved RLE 更新を複数矩形と画面外クリップ込みで ARGB framebuffer へ展開し、dirty 領域の redraw を通知する。**0.8.459 で接続 UI を付け、SSH 接続先のサービスとして `[RDP]` から開けるようにした**（→ §6.3.1）。CLIPRDR のテキスト共有に加え、**0.8.476 で slow-path のマウス・キーボード入力**、**0.8.480 で動的 resize**（→ 下の「Display Control」）にも対応した。Fast-Path、Surface Commands、Bitmap Codecs、個別の描画 Order、32bpp RDP 6.0 圧縮は**従来型の capability では 1 つも広告しない**（`orderSupport[32]` 全ゼロ・General cap の extraFlags = 0。**実装していないものは受け取らないと宣言する**のであって、来たものを握り潰すのではない）。
   - ⚠ **受信の診断ログは「種類ごとに 1 度だけ」**（0.8.480）。接続シーケンスの切り分けには効いたが、画面が出たあとは**更新のたびに流れて他が読めなくなる**。⇒ 消さずに、`ActiveSession` が**接続ごとに**「初めて見た種類」を覚える（RDPGFX の command / codec と同じ数え方）。⚠ 抑止を `object` 側に置くと、2 本目のタブや繋ぎ直しで 1 行も出なくなる。
 - **RDPGFX（0.8.477）**: ⛔ **Windows 11 は RDPGFX を使えない相手へ従来型 Bitmap Update を送らない。** GFX を無効にした `xfreerdp3` でも同じ無音になることを実測して確かめた（接続も finalization も通り、画面 PDU だけが 1 バイトも来ない）。そこで GCC の CS_NET で **`drdynvc`** を要求し（`RdpDynamicChannel`）、DVC の capability / create を経て `Microsoft::Windows::RDS::Graphics` を開き、**RDPGFX**（`RdpGfx`）で画面を受け取る。GCC CS_CORE では 32bpp と `RNS_UD_CS_SUPPORT_DYNVC_GFX_PROTOCOL` を宣言する（⚠ **GFX を宣言しながら 32bpp を省くと主張が食い違う**）。CAPVERSION_8 の thin-client capability だけを広告し、surface の作成・削除・出力への割り付け、frame acknowledgement、solid fill、surface 間コピー、surface cache、32bpp 非圧縮、**ClearCodec**（`RdpClearCodec`）に対応する。受信データは RDP 8.0 bulk 圧縮（`Rdp8Bulk`）で包まれているので展開器も自前で持つ（送信側は FreeRDP と同じく非圧縮のまま送る）。
   - ⛔ **未対応の command / codec で例外を投げない。** RDPGFX の PDU は長さで区切られているので読み飛ばせる。投げると受信ループごと落ちて**描ける部分まで消える**。何が来たかは 1 度だけログに残し、次に書く decoder を推測ではなく実測で決める。
@@ -1869,7 +1869,9 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - ⚠ **CAPS を受け取るまで Monitor Layout を送らない**（[MS-RDPEDISP] 1.3.1 の順番）。何面まで・どれだけの面積まで許すかを知らないうちに投げても受け付けられる保証がない。⇒ **caps 前の要求は最後の 1 つだけ保留**し、caps が来た時点で送る（回転が続いても落ち着いた大きさだけを要求する）。
   - 要求する大きさは接続時と**同じ** `RdpTarget.fitDesktopSize`（横長・4 の倍数・640〜4096）を通したうえで、[MS-RDPEDISP] 2.2.2.2.1 の条件（**幅は偶数**・200〜8192・CAPS が広告した面積上限）で弾く。⚠ **同じ大きさは再送しない** — 1 回ごとにセッションが作り直され、画面がいったん消えて戻るため。
   - ⛔ **DVC のハンドラを錠の中から呼ばない。** 受信スレッドは「`RdpDynamicChannel` の錠 → `RdpDisplayControl` の錠」の順で入るので、送信側が逆順に取ると回転と画面更新が重なったときに両方止まる。⇒ **錠の中では PDU を組み立てるだけにして、送信は錠の外**で行う。
-- **音（rdpsnd・0.8.481）**: 静的仮想チャネル `rdpsnd`（`RdpSound`）で [MS-RDPEA] を話し、相手の音を端末のスピーカーで鳴らす（`RdpAudioSink`）。
+- **音（rdpsnd・0.8.481〜0.8.487）**: 静的仮想チャネル `rdpsnd`（`RdpSound`）で [MS-RDPEA] を話し、相手の音を端末のスピーカーで鳴らす（`RdpAudioSink`）。
+  - ⚠⚠ **1 通に PDU が 2 つ以上入っていることがある（0.8.487）**。CLIPRDR で実測した挙動と同じで、先頭 1 つだけ読んで残りを捨てると、**Training を取りこぼして相手が音を送り始めない**という詰まり方をする。⇒ 端から順に切り出す。⛔ **ただし WaveInfo を読んだらそこで止める** — 続きの生データは PDU ヘッダを持たないので、同じ通に残りがあっても PDU として読んではいけない。
+  - ⚠ **音が出ないとき、どちら側の話かを切り分けられるようにしておく（0.8.487）**。チャネルに 1 通目が届いた時点と、Wave 以外の PDU の種類をログに残す。**チャネルは開いているのに 1 通も来ない**なら相手がリダイレクトしていない側の話で、こちらの実装では直せない。
   - ⭐ **宣言する形式が相手の送ってくる形式を決める**（RemoteFX と同じ）。相手が挙げた中から **16bit PCM だけ**を選び、しかも **1 つだけ**返す。1 つに絞れば以後の `wFormatNo` は 0 に決まり、途中で形式が変わることもない ⇒ **展開器を持たずに済む**。⚠ 相手が PCM を 1 つも挙げなければ音は出ない（接続は壊さない）。ADPCM / AAC の展開が要るかは**実際に何が挙がったかをログで見てから**決める。
   - ⚠⚠ **WaveInfo の続きには PDU ヘッダが無い。** RDP 5 以来の形では音の本体が次の 1 通に続き、その先頭 4 バイトは捨てる。この状態を持っていないと**音データを PDU として読もうとして壊れる**。RDP 8 の Wave2 なら 1 通に収まるので、`wVersion` は 8.0 を宣言する。⚠ どちらの形でも **Wave Confirm を返す**（返さないと相手は次を送らず、数百 ms で音が止まる）。
   - ⛔⛔ **受信スレッドで `AudioTrack.write` を呼ばない。** バッファが空くまで待つので、**音が詰まった瞬間に画面と入力まで止まる**。⇒ 専用スレッドと有限のキューを挟み、**溢れたら古い音を捨てる**（音が飛ぶのは許せるが、画面が止まるのは許せない）。

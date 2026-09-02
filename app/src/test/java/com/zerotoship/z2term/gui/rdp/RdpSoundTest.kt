@@ -125,6 +125,45 @@ class RdpSoundTest {
         assertTrue(sent.isEmpty())
     }
 
+    /**
+     * ⚠ 1 回のチャネル書き込みに PDU が 2 つ入っていることがある (CLIPRDR で実測)。
+     * 先頭だけ読んで残りを捨てると、Training を取りこぼして相手が音を送り始めない。
+     */
+    @Test
+    fun formatsAndTrainingInOneChunkAreBothAnswered() {
+        val rdpsnd = sound()
+
+        rdpsnd.acceptChannelChunk(
+            chunk(
+                serverFormats(format(tag = 1, channels = 2, rate = 48000, bits = 16)) +
+                    prolog(0x06, le16Bytes(0x1234) + le16Bytes(1024)),
+            ),
+        )
+
+        // 形式の返答 + Quality Mode + Training の返答。
+        assertEquals(0x07, sent[0][0].toInt())
+        assertEquals(0x0C, sent[1][0].toInt()) // Quality Mode
+        val training = sent[2]
+        assertEquals(0x06, training[0].toInt())
+        assertEquals(0x1234, le16(training, 4)) // 同じ wTimeStamp を返す
+        assertEquals(Triple(48000, 2, 16), opened)
+    }
+
+    /** ⛔ WaveInfo の続きは PDU ヘッダを持たない。同じ通の残りを PDU として読まない。 */
+    @Test
+    fun theBytesAfterWaveInfoAreNotReadAsAPdu() {
+        val rdpsnd = sound()
+        rdpsnd.acceptChannelChunk(chunk(serverFormats(format(tag = 1, channels = 2, rate = 48000, bits = 16))))
+        sent.clear()
+
+        // WaveInfo (本体の先頭 4 バイト入り) の後ろに、PDU に見えるバイトが続いていても読まない。
+        val waveInfo = prolog(0x02, le16Bytes(7) + le16Bytes(0) + byteArrayOf(3, 0, 0, 0) + byteArrayOf(1, 2, 3, 4))
+        rdpsnd.acceptChannelChunk(chunk(waveInfo + byteArrayOf(0x07, 0, 0, 0)))
+
+        assertTrue("WaveInfo だけで確認は返さない", sent.isEmpty())
+        assertTrue("音もまだ鳴らさない", played.isEmpty())
+    }
+
     private fun serverFormats(vararg formats: ByteArray): ByteArray {
         val body = ByteArrayOutputStream().apply {
             write(le32Bytes(0)) // dwFlags

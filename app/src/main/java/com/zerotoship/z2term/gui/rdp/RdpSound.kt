@@ -50,9 +50,28 @@ internal class RdpSound(
     /** ⚠ data class にしない (中身の ByteArray は equals で比べる意味が無い)。 */
     private class PendingWave(val timeStamp: Int, val blockNo: Int, val head: ByteArray)
 
-    @Synchronized
-    fun acceptChannelChunk(payload: ByteArray) = reassembler.accept(payload)
+    /** チャネルに 1 通でも届いたか。相手が音を回してこないのか、こちらが取りこぼすのかを分ける。 */
+    private var sawAnyChunk = false
 
+    @Synchronized
+    fun acceptChannelChunk(payload: ByteArray) {
+        if (!sawAnyChunk) {
+            sawAnyChunk = true
+            Log.i(TAG, "RDPSND: the channel is alive (first chunk ${payload.size} bytes)")
+        }
+        reassembler.accept(payload)
+    }
+
+    /**
+     * 組み立てた 1 通を読む。
+     *
+     * ⚠⚠ **1 通に PDU が 2 つ以上入っていることがある** (0.8.487。CLIPRDR で実測した挙動と同じ)。
+     * 先頭 1 つだけ読んで残りを捨てると、**Training を取りこぼして相手が音を送り始めない**ような
+     * 詰まり方をする。⇒ 端から順に切り出す。
+     *
+     * ⛔ **ただし WaveInfo を読んだらそこで止める。** 続きの生データは PDU ヘッダを持たないので、
+     * 同じ通に残りがあってもそれを PDU として読んではいけない。
+     */
     private fun handle(message: ByteArray) {
         // ⚠ WaveInfo の続きは**ヘッダを持たない**ので、PDU として読む前にこちらを先に見る。
         pendingWave?.let { pending ->
@@ -65,11 +84,26 @@ internal class RdpSound(
             send(waveConfirm(pending.timeStamp, pending.blockNo))
             return
         }
-        if (message.size < PROLOG_SIZE) throw IOException("truncated RDPSND PDU")
-        val msgType = message[0].toInt() and 0xFF
-        val bodySize = le16(message, 2)
-        if (bodySize > message.size - PROLOG_SIZE) throw IOException("invalid RDPSND body size: $bodySize")
-        val body = message.copyOfRange(PROLOG_SIZE, PROLOG_SIZE + bodySize)
+        var offset = 0
+        while (offset < message.size) {
+            if (message.size - offset < PROLOG_SIZE) throw IOException("truncated RDPSND PDU")
+            val msgType = message[offset].toInt() and 0xFF
+            val bodySize = le16(message, offset + 2)
+            if (bodySize > message.size - offset - PROLOG_SIZE) {
+                throw IOException("invalid RDPSND body size: $bodySize")
+            }
+            val body = message.copyOfRange(offset + PROLOG_SIZE, offset + PROLOG_SIZE + bodySize)
+            offset += PROLOG_SIZE + bodySize
+            if (msgType != MSG_WAVE && msgType != MSG_WAVE2) {
+                Log.i(TAG, "RDPSND: pdu=0x${msgType.toString(16)} body=$bodySize")
+            }
+            handlePdu(msgType, body)
+            // ⛔ 続きの生データを PDU として読まない。
+            if (msgType == MSG_WAVE) return
+        }
+    }
+
+    private fun handlePdu(msgType: Int, body: ByteArray) {
         when (msgType) {
             MSG_SERVER_FORMATS -> serverFormats(body)
             MSG_TRAINING -> training(body)
