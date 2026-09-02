@@ -75,6 +75,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.RemoteFs
 import com.zerotoship.z2term.channel.RemoteFsFactory
@@ -1110,6 +1112,11 @@ private data class FilePreview(
 
 @Composable
 private fun PreviewDialog(value: FilePreview, onDismiss: () -> Unit) {
+    value.bitmap?.let { bitmap ->
+        FullScreenImagePreview(bitmap, value.name, onDismiss)
+        return
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = ZtsBgCard,
@@ -1124,17 +1131,6 @@ private fun PreviewDialog(value: FilePreview, onDismiss: () -> Unit) {
         },
         text = {
             when {
-                value.bitmap != null -> Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    ZoomablePreviewImage(value.bitmap, value.name)
-                    Text(
-                        stringResource(R.string.sftp_preview_zoom_hint),
-                        color = ZtsTextSecondary,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 10.sp,
-                    )
-                }
                 value.text != null -> SelectionContainer(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1159,15 +1155,77 @@ private fun PreviewDialog(value: FilePreview, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun ZoomablePreviewImage(bitmap: Bitmap, name: String) {
+private fun FullScreenImagePreview(
+    bitmap: Bitmap,
+    name: String,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false,
+        ),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = ZtsBgPrimary,
+            contentColor = ZtsTextPrimary,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.systemBars),
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        name,
+                        modifier = Modifier.weight(1f),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 15.sp,
+                        maxLines = 2,
+                    )
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.sftp_preview_close), color = ZtsGreen)
+                    }
+                }
+                ZoomablePreviewImage(
+                    bitmap = bitmap,
+                    name = name,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                )
+                Text(
+                    stringResource(R.string.sftp_preview_zoom_hint),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    color = ZtsTextSecondary,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZoomablePreviewImage(
+    bitmap: Bitmap,
+    name: String,
+    modifier: Modifier = Modifier,
+) {
     var scale by remember(bitmap) { mutableStateOf(1f) }
     var offset by remember(bitmap) { mutableStateOf(Offset.Zero) }
     var viewport by remember(bitmap) { mutableStateOf(IntSize.Zero) }
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 120.dp, max = 520.dp)
+        modifier = modifier
             .clipToBounds()
             .onSizeChanged { viewport = it }
             .pointerInput(bitmap) {
@@ -1193,7 +1251,7 @@ private fun ZoomablePreviewImage(bitmap: Bitmap, name: String) {
             contentDescription = name,
             contentScale = ContentScale.Fit,
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
