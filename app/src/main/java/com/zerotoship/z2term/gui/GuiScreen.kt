@@ -188,6 +188,7 @@ fun GuiScreen(
             ClipboardFileBar(
                 offer = offer,
                 onReceive = session::receiveClipboardFiles,
+                onDismiss = session::dismissClipboardFiles,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
@@ -205,6 +206,7 @@ fun GuiScreen(
 private fun ClipboardFileBar(
     offer: GuiSession.ClipboardFileOffer,
     onReceive: () -> Unit,
+    onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val first = offer.entries.firstOrNull()?.name.orEmpty()
@@ -235,6 +237,14 @@ private fun ClipboardFileBar(
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.clickable(onClick = onReceive),
+            )
+            // ⭐ 使わないときに消せる口 (0.8.485)。放っておけば消えるとはいえ、
+            //    画面の下端を占め続けるので、その場で畳めるようにしておく。
+            Text(
+                text = "✕",
+                color = Color(0xFF9CA3AF),
+                fontSize = 15.sp,
+                modifier = Modifier.clickable(onClick = onDismiss),
             )
         }
     }

@@ -43,6 +43,11 @@ internal class RdpCliprdr(
     private var offered: List<ClipboardFiles.Entry> = emptyList()
     private var incoming: Incoming? = null
     private var nextStreamId = 1
+    /** 相手が `CB_CAN_LOCK_CLIPDATA` を宣言したか。⚠ 宣言していない相手へ Lock を送ってはいけない。 */
+    private var peerCanLock = false
+    /** 取り寄せを待たせている間、相手にデータを保持させるための id。null = ロックしていない。 */
+    private var lockedClipDataId: Int? = null
+    private var nextClipDataId = 1
 
     private val reassembler = RdpChannelReassembler("CLIPRDR", MAX_MESSAGE_BYTES) { handle(it) }
 
@@ -116,6 +121,7 @@ internal class RdpCliprdr(
     @Synchronized
     fun close() {
         abortIncoming()
+        offered = emptyList()
         localFiles?.let { runCatching { it.close() } }
         localFiles = null
     }
@@ -135,13 +141,67 @@ internal class RdpCliprdr(
                 send(capabilities())
                 send(formatList())
             }
-            CB_CLIP_CAPS -> Unit
+            CB_CLIP_CAPS -> peerCapabilitiesArrived(body)
             CB_FORMAT_LIST -> formatListArrived(body)
             CB_FORMAT_DATA_REQUEST -> formatDataRequested(body)
             CB_FORMAT_DATA_RESPONSE -> formatDataArrived(flags, body)
             CB_FILECONTENTS_REQUEST -> fileContentsRequested(body)
             CB_FILECONTENTS_RESPONSE -> fileContentsArrived(flags, body)
         }
+    }
+
+    /**
+     * 相手の General Capability Set を読む。⭐ 見るのは **`CB_CAN_LOCK_CLIPDATA` だけ** —
+     * 「後で取りに行く」前にロックしてよい相手かどうかが、ここでしか分からない。
+     */
+    private fun peerCapabilitiesArrived(body: ByteArray) {
+        if (body.size < 4) return
+        val sets = le16(body, 0)
+        var offset = 4
+        repeat(sets) {
+            if (offset + 4 > body.size) return
+            val type = le16(body, offset)
+            val length = le16(body, offset + 2)
+            if (length < 4 || offset + length > body.size) return
+            if (type == CB_CAPSTYPE_GENERAL && length >= 12) {
+                peerCanLock = le32(body, offset + 8) and CB_CAN_LOCK_CLIPDATA != 0
+            }
+            offset += length
+        }
+        Log.i(TAG, "CLIPRDR: the peer ${if (peerCanLock) "can" else "cannot"} lock clipboard data")
+    }
+
+    /**
+     * ⛔ **相手に「まだ捨てるな」と伝える。** ［受け取る］を押すまで中身を取りに行かない作りなので、
+     * 何も言わなければ相手は Format List を出した時点のデータを手放してよい ([MS-RDPECLIP] 3.1.1.1
+     * Lock Clipboard Data)。⇒ **一覧を見せている間はロックし、用が済んだら必ず外す。**
+     * ⚠ `CB_CAN_LOCK_CLIPDATA` を宣言していない相手へは送らない (知らない PDU で切られる)。
+     */
+    private fun lockPeerClipboard() {
+        if (!peerCanLock || lockedClipDataId != null) return
+        val id = nextClipDataId++
+        lockedClipDataId = id
+        Log.i(TAG, "CLIPRDR: locking the peer's clipboard as $id")
+        send(message(CB_LOCK_CLIPDATA, 0, le32Bytes(id)))
+    }
+
+    /** ロックを外す。⚠ **外し忘れると相手はそのデータを抱えたままになる。** */
+    private fun unlockPeerClipboard() {
+        val id = lockedClipDataId ?: return
+        lockedClipDataId = null
+        send(message(CB_UNLOCK_CLIPDATA, 0, le32Bytes(id)))
+    }
+
+    /**
+     * 一覧を見なかったことにする (利用者が ✕ で閉じた・0.8.485)。
+     *
+     * ⭐ **閉じたなら相手のロックも外す。** 見せる気の無いものを相手に抱えさせ続けない。
+     */
+    @Synchronized
+    fun dismissOfferedFiles() {
+        if (incoming != null) return
+        offered = emptyList()
+        unlockPeerClipboard()
     }
 
     private fun formatListArrived(body: ByteArray) {
@@ -210,6 +270,7 @@ internal class RdpCliprdr(
         var offset = 4
         repeat(count) {
             if (offset + FILEDESCRIPTOR_SIZE > body.size) return@repeat
+            val descriptorFlags = le32(body, offset)
             val attributes = le32(body, offset + 36)
             val sizeHigh = le32(body, offset + 64).toLong() and 0xFFFFFFFFL
             val sizeLow = le32(body, offset + 68).toLong() and 0xFFFFFFFFL
@@ -219,11 +280,18 @@ internal class RdpCliprdr(
             if (attributes and FILE_ATTRIBUTE_DIRECTORY != 0) return@repeat
             // ⚠ 相手の区切りのままにしない。フォルダごとコピーされると `a\b.txt` で届く。
             val leaf = name.substringAfterLast('\\').substringAfterLast('/')
-            if (leaf.isNotEmpty()) entries += ClipboardFiles.Entry(leaf, (sizeHigh shl 32) or sizeLow)
+            if (leaf.isEmpty()) return@repeat
+            val size = (sizeHigh shl 32) or sizeLow
+            // ⚠ FD_FILESIZE が立っていない descriptor の大きさは**意味を持たない**。
+            //    そのまま範囲要求に使うと相手はファイルの外を要求されたとみなして FAIL を返す。
+            Log.i(TAG, "CLIPRDR: offered flags=0x${descriptorFlags.toString(16)} size=$size")
+            entries += ClipboardFiles.Entry(leaf, size)
         }
         if (entries.isEmpty()) return
         Log.i(TAG, "CLIPRDR: the peer is offering ${entries.size} file(s)")
         offered = entries
+        // ⭐ ここでロックする。押されるまで取りに行かない以上、それまで持っていてもらう必要がある。
+        lockPeerClipboard()
         onFilesOffered(entries)
     }
 
@@ -238,6 +306,7 @@ internal class RdpCliprdr(
             state.index++
             if (state.index >= state.entries.size) {
                 incoming = null
+                unlockPeerClipboard()
                 onFilesReceived()
                 return
             }
@@ -266,7 +335,14 @@ internal class RdpCliprdr(
             write(le32Bytes(state.position.toInt()))
             write(le32Bytes((state.position ushr 32).toInt()))
             write(le32Bytes(want))
+            // ⚠ clipDataId はロックしているときだけ付ける (24 → 28 バイト)。
+            lockedClipDataId?.let { write(le32Bytes(it)) }
         }.toByteArray()
+        Log.i(
+            TAG,
+            "CLIPRDR: requesting index=${state.index} position=${state.position} " +
+                "want=$want of ${entry.size} (clipDataId=$lockedClipDataId)",
+        )
         send(message(CB_FILECONTENTS_REQUEST, 0, body))
     }
 
@@ -329,6 +405,11 @@ internal class RdpCliprdr(
             return
         }
         val position = (positionHigh shl 32) or positionLow
+        Log.i(
+            TAG,
+            "CLIPRDR: the peer wants index=$index position=$position bytes=$requested " +
+                "flags=$requestFlags",
+        )
         if (position < 0 || position > entry.size || requested.toLong() > entry.size - position) {
             Log.w(TAG, "CLIPRDR: refused out-of-range file request index=$index position=$position bytes=$requested")
             send(message(CB_FILECONTENTS_RESPONSE, CB_RESPONSE_FAIL, le32Bytes(streamId)))
@@ -345,6 +426,8 @@ internal class RdpCliprdr(
     }
 
     private fun abortIncoming() {
+        // ⚠ incoming の有無に関わらず外す (一覧を見せているだけでもロックしている)。
+        unlockPeerClipboard()
         val state = incoming ?: return
         incoming = null
         if (state.receiving) fileSink?.finish(false)
@@ -354,7 +437,8 @@ internal class RdpCliprdr(
     private fun capabilities(): ByteArray {
         // ⚠ ファイルを扱う宣言は sink があるときだけ。受け取れないものを宣言すると相手が送ってくる。
         val general = if (fileSink != null) {
-            CB_USE_LONG_FORMAT_NAMES or CB_STREAM_FILECLIP_ENABLED or CB_FILECLIP_NO_FILE_PATHS
+            CB_USE_LONG_FORMAT_NAMES or CB_STREAM_FILECLIP_ENABLED or
+                CB_FILECLIP_NO_FILE_PATHS or CB_CAN_LOCK_CLIPDATA
         } else {
             CB_USE_LONG_FORMAT_NAMES
         }
@@ -374,6 +458,12 @@ internal class RdpCliprdr(
             if (localFiles != null) {
                 write(le32Bytes(LOCAL_FILE_FORMAT_ID))
                 write((FILE_FORMAT_NAME + "\u0000").toByteArray(Charsets.UTF_16LE))
+                // ⭐⭐ **一覧だけでは相手は貼り付けられない。** Windows は「名前と大きさ
+                //    (FileGroupDescriptorW)」と「中身 (FileContents)」の**両方が並んでいる**
+                //    ときだけ、クリップボードをファイルとして扱う。片方だけだと、貼り付けの
+                //    瞬間に中身の出しどころが無く、相手側でエラーになる (0.8.485)。
+                write(le32Bytes(LOCAL_FILECONTENTS_FORMAT_ID))
+                write((FILECONTENTS_FORMAT_NAME + "\u0000").toByteArray(Charsets.UTF_16LE))
             }
             if (localText != null) {
                 write(le32Bytes(CF_UNICODETEXT))
@@ -467,6 +557,8 @@ internal class RdpCliprdr(
         private const val CB_CLIP_CAPS = 0x0007
         private const val CB_FILECONTENTS_REQUEST = 0x0008
         private const val CB_FILECONTENTS_RESPONSE = 0x0009
+        private const val CB_LOCK_CLIPDATA = 0x000A
+        private const val CB_UNLOCK_CLIPDATA = 0x000B
         private const val CB_RESPONSE_OK = 0x0001
         private const val CB_RESPONSE_FAIL = 0x0002
 
@@ -476,11 +568,14 @@ internal class RdpCliprdr(
         private const val CB_STREAM_FILECLIP_ENABLED = 0x00000004
         /** ⭐ パスではなく**中身**をやり取りする宣言。こちらのファイルシステムを見せずに済む。 */
         private const val CB_FILECLIP_NO_FILE_PATHS = 0x00000008
+        private const val CB_CAN_LOCK_CLIPDATA = 0x00000010
 
         private const val CF_UNICODETEXT = 13
         /** こちらが announce するファイル形式の id。⚠ 相手は**名前**で見分けるので値は任意。 */
         private const val LOCAL_FILE_FORMAT_ID = 0xC0DE
         private const val FILE_FORMAT_NAME = "FileGroupDescriptorW"
+        private const val LOCAL_FILECONTENTS_FORMAT_ID = 0xC0DF
+        private const val FILECONTENTS_FORMAT_NAME = "FileContents"
 
         private const val FILECONTENTS_SIZE = 0x0001
         private const val FILECONTENTS_RANGE = 0x0002

@@ -248,6 +248,11 @@ internal class RdpClient(
         submitWrite { cliprdr?.receiveOfferedFiles() }
     }
 
+    override fun dismissClipboardFiles() {
+        if (closed) return
+        submitWrite { cliprdr?.dismissOfferedFiles() }
+    }
+
     override fun offerClipboardFiles(source: ClipboardFiles.Source?) {
         if (closed) return
         submitWrite { cliprdr?.announceLocalFiles(source) }

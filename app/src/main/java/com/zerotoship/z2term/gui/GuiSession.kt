@@ -139,6 +139,19 @@ class GuiSession(
         desktopClient.receiveClipboardFiles()
     }
 
+    /**
+     * ✕ で受け取り口を閉じた (0.8.485)。
+     *
+     * ⭐ **消すのは通知だけではない。** 相手には「後で取りに行くから持っていて」と頼んである
+     * ので、受け取らないと決めたならその場で解放させる ([RemoteDesktopClient.dismissClipboardFiles])。
+     */
+    fun dismissClipboardFiles() {
+        val current = _clipboardFiles.value ?: return
+        if (current.receiving) return
+        _clipboardFiles.value = null
+        desktopClient.dismissClipboardFiles()
+    }
+
     /** Android のファイル選択で選ばれた実体を Windows の clipboard へ差し出す。 */
     fun offerClipboardUris(uris: List<Uri>): Boolean {
         if (_state.value != State.CONNECTED) return false

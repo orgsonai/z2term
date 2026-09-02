@@ -48,7 +48,8 @@ class RdpCliprdrFilesTest {
         cliprdr(withSink = false).start()
         val withoutFiles = le32(sent.first(), 8 + 12)
 
-        assertEquals(0x02 or 0x04 or 0x08, withFiles) // LONG_NAMES | STREAM_FILECLIP | NO_FILE_PATHS
+        // LONG_NAMES | STREAM_FILECLIP | NO_FILE_PATHS | CAN_LOCK_CLIPDATA
+        assertEquals(0x02 or 0x04 or 0x08 or 0x10, withFiles)
         assertEquals(0x02, withoutFiles)
     }
 
@@ -219,7 +220,10 @@ class RdpCliprdrFilesTest {
 
         val list = sent.last()
         assertEquals(0x0002, le16(list, 0)) // CB_FORMAT_LIST
-        assertEquals("FileGroupDescriptorW", list.copyOfRange(12, list.size - 2).toString(Charsets.UTF_16LE))
+        // ⭐ 一覧 (FileGroupDescriptorW) と中身 (FileContents) が**並んで**初めて相手は貼り付けられる。
+        val names = list.copyOfRange(8, list.size).toString(Charsets.UTF_16LE)
+        assertTrue(names.contains("FileGroupDescriptorW"))
+        assertTrue(names.contains("FileContents"))
         val formatId = le32(list, 8)
         sent.clear()
 
@@ -274,6 +278,75 @@ class RdpCliprdrFilesTest {
         assertEquals(requested + 12, response.size)
     }
 
+    /**
+     * ⭐ ［受け取る］を押すまで取りに行かない以上、それまで相手に持っていてもらう必要がある。
+     * 押されて受け取り切ったら手放させる ([MS-RDPECLIP] Lock / Unlock Clipboard Data)。
+     */
+    @Test
+    fun theOfferIsLockedUntilItHasBeenReceived() {
+        val clip = cliprdr()
+        clip.start()
+        clip.acceptChannelChunk(chunk(peerCaps(canLock = true)))
+        clip.acceptChannelChunk(chunk(formatList(0xC104 to "FileGroupDescriptorW")))
+        sent.clear()
+
+        clip.acceptChannelChunk(chunk(message(0x0005, 0x0001, descriptors(descriptor("note.txt", 3)))))
+
+        val lock = sent.single()
+        assertEquals(0x000A, le16(lock, 0)) // CB_LOCK_CLIPDATA
+        val clipDataId = le32(lock, 8)
+        sent.clear()
+
+        clip.receiveOfferedFiles()
+        val request = sent.single()
+        assertEquals(0x0008, le16(request, 0))
+        assertEquals(28, le32(request, 4)) // 24 + clipDataId
+        assertEquals(clipDataId, le32(request, 8 + 24))
+        sent.clear()
+
+        clip.acceptChannelChunk(
+            chunk(message(0x0009, 0x0001, le32Bytes(le32(request, 8)) + "abc".toByteArray())),
+        )
+
+        val unlock = sent.single()
+        assertEquals(0x000B, le16(unlock, 0)) // CB_UNLOCK_CLIPDATA
+        assertEquals(clipDataId, le32(unlock, 8))
+    }
+
+    /** ⚠ 宣言していない相手へ Lock を送らない (知らない PDU で切られる)。 */
+    @Test
+    fun aPeerThatCannotLockIsNeverSentOne() {
+        val clip = cliprdr()
+        clip.start()
+        clip.acceptChannelChunk(chunk(peerCaps(canLock = false)))
+        clip.acceptChannelChunk(chunk(formatList(0xC104 to "FileGroupDescriptorW")))
+        sent.clear()
+
+        clip.acceptChannelChunk(chunk(message(0x0005, 0x0001, descriptors(descriptor("note.txt", 3)))))
+        assertTrue("Lock は出さない", sent.isEmpty())
+
+        clip.receiveOfferedFiles()
+        assertEquals(24, le32(sent.single(), 4)) // clipDataId を付けない 24 バイトのまま
+    }
+
+    /** ✕ で閉じたら、相手に抱えさせていたものも手放させる。 */
+    @Test
+    fun dismissingTheOfferReleasesTheLock() {
+        val clip = cliprdr()
+        clip.start()
+        clip.acceptChannelChunk(chunk(peerCaps(canLock = true)))
+        clip.acceptChannelChunk(chunk(formatList(0xC104 to "FileGroupDescriptorW")))
+        clip.acceptChannelChunk(chunk(message(0x0005, 0x0001, descriptors(descriptor("note.txt", 3)))))
+        val clipDataId = le32(sent.single { le16(it, 0) == 0x000A }, 8)
+        sent.clear()
+
+        clip.dismissOfferedFiles()
+
+        val unlock = sent.single()
+        assertEquals(0x000B, le16(unlock, 0))
+        assertEquals(clipDataId, le32(unlock, 8))
+    }
+
     /** Clipboard の破損 1 通でデスクトップ接続まで落とさない。 */
     @Test
     fun anInvalidClipboardChunkOnlyResetsClipboard() {
@@ -308,6 +381,20 @@ class RdpCliprdrFilesTest {
         }.toByteArray()
         return message(0x0002, 0, body)
     }
+
+    /** 相手の Clipboard Capabilities PDU。ロックを名乗るかどうかだけを変える。 */
+    private fun peerCaps(canLock: Boolean): ByteArray = message(
+        0x0007,
+        0,
+        ByteArrayOutputStream().apply {
+            write(le16Bytes(1)) // cCapabilitiesSets
+            write(le16Bytes(0)) // pad
+            write(le16Bytes(0x0001)) // CB_CAPSTYPE_GENERAL
+            write(le16Bytes(12))
+            write(le32Bytes(2)) // CB_CAPS_VERSION_2
+            write(le32Bytes(0x02 or if (canLock) 0x10 else 0))
+        }.toByteArray(),
+    )
 
     private fun descriptors(vararg items: ByteArray): ByteArray = ByteArrayOutputStream().apply {
         write(le32Bytes(items.size))

@@ -342,7 +342,7 @@ your input never stall for it** — audio is never waited on.
 - **Peer → phone**: copying a file on the remote screen shows **a small "📎 name and N more
   [Receive]" strip along the bottom of the screen**. ⭐ **Nothing is transferred until you tap it**, so
   copying a file to move it around on the remote machine sends nothing to the phone; ignore the strip
-  and it goes away. Tapping [Receive] **saves into the `z2term` folder inside Downloads** — you are
+  and it goes away, or **close it right away with the ✕ next to [Receive]** (0.8.485). Tapping [Receive] **saves into the `z2term` folder inside Downloads** — you are
   never asked where to put it. ⭐ It also goes onto the phone's clipboard, so **apps that accept a
   pasted file take it directly**; apps that do not can still open it from their own file picker under
   Downloads → z2term.

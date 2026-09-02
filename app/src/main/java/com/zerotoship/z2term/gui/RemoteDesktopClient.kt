@@ -67,6 +67,9 @@ interface RemoteDesktopClient {
     /** [setClipboardFilesListener] で知らされた一覧の中身を取りに行く。非対応なら何もしない。 */
     fun receiveClipboardFiles() = Unit
 
+    /** 受け取らずに一覧を閉じた。⭐ 相手に保持させていたなら、そこで手放させる。 */
+    fun dismissClipboardFiles() = Unit
+
     fun tapKey(keysym: Int) {
         sendKeyEvent(keysym, down = true)
         sendKeyEvent(keysym, down = false)
