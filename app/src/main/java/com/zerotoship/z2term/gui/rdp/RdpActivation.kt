@@ -416,6 +416,13 @@ internal object RdpActivation {
         val values = listOf(utf16(credentials.domain), utf16(credentials.user), utf16(credentials.password))
         require(values.all { it.size <= 510 }) { "RDP Client Info credential is too long" }
         val flags = CLIENT_INFO_FLAGS
+        // ⚠ 実際に名乗った値を残す。「外したはずのビットが本当に外れているか」は、
+        //    ソースを読んでも確かめたことにならない (R8 を通った APK が動いている)。
+        Log.i(
+            TAG,
+            "RDP: client info flags=0x${flags.toString(16)} " +
+                "(audio playback ${if (flags and 0x00080000 == 0) "requested" else "DISABLED"})",
+        )
         val info = Writer().apply {
             le32(0); le32(flags)
             values.forEach { le16(it.size) }
