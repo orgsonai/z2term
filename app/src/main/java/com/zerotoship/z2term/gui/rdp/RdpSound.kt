@@ -53,6 +53,15 @@ internal class RdpSound(
     /** チャネルに 1 通でも届いたか。相手が音を回してこないのか、こちらが取りこぼすのかを分ける。 */
     private var sawAnyChunk = false
 
+    /**
+     * 記録済みの PDU 種別。
+     *
+     * ⚠ **同じ種類を出し続けない。** 無音の間、相手は Training (`0x06`・本体 4 バイト) を
+     * 数秒おきに送り続ける (接続確認)。それを毎回記録すると **logcat が流れて、他の調査ができなくなる**。
+     * ⇒ 種類ごとに最初の 1 通だけ残す。「何が来たか」は分かり、量は増えない。
+     */
+    private val loggedPduTypes = mutableSetOf<Int>()
+
     @Synchronized
     fun acceptChannelChunk(payload: ByteArray) {
         if (!sawAnyChunk) {
@@ -94,8 +103,8 @@ internal class RdpSound(
             }
             val body = message.copyOfRange(offset + PROLOG_SIZE, offset + PROLOG_SIZE + bodySize)
             offset += PROLOG_SIZE + bodySize
-            if (msgType != MSG_WAVE && msgType != MSG_WAVE2) {
-                Log.i(TAG, "RDPSND: pdu=0x${msgType.toString(16)} body=$bodySize")
+            if (loggedPduTypes.add(msgType)) {
+                Log.i(TAG, "RDPSND: first pdu=0x${msgType.toString(16)} body=$bodySize")
             }
             handlePdu(msgType, body)
             // ⛔ 続きの生データを PDU として読まない。

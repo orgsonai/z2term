@@ -327,7 +327,9 @@ is already running**, and resizing it would change someone else's environment. A
 creates its own session every time, so nothing is left behind on the peer.
 
 **The peer's audio plays on the phone** (0.8.481), with nothing to configure. ⚠ It stays silent if the
-host is set up not to redirect audio. Sound drops out when the link is congested, but **the screen and
+host is set up not to redirect audio. ⚠ **Nothing played before 0.8.491** — this side was telling the
+peer it wanted no audio, and was missing part of what a client must declare to be sent any. That was
+never a problem on the remote end. Sound drops out when the link is congested, but **the screen and
 your input never stall for it** — audio is never waited on.
 
 **Files travel by copy and paste too** (0.8.482), though the two directions differ slightly.
