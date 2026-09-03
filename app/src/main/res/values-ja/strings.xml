@@ -473,7 +473,7 @@
     <string name="rdp_error_timeout">%1$s が時間内に応答しません。ネットワークとファイアウォールを確認してください。</string>
     <string name="rdp_error_refused">%1$s で誰も待っていません。相手でリモートデスクトップが有効か、ポート (既定 3389) が合っているか確認してください。</string>
     <string name="ssh_field_init_cmd">init コマンド (接続後に自動実行、任意)</string>
-    <string name="ssh_port_forward">ポート転送 (-L)</string>
+    <string name="ssh_port_forward">ポート転送 (-L / -R)</string>
     <string name="ssh_port_forward_add">+ 追加</string>
     <string name="ssh_port_forward_empty">未設定。「+ 追加」で localhost:N → remote:M を作成。</string>
 
@@ -1244,4 +1244,23 @@ SSH 接続先 %3$d 件
     <string name="settings_app_lock_grace_300">5分後</string>
     <string name="settings_app_lock_grace_launch">起動時だけ</string>
     <string name="settings_app_lock_note">⚠ 隠せるのは画面だけです。ロック中もセッション・常駐サーバー・「z2-session attach」は動き続けます（止めると、夜通し走らせている作業が壊れるため）。</string>
+
+    <!-- 踏み台 (-J) -->
+    <string name="ssh_jump_hosts">踏み台 (-J)</string>
+    <string name="ssh_jump_add">+ 追加</string>
+    <string name="ssh_jump_empty">未設定。上のホストへ直接繋ぐ。</string>
+    <string name="ssh_jump_hop">%1$d 段目</string>
+    <string name="ssh_jump_import">取り込み</string>
+    <string name="ssh_jump_import_title">登録済みの接続先から取り込む</string>
+    <string name="ssh_jump_import_empty">ほかに登録済みの SSH 接続先がない。</string>
+    <string name="ssh_jump_route">経路: %1$s</string>
+    <string name="confirm_delete_jump_title">この踏み台を削除しますか？</string>
+
+    <!-- RDP のフォルダ共有 -->
+    <string name="remote_service_share_folder">フォルダ共有</string>
+    <string name="remote_service_share_folder_on">相手のデスクトップからこのフォルダを読み書きできる</string>
+    <string name="remote_service_share_folder_off">端末のファイルは相手に見えない</string>
+    <string name="remote_service_share_path">共有する端末のフォルダ</string>
+    <string name="remote_service_share_name">共有名</string>
+    <string name="remote_service_share_hint">相手のデスクトップには \\\\tsclient\\%1$s として出る。相手はここにファイルを作る・書き換える・消すことができるので、渡してよいフォルダだけを共有すること。</string>
 </resources>

@@ -274,6 +274,34 @@ The field for pasting your own private key is still there. Its contents are mask
 
 The host field accepts DNS names, IPv4 and IPv6 literals (with or without surrounding brackets); IPv6 is displayed as `[address]:port` so the port is unambiguous.
 
+#### Reach a server through jump hosts (0.8.494)
+
+**Servers you cannot dial directly are reachable now.** A destination's editor gained a
+**"Jump hosts (-J)"** section. **+ Add** creates one hop (host, port, user, authentication);
+press it again for a second hop, a third, and so on — **there is no limit on the number of
+hops** (this is exactly what `ssh -J gate,inner` does).
+
+Once there is at least one hop, **the route is shown on one line** underneath:
+
+```
+Route: ubuntu@gate.example.com:22 → admin@10.0.0.5:22 → me@target:22
+```
+
+⭐ **Reuse a connection you already saved.** **Import** at the top of a hop lists your saved
+destinations; picking one copies its host, user and key or password into that hop.
+⚠ **It copies, it does not reference** — deleting the connection you imported from will not
+break the jump host, but if you change that connection's password you have to update the hop too.
+
+Jump hosts apply to **the SSH shell, SFTP, every FTP / SMB / WebDAV / VNC / RDP service attached
+to that destination, and resident tunnels** alike. You set them up in one place only.
+
+⚠ **Each hop asks you to confirm its host key the first time** (once per hop). The confirmation
+screen names the machine the key belongs to.
+
+⚠ **Before using a resident tunnel through jump hosts, connect once to every hop.** A resident
+tunnel cannot show the confirmation screen, so a single unapproved hop stops it from starting
+(the reason appears in the list).
+
 In an SSH destination’s editor you can add **FTP, SMB, WebDAV, VNC and RDP** services. After saving, each gets its own button outside SSH/SFTP and opens either the shared file browser or a screen tab (VNC / RDP). The default is a local port forward through that SSH destination. Set the service port and, optionally, a local port; leaving the local side blank chooses a free port automatically. FTP passive data ports are forwarded automatically for each transfer. Clearing “SSH port forwarding” connects directly to the SSH destination’s host, not the service-specific host, and first warns that SSH encryption will be lost. WebDAV supports HTTP/HTTPS; SMB supports SMB2/3 with SMB1 disabled. Plain `http://` WebDAV works too (0.8.452; before that the app blocked every cleartext HTTP request, so choosing HTTP always ended in “failed to list”).
 ⚠ **Delete on a destination, and the ✕ on a service or a port forward, now ask first** (0.8.452). Each sits right next to Edit, and a mistap used to take the host, user and password with it. Deleting from the terminal (`z2-ssh` and friends) is not intercepted — a typed command is explicit already.
 
@@ -333,6 +361,22 @@ host is set up not to redirect audio. ⚠ **Nothing played before 0.8.491** — 
 peer it wanted no audio, and was missing part of what a client must declare to be sent any. That was
 never a problem on the remote end. Sound drops out when the link is congested, but **the screen and
 your input never stall for it** — audio is never waited on.
+
+**A whole folder can be handed over** (0.8.494). Separately from copying files one at a time,
+**a folder on the phone can be opened directly from the far desktop.**
+
+Turn on **"Share a folder"** under RDP in 📜 → Connections → **✎ (Edit)**.
+
+- **Shared folder on this device** — leave it blank to use `/sdcard/Download/z2term`
+  (**the same place files you receive land in**). Type a path only if you want somewhere else.
+- **Share name** — the name shown on the far side. Blank means `z2term`.
+
+On Windows it opens as **`\\tsclient\z2term`** — paste that into Explorer's address bar, or open
+it under "This PC". **The far side can read, create, change and delete files there**, so anything
+you want back on the phone just needs to be dragged into that folder.
+
+⚠ **It is off by default.** The folder is visible to the far side only while it is on.
+**Point it at a folder you are willing to hand over** — nothing outside that folder is visible.
 
 **Files travel by copy and paste too** (0.8.482), though the two directions differ slightly.
 
@@ -480,6 +524,11 @@ You can turn your phone into an SSH server and log in from a PC.
 ### Keeping a tunnel running (get in from outside, bring a service here)
 
 Editing a host in 📜 → "SSH / SFTP" lets you add **port forwards**, in one of two directions.
+
+⚠ **Up to 0.8.493, opening the connection from an SSH tab installed `-R` as `-L`** (fixed in
+0.8.494). Turning **Resident** on always did the right thing, so anyone using these as resident
+tunnels was unaffected.
+
 
 | Direction | What it does | Example |
 |---|---|---|

@@ -1,6 +1,8 @@
 package com.zerotoship.z2term.gui.rdp
 
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.nio.file.Files
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -9,6 +11,16 @@ class RdpDeviceRedirectionTest {
     private val sent = mutableListOf<ByteArray>()
 
     private fun rdpdr() = RdpDeviceRedirection(sendMessage = sent::add, clientName = "Z2")
+
+    private fun sharingRdpdr(name: String = "z2term"): RdpDeviceRedirection {
+        val root: File = Files.createTempDirectory("rdpdr-share").toFile()
+        root.deleteOnExit()
+        return RdpDeviceRedirection(
+            sendMessage = sent::add,
+            clientName = "Z2",
+            drive = RdpDrive(root = root, shareName = name),
+        )
+    }
 
     /** 相手の版と id をそのまま返し、続けて名前を出す (名前が来るまで相手は次へ進まない)。 */
     @Test
@@ -87,6 +99,66 @@ class RdpDeviceRedirectionTest {
         assertEquals(false, rdpdr.acceptChannelChunkSafely(byteArrayOf(1, 2, 3)))
         rdpdr.acceptChannelChunkSafely(chunk(serverAnnounce(major = 1, minor = 13, clientId = 1)))
         assertTrue("reset 後も名乗り直せる", sent.isNotEmpty())
+    }
+
+    /**
+     * ⭐ フォルダを共有するときは **ドライブを名乗ってから**一覧に出す。
+     * ここで CAP_DRIVE_TYPE と ioCode1 を出し忘れると、一覧に出しても相手は
+     * I/O を 1 つも送ってこない (画面は繋がるのにフォルダだけ空に見える)。
+     */
+    @Test
+    fun aSharedFolderIsAnnouncedAsADrive() {
+        val rdpdr = sharingRdpdr()
+        rdpdr.acceptChannelChunk(chunk(serverAnnounce(major = 1, minor = 13, clientId = 1)))
+        sent.clear()
+
+        rdpdr.acceptChannelChunk(chunk(serverCapability()))
+
+        val caps = sent[0]
+        assertEquals(2, le16(caps, 4)) // GENERAL + DRIVE
+        assertEquals(0x0000FFFF, le32(caps, 28)) // ioCode1
+        assertEquals(0x0004, le16(caps, 52)) // CAP_DRIVE_TYPE
+        assertEquals(8, le16(caps, 54)) // capability header だけ
+        assertEquals(2, le32(caps, 56)) // DRIVE_CAPABILITY_VERSION_02
+
+        val list = sent[1]
+        assertEquals(0x4441, le16(list, 2)) // PAKID_CORE_DEVICELIST_ANNOUNCE
+        assertEquals(1, le32(list, 4)) // DeviceCount
+        assertEquals(0x00000014, le32(list, 8)) // RDPDR_DTYP_FILESYSTEM
+        assertEquals(1, le32(list, 12)) // DeviceId
+        assertEquals("z2term", String(list, 16, 6, Charsets.US_ASCII))
+        assertEquals(7, le32(list, 24)) // DeviceDataLength ("z2term" + NUL)
+        assertEquals("z2term", String(list, 28, 6, Charsets.US_ASCII))
+
+        rdpdr.close()
+    }
+
+    /**
+     * ⚠ 共有名は相手の一覧に ASCII で載る。日本語のフォルダ名をそのまま出すと名前が
+     * 壊れるので、置ける文字だけに倒す (中身のファイル名は UTF-16 なので影響しない)。
+     */
+    @Test
+    fun aShareNameIsReducedToWhatThePeerCanShow() {
+        assertEquals("_____", RdpDeviceRedirection.asciiShareName("共有フォルダ".take(5)))
+        assertEquals("my_share", RdpDeviceRedirection.asciiShareName("my share"))
+        assertEquals("a_b", RdpDeviceRedirection.asciiShareName("a\\b"))
+        assertEquals("z2term", RdpDeviceRedirection.asciiShareName("   "))
+    }
+
+    /** ⚠ 名前が 8 バイトを超えても PreferredDosName は 7 文字 + NUL に収める。 */
+    @Test
+    fun aLongShareNameIsTruncatedInThePreferredDosName() {
+        val rdpdr = sharingRdpdr(name = "verylongsharename")
+        rdpdr.acceptChannelChunk(chunk(serverAnnounce(major = 1, minor = 13, clientId = 1)))
+        sent.clear()
+
+        rdpdr.acceptChannelChunk(chunk(serverCapability()))
+
+        val list = sent[1]
+        assertEquals("verylon", String(list, 16, 7, Charsets.US_ASCII))
+        assertEquals(0, list[23].toInt()) // NUL 終端
+        assertEquals(18, le32(list, 24)) // 名前ぜんぶ + NUL
+        rdpdr.close()
     }
 
     private fun header(packetId: Int) = le16Bytes(0x4472) + le16Bytes(packetId)

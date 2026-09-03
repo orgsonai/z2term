@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,9 +54,11 @@ import com.zerotoship.z2term.channel.ConnectionProtocol
 import com.zerotoship.z2term.channel.PortForward
 import com.zerotoship.z2term.channel.RemoteService
 import com.zerotoship.z2term.channel.RemoteServiceProtocol
+import com.zerotoship.z2term.channel.SshHop
 import com.zerotoship.z2term.channel.SshKeyGen
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.channel.SshProfileStore
+import com.zerotoship.z2term.gui.rdp.RdpShareDefaults
 import com.zerotoship.z2term.gui.rfb.VncTarget
 import com.zerotoship.z2term.net.HostAddress
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
@@ -145,6 +148,8 @@ fun SshProfilesBody(
         } else {
             EditForm(
                 initial = currentEdit,
+                // 踏み台の「取り込み」で使う。⚠ 編集中のもの自身は候補から外す。
+                importable = profiles.filter { it.hasSsh && it.id != currentEdit.id },
                 onSave = { saved ->
                     scope.launch {
                         store.upsert(saved)
@@ -288,6 +293,7 @@ private fun ProfileRow(
         Text(
             text = "${profile.endpointDescription()} [${profile.fileProtocolLabel}]" +
                 (if (profile.hasSsh) " [${profile.authType.name.lowercase()}]" else "") +
+                (if (profile.hasSsh && profile.jumpHosts.isNotEmpty()) " -J${profile.jumpHosts.size}" else "") +
                 (if (profile.hasSsh && profile.forwards.isNotEmpty()) " 🔀${profile.forwards.size}" else "") +
                 // 常駐トンネル (A2) はタブを閉じても生きるので、一覧で分かるようにする。
                 (if (profile.hasSsh && profile.residentTunnel) " ⏻" else ""),
@@ -359,6 +365,8 @@ private fun TunnelStatusLine(status: TunnelManager.Status?) {
 @Composable
 private fun EditForm(
     initial: SshProfile,
+    /** 踏み台の「取り込み」に出す登録済み接続先 (編集中のもの自身は含まない)。 */
+    importable: List<SshProfile>,
     onSave: (SshProfile) -> Unit,
     onCancel: () -> Unit
 ) {
@@ -379,6 +387,7 @@ private fun EditForm(
     var services by remember(initial.id) { mutableStateOf(initial.services) }
     var initCmd by remember(initial.id) { mutableStateOf(initial.initCommand) }
     var forwards by remember(initial.id) { mutableStateOf(initial.forwards) }
+    var jumpHosts by remember(initial.id) { mutableStateOf(initial.jumpHosts) }
     var resident by remember(initial.id) { mutableStateOf(initial.residentTunnel) }
 
     Text(
@@ -483,6 +492,15 @@ private fun EditForm(
                     )
                 }
             }
+
+            JumpHostSection(
+                profileId = initial.id,
+                hops = jumpHosts,
+                importable = importable,
+                targetLabel = if (host.isBlank()) "" else
+                    "${if (user.isBlank()) "" else "$user@"}${HostAddress.hostPort(host, port.toIntOrNull() ?: 22)}",
+                onChange = { jumpHosts = it },
+            )
 
             RemoteServicesSection(
                 sshHost = host,
@@ -602,6 +620,10 @@ private fun EditForm(
                     privateKey = if (ssh && auth == SshProfile.AuthType.PUBLIC_KEY) privateKey else "",
                     keyPassphrase = if (ssh && auth == SshProfile.AuthType.PUBLIC_KEY) keyPassphrase else "",
                     initCommand = if (ssh) initCmd else "",
+                    // ⚠ ホストか利用者が空の段は経路にならないので保存しない (途中で必ず折れる)。
+                    jumpHosts = if (ssh) jumpHosts.filter {
+                        it.host.isNotBlank() && it.user.isNotBlank()
+                    }.map { it.copy(host = HostAddress.normalize(it.host)) } else emptyList(),
                     forwards = if (ssh) forwards.filter {
                         it.localPort in 1..65535 && it.remotePort in 1..65535 && it.remoteHost.isNotBlank()
                     }.map {
@@ -913,6 +935,33 @@ private fun RemoteServiceEditor(
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
                 )
+                ShareFolderToggle(
+                    checked = service.shareFolder,
+                    onChange = { onChange(service.copy(shareFolder = it)) },
+                )
+                if (service.shareFolder) {
+                    Field(
+                        label = stringResource(R.string.remote_service_share_path),
+                        value = service.sharePath,
+                        onChange = { onChange(service.copy(sharePath = it)) },
+                        placeholder = RdpShareDefaults.PATH,
+                    )
+                    Field(
+                        label = stringResource(R.string.remote_service_share_name),
+                        value = service.shareName,
+                        onChange = { onChange(service.copy(shareName = it)) },
+                        placeholder = RdpShareDefaults.NAME,
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.remote_service_share_hint,
+                            service.shareName.ifBlank { RdpShareDefaults.NAME },
+                        ),
+                        color = ZtsTextSecondary,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
             }
         }
     }
@@ -977,6 +1026,311 @@ private fun ServiceTunnelToggle(
                 text = stringResource(
                     if (checked) R.string.remote_service_use_ssh_desc
                     else R.string.remote_service_direct_desc
+                ),
+                color = ZtsTextSecondary,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp,
+            )
+        }
+    }
+}
+
+/**
+ * 踏み台 (`-J`) のリスト編集セクション。
+ *
+ * ⭐ **各段は自分の宛先と認証を持つ** ([SshHop])。登録済みの接続先を「指す」形にしなかったのは、
+ * 指した先を消したときに壊れるのと、A→B→A の輪が作れてしまうため。代わりに「取り込み」で
+ * 登録済みの内容を**コピー**して埋められるようにしてある。
+ */
+@Composable
+private fun JumpHostSection(
+    profileId: String,
+    hops: List<SshHop>,
+    importable: List<SshProfile>,
+    /** 経路の最後に出す本来の接続先 (`ubuntu@example.com:22`)。 */
+    targetLabel: String,
+    onChange: (List<SshHop>) -> Unit,
+) {
+    var pendingDeleteIndex by remember { mutableStateOf<Int?>(null) }
+    var importIntoIndex by remember { mutableStateOf<Int?>(null) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.ssh_jump_hosts),
+                color = ZtsTextSecondary,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+            Box(modifier = Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(ZtsGreen.copy(alpha = 0.18f))
+                    .border(1.dp, ZtsGreen, RoundedCornerShape(6.dp))
+                    .clickable { onChange(hops + SshHop(host = "", port = 22, user = "")) }
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.ssh_jump_add),
+                    color = ZtsGreen,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
+            }
+        }
+        if (hops.isEmpty()) {
+            Text(
+                text = stringResource(R.string.ssh_jump_empty),
+                color = ZtsTextSecondary.copy(alpha = 0.65f),
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+        } else {
+            hops.forEachIndexed { idx, hop ->
+                JumpHostRow(
+                    profileId = profileId,
+                    index = idx,
+                    hop = hop,
+                    onChange = { updated ->
+                        onChange(hops.toMutableList().also { it[idx] = updated })
+                    },
+                    onImport = { importIntoIndex = idx },
+                    onDelete = { pendingDeleteIndex = idx },
+                )
+            }
+            // ⭐ **経路をそのまま 1 行で見せる。** 段が増えるほど「どこを通るのか」が
+            //    フォームだけでは読み取れなくなる。
+            Text(
+                text = stringResource(
+                    R.string.ssh_jump_route,
+                    (hops.map { it.describe() } + targetLabel.ifBlank { "?" }).joinToString(" → "),
+                ),
+                color = ZtsTextSecondary,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
+    }
+
+    // 行が減ると添字がずれるので、確認中に消える可能性のある添字は毎回見直す。
+    pendingDeleteIndex?.let { idx ->
+        val target = hops.getOrNull(idx)
+        if (target == null) {
+            pendingDeleteIndex = null
+        } else {
+            ConfirmDialog(
+                title = stringResource(R.string.confirm_delete_jump_title),
+                message = stringResource(R.string.confirm_delete_item_msg, target.describe()),
+                confirmLabel = stringResource(R.string.ssh_action_delete),
+                confirmColor = ZtsError,
+                onConfirm = {
+                    pendingDeleteIndex = null
+                    onChange(hops.toMutableList().also { it.removeAt(idx) })
+                },
+                onCancel = { pendingDeleteIndex = null },
+            )
+        }
+    }
+
+    importIntoIndex?.let { idx ->
+        if (hops.getOrNull(idx) == null) {
+            importIntoIndex = null
+        } else {
+            AlertDialog(
+                onDismissRequest = { importIntoIndex = null },
+                title = { Text(stringResource(R.string.ssh_jump_import_title)) },
+                text = {
+                    if (importable.isEmpty()) {
+                        Text(stringResource(R.string.ssh_jump_import_empty))
+                    } else {
+                        Column(
+                            modifier = Modifier.verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            importable.forEach { candidate ->
+                                Text(
+                                    text = candidate.name.ifBlank { candidate.endpointDescription() } +
+                                        "  (${candidate.endpointDescription()})",
+                                    color = ZtsTextPrimary,
+                                    fontSize = 12.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onChange(
+                                                hops.toMutableList().also {
+                                                    it[idx] = candidate.toJumpHost()
+                                                }
+                                            )
+                                            importIntoIndex = null
+                                        }
+                                        .padding(vertical = 6.dp),
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { importIntoIndex = null }) {
+                        Text(stringResource(R.string.action_cancel))
+                    }
+                },
+            )
+        }
+    }
+}
+
+/** 登録済み接続先を踏み台 1 段ぶんへ写す。⚠ 参照ではなくコピー。 */
+private fun SshProfile.toJumpHost(): SshHop = SshHop(
+    host = host,
+    port = port,
+    user = user,
+    authType = authType,
+    password = password,
+    privateKey = privateKey,
+    keyPassphrase = keyPassphrase,
+)
+
+@Composable
+private fun JumpHostRow(
+    profileId: String,
+    index: Int,
+    hop: SshHop,
+    onChange: (SshHop) -> Unit,
+    onImport: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(ZtsBgCard)
+            .border(1.dp, ZtsBorder, RoundedCornerShape(8.dp))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.ssh_jump_hop, index + 1),
+                color = ZtsGreen,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = FontFamily.Monospace,
+            )
+            Box(Modifier.weight(1f))
+            SmallButton(label = stringResource(R.string.ssh_jump_import), onClick = onImport)
+            Spacer(Modifier.width(6.dp))
+            SmallButton(label = "×", danger = true, onClick = onDelete)
+        }
+        Field(
+            label = stringResource(R.string.ssh_field_host),
+            value = hop.host,
+            onChange = { onChange(hop.copy(host = it)) },
+            placeholder = "gate.example.com",
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(modifier = Modifier.weight(1f)) {
+                Field(
+                    label = stringResource(R.string.ssh_field_port),
+                    value = hop.port.toString(),
+                    onChange = {
+                        onChange(hop.copy(port = it.filter(Char::isDigit).toIntOrNull() ?: 0))
+                    },
+                    placeholder = "22",
+                )
+            }
+            Box(modifier = Modifier.weight(2f)) {
+                Field(
+                    label = stringResource(R.string.ssh_field_user),
+                    value = hop.user,
+                    onChange = { onChange(hop.copy(user = it)) },
+                    placeholder = "ubuntu",
+                )
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            AuthChip(
+                label = stringResource(R.string.ssh_auth_password),
+                selected = hop.authType == SshProfile.AuthType.PASSWORD,
+                onSelect = { onChange(hop.copy(authType = SshProfile.AuthType.PASSWORD)) },
+            )
+            AuthChip(
+                label = stringResource(R.string.ssh_auth_publickey),
+                selected = hop.authType == SshProfile.AuthType.PUBLIC_KEY,
+                onSelect = { onChange(hop.copy(authType = SshProfile.AuthType.PUBLIC_KEY)) },
+            )
+        }
+        when (hop.authType) {
+            SshProfile.AuthType.PASSWORD -> Field(
+                label = stringResource(R.string.ssh_field_password),
+                value = hop.password,
+                onChange = { onChange(hop.copy(password = it)) },
+                placeholder = "********",
+                secret = true,
+                visibilityKey = "$profileId:jump-$index-password",
+            )
+            SshProfile.AuthType.PUBLIC_KEY -> {
+                Field(
+                    label = stringResource(R.string.ssh_field_private_key),
+                    value = hop.privateKey,
+                    onChange = { onChange(hop.copy(privateKey = it)) },
+                    placeholder = "-----BEGIN OPENSSH PRIVATE KEY-----\n...",
+                    secret = true,
+                    visibilityKey = "$profileId:jump-$index-key",
+                    multiline = true,
+                )
+                Field(
+                    label = stringResource(R.string.ssh_field_passphrase),
+                    value = hop.keyPassphrase,
+                    onChange = { onChange(hop.copy(keyPassphrase = it)) },
+                    secret = true,
+                    visibilityKey = "$profileId:jump-$index-passphrase",
+                )
+            }
+        }
+    }
+}
+
+/**
+ * RDP のフォルダ共有の ON/OFF。
+ *
+ * **明示 opt-in**にしているのは、知らないうちに端末のフォルダが相手から読み書きできる状態に
+ * ならないため (常駐トンネルと同じ考え方)。
+ */
+@Composable
+private fun ShareFolderToggle(
+    checked: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(ZtsBgPrimary)
+            .border(1.dp, if (checked) ZtsGreen else ZtsBorder, RoundedCornerShape(8.dp))
+            .clickable { onChange(!checked) }
+            .padding(9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = if (checked) "[x]" else "[ ]",
+            color = if (checked) ZtsGreen else ZtsTextPrimary,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 12.sp,
+        )
+        Column {
+            Text(
+                text = stringResource(R.string.remote_service_share_folder),
+                color = if (checked) ZtsGreen else ZtsTextPrimary,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 12.sp,
+            )
+            Text(
+                text = stringResource(
+                    if (checked) R.string.remote_service_share_folder_on
+                    else R.string.remote_service_share_folder_off
                 ),
                 color = ZtsTextSecondary,
                 fontFamily = FontFamily.Monospace,

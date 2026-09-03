@@ -23,7 +23,13 @@ import java.util.concurrent.Executors
  */
 object ClipboardFileTransfer {
     private const val TAG = "ClipboardFileTransfer"
-    private const val FOLDER = "Download/z2term"
+
+    /**
+     * 端末側の置き場。⭐ **RDP のフォルダ共有もここを既定にする**
+     * ([com.zerotoship.z2term.gui.rdp.RdpShareDefaults])。受け取ったファイルと共有フォルダが
+     * 別々の場所だと、戻したファイルをどちらで探せばいいのか分からなくなる。
+     */
+    const val FOLDER = "Download/z2term"
     private const val MAX_FILE_BYTES = 2L * 1024 * 1024 * 1024
 
     /**

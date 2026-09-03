@@ -1,9 +1,9 @@
 package com.zerotoship.z2term.channel
 
 import android.content.Context
-import com.jcraft.jsch.Session
 import com.zerotoship.z2term.gui.RemoteTarget
 import com.zerotoship.z2term.gui.rdp.RdpCertificateTrust
+import com.zerotoship.z2term.gui.rdp.RdpShareDefaults
 import com.zerotoship.z2term.gui.rdp.RdpTarget
 import com.zerotoship.z2term.gui.rfb.VncTarget
 import com.zerotoship.z2term.net.HostAddress
@@ -18,24 +18,24 @@ import java.util.concurrent.CopyOnWriteArraySet
  *
  * SSH 経由なら独立した SSH セッションへ一時的な `-L` を張り、直通なら接続先をそのまま返す。
  * ファイル画面や VNC タブを閉じると [close] されるため、指定ローカルポートを使い終えた後も
- * 待ち受けだけが残ることはない。
+ * 待ち受けだけが残ることはない。踏み台 (`-J`) 付きの接続先なら、この経路も同じ踏み台を通る。
  */
 class ServiceRoute private constructor(
     private val service: RemoteService,
-    private val sshSession: Session?,
+    private val sshLink: SshLink?,
     val host: String,
     val port: Int,
 ) : AutoCloseable {
     private val extraLocalPorts = CopyOnWriteArraySet<Int>()
 
-    val tunneled: Boolean get() = sshSession != null
+    val tunneled: Boolean get() = sshLink != null
 
     /**
      * FTP のデータ接続など、接続中に決まる追加ポートへ Socket を開く。
      * SSH 経由では空きローカルポートを追加で払い出し、Socket を閉じると転送も消す。
      */
     fun openSocket(remotePort: Int, timeoutMs: Int = CONNECT_TIMEOUT_MS): RoutedSocket {
-        val session = sshSession
+        val session = sshLink?.session
         if (session == null) {
             // 直通時は制御接続と同じ SSH ホストへ接続する。FTP の PASV データ接続だけ
             // サービス個別ホストへ逸れると、制御接続は成功しても一覧取得が失敗する。
@@ -58,12 +58,12 @@ class ServiceRoute private constructor(
     }
 
     override fun close() {
-        val session = sshSession ?: return
+        val link = sshLink ?: return
         extraLocalPorts.toList().forEach { localPort ->
-            runCatching { session.delPortForwardingL(LOOPBACK, localPort) }
+            runCatching { link.session.delPortForwardingL(LOOPBACK, localPort) }
         }
         extraLocalPorts.clear()
-        runCatching { session.disconnect() }
+        runCatching { link.close() }
     }
 
     class RoutedSocket(
@@ -93,17 +93,17 @@ class ServiceRoute private constructor(
             if (!service.useSshTunnel) {
                 return@withContext ServiceRoute(
                     service = service,
-                    sshSession = null,
+                    sshLink = null,
                     host = targetHost,
                     port = service.remotePort,
                 )
             }
             require(sshProfile.hasSsh) { "SSH profile is required for port forwarding" }
 
-            val session = SshSessionFactory.create(sshProfile, context)
-            session.connect(SshSessionFactory.CONNECT_TIMEOUT_MS)
+            val link = SshSessionFactory.create(sshProfile, context)
             try {
-                val assigned = session.setPortForwardingL(
+                link.connect(SshSessionFactory.CONNECT_TIMEOUT_MS)
+                val assigned = link.session.setPortForwardingL(
                     LOOPBACK,
                     service.localPort,
                     targetHost,
@@ -111,12 +111,12 @@ class ServiceRoute private constructor(
                 )
                 ServiceRoute(
                     service = service,
-                    sshSession = session,
+                    sshLink = link,
                     host = LOOPBACK,
                     port = assigned,
                 )
             } catch (e: Throwable) {
-                runCatching { session.disconnect() }
+                runCatching { link.close() }
                 throw e
             }
         }
@@ -169,6 +169,9 @@ object RemoteServiceConnector {
      *   端末の画面から出した値 ([RdpTarget.fitDesktopSize]) を要求する。
      * - **証明書を相手ごとに覚える** — 覚える名前は SSH 転送を通す**前**の本来の宛先にする
      *   (転送中の `127.0.0.1:<毎回変わるポート>` で覚えると毎回「初めての相手」になる)。
+     *
+     * フォルダ共有 ([RemoteService.shareFolder]) を ON にしていれば、ここで置き場を用意して
+     * 渡す。⚠ **用意できなくても RDP は繋ぐ** — 共有できないことと繋げないことは別。
      */
     suspend fun rdpTarget(
         sshProfile: SshProfile,
@@ -183,6 +186,9 @@ object RemoteServiceConnector {
         )
         val metrics = context.resources.displayMetrics
         val (width, height) = RdpTarget.fitDesktopSize(metrics.widthPixels, metrics.heightPixels)
+        val share = if (service.shareFolder) {
+            RdpShareDefaults.resolve(service.sharePath, service.shareName)
+        } else null
         val route = ServiceRoute.open(sshProfile, service, context)
         return RdpTarget(
             host = route.host,
@@ -197,6 +203,7 @@ object RemoteServiceConnector {
             certificateVerifier = { certificate ->
                 RdpCertificateTrust.verify(app, trustKey, certificate)
             },
+            share = share,
             transportCloser = { route.close() },
         )
     }

@@ -2,8 +2,9 @@ package com.zerotoship.z2term.service
 
 import android.content.Context
 import android.util.Log
-import com.jcraft.jsch.Session
 import com.zerotoship.z2term.channel.KnownHostsHolder
+import com.zerotoship.z2term.channel.PortForwarding
+import com.zerotoship.z2term.channel.SshLink
 import com.zerotoship.z2term.channel.PortForward
 import com.zerotoship.z2term.channel.SshProfile
 import com.zerotoship.z2term.net.HostAddress
@@ -26,7 +27,8 @@ import java.util.concurrent.ConcurrentHashMap
  *  1. **明示 opt-in**: [SshProfile.residentTunnel] が true のプロファイルだけ対象。
  *  2. **known_hosts に登録済みのホストだけ**。常駐中はホスト鍵の確認ダイアログを出せないので、
  *     未知のホストは**張らずに理由を残す**（黙って信用しない）。先に SSH タブで 1 度繋いで
- *     ホスト鍵を承認してもらう。
+ *     ホスト鍵を承認してもらう。⚠ **踏み台があるときは全段**を見る — 途中の 1 段だけ未承認
+ *     でも、その段で必ずダイアログ待ちになって固まるため。
  *  3. **切断したら指数バックオフで再接続**（[backoffMs]）。
  */
 object TunnelManager {
@@ -100,7 +102,7 @@ object TunnelManager {
 
     private class Worker(val thread: Thread) {
         @Volatile var stop = false
-        @Volatile var session: Session? = null
+        @Volatile var link: SshLink? = null
     }
 
     private val workers = ConcurrentHashMap<String, Worker>()
@@ -172,7 +174,7 @@ object TunnelManager {
     private fun stopOne(id: String) {
         val w = workers.remove(id) ?: return
         w.stop = true
-        runCatching { w.session?.disconnect() }
+        runCatching { w.link?.close() }
         w.thread.interrupt()
         statuses.remove(id)
     }
@@ -196,19 +198,18 @@ object TunnelManager {
             var retries = 0
             while (!worker.stop) {
                 try {
-                    val session = SshSessionFactory.create(profile, context)
+                    val link = SshSessionFactory.create(profile, context)
                     // ⭐ keepalive。**繋ぐ前に**入れること (JSch は接続の最後にこの値をソケットの
                     // 読み取りタイムアウトへ写し、時間切れのたびに keepalive を 1 本送る)。
                     // 省電力モードは接続のたびに読み直す (常駐中に切り替えられても次で効く)。
                     val interval = keepAliveMs(lowPowerNow(context))
-                    session.serverAliveInterval = interval
-                    session.serverAliveCountMax = KEEPALIVE_COUNT_MAX
-                    session.connect(CONNECT_TIMEOUT_MS)
-                    worker.session = session
+                    link.enableKeepAlive(interval, KEEPALIVE_COUNT_MAX)
+                    link.connect(CONNECT_TIMEOUT_MS)
+                    worker.link = link
                     retries = 0
 
                     // 張れなかったものは捨てずに持っておき、繋がったまま張り直す。
-                    var pending = applyForwards(session, profile.forwards)
+                    var pending = PortForwarding.apply(link.session, profile.forwards).failed
                     statuses[profile.id] = Status(
                         profile.id, profile.name, true, detailOf(profile.forwards, pending), 0
                     )
@@ -216,14 +217,14 @@ object TunnelManager {
 
                     // 生きている間は待つだけ。転送は JSch 側のスレッドが捌く。
                     var sinceForwardRetry = 0L
-                    while (!worker.stop && session.isConnected) {
+                    while (!worker.stop && link.isConnected) {
                         Thread.sleep(POLL_MS)
                         if (pending.isEmpty()) continue
                         sinceForwardRetry += POLL_MS
                         if (sinceForwardRetry < FORWARD_RETRY_MS) continue
                         sinceForwardRetry = 0L
                         val before = pending.size
-                        pending = applyForwards(session, pending)
+                        pending = PortForwarding.apply(link.session, pending).failed
                         if (pending.size != before) {
                             statuses[profile.id] = Status(
                                 profile.id, profile.name, true,
@@ -232,8 +233,8 @@ object TunnelManager {
                         }
                     }
 
-                    runCatching { session.disconnect() }
-                    worker.session = null
+                    runCatching { link.close() }
+                    worker.link = null
                     if (worker.stop) break
                     Log.w(TAG, "tunnel dropped: ${profile.name}")
                 } catch (e: InterruptedException) {
@@ -263,34 +264,6 @@ object TunnelManager {
         t.start()
     }
 
-    /** 転送を張って、**張れなかったもの**を返す。空リストなら全部張れた。 */
-    private fun applyForwards(session: Session, forwards: List<PortForward>): List<PortForward> {
-        val failed = ArrayList<PortForward>()
-        forwards.forEach { f ->
-            runCatching {
-                if (f.reverse) {
-                    session.setPortForwardingR(
-                        HostAddress.normalize(f.bindAddress),
-                        f.remotePort,
-                        HostAddress.normalize(f.remoteHost),
-                        f.localPort,
-                    )
-                } else {
-                    session.setPortForwardingL(
-                        HostAddress.normalize(f.bindAddress),
-                        f.localPort,
-                        HostAddress.normalize(f.remoteHost),
-                        f.remotePort,
-                    )
-                }
-            }.onFailure { e ->
-                Log.w(TAG, "forward failed (${f.describe()}): ${e.message}")
-                failed += f
-            }
-        }
-        return failed
-    }
-
     /** 省電力モードか。読めなければ OFF 扱い ([ServerDaemonService] のロック取得と同じ既定)。 */
     private fun lowPowerNow(context: Context): Boolean = runCatching {
         runBlocking { AppSettings(context).flow.first().serversLowPower }
@@ -304,7 +277,9 @@ object TunnelManager {
     private fun isKnownHost(context: Context, profile: SshProfile): Boolean = runCatching {
         val repo = KnownHostsHolder.repository(context)
         // JSch は既定ポート以外を `[host]:port` の形で記録する (SSH タブでの承認時と同じ形)。
-        val key = HostAddress.knownHostKey(profile.host, profile.port)
-        repo.getHostKey(key, null).isNotEmpty()
+        val hops = profile.jumpHosts.map { it.host to it.port }
+        (hops + (profile.host to profile.port)).all { (host, port) ->
+            repo.getHostKey(HostAddress.knownHostKey(host, port), null).isNotEmpty()
+        }
     }.getOrDefault(false)
 }

@@ -28,6 +28,11 @@ data class RdpTarget(
     val trustKey: String = HostAddress.hostPort(host, port),
     /** TLS 証明書を受け入れるか。既定は「受け入れない」= 呼び出し側が必ず決める。 */
     internal val certificateVerifier: (X509Certificate) -> Boolean = { false },
+    /**
+     * 相手へ差し出す端末のフォルダ。null なら共有しない (既定)。
+     * ⚠ **接続のたびに作り直される**ので、ここに残るのは設定であって開いたファイルではない。
+     */
+    internal val share: RdpShare? = null,
     /** SSH 一時転送など、この RDP タブと同じ寿命を持つ通信経路。 */
     internal val transportCloser: (() -> Unit)? = null,
 ) : RemoteTarget {
@@ -45,6 +50,7 @@ data class RdpTarget(
         ),
         settings = RdpMcs.ClientSettings(width = width, height = height),
         certificateVerifier = certificateVerifier,
+        share = share,
     )
 
     override fun closeTransport() {

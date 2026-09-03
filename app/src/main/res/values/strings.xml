@@ -476,7 +476,7 @@
     <string name="rdp_error_timeout">%1$s did not answer in time. Check the network and any firewall.</string>
     <string name="rdp_error_refused">Nothing is listening on %1$s. Check that Remote Desktop is enabled on the host and that the port is right (3389 by default).</string>
     <string name="ssh_field_init_cmd">init command (run automatically on connect, optional)</string>
-    <string name="ssh_port_forward">Port forwarding (-L)</string>
+    <string name="ssh_port_forward">Port forwarding (-L / -R)</string>
     <string name="ssh_port_forward_add">+ Add</string>
     <string name="ssh_port_forward_empty">None. Tap "+ Add" to create localhost:N → remote:M.</string>
 
@@ -1260,4 +1260,23 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="settings_app_lock_grace_300">after 5 min</string>
     <string name="settings_app_lock_grace_launch">on launch only</string>
     <string name="settings_app_lock_note">⚠ This hides the screen, nothing more. Sessions, resident servers and “z2-session attach” keep running while locked — stopping them would break anything left working overnight.</string>
+
+    <!-- Jump hosts (-J) -->
+    <string name="ssh_jump_hosts">Jump hosts (-J)</string>
+    <string name="ssh_jump_add">+ Add</string>
+    <string name="ssh_jump_empty">None. The connection goes straight to the host above.</string>
+    <string name="ssh_jump_hop">Hop %1$d</string>
+    <string name="ssh_jump_import">Import</string>
+    <string name="ssh_jump_import_title">Copy from a saved connection</string>
+    <string name="ssh_jump_import_empty">No other SSH connection is saved yet.</string>
+    <string name="ssh_jump_route">Route: %1$s</string>
+    <string name="confirm_delete_jump_title">Delete this jump host?</string>
+
+    <!-- RDP folder sharing -->
+    <string name="remote_service_share_folder">Share a folder</string>
+    <string name="remote_service_share_folder_on">The remote desktop can read and write this folder</string>
+    <string name="remote_service_share_folder_off">Nothing on this device is visible to the remote desktop</string>
+    <string name="remote_service_share_path">Shared folder on this device</string>
+    <string name="remote_service_share_name">Share name</string>
+    <string name="remote_service_share_hint">It shows up on the remote desktop as \\\\tsclient\\%1$s. The remote side can create, change and delete files there, so only share a folder you are willing to hand over.</string>
 </resources>

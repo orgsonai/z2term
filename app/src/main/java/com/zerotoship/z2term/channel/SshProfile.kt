@@ -118,6 +118,16 @@ data class RemoteService(
     val domain: String = "",
     /** WebDAV だけで使用。true=https / false=http。 */
     val webDavHttps: Boolean = true,
+    /**
+     * **RDP のフォルダ共有 (rdpdr ドライブ)**。ON にすると端末の [sharePath] を
+     * 相手のデスクトップから `\\tsclient\<shareName>` として読み書きできる。
+     * ⚠ 既定 OFF = 明示 opt-in。端末のフォルダを相手に開けっぱなしにしない。
+     */
+    val shareFolder: Boolean = false,
+    /** 相手に見せる端末側のフォルダ。空なら既定の置き場 ([RdpShareDefaults.PATH])。 */
+    val sharePath: String = "",
+    /** 相手の一覧に出る共有名。空なら [RdpShareDefaults.NAME]。 */
+    val shareName: String = "",
 ) {
     val label: String get() = name.ifBlank { protocol.name }
 
@@ -147,6 +157,9 @@ data class RemoteService(
         put("path", path)
         put("domain", domain)
         put("webDavHttps", webDavHttps)
+        put("shareFolder", shareFolder)
+        put("sharePath", sharePath)
+        put("shareName", shareName)
     }
 
     companion object {
@@ -170,6 +183,9 @@ data class RemoteService(
                 path = o.optString("path"),
                 domain = o.optString("domain"),
                 webDavHttps = o.optBoolean("webDavHttps", true),
+                shareFolder = o.optBoolean("shareFolder", false),
+                sharePath = o.optString("sharePath"),
+                shareName = o.optString("shareName"),
             )
         }
     }
@@ -202,6 +218,11 @@ data class SshProfile(
     val keyPassphrase: String = "",
     /** 接続後に自動実行するコマンド (空なら何もしない) */
     val initCommand: String = "",
+    /**
+     * **踏み台 (`ssh -J`)**。手前から順に経由して、最後の段の中から [host] へ出る。
+     * 空なら直接繋ぐ。段数の上限は設けていない ([SshSessionFactory])。
+     */
+    val jumpHosts: List<SshHop> = emptyList(),
     /** ポート転送のリスト (空なら何もしない)。向きは [PortForward.reverse] で決まる */
     val forwards: List<PortForward> = emptyList(),
     /**
@@ -231,6 +252,18 @@ data class SshProfile(
     val services: List<RemoteService> = emptyList(),
 ) {
     val hasSsh: Boolean get() = protocol == ConnectionProtocol.SSH
+
+    /** 認証に使う分だけ取り出す ([SshHop.credentials] と同じ形にして経路を 1 本道にする)。 */
+    fun credentials(): SshCredentials = SshCredentials(
+        authType = authType,
+        password = password,
+        privateKey = privateKey,
+        keyPassphrase = keyPassphrase,
+    )
+
+    /** 経路の説明 (`gate:22 -> 10.0.0.5:22 -> 本来の接続先`)。踏み台が無ければ接続先だけ。 */
+    fun routeDescription(): String =
+        (jumpHosts.map { it.describe() } + endpointDescription()).joinToString(" → ")
 
     val fileProtocolLabel: String get() = when (protocol) {
         ConnectionProtocol.SSH -> "SFTP"
@@ -276,6 +309,9 @@ data class SshProfile(
         put("forwards", JSONArray().also { arr ->
             forwards.forEach { arr.put(it.toJson()) }
         })
+        put("jumpHosts", JSONArray().also { arr ->
+            jumpHosts.forEach { arr.put(it.toJson(encryptSecrets = true)) }
+        })
         put("remotePath", remotePath)
         put("domain", domain)
         put("services", JSONArray().also { arr ->
@@ -312,6 +348,9 @@ data class SshProfile(
             services.forEach { arr.put(it.toJson(encryptSecrets = false)) }
         })
         put("forwards", JSONArray().also { arr -> forwards.forEach { arr.put(it.toJson()) } })
+        put("jumpHosts", JSONArray().also { arr ->
+            jumpHosts.forEach { arr.put(it.toJson(encryptSecrets = false)) }
+        })
     }
 
     companion object {
@@ -341,7 +380,8 @@ data class SshProfile(
                 val arr = o.optJSONArray("forwards") ?: return@runCatching emptyList()
                 List(arr.length()) { PortForward.fromJson(arr.getJSONObject(it)) }
             }.getOrDefault(emptyList()),
-            residentTunnel = o.optBoolean("residentTunnel", false)
+            residentTunnel = o.optBoolean("residentTunnel", false),
+            jumpHosts = jumpHostsFromJson(o, encryptedSecrets = false),
         )
 
         fun fromJson(o: JSONObject): SshProfile = SshProfile(
@@ -369,8 +409,16 @@ data class SshProfile(
                 val arr = o.optJSONArray("forwards") ?: return@runCatching emptyList()
                 List(arr.length()) { PortForward.fromJson(arr.getJSONObject(it)) }
             }.getOrDefault(emptyList()),
-            residentTunnel = o.optBoolean("residentTunnel", false)
+            residentTunnel = o.optBoolean("residentTunnel", false),
+            jumpHosts = jumpHostsFromJson(o, encryptedSecrets = true),
         )
+
+        /** 踏み台の配列。旧データには無いので、無ければ「踏み台なし」。 */
+        private fun jumpHostsFromJson(o: JSONObject, encryptedSecrets: Boolean): List<SshHop> =
+            runCatching {
+                val arr = o.optJSONArray("jumpHosts") ?: return@runCatching emptyList()
+                List(arr.length()) { SshHop.fromJson(arr.getJSONObject(it), encryptedSecrets) }
+            }.getOrDefault(emptyList())
 
         /** 0.8.438 以前の VNC 欄は、初回読込時だけ新しいサービス 1 件として扱う。 */
         private fun servicesFromJson(o: JSONObject, encryptedSecrets: Boolean): List<RemoteService> {
@@ -445,6 +493,11 @@ class SshProfileStore(private val context: Context) {
                     keyPassphrase = "",
                     vncPassword = "",
                     services = p.services.map { it.copy(password = "") },
+                    // 踏み台の秘密も落とす。ここを忘れると「秘密なし」で持ち出したはずの
+                    // ファイルに踏み台のパスワードだけが残る。
+                    jumpHosts = p.jumpHosts.map {
+                        it.copy(password = "", privateKey = "", keyPassphrase = "")
+                    },
                 )
             arr.put(strip.toPlainJson())
         }

@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import com.jcraft.jsch.ChannelShell
 import com.zerotoship.z2term.net.HostAddress
-import com.jcraft.jsch.Session
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -17,9 +16,12 @@ import java.io.OutputStream
  * - PUBLIC_KEY 認証 (秘密鍵 PEM + 任意 passphrase)
  * - DataStoreHostKeyRepository による known_hosts 検証
  * - StrictHostKeyChecking=ask + UserInfo で未知ホストは UI に確認
+ *
+ * 踏み台 (`-J`) を経由する場合も入口は同じ。経路まるごとが [SshLink] に入っていて、
+ * [close] で**奥から順に**畳まれる。
  */
 class SshChannel private constructor(
-    private val session: Session,
+    private val link: SshLink,
     private val channel: ChannelShell,
     /** 接続時に確立できたポート転送の人間可読サマリ (UI バナー用) */
     val forwardSummary: List<String> = emptyList()
@@ -29,7 +31,7 @@ class SshChannel private constructor(
     override val writer: OutputStream = channel.outputStream
 
     override val isAlive: Boolean
-        get() = channel.isConnected && session.isConnected
+        get() = channel.isConnected && link.isConnected
 
     override val exitCode: Int?
         get() = if (channel.isClosed) channel.exitStatus else null
@@ -45,7 +47,7 @@ class SshChannel private constructor(
 
     override fun close() {
         runCatching { channel.disconnect() }
-        runCatching { session.disconnect() }
+        runCatching { link.close() }
     }
 
     companion object {
@@ -56,36 +58,32 @@ class SshChannel private constructor(
          * 呼び出し元は IO Dispatcher で実行すること。
          */
         fun connect(profile: SshProfile, rows: Int, cols: Int, context: Context): SshChannel {
-            // 認証 / known_hosts 検証 / UserInfo は SshSessionFactory に共通化 (SFTP と共有)
-            val session = SshSessionFactory.create(profile, context)
-            session.connect(CONNECT_TIMEOUT_MS)
+            // 認証 / known_hosts 検証 / UserInfo / 踏み台は SshSessionFactory に共通化
+            // (SFTP・サービス経路・常駐トンネルと共有)。
+            val link = SshSessionFactory.create(profile, context)
+            try {
+                link.connect(CONNECT_TIMEOUT_MS)
 
-            // M7: -L ローカルポート転送をセッション開通直後に設定。
-            // 失敗した転送は警告ログに留め、確立できたものはサマリを返す。
-            val summary = mutableListOf<String>()
-            for (fwd in profile.forwards) {
-                try {
-                    val assigned = session.setPortForwardingL(
-                        HostAddress.normalize(fwd.bindAddress),
-                        fwd.localPort,
-                        HostAddress.normalize(fwd.remoteHost),
-                        fwd.remotePort,
-                    )
-                    summary += "${HostAddress.hostPort(fwd.bindAddress, assigned)} → " +
-                        HostAddress.hostPort(fwd.remoteHost, fwd.remotePort)
-                    Log.i(TAG, "PortForwardL: ${summary.last()}")
-                } catch (e: Exception) {
-                    Log.w(TAG, "PortForwardL failed for $fwd: ${e.message}")
-                    summary += "✗ ${fwd.bindAddress}:${fwd.localPort} (${e.message})"
-                }
+                // M7: ポート転送をセッション開通直後に設定。向きは PortForward.reverse で決まる。
+                // 失敗した転送は警告ログに留め、確立できたものはサマリを返す。
+                val result = PortForwarding.apply(link.session, profile.forwards)
+                val summary = result.established + result.failed.map { "✗ ${it.describe()}" }
+
+                val channel = link.session.openChannel("shell") as ChannelShell
+                channel.setPtyType("xterm-256color")
+                channel.setPtySize(cols, rows, cols * 8, rows * 16)
+                channel.connect(CONNECT_TIMEOUT_MS)
+                Log.i(
+                    TAG,
+                    "SSH connected to ${profile.user}@${HostAddress.hostPort(profile.host, profile.port)}" +
+                        if (link.jumpCount > 0) " via ${link.jumpCount} jump host(s)" else "",
+                )
+                return SshChannel(link, channel, summary)
+            } catch (e: Throwable) {
+                // ⚠ 踏み台まで開いた後で折れることがある。畳まないと経由先だけ繋がったまま残る。
+                runCatching { link.close() }
+                throw e
             }
-
-            val channel = session.openChannel("shell") as ChannelShell
-            channel.setPtyType("xterm-256color")
-            channel.setPtySize(cols, rows, cols * 8, rows * 16)
-            channel.connect(CONNECT_TIMEOUT_MS)
-            Log.i(TAG, "SSH connected to ${profile.user}@${HostAddress.hostPort(profile.host, profile.port)}")
-            return SshChannel(session, channel, summary)
         }
 
         private const val CONNECT_TIMEOUT_MS = 15_000

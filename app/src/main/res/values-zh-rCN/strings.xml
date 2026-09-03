@@ -452,7 +452,7 @@
     <string name="rdp_error_timeout">%1$s 未在时间内响应。请检查网络与防火墙。</string>
     <string name="rdp_error_refused">%1$s 上没有程序在监听。请确认对方已启用远程桌面，且端口正确（默认 3389）。</string>
     <string name="ssh_field_init_cmd">init 命令 (连接后自动执行，可选)</string>
-    <string name="ssh_port_forward">端口转发 (-L)</string>
+    <string name="ssh_port_forward">端口转发 (-L / -R)</string>
     <string name="ssh_port_forward_add">+ 添加</string>
     <string name="ssh_port_forward_empty">尚未设置。点击“+ 添加”来创建 localhost:N → remote:M。</string>
     <string name="hostkey_title">⚠️  主机密钥验证</string>
@@ -1165,4 +1165,23 @@ SSH 连接目标 %3$d 个
     <string name="settings_app_lock_grace_300">5分钟后</string>
     <string name="settings_app_lock_grace_launch">只在启动时</string>
     <string name="settings_app_lock_note">⚠ 能藏起来的只有画面。锁定期间，会话、常驻服务和“z2-session attach”都会继续运行（停掉它们，通宵跑着的工作就毁了）。</string>
+
+    <!-- 跳板机 (-J) -->
+    <string name="ssh_jump_hosts">跳板机 (-J)</string>
+    <string name="ssh_jump_add">+ 添加</string>
+    <string name="ssh_jump_empty">尚未设置。将直接连接上面的主机。</string>
+    <string name="ssh_jump_hop">第 %1$d 跳</string>
+    <string name="ssh_jump_import">导入</string>
+    <string name="ssh_jump_import_title">从已保存的连接导入</string>
+    <string name="ssh_jump_import_empty">尚未保存其他 SSH 连接。</string>
+    <string name="ssh_jump_route">路径: %1$s</string>
+    <string name="confirm_delete_jump_title">删除此跳板机？</string>
+
+    <!-- RDP 文件夹共享 -->
+    <string name="remote_service_share_folder">共享文件夹</string>
+    <string name="remote_service_share_folder_on">远程桌面可以读写此文件夹</string>
+    <string name="remote_service_share_folder_off">本机文件对远程桌面不可见</string>
+    <string name="remote_service_share_path">本机上要共享的文件夹</string>
+    <string name="remote_service_share_name">共享名</string>
+    <string name="remote_service_share_hint">在远程桌面上显示为 \\\\tsclient\\%1$s。对方可以在其中创建、修改和删除文件，因此只共享可以交出的文件夹。</string>
 </resources>

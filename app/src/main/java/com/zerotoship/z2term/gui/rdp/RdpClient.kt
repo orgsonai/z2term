@@ -19,8 +19,8 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * TLS/NLA/MCS/Activationの上でclassic Bitmap UpdateとRDP Graphics Pipelineを描画する。
  *
- * 画面更新、ポインター・キー入力、CLIPRDR のテキストとファイルの共有、rdpsnd の音、
- * Display Control による動的 resize に対応する。
+ * 画面更新、ポインター・キー入力、CLIPRDR のテキストとファイルの共有、rdpdr のフォルダ共有、
+ * rdpsnd の音、Display Control による動的 resize に対応する。
  */
 internal class RdpClient(
     private val host: String,
@@ -28,6 +28,8 @@ internal class RdpClient(
     private val credentials: CredSspNtlm.Credentials,
     private val settings: RdpMcs.ClientSettings = RdpMcs.ClientSettings(),
     private val certificateVerifier: (X509Certificate) -> Boolean,
+    /** 相手へ差し出す端末のフォルダ。null なら共有しない。 */
+    private val share: RdpShare? = null,
 ) : RemoteDesktopClient {
     @Volatile
     override var width: Int = settings.width
@@ -57,7 +59,10 @@ internal class RdpClient(
     @Volatile private var displayControl: RdpDisplayControl? = null
     private var sound: RdpSound? = null
     private var rdpsndChannelId: Int? = null
-    /** ⛔ 音を鳴らすためだけに開く。デバイスは 1 つも渡さない (→ [RdpDeviceRedirection])。 */
+    /**
+     * 音を鳴らすために必ず開き、[share] があるときだけフォルダを 1 つ渡す
+     * (→ [RdpDeviceRedirection])。
+     */
     private var deviceRedirection: RdpDeviceRedirection? = null
     private var rdpdrChannelId: Int? = null
     private val audio = RdpAudioSink()
@@ -124,7 +129,9 @@ internal class RdpClient(
                         candidate.sendVirtualChannel(connected, channelId, message)
                     },
                     clientName = settings.clientName,
+                    drive = share?.let { RdpDrive(root = it.root, shareName = it.name) },
                 )
+                share?.let { Log.i(TAG, "RDP: sharing ${it.root} as \\\\tsclient\\${it.name}") }
             }
             connected.staticChannels[RdpSound.CHANNEL_NAME]?.let { channelId ->
                 rdpsndChannelId = channelId
@@ -299,6 +306,8 @@ internal class RdpClient(
         audio.close()
         // 取り寄せ途中のファイルを畳む (書きかけを残さない)。
         runCatching { cliprdr?.close() }
+        // 共有フォルダで開きっぱなしのファイルも畳む。
+        runCatching { deviceRedirection?.close() }
         closeTransport()
     }
 
@@ -327,6 +336,9 @@ internal class RdpClient(
         cliprdrChannelId = null
         dynamicChannel = null
         drdynvcChannelId = null
+        runCatching { deviceRedirection?.close() }
+        deviceRedirection = null
+        rdpdrChannelId = null
         runCatching { current?.close() }
     }
 

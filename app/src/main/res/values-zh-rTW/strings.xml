@@ -452,7 +452,7 @@
     <string name="rdp_error_timeout">%1$s 未在時間內回應。請檢查網路與防火牆。</string>
     <string name="rdp_error_refused">%1$s 上沒有程式在接聽。請確認對方已啟用遠端桌面，且連接埠正確（預設 3389）。</string>
     <string name="ssh_field_init_cmd">init 指令 (連線後自動執行，可選)</string>
-    <string name="ssh_port_forward">連接埠轉發 (-L)</string>
+    <string name="ssh_port_forward">連接埠轉發 (-L / -R)</string>
     <string name="ssh_port_forward_add">+ 新增</string>
     <string name="ssh_port_forward_empty">尚未設定。點選“+ 新增”來建立 localhost:N → remote:M。</string>
     <string name="hostkey_title">⚠️  主機金鑰驗證</string>
@@ -1165,4 +1165,23 @@ SSH 連線目標 %3$d 個
     <string name="settings_app_lock_grace_300">5分鐘後</string>
     <string name="settings_app_lock_grace_launch">只在啟動時</string>
     <string name="settings_app_lock_note">⚠ 能藏起來的只有畫面。鎖定期間，工作階段、常駐服務和“z2-session attach”都會繼續執行（停掉它們，通宵跑著的工作就毀了）。</string>
+
+    <!-- 跳板機 (-J) -->
+    <string name="ssh_jump_hosts">跳板機 (-J)</string>
+    <string name="ssh_jump_add">+ 新增</string>
+    <string name="ssh_jump_empty">尚未設定。將直接連線上面的主機。</string>
+    <string name="ssh_jump_hop">第 %1$d 跳</string>
+    <string name="ssh_jump_import">匯入</string>
+    <string name="ssh_jump_import_title">從已儲存的連線匯入</string>
+    <string name="ssh_jump_import_empty">尚未儲存其他 SSH 連線。</string>
+    <string name="ssh_jump_route">路徑: %1$s</string>
+    <string name="confirm_delete_jump_title">刪除此跳板機？</string>
+
+    <!-- RDP 資料夾共享 -->
+    <string name="remote_service_share_folder">資料夾共享</string>
+    <string name="remote_service_share_folder_on">遠端桌面可以讀寫此資料夾</string>
+    <string name="remote_service_share_folder_off">本機檔案對遠端桌面不可見</string>
+    <string name="remote_service_share_path">本機上要共享的資料夾</string>
+    <string name="remote_service_share_name">共享名</string>
+    <string name="remote_service_share_hint">在遠端桌面上顯示為 \\\\tsclient\\%1$s。對方可以在其中建立、修改與刪除檔案，因此只共享可以交出的資料夾。</string>
 </resources>

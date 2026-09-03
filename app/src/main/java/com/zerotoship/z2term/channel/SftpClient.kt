@@ -3,7 +3,6 @@ package com.zerotoship.z2term.channel
 import android.content.Context
 import android.util.Log
 import com.jcraft.jsch.ChannelSftp
-import com.jcraft.jsch.Session
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.zerotoship.z2term.net.HostAddress
@@ -25,20 +24,20 @@ data class SftpEntry(
 /**
  * SSH 上の SFTP サブシステム ([ChannelSftp]) のラッパー。
  *
- * 認証 / known_hosts 検証は [SshSessionFactory] でシェル接続と共有する
- * (別 [Session] を張る — シェルとは独立に開閉できる)。
+ * 認証 / known_hosts 検証 / 踏み台 (`-J`) は [SshSessionFactory] でシェル接続と共有する
+ * (別 [SshLink] を張る — シェルとは独立に開閉できる)。
  *
  * すべての I/O は [Dispatchers.IO] で実行する suspend 関数。失敗は例外を送出する。
  * 使い終わったら必ず [close] すること。
  */
 class SftpClient private constructor(
-    private val session: Session,
+    private val link: SshLink,
     private val channel: ChannelSftp
 ) : RemoteFs {
     /** リモートのホームディレクトリ (取得不能なら "/") */
     override val home: String = runCatching { channel.home }.getOrNull()?.takeIf { it.isNotBlank() } ?: "/"
 
-    override val isAlive: Boolean get() = channel.isConnected && session.isConnected
+    override val isAlive: Boolean get() = channel.isConnected && link.isConnected
 
     /** path 配下のエントリ一覧 (`.` 除外、`..` は最上位以外で先頭、フォルダ→ファイル名順) */
     override suspend fun list(path: String): List<SftpEntry> = withContext(Dispatchers.IO) {
@@ -90,7 +89,7 @@ class SftpClient private constructor(
 
     override fun close() {
         runCatching { channel.disconnect() }
-        runCatching { session.disconnect() }
+        runCatching { link.close() }
     }
 
     companion object {
@@ -99,15 +98,16 @@ class SftpClient private constructor(
         /** プロファイルに従い SFTP 接続を確立する。IO Dispatcher 上で実行される。 */
         suspend fun connect(profile: SshProfile, context: Context): SftpClient =
             withContext(Dispatchers.IO) {
-                val session = SshSessionFactory.create(profile, context)
-                session.connect(SshSessionFactory.CONNECT_TIMEOUT_MS)
+                val link = SshSessionFactory.create(profile, context)
                 try {
-                    val channel = session.openChannel("sftp") as ChannelSftp
+                    link.connect(SshSessionFactory.CONNECT_TIMEOUT_MS)
+                    val channel = link.session.openChannel("sftp") as ChannelSftp
                     channel.connect(SshSessionFactory.CONNECT_TIMEOUT_MS)
                     Log.i(TAG, "SFTP connected to ${profile.user}@${HostAddress.hostPort(profile.host, profile.port)}")
-                    SftpClient(session, channel)
+                    SftpClient(link, channel)
                 } catch (e: Throwable) {
-                    runCatching { session.disconnect() }
+                    // ⚠ 踏み台まで開いた後で折れることがある。畳まないと経由先だけ残る。
+                    runCatching { link.close() }
                     throw e
                 }
             }

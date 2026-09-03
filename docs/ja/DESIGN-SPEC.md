@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-03 / 対象バージョン: 0.8.493-alpha (versionCode 501)
+最終更新: 2026-09-03 / 対象バージョン: 0.8.494-alpha (versionCode 502)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -845,6 +845,29 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 > ⚠ **zsh の履歴ファイルは "metafy" されている。** zsh は 0x80 以上のバイトを `0x83` + `(元のバイト xor 0x20)` の 2 バイトにして書くので、**そのまま UTF-8 として読むと日本語が必ず化ける**（0.8.222 で実際に化けた）。0.8.223 で `ShellHistory.unmetafy` を通すようにした。実機の `.zsh_history` は生のままでは UTF-8 として不正で、この変換後に全体が正しく UTF-8 になることを確認済み（0x83 が 868 個）。`.bash_history` は素の UTF-8 なので変換しない。
 
 **描くのは 50 件まで**: 履歴タブはシート全体の `verticalScroll` の中にあるので、**同じ向きの `LazyColumn` を入れ子にできない**。300 件を一度に組み立てるとタブを開くのが重くなるため、保持は 300 件・描画は先頭 50 件にして、残りは絞り込みで辿ってもらう（残件数を末尾に出す）。実機の `.zsh_history` は 3912 行 → 3380 コマンドあったので、この上限は実データで必要。
+
+#### 踏み台（`channel/JumpProxy`、0.8.494）
+
+**何ができるか**: 接続先 1 件につき**踏み台を何段でも**挟める（`ssh -J a,b,c` と同じ）。手前から順に繋ぎ、最後の段の中から本来の接続先へ出る。**シェル・SFTP・その接続先にぶら下がる FTP / SMB / WebDAV / VNC / RDP・常駐トンネルのすべてが同じ経路を通る** — 入口が `SshSessionFactory` の 1 つしかないため、対応を足す場所も 1 つで済んだ。
+
+**⭐ `-L` で中継しない**: 素直に思いつくのは「手前のセッションに `-L` を張って `127.0.0.1:<空きポート>` へ次の SSH を繋ぐ」形だが、これは 2 つ同時に踏む。
+
+1. ⛔ **known_hosts が `127.0.0.1` で記録される。** この画面はホスト鍵を必ず確認させる作りなので、**別の踏み台の先も同じ名前**になって鍵のすり替わりを見分けられなくなる。
+2. 端末上の**他のアプリからもその待ち受けポートへ入れる**。
+
+⇒ JSch の `Proxy` を実装し（`JumpProxy`）、手前のセッションに `direct-tcpip` を 1 本開いてその中で次の SSH を話す。OpenSSH の `ProxyJump` と同じ形で、**端末側に待ち受けポートを開かない**。`Session` のホスト名は本来の宛先のまま残るので、known_hosts も鍵確認ダイアログも段ごとに正しい相手を指す。
+
+**⚠ 鍵は段ごとに別の `JSch` へ登録する**: JSch の identity は**インスタンス全体で共有され、どのセッションでも順に試される**。1 つにまとめると踏み台の鍵を本来の接続先へ差し出し、`Too many authentication failures` で切られる。`hostKeyRepository` だけは共有する（known_hosts は 1 本）。
+
+**⚠ `getSocket()` は null**: JSch は生のソケットが無くても動く（`connect` の `setSoTimeout` も `setTimeout` も null を見て飛ばす。0.2.26 のバイトコードで確認）。ただし**ソケットが無い段は読み取りタイムアウトが効かない**＝ keepalive が鳴らない。⇒ 常駐トンネルの生存確認は `SshLink.enableKeepAlive` が**全段に入れ**、実際に効くソケットを持つ 1 段目が経路の死を検知する（1 段目が切れれば奥も道連れに落ちるので、再接続はそれで回る）。
+
+**⭐ 参照ではなく実体を持つ**: 踏み台 1 段（`SshHop`）は自分の宛先と認証をそのまま持つ。「登録済みの接続先を指す」形にしなかったのは、**指した先を消した瞬間に壊れる**のと、A が B を経由し B が A を経由する**輪を作れてしまう**ため。代わりに編集画面の「取り込み」で登録済みの内容を**コピー**して埋める（`SshProfilesSheet.toJumpHost`）。⚠ 持ち出しで「秘密を含めない」を選んだときは、**踏み台の秘密も落とす**（`SshProfileStore.exportRaw`。ここを忘れると踏み台のパスワードだけがファイルに残る）。
+
+**⚠ 通信量の上限は 1 段目で判定する**: 端末が実際に電波を使って繋ぐ相手は 1 段目であり、本来の接続先は踏み台の中＝相手側の回線で解決される。`NetGuard.ensureAllowed` に渡すのは `jumpHosts.first()`（踏み台が無ければ接続先そのもの）。
+
+**⚠ 常駐トンネルは全段の known_hosts を見る**: 途中の 1 段でも未承認だと、そこで必ず鍵確認ダイアログ待ちになって固まる。`TunnelManager.isKnownHost` は踏み台と接続先の**全部**が登録済みのときだけ張る。
+
+**ポート転送の向きの取りこぼしを直した（0.8.494）**: `SshChannel` は `PortForward.reverse` を見ずに**常に `-L`** を張っていた（`-R` を書いた接続先を SSH タブから開くと向きが黙って逆になる）。常駐トンネルだけが正しく分岐していたため、張り方が 2 か所にあること自体が原因。⇒ `channel/PortForwarding` に 1 本化して両方が同じ道を通るようにした。
 
 #### 常駐トンネル（`service/TunnelManager`、0.8.221・A2）
 
@@ -1795,8 +1818,11 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 
 - `ProcessChannel` (interface): `reader`/`writer`/`isAlive`/`exitCode`/`resize`/`close`。
 - `LocalPtyChannel`: PtyProcess をラップ (ローカル proot)。
-- `SshChannel`: JSch でリモート接続。`shell` チャネル + `-L` ローカルポート転送、host key 検証 (`KnownHosts`/`HostKeyVerificationDialog`)、鍵は Keystore で暗号化 (`KeystoreCrypt`)。
-- `SshProfile`/`PortForward`: DataStore (`z2term_ssh`) に JSON 永続化。
+- `SshChannel`: JSch でリモート接続。`shell` チャネル + ポート転送、host key 検証 (`KnownHosts`/`HostKeyVerificationDialog`)、鍵は Keystore で暗号化 (`KeystoreCrypt`)。
+- `SshSessionFactory` / `SshLink`: 認証・known_hosts・踏み台をまとめて 1 本の経路にする入口。**シェル・SFTP・サービス経路・常駐トンネルはすべてここを通る**（通信量の上限もこの 1 か所で見る）。`SshLink` は経路まるごとを持ち、`close()` で**奥から順に**畳む（手前を先に切ると奥のセッションが宙に浮く）。
+- `SshHop` / `JumpProxy`: 踏み台（`ssh -J`）。詳細は §6.3 の「踏み台」。
+- `PortForwarding`: `-L` / `-R` を実際に張る 1 か所。`SshChannel` と `TunnelManager` が共有する。
+- `SshProfile`/`PortForward`/`SshHop`: DataStore (`z2term_ssh`) に JSON 永続化。
 
 ### 4.8 設定 (`settings/AppSettings.kt`)
 
@@ -1845,7 +1871,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - `settings/SettingsSheet.kt` + `SshAccessHelper.kt`: 設定ページ (全画面) + SSH/ストレージ ヘルパー。
   - 項目は **8 グループのアコーディオン** (`settings/SettingsGroup.kt`) に束ねる: 表示 / キーボード・入力 / Linux 環境 / 常駐サーバー・自動化 / メンテナンス / 開発者向け / **使い方 (Tips)** / このアプリについて。宣言順が表示順。開閉状態は `settings/SettingsGroupStore.kt` が `settings_group_open_<id>` の固定キー 1 本ずつで DataStore に永続化する (グループを増減しても既存の状態が壊れない。保存が無いグループは `defaultOpen` にフォールバック)。閉じている間は中身を composition しない。見出し行は「タップできる場所」だと分かるように**カード背景 + 1dp の枠**（他のタップ可能カードと同じ意匠）を付け、**開いている間は枠と背景をアクセント寄り**にして開閉状態も色で読めるようにする (0.8.184。それ以前は文字と ▸/▾ だけで、周囲の項目と見分けが付きにくかった)。
   - **端末リセット**は `SessionManager.resetToInitial()` を呼び、**端末タブ 1 つだけを残して他タブ (端末・GUI) を全部閉じ**、残した 1 つを `TerminalSession.restart()` で初期化する (= アプリ初回起動時の状態)。タブ数や動作中かに関わらず**常に**確認ダイアログを挟み、実行後はトーストで結果を出す。設定値・常駐サーバー・rootfs には触れない。
-- `ssh/SshProfilesSheet.kt` + `HostKeyVerificationDialog.kt`: SSH 接続先と、それに紐づく FTP / SMB / WebDAV / VNC / RDP サービスの UI + SSH 鍵検証。各サービスは既定で SSH ローカルポート転送を使い、ローカルポート未指定時は空きポートを自動取得する。転送を外した場合は暗号化されない旨を警告し、サービス固有ホストではなく親 SSH 接続先のホストへ直接接続する。
+- `ssh/SshProfilesSheet.kt` + `HostKeyVerificationDialog.kt`: SSH 接続先と、それに紐づく FTP / SMB / WebDAV / VNC / RDP サービスの UI + SSH 鍵検証。各サービスは既定で SSH ローカルポート転送を使い、ローカルポート未指定時は空きポートを自動取得する。転送を外した場合は暗号化されない旨を警告し、サービス固有ホストではなく親 SSH 接続先のホストへ直接接続する。**踏み台（`-J`）の編集もここ**（段の追加・登録済み接続先からの取り込み・経路 1 行プレビュー。0.8.494）。RDP サービスには**フォルダ共有**のトグルと共有フォルダ / 共有名の欄が付く（既定 OFF の明示 opt-in）。
 - `sftp/SftpSheet.kt`: `RemoteFs` を使う SFTP / FTP / SMB / WebDAV 共通ファイルブラウザ (**全画面ページ**)。WebDAV は通常のTLS証明書検証を行う OkHttp、SMB は SMB1 を扱わない SMBJ を使う。Android の戻るボタンと左上矢印は親フォルダへ移動し、ルートでだけ接続終了を確認する。一覧の下方向スクロールが ModalBottomSheet の「閉じる」ドラッグと競合して勝手に閉じるため、設定ページと同じ別ページ方式に変更した。
   - **端末側ファイルを同じ画面に出す (0.8.474)**: 上部のタブで「サーバー側 / この端末」を切り替える。端末側は Android の **SAF ツリー権限** (`sftp/SafFileTree.kt`) で一覧し、選んだフォルダは永続権限として記憶するので、**アップロードのたびにシステムのファイル選択画面へ飛ばされない**。⚠ Uri は外部ストレージ固有のパスへ変換せず、provider が返した `documentId` のまま辿る (パスを持たない provider でも同じ経路で動かすため)。ファイルとフォルダを再帰的に双方向転送する。
   - **プレビュー (0.8.474、画像全画面化 0.8.479)**: リモート側・端末側とも、テキストと画像をその場で開ける。**画像はファイル画面の小さなダイアログへ押し込まず全画面で表示**し、画面全体を使ってピンチ拡大・ドラッグ移動できる。テキストは選択・スクロールできるダイアログのまま。読み込みは**必ず上限付き** (テキスト 2MB / 画像 24MB、画素は 16M を超えたら `inSampleSize` で縮小)。⚠ 上限も種類の判定も無しに開くと、リモートの巨大ファイルを 1 回踏んだだけで転送とデコードに引きずられて画面が戻らなくなる。対応しない種類は開かず「テキストと画像だけプレビューできます」と伝える。
@@ -1872,7 +1898,18 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - **音（rdpsnd・0.8.481〜0.8.492）**: 静的仮想チャネル `rdpsnd`（`RdpSound`）で [MS-RDPEA] を話し、相手の音を端末のスピーカーで鳴らす（`RdpAudioSink`）。
   - ⚠⚠ **1 通に PDU が 2 つ以上入っていることがある（0.8.487）**。CLIPRDR で実測した挙動と同じで、先頭 1 つだけ読んで残りを捨てると、**Training を取りこぼして相手が音を送り始めない**という詰まり方をする。⇒ 端から順に切り出す。⛔ **ただし WaveInfo を読んだらそこで止める** — 続きの生データは PDU ヘッダを持たないので、同じ通に残りがあっても PDU として読んではいけない。
   - ⛔⛔⛔ **こちらが「音は要らない」と宣言していた（0.8.488・実機ログで判明）**。Client Info PDU の flags を数字の or で並べており、その中に `INFO_NOAUDIOPLAYBACK`（0x00080000）が紛れていた。相手はそのとおりに動くので、**`rdpsnd` にも `AUDIO_PLAYBACK_DVC` にも 1 通も流れてこない**（チャネルだけが開いた状態になり、相手側の設定を疑いたくなる）。⇒ そのビットを外し、**flags は必ず名前で書く**。⭐ **音のリダイレクトは既定で有効**なので、「要らない」と言わないことがそのまま「鳴らしてくれ」になる（`INFO_REMOTECONSOLEAUDIO` も立てない — あれは相手側で鳴らさせる指定）。⚠ **相手に音声デバイスが無くても関係ない** — RDP セッションには仮想の「リモート オーディオ」が作られる。⚠ 音を実装した 0.8.481 の時点ではこのビットに誰も気付けなかった。**数字の羅列は、後から読む人が意味を確かめる手段を持たない。**
-  - ⛔⛔⛔ **音を鳴らすには `rdpdr` を開く必要がある（0.8.491・FreeRDP との比較で判明）**。相手は**デバイスのリダイレクトができるクライアントにしか音声を回さない**。FreeRDP も `/sound` を指定すると `rdpdr` を一緒に載せる。⇒ `gui/rdp/RdpDeviceRedirection.kt` で [MS-RDPEFS] の名乗りだけを実装した。⛔⛔ **公開するデバイスは 0 件**（`ioCode1` = 0、`SpecialTypeDeviceCap` = 0、Device List Announce は `DeviceCount` = 0）。ドライブもプリンタもスマートカードも渡さない — **ここを開くのは音のためだけ**である。⚠ **チャネルを開くだけでは足りない**: 相手は Server Announce → Client Announce Reply → Client Name → Server Capability → Client Capability → Device List の往復が終わるまで先へ進まない。⚠ Client ID Confirm は Capability の前後どちらでも来るので、**順番を決め打ちしない**（実測）。
+  - ⛔⛔⛔ **音を鳴らすには `rdpdr` を開く必要がある（0.8.491・FreeRDP との比較で判明）**。相手は**デバイスのリダイレクトができるクライアントにしか音声を回さない**。FreeRDP も `/sound` を指定すると `rdpdr` を一緒に載せる。⇒ `gui/rdp/RdpDeviceRedirection.kt` で [MS-RDPEFS] の名乗りを実装した。⚠ **チャネルを開くだけでは足りない**: 相手は Server Announce → Client Announce Reply → Client Name → Server Capability → Client Capability → Device List の往復が終わるまで先へ進まない。⚠ Client ID Confirm は Capability の前後どちらでも来るので、**順番を決め打ちしない**（実測）。
+  - **フォルダ共有を切ってあるときは、渡すデバイスは 0 件**（`ioCode1` = 0、`SpecialTypeDeviceCap` = 0、Device List Announce は `DeviceCount` = 0）。ドライブもプリンタもスマートカードも渡さない — **そのときここを開くのは音のためだけ**である。
+  - **フォルダ共有（0.8.494・`gui/rdp/RdpDrive.kt`）**: 接続先の RDP サービスで ON にすると、端末の 1 フォルダを `\\tsclient\<共有名>` として**読み書き**させる。⚠ **既定 OFF の明示 opt-in**（知らないうちに端末のフォルダが相手から書き換えられる状態にしない）。既定の置き場は**クリップボードで受け取ったファイルと同じ** `Download/z2term`（`RdpShareDefaults` が `ClipboardFileTransfer.FOLDER` を参照する。戻す先が 2 か所に分かれると探すことになる）。⭐ **保存先を毎回選ばせない** — 変えたい人だけパスを書く。
+    - **相手は普通のファイルシステムだと思って話しかけてくる**。開く / 読む / 書く / 一覧 / 情報 / 名前の変更 / 削除 / 容量 の IRP が 1 つずつ届き、1 つずつ答える（`IRP_MJ_CREATE` … `IRP_MJ_DIRECTORY_CONTROL`）。⇒ ここは**小さなファイルサーバー**であって、まとめて転送する仕組みではない。
+    - ⛔⛔ **共有フォルダの外へは 1 バイトも出さない**。`..` を混ぜた道を弾くだけでは足りず、**実体（`canonicalFile`）を解決してから共有フォルダの下かどうかを見る** — 共有フォルダの中に外を指すシンボリックリンクが置かれている場合があるため。名前の変更先にも同じ検査を通す（`RdpDrive.resolve`。`RdpDriveTest` が両方を押さえる）。
+    - ⛔⛔ **ファイル I/O を受信スレッドでしない**。IRP は RDP の受信ループから届くので、ここでディスクを待つと**画面・入力・音がまとめて止まる**（CLIPRDR の取り寄せと同じ約束）。⇒ `rdp-drive` の 1 本へ回し、答えができてから送る。順番を保つために**スレッドは 1 本**にする。
+    - ⚠ **ドライブを名乗り忘れると IRP が 1 つも来ない**。Capability で `ioCode1` = `0x0000FFFF`（[MS-RDPEFS] が定める決め打ちの値）と `CAP_DRIVE_TYPE` を出して初めて、デバイス一覧に出したフォルダが使われる。共有していないときは従来どおり `ioCode1` = 0 のまま。
+    - ⚠⚠ **[MS-FSCC] の表どおりに詰めると相手が読み違える**。`FILE_BOTH_DIR_INFORMATION` の `Reserved`(1) / `FILE_FS_VOLUME_INFORMATION` の `Reserved`(1) / `FILE_BASIC_INFORMATION` と `FILE_STANDARD_INFORMATION` の末尾は**入れない**（93 / 17 / 36 / 22 バイト）。FreeRDP も同じ判断をしており、実機での相互接続はこちらが正しい。
+    - ⚠ **フォルダの変更通知（`IRP_MN_NOTIFY_CHANGE_DIRECTORY`）には答えない**。本物のファイルシステムは「何か変わるまで」返事を保留する。ここで失敗を返すと Explorer がフォルダを開いた直後にエラーを出すので、**黙って握る**（FreeRDP も同じ）。
+    - ⚠ **空き容量を返す**。Explorer は残量を見てコピーを止めるので、`FILE_FS_SIZE_INFORMATION` に端末の実際の空きを載せる（0 を返し続けると「容量不足」で失敗する）。
+    - ⚠ **共有名は ASCII に倒す**（`RdpDeviceRedirection.asciiShareName`）。デバイス一覧の名前は ASCII で載るので、日本語のフォルダ名をそのまま出すと壊れる。`PreferredDosName` は 7 文字 + NUL に収める。**中身のファイル名は UTF-16 なので日本語のまま通る。**
+    - ⚠ **タブを閉じたら開きっぱなしのファイルを畳む**。相手が閉じずに切断することがあるので、`RdpClient.close` / `closeTransport` から `RdpDeviceRedirection.close()` → `RdpDrive.close()` を必ず通す。
   - ⛔⛔⛔ **回線の速さを名乗らないと、音から先に切られる（0.8.490・FreeRDP との比較で判明）**。Client Core Data の `connectionType` を 0 のまま置き、`RNS_UD_CS_VALID_CONNECTION_TYPE`（0x0020）も立てていなかった。**このビットが無いと `connectionType` はそもそも読まれない**（[MS-RDPBCGR] 2.2.1.3.2）ので、相手からは「不明＝遅い回線」に見え、**音声のリダイレクトが丸ごと無効**になる（mstsc の「エクスペリエンス」でモデムを選んだのと同じ状態）。⇒ ビットを立てて `CONNECTION_TYPE_LAN` を名乗る。⭐ **これは速さの申告ではなく、相手が機能を削るかどうかの判断材料**である。⚠ 症状は「`rdpsnd` チャネルは開くのに 1 通も来ない」で、相手側の設定を疑いたくなる出方をする。**同じ相手に FreeRDP で繋いで名乗りを並べる**まで分からなかった（FreeRDP: `earlyCapabilityFlags=0x0fb2` / z2term: `0x0900`）。⚠ **相手は `AUDIO_PLAYBACK_DVC`（動的チャネル）も使う** — FreeRDP で繋ぐと相手はそちらを開く。⭐ ただし**こちらが動的チャネルの受け口を出さなければ静的 `rdpsnd` に落としてくる**ので、静的だけの実装で足りる（0.8.491 の実測: 相手が挙げた 30 形式のうち 16bit PCM が 1 つあり、44.1kHz ステレオで鳴った）。
   - ⚠ **静的チャネルの優先度を名乗る（0.8.489）**。`rdpsnd` の channel options に `CHANNEL_OPTION_PRI_MED` を足した（FreeRDP / mstsc はどちらも付けている）。仕様上は無くても通るはずだが、**音だけ 1 通も来ない**状態を追う間は、広く使われている実装と違うところを残さない。
   - ⚠ **名乗った flags は実際に出た値をログに残す（0.8.489）**。「外したはずのビットが本当に外れているか」は、ソースを読んでも確かめたことにならない（動いているのは R8 を通った APK）。
