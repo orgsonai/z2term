@@ -3,249 +3,516 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Z2Term — Android のターミナルであり、Android を操作する手段でもあるアプリ</title>
-<meta name="description" content="Alpine / Ubuntu / Arch / Kali を root 不要で動かす Android ターミナル。Linux GUI・SSH/SFTP・日本語 IME を内蔵し、シェルから Android 自体を操作・自動化できます。">
+<title>Z2Term — Android のターミナル。そして Android を操る手。</title>
+<meta name="description" content="root なしで Alpine / Ubuntu / Arch / Kali が動く Android ターミナル。タブの中に Linux のデスクトップ、あるいは VNC / RDP で他のマシンのデスクトップ。シェルから通知・トースト・質問を出し、端末のイベントでスクリプトを走らせます。">
 <meta property="og:title" content="Z2Term — Zero 2 Terminal">
-<meta property="og:description" content="root 不要で Alpine / Ubuntu / Arch / Kali が動く。タブの中に Linux デスクトップ。シェルから通知を読み、質問し、端末のイベントでスクリプトを走らせる。">
+<meta property="og:description" content="root 不要で Alpine / Ubuntu / Arch / Kali。タブの中に Linux デスクトップ、VNC / RDP で他のマシンも。マクロは発想しだいで何でもできます。">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://orgsonai.github.io/z2term/index.ja.html">
-<meta property="og:image" content="https://orgsonai.github.io/z2term/images/cui-terminal.png">
+<meta property="og:image" content="https://orgsonai.github.io/z2term/images/shot-terminal.png">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0B0F0E">
 <link rel="canonical" href="https://orgsonai.github.io/z2term/index.ja.html">
-<style>
-  :root{
-    --bg:#0B0F0E; --bg2:#111817; --line:#1F2A28;
-    --fg:#E6EDEB; --dim:#93A4A0; --accent:#22C55E; --accent-dim:#15803D;
-    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);
-    font-family:system-ui,-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;
-    line-height:1.85;-webkit-font-smoothing:antialiased}
-  a{color:var(--accent);text-decoration:none}
-  a:hover{text-decoration:underline}
-  .wrap{max-width:960px;margin:0 auto;padding:0 20px}
-  header{border-bottom:1px solid var(--line);padding:14px 0;font-family:var(--mono);font-size:14px}
-  header .brand{color:var(--fg);font-weight:600}
-  header .brand b{color:var(--accent)}
-  header nav a{color:var(--dim);margin-left:16px}
-  .hero{padding:64px 0 40px}
-  .kicker{font-family:var(--mono);font-size:13px;color:var(--accent);letter-spacing:.08em}
-  h1{font-size:clamp(26px,4.6vw,42px);line-height:1.32;margin:.4em 0 .5em;letter-spacing:-.01em}
-  .lede{font-size:clamp(16px,2vw,19px);color:var(--dim);max-width:42em;margin:0}
-  .lede strong{color:var(--fg)}
-  .cta{display:flex;gap:12px;flex-wrap:wrap;margin:32px 0 10px}
-  .btn{display:inline-block;padding:12px 22px;border-radius:8px;font-weight:600;font-size:15px;
-    border:1px solid var(--accent);background:var(--accent);color:#05130B}
-  .btn:hover{text-decoration:none;background:#1eb257}
-  .btn.ghost{background:transparent;color:var(--fg);border-color:var(--line)}
-  .btn.ghost:hover{border-color:var(--accent);background:#0F1A16}
-  .note{font-family:var(--mono);font-size:13px;color:var(--dim);margin:6px 0 0}
-  section{padding:48px 0;border-top:1px solid var(--line)}
-  h2{font-size:24px;margin:0 0 8px}
-  h2 + p.sub{color:var(--dim);margin:0 0 28px}
-  .grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
-  .card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:22px}
-  .card h3{margin:0 0 8px;font-size:17px}
-  .card h3 span{color:var(--accent);font-family:var(--mono);margin-right:8px}
-  .card p{margin:0;color:var(--dim);font-size:15px}
-  .shots{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-  .shots figure{margin:0;text-align:center}
-  .shots img{width:100%;max-width:300px;border:1px solid var(--line);border-radius:10px}
-  .shots figcaption{font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:8px}
-  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  table{border-collapse:collapse;width:100%;min-width:640px;font-size:15px}
-  th,td{border-bottom:1px solid var(--line);padding:12px 14px;text-align:left;vertical-align:top}
-  thead th{font-family:var(--mono);font-size:13px;color:var(--dim);font-weight:600;white-space:nowrap}
-  thead th:nth-child(2){color:var(--accent)}
-  td:first-child{color:var(--dim)}
-  td b{color:var(--fg)}
-  pre{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:16px 18px;
-    overflow-x:auto;font-family:var(--mono);font-size:14px;margin:0;line-height:1.7}
-  pre .c{color:var(--dim)}
-  pre .g{color:var(--accent)}
-  .two{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
-  footer{border-top:1px solid var(--line);padding:32px 0 56px;color:var(--dim);
-    font-family:var(--mono);font-size:13px}
-  .warn{font-size:14px;color:var(--dim);border-left:2px solid var(--accent-dim);
-    padding:2px 0 2px 14px;margin:24px 0 0}
-</style>
+<link rel="stylesheet" href="z2.css?v=3">
+<script src="z2.js?v=3" defer></script>
 </head>
 <body>
+<div class="crt" aria-hidden="true"></div>
 
-<header>
-  <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
-    <span class="brand">Z<b>2</b>Term</span>
-    <nav>
-      <a href="#features">機能</a>
-      <a href="#compare">比較</a>
-      <a href="#download">ダウンロード</a>
+<header class="site">
+  <div class="wrap bar">
+    <a class="brand" href="index.ja.html">z<b>2</b>term</a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">menu</button>
+    <nav id="site-nav">
+      <a href="#what">できること</a>
+      <a href="#macros">マクロ</a>
+      <a class="opt" href="#desktop">デスクトップ</a>
+      <a class="opt" href="#shots">画面</a>
+      <a href="#download">入手</a>
+      <a href="guide.ja.html">ガイド</a>
       <a href="https://github.com/orgsonai/z2term">GitHub</a>
-      <a href="index.html">English</a>
+      <a href="index.html">EN</a>
     </nav>
   </div>
 </header>
 
 <div class="wrap">
 
+  <!-- ===================== ヒーロー ===================== -->
   <div class="hero">
-    <p class="kicker">Zero 2 Terminal · GPL-3.0 · Android 10+</p>
-    <h1>Android のターミナルであり、<br>Android を操作する手段でもあるアプリ。</h1>
-    <p class="lede">Z2Term は <strong>Alpine / Ubuntu / Arch / Kali を root 不要で</strong>動かし、
-      <strong>タブの中に Linux のデスクトップ</strong>を開き、シェルから端末そのものに手を伸ばせます。
-      通知を読む、通知シェードの返信欄であなたに質問する、充電・ネットワーク・受信 SMS の変化で
-      スクリプトを走らせる — そういうことができます。</p>
-    <div class="cta">
-      <a class="btn" href="https://github.com/orgsonai/z2term/releases/latest">APK をダウンロード</a>
-      <a class="btn ghost" href="https://github.com/orgsonai/z2term">GitHub でソースを見る</a>
+    <div class="logo glitch" role="img" aria-label="Z2TERM"><svg viewBox="0 0 35 5" fill="currentColor" aria-hidden="true"><rect x="0" y="0" width="5" height="1"/><rect x="6" y="0" width="5" height="1"/><rect x="12" y="0" width="5" height="1"/><rect x="18" y="0" width="5" height="1"/><rect x="24" y="0" width="4" height="1"/><rect x="30" y="0" width="1" height="1"/><rect x="34" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="10" y="1" width="1" height="1"/><rect x="14" y="1" width="1" height="1"/><rect x="18" y="1" width="1" height="1"/><rect x="24" y="1" width="1" height="1"/><rect x="28" y="1" width="1" height="1"/><rect x="30" y="1" width="2" height="1"/><rect x="33" y="1" width="2" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="6" y="2" width="5" height="1"/><rect x="14" y="2" width="1" height="1"/><rect x="18" y="2" width="4" height="1"/><rect x="24" y="2" width="4" height="1"/><rect x="30" y="2" width="1" height="1"/><rect x="32" y="2" width="1" height="1"/><rect x="34" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="14" y="3" width="1" height="1"/><rect x="18" y="3" width="1" height="1"/><rect x="24" y="3" width="1" height="1"/><rect x="27" y="3" width="1" height="1"/><rect x="30" y="3" width="1" height="1"/><rect x="34" y="3" width="1" height="1"/><rect x="0" y="4" width="5" height="1"/><rect x="6" y="4" width="5" height="1"/><rect x="14" y="4" width="1" height="1"/><rect x="18" y="4" width="5" height="1"/><rect x="24" y="4" width="1" height="1"/><rect x="28" y="4" width="1" height="1"/><rect x="30" y="4" width="1" height="1"/><rect x="34" y="4" width="1" height="1"/></svg></div>
+
+    <div class="chips">
+      <span><b>0.8.493-alpha</b></span>
+      <span>GPL-3.0</span>
+      <span>Android 10+</span>
+      <span>約 21 MB</span>
+      <span>root 不要</span>
+      <span>テレメトリなし</span>
     </div>
-    <p class="note">root 不要 · PC 不要 · テレメトリなし · Google Play では配布していません</p>
+
+    <h1 class="tag">Android のターミナル。そして <em>Android を操る手</em>。</h1>
+    <p class="lede"><strong>root なしで Alpine / Ubuntu / Arch / Kali</strong> が動きます。タブの中に
+      <strong>Linux のデスクトップ</strong>、あるいは <strong>VNC / RDP で他のマシンのデスクトップ</strong>。
+      そして、通知を出す・トーストを出す・あなたに質問する・電池やネットワークの変化で勝手に走る、
+      そんな 1 行のマクロが書けます。</p>
+
+    <div class="stage" style="grid-template-columns:minmax(0,1fr)">
+      <div class="win term-demo" data-scenes="hero-scenes">
+        <div class="win-bar">
+          <span class="sig"></span>
+          <span class="title">alpine — z2term</span>
+          <span class="meta">z2root</span>
+        </div>
+        <div class="win-tabs"></div>
+        <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">apk add ripgrep</span>
+<span class="t-out">(1/2) Installing pcre2 (10.43-r0)</span>
+<span class="t-ok">OK: 42 MiB in 61 packages</span>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2version</span>
+<span class="t-ok">z2term 0.8.493-alpha  ·  エンジン: z2root (ptrace)</span>
+<span class="t-c"># root なし・PC なし・セットアップスクリプトなし</span>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="caret"></span></div>
+      </div>
+    </div>
+
+    <div class="cta">
+      <a class="btn" href="https://github.com/orgsonai/z2term/releases/latest">▸ APK をダウンロード</a>
+      <a class="btn ghost" href="guide.ja.html">使いこなしガイド</a>
+    </div>
+    <p class="note">APK 1 つ · PC 不要 · 別アプリ不要 · Google Play では配布していません</p>
   </div>
 
-  <section id="features">
-    <h2>ふつうのターミナルがやらない 3 つのこと</h2>
-    <p class="sub">以下はすべて APK 1 つに入っています。コンパニオンアプリもセットアップスクリプトも要りません。</p>
+  <!-- ===================== できること ===================== -->
+  <section id="what">
+    <p class="cmdline" data-cmd="z2help"><span class="u">~</span> <span class="p">$</span> <span class="typed">z2help</span></p>
+    <h2>できること</h2>
+    <p class="sub">下にあるものは全部 APK 1 つに入っています。コンパニオンアプリも、セットアップスクリプトも、
+      先に繋ぎ込む準備もありません。</p>
+
     <div class="grid">
-      <div class="card">
+      <div class="card reveal">
         <h3><span>01</span>ディストロがすぐ動く</h3>
-        <p>APK を入れれば <code>apk</code> / <code>apt</code> / <code>pacman</code> が使えます。既定の実行エンジン
-          <b>z2root</b> は本アプリ用に書いた ptrace ベースのユーザ空間実装で、root もカーネルモジュールも不要。
-          PRoot と chroot にも切り替えられます。</p>
+        <p>APK を入れれば <code>apk</code> / <code>apt</code> / <code>pacman</code> が使えます。既定のエンジン
+          <b>z2root</b> は本アプリ用に書いた ptrace ベースのユーザー空間実装で、root もカーネルモジュールも要りません。
+          Alpine / Ubuntu / Arch / Kali を設定から選べます。</p>
       </div>
-      <div class="card">
-        <h3><span>02</span>シェルが Android に話しかける</h3>
-        <p>約 20 個の <code>z2-*</code> コマンド。通知・クリップボード・センサー・ライト・Intent・アラーム・読み上げ、
-          そして自端末への無線 <code>adb</code>。<code>z2-ask</code> は通知シェードに質問を出し、
-          返信をシェル変数として受け取ります。</p>
+      <div class="card reveal d1">
+        <h3><span>02</span>シェルが端末に手を伸ばす</h3>
+        <p>約 20 個の <code>z2-*</code> コマンド。通知・トースト・クリップボード・センサー・ライト・音量・Intent・
+          アラーム・読み上げ・画面消灯の抑止・共有、そして自端末への無線 <code>adb</code>。
+          どれもただのコマンドなので、<b>コマンドを呼べるものなら何からでも使えます</b>。</p>
       </div>
-      <div class="card">
-        <h3><span>03</span>アプリを閉じても続く自動化</h3>
+      <div class="card reveal d2">
+        <h3><span>03</span>スクリプトがあなたに聞く</h3>
+        <p><code>name=$(z2-ask "ブランチ名は？")</code> と書くと、質問が通知シェードに出て、返信がそのまま
+          シェル変数に入ります。アプリを開かずに答えられて、答えなければ非ゼロ終了 —
+          「やめる」も表現できます。</p>
+      </div>
+      <div class="card reveal">
+        <h3><span>04</span>アプリを閉じても続く自動化</h3>
         <p><code>z2-when</code> が端末のイベントでスクリプトを起動します — 充電、電池残量、時刻や cron、Wi-Fi、
           回線の切り替わり、起動、他アプリからの共有、受信 SMS、センサー、届いた通知、ファイルの追加。
-          ルールはテキストファイルで、再起動をまたいで生き残ります。</p>
+          ルールはただのテキストで、<b>アプリを閉じたまま、再起動をまたいで</b>動きます。</p>
       </div>
-      <div class="card">
-        <h3><span>04</span>タブの中の Linux デスクトップ</h3>
+      <div class="card reveal d1">
+        <h3><span>05</span>タブの中の Linux デスクトップ</h3>
         <p>Xvnc + openbox を、アプリ内蔵の RFB クライアントで表示します。音声・動画つき。
           <code>z2gui</code> でデスクトップを起動、<code>z2run &lt;app&gt;</code> で GUI アプリを起動して
           タブまで開きます。</p>
       </div>
-      <div class="card">
-        <h3><span>05</span>日本語がちゃんと打てる</h3>
+      <div class="card reveal d2">
+        <h3><span>06</span>他のマシンのデスクトップも</h3>
+        <p>同じビューアが <b>リモートの VNC / RDP</b> にも繋がります。保存した宛先に <b>[VNC]</b> と
+          <b>[RDP]</b> のボタンが付き、RDP は NLA 認証・初回の証明書確認・マウスとキーボード・音・
+          テキストのクリップボード共有まで面倒を見ます。</p>
+      </div>
+      <div class="card reveal">
+        <h3><span>07</span>ファイルは 4 通りで</h3>
+        <p>SSH / SFTP、FTP、WebDAV、SMB2/3 のクライアント。どれも既定では一時的な SSH ポート転送に乗るので、
+          資格情報が平文で流れません。鍵は Android Keystore が持つ ed25519、<code>-L</code> /
+          <code>-R</code> の転送はタブを閉じても走り続けます。</p>
+      </div>
+      <div class="card reveal d1">
+        <h3><span>08</span>止まらないサーバー</h3>
+        <p>起動コマンドを <b>設定 → 常駐サーバー</b>に登録すると、<b>アプリを開かなくても</b>裏で動き続け、
+          再起動後も戻ってきます。小さな Web サーバー、同期デーモン、bot をスマホで常駐させられます。</p>
+      </div>
+      <div class="card reveal d2">
+        <h3><span>09</span>アプリを開かずに手の届く場所へ</h3>
+        <p>マクロをクイック設定のタイルに置く（12 枠）、ステータスバーのアイコンを自分のドット絵にする、
+          ホーム画面のウィジェットからワンタップで走らせる。もう 1 つのウィジェットは <code>~</code> 配下の
+          ファイルの末尾をホーム画面に出し続けます。</p>
+      </div>
+      <div class="card reveal">
+        <h3><span>10</span>USB 機器をふつうのプログラムから</h3>
+        <p><code>z2-usb list</code> して <code>z2-usb allow</code>、Android の許可を出せば、libusb や
+          <code>/dev/bus/usb/…</code> を使うプログラムが<b>手を入れずに</b>その機器を開けます。
+          必要なのはデータの通る OTG アダプタかハブだけです。</p>
+      </div>
+      <div class="card reveal d1">
+        <h3><span>11</span>日本語がちゃんと打てる</h3>
         <p>かな漢字変換・予測・学習（頻度と直近）を備えた IME と独自のオンスクリーンキーボードを内蔵。
-          <b>OS の入力メソッドとして有効化</b>すれば他アプリでも同じ変換が使えます。ユーザー辞書はファイルから読み込み。</p>
+          <b>OS の入力メソッド</b>として有効にすれば他アプリでも同じ変換が使えます。ユーザー辞書はファイルから
+          読み込めるので、固有名詞も最初の一打から出ます。</p>
       </div>
-      <div class="card">
-        <h3><span>06</span>SSH は行きも帰りも</h3>
-        <p>SSH / SFTP クライアント（鍵は Android Keystore が保持）、タブを閉じても生き続けるポートフォワード、
-          既定で localhost のみに bind する内蔵 <code>sshd</code>。</p>
-      </div>
-      <div class="card">
-        <h3><span>07</span>止まらないサーバー</h3>
-        <p>任意の起動コマンドを <b>設定 → 常駐サーバー</b>に登録すると、<b>アプリを開かなくても</b>
-          バックグラウンドで動き続けます。小さな Web サーバー、同期デーモン、bot を手元のスマホで常駐。
-          稼働数はホーム画面ウィジェットに出て、再起動後の復帰も面倒を見ます。</p>
+      <div class="card reveal d2">
+        <h3><span>12</span>動かないとき</h3>
+        <p><code>z2doctor</code> が「なぜ動かないのか」に 1 コマンドで答えます。版数・エンジン・空き容量・
+          必要な権限・検知と自動化の状態。<code>NG</code> の行には<b>次の一手</b>が付いていて、最後に
+          Issue へ貼れる短い報告が出ます。</p>
       </div>
     </div>
   </section>
 
-  <section>
-    <h2>スクリーンショット</h2>
-    <p class="sub">左: Alpine と独自キーボード。右: Xvnc 上で動く GUI アプリ。</p>
-    <div class="shots">
-      <figure>
-        <img src="images/cui-terminal.png" alt="Alpine の端末と独自オンスクリーンキーボード">
-        <figcaption>CUI — Alpine + 独自キーボード</figcaption>
-      </figure>
-      <figure>
-        <img src="images/gui-thunderbird.png" alt="Z2Term 内の Xvnc 上で動く GUI アプリケーション">
-        <figcaption>GUI — Xvnc 上のデスクトップアプリ</figcaption>
-      </figure>
+  <!-- ===================== マクロ ===================== -->
+  <section id="macros">
+    <p class="cmdline" data-cmd="./macros/demo.sh"><span class="u">~</span> <span class="p">$</span> <span class="typed">./macros/demo.sh</span></p>
+    <h2>マクロはただのコマンド。だから発想しだいで何でもできる</h2>
+    <p class="sub">覚える専用言語はありません。マクロは<b>端末に触れるようになったシェルスクリプト</b>です。
+      通知を出す、トーストを出す、あなたに聞く、ライトを点ける、自分をタイルに置く。書けることは全部できて、
+      しかも <code>z2-when</code> がそれを<b>アプリを閉じたまま</b>走らせます。右のスマホを見てください。</p>
+
+    <div class="stage">
+      <div class="win term-demo" data-scenes="macro-scenes">
+        <div class="win-bar">
+          <span class="sig"></span>
+          <span class="title">macros — z2term</span>
+          <span class="meta">タブで切替</span>
+        </div>
+        <div class="win-tabs"></div>
+        <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2-notify -h -c "$(git rev-parse --short HEAD)" "ビルド完了" "3分12秒"</span>
+<span class="t-ok">通知を出しました (id 41)  ·  バナー + コピーボタン</span>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">name=$(z2-ask "ブランチ名は？")</span>
+<span class="t-ok">→ feature/rdp-audio</span>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2-when charge:start run ~/backup.sh</span>
+<span class="t-ok">ルールを追加  ·  アプリを閉じていても走ります</span>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="caret"></span></div>
+      </div>
+
+      <div class="phone" aria-hidden="true">
+        <div class="phone-screen">
+          <div class="phone-status"><span>4:42</span><span>▲ ▮ 65%</span></div>
+          <div class="phone-stage"></div>
+          <div class="phone-home"></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:34px">一晩で組める、こんなこと</h3>
+    <div class="recipes">
+      <div class="recipe reveal"><b>充電を挿したらバックアップ</b><code>z2-when charge:start run ~/backup.sh</code>
+        <p>寝ているあいだに終わっています。アプリは開きません。</p></div>
+      <div class="recipe reveal d1"><b>通知に来た認証コードを拾う</b><code>z2-when notify:otp run ~/otp.sh</code>
+        <p>手を伸ばす前にコードが抜き出され、クリップボードに入っています。</p></div>
+      <div class="recipe reveal d2"><b>実行前に自分に確認させる</b><code>z2-ask "本番に出す？"</code>
+        <p>スクリプトが通知シェードで待ちます。答えなければ止まります。</p></div>
+      <div class="recipe reveal"><b>自宅の Wi-Fi のときだけ同期</b><code>z2-when net:online if=ssid=Home cooldown=1h</code>
+        <p>絞り込みはどのきっかけでも同じ書き方。飛ばした回もログに残ります。</p></div>
+      <div class="recipe reveal d1"><b>他アプリから受け取って処理</b><code>z2-when share:ext=pdf run ~/file.sh</code>
+        <p>共有シートで z2term を選ぶと、スクリプトがその PDF を片付けます。</p></div>
+      <div class="recipe reveal d2"><b>毎日やることをタイルに</b><code>z2-tile set 1 ~/macros/vpn.sh</code>
+        <p>クイック設定からワンタップ。アプリは開きません。12 枠あります。</p></div>
+      <div class="recipe reveal"><b>アイコンを自分で描く</b><code>z2-icon draw ~/pixel/rocket.txt</code>
+        <p>ステータスバーの点が何を意味するのか、自分で決められます。</p></div>
+      <div class="recipe reveal d1"><b>声で報告させる</b><code>z2-say "ビルド終わった"</code>
+        <p>画面が消えていても、シェルスクリプトから読み上げます。</p></div>
+      <div class="recipe reveal d2"><b>フォルダを見張る</b><code>z2-when file:new=~/Download run ~/sort.sh</code>
+        <p>入ってきたファイルを、名前を変えるなり変換するなり送るなり。</p></div>
+      <div class="recipe reveal"><b>ホーム画面から走らせる</b><code>ウィジェット → マクロを選ぶ</code>
+        <p>ワンタップで裏で実行。走っているものはもう一度タップで停止。</p></div>
+      <div class="recipe reveal d1"><b>サーバーを立てっぱなしに</b><code>設定 → 常駐サーバー</code>
+        <p>アプリを閉じても端末を再起動しても生きている Web サーバーや bot。</p></div>
+      <div class="recipe reveal d2"><b>アプリ自身のタブを操る</b><code>z2-session attach 2</code>
+        <p>別のタブに文字を打ち込むマクロ。ターミナルそのものの自動化です。</p></div>
     </div>
   </section>
 
-  <section>
-    <h2>使うとこうなる</h2>
-    <div class="two">
-      <pre><span class="c"># 通知シェードから答えてもらう</span>
-name=$(z2-ask <span class="g">"ブランチ名は？"</span>) \
-  || echo <span class="g">"やめた"</span>
+  <!-- ===================== デスクトップ ===================== -->
+  <section id="desktop">
+    <p class="cmdline" data-cmd="z2gui &amp;&amp; z2run xterm"><span class="u">~</span> <span class="p">$</span> <span class="typed">z2gui &amp;&amp; z2run xterm</span></p>
+    <h2>タブの中のデスクトップ — 自分のも、よそのも</h2>
+    <p class="sub">GUI タブは別のビューアアプリではありません。アプリの中の RFB クライアントなので、
+      Linux のデスクトップも、リモートのマシンも、シェルと同じタブの列に並びます。</p>
 
-<span class="c"># 端末のイベントで走らせる</span>
-z2-when charge:start run ~/sync.sh
-z2-when net:online if=ssid=Home \
-  cooldown=1h run ~/backup.sh</pre>
-      <pre><span class="c"># シェルから Linux デスクトップ</span>
-z2gui
-z2run <span class="g">firefox</span>
-
-<span class="c"># 動かないときはこれ 1 つ</span>
-z2doctor --clip
-
-<span class="c"># PC なしで自端末の adb</span>
-z2adb shell getprop ro.product.model</pre>
+    <div class="grid">
+      <div class="card reveal">
+        <h3><span>local</span>Xvnc + openbox</h3>
+        <p><code>z2gui</code> でデスクトップが立ち上がり、<code>z2run &lt;app&gt;</code> は GUI アプリを起動して
+          タブを開きます。音声と動画も橋渡しするので、プレイヤーはプレイヤーとして動きます。</p>
+      </div>
+      <div class="card reveal d1">
+        <h3><span>vnc</span>RFB サーバーなら何でも</h3>
+        <p>RFB 3.3 – 3.8、認証は None と VNC パスワード。宛先を保存すると、その横に
+          <b>[VNC]</b> ボタンが付きます。</p>
+      </div>
+      <div class="card reveal d2">
+        <h3><span>rdp</span>Windows にもきちんと</h3>
+        <p>NLA（ネットワークレベル認証）、初回の証明書確認、マウスとキーボード、音、テキストの
+          クリップボード共有。保存した宛先に <b>[RDP]</b> ボタンが付きます。</p>
+      </div>
+      <div class="card reveal">
+        <h3><span>ssh</span>既定で SSH の中を通る</h3>
+        <p>リモートデスクトップも FTP・SMB・WebDAV と同じく、既定では一時的な SSH ポート転送に乗ります。
+          直結にもできますが、そのときは「暗号化が無くなる」と警告してからです。</p>
+      </div>
     </div>
   </section>
 
-  <section id="compare">
-    <h2>なぜもう一つターミナルアプリを作るのか</h2>
-    <p class="sub">最大のパッケージ資産と実績が欲しいなら Termux が正解です。Z2Term は別の問いから作られています —
-      ターミナルが「端末を操作する正面の手段」になり、しかも APK 1 つで完結したらどうなるか。</p>
-    <div class="tablewrap">
-      <table>
-        <thead>
-          <tr><th></th><th>Z2Term</th><th>Termux + アドオン群</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Linux ディストロ</td><td><b>Alpine 同梱</b>で初回から使える。Ubuntu / Arch / Kali も導入可</td><td>パッケージで導入する</td></tr>
-          <tr><td>Linux GUI</td><td><b>アプリ内に GUI タブ</b>（Xvnc + RFB クライアント）。音声・動画つき</td><td>別途 X11 / VNC ビューアアプリ</td></tr>
-          <tr><td>シェルから Android を操作</td><td><b>内蔵</b> — 約 20 個の <code>z2-*</code></td><td>別アプリ（コンパニオン）</td></tr>
-          <tr><td>イベント駆動の自動化</td><td><b>内蔵</b> — <code>z2-when</code>。専用タブ・実行ログ・一括停止つき</td><td>別アプリ + 多くは市販の自動化アプリと併用</td></tr>
-          <tr><td>日本語入力</td><td><b>IME 内蔵</b>。OS の入力メソッドとしても選べる</td><td>OS のキーボード</td></tr>
-          <tr><td>SSH / SFTP と <code>sshd</code></td><td><b>内蔵</b>。鍵は Android Keystore</td><td>自分でパッケージを入れる</td></tr>
-          <tr><td>配布</td><td>GitHub Releases</td><td>F-Droid と独自リポジトリ</td></tr>
-        </tbody>
-      </table>
+  <!-- ===================== スクリーンショット ===================== -->
+  <section id="shots">
+    <p class="cmdline" data-cmd="ls screenshots/"><span class="u">~</span> <span class="p">$</span> <span class="typed">ls screenshots/</span></p>
+    <h2>実機ではこう見えます</h2>
+    <p class="sub">スクリーンショットを、端末が絵を描くときのように上から流し込みます。</p>
+
+    <div class="win term-demo gallery" data-scenes="shot-scenes">
+      <div class="win-bar">
+        <span class="sig"></span>
+        <span class="title">gallery — z2term</span>
+        <span class="meta">png</span>
+      </div>
+      <div class="win-tabs"></div>
+      <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">ls -1 screenshots/</span>
+<noscript><div class="term-imgs"><figure class="term-img drawn"><img src="images/shot-terminal.png" alt="z2term で動くシェルと独自オンスクリーンキーボード"><figcaption>シェル + 独自キーボード</figcaption></figure><figure class="term-img drawn"><img src="images/shot-gui.png" alt="z2term のタブの中で Xvnc 上に表示された Linux のデスクトップアプリ"><figcaption>GUI タブのデスクトップアプリ</figcaption></figure></div></noscript>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="caret"></span></div>
     </div>
-    <p class="warn">どちらも GPL-3.0 で、どちらもテレメトリを取りません。すでに満足している Termux 環境がある人にとって、
-      Z2Term の存在理由は上の表の <b>2・3・4 行目</b>です。</p>
   </section>
 
+  <!-- ===================== 一覧 ===================== -->
+  <section id="spec">
+    <p class="cmdline" data-cmd="less HANDBOOK.md"><span class="u">~</span> <span class="p">$</span> <span class="typed">less HANDBOOK.md</span></p>
+    <h2>残りを 1 画面で</h2>
+    <div class="spec reveal">
+      <dl>
+        <dt>ターミナル</dt>
+        <dd>VT100 / xterm、256 色と true color、テーマ 9 種、検索つきスクロールバック、UTF-8 と東アジア文字幅、
+          代替画面、OSC 4 / 7 / 8 / 10 / 11 / 12 / 52。</dd>
+
+        <dt>エンジン</dt>
+        <dd><b>z2root</b> — 本アプリのために書いた ptrace ベースのユーザー空間実装。root もカーネルモジュールも
+          不要。root 化済みの端末は chroot も選べます。</dd>
+
+        <dt>タブ</dt>
+        <dd>CUI と GUI のタブ、ドラッグで並べ替え。裏のタブは何か動いていると小さな点、
+          見ていないあいだに終わっていれば ✓ が付きます。</dd>
+
+        <dt>SSH</dt>
+        <dd>クライアントと、既定で localhost だけに bind する内蔵 <code>sshd</code>。アプリ内で作る ed25519 鍵、
+          Android Keystore で暗号化される秘密、known_hosts の確認、タブを閉じても生きるポート転送。</dd>
+
+        <dt>言語</dt>
+        <dd>英語・日本語・簡体字・繁体字。アプリの画面<b>だけでなく</b> <code>z2-*</code> のヘルプや使い方、
+          端末に出るメッセージまで切り替わります。</dd>
+
+        <dt>ロック</dt>
+        <dd>指紋・顔・画面ロック（PIN/パターン）で起動をふさぎ、離れているあいだは最近のアプリのサムネイルも
+          隠します。セッションと常駐サーバーは走り続けるので、夜通しの作業は壊れません。
+          <code>z2scan self</code> は外部ツールなしでこの端末を点検します（結果は端末内に留まります）。</dd>
+
+        <dt>通信量の上限</dt>
+        <dd><b>端末全体</b>のモバイル通信量がその期間で設定値に達すると、z2term 自身の通信を止めます。
+          Wi-Fi と自宅 LAN はそのまま、他のアプリにも影響しません。</dd>
+
+        <dt>持ち出し</dt>
+        <dd>設定・接続先・スニペット・自動化ルール・マクロ・テーマ・タイル・アイコン・辞書・キーボードの学習を
+          1 ファイルにまとめて別の端末へ。定期実行もできます。SSH の秘密は既定で入れず、
+          入れるならパスフレーズが要り、そのときは中身ごと暗号化されます。</dd>
+
+        <dt>端末ログ</dt>
+        <dd>ツールバーの ⚪ を押すと、そのタブに出ているものが <code>~/z2term-log/</code> のテキストに書かれます。
+          もう一度押すと停止。既定では色と制御コードを落として素のテキストにします。</dd>
+
+        <dt>共有とスニペット</dt>
+        <dd>他アプリから共有されたテキストは<b>入力行に挿入されるだけで、実行されません</b>。
+          スニペットは棚に分けられるので、増えても使うものが沈みません。</dd>
+
+        <dt>ライセンス</dt>
+        <dd>GPL-3.0。テレメトリなし、アカウントなし、アプリ内課金なし、Google Play では配布していません。</dd>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ===================== ダウンロード ===================== -->
   <section id="download">
-    <h2>ダウンロード</h2>
-    <p class="sub">各リリースに APK が 2 つ付きます。端末でファイルをタップし、提供元不明のアプリのインストールを許可してください。</p>
-    <div class="tablewrap">
-      <table>
-        <thead><tr><th>ファイル</th><th>中身</th><th>選び方</th></tr></thead>
-        <tbody>
-          <tr><td><code>app-foss-release.apk</code></td><td>prebuilt 非同梱（約 21 MB）</td><td><b>こちらがおすすめ。</b>約 9 分の 1 で、更新のたびのダウンロードも約 21 MB。従量制や遅い回線で効く。外部 prebuilt も同梱しない。Alpine は初回だけ取得し SHA-256 で検証、更新時に再取得しない</td></tr>
-          <tr><td><code>app-full-release.apk</code></td><td>PRoot と Alpine rootfs を同梱（約 190 MB）</td><td><b>初回からオフラインで使いたいとき。</b>ディストロが中にあり初回のダウンロードが不要。そのぶん本体も更新も毎回約 190 MB</td></tr>
-        </tbody>
-      </table>
+    <p class="cmdline" data-cmd="ls -lh releases/latest/"><span class="u">~</span> <span class="p">$</span> <span class="typed">ls -lh releases/latest/</span></p>
+    <h2>入手する</h2>
+    <p class="sub">APK は 1 つだけです。OS も外部の prebuilt も同梱していないので、初回起動で
+      <b>設定 › Linux 環境</b>からディストロを選びます。選んだものが公式 CDN から取得され SHA-256 で検証されます。
+      取得は 1 回きりで、更新のたびに落とし直したりはしません。</p>
+
+    <div class="win reveal">
+      <div class="win-bar">
+        <span class="sig"></span>
+        <span class="title">releases — github.com/orgsonai/z2term</span>
+      </div>
+      <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">ls -lh releases/latest/</span>
+<span class="t-out">-rw-r--r--  1 you  you   21M  </span><span class="t-ok">z2term-0.8.493-alpha.apk</span>
+<span class="t-c"># 端末でタップ → 「提供元不明のアプリ」を許可</span>
+<span class="t-c"># 上書きインストールでデータは残ります</span></div>
     </div>
-    <p class="warn">どちらも同じアプリで、違いは <b>Alpine を初回に 1 回だけダウンロードするかどうか</b>だけです。
-      自動更新にしても毎回 APK 全体をダウンロードするので（Play 以外に差分更新は無い）、容量差は更新のたびに効きます。</p>
+
     <div class="cta">
-      <a class="btn" href="https://github.com/orgsonai/z2term/releases/latest">最新リリース</a>
+      <a class="btn" href="https://github.com/orgsonai/z2term/releases/latest">▸ 最新リリース</a>
       <a class="btn ghost" href="https://github.com/orgsonai/z2term/blob/main/docs/ja/HANDBOOK.md">ハンドブック</a>
     </div>
-    <p class="note">アプリ内の更新チェックはありません。
-      <a href="https://github.com/ImranR98/Obtainium">Obtainium</a> に本リポジトリを登録すると、
-      新リリース時にワンタップで更新できます（ストア不要）。</p>
-    <p class="warn">版数はまだ <code>0.8.x-alpha</code> です。機能は広く毎日使われていますが、版数はそのことに正直にしています。</p>
+
+    <h3 style="margin-top:32px">更新のしかた</h3>
+    <div class="grid">
+      <div class="card reveal">
+        <h3><span>アプリ内</span>更新を確認</h3>
+        <p><b>設定 → アプリ情報 → 更新を確認。</b><b>ボタンを押したときだけ</b> GitHub に問い合わせ、
+          新しい APK を落としてインストール画面まで連れて行きます。最後のタップは必ずあなたのものです
+          （どのアプリも自分を黙って入れ替えることはできません）。端末からは <code>z2-update</code>。</p>
+      </div>
+      <div class="card reveal d1">
+        <h3><span>自動</span>Obtainium</h3>
+        <p><a href="https://github.com/ImranR98/Obtainium">Obtainium</a> に
+          <code>github.com/orgsonai/z2term</code> を登録すると、新しいリリースが出たときにワンタップで
+          更新できます。ストアは要りません。</p>
+      </div>
+      <div class="card reveal d2">
+        <h3><span>手動</span>APK をタップ</h3>
+        <p>Releases から新しいファイルを落としてタップするだけ。上書きインストールになり、
+          データはそのまま残ります。</p>
+      </div>
+    </div>
+
+    <p class="warn">版数はまだ <code>0.8.x-alpha</code> です。機能は広く、毎日使われていますが、
+      版数はそのことに正直にしています。</p>
   </section>
 
 </div>
 
-<footer>
+<footer class="site">
   <div class="wrap">
     Z2Term — Zero to Ship プロジェクト 第 5 作。GPL-3.0.
     · <a href="https://github.com/orgsonai/z2term">ソース</a>
     · <a href="https://github.com/orgsonai/z2term/issues">Issues</a>
+    · <a href="guide.ja.html">ガイド</a>
     · <a href="index.html">English</a>
   </div>
 </footer>
+
+<!-- ===================== 台本（日本語） ===================== -->
+<script type="application/json" id="hero-scenes">
+[
+  {"tab":"Linux","title":"alpine — z2term","steps":[
+    {"t":"cmd","x":"head -1 /etc/os-release && uname -m"},
+    {"t":"out","x":"NAME=\"Alpine Linux\""},
+    {"t":"out","x":"aarch64"},
+    {"t":"cmd","x":"apk add ripgrep git"},
+    {"t":"out","x":"(1/4) Installing pcre2 (10.43-r0)"},
+    {"t":"out","x":"(4/4) Installing ripgrep (14.1.1-r0)"},
+    {"t":"out","x":"OK: 42 MiB in 61 packages","cls":"t-ok"},
+    {"t":"cmd","x":"z2version"},
+    {"t":"out","x":"z2term 0.8.493-alpha  ·  エンジン: z2root (ptrace)","cls":"t-ok"},
+    {"t":"out","x":"# root なし・PC なし・セットアップスクリプトなし","cls":"t-c"}
+  ]},
+  {"tab":"USB","title":"usb — z2term","steps":[
+    {"t":"cmd","x":"z2-usb list"},
+    {"t":"out","x":"1  0483:5740  Virtual COM Port"},
+    {"t":"out","x":"2  0781:5583  USB Mass Storage"},
+    {"t":"cmd","x":"z2-usb allow 1"},
+    {"t":"out","x":"Android の許可ダイアログを待っています...","ms":600},
+    {"t":"out","x":"許可されました  ·  /dev/bus/usb/001/004 が開けます","cls":"t-ok"},
+    {"t":"cmd","x":"picocom -b 115200 /dev/ttyACM0"},
+    {"t":"out","x":"Terminal ready","cls":"t-ok"},
+    {"t":"out","x":"# libusb を使うプログラムが、手を入れずにそのまま動きます","cls":"t-c"}
+  ]},
+  {"tab":"デスクトップ","title":"gui — z2term","steps":[
+    {"t":"cmd","x":"z2gui"},
+    {"t":"out","x":"Xvnc :1   1080x2210   24bpp"},
+    {"t":"out","x":"openbox 起動  ·  音声ブリッジ 準備完了"},
+    {"t":"out","x":"→ GUI タブを開きました","cls":"t-ok"},
+    {"t":"cmd","x":"z2run xterm"},
+    {"t":"out","x":":1 で起動しました","cls":"t-ok"},
+    {"t":"out","x":"# 同じビューアがリモートの VNC / RDP にも繋がります:","cls":"t-c"},
+    {"t":"out","x":"# 接続先 › desk › [VNC] [RDP]","cls":"t-c"},
+    {"t":"out","x":"RDP  NLA 成功 · 証明書を記憶 · クリップボード共有","cls":"t-ok"}
+  ]},
+  {"tab":"診断","title":"doctor — z2term","steps":[
+    {"t":"cmd","x":"z2doctor"},
+    {"t":"out","x":"版数        0.8.493-alpha (501)"},
+    {"t":"out","x":"エンジン    z2root (ptrace)          OK","cls":"t-ok"},
+    {"t":"out","x":"空き容量    12.4 GiB                 OK","cls":"t-ok"},
+    {"t":"out","x":"通知権限    許可済み                 OK","cls":"t-ok"},
+    {"t":"out","x":"電池最適化  除外されていない         NG  → 設定 › 電池","cls":"t-warn"},
+    {"t":"out","x":"自動化      6 ルール · 停止 0        OK","cls":"t-ok"},
+    {"t":"out","x":"報告の用意ができました — z2doctor --clip でコピー","cls":"t-ok"},
+    {"t":"out","x":"# SSID・IP・ホスト名は意図的に含めません","cls":"t-c"}
+  ]}
+]
+</script>
+
+<script type="application/json" id="macro-scenes">
+[
+  {"tab":"通知","title":"notify — z2term","steps":[
+    {"t":"cmd","x":"z2-notify -h -c \"$(git rev-parse --short HEAD)\" \"ビルド完了\" \"3分12秒 · 警告 0\""},
+    {"t":"noti","app":"z2term","when":"たった今","title":"ビルド完了","body":"3分12秒 · 警告 0","actions":["コピー","再実行"],"ms":900},
+    {"t":"out","x":"通知を出しました (id 41)  ·  バナー + コピーボタン","cls":"t-ok"},
+    {"t":"cmd","x":"z2-toast \"成果物を送りました\""},
+    {"t":"toast","x":"成果物を送りました"},
+    {"t":"out","x":"# 残さなくていいものはトースト、","cls":"t-c"},
+    {"t":"out","x":"# 残したいものは通知","cls":"t-c"},
+    {"t":"wait","ms":900},
+    {"t":"wipe"}
+  ]},
+  {"tab":"質問","title":"ask — z2term","steps":[
+    {"t":"cmd","x":"name=$(z2-ask \"ブランチ名は？\") || echo \"やめた\""},
+    {"t":"ask","app":"z2term","when":"たった今","title":"ブランチ名は？","body":"通知シェードから返信できます","reply":"feature/rdp-audio"},
+    {"t":"out","x":"→ feature/rdp-audio","cls":"t-ok"},
+    {"t":"cmd","x":"git switch -c \"$name\" && z2-toast \"$name に切り替えました\""},
+    {"t":"out","x":"Switched to a new branch 'feature/rdp-audio'"},
+    {"t":"toast","x":"feature/rdp-audio に切り替えました"},
+    {"t":"out","x":"# スクリプトは通知シェードで待っていました。","cls":"t-c"},
+    {"t":"out","x":"# 答えなければ非ゼロ終了。「やめる」も表現できます","cls":"t-c"}
+  ]},
+  {"tab":"タイル","title":"tile — z2term","steps":[
+    {"t":"cmd","x":"z2-tile set 1 ~/.z2term/macros/vpn.sh --label VPN"},
+    {"t":"out","x":"1 枠目 → vpn.sh   (12 枠まで置けます)","cls":"t-ok"},
+    {"t":"cmd","x":"z2-icon draw ~/pixel/rocket.txt --slot 1"},
+    {"t":"out","x":"16x16 · 1bit · 反映しました","cls":"t-ok"},
+    {"t":"tiles","items":["🔒 VPN","🔦 ライト","🔄 同期","📡 sshd"],"ms":1100},
+    {"t":"cmd","x":"z2-server start web"},
+    {"t":"out","x":"web  ·  :8080  ·  稼働中（アプリを閉じても続きます）","cls":"t-ok"},
+    {"t":"widget","title":"z2term status","lines":["ssh   pi@home:22","srv   1 稼働","when  6 ルール","bat   65% ⚡"],"ms":1200},
+    {"t":"out","x":"# クイック設定とホーム画面から、アプリを開かずに","cls":"t-c"},
+    {"t":"wait","ms":700},
+    {"t":"wipe"}
+  ]},
+  {"tab":"自動化","title":"automation — z2term","steps":[
+    {"t":"cmd","x":"z2-when charge:start run ~/backup.sh"},
+    {"t":"out","x":"ルールを追加  ·  charge:start → ~/backup.sh","cls":"t-ok"},
+    {"t":"cmd","x":"z2-when notify:otp run ~/otp.sh"},
+    {"t":"out","x":"ルールを追加  ·  notify:otp → ~/otp.sh","cls":"t-ok"},
+    {"t":"out","x":"# ─ ここでアプリを閉じ、端末はポケットの中 ─","cls":"t-c"},
+    {"t":"wait","ms":700},
+    {"t":"noti","app":"銀行","when":"たった今","title":"認証コード 284913","body":"このコードは誰にも教えないでください","ms":1100},
+    {"t":"toast","x":"コードをコピーしました"},
+    {"t":"cmd","x":"z2-when fired"},
+    {"t":"out","x":"07:12  charge:start   ok    1.4s"},
+    {"t":"out","x":"08:03  notify:otp     ok    0.2s"},
+    {"t":"out","x":"22:41  net:online     skip: cooldown=1h","cls":"t-warn"},
+    {"t":"out","x":"# ルールは ~/.z2term/when/ のテキスト。再起動しても残ります","cls":"t-c"},
+    {"t":"wipe"}
+  ]}
+]
+</script>
+
+<script type="application/json" id="shot-scenes">
+[
+  {"tab":"gallery","title":"gallery — z2term","steps":[
+    {"t":"cmd","x":"ls -1 screenshots/"},
+    {"t":"out","x":"shot-terminal.png"},
+    {"t":"out","x":"shot-gui.png"},
+    {"t":"img","items":[
+      {"src":"images/shot-terminal.png","alt":"z2term で動くシェルと独自オンスクリーンキーボード","cap":"シェル + 独自キーボード"},
+      {"src":"images/shot-gui.png","alt":"z2term のタブの中で Xvnc 上に表示された Linux のデスクトップアプリ","cap":"GUI タブのデスクトップアプリ"}
+    ]},
+    {"t":"out","x":"# 実機で撮ったものです","cls":"t-c"}
+  ]}
+]
+</script>
 
 </body>
 </html>

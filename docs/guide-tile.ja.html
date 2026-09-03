@@ -6,21 +6,24 @@
 <title>4. タイル・ウィジェット・アイコン — Z2Term 使いこなしガイド</title>
 <meta name="description" content="クイック設定のタイルとホーム画面のウィジェットからアプリを開かずに実行する方法、常駐サーバー、通知とタイルのアイコンを自分のドット絵に差し替える z2-icon の使いかた。">
 <link rel="canonical" href="https://orgsonai.github.io/z2term/guide-tile.ja.html">
-<link rel="stylesheet" href="guide.css">
+<link rel="stylesheet" href="z2.css?v=3">
+<script src="z2.js?v=3" defer></script>
 </head>
 <body>
+<div class="crt" aria-hidden="true"></div>
 
-<header>
+<header class="site">
   <div class="wrap bar">
-    <a href="index.ja.html" class="brand">Z<b>2</b>Term</a>
-    <nav>
+    <a href="index.ja.html" class="brand">z<b>2</b>term</a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">menu</button>
+    <nav id="site-nav">
       <a href="guide.ja.html">ガイド目次</a>
       <a href="https://github.com/orgsonai/z2term">GitHub</a>
     </nav>
   </div>
 </header>
 
-<div class="wrap">
+<div class="wrap narrow doc">
 
   <p class="crumb"><a href="guide.ja.html">使いこなしガイド</a> / 4. タイル・ウィジェット・アイコン</p>
 
@@ -178,7 +181,7 @@ z2-icon clear notify        <span class="c"># 既定のアイコンへ戻す</sp
 
 </div>
 
-<footer>
+<footer class="site">
   <div class="wrap">
     Z2Term — GPL-3.0.
     · <a href="https://github.com/orgsonai/z2term">ソース</a>

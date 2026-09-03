@@ -11,14 +11,17 @@
 <meta property="og:url" content="https://orgsonai.github.io/z2term/guide.ja.html">
 <meta property="og:locale" content="ja_JP">
 <link rel="canonical" href="https://orgsonai.github.io/z2term/guide.ja.html">
-<link rel="stylesheet" href="guide.css">
+<link rel="stylesheet" href="z2.css?v=3">
+<script src="z2.js?v=3" defer></script>
 </head>
 <body>
+<div class="crt" aria-hidden="true"></div>
 
-<header>
+<header class="site">
   <div class="wrap bar">
-    <a href="index.ja.html" class="brand">Z<b>2</b>Term</a>
-    <nav>
+    <a href="index.ja.html" class="brand">z<b>2</b>term</a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">menu</button>
+    <nav id="site-nav">
       <a href="index.ja.html">トップ</a>
       <a href="guide.ja.html" aria-current="page">ガイド</a>
       <a href="https://github.com/orgsonai/z2term">GitHub</a>
@@ -26,7 +29,7 @@
   </div>
 </header>
 
-<div class="wrap">
+<div class="wrap narrow doc">
 
   <h1>使いこなしガイド</h1>
   <p class="lede">Z2Term は「Android で動く Linux ターミナル」であると同時に、
@@ -64,17 +67,17 @@
   <ol class="steps">
     <li><b>APK を入れて開く。</b>
       <a href="https://github.com/orgsonai/z2term/releases/latest">GitHub Releases</a> から
-      <code>app-foss-release.apk</code>（約 21MB・<b>おすすめ</b>）を入れてください。
-      初回起動で Alpine を自動で取得して Linux が立ち上がります（<b>初回だけネット接続が必要</b>）。
-      <div class="note">初回からオフラインで使いたいときは <code>app-full-release.apk</code>
-        （Alpine 同梱・約 190MB）。中身は同じアプリです。</div>
+      <code>z2term-&lt;版数&gt;.apk</code>（約 21MB）を入れてください。<b>APK はこの 1 つだけ</b>です。
+      初回起動で <b>設定 › Linux 環境</b>からディストロを選ぶと、それが取得されて Linux が立ち上がります。
+      <div class="note">OS も外部の prebuilt も同梱していないので <b>初回だけネット接続が必要</b>です。
+        取得元は公式 CDN で、SHA-256 で検証されます。取得は 1 回きりで、アプリを更新しても落とし直しません。</div>
     </li>
     <li><b>画面の見かたを覚える。</b>上のバーがツールバー、その下がタブ、真ん中が端末、下がキーボードです。
       ボタンは<b>長押しで並べ替え</b>られ、使わないものは設定で消せます。
       → <a href="guide-terminal.ja.html">1. ターミナル</a></li>
     <li><b>日本語を打ってみる。</b>キーボード左の「あ」で日本語フリックに切り替わります。
       変換は候補バーから。<b>OS のキーボードとしても使えます</b>（設定 → キーボード）。</li>
-    <li><b>使うディストロを決める。</b>⚙ 設定 →「ディストロ」で Alpine / Ubuntu / Arch / Kali。
+    <li><b>ディストロは後から変えられる。</b>⚙ 設定 →「Linux 環境」で Alpine / Ubuntu / Arch / Kali。
       迷ったら Alpine のままで構いません。
       <div class="warn"><code>claude</code> や <code>gcc</code> など <b>glibc 前提のものを動かすなら Arch</b> を選んでください。
         Alpine（musl）では起動できないものがあります。</div>
@@ -127,7 +130,7 @@
 
 </div>
 
-<footer>
+<footer class="site">
   <div class="wrap">
     Z2Term — Zero to Ship プロジェクト 第 5 作。GPL-3.0.
     · <a href="https://github.com/orgsonai/z2term">ソース</a>

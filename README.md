@@ -22,8 +22,8 @@ notification shade, or run a script when the battery, the network or an incoming
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="docs/images/cui-terminal.png" width="280" alt="CUI: Alpine terminal with the custom keyboard"><br><sub>CUI — Alpine terminal + custom keyboard</sub></td>
-    <td align="center" width="50%"><img src="docs/images/gui-thunderbird.png" width="280" alt="GUI: Thunderbird running on Xvnc"><br><sub>GUI — Thunderbird running on Xvnc</sub></td>
+    <td align="center" width="50%"><img src="docs/images/shot-terminal.png" width="280" alt="CUI: Alpine terminal with the custom keyboard"><br><sub>CUI — Alpine terminal + custom keyboard</sub></td>
+    <td align="center" width="50%"><img src="docs/images/shot-gui.png" width="280" alt="GUI: a desktop application running on Xvnc"><br><sub>GUI — a desktop app on Xvnc</sub></td>
   </tr>
 </table>
 

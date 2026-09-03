@@ -6,21 +6,24 @@
 <title>3. 自動化（z2-when） — Z2Term 使いこなしガイド</title>
 <meta name="description" content="充電・時刻・Wi-Fi・共有・SMS・通知・センサー・ファイルをきっかけに、アプリを閉じていてもスクリプトを走らせる z2-when の使いかた。条件の絞り込みと、動かないときの調べかたまで。">
 <link rel="canonical" href="https://orgsonai.github.io/z2term/guide-when.ja.html">
-<link rel="stylesheet" href="guide.css">
+<link rel="stylesheet" href="z2.css?v=3">
+<script src="z2.js?v=3" defer></script>
 </head>
 <body>
+<div class="crt" aria-hidden="true"></div>
 
-<header>
+<header class="site">
   <div class="wrap bar">
-    <a href="index.ja.html" class="brand">Z<b>2</b>Term</a>
-    <nav>
+    <a href="index.ja.html" class="brand">z<b>2</b>term</a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">menu</button>
+    <nav id="site-nav">
       <a href="guide.ja.html">ガイド目次</a>
       <a href="https://github.com/orgsonai/z2term">GitHub</a>
     </nav>
   </div>
 </header>
 
-<div class="wrap">
+<div class="wrap narrow doc">
 
   <p class="crumb"><a href="guide.ja.html">使いこなしガイド</a> / 3. 自動化</p>
 
@@ -188,7 +191,7 @@ z2-when 'event:ringer_*' run 'z2-toast "マナーモード: $Z2_WHEN_EVENT"'</pr
 
 </div>
 
-<footer>
+<footer class="site">
   <div class="wrap">
     Z2Term — GPL-3.0.
     · <a href="https://github.com/orgsonai/z2term">ソース</a>

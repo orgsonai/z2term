@@ -4,81 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Z2Term — a terminal for Android that is also a way to drive Android</title>
-<meta name="description" content="Android terminal that runs Alpine / Ubuntu / Arch / Kali without root, with a built-in Linux GUI, SSH/SFTP, a Japanese IME, and shell access to Android itself.">
+<meta name="description" content="Android terminal that runs Alpine / Ubuntu / Arch / Kali without root, opens a Linux desktop or a remote VNC / RDP desktop in a tab, and lets the shell post notifications, ask you questions and run scripts on device events.">
 <meta property="og:title" content="Z2Term — Zero 2 Terminal">
-<meta property="og:description" content="Runs Alpine / Ubuntu / Arch / Kali without root. A Linux desktop in a tab. The shell can read notifications, ask you questions, and run scripts on device events.">
+<meta property="og:description" content="Runs Alpine / Ubuntu / Arch / Kali without root. A Linux desktop — or someone else's over VNC / RDP — in a tab. The shell can post a notification, ask you a question and run scripts on device events.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://orgsonai.github.io/z2term/">
-<meta property="og:image" content="https://orgsonai.github.io/z2term/images/cui-terminal.png">
+<meta property="og:image" content="https://orgsonai.github.io/z2term/images/shot-terminal.png">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0B0F0E">
 <link rel="canonical" href="https://orgsonai.github.io/z2term/">
-<style>
-  :root{
-    --bg:#0B0F0E; --bg2:#111817; --line:#1F2A28;
-    --fg:#E6EDEB; --dim:#93A4A0; --accent:#22C55E; --accent-dim:#15803D;
-    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);
-    font-family:system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif;
-    line-height:1.7;-webkit-font-smoothing:antialiased}
-  a{color:var(--accent);text-decoration:none}
-  a:hover{text-decoration:underline}
-  .wrap{max-width:960px;margin:0 auto;padding:0 20px}
-  header{border-bottom:1px solid var(--line);padding:14px 0;font-family:var(--mono);font-size:14px}
-  header .brand{color:var(--fg);font-weight:600}
-  header .brand b{color:var(--accent)}
-  header nav a{color:var(--dim);margin-left:16px}
-  .hero{padding:64px 0 40px}
-  .kicker{font-family:var(--mono);font-size:13px;color:var(--accent);letter-spacing:.08em;text-transform:uppercase}
-  h1{font-size:clamp(30px,5.4vw,50px);line-height:1.18;margin:.35em 0 .4em;letter-spacing:-.02em}
-  .lede{font-size:clamp(17px,2.2vw,20px);color:var(--dim);max-width:46em;margin:0}
-  .lede strong{color:var(--fg)}
-  .cta{display:flex;gap:12px;flex-wrap:wrap;margin:32px 0 10px}
-  .btn{display:inline-block;padding:12px 22px;border-radius:8px;font-weight:600;font-size:15px;
-    border:1px solid var(--accent);background:var(--accent);color:#05130B}
-  .btn:hover{text-decoration:none;background:#1eb257}
-  .btn.ghost{background:transparent;color:var(--fg);border-color:var(--line)}
-  .btn.ghost:hover{border-color:var(--accent);background:#0F1A16}
-  .note{font-family:var(--mono);font-size:13px;color:var(--dim);margin:6px 0 0}
-  section{padding:48px 0;border-top:1px solid var(--line)}
-  h2{font-size:26px;letter-spacing:-.01em;margin:0 0 8px}
-  h2 + p.sub{color:var(--dim);margin:0 0 28px}
-  .grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
-  .card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:22px}
-  .card h3{margin:0 0 8px;font-size:17px}
-  .card h3 span{color:var(--accent);font-family:var(--mono);margin-right:8px}
-  .card p{margin:0;color:var(--dim);font-size:15px}
-  .shots{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-  .shots figure{margin:0;text-align:center}
-  .shots img{width:100%;max-width:300px;border:1px solid var(--line);border-radius:10px}
-  .shots figcaption{font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:8px}
-  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  table{border-collapse:collapse;width:100%;min-width:640px;font-size:15px}
-  th,td{border-bottom:1px solid var(--line);padding:12px 14px;text-align:left;vertical-align:top}
-  thead th{font-family:var(--mono);font-size:13px;color:var(--dim);font-weight:600;white-space:nowrap}
-  thead th:nth-child(2){color:var(--accent)}
-  td:first-child{color:var(--dim)}
-  td b{color:var(--fg)}
-  pre{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:16px 18px;
-    overflow-x:auto;font-family:var(--mono);font-size:14px;margin:0}
-  pre .c{color:var(--dim)}
-  pre .g{color:var(--accent)}
-  .two{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
-  footer{border-top:1px solid var(--line);padding:32px 0 56px;color:var(--dim);
-    font-family:var(--mono);font-size:13px}
-  .warn{font-family:var(--mono);font-size:13px;color:var(--dim);border-left:2px solid var(--accent-dim);
-    padding:2px 0 2px 14px;margin:24px 0 0}
-</style>
+<link rel="stylesheet" href="z2.css?v=3">
+<script src="z2.js?v=3" defer></script>
 </head>
 <body>
+<div class="crt" aria-hidden="true"></div>
 
-<header>
-  <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
-    <span class="brand">Z<b>2</b>Term</span>
-    <nav>
-      <a href="#features">Features</a>
-      <a href="#compare">vs Termux</a>
+<header class="site">
+  <div class="wrap bar">
+    <a class="brand" href="index.html">z<b>2</b>term</a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">menu</button>
+    <nav id="site-nav">
+      <a href="#what">What it does</a>
+      <a href="#macros">Macros</a>
+      <a class="opt" href="#desktop">Desktop</a>
+      <a class="opt" href="#shots">Screenshots</a>
       <a href="#download">Download</a>
       <a href="https://github.com/orgsonai/z2term">GitHub</a>
       <a href="index.ja.html">日本語</a>
@@ -88,168 +37,482 @@
 
 <div class="wrap">
 
+  <!-- ===================== HERO ===================== -->
   <div class="hero">
-    <p class="kicker">Zero 2 Terminal · GPL-3.0 · Android 10+</p>
-    <h1>A terminal for Android that is also a way to drive Android.</h1>
-    <p class="lede">Z2Term runs <strong>Alpine / Ubuntu / Arch / Kali without root</strong>, opens a
-      <strong>Linux desktop in a tab</strong>, and lets the shell reach the phone itself — read a
-      notification, ask you a question in the notification shade, or run a script when the battery,
-      the network or an incoming SMS changes.</p>
+    <div class="logo glitch" role="img" aria-label="Z2TERM"><svg viewBox="0 0 35 5" fill="currentColor" aria-hidden="true"><rect x="0" y="0" width="5" height="1"/><rect x="6" y="0" width="5" height="1"/><rect x="12" y="0" width="5" height="1"/><rect x="18" y="0" width="5" height="1"/><rect x="24" y="0" width="4" height="1"/><rect x="30" y="0" width="1" height="1"/><rect x="34" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="10" y="1" width="1" height="1"/><rect x="14" y="1" width="1" height="1"/><rect x="18" y="1" width="1" height="1"/><rect x="24" y="1" width="1" height="1"/><rect x="28" y="1" width="1" height="1"/><rect x="30" y="1" width="2" height="1"/><rect x="33" y="1" width="2" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="6" y="2" width="5" height="1"/><rect x="14" y="2" width="1" height="1"/><rect x="18" y="2" width="4" height="1"/><rect x="24" y="2" width="4" height="1"/><rect x="30" y="2" width="1" height="1"/><rect x="32" y="2" width="1" height="1"/><rect x="34" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="14" y="3" width="1" height="1"/><rect x="18" y="3" width="1" height="1"/><rect x="24" y="3" width="1" height="1"/><rect x="27" y="3" width="1" height="1"/><rect x="30" y="3" width="1" height="1"/><rect x="34" y="3" width="1" height="1"/><rect x="0" y="4" width="5" height="1"/><rect x="6" y="4" width="5" height="1"/><rect x="14" y="4" width="1" height="1"/><rect x="18" y="4" width="5" height="1"/><rect x="24" y="4" width="1" height="1"/><rect x="28" y="4" width="1" height="1"/><rect x="30" y="4" width="1" height="1"/><rect x="34" y="4" width="1" height="1"/></svg></div>
+
+    <div class="chips">
+      <span><b>0.8.493-alpha</b></span>
+      <span>GPL-3.0</span>
+      <span>Android 10+</span>
+      <span>~21 MB</span>
+      <span>no root</span>
+      <span>no telemetry</span>
+    </div>
+
+    <h1 class="tag">A terminal for Android — and a way to <em>drive Android</em>.</h1>
+    <p class="lede">Run <strong>Alpine / Ubuntu / Arch / Kali without root</strong>. Open a
+      <strong>Linux desktop — or someone else's, over VNC or RDP</strong> — in a tab. And write a
+      one-line macro that posts a notification, raises a toast, asks you a question, or fires by
+      itself when the battery, the network or an incoming message changes.</p>
+
+    <div class="stage" style="grid-template-columns:minmax(0,1fr)">
+      <div class="win term-demo" data-scenes="hero-scenes">
+        <div class="win-bar">
+          <span class="sig"></span>
+          <span class="title">alpine — z2term</span>
+          <span class="meta">z2root</span>
+        </div>
+        <div class="win-tabs"></div>
+        <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">apk add ripgrep</span>
+<span class="t-out">(1/2) Installing pcre2 (10.43-r0)</span>
+<span class="t-ok">OK: 42 MiB in 61 packages</span>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2version</span>
+<span class="t-ok">z2term 0.8.493-alpha  ·  engine: z2root (ptrace)</span>
+<span class="t-c"># no root, no PC, no setup script</span>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="caret"></span></div>
+      </div>
+    </div>
+
     <div class="cta">
-      <a class="btn" href="https://github.com/orgsonai/z2term/releases/latest">Download the APK</a>
+      <a class="btn" href="https://github.com/orgsonai/z2term/releases/latest">▸ Download the APK</a>
       <a class="btn ghost" href="https://github.com/orgsonai/z2term">Source on GitHub</a>
     </div>
-    <p class="note">No root · no PC · no telemetry · not on Google Play</p>
+    <p class="note">One APK · no PC · no companion app · not on Google Play</p>
   </div>
 
-  <section id="features">
-    <h2>Three things it does that a terminal usually doesn't</h2>
-    <p class="sub">Everything below is in the one APK. No companion app, no setup script.</p>
+  <!-- ===================== WHAT IT DOES ===================== -->
+  <section id="what">
+    <p class="cmdline" data-cmd="z2help"><span class="u">~</span> <span class="p">$</span> <span class="typed">z2help</span></p>
+    <h2>What it does</h2>
+    <p class="sub">Everything below is in the one APK. No companion app, no setup script, nothing to
+      wire together first.</p>
+
     <div class="grid">
-      <div class="card">
+      <div class="card reveal">
         <h3><span>01</span>A distribution, immediately</h3>
         <p>Install the APK and <code>apk</code> / <code>apt</code> / <code>pacman</code> work. The default
-          execution engine, <b>z2root</b>, is a ptrace-based userspace implementation written for this app —
-          no root, no kernel module. PRoot and chroot are also selectable.</p>
+          engine <b>z2root</b> is a ptrace-based userspace implementation written for this app — no root,
+          no kernel module. Pick Alpine, Ubuntu, Arch or Kali in Settings.</p>
       </div>
-      <div class="card">
-        <h3><span>02</span>The shell talks to Android</h3>
-        <p>Around 20 <code>z2-*</code> helpers: notifications, clipboard, sensors, torch, intents, alarms,
-          text-to-speech, and wireless <code>adb</code> to the device itself. <code>z2-ask</code> puts a
-          question in the notification shade and reads your reply into a shell variable.</p>
+      <div class="card reveal d1">
+        <h3><span>02</span>The shell reaches the phone</h3>
+        <p>Around 20 <code>z2-*</code> helpers: notifications, toasts, clipboard, sensors, torch, volume,
+          intents, alarms, text-to-speech, screen-on, share, and wireless <code>adb</code> to the device
+          itself. Every one of them is a normal command, so anything that can call a command can use them.</p>
       </div>
-      <div class="card">
-        <h3><span>03</span>Automation that outlives the app</h3>
-        <p><code>z2-when</code> fires scripts on device events — charging, battery level, time or cron,
-          Wi-Fi, connectivity, boot, a share from another app, an incoming SMS, sensors, an arriving
-          notification, a new file. Rules are plain text and survive reboots unopened.</p>
+      <div class="card reveal d2">
+        <h3><span>03</span>It can ask you things</h3>
+        <p><code>name=$(z2-ask "Branch name?")</code> puts the question in the notification shade and reads
+          your reply back into a shell variable. Answer it without opening the app; no answer is a non-zero
+          exit, so "give up" is expressible too.</p>
       </div>
-      <div class="card">
-        <h3><span>04</span>A Linux desktop in a tab</h3>
-        <p>Xvnc and openbox with an RFB client built into the app, with audio and video.
-          <code>z2gui</code> starts the desktop; <code>z2run &lt;app&gt;</code> launches a GUI program and
-          opens the tab for you.</p>
+      <div class="card reveal">
+        <h3><span>04</span>Automation that outlives the app</h3>
+        <p><code>z2-when</code> runs scripts on device events — charging, battery level, time or cron, Wi-Fi,
+          connectivity, boot, a share from another app, an incoming SMS, sensors, an arriving notification,
+          a new file. Rules are plain text and fire <b>with the app closed, across reboots</b>.</p>
       </div>
-      <div class="card">
-        <h3><span>05</span>Japanese, properly</h3>
+      <div class="card reveal d1">
+        <h3><span>05</span>A Linux desktop in a tab</h3>
+        <p>Xvnc and openbox with an RFB client built into the app, with audio and video. <code>z2gui</code>
+          starts the desktop; <code>z2run &lt;app&gt;</code> launches a GUI program and opens the tab for you.</p>
+      </div>
+      <div class="card reveal d2">
+        <h3><span>06</span>Someone else's desktop, too</h3>
+        <p>The same viewer opens a <b>remote VNC or RDP</b> machine: a saved host gets <b>[VNC]</b> and
+          <b>[RDP]</b> buttons. RDP does Network Level Authentication with a first-use certificate check,
+          mouse and keyboard, sound, and shared text clipboard.</p>
+      </div>
+      <div class="card reveal">
+        <h3><span>07</span>Files, four ways</h3>
+        <p>SSH / SFTP, FTP, WebDAV and SMB2/3 clients. Each service rides a temporary SSH forward by
+          default, so the credentials never cross the network in the clear. Keys are ed25519 held by the
+          Android Keystore, and <code>-L</code> / <code>-R</code> forwards keep running after the tab closes.</p>
+      </div>
+      <div class="card reveal d1">
+        <h3><span>08</span>Servers that stay up</h3>
+        <p>Register a start command under <b>Settings → Resident servers</b> and it keeps running in the
+          background — <b>without the app being open</b>, and again after a reboot. Host a small web server,
+          a sync daemon or a bot from the phone.</p>
+      </div>
+      <div class="card reveal d2">
+        <h3><span>09</span>Within reach, without the app</h3>
+        <p>Put a macro on a quick-settings tile (12 slots), draw its status-bar icon yourself, or run it
+          from a home-screen widget with one tap. A second widget keeps the tail of any file under
+          <code>~</code> on your home screen.</p>
+      </div>
+      <div class="card reveal">
+        <h3><span>10</span>USB devices from ordinary programs</h3>
+        <p><code>z2-usb list</code>, then <code>z2-usb allow</code> and approve Android's permission —
+          after that, programs using libusb or <code>/dev/bus/usb/…</code> open the device without being
+          patched. A plain data-capable adapter or hub is all the hardware it takes.</p>
+      </div>
+      <div class="card reveal d1">
+        <h3><span>11</span>Japanese, properly</h3>
         <p>A built-in kana-kanji IME with prediction and frequency/recency learning, plus a custom
-          on-screen keyboard. It can be enabled as an OS-wide input method, and your own words load
-          from a file.</p>
+          on-screen keyboard. It can be enabled as an <b>OS-wide input method</b>, and your own words load
+          from a file, so names convert from the first keystroke.</p>
       </div>
-      <div class="card">
-        <h3><span>06</span>SSH both ways</h3>
-        <p>SSH and SFTP client with keys held by the Android Keystore, port forwarding that keeps
-          running after the tab closes, and a built-in <code>sshd</code> bound to localhost by default.</p>
-      </div>
-      <div class="card">
-        <h3><span>07</span>Servers that stay up</h3>
-        <p>Register any start command under <b>Settings → Resident servers</b> and it keeps running in
-          the background — <b>without the app being open</b>. Host a small web server, a sync daemon or
-          a bot from your phone; the Status widget shows how many are up, and restarts on boot are handled.</p>
+      <div class="card reveal d2">
+        <h3><span>12</span>When it doesn't work</h3>
+        <p><code>z2doctor</code> answers "why isn't it working?" in one command — version, engine, free
+          space, every permission, detection and automation state. Each <code>NG</code> line carries the
+          next step, and the end is a report you can paste into an issue.</p>
       </div>
     </div>
   </section>
 
-  <section>
-    <h2>Screenshots</h2>
-    <p class="sub">Left: Alpine with the custom keyboard. Right: a GUI application on Xvnc.</p>
-    <div class="shots">
-      <figure>
-        <img src="images/cui-terminal.png" alt="Alpine terminal with the custom on-screen keyboard">
-        <figcaption>CUI — Alpine + the custom keyboard</figcaption>
-      </figure>
-      <figure>
-        <img src="images/gui-thunderbird.png" alt="A GUI application running on Xvnc inside Z2Term">
-        <figcaption>GUI — a desktop application on Xvnc</figcaption>
-      </figure>
+  <!-- ===================== MACROS ===================== -->
+  <section id="macros">
+    <p class="cmdline" data-cmd="./macros/demo.sh"><span class="u">~</span> <span class="p">$</span> <span class="typed">./macros/demo.sh</span></p>
+    <h2>A macro is just a command — so it can be anything</h2>
+    <p class="sub">There is no macro language to learn. A macro is a shell script that happens to be able
+      to touch the phone: post a notification, raise a toast, ask you something, flick the torch, put
+      itself on a tile. Whatever you can write, the phone can do — and <code>z2-when</code> can fire it
+      while the app is closed. Watch the phone on the right.</p>
+
+    <div class="stage">
+      <div class="win term-demo" data-scenes="macro-scenes">
+        <div class="win-bar">
+          <span class="sig"></span>
+          <span class="title">macros — z2term</span>
+          <span class="meta">tap a tab</span>
+        </div>
+        <div class="win-tabs"></div>
+        <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2-notify -h -c "$(git rev-parse --short HEAD)" "build finished" "3m12s"</span>
+<span class="t-ok">posted (id 41)  ·  banner + copy button</span>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">name=$(z2-ask "Branch name?")</span>
+<span class="t-ok">→ feature/rdp-audio</span>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2-when charge:start run ~/backup.sh</span>
+<span class="t-ok">rule added  ·  fires with the app closed</span>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="caret"></span></div>
+      </div>
+
+      <div class="phone" aria-hidden="true">
+        <div class="phone-screen">
+          <div class="phone-status"><span>4:42</span><span>▲ ▮ 65%</span></div>
+          <div class="phone-stage"></div>
+          <div class="phone-home"></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:34px">Twelve things people wire up in an evening</h3>
+    <div class="recipes">
+      <div class="recipe reveal"><b>Back up when you plug in</b><code>z2-when charge:start run ~/backup.sh</code>
+        <p>The phone charges overnight; the backup happens without you.</p></div>
+      <div class="recipe reveal d1"><b>Grab the OTP from a notification</b><code>z2-when notify:otp run ~/otp.sh</code>
+        <p>The code is extracted and put on the clipboard before you reach for it.</p></div>
+      <div class="recipe reveal d2"><b>Ask before doing something</b><code>z2-ask "Deploy to prod?"</code>
+        <p>The script waits in the shade. No answer means it stops.</p></div>
+      <div class="recipe reveal"><b>Sync only on your own Wi-Fi</b><code>z2-when net:online if=ssid=Home cooldown=1h</code>
+        <p>Filters work the same on every trigger, and skipped runs stay in the log.</p></div>
+      <div class="recipe reveal d1"><b>Take what other apps share</b><code>z2-when share:ext=pdf run ~/file.sh</code>
+        <p>Share a PDF to z2term and a script picks it up and files it away.</p></div>
+      <div class="recipe reveal d2"><b>A tile for the thing you do daily</b><code>z2-tile set 1 ~/macros/vpn.sh</code>
+        <p>Quick settings, one tap, app never opens. Twelve slots.</p></div>
+      <div class="recipe reveal"><b>Draw your own status-bar icon</b><code>z2-icon draw ~/pixel/rocket.txt</code>
+        <p>Because a generic dot in the status bar tells you nothing.</p></div>
+      <div class="recipe reveal d1"><b>Report to yourself out loud</b><code>z2-say "build finished"</code>
+        <p>Text-to-speech, from a shell script, while the screen is off.</p></div>
+      <div class="recipe reveal d2"><b>Watch a folder</b><code>z2-when file:new=~/Download run ~/sort.sh</code>
+        <p>Anything that lands gets renamed, converted or pushed onward.</p></div>
+      <div class="recipe reveal"><b>Run it from the home screen</b><code>widget → pick a macro</code>
+        <p>One tap runs it in the background; tap again to stop it.</p></div>
+      <div class="recipe reveal d1"><b>Keep a server up</b><code>Settings → Resident servers</code>
+        <p>A web server or a bot that survives the app being closed and the phone rebooting.</p></div>
+      <div class="recipe reveal d2"><b>Drive the app's own tabs</b><code>z2-session attach 2</code>
+        <p>A macro that types into another tab — automation of the terminal itself.</p></div>
     </div>
   </section>
 
-  <section>
-    <h2>What it looks like to use</h2>
-    <div class="two">
-      <pre><span class="c"># ask, from the notification shade</span>
-name=$(z2-ask <span class="g">"Branch name?"</span>) \
-  || echo <span class="g">"cancelled"</span>
+  <!-- ===================== DESKTOP ===================== -->
+  <section id="desktop">
+    <p class="cmdline" data-cmd="z2gui &amp;&amp; z2run xterm"><span class="u">~</span> <span class="p">$</span> <span class="typed">z2gui &amp;&amp; z2run xterm</span></p>
+    <h2>A desktop in a tab — yours or a remote one</h2>
+    <p class="sub">The GUI tab is not a separate viewer app. It is an RFB client inside z2term, so a Linux
+      desktop and a remote machine both land in the same tab strip as your shells.</p>
 
-<span class="c"># run a script on a device event</span>
-z2-when charge:start run ~/sync.sh
-z2-when net:online if=ssid=Home \
-  cooldown=1h run ~/backup.sh</pre>
-      <pre><span class="c"># a Linux desktop, from the shell</span>
-z2gui
-z2run <span class="g">firefox</span>
-
-<span class="c"># why isn't it working?</span>
-z2doctor --clip
-
-<span class="c"># the device's own adb, no PC</span>
-z2adb shell getprop ro.product.model</pre>
+    <div class="grid">
+      <div class="card reveal">
+        <h3><span>local</span>Xvnc + openbox</h3>
+        <p><code>z2gui</code> brings up the desktop; <code>z2run &lt;app&gt;</code> starts a GUI program and
+          opens the tab for you. Audio and video are bridged, so a media player is a media player.</p>
+      </div>
+      <div class="card reveal d1">
+        <h3><span>vnc</span>Any RFB server</h3>
+        <p>RFB 3.3 – 3.8, None or VNC-password authentication. Save a host once and it gets a
+          <b>[VNC]</b> button next to it.</p>
+      </div>
+      <div class="card reveal d2">
+        <h3><span>rdp</span>Windows, properly</h3>
+        <p>Network Level Authentication, a certificate check on first use, mouse and keyboard input,
+          sound, and text clipboard sharing both ways. Saved hosts get an <b>[RDP]</b> button.</p>
+      </div>
+      <div class="card reveal">
+        <h3><span>ssh</span>Tunnelled by default</h3>
+        <p>A remote desktop, like FTP, SMB and WebDAV, rides a temporary SSH local forward unless you
+          explicitly opt out — and opting out warns you that the encryption goes with it.</p>
+      </div>
     </div>
   </section>
 
-  <section id="compare">
-    <h2>Why another terminal app?</h2>
-    <p class="sub">Termux is the right answer if you want the largest package repository and the most
-      battle-tested tooling. Z2Term is built around a different question: what if the terminal were a
-      first-class way to operate the phone, and it all came in one APK?</p>
-    <div class="tablewrap">
-      <table>
-        <thead>
-          <tr><th></th><th>Z2Term</th><th>Termux + its add-ons</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Linux distribution</td><td><b>Alpine bundled</b>, ready on first launch; Ubuntu / Arch / Kali installable</td><td>A package installs one</td></tr>
-          <tr><td>Linux GUI</td><td><b>Built-in GUI tab</b> (Xvnc + RFB client), audio and video</td><td>A separate X11 or VNC viewer app</td></tr>
-          <tr><td>Drive Android from the shell</td><td><b>Built in</b> — ~20 <code>z2-*</code> helpers</td><td>A separate companion app</td></tr>
-          <tr><td>Event-driven automation</td><td><b>Built in</b> — <code>z2-when</code>, with a tab, run logs and a kill switch</td><td>A separate companion app, usually paired with a third-party automation app</td></tr>
-          <tr><td>Japanese input</td><td><b>Built-in IME</b>, also selectable OS-wide</td><td>The OS keyboard</td></tr>
-          <tr><td>SSH / SFTP and <code>sshd</code></td><td><b>Built in</b>, keys in the Android Keystore</td><td>Install the packages yourself</td></tr>
-          <tr><td>Distribution</td><td>GitHub Releases</td><td>F-Droid and its own repository</td></tr>
-        </tbody>
-      </table>
+  <!-- ===================== SCREENSHOTS ===================== -->
+  <section id="shots">
+    <p class="cmdline" data-cmd="ls screenshots/"><span class="u">~</span> <span class="p">$</span> <span class="typed">ls screenshots/</span></p>
+    <h2>On a real phone</h2>
+    <p class="sub">Screenshots, drawn into the page the way a terminal would draw them.</p>
+
+    <div class="win term-demo gallery" data-scenes="shot-scenes">
+      <div class="win-bar">
+        <span class="sig"></span>
+        <span class="title">gallery — z2term</span>
+        <span class="meta">png</span>
+      </div>
+      <div class="win-tabs"></div>
+      <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">ls -1 screenshots/</span>
+<noscript><div class="term-imgs"><figure class="term-img drawn"><img src="images/shot-terminal.png" alt="A shell running in z2term with the custom on-screen keyboard"><figcaption>shell + custom keyboard</figcaption></figure><figure class="term-img drawn"><img src="images/shot-gui.png" alt="A Linux desktop application running on Xvnc inside a z2term tab"><figcaption>a desktop app in a GUI tab</figcaption></figure></div></noscript>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="caret"></span></div>
     </div>
-    <p class="warn">Both are GPL-3.0 and neither collects telemetry. If you already have a Termux setup you
-      are happy with, Z2Term's reason to exist is rows two, three and four.</p>
   </section>
 
+  <!-- ===================== SPEC ===================== -->
+  <section id="spec">
+    <p class="cmdline" data-cmd="less HANDBOOK.md"><span class="u">~</span> <span class="p">$</span> <span class="typed">less HANDBOOK.md</span></p>
+    <h2>The rest of it, in one screen</h2>
+    <div class="spec reveal">
+      <dl>
+        <dt>terminal</dt>
+        <dd>VT100 / xterm, 256-color and true color, 9 themes, scrollback with search, UTF-8 and East
+          Asian Width, alternate screen, OSC 4 / 7 / 8 / 10 / 11 / 12 / 52.</dd>
+
+        <dt>engine</dt>
+        <dd><b>z2root</b> — a ptrace-based userspace implementation written for this app. No root, no
+          kernel module. Rooted devices may optionally use a chroot path.</dd>
+
+        <dt>tabs</dt>
+        <dd>CUI and GUI tabs, drag to reorder. An inactive tab shows a dot while something runs in it,
+          and a ✓ when it finished while you were looking elsewhere.</dd>
+
+        <dt>ssh</dt>
+        <dd>Client and a built-in <code>sshd</code> (localhost-only by default). ed25519 keys created in
+          the app, secrets encrypted by the Android Keystore, known_hosts confirmation, and forwards that
+          outlive the tab.</dd>
+
+        <dt>languages</dt>
+        <dd>English, Japanese, Simplified and Traditional Chinese — the in-app UI <b>and</b> the
+          <code>z2-*</code> help text, usage lines and messages you get in the terminal.</dd>
+
+        <dt>security</dt>
+        <dd>App lock by fingerprint, face or screen lock, with the recent-apps thumbnail hidden while you
+          are away — sessions and resident servers keep running. <code>z2scan self</code> audits this
+          device with no external tools; results stay local.</dd>
+
+        <dt>data limit</dt>
+        <dd>Once the whole phone's mobile usage for the period reaches the amount you set, z2term's own
+          traffic stops. Wi-Fi and your home network keep working; other apps are untouched.</dd>
+
+        <dt>backup</dt>
+        <dd>Settings, connections, snippets, automation rules, macros, theme, tiles, icons, dictionaries
+          and what the keyboard learned — one file, restorable on another device, optionally on a
+          schedule. SSH secrets are left out unless you give a passphrase, which also encrypts the rest.</dd>
+
+        <dt>terminal log</dt>
+        <dd>Tap ⚪ to start writing what the tab shows to a text file in <code>~/z2term-log/</code>; tap
+          again to stop. Colors and control codes are stripped by default.</dd>
+
+        <dt>share &amp; snippets</dt>
+        <dd>Text shared from another app is <b>inserted on the input line, never executed</b>. Snippets
+          sort onto shelves so the ones you use don't sink out of reach.</dd>
+
+        <dt>licence</dt>
+        <dd>GPL-3.0. No telemetry, no account, no in-app purchase, not on Google Play.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ===================== DOWNLOAD ===================== -->
   <section id="download">
+    <p class="cmdline" data-cmd="ls -lh releases/latest/"><span class="u">~</span> <span class="p">$</span> <span class="typed">ls -lh releases/latest/</span></p>
     <h2>Download</h2>
-    <p class="sub">Two APKs ship with every release. Tap the file on your device and allow installing
-      from an unknown source.</p>
-    <div class="tablewrap">
-      <table>
-        <thead><tr><th>File</th><th>Contents</th><th>Which to pick</th></tr></thead>
-        <tbody>
-          <tr><td><code>app-foss-release.apk</code></td><td>No prebuilts (~21 MB)</td><td><b>The recommended one.</b> 9× smaller, and each update downloads ~21 MB instead of ~190 MB — nice on metered data or slow links — and it carries no third-party prebuilts. Alpine is fetched once, verified by SHA-256; updates never re-download it</td></tr>
-          <tr><td><code>app-full-release.apk</code></td><td>PRoot and the Alpine rootfs bundled (~190 MB)</td><td><b>When you want it offline from the very first launch.</b> The distribution is inside, so nothing downloads — at the cost of ~190 MB for the app and for every update</td></tr>
-        </tbody>
-      </table>
+    <p class="sub">One APK. It bundles no OS and no third-party prebuilts, so the first launch asks you to
+      pick a distribution in <b>Settings › Linux environment</b> — it is then fetched from the official CDN
+      and verified by SHA-256, once, never again on update.</p>
+
+    <div class="win reveal">
+      <div class="win-bar">
+        <span class="sig"></span>
+        <span class="title">releases — github.com/orgsonai/z2term</span>
+      </div>
+      <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">ls -lh releases/latest/</span>
+<span class="t-out">-rw-r--r--  1 you  you   21M  </span><span class="t-ok">z2term-0.8.493-alpha.apk</span>
+<span class="t-c"># tap it on the device → allow "install from unknown sources"</span>
+<span class="t-c"># updating over the top keeps your data</span></div>
     </div>
-    <p class="warn">Same app either way; the only difference is whether Alpine is downloaded once on
-      first launch. Automatic updates don't shrink the download — every update fetches the whole APK —
-      so the size gap keeps paying off.</p>
+
     <div class="cta">
-      <a class="btn" href="https://github.com/orgsonai/z2term/releases/latest">Latest release</a>
+      <a class="btn" href="https://github.com/orgsonai/z2term/releases/latest">▸ Latest release</a>
       <a class="btn ghost" href="https://github.com/orgsonai/z2term/blob/main/docs/en/HANDBOOK.md">Handbook</a>
     </div>
-    <p class="note">No in-app update check. Add this repository to
-      <a href="https://github.com/ImranR98/Obtainium">Obtainium</a> to update with one tap when a new
-      release appears — no app store needed.</p>
-    <p class="warn">Still versioned <code>0.8.x-alpha</code>: the feature set is wide and in daily use, but
-      the version number is honest about it.</p>
+
+    <h3 style="margin-top:32px">Keeping it updated</h3>
+    <div class="grid">
+      <div class="card reveal">
+        <h3><span>in-app</span>Check for updates</h3>
+        <p><b>Settings → App info → Check for updates.</b> It asks GitHub <b>only when you tap the
+          button</b>, downloads the new APK and takes you to the install screen — the last tap is always
+          yours, because no app can replace itself silently. From the shell: <code>z2-update</code>.</p>
+      </div>
+      <div class="card reveal d1">
+        <h3><span>auto</span>Obtainium</h3>
+        <p>Add <code>github.com/orgsonai/z2term</code> to
+          <a href="https://github.com/ImranR98/Obtainium">Obtainium</a> and it watches Releases, updating
+          with one tap when a new version appears. No store involved.</p>
+      </div>
+      <div class="card reveal d2">
+        <h3><span>manual</span>Tap the APK</h3>
+        <p>Download the newer file from Releases and tap it. It installs over the top and your data stays
+          where it is.</p>
+      </div>
+    </div>
+
+    <p class="warn">Still versioned <code>0.8.x-alpha</code>: the feature set is wide and in daily use,
+      but the version number is honest about it.</p>
   </section>
 
 </div>
 
-<footer>
+<footer class="site">
   <div class="wrap">
     Z2Term — the 5th project of the Zero to Ship initiative. GPL-3.0.
     · <a href="https://github.com/orgsonai/z2term">Source</a>
     · <a href="https://github.com/orgsonai/z2term/issues">Issues</a>
+    · <a href="https://github.com/orgsonai/z2term/blob/main/docs/en/HANDBOOK.md">Handbook</a>
     · <a href="index.ja.html">日本語</a>
   </div>
 </footer>
+
+<!-- ===================== 台本（英語） ===================== -->
+<script type="application/json" id="hero-scenes">
+[
+  {"tab":"linux","title":"alpine — z2term","steps":[
+    {"t":"cmd","x":"head -1 /etc/os-release && uname -m"},
+    {"t":"out","x":"NAME=\"Alpine Linux\""},
+    {"t":"out","x":"aarch64"},
+    {"t":"cmd","x":"apk add ripgrep git"},
+    {"t":"out","x":"(1/4) Installing pcre2 (10.43-r0)"},
+    {"t":"out","x":"(4/4) Installing ripgrep (14.1.1-r0)"},
+    {"t":"out","x":"OK: 42 MiB in 61 packages","cls":"t-ok"},
+    {"t":"cmd","x":"z2version"},
+    {"t":"out","x":"z2term 0.8.493-alpha  ·  engine: z2root (ptrace)","cls":"t-ok"},
+    {"t":"out","x":"# no root, no PC, no setup script","cls":"t-c"}
+  ]},
+  {"tab":"usb","title":"usb — z2term","steps":[
+    {"t":"cmd","x":"z2-usb list"},
+    {"t":"out","x":"1  0483:5740  Virtual COM Port"},
+    {"t":"out","x":"2  0781:5583  USB Mass Storage"},
+    {"t":"cmd","x":"z2-usb allow 1"},
+    {"t":"out","x":"waiting for Android's permission dialog...","ms":600},
+    {"t":"out","x":"granted  ·  /dev/bus/usb/001/004 is open","cls":"t-ok"},
+    {"t":"cmd","x":"picocom -b 115200 /dev/ttyACM0"},
+    {"t":"out","x":"Terminal ready","cls":"t-ok"},
+    {"t":"out","x":"# libusb programs work unpatched, through a plain OTG adapter","cls":"t-c"}
+  ]},
+  {"tab":"desktop","title":"gui — z2term","steps":[
+    {"t":"cmd","x":"z2gui"},
+    {"t":"out","x":"Xvnc :1   1080x2210   24bpp"},
+    {"t":"out","x":"openbox up  ·  audio bridge ready"},
+    {"t":"out","x":"→ GUI tab opened","cls":"t-ok"},
+    {"t":"cmd","x":"z2run xterm"},
+    {"t":"out","x":"launched on :1","cls":"t-ok"},
+    {"t":"out","x":"# the same viewer opens a remote VNC or RDP machine:","cls":"t-c"},
+    {"t":"out","x":"# connections › desk › [VNC] [RDP]","cls":"t-c"},
+    {"t":"out","x":"RDP  NLA ok · certificate pinned · clipboard shared","cls":"t-ok"}
+  ]},
+  {"tab":"doctor","title":"doctor — z2term","steps":[
+    {"t":"cmd","x":"z2doctor"},
+    {"t":"out","x":"version        0.8.493-alpha (501)"},
+    {"t":"out","x":"engine         z2root (ptrace)          OK","cls":"t-ok"},
+    {"t":"out","x":"storage        12.4 GiB free            OK","cls":"t-ok"},
+    {"t":"out","x":"notifications  granted                  OK","cls":"t-ok"},
+    {"t":"out","x":"battery opt.   not exempted             NG  → Settings › Battery","cls":"t-warn"},
+    {"t":"out","x":"automation     6 rules · 0 paused       OK","cls":"t-ok"},
+    {"t":"out","x":"report ready — z2doctor --clip to copy it into an issue","cls":"t-ok"},
+    {"t":"out","x":"# SSIDs, IPs and host names are left out on purpose","cls":"t-c"}
+  ]}
+]
+</script>
+
+<script type="application/json" id="macro-scenes">
+[
+  {"tab":"notify","title":"notify — z2term","steps":[
+    {"t":"cmd","x":"z2-notify -h -c \"$(git rev-parse --short HEAD)\" \"build finished\" \"3m12s · 0 warnings\""},
+    {"t":"noti","app":"z2term","when":"now","title":"build finished","body":"3m12s · 0 warnings","actions":["copy","rerun"],"ms":900},
+    {"t":"out","x":"posted (id 41)  ·  banner + copy button","cls":"t-ok"},
+    {"t":"cmd","x":"z2-toast \"artifact pushed\""},
+    {"t":"toast","x":"artifact pushed"},
+    {"t":"out","x":"# a toast for what you don't need to keep,","cls":"t-c"},
+    {"t":"out","x":"# a notification for what you do","cls":"t-c"},
+    {"t":"wait","ms":900},
+    {"t":"wipe"}
+  ]},
+  {"tab":"ask","title":"ask — z2term","steps":[
+    {"t":"cmd","x":"name=$(z2-ask \"Branch name?\") || echo \"cancelled\""},
+    {"t":"ask","app":"z2term","when":"now","title":"Branch name?","body":"reply from the shade","reply":"feature/rdp-audio"},
+    {"t":"out","x":"→ feature/rdp-audio","cls":"t-ok"},
+    {"t":"cmd","x":"git switch -c \"$name\" && z2-toast \"on $name\""},
+    {"t":"out","x":"Switched to a new branch 'feature/rdp-audio'"},
+    {"t":"toast","x":"on feature/rdp-audio"},
+    {"t":"out","x":"# the script waited in the notification shade.","cls":"t-c"},
+    {"t":"out","x":"# no answer = non-zero exit, so \"give up\" is expressible","cls":"t-c"}
+  ]},
+  {"tab":"tile","title":"tile — z2term","steps":[
+    {"t":"cmd","x":"z2-tile set 1 ~/.z2term/macros/vpn.sh --label VPN"},
+    {"t":"out","x":"slot 1 → vpn.sh   (12 slots available)","cls":"t-ok"},
+    {"t":"cmd","x":"z2-icon draw ~/pixel/rocket.txt --slot 1"},
+    {"t":"out","x":"16x16 · 1-bit · installed","cls":"t-ok"},
+    {"t":"tiles","items":["🔒 VPN","🔦 Torch","🔄 Sync","📡 sshd"],"ms":1100},
+    {"t":"cmd","x":"z2-server start web"},
+    {"t":"out","x":"web  ·  :8080  ·  running (survives the app closing)","cls":"t-ok"},
+    {"t":"widget","title":"z2term status","lines":["ssh   pi@home:22","srv   1 running","when  6 rules","bat   65% ⚡"],"ms":1200},
+    {"t":"out","x":"# quick settings and the home screen, without opening the app","cls":"t-c"},
+    {"t":"wait","ms":700},
+    {"t":"wipe"}
+  ]},
+  {"tab":"when","title":"automation — z2term","steps":[
+    {"t":"cmd","x":"z2-when charge:start run ~/backup.sh"},
+    {"t":"out","x":"rule added  ·  charge:start → ~/backup.sh","cls":"t-ok"},
+    {"t":"cmd","x":"z2-when notify:otp run ~/otp.sh"},
+    {"t":"out","x":"rule added  ·  notify:otp → ~/otp.sh","cls":"t-ok"},
+    {"t":"out","x":"# ─ app closed, phone in your pocket ─","cls":"t-c"},
+    {"t":"wait","ms":700},
+    {"t":"noti","app":"Bank","when":"now","title":"Verification code 284913","body":"Do not share this code.","ms":1100},
+    {"t":"toast","x":"OTP copied"},
+    {"t":"cmd","x":"z2-when fired"},
+    {"t":"out","x":"07:12  charge:start   ok    1.4s"},
+    {"t":"out","x":"08:03  notify:otp     ok    0.2s"},
+    {"t":"out","x":"22:41  net:online     skip: cooldown=1h","cls":"t-warn"},
+    {"t":"out","x":"# rules are plain text in ~/.z2term/when/ and survive reboots","cls":"t-c"},
+    {"t":"wipe"}
+  ]}
+]
+</script>
+
+<script type="application/json" id="shot-scenes">
+[
+  {"tab":"gallery","title":"gallery — z2term","steps":[
+    {"t":"cmd","x":"ls -1 screenshots/"},
+    {"t":"out","x":"shot-terminal.png"},
+    {"t":"out","x":"shot-gui.png"},
+    {"t":"img","items":[
+      {"src":"images/shot-terminal.png","alt":"A shell running in z2term with the custom on-screen keyboard","cap":"shell + custom keyboard"},
+      {"src":"images/shot-gui.png","alt":"A Linux desktop application running on Xvnc inside a z2term tab","cap":"a desktop app in a GUI tab"}
+    ]},
+    {"t":"out","x":"# taken on a real phone","cls":"t-c"}
+  ]}
+]
+</script>
 
 </body>
 </html>

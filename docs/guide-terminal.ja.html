@@ -6,21 +6,24 @@
 <title>1. ターミナルとして使う — Z2Term 使いこなしガイド</title>
 <meta name="description" content="画面の見かた、ツールバーの各ボタン、独自キーボードとフリック入力、コピーと検索、パッケージの導入、PC からの SSH、ファイルのやりとり。">
 <link rel="canonical" href="https://orgsonai.github.io/z2term/guide-terminal.ja.html">
-<link rel="stylesheet" href="guide.css">
+<link rel="stylesheet" href="z2.css?v=3">
+<script src="z2.js?v=3" defer></script>
 </head>
 <body>
+<div class="crt" aria-hidden="true"></div>
 
-<header>
+<header class="site">
   <div class="wrap bar">
-    <a href="index.ja.html" class="brand">Z<b>2</b>Term</a>
-    <nav>
+    <a href="index.ja.html" class="brand">z<b>2</b>term</a>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav">menu</button>
+    <nav id="site-nav">
       <a href="guide.ja.html">ガイド目次</a>
       <a href="https://github.com/orgsonai/z2term">GitHub</a>
     </nav>
   </div>
 </header>
 
-<div class="wrap">
+<div class="wrap narrow doc">
 
   <p class="crumb"><a href="guide.ja.html">使いこなしガイド</a> / 1. ターミナルとして使う</p>
 
@@ -158,12 +161,30 @@ pacman -Sy --noconfirm git vim jq</pre>
   <h2>Linux の GUI を開く</h2>
 
   <figure class="shot wide">
-    <img src="images/gui-thunderbird.png" alt="Z2Term のタブの中で動く Linux のデスクトップアプリ">
+    <img src="images/shot-gui.png" alt="Z2Term のタブの中で動く Linux のデスクトップアプリ">
     <figcaption><code>z2gui</code> でデスクトップ、<code>z2run &lt;アプリ&gt;</code> で単体起動</figcaption>
   </figure>
 
-  <p>タブの中に Linux のデスクトップ（Xvnc + openbox）が開きます。音も出ます。
-    使うアプリは端末側で入れてください（例: <code>pacman -S firefox</code>）。</p>
+  <p>タブの中に Linux のデスクトップ（Xvnc + openbox）が開きます。音も動画も出ます。
+    使うアプリは端末側で入れてください（例: <code>pacman -S &lt;アプリ名&gt;</code>）。</p>
+
+  <h3>他のマシンのデスクトップを開く</h3>
+
+  <p>同じビューアが <b>リモートの VNC / RDP</b> にも繋がります。接続タブで宛先を保存すると、
+    その横に <b>[VNC]</b> と <b>[RDP]</b> のボタンが出ます。押せば、そのマシンのデスクトップが
+    シェルと同じタブの列に開きます。</p>
+
+  <ul>
+    <li><b>VNC</b> — RFB 3.3 〜 3.8。認証は None と VNC パスワード。</li>
+    <li><b>RDP</b> — NLA（ネットワークレベル認証）、初回の証明書確認、マウスとキーボード、音、
+      テキストのクリップボード共有。</li>
+    <li><b>既定では SSH の中を通ります。</b>接続のたびに一時的なローカル転送が張られるので、
+      画面の通信がそのまま外に出ません。直結にもできますが、
+      <b>暗号化が無くなる</b>と警告してからになります。</li>
+  </ul>
+
+  <div class="tip">ローカルポートを空欄にすると、空いているポートを自動で選びます。
+    FTP・SMB・WebDAV も同じしくみで、SSH の宛先にサービスとして足せます。</div>
 
   <div class="next">
     <a href="guide.ja.html"><span>← 戻る</span><b>ガイド目次</b></a>
@@ -172,7 +193,7 @@ pacman -Sy --noconfirm git vim jq</pre>
 
 </div>
 
-<footer>
+<footer class="site">
   <div class="wrap">
     Z2Term — GPL-3.0.
     · <a href="https://github.com/orgsonai/z2term">ソース</a>

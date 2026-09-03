@@ -23,8 +23,8 @@
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="docs/images/cui-terminal.png" width="280" alt="CUI: Alpine 端末と独自キーボード"><br><sub>CUI — Alpine 端末 + 独自キーボード</sub></td>
-    <td align="center" width="50%"><img src="docs/images/gui-thunderbird.png" width="280" alt="GUI: Xvnc 上で動く Thunderbird"><br><sub>GUI — Xvnc 上で動く Thunderbird</sub></td>
+    <td align="center" width="50%"><img src="docs/images/shot-terminal.png" width="280" alt="CUI: Alpine 端末と独自キーボード"><br><sub>CUI — Alpine 端末 + 独自キーボード</sub></td>
+    <td align="center" width="50%"><img src="docs/images/shot-gui.png" width="280" alt="GUI: Xvnc 上で動くデスクトップアプリ"><br><sub>GUI — Xvnc 上のデスクトップアプリ</sub></td>
   </tr>
 </table>
 
