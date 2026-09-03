@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-03 / 対象バージョン: 0.8.496-alpha (versionCode 504)
+最終更新: 2026-09-03 / 対象バージョン: 0.8.497-alpha (versionCode 505)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1621,7 +1621,7 @@ APC `ESC _ G <key=value,…> ; <base64 payload> ESC \` を `KittyGraphicsParser`
 **描画とライフサイクル**
 - 画像はカーソル行を **anchor** (top-left) とする `TerminalImage` として `TerminalRow.images` (`MutableList`) に格納し、同一 anchor 行に異なる `(imageId, placementId)` の placement を並列保持できる。同じ組が再度来たら**置換** (位置上書き)
 - 画像セル数は `c=N` / `r=N` があればそれ、無ければ Bitmap のピクセル数を Renderer から渡された `cellW`/`lineHeight` のヒントで割って自動算出
-- 配置と同時にカーソルは画像の幅セルぶん右へ進める (改行は TUI が `\n` で送る前提)
+- 配置と同時にカーソルは画像の幅セルぶん右へ進める (改行は TUI が `\n` で送る前提)。kitty の `C=1` (cursor movement policy) と同じ動きで、`C=` は読まずに常にこう振る舞う
 - 文字書込み (`setChar`) / `clear` / `resize` (列幅縮小で anchor + width が範囲外) が起きると、**セル範囲に被さる placement だけ**を除いて invalidate する (他の placement は残す)
 - 行コピー (`TerminalRow.copyFrom`) では画像も一緒に運ぶので、`DECSTBM` 領域内スクロール等で画像が一行ずれてもキャンバスに残る
 - `TerminalBuffer` に**画像キャッシュ** (`imageId → Bitmap`) を持ち、`a=T`/`a=t` で登録、`a=p` で参照、`a=d,d=I`/`a=d,d=i` でエントリも削除する
@@ -1630,7 +1630,7 @@ APC `ESC _ G <key=value,…> ; <base64 payload> ESC \` を `KittyGraphicsParser`
 
 **Unicode placeholder (virtual placement)**: `a=p,U=1` / `a=T,U=1` は image を grid (`c=N` × `r=N` 分割) として `TerminalBuffer.virtualPlacements` に登録するだけで cursor を動かさない。実際の描画位置は本文に書かれる placeholder セル (`U+10EEEE`) と、直後に並ぶ最大 3 個の **combining diacritic** (Kitty 固定 297 要素表で row / col / placement id 下位 8bit をエンコード) で決まる。placeholder セルは `TerminalCell.placeholder: PlaceholderRef?` にメタを持ち、image id は fg truecolor (`\e[38;2;R;G;B`) から 24bit ＋ underline color の R 値から上位 8bit で計 32bit を組む。Renderer は Pass 2.7 / Pass 3.5 で row 内のセルを走査し、placeholder ごとに `virtualPlacements` を逆引きしてタイル領域 (`srcCol/widthCells, srcRow/heightCells`) を `drawBitmap` の srcRect→dstRect で 1 セル矩形へ切り出す。placeholder セルは `TerminalRow.toText` / `TerminalBuffer.getRangeText` でコピー時に空白へ置換する (孤立サロゲートの混入防止)。仕様: <https://sw.kovidgoyal.net/kitty/graphics-protocol/#unicode-placeholders>
 
-**`z2-img` — 画像を出すコマンド (0.8.495)**: 端末に絵を出す手段は `KittyGraphicsParser` が既に持っていたのに、**それを使うコマンドが無かった**ため「z2term では画像が見られない」状態だった。⭐ **アプリ側には 1 行も足していない** (`qr.sh` が先に同じ出し方をしている)。`Z2ApiScript.img` は純粋なシェルスクリプトで、(1) ヘッダだけ読んで画素数を測り (PNG=IHDR / JPEG=SOF 走査 / GIF / BMP / WebP の VP8・VP8L・VP8X)、(2) 端末の桁数に収まる `c=`/`r=` を決め、(3) base64 を 4096 バイトずつ `ESC _ G a=T,f=100,…` で流す、だけをする。⚠ **`c=`/`r=` は必ず両方渡す**。省けばエミュレータが実セル寸法から正しく自動算出するが、こちらは「絵の下へ何行送るか」が決められなくなる (カーソルは幅ぶん右へ進むだけで行は動かない仕様)。⚠ 縦横比はセルの実寸を知らないので **1:2 の仮定** (`Z2_IMG_ASPECT`、既定 0.5) で出す。端末に px/セルを問い合わせる手段 (`CSI 16 t`) は実装していない。⚠ **既定では tty にしか書かない** — パイプの先に APC を流すと、受け側には壊れたバイト列としか見えず、画像だった手掛かりが残らない (`-f` で通せる)。⚠ 対応端末かどうかは**外から判別できない** (`ssh` の先が kitty 対応かは分からない) ので、実行時に止めるのではなくヘルプと docs で先に伝える方針にした (`qr.sh` の `-t` と同じ立場)。
+**`z2-img` — 画像を出すコマンド (0.8.495)**: 端末に絵を出す手段は `KittyGraphicsParser` が既に持っていたのに、**それを使うコマンドが無かった**ため「z2term では画像が見られない」状態だった。⭐ **アプリ側には 1 行も足していない** (`qr.sh` が先に同じ出し方をしている)。`Z2ApiScript.img` は純粋なシェルスクリプトで、(1) ヘッダだけ読んで画素数を測り (PNG=IHDR / JPEG=SOF 走査 / GIF / BMP / WebP の VP8・VP8L・VP8X)、(2) 端末の桁数に収まる `c=`/`r=` を決め、(3) base64 を 4096 バイトずつ `ESC _ G a=T,f=100,…` で流す、だけをする。⚠ **`c=`/`r=` は必ず両方渡す**。省けばエミュレータが実セル寸法から正しく自動算出するが、こちらは「絵の下へ何行送るか」が決められなくなる (カーソルは幅ぶん右へ進むだけで行は動かない仕様)。⚠ **`C=1` (cursor movement policy) も必ず送る (0.8.497)**。z2term は元から行を動かさないので自前では要らないが、`ssh` の先の kitty 流儀の端末は**カーソルを絵の最終行まで動かす**ため、付けないと後続の改行がまるごと余白になり、絵が画面の外へ流れる。`qr.sh` の `show_inline` も同じ (**片方を直すときは両方を揃える**)。⚠ 縦横比はセルの実寸を知らないので **1:2 の仮定** (`Z2_IMG_ASPECT`、既定 0.5) で出す。端末に px/セルを問い合わせる手段 (`CSI 16 t`) は実装していない。⚠ **既定では tty にしか書かない** — パイプの先に APC を流すと、受け側には壊れたバイト列としか見えず、画像だった手掛かりが残らない (`-f` で通せる)。⚠ 対応端末かどうかは**外から判別できない** (`ssh` の先が kitty 対応かは分からない) ので、実行時に止めるのではなくヘルプと docs で先に伝える方針にした (`qr.sh` の `-t` と同じ立場)。
 
 **復号時の画素上限 (0.8.495)**: `KittyGraphicsParser.decodeImage` は `inJustDecodeBounds` で寸法だけ先に読み、`MAX_DECODED_PIXELS` (400 万画素) を越えるものは `inSampleSize` で間引いて復号する。スマホのカメラで撮った 12MP の写真は ARGB_8888 で約 50MB あり、`imageCache` は原画像を持ち続けるので、数枚出しただけでアプリが落ちる。⚠ **拒否ではなく間引き**にする — 画面に出るのはたかだか数百 px なので見た目は変わらないが、拒否すると「写真は出せない」という別の欠落になる。⚠ **セル数は間引く前の画素数から出す** (`Decoded.srcWidth` / `srcHeight`)。間引いた値で数えると、`c=`/`r=` を省いて送ってきた相手の絵が勝手に小さくなる。
 

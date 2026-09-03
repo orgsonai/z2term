@@ -892,13 +892,15 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |    i=${d}((i + 1))
         |    if [ "${d}i" -lt "${d}n" ]; then mm=1; else mm=0; fi
         |    if [ "${d}i" -eq 1 ]; then
-        |      printf '\033_Ga=T,f=100,c=%s,r=%s,q=2,m=%s;%s\033\\' \
+        |      printf '\033_Ga=T,f=100,C=1,c=%s,r=%s,q=2,m=%s;%s\033\\' \
         |        "${d}2" "${d}3" "${d}mm" "${d}chunk"
         |    else
         |      printf '\033_Gm=%s;%s\033\\' "${d}mm" "${d}chunk"
         |    fi
         |  done < "${d}TMP/chunks"
-        |  # カーソルは絵の幅ぶん右へ進んだだけで行は動いていない。絵の高さぶん送って下へ出す
+        |  # カーソルは絵の幅ぶん右へ進んだだけで行は動いていない (C=1 を送っているため。
+        |  # 付けないと kitty 流儀の端末はカーソルを絵の最終行まで動かすので、下の改行が
+        |  # まるごと余白になり、絵が画面の外へ流れる)。絵の高さぶん送って下へ出す
         |  # (画面末尾なら、この改行でスクロールして絵ごと上がる)。
         |  printf '\r'
         |  i=0

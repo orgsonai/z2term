@@ -2829,12 +2829,14 @@ show_inline() {
         i=${d}((i + 1))
         if [ "${d}i" -lt "${d}n" ]; then m=1; else m=0; fi
         if [ "${d}i" -eq 1 ]; then
-            printf '\033_Ga=T,f=100,c=%s,r=%s,q=2,m=%s;%s\033\\' \
+            printf '\033_Ga=T,f=100,C=1,c=%s,r=%s,q=2,m=%s;%s\033\\' \
                 "${d}show_cols" "${d}show_rows" "${d}m" "${d}chunk"
         else
             printf '\033_Gm=%s;%s\033\\' "${d}m" "${d}chunk"
         fi
     done < "${d}TMP/chunks"
+    # C=1 を送っているのでカーソルは行方向に動かない。絵の高さぶん送って下へ出す
+    # (z2-img と同じ出し方。片方を直すときは両方を揃えること)。
     printf '\r'
     i=0
     while [ "${d}i" -le "${d}show_rows" ]; do printf '\n'; i=${d}((i + 1)); done
