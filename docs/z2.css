@@ -54,8 +54,9 @@ header.site{
 }
 header.site.stuck{border-bottom-color:var(--accent-dim);background:rgba(11,15,14,.95)}
 header.site .bar{display:flex;align-items:center;gap:12px;padding:9px 0;position:relative}
-header.site .brand{color:var(--fg);font-weight:700;letter-spacing:.02em;white-space:nowrap}
-header.site .brand b{color:var(--accent)}
+/* ロゴは「2 だけ白・それ以外は緑」。アプリのアイコンと同じ塗り分けにする。 */
+header.site .brand{color:var(--accent);font-weight:700;letter-spacing:.02em;white-space:nowrap}
+header.site .brand b{color:var(--fg)}
 header.site .brand::before{content:"$ ";color:var(--accent-dim)}
 header.site nav{margin-left:auto;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 header.site nav::-webkit-scrollbar{display:none}

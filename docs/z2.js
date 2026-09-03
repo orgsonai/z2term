@@ -271,13 +271,16 @@
       }
       tok++;
       var mine = tok;
-      term.run(data[n], mine).then(function () {
+      /* 次の場面の予約。⚠ 転んだときも通す — 1 つ失敗しただけで巡回が止まると、
+         同じ場面が出たままになり「タブが自動で切り替わらない」ように見える。 */
+      function next() {
         if (!auto || mine !== tok || data.length < 2) return;
         clearTimeout(timer);
         timer = setTimeout(function () {
           if (auto && mine === tok) select((n + 1) % data.length, false);
         }, 2600);
-      });
+      }
+      term.run(data[n], mine).then(next, next);
     }
 
     if (tabsBox && data.length > 1) {
@@ -293,18 +296,25 @@
       tabsBox.remove();
     }
 
-    /* 画面に入るまで再生しない（スクロールで戻ってきたら続きから） */
-    var started = false;
+    /* 画面に入るまで再生しない。
+       ⚠ 判定は「少しでも見えているか」にする。割合 (threshold) で切ると、
+         ページを読みながらスクロールしている間に何度も中断がかかり、
+         戻るたび**同じ場面を頭からやり直す**ので、タブが一度も進まない。
+       ⚠ 途中で切られたときは、戻ってきたら**次の場面**から始める。
+         そうしないと、少しずつ読み進める人には 1 枚目しか見えない。 */
+    var started = false, cutOff = false;
     var io = new IntersectionObserver(function (es) {
       es.forEach(function (e) {
         if (e.isIntersecting && !started) {
           started = true;
-          select(cur < 0 ? 0 : cur, false);   /* 戻ってきたら見ていたタブから */
+          var n = cur < 0 ? 0 : (cutOff ? (cur + 1) % data.length : cur);
+          cutOff = false;
+          select(n, false);
         } else if (!e.isIntersecting && started) {
-          tok++; clearTimeout(timer); started = false;
+          cutOff = true; tok++; clearTimeout(timer); started = false;
         }
       });
-    }, { threshold: .25 });
+    }, { threshold: 0, rootMargin: '160px 0px 160px 0px' });
     io.observe(root);
   }
 

@@ -14,8 +14,8 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0B0F0E">
 <link rel="canonical" href="https://orgsonai.github.io/z2term/index.ja.html">
-<link rel="stylesheet" href="z2.css?v=3">
-<script src="z2.js?v=3" defer></script>
+<link rel="stylesheet" href="z2.css?v=4">
+<script src="z2.js?v=4" defer></script>
 </head>
 <body>
 <div class="crt" aria-hidden="true"></div>
@@ -44,7 +44,7 @@
     <div class="logo glitch" role="img" aria-label="Z2TERM"><svg viewBox="0 0 35 5" fill="currentColor" aria-hidden="true"><rect x="0" y="0" width="5" height="1"/><rect x="6" y="0" width="5" height="1"/><rect x="12" y="0" width="5" height="1"/><rect x="18" y="0" width="5" height="1"/><rect x="24" y="0" width="4" height="1"/><rect x="30" y="0" width="1" height="1"/><rect x="34" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="10" y="1" width="1" height="1"/><rect x="14" y="1" width="1" height="1"/><rect x="18" y="1" width="1" height="1"/><rect x="24" y="1" width="1" height="1"/><rect x="28" y="1" width="1" height="1"/><rect x="30" y="1" width="2" height="1"/><rect x="33" y="1" width="2" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="6" y="2" width="5" height="1"/><rect x="14" y="2" width="1" height="1"/><rect x="18" y="2" width="4" height="1"/><rect x="24" y="2" width="4" height="1"/><rect x="30" y="2" width="1" height="1"/><rect x="32" y="2" width="1" height="1"/><rect x="34" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="14" y="3" width="1" height="1"/><rect x="18" y="3" width="1" height="1"/><rect x="24" y="3" width="1" height="1"/><rect x="27" y="3" width="1" height="1"/><rect x="30" y="3" width="1" height="1"/><rect x="34" y="3" width="1" height="1"/><rect x="0" y="4" width="5" height="1"/><rect x="6" y="4" width="5" height="1"/><rect x="14" y="4" width="1" height="1"/><rect x="18" y="4" width="5" height="1"/><rect x="24" y="4" width="1" height="1"/><rect x="28" y="4" width="1" height="1"/><rect x="30" y="4" width="1" height="1"/><rect x="34" y="4" width="1" height="1"/></svg></div>
 
     <div class="chips">
-      <span><b>0.8.493-alpha</b></span>
+      <span><b>0.8.494-alpha</b></span>
       <span>GPL-3.0</span>
       <span>Android 10+</span>
       <span>約 21 MB</span>
@@ -70,7 +70,8 @@
 <span class="t-out">(1/2) Installing pcre2 (10.43-r0)</span>
 <span class="t-ok">OK: 42 MiB in 61 packages</span>
 <span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2version</span>
-<span class="t-ok">z2term 0.8.493-alpha  ·  エンジン: z2root (ptrace)</span>
+<span class="t-ok">z2term 0.8.494-alpha (502)</span>
+<span class="t-out">engine : z2root</span>
 <span class="t-c"># root なし・PC なし・セットアップスクリプトなし</span>
 <span class="t-prompt">~</span> <span class="t-path">$</span> <span class="caret"></span></div>
       </div>
@@ -151,13 +152,7 @@
           必要なのはデータの通る OTG アダプタかハブだけです。</p>
       </div>
       <div class="card reveal d1">
-        <h3><span>11</span>日本語がちゃんと打てる</h3>
-        <p>かな漢字変換・予測・学習（頻度と直近）を備えた IME と独自のオンスクリーンキーボードを内蔵。
-          <b>OS の入力メソッド</b>として有効にすれば他アプリでも同じ変換が使えます。ユーザー辞書はファイルから
-          読み込めるので、固有名詞も最初の一打から出ます。</p>
-      </div>
-      <div class="card reveal d2">
-        <h3><span>12</span>動かないとき</h3>
+        <h3><span>11</span>動かないとき</h3>
         <p><code>z2doctor</code> が「なぜ動かないのか」に 1 コマンドで答えます。版数・エンジン・空き容量・
           必要な権限・検知と自動化の状態。<code>NG</code> の行には<b>次の一手</b>が付いていて、最後に
           Issue へ貼れる短い報告が出ます。</p>
@@ -167,7 +162,7 @@
 
   <!-- ===================== マクロ ===================== -->
   <section id="macros">
-    <p class="cmdline" data-cmd="./macros/demo.sh"><span class="u">~</span> <span class="p">$</span> <span class="typed">./macros/demo.sh</span></p>
+    <p class="cmdline" data-cmd="ls ~/.z2term/macros/"><span class="u">~</span> <span class="p">$</span> <span class="typed">ls ~/.z2term/macros/</span></p>
     <h2>マクロはただのコマンド。だから発想しだいで何でもできる</h2>
     <p class="sub">覚える専用言語はありません。マクロは<b>端末に触れるようになったシェルスクリプト</b>です。
       通知を出す、トーストを出す、あなたに聞く、ライトを点ける、自分をタイルに置く。書けることは全部できて、
@@ -182,11 +177,12 @@
         </div>
         <div class="win-tabs"></div>
         <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2-notify -h -c "$(git rev-parse --short HEAD)" "ビルド完了" "3分12秒"</span>
-<span class="t-ok">通知を出しました (id 41)  ·  バナー + コピーボタン</span>
+<span class="t-c"># バナーで出て、「コピー」ボタンが付く</span>
 <span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">name=$(z2-ask "ブランチ名は？")</span>
-<span class="t-ok">→ feature/rdp-audio</span>
-<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2-when charge:start run ~/backup.sh</span>
-<span class="t-ok">ルールを追加  ·  アプリを閉じていても走ります</span>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">echo "$name"</span>
+<span class="t-out">feature/rdp-audio</span>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2-when charge:start run ~/.z2term/macros/backup.sh</span>
+<span class="t-ok">w1756890000123</span>
 <span class="t-prompt">~</span> <span class="t-path">$</span> <span class="caret"></span></div>
       </div>
 
@@ -201,27 +197,27 @@
 
     <h3 style="margin-top:34px">一晩で組める、こんなこと</h3>
     <div class="recipes">
-      <div class="recipe reveal"><b>充電を挿したらバックアップ</b><code>z2-when charge:start run ~/backup.sh</code>
+      <div class="recipe reveal"><b>充電を挿したらバックアップ</b><code>z2-when charge:start run ~/.z2term/macros/backup.sh</code>
         <p>寝ているあいだに終わっています。アプリは開きません。</p></div>
-      <div class="recipe reveal d1"><b>通知に来た認証コードを拾う</b><code>z2-when notify:otp run ~/otp.sh</code>
+      <div class="recipe reveal d1"><b>通知に来た認証コードを拾う</b><code>z2-when notify:otp run ~/.z2term/macros/otp.sh</code>
         <p>手を伸ばす前にコードが抜き出され、クリップボードに入っています。</p></div>
       <div class="recipe reveal d2"><b>実行前に自分に確認させる</b><code>z2-ask "本番に出す？"</code>
         <p>スクリプトが通知シェードで待ちます。答えなければ止まります。</p></div>
-      <div class="recipe reveal"><b>自宅の Wi-Fi のときだけ同期</b><code>z2-when net:online if=ssid=Home cooldown=1h</code>
+      <div class="recipe reveal"><b>自宅の Wi-Fi のときだけ同期</b><code>z2-when net:online if=ssid=Home cooldown=1h run ~/.z2term/macros/sync.sh</code>
         <p>絞り込みはどのきっかけでも同じ書き方。飛ばした回もログに残ります。</p></div>
-      <div class="recipe reveal d1"><b>他アプリから受け取って処理</b><code>z2-when share:ext=pdf run ~/file.sh</code>
+      <div class="recipe reveal d1"><b>他アプリから受け取って処理</b><code>z2-when share:ext=pdf run ~/.z2term/macros/pdf.sh</code>
         <p>共有シートで z2term を選ぶと、スクリプトがその PDF を片付けます。</p></div>
-      <div class="recipe reveal d2"><b>毎日やることをタイルに</b><code>z2-tile set 1 ~/macros/vpn.sh</code>
+      <div class="recipe reveal d2"><b>毎日やることをタイルに</b><code>z2-tile set 1 vpn.sh -l VPN</code>
         <p>クイック設定からワンタップ。アプリは開きません。12 枠あります。</p></div>
-      <div class="recipe reveal"><b>アイコンを自分で描く</b><code>z2-icon draw ~/pixel/rocket.txt</code>
+      <div class="recipe reveal"><b>アイコンを自分で描く</b><code>z2-icon set 1 ~/pixel/rocket.txt</code>
         <p>ステータスバーの点が何を意味するのか、自分で決められます。</p></div>
       <div class="recipe reveal d1"><b>声で報告させる</b><code>z2-say "ビルド終わった"</code>
         <p>画面が消えていても、シェルスクリプトから読み上げます。</p></div>
-      <div class="recipe reveal d2"><b>フォルダを見張る</b><code>z2-when file:new=~/Download run ~/sort.sh</code>
+      <div class="recipe reveal d2"><b>フォルダを見張る</b><code>z2-when file:new=/sdcard/Download run ~/.z2term/macros/sort.sh</code>
         <p>入ってきたファイルを、名前を変えるなり変換するなり送るなり。</p></div>
       <div class="recipe reveal"><b>ホーム画面から走らせる</b><code>ウィジェット → マクロを選ぶ</code>
         <p>ワンタップで裏で実行。走っているものはもう一度タップで停止。</p></div>
-      <div class="recipe reveal d1"><b>サーバーを立てっぱなしに</b><code>設定 → 常駐サーバー</code>
+      <div class="recipe reveal d1"><b>サーバーを立てっぱなしに</b><code>z2-server start web</code>
         <p>アプリを閉じても端末を再起動しても生きている Web サーバーや bot。</p></div>
       <div class="recipe reveal d2"><b>アプリ自身のタブを操る</b><code>z2-session attach 2</code>
         <p>別のタブに文字を打ち込むマクロ。ターミナルそのものの自動化です。</p></div>
@@ -230,7 +226,7 @@
 
   <!-- ===================== デスクトップ ===================== -->
   <section id="desktop">
-    <p class="cmdline" data-cmd="z2gui &amp;&amp; z2run xterm"><span class="u">~</span> <span class="p">$</span> <span class="typed">z2gui &amp;&amp; z2run xterm</span></p>
+    <p class="cmdline" data-cmd="z2run xterm"><span class="u">~</span> <span class="p">$</span> <span class="typed">z2run xterm</span></p>
     <h2>タブの中のデスクトップ — 自分のも、よそのも</h2>
     <p class="sub">GUI タブは別のビューアアプリではありません。アプリの中の RFB クライアントなので、
       Linux のデスクトップも、リモートのマシンも、シェルと同じタブの列に並びます。</p>
@@ -346,7 +342,7 @@
         <span class="title">releases — github.com/orgsonai/z2term</span>
       </div>
       <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">ls -lh releases/latest/</span>
-<span class="t-out">-rw-r--r--  1 you  you   21M  </span><span class="t-ok">z2term-0.8.493-alpha.apk</span>
+<span class="t-out">-rw-r--r--  1 you  you   21M  </span><span class="t-ok">z2term-0.8.494-alpha.apk</span>
 <span class="t-c"># 端末でタップ → 「提供元不明のアプリ」を許可</span>
 <span class="t-c"># 上書きインストールでデータは残ります</span></div>
     </div>
@@ -405,41 +401,47 @@
     {"t":"out","x":"(4/4) Installing ripgrep (14.1.1-r0)"},
     {"t":"out","x":"OK: 42 MiB in 61 packages","cls":"t-ok"},
     {"t":"cmd","x":"z2version"},
-    {"t":"out","x":"z2term 0.8.493-alpha  ·  エンジン: z2root (ptrace)","cls":"t-ok"},
+    {"t":"out","x":"z2term 0.8.494-alpha (502)","cls":"t-ok"},
+    {"t":"out","x":"engine : z2root"},
+    {"t":"out","x":"os     : Alpine Linux v3.20"},
     {"t":"out","x":"# root なし・PC なし・セットアップスクリプトなし","cls":"t-c"}
   ]},
   {"tab":"USB","title":"usb — z2term","steps":[
     {"t":"cmd","x":"z2-usb list"},
-    {"t":"out","x":"1  0483:5740  Virtual COM Port"},
-    {"t":"out","x":"2  0781:5583  USB Mass Storage"},
+    {"t":"out","x":"1  0483:5740  要許可  /dev/bus/usb/001/004 Virtual COM Port"},
     {"t":"cmd","x":"z2-usb allow 1"},
-    {"t":"out","x":"Android の許可ダイアログを待っています...","ms":600},
-    {"t":"out","x":"許可されました  ·  /dev/bus/usb/001/004 が開けます","cls":"t-ok"},
+    {"t":"out","x":"Android の画面で USB アクセスを許可してください: /dev/bus/usb/001/004","ms":700},
+    {"t":"cmd","x":"z2-usb list"},
+    {"t":"out","x":"1  0483:5740  許可済み  /dev/bus/usb/001/004 Virtual COM Port","cls":"t-ok"},
     {"t":"cmd","x":"picocom -b 115200 /dev/ttyACM0"},
     {"t":"out","x":"Terminal ready","cls":"t-ok"},
     {"t":"out","x":"# libusb を使うプログラムが、手を入れずにそのまま動きます","cls":"t-c"}
   ]},
   {"tab":"デスクトップ","title":"gui — z2term","steps":[
-    {"t":"cmd","x":"z2gui"},
-    {"t":"out","x":"Xvnc :1   1080x2210   24bpp"},
-    {"t":"out","x":"openbox 起動  ·  音声ブリッジ 準備完了"},
-    {"t":"out","x":"→ GUI タブを開きました","cls":"t-ok"},
-    {"t":"cmd","x":"z2run xterm"},
-    {"t":"out","x":":1 で起動しました","cls":"t-ok"},
+    {"t":"cmd","x":"z2gui status"},
+    {"t":"out","x":"⏹ GUI は停止中"},
+    {"t":"cmd","x":"z2run xterm &"},
+    {"t":"out","x":"# Xvnc :1 が立ち上がり、GUI タブが開きます","cls":"t-c"},
+    {"t":"cmd","x":"z2gui status"},
+    {"t":"out","x":"✅ GUI 起動中 (DISPLAY=:1, RFB 127.0.0.1:5901)","cls":"t-ok"},
     {"t":"out","x":"# 同じビューアがリモートの VNC / RDP にも繋がります:","cls":"t-c"},
-    {"t":"out","x":"# 接続先 › desk › [VNC] [RDP]","cls":"t-c"},
-    {"t":"out","x":"RDP  NLA 成功 · 証明書を記憶 · クリップボード共有","cls":"t-ok"}
+    {"t":"out","x":"# 接続先 › desk › [VNC] [RDP]","cls":"t-c"}
   ]},
   {"tab":"診断","title":"doctor — z2term","steps":[
     {"t":"cmd","x":"z2doctor"},
-    {"t":"out","x":"版数        0.8.493-alpha (501)"},
-    {"t":"out","x":"エンジン    z2root (ptrace)          OK","cls":"t-ok"},
-    {"t":"out","x":"空き容量    12.4 GiB                 OK","cls":"t-ok"},
-    {"t":"out","x":"通知権限    許可済み                 OK","cls":"t-ok"},
-    {"t":"out","x":"電池最適化  除外されていない         NG  → 設定 › 電池","cls":"t-warn"},
-    {"t":"out","x":"自動化      6 ルール · 停止 0        OK","cls":"t-ok"},
-    {"t":"out","x":"報告の用意ができました — z2doctor --clip でコピー","cls":"t-ok"},
-    {"t":"out","x":"# SSID・IP・ホスト名は意図的に含めません","cls":"t-c"}
+    {"t":"out","x":"== z2doctor (この端末の状態) =="},
+    {"t":"out","x":"-- アプリ --"},
+    {"t":"out","x":"    版数: 0.8.494-alpha"},
+    {"t":"out","x":"    実行エンジン: z2root"},
+    {"t":"out","x":"-- 許可 --"},
+    {"t":"out","x":"OK  通知を出せる","cls":"t-ok"},
+    {"t":"out","x":"NG  電池最適化から除外","cls":"t-warn"},
+    {"t":"out","x":"    -> 設定 › バックグラウンド動作の保護 › 電池最適化から除外 を ON にしてください","cls":"t-warn"},
+    {"t":"out","x":"-- 自動化 --"},
+    {"t":"out","x":"OK  システムイベント検知","cls":"t-ok"},
+    {"t":"out","x":"    自動化ルール: 6/6"},
+    {"t":"out","x":"(SSID・IP・ホスト名は意図的に伏せています)"},
+    {"t":"out","x":"気になる点: 1","cls":"t-warn"}
   ]}
 ]
 </script>
@@ -448,8 +450,8 @@
 [
   {"tab":"通知","title":"notify — z2term","steps":[
     {"t":"cmd","x":"z2-notify -h -c \"$(git rev-parse --short HEAD)\" \"ビルド完了\" \"3分12秒 · 警告 0\""},
-    {"t":"noti","app":"z2term","when":"たった今","title":"ビルド完了","body":"3分12秒 · 警告 0","actions":["コピー","再実行"],"ms":900},
-    {"t":"out","x":"通知を出しました (id 41)  ·  バナー + コピーボタン","cls":"t-ok"},
+    {"t":"noti","app":"z2term","when":"たった今","title":"ビルド完了","body":"3分12秒 · 警告 0","actions":["コピー"],"ms":900},
+    {"t":"out","x":"# -h でバナー、-c で「コピー」ボタン。端末には何も出ません","cls":"t-c"},
     {"t":"cmd","x":"z2-toast \"成果物を送りました\""},
     {"t":"toast","x":"成果物を送りました"},
     {"t":"out","x":"# 残さなくていいものはトースト、","cls":"t-c"},
@@ -460,7 +462,6 @@
   {"tab":"質問","title":"ask — z2term","steps":[
     {"t":"cmd","x":"name=$(z2-ask \"ブランチ名は？\") || echo \"やめた\""},
     {"t":"ask","app":"z2term","when":"たった今","title":"ブランチ名は？","body":"通知シェードから返信できます","reply":"feature/rdp-audio"},
-    {"t":"out","x":"→ feature/rdp-audio","cls":"t-ok"},
     {"t":"cmd","x":"git switch -c \"$name\" && z2-toast \"$name に切り替えました\""},
     {"t":"out","x":"Switched to a new branch 'feature/rdp-audio'"},
     {"t":"toast","x":"feature/rdp-audio に切り替えました"},
@@ -468,31 +469,31 @@
     {"t":"out","x":"# 答えなければ非ゼロ終了。「やめる」も表現できます","cls":"t-c"}
   ]},
   {"tab":"タイル","title":"tile — z2term","steps":[
-    {"t":"cmd","x":"z2-tile set 1 ~/.z2term/macros/vpn.sh --label VPN"},
-    {"t":"out","x":"1 枠目 → vpn.sh   (12 枠まで置けます)","cls":"t-ok"},
-    {"t":"cmd","x":"z2-icon draw ~/pixel/rocket.txt --slot 1"},
-    {"t":"out","x":"16x16 · 1bit · 反映しました","cls":"t-ok"},
+    {"t":"cmd","x":"z2-tile set 1 vpn.sh -l VPN"},
+    {"t":"out","x":"1\tVPN\tvpn.sh"},
+    {"t":"out","x":"2\t-\t-"},
+    {"t":"out","x":"# 割り当てると 12 枠ぶんの一覧が返ります","cls":"t-c"},
     {"t":"tiles","items":["🔒 VPN","🔦 ライト","🔄 同期","📡 sshd"],"ms":1100},
     {"t":"cmd","x":"z2-server start web"},
-    {"t":"out","x":"web  ·  :8080  ·  稼働中（アプリを閉じても続きます）","cls":"t-ok"},
-    {"t":"widget","title":"z2term status","lines":["ssh   pi@home:22","srv   1 稼働","when  6 ルール","bat   65% ⚡"],"ms":1200},
+    {"t":"out","x":"web","cls":"t-ok"},
+    {"t":"widget","title":"z2term","lines":["ssh -p 2222 root@192.168.1.20","常駐 1/1 · 自動化 6/6 · 電池 65%","▶ backup.sh    ▶ vpn.sh"],"ms":1200},
     {"t":"out","x":"# クイック設定とホーム画面から、アプリを開かずに","cls":"t-c"},
     {"t":"wait","ms":700},
     {"t":"wipe"}
   ]},
   {"tab":"自動化","title":"automation — z2term","steps":[
-    {"t":"cmd","x":"z2-when charge:start run ~/backup.sh"},
-    {"t":"out","x":"ルールを追加  ·  charge:start → ~/backup.sh","cls":"t-ok"},
-    {"t":"cmd","x":"z2-when notify:otp run ~/otp.sh"},
-    {"t":"out","x":"ルールを追加  ·  notify:otp → ~/otp.sh","cls":"t-ok"},
+    {"t":"cmd","x":"z2-when charge:start run ~/.z2term/macros/backup.sh"},
+    {"t":"out","x":"w1756890000123","cls":"t-ok"},
+    {"t":"cmd","x":"z2-when notify:otp run ~/.z2term/macros/otp.sh"},
+    {"t":"out","x":"w1756890000456","cls":"t-ok"},
     {"t":"out","x":"# ─ ここでアプリを閉じ、端末はポケットの中 ─","cls":"t-c"},
     {"t":"wait","ms":700},
     {"t":"noti","app":"銀行","when":"たった今","title":"認証コード 284913","body":"このコードは誰にも教えないでください","ms":1100},
     {"t":"toast","x":"コードをコピーしました"},
     {"t":"cmd","x":"z2-when fired"},
-    {"t":"out","x":"07:12  charge:start   ok    1.4s"},
-    {"t":"out","x":"08:03  notify:otp     ok    0.2s"},
-    {"t":"out","x":"22:41  net:online     skip: cooldown=1h","cls":"t-warn"},
+    {"t":"out","x":"2026-09-03T07:12:04\tw1756890000123\tcharge:start\tok"},
+    {"t":"out","x":"2026-09-03T08:03:51\tw1756890000456\tnotify:otp\tok"},
+    {"t":"out","x":"2026-09-03T22:41:10\tw1756889900777\tnet:online\tskip:cooldown","cls":"t-warn"},
     {"t":"out","x":"# ルールは ~/.z2term/when/ のテキスト。再起動しても残ります","cls":"t-c"},
     {"t":"wipe"}
   ]}

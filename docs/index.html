@@ -13,8 +13,8 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#0B0F0E">
 <link rel="canonical" href="https://orgsonai.github.io/z2term/">
-<link rel="stylesheet" href="z2.css?v=3">
-<script src="z2.js?v=3" defer></script>
+<link rel="stylesheet" href="z2.css?v=4">
+<script src="z2.js?v=4" defer></script>
 </head>
 <body>
 <div class="crt" aria-hidden="true"></div>
@@ -42,7 +42,7 @@
     <div class="logo glitch" role="img" aria-label="Z2TERM"><svg viewBox="0 0 35 5" fill="currentColor" aria-hidden="true"><rect x="0" y="0" width="5" height="1"/><rect x="6" y="0" width="5" height="1"/><rect x="12" y="0" width="5" height="1"/><rect x="18" y="0" width="5" height="1"/><rect x="24" y="0" width="4" height="1"/><rect x="30" y="0" width="1" height="1"/><rect x="34" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="10" y="1" width="1" height="1"/><rect x="14" y="1" width="1" height="1"/><rect x="18" y="1" width="1" height="1"/><rect x="24" y="1" width="1" height="1"/><rect x="28" y="1" width="1" height="1"/><rect x="30" y="1" width="2" height="1"/><rect x="33" y="1" width="2" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="6" y="2" width="5" height="1"/><rect x="14" y="2" width="1" height="1"/><rect x="18" y="2" width="4" height="1"/><rect x="24" y="2" width="4" height="1"/><rect x="30" y="2" width="1" height="1"/><rect x="32" y="2" width="1" height="1"/><rect x="34" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="14" y="3" width="1" height="1"/><rect x="18" y="3" width="1" height="1"/><rect x="24" y="3" width="1" height="1"/><rect x="27" y="3" width="1" height="1"/><rect x="30" y="3" width="1" height="1"/><rect x="34" y="3" width="1" height="1"/><rect x="0" y="4" width="5" height="1"/><rect x="6" y="4" width="5" height="1"/><rect x="14" y="4" width="1" height="1"/><rect x="18" y="4" width="5" height="1"/><rect x="24" y="4" width="1" height="1"/><rect x="28" y="4" width="1" height="1"/><rect x="30" y="4" width="1" height="1"/><rect x="34" y="4" width="1" height="1"/></svg></div>
 
     <div class="chips">
-      <span><b>0.8.493-alpha</b></span>
+      <span><b>0.8.494-alpha</b></span>
       <span>GPL-3.0</span>
       <span>Android 10+</span>
       <span>~21 MB</span>
@@ -68,7 +68,8 @@
 <span class="t-out">(1/2) Installing pcre2 (10.43-r0)</span>
 <span class="t-ok">OK: 42 MiB in 61 packages</span>
 <span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2version</span>
-<span class="t-ok">z2term 0.8.493-alpha  ·  engine: z2root (ptrace)</span>
+<span class="t-ok">z2term 0.8.494-alpha (502)</span>
+<span class="t-out">engine : z2root</span>
 <span class="t-c"># no root, no PC, no setup script</span>
 <span class="t-prompt">~</span> <span class="t-path">$</span> <span class="caret"></span></div>
       </div>
@@ -149,13 +150,7 @@
           patched. A plain data-capable adapter or hub is all the hardware it takes.</p>
       </div>
       <div class="card reveal d1">
-        <h3><span>11</span>Japanese, properly</h3>
-        <p>A built-in kana-kanji IME with prediction and frequency/recency learning, plus a custom
-          on-screen keyboard. It can be enabled as an <b>OS-wide input method</b>, and your own words load
-          from a file, so names convert from the first keystroke.</p>
-      </div>
-      <div class="card reveal d2">
-        <h3><span>12</span>When it doesn't work</h3>
+        <h3><span>11</span>When it doesn't work</h3>
         <p><code>z2doctor</code> answers "why isn't it working?" in one command — version, engine, free
           space, every permission, detection and automation state. Each <code>NG</code> line carries the
           next step, and the end is a report you can paste into an issue.</p>
@@ -165,7 +160,7 @@
 
   <!-- ===================== MACROS ===================== -->
   <section id="macros">
-    <p class="cmdline" data-cmd="./macros/demo.sh"><span class="u">~</span> <span class="p">$</span> <span class="typed">./macros/demo.sh</span></p>
+    <p class="cmdline" data-cmd="ls ~/.z2term/macros/"><span class="u">~</span> <span class="p">$</span> <span class="typed">ls ~/.z2term/macros/</span></p>
     <h2>A macro is just a command — so it can be anything</h2>
     <p class="sub">There is no macro language to learn. A macro is a shell script that happens to be able
       to touch the phone: post a notification, raise a toast, ask you something, flick the torch, put
@@ -181,11 +176,12 @@
         </div>
         <div class="win-tabs"></div>
         <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2-notify -h -c "$(git rev-parse --short HEAD)" "build finished" "3m12s"</span>
-<span class="t-ok">posted (id 41)  ·  banner + copy button</span>
+<span class="t-c"># -h makes it a banner, -c adds a Copy button</span>
 <span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">name=$(z2-ask "Branch name?")</span>
-<span class="t-ok">→ feature/rdp-audio</span>
-<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2-when charge:start run ~/backup.sh</span>
-<span class="t-ok">rule added  ·  fires with the app closed</span>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">echo "$name"</span>
+<span class="t-out">feature/rdp-audio</span>
+<span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2-when charge:start run ~/.z2term/macros/backup.sh</span>
+<span class="t-ok">w1756890000123</span>
 <span class="t-prompt">~</span> <span class="t-path">$</span> <span class="caret"></span></div>
       </div>
 
@@ -200,27 +196,27 @@
 
     <h3 style="margin-top:34px">Twelve things people wire up in an evening</h3>
     <div class="recipes">
-      <div class="recipe reveal"><b>Back up when you plug in</b><code>z2-when charge:start run ~/backup.sh</code>
+      <div class="recipe reveal"><b>Back up when you plug in</b><code>z2-when charge:start run ~/.z2term/macros/backup.sh</code>
         <p>The phone charges overnight; the backup happens without you.</p></div>
-      <div class="recipe reveal d1"><b>Grab the OTP from a notification</b><code>z2-when notify:otp run ~/otp.sh</code>
+      <div class="recipe reveal d1"><b>Grab the OTP from a notification</b><code>z2-when notify:otp run ~/.z2term/macros/otp.sh</code>
         <p>The code is extracted and put on the clipboard before you reach for it.</p></div>
       <div class="recipe reveal d2"><b>Ask before doing something</b><code>z2-ask "Deploy to prod?"</code>
         <p>The script waits in the shade. No answer means it stops.</p></div>
-      <div class="recipe reveal"><b>Sync only on your own Wi-Fi</b><code>z2-when net:online if=ssid=Home cooldown=1h</code>
+      <div class="recipe reveal"><b>Sync only on your own Wi-Fi</b><code>z2-when net:online if=ssid=Home cooldown=1h run ~/.z2term/macros/sync.sh</code>
         <p>Filters work the same on every trigger, and skipped runs stay in the log.</p></div>
-      <div class="recipe reveal d1"><b>Take what other apps share</b><code>z2-when share:ext=pdf run ~/file.sh</code>
+      <div class="recipe reveal d1"><b>Take what other apps share</b><code>z2-when share:ext=pdf run ~/.z2term/macros/pdf.sh</code>
         <p>Share a PDF to z2term and a script picks it up and files it away.</p></div>
-      <div class="recipe reveal d2"><b>A tile for the thing you do daily</b><code>z2-tile set 1 ~/macros/vpn.sh</code>
+      <div class="recipe reveal d2"><b>A tile for the thing you do daily</b><code>z2-tile set 1 vpn.sh -l VPN</code>
         <p>Quick settings, one tap, app never opens. Twelve slots.</p></div>
-      <div class="recipe reveal"><b>Draw your own status-bar icon</b><code>z2-icon draw ~/pixel/rocket.txt</code>
+      <div class="recipe reveal"><b>Draw your own status-bar icon</b><code>z2-icon set 1 ~/pixel/rocket.txt</code>
         <p>Because a generic dot in the status bar tells you nothing.</p></div>
       <div class="recipe reveal d1"><b>Report to yourself out loud</b><code>z2-say "build finished"</code>
         <p>Text-to-speech, from a shell script, while the screen is off.</p></div>
-      <div class="recipe reveal d2"><b>Watch a folder</b><code>z2-when file:new=~/Download run ~/sort.sh</code>
+      <div class="recipe reveal d2"><b>Watch a folder</b><code>z2-when file:new=/sdcard/Download run ~/.z2term/macros/sort.sh</code>
         <p>Anything that lands gets renamed, converted or pushed onward.</p></div>
       <div class="recipe reveal"><b>Run it from the home screen</b><code>widget → pick a macro</code>
         <p>One tap runs it in the background; tap again to stop it.</p></div>
-      <div class="recipe reveal d1"><b>Keep a server up</b><code>Settings → Resident servers</code>
+      <div class="recipe reveal d1"><b>Keep a server up</b><code>z2-server start web</code>
         <p>A web server or a bot that survives the app being closed and the phone rebooting.</p></div>
       <div class="recipe reveal d2"><b>Drive the app's own tabs</b><code>z2-session attach 2</code>
         <p>A macro that types into another tab — automation of the terminal itself.</p></div>
@@ -229,7 +225,7 @@
 
   <!-- ===================== DESKTOP ===================== -->
   <section id="desktop">
-    <p class="cmdline" data-cmd="z2gui &amp;&amp; z2run xterm"><span class="u">~</span> <span class="p">$</span> <span class="typed">z2gui &amp;&amp; z2run xterm</span></p>
+    <p class="cmdline" data-cmd="z2run xterm"><span class="u">~</span> <span class="p">$</span> <span class="typed">z2run xterm</span></p>
     <h2>A desktop in a tab — yours or a remote one</h2>
     <p class="sub">The GUI tab is not a separate viewer app. It is an RFB client inside z2term, so a Linux
       desktop and a remote machine both land in the same tab strip as your shells.</p>
@@ -346,7 +342,7 @@
         <span class="title">releases — github.com/orgsonai/z2term</span>
       </div>
       <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">ls -lh releases/latest/</span>
-<span class="t-out">-rw-r--r--  1 you  you   21M  </span><span class="t-ok">z2term-0.8.493-alpha.apk</span>
+<span class="t-out">-rw-r--r--  1 you  you   21M  </span><span class="t-ok">z2term-0.8.494-alpha.apk</span>
 <span class="t-c"># tap it on the device → allow "install from unknown sources"</span>
 <span class="t-c"># updating over the top keeps your data</span></div>
     </div>
@@ -396,7 +392,7 @@
 <!-- ===================== 台本（英語） ===================== -->
 <script type="application/json" id="hero-scenes">
 [
-  {"tab":"linux","title":"alpine — z2term","steps":[
+  {"tab":"Linux","title":"alpine — z2term","steps":[
     {"t":"cmd","x":"head -1 /etc/os-release && uname -m"},
     {"t":"out","x":"NAME=\"Alpine Linux\""},
     {"t":"out","x":"aarch64"},
@@ -405,96 +401,100 @@
     {"t":"out","x":"(4/4) Installing ripgrep (14.1.1-r0)"},
     {"t":"out","x":"OK: 42 MiB in 61 packages","cls":"t-ok"},
     {"t":"cmd","x":"z2version"},
-    {"t":"out","x":"z2term 0.8.493-alpha  ·  engine: z2root (ptrace)","cls":"t-ok"},
+    {"t":"out","x":"z2term 0.8.494-alpha (502)","cls":"t-ok"},
+    {"t":"out","x":"engine : z2root"},
+    {"t":"out","x":"os     : Alpine Linux v3.20"},
     {"t":"out","x":"# no root, no PC, no setup script","cls":"t-c"}
   ]},
-  {"tab":"usb","title":"usb — z2term","steps":[
+  {"tab":"USB","title":"usb — z2term","steps":[
     {"t":"cmd","x":"z2-usb list"},
-    {"t":"out","x":"1  0483:5740  Virtual COM Port"},
-    {"t":"out","x":"2  0781:5583  USB Mass Storage"},
+    {"t":"out","x":"1  0483:5740  needs allow  /dev/bus/usb/001/004 Virtual COM Port"},
     {"t":"cmd","x":"z2-usb allow 1"},
-    {"t":"out","x":"waiting for Android's permission dialog...","ms":600},
-    {"t":"out","x":"granted  ·  /dev/bus/usb/001/004 is open","cls":"t-ok"},
+    {"t":"out","x":"Approve USB access on the Android screen: /dev/bus/usb/001/004","ms":700},
+    {"t":"cmd","x":"z2-usb list"},
+    {"t":"out","x":"1  0483:5740  allowed  /dev/bus/usb/001/004 Virtual COM Port","cls":"t-ok"},
     {"t":"cmd","x":"picocom -b 115200 /dev/ttyACM0"},
     {"t":"out","x":"Terminal ready","cls":"t-ok"},
-    {"t":"out","x":"# libusb programs work unpatched, through a plain OTG adapter","cls":"t-c"}
+    {"t":"out","x":"# programs using libusb work unpatched","cls":"t-c"}
   ]},
-  {"tab":"desktop","title":"gui — z2term","steps":[
-    {"t":"cmd","x":"z2gui"},
-    {"t":"out","x":"Xvnc :1   1080x2210   24bpp"},
-    {"t":"out","x":"openbox up  ·  audio bridge ready"},
-    {"t":"out","x":"→ GUI tab opened","cls":"t-ok"},
-    {"t":"cmd","x":"z2run xterm"},
-    {"t":"out","x":"launched on :1","cls":"t-ok"},
-    {"t":"out","x":"# the same viewer opens a remote VNC or RDP machine:","cls":"t-c"},
-    {"t":"out","x":"# connections › desk › [VNC] [RDP]","cls":"t-c"},
-    {"t":"out","x":"RDP  NLA ok · certificate pinned · clipboard shared","cls":"t-ok"}
+  {"tab":"Desktop","title":"gui — z2term","steps":[
+    {"t":"cmd","x":"z2gui status"},
+    {"t":"out","x":"⏹ GUI is stopped"},
+    {"t":"cmd","x":"z2run xterm &"},
+    {"t":"out","x":"# Xvnc :1 comes up and the GUI tab opens","cls":"t-c"},
+    {"t":"cmd","x":"z2gui status"},
+    {"t":"out","x":"✅ GUI running (DISPLAY=:1, RFB 127.0.0.1:5901)","cls":"t-ok"},
+    {"t":"out","x":"# the same viewer opens a remote VNC / RDP host:","cls":"t-c"},
+    {"t":"out","x":"# Hosts › desk › [VNC] [RDP]","cls":"t-c"}
   ]},
-  {"tab":"doctor","title":"doctor — z2term","steps":[
+  {"tab":"Doctor","title":"doctor — z2term","steps":[
     {"t":"cmd","x":"z2doctor"},
-    {"t":"out","x":"version        0.8.493-alpha (501)"},
-    {"t":"out","x":"engine         z2root (ptrace)          OK","cls":"t-ok"},
-    {"t":"out","x":"storage        12.4 GiB free            OK","cls":"t-ok"},
-    {"t":"out","x":"notifications  granted                  OK","cls":"t-ok"},
-    {"t":"out","x":"battery opt.   not exempted             NG  → Settings › Battery","cls":"t-warn"},
-    {"t":"out","x":"automation     6 rules · 0 paused       OK","cls":"t-ok"},
-    {"t":"out","x":"report ready — z2doctor --clip to copy it into an issue","cls":"t-ok"},
-    {"t":"out","x":"# SSIDs, IPs and host names are left out on purpose","cls":"t-c"}
+    {"t":"out","x":"== z2doctor (this device) =="},
+    {"t":"out","x":"-- app --"},
+    {"t":"out","x":"    version: 0.8.494-alpha"},
+    {"t":"out","x":"    engine: z2root"},
+    {"t":"out","x":"-- permissions --"},
+    {"t":"out","x":"OK  notifications","cls":"t-ok"},
+    {"t":"out","x":"NG  battery optimization","cls":"t-warn"},
+    {"t":"out","x":"    -> Settings > background process protection > exclude from battery optimization","cls":"t-warn"},
+    {"t":"out","x":"-- automation --"},
+    {"t":"out","x":"OK  event detection","cls":"t-ok"},
+    {"t":"out","x":"    automation rules: 6/6"},
+    {"t":"out","x":"(SSID / IP / host names are left out on purpose)"},
+    {"t":"out","x":"issues found: 1","cls":"t-warn"}
   ]}
 ]
 </script>
 
 <script type="application/json" id="macro-scenes">
 [
-  {"tab":"notify","title":"notify — z2term","steps":[
+  {"tab":"Notify","title":"notify — z2term","steps":[
     {"t":"cmd","x":"z2-notify -h -c \"$(git rev-parse --short HEAD)\" \"build finished\" \"3m12s · 0 warnings\""},
-    {"t":"noti","app":"z2term","when":"now","title":"build finished","body":"3m12s · 0 warnings","actions":["copy","rerun"],"ms":900},
-    {"t":"out","x":"posted (id 41)  ·  banner + copy button","cls":"t-ok"},
-    {"t":"cmd","x":"z2-toast \"artifact pushed\""},
-    {"t":"toast","x":"artifact pushed"},
-    {"t":"out","x":"# a toast for what you don't need to keep,","cls":"t-c"},
-    {"t":"out","x":"# a notification for what you do","cls":"t-c"},
+    {"t":"noti","app":"z2term","when":"now","title":"build finished","body":"3m12s · 0 warnings","actions":["Copy"],"ms":900},
+    {"t":"out","x":"# -h makes it a banner, -c adds a Copy button. Nothing is printed","cls":"t-c"},
+    {"t":"cmd","x":"z2-toast \"artifacts pushed\""},
+    {"t":"toast","x":"artifacts pushed"},
+    {"t":"out","x":"# a toast for what needn't stay,","cls":"t-c"},
+    {"t":"out","x":"# a notification for what should","cls":"t-c"},
     {"t":"wait","ms":900},
     {"t":"wipe"}
   ]},
-  {"tab":"ask","title":"ask — z2term","steps":[
+  {"tab":"Ask","title":"ask — z2term","steps":[
     {"t":"cmd","x":"name=$(z2-ask \"Branch name?\") || echo \"cancelled\""},
-    {"t":"ask","app":"z2term","when":"now","title":"Branch name?","body":"reply from the shade","reply":"feature/rdp-audio"},
-    {"t":"out","x":"→ feature/rdp-audio","cls":"t-ok"},
-    {"t":"cmd","x":"git switch -c \"$name\" && z2-toast \"on $name\""},
+    {"t":"ask","app":"z2term","when":"now","title":"Branch name?","body":"Reply from the shade","reply":"feature/rdp-audio"},
+    {"t":"cmd","x":"git switch -c \"$name\" && z2-toast \"switched to $name\""},
     {"t":"out","x":"Switched to a new branch 'feature/rdp-audio'"},
-    {"t":"toast","x":"on feature/rdp-audio"},
-    {"t":"out","x":"# the script waited in the notification shade.","cls":"t-c"},
+    {"t":"toast","x":"switched to feature/rdp-audio"},
+    {"t":"out","x":"# the script was waiting in the notification shade.","cls":"t-c"},
     {"t":"out","x":"# no answer = non-zero exit, so \"give up\" is expressible","cls":"t-c"}
   ]},
-  {"tab":"tile","title":"tile — z2term","steps":[
-    {"t":"cmd","x":"z2-tile set 1 ~/.z2term/macros/vpn.sh --label VPN"},
-    {"t":"out","x":"slot 1 → vpn.sh   (12 slots available)","cls":"t-ok"},
-    {"t":"cmd","x":"z2-icon draw ~/pixel/rocket.txt --slot 1"},
-    {"t":"out","x":"16x16 · 1-bit · installed","cls":"t-ok"},
+  {"tab":"Tiles","title":"tile — z2term","steps":[
+    {"t":"cmd","x":"z2-tile set 1 vpn.sh -l VPN"},
+    {"t":"out","x":"1\tVPN\tvpn.sh"},
+    {"t":"out","x":"2\t-\t-"},
+    {"t":"out","x":"# assigning prints all 12 slots","cls":"t-c"},
     {"t":"tiles","items":["🔒 VPN","🔦 Torch","🔄 Sync","📡 sshd"],"ms":1100},
     {"t":"cmd","x":"z2-server start web"},
-    {"t":"out","x":"web  ·  :8080  ·  running (survives the app closing)","cls":"t-ok"},
-    {"t":"widget","title":"z2term status","lines":["ssh   pi@home:22","srv   1 running","when  6 rules","bat   65% ⚡"],"ms":1200},
-    {"t":"out","x":"# quick settings and the home screen, without opening the app","cls":"t-c"},
+    {"t":"out","x":"web","cls":"t-ok"},
+    {"t":"widget","title":"z2term","lines":["ssh -p 2222 root@192.168.1.20","servers 1/1 · rules 6/6 · battery 65%","▶ backup.sh    ▶ vpn.sh"],"ms":1200},
+    {"t":"out","x":"# from quick settings and the home screen, app closed","cls":"t-c"},
     {"t":"wait","ms":700},
     {"t":"wipe"}
   ]},
-  {"tab":"when","title":"automation — z2term","steps":[
-    {"t":"cmd","x":"z2-when charge:start run ~/backup.sh"},
-    {"t":"out","x":"rule added  ·  charge:start → ~/backup.sh","cls":"t-ok"},
-    {"t":"cmd","x":"z2-when notify:otp run ~/otp.sh"},
-    {"t":"out","x":"rule added  ·  notify:otp → ~/otp.sh","cls":"t-ok"},
-    {"t":"out","x":"# ─ app closed, phone in your pocket ─","cls":"t-c"},
+  {"tab":"Automation","title":"automation — z2term","steps":[
+    {"t":"cmd","x":"z2-when charge:start run ~/.z2term/macros/backup.sh"},
+    {"t":"out","x":"w1756890000123","cls":"t-ok"},
+    {"t":"cmd","x":"z2-when notify:otp run ~/.z2term/macros/otp.sh"},
+    {"t":"out","x":"w1756890000456","cls":"t-ok"},
+    {"t":"out","x":"# ─ now close the app; the phone is in a pocket ─","cls":"t-c"},
     {"t":"wait","ms":700},
     {"t":"noti","app":"Bank","when":"now","title":"Verification code 284913","body":"Do not share this code.","ms":1100},
-    {"t":"toast","x":"OTP copied"},
+    {"t":"toast","x":"code copied"},
     {"t":"cmd","x":"z2-when fired"},
-    {"t":"out","x":"07:12  charge:start   ok    1.4s"},
-    {"t":"out","x":"08:03  notify:otp     ok    0.2s"},
-    {"t":"out","x":"22:41  net:online     skip: cooldown=1h","cls":"t-warn"},
-    {"t":"out","x":"# rules are plain text in ~/.z2term/when/ and survive reboots","cls":"t-c"},
-    {"t":"wipe"}
+    {"t":"out","x":"2026-09-03T07:12:04\tw1756890000123\tcharge:start\tok"},
+    {"t":"out","x":"2026-09-03T08:03:51\tw1756890000456\tnotify:otp\tok"},
+    {"t":"out","x":"2026-09-03T22:41:10\tw1756889900777\tnet:online\tskip:cooldown","cls":"t-warn"},
+    {"t":"out","x":"# rules are text in ~/.z2term/when/ and survive a reboot","cls":"t-c"}
   ]}
 ]
 </script>
