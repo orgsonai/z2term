@@ -42,6 +42,14 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |esac
     """.trimMargin() + "\n"
 
+    // パスを引数に取るが、サブコマンドは持たないもの (z2-img) 用。`-h` と `--help` を受ける。
+    // ⚠ 裸の `help` は受けない — `help` という名前のファイルを渡せなくなるため。
+    val helpCaseDash = """
+        |case "${d}1" in
+        |  -h|--help) $showHelp ;;
+        |esac
+    """.trimMargin() + "\n"
+
     val dispatcher = """
         |#!/bin/sh
         |# z2term Android API ブリッジ・ディスパッチャ (内部用)。
@@ -727,6 +735,202 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         |esac
     """.trimMargin() + "\n"
 
+
+    // 端末に画像をそのまま描く (kitty graphics protocol)。⚠ **アプリ側は 1 行も要らない** —
+    // エミュレータが APC `ESC _ G` を既に解釈するので、ここは「画素数を測って c=/r= を決め、
+    // base64 を 4096 バイトずつ流す」だけのシェルスクリプトで済む。同じ出し方を qr.sh が
+    // 先に使っている (Z2MacroScript の show_inline)。両方を直すときは揃えること。
+    //
+    // ⚠ **c= と r= は必ず両方渡す**。省略するとエミュレータが実セル寸法から自動算出して
+    //   くれるが、こちらは「絵の下へ何行送ればいいか」が分からなくなる (カーソルは幅ぶん
+    //   右へ進むだけで、行は動かない仕様)。自分で決めた r= のぶんだけ改行を送る。
+    val img = "#!/bin/sh\n" + m.imgHelp + "\n" + helpCaseDash + """
+        |usage() { echo "${m.imgUsage}" >&2; exit 1; }
+        |
+        |# 出した絵を全部消す (a=d,d=A)。ペイロードが無いので ';' も付けない。
+        |wipe_all() { printf '\033_Ga=d,d=A,q=2\033\\'; }
+        |
+        |w=""; r=""; force=0
+        |# ⚠ オプションはどこに書かれていても拾う (`z2-img photo.png -w 40` と書きたくなる)。
+        |#   ファイル名は後ろへ回し、元の引数を数え切った時点で ${d}@ が対象ファイルだけになる。
+        |#   空白を含む名前を壊さないため、文字列に貯めずに set -- で回す。
+        |rest=${d}#
+        |while [ "${d}rest" -gt 0 ]; do
+        |  a="${d}1"; shift; rest=${d}((rest - 1))
+        |  case "${d}a" in
+        |    -w|--width) [ ${d}# -ge 1 ] || usage; w="${d}1"; shift; rest=${d}((rest - 1)) ;;
+        |    -r|--rows)  [ ${d}# -ge 1 ] || usage; r="${d}1"; shift; rest=${d}((rest - 1)) ;;
+        |    -f|--force) force=1 ;;
+        |    --clear)    wipe_all; exit 0 ;;
+        |    --)         while [ "${d}rest" -gt 0 ]; do set -- "${d}@" "${d}1"; shift; rest=${d}((rest - 1)); done ;;
+        |    -)          set -- "${d}@" "-" ;;
+        |    -*)         usage ;;
+        |    *)          set -- "${d}@" "${d}a" ;;
+        |  esac
+        |done
+        |[ ${d}# -ge 1 ] || usage
+        |[ -z "${d}w" ] || case "${d}w" in *[!0-9]*|0) usage ;; esac
+        |[ -z "${d}r" ] || case "${d}r" in *[!0-9]*|0) usage ;; esac
+        |
+        |# ⚠ 既定では画面にしか送らない。パイプやファイルの先には「壊れたバイト列」としか
+        |#   見えず、画像だった手掛かりが何も残らない。
+        |if [ "${d}force" != "1" ] && [ ! -t 1 ]; then
+        |  echo "z2-img: ${m.imgNotTty}" >&2; exit 1
+        |fi
+        |
+        |TMP=${d}(mktemp -d 2>/dev/null) || TMP="/tmp/z2img.${d}${d}"
+        |mkdir -p "${d}TMP" 2>/dev/null || exit 1
+        |trap 'rm -rf "${d}TMP"' EXIT INT TERM
+        |
+        |cols=${d}(tput cols 2>/dev/null) || cols=""
+        |case "${d}cols" in ''|*[!0-9]*) cols=80 ;; esac
+        |lines=${d}(tput lines 2>/dev/null) || lines=""
+        |case "${d}lines" in ''|*[!0-9]*) lines=24 ;; esac
+        |max_cols=${d}((cols - 1)); [ "${d}max_cols" -ge 8 ] || max_cols=8
+        |max_rows=${d}((lines - 2)); [ "${d}max_rows" -ge 4 ] || max_rows=4
+        |# 1 マスの「幅 / 高さ」。等幅フォントはおおよそ 1:2 なので既定 0.5 (qr.sh と同じ既定)。
+        |aspect=${d}{Z2_IMG_ASPECT:-0.5}
+        |
+        |# --- 画素数を測る。ヘッダだけ読むので、大きな写真でも一瞬で終わる。 ---
+        |# ⚠ 画素数が要るのは c=/r= を出すためだけ。復号はアプリ側 (BitmapFactory) がやる。
+        |
+        |webp_size() {
+        |  od -An -tu1 -v -j12 -N20 -- "${d}1" 2>/dev/null | awk '
+        |    { for (i = 1; i <= NF; i++) b[n++] = ${d}i }
+        |    END {
+        |      cc = sprintf("%c%c%c%c", b[0], b[1], b[2], b[3])
+        |      if (cc == "VP8X") {          # 拡張: 3 バイト LE の「実寸 - 1」が 2 つ
+        |        w = b[12] + b[13] * 256 + b[14] * 65536 + 1
+        |        h = b[15] + b[16] * 256 + b[17] * 65536 + 1
+        |      } else if (cc == "VP8 ") {   # ロッシー: キーフレームヘッダの 14 ビット幅
+        |        w = (b[14] + b[15] * 256) % 16384
+        |        h = (b[16] + b[17] * 256) % 16384
+        |      } else if (cc == "VP8L") {   # ロスレス: ビット詰めの「実寸 - 1」
+        |        w = b[9] + (b[10] % 64) * 256 + 1
+        |        h = int(b[10] / 64) + b[11] * 4 + (b[12] % 16) * 1024 + 1
+        |      } else { exit }
+        |      printf "%d %d\n", w, h
+        |    }'
+        |}
+        |
+        |# JPEG は SOF マーカーまで歩く。⚠ 先頭 128KiB だけ見る — EXIF のサムネイルが大きいと
+        |#   SOF は後ろへ寄るが、全部を awk の配列に載せると写真 1 枚で数十 MB になる。
+        |jpeg_size() {
+        |  od -An -tu1 -v -N 131072 -- "${d}1" 2>/dev/null | awk '
+        |    { for (i = 1; i <= NF; i++) b[n++] = ${d}i }
+        |    END {
+        |      i = 2
+        |      while (i + 8 < n) {
+        |        if (b[i] != 255) { i++; continue }
+        |        mk = b[i + 1]
+        |        if (mk == 255) { i++; continue }
+        |        # SOI / TEM / RSTn は長さを持たない
+        |        if (mk == 216 || mk == 1 || (mk >= 208 && mk <= 215)) { i += 2; continue }
+        |        # SOF0-3 / 5-7 / 9-11 / 13-15 (DHT=196, JPG=200, DAC=204 は除く)
+        |        if ((mk >= 192 && mk <= 195) || (mk >= 197 && mk <= 199) ||
+        |            (mk >= 201 && mk <= 203) || (mk >= 205 && mk <= 207)) {
+        |          printf "%d %d\n", b[i + 7] * 256 + b[i + 8], b[i + 5] * 256 + b[i + 6]
+        |          exit
+        |        }
+        |        i += 2 + b[i + 2] * 256 + b[i + 3]
+        |      }
+        |    }'
+        |}
+        |
+        |px_size() {
+        |  head4=${d}(od -An -tu1 -v -N4 -- "${d}1" 2>/dev/null)
+        |  f="${d}1"
+        |  set -- ${d}head4
+        |  case "${d}1 ${d}2 ${d}3 ${d}4" in
+        |    "137 80 78 71")   # PNG: IHDR の 4 バイト BE が 2 つ
+        |      od -An -tu1 -v -j16 -N8 -- "${d}f" 2>/dev/null | awk '{
+        |        printf "%d %d\n", ${d}1 * 16777216 + ${d}2 * 65536 + ${d}3 * 256 + ${d}4,
+        |                          ${d}5 * 16777216 + ${d}6 * 65536 + ${d}7 * 256 + ${d}8 }' ;;
+        |    "71 73 70 56")    # GIF: 論理画面の 2 バイト LE が 2 つ
+        |      od -An -tu1 -v -j6 -N4 -- "${d}f" 2>/dev/null | awk '{
+        |        printf "%d %d\n", ${d}2 * 256 + ${d}1, ${d}4 * 256 + ${d}3 }' ;;
+        |    "66 77 "*)        # BMP: 高さは負 (トップダウン) がありうるので絶対値にする
+        |      od -An -tu1 -v -j18 -N8 -- "${d}f" 2>/dev/null | awk '{
+        |        w = ${d}4 * 16777216 + ${d}3 * 65536 + ${d}2 * 256 + ${d}1
+        |        h = ${d}8 * 16777216 + ${d}7 * 65536 + ${d}6 * 256 + ${d}5
+        |        if (h > 2147483647) h = 4294967296 - h
+        |        printf "%d %d\n", w, h }' ;;
+        |    "82 73 70 70")    e=${d}(webp_size "${d}f"); printf '%s' "${d}e" ;;
+        |    "255 216 255 "*)  e=${d}(jpeg_size "${d}f"); printf '%s' "${d}e" ;;
+        |  esac
+        |}
+        |
+        |# 画素数 (${d}1 x ${d}2) を、端末に収まる桁数 x 行数へ落とす。
+        |fit() {
+        |  awk -v pw="${d}1" -v ph="${d}2" -v mw="${d}max_cols" -v mh="${d}max_rows" \
+        |      -v fw="${d}w" -v fr="${d}r" -v a="${d}aspect" 'BEGIN {
+        |    if (pw <= 0 || ph <= 0) { pw = 1; ph = 1 }
+        |    if (a <= 0) a = 0.5
+        |    if (fw != "" && fr != "")  { c = fw + 0; rr = fr + 0 }
+        |    else if (fw != "")         { c = fw + 0; rr = int(c * ph / pw * a + 0.5) }
+        |    else if (fr != "")         { rr = fr + 0; c = int(rr * pw / ph / a + 0.5) }
+        |    else {
+        |      c = mw
+        |      rr = int(c * ph / pw * a + 0.5)
+        |      # 縦に長い絵で画面を占領しない。行で頭打ちにして、幅を引き直す。
+        |      if (rr > mh) { rr = mh; c = int(rr * pw / ph / a + 0.5); if (c > mw) c = mw }
+        |    }
+        |    if (c < 1) c = 1
+        |    if (rr < 1) rr = 1
+        |    printf "%d %d\n", c, rr
+        |  }'
+        |}
+        |
+        |# ⚠ 1 回の APC に載せるのは 4096 バイトまで (kitty 仕様)。続きは m=1、最後だけ m=0。
+        |#   ヘッダを読むのは最初の 1 通だけなので、2 通目以降は m= しか付けない。
+        |show() {
+        |  base64 < "${d}1" | tr -d '\n' | fold -w 4096 > "${d}TMP/chunks" || return 1
+        |  n=${d}(awk 'END { print NR }' "${d}TMP/chunks")
+        |  [ -n "${d}n" ] && [ "${d}n" -gt 0 ] || return 1
+        |  i=0
+        |  while IFS= read -r chunk || [ -n "${d}chunk" ]; do
+        |    i=${d}((i + 1))
+        |    if [ "${d}i" -lt "${d}n" ]; then mm=1; else mm=0; fi
+        |    if [ "${d}i" -eq 1 ]; then
+        |      printf '\033_Ga=T,f=100,c=%s,r=%s,q=2,m=%s;%s\033\\' \
+        |        "${d}2" "${d}3" "${d}mm" "${d}chunk"
+        |    else
+        |      printf '\033_Gm=%s;%s\033\\' "${d}mm" "${d}chunk"
+        |    fi
+        |  done < "${d}TMP/chunks"
+        |  # カーソルは絵の幅ぶん右へ進んだだけで行は動いていない。絵の高さぶん送って下へ出す
+        |  # (画面末尾なら、この改行でスクロールして絵ごと上がる)。
+        |  printf '\r'
+        |  i=0
+        |  while [ "${d}i" -lt "${d}3" ]; do printf '\n'; i=${d}((i + 1)); done
+        |}
+        |
+        |multi=0
+        |[ ${d}# -gt 1 ] && multi=1
+        |status=0
+        |for target in "${d}@"; do
+        |  if [ "${d}target" = "-" ]; then
+        |    cat > "${d}TMP/stdin.img"
+        |    src="${d}TMP/stdin.img"
+        |  else
+        |    src="${d}target"
+        |  fi
+        |  if [ ! -f "${d}src" ] || [ ! -r "${d}src" ] || [ ! -s "${d}src" ]; then
+        |    echo "z2-img: ${m.imgNoFile} ${d}target" >&2; status=1; continue
+        |  fi
+        |  size=${d}(px_size "${d}src")
+        |  if [ -z "${d}size" ]; then
+        |    echo "z2-img: ${m.imgNoSize} ${d}target" >&2
+        |    size="100 100"
+        |  fi
+        |  cr=${d}(fit ${d}size)
+        |  cw="${d}{cr%% *}"; ch="${d}{cr##* }"
+        |  [ "${d}multi" = "1" ] && printf '%s\n' "${d}target"
+        |  show "${d}src" "${d}cw" "${d}ch" || status=1
+        |done
+        |exit "${d}status"
+    """.trimMargin() + "\n"
+
     return linkedMapOf(
         "z2api" to dispatcher,
         "z2-session" to session,
@@ -737,6 +941,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
         "z2-toast" to toast,
         "z2-share" to share,
         "z2-open" to open,
+        "z2-img" to img,
         "z2-clip" to clip,
         "z2-battery" to battery,
         "z2-vibrate" to vibrate,

@@ -246,6 +246,92 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
     """.trimMargin()
     )
 
+    // --- z2-img ---
+
+    // ⚠ ヘルプに**対応していない端末では化ける**ことを必ず書く。絵を出す手段は端末の外から
+    //   見分けられない (ssh の先が kitty 対応かどうかは分からない) ので、止めるのではなく
+    //   「そういうものだ」と先に伝えるしかない。qr.sh の -t と同じ立場。
+    val imgHelp: String = t(
+        en = """
+        |# z2-img [-w COLS] [-r ROWS] [--clear] [-f] <file|->… … draw the picture in the terminal.
+        |#   PNG / JPEG / WebP / GIF / BMP. Pass - to read one image from stdin.
+        |#   -w <cols>  width in terminal columns (default: fit the terminal)
+        |#   -r <rows>  height in terminal rows (with -w, the size is used as given)
+        |#   --clear    remove every picture drawn so far
+        |#   -f         send it even when stdout is not a terminal
+        |# ⚠ Pictures only appear in a z2term tab, or in a terminal that speaks the kitty
+        |#   graphics protocol. Anywhere else (over ssh, in a pager) you get gibberish.
+        |# ⚠ The aspect ratio assumes a cell is twice as tall as it is wide. If it looks
+        |#   squashed, tune it: Z2_IMG_ASPECT=0.45 z2-img photo.jpg (smaller = taller).
+    """.trimMargin(),
+        ja = """
+        |# z2-img [-w 桁] [-r 行] [--clear] [-f] <ファイル|->… … 端末にそのまま絵を出す。
+        |#   PNG / JPEG / WebP / GIF / BMP。- を渡すと標準入力から 1 枚読みます。
+        |#   -w <桁>    横幅を桁数で指定 (既定: 端末の幅に収める)
+        |#   -r <行>    高さを行数で指定 (-w と両方渡すとその寸法のまま)
+        |#   --clear    出した絵を全部消す
+        |#   -f         画面 (tty) でなくても送る
+        |# ⚠ 絵が出るのは z2term のタブの中と、kitty graphics に対応した端末だけです。
+        |#   それ以外 (ssh の先・ページャの中など) では意味不明な文字が流れます。
+        |# ⚠ 縦横比は「1 マスの高さは幅の 2 倍」として計算します。潰れて見えるときは
+        |#   Z2_IMG_ASPECT=0.45 z2-img photo.jpg のように調整してください (小さいほど縦長)。
+    """.trimMargin(),
+        "zh-CN" to """
+        |# z2-img [-w 列] [-r 行] [--clear] [-f] <文件|->… … 直接在终端里画出图片。
+        |#   PNG / JPEG / WebP / GIF / BMP。传 - 则从标准输入读一张。
+        |#   -w <列>    用列数指定宽度 (默认: 收进终端宽度)
+        |#   -r <行>    用行数指定高度 (和 -w 一起给出时就按该尺寸)
+        |#   --clear    清掉已经画出的所有图片
+        |#   -f         即使标准输出不是终端也照样发送
+        |# ⚠ 只有 z2term 的标签页、以及支持 kitty graphics 的终端才会显示图片。
+        |#   其它地方 (ssh 过去、分页器里) 只会刷出一堆乱码。
+        |# ⚠ 长宽比按“一格的高是宽的两倍”计算。看起来被压扁时可以调整:
+        |#   Z2_IMG_ASPECT=0.45 z2-img photo.jpg (数值越小越细长)。
+    """.trimMargin(),
+        "zh-TW" to """
+        |# z2-img [-w 欄] [-r 列] [--clear] [-f] <檔案|->… … 直接在終端機裡畫出圖片。
+        |#   PNG / JPEG / WebP / GIF / BMP。傳 - 則從標準輸入讀一張。
+        |#   -w <欄>    用欄數指定寬度 (預設: 收進終端機寬度)
+        |#   -r <列>    用列數指定高度 (和 -w 一起給出時就按該尺寸)
+        |#   --clear    清掉已經畫出的所有圖片
+        |#   -f         即使標準輸出不是終端機也照樣傳送
+        |# ⚠ 只有 z2term 的分頁、以及支援 kitty graphics 的終端機才會顯示圖片。
+        |#   其它地方 (ssh 過去、分頁器裡) 只會刷出一堆亂碼。
+        |# ⚠ 長寬比按「一格的高是寬的兩倍」計算。看起來被壓扁時可以調整:
+        |#   Z2_IMG_ASPECT=0.45 z2-img photo.jpg (數值越小越細長)。
+    """.trimMargin()
+    )
+
+    val imgUsage: String = t(
+        en = "usage: z2-img [-w cols] [-r rows] [--clear] [-f] <file|->...",
+        ja = "usage: z2-img [-w 桁] [-r 行] [--clear] [-f] <ファイル|->...",
+        "zh-CN" to "usage: z2-img [-w 列] [-r 行] [--clear] [-f] <文件|->...",
+        "zh-TW" to "usage: z2-img [-w 欄] [-r 列] [--clear] [-f] <檔案|->..."
+    )
+
+    val imgNoFile: String = t(
+        en = "cannot read the file:",
+        ja = "ファイルが読めません:",
+        "zh-CN" to "读不到这个文件：",
+        "zh-TW" to "讀不到這個檔案："
+    )
+
+    // ⚠ 既定で止める。パイプやリダイレクトの先に APC を流すと、受け側には**壊れたバイト列**
+    //   としか見えない (画像だと分かる手掛かりが残らない)。-f で通せるようにはしておく。
+    val imgNotTty: String = t(
+        en = "stdout is not a terminal, so nothing was sent (-f sends it anyway).",
+        ja = "標準出力が画面ではないので送りませんでした (-f を付けると送ります)。",
+        "zh-CN" to "标准输出不是终端，所以没有发送 (加 -f 可以照样发送)。",
+        "zh-TW" to "標準輸出不是終端機，所以沒有傳送 (加 -f 可以照樣傳送)。"
+    )
+
+    val imgNoSize: String = t(
+        en = "cannot read the pixel size; drawing it as a square:",
+        ja = "画素数が読めないので正方形として出します:",
+        "zh-CN" to "读不出像素尺寸，按正方形画出：",
+        "zh-TW" to "讀不出像素尺寸，按正方形畫出："
+    )
+
     val clipHelp: String = t(
         en = """
         |# z2-clip get        … print the clipboard to stdout

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-03 / Target version: 0.8.494-alpha (versionCode 502)
+Last updated: 2026-09-03 / Target version: 0.8.495-alpha (versionCode 503)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1657,6 +1657,10 @@ APC `ESC _ G <key=value,…> ; <base64 payload> ESC \` is parsed by `KittyGraphi
 
 **Unicode placeholder (virtual placement)**: `a=p,U=1` / `a=T,U=1` merely register the image as a grid (`c=N` × `r=N` divisions) in `TerminalBuffer.virtualPlacements` without moving the cursor. The actual draw position is decided by the placeholder cells (`U+10EEEE`) written later in the body, plus up to 3 **combining diacritics** immediately after each (Kitty's fixed 297-element table encodes row / col / the low 8 bits of the placement id). A placeholder cell carries metadata in `TerminalCell.placeholder: PlaceholderRef?`, and the image id is assembled from 24 bits of the fg truecolor (`\e[38;2;R;G;B`) plus the upper 8 bits from the underline colour's R value, for 32 bits total. In Pass 2.7 / Pass 3.5 the Renderer scans the cells of a row, looks each placeholder up via `buffer.getVirtualPlacement` (over `virtualPlacements`), and cuts the tile region (`srcCol/widthCells, srcRow/heightCells`) into a one-cell rectangle via `drawBitmap`'s srcRect→dstRect. Placeholder cells are replaced with a space by `TerminalRow.toText` / `TerminalBuffer.getRangeText` on copy (preventing stray surrogates). Spec: <https://sw.kovidgoyal.net/kitty/graphics-protocol/#unicode-placeholders>
 
+**`z2-img` — the command that shows a picture (0.8.495)**: `KittyGraphicsParser` could already draw images, but **nothing shipped that used it**, so in practice "z2term cannot show pictures". ⭐ **Not one line was added to the app** (`qr.sh` already emits images the same way). `Z2ApiScript.img` is a plain shell script that (1) reads the pixel size from the header alone (PNG IHDR / a JPEG SOF walk / GIF / BMP / WebP VP8, VP8L, VP8X), (2) picks a `c=`/`r=` that fits the terminal width, and (3) streams base64 in 4096-byte `ESC _ G a=T,f=100,…` chunks. ⚠ **Always send both `c=` and `r=`.** Omitting them lets the emulator size the image correctly from real cell metrics, but then the script cannot know how many newlines to send afterwards (the cursor only advances by the image width; the row never moves). ⚠ The script cannot know the real cell size, so the aspect ratio assumes **1:2** (`Z2_IMG_ASPECT`, default 0.5); querying the terminal (`CSI 16 t`) is not implemented. ⚠ **It writes to a tty only by default** — APC bytes down a pipe are indistinguishable from garbage on the receiving end (`-f` overrides). ⚠ Whether the far terminal supports graphics **cannot be detected from inside** (there is no way to know whether the other end of an `ssh` speaks kitty), so this is documented rather than enforced at runtime — the same stance as `qr.sh -t`.
+
+**Decode pixel cap (0.8.495)**: `KittyGraphicsParser.decodeImage` reads the bounds first with `inJustDecodeBounds` and subsamples (`inSampleSize`) anything over `MAX_DECODED_PIXELS` (4 megapixels). A 12 MP phone photo is about 50 MB as ARGB_8888, and `imageCache` holds the original, so a handful of images used to be enough to kill the app. ⚠ **Subsample, don't reject** — at most a few hundred pixels reach the screen so nothing looks different, whereas rejecting would just mean "photos cannot be shown". ⚠ **Cell counts come from the pre-subsample size** (`Decoded.srcWidth` / `srcHeight`); counting the subsampled bitmap would silently shrink images from senders that omit `c=`/`r=`.
+
 **Security of external file transfer (0.8.136)**: opt-in, default OFF (`AppSettings.kittyExternalFileEnabled`, DataStore key `kitty_external_file_enabled`). Only when it is ON **and** the rootfs resolves does `TerminalSession.applyKittyExternalTransferSetting` inject a `KittyHostTransferSource` into `TerminalEmulator.setKittyExternalTransfer`; turning it back OFF removes it with null (applied dynamically). Defence in depth:
 
 - With the opt-in OFF by default, an unauthorized session is stopped wholesale at the parser level
@@ -2066,6 +2070,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   | `z2-notify` | Post a notification (`-b` reply buttons / `-c` copy button) |
   | `z2-toast` | Toast message |
   | `z2-share` / `z2-open` | Share / open a URL or file |
+  | `z2-img` | Draw an image in the terminal (kitty graphics, 0.8.495) |
   | `z2-clip (set/get)` | Clipboard (**writable only while in front**, see below) |
   | `z2-battery` | Battery state |
   | `z2-vibrate` | Vibration |

@@ -281,20 +281,22 @@ class KittyGraphicsParser {
     ): Result {
         val format = header["f"]?.toIntOrNull() ?: 100
         val rawBytes = obtainPayloadBytes(header, payloadStr) ?: return Result.Discard
-        val bitmap = when (format) {
-            100 -> decodePng(rawBytes)
-            24 -> buildRawBitmap(rawBytes, header, hasAlpha = false)
-            32 -> buildRawBitmap(rawBytes, header, hasAlpha = true)
+        val decoded = when (format) {
+            100 -> decodeImage(rawBytes)
+            // 生 RGB(A) は s=/v= で画素数を宣言済み = 間引く余地がないので、そのまま包む。
+            24 -> buildRawBitmap(rawBytes, header, hasAlpha = false)?.let { Decoded(it, it.width, it.height) }
+            32 -> buildRawBitmap(rawBytes, header, hasAlpha = true)?.let { Decoded(it, it.width, it.height) }
             else -> null
         } ?: return Result.Discard
 
+        // ⚠ 間引く前の画素数で数える。間引き後で数えると絵が勝手に小さくなる。
         val cellsW = header["c"]?.toIntOrNull()
-            ?: estimateCells(bitmap.width.toFloat(), cellWidthPx)
+            ?: estimateCells(decoded.srcWidth.toFloat(), cellWidthPx)
         val cellsH = header["r"]?.toIntOrNull()
-            ?: estimateCells(bitmap.height.toFloat(), lineHeightPx)
+            ?: estimateCells(decoded.srcHeight.toFloat(), lineHeightPx)
 
         return Result.Transmit(
-            bitmap = bitmap,
+            bitmap = decoded.bitmap,
             widthCells = cellsW.coerceAtLeast(1),
             heightCells = cellsH.coerceAtLeast(1),
             imageId = imageId,
@@ -323,8 +325,44 @@ class KittyGraphicsParser {
         }
     }
 
-    private fun decodePng(bytes: ByteArray): Bitmap? =
-        runCatching { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }.getOrNull()
+    /**
+     * 復号した Bitmap と、**間引く前の**画素数 ([srcWidth] / [srcHeight])。
+     *
+     * セル数を出すのは常に間引く前の値。間引きは**記憶量の話**で、絵の大きさの話ではない。
+     */
+    private class Decoded(val bitmap: Bitmap, val srcWidth: Int, val srcHeight: Int)
+
+    /**
+     * PNG / JPEG / WebP / GIF / BMP を復号する ([BitmapFactory] が読める形式すべて)。
+     *
+     * ⚠ **大きすぎるものは間引いて読む** (0.8.495)。スマホのカメラで撮った 12MP の写真は
+     * ARGB_8888 で約 50MB あり、`imageCache` は原画像を持ち続けるので、数枚出しただけで
+     * アプリが落ちる。端末に出るのはたかだか数十セル (数百 px) なので、[MAX_DECODED_PIXELS]
+     * まで落としても見た目は変わらない。`inSampleSize` は 2 の冪でしか効かないため、
+     * 上限を「越えなくなるまで倍々で間引く」形にしてある。
+     *
+     * ⚠ セル数は間引き後の Bitmap ではなく [Decoded.srcWidth] / [Decoded.srcHeight] から出す。
+     * 間引いた値で出すと、`c=`/`r=` を省いた送り手の絵が**勝手に小さくなる**。
+     */
+    private fun decodeImage(bytes: ByteArray): Decoded? = runCatching {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        val srcW = bounds.outWidth
+        val srcH = bounds.outHeight
+        var sample = 1
+        if (srcW > 0 && srcH > 0) {
+            while ((srcW.toLong() / sample) * (srcH.toLong() / sample) > MAX_DECODED_PIXELS) {
+                sample *= 2
+            }
+        }
+        val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+        val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+            ?: return@runCatching null
+        // 寸法だけの読み取りに失敗する形式でも、復号できたなら Bitmap 自身の値を使う。
+        Decoded(bmp, if (srcW > 0) srcW else bmp.width, if (srcH > 0) srcH else bmp.height)
+    }.getOrNull()
+
+    private fun decodePng(bytes: ByteArray): Bitmap? = decodeImage(bytes)?.bitmap
 
     /**
      * `f=24` (RGB, 3 bytes/px) または `f=32` (RGBA, 4 bytes/px) の生バイト列を
@@ -540,5 +578,15 @@ class KittyGraphicsParser {
         private const val MAX_BUFFER_BYTES = 8 * 1024 * 1024
         /** zlib 展開後の上限 (zip-bomb 対策)。 16 MiB を越えるなら拒否。 */
         private const val MAX_INFLATED_BYTES = 16 * 1024 * 1024
+
+        /**
+         * 復号後の Bitmap の画素数の上限 (0.8.495)。 越えるものは `inSampleSize` で
+         * 間引いて読む。 400 万画素 = ARGB_8888 で約 16MB。
+         *
+         * ⚠ **拒否ではなく間引き**にする。 端末に出るのは数十セル (数百 px) なので、
+         * ここまで落としても見た目は変わらない。 一方で拒否すると「写真は出せない」
+         * という別の欠落になる。
+         */
+        private const val MAX_DECODED_PIXELS = 4_000_000L
     }
 }
