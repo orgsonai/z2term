@@ -115,6 +115,28 @@ class KittyGraphicsParserTest {
         assertSame(KittyGraphicsParser.Result.DeleteAll, r)
     }
 
+    /**
+     * ⭐ 回帰: [TerminalEmulator] は APC の開始ごとに [KittyGraphicsParser.beginSequence] を
+     * 呼ぶ。 ここで `reset()` を呼ぶと、`m=1` で続くチャンクは APC を 1 個ずつ分けて
+     * 送られてくるため、蓄積したヘッダと payload が毎回消える。
+     *
+     * 最初のヘッダ (`a=d`) が最終チャンクまで保たれていれば DeleteAll が返る。 消えていれば
+     * action が既定の `T` になり、断片だけの payload で Discard へ落ちる — そこで気付ける。
+     */
+    @Test
+    fun beginSequenceKeepsHeaderAndPayloadAcrossChunks() {
+        val p = KittyGraphicsParser()
+        p.beginSequence()
+        feed(p, "Ga=d,d=A,m=1;AAAA")
+        assertSame(KittyGraphicsParser.Result.Continue, p.finishSequence(12f, 24f))
+        p.beginSequence()
+        feed(p, "Gm=1;BBBB")
+        assertSame(KittyGraphicsParser.Result.Continue, p.finishSequence(12f, 24f))
+        p.beginSequence()
+        feed(p, "Gm=0;CCCC")
+        assertSame(KittyGraphicsParser.Result.DeleteAll, p.finishSequence(12f, 24f))
+    }
+
     @Test
     fun pngPayloadFallsBackToDiscardWhenBitmapCannotBeDecoded() {
         // unit test では BitmapFactory.decodeByteArray が null を返すので Discard へ落ちる。

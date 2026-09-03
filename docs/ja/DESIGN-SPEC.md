@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-03 / 対象バージョン: 0.8.495-alpha (versionCode 503)
+最終更新: 2026-09-03 / 対象バージョン: 0.8.496-alpha (versionCode 504)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1633,6 +1633,8 @@ APC `ESC _ G <key=value,…> ; <base64 payload> ESC \` を `KittyGraphicsParser`
 **`z2-img` — 画像を出すコマンド (0.8.495)**: 端末に絵を出す手段は `KittyGraphicsParser` が既に持っていたのに、**それを使うコマンドが無かった**ため「z2term では画像が見られない」状態だった。⭐ **アプリ側には 1 行も足していない** (`qr.sh` が先に同じ出し方をしている)。`Z2ApiScript.img` は純粋なシェルスクリプトで、(1) ヘッダだけ読んで画素数を測り (PNG=IHDR / JPEG=SOF 走査 / GIF / BMP / WebP の VP8・VP8L・VP8X)、(2) 端末の桁数に収まる `c=`/`r=` を決め、(3) base64 を 4096 バイトずつ `ESC _ G a=T,f=100,…` で流す、だけをする。⚠ **`c=`/`r=` は必ず両方渡す**。省けばエミュレータが実セル寸法から正しく自動算出するが、こちらは「絵の下へ何行送るか」が決められなくなる (カーソルは幅ぶん右へ進むだけで行は動かない仕様)。⚠ 縦横比はセルの実寸を知らないので **1:2 の仮定** (`Z2_IMG_ASPECT`、既定 0.5) で出す。端末に px/セルを問い合わせる手段 (`CSI 16 t`) は実装していない。⚠ **既定では tty にしか書かない** — パイプの先に APC を流すと、受け側には壊れたバイト列としか見えず、画像だった手掛かりが残らない (`-f` で通せる)。⚠ 対応端末かどうかは**外から判別できない** (`ssh` の先が kitty 対応かは分からない) ので、実行時に止めるのではなくヘルプと docs で先に伝える方針にした (`qr.sh` の `-t` と同じ立場)。
 
 **復号時の画素上限 (0.8.495)**: `KittyGraphicsParser.decodeImage` は `inJustDecodeBounds` で寸法だけ先に読み、`MAX_DECODED_PIXELS` (400 万画素) を越えるものは `inSampleSize` で間引いて復号する。スマホのカメラで撮った 12MP の写真は ARGB_8888 で約 50MB あり、`imageCache` は原画像を持ち続けるので、数枚出しただけでアプリが落ちる。⚠ **拒否ではなく間引き**にする — 画面に出るのはたかだか数百 px なので見た目は変わらないが、拒否すると「写真は出せない」という別の欠落になる。⚠ **セル数は間引く前の画素数から出す** (`Decoded.srcWidth` / `srcHeight`)。間引いた値で数えると、`c=`/`r=` を省いて送ってきた相手の絵が勝手に小さくなる。
+
+**チャンク連結が効いていなかった (0.8.496)**: `TerminalEmulator` が APC の開始ごとに `KittyGraphicsParser.reset()` を呼んでいたため、`m=1` で続くチャンクが来るたびに**蓄積した payload とヘッダが消えていた**。チャンクは APC を 1 個ずつ分けて送る形なので、開始のたびに全部消すと最後の断片しか残らない。`a=` も失われて既定の `T` になり、断片は PNG として復号できず `q=2` で静かに捨てられる — つまり **1 個の APC (4096 バイト) に収まらない画像は 1 枚も出なかった**。⚠ `qr.sh` の QR は 1 チャンクに収まるので動いており、そこだけ見て「出せている」と思われていた。⇒ 本文バッファだけを空にする `beginSequence()` を足し、シーケンス開始ではそちらを呼ぶ。`reset()` は蓄積ごと捨てる用途で残す。⚠ **パーサ単体のテストは連結を通っていた** (`reset()` を挟まないため)。壊れていたのは呼び出し側なので、`KittyGraphicsParserTest.beginSequenceKeepsHeaderAndPayloadAcrossChunks` は**エミュレータと同じ順序** (開始ごとに `beginSequence()`) で回帰を固定する。
 
 **外部ファイル転送のセキュリティ (0.8.136)**: 既定 OFF の opt-in (`AppSettings.kittyExternalFileEnabled`、DataStore key `kitty_external_file_enabled`)。ON かつ rootfs 解決可能のときだけ `KittyHostTransferSource` を `TerminalEmulator.setKittyExternalTransfer` に注入する (OFF へ戻せば null で外す動的反映)。多層防御:
 

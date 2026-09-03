@@ -407,6 +407,18 @@ class KittyGraphicsParser {
         }.getOrNull()
     }
 
+    /**
+     * APC 1 個ぶんの本文バッファだけを空にする (シーケンスの開始時に呼ぶ)。
+     *
+     * ⚠ [payload] / [headerKeys] / [inMultiChunk] は**消さない**。 `m=1` で続くチャンクは
+     *   APC を 1 個ずつ分けて送られてくるので、開始のたびに全部消すと連結が毎回振り出しへ
+     *   戻り、最後のチャンクの断片だけが残る (= 1 個の APC に収まらない画像が出ない)。
+     */
+    fun beginSequence() {
+        current.clear()
+    }
+
+    /** 蓄積中のチャンクごと捨てる。 連結を続ける意味が無くなったとき用。 */
     fun reset() {
         current.clear()
         payload.clear()

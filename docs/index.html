@@ -42,7 +42,7 @@
     <div class="logo glitch" role="img" aria-label="Z2TERM"><svg viewBox="0 0 35 5" fill="currentColor" aria-hidden="true"><rect x="0" y="0" width="5" height="1"/><rect x="6" y="0" width="5" height="1"/><rect x="12" y="0" width="5" height="1"/><rect x="18" y="0" width="5" height="1"/><rect x="24" y="0" width="4" height="1"/><rect x="30" y="0" width="1" height="1"/><rect x="34" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/><rect x="10" y="1" width="1" height="1"/><rect x="14" y="1" width="1" height="1"/><rect x="18" y="1" width="1" height="1"/><rect x="24" y="1" width="1" height="1"/><rect x="28" y="1" width="1" height="1"/><rect x="30" y="1" width="2" height="1"/><rect x="33" y="1" width="2" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="6" y="2" width="5" height="1"/><rect x="14" y="2" width="1" height="1"/><rect x="18" y="2" width="4" height="1"/><rect x="24" y="2" width="4" height="1"/><rect x="30" y="2" width="1" height="1"/><rect x="32" y="2" width="1" height="1"/><rect x="34" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="14" y="3" width="1" height="1"/><rect x="18" y="3" width="1" height="1"/><rect x="24" y="3" width="1" height="1"/><rect x="27" y="3" width="1" height="1"/><rect x="30" y="3" width="1" height="1"/><rect x="34" y="3" width="1" height="1"/><rect x="0" y="4" width="5" height="1"/><rect x="6" y="4" width="5" height="1"/><rect x="14" y="4" width="1" height="1"/><rect x="18" y="4" width="5" height="1"/><rect x="24" y="4" width="1" height="1"/><rect x="28" y="4" width="1" height="1"/><rect x="30" y="4" width="1" height="1"/><rect x="34" y="4" width="1" height="1"/></svg></div>
 
     <div class="chips">
-      <span><b>0.8.495-alpha</b></span>
+      <span><b>0.8.496-alpha</b></span>
       <span>GPL-3.0</span>
       <span>Android 10+</span>
       <span>~21 MB</span>
@@ -68,7 +68,7 @@
 <span class="t-out">(1/2) Installing pcre2 (10.43-r0)</span>
 <span class="t-ok">OK: 42 MiB in 61 packages</span>
 <span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2version</span>
-<span class="t-ok">z2term 0.8.495-alpha (503)</span>
+<span class="t-ok">z2term 0.8.496-alpha (504)</span>
 <span class="t-out">engine : z2root</span>
 <span class="t-c"># no root, no PC, no setup script</span>
 <span class="t-prompt">~</span> <span class="t-path">$</span> <span class="caret"></span></div>
@@ -256,7 +256,7 @@
 
   <!-- ===================== SCREENSHOTS ===================== -->
   <section id="shots">
-    <p class="cmdline" data-cmd="ls screenshots/"><span class="u">~</span> <span class="p">$</span> <span class="typed">ls screenshots/</span></p>
+    <p class="cmdline" data-cmd="z2-img screenshots/*.png"><span class="u">~</span> <span class="p">$</span> <span class="typed">z2-img screenshots/*.png</span></p>
     <h2>On a real phone</h2>
     <p class="sub">Screenshots, drawn into the page the way a terminal would draw them.</p>
 
@@ -267,7 +267,7 @@
         <span class="meta">png</span>
       </div>
       <div class="win-tabs"></div>
-      <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">ls -1 screenshots/</span>
+      <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">z2-img screenshots/*.png</span>
 <noscript><div class="term-imgs"><figure class="term-img drawn"><img src="images/shot-terminal.png" alt="A shell running in z2term with the custom on-screen keyboard"><figcaption>shell + custom keyboard</figcaption></figure><figure class="term-img drawn"><img src="images/shot-gui.png" alt="A Linux desktop application running on Xvnc inside a z2term tab"><figcaption>a desktop app in a GUI tab</figcaption></figure></div></noscript>
 <span class="t-prompt">~</span> <span class="t-path">$</span> <span class="caret"></span></div>
     </div>
@@ -342,7 +342,7 @@
         <span class="title">releases — github.com/orgsonai/z2term</span>
       </div>
       <div class="win-body"><span class="t-prompt">~</span> <span class="t-path">$</span> <span class="t-cmd">ls -lh releases/latest/</span>
-<span class="t-out">-rw-r--r--  1 you  you   21M  </span><span class="t-ok">z2term-0.8.495-alpha.apk</span>
+<span class="t-out">-rw-r--r--  1 you  you   21M  </span><span class="t-ok">z2term-0.8.496-alpha.apk</span>
 <span class="t-c"># tap it on the device → allow "install from unknown sources"</span>
 <span class="t-c"># updating over the top keeps your data</span></div>
     </div>
@@ -401,7 +401,7 @@
     {"t":"out","x":"(4/4) Installing ripgrep (14.1.1-r0)"},
     {"t":"out","x":"OK: 42 MiB in 61 packages","cls":"t-ok"},
     {"t":"cmd","x":"z2version"},
-    {"t":"out","x":"z2term 0.8.495-alpha (503)","cls":"t-ok"},
+    {"t":"out","x":"z2term 0.8.496-alpha (504)","cls":"t-ok"},
     {"t":"out","x":"engine : z2root"},
     {"t":"out","x":"os     : Alpine Linux v3.20"},
     {"t":"out","x":"# no root, no PC, no setup script","cls":"t-c"}
@@ -431,7 +431,7 @@
     {"t":"cmd","x":"z2doctor"},
     {"t":"out","x":"== z2doctor (this device) =="},
     {"t":"out","x":"-- app --"},
-    {"t":"out","x":"    version: 0.8.495-alpha"},
+    {"t":"out","x":"    version: 0.8.496-alpha"},
     {"t":"out","x":"    engine: z2root"},
     {"t":"out","x":"-- permissions --"},
     {"t":"out","x":"OK  notifications","cls":"t-ok"},
@@ -505,6 +505,7 @@
     {"t":"cmd","x":"ls -1 screenshots/"},
     {"t":"out","x":"shot-terminal.png"},
     {"t":"out","x":"shot-gui.png"},
+    {"t":"cmd","x":"z2-img screenshots/*.png"},
     {"t":"img","items":[
       {"src":"images/shot-terminal.png","alt":"A shell running in z2term with the custom on-screen keyboard","cap":"shell + custom keyboard"},
       {"src":"images/shot-gui.png","alt":"A Linux desktop application running on Xvnc inside a z2term tab","cap":"a desktop app in a GUI tab"}

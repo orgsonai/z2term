@@ -483,7 +483,9 @@ class TerminalEmulator(
                 state = State.STRING
                 stringEscSeen = false
                 stringIsKittyApc = (c == '_')
-                if (stringIsKittyApc) kittyParser.reset()
+                // ⚠ reset() ではない。 チャンク (`m=1`) は APC を 1 個ずつ分けて送られて
+                //   くるので、開始のたびに蓄積ごと消すと連結が壊れる。 消すのは本文だけ。
+                if (stringIsKittyApc) kittyParser.beginSequence()
             }
             '\\' -> {
                 // 単独 ST (孤立した ESC \)。STRING 状態外なので無視。
