@@ -3,9 +3,13 @@ package com.zerotoship.z2term.gui
 import android.content.Context
 import android.util.Log
 import com.zerotoship.z2term.proot.ProotLauncher
+import com.zerotoship.z2term.pty.PtyProcess
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
+import java.io.ByteArrayOutputStream
 
 /**
  * GUI で起こせるアプリ 1 件（distro 側の `.desktop` 由来）。
@@ -46,16 +50,14 @@ object GuiAppCatalog {
      */
     private const val TIMEOUT_MS = 20_000L
 
-    /** 一覧を取る。取れなければ空を返す（例外は投げない: ☰ を押しただけで落ちないように）。 */
-    suspend fun load(context: Context, distroId: String): List<GuiApp> =
-        withContext(Dispatchers.IO) {
-            withTimeoutOrNull(TIMEOUT_MS) { read(context, distroId) } ?: run {
-                Log.w(TAG, "z2menu list が ${TIMEOUT_MS}ms で返らなかった")
-                emptyList()
-            }
-        }
+    /**
+     * 読み取りの上限。`.desktop` 数百件でも数十 KB にしかならないので、これを超えるのは
+     * z2menu 以外の何かが喋り続けているとき。⚠ 上限が無いと、そのときアプリのメモリを食い潰す。
+     */
+    private const val MAX_BYTES = 1 shl 20
 
-    private fun read(context: Context, distroId: String): List<GuiApp> {
+    /** 一覧を取る。取れなければ空を返す（例外は投げない: ☰ を押しただけで落ちないように）。 */
+    suspend fun load(context: Context, distroId: String): List<GuiApp> = coroutineScope {
         val p = runCatching {
             ProotLauncher(context).launch(
                 distroId = distroId,
@@ -65,18 +67,47 @@ object GuiAppCatalog {
         }.getOrElse {
             // rootfs 未展開・z2menu 未配置。どちらも「まだ使えない」だけなので空で返す。
             Log.w(TAG, "z2menu を起こせなかった", it)
-            return emptyList()
+            return@coroutineScope emptyList()
         }
-        val raw = try {
-            // z2menu が終われば proot も終わり PTY が閉じる = EOF。
-            p.reader.readBytes().toString(Charsets.UTF_8)
-        } catch (e: Exception) {
-            Log.w(TAG, "z2menu の出力を読めなかった", e)
-            ""
-        } finally {
+        // ⛔ **打ち切りを `withTimeoutOrNull` で書かないこと。** 中身は PTY からの
+        // **ブロッキング read** で、キャンセルを一切見ない。時間が来ても read が返るまで
+        // 何も起きず、「20 秒で打ち切る」は効かない。fd を閉じれば read は必ず失敗して返るので、
+        // 打ち切りは PTY を閉じることで行う。
+        val watchdog = launch(Dispatchers.Default) {
+            delay(TIMEOUT_MS)
+            Log.w(TAG, "z2menu list が ${TIMEOUT_MS}ms で返らなかった")
             runCatching { p.close() }
         }
-        return parse(raw)
+        val raw = withContext(Dispatchers.IO) { drain(p) }
+        watchdog.cancel()
+        runCatching { p.close() }
+        parse(raw)
+    }
+
+    /**
+     * PTY の出力を最後まで読む。
+     *
+     * ⛔ **`readBytes()` で一気に読んではいけない。** PTY は**ゲスト側が終わると master の
+     * read が `EIO` で落ちる**（EOF が戻り値ではなく例外として出る）。`readBytes()` はその例外を
+     * そのまま投げるので、**それまでに読めていた TSV ごと捨てられ、一覧は必ず空になる**
+     * （0.8.499〜0.8.501 で「☰ に何も出ない」となっていた原因）。読めた分を貯めながら進み、
+     * 例外は正常終了として扱う（PTY を読む他の場所 — `GuiSession.drainPty` /
+     * `HeadlessRun` — と同じ形）。
+     */
+    private fun drain(p: PtyProcess): String {
+        val out = ByteArrayOutputStream()
+        val buf = ByteArray(4096)
+        try {
+            while (out.size() < MAX_BYTES) {
+                val n = p.reader.read(buf)
+                if (n < 0) break
+                out.write(buf, 0, n)
+            }
+        } catch (e: Exception) {
+            // z2menu が終わって PTY が閉じた = 正常終了。ここまでに読めた分をそのまま使う。
+            Log.d(TAG, "z2menu の PTY が閉じた (${out.size()} bytes)", e)
+        }
+        return String(out.toByteArray(), Charsets.UTF_8)
     }
 
     /**

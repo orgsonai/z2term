@@ -170,15 +170,25 @@ fun z2menuScript(lang: String = "ja"): String {
         |}
         |
         |# TSV から「実体が PATH に無いもの」と「端末が要るのに端末が無いもの」を落として名前順に並べる。
+        |#
+        |# ⛔ **read の IFS に TAB を渡して列へ割らないこと。** TAB は IFS の「空白」なので
+        |#    **連続した TAB が 1 つに畳まれる**。Comment= の無い .desktop (かなり多い) で列が
+        |#    1 つずつ手前へずれ、説明の欄に端末フラグの "0" が出る。行はそのまま持ち、
+        |#    判定に要る 2 列だけを前から剥がして取る。
         |list_apps() {
         |  TB=${d}(term_bin)
-        |  scan_desktop | while IFS="${d}TAB" read -r name cmd comment term catg; do
+        |  scan_desktop | while IFS= read -r line; do
+        |    rest=${d}{line#*"${d}TAB"}   # 名前を落とす
+        |    cmd=${d}{rest%%"${d}TAB"*}   # コマンド
         |    [ -n "${d}cmd" ] || continue
+        |    rest=${d}{rest#*"${d}TAB"}   # 説明へ
+        |    rest=${d}{rest#*"${d}TAB"}   # 端末フラグへ
+        |    term=${d}{rest%%"${d}TAB"*}
         |    if [ "${d}term" = "1" ] && [ -z "${d}TB" ]; then continue; fi
         |    # Exec の先頭語が実体。`env A=B app` のような形もそのまま command -v で見る。
         |    bin=${d}{cmd%% *}
         |    command -v "${d}bin" >/dev/null 2>&1 || continue
-        |    printf '%s\t%s\t%s\t%s\t%s\n' "${d}name" "${d}cmd" "${d}comment" "${d}term" "${d}catg"
+        |    printf '%s\n' "${d}line"
         |  done | sort -f
         |}
         |

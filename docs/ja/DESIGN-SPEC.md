@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-04 / 対象バージョン: 0.8.501-alpha (versionCode 509)
+最終更新: 2026-09-05 / 対象バージョン: 0.8.502-alpha (versionCode 510)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1194,6 +1194,7 @@ ptrace 越しに数千 syscall になるうえ、常駐中は WakeLock/WifiLock 
     - `PosixTimeZoneTest` が、生成した文字列の**形**と、それが**指すオフセット**の両方を、夏と冬の
       両方で本物のゾーンと突き合わせる。
 - **共有ホーム**: `filesDir/shared_home` を全 distro 共通で `/root` にバインド (← 端末の `~` の実体)。
+- **シェル設定は OS 側を尊重する (0.8.502)**: アプリ独自の「ログインシェル」と「シェルのプロンプト」を廃止。端末タブと GUI 内ターミナルは rootfs の `/etc/passwd` にある root のシェルを使い、アプリは `/etc/passwd` / `/etc/shells` を書き換えない。プロンプトも `~/.ashrc` / `~/.bashrc` / `~/.zshrc` などで自由に管理する。旧版が rc へ書いた z2term ブロックは、既存環境を勝手に変えないため自動削除しない。
 - **POSIX 共有メモリ `/dev/shm` の提供 (0.8.177)**: Android の `/dev` には `shm` が無く、`-b /dev` でホストの `/dev` を見せるだけでは `/dev/shm` が存在しない。ゲスト側から `mkdir /dev/shm` しても実体はホストの `/dev` なので SELinux に阻まれて `EACCES` になり、自力では作れない。この状態だと `shm_open()` が **ENOENT** で失敗し、**共有メモリを前提に組まれた GUI アプリが起動時に自ら異常終了する**。典型は Gecko 系で、`MOZ_RELEASE_ASSERT(mHandle.IsValid() && mMapping.IsValid())` に到達して `MOZ_CRASH()` で落ちるため、端末には理由の出ない `segmentation fault` だけが残る (`--version` や `-h` は共有メモリを使わないので成功してしまい、ローダやライブラリの問題と誤診しやすい)。対策として **`<rootfs>/dev/shm` を実体に持つ bind を `-b /dev` の後ろに重ねる**。z2root の bind 解決は最長一致なので (`translate_abs`)、`/dev/shm` (8 文字) が `/dev` (4 文字) に優先して選ばれ、`/dev` 配下の他のデバイスノードはホストのまま維持される。proot も bind は純粋なパス変換なので同じ引数で効く。実体を rootfs 配下の `dev/shm` に置いたのは、Kitty graphics の shm 転送 (`KittyHostTransferSource`) が shm 名を `<rootfs>/dev/shm/<name>` に rebase する既存仕様と**同じ場所を指させる**ため (別名にすると両者が別の場所を見て転送が空振りする)。chroot 経路 (裏機能・要 root) は実マウントなので、`$RFS/dev/shm` に tmpfs を直接被せ、umount 掃除リストにも `dev` より**前**に入れる (入れ子なので先に剥がす必要がある)。
 - **`/etc/machine-id` の生成 (`ensureMachineId`, 0.8.177)**: ディストロの rootfs には**空の** `/etc/machine-id` が入っていることがあり (0 バイト・`0400`)、その状態では dbus が "Invalid machine ID" でセッションバスを起動できない。D-Bus を要求する GUI アプリ (アクセシビリティバス経由のものを含む) が警告や機能欠落を起こすため、起動毎に冪等で確認し、**空またはファイルが無いときだけ** systemd と同じ形式 (ハイフン無し 32 桁 hex) を書き込む。中身があるときは触らない (端末を跨いで ID が変わらないようにする)。書き込み前に `setWritable` で権限を戻す (rootfs 側が `0400` で置かれていることがあるため)。
 - **端末タブ経路の `XDG_RUNTIME_DIR` (0.8.177)**: GUI タブ配下は `z2gui` が export していたが、**端末タブから直接 GUI アプリを起動する経路には無かった**。未設定だと Qt/GTK が警告を出し、D-Bus の socket 置き場も決まらない。`display != null && exportDisplay`(端末から `:N` へ相乗り) では GUI と同じ `/tmp/z2gui-xdg-<N>` を、`display == null`(端末/SSH 単独) では `/tmp/z2-xdg` を渡す。**z2gui 経由 (`exportDisplay=false`) では敢えて渡さない**: `start_audio` 等が `${XDG_RUNTIME_DIR:-/tmp/z2gui-xdg-$DISPLAY_NUM}` と**継承値を優先**するため、ここで一律に入れると全ディスプレイが同じディレクトリに集約され、`:N` 毎の PulseAudio 分離が壊れる。
@@ -1948,7 +1949,9 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - ⭐ **☰ アプリ一覧（0.8.499）— GUI の中にアプリを起こす「常設の入口」**: 右クリックメニューが戻っても、それは**押し方を知らないと出ない入口**でしかない（デスクトップの何もないところを長押し）。利用者の要望は **Windows のスタートボタンにあたる常設のボタン**だったので、GUI タブのツールバーに `ToolbarButtons.APPS`（☰・`guiOnly = true`）を足し、`ui/gui/GuiAppsSheet.kt` のシートに一覧を出す。行をタップすると `GuiSession.launchApp` が `z2run` 経由で起こす。
   - ⭐ **一覧の中身は `z2menu list` が返す TSV をそのまま使う**（`gui/GuiAppCatalog.kt`）。⛔ **`.desktop` のパースを Kotlin 側で書き直さないこと。** 何を出すか（`Type` / `NoDisplay` / `Hidden` / `TryExec` / `Exec` の実体が PATH に在るか / フィールドコードの除去）は z2menu が決めており、**同じ規則を 2 か所に持つと必ず片方だけ直されて食い違う**（右クリックメニューと ☰ で並ぶものが違う、という形で出る）。
   - ⚠ **PTY 越しに読むので改行は CRLF**（termios の `ONLCR`）。`\r` を落としてから TAB で割る。列が足りない行は捨てる（proot が何か 1 行出しても一覧が壊れないように）。
-  - ⚠ **`z2menu list` を無期限に待たない**（20 秒で打ち切る）。返らないと ☰ を押しただけでシートが永久に「読み込み中」になる。数十個の `.desktop` を読むだけなので、実測では 1 秒に満たない。
+  - ⚠ **`z2menu list` を無期限に待たない**（20 秒で打ち切る）。返らないと ☰ を押しただけでシートが永久に「読み込み中」になる。数十個の `.desktop` を読むだけなので、実測では 1 秒に満たない。⛔ **打ち切りを `withTimeoutOrNull` で書かないこと（0.8.502 で修正）。** 中身は PTY からの**ブロッキング read** でキャンセルを一切見ないので、時間が来ても read が返るまで何も起きない（20 秒の打ち切りは効いていなかった）。**PTY を閉じれば read は必ず失敗して返る**ので、打ち切りは別コルーチンの見張り役が `close()` することで行う。
+  - ⭐⭐ **☰ に 1 件も出なかった原因は `readBytes()`（0.8.499〜0.8.501 → 0.8.502 で修正）。** PTY は**ゲスト側が終わると master の read が `EIO` で落ちる** — EOF が戻り値ではなく**例外**として出る。`InputStream.readBytes()` はその例外をそのまま投げるので、**それまでに読めていた TSV ごと捨てられ、一覧は必ず空になる**。端末から `z2menu list` を叩けば 20 行返るのにアプリ側だけ空、という形で出た。⛔ **PTY を `readBytes()` で一気に読まないこと。** 読めた分を貯めながら進み、例外は正常終了として扱う（`GuiSession.drainPty` / `HeadlessRun` と同じ形）。
+  - ⚠ **`read` の `IFS` に TAB を渡して列へ割らないこと（0.8.502 で修正）。** TAB は **IFS の「空白」**なので**連続した TAB が 1 つに畳まれる**。`Comment=` の無い `.desktop`（かなり多い）で列が 1 つずつ手前へずれ、説明の欄に端末フラグの `0` が出て分類が空になっていた。`z2menu` の `list_apps` は**行をそのまま持ち**、判定に要る 2 列（コマンド・端末フラグ）だけを前から剥がして取る。
   - ⚠ **開くたびに取り直す。** パッケージを入れた直後に出ないと「入れたのに一覧に無い」で詰まる。
   - ⛔ **起こしたアプリの PTY を閉じないこと。** proot は `--kill-on-exit` なので、ルートの PTY を閉じると**配下の GUI アプリごと殺される**（`setsid` しても proot の管理下からは逃げられない）。`GuiSession` が `appPtys` に持ち続け、タブを閉じる (`stop`) ときにまとめて閉じる。
   - ⚠ **`Exec` は語で割らずシェルに渡す**（`sh -c "exec z2run <Exec>"`）。`.desktop` の `Exec` は引用符を含むことがあり、空白で割ると壊れる。openbox の `<execute>` も同じくシェルに渡している。
@@ -2927,7 +2930,6 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
 | ディストロ | distroId | "alpine" | alpine / ubuntu / archlinux / kali |
 | 曖昧幅を全角 | ambiguousAsWide | false | true/false |
 | 初期コマンド | initCommand | "" | 任意 |
-| ログインシェル | loginShell | "/bin/bash" (0.8.400。同梱の OS に zsh が無いため。それ以前は "/bin/zsh") | /bin/zsh, /bin/bash, /bin/sh |
 | キーボードスタイル | keyboardStyleId | "spacious" | compact / spacious |
 | キーボードモード | keyboardMode | "custom" | custom / system |
 | 横画面キーボード位置 | landscapeKeyboardPosition | "bottom" | left / bottom / right |
