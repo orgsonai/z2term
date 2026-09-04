@@ -1,9 +1,26 @@
-// z2usb — Android USB Host API の fd を透過的に受け取る LD_PRELOAD シム (GPL-3.0)。
+// z2usb — open/openat を預かる LD_PRELOAD シム (GPL-3.0)。
 //
-// Android のアプリ UID は /dev/bus/usb/... を直接 open できない。利用者がシステムの
-// USB 許可画面で許可すると、アプリは同じ usbfs fd を UsbManager.openDevice() から得られる。
-// このシムは open/openat の対象が usbfs ノードのときだけアプリ内ブローカーへ要求し、
-// SCM_RIGHTS で届いた fd を呼び出し元へ返す。それ以外の open は raw openat syscall へ流す。
+// ⚠ **名前は USB 由来だが、いまは open 系の用件を 2 つ持っている。**
+//    LD_PRELOAD のシンボル解決は先に見つけた 1 つが勝つので、open/openat を横取りする
+//    .so を 2 枚重ねると **後ろの 1 枚は丸ごと死ぬ**。open 系に用がある処理は、
+//    別のシムを足すのではなく **必ずここへ足すこと**。
+//
+// (1) USB (0.8.4xx): Android のアプリ UID は /dev/bus/usb/... を直接 open できない。利用者が
+//     システムの USB 許可画面で許可すると、アプリは同じ usbfs fd を UsbManager.openDevice()
+//     から得られる。対象が usbfs ノードのときだけアプリ内ブローカーへ要求し、SCM_RIGHTS で
+//     届いた fd を呼び出し元へ返す。
+//
+// (2) O_TMPFILE (0.8.500): **O_TMPFILE での open を必ず失敗させる**。Android のアプリ
+//     プロセスは capability を 1 つも持たない (CapEff=0) ため、O_TMPFILE で作った名前無し
+//     ファイルに linkat("/proc/self/fd/N", …, AT_SYMLINK_FOLLOW) で名前を付ける手が
+//     **必ず ENOENT で失敗する** (AT_EMPTY_PATH を使う形も EACCES)。Qt はこの手順で
+//     QSaveFile / QTemporaryFile を実装しているので、**設定もキャッシュもアプリ台帳も
+//     一切保存できない** (書き込みが「成功」を返しながらファイルが 1 つも残らない)。
+//     ⭐ open の時点で断れば、Qt は名前付きの一時ファイル方式へフォールバックして正常に書ける。
+//     実測: O_TMPFILE を受け付けない場所 (/sdcard) を HOME にすると、kwriteconfig6 が
+//     設定を書き、kbuildsycoca6 が 300KB のアプリ台帳を作った。
+//
+// それ以外の open は raw openat syscall へ流す。
 //
 // musl/glibc のどちらへもロードするため libc 非依存 (-nostdlib)。getenv と errno の置き場だけ
 // 実行先 libc の weak symbol を使い、socket/connect/write/recvmsg/openat/close/fcntl は生 syscall。
@@ -17,6 +34,12 @@
 
 extern int *__errno_location(void) __attribute__((weak));
 extern char *getenv(const char *) __attribute__((weak));
+
+// O_TMPFILE を断るときの errno。⚠ **EOPNOTSUPP (95) 以外にしないこと。** これは
+// 「このファイルシステムは O_TMPFILE を持たない」の意味で、Qt / glibc はこれを見て
+// 名前付きの一時ファイルへ落ちる。EPERM や EACCES にすると「書く権限が無い」と解釈され、
+// フォールバックせずそのまま失敗する実装がある。
+enum { Z2_EOPNOTSUPP = 95 };
 
 enum {
     Z2_NR_FCNTL = 25,
@@ -175,6 +198,13 @@ static int z2_usb_open(const char *path, int flags) {
 }
 
 static int z2_openat_impl(int dirfd, const char *path, int flags, unsigned int mode) {
+    // (2) O_TMPFILE は必ず断る。理由はファイル冒頭。⚠ **フラグから O_TMPFILE を落として
+    //     普通の open に化かしてはいけない** — 渡されているのはディレクトリなので EISDIR で
+    //     失敗し、呼び出し側からは「一時ファイルが作れない」ではなく「変な失敗」に見える。
+    if ((flags & O_TMPFILE) == O_TMPFILE) {
+        if (__errno_location) *__errno_location() = Z2_EOPNOTSUPP;
+        return -1;
+    }
     if (z2_usb_path(path)) return z2_usb_open(path, flags);
     return z2_result(z2_syscall6(Z2_NR_OPENAT, dirfd, (long)path, flags, mode, 0, 0));
 }

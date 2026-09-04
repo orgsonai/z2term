@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-04 / 対象バージョン: 0.8.499-alpha (versionCode 507)
+最終更新: 2026-09-04 / 対象バージョン: 0.8.500-alpha (versionCode 508)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1955,10 +1955,15 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - `Terminal=true` のアプリには**設定で選んだ GUI 内ターミナル**を被せる。⚠ 右クリックメニュー側は z2term の設定を知らないので入っている端末を自分で探す。出てくる端末が違うことはあるが、どちらも「その環境に在る端末」なので実害は無い。
   - ⭐ **却下した案: GUI の中にパネルを立てる（lxpanel 等）。** 見た目は本物のデスクトップになるが、**PC 用の寸法のパネルがスマホの画面に出るのでボタンが指より小さい**。加えて GTK 依存で数十 MB のパッケージ追加と、distro ごとの設定ファイルを z2term が抱えることになる。ネイティブのシートなら追加パッケージ 0 でどの distro でも同じように出て、指で押せる大きさになり、ツールバーの並べ替え・非表示の仕組みにもそのまま乗る。
   - ⚠ **窓の一覧はシートに入れていない。** X の窓一覧（`_NET_CLIENT_LIST`）を読むには `wmctrl` / `xdotool` が要るが、**どの distro でも導入対象に入っていない**。依存を増やす代わりに、openbox 内蔵の `client-list-menu`（デスクトップ長押し →「窓」）に任せ、シートの末尾でその場所を案内する。
-- ⚠ **Qt6 製のアプリは、この環境では設定ファイルを保存できない（0.8.498 で切り分け・未修正）**。Qt の `QSaveFile` / `QTemporaryFile` は Linux では `O_TMPFILE` で名前の無いファイルを作り、`linkat(AT_FDCWD, "/proc/self/fd/<fd>", …, AT_SYMLINK_FOLLOW)` で最後に名前を付ける。⛔ **Android のアプリプロセスは capability を 1 つも持たない**（`/proc/self/status` の `CapEff = 0`）ため、この `linkat` が `ENOENT` で必ず失敗する（`AT_EMPTY_PATH` を使う形も `EACCES`）。設定・キャッシュ・アプリ台帳のどれも書けず、**「何で開くか」を KDE 系の台帳から引くファイル管理系ではダブルタップが無反応になる**。
-  - 実測（実機・Qt 6.11.2）: `kwriteconfig6` は**終了コード 0 を返しながらファイルを 1 つも作らない**。`kbuildsycoca6` も同じく無言で終わり、キャッシュが 1 つも残らない。⚠ **`O_TMPFILE` で開くところまでは成功する**ので、「書き込み権限が無い」ようには見えない（同じディレクトリに `touch` も `rename` も通る）。
-  - ⚠ **GLib 系は影響を受けない。** `update-desktop-database` は正常に `mimeinfo.cache` を作る。同じ症状が出たら、まず**どちらの系統のアプリか**で切り分ける。
-  - 次の一手は `LD_PRELOAD` シム（`z2accept` と同じ、libc 非依存の生 syscall で書く作り）で `openat` の `O_TMPFILE` を落とし、Qt に名前付きの一時ファイル方式を採らせること。⚠ **フォールバックが実際に効くかは未検証**なので、シムを作る前に小さな再現プログラムで確かめること。
+- ⭐⭐ **Qt6 製のアプリが設定を 1 バイトも保存できなかった件（0.8.498 で切り分け → 0.8.500 で解決）**。Qt の `QSaveFile` / `QTemporaryFile` は Linux では `O_TMPFILE` で名前の無いファイルを作り、`linkat(AT_FDCWD, "/proc/self/fd/<fd>", …, AT_SYMLINK_FOLLOW)` で最後に名前を付ける。⛔ **Android のアプリプロセスは capability を 1 つも持たない**（`/proc/self/status` の `CapEff = 0`）ため、この `linkat` が `ENOENT` で必ず失敗する（`AT_EMPTY_PATH` を使う形も `EACCES`）。設定・キャッシュ・アプリ台帳のどれも書けず、**「何で開くか」を KDE 系の台帳から引くファイル管理系ではダブルタップが無反応になっていた**。
+  - ⚠ **`O_TMPFILE` で開くところまでは成功する**ので、症状は「書き込み権限が無い」ようには見えない（同じディレクトリへ `touch` も `rename` も通り、ディスクも 41 GB 空いている）。実測（Qt 6.11.2）では `kwriteconfig6` が**終了コード 0 を返しながらファイルを 1 つも作らず**、`kbuildsycoca6` も無言で終わってキャッシュを 1 つも残さなかった。Qt が出すのは「Disk full?」「No such file or directory」「`QLocalServer::listen: Name error`」で、**どれも真の原因を指していない**。
+  - ⭐ **直し方（0.8.500）: `LD_PRELOAD` シムで `O_TMPFILE` の `open` を断る。** Qt は `O_TMPFILE` が使えなければ**名前付きの一時ファイル方式へフォールバックする**ので、それだけで全部書けるようになる。⚠ **この前提は先に実測で確かめた** — `O_TMPFILE` を受け付けない場所（`/sdcard` は `EOPNOTSUPP`）を `HOME` にすると、シム無しでも `kwriteconfig6` が設定を書き `kbuildsycoca6` が 300KB の台帳を作った。**シムを書く前にここを確認すること**（フォールバックが無ければシムを入れても直らない）。
+  - ⛔ **新しい `.so` を足さず、`z2usb.c` に入れた。** `LD_PRELOAD` のシンボル解決は**先に見つけた 1 つが勝つ**ので、`open`/`openat` を横取りする `.so` を 2 枚重ねると**後ろの 1 枚は丸ごと死ぬ**（`libz2usb.so` が既に `open` 系を全部フックしている）。⭐ **open 系に用がある処理は、別のシムを足さず必ずここへ足すこと。** ファイル名は USB 由来だが、役割は「open/openat を預かるシム」に広がっている（冒頭のコメントに明記した）。
+  - ⚠ **返す errno は `EOPNOTSUPP`(95) 以外にしないこと。** これは「このファイルシステムは `O_TMPFILE` を持たない」の意味で、Qt / glibc はこれを見てフォールバックする。`EPERM` / `EACCES` にすると「書く権限が無い」と解釈され、**フォールバックせずそのまま失敗する**実装がある。
+  - ⚠ **フラグから `O_TMPFILE` を落として普通の `open` に化かしてはいけない。** 渡されているのはディレクトリなので `EISDIR` になり、呼び出し側からは「一時ファイルが作れない」ではなく「変な失敗」に見える。
+  - **実測（実機・シム有効）**: これまで 1 バイトも書けなかった `dolphinrc`(113B) / `user-places.xbel`(2467B) / `dolphinstaterc`(544B) がすべて作られ、アプリ台帳も 305KB 生成された。⭐ **起動時のエラーログが 40 行以上から 0 行になった。**
+  - ⚠ **効くのは z2root エンジンだけ**（`LD_PRELOAD` を積むのが `ProotLauncher` の z2root 専用 env のため）。PRoot エンジンは syscall を自前で横取りするので事情が異なる（未検証）。
+  - ⚠ **GLib 系は元から影響を受けていない**（`update-desktop-database` は正常に `mimeinfo.cache` を作っていた）。同じ症状を見たら、まず**どちらの系統のアプリか**で切り分ける。
 - ⚠ **導入の途中で別のタブへ移っても、戻ってきたときに起動をやり直さない（0.8.341・実機報告）**。「GUI のインストール中に別のタブへ移ると導入が消える」の正体は、**画面が捨てられて起動判断からやり直していた**こと。端末タブへ移ると `TerminalScreen` は `activeSession is GuiSession` の分岐で早期 return するので **`GuiTabScreen` は composition ごと消える**（`guiAreaPx` も `pendingGuiStart` も `remember(gui.id)`）。戻ると `LaunchedEffect(gui.id)` が最初から走り直し、まだ導入中＝パッケージ未導入なので**「GUI を入れますか」の確認ダイアログが再び出る**。しかもその「やめる」は `SessionManager.close(gui.id)` ＝ タブを閉じる → `GuiSession.stop()` → `z2gui stop` なので、**走っていた導入が本当に殺される**。⚠ **導入そのものはタブの表示に依存していない**（`GuiSession` の `SupervisorJob + Dispatchers.IO` で回り、`stop()` を呼ぶのはタブ ✕ と `GuiActivity.onDestroy` だけ）ので、**前面通知で常駐させる必要は無い**。直すのは判断する側で、`GuiSession.state` が `STARTING` / `CONNECTING` / `CONNECTED` のときは `LaunchedEffect` が何もしない（= `GuiSession.start()` が早期 return するのと同じ 3 状態）。`ERROR` / `STOPPED` から戻ったときに入れ直せるのは今までどおり。進捗（`z2gui` の最新出力）は `GuiSession.message` に載っていて `GuiScreen` が購読しているので、**ダイアログが被らなくなれば戻った時点の続きがそのまま見える**。
   - ⚠ **`GuiTabScreen` はタブを離れるたびに捨てられる前提で書くこと**。`remember(gui.id)` / `LaunchedEffect(gui.id)` は戻るたびに作り直される。**セッションが持っている状態を見ずに副作用を起こすと、走っているものをやり直させる**。
 - ⚠ **GUI 内ターミナルは「入っているのに窓が出ない」形で壊れうる**（0.8.343）。`ensure_pkgs` は **`has $GUI_TERM_BIN`（バイナリの有無）**で導入を判定するので、**入っているが起動に失敗する**ものはここをすり抜け、`z2gui` は最後まで進んで GUI だけが立つ。利用者からは「デスクトップは出るのに端末が無い」としか見えない。

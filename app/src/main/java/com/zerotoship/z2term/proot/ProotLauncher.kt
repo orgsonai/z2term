@@ -137,11 +137,21 @@ class ProotLauncher(private val context: Context) {
         }
     }
 
-    /** USB fd シムを rootfs へ配置する。USB 機器の有無にかかわらず同じ環境を作る。 */
+    /**
+     * `open`/`openat` を預かるシム ([z2usbShimGuestPath]) を rootfs へ配置する。
+     * USB 機器の有無にかかわらず同じ環境を作る。
+     *
+     * ⚠ **名前は USB 由来だが、いまは 2 つの用件を持っている**（`cpp/z2usb/z2usb.c` の冒頭）:
+     * (1) usbfs の fd をアプリ内ブローカーから受け取る、(2) `O_TMPFILE` の open を断って
+     * Qt に名前付き一時ファイルを使わせる（0.8.500。capability ゼロの環境では `linkat` が
+     * 必ず失敗し、KDE/Qt 系が設定もキャッシュも 1 バイトも保存できないため）。
+     * ⭐ **`open` 系に用がある処理は、別のシムを足さず必ずここへ足すこと** —
+     * `LD_PRELOAD` は先に見つけたシンボル 1 つが勝つので、2 枚重ねると後ろが丸ごと死ぬ。
+     */
     private fun ensureUsbShim(rootfs: File) {
         val src = z2usbShim
         if (!src.exists()) {
-            Log.w(TAG, "libz2usb.so not in nativeLibraryDir — USB forwarding unavailable")
+            Log.w(TAG, "libz2usb.so not in nativeLibraryDir — USB forwarding and the O_TMPFILE workaround are unavailable")
             return
         }
         val dst = File(rootfs, z2usbShimGuestPath.trimStart('/'))
@@ -190,7 +200,12 @@ class ProotLauncher(private val context: Context) {
         }
     }
 
-    /** z2root エンジン専用 env: 互換シムを LD_PRELOAD し、USB broker の入口を渡す。 */
+    /**
+     * z2root エンジン専用 env: 互換シムを `LD_PRELOAD` し、USB broker の入口を渡す。
+     *
+     * ⚠ **`LD_PRELOAD` を積むのはこの経路だけ**なので、シムが直す不具合
+     * （`accept` の seccomp・usbfs の fd・`O_TMPFILE`）はいずれも **z2root エンジンでしか直らない**。
+     */
     private fun z2rootEnv(): List<String> {
         val out = mutableListOf<String>()
         val preloads = buildList {
