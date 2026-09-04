@@ -528,12 +528,11 @@ fun z2guiScript(
         |}
         |
         |# このディスプレイの Xvnc が実際に生きているか (stale ソケットだけの状態と区別する)。
-        |# lock の PID が Xvnc/Xtigervnc として生存していれば true。他ディスプレイは誤検知しない。
+        |# lock の PID がこの画面のプロセスとして生存していれば true。他ディスプレイは誤検知しない。
+        |# ⚠ 判定は is_gui_proc に任せる (z2root では comm が実体名にならないため。下の注意書き)。
         |x_alive() {
         |  p=${d}(x_pid); [ -n "${d}p" ] || return 1
-        |  [ -r "/proc/${d}p/comm" ] || return 1
-        |  case "${d}(cat "/proc/${d}p/comm" 2>/dev/null)" in Xvnc|Xtigervnc) return 0 ;; esac
-        |  return 1
+        |  is_gui_proc "${d}p"
         |}
         |
         |# このディスプレイ (:N) だけを停止する。他の GUI タブ (:他) は一切触らない。
@@ -545,6 +544,14 @@ fun z2guiScript(
         |    #    ここに無かったので stop で殺されず、次の起動が**死んだ前回のバス**を
         |    #    掴んで KDE/GTK アプリが固まっていた。
         |    Xvnc|Xtigervnc|openbox|xterm|urxvt|lxterminal|konsole|dbus-daemon) return 0 ;;
+        |    # ⛔ **z2root エンジンではゲストの comm が全部 `libz2root.so` になる** (実体名は出ない)。
+        |    #    名前で見分けられないので、environ の DISPLAY=:N で「この画面のプロセス」だけを拾う。
+        |    #    これが無いと is_gui_proc は**必ず false** になり、`z2gui stop` は 1 つも kill できず
+        |    #    Xvnc が残る。残った Xvnc はディスプレイを掴んだままなので、次の起動が
+        |    #    "Cannot establish any listening sockets" で落ちる (= GUI が二度と開かない)。
+        |    #    ⚠ 実測: z2root 配下の Xvnc は comm=libz2root.so / environ に DISPLAY=:N を持つ。
+        |    libz2root.so|z2root)
+        |      tr '\0' '\n' < "/proc/${d}1/environ" 2>/dev/null | grep -qx "DISPLAY=${d}DISP" && return 0 ;;
         |  esac
         |  return 1
         |}

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-05 / 対象バージョン: 0.8.503-alpha (versionCode 511)
+最終更新: 2026-09-05 / 対象バージョン: 0.8.504-alpha (versionCode 512)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1945,6 +1945,10 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - ⭐ **アドレスは `XDG_RUNTIME_DIR` 配下の決め打ちのパスにする。** `dbus-launch` は起動のたびにアドレスが変わるので、別タブの `z2run` から相乗りできない。`dbus-daemon` を先に試し、無い環境でだけ `dbus-launch` へ落ちる。どちらの場合も `$XDG_RUNTIME_DIR/dbus-address` に控えを書き、`z2run` がそれを読んで同じバスへ繋ぐ（`z2gui stop` で控えごと消す）。
   - ⚠ **`dbus-daemon --print-pid` が取るのは「ファイルディスクリプタ番号」で、パスではない。** 0.8.497 までここへパスを渡していて、`Invalid file descriptor` で**必ず失敗**していた（`dbus-launch` を先に試す順序だったので表に出ていなかった）。pid は `--print-pid` を引数無しで使い、**stdout をファイルへ向けて**受ける。
   - `is_gui_proc` に `dbus-daemon` を足した。PIDFILE には前から控えていたのに**種別の表に無かった**ので、`z2gui stop` で止まらずに残っていた。
+- ⭐⭐ **「GUI が二度と開かない」「☰ から起こしたアプリが出てこない」の真因（0.8.504 で修正）**: **X が生きているかの判定が z2root エンジンで必ず外れていた**。
+  - ⛔ **z2root 配下ではゲストの `/proc/<pid>/comm` が全部 `libz2root.so` になる**（実体名は出ない）。`x_alive` / `is_gui_proc` は comm を `Xvnc` / `openbox` / `xterm` と比べていたので**必ず false**。結果、`z2gui stop` は 1 つも kill できず **Xvnc が残り**、残った Xvnc がディスプレイを掴んだままなので 次の起動が `Cannot establish any listening sockets` で落ちる。⭐ **代わりに `environ` の `DISPLAY=:N` で見分ける** （実測: z2root 配下の Xvnc は `comm=libz2root.so` / `environ` に `DISPLAY=:12` を持つ）。chroot エンジンでは comm が実体名になるので、従来の名前一致も残す。
+  - ⚠ **ソケットファイルが在ることは「X が動いている」ことを意味しない。** GUI は `--kill-on-exit`（SIGKILL）で落ちるので `/tmp/.X11-unix/X<N>` と `/tmp/.X<N>-lock` が**そのまま残る**。残骸を見た `z2run` は「GUI は動いている」と判断して z2gui を起こさずアプリを `exec` するため、アプリは `Cannot open display` で即死する（☰ から選んでも何も出てこない、の正体。利用者の端末には**1 週間前のソケット**が残っていた）。
+  - ⭐ **掃除はアプリ側（`ProotLauncher.cleanStaleXSockets`）でやる。** ⛔ **生死を `/proc` で判定しないこと** — comm が使えないうえ、**別インスタンスの pid はそもそも見えない**。`LocalSocket` で**ソケットへ実際に繋いでみる**のが唯一確実で、それができるのはアプリ側だけ。繋がらなければソケット・lock・pids をまとめて消す。
 - **アプリ台帳は無いときだけ作る（0.8.498）**: `ensure_desktop_db` が `mimeinfo.cache` の無いディレクトリにだけ `update-desktop-database` をかける。⛔ **毎回は走らせない** — `.desktop` を全部読み直すので起動が目に見えて遅くなる。
 - ⭐ **☰ アプリ一覧（0.8.499）— GUI の中にアプリを起こす「常設の入口」**: 右クリックメニューが戻っても、それは**押し方を知らないと出ない入口**でしかない（デスクトップの何もないところを長押し）。利用者の要望は **Windows のスタートボタンにあたる常設のボタン**だったので、GUI タブのツールバーに `ToolbarButtons.APPS`（☰・`guiOnly = true`）を足し、`ui/gui/GuiAppsSheet.kt` のシートに一覧を出す。行をタップすると `GuiSession.launchApp` が `z2run` 経由で起こす。
   - ⭐ **一覧の中身は `z2menu list` が返す TSV をそのまま使う**（`gui/GuiAppCatalog.kt`）。⛔ **`.desktop` のパースを Kotlin 側で書き直さないこと。** 何を出すか（`Type` / `NoDisplay` / `Hidden` / `TryExec` / `Exec` の実体が PATH に在るか / フィールドコードの除去）は z2menu が決めており、**同じ規則を 2 か所に持つと必ず片方だけ直されて食い違う**（右クリックメニューと ☰ で並ぶものが違う、という形で出る）。

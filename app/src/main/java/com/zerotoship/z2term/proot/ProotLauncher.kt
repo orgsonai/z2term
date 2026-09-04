@@ -1,6 +1,8 @@
 package com.zerotoship.z2term.proot
 
 import android.content.Context
+import android.net.LocalSocket
+import android.net.LocalSocketAddress
 import android.util.Log
 import com.zerotoship.z2term.BuildConfig
 import com.zerotoship.z2term.core.PosixTimeZone
@@ -353,6 +355,9 @@ class ProotLauncher(private val context: Context) {
         // `z2gui` で Linux GUI (Xvnc + WM) を起動できるよう launcher を配置。
         // GUI 内ターミナルは設定由来 (GuiSession が渡す)。端末起動では既定 xterm のまま。
         ensureGuiScript(rootfs, guiTerminal)
+        // 死んだ GUI が残した X のソケットを片付ける (これが残っていると z2run が
+        // 「GUI は動いている」と誤認して、起こしたアプリが Cannot open display で即死する)。
+        cleanStaleXSockets(rootfs)
         // `z2run` ランチャ (P3): 端末で `z2run <gui-app>` を打つと、Z2_DISPLAY=:N の Xvnc を
         // 自動起動 + z2term に「OPEN N」を通知 → 該当 GUI タブが自動的に開く / 前面化する。
         ensureZ2RunScript(rootfs)
@@ -583,6 +588,9 @@ class ProotLauncher(private val context: Context) {
         ensureOsc7CwdConfig(rootfs)
         ensureSshdWrapper(rootfs)
         ensureGuiScript(rootfs, guiTerminal)
+        // 死んだ GUI が残した X のソケットを片付ける (これが残っていると z2run が
+        // 「GUI は動いている」と誤認して、起こしたアプリが Cannot open display で即死する)。
+        cleanStaleXSockets(rootfs)
         ensureZ2RunScript(rootfs)
         ensureZ2MenuScript(rootfs)
         // `z2version` で端末からアプリ本体の版数を確認できるようにする (版数不一致の切り分け用)。
@@ -772,6 +780,44 @@ class ProotLauncher(private val context: Context) {
      * `/bin` が `usr/bin` への symlink (Ubuntu の usrmerge) のケースを考慮し、
      * `<rootfs><path>` と `<rootfs>/usr<path>` の双方を見る。
      */
+    /**
+     * 死んだ GUI が残した X の UNIX ソケットを片付ける (0.8.504)。
+     *
+     * ⚠ **ソケットファイルが在ることは「X が動いている」ことを意味しない。** GUI は
+     * `--kill-on-exit` (SIGKILL) で落ちるので、Xvnc は後始末をする間もなく死に、
+     * `/tmp/.X11-unix/X<N>` と `/tmp/.X<N>-lock` が**そのまま残る**。この残骸を見た
+     * [z2runScript] は「GUI は動いている」と判断して z2gui を起こさずアプリを exec するため、
+     * アプリは `Cannot open display` で即死する (☰ から選んでも**何も出てこない**)。
+     * 実際、利用者の端末には 1 週間前のソケットが残っていて、それが原因だった。
+     *
+     * ⛔ **生死の判定を `/proc` でやらないこと。** z2root エンジンではゲストの `comm` が
+     * 全部 `libz2root.so` になり (実体名が出ない)、**別インスタンスの pid はそもそも見えない**。
+     * **ソケットへ実際に繋いでみる**のが唯一確実で、それができるのはアプリ側のここだけ。
+     */
+    private fun cleanStaleXSockets(rootfs: File) {
+        val socks = File(rootfs, "tmp/.X11-unix").listFiles() ?: return
+        for (sock in socks) {
+            val n = sock.name.removePrefix("X").toIntOrNull() ?: continue
+            if (isXSocketAlive(sock)) continue
+            runCatching {
+                sock.delete()
+                File(rootfs, "tmp/.X$n-lock").delete()
+                File(rootfs, "tmp/z2gui-$n.pids").delete()
+            }
+            Log.i(TAG, "stale な X ソケットを片付けた: :$n")
+        }
+    }
+
+    /** `/tmp/.X11-unix/X<N>` に実際に繋げるか (= X サーバが listen しているか)。 */
+    private fun isXSocketAlive(sock: File): Boolean = runCatching {
+        LocalSocket().use {
+            it.connect(
+                LocalSocketAddress(sock.absolutePath, LocalSocketAddress.Namespace.FILESYSTEM)
+            )
+            true
+        }
+    }.getOrDefault(false)
+
     private fun resolveShell(rootfs: File, requested: String, fallbackShell: String): String {
         for (candidate in listOf(requested, fallbackShell, "/bin/sh", "/bin/bash")) {
             if (candidate.isBlank()) continue
