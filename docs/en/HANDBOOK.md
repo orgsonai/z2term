@@ -1131,8 +1131,13 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # on any ringe
 |---|---|
 | `z2gui start [WxH]` / `stop` / `status` | Start / stop / status of the Linux desktop (e.g. `z2gui start 1280x720`) |
 | `z2run <GUI app>` | Launch a GUI app and open the GUI tab with it |
+| `z2menu list` | List the GUI applications actually installed (name, command, description) |
 
 > **The GUI tab never opens by itself (0.8.254).** There used to be a hook that opened it as soon as you ran something that looked like a GUI app, but **a text editor that merely talks to X for clipboard support tripped it too**, so it was removed. The GUI opens only when **you open the GUI tab yourself** or **you type `z2run`**.
+
+> **Long-press an empty part of the desktop and a menu appears (0.8.498).** "Applications" lists **only what is actually installed**, so every entry really starts something, and "Windows" brings an open window back to the front. ⚠ Up to 0.8.497 that menu — along with moving windows, resizing them and Alt+Tab — **did not work at all**, because z2term was replacing openbox's whole configuration.
+>
+> ⚠ **KDE applications cannot remember their settings here** (found in 0.8.498, still unsolved). Inside an Android app, the mechanism Qt (which KDE is built on) uses to save files does not work. You can start and use them, but settings are gone once they close — and it is the same reason a double-tap on a file does not pick an application. GTK applications are unaffected.
 
 ### Connecting
 | Command | What it does |

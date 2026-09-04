@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-03 / 対象バージョン: 0.8.497-alpha (versionCode 505)
+最終更新: 2026-09-04 / 対象バージョン: 0.8.498-alpha (versionCode 506)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1929,6 +1929,26 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - **入力**: `GuiInputView` のジェスチャ — **2 本指 = ピンチ(ズーム/パン)**、**3 本指縦移動 = ホイール上/下スクロール**（一度 3 本指になったら全指が離れるまでスクロール扱い）。旧スクロールボタンと `RfbClient.scrollWheel` は撤去。
 - **動画**: GPU 無し端末で `gpu` 出力が失敗するため、mpv を **`vo=x11` 既定 + `LIBGL_ALWAYS_SOFTWARE`** でソフト描画させて正常再生。
 - **音声 (`service/AudioBridge.kt`)**: **オプトイン**（設定「GUI 音声」`guiAudioEnabled` ON 時のみ）。distro 内 PulseAudio(`-n` 方式で起動) → TCP → Android `AudioTrack` でブリッジ。
+- ⭐ **openbox の設定は「差し替え」ではなく「上書き」にする（0.8.498）**。0.8.497 まで `z2gui` は `/tmp/z2-openbox-rc-<N>.xml` に**窓の位置固定だけを書いた 8 行の rc.xml** を作り、`openbox --config-file` で渡していた。⛔ **openbox はキー割り当てもマウス操作もメニューもプログラムに内蔵しておらず、全部 rc.xml のデータでしかない。** 743 行ある distro 既定（実機の値）を 8 行で置き換えた時点で、`<keyboard>`（Alt+Tab 等）・`<mouse>`（タイトルバーのボタン、リサイズ）・`<menu>`（デスクトップ右クリック → `root-menu`）が**まとめて消えていた**。右クリックメニューは **GUI の中でアプリを起こす唯一の入口**なので、これが無いと「端末しか出せないデスクトップ」になる（利用者の「コンソールしか出ない」の正体）。⇒ 既定（`~/.config/openbox/rc.xml` → `/etc/xdg/openbox/rc.xml` の順に探す）を awk で加工して、**メニューの指し先と窓の位置の 2 点だけ**を差し替える。
+  - ⚠ **`<file>` は全部落として 1 つだけ入れ直す。** openbox は複数のメニューファイルを読める仕様なので、1 つ目だけ差し替えると既定の固定一覧が残る。
+  - ⚠ **位置固定は `<applications>` の末尾に足す。** openbox は一致するルールを順に適用して後のものが勝つので、既定の個別ルールより前に置くと効かない。
+  - 既定が無い distro / 加工に失敗したときだけ、従来の最小構成へ落ちる（この経路では窓の移動もリサイズもできない。あくまで最後の砦）。
+- **`z2menu` — 入っているアプリだけを出すメニュー（0.8.498）**: 既定 `menu.xml` は distro が用意した**固定の一覧**で、その環境に**入っていないアプリが大量に並ぶ**（押しても何も起きない項目ばかりのメニューは、無いより分かりにくい）。`Z2MenuScript.kt` が `/usr/local/bin/z2menu` を置き、openbox の **pipe menu**（メニューを開くたびに実行して、返した XML をそのままメニューにする仕組み）としてこれを呼ぶ。`~/.local/share/applications` → `/usr/local/share/applications` → `/usr/share/applications` の順に `.desktop` を読み、`Type=Application` かつ `NoDisplay`/`Hidden` でなく、`TryExec` と `Exec` の先頭語が **PATH に実在するものだけ**を出す。`z2menu list` は同じ一覧を TSV（名前・コマンド・説明・端末フラグ・分類）で返す。
+  - ⚠ **`Exec` のフィールドコード（`%f %F %u %U %d %D %n %N %i %c %k %v %m`）は除去する。** 残すと、引数を取らない起動でアプリが `%U` という名前のファイルを開こうとする。`%%` は本物の `%` なので、先に印へ逃がして最後に戻す。
+  - `Terminal=true` の項目は端末で開く（入っている端末が 1 つも無ければ一覧から落とす。押しても何も起きない項目を出さないため）。
+  - 項目が **20 を超えたときだけ**分類（freedesktop の主分類に丸める）のサブメニューへ分ける。少ないうちから階層にすると、指で辿る手数が増えるだけになる。
+  - 同じファイル名（desktop id）が複数のディレクトリにあるときは**先に読んだ方**を採る（利用者が `~/.local/share` に置いた分が distro 既定に勝つ）。
+  - ⛔ **awk は POSIX の範囲で書くこと。** busybox awk には `ENDFILE` も配列の全消しも無い。ファイルの切れ目は `FNR==1` で見て最後の 1 件を `END` で出し、値は連想配列ではなく**スカラー変数**に持つ。⚠ `sh -n` は awk の中身までは見ない（`GuiScriptSyntaxTest`）ので、awk を変えたときは実機で `z2menu list` を叩いて確かめる。
+  - 窓の一覧は openbox 内蔵の `client-list-menu` をそのまま使う。⚠ `wmctrl` / `xdotool` は**どの distro でも導入対象に入っていない**ので、窓を数えるために依存を増やさない。
+- **D-Bus セッションと `XDG_RUNTIME_DIR` を、端末の種類に関係なく用意する（0.8.498）**: 0.8.497 までは**選んだ GUI 内ターミナルが konsole のときだけ**立てていた。そのため右クリックメニューや別タブの `z2run` から起こしたアプリには渡らず、**補助プロセスを別プロセスとして起こす作り**のもの（KIO 等）が軒並み起動に失敗していた（ファイル管理系でサムネイル・ゴミ箱・接続機器の一覧がまとめて出ない）。⇒ `start_session_bus` を `start_audio` の後・**openbox より前**に呼ぶ。右クリックメニューから起こしたアプリは openbox の環境をそのまま継ぐので、ここで export した分が全部渡る。
+  - ⭐ **アドレスは `XDG_RUNTIME_DIR` 配下の決め打ちのパスにする。** `dbus-launch` は起動のたびにアドレスが変わるので、別タブの `z2run` から相乗りできない。`dbus-daemon` を先に試し、無い環境でだけ `dbus-launch` へ落ちる。どちらの場合も `$XDG_RUNTIME_DIR/dbus-address` に控えを書き、`z2run` がそれを読んで同じバスへ繋ぐ（`z2gui stop` で控えごと消す）。
+  - ⚠ **`dbus-daemon --print-pid` が取るのは「ファイルディスクリプタ番号」で、パスではない。** 0.8.497 までここへパスを渡していて、`Invalid file descriptor` で**必ず失敗**していた（`dbus-launch` を先に試す順序だったので表に出ていなかった）。pid は `--print-pid` を引数無しで使い、**stdout をファイルへ向けて**受ける。
+  - `is_gui_proc` に `dbus-daemon` を足した。PIDFILE には前から控えていたのに**種別の表に無かった**ので、`z2gui stop` で止まらずに残っていた。
+- **アプリ台帳は無いときだけ作る（0.8.498）**: `ensure_desktop_db` が `mimeinfo.cache` の無いディレクトリにだけ `update-desktop-database` をかける。⛔ **毎回は走らせない** — `.desktop` を全部読み直すので起動が目に見えて遅くなる。
+- ⚠ **Qt6 製のアプリは、この環境では設定ファイルを保存できない（0.8.498 で切り分け・未修正）**。Qt の `QSaveFile` / `QTemporaryFile` は Linux では `O_TMPFILE` で名前の無いファイルを作り、`linkat(AT_FDCWD, "/proc/self/fd/<fd>", …, AT_SYMLINK_FOLLOW)` で最後に名前を付ける。⛔ **Android のアプリプロセスは capability を 1 つも持たない**（`/proc/self/status` の `CapEff = 0`）ため、この `linkat` が `ENOENT` で必ず失敗する（`AT_EMPTY_PATH` を使う形も `EACCES`）。設定・キャッシュ・アプリ台帳のどれも書けず、**「何で開くか」を KDE 系の台帳から引くファイル管理系ではダブルタップが無反応になる**。
+  - 実測（実機・Qt 6.11.2）: `kwriteconfig6` は**終了コード 0 を返しながらファイルを 1 つも作らない**。`kbuildsycoca6` も同じく無言で終わり、キャッシュが 1 つも残らない。⚠ **`O_TMPFILE` で開くところまでは成功する**ので、「書き込み権限が無い」ようには見えない（同じディレクトリに `touch` も `rename` も通る）。
+  - ⚠ **GLib 系は影響を受けない。** `update-desktop-database` は正常に `mimeinfo.cache` を作る。同じ症状が出たら、まず**どちらの系統のアプリか**で切り分ける。
+  - 次の一手は `LD_PRELOAD` シム（`z2accept` と同じ、libc 非依存の生 syscall で書く作り）で `openat` の `O_TMPFILE` を落とし、Qt に名前付きの一時ファイル方式を採らせること。⚠ **フォールバックが実際に効くかは未検証**なので、シムを作る前に小さな再現プログラムで確かめること。
 - ⚠ **導入の途中で別のタブへ移っても、戻ってきたときに起動をやり直さない（0.8.341・実機報告）**。「GUI のインストール中に別のタブへ移ると導入が消える」の正体は、**画面が捨てられて起動判断からやり直していた**こと。端末タブへ移ると `TerminalScreen` は `activeSession is GuiSession` の分岐で早期 return するので **`GuiTabScreen` は composition ごと消える**（`guiAreaPx` も `pendingGuiStart` も `remember(gui.id)`）。戻ると `LaunchedEffect(gui.id)` が最初から走り直し、まだ導入中＝パッケージ未導入なので**「GUI を入れますか」の確認ダイアログが再び出る**。しかもその「やめる」は `SessionManager.close(gui.id)` ＝ タブを閉じる → `GuiSession.stop()` → `z2gui stop` なので、**走っていた導入が本当に殺される**。⚠ **導入そのものはタブの表示に依存していない**（`GuiSession` の `SupervisorJob + Dispatchers.IO` で回り、`stop()` を呼ぶのはタブ ✕ と `GuiActivity.onDestroy` だけ）ので、**前面通知で常駐させる必要は無い**。直すのは判断する側で、`GuiSession.state` が `STARTING` / `CONNECTING` / `CONNECTED` のときは `LaunchedEffect` が何もしない（= `GuiSession.start()` が早期 return するのと同じ 3 状態）。`ERROR` / `STOPPED` から戻ったときに入れ直せるのは今までどおり。進捗（`z2gui` の最新出力）は `GuiSession.message` に載っていて `GuiScreen` が購読しているので、**ダイアログが被らなくなれば戻った時点の続きがそのまま見える**。
   - ⚠ **`GuiTabScreen` はタブを離れるたびに捨てられる前提で書くこと**。`remember(gui.id)` / `LaunchedEffect(gui.id)` は戻るたびに作り直される。**セッションが持っている状態を見ずに副作用を起こすと、走っているものをやり直させる**。
 - ⚠ **GUI 内ターミナルは「入っているのに窓が出ない」形で壊れうる**（0.8.343）。`ensure_pkgs` は **`has $GUI_TERM_BIN`（バイナリの有無）**で導入を判定するので、**入っているが起動に失敗する**ものはここをすり抜け、`z2gui` は最後まで進んで GUI だけが立つ。利用者からは「デスクトップは出るのに端末が無い」としか見えない。

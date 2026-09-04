@@ -57,7 +57,9 @@ fun z2runScript(lang: String = "ja"): String {
         |
         |# 3) Xvnc :N が無ければ z2gui で起動。z2gui は wait し続けるので & で投げて進む。
         |#    Z2_NO_TERM=1 で xterm の同時起動を抑止 (z2run はユーザー指定の GUI アプリだけを出したい)。
+        |STARTED_NOW=0
         |if [ ! -e "${d}XSOCK" ]; then
+        |  STARTED_NOW=1
         |  Z2_NO_TERM=1 setsid /usr/local/bin/z2gui start </dev/null >"/tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log" 2>&1 &
         |  # 待ち時間は GUI 一式が導入済みか未導入かで動的に変える:
         |  #   導入済み → 10 秒 (Xvnc 起動だけ)
@@ -79,7 +81,28 @@ fun z2runScript(lang: String = "ja"): String {
         |  fi
         |fi
         |
-        |# 4) 引数があればユーザーの GUI アプリへバトンタッチ。無ければここで終了。
+        |# 4) GUI セッションの土台 (XDG_RUNTIME_DIR / D-Bus セッションバス) を引き継ぐ (0.8.498)。
+        |#    ⚠ z2gui は GUI 側で立っているので、**別タブのここには環境が伝わらない**。z2gui が
+        |#       控えに書いたアドレスを読んで、同じバスに相乗りする。これが無いと、補助プロセスを
+        |#       別プロセスとして起こす作りのアプリ (ファイル管理系の KIO 等) が軒並み起動に失敗し、
+        |#       サムネイル・ゴミ箱・接続機器の一覧がまとめて出なくなる。
+        |XDGDIR="/tmp/z2gui-xdg-${d}{DISPLAY_NUM}"
+        |if [ "${d}STARTED_NOW" = "1" ]; then
+        |  # 今 GUI を起こした場合、バスは X より少し遅れて立つ。⚠ 立たない環境もあるので待ち切らない。
+        |  k=0
+        |  while [ ${d}k -lt 30 ] && [ ! -r "${d}XDGDIR/dbus-address" ]; do sleep 0.1; k=${d}((k+1)); done
+        |fi
+        |if [ -d "${d}XDGDIR" ]; then
+        |  export XDG_RUNTIME_DIR="${d}{XDG_RUNTIME_DIR:-${d}XDGDIR}"
+        |  if [ -z "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ] && [ -r "${d}XDGDIR/dbus-address" ]; then
+        |    DBUS_ADDR=${d}(cat "${d}XDGDIR/dbus-address" 2>/dev/null)
+        |    [ -n "${d}DBUS_ADDR" ] && export DBUS_SESSION_BUS_ADDRESS="${d}DBUS_ADDR"
+        |  fi
+        |fi
+        |# Qt を X11 backend に固定する (Wayland の無い環境で探させない)。
+        |export QT_QPA_PLATFORM="${d}{QT_QPA_PLATFORM:-xcb}"
+        |
+        |# 5) 引数があればユーザーの GUI アプリへバトンタッチ。無ければここで終了。
         |if [ ${d}# -gt 0 ]; then exec "${d}@"; fi
     """.trimMargin() + "\n"
 }

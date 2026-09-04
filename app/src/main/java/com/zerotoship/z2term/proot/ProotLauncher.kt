@@ -341,6 +341,7 @@ class ProotLauncher(private val context: Context) {
         // `z2run` ランチャ (P3): 端末で `z2run <gui-app>` を打つと、Z2_DISPLAY=:N の Xvnc を
         // 自動起動 + z2term に「OPEN N」を通知 → 該当 GUI タブが自動的に開く / 前面化する。
         ensureZ2RunScript(rootfs)
+        ensureZ2MenuScript(rootfs)
         // `z2version` で端末からアプリ本体の版数を確認できるようにする (版数不一致の切り分け用)。
         ensureVersionScript(rootfs, "z2root")
         // 旧「GUI 自動連動」(preexec フック) の後始末。廃止したので既存 rootfs から取り除く。
@@ -568,6 +569,7 @@ class ProotLauncher(private val context: Context) {
         ensureSshdWrapper(rootfs)
         ensureGuiScript(rootfs, guiTerminal)
         ensureZ2RunScript(rootfs)
+        ensureZ2MenuScript(rootfs)
         // `z2version` で端末からアプリ本体の版数を確認できるようにする (版数不一致の切り分け用)。
         ensureVersionScript(rootfs, "chroot")
         removeAutoGuiHook(rootfs)
@@ -1090,6 +1092,21 @@ class ProotLauncher(private val context: Context) {
             f.setReadable(true, false)
             f.setExecutable(true, false)
         }.onFailure { Log.w(TAG, "z2run script 配置失敗", it) }
+    }
+
+    /**
+     * `/usr/local/bin/z2menu` を配置する (0.8.498)。distro に**実際に入っている** GUI アプリを
+     * `.desktop` から拾って一覧にする。openbox のデスクトップ右クリックメニュー (pipe menu) が
+     * これを呼ぶ。launch 毎に上書きするので内容は常に最新。
+     */
+    private fun ensureZ2MenuScript(rootfs: File) {
+        runCatching {
+            val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
+            val f = File(dir, "z2menu")
+            f.writeText(z2menuScript(lang = LocaleHelper.language(context)))
+            f.setReadable(true, false)
+            f.setExecutable(true, false)
+        }.onFailure { Log.w(TAG, "z2menu script 配置失敗", it) }
     }
 
     /**

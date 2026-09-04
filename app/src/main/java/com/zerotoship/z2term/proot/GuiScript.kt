@@ -78,7 +78,13 @@ data class GuiScriptStrings(
     val audioStartFailed: String,     // PulseAudio 起動失敗
     val audioReady: String,           // 音声の経路ができた
     val qtFallback: String,           // PySide6 同梱 Qt6 を追加
-    val qtFallbackFound: String       // 任意の libQt6QuickWidgets を発見
+    val qtFallbackFound: String,      // 任意の libQt6QuickWidgets を発見
+    // --- 0.8.498 で追加。デスクトップ右クリックのメニューに出す見出し。
+    // ⚠ ここは**画面に出るラベル**なので、必ず全言語を埋めること (英語落ちだと和文の中に英語が混じる)。
+    val menuApps: String,             // 「アプリ」(z2menu の pipe menu を開く)
+    val menuWindows: String,          // 「窓」(openbox 内蔵の client-list-menu)
+    val menuTerminal: String,         // 「端末」
+    val menuReload: String            // 「メニューを読み直す」(openbox の Reconfigure)
 ) {
     companion object {
         fun ja(): GuiScriptStrings = GuiScriptStrings(
@@ -111,7 +117,11 @@ data class GuiScriptStrings(
             audioStartFailed = "⚠️ GUI 音声: PulseAudio 起動失敗",
             audioReady = "🔊 GUI 音声: z2sink.monitor →",
             qtFallback = "📚 PySide6 同梱 Qt6 を LD_LIBRARY_PATH に追加 (Konsole 救済):",
-            qtFallbackFound = "📚 任意の libQt6QuickWidgets.so.6 を発見 → LD_LIBRARY_PATH に追加:"
+            qtFallbackFound = "📚 任意の libQt6QuickWidgets.so.6 を発見 → LD_LIBRARY_PATH に追加:",
+            menuApps = "アプリ",
+            menuWindows = "窓",
+            menuTerminal = "端末",
+            menuReload = "メニューを読み直す"
         )
         fun en(): GuiScriptStrings = GuiScriptStrings(
             installing = "📦 Installing GUI stack",
@@ -143,7 +153,11 @@ data class GuiScriptStrings(
             audioStartFailed = "⚠️ GUI audio: PulseAudio failed to start",
             audioReady = "🔊 GUI audio: z2sink.monitor →",
             qtFallback = "📚 Added PySide6's bundled Qt6 to LD_LIBRARY_PATH (Konsole fallback):",
-            qtFallbackFound = "📚 Found a libQt6QuickWidgets.so.6 → added to LD_LIBRARY_PATH:"
+            qtFallbackFound = "📚 Found a libQt6QuickWidgets.so.6 → added to LD_LIBRARY_PATH:",
+            menuApps = "Applications",
+            menuWindows = "Windows",
+            menuTerminal = "Terminal",
+            menuReload = "Reload menu"
         )
         fun zhCN(): GuiScriptStrings = GuiScriptStrings(
             installing = "📦 正在安装整套图形环境",
@@ -175,7 +189,11 @@ data class GuiScriptStrings(
             audioStartFailed = "⚠️ 图形界面声音: PulseAudio 启动失败",
             audioReady = "🔊 图形界面声音: z2sink.monitor →",
             qtFallback = "📚 已把 PySide6 自带的 Qt6 加入 LD_LIBRARY_PATH (救 Konsole):",
-            qtFallbackFound = "📚 发现了 libQt6QuickWidgets.so.6 → 已加入 LD_LIBRARY_PATH:"
+            qtFallbackFound = "📚 发现了 libQt6QuickWidgets.so.6 → 已加入 LD_LIBRARY_PATH:",
+            menuApps = "应用",
+            menuWindows = "窗口",
+            menuTerminal = "终端",
+            menuReload = "重新载入菜单"
         )
         fun zhTW(): GuiScriptStrings = GuiScriptStrings(
             installing = "📦 正在安裝整套圖形環境",
@@ -207,7 +225,11 @@ data class GuiScriptStrings(
             audioStartFailed = "⚠️ 圖形介面聲音: PulseAudio 啟動失敗",
             audioReady = "🔊 圖形介面聲音: z2sink.monitor →",
             qtFallback = "📚 已把 PySide6 自帶的 Qt6 加入 LD_LIBRARY_PATH (救 Konsole):",
-            qtFallbackFound = "📚 發現了 libQt6QuickWidgets.so.6 → 已加入 LD_LIBRARY_PATH:"
+            qtFallbackFound = "📚 發現了 libQt6QuickWidgets.so.6 → 已加入 LD_LIBRARY_PATH:",
+            menuApps = "應用程式",
+            menuWindows = "視窗",
+            menuTerminal = "終端機",
+            menuReload = "重新載入選單"
         )
         /**
          * 言語ごとの組。⭐ **3 言語目はここに 1 行足す** (言語コード to その組を返す関数)。
@@ -519,7 +541,10 @@ fun z2guiScript(
         |is_gui_proc() {  # ${d}1=pid : 既知の GUI プロセス種別なら 0
         |  [ -r "/proc/${d}1/comm" ] || return 1
         |  case "${d}(cat "/proc/${d}1/comm" 2>/dev/null)" in
-        |    Xvnc|Xtigervnc|openbox|xterm|urxvt|lxterminal|konsole) return 0 ;;
+        |    # ⚠ dbus-daemon を必ず含める (0.8.498)。PIDFILE には前から控えていたのに
+        |    #    ここに無かったので stop で殺されず、次の起動が**死んだ前回のバス**を
+        |    #    掴んで KDE/GTK アプリが固まっていた。
+        |    Xvnc|Xtigervnc|openbox|xterm|urxvt|lxterminal|konsole|dbus-daemon) return 0 ;;
         |  esac
         |  return 1
         |}
@@ -538,6 +563,8 @@ fun z2guiScript(
         |  xp=${d}(x_pid); [ -n "${d}xp" ] && is_gui_proc "${d}xp" && kill "${d}xp" 2>/dev/null
         |  # GUI 音声を立てていれば (この :N 専用 PA を) 一緒に止める。立てていなければ no-op。
         |  stop_audio
+        |  # セッションバスの控え (z2run が読む) も消す。残すと次回に死んだアドレスを掴ませてしまう。
+        |  rm -f "/tmp/z2gui-xdg-${d}{DISPLAY_NUM}/dbus-address" "/tmp/z2gui-xdg-${d}{DISPLAY_NUM}/dbus.sock" 2>/dev/null
         |  rm -f "${d}PIDFILE" "/tmp/.X${d}{DISPLAY_NUM}-lock" "/tmp/.X11-unix/X${d}{DISPLAY_NUM}" 2>/dev/null
         |}
         |
@@ -622,6 +649,65 @@ fun z2guiScript(
         |  pactl exit >/dev/null 2>&1   # このディスプレイ専用 PA daemon を終了 (sink/module ごと片付く)。
         |}
         |
+        |# GUI 内で動くアプリの共通の土台 (XDG_RUNTIME_DIR + D-Bus セッションバス) を用意する。
+        |#
+        |# ⚠ 0.8.497 まで**選んだ端末が konsole のときだけ**立てていた。そのため右クリックメニューや
+        |#    別タブの z2run から起動したアプリは D-Bus 無しで動いていて、補助プロセスを別プロセスとして
+        |#    起こす作りのファイル管理系 (KIO 等) が軒並み起動に失敗していた
+        |#    (サムネイル・ゴミ箱・接続機器の一覧が全部出ない)。端末の種類に関係なく立てる。
+        |#
+        |# ⭐ アドレスは **XDG_RUNTIME_DIR 配下の決め打ちのパス**にする。dbus-launch は起動のたびに
+        |#    アドレスが変わるので、別タブの z2run から同じバスへ相乗りできない。dbus-daemon を先に
+        |#    試し、無い環境でだけ dbus-launch へ落として、いずれの場合もアドレスを控えに書き出す。
+        |start_session_bus() {
+        |  export XDG_RUNTIME_DIR="${d}{XDG_RUNTIME_DIR:-/tmp/z2gui-xdg-${d}{DISPLAY_NUM}}"
+        |  mkdir -p "${d}XDG_RUNTIME_DIR"; chmod 0700 "${d}XDG_RUNTIME_DIR" 2>/dev/null
+        |  # Qt を X11 backend に固定する (Wayland の無い環境で探させない)。
+        |  export QT_QPA_PLATFORM=xcb
+        |  [ -n "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ] && return 0
+        |  DBUS_SOCK="${d}XDG_RUNTIME_DIR/dbus.sock"
+        |  if has dbus-daemon; then
+        |    if [ ! -S "${d}DBUS_SOCK" ]; then
+        |      rm -f "${d}DBUS_SOCK" 2>/dev/null
+        |      setsid dbus-daemon --session --address="unix:path=${d}DBUS_SOCK" --fork \
+        |        --print-pid="/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.pid" \
+        |        </dev/null >"/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.log" 2>&1
+        |      # socket が出来るまで最大 3 秒待つ。fork 直後で間に合わないことがあるため。
+        |      j=0
+        |      while [ ${d}j -lt 30 ] && [ ! -S "${d}DBUS_SOCK" ]; do sleep 0.1; j=${d}((j+1)); done
+        |      [ -f "/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.pid" ] && \
+        |        cat "/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.pid" >> "${d}PIDFILE" 2>/dev/null
+        |    fi
+        |    [ -S "${d}DBUS_SOCK" ] && export DBUS_SESSION_BUS_ADDRESS="unix:path=${d}DBUS_SOCK"
+        |  fi
+        |  if [ -z "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ] && has dbus-launch; then
+        |    # dbus-launch は `bus_address=...; bus_pid=...` 形式で env を返す → 行を eval。
+        |    DBUS_OUT=${d}(dbus-launch --sh-syntax 2>"/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.log")
+        |    if [ -n "${d}DBUS_OUT" ]; then
+        |      eval "${d}DBUS_OUT"
+        |      export DBUS_SESSION_BUS_ADDRESS DBUS_SESSION_BUS_PID
+        |      echo "${d}{DBUS_SESSION_BUS_PID:-0}" >> "${d}PIDFILE" 2>/dev/null
+        |    fi
+        |  fi
+        |  # 別タブの z2run が同じバスへ繋げるようアドレスを控える (stop_x で消す)。
+        |  if [ -n "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+        |    echo "${d}DBUS_SESSION_BUS_ADDRESS" > "${d}XDG_RUNTIME_DIR/dbus-address" 2>/dev/null
+        |  fi
+        |}
+        |
+        |# ファイル管理系が「この種類は何で開くか」を決められるようにアプリ台帳を用意する。
+        |# ⛔ **毎回は走らせない。** .desktop を全部読み直すので起動が目に見えて遅くなる。
+        |#    台帳がまだ無いときだけ作る (アプリを入れ直したときは各 distro の後処理が作り直す)。
+        |ensure_desktop_db() {
+        |  has update-desktop-database || return 0
+        |  for adir in /usr/share/applications /usr/local/share/applications \
+        |              "${d}{HOME:-/root}/.local/share/applications"; do
+        |    [ -d "${d}adir" ] || continue
+        |    [ -f "${d}adir/mimeinfo.cache" ] && continue
+        |    update-desktop-database "${d}adir" >/dev/null 2>&1 || true
+        |  done
+        |}
+        |
         |start_x() {
         |  GEOM="${d}{1:-${d}DEFAULT_GEOM}"
         |  CLEAN="${d}2"
@@ -667,14 +753,73 @@ fun z2guiScript(
         |  fi
         |  # GUI 音声 (Z2_AUDIO=1 のときだけ)。X とは独立だが Xvnc 起動確認後に立てる。失敗しても続行。
         |  start_audio
-        |  # openbox に「全ウィンドウを左上 (0,0) に強制配置」させる設定を書く。端末ごとに
-        |  # -geometry の書式が違う (xterm/urxvt は対応, konsole/lxterminal は別系統) ため、
-        |  # 位置は WM 側で一律に固定する (ユーザー要望: GUI ターミナルは全て 0,0)。
+        |  # GUI アプリ共通の土台 (XDG_RUNTIME_DIR + セッションバス)。
+        |  # ⭐ **openbox より先に立てる**: 右クリックメニューから起こしたアプリは openbox の
+        |  #    環境をそのまま継ぐので、ここで export した分が全部渡る。
+        |  start_session_bus
+        |  ensure_desktop_db
+        |  # ---- openbox の設定 ----
+        |  # ⚠ 0.8.497 まではここで最小の rc.xml を書いて **既定を丸ごと差し替えて** いた。
+        |  #    openbox はキー/マウスの割り当てもメニューもプログラムに内蔵しておらず、全部 rc.xml の
+        |  #    データでしかない。差し替えた瞬間に「窓を左上に置く」以外が消える
+        |  #    (タイトルバーのボタン・リサイズ・Alt+Tab・デスクトップの右クリックメニュー)。
+        |  #    右クリックメニューは **GUI の中でアプリを起こす唯一の入口** なので、これが消えると
+        |  #    「端末しか出せない」状態になっていた。distro の既定を土台にして、
+        |  #    **必要な 2 点 (メニューの指し先・窓の位置) だけ**差し替える方式にする。
         |  OBRC="/tmp/z2-openbox-rc-${d}{DISPLAY_NUM}.xml"
-        |  cat > "${d}OBRC" <<'OBEOF'
+        |  OBMENU="/tmp/z2-openbox-menu-${d}{DISPLAY_NUM}.xml"
+        |  # (1) メニューの中身。既定の menu.xml は distro が用意した**固定の一覧**で、入っていない
+        |  #     アプリが大量に並ぶ (押しても何も起きない項目ばかりのメニューは無いより分かりにくい)。
+        |  #     z2menu が .desktop を読んで**実際に入っているものだけ**を出す。
+        |  #     窓の一覧は openbox 内蔵の client-list-menu をそのまま使う (依存を増やさない)。
+        |  cat > "${d}OBMENU" <<OBMEOF
+        |<?xml version="1.0" encoding="UTF-8"?>
+        |<openbox_menu xmlns="http://openbox.org/3.4/menu">
+        |  <menu id="root-menu" label="z2term">
+        |    <menu id="z2-apps" label="${strings.menuApps}" execute="/usr/local/bin/z2menu"/>
+        |    <menu id="client-list-menu" label="${strings.menuWindows}"/>
+        |    <separator/>
+        |    <item label="${strings.menuTerminal}">
+        |      <action name="Execute"><execute>${d}GUI_TERM_BIN</execute></action>
+        |    </item>
+        |    <item label="${strings.menuReload}"><action name="Reconfigure"/></item>
+        |  </menu>
+        |</openbox_menu>
+        |OBMEOF
+        |  # (2) rc.xml。既定があればそれを土台にする。
+        |  #     ⚠ <file> は全部落として 1 つだけ入れ直す (複数のメニューファイルを持つ distro があり、
+        |  #        1 つ目だけ差し替えると既定の固定一覧が残ってしまう)。
+        |  #     ⚠ 窓の位置固定は <applications> の**末尾**に足す。openbox は一致するルールを順に
+        |  #        適用して後のものが勝つので、既定の個別ルールより後ろでないと効かない。
+        |  OBBASE=""
+        |  for c in "${d}{HOME:-/root}/.config/openbox/rc.xml" /etc/xdg/openbox/rc.xml; do
+        |    [ -f "${d}c" ] && { OBBASE="${d}c"; break; }
+        |  done
+        |  if [ -n "${d}OBBASE" ]; then
+        |    awk -v menu="${d}OBMENU" '
+        |      function emit() {
+        |        print "  <application class=\"*\">"
+        |        print "    <position force=\"yes\"><x>0</x><y>0</y></position>"
+        |        print "  </application>"
+        |      }
+        |      { line = ${d}0; sub(/^[ \t]+/, "", line); sub(/[ \t]+${d}/, "", line) }
+        |      line ~ /^<file>[^<]*<\/file>${d}/ { next }
+        |      line == "<menu>" && !mdone { print; print "  <file>" menu "</file>"; mdone = 1; next }
+        |      line ~ /^<\/applications>${d}/ && !adone { emit(); adone = 1 }
+        |      line ~ /^<\/openbox_config>${d}/ && !adone {
+        |        print "<applications>"; emit(); print "</applications>"; adone = 1
+        |      }
+        |      { print }
+        |    ' "${d}OBBASE" > "${d}OBRC" 2>/dev/null
+        |  fi
+        |  # 既定が無い distro / 加工に失敗したときは最小構成で立てる。
+        |  # ⚠ この経路では窓の移動もリサイズもできない。あくまで最後の砦。
+        |  if [ ! -s "${d}OBRC" ]; then
+        |    cat > "${d}OBRC" <<OBEOF
         |<?xml version="1.0" encoding="UTF-8"?>
         |<openbox_config xmlns="http://openbox.org/3.4/rc">
         |  <placement><policy>UnderMouse</policy><center>no</center></placement>
+        |  <menu><file>${d}OBMENU</file></menu>
         |  <applications>
         |    <application class="*">
         |      <position force="yes"><x>0</x><y>0</y></position>
@@ -682,6 +827,7 @@ fun z2guiScript(
         |  </applications>
         |</openbox_config>
         |OBEOF
+        |  fi
         |  setsid openbox --config-file "${d}OBRC" </dev/null >"/tmp/z2gui-wm-${d}{DISPLAY_NUM}.log" 2>&1 &
         |  echo ${d}! >> "${d}PIDFILE" 2>/dev/null
         |  # WM が「窓の面倒を見られる状態」になるまで待つ (0.8.351)。
@@ -735,40 +881,10 @@ fun z2guiScript(
         |    # `-e ${d}SHELL` で実行シェルを明示。`--hide-*` は古い konsole で arg parse 失敗のため省略。
         |    konsole) TERM_ARGS="--separate --nofork -e ${d}{SHELL:-/bin/sh}" ;;
         |  esac
-        |  # Konsole/KDE 系は DBus session bus と XDG_RUNTIME_DIR を要求する。proot rootfs には
-        |  # systemd の user instance が無いので、自前で session bus を立てて環境変数を export する。
-        |  # ログ: /tmp/z2gui-dbus-{DISPLAY_NUM}.log。失敗しても konsole 側 log で更に診断可能。
+        |  # ⚠ セッションバスと XDG_RUNTIME_DIR は、0.8.498 から**端末の種類に関係なく**
+        |  #    start_session_bus が openbox より前に用意している (ここでは触らない)。
+        |  #    konsole 固有の面倒を見るのはこの下のブロックだけ。
         |  if [ "${d}GUI_TERM_BIN" = "konsole" ]; then
-        |    # XDG_RUNTIME_DIR が未設定だと Qt が警告し挙動が不安定。dbus の socket もここに置く。
-        |    if [ -z "${d}{XDG_RUNTIME_DIR:-}" ]; then
-        |      export XDG_RUNTIME_DIR="/tmp/z2gui-xdg-${d}{DISPLAY_NUM}"
-        |      mkdir -p "${d}XDG_RUNTIME_DIR"; chmod 0700 "${d}XDG_RUNTIME_DIR" 2>/dev/null
-        |    fi
-        |    if [ -z "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ] && has dbus-launch; then
-        |      # dbus-launch は `bus_address=...; bus_pid=...` 形式で env を返す → 行を eval。
-        |      DBUS_OUT=${d}(dbus-launch --sh-syntax 2>"/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.log")
-        |      if [ -n "${d}DBUS_OUT" ]; then
-        |        eval "${d}DBUS_OUT"
-        |        export DBUS_SESSION_BUS_ADDRESS DBUS_SESSION_BUS_PID
-        |        echo "${d}{DBUS_SESSION_BUS_PID:-0}" >> "${d}PIDFILE" 2>/dev/null
-        |      fi
-        |    fi
-        |    if [ -z "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ] && has dbus-daemon; then
-        |      DBUS_SOCK="${d}XDG_RUNTIME_DIR/dbus.sock"
-        |      rm -f "${d}DBUS_SOCK" 2>/dev/null
-        |      setsid dbus-daemon --session --address="unix:path=${d}DBUS_SOCK" --fork \
-        |        --print-pid=/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.pid \
-        |        </dev/null >"/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.log" 2>&1
-        |      # socket が出来るまで最大 3 秒待つ。fork 直後で間に合わないことがあるため。
-        |      j=0
-        |      while [ ${d}j -lt 30 ] && [ ! -S "${d}DBUS_SOCK" ]; do sleep 0.1; j=${d}((j+1)); done
-        |      if [ -S "${d}DBUS_SOCK" ]; then
-        |        export DBUS_SESSION_BUS_ADDRESS="unix:path=${d}DBUS_SOCK"
-        |        [ -f "/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.pid" ] && cat "/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.pid" >> "${d}PIDFILE" 2>/dev/null
-        |      fi
-        |    fi
-        |    # Qt の X11 backend を明示 (Wayland 無し環境で迷わせない)。
-        |    export QT_QPA_PLATFORM=xcb
         |    # 最終救済: ensure_pkgs で /usr/lib に展開できなかった場合に備え、
         |    # PySide6 / 他経路で持ち込まれた libQt6QuickWidgets.so.6 を LD_LIBRARY_PATH に積む。
         |    # ABI 不一致のリスクはあるが、何も入っていない状態より起動成功率が上がるので試す価値あり。
