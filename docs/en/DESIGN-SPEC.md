@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-05 / Target version: 0.8.502-alpha (versionCode 510)
+Last updated: 2026-09-05 / Target version: 0.8.503-alpha (versionCode 511)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1986,6 +1986,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   - ⚠ **Never split the columns by handing `read` an `IFS` of TAB (fixed in 0.8.502).** TAB is **IFS *white space***, so **runs of TABs collapse into one**. For a `.desktop` with no `Comment=` (very common) every column shifted one to the left: the description showed the terminal flag `0` and the category came out empty. `list_apps` in `z2menu` now **keeps the line as it is** and peels off only the two columns it needs to filter on (command, terminal flag).
   - ⚠ **Refetch every time the sheet opens.** If a freshly installed package does not appear, "I installed it and it is not there" is a dead end.
   - ⛔ **Never close the PTY of a launched application.** proot runs with `--kill-on-exit`, so closing the root PTY **kills the GUI application with it** (`setsid` does not escape proot's supervision). `GuiSession` keeps them in `appPtys` and closes them all when the tab closes (`stop`).
+  - ⭐⭐ **Picking an entry did nothing because `DISPLAY` was missing (0.8.499–0.8.502, fixed in 0.8.503).** Passing `display` to `ProotLauncher.launch` only injects **`Z2_DISPLAY`, not `DISPLAY=:N`** — that needs `exportDisplay = true`. `z2run` only `exec`s at the end and **never sets DISPLAY itself**, so the application it started could not reach X and died at once (the list appears, tapping a row shows nothing). ⛔ **Do not confuse `z2gui` itself with the processes riding on `:N`.** `exportDisplay = false` is only for starting `z2gui` (whose `stop` scans environs and would otherwise match itself); a terminal tab's `z2run` and an application started from ☰ both ride on the display, so `true` is correct for them.
   - ⚠ **Pass `Exec` to a shell rather than splitting it into words** (`sh -c "exec z2run <Exec>"`). A `.desktop` `Exec` may contain quotes, and splitting on spaces breaks it. openbox's `<execute>` hands it to a shell too.
   - `Terminal=true` entries get **the in-GUI terminal chosen in settings** wrapped around them. ⚠ The right-click menu knows nothing about z2term's settings and finds a terminal itself, so the two can pick different terminals — harmless, since both are terminals that exist in that environment.
   - ⭐ **Rejected: a panel inside the GUI (lxpanel and friends).** It would look like a real desktop, but **a panel sized for a PC puts buttons smaller than a fingertip on a phone screen**, and it would add tens of megabytes of GTK dependencies plus a per-distro config file for z2term to carry. A native sheet needs no extra package, looks the same on every distro, is big enough to press, and rides on the existing toolbar reorder/hide machinery.

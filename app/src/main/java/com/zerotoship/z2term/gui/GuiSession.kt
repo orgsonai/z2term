@@ -249,6 +249,12 @@ class GuiSession(
                     extraArgs = listOf("-c", "exec /usr/local/bin/z2run $cmd"),
                     loginShell = snap.loginShell,
                     display = display,
+                    // ⛔ **`exportDisplay` を落とさないこと（0.8.503 で追加）。** `display` だけでは
+                    // `Z2_DISPLAY` しか入らず **`DISPLAY=:N` が環境に無い**。`z2run` は最後に
+                    // `exec` するだけで DISPLAY を自分では立てないので、起こしたアプリは X に
+                    // 繋げず即死する（☰ から選んでも**何も出てこなかった**原因）。ここは
+                    // z2gui 本体ではなく **:N へ相乗りする側**なので、端末タブと同じく true。
+                    exportDisplay = true,
                 )
                 synchronized(appPtys) { appPtys += p }
                 // 出力は捨てる。⚠ 読まないと PTY のバッファが詰まってアプリ自体が止まる。
