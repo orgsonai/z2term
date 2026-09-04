@@ -191,6 +191,76 @@ class GuiSession(
     private var audioBridge: AudioBridge? = null
 
     /**
+     * ☰ に出す「入っている GUI アプリ」の一覧（0.8.499）。中身は `z2menu list` が決める
+     * ([GuiAppCatalog])。⚠ **開くたびに取り直す** — パッケージを入れた直後に出ないと
+     * 「入れたのに一覧に無い」で詰まる。数十件を読むだけなので取り直しは安い。
+     */
+    private val _apps = MutableStateFlow<List<GuiApp>>(emptyList())
+    val apps: StateFlow<List<GuiApp>> = _apps.asStateFlow()
+
+    /** 一覧を取りに行っている最中か（シートの「読み込み中」表示用）。 */
+    private val _appsLoading = MutableStateFlow(false)
+    val appsLoading: StateFlow<Boolean> = _appsLoading.asStateFlow()
+
+    /**
+     * ☰ から起こしたアプリの PTY。
+     *
+     * ⚠ **閉じてはいけない。** proot は `--kill-on-exit` なので、ルートの PTY を閉じると
+     * 配下の GUI アプリごと殺される（`setsid` しても proot の管理下からは逃げられない）。
+     * タブを閉じる ([stop]) までここで持ち続け、そこでまとめて閉じる。
+     */
+    private val appPtys = mutableListOf<PtyProcess>()
+
+    /** ☰ の一覧を取り直す。⚠ 失敗しても空になるだけで例外は投げない ([GuiAppCatalog.load])。 */
+    fun refreshApps() {
+        if (_appsLoading.value) return
+        _appsLoading.value = true
+        scope.launch {
+            try {
+                val id = runCatching { AppSettings(context).flow.first().distroId }.getOrNull()
+                    ?: distroId
+                _apps.value = GuiAppCatalog.load(context, id)
+            } finally {
+                _appsLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * ☰ で選んだアプリを起こす。`z2run` を通すので、GUI がまだ立っていなければ Xvnc ごと
+     * 起こして GUI タブを開くところまで既存の経路がやる。
+     *
+     * ⚠ **`Exec` は語で割らずシェルに渡す。** `.desktop` の `Exec` は引用符を含むことがあり、
+     * 空白で割ると壊れる。openbox の `<execute>` も同じくシェルに渡している。
+     *
+     * ⚠ **`Terminal=true` のアプリはここで端末を被せる。** 被せるのは**設定で選んだ GUI 内
+     * ターミナル**。デスクトップの右クリックメニュー側は z2term の設定を知らないので入っている
+     * 端末を自分で探す。出てくる端末が違うことはあるが、どちらも「その環境に在る端末」なので実害はない。
+     */
+    fun launchApp(app: GuiApp) {
+        scope.launch {
+            runCatching {
+                val snap = AppSettings(context).flow.first()
+                val term = GuiTerminal.byId(snap.guiTerminalId).binary
+                val cmd = if (app.terminal) "$term -e ${app.exec}" else app.exec
+                val p = ProotLauncher(context).launch(
+                    distroId = snap.distroId,
+                    command = "/bin/sh",
+                    extraArgs = listOf("-c", "exec /usr/local/bin/z2run $cmd"),
+                    loginShell = snap.loginShell,
+                    display = display,
+                )
+                synchronized(appPtys) { appPtys += p }
+                // 出力は捨てる。⚠ 読まないと PTY のバッファが詰まってアプリ自体が止まる。
+                scope.launch {
+                    val buf = ByteArray(4096)
+                    runCatching { while (p.reader.read(buf) >= 0) { /* 捨てる */ } }
+                }
+            }.onFailure { Log.w(TAG, "アプリを起こせなかった: ${app.name}", it) }
+        }
+    }
+
+    /**
      * GUI を起動する。
      *
      * @param clean true なら z2gui に `clean` を渡し、GUI パッケージをキャッシュごと
@@ -556,6 +626,11 @@ class GuiSession(
             // リモート (A1) は相手のデスクトップを止めない。こちらが繋いでいただけなので、
             // 切るのはソケットだけ。
             if (remote == null) runCatching { runGuiStop() }
+            // ☰ から起こしたアプリの proot も閉じる（ここまで持ち続けていたもの）。
+            synchronized(appPtys) {
+                appPtys.forEach { runCatching { it.close() } }
+                appPtys.clear()
+            }
             runCatching { pty?.close() }
             pty = null
             _state.value = State.STOPPED

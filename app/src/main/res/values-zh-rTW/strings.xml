@@ -766,6 +766,7 @@
     <string name="search_close">✕</string>
     <string name="tb_paste">貼上剪貼簿</string>
     <string name="tb_snippets">指令列表</string>
+    <string name="tb_apps">應用程式列表</string>
     <string name="tb_screen_on">保持螢幕常亮</string>
     <string name="tb_keep_alive">背景保活</string>
     <string name="tb_keep_alive_locked">常駐中（常駐服務執行中）</string>
@@ -1184,4 +1185,15 @@ SSH 連線目標 %3$d 個
     <string name="remote_service_share_path">本機上要共享的資料夾</string>
     <string name="remote_service_share_name">共享名</string>
     <string name="remote_service_share_hint">在遠端桌面上顯示為 \\\\tsclient\\%1$s。對方可以在其中建立、修改與刪除檔案，因此只共享可以交出的資料夾。</string>
+
+    <!-- 0.8.499: GUI 分頁的 ☰ 應用程式列表 (內容由 `z2menu list` 決定)。 -->
+    <string name="gui_apps_title">應用程式</string>
+    <string name="gui_apps_loading">載入中…</string>
+    <string name="gui_apps_count">%1$d 個</string>
+    <string name="gui_apps_search_hint">篩選</string>
+    <string name="gui_apps_no_match">沒有符合「%1$s」的應用程式</string>
+    <string name="gui_apps_searching">正在尋找應用程式…</string>
+    <string name="gui_apps_empty">找不到可啟動的 GUI 應用程式。在終端機分頁安裝 (例如 pacman -S gthumb) 後就會出現在這裡。</string>
+    <string name="gui_apps_window_hint">要切換已開啟的視窗，請長按桌面空白處並選擇「視窗」。</string>
+    <string name="gui_apps_terminal_badge">終端機</string>
 </resources>

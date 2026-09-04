@@ -1139,6 +1139,8 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # on any ringe
 >
 > ⚠ **KDE applications cannot remember their settings here** (found in 0.8.498, still unsolved). Inside an Android app, the mechanism Qt (which KDE is built on) uses to save files does not work. You can start and use them, but settings are gone once they close — and it is the same reason a double-tap on a file does not pick an application. GTK applications are unaffected.
 
+> **Press ☰ for a list of the applications you have** (0.8.499). Tap ☰ in the GUI toolbar and the GUI applications **actually installed** in that OS are listed; pick one and it starts (bringing the GUI up with it if it is not running yet). When there are many, the field at the top filters them. ⚠ Only entries that **really start something** are listed — applications you do not have never appear. You can hide the button under ⚙ Settings › Display › Toolbar.
+
 ### Connecting
 | Command | What it does |
 |---|---|

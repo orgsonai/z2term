@@ -834,6 +834,7 @@
     <!-- Toolbar action descriptions (long-press tooltip) -->
     <string name="tb_paste">Paste clipboard</string>
     <string name="tb_snippets">Command list</string>
+    <string name="tb_apps">Applications</string>
     <string name="tb_screen_on">Keep screen on</string>
     <string name="tb_keep_alive">Keep running in background</string>
     <string name="tb_keep_alive_locked">Resident (servers running)</string>
@@ -1279,4 +1280,15 @@ Theme: %9$d, dictionaries: %10$d, learned words: %11$d</string>
     <string name="remote_service_share_path">Shared folder on this device</string>
     <string name="remote_service_share_name">Share name</string>
     <string name="remote_service_share_hint">It shows up on the remote desktop as \\\\tsclient\\%1$s. The remote side can create, change and delete files there, so only share a folder you are willing to hand over.</string>
+
+    <!-- 0.8.499: the ☰ application sheet on the GUI tab (contents come from `z2menu list`). -->
+    <string name="gui_apps_title">Applications</string>
+    <string name="gui_apps_loading">loading…</string>
+    <string name="gui_apps_count">%1$d found</string>
+    <string name="gui_apps_search_hint">Filter</string>
+    <string name="gui_apps_no_match">Nothing matches \"%1$s\"</string>
+    <string name="gui_apps_searching">Looking for applications…</string>
+    <string name="gui_apps_empty">No GUI application to launch was found. Install one from a terminal tab (e.g. pacman -S gthumb) and it will show up here.</string>
+    <string name="gui_apps_window_hint">To switch between open windows, long-press an empty part of the desktop and choose "Windows".</string>
+    <string name="gui_apps_terminal_badge">terminal</string>
 </resources>

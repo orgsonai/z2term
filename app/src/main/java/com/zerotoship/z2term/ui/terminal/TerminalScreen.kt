@@ -127,6 +127,7 @@ import com.zerotoship.z2term.gui.RemoteDesktopClient
 import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.ui.clipboard.ClipboardHistorySheet
+import com.zerotoship.z2term.ui.gui.GuiAppsSheet
 import com.zerotoship.z2term.ui.log.SessionLogSheet
 import com.zerotoship.z2term.ui.components.ConfirmDialog
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
@@ -1124,6 +1125,8 @@ private fun GuiTabScreen(
     var settingsOpen by remember { mutableStateOf(false) }
     var snippetsSheetOpen by remember { mutableStateOf(false) }
     var clipHistoryOpen by remember { mutableStateOf(false) }
+    // ☰ アプリ一覧シート (0.8.499)。GUI タブにしか無い。
+    var appsSheetOpen by remember { mutableStateOf(false) }
     // GUI タブからコマンド一覧を開いたときも「接続先」を使えるよう、端末タブと同じ
     // リモートファイル画面の対象をここで持つ。
     var remoteFileTarget by remember { mutableStateOf<RemoteFileTarget?>(null) }
@@ -1301,6 +1304,7 @@ private fun GuiTabScreen(
                 { clipboardFilePicker.launch(arrayOf("*/*")) }
             } else null,
             onOpenSnippets = { snippetsSheetOpen = true },
+            onOpenApps = { appsSheetOpen = true },
             pointerAbsolute = pointerAbsolute,
             onTogglePointerMode = { gui.cursor.toggleMode() },
             onToggleKeyboardMode = {
@@ -1578,6 +1582,14 @@ private fun GuiTabScreen(
             serverSession = terminalForSettings
         )
     }
+
+    if (appsSheetOpen) {
+        GuiAppsSheet(
+            session = gui,
+            onDismiss = { appsSheetOpen = false },
+        )
+    }
+
     if (clipHistoryOpen) {
         ClipboardHistorySheet(
             onDismiss = { clipHistoryOpen = false },
@@ -1703,6 +1715,7 @@ private fun GuiTopBar(
     onPasteHistory: () -> Unit,
     onOfferClipboardFiles: (() -> Unit)?,
     onOpenSnippets: () -> Unit,
+    onOpenApps: () -> Unit,
     /** true = 絶対モード (🖱 を点灯させる)。 */
     pointerAbsolute: Boolean,
     onTogglePointerMode: () -> Unit,
@@ -1732,6 +1745,7 @@ private fun GuiTopBar(
         onPasteHistory = onPasteHistory,
         onOfferClipboardFiles = onOfferClipboardFiles,
         onOpenSnippets = onOpenSnippets,
+        onOpenApps = onOpenApps,
         pointerAbsolute = pointerAbsolute,
         onTogglePointerMode = onTogglePointerMode,
         onToggleKeyboardMode = onToggleKeyboardMode,
@@ -1834,6 +1848,7 @@ private fun guiToolbarItems(
     onPasteHistory: () -> Unit,
     onOfferClipboardFiles: (() -> Unit)?,
     onOpenSnippets: () -> Unit,
+    onOpenApps: () -> Unit,
     pointerAbsolute: Boolean,
     onTogglePointerMode: () -> Unit,
     onToggleKeyboardMode: () -> Unit,
@@ -1857,6 +1872,10 @@ private fun guiToolbarItems(
         )
     },
     ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
+    // ☰ アプリ一覧 (0.8.499)。⭐ **GUI タブにしか出さない。**
+    // GUI の中でアプリを起こす入口が「デスクトップの長押し (右クリック)」しか無く、
+    // 指では出しにくいので常設のボタンにする。中身は z2menu が決める (GuiAppCatalog)。
+    ToolbarItem(ToolbarButtons.APPS, "☰", stringResource(R.string.tb_apps), onClick = onOpenApps),
     // 🖱 カーソルの相対/絶対切替 (0.8.431)。⭐ **GUI タブにしか出さない。**
     // 0.8.430 まではこれが 📜 のダブルタップに隠れていて、⚠ **画面のどこにも出ていないうえ
     // 「コマンド一覧」と意味が繋がらない**ので誰も辿り着けなかった (利用者の指摘)。

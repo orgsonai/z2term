@@ -824,6 +824,7 @@
     <!-- ツールバー操作の簡易説明 (長押しポップアップ) -->
     <string name="tb_paste">クリップボードを貼り付け</string>
     <string name="tb_snippets">コマンド一覧</string>
+    <string name="tb_apps">アプリ一覧</string>
     <string name="tb_screen_on">画面消灯ロック</string>
     <string name="tb_keep_alive">バックグラウンド常駐</string>
     <string name="tb_keep_alive_locked">常駐中（常駐サーバー稼働）</string>
@@ -1263,4 +1264,15 @@ SSH 接続先 %3$d 件
     <string name="remote_service_share_path">共有する端末のフォルダ</string>
     <string name="remote_service_share_name">共有名</string>
     <string name="remote_service_share_hint">相手のデスクトップには \\\\tsclient\\%1$s として出る。相手はここにファイルを作る・書き換える・消すことができるので、渡してよいフォルダだけを共有すること。</string>
+
+    <!-- 0.8.499: GUI タブの ☰ アプリ一覧シート (中身は `z2menu list` が決める)。 -->
+    <string name="gui_apps_title">アプリ</string>
+    <string name="gui_apps_loading">読み込み中…</string>
+    <string name="gui_apps_count">%1$d 個</string>
+    <string name="gui_apps_search_hint">絞り込む</string>
+    <string name="gui_apps_no_match">「%1$s」に当てはまるアプリはありません</string>
+    <string name="gui_apps_searching">アプリを探しています…</string>
+    <string name="gui_apps_empty">起動できる GUI アプリが見つかりませんでした。端末タブでアプリを入れると (例: pacman -S gthumb) ここに並びます。</string>
+    <string name="gui_apps_window_hint">開いている窓を切り替えるには、デスクトップの何もないところを長押しして「窓」を選びます。</string>
+    <string name="gui_apps_terminal_badge">端末</string>
 </resources>

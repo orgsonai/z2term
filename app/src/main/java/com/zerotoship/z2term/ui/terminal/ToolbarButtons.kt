@@ -39,6 +39,7 @@ data class ToolbarButtonSpec(
 object ToolbarButtons {
     const val PASTE = "paste"
     const val SNIPPETS = "snippets"
+    const val APPS = "apps"
     const val SCREEN_ON = "screen_on"
     const val KEEP_ALIVE = "keep_alive"
     const val SEARCH = "search"
@@ -52,6 +53,10 @@ object ToolbarButtons {
     val CATALOG: List<ToolbarButtonSpec> = listOf(
         ToolbarButtonSpec(PASTE, "📋", R.string.tb_paste),
         ToolbarButtonSpec(SNIPPETS, "📜", R.string.tb_snippets),
+        // ☰ は GUI タブだけ。入っている GUI アプリの一覧を出して、選んだものを起動する (0.8.499)。
+        // GUI の中にアプリを起こす入口が「デスクトップの右クリック」しか無く、指では出しにくい
+        // ので、常設のボタンとして置く (利用者の要望「スタートボタンが欲しい」)。
+        ToolbarButtonSpec(APPS, "☰", R.string.tb_apps, guiOnly = true),
         // 🖱 は GUI タブだけ。カーソルの相対/絶対を切り替える (0.8.431)。
         // 以前は 📜 のダブルタップに隠れていて、**画面のどこにも出ていない**ため誰も辿り着けなかった。
         ToolbarButtonSpec(POINTER_MODE, "🖱", R.string.tb_pointer_mode, guiOnly = true),
