@@ -59,6 +59,8 @@ class AppLanguagesTest {
         assertEquals("ja", AppLanguages.resolve("ja"))
         assertEquals("en", AppLanguages.resolve("en"))
         assertEquals("zh-CN", AppLanguages.resolve("zh-CN"))
+        assertEquals("es", AppLanguages.resolve("es"))
+        assertEquals("ko", AppLanguages.resolve("ko"))
         // ⛔ 名簿に無い言語は**英語**。日本語へ倒さない。
         // ⚠ ここに「そのうち載せる言語」を書かないこと (載せた日にこのテストが嘘になる)。
         assertEquals(AppLanguages.FALLBACK, AppLanguages.resolve("zz"))
@@ -100,17 +102,23 @@ class AppLanguagesTest {
     /** 地域つきのスペイン語 (`es-MX` / `es-419`) は `es` へ。 */
     @Test
     fun spanishRegionsCollapseToTheBaseLanguage() {
-        val roster = listOf("en", "ja", "es")
+        val roster = AppLanguages.CODES
         assertEquals("es", AppLanguages.matchIn("es-ES", roster))
         assertEquals("es", AppLanguages.matchIn("es-MX", roster))
         assertEquals("es", AppLanguages.matchIn("es-419", roster))
+    }
+
+    /** 地域つきの韓国語は ko へ。 */
+    @Test
+    fun koreanRegionCollapsesToTheBaseLanguage() {
+        assertEquals("ko", AppLanguages.matchDeviceLocale("ko-KR"))
     }
 
     /** 名簿に無ければ英語。⛔ 日本語へ倒さない。 */
     @Test
     fun anythingElseGoesToEnglish() {
         val roster = listOf("en", "ja", "zh-CN")
-        assertEquals("en", AppLanguages.matchIn("ko-KR", roster))
+        assertEquals("en", AppLanguages.matchIn("zz-ZZ", roster))
         assertEquals("en", AppLanguages.matchIn("", roster))
     }
 }

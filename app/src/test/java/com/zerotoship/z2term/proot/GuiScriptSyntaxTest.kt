@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.proot
 
+import com.zerotoship.z2term.settings.AppLanguages
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -46,7 +47,7 @@ class GuiScriptSyntaxTest {
     fun `generated z2menu and z2run parse as posix sh`() {
         val sh = listOf("/bin/sh", "/usr/bin/sh").firstOrNull { File(it).canExecute() } ?: return
         val tmp = File(System.getProperty("java.io.tmpdir"), "z2gui-syntax-test").apply { mkdirs() }
-        for (lang in listOf("ja", "en", "zh-CN", "zh-TW")) {
+        for (lang in AppLanguages.CODES) {
             for ((name, script) in listOf("z2menu" to z2menuScript(lang), "z2run" to z2runScript(lang))) {
                 val f = File(tmp, "$name-$lang.sh").apply { writeText(script) }
                 val p = ProcessBuilder(sh, "-n", f.absolutePath)
