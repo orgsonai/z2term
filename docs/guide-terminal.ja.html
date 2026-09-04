@@ -28,8 +28,8 @@
   <p class="crumb"><a href="guide.ja.html">使いこなしガイド</a> / 1. ターミナルとして使う</p>
 
   <h1>1. ターミナルとして使う</h1>
-  <p class="lede">まずは<strong>ふつうのターミナルとして</strong>動かせるところまで。
-    ここだけ読めば、スマホの中の Linux でコマンドを打って作業できます。</p>
+  <p class="lede"><strong>ふつうのターミナルとして</strong>動かせるところまでを説明します。画面の見かた、
+    キーボード、コピーと検索、パッケージの導入、PC からの SSH、GUI タブまで。</p>
 
   <div class="chapnav">
     <a href="guide-terminal.ja.html" aria-current="page">1. ターミナル</a>
@@ -165,7 +165,7 @@ pacman -Sy --noconfirm git vim jq</pre>
     <figcaption><code>z2gui</code> でデスクトップ、<code>z2run &lt;アプリ&gt;</code> で単体起動</figcaption>
   </figure>
 
-  <p>タブの中に Linux のデスクトップ（Xvnc + openbox）が開きます。音も動画も出ます。
+  <p>タブの中に Linux のデスクトップ（Xvnc + openbox）が開きます。音声と動画も通ります。
     使うアプリは端末側で入れてください（例: <code>pacman -S &lt;アプリ名&gt;</code>）。</p>
 
   <h3>他のマシンのデスクトップを開く</h3>
@@ -179,8 +179,8 @@ pacman -Sy --noconfirm git vim jq</pre>
     <li><b>RDP</b> — NLA（ネットワークレベル認証）、初回の証明書確認、マウスとキーボード、音、
       テキストのクリップボード共有。</li>
     <li><b>既定では SSH の中を通ります。</b>接続のたびに一時的なローカル転送が張られるので、
-      画面の通信がそのまま外に出ません。直結にもできますが、
-      <b>暗号化が無くなる</b>と警告してからになります。</li>
+      画面の通信がそのまま外に出ません。直結にもできますが、そのときは<b>暗号化が無くなる</b>と
+      警告してからになります。</li>
   </ul>
 
   <div class="tip">ローカルポートを空欄にすると、空いているポートを自動で選びます。

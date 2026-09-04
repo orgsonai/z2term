@@ -28,8 +28,8 @@
   <p class="crumb"><a href="guide.ja.html">使いこなしガイド</a> / 2. マクロ</p>
 
   <h1>2. マクロ（Android を操る）</h1>
-  <p class="lede">ここからが Z2Term の独自部分です。<strong>シェルから Android 本体に手を伸ばす</strong>
-    <code>z2-*</code> コマンドと、それをまとめた「マクロ」の話をします。</p>
+  <p class="lede">ここからが Z2Term の独自部分です。<strong>シェルから Android 本体を操作する</strong>
+    <code>z2-*</code> コマンドと、それをまとめた「マクロ」を説明します。</p>
 
   <div class="chapnav">
     <a href="guide-terminal.ja.html">1. ターミナル</a>
@@ -41,7 +41,7 @@
   <h2>マクロとは、ここでは何のことか</h2>
 
   <p>Z2Term でいう<b>マクロ</b>は、<code>~/.z2term/macros/</code> に置いた<b>ふつうのシェルスクリプト</b>です。
-    特別な書き方はありません。特別なのは<b>置き場所</b>で、ここに置くと次の 3 つが使えるようになります。</p>
+    特別な書き方はありません。効いてくるのは<b>置き場所</b>で、ここに置くと次の 3 つが使えるようになります。</p>
 
   <ol class="steps">
     <li><b>名前だけで呼べる</b>（この場所は <code>PATH</code> に入っています）。<code>remind.sh 30m 薬</code> のように。</li>
@@ -58,7 +58,7 @@ z2-macro show remind     <span class="c"># 中身を読む（そのまま書き�
   <div class="note">導入すると、そのスクリプトの<b>動かし方</b>（常駐に登録する / <code>z2-when</code> で回す /
     ウィジェットに割り当てる）も一緒に表示されます。既にあるファイルは上書きしません。</div>
 
-  <h2>Android に手を伸ばす <code>z2-*</code> コマンド</h2>
+  <h2>Android を操作する <code>z2-*</code> コマンド</h2>
 
   <p><b>権限の設定は要りません</b>（一部、OS 側の許可が要るものだけ後述）。よく使うものを挙げます。</p>
 
@@ -87,10 +87,10 @@ z2-macro show remind     <span class="c"># 中身を読む（そのまま書き�
 
   <div class="tip">どのコマンドも<b><code>--help</code> を付けると詳しい説明</b>が出ます（例: <code>z2-tile --help</code>）。全体の一覧は <code>z2help</code> です。</div>
 
-  <h2>目玉: スクリプトが「あなたに聞く」</h2>
+  <h2>スクリプトから質問する（<code>z2-ask</code>）</h2>
 
-  <p><code>z2-ask</code> は、<b>通知の返信欄</b>で質問して、打ち込まれた答えを標準出力に返します。
-    アプリを開かなくても、通知を下ろして答えるだけで、裏で待っているスクリプトが続きを始めます。</p>
+  <p><code>z2-ask</code> は<b>通知の返信欄</b>で質問し、打ち込まれた答えを標準出力に返します。
+    アプリを開かずに通知を下ろして答えるだけで、待っていたスクリプトが続きを始めます。</p>
 
   <figure class="shot">
     <img src="images/notify-ask.png" alt="通知シェードに出た質問と、その返信欄">

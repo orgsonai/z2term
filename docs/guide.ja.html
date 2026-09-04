@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Z2Term 使いこなしガイド — 何ができて、どう使うか</title>
+<title>Z2Term 使いこなしガイド</title>
 <meta name="description" content="Z2Term の使いかたを最初から。ターミナルの操作、マクロ、自動化 (z2-when)、クイック設定タイルとウィジェットまで、独自の部分を順に説明します。">
 <meta property="og:title" content="Z2Term 使いこなしガイド">
-<meta property="og:description" content="Linux が分かる人でも最初は戸惑う「z2term 独自の部分」を、順番に説明します。">
+<meta property="og:description" content="ターミナルの操作、マクロ、自動化、タイルとウィジェット。Z2Term 独自の部分を順番に説明します。">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://orgsonai.github.io/z2term/guide.ja.html">
 <meta property="og:locale" content="ja_JP">
@@ -32,13 +32,12 @@
 <div class="wrap narrow doc">
 
   <h1>使いこなしガイド</h1>
-  <p class="lede">Z2Term は「Android で動く Linux ターミナル」であると同時に、
-    <strong>シェルから Android そのものを操作する道具</strong>です。後半がまるごと独自のしくみなので、
-    <strong>Linux に慣れている方でも、知らなければ使えません</strong>。
-    このガイドは、その独自部分を順番に説明します。</p>
+  <p class="lede">Android で動く Linux ターミナルとしての使い方と、<strong>シェルから Android 本体を
+    操作する独自のしくみ</strong>を、順番に説明します。後半は他のターミナルアプリには無い部分なので、
+    Linux に慣れていても、知らなければ使えません。</p>
 
-  <div class="tip">はじめての方は <b>下の「最初の 15 分」</b>だけ読めば、ふつうのターミナルとして使えます。
-    その先の 4 章が、このアプリならではの部分です。</div>
+  <div class="tip">ふつうのターミナルとして使うだけなら、下の<b>「最初の 15 分」</b>で足ります。
+    その先の 4 章が Z2Term 独自の部分です。</div>
 
   <h2>このアプリで何ができるか</h2>
 
@@ -79,8 +78,8 @@
       変換は候補バーから。<b>OS のキーボードとしても使えます</b>（設定 → キーボード）。</li>
     <li><b>ディストロは後から変えられる。</b>⚙ 設定 →「Linux 環境」で Alpine / Ubuntu / Arch / Kali。
       迷ったら Alpine のままで構いません。
-      <div class="warn"><code>claude</code> や <code>gcc</code> など <b>glibc 前提のものを動かすなら Arch</b> を選んでください。
-        Alpine（musl）では起動できないものがあります。</div>
+      <div class="warn"><b>glibc を前提に配布されているバイナリを動かすなら Arch</b> を選んでください。
+        Alpine は musl なので、起動できないものがあります。</div>
     </li>
     <li><b>同梱のマクロを入れてみる。</b>端末で <code>z2-macro install all</code> と打つと、
       すぐ使えるサンプルが <code>~/.z2term/macros/</code> に入ります。ここが 2 章以降の出発点です。</li>
