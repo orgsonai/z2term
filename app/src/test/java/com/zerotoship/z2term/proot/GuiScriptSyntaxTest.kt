@@ -32,7 +32,7 @@ class GuiScriptSyntaxTest {
     }
 
     @Test
-    fun `dbus daemon stays attached and Alpine desktop schemas are required`() {
+    fun `dbus daemon stays attached and Alpine GUI runtime is required`() {
         val script = z2guiScript(strings = GuiScriptStrings.en())
 
         // dbus-daemon の --print-pid は「出力先ファイル」ではなく fd 番号を取る。
@@ -47,6 +47,12 @@ class GuiScriptSyntaxTest {
         assertTrue(script.contains("apk info -e gsettings-desktop-schemas"))
         assertTrue(Z2TERM_GUI_PACKAGES.contains("gsettings-desktop-schemas"))
         assertTrue(Z2TERM_ALPINE_DESKTOP_SCHEMA.contains("org.gnome.desktop.background"))
+
+        // Alpine の最小 rootfs に bash は無い。一方、GUI パッケージが置く起動ラッパーには
+        // `#!/usr/bin/env bash` があり、実体だけを command -v しても起動可能性は分からない。
+        // 既存 GUI 環境にも補われるよう導入一覧と readiness 判定の両方に固定する。
+        assertTrue(script.contains("has bash || return 1"))
+        assertTrue(Z2TERM_GUI_PACKAGES.split(' ').contains("bash"))
     }
 
     /**

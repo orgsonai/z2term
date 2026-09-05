@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-05 / 対象バージョン: 0.8.512-alpha (versionCode 520)
+最終更新: 2026-09-05 / 対象バージョン: 0.8.513-alpha (versionCode 521)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1903,7 +1903,8 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 ### 4.12 GUI デスクトップ (`gui/`)
 
 - distro 内で **Xvnc**(VNC サーバ) + 軽量 WM/アプリを起動（`proot/GuiScript.kt` が冪等で配置・起動。GUI 自動起動 / 横画面対応）。
-- **GUI 一式の導入 (`ensure_pkgs`)**: Xvnc / openbox / D-Bus を GUI 基盤とし、Xvnc / openbox / `dbus-daemon` が揃っていれば**無通信で即起動**。**GUI 端末は自動導入も自動起動もしない (0.8.505)**。デスクトップはアプリ表示面とし、導入済みの GUI アプリを ☰ / `z2menu` から直接起動する。**未導入の基盤があるときだけ** `install_pkgs`（apk add / apt install / pacman -S）で取得する。app 側 (`TerminalScreen`) のダウンロード確認ゲートが同意を取ってから走り、`clean` のときだけ cache から入れ直す。
+- **GUI 一式の導入 (`ensure_pkgs`)**: Xvnc / openbox / D-Bus を GUI 基盤とし、それらが揃っていれば**無通信で即起動**（Alpine は下記のbashとdesktop schemaも判定する）。**GUI 端末は自動導入も自動起動もしない (0.8.505)**。デスクトップはアプリ表示面とし、導入済みの GUI アプリを ☰ / `z2menu` から直接起動する。**未導入の基盤があるときだけ** `install_pkgs`（apk add / apt install / pacman -S）で取得する。app 側 (`TerminalScreen`) のダウンロード確認ゲートが同意を取ってから走り、`clean` のときだけ cache から入れ直す。
+  - ⭐⭐ **Alpineで一覧には出るGUIアプリが即終了した根本原因（0.8.513）**: 最小rootfsにはbashが無い一方、パッケージが置く `.desktop` の起動先には `#!/usr/bin/env bash` のラッパーがある。`z2menu` の `command -v` はラッパー本体の存在を確認できても、そのinterpreterまでは確認しないため、タップすると `env: can't execute 'bash': No such file or directory`（127）で窓を作る前に終了していた。⇒ AlpineのGUI基盤にbashを含め、`gui_stack_ready` でも `has bash` を要求する。これにより既にGUIを導入済みのrootfsにも次回起動時に補完される。個別アプリ名の置換やOS×アプリの例外表は持たない。
 - **Xvnc 描画互換 (0.8.505)**: Xvnc で MIT-SHM を無効にするだけでなく、Qt に `QT_XCB_NO_MITSHM=1`、GTK に `GDK_RENDERING=image`、両者に X11 backend を明示する。
 - **gThumb / SMPlayer 互換 (0.8.506)**: gThumb 3.12.10 は最初の SVG アイコンを読む際、glycin が Android のアプリ sandbox 内で bubblewrap の Linux namespace sandbox を入れ子にしようとして失敗し、強制終了していた。z2term は gThumb 専用 wrapper からだけ `libz2glycin.so` を `LD_PRELOAD` し、gdk-pixbuf が用意する「外側で sandbox 済み」の公式経路へ切り替える。シムは gThumb プロセスだけに限定され、他のアプリ、root chroot、`bwrap` 本体には干渉しない。SMPlayer は mpv を `--no-config` 付きで起動するため、`/etc/mpv/mpv.conf` だけでは足りない。実際の設定はディストリ別 `.config` overlay にあり、Qt は `General` group を `[%General]` として保存するため、他の全設定を保ったまま overlay 内の `[%General] driver\vo=x11` / `[performance] hwdec=no` だけを補正する。
 - **GUI のクリーンインストール設定を廃止 (0.8.507)**: GUI は導入済みアプリを開く表示面であり、設定画面に破壊的な再導入スイッチを常設しない。設定値・次回起動予約・専用確認ダイアログも削除し、GUI タブは常に通常起動する。低レベルの復旧手段 `z2gui clean` は端末コマンドとしてのみ残す。

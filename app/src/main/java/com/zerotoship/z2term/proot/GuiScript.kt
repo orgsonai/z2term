@@ -14,7 +14,7 @@ const val Z2TERM_VNC_DISPLAY = 1
 
 /** （参考）Alpine の GUI パッケージ。実際の導入は [z2guiScript] が distro 判定して切替える。 */
 const val Z2TERM_GUI_PACKAGES =
-    "tigervnc openbox dbus gsettings-desktop-schemas font-noto ttf-dejavu"
+    "tigervnc openbox dbus bash gsettings-desktop-schemas font-misc-misc font-alias font-noto ttf-dejavu"
 
 /** Alpine の gThumb が起動時に必ず読む schema。Android 側のダウンロード確認にも使う。 */
 const val Z2TERM_ALPINE_DESKTOP_SCHEMA =
@@ -244,7 +244,7 @@ fun z2guiScript(
         |# X サーバの実体名を解決 (TigerVNC は distro により Xvnc または Xtigervnc)。
         |xbin() { for b in Xvnc Xtigervnc; do has "${d}b" && { echo "${d}b"; return 0; }; done; return 1; }
         |
-        |# パッケージマネージャと、その distro のサーバ/WM/D-Bus/フォントのパッケージ名を決める。
+        |# パッケージマネージャと、その distro のサーバ/WM/D-Bus/シェル/フォントのパッケージ名を決める。
         |PM=""; INSTALL=""; SRV_PKGS=""
         |# フォント: コア(ビットマップ)フォントパッケージも入れておく (xterm 以外のコアフォント
         |# 利用アプリ向けの保険)。ただし xterm 自体は下の start_x で Xft(-fa) を使い、コアフォント
@@ -259,7 +259,10 @@ fun z2guiScript(
         |    # gsettings-desktop-schemas: Alpine の gthumb は org.gnome.desktop.background を
         |    # 参照するのにこの package を依存へ含めない。無いと一覧には出るのに起動直後
         |    # GLib-GIO-ERROR で停止するため、Alpine の GUI 土台に含める。
-        |    PM=apk;    SRV_PKGS="tigervnc openbox dbus gsettings-desktop-schemas font-misc-misc font-alias font-noto ttf-dejavu"
+        |    # bash: Alpine の最小 rootfs には無いが、GUI パッケージの .desktop が指す
+        |    # ラッパーには `#!/usr/bin/env bash` のものがある。実行ファイルだけ存在しても
+        |    # interpreter 不在なら exit 127 で窓が出ないため、GUI ランタイムとして保証する。
+        |    PM=apk;    SRV_PKGS="tigervnc openbox dbus bash gsettings-desktop-schemas font-misc-misc font-alias font-noto ttf-dejavu"
         |  elif has apt-get; then
         |    PM=apt;    SRV_PKGS="tigervnc-standalone-server openbox dbus xfonts-base fonts-noto-core fonts-dejavu"
         |  elif has pacman; then
@@ -329,9 +332,11 @@ fun z2guiScript(
         |
         |gui_stack_ready() {
         |  xbin >/dev/null 2>&1 && has openbox && has dbus-daemon || return 1
-        |  # 既に GUI 基盤を入れてある Alpine にも、後から追加した必須 schema を補う。
-        |  # `has` では調べられない data package なので apk の登録情報を見る。
+        |  # 既に GUI 基盤を入れてある Alpine にも、後から追加した必須ランタイムを補う。
         |  if [ "${d}PM" = "apk" ]; then
+        |    # `.desktop` が指すスクリプトの interpreter。PATH に実体があることを直接見る。
+        |    has bash || return 1
+        |    # schema は `has` では調べられない data package なので apk の登録情報を見る。
         |    apk info -e gsettings-desktop-schemas >/dev/null 2>&1 || return 1
         |  fi
         |  return 0
