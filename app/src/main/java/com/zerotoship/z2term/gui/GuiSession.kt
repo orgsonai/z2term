@@ -208,9 +208,12 @@ class GuiSession(
     /**
      * ☰ から起こしたアプリの PTY。
      *
-     * ⚠ **閉じてはいけない。** proot は `--kill-on-exit` なので、ルートの PTY を閉じると
-     * 配下の GUI アプリごと殺される（`setsid` しても proot の管理下からは逃げられない）。
-     * タブを閉じる ([stop]) までここで持ち続け、そこでまとめて閉じる。
+     * ⚠ **閉じてはいけない。** z2root は `--kill-on-exit` なので、ルートの PTY を閉じると
+     * 配下の GUI アプリごと殺される（`setsid` しても z2root の管理下からは逃げられない）。
+     * さらに、PTY を持っているだけでは、起動コマンドが子へ引き継いで終了したときの
+     * `PTRACE_O_EXITKILL` は防げない。そのため [launchApp] は `waitTracees = true` も渡し、
+     * 子孫が全て終わるまで z2root 自身を生かす。タブを閉じる ([stop]) までここで持ち続け、
+     * そこでまとめて閉じる。
      */
     private val appPtys = mutableListOf<PtyProcess>()
 
@@ -266,6 +269,11 @@ class GuiSession(
                     // 繋げず即死する（☰ から選んでも**何も出てこなかった**原因）。ここは
                     // z2gui 本体ではなく **:N へ相乗りする側**なので、端末タブと同じく true。
                     exportDisplay = true,
+                    // ⛔ **GUI アプリの起動では必ず true。** アプリによっては起動直後に fork して
+                    // 親だけ終了する（単一起動化・デーモン化）。既定 false のままだと z2root は
+                    // 親の終了でトレースをやめ、PTRACE_O_EXITKILL が残った窓のプロセスを殺す。
+                    // 前景に残るアプリだけ動くため「OS / アプリによって開かない」に見えていた。
+                    waitTracees = true,
                 )
                 synchronized(appPtys) { appPtys += p }
                 // 出力は捨てる。⚠ 読まないと PTY のバッファが詰まってアプリ自体が止まる。

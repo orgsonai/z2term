@@ -329,8 +329,10 @@ class ProotLauncher(private val context: Context) {
          *
          * 既定 (false) では、メインの `sh` が exit した瞬間にエンジンが終了し、
          * `PTRACE_O_EXITKILL` (`--kill-on-exit`) でカーネルが残りのプロセスを kill する。
-         * そのため `sshd --lan` のようにデーモンを起こすコマンドは、起動に成功した直後に
-         * 道連れで消える。単発実行 ([com.zerotoship.z2term.service.HeadlessRun]) だけ true にする。
+         * そのため `sshd --lan` のようにデーモンを起こすコマンドや、起動直後に子プロセスへ
+         * 引き継ぐ GUI アプリは、起動に成功した直後に道連れで消える。子孫の寿命まで追う必要がある
+         * 単発実行 ([com.zerotoship.z2term.service.HeadlessRun]) と GUI アプリ起動だけ true にする。
+         * 端末タブは「シェルを抜けたら終了」を守るため false のままにする。
          *
          * z2root 専用オプション。
          */

@@ -98,8 +98,9 @@ struct config {
     // かといって kill_on_exit を外すのは解ではない: seccomp フィルタは対象プロセスに
     // residual として残るので、トレーサが居なくなると該当 syscall が軒並み ENOSYS になり
     // デーモンが壊れる。**トレースを続けたまま生かす**のが唯一の正解。
-    // 単発実行 (z2-when のルール実行・ウィジェットのマクロ実行) だけで使う。端末タブは
-    // 既定のまま = シェルを抜けたらタブが終わる、という従来の挙動を変えない。
+    // 単発実行 (z2-when のルール実行・ウィジェットのマクロ実行) と、親が終了して子へ
+    // 引き継ぐことがある GUI アプリの起動で使う。端末タブは既定のまま = シェルを抜けたら
+    // タブが終わる、という従来の挙動を変えない。
     int wait_tracees;                 // --wait-tracees
     int link2symlink;                 // --link2symlink (linkat→symlinkat エミュレート)
     struct bind_entry binds[MAX_BINDS];
