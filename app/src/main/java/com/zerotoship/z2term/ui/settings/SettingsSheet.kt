@@ -3541,10 +3541,16 @@ private fun ToolbarVisibilityRow(
             .horizontalScroll(chipScroll),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        // ⛔ **`key(id)` を `forEach` の直下に置くこと**（0.8.511 で修正）。
+        // `if (…) { key(id) { … } }` のように条件分岐を外側に挟むと、key の移動は
+        // **その分岐グループの中でしか起きない**ので、並べ替えで順序が変わるたびにチップが
+        // 破棄されて作り直される。作り直された瞬間に進行中の pointerInput が消えるため、
+        // **1 個入れ替えたところでドラッグが切れて終わる** — 「一気に運べない・1 個ずつしか
+        // 動かない」の正体だった (タブの並べ替えにも同じ注意書きがある)。
         reorder.order.forEach { id ->
-            val spec = specById[id]
-            if (spec != null) {
-                key(id) {
+            key(id) {
+                val spec = specById[id]
+                if (spec != null) {
                     ToolbarPickerChip(
                         spec = spec,
                         shown = spec.id !in hiddenIds,
