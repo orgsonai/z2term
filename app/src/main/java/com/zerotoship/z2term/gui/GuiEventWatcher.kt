@@ -15,7 +15,7 @@ import java.io.RandomAccessFile
  *
  * **流れ**:
  *  1. 端末 (proot) 内で `z2run python gui.py` 等が実行される
- *  2. `z2run` (Z2RunScript) が `/storage/app/z2gui.events` に `OPEN <display>` を append する
+ *  2. `z2run` (Z2RunScript) が `/storage/app/z2gui.events` に `OPEN <display> <distro>` を append する
  *  3. proot バインドにより、このファイルは Android 側の
  *     `getExternalFilesDir(null) + "/z2gui.events"` と同じ実体
  *  4. ここの [FileObserver] が MODIFY を受け取り、新規追記行をパースして
@@ -109,26 +109,34 @@ object GuiEventWatcher {
         }
     }
 
-    /** "OPEN N" を解釈して GUI タブを開かせる。未知の行は無視。 */
+    /** "OPEN N [distro]" を解釈して GUI タブを開かせる。未知の行は無視。 */
     private fun handleLine(context: Context, line: String) {
-        // 形式: "OPEN <display>" のみサポート。空白区切りで素朴に解析する。
-        val parts = line.split(Regex("\\s+"))
-        if (parts.size < 2 || parts[0] != "OPEN") {
-            Log.d(TAG, "unknown event: $line"); return
+        val event = parseGuiOpenEvent(line)
+        if (event == null) {
+            Log.w(TAG, "invalid or unknown event: $line"); return
         }
-        val display = parts[1].toIntOrNull()
-        if (display == null || display <= 0) {
-            Log.w(TAG, "invalid display number: $line"); return
-        }
-        Log.i(TAG, "OPEN display=$display")
+        Log.i(TAG, "OPEN display=${event.display} distro=${event.distroId ?: "legacy"}")
         // SessionManager 操作 (StateFlow 更新) はメインで実行。Compose 側は collectAsState で
         // 拾うので、Activity 不在でも内部状態は正しく整う (起動時に最新の active が選ばれる)。
         mainHandler.post {
             try {
-                SessionManager.openGuiForDisplay(context, display)
+                SessionManager.openGuiForDisplay(context, event.display, event.distroId)
             } catch (e: Exception) {
-                Log.w(TAG, "GUI tab creation failed (display=$display)", e)
+                Log.w(TAG, "GUI tab creation failed (display=${event.display}, distro=${event.distroId})", e)
             }
         }
     }
+}
+
+internal data class GuiOpenEvent(val display: Int, val distroId: String?)
+
+private val DISTRO_ID_REGEX = Regex("[a-z0-9][a-z0-9._-]{0,63}")
+
+/** 新形式 `OPEN N distro` と旧形式 `OPEN N` を副作用なしで厳密に解析する。 */
+internal fun parseGuiOpenEvent(line: String): GuiOpenEvent? {
+    val parts = line.trim().split(Regex("\\s+"))
+    if (parts.size !in 2..3 || parts[0] != "OPEN") return null
+    val display = parts[1].toIntOrNull()?.takeIf { it > 0 } ?: return null
+    val distroId = parts.getOrNull(2)?.takeIf { DISTRO_ID_REGEX.matches(it) } ?: if (parts.size == 2) null else return null
+    return GuiOpenEvent(display, distroId)
 }

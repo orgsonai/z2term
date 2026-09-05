@@ -148,14 +148,18 @@ object SessionManager {
     fun openLinkedGui(context: Context): GuiSession = synchronized(lock) {
         val activeSession = active()
         val display = if (activeSession is TerminalSession) activeSession.display else allocateDisplay()
-        // 同じ display の GUI が既に居れば前面化のみ (端末 ↔ GUI 1:1 を保つ)。
-        val existing = mutableSessions.firstOrNull { it is GuiSession && it.display == display } as? GuiSession
+        val distroId = (activeSession as? TerminalSession)?.distroId?.value
+        // displayだけでなくOSも一致するときだけ再利用する。別OSのXvncへアプリを混ぜない。
+        val existing = mutableSessions.firstOrNull {
+            it is GuiSession && it.display == display &&
+                (distroId == null || it.distroId == null || it.distroId == distroId)
+        } as? GuiSession
         if (existing != null) {
             _activeId.value = existing.id
             return@synchronized existing
         }
         reserveDisplay(display)
-        val s = GuiSession(context.applicationContext, display = display)
+        val s = GuiSession(context.applicationContext, display = display, initialDistroId = distroId)
         mutableSessions.add(s)
         _sessions.value = mutableSessions.toList()
         _activeId.value = s.id
@@ -199,19 +203,36 @@ object SessionManager {
      * GUI タブを後付けする (端末 ↔ GUI のペア成立)。display 番号は端末側が既に reserve 済みの
      * ことが多いが、念のため `reserveDisplay` で取りこぼし無しにする。
      */
-    fun openGuiForDisplay(context: Context, display: Int): GuiSession = synchronized(lock) {
-        // 既に同じ display の GUI タブがあれば、それを前面化して再利用する (二重起動防止)。
-        val existing = mutableSessions.firstOrNull { it is GuiSession && it.display == display } as? GuiSession
+    fun openGuiForDisplay(context: Context, display: Int, distroId: String? = null): GuiSession = synchronized(lock) {
+        // 同じdisplayでもOSが違うGUIは再利用しない。OS切替時はcloseGuiForDisplayが先に閉じる。
+        val existing = mutableSessions.firstOrNull {
+            it is GuiSession && it.display == display &&
+                (distroId == null || it.distroId == null || it.distroId == distroId)
+        } as? GuiSession
         if (existing != null) {
             _activeId.value = existing.id
             return@synchronized existing
         }
         reserveDisplay(display)
-        val s = GuiSession(context.applicationContext, display = display)
+        val s = GuiSession(context.applicationContext, display = display, initialDistroId = distroId)
         mutableSessions.add(s)
         _sessions.value = mutableSessions.toList()
         _activeId.value = s.id
         s
+    }
+
+    /**
+     * 端末が別OSへ切り替わる前に、同じdisplayのローカルGUIを閉じる。
+     * XvncのTCPポートはOSを跨いで共有できないため、古いGUIを残したまま新OSでz2runすると
+     * 古い画面の再利用または5900+displayの競合になる。
+     */
+    fun closeGuiForDisplay(display: Int) {
+        val ids = synchronized(lock) {
+            mutableSessions.filterIsInstance<GuiSession>()
+                .filter { it.remote == null && it.display == display }
+                .map { it.id }
+        }
+        ids.forEach { close(it) }
     }
 
     /**

@@ -1123,6 +1123,8 @@ class TerminalSession(
     fun switchDistro(id: String) {
         setDistro(id)
         val spec = DistroSpec.byId(id) ?: DistroSpec.ALPINE
+        // 同じdisplayのXvncは別OSへ引き継げない。古いGUIを先に閉じ、OS混線とport競合を防ぐ。
+        SessionManager.closeGuiForDisplay(display)
         closeChannel()
         scope.launch(emulatorDispatcher) {
             emulator.processBytes(byteArrayOf(0x1B, 'c'.code.toByte()))
@@ -1157,6 +1159,7 @@ class TerminalSession(
     fun cleanInstallDistro(id: String) {
         setDistro(id)
         val spec = DistroSpec.byId(id) ?: DistroSpec.ALPINE
+        SessionManager.closeGuiForDisplay(display)
         closeChannel()
         scope.launch {
             val rootfs = java.io.File(appContext.filesDir, "distros/$id")

@@ -1360,6 +1360,50 @@ static void trc_init(void) {
     g_trc_on = 1;
 }
 
+// 通常のZ2ROOT_TRACEは全syscallを記録して重い。こちらはSEGV/BUS/ILLの瞬間だけ開き、
+// PC/LRとそれらを含むmapを残す常設の軽量診断口。アプリごとの例外を増やさず、未確認の
+// distro/GUIアプリが落ちた場合も「どの共有ライブラリか」まで一度の再現で分かる。
+static void crash_map_line(FILE *out, pid_t pid, unsigned long long addr, const char *label) {
+    char path[64], line[PATH_MAX_Z + 128];
+    snprintf(path, sizeof path, "/proc/%d/maps", pid);
+    FILE *maps = fopen(path, "r");
+    if (!maps) {
+        fprintf(out, "[z2crash] %s=0x%llx map=<unavailable errno=%d>\n", label, addr, errno);
+        return;
+    }
+    while (fgets(line, sizeof line, maps)) {
+        unsigned long long lo = 0, hi = 0;
+        if (sscanf(line, "%llx-%llx", &lo, &hi) == 2 && addr >= lo && addr < hi) {
+            fprintf(out, "[z2crash] %s=0x%llx map=%s", label, addr, line);
+            fclose(maps);
+            return;
+        }
+    }
+    fclose(maps);
+    fprintf(out, "[z2crash] %s=0x%llx map=<not found>\n", label, addr);
+}
+
+static void crash_log(pid_t pid, int sig, const siginfo_t *si, const struct user_pt_regs *cr) {
+    const char *path = getenv("Z2ROOT_CRASHLOG");
+    if (!path || path[0] != '/') return;
+
+    struct stat st;
+    const char *mode = (stat(path, &st) == 0 && st.st_size > 1024 * 1024) ? "w" : "a";
+    FILE *out = fopen(path, mode);
+    if (!out) return;
+    setvbuf(out, NULL, _IOLBF, 0);
+    fprintf(out, "[z2crash] pid=%d sig=%d code=%d addr=%p pc=0x%llx lr=0x%llx sp=0x%llx\n",
+            pid, sig, si ? si->si_code : -999, si ? si->si_addr : NULL,
+            (unsigned long long)cr->pc, (unsigned long long)cr->regs[30],
+            (unsigned long long)cr->sp);
+    crash_map_line(out, pid, (unsigned long long)cr->pc, "pc");
+    crash_map_line(out, pid, (unsigned long long)cr->regs[30], "lr");
+    fprintf(out, "[z2crash] x0=0x%llx x1=0x%llx x2=0x%llx x3=0x%llx\n",
+            (unsigned long long)cr->regs[0], (unsigned long long)cr->regs[1],
+            (unsigned long long)cr->regs[2], (unsigned long long)cr->regs[3]);
+    fclose(out);
+}
+
 // fakeroot(-0): syscall-exit で uid/gid 関連の戻り値・構造体を root(0) に偽装する。
 // proot の -0 相当。ホストのアプリ uid/gid がゲストへ露出するのを防ぎ、root 前提の
 // パッケージ操作(apk/apt の chown 等)が EPERM で失敗しないよう成功に見せる。
@@ -1567,6 +1611,20 @@ static void rewrite_recvmsg_creds(pid_t pid, unsigned long msgp, int fd) {
     if (g_trc_on)
         fprintf(g_trc, "[z2trc] recvmsg pid=%d fd=%d ret=%ld clen=%lu pat=%d\n",
                 pid, fd, ret, ctrllen, patched);
+}
+
+// getsockopt(SOL_SOCKET, SO_PEERCRED) の uid/gid もfakerootと同じ0へ揃える。
+// D-BusはクライアントがEXTERNAL認証で名乗るuid(getuid→0)と、サーバーがsocketから得る
+// peer uidを照合する。ここだけAndroid実uidのままだと不一致で認証が成立せず、全GUIアプリの
+// session busが「socketはあるが応答しない」状態になる。pidは実プロセス識別に必要なので保つ。
+static void fake_peercred_on_exit(pid_t pid, unsigned long optval, unsigned long optlenp) {
+    struct user_pt_regs regs;
+    if (get_regs(pid, &regs) != 0 || (long)regs.regs[0] != 0 || !optval || !optlenp) return;
+    unsigned int optlen = 0;
+    if (read_tracee_mem(pid, optlenp, &optlen, sizeof optlen) != 0 || optlen < 12) return;
+    unsigned int zero = 0;
+    write_tracee_mem(pid, optval + 4, &zero, sizeof zero);  // struct ucred.uid
+    write_tracee_mem(pid, optval + 8, &zero, sizeof zero);  // struct ucred.gid
 }
 
 // fakeroot(-0) の /proc 偽装: get*id syscall を 0 に偽装しても、ゲストが
@@ -2386,6 +2444,7 @@ static const int kTraceSyscallsFakeroot[] = {
     // (pacman-key --init が典型。0.8.318 まで Arch で pacman が一切使えなかった真因)。
     // ここは setter(147/149)と getter(148/150)が**対**であることを意識して並べる。
     148, 150,                 // getresuid / getresgid
+    209,                      // getsockopt(SO_PEERCRED): peer uid/gidを0へ
     211, 212,                 // sendmsg / recvmsg (AF_UNIX SCM_CREDENTIALS の uid/gid 偽装)
 };
 
@@ -2541,6 +2600,7 @@ static int syscall_needs_exit(const struct config *cfg, const struct pid_state *
         case 151: case 152: case 159: case 54: case 55:
         case 52: case 53: return 1;  // 戻り値を 0(成功)へ(chmod/chown/set*id の EPERM 偽装)
         case 148: case 150: return 1;  // getresuid/getresgid: 出力先の 3 つを 0 に書き換える
+        case 209: return st->aux_addr != 0;  // getsockopt(SO_PEERCRED): struct ucredを0へ
         case 212: return !cfg->no_recvmsg;  // recvmsg: 受信 SCM_CREDENTIALS の uid/gid を 0 へ([DEBUG] スイッチで介入なし)
         default: return 0;                            // パス変換のみ(execve/unlinkat/sendmsg 等)
     }
@@ -2738,6 +2798,12 @@ static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_
         case 211:  // sendmsg: SCM_CREDENTIALS の uid/gid を実値へ(entry で完結)
             rewrite_sendmsg_creds(cfg, pid, &regs);
             break;
+        case 209:  // getsockopt: SO_PEERCREDだけ出力先とsocklen_t*を控える
+            if ((long)regs.regs[1] == SOL_SOCKET && (long)regs.regs[2] == SO_PEERCRED) {
+                aux = regs.regs[3];
+                st->aux_len = regs.regs[4];
+            }
+            break;
         case 212:  // recvmsg: msg ポインタと fd を控え、exit で受信 cred を 0 へ
             // ⚠ aux_len は readlinkat の bufsiz 用だが 212 では未使用なので fd の控えに流用する
             // (診断行に fd を出すため。exit では x0 が戻り値に潰れていて第 1 引数を読めない)。
@@ -2786,6 +2852,8 @@ static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_
             fake_proc_on_read(pid, st->aux_addr, st->aux_kind, st);
         } else if (st->entry_nr == 212 && st->aux_addr) {
             rewrite_recvmsg_creds(pid, st->aux_addr, (int)st->aux_len);
+        } else if (st->entry_nr == 209 && st->aux_addr) {
+            fake_peercred_on_exit(pid, st->aux_addr, st->aux_len);
         } else if (st->entry_nr == 148 || st->entry_nr == 150) {
             fake_getres_on_exit(pid, st);
         } else {
@@ -3066,6 +3134,12 @@ static int run_tracer(const struct config *cfg, pid_t child) {
         }
 
         // それ以外(signal-delivery-stop / 通常シグナル)はそのまま転送。
+        if (sig == SIGSEGV || sig == SIGBUS || sig == SIGILL) {
+            siginfo_t si; memset(&si, 0, sizeof si);
+            ptrace(PTRACE_GETSIGINFO, pid, 0, &si);
+            struct user_pt_regs cr;
+            if (get_regs(pid, &cr) == 0) crash_log(pid, sig, &si, &cr);
+        }
         if (g_trace) {
             siginfo_t si; memset(&si, 0, sizeof si);
             int gr = ptrace(PTRACE_GETSIGINFO, pid, 0, &si);

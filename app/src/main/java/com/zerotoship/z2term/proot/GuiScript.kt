@@ -14,7 +14,7 @@ const val Z2TERM_VNC_DISPLAY = 1
 
 /** （参考）Alpine の GUI パッケージ。実際の導入は [z2guiScript] が distro 判定して切替える。 */
 const val Z2TERM_GUI_PACKAGES =
-    "tigervnc openbox dbus bash gsettings-desktop-schemas font-misc-misc font-alias font-noto ttf-dejavu"
+    "tigervnc openbox dbus bash gsettings-desktop-schemas xdg-desktop-portal xdg-desktop-portal-gtk font-misc-misc font-alias font-noto ttf-dejavu"
 
 /** Alpine の gThumb が起動時に必ず読む schema。Android 側のダウンロード確認にも使う。 */
 const val Z2TERM_ALPINE_DESKTOP_SCHEMA =
@@ -262,11 +262,11 @@ fun z2guiScript(
         |    # bash: Alpine の最小 rootfs には無いが、GUI パッケージの .desktop が指す
         |    # ラッパーには `#!/usr/bin/env bash` のものがある。実行ファイルだけ存在しても
         |    # interpreter 不在なら exit 127 で窓が出ないため、GUI ランタイムとして保証する。
-        |    PM=apk;    SRV_PKGS="tigervnc openbox dbus bash gsettings-desktop-schemas font-misc-misc font-alias font-noto ttf-dejavu"
+        |    PM=apk;    SRV_PKGS="tigervnc openbox dbus bash gsettings-desktop-schemas xdg-desktop-portal xdg-desktop-portal-gtk font-misc-misc font-alias font-noto ttf-dejavu"
         |  elif has apt-get; then
-        |    PM=apt;    SRV_PKGS="tigervnc-standalone-server openbox dbus xfonts-base fonts-noto-core fonts-dejavu"
+        |    PM=apt;    SRV_PKGS="tigervnc-standalone-server openbox dbus xdg-desktop-portal xdg-desktop-portal-gtk xfonts-base fonts-noto-core fonts-dejavu"
         |  elif has pacman; then
-        |    PM=pacman; SRV_PKGS="tigervnc openbox dbus xorg-fonts-misc noto-fonts ttf-dejavu"
+        |    PM=pacman; SRV_PKGS="tigervnc openbox dbus xdg-desktop-portal xdg-desktop-portal-gtk xorg-fonts-misc noto-fonts ttf-dejavu"
         |  else
         |    PM=""
         |  fi
@@ -332,6 +332,10 @@ fun z2guiScript(
         |
         |gui_stack_ready() {
         |  xbin >/dev/null 2>&1 && has openbox && has dbus-daemon || return 1
+        |  # KDE/GTK/Qt共通のDesktop Portal。ファイル選択・テーマ・URI連携を提供するだけでなく、
+        |  # KDE Frameworks 6.8以前はSettings portal不在時の空DBus応答を読んでNULL参照するため必須。
+        |  [ -x /usr/libexec/xdg-desktop-portal ] || [ -x /usr/lib/xdg-desktop-portal ] || return 1
+        |  [ -x /usr/libexec/xdg-desktop-portal-gtk ] || [ -x /usr/lib/xdg-desktop-portal-gtk ] || return 1
         |  # 既に GUI 基盤を入れてある Alpine にも、後から追加した必須ランタイムを補う。
         |  if [ "${d}PM" = "apk" ]; then
         |    # `.desktop` が指すスクリプトの interpreter。PATH に実体があることを直接見る。
@@ -536,6 +540,9 @@ fun z2guiScript(
         |  export QT_X11_NO_MITSHM=1
         |  export GDK_BACKEND=x11
         |  export GDK_RENDERING=image
+        |  # gtk.portalのUseIn=gnomeを選択する。dbus-daemonもこの値を継承するため、最初の
+        |  # portal呼び出しで本体とGTK backendが自動起動し、Settings.Readへ有効な応答を返せる。
+        |  export XDG_CURRENT_DESKTOP="${d}{XDG_CURRENT_DESKTOP:-GNOME}"
         |  [ -n "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ] && return 0
         |  DBUS_SOCK="${d}XDG_RUNTIME_DIR/dbus.sock"
         |  if has dbus-daemon; then

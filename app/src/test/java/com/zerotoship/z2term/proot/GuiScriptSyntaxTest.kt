@@ -53,6 +53,14 @@ class GuiScriptSyntaxTest {
         // 既存 GUI 環境にも補われるよう導入一覧と readiness 判定の両方に固定する。
         assertTrue(script.contains("has bash || return 1"))
         assertTrue(Z2TERM_GUI_PACKAGES.split(' ').contains("bash"))
+
+        // Desktop Portalはアプリ別ではなくGUIランタイムの共通サービス。全PMで導入し、
+        // GTK backendが選ばれるdesktop名をdbus-daemon起動前にexportする。
+        assertTrue(Z2TERM_GUI_PACKAGES.split(' ').contains("xdg-desktop-portal"))
+        assertTrue(Z2TERM_GUI_PACKAGES.split(' ').contains("xdg-desktop-portal-gtk"))
+        assertTrue(script.contains("xdg-desktop-portal xdg-desktop-portal-gtk"))
+        assertTrue(script.contains("XDG_CURRENT_DESKTOP=\"${'$'}{XDG_CURRENT_DESKTOP:-GNOME}\""))
+        assertTrue(script.contains("[ -x /usr/libexec/xdg-desktop-portal ]"))
     }
 
     /**
@@ -76,5 +84,12 @@ class GuiScriptSyntaxTest {
                 assertTrue("sh -n failed for $name/$lang:\n$out", p.waitFor() == 0)
             }
         }
+    }
+
+    @Test
+    fun `z2run identifies the source distro in OPEN event`() {
+        val script = z2runScript("en")
+        assertTrue(script.contains("OPEN ${'$'}{DISPLAY_NUM} ${'$'}{Z2_DISTRO_ID}"))
+        assertTrue(script.contains("OPEN ${'$'}{DISPLAY_NUM}\"")) // legacy fallback
     }
 }

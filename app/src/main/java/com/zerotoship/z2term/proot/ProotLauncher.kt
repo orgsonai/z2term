@@ -528,6 +528,9 @@ class ProotLauncher(private val context: Context) {
         // 環境変数
         val env = (listOf(
             "HOME=/root",
+            // z2runがOPENイベントへ起動元OSを載せ、GUIタブを同じrootfsへ固定するための識別子。
+            // displayだけでは、設定変更後に古いXvncへ別OSのアプリを送る混線を検出できない。
+            "Z2_DISTRO_ID=$distroId",
             "TERM=xterm-256color",
             "LANG=C.UTF-8",
             // ⚠ **時計を端末に合わせる** (0.8.302)。これが無いと distro の中は UTC のままで、
@@ -568,6 +571,9 @@ class ProotLauncher(private val context: Context) {
             "QT_X11_NO_MITSHM=1",
             "GDK_BACKEND=x11",
             "GDK_RENDERING=image",
+            // 通常時はファイルを開かず負荷ゼロ。SEGV/BUS/ILL時だけz2rootがPC/LRと該当mapを
+            // 追記する。未知のOS×GUIアプリ障害も一度の再現で共有ライブラリまで特定できる。
+            "Z2ROOT_CRASHLOG=${File(sharedHomeDir, ".z2term/z2root-crashes.log").absolutePath}",
             // AF_UNIX ソケットのパス翻訳の判断を残す先 (z2root が追記・アプリが次の起動で
             // logcat へ出して消す)。翻訳が黙って諦めると ENOENT になるだけで外からは
             // 「なぜか動かない」としか見えないため、判断そのものを残す。

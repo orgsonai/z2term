@@ -63,6 +63,12 @@ class GuiSession(
     override val display: Int = Z2TERM_VNC_DISPLAY,
     override val id: String = java.util.UUID.randomUUID().toString(),
     /**
+     * このローカルGUIを所有するOS。端末と連動して開く場合は、その端末が実際に起動中の
+     * distroを渡す。null（独立GUI）なら最初に必要になった時点の設定値へ一度だけ固定する。
+     * 固定後に全体設定が変わっても、同じXvncへ別OSのアプリを混ぜない。
+     */
+    initialDistroId: String? = null,
+    /**
      * 非 null なら**リモート画面のタブ** (A1)。z2gui を起動せず、この接続先へ繋ぐ。
      * null なら従来どおりローカルの Xvnc を立てる。
      */
@@ -183,8 +189,26 @@ class GuiSession(
     @Volatile
     private var ptyClosed = false
 
-    /** 起動した distro。停止 (runGuiStop) でも同じ distro を使うため start で確定させる。 */
-    private var distroId: String = "alpine"
+    /**
+     * このGUIに固定したdistro。start/list/launch/stopの全経路で同じ値だけを使う。
+     * 設定画面の選択値を操作ごとに読み直すと、既存のArch XvncへAlpineのアプリを送る等の
+     * OS混線が起きるため、初回解決後は変更しない。
+     */
+    @Volatile private var boundDistroId: String? = initialDistroId
+
+    /** SessionManagerが同じdisplayのGUIを安全に再利用できるか判定するための読取専用値。 */
+    val distroId: String?
+        get() = boundDistroId
+
+    private suspend fun resolveDistroId(): String {
+        boundDistroId?.let { return it }
+        val selected = AppSettings(context).flow.first().distroId
+        synchronized(this) {
+            boundDistroId?.let { return it }
+            boundDistroId = selected
+        }
+        return selected
+    }
 
     /** GUI 音声ブリッジ (設定 ON のときだけ生成)。CONNECTED で start、stop で停止する。 */
     private var audioBridge: AudioBridge? = null
@@ -226,8 +250,7 @@ class GuiSession(
     fun refreshApps(force: Boolean = false) {
         if (_appsLoading.value) return
         scope.launch {
-            val id = runCatching { AppSettings(context).flow.first().distroId }.getOrNull()
-                ?: distroId
+            val id = runCatching { resolveDistroId() }.getOrNull() ?: return@launch
             if (!force) {
                 val hit = GuiAppCatalog.cached(id)
                 if (hit != null) {
@@ -257,9 +280,9 @@ class GuiSession(
     fun launchApp(app: GuiApp) {
         scope.launch {
             runCatching {
-                val snap = AppSettings(context).flow.first()
+                val id = resolveDistroId()
                 val p = ProotLauncher(context).launch(
-                    distroId = snap.distroId,
+                    distroId = id,
                     command = "/bin/sh",
                     extraArgs = listOf("-c", "exec /usr/local/bin/z2run ${app.exec}"),
                     display = display,
@@ -307,18 +330,20 @@ class GuiSession(
             try {
                 // 選択中の OS で起動する (HANDOFF「選択中のOSで立ち上げ」要望)。
                 val snap = AppSettings(context).flow.first()
-                distroId = snap.distroId
+                val id = boundDistroId ?: synchronized(this@GuiSession) {
+                    boundDistroId ?: snap.distroId.also { boundDistroId = it }
+                }
                 // GUI 音声 (オプトイン): 設定 ON のときだけ port を払い出し z2gui へ PulseAudio を起こさせる。
                 val audioPort = if (snap.guiAudioEnabled) AudioBridge.portForDisplay(display) else null
                 // rootfs が未展開だと launch が例外になるので、先に分かりやすく案内する。
                 // (未展開 distro をここで勝手にダウンロードはしない。端末タブで起動して導入させる。)
                 val launcher = ProotLauncher(context)
-                if (!launcher.isDistroReady(distroId)) {
-                    fail("「$distroId」がまだ展開されていません。先に端末タブでこの OS を起動してください。")
+                if (!launcher.isDistroReady(id)) {
+                    fail("「$id」がまだ展開されていません。先に端末タブでこの OS を起動してください。")
                     return@launch
                 }
                 val p = launcher.launch(
-                    distroId = distroId,
+                    distroId = id,
                     command = "/usr/local/bin/z2gui",
                     rows = 24,
                     cols = 80,
@@ -658,8 +683,9 @@ class GuiSession(
      * pid を走査して kill できる (GuiScript の stop_x)。EOF まで読んで完了を待つ。
      */
     private fun runGuiStop() {
+        val id = boundDistroId ?: return
         val p = ProotLauncher(context).launch(
-            distroId = distroId,
+            distroId = id,
             command = "/usr/local/bin/z2gui",
             extraArgs = listOf("stop"),
             display = display,  // このタブの :N だけを停止 (他の GUI タブを巻き込まない)
