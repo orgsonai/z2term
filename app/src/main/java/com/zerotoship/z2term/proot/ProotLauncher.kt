@@ -187,6 +187,23 @@ class ProotLauncher(private val context: Context) {
         }.onFailure { Log.w(TAG, "gThumb glycin wrapper 配置失敗", it) }
     }
 
+    /** GUI内のglycin loaderだけに適用するbubblewrap互換入口をrootfsへ配置する。 */
+    private fun ensureGuiRuntimeCompat(rootfs: File) {
+        runCatching {
+            val wrapper = File(rootfs, Z2TERM_GUI_COMPAT_DIR.trimStart('/') + "/bwrap")
+            val marker = "# z2term managed: glycin bubblewrap compatibility"
+            // 同じ場所へユーザーが独自コマンドを置いていた場合は所有権を尊重する。
+            if (wrapper.exists() && !wrapper.readText().contains(marker)) return@runCatching
+            val content = z2BwrapCompatScript()
+            if (!wrapper.exists() || wrapper.readText() != content) {
+                wrapper.parentFile?.mkdirs()
+                wrapper.writeText(content)
+            }
+            wrapper.setReadable(true, false)
+            wrapper.setExecutable(true, false)
+        }.onFailure { Log.w(TAG, "glycin bubblewrap互換入口の配置失敗", it) }
+    }
+
     /**
      * `open`/`openat` を預かるシム ([z2usbShimGuestPath]) を rootfs へ配置する。
      * USB 機器の有無にかかわらず同じ環境を作る。
@@ -375,6 +392,7 @@ class ProotLauncher(private val context: Context) {
         sharedHomeDir.mkdirs()
         ensureAcceptShim(rootfs)
         ensureGthumbGlycinCompat(rootfs)
+        ensureGuiRuntimeCompat(rootfs)
         ensureUsbShim(rootfs)
         ensureAttachClient(rootfs)
         // 再起動後もコマンド履歴を辿れるよう、shell rc に履歴設定を流し込む。

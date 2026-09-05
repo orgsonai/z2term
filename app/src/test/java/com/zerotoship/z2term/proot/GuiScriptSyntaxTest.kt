@@ -92,4 +92,11 @@ class GuiScriptSyntaxTest {
         assertTrue(script.contains("OPEN ${'$'}{DISPLAY_NUM} ${'$'}{Z2_DISTRO_ID}"))
         assertTrue(script.contains("OPEN ${'$'}{DISPLAY_NUM}\"")) // legacy fallback
     }
+
+    @Test
+    fun `glycin compatibility path is scoped to GUI child processes`() {
+        val expected = "export PATH=\"$Z2TERM_GUI_COMPAT_DIR:"
+        assertTrue(z2guiScript(strings = GuiScriptStrings.en()).contains(expected))
+        assertTrue(z2runScript("en").contains(expected))
+    }
 }

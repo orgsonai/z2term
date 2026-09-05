@@ -46,6 +46,9 @@ fun z2runScript(lang: String = "ja"): String {
         |  if [ ${d}# -gt 0 ]; then exec "${d}@"; else exit 0; fi
         |fi
         |
+        |# GUI子プロセスだけがglycin用bubblewrap互換入口を先に見る。親シェルのPATHは変えない。
+        |export PATH="$Z2TERM_GUI_COMPAT_DIR:${d}{PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
+        |
         |DISPLAY_NUM="${d}{Z2_DISPLAY}"
         |XSOCK="/tmp/.X11-unix/X${d}{DISPLAY_NUM}"
         |

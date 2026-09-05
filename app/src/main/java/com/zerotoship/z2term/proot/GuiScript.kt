@@ -214,6 +214,8 @@ fun z2guiScript(
         |# DISPLAY は start_x の中だけで export する。ここで全体に export すると `z2gui stop` の
         |# プロセス自身が DISPLAY=:N を持ち、stop_x のディスプレイ単位 kill が自分を巻き込む。
         |export HOME="${d}{HOME:-/root}"
+        |# openbox以下のGUI子プロセスだけにglycin互換入口を見せる。通常の端末PATHは変えない。
+        |export PATH="$Z2TERM_GUI_COMPAT_DIR:${d}{PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
         |
         |# GUI アプリが ${d}SHELL を参照する場合に備え、実体のログインシェルを渡す。
         |# ProotLauncher が OS の /etc/passwd から解決したシェルを最優先で採用する。
