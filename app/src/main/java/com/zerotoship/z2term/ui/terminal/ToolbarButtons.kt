@@ -103,7 +103,9 @@ object ToolbarButtons {
      * @param hiddenIds  非表示指定。
      * @param shownOrder 画面に出ている順の id。
      *
-     * 戻り値は **[allIds] がちょうど 1 回ずつ現れる**ことを保証する。[shownOrder] が古くて
+     * 戻り値は **[allIds] と保存済みの id がちょうど 1 回ずつ現れる**ことを保証する。
+     * (保存値には他方のタブにしか無いボタンの位置も入っている。それも 1 回ずつ残す。)
+     * [shownOrder] が古くて
      * 隠し済みの id を含んでいても (隠す/出すの切替直後にドラッグを確定した場合に起きる)、
      * 同じ id が 2 か所に入った保存値を書かない — これが「ボタンが二重に出る」原因だった。
      */
@@ -113,11 +115,19 @@ object ToolbarButtons {
         hiddenIds: Set<String>,
         shownOrder: List<String>,
     ): String {
-        val base = mergeOrder(parseOrder(savedCsv), allIds).toMutableList()
+        // ⭐ **このツールバーに無いボタンの位置も保存値に残す。**
+        // 保存値は端末タブと GUI タブで 1 本を共有しているので、[allIds] には「今いるタブの
+        // ボタン」しか入っていない。ここで落とすと、端末で 1 度並べ替えるだけで ☰ / 🖱 の
+        // 記憶が消え、GUI へ切り替えたときに末尾へ並び直る (逆も同じ)。タブを行き来する
+        // たびに並びが変わって見えていた原因。順番の記憶は全ボタンぶん持ち続ける。
+        val savedIds = parseOrder(savedCsv).distinct()
+        val base = (savedIds + allIds.filter { it !in savedIds }).toMutableList()
         val queue = shownOrder.distinct().filter { it in allIds && it !in hiddenIds }
         var k = 0
         for (i in base.indices) {
-            if (base[i] !in hiddenIds && k < queue.size) base[i] = queue[k++]
+            // 埋め直すのは**このツールバーに出ている位置**だけ。他タブ専用のボタンが座っている
+            // 位置を上書きすると、その id が消えて重複が生まれる。
+            if (base[i] in allIds && base[i] !in hiddenIds && k < queue.size) base[i] = queue[k++]
         }
         // 位置埋めの結果として重複や欠落が出ても壊れた値を書かない。先勝ちで畳み、
         // 落ちた id は末尾に補う。

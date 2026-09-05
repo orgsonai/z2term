@@ -124,8 +124,12 @@ import com.zerotoship.z2term.gui.GuiKeyMapper
 import com.zerotoship.z2term.gui.GuiScreen
 import com.zerotoship.z2term.gui.GuiSession
 import com.zerotoship.z2term.gui.RemoteDesktopClient
+import com.zerotoship.z2term.proot.Z2TERM_ALPINE_DESKTOP_SCHEMA
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.ui.clipboard.ClipboardHistorySheet
+import com.zerotoship.z2term.ui.components.rememberReorderState
+import com.zerotoship.z2term.ui.components.reorderItem
+import com.zerotoship.z2term.ui.components.reorderLongPressHandle
 import com.zerotoship.z2term.ui.gui.GuiAppsSheet
 import com.zerotoship.z2term.ui.log.SessionLogSheet
 import com.zerotoship.z2term.ui.components.ConfirmDialog
@@ -1682,7 +1686,7 @@ private fun GuiKeyboardPanel(
 }
 
 /**
- * GUI 一式 (X サーバ + WM + D-Bus) が選択中 distro に導入済みかを、rootfs のバイナリ有無で判定する
+ * GUI 一式 (X サーバ + WM + D-Bus + distro 固有の必須データ) が選択中 distro に導入済みかを判定する
  * (M8-6 T7 のダウンロード確認ゲート用)。z2gui の `check` と同じ条件を Android 側から軽量に判定する。
  */
 private fun guiPackagesInstalled(context: Context, distroId: String): Boolean {
@@ -1690,7 +1694,14 @@ private fun guiPackagesInstalled(context: Context, distroId: String): Boolean {
     fun hasBin(name: String) =
         java.io.File(base, "usr/bin/$name").exists() || java.io.File(base, "bin/$name").exists()
     val xserver = hasBin("Xvnc") || hasBin("Xtigervnc")
-    return xserver && hasBin("openbox") && hasBin("dbus-daemon")
+    // Alpine の gThumb はこの schema を package dependency に持たないため、既存環境では
+    // GUI 基盤のバイナリだけ揃っていても選択直後に GLib-GIO-ERROR で終了する。
+    // z2gui が追加導入を始める前に、設定どおりダウンロード確認を出せるようここでも見る。
+    val distroDataReady = distroId != "alpine" || java.io.File(
+        base,
+        Z2TERM_ALPINE_DESKTOP_SCHEMA,
+    ).isFile
+    return xserver && hasBin("openbox") && hasBin("dbus-daemon") && distroDataReady
 }
 
 /**
@@ -2271,52 +2282,28 @@ private fun ReorderableToolbar(
     val shown = items.filter { it.id !in hiddenIds }
     val present = shown.map { it.id }
     val byId = shown.associateBy { it.id }
-    val order = remember { mutableStateListOf<String>() }
-    var dragging by remember { mutableStateOf<String?>(null) }
-    // 保存順 / ボタン構成が変わったら並びを作り直す。ドラッグ中だけは触らない
-    // (確定時は order をローカル更新済 → 直後の savedOrder 反映で同じ並びに収束しちらつかない)。
-    LaunchedEffect(savedOrder, present) {
-        if (dragging == null) {
-            val savedIds = ToolbarButtons.parseOrder(savedOrder)
-            // 壊れた保存値 (同じ id が二重) を見つけたら、その場で正規化して書き戻す。
-            // 表示は mergeOrder が畳むので直るが、保存値を直さないと壊れたまま残り、
-            // 次に隠す/出すを切り替えたときにまた表面化する。書き戻すと savedOrder が
-            // 更新されてこの LaunchedEffect が 1 回だけ回り直し、以後は何もしない。
-            if (savedIds.size != savedIds.distinct().size) {
-                onReorder(savedIds.distinct().joinToString(","))
-            }
-            order.clear(); order.addAll(ToolbarButtons.mergeOrder(savedIds, present))
-        }
-    }
-    // ⚠ 実測サイズは**主軸ぶんだけ**覚える (横並びなら幅・縦並びなら高さ)。
-    // 入れ替えの判定は「隣の中心を越えたか」だけなので、軸さえ合っていれば同じ式で足りる。
-    val widths = remember { mutableStateMapOf<String, Int>() }
-    var dragOffset by remember { mutableStateOf(0f) }
-    val gapPx = with(LocalDensity.current) { 8.dp.roundToPx() }
 
     // 保存する並びは「隠しているボタンも含めた全体」にする。表示中のボタンだけを保存すると
     // 隠した id が保存値から消え、出し直したときに末尾へ飛んでしまうため。
-    // 全体の並びの「表示されている位置」だけを、今の表示順で埋め直す。
+    // 全体の並びの「表示されている位置」だけを、今の表示順で埋め直す ([ToolbarButtons.normalizeOrder])。
     val allIds = items.map { it.id }
-    fun persistOrder(shownOrder: List<String>): String =
-        ToolbarButtons.normalizeOrder(savedOrder, allIds, hiddenIds, shownOrder)
-
-    // ドラッグ量が隣ボタンの中心を越えたら order を入れ替え、その分 offset を戻して連続移動。
-    fun trySwap() {
-        val id = dragging ?: return
-        val idx = order.indexOf(id)
-        if (idx < 0) return
-        if (idx < order.size - 1) {
-            val w = (widths[order[idx + 1]] ?: 0) + gapPx
-            if (w > gapPx && dragOffset > w / 2f) {
-                order.add(idx + 1, order.removeAt(idx)); dragOffset -= w; return
-            }
-        }
-        if (idx > 0) {
-            val w = (widths[order[idx - 1]] ?: 0) + gapPx
-            if (w > gapPx && dragOffset < -w / 2f) {
-                order.add(idx - 1, order.removeAt(idx)); dragOffset += w; return
-            }
+    // 掴む・入れ替える・保存が返るまで自分の並びを保つ、は縦の一覧 (常駐サーバー / 自動化) と
+    // 同じ [ReorderState] に任せる。ツールバーはハンドルを置けないので長押しで掴む。
+    val reorder = rememberReorderState(spacing = 8.dp, vertical = vertical) { shownOrder ->
+        onReorder(ToolbarButtons.normalizeOrder(savedOrder, allIds, hiddenIds, shownOrder))
+    }
+    // ⭐ **並びはコンポジションのその場で決める。**
+    // 以前は空のリストを LaunchedEffect で埋めていたので、タブを切り替えた最初の 1 フレームだけ
+    // ボタンが 0 個 → 次のフレームで全部並ぶ、という動きになっていた。CLI ↔ GUI を行き来する
+    // たびに「アイコンが一瞬並び替わる」と見えていたのはこれ (0.8.509 で修正)。
+    val savedIds = ToolbarButtons.parseOrder(savedOrder)
+    reorder.sync(ToolbarButtons.mergeOrder(savedIds, present))
+    // 壊れた保存値 (同じ id が二重) を見つけたら、その場で正規化して書き戻す。
+    // 表示は mergeOrder が畳むので直るが、保存値を直さないと壊れたまま残り、
+    // 次に隠す/出すを切り替えたときにまた表面化する (0.8.212 で修正した不具合)。
+    LaunchedEffect(savedOrder) {
+        if (savedIds.size != savedIds.distinct().size) {
+            onReorder(savedIds.distinct().joinToString(","))
         }
     }
 
@@ -2324,27 +2311,11 @@ private fun ReorderableToolbar(
     val chips: @Composable (String) -> Unit = { id ->
         val item = byId[id]
         if (item != null) {
-            val isDrag = dragging == id
+            val isDrag = reorder.draggingId == id
             Box(
                 modifier = Modifier
-                    .onSizeChanged { widths[id] = if (vertical) it.height else it.width }
-                    .zIndex(if (isDrag) 1f else 0f)
-                    .graphicsLayer {
-                        val off = if (isDrag) dragOffset else 0f
-                        if (vertical) translationY = off else translationX = off
-                    }
-                    .pointerInput(id, vertical) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = { dragging = id; dragOffset = 0f },
-                            onDragEnd = { dragging = null; dragOffset = 0f; onReorder(persistOrder(order)) },
-                            onDragCancel = { dragging = null; dragOffset = 0f; onReorder(persistOrder(order)) },
-                            onDrag = { change, amount ->
-                                change.consume()
-                                dragOffset += if (vertical) amount.y else amount.x
-                                trySwap()
-                            }
-                        )
-                    }
+                    .reorderItem(reorder, id)
+                    .reorderLongPressHandle(reorder, id)
             ) {
                 ToolbarChip(
                     icon = item.icon,
@@ -2365,7 +2336,7 @@ private fun ReorderableToolbar(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            order.forEach { id -> key(id) { chips(id) } }
+            reorder.order.forEach { id -> key(id) { chips(id) } }
         }
     } else {
         Row(
@@ -2373,7 +2344,7 @@ private fun ReorderableToolbar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            order.forEach { id -> key(id) { chips(id) } }
+            reorder.order.forEach { id -> key(id) { chips(id) } }
         }
     }
 }

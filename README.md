@@ -22,7 +22,7 @@ notification shade, or run a script when the battery, the network or an incoming
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="docs/images/shot-terminal.png" width="280" alt="CUI: Alpine terminal with the custom keyboard"><br><sub>CUI — Alpine terminal + custom keyboard</sub></td>
+    <td align="center" width="50%"><img src="docs/images/shot-terminal.png" width="280" alt="CUI: an Arch Linux ARM terminal with the custom keyboard"><br><sub>CUI — Arch Linux ARM terminal + custom keyboard</sub></td>
     <td align="center" width="50%"><img src="docs/images/shot-gui.png" width="280" alt="GUI: a desktop application running on Xvnc"><br><sub>GUI — a desktop app on Xvnc</sub></td>
   </tr>
 </table>
@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.508-alpha (versionCode 516).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.509-alpha (versionCode 517).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
@@ -114,7 +114,7 @@ Pick whichever fits:
 - **Take it with you** — bundle settings, SSH connections, snippets, automation rules, macros, your theme, tile assignments, icons, dictionaries and what the keyboard has learned into one file and restore them on another device. The OS image is excluded. **SSH secrets are left out by default; including them requires a passphrase.** In that case the **whole backup except its manifest is encrypted**, including snippets, macros and learned text that may themselves contain secrets. It can also **write one on a schedule** (interval, time, folder and generations to keep) — only the files it made are tidied up, never one you created by hand. Give the scheduled backup a **passphrase and its contents are encrypted too**, still without carrying any SSH secret (0.8.452; left empty it stays plaintext as before).
 - **First-run cards** — three small cards on the first launch (post a notification / flashlight / let a PC connect). Tapping one **puts the command on the input line — it never runs by itself**; they disappear once tapped and never return.
 - **Receive from Share** — pick z2term in another app's share sheet and the text (or, for files, a path under `~/z2term-inbox/`) is **inserted** on the terminal's input line — never executed.
-- **Tidy toolbar** — choose which buttons appear from settings (⚙ settings stays pinned to the right edge); long-press and drag to reorder.
+- **Tidy toolbar** — choose which buttons appear from settings (⚙ settings stays pinned to the right edge); long-press and drag to reorder, **either on the toolbar itself or in settings**.
 - **No prebuilts, one download** — a single ~21MB APK that bundles no third-party prebuilts; the distribution is downloaded at first launch and verified by SHA-256.
 
 ### Not yet supported / under consideration

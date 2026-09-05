@@ -173,7 +173,7 @@
     <string name="settings_ambiguous_width">把模糊寬度字元按 2 格寬處理</string>
     <string name="settings_ambiguous_width_desc">面向 CJK 區域設定 (對 PowerLine 符號等有效)</string>
     <string name="settings_section_toolbar">工具列</string>
-    <string name="settings_toolbar_desc">點選選擇要顯示在終端機頂部的按鈕。要重新排序，請在終端機畫面上長按按鈕並左右拖曳。</string>
+    <string name="settings_toolbar_desc">點選選擇要顯示在頂部的按鈕。長按並左右拖曳即可重新排序 (終端機分頁與 GUI 分頁共用同一順序)。在終端機畫面上長按按鈕排序的方式仍然可用。</string>
     <string name="settings_toolbar_always">始終顯示</string>
     <string name="settings_toolbar_hidden_toggle_desc">已從工具列隱藏，所以在這裡切換</string>
     <string name="settings_confirm_download">下載前確認</string>
@@ -1154,10 +1154,11 @@ SSH 連線目標 %3$d 個
     <string name="gui_apps_title">應用程式</string>
     <string name="gui_apps_loading">載入中…</string>
     <string name="gui_apps_count">%1$d 個</string>
+    <string name="gui_apps_refresh">⟳ 重新整理</string>
     <string name="gui_apps_search_hint">篩選</string>
     <string name="gui_apps_no_match">沒有符合「%1$s」的應用程式</string>
     <string name="gui_apps_searching">正在尋找應用程式…</string>
-    <string name="gui_apps_empty">找不到可啟動的 GUI 應用程式。在終端機分頁安裝 (例如 pacman -S gthumb) 後就會出現在這裡。</string>
+    <string name="gui_apps_empty">找不到可啟動的 GUI 應用程式。在終端機分頁安裝 (例如 pacman -S gthumb) 後點選「重新整理」，就會出現在這裡。</string>
     <string name="gui_apps_window_hint">要切換已開啟的視窗，請長按桌面空白處並選擇「視窗」。</string>
     <string name="gui_apps_terminal_badge">終端機</string>
 </resources>

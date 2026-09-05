@@ -10,6 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * GUI で起こせるアプリ 1 件（distro 側の `.desktop` 由来）。
@@ -56,6 +57,21 @@ object GuiAppCatalog {
      */
     private const val MAX_BYTES = 1 shl 20
 
+    /**
+     * 直近に読めた一覧（distro ごと）。⭐ **アプリが動いている間だけ持つ**（0.8.509・要望）。
+     *
+     * ☰ を開くたびに `z2menu list` を起こすと、proot の起動と `.desktop` の読み取りで毎回
+     * 待たされ、その間シートは空のまま出る。初回に読めたらここから即返し、取り直しは
+     * シートの「更新」を押したときだけにする。
+     *
+     * ⚠ **空はしまわない。** 空になるのは GUI 未導入 / rootfs 未展開 / 取得失敗のときで、
+     * 導入し終えたあとも空を返し続けると「入れたのに一覧に無い」から抜け出せなくなる。
+     */
+    private val cache = ConcurrentHashMap<String, List<GuiApp>>()
+
+    /** 取得済みの一覧。まだ 1 度も読めていなければ null（＝ [load] を呼ぶ番）。 */
+    fun cached(distroId: String): List<GuiApp>? = cache[distroId]
+
     /** 一覧を取る。取れなければ空を返す（例外は投げない: ☰ を押しただけで落ちないように）。 */
     suspend fun load(context: Context, distroId: String): List<GuiApp> = coroutineScope {
         val p = runCatching {
@@ -81,7 +97,7 @@ object GuiAppCatalog {
         val raw = withContext(Dispatchers.IO) { drain(p) }
         watchdog.cancel()
         runCatching { p.close() }
-        parse(raw)
+        parse(raw).also { if (it.isNotEmpty()) cache[distroId] = it }
     }
 
     /**

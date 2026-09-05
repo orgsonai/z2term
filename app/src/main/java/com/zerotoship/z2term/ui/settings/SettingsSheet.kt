@@ -119,8 +119,12 @@ import com.zerotoship.z2term.settings.SettingsGroup
 import com.zerotoship.z2term.settings.SettingsGroupStore
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import com.zerotoship.z2term.ui.components.ResidentActionDialog
+import com.zerotoship.z2term.ui.components.rememberReorderState
+import com.zerotoship.z2term.ui.components.reorderItem
+import com.zerotoship.z2term.ui.components.reorderLongPressHandle
 import com.zerotoship.z2term.ui.terminal.Guide
 import com.zerotoship.z2term.ui.terminal.NoOsSettingsNotice
+import com.zerotoship.z2term.ui.terminal.ToolbarButtonSpec
 import com.zerotoship.z2term.ui.terminal.ToolbarButtons
 import com.zerotoship.z2term.ui.terminal.guideDesc
 import com.zerotoship.z2term.ui.terminal.keyboard.KeyLayoutJson
@@ -464,7 +468,8 @@ fun SettingsSheet(
 
                 // ツールバー (端末上部バー) に出すボタンを選ぶ。使わないボタンを消せるので、
                 // 機能追加でボタンが増えても各自の画面は増えない (要望)。
-                // 並べ替えは今まで通り端末画面でボタンを長押し→左右ドラッグ。
+                // 並べ替えもここでできる (チップを長押し→左右ドラッグ・0.8.509)。端末画面で
+                // ボタンを直接掴む今までの作法もそのまま残っている。
                 Section(title = stringResource(R.string.settings_section_toolbar)) {
                     Text(
                         text = stringResource(R.string.settings_toolbar_desc),
@@ -474,9 +479,11 @@ fun SettingsSheet(
                     )
                     ToolbarVisibilityRow(
                         hidden = settings.toolbarHidden,
+                        savedOrder = settings.toolbarOrder,
                         onToggle = { id ->
                             session.setToolbarHidden(ToolbarButtons.toggleHidden(settings.toolbarHidden, id))
-                        }
+                        },
+                        onReorder = { session.setToolbarOrder(it) }
                     )
                     // 横画面ではツールバーとタブが縦 2 列のレールになる (0.8.432)。
                     // 左右どちら側に出すかを選べるようにする (0.8.433・要望)。
@@ -3501,78 +3508,126 @@ internal fun SliderField(
  * 出しているものは緑で点灯、隠しているものは暗く落として一目で分かるようにする。
  * ⚙ 設定は隠すと設定画面へ戻れなくなるので切り替えられない (押しても変わらない)。
  *
- * 並べ替えはここではやらない。端末画面でボタンを長押し→左右ドラッグ (既存の作法) のまま。
+ * **長押ししてから左右にドラッグすると並べ替えられる** (0.8.509・要望)。端末画面でボタンを
+ * 直接掴むのと同じ作法・同じ保存先 ([com.zerotoship.z2term.settings.AppSettings.Data.toolbarOrder])
+ * で、ここには**端末タブと GUI タブの両方のボタン**が出るので、どちらのタブを開いていなくても
+ * 既定の並びを決められる。⚙ はツールバーで右端固定なので、ここでも列の最後に置いたまま動かさない。
  */
 @Composable
-private fun ToolbarVisibilityRow(hidden: String, onToggle: (String) -> Unit) {
+private fun ToolbarVisibilityRow(
+    hidden: String,
+    savedOrder: String,
+    onToggle: (String) -> Unit,
+    onReorder: (String) -> Unit,
+) {
     val hiddenIds = ToolbarButtons.parseHidden(hidden)
+    // 並べ替えの対象は ⚙ 以外の全ボタン。⚙ は右端固定なので列の最後に別で置く。
+    val movable = remember { ToolbarButtons.CATALOG.filter { it.id != ToolbarButtons.SETTINGS } }
+    val fixed = remember { ToolbarButtons.CATALOG.filter { it.id == ToolbarButtons.SETTINGS } }
+    val allIds = remember(movable) { movable.map { it.id } }
+    val specById = remember(movable) { movable.associateBy { it.id } }
+    val reorder = rememberReorderState(spacing = 8.dp, vertical = false) { order ->
+        // ここでは隠しているボタンも全部出しているので、この並びがそのまま全体の並びになる。
+        onReorder(ToolbarButtons.normalizeOrder(savedOrder, allIds, emptySet(), order))
+    }
+    reorder.sync(ToolbarButtons.mergeOrder(ToolbarButtons.parseOrder(savedOrder), allIds))
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        ToolbarButtons.CATALOG.forEach { spec ->
-            val shown = spec.id !in hiddenIds
-            val bg = when {
-                !spec.canHide -> ZtsBgCard
-                shown -> ZtsGreen
-                else -> ZtsBgCard.copy(alpha = 0.35f)
-            }
-            val fg = when {
-                !spec.canHide -> ZtsTextSecondary
-                shown -> Color.Black
-                else -> ZtsTextSecondary.copy(alpha = 0.4f)
-            }
-            val border = when {
-                !spec.canHide -> ZtsBorder
-                shown -> ZtsGreen
-                else -> ZtsBorder.copy(alpha = 0.35f)
-            }
-            Column(
-                modifier = Modifier.width(64.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(bg)
-                        .border(1.dp, border, RoundedCornerShape(6.dp))
-                        .then(
-                            if (spec.canHide) Modifier.clickable { onToggle(spec.id) } else Modifier
-                        )
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = spec.icon,
-                        color = fg,
-                        fontSize = 13.sp,
-                        fontFamily = FontFamily.Monospace
+        reorder.order.forEach { id ->
+            val spec = specById[id]
+            if (spec != null) {
+                key(id) {
+                    ToolbarPickerChip(
+                        spec = spec,
+                        shown = spec.id !in hiddenIds,
+                        onToggle = { onToggle(spec.id) },
+                        modifier = Modifier
+                            .reorderItem(reorder, id)
+                            .reorderLongPressHandle(reorder, id)
                     )
                 }
-                Text(
-                    text = stringResource(spec.labelRes),
-                    color = if (shown) ZtsTextPrimary else ZtsTextSecondary,
-                    fontSize = 9.sp,
-                    fontFamily = FontFamily.Monospace,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+            }
+        }
+        fixed.forEach { spec ->
+            key(spec.id) { ToolbarPickerChip(spec = spec, shown = true, onToggle = null) }
+        }
+    }
+}
+
+/**
+ * [ToolbarVisibilityRow] の 1 チップ (アイコン + 説明)。
+ *
+ * [onToggle] が null、または隠せないボタン ([ToolbarButtonSpec.canHide] = false) は押しても
+ * 変わらない。並べ替え用の modifier は呼び出し側から渡す (⚙ には付けない)。
+ */
+@Composable
+private fun ToolbarPickerChip(
+    spec: ToolbarButtonSpec,
+    shown: Boolean,
+    onToggle: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    val bg = when {
+        !spec.canHide -> ZtsBgCard
+        shown -> ZtsGreen
+        else -> ZtsBgCard.copy(alpha = 0.35f)
+    }
+    val fg = when {
+        !spec.canHide -> ZtsTextSecondary
+        shown -> Color.Black
+        else -> ZtsTextSecondary.copy(alpha = 0.4f)
+    }
+    val border = when {
+        !spec.canHide -> ZtsBorder
+        shown -> ZtsGreen
+        else -> ZtsBorder.copy(alpha = 0.35f)
+    }
+    Column(
+        modifier = modifier.width(64.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(bg)
+                .border(1.dp, border, RoundedCornerShape(6.dp))
+                .then(
+                    if (spec.canHide && onToggle != null) Modifier.clickable { onToggle() } else Modifier
                 )
-                // 隠せないボタンは理由を短く添える (押しても反応しないのを不具合と思わせない)。
-                if (!spec.canHide) {
-                    Text(
-                        text = stringResource(R.string.settings_toolbar_always),
-                        color = ZtsTextSecondary,
-                        fontSize = 8.sp,
-                        fontFamily = FontFamily.Monospace,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1
-                    )
-                }
-            }
+                .padding(horizontal = 10.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = spec.icon,
+                color = fg,
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+        Text(
+            text = stringResource(spec.labelRes),
+            color = if (shown) ZtsTextPrimary else ZtsTextSecondary,
+            fontSize = 9.sp,
+            fontFamily = FontFamily.Monospace,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        // 隠せないボタンは理由を短く添える (押しても反応しないのを不具合と思わせない)。
+        if (!spec.canHide) {
+            Text(
+                text = stringResource(R.string.settings_toolbar_always),
+                color = ZtsTextSecondary,
+                fontSize = 8.sp,
+                fontFamily = FontFamily.Monospace,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
         }
     }
 }

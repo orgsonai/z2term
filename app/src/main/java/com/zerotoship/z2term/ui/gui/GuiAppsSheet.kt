@@ -97,7 +97,9 @@ fun GuiAppsSheet(
     val loading by session.appsLoading.collectAsState()
     var query by remember { mutableStateOf("") }
 
-    // ⚠ 開くたびに取り直す。パッケージを入れた直後に出ないと「入れたのに一覧に無い」で詰まる。
+    // 取りに行くのは**アプリを起動してから最初の 1 回だけ**。2 回目からは [GuiAppCatalog] の
+    // キャッシュがそのまま出るので、開いた瞬間に一覧が並ぶ (0.8.509・要望)。
+    // パッケージを入れた直後など、取り直したいときは下の「更新」を押す。
     LaunchedEffect(Unit) { session.refreshApps() }
 
     val shown = remember(apps, query) {
@@ -148,6 +150,8 @@ fun GuiAppsSheet(
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace
                 )
+                // 一覧を取り直す唯一の入口。distro に `z2menu list` を起こすのはここだけになった。
+                RefreshButton(enabled = !loading, onClick = { session.refreshApps(force = true) })
             }
 
             // 検索。⚠ 入っているアプリが数百になる distro があるので、一覧だけでは辿れない。
@@ -181,6 +185,27 @@ fun GuiAppsSheet(
             )
         }
     }
+}
+
+/**
+ * 一覧を取り直すボタン（0.8.509）。
+ *
+ * 押したときだけ `z2menu list` が走る。読み込み中は押せない（二重に起こさない）。
+ */
+@Composable
+private fun RefreshButton(enabled: Boolean, onClick: () -> Unit) {
+    Text(
+        text = stringResource(R.string.gui_apps_refresh),
+        color = if (enabled) ZtsGreen else ZtsTextSecondary,
+        fontSize = 12.sp,
+        fontFamily = FontFamily.Monospace,
+        modifier = Modifier
+            .padding(start = 10.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .border(1.dp, if (enabled) ZtsGreen else ZtsBorder, RoundedCornerShape(6.dp))
+            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    )
 }
 
 @Composable

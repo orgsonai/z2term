@@ -176,7 +176,7 @@
     <string name="settings_ambiguous_width">全角曖昧文字を 2 セル幅扱い</string>
     <string name="settings_ambiguous_width_desc">CJK ロケール向け (PowerLine 記号などに有効)</string>
     <string name="settings_section_toolbar">ツールバー</string>
-    <string name="settings_toolbar_desc">端末上部に出すボタンをタップで選ぶ。並べ替えは端末画面でボタンを長押し→左右にドラッグ。</string>
+    <string name="settings_toolbar_desc">上部に出すボタンをタップで選ぶ。長押し→左右にドラッグで並べ替え (端末タブと GUI タブの共通の並び)。端末画面でボタンを直接長押ししての並べ替えも今までどおり使える。</string>
     <string name="settings_toolbar_always">常に表示</string>
     <string name="settings_toolbar_hidden_toggle_desc">ツールバーから隠しているのでここで切り替える</string>
     <string name="settings_confirm_download">ダウンロード前に確認</string>
@@ -1232,10 +1232,11 @@ SSH 接続先 %3$d 件
     <string name="gui_apps_title">アプリ</string>
     <string name="gui_apps_loading">読み込み中…</string>
     <string name="gui_apps_count">%1$d 個</string>
+    <string name="gui_apps_refresh">⟳ 更新</string>
     <string name="gui_apps_search_hint">絞り込む</string>
     <string name="gui_apps_no_match">「%1$s」に当てはまるアプリはありません</string>
     <string name="gui_apps_searching">アプリを探しています…</string>
-    <string name="gui_apps_empty">起動できる GUI アプリが見つかりませんでした。端末タブでアプリを入れると (例: pacman -S gthumb) ここに並びます。</string>
+    <string name="gui_apps_empty">起動できる GUI アプリが見つかりませんでした。端末タブでアプリを入れて (例: pacman -S gthumb)「更新」を押すとここに並びます。</string>
     <string name="gui_apps_window_hint">開いている窓を切り替えるには、デスクトップの何もないところを長押しして「窓」を選びます。</string>
     <string name="gui_apps_terminal_badge">端末</string>
 </resources>

@@ -191,8 +191,12 @@ class GuiSession(
 
     /**
      * ☰ に出す「入っている GUI アプリ」の一覧（0.8.499）。中身は `z2menu list` が決める
-     * ([GuiAppCatalog])。⚠ **開くたびに取り直す** — パッケージを入れた直後に出ないと
-     * 「入れたのに一覧に無い」で詰まる。数十件を読むだけなので取り直しは安い。
+     * ([GuiAppCatalog])。
+     *
+     * ⭐ **取りに行くのはアプリを起動してから最初の 1 回だけ**（0.8.509・要望）。以後は
+     * [GuiAppCatalog] のキャッシュから即座に出す。取り直しはシートの「更新」を押したときだけ
+     * （= [refreshApps] に force を付けて呼んだとき）。開くたびに `z2menu` を起こしていたころは
+     * 毎回 1 秒前後、空のシートを見せていた。
      */
     private val _apps = MutableStateFlow<List<GuiApp>>(emptyList())
     val apps: StateFlow<List<GuiApp>> = _apps.asStateFlow()
@@ -210,14 +214,26 @@ class GuiSession(
      */
     private val appPtys = mutableListOf<PtyProcess>()
 
-    /** ☰ の一覧を取り直す。⚠ 失敗しても空になるだけで例外は投げない ([GuiAppCatalog.load])。 */
-    fun refreshApps() {
+    /**
+     * ☰ の一覧を用意する。⚠ 失敗しても空になるだけで例外は投げない ([GuiAppCatalog.load])。
+     *
+     * @param force true = キャッシュを無視して `z2menu list` を起こし直す（シートの「更新」）。
+     *              false = 取得済みならそれを出すだけで、distro には触らない（シートを開いたとき）。
+     */
+    fun refreshApps(force: Boolean = false) {
         if (_appsLoading.value) return
-        _appsLoading.value = true
         scope.launch {
+            val id = runCatching { AppSettings(context).flow.first().distroId }.getOrNull()
+                ?: distroId
+            if (!force) {
+                val hit = GuiAppCatalog.cached(id)
+                if (hit != null) {
+                    _apps.value = hit
+                    return@launch
+                }
+            }
+            _appsLoading.value = true
             try {
-                val id = runCatching { AppSettings(context).flow.first().distroId }.getOrNull()
-                    ?: distroId
                 _apps.value = GuiAppCatalog.load(context, id)
             } finally {
                 _appsLoading.value = false

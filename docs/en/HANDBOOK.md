@@ -79,7 +79,7 @@ The downloaded APK is **deleted once the update goes through** (and on the next 
 | 🔴 / ⚪ | Record a terminal log (tap to start, tap again to stop; **🔴 while recording, ⚪ when idle**; **double-tap for the details**) |
 | ⚙ | Settings (**always the rightmost**; it never moves when you reorder, and cannot be removed) |
 
-> **Reorder the buttons**: **long-press** a toolbar button to **drag it left/right and reorder**. A short description pops up above the button while held. The order is remembered.
+> **Reorder the buttons**: **long-press** a toolbar button to **drag it left/right and reorder**. A short description pops up above the button while held. The order is remembered. ⭐ **⚙ Settings › Display › Toolbar reorders them the same way** (0.8.509): long-press a chip there and drag it left/right. That list holds **the buttons of both terminal and GUI tabs**, so you can set the GUI side without opening a GUI tab. The order is shared by both kinds of tab.
 
 > **You can remove buttons you don't use**: ⚙ Settings → "Display" → **Toolbar** lets you tap to choose which buttons appear. The lit ones are shown. The order of a removed button is remembered, so bringing it back puts it where it was.
 > ⚙ Settings is **always at the far right** — it never moves and cannot be removed.
@@ -1139,7 +1139,7 @@ z2-when 'event:ringer_*'      run 'z2-toast "$Z2_WHEN_EVENT"'     # on any ringe
 >
 > ⭐ **KDE applications not remembering their settings is fixed** (found in 0.8.498, solved in 0.8.500). Inside an Android app the mechanism Qt (which KDE is built on) uses to save files did not work, so **not one byte of settings or cache survived** — the same reason a double-tap on a file picked no application. 0.8.500 steers Qt away from that mechanism, so settings persist and double-tap associations resolve. ⚠ This applies when the execution engine is z2root.
 
-> **Press ☰ for a list of the applications you have** (0.8.499). Tap ☰ in the GUI toolbar and the GUI applications **actually installed** in that OS are listed; pick one and it starts (bringing the GUI up with it if it is not running yet). When there are many, the field at the top filters them. ⚠ Only entries that **really start something** are listed — applications you do not have never appear. You can hide the button under ⚙ Settings › Display › Toolbar.
+> **Press ☰ for a list of the applications you have** (0.8.499). Tap ☰ in the GUI toolbar and the GUI applications **actually installed** in that OS are listed; pick one and it starts (bringing the GUI up with it if it is not running yet). When there are many, the field at the top filters them. ⚠ Only entries that **really start something** are listed — applications you do not have never appear. ⭐ **The list is read once per app launch** (0.8.509); after that it opens instantly from what was remembered. **When you have just installed something, press ⟳ Refresh at the top right** to read it again. You can hide the button under ⚙ Settings › Display › Toolbar.
 >
 > ⭐ **The list coming up empty is fixed in 0.8.502.** The applications were always there; the app was dropping the list on the way in.
 

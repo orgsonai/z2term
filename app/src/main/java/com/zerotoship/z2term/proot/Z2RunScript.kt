@@ -63,7 +63,7 @@ fun z2runScript(lang: String = "ja"): String {
         |  # 待ち時間は GUI 一式が導入済みか未導入かで動的に変える:
         |  #   導入済み → 10 秒 (Xvnc 起動だけ)
         |  #   未導入 → 5 分 (apk/apt/pacman のダウンロード + 展開を含む)
-        |  # `z2gui check` は detect_pm + has Xvnc/openbox/term をするだけなので安価。
+        |  # `z2gui check` は detect_pm + GUI 基盤の導入確認だけなので安価。
         |  STATUS=${d}(/usr/local/bin/z2gui check 2>/dev/null | tail -1)
         |  case "${d}STATUS" in
         |    GUI_INSTALLED) MAX_TICKS=100 ;;   # 100 * 0.1s = 10s

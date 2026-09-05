@@ -13,7 +13,12 @@ const val Z2TERM_VNC_PORT = 5901
 const val Z2TERM_VNC_DISPLAY = 1
 
 /** （参考）Alpine の GUI パッケージ。実際の導入は [z2guiScript] が distro 判定して切替える。 */
-const val Z2TERM_GUI_PACKAGES = "tigervnc openbox dbus font-noto ttf-dejavu"
+const val Z2TERM_GUI_PACKAGES =
+    "tigervnc openbox dbus gsettings-desktop-schemas font-noto ttf-dejavu"
+
+/** Alpine の gThumb が起動時に必ず読む schema。Android 側のダウンロード確認にも使う。 */
+const val Z2TERM_ALPINE_DESKTOP_SCHEMA =
+    "usr/share/glib-2.0/schemas/org.gnome.desktop.background.gschema.xml"
 
 /**
  * Linux GUI ランチャ `z2gui` スクリプト。
@@ -251,7 +256,10 @@ fun z2guiScript(
         |    # **コアフォント 'fixed' を既定で使う端末 (urxvt 等) が Alpine で起動できなかった**
         |    # (パッケージは入るので `has urxvt` は true → GUI は立つのに窓だけ出ない、という
         |    # 一番分かりにくい形で出る)。TrueType (font-noto / ttf-dejavu) では代わりにならない。
-        |    PM=apk;    SRV_PKGS="tigervnc openbox dbus font-misc-misc font-alias font-noto ttf-dejavu"
+        |    # gsettings-desktop-schemas: Alpine の gthumb は org.gnome.desktop.background を
+        |    # 参照するのにこの package を依存へ含めない。無いと一覧には出るのに起動直後
+        |    # GLib-GIO-ERROR で停止するため、Alpine の GUI 土台に含める。
+        |    PM=apk;    SRV_PKGS="tigervnc openbox dbus gsettings-desktop-schemas font-misc-misc font-alias font-noto ttf-dejavu"
         |  elif has apt-get; then
         |    PM=apt;    SRV_PKGS="tigervnc-standalone-server openbox dbus xfonts-base fonts-noto-core fonts-dejavu"
         |  elif has pacman; then
@@ -319,19 +327,31 @@ fun z2guiScript(
         |  esac
         |}
         |
+        |gui_stack_ready() {
+        |  xbin >/dev/null 2>&1 && has openbox && has dbus-daemon || return 1
+        |  # 既に GUI 基盤を入れてある Alpine にも、後から追加した必須 schema を補う。
+        |  # `has` では調べられない data package なので apk の登録情報を見る。
+        |  if [ "${d}PM" = "apk" ]; then
+        |    apk info -e gsettings-desktop-schemas >/dev/null 2>&1 || return 1
+        |  fi
+        |  return 0
+        |}
+        |
         |ensure_pkgs() {
+        |  detect_pm
         |  # 基本セット (Xvnc + openbox + D-Bus) が揃っていれば **ネットワークを叩かず** 即 return する
         |  # (通常起動の高速パス。導入済みを毎回 update / 再取得しないユーザーポリシー)。
-        |  if xbin >/dev/null 2>&1 && has openbox && has dbus-daemon; then return 0; fi
+        |  if gui_stack_ready; then return 0; fi
         |  # 未導入の基盤だけを通常インストールで取得する。
         |  # app 側のダウンロード確認ゲート (設定 ON 時) で同意済みなので、ここで取得してよい。clean 指定の
         |  # ように cache を消さず、不足分だけを apk add / apt install / pacman -S で足す。
         |  install_pkgs
         |  # 取得後に再判定。まだ揃っていなければ (ネット無し / PM 無し / 取得失敗) 明確に案内して失敗する。
-        |  if xbin >/dev/null 2>&1 && has openbox && has dbus-daemon; then
+        |  detect_pm
+        |  if gui_stack_ready; then
         |    return 0
         |  fi
-        |  echo "${strings.installFailed} (Xvnc / openbox / dbus-daemon)"
+        |  echo "${strings.installFailed} (Xvnc / openbox / dbus-daemon / desktop schemas)"
         |  echo "${strings.installFailedHint}"
         |  return 1
         |}
@@ -340,7 +360,8 @@ fun z2guiScript(
         |# GUI 一式 (Xvnc + openbox + D-Bus) が導入済みかを判定し、app が事前にダウンロード確認を
         |# 出せるよう "GUI_INSTALLED" / "GUI_MISSING" を 1 行で出す (M8-6 T7)。
         |check_pkgs() {
-        |  if xbin >/dev/null 2>&1 && has openbox && has dbus-daemon; then
+        |  detect_pm
+        |  if gui_stack_ready; then
         |    echo "GUI_INSTALLED"
         |  else
         |    echo "GUI_MISSING"
@@ -352,6 +373,7 @@ fun z2guiScript(
         |# このディスプレイで起動したプロセス (Xvnc/WM/D-Bus) の PID を控えるファイル。
         |# 複数 GUI 並走時に「他ディスプレイのプロセスを巻き込まず :N だけ」止めるために使う。
         |PIDFILE="/tmp/z2gui-${d}{DISPLAY_NUM}.pids"
+        |DBUS_PIDFILE="/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.pid"
         |
         |# X サーバ (:N) の PID。X は起動時に /tmp/.X<N>-lock へ自分の PID を空白詰めで書くので、
         |# それを数字だけ取り出して使う (cmdline/environ の NUL 解析が要らず最小 rootfs でも堅い)。
@@ -405,7 +427,7 @@ fun z2guiScript(
         |  stop_audio
         |  # セッションバスの控え (z2run が読む) も消す。残すと次回に死んだアドレスを掴ませてしまう。
         |  rm -f "/tmp/z2gui-xdg-${d}{DISPLAY_NUM}/dbus-address" "/tmp/z2gui-xdg-${d}{DISPLAY_NUM}/dbus.sock" 2>/dev/null
-        |  rm -f "${d}PIDFILE" "/tmp/.X${d}{DISPLAY_NUM}-lock" "/tmp/.X11-unix/X${d}{DISPLAY_NUM}" 2>/dev/null
+        |  rm -f "${d}DBUS_PIDFILE" "${d}PIDFILE" "/tmp/.X${d}{DISPLAY_NUM}-lock" "/tmp/.X11-unix/X${d}{DISPLAY_NUM}" 2>/dev/null
         |}
         |
         |status_x() {
@@ -512,16 +534,31 @@ fun z2guiScript(
         |  [ -n "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ] && return 0
         |  DBUS_SOCK="${d}XDG_RUNTIME_DIR/dbus.sock"
         |  if has dbus-daemon; then
-        |    if [ ! -S "${d}DBUS_SOCK" ]; then
-        |      rm -f "${d}DBUS_SOCK" 2>/dev/null
-        |      setsid dbus-daemon --session --address="unix:path=${d}DBUS_SOCK" --fork \
-        |        --print-pid="/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.pid" \
-        |        </dev/null >"/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.log" 2>&1
+        |    # `--print-pid` の値は保存先ではなく既に開いた fd 番号。以前はここへ
+        |    # `/tmp/...pid` を渡していたため Alpine の dbus-daemon が
+        |    # "Invalid file descriptor" で終了し、GUI アプリだけが起動直後に消えていた。
+        |    # 自前 fork をさせず背景化すれば `${d}!` がそのまま daemon の PID になり、
+        |    # stdout の fd 細工も自己再 exec も要らない。
+        |    DBUS_PID=""
+        |    [ -r "${d}DBUS_PIDFILE" ] && DBUS_PID=${d}(cat "${d}DBUS_PIDFILE" 2>/dev/null)
+        |    if [ -S "${d}DBUS_SOCK" ] && [ -n "${d}DBUS_PID" ] && is_gui_proc "${d}DBUS_PID"; then
+        |      :
+        |    else
+        |      rm -f "${d}DBUS_SOCK" "${d}DBUS_PIDFILE" 2>/dev/null
+        |      setsid dbus-daemon --session --nofork --address="unix:path=${d}DBUS_SOCK" \
+        |        </dev/null >"/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.log" 2>&1 &
+        |      DBUS_PID=${d}!
+        |      echo "${d}DBUS_PID" > "${d}DBUS_PIDFILE" 2>/dev/null
         |      # socket が出来るまで最大 3 秒待つ。fork 直後で間に合わないことがあるため。
         |      j=0
         |      while [ ${d}j -lt 30 ] && [ ! -S "${d}DBUS_SOCK" ]; do sleep 0.1; j=${d}((j+1)); done
-        |      [ -f "/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.pid" ] && \
-        |        cat "/tmp/z2gui-dbus-${d}{DISPLAY_NUM}.pid" >> "${d}PIDFILE" 2>/dev/null
+        |    fi
+        |    if [ -S "${d}DBUS_SOCK" ] && [ -n "${d}DBUS_PID" ] && is_gui_proc "${d}DBUS_PID"; then
+        |      echo "${d}DBUS_PID" >> "${d}PIDFILE" 2>/dev/null
+        |    else
+        |      [ -n "${d}DBUS_PID" ] && is_gui_proc "${d}DBUS_PID" && kill "${d}DBUS_PID" 2>/dev/null
+        |      rm -f "${d}DBUS_SOCK" "${d}DBUS_PIDFILE" 2>/dev/null
+        |      DBUS_PID=""
         |    fi
         |    [ -S "${d}DBUS_SOCK" ] && export DBUS_SESSION_BUS_ADDRESS="unix:path=${d}DBUS_SOCK"
         |  fi

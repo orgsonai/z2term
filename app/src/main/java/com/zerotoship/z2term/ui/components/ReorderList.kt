@@ -3,6 +3,7 @@ package com.zerotoship.z2term.ui.components
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
@@ -17,6 +18,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -37,7 +39,7 @@ import kotlinx.coroutines.launch
  *
  * スニペットタブ（`SnippetsSheet`）の操作感を、**行の高さが可変な一覧でも**使えるようにしたもの。
  * スニペットは行が固定高なので「1 行ぶんのピッチ」を定数で持てたが、常駐サーバー / 自動化の行は
- * 状態表示やログの開閉で高さが変わる。そこで各行が自分の高さを [ReorderState.reportHeight] で
+ * 状態表示やログの開閉で高さが変わる。そこで各行が自分の高さを [ReorderState.reportSize] で
  * 報告し、入れ替えの判定には**隣の行の実測高さ**を使う。
  *
  * 使い方（呼び出し側は id のリストだけを扱う）:
@@ -51,10 +53,21 @@ import kotlinx.coroutines.launch
  * ```
  * `key(id)` を付けること — ノードの identity が固定されないと、並べ替え中に掴んだ行から
  * ポインタが外れる。
+ *
+ * **横並びにも使える**（0.8.509）: `rememberReorderState(spacing, vertical = false)` にすると
+ * 幅と `translationX` で同じことをする。掴み方は、ハンドルを置ける一覧なら [reorderHandle]、
+ * ツールバーのように置けないものは [reorderLongPressHandle]（長押ししてから動かす）。
  */
 @Stable
 class ReorderState internal constructor(
     private val spacingPx: Float,
+    /**
+     * 並ぶ向き。true = 縦に積む一覧 (既定)、false = 横に並ぶ帯 (ツールバー)。
+     *
+     * 入れ替えの判定は「隣の中心を跨いだか」だけなので、**見る軸が変わるだけで式は同じ**。
+     * 縦なら高さと `translationY`、横なら幅と `translationX` を使う。
+     */
+    val isVertical: Boolean,
     private val scope: CoroutineScope,
     private val onCommit: (List<String>) -> Unit,
 ) {
@@ -70,7 +83,7 @@ class ReorderState internal constructor(
     /**
      * 指を離したあと、残っているズレを 0 へ戻している最中の行（0.8.272）。
      *
-     * 掴んでいる間の [offsetY] は「隣を跨ぐたびに 1 行ぶん引く」ので、離した時点では
+     * 掴んでいる間の [offset] は「隣を跨ぐたびに 1 行ぶん引く」ので、離した時点では
      * ふつう 0 ではなく**半端に残っている**。そのまま 0 を代入すると、その残りぶんだけ
      * 行が 1 フレームで飛び、「指を離した瞬間にパッと入れ替わった」ように見える。
      * 離したあとも [draggingId] と同じ扱いを続けて、0 まで滑らせるための印。
@@ -78,12 +91,12 @@ class ReorderState internal constructor(
     var settlingId by mutableStateOf<String?>(null)
         private set
 
-    /** 掴んでいる行の指追従オフセット（px）。 */
-    var offsetY by mutableStateOf(0f)
+    /** 掴んでいる項目の指追従オフセット（px・主軸ぶん）。 */
+    var offset by mutableStateOf(0f)
         private set
 
-    /** 行の実測高さ（px）。入れ替えのピッチに使うだけなので State にはしない。 */
-    private val heights = HashMap<String, Float>()
+    /** 項目の実測サイズ（px・主軸ぶん）。入れ替えのピッチに使うだけなので State にはしない。 */
+    private val sizes = HashMap<String, Float>()
 
     /** 着地アニメーション。次のドラッグが始まったら止める。 */
     private var settleJob: Job? = null
@@ -116,8 +129,8 @@ class ReorderState internal constructor(
         if (order != ids) order = ids
     }
 
-    fun reportHeight(id: String, heightPx: Float) {
-        heights[id] = heightPx
+    fun reportSize(id: String, sizePx: Float) {
+        sizes[id] = sizePx
     }
 
     fun start(id: String) {
@@ -126,26 +139,26 @@ class ReorderState internal constructor(
         settleJob = null
         settlingId = null
         draggingId = id
-        offsetY = 0f
+        offset = 0f
     }
 
-    /** 指の移動ぶん [dy] を足し込み、隣の行を跨いだら入れ替える。 */
-    fun drag(dy: Float) {
+    /** 指の移動ぶん [amount] のうち**主軸ぶん**を足し込み、隣を跨いだら入れ替える。 */
+    fun drag(amount: Offset) {
         val id = draggingId ?: return
-        offsetY += dy
+        offset += if (isVertical) amount.y else amount.x
         val cur = order.indexOf(id)
         if (cur < 0) return
-        if (offsetY > 0f && cur < order.lastIndex) {
-            val pitch = (heights[order[cur + 1]] ?: return) + spacingPx
-            if (offsetY > pitch) {
+        if (offset > 0f && cur < order.lastIndex) {
+            val pitch = (sizes[order[cur + 1]] ?: return) + spacingPx
+            if (offset > pitch) {
                 order = order.toMutableList().also { it.add(cur + 1, it.removeAt(cur)) }
-                offsetY -= pitch
+                offset -= pitch
             }
-        } else if (offsetY < 0f && cur > 0) {
-            val pitch = (heights[order[cur - 1]] ?: return) + spacingPx
-            if (offsetY < -pitch) {
+        } else if (offset < 0f && cur > 0) {
+            val pitch = (sizes[order[cur - 1]] ?: return) + spacingPx
+            if (offset < -pitch) {
                 order = order.toMutableList().also { it.add(cur - 1, it.removeAt(cur)) }
-                offsetY += pitch
+                offset += pitch
             }
         }
     }
@@ -162,18 +175,18 @@ class ReorderState internal constructor(
         draggingId = null
         pending = finalOrder
         onCommit(finalOrder)
-        if (id == null || offsetY == 0f) {
-            offsetY = 0f
+        if (id == null || offset == 0f) {
+            offset = 0f
             return
         }
         settlingId = id
         settleJob = scope.launch {
             animate(
-                initialValue = offsetY,
+                initialValue = offset,
                 targetValue = 0f,
                 animationSpec = tween(durationMillis = REORDER_SETTLE_MS)
-            ) { value, _ -> offsetY = value }
-            offsetY = 0f
+            ) { value, _ -> offset = value }
+            offset = 0f
             settlingId = null
             settleJob = null
         }
@@ -190,17 +203,22 @@ class ReorderState internal constructor(
 internal const val REORDER_SETTLE_MS = 140
 
 /**
- * [ReorderState] を作る。[spacing] は一覧の行間（`Arrangement.spacedBy` に渡している値）。
+ * [ReorderState] を作る。[spacing] は並びの間隔（`Arrangement.spacedBy` に渡している値）。
+ * [vertical] = false で横並び（ツールバー）になる。
  * [onCommit] は指を離したときに新しい並び（id の順）で 1 回だけ呼ばれる。
  */
 @Composable
-fun rememberReorderState(spacing: Dp, onCommit: (List<String>) -> Unit): ReorderState {
+fun rememberReorderState(
+    spacing: Dp,
+    vertical: Boolean = true,
+    onCommit: (List<String>) -> Unit,
+): ReorderState {
     val spacingPx = with(LocalDensity.current) { spacing.toPx() }
     // 最新のラムダを呼ぶ (state を作り直さずに、呼び出し側が持つ最新の一覧を掴めるように)。
     val commit = rememberUpdatedState(onCommit)
     // 着地アニメーション用。画面から消えれば一緒に止まる。
     val scope = rememberCoroutineScope()
-    return remember(spacingPx) { ReorderState(spacingPx, scope) { commit.value(it) } }
+    return remember(spacingPx, vertical) { ReorderState(spacingPx, vertical, scope) { commit.value(it) } }
 }
 
 /**
@@ -212,9 +230,13 @@ fun rememberReorderState(spacing: Dp, onCommit: (List<String>) -> Unit): Reorder
 fun Modifier.reorderItem(state: ReorderState, id: String): Modifier {
     val active = state.draggingId == id || state.settlingId == id
     return this
-        .onSizeChanged { state.reportHeight(id, it.height.toFloat()) }
+        // 実測は**主軸ぶんだけ**覚える (縦なら高さ・横なら幅)。入れ替えの判定に使うのはそれだけ。
+        .onSizeChanged { state.reportSize(id, (if (state.isVertical) it.height else it.width).toFloat()) }
         .zIndex(if (active) 1f else 0f)
-        .graphicsLayer { translationY = if (active) state.offsetY else 0f }
+        .graphicsLayer {
+            val off = if (active) state.offset else 0f
+            if (state.isVertical) translationY = off else translationX = off
+        }
 }
 
 /** 掴む場所（ハンドル）に付ける。行全体をドラッグにすると、タップ操作と喧嘩する。 */
@@ -225,10 +247,29 @@ fun Modifier.reorderHandle(state: ReorderState, id: String): Modifier = this.poi
         onDragCancel = { state.end() },
         onDrag = { change, amount ->
             change.consume()
-            state.drag(amount.y)
+            state.drag(amount)
         }
     )
 }
+
+/**
+ * ハンドルを置く余地が無いもの（ツールバーのボタン等）を**長押しから**掴ませる。
+ *
+ * 単タップはそのボタンの動作、長押ししてから動かすと並べ替え。ハンドル版
+ * ([reorderHandle]) と違い項目そのものに付けるので、`clickable` を持つ中身と同居できる。
+ */
+fun Modifier.reorderLongPressHandle(state: ReorderState, id: String): Modifier =
+    this.pointerInput(id, state) {
+        detectDragGesturesAfterLongPress(
+            onDragStart = { state.start(id) },
+            onDragEnd = { state.end() },
+            onDragCancel = { state.end() },
+            onDrag = { change, amount ->
+                change.consume()
+                state.drag(amount)
+            }
+        )
+    }
 
 /** ドラッグハンドル `≡`（見た目もスニペットタブと揃える）。 */
 @Composable

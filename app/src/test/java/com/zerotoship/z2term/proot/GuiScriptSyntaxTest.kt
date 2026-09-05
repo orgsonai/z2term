@@ -1,6 +1,7 @@
 package com.zerotoship.z2term.proot
 
 import com.zerotoship.z2term.settings.AppLanguages
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -28,6 +29,24 @@ class GuiScriptSyntaxTest {
             val rc = p.waitFor()
             assertTrue("sh -n failed for $lang:\n$out", rc == 0)
         }
+    }
+
+    @Test
+    fun `dbus daemon stays attached and Alpine desktop schemas are required`() {
+        val script = z2guiScript(strings = GuiScriptStrings.en())
+
+        // dbus-daemon の --print-pid は「出力先ファイル」ではなく fd 番号を取る。
+        // --nofork をシェルから背景化し、$! を控える形なら Alpine を含む全実装で共通に動く。
+        assertTrue(script.contains("dbus-daemon --session --nofork"))
+        assertFalse(script.contains("--print-pid="))
+        assertTrue(script.contains("DBUS_PID=${'$'}!"))
+        assertTrue(script.contains("rm -f \"${'$'}DBUS_PIDFILE\" \"${'$'}PIDFILE\""))
+
+        // Alpine の gThumb が参照する org.gnome.desktop.* schema。既存 GUI 環境にも
+        // 後から補われるよう、導入一覧だけでなく readiness 判定にも含める。
+        assertTrue(script.contains("apk info -e gsettings-desktop-schemas"))
+        assertTrue(Z2TERM_GUI_PACKAGES.contains("gsettings-desktop-schemas"))
+        assertTrue(Z2TERM_ALPINE_DESKTOP_SCHEMA.contains("org.gnome.desktop.background"))
     }
 
     /**

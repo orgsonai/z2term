@@ -173,7 +173,7 @@
     <string name="settings_ambiguous_width">把模糊宽度字符按 2 格宽处理</string>
     <string name="settings_ambiguous_width_desc">面向 CJK 区域设置 (对 PowerLine 符号等有效)</string>
     <string name="settings_section_toolbar">工具栏</string>
-    <string name="settings_toolbar_desc">点击选择要显示在终端顶部的按钮。要重新排序，请在终端画面上长按按钮并左右拖动。</string>
+    <string name="settings_toolbar_desc">点击选择要显示在顶部的按钮。长按并左右拖动即可重新排序 (终端标签页和 GUI 标签页共用同一顺序)。在终端画面上长按按钮排序的方式仍然可用。</string>
     <string name="settings_toolbar_always">始终显示</string>
     <string name="settings_toolbar_hidden_toggle_desc">已从工具栏隐藏，所以在这里切换</string>
     <string name="settings_confirm_download">下载前确认</string>
@@ -1154,10 +1154,11 @@ SSH 连接目标 %3$d 个
     <string name="gui_apps_title">应用</string>
     <string name="gui_apps_loading">载入中…</string>
     <string name="gui_apps_count">%1$d 个</string>
+    <string name="gui_apps_refresh">⟳ 刷新</string>
     <string name="gui_apps_search_hint">筛选</string>
     <string name="gui_apps_no_match">没有符合「%1$s」的应用</string>
     <string name="gui_apps_searching">正在查找应用…</string>
-    <string name="gui_apps_empty">没有找到可启动的 GUI 应用。在终端标签页安装 (例如 pacman -S gthumb) 后就会出现在这里。</string>
+    <string name="gui_apps_empty">没有找到可启动的 GUI 应用。在终端标签页安装 (例如 pacman -S gthumb) 后点击“刷新”，就会出现在这里。</string>
     <string name="gui_apps_window_hint">要切换已打开的窗口，请长按桌面空白处并选择「窗口」。</string>
     <string name="gui_apps_terminal_badge">终端</string>
 </resources>

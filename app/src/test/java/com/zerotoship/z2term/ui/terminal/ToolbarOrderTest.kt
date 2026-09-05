@@ -112,6 +112,44 @@ class ToolbarOrderTest {
         )
         val ids = out.split(',')
         assertEquals(ids.distinct(), ids)
-        assertEquals(guiIds.sorted(), ids.sorted())
+        // 端末にしか無い 🔍/⚪ も保存値に残る (GUI から書いた 1 回で消えない)。
+        assertEquals(all.sorted(), ids.sorted())
+    }
+
+    @Test
+    fun otherTabButtonsSurviveAReorder() {
+        // GUI タブで並べ替えたとき、端末専用 (🔍 search / ⚪ log) を保存値から落とさない。
+        // 落としていたころは、端末へ戻るたびにその 2 つが末尾へ並び直っていた
+        // (「タブを切り替えるとアイコンの並びが変わる」の正体)。
+        val guiIds = listOf("paste", "snippets", "apps", "screen_on", "keep_alive", "keyboard")
+        val shown = listOf("keyboard", "paste", "snippets", "apps", "screen_on", "keep_alive")
+        val out = ToolbarButtons.normalizeOrder(
+            savedCsv = all.joinToString(","),
+            allIds = guiIds,
+            hiddenIds = emptySet(),
+            shownOrder = shown,
+        )
+        val ids = out.split(',')
+        assertEquals(ids.distinct(), ids)
+        assertEquals((all + "apps").sorted(), ids.sorted())
+        // 書いた並びをそのまま読み直せる (GUI タブから見た並びは動かした通り)。
+        assertEquals(shown, ToolbarButtons.mergeOrder(ids, guiIds))
+    }
+
+    @Test
+    fun reorderingOnOneTabDoesNotShuffleTheOther() {
+        // 端末タブで 1 回並べ替えたあと GUI タブを開いても、GUI 専用ボタン (☰ apps) は
+        // 保存された位置のまま出る。末尾へ飛ばない。
+        val guiIds = listOf("paste", "snippets", "apps", "screen_on", "keep_alive", "keyboard")
+        val saved = "paste,apps,snippets,screen_on,keep_alive,search,keyboard,log"
+        val out = ToolbarButtons.normalizeOrder(
+            savedCsv = saved,
+            allIds = all,
+            hiddenIds = emptySet(),
+            // 端末タブでは ☰ が出ないので、並べ替えの結果にも入らない。
+            shownOrder = listOf("paste", "snippets", "screen_on", "keep_alive", "search", "keyboard", "log"),
+        )
+        val guiOrder = ToolbarButtons.mergeOrder(ToolbarButtons.parseOrder(out), guiIds)
+        assertEquals(1, guiOrder.indexOf("apps"))
     }
 }
