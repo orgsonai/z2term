@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-05 / 対象バージョン: 0.8.504-alpha (versionCode 512)
+最終更新: 2026-09-05 / 対象バージョン: 0.8.508-alpha (versionCode 516)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -545,6 +545,7 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 - z2root 起動時に libc 非依存の `libz2usb.so` を `LD_PRELOAD` する。`open` / `open64` / `openat` 系で絶対 usbfs パスだけをブローカーへ回し、それ以外は生の `openat` syscall へ流す。これにより通常の libusb 利用側を変更しない。
 - Android の許可は機器を抜くまで。挿し直したら再度 `z2-usb allow` が必要。USB Host/OTG とデータ線があれば通常の USB-A → USB-C 変換やハブでよく、形状だけ Type-C で充電専用の変換は使えない。
 - ⛔ `LD_PRELOAD` の境界なので、静的リンクされた実行ファイルと libc の関数を通さず syscall を直接発行する実装は対象外。これはネットワークの「ポート転送」ではなく、接続された USB 機器の fd を透過的に橋渡しする機能。
+- ⛔⛔ **このシムから「実行先の libc に無いシンボル」を 1 つでも引かないこと（0.8.508 で修正）。** `LD_PRELOAD` は端末の `sh` から `apk` まで**その rootfs で起動する全プロセス**に載るので、解決できないシンボルが 1 つあるだけで**あらゆるコマンドが exec 前に死ぬ**。0.8.425〜0.8.507 の `libz2usb.so` は bionic の `CMSG_NXTHDR()` を使っていたが、あれはマクロではなく **libc の関数 `__cmsg_nxthdr()` へ展開される**。musl にこの関数は無いので、**Alpine では端末も GUI も何ひとつ起動しなかった**（`Error relocating /usr/local/lib/libz2usb.so: __cmsg_nxthdr: symbol not found`）。glibc 系（Ubuntu / Arch / Kali）は素通りするため、**その 2 つで試している限り気付けない**。次の cmsg は `z2_cmsg_next()` で自前に辿る。⭐ シムに手を入れたら `nm -D --undefined-only` を見て、`weak` か **どの libc にもある標準シンボル**（`memcpy` 等）だけであることを確かめること。
 - 実機スパイクでは Android が開いた fd を fork 後の別プロセスへ `SCM_RIGHTS` で渡し、`USBDEVFS_CONNECTINFO` が成功することを確認。本実装でも `libz2usb.so` から `/dev/bus/usb/001/002` を通常の `open` として開き、`UsbFdBroker` の fd 送信まで確認した。
 
 #### 自動化ハブ（`z2-when` / `WhenManager` / `WhenReceiver`、0.8.205・A6 stage 1）
@@ -1888,7 +1889,10 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 ### 4.12 GUI デスクトップ (`gui/`)
 
 - distro 内で **Xvnc**(VNC サーバ) + 軽量 WM/アプリを起動（`proot/GuiScript.kt` が冪等で配置・起動。GUI 自動起動 / 横画面対応）。
-- **GUI 一式の導入 (`ensure_pkgs`)**: Xvnc / openbox / 選択ターミナルが揃っていれば**無通信で即起動**（導入済みを毎回 update/再取得しないポリシー）。**未導入のときだけ**不足分を `install_pkgs`（apk add / apt install / pacman -S）で取得し、取れなければ明確に案内して失敗する。app 側 (`TerminalScreen`) のダウンロード確認ゲート (`confirmBeforeDownload`) が同意を取ってから走る。`clean` 指定時のみ cache を消して入れ直す (`clean_pkgs`、破損状態の救済)。
+- **GUI 一式の導入 (`ensure_pkgs`)**: Xvnc / openbox / D-Bus を GUI 基盤とし、Xvnc / openbox / `dbus-daemon` が揃っていれば**無通信で即起動**。**GUI 端末は自動導入も自動起動もしない (0.8.505)**。デスクトップはアプリ表示面とし、導入済みの GUI アプリを ☰ / `z2menu` から直接起動する。**未導入の基盤があるときだけ** `install_pkgs`（apk add / apt install / pacman -S）で取得する。app 側 (`TerminalScreen`) のダウンロード確認ゲートが同意を取ってから走り、`clean` のときだけ cache から入れ直す。
+- **Xvnc 描画互換 (0.8.505)**: Xvnc で MIT-SHM を無効にするだけでなく、Qt に `QT_XCB_NO_MITSHM=1`、GTK に `GDK_RENDERING=image`、両者に X11 backend を明示する。
+- **gThumb / SMPlayer 互換 (0.8.506)**: gThumb 3.12.10 は最初の SVG アイコンを読む際、glycin が Android のアプリ sandbox 内で bubblewrap の Linux namespace sandbox を入れ子にしようとして失敗し、強制終了していた。z2term は gThumb 専用 wrapper からだけ `libz2glycin.so` を `LD_PRELOAD` し、gdk-pixbuf が用意する「外側で sandbox 済み」の公式経路へ切り替える。シムは gThumb プロセスだけに限定され、他のアプリ、root chroot、`bwrap` 本体には干渉しない。SMPlayer は mpv を `--no-config` 付きで起動するため、`/etc/mpv/mpv.conf` だけでは足りない。実際の設定はディストリ別 `.config` overlay にあり、Qt は `General` group を `[%General]` として保存するため、他の全設定を保ったまま overlay 内の `[%General] driver\vo=x11` / `[performance] hwdec=no` だけを補正する。
+- **GUI のクリーンインストール設定を廃止 (0.8.507)**: GUI は導入済みアプリを開く表示面であり、設定画面に破壊的な再導入スイッチを常設しない。設定値・次回起動予約・専用確認ダイアログも削除し、GUI タブは常に通常起動する。低レベルの復旧手段 `z2gui clean` は端末コマンドとしてのみ残す。
 - `GuiSession`/`GuiActivity`/`GuiScreen`/`GuiViewport`/`GuiInputView`/`GuiKeyMapper`/`GuiEventWatcher` + `gui/RemoteDesktopClient.kt`（描画・入力の共通境界）+ `gui/rfb/RfbClient.kt`（内蔵 RFB 実装）。端末タブと GUI タブをペアリングし IME 連動。`GuiSession`・Compose 描画・入力 View・GUI キーボードは `RfbClient` 型を直接要求せず、同じ境界へ RDP 実装を差せる（0.8.450）。**接続先そのものは `gui/RemoteTarget.kt`**（`VncTarget` / `RdpTarget` が実装）で表し、`GuiSession` は `remote.createClient()` を呼ぶだけでプロトコルを知らない（0.8.459）。
 - **RDP（0.8.450〜0.8.492）**: `gui/rdp/` は X.224/TLS、CredSSP/NTLMv2、T.124 GCC・T.125 MCS、Client Info、license、Demand/Confirm Active、connection finalization、slow-path の従来型 Bitmap Update 受信、**Graphics Pipeline（RDPGFX）**までを**外部ライブラリ無し**で実装（MD4 / RC4 / NTLM も自前）。`RdpClient` は 15/16/24bpp の非圧縮・Interleaved RLE 更新を複数矩形と画面外クリップ込みで ARGB framebuffer へ展開し、dirty 領域の redraw を通知する。**0.8.459 で接続 UI を付け、SSH 接続先のサービスとして `[RDP]` から開けるようにした**（→ §6.3.1）。CLIPRDR のテキスト共有に加え、**0.8.476 で slow-path のマウス・キーボード入力**、**0.8.480 で動的 resize**（→ 下の「Display Control」）にも対応した。Fast-Path、Surface Commands、Bitmap Codecs、個別の描画 Order、32bpp RDP 6.0 圧縮は**従来型の capability では 1 つも広告しない**（`orderSupport[32]` 全ゼロ・General cap の extraFlags = 0。**実装していないものは受け取らないと宣言する**のであって、来たものを握り潰すのではない）。
   - ⚠ **受信の診断ログは「種類ごとに 1 度だけ」**（0.8.480）。接続シーケンスの切り分けには効いたが、画面が出たあとは**更新のたびに流れて他が読めなくなる**。⇒ 消さずに、`ActiveSession` が**接続ごとに**「初めて見た種類」を覚える（RDPGFX の command / codec と同じ数え方）。⚠ 抑止を `object` 側に置くと、2 本目のタブや繋ぎ直しで 1 行も出なくなる。
@@ -1936,7 +1940,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - 既定が無い distro / 加工に失敗したときだけ、従来の最小構成へ落ちる（この経路では窓の移動もリサイズもできない。あくまで最後の砦）。
 - **`z2menu` — 入っているアプリだけを出すメニュー（0.8.498）**: 既定 `menu.xml` は distro が用意した**固定の一覧**で、その環境に**入っていないアプリが大量に並ぶ**（押しても何も起きない項目ばかりのメニューは、無いより分かりにくい）。`Z2MenuScript.kt` が `/usr/local/bin/z2menu` を置き、openbox の **pipe menu**（メニューを開くたびに実行して、返した XML をそのままメニューにする仕組み）としてこれを呼ぶ。`~/.local/share/applications` → `/usr/local/share/applications` → `/usr/share/applications` の順に `.desktop` を読み、`Type=Application` かつ `NoDisplay`/`Hidden` でなく、`TryExec` と `Exec` の先頭語が **PATH に実在するものだけ**を出す。`z2menu list` は同じ一覧を TSV（名前・コマンド・説明・端末フラグ・分類）で返す。
   - ⚠ **`Exec` のフィールドコード（`%f %F %u %U %d %D %n %N %i %c %k %v %m`）は除去する。** 残すと、引数を取らない起動でアプリが `%U` という名前のファイルを開こうとする。`%%` は本物の `%` なので、先に印へ逃がして最後に戻す。
-  - `Terminal=true` の項目は端末で開く（入っている端末が 1 つも無ければ一覧から落とす。押しても何も起きない項目を出さないため）。
+  - `Terminal=true` の項目は一覧から除外する (0.8.505)。GUI 基盤は特定の端末を要求しない。
   - 項目が **20 を超えたときだけ**分類（freedesktop の主分類に丸める）のサブメニューへ分ける。少ないうちから階層にすると、指で辿る手数が増えるだけになる。
   - 同じファイル名（desktop id）が複数のディレクトリにあるときは**先に読んだ方**を採る（利用者が `~/.local/share` に置いた分が distro 既定に勝つ）。
   - ⛔ **awk は POSIX の範囲で書くこと。** busybox awk には `ENDFILE` も配列の全消しも無い。ファイルの切れ目は `FNR==1` で見て最後の 1 件を `END` で出し、値は連想配列ではなく**スカラー変数**に持つ。⚠ `sh -n` は awk の中身までは見ない（`GuiScriptSyntaxTest`）ので、awk を変えたときは実機で `z2menu list` を叩いて確かめる。
@@ -1960,7 +1964,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - ⛔ **起こしたアプリの PTY を閉じないこと。** proot は `--kill-on-exit` なので、ルートの PTY を閉じると**配下の GUI アプリごと殺される**（`setsid` しても proot の管理下からは逃げられない）。`GuiSession` が `appPtys` に持ち続け、タブを閉じる (`stop`) ときにまとめて閉じる。
   - ⭐⭐ **選んでも何も起きなかった原因は `DISPLAY` が無いこと（0.8.499〜0.8.502 → 0.8.503 で修正）。** `ProotLauncher.launch` に `display` を渡すだけでは **`Z2_DISPLAY` しか入らず `DISPLAY=:N` は入らない**（`exportDisplay = true` が要る）。`z2run` は最後に `exec` するだけで **DISPLAY を自分では立てない**ので、起こしたアプリは X に繋げず即死していた（一覧は出るのに押しても何も出てこない、という形で出る）。⛔ **`z2gui` 本体と、`:N` へ相乗りする側を取り違えないこと。** `exportDisplay = false` が要るのは `z2gui` 自身の起動だけ（`z2gui stop` の environ 走査が自分を巻き込むため）で、端末タブの `z2run` も ☰ から起こすアプリも**相乗りする側**なので `true` が正しい。
   - ⚠ **`Exec` は語で割らずシェルに渡す**（`sh -c "exec z2run <Exec>"`）。`.desktop` の `Exec` は引用符を含むことがあり、空白で割ると壊れる。openbox の `<execute>` も同じくシェルに渡している。
-  - `Terminal=true` のアプリには**設定で選んだ GUI 内ターミナル**を被せる。⚠ 右クリックメニュー側は z2term の設定を知らないので入っている端末を自分で探す。出てくる端末が違うことはあるが、どちらも「その環境に在る端末」なので実害は無い。
+  - `Terminal=true` は上記のとおり除外。`Terminal=false` の GUI アプリは、端末種別に関係なくそのまま起動する。
   - ⭐ **却下した案: GUI の中にパネルを立てる（lxpanel 等）。** 見た目は本物のデスクトップになるが、**PC 用の寸法のパネルがスマホの画面に出るのでボタンが指より小さい**。加えて GTK 依存で数十 MB のパッケージ追加と、distro ごとの設定ファイルを z2term が抱えることになる。ネイティブのシートなら追加パッケージ 0 でどの distro でも同じように出て、指で押せる大きさになり、ツールバーの並べ替え・非表示の仕組みにもそのまま乗る。
   - ⚠ **窓の一覧はシートに入れていない。** X の窓一覧（`_NET_CLIENT_LIST`）を読むには `wmctrl` / `xdotool` が要るが、**どの distro でも導入対象に入っていない**。依存を増やす代わりに、openbox 内蔵の `client-list-menu`（デスクトップ長押し →「窓」）に任せ、シートの末尾でその場所を案内する。
 - ⭐⭐ **Qt6 製のアプリが設定を 1 バイトも保存できなかった件（0.8.498 で切り分け → 0.8.500 で解決）**。Qt の `QSaveFile` / `QTemporaryFile` は Linux では `O_TMPFILE` で名前の無いファイルを作り、`linkat(AT_FDCWD, "/proc/self/fd/<fd>", …, AT_SYMLINK_FOLLOW)` で最後に名前を付ける。⛔ **Android のアプリプロセスは capability を 1 つも持たない**（`/proc/self/status` の `CapEff = 0`）ため、この `linkat` が `ENOENT` で必ず失敗する（`AT_EMPTY_PATH` を使う形も `EACCES`）。設定・キャッシュ・アプリ台帳のどれも書けず、**「何で開くか」を KDE 系の台帳から引くファイル管理系ではダブルタップが無反応になっていた**。
@@ -1974,7 +1978,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - ⚠ **GLib 系は元から影響を受けていない**（`update-desktop-database` は正常に `mimeinfo.cache` を作っていた）。同じ症状を見たら、まず**どちらの系統のアプリか**で切り分ける。
 - ⚠ **導入の途中で別のタブへ移っても、戻ってきたときに起動をやり直さない（0.8.341・実機報告）**。「GUI のインストール中に別のタブへ移ると導入が消える」の正体は、**画面が捨てられて起動判断からやり直していた**こと。端末タブへ移ると `TerminalScreen` は `activeSession is GuiSession` の分岐で早期 return するので **`GuiTabScreen` は composition ごと消える**（`guiAreaPx` も `pendingGuiStart` も `remember(gui.id)`）。戻ると `LaunchedEffect(gui.id)` が最初から走り直し、まだ導入中＝パッケージ未導入なので**「GUI を入れますか」の確認ダイアログが再び出る**。しかもその「やめる」は `SessionManager.close(gui.id)` ＝ タブを閉じる → `GuiSession.stop()` → `z2gui stop` なので、**走っていた導入が本当に殺される**。⚠ **導入そのものはタブの表示に依存していない**（`GuiSession` の `SupervisorJob + Dispatchers.IO` で回り、`stop()` を呼ぶのはタブ ✕ と `GuiActivity.onDestroy` だけ）ので、**前面通知で常駐させる必要は無い**。直すのは判断する側で、`GuiSession.state` が `STARTING` / `CONNECTING` / `CONNECTED` のときは `LaunchedEffect` が何もしない（= `GuiSession.start()` が早期 return するのと同じ 3 状態）。`ERROR` / `STOPPED` から戻ったときに入れ直せるのは今までどおり。進捗（`z2gui` の最新出力）は `GuiSession.message` に載っていて `GuiScreen` が購読しているので、**ダイアログが被らなくなれば戻った時点の続きがそのまま見える**。
   - ⚠ **`GuiTabScreen` はタブを離れるたびに捨てられる前提で書くこと**。`remember(gui.id)` / `LaunchedEffect(gui.id)` は戻るたびに作り直される。**セッションが持っている状態を見ずに副作用を起こすと、走っているものをやり直させる**。
-- ⚠ **GUI 内ターミナルは「入っているのに窓が出ない」形で壊れうる**（0.8.343）。`ensure_pkgs` は **`has $GUI_TERM_BIN`（バイナリの有無）**で導入を判定するので、**入っているが起動に失敗する**ものはここをすり抜け、`z2gui` は最後まで進んで GUI だけが立つ。利用者からは「デスクトップは出るのに端末が無い」としか見えない。
+- ⚠ **過去の GUI 内ターミナルの記録（0.8.343、0.8.505 で自動導入・起動を廃止）**。`ensure_pkgs` は **`has $GUI_TERM_BIN`（バイナリの有無）**で導入を判定していたので、**入っているが起動に失敗する**ものはここをすり抜け、`z2gui` は最後まで進んで GUI だけが立っていた。
   - ⚠ **この節の変更は、実機で報告された症状の原因ではなかった**（2026-08-14）。最初は「Alpine で rxvt / Konsole を選ぶと端末が出ない」という報告から**フォントを疑った**が、実機で確かめると症状は 2 つに分かれた: **(A) rxvt はどの OS でも「窓は開いていて、画面をタップするまで表示が更新されない」**（＝ フォントでも導入でもなく、RFB の画面更新側）、**(B) Alpine の Konsole だけが本当に出ない**。⚠ **「出ない」と「出ているが描き変わらない」は別の話**として切り分けること。ここに入れた変更は (B) の切り分けと、下記の**非対称の是正**として残してある。
   - **`apk` のサーバ一式にコアフォントが無かった**（非対称の是正）: `apt` には `xfonts-base`、`pacman` には `xorg-fonts-misc` を入れていたのに、`apk` だけ `font-noto ttf-dejavu`（TrueType のみ）だった。**コアフォント `fixed` を既定で使う端末**を `-fn` 無しで起動すればここで死ぬので、`font-misc-misc font-alias` を追加した。
   - **urxvt にも Xft を明示**（`-fn xft:monospace:size=11`）。xterm が `-fa monospace` でコアフォント依存を切っているのと同じ理由で、フォントパッケージの有無に生死を預けない。⚠ `TERM_ARGS` は**語分割前提で展開する**ので、空白を含む書き方をしないこと。
@@ -2941,10 +2945,8 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
 | 横画面サイドKB幅 | landscapeKeyboardWidthDp | 420 | 280–700 dp |
 | 横画面キーボード高さ | landscapeKeyboardHeightDp | 320 | 200–500 dp |
 | 縦画面キーボード高さ | portraitKeyboardHeightDp | 320 | 200–500 dp |
-| GUI ターミナル | guiTerminalId | "xterm" | GUI 内で起動するターミナル |
 | GUI 音声 | guiAudioEnabled | false | true/false（オプトイン PulseAudio ブリッジ） |
 | GUI 拡大率 | guiMagnification | 1.5 | 0.5–3.0 |
-| GUI クリーンインストール予約 | cleanInstallGuiArmed | false | 次に開く GUI タブで入れ直す。起動時に消化して false へ戻る |
 | ダウンロード前確認 | confirmBeforeDownload | true | true/false |
 | 常駐サービス | keepAliveService | true | true/false（ツールバーの 🔒 ロックで ON/OFF。**ツールバーから隠しているときだけ設定 › ツールバーにもトグルが出る** (0.8.194)。**常駐サーバー稼働中は 🔒 が薄くロックされトグル不可**になり、タップで終了ダイアログが出る (0.8.204)） |
 | 画面消灯ロック | keepScreenOn | false | true/false（ツールバーの 💡 で ON/OFF。**永続化して次回起動時に復元** (0.8.144)。隠しているときは設定 › ツールバーから (0.8.194)） |
@@ -2985,7 +2987,7 @@ OS が描く)。確定は `ComposingState.onCommit` から `commitText`。⚠ `c
 | Android ホスト bind | androidHostBindEnabled | false | 実験的。`/system` `/apex` を晒す |
 | トレースログ | traceLogEnabled | false | 開発者向け |
 
-`noInstallTimeout`（インストールタイムアウト無効化）・`cleanInstallGuiArmed`（GUI クリーン再展開フラグ）等も DataStore (`z2term_settings`) に保持。SSH プロファイルは別 DataStore (`z2term_ssh`) に JSON で保存。
+`noInstallTimeout`（インストールタイムアウト無効化）等も DataStore (`z2term_settings`) に保持。SSH プロファイルは別 DataStore (`z2term_ssh`) に JSON で保存。
 
 **設定を初期化**（アクション）: 設定末尾（アプリ情報とライセンスの間）の「設定を初期化」ボタン（`danger` 表示）は、確認ダイアログを挟んで `AppSettings.resetToDefaults()`（DataStore `z2term_settings` を `clear()`）を呼ぶ。全キーが消えるので上表の各値・裏設定の解放フラグ・常駐サーバー定義・ツールバー並び順・各種ログ設定がすべて既定へ戻る（実行エンジンも既定 z2root に戻る）。rootfs（インストール済み OS）・ユーザファイル・言語（別 SharedPrefs `z2term_locale`）には触れない。
 

@@ -27,6 +27,8 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 3. Open the app.
 
 The app bundles no Linux OS, so the first launch shows a single notice: "No Linux OS is installed yet" (0.8.314). Tap it to open Settings and **pick the OS you want** (Alpine / Ubuntu / Arch / Kali …; any of them is a fine place to start). ⚠ **The notice cannot be dismissed until an OS is installed** (0.8.342 — dismissing it left nothing on screen saying what to press to get Linux). **Settings pins the same notice at the top, and tapping it carries you to the "Linux environment" section.** Both go away once one OS is in.
+
+> ⭐ **Alpine opening neither a terminal nor a screen is fixed in 0.8.508** (it had been there since 0.8.425). The piece that bridges USB devices called into something Alpine's foundation (musl) does not provide, so **everything you ran inside Alpine stopped before it started**. Ubuntu / Arch / Kali were never affected.
 **Once one Linux OS is installed**, **three small cards** appear above the terminal (post a notification / turn on the flashlight / open the reminder guide) — the first time only. (Before 0.8.339 they also appeared before an OS was installed, where tapping them did nothing, so they now wait until the install is done.) **Tapping one runs that line as it stands** — anything half-typed is thrown away with `Ctrl-C` first, so nothing mixes in. The ✕ on the right drops a card you do not want. Once all three are gone they never come back. To see them again: Settings > Maintenance > "Show the intro again".
 That's all the setup you need.
 
@@ -663,7 +665,7 @@ Settings are split into **9 groups** (Display / Keyboard and input / Linux envir
 | Keyboard width (bottom) | Slider 40–100% of the screen width (100% fills it, less centres the keyboard; portrait and landscape are remembered separately, 0.8.431) |
 | Keyboard height (landscape / portrait) | Slider 200–500 dp (remembered separately per orientation) |
 | GUI audio | Play sound (video, etc.) in the GUI (desktop) — only when ON |
-| GUI terminal | Pick which terminal app is used inside the GUI desktop |
+| GUI | Configure audio and display magnification. No terminal is installed or launched automatically; open installed GUI applications from ☰ |
 | Language / 言語 | **System** (default) / Japanese / English / Simplified Chinese / Traditional Chinese (switches instantly; Simplified since 0.8.424, Traditional since 0.8.426). ⚠ The default follows **the phone's own language setting** (0.8.363 — before that the app started in Japanese whatever the phone was set to). Picking one pins that language regardless of the phone. **The terminal follows too** — the help and messages of the `z2-*` commands use the same setting. ⚠ **Anything not translated yet appears in English** (0.8.422; before that it stayed in Japanese). The Japanese flick keyboard is offered only in Japanese (other languages get the ASCII and numeric faces). ⚠ **No Chinese/Japanese conversion engine is bundled for other languages** — switch to your OS input method for that |
 | Disable install timeout | Wait for OS / GUI downloads to finish completely |
 | Confirm before downloading | Show a confirmation dialog before fetching a distro / GUI |

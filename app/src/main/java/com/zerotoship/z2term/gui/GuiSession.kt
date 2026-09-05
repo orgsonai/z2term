@@ -16,7 +16,6 @@ import com.zerotoship.z2term.gui.rfb.RfbAuthFailedException
 import com.zerotoship.z2term.gui.rfb.RfbClient
 import com.zerotoship.z2term.gui.rfb.RfbPasswordRequiredException
 import com.zerotoship.z2term.gui.rfb.RfbSecurityUnsupportedException
-import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.proot.Z2TERM_VNC_DISPLAY
 import com.zerotoship.z2term.pty.PtyProcess
@@ -233,21 +232,17 @@ class GuiSession(
      * ⚠ **`Exec` は語で割らずシェルに渡す。** `.desktop` の `Exec` は引用符を含むことがあり、
      * 空白で割ると壊れる。openbox の `<execute>` も同じくシェルに渡している。
      *
-     * ⚠ **`Terminal=true` のアプリはここで端末を被せる。** 被せるのは**設定で選んだ GUI 内
-     * ターミナル**。デスクトップの右クリックメニュー側は z2term の設定を知らないので入っている
-     * 端末を自分で探す。出てくる端末が違うことはあるが、どちらも「その環境に在る端末」なので実害はない。
+     * `Terminal=true` は [GuiAppCatalog] の元になる `z2menu list` 側で除外する。
+     * GUI スタックが特定のターミナルを自動導入する仕組みは持たず、GUI アプリはそのまま起動する。
      */
     fun launchApp(app: GuiApp) {
         scope.launch {
             runCatching {
                 val snap = AppSettings(context).flow.first()
-                val term = GuiTerminal.byId(snap.guiTerminalId).binary
-                val cmd = if (app.terminal) "$term -e ${app.exec}" else app.exec
                 val p = ProotLauncher(context).launch(
                     distroId = snap.distroId,
                     command = "/bin/sh",
-                    extraArgs = listOf("-c", "exec /usr/local/bin/z2run $cmd"),
-                    loginShell = snap.loginShell,
+                    extraArgs = listOf("-c", "exec /usr/local/bin/z2run ${app.exec}"),
                     display = display,
                     // ⛔ **`exportDisplay` を落とさないこと（0.8.503 で追加）。** `display` だけでは
                     // `Z2_DISPLAY` しか入らず **`DISPLAY=:N` が環境に無い**。`z2run` は最後に
@@ -269,14 +264,11 @@ class GuiSession(
     /**
      * GUI を起動する。
      *
-     * @param clean true なら z2gui に `clean` を渡し、GUI パッケージをキャッシュごと
-     *   入れ直す (ダウンロード/解凍失敗で詰まった状態からの救済)。
-     *
-     * リモート ([remote]) のときは引数を 3 つとも使わない (Linux 側を起動しないので導入が無く、
+     * リモート ([remote]) のときは引数を 2 つとも使わない (Linux 側を起動しないので導入が無く、
      * 大きさは接続先 ([RemoteTarget]) が既に持っている)。呼び出し側で分岐させないよう、入口は
      * 1 つのままにしてある。
      */
-    fun start(width: Int, height: Int, clean: Boolean = false) {
+    fun start(width: Int, height: Int) {
         when (_state.value) {
             State.STARTING, State.CONNECTING, State.CONNECTED -> return
             else -> {}
@@ -286,14 +278,12 @@ class GuiSession(
             return
         }
         _state.value = State.STARTING
-        _message.value = if (clean) "GUI をクリーンインストール中… (${width}x$height)"
-                         else "GUI を起動中… (${width}x$height)"
+        _message.value = "GUI を起動中… (${width}x$height)"
         scope.launch {
             try {
-                // 選択中の OS とターミナルで起動する (HANDOFF「選択中のOSで立ち上げ」要望)。
+                // 選択中の OS で起動する (HANDOFF「選択中のOSで立ち上げ」要望)。
                 val snap = AppSettings(context).flow.first()
                 distroId = snap.distroId
-                val guiTerminal = GuiTerminal.byId(snap.guiTerminalId)
                 // GUI 音声 (オプトイン): 設定 ON のときだけ port を払い出し z2gui へ PulseAudio を起こさせる。
                 val audioPort = if (snap.guiAudioEnabled) AudioBridge.portForDisplay(display) else null
                 // rootfs が未展開だと launch が例外になるので、先に分かりやすく案内する。
@@ -303,18 +293,12 @@ class GuiSession(
                     fail("「$distroId」がまだ展開されていません。先に端末タブでこの OS を起動してください。")
                     return@launch
                 }
-                // start [WxH] [clean]: clean フラグが立っていれば 3 番目の引数で渡す。
-                val startArgs = mutableListOf("start", "${width}x$height")
-                if (clean) startArgs.add("clean")
                 val p = launcher.launch(
                     distroId = distroId,
                     command = "/usr/local/bin/z2gui",
                     rows = 24,
                     cols = 80,
-                    // 設定「ログインシェル」を GUI 内ターミナルにも効かせる (Z2_LOGIN_SHELL 経由)。
-                    loginShell = snap.loginShell,
-                    extraArgs = startArgs,
-                    guiTerminal = guiTerminal,
+                    extraArgs = listOf("start", "${width}x$height"),
                     display = display,  // z2gui へ Z2_DISPLAY/Z2_RFBPORT として渡す (このタブ専用の :N)
                     guiAudioPort = audioPort,  // 設定 ON のときだけ非 null。z2gui が PulseAudio を起こす。
                 )

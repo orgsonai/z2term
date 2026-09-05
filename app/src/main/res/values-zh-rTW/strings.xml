@@ -11,7 +11,7 @@
     <string name="settings_group_keyboard">鍵盤、輸入與語言</string>
     <string name="settings_group_keyboard_desc">鍵盤大小、輸入方式、詞典、顯示語言</string>
     <string name="settings_group_linux">Linux 環境</string>
-    <string name="settings_group_linux_desc">系統、Shell、儲存、圖形終端機</string>
+    <string name="settings_group_linux_desc">系統、Shell、儲存、圖形介面</string>
     <string name="settings_group_automation">常駐服務與自動化</string>
     <string name="settings_group_automation_desc">背景執行、伺服器、通知與事件聯動</string>
     <string name="settings_group_app_lock">應用程式鎖</string>
@@ -47,26 +47,6 @@
     <string name="settings_section_font_size">字級</string>
     <string name="settings_section_scrollback">回捲行數</string>
     <string name="settings_section_distro">發行版 (切換會重新啟動當前工作階段)</string>
-    <string name="settings_section_login_shell">登入 Shell (下次工作階段起生效)</string>
-    <string name="settings_section_prompt">Shell 提示符</string>
-    <string name="settings_prompt_preset_plain">只有符號</string>
-    <string name="settings_prompt_preset_user_host">user@host</string>
-    <string name="settings_prompt_preset_arrow">箭頭</string>
-    <string name="settings_prompt_preset_box">圓框</string>
-    <string name="settings_prompt_preset_bracket">方框</string>
-    <string name="settings_prompt_preset_kali">Kali</string>
-    <string name="settings_prompt_preset_bar">色帶</string>
-    <string name="settings_prompt_right_clock">在右端顯示時刻</string>
-    <string name="settings_prompt_right_clock_desc">在每行的右端用暗色顯示當前時間，回捲時就能看出每條指令是什麼時候敲的。它不去計算終端機寬度，所以旋轉螢幕或分屏都不會錯位。</string>
-    <string name="settings_prompt_body">寫入 %1$s 的內容 (在這裡改就能微調)</string>
-    <string name="settings_prompt_apply">套用</string>
-    <string name="settings_prompt_reset">移除</string>
-    <string name="settings_prompt_applied">已寫入 %1$s。新開啟的分頁開始生效。</string>
-    <string name="settings_prompt_removed">已從 %1$s 移除。新開啟的分頁會還原預設。</string>
-    <string name="settings_prompt_removed_none">那裡沒有寫入過內容。</string>
-    <string name="settings_prompt_failed">寫入失敗。</string>
-    <string name="settings_prompt_no_os">請先安裝 Linux 系統。</string>
-    <string name="settings_prompt_desc">選一個示例就會填入內容，可以自行修改，然後按“套用”寫入所選 Shell 的設定檔。只有 z2term 標記之間的部分會被寫入，你自己寫的設定不會丟失。從終端機用 vi 開啟該檔案看到的也是同樣的內容。</string>
     <string name="settings_section_keyboard_style">鍵盤操作</string>
     <string name="settings_keyboard_toggle_bar">鍵盤顯示欄</string>
     <string name="settings_keyboard_number_face">顯示數字面</string>
@@ -185,7 +165,7 @@
     <string name="settings_user_dict_dictionary_missing">找不到所選的詞典。請重新選擇詞典</string>
     <string name="settings_special_key_bar">輔助鍵欄 (使用系統鍵盤時)</string>
     <string name="settings_special_key_bar_desc">切換到系統鍵盤時，在它上方顯示 ESC、TAB、CTRL 和方向鍵等輔助鍵。關閉則不顯示 (對內建鍵盤沒有影響)。</string>
-    <string name="settings_section_gui_terminal">圖形終端機</string>
+    <string name="settings_section_gui">圖形介面</string>
     <string name="settings_gui_magnification">圖形介面縮放倍率 (下次啟動圖形介面時生效)</string>
     <string name="settings_clean_install">全新安裝</string>
     <string name="settings_gui_audio">圖形介面聲音</string>
@@ -541,9 +521,6 @@
     <string name="settings_create_custom_theme">建立自訂主題…</string>
     <string name="settings_edit_custom_theme">編輯自訂主題…</string>
     <string name="settings_custom_theme_note">可以自己配色做一個主題。背景/前景/強調色等會反映到整個應用程式。</string>
-    <string name="settings_shell_uninstalled_suffix">%1$s (未安裝)</string>
-    <string name="settings_shell_warning">⚠ 這個發行版裡沒有安裝 %1$s。在裝好之前不會生效，啟動時會自動退回到預設 shell → /bin/sh (例: apk add zsh / apt install zsh)。</string>
-    <string name="settings_shell_info">沒有安裝的 shell 不會生效，會自動退回。在發行版裡裝好之後才會啟用。</string>
     <string name="settings_section_external_storage">外部儲存 (SD 卡)</string>
     <string name="settings_external_storage_toggle">識別外部儲存</string>
     <string name="settings_external_storage_toggle_desc">開啟後會把物理 SD 卡的卷 (/storage/XXXX-XXXX) 掛載為終端機內的 /sdcard_ext。下次工作階段重新啟動時生效。</string>
@@ -560,8 +537,6 @@
     <string name="settings_sgr_mouse_input_toggle">發送 SGR 滑鼠事件 (把觸控轉換成滑鼠事件)</string>
     <string name="settings_sgr_mouse_input_toggle_desc">開啟後會把螢幕上的點選轉換成 TUI 一側的滑鼠事件 (SGR `?1006`) 發送出去。部分 TUI (日曆 / 檔案管理器 / 多窗格焦點切換等) 需要它。單指點選=左鍵、長按=右鍵、單指拖曳=滑鼠移動。關閉 (預設) 時，點選用於 Z2Term 自身的操作 (焦點 / 選擇文字 / 捲動)。雙指滑動→滾輪不受這個開關影響，照常工作。</string>
     <string name="settings_sgr_mouse_input_warning">⚠ 開啟後，單指選擇文字和長按選單都會被 TUI 一側接管。在 bash、less 這類不做 mouse capture 的畫面上，仍然可以照常用點選操作 Z2Term。</string>
-    <string name="settings_gui_clean_install_desc">開啟後再開啟圖形分頁，就會連快取一起重新安裝圖形顯示用的套件 (用於下載/解壓縮失敗時的還原)。啟動時這個勾選會自動取消。</string>
-    <string name="settings_gui_terminal_note">🖥 在圖形分頁裡開啟的終端機。如果還沒裝，會在首次啟動圖形介面時自動安裝（Konsole 在 KDE 系裡首次下載比較大，建議使用 Wi-Fi）。</string>
     <string name="theme_color_background">背景</string>
     <string name="theme_color_foreground">前景</string>
     <string name="theme_color_cursor">游標</string>
@@ -594,11 +569,8 @@
     <string name="storage_access_granted">✅ 已授權。可以在終端機裡用 `cd /sdcard` 進入共用儲存。\n   不需要權限的應用程式專屬區域是 `/storage/app`。</string>
     <string name="storage_access_denied">未授權。`cd /sdcard` 裡看不到內容。請用下面的按鈕授予所有檔案\n存取權限。(`/storage/app` 不需要授權就能用)</string>
     <string name="storage_access_grant_button">授予全部儲存權限</string>
-    <string name="gui_confirm_clean_install_title">全新安裝圖形環境</string>
     <string name="gui_confirm_download_title">下載整套圖形環境</string>
-    <string name="gui_confirm_clean_install_msg">將連快取一起刪掉圖形顯示用的套件並重新安裝 (幾十到幾百 MB)。建議使用 Wi-Fi。要繼續嗎?</string>
     <string name="gui_confirm_download_msg">首次啟動圖形介面 (Linux 桌面) 需要先下載顯示用的套件 (幾十到幾百 MB)。建議使用 Wi-Fi。要繼續嗎?</string>
-    <string name="gui_confirm_clean_install_action">全新安裝</string>
     <string name="gui_confirm_download_action">下載並啟動</string>
     <string name="keyboard_show_button">▴ 鍵盤</string>
     <string name="keyboard_hide_button">▾ 鍵盤</string>
@@ -712,14 +684,6 @@
     </plurals>
     <string name="banner_process_exited">[行程結束 exitCode=%1$d]</string>
     <string name="banner_process_killed">[行程被外部終止 %1$s exitCode=%2$d, 剩餘 %3$d MB]</string>
-    <string name="gui_terminal_xterm_desc">最輕量，所有發行版通用</string>
-    <string name="gui_terminal_urxvt_desc">輕量，可顯示日文</string>
-    <string name="gui_terminal_lxterminal_desc">輕量 GTK</string>
-    <string name="gui_terminal_konsole_desc">KDE 系，首次安裝較大</string>
-    <string name="gui_term_unsupported_title">Alpine 上無法執行 Konsole</string>
-    <string name="gui_term_unsupported_switch_msg">在 Alpine 上，Konsole 會在建立視窗的過程中當機，圖形分頁會毫無提示地一片漆黑。要把圖形終端機切換成 xterm 再開啟 Alpine 嗎？ Alpine 上 xterm、rxvt-unicode 和 LXTerminal 都能用，之後也可以在設定裡重新選。</string>
-    <string name="gui_term_unsupported_pick_msg">當前使用的系統是 Alpine，而 Alpine 上的 Konsole 會在建立視窗的過程中當機。請另選一個圖形終端機 (xterm / rxvt-unicode / LXTerminal)，或者先切換到別的系統。</string>
-    <string name="action_switch_to_xterm_and_open">切換到 xterm 並開啟</string>
     <string name="action_got_it">知道了</string>
     <string name="keyboard_style_compact">簡易</string>
     <string name="keyboard_style_spacious">四向滑動</string>

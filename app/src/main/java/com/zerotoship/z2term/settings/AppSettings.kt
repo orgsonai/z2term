@@ -33,7 +33,6 @@ class AppSettings(private val context: Context) {
         val ambiguousAsWide: Boolean = DEFAULT_AMBIGUOUS_AS_WIDE,
         val initCommand: String = "",
         val keyboardStyleId: String = DEFAULT_KEYBOARD_STYLE,
-        val loginShell: String = DEFAULT_LOGIN_SHELL,
         /** 直近のキーボードモード ("custom" / "system")。次回起動時に復元 */
         val keyboardMode: String = DEFAULT_KEYBOARD_MODE,
         /**
@@ -99,8 +98,6 @@ class AppSettings(private val context: Context) {
          * 内蔵キーボードのときは元々出ないので影響しない。
          */
         val specialKeyBar: Boolean = DEFAULT_SPECIAL_KEY_BAR,
-        /** GUI セッションで起動するターミナル ([com.zerotoship.z2term.proot.GuiTerminal] の id) */
-        val guiTerminalId: String = DEFAULT_GUI_TERMINAL,
         /** 通信を伴うダウンロード (distro / GUI パッケージ) の前に確認ダイアログを出すか */
         val confirmBeforeDownload: Boolean = DEFAULT_CONFIRM_DOWNLOAD,
         /**
@@ -113,11 +110,6 @@ class AppSettings(private val context: Context) {
          * Xvnc の仮想画面解像度 = 表示領域px / 倍率 で決まる (次回 GUI 起動から反映)。
          */
         val guiMagnification: Float = DEFAULT_GUI_MAGNIFICATION,
-        /**
-         * 次に開く GUI タブでクリーンインストール (GUI パッケージをキャッシュごと入れ直す) を行うか。
-         * 起動時に消化して false に戻す (チェックは確実に外れる)。distro 側はシート内ローカル状態で扱う。
-         */
-        val cleanInstallGuiArmed: Boolean = false,
         /**
          * 横画面時のキーボード配置 ("left" / "bottom" / "right")。
          * 縦画面のときはこの値に関わらず常に下に出る。
@@ -546,10 +538,6 @@ class AppSettings(private val context: Context) {
         }
     }
 
-    suspend fun setCleanInstallGuiArmed(armed: Boolean) {
-        context.dataStore.edit { it[KEY_CLEAN_INSTALL_GUI] = armed }
-    }
-
     val flow: Flow<Snapshot> = context.dataStore.data.map { p ->
         Snapshot(
             themeName = p[KEY_THEME_NAME] ?: DEFAULT_THEME,
@@ -560,7 +548,6 @@ class AppSettings(private val context: Context) {
             ambiguousAsWide = p[KEY_AMBIGUOUS_WIDE] ?: DEFAULT_AMBIGUOUS_AS_WIDE,
             initCommand = p[KEY_INIT_COMMAND] ?: "",
             keyboardStyleId = p[KEY_KEYBOARD_STYLE] ?: DEFAULT_KEYBOARD_STYLE,
-            loginShell = p[KEY_LOGIN_SHELL] ?: DEFAULT_LOGIN_SHELL,
             keyboardMode = p[KEY_KEYBOARD_MODE] ?: DEFAULT_KEYBOARD_MODE,
             // ⚠ 旧 `ime_japanese_mode` からの読み替え。新しいキーが無いユーザーは
             // 真偽値の方を見て、かな面 / 英字面に対応付ける (面の設定を失わせない)。
@@ -577,11 +564,9 @@ class AppSettings(private val context: Context) {
             screenBrightness = p[KEY_SCREEN_BRIGHTNESS],
             keyboardToggleBar = p[KEY_KEYBOARD_TOGGLE_BAR] ?: DEFAULT_KEYBOARD_TOGGLE_BAR,
             specialKeyBar = p[KEY_SPECIAL_KEY_BAR] ?: DEFAULT_SPECIAL_KEY_BAR,
-            guiTerminalId = p[KEY_GUI_TERMINAL] ?: DEFAULT_GUI_TERMINAL,
             confirmBeforeDownload = p[KEY_CONFIRM_DOWNLOAD] ?: DEFAULT_CONFIRM_DOWNLOAD,
             guiAudioEnabled = p[KEY_GUI_AUDIO] ?: DEFAULT_GUI_AUDIO,
             guiMagnification = p[KEY_GUI_MAGNIFICATION] ?: DEFAULT_GUI_MAGNIFICATION,
-            cleanInstallGuiArmed = p[KEY_CLEAN_INSTALL_GUI] ?: false,
             landscapeKeyboardPosition = p[KEY_LANDSCAPE_KB_POS] ?: DEFAULT_LANDSCAPE_KEYBOARD_POSITION,
             landscapeRailPosition = p[KEY_LANDSCAPE_RAIL_POS] ?: DEFAULT_LANDSCAPE_RAIL_POSITION,
             landscapeKeyboardWidthDp = p[KEY_LANDSCAPE_KB_WIDTH] ?: DEFAULT_LANDSCAPE_KEYBOARD_WIDTH_DP,
@@ -901,10 +886,6 @@ class AppSettings(private val context: Context) {
         context.dataStore.edit { it[KEY_GUI_AUDIO] = enabled }
     }
 
-    suspend fun setGuiTerminal(id: String) {
-        context.dataStore.edit { it[KEY_GUI_TERMINAL] = id }
-    }
-
     suspend fun setKeyboardMode(mode: String) {
         context.dataStore.edit { it[KEY_KEYBOARD_MODE] = mode }
     }
@@ -969,10 +950,6 @@ class AppSettings(private val context: Context) {
 
     suspend fun setKeyboardStyleId(id: String) {
         context.dataStore.edit { it[KEY_KEYBOARD_STYLE] = id }
-    }
-
-    suspend fun setLoginShell(shell: String) {
-        context.dataStore.edit { it[KEY_LOGIN_SHELL] = shell }
     }
 
     suspend fun setInitCommand(value: String) {
@@ -1051,26 +1028,11 @@ class AppSettings(private val context: Context) {
         const val DEFAULT_CONFIRM_DOWNLOAD = true
         /** GUI 音声は既定 OFF (オプトイン。ON にして初めて PulseAudio を導入・起動する)。 */
         const val DEFAULT_GUI_AUDIO = false
-        /** GUI ターミナルの既定 ([com.zerotoship.z2term.proot.GuiTerminal.XTERM] の id) */
-        const val DEFAULT_GUI_TERMINAL = "xterm"
         /** GUI 表示倍率の既定。1.5 = 解像度を 2/3 にして表示を一回り大きく (細かすぎ対策)。 */
         const val DEFAULT_GUI_MAGNIFICATION = 1.5f
         /** 0.5 = 仮想画面を 2 倍解像度にして縮小表示 (より細かく・広く)。1.0 が等倍。 */
         const val MIN_GUI_MAGNIFICATION = 0.5f
         const val MAX_GUI_MAGNIFICATION = 3.0f
-        /**
-         * 既定のログインシェル。`-l` でログインシェル動作。
-         *
-         * ⚠ **同梱の OS に zsh が入っていないので bash にした** (0.8.400)。既定が zsh だった頃は、
-         * 何も設定していない利用者が毎回 `ProotLauncher.resolveShell` のフォールバック
-         * (distro 既定 → `/bin/sh`) に落ちていて、**選んでいないシェルが立ち上がっていた**。
-         * ⚠ 設定を保存済みの利用者には影響しない (保存が無いときだけこの値を使う)。
-         * ⚠ bash を持たない rootfs でも `resolveShell` が distro 既定 → `/bin/sh` の順に落とすので、
-         * 起動できなくなることはない。
-         */
-        const val DEFAULT_LOGIN_SHELL = "/bin/bash"
-        val AVAILABLE_SHELLS = listOf("/bin/zsh", "/bin/bash", "/bin/sh")
-
         const val MIN_FONT_SIZE_SP = 4f
         const val MAX_FONT_SIZE_SP = 32f
         const val MIN_SCROLLBACK_LINES = 500
@@ -1084,7 +1046,6 @@ class AppSettings(private val context: Context) {
         private val KEY_AMBIGUOUS_WIDE = booleanPreferencesKey("ambiguous_as_wide")
         private val KEY_INIT_COMMAND = stringPreferencesKey("init_command")
         private val KEY_KEYBOARD_STYLE = stringPreferencesKey("keyboard_style")
-        private val KEY_LOGIN_SHELL = stringPreferencesKey("login_shell")
         private val KEY_KEYBOARD_MODE = stringPreferencesKey("keyboard_mode")
         // ⚠ 0.8.304 以前の面の設定。読み替えのためだけに残してある (書き込みはもうしない)。
         private val KEY_IME_JAPANESE_MODE = booleanPreferencesKey("ime_japanese_mode")
@@ -1099,11 +1060,9 @@ class AppSettings(private val context: Context) {
         private val KEY_SCREEN_BRIGHTNESS = floatPreferencesKey("screen_brightness")
         private val KEY_KEYBOARD_TOGGLE_BAR = booleanPreferencesKey("keyboard_toggle_bar")
         private val KEY_SPECIAL_KEY_BAR = booleanPreferencesKey("special_key_bar")
-        private val KEY_GUI_TERMINAL = stringPreferencesKey("gui_terminal")
         private val KEY_CONFIRM_DOWNLOAD = booleanPreferencesKey("confirm_before_download")
         private val KEY_GUI_AUDIO = booleanPreferencesKey("gui_audio_enabled")
         private val KEY_GUI_MAGNIFICATION = floatPreferencesKey("gui_magnification")
-        private val KEY_CLEAN_INSTALL_GUI = booleanPreferencesKey("clean_install_gui_armed")
         private val KEY_LANDSCAPE_KB_POS = stringPreferencesKey("landscape_kb_position")
         private val KEY_LANDSCAPE_RAIL_POS = stringPreferencesKey("landscape_rail_position")
         private val KEY_LANDSCAPE_KB_WIDTH = floatPreferencesKey("landscape_kb_width_dp")

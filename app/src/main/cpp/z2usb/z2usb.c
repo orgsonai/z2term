@@ -113,6 +113,22 @@ static int z2_write_all(int fd, const char *data, size_t len) {
     return 0;
 }
 
+// 次の cmsg を自前で辿る。
+//
+// ⚠ **bionic の `CMSG_NXTHDR` を使わないこと。** あれは libc の関数 `__cmsg_nxthdr()` へ
+//    展開されるが、**musl にはこのシンボルが無い**。LD_PRELOAD されたこのシムは
+//    **relocation の時点で失敗**し、その rootfs では **exec するあらゆるコマンドが起動前に
+//    死ぬ** — musl の distro だけ「端末も GUI も何ひとつ動かない」という、シムとは
+//    結び付かない形で出る。冒頭に書いた「libc 非依存」はこの 1 行のためにある。
+//    `CMSG_FIRSTHDR` / `CMSG_DATA` / `CMSG_LEN` / `CMSG_ALIGN` はマクロなので使ってよい。
+static struct cmsghdr *z2_cmsg_next(const struct msghdr *message, struct cmsghdr *cmsg) {
+    if (cmsg->cmsg_len < sizeof(struct cmsghdr)) return 0;
+    unsigned char *next = (unsigned char *)cmsg + CMSG_ALIGN(cmsg->cmsg_len);
+    unsigned char *end = (unsigned char *)message->msg_control + message->msg_controllen;
+    if (next + sizeof(struct cmsghdr) > end) return 0;
+    return (struct cmsghdr *)next;
+}
+
 static int z2_usb_open(const char *path, int flags) {
     const char *name = getenv ? getenv("Z2USB_SOCKET") : 0;
     const size_t name_len = z2_strlen(name);
@@ -179,7 +195,7 @@ static int z2_usb_open(const char *path, int flags) {
     int usb_fd = -1;
     for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&message);
          cmsg;
-         cmsg = CMSG_NXTHDR(&message, cmsg)) {
+         cmsg = z2_cmsg_next(&message, cmsg)) {
         if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_RIGHTS &&
             cmsg->cmsg_len >= CMSG_LEN(sizeof(int))) {
             __builtin_memcpy(&usb_fd, CMSG_DATA(cmsg), sizeof(usb_fd));

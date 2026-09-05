@@ -97,7 +97,6 @@ import com.zerotoship.z2term.distro.DistroSpec
 import com.zerotoship.z2term.emulator.AvailableThemes
 import com.zerotoship.z2term.emulator.TerminalTheme
 import com.zerotoship.z2term.legal.LicensesDialog
-import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.proot.ProotLauncher
 import com.zerotoship.z2term.proot.RootProbe
 import com.zerotoship.z2term.service.NotificationLogService
@@ -118,7 +117,6 @@ import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.settings.RootfsCacheCleaner
 import com.zerotoship.z2term.settings.SettingsGroup
 import com.zerotoship.z2term.settings.SettingsGroupStore
-import com.zerotoship.z2term.settings.ShellPrompt
 import com.zerotoship.z2term.ui.components.DownloadConfirmDialog
 import com.zerotoship.z2term.ui.components.ResidentActionDialog
 import com.zerotoship.z2term.ui.terminal.Guide
@@ -181,7 +179,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * アクションボタン:
  *  - 端末リセット (画面クリア + 再起動)。画面クリア単体は CTRL+L で行える。
  *
- * クリーンインストールは distro / GUI 各「切替」セクションのチェックへ統合した
+ * OS のクリーンインストールは distro の「切替」セクションへ統合した
  * (チェック ON → 対象を選ぶ/GUI を開く で入れ直す。起動・再起動でチェックは外れる)。
  *
  * 値は変更と同時に `session.set*` を呼び DataStore に書き込まれる。
@@ -206,7 +204,6 @@ fun SettingsSheet(
     // Konsole × Alpine は成立しない組み合わせ (0.8.353)。どちら側から踏んだかで文面と
     // 出せる逃げ道が変わるので、踏んだ側を覚えておく ("distro" = Alpine を選ぼうとした /
     // "terminal" = Alpine のまま Konsole を選ぼうとした)。
-    var konsoleConflict by remember { mutableStateOf<String?>(null) }
     // 確認ダイアログがクリーンインストール (rootfs + DLキャッシュ削除) かどうか。
     var pendingCleanInstall by remember { mutableStateOf(false) }
     // 「クリーンインストール」チェック。ON のまま OS を選ぶとその OS を入れ直す (シート内ローカル)。
@@ -908,12 +905,7 @@ fun SettingsSheet(
                         selected = settings.distroId,
                         onSelect = { id ->
                             val spec = DistroSpec.byId(id)
-                            // ⚠ 動かないと分かっている組み合わせは成立させない (0.8.353)。
-                            // 選べてしまうと「GUI を開いたが真っ黒のまま」になり、理由が
-                            // どこにも出ない。ここで止めて、その場で端末を替えられるようにする。
-                            if (GuiTerminal.isUnsupported(settings.guiTerminalId, id)) {
-                                konsoleConflict = "distro"
-                            } else if (distroCleanArmed && spec != null) {
+                            if (distroCleanArmed && spec != null) {
                                 // クリーンインストール: rootfs + DL キャッシュを消して入れ直す。
                                 // 必ず再 DL が走るので、確認 ON なら先にダイアログを出す。
                                 if (settings.confirmBeforeDownload) {
@@ -1002,173 +994,6 @@ fun SettingsSheet(
                     }
                 }
 
-                Section(title = stringResource(R.string.settings_section_login_shell)) {
-                    // 現ディストロの rootfs に各シェルバイナリが実在するか調べる。
-                    // 未インストールのシェルを選んでも反映されず、起動時に既定シェル →
-                    // /bin/sh へ自動フォールバックするため、その旨を明示する。
-                    // rootfs 未展開 (DL 中など) は判定不能なので警告を出さない。
-                    val rootfsReady = remember(settings.distroId) {
-                        java.io.File(context.filesDir, "distros/${settings.distroId}/bin").exists()
-                    }
-                    val shellInstalled = remember(settings.distroId) {
-                        AppSettings.AVAILABLE_SHELLS.associateWith { shell ->
-                            java.io.File(
-                                context.filesDir,
-                                "distros/${settings.distroId}/${shell.trimStart('/')}"
-                            ).exists()
-                        }
-                    }
-                    ChipRow(
-                        options = AppSettings.AVAILABLE_SHELLS,
-                        labels = AppSettings.AVAILABLE_SHELLS.associateWith { shell ->
-                            if (rootfsReady && shellInstalled[shell] == false)
-                                stringResource(R.string.settings_shell_uninstalled_suffix, shell)
-                            else shell
-                        },
-                        selected = settings.loginShell,
-                        onSelect = { session.setLoginShell(it) }
-                    )
-                    if (rootfsReady && shellInstalled[settings.loginShell] == false) {
-                        Text(
-                            text = stringResource(R.string.settings_shell_warning, settings.loginShell),
-                            color = ZtsWarning,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(R.string.settings_shell_info),
-                            color = ZtsTextSecondary,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-
-                // ボタンの onClick は Composable ではないので、出す文言は先に解決しておく。
-                val appliedPromptOk = stringResource(R.string.settings_prompt_applied)
-                val appliedPromptNg = stringResource(R.string.settings_prompt_failed)
-                val appliedPromptNoOs = stringResource(R.string.settings_prompt_no_os)
-                val removedPromptOk = stringResource(R.string.settings_prompt_removed)
-                val removedPromptNone = stringResource(R.string.settings_prompt_removed_none)
-
-                // シェルのプロンプト。サンプルを選ぶ → 中身が出る → その場で直す → rc へ適用。
-                // ⚠ アプリの設定として抱え込まず **rootfs の rc ファイルに書く** ([ShellPrompt])。
-                //   後から `vi ~/.bashrc` で直せることに意味があるので、真実は常にファイルにある。
-                Section(title = stringResource(R.string.settings_section_prompt)) {
-                    // ⚠ **rc の置き場は rootfs ではなく共有ホーム**。`ProotLauncher` が
-                    //   `HOME=/root` を `filesDir/shared_home` に bind するので、
-                    //   `distros/<id>/root/` へ書いても誰も読まない (0.8.364 で踏んだ)。
-                    val promptHomeDir = remember { java.io.File(context.filesDir, "shared_home") }
-                    // OS が入っているかだけは rootfs 側で見る (無ければ書いても意味が無い)。
-                    val rootfsDir = remember(settings.distroId) {
-                        java.io.File(context.filesDir, "distros/${settings.distroId}")
-                    }
-                    // 対象シェルの初期値は「ログインシェル」設定から推測する。別々に選ばせると、
-                    // ash で使っているのに bash の rc へ書いて「適用したのに変わらない」になる。
-                    var promptShell by remember(settings.loginShell) {
-                        mutableStateOf(
-                            when {
-                                settings.loginShell.endsWith("zsh") -> ShellPrompt.Shell.ZSH
-                                settings.loginShell.endsWith("bash") -> ShellPrompt.Shell.BASH
-                                else -> ShellPrompt.Shell.SH
-                            }
-                        )
-                    }
-                    var promptPreset by remember { mutableStateOf(ShellPrompt.Preset.ARROW) }
-                    var promptRightClock by remember { mutableStateOf(false) }
-                    var promptDraft by remember { mutableStateOf("") }
-                    var promptResult by remember { mutableStateOf<String?>(null) }
-                    val presetLabels = mapOf(
-                        ShellPrompt.Preset.PLAIN.id to stringResource(R.string.settings_prompt_preset_plain),
-                        ShellPrompt.Preset.USER_HOST.id to stringResource(R.string.settings_prompt_preset_user_host),
-                        ShellPrompt.Preset.ARROW.id to stringResource(R.string.settings_prompt_preset_arrow),
-                        ShellPrompt.Preset.BOX.id to stringResource(R.string.settings_prompt_preset_box),
-                        ShellPrompt.Preset.BRACKET.id to stringResource(R.string.settings_prompt_preset_bracket),
-                        ShellPrompt.Preset.KALI.id to stringResource(R.string.settings_prompt_preset_kali),
-                        ShellPrompt.Preset.BAR.id to stringResource(R.string.settings_prompt_preset_bar)
-                    )
-                    // ⚠ 既に rc へ書いてあるならそれを出す。サンプルで上書きして見せると、
-                    //   前に自分で直した内容が**画面から消えたように見える**。
-                    fun refill(shell: ShellPrompt.Shell, preset: ShellPrompt.Preset, keepExisting: Boolean) {
-                        promptDraft = (if (keepExisting) ShellPrompt.current(promptHomeDir, shell) else null)
-                            ?: ShellPrompt.body(preset, shell, promptRightClock)
-                        promptResult = null
-                    }
-                    LaunchedEffect(promptShell) { refill(promptShell, promptPreset, keepExisting = true) }
-
-                    ChipRow(
-                        options = ShellPrompt.Shell.entries.map { it.id },
-                        labels = ShellPrompt.Shell.entries.associate { it.id to it.label },
-                        selected = promptShell.id,
-                        onSelect = { id ->
-                            promptShell = ShellPrompt.Shell.of(id)
-                            refill(promptShell, promptPreset, keepExisting = true)
-                        }
-                    )
-                    ChipRow(
-                        options = ShellPrompt.Preset.entries.map { it.id },
-                        labels = presetLabels,
-                        selected = promptPreset.id,
-                        onSelect = { id ->
-                            promptPreset = ShellPrompt.Preset.of(id)
-                            // サンプルを選び直したときだけは、そのサンプルで作り直す。
-                            refill(promptShell, promptPreset, keepExisting = false)
-                        }
-                    )
-                    ToggleField(
-                        title = stringResource(R.string.settings_prompt_right_clock),
-                        description = stringResource(R.string.settings_prompt_right_clock_desc),
-                        checked = promptRightClock,
-                        onChange = {
-                            promptRightClock = it
-                            // 切り替えたら見本を作り直す (ボックスの中身と食い違わせない)。
-                            promptDraft = ShellPrompt.body(promptPreset, promptShell, it)
-                            promptResult = null
-                        }
-                    )
-                    TextField(
-                        title = stringResource(R.string.settings_prompt_body, promptShell.displayPath),
-                        placeholder = "PS1=...",
-                        value = promptDraft,
-                        onChange = { promptDraft = it; promptResult = null }
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ActionButton(label = stringResource(R.string.settings_prompt_apply)) {
-                            promptResult = if (!rootfsDir.isDirectory) {
-                                appliedPromptNoOs
-                            } else if (ShellPrompt.apply(promptHomeDir, promptShell, promptDraft) != null) {
-                                appliedPromptOk.format(promptShell.displayPath)
-                            } else {
-                                appliedPromptNg
-                            }
-                        }
-                        ActionButton(label = stringResource(R.string.settings_prompt_reset)) {
-                            val removed = ShellPrompt.clear(promptHomeDir, promptShell)
-                            promptDraft = ShellPrompt.body(promptPreset, promptShell, promptRightClock)
-                            promptResult = if (removed) {
-                                removedPromptOk.format(promptShell.displayPath)
-                            } else {
-                                removedPromptNone
-                            }
-                        }
-                    }
-                    promptResult?.let {
-                        Text(
-                            text = it,
-                            color = ZtsTextSecondary,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.settings_prompt_desc),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-
                 SshAccessHelper(session = session)
 
                 StorageAccessHelper()
@@ -1220,37 +1045,12 @@ fun SettingsSheet(
                     }
                 }
 
-                Section(title = stringResource(R.string.settings_section_gui_terminal)) {
-                    ChipRow(
-                        options = GuiTerminal.ALL.map { it.id },
-                        labels = GuiTerminal.ALL.associate { it.id to it.displayName },
-                        selected = settings.guiTerminalId,
-                        onSelect = { id ->
-                            // 逆向き (Alpine のまま Konsole を選ぶ) も同じく止める。
-                            if (GuiTerminal.isUnsupported(id, settings.distroId)) {
-                                konsoleConflict = "terminal"
-                            } else {
-                                session.setGuiTerminal(id)
-                            }
-                        }
-                    )
-                    ToggleField(
-                        title = stringResource(R.string.settings_clean_install),
-                        description = stringResource(R.string.settings_gui_clean_install_desc),
-                        checked = settings.cleanInstallGuiArmed,
-                        onChange = { session.setCleanInstallGuiArmed(it) }
-                    )
+                Section(title = stringResource(R.string.settings_section_gui)) {
                     ToggleField(
                         title = stringResource(R.string.settings_gui_audio),
                         description = stringResource(R.string.settings_gui_audio_desc),
                         checked = settings.guiAudioEnabled,
                         onChange = { session.setGuiAudioEnabled(it) }
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_gui_terminal_note),
-                        color = ZtsTextSecondary,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace
                     )
                 }
 
@@ -1892,7 +1692,7 @@ fun SettingsSheet(
 
                 // 端末リセット (アプリ初回起動時の状態に戻す = 端末タブ 1 つだけにして初期化)。
                 // 画面クリア単体は CTRL+L で行える。
-                // ディストロ/GUI のクリーンインストールは各「切替」セクションのチェックへ移動。
+                // OS のクリーンインストールは「切替」セクションのチェックへ移動。
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -2113,31 +1913,6 @@ fun SettingsSheet(
                 onDismiss()
             },
             onCancel = { pendingDistroSwitch = null; pendingCleanInstall = false }
-        )
-    }
-
-    // Konsole × Alpine の衝突 (0.8.353)。⭐ **断るだけで終わらせない** — Alpine を選ぼうと
-    // した側からは「xterm に切り替えて開く」を 1 タップで実行できるようにする
-    // (設定を往復させないため。`NoOsNoticeCard` で戻り道を残したのと同じ考え方)。
-    konsoleConflict?.let { from ->
-        val fromDistro = from == "distro"
-        DownloadConfirmDialog(
-            title = stringResource(R.string.gui_term_unsupported_title),
-            message = if (fromDistro) stringResource(R.string.gui_term_unsupported_switch_msg)
-                      else stringResource(R.string.gui_term_unsupported_pick_msg),
-            confirmLabel = if (fromDistro) stringResource(R.string.action_switch_to_xterm_and_open)
-                           else stringResource(R.string.action_got_it),
-            onConfirm = {
-                konsoleConflict = null
-                if (fromDistro) {
-                    // 端末を先に確定させてから distro を切り替える。順序が逆だと
-                    // 切替後の初回起動が Konsole のまま走ってしまう。
-                    session.setGuiTerminal(GuiTerminal.XTERM.id)
-                    session.switchDistro("alpine")
-                    onDismiss()
-                }
-            },
-            onCancel = { konsoleConflict = null }
         )
     }
 

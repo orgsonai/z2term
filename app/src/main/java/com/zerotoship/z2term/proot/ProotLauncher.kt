@@ -111,6 +111,12 @@ class ProotLauncher(private val context: Context) {
     /** z2root エンジンで accept シムを LD_PRELOAD する guest パス。 */
     private val z2acceptShimGuestPath = "/usr/local/lib/libz2accept.so"
 
+    /** gThumb だけ glycin の外部 sandbox 済み経路へ切り替える互換シム。 */
+    private val z2glycinShim: File
+        get() = File(context.applicationInfo.nativeLibraryDir, "libz2glycin.so")
+
+    private val z2glycinShimGuestPath = "/usr/local/lib/libz2glycin.so"
+
     /** Android USB Host API の fd を受け取る open/openat シム。 */
     private val z2usbShim: File
         get() = File(context.applicationInfo.nativeLibraryDir, "libz2usb.so")
@@ -137,6 +143,48 @@ class ProotLauncher(private val context: Context) {
             dst.setExecutable(true, false)
             Log.i(TAG, "Provisioned accept shim at ${dst.absolutePath}")
         }
+    }
+
+    /** gThumb 専用 glycin シムと、同シムを gThumb だけに積む wrapper を配置する。 */
+    private fun ensureGthumbGlycinCompat(rootfs: File) {
+        val src = z2glycinShim
+        if (!src.exists()) {
+            Log.w(TAG, "libz2glycin.so not in nativeLibraryDir — gThumb glycin workaround unavailable")
+            return
+        }
+        val dst = File(rootfs, z2glycinShimGuestPath.trimStart('/'))
+        dst.parentFile?.mkdirs()
+        val needsCopy = !dst.exists() || dst.length() != src.length() ||
+            dst.lastModified() < src.lastModified()
+        if (needsCopy) {
+            src.copyTo(dst, overwrite = true)
+            dst.setReadable(true, false)
+            dst.setExecutable(true, false)
+            Log.i(TAG, "Provisioned gThumb glycin shim at ${dst.absolutePath}")
+        }
+
+        runCatching {
+            val wrapper = File(rootfs, "usr/local/bin/gthumb")
+            val marker = "# z2term gThumb glycin compatibility"
+            // ユーザーが自分で置いた wrapper は上書きしない。
+            if (wrapper.exists() && !wrapper.readText().contains(marker)) return@runCatching
+            wrapper.parentFile?.mkdirs()
+            wrapper.writeText(
+                """
+                |#!/bin/sh
+                |$marker
+                |if [ "${'$'}{Z2ROOT_ENGINE:-}" = "1" ] && [ -r "$z2glycinShimGuestPath" ]; then
+                |  case ":${'$'}{LD_PRELOAD:-}:" in
+                |    *":$z2glycinShimGuestPath:"*) ;;
+                |    *) LD_PRELOAD="$z2glycinShimGuestPath${'$'}{LD_PRELOAD:+:${'$'}LD_PRELOAD}"; export LD_PRELOAD ;;
+                |  esac
+                |fi
+                |exec /usr/bin/gthumb "${'$'}@"
+                """.trimMargin() + "\n"
+            )
+            wrapper.setReadable(true, false)
+            wrapper.setExecutable(true, false)
+        }.onFailure { Log.w(TAG, "gThumb glycin wrapper 配置失敗", it) }
     }
 
     /**
@@ -254,16 +302,7 @@ class ProotLauncher(private val context: Context) {
         rows: Int = 24,
         cols: Int = 80,
         fallbackShell: String = "/bin/sh",
-        /**
-         * 設定「ログインシェル」の値 (空なら未指定 = 従来どおり distro 既定)。
-         *
-         * 端末タブの `command` だけでなく、**SSH ログイン**と **GUI 内ターミナル**にも同じシェルを
-         * 使わせるために使う ([ensureRootLoginShell] で rootfs の `/etc/passwd` を更新 +
-         * `Z2_LOGIN_SHELL` / `SHELL` を環境変数に流す)。rootfs に無いシェルなら無視される。
-         */
-        loginShell: String = "",
         extraArgs: List<String> = emptyList(),
-        guiTerminal: GuiTerminal = GuiTerminal.XTERM,
         /**
          * 非 null なら GUI 用の `Z2_DISPLAY` / `Z2_RFBPORT` を環境変数に追加する。
          * z2gui はこれを読んで `:N` / `5900+N` で Xvnc を起動するので、GUI タブごとに
@@ -322,27 +361,20 @@ class ProotLauncher(private val context: Context) {
             throw IllegalStateException("Engine binary not found: ${engineBinary.absolutePath}")
         }
 
-        // 指定シェルが rootfs に存在しなければ fallback → /bin/sh の順に解決。
-        // (Ubuntu base に zsh が無い、等で起動不能になるのを防ぐ)
+        // command が空なら OS の /etc/passwd にある root のログインシェルを使う。
+        // 指定先が無ければ distro 既定 → /bin/sh の順にフォールバックする。
         val resolvedCommand = resolveShell(rootfs, command, fallbackShell)
-        // 設定「ログインシェル」を、この rootfs で実際に起動できる形へ解決する
-        // (未導入なら distro 既定 → /bin/sh へフォールバック)。空なら未指定。
-        val userLoginShell =
-            if (loginShell.isBlank()) "" else resolveShell(rootfs, loginShell, fallbackShell)
         // 環境変数 SHELL は必ず「実体シェル」を指すようにする。command が z2gui の
         // ようにシェル以外だと、子プロセス (xterm 等) が $SHELL を起動して再帰・誤動作
-        // する (M8-3 で Xvnc が即死した罠の真因)。command がシェルならそのまま使う。
-        // command がシェルでないときは設定のログインシェルを最優先で採用する。
-        val shellForEnv =
-            resolveLoginShell(rootfs, resolvedCommand, userLoginShell.ifBlank { fallbackShell })
+        // する (M8-3 で Xvnc が即死した罠の真因)。OS のログインシェルを最優先で採用する。
+        val shellForEnv = resolveLoginShell(rootfs, resolvedCommand, fallbackShell)
 
         // 共有ホーム作成。
         sharedHomeDir.mkdirs()
         ensureAcceptShim(rootfs)
+        ensureGthumbGlycinCompat(rootfs)
         ensureUsbShim(rootfs)
         ensureAttachClient(rootfs)
-        // 設定のログインシェルを /etc/passwd(root) にも書き、SSH ログインにも効かせる。
-        ensureRootLoginShell(rootfs, userLoginShell)
         // 再起動後もコマンド履歴を辿れるよう、shell rc に履歴設定を流し込む。
         ensureShellHistoryConfig(rootfs)
         // マクロ置き場を PATH に入れる設定を rootfs 側にも置く (env だけでは足りない経路がある)。
@@ -353,8 +385,7 @@ class ProotLauncher(private val context: Context) {
         // proot で privsep 破綻 / sshd_config の UsePrivilegeSeparation で起動不可)。
         ensureSshdWrapper(rootfs)
         // `z2gui` で Linux GUI (Xvnc + WM) を起動できるよう launcher を配置。
-        // GUI 内ターミナルは設定由来 (GuiSession が渡す)。端末起動では既定 xterm のまま。
-        ensureGuiScript(rootfs, guiTerminal)
+        ensureGuiScript(rootfs)
         // 死んだ GUI が残した X のソケットを片付ける (これが残っていると z2run が
         // 「GUI は動いている」と誤認して、起こしたアプリが Cannot open display で即死する)。
         cleanStaleXSockets(rootfs)
@@ -383,6 +414,8 @@ class ProotLauncher(private val context: Context) {
         drainPacmanKeyringDiag(rootfs)
         // GUI 動画対策: mpv の既定をソフトウェア出力 (vo=x11) にする設定を配置。
         ensureMpvConfig(rootfs)
+        // SMPlayer は mpv を --no-config 付きで起動するため、SMPlayer 自身の 2 項目も補正する。
+        ensureSmplayerConfig(rootfs, distroId)
         // D-Bus セッションバスに必要な machine-id を用意 (空だと「Invalid machine ID」で bus が起動不可)。
         ensureMachineId(rootfs)
         // POSIX 共有メモリ (/dev/shm) の置き場。Android の /dev には shm が無く、ホスト /dev を
@@ -507,9 +540,7 @@ class ProotLauncher(private val context: Context) {
             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$MACRO_DIR",
             "TMPDIR=/tmp",
             // ⚠ **sh (busybox ash) が rc を読む唯一の口** (0.8.364)。ash は非ログインの対話
-            // シェルでは `$ENV` が指すファイルしか読まないので、これが無いと **rc に何を書いても
-            // 効かない**。Alpine の既定シェルは ash なので、プロンプト設定 ([ShellPrompt]) が
-            // 一番効いてほしい相手がまさにここだった。ファイルが無ければ何も起きない (無害)。
+            // シェルでは `$ENV` が指すファイルしか読まない。ファイルが無ければ何も起きない。
             // ⚠ bash/zsh はこの変数を見ない (bash は POSIX モードのみ) ので、他へ影響しない。
             "ENV=/root/.ashrc",
             "SHELL=$shellForEnv",
@@ -528,6 +559,13 @@ class ProotLauncher(private val context: Context) {
             // ブラウザ等) が実機の pvr 等ハードドライバを掴もうとして "failed to load driver" で
             // 映像が出ない/化ける。Mesa を強制的にソフトウェア (llvmpipe/swrast) に倒して回避する。
             "LIBGL_ALWAYS_SOFTWARE=1",
+            // Xvnc で MIT-SHM を無効化しているため、Qt/GTK 側も非 SHM の X11 描画へ固定する。
+            // gThumb の描画失敗と SMPlayer の映像の部分更新を回避する。
+            "QT_QPA_PLATFORM=xcb",
+            "QT_XCB_NO_MITSHM=1",
+            "QT_X11_NO_MITSHM=1",
+            "GDK_BACKEND=x11",
+            "GDK_RENDERING=image",
             // AF_UNIX ソケットのパス翻訳の判断を残す先 (z2root が追記・アプリが次の起動で
             // logcat へ出して消す)。翻訳が黙って諦めると ENOENT になるだけで外からは
             // 「なぜか動かない」としか見えないため、判断そのものを残す。
@@ -566,9 +604,6 @@ class ProotLauncher(private val context: Context) {
         rows: Int = 24,
         cols: Int = 80,
         fallbackShell: String = "/bin/sh",
-        /** 設定「ログインシェル」。proot 経路と同じく `/etc/passwd`(root) に反映して SSH にも効かせる。 */
-        loginShell: String = "",
-        guiTerminal: GuiTerminal = GuiTerminal.XTERM,
         display: Int? = null,
         /** proot 経路と同じ (`launch` の `sessionId`)。自分自身への attach を断るための目印。 */
         sessionId: String = ""
@@ -579,15 +614,11 @@ class ProotLauncher(private val context: Context) {
 
         // PRoot 経路と同じ rootfs セットアップ (proot libs / loader は chroot では不要)。
         sharedHomeDir.mkdirs()
-        ensureRootLoginShell(
-            rootfs,
-            if (loginShell.isBlank()) "" else resolveShell(rootfs, loginShell, fallbackShell)
-        )
         ensureShellHistoryConfig(rootfs)
         ensureMacroPathConfig(rootfs)
         ensureOsc7CwdConfig(rootfs)
         ensureSshdWrapper(rootfs)
-        ensureGuiScript(rootfs, guiTerminal)
+        ensureGuiScript(rootfs)
         // 死んだ GUI が残した X のソケットを片付ける (これが残っていると z2run が
         // 「GUI は動いている」と誤認して、起こしたアプリが Cannot open display で即死する)。
         cleanStaleXSockets(rootfs)
@@ -609,6 +640,7 @@ class ProotLauncher(private val context: Context) {
         ensurePacmanKeyringScript(rootfs)
         drainPacmanKeyringDiag(rootfs)
         ensureMpvConfig(rootfs)
+        ensureSmplayerConfig(rootfs, distroId)
         File(rootfs, "sdcard").mkdirs()
         File(rootfs, "storage/app").mkdirs()
         val externalEnabled = isExternalStorageEnabled()
@@ -819,59 +851,48 @@ class ProotLauncher(private val context: Context) {
     }.getOrDefault(false)
 
     private fun resolveShell(rootfs: File, requested: String, fallbackShell: String): String {
-        for (candidate in listOf(requested, fallbackShell, "/bin/sh", "/bin/bash")) {
+        // 空 command を導入した呼び元では、passwd が読めない・壊れている場合もあり得る。
+        // そのとき空文字を z2root の argv 末尾へ渡すと「command 無し」になって起動前に終了するため、
+        // distro 既定をここで必ず非空の候補にする。
+        val preferred = requested.ifBlank { rootLoginShell(rootfs) ?: fallbackShell }
+        for (candidate in listOf(preferred, fallbackShell, "/bin/sh", "/bin/bash")) {
             if (candidate.isBlank()) continue
             if (shellExists(rootfs, candidate)) return candidate
         }
-        // どれも見つからなければ要求値のまま (proot 側でエラーにさせる)
-        return requested
+        // rootfs が半端でも空 command にはしない。z2root 側には具体的な ENOENT を出させる。
+        return preferred.ifBlank { "/bin/sh" }
     }
 
     /**
-     * rootfs の `/etc/passwd` にある **root のログインシェル**を [shell] に揃える (= `chsh` 相当)。
+     * OS 内でユーザーが設定した root のログインシェルを読む。アプリから passwd は変更しない。
      *
-     * 設定「ログインシェル」はアプリの端末タブ (エンジンが直接 exec する) にしか効かず、
-     * **SSH ログイン** (dropbear は `/etc/passwd` の shell を起動する) や GUI 内ターミナルでは
-     * distro 既定 (bash 等) のままだった。通常の Linux なら利用者が `chsh` でやることを、
-     * 設定 1 箇所で全入口に効かせるためここで代行する。
-     *
-     * [shell] が空 / rootfs に存在しないときは何もしない (既存の passwd を壊さない)。
+     * `nologin` / `false` 等は passwd の値としては正しいが、対話端末の起動先にはできない。
+     * また、過去に入れて消した shell の dangling symlink を「在る」と数えると、通常端末と GUI
+     * 端末がそろって即終了する。実体まで辿れて対話 shell として使える値だけを返す。
      */
-    private fun ensureRootLoginShell(rootfs: File, shell: String) {
-        if (shell.isBlank() || !shellExists(rootfs, shell)) return
-        runCatching {
-            val passwd = File(rootfs, "etc/passwd")
-            if (!passwd.isFile) return
-            var changed = false
-            val updated = passwd.readLines().map { line ->
-                val f = line.split(':')
-                if (f.size < 7 || f[0] != "root" || f[6] == shell) line
-                else {
-                    changed = true
-                    (f.subList(0, 6) + shell).joinToString(":")
-                }
+    private fun rootLoginShell(rootfs: File): String? = runCatching {
+        File(rootfs, "etc/passwd").useLines { lines ->
+            lines.firstNotNullOfOrNull { line ->
+                val fields = line.split(':')
+                fields.takeIf { it.size >= 7 && it[0] == "root" }
+                    ?.get(6)
+                    ?.takeIf {
+                        it.startsWith('/') &&
+                            it.substringAfterLast('/') !in NON_INTERACTIVE_SHELLS &&
+                            shellExists(rootfs, it)
+                    }
             }
-            if (changed) {
-                passwd.writeText(updated.joinToString("\n") + "\n")
-                Log.i(TAG, "root login shell set to $shell")
-            }
-            // `su` / `chsh` が「正規のシェル」として認めるよう /etc/shells にも載せる。
-            val shells = File(rootfs, "etc/shells")
-            val listed = if (shells.isFile) shells.readLines().map { it.trim() } else emptyList()
-            if (shell !in listed) {
-                shells.parentFile?.mkdirs()
-                shells.appendText(shell + "\n")
-            }
-        }.onFailure { Log.w(TAG, "Failed to set root login shell: ${it.message}") }
-    }
+        }
+    }.getOrNull()
 
     /**
      * 環境変数 SHELL に入れる「実体シェル」を解決する。
      *
      * SHELL は xterm 等の子プロセスが「ユーザのログインシェル」として起動する値
-     * なので、必ず本物のシェルを指していなければならない。command がシェル
-     * (sh/bash/ash/zsh ...) ならそのまま使い、z2gui のようにシェルでなければ
-     * fallbackShell → /bin/bash → /bin/ash → /bin/sh の順で rootfs に在るシェルへ
+     * なので、必ず本物のシェルを指していなければならない。`/etc/passwd` の root シェルを
+     * 最優先にし、それが無効なときだけ command (シェルの場合) → fallbackShell →
+     * /bin/bash → /bin/ash → /bin/sh の順で
+     * rootfs に在るシェルへ
      * 振り替える。
      *
      * (M8-3 の罠の恒久対応: command="/usr/local/bin/z2gui" のとき SHELL=z2gui に
@@ -879,6 +900,9 @@ class ProotLauncher(private val context: Context) {
      *  kill して即死する、という問題を ProotLauncher 側で断つ。)
      */
     private fun resolveLoginShell(rootfs: File, resolvedCommand: String, fallbackShell: String): String {
+        // passwd は OS 内でユーザーが管理する真実の値。fish など未知のシェル名も
+        // 自由に使えるよう、実在する絶対パスなら名前で制限しない。
+        rootLoginShell(rootfs)?.let { return it }
         if (isShellPath(resolvedCommand)) return resolvedCommand
         for (candidate in listOf(fallbackShell, "/bin/bash", "/bin/ash", "/bin/sh")) {
             if (candidate.isNotBlank() && isShellPath(candidate) && shellExists(rootfs, candidate)) {
@@ -893,32 +917,13 @@ class ProotLauncher(private val context: Context) {
         path.substringAfterLast('/') in KNOWN_SHELLS
 
     private fun shellExists(rootfs: File, absPath: String): Boolean {
+        if (guestExecutableExists(rootfs, absPath)) return true
         val rel = absPath.trimStart('/')
-        if (pathPresent(File(rootfs, rel))) return true
         // usrmerge: /bin/bash → /usr/bin/bash
         if (rel.startsWith("bin/") || rel.startsWith("sbin/")) {
-            if (pathPresent(File(rootfs, "usr/$rel"))) return true
+            if (guestExecutableExists(rootfs, "/usr/$rel")) return true
         }
         return false
-    }
-
-    /**
-     * パスが実体 (通常ファイル) または symlink として存在するか。
-     *
-     * Alpine minirootfs の `/bin/sh -> /bin/busybox` の様な **絶対 symlink** は、
-     * File.exists() がリンク先をホストの filesystem root 起点で解決するため
-     * (ゲストの rootfs ではなく host:/bin/busybox を見にいく) 常に false になり、
-     * resolveShell のフォールバックが全滅して bogus な要求値 (例 /bin/zsh) が
-     * そのまま execve され ENOENT で起動失敗していた。ゲスト名前空間ではリンクが
-     * 正しく解決されるので、ここでは NOFOLLOW でリンク自体の存在だけを見る。
-     */
-    private fun pathPresent(f: File): Boolean {
-        if (f.exists()) return true
-        return try {
-            java.nio.file.Files.exists(f.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)
-        } catch (_: Exception) {
-            false
-        }
     }
 
     /**
@@ -1121,14 +1126,12 @@ class ProotLauncher(private val context: Context) {
      * 端末や GUI セッションから `z2gui start [WxH]` で Xvnc + openbox + アプリが立ち上がる。
      * launch 毎に上書きするので内容は常に最新。
      */
-    private fun ensureGuiScript(rootfs: File, guiTerminal: GuiTerminal) {
+    private fun ensureGuiScript(rootfs: File) {
         runCatching {
             val dir = File(rootfs, "usr/local/bin").apply { mkdirs() }
             val f = File(dir, "z2gui")
             f.writeText(
                 z2guiScript(
-                    terminalBinary = guiTerminal.binary,
-                    terminalPackage = guiTerminal.packageName,
                     // proot 内 z2gui の echo メッセージをアプリ言語設定に追従させる。
                     // launch 毎に書き直されるので、言語切替後の次回起動で反映される。
                     strings = GuiScriptStrings.forLang(LocaleHelper.language(context))
@@ -1413,7 +1416,8 @@ class ProotLauncher(private val context: Context) {
      * mpv の既定設定 `/etc/mpv/mpv.conf` を配置する (GUI 動画対策)。GUI は Xvnc = GPU 無しの
      * ソフトウェア画面なので、mpv 既定の gpu 出力 / ハードデコードは失敗し、映像が化ける・半分
      * しか出ない。出力を x11 (ソフト RGB)・デコードを CPU に倒すと正常に再生できる
-     * (SMPlayer も mpv バックエンド経由でこの既定に従う)。
+     * 単体 mpv はこの既定に従う。SMPlayer は `--no-config` で起動するため
+     * [ensureSmplayerConfig] で別に補正する。
      * ユーザーが自分の設定 (`~/.config/mpv/mpv.conf` が優先) や独自の `/etc/mpv/mpv.conf` を
      * 置いている場合は尊重し、**既存ファイルがあるときは触らない**。
      */
@@ -1432,6 +1436,63 @@ class ProotLauncher(private val context: Context) {
             )
             f.setReadable(true, false)
         }.onFailure { Log.w(TAG, "mpv.conf 配置失敗", it) }
+    }
+
+    /**
+     * SMPlayer の mpv 起動設定だけを Xvnc 向けに補正する。
+     *
+     * SMPlayer は通常 `--no-config` と自身の `--vo` / `--hwdec` を mpv へ渡すため、
+     * `/etc/mpv/mpv.conf` だけでは効かない。既存 INI の他項目は保持し、ビデオ出力と
+     * ハードウェアデコードの 2 項目だけを書き換える。SMPlayer 未導入なら何も作らない。
+     */
+    private fun ensureSmplayerConfig(rootfs: File, distroId: String) {
+        runCatching {
+            val installed = listOf("usr/bin/smplayer", "bin/smplayer")
+                .any { File(rootfs, it).isFile }
+            if (!installed) return
+
+            // `.config` は [isolatedHomeSubdirs] に含まれ、guest の `/root/.config` には
+            // sharedHomeDir ではなく distro 別 overlay が bind される。共有側へ書くと
+            // SMPlayer から一度も見えないため、実際の bind 元へ直接配置する。
+            val file = File(homeOverlayDir, "$distroId/.config/smplayer/smplayer.ini")
+            val original = if (file.isFile) file.readText() else ""
+            // Qt の INI backend は実グループ "General" を予約済みの既定セクションと
+            // 区別するため `[%General]` として保存する。hwdec は別の [performance]
+            // グループ直下であり、`[%General] performance\\hwdec` ではない。
+            val withVo = upsertIniValue(original, "%General", "driver\\vo", "x11")
+            val updated = upsertIniValue(withVo, "performance", "hwdec", "no")
+            if (updated != original) {
+                file.parentFile?.mkdirs()
+                file.writeText(updated)
+                file.setReadable(true, false)
+            }
+        }.onFailure { Log.w(TAG, "smplayer.ini 補正失敗", it) }
+    }
+
+    /** INI の 1 セクション内だけを更新し、他の設定とコメントは残す。 */
+    private fun upsertIniValue(source: String, section: String, key: String, value: String): String {
+        val lines = source.replace("\r\n", "\n").trimEnd('\n').let {
+            if (it.isEmpty()) mutableListOf() else it.split('\n').toMutableList()
+        }
+        val sectionHeader = "[$section]"
+        val sectionStart = lines.indexOfFirst { it.trim().equals(sectionHeader, ignoreCase = true) }
+        if (sectionStart < 0) {
+            if (lines.isNotEmpty() && lines.last().isNotEmpty()) lines += ""
+            lines += sectionHeader
+            lines += "$key=$value"
+            return lines.joinToString("\n") + "\n"
+        }
+
+        val sectionEnd = (sectionStart + 1 until lines.size)
+            .firstOrNull { lines[it].trim().startsWith("[") } ?: lines.size
+        val keyPattern = Regex("^\\s*${Regex.escape(key)}\\s*=", RegexOption.IGNORE_CASE)
+        val keyIndex = (sectionStart + 1 until sectionEnd).firstOrNull { keyPattern.containsMatchIn(lines[it]) }
+        if (keyIndex != null) {
+            lines[keyIndex] = "$key=$value"
+        } else {
+            lines.add(sectionEnd, "$key=$value")
+        }
+        return lines.joinToString("\n") + "\n"
     }
 
     /**
@@ -1622,5 +1683,53 @@ class ProotLauncher(private val context: Context) {
 
         /** SHELL に採用してよい既知のシェル basename (これ以外は実体シェルへ振り替える)。 */
         private val KNOWN_SHELLS = setOf("sh", "bash", "ash", "dash", "zsh", "ksh", "mksh")
+
+        /** passwd には置けるが対話端末として起動してはいけないプログラム。 */
+        private val NON_INTERACTIVE_SHELLS = setOf("false", "nologin", "sync", "halt", "shutdown")
     }
+}
+
+/**
+ * rootfs 内の絶対パスを **guest の `/` 起点で** symlink 解決し、実行可能な通常ファイルか調べる。
+ *
+ * `File.exists()` は Alpine の `/bin/ash -> /bin/busybox` を host の `/bin/busybox` へ辿るため
+ * false になり得る。一方 `NOFOLLOW_LINKS` だけでは dangling link まで true になり、消した shell を
+ * 起動可能と誤認する。各 symlink を rootfs 起点で辿ることで両方を区別する。
+ */
+internal fun guestExecutableExists(rootfs: File, absolutePath: String): Boolean {
+    if (!absolutePath.startsWith('/') || '\u0000' in absolutePath) return false
+
+    var pending = absolutePath.split('/').filter { it.isNotEmpty() }.toMutableList()
+    val resolved = mutableListOf<String>()
+    var symlinkCount = 0
+
+    while (pending.isNotEmpty()) {
+        when (val component = pending.removeAt(0)) {
+            "." -> continue
+            ".." -> {
+                if (resolved.isEmpty()) return false
+                resolved.removeAt(resolved.lastIndex)
+                continue
+            }
+            else -> {
+                val current = File(rootfs, (resolved + component).joinToString("/"))
+                val path = current.toPath()
+                if (java.nio.file.Files.isSymbolicLink(path)) {
+                    if (++symlinkCount > 32) return false
+                    val target = runCatching { java.nio.file.Files.readSymbolicLink(path).toString() }
+                        .getOrNull() ?: return false
+                    val targetParts = target.split('/').filter { it.isNotEmpty() }
+                    pending = ((if (target.startsWith('/')) emptyList() else resolved.toList()) +
+                        targetParts + pending).toMutableList()
+                    resolved.clear()
+                } else {
+                    resolved += component
+                }
+            }
+        }
+    }
+
+    if (resolved.isEmpty()) return false
+    val target = File(rootfs, resolved.joinToString("/")).toPath()
+    return java.nio.file.Files.isRegularFile(target) && java.nio.file.Files.isExecutable(target)
 }

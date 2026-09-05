@@ -45,7 +45,7 @@ enum class SettingsGroup(
         true
     ),
 
-    /** ディストロ / OS データの削除 / ログインシェル / 外部ストレージ / GUI ターミナル */
+    /** ディストロ / OS データの削除 / ストレージ / GUI */
     LINUX(
         "linux",
         R.string.settings_group_linux,

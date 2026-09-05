@@ -56,11 +56,10 @@ fun z2runScript(lang: String = "ja"): String {
         |echo "OPEN ${d}{DISPLAY_NUM}" >> /storage/app/z2gui.events 2>/dev/null || true
         |
         |# 3) Xvnc :N が無ければ z2gui で起動。z2gui は wait し続けるので & で投げて進む。
-        |#    Z2_NO_TERM=1 で xterm の同時起動を抑止 (z2run はユーザー指定の GUI アプリだけを出したい)。
         |STARTED_NOW=0
         |if [ ! -e "${d}XSOCK" ]; then
         |  STARTED_NOW=1
-        |  Z2_NO_TERM=1 setsid /usr/local/bin/z2gui start </dev/null >"/tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log" 2>&1 &
+        |  setsid /usr/local/bin/z2gui start </dev/null >"/tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log" 2>&1 &
         |  # 待ち時間は GUI 一式が導入済みか未導入かで動的に変える:
         |  #   導入済み → 10 秒 (Xvnc 起動だけ)
         |  #   未導入 → 5 分 (apk/apt/pacman のダウンロード + 展開を含む)
@@ -99,8 +98,12 @@ fun z2runScript(lang: String = "ja"): String {
         |    [ -n "${d}DBUS_ADDR" ] && export DBUS_SESSION_BUS_ADDRESS="${d}DBUS_ADDR"
         |  fi
         |fi
-        |# Qt を X11 backend に固定する (Wayland の無い環境で探させない)。
+        |# Xvnc 用の非 SHM 描画経路に固定する。
         |export QT_QPA_PLATFORM="${d}{QT_QPA_PLATFORM:-xcb}"
+        |export QT_XCB_NO_MITSHM="${d}{QT_XCB_NO_MITSHM:-1}"
+        |export QT_X11_NO_MITSHM="${d}{QT_X11_NO_MITSHM:-1}"
+        |export GDK_BACKEND="${d}{GDK_BACKEND:-x11}"
+        |export GDK_RENDERING="${d}{GDK_RENDERING:-image}"
         |
         |# 5) 引数があればユーザーの GUI アプリへバトンタッチ。無ければここで終了。
         |if [ ${d}# -gt 0 ]; then exec "${d}@"; fi

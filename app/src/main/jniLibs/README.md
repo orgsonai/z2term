@@ -18,6 +18,7 @@ Termux も含む全ての類似アプリで使われている標準テクニッ�
 |---|---|
 | `arm64-v8a/libz2root.so` | z2root (aarch64) |
 | `arm64-v8a/libz2accept.so` | accept→accept4 シム |
+| `arm64-v8a/libz2glycin.so` | gThumb の glycin/bubblewrap 互換シム |
 | `arm64-v8a/libz2usb.so` | Android USB Host fd 受け渡しシム |
 
 armv7 (32bit) は M7 同梱方針では生成しません。`build.gradle.kts` の
@@ -32,6 +33,7 @@ bash scripts/build-z2root.sh
 # 出力:
 #   arm64-v8a/libz2root.so   (自前 ptrace エンジン)
 #   arm64-v8a/libz2accept.so (accept→accept4 LD_PRELOAD シム)
+#   arm64-v8a/libz2glycin.so (gThumb/glycin LD_PRELOAD シム)
 #   arm64-v8a/libz2usb.so    (USB fd LD_PRELOAD シム)
 ```
 

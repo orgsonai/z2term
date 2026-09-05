@@ -23,7 +23,7 @@ package com.zerotoship.z2term.proot
  * - `Exec` の**先頭のコマンド**が PATH に無ければ捨てる
  * - `Exec` のフィールドコード (`%f %F %u %U %d %D %n %N %i %c %k %v %m`) は除去する。
  *   ⚠ 除去しないと、引数を取らない起動でアプリが `%U` という名前のファイルを開こうとする
- * - `Terminal=true` は端末 (`xterm -e …`) で開く
+ * - `Terminal=true` は除外する。GUI スタックは特定の端末を要求しない
  * - 同じファイル名 (desktop id) が複数のディレクトリにあるときは**先に読んだ方**を採る。
  *   探索順は `~/.local/share` → `/usr/local/share` → `/usr/share` で、利用者が置いた分が勝つ
  *
@@ -82,15 +82,6 @@ fun z2menuScript(lang: String = "ja"): String {
         |LANGSFX="$nameSuffix"
         |CATLABELS="$catLabels"
         |TAB=${d}(printf '\t')
-        |
-        |# Terminal=true の .desktop を開くための端末。入っているものを 1 つ選ぶ。
-        |# ⚠ 見つからなければ端末アプリは一覧から落とす (押しても何も起きない項目を出さない)。
-        |term_bin() {
-        |  for b in xterm urxvt lxterminal xfce4-terminal konsole; do
-        |    command -v "${d}b" >/dev/null 2>&1 && { echo "${d}b"; return 0; }
-        |  done
-        |  echo ""
-        |}
         |
         |# .desktop を読んで TSV にする。⚠ awk は POSIX の範囲で書くこと (busybox awk 対応)。
         |scan_desktop() {
@@ -169,25 +160,36 @@ fun z2menuScript(lang: String = "ja"): String {
         |  ' "${d}@"
         |}
         |
-        |# TSV から「実体が PATH に無いもの」と「端末が要るのに端末が無いもの」を落として名前順に並べる。
+        |# TSV から「実体が PATH に無いもの」と Terminal=true を落として名前順に並べる。
         |#
         |# ⛔ **read の IFS に TAB を渡して列へ割らないこと。** TAB は IFS の「空白」なので
         |#    **連続した TAB が 1 つに畳まれる**。Comment= の無い .desktop (かなり多い) で列が
         |#    1 つずつ手前へずれ、説明の欄に端末フラグの "0" が出る。行はそのまま持ち、
         |#    判定に要る 2 列だけを前から剥がして取る。
         |list_apps() {
-        |  TB=${d}(term_bin)
         |  scan_desktop | while IFS= read -r line; do
+        |    name=${d}{line%%"${d}TAB"*}
         |    rest=${d}{line#*"${d}TAB"}   # 名前を落とす
         |    cmd=${d}{rest%%"${d}TAB"*}   # コマンド
         |    [ -n "${d}cmd" ] || continue
+        |    after_cmd=${d}{rest#*"${d}TAB"}
         |    rest=${d}{rest#*"${d}TAB"}   # 説明へ
         |    rest=${d}{rest#*"${d}TAB"}   # 端末フラグへ
         |    term=${d}{rest%%"${d}TAB"*}
-        |    if [ "${d}term" = "1" ] && [ -z "${d}TB" ]; then continue; fi
+        |    [ "${d}term" = "1" ] && continue
         |    # Exec の先頭語が実体。`env A=B app` のような形もそのまま command -v で見る。
         |    bin=${d}{cmd%% *}
         |    command -v "${d}bin" >/dev/null 2>&1 || continue
+        |    # Alpine の xterm は引数無しだと core font `fixed` を要求し、既存 GUI 環境に
+        |    # font-misc-misc が無い場合は窓を作る前に終了する。以前の自動起動と同じく Xft の
+        |    # monospace を明示し、☰ と openbox のどちらから起こしても同じにする。
+        |    if [ "${d}{bin##*/}" = "xterm" ]; then
+        |      case " ${d}cmd " in
+        |        *" -fa "*|*" -fn "*) : ;;
+        |        *) cmd="${d}bin -fa monospace -fs 11${d}{cmd#"${d}bin"}"
+        |           line="${d}name${d}TAB${d}cmd${d}TAB${d}after_cmd" ;;
+        |      esac
+        |    fi
         |    printf '%s\n' "${d}line"
         |  done | sort -f
         |}
@@ -195,16 +197,14 @@ fun z2menuScript(lang: String = "ja"): String {
         |# openbox の pipe menu。項目が多いときだけ分類のサブメニューに分ける
         |# (少ないうちから階層にすると、指で辿る手数が増えるだけなので)。
         |menu_xml() {
-        |  list_apps | awk -F'\t' -v tb="${d}(term_bin)" -v none="$noApps" -v catlabels="${d}CATLABELS" '
+        |  list_apps | awk -F'\t' -v none="$noApps" -v catlabels="${d}CATLABELS" '
         |  function esc(s) {
         |    gsub(/&/, "\\&amp;", s); gsub(/</, "\\&lt;", s)
         |    gsub(/>/, "\\&gt;", s); gsub(/"/, "\\&quot;", s)
         |    return s
         |  }
         |  function item(i, ind,   e) {
-        |    e = cmd[i]
-        |    if (trm[i] == "1" && tb != "") e = tb " -e " cmd[i]
-        |    print ind "<item label=\"" esc(nm[i]) "\"><action name=\"Execute\"><execute>" esc(e) "</execute></action></item>"
+        |    print ind "<item label=\"" esc(nm[i]) "\"><action name=\"Execute\"><execute>" esc(cmd[i]) "</execute></action></item>"
         |  }
         |  BEGIN {
         |    nl = split(catlabels, pairs, ";")

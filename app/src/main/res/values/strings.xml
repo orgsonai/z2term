@@ -13,7 +13,7 @@
     <string name="settings_group_keyboard">Keyboard, input and language</string>
     <string name="settings_group_keyboard_desc">Keyboard size, input methods, dictionaries and app language</string>
     <string name="settings_group_linux">Linux environment</string>
-    <string name="settings_group_linux_desc">OS, shell, storage and GUI terminal</string>
+    <string name="settings_group_linux_desc">OS, shell, storage and GUI</string>
     <string name="settings_group_automation">Resident servers and automation</string>
     <string name="settings_group_automation_desc">Background operation, servers, notifications and event integration</string>
     <string name="settings_group_app_lock">App lock</string>
@@ -49,26 +49,6 @@
     <string name="settings_section_font_size">Font size</string>
     <string name="settings_section_scrollback">Scrollback lines</string>
     <string name="settings_section_distro">Distro (switching restarts the current session)</string>
-    <string name="settings_section_login_shell">Login shell (applies from the next session)</string>
-    <string name="settings_section_prompt">Shell prompt</string>
-    <string name="settings_prompt_preset_plain">Sign only</string>
-    <string name="settings_prompt_preset_user_host">user@host</string>
-    <string name="settings_prompt_preset_arrow">Arrow</string>
-    <string name="settings_prompt_preset_box">Rounded</string>
-    <string name="settings_prompt_preset_bracket">Square</string>
-    <string name="settings_prompt_preset_kali">Kali</string>
-    <string name="settings_prompt_preset_bar">Ribbon</string>
-    <string name="settings_prompt_right_clock">Clock at the right edge</string>
-    <string name="settings_prompt_right_clock_desc">Prints the current time dimmed at the right edge of the line, so scrolling back shows when each command was typed. It does not count the terminal width, so rotating or splitting the screen never misaligns it.</string>
-    <string name="settings_prompt_body">What gets written to %1$s (edit it here to fine-tune)</string>
-    <string name="settings_prompt_apply">Apply</string>
-    <string name="settings_prompt_reset">Remove</string>
-    <string name="settings_prompt_applied">Written to %1$s. New tabs pick it up.</string>
-    <string name="settings_prompt_removed">Removed from %1$s. New tabs go back to the default.</string>
-    <string name="settings_prompt_removed_none">Nothing was written there.</string>
-    <string name="settings_prompt_failed">Could not write it.</string>
-    <string name="settings_prompt_no_os">Install a Linux OS first.</string>
-    <string name="settings_prompt_desc">Pick a sample to fill the box, edit it if you like, then press Apply to write it into the config file of the shell you picked. Only the part between the z2term markers is written, so anything you wrote yourself stays. Opening the file from the terminal with vi shows the same thing.</string>
     <string name="settings_section_keyboard_style">Keyboard behavior</string>
     <string name="settings_keyboard_toggle_bar">Keyboard toggle bar</string>
     <string name="settings_keyboard_number_face">Show the number face</string>
@@ -189,7 +169,7 @@
     <string name="settings_user_dict_dictionary_missing">The selected dictionary no longer exists. Choose it again</string>
     <string name="settings_special_key_bar">Special key bar (with the OS keyboard)</string>
     <string name="settings_special_key_bar_desc">While the OS keyboard is selected, show ESC, TAB, CTRL and arrow keys above it. Turn off to hide the bar (the built-in keyboard is unaffected).</string>
-    <string name="settings_section_gui_terminal">GUI terminal</string>
+    <string name="settings_section_gui">GUI</string>
     <string name="settings_gui_magnification">GUI magnification (applies from next GUI start)</string>
     <string name="settings_clean_install">Clean install</string>
     <string name="settings_gui_audio">GUI audio</string>
@@ -573,9 +553,6 @@
     <string name="settings_create_custom_theme">Create custom theme…</string>
     <string name="settings_edit_custom_theme">Edit custom theme…</string>
     <string name="settings_custom_theme_note">Create one theme of your own. The chosen background / foreground / accent etc. apply to the whole app.</string>
-    <string name="settings_shell_uninstalled_suffix">%1$s (not installed)</string>
-    <string name="settings_shell_warning">⚠ %1$s is not installed for this distro. Until it is installed it has no effect; the launcher falls back to the default shell → /bin/sh (e.g. apk add zsh / apt install zsh).</string>
-    <string name="settings_shell_info">Shells that are not installed fall back automatically. They become effective once you install them in the distro.</string>
 
     <!-- External storage (SD card) recognition toggle -->
     <string name="settings_section_external_storage">External storage (SD card)</string>
@@ -596,8 +573,6 @@
     <string name="settings_sgr_mouse_input_toggle">SGR mouse output (convert touch to mouse events)</string>
     <string name="settings_sgr_mouse_input_toggle_desc">When ON, taps are translated to TUI mouse events (SGR `?1006`). Required for some TUIs (calendar, file managers, multi-pane focus switching). Single tap = left click, long press = right click, one-finger drag = mouse motion. When OFF (default), taps are used by Z2Term itself (focus / text selection / scrolling). Two-finger swipe → wheel works the same regardless of this toggle.</string>
     <string name="settings_sgr_mouse_input_warning">⚠ When enabled, one-finger text selection and long-press menus are routed to the TUI. On screens that do not enable mouse capture (e.g. bash, less) taps still drive Z2Term as before.</string>
-    <string name="settings_gui_clean_install_desc">Turn ON and open the GUI tab to reinstall the GUI-display packages (cache and all) — recovery for stuck DL/extraction. The check clears automatically on launch.</string>
-    <string name="settings_gui_terminal_note">🖥 The terminal to open inside the GUI tab. If not installed yet it is auto-installed on first GUI start (Konsole, in KDE, has a large initial download — Wi-Fi recommended).</string>
 
     <!-- Custom theme editor (D3 batch 4) -->
     <string name="theme_color_background">Background</string>
@@ -636,17 +611,14 @@
     <string name="storage_access_grant_button">Grant access to all storage</string>
 
     <!-- TerminalScreen residuals (D3 batch 5) -->
-    <string name="gui_confirm_clean_install_title">Clean-install the GUI stack</string>
     <string name="gui_confirm_download_title">Download the GUI stack</string>
-    <string name="gui_confirm_clean_install_msg">Wipe the GUI display packages (cache and all) and reinstall (tens to hundreds of MB). Wi-Fi recommended. Continue?</string>
     <string name="gui_confirm_download_msg">The first GUI (Linux desktop) launch requires display packages to be downloaded (tens to hundreds of MB). Wi-Fi recommended. Continue?</string>
-    <string name="gui_confirm_clean_install_action">Clean install</string>
     <string name="gui_confirm_download_action">Download and launch</string>
     <string name="keyboard_show_button">▴ Keyboard</string>
     <string name="keyboard_hide_button">▾ Keyboard</string>
     <string name="terminal_action_copy">Copy</string>
 
-    <!-- Foreground service notification / toasts / GUI terminal display names (D3 batch 6) -->
+    <!-- Foreground service notification / toasts (D3 batch 6) -->
     <string name="service_channel_name">Z2Term session</string>
     <string name="service_channel_desc">Keeps the terminal session running in the background</string>
     <string name="service_notification_title">Z2Term running</string>
@@ -764,15 +736,6 @@
     <string name="banner_process_exited">[process exited exitCode=%1$d]</string>
     <!-- 0.8.378: killed by a signal we did not send (most often the system reclaiming memory). -->
     <string name="banner_process_killed">[process killed from outside %1$s exitCode=%2$d, %3$d MB free]</string>
-    <string name="gui_terminal_xterm_desc">Lightest / standard for all distros</string>
-    <string name="gui_terminal_urxvt_desc">Light / Japanese-capable</string>
-    <string name="gui_terminal_lxterminal_desc">Light GTK</string>
-    <string name="gui_terminal_konsole_desc">KDE-based / heavy first-time install</string>
-    <!-- Konsole × Alpine は成立しない組み合わせ (0.8.353) -->
-    <string name="gui_term_unsupported_title">Konsole does not run on Alpine</string>
-    <string name="gui_term_unsupported_switch_msg">On Alpine, Konsole crashes while it builds its window, so the GUI tab would stay black with no explanation. Switch the GUI terminal to xterm and open Alpine? xterm, rxvt-unicode and LXTerminal all work on Alpine — you can pick another one later in Settings.</string>
-    <string name="gui_term_unsupported_pick_msg">Alpine is the OS in use, and Konsole crashes there while it builds its window. Pick a different GUI terminal (xterm, rxvt-unicode or LXTerminal), or switch to another OS first.</string>
-    <string name="action_switch_to_xterm_and_open">Switch to xterm and open</string>
     <string name="action_got_it">Got it</string>
     <string name="keyboard_style_compact">Simple</string>
     <string name="keyboard_style_spacious">4-way flick</string>

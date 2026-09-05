@@ -13,7 +13,7 @@ const val Z2TERM_VNC_PORT = 5901
 const val Z2TERM_VNC_DISPLAY = 1
 
 /** （参考）Alpine の GUI パッケージ。実際の導入は [z2guiScript] が distro 判定して切替える。 */
-const val Z2TERM_GUI_PACKAGES = "tigervnc openbox xterm font-noto ttf-dejavu"
+const val Z2TERM_GUI_PACKAGES = "tigervnc openbox dbus font-noto ttf-dejavu"
 
 /**
  * Linux GUI ランチャ `z2gui` スクリプト。
@@ -24,7 +24,7 @@ const val Z2TERM_GUI_PACKAGES = "tigervnc openbox xterm font-noto ttf-dejavu"
  *
  * これを `/usr/local/bin/z2gui` に配置 (ProotLauncher.ensureGuiScript) することで、
  * 端末から、または z2term の GUI セッションから次のように使える:
- *  - `z2gui` / `z2gui start [WxH]` … Xvnc + openbox + ターミナルを起動 (未導入なら自動導入)
+ *  - `z2gui` / `z2gui start [WxH]` … Xvnc + openbox を起動 (未導入なら自動導入)
  *  - `z2gui start [WxH] clean`     … キャッシュごと GUI を入れ直して起動 (救済)
  *  - `z2gui 1080x2160`             … 解像度を直接指定して起動
  *  - `z2gui stop`                  … Xvnc/WM を停止
@@ -35,9 +35,6 @@ const val Z2TERM_GUI_PACKAGES = "tigervnc openbox xterm font-noto ttf-dejavu"
  * **distro 非依存**: スクリプト内でパッケージマネージャ (apk / apt-get / pacman) を判定し、
  * その distro のパッケージ名・X サーバ名 (Xvnc または Xtigervnc) を使う。選択中の OS で
  * そのまま GUI が立ち上がる（HANDOFF「選択中のOSで立ち上げ」要望）。
- *
- * [terminalBinary] / [terminalPackage]: GUI 内で起動するターミナル。設定 ([GuiTerminal]) から
- * z2term が渡す。ここに来る端末のパッケージ名は apk/apt/pacman で同名。
  *
  * RFB は `-SecurityTypes None -localhost` で認証なし・loopback 限定。z2term は
  * 127.0.0.1:[Z2TERM_VNC_PORT] へ接続する。
@@ -55,21 +52,11 @@ data class GuiScriptStrings(
     val alreadyRunning: String,       // "✅ GUI は既に起動中 (DISPLAY={DISP}, RFB ...)"
     val startingXvnc: String,         // "▶ {XSERVER} 起動: {GEOM} @ {DISP} ..."
     val xvncFailed: String,           // "❌ Xvnc 起動失敗。ログ:"
-    val noTermFlag: String,           // "ℹ Z2_NO_TERM=1: 端末を起動せず Xvnc+openbox のみ。"
-    val terminalNotFound: String,     // "⚠ 端末 {BIN} が見つかりません ..."
-    // --- 0.8.343 で追加。端末だけ入らない / 端末だけ起動できない を見えるようにする。
-    val terminalInstallFailed: String, // "⚠ 端末パッケージを導入できませんでした ({PKGS})"
-    val terminalLog: String,           // "🧾 端末の出力" (ログの場所を添えて出す)
     val ready: String,                // "✅ GUI 準備完了。z2term の GUI タブから ..."
     val running: String,              // "✅ GUI 起動中 (DISPLAY=..., RFB ...)"
     val stopped: String,              // "⏹ GUI は停止中"
     val stoppedMsg: String,           // "⏹ 停止しました"
     val usage: String,                 // "使い方: z2gui [start [WxH] [clean] | stop | status | ...]"
-    // --- 0.8.228 で追加。ここだけ日本語のまま端末に出ていた（英語モードでも和文が出る状態）。
-    val konsoleRebuild: String,       // ローカル cache から再構成する旨
-    val extracting: String,           // "📦 展開:" (方式名は英字なので後ろに付ける)
-    val konsoleRebuilt: String,       // 再構成できた
-    val konsoleCacheShort: String,    // cache だけでは足りない
     val installFailed: String,        // GUI 一式を導入できなかった
     val installFailedHint: String,    // その次の一手
     val audioInstalling: String,      // PulseAudio を導入します
@@ -77,13 +64,10 @@ data class GuiScriptStrings(
     val audioNoPactl: String,         // pactl が無いので無音で継続
     val audioStartFailed: String,     // PulseAudio 起動失敗
     val audioReady: String,           // 音声の経路ができた
-    val qtFallback: String,           // PySide6 同梱 Qt6 を追加
-    val qtFallbackFound: String,      // 任意の libQt6QuickWidgets を発見
     // --- 0.8.498 で追加。デスクトップ右クリックのメニューに出す見出し。
     // ⚠ ここは**画面に出るラベル**なので、必ず全言語を埋めること (英語落ちだと和文の中に英語が混じる)。
     val menuApps: String,             // 「アプリ」(z2menu の pipe menu を開く)
     val menuWindows: String,          // 「窓」(openbox 内蔵の client-list-menu)
-    val menuTerminal: String,         // 「端末」
     val menuReload: String            // 「メニューを読み直す」(openbox の Reconfigure)
 ) {
     companion object {
@@ -96,31 +80,20 @@ data class GuiScriptStrings(
             alreadyRunning = "✅ GUI は既に起動中",
             startingXvnc = "▶ 起動",
             xvncFailed = "❌ Xvnc 起動失敗。ログ:",
-            noTermFlag = "ℹ Z2_NO_TERM=1: 端末を起動せず Xvnc+openbox のみ。",
-            terminalNotFound = "⚠ 端末が見つかりません (導入失敗?)。openbox のみ起動。",
-            terminalInstallFailed = "⚠ 端末パッケージを導入できませんでした。GUI は起動しますが端末の窓は出ません",
-            terminalLog = "🧾 端末の出力",
             ready = "✅ GUI 準備完了。z2term の GUI タブから接続してください。",
             running = "✅ GUI 起動中",
             stopped = "⏹ GUI は停止中",
             stoppedMsg = "⏹ 停止しました",
             usage = "使い方: z2gui [start [WxH] [clean] | stop | status | install | clean | check]",
-            konsoleRebuild = "🔧 Konsole 関連ファイルが不足 — ローカル cache から再構成 (ネット通信なし)",
-            extracting = "📦 展開",
-            konsoleRebuilt = "✅ Konsole + Qt6 をローカル cache から再構成済",
-            konsoleCacheShort = "⚠️ ローカル cache だけでは揃いません — 設定で「クリーンインストール」を ON にして 🖥 を押してください",
-            installFailed = "❌ GUI 一式 (Xvnc / openbox / 端末) を導入できませんでした。",
-            installFailedHint = "   ネットワーク接続を確認するか、設定で「クリーンインストール」を ON にして 🖥 を押してください。",
+            installFailed = "❌ GUI 一式 (Xvnc / openbox / D-Bus) を導入できませんでした。",
+            installFailedHint = "   ネットワーク接続を確認してください。復旧する場合は端末で z2gui clean を実行できます。",
             audioInstalling = "🔊 GUI 音声: PulseAudio を導入します",
             audioNoPulse = "⚠️ GUI 音声: pulseaudio が無いため無音で継続",
             audioNoPactl = "⚠️ GUI 音声: pactl が無いため無音で継続",
             audioStartFailed = "⚠️ GUI 音声: PulseAudio 起動失敗",
             audioReady = "🔊 GUI 音声: z2sink.monitor →",
-            qtFallback = "📚 PySide6 同梱 Qt6 を LD_LIBRARY_PATH に追加 (Konsole 救済):",
-            qtFallbackFound = "📚 任意の libQt6QuickWidgets.so.6 を発見 → LD_LIBRARY_PATH に追加:",
             menuApps = "アプリ",
             menuWindows = "窓",
-            menuTerminal = "端末",
             menuReload = "メニューを読み直す"
         )
         fun en(): GuiScriptStrings = GuiScriptStrings(
@@ -132,31 +105,20 @@ data class GuiScriptStrings(
             alreadyRunning = "✅ GUI already running",
             startingXvnc = "▶ Starting",
             xvncFailed = "❌ Xvnc startup failed. Log:",
-            noTermFlag = "ℹ Z2_NO_TERM=1: no terminal, only Xvnc+openbox.",
-            terminalNotFound = "⚠ terminal not found (install failed?). Starting openbox only.",
-            terminalInstallFailed = "⚠ Could not install the terminal package. The GUI will start, but no terminal window will appear",
-            terminalLog = "🧾 terminal output",
             ready = "✅ GUI ready. Connect from a z2term GUI tab.",
             running = "✅ GUI running",
             stopped = "⏹ GUI is stopped",
             stoppedMsg = "⏹ Stopped",
             usage = "Usage: z2gui [start [WxH] [clean] | stop | status | install | clean | check]",
-            konsoleRebuild = "🔧 Konsole files are missing — rebuilding from the local cache (no network)",
-            extracting = "📦 Extracting",
-            konsoleRebuilt = "✅ Rebuilt Konsole + Qt6 from the local cache",
-            konsoleCacheShort = "⚠️ The local cache is not enough — turn on \"Clean install\" in settings and press 🖥",
-            installFailed = "❌ Could not install the GUI stack (Xvnc / openbox / terminal).",
-            installFailedHint = "   Check your network, or turn on \"Clean install\" in settings and press 🖥.",
+            installFailed = "❌ Could not install the GUI stack (Xvnc / openbox / D-Bus).",
+            installFailedHint = "   Check your network. For recovery, you can run z2gui clean in a terminal.",
             audioInstalling = "🔊 GUI audio: installing PulseAudio",
             audioNoPulse = "⚠️ GUI audio: no pulseaudio, continuing without sound",
             audioNoPactl = "⚠️ GUI audio: no pactl, continuing without sound",
             audioStartFailed = "⚠️ GUI audio: PulseAudio failed to start",
             audioReady = "🔊 GUI audio: z2sink.monitor →",
-            qtFallback = "📚 Added PySide6's bundled Qt6 to LD_LIBRARY_PATH (Konsole fallback):",
-            qtFallbackFound = "📚 Found a libQt6QuickWidgets.so.6 → added to LD_LIBRARY_PATH:",
             menuApps = "Applications",
             menuWindows = "Windows",
-            menuTerminal = "Terminal",
             menuReload = "Reload menu"
         )
         fun zhCN(): GuiScriptStrings = GuiScriptStrings(
@@ -168,31 +130,20 @@ data class GuiScriptStrings(
             alreadyRunning = "✅ 图形环境已经在运行",
             startingXvnc = "▶ 启动",
             xvncFailed = "❌ Xvnc 启动失败。日志:",
-            noTermFlag = "ℹ Z2_NO_TERM=1: 不启动终端，只启动 Xvnc+openbox。",
-            terminalNotFound = "⚠ 找不到终端 (是不是安装失败了?)。只启动 openbox。",
-            terminalInstallFailed = "⚠ 没能安装终端软件包。图形环境会启动，但不会出现终端窗口",
-            terminalLog = "🧾 终端的输出",
             ready = "✅ 图形环境准备完成。请从 z2term 的图形标签页连接。",
             running = "✅ 图形环境运行中",
             stopped = "⏹ 图形环境已停止",
             stoppedMsg = "⏹ 已停止",
             usage = "用法: z2gui [start [WxH] [clean] | stop | status | install | clean | check]",
-            konsoleRebuild = "🔧 Konsole 相关文件缺失 — 正在从本地缓存重建 (不联网)",
-            extracting = "📦 解压",
-            konsoleRebuilt = "✅ 已从本地缓存重建 Konsole + Qt6",
-            konsoleCacheShort = "⚠️ 光靠本地缓存凑不齐 — 请在设置里打开“全新安装”后按 🖥",
-            installFailed = "❌ 没能安装整套图形环境 (Xvnc / openbox / 终端)。",
-            installFailedHint = "   请确认网络连接，或者在设置里打开“全新安装”后按 🖥。",
+            installFailed = "❌ 没能安装整套图形环境 (Xvnc / openbox / D-Bus)。",
+            installFailedHint = "   请确认网络连接。需要恢复时，可在终端中运行 z2gui clean。",
             audioInstalling = "🔊 图形界面声音: 正在安装 PulseAudio",
             audioNoPulse = "⚠️ 图形界面声音: 没有 pulseaudio，将以无声继续",
             audioNoPactl = "⚠️ 图形界面声音: 没有 pactl，将以无声继续",
             audioStartFailed = "⚠️ 图形界面声音: PulseAudio 启动失败",
             audioReady = "🔊 图形界面声音: z2sink.monitor →",
-            qtFallback = "📚 已把 PySide6 自带的 Qt6 加入 LD_LIBRARY_PATH (救 Konsole):",
-            qtFallbackFound = "📚 发现了 libQt6QuickWidgets.so.6 → 已加入 LD_LIBRARY_PATH:",
             menuApps = "应用",
             menuWindows = "窗口",
-            menuTerminal = "终端",
             menuReload = "重新载入菜单"
         )
         fun zhTW(): GuiScriptStrings = GuiScriptStrings(
@@ -204,31 +155,20 @@ data class GuiScriptStrings(
             alreadyRunning = "✅ 圖形環境已經在執行",
             startingXvnc = "▶ 啟動",
             xvncFailed = "❌ Xvnc 啟動失敗。日誌:",
-            noTermFlag = "ℹ Z2_NO_TERM=1: 不啟動終端機，只啟動 Xvnc+openbox。",
-            terminalNotFound = "⚠ 找不到終端機 (是不是安裝失敗了?)。只啟動 openbox。",
-            terminalInstallFailed = "⚠ 沒能安裝終端機套件。圖形環境會啟動，但不會出現終端機視窗",
-            terminalLog = "🧾 終端機的輸出",
             ready = "✅ 圖形環境準備完成。請從 z2term 的圖形分頁連線。",
             running = "✅ 圖形環境執行中",
             stopped = "⏹ 圖形環境已停止",
             stoppedMsg = "⏹ 已停止",
             usage = "用法: z2gui [start [WxH] [clean] | stop | status | install | clean | check]",
-            konsoleRebuild = "🔧 Konsole 相關檔案缺失 — 正在從本機快取重建 (不聯網)",
-            extracting = "📦 解壓縮",
-            konsoleRebuilt = "✅ 已從本機快取重建 Konsole + Qt6",
-            konsoleCacheShort = "⚠️ 光靠本機快取湊不齊 — 請在設定裡開啟“全新安裝”後按 🖥",
-            installFailed = "❌ 沒能安裝整套圖形環境 (Xvnc / openbox / 終端機)。",
-            installFailedHint = "   請確認網路連線，或者在設定裡開啟“全新安裝”後按 🖥。",
+            installFailed = "❌ 沒能安裝整套圖形環境 (Xvnc / openbox / D-Bus)。",
+            installFailedHint = "   請確認網路連線。需要還原時，可在終端中執行 z2gui clean。",
             audioInstalling = "🔊 圖形介面聲音: 正在安裝 PulseAudio",
             audioNoPulse = "⚠️ 圖形介面聲音: 沒有 pulseaudio，將以無聲繼續",
             audioNoPactl = "⚠️ 圖形介面聲音: 沒有 pactl，將以無聲繼續",
             audioStartFailed = "⚠️ 圖形介面聲音: PulseAudio 啟動失敗",
             audioReady = "🔊 圖形介面聲音: z2sink.monitor →",
-            qtFallback = "📚 已把 PySide6 自帶的 Qt6 加入 LD_LIBRARY_PATH (救 Konsole):",
-            qtFallbackFound = "📚 發現了 libQt6QuickWidgets.so.6 → 已加入 LD_LIBRARY_PATH:",
             menuApps = "應用程式",
             menuWindows = "視窗",
-            menuTerminal = "終端機",
             menuReload = "重新載入選單"
         )
         /**
@@ -251,15 +191,13 @@ data class GuiScriptStrings(
 fun z2guiScript(
     rfbPort: Int = Z2TERM_VNC_PORT,
     display: Int = Z2TERM_VNC_DISPLAY,
-    terminalBinary: String = "xterm",
-    terminalPackage: String = "xterm",
     defaultGeometry: String = "1280x720",
     strings: GuiScriptStrings = GuiScriptStrings.ja()
 ): String {
     val d = "${'$'}"  // シェルの $ (Kotlin テンプレートと衝突しないように)
     return """
         |#!/bin/sh
-        |# z2term: Linux GUI ランチャ (Xvnc + openbox + ターミナル)。distro 非依存。
+        |# z2term: Linux GUI ランチャ (Xvnc + openbox)。distro 非依存。
         |# RFB は 127.0.0.1 のみで待ち受け (z2term 内蔵クライアントが接続)。外部公開しない。
         |#   使い方: z2gui [start [WxH] | stop | status | install | check]
         |# ディスプレイ番号と RFB ポートは z2term が環境変数 Z2_DISPLAY / Z2_RFBPORT で渡す
@@ -268,18 +206,12 @@ fun z2guiScript(
         |DISP=":${d}DISPLAY_NUM"
         |RFBPORT="${d}{Z2_RFBPORT:-$rfbPort}"
         |DEFAULT_GEOM="$defaultGeometry"
-        |GUI_TERM_BIN="$terminalBinary"
-        |GUI_TERM_PKG="$terminalPackage"
         |# DISPLAY は start_x の中だけで export する。ここで全体に export すると `z2gui stop` の
         |# プロセス自身が DISPLAY=:N を持ち、stop_x のディスプレイ単位 kill が自分を巻き込む。
         |export HOME="${d}{HOME:-/root}"
         |
-        |# 重要: GUI 起動時 ProotLauncher は command=z2gui に合わせて SHELL=<このスクリプト> を
-        |# 渡してくる。その状態で xterm などが ${d}SHELL を起動すると **z2gui 自身が再帰起動**し、
-        |# 再帰側の start_x → stop_x が**動作中の Xvnc を停止**して GUI 全体が落ちる。
-        |# GUI 配下のシェルは必ず本物のシェルにするため、ここで SHELL を実体のシェルへ上書きする。
-        |# 設定「ログインシェル」が Z2_LOGIN_SHELL で渡ってくるので、それを最優先で採用する
-        |# (GUI 内ターミナルだけ bash に戻ってしまうのを防ぐ)。
+        |# GUI アプリが ${d}SHELL を参照する場合に備え、実体のログインシェルを渡す。
+        |# ProotLauncher が OS の /etc/passwd から解決したシェルを最優先で採用する。
         |for _sh in "${d}{Z2_LOGIN_SHELL:-}" /bin/bash /bin/ash /bin/sh; do
         |  [ -n "${d}_sh" ] && [ -x "${d}_sh" ] && { SHELL="${d}_sh"; break; }
         |done
@@ -307,8 +239,7 @@ fun z2guiScript(
         |# X サーバの実体名を解決 (TigerVNC は distro により Xvnc または Xtigervnc)。
         |xbin() { for b in Xvnc Xtigervnc; do has "${d}b" && { echo "${d}b"; return 0; }; done; return 1; }
         |
-        |# パッケージマネージャと、その distro のサーバ/WM/フォントのパッケージ名を決める。
-        |#  端末パッケージ (GUI_TERM_PKG) は apk/apt/pacman で同名なので共通で末尾に足す。
+        |# パッケージマネージャと、その distro のサーバ/WM/D-Bus/フォントのパッケージ名を決める。
         |PM=""; INSTALL=""; SRV_PKGS=""
         |# フォント: コア(ビットマップ)フォントパッケージも入れておく (xterm 以外のコアフォント
         |# 利用アプリ向けの保険)。ただし xterm 自体は下の start_x で Xft(-fa) を使い、コアフォント
@@ -320,44 +251,14 @@ fun z2guiScript(
         |    # **コアフォント 'fixed' を既定で使う端末 (urxvt 等) が Alpine で起動できなかった**
         |    # (パッケージは入るので `has urxvt` は true → GUI は立つのに窓だけ出ない、という
         |    # 一番分かりにくい形で出る)。TrueType (font-noto / ttf-dejavu) では代わりにならない。
-        |    PM=apk;    SRV_PKGS="tigervnc openbox font-misc-misc font-alias font-noto ttf-dejavu"
+        |    PM=apk;    SRV_PKGS="tigervnc openbox dbus font-misc-misc font-alias font-noto ttf-dejavu"
         |  elif has apt-get; then
-        |    PM=apt;    SRV_PKGS="tigervnc-standalone-server openbox xfonts-base fonts-noto-core fonts-dejavu"
+        |    PM=apt;    SRV_PKGS="tigervnc-standalone-server openbox dbus xfonts-base fonts-noto-core fonts-dejavu"
         |  elif has pacman; then
-        |    PM=pacman; SRV_PKGS="tigervnc openbox xorg-fonts-misc noto-fonts ttf-dejavu"
+        |    PM=pacman; SRV_PKGS="tigervnc openbox dbus xorg-fonts-misc noto-fonts ttf-dejavu"
         |  else
         |    PM=""
         |  fi
-        |  # 端末パッケージは**サーバ一式と分けて持つ** (0.8.343)。⚠ apk / apt / pacman はどれも
-        |  # **1 つでも解決できない名前が混じると、そのコマンド全体が失敗する**。端末の追加依存を
-        |  # SRV_PKGS に混ぜていたため、名前が 1 つ違うだけで **tigervnc まで入らなくなる**
-        |  # (= GUI がまるごと立たない) 作りになっていた。分けておけば端末側だけが失敗する。
-        |  TERM_PKGS="${d}GUI_TERM_PKG"
-        |  # Konsole は DBus セッション必須 + Qt6 QuickWidgets/x11 プラグインが必要。Alpine の
-        |  # `konsole` パッケージは qt6-qtdeclarative を hard-dep に引かないため、ここで明示追加する
-        |  # (Debian/Arch は konsole 本体が依存解決するので dbus 系のみで足りる)。
-        |  if [ "${d}GUI_TERM_BIN" = "konsole" ]; then
-        |    case "${d}PM" in
-        |      apk)    TERM_PKGS="${d}TERM_PKGS dbus dbus-x11 qt6-qtbase-x11 qt6-qtdeclarative qt6-qt5compat" ;;
-        |      apt)    TERM_PKGS="${d}TERM_PKGS dbus dbus-x11 libqt6quickwidgets6" ;;
-        |      pacman) TERM_PKGS="${d}TERM_PKGS dbus qt6-declarative qt6-5compat" ;;
-        |    esac
-        |  fi
-        |}
-        |
-        |# 端末パッケージを入れる (0.8.343)。**サーバ一式とは別のコマンドで**入れるので、端末側が
-        |# 失敗してもサーバ (Xvnc/openbox) は入る。追加依存 (Konsole の Qt6 等) の名前が distro で
-        |# 違っていた場合に端末本体まで巻き添えにしないよう、**まとめて失敗したら端末本体だけで
-        |# もう一度**試す。それも駄目なら理由を 1 行出す (黙って端末の無い GUI にしない)。
-        |install_term_pkgs() {
-        |  case "${d}PM" in
-        |    apk)    apk add --no-cache ${d}TERM_PKGS || apk add --no-cache ${d}GUI_TERM_PKG || return 1 ;;
-        |    apt)    DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}TERM_PKGS \
-        |            || DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}GUI_TERM_PKG || return 1 ;;
-        |    pacman) pacman -S --noconfirm ${d}TERM_PKGS || pacman -S --noconfirm ${d}GUI_TERM_PKG || return 1 ;;
-        |    *) return 1 ;;
-        |  esac
-        |  return 0
         |}
         |
         |# パッケージマネージャの stale ロックを除去する。前回の導入が途中で失敗 (ネット切れ等) すると
@@ -384,15 +285,13 @@ fun z2guiScript(
         |  detect_pm
         |  clear_pm_locks
         |  ensure_keyring
-        |  echo "${strings.installing} (${d}PM): ${d}SRV_PKGS ${d}TERM_PKGS"
+        |  echo "${strings.installing} (${d}PM): ${d}SRV_PKGS"
         |  case "${d}PM" in
         |    apk)    apk update && apk add --no-cache ${d}SRV_PKGS ;;
         |    apt)    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ${d}SRV_PKGS ;;
         |    pacman) pacman -Sy --noconfirm ${d}SRV_PKGS ;;
         |    *) echo "${strings.noPackageManager}"; return 1 ;;
         |  esac
-        |  install_term_pkgs || echo "${strings.terminalInstallFailed} (${d}TERM_PKGS)"
-        |  ensure_konsole_qt6
         |}
         |
         |# クリーンインストール: パッケージマネージャのキャッシュを消してから取り直し、
@@ -402,7 +301,7 @@ fun z2guiScript(
         |  detect_pm
         |  clear_pm_locks
         |  ensure_keyring
-        |  PKGS="${d}SRV_PKGS ${d}TERM_PKGS"
+        |  PKGS="${d}SRV_PKGS"
         |  echo "${strings.cleanInstalling} (${d}PM)"
         |  case "${d}PM" in
         |    apk)
@@ -418,96 +317,30 @@ fun z2guiScript(
         |      pacman -Syy --noconfirm && pacman -S --noconfirm ${d}PKGS ;;
         |    *) echo "${strings.noPackageManager}"; return 1 ;;
         |  esac
-        |  # まとめ入れで端末が入らなかったときだけ、端末側をもう一度単体で試す (0.8.343)。
-        |  has "${d}GUI_TERM_BIN" || install_term_pkgs || echo "${strings.terminalInstallFailed} (${d}TERM_PKGS)"
-        |  ensure_konsole_qt6
-        |}
-        |
-        |# Konsole 本体 + Qt6 ランタイムを「ある事」までローカル cache のみで頑張る。
-        |# **ネットワーク発信は一切しない** (pacman -Sy / -Sw / apk add / apt-get install を呼ばない)。
-        |# クリーンインストール以外でリポジトリを更新したり再ダウンロードしたりしないユーザーポリシー。
-        |# 既に展開済キャッシュ (.pkg.tar.zst / .apk / .deb) があれば bsdtar / tar / dpkg -x で
-        |# 取り出して /usr/lib に置く。無い場合はそのまま継続 (起動時 LD_LIBRARY_PATH で救う事もある)。
-        |ensure_konsole_qt6() {
-        |  [ "${d}GUI_TERM_BIN" = "konsole" ] || return 0
-        |  # Fast path: 必要な物が全部揃っていれば即 return。通常起動はここを通る。
-        |  if has konsole \
-        |     && [ -e /usr/lib/libQt6QuickWidgets.so.6 ] \
-        |     && ( has dbus-launch || has dbus-daemon ); then
-        |    return 0
-        |  fi
-        |  detect_pm
-        |  # ローカル cache から bsdtar / tar / dpkg で再展開を試みる (NO NETWORK)。
-        |  echo "${strings.konsoleRebuild}"
-        |  case "${d}PM" in
-        |    pacman)
-        |      for pkg in /var/cache/pacman/pkg/konsole-*.pkg.tar.zst \
-        |                 /var/cache/pacman/pkg/qt6-declarative-*.pkg.tar.zst \
-        |                 /var/cache/pacman/pkg/qt6-5compat-*.pkg.tar.zst \
-        |                 /var/cache/pacman/pkg/qt6-base-*.pkg.tar.zst \
-        |                 /var/cache/pacman/pkg/dbus-*.pkg.tar.zst; do
-        |        [ -f "${d}pkg" ] || continue
-        |        echo "${strings.extracting} (bsdtar): ${d}pkg"
-        |        if has bsdtar; then
-        |          bsdtar -xf "${d}pkg" -C / --no-same-owner --no-same-permissions 2>/dev/null
-        |        else
-        |          tar --use-compress-program=unzstd -xf "${d}pkg" -C / --no-same-owner --no-same-permissions 2>/dev/null \
-        |            || ( unzstd -c "${d}pkg" 2>/dev/null | tar -xf - -C / --no-same-owner --no-same-permissions 2>/dev/null )
-        |        fi
-        |      done ;;
-        |    apk)
-        |      for pkg in /etc/apk/cache/konsole-*.apk \
-        |                 /etc/apk/cache/qt6-qtdeclarative-*.apk \
-        |                 /etc/apk/cache/qt6-qt5compat-*.apk \
-        |                 /etc/apk/cache/qt6-qtbase-x11-*.apk \
-        |                 /etc/apk/cache/dbus-*.apk; do
-        |        [ -f "${d}pkg" ] || continue
-        |        echo "${strings.extracting} (tar -xzf): ${d}pkg"
-        |        tar -xzf "${d}pkg" -C / --no-same-owner 2>/dev/null
-        |      done ;;
-        |    apt)
-        |      for pkg in /var/cache/apt/archives/konsole_*.deb \
-        |                 /var/cache/apt/archives/libqt6quickwidgets6_*.deb \
-        |                 /var/cache/apt/archives/dbus_*.deb; do
-        |        [ -f "${d}pkg" ] || continue
-        |        echo "${strings.extracting} (dpkg -x): ${d}pkg"
-        |        dpkg -x "${d}pkg" / 2>/dev/null
-        |      done ;;
-        |  esac
-        |  if has konsole && [ -e /usr/lib/libQt6QuickWidgets.so.6 ]; then
-        |    echo "${strings.konsoleRebuilt}"
-        |  else
-        |    echo "${strings.konsoleCacheShort}"
-        |  fi
-        |  return 0
         |}
         |
         |ensure_pkgs() {
-        |  # 基本セット (Xvnc + openbox + 選択端末) が揃っていれば **ネットワークを叩かず** 即 return する
+        |  # 基本セット (Xvnc + openbox + D-Bus) が揃っていれば **ネットワークを叩かず** 即 return する
         |  # (通常起動の高速パス。導入済みを毎回 update / 再取得しないユーザーポリシー)。
-        |  if xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN"; then
-        |    # Konsole 選択時は dbus + Qt6 ランタイムの不足をローカル cache から補修する (NO NETWORK)。
-        |    ensure_konsole_qt6
-        |    return 0
-        |  fi
-        |  # 未導入 (初回、または GUI ターミナルを未導入のものへ変更した場合) → 通常インストールで取得する。
+        |  if xbin >/dev/null 2>&1 && has openbox && has dbus-daemon; then return 0; fi
+        |  # 未導入の基盤だけを通常インストールで取得する。
         |  # app 側のダウンロード確認ゲート (設定 ON 時) で同意済みなので、ここで取得してよい。clean 指定の
         |  # ように cache を消さず、不足分だけを apk add / apt install / pacman -S で足す。
         |  install_pkgs
         |  # 取得後に再判定。まだ揃っていなければ (ネット無し / PM 無し / 取得失敗) 明確に案内して失敗する。
-        |  if xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN"; then
+        |  if xbin >/dev/null 2>&1 && has openbox && has dbus-daemon; then
         |    return 0
         |  fi
-        |  echo "${strings.installFailed} (Xvnc / openbox / ${d}GUI_TERM_BIN)"
+        |  echo "${strings.installFailed} (Xvnc / openbox / dbus-daemon)"
         |  echo "${strings.installFailedHint}"
         |  return 1
         |}
         |
         |
-        |# GUI 一式 (Xvnc + openbox + 選択端末) が導入済みかを判定し、app が事前にダウンロード確認を
+        |# GUI 一式 (Xvnc + openbox + D-Bus) が導入済みかを判定し、app が事前にダウンロード確認を
         |# 出せるよう "GUI_INSTALLED" / "GUI_MISSING" を 1 行で出す (M8-6 T7)。
         |check_pkgs() {
-        |  if xbin >/dev/null 2>&1 && has openbox && has "${d}GUI_TERM_BIN"; then
+        |  if xbin >/dev/null 2>&1 && has openbox && has dbus-daemon; then
         |    echo "GUI_INSTALLED"
         |  else
         |    echo "GUI_MISSING"
@@ -516,7 +349,7 @@ fun z2guiScript(
         |
         |x_running() { [ -e "/tmp/.X11-unix/X${d}{DISPLAY_NUM}" ]; }
         |
-        |# このディスプレイで起動したプロセス (Xvnc/WM/端末) の PID を控えるファイル。
+        |# このディスプレイで起動したプロセス (Xvnc/WM/D-Bus) の PID を控えるファイル。
         |# 複数 GUI 並走時に「他ディスプレイのプロセスを巻き込まず :N だけ」止めるために使う。
         |PIDFILE="/tmp/z2gui-${d}{DISPLAY_NUM}.pids"
         |
@@ -557,7 +390,7 @@ fun z2guiScript(
         |}
         |stop_x() {
         |  if has vncserver; then vncserver -kill "${d}DISP" >/dev/null 2>&1; fi
-        |  # 1) start_x が控えた :N の既知プロセス (Xvnc/WM/端末) を pidfile から停止。
+        |  # 1) start_x が控えた :N の既知プロセス (Xvnc/WM/D-Bus) を pidfile から停止。
         |  #    pidfile は :N 専用なので他ディスプレイは巻き込まない。comm 確認で PID 再利用も安全。
         |  if [ -r "${d}PIDFILE" ]; then
         |    while read p; do
@@ -566,7 +399,7 @@ fun z2guiScript(
         |    done < "${d}PIDFILE"
         |  fi
         |  # 2) 念のため X ロックの PID (= Xvnc 本体) も止める。Xvnc が死ねば配下の
-        |  #    openbox/端末/GUI アプリは X 切断で自動終了する (取りこぼしの保険)。
+        |  #    openbox/GUI アプリは X 切断で自動終了する (取りこぼしの保険)。
         |  xp=${d}(x_pid); [ -n "${d}xp" ] && is_gui_proc "${d}xp" && kill "${d}xp" 2>/dev/null
         |  # GUI 音声を立てていれば (この :N 専用 PA を) 一緒に止める。立てていなければ no-op。
         |  stop_audio
@@ -669,8 +502,13 @@ fun z2guiScript(
         |start_session_bus() {
         |  export XDG_RUNTIME_DIR="${d}{XDG_RUNTIME_DIR:-/tmp/z2gui-xdg-${d}{DISPLAY_NUM}}"
         |  mkdir -p "${d}XDG_RUNTIME_DIR"; chmod 0700 "${d}XDG_RUNTIME_DIR" 2>/dev/null
-        |  # Qt を X11 backend に固定する (Wayland の無い環境で探させない)。
+        |  # Xvnc は MIT-SHM を無効化している。Qt/GTK にも通常画像経路を明示し、
+        |  # 共有メモリ前提のバッファが半分しか更新されない/窓が出ない現象を防ぐ。
         |  export QT_QPA_PLATFORM=xcb
+        |  export QT_XCB_NO_MITSHM=1
+        |  export QT_X11_NO_MITSHM=1
+        |  export GDK_BACKEND=x11
+        |  export GDK_RENDERING=image
         |  [ -n "${d}{DBUS_SESSION_BUS_ADDRESS:-}" ] && return 0
         |  DBUS_SOCK="${d}XDG_RUNTIME_DIR/dbus.sock"
         |  if has dbus-daemon; then
@@ -733,7 +571,7 @@ fun z2guiScript(
         |    exec "${d}{SHELL:-/bin/sh}"
         |  fi
         |  stop_x
-        |  # この start_x 配下の子プロセス (openbox/端末/GUI アプリ) に DISPLAY を渡す。
+        |  # この start_x 配下の子プロセス (openbox/GUI アプリ) に DISPLAY を渡す。
         |  # 全体ではなく start_x 内だけで export する (stop の自己巻き込み回避。冒頭コメント参照)。
         |  export DISPLAY="${d}DISP"
         |  : > "${d}PIDFILE" 2>/dev/null   # このディスプレイの PID 控えを初期化
@@ -786,9 +624,6 @@ fun z2guiScript(
         |    <menu id="z2-apps" label="${strings.menuApps}" execute="/usr/local/bin/z2menu"/>
         |    <menu id="client-list-menu" label="${strings.menuWindows}"/>
         |    <separator/>
-        |    <item label="${strings.menuTerminal}">
-        |      <action name="Execute"><execute>${d}GUI_TERM_BIN</execute></action>
-        |    </item>
         |    <item label="${strings.menuReload}"><action name="Reconfigure"/></item>
         |  </menu>
         |</openbox_menu>
@@ -837,14 +672,7 @@ fun z2guiScript(
         |  fi
         |  setsid openbox --config-file "${d}OBRC" </dev/null >"/tmp/z2gui-wm-${d}{DISPLAY_NUM}.log" 2>&1 &
         |  echo ${d}! >> "${d}PIDFILE" 2>/dev/null
-        |  # WM が「窓の面倒を見られる状態」になるまで待つ (0.8.351)。
-        |  # ⚠ Xvnc には起動待ち (上の x_running ループ) があるのに **openbox には無く**、
-        |  #    起こした直後に端末を起こしていた。ptrace 配下は全体が遅いので、端末の
-        |  #    XMapWindow が **openbox の起動処理の最中** に着弾しうる。そうなると
-        |  #    MapRequest が openbox の待ち行列に残ったまま ppoll で寝てしまい、
-        |  #    **窓が永久に map されない** (X も端末も正常なのに画面だけ真っ黒)。
-        |  #    次に何か X の動きがあると溜まっていた分がまとめて処理されて窓が出るため、
-        |  #    「画面を触ると急に端末が現れる」ように見えていた (実機で 2026-08-15 に確認)。
+        |  # WM がメニューとアプリ窓を扱える状態になるまで待つ。
         |  wait_wm() {
         |    # WM の名乗り (_NET_SUPPORTING_WM_CHECK) を待つ。⚠ xprop はどの distro でも
         |    # 導入対象に入れていないので、無ければこの待ちは飛ばす。
@@ -861,117 +689,7 @@ fun z2guiScript(
         |    sleep 1
         |  }
         |  wait_wm
-        |  # ターミナルは画面左上 (0,0) に、画面に対して控えめなサイズで開く (大きすぎ対策)。
-        |  # 画面 (GEOM) の約 60% 幅 × 約 45% 高さ。文字セルは monospace fs 11 で概算 7x20px。
-        |  # もっと大きくしたい時は WM (openbox) のタイトルバーや最大化ボタンで広げられる。
-        |  GW="${d}{GEOM%x*}"; GH="${d}{GEOM#*x}"
-        |  COLS=${d}(( ${d}{GW:-1280} * 6 / 10 / 7 ))
-        |  ROWS=${d}(( ${d}{GH:-720} * 45 / 100 / 20 ))
-        |  [ "${d}COLS" -ge 24 ] 2>/dev/null || COLS=24
-        |  [ "${d}ROWS" -ge 8 ] 2>/dev/null || ROWS=8
-        |  # xterm はコア(ビットマップ)フォント 'fixed' を要求し、distro により (例: Arch) その
-        |  # Unicode 版が無くて起動失敗する。Xft(TrueType/fontconfig) フォントを明示すると
-        |  # ttf-dejavu/noto 等を使い、コアフォント依存を回避できる (distro 非依存)。
-        |  # "monospace" は fontconfig の汎用エイリアス (空白を含まないので語分割で壊れない)。
-        |  # -geometry COLSxROWS+0+0 で左上に配置 (xterm/urxvt はこの書式、lxterminal は別書式)。
-        |  TERM_ARGS=""
-        |  case "${d}GUI_TERM_BIN" in
-        |    xterm) TERM_ARGS="-fa monospace -fs 11 -geometry ${d}{COLS}x${d}{ROWS}+0+0" ;;
-        |    # ⚠ urxvt も **Xft を明示する** (0.8.343)。既定はコアフォント 'fixed' で、無い distro では
-        |    # `unable to load base fontset` を吐いて**即死**する (窓が出ないだけで GUI は立つので
-        |    # 原因が見えない)。xft: 指定はコアフォントを一切見に行かない。⚠ TERM_ARGS は語分割前提で
-        |    # 展開するので、**空白を含む書き方 (xft:monospace:pixelsize=16 以外) にしないこと**。
-        |    urxvt) TERM_ARGS="-fn xft:monospace:size=11 -geometry ${d}{COLS}x${d}{ROWS}+0+0" ;;
-        |    lxterminal) TERM_ARGS="--geometry=${d}{COLS}x${d}{ROWS}" ;;
-        |    # Konsole は DBus session が必須。`--separate` で IPC fallback を回避し、
-        |    # `--nofork` で foreground 起動 (setsid のため backgrounded 状態を維持)、
-        |    # `-e ${d}SHELL` で実行シェルを明示。`--hide-*` は古い konsole で arg parse 失敗のため省略。
-        |    konsole) TERM_ARGS="--separate --nofork -e ${d}{SHELL:-/bin/sh}" ;;
-        |  esac
-        |  # ⚠ セッションバスと XDG_RUNTIME_DIR は、0.8.498 から**端末の種類に関係なく**
-        |  #    start_session_bus が openbox より前に用意している (ここでは触らない)。
-        |  #    konsole 固有の面倒を見るのはこの下のブロックだけ。
-        |  if [ "${d}GUI_TERM_BIN" = "konsole" ]; then
-        |    # 最終救済: ensure_pkgs で /usr/lib に展開できなかった場合に備え、
-        |    # PySide6 / 他経路で持ち込まれた libQt6QuickWidgets.so.6 を LD_LIBRARY_PATH に積む。
-        |    # ABI 不一致のリスクはあるが、何も入っていない状態より起動成功率が上がるので試す価値あり。
-        |    # 候補パス: PySide6 venv, Anaconda 等の Qt6 同梱 (FOSS app 外で利用者が入れている可能性)
-        |    if [ ! -f /usr/lib/libQt6QuickWidgets.so.6 ]; then
-        |      QT_FALLBACK=""
-        |      for cand in /root/venv/lib/python*/site-packages/PySide6/Qt/lib \
-        |                  /root/.venv/lib/python*/site-packages/PySide6/Qt/lib \
-        |                  /usr/lib/python*/site-packages/PySide6/Qt/lib \
-        |                  /opt/*/lib/python*/site-packages/PySide6/Qt/lib \
-        |                  /home/*/.venv*/lib/python*/site-packages/PySide6/Qt/lib; do
-        |        [ -d "${d}cand" ] || continue
-        |        if [ -f "${d}cand/libQt6QuickWidgets.so.6" ]; then
-        |          QT_FALLBACK="${d}cand"; break
-        |        fi
-        |      done
-        |      if [ -n "${d}QT_FALLBACK" ]; then
-        |        echo "${strings.qtFallback} ${d}QT_FALLBACK"
-        |        export LD_LIBRARY_PATH="${d}QT_FALLBACK:${d}{LD_LIBRARY_PATH:-}"
-        |      else
-        |        # find は遅いが最後の手段。範囲を /usr と /opt と /root に限定。
-        |        FOUND=${d}(find /usr /opt /root -maxdepth 8 -name 'libQt6QuickWidgets.so.6' -print 2>/dev/null | head -1)
-        |        if [ -n "${d}FOUND" ]; then
-        |          QT_FALLBACK_DIR=${d}(dirname "${d}FOUND")
-        |          echo "${strings.qtFallbackFound} ${d}QT_FALLBACK_DIR"
-        |          export LD_LIBRARY_PATH="${d}QT_FALLBACK_DIR:${d}{LD_LIBRARY_PATH:-}"
-        |        fi
-        |      fi
-        |    fi
-        |    # 起動診断: 最終 env と konsole バージョンを log 先頭に残す → ユーザーが見やすい。
-        |    {
-        |      echo "=== konsole launch diagnostic ==="
-        |      echo "DISPLAY=${d}DISPLAY  DBUS_SESSION_BUS_ADDRESS=${d}{DBUS_SESSION_BUS_ADDRESS:-(unset)}"
-        |      echo "XDG_RUNTIME_DIR=${d}XDG_RUNTIME_DIR"
-        |      echo "LD_LIBRARY_PATH=${d}{LD_LIBRARY_PATH:-(unset)}"
-        |      echo "libQt6QuickWidgets.so.6 in /usr/lib: ${d}([ -f /usr/lib/libQt6QuickWidgets.so.6 ] && echo yes || echo no)"
-        |      konsole --version 2>&1 | head -1
-        |      echo "TERM_ARGS=${d}TERM_ARGS"
-        |      echo "=================================="
-        |    } > "/tmp/z2gui-term-${d}{DISPLAY_NUM}.log"
-        |  fi
-        |  # Z2_NO_TERM=1 のときは端末 (xterm 等) を起動しない (P3 = z2run 経由用)。
-        |  # z2run は「ユーザーが指定した GUI アプリだけ」を出したいので、xterm が同時に出ると邪魔。
-        |  # 🖥 ボタンの通常起動 (Z2_NO_TERM 未設定) では従来どおり端末も起動して操作起点にする。
-        |  if [ "${d}{Z2_NO_TERM:-0}" = "1" ]; then
-        |    echo "${strings.noTermFlag}"
-        |  elif has "${d}GUI_TERM_BIN"; then
-        |    # konsole の場合は事前 diagnostic を上書きしないよう `>>` で append。他端末は `>` truncate。
-        |    if [ "${d}GUI_TERM_BIN" = "konsole" ]; then
-        |      setsid "${d}GUI_TERM_BIN" ${d}TERM_ARGS </dev/null >>"/tmp/z2gui-term-${d}{DISPLAY_NUM}.log" 2>&1 &
-        |    else
-        |      setsid "${d}GUI_TERM_BIN" ${d}TERM_ARGS </dev/null >"/tmp/z2gui-term-${d}{DISPLAY_NUM}.log" 2>&1 &
-        |    fi
-        |    echo ${d}! >> "${d}PIDFILE" 2>/dev/null
-        |  else
-        |    echo "${strings.terminalNotFound} (${d}GUI_TERM_BIN)"
-        |  fi
         |  echo "${strings.ready} (RFB 127.0.0.1:${d}RFBPORT)"
-        |  # 端末が**起動直後に死んでいたら理由を出す** (0.8.343)。窓が出ないだけだと
-        |  # 「GUI は映るのに端末が無い」としか分からず、原因 (フォント / Qt / DBus) に辿り着けない。
-        |  # 正常に動いている端末はここへ何も書かないので、中身があること自体が異常の印。
-        |  # (konsole だけは診断を先頭に書いてあるので、その分は常に出る。)
-        |  if [ "${d}{Z2_NO_TERM:-0}" != "1" ] && has "${d}GUI_TERM_BIN"; then
-        |    sleep 3
-        |    if [ -s "/tmp/z2gui-term-${d}{DISPLAY_NUM}.log" ]; then
-        |      echo "${strings.terminalLog} (/tmp/z2gui-term-${d}{DISPLAY_NUM}.log):"
-        |      tail -n 8 "/tmp/z2gui-term-${d}{DISPLAY_NUM}.log" 2>/dev/null
-        |    fi
-        |  fi
-        |  # 保険 (0.8.351): それでも窓が map されないまま残ったときのために、端末を起こした
-        |  # 後に **openbox を 1 回だけ突く**。`openbox --reconfigure` は動いている openbox へ
-        |  # X の ClientMessage を送るので、待ち行列に溜まっていた MapRequest がここで
-        |  # まとめて処理される。⚠ 突く手段に xprop 等を使わないこと (どの distro でも
-        |  # 導入対象に入っておらず、無い環境では保険が効かない)。openbox は GUI 一式に
-        |  # 必ず含まれるので、これなら確実に手元にある。
-        |  # ⚠ 単に X へ接続するだけでは駄目 (openbox は接続を通知されない。実機で xprop を
-        |  #    何度叩いても窓は出なかった)。**openbox 自身が選んでいるイベント**を送ること。
-        |  if [ "${d}{Z2_NO_TERM:-0}" != "1" ] && has "${d}GUI_TERM_BIN"; then
-        |    openbox --reconfigure >/dev/null 2>&1 || true
-        |  fi
         |  # proot --kill-on-exit 対策: ここでブロックし続けることで Xvnc/WM を生かす。
         |  # setsid したプロセスはジョブ制御から外れるため wait では待てない。X ソケットの
         |  # 存在を監視し、Xvnc が生きている限り z2gui (= proot のルート) をブロックさせる。

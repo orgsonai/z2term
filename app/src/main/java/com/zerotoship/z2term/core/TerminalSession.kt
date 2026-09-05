@@ -485,7 +485,6 @@ class TerminalSession(
     fun setKeyboardLayoutsJson(json: String) { scope.launch { settings.setKeyboardLayoutsJson(json) } }
     /** いま使うキー配列を選ぶ (0.8.408)。**空文字 = 既定のプリセット**。 */
     fun setKeyboardLayoutActiveId(id: String) { scope.launch { settings.setKeyboardLayoutActiveId(id) } }
-    fun setLoginShell(shell: String) { scope.launch { settings.setLoginShell(shell) } }
     fun setKeyboardMode(mode: String) { scope.launch { settings.setKeyboardMode(mode) } }
     fun setKeepAliveService(enabled: Boolean) { scope.launch { settings.setKeepAliveService(enabled) } }
     /** 初回ガイド (最初の 3 枚) を出し終えたことを覚える。 */
@@ -547,9 +546,7 @@ class TerminalSession(
     fun setSessionLogTimestamp(value: Boolean) { scope.launch { settings.setSessionLogTimestamp(value) } }
     fun setConfirmBeforeDownload(enabled: Boolean) { scope.launch { settings.setConfirmBeforeDownload(enabled) } }
     fun setGuiAudioEnabled(enabled: Boolean) { scope.launch { settings.setGuiAudioEnabled(enabled) } }
-    fun setGuiTerminal(id: String) { scope.launch { settings.setGuiTerminal(id) } }
     fun setGuiMagnification(value: Float) { scope.launch { settings.setGuiMagnification(value) } }
-    fun setCleanInstallGuiArmed(armed: Boolean) { scope.launch { settings.setCleanInstallGuiArmed(armed) } }
     fun setLandscapeKeyboardPosition(value: String) { scope.launch { settings.setLandscapeKeyboardPosition(value) } }
     fun setLandscapeRailPosition(value: String) { scope.launch { settings.setLandscapeRailPosition(value) } }
     fun setLandscapeKeyboardWidthDp(value: Float) { scope.launch { settings.setLandscapeKeyboardWidthDp(value) } }
@@ -658,9 +655,9 @@ class TerminalSession(
                 writeBanner(appContext.getString(R.string.banner_distro_starting, spec.displayName))
 
                 val (rows, cols) = currentSize()
-                val shell = settingsFlow.value.loginShell.ifBlank { spec.defaultShell }
-                // launcher 側で、指定シェルが rootfs に無ければ spec.defaultShell → /bin/sh に
-                // フォールバックする (Ubuntu base に zsh が無い、等のケース)。
+                // 空の command は rootfs の /etc/passwd に設定された root のログインシェルを使う。
+                // ユーザーが OS 内で chsh 等により変更した値を、アプリ側から上書きしない。
+                val shell = ""
                 // P3 (CUI⇄GUI 連動): このタブの display 番号を proot env に渡す。
                 // exportDisplay=true で `DISPLAY=:N` も付与され、端末内 `z2run <gui-app>` が同じ
                 // :N の Xvnc を起動 → 対応する GUI タブが z2term 側で自動的に開く。
@@ -678,7 +675,6 @@ class TerminalSession(
                             rows = rows,
                             cols = cols,
                             fallbackShell = spec.defaultShell,
-                            loginShell = shell,
                             display = display,
                             sessionId = id,
                         )
@@ -697,7 +693,6 @@ class TerminalSession(
                             rows = rows,
                             cols = cols,
                             fallbackShell = spec.defaultShell,
-                            loginShell = shell,
                             display = display,
                             exportDisplay = true,
                             sessionId = id,
@@ -711,7 +706,6 @@ class TerminalSession(
                         rows = rows,
                         cols = cols,
                         fallbackShell = spec.defaultShell,
-                        loginShell = shell,
                         display = display,
                         exportDisplay = true,
                         sessionId = id,

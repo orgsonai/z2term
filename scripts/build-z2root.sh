@@ -170,6 +170,31 @@ chmod 0644 "${SHIM_OUT}"
 echo "[ok] wrote ${SHIM_OUT}"
 file "${SHIM_OUT}" 2>/dev/null || true
 
+# --- gThumb / glycin 互換シム (libz2glycin.so) -------------------------------
+# gdk-pixbuf に「外側で sandbox 済み」と伝え、Android app sandbox 内で失敗する
+# bubblewrap の入れ子 namespace を gThumb だけ回避する。詳細は z2glycin.c 冒頭。
+GLYCIN_SRC="${PROJECT_ROOT}/app/src/main/cpp/z2glycin/z2glycin.c"
+GLYCIN_OUT="${OUT_DIR}/libz2glycin.so"
+echo "[info] building z2glycin shim (aarch64, API ${API}) ..."
+if [[ "${FALLBACK}" == "1" ]]; then
+    "${SYS_CC}" --target=aarch64-linux-android${API} --sysroot="${SYSROOT}" \
+        -fPIC -O2 -Wall -Wextra -c "${GLYCIN_SRC}" -o "${GLYCIN_OUT}.o"
+    "${SYS_LD}" -EL -shared -soname libz2glycin.so --hash-style=gnu -z noexecstack \
+        -z max-page-size=4096 \
+        -o "${GLYCIN_OUT}" "${GLYCIN_OUT}.o"
+    rm -f "${GLYCIN_OUT}.o"
+    [[ -n "${STRIP}" ]] && "${STRIP}" "${GLYCIN_OUT}" || true
+else
+    "${CC}" \
+        -shared -nostdlib -fPIC -O2 -Wall -Wextra \
+        -Wl,-soname,libz2glycin.so \
+        -o "${GLYCIN_OUT}" \
+        "${GLYCIN_SRC}"
+fi
+chmod 0644 "${GLYCIN_OUT}"
+echo "[ok] wrote ${GLYCIN_OUT}"
+file "${GLYCIN_OUT}" 2>/dev/null || true
+
 # --- Android USB Host fd シム (libz2usb.so) ----------------------------------
 # /dev/bus/usb/... の open/openat だけを横取りし、アプリが UsbManager で開いた fd を
 # abstract Unix socket + SCM_RIGHTS で受け取る。libc 非依存なので musl/glibc の両方へ載る。

@@ -124,7 +124,6 @@ import com.zerotoship.z2term.gui.GuiKeyMapper
 import com.zerotoship.z2term.gui.GuiScreen
 import com.zerotoship.z2term.gui.GuiSession
 import com.zerotoship.z2term.gui.RemoteDesktopClient
-import com.zerotoship.z2term.proot.GuiTerminal
 import com.zerotoship.z2term.settings.AppSettings
 import com.zerotoship.z2term.ui.clipboard.ClipboardHistorySheet
 import com.zerotoship.z2term.ui.gui.GuiAppsSheet
@@ -1111,8 +1110,8 @@ private fun GuiTabScreen(
 
     // 枠線の内側 (= 実際に GUI を描く領域) の実測 px。これを倍率で割って Xvnc 解像度を決める。
     var guiAreaPx by remember(gui.id) { mutableStateOf(IntSize.Zero) }
-    // 起動確認待ち (初回 DL or クリーンインストール)。Triple(w, h, clean)。
-    var pendingGuiStart by remember(gui.id) { mutableStateOf<Triple<Int, Int, Boolean>?>(null) }
+    // 起動確認待ち (GUI 基盤の初回ダウンロード)。
+    var pendingGuiStart by remember(gui.id) { mutableStateOf<Pair<Int, Int>?>(null) }
 
     // キーボードは端末タブと同一仕様 (CUSTOM=独自 / SYSTEM=OS IME + 特殊キーバー)。GUI に上乗せ
     // (オーバーレイ) で出すので解像度は変えない。▾ で折りたたんで GUI を広く使うこともできる。
@@ -1166,8 +1165,8 @@ private fun GuiTabScreen(
     // 表示領域の実寸が確定したら Xvnc を起動する (倍率で解像度を決めるため寸法が要る)。
     // key は gui.id だけ。サイズは snapshotFlow で待つ。
     // ※ guiAreaPx を key にすると、寸法が数フレームで確定する間に suspend 中の本コルーチンが
-    //   毎回キャンセルされ、起動もダイアログも走らないまま IDLE で固まる (特にクリーンは
-    //   DataStore 書込の suspend が挟まり再現性が高い)。最初の非ゼロ寸法で 1 度だけ起動する。
+    //   毎回キャンセルされ、起動もダイアログも走らないまま IDLE で固まる。
+    //   最初の非ゼロ寸法で 1 度だけ起動する。
     LaunchedEffect(gui.id) {
         // ⚠ **もう走っている GUI には手を出さない** (0.8.341・利用者の報告)。
         //
@@ -1203,18 +1202,13 @@ private fun GuiTabScreen(
         )
         val w = (size.width / mag).toInt().coerceIn(320, 4096)
         val h = (size.height / mag).toInt().coerceIn(320, 4096)
-        val clean = snap.cleanInstallGuiArmed
-        // クリーンインストール予約は起動と同時に必ず消化する (チェックを確実に外す)。
-        if (clean) appSettings.setCleanInstallGuiArmed(false)
-        val installed = guiPackagesInstalled(
-            context, snap.distroId, GuiTerminal.byId(snap.guiTerminalId).binary
-        )
-        // 確認 ON かつ (クリーン or 未導入 = 通信が走る) のときだけダイアログ。
-        // 導入済み & 非クリーン or 確認 OFF はそのまま起動 (= 従来挙動)。
-        if (snap.confirmBeforeDownload && (clean || !installed)) {
-            pendingGuiStart = Triple(w, h, clean)
+        val installed = guiPackagesInstalled(context, snap.distroId)
+        // 確認 ON かつ未導入 (通信が走る) のときだけダイアログ。
+        // 導入済み、または確認 OFF ならそのまま起動する。
+        if (snap.confirmBeforeDownload && !installed) {
+            pendingGuiStart = w to h
         } else {
-            gui.start(w, h, clean)
+            gui.start(w, h)
         }
     }
 
@@ -1607,17 +1601,14 @@ private fun GuiTabScreen(
             onDismiss = { remoteFileTarget = null },
         )
     }
-    // GUI 起動確認 (初回 DL / クリーンインストール)。OK で起動、やめる→タブを閉じる
+    // GUI 起動確認 (初回 DL)。OK で起動、やめる→タブを閉じる
     // (パッケージ無しでは表示できないため)。
-    pendingGuiStart?.let { (w, h, clean) ->
+    pendingGuiStart?.let { (w, h) ->
         DownloadConfirmDialog(
-            title = if (clean) stringResource(R.string.gui_confirm_clean_install_title)
-                    else stringResource(R.string.gui_confirm_download_title),
-            message = if (clean) stringResource(R.string.gui_confirm_clean_install_msg)
-                      else stringResource(R.string.gui_confirm_download_msg),
-            confirmLabel = if (clean) stringResource(R.string.gui_confirm_clean_install_action)
-                           else stringResource(R.string.gui_confirm_download_action),
-            onConfirm = { pendingGuiStart = null; gui.start(w, h, clean) },
+            title = stringResource(R.string.gui_confirm_download_title),
+            message = stringResource(R.string.gui_confirm_download_msg),
+            confirmLabel = stringResource(R.string.gui_confirm_download_action),
+            onConfirm = { pendingGuiStart = null; gui.start(w, h) },
             onCancel = { pendingGuiStart = null; SessionManager.close(gui.id) }
         )
     }
@@ -1691,15 +1682,15 @@ private fun GuiKeyboardPanel(
 }
 
 /**
- * GUI 一式 (X サーバ + WM + 選択端末) が選択中 distro に導入済みかを、rootfs のバイナリ有無で判定する
+ * GUI 一式 (X サーバ + WM + D-Bus) が選択中 distro に導入済みかを、rootfs のバイナリ有無で判定する
  * (M8-6 T7 のダウンロード確認ゲート用)。z2gui の `check` と同じ条件を Android 側から軽量に判定する。
  */
-private fun guiPackagesInstalled(context: Context, distroId: String, terminalBinary: String): Boolean {
+private fun guiPackagesInstalled(context: Context, distroId: String): Boolean {
     val base = java.io.File(context.filesDir, "distros/$distroId")
     fun hasBin(name: String) =
         java.io.File(base, "usr/bin/$name").exists() || java.io.File(base, "bin/$name").exists()
     val xserver = hasBin("Xvnc") || hasBin("Xtigervnc")
-    return xserver && hasBin("openbox") && hasBin(terminalBinary)
+    return xserver && hasBin("openbox") && hasBin("dbus-daemon")
 }
 
 /**

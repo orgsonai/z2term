@@ -13,7 +13,7 @@
     <string name="settings_group_keyboard">キーボード・入力・言語 / Language</string>
     <string name="settings_group_keyboard_desc">キーボードの大きさ・入力方法・辞書・表示言語</string>
     <string name="settings_group_linux">Linux 環境</string>
-    <string name="settings_group_linux_desc">OS・シェル・ストレージ・GUI ターミナル</string>
+    <string name="settings_group_linux_desc">OS・シェル・ストレージ・GUI</string>
     <string name="settings_group_automation">常駐サーバー・自動化</string>
     <string name="settings_group_automation_desc">バックグラウンド動作・サーバー・通知やイベント連携</string>
     <string name="settings_group_app_lock">アプリロック</string>
@@ -49,26 +49,6 @@
     <string name="settings_section_font_size">フォントサイズ</string>
     <string name="settings_section_scrollback">スクロールバック行数</string>
     <string name="settings_section_distro">ディストロ (切替で現在のセッションを再起動)</string>
-    <string name="settings_section_login_shell">ログインシェル (次回セッション以降に反映)</string>
-    <string name="settings_section_prompt">シェルのプロンプト</string>
-    <string name="settings_prompt_preset_plain">記号だけ</string>
-    <string name="settings_prompt_preset_user_host">user@host</string>
-    <string name="settings_prompt_preset_arrow">矢印</string>
-    <string name="settings_prompt_preset_box">丸枠</string>
-    <string name="settings_prompt_preset_bracket">角枠</string>
-    <string name="settings_prompt_preset_kali">Kali</string>
-    <string name="settings_prompt_preset_bar">帯</string>
-    <string name="settings_prompt_right_clock">右端に時刻を出す</string>
-    <string name="settings_prompt_right_clock_desc">行の右端に現在時刻を薄く出します。打った時刻が残るので、あとから画面を遡るときの目印になります。端末の幅は数えないので、画面を回しても分割してもズレません。</string>
-    <string name="settings_prompt_body">%1$s に書き込む中身 (ここを直せば微調整できます)</string>
-    <string name="settings_prompt_apply">適用</string>
-    <string name="settings_prompt_reset">取り除く</string>
-    <string name="settings_prompt_applied">%1$s に書き込みました。次に開くタブから変わります。</string>
-    <string name="settings_prompt_removed">%1$s から取り除きました。次に開くタブから戻ります。</string>
-    <string name="settings_prompt_removed_none">書き込まれていません。</string>
-    <string name="settings_prompt_failed">書き込めませんでした。</string>
-    <string name="settings_prompt_no_os">先に Linux の OS を入れてください。</string>
-    <string name="settings_prompt_desc">サンプルを選ぶと中身が出ます。そのまま直してから「適用」を押すと、選んだシェルの設定ファイルに書き込まれます。書き込むのは z2term の目印で囲んだ部分だけなので、ご自身で書いた設定は消えません。端末から vi などで直接開いても同じものが見えます。</string>
     <string name="settings_section_keyboard_style">キーボード操作</string>
     <string name="settings_keyboard_toggle_bar">キーボード表示バー</string>
     <string name="settings_keyboard_number_face">数字の面を出す</string>
@@ -188,7 +168,7 @@
     <string name="settings_user_dict_dictionary_missing">選択した辞書が見つかりません。辞書を選び直してください</string>
     <string name="settings_special_key_bar">補助キーバー (OS のキーボード使用時)</string>
     <string name="settings_special_key_bar_desc">OS のキーボードに切り替えているとき、ESC・TAB・CTRL・矢印などの補助キーをキーボードの上に出す。OFF にすると出ない (内蔵キーボードには影響しない)。</string>
-    <string name="settings_section_gui_terminal">GUI ターミナル</string>
+    <string name="settings_section_gui">GUI</string>
     <string name="settings_gui_magnification">GUI 表示倍率 (次回 GUI 起動から反映)</string>
     <string name="settings_clean_install">クリーンインストール</string>
     <string name="settings_gui_audio">GUI 音声</string>
@@ -570,9 +550,6 @@
     <string name="settings_create_custom_theme">独自テーマを作成…</string>
     <string name="settings_edit_custom_theme">独自テーマを編集…</string>
     <string name="settings_custom_theme_note">色を自分で選んだテーマを 1 つ作れます。背景/前景/アクセント等がアプリ全体に反映されます。</string>
-    <string name="settings_shell_uninstalled_suffix">%1$s (未インストール)</string>
-    <string name="settings_shell_warning">⚠ %1$s はこのディストロに未インストールです。インストールするまで反映されず、起動時に既定シェル → /bin/sh へ自動フォールバックします (例: apk add zsh / apt install zsh)。</string>
-    <string name="settings_shell_info">未インストールのシェルは反映されず自動フォールバックします。ディストロ側でインストール後に有効になります。</string>
 
     <!-- 外部ストレージ (SD カード) 認識トグル -->
     <string name="settings_section_external_storage">外部ストレージ (SD カード)</string>
@@ -593,8 +570,6 @@
     <string name="settings_sgr_mouse_input_toggle">SGR mouse 送出 (タッチ→マウスイベント変換)</string>
     <string name="settings_sgr_mouse_input_toggle_desc">ON で画面タップを TUI 側のマウスイベント (SGR `?1006`) に変換して送信します。一部の TUI (カレンダー / ファイラ / 複数ペインのフォーカス切替 等) で必要。1 指タップ=左クリック、長押し=右クリック、1 指ドラッグ=マウス移動として扱われます。OFF (既定) のときはタップは Z2Term 自身の操作 (フォーカス / テキスト選択 / スクロール) に使われます。二本指スワイプ→ホイールは opt-in に関係なく従来通り動作します。</string>
     <string name="settings_sgr_mouse_input_warning">⚠ ON にすると 1 指でのテキスト選択 / 長押しメニューは TUI 側に持っていかれます。bash や less のように mouse capture をしない画面ではこれまで通りタップで Z2Term を操作できます。</string>
-    <string name="settings_gui_clean_install_desc">ON にして GUI タブを開くと、GUI 表示用パッケージをキャッシュごと入れ直します (DL/解凍失敗の復旧用)。起動時にチェックは自動で外れます。</string>
-    <string name="settings_gui_terminal_note">🖥 GUI タブで開くターミナル。未導入なら初回 GUI 起動時に自動導入されます（Konsole は KDE 系で初回ダウンロードが大きめ・Wi-Fi 推奨）。</string>
 
     <!-- 独自テーマエディタ (D3 バッチ 4) -->
     <string name="theme_color_background">背景</string>
@@ -633,17 +608,14 @@
     <string name="storage_access_grant_button">ストレージ全体を許可</string>
 
     <!-- TerminalScreen 残置文字列 (D3 バッチ 5) -->
-    <string name="gui_confirm_clean_install_title">GUI をクリーンインストール</string>
     <string name="gui_confirm_download_title">GUI 一式をダウンロード</string>
-    <string name="gui_confirm_clean_install_msg">GUI 表示用パッケージをキャッシュごと消して入れ直します (数十〜数百MB)。Wi-Fi 推奨。続けますか?</string>
     <string name="gui_confirm_download_msg">GUI (Linux デスクトップ) の初回起動には表示用パッケージの取得が必要です (数十〜数百MB)。Wi-Fi 推奨。続けますか?</string>
-    <string name="gui_confirm_clean_install_action">クリーンインストール</string>
     <string name="gui_confirm_download_action">ダウンロードして起動</string>
     <string name="keyboard_show_button">▴ キーボード</string>
     <string name="keyboard_hide_button">▾ キーボード</string>
     <string name="terminal_action_copy">コピー</string>
 
-    <!-- フォアグラウンドサービス通知 / Toast / GUI ターミナル表示名 (D3 バッチ 6) -->
+    <!-- フォアグラウンドサービス通知 / Toast (D3 バッチ 6) -->
     <string name="service_channel_name">Z2Term セッション</string>
     <string name="service_channel_desc">ターミナルセッションをバックグラウンドで維持</string>
     <string name="service_notification_title">Z2Term 稼働中</string>
@@ -757,15 +729,6 @@
     <string name="banner_process_exited">[プロセス終了 exitCode=%1$d]</string>
     <!-- 0.8.378: こちらが送っていないシグナルで終了した (多くは OS のメモリ回収)。 -->
     <string name="banner_process_killed">[プロセスが外から止められました %1$s exitCode=%2$d 空き %3$d MB]</string>
-    <string name="gui_terminal_xterm_desc">最軽量・全 distro 標準</string>
-    <string name="gui_terminal_urxvt_desc">軽量・日本語表示可</string>
-    <string name="gui_terminal_lxterminal_desc">軽量 GTK</string>
-    <string name="gui_terminal_konsole_desc">KDE 系・初回導入が大きい</string>
-    <!-- Konsole × Alpine は成立しない組み合わせ (0.8.353) -->
-    <string name="gui_term_unsupported_title">Alpine では Konsole は動きません</string>
-    <string name="gui_term_unsupported_switch_msg">Alpine の Konsole は窓を作る途中で落ちるため、GUI タブが理由も出ないまま真っ黒になります。GUI ターミナルを xterm に切り替えて Alpine を開きますか？ Alpine では xterm / rxvt-unicode / LXTerminal が動きます。あとから設定で選び直せます。</string>
-    <string name="gui_term_unsupported_pick_msg">いま使っている OS が Alpine で、Alpine の Konsole は窓を作る途中で落ちます。別の GUI ターミナル (xterm / rxvt-unicode / LXTerminal) を選ぶか、先に別の OS へ切り替えてください。</string>
-    <string name="action_switch_to_xterm_and_open">xterm に切り替えて開く</string>
     <string name="action_got_it">わかった</string>
     <string name="keyboard_style_compact">シンプル</string>
     <string name="keyboard_style_spacious">4 方向フリック</string>
