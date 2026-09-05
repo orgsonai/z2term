@@ -3526,7 +3526,11 @@ private fun ToolbarVisibilityRow(
     val fixed = remember { ToolbarButtons.CATALOG.filter { it.id == ToolbarButtons.SETTINGS } }
     val allIds = remember(movable) { movable.map { it.id } }
     val specById = remember(movable) { movable.associateBy { it.id } }
-    val reorder = rememberReorderState(spacing = 8.dp, vertical = false) { order ->
+    // ⭐ **スクロール領域を並べ替えにも渡す**。ボタンは 10 個あって一度に 6 個ほどしか見えないので、
+    // これが無いと**見えている範囲より先へは運べない** (指を画面の外へは動かせないため)。
+    // 端に寄せている間は自動でスクロールし、そのぶん順番も進む。
+    val chipScroll = rememberScrollState()
+    val reorder = rememberReorderState(spacing = 8.dp, vertical = false, scrollState = chipScroll) { order ->
         // ここでは隠しているボタンも全部出しているので、この並びがそのまま全体の並びになる。
         onReorder(ToolbarButtons.normalizeOrder(savedOrder, allIds, emptySet(), order))
     }
@@ -3534,7 +3538,7 @@ private fun ToolbarVisibilityRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
+            .horizontalScroll(chipScroll),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         reorder.order.forEach { id ->

@@ -14,6 +14,7 @@ import com.zerotoship.z2term.channel.KeystoreCrypt
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 
 /**
  * アプリ設定 (テーマ・フォント・スクロールバック行数) の DataStore ラッパー。
@@ -636,7 +637,7 @@ class AppSettings(private val context: Context) {
             appLockEnabled = p[KEY_APP_LOCK] ?: DEFAULT_APP_LOCK,
             appLockGraceSec = p[KEY_APP_LOCK_GRACE] ?: DEFAULT_APP_LOCK_GRACE
         )
-    }
+    }.onEach { lastKnown = it }
 
     // --- 定期バックアップ (0.8.386) ---
     //
@@ -993,6 +994,23 @@ class AppSettings(private val context: Context) {
     }
 
     companion object {
+        /**
+         * **最後に DataStore から読めた設定**（0.8.510）。
+         *
+         * ⭐ **画面の初期値に使う。** `flow` は DataStore を読む非同期の Flow なので、
+         * `collectAsState(initial = Snapshot())` と書くと**最初の数フレームは既定値**で描かれ、
+         * 実値が届いた瞬間に画面が作り直される。ツールバーではこれが「タブを切り替えた直後に
+         * アイコンが既定の並びで出て、すぐ保存した並びへ入れ替わる」というちらつきになっていた
+         * （GUI タブは [com.zerotoship.z2term.core.TerminalSession] を持たないので、
+         * `settingsFlow`（StateFlow）ではなくこの Flow を直接購読している）。
+         *
+         * ⚠ **アプリを起動してから 1 度も読めていない間は既定値**（それは避けようがない）。
+         * 保存の正本はあくまで DataStore で、ここはその写しにすぎない — **書き込みには使わない**。
+         */
+        @Volatile
+        var lastKnown: Snapshot = Snapshot()
+            private set
+
         const val DEFAULT_THEME = "ZTS Theme"
         const val DEFAULT_FONT_SIZE_SP = 13f
         const val DEFAULT_SCROLLBACK_LINES = 5000

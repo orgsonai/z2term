@@ -1101,8 +1101,12 @@ private fun GuiTabScreen(
     }
 
     // GUI タブには TerminalSession が無いので、設定は AppSettings を直接購読する。
+    // ⭐ **初期値は既定 Snapshot ではなく「最後に読めた設定」にする**（0.8.510）。DataStore の
+    // Flow は最初の emit まで数フレームかかるので、既定値から始めると **GUI タブへ切り替えた
+    // 直後だけツールバーが既定の並び・既定の見た目で描かれ、実値が届いた瞬間に入れ替わる**。
+    // 「CLI から GUI にすると毎回アイコンが一瞬並び替わる」の正体はこれだった。
     val appSettings = remember { AppSettings(context.applicationContext) }
-    val settings by appSettings.flow.collectAsState(initial = AppSettings.Snapshot())
+    val settings by appSettings.flow.collectAsState(initial = AppSettings.lastKnown)
     val customTheme by CustomThemeStore.theme.collectAsState()
     LaunchedEffect(settings.themeName, customTheme) {
         AppColors.applyFrom(resolveTheme(settings.themeName, customTheme))

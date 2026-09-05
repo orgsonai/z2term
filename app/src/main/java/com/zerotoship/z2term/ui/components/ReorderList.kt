@@ -2,8 +2,10 @@ package com.zerotoship.z2term.ui.components
 
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
@@ -21,7 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
@@ -32,6 +36,7 @@ import com.zerotoship.z2term.ui.theme.ZtsGreen
 import com.zerotoship.z2term.ui.theme.ZtsTextSecondary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -69,6 +74,11 @@ class ReorderState internal constructor(
      */
     val isVertical: Boolean,
     private val scope: CoroutineScope,
+    /**
+     * 並びが入っているスクロール領域。渡すと、掴んだまま端へ寄せている間**自動でスクロール**する。
+     * 渡さなければ従来どおり（画面に見えている範囲でだけ動かせる）。
+     */
+    private val scrollState: ScrollState?,
     private val onCommit: (List<String>) -> Unit,
 ) {
 
@@ -98,8 +108,18 @@ class ReorderState internal constructor(
     /** 項目の実測サイズ（px・主軸ぶん）。入れ替えのピッチに使うだけなので State にはしない。 */
     private val sizes = HashMap<String, Float>()
 
+    /**
+     * 項目の主軸方向の位置（**スクロール内容の座標**・px）。自動スクロールの判定だけに使う。
+     * `graphicsLayer` の移動は含まない配置上の位置なので、掴んでいる項目の見かけの位置は
+     * これに [offset] を足したもの。
+     */
+    private val positions = HashMap<String, Float>()
+
     /** 着地アニメーション。次のドラッグが始まったら止める。 */
     private var settleJob: Job? = null
+
+    /** 端に寄せている間のスクロール。掴んでいる間だけ回る。 */
+    private var autoScrollJob: Job? = null
 
     /**
      * [onCommit] で渡した並び。外の一覧がこれに追いつくまで [sync] を無視するために持つ。
@@ -133,6 +153,10 @@ class ReorderState internal constructor(
         sizes[id] = sizePx
     }
 
+    fun reportPosition(id: String, posPx: Float) {
+        positions[id] = posPx
+    }
+
     fun start(id: String) {
         // 前の行がまだ着地中なら止めて、そこから掴み直す。
         settleJob?.cancel()
@@ -140,26 +164,89 @@ class ReorderState internal constructor(
         settlingId = null
         draggingId = id
         offset = 0f
+        startAutoScroll()
     }
 
-    /** 指の移動ぶん [amount] のうち**主軸ぶん**を足し込み、隣を跨いだら入れ替える。 */
+    /** 指の移動ぶん [amount] のうち**主軸ぶん**を足し込み、跨いだぶんだけ入れ替える。 */
     fun drag(amount: Offset) {
         val id = draggingId ?: return
         offset += if (isVertical) amount.y else amount.x
-        val cur = order.indexOf(id)
-        if (cur < 0) return
-        if (offset > 0f && cur < order.lastIndex) {
-            val pitch = (sizes[order[cur + 1]] ?: return) + spacingPx
-            if (offset > pitch) {
-                order = order.toMutableList().also { it.add(cur + 1, it.removeAt(cur)) }
-                offset -= pitch
+        swapWhilePossible(id)
+    }
+
+    /**
+     * [offset] が隣を跨いでいる**間ずっと**入れ替える（0.8.510）。
+     *
+     * ⭐ **1 回のイベントで 1 つしか動かさないこと。** ドラッグのイベントは指の動きより粗い
+     * 間隔で届くので、少し勢いよく動かすと 1 回に 2 個ぶん以上の移動が乗る。1 つで打ち切ると
+     * **指だけ先へ行って順番が追いつかず**、「一気に運べない・1 個ずつしか動かない」と見える
+     * （ボタンが 10 個並ぶ設定画面のツールバーで顕著だった）。
+     *
+     * ⚠ 実測サイズが 0 の項目 (`pitch <= spacingPx`) では回さない。無限に近い回数まわる。
+     */
+    private fun swapWhilePossible(id: String) {
+        while (true) {
+            val cur = order.indexOf(id)
+            if (cur < 0) return
+            if (offset > 0f && cur < order.lastIndex) {
+                val pitch = (sizes[order[cur + 1]] ?: return) + spacingPx
+                if (pitch > spacingPx && offset > pitch) {
+                    order = order.toMutableList().also { it.add(cur + 1, it.removeAt(cur)) }
+                    offset -= pitch
+                    continue
+                }
+            } else if (offset < 0f && cur > 0) {
+                val pitch = (sizes[order[cur - 1]] ?: return) + spacingPx
+                if (pitch > spacingPx && offset < -pitch) {
+                    order = order.toMutableList().also { it.add(cur - 1, it.removeAt(cur)) }
+                    offset += pitch
+                    continue
+                }
             }
-        } else if (offset < 0f && cur > 0) {
-            val pitch = (sizes[order[cur - 1]] ?: return) + spacingPx
-            if (offset < -pitch) {
-                order = order.toMutableList().also { it.add(cur - 1, it.removeAt(cur)) }
-                offset += pitch
+            return
+        }
+    }
+
+    /**
+     * 掴んだ項目が可視範囲の端に居る間、そちらへスクロールし続ける（0.8.510）。
+     *
+     * 指は画面の中でしか動かせないので、これが無いと**画面に見えている範囲より先へは運べない**
+     * （設定画面のツールバーは 10 個並び、一度に見えるのは 6 個ほど）。
+     *
+     * ⚠ **スクロールしたぶんは [offset] にも足す。** 指は止まっているのに内容だけが流れるため、
+     * 足さないと掴んだ項目が指から置き去りになる。足せば「指の下に留まったまま、下を流れていく
+     * 列との相対位置が変わる」= そのぶん順番が進む、という自然な動きになる。
+     */
+    private fun startAutoScroll() {
+        val ss = scrollState ?: return
+        autoScrollJob?.cancel()
+        autoScrollJob = scope.launch {
+            while (true) {
+                val id = draggingId ?: break
+                val pos = positions[id]
+                val size = sizes[id]
+                if (pos != null && size != null && size > 0f && ss.viewportSize > 0) {
+                    // 掴んでいる項目の見かけの中心 (スクロール内容の座標)。
+                    val center = pos + offset + size / 2f
+                    val head = ss.value.toFloat()
+                    val tail = head + ss.viewportSize
+                    // 端から 1 項目ぶんに入ったら、そちらへ流す。1 フレームで 1/5 項目ぶん。
+                    val delta = when {
+                        center < head + size && ss.value > 0 -> -size / 5f
+                        center > tail - size && ss.value < ss.maxValue -> size / 5f
+                        else -> 0f
+                    }
+                    if (delta != 0f) {
+                        val moved = ss.scrollBy(delta)
+                        if (moved != 0f) {
+                            offset += moved
+                            swapWhilePossible(id)
+                        }
+                    }
+                }
+                delay(16)
             }
+            autoScrollJob = null
         }
     }
 
@@ -173,6 +260,8 @@ class ReorderState internal constructor(
         val finalOrder = order
         val id = draggingId
         draggingId = null
+        autoScrollJob?.cancel()
+        autoScrollJob = null
         pending = finalOrder
         onCommit(finalOrder)
         if (id == null || offset == 0f) {
@@ -211,14 +300,18 @@ internal const val REORDER_SETTLE_MS = 140
 fun rememberReorderState(
     spacing: Dp,
     vertical: Boolean = true,
+    /** 並びを入れているスクロール領域。渡すと掴んだまま端へ寄せたときに自動スクロールする。 */
+    scrollState: ScrollState? = null,
     onCommit: (List<String>) -> Unit,
 ): ReorderState {
     val spacingPx = with(LocalDensity.current) { spacing.toPx() }
     // 最新のラムダを呼ぶ (state を作り直さずに、呼び出し側が持つ最新の一覧を掴めるように)。
     val commit = rememberUpdatedState(onCommit)
-    // 着地アニメーション用。画面から消えれば一緒に止まる。
+    // 着地アニメーション・自動スクロール用。画面から消えれば一緒に止まる。
     val scope = rememberCoroutineScope()
-    return remember(spacingPx, vertical) { ReorderState(spacingPx, vertical, scope) { commit.value(it) } }
+    return remember(spacingPx, vertical, scrollState) {
+        ReorderState(spacingPx, vertical, scope, scrollState) { commit.value(it) }
+    }
 }
 
 /**
@@ -232,6 +325,11 @@ fun Modifier.reorderItem(state: ReorderState, id: String): Modifier {
     return this
         // 実測は**主軸ぶんだけ**覚える (縦なら高さ・横なら幅)。入れ替えの判定に使うのはそれだけ。
         .onSizeChanged { state.reportSize(id, (if (state.isVertical) it.height else it.width).toFloat()) }
+        // 自動スクロールの判定用に配置位置も控える (スクロール内容の座標)。
+        .onPlaced { c ->
+            val p = c.positionInParent()
+            state.reportPosition(id, if (state.isVertical) p.y else p.x)
+        }
         .zIndex(if (active) 1f else 0f)
         .graphicsLayer {
             val off = if (active) state.offset else 0f

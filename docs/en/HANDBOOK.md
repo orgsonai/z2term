@@ -79,7 +79,7 @@ The downloaded APK is **deleted once the update goes through** (and on the next 
 | 🔴 / ⚪ | Record a terminal log (tap to start, tap again to stop; **🔴 while recording, ⚪ when idle**; **double-tap for the details**) |
 | ⚙ | Settings (**always the rightmost**; it never moves when you reorder, and cannot be removed) |
 
-> **Reorder the buttons**: **long-press** a toolbar button to **drag it left/right and reorder**. A short description pops up above the button while held. The order is remembered. ⭐ **⚙ Settings › Display › Toolbar reorders them the same way** (0.8.509): long-press a chip there and drag it left/right. That list holds **the buttons of both terminal and GUI tabs**, so you can set the GUI side without opening a GUI tab. The order is shared by both kinds of tab.
+> **Reorder the buttons**: **long-press** a toolbar button to **drag it left/right and reorder**. A short description pops up above the button while held. The order is remembered. ⭐ **⚙ Settings › Display › Toolbar reorders them the same way** (0.8.509): long-press a chip there and drag it left/right. **Hold it against either edge and the row scrolls by itself**, so you can carry a button past what fits on screen in one go. That list holds **the buttons of both terminal and GUI tabs**, so you can set the GUI side without opening a GUI tab. The order is shared by both kinds of tab.
 
 > **You can remove buttons you don't use**: ⚙ Settings → "Display" → **Toolbar** lets you tap to choose which buttons appear. The lit ones are shown. The order of a removed button is remembered, so bringing it back puts it where it was.
 > ⚙ Settings is **always at the far right** — it never moves and cannot be removed.
