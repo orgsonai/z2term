@@ -3227,6 +3227,7 @@ private fun TipsSection() {
         TipItem(R.string.tip_esc_flick_title, R.string.tip_esc_flick_body)
         TipItem(R.string.tip_backspace_flick_title, R.string.tip_backspace_flick_body)
         TipItem(R.string.tip_gui_scroll_title, R.string.tip_gui_scroll_body)
+        TipItem(R.string.tip_gui_clean_title, R.string.tip_gui_clean_body)
         TipItem(R.string.tip_z2_commands_title, R.string.tip_z2_commands_body)
         TipItem(R.string.tip_macro_title, R.string.tip_macro_body)
     }

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-06 / 対象バージョン: 0.8.518-alpha (versionCode 526)
+最終更新: 2026-09-06 / 対象バージョン: 0.8.519-alpha (versionCode 527)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1771,6 +1771,12 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   拡大中は 2 本指がパンになるので 3 本指) / `z2term` でコマンド一覧と `--help` (0.8.401。当初は「`z2` + Tab で補完」と書いていたが、⚠ **補完はシェルと補完設定に依存する**ので、確実に一覧が出る既存コマンドへ変えた。`z2term` は `z2help` の薄いエイリアスとして `ProotLauncher.ensureZ2HelpScript` が launch 毎に配置している) /
   マクロは AI に書いてもらえる (リマインダー・RSS・知らない番号の記録など、**アプリの機能では
   なくマクロとして作るもの**の例を添える)。
+- ⭐ **0.8.519 で「`z2gui clean` で GUI を入れ直せる」を足した。** 0.8.507 で設定から
+  クリーンインストールのスイッチを外した (破壊的な再導入を設定に常設しない) ので、復旧手段は
+  **端末コマンドだけ**になった。⚠ **コマンドは画面のどこにも出ない**ため、他の Tips と同じ理由
+  (知らない人には存在しないのと同じ) でここに載せる。本文には「パッケージのキャッシュを消して
+  GUI 一式を入れ直すだけで、利用者のファイルには触らない」ことと、入れ直してそのまま起動する
+  `z2gui start clean` を書く。
 
 #### DA2 / XTVERSION — 「型と版は何か」に答える (0.8.394)
 
@@ -1911,7 +1917,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - ⭐⭐⭐ **GTK/glycinの全アプリ共通起動互換（0.8.515）**: 新しいGTK/gdk-pixbufはSVG等を読むたびにglycin loaderを`bwrap --unshare-all ...`で起動するが、Androidのアプリsandbox内ではLinux user/mount namespaceをさらに作れず、loaderが画像を1枚も返す前にbubblewrapが終了する。このためRemminaだけでなく同じ画像基盤を使う任意のGUIアプリが起動時にabortし得る。⇒ GUI子プロセスのPATHだけへ管理下の`bwrap`入口を追加し、解析した**実行コマンドそのもの**が`glycin-*` loaderかつz2root環境の場合だけnamespace/bind/seccomp指定を省いてloaderを直接起動する。アプリ名・distro名の例外表は持たず、glycin以外のbwrap用途は`/usr/bin/bwrap`へそのまま委譲する。これはglycin独自の内側sandboxを省く明示的な互換性判断であり、外側のAndroidアプリUID/SELinux sandboxは維持される。通常端末のPATHには適用しない。
 - **Xvnc 描画互換 (0.8.505)**: Xvnc で MIT-SHM を無効にするだけでなく、Qt に `QT_XCB_NO_MITSHM=1`、GTK に `GDK_RENDERING=image`、両者に X11 backend を明示する。
 - **gThumb / SMPlayer 互換 (0.8.506)**: gThumb 3.12.10 は最初の SVG アイコンを読む際、glycin が Android のアプリ sandbox 内で bubblewrap の Linux namespace sandbox を入れ子にしようとして失敗し、強制終了していた。z2term は gThumb 専用 wrapper からだけ `libz2glycin.so` を `LD_PRELOAD` し、gdk-pixbuf が用意する「外側で sandbox 済み」の公式経路へ切り替える。シムは gThumb プロセスだけに限定され、他のアプリ、root chroot、`bwrap` 本体には干渉しない。SMPlayer は mpv を `--no-config` 付きで起動するため、`/etc/mpv/mpv.conf` だけでは足りない。実際の設定はディストリ別 `.config` overlay にあり、Qt は `General` group を `[%General]` として保存するため、他の全設定を保ったまま overlay 内の `[%General] driver\vo=x11` / `[performance] hwdec=no` だけを補正する。
-- **GUI のクリーンインストール設定を廃止 (0.8.507)**: GUI は導入済みアプリを開く表示面であり、設定画面に破壊的な再導入スイッチを常設しない。設定値・次回起動予約・専用確認ダイアログも削除し、GUI タブは常に通常起動する。低レベルの復旧手段 `z2gui clean` は端末コマンドとしてのみ残す。
+- **GUI のクリーンインストール設定を廃止 (0.8.507)**: GUI は導入済みアプリを開く表示面であり、設定画面に破壊的な再導入スイッチを常設しない。設定値・次回起動予約・専用確認ダイアログも削除し、GUI タブは常に通常起動する。低レベルの復旧手段 `z2gui clean` は端末コマンドとしてのみ残す。 ⭐ **0.8.519 で設定の「使い方 (Tips)」にこのコマンドを載せた** — スイッチを外した以上、入口が画面のどこにも無いため。
 - `GuiSession`/`GuiActivity`/`GuiScreen`/`GuiViewport`/`GuiInputView`/`GuiKeyMapper`/`GuiEventWatcher` + `gui/RemoteDesktopClient.kt`（描画・入力の共通境界）+ `gui/rfb/RfbClient.kt`（内蔵 RFB 実装）。端末タブと GUI タブをペアリングし IME 連動。`GuiSession`・Compose 描画・入力 View・GUI キーボードは `RfbClient` 型を直接要求せず、同じ境界へ RDP 実装を差せる（0.8.450）。**接続先そのものは `gui/RemoteTarget.kt`**（`VncTarget` / `RdpTarget` が実装）で表し、`GuiSession` は `remote.createClient()` を呼ぶだけでプロトコルを知らない（0.8.459）。
 - **RDP（0.8.450〜0.8.492）**: `gui/rdp/` は X.224/TLS、CredSSP/NTLMv2、T.124 GCC・T.125 MCS、Client Info、license、Demand/Confirm Active、connection finalization、slow-path の従来型 Bitmap Update 受信、**Graphics Pipeline（RDPGFX）**までを**外部ライブラリ無し**で実装（MD4 / RC4 / NTLM も自前）。`RdpClient` は 15/16/24bpp の非圧縮・Interleaved RLE 更新を複数矩形と画面外クリップ込みで ARGB framebuffer へ展開し、dirty 領域の redraw を通知する。**0.8.459 で接続 UI を付け、SSH 接続先のサービスとして `[RDP]` から開けるようにした**（→ §6.3.1）。CLIPRDR のテキスト共有に加え、**0.8.476 で slow-path のマウス・キーボード入力**、**0.8.480 で動的 resize**（→ 下の「Display Control」）にも対応した。Fast-Path、Surface Commands、Bitmap Codecs、個別の描画 Order、32bpp RDP 6.0 圧縮は**従来型の capability では 1 つも広告しない**（`orderSupport[32]` 全ゼロ・General cap の extraFlags = 0。**実装していないものは受け取らないと宣言する**のであって、来たものを握り潰すのではない）。
   - ⚠ **受信の診断ログは「種類ごとに 1 度だけ」**（0.8.480）。接続シーケンスの切り分けには効いたが、画面が出たあとは**更新のたびに流れて他が読めなくなる**。⇒ 消さずに、`ActiveSession` が**接続ごとに**「初めて見た種類」を覚える（RDPGFX の command / codec と同じ数え方）。⚠ 抑止を `object` 側に置くと、2 本目のタブや繋ぎ直しで 1 行も出なくなる。

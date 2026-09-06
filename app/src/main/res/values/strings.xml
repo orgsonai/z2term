@@ -38,6 +38,8 @@
     <string name="tip_backspace_flick_body">Flick left to delete a word, flick right to delete back to the start of the line. Much faster than holding backspace down.</string>
     <string name="tip_gui_scroll_title">Scroll inside a GUI app with two fingers</string>
     <string name="tip_gui_scroll_body">Drag two fingers up or down. While zoomed in, two fingers pan the screen instead — use three fingers to scroll in that case.</string>
+    <string name="tip_gui_clean_title">Type z2gui clean to reinstall the GUI</string>
+    <string name="tip_gui_clean_body">If the desktop stops coming up — usually an install that failed halfway — run z2gui clean in the terminal. It clears the package cache and puts the whole GUI stack back, leaving your files alone. Use z2gui start clean to reinstall and open it in one go.</string>
     <string name="tip_z2_commands_title">Type z2term for the list of built-in commands</string>
     <string name="tip_z2_commands_body">Z2Term adds its own commands, all starting with z2, to the terminal. Run z2term (or z2help) for the full list with a one-line description of each, then add --help to any of them to see how to use it.</string>
     <string name="tip_macro_title">Ask an AI to write your macros</string>

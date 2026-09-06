@@ -38,6 +38,8 @@
     <string name="tip_backspace_flick_body">左へはらうと単語ごと、右へはらうと行の先頭まで消えます。⌫ を押し続けるより速く戻せます。</string>
     <string name="tip_gui_scroll_title">GUI の中のアプリは 2 本指で上下にスクロール</string>
     <string name="tip_gui_scroll_body">2 本指を上下へ動かします。拡大しているときは 2 本指が画面の移動になるので、そのときは 3 本指で上下へ動かしてください。</string>
+    <string name="tip_gui_clean_title">z2gui clean と打つと GUI を入れ直せます</string>
+    <string name="tip_gui_clean_body">GUI が立ち上がらなくなったとき（たいていは導入が途中で失敗しています）、端末で z2gui clean と打ちます。パッケージのキャッシュを消して GUI 一式を入れ直すだけで、あなたのファイルには触りません。入れ直してそのまま起動するなら z2gui start clean です。</string>
     <string name="tip_z2_commands_title">z2term と打つと、独自コマンドの一覧が出ます</string>
     <string name="tip_z2_commands_body">Z2Term は z2 で始まる独自コマンドを端末に足しています。z2term（z2help でも同じ）と打つと、全部の一覧と一行の説明が出ます。それぞれ --help を付けると詳しい使い方が出ます。</string>
     <string name="tip_macro_title">マクロは AI に作ってもらえます</string>

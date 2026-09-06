@@ -36,6 +36,8 @@
     <string name="tip_backspace_flick_body">Desliza a la izquierda para borrar una palabra y a la derecha para borrar hasta el principio de la línea. Mucho más rápido que mantener pulsado el retroceso.</string>
     <string name="tip_gui_scroll_title">Desplázate dentro de una aplicación gráfica con dos dedos</string>
     <string name="tip_gui_scroll_body">Arrastra dos dedos hacia arriba o hacia abajo. Con la imagen ampliada, dos dedos mueven la pantalla; en ese caso usa tres dedos para desplazarte.</string>
+    <string name="tip_gui_clean_title">Escribe z2gui clean para reinstalar el entorno gráfico</string>
+    <string name="tip_gui_clean_body">Si el escritorio ya no arranca (casi siempre porque la instalación de un paquete se quedó a medias), escribe z2gui clean en la terminal. Borra la caché de paquetes y vuelve a instalar todo el entorno gráfico sin tocar tus archivos. Con z2gui start clean se reinstala y se abre de una vez.</string>
     <string name="tip_z2_commands_title">Escribe z2term para ver la lista de comandos propios</string>
     <string name="tip_z2_commands_body">Z2Term añade a la terminal sus propios comandos, todos empezando por z2. Ejecuta z2term (o z2help) para ver la lista completa con una línea de descripción de cada uno, y añade --help a cualquiera de ellos para ver cómo se usa.</string>
     <string name="tip_macro_title">Pide a una IA que escriba tus macros</string>

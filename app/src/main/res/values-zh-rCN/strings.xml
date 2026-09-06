@@ -36,6 +36,8 @@
     <string name="tip_backspace_flick_body">向左滑动删掉一个词，向右滑动一直删到行首。比一直按着退格键快得多。</string>
     <string name="tip_gui_scroll_title">图形应用里用两指上下滚动</string>
     <string name="tip_gui_scroll_body">两根手指上下拖动即可。放大状态下两指是平移画面，这时请改用三根手指滚动。</string>
+    <string name="tip_gui_clean_title">输入 z2gui clean 可以重装图形环境</string>
+    <string name="tip_gui_clean_body">桌面起不来的时候（多半是软件包装到一半失败了），在终端里输入 z2gui clean。它会清掉软件包缓存，把图形环境整套重新装一遍，你的文件不会动。想装完直接启动就输入 z2gui start clean。</string>
     <string name="tip_z2_commands_title">输入 z2term 可以列出内置命令</string>
     <string name="tip_z2_commands_body">Z2Term 给终端添加了一批以 z2 开头的自有命令。运行 z2term（或 z2help）会列出全部命令和一行说明，再给其中任何一个加上 --help 就能看到用法。</string>
     <string name="tip_macro_title">宏可以让 AI 帮你写</string>
