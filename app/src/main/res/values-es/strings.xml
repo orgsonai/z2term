@@ -32,7 +32,7 @@
     <string name="tip_tab_reorder_body">Mantén pulsada la pestaña que quieras mover y arrástrala a izquierda o derecha hasta su sitio sin levantar el dedo.</string>
     <string name="tip_esc_flick_title">Desliza ESC hacia arriba o abajo para abrir los paneles</string>
     <string name="tip_esc_flick_body">Desliza hacia arriba para pegar y hacia abajo para los emojis. Mantén pulsado ESC y aparece \"▲📋 ▼😀\" sobre la tecla: desliza desde ahí.</string>
-    <string name="tip_backspace_flick_title">Desliza ⌫ a izquierda o derecha para borrar más de una vez</string>
+    <string name="tip_backspace_flick_title">Desliza ⌫ a izquierda o derecha para borrar más de golpe</string>
     <string name="tip_backspace_flick_body">Desliza a la izquierda para borrar una palabra y a la derecha para borrar hasta el principio de la línea. Mucho más rápido que mantener pulsado el retroceso.</string>
     <string name="tip_gui_scroll_title">Desplázate dentro de una aplicación gráfica con dos dedos</string>
     <string name="tip_gui_scroll_body">Arrastra dos dedos hacia arriba o hacia abajo. Con la imagen ampliada, dos dedos mueven la pantalla; en ese caso usa tres dedos para desplazarte.</string>

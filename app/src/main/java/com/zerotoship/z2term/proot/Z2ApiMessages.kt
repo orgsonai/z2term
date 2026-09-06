@@ -341,12 +341,12 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#   Z2_IMG_ASPECT=0.45 z2-img photo.jpg (數值越小越細長)。
     """.trimMargin(),
         "es" to """
-        |# z2-img [-w COLS] [-r FILAS] [--clear] [-f] <archivo|->… … dibuja la imagen en la terminal.
+        |# z2-img [-w COLUMNAS] [-r FILAS] [--clear] [-f] <archivo|->… … dibuja la imagen en la terminal.
         |#   PNG / JPEG / WebP / GIF / BMP. Pasa - para leer una imagen de la entrada estándar.
-        |#   -w <cols>   ancho en columnas de la terminal (por omisión: ajustarla a la terminal)
-        |#   -r <filas>  alto en filas de la terminal (junto con -w se usa el tamaño tal cual)
-        |#   --clear     borra todas las imágenes dibujadas hasta ahora
-        |#   -f          envíala aunque la salida estándar no sea una terminal
+        |#   -w <columnas>  ancho en columnas de la terminal (por omisión: ajustarla a la terminal)
+        |#   -r <filas>     alto en filas de la terminal (junto con -w se usa el tamaño tal cual)
+        |#   --clear        borra todas las imágenes dibujadas hasta ahora
+        |#   -f             envíala aunque la salida estándar no sea una terminal
         |# ⚠ Las imágenes solo salen en una pestaña de z2term o en una terminal que hable el protocolo
         |#   de gráficos de kitty. En cualquier otro sitio (por ssh, dentro de un paginador) solo
         |#   verás caracteres sin sentido.
@@ -360,7 +360,7 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "usage: z2-img [-w 桁] [-r 行] [--clear] [-f] <ファイル|->...",
         "zh-CN" to "usage: z2-img [-w 列] [-r 行] [--clear] [-f] <文件|->...",
         "zh-TW" to "usage: z2-img [-w 欄] [-r 列] [--clear] [-f] <檔案|->...",
-        "es" to "uso: z2-img [-w cols] [-r filas] [--clear] [-f] <archivo|->..."
+        "es" to "uso: z2-img [-w columnas] [-r filas] [--clear] [-f] <archivo|->..."
     )
 
     val imgNoFile: String = t(
