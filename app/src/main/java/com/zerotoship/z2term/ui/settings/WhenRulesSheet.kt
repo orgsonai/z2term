@@ -64,6 +64,7 @@ import com.zerotoship.z2term.settings.WhenRule
 import com.zerotoship.z2term.settings.WhenTriggerCatalog
 import com.zerotoship.z2term.ui.theme.ZtsBgCard
 import com.zerotoship.z2term.ui.theme.ZtsBgPrimary
+import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import com.zerotoship.z2term.ui.theme.ZtsBorder
 import com.zerotoship.z2term.ui.components.ConfirmDialog
 import com.zerotoship.z2term.ui.theme.ZtsError
@@ -927,6 +928,53 @@ private fun ModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 /**
+ * プルダウンの入口 (0.8.522)。
+ *
+ * ⛔ **文字と ▾ を並べるだけにしない。** そうしていた間、利用者には「ただの白文字」で
+ * 押せる場所に見えず、▾ も本文と同じ大きさなので文の一部に埋もれていた。
+ * ⭐ **押せるものの意匠は 1 つに揃える** — 枠 1dp + 背景 + 角丸 6dp は [PillButton] と同じで、
+ * 「この見た目は押せる」が画面をまたいで一貫する。⚠ ボタンと違うのは右端の ▾ だけで、
+ * それが「押すと開く」の印になる。
+ *
+ * @param fill 幅いっぱいに広げる (行の中で他と場所を取り合わないとき)。
+ * @param accent 値そのものではなく**選び方**を表す欄 (演算子) を緑にする。
+ */
+@Composable
+private fun DropdownAnchor(
+    label: String,
+    fill: Boolean = false,
+    accent: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .then(if (fill) Modifier.fillMaxWidth() else Modifier)
+            .clip(RoundedCornerShape(6.dp))
+            .background(ZtsBgSecondary)
+            .border(1.dp, if (accent) ZtsGreen else ZtsBorder, RoundedCornerShape(6.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = label,
+            color = if (accent) ZtsGreen else ZtsTextPrimary,
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.weight(1f, fill = false)
+        )
+        // ⚠ 本文より大きくする。同じ大きさだと文の一部に見えて、印にならない。
+        Text(
+            text = "▾",
+            color = ZtsGreen,
+            fontSize = 16.sp,
+            fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+/**
  * 条件 1 行 (0.8.373)。**選ぶだけで組める**ようにするのが目的なので、キーも演算子も
  * プルダウンにし、値の欄はキーの型のときだけ出す。
  *
@@ -952,15 +1000,10 @@ private fun ConditionRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.weight(1f)) {
                 var open by remember { mutableStateOf(false) }
-                Text(
-                    text = conditionKeyLabel(cond.key) + " ▾",
-                    color = ZtsTextPrimary,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .clickable { open = true }
-                        .padding(vertical = 2.dp)
+                DropdownAnchor(
+                    label = conditionKeyLabel(cond.key),
+                    fill = true,
+                    onClick = { open = true }
                 )
                 DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                     WhenConditionSpec.KEYS.forEach { k ->
@@ -994,15 +1037,10 @@ private fun ConditionRow(
         ) {
             Box {
                 var open by remember { mutableStateOf(false) }
-                Text(
-                    text = conditionOpLabel(cond) + " ▾",
-                    color = ZtsGreen,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .clickable { open = true }
-                        .padding(vertical = 2.dp)
+                DropdownAnchor(
+                    label = conditionOpLabel(cond),
+                    accent = true,
+                    onClick = { open = true }
                 )
                 DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                     conditionOpChoices(cond).forEach { choice ->
