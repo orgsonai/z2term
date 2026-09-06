@@ -159,6 +159,12 @@ struct pid_state {
     size_t proc_cmdline_len;        // proc_cmdline の有効バイト数(0=未記録)
     char proc_comm[TASK_COMM_LEN];  // /proc/<pid>/comm 用 argv0 basename(NUL 終端、最大 15 文字)
     int rootfs_idx;         // この tracee が見る rootfs(g_rootfs_tab の添字)。-1 = 既定(cfg->rootfs)
+    pid_t limit_tgid;       // RLIMITは同一thread groupで共有。初回利用時に解決する。
+    unsigned long as_bias;  // カーネルのRLIMIT_ASに含めたAndroidローダー予約分
+    int as_pending;        // 今回のget/set/prlimitで補正しているか
+    pid_t as_target;
+    unsigned long as_old_bias, as_new_bias, as_out;
+    int as_setting;
 };
 static struct pid_state g_map[MAP_CAP];
 
@@ -230,6 +236,9 @@ static struct pid_state *state_for(pid_t pid) {
     g_map[free_slot].proc_cmdline_len = 0;
     g_map[free_slot].proc_comm[0] = '\0';
     g_map[free_slot].rootfs_idx = -1;
+    g_map[free_slot].limit_tgid = 0;
+    g_map[free_slot].as_bias = 0;
+    g_map[free_slot].as_pending = 0;
     for (int k = 0; k < STATUS_FD_MAX; k++) {
         g_map[free_slot].status_fds[k] = -1;
         g_map[free_slot].status_fd_kind[k] = PROC_FD_NONE;
@@ -2429,6 +2438,7 @@ static const int kTraceSyscallsBase[] = {
     29,                       // ioctl (glibc termios2 → legacy termios へ書換。isatty 回避)
     200, 203,                 // bind / connect (AF_UNIX pathname ソケットのパス翻訳。GUI/dbus/pulse)
     167,                      // prctl (PR_SET_DUMPABLE=0 を防ぎ、tracee メモリ翻訳を維持)
+    163, 164, 261,            // getrlimit / setrlimit / prlimit64 (ローダー予約量の別勘定)
 };
 // fakeroot(-0) のとき追加でトレースする syscall(戻り値/構造体を root に偽装)。
 static const int kTraceSyscallsFakeroot[] = {
@@ -2463,7 +2473,8 @@ static const int kDenySyscalls[] = {
 
 // プロセスへ seccomp フィルタを導入する。成功 0 / 失敗 -1。
 static int install_seccomp_filter(const struct config *cfg) {
-    int nrs[64];
+    int nrs[sizeof(kTraceSyscallsBase)/sizeof(int) +
+            sizeof(kTraceSyscallsFakeroot)/sizeof(int) + 1];
     int n = 0;
     for (size_t i = 0; i < sizeof(kTraceSyscallsBase)/sizeof(int); i++) {
         int s = kTraceSyscallsBase[i];
@@ -2694,10 +2705,117 @@ static void maybe_drop_epollet(pid_t pid, struct user_pt_regs *regs) {
     write_tracee_mem(pid, evp, &events, sizeof events);
 }
 
+// 自前ローダーはbionicのScudo primary領域を残してゲストへ移る。実RAMを使わない
+// 予約でもRLIMIT_ASに約8GiBが算入され、ゲストが数GiBへ制限すると次のexecで
+// bionic初期化がabortする。アプリ名に依存せず、その予約分だけを別勘定にする。
+// mmapを無制限化せず、soft/hard・fork継承・getterの往復とカーネルの拒否を保つ。
+static pid_t limit_tgid(struct pid_state *st) {
+    if (st->limit_tgid) return st->limit_tgid;
+    char path[64], line[256];
+    snprintf(path, sizeof path, "/proc/%d/status", st->pid);
+    FILE *f = fopen(path, "r");
+    if (!f) return 0;
+    while (fgets(line, sizeof line, f)) {
+        int id;
+        if (sscanf(line, "Tgid: %d", &id) == 1) { st->limit_tgid = id; break; }
+    }
+    fclose(f);
+    return st->limit_tgid;
+}
+
+static unsigned long loader_as_reservation(pid_t pid) {
+    char path[64], line[PATH_MAX_Z + 128];
+    snprintf(path, sizeof path, "/proc/%d/maps", pid);
+    FILE *f = fopen(path, "r");
+    if (!f) return 0;
+    unsigned long total = 0, lo, hi;
+    while (fgets(line, sizeof line, f)) {
+        // reserveとcommit済みprimaryを合算。secondaryやゲストの匿名mapは含めない。
+        if ((strstr(line, "[anon:scudo:primary]") ||
+             strstr(line, "[anon:scudo:primary_reserve]")) &&
+            sscanf(line, "%lx-%lx", &lo, &hi) == 2 && hi >= lo &&
+            hi - lo <= ~0UL - total)
+            total += hi - lo;
+    }
+    fclose(f);
+    return total;
+}
+
+static int as_limit_entry(const struct config *cfg, pid_t pid,
+                          struct pid_state *st, struct user_pt_regs *regs) {
+    long nr = st->entry_nr;
+    if (!cfg->use_loader || (nr != 163 && nr != 164 && nr != 261)) return 0;
+    int resource_idx = nr == 261 ? 1 : 0;
+    if (regs->regs[resource_idx] != RLIMIT_AS) return 0;
+    pid_t target = nr == 261 && regs->regs[0] ? (pid_t)regs->regs[0] : pid;
+    struct pid_state *dst = state_lookup(target);
+    // このエンジンの管理外プロセスの資源上限は翻訳しない。
+    if (!dst || !limit_tgid(dst)) return 0;
+    unsigned long in = nr == 163 ? 0 : regs->regs[nr == 261 ? 2 : 1];
+    unsigned long out = nr == 164 ? 0 : regs->regs[nr == 261 ? 3 : 1];
+    unsigned long bias = dst->as_bias;
+    struct rlimit requested;
+    if (in) {
+        struct iovec local = { &requested, sizeof requested };
+        struct iovec remote = { (void *)in, sizeof requested };
+        if (process_vm_readv(pid, &local, 1, &remote, 1, 0) != sizeof requested)
+            return 0; // EFAULTをカーネルへ委譲
+        if (requested.rlim_cur > requested.rlim_max) return 0; // 元のEINVALを維持
+        if (!bias) bias = loader_as_reservation(target);
+        if (!bias) return 0;
+        // 有限値を加算でwrapしたりRLIM_INFINITYへ変えてはならない。
+        if ((requested.rlim_cur != RLIM_INFINITY && requested.rlim_cur >= RLIM_INFINITY - bias) ||
+            (requested.rlim_max != RLIM_INFINITY && requested.rlim_max >= RLIM_INFINITY - bias)) {
+            regs->regs[resource_idx] = ~0UL; // カーネル自身にEINVALを返させる
+            set_regs(pid, regs);
+            return 0;
+        }
+        if (requested.rlim_cur != RLIM_INFINITY) requested.rlim_cur += bias;
+        if (requested.rlim_max != RLIM_INFINITY) requested.rlim_max += bias;
+        unsigned long scratch = scratch_base(regs->sp, sizeof requested);
+        if (write_tracee_mem(pid, scratch, &requested, sizeof requested) != 0) return 0;
+        // 呼出し元の入力structは変更しない。soft/hard制約はカーネルに判定させる。
+        regs->regs[nr == 261 ? 2 : 1] = scratch;
+        if (set_regs(pid, regs) != 0) return 0;
+    }
+    st->as_pending = 1;
+    st->as_target = dst->limit_tgid;
+    st->as_old_bias = dst->as_bias;
+    st->as_new_bias = bias;
+    st->as_out = out;
+    st->as_setting = in != 0;
+    return 1;
+}
+
+static void as_limit_exit(pid_t pid, struct pid_state *st) {
+    struct user_pt_regs regs;
+    st->as_pending = 0;
+    if (get_regs(pid, &regs) != 0 || (long)regs.regs[0] != 0) return;
+    if (st->as_setting) {
+        for (int i = 0; i < MAP_CAP; i++)
+            if (g_map[i].used && limit_tgid(&g_map[i]) == st->as_target)
+                g_map[i].as_bias = st->as_new_bias;
+    }
+    if (st->as_out && st->as_old_bias) {
+        struct rlimit old;
+        struct iovec local = { &old, sizeof old };
+        struct iovec remote = { (void *)st->as_out, sizeof old };
+        if (process_vm_readv(pid, &local, 1, &remote, 1, 0) != sizeof old) return;
+        if (old.rlim_cur != RLIM_INFINITY)
+            old.rlim_cur = old.rlim_cur > st->as_old_bias ? old.rlim_cur - st->as_old_bias : 0;
+        if (old.rlim_max != RLIM_INFINITY)
+            old.rlim_max = old.rlim_max > st->as_old_bias ? old.rlim_max - st->as_old_bias : 0;
+        // カーネルが書けた出力領域だけを更新する。read-only領域をptraceで上書きしない。
+        process_vm_writev(pid, &local, 1, &remote, 1, 0);
+    }
+}
+
 static int handle_syscall_entry(const struct config *cfg, pid_t pid, struct pid_state *st) {
     struct user_pt_regs regs;
     if (get_regs(pid, &regs) != 0) { st->entry_nr = -1; return 0; }
     st->entry_nr = (long)regs.regs[8];
+    st->as_pending = 0;
+    if (as_limit_entry(cfg, pid, st, &regs)) return 1;
     st->aux_kind = PROC_FD_NONE;
     st->linkcopy_hit = -1;
     st->aux_is_self_exe = 0;
@@ -2831,6 +2949,7 @@ static void fake_getres_on_exit(pid_t pid, const struct pid_state *st) {
 
 // syscall-exit 時の処理(戻り値・構造体の逆変換 / 偽装)。
 static void handle_syscall_exit(const struct config *cfg, pid_t pid, struct pid_state *st) {
+    if (st->as_pending) { as_limit_exit(pid, st); return; }
     if (st->link_pending && st->entry_nr == 37) {  // linkat: 失敗ならコピー fallback で成功偽装
         linkat_exit(st, pid);
         st->link_pending = 0;
@@ -3017,6 +3136,7 @@ static int run_tracer(const struct config *cfg, pid_t child) {
                 snprintf(nst->exe_guest, sizeof(nst->exe_guest), "%s", pst->exe_guest);
             // rootfs も継承する(コンテナの中で fork した子はそのコンテナに居る)。
             if (nst && pst) nst->rootfs_idx = pst->rootfs_idx;
+            if (nst && pst) nst->as_bias = pst->as_bias;
             // cmdline/comm も同様に継承(execve まで親と同じ argv を見せる)。
             if (nst && pst && pst->proc_cmdline_len) {
                 memcpy(nst->proc_cmdline, pst->proc_cmdline, pst->proc_cmdline_len);
