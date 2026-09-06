@@ -50,26 +50,28 @@ fun z2menuScript(lang: String = "ja"): String {
         en = "(no application found)",
         ja = "(アプリが見つかりません)",
         "zh-CN" to "(未找到应用)",
-        "zh-TW" to "(找不到應用程式)"
+        "zh-TW" to "(找不到應用程式)",
+        "es" to "(no se encontró ninguna aplicación)"
     )
     // 分類のラベル。`.desktop` の Categories= を freedesktop の主分類に丸めて使う。
     val catLabels = listOf(
-        "AudioVideo" to t(en = "Sound & Video", ja = "音と映像", "zh-CN" to "影音", "zh-TW" to "影音"),
-        "Development" to t(en = "Development", ja = "開発", "zh-CN" to "开发", "zh-TW" to "開發"),
-        "Graphics" to t(en = "Graphics", ja = "画像", "zh-CN" to "图像", "zh-TW" to "圖像"),
-        "Game" to t(en = "Games", ja = "ゲーム", "zh-CN" to "游戏", "zh-TW" to "遊戲"),
-        "Network" to t(en = "Internet", ja = "ネット", "zh-CN" to "网络", "zh-TW" to "網路"),
-        "Office" to t(en = "Office", ja = "文書", "zh-CN" to "办公", "zh-TW" to "辦公"),
-        "System" to t(en = "System", ja = "システム", "zh-CN" to "系统", "zh-TW" to "系統"),
-        "Utility" to t(en = "Utilities", ja = "道具", "zh-CN" to "工具", "zh-TW" to "工具"),
-        "Other" to t(en = "Other", ja = "その他", "zh-CN" to "其他", "zh-TW" to "其他"),
+        "AudioVideo" to t(en = "Sound & Video", ja = "音と映像", "zh-CN" to "影音", "zh-TW" to "影音", "es" to "Sonido y vídeo"),
+        "Development" to t(en = "Development", ja = "開発", "zh-CN" to "开发", "zh-TW" to "開發", "es" to "Desarrollo"),
+        "Graphics" to t(en = "Graphics", ja = "画像", "zh-CN" to "图像", "zh-TW" to "圖像", "es" to "Gráficos"),
+        "Game" to t(en = "Games", ja = "ゲーム", "zh-CN" to "游戏", "zh-TW" to "遊戲", "es" to "Juegos"),
+        "Network" to t(en = "Internet", ja = "ネット", "zh-CN" to "网络", "zh-TW" to "網路", "es" to "Internet"),
+        "Office" to t(en = "Office", ja = "文書", "zh-CN" to "办公", "zh-TW" to "辦公", "es" to "Oficina"),
+        "System" to t(en = "System", ja = "システム", "zh-CN" to "系统", "zh-TW" to "系統", "es" to "Sistema"),
+        "Utility" to t(en = "Utilities", ja = "道具", "zh-CN" to "工具", "zh-TW" to "工具", "es" to "Utilidades"),
+        "Other" to t(en = "Other", ja = "その他", "zh-CN" to "其他", "zh-TW" to "其他", "es" to "Otros"),
     ).joinToString(";") { "${it.first}=${it.second}" }
 
     val usage = t(
         en = "usage: z2menu [list]   (no argument: openbox pipe menu XML)",
         ja = "usage: z2menu [list]   (引数なし: openbox の pipe menu XML)",
         "zh-CN" to "用法: z2menu [list]   (无参数: openbox pipe menu XML)",
-        "zh-TW" to "用法: z2menu [list]   (無參數: openbox pipe menu XML)"
+        "zh-TW" to "用法: z2menu [list]   (無參數: openbox pipe menu XML)",
+        "es" to "uso: z2menu [list]   (sin argumentos: XML de pipe menu de openbox)"
     )
 
     return """

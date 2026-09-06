@@ -176,6 +176,31 @@ data class GuiScriptStrings(
             menuWindows = "視窗",
             menuReload = "重新載入選單"
         )
+        fun es(): GuiScriptStrings = GuiScriptStrings(
+            installing = "📦 Instalando el entorno gráfico",
+            cleanInstalling = "🧹 Instalando el entorno gráfico desde cero",
+            noPackageManager = "❌ No se encontró ningún gestor de paquetes compatible (apk/apt-get/pacman).",
+            invalidGeometry = "❌ Resolución mal escrita",
+            noXvnc = "❌ No hay Xvnc/Xtigervnc (tigervnc no está instalado)",
+            alreadyRunning = "✅ El entorno gráfico ya está en marcha",
+            startingXvnc = "▶ Iniciando",
+            xvncFailed = "❌ Falló el arranque de Xvnc. Registro:",
+            ready = "✅ Entorno gráfico listo. Conéctate desde una pestaña gráfica de z2term.",
+            running = "✅ Entorno gráfico en marcha",
+            stopped = "⏹ El entorno gráfico está parado",
+            stoppedMsg = "⏹ Parado",
+            usage = "Uso: z2gui [start [AxA] [clean] | stop | status | install | clean | check]",
+            installFailed = "❌ No se pudo instalar el entorno gráfico (Xvnc / openbox / D-Bus).",
+            installFailedHint = "   Comprueba la red. Para recuperarlo, puedes ejecutar z2gui clean en una terminal.",
+            audioInstalling = "🔊 Audio del entorno gráfico: instalando PulseAudio",
+            audioNoPulse = "⚠️ Audio del entorno gráfico: no hay pulseaudio; se sigue sin sonido",
+            audioNoPactl = "⚠️ Audio del entorno gráfico: no hay pactl; se sigue sin sonido",
+            audioStartFailed = "⚠️ Audio del entorno gráfico: PulseAudio no arrancó",
+            audioReady = "🔊 Audio del entorno gráfico: z2sink.monitor →",
+            menuApps = "Aplicaciones",
+            menuWindows = "Ventanas",
+            menuReload = "Recargar el menú"
+        )
         /**
          * 言語ごとの組。⭐ **3 言語目はここに 1 行足す** (言語コード to その組を返す関数)。
          * 名簿 ([AppLanguages]) にあっても訳が無い言語は英語へ落ちる。
@@ -185,6 +210,7 @@ data class GuiScriptStrings(
             "ja" to ::ja,
             "zh-CN" to ::zhCN,
             "zh-TW" to ::zhTW,
+            "es" to ::es,
         )
 
         /** ⚠ **知らない言語は英語**。「英語でなければ日本語」と書かないこと。 */

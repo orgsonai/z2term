@@ -18,7 +18,7 @@ fun z2helpScript(lang: String = "ja"): String {
     // 言語ごとの文言を選ぶ道具。3 言語目は t(en = …, ja = …) の後ろへ変わり値を足す ([CliText])。
     val t = CliText(lang)
 
-    val header = t(en = "Z2Term own commands", ja = "Z2Term 独自コマンド", "zh-CN" to "Z2Term 自有命令", "zh-TW" to "Z2Term 自有指令")
+    val header = t(en = "Z2Term own commands", ja = "Z2Term 独自コマンド", "zh-CN" to "Z2Term 自有命令", "zh-TW" to "Z2Term 自有指令", "es" to "Comandos propios de Z2Term")
 
     val list = t(
         en = """
@@ -224,6 +224,57 @@ fun z2helpScript(lang: String = "ja"): String {
         |
         |上面的指令都會自己說明用法: 加上 --help (例: 'z2-tile --help')。
         |詳情: 'z2adb help' / 不帶參數的 'z2gui' / HANDBOOK 第 11 節。
+    """,
+        "es" to """
+        |[Versión / información]
+        |  z2version [--short]            Versión de la app, motor, SO (distro), kernel
+        |  z2doctor [--share|--clip]      ¿No arranca? Autocomprobación + informe para pegar
+        |
+        |[Funciones del teléfono]
+        |  z2-notify [-h] [-b TEXTO]...   Notificación (-h: banner, -b: botón de respuesta)
+        |  z2-ask "pregunta"              Pregunta en una notificación; imprime la respuesta
+        |  z2-toast "mensaje"             Toast (mensaje corto en pantalla)
+        |  z2-share "texto"               Pasa el texto al menú de compartir de Android
+        |  z2-open <url|ruta>             Abre una URL o un archivo en su aplicación
+        |  z2-img <archivo>               Dibuja una imagen en la terminal (PNG/JPEG/WebP/GIF/BMP)
+        |  z2-clip get | set [texto]      Lee / fija el portapapeles (set sin argumento: stdin)
+        |  z2-battery                     Nivel de batería y estado de carga (JSON)
+        |  z2-vibrate [ms]                Vibra (200 ms por omisión)
+        |  z2-say "texto"                 Lee en voz alta con el TTS (stdin si no hay argumento)
+        |  z2-torch [on|off|toggle]       Linterna (toggle por omisión)
+        |  z2-media [play|pause|next]     Teclas de medios (también previous/stop)
+        |  z2-volume up|down|N|N%         Volumen de medios (devuelve current/max)
+        |  z2-sensor [light|accel|prox]   Lee una muestra de un sensor (JSON)
+        |  z2-intent -a ACT -d URI ...    Lanza cualquier Intent de Android (ver MACRO-GUIDE)
+        |  z2-state [clave]               Estado actual en JSON (o el valor de una sola clave)
+        |  z2-screen keepon 1h | off      Impide un rato que la pantalla se apague sola
+        |  z2-tile set 1 backup.sh        Pon una macro o un comando en un mosaico (12 huecos)
+        |  z2-icon edit 1 | edit notify   Dibuja tú el icono del mosaico o de la barra (24/48/64)
+        |  z2-alarm at|daily HH:MM [nom]  Disparador por hora -> events.jsonl (list/cancel también)
+        |  z2-when <disparo> run <cmd>    Ejecuta con carga/batería/hora/eventos (uso: z2-when)
+        |  z2-macro list|install <nom>    Macros de ejemplo incluidas (ver MACRO-GUIDE)
+        |  z2-session list|new|send|...   Maneja las pestañas de esta app (uso: z2-session)
+        |  z2-usb list | allow [equipo]   Usa un equipo USB desde Linux (Android pide permiso)
+        |  z2-update [--check]            Actualiza z2term desde GitHub Releases (lo apruebas tú)
+        |
+        |[Aplicaciones gráficas (GUI)]
+        |  z2gui start [AxA] | stop | status   Escritorio Linux (p. ej. z2gui start 1280x720)
+        |  z2run <app-gráfica>            Abre una app gráfica (abre también la pestaña GUI)
+        |
+        |[Conectar]
+        |  z2adb pair/connect/shell ...   adb a este mismo teléfono, sin PC  (z2adb help)
+        |  sshd [-p N]                    Servidor SSH (por omisión solo 127.0.0.1, con clave)
+        |
+        |[Seguridad]
+        |  z2scan self [--save]           Autocomprobación de este equipo/localhost (z2scan help)
+        |  z2scan diff                    Solo lo que cambió desde la referencia (salida 1 = nuevo)
+        |  z2scan net|host|cve            nmap/lynis/trivy en localhost (fuera: permiso expreso)
+        |
+        |[Ayuda]
+        |  z2help | z2term                Esta lista
+        |
+        |Todos los comandos de arriba se explican solos: añade --help (p. ej. 'z2-tile --help').
+        |Más: 'z2adb help', 'z2gui' sin argumentos, o la sección 11 del HANDBOOK.
     """
     )
 

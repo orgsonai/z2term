@@ -132,6 +132,24 @@ data class SshdScriptStrings(
             authKeysHint = "ℹ ~/.ssh/authorized_keys 還沒有設定。登記用戶端的公鑰之後就能連線了。",
             authKeysExample = "   例: cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
         )
+        fun es(): SshdScriptStrings = SshdScriptStrings(
+            invalidPort = "❌ Número de puerto no válido",
+            configOk = "sshd(dropbear) configuración correcta",
+            installingDropbear = "📦 No hay dropbear; instalándolo…",
+            dropbearInstallFailed = "❌ No se pudo instalar dropbear. Comprueba la red y el nombre del paquete.",
+            privilegedPortWarn = "⚠️ Puerto privilegiado; con proot (sin root) es muy probable que no se pueda enlazar (usa 1024 o más).",
+            lanExposeWarn = "⚠️ Modo abierto a LAN/WAN: hace falta autenticación por clave; usa una clave fuerte.",
+            noAuthorizedKeys = "⛔ ~/.ssh/authorized_keys está vacío. Se cancela el arranque abierto a la red.",
+            noAuthorizedKeysHint = "   Registra tu clave pública en ~/.ssh/authorized_keys y vuelve a ejecutarlo.",
+            loopbackBind = "🔒 Solo en loopback. Para abrirlo a la LAN, pasa --lan o define Z2_SSHD_LAN=1.",
+            foregroundStart = "▶ dropbear en primer plano (Ctrl-C para pararlo)",
+            listeningLan = "✅ dropbear listening (root, solo autenticación por clave)",
+            listeningLoopback = "✅ dropbear listening (root, solo clave, solo loopback)",
+            startupFailed = "❌ Falló el arranque de dropbear. Registro:",
+            deviceIp = "IP del dispositivo",
+            authKeysHint = "ℹ ~/.ssh/authorized_keys está vacío. Registra la clave pública del cliente para poder conectar.",
+            authKeysExample = "   p. ej.: cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+        )
         /**
          * 言語ごとの組。⭐ **3 言語目はここに 1 行足す** (言語コード to その組を返す関数)。
          * 名簿 ([AppLanguages]) にあっても訳が無い言語は英語へ落ちる。
@@ -141,6 +159,7 @@ data class SshdScriptStrings(
             "ja" to ::ja,
             "zh-CN" to ::zhCN,
             "zh-TW" to ::zhTW,
+            "es" to ::es,
         )
 
         /** ⚠ **知らない言語は英語**。「英語でなければ日本語」と書かないこと。 */

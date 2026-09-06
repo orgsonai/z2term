@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-06 / Target version: 0.8.516-alpha (versionCode 524)
+Last updated: 2026-09-06 / Target version: 0.8.517-alpha (versionCode 525)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2795,8 +2795,8 @@ place where a third language can go.**
 
 | | Where | Count | How |
 |---|---|---|---|
-| App screens | `res/values[-<lang>]/strings.xml` | 1,041 | Android standard |
-| Text in the terminal | `t(en = …, ja = …)` in `proot/*.kt` | 346 | `CliText` (these are the bodies of shell scripts written into the rootfs, so `res` cannot hold them) |
+| App screens | `res/values[-<lang>]/strings.xml` | 1,129 | Android standard |
+| Text in the terminal | `t(en = …, ja = …)` in `proot/*.kt` | 351 | `CliText` (these are the bodies of shell scripts written into the rootfs, so `res` cannot hold them) |
 
 - ⭐ **One roster: [`AppLanguages`](../../app/src/main/java/com/zerotoship/z2term/settings/AppLanguages.kt).** Adding a line there makes the settings screen, the terminal-side text and the `Locale` all learn about the language at once. The step-by-step for adding one is at the top of that file.
 - ⛔ **Never write "not English means Japanese".** Up to 0.8.421 `val ja = lang != "en"` would have handed **Japanese** to anyone picking a third language (`z2-macro` and `pacman-keyring` really were written that way). The fallback is always English, and `CliTextTest` pins that **at the level of the generated output** (a script built for an untranslated language must not differ from the English one by a single byte).
@@ -2845,6 +2845,20 @@ code that uses those strings changed** — one line in the roster, a `res/values
 - **On the roster it goes after `zh-CN`.** A bare `zh` with no region lands on whichever is listed first (Simplified). `zh-Hant-*` is picked up by its script subtag, so Hong Kong and Macau arrive here too (`AppLanguages.SCRIPT_ALIASES`).
 - **The language code `z2scan` writes into its baseline** carries `zh-TW` as well (itself one of the `t(…)` values). Forget it and every item looks changed the moment the language is switched.
 - ⛔ **No Traditional Chinese input method either** (same reason as Simplified), and there is not even a single method to bundle — Taiwan uses zhuyin, Hong Kong cangjie/quick — which makes it all the less something the app should carry.
+
+#### Spanish added (the third B3 language, 0.8.517)
+
+**The fifth language: 1,129 `res` strings and 351 terminal-side strings translated in full, then marked
+`cliComplete`.** The path the two Chinese variants opened worked unchanged, and again **not one line of the
+code that uses those strings changed** — one line in the roster, a `res/values-es/`, and an `"es" to …`
+on each `t(…)`.
+
+- **Regions are not split.** `es-ES`, `es-MX` and `es-419` all collapse onto a single `es` (the fourth step of `AppLanguages.matchIn`). ⚠ Chinese was split by *script* because otherwise **the characters become unreadable**; Spanish regional differences are vocabulary. Splitting would double the work to translate, and whichever half lagged behind would fall back to English, **mixing two languages on one screen**. **This decision was pinned by a test before the language was ever on the roster** (`AppLanguagesTest.spanishRegionsCollapseToTheBaseLanguage`; now that `es` is listed, that test reads the real roster instead of a stand-in).
+- **Wording that also reads in Latin America.** `PC` / `dispositivo` rather than Spain's `ordenador`, `archivo` rather than `fichero`, and `tocar` rather than `pulsar` for touching the screen. ⚠ Terminal vocabulary follows the usual conventions (`portapapeles`, `pestaña`, `mosaico`, `disparador`, `servidores permanentes`).
+- ⛔ **Words you type are not translated.** In the `z2help` list and the `remind.sh` syntax, the words a user types (`daily`, `weekday`, `every`, `tomorrow`) stay English and only the explanation is translated (same treatment as zh-CN / zh-TW). ⚠ The words `remind.sh` **matches in a `case` for that language** (`pDaily` and friends) *are* translated — without them the language cannot be written at all. **Pick words that fit in one token** (`laborables`, not `entre semana`): arguments are read split on spaces, so a two-word translation shifts the word count and never matches.
+- **The language code `z2scan` writes into its baseline** carries `es` as well (itself one of the `t(…)` values). Forget it and every item looks changed the moment the language is switched.
+- **Column-aligned tables get rebuilt.** The `z2help` list and the `z2scan` usage align their description column by character count, and Spanish runs longer than English, so dropping the text in shifts the column. Lines were reworked until **the longest is the same 91 columns as the original** (wrapping at the terminal width makes a list unreadable).
+- ⭐ **Accented letters (`ñ`, `á`, `¿`) are an input-method matter** and the existing flick mechanism (up/down/left/right per key) already covers them. ⛔ **No key layout was added here** — what you type at a shell is commands (ASCII); writing Spanish prose is the OS input method's job.
 
 **Relationship to the built-in keyboard**: display language and input method are **kept separate**. The kana
 face is enabled by default only when the app language is Japanese (`legacyKanaAvailable`); other languages

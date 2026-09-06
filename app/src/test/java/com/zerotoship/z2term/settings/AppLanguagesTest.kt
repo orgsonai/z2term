@@ -97,13 +97,18 @@ class AppLanguagesTest {
         assertEquals("zh-TW", AppLanguages.matchIn("zh-Hans-CN", listOf("en", "zh-TW")))
     }
 
-    /** 地域つきのスペイン語 (`es-MX` / `es-419`) は `es` へ。⚠ es はまだ名簿に無いので仮の名簿で縛る。 */
+    /**
+     * 地域つきのスペイン語 (`es-MX` / `es-419`) は `es` へ。
+     *
+     * ⚠ **地域で分けない**という判断そのものを縛っている (0.8.517)。中国語で書き方を分けたのは
+     * 字が読めなくなるからで、スペイン語の地域差は語彙に留まる。分けると訳す量が倍になり、
+     * 埋まらない方が英語へ落ちて同じ画面に 2 言語が混ざる。
+     */
     @Test
     fun spanishRegionsCollapseToTheBaseLanguage() {
-        val roster = listOf("en", "ja", "es")
-        assertEquals("es", AppLanguages.matchIn("es-ES", roster))
-        assertEquals("es", AppLanguages.matchIn("es-MX", roster))
-        assertEquals("es", AppLanguages.matchIn("es-419", roster))
+        assertEquals("es", AppLanguages.matchDeviceLocale("es-ES"))
+        assertEquals("es", AppLanguages.matchDeviceLocale("es-MX"))
+        assertEquals("es", AppLanguages.matchDeviceLocale("es-419"))
     }
 
     /** 地域つきの韓国語は `ko` へ。⚠ ko もまだ名簿に無いので仮の名簿で縛る。 */

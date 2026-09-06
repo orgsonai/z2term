@@ -75,6 +75,7 @@ object AppLanguages {
         // ⚠ 素の `zh` はここに先に置いた方 (簡体字) へ行く。繁体字はこの後ろ。
         Entry("zh-CN", "简体中文", cliComplete = true),
         Entry("zh-TW", "繁體中文", cliComplete = true),
+        Entry("es", "Español", cliComplete = true),
     )
 
     /** 対応言語のコードだけ。 */
