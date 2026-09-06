@@ -157,7 +157,7 @@
     <string name="settings_user_dict_new_name">새 사전 이름</string>
     <string name="settings_user_dict_new_name_placeholder">예: 내 단어</string>
     <string name="settings_user_dict_reading">요미 (히라가나)</string>
-    <string name="settings_user_dict_reading_placeholder">예: ずーたーむ</string>
+    <string name="settings_user_dict_reading_placeholder">예: ずぃーとぅーたーむ</string>
     <string name="settings_user_dict_word">등록할 단어</string>
     <string name="settings_user_dict_word_placeholder">예: Z2Term</string>
     <string name="settings_user_dict_register">이 단어 등록</string>

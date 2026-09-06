@@ -31,7 +31,7 @@ import java.nio.charset.Charset
  * **形式** (SKK 辞書と同じ):
  * ```
  * ;; 行頭の ; はコメント
- * ずーたーむ /Z2Term/z2term/
+ * ずぃーとぅーたーむ /Z2Term/z2term/
  * おるぐそん /orgson/
  * ```
  * - ⚠ **読みがひらがなの行だけ**を採る。SKK の送り仮名あり見出し (`おくr /送/` のように

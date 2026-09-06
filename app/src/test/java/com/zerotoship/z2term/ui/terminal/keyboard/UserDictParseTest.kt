@@ -53,8 +53,8 @@ class UserDictParseTest {
 
     @Test
     fun `SKK 形式を読む`() {
-        val d = UserDictStore.parse("ずーたーむ /Z2Term/z2term/")
-        assertEquals(listOf("Z2Term", "z2term"), d["ずーたーむ"])
+        val d = UserDictStore.parse("ずぃーとぅーたーむ /Z2Term/z2term/")
+        assertEquals(listOf("Z2Term", "z2term"), d["ずぃーとぅーたーむ"])
     }
 
     @Test
@@ -65,8 +65,8 @@ class UserDictParseTest {
 
     @Test
     fun `タブ区切りで書かれた SKK 形式も読む`() {
-        val d = UserDictStore.parse("ずーたーむ\t/Z2Term/z2term/")
-        assertEquals(listOf("Z2Term", "z2term"), d["ずーたーむ"])
+        val d = UserDictStore.parse("ずぃーとぅーたーむ\t/Z2Term/z2term/")
+        assertEquals(listOf("Z2Term", "z2term"), d["ずぃーとぅーたーむ"])
     }
 
     @Test

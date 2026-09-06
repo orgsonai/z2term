@@ -157,7 +157,7 @@
     <string name="settings_user_dict_new_name">Nombre del nuevo diccionario</string>
     <string name="settings_user_dict_new_name_placeholder">Ejemplo: Mis palabras</string>
     <string name="settings_user_dict_reading">Lectura (hiragana)</string>
-    <string name="settings_user_dict_reading_placeholder">Ejemplo: ずーたーむ</string>
+    <string name="settings_user_dict_reading_placeholder">Ejemplo: ずぃーとぅーたーむ</string>
     <string name="settings_user_dict_word">Palabra que registrar</string>
     <string name="settings_user_dict_word_placeholder">Ejemplo: Z2Term</string>
     <string name="settings_user_dict_register">Registrar esta palabra</string>

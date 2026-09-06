@@ -157,7 +157,7 @@
     <string name="settings_user_dict_new_name">新词典的名称</string>
     <string name="settings_user_dict_new_name_placeholder">例: 我的词语</string>
     <string name="settings_user_dict_reading">读音（平假名）</string>
-    <string name="settings_user_dict_reading_placeholder">例: ずーたーむ</string>
+    <string name="settings_user_dict_reading_placeholder">例: ずぃーとぅーたーむ</string>
     <string name="settings_user_dict_word">要登记的词语</string>
     <string name="settings_user_dict_word_placeholder">例: Z2Term</string>
     <string name="settings_user_dict_register">登记这个词</string>
