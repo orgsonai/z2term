@@ -30,49 +30,56 @@ fun z2adbScript(lang: String = "ja"): String {
         ja = "z2adb: 対応パッケージマネージャ (apk/apt-get/pacman) が見つかりません。",
         "zh-CN" to "z2adb: 找不到支持的包管理器 (apk/apt-get/pacman)。",
         "zh-TW" to "z2adb: 找不到支援的套件管理器 (apk/apt-get/pacman)。",
-        "es" to "z2adb: no se encontró ningún gestor de paquetes compatible (apk/apt-get/pacman)."
+        "es" to "z2adb: no se encontró ningún gestor de paquetes compatible (apk/apt-get/pacman).",
+        "ko" to "z2adb: 지원하는 패키지 관리자(apk/apt-get/pacman)를 찾지 못했습니다."
     )
     val mInstalling = t(
         en = "z2adb: installing adb client (${d}ADB_PKG) via ${d}PM ...",
         ja = "z2adb: adb クライアント (${d}ADB_PKG) を ${d}PM で導入します ...",
         "zh-CN" to "z2adb: 正在用 ${d}PM 安装 adb 客户端 (${d}ADB_PKG) ...",
         "zh-TW" to "z2adb: 正在用 ${d}PM 安裝 adb 用戶端 (${d}ADB_PKG) ...",
-        "es" to "z2adb: instalando el cliente adb (${d}ADB_PKG) con ${d}PM ..."
+        "es" to "z2adb: instalando el cliente adb (${d}ADB_PKG) con ${d}PM ...",
+        "ko" to "z2adb: ${d}PM으로 adb 클라이언트(${d}ADB_PKG)를 설치하는 중 ..."
     )
     val mInstallFail = t(
         en = "z2adb: failed to install adb. Install it manually, then retry.",
         ja = "z2adb: adb の導入に失敗しました。手動で導入してから再実行してください。",
         "zh-CN" to "z2adb: adb 安装失败。请手动安装后再试。",
         "zh-TW" to "z2adb: adb 安裝失敗。請手動安裝後再試。",
-        "es" to "z2adb: falló la instalación de adb. Instálalo a mano y vuelve a intentarlo."
+        "es" to "z2adb: falló la instalación de adb. Instálalo a mano y vuelve a intentarlo.",
+        "ko" to "z2adb: adb 설치에 실패했습니다. 직접 설치한 뒤 다시 시도하세요."
     )
     val mHaveAdb = t(
         en = "z2adb: adb is already installed.",
         ja = "z2adb: adb は導入済みです。",
         "zh-CN" to "z2adb: adb 已经安装过了。",
         "zh-TW" to "z2adb: adb 已經安裝過了。",
-        "es" to "z2adb: adb ya está instalado."
+        "es" to "z2adb: adb ya está instalado.",
+        "ko" to "z2adb: adb는 이미 설치되어 있습니다."
     )
     val mNeedWireless = t(
         en = "z2adb: if pairing fails, enable Settings > Developer options > Wireless debugging (Android 11+).",
         ja = "z2adb: 失敗する場合は 設定 > 開発者向けオプション > ワイヤレスデバッグ を ON にしてください (Android 11+)。",
         "zh-CN" to "z2adb: 如果失败，请打开 设置 > 开发者选项 > 无线调试 (Android 11+)。",
         "zh-TW" to "z2adb: 如果失敗，請開啟 設定 > 開發者選項 > 無線偵錯 (Android 11+)。",
-        "es" to "z2adb: si falla, activa Ajustes > Opciones de desarrollador > Depuración inalámbrica (Android 11+)."
+        "es" to "z2adb: si falla, activa Ajustes > Opciones de desarrollador > Depuración inalámbrica (Android 11+).",
+        "ko" to "z2adb: 잘 안 되면 설정 > 개발자 옵션 > 무선 디버깅을 켜세요 (Android 11 이상)."
     )
     val mPairPort = t(
         en = "Pairing port (Pair device with pairing code): ",
         ja = "ペアリング用ポート (「ペアリングコードによるデバイスのペア設定」の表示): ",
         "zh-CN" to "配对用端口 (“使用配对码配对设备”处显示的): ",
         "zh-TW" to "配對用連接埠 (“使用配對碼配對裝置”處顯示的): ",
-        "es" to "Puerto de emparejamiento (el que muestra «Vincular dispositivo con un código»): "
+        "es" to "Puerto de emparejamiento (el que muestra «Vincular dispositivo con un código»): ",
+        "ko" to "페어링 포트 (기기 페어링 코드 화면에 나오는 번호): "
     )
     val mConnPort = t(
         en = "Connect port (shown under Wireless debugging): ",
         ja = "接続用ポート (「ワイヤレスデバッグ」直下に表示): ",
         "zh-CN" to "连接用端口 (显示在“无线调试”正下方): ",
         "zh-TW" to "連線用連接埠 (顯示在“無線偵錯”正下方): ",
-        "es" to "Puerto de conexión (el que aparece justo bajo «Depuración inalámbrica»): "
+        "es" to "Puerto de conexión (el que aparece justo bajo «Depuración inalámbrica»): ",
+        "ko" to "연결 포트 (무선 디버깅 아래에 나오는 번호): "
     )
 
     // 使い方テキスト (heredoc で素のまま出すので margin マーカーは付けない)。
@@ -146,6 +153,20 @@ fun z2adbScript(lang: String = "ja"): String {
 
         El destino es 127.0.0.1 por omisión; pasa host:port para cambiarlo (o define Z2ADB_HOST).
         Ejemplo:  z2adb pair 37115 123456  ->  z2adb connect 40123  ->  z2adb shell
+    """,
+        "ko" to """
+        z2adb - 무선 디버깅으로 이 기기 자신의 adb에 연결합니다 (PC 없이 자기 자신에게 adb).
+
+        준비: 설정 > 개발자 옵션 > 무선 디버깅을 켜세요 (Android 11 이상).
+
+          z2adb setup                adb 클라이언트를 설치합니다 (apk/apt-get/pacman을 알아서 찾습니다)
+          z2adb pair  <port> [code]  페어링합니다 (설정에 나오는 페어링 포트 + 6자리 코드)
+          z2adb connect <port>       연결합니다 (무선 디버깅 아래에 나오는 포트)
+          z2adb status               'adb devices -l'을 보여 줍니다
+          z2adb <무엇이든>           그대로 adb에 넘깁니다 (shell, logcat, install, ...)
+
+        대상은 기본값이 127.0.0.1입니다. 바꾸려면 host:port를 넘기세요 (또는 Z2ADB_HOST를 정하세요).
+        예:  z2adb pair 37115 123456  ->  z2adb connect 40123  ->  z2adb shell
     """.trimIndent()
     )
 

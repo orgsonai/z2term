@@ -201,6 +201,31 @@ data class GuiScriptStrings(
             menuWindows = "Ventanas",
             menuReload = "Recargar el menú"
         )
+        fun ko(): GuiScriptStrings = GuiScriptStrings(
+            installing = "📦 GUI 한 벌을 설치합니다",
+            cleanInstalling = "🧹 GUI를 처음부터 다시 설치합니다",
+            noPackageManager = "❌ 지원하는 패키지 관리자(apk/apt-get/pacman)를 찾지 못했습니다.",
+            invalidGeometry = "❌ 해상도를 잘못 적었습니다",
+            noXvnc = "❌ Xvnc/Xtigervnc가 없습니다 (tigervnc가 설치되어 있지 않습니다)",
+            alreadyRunning = "✅ GUI가 이미 돌고 있습니다",
+            startingXvnc = "▶ 시작하는 중",
+            xvncFailed = "❌ Xvnc를 띄우지 못했습니다. 로그:",
+            ready = "✅ GUI가 준비되었습니다. z2term의 GUI 탭에서 접속하세요.",
+            running = "✅ GUI가 돌고 있습니다",
+            stopped = "⏹ GUI가 멈춰 있습니다",
+            stoppedMsg = "⏹ 멈췄습니다",
+            usage = "사용법: z2gui [start [WxH] [clean] | stop | status | install | clean | check]",
+            installFailed = "❌ GUI 한 벌(Xvnc / openbox / D-Bus)을 설치하지 못했습니다.",
+            installFailedHint = "   네트워크를 확인하세요. 되살리려면 터미널에서 z2gui clean을 실행할 수 있습니다.",
+            audioInstalling = "🔊 GUI 소리: PulseAudio를 설치합니다",
+            audioNoPulse = "⚠️ GUI 소리: pulseaudio가 없어 소리 없이 계속합니다",
+            audioNoPactl = "⚠️ GUI 소리: pactl이 없어 소리 없이 계속합니다",
+            audioStartFailed = "⚠️ GUI 소리: PulseAudio가 시작되지 않았습니다",
+            audioReady = "🔊 GUI 소리: z2sink.monitor →",
+            menuApps = "애플리케이션",
+            menuWindows = "창",
+            menuReload = "메뉴 다시 읽기"
+        )
         /**
          * 言語ごとの組。⭐ **3 言語目はここに 1 行足す** (言語コード to その組を返す関数)。
          * 名簿 ([AppLanguages]) にあっても訳が無い言語は英語へ落ちる。
@@ -211,6 +236,7 @@ data class GuiScriptStrings(
             "zh-CN" to ::zhCN,
             "zh-TW" to ::zhTW,
             "es" to ::es,
+            "ko" to ::ko,
         )
 
         /** ⚠ **知らない言語は英語**。「英語でなければ日本語」と書かないこと。 */

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-06 / Target version: 0.8.519-alpha (versionCode 527)
+Last updated: 2026-09-06 / Target version: 0.8.520-alpha (versionCode 528)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2865,6 +2865,21 @@ on each `t(…)`.
 - **The language code `z2scan` writes into its baseline** carries `es` as well (itself one of the `t(…)` values). Forget it and every item looks changed the moment the language is switched.
 - **Column-aligned tables get rebuilt.** The `z2help` list and the `z2scan` usage align their description column by character count, and Spanish runs longer than English, so dropping the text in shifts the column. Lines were reworked until **the longest is the same 91 columns as the original** (wrapping at the terminal width makes a list unreadable).
 - ⭐ **Accented letters (`ñ`, `á`, `¿`) are an input-method matter** and the existing flick mechanism (up/down/left/right per key) already covers them. ⛔ **No key layout was added here** — what you type at a shell is commands (ASCII); writing Spanish prose is the OS input method's job.
+
+#### Korean added (the fourth B3 language, 0.8.520)
+
+**The sixth language to reach `cliComplete`: all 1,131 res strings and all 351 terminal-facing strings.**
+⚠ **The machine translation pulled from the roster in 0.8.501 was discarded; this was translated again from English.**
+Once more no calling code changed (only the roster line, `res/values-ko/`, and the `"ko" to …` variants on `t(…)`).
+
+- ⛔ **The pulled translation was not even used as a first draft.** What made 0.8.501 back it out was not the **number** of mistranslations but their **kind**: command names, identifiers and placeholders had been translated (`z2-when`, `known_hosts`, `{time}` `{from}` `{body}`). Fixing those would not make the word choices trustworthy, so the text was redone from the source.
+- **Fix the vocabulary before translating** (that was the earlier failure): 터미널 / 탭 / 셸 / 매크로 / 클립보드 / 툴바 / 상주 서버 / 플릭 / 배포판 / 암호 문구. ⚠ **"tab" and "tap" are both 탭 in Korean**, so a tab stays 탭 while the gesture becomes 누르기 (avoiding "탭을 탭하세요").
+- ⛔ **Plurals carry `other` only.** Korean has no grammatical plural, and adding `one` trips lint's `ExtraTranslation` (the same treatment as both Chinese variants).
+- ⛔ **Words the user types are not translated.** `daily` / `weekday` / `every` / `tomorrow` stay English. ⚠ Only the words `remind.sh` matches in its `case` are translated (매일 / 평일 / 매주 / 매달 / 매년), and they must be **single words** because arguments are split on whitespace.
+- ⚠⚠ **Close Kotlin template references with `${'$'}{…}`.** Written as `${'$'}tiles번`, the Hangul is read as **part of the identifier** and compilation fails with `Unresolved reference 'tiles번'`. ⭐ This cannot happen in Japanese or Chinese (full-width kanji and kana are not identifier characters), so it is **a trap that only appears with Korean**. It bit eight places here.
+- **The language code `z2scan` writes into its baseline** carries `ko` as well (another `t(…)`). Forget it and every item reads as changed the moment the language is switched.
+- **Column-aligned tables have to be re-laid.** The `z2help` listing and the `z2scan` / `z2-icon` / `z2-when` / `z2-tile` usage blocks align their description column. Hangul is full-width, so the padding is **recomputed by display width** (the longest line stays within the same budget as the original).
+- ⭐ **No keyboard layout was added.** Hangul input is jamo **composition** (오토마타) — no conversion dictionary as Chinese needs, but a composer implementation. What you type into a terminal is commands (ASCII), so Hangul goes through the OS input method (the same call as for Chinese).
 
 **Relationship to the built-in keyboard**: display language and input method are **kept separate**. The kana
 face is enabled by default only when the app language is Japanese (`legacyKanaAvailable`); other languages

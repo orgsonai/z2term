@@ -33,7 +33,8 @@ fun z2runScript(lang: String = "ja"): String {
         ja = "z2run: Xvnc :${d}{DISPLAY_NUM} が起動しませんでした。/tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log を確認してください。",
         "zh-CN" to "z2run: Xvnc :${d}{DISPLAY_NUM} 没有启动。请查看 /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log。",
         "zh-TW" to "z2run: Xvnc :${d}{DISPLAY_NUM} 沒有啟動。請查看 /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log。",
-        "es" to "z2run: Xvnc :${d}{DISPLAY_NUM} no se inició. Consulta /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log."
+        "es" to "z2run: Xvnc :${d}{DISPLAY_NUM} no se inició. Consulta /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log.",
+        "ko" to "z2run: Xvnc :${d}{DISPLAY_NUM}이(가) 시작되지 않았습니다. /tmp/z2run-z2gui-${d}{DISPLAY_NUM}.log를 보세요."
     )
     return """
         |#!/bin/sh

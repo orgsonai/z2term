@@ -57,6 +57,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-usb list              … lista los dispositivos USB conectados al teléfono
         |# z2-usb allow [número]    … pide a Android permiso para usarlo desde un programa Linux
         |# Ejecuta allow una vez después de conectar el dispositivo. El permiso dura hasta desconectarlo.
+    """,
+        "ko" to """
+        |# z2-usb list              … 휴대전화에 연결된 USB 기기를 나열합니다
+        |# z2-usb allow [번호]      … Linux 프로그램에서 쓸 수 있도록 Android에 권한을 요청합니다
+        |# 기기를 연결한 뒤 allow를 한 번 실행하세요. 권한은 기기를 뽑을 때까지 유지됩니다.
     """.trimMargin()
     )
 
@@ -65,7 +70,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "usage: z2-usb list | z2-usb allow [番号|パス|VID:PID]",
         "zh-CN" to "usage: z2-usb list | z2-usb allow [编号|路径|VID:PID]",
         "zh-TW" to "usage: z2-usb list | z2-usb allow [編號|路徑|VID:PID]",
-        "es" to "uso: z2-usb list | z2-usb allow [número|ruta|VID:PID]"
+        "es" to "uso: z2-usb list | z2-usb allow [número|ruta|VID:PID]",
+        "ko" to "사용법: z2-usb list | z2-usb allow [번호|경로|VID:PID]"
     )
 
     val usbNoDevices: String = t(
@@ -73,7 +79,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "スマホに USB 機器が接続されていません。",
         "zh-CN" to "手机上没有连接 USB 设备。",
         "zh-TW" to "手機上沒有連線 USB 裝置。",
-        "es" to "No hay ningún dispositivo USB conectado al teléfono."
+        "es" to "No hay ningún dispositivo USB conectado al teléfono.",
+        "ko" to "휴대전화에 USB 기기가 연결되어 있지 않습니다."
     )
 
     val usbNeedSelector: String = t(
@@ -81,7 +88,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "USB 機器が複数あります。z2-usb list の番号を指定してください。",
         "zh-CN" to "连接了多个 USB 设备。请指定 z2-usb list 中的编号。",
         "zh-TW" to "連線了多個 USB 裝置。請指定 z2-usb list 中的編號。",
-        "es" to "Hay más de un dispositivo USB conectado; indica su número según z2-usb list."
+        "es" to "Hay más de un dispositivo USB conectado; indica su número según z2-usb list.",
+        "ko" to "USB 기기가 여러 개 연결되어 있습니다. z2-usb list에 나오는 번호로 지정하세요."
     )
 
     fun usbPermissionRequested(path: String): String = t(
@@ -89,7 +97,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "Android の画面で USB アクセスを許可してください: $path",
         "zh-CN" to "请在 Android 屏幕上允许 USB 访问：$path",
         "zh-TW" to "請在 Android 螢幕上允許 USB 存取：$path",
-        "es" to "Aprueba el acceso USB en la pantalla de Android: $path"
+        "es" to "Aprueba el acceso USB en la pantalla de Android: $path",
+        "ko" to "Android 화면에서 USB 접근을 허용하세요: $path"
     )
 
     fun usbAlreadyAllowed(path: String): String = t(
@@ -97,7 +106,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "USB アクセスは許可済みです: $path",
         "zh-CN" to "USB 访问已经允许：$path",
         "zh-TW" to "USB 存取已經允許：$path",
-        "es" to "El acceso USB ya está permitido: $path"
+        "es" to "El acceso USB ya está permitido: $path",
+        "ko" to "USB 접근이 이미 허용되어 있습니다: $path"
     )
 
     fun usbNotFound(selector: String): String = t(
@@ -105,7 +115,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "USB 機器が見つかりません: $selector",
         "zh-CN" to "找不到 USB 设备：$selector",
         "zh-TW" to "找不到 USB 裝置：$selector",
-        "es" to "No se encontró el dispositivo USB: $selector"
+        "es" to "No se encontró el dispositivo USB: $selector",
+        "ko" to "USB 기기를 찾지 못했습니다: $selector"
     )
 
     fun usbDeviceLine(
@@ -117,9 +128,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         allowed: Boolean
     ): String {
         val state = if (allowed) {
-            t(en = "allowed", ja = "許可済み", "zh-CN" to "已允许", "zh-TW" to "已允許", "es" to "permitido")
+            t(en = "allowed", ja = "許可済み", "zh-CN" to "已允许", "zh-TW" to "已允許", "es" to "permitido",
+            "ko" to "허용됨")
         } else {
-            t(en = "needs allow", ja = "要許可", "zh-CN" to "需要允许", "zh-TW" to "需要允許", "es" to "falta permiso")
+            t(en = "needs allow", ja = "要許可", "zh-CN" to "需要允许", "zh-TW" to "需要允許", "es" to "falta permiso",
+            "ko" to "허용 필요")
         }
         val name = productName.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()
         return "%d  %04x:%04x  %s  %s%s".format(index, vendorId, productId, state, path, name)
@@ -191,6 +204,18 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#                            plano: Android 10+ solo deja escribir en el portapapeles a la
         |#                            aplicación que está delante, así que un z2-clip set sin nadie
         |#                            delante se descarta en silencio.
+    """,
+        "ko" to """
+        |# z2-notify [-h] [-n 이름] [-c 텍스트] [-b 라벨]... "제목" "본문"  /  z2-notify [-h] "본문"
+        |#   -h / --high / --banner : 화면 위쪽에 배너(헤드업)로 띄웁니다
+        |#   -b <라벨>             : 응답 버튼을 답니다 (최대 3개). 누르면 ~/.z2term/events.jsonl에
+        |                            notify_action이 한 줄 늘어납니다
+        |                            ({"event":"notify_action","name":이름,"action":라벨})
+        |#   -n <이름>             : 이 알림의 식별자 (어느 물음에 대한 답인지 구별합니다)
+        |#   -c <텍스트>           : <텍스트>를 클립보드에 넣는 「복사」 버튼을 답니다.
+        |                            매크로가 백그라운드에서 돌 때는 z2-clip set 대신 이것을 쓰세요:
+        |                            Android 10 이상은 앞에 있는 앱만 클립보드에 쓸 수 있어서,
+        |                            앞에 아무도 없을 때의 z2-clip set은 조용히 버려집니다.
     """.trimMargin()
     )
 
@@ -200,7 +225,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "usage: z2-notify [-h] [-n 名前] [-c 文字列] [-b ラベル]... <タイトル> [本文]",
             "zh-CN" to "usage: z2-notify [-h] [-n 名称] [-c 文本] [-b 标签]... <标题> [正文]",
             "zh-TW" to "usage: z2-notify [-h] [-n 名稱] [-c 文字] [-b 標籤]... <標題> [正文]",
-            "es" to "uso: z2-notify [-h] [-n nombre] [-c texto] [-b etiqueta]... <título> [texto]"
+            "es" to "uso: z2-notify [-h] [-n nombre] [-c texto] [-b etiqueta]... <título> [texto]",
+            "ko" to "사용법: z2-notify [-h] [-n 이름] [-c 텍스트] [-b 라벨]... <제목> [본문]"
         )
 
     // --- 単機能のもの (ヘルプ 1〜2 行) ---
@@ -227,6 +253,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-toast <mensaje> … un mensaje corto abajo en la pantalla (un toast).
         |# Se desvanece solo y no deja nada. Usa z2-notify cuando tenga que quedarse,
         |# o cuando quieras un botón que pulsar.
+    """,
+        "ko" to """
+        |# z2-toast <메시지> … 화면 아래쪽에 잠깐 뜨는 짧은 메시지(토스트)입니다.
+        |# 저절로 사라지고 아무것도 남지 않습니다. 남겨야 하거나 누를 버튼이 필요하면
+        |# z2-notify를 쓰세요.
     """.trimMargin()
     )
 
@@ -255,6 +286,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-share <texto> … pasa el texto al menú de compartir de Android (lo envía a otra app).
         |# Todos los argumentos se unen en un solo cuerpo. La aplicación de destino se elige en la
         |# pantalla, así que hace falta alguien delante: no es para una macro que corre sola.
+    """,
+        "ko" to """
+        |# z2-share <텍스트> … 텍스트를 Android 공유 메뉴로 넘깁니다 (다른 앱으로 보냅니다).
+        |# 인수는 모두 이어 붙여 하나의 본문이 됩니다. 보낼 앱은 화면에서 고르므로 누군가 앞에
+        |# 있어야 합니다: 혼자 도는 매크로에는 맞지 않습니다.
     """.trimMargin()
     )
 
@@ -283,6 +319,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-open <url|ruta> … lo abre con la aplicación predeterminada (https://… o /sdcard/…).
         |# Qué aplicación lo abre lo decide Android; z2term solo se lo entrega.
         |# La ruta es una ruta del **teléfono** (/sdcard/…), no de dentro de la distribución.
+    """,
+        "ko" to """
+        |# z2-open <url|경로> … 기본 앱으로 엽니다 (https://… 또는 /sdcard/…).
+        |# 어떤 앱이 여는지는 Android가 정하며, z2term은 넘겨주기만 합니다.
+        |# 경로는 **휴대전화**의 경로(/sdcard/…)이지, 배포판 안의 경로가 아닙니다.
     """.trimMargin()
     )
 
@@ -352,6 +393,18 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#   verás caracteres sin sentido.
         |# ⚠ La proporción supone que una celda es el doble de alta que de ancha. Si se ve aplastada,
         |#   ajústala: Z2_IMG_ASPECT=0.45 z2-img foto.jpg (cuanto menor, más alta).
+    """,
+        "ko" to """
+        |# z2-img [-w 열] [-r 행] [--clear] [-f] <파일|->… … 터미널에 그림을 그립니다.
+        |#   PNG / JPEG / WebP / GIF / BMP. -를 넘기면 표준 입력에서 그림 하나를 읽습니다.
+        |#   -w <열>   터미널의 열 수로 너비 지정 (기본값: 터미널에 맞춥니다)
+        |#   -r <행>   터미널의 행 수로 높이 지정 (-w와 함께 쓰면 준 크기를 그대로 씁니다)
+        |#   --clear   지금까지 그린 그림을 모두 지웁니다
+        |#   -f        표준 출력이 터미널이 아니어도 보냅니다
+        |# ⚠ 그림은 z2term의 탭이나 kitty graphics 프로토콜을 말하는 터미널에서만 나옵니다.
+        |#   그 밖의 곳(ssh 너머, 페이저 안)에서는 뜻 모를 문자만 쏟아집니다.
+        |# ⚠ 가로세로 비율은 한 칸의 높이가 너비의 두 배라고 봅니다. 눌린 것처럼 보이면 조정하세요:
+        |#   Z2_IMG_ASPECT=0.45 z2-img photo.jpg (값이 작을수록 길쭉해집니다).
     """.trimMargin()
     )
 
@@ -360,7 +413,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "usage: z2-img [-w 桁] [-r 行] [--clear] [-f] <ファイル|->...",
         "zh-CN" to "usage: z2-img [-w 列] [-r 行] [--clear] [-f] <文件|->...",
         "zh-TW" to "usage: z2-img [-w 欄] [-r 列] [--clear] [-f] <檔案|->...",
-        "es" to "uso: z2-img [-w columnas] [-r filas] [--clear] [-f] <archivo|->..."
+        "es" to "uso: z2-img [-w columnas] [-r filas] [--clear] [-f] <archivo|->...",
+        "ko" to "사용법: z2-img [-w 열] [-r 행] [--clear] [-f] <파일|->..."
     )
 
     val imgNoFile: String = t(
@@ -368,7 +422,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "ファイルが読めません:",
         "zh-CN" to "读不到这个文件：",
         "zh-TW" to "讀不到這個檔案：",
-        "es" to "no se puede leer el archivo:"
+        "es" to "no se puede leer el archivo:",
+        "ko" to "파일을 읽을 수 없습니다:"
     )
 
     // ⚠ 既定で止める。パイプやリダイレクトの先に APC を流すと、受け側には**壊れたバイト列**
@@ -378,7 +433,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "標準出力が画面ではないので送りませんでした (-f を付けると送ります)。",
         "zh-CN" to "标准输出不是终端，所以没有发送 (加 -f 可以照样发送)。",
         "zh-TW" to "標準輸出不是終端機，所以沒有傳送 (加 -f 可以照樣傳送)。",
-        "es" to "la salida estándar no es una terminal, así que no se envió nada (-f lo envía igualmente)."
+        "es" to "la salida estándar no es una terminal, así que no se envió nada (-f lo envía igualmente).",
+        "ko" to "표준 출력이 터미널이 아니라 아무것도 보내지 않았습니다 (-f를 붙이면 그래도 보냅니다)."
     )
 
     val imgNoSize: String = t(
@@ -386,7 +442,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "画素数が読めないので正方形として出します:",
         "zh-CN" to "读不出像素尺寸，按正方形画出：",
         "zh-TW" to "讀不出像素尺寸，按正方形畫出：",
-        "es" to "no se puede leer el tamaño en píxeles; se dibuja como un cuadrado:"
+        "es" to "no se puede leer el tamaño en píxeles; se dibuja como un cuadrado:",
+        "ko" to "픽셀 크기를 읽을 수 없어 정사각형으로 그립니다:"
     )
 
     val clipHelp: String = t(
@@ -424,6 +481,13 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# ⚠ Android 10+ solo deja tocar el portapapeles a la aplicación que está delante (y al método
         |#   de entrada en uso). Desde una macro en segundo plano se descarta sin decir nada, así que
         |#   allí se usa z2-notify -c <texto>: añade un botón «Copiar» que siempre entra.
+    """,
+        "ko" to """
+        |# z2-clip get         … 클립보드를 표준 출력으로 내보냅니다
+        |# z2-clip set [텍스트] … 텍스트(없으면 표준 입력)를 클립보드에 넣습니다
+        |# ⚠ Android 10 이상은 앞에 있는 앱(과 지금 쓰는 입력 방식)만 클립보드를 만질 수 있습니다.
+        |#   백그라운드에서 도는 매크로에서는 아무 말 없이 버려지므로, 거기서는
+        |#   z2-notify -c <텍스트>를 쓰세요: 언제나 들어가는 「복사」 버튼이 붙습니다.
     """.trimMargin()
     )
 
@@ -433,7 +497,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "# 残量/充電状態を JSON ({\"level\":N,\"charging\":bool}) で出力。",
             "zh-CN" to "# 以 JSON ({\"level\":N,\"charging\":bool}) 输出电量/充电状态。",
             "zh-TW" to "# 以 JSON ({\"level\":N,\"charging\":bool}) 輸出電量/充電狀態。",
-            "es" to "# Imprime el nivel y el estado de carga en JSON ({\"level\":N,\"charging\":bool})."
+            "es" to "# Imprime el nivel y el estado de carga en JSON ({\"level\":N,\"charging\":bool}).",
+            "ko" to "# 잔량과 충전 상태를 JSON으로 출력합니다 ({\"level\":N,\"charging\":bool})."
         )
 
     val vibrateHelp: String =
@@ -442,7 +507,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "# z2-vibrate [ms]  (既定 200ms)",
             "zh-CN" to "# z2-vibrate [ms]  (默认 200ms)",
             "zh-TW" to "# z2-vibrate [ms]  (預設 200ms)",
-            "es" to "# z2-vibrate [ms]  (200 ms por omisión)"
+            "es" to "# z2-vibrate [ms]  (200 ms por omisión)",
+            "ko" to "# z2-vibrate [ms]  (기본값 200ms)"
         )
 
     val sayHelp: String =
@@ -451,7 +517,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "# z2-say <text>       … 端末標準の TTS で読み上げ (引数無しなら標準入力を読む)",
             "zh-CN" to "# z2-say <text>       … 用设备自带的 TTS 朗读 (不带参数则读标准输入)",
             "zh-TW" to "# z2-say <text>       … 用裝置自帶的 TTS 朗讀 (不帶參數則讀標準輸入)",
-            "es" to "# z2-say <texto>      … lee en voz alta con el TTS del sistema (lee stdin si no hay argumento)"
+            "es" to "# z2-say <texto>      … lee en voz alta con el TTS del sistema (lee stdin si no hay argumento)",
+            "ko" to "# z2-say <텍스트>     … 기기의 TTS로 소리 내어 읽습니다 (인수가 없으면 stdin을 읽습니다)"
         )
 
     val torchHelp: String =
@@ -460,7 +527,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "# z2-torch on|off|toggle  (既定 toggle)。結果の点灯状態 (on/off) を出力。",
             "zh-CN" to "# z2-torch on|off|toggle  (默认 toggle)。输出结果的点亮状态 (on/off)。",
             "zh-TW" to "# z2-torch on|off|toggle  (預設 toggle)。輸出結果的點亮狀態 (on/off)。",
-            "es" to "# z2-torch on|off|toggle  (toggle por omisión). Imprime el estado resultante (on/off)."
+            "es" to "# z2-torch on|off|toggle  (toggle por omisión). Imprime el estado resultante (on/off).",
+            "ko" to "# z2-torch on|off|toggle  (기본값 toggle). 그 결과 상태를 출력합니다 (on/off)."
         )
 
     val mediaHelp: String =
@@ -469,7 +537,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "# z2-media play|pause|playpause|next|previous|stop  (既定 playpause)",
             "zh-CN" to "# z2-media play|pause|playpause|next|previous|stop  (默认 playpause)",
             "zh-TW" to "# z2-media play|pause|playpause|next|previous|stop  (預設 playpause)",
-            "es" to "# z2-media play|pause|playpause|next|previous|stop  (playpause por omisión)"
+            "es" to "# z2-media play|pause|playpause|next|previous|stop  (playpause por omisión)",
+            "ko" to "# z2-media play|pause|playpause|next|previous|stop  (기본값 playpause)"
         )
 
     val volumeHelp: String =
@@ -478,7 +547,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "# z2-volume up|down|mute|unmute|N|N%   メディア音量を操作。結果の current/max を出力。",
             "zh-CN" to "# z2-volume up|down|mute|unmute|N|N%   操作媒体音量。输出结果的 current/max。",
             "zh-TW" to "# z2-volume up|down|mute|unmute|N|N%   操作媒體音量。輸出結果的 current/max。",
-            "es" to "# z2-volume up|down|mute|unmute|N|N%   Volumen de medios. Imprime el current/max resultante."
+            "es" to "# z2-volume up|down|mute|unmute|N|N%   Volumen de medios. Imprime el current/max resultante.",
+            "ko" to "# z2-volume up|down|mute|unmute|N|N%   미디어 음량. 그 결과 current/max를 출력합니다."
         )
 
     val sensorHelp: String =
@@ -487,7 +557,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "# z2-sensor light|accel|proximity  (既定 light)。センサーを 1 回読んで JSON で返す。",
             "zh-CN" to "# z2-sensor light|accel|proximity  (默认 light)。读一次传感器并以 JSON 返回。",
             "zh-TW" to "# z2-sensor light|accel|proximity  (預設 light)。讀一次感測器並以 JSON 返回。",
-            "es" to "# z2-sensor light|accel|proximity  (light por omisión). Lee una muestra y devuelve JSON."
+            "es" to "# z2-sensor light|accel|proximity  (light por omisión). Lee una muestra y devuelve JSON.",
+            "ko" to "# z2-sensor light|accel|proximity  (기본값 light). 한 번 읽어 JSON으로 돌려줍니다."
         )
 
     val intentHelp: String = t(
@@ -515,6 +586,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-intent [-a ACCIÓN] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# Lanza cualquier Intent de Android (startActivity por omisión). El primer argumento que no sea una opción es la ACCIÓN.
+    """,
+        "ko" to """
+        |# z2-intent [-a 액션] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
+        |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
+        |# 어떤 Android Intent든 띄웁니다 (기본값은 startActivity). 옵션이 아닌 첫 인수가 액션입니다.
     """.trimMargin()
     )
 
@@ -553,6 +629,13 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# claves: screen(on/off) locked idle charging plug(ac/usb/wireless/none) level temp(C)
         |#       wifi ssid ringer(normal/vibrate/silent) airplane headset bt_audio volume volume_max
         |# p. ej. [ "${d}(z2-state charging)" = "true" ] && echo cargando
+    """,
+        "ko" to """
+        |# z2-state           … 지금 기기 상태 전체를 JSON으로
+        |# z2-state <키>      … 그 값만 그대로 (조건에 그대로 넣을 수 있습니다)
+        |# 키: screen(on/off) locked idle charging plug(ac/usb/wireless/none) level temp(C)
+        |#       wifi ssid ringer(normal/vibrate/silent) airplane headset bt_audio volume volume_max
+        |# 예: [ "${d}(z2-state charging)" = "true" ] && echo 충전중
     """.trimMargin()
     )
 
@@ -625,6 +708,19 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# distinto de cero y no imprime nada, así que el «o me rindo» se escribe tal cual:
         |#   nombre=${d}(z2-ask "¿Nombre de la rama?") || exit 1
         |# Compáralo con z2-notify -b <etiqueta>, que solo ofrece las opciones que prepares.
+    """,
+        "ko" to """
+        |# z2-ask [-t 초] [-H 힌트] [-d 기본값] <질문>
+        |#   사람에게 묻고, 그 답을 표준 출력으로 내보냅니다.
+        |#   질문은 **응답 칸이 달린 알림**으로 도착하므로, 앱을 열지 않고 알림 창에서 답할 수
+        |#   있습니다 (백그라운드에서 도는 매크로도 물을 수 있습니다).
+        |#   -t <초>    답을 얼마나 기다릴지 (기본값 300 = 5분)
+        |#   -H <힌트>  응답 칸에 보여 줄 안내
+        |#   -d <텍스트> 미리 넣어 둘 답 (알림에 나옵니다)
+        |# 답하지 않고 알림을 지우거나 시간이 다 되면 0이 아닌 코드로 끝나고 아무것도 출력하지
+        |# 않으므로, 「아니면 포기」를 그대로 쓸 수 있습니다:
+        |#   name=${d}(z2-ask "브랜치 이름은?") || exit 1
+        |# 미리 준비한 선택지만 내놓는 z2-notify -b <라벨>과 견줘 보세요.
     """.trimMargin()
     )
 
@@ -634,7 +730,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "usage: z2-ask [-t 秒] [-H ヒント] [-d 既定] <質問>",
             "zh-CN" to "usage: z2-ask [-t 秒] [-H 提示] [-d 默认值] <问题>",
             "zh-TW" to "usage: z2-ask [-t 秒] [-H 提示] [-d 預設值] <問題>",
-            "es" to "uso: z2-ask [-t seg] [-H pista] [-d predeterminada] <pregunta>"
+            "es" to "uso: z2-ask [-t seg] [-H pista] [-d predeterminada] <pregunta>",
+            "ko" to "사용법: z2-ask [-t 초] [-H 힌트] [-d 기본값] <질문>"
         )
 
     // --- z2-screen ---
@@ -701,6 +798,18 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# la aplicación o se reinicie el dispositivo). Como mucho 24 h de una vez.
         |# Hace falta «modificar los ajustes del sistema» (Ajustes > apagado de pantalla > permitir).
         |# p. ej. z2-screen keepon 1h; make; z2-screen keepon off
+    """,
+        "ko" to """
+        |# z2-screen keepon <N|Ns|Nm|Nh> … 그동안 화면이 저절로 꺼지지 않게 합니다
+        |# z2-screen keepon off         … 기한을 기다리지 않고 지금 되돌립니다
+        |# z2-screen status             … 지금 상태를 JSON으로
+        |#   (allowed / keepon / timeout_ms / until / remaining_sec / original_ms)
+        |# 이것은 시스템 전체의 화면 꺼짐 설정을 바꾸므로, 앱이 백그라운드에 있어도 유지됩니다.
+        |# 앱이 화면에 있는 동안에만 도는 툴바의 🔅와는 다르며, 그쪽은 건드리지 않습니다.
+        |# 원래 값은 저장해 두었다가 기한이 되면 반드시 되돌려 씁니다 (앱이 죽거나 기기를 다시
+        |# 켜도 마찬가지입니다). 한 번에 최대 24시간입니다.
+        |# 「시스템 설정 수정」 권한이 필요합니다 (설정 > 화면 꺼짐 시간 > 허용).
+        |# 예: z2-screen keepon 1h; make; z2-screen keepon off
     """.trimMargin()
     )
 
@@ -710,7 +819,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "usage: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status",
             "zh-CN" to "usage: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status",
             "zh-TW" to "usage: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status",
-            "es" to "uso: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status"
+            "es" to "uso: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status",
+            "ko" to "사용법: z2-screen keepon <N|Ns|Nm|Nh> | keepon off | status"
         )
 
     // --- z2-tile ---
@@ -985,6 +1095,58 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#        z2-tile set 2 'z2-screen keepon 1h' -l "sin apagar"
         |#        z2-tile set 3 z2-torch on --off z2-torch off -l linterna
         |#        z2-tile set 4 backup.sh -l copia -i sync
+    """,
+        "ko" to """
+        |# z2-tile set <1-$tiles> <macro.sh | 명령...> [--off <명령...>] [-l <라벨>] [-i <그림>]
+        |#                           … 빠른 설정의 1-${tiles}번 타일에 무언가를 올립니다
+        |# z2-tile add <1-$tiles>         … 그 자리를 패널에 놓아 달라고 요청합니다 (Android 13 이상)
+        |# z2-tile list              … ${tiles}개 자리를 TSV로 (자리 / 라벨 / 명령. '-' = 빈 자리)
+        |# z2-tile clear <1-$tiles|all>   … 자리를 비웁니다
+        |#
+        |# 무엇을 배정하나
+        |#   ~/.z2term/macros/에 있는 **매크로의 파일 이름**이거나, 그대로 실행되는 **명령**입니다.
+        |#   둘 중 어느 쪽인지는 이름으로 가려냅니다.
+        |#   매크로에는 인수를 붙일 수 있습니다('remind.sh ask'). 첫 낱말로 매크로인지 정하고
+        |#   나머지는 그대로 넘깁니다. 같은 매크로를 두 자리에 두면 라벨이 같아지므로 -l을 주세요.
+        |#   명령은 환경에 Z2_TILE=<자리>(매크로면 Z2_TILE_MACRO도)를 넣고 실행합니다.
+        |#   ⚠ ~/.z2term/macros/에 없는데 .sh로 끝나는 이름은 여기서 거절합니다: 명령으로 보면
+        |#     PATH에서 찾게 되는데(PATH에 매크로 폴더는 없습니다) 타일이 아무 일도 하지 않고
+        |#     tile/run.log에만 그 사실이 남기 때문입니다.
+        |#
+        |# 한 번 누르면
+        |#   한 번 누르면 실행하고 다시 누르면 멈춥니다 (위젯 버튼과 같은 대접입니다).
+        |#   도는 동안 타일이 「켜짐」으로 보입니다 (색은 시스템의 것이지 우리 것이 아닙니다).
+        |#   --off를 주면 **명령이 두 개**가 되어, 누를 때마다 번갈아 실행하고 켜져 있는 동안
+        |#   타일도 켜진 모습으로 남습니다. 끄는 것이 따로 명령일 때 쓰세요 (z2-torch on / off).
+        |#   ⚠ 그 켜짐/꺼짐은 앱이 기억하는 것일 뿐입니다: 터미널에서 z2-torch off를 실행하면
+        |#     타일은 「켜짐」인 채로 남습니다. (z2-screen keepon만 예외로, 앱이 진짜 상태를
+        |#     들고 있어서 타일이 터미널을 따라갑니다.)
+        |#
+        |# 패널에 놓기
+        |#   Android 13 이상에서는 `set`이 그 자리에서 타일을 패널에 놓을지 묻고, 그 대화상자에는
+        |#   **방금 배정한 이름과 아이콘**이 나옵니다. 아니라고 하면 아무것도 놓이지 않습니다.
+        |#   자리는 정확히 ${tiles}개입니다: 개수는 매니페스트에 박혀 있어 도중에 늘릴 수 없습니다.
+        |#   배정하지 않은 자리는 편집 화면에 아예 나오지 않으므로, ${tiles}개를 두어도 손해가
+        |#   없습니다.
+        |#   ⚠ z2term이 앞에 있을 때만 뜨고, 한 번에 하나씩만 물을 수 있습니다: 두 자리를 잇달아
+        |#     배정하는 매크로는 첫 번째만 묻습니다. 나머지는 나중에 z2-tile add <자리>로 하세요.
+        |#   ⚠ 타일을 놓는 것은 여전히 사람의 몫입니다: Android는 앱이 스스로 놓는 것을 허용하지
+        |#     않습니다. 빠른 설정 패널의 연필(편집) 화면에서 **z2term <자리>**를 찾으세요.
+        |#   ⚠ 그 목록에는 배정한 이름과 아이콘이 아니라 매니페스트의 것이 나오므로(Android가
+        |#     도중에 바꿀 방법을 주지 않습니다), 어느 번호가 무엇인지는 z2-tile list로 보세요.
+        |#
+        |# 그림 (-i)
+        |#   이름으로 짐작이 갈 때만 자리에 어울리는 아이콘이 붙고(remind.sh -> 시계), z2-icon으로
+        |#   원하는 것으로 바꿀 수 있습니다. 한 번 바꾸면 그 뒤로는 건드리지 않습니다.
+        |#   -i는 그 대화상자가 뜨기 **전에** 그림을 정해 두므로, 한 줄로 이름과 아이콘을 함께
+        |#   정할 수 있습니다 (넘길 수 있는 이름은 z2-icon sample이 알려 줍니다).
+        |#   ⚠ 모르는 이름은 **아무것도 배정하기 전에** 거절합니다: 배정은 되었는데 그림이 틀린
+        |#     자리는 아예 배정되지 않은 자리보다 알아차리기 어렵기 때문입니다.
+        |#
+        |# 예: z2-tile set 1 backup.sh
+        |#        z2-tile set 2 'z2-screen keepon 1h' -l "꺼지지 않게"
+        |#        z2-tile set 3 z2-torch on --off z2-torch off -l 손전등
+        |#        z2-tile set 4 backup.sh -l 백업 -i sync
     """.trimMargin()
     )
 
@@ -998,7 +1160,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
                 "[-i 图案名] | add <1-$tiles> | list | clear <1-$tiles|all>",
             "zh-TW" to "usage: z2-tile set <1-$tiles> <巨集.sh|指令...> [--off <指令...>] [-l 顯示名] " +
                 "[-i 圖案名] | add <1-$tiles> | list | clear <1-$tiles|all>",
-            "es" to "uso: z2-tile set <1-$tiles> <macro.sh|comando...> [--off <comando...>] [-l rótulo] " +
+            "es" to "uso: z2-tile set <1-$tiles> <macro.sh|comando...> [--off <comando...>] [-l rótulo] ",
+            "ko" to "사용법: z2-tile set <1-$tiles> <macro.sh|명령...> [--off <명령...>] [-l 라벨] " +
                 "[-i dibujo] | add <1-$tiles> | list | clear <1-$tiles|all>"
         )
 
@@ -1014,7 +1177,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "z2-tile: その絵はありません: $name (一覧は z2-icon sample)。割り当ては行いませんでした。",
             "zh-CN" to "z2-tile: 没有这个图案: $name (列表见 z2-icon sample)。没有进行分配。",
             "zh-TW" to "z2-tile: 沒有這個圖案: $name (列表見 z2-icon sample)。沒有進行分配。",
-            "es" to "z2-tile: no existe ese dibujo: $name (los lista z2-icon sample). No se asignó nada."
+            "es" to "z2-tile: no existe ese dibujo: $name (los lista z2-icon sample). No se asignó nada.",
+            "ko" to "z2-tile: 그런 그림이 없습니다: $name (z2-icon sample이 목록을 보여 줍니다). 아무것도 배정하지 않았습니다."
         )
 
     /** `z2-tile add <枠>` で、割り当ての無い枠を指したとき。 */
@@ -1024,7 +1188,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "z2-tile: 枠 $n はまだ空です (先に z2-tile set $n <…> で割り当ててください)",
             "zh-CN" to "z2-tile: 位 $n 还是空的 (请先用 z2-tile set $n <…> 分配)",
             "zh-TW" to "z2-tile: 位 $n 還是空的 (請先用 z2-tile set $n <…> 分配)",
-            "es" to "z2-tile: el hueco $n todavía está vacío (asígnalo antes: z2-tile set $n <...>)"
+            "es" to "z2-tile: el hueco $n todavía está vacío (asígnalo antes: z2-tile set $n <...>)",
+            "ko" to "z2-tile: ${n}번 자리는 아직 비어 있습니다 (먼저 배정하세요: z2-tile set $n <...>)"
         )
 
     /**
@@ -1042,7 +1207,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
                 "分配已经完成，请从快捷设置面板的铅笔(编辑)里摆上去。",
             "zh-TW" to "z2-tile: 這裡沒法請求新增 (需要 Android 13 以上，並且 z2term 在前景)。" +
                 "分配已經完成，請從快速設定面板的鉛筆(編輯)裡擺上去。",
-            "es" to "z2-tile: aquí no se puede pedir que se añada el mosaico (hace falta Android 13 y z2term delante). " +
+            "es" to "z2-tile: aquí no se puede pedir que se añada el mosaico (hace falta Android 13 y z2term delante). ",
+            "ko" to "z2-tile: 여기서는 타일 추가를 요청할 수 없습니다 (Android 13과 z2term이 앞에 있어야 합니다). " +
                 "El hueco queda asignado: colócalo desde la pantalla del lápiz (editar) del panel de ajustes rápidos."
         )
 
@@ -1057,7 +1223,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
                 "(如果什么都没出现，请从编辑界面摆上去)",
             "zh-TW" to "已經在問 Android 是否新增圖塊，請在彈出的對話方塊裡回答。" +
                 "(如果什麼都沒出現，請從編輯介面擺上去)",
-            "es" to "se le ha preguntado a Android si añadir el mosaico: responde al diálogo. " +
+            "es" to "se le ha preguntado a Android si añadir el mosaico: responde al diálogo. ",
+            "ko" to "타일을 추가할지 Android에 물었습니다 — 대화상자에 답하세요. " +
                 "(¿No ha salido nada? Colócalo desde la pantalla de edición.)"
         )
 
@@ -1397,6 +1564,70 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#        z2-icon scale 1 48          lleva el hueco 1 a 48x48 para dibujarlo más fino
         |#        z2-icon list -p             comprueba qué hay en cada sitio, con dibujos incluidos
         |#        z2-icon clear notify        devuelve el icono de las notificaciones a su sitio
+    """,
+        "ko" to """
+        |# 상태 표시줄과 타일의 아이콘을 직접 그린 픽셀 그림으로 바꿉니다.
+        |#
+        |# 여기서 시작하세요
+        |#   z2-icon pick 1     ... 목록에서 그림을 골라 1번 자리에 넣습니다
+        |#   z2-icon list       ... 지금 각 자리에 무엇이 있는지 ('-p'를 붙이면 그림도 보여 줍니다)
+        |#
+        |# <대상>이 뜻하는 것
+        |#   notify    이 앱의 모든 알림에 쓰는 아이콘 (상태 표시줄의 것)
+        |#   1-$tiles      빠른 설정의 자리 하나: z2-tile이 쓰는 번호와 같습니다
+        |#
+        |# 그림 넣기
+        |#   pick <대상>             목록을 보여 주고 번호로 고르게 합니다 (가장 쉽습니다)
+        |#   sample <대상> <이름>    이름을 이미 알 때
+        |#   edit <대상>             ${d}EDITOR에서 직접 그리거나 지금 것을 고칩니다
+        |#   set <대상> <파일>       파일에서 읽습니다 ('-'는 표준 입력)
+        |#   auto <1-$tiles|all>     타일이 실행하는 것에서 다시 고르게 합니다
+        |#   clear <대상|all>        기본 아이콘으로 되돌립니다
+        |#
+        |# 격자를 얼마나 곱게
+        |#   grid                    새 그림을 만들 때 쓰는 크기
+        |#   grid <$grids>           정해 둡니다 (바꾸기 전까지는 $grid)
+        |#   scale <대상> <$grids>   <대상>에 있는 그림을 그 격자에 다시 폅니다 (사선의 계단도
+        |                            함께 다듬습니다). **더 곱게 그릴 자리를 줍니다**: 나오는
+        |                            아이콘은 어차피 부드러워지므로 그것 때문에 쓸 필요는 없습니다.
+        |#
+        |# 그린 것을 목록에 남기기
+        |#   save <대상> <이름>      <대상>에 있는 것에 이름을 붙여 목록에 더합니다
+        |#   sample                  고를 수 있는 목록 (번호 / 이름 / 'builtin' = 기본,
+        |                            'mine' = 직접 저장한 것)
+        |#   sample <이름>           그 그림을 보여 줍니다
+        |#   forget <이름>           직접 만든 것을 목록에서 뺍니다 (이미 어딘가에 넣은
+        |                            것은 그대로 남습니다)
+        |#
+        |# 어떻게 그리나
+        |#   문자로 된 격자입니다. '.' ' ' '0' '-' '_'는 점을 비우고 그 밖의 문자는 채우므로, 눈에
+        |#   잘 들어오는 것을 쓰세요. 그림 둘레의 빈 곳은 무시하고 저절로 가운데로 맞추므로,
+        |#   줄마다 딱 맞게 채울 필요는 없습니다.
+        |#   격자는 ${grids}입니다 ('z2-icon grid').
+        |#   ⚠ 격자가 크다고 아이콘이 커지지는 않습니다. 격자를 채우지 않으면 대신하는 아이콘보다
+        |#     작게 나옵니다.
+        |#
+        |# 알아 두면 좋은 것
+        |#   ⚠ 넘어가는 것은 모양뿐입니다. Android가 이 아이콘을 자기 색으로 칠하므로(타일은 켜짐과
+        |#     꺼짐에서 색이 달라집니다) 고를 색이 없습니다.
+        |#   ⚠ **테두리는 나올 때 부드러워집니다.** $grid 점으로 그린 그림도 타일에서는(상태
+        |#     표시줄보다 훨씬 크게 그려집니다) 그대로 부드럽게 나오므로, 격자는 평소에 걱정할
+        |#     것이 아닙니다. 48 / 64는 **직접** 더 곱게 그리고 싶을 때 씁니다. 'show'는 그린
+        |#     그대로 찍고, 타일에는 더 부드럽게 나옵니다.
+        |#   ⚠ 타일에 그림이 붙는 것은 이름으로 짐작이 갈 때뿐입니다('z2-tile set 1 remind.sh'는
+        |#     거기에 시계를 놓습니다). 여기서 넣은 것이 우선이고 그 뒤로는 건드리지 않습니다:
+        |#     'z2-icon auto 1'로 그 자리를 다시 자동 선택으로 되돌립니다.
+        |#   ⚠ 바꿀 수 없는 아이콘이 둘 있습니다: 빠른 설정의 **편집** 화면(타일을 끌어오는 곳)의
+        |#     것과 런처의 것입니다. Android가 설치할 때 정해 버립니다.
+        |#
+        |# 예: z2-icon pick 1              1번 자리의 그림을 고릅니다
+        |#        z2-icon edit 1              직접 다시 그립니다
+        |#        z2-icon save 1 내-얼굴      그 그림에 이름을 붙여 목록에 더합니다
+        |#        z2-icon sample 3 내-얼굴    같은 그림을 3번 자리에 넣습니다
+        |#        z2-icon grid 64             새 그림을 64x64 격자로 그립니다
+        |#        z2-icon scale 1 48          1번 자리를 48x48로 옮겨 더 곱게 그립니다
+        |#        z2-icon list -p             어디에 무엇이 있는지 그림까지 확인합니다
+        |#        z2-icon clear notify        알림 아이콘을 제자리로 되돌립니다
     """.trimMargin()
     )
 
@@ -1422,7 +1653,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
                 "save <notify|1-$tiles> <名字> | forget <名字> | " +
                 "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | " +
                 "grid [$grids] | scale <notify|1-$tiles> <$grids> | list [-p]",
-            "es" to "uso: z2-icon pick <notify|1-$tiles> | sample [nombre|destino nombre] | " +
+            "es" to "uso: z2-icon pick <notify|1-$tiles> | sample [nombre|destino nombre] | ",
+            "ko" to "사용법: z2-icon pick <notify|1-$tiles> | sample [이름|대상 이름] | " +
                 "edit <notify|1-$tiles> | set <notify|1-$tiles> [archivo|-] | " +
                 "save <notify|1-$tiles> <nombre> | forget <nombre> | " +
                 "show <notify|1-$tiles> | auto <1-$tiles|all> | clear <notify|1-$tiles|all> | " +
@@ -1431,19 +1663,23 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
 
     /** `z2-icon set` にファイルを指定したが無かったときの文言 (後ろにファイル名が付く)。 */
     val iconNoSuchFile: String =
-        t(en = "no such file:", ja = "そのファイルはありません:", "zh-CN" to "没有这个文件:", "zh-TW" to "沒有這個檔案:", "es" to "no existe ese archivo:")
+        t(en = "no such file:", ja = "そのファイルはありません:", "zh-CN" to "没有这个文件:", "zh-TW" to "沒有這個檔案:", "es" to "no existe ese archivo:",
+        "ko" to "그런 파일이 없습니다:")
 
     /** `z2-icon edit` で何も変えずに終わったときの文言。 */
     val iconEditUnchanged: String =
-        t(en = "unchanged.", ja = "変更なしで終了しました。", "zh-CN" to "没有改动就结束了。", "zh-TW" to "沒有改動就結束了。", "es" to "sin cambios.")
+        t(en = "unchanged.", ja = "変更なしで終了しました。", "zh-CN" to "没有改动就结束了。", "zh-TW" to "沒有改動就結束了。", "es" to "sin cambios.",
+        "ko" to "달라진 것이 없습니다.")
 
     /** `z2-icon pick` が番号を尋ねるときの文言 (行末で入力を待つので改行を入れない)。 */
     val iconPickPrompt: String =
-        t(en = "number (or name), blank to cancel: ", ja = "番号 (または名前) を入力 (空欄で中止): ", "zh-CN" to "请输入编号 (或名字)，留空则中止: ", "zh-TW" to "請輸入編號 (或名字)，留空則中止: ", "es" to "número (o nombre), en blanco para cancelar: ")
+        t(en = "number (or name), blank to cancel: ", ja = "番号 (または名前) を入力 (空欄で中止): ", "zh-CN" to "请输入编号 (或名字)，留空则中止: ", "zh-TW" to "請輸入編號 (或名字)，留空則中止: ", "es" to "número (o nombre), en blanco para cancelar: ",
+        "ko" to "번호 (또는 이름), 비우면 취소: ")
 
     /** `z2-icon pick` を空欄で抜けたときの文言。 */
     val iconPickCancelled: String =
-        t(en = "cancelled.", ja = "中止しました。", "zh-CN" to "已中止。", "zh-TW" to "已中止。", "es" to "cancelado.")
+        t(en = "cancelled.", ja = "中止しました。", "zh-CN" to "已中止。", "zh-TW" to "已中止。", "es" to "cancelado.",
+        "ko" to "취소했습니다.")
 
     /** `z2-icon edit` で開くエディタが見つからないときの文言。 */
     val iconNoEditor: String =
@@ -1452,7 +1688,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "エディタが見つかりません。${d}EDITOR を設定するか z2-icon set <対象> <ファイル> をお使いください",
             "zh-CN" to "找不到编辑器。请设置 ${d}EDITOR，或者用 z2-icon set <目标> <文件>",
             "zh-TW" to "找不到編輯器。請設定 ${d}EDITOR，或者用 z2-icon set <目標> <檔案>",
-            "es" to "no se encontró ningún editor. Define ${d}EDITOR o usa: z2-icon set <destino> <archivo>"
+            "es" to "no se encontró ningún editor. Define ${d}EDITOR o usa: z2-icon set <destino> <archivo>",
+            "ko" to "편집기를 찾지 못했습니다. ${d}EDITOR를 정하거나 이렇게 쓰세요: z2-icon set <대상> <파일>"
         )
 
     /** 置き場に無いマクロ名を弾くときの文言 (後ろに名前が付く)。 */
@@ -1462,7 +1699,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "そのマクロは ~/.z2term/macros/ にありません (コマンドとして走らせるならフルパスで):",
             "zh-CN" to "~/.z2term/macros/ 里没有这个宏 (要当成命令运行请写完整路径):",
             "zh-TW" to "~/.z2term/macros/ 裡沒有這個巨集 (要當成指令執行請寫完整路徑):",
-            "es" to "esa macro no está en ~/.z2term/macros/ (usa una ruta completa para ejecutarla como comando):"
+            "es" to "esa macro no está en ~/.z2term/macros/ (usa una ruta completa para ejecutarla como comando):",
+            "ko" to "~/.z2term/macros/에 그런 매크로가 없습니다 (명령으로 실행하려면 전체 경로를 쓰세요):"
         )
 
     // --- z2-noti ---
@@ -1507,11 +1745,20 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# eso pulsaría también los botones de pagar y enviar de otras aplicaciones.
         |# Hace falta el acceso a las notificaciones (Ajustes > servidores permanentes y automatización).
         |# Ver también: z2-when notify:otp / notify:pkg=<parte> / notify:contains=<parte>
+    """,
+        "ko" to """
+        |# z2-noti list  … 지금 화면에 있는 알림을 TSV로
+        |#                 (key / 패키지 / 앱 이름 / 제목 / 본문)
+        |# 읽기만 합니다. 알림을 누르거나 지우는 방법은 일부러 두지 않았습니다:
+        |# 그것은 다른 앱의 결제・전송 버튼까지 누르게 되기 때문입니다.
+        |# 알림 접근 권한이 필요합니다 (설정 > 상주 서버・자동화).
+        |# 함께 보기: z2-when notify:otp / notify:pkg=<일부> / notify:contains=<일부>
     """.trimMargin()
     )
 
     val notiUsage: String =
-        t(en = "usage: z2-noti list", ja = "usage: z2-noti list", "zh-CN" to "usage: z2-noti list", "zh-TW" to "usage: z2-noti list", "es" to "uso: z2-noti list")
+        t(en = "usage: z2-noti list", ja = "usage: z2-noti list", "zh-CN" to "usage: z2-noti list", "zh-TW" to "usage: z2-noti list", "es" to "uso: z2-noti list",
+        "ko" to "사용법: z2-noti list")
 
     // --- z2-alarm ---
 
@@ -1573,11 +1820,24 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# "exact":false significa que Doze solo ofrece un hueco cada 9-15 min, así que un teléfono
         |# con la pantalla apagada puede llegar con ese retraso. Lo que lo pone en true es quitarle a
         |# esta aplicación la optimización de batería (no se pide ningún permiso más).
+    """,
+        "ko" to """
+        |# z2-alarm at HH:MM [이름]    … 한 번만, 다음 HH:MM에 (이미 지났으면 내일)
+        |# z2-alarm daily HH:MM [이름] … 날마다 HH:MM에
+        |# z2-alarm in <N|Ns|Nm|Nh> [이름] … 한 번만, N초/분/시간 뒤에
+        |# z2-alarm list               … 예약된 것 (JSON. "exact"가 얼마나 정확한지 알려 줍니다)
+        |# z2-alarm cancel <id|이름|all> … 취소
+        |# 울리면 ~/.z2term/events.jsonl에 {"event":"alarm","name":…} 한 줄이 늘어납니다.
+        |# Doze 중에도 기기를 깨웁니다. "exact":true는 분 단위로 정확히 울린다는 뜻이고,
+        |# "exact":false는 Doze가 9~15분에 한 번만 틈을 준다는 뜻이라, 화면이 꺼진 휴대전화에서는
+        |# 그만큼 늦게 올 수 있습니다. true로 만드는 것은 이 앱을 배터리 최적화에서 빼는 것입니다
+        |# (다른 권한은 요구하지 않습니다).
     """.trimMargin()
     )
 
     val alarmNoDate: String =
-        t(en = "z2-alarm: no usable date command", ja = "z2-alarm: date が使えません", "zh-CN" to "z2-alarm: date 用不了", "zh-TW" to "z2-alarm: date 用不了", "es" to "z2-alarm: no hay ningún comando date utilizable")
+        t(en = "z2-alarm: no usable date command", ja = "z2-alarm: date が使えません", "zh-CN" to "z2-alarm: date 用不了", "zh-TW" to "z2-alarm: date 用不了", "es" to "z2-alarm: no hay ningún comando date utilizable",
+        "ko" to "z2-alarm: 쓸 수 있는 date 명령이 없습니다")
 
     // --- z2-session ---
 
@@ -1691,6 +1951,28 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#
         |# <pest> puede ser el índice de list, un id o el nombre de una pestaña. '.' u omitido = la que está en pantalla.
         |# p. ej. n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
+    """,
+        "ko" to """
+        |# z2-session list                    … 탭을 나열합니다 (색인 / id / 종류 / 표시 / 이름, TSV)
+        |#   표시: * = 화면에 있음 / ! = 일하는 중 / ? = 시작 안 됨 / @ = 셸에서 접속 중 / - = 그 밖
+        |# z2-session new [이름]              … 터미널 탭을 엽니다 (색인과 id를 돌려줍니다)
+        |# z2-session send <탭> <텍스트>...   … 그 탭에 텍스트를 씁니다 (실행하지는 않습니다)
+        |# z2-session send <탭> <텍스트> --enter … 쓰고 실행까지 합니다
+        |# z2-session key <탭> <키>...        … 그 탭에 **키**를 보냅니다 (C-c / M-x / F5 / Up …)
+        |#   수식 키: C- (Ctrl)와 M- (Meta=Alt). C-M-a처럼 이어 쓸 수 있습니다
+        |#   특수 키: Up Down Left Right Home End PgUp PgDn Ins Del Tab S-Tab Enter Esc Space BS F1-F12
+        |#   C-S-a처럼 Shift가 붙은 키는 거절합니다 (터미널은 Shift를 구별하지 못해 C-a와 같은 바이트입니다)
+        |# z2-session key <탭> --raw '\x1b[A' … 그 밖의 것은 바이트로 (\xHH \e \n \r \t \0)
+        |# z2-session capture [탭] [--all]    … 그 탭의 화면을 뜹니다 (--all은 기록까지)
+        |# z2-session attach <탭>             … 그 탭에 붙어서 그대로 입력합니다
+        |#   나오려면 Ctrl+] (언제든) 또는 줄 첫머리에서 ~. (ssh와 같습니다)
+        |#   ⚠ SSH 너머에서는 Ctrl+]만 듣습니다: 앞에 있는 ssh가 ~.을 먹고 SSH 세션을 끊습니다
+        |#   줄 첫머리의 ~를 그대로 넣으려면 ~~, Ctrl+]을 그대로 보내려면 ~에 이어 Ctrl+]
+        |#   붙어 있는 동안 탭은 내 창 크기를 따르고, 나오면 원래 크기로 돌아갑니다
+        |# z2-session close <탭>              … 그 탭을 닫습니다 (마지막 하나는 닫지 않습니다)
+        |#
+        |# <탭>은 list의 색인, id, 탭 이름 중 아무거나 됩니다. '.'이나 생략은 화면에 있는 탭입니다.
+        |# 예: n=${d}(z2-session new build | cut -f1); z2-session send "${d}n" 'make -j2' --enter
     """.trimMargin()
     )
 
@@ -1708,7 +1990,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             "zh-TW" to "usage: z2-session list | new [名稱] | send <目標> <文字>... [--enter] | " +
                 "key <目標> <鍵>... | key <目標> --raw <位元組序列> | capture [目標] [--all] | " +
                 "attach <目標> | close <目標>",
-            "es" to "uso: z2-session list | new [nombre] | send <pest> <texto>... [--enter] | " +
+            "es" to "uso: z2-session list | new [nombre] | send <pest> <texto>... [--enter] | ",
+            "ko" to "사용법: z2-session list | new [이름] | send <탭> <텍스트>... [--enter] | " +
                 "key <pest> <tecla>... | key <pest> --raw <bytes> | capture [pest] [--all] | " +
                 "attach <pest> | close <pest>"
         )
@@ -1717,7 +2000,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
 
     /** 送るキーが 1 つも無い。 */
     val keyNothing: String =
-        t(en = "z2-session key: no key given", ja = "z2-session key: 送るキーがありません", "zh-CN" to "z2-session key: 没有给出要送的键", "zh-TW" to "z2-session key: 沒有給出要送的鍵", "es" to "z2-session key: no se indicó ninguna tecla")
+        t(en = "z2-session key: no key given", ja = "z2-session key: 送るキーがありません", "zh-CN" to "z2-session key: 没有给出要送的键", "zh-TW" to "z2-session key: 沒有給出要送的鍵", "es" to "z2-session key: no se indicó ninguna tecla",
+        "ko" to "z2-session key: 키를 지정하지 않았습니다")
 
     /** `--raw` の後ろが空。 */
     val keyRawEmpty: String =
@@ -1726,7 +2010,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "z2-session key: --raw の後ろにバイト列がありません",
             "zh-CN" to "z2-session key: --raw 后面没有字节序列",
             "zh-TW" to "z2-session key: --raw 後面沒有位元組序列",
-            "es" to "z2-session key: después de --raw faltan los bytes que enviar"
+            "es" to "z2-session key: después de --raw faltan los bytes que enviar",
+            "ko" to "z2-session key: --raw 뒤에 보낼 바이트가 없습니다"
         )
 
     /** 表に無いキー名。⚠ **どこを見れば分かるか**まで書く。 */
@@ -1735,7 +2020,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "z2-session key: そんなキー名はありません ('z2-session -h' に一覧):",
         "zh-CN" to "z2-session key: 没有这个键名 (一览见 'z2-session -h'):",
         "zh-TW" to "z2-session key: 沒有這個鍵名 (一覽見 'z2-session -h'):",
-        "es" to "z2-session key: no existe esa tecla (la lista está en 'z2-session -h'):"
+        "es" to "z2-session key: no existe esa tecla (la lista está en 'z2-session -h'):",
+        "ko" to "z2-session key: 그런 키가 없습니다 (목록은 \'z2-session -h\'에 있습니다):"
     )
 
     /** `\\xHH` として読めなかった。 */
@@ -1745,7 +2031,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "z2-session key: 読めないエスケープ:",
             "zh-CN" to "z2-session key: 读不懂的转义:",
             "zh-TW" to "z2-session key: 讀不懂的轉義:",
-            "es" to "z2-session key: no se puede leer el escape:"
+            "es" to "z2-session key: no se puede leer el escape:",
+            "ko" to "z2-session key: 이스케이프를 읽을 수 없습니다:"
         )
 
     /**
@@ -1763,7 +2050,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
                 "如果这正是你想要的，请写成 '$equivalentTo'。",
         "zh-TW" to "z2-session key: 終端機分辨不出 Shift，所以 '$asWritten' 和 '$equivalentTo' 會是完全一樣的位元組。" +
                 "如果這正是你想要的，請寫成 '$equivalentTo'。",
-        "es" to "z2-session key: la terminal no distingue Shift, así que '$asWritten' daría exactamente " +
+        "es" to "z2-session key: la terminal no distingue Shift, así que '$asWritten' daría exactamente ",
+        "ko" to "z2-session key: 터미널은 Shift를 구별하지 못하므로 '$asWritten'은 결국 " +
             "los mismos bytes que '$equivalentTo'. Escribe '$equivalentTo' si es lo que querías."
     )
 
@@ -1778,7 +2066,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "そんなタブはありません: '$target' ('z2-session list' で一覧が出ます)",
         "zh-CN" to "没有这个标签页: '$target' (用 'z2-session list' 可以看到一览)",
         "zh-TW" to "沒有這個分頁: '$target' (用 'z2-session list' 可以看到一覽)",
-        "es" to "no existe esa pestaña: '$target' (ejecuta 'z2-session list' para verlas)"
+        "es" to "no existe esa pestaña: '$target' (ejecuta 'z2-session list' para verlas)",
+        "ko" to "그런 탭이 없습니다: '$target' ('z2-session list'로 탭을 볼 수 있습니다)"
     )
 
     /** GUI タブには繋げない (PTY が無い)。 */
@@ -1787,7 +2076,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "それは GUI タブなのでシェルがありません。端末タブを指してください。",
         "zh-CN" to "那是图形标签页，没有 shell。请指定一个终端标签页。",
         "zh-TW" to "那是圖形分頁，沒有 shell。請指定一個終端機分頁。",
-        "es" to "esa es una pestaña gráfica y no tiene shell al que conectarse. Elige una pestaña de terminal."
+        "es" to "esa es una pestaña gráfica y no tiene shell al que conectarse. Elige una pestaña de terminal.",
+        "ko" to "그것은 GUI 탭이라 붙을 셸이 없습니다. 터미널 탭을 고르세요."
     )
 
     /**
@@ -1799,7 +2089,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "そのタブはまだ起動していません (list の印が '?')。アプリで一度開いてから繋いでください。",
         "zh-CN" to "那个标签页还没启动 (list 里的标记是 '?')。请先在应用里打开一次再连接。",
         "zh-TW" to "那個分頁還沒啟動 (list 裡的標記是 '?')。請先在應用程式裡開啟一次再連線。",
-        "es" to "esa pestaña todavía no ha arrancado (marcada '?' en list). Ábrela una vez en la aplicación y conéctate después."
+        "es" to "esa pestaña todavía no ha arrancado (marcada '?' en list). Ábrela una vez en la aplicación y conéctate después.",
+        "ko" to "그 탭은 아직 시작되지 않았습니다 (list에서 '?'로 표시됩니다). 앱에서 한 번 연 뒤에 붙으세요."
     )
 
     /** プロセスが終わっているタブ。 */
@@ -1808,7 +2099,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "そのタブはもう終わっています。画面は 'z2-session capture' で取り出せます。",
         "zh-CN" to "那个标签页已经结束了。画面还可以用 'z2-session capture' 取出来。",
         "zh-TW" to "那個分頁已經結束了。畫面還可以用 'z2-session capture' 取出來。",
-        "es" to "esa pestaña ya ha terminado. Su pantalla todavía se puede leer con 'z2-session capture'."
+        "es" to "esa pestaña ya ha terminado. Su pantalla todavía se puede leer con 'z2-session capture'.",
+        "ko" to "그 탭은 이미 끝났습니다. 화면은 'z2-session capture'로 아직 읽을 수 있습니다."
     )
 
     /**
@@ -1825,7 +2117,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             "自己这边，一直循环停不下来。请指定别的标签页。",
         "zh-TW" to "那就是你正在打字的這個分頁。連到自己身上的話，它自己的輸出會原樣回到" +
             "自己這邊，一直循環停不下來。請指定別的分頁。",
-        "es" to "esa es la pestaña en la que estás escribiendo. Conectarla consigo misma hace que su propia " +
+        "es" to "esa es la pestaña en la que estás escribiendo. Conectarla consigo misma hace que su propia ",
+        "ko" to "그것은 지금 입력하고 있는 탭입니다. 탭을 자기 자신에게 붙이면 자기 출력이 " +
             "salida vuelva como entrada para siempre, y ya no se puede deshacer. Elige otra pestaña."
     )
 
@@ -1842,7 +2135,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             "请先断开其中一边 (Ctrl+])。",
         "zh-TW" to "那個分頁已經連回到這一邊了，兩邊會互相發送、停不下來。" +
             "請先中斷其中一邊 (Ctrl+])。",
-        "es" to "esa pestaña ya está conectada de vuelta a esta, así que las dos se alimentarían la una a la " +
+        "es" to "esa pestaña ya está conectada de vuelta a esta, así que las dos se alimentarían la una a la ",
+        "ko" to "그 탭은 이미 이쪽으로 붙어 있어서, 둘이 서로를 먹여 " +
             "otra sin parar. Desconecta antes una de ellas (Ctrl+])."
     )
 
@@ -1928,6 +2222,22 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# de responder en cuanto se apaga la pantalla. Arrancarlo por aquí lo mete dentro de ese marco.
         |# p. ej. z2-when wifi:connect run 'z2-server start sshd'
         |#        z2-when wifi:disconnect run 'z2-server stop sshd'
+    """,
+        "ko" to """
+        |# z2-server list              … 등록된 서버 (색인 / id / 상태 / 표시 / 이름, TSV)
+        |#   표시: * = 켜짐 / - = 꺼짐
+        |# z2-server start <서버>      … 상주 서버로 띄웁니다 (기기에 계속 닿을 수 있게 합니다)
+        |# z2-server stop <서버>       … 그것만 멈춥니다 (나머지는 계속 돕니다)
+        |# z2-server status [<서버>]   … 상태, pid, 다시 시작한 횟수, 마지막 종료 코드
+        |#
+        |# <서버>는 list의 색인, id, 앱에서 붙인 이름 중 아무거나 됩니다.
+        |# 앱에 등록된 서버만 띄울 수 있으며, 여기서 새로 등록하지는 않습니다.
+        |#
+        |# 왜 있나: 규칙에서 데몬을 바로 띄우면 상주 서버의 틀 바깥에서 돕니다(WakeLock도 WifiLock도
+        |# 포그라운드 서비스도 없이). 그래서 화면이 꺼지는 순간 응답이 끊깁니다. 여기로 띄우면 그
+        |# 틀 안에 들어갑니다.
+        |# 예: z2-when wifi:connect run 'z2-server start sshd'
+        |#        z2-when wifi:disconnect run 'z2-server stop sshd'
     """.trimMargin()
     )
 
@@ -1937,7 +2247,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "usage: z2-server list | start <サーバー> | stop <サーバー> | status [<サーバー>]",
             "zh-CN" to "usage: z2-server list | start <服务器> | stop <服务器> | status [<服务器>]",
             "zh-TW" to "usage: z2-server list | start <伺服器> | stop <伺服器> | status [<伺服器>]",
-            "es" to "uso: z2-server list | start <servidor> | stop <servidor> | status [<servidor>]"
+            "es" to "uso: z2-server list | start <servidor> | stop <servidor> | status [<servidor>]",
+            "ko" to "사용법: z2-server list | start <서버> | stop <서버> | status [<서버>]"
         )
 
     /** 名前 / 番号 / id のどれにも当たらなかった。⚠ 一覧の出し方まで書く (次に何をすればよいか)。 */
@@ -1947,7 +2258,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "z2-server: そのサーバーはありません ('z2-server list' で一覧):",
             "zh-CN" to "z2-server: 没有这个服务器 (一览见 'z2-server list'):",
             "zh-TW" to "z2-server: 沒有這個伺服器 (一覽見 'z2-server list'):",
-            "es" to "z2-server: no existe ese servidor (mira 'z2-server list'):"
+            "es" to "z2-server: no existe ese servidor (mira 'z2-server list'):",
+            "ko" to "z2-server: 그런 서버가 없습니다 ('z2-server list'를 보세요):"
         )
 
     /** 同じ名前が複数あった。⚠ id で指定し直せると分かるように。 */
@@ -1957,7 +2269,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "z2-server: 同じ名前のサーバーが複数あります。'z2-server list' の id で指定してください:",
             "zh-CN" to "z2-server: 有多个同名的服务器。请用 'z2-server list' 里的 id 指定:",
             "zh-TW" to "z2-server: 有多個同名的伺服器。請用 'z2-server list' 裡的 id 指定:",
-            "es" to "z2-server: hay más de un servidor con ese nombre; usa el id de 'z2-server list':"
+            "es" to "z2-server: hay más de un servidor con ese nombre; usa el id de 'z2-server list':",
+            "ko" to "z2-server: 그 이름의 서버가 여럿입니다. 'z2-server list'의 id를 쓰세요:"
         )
 
     /** 1 件も登録が無い。 */
@@ -1967,7 +2280,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "z2-server: サーバーがまだ 1 件も登録されていません (アプリの 📜 → サーバー で登録します)。",
             "zh-CN" to "z2-server: 还没有登记任何服务器 (在应用的 📜 → 服务器 里登记)。",
             "zh-TW" to "z2-server: 還沒有登記任何伺服器 (在應用程式的 📜 → 伺服器 裡登記)。",
-            "es" to "z2-server: todavía no hay ningún servidor registrado (añade uno en la aplicación: 📜 -> Servidores)."
+            "es" to "z2-server: todavía no hay ningún servidor registrado (añade uno en la aplicación: 📜 -> Servidores).",
+            "ko" to "z2-server: 아직 등록된 서버가 없습니다 (앱에서 추가하세요: 📜 -> 서버)."
         )
 
     /**
@@ -1984,7 +2298,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             "熄屏期间服务器可能不再响应 (⚙设置 → 自动化 → 后台进程保护)。",
         "zh-TW" to "z2-server: 注意 — 省電模式是開著的，所以不持有 WakeLock/WifiLock。" +
             "螢幕熄滅期間伺服器可能不再回應 (⚙設定 → 自動化 → 背景行程保護)。",
-        "es" to "z2-server: aviso — el modo de bajo consumo está activado, así que no se retiene WakeLock/WifiLock. " +
+        "es" to "z2-server: aviso — el modo de bajo consumo está activado, así que no se retiene WakeLock/WifiLock. ",
+        "ko" to "z2-server: 참고 — 절전 모드가 켜져 있어 WakeLock/WifiLock을 잡지 않습니다. " +
             "El servidor puede dejar de responder con la pantalla apagada " +
             "(Ajustes -> Automatización -> Protección de los procesos en segundo plano)."
     )
@@ -2346,6 +2661,78 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |#        z2-when boot run 'sshd --lan'
         |#        z2-when share:text run '~/.z2term/macros/fetch.sh "${d}Z2_WHEN_SHARE"'
         |#        z2-when time:daily=07:00 name='Informe matinal' run ~/.z2term/macros/report.sh
+    """,
+        "ko" to """
+        |# z2-when <트리거> run <cmd...>        … 규칙을 등록합니다
+        |#   트리거: charge:start | charge:stop  (감지가 켜져 있어야 합니다)
+        |#            battery:below=N | battery:above=N  (감지가 켜져 있어야 합니다)
+        |#            time:daily=HH:MM | time:at=HH:MM | time:every=Nm|Nh
+        |#            time:cron='분 시 일 월 요일'  (요일 0-7 / 0,7=일요일. 공백이 있으니 따옴표로 묶으세요)
+        |#            wifi:connect | wifi:disconnect | wifi:ssid=<이름>  (감지가 켜져 있어야 합니다)
+        |#            net:online | net:offline  … 쓸 수 있는 연결이 생겼다 / 사라졌다
+        |#            net:wifi | net:mobile | net:ethernet  … 지금 쓰는 연결이 그것으로 바뀌었다
+        |#                                        (감지 필요. Wi-Fi뿐 아니라 모바일 데이터도 셉니다)
+        |#            share:any | share:text | share:file | share:contains=<일부> | share:ext=<확장자>
+        |#                                        … 다른 앱이 z2term으로 무언가를 공유했다
+        |#            boot                        … 기기가 다 켜졌다 (감지가 꺼져 있어도 됩니다)
+        |#            sms:any | sms:from=<일부> | sms:contains=<일부> | sms:otp  (RECEIVE_SMS 필요)
+        |#            sensor:shake | sensor:light>N | sensor:light<N | sensor:proximity=near|far  (감지 필요)
+        |#            file:new=<폴더>[,ext=<확장자>]  … 그 폴더에 새 파일이 들어왔다 (감지 필요)
+        |#            notify:any | notify:otp | notify:pkg=<일부> | notify:title=<일부> | notify:contains=<일부>
+        |#                                        … 알림이 왔다 (알림 접근 권한이 필요합니다)
+        |#            event:<이름> | event:<앞부분>* | event:*  … 기기의 어떤 이벤트든 이름으로
+        |#              (z2-when events가 목록을 보여 줍니다. events.jsonl에 나오는 이름과 같습니다)
+        |# 이름 (선택. 트리거 바로 뒤, run 앞에):
+        |#   name=<텍스트>                      … 이 규칙이 무엇을 위한 것인지. 자동화 탭에 나옵니다
+        |                                         (공백이 있으면 따옴표로 묶으세요). 비우면 트리거가 나옵니다.
+        |                                         보이기만 할 뿐, 언제 실행되는지는 달라지지 않습니다.
+        |# 거르기 (어느 트리거에나. 트리거 바로 뒤, run 앞에):
+        |#   if=<조건>[,<조건>...]              … 기기가 그 상태일 때만 (AND. !는 부정)
+        |                                         키는 z2-state가 출력하는 것들입니다: wifi charging screen
+        |                                         locked idle headset bt_audio airplane plug ssid ringer
+        |                                         level temp volume
+        |                                         예: if=wifi,!screen / if=ssid=집 / if=level<30
+        |#   if_any=<조건>[,<조건>...]          … **하나라도** 맞으면 실행합니다 (쉼표가 OR입니다)
+        |                                         if=와 함께 쓰면 「if는 전부, if_any는 하나라도」가 됩니다
+        |#   else=<cmd>                         … if / if_any가 맞지 않을 때 **대신** 이것을 실행합니다
+        |                                         ⚠ 여기에 오는 것은 if / if_any뿐입니다. between / days /
+        |                                         cooldown 때문에 걸러진 실행은 아무것도 실행하지 않습니다:
+        |                                         밤에 꺼 두는 규칙은 else까지 포함해 밤에는 조용해야 합니다.
+        |#   cooldown=30m                       … 그 시간 안에는 되풀이하지 않습니다 (10s / 30m / 2h)
+        |#   between=22:00-07:00                … 그 시간대에만 (자정을 넘겨도 됩니다)
+        |#   days=mon-fri                       … 그 요일에만 (이름이나 cron의 숫자 0-7. 0/7 = 일요일)
+        |# 걸러진 실행도 기록합니다: z2-when fired가 skip:if / skip:if→else / skip:between / skip:days /
+        |# skip:cooldown을 보여 주므로, 한 번도 돌지 않는 규칙의 이유를 댈 수 있습니다.
+        |# 앱의 ▶ 버튼은 거르기를 모두 무시합니다 (규칙을 시험해 보라고 있는 것입니다).
+        |# z2-when events                       … event:에 쓸 수 있는 이름을 나열합니다
+        |# z2-when pause / resume               … 자동 실행을 멈춥니다 / 다시 시작합니다 (규칙은 그대로)
+        |# z2-when fired [n]                    … 최근에 발생한 것 (시각 / id / 트리거 / run|paused)
+        |# z2-when list                         … 등록된 규칙 (id / on|off / 트리거 / -> / cmd, TSV.
+        |                                         이름과 거르기가 있으면 끝에 []로 붙습니다)
+        |# z2-when remove <id|all>  (rm도 됩니다) … 삭제
+        |# z2-when on <id> / off <id>           … 켜기 / 끄기
+        |# z2-when log <id>                     … 그 규칙의 실행 기록 (끝부분)
+        |# 발생하면 명령은 고른 배포판에서 Z2_WHEN_TRIGGER / Z2_WHEN_LEVEL / Z2_WHEN_SSID (wifi) /
+        |# Z2_WHEN_SMS_FROM / Z2_WHEN_SMS_BODY / Z2_WHEN_OTP (sms) / Z2_WHEN_SENSOR / Z2_WHEN_LUX
+        |# (sensor)를 환경에 넣고 실행됩니다.
+        |# net:에서는 Z2_WHEN_NET(지금 연결)과 Z2_WHEN_NET_PREV(그전 연결)를 씁니다.
+        |# share:에서는 Z2_WHEN_SHARE(텍스트, 또는 받아 둔 파일의 경로)와
+        |# Z2_WHEN_SHARE_KIND(text|file)를 씁니다. 공유된 것은 지금까지처럼 입력 줄에도 들어갑니다.
+        |# file:에서는 Z2_WHEN_FILE(전체 경로)과 Z2_WHEN_DIR를 씁니다.
+        |# notify:에서는 Z2_WHEN_NOTI_PKG / _APP / _TITLE / _TEXT / _CATEGORY를 씁니다
+        |# (notify:otp에서는 Z2_WHEN_OTP도). notify:category=는 정확히 일치해야 합니다: call, missed_call, msg, ...
+        |# event:에서는 Z2_WHEN_EVENT(이벤트 이름)가 더 붙고, alarm / notify_action은
+        |# Z2_WHEN_EVENT_NAME(등록할 때 붙인 식별자)과 Z2_WHEN_ACTION(누른 버튼)을 더합니다.
+        |# 같은 규칙은 10초 안에 두 번 발생하지 않습니다 (screen_on 같은 이벤트는 자주 옵니다).
+        |# 예: z2-when charge:start run ~/.z2term/macros/backup.sh
+        |#        z2-when time:cron='0 3 * * *' run ~/.z2term/macros/nightly.sh
+        |#        z2-when event:headset_plugged run ~/.z2term/macros/play.sh
+        |#        z2-when 'event:ringer_*' run 'z2-toast "소리 모드: ${d}Z2_WHEN_EVENT"'
+        |#        z2-when file:new=/sdcard/Pictures/Screenshots run ~/.z2term/macros/shot.sh
+        |#        z2-when net:online cooldown=5m run ~/.z2term/macros/sync.sh
+        |#        z2-when boot run 'sshd --lan'
+        |#        z2-when share:text run '~/.z2term/macros/fetch.sh "${d}Z2_WHEN_SHARE"'
+        |#        z2-when time:daily=07:00 name='아침 보고' run ~/.z2term/macros/report.sh
     """.trimMargin()
     )
 
@@ -2355,14 +2742,17 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "自動実行を一時停止しました (z2-when resume で再開)",
             "zh-CN" to "已暂停自动运行 (用 z2-when resume 恢复)",
             "zh-TW" to "已暫停自動執行 (用 z2-when resume 還原)",
-            "es" to "Ejecuciones automáticas en pausa (z2-when resume para volver a empezar)"
+            "es" to "Ejecuciones automáticas en pausa (z2-when resume para volver a empezar)",
+            "ko" to "자동 실행을 멈췄습니다 (다시 시작하려면 z2-when resume)"
         )
 
     val whenResumed: String =
-        t(en = "Automatic runs resumed", ja = "自動実行を再開しました", "zh-CN" to "已恢复自动运行", "zh-TW" to "已還原自動執行", "es" to "Ejecuciones automáticas reanudadas")
+        t(en = "Automatic runs resumed", ja = "自動実行を再開しました", "zh-CN" to "已恢复自动运行", "zh-TW" to "已還原自動執行", "es" to "Ejecuciones automáticas reanudadas",
+        "ko" to "자동 실행을 다시 시작했습니다")
 
     val whenNoFires: String =
-        t(en = "(nothing has fired yet)", ja = "(まだ発火していません)", "zh-CN" to "(还没有触发过)", "zh-TW" to "(還沒有觸發過)", "es" to "(todavía no se ha disparado nada)")
+        t(en = "(nothing has fired yet)", ja = "(まだ発火していません)", "zh-CN" to "(还没有触发过)", "zh-TW" to "(還沒有觸發過)", "es" to "(todavía no se ha disparado nada)",
+        "ko" to "(아직 아무것도 발생하지 않았습니다)")
 
     val whenPausedNote: String =
         t(
@@ -2370,14 +2760,17 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "# 一時停止中 (z2-when resume で再開)",
             "zh-CN" to "# 已暂停 (用 z2-when resume 恢复)",
             "zh-TW" to "# 已暫停 (用 z2-when resume 還原)",
-            "es" to "# en pausa (z2-when resume para volver a empezar)"
+            "es" to "# en pausa (z2-when resume para volver a empezar)",
+            "ko" to "# 멈춤 (다시 시작하려면 z2-when resume)"
         )
 
     val whenNoLog: String =
-        t(en = "(no log yet)", ja = "(ログはまだありません)", "zh-CN" to "(还没有日志)", "zh-TW" to "(還沒有日誌)", "es" to "(todavía no hay registro)")
+        t(en = "(no log yet)", ja = "(ログはまだありません)", "zh-CN" to "(还没有日志)", "zh-TW" to "(還沒有日誌)", "es" to "(todavía no hay registro)",
+        "ko" to "(아직 로그가 없습니다)")
 
     val whenWriteFailed: String =
-        t(en = "z2-when: could not write the rule", ja = "z2-when: 書き込みに失敗しました", "zh-CN" to "z2-when: 写入失败", "zh-TW" to "z2-when: 寫入失敗", "es" to "z2-when: no se pudo escribir la regla")
+        t(en = "z2-when: could not write the rule", ja = "z2-when: 書き込みに失敗しました", "zh-CN" to "z2-when: 写入失败", "zh-TW" to "z2-when: 寫入失敗", "es" to "z2-when: no se pudo escribir la regla",
+        "ko" to "z2-when: 규칙을 쓰지 못했습니다")
 
     /** `if=` に知らないキーを書いたとき。**キー名は呼び元がこの後ろに足す**。 */
     val whenUnknownIfKey: String =
@@ -2386,7 +2779,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "z2-when: if= に書けない条件です (使えるものは z2-state が出す項目):",
             "zh-CN" to "z2-when: if= 里写不了这个条件 (可用的就是 z2-state 输出的那些项):",
             "zh-TW" to "z2-when: if= 裡寫不了這個條件 (可用的就是 z2-state 輸出的那些項):",
-            "es" to "z2-when: clave de if= desconocida (z2-state lista las que puedes usar):"
+            "es" to "z2-when: clave de if= desconocida (z2-state lista las que puedes usar):",
+            "ko" to "z2-when: 모르는 if= 키입니다 (쓸 수 있는 것은 z2-state가 알려 줍니다):"
         )
 
     /** 知らない種別のトリガー (`:` の手前) を書いたとき。**種別は呼び元がこの後ろに足す**。 */
@@ -2396,7 +2790,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "z2-when: そんなきっかけはありません (一覧は引数なしの z2-when で出ます):",
             "zh-CN" to "z2-when: 没有这个触发条件 (一览请看不带参数的 z2-when):",
             "zh-TW" to "z2-when: 沒有這個觸發條件 (一覽請看不帶參數的 z2-when):",
-            "es" to "z2-when: disparador desconocido (z2-when sin argumentos los lista):"
+            "es" to "z2-when: disparador desconocido (z2-when sin argumentos los lista):",
+            "ko" to "z2-when: 모르는 트리거입니다 (인수 없이 z2-when을 실행하면 목록이 나옵니다):"
         )
 
     /** 種別は合っているが引数の書き方が違うとき。**トリガー全体は呼び元がこの後ろに足す**。 */
@@ -2406,7 +2801,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "z2-when: そのきっかけにその書き方はできません:",
             "zh-CN" to "z2-when: 那个触发条件不能这么写:",
             "zh-TW" to "z2-when: 那個觸發條件不能這麼寫:",
-            "es" to "z2-when: ese disparador no admite este argumento:"
+            "es" to "z2-when: ese disparador no admite este argumento:",
+            "ko" to "z2-when: 그 트리거는 이 인수를 받지 않습니다:"
         )
 
     val whenPausedWarn: String =
@@ -2415,7 +2811,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "注意: 自動実行は一時停止中です (z2-when resume で再開)",
             "zh-CN" to "注意: 自动运行正处于暂停 (用 z2-when resume 恢复)",
             "zh-TW" to "注意: 自動執行正處於暫停 (用 z2-when resume 還原)",
-            "es" to "aviso: las ejecuciones automáticas están en pausa (z2-when resume para volver a empezar)"
+            "es" to "aviso: las ejecuciones automáticas están en pausa (z2-when resume para volver a empezar)",
+            "ko" to "참고: 자동 실행이 멈춰 있습니다 (다시 시작하려면 z2-when resume)"
         )
 
     /**
@@ -2431,7 +2828,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "注意: コマンドの改行を空白に直しました (ルールは 1 行しか読みません)",
             "zh-CN" to "注意: 已把命令里的换行改成空格 (一条规则只读一行)",
             "zh-TW" to "注意: 已把指令裡的換行改成空格 (一條規則只讀一行)",
-            "es" to "aviso: los saltos de línea del comando se convirtieron en espacios (una regla solo lee una línea)"
+            "es" to "aviso: los saltos de línea del comando se convirtieron en espacios (una regla solo lee una línea)",
+            "ko" to "참고: 명령 안의 줄바꿈을 공백으로 바꿨습니다 (규칙은 한 줄만 읽습니다)"
         )
 
     /**
@@ -2588,6 +2986,36 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |notify_action          un botón de una notificación      [siempre]
         |unlock_failed          falló el desbloqueo               [siempre, hay que prepararlo]
         |unlock_succeeded       desbloqueado tras un fallo        [siempre, hay que prepararlo]
+    """,
+        "ko" to """
+        |screen_on              화면이 켜졌다              [감지 필요]
+        |screen_off             화면이 꺼졌다              [감지 필요]
+        |unlocked               기기의 잠금이 풀렸다       [감지 필요]
+        |power_connected        충전이 시작되었다          [감지 필요]
+        |power_disconnected     충전이 멈췄다              [감지 필요]
+        |battery_low            배터리가 부족해졌다        [감지 필요]
+        |battery_okay           배터리가 회복되었다        [감지 필요]
+        |battery_level          잔량이 10% 단위를 넘었다   [감지 필요]
+        |wifi_connected         Wi-Fi에 연결되었다         [감지 필요]
+        |wifi_disconnected      Wi-Fi에서 떨어졌다         [감지 필요]
+        |net_online             쓸 수 있는 연결이 생겼다   [감지 필요]
+        |net_offline            쓸 수 있는 연결이 없다     [감지 필요]
+        |net_wifi               지금 쓰는 연결이 Wi-Fi다   [감지 필요]
+        |net_mobile             지금 쓰는 연결이 모바일이다 [감지 필요]
+        |headset_plugged        유선 이어폰을 꽂았다       [감지 필요]
+        |headset_unplugged      유선 이어폰을 뽑았다       [감지 필요]
+        |bt_audio_connected     블루투스 오디오가 연결되었다 [감지 필요]
+        |bt_audio_disconnected  블루투스 오디오가 끊겼다   [감지 필요]
+        |airplane_on            비행기 모드를 켰다         [감지 필요]
+        |airplane_off           비행기 모드를 껐다         [감지 필요]
+        |ringer_normal          소리를 일반으로 바꿨다     [감지 필요]
+        |ringer_vibrate         소리를 진동으로 바꿨다     [감지 필요]
+        |ringer_silent          소리를 무음으로 바꿨다     [감지 필요]
+        |boot                   기기가 켜졌다              [언제나]
+        |alarm                  z2-alarm이 울렸다          [언제나]
+        |notify_action          알림의 버튼을 눌렀다       [언제나]
+        |unlock_failed          잠금 해제에 실패했다       [언제나, 준비가 필요]
+        |unlock_succeeded       실패 뒤에 잠금이 풀렸다    [언제나, 준비가 필요]
     """.trimMargin()
     )
 
@@ -2617,6 +3045,11 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |    # Nombres que puedes poner en event:<nombre>. En el mismo orden en que salen en events.jsonl.
         |    # El grupo de arriba necesita la detección activada (Ajustes > servidores permanentes y
         |    # automatización); el de abajo lo armas tú, así que funciona con la detección apagada.
+    """,
+        "ko" to """
+        |    # event:<이름>에 쓸 수 있는 이름입니다. events.jsonl에 나오는 순서 그대로입니다.
+        |    # 위쪽 무리는 감지를 켜 두어야 하고(설정 > 상주 서버・자동화), 아래쪽은 직접 준비하는
+        |    # 것이라 감지가 꺼져 있어도 됩니다.
     """.trimMargin()
     )
 
@@ -2762,6 +3195,35 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# p. ej. z2-update --check
         |#        z2-update --dir /sdcard/Download --keep
         |#        z2-when time:daily=03:00 run 'z2-update'   # mirar cada noche (te sigue preguntando)
+    """,
+        "ko" to """
+        |# z2-update                   … 새 버전을 찾아 내려받고 설치 화면으로 넘깁니다
+        |# z2-update --check           … 더 새로운 버전이 있는지만 알려 줍니다
+        |# z2-update --keep            … 내려받은 .apk를 남깁니다 (기본값은 지웁니다)
+        |# z2-update --dir <폴더>      … 앱 폴더 대신 그 폴더에 내려받습니다
+        |#
+        |# 어디서 오나
+        |#   z2term의 GitHub Releases 페이지에서, 손으로 받을 때와 같은 파일입니다
+        |#   (z2term-<버전>.apk, 배포용 키로 서명되어 있습니다). 그 밖의 어디에도 연결하지 않고,
+        |#   이것을 실행하기 전에는 아무 데도 연결하지 않습니다.
+        |#
+        |# 할 수 있는 것과 없는 것
+        |#   ⚠ **조용히 설치할 수는 없습니다.** 앱이 자기 자신을 바꿀 때 Android는 언제나 자기
+        |#     「설치할까요?」 화면을 띄우므로, 마지막 한 번은 반드시 사람이 누릅니다. 이 명령은
+        |#     그 화면까지의 모든 단계를 대신합니다.
+        |#   ⚠ 처음에는 z2term에 **「출처를 알 수 없는 앱 설치」**를 허용하세요 (그렇게 알려 주며,
+        |#     ⚙설정에도 같은 버튼이 있습니다). 그것이 없으면 설치 화면이 아예 뜨지 않습니다.
+        |#   ⚠ F-Droid나 스토어에서 설치했다면 이 명령은 거절하고 거기서 업데이트하라고 알려 줍니다:
+        |#     그 버전은 우리가 아니라 그쪽이 바꿔야 하기 때문입니다.
+        |#
+        |# 내려받은 파일
+        |#   기본값으로는 앱 자신의 폴더에 떨어지고, 설치가 잘 끝나면 바로 지웁니다 (그리고 다음에
+        |#   켤 때도 지웁니다. 자기 자신을 바꾸는 동안 앱이 죽는 것이 보통이기 때문입니다).
+        |#   --keep이나 --dir로 바꿀 수 있고, ⚙설정에도 그 버튼을 위한 같은 설정이 있습니다.
+        |#
+        |# 예: z2-update --check
+        |#        z2-update --dir /sdcard/Download --keep
+        |#        z2-when time:daily=03:00 run 'z2-update'   # 밤마다 확인 (물어보는 것은 그대로)
     """.trimMargin()
     )
 
@@ -2771,7 +3233,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "usage: z2-update [--check] [--keep] [--dir <フォルダ>]",
             "zh-CN" to "usage: z2-update [--check] [--keep] [--dir <文件夹>]",
             "zh-TW" to "usage: z2-update [--check] [--keep] [--dir <資料夾>]",
-            "es" to "uso: z2-update [--check] [--keep] [--dir <carpeta>]"
+            "es" to "uso: z2-update [--check] [--keep] [--dir <carpeta>]",
+            "ko" to "사용법: z2-update [--check] [--keep] [--dir <폴더>]"
         )
 
     /** 最新だった。⚠ **版名を必ず出す** (「最新です」だけだと何と比べたのか分からない)。 */
@@ -2781,7 +3244,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "z2-update: $current が最新です。",
             "zh-CN" to "z2-update: $current 已经是最新的了。",
             "zh-TW" to "z2-update: $current 已經是最新的了。",
-            "es" to "z2-update: $current ya es la última versión."
+            "es" to "z2-update: $current ya es la última versión.",
+            "ko" to "z2-update: ${current}이(가) 이미 최신 버전입니다."
         )
 
     /** 新版が見つかった (1 行目)。 */
@@ -2791,7 +3255,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             ja = "z2-update: $current → $latest ($size)",
             "zh-CN" to "z2-update: $current → $latest ($size)",
             "zh-TW" to "z2-update: $current → $latest ($size)",
-            "es" to "z2-update: $current -> $latest ($size)"
+            "es" to "z2-update: $current -> $latest ($size)",
+            "ko" to "z2-update: $current -> $latest ($size)"
         )
 
     /**
@@ -2803,7 +3268,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja =         "z2-update: 新しい版があるか見に行きます ...",
         "zh-CN" to "z2-update: 去看看有没有新版本 ...",
         "zh-TW" to "z2-update: 去看看有沒有新版本 ...",
-        "es" to "z2-update: buscando una versión más reciente ..."
+        "es" to "z2-update: buscando una versión más reciente ...",
+        "ko" to "z2-update: 더 새로운 버전을 찾는 중 ..."
     )
 
     /**
@@ -2814,7 +3280,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "z2-update: 端末にインストール画面を出しました。承認すると入れ替わります。",
         "zh-CN" to "z2-update: 已在设备上打开安装界面 — 确认后即可完成替换。",
         "zh-TW" to "z2-update: 已在裝置上開啟安裝介面 — 確認後即可完成替換。",
-        "es" to "z2-update: la pantalla de instalación está abierta en el dispositivo; apruébala para terminar."
+        "es" to "z2-update: la pantalla de instalación está abierta en el dispositivo; apruébala para terminar.",
+        "ko" to "z2-update: 기기에 설치 화면이 떠 있습니다 — 허용하면 끝납니다."
     )
 
     /** リリースに APK が付いていない。 */
@@ -2823,7 +3290,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "z2-update: そのリリースに .apk が付いていません。リリースページから入れてください: $url",
         "zh-CN" to "z2-update: 那个发布里没有附带 .apk。请从发布页面安装: $url",
         "zh-TW" to "z2-update: 那個發布裡沒有附帶 .apk。請從發布頁面安裝: $url",
-        "es" to "z2-update: esa versión no lleva ningún .apk adjunto. Cógelo de la página de la versión: $url"
+        "es" to "z2-update: esa versión no lleva ningún .apk adjunto. Cógelo de la página de la versión: $url",
+        "ko" to "z2-update: 그 릴리스에는 .apk가 붙어 있지 않습니다. 릴리스 페이지에서 받으세요: $url"
     )
 
     /** 「不明なアプリのインストール」が未許可。⚠ **どこで許すか**まで書く。 */
@@ -2836,7 +3304,8 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
             "(设置 › 应用 › 特殊应用权限 › 安装未知应用。z2term 的 ⚙设置里也有按钮)。",
         "zh-TW" to "z2-update: 請先給 z2term 允許“安裝未知應用程式” " +
             "(設定 › 應用程式 › 特殊應用程式權限 › 安裝未知應用程式。z2term 的 ⚙設定裡也有按鈕)。",
-        "es" to "z2-update: permite antes «Instalar aplicaciones desconocidas» para z2term " +
+        "es" to "z2-update: permite antes «Instalar aplicaciones desconocidas» para z2term ",
+        "ko" to "z2-update: 먼저 z2term에 \"출처를 알 수 없는 앱 설치\"를 허용하세요 " +
             "(Ajustes > Aplicaciones > Acceso especial > Instalar aplicaciones desconocidas, o el botón en los Ajustes de z2term)."
     )
 
@@ -2846,10 +3315,12 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         ja = "z2-update: この版は配布元 (F-Droid / Play) から入っています。更新はそちらから行ってください。",
         "zh-CN" to "z2-update: 这个版本是从应用商店 (F-Droid / Play) 装的。请从那里更新。",
         "zh-TW" to "z2-update: 這個版本是從應用程式商店 (F-Droid / Play) 裝的。請從那裡更新。",
-        "es" to "z2-update: esta versión se instaló desde una tienda (F-Droid / Play). Actualízala allí."
+        "es" to "z2-update: esta versión se instaló desde una tienda (F-Droid / Play). Actualízala allí.",
+        "ko" to "z2-update: 이 빌드는 스토어(F-Droid / Play)에서 설치한 것입니다. 업데이트도 거기서 하세요."
     )
 
     /** 通信・保存・入れ替えのどこかで失敗した。 */
     fun updateFailed(reason: String): String =
-        t(en = "z2-update: failed: $reason", ja = "z2-update: 失敗しました: $reason", "zh-CN" to "z2-update: 失败了: $reason", "zh-TW" to "z2-update: 失敗了: $reason", "es" to "z2-update: falló: $reason")
+        t(en = "z2-update: failed: $reason", ja = "z2-update: 失敗しました: $reason", "zh-CN" to "z2-update: 失败了: $reason", "zh-TW" to "z2-update: 失敗了: $reason", "es" to "z2-update: falló: $reason",
+        "ko" to "z2-update: 실패했습니다: $reason")
 }

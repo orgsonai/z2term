@@ -150,6 +150,24 @@ data class SshdScriptStrings(
             authKeysHint = "ℹ ~/.ssh/authorized_keys está vacío. Registra la clave pública del cliente para poder conectar.",
             authKeysExample = "   p. ej.: cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
         )
+        fun ko(): SshdScriptStrings = SshdScriptStrings(
+            invalidPort = "❌ 포트 번호가 올바르지 않습니다",
+            configOk = "sshd(dropbear) 설정에 문제가 없습니다",
+            installingDropbear = "📦 dropbear가 없어 설치합니다…",
+            dropbearInstallFailed = "❌ dropbear를 설치하지 못했습니다. 네트워크와 패키지 이름을 확인하세요.",
+            privilegedPortWarn = "⚠️ 특권 포트입니다. proot(root 없이)에서는 열지 못할 가능성이 큽니다 (1024 이상을 쓰세요).",
+            lanExposeWarn = "⚠️ LAN/WAN에 여는 모드입니다: 키 인증이 필요하며, 강한 키를 쓰세요.",
+            noAuthorizedKeys = "⛔ ~/.ssh/authorized_keys가 비어 있습니다. 네트워크에 여는 시작을 취소합니다.",
+            noAuthorizedKeysHint = "   공개 키를 ~/.ssh/authorized_keys에 등록한 뒤 다시 실행하세요.",
+            loopbackBind = "🔒 loopback에서만 듣습니다. LAN에 열려면 --lan을 붙이거나 Z2_SSHD_LAN=1을 정하세요.",
+            foregroundStart = "▶ dropbear를 앞에서 실행합니다 (멈추려면 Ctrl-C)",
+            listeningLan = "✅ dropbear listening (root, 키 인증만)",
+            listeningLoopback = "✅ dropbear listening (root, 키 인증만, loopback만)",
+            startupFailed = "❌ dropbear를 띄우지 못했습니다. 로그:",
+            deviceIp = "기기의 IP",
+            authKeysHint = "ℹ ~/.ssh/authorized_keys가 비어 있습니다. 접속하려면 클라이언트의 공개 키를 등록하세요.",
+            authKeysExample = "   예: cat /tmp/id_ed25519.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+        )
         /**
          * 言語ごとの組。⭐ **3 言語目はここに 1 行足す** (言語コード to その組を返す関数)。
          * 名簿 ([AppLanguages]) にあっても訳が無い言語は英語へ落ちる。
@@ -160,6 +178,7 @@ data class SshdScriptStrings(
             "zh-CN" to ::zhCN,
             "zh-TW" to ::zhTW,
             "es" to ::es,
+            "ko" to ::ko,
         )
 
         /** ⚠ **知らない言語は英語**。「英語でなければ日本語」と書かないこと。 */

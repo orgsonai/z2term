@@ -18,7 +18,8 @@ fun z2helpScript(lang: String = "ja"): String {
     // 言語ごとの文言を選ぶ道具。3 言語目は t(en = …, ja = …) の後ろへ変わり値を足す ([CliText])。
     val t = CliText(lang)
 
-    val header = t(en = "Z2Term own commands", ja = "Z2Term 独自コマンド", "zh-CN" to "Z2Term 自有命令", "zh-TW" to "Z2Term 自有指令", "es" to "Comandos propios de Z2Term")
+    val header = t(en = "Z2Term own commands", ja = "Z2Term 独自コマンド", "zh-CN" to "Z2Term 自有命令", "zh-TW" to "Z2Term 自有指令", "es" to "Comandos propios de Z2Term",
+    "ko" to "Z2Term 전용 명령")
 
     val list = t(
         en = """
@@ -275,6 +276,57 @@ fun z2helpScript(lang: String = "ja"): String {
         |
         |Todos los comandos de arriba se explican solos: añade --help (p. ej. 'z2-tile --help').
         |Más: 'z2adb help', 'z2gui' sin argumentos, o la sección 11 del HANDBOOK.
+    """,
+        "ko" to """
+        |[버전 / 정보]
+        |  z2version [--short]           앱 버전, 엔진, OS(배포판), 커널
+        |  z2doctor [--share|--clip]     왜 안 되지? 자체 점검 + 붙여 넣을 보고서
+        |
+        |[휴대전화 기능]
+        |  z2-notify [-h] [-b 라벨]...   알림 (-h: 배너, -b: 응답 버튼)
+        |  z2-ask "질문"                 알림으로 묻고, 답을 출력합니다
+        |  z2-toast "메시지"             토스트 (화면에 잠깐 뜨는 짧은 메시지)
+        |  z2-share "텍스트"             텍스트를 Android 공유 메뉴로 넘깁니다
+        |  z2-open <url|경로>            URL이나 파일을 그 앱으로 엽니다
+        |  z2-img <파일>                 터미널에 그림을 그립니다 (PNG/JPEG/WebP/GIF/BMP)
+        |  z2-clip get | set [텍스트]    클립보드 읽기 / 넣기 (set에 인수가 없으면 stdin)
+        |  z2-battery                    배터리 잔량과 충전 상태 (JSON)
+        |  z2-vibrate [ms]               진동 (기본값 200ms)
+        |  z2-say "텍스트"               TTS로 소리 내어 읽습니다 (인수가 없으면 stdin)
+        |  z2-torch [on|off|toggle]      손전등 (기본값 toggle)
+        |  z2-media [play|pause|next]    미디어 키 (previous/stop도 됩니다)
+        |  z2-volume up|down|N|N%        미디어 음량 (current/max를 돌려줍니다)
+        |  z2-sensor [light|accel|prox]  센서 값을 한 번 읽습니다 (JSON)
+        |  z2-intent -a ACT -d URI ...   어떤 Android Intent든 띄웁니다 (MACRO-GUIDE 참고)
+        |  z2-state [키]                 지금 상태를 JSON으로 (키 하나면 그 값만)
+        |  z2-screen keepon 1h | off     한동안 화면이 저절로 꺼지지 않게 합니다
+        |  z2-tile set 1 backup.sh       매크로나 명령을 타일에 올립니다 (자리 12개)
+        |  z2-icon edit 1 | edit notify  타일이나 알림 아이콘을 직접 그립니다 (24/48/64)
+        |  z2-alarm at|daily HH:MM [이름] 시각 트리거 -> events.jsonl (list/cancel도)
+        |  z2-when <트리거> run <cmd>    충전/배터리/시각/이벤트로 실행 (사용법: z2-when)
+        |  z2-macro list|install <이름>  함께 실은 예제 매크로 (MACRO-GUIDE 참고)
+        |  z2-session list|new|send|...  이 앱의 탭을 다룹니다 (사용법: z2-session)
+        |  z2-usb list | allow [기기]    USB 기기를 Linux에서 씁니다 (Android가 권한을 묻습니다)
+        |  z2-update [--check]           GitHub Releases에서 z2term 업데이트 (승인은 직접)
+        |
+        |[그래픽 앱 (GUI)]
+        |  z2gui start [WxH] | stop | status  Linux 데스크톱 (예: z2gui start 1280x720)
+        |  z2run <그래픽-앱>             그래픽 앱 열기 (GUI 탭도 함께 열립니다)
+        |
+        |[연결]
+        |  z2adb pair/connect/shell ...  PC 없이 이 휴대전화 자신에게 adb  (z2adb help)
+        |  sshd [-p N]                   SSH 서버 (기본값은 127.0.0.1만, 키 인증)
+        |
+        |[보안]
+        |  z2scan self [--save]          이 기기/localhost 자체 점검 (z2scan help)
+        |  z2scan diff                   기준에서 달라진 것만 (종료 코드 1 = 새것)
+        |  z2scan net|host|cve           localhost에 nmap/lynis/trivy (밖은 명시적 허가)
+        |
+        |[도움말]
+        |  z2help | z2term               이 목록
+        |
+        |위의 명령은 모두 스스로 설명합니다: --help를 붙이세요 (예: 'z2-tile --help').
+        |더 보기: 'z2adb help', 인수 없이 'z2gui', 또는 HANDBOOK의 11장.
     """
     )
 

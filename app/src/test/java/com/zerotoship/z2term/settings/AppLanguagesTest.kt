@@ -111,10 +111,11 @@ class AppLanguagesTest {
         assertEquals("es", AppLanguages.matchDeviceLocale("es-419"))
     }
 
-    /** 地域つきの韓国語は `ko` へ。⚠ ko もまだ名簿に無いので仮の名簿で縛る。 */
+    /** 地域つきの韓国語は `ko` へ (0.8.520 で名簿に載ったので実名簿を見る)。 */
     @Test
     fun koreanRegionCollapsesToTheBaseLanguage() {
-        assertEquals("ko", AppLanguages.matchIn("ko-KR", listOf("en", "ja", "ko")))
+        assertEquals("ko", AppLanguages.matchDeviceLocale("ko-KR"))
+        assertEquals("ko", AppLanguages.matchDeviceLocale("ko-KP"))
     }
 
     /** 名簿に無ければ英語。⛔ 日本語へ倒さない。 */

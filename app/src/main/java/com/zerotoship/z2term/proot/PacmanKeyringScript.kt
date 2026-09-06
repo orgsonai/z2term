@@ -62,35 +62,40 @@ fun pacmanKeyringScript(lang: String): String {
         ja = "🔑 pacman の鍵束を用意します (初回だけ・通信しません)。少し時間がかかります…",
         "zh-CN" to "🔑 正在准备 pacman 的密钥环 (只有第一次，不联网)。需要稍等一会儿…",
         "zh-TW" to "🔑 正在準備 pacman 的金鑰環 (只有第一次，不聯網)。需要稍等一會兒…",
-        "es" to "🔑 Preparando el llavero de pacman (solo la primera vez, sin red). Esto tarda un momento…"
+        "es" to "🔑 Preparando el llavero de pacman (solo la primera vez, sin red). Esto tarda un momento…",
+        "ko" to "🔑 pacman 키링을 준비합니다 (처음 한 번만, 네트워크 없이). 잠시 걸립니다…"
     )
     val msgOk = t(
         en = "✅ Keyring ready. Packages can be installed now.",
         ja = "✅ 鍵束の用意ができました。パッケージを入れられます。",
         "zh-CN" to "✅ 密钥环准备好了。现在可以安装软件包了。",
         "zh-TW" to "✅ 金鑰環準備好了。現在可以安裝套件了。",
-        "es" to "✅ Llavero listo. Ya se pueden instalar paquetes."
+        "es" to "✅ Llavero listo. Ya se pueden instalar paquetes.",
+        "ko" to "✅ 키링이 준비되었습니다. 이제 패키지를 설치할 수 있습니다."
     )
     val msgInitFail = t(
         en = "❌ pacman-key --init failed. It will be retried the next time this tab opens.",
         ja = "❌ pacman-key --init に失敗しました。次にこのタブを開いたときにやり直します。",
         "zh-CN" to "❌ pacman-key --init 失败了。下次打开这个标签页时会再试一次。",
         "zh-TW" to "❌ pacman-key --init 失敗了。下次開啟這個分頁時會再試一次。",
-        "es" to "❌ pacman-key --init falló. Se volverá a intentar la próxima vez que abras esta pestaña."
+        "es" to "❌ pacman-key --init falló. Se volverá a intentar la próxima vez que abras esta pestaña.",
+        "ko" to "❌ pacman-key --init에 실패했습니다. 이 탭을 다음에 열 때 다시 시도합니다."
     )
     val msgNoKeyrings = t(
         en = "❌ No bundled keyrings found under /usr/share/pacman/keyrings.",
         ja = "❌ 同梱の鍵束 (/usr/share/pacman/keyrings) が見つかりません。",
         "zh-CN" to "❌ 找不到随附的密钥环 (/usr/share/pacman/keyrings)。",
         "zh-TW" to "❌ 找不到隨附的金鑰環 (/usr/share/pacman/keyrings)。",
-        "es" to "❌ No se encontró ningún llavero incluido en /usr/share/pacman/keyrings."
+        "es" to "❌ No se encontró ningún llavero incluido en /usr/share/pacman/keyrings.",
+        "ko" to "❌ /usr/share/pacman/keyrings 아래에서 함께 실은 키링을 찾지 못했습니다."
     )
     val msgPopulateFail = t(
         en = "❌ pacman-key --populate failed. It will be retried the next time this tab opens.",
         ja = "❌ pacman-key --populate に失敗しました。次にこのタブを開いたときにやり直します。",
         "zh-CN" to "❌ pacman-key --populate 失败了。下次打开这个标签页时会再试一次。",
         "zh-TW" to "❌ pacman-key --populate 失敗了。下次開啟這個分頁時會再試一次。",
-        "es" to "❌ pacman-key --populate falló. Se volverá a intentar la próxima vez que abras esta pestaña."
+        "es" to "❌ pacman-key --populate falló. Se volverá a intentar la próxima vez que abras esta pestaña.",
+        "ko" to "❌ pacman-key --populate에 실패했습니다. 이 탭을 다음에 열 때 다시 시도합니다."
     )
 
     return """
