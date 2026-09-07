@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-07 / Target version: 0.8.531-alpha (versionCode 539)
+Last updated: 2026-09-07 / Target version: 0.8.529-alpha (versionCode 537)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2952,24 +2952,8 @@ being delegated back to us (confirmed on-device with `settings get secure enable
 - ⚠ **No key artwork while a physical keyboard is attached** (the keys are already under the
   fingers); only the candidate bar is shown, with `onEvaluateInputViewShown` limited to composing
   and kana mode.
-- ⚠ **Kana mode is shown by turning the toolbar's ⌨ into "あ" (0.8.530, user report).**
-  ⛔ **Never put the marker in the input method's own window** — it floats above the terminal, so
-  the marker hides the line underneath (0.8.529 placed it in the candidate bar's slot and was
-  called out). ⭐ The state travels through a single `ime/KanaModeState` (the input method and the
-  terminal screen share a process). ⚠ Kana mode folds away when the keyboard is detached, or the
-  marker would be lying.
-- ⚠ **The how-to (Tips) entry is shown only in Japanese** (the user's call). Kana input from an
-  external keyboard matters only to people typing Japanese; for anyone else the entry would have
-  to explain what the toggle even does. The strings carry no translations (`translatable="false"`).
-- ⛔ **The input method shows itself while composing (0.8.531, user report: "no predictions").**
-  With a physical keyboard attached, the target app never asks for the keyboard (the terminal screen
-  stopped asking in 0.8.527). **Without that request the window never opens even when
-  `onEvaluateInputViewShown` returns true, so the candidate bar is never seen.** ⇒ `requestShowSelf(0)`
-  while composing.
-- ⚠ **Whether a key came from an external keyboard is decided per event (0.8.531).** ⛔ Any `onKeyDown`
-  used to count as "external keyboard present", but on-device hard keys (a fingerprint sensor also
-  counts as `KEYBOARD`) satisfied it after a single press and **the key artwork stopped being drawn**
-  from then on. The check is the same `isPhysicalKeyboard` the terminal screen uses.
+- ⚠ **A kana-mode marker ("あ") sits in the candidate bar's slot** — with no keyboard drawn, there
+  is otherwise no way to tell the mode apart until the wrong characters appear.
 
 **What it does**: registers the built-in keyboard as an Android **input method**. Once the user enables
 and picks it in the OS list, **the app's own text fields** (snippets, SSH profiles, SFTP, settings,

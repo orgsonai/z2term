@@ -3219,7 +3219,6 @@ private fun appLockGraceLabel(sec: Int): Int = when (sec) {
 
 @Composable
 private fun TipsSection() {
-    val context = LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         TipItem(R.string.tip_toolbar_title, R.string.tip_toolbar_body)
         TipItem(R.string.tip_kb_resize_title, R.string.tip_kb_resize_body)
@@ -3229,12 +3228,6 @@ private fun TipsSection() {
         TipItem(R.string.tip_backspace_flick_title, R.string.tip_backspace_flick_body)
         TipItem(R.string.tip_gui_scroll_title, R.string.tip_gui_scroll_body)
         TipItem(R.string.tip_gui_clean_title, R.string.tip_gui_clean_body)
-        // ⚠ **日本語のときだけ出す** (0.8.530・利用者の指示)。外付けキーボードのかな入力は
-        // 日本語を打つ人にしか関係がなく、他の言語では「切り替えると何が起きるのか」から
-        // 説明が必要になる。訳も持たない (res は translatable="false")。
-        if (LocaleHelper.language(context) == LocaleHelper.LANG_JA) {
-            TipItem(R.string.tip_hardware_kana_title, R.string.tip_hardware_kana_body)
-        }
         TipItem(R.string.tip_z2_commands_title, R.string.tip_z2_commands_body)
         TipItem(R.string.tip_macro_title, R.string.tip_macro_body)
     }

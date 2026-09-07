@@ -186,7 +186,7 @@ Under Settings › **Keyboard style**:
   - **Toggle**: the **half/full-width** key (or **Shift + Space** if your keyboard has none). The kana, henkan and muhenkan keys work as well. ⚠ It **starts in ascii** — the first thing you type in a terminal is usually a command.
   - **How to type**: romaji → **Space to convert** → Space again for the next candidate → **Enter to commit**. Backspace steps back one character, **Esc drops what you were composing**, and ← → move the boundary being converted.
   - **Either romanization works** (`shi` and `si` both give し).
-  - **The toolbar's ⌨ turns into "あ" while kana mode is on** (0.8.530). No keyboard artwork is drawn — the keys are already under your fingers. ⚠ A marker at the bottom of the screen was tried first, but it **covered the terminal's own text**.
+  - **A small "あ" appears at the bottom of the screen while kana mode is on** (no keyboard artwork — the keys are already under your fingers).
 
 ---
 
