@@ -152,6 +152,7 @@ import com.zerotoship.z2term.ui.snippets.SnippetsSheet
 import com.zerotoship.z2term.ui.ssh.HostKeyVerificationDialog
 import com.zerotoship.z2term.ui.terminal.components.SpecialKeyBar
 import com.zerotoship.z2term.ui.terminal.input.TerminalInputView
+import com.zerotoship.z2term.ui.terminal.input.rememberPhysicalKeyboardConnected
 import com.zerotoship.z2term.ui.terminal.keyboard.ComposingState
 import com.zerotoship.z2term.settings.LocaleHelper
 import com.zerotoship.z2term.ui.terminal.keyboard.ImeHistoryStore
@@ -295,6 +296,10 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // 複数行の貼り付けを確認する帯。null の間は出さない (= 1 行の貼り付けでは何も起きない)。
     var pastePreview by remember { mutableStateOf<String?>(null) }
     var keyboardCollapsed by remember { mutableStateOf(false) }
+    // 外付けキーボードを繋いだら内蔵キーボードを畳む (0.8.523)。抜いたら戻す。
+    // ⚠ 変わった瞬間だけ倒すので、畳んだあとに手で開き直した状態は次の抜き差しまで残る。
+    val physicalKeyboard = rememberPhysicalKeyboardConnected()
+    LaunchedEffect(physicalKeyboard) { keyboardCollapsed = physicalKeyboard }
     // ⌨ ツールバーボタンのトリプルタップで開く、その場でのサイズ調整。
     // トグルバーを非表示にしている利用者にも必ず入り口が残る。
     var keyboardSizeBarOpen by remember { mutableStateOf(false) }
@@ -1125,6 +1130,10 @@ private fun GuiTabScreen(
     // (オーバーレイ) で出すので解像度は変えない。▾ で折りたたんで GUI を広く使うこともできる。
     var keyboardMode by remember { mutableStateOf(KeyboardMode.CUSTOM) }
     var keyboardCollapsed by remember { mutableStateOf(false) }
+    // 外付けキーボードを繋いだら内蔵キーボードを畳む (0.8.523)。抜いたら戻す。
+    // ⚠ 変わった瞬間だけ倒すので、畳んだあとに手で開き直した状態は次の抜き差しまで残る。
+    val physicalKeyboard = rememberPhysicalKeyboardConnected()
+    LaunchedEffect(physicalKeyboard) { keyboardCollapsed = physicalKeyboard }
     var keyboardSizeBarOpen by remember { mutableStateOf(false) }
     var ctrlSticky by remember { mutableStateOf(false) }
     // 画面消灯ロックは設定 (keepScreenOn) に永続化した端末タブ共通の状態 (画面跨ぎで維持・再起動で復元)。

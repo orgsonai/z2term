@@ -106,7 +106,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|density|fontScale|uiMode"
+            android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|density|fontScale|uiMode"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Z2Term">
             <intent-filter>
@@ -143,7 +143,7 @@
             android:name=".gui.GuiActivity"
             android:exported="false"
             android:label="z2term GUI"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|density|fontScale|uiMode"
+            android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|density|fontScale|uiMode"
             android:theme="@style/Theme.Z2Term" />
 
         <!-- Terminal Foreground Service: バックグラウンドで PTY を維持 -->

@@ -177,6 +177,12 @@ Under Settings › **Keyboard style**:
 - Tap the **"あ" button in the toolbar** to switch to your usual phone keyboard (Gboard, etc.).
 - With the phone's keyboard, **the text you're composing (before you confirm) now appears inline at the terminal cursor**. You can see the in-progress state of Japanese conversion or predictive input, instead of characters only showing up after you confirm.
 
+### When an external keyboard is connected (0.8.523)
+- Plug in a Bluetooth or USB keyboard and **the in-app keyboard folds away by itself**, giving the screen back to the terminal.
+- **You never lose the ability to type.** Keys from the attached keyboard go straight to the terminal (or to the GUI on a GUI tab).
+- **To bring it back, double-tap ⌨** (or use the toggle bar above the keyboard). It stays out until the next time a keyboard is plugged in or unplugged.
+- **Unplug the keyboard and it comes back on its own.**
+
 ---
 
 ## 5. Common operations
