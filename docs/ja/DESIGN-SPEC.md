@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-08 / 対象バージョン: 0.8.547-alpha (versionCode 555)
+最終更新: 2026-09-08 / 対象バージョン: 0.8.548-alpha (versionCode 556)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -2874,6 +2874,11 @@ enabled_input_methods` で確認）。⇒ **`Z2ImeService` が物理キーを直
   浮くので、そこに文字を出すと**端末の文字と重なって読めなくなる**。⚠ 入力メソッドと端末画面は
   同じプロセスなので、渡すのは `StateFlow` 1 つ（`KanaModeState`）で足りる。⚠ **外付けが外れたら
   かなモードも畳む**（`onStartInputView`）— 印だけが残ると嘘になる。
+- ⚠ **外付けかどうかは打鍵のデバイスで判定する**（0.8.548）。⛔ `onKeyDown` が来たら無条件に
+  「外付けあり」としていたが、端末側のハードキー（指紋センサー等も `KEYBOARD` として数えられる）
+  が 1 度来ただけで成立してしまい、**以後キーの絵が描かれなくなる**（画面キーボードが空の帯に
+  なる）。判定は端末画面と同じ `isPhysicalKeyboard`（仮想を除く・`SOURCE_KEYBOARD`・
+  `KEYBOARD_TYPE_ALPHABETIC`）を共有する。
 - ⛔ **かなモードへ切り替えた瞬間は入力メソッドが自分から出る**（`requestShowSelf(0)`・
   0.8.547・利用者の指摘「英字で立ち上げて Shift+Space すると予測変換が出ない」）。
   `InputMethodService` は **「相手のアプリからの表示要求 ∧ `onEvaluateInputViewShown`」** で窓を

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-08 / Target version: 0.8.547-alpha (versionCode 555)
+Last updated: 2026-09-08 / Target version: 0.8.548-alpha (versionCode 556)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2962,6 +2962,12 @@ being delegated back to us (confirmed on-device with `settings get secure enable
   the terminal's own text**. ⚠ The input method and the terminal screen share a process, so a single
   `StateFlow` (`KanaModeState`) is all it takes to pass the state. ⚠ **Kana mode is folded away when
   the external keyboard goes** (`onStartInputView`) — a marker left behind would be a lie.
+- ⚠ **Whether a key came from an external keyboard is decided per event** (0.8.548). ⛔ Any
+  `onKeyDown` used to count as "external keyboard present", but on-device hard keys (a fingerprint
+  sensor also counts as `KEYBOARD`) satisfied it after a single press and **the key artwork stopped
+  being drawn** from then on, leaving the on-screen keyboard as an empty strip. The check is the
+  same `isPhysicalKeyboard` the terminal screen uses (not virtual, `SOURCE_KEYBOARD`,
+  `KEYBOARD_TYPE_ALPHABETIC`).
 - ⛔ **Switching into kana mode makes the input method show itself** (`requestShowSelf(0)`,
   0.8.547, user report: "start in ascii, press Shift+Space and no predictions appear").
   `InputMethodService` decides whether to open the window from **"a show request from the target app

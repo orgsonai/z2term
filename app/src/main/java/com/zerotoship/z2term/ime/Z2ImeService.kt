@@ -60,6 +60,7 @@ import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.KkcConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
+import com.zerotoship.z2term.ui.terminal.input.isPhysicalKeyboard
 import com.zerotoship.z2term.ui.terminal.input.physicalKeyboardConnected
 import com.zerotoship.z2term.ui.theme.AppColors
 import com.zerotoship.z2term.ui.theme.Z2TermTheme
@@ -420,6 +421,15 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
      * コマンドが化ける。⚠ Ctrl / Alt / Meta 付きも同じ理由で必ず素通しする (Ctrl+C など)。
      */
     private fun handleHardwareKey(keyCode: Int, event: KeyEvent): Boolean {
+        // ⚠ **本当に外付けキーボードから来た打鍵だけを見る** (0.8.548)。⛔ 打鍵が来たら無条件に
+        // [hardwareKeyboard] を立てると、端末側のハードキー (指紋センサー等も `KEYBOARD` として
+        // 数えられる) が 1 度来ただけで「外付けがある」ことになり、**以後キーの絵が描かれなく
+        // なる** = 画面キーボードが空の帯になる。判定は端末画面と同じ [isPhysicalKeyboard]
+        // (仮想を除く・`SOURCE_KEYBOARD`・`KEYBOARD_TYPE_ALPHABETIC`) を共有する。
+        val device = event.device
+        if (device == null ||
+            !isPhysicalKeyboard(device.sources, device.keyboardType, device.isVirtual)
+        ) return false
         hardwareKeyboard.value = true
         if (isKanaToggle(keyCode, event)) {
             flushRomaji()
