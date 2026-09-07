@@ -209,7 +209,7 @@ object TunnelManager {
                     retries = 0
 
                     // 張れなかったものは捨てずに持っておき、繋がったまま張り直す。
-                    var pending = PortForwarding.apply(link.session, profile.forwards).failed
+                    var pending = PortForwarding.apply(link, profile.forwards).failed
                     statuses[profile.id] = Status(
                         profile.id, profile.name, true, detailOf(profile.forwards, pending), 0
                     )
@@ -224,7 +224,7 @@ object TunnelManager {
                         if (sinceForwardRetry < FORWARD_RETRY_MS) continue
                         sinceForwardRetry = 0L
                         val before = pending.size
-                        pending = PortForwarding.apply(link.session, pending).failed
+                        pending = PortForwarding.apply(link, pending).failed
                         if (pending.size != before) {
                             statuses[profile.id] = Status(
                                 profile.id, profile.name, true,

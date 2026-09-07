@@ -358,6 +358,7 @@
     <string name="ssh_forward_side_dest_local">to here</string>
     <string name="ssh_forward_local_desc">bring a remote service here</string>
     <string name="ssh_forward_reverse_desc">let the remote reach this device</string>
+    <string name="ssh_forward_socks_desc">go out through the remote</string>
     <string name="history_search_hint">filter (space-separated words)</string>
     <string name="history_empty">No history yet. Commands you run in the terminal appear here.</string>
     <string name="history_no_match">Nothing matches that filter.</string>

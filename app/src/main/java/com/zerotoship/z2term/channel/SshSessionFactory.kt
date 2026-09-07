@@ -9,6 +9,7 @@ import com.jcraft.jsch.UserInfo
 import com.zerotoship.z2term.service.NetGuard
 import com.zerotoship.z2term.net.HostAddress
 import java.util.Properties
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * [SshProfile] から JSch [Session] を構築する共通ファクトリ。
@@ -155,8 +156,22 @@ class SshLink internal constructor(
         }
     }
 
+    /**
+     * この経路と寿命を共にするもの (`-D` の待ち受けなど)。⚠ **JSch が持てないものだけ**。
+     * `-L` / `-R` は Session が畳むときに一緒に消えるので、ここには入らない。
+     */
+    private val extras = CopyOnWriteArrayList<AutoCloseable>()
+
+    fun addCloseable(closeable: AutoCloseable) {
+        extras += closeable
+    }
+
     /** 奥から順に畳む。手前を先に切ると奥のセッションが宙に浮く。 */
     override fun close() {
+        // ⚠ **待ち受けを先に閉じる。** セッションを畳んでから閉じると、その隙に来た接続が
+        // 「繋がったのに何も返ってこない」形で残る。
+        extras.forEach { runCatching { it.close() } }
+        extras.clear()
         runCatching { session.disconnect() }
         jumps.asReversed().forEach { runCatching { it.disconnect() } }
     }

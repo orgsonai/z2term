@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-07 / Target version: 0.8.523-alpha (versionCode 531)
+Last updated: 2026-09-07 / Target version: 0.8.524-alpha (versionCode 532)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -914,7 +914,15 @@ Hence `TunnelManager.KEEPALIVE_MS` = **10s** (`KEEPALIVE_LOW_POWER_MS` = 60s in 
 
 **A forward that fails is retried in place (0.8.367)**: `-R` **can fail on the first attempt after a reconnect**. The remote sshd keeps the listening port bound for a while after the device drops, so `setPortForwardingR` is rejected with "port already in use". Giving up there would freeze the tunnel in a "connected but the forward is dead" state, so the session is kept and the forward retried every 30s (tearing the session down would take the healthy forwards with it). Forwards that are not up yet are marked `✗` in the status line (`TunnelManager.detailOf`).
 
-**Direction**: `PortForward.reverse`. `setPortForwardingR(bindAddress, remotePort, remoteHost, localPort)` listens on the remote's `bindAddress:remotePort` and connects to `remoteHost:localPort` as seen from the device. The field names date from the `-L`-only era, so **their meaning swaps with the direction** — the `PortForward` KDoc and `describe()` are the reference.
+**Direction**: `PortForward.kind` (0.8.524 replaced the `reverse: Boolean` with the three-valued `ForwardKind`). `setPortForwardingR(bindAddress, remotePort, remoteHost, localPort)` listens on the remote's `bindAddress:remotePort` and connects to `remoteHost:localPort` as seen from the device. The field names date from the `-L`-only era, so **their meaning swaps with the direction** — the `PortForward` KDoc and `describe()` are the reference.
+
+**SOCKS (`-D`) was added (0.8.524)**: the device's `bindAddress:localPort` becomes a SOCKS5 proxy. ⭐ **What separates it from `-L` is that no destination is fixed up front** — the caller names one per connection and the traffic leaves from the network on the far side, so there is no need to write one forward per destination.
+- ⛔ **JSch has no SOCKS** (only `setPortForwardingL` / `R`). The listener and the RFC 1928 exchange live in `channel/SocksProxy`; only the connect step is handed to a `direct-tcpip` channel.
+- ⚠ **Names are resolved on the far side** (the same as `curl --socks5-hostname`). Resolving here would lose every name that only exists over there, and would leak where the caller is going to the device's own DNS.
+- ⚠ **`REP` is sent only once the channel is open.** Answering optimistically would make a connection to an unreachable host look successful to the caller and then die silently.
+- ⚠ **`-L` / `-R` disappear when the Session is torn down, but the `-D` listener is ours**, so it is handed to `SshLink` (`addCloseable`) and closed with the route. **The listener closes first** — closing it after the session leaves any connection that slipped in "connected with nothing ever coming back".
+- ⚠ **Stored settings keep working.** JSON without `kind` was written by 0.8.523 or earlier, where `reverse` is the reference (`PortForward.kindOf`). Both fields are written out, so `-L` / `-R` still read correctly if the app is rolled back.
+- ⛔ **SOCKS4 is refused** — its greeting has a different shape, so reading a version-4 greeting as version 5 shifts the meaning of every byte after it. BIND and UDP ASSOCIATE are refused too, but ⚠ **only after the address is consumed** (leaving it would make the next reader start mid-request).
 
 #### Live tail widget (`widget/TailWidgetProvider`, 0.8.217, D2)
 
@@ -1882,7 +1890,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
 - `SshChannel`: remote connection via JSch. `shell` channel + port forwarding, host key verification (`KnownHosts`/`HostKeyVerificationDialog`), keys encrypted with the Keystore (`KeystoreCrypt`).
 - `SshSessionFactory` / `SshLink`: the single entry point that turns authentication, known_hosts and jump hosts into one route. **The shell, SFTP, service routes and resident tunnels all go through it** (which is also why the data cap is checked in exactly one place). `SshLink` holds the whole route and `close()` tears it down **from the far end inwards** — cutting the near end first leaves the hops dangling.
 - `SshHop` / `JumpProxy`: jump hosts (`ssh -J`). See "Jump hosts" in §6.3.
-- `PortForwarding`: the one place that actually installs `-L` / `-R`, shared by `SshChannel` and `TunnelManager`.
+- `PortForwarding`: the one place that actually installs `-L` / `-R` / `-D`, shared by `SshChannel` and `TunnelManager`. The `-D` listener lives in `SocksProxy` and is handed to `SshLink` so it folds away with the route.
 - `SshProfile`/`PortForward`/`SshHop`: persisted as JSON in DataStore (`z2term_ssh`).
 
 ### 4.8 Settings (`settings/AppSettings.kt`)

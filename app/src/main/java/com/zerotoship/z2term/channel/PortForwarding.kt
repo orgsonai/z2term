@@ -1,7 +1,6 @@
 package com.zerotoship.z2term.channel
 
 import android.util.Log
-import com.jcraft.jsch.Session
 import com.zerotoship.z2term.net.HostAddress
 
 /**
@@ -11,6 +10,10 @@ import com.zerotoship.z2term.net.HostAddress
  * 必ず `-L` を張っており、`-R` を書いた接続先をタブから開くと**向きが黙って逆になっていた**
  * (常駐トンネル [com.zerotoship.z2term.service.TunnelManager] だけが正しく分岐していた)。
  * 張り方が 2 か所にあると、片方だけ直る事故がまた起きる。
+ *
+ * ⚠ **受け取るのは JSch の `Session` ではなく [SshLink]** (0.8.524)。`-D` (SOCKS) は JSch が持てず
+ * 自前で待ち受けるので、**経路を畳むときに一緒に閉じてもらう**必要がある。畳む場所は
+ * [SshLink.close] の 1 か所しかないので、そこへ預ける。
  */
 object PortForwarding {
 
@@ -32,28 +35,39 @@ object PortForwarding {
      * ⚠ `-L` の待ち受けポートに 0 を書くと OS が空き番号を選ぶので、説明には**実際に割り当て
      * られた番号**を出す (0 のままだと「どこへ繋げばいいのか」が分からない)。
      */
-    fun apply(session: Session, forwards: List<PortForward>): Result {
+    fun apply(link: SshLink, forwards: List<PortForward>): Result {
+        val session = link.session
         val established = ArrayList<String>(forwards.size)
         val failed = ArrayList<PortForward>()
         forwards.forEach { fwd ->
             runCatching {
-                if (fwd.reverse) {
-                    session.setPortForwardingR(
-                        HostAddress.normalize(fwd.bindAddress),
-                        fwd.remotePort,
-                        HostAddress.normalize(fwd.remoteHost),
-                        fwd.localPort,
-                    )
-                    fwd.describe()
-                } else {
-                    val assigned = session.setPortForwardingL(
-                        HostAddress.normalize(fwd.bindAddress),
-                        fwd.localPort,
-                        HostAddress.normalize(fwd.remoteHost),
-                        fwd.remotePort,
-                    )
-                    "-L ${HostAddress.hostPort(fwd.bindAddress, assigned)} → " +
-                        HostAddress.hostPort(fwd.remoteHost, fwd.remotePort)
+                when (fwd.kind) {
+                    ForwardKind.REMOTE -> {
+                        session.setPortForwardingR(
+                            HostAddress.normalize(fwd.bindAddress),
+                            fwd.remotePort,
+                            HostAddress.normalize(fwd.remoteHost),
+                            fwd.localPort,
+                        )
+                        fwd.describe()
+                    }
+
+                    ForwardKind.SOCKS -> {
+                        val proxy = SocksProxy.start(session, fwd.bindAddress, fwd.localPort)
+                        link.addCloseable(proxy)
+                        "-D ${HostAddress.hostPort(fwd.bindAddress, proxy.localPort)}"
+                    }
+
+                    ForwardKind.LOCAL -> {
+                        val assigned = session.setPortForwardingL(
+                            HostAddress.normalize(fwd.bindAddress),
+                            fwd.localPort,
+                            HostAddress.normalize(fwd.remoteHost),
+                            fwd.remotePort,
+                        )
+                        "-L ${HostAddress.hostPort(fwd.bindAddress, assigned)} → " +
+                            HostAddress.hostPort(fwd.remoteHost, fwd.remotePort)
+                    }
                 }
             }.onSuccess {
                 established += it

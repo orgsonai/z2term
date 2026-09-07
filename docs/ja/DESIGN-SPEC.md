@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-07 / 対象バージョン: 0.8.523-alpha (versionCode 531)
+最終更新: 2026-09-07 / 対象バージョン: 0.8.524-alpha (versionCode 532)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -899,7 +899,15 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 
 **張れなかった転送は畳まずに張り直す（0.8.367）**: `-R` は**繋ぎ直した直後の 1 回が失敗しうる**。端末側が落ちても接続先の sshd はしばらく待ち受けポートを握ったままなので、`setPortForwardingR` が「そのポートは使用中」で弾かれる。ここで諦めると**繋がっているのに転送だけ死んだ**状態が固定するため、セッションは畳まずに 30 秒ごとに張り直しへ回す（畳むと生きている他の転送まで巻き添えになる）。張れていない転送は一覧で `✗` が付く（`TunnelManager.detailOf`）。
 
-**`-R` の向き**: `PortForward.reverse` で切り替える。`setPortForwardingR(bindAddress, remotePort, remoteHost, localPort)` = リモートの `bindAddress:remotePort` で待ち受け、端末から見た `remoteHost:localPort` へ繋ぐ。フィールド名は `-L` 時代のままなので、**意味が向きで入れ替わる**点に注意（`PortForward` の KDoc と `describe()` が正本）。
+**`-R` の向き**: `PortForward.kind` で切り替える（0.8.524 で `reverse: Boolean` から 3 値の `ForwardKind` になった）。`setPortForwardingR(bindAddress, remotePort, remoteHost, localPort)` = リモートの `bindAddress:remotePort` で待ち受け、端末から見た `remoteHost:localPort` へ繋ぐ。フィールド名は `-L` 時代のままなので、**意味が向きで入れ替わる**点に注意（`PortForward` の KDoc と `describe()` が正本）。
+
+**SOCKS (`-D`) を足した（0.8.524）**: 端末の `bindAddress:localPort` を SOCKS5 プロキシにする。⭐ **`-L` との違いは「宛先を先に決めないこと」**で、使う側が 1 接続ごとに指定した相手へ、繋いだ先の網から出て行く。⇒ 相手の数だけ転送を書かずに済む。
+- ⛔ **JSch は SOCKS を持っていない**（`setPortForwardingL` / `R` だけ）。待ち受けと RFC 1928 のやりとりは `channel/SocksProxy` で書き、繋ぐところだけ `direct-tcpip` チャネルへ渡す。
+- ⚠ **名前解決は向こう側でやる**（`curl --socks5-hostname` と同じ）。こちらで引くと、繋いだ先からしか引けない名前が使えないうえ、どこへ行こうとしているかが端末側の DNS に漏れる。
+- ⚠ **`REP` を返すのはチャネルが開いてから**。楽観的に「成功」を返すと、繋がらない相手への接続が**使う側では成功に見えて**その後で黙って切れる。
+- ⚠ **`-L` / `-R` は Session が畳めば消えるが、`-D` の待ち受けは自前**なので、`SshLink` に預けて経路を畳むときに一緒に閉じる（`SshLink.addCloseable`）。閉じる順は**待ち受けが先** — セッションを畳んでから閉じると、その隙に来た接続が「繋がったのに何も返ってこない」形で残る。
+- ⚠ **保存済みの設定を壊さない**。`kind` が無い JSON は 0.8.523 までに書かれたもので、そこでは `reverse` が正本（`PortForward.kindOf`）。書くときは `kind` と `reverse` の両方を出すので、古い版へ戻しても `-L` / `-R` はそのまま読める。
+- ⛔ **SOCKS4 は受けない**。挨拶の形が違うので、4 のつもりで送られたものを 5 として読み進めると後ろのバイトが丸ごとずれる。BIND / UDP ASSOCIATE も断るが、⚠ **宛先を読み飛ばしてから**断る（読み残すと次の読み手が要求の途中から読み始める）。
 
 #### ライブ tail ウィジェット（`widget/TailWidgetProvider`、0.8.217・D2）
 
@@ -1850,7 +1858,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 - `SshChannel`: JSch でリモート接続。`shell` チャネル + ポート転送、host key 検証 (`KnownHosts`/`HostKeyVerificationDialog`)、鍵は Keystore で暗号化 (`KeystoreCrypt`)。
 - `SshSessionFactory` / `SshLink`: 認証・known_hosts・踏み台をまとめて 1 本の経路にする入口。**シェル・SFTP・サービス経路・常駐トンネルはすべてここを通る**（通信量の上限もこの 1 か所で見る）。`SshLink` は経路まるごとを持ち、`close()` で**奥から順に**畳む（手前を先に切ると奥のセッションが宙に浮く）。
 - `SshHop` / `JumpProxy`: 踏み台（`ssh -J`）。詳細は §6.3 の「踏み台」。
-- `PortForwarding`: `-L` / `-R` を実際に張る 1 か所。`SshChannel` と `TunnelManager` が共有する。
+- `PortForwarding`: `-L` / `-R` / `-D` を実際に張る 1 か所。`SshChannel` と `TunnelManager` が共有する。`-D` の待ち受けは `SocksProxy` が持ち、`SshLink` に預けて経路と一緒に畳む。
 - `SshProfile`/`PortForward`/`SshHop`: DataStore (`z2term_ssh`) に JSON 永続化。
 
 ### 4.8 設定 (`settings/AppSettings.kt`)

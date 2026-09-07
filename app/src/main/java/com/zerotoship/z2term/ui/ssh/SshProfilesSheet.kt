@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.channel.ConnectionProtocol
+import com.zerotoship.z2term.channel.ForwardKind
 import com.zerotoship.z2term.channel.PortForward
 import com.zerotoship.z2term.channel.RemoteService
 import com.zerotoship.z2term.channel.RemoteServiceProtocol
@@ -519,7 +520,7 @@ private fun EditForm(
             if (forwards.isNotEmpty()) {
                 ResidentTunnelToggle(
                     checked = resident,
-                    hasReverse = forwards.any { it.reverse },
+                    hasReverse = forwards.any { it.kind == ForwardKind.REMOTE },
                     onChange = { resident = it }
                 )
             }
@@ -1417,11 +1418,7 @@ private fun PortForwardSection(
             ConfirmDialog(
                 title = stringResource(R.string.confirm_delete_forward_title),
                 // ⚠ 転送の指定は訳さない (一覧の状態表示と同じ理由 — そのまま検索できる形)。
-                message = stringResource(
-                    R.string.confirm_delete_item_msg,
-                    "${if (target.reverse) "-R" else "-L"} ${target.localPort} → " +
-                        "${target.remoteHost}:${target.remotePort}",
-                ),
+                message = stringResource(R.string.confirm_delete_item_msg, target.describe()),
                 confirmLabel = stringResource(R.string.ssh_action_delete),
                 confirmColor = ZtsError,
                 onConfirm = {
@@ -1524,21 +1521,22 @@ private fun ForwardRow(
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        // 向きの切替。-L は「遠くをこちらへ」、-R は「こちらを遠くから」。
+        // 種類の切替。-L は「遠くをこちらへ」、-R は「こちらを遠くから」、-D は「向こうから外へ」。
         Row(verticalAlignment = Alignment.CenterVertically) {
-            DirectionChip(
-                label = "-L",
-                selected = !fw.reverse,
-                onSelect = { onChange(fw.copy(reverse = false)) }
-            )
-            DirectionChip(
-                label = "-R",
-                selected = fw.reverse,
-                onSelect = { onChange(fw.copy(reverse = true)) }
-            )
+            ForwardKind.entries.forEach { kind ->
+                DirectionChip(
+                    label = kind.flag,
+                    selected = fw.kind == kind,
+                    onSelect = { onChange(fw.copy(kind = kind)) }
+                )
+            }
             Text(
                 text = stringResource(
-                    if (fw.reverse) R.string.ssh_forward_reverse_desc else R.string.ssh_forward_local_desc
+                    when (fw.kind) {
+                        ForwardKind.REMOTE -> R.string.ssh_forward_reverse_desc
+                        ForwardKind.SOCKS -> R.string.ssh_forward_socks_desc
+                        ForwardKind.LOCAL -> R.string.ssh_forward_local_desc
+                    }
                 ),
                 color = ZtsTextSecondary,
                 fontSize = 9.sp,
@@ -1550,7 +1548,7 @@ private fun ForwardRow(
             // ⚠ **どちらの端がどちらの欄なのか**をラベルで言い切る。-R では上下とも "Remote" と
             // 出ていて、何をどこへ書くのか画面から読めなかった (利用者の指摘)。
             Text(
-                text = if (fw.reverse) stringResource(R.string.ssh_forward_side_listen_remote)
+                text = if (fw.kind == ForwardKind.REMOTE) stringResource(R.string.ssh_forward_side_listen_remote)
                 else stringResource(R.string.ssh_forward_side_listen_local),
                 color = ZtsGreen,
                 fontSize = 10.sp,
@@ -1593,9 +1591,11 @@ private fun ForwardRow(
                 )
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // ⚠ -D は宛先を持たない (使う側が 1 接続ごとに決める)。空の欄を残すと、書けば効くように
+        // 見えて何も起きない。
+        if (fw.kind != ForwardKind.SOCKS) Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = if (fw.reverse) stringResource(R.string.ssh_forward_side_dest_local)
+                text = if (fw.kind == ForwardKind.REMOTE) stringResource(R.string.ssh_forward_side_dest_local)
                 else stringResource(R.string.ssh_forward_side_dest_remote),
                 color = ZtsGreen,
                 fontSize = 10.sp,

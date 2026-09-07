@@ -355,6 +355,7 @@
     <string name="ssh_forward_side_dest_local">→ この端末の</string>
     <string name="ssh_forward_local_desc">遠くのサービスをこちらへ</string>
     <string name="ssh_forward_reverse_desc">こちらを遠くから触れるように</string>
+    <string name="ssh_forward_socks_desc">遠くを通って外へ出る</string>
     <string name="history_search_hint">絞り込み（空白区切りで複数語）</string>
     <string name="history_empty">履歴がまだありません。端末で実行したコマンドがここに並びます。</string>
     <string name="history_no_match">その絞り込みに合うものはありません。</string>

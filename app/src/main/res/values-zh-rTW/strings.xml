@@ -341,6 +341,7 @@
     <string name="ssh_forward_side_dest_local">→ 本機的</string>
     <string name="ssh_forward_local_desc">把遠端的服務接到這邊來</string>
     <string name="ssh_forward_reverse_desc">讓遠端能夠存取這台裝置</string>
+    <string name="ssh_forward_socks_desc">經由遠端連到外部</string>
     <string name="history_search_hint">篩選（用空格分隔多個詞）</string>
     <string name="history_empty">還沒有歷史。在終端機裡執行過的指令會排列在這裡。</string>
     <string name="history_no_match">沒有符合這個篩選條件的項目。</string>

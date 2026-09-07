@@ -1,5 +1,6 @@
 package com.zerotoship.z2term.service
 
+import com.zerotoship.z2term.channel.ForwardKind
 import com.zerotoship.z2term.channel.PortForward
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -58,7 +59,7 @@ class TunnelManagerTest {
 
     private val forwardL = PortForward(localPort = 8080, remoteHost = "localhost", remotePort = 80)
     private val forwardR = PortForward(
-        localPort = 65152, remoteHost = "127.0.0.1", remotePort = 65152, reverse = true
+        localPort = 65152, remoteHost = "127.0.0.1", remotePort = 65152, kind = ForwardKind.REMOTE
     )
 
     @Test fun allForwardsUpHasNoCrossMark() {

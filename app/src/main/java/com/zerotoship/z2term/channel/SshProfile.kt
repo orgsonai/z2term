@@ -15,48 +15,71 @@ import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
 
+/** ポート転送の種類。`ssh` のオプションと同じ 3 つ。 */
+enum class ForwardKind(val flag: String) {
+    /** `-L`: 遠くのサービスをこちらへ引き込む。 */
+    LOCAL("-L"),
+
+    /** `-R`: こちら側を遠くから触れるようにする。 */
+    REMOTE("-R"),
+
+    /** `-D`: SOCKS プロキシ。宛先は繋いだ相手ではなく**使う側が 1 接続ごとに指定する**。 */
+    SOCKS("-D"),
+}
+
 /**
- * ポート転送 1 件分の設定。[reverse] で向きが変わる。
+ * ポート転送 1 件分の設定。[kind] で意味が変わる。
  *
- * **`-L` (reverse=false・既定)**: 遠くのサービスを**こちらへ引き込む**。
+ * **`-L` ([ForwardKind.LOCAL]・既定)**: 遠くのサービスを**こちらへ引き込む**。
  * 端末の `bindAddress:localPort` で待ち受け、リモートから見た `remoteHost:remotePort` へ繋ぐ。
  * bindAddress を 127.0.0.1 にすると端末上の他アプリだけ、0.0.0.0 にすると同 Wi-Fi の他機からも届く (注意)。
  * 例: `localPort=8080, remoteHost=localhost, remotePort=80` で、リモートの HTTP を端末の
  * `127.0.0.1:8080` として見る。
  *
- * **`-R` (reverse=true)**: 逆向き。**こちら側を遠くから触れるようにする** (A2)。
+ * **`-R` ([ForwardKind.REMOTE])**: 逆向き。**こちら側を遠くから触れるようにする** (A2)。
  * リモートの `bindAddress:remotePort` で待ち受け、端末から見た `remoteHost:localPort` へ繋ぐ。
  * 携帯回線のスマホは外から直接繋げないので、スマホ側から自宅サーバーへ張った接続を逆走させる。
- * 例: `reverse=true, remotePort=2222, remoteHost=127.0.0.1, localPort=2222` で、
+ * 例: `kind=REMOTE, remotePort=2222, remoteHost=127.0.0.1, localPort=2222` で、
  * 自宅サーバーの `127.0.0.1:2222` からスマホの sshd に入れる。
  * ⚠ **`-R` は常駐 ([SshProfile.residentTunnel]) と組み合わせて初めて意味を持つ**
  * (入りたい時にスマホ側でタブを開いている必要があるなら、外から入る意味が無い)。
+ *
+ * **`-D` ([ForwardKind.SOCKS]・0.8.524)**: 端末の `bindAddress:localPort` を **SOCKS プロキシ**に
+ * する。**宛先を先に決めない**のが `-L` との違いで、使う側が 1 接続ごとに指定した相手へ、繋いだ
+ * 先の網から出て行く。⚠ [remoteHost] / [remotePort] は使わない。
  */
 data class PortForward(
-    /** 待ち受けアドレス。`-L` は端末側、`-R` はリモート側 (既定: 127.0.0.1) */
+    /** 待ち受けアドレス。`-L` / `-D` は端末側、`-R` はリモート側 (既定: 127.0.0.1) */
     val bindAddress: String = "127.0.0.1",
-    /** `-L`: 端末側の待ち受けポート / `-R`: 端末から見た接続先ポート */
+    /** `-L` / `-D`: 端末側の待ち受けポート / `-R`: 端末から見た接続先ポート */
     val localPort: Int,
-    /** `-L`: リモートから見た接続先ホスト / `-R`: 端末から見た接続先ホスト */
+    /** `-L`: リモートから見た接続先ホスト / `-R`: 端末から見た接続先ホスト / `-D`: 使わない */
     val remoteHost: String,
-    /** `-L`: リモートから見た接続先ポート / `-R`: リモート側の待ち受けポート */
+    /** `-L`: リモートから見た接続先ポート / `-R`: リモート側の待ち受けポート / `-D`: 使わない */
     val remotePort: Int,
-    /** true なら `-R` (リモート → 端末)。既定は `-L`。 */
-    val reverse: Boolean = false
+    /** 転送の種類。既定は `-L`。 */
+    val kind: ForwardKind = ForwardKind.LOCAL
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("bindAddress", bindAddress)
         put("localPort", localPort)
         put("remoteHost", remoteHost)
         put("remotePort", remotePort)
-        put("reverse", reverse)
+        put("kind", kind.name)
+        // ⚠ 0.8.523 までの版は `reverse` しか読まない。`-L` / `-R` はそのまま読めるように
+        // 併記しておく (`-D` は旧版では `-L` として読まれ、繋がらずに失敗するだけで済む)。
+        put("reverse", kind == ForwardKind.REMOTE)
     }
 
     /** 一覧に出す 1 行 (`-L 127.0.0.1:8080 → localhost:80` のような形)。 */
-    fun describe(): String = if (reverse)
-        "-R ${HostAddress.hostPort(bindAddress, remotePort)} → ${HostAddress.hostPort(remoteHost, localPort)}"
-    else
-        "-L ${HostAddress.hostPort(bindAddress, localPort)} → ${HostAddress.hostPort(remoteHost, remotePort)}"
+    fun describe(): String = when (kind) {
+        ForwardKind.REMOTE ->
+            "-R ${HostAddress.hostPort(bindAddress, remotePort)} → ${HostAddress.hostPort(remoteHost, localPort)}"
+        ForwardKind.SOCKS ->
+            "-D ${HostAddress.hostPort(bindAddress, localPort)}"
+        ForwardKind.LOCAL ->
+            "-L ${HostAddress.hostPort(bindAddress, localPort)} → ${HostAddress.hostPort(remoteHost, remotePort)}"
+    }
 
     companion object {
         fun fromJson(o: JSONObject): PortForward = PortForward(
@@ -64,8 +87,19 @@ data class PortForward(
             localPort = o.optInt("localPort"),
             remoteHost = o.optString("remoteHost"),
             remotePort = o.optInt("remotePort"),
-            reverse = o.optBoolean("reverse", false)
+            kind = kindOf(o.optString("kind"), o.optBoolean("reverse", false))
         )
+
+        /**
+         * 保存済みの値から種類を決める。
+         *
+         * ⚠ **0.8.523 までに書かれたものには `kind` が無い**。そこでは `reverse` が正本なので、
+         * 名前が読めなければそちらへ落とす (読めない名前を `-L` として黙って扱うと、`-R` の
+         * 設定が向きを変えて張られる)。
+         */
+        internal fun kindOf(kindName: String?, reverse: Boolean): ForwardKind =
+            ForwardKind.entries.firstOrNull { it.name == kindName }
+                ?: if (reverse) ForwardKind.REMOTE else ForwardKind.LOCAL
     }
 }
 
@@ -223,7 +257,7 @@ data class SshProfile(
      * 空なら直接繋ぐ。段数の上限は設けていない ([SshSessionFactory])。
      */
     val jumpHosts: List<SshHop> = emptyList(),
-    /** ポート転送のリスト (空なら何もしない)。向きは [PortForward.reverse] で決まる */
+    /** ポート転送のリスト (空なら何もしない)。種類は [PortForward.kind] で決まる */
     val forwards: List<PortForward> = emptyList(),
     /**
      * **常駐トンネル (A2)**: true なら、SSH タブを開いていなくてもこの接続を張り続け、

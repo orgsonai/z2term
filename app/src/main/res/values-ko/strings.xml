@@ -340,6 +340,7 @@
     <string name="ssh_forward_side_dest_local">여기로</string>
     <string name="ssh_forward_local_desc">상대 쪽 서비스를 여기로 가져옵니다</string>
     <string name="ssh_forward_reverse_desc">상대가 이 기기로 들어올 수 있게 합니다</string>
+    <string name="ssh_forward_socks_desc">상대 쪽을 거쳐 밖으로 나갑니다</string>
     <string name="history_search_hint">거르기 (띄어쓰기로 여러 낱말)</string>
     <string name="history_empty">아직 기록이 없습니다. 터미널에서 실행한 명령이 여기에 쌓입니다.</string>
     <string name="history_no_match">조건에 맞는 것이 없습니다.</string>

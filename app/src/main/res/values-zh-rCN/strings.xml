@@ -341,6 +341,7 @@
     <string name="ssh_forward_side_dest_local">→ 本机的</string>
     <string name="ssh_forward_local_desc">把远端的服务接到这边来</string>
     <string name="ssh_forward_reverse_desc">让远端能够访问这台设备</string>
+    <string name="ssh_forward_socks_desc">经由远端连到外部</string>
     <string name="history_search_hint">筛选（用空格分隔多个词）</string>
     <string name="history_empty">还没有历史。在终端里执行过的命令会排列在这里。</string>
     <string name="history_no_match">没有符合这个筛选条件的项目。</string>

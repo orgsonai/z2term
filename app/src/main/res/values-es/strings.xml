@@ -341,6 +341,7 @@
     <string name="ssh_forward_side_dest_local">hasta aquí</string>
     <string name="ssh_forward_local_desc">traer aquí un servicio remoto</string>
     <string name="ssh_forward_reverse_desc">dejar que el remoto alcance este dispositivo</string>
+    <string name="ssh_forward_socks_desc">salir a Internet por el remoto</string>
     <string name="history_search_hint">filtrar (palabras separadas por espacios)</string>
     <string name="history_empty">Todavía no hay historial. Los comandos que ejecutes en la terminal aparecerán aquí.</string>
     <string name="history_no_match">Nada coincide con ese filtro.</string>

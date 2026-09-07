@@ -66,7 +66,7 @@ class SshChannel private constructor(
 
                 // M7: ポート転送をセッション開通直後に設定。向きは PortForward.reverse で決まる。
                 // 失敗した転送は警告ログに留め、確立できたものはサマリを返す。
-                val result = PortForwarding.apply(link.session, profile.forwards)
+                val result = PortForwarding.apply(link, profile.forwards)
                 val summary = result.established + result.failed.map { "✗ ${it.describe()}" }
 
                 val channel = link.session.openChannel("shell") as ChannelShell

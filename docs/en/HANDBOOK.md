@@ -531,17 +531,36 @@ You can turn your phone into an SSH server and log in from a PC.
 
 ### Keeping a tunnel running (get in from outside, bring a service here)
 
-Editing a host in 📜 → "SSH / SFTP" lets you add **port forwards**, in one of two directions.
+Editing a host in 📜 → "SSH / SFTP" lets you add **port forwards**, in one of three kinds.
 
 ⚠ **Up to 0.8.493, opening the connection from an SSH tab installed `-R` as `-L`** (fixed in
 0.8.494). Turning **Resident** on always did the right thing, so anyone using these as resident
 tunnels was unaffected.
 
 
-| Direction | What it does | Example |
+| Kind | What it does | Example |
 |---|---|---|
 | **-L** | brings **a remote service here** | view your home PC's web server at `127.0.0.1:8080` on the phone |
 | **-R** | lets **the remote reach this device** | ssh into the phone from your home server while you are out |
+| **-D** | **goes out through the remote** (SOCKS, 0.8.524) | browse the wider internet from the phone over your home line |
+
+**Using -D (SOCKS)**
+
+Unlike `-L`, **no destination is fixed up front**. You only set the listener; **the caller names a
+destination per connection**. Pick **-D** on the left of the row and enter `127.0.0.1` : `1080` as
+the listener — that is all (the `→` row disappears, because having no destination is what `-D` is).
+
+Then point anything that speaks SOCKS at `127.0.0.1:1080`:
+
+```sh
+curl --socks5-hostname 127.0.0.1:1080 https://example.com
+```
+
+- **Names are resolved on the far side** too (that is what the `hostname` in `--socks5-hostname`
+  asks for), so names that only exist over there just work.
+- Browsers, `git` — anything that takes a SOCKS proxy works the same way.
+- ⚠ Listening on `0.0.0.0` makes it usable **from every machine on the same Wi-Fi**. That is an
+  open door for anyone, so turn it on only while you need it.
 
 **What to type (making your home PC able to reach the phone)**
 
