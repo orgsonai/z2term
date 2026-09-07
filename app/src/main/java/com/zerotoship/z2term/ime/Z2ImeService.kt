@@ -426,6 +426,15 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
             composing.commitRaw()
             kanaMode = !kanaMode
             updateInputViewShown()
+            // ⛔ **切り替えた瞬間に入力メソッドが自分から出る** (0.8.547・利用者の指摘
+            // 「英字で立ち上げて Shift+Space すると予測変換が出ない」)。[updateInputViewShown]
+            // だけでは窓は開かない — `InputMethodService` は **「相手のアプリからの表示要求 ∧
+            // [onEvaluateInputViewShown]」** で出すかを決めており、物理キーボードがあると
+            // 相手のアプリは要求を出さない (端末画面も 0.8.527 で `requestKeyboard` を呼ばなく
+            // なった)。⇒ **かなモードのまま起動した回だけ候補バーが見え、後から切り替えた回は
+            // 1 度も見えない**という形で出ていた。⚠ OFF にしたら引っ込める (要求は自分で
+            // 出した以上、自分で取り消さないと残る)。
+            if (kanaMode) requestShowSelf(0) else if (hardwareKeyboard.value) requestHideSelf(0)
             return true
         }
         if (!kanaMode) return false
@@ -455,7 +464,12 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                 }
             }
         }
-        if (handled) updateInputViewShown()
+        if (handled) {
+            updateInputViewShown()
+            // ⚠ 打ちかけがあるのに窓が閉じていると候補を選べない。表示要求は上と同じ理由で
+            // 自分で出すしかない (他のアプリへ移って戻ったあとなど、閉じている場合の保険)。
+            if (composing.isActive) requestShowSelf(0)
+        }
         return handled
     }
 

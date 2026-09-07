@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-08 / Target version: 0.8.546-alpha (versionCode 554)
+Last updated: 2026-09-08 / Target version: 0.8.547-alpha (versionCode 555)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2962,6 +2962,15 @@ being delegated back to us (confirmed on-device with `settings get secure enable
   the terminal's own text**. ⚠ The input method and the terminal screen share a process, so a single
   `StateFlow` (`KanaModeState`) is all it takes to pass the state. ⚠ **Kana mode is folded away when
   the external keyboard goes** (`onStartInputView`) — a marker left behind would be a lie.
+- ⛔ **Switching into kana mode makes the input method show itself** (`requestShowSelf(0)`,
+  0.8.547, user report: "start in ascii, press Shift+Space and no predictions appear").
+  `InputMethodService` decides whether to open the window from **"a show request from the target app
+  ∧ `onEvaluateInputViewShown`"**, so ⚠ **calling `updateInputViewShown()` opens nothing while no
+  request stands**. With a physical keyboard the target app never makes that request (the terminal
+  screen stopped calling `requestKeyboard` in 0.8.527), so **only a session started already in kana
+  mode ever showed the candidate bar**; toggling into it later showed nothing at all. ⇒
+  `requestShowSelf(0)` on the toggle (on) and while composing, `requestHideSelf(0)` on the way out
+  (a request we raised ourselves has to be dropped by us).
 - ⛔ **The inline pre-commit text follows the same condition as `imeEnabled`** (0.8.546, user report:
   "inline input does not work"). While an external keyboard is attached `keyboardMode` stays CUSTOM,
   but the keystrokes arrive through the OS input method (`imeEnabled = SYSTEM || physicalKeyboard`,

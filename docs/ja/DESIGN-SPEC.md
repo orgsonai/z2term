@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-08 / 対象バージョン: 0.8.546-alpha (versionCode 554)
+最終更新: 2026-09-08 / 対象バージョン: 0.8.547-alpha (versionCode 555)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -2874,6 +2874,14 @@ enabled_input_methods` で確認）。⇒ **`Z2ImeService` が物理キーを直
   浮くので、そこに文字を出すと**端末の文字と重なって読めなくなる**。⚠ 入力メソッドと端末画面は
   同じプロセスなので、渡すのは `StateFlow` 1 つ（`KanaModeState`）で足りる。⚠ **外付けが外れたら
   かなモードも畳む**（`onStartInputView`）— 印だけが残ると嘘になる。
+- ⛔ **かなモードへ切り替えた瞬間は入力メソッドが自分から出る**（`requestShowSelf(0)`・
+  0.8.547・利用者の指摘「英字で立ち上げて Shift+Space すると予測変換が出ない」）。
+  `InputMethodService` は **「相手のアプリからの表示要求 ∧ `onEvaluateInputViewShown`」** で窓を
+  出すかを決めており、⚠ **`updateInputViewShown()` を呼んでも要求が無ければ開かない**。物理
+  キーボードがあると相手のアプリは要求を出さない（端末画面も 0.8.527 で `requestKeyboard` を
+  呼ばなくなった）ので、**かなモードのまま起動した回だけ候補バーが見え、英数で起動して後から
+  切り替えた回は 1 度も見えない**という形で出た。⇒ 切り替え時（ON）と変換中に
+  `requestShowSelf(0)`、OFF では `requestHideSelf(0)`（要求は自分で出した以上、自分で取り消す）。
 - ⛔ **確定前のインライン表示は `imeEnabled` と同じ条件で出す**（0.8.546・利用者の指摘
   「インライン入力ができていない」）。外付けを繋いでいる間 `keyboardMode` は CUSTOM のままだが、
   打鍵が来るのは OS の入力方法から（`imeEnabled = SYSTEM || physicalKeyboard`・0.8.527）。
