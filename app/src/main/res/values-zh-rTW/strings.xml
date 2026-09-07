@@ -737,6 +737,8 @@
     <string name="tb_screen_on">保持螢幕常亮</string>
     <string name="tb_keep_alive">背景保活</string>
     <string name="tb_keep_alive_locked">常駐中（常駐服務執行中）</string>
+    <string name="tb_prompt_prev">上一個指令</string>
+    <string name="tb_prompt_next">下一個指令</string>
     <string name="tb_search">搜尋回捲內容</string>
     <string name="tb_keyboard">切換鍵盤</string>
     <string name="tb_settings">設定</string>

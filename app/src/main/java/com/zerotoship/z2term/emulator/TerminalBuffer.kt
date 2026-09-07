@@ -62,6 +62,40 @@ class TerminalBuffer(
         }
     }
 
+    /**
+     * スクリーンの [row] を**コマンドの頭**として印を付ける (`OSC 133 ; A`)。
+     *
+     * ⚠ alt screen では何もしない。全画面を描く TUI が出した `OSC 133` を拾うと、履歴に残らない
+     * 画面の行に印が付き、頭出しが**その TUI を抜けた後もずっと空振りする**。
+     */
+    fun markPromptRow(row: Int) {
+        if (!primaryActive || row !in 0 until rows) return
+        screen[row].promptMark = true
+    }
+
+    /**
+     * [fromAbs] より前 (上) にある直近のコマンドの頭。無ければ null。
+     * 絶対行 (0 = スクロールバック最古行) で返す。
+     */
+    fun prevPromptRow(fromAbs: Int): Int? {
+        var i = (fromAbs - 1).coerceAtMost(totalRows - 1)
+        while (i >= 0) {
+            if (getRow(i).promptMark) return i
+            i--
+        }
+        return null
+    }
+
+    /** [fromAbs] より後 (下) にある直近のコマンドの頭。無ければ null。 */
+    fun nextPromptRow(fromAbs: Int): Int? {
+        var i = (fromAbs + 1).coerceAtLeast(0)
+        while (i < totalRows) {
+            if (getRow(i).promptMark) return i
+            i++
+        }
+        return null
+    }
+
     /** スクリーン上の行を取得 (0 = 最上行) */
     fun getScreenRow(row: Int): TerminalRow {
         require(row in 0 until rows) { "row=$row out of range [0,$rows)" }

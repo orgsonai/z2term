@@ -737,6 +737,8 @@
     <string name="tb_screen_on">保持屏幕常亮</string>
     <string name="tb_keep_alive">后台保活</string>
     <string name="tb_keep_alive_locked">常驻中（常驻服务运行中）</string>
+    <string name="tb_prompt_prev">上一条命令</string>
+    <string name="tb_prompt_next">下一条命令</string>
     <string name="tb_search">搜索回滚内容</string>
     <string name="tb_keyboard">切换键盘</string>
     <string name="tb_settings">设置</string>

@@ -736,6 +736,8 @@
     <string name="tb_screen_on">화면 계속 켜 두기</string>
     <string name="tb_keep_alive">백그라운드에서 계속 돌리기</string>
     <string name="tb_keep_alive_locked">상주 중 (서버가 돌고 있음)</string>
+    <string name="tb_prompt_prev">이전 명령으로</string>
+    <string name="tb_prompt_next">다음 명령으로</string>
     <string name="tb_search">스크롤백에서 찾기</string>
     <string name="tb_keyboard">키보드 전환</string>
     <string name="tb_settings">설정</string>

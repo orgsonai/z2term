@@ -804,6 +804,8 @@
     <string name="tb_screen_on">Keep screen on</string>
     <string name="tb_keep_alive">Keep running in background</string>
     <string name="tb_keep_alive_locked">Resident (servers running)</string>
+    <string name="tb_prompt_prev">previous command</string>
+    <string name="tb_prompt_next">next command</string>
     <string name="tb_search">Search scrollback</string>
     <string name="tb_keyboard">Switch keyboard</string>
     <string name="tb_settings">Settings</string>

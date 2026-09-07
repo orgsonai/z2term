@@ -1356,8 +1356,24 @@ class TerminalEmulator(
                 colors.setCursorColor(it)
             }
             52 -> handleOscClipboard(arg)
+            133 -> handleOscShellIntegration(arg)
             else -> {}
         }
+    }
+
+    /**
+     * OSC 133 — シェル統合 (FinalTerm 由来。プロンプトとコマンドの境目をシェルが知らせる)。
+     *
+     * ⭐ **拾うのは `A` (プロンプトの頭) だけ。** `B` (入力の始まり) / `C` (実行の始まり) /
+     * `D` (終了と終了コード) は受け取っても何もしない。⚠ **知らない字が来ても投げない** —
+     * 投げると受信ループごと落ちて、そこから後の出力が丸ごと消える。
+     *
+     * `A` だけで「1 つ前のコマンドの頭へ」は成立する (頭から次の頭の手前までが 1 コマンド分)。
+     * 終了コードで拾い分けたくなったら `D` を足す。
+     */
+    private fun handleOscShellIntegration(arg: String) {
+        if (!arg.startsWith("A")) return
+        buffer.markPromptRow(cursorRow)
     }
 
     /**

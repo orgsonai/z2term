@@ -744,6 +744,8 @@
     <string name="tb_screen_on">Mantener la pantalla encendida</string>
     <string name="tb_keep_alive">Seguir en marcha en segundo plano</string>
     <string name="tb_keep_alive_locked">Permanente (hay servidores en marcha)</string>
+    <string name="tb_prompt_prev">Comando anterior</string>
+    <string name="tb_prompt_next">Comando siguiente</string>
     <string name="tb_search">Buscar en el historial</string>
     <string name="tb_keyboard">Cambiar de teclado</string>
     <string name="tb_settings">Ajustes</string>

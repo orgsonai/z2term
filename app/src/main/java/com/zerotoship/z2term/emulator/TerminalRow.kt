@@ -14,6 +14,15 @@ class TerminalRow(initialColumns: Int) {
     var wrapped: Boolean = false
 
     /**
+     * この行が**コマンドの頭**か (シェルが `OSC 133 ; A` を出したプロンプト行)。
+     *
+     * ⭐ **絶対行番号ではなく行そのものに持たせる。** スクロールバックが溢れると絶対行番号は
+     * 全部ずれるが、印を行に付けておけば行が捨てられるときに一緒に消える。[TerminalBuffer.scrollUp]
+     * は行オブジェクトをそのままスクロールバックへ移すので、印も付いて回る。
+     */
+    var promptMark: Boolean = false
+
+    /**
      * この行を anchor (top-left) とする画像 placement のリスト (Kitty graphics 等)。
      * 空のあいだは画像なし。 画像は `widthCells × heightCells` の矩形を占有し、
      * Renderer は anchor 行を描く回で配下のセルへ Bitmap を一括描画する。 同じ anchor 行
@@ -115,6 +124,9 @@ class TerminalRow(initialColumns: Int) {
         for (i in start until end) {
             cells[i].setClearedWith(fg, bg)
         }
+        // 行を丸ごと消したらコマンドの頭の印も落とす。⚠ 使い回された行に前の印が残ると、
+        // 何も書かれていない行が「コマンドの頭」として拾われる。
+        if (start == 0 && end >= cells.size) promptMark = false
         // clear 範囲に anchor col が入っている placement を破棄 (他の placement は残す)。
         if (images.isNotEmpty()) {
             images.removeAll { it.col in start until end }

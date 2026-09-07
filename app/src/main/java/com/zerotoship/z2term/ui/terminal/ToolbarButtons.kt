@@ -42,6 +42,8 @@ object ToolbarButtons {
     const val APPS = "apps"
     const val SCREEN_ON = "screen_on"
     const val KEEP_ALIVE = "keep_alive"
+    const val PROMPT_PREV = "prompt_prev"
+    const val PROMPT_NEXT = "prompt_next"
     const val SEARCH = "search"
     const val KEYBOARD = "keyboard"
     const val LOG = "log"
@@ -63,6 +65,10 @@ object ToolbarButtons {
         ToolbarButtonSpec(CLIPBOARD_FILE, "📎", R.string.tb_clipboard_file, guiOnly = true),
         ToolbarButtonSpec(SCREEN_ON, "🔅", R.string.tb_screen_on),
         ToolbarButtonSpec(KEEP_ALIVE, "🔓", R.string.tb_keep_alive),
+        // ∧∨ はコマンド単位の頭出し (0.8.525)。シェルが出す OSC 133 の印を辿る。
+        // 検索の隣に置く (どちらも「出力の中から目当ての場所へ行く」道具)。
+        ToolbarButtonSpec(PROMPT_PREV, "∧", R.string.tb_prompt_prev, terminalOnly = true),
+        ToolbarButtonSpec(PROMPT_NEXT, "∨", R.string.tb_prompt_next, terminalOnly = true),
         ToolbarButtonSpec(SEARCH, "🔍", R.string.tb_search, terminalOnly = true),
         ToolbarButtonSpec(KEYBOARD, "⌨", R.string.tb_keyboard),
         ToolbarButtonSpec(LOG, "⚪", R.string.tb_log, terminalOnly = true),

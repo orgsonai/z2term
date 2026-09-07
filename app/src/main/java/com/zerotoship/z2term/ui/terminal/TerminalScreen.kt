@@ -563,6 +563,9 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             onOpenLogSettings = { logSheetOpen = true },
             searchActive = searchOpen,
             onToggleSearch = { searchOpen = !searchOpen },
+            // コマンド単位の頭出し。⚠ 見つからないときは何もしない (端まで来たら止まる)。
+            onPrevPrompt = { active.jumpToPrompt(forward = false) },
+            onNextPrompt = { active.jumpToPrompt(forward = true) },
             vertical = railVertical,
             // 縦レールはツールバー列とタブ列が別なので、どちらも列いっぱいを使う。
             modifier = if (railVertical) Modifier.fillMaxHeight() else Modifier
@@ -1996,6 +1999,8 @@ private fun TopBar(
     onOpenLogSettings: () -> Unit,
     searchActive: Boolean = false,
     onToggleSearch: () -> Unit = {},
+    onPrevPrompt: () -> Unit = {},
+    onNextPrompt: () -> Unit = {},
     /** true = 横画面の縦レール (0.8.431・§12-7)。並びを縦にし、ラベルを短く出す。 */
     vertical: Boolean = false,
     modifier: Modifier = Modifier
@@ -2024,6 +2029,8 @@ private fun TopBar(
         onOpenLogSettings = onOpenLogSettings,
         searchActive = searchActive,
         onToggleSearch = onToggleSearch,
+        onPrevPrompt = onPrevPrompt,
+        onNextPrompt = onNextPrompt,
     )
     if (vertical) {
         // 縦レール: ラベル → ツールバー (縦スクロール) → ⚙ (下端固定)。
@@ -2209,11 +2216,17 @@ private fun terminalToolbarItems(
     onOpenLogSettings: () -> Unit,
     searchActive: Boolean,
     onToggleSearch: () -> Unit,
+    onPrevPrompt: () -> Unit,
+    onNextPrompt: () -> Unit,
 ): List<ToolbarItem> = listOf(
     ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
     ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
     ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn, onDoubleClick = onOpenBrightness),
     keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
+    // ∧∨: コマンドの頭 (OSC 133 A) を 1 つずつ辿る。連打で遡れるように**単押しだけ**にする
+    // (ダブルタップを持たせると 1 回目の確定が待たされて連打できない)。
+    ToolbarItem(ToolbarButtons.PROMPT_PREV, "∧", stringResource(R.string.tb_prompt_prev), onClick = onPrevPrompt),
+    ToolbarItem(ToolbarButtons.PROMPT_NEXT, "∨", stringResource(R.string.tb_prompt_next), onClick = onNextPrompt),
     ToolbarItem(ToolbarButtons.SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
     ToolbarItem(
         ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard),
