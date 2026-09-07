@@ -401,7 +401,7 @@ class ProotLauncher(private val context: Context) {
         ensureMacroPathConfig(rootfs)
         // セッション復元の cwd 用に、プロンプト毎 OSC 7 (cwd 通知) を出すフックを仕込む。
         ensureOsc7CwdConfig(rootfs)
-        ensureOsc133PromptConfig(rootfs)
+        removeOsc133PromptConfig(rootfs)
         // `sshd` コマンドで dropbear が立ち上がるよう wrapper を配置 (OpenSSH sshd は
         // proot で privsep 破綻 / sshd_config の UsePrivilegeSeparation で起動不可)。
         ensureSshdWrapper(rootfs)
@@ -644,7 +644,7 @@ class ProotLauncher(private val context: Context) {
         ensureShellHistoryConfig(rootfs)
         ensureMacroPathConfig(rootfs)
         ensureOsc7CwdConfig(rootfs)
-        ensureOsc133PromptConfig(rootfs)
+        removeOsc133PromptConfig(rootfs)
         ensureSshdWrapper(rootfs)
         ensureGuiScript(rootfs)
         // 死んだ GUI が残した X のソケットを片付ける (これが残っていると z2run が
@@ -1132,41 +1132,36 @@ class ProotLauncher(private val context: Context) {
     }
 
     /**
-     * プロンプトの頭を `OSC 133 ; A` でアプリへ知らせるシェルフックを rootfs に仕込む
-     * (コマンド単位の頭出し用)。
+     * 0.8.525 で仕込んだ `OSC 133` のフックを rootfs から取り除く (0.8.528)。
      *
-     * ⭐ これが無いと**印が 1 つも付かず、∧∨ が何も見つけられない**。多くの distro の既定の
-     * プロンプトはシェル統合の印を出さないので、[ensureOsc7CwdConfig] と同じ形で足す。
-     * ⚠ **別マーカーにする** — 既に osc7 のブロックを持っている rootfs にも後から入るように。
-     * ⚠ 自分でプロンプトに `OSC 133` を出す設定を使っている人はそのままでも効く (印が 2 回
-     * 付くだけで、同じ行なので害はない)。
+     * ⛔ **コマンド単位の頭出しは機能ごと取り下げた**（利用者の判断）。⚠ **入れたものは消さないと
+     * 残る** — 受け取る側が無くなったのに、シェルは毎プロンプト `printf` を 1 回走らせ続ける。
+     * ⚠ この掃除が要るのは**0.8.525〜0.8.527 を通った rootfs だけ**。それらが出回らなくなったと
+     * 言い切れる時が来たら、この関数ごと消してよい。
      */
-    private fun ensureOsc133PromptConfig(rootfs: File) {
-        val marker = "# >>> z2term osc133 >>>"
-
-        val bashBlock = """
-            |$marker
-            |if [ -n "${'$'}BASH_VERSION" ]; then
-            |  __z2term_osc133() { printf '\033]133;A\a'; }
-            |  case ":${'$'}PROMPT_COMMAND:" in
-            |    *__z2term_osc133*) ;;
-            |    *) PROMPT_COMMAND="__z2term_osc133${'$'}{PROMPT_COMMAND:+; ${'$'}PROMPT_COMMAND}" ;;
-            |  esac
-            |fi
-            |# <<< z2term osc133 <<<
-        """.trimMargin()
-
-        val zshBlock = """
-            |$marker
-            |if [ -n "${'$'}ZSH_VERSION" ]; then
-            |  __z2term_osc133() { printf '\033]133;A\a' }
-            |  autoload -Uz add-zsh-hook 2>/dev/null && add-zsh-hook precmd __z2term_osc133
-            |fi
-            |# <<< z2term osc133 <<<
-        """.trimMargin()
-
-        appendOnceWithMarker(File(rootfs, "etc/bash.bashrc"), marker, bashBlock)
-        appendOnceWithMarker(File(rootfs, "etc/zsh/zshrc"), marker, zshBlock)
+    private fun removeOsc133PromptConfig(rootfs: File) {
+        val begin = "# >>> z2term osc133 >>>"
+        val end = "# <<< z2term osc133 <<<"
+        listOf("etc/bash.bashrc", "etc/zsh/zshrc").forEach { path ->
+            val file = File(rootfs, path)
+            runCatching {
+                if (!file.isFile) return@runCatching
+                val text = file.readText()
+                if (!text.contains(begin)) return@runCatching
+                val kept = StringBuilder()
+                var skipping = false
+                text.lineSequence().forEach { line ->
+                    val head = line.trimStart()
+                    when {
+                        head.startsWith(begin) -> skipping = true
+                        skipping && head.startsWith(end) -> skipping = false
+                        !skipping -> kept.append(line).append('\n')
+                    }
+                }
+                file.writeText(kept.toString())
+                Log.i(TAG, "osc133 フックを除去: ${file.absolutePath}")
+            }.onFailure { Log.w(TAG, "osc133 フックの除去に失敗: ${file.absolutePath}", it) }
+        }
     }
 
     /**

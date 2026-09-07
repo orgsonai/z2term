@@ -576,7 +576,6 @@
     <string name="gui_confirm_download_action">내려받고 실행</string>
     <string name="keyboard_show_button">▴ 키보드</string>
     <string name="keyboard_hide_button">▾ 키보드</string>
-    <string name="terminal_action_command">명령 전체</string>
     <string name="terminal_action_copy">복사</string>
     <string name="service_channel_name">Z2Term 세션</string>
     <string name="service_channel_desc">터미널 세션을 백그라운드에서 계속 돌립니다</string>
@@ -737,8 +736,6 @@
     <string name="tb_screen_on">화면 계속 켜 두기</string>
     <string name="tb_keep_alive">백그라운드에서 계속 돌리기</string>
     <string name="tb_keep_alive_locked">상주 중 (서버가 돌고 있음)</string>
-    <string name="tb_prompt_prev">이전 명령으로</string>
-    <string name="tb_prompt_next">다음 명령으로</string>
     <string name="tb_search">스크롤백에서 찾기</string>
     <string name="tb_keyboard">키보드 전환</string>
     <string name="tb_settings">설정</string>

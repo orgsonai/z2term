@@ -1102,57 +1102,6 @@ class TerminalSession(
         bumpRedrawImmediate()
     }
 
-    /**
-     * [absRow] が画面の**一番上**に来るようにスクロールする (コマンドの頭出し)。
-     *
-     * ⚠ [scrollToAbsRow] は行を画面の**真ん中**へ置く (検索は一致の前後を見たいため)。頭出しでは
-     * その行から**下**を読みたい (コマンドとその出力) ので、上端に寄せる。
-     */
-    fun scrollTopToAbsRow(absRow: Int) {
-        val target = (emulator.buffer.scrollbackSize - absRow)
-            .coerceIn(0, emulator.buffer.scrollbackSize)
-        _scrollOffset.value = target
-        bumpRedrawImmediate()
-    }
-
-    /**
-     * コマンドの頭 (シェルが `OSC 133 ; A` を出した行) へ飛ぶ。
-     *
-     * 基準はいま画面の一番上に見えている行。[forward] が true なら下 (新しい方) へ、
-     * false なら上 (古い方) へ 1 つ。
-     *
-     * @return 飛べたら true。⚠ **その先に印が無ければ false で、画面は動かさない** —
-     * 端まで来たときに黙って一番上/下へ飛ぶと、押しすぎたのか印が無いのか分からなくなる。
-     */
-    fun jumpToPrompt(forward: Boolean): Boolean {
-        val buffer = emulator.buffer
-        val top = (buffer.scrollbackSize - _scrollOffset.value).coerceIn(0, buffer.totalRows)
-        val target = (if (forward) buffer.nextPromptRow(top) else buffer.prevPromptRow(top))
-            ?: return false
-        scrollTopToAbsRow(target)
-        return true
-    }
-
-    /** 選択している場所を含むコマンド 1 回分の範囲。⚠ 印が無ければ null (ボタンを出さない)。 */
-    fun commandRangeAtSelection(): IntRange? =
-        _selection.value?.let { emulator.buffer.commandRangeAt(it.startAbsRow) }
-
-    /**
-     * 選択を**コマンド 1 回分**へ広げる (打ったコマンドの行から、その出力の終わりまで)。
-     *
-     * ⭐ 「さっきの失敗を人に見せたい」がこの機能の動機なので、**コマンドの行も含める** —
-     * 出力だけ渡されても、何を打った結果なのかが相手に伝わらない。
-     *
-     * @return 広げられたら true。印が無ければ false で、⚠ **選択はそのまま**にする。
-     */
-    fun expandSelectionToCommand(): Boolean {
-        val range = commandRangeAtSelection() ?: return false
-        val lastCol = (emulator.buffer.getRow(range.last).columns - 1).coerceAtLeast(0)
-        _selection.value = TerminalSelection(range.first, 0, range.last, lastCol)
-        bumpRedrawImmediate()
-        return true
-    }
-
     fun clearOutput() {
         scope.launch(emulatorDispatcher) {
             emulator.processBytes(byteArrayOf(

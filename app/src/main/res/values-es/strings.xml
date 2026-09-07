@@ -577,7 +577,6 @@
     <string name="gui_confirm_download_action">Descargar y abrir</string>
     <string name="keyboard_show_button">▴ Teclado</string>
     <string name="keyboard_hide_button">▾ Teclado</string>
-    <string name="terminal_action_command">Comando completo</string>
     <string name="terminal_action_copy">Copiar</string>
     <string name="service_channel_name">Sesión de Z2Term</string>
     <string name="service_channel_desc">Mantiene la sesión de la terminal en marcha en segundo plano</string>
@@ -745,8 +744,6 @@
     <string name="tb_screen_on">Mantener la pantalla encendida</string>
     <string name="tb_keep_alive">Seguir en marcha en segundo plano</string>
     <string name="tb_keep_alive_locked">Permanente (hay servidores en marcha)</string>
-    <string name="tb_prompt_prev">Comando anterior</string>
-    <string name="tb_prompt_next">Comando siguiente</string>
     <string name="tb_search">Buscar en el historial</string>
     <string name="tb_keyboard">Cambiar de teclado</string>
     <string name="tb_settings">Ajustes</string>

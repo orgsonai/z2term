@@ -62,56 +62,6 @@ class TerminalBuffer(
         }
     }
 
-    /**
-     * スクリーンの [row] を**コマンドの頭**として印を付ける (`OSC 133 ; A`)。
-     *
-     * ⚠ alt screen では何もしない。全画面を描く TUI が出した `OSC 133` を拾うと、履歴に残らない
-     * 画面の行に印が付き、頭出しが**その TUI を抜けた後もずっと空振りする**。
-     */
-    fun markPromptRow(row: Int) {
-        if (!primaryActive || row !in 0 until rows) return
-        screen[row].promptMark = true
-    }
-
-    /**
-     * [fromAbs] より前 (上) にある直近のコマンドの頭。無ければ null。
-     * 絶対行 (0 = スクロールバック最古行) で返す。
-     */
-    fun prevPromptRow(fromAbs: Int): Int? {
-        var i = (fromAbs - 1).coerceAtMost(totalRows - 1)
-        while (i >= 0) {
-            if (getRow(i).promptMark) return i
-            i--
-        }
-        return null
-    }
-
-    /** [fromAbs] より後 (下) にある直近のコマンドの頭。無ければ null。 */
-    fun nextPromptRow(fromAbs: Int): Int? {
-        var i = (fromAbs + 1).coerceAtLeast(0)
-        while (i < totalRows) {
-            if (getRow(i).promptMark) return i
-            i++
-        }
-        return null
-    }
-
-    /**
-     * [absRow] を含む**コマンド 1 回分**の絶対行の範囲 (コマンドの頭 .. 次の頭の 1 つ手前)。
-     * 印が 1 つも無ければ null。
-     *
-     * ⭐ 頭には**その行自身も含める** — 印の付いた行 (プロンプト + 打ったコマンド) を選んで
-     * 「1 回分」を求めたときに、1 つ前のコマンドが返ると意図と逆になる。
-     * ⚠ 最後のコマンドには「次の頭」が無いので、そのときは**最終行まで**。
-     */
-    fun commandRangeAt(absRow: Int): IntRange? {
-        if (totalRows <= 0) return null
-        val row = absRow.coerceIn(0, totalRows - 1)
-        val head = if (getRow(row).promptMark) row else prevPromptRow(row) ?: return null
-        val tail = (nextPromptRow(head)?.minus(1) ?: (totalRows - 1)).coerceAtLeast(head)
-        return head..tail
-    }
-
     /** スクリーン上の行を取得 (0 = 最上行) */
     fun getScreenRow(row: Int): TerminalRow {
         require(row in 0 until rows) { "row=$row out of range [0,$rows)" }

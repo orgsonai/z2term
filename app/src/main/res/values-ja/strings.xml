@@ -616,7 +616,6 @@
     <string name="gui_confirm_download_action">ダウンロードして起動</string>
     <string name="keyboard_show_button">▴ キーボード</string>
     <string name="keyboard_hide_button">▾ キーボード</string>
-    <string name="terminal_action_command">コマンド全体</string>
     <string name="terminal_action_copy">コピー</string>
 
     <!-- フォアグラウンドサービス通知 / Toast (D3 バッチ 6) -->
@@ -795,8 +794,6 @@
     <string name="tb_screen_on">画面消灯ロック</string>
     <string name="tb_keep_alive">バックグラウンド常駐</string>
     <string name="tb_keep_alive_locked">常駐中（常駐サーバー稼働）</string>
-    <string name="tb_prompt_prev">前のコマンドへ</string>
-    <string name="tb_prompt_next">次のコマンドへ</string>
     <string name="tb_search">スクロールバック検索</string>
     <string name="tb_keyboard">キーボード切替</string>
     <string name="tb_settings">設定</string>

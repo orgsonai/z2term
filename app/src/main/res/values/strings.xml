@@ -619,7 +619,6 @@
     <string name="gui_confirm_download_action">Download and launch</string>
     <string name="keyboard_show_button">▴ Keyboard</string>
     <string name="keyboard_hide_button">▾ Keyboard</string>
-    <string name="terminal_action_command">Whole command</string>
     <string name="terminal_action_copy">Copy</string>
 
     <!-- Foreground service notification / toasts (D3 batch 6) -->
@@ -805,8 +804,6 @@
     <string name="tb_screen_on">Keep screen on</string>
     <string name="tb_keep_alive">Keep running in background</string>
     <string name="tb_keep_alive_locked">Resident (servers running)</string>
-    <string name="tb_prompt_prev">previous command</string>
-    <string name="tb_prompt_next">next command</string>
     <string name="tb_search">Search scrollback</string>
     <string name="tb_keyboard">Switch keyboard</string>
     <string name="tb_settings">Settings</string>
