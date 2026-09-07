@@ -182,7 +182,11 @@ Under Settings › **Keyboard style**:
 - **You never lose the ability to type.** Keys from the attached keyboard go straight to the terminal (or to the GUI on a GUI tab).
 - **To bring it back, double-tap ⌨** (or use the toggle bar above the keyboard). It stays out until the next time a keyboard is plugged in or unplugged.
 - **Unplug the keyboard and it comes back on its own.**
-- **Japanese (and any other IME language) works too** (0.8.527). While an external keyboard is attached, **the phone's input method does the conversion**, without drawing a keyboard on screen. ⚠ Switch between letters and conversion the way you would on a PC (the half/full-width key on that keyboard). ⚠ Up to 0.8.526 keys from an external keyboard went to the terminal raw, so there was no way to compose.
+- **Japanese works too** (0.8.529): type romaji on the external keyboard and it converts, using the same dictionary and the same learning as the on-screen keyboard.
+  - **Toggle**: the **half/full-width** key (or **Shift + Space** if your keyboard has none). The kana, henkan and muhenkan keys work as well. ⚠ It **starts in ascii** — the first thing you type in a terminal is usually a command.
+  - **How to type**: romaji → **Space to convert** → Space again for the next candidate → **Enter to commit**. Backspace steps back one character, **Esc drops what you were composing**, and ← → move the boundary being converted.
+  - **Either romanization works** (`shi` and `si` both give し).
+  - **A small "あ" appears at the bottom of the screen while kana mode is on** (no keyboard artwork — the keys are already under your fingers).
 
 ---
 

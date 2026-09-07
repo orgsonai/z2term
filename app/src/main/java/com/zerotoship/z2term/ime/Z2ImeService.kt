@@ -22,6 +22,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -59,10 +60,17 @@ import com.zerotoship.z2term.ui.terminal.keyboard.KeyboardStyle
 import com.zerotoship.z2term.ui.terminal.keyboard.KkcConverter
 import com.zerotoship.z2term.ui.terminal.keyboard.TerminalKeyboard
 import com.zerotoship.z2term.ui.terminal.keyboard.UserDictStore
+import com.zerotoship.z2term.ui.terminal.input.physicalKeyboardConnected
 import com.zerotoship.z2term.ui.theme.AppColors
 import com.zerotoship.z2term.ui.theme.Z2TermTheme
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import kotlinx.coroutines.launch
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.sp
+import com.zerotoship.z2term.ui.theme.ZtsGreen
+import androidx.compose.ui.unit.dp
 
 /**
  * 内蔵キーボードを **OS の入力メソッド (IME)** として提供するサービス。
@@ -209,6 +217,8 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
+        // ⚠ 抜き差しに追従させるため、開くたびに見直す (打鍵が来たときにも立てている)。
+        hardwareKeyboard.value = physicalKeyboardConnected()
         super.onStartInputView(info, restarting)
         // 画面回転や設定変更で窓ごと作り直されることがある。作り直された decorView には
         // オーナーが付いていないので、出すたびに載せ直す (同じ値の付け直しなので無害)。
@@ -268,6 +278,18 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                 // ことは画面にも相手アプリのレイアウトにも一切現れない。
                 Box(modifier = Modifier.fillMaxWidth().height(CandidateBarHeight)) {
                     CandidateBar(composing = composing)
+                    // ⚠ **かなモードかどうかは打ってみるまで分からない。** 物理キーボードでは
+                    // 画面にキーの絵も出ないので、印が無いと「英数のつもりでかなが出る」を
+                    // 毎回踏む。候補が出ていない間だけ、席の左端に小さく出す。
+                    if (hardwareKeyboard.value && kanaMode && !composing.isActive) {
+                        Text(
+                            text = "あ",
+                            color = ZtsGreen,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.align(Alignment.CenterStart).padding(start = 10.dp)
+                        )
+                    }
                 }
                 Column(
                     modifier = Modifier
@@ -275,7 +297,9 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                         .background(ZtsBgSecondary)
                         .padding(bottom = navBarPadding)
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth().height(style.naturalHeight)) {
+                    // ⚠ **物理キーボードがあるときはキーの絵を出さない。** 打つ手はもう指の下に
+                    // あるので、画面を占めるだけになる。出すのは候補バー (上の席) だけ。
+                    if (!hardwareKeyboard.value) Column(modifier = Modifier.fillMaxWidth().height(style.naturalHeight)) {
                         // ⚠ **開き直したキーボードは素の状態から出す** ([keyboardSession])。
                         // 入力ビューは窓を閉じても壊されずに使い回されるので、キーボードの中の
                         // 一時状態 (パッドの開閉・⇧/CTRL/ALT/?#) が composition ごと生き残り、
@@ -373,6 +397,114 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
             }
         }
     }
+
+    // ── 物理キーボードからの日本語入力 (0.8.529) ──────────────────────────────
+    //
+    // ⛔ **これが無いと、外付けキーボードを繋いだ人は日本語を打てない。** 内蔵キーボードは
+    // フリック入力なので「かなが直接入る」前提で作られており、打鍵がアルファベットで届く
+    // 物理キーボードには変換の入口がどこにも無かった (利用者の指摘)。
+    //
+    // ⭐ **新しく書くのはローマ字 → かな ([RomajiKana]) だけ。** 変換・候補・確定・学習は
+    // 画面のキーボードと同じ [composing] がそのまま受け持つので、両者の挙動がずれない。
+
+    /**
+     * かなモードか。⚠ **既定は OFF** — 端末で使う入力メソッドなので、繋いで最初に打つのは
+     * ほぼコマンド。日本語から始まると毎回切り替える手間だけが残る。
+     */
+    private var kanaModeState = mutableStateOf(false)
+    private var kanaMode: Boolean
+        get() = kanaModeState.value
+        set(value) { kanaModeState.value = value }
+
+    /** まだかなになっていないローマ字 (`k` / `ky` など)。 */
+    private var romaji = ""
+
+    /** 物理キーボードがあるか。⚠ あるときは入力ビューから**キーボード本体を外す**(下記)。 */
+    private val hardwareKeyboard = mutableStateOf(false)
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean =
+        if (handleHardwareKey(keyCode, event)) true else super.onKeyDown(keyCode, event)
+
+    /**
+     * 物理キーの 1 打鍵。入力メソッドが食べたら true。
+     *
+     * ⚠ **かなモードでないときは何も食べない** — 端末に打つ文字を 1 つでも横取りすると、
+     * コマンドが化ける。⚠ Ctrl / Alt / Meta 付きも同じ理由で必ず素通しする (Ctrl+C など)。
+     */
+    private fun handleHardwareKey(keyCode: Int, event: KeyEvent): Boolean {
+        hardwareKeyboard.value = true
+        if (isKanaToggle(keyCode, event)) {
+            flushRomaji()
+            composing.commitRaw()
+            kanaMode = !kanaMode
+            updateInputViewShown()
+            return true
+        }
+        if (!kanaMode) return false
+        if (event.isCtrlPressed || event.isAltPressed || event.isMetaPressed) return false
+
+        val handled = when (keyCode) {
+            // 変換。⚠ 何も打っていないときは素の空白として通す。
+            KeyEvent.KEYCODE_SPACE -> whileComposing { composing.convert() }
+            // 確定。commitRaw は候補サイクル中ならその候補を確定してくれる。
+            KeyEvent.KEYCODE_ENTER -> whileComposing { composing.commitRaw() }
+            // ⚠ 打ちかけのローマ字が先。"ky" まで打って ⌫ を押したら "k" に戻る。
+            KeyEvent.KEYCODE_DEL -> when {
+                romaji.isNotEmpty() -> { romaji = romaji.dropLast(1); true }
+                else -> composing.backspace()
+            }
+            KeyEvent.KEYCODE_ESCAPE -> whileComposing(flush = false) { romaji = ""; composing.reset() }
+            // 文節の区切りを動かす (画面キーボードの ◀▶ と同じ)。
+            KeyEvent.KEYCODE_DPAD_LEFT -> whileComposing(flush = false) { composing.moveCursorLeft() }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> whileComposing(flush = false) { composing.moveCursorRight() }
+            else -> {
+                val code = event.unicodeChar
+                if (code == 0) false else {
+                    val result = RomajiKana.feed(romaji, code.toChar())
+                    romaji = result.pending
+                    result.kana.forEach { composing.append(it) }
+                    true
+                }
+            }
+        }
+        if (handled) updateInputViewShown()
+        return handled
+    }
+
+    /** 打ちかけが何も無ければ食べない (素のキーとして相手へ通す)。 */
+    private inline fun whileComposing(flush: Boolean = true, body: () -> Unit): Boolean {
+        if (!composing.isActive && romaji.isEmpty()) return false
+        if (flush) flushRomaji()
+        body()
+        return true
+    }
+
+    /** 宙に浮いたローマ字をかなへ落とす。⚠ 変換・確定の前に呼ぶ ("kyo" の "ky" を残さない)。 */
+    private fun flushRomaji() {
+        if (romaji.isEmpty()) return
+        RomajiKana.flush(romaji).forEach { composing.append(it) }
+        romaji = ""
+    }
+
+    /**
+     * かな ⇄ 英数の切り替えキー。
+     *
+     * ⚠ **半角/全角キーが無い配列がある** (英語配列の外付けキーボード) ので、`Shift + Space`
+     * も受ける。⛔ `Ctrl + Space` は使わない — 端末で使う組み合わせを入力メソッドが奪うため。
+     */
+    private fun isKanaToggle(keyCode: Int, event: KeyEvent): Boolean = when (keyCode) {
+        KeyEvent.KEYCODE_ZENKAKU_HANKAKU, KeyEvent.KEYCODE_KANA,
+        KeyEvent.KEYCODE_LANGUAGE_SWITCH, KeyEvent.KEYCODE_HENKAN, KeyEvent.KEYCODE_MUHENKAN -> true
+        KeyEvent.KEYCODE_SPACE -> event.isShiftPressed
+        else -> false
+    }
+
+    /**
+     * ⚠ 物理キーボードがあると OS は既定で入力ビューを出さない。⛔ しかし**変換中は候補が
+     * 見えないと選べない**ので、そのときだけ出す (中身は候補バーだけ・下記)。
+     */
+    override fun onEvaluateInputViewShown(): Boolean =
+        composing.isActive || (hardwareKeyboard.value && kanaMode) || super.onEvaluateInputViewShown()
 
     /** 内蔵キーボードのバイト列を入力欄の操作へ読み替えて流す。 */
     private fun sendBytes(bytes: ByteArray) {

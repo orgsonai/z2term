@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-07 / Target version: 0.8.528-alpha (versionCode 536)
+Last updated: 2026-09-07 / Target version: 0.8.529-alpha (versionCode 537)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2924,6 +2924,36 @@ Confirms who you are before the screen appears (`security/AppLock.kt` + `ui/lock
 - **Its own settings group** (`SettingsGroup.APP_LOCK`). ⚠ **The heading is the feature's own name** — a container name like "Security" hides that there is only one thing inside, and any existing group would make it the last place someone looks.
 
 ### 6.9 Offering the built-in keyboard as an OS input method (`Z2ImeService`, 0.8.276)
+
+**Typing Japanese from a physical keyboard (0.8.529, user report: "I cannot type Japanese")**
+
+⛔ **The built-in keyboard had no entry point for a physical keyboard.** It is a flick keyboard, so
+it was built on the assumption that kana arrive directly; an external keyboard delivers latin
+letters, and nothing converted them. ⚠ **0.8.527 ("let the OS input method convert") does not solve
+it** — on this device **the only enabled input method is z2term itself**, so the conversion was
+being delegated back to us (confirmed on-device with `settings get secure enabled_input_methods`).
+⇒ **`Z2ImeService` now takes physical keys itself.**
+
+- ⭐ **The only new code is romaji → kana (`ime/RomajiKana.kt`).** Conversion, candidates, commit
+  and learning stay with the same `ComposingState` the on-screen keyboard uses, so **the two cannot
+  drift apart**.
+- ⚠ **Both romanizations are accepted** (si/shi, tu/tsu, hu/fu, zi/ji …); which one a person types
+  is personal, and accepting only one reads as "it does not work". Gemination (`kk` → っ), the
+  syllabic n (settled once the next key is neither a vowel nor y) and small kana (`xa` / `ltu`) are
+  in the table too.
+- ⛔ **Never swallow pending romaji on an unknown key** — dropping it silently makes typed
+  characters vanish, which reads as lost keystrokes. It is emitted as-is.
+- ⚠ **Not a single key is consumed outside kana mode.** Stealing one character from the terminal
+  corrupts commands. `Ctrl` / `Alt` / `Meta` combinations pass through for the same reason.
+- ⚠ **Toggling is the half/full-width, kana, henkan and muhenkan keys plus `Shift+Space`** — an
+  ANSI external keyboard has no half/full-width key, so a fallback is required. ⛔ `Ctrl+Space` is
+  not used (the input method would be taking a combination the terminal wants). ⚠ **Ascii is the
+  default**: the first thing typed in a terminal is almost always a command.
+- ⚠ **No key artwork while a physical keyboard is attached** (the keys are already under the
+  fingers); only the candidate bar is shown, with `onEvaluateInputViewShown` limited to composing
+  and kana mode.
+- ⚠ **A kana-mode marker ("あ") sits in the candidate bar's slot** — with no keyboard drawn, there
+  is otherwise no way to tell the mode apart until the wrong characters appear.
 
 **What it does**: registers the built-in keyboard as an Android **input method**. Once the user enables
 and picks it in the OS list, **the app's own text fields** (snippets, SSH profiles, SFTP, settings,
