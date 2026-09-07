@@ -71,6 +71,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.sp
 import com.zerotoship.z2term.ui.theme.ZtsGreen
 import androidx.compose.ui.unit.dp
+import com.zerotoship.z2term.ui.terminal.input.isPhysicalKeyboard
 
 /**
  * 内蔵キーボードを **OS の入力メソッド (IME)** として提供するサービス。
@@ -422,6 +423,14 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
      * コマンドが化ける。⚠ Ctrl / Alt / Meta 付きも同じ理由で必ず素通しする (Ctrl+C など)。
      */
     private fun handleHardwareKey(keyCode: Int, event: KeyEvent): Boolean {
+        // ⚠ **本当に外付けキーボードから来た打鍵だけ**を見る (0.8.531)。⛔ 無条件に
+        // [hardwareKeyboard] を立てると、端末側のハードキー (指紋センサー等も KEYBOARD として
+        // 数えられる) が 1 度来ただけで「外付けがある」ことになり、以後**画面のキーボードが
+        // 描かれなくなる**。判定は端末画面と同じ [isPhysicalKeyboard] を使う。
+        val device = event.device
+        if (device == null ||
+            !isPhysicalKeyboard(device.sources, device.keyboardType, device.isVirtual)
+        ) return false
         hardwareKeyboard.value = true
         if (isKanaToggle(keyCode, event)) {
             flushRomaji()
@@ -457,7 +466,14 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                 }
             }
         }
-        if (handled) updateInputViewShown()
+        if (handled) {
+            updateInputViewShown()
+            // ⛔ **変換中は入力メソッドが自分から出る (0.8.531)。** 物理キーボードがあるとき、
+            // 相手のアプリは「キーボードを出して」と要求しない (端末画面も 0.8.527 でそう
+            // 変えた)。要求が無い限り [onEvaluateInputViewShown] が true を返しても窓は開かず、
+            // **候補バーが 1 度も見えない** (利用者の指摘「予測変換が表示されない」)。
+            if (composing.isActive) requestShowSelf(0)
+        }
         return handled
     }
 
