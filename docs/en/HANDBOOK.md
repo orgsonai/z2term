@@ -183,6 +183,7 @@ Under Settings › **Keyboard style**:
 - **You never lose the ability to type.** Keys from the attached keyboard go straight to the terminal (or to the GUI on a GUI tab).
 - **To bring it back, double-tap ⌨** (or use the toggle bar above the keyboard). It stays out until the next time a keyboard is plugged in or unplugged.
 - **Unplug the keyboard and it comes back on its own.**
+- **Japanese (and any other IME language) works too** (0.8.527). While an external keyboard is attached, **the phone's input method does the conversion**, without drawing a keyboard on screen. ⚠ Switch between letters and conversion the way you would on a PC (the half/full-width key on that keyboard). ⚠ Up to 0.8.526 keys from an external keyboard went to the terminal raw, so there was no way to compose.
 
 ---
 

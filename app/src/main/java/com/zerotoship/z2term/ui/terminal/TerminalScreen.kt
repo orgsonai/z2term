@@ -468,11 +468,17 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             }
         }
     }
-    LaunchedEffect(keyboardMode, inputViewRef, active.id) {
+    // ⭐ **外付けキーボードが繋がっている間は、内蔵キーボードのままでも OS の入力方法を
+    // 有効にする (0.8.527)。** ⛔ 無いと `onCreateInputConnection` が null を返すので物理キーは
+    // `onKeyDown` から生のまま PTY へ行き、**日本語が打てない** — 内蔵の変換エンジンは画面の
+    // キーを押したときしか通らず、OS 側は InputConnection が無いので出番が無い。
+    // ⚠ **画面のキーボードは出さない** (`requestKeyboard` は外付けが無いときだけ)。外付けを
+    // 繋いだのに画面がキーボードで埋まっては、畳んだ意味が無くなる。変換だけ OS に任せる。
+    LaunchedEffect(keyboardMode, physicalKeyboard, inputViewRef, active.id) {
         val v = inputViewRef ?: return@LaunchedEffect
         v.session = active
-        v.imeEnabled = (keyboardMode == KeyboardMode.SYSTEM)
-        if (keyboardMode == KeyboardMode.SYSTEM) v.requestKeyboard()
+        v.imeEnabled = keyboardMode == KeyboardMode.SYSTEM || physicalKeyboard
+        if (keyboardMode == KeyboardMode.SYSTEM && !physicalKeyboard) v.requestKeyboard()
     }
     // 設定シートを開いたら OS ソフトキーボードを隠す (キーボードを出したまま設定に
     // 入ると、シートとキーボードが重なって操作しづらいため)。
@@ -712,7 +718,7 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
                     factory = { ctx ->
                         TerminalInputView(ctx).also { v ->
                             v.session = active
-                            v.imeEnabled = (keyboardMode == KeyboardMode.SYSTEM)
+                            v.imeEnabled = keyboardMode == KeyboardMode.SYSTEM || physicalKeyboard
                             inputViewRef = v
                         }
                     },
