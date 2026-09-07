@@ -577,6 +577,7 @@
     <string name="gui_confirm_download_action">下載並啟動</string>
     <string name="keyboard_show_button">▴ 鍵盤</string>
     <string name="keyboard_hide_button">▾ 鍵盤</string>
+    <string name="terminal_action_command">整個指令</string>
     <string name="terminal_action_copy">複製</string>
     <string name="service_channel_name">Z2Term 工作階段</string>
     <string name="service_channel_desc">在背景維持終端機工作階段</string>

@@ -619,6 +619,7 @@
     <string name="gui_confirm_download_action">Download and launch</string>
     <string name="keyboard_show_button">▴ Keyboard</string>
     <string name="keyboard_hide_button">▾ Keyboard</string>
+    <string name="terminal_action_command">Whole command</string>
     <string name="terminal_action_copy">Copy</string>
 
     <!-- Foreground service notification / toasts (D3 batch 6) -->

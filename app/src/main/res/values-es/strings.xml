@@ -577,6 +577,7 @@
     <string name="gui_confirm_download_action">Descargar y abrir</string>
     <string name="keyboard_show_button">▴ Teclado</string>
     <string name="keyboard_hide_button">▾ Teclado</string>
+    <string name="terminal_action_command">Comando completo</string>
     <string name="terminal_action_copy">Copiar</string>
     <string name="service_channel_name">Sesión de Z2Term</string>
     <string name="service_channel_desc">Mantiene la sesión de la terminal en marcha en segundo plano</string>

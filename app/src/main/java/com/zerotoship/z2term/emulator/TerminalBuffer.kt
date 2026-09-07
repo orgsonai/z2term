@@ -96,6 +96,22 @@ class TerminalBuffer(
         return null
     }
 
+    /**
+     * [absRow] を含む**コマンド 1 回分**の絶対行の範囲 (コマンドの頭 .. 次の頭の 1 つ手前)。
+     * 印が 1 つも無ければ null。
+     *
+     * ⭐ 頭には**その行自身も含める** — 印の付いた行 (プロンプト + 打ったコマンド) を選んで
+     * 「1 回分」を求めたときに、1 つ前のコマンドが返ると意図と逆になる。
+     * ⚠ 最後のコマンドには「次の頭」が無いので、そのときは**最終行まで**。
+     */
+    fun commandRangeAt(absRow: Int): IntRange? {
+        if (totalRows <= 0) return null
+        val row = absRow.coerceIn(0, totalRows - 1)
+        val head = if (getRow(row).promptMark) row else prevPromptRow(row) ?: return null
+        val tail = (nextPromptRow(head)?.minus(1) ?: (totalRows - 1)).coerceAtLeast(head)
+        return head..tail
+    }
+
     /** スクリーン上の行を取得 (0 = 最上行) */
     fun getScreenRow(row: Int): TerminalRow {
         require(row in 0 until rows) { "row=$row out of range [0,$rows)" }

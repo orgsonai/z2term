@@ -4020,26 +4020,53 @@ private fun ScrollIndicators(
 
     Box(modifier = modifier) {
         if (selection != null) {
-            // 「コピー」フローティングボタン (中央下)
-            Box(
+            // 選択中の操作 (中央下)。⚠ 「コマンド全体」は**印がある時だけ**出す —
+            // 押しても何も起きないボタンは、壊れているのと区別が付かない。
+            val canExpand = remember(selection) { session.commandRangeAtSelection() != null }
+            Row(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 16.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(ZtsGreen)
-                    .clickable {
-                        session.copySelectionToClipboard()
-                        session.clearSelection()
-                    }
-                    .padding(horizontal = 18.dp, vertical = 8.dp)
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = stringResource(R.string.terminal_action_copy),
-                    color = Color.Black,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
+                if (canExpand) {
+                    // 選択を打ったコマンドの行〜出力の終わりまで広げる (0.8.526)。⚠ 主役は
+                    // 「コピー」なので、こちらは枠だけにして主従を色で分ける。
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(ZtsBgCard)
+                            .border(1.dp, ZtsGreen, RoundedCornerShape(20.dp))
+                            .clickable { session.expandSelectionToCommand() }
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.terminal_action_command),
+                            color = ZtsGreen,
+                            fontSize = 13.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(ZtsGreen)
+                        .clickable {
+                            session.copySelectionToClipboard()
+                            session.clearSelection()
+                        }
+                        .padding(horizontal = 18.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.terminal_action_copy),
+                        color = Color.Black,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
         } else if (scrollOffset > 0) {
             // スクロール位置インジケータ (右上、小、半透明)。今どれだけ遡っているか。

@@ -576,6 +576,7 @@
     <string name="gui_confirm_download_action">내려받고 실행</string>
     <string name="keyboard_show_button">▴ 키보드</string>
     <string name="keyboard_hide_button">▾ 키보드</string>
+    <string name="terminal_action_command">명령 전체</string>
     <string name="terminal_action_copy">복사</string>
     <string name="service_channel_name">Z2Term 세션</string>
     <string name="service_channel_desc">터미널 세션을 백그라운드에서 계속 돌립니다</string>

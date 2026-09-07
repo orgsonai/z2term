@@ -99,4 +99,41 @@ class PromptMarkTest {
         assertNull(e.buffer.prevPromptRow(0))
         assertNull(e.buffer.nextPromptRow(0))
     }
+
+    @Test
+    fun aCommandRangeStartsAtItsOwnPromptRow() {
+        val e = emu(rows = 5)
+        repeat(3) { prompt(e, "echo $it") }
+        val marked = (0 until e.buffer.totalRows).filter { e.buffer.getRow(it).promptMark }
+        // ⭐ 印の行そのものを渡したら、その行が頭 (1 つ前のコマンドを返さない)。
+        assertEquals(marked[1], e.buffer.commandRangeAt(marked[1])?.first)
+        // 次の頭の 1 つ手前まで。
+        assertEquals(marked[2] - 1, e.buffer.commandRangeAt(marked[1])?.last)
+    }
+
+    @Test
+    fun aRowInTheOutputBelongsToTheCommandAbove() {
+        val e = emu(rows = 8)
+        feed(e, "$ESC]133;A$BEL$ ls\r\n")
+        feed(e, "a\r\nb\r\n")
+        val head = (0 until e.buffer.totalRows).first { e.buffer.getRow(it).promptMark }
+        assertEquals(head, e.buffer.commandRangeAt(head + 2)?.first)
+    }
+
+    @Test
+    fun theLastCommandRunsToTheEnd() {
+        // 最後のコマンドには「次の頭」が無い。⚠ そこで打ち切ると出力が半分しか選べない。
+        val e = emu(rows = 8)
+        repeat(2) { prompt(e, "echo $it") }
+        val last = (0 until e.buffer.totalRows).last { e.buffer.getRow(it).promptMark }
+        assertEquals(e.buffer.totalRows - 1, e.buffer.commandRangeAt(last)?.last)
+    }
+
+    @Test
+    fun withoutAnyMarkThereIsNoRange() {
+        // 仕掛けの入っていないシェル (SSH の先など) では印が 1 つも無い。
+        val e = emu()
+        feed(e, "hello\r\n")
+        assertNull(e.buffer.commandRangeAt(0))
+    }
 }

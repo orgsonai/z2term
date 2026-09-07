@@ -1133,6 +1133,26 @@ class TerminalSession(
         return true
     }
 
+    /** 選択している場所を含むコマンド 1 回分の範囲。⚠ 印が無ければ null (ボタンを出さない)。 */
+    fun commandRangeAtSelection(): IntRange? =
+        _selection.value?.let { emulator.buffer.commandRangeAt(it.startAbsRow) }
+
+    /**
+     * 選択を**コマンド 1 回分**へ広げる (打ったコマンドの行から、その出力の終わりまで)。
+     *
+     * ⭐ 「さっきの失敗を人に見せたい」がこの機能の動機なので、**コマンドの行も含める** —
+     * 出力だけ渡されても、何を打った結果なのかが相手に伝わらない。
+     *
+     * @return 広げられたら true。印が無ければ false で、⚠ **選択はそのまま**にする。
+     */
+    fun expandSelectionToCommand(): Boolean {
+        val range = commandRangeAtSelection() ?: return false
+        val lastCol = (emulator.buffer.getRow(range.last).columns - 1).coerceAtLeast(0)
+        _selection.value = TerminalSelection(range.first, 0, range.last, lastCol)
+        bumpRedrawImmediate()
+        return true
+    }
+
     fun clearOutput() {
         scope.launch(emulatorDispatcher) {
             emulator.processBytes(byteArrayOf(

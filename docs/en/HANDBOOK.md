@@ -191,6 +191,7 @@ Under Settings › **Keyboard style**:
 | What you want | How |
 |---|---|
 | Copy text | **Long-press** the screen → drag with your finger to select → "Copy" button (trailing blanks are trimmed and each row gets a **line break**) |
+| Copy one whole command | Long-press anywhere in an output to select, and **"Whole command"** appears to the left of "Copy" (0.8.526). It widens the selection to **the command you typed plus all of its output**, so "Copy" then hands someone the complete picture. ⚠ The button only appears **when the command boundaries are known** (it uses the same hook as ∧∨, so it works in tabs opened after installing this version) |
 | Select just one word | **Double-tap** the screen (0.8.420). `/usr/local/bin/z2attach`, `root@192.168.10.20` and `~/.bashrc` come out **whole** (even when the line wrapped in the middle of them). `src/main.kt:42:` stops at the `:`, so you get the file name alone. Japanese is cut at word boundaries. Drag the ends afterwards to widen the selection. ⚠ On top of an app that reads the mouse (one you can operate by tapping), the double-tap goes to that app instead — while you are scrolled back through history it selects as usual |
 | Magnify while selecting | While selecting, a **magnifier** appears above your finger |
 | Select beyond the screen | While selecting, move your **finger to the top/bottom edge** → it auto-scrolls so you can keep selecting |
