@@ -65,12 +65,6 @@ import com.zerotoship.z2term.ui.theme.AppColors
 import com.zerotoship.z2term.ui.theme.Z2TermTheme
 import com.zerotoship.z2term.ui.theme.ZtsBgSecondary
 import kotlinx.coroutines.launch
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.sp
-import com.zerotoship.z2term.ui.theme.ZtsGreen
-import androidx.compose.ui.unit.dp
 
 /**
  * 内蔵キーボードを **OS の入力メソッド (IME)** として提供するサービス。
@@ -219,6 +213,9 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         // ⚠ 抜き差しに追従させるため、開くたびに見直す (打鍵が来たときにも立てている)。
         hardwareKeyboard.value = physicalKeyboardConnected()
+        // ⚠ 外付けが無くなったらかなモードも畳む。画面のキーボードには「かな」の面が別に
+        // あり、物理キーボードの都合で決めたモードが残っていると、ツールバーの印だけが嘘になる。
+        if (!hardwareKeyboard.value) kanaMode = false
         super.onStartInputView(info, restarting)
         // 画面回転や設定変更で窓ごと作り直されることがある。作り直された decorView には
         // オーナーが付いていないので、出すたびに載せ直す (同じ値の付け直しなので無害)。
@@ -276,20 +273,12 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                 // ⚠ 席は**塗らない** (背景を付けない)。候補バーが出ていない間ここは透けて下の
                 // アプリが見え、[onComputeInsets] で insets からも外すので、席を確保している
                 // ことは画面にも相手アプリのレイアウトにも一切現れない。
+                // ⛔ **かなモードの印はここに置かない** (0.8.546・利用者の指摘「左下の
+                // 『あ』が見にくい」)。この窓は端末の上に浮くので、席に文字を出すと**端末の
+                // 文字と重なる**。モードは端末画面のツールバーの ⌨ が「あ」に変わることで示す
+                // ([KanaModeState])。
                 Box(modifier = Modifier.fillMaxWidth().height(CandidateBarHeight)) {
                     CandidateBar(composing = composing)
-                    // ⚠ **かなモードかどうかは打ってみるまで分からない。** 物理キーボードでは
-                    // 画面にキーの絵も出ないので、印が無いと「英数のつもりでかなが出る」を
-                    // 毎回踏む。候補が出ていない間だけ、席の左端に小さく出す。
-                    if (hardwareKeyboard.value && kanaMode && !composing.isActive) {
-                        Text(
-                            text = "あ",
-                            color = ZtsGreen,
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.align(Alignment.CenterStart).padding(start = 10.dp)
-                        )
-                    }
                 }
                 Column(
                     modifier = Modifier
@@ -411,10 +400,9 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
      * かなモードか。⚠ **既定は OFF** — 端末で使う入力メソッドなので、繋いで最初に打つのは
      * ほぼコマンド。日本語から始まると毎回切り替える手間だけが残る。
      */
-    private var kanaModeState = mutableStateOf(false)
     private var kanaMode: Boolean
-        get() = kanaModeState.value
-        set(value) { kanaModeState.value = value }
+        get() = KanaModeState.enabled.value
+        set(value) = KanaModeState.set(value)
 
     /** まだかなになっていないローマ字 (`k` / `ky` など)。 */
     private var romaji = ""
@@ -502,6 +490,11 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
     /**
      * ⚠ 物理キーボードがあると OS は既定で入力ビューを出さない。⛔ しかし**変換中は候補が
      * 見えないと選べない**ので、そのときだけ出す (中身は候補バーだけ・下記)。
+     *
+     * ⚠ **かなモード中も開けたままにする。** 物理キーボードがあると相手のアプリはキーボードを
+     * 要求しないので、変換が始まってから開こうとしても窓が出ず、**候補バーが 1 度も見えない**
+     * (0.8.530 でここを変換中だけに絞ったときに踏んだ)。席は塗らないので、開いていても画面には
+     * 何も出ない (印を席から外した 0.8.546 以降は、開いていること自体が見えない)。
      */
     override fun onEvaluateInputViewShown(): Boolean =
         composing.isActive || (hardwareKeyboard.value && kanaMode) || super.onEvaluateInputViewShown()

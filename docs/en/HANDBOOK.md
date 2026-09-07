@@ -174,7 +174,7 @@ Under Settings › **Keyboard style**:
 - Note: this is a simple dictionary-based conversion, so it isn't as smart as Gboard — but words you use are learned and start appearing near the top.
 
 ### When you want the phone's standard keyboard
-- Tap the **"あ" button in the toolbar** to switch to your usual phone keyboard (Gboard, etc.).
+- Tap the **⌨ button in the toolbar** to switch to your usual phone keyboard (Gboard, etc.).
 - With the phone's keyboard, **the text you're composing (before you confirm) now appears inline at the terminal cursor**. You can see the in-progress state of Japanese conversion or predictive input, instead of characters only showing up after you confirm.
 
 ### When an external keyboard is connected (0.8.523)
@@ -186,7 +186,8 @@ Under Settings › **Keyboard style**:
   - **Toggle**: the **half/full-width** key (or **Shift + Space** if your keyboard has none). The kana, henkan and muhenkan keys work as well. ⚠ It **starts in ascii** — the first thing you type in a terminal is usually a command.
   - **How to type**: romaji → **Space to convert** → Space again for the next candidate → **Enter to commit**. Backspace steps back one character, **Esc drops what you were composing**, and ← → move the boundary being converted.
   - **Either romanization works** (`shi` and `si` both give し).
-  - **A small "あ" appears at the bottom of the screen while kana mode is on** (no keyboard artwork — the keys are already under your fingers).
+  - **The toolbar's ⌨ turns into "あ" while kana mode is on** (0.8.546). ⚠ Up to 0.8.545 the marker was drawn in the bottom-left corner of the screen, where it **overlapped the terminal's own text**; it now lives on the toolbar. No keyboard artwork is drawn (the keys are already under your fingers).
+  - **The kana you are still composing appears inline at the terminal cursor** (0.8.546), so you can watch the conversion instead of seeing the characters only once they are committed.
 
 ---
 

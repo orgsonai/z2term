@@ -181,6 +181,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import com.zerotoship.z2term.ime.KanaModeState
 
 /** キーボードモード。CUSTOM=独自キーボード、SYSTEM=OS IME + 特殊キーバー */
 enum class KeyboardMode { CUSTOM, SYSTEM }
@@ -428,7 +429,11 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
     // キーボードモード変更時は変換中バッファを破棄 (OS IME と二重表示を防ぐ)。
     // 検索バーの開閉でも捨てる — 確定先が端末と検索語で入れ替わるので、跨いで持ち越すと
     // 「端末へ打っていたかな」が検索語に紛れ込む (0.8.275)。
-    LaunchedEffect(keyboardMode, keyboardCollapsed, searchOpen) { composing.reset(); systemComposing = "" }
+    // ⚠ 外付けキーボードの抜き差しでも捨てる (0.8.546) — インライン表示の出所が
+    // composing.text ⇄ systemComposing で入れ替わるので、跨ぐと打ちかけが片方に残る。
+    LaunchedEffect(keyboardMode, keyboardCollapsed, searchOpen, physicalKeyboard) {
+        composing.reset(); systemComposing = ""
+    }
 
     // 保存されたキーボードモードに常に追従する。keyboardMode を変えるのはトグル
     // (= setKeyboardMode で settings に永続化) だけなので、settings に追従しても競合しない。
@@ -705,8 +710,17 @@ fun TerminalScreen(modifier: Modifier = Modifier) {
             ) {
                 TerminalRenderer(
                     session = active,
-                    // 内蔵キーボードは composing.text、OS キーボードは OS IME からの変換中テキスト。
-                    composingText = if (keyboardMode == KeyboardMode.SYSTEM) systemComposing else composing.text,
+                    // 内蔵キーボードは composing.text、OS の入力方法からは systemComposing。
+                    // ⛔ **出所は `imeEnabled` と同じ条件で選ぶ** (0.8.546・利用者の指摘
+                    // 「インライン入力ができていない」)。外付けキーボードを繋いでいる間は
+                    // keyboardMode が CUSTOM のままでも打鍵は OS の入力方法から来る
+                    // (`imeEnabled = SYSTEM || physicalKeyboard`) のに、ここだけ keyboardMode を
+                    // 見ていたため、**届いた変換中テキストを捨てて空の composing.text を描いていた**。
+                    composingText = if (keyboardMode == KeyboardMode.SYSTEM || physicalKeyboard) {
+                        systemComposing
+                    } else {
+                        composing.text
+                    },
                     searchMatches = if (searchOpen) searchMatches else emptyList(),
                     currentMatch = if (searchOpen) searchMatches.getOrNull(currentMatchIndex) else null,
                     modifier = Modifier.fillMaxSize()
@@ -2010,6 +2024,9 @@ private fun TopBar(
     val ui by session.uiState.collectAsState()
     // タブ名 (シェルのタイトル等) は出さず、OS 識別子だけを固定字数で表示する (要望)。
     // これでラベルが伸びて右側のボタンを押し出す事故が無くなり、ボタンが必ず収まる。
+    // 物理キーボードのかなモード。⚠ 入力メソッドと端末画面は同じプロセスなので、
+    // [KanaModeState] を直接見れば足りる (呼び出し側に引数を増やさない)。
+    val kanaMode by KanaModeState.enabled.collectAsState()
     val toolbarItems = terminalToolbarItems(
         keyboardMode = keyboardMode,
         onPaste = onPaste,
@@ -2030,6 +2047,7 @@ private fun TopBar(
         onOpenLogSettings = onOpenLogSettings,
         searchActive = searchActive,
         onToggleSearch = onToggleSearch,
+        kanaMode = kanaMode,
     )
     if (vertical) {
         // 縦レール: ラベル → ツールバー (縦スクロール) → ⚙ (下端固定)。
@@ -2215,14 +2233,18 @@ private fun terminalToolbarItems(
     onOpenLogSettings: () -> Unit,
     searchActive: Boolean,
     onToggleSearch: () -> Unit,
+    kanaMode: Boolean,
 ): List<ToolbarItem> = listOf(
     ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
     ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
     ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn, onDoubleClick = onOpenBrightness),
     keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
     ToolbarItem(ToolbarButtons.SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
+    // ⚠ **かなモード中は「あ」にする** (0.8.546・利用者の指摘)。物理キーボードでは画面に
+    // キーの絵が出ないので、どこかに印が無いと「英数のつもりでかなが出る」を毎回踏む。
+    // ⛔ 印を入力メソッドの窓 (端末の上に浮く) へ置くと端末の文字と重なるので、この席で示す。
     ToolbarItem(
-        ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard),
+        ToolbarButtons.KEYBOARD, if (kanaMode) "あ" else "⌨", stringResource(R.string.tb_keyboard),
         active = keyboardMode == KeyboardMode.SYSTEM,
         onClick = onToggleKeyboardMode,
         onDoubleClick = onToggleKeyboardVisible,

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-07 / Target version: 0.8.545-alpha (versionCode 553)
+Last updated: 2026-09-08 / Target version: 0.8.546-alpha (versionCode 554)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2951,9 +2951,25 @@ being delegated back to us (confirmed on-device with `settings get secure enable
   default**: the first thing typed in a terminal is almost always a command.
 - ⚠ **No key artwork while a physical keyboard is attached** (the keys are already under the
   fingers); only the candidate bar is shown, with `onEvaluateInputViewShown` limited to composing
-  and kana mode.
-- ⚠ **A kana-mode marker ("あ") sits in the candidate bar's slot** — with no keyboard drawn, there
-  is otherwise no way to tell the mode apart until the wrong characters appear.
+  and kana mode. ⚠ **Kana mode keeps the window open** — with a physical keyboard the target app
+  never asks for a keyboard, so opening it once composing has started does not work and **the
+  candidate bar is never seen** (hit in 0.8.530, which narrowed this to composing only). The slot is
+  not painted, so an open window shows nothing.
+- ⭐ **The kana-mode marker lives on the terminal toolbar's ⌨** (`ime/KanaModeState.kt`, 0.8.546,
+  user report: "the あ in the bottom left is hard to read"). With no keyboard drawn there is
+  otherwise no way to tell the mode apart until the wrong characters appear. ⛔ **It must not sit in
+  the input method's window** — that window floats above the terminal, so a glyph there **overlaps
+  the terminal's own text**. ⚠ The input method and the terminal screen share a process, so a single
+  `StateFlow` (`KanaModeState`) is all it takes to pass the state. ⚠ **Kana mode is folded away when
+  the external keyboard goes** (`onStartInputView`) — a marker left behind would be a lie.
+- ⛔ **The inline pre-commit text follows the same condition as `imeEnabled`** (0.8.546, user report:
+  "inline input does not work"). While an external keyboard is attached `keyboardMode` stays CUSTOM,
+  but the keystrokes arrive through the OS input method (`imeEnabled = SYSTEM || physicalKeyboard`,
+  0.8.527). ⚠ Only the `composingText` handed to `TerminalRenderer` was keyed off
+  `keyboardMode == SYSTEM`, so **the composing text that did arrive was thrown away and an empty
+  `composing.text` was drawn** — nothing appeared until the text was committed. ⇒ the source is
+  chosen by the same condition. ⚠ **Plugging or unplugging drops the pending text too**: the source
+  swaps between `composing.text` and `systemComposing`, so anything carried across is stranded.
 
 **What it does**: registers the built-in keyboard as an Android **input method**. Once the user enables
 and picks it in the OS list, **the app's own text fields** (snippets, SSH profiles, SFTP, settings,
