@@ -219,6 +219,9 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         // ⚠ 抜き差しに追従させるため、開くたびに見直す (打鍵が来たときにも立てている)。
         hardwareKeyboard.value = physicalKeyboardConnected()
+        // ⚠ 外付けが無くなったらかなモードも畳む。画面のキーボードには「かな」の面が別にあり、
+        // 物理キーボードの都合で決めたモードが残っていると、ツールバーの印だけが嘘になる。
+        if (!hardwareKeyboard.value) kanaMode = false
         super.onStartInputView(info, restarting)
         // 画面回転や設定変更で窓ごと作り直されることがある。作り直された decorView には
         // オーナーが付いていないので、出すたびに載せ直す (同じ値の付け直しなので無害)。
@@ -278,18 +281,6 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
                 // ことは画面にも相手アプリのレイアウトにも一切現れない。
                 Box(modifier = Modifier.fillMaxWidth().height(CandidateBarHeight)) {
                     CandidateBar(composing = composing)
-                    // ⚠ **かなモードかどうかは打ってみるまで分からない。** 物理キーボードでは
-                    // 画面にキーの絵も出ないので、印が無いと「英数のつもりでかなが出る」を
-                    // 毎回踏む。候補が出ていない間だけ、席の左端に小さく出す。
-                    if (hardwareKeyboard.value && kanaMode && !composing.isActive) {
-                        Text(
-                            text = "あ",
-                            color = ZtsGreen,
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.align(Alignment.CenterStart).padding(start = 10.dp)
-                        )
-                    }
                 }
                 Column(
                     modifier = Modifier
@@ -411,10 +402,9 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
      * かなモードか。⚠ **既定は OFF** — 端末で使う入力メソッドなので、繋いで最初に打つのは
      * ほぼコマンド。日本語から始まると毎回切り替える手間だけが残る。
      */
-    private var kanaModeState = mutableStateOf(false)
     private var kanaMode: Boolean
-        get() = kanaModeState.value
-        set(value) { kanaModeState.value = value }
+        get() = KanaModeState.enabled.value
+        set(value) = KanaModeState.set(value)
 
     /** まだかなになっていないローマ字 (`k` / `ky` など)。 */
     private var romaji = ""
@@ -501,10 +491,12 @@ class Z2ImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, 
 
     /**
      * ⚠ 物理キーボードがあると OS は既定で入力ビューを出さない。⛔ しかし**変換中は候補が
-     * 見えないと選べない**ので、そのときだけ出す (中身は候補バーだけ・下記)。
+     * 見えないと選べない**ので、そのときだけ出す (中身は候補バーだけ・下記)。⚠ **かなモードの
+     * 印はここに出さない** — 入力メソッドの窓は端末の上に浮くので、端末の文字と重なる
+     * (0.8.530・利用者の指摘)。モードはツールバーの ⌨ が「あ」に変わることで示す。
      */
     override fun onEvaluateInputViewShown(): Boolean =
-        composing.isActive || (hardwareKeyboard.value && kanaMode) || super.onEvaluateInputViewShown()
+        composing.isActive || super.onEvaluateInputViewShown()
 
     /** 内蔵キーボードのバイト列を入力欄の操作へ読み替えて流す。 */
     private fun sendBytes(bytes: ByteArray) {

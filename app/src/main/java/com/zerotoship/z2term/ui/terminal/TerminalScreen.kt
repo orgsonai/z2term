@@ -181,6 +181,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import com.zerotoship.z2term.ime.KanaModeState
 
 /** キーボードモード。CUSTOM=独自キーボード、SYSTEM=OS IME + 特殊キーバー */
 enum class KeyboardMode { CUSTOM, SYSTEM }
@@ -2010,6 +2011,9 @@ private fun TopBar(
     val ui by session.uiState.collectAsState()
     // タブ名 (シェルのタイトル等) は出さず、OS 識別子だけを固定字数で表示する (要望)。
     // これでラベルが伸びて右側のボタンを押し出す事故が無くなり、ボタンが必ず収まる。
+    // 物理キーボードのかなモード。⚠ 入力メソッドと端末画面は同じプロセスなので、
+    // [KanaModeState] を直接見れば足りる (呼び出し側に引数を増やさない)。
+    val kanaMode by KanaModeState.enabled.collectAsState()
     val toolbarItems = terminalToolbarItems(
         keyboardMode = keyboardMode,
         onPaste = onPaste,
@@ -2030,6 +2034,7 @@ private fun TopBar(
         onOpenLogSettings = onOpenLogSettings,
         searchActive = searchActive,
         onToggleSearch = onToggleSearch,
+        kanaMode = kanaMode,
     )
     if (vertical) {
         // 縦レール: ラベル → ツールバー (縦スクロール) → ⚙ (下端固定)。
@@ -2215,14 +2220,18 @@ private fun terminalToolbarItems(
     onOpenLogSettings: () -> Unit,
     searchActive: Boolean,
     onToggleSearch: () -> Unit,
+    kanaMode: Boolean,
 ): List<ToolbarItem> = listOf(
     ToolbarItem(ToolbarButtons.PASTE, "📋", stringResource(R.string.tb_paste), onClick = onPaste, onDoubleClick = onPasteHistory),
     ToolbarItem(ToolbarButtons.SNIPPETS, "📜", stringResource(R.string.tb_snippets), onClick = onOpenSnippets),
     ToolbarItem(ToolbarButtons.SCREEN_ON, if (keepScreenOn) "💡" else "🔅", stringResource(R.string.tb_screen_on), active = keepScreenOn, onClick = onToggleKeepScreenOn, onDoubleClick = onOpenBrightness),
     keepAliveToolbarItem(residentLocked, keepAlive, onToggleKeepAlive, onLockedKeepAliveTap),
     ToolbarItem(ToolbarButtons.SEARCH, "🔍", stringResource(R.string.tb_search), active = searchActive, onClick = onToggleSearch),
+    // ⚠ **かなモード中は「あ」にする** (0.8.530・利用者の指摘)。物理キーボードでは画面に
+    // キーの絵が出ないので、どこかに印が無いと「英数のつもりでかなが出る」を毎回踏む。
+    // ⛔ 印を入力メソッドの窓へ置くと端末の文字と重なるので、ツールバーのこの席で示す。
     ToolbarItem(
-        ToolbarButtons.KEYBOARD, "⌨", stringResource(R.string.tb_keyboard),
+        ToolbarButtons.KEYBOARD, if (kanaMode) "あ" else "⌨", stringResource(R.string.tb_keyboard),
         active = keyboardMode == KeyboardMode.SYSTEM,
         onClick = onToggleKeyboardMode,
         onDoubleClick = onToggleKeyboardVisible,

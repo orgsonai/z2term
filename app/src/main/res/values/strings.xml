@@ -40,6 +40,10 @@
     <string name="tip_gui_scroll_body">Drag two fingers up or down. While zoomed in, two fingers pan the screen instead — use three fingers to scroll in that case.</string>
     <string name="tip_gui_clean_title">Type z2gui clean to reinstall the GUI</string>
     <string name="tip_gui_clean_body">If the desktop stops coming up — usually an install that failed halfway — run z2gui clean in the terminal. It clears the package cache and puts the whole GUI stack back, leaving your files alone. Use z2gui start clean to reinstall and open it in one go.</string>
+    <!-- ⚠ 日本語のときだけ出す Tips (外付けキーボードのかな入力)。他の言語では表示しないので
+         訳を持たない = translatable="false"。表示側の条件は TipsSection にある。 -->
+    <string name="tip_hardware_kana_title" translatable="false">外付けキーボードで日本語を打つ</string>
+    <string name="tip_hardware_kana_body" translatable="false">Bluetooth や USB のキーボードを繋いだら、Shift + Space（キーボードに半角/全角キーがあればそれでも）で日本語入力に切り替わります。ローマ字で打って Space で変換、Enter で確定です。⌫ で 1 文字ずつ戻り、Esc で打ちかけを取り消せます。かなのときはツールバーの ⌨ が「あ」に変わるので、今どちらかはそこで分かります。繋いでいる間はアプリ内キーボードが畳まれるので、画面はそのぶん広く使えます。</string>
     <string name="tip_z2_commands_title">Type z2term for the list of built-in commands</string>
     <string name="tip_z2_commands_body">Z2Term adds its own commands, all starting with z2, to the terminal. Run z2term (or z2help) for the full list with a one-line description of each, then add --help to any of them to see how to use it.</string>
     <string name="tip_macro_title">Ask an AI to write your macros</string>
