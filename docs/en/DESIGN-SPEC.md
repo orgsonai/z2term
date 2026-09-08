@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-09 / Target version: 0.8.558-alpha (versionCode 566)
+Last updated: 2026-09-09 / Target version: 0.8.559-alpha (versionCode 567)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2203,7 +2203,17 @@ An open deleted panel closes and its handle disappears. Use `remove ID:item` to 
 
 App addition offers Full screen (normal launch), Freeform, Split screen, and Ask every time.
 The choice is saved in `run=z2-intent -p PACKAGE --window full|freeform|split|ask` and can also be edited through the CLI.
-No external app, root, or private API is used. Freeform requests `ActivityOptions.setLaunchBounds`; split requests `FLAG_ACTIVITY_LAUNCH_ADJACENT`.
+Edit → Adjust appearance previews handle size, length and opacity, plus panel width and maximum height, using numeric fields and sliders. Width and height accept dp or percentages; sliders use screen percentages. Only Save writes definitions. Cancel, close, tab changes, screen off and reload discard the preview. Handle drag persistence is disabled during preview.
+Add item and Edit item support all six item types. Blank optional fields clear their settings. Cancel discards input; saving an item changed externally is rejected.
+Screen off hides panels and handles. Wake and unlock notifications trigger another check of unlock state before restoring handles. Screen off and service shutdown cancel waiting. Transient drawing failures no longer unregister wake notifications.
+
+Panel and tab deletion requires confirmation within Edit. Notes are saved before deletion; local note files are removed with the panel, while external note files and child tabs are retained. Deleting the last panel disables panels.
+Enabling panels when none exist creates a Main bar on the right and opens its empty panel. Existing panels are preserved.
+Edit on the panel supports renaming the current panel or tab, adding a parent panel, moving child tabs earlier or later, and opening another parent panel. Explicit save and move actions write names and tab order to the definitions.
+
+Thin bars draw their entire background at the configured width while retaining a touch target of at least 24dp.
+Freeform requests bounds for a new task. Split brings the terminal to the foreground and launches a new task beside it. Apps that enforce a single task remain subject to OS restrictions.
+No external app or root is used. Freeform requests `ActivityOptions.setLaunchBounds` and the non-public AOSP Bundle key `android.activity.windowingMode=5`, whose support depends on the OS. Split requests `FLAG_ACTIVITY_LAUNCH_ADJACENT`.
 Freeform fails if not enabled on the device. Entering split screen is supported from Android 12L; earlier versions require an existing split session.
 The OS controls the final mode and reuse of existing tasks. Full screen means ordinary launch, not forced maximization of an existing window.
 

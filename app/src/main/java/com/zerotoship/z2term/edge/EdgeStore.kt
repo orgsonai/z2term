@@ -45,6 +45,14 @@ class EdgeStore(val root: File) {
         return Panel(id, fields, items)
     }
 
+    /** Create only when empty; enabling must never replace an existing definition. */
+    @Synchronized fun ensureInitialPanel(label: String): Boolean {
+        if (panels().isNotEmpty()) return false
+        setPanel("main", mapOf("label" to label, "handle" to "bar", "side" to "right",
+            "size" to "6", "length" to "6", "offset" to "30"))
+        return true
+    }
+
     @Synchronized fun setPanel(id: String, values: Map<String, String>): Panel {
         val dir = directory(id)
         if (!dir.exists()) require(panels().size < 64) { "At most 64 panels" }
@@ -65,6 +73,17 @@ class EdgeStore(val root: File) {
         val merged = read(f) + values
         validateItem(merged)
         writeAtomic(f, encode(merged))
+    }
+
+    /** Replace an explicitly edited draft, rejecting stale edits and accidental ID reuse. */
+    @Synchronized fun saveItemDraft(target: String, values: Map<String, String>, expected: Map<String, String>?) {
+        val (panelId, itemId) = target(target)
+        val parent = panel(panelId)
+        val existing = parent.items.firstOrNull { it.id == itemId }
+        check(existing?.fields == expected) { "Item changed outside this editor; reopen it before saving" }
+        require(existing != null || parent.items.size < 64) { "At most 64 items" }
+        validateItem(values)
+        writeAtomic(File(directory(panelId), "$itemId.item"), encode(values))
     }
 
     @Synchronized fun removeItem(target: String) {

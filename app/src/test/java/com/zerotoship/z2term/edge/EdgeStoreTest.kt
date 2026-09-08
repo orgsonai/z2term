@@ -10,6 +10,41 @@ class EdgeStoreTest {
         catch (_: IllegalArgumentException) { }
     }
 
+    @Test fun initialPanelDoesNotOverwriteExistingDefinitions() {
+        val dir = Files.createTempDirectory("edge-initial-test").toFile()
+        try {
+            val store = EdgeStore(dir)
+            assertTrue(store.ensureInitialPanel("Main"))
+            store.setPanel("main", mapOf("size" to "4", "label" to "Custom"))
+            store.setItem("main:action", mapOf("run" to "echo kept"))
+            assertFalse(store.ensureInitialPanel("Replacement"))
+            assertEquals("Custom", store.panel("main").fields["label"])
+            assertEquals("4", store.panel("main").fields["size"])
+            assertEquals("echo kept", store.item("main:action").command)
+        } finally { dir.deleteRecursively() }
+    }
+
+    @Test fun itemDraftRejectsStaleEditsAndAllowsClearingOptionalFields() {
+        val dir = Files.createTempDirectory("edge-draft-test").toFile()
+        try {
+            val store = EdgeStore(dir)
+            store.setPanel("main", emptyMap())
+            store.saveItemDraft("main:status", mapOf("type" to "text", "every" to "10"), null)
+            val snapshot = store.item("main:status").fields
+            store.setItem("main:status", mapOf("run" to "echo changed"))
+            try {
+                store.saveItemDraft("main:status", snapshot, snapshot)
+                fail("Stale editor overwrote external changes")
+            } catch (_: IllegalStateException) { }
+            val current = store.item("main:status").fields
+            store.saveItemDraft("main:status", current - "every", current)
+            assertFalse(store.item("main:status").fields.containsKey("every"))
+            assertEquals("echo changed", store.item("main:status").command)
+            rejects { store.saveItemDraft("main:status", mapOf("type" to "invalid"), current - "every") }
+            assertEquals(current - "every", store.item("main:status").fields)
+        } finally { dir.deleteRecursively() }
+    }
+
     @Test fun commandsAreLiteralAndPreserveEquals() {
         val command = "printf '%s' \"a=b;\${value}\""
         val parsed = EdgeStore.parse("# comment\ntype=text\nrun=$command\nlabel=日本語\n")

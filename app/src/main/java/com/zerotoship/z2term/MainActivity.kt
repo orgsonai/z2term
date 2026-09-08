@@ -138,6 +138,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        window.decorView.post { com.zerotoship.z2term.edge.AppLaunch.resumePendingSplit(this) }
         handleShareIntent(intent)
     }
 
@@ -256,7 +257,10 @@ class MainActivity : ComponentActivity() {
      */
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) ClipboardHistoryStore.captureCurrent(this)
+        if (hasFocus) {
+            ClipboardHistoryStore.captureCurrent(this)
+            com.zerotoship.z2term.edge.AppLaunch.resumePendingSplit(this)
+        }
     }
 
     private fun requestNotificationPermissionIfNeeded() {

@@ -13,7 +13,7 @@ import com.zerotoship.z2term.MainActivity
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.icon.setZ2SmallIcon
 
-/** Lifetime for explicitly enabled overlay panels; no wake lock or polling while closed. */
+/** Lifetime for explicitly enabled overlay panels; no wake lock or polling while the screen is off. */
 class EdgeService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onCreate() {

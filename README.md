@@ -85,11 +85,11 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.558-alpha (versionCode 566).** Floating panels support tabs, icon grids, drag ordering, searchable app selection with per-item launch modes, and editable notes. Panel size and handle gestures are configurable. The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.559-alpha (versionCode 567).** Floating panels support tabs, icon grids, drag ordering, searchable app selection with per-item launch modes, and editable notes. Panel size and handle gestures are configurable. The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
-- **Floating edge panels** — Thin bars support configurable activation and hold-to-drag snapping; panels offer an app picker, rotation-aware positioning and service toggling. `z2-edge` defines an edge bar or draggable button and panels with command buttons, text, toggles, lists and input fields. Shell commands supply the contents; `push` and `badge` update them from automation. `z2-key` exposes Android global actions through an optional accessibility service, and `z2-app` lists launchable apps and exports their icons. See [the handbook](docs/en/HANDBOOK.md#96-floating-edge-panels). Overlay permission is opt-in; no external helper app is required.
+- **Floating edge panels** — Thin bars restore after screen unlock and support configurable activation and hold-to-drag snapping; panels offer an app picker, inline item editing, cancellable size/opacity previews, rotation-aware positioning and service toggling. `z2-edge` defines an edge bar or draggable button and panels with command buttons, text, toggles, lists and input fields. Shell commands supply the contents; `push` and `badge` update them from automation. `z2-key` exposes Android global actions through an optional accessibility service, and `z2-app` lists launchable apps and exports their icons. See [the handbook](docs/en/HANDBOOK.md#96-floating-edge-panels). Overlay permission is opt-in; no external helper app is required.
 - **Terminal emulator** — VT100 / xterm, 256-color and true color, 9 themes, scrollback with search, UTF-8 and East Asian Width, alternate screen, OSC 4 / 7 / 8 / 10 / 11 / 12 / 52.
 - **Linux distributions without root** — Alpine / Ubuntu / Arch / Kali on a userspace engine (z2root by default; see below). Install anything with `apk` / `apt` / `pacman`.
 - **Execution engine** — fully migrated to z2root for non-root use; rooted devices may optionally use the hidden chroot path.
