@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.556-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.557-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -874,6 +874,10 @@ Use “+ Tab” on the panel or `z2-edge tab main work Work`. Each tab is a pane
 The parent’s own items form the first tab; child handles are hidden. Up to 64 panels, 64 items each.
 Nested, cyclic, and multiple-parent references are rejected. `list` marks children as `tab:parentID`.
 Deleting a child detaches its reference; deleting a parent preserves child panels.
+
+Each tab offers Icons only or Names and icons (`layout=grid|list`). Grid applies to run items; other types remain normal rows below.
+Hold an item icon/name and drag before or after another item to save every item’s `order`. Dropping outside leaves the order unchanged.
+Edit exposes item deletion and launch-mode selection for existing app items; Done returns to the normal view.
 
 `z2-edge toggle` toggles the service; `z2-edge open main --toggle` toggles the panel.
 A tile assigned the single command `z2-edge toggle` displays the actual enabled state. Enabling requires an unlocked screen.

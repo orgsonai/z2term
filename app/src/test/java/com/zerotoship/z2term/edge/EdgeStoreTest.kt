@@ -60,6 +60,24 @@ class EdgeStoreTest {
         } finally { dir.deleteRecursively() }
     }
 
+    @Test fun movingItemsPersistsBothDirectionsAndPreservesContent() {
+        val dir = Files.createTempDirectory("edge-order-test").toFile()
+        try {
+            val store = EdgeStore(dir)
+            store.setPanel("main", mapOf("layout" to "grid"))
+            listOf("a", "b", "c").forEach { store.setItem("main:$it", mapOf("run" to "echo $it")) }
+            store.moveItem("main", "a", "c", after = true)
+            assertEquals(listOf("b", "c", "a"), store.panel("main").items.map { it.id })
+            store.moveItem("main", "a", "b")
+            assertEquals(listOf("a", "b", "c"), store.panel("main").items.map { it.id })
+            assertEquals(listOf(0, 1, 2), store.panel("main").items.map { it.order })
+            assertEquals("echo a", store.item("main:a").command)
+            rejects { store.moveItem("main", "missing", "a") }
+            rejects { store.setPanel("main", mapOf("layout" to "invalid")) }
+            assertEquals("grid", store.panel("main").fields["layout"])
+        } finally { dir.deleteRecursively() }
+    }
+
     @Test fun tabsRejectInvalidGraphsAndDeletionDetachesWithoutDeletingChildren() {
         val dir = Files.createTempDirectory("edge-tabs-test").toFile()
         try {

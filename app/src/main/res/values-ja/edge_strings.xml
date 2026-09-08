@@ -29,4 +29,9 @@
     <string name="edge_tab_name">タブ名</string>
     <string name="edge_add_tab">＋タブ</string>
     <string name="edge_add">追加</string>
+    <string name="edge_layout_list">名前とアイコン</string>
+    <string name="edge_layout_grid">アイコンのみ</string>
+    <string name="edge_edit">編集</string>
+    <string name="edge_done">完了</string>
+    <string name="edge_delete">削除</string>
 </resources>

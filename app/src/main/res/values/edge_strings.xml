@@ -29,4 +29,9 @@
     <string name="edge_tab_name">Tab name</string>
     <string name="edge_add_tab">+ Tab</string>
     <string name="edge_add">Add</string>
+    <string name="edge_layout_list">Names and icons</string>
+    <string name="edge_layout_grid">Icons only</string>
+    <string name="edge_edit">Edit</string>
+    <string name="edge_done">Done</string>
+    <string name="edge_delete">Delete</string>
 </resources>

@@ -74,6 +74,17 @@ class EdgeStore(val root: File) {
         check(f.delete()) { "Cannot remove $target" }
     }
 
+    @Synchronized fun moveItem(panelId: String, itemId: String, beforeId: String, after: Boolean = false) {
+        val items = panel(panelId).items
+        require(items.any { it.id == itemId } && items.any { it.id == beforeId }) { "No item to move" }
+        if (itemId == beforeId) return
+        val ordered = items.toMutableList()
+        val moved = ordered.first { it.id == itemId }
+        ordered.remove(moved)
+        ordered.add(ordered.indexOfFirst { it.id == beforeId } + if (after) 1 else 0, moved)
+        ordered.forEachIndexed { index, item -> setItem("$panelId:${item.id}", mapOf("order" to index.toString())) }
+    }
+
     @Synchronized fun addTab(parentId: String, id: String, label: String) {
         val parent = panel(parentId)
         require(!directory(id).exists()) { "Panel already exists: $id" }
@@ -158,7 +169,7 @@ class EdgeStore(val root: File) {
         }
 
         fun validatePanel(values: Map<String, String>) {
-            val allowed = setOf("label", "handle", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open", "width", "height", "tabs")
+            val allowed = setOf("label", "handle", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open", "width", "height", "tabs", "layout")
             require(values.keys.all { it in allowed }) { "Unknown panel field: ${values.keys - allowed}" }
             require(values["handle"].orEmpty() in setOf("", "off", "bar", "button")) { "handle: bar, button or off" }
             require(values["side"].orEmpty() in setOf("", "left", "right")) { "side: left or right" }
@@ -168,6 +179,7 @@ class EdgeStore(val root: File) {
             values["size"]?.let { require(it.toIntOrNull()?.let { n -> n in 2..96 } == true) { "size: 2–96 dp" } }
             require(values["open"].orEmpty() in setOf("", "tap", "swipe", "both")) { "open: tap, swipe or both" }
             values["alpha"]?.let { require(it.toFloatOrNull()?.let { n -> n.isFinite() && n in 0.05f..1f } == true) { "alpha: 0.05–1" } }
+            require(values["layout"].orEmpty() in setOf("", "list", "grid")) { "layout: list|grid" }
             values["tabs"]?.takeIf { it.isNotEmpty() }?.let { raw ->
                 val ids = raw.split(',')
                 require(ids.all(::validId) && ids.distinct().size == ids.size) { "tabs: distinct panel IDs separated by commas" }
