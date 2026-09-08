@@ -671,7 +671,7 @@ object EdgeRuntime {
 
     /** Only simple, unambiguous launch commands get automatic icons. Never evaluate shell text. */
     internal fun packageFrom(command: String): String? = Regex(
-        "^z2-intent\\s+(?:-p|--package)\\s+([A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+)(?:\\s+--window\\s+full)?\\s*$"
+        "^z2-intent\\s+(?:-p|--package)\\s+([A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+)(?:\\s+--window\\s+(?:full|freeform|split|ask))?\\s*$"
     ).matchEntire(command.trim())?.groupValues?.get(1)
 
     private fun fail(error: Throwable) { app?.let { Toast.makeText(it, error.message ?: "Error", Toast.LENGTH_LONG).show() } }

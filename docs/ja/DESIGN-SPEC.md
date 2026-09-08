@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-09 / 対象バージョン: 0.8.554-alpha (versionCode 562)
+最終更新: 2026-09-09 / 対象バージョン: 0.8.555-alpha (versionCode 563)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -2169,6 +2169,12 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 `z2-edge delete ID` は指定した板とその項目を削除し、板IDと削除した項目数を返します。他の板は残ります。
 表示中なら閉じ、取っ手も更新します。項目1つの削除は従来どおり `remove ID:項目` です。
 
+アプリ追加時に「全画面（通常起動）・フリーフォーム・分割・毎回確認」を選べます。
+項目の `run=z2-intent -p PACKAGE --window full|freeform|split|ask` に保存され、CLIでも変更できます。
+外部アプリ・root・非公開APIは使いません。フリーフォームは `ActivityOptions.setLaunchBounds`、分割は `FLAG_ACTIVITY_LAUNCH_ADJACENT` による要求です。
+フリーフォームが未有効の端末ではエラー。分割への遷移はAndroid 12L以降で対応し、それ以前は既に分割中の場合に限られます。
+最終的な窓モード・既存タスクの再利用はOSが決めるため、指定した表示になる保証はありません。全画面は既存窓の強制最大化ではなく通常起動です。
+
 `z2-edge toggle` は常駐のON/OFF、`z2-edge open main --toggle` は板の開閉を切り替えます。
 単一コマンド `z2-edge toggle` のタイルは実際の有効状態を表示します。有効化には解錠が必要です。
 板の「＋アプリ」はアイコン・名前の一覧と検索欄を表示します。名前とパッケージ名の部分一致で絞り込み、
@@ -2180,7 +2186,7 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
 `z2-key status` はOSでの `enabled` と接続中の `connected` を区別します。
 単純な `z2-key` 操作の項目には未接続時の案内を表示します。複雑なシェルの中身は解析しません。
 APK更新後に操作が失敗した場合も、この状態を確認してください。
-`z2-key split` は一覧にない場合もOSへ要求し、拒否されればエラーを返します。アプリの分割起動は未対応です。
+`z2-key split` は一覧にない場合もOSへ要求し、拒否されればエラーを返します。アプリの起動方式は以下の標準APIによる要求を使います。
 
 Android のオーバーレイへ、利用者が書いたコマンドの表示面を提供する。項目の用途はアプリに固定しない。
 `z2-edge` / `z2-key` / `z2-app` は既存の `z2api` を通り、アプリ起動には既存の `z2-intent` を使う。
@@ -2231,7 +2237,7 @@ Manifest の `<queries>` は MAIN/LAUNCHER のみに限定し、`QUERY_ALL_PACKA
 ホームはサービス未接続でも HOME Intent で起動できる。分割は OS に分割切替を頼むだけで、アプリの分割起動ではない。
 `z2-intent -p package` はランチャーの Activity を解決する。`--window full` は通常起動の別名であり、全画面を強制しない。
 `z2-intent` は応答を待ち、起動先なし・未対応モードなどのエラーを CLI に返す。
-分割起動・他アプリのフリーフォーム起動、`meter` / `graph` / `slider` / `image` / `log` / `term` は未対応。
+`meter` / `graph` / `slider` / `image` / `log` / `term` は未対応。
 端末に追加アプリや root 権限を要求しない。
 
 Android の参照: [オーバーレイと FGS の条件](https://developer.android.com/about/versions/15/behavior-changes-15#fgs-background-start)、

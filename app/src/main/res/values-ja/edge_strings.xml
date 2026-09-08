@@ -20,4 +20,10 @@
     <string name="edge_accessibility_setup">ユーザー補助を有効にする</string>
     <string name="edge_search_apps">名前・パッケージ名で検索</string>
     <string name="edge_no_apps">該当するアプリはありません</string>
+    <string name="edge_window_mode">アプリの開き方</string>
+    <string name="edge_window_full">全画面（通常起動）</string>
+    <string name="edge_window_freeform">フリーフォーム</string>
+    <string name="edge_window_split">分割</string>
+    <string name="edge_window_ask">毎回確認</string>
+    <string name="edge_freeform_unavailable">この端末ではフリーフォーム窓が有効になっていません。</string>
 </resources>

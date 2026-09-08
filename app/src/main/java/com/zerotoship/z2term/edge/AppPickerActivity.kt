@@ -102,12 +102,13 @@ class AppPickerActivity : Activity() {
         list.setOnItemClickListener { _, _, index, _ ->
                 val entry = visible[index]
                 val pkg = entry.activityInfo.packageName
+                fun save(windowMode: String) {
                 runCatching {
                     val panel = intent.getStringExtra("panel")
                     if (panel != null) {
                         val store = EdgeRuntime.store(this)
                         val id = "app_" + UUID.randomUUID().toString().replace("-", "")
-                        store.setItem("$panel:$id", mapOf("type" to "run", "run" to "z2-intent -p $pkg",
+                        store.setItem("$panel:$id", mapOf("type" to "run", "run" to "z2-intent -p $pkg --window $windowMode",
                             "label" to entry.loadLabel(packageManager).toString().replace('\n', ' ').replace('\r', ' '),
                             "icon" to "@app:$pkg"))
                         EdgeRuntime.reload(this)
@@ -117,6 +118,8 @@ class AppPickerActivity : Activity() {
                     selected = true
                 }.onFailure { Toast.makeText(this, it.message, Toast.LENGTH_LONG).show() }
                 finish()
+                }
+                if (intent.hasExtra("panel")) AppLaunch.choose(this) { save(it) } else save("full")
         }
         val deadline = intent.getLongExtra("deadline", 0L).takeIf { it > 0 }
             ?: (android.os.SystemClock.elapsedRealtime() + 120_000).also { intent.putExtra("deadline", it) }

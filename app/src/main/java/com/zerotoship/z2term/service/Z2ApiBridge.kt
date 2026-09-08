@@ -1602,7 +1602,7 @@ object Z2ApiBridge {
                 "--service" -> mode = "service"
                 "--window" -> {
                     window = next()
-                    require(window == "full") { "intent: only --window full is supported; split launch is not verified" }
+                    require(window in com.zerotoship.z2term.edge.AppLaunch.modes) { "intent: --window full|freeform|split|ask" }
                 }
                 else -> if (intent.action == null && !tok.startsWith("-")) intent.action = tok
                         else throw IllegalArgumentException("intent: unknown arg '$tok'")
@@ -1619,7 +1619,10 @@ object Z2ApiBridge {
         when (mode) {
             "broadcast" -> context.sendBroadcast(intent)
             "service" -> { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); context.startService(intent) }
-            else -> { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); context.startActivity(intent) }
+            else -> {
+                if (window != null) com.zerotoship.z2term.edge.AppLaunch.launch(context, intent, window!!)
+                else { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); context.startActivity(intent) }
+            }
         }
     }
 

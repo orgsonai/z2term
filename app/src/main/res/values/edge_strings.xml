@@ -20,4 +20,10 @@
     <string name="edge_accessibility_setup">Enable Accessibility</string>
     <string name="edge_search_apps">Search by name or package</string>
     <string name="edge_no_apps">No matching apps</string>
+    <string name="edge_window_mode">Open app in</string>
+    <string name="edge_window_full">Full screen (normal launch)</string>
+    <string name="edge_window_freeform">Freeform</string>
+    <string name="edge_window_split">Split screen</string>
+    <string name="edge_window_ask">Ask every time</string>
+    <string name="edge_freeform_unavailable">Freeform windows are not enabled on this device.</string>
 </resources>

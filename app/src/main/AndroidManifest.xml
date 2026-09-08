@@ -112,6 +112,8 @@
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-enabled floating panels for shell commands and status output" />
         </service>
+        <activity android:name=".edge.LaunchModeActivity" android:exported="false"
+            android:excludeFromRecents="true" android:theme="@android:style/Theme.DeviceDefault.Dialog" />
         <activity android:name=".edge.AppPickerActivity" android:exported="false"
             android:excludeFromRecents="true" android:theme="@android:style/Theme.DeviceDefault.DayNight" />
         <service android:name=".edge.AndroidActions"

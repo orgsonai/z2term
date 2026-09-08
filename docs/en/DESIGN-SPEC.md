@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-09 / Target version: 0.8.554-alpha (versionCode 562)
+Last updated: 2026-09-09 / Target version: 0.8.555-alpha (versionCode 563)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2201,6 +2201,12 @@ Rotation recalculates the available area. Top/bottom snapping is not supported.
 `z2-edge delete ID` removes that panel and its items, returning its ID and item count. Other panels remain.
 An open deleted panel closes and its handle disappears. Use `remove ID:item` to delete a single item.
 
+App addition offers Full screen (normal launch), Freeform, Split screen, and Ask every time.
+The choice is saved in `run=z2-intent -p PACKAGE --window full|freeform|split|ask` and can also be edited through the CLI.
+No external app, root, or private API is used. Freeform requests `ActivityOptions.setLaunchBounds`; split requests `FLAG_ACTIVITY_LAUNCH_ADJACENT`.
+Freeform fails if not enabled on the device. Entering split screen is supported from Android 12L; earlier versions require an existing split session.
+The OS controls the final mode and reuse of existing tasks. Full screen means ordinary launch, not forced maximization of an existing window.
+
 `z2-edge toggle` toggles the service; `z2-edge open main --toggle` toggles the panel.
 A tile assigned the single command `z2-edge toggle` displays the actual enabled state. Enabling requires an unlocked screen.
 “+ App” shows an icon/name list with a search field matching names and packages. Selecting saves the app; rotation preserves the query. `z2-app pick` returns the selected package on stdout;
@@ -2259,7 +2265,7 @@ AccessibilityService and reports OS rejection. It does not retrieve screen conte
 events. `status` lists available actions and `permission` opens the OS settings. Home also works through a
 HOME Intent without the service. Split requests OS docking only, not application launch into split screen.
 `z2-intent -p package` resolves its launcher activity. `--window full` aliases ordinary launch; it cannot force
-fullscreen. Split launch, other-app freeform launch and meter/graph/slider/image/log/term types are unsupported.
+fullscreen. Meter/graph/slider/image/log/term types are unsupported.
 `z2-intent` now waits for a response so missing launch targets and unsupported modes reach the CLI as errors.
 No external helper application or root permission is required.
 
