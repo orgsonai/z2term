@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-09 / Target version: 0.8.551-alpha (versionCode 559)
+Last updated: 2026-09-09 / Target version: 0.8.552-alpha (versionCode 560)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2193,8 +2193,9 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
 Bars default to 6dp wide and 6% of screen height. `--size` is clamped to 2–48dp for bars and 32–96dp for buttons.
 The minimum rendered length is 8dp. `--alpha 0.05..1` controls opacity.
 `--open swipe|tap|both` chooses activation; defaults are swipe for bars and tap for buttons.
-Hold a bar for one second for haptic feedback, then drag it. Release snaps to the nearest left/right edge
-and saves `side`/`offset`. Buttons drag immediately in tap mode; swipe/both modes require the one-second hold.
+Hold a bar or button for 300ms to move it. Bar hit areas are at least 24dp wide, independent of visible thickness.
+While held, a bar fills its hit area at full opacity and shows dots with haptic feedback. A line previews the target edge.
+Release snaps to the nearest left/right edge and saves `side`/`offset`; cancellation restores position and appearance.
 Rotation recalculates the available area. Top/bottom snapping is not supported.
 
 `z2-edge toggle` toggles the service; `z2-edge open main --toggle` toggles the panel.

@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.551-alpha (versionCode 559).** Floating panels now accept width and maximum height in dp or percent, shrink to their contents, and consume outside taps when closing. The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.552-alpha (versionCode 560).** Floating panels now accept width and maximum height in dp or percent, shrink to their contents, and consume outside taps when closing. The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 

@@ -11,7 +11,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge handle ID bar --side right --offset 30% --length 6% --size 6 --open swipe
         |# z2-edge handle ID button --run 'z2-key back'  直接実行するボタン
         |# --open swipe|tap|both  --alpha 0.05..1  --label TEXT
-        |# バー幅: --size 2〜48dp、ボタン: 32〜96dp。バーは1秒長押し後に移動。
+        |# バー幅: --size 2〜48dp、ボタン: 32〜96dp。バーは300ms長押し後に移動。
         |# z2-edge handle ID off                  取っ手を隠す
         |# z2-edge panel ID width=80% height=60%
         |# z2-edge panel ID label=名前            パネルの定義を追加・更新
@@ -43,7 +43,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge handle ID button --at 85%,60% [--size 48] [--run 'command']
         |# z2-edge handle ID bar --side right --offset 30% --length 6% --size 6 --open swipe
         |# --open swipe|tap|both  --alpha 0.05..1  --label TEXT
-        |# Bar: --size 2..48 dp; button: 32..96 dp. Hold 1 second to move a bar.
+        |# Bar: --size 2..48 dp; button: 32..96 dp. Hold 300ms to move a handle; bar hit area is at least 24dp.
         |# z2-edge handle ID off
         |# z2-edge panel ID width=80% height=60%
         |# z2-edge panel ID label=Name

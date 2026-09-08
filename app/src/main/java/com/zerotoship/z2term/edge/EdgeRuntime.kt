@@ -54,6 +54,7 @@ object EdgeRuntime {
     private val scheduled = mutableListOf<Runnable>()
     private val retries = mutableMapOf<String, Runnable>()
     private var panelView: View? = null
+    private var snapPreview: View? = null
     private var openId: String? = null
     private var receiver: BroadcastReceiver? = null
     private var generation = 0
@@ -220,7 +221,25 @@ object EdgeRuntime {
             (if (focus) 0 else WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE), PixelFormat.TRANSLUCENT
     ).apply { gravity = Gravity.TOP or Gravity.LEFT }
 
+    private fun removeSnapPreview() {
+        snapPreview?.let { runCatching { wm().removeView(it) } }
+        snapPreview = null
+    }
+
+    private fun previewSnap(right: Boolean) {
+        removeSnapPreview()
+        val (width, height) = screenSize()
+        val line = View(ui()).apply { setBackgroundColor(colors().second); alpha = 0.35f }
+        val p = params(dp(2).coerceAtLeast(1), height).apply {
+            x = if (right) width - width.coerceAtMost(dp(2)) else 0
+            flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        }
+        snapPreview = line
+        wm().addView(line, p)
+    }
+
     private fun removeHandles() {
+        removeSnapPreview()
         handleCallbacks.forEach { main.removeCallbacks(it) }; handleCallbacks.clear()
         handles.values.forEach { runCatching { wm().removeView(it) } }
         handles.clear()
@@ -235,7 +254,7 @@ object EdgeRuntime {
             val button = panel.handle == "button"
             val size = dp(if (button) (f["size"]?.toIntOrNull() ?: 48).coerceIn(32, 96)
                 else (f["size"]?.toIntOrNull() ?: 6).coerceIn(2, 48))
-            val w = size.coerceAtMost(width)
+            val w = (if (button) size else size.coerceAtLeast(dp(24))).coerceAtMost(width)
             val h = (if (button) size else (height * (f["length"]?.toFloatOrNull() ?: 6f) / 100)
                 .toInt().coerceAtLeast(dp(8))).coerceAtMost(height)
             val opening = f["open"] ?: if (button) "tap" else "swipe"
@@ -244,7 +263,21 @@ object EdgeRuntime {
             p.x = if (button) ((width - w).coerceAtLeast(0) * (f["x"]?.toFloatOrNull() ?: 85f) / 100).toInt()
                 else if (right) (width - w).coerceAtLeast(0) else 0
             p.y = ((height - h).coerceAtLeast(0) * (f[if (button) "y" else "offset"]?.toFloatOrNull() ?: 30f) / 100).toInt()
-            val view = text(badges[panel.id] ?: if (button) "≡" else "│", 16f).apply {
+            var relocating = false
+            var previewRight: Boolean? = null
+            val view = object : TextView(ui()) {
+                override fun draw(canvas: android.graphics.Canvas) {
+                    val save = canvas.save()
+                    if (!button && !relocating) {
+                        if (right) canvas.clipRect((this.width - size).coerceAtLeast(0), 0, this.width, this.height)
+                        else canvas.clipRect(0, 0, size.coerceAtMost(this.width), this.height)
+                    }
+                    super.draw(canvas)
+                    canvas.restoreToCount(save)
+                }
+            }.apply {
+                text = badges[panel.id] ?: if (button) "≡" else ""
+                textSize = 16f; setTextColor(colors().second)
                 background = background(button); gravity = Gravity.CENTER
                 alpha = f["alpha"]?.toFloatOrNull() ?: 1f
                 setPadding(0, 0, 0, 0); maxLines = 2
@@ -254,9 +287,22 @@ object EdgeRuntime {
             }
             var startX = 0f; var startY = 0f; var originalX = 0; var originalY = 0; var moved = false
             val slop = ViewConfiguration.get(windowContext!!).scaledTouchSlop
-            var relocating = false
+            fun releaseAppearance() {
+                relocating = false
+                view.text = badges[panel.id] ?: if (button) "≡" else ""
+                view.alpha = f["alpha"]?.toFloatOrNull() ?: 1f
+                view.invalidate()
+                removeSnapPreview(); previewRight = null
+            }
             val longPress = Runnable {
                 relocating = true
+                view.alpha = 1f
+                if (!button) view.text = "⋮"
+                view.invalidate()
+                if (!button) {
+                    previewRight = p.x + w / 2 >= width / 2
+                    runCatching { previewSnap(previewRight!!) }.onFailure { fail(it); removeSnapPreview() }
+                }
                 view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
             }
             handleCallbacks.add(longPress)
@@ -264,7 +310,7 @@ object EdgeRuntime {
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         startX = event.rawX; startY = event.rawY; originalX = p.x; originalY = p.y; moved = false; relocating = false
-                        if (!button || opening != "tap") main.postDelayed(longPress, 1000)
+                        main.postDelayed(longPress, 300)
                         true
                     }
                     MotionEvent.ACTION_MOVE -> {
@@ -272,10 +318,16 @@ object EdgeRuntime {
                         if (kotlin.math.abs(dx) > slop || kotlin.math.abs(dy) > slop) {
                             moved = true; main.removeCallbacks(longPress)
                         }
-                        if ((button && opening == "tap" && moved) || relocating) {
+                        if (relocating) {
                             p.x = (originalX + dx.toInt()).coerceIn(0, (width - w).coerceAtLeast(0))
                             p.y = (originalY + dy.toInt()).coerceIn(0, (height - h).coerceAtLeast(0))
-                            runCatching { wm().updateViewLayout(view, p) }.onFailure { fail(it) }
+                            runCatching {
+                                wm().updateViewLayout(view, p)
+                                val targetRight = p.x + w / 2 >= width / 2
+                                if (!button && previewRight != targetRight) {
+                                    previewRight = targetRight; previewSnap(targetRight)
+                                }
+                            }.onFailure { fail(it); removeSnapPreview() }
                         }
                         true
                     }
@@ -289,7 +341,7 @@ object EdgeRuntime {
                                 panels = store(app!!).panels()
                                 showHandles()
                             }.onFailure { fail(it) }
-                        } else if (button && ((opening == "tap" && moved) || relocating)) {
+                        } else if (button && relocating) {
                             runCatching {
                                 store(app!!).setPanel(panel.id, mapOf(
                                     "x" to (p.x * 100f / (width - w).coerceAtLeast(1)).toString(),
@@ -300,12 +352,13 @@ object EdgeRuntime {
                             val dx = event.rawX - startX; val dy = event.rawY - startY
                             if (EdgeHandleActivation.opens(opening, right, moved, dx, dy, slop)) view.performClick()
                         }
+                        releaseAppearance()
                         true
                     }
                     MotionEvent.ACTION_CANCEL -> { main.removeCallbacks(longPress); if (moved || relocating) {
                         p.x = originalX; p.y = originalY
                         runCatching { wm().updateViewLayout(view, p) }
-                    }; true }
+                    }; releaseAppearance(); true }
                     else -> false
                 }
             }
@@ -574,7 +627,7 @@ object EdgeRuntime {
         require(store(context).enabled() && app != null) { "Enable the panel first: z2-edge on" }
         require(value.length <= 16) { "Badge: at most 16 characters" }
         badges[id] = value
-        handles[id]?.text = value.ifBlank { if (panels.first { it.id == id }.handle == "button") "≡" else "│" }
+        handles[id]?.text = value.ifBlank { if (panels.first { it.id == id }.handle == "button") "≡" else "" }
     }
 
     private fun addIcon(row: LinearLayout, value: String?) {
