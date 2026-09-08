@@ -5,6 +5,14 @@
     <!-- 必須権限 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
     <!-- 通信量の上限 (0.8.389) で**端末全体**の通信量を読むために要る。⚠ 普通の権限ではなく
          「使用状況へのアクセス」= 設定画面で利用者が 1 つずつ許すもの。宣言していないと
          その一覧にすら出ないので、ここに書いたうえで画面から設定へ案内する。
@@ -98,6 +106,20 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:requestLegacyExternalStorage="true"
         tools:targetApi="35">
+
+        <service android:name=".edge.EdgeService"
+            android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-enabled floating panels for shell commands and status output" />
+        </service>
+        <service android:name=".edge.AndroidActions"
+            android:label="@string/edge_accessibility_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/edge_accessibility_service" />
+        </service>
 
         <!-- launchMode=singleTask: タブは 1 画面で持つものなので、外部 (共有シート) から
              呼ばれるたびに Activity が積み上がらないようにする。既に動いていれば

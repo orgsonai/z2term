@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.439-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.549-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -845,6 +845,62 @@ when a `z2-when` rule fired **without opening the app**.
   **whenever a macro or an automation rule finishes**.
 - **⚙** changes which file is shown.
 - It only ever reads **part of the end you chose**, so it stays fast however large the file grows.
+
+---
+
+## 9.6. Floating edge panels
+
+An edge bar or draggable button opens your own controls while you use other apps. Commands provide
+the contents: display text, toggle a state, choose a list entry or enter text.
+
+Run `z2-edge permission` and allow Android to display z2term over other apps. Return to the terminal
+and create a panel with a clock and a Home button:
+
+```sh
+z2-edge handle main button --at 85%,60% --label Controls
+z2-edge set main:clock type=text label=Clock 'run=date' every=30 order=1
+z2-edge set main:home label=Home 'run=z2-key home' order=2
+z2-edge on
+```
+
+Drag the floating button to move it; its position is saved. Switch to a bar with
+`z2-edge handle main bar --side right --offset 30% --length 25%` and swipe inward to open it.
+Close with Close, an outside tap or Back. Stop everything with `z2-edge off` or Stop panels in the notification.
+
+For Back, Recents and other global actions, run `z2-key permission` and enable “z2term Android actions”.
+If Android restricts the switch, allow restricted settings from z2term App info first. `z2-key status`
+lists the actions the device provides. The service does not request screen contents or typed text.
+
+Use `z2-app list` to find an application package, then set an item to `run=z2-intent -p PACKAGE`.
+It automatically uses the application label and full-color icon; explicit `label=` and `icon=` override them.
+`z2-app icon PACKAGE -o ~/app.png` also exports that icon as PNG.
+
+```sh
+# A display updated by another command or automation
+z2-edge set main:message type=text label=Status
+z2-edge push main:message 'Finished'
+z2-edge badge main 'Done'
+
+# Send entered text to a file, adding a newline in the shell
+z2-edge set main:note type=input label=Note 'run={ cat; printf "\n"; } >> ~/notes.txt'
+
+# Lists use label<TAB>value; the selected value reaches on-select as $1
+z2-edge set main:pick type=list label=Actions 'run=printf "Home\thome\nRecents\trecents\n"' 'on-select=z2-key "$1"'
+```
+
+For `type=toggle`, `run=` changes the state and `state=` reads on/off, true/false or 1/0.
+`z2-edge state main:ITEM on` updates the displayed state from outside. Use `out=panel` to show an action's
+result in place or `out=notify` to receive it after closing the panel.
+
+Text/toggle/list refresh on opening. `every=30` adds a 30-second interval only while the panel is open.
+Closing, screen-off and reload stop readers; explicit actions finish unless you request `off`.
+Closing, reload and rotation discard unsent input. Command timeout defaults to 30 seconds; `timeout=` allows up to 300.
+For event updates, register a command invoking `z2-edge push` with the existing `z2-when`.
+
+Definitions live in `~/.z2term/edge/`. Run `z2-edge reload` after editing files directly. Copy the folder
+to back it up; the current settings export does not include it. Pushed values and badges reset on app restart.
+See `z2-edge --help` for types and options. Other-app freeform windows and launching apps into split screen
+are not supported.
 
 ---
 

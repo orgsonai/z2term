@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_title">Edge panels</string>
+    <string name="edge_running">Floating controls enabled</string>
+    <string name="edge_off">Stop panels</string>
+    <string name="edge_close">Close</string>
+    <string name="edge_run">Run</string>
+    <string name="edge_refresh">Refresh</string>
+    <string name="edge_send">Send</string>
+    <string name="edge_empty">No items yet. Add items with z2-edge set.</string>
+    <string name="edge_busy">A command is already running or all execution slots are busy.</string>
+    <string name="edge_updating">Updating…</string>
+    <string name="edge_no_command">No command assigned.</string>
+    <string name="edge_overlay_help">Allow z2term to display over other apps using z2-edge permission, then run z2-edge on.</string>
+    <string name="edge_accessibility_label">z2term Android actions</string>
+    <string name="edge_accessibility_description">Performs Back, Home, Recents and other Android global actions only when requested by your commands. Does not read screen contents or typed text.</string>
+    <string name="edge_accessibility_help">Enable “z2term Android actions” using z2-key permission. If Android blocks the switch, open z2term App info and allow restricted settings in its menu first.</string>
+</resources>

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-08 / Target version: 0.8.548-alpha (versionCode 556)
+Last updated: 2026-09-08 / Target version: 0.8.549-alpha (versionCode 557)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2185,6 +2185,62 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
   - **`z2-media` / `z2-volume`**: the former dispatches media keys via `AudioManager.dispatchMediaKeyEvent`, the latter operates `STREAM_MUSIC` (returning current/max)
   - **`z2-intent`**: an `am start`-style set of flags (`-a/-d/-t/-p/-n/-f/--es/--ez/--ei/--broadcast/--service`) builds an arbitrary Intent and calls startActivity/broadcast/startService — a single command covering launching apps, opening settings screens, setting alarms, sharing, and more (none of it needs a permission; whatever the target requires is separate)
 - `ProotLauncher.ensureZ2ApiScripts` writes them to `/usr/local/bin` on every launch. req/resp watch `getExternalFilesDir/z2api` with a `FileObserver`, args are base64, atomic rename.
+
+---
+
+### 4.14 Edge panels (`edge/`, 0.8.549)
+
+Overlays display user-defined shell commands and their output. The app does not encode item-specific features.
+`z2-edge`, `z2-key` and `z2-app` use the existing `z2api`; application launches use `z2-intent`.
+There is no new configuration screen. UTF-8 `key=value` files in `~/.z2term/edge/<panel>/panel.conf`
+and `<item>.item` are authoritative; CLI writes use a temporary file and rename in the same directory.
+IDs contain 1–64 letters/digits/underscores/hyphens; update targets always use `panel:item`.
+Unknown types/fields and invalid numeric values fail explicitly.
+
+- `EdgeStore`: up to 12 panels with 64 items each. Panel fields: `handle=bar|button|off`, `side=left|right`,
+  percentage `offset`/`length`/`x`/`y`, `size` (32–96 dp), `label` and an optional direct-action `run`.
+  Dragging a button writes its coordinates back to the same file. Items sort by `order`, then ID.
+- `EdgeRuntime`: main-thread `TYPE_APPLICATION_OVERLAY` bars/buttons and panels. Close using the Close
+  button, an outside tap or Back. Screen-off hides handles too; unlock restores them. Rotation recalculates
+  positions. Closing discards unsent input.
+- `EdgeService`: explicit opt-in with `z2-edge on`, a notification with Stop, and no wake lock.
+  Missing overlay permission fails. The overlay is shown before starting the FGS, as Android 15 requires.
+  Saved ON state is restored at app startup/foreground return; foreground return retries restricted starts.
+- `EdgeRunner`: reuses `HeadlessRun` in the selected Linux environment. Separate stdout/stderr/exit-code
+  files under `.runtime` are removed on completion. At most four concurrent commands, 30-second default
+  timeout (`timeout=1..300`) and 64 KiB output limit; excess bytes are drained. Closing, screen-off and reload
+  stop readers; explicit actions finish unless `off` is requested. Daemons follow `HeadlessRun` semantics.
+
+| Type | Input/output |
+|---|---|
+| `run` (default) | Executes `run`; `out=none` (default) closes the panel before execution; also supports `panel`, `toast`, `notify` |
+| `text` | Displays stdout from `run` |
+| `toggle` | Executes `run`, then reads `state` (on/off, 1/0 or true/false) |
+| `list` | Displays stdout lines as `label<TAB>value`; passes the selected value as a separate `$1` to `on-select`, up to 100 rows |
+| `input` | Passes typed text to `run` on stdin without evaluating it as code |
+
+Text/toggle/list refresh once on opening. `every=5..86400` specifies seconds while open only; default 0
+means no periodic work. Omit `run`/`state` for externally updated items. Commands include
+`push panel:item <text|->`, `state panel:item on|off`, `badge panel <text>`, `open panel`, and `close`.
+Live values and badges reset on app restart. A newer push wins over an older command result.
+Event updates use existing `z2-when` rules invoking `push`; there is no duplicate trigger language.
+
+Icons support text, `@app:package`, `@z2:sample` and `@file:~/image.png`. Simple `z2-intent -p package`
+commands automatically use the application label/icon unless overridden. Missing icons do not remove items;
+reload clears the cache. `z2-app list` returns package/label JSON for MAIN/LAUNCHER apps; `icon package -o file.png`
+exports PNG. Manifest visibility is restricted to MAIN/LAUNCHER; no `QUERY_ALL_PACKAGES` permission.
+
+`z2-key` exposes back/home/recents/shade/quicksettings/screenshot/split through an explicitly enabled
+AccessibilityService and reports OS rejection. It does not retrieve screen contents, typed text or accessibility
+events. `status` lists available actions and `permission` opens the OS settings. Home also works through a
+HOME Intent without the service. Split requests OS docking only, not application launch into split screen.
+`z2-intent -p package` resolves its launcher activity. `--window full` aliases ordinary launch; it cannot force
+fullscreen. Split launch, other-app freeform launch and meter/graph/slider/image/log/term types are unsupported.
+`z2-intent` now waits for a response so missing launch targets and unsupported modes reach the CLI as errors.
+No external helper application or root permission is required.
+
+Android references: [overlay and FGS requirements](https://developer.android.com/about/versions/15/behavior-changes-15#fgs-background-start),
+[global action API](https://developer.android.com/reference/android/accessibilityservice/AccessibilityService#performGlobalAction(int)).
 
 ---
 

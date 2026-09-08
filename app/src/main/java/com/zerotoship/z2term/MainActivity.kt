@@ -209,6 +209,10 @@ class MainActivity : ComponentActivity() {
         // 繋ぎっぱなしの受付 (z2-session attach) が落ちていたら張り直す。張れていれば何もしない。
         // 入口が Application.onCreate だけだと、一度落ちた受付はアプリを開き直しても戻らない。
         com.zerotoship.z2term.service.AttachServer.start(this)
+        // Retry a saved panel after returning from permission settings or a restricted background start.
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching { com.zerotoship.z2term.edge.EdgeRuntime.restore(this@MainActivity) }
+        }
     }
 
     /**

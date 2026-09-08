@@ -566,11 +566,13 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# Fire any Android Intent (startActivity by default). A leading non-flag argument is the ACTION.
+        |# -p PKG alone launches that app. --window full means ordinary launch; split/freeform are unsupported.
     """.trimMargin(),
         ja = """
         |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# 任意の Android Intent を発火 (既定は startActivity)。先頭の非フラグ引数は ACTION。
+        |# -p PKG だけでアプリを起動。--window full は通常起動です（分割・自由サイズ窓の指定は未対応）。
     """.trimMargin(),
         "zh-CN" to """
         |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]

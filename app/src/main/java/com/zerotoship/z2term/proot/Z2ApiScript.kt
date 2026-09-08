@@ -180,7 +180,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
 
     val intent = "#!/bin/sh\n" + m.intentHelp + "\n" + helpCase + """
         |[ ${d}# -ge 1 ] || { echo "usage: z2-intent [-a ACTION] [-d URI] [-p PKG] [-n PKG/CLS] ..." >&2; exit 1; }
-        |exec /usr/local/bin/z2api 0 intent "${d}@"
+        |exec /usr/local/bin/z2api 1 intent "${d}@"
     """.trimMargin() + "\n"
 
     val sensor = "#!/bin/sh\n" + m.sensorHelp + "\n" + helpCase + """
@@ -934,6 +934,7 @@ fun z2ApiScripts(lang: String = "ja"): Map<String, String> {
     """.trimMargin() + "\n"
 
     return linkedMapOf(
+        *z2EdgeScripts(lang).toList().toTypedArray(),
         "z2api" to dispatcher,
         "z2-session" to session,
         "z2-usb" to usb,

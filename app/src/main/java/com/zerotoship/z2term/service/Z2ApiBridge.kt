@@ -265,6 +265,13 @@ object Z2ApiBridge {
             "media" -> { doMedia(context, args.getOrNull(0).orEmpty()); null }
             "volume" -> volumeSet(context, args.getOrNull(0).orEmpty())
             "intent" -> { doIntent(context, args); null }
+            "edge" -> com.zerotoship.z2term.edge.EdgeCommands.command(context, args)
+            "key" -> {
+                // Release the overlay focus before Android decides which window receives Back.
+                if (args.firstOrNull() !in setOf("status", "permission")) com.zerotoship.z2term.edge.EdgeRuntime.close()
+                runOnMainSync { com.zerotoship.z2term.edge.AndroidActions.command(context, args) }
+            }
+            "app" -> com.zerotoship.z2term.edge.AppCatalog.command(context, args)
             "sensor" -> sensorRead(context, args.getOrNull(0).orEmpty())
             "alarm" -> alarmCmd(context, args)
             "state" -> stateRead(context, args.getOrNull(0).orEmpty())
@@ -1554,6 +1561,7 @@ object Z2ApiBridge {
     private fun doIntent(context: Context, args: List<String>) {
         val intent = Intent()
         var mode = "activity"
+        var window: String? = null
         var i = 0
         fun next(): String =
             if (i < args.size) args[i++] else throw IllegalArgumentException("intent: missing value")
@@ -1579,9 +1587,21 @@ object Z2ApiBridge {
                 )
                 "--broadcast" -> mode = "broadcast"
                 "--service" -> mode = "service"
+                "--window" -> {
+                    window = next()
+                    require(window == "full") { "intent: only --window full is supported; split launch is not verified" }
+                }
                 else -> if (intent.action == null && !tok.startsWith("-")) intent.action = tok
                         else throw IllegalArgumentException("intent: unknown arg '$tok'")
             }
+        }
+        require(window == null || mode == "activity") { "--window requires activity launch" }
+        if (mode == "activity" && intent.action == null && intent.component == null && intent.`package` != null) {
+            val launch = context.packageManager.getLaunchIntentForPackage(intent.`package`!!)
+                ?: throw IllegalArgumentException("intent: package has no launchable activity")
+            intent.component = launch.component
+            intent.action = launch.action
+            launch.categories?.forEach { intent.addCategory(it) }
         }
         when (mode) {
             "broadcast" -> context.sendBroadcast(intent)

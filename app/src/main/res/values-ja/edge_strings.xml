@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_title">エッジパネル</string>
+    <string name="edge_running">画面に操作パネルを表示しています</string>
+    <string name="edge_off">パネルを停止</string>
+    <string name="edge_close">閉じる</string>
+    <string name="edge_run">実行</string>
+    <string name="edge_refresh">更新</string>
+    <string name="edge_send">送る</string>
+    <string name="edge_empty">項目がありません。z2-edge set で追加できます。</string>
+    <string name="edge_busy">コマンドの実行中、または同時実行数の上限です。</string>
+    <string name="edge_updating">更新中…</string>
+    <string name="edge_no_command">コマンドが割り当てられていません。</string>
+    <string name="edge_overlay_help">z2-edge permission で「他のアプリの上に重ねて表示」を許可してから、z2-edge on を実行してください。</string>
+    <string name="edge_accessibility_label">z2term Android 操作</string>
+    <string name="edge_accessibility_description">利用者のコマンドに応じて戻る・ホーム・履歴などのAndroid操作を実行します。画面の内容や入力した文字は読み取りません。</string>
+    <string name="edge_accessibility_help">z2-key permission で「z2term Android 操作」を有効にしてください。Androidに制限される場合は、先にz2termのアプリ情報のメニューから「制限付き設定を許可」を選びます。</string>
+</resources>

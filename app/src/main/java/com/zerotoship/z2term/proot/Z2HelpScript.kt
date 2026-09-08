@@ -330,6 +330,11 @@ fun z2helpScript(lang: String = "ja"): String {
     """
     )
 
+    val edge = t(
+        en = "[Floating panels]\nz2-edge --help   Define panels and update their contents\nz2-key --help    Android global actions\nz2-app --help    List applications and export icons",
+        ja = "[画面に浮かべるパネル]\nz2-edge --help   パネルの定義・表示の更新\nz2-key --help    戻る・ホーム・履歴などのAndroid操作\nz2-app --help    アプリ一覧・アイコンの取得"
+    )
+
     return """
         |#!/bin/sh
         |# z2term: 独自コマンド早見表 (launch 毎にアプリが再生成)。本体は静的テキスト。
@@ -338,6 +343,8 @@ fun z2helpScript(lang: String = "ja"): String {
         |echo
         |cat <<'Z2HELP_EOF'
         ${list.trimMargin()}
+        |
+        $edge
         |Z2HELP_EOF
     """.trimMargin() + "\n"
 }

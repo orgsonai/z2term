@@ -85,10 +85,11 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.548-alpha (versionCode 556).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.549-alpha (versionCode 557).** The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
+- **Floating edge panels** — `z2-edge` defines an edge bar or draggable button and panels with command buttons, text, toggles, lists and input fields. Shell commands supply the contents; `push` and `badge` update them from automation. `z2-key` exposes Android global actions through an optional accessibility service, and `z2-app` lists launchable apps and exports their icons. See [the handbook](docs/en/HANDBOOK.md#96-floating-edge-panels). Overlay permission is opt-in; no external helper app is required.
 - **Terminal emulator** — VT100 / xterm, 256-color and true color, 9 themes, scrollback with search, UTF-8 and East Asian Width, alternate screen, OSC 4 / 7 / 8 / 10 / 11 / 12 / 52.
 - **Linux distributions without root** — Alpine / Ubuntu / Arch / Kali on a userspace engine (z2root by default; see below). Install anything with `apk` / `apt` / `pacman`.
 - **Execution engine** — fully migrated to z2root for non-root use; rooted devices may optionally use the hidden chroot path.

@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-08 / 対象バージョン: 0.8.548-alpha (versionCode 556)
+最終更新: 2026-09-08 / 対象バージョン: 0.8.549-alpha (versionCode 557)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -2153,6 +2153,62 @@ CSI パラメータの `:` 区切り (サブパラメータ) を `;` 区切り�
   - **`z2-media` / `z2-volume`**: 前者は `AudioManager.dispatchMediaKeyEvent` でメディアキーを流し、後者は `STREAM_MUSIC` を操作 (結果 current/max を返す)
   - **`z2-intent`**: `am start` 風のフラグ (`-a/-d/-t/-p/-n/-f/--es/--ez/--ei/--broadcast/--service`) で任意の Intent を組んで startActivity/broadcast/startService する汎用アクション。これ 1 本でアプリ起動・設定画面表示・アラーム設定・共有等を網羅する (いずれも権限不要。呼び先が要求する権限は別)
 - `ProotLauncher.ensureZ2ApiScripts` が launch 毎に `/usr/local/bin` へ書き出す。req/resp は `getExternalFilesDir/z2api` を `FileObserver` で監視、引数は base64、atomic rename。
+
+---
+
+### 4.14 エッジパネル (`edge/`、0.8.549)
+
+Android のオーバーレイへ、利用者が書いたコマンドの表示面を提供する。項目の用途はアプリに固定しない。
+`z2-edge` / `z2-key` / `z2-app` は既存の `z2api` を通り、アプリ起動には既存の `z2-intent` を使う。
+設定画面は追加せず、定義の正本は `~/.z2term/edge/<panel>/panel.conf` と `<item>.item`。
+UTF-8 の `key=value` を読み、CLI の更新は同じディレクトリ内で一時ファイルを rename して反映する。
+ID は英数字・`_`・`-` の 1〜64 文字。更新先は常に `panel:item`。未知の型・キーや不正な数値はエラー。
+
+- `EdgeStore`: 最大 12 パネル・各 64 項目。`panel.conf` は `handle=bar|button|off`、`side=left|right`、
+  `offset` / `length` / `x` / `y`（百分率）、`size`（32〜96 dp）、`label`、直接実行用 `run`。
+  ドラッグしたボタンの座標は同じ定義へ書き戻す。項目は `order`、同値なら ID 順。
+- `EdgeRuntime`: `TYPE_APPLICATION_OVERLAY` のバー／丸ボタンとパネルを主スレッドで管理する。
+  パネルは「閉じる」・外側タップ・戻るで閉じる。消灯時は取っ手も隠し、ロック解除後に戻す。
+  回転時は配置を再計算する。入力欄の未送信文字は閉じると消える。
+- `EdgeService`: `z2-edge on` による明示的な常駐。通知にも停止を用意し、WakeLock は持たない。
+  許可のない状態はエラー。Android 15 の条件に合わせ、オーバーレイを表示してから FGS を開始する。
+  ON の定義をアプリ起動／前面復帰で復元する。OS の起動制限や許可取り消しからの再表示は前面復帰で再試行。
+- `EdgeRunner`: 既存の `HeadlessRun` を使用し、選択中の Linux 環境でコマンドを実行する。
+  stdout・stderr・終了コードは `.runtime` の一時ファイルで分離し、終了時に消す。
+  同時 4 実行、既定 30 秒（`timeout=1..300`）、出力上限 64 KiB。超過分も読み捨ててパイプの詰まりを防ぐ。
+  定期更新はパネル表示中のみ。閉じる／消灯／再読込で読取コマンドを停止し、押した操作は完了まで続ける。
+  `off` は操作も停止する。起動したデーモンの扱いは `HeadlessRun` と同じ。
+
+| 型 | 入出力 |
+|---|---|
+| `run`（既定） | `run` を実行。`out=none`（既定）はパネルを閉じて実行。`panel` / `toast` / `notify` も選べる |
+| `text` | `run` の stdout を表示 |
+| `toggle` | `run` で操作し、`state` の stdout（`on/off`・`1/0`・`true/false`）で表示を合わせる |
+| `list` | `run` の各行を表示。行は `表示<TAB>値`、`on-select` に値を独立した `$1` として渡す。最大 100 行 |
+| `input` | 入力文字を `run` の stdin へ渡す。文字はコマンドとして展開しない |
+
+`text` / `toggle` / `list` は開いたときに 1 回読む。`every=5..86400` は秒単位、既定 0（定期実行なし）。
+`run` / `state` を省略した項目は `push` / `state` による外部更新専用。
+`z2-edge push panel:item <文字列|->`、`state panel:item on|off`、`badge panel <文字>`、`open panel`、`close` を提供する。
+ライブ値・バッジはメモリだけに持ち、アプリ再起動で消える。新しい push を古いコマンド結果で上書きしない。
+イベントでの更新は既存の `z2-when` から `push` を呼ぶ。独自のトリガー定義は追加しない。
+
+`icon` は文字／`@app:package`／`@z2:sample`／`@file:~/image.png`。単純な `z2-intent -p package` は
+アプリ名とアイコンを自動取得する。手動指定が優先。画像取得に失敗しても項目は残す。キャッシュは reload で破棄。
+`z2-app list` は MAIN/LAUNCHER に該当するパッケージとラベルの JSON、`icon package -o file.png` は PNG を返す。
+Manifest の `<queries>` は MAIN/LAUNCHER のみに限定し、`QUERY_ALL_PACKAGES` は使わない。
+
+`z2-key` は back / home / recents / shade / quicksettings / screenshot / split。
+利用者が OS 設定で有効にする `AccessibilityService` の global action を呼び、OS の拒否をエラーとして返す。
+画面本文・入力文字の取得やユーザー補助イベントの監視は行わない。`status` は利用可能な操作、`permission` は許可画面。
+ホームはサービス未接続でも HOME Intent で起動できる。分割は OS に分割切替を頼むだけで、アプリの分割起動ではない。
+`z2-intent -p package` はランチャーの Activity を解決する。`--window full` は通常起動の別名であり、全画面を強制しない。
+`z2-intent` は応答を待ち、起動先なし・未対応モードなどのエラーを CLI に返す。
+分割起動・他アプリのフリーフォーム起動、`meter` / `graph` / `slider` / `image` / `log` / `term` は未対応。
+端末に追加アプリや root 権限を要求しない。
+
+Android の参照: [オーバーレイと FGS の条件](https://developer.android.com/about/versions/15/behavior-changes-15#fgs-background-start)、
+[global action API](https://developer.android.com/reference/android/accessibilityservice/AccessibilityService#performGlobalAction(int))。
 
 ---
 
