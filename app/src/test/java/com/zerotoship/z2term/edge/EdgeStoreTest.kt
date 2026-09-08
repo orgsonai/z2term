@@ -60,6 +60,24 @@ class EdgeStoreTest {
         } finally { dir.deleteRecursively() }
     }
 
+    @Test fun panelDimensionsPersistAndInvalidUpdatesLeaveTheFileIntact() {
+        val dir = Files.createTempDirectory("edge-dimensions-test").toFile()
+        try {
+            val store = EdgeStore(dir)
+            store.setPanel("main", mapOf("width" to "80%", "height" to "240.5"))
+            for (invalid in listOf("0", "-1", "101%", "NaN", "Infinity", "24dp", "10001", "")) {
+                rejects { store.setPanel("main", mapOf("width" to invalid)) }
+                rejects { store.setPanel("main", mapOf("height" to invalid)) }
+            }
+            assertEquals("80%", store.panel("main").fields["width"])
+            assertEquals("240.5", store.panel("main").fields["height"])
+            assertEquals(800, EdgeStore.dimensionPixels("80%", 1000, 3f))
+            assertEquals(720, EdgeStore.dimensionPixels("240", 1000, 3f))
+            assertEquals(1000, EdgeStore.dimensionPixels("10000", 1000, 3f))
+            assertEquals(1, EdgeStore.dimensionPixels("0.01%", 1000, 3f))
+        } finally { dir.deleteRecursively() }
+    }
+
     @Test fun invalidUpdatePreservesExistingDefinitionAndMovePreservesItems() {
         val dir = Files.createTempDirectory("edge-store-test").toFile()
         try {

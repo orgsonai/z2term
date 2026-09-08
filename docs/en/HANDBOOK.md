@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.550-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.551-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -850,6 +850,9 @@ when a `z2-when` rule fired **without opening the app**.
 
 ## 9.6. Floating edge panels
 
+Set panel size with `z2-edge panel main width=80% height=60%`. A `%` suffix means display percentage; plain numbers mean dp.
+Height is a maximum: short content shrinks the panel and overflow scrolls vertically. Tapping outside closes it without tapping the app behind it.
+
 Bars default to 6dp wide and 6% of screen height. `--size` is clamped to 2–48dp for bars and 32–96dp for buttons.
 The minimum rendered length is 8dp. `--alpha 0.05..1` controls opacity.
 `--open swipe|tap|both` chooses activation; defaults are swipe for bars and tap for buttons.
@@ -876,6 +879,7 @@ and create a panel with a clock and a Home button:
 
 ```sh
 z2-edge handle main button --at 85%,60% --label Controls
+z2-edge panel main width=80% height=60%
 z2-edge set main:clock type=text label=Clock 'run=date' every=30 order=1
 z2-edge set main:home label=Home 'run=z2-key home' order=2
 z2-edge on

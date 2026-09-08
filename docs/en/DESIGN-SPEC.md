@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-08 / Target version: 0.8.550-alpha (versionCode 558)
+Last updated: 2026-09-09 / Target version: 0.8.551-alpha (versionCode 559)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2218,8 +2218,10 @@ Unknown types/fields and invalid numeric values fail explicitly.
 - `EdgeStore`: up to 12 panels with 64 items each. Panel fields: `handle=bar|button|off`, `side=left|right`,
   percentage `offset`/`length`/`x`/`y`, `size` (stored as 2–96dp, clamped per handle type as above), `open`, `alpha`, `label` and an optional direct-action `run`.
   Dragging a button writes its coordinates back to the same file. Items sort by `order`, then ID.
+  `width` / `height` accept percentages of the usable display (>0 through 100%) or plain dp values (>0 through 10000).
+  Defaults: 360dp wide, at most 72% high. Dimensions fit the display; short content shrinks the panel and overflow scrolls vertically.
 - `EdgeRuntime`: main-thread `TYPE_APPLICATION_OVERLAY` bars/buttons and panels. Close using the Close
-  button, an outside tap or Back. Screen-off hides handles too; unlock restores them. Rotation recalculates
+  button, an outside tap or Back. A transparent full-screen window consumes outside taps so they never activate the app behind it. Screen-off hides handles too; unlock restores them. Rotation recalculates
   positions. Closing discards unsent input.
 - `EdgeService`: explicit opt-in with `z2-edge on`, a notification with Stop, and no wake lock.
   Missing overlay permission fails. The overlay is shown before starting the FGS, as Android 15 requires.

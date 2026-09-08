@@ -22,7 +22,7 @@
 
 ## 2. インストール
 
-1. APK ファイル (`z2term-0.8.550-alpha.apk`) をスマホに入れる。
+1. APK ファイル (`z2term-0.8.551-alpha.apk`) をスマホに入れる。
 2. 「提供元不明のアプリ」を許可してインストール。
 3. アプリを開く。
 
@@ -842,6 +842,9 @@ ssh -p 65152 root@127.0.0.1
 
 ## 9.6. 画面に浮かべるエッジパネル
 
+板の大きさは `z2-edge panel main width=80% height=60%` で指定できます。`%` 付きは画面比、数値だけなら dp です。
+高さは上限で、中身が少なければ縮み、入り切らなければ縦スクロールします。欄外を押すと閉じ、背後のアプリにはタップを渡しません。
+
 バーは既定で幅6dp・画面高さの6%。`--size` はバーでは2〜48dp、ボタンでは32〜96dpへ丸めます。
 長さの下限は8dp、`--alpha 0.05..1` で透明度を指定できます。
 `--open swipe|tap|both` で開き方を選択し、省略時はバーがswipe、ボタンがtapです。
@@ -869,6 +872,7 @@ APK更新後に操作が失敗した場合も、この状態を確認してく�
 
 ```sh
 z2-edge handle main button --at 85%,60% --label 操作
+z2-edge panel main width=80% height=60%
 z2-edge set main:clock type=text label=時計 'run=date' every=30 order=1
 z2-edge set main:home label=ホーム 'run=z2-key home' order=2
 z2-edge on

@@ -23,6 +23,7 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -332,52 +333,78 @@ object EdgeRuntime {
         val panel = panels.firstOrNull { it.id == id } ?: throw IllegalArgumentException("No panel: $id")
         close()
         openId = id
-        val body = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL; background = background() }
-        val header = LinearLayout(ui()).apply { gravity = Gravity.CENTER_VERTICAL }
-        header.addView(text(panel.fields["label"] ?: panel.id).apply { setTypeface(null, Typeface.BOLD) },
-            LinearLayout.LayoutParams(0, -2, 1f))
-        header.addView(Button(ui()).apply {
-            text = app!!.getString(R.string.edge_add_app)
-            setOnClickListener {
-                val context = app!!
-                close()
-                runCatching { context.startActivity(Intent(context, AppPickerActivity::class.java)
-                    .putExtra("panel", id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { fail(it) }
-            }
-        })
-        header.addView(Button(ui()).apply { text = app!!.getString(R.string.edge_close); setOnClickListener { close() } })
-        body.addView(header)
-        val rows = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
-        val scroll = ScrollView(ui()).apply { isFillViewport = false; addView(rows) }
-        body.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        if (panel.items.isEmpty()) rows.addView(text(app!!.getString(R.string.edge_empty)))
-        panel.items.forEach { item -> addItem(rows, panel.id, item) }
-        val (width, height) = screenSize()
-        val p = params(dp(360).coerceAtMost((width - dp(32)).coerceAtLeast(1)), (height * 0.72f).toInt(), focus = true)
-        p.x = if (panel.fields["side"] == "left") dp(24) else (width - p.width - dp(24)).coerceAtLeast(0)
-        p.y = dp(24)
-        p.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-        body.isFocusableInTouchMode = true
-        body.setOnKeyListener { _, key, event ->
-            if (key == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) { close(); true } else false
-        }
-        body.setOnTouchListener { _, e -> if (e.actionMasked == MotionEvent.ACTION_OUTSIDE) { close(); true } else false }
-        try { wm().addView(body, p); panelView = body; body.requestFocus() }
-        catch (e: Exception) { close(); throw e }
-        panel.items.filter { it.type in setOf("text", "toggle", "list") }.forEach { item ->
-            refresh(panel.id, item)
-            if (item.every > 0) {
-                val gen = generation
-                val task = object : Runnable {
-                    override fun run() {
-                        if (generation != gen || openId != id || !unlocked()) return
-                        refresh(id, item)
-                        main.postDelayed(this, item.every * 1000)
-                    }
+        try {
+            val (width, height) = screenSize()
+            val density = windowContext!!.resources.displayMetrics.density
+            val panelWidth = EdgeStore.dimensionPixels(panel.fields["width"] ?: "360", width, density)
+            val panelHeight = EdgeStore.dimensionPixels(panel.fields["height"] ?: "72%", height, density)
+            val body = object : LinearLayout(ui()) {
+                override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                    val limit = minOf(panelHeight, View.MeasureSpec.getSize(heightMeasureSpec))
+                    super.onMeasure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(limit, View.MeasureSpec.AT_MOST))
                 }
-                scheduled.add(task); main.postDelayed(task, item.every * 1000)
+            }.apply { orientation = LinearLayout.VERTICAL; background = background(); isClickable = true }
+            val header = LinearLayout(ui()).apply { gravity = Gravity.CENTER_VERTICAL }
+            header.addView(text(panel.fields["label"] ?: panel.id).apply { setTypeface(null, Typeface.BOLD) },
+                LinearLayout.LayoutParams(0, -2, 1f))
+            header.addView(Button(ui()).apply {
+                text = app!!.getString(R.string.edge_add_app)
+                setOnClickListener {
+                    val context = app!!
+                    close()
+                    runCatching { context.startActivity(Intent(context, AppPickerActivity::class.java)
+                        .putExtra("panel", id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { fail(it) }
+                }
+            })
+            header.addView(Button(ui()).apply { text = app!!.getString(R.string.edge_close); setOnClickListener { close() } })
+            body.addView(header)
+            val rows = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
+            val scroll = ScrollView(ui()).apply { isFillViewport = false; addView(rows) }
+            body.addView(scroll, LinearLayout.LayoutParams(-1, -2, 1f))
+            if (panel.items.isEmpty()) rows.addView(text(app!!.getString(R.string.edge_empty)))
+            panel.items.forEach { item -> addItem(rows, panel.id, item) }
+            val overlay = object : FrameLayout(ui()) {
+                override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                    if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+                        if (event.action == KeyEvent.ACTION_UP) close()
+                        return true
+                    }
+                    return super.dispatchKeyEvent(event)
+                }
+            }.apply {
+                isFocusableInTouchMode = true
+                setOnClickListener { close() }
             }
-        }
+            val insetX = minOf(dp(24), (width - panelWidth).coerceAtLeast(0) / 2)
+            val insetY = minOf(dp(24), (height - panelHeight).coerceAtLeast(0))
+            overlay.addView(body, FrameLayout.LayoutParams(panelWidth, -2).apply {
+                gravity = Gravity.TOP or if (panel.fields["side"] == "left") Gravity.LEFT else Gravity.RIGHT
+                leftMargin = insetX; rightMargin = insetX; topMargin = insetY
+            })
+            val p = params(-1, -1, focus = true).apply {
+                flags = flags and (WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH).inv()
+                softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            }
+            // Register before adding so every failure path can remove the touch-blocking window.
+            panelView = overlay
+            wm().addView(overlay, p)
+            overlay.requestFocus()
+            panel.items.filter { it.type in setOf("text", "toggle", "list") }.forEach { item ->
+                refresh(panel.id, item)
+                if (item.every > 0) {
+                    val gen = generation
+                    val task = object : Runnable {
+                        override fun run() {
+                            if (generation != gen || openId != id || !unlocked()) return
+                            refresh(id, item)
+                            main.postDelayed(this, item.every * 1000)
+                        }
+                    }
+                    scheduled.add(task); main.postDelayed(task, item.every * 1000)
+                }
+            }
+        } catch (e: Exception) { destroy(); throw e }
     }
 
     fun close() = onMain {

@@ -131,7 +131,7 @@ class EdgeStore(val root: File) {
         }
 
         fun validatePanel(values: Map<String, String>) {
-            val allowed = setOf("label", "handle", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open")
+            val allowed = setOf("label", "handle", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open", "width", "height")
             require(values.keys.all { it in allowed }) { "Unknown panel field: ${values.keys - allowed}" }
             require(values["handle"].orEmpty() in setOf("", "off", "bar", "button")) { "handle: bar, button or off" }
             require(values["side"].orEmpty() in setOf("", "left", "right")) { "side: left or right" }
@@ -141,7 +141,23 @@ class EdgeStore(val root: File) {
             values["size"]?.let { require(it.toIntOrNull()?.let { n -> n in 2..96 } == true) { "size: 2–96 dp" } }
             require(values["open"].orEmpty() in setOf("", "tap", "swipe", "both")) { "open: tap, swipe or both" }
             values["alpha"]?.let { require(it.toFloatOrNull()?.let { n -> n.isFinite() && n in 0.05f..1f } == true) { "alpha: 0.05–1" } }
+            listOf("width", "height").forEach { key -> values[key]?.let { dimension(it) } }
             encode(values)
+        }
+
+        /** A positive dp value, or a percentage of the usable display area. */
+        fun dimension(raw: String): Pair<Float, Boolean> {
+            val percent = raw.endsWith('%')
+            val value = raw.removeSuffix("%").toFloatOrNull()
+            require(value != null && value.isFinite() && value > 0f &&
+                value <= (if (percent) 100f else 10000f)) { "width/height: >0–100% or >0–10000 dp" }
+            return value to percent
+        }
+
+        fun dimensionPixels(raw: String, available: Int, density: Float): Int {
+            val (value, percent) = dimension(raw)
+            return (if (percent) available * (value / 100f) else value * density)
+                .toInt().coerceIn(1, available.coerceAtLeast(1))
         }
 
         private fun writeAtomic(file: File, text: String) {
