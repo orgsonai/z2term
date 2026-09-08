@@ -13,6 +13,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# --open swipe|tap|both  --alpha 0.05..1  --label TEXT
         |# バー幅: --size 2〜48dp、ボタン: 32〜96dp。バーは300ms長押し後に移動。
         |# z2-edge handle ID off                  取っ手を隠す
+        |# z2-edge set ID:memo type=note file=~/memo.txt
         |# z2-edge tab PARENT ID [LABEL]
         |# z2-edge delete ID
         |# z2-edge panel ID width=80% height=60%
@@ -24,7 +25,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge push ID:項目 '文字列'           表示を外から更新（- なら標準入力）
         |# z2-edge state ID:項目 on|off           toggle の表示を更新
         |# z2-edge badge ID '87%'                 取っ手へ文字を表示（空文字で消去）
-        |# 型: run / text / toggle / list / input。run が既定。
+        |# 型: run / text / toggle / list / input / note。run が既定。
         |# toggle: run=切替コマンド state=状態を読むコマンド（on/off・1/0・true/false）。
         |# list: run=一覧を読むコマンド。各行は 表示<TAB>値。on-select の ${d}1 に値を渡す。
         |# input: 入力した文字を run の標準入力へ渡す。閉じると未送信の入力は消えます。
@@ -47,6 +48,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# --open swipe|tap|both  --alpha 0.05..1  --label TEXT
         |# Bar: --size 2..48 dp; button: 32..96 dp. Hold 300ms to move a handle; bar hit area is at least 24dp.
         |# z2-edge handle ID off
+        |# z2-edge set ID:memo type=note file=~/memo.txt
         |# z2-edge tab PARENT ID [LABEL]
         |# z2-edge delete ID
         |# z2-edge panel ID width=80% height=60%
@@ -57,7 +59,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge push ID:item 'text'             Use - to read stdin
         |# z2-edge state ID:item on|off
         |# z2-edge badge ID '87%'                  Empty string clears the badge
-        |# Types: run (default), text, toggle, list, input.
+        |# Types: run (default), text, toggle, list, input, note.
         |# toggle: run changes state; state reads on/off, 1/0, or true/false.
         |# list: run outputs label<TAB>value per line; on-select receives the value as ${d}1.
         |# input: run receives entered text on stdin; closing discards unsent input.

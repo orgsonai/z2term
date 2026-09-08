@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.557-alpha (versionCode 565).** Floating panels now accept width and maximum height in dp or percent, shrink to their contents, and consume outside taps when closing. The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.558-alpha (versionCode 566).** Floating panels support tabs, icon grids, drag ordering, searchable app selection with per-item launch modes, and editable notes. Panel size and handle gestures are configurable. The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 

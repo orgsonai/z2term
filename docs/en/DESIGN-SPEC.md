@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-09 / Target version: 0.8.557-alpha (versionCode 565)
+Last updated: 2026-09-09 / Target version: 0.8.558-alpha (versionCode 566)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2216,6 +2216,14 @@ Each tab offers Icons only or Names and icons (`layout=grid|list`). Grid applies
 Hold an item icon/name and drag before or after another item to save every item’s `order`. Dropping outside leaves the order unchanged.
 Edit exposes item deletion and launch-mode selection for existing app items; Done returns to the normal view.
 
+“+ Note” adds a note to the active tab. `type=note` shows its contents; tap to edit with Undo and Redo.
+Text defaults to `~/.z2term/edge/panelID/itemID.txt`; `file=~/memo.txt` selects another shared-home file.
+Relative paths use the shared home; absolute paths must be accessible to the Android app and are not translated from guest-only paths.
+UTF-8, up to 64 KiB. Closing, Back, tab switching, screen-off, close/off save edits; changes also save every 10 seconds while open.
+External changes and write failures preserve edits in `.recovery` instead of overwriting the original and display a message.
+Removing an item preserves its text file. Deleting a panel first saves edits, then deletes its internal text files; external `file` targets remain.
+Notes do not accept live-value `push`; edit the file and reopen the panel.
+
 `z2-edge toggle` toggles the service; `z2-edge open main --toggle` toggles the panel.
 A tile assigned the single command `z2-edge toggle` displays the actual enabled state. Enabling requires an unlocked screen.
 “+ App” shows an icon/name list with a search field matching names and packages. Selecting saves the app; rotation preserves the query. `z2-app pick` returns the selected package on stdout;
@@ -2225,7 +2233,7 @@ Accessibility is separate from overlay permission. `z2-key permission` opens ser
 to the service list. `z2-key app-info` opens App info for allowing restricted settings. The user operates the switch.
 `z2-key status` distinguishes OS `enabled` from service `connected`. Simple `z2-key` items show a setup prompt
 when disconnected; arbitrary shell scripts are not inspected. Check this status if actions fail after an APK update.
-`z2-key split` attempts the OS action even when absent from the action list and reports rejection. Split app launch remains unsupported.
+`z2-key split` attempts the OS action even when absent from the action list and reports rejection. App launch modes use the public Android requests described above.
 
 Overlays display user-defined shell commands and their output. The app does not encode item-specific features.
 `z2-edge`, `z2-key` and `z2-app` use the existing `z2api`; application launches use `z2-intent`.
@@ -2257,6 +2265,7 @@ Unknown types/fields and invalid numeric values fail explicitly.
 | `toggle` | Executes `run`, then reads `state` (on/off, 1/0 or true/false) |
 | `list` | Displays stdout lines as `label<TAB>value`; passes the selected value as a separate `$1` to `on-select`, up to 100 rows |
 | `input` | Passes typed text to `run` on stdin without evaluating it as code |
+| `note` | Displays and edits a UTF-8 text file, with Undo/Redo, save on close and every 10 seconds, 64 KiB limit |
 
 Text/toggle/list refresh once on opening. `every=5..86400` specifies seconds while open only; default 0
 means no periodic work. Omit `run`/`state` for externally updated items. Commands include

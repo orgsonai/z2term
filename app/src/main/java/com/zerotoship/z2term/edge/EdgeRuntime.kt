@@ -57,6 +57,7 @@ object EdgeRuntime {
     private var snapPreview: View? = null
     private var openId: String? = null
     private var openRootId: String? = null
+    private val notes = mutableMapOf<String, EdgeNote>()
     private var editingItems = false
     private data class ItemDrag(val panel: String, val item: String)
     private val selectedTabs = mutableMapOf<String, String>()
@@ -459,7 +460,15 @@ object EdgeRuntime {
                 text = app!!.getString(if (editingItems) R.string.edge_done else R.string.edge_edit)
                 setOnClickListener { editingItems = !editingItems; open(root.id) }
             })
-            body.addView(tools)
+            tools.addView(Button(ui()).apply {
+                text = app!!.getString(R.string.edge_add_note)
+                setOnClickListener { runCatching {
+                    val noteId = "note_" + java.util.UUID.randomUUID().toString().replace("-", "")
+                    store(app!!).setItem("${panel.id}:$noteId", mapOf("type" to "note", "label" to app!!.getString(R.string.edge_note)))
+                    reload(app!!)
+                }.onFailure { fail(it) } }
+            })
+            body.addView(android.widget.HorizontalScrollView(ui()).apply { addView(tools) })
             val rows = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
             val scroll = ScrollView(ui()).apply { isFillViewport = false; addView(rows) }
             body.addView(scroll, LinearLayout.LayoutParams(-1, -2, 1f))
@@ -516,6 +525,15 @@ object EdgeRuntime {
             panelView = overlay
             wm().addView(overlay, p)
             overlay.requestFocus()
+            if (panel.items.any { it.type == "note" }) {
+                val autosave = object : Runnable {
+                    override fun run() {
+                        if (openId != panel.id) return
+                        saveNotes(); main.postDelayed(this, 10000)
+                    }
+                }
+                scheduled.add(autosave); main.postDelayed(autosave, 10000)
+            }
             panel.items.filter { it.type in setOf("text", "toggle", "list") }.forEach { item ->
                 refresh(panel.id, item)
                 if (item.every > 0) {
@@ -533,7 +551,20 @@ object EdgeRuntime {
         } catch (e: Exception) { destroy(); throw e }
     }
 
+    private fun saveNotes() {
+        notes.values.forEach { note ->
+            if (note.dirty) runCatching { note.save() }.onFailure { error ->
+                runCatching {
+                    val backup = note.recover(File(store(app!!).root, ".recovery"))
+                    fail(IllegalStateException("${error.message}. Saved: ~/.z2term/edge/.recovery/${backup.name}"))
+                }.onFailure { fail(it) }
+            }
+        }
+    }
+
     fun close() = onMain {
+        saveNotes()
+        notes.entries.removeAll { !it.value.dirty }
         generation++
         scheduled.forEach { main.removeCallbacks(it) }; scheduled.clear()
         retries.values.forEach { main.removeCallbacks(it) }; retries.clear()
@@ -626,6 +657,49 @@ object EdgeRuntime {
                 renderers[target] = render
                 render(values[target].orEmpty())
             }
+            "note" -> {
+                runCatching {
+                    val file = store(app!!).noteFile(panelId, item)
+                    val note = notes.getOrPut(file.path) { EdgeNote(file) }
+                    val preview = text(note.text.ifEmpty { app!!.getString(R.string.edge_note_empty) }, 16f)
+                    val editor = EditText(ui()).apply {
+                        setText(note.text); minLines = 3; maxLines = 12
+                        inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                        visibility = View.GONE
+                        filters = arrayOf(android.text.InputFilter { source, start, end, dest, dstart, dend ->
+                            val proposed = dest.substring(0, dstart) + source.subSequence(start, end) + dest.substring(dend)
+                            if (proposed.toByteArray(Charsets.UTF_8).size <= EdgeNote.LIMIT) null else dest.subSequence(dstart, dend)
+                        })
+                    }
+                    val history = LinearLayout(ui()).apply { visibility = View.GONE }
+                    val undo = Button(ui()).apply { text = app!!.getString(R.string.edge_undo) }
+                    val redo = Button(ui()).apply { text = app!!.getString(R.string.edge_redo) }
+                    fun updateHistory() { undo.isEnabled = note.canUndo; redo.isEnabled = note.canRedo }
+                    var restoring = false
+                    fun restore(value: String) {
+                        restoring = true; editor.setText(value); editor.setSelection(editor.length()); restoring = false
+                        updateHistory()
+                    }
+                    undo.setOnClickListener { restore(note.undo()) }
+                    redo.setOnClickListener { restore(note.redo()) }
+                    history.addView(undo); history.addView(redo)
+                    editor.addTextChangedListener(object : android.text.TextWatcher {
+                        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                            if (!restoring) { note.edit(s.toString()); updateHistory() }
+                        }
+                        override fun afterTextChanged(s: android.text.Editable?) = Unit
+                    })
+                    preview.setOnClickListener {
+                        preview.visibility = View.GONE; editor.visibility = View.VISIBLE; history.visibility = View.VISIBLE
+                        editor.requestFocus()
+                        editor.post { app?.getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+                            ?.showSoftInput(editor, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT) }
+                    }
+                    updateHistory()
+                    row.addView(preview); row.addView(history); row.addView(editor)
+                }.onFailure { row.addView(text(it.message ?: "Cannot open note")) }
+            }
             "input" -> {
                 val entry = EditText(ui()).apply {
                     hint = label; contentDescription = label; minLines = 2; maxLines = 5
@@ -639,7 +713,7 @@ object EdgeRuntime {
                 })
             }
         }
-        if (item.type != "toggle" && item.type != "list") {
+        if (item.type !in setOf("toggle", "list", "note")) {
             row.addView(result)
             if (iconOnly && result.text.isEmpty()) result.visibility = View.GONE
             renderers[target] = { result.text = it; result.visibility = if (iconOnly && it.isEmpty()) View.GONE else View.VISIBLE }
@@ -734,6 +808,7 @@ object EdgeRuntime {
 
     fun push(context: Context, target: String, text: String, state: Boolean = false) = onMain {
         val item = store(context).item(target)
+        require(item.type != "note") { "Edit the note file directly; push is for live values" }
         require(store(context).enabled() && app != null) { "Enable the panel first: z2-edge on" }
         require(text.toByteArray().size <= 65536) { "Value exceeds 64 KiB" }
         if (state) require(item.type == "toggle" && text in setOf("on", "off")) { "state requires a toggle and on|off" }

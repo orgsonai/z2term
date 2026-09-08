@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.557-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.558-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -879,6 +879,14 @@ Each tab offers Icons only or Names and icons (`layout=grid|list`). Grid applies
 Hold an item icon/name and drag before or after another item to save every item’s `order`. Dropping outside leaves the order unchanged.
 Edit exposes item deletion and launch-mode selection for existing app items; Done returns to the normal view.
 
+“+ Note” adds a note to the active tab. `type=note` shows its contents; tap to edit with Undo and Redo.
+Text defaults to `~/.z2term/edge/panelID/itemID.txt`; `file=~/memo.txt` selects another shared-home file.
+Relative paths use the shared home; absolute paths must be accessible to the Android app and are not translated from guest-only paths.
+UTF-8, up to 64 KiB. Closing, Back, tab switching, screen-off, close/off save edits; changes also save every 10 seconds while open.
+External changes and write failures preserve edits in `.recovery` instead of overwriting the original and display a message.
+Removing an item preserves its text file. Deleting a panel first saves edits, then deletes its internal text files; external `file` targets remain.
+Notes do not accept live-value `push`; edit the file and reopen the panel.
+
 `z2-edge toggle` toggles the service; `z2-edge open main --toggle` toggles the panel.
 A tile assigned the single command `z2-edge toggle` displays the actual enabled state. Enabling requires an unlocked screen.
 “+ App” shows an icon/name list with a search field matching names and packages. Selecting saves the app; rotation preserves the query. `z2-app pick` returns the selected package on stdout;
@@ -888,7 +896,7 @@ Accessibility is separate from overlay permission. `z2-key permission` opens ser
 to the service list. `z2-key app-info` opens App info for allowing restricted settings. The user operates the switch.
 `z2-key status` distinguishes OS `enabled` from service `connected`. Simple `z2-key` items show a setup prompt
 when disconnected; arbitrary shell scripts are not inspected. Check this status if actions fail after an APK update.
-`z2-key split` attempts the OS action even when absent from the action list and reports rejection. Split app launch remains unsupported.
+`z2-key split` attempts the OS action even when absent from the action list and reports rejection. App launch modes use the public Android requests described above.
 
 An edge bar or draggable button opens your own controls while you use other apps. Commands provide
 the contents: display text, toggle a state, choose a list entry or enter text.

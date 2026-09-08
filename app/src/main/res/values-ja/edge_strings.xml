@@ -34,4 +34,9 @@
     <string name="edge_edit">編集</string>
     <string name="edge_done">完了</string>
     <string name="edge_delete">削除</string>
+    <string name="edge_note">メモ</string>
+    <string name="edge_add_note">＋メモ</string>
+    <string name="edge_note_empty">タップしてメモを書く</string>
+    <string name="edge_undo">戻す</string>
+    <string name="edge_redo">やり直す</string>
 </resources>

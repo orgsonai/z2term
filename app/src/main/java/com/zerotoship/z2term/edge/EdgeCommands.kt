@@ -59,6 +59,8 @@ object EdgeCommands {
             }
             "delete" -> {
                 count(2)
+                store.directory(args[1]).also { require(it.isDirectory) { "No panel: ${args[1]}" } }
+                EdgeRuntime.close() // Save active notes before deleting their owning directory.
                 val removed = store.removePanel(args[1])
                 reload()
                 "Deleted ${args[1]} ($removed items)"

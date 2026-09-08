@@ -74,6 +74,18 @@ class EdgeStore(val root: File) {
         check(f.delete()) { "Cannot remove $target" }
     }
 
+    fun noteFile(panelId: String, item: Item): File {
+        require(item.type == "note") { "Not a note" }
+        val raw = item.fields["file"].orEmpty()
+        val home = root.parentFile!!.parentFile!!
+        return (when {
+            raw.isBlank() -> File(directory(panelId), "${item.id}.txt")
+            raw.startsWith("~/") -> File(home, raw.removePrefix("~/"))
+            File(raw).isAbsolute -> File(raw)
+            else -> File(home, raw)
+        }).canonicalFile
+    }
+
     @Synchronized fun moveItem(panelId: String, itemId: String, beforeId: String, after: Boolean = false) {
         val items = panel(panelId).items
         require(items.any { it.id == itemId } && items.any { it.id == beforeId }) { "No item to move" }
@@ -157,10 +169,10 @@ class EdgeStore(val root: File) {
         }
 
         fun validateItem(values: Map<String, String>) {
-            val allowed = setOf("type", "label", "icon", "run", "state", "on-select", "order", "every", "timeout", "out")
+            val allowed = setOf("type", "label", "icon", "run", "state", "on-select", "order", "every", "timeout", "out", "file")
             require(values.keys.all { it in allowed }) { "Unknown item field: ${values.keys - allowed}" }
             val type = values["type"] ?: "run"
-            require(type in setOf("run", "text", "toggle", "list", "input")) { "Unsupported type: $type" }
+            require(type in setOf("run", "text", "toggle", "list", "input", "note")) { "Unsupported type: $type" }
             require(values["out"].orEmpty() in setOf("", "none", "panel", "toast", "notify")) { "Unknown out" }
             values["every"]?.let { require(it.toLongOrNull()?.let { n -> n == 0L || n in 5..86400 } == true) { "every: 0 or 5–86400 seconds" } }
             values["timeout"]?.let { require(it.toLongOrNull()?.let { n -> n in 1L..300L } == true) { "timeout: 1–300 seconds" } }
