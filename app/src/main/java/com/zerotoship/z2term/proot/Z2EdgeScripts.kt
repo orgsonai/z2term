@@ -13,6 +13,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# --open swipe|tap|both  --alpha 0.05..1  --label TEXT
         |# バー幅: --size 2〜48dp、ボタン: 32〜96dp。バーは300ms長押し後に移動。
         |# z2-edge handle ID off                  取っ手を隠す
+        |# z2-edge tab PARENT ID [LABEL]
         |# z2-edge delete ID
         |# z2-edge panel ID width=80% height=60%
         |# z2-edge panel ID label=名前            パネルの定義を追加・更新
@@ -35,7 +36,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# icon=文字 | @app:パッケージ | @z2:絵の名前 | @file:~/絵.png
         |# icon 省略時、単純な z2-intent -p パッケージ からアプリの絵を自動取得します。
         |# 閉じる・消灯・再読込で状態を読むコマンドを停止。押した操作は完了まで続行（off で停止）。
-        |# 最大12パネル・各64項目・同時4実行。表示は64KiBまで。状態はアプリ再起動で消えます。
+        |# 最大64パネル・各64項目・同時4実行。表示は64KiBまで。状態はアプリ再起動で消えます。
         |# 常駐は on で明示的に開始。Android の通知からも停止できます。
         |# ユーザー補助が要る操作は z2-key permission で許可してください。
     """.trimMargin() else """
@@ -46,6 +47,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# --open swipe|tap|both  --alpha 0.05..1  --label TEXT
         |# Bar: --size 2..48 dp; button: 32..96 dp. Hold 300ms to move a handle; bar hit area is at least 24dp.
         |# z2-edge handle ID off
+        |# z2-edge tab PARENT ID [LABEL]
         |# z2-edge delete ID
         |# z2-edge panel ID width=80% height=60%
         |# z2-edge panel ID label=Name
@@ -68,7 +70,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# Simple z2-intent -p package commands get application icons automatically.
         |# Close/screen-off/reload stop readers; explicit actions finish unless off is requested.
         |# Dragging a button saves its position.
-        |# Limits: 12 panels, 64 items each, 4 simultaneous commands, 64 KiB display output.
+        |# Limits: 64 panels, 64 items each, 4 simultaneous commands, 64 KiB display output.
         |# Live values reset on app restart. Enable with on; the notification also offers Stop.
         |# For Android global actions, grant access using z2-key permission.
     """.trimMargin()

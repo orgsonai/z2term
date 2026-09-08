@@ -13,6 +13,7 @@ class EdgeStore(val root: File) {
     }
     data class Panel(val id: String, val fields: Map<String, String>, val items: List<Item>) {
         val handle get() = fields["handle"] ?: "off"
+        val tabs get() = fields["tabs"].orEmpty().split(',').filter { it.isNotBlank() }
     }
 
     fun enabled(): Boolean = File(root, "enabled").isFile
@@ -26,7 +27,7 @@ class EdgeStore(val root: File) {
     @Synchronized fun panels(): List<Panel> = root.listFiles().orEmpty()
         .filter { it.isDirectory && validId(it.name) }
         .sortedBy { it.name }.map { panel(it.name) }
-        .also { require(it.size <= 12) { "At most 12 panels" } }
+        .also { require(it.size <= 64) { "At most 64 panels" }; validateTabs(it) }
 
     @Synchronized fun panel(id: String): Panel {
         val dir = directory(id)
@@ -46,10 +47,12 @@ class EdgeStore(val root: File) {
 
     @Synchronized fun setPanel(id: String, values: Map<String, String>): Panel {
         val dir = directory(id)
-        if (!dir.exists()) require(panels().size < 12) { "At most 12 panels" }
+        if (!dir.exists()) require(panels().size < 64) { "At most 64 panels" }
         val f = File(dir, "panel.conf")
         val merged = read(f) + values
         validatePanel(merged)
+        val all = panels().filter { it.id != id } + Panel(id, merged, emptyList())
+        validateTabs(all)
         writeAtomic(f, encode(merged))
         return panel(id)
     }
@@ -71,9 +74,22 @@ class EdgeStore(val root: File) {
         check(f.delete()) { "Cannot remove $target" }
     }
 
+    @Synchronized fun addTab(parentId: String, id: String, label: String) {
+        val parent = panel(parentId)
+        require(!directory(id).exists()) { "Panel already exists: $id" }
+        require(panels().none { parentId in it.tabs }) { "Nested tabs are not supported" }
+        setPanel(id, mapOf("label" to label, "handle" to "off"))
+        try { setPanel(parentId, mapOf("tabs" to (parent.tabs + id).joinToString(","))) }
+        catch (e: Exception) { removePanel(id); throw e }
+    }
+
     @Synchronized fun removePanel(id: String): Int {
         val dir = directory(id)
         require(dir.isDirectory) { "No panel: $id" }
+        // Detach only references to this panel; deleting a parent preserves its child panels.
+        panels().filter { id in it.tabs }.forEach { parent ->
+            setPanel(parent.id, mapOf("tabs" to parent.tabs.filter { it != id }.joinToString(",")))
+        }
         val count = dir.listFiles().orEmpty().count { it.isFile && it.extension == "item" }
         // Do not follow links inside the panel into user-owned directories.
         java.nio.file.Files.walk(dir.toPath()).use { paths ->
@@ -142,7 +158,7 @@ class EdgeStore(val root: File) {
         }
 
         fun validatePanel(values: Map<String, String>) {
-            val allowed = setOf("label", "handle", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open", "width", "height")
+            val allowed = setOf("label", "handle", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open", "width", "height", "tabs")
             require(values.keys.all { it in allowed }) { "Unknown panel field: ${values.keys - allowed}" }
             require(values["handle"].orEmpty() in setOf("", "off", "bar", "button")) { "handle: bar, button or off" }
             require(values["side"].orEmpty() in setOf("", "left", "right")) { "side: left or right" }
@@ -152,8 +168,22 @@ class EdgeStore(val root: File) {
             values["size"]?.let { require(it.toIntOrNull()?.let { n -> n in 2..96 } == true) { "size: 2–96 dp" } }
             require(values["open"].orEmpty() in setOf("", "tap", "swipe", "both")) { "open: tap, swipe or both" }
             values["alpha"]?.let { require(it.toFloatOrNull()?.let { n -> n.isFinite() && n in 0.05f..1f } == true) { "alpha: 0.05–1" } }
+            values["tabs"]?.takeIf { it.isNotEmpty() }?.let { raw ->
+                val ids = raw.split(',')
+                require(ids.all(::validId) && ids.distinct().size == ids.size) { "tabs: distinct panel IDs separated by commas" }
+            }
             listOf("width", "height").forEach { key -> values[key]?.let { dimension(it) } }
             encode(values)
+        }
+
+        private fun validateTabs(panels: List<Panel>) {
+            val byId = panels.associateBy { it.id }
+            val used = mutableSetOf<String>()
+            panels.forEach { parent -> parent.tabs.forEach { id ->
+                require(id != parent.id && byId.containsKey(id)) { "Missing or self-referencing tab: $id" }
+                require(byId.getValue(id).tabs.isEmpty()) { "Nested tabs are not supported: $id" }
+                require(used.add(id)) { "Tab already belongs to another panel: $id" }
+            } }
         }
 
         /** A positive dp value, or a percentage of the usable display area. */

@@ -36,7 +36,13 @@ object EdgeCommands {
             "close" -> { count(1); EdgeRuntime.close(); "" }
             "list" -> {
                 require(args.size in 1..2) { "list [panel]" }
-                if (args.size == 1) store.panels().joinToString("\n") { "${it.id}\t${it.handle}\t${it.fields["label"].orEmpty()}" }
+                if (args.size == 1) {
+                    val all = store.panels()
+                    all.joinToString("\n") { p ->
+                        val parent = all.firstOrNull { p.id in it.tabs }?.id
+                        "${p.id}\t${if (parent != null) "tab:$parent" else p.handle}\t${p.fields["label"].orEmpty()}"
+                    }
+                }
                 else store.panel(args[1]).items.joinToString("\n") { "${args[1]}:${it.id}\t${it.type}\t${it.fields["label"].orEmpty()}" }
             }
             "get" -> { count(2); EdgeStore.encode(store.item(args[1]).fields) }
@@ -46,6 +52,11 @@ object EdgeCommands {
                 reload(); ""
             }
             "remove" -> { count(2); store.removeItem(args[1]); reload(); "" }
+            "tab" -> {
+                require(args.size in 3..4) { "tab PARENT ID [LABEL]" }
+                store.addTab(args[1], args[2], args.getOrElse(3) { args[2] })
+                reload(); args[2]
+            }
             "delete" -> {
                 count(2)
                 val removed = store.removePanel(args[1])

@@ -56,6 +56,8 @@ object EdgeRuntime {
     private var panelView: View? = null
     private var snapPreview: View? = null
     private var openId: String? = null
+    private var openRootId: String? = null
+    private val selectedTabs = mutableMapOf<String, String>()
     private var receiver: BroadcastReceiver? = null
     private var generation = 0
     private var serviceRequested = false
@@ -138,7 +140,7 @@ object EdgeRuntime {
 
     private fun rebuildWindows() {
         runCatching {
-            val previous = openId
+            val previous = openRootId
             close(); removeHandles(); iconCache.evictAll()
             if (unlocked()) { showHandles(); if (previous != null) open(previous) }
         }.onFailure { fail(it) }
@@ -184,12 +186,12 @@ object EdgeRuntime {
         app = null; serviceRequested = false
     }
 
-    fun reload(context: Context) = onMain {
+    fun reload(context: Context): Unit = onMain {
         val loaded = store(context).panels() // Reject invalid definitions before disturbing visible state.
         if (!store(context).enabled()) return@onMain
         require(Settings.canDrawOverlays(context)) { context.getString(R.string.edge_overlay_help) }
         initialize(context)
-        val previous = openId
+        val previous = openRootId
         close(); removeHandles(); iconCache.evictAll()
         panels = loaded
         val targets = panels.flatMap { p -> p.items.map { "${p.id}:${it.id}" } }.toSet()
@@ -248,7 +250,7 @@ object EdgeRuntime {
     private fun showHandles() {
         if (!unlocked()) return
         removeHandles()
-        panels.filter { it.handle != "off" }.forEach { panel ->
+        panels.filter { it.handle != "off" && panels.none { parent -> it.id in parent.tabs } }.forEach { panel ->
             val (width, height) = screenSize()
             val f = panel.fields
             val button = panel.handle == "button"
@@ -375,22 +377,27 @@ object EdgeRuntime {
                 close()
                 val accepted = runner!!.run("handle:${panel.id}", command, 30) { if (it.error != null) fail(IllegalStateException(it.error)) }
                 if (!accepted) fail(IllegalStateException(app!!.getString(R.string.edge_busy)))
-            } else if (openId == panel.id) close() else open(panel.id)
+            } else if (openRootId == panel.id) close() else open(panel.id)
         }.onFailure { fail(it) }
     }
 
-    fun open(id: String, toggle: Boolean = false) = onMain {
-        if (toggle && openId == id) { close(); return@onMain }
+    fun open(id: String, toggle: Boolean = false, tabId: String? = null): Unit = onMain {
+        if (toggle && openRootId == id) { close(); return@onMain }
         require(app != null && store(app!!).enabled()) { "Enable the panel first: z2-edge on" }
         require(unlocked()) { "Unlock the screen before opening the panel" }
-        val panel = panels.firstOrNull { it.id == id } ?: throw IllegalArgumentException("No panel: $id")
+        val requested = panels.firstOrNull { it.id == id } ?: throw IllegalArgumentException("No panel: $id")
+        val root = panels.firstOrNull { id in it.tabs } ?: requested
+        val active = tabId ?: if (root.id != id) id else selectedTabs[root.id]
+        val panel = panels.firstOrNull { it.id == active && (it.id == root.id || it.id in root.tabs) } ?: root
         close()
-        openId = id
+        selectedTabs[root.id] = panel.id
+        openRootId = root.id
+        openId = panel.id
         try {
             val (width, height) = screenSize()
             val density = windowContext!!.resources.displayMetrics.density
-            val panelWidth = EdgeStore.dimensionPixels(panel.fields["width"] ?: "360", width, density)
-            val panelHeight = EdgeStore.dimensionPixels(panel.fields["height"] ?: "72%", height, density)
+            val panelWidth = EdgeStore.dimensionPixels(root.fields["width"] ?: "360", width, density)
+            val panelHeight = EdgeStore.dimensionPixels(root.fields["height"] ?: "72%", height, density)
             val body = object : LinearLayout(ui()) {
                 override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
                     val limit = minOf(panelHeight, View.MeasureSpec.getSize(heightMeasureSpec))
@@ -398,7 +405,7 @@ object EdgeRuntime {
                 }
             }.apply { orientation = LinearLayout.VERTICAL; background = background(); isClickable = true }
             val header = LinearLayout(ui()).apply { gravity = Gravity.CENTER_VERTICAL }
-            header.addView(text(panel.fields["label"] ?: panel.id).apply { setTypeface(null, Typeface.BOLD) },
+            header.addView(text(root.fields["label"] ?: root.id).apply { setTypeface(null, Typeface.BOLD) },
                 LinearLayout.LayoutParams(0, -2, 1f))
             header.addView(Button(ui()).apply {
                 text = app!!.getString(R.string.edge_add_app)
@@ -406,11 +413,38 @@ object EdgeRuntime {
                     val context = app!!
                     close()
                     runCatching { context.startActivity(Intent(context, AppPickerActivity::class.java)
-                        .putExtra("panel", id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { fail(it) }
+                        .putExtra("panel", panel.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { fail(it) }
                 }
             })
             header.addView(Button(ui()).apply { text = app!!.getString(R.string.edge_close); setOnClickListener { close() } })
             body.addView(header)
+            val tabs = LinearLayout(ui())
+            (listOf(root.id) + root.tabs).forEach { childId ->
+                val child = panels.first { it.id == childId }
+                tabs.addView(Button(ui()).apply {
+                    text = child.fields["label"] ?: child.id
+                    isEnabled = childId != panel.id
+                    setOnClickListener { runCatching { open(root.id, tabId = childId) }.onFailure { fail(it) } }
+                })
+            }
+            val tabEntry = LinearLayout(ui()).apply { visibility = View.GONE }
+            val tabName = EditText(ui()).apply { hint = app!!.getString(R.string.edge_tab_name); setSingleLine(true) }
+            tabEntry.addView(tabName, LinearLayout.LayoutParams(0, -2, 1f))
+            tabEntry.addView(Button(ui()).apply {
+                text = app!!.getString(R.string.edge_add)
+                setOnClickListener { runCatching {
+                    val name = tabName.text.toString().trim(); require(name.isNotEmpty()) { "Enter a tab name" }
+                    val childId = "tab_" + java.util.UUID.randomUUID().toString().replace("-", "")
+                    store(app!!).addTab(root.id, childId, name)
+                    selectedTabs[root.id] = childId; reload(app!!)
+                }.onFailure { fail(it) } }
+            })
+            tabs.addView(Button(ui()).apply {
+                text = app!!.getString(R.string.edge_add_tab)
+                setOnClickListener { tabEntry.visibility = if (tabEntry.visibility == View.VISIBLE) View.GONE else View.VISIBLE }
+            })
+            body.addView(android.widget.HorizontalScrollView(ui()).apply { addView(tabs) })
+            body.addView(tabEntry)
             val rows = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
             val scroll = ScrollView(ui()).apply { isFillViewport = false; addView(rows) }
             body.addView(scroll, LinearLayout.LayoutParams(-1, -2, 1f))
@@ -431,7 +465,7 @@ object EdgeRuntime {
             val insetX = minOf(dp(24), (width - panelWidth).coerceAtLeast(0) / 2)
             val insetY = minOf(dp(24), (height - panelHeight).coerceAtLeast(0))
             overlay.addView(body, FrameLayout.LayoutParams(panelWidth, -2).apply {
-                gravity = Gravity.TOP or if (panel.fields["side"] == "left") Gravity.LEFT else Gravity.RIGHT
+                gravity = Gravity.TOP or if (root.fields["side"] == "left") Gravity.LEFT else Gravity.RIGHT
                 leftMargin = insetX; rightMargin = insetX; topMargin = insetY
             })
             val p = params(-1, -1, focus = true).apply {
@@ -449,8 +483,8 @@ object EdgeRuntime {
                     val gen = generation
                     val task = object : Runnable {
                         override fun run() {
-                            if (generation != gen || openId != id || !unlocked()) return
-                            refresh(id, item)
+                            if (generation != gen || openId != panel.id || !unlocked()) return
+                            refresh(panel.id, item)
                             main.postDelayed(this, item.every * 1000)
                         }
                     }
@@ -467,7 +501,7 @@ object EdgeRuntime {
         // Stop hidden data producers. Explicit actions can finish (including out=notify).
         runner?.cancelReads()
         panelView?.let { runCatching { wm().removeView(it) } }
-        panelView = null; openId = null; renderers.clear()
+        panelView = null; openId = null; openRootId = null; renderers.clear()
     }
 
     private fun addItem(rows: LinearLayout, panelId: String, item: EdgeStore.Item) {

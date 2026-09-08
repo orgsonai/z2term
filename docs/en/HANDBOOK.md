@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.555-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.556-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -869,6 +869,11 @@ The choice is saved in `run=z2-intent -p PACKAGE --window full|freeform|split|as
 No external app, root, or private API is used. Freeform requests `ActivityOptions.setLaunchBounds`; split requests `FLAG_ACTIVITY_LAUNCH_ADJACENT`.
 Freeform fails if not enabled on the device. Entering split screen is supported from Android 12L; earlier versions require an existing split session.
 The OS controls the final mode and reuse of existing tasks. Full screen means ordinary launch, not forced maximization of an existing window.
+
+Use “+ Tab” on the panel or `z2-edge tab main work Work`. Each tab is a panel referenced by the parent’s `tabs=work,home`.
+The parent’s own items form the first tab; child handles are hidden. Up to 64 panels, 64 items each.
+Nested, cyclic, and multiple-parent references are rejected. `list` marks children as `tab:parentID`.
+Deleting a child detaches its reference; deleting a parent preserves child panels.
 
 `z2-edge toggle` toggles the service; `z2-edge open main --toggle` toggles the panel.
 A tile assigned the single command `z2-edge toggle` displays the actual enabled state. Enabling requires an unlocked screen.

@@ -60,6 +60,26 @@ class EdgeStoreTest {
         } finally { dir.deleteRecursively() }
     }
 
+    @Test fun tabsRejectInvalidGraphsAndDeletionDetachesWithoutDeletingChildren() {
+        val dir = Files.createTempDirectory("edge-tabs-test").toFile()
+        try {
+            val store = EdgeStore(dir)
+            store.setPanel("main", mapOf("handle" to "bar"))
+            store.addTab("main", "work", "Work")
+            store.addTab("main", "home", "Home")
+            assertEquals(listOf("work", "home"), store.panel("main").tabs)
+            rejects { store.setPanel("main", mapOf("tabs" to "missing")) }
+            rejects { store.setPanel("work", mapOf("tabs" to "main")) }
+            rejects { store.setPanel("other", mapOf("tabs" to "work")) }
+            rejects { store.setPanel("main", mapOf("tabs" to "work,work")) }
+            store.removePanel("work")
+            assertEquals(listOf("home"), store.panel("main").tabs)
+            store.removePanel("main")
+            assertEquals("Home", store.panel("home").fields["label"])
+            assertEquals(1, store.panels().size)
+        } finally { dir.deleteRecursively() }
+    }
+
     @Test fun deletingOnePanelDoesNotDeleteOtherPanelsOrLinkedFiles() {
         val dir = Files.createTempDirectory("edge-delete-test").toFile()
         try {

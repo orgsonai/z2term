@@ -26,4 +26,7 @@
     <string name="edge_window_split">分割</string>
     <string name="edge_window_ask">毎回確認</string>
     <string name="edge_freeform_unavailable">この端末ではフリーフォーム窓が有効になっていません。</string>
+    <string name="edge_tab_name">タブ名</string>
+    <string name="edge_add_tab">＋タブ</string>
+    <string name="edge_add">追加</string>
 </resources>

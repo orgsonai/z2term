@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-09 / Target version: 0.8.555-alpha (versionCode 563)
+Last updated: 2026-09-09 / Target version: 0.8.556-alpha (versionCode 564)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2207,6 +2207,11 @@ No external app, root, or private API is used. Freeform requests `ActivityOption
 Freeform fails if not enabled on the device. Entering split screen is supported from Android 12L; earlier versions require an existing split session.
 The OS controls the final mode and reuse of existing tasks. Full screen means ordinary launch, not forced maximization of an existing window.
 
+Use “+ Tab” on the panel or `z2-edge tab main work Work`. Each tab is a panel referenced by the parent’s `tabs=work,home`.
+The parent’s own items form the first tab; child handles are hidden. Up to 64 panels, 64 items each.
+Nested, cyclic, and multiple-parent references are rejected. `list` marks children as `tab:parentID`.
+Deleting a child detaches its reference; deleting a parent preserves child panels.
+
 `z2-edge toggle` toggles the service; `z2-edge open main --toggle` toggles the panel.
 A tile assigned the single command `z2-edge toggle` displays the actual enabled state. Enabling requires an unlocked screen.
 “+ App” shows an icon/name list with a search field matching names and packages. Selecting saves the app; rotation preserves the query. `z2-app pick` returns the selected package on stdout;
@@ -2225,7 +2230,7 @@ and `<item>.item` are authoritative; CLI writes use a temporary file and rename 
 IDs contain 1–64 letters/digits/underscores/hyphens; update targets always use `panel:item`.
 Unknown types/fields and invalid numeric values fail explicitly.
 
-- `EdgeStore`: up to 12 panels with 64 items each. Panel fields: `handle=bar|button|off`, `side=left|right`,
+- `EdgeStore`: up to 64 panels with 64 items each. Panel fields: `handle=bar|button|off`, `side=left|right`,
   percentage `offset`/`length`/`x`/`y`, `size` (stored as 2–96dp, clamped per handle type as above), `open`, `alpha`, `label` and an optional direct-action `run`.
   Dragging a button writes its coordinates back to the same file. Items sort by `order`, then ID.
   `width` / `height` accept percentages of the usable display (>0 through 100%) or plain dp values (>0 through 10000).
