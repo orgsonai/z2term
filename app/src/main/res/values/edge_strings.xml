@@ -18,4 +18,6 @@
     <string name="edge_add_app">+ App</string>
     <string name="edge_pick_app">Choose an app</string>
     <string name="edge_accessibility_setup">Enable Accessibility</string>
+    <string name="edge_search_apps">Search by name or package</string>
+    <string name="edge_no_apps">No matching apps</string>
 </resources>

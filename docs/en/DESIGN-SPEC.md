@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-09 / Target version: 0.8.553-alpha (versionCode 561)
+Last updated: 2026-09-09 / Target version: 0.8.554-alpha (versionCode 562)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2203,7 +2203,7 @@ An open deleted panel closes and its handle disappears. Use `remove ID:item` to 
 
 `z2-edge toggle` toggles the service; `z2-edge open main --toggle` toggles the panel.
 A tile assigned the single command `z2-edge toggle` displays the actual enabled state. Enabling requires an unlocked screen.
-Use “+ App” on a panel to select and save an app. `z2-app pick` returns the selected package on stdout;
+“+ App” shows an icon/name list with a search field matching names and packages. Selecting saves the app; rotation preserves the query. `z2-app pick` returns the selected package on stdout;
 cancellation or a 120-second timeout fails. Other APIs remain available while selecting. When calling it from a panel command, set `timeout=130` or longer.
 
 Accessibility is separate from overlay permission. `z2-key permission` opens service details with a fallback

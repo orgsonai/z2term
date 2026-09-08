@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.553-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.554-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -866,7 +866,7 @@ An open deleted panel closes and its handle disappears. Use `remove ID:item` to 
 
 `z2-edge toggle` toggles the service; `z2-edge open main --toggle` toggles the panel.
 A tile assigned the single command `z2-edge toggle` displays the actual enabled state. Enabling requires an unlocked screen.
-Use “+ App” on a panel to select and save an app. `z2-app pick` returns the selected package on stdout;
+“+ App” shows an icon/name list with a search field matching names and packages. Selecting saves the app; rotation preserves the query. `z2-app pick` returns the selected package on stdout;
 cancellation or a 120-second timeout fails. Other APIs remain available while selecting. When calling it from a panel command, set `timeout=130` or longer.
 
 Accessibility is separate from overlay permission. `z2-key permission` opens service details with a fallback
