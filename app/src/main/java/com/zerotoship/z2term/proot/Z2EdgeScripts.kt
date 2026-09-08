@@ -13,6 +13,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# --open swipe|tap|both  --alpha 0.05..1  --label TEXT
         |# バー幅: --size 2〜48dp、ボタン: 32〜96dp。バーは300ms長押し後に移動。
         |# z2-edge handle ID off                  取っ手を隠す
+        |# z2-edge delete ID
         |# z2-edge panel ID width=80% height=60%
         |# z2-edge panel ID label=名前            パネルの定義を追加・更新
         |# z2-edge set ID:項目 type=text 'run=date' label=時計 every=30
@@ -45,6 +46,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# --open swipe|tap|both  --alpha 0.05..1  --label TEXT
         |# Bar: --size 2..48 dp; button: 32..96 dp. Hold 300ms to move a handle; bar hit area is at least 24dp.
         |# z2-edge handle ID off
+        |# z2-edge delete ID
         |# z2-edge panel ID width=80% height=60%
         |# z2-edge panel ID label=Name
         |# z2-edge set ID:item type=text 'run=date' label=Clock every=30

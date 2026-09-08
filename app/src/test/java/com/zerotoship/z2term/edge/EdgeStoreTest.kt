@@ -60,6 +60,22 @@ class EdgeStoreTest {
         } finally { dir.deleteRecursively() }
     }
 
+    @Test fun deletingOnePanelDoesNotDeleteOtherPanelsOrLinkedFiles() {
+        val dir = Files.createTempDirectory("edge-delete-test").toFile()
+        try {
+            val store = EdgeStore(dir)
+            store.setPanel("main", mapOf("handle" to "bar"))
+            store.setPanel("keep", mapOf("handle" to "button"))
+            store.setItem("main:a", mapOf("label" to "A"))
+            store.setItem("keep:b", mapOf("label" to "B"))
+            java.nio.file.Files.createSymbolicLink(java.io.File(dir, "main/link").toPath(), java.io.File(dir, "keep").toPath())
+            rejects { store.removePanel("../keep") }
+            assertEquals(1, store.removePanel("main"))
+            assertEquals("B", store.item("keep:b").fields["label"])
+            rejects { store.removePanel("main") }
+        } finally { dir.deleteRecursively() }
+    }
+
     @Test fun panelDimensionsPersistAndInvalidUpdatesLeaveTheFileIntact() {
         val dir = Files.createTempDirectory("edge-dimensions-test").toFile()
         try {

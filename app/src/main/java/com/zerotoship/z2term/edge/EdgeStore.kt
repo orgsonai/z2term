@@ -71,6 +71,17 @@ class EdgeStore(val root: File) {
         check(f.delete()) { "Cannot remove $target" }
     }
 
+    @Synchronized fun removePanel(id: String): Int {
+        val dir = directory(id)
+        require(dir.isDirectory) { "No panel: $id" }
+        val count = dir.listFiles().orEmpty().count { it.isFile && it.extension == "item" }
+        // Do not follow links inside the panel into user-owned directories.
+        java.nio.file.Files.walk(dir.toPath()).use { paths ->
+            paths.sorted(Comparator.reverseOrder()).forEach { java.nio.file.Files.delete(it) }
+        }
+        return count
+    }
+
     fun item(target: String): Item {
         val (panelId, itemId) = target(target)
         return panel(panelId).items.firstOrNull { it.id == itemId }

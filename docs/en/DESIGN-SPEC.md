@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-09 / Target version: 0.8.552-alpha (versionCode 560)
+Last updated: 2026-09-09 / Target version: 0.8.553-alpha (versionCode 561)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2197,6 +2197,9 @@ Hold a bar or button for 300ms to move it. Bar hit areas are at least 24dp wide,
 While held, a bar fills its hit area at full opacity and shows dots with haptic feedback. A line previews the target edge.
 Release snaps to the nearest left/right edge and saves `side`/`offset`; cancellation restores position and appearance.
 Rotation recalculates the available area. Top/bottom snapping is not supported.
+
+`z2-edge delete ID` removes that panel and its items, returning its ID and item count. Other panels remain.
+An open deleted panel closes and its handle disappears. Use `remove ID:item` to delete a single item.
 
 `z2-edge toggle` toggles the service; `z2-edge open main --toggle` toggles the panel.
 A tile assigned the single command `z2-edge toggle` displays the actual enabled state. Enabling requires an unlocked screen.

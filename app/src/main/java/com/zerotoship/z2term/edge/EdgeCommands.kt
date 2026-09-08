@@ -46,6 +46,12 @@ object EdgeCommands {
                 reload(); ""
             }
             "remove" -> { count(2); store.removeItem(args[1]); reload(); "" }
+            "delete" -> {
+                count(2)
+                val removed = store.removePanel(args[1])
+                reload()
+                "Deleted ${args[1]} ($removed items)"
+            }
             "panel" -> {
                 require(args.size >= 3) { "panel ID key=value ..." }
                 store.setPanel(args[1], fields(args.drop(2)))
