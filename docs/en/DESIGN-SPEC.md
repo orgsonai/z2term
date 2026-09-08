@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-08 / Target version: 0.8.549-alpha (versionCode 557)
+Last updated: 2026-09-08 / Target version: 0.8.550-alpha (versionCode 558)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2190,6 +2190,24 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
 
 ### 4.14 Edge panels (`edge/`, 0.8.549)
 
+Bars default to 6dp wide and 6% of screen height. `--size` is clamped to 2–48dp for bars and 32–96dp for buttons.
+The minimum rendered length is 8dp. `--alpha 0.05..1` controls opacity.
+`--open swipe|tap|both` chooses activation; defaults are swipe for bars and tap for buttons.
+Hold a bar for one second for haptic feedback, then drag it. Release snaps to the nearest left/right edge
+and saves `side`/`offset`. Buttons drag immediately in tap mode; swipe/both modes require the one-second hold.
+Rotation recalculates the available area. Top/bottom snapping is not supported.
+
+`z2-edge toggle` toggles the service; `z2-edge open main --toggle` toggles the panel.
+A tile assigned the single command `z2-edge toggle` displays the actual enabled state. Enabling requires an unlocked screen.
+Use “+ App” on a panel to select and save an app. `z2-app pick` returns the selected package on stdout;
+cancellation or a 120-second timeout fails. Other APIs remain available while selecting. When calling it from a panel command, set `timeout=130` or longer.
+
+Accessibility is separate from overlay permission. `z2-key permission` opens service details with a fallback
+to the service list. `z2-key app-info` opens App info for allowing restricted settings. The user operates the switch.
+`z2-key status` distinguishes OS `enabled` from service `connected`. Simple `z2-key` items show a setup prompt
+when disconnected; arbitrary shell scripts are not inspected. Check this status if actions fail after an APK update.
+`z2-key split` attempts the OS action even when absent from the action list and reports rejection. Split app launch remains unsupported.
+
 Overlays display user-defined shell commands and their output. The app does not encode item-specific features.
 `z2-edge`, `z2-key` and `z2-app` use the existing `z2api`; application launches use `z2-intent`.
 There is no new configuration screen. UTF-8 `key=value` files in `~/.z2term/edge/<panel>/panel.conf`
@@ -2198,7 +2216,7 @@ IDs contain 1–64 letters/digits/underscores/hyphens; update targets always use
 Unknown types/fields and invalid numeric values fail explicitly.
 
 - `EdgeStore`: up to 12 panels with 64 items each. Panel fields: `handle=bar|button|off`, `side=left|right`,
-  percentage `offset`/`length`/`x`/`y`, `size` (32–96 dp), `label` and an optional direct-action `run`.
+  percentage `offset`/`length`/`x`/`y`, `size` (stored as 2–96dp, clamped per handle type as above), `open`, `alpha`, `label` and an optional direct-action `run`.
   Dragging a button writes its coordinates back to the same file. Items sort by `order`, then ID.
 - `EdgeRuntime`: main-thread `TYPE_APPLICATION_OVERLAY` bars/buttons and panels. Close using the Close
   button, an outside tap or Back. Screen-off hides handles too; unlock restores them. Rotation recalculates

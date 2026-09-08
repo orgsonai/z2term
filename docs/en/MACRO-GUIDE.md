@@ -1418,3 +1418,10 @@ The trick is to explicitly say **stay within this guide** so the AI won't reach 
 - **`z2-media` does nothing** → there must be a recently-playing media app (it only sends the key).
 - **`z2-torch` errors** → devices without a flash can't use it.
 - **Resident macro dies** → exclude the app from battery optimization and check the resident-server settings. With low-power mode on, reactions can lag while the screen is off.
+
+
+## Automation from edge panels
+
+Use `z2-edge toggle` for visibility and handle `--open swipe|tap|both` with `--run` as an action entry point.
+`z2-app pick` returns a selected package or fails on cancel/120-second timeout. See the [handbook](HANDBOOK.md#96-floating-edge-panels).
+Coordinate and UI-element actions remain [proposals](AUTOMATION-ROADMAP.md), not implemented commands.

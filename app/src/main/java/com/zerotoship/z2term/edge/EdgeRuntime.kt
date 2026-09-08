@@ -40,6 +40,9 @@ import java.util.concurrent.TimeUnit
 object EdgeRuntime {
     private val main = Handler(Looper.getMainLooper())
     private var app: Context? = null
+    private var windowContext: Context? = null
+    private var configurationCallback: android.content.ComponentCallbacks? = null
+    private val handleCallbacks = mutableListOf<Runnable>()
     private var runner: EdgeRunner? = null
     private var panels = emptyList<EdgeStore.Panel>()
     private val handles = linkedMapOf<String, TextView>()
@@ -68,14 +71,14 @@ object EdgeRuntime {
         }
     }
 
-    private fun ui(): Context = ContextThemeWrapper(app!!, android.R.style.Theme_DeviceDefault_DayNight)
-    private fun wm() = app!!.getSystemService(WindowManager::class.java)
-    private fun dp(n: Int) = (n * app!!.resources.displayMetrics.density).toInt()
+    private fun ui(): Context = ContextThemeWrapper(windowContext!!, android.R.style.Theme_DeviceDefault_DayNight)
+    private fun wm() = windowContext!!.getSystemService(WindowManager::class.java)
+    private fun dp(n: Int) = (n * windowContext!!.resources.displayMetrics.density).toInt()
     private fun unlocked(): Boolean = app?.let {
         !it.getSystemService(KeyguardManager::class.java).isKeyguardLocked &&
             it.getSystemService(PowerManager::class.java).isInteractive
     } == true
-    private fun colors(): Pair<Int, Int> = if (app!!.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES)
+    private fun colors(): Pair<Int, Int> = if (windowContext!!.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES)
         Color.rgb(29, 31, 33) to Color.rgb(237, 238, 239) else Color.rgb(250, 250, 250) to Color.rgb(25, 27, 29)
     private fun background(round: Boolean = false) = GradientDrawable().apply {
         setColor(colors().first)
@@ -104,6 +107,15 @@ object EdgeRuntime {
     private fun initialize(context: Context) {
         if (app != null) return
         app = context.applicationContext
+        windowContext = if (android.os.Build.VERSION.SDK_INT >= 30)
+            app!!.createDisplayContext(app!!.getSystemService(android.hardware.display.DisplayManager::class.java)
+                .getDisplay(android.view.Display.DEFAULT_DISPLAY))
+                .createWindowContext(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, null) else app
+        configurationCallback = object : android.content.ComponentCallbacks {
+            override fun onLowMemory() = Unit
+            override fun onConfigurationChanged(newConfig: Configuration) { rebuildWindows() }
+        }
+        windowContext!!.registerComponentCallbacks(configurationCallback!!)
         runner = EdgeRunner(app!!)
         receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -111,11 +123,7 @@ object EdgeRuntime {
                 when (intent.action) {
                     Intent.ACTION_SCREEN_OFF -> { close(); removeHandles() }
                     Intent.ACTION_USER_PRESENT, Intent.ACTION_SCREEN_ON -> if (unlocked()) showHandles()
-                    Intent.ACTION_CONFIGURATION_CHANGED -> {
-                        val previous = openId
-                        close(); removeHandles(); iconCache.evictAll()
-                        if (unlocked()) { showHandles(); if (previous != null) open(previous) }
-                    }
+                    Intent.ACTION_CONFIGURATION_CHANGED -> if (android.os.Build.VERSION.SDK_INT < 31) rebuildWindows()
                 }
                 }.onFailure { fail(it); destroy() }
             }
@@ -124,6 +132,14 @@ object EdgeRuntime {
             addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_USER_PRESENT); addAction(Intent.ACTION_CONFIGURATION_CHANGED)
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    private fun rebuildWindows() {
+        runCatching {
+            val previous = openId
+            close(); removeHandles(); iconCache.evictAll()
+            if (unlocked()) { showHandles(); if (previous != null) open(previous) }
+        }.onFailure { fail(it) }
     }
 
     fun on(context: Context) = onMain {
@@ -161,6 +177,8 @@ object EdgeRuntime {
         receiver = null
         runner?.cancelAll(); runner = null
         panels = emptyList(); values.clear(); badges.clear(); revisions.clear(); iconCache.evictAll()
+        configurationCallback?.let { windowContext?.unregisterComponentCallbacks(it) }
+        configurationCallback = null; windowContext = null
         app = null; serviceRequested = false
     }
 
@@ -183,6 +201,13 @@ object EdgeRuntime {
 
     @Suppress("DEPRECATION")
     private fun screenSize(): Pair<Int, Int> {
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            val metrics = wm().currentWindowMetrics
+            val insets = metrics.windowInsets.getInsetsIgnoringVisibility(
+                android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout())
+            return (metrics.bounds.width() - insets.left - insets.right).coerceAtLeast(1) to
+                (metrics.bounds.height() - insets.top - insets.bottom).coerceAtLeast(1)
+        }
         val metrics = android.util.DisplayMetrics()
         wm().defaultDisplay.getMetrics(metrics)
         return metrics.widthPixels to metrics.heightPixels
@@ -195,6 +220,7 @@ object EdgeRuntime {
     ).apply { gravity = Gravity.TOP or Gravity.LEFT }
 
     private fun removeHandles() {
+        handleCallbacks.forEach { main.removeCallbacks(it) }; handleCallbacks.clear()
         handles.values.forEach { runCatching { wm().removeView(it) } }
         handles.clear()
     }
@@ -206,9 +232,12 @@ object EdgeRuntime {
             val (width, height) = screenSize()
             val f = panel.fields
             val button = panel.handle == "button"
-            val size = dp(f["size"]?.toIntOrNull() ?: 48)
-            val w = if (button) size else dp(24)
-            val h = if (button) size else (height * (f["length"]?.toFloatOrNull() ?: 25f) / 100).toInt().coerceAtLeast(dp(48))
+            val size = dp(if (button) (f["size"]?.toIntOrNull() ?: 48).coerceIn(32, 96)
+                else (f["size"]?.toIntOrNull() ?: 6).coerceIn(2, 48))
+            val w = size.coerceAtMost(width)
+            val h = (if (button) size else (height * (f["length"]?.toFloatOrNull() ?: 6f) / 100)
+                .toInt().coerceAtLeast(dp(8))).coerceAtMost(height)
+            val opening = f["open"] ?: if (button) "tap" else "swipe"
             val p = params(w.coerceAtMost(width), h.coerceAtMost(height))
             val right = f["side"] != "left"
             p.x = if (button) ((width - w).coerceAtLeast(0) * (f["x"]?.toFloatOrNull() ?: 85f) / 100).toInt()
@@ -216,22 +245,33 @@ object EdgeRuntime {
             p.y = ((height - h).coerceAtLeast(0) * (f[if (button) "y" else "offset"]?.toFloatOrNull() ?: 30f) / 100).toInt()
             val view = text(badges[panel.id] ?: if (button) "≡" else "│", 16f).apply {
                 background = background(button); gravity = Gravity.CENTER
+                alpha = f["alpha"]?.toFloatOrNull() ?: 1f
                 setPadding(0, 0, 0, 0); maxLines = 2
                 contentDescription = f["label"] ?: panel.id
                 isClickable = true
                 setOnClickListener { activateHandle(panel) }
             }
             var startX = 0f; var startY = 0f; var originalX = 0; var originalY = 0; var moved = false
-            val slop = ViewConfiguration.get(app!!).scaledTouchSlop
+            val slop = ViewConfiguration.get(windowContext!!).scaledTouchSlop
+            var relocating = false
+            val longPress = Runnable {
+                relocating = true
+                view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+            }
+            handleCallbacks.add(longPress)
             view.setOnTouchListener { _, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
-                        startX = event.rawX; startY = event.rawY; originalX = p.x; originalY = p.y; moved = false; true
+                        startX = event.rawX; startY = event.rawY; originalX = p.x; originalY = p.y; moved = false; relocating = false
+                        if (!button || opening != "tap") main.postDelayed(longPress, 1000)
+                        true
                     }
                     MotionEvent.ACTION_MOVE -> {
                         val dx = event.rawX - startX; val dy = event.rawY - startY
-                        if (kotlin.math.abs(dx) > slop || kotlin.math.abs(dy) > slop) moved = true
-                        if (button && moved) {
+                        if (kotlin.math.abs(dx) > slop || kotlin.math.abs(dy) > slop) {
+                            moved = true; main.removeCallbacks(longPress)
+                        }
+                        if ((button && opening == "tap" && moved) || relocating) {
                             p.x = (originalX + dx.toInt()).coerceIn(0, (width - w).coerceAtLeast(0))
                             p.y = (originalY + dy.toInt()).coerceIn(0, (height - h).coerceAtLeast(0))
                             runCatching { wm().updateViewLayout(view, p) }.onFailure { fail(it) }
@@ -239,17 +279,29 @@ object EdgeRuntime {
                         true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (button && moved) {
+                        main.removeCallbacks(longPress)
+                        if (!button && relocating) {
+                            runCatching {
+                                val side = if (p.x + w / 2 < width / 2) "left" else "right"
+                                store(app!!).setPanel(panel.id, mapOf("side" to side,
+                                    "offset" to (p.y * 100f / (height - h).coerceAtLeast(1)).toString()))
+                                panels = store(app!!).panels()
+                                showHandles()
+                            }.onFailure { fail(it) }
+                        } else if (button && ((opening == "tap" && moved) || relocating)) {
                             runCatching {
                                 store(app!!).setPanel(panel.id, mapOf(
                                     "x" to (p.x * 100f / (width - w).coerceAtLeast(1)).toString(),
                                     "y" to (p.y * 100f / (height - h).coerceAtLeast(1)).toString()))
                                 panels = store(app!!).panels()
                             }.onFailure { fail(it) }
-                        } else if (!moved || (!button && (event.rawX - startX) * (if (right) -1 else 1) > slop)) view.performClick()
+                        } else {
+                            val dx = event.rawX - startX; val dy = event.rawY - startY
+                            if (EdgeHandleActivation.opens(opening, right, moved, dx, dy, slop)) view.performClick()
+                        }
                         true
                     }
-                    MotionEvent.ACTION_CANCEL -> { if (button && moved) {
+                    MotionEvent.ACTION_CANCEL -> { main.removeCallbacks(longPress); if (moved || relocating) {
                         p.x = originalX; p.y = originalY
                         runCatching { wm().updateViewLayout(view, p) }
                     }; true }
@@ -273,7 +325,8 @@ object EdgeRuntime {
         }.onFailure { fail(it) }
     }
 
-    fun open(id: String) = onMain {
+    fun open(id: String, toggle: Boolean = false) = onMain {
+        if (toggle && openId == id) { close(); return@onMain }
         require(app != null && store(app!!).enabled()) { "Enable the panel first: z2-edge on" }
         require(unlocked()) { "Unlock the screen before opening the panel" }
         val panel = panels.firstOrNull { it.id == id } ?: throw IllegalArgumentException("No panel: $id")
@@ -283,6 +336,15 @@ object EdgeRuntime {
         val header = LinearLayout(ui()).apply { gravity = Gravity.CENTER_VERTICAL }
         header.addView(text(panel.fields["label"] ?: panel.id).apply { setTypeface(null, Typeface.BOLD) },
             LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(Button(ui()).apply {
+            text = app!!.getString(R.string.edge_add_app)
+            setOnClickListener {
+                val context = app!!
+                close()
+                runCatching { context.startActivity(Intent(context, AppPickerActivity::class.java)
+                    .putExtra("panel", id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { fail(it) }
+            }
+        })
         header.addView(Button(ui()).apply { text = app!!.getString(R.string.edge_close); setOnClickListener { close() } })
         body.addView(header)
         val rows = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
@@ -341,6 +403,17 @@ object EdgeRuntime {
         addIcon(title, item.fields["icon"] ?: pkg?.let { "@app:$it" })
         title.addView(text(label).apply { setTypeface(null, Typeface.BOLD) }, LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(title)
+        if (Regex("^z2-key\\s+(back|recents|shade|quicksettings|screenshot|split)\\s*$")
+                .matches(item.command.trim()) && !AndroidActions.connected()) {
+            row.addView(Button(ui()).apply {
+                text = app!!.getString(R.string.edge_accessibility_setup)
+                setOnClickListener {
+                    val context = app!!
+                    close()
+                    runCatching { AndroidActions.command(context, listOf("permission")) }.onFailure { fail(it) }
+                }
+            })
+        }
         val result = text(values[target].orEmpty(), 14f).apply { setTextIsSelectable(true) }
         val status = text("", 12f).apply { visibility = View.GONE }
         renderers["$target:status"] = { status.text = it; status.visibility = if (it.isBlank()) View.GONE else View.VISIBLE }

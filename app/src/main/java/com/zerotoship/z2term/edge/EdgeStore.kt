@@ -131,14 +131,16 @@ class EdgeStore(val root: File) {
         }
 
         fun validatePanel(values: Map<String, String>) {
-            val allowed = setOf("label", "handle", "side", "offset", "length", "x", "y", "size", "run")
+            val allowed = setOf("label", "handle", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open")
             require(values.keys.all { it in allowed }) { "Unknown panel field: ${values.keys - allowed}" }
             require(values["handle"].orEmpty() in setOf("", "off", "bar", "button")) { "handle: bar, button or off" }
             require(values["side"].orEmpty() in setOf("", "left", "right")) { "side: left or right" }
             listOf("offset", "length", "x", "y").forEach { key -> values[key]?.let {
                 require(it.toFloatOrNull()?.let { n -> n.isFinite() && n in 0f..100f } == true) { "$key: 0–100 percent" }
             } }
-            values["size"]?.let { require(it.toIntOrNull()?.let { n -> n in 32..96 } == true) { "size: 32–96 dp" } }
+            values["size"]?.let { require(it.toIntOrNull()?.let { n -> n in 2..96 } == true) { "size: 2–96 dp" } }
+            require(values["open"].orEmpty() in setOf("", "tap", "swipe", "both")) { "open: tap, swipe or both" }
+            values["alpha"]?.let { require(it.toFloatOrNull()?.let { n -> n.isFinite() && n in 0.05f..1f } == true) { "alpha: 0.05–1" } }
             encode(values)
         }
 

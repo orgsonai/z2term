@@ -15,6 +15,7 @@ object AppCatalog {
     fun command(context: Context, args: List<String>): String {
         val pm = context.packageManager
         return when {
+            args == listOf("pick") -> AppPickerActivity.pick(context)
             args == listOf("list") -> {
                 val entries = pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
                     .distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString() }

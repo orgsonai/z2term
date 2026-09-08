@@ -186,6 +186,11 @@ abstract class Z2TileService(private val slot: Int) : TileService() {
                 tile.state = Tile.STATE_INACTIVE
                 tile.label = getString(R.string.tile_label_empty, slot)
                 tile.subtitle = getString(R.string.tile_subtitle_empty)
+            } else if (!assigned.isPair && assigned.command.trim() == "z2-edge toggle") {
+                val on = com.zerotoship.z2term.edge.EdgeRuntime.store(app).enabled()
+                tile.state = if (on) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+                tile.label = assigned.label
+                tile.subtitle = getString(if (on) R.string.tile_subtitle_pair_on else R.string.tile_subtitle_pair_off)
             } else if (assigned.isPair) {
                 // 入 / 切の枠。緑 = アプリが「入にした」と覚えている状態 (実態を見に行く方法は
                 // 無い。詳しくは TileStore.isOn)。

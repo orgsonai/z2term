@@ -8,14 +8,16 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# Android 画面に浮かべるパネル。中身はシェルコマンドとテキスト定義です。
         |# z2-edge permission                     重ねて表示する許可の画面を開く
         |# z2-edge handle ID button --at 85%,60%   自由配置ボタンを定義（ドラッグ位置を保存）
-        |# z2-edge handle ID bar --side right --offset 30% --length 25%
+        |# z2-edge handle ID bar --side right --offset 30% --length 6% --size 6 --open swipe
         |# z2-edge handle ID button --run 'z2-key back'  直接実行するボタン
+        |# --open swipe|tap|both  --alpha 0.05..1  --label TEXT
+        |# バー幅: --size 2〜48dp、ボタン: 32〜96dp。バーは1秒長押し後に移動。
         |# z2-edge handle ID off                  取っ手を隠す
         |# z2-edge panel ID label=名前            パネルの定義を追加・更新
         |# z2-edge set ID:項目 type=text 'run=date' label=時計 every=30
         |# z2-edge get ID:項目 | list [ID] | remove ID:項目
-        |# z2-edge on | off | status | reload     有効化・停止・状態・定義の再読込
-        |# z2-edge open ID | close                パネルを開く・閉じる
+        |# z2-edge on | off | toggle | status | reload     有効化・停止・状態・定義の再読込
+        |# z2-edge open ID [--toggle] | close                パネルを開く・閉じる
         |# z2-edge push ID:項目 '文字列'           表示を外から更新（- なら標準入力）
         |# z2-edge state ID:項目 on|off           toggle の表示を更新
         |# z2-edge badge ID '87%'                 取っ手へ文字を表示（空文字で消去）
@@ -38,12 +40,14 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# Floating Android panels driven by shell commands and plain text definitions.
         |# z2-edge permission
         |# z2-edge handle ID button --at 85%,60% [--size 48] [--run 'command']
-        |# z2-edge handle ID bar --side right --offset 30% --length 25%
+        |# z2-edge handle ID bar --side right --offset 30% --length 6% --size 6 --open swipe
+        |# --open swipe|tap|both  --alpha 0.05..1  --label TEXT
+        |# Bar: --size 2..48 dp; button: 32..96 dp. Hold 1 second to move a bar.
         |# z2-edge handle ID off
         |# z2-edge panel ID label=Name
         |# z2-edge set ID:item type=text 'run=date' label=Clock every=30
         |# z2-edge get ID:item | list [ID] | remove ID:item
-        |# z2-edge on | off | status | reload | open ID | close
+        |# z2-edge on | off | toggle | status | reload | open ID [--toggle] | close
         |# z2-edge push ID:item 'text'             Use - to read stdin
         |# z2-edge state ID:item on|off
         |# z2-edge badge ID '87%'                  Empty string clears the badge
@@ -78,16 +82,17 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |exec z2api 1 edge "${d}@"
     """.trimMargin() + "\n"
     val key = "#!/bin/sh\n" + (if (lang == "ja")
-        "# Android の操作: z2-key back|home|recents|shade|quicksettings|screenshot|split\n# z2-key status: 利用可能な操作。permission: ユーザー補助の許可画面。\n# OS が提供していない操作は失敗します。split は分割切替のみでアプリは起動しません。\n"
-        else "# Android actions: z2-key back|home|recents|shade|quicksettings|screenshot|split\n# z2-key status lists available actions; permission opens Accessibility settings.\n# Unsupported actions fail. split only toggles docking; it does not launch an app.\n") + """
+        "# Android の操作: z2-key back|home|recents|shade|quicksettings|screenshot|split\n# z2-key status: OSで有効か・接続中か・利用可能な操作。permission: ユーザー補助の詳細画面。app-info: 制限付き設定の入口。\n# OS が提供していない操作は失敗します。split は分割切替のみでアプリは起動しません。\n"
+        else "# Android actions: z2-key back|home|recents|shade|quicksettings|screenshot|split\n# z2-key status shows enabled/connected state and available actions; permission opens Accessibility details; app-info opens App info.\n# Unsupported actions fail. split only toggles docking; it does not launch an app.\n") + """
         |case "${d}{1:-}" in -h|--help|help|'') $help ;; esac
         |exec z2api 1 key "${d}@"
     """.trimMargin() + "\n"
     val app = "#!/bin/sh\n" + (if (lang == "ja")
-        "# z2-app list                       起動可能なアプリをJSONで列挙\n# z2-app icon <package> -o <PNG>     アプリのアイコンをPNGへ保存（- は標準出力）\n"
-        else "# z2-app list                       Launchable applications as JSON\n# z2-app icon <package> -o <PNG>     Save application icon as PNG (- for stdout)\n") + """
+        "# z2-app pick                       一覧から選びパッケージ名を返す（120秒・取消は失敗）\n# z2-app list                       起動可能なアプリをJSONで列挙\n# z2-app icon <package> -o <PNG>     アプリのアイコンをPNGへ保存（- は標準出力）\n"
+        else "# z2-app pick                       Choose a package (120 seconds; cancel fails)\n# z2-app list                       Launchable applications as JSON\n# z2-app icon <package> -o <PNG>     Save application icon as PNG (- for stdout)\n") + """
         |case "${d}{1:-}" in
         |  -h|--help|help|'') $help ;;
+        |  pick) [ "${d}#" -eq 1 ] || exit 1; Z2API_WAIT=1250 exec z2api 1 app pick ;;
         |  list) [ "${d}#" -eq 1 ] || exit 1; exec z2api 1 app list ;;
         |  icon)
         |    [ "${d}#" -eq 4 ] && [ "${d}3" = -o ] || { echo 'z2-app icon PACKAGE -o FILE.png' >&2; exit 1; }

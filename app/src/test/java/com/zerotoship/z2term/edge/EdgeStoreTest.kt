@@ -37,6 +37,29 @@ class EdgeStoreTest {
         rejects { EdgeStore.validatePanel(mapOf("size" to "0")) }
     }
 
+    @Test fun handleOptionsPersistAndRejectInvalidUpdates() {
+        val dir = Files.createTempDirectory("edge-handle-test").toFile()
+        try {
+            val store = EdgeStore(dir)
+            store.setPanel("main", mapOf("handle" to "bar", "size" to "2", "length" to "1",
+                "open" to "swipe", "alpha" to "0.3"))
+            store.setItem("main:back", mapOf("run" to "z2-key back"))
+            for (fields in listOf(mapOf("open" to "slide"), mapOf("alpha" to "NaN"),
+                mapOf("alpha" to "0"), mapOf("alpha" to "1.1"), mapOf("size" to "1"))) {
+                rejects { store.setPanel("main", fields) }
+            }
+            store.setPanel("main", mapOf("side" to "left", "offset" to "100"))
+            val panel = EdgeStore(dir).panel("main")
+            assertEquals("swipe", panel.fields["open"])
+            assertEquals("0.3", panel.fields["alpha"])
+            assertEquals("2", panel.fields["size"])
+            assertEquals("100", panel.fields["offset"])
+            assertEquals("z2-key back", panel.items.single().command)
+            store.setPanel("main", mapOf("handle" to "button", "open" to "both"))
+            assertEquals("both", store.panel("main").fields["open"])
+        } finally { dir.deleteRecursively() }
+    }
+
     @Test fun invalidUpdatePreservesExistingDefinitionAndMovePreservesItems() {
         val dir = Files.createTempDirectory("edge-store-test").toFile()
         try {

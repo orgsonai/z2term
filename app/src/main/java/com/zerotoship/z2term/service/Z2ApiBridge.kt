@@ -121,6 +121,7 @@ object Z2ApiBridge {
     private var respDir: File? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     // FileObserver スレッドを塞がないよう、ハンドリングは専用シングルスレッドへ。
+    private val appPickerBusy = java.util.concurrent.atomic.AtomicBoolean(false)
     private val worker = Executors.newSingleThreadExecutor { r ->
         Thread(r, "z2api-bridge").apply { isDaemon = true }
     }
@@ -226,6 +227,18 @@ object Z2ApiBridge {
                         if (needResp) writeResponse(id, ok = false, data = e.message ?: "error")
                     }
                 }
+                return
+            }
+            if (cmd == "app" && args == listOf("pick")) {
+                require(needResp) { "App selection requires a response" }
+                check(appPickerBusy.compareAndSet(false, true)) { "App selection is already open" }
+                Thread {
+                    try {
+                        writeResponse(id, ok = true, data = com.zerotoship.z2term.edge.AppPickerActivity.pick(context))
+                    } catch (e: Exception) {
+                        writeResponse(id, ok = false, data = e.cause?.message ?: e.message ?: "App selection timed out")
+                    } finally { appPickerBusy.set(false) }
+                }.apply { isDaemon = true; name = "z2-app-picker"; start() }
                 return
             }
             val result = dispatch(context, cmd, args)

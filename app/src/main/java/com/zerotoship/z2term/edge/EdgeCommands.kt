@@ -25,8 +25,14 @@ object EdgeCommands {
             }
             "on" -> { count(1); EdgeRuntime.on(context); "" }
             "off" -> { count(1); EdgeRuntime.off(context); "" }
+            "toggle" -> { count(1); EdgeRuntime.onMain {
+                if (store.enabled()) EdgeRuntime.off(context) else EdgeRuntime.on(context)
+            }; "" }
             "reload" -> { count(1); reload(); "" }
-            "open" -> { count(2); EdgeRuntime.onMain { EdgeRuntime.open(args[1]) }; "" }
+            "open" -> {
+                require(args.size == 2 || (args.size == 3 && args[2] == "--toggle")) { "open ID [--toggle]" }
+                EdgeRuntime.open(args[1], toggle = args.size == 3); ""
+            }
             "close" -> { count(1); EdgeRuntime.close(); "" }
             "list" -> {
                 require(args.size in 1..2) { "list [panel]" }
@@ -56,7 +62,7 @@ object EdgeCommands {
                     when (option) {
                         "--side" -> fields["side"] = value
                         "--offset", "--length" -> fields[option.removePrefix("--")] = value.removeSuffix("%")
-                        "--size", "--run", "--label" -> fields[option.removePrefix("--")] = value
+                        "--size", "--run", "--label", "--alpha", "--open" -> fields[option.removePrefix("--")] = value
                         "--at" -> {
                             val point = value.split(',')
                             require(point.size == 2) { "--at X%,Y%" }

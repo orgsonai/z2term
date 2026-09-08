@@ -1,6 +1,10 @@
 package com.zerotoship.z2term.edge
 
 import android.accessibilityservice.AccessibilityService
+import android.content.ComponentName
+import android.net.Uri
+import android.view.accessibility.AccessibilityManager
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -33,14 +37,27 @@ class AndroidActions : AccessibilityService() {
         )
 
         fun command(context: Context, args: List<String>): String {
-            require(args.size == 1) { "z2-key: back|home|recents|shade|quicksettings|screenshot|split|status|permission" }
+            require(args.size == 1) { "z2-key: back|home|recents|shade|quicksettings|screenshot|split|status|permission|app-info" }
             val name = args[0]
             if (name == "status") return JSONObject()
+                .put("enabled", enabled(context))
                 .put("connected", active != null)
                 .put("actions", org.json.JSONArray(available())).toString()
             if (name == "permission") {
-                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                val fallback = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                if (Build.VERSION.SDK_INT >= 30) {
+                    val details = Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS")
+                        .putExtra(Intent.EXTRA_COMPONENT_NAME, ComponentName(context, AndroidActions::class.java))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    try { context.startActivity(details) }
+                    catch (_: android.content.ActivityNotFoundException) { context.startActivity(fallback) }
+                } else context.startActivity(fallback)
                 return context.getString(com.zerotoship.z2term.R.string.edge_accessibility_help)
+            }
+            if (name == "app-info") {
+                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return ""
             }
             val action = actions[name] ?: throw IllegalArgumentException("Unknown action: $name")
             if (name == "home" && active == null) {
@@ -50,11 +67,19 @@ class AndroidActions : AccessibilityService() {
             }
             val service = active ?: throw IllegalStateException(context.getString(com.zerotoship.z2term.R.string.edge_accessibility_help))
             if (Build.VERSION.SDK_INT >= 30) {
-                require(service.systemActions.any { it.id == action }) { "Android does not offer this action: $name" }
+                require(name == "split" || service.systemActions.any { it.id == action }) { "Android does not offer this action: $name" }
             } else require(name != "screenshot") { "Screenshot requires Android 11" }
             check(service.performGlobalAction(action)) { "Android rejected action: $name" }
             return ""
         }
+
+        fun connected() = active != null
+
+        fun enabled(context: Context): Boolean = context.getSystemService(AccessibilityManager::class.java)
+            .getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK).any {
+                val service = it.resolveInfo.serviceInfo
+                ComponentName(service.packageName, service.name) == ComponentName(context, AndroidActions::class.java)
+            }
 
         private fun available(): List<String> {
             val service = active ?: return listOf("home")

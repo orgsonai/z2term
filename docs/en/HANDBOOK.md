@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.549-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.550-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -850,6 +850,24 @@ when a `z2-when` rule fired **without opening the app**.
 
 ## 9.6. Floating edge panels
 
+Bars default to 6dp wide and 6% of screen height. `--size` is clamped to 2–48dp for bars and 32–96dp for buttons.
+The minimum rendered length is 8dp. `--alpha 0.05..1` controls opacity.
+`--open swipe|tap|both` chooses activation; defaults are swipe for bars and tap for buttons.
+Hold a bar for one second for haptic feedback, then drag it. Release snaps to the nearest left/right edge
+and saves `side`/`offset`. Buttons drag immediately in tap mode; swipe/both modes require the one-second hold.
+Rotation recalculates the available area. Top/bottom snapping is not supported.
+
+`z2-edge toggle` toggles the service; `z2-edge open main --toggle` toggles the panel.
+A tile assigned the single command `z2-edge toggle` displays the actual enabled state. Enabling requires an unlocked screen.
+Use “+ App” on a panel to select and save an app. `z2-app pick` returns the selected package on stdout;
+cancellation or a 120-second timeout fails. Other APIs remain available while selecting. When calling it from a panel command, set `timeout=130` or longer.
+
+Accessibility is separate from overlay permission. `z2-key permission` opens service details with a fallback
+to the service list. `z2-key app-info` opens App info for allowing restricted settings. The user operates the switch.
+`z2-key status` distinguishes OS `enabled` from service `connected`. Simple `z2-key` items show a setup prompt
+when disconnected; arbitrary shell scripts are not inspected. Check this status if actions fail after an APK update.
+`z2-key split` attempts the OS action even when absent from the action list and reports rejection. Split app launch remains unsupported.
+
 An edge bar or draggable button opens your own controls while you use other apps. Commands provide
 the contents: display text, toggle a state, choose a list entry or enter text.
 
@@ -864,7 +882,7 @@ z2-edge on
 ```
 
 Drag the floating button to move it; its position is saved. Switch to a bar with
-`z2-edge handle main bar --side right --offset 30% --length 25%` and swipe inward to open it.
+`z2-edge handle main bar --side right --offset 30% --length 6% --size 6 --open swipe` and swipe inward to open it.
 Close with Close, an outside tap or Back. Stop everything with `z2-edge off` or Stop panels in the notification.
 
 For Back, Recents and other global actions, run `z2-key permission` and enable “z2term Android actions”.
