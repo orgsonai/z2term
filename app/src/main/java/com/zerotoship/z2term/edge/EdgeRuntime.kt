@@ -724,7 +724,7 @@ object EdgeRuntime {
             })
             if (pkg != null) {
                 val choices = AppLaunch.modes
-                val mode = Regex("--window\\s+(full|freeform|split|ask)").find(item.command)?.groupValues?.get(1) ?: "full"
+                val mode = AppLaunchCommand.modeFrom(item.command)
                 val picker = android.widget.Spinner(ui())
                 picker.adapter = android.widget.ArrayAdapter(ui(), android.R.layout.simple_spinner_dropdown_item,
                     listOf(R.string.edge_window_full, R.string.edge_window_freeform, R.string.edge_window_split, R.string.edge_window_ask)
@@ -734,7 +734,7 @@ object EdgeRuntime {
                     override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
                     override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
                         if (choices[position] != mode) runCatching {
-                            store(app!!).setItem(target, mapOf("run" to "z2-intent -p $pkg --window ${choices[position]}"))
+                            store(app!!).setItem(target, mapOf("run" to AppLaunchCommand.withMode(item.command, choices[position])))
                             reload(app!!)
                         }.onFailure { fail(it) }
                     }
@@ -1008,9 +1008,7 @@ object EdgeRuntime {
     }
 
     /** Only simple, unambiguous launch commands get automatic icons. Never evaluate shell text. */
-    internal fun packageFrom(command: String): String? = Regex(
-        "^z2-intent\\s+(?:-p|--package)\\s+([A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+)(?:\\s+--window\\s+(?:full|freeform|split|ask))?\\s*$"
-    ).matchEntire(command.trim())?.groupValues?.get(1)
+    internal fun packageFrom(command: String): String? = AppLaunchCommand.packageFrom(command)
 
     private fun fail(error: Throwable) { app?.let { Toast.makeText(it, error.message ?: "Error", Toast.LENGTH_LONG).show() } }
 }

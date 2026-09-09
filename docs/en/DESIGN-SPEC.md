@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-09 / Target version: 0.8.562-alpha (versionCode 570)
+Last updated: 2026-09-09 / Target version: 0.8.563-alpha (versionCode 571)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2249,7 +2249,18 @@ Enabling panels when none exist creates a Main bar on the right and opens its em
 Panel settings supports renaming the current panel or tab, adding a parent panel, moving child tabs earlier or later, and opening another parent panel. Explicit save and move actions write names and tab order to the definitions.
 
 Thin bars draw their entire background at the configured width while retaining a touch target of at least 24dp.
-Freeform requests bounds for a new task. Split brings the terminal to the foreground and launches a new task beside it. Apps that enforce a single task remain subject to OS restrictions.
+Freeform launch behavior can be adjusted with options after `z2-intent --window freeform` (0.8.563). Edit the item command in panel settings or set the same `run` field through `z2-edge set ID:item 'run=...'`.
+
+| Option | Launch behavior |
+|---|---|
+| `--reuse-task` | Clear the multiple-task flag to allow existing-task reuse |
+| `--os-bounds` | Let the OS choose window position and size |
+| `--bounds-only` | Send the public bounds request without the private window-mode key |
+
+Defaults retain the multiple-task flag, inner 80% bounds and window-mode key. `--reuse-task --os-bounds` can be combined. Combining `--bounds-only` with `--os-bounds`, or using these options outside freeform mode, is rejected.
+These switches allow comparison with the device’s standard launch path. Whether they resolve layout changes during navigation or restore window decoration still requires device verification. They do not change OS settings.
+
+By default, freeform requests bounds for a new task. Split brings the terminal to the foreground and launches a new task beside it. Apps that enforce a single task remain subject to OS restrictions.
 No external app or root is used. Freeform requests `ActivityOptions.setLaunchBounds` and the non-public AOSP Bundle key `android.activity.windowingMode=5`, whose support depends on the OS. Split requests `FLAG_ACTIVITY_LAUNCH_ADJACENT`.
 Freeform fails if not enabled on the device. Entering split screen is supported from Android 12L; earlier versions require an existing split session.
 The OS controls the final mode and reuse of existing tasks. Full screen means ordinary launch, not forced maximization of an existing window.

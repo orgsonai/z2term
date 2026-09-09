@@ -1575,6 +1575,9 @@ object Z2ApiBridge {
         val intent = Intent()
         var mode = "activity"
         var window: String? = null
+        var reuseTask = false
+        var osBounds = false
+        var boundsOnly = false
         var i = 0
         fun next(): String =
             if (i < args.size) args[i++] else throw IllegalArgumentException("intent: missing value")
@@ -1600,6 +1603,9 @@ object Z2ApiBridge {
                 )
                 "--broadcast" -> mode = "broadcast"
                 "--service" -> mode = "service"
+                "--reuse-task" -> reuseTask = true
+                "--os-bounds" -> osBounds = true
+                "--bounds-only" -> boundsOnly = true
                 "--window" -> {
                     window = next()
                     require(window in com.zerotoship.z2term.edge.AppLaunch.modes) { "intent: --window full|freeform|split|ask" }
@@ -1609,6 +1615,8 @@ object Z2ApiBridge {
             }
         }
         require(window == null || mode == "activity") { "--window requires activity launch" }
+        val freeform = com.zerotoship.z2term.edge.AppLaunch.FreeformOptions(reuseTask, osBounds, boundsOnly)
+        freeform.validate(window.orEmpty())
         if (mode == "activity" && intent.action == null && intent.component == null && intent.`package` != null) {
             val launch = context.packageManager.getLaunchIntentForPackage(intent.`package`!!)
                 ?: throw IllegalArgumentException("intent: package has no launchable activity")
@@ -1620,7 +1628,7 @@ object Z2ApiBridge {
             "broadcast" -> context.sendBroadcast(intent)
             "service" -> { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); context.startService(intent) }
             else -> {
-                if (window != null) com.zerotoship.z2term.edge.AppLaunch.launch(context, intent, window!!)
+                if (window != null) com.zerotoship.z2term.edge.AppLaunch.launch(context, intent, window!!, freeform)
                 else { intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); context.startActivity(intent) }
             }
         }
