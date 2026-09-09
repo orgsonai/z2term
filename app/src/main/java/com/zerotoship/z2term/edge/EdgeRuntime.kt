@@ -347,6 +347,7 @@ object EdgeRuntime {
                 isClickable = true
                 setOnClickListener { activateHandle(panel) }
             }
+            val dragMoves = button && opening == "tap"
             var startX = 0f; var startY = 0f; var originalX = 0; var originalY = 0; var moved = false
             val slop = ViewConfiguration.get(windowContext!!).scaledTouchSlop
             fun releaseAppearance() {
@@ -379,6 +380,8 @@ object EdgeRuntime {
                         val dx = event.rawX - startX; val dy = event.rawY - startY
                         if (kotlin.math.abs(dx) > slop || kotlin.math.abs(dy) > slop) {
                             moved = true; main.removeCallbacks(longPress)
+                            // A tap-only handle has no swipe to protect, so dragging moves it at once.
+                            if (dragMoves && !relocating) { relocating = true; view.alpha = 1f; view.invalidate() }
                         }
                         if (relocating) {
                             p.x = (originalX + dx.toInt()).coerceIn(0, (width - w).coerceAtLeast(0))
@@ -887,6 +890,8 @@ object EdgeRuntime {
                 })
             }
         }
+        // An empty heading only wastes height; run items keep it as their tap target.
+        if (title.childCount == 0 && item.type != "run") row.removeView(title)
         if (item.type !in setOf("toggle", "list", "note")) {
             row.addView(result)
             if (result.text.isEmpty()) result.visibility = View.GONE

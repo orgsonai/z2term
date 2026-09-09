@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.564-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.565-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -851,7 +851,7 @@ when a `z2-when` rule fired **without opening the app**.
 ## 9.6. Floating edge panels
 
 From 0.8.562, panels show only their items by default. Empty panels have no message or controls. Existing definitions are retained and use the new defaults.
-**Hold panel whitespace to open settings. Hold a handle for 300ms, then release without moving to open settings; drag to move it as before.** Done or Back returns to the panel.
+**Hold panel whitespace to open settings. Hold a handle for 300ms, then release without moving to open settings; drag to move it as before. A tap-to-open button moves as soon as you drag it (0.8.565).** Done or Back returns to the panel.
 Settings use a separate screen independent of panel width. Opening settings does not execute item commands or periodic readers.
 Adjust appearance previews requested dimensions/placement in a display diagram and handle changes on the actual handles. Only Save writes definitions; Cancel, close, tab changes, screen-off and reload discard the draft.
 
@@ -893,7 +893,7 @@ With fit=content, height is a maximum: short content shrinks the panel and overf
 Bars default to 6dp wide and 6% of screen height. `--size` is clamped to 2–48dp for bars and 32–96dp for buttons.
 The minimum rendered length is 8dp. `--alpha 0.05..1` controls opacity.
 `--open swipe|tap|both` chooses activation; defaults are swipe for bars and tap for buttons.
-Hold a bar or button for 300ms to move it. Bar hit areas are at least 24dp wide, independent of visible thickness.
+Hold a bar for 300ms to move it. A tap-to-open button (`open=tap`, the button default) needs no hold: drag it and it moves (0.8.565). Buttons set to `open=swipe|both` still need the hold, because dragging would collide with opening. Bar hit areas are at least 24dp wide, independent of visible thickness.
 While held, a bar fills its hit area at full opacity and shows dots with haptic feedback. A line previews the target edge.
 Release snaps to the nearest left/right edge and saves `side`/`offset`; cancellation restores position and appearance.
 Rotation recalculates the available area. Top/bottom snapping is not supported.
@@ -936,6 +936,7 @@ Deleting a child detaches its reference; deleting a parent preserves child panel
 In settings, hold an item name and drag before/after another item to save every item’s `order`. Dropping outside leaves the order unchanged. Settings also expose item deletion and app launch-mode selection.
 
 “+ Note” in settings adds a note to the active tab. `type=note` shows its contents; tap to edit with Undo and Redo.
+With neither a name nor an icon shown (`labels=off` and an empty `icon=`), no heading row is drawn and the text starts at the top of the panel (0.8.565).
 Text defaults to `~/.z2term/edge/panelID/itemID.txt`; `file=~/memo.txt` selects another shared-home file.
 Relative paths use the shared home; absolute paths must be accessible to the Android app and are not translated from guest-only paths.
 UTF-8, up to 64 KiB. Closing, Back, tab switching, screen-off, close/off save edits; changes also save every 10 seconds while open.
@@ -968,7 +969,7 @@ z2-edge set main:home label=Home 'run=z2-key home' order=2
 z2-edge on
 ```
 
-Drag the floating button to move it; its position is saved. Switch to a bar with
+Drag the floating button to move it (no hold with the default `open=tap`); its position is saved. Switch to a bar with
 `z2-edge handle main bar --side right --offset 30% --length 6% --size 6 --open swipe` and swipe inward to open it.
 Close with an outside tap, Back, or the optional Close button. Stop everything with `z2-edge off` or Stop panels in the notification.
 

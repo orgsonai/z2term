@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-09 / Target version: 0.8.564-alpha (versionCode 572)
+Last updated: 2026-09-09 / Target version: 0.8.565-alpha (versionCode 573)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2191,7 +2191,7 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
 ### 4.14 Edge panels (`edge/`, 0.8.549)
 
 From 0.8.562, panels show only their items by default. Empty panels have no message or controls. Existing definitions are retained and use the new defaults.
-**Hold panel whitespace to open settings. Hold a handle for 300ms, then release without moving to open settings; drag to move it as before.** Done or Back returns to the panel.
+**Hold panel whitespace to open settings. Hold a handle for 300ms, then release without moving to open settings; drag to move it as before. A tap-to-open button moves as soon as you drag it (0.8.565).** Done or Back returns to the panel.
 Settings use a separate screen independent of panel width. Opening settings does not execute item commands or periodic readers.
 Adjust appearance previews requested dimensions/placement in a display diagram and handle changes on the actual handles. Only Save writes definitions; Cancel, close, tab changes, screen-off and reload discard the draft.
 
@@ -2230,7 +2230,7 @@ z2-edge handle apps bar --side right --size 4 --length 20
 Bars default to 6dp wide and 6% of screen height. `--size` is clamped to 2–48dp for bars and 32–96dp for buttons.
 The minimum rendered length is 8dp. `--alpha 0.05..1` controls opacity.
 `--open swipe|tap|both` chooses activation; defaults are swipe for bars and tap for buttons.
-Hold a bar or button for 300ms to move it. Bar hit areas are at least 24dp wide, independent of visible thickness.
+Hold a bar for 300ms to move it. A tap-to-open button (`open=tap`, the button default) needs no hold: drag it and it moves (0.8.565). Buttons set to `open=swipe|both` still need the hold, because dragging would collide with opening. Bar hit areas are at least 24dp wide, independent of visible thickness.
 While held, a bar fills its hit area at full opacity and shows dots with haptic feedback. A line previews the target edge.
 Release snaps to the nearest left/right edge and saves `side`/`offset`; cancellation restores position and appearance.
 Rotation recalculates the available area. Top/bottom snapping is not supported.
@@ -2273,6 +2273,7 @@ Deleting a child detaches its reference; deleting a parent preserves child panel
 In settings, hold an item name and drag before/after another item to save every item’s `order`. Dropping outside leaves the order unchanged. Settings also expose item deletion and app launch-mode selection.
 
 “+ Note” in settings adds a note to the active tab. `type=note` shows its contents; tap to edit with Undo and Redo.
+With neither a name nor an icon shown (`labels=off` and an empty `icon=`), no heading row is drawn and the text starts at the top of the panel (0.8.565).
 Text defaults to `~/.z2term/edge/panelID/itemID.txt`; `file=~/memo.txt` selects another shared-home file.
 Relative paths use the shared home; absolute paths must be accessible to the Android app and are not translated from guest-only paths.
 UTF-8, up to 64 KiB. Closing, Back, tab switching, screen-off, close/off save edits; changes also save every 10 seconds while open.
