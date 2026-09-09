@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.560-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.561-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -955,6 +955,8 @@ Text/toggle/list refresh on opening. `every=30` adds a 30-second interval only w
 Closing, screen-off and reload stop readers; explicit actions finish unless you request `off`.
 Closing, reload and rotation discard unsent input. Command timeout defaults to 30 seconds; `timeout=` allows up to 300.
 For event updates, register a command invoking `z2-edge push` with the existing `z2-when`.
+
+`z2-edge get ID` returns saved panel settings; `z2-edge get ID:item` returns saved item settings, both as `key=value` lines. Omitted defaults, comments and live display values are not included. Reading does not change definitions or require panels to be enabled.
 
 Definitions live in `~/.z2term/edge/`. Run `z2-edge reload` after editing files directly. Copy the folder
 to back it up; the current settings export does not include it. Pushed values and badges reset on app restart.

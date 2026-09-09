@@ -45,7 +45,12 @@ object EdgeCommands {
                 }
                 else store.panel(args[1]).items.joinToString("\n") { "${args[1]}:${it.id}\t${it.type}\t${it.fields["label"].orEmpty()}" }
             }
-            "get" -> { count(2); EdgeStore.encode(store.item(args[1]).fields) }
+            "get" -> {
+                count(2)
+                val target = args[1]
+                val values = if (':' in target) store.item(target).fields else store.panel(target).fields
+                EdgeStore.encode(values)
+            }
             "set" -> {
                 require(args.size >= 3) { "set panel:item key=value ..." }
                 store.setItem(args[1], fields(args.drop(2)))

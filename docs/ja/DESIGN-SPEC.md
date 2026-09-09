@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-09 / 対象バージョン: 0.8.560-alpha (versionCode 568)
+最終更新: 2026-09-09 / 対象バージョン: 0.8.561-alpha (versionCode 569)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -2220,7 +2220,9 @@ Android のオーバーレイへ、利用者が書いたコマンドの表示面
 `z2-edge` / `z2-key` / `z2-app` は既存の `z2api` を通り、アプリ起動には既存の `z2-intent` を使う。
 設定画面は追加せず、定義の正本は `~/.z2term/edge/<panel>/panel.conf` と `<item>.item`。
 UTF-8 の `key=value` を読み、CLI の更新は同じディレクトリ内で一時ファイルを rename して反映する。
-ID は英数字・`_`・`-` の 1〜64 文字。更新先は常に `panel:item`。未知の型・キーや不正な数値はエラー。
+ID は英数字・`_`・`-` の 1〜64 文字。板の更新先は `ID`、項目の更新先は `panel:item`。未知の型・キーや不正な数値はエラー。
+`z2-edge get ID` は板、`z2-edge get ID:item` は項目の保存済みフィールドを `key=value` で返す。
+省略した既定値・コメント・実行時の状態は含めず、取得時に定義の更新や再読込は行わない。存在しない ID や不正な対象指定はエラー。
 
 - `EdgeStore`: 最大 64 パネル・各 64 項目。`panel.conf` は `handle=bar|button|off`、`side=left|right`、
   `offset` / `length` / `x` / `y`（百分率）、`size`（保存値2〜96 dp、形状ごとに上記範囲へ丸める）、`open`、`alpha`、`label`、直接実行用 `run`。

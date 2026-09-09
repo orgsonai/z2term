@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-09 / Target version: 0.8.560-alpha (versionCode 568)
+Last updated: 2026-09-09 / Target version: 0.8.561-alpha (versionCode 569)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2249,7 +2249,9 @@ Overlays display user-defined shell commands and their output. The app does not 
 `z2-edge`, `z2-key` and `z2-app` use the existing `z2api`; application launches use `z2-intent`.
 There is no new configuration screen. UTF-8 `key=value` files in `~/.z2term/edge/<panel>/panel.conf`
 and `<item>.item` are authoritative; CLI writes use a temporary file and rename in the same directory.
-IDs contain 1–64 letters/digits/underscores/hyphens; update targets always use `panel:item`.
+IDs contain 1–64 letters/digits/underscores/hyphens; panel updates target `ID` and item updates target `panel:item`.
+`z2-edge get ID` returns saved panel fields and `z2-edge get ID:item` returns saved item fields as `key=value`.
+Omitted defaults, comments and runtime state are excluded. Reads neither update definitions nor reload panels; missing IDs and invalid targets fail explicitly.
 Unknown types/fields and invalid numeric values fail explicitly.
 
 - `EdgeStore`: up to 64 panels with 64 items each. Panel fields: `handle=bar|button|off`, `side=left|right`,

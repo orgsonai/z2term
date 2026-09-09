@@ -19,6 +19,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge panel ID width=80% height=60%
         |# z2-edge panel ID label=名前            パネルの定義を追加・更新
         |# z2-edge set ID:項目 type=text 'run=date' label=時計 every=30
+        |# z2-edge get ID                        板の保存済み定義を取得（key=value）
         |# z2-edge get ID:項目 | list [ID] | remove ID:項目
         |# z2-edge on | off | toggle | status | reload     有効化・停止・状態・定義の再読込
         |# z2-edge open ID [--toggle] | close                パネルを開く・閉じる
@@ -54,6 +55,7 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge panel ID width=80% height=60%
         |# z2-edge panel ID label=Name
         |# z2-edge set ID:item type=text 'run=date' label=Clock every=30
+        |# z2-edge get ID                        Read saved panel fields (key=value)
         |# z2-edge get ID:item | list [ID] | remove ID:item
         |# z2-edge on | off | toggle | status | reload | open ID [--toggle] | close
         |# z2-edge push ID:item 'text'             Use - to read stdin
