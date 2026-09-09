@@ -546,6 +546,10 @@ object EdgeRuntime {
             })
             val rows = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
             val scroll = ScrollView(ui()).apply { isFillViewport = false; addView(rows) }
+            if (!settings) scroll.setOnLongClickListener {
+                runCatching { open(root.id, tabId = panel.id, settings = true) }.onFailure { fail(it) }
+                true
+            }
             body.addView(scroll, LinearLayout.LayoutParams(-1, -2, 1f))
             if (!settings) rows.setOnLongClickListener {
                 runCatching { open(root.id, tabId = panel.id, settings = true) }.onFailure { fail(it) }; true
@@ -635,6 +639,10 @@ object EdgeRuntime {
             }.apply {
                 isFocusableInTouchMode = true
                 setOnClickListener { close() }
+                if (!settings) setOnLongClickListener {
+                    runCatching { open(root.id, tabId = panel.id, settings = true) }.onFailure { fail(it) }
+                    true
+                }
             }
             overlay.addView(body, FrameLayout.LayoutParams(panelWidth, -2).apply {
                 val position = if (settings) 0f to 0f else EdgePanelPosition.fractions(root.fields)

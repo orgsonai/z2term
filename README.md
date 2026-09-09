@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.563-alpha (versionCode 571).** Freeform launch requests can independently select task reuse, OS-chosen bounds, or a public bounds-only request through `z2-intent` options. Floating panels show only items by default. Hold panel whitespace or hold/release a handle to open settings; drag a held handle to move it. Choose fixed or content-sized panels, placement, vertical/horizontal/grid arrangement, icon size, labels and optional controls. Every setting also uses the plain-text definitions and CLI. The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.564-alpha (versionCode 572).** Settings long-press now works across the panel scroll area, including panels that already contain items. Freeform launch requests can independently select task reuse, OS-chosen bounds, or a public bounds-only request through `z2-intent` options. Floating panels show only items by default. Hold panel whitespace or hold/release a handle to open settings; drag a held handle to move it. Choose fixed or content-sized panels, placement, vertical/horizontal/grid arrangement, icon size, labels and optional controls. Every setting also uses the plain-text definitions and CLI. The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 
