@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.568-alpha (versionCode 576).** Edge-panel ongoing notifications no longer contribute to the app icon badge. Existing installations migrate to a channel with badging disabled while preserving notification preferences. The panel editor and terminal history fixes from 0.8.567 remain included. Motorola freeform launches on Android 16 or later now request the OS’s scaled-window mode and task inheritance; the rendering fix still needs device verification. The latest published APKs and release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.569-alpha (versionCode 577).** Freeform items now request scaled display by default on Motorola devices, with a per-item “Do not scale down” choice for the previous behavior. Existing items use the scaled default. The notification-badge fix from 0.8.568 remains included. The latest published APKs and release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 

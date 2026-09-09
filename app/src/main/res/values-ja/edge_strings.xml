@@ -25,6 +25,9 @@
     <string name="edge_window_freeform">フリーフォーム</string>
     <string name="edge_window_split">分割</string>
     <string name="edge_window_ask">毎回確認</string>
+    <string name="edge_freeform_scale">フリーフォームの表示</string>
+    <string name="edge_freeform_scaled">縮小する（既定）</string>
+    <string name="edge_freeform_unscaled">縮小しない</string>
     <string name="edge_freeform_unavailable">この端末ではフリーフォーム窓が有効になっていません。</string>
     <string name="edge_tab_name">タブ名</string>
     <string name="edge_add_tab">＋タブ</string>

@@ -27,6 +27,17 @@ class AppLaunchCommandTest {
             AppLaunchCommand.withMode("z2-intent -p org.example.app", "ask"))
     }
 
+    @Test fun freeformScaleDefaultsOnAndCanBeSavedAsAnOptOut() {
+        val command = "z2-intent -p org.example.app --window freeform"
+        assertTrue(AppLaunchCommand.scalesFreeform(command))
+        val unscaled = AppLaunchCommand.withFreeformScale(command, false)
+        assertEquals("z2-intent -p org.example.app --window freeform --no-scale", unscaled)
+        assertFalse(AppLaunchCommand.scalesFreeform(unscaled))
+        assertEquals(command, AppLaunchCommand.withFreeformScale(unscaled, true))
+        assertEquals("z2-intent -p org.example.app --window full",
+            AppLaunchCommand.withMode(unscaled, "full"))
+    }
+
     @Test fun recognitionDoesNotInterpretShellCommands() {
         assertNull(AppLaunchCommand.packageFrom("z2-intent -p org.example.app; echo other"))
         assertNull(AppLaunchCommand.packageFrom("z2-intent -p org.example.app --window freeform | cat"))
@@ -38,6 +49,7 @@ class AppLaunchCommandTest {
         AppLaunch.FreeformOptions(boundsOnly = true).validate("freeform")
         for ((options, mode) in listOf(
             AppLaunch.FreeformOptions(osBounds = true, boundsOnly = true) to "freeform",
+            AppLaunch.FreeformOptions(noScale = true) to "full",
             AppLaunch.FreeformOptions(reuseTask = true) to "full",
             AppLaunch.FreeformOptions(osBounds = true) to "")) {
             try { options.validate(mode); fail("Expected invalid options") }

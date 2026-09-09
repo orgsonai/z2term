@@ -31,6 +31,7 @@ object EdgeItemEditor {
         outer.addView(draft)
         val appCommand = item?.command?.takeIf { AppLaunchCommand.packageFrom(it) != null }
         var launchMode = AppLaunchCommand.modeFrom(appCommand.orEmpty())
+        var scaleFreeform = AppLaunchCommand.scalesFreeform(appCommand.orEmpty())
         val types = listOf("run", "text", "toggle", "list", "input", "note")
         val type = Spinner(context).apply {
             adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
@@ -53,6 +54,19 @@ object EdgeItemEditor {
                 onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                     override fun onNothingSelected(parent: AdapterView<*>?) = Unit
                     override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { launchMode = AppLaunch.modes[position] }
+                }
+            })
+            draft.addView(EdgeEditorUi.label(context, context.getString(R.string.edge_freeform_scale)))
+            draft.addView(Spinner(context).apply {
+                contentDescription = context.getString(R.string.edge_freeform_scale)
+                adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
+                    listOf(R.string.edge_freeform_scaled, R.string.edge_freeform_unscaled).map { context.getString(it) })
+                setSelection(if (scaleFreeform) 0 else 1)
+                onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                    override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+                    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                        scaleFreeform = position == 0
+                    }
                 }
             })
         }
@@ -99,6 +113,7 @@ object EdgeItemEditor {
         session.track(outer) {
             types[type.selectedItemPosition] != (item?.type ?: "run") ||
                 launchMode != AppLaunchCommand.modeFrom(appCommand.orEmpty()) ||
+                scaleFreeform != AppLaunchCommand.scalesFreeform(appCommand.orEmpty()) ||
                 entries.any { (key, entry) -> entry.text.toString() != item?.fields?.get(key).orEmpty() }
         }
         draft.addView(Button(context).apply {
@@ -115,7 +130,9 @@ object EdgeItemEditor {
                         }
                     }
                     if (appCommand != null && AppLaunchCommand.packageFrom(values["run"].orEmpty()) != null) {
-                        values["run"] = AppLaunchCommand.withMode(values.getValue("run"), launchMode)
+                        val modeCommand = AppLaunchCommand.withMode(values.getValue("run"), launchMode)
+                        values["run"] = if (launchMode == "freeform")
+                            AppLaunchCommand.withFreeformScale(modeCommand, scaleFreeform) else modeCommand
                     }
                     EdgeStore.validateItem(values)
                     session.leave(except = outer) {

@@ -1578,6 +1578,7 @@ object Z2ApiBridge {
         var reuseTask = false
         var osBounds = false
         var boundsOnly = false
+        var noScale = false
         var i = 0
         fun next(): String =
             if (i < args.size) args[i++] else throw IllegalArgumentException("intent: missing value")
@@ -1606,6 +1607,7 @@ object Z2ApiBridge {
                 "--reuse-task" -> reuseTask = true
                 "--os-bounds" -> osBounds = true
                 "--bounds-only" -> boundsOnly = true
+                "--no-scale" -> noScale = true
                 "--window" -> {
                     window = next()
                     require(window in com.zerotoship.z2term.edge.AppLaunch.modes) { "intent: --window full|freeform|split|ask" }
@@ -1615,7 +1617,7 @@ object Z2ApiBridge {
             }
         }
         require(window == null || mode == "activity") { "--window requires activity launch" }
-        val freeform = com.zerotoship.z2term.edge.AppLaunch.FreeformOptions(reuseTask, osBounds, boundsOnly)
+        val freeform = com.zerotoship.z2term.edge.AppLaunch.FreeformOptions(reuseTask, osBounds, boundsOnly, noScale)
         freeform.validate(window.orEmpty())
         if (mode == "activity" && intent.action == null && intent.component == null && intent.`package` != null) {
             val launch = context.packageManager.getLaunchIntentForPackage(intent.`package`!!)

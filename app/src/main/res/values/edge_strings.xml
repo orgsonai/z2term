@@ -25,6 +25,9 @@
     <string name="edge_window_freeform">Freeform</string>
     <string name="edge_window_split">Split screen</string>
     <string name="edge_window_ask">Ask every time</string>
+    <string name="edge_freeform_scale">Freeform content size</string>
+    <string name="edge_freeform_scaled">Scaled down (default)</string>
+    <string name="edge_freeform_unscaled">Do not scale down</string>
     <string name="edge_freeform_unavailable">Freeform windows are not enabled on this device.</string>
     <string name="edge_tab_name">Tab name</string>
     <string name="edge_add_tab">+ Tab</string>
