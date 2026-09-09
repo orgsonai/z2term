@@ -112,7 +112,7 @@ class AppPickerActivity : Activity() {
                             "label" to entry.loadLabel(packageManager).toString().replace('\n', ' ').replace('\r', ' '),
                             "icon" to "@app:$pkg"))
                         EdgeRuntime.reload(this)
-                        if (store.enabled()) EdgeRuntime.open(panel)
+                        if (store.enabled()) EdgeRuntime.open(panel, settings = intent.getBooleanExtra("editPanel", false), page = 0)
                     }
                     request?.let { pending[it]?.complete(pkg) }
                     selected = true
@@ -133,6 +133,14 @@ class AppPickerActivity : Activity() {
 
     override fun onDestroy() {
         main.removeCallbacks(expire)
+        if (isFinishing && !isChangingConfigurations && !selected && intent.hasExtra("panel")) {
+            intent.getStringExtra("panel")?.let { panel ->
+                runCatching {
+                    if (EdgeRuntime.store(this).enabled()) EdgeRuntime.open(panel,
+                        settings = intent.getBooleanExtra("editPanel", false), page = 0)
+                }
+            }
+        }
         if (!isChangingConfigurations && !selected) intent.getStringExtra("request")?.let {
             pending[it]?.completeExceptionally(IllegalStateException("App selection cancelled"))
         }

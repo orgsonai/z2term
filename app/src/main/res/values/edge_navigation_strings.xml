@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_discard_title">Discard unsaved changes?</string>
+    <string name="edge_discard_message">Your unsaved edits will be lost.</string>
+    <string name="edge_discard">Discard</string>
+    <string name="edge_keep_editing">Keep editing</string>
+    <string name="edge_select_tab">Select tab</string>
+</resources>

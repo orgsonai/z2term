@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_discard_title">¿Descartar los cambios sin guardar?</string>
+    <string name="edge_discard_message">Se perderán los cambios sin guardar.</string>
+    <string name="edge_discard">Descartar</string>
+    <string name="edge_keep_editing">Seguir editando</string>
+    <string name="edge_select_tab">Seleccionar pestaña</string>
+</resources>

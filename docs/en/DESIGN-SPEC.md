@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-09 / Target version: 0.8.565-alpha (versionCode 573)
+Last updated: 2026-09-09 / Target version: 0.8.567-alpha (versionCode 575)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1037,6 +1037,8 @@ The footer now shows **the macro that finished last**, since start times moved o
 - **Insets**: `enableEdgeToEdge()` plus `windowInsetsPadding(WindowInsets.systemBars)` on the root. targetSdk 35 (Android 15) forces edge-to-edge, and without this the screen **slid under the status bar and the 3-button navigation bar, where it was neither visible nor tappable** (hit on a real device). Any new `Activity` must follow the same pattern as the existing screens. ⚠ **The same applies to full-screen `Dialog`s (`DialogProperties(usePlatformDefaultWidth = false)`)** — the OSS licenses screen hit this in 0.8.560, where **the "Open source" action on the last row of the list sat behind the navigation bar, unreadable and untappable** (user report). ⇒ **Apply the same `windowInsetsPadding` to the contents of any full-screen `Dialog`, not just to activities.** Keep the `Surface` at `fillMaxSize()` so the background still paints edge to edge, and put the padding on the `Column` inside it (the same shape as the full-screen preview in `SftpSheet`).
 - **Macro descriptions**: a list of file names says nothing about what each macro does, so the name (minus `.sh`) now carries a one-line description taken from **the comment at the top of the script** (`WidgetStore.describe`, Android-independent and covered by `WidgetStoreTest`). It skips the shebang and blank lines, and skips a self-referencing line such as `# ~/.z2term/macros/<self>.sh`. For `# <file name> — <description>` the leading file name is dropped (separator `—` / `–` / ` - ` / `:`, and **only when the part before it matches the file's own name** — a prefix like `z2term: …` is kept as part of the description). Truncated at 60 characters.
 
+**OSS license bottom edge (0.8.566)**: Both the list and full-text dialogs use `decorFitsSystemWindows=false` with `WindowInsets.safeDrawing`, avoiding system bars, cutouts, window captions and the IME. Scrollable content uses `weight(1f)` for the height remaining below the header, with 24dp of trailing padding. A weighted title wraps without pushing the Close button off screen.
+
 #### Notification button replies (`NotifyActionReceiver` / `z2-notify -b`, 0.8.169)
 
 **Background**: `z2-*` could only push notifications out — there was no way to get an answer back.
@@ -1863,7 +1865,7 @@ do not know" immediately** instead of waiting out a timeout.
 
 #### Scroll region (DECSTBM)
 
-Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the top row into scrollback **only when the region is the whole screen**. With a custom `DECSTBM` region set it **scrolls within the region only**, leaving the fixed rows outside it untouched and out of scrollback (0.8.105).
+LF/IND and explicit scroll-up (SU) move only rows inside the specified region. On the primary screen, a region starting at the screen top retains displaced text in scrollback even when its bottom stops above a fixed input/footer row (0.8.567). TUIs that update text above a fixed composer therefore retain off-screen history. Interior regions, alternate screens and line deletion (DL) do not add history. Fixed rows remain in place, and a line feed below the region does not scroll its contents.
 
 **The symptom before the fix**: the region was ignored and a full-screen scrollUp was issued, so a TUI keeping a status/command row (line numbers, a ruler) pinned at the bottom via `DECSTBM` had that fixed row pushed up one line per newline — "the line number gets burned into every row". `ScrollRegionLineFeedTest` pins the regression.
 
@@ -2191,9 +2193,14 @@ Line-feed scrolling (`lineFeed`/IND) performs the normal scroll that pushes the 
 ### 4.14 Edge panels (`edge/`, 0.8.549)
 
 From 0.8.562, panels show only their items by default. Empty panels have no message or controls. Existing definitions are retained and use the new defaults.
-**Hold panel whitespace to open settings. Hold a handle for 300ms, then release without moving to open settings; drag to move it as before. A tap-to-open button moves as soon as you drag it (0.8.565).** Done or Back returns to the panel.
+**Hold panel whitespace to open settings. Hold a handle for 300ms, then release without moving to open settings; drag to move it as before. A tap-to-open button moves as soon as you drag it (0.8.565).** Done or Back returns to the panel, asking before discarding unsaved edits (0.8.567). If the keyboard is visible, Back hides only the keyboard and keeps settings open.
 Settings use a separate screen independent of panel width. Opening settings does not execute item commands or periodic readers.
-Adjust appearance previews requested dimensions/placement in a display diagram and handle changes on the actual handles. Only Save writes definitions; Cancel, close, tab changes, screen-off and reload discard the draft.
+From 0.8.566, the editor has Items, Appearance and Manage pages. Items show icons and names; tap a row or Edit to change it. Move items with the up/down arrows or hold and drag. App launch mode and label are in the basic form; commands and polling options are under Advanced settings. Removing an item requires confirmation in its editor and preserves note files.
+Appearance groups size/position, icons/layout, title/controls and handles into collapsible sections. The size diagram and Save/Cancel buttons stay visible while the form scrolls; handle changes preview on the actual handles. While the IME is visible, the diagram collapses and fields scroll in the remaining space above the keyboard. Only Save writes definitions. Cancel, close and page/tab changes ask before discarding unsaved edits; screen-off and external reload still discard drafts. Items/Appearance/Manage and panel tabs replace content within the same overlay window, without exposing the app behind it (0.8.567). Manage contains names, panel/tab creation and deletion.
+
+Enable “Show + app button” under Appearance → Title, tabs and buttons to add apps directly from the normal menu. Cancelling app selection returns to that menu. Hold and drag a run item to reorder it; drop into the first/second half of a target to place it before/after (vertical halves in a column, horizontal halves in a row or grid). Targets are outlined and dragging at an edge scrolls. Dropping outside leaves order unchanged. Whitespace long-press still opens settings (0.8.567).
+
+Menus with child tabs allow direct selection in normal use. When the tab strip is hidden, tap the current tab name at the top to choose a tab (0.8.567).
 
 Presentation fields belong to the parent panel and apply to all its tabs. Settings have no separate persistent state.
 Every presentation setting below is also writable with `z2-edge panel ID key=value ...`; `z2-edge get ID` reads saved fields.
@@ -2215,7 +2222,7 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Add/edit/delete/reorder items | `set ID:item key=value ...` / `remove ID:item` / `set ID:item order=N` |
 | App launch mode / add note | Item `run=z2-intent -p PACKAGE --window MODE` / `type=note` |
 
-Optional add/settings controls are icons at the end. Tab/note addition, item editing and reordering live in settings.
+Optional add/settings controls are icons at the end. Tab/note addition and item editing live in settings. Run items can also be reordered directly in the menu.
 Vertical, horizontal and grid layouts are available; horizontal rows scroll sideways. Automatic grid columns follow icon size; an explicit flow applies to all item types.
 `layout=grid|list` remains the per-tab default. With flow omitted, grid arranges run items only and leaves other types in rows below.
 
@@ -2241,7 +2248,7 @@ An open deleted panel closes and its handle disappears. Use `remove ID:item` to 
 App addition offers Full screen (normal launch), Freeform, Split screen, and Ask every time.
 The choice is saved in `run=z2-intent -p PACKAGE --window full|freeform|split|ask` and can also be edited through the CLI.
 
-Add item and Edit item support all six item types. Blank optional fields clear their settings. Cancel discards input; saving an item changed externally is rejected.
+Add item and Edit support all six item types. Blank optional fields clear their settings. Cancel discards input; saving an item changed externally is rejected.
 Screen off hides panels and handles. Wake and unlock notifications trigger another check of unlock state before restoring handles. Screen off and service shutdown cancel waiting. Transient drawing failures no longer unregister wake notifications.
 
 Panel and tab deletion requires confirmation within Settings. Notes are saved before deletion; local note files are removed with the panel, while external note files and child tabs are retained. Deleting the last panel disables panels.
@@ -2253,15 +2260,16 @@ Freeform launch behavior can be adjusted with options after `z2-intent --window 
 
 | Option | Launch behavior |
 |---|---|
-| `--reuse-task` | Clear the multiple-task flag to allow existing-task reuse |
-| `--os-bounds` | Let the OS choose window position and size |
-| `--bounds-only` | Send the public bounds request without the private window-mode key |
+| `--reuse-task` | Allow task reuse (the default since 0.8.566; kept for saved commands) |
+| `--os-bounds` | Let the OS choose position and size (the default since 0.8.566; kept for compatibility) |
+| `--bounds-only` | For comparison, request inner 80% bounds without the private window-mode key |
 
-Defaults retain the multiple-task flag, inner 80% bounds and window-mode key. `--reuse-task --os-bounds` can be combined. Combining `--bounds-only` with `--os-bounds`, or using these options outside freeform mode, is rejected.
+Since 0.8.566, the default clears the multiple-task flag and requests only the window mode, leaving existing tasks and remembered bounds to Android. Launches no longer submit inner 80% bounds every time. `--reuse-task --os-bounds` can be combined. Combining `--bounds-only` with `--os-bounds`, or using these options outside freeform mode, is rejected.
 These switches allow comparison with the device’s standard launch path. Whether they resolve layout changes during navigation or restore window decoration still requires device verification. They do not change OS settings.
 
-By default, freeform requests bounds for a new task. Split brings the terminal to the foreground and launches a new task beside it. Apps that enforce a single task remain subject to OS restrictions.
-No external app or root is used. Freeform requests `ActivityOptions.setLaunchBounds` and the non-public AOSP Bundle key `android.activity.windowingMode=5`, whose support depends on the OS. Split requests `FLAG_ACTIVITY_LAUNCH_ADJACENT`.
+Freeform position, size, movement, resizing and decoration belong to the OS. Navigation and resize/maximize rendering problems remain unresolved. OS-standard launches can behave correctly, so launch-request differences must be compared before attributing the issue to the target app. No overlay is added to track external window borders. Split brings the terminal to the foreground and launches a new task beside it.
+Reported differences include OS-standard windows scaling the entire content while this launch path only narrows the viewport, followed by full-size content returning inside the window when moving it after navigation. Bounds-only launches can show the same problem; adjusting initial bounds is not considered a fix.
+No external app or root is used. Freeform requests the non-public AOSP Bundle key `android.activity.windowingMode=5`, whose support depends on the OS. `ActivityOptions.setLaunchBounds` is used only for explicit `--bounds-only` requests. Split requests `FLAG_ACTIVITY_LAUNCH_ADJACENT`.
 Freeform fails if not enabled on the device. Entering split screen is supported from Android 12L; earlier versions require an existing split session.
 The OS controls the final mode and reuse of existing tasks. Full screen means ordinary launch, not forced maximization of an existing window.
 

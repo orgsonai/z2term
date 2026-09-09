@@ -16,7 +16,6 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.view.ContextThemeWrapper
 import android.view.Gravity
-import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
@@ -53,12 +52,14 @@ object EdgeRuntime {
     private val revisions = mutableMapOf<String, Int>()
     private val scheduled = mutableListOf<Runnable>()
     private val retries = mutableMapOf<String, Runnable>()
-    private var panelView: View? = null
+    private var panelView: EdgePanelWindow? = null
+    private var editorSession: EdgeEditorSession? = null
     private var snapPreview: View? = null
     private var openId: String? = null
     private var openRootId: String? = null
     private val notes = mutableMapOf<String, EdgeNote>()
     private var editingItems = false
+    private var editorPage = 0
     private var cancelAppearance: (() -> Unit)? = null
     private var wakeRestore: Runnable? = null
     private data class ItemDrag(val panel: String, val item: String)
@@ -130,11 +131,11 @@ object EdgeRuntime {
         main.post(task)
     }
 
-    private fun colors(): Pair<Int, Int> = if (windowContext!!.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES)
-        Color.rgb(29, 31, 33) to Color.rgb(237, 238, 239) else Color.rgb(250, 250, 250) to Color.rgb(25, 27, 29)
+    private fun colors(): Pair<Int, Int> = EdgeEditorUi.surface(ui()) to EdgeEditorUi.foreground(ui())
     private fun background(round: Boolean = false) = GradientDrawable().apply {
         setColor(colors().first)
-        setStroke(dp(1).coerceAtLeast(1), Color.GRAY)
+        setStroke(dp(1).coerceAtLeast(1), EdgeEditorUi.line(ui()))
+        cornerRadius = dp(6).toFloat()
         if (round) cornerRadius = dp(96).toFloat()
     }
     private fun text(label: String, size: Float = 16f) = TextView(ui()).apply {
@@ -245,7 +246,8 @@ object EdgeRuntime {
         initialize(context)
         val previous = openRootId
         val wasEditing = editingItems
-        close(); removeHandles(); iconCache.evictAll()
+        clearPanel(keepWindow = unlocked() && loaded.any { it.id == previous })
+        removeHandles(); iconCache.evictAll()
         panels = loaded
         val targets = panels.flatMap { p -> p.items.map { "${p.id}:${it.id}" } }.toSet()
         values.keys.retainAll(targets); revisions.keys.retainAll(targets)
@@ -400,7 +402,7 @@ object EdgeRuntime {
                         main.removeCallbacks(longPress)
                         if (relocating && !moved) {
                             releaseAppearance()
-                            runCatching { open(panel.id, settings = true) }.onFailure { fail(it) }
+                            leaveEditor { open(panel.id, settings = true) }
                         } else if (!button && relocating) {
                             runCatching {
                                 val side = if (p.x + w / 2 < width / 2) "left" else "right"
@@ -435,19 +437,26 @@ object EdgeRuntime {
         }
     }
 
+    private fun leaveEditor(action: () -> Unit) {
+        val guarded = { runCatching(action).onFailure { fail(it) }; Unit }
+        val session = editorSession
+        if (session != null) session.leave(action = guarded) else guarded()
+    }
+
     private fun activateHandle(panel: EdgeStore.Panel) {
         if (!unlocked()) return
-        runCatching {
+        leaveEditor {
             val command = panel.fields["run"].orEmpty()
             if (command.isNotBlank()) {
                 close()
                 val accepted = runner!!.run("handle:${panel.id}", command, 30) { if (it.error != null) fail(IllegalStateException(it.error)) }
                 if (!accepted) fail(IllegalStateException(app!!.getString(R.string.edge_busy)))
             } else if (openRootId == panel.id) close() else open(panel.id)
-        }.onFailure { fail(it) }
+        }
     }
 
-    fun open(id: String, toggle: Boolean = false, tabId: String? = null, settings: Boolean = false): Unit = onMain {
+    fun open(id: String, toggle: Boolean = false, tabId: String? = null, settings: Boolean = false,
+        page: Int = editorPage): Unit = onMain {
         if (toggle && openRootId == id) { close(); return@onMain }
         require(app != null && store(app!!).enabled()) { "Enable the panel first: z2-edge on" }
         require(unlocked()) { "Unlock the screen before opening the panel" }
@@ -455,8 +464,12 @@ object EdgeRuntime {
         val root = panels.firstOrNull { id in it.tabs } ?: requested
         val active = tabId ?: if (root.id != id) id else selectedTabs[root.id]
         val panel = panels.firstOrNull { it.id == active && (it.id == root.id || it.id in root.tabs) } ?: root
-        close()
+        val existingWindow = panelView
+        clearPanel(keepWindow = existingWindow != null)
+        val session = EdgeEditorSession(ui())
+        editorSession = session
         editingItems = settings
+        editorPage = page
         selectedTabs[root.id] = panel.id
         openRootId = root.id
         openId = panel.id
@@ -478,22 +491,18 @@ object EdgeRuntime {
                 }
             }
             val header = LinearLayout(ui()).apply { gravity = Gravity.CENTER_VERTICAL }
-            if (settings || root.fields["title"] == "on") header.addView(text(if (settings) app!!.getString(R.string.edge_settings) else root.fields["label"] ?: root.id).apply { setTypeface(null, Typeface.BOLD) },
+            if (settings || root.fields["title"] == "on") header.addView(text(if (settings) app!!.getString(R.string.edge_edit_panel, root.fields["label"] ?: root.id) else root.fields["label"] ?: root.id).apply { setTypeface(null, Typeface.BOLD) },
                 LinearLayout.LayoutParams(0, -2, 1f))
-            if (settings || root.fields["close"] == "on") header.addView(Button(ui()).apply {
-                text = if (settings) app!!.getString(R.string.edge_done) else "×"
-                contentDescription = app!!.getString(if (settings) R.string.edge_done else R.string.edge_close)
-                if (!settings) { minWidth = 0; minimumWidth = 0; setPadding(0, 0, 0, 0); layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)) }
-                setOnClickListener { if (settings) open(root.id, tabId = panel.id) else close() }
+            if (settings || root.fields["close"] == "on") header.addView(EdgeEditorUi.button(ui(),
+                app!!.getString(if (settings) R.string.edge_done else R.string.edge_close)) {
+                session.leave { if (settings) open(root.id, tabId = panel.id) else close() }
             })
             if (header.childCount > 0) body.addView(header)
             val tabs = LinearLayout(ui())
             (listOf(root.id) + root.tabs).forEach { childId ->
                 val child = panels.first { it.id == childId }
-                tabs.addView(Button(ui()).apply {
-                    text = child.fields["label"] ?: child.id
-                    isEnabled = childId != panel.id
-                    setOnClickListener { runCatching { open(root.id, tabId = childId, settings = settings) }.onFailure { fail(it) } }
+                tabs.addView(EdgeEditorUi.button(ui(), child.fields["label"] ?: child.id, childId == panel.id) {
+                    if (childId != panel.id) session.leave { runCatching { open(root.id, tabId = childId, settings = settings) }.onFailure { fail(it) } }
                 })
             }
             val tabEntry = LinearLayout(ui()).apply { visibility = View.GONE }
@@ -501,68 +510,101 @@ object EdgeRuntime {
             tabEntry.addView(tabName, LinearLayout.LayoutParams(0, -2, 1f))
             tabEntry.addView(Button(ui()).apply {
                 text = app!!.getString(R.string.edge_add)
-                setOnClickListener { runCatching {
+                setOnClickListener { session.leave(except = tabName) { runCatching {
                     val name = tabName.text.toString().trim(); require(name.isNotEmpty()) { "Enter a tab name" }
                     val childId = "tab_" + java.util.UUID.randomUUID().toString().replace("-", "")
                     store(app!!).addTab(root.id, childId, name)
                     selectedTabs[root.id] = childId; reload(app!!)
-                }.onFailure { fail(it) } }
+                }.onFailure { fail(it) } } }
             })
-            if (settings) tabs.addView(Button(ui()).apply {
+            if (settings && page == 2) tabs.addView(Button(ui()).apply {
                 text = app!!.getString(R.string.edge_add_tab)
                 setOnClickListener { tabEntry.visibility = if (tabEntry.visibility == View.VISIBLE) View.GONE else View.VISIBLE }
             })
-            if (settings || root.fields["tabbar"] == "on" || (root.fields["tabbar"] == "auto" && root.tabs.isNotEmpty()))
-                body.addView(android.widget.HorizontalScrollView(ui()).apply { addView(tabs) })
-            if (settings) body.addView(tabEntry)
-            val tools = LinearLayout(ui()).apply { if (!settings) orientation = LinearLayout.VERTICAL }
-            if (settings || root.fields["add"] == "on") tools.addView(Button(ui()).apply {
+            val showTabBar = settings || root.fields["tabbar"] == "on" ||
+                (root.fields["tabbar"] == "auto" && root.tabs.isNotEmpty())
+            if (showTabBar) body.addView(android.widget.HorizontalScrollView(ui()).apply { addView(tabs) })
+            else if (root.tabs.isNotEmpty()) {
+                val choices = (listOf(root.id) + root.tabs).map { id -> panels.first { it.id == id } }
+                body.addView(android.widget.Spinner(ui()).apply {
+                    contentDescription = app!!.getString(R.string.edge_select_tab)
+                    adapter = android.widget.ArrayAdapter(ui(), android.R.layout.simple_spinner_dropdown_item,
+                        choices.map { it.fields["label"] ?: it.id })
+                    setSelection(choices.indexOfFirst { it.id == panel.id })
+                    minimumHeight = dp(48)
+                    onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                        override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+                        override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                            val selected = choices[position].id
+                            if (selected != panel.id) runCatching { open(root.id, tabId = selected) }.onFailure { fail(it) }
+                        }
+                    }
+                }, LinearLayout.LayoutParams(-1, -2))
+            }
+            if (settings) {
+                session.track(tabName) { tabName.text.isNotEmpty() }
+                body.addView(tabEntry)
+            }
+            if (settings) {
+                val navigation = LinearLayout(ui())
+                listOf(R.string.edge_page_items, R.string.edge_page_appearance, R.string.edge_page_manage).forEachIndexed { index, label ->
+                    navigation.addView(EdgeEditorUi.button(ui(), app!!.getString(label), page == index) {
+                        if (page != index) session.leave { open(root.id, tabId = panel.id, settings = true, page = index) }
+                    }, LinearLayout.LayoutParams(0, -2, 1f))
+                }
+                body.addView(navigation)
+                body.addView(EdgeEditorUi.divider(ui()))
+            }
+            val tools = LinearLayout(ui()).apply { gravity = Gravity.END }
+            if (settings || root.fields["add"] == "on") tools.addView(EdgeEditorUi.button(ui(), "") {}.apply {
                 text = if (settings) app!!.getString(R.string.edge_add_app) else "+"
                 contentDescription = app!!.getString(R.string.edge_add_app)
                 if (!settings) { minWidth = 0; minimumWidth = 0; setPadding(0, 0, 0, 0); layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)) }
-                setOnClickListener {
+                setOnClickListener { session.leave {
                     val context = app!!
                     close()
                     runCatching { context.startActivity(Intent(context, AppPickerActivity::class.java)
-                        .putExtra("panel", panel.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { fail(it) }
-                }
+                        .putExtra("panel", panel.id).putExtra("editPanel", settings)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { fail(it) }
+                } }
             })
-            if (settings) tools.addView(Button(ui()).apply {
-                text = app!!.getString(if (panel.fields["layout"] == "grid") R.string.edge_layout_list else R.string.edge_layout_grid)
-                setOnClickListener { runCatching {
-                    store(app!!).setPanel(panel.id, mapOf("layout" to if (panel.fields["layout"] == "grid") "list" else "grid"))
-                    reload(app!!)
-                }.onFailure { fail(it) } }
-            })
-            if (!settings && root.fields["settings"] == "on") tools.addView(Button(ui()).apply {
+            if (!settings && root.fields["settings"] == "on") tools.addView(EdgeEditorUi.button(ui(), "") {}.apply {
                 text = "⚙"; contentDescription = app!!.getString(R.string.edge_settings)
                 minWidth = 0; minimumWidth = 0; setPadding(0, 0, 0, 0); layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
                 setOnClickListener { open(root.id, tabId = panel.id, settings = true) }
             })
-            if (settings) tools.addView(Button(ui()).apply {
+            if (settings) tools.addView(EdgeEditorUi.button(ui(), "") {}.apply {
                 text = app!!.getString(R.string.edge_add_note)
-                setOnClickListener { runCatching {
+                setOnClickListener { session.leave { runCatching {
                     val noteId = "note_" + java.util.UUID.randomUUID().toString().replace("-", "")
                     store(app!!).setItem("${panel.id}:$noteId", mapOf("type" to "note", "label" to app!!.getString(R.string.edge_note)))
                     reload(app!!)
-                }.onFailure { fail(it) } }
+                }.onFailure { fail(it) } } }
             })
-            val rows = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
+            val rows = LinearLayout(ui()).apply {
+                orientation = LinearLayout.VERTICAL
+                if (settings) setPadding(0, dp(4), 0, dp(16))
+            }
             val scroll = ScrollView(ui()).apply { isFillViewport = false; addView(rows) }
             if (!settings) scroll.setOnLongClickListener {
                 runCatching { open(root.id, tabId = panel.id, settings = true) }.onFailure { fail(it) }
                 true
             }
-            body.addView(scroll, LinearLayout.LayoutParams(-1, -2, 1f))
+            body.addView(scroll, LinearLayout.LayoutParams(-1, if (settings) 0 else -2, 1f))
             if (!settings) rows.setOnLongClickListener {
                 runCatching { open(root.id, tabId = panel.id, settings = true) }.onFailure { fail(it) }; true
             }
-            if (settings) rows.addView(android.widget.HorizontalScrollView(ui()).apply { addView(tools) })
-            val appearancePreview = if (settings) EdgePanelPreview(ui(), root.fields, width, height) else null
-            if (appearancePreview != null) body.addView(appearancePreview, body.indexOfChild(scroll), LinearLayout.LayoutParams(-1, minOf(dp(140), height / 5)))
-            if (editingItems) rows.addView(EdgeAppearanceEditor.create(ui(), root, store(app!!), width, height, preview = { draft ->
+            if (settings && page == 0) {
+                rows.addView(EdgeEditorUi.label(ui(), app!!.getString(R.string.edge_items_help), secondary = true))
+                rows.addView(tools)
+                rows.addView(EdgeItemEditor.create(ui(), panel.id, null, store(app!!),
+                    beforeSave = { saveNotes() }, saved = { reload(app!!) }, session = session))
+                if (panel.items.isEmpty()) rows.addView(EdgeEditorUi.label(ui(), app!!.getString(R.string.edge_empty), secondary = true))
+            }
+            if (settings && page == 1) {
+                scroll.visibility = View.GONE
+                body.addView(EdgeAppearanceEditor.create(ui(), root, store(app!!), width, height, preview = { draft ->
                 val fields = root.fields + draft
-                appearancePreview?.update(fields)
                 val original = panels
                 cancelAppearance = { if (unlocked()) showHandles() }
                 try {
@@ -571,8 +613,9 @@ object EdgeRuntime {
                     // A preview must not persist position changes through handle dragging.
                     handles.values.forEach { it.setOnTouchListener { _, _ -> true } }
                 } finally { panels = original }
-            }, finish = { reload(app!!) }))
-            if (editingItems) rows.addView(EdgePanelEditor.create(ui(), root, panel, store(app!!), remove = { id ->
+                }, finish = { reload(app!!) }, session = session), LinearLayout.LayoutParams(-1, 0, 1f))
+            }
+            if (settings && page == 2) rows.addView(EdgePanelEditor.create(ui(), root, panel, store(app!!), session, remove = { id ->
                 close() // Flush notes before removing their owning directory.
                 store(app!!).removePanel(id)
                 val remaining = store(app!!).panels()
@@ -586,14 +629,12 @@ object EdgeRuntime {
                 reload(app!!)
                 open(id, settings = true)
             })
-            if (editingItems) rows.addView(EdgeItemEditor.create(ui(), panel.id, null, store(app!!),
-                beforeSave = { saveNotes() }, saved = { reload(app!!) }))
             val iconSize = root.fields["icon-size"]?.toIntOrNull() ?: 40
             val flow = root.fields["flow"]?.takeIf { it.isNotEmpty() } ?: if (panel.fields["layout"] == "grid") "grid" else "vertical"
             val labels = root.fields["labels"].orEmpty()
             val iconOnly = labels == "off" || (labels.isEmpty() && panel.fields["layout"] == "grid")
             if (settings) {
-                panel.items.forEach { addSettingsItem(rows, panel.id, it) }
+                if (page == 0) panel.items.forEach { addSettingsItem(rows, panel.id, it) }
             } else if (flow == "grid") {
                 val columns = (root.fields["columns"]?.toIntOrNull()
                     ?: (panelWidth / dp(iconSize + 24).coerceAtLeast(1))).coerceIn(1, 16)
@@ -605,7 +646,7 @@ object EdgeRuntime {
                     group.forEach { item ->
                         val cell = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
                         line.addView(cell, LinearLayout.LayoutParams(0, -2, 1f))
-                        addItem(cell, panel.id, item, iconOnly, iconSize)
+                        addItem(cell, panel.id, item, iconOnly, iconSize, horizontalOrder = true)
                     }
                     repeat(columns - group.size) { line.addView(View(ui()), LinearLayout.LayoutParams(0, 1, 1f)) }
                 }
@@ -616,7 +657,7 @@ object EdgeRuntime {
                 panel.items.forEach { item ->
                     val cell = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
                     line.addView(cell, LinearLayout.LayoutParams(if (item.type == "run" && iconOnly) dp(iconSize + 24) else dp(240), -2))
-                    addItem(cell, panel.id, item, iconOnly, iconSize)
+                    addItem(cell, panel.id, item, iconOnly, iconSize, horizontalOrder = true)
                 }
             } else panel.items.forEach { addItem(rows, panel.id, it, iconOnly, iconSize) }
             if (!settings && tools.childCount > 0) rows.addView(tools)
@@ -631,42 +672,41 @@ object EdgeRuntime {
                     event.action != android.view.DragEvent.ACTION_DROP
                 }
             }
-            val overlay = object : FrameLayout(ui()) {
-                override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-                    if (event.keyCode == KeyEvent.KEYCODE_BACK) {
-                        if (event.action == KeyEvent.ACTION_UP) { if (settings) open(root.id, tabId = panel.id) else close() }
-                        return true
-                    }
-                    return super.dispatchKeyEvent(event)
-                }
-            }.apply {
-                isFocusableInTouchMode = true
-                setOnClickListener { close() }
-                if (!settings) setOnLongClickListener {
+            val overlay = (existingWindow ?: EdgePanelWindow(ui())).apply {
+                back = { session.leave { if (settings) open(root.id, tabId = panel.id) else close() } }
+                setOnClickListener { session.leave { close() } }
+                setOnLongClickListener(if (settings) null else View.OnLongClickListener {
                     runCatching { open(root.id, tabId = panel.id, settings = true) }.onFailure { fail(it) }
                     true
-                }
+                })
+                contentAlignment?.let { removeOnLayoutChangeListener(it) }
+                removeAllViews()
             }
-            overlay.addView(body, FrameLayout.LayoutParams(panelWidth, -2).apply {
+            overlay.addView(body, FrameLayout.LayoutParams(if (settings) -1 else panelWidth, -2).apply {
                 val position = if (settings) 0f to 0f else EdgePanelPosition.fractions(root.fields)
                 gravity = Gravity.TOP or Gravity.LEFT
                 // Use measured content size, including changes when the keyboard appears.
                 val align = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
                     body.translationX = (overlay.width - body.width).coerceAtLeast(0) * position.first
-                    body.translationY = (overlay.height - body.height).coerceAtLeast(0) * position.second
+                    body.translationY = (overlay.height - overlay.paddingBottom - body.height).coerceAtLeast(0) * position.second
                 }
                 body.addOnLayoutChangeListener(align)
+                overlay.contentAlignment = align
                 overlay.addOnLayoutChangeListener(align)
             })
             val p = params(-1, -1, focus = true).apply {
                 flags = flags and (WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH).inv()
-                softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                softInputMode = if (android.os.Build.VERSION.SDK_INT >= 30)
+                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING else WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                if (android.os.Build.VERSION.SDK_INT >= 30) setFitInsetsTypes(
+                    android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout())
             }
             // Register before adding so every failure path can remove the touch-blocking window.
             panelView = overlay
-            wm().addView(overlay, p)
+            if (existingWindow == null) wm().addView(overlay, p)
             overlay.requestFocus()
+            overlay.requestApplyInsets()
             if (!settings && panel.items.any { it.type == "note" }) {
                 val autosave = object : Runnable {
                     override fun run() {
@@ -704,7 +744,12 @@ object EdgeRuntime {
         }
     }
 
-    fun close() = onMain {
+    fun close() = onMain { clearPanel(keepWindow = false) }
+
+    private fun clearPanel(keepWindow: Boolean) {
+        editorSession?.dispose()
+        editorSession = null
+        panelView?.hideKeyboard()
         val cancel = cancelAppearance
         cancelAppearance = null
         runCatching { cancel?.invoke() }.onFailure { fail(it) }
@@ -715,61 +760,118 @@ object EdgeRuntime {
         retries.values.forEach { main.removeCallbacks(it) }; retries.clear()
         // Stop hidden data producers. Explicit actions can finish (including out=notify).
         runner?.cancelReads()
-        panelView?.let { runCatching { wm().removeView(it) } }
-        panelView = null; openId = null; openRootId = null; editingItems = false; renderers.clear()
+        if (!keepWindow) {
+            panelView?.let { runCatching { wm().removeView(it) } }
+            panelView = null
+        }
+        openId = null; openRootId = null; editingItems = false; renderers.clear()
     }
 
     private fun addSettingsItem(rows: LinearLayout, panelId: String, item: EdgeStore.Item) {
-        val target = "$panelId:${item.id}"
         val pkg = packageFrom(item.command)
         val row = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL }
-        row.addView(text(item.fields["label"] ?: item.id).apply {
-            setTypeface(null, Typeface.BOLD)
-            setOnLongClickListener { it.startDragAndDrop(null, View.DragShadowBuilder(it), ItemDrag(panelId, item.id), 0) }
-        })
-        run {
-            val controls = LinearLayout(ui())
-            controls.addView(Button(ui()).apply {
-                text = app!!.getString(R.string.edge_delete)
-                setOnClickListener { runCatching { store(app!!).removeItem(target); reload(app!!) }.onFailure { fail(it) } }
-            })
-            if (pkg != null) {
-                val choices = AppLaunch.modes
-                val mode = AppLaunchCommand.modeFrom(item.command)
-                val picker = android.widget.Spinner(ui())
-                picker.adapter = android.widget.ArrayAdapter(ui(), android.R.layout.simple_spinner_dropdown_item,
-                    listOf(R.string.edge_window_full, R.string.edge_window_freeform, R.string.edge_window_split, R.string.edge_window_ask)
-                        .map { app!!.getString(it) })
-                picker.setSelection(choices.indexOf(mode))
-                picker.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                    override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
-                    override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
-                        if (choices[position] != mode) runCatching {
-                            store(app!!).setItem(target, mapOf("run" to AppLaunchCommand.withMode(item.command, choices[position])))
-                            reload(app!!)
-                        }.onFailure { fail(it) }
-                    }
-                }
-                controls.addView(picker, LinearLayout.LayoutParams(0, -2, 1f))
-            }
-            row.addView(controls)
-            row.addView(EdgeItemEditor.create(ui(), panelId, item, store(app!!),
-                beforeSave = { saveNotes() }, saved = { reload(app!!) }))
-        }
+        rows.addView(EdgeEditorUi.divider(ui()))
+        val heading = LinearLayout(ui()).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(12), dp(4), dp(4), dp(4)) }
+        addIcon(heading, item.fields["icon"] ?: pkg?.let { "@app:$it" } ?: "≡", 32)
+        val name = item.fields["label"] ?: item.id
+        heading.addView(text(name).apply { setTypeface(null, Typeface.BOLD) }, LinearLayout.LayoutParams(0, -2, 1f))
+        row.addView(heading)
+        addItemEditControls(row, heading, panelId, item)
         row.setOnDragListener { _, event ->
             val drag = event.localState as? ItemDrag
             if (drag?.panel != panelId) false else {
-                if (event.action == android.view.DragEvent.ACTION_DROP) runCatching {
+                if (event.action == android.view.DragEvent.ACTION_DROP) editorSession?.leave { runCatching {
                     store(app!!).moveItem(panelId, drag.item, item.id, event.y >= row.height / 2)
                     reload(app!!)
-                }.onFailure { fail(it) }
+                }.onFailure { fail(it) } }
                 true
             }
         }
         rows.addView(row)
     }
 
-    private fun addItem(rows: LinearLayout, panelId: String, item: EdgeStore.Item, iconOnly: Boolean = false, iconSize: Int = 40) {
+    private fun addItemEditControls(row: LinearLayout, heading: LinearLayout, panelId: String, item: EdgeStore.Item) {
+        val items = panels.first { it.id == panelId }.items
+        val index = items.indexOfFirst { it.id == item.id }
+        listOf(-1 to R.string.edge_move_up, 1 to R.string.edge_move_down).forEach { (delta, label) ->
+            heading.addView(EdgeEditorUi.button(ui(), if (delta < 0) "↑" else "↓") {
+                editorSession?.leave { runCatching {
+                    val current = store(app!!).panel(panelId).items
+                    val from = current.indexOfFirst { it.id == item.id }
+                    val to = from + delta
+                    if (from >= 0 && to in current.indices) {
+                        store(app!!).moveItem(panelId, item.id, current[to].id, after = delta > 0)
+                        reload(app!!)
+                    }
+                }.onFailure { fail(it) } }
+            }.apply {
+                contentDescription = app!!.getString(label, item.fields["label"] ?: item.id)
+                isEnabled = index + delta in items.indices
+                alpha = if (isEnabled) 1f else 0.3f
+            }, LinearLayout.LayoutParams(dp(48), dp(48)))
+        }
+        val details = LinearLayout(ui()).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
+        fun edit() {
+            if (details.visibility == View.VISIBLE) return
+            details.removeAllViews()
+            details.addView(EdgeItemEditor.create(ui(), panelId, item, store(app!!),
+                beforeSave = { saveNotes() }, saved = { reload(app!!) }, expanded = true,
+                cancelled = { details.removeAllViews(); details.visibility = View.GONE },
+                onDelete = { store(app!!).removeItem("$panelId:${item.id}"); reload(app!!) }, session = editorSession!!))
+            details.visibility = View.VISIBLE
+        }
+        row.addView(LinearLayout(ui()).apply {
+            gravity = Gravity.END
+            addView(EdgeEditorUi.button(ui(), app!!.getString(R.string.edge_edit), action = ::edit))
+        })
+        row.addView(details)
+        heading.setOnClickListener { edit() }
+        heading.setOnLongClickListener { it.startDragAndDrop(null, View.DragShadowBuilder(it), ItemDrag(panelId, item.id), 0) }
+    }
+
+    private fun enableMenuDrop(row: View, panelId: String, itemId: String, horizontal: Boolean) {
+        row.setOnDragListener { _, event ->
+            val drag = event.localState as? ItemDrag
+            if (drag?.panel != panelId) false else {
+                when (event.action) {
+                    android.view.DragEvent.ACTION_DRAG_ENTERED -> if (drag.item != itemId) {
+                        row.foreground = GradientDrawable().apply {
+                            setColor(Color.TRANSPARENT)
+                            setStroke(dp(2).coerceAtLeast(1), EdgeEditorUi.accent(ui()))
+                        }
+                    }
+                    android.view.DragEvent.ACTION_DRAG_LOCATION -> {
+                        val source = IntArray(2)
+                        row.getLocationInWindow(source)
+                        var parent = row.parent
+                        while (parent is View) {
+                            val location = IntArray(2)
+                            parent.getLocationInWindow(location)
+                            if (parent is ScrollView) {
+                                val y = source[1] + event.y - location[1]
+                                if (y < dp(40)) parent.smoothScrollBy(0, -dp(24))
+                                else if (y > parent.height - dp(40)) parent.smoothScrollBy(0, dp(24))
+                            } else if (parent is android.widget.HorizontalScrollView) {
+                                val x = source[0] + event.x - location[0]
+                                if (x < dp(40)) parent.smoothScrollBy(-dp(24), 0)
+                                else if (x > parent.width - dp(40)) parent.smoothScrollBy(dp(24), 0)
+                            }
+                            parent = parent.parent
+                        }
+                    }
+                    android.view.DragEvent.ACTION_DROP -> if (drag.item != itemId) runCatching {
+                        val after = if (horizontal) event.x >= row.width / 2 else event.y >= row.height / 2
+                        store(app!!).moveItem(panelId, drag.item, itemId, after)
+                        reload(app!!)
+                    }.onFailure { fail(it) }
+                    android.view.DragEvent.ACTION_DRAG_EXITED, android.view.DragEvent.ACTION_DRAG_ENDED -> row.foreground = null
+                }
+                true
+            }
+        }
+    }
+
+    private fun addItem(rows: LinearLayout, panelId: String, item: EdgeStore.Item, iconOnly: Boolean = false, iconSize: Int = 40, horizontalOrder: Boolean = false) {
         val target = "$panelId:${item.id}"
         val row = LinearLayout(ui()).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(8), dp(4), dp(8), dp(8))
@@ -784,8 +886,9 @@ object EdgeRuntime {
         title.contentDescription = label
         title.tooltipText = label
         if (iconOnly) title.gravity = Gravity.CENTER
-        else title.addView(text(label).apply { setTypeface(null, Typeface.BOLD) }, LinearLayout.LayoutParams(0, -2, 1f))
+        else title.addView(text(label, 15f), LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(title)
+        enableMenuDrop(row, panelId, item.id, horizontalOrder)
         if (Regex("^z2-key\\s+(back|recents|shade|quicksettings|screenshot|split)\\s*$")
                 .matches(item.command.trim()) && !AndroidActions.connected()) {
             row.addView(Button(ui()).apply {
@@ -801,7 +904,13 @@ object EdgeRuntime {
         val status = text("", 12f).apply { visibility = View.GONE }
         renderers["$target:status"] = { status.text = it; status.visibility = if (it.isBlank()) View.GONE else View.VISIBLE }
         when (item.type) {
-            "run" -> title.setOnClickListener { execute(panelId, item, item.command) }
+            "run" -> {
+                title.setOnClickListener { execute(panelId, item, item.command) }
+                title.setOnLongClickListener {
+                    it.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                    it.startDragAndDrop(null, View.DragShadowBuilder(it), ItemDrag(panelId, item.id), 0)
+                }
+            }
             "text" -> title.addView(Button(ui()).apply {
                 text = app!!.getString(R.string.edge_refresh)
                 setOnClickListener { refresh(panelId, item) }
@@ -899,7 +1008,11 @@ object EdgeRuntime {
         }
         row.addView(status)
         rows.addView(row)
-        if (!iconOnly) rows.addView(View(ui()).apply { setBackgroundColor(Color.GRAY) }, LinearLayout.LayoutParams(-1, dp(1).coerceAtLeast(1)))
+        if (!iconOnly) rows.addView(EdgeEditorUi.divider(ui()).apply {
+            layoutParams = LinearLayout.LayoutParams(-1, dp(1).coerceAtLeast(1)).apply {
+                marginStart = dp(12); marginEnd = dp(12)
+            }
+        })
     }
 
     private fun refresh(panel: String, item: EdgeStore.Item) {

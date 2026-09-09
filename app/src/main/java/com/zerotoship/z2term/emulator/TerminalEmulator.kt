@@ -989,7 +989,9 @@ class TerminalEmulator(
             'S' -> {
                 // SU: scroll up
                 val n = getCsiParam(0, 1)
-                repeat(n) { buffer.scrollUpRegion(scrollTop, scrollBottom, currentFg, currentBg) }
+                repeat(n.coerceAtMost(scrollBottom - scrollTop + 1)) {
+                    buffer.scrollUpRegion(scrollTop, scrollBottom, currentFg, currentBg, saveToScrollback = true)
+                }
             }
             'T' -> {
                 // SD: scroll down
@@ -1487,21 +1489,13 @@ class TerminalEmulator(
 
     /** 改行 (必要ならスクロール) */
     private fun lineFeed() {
-        if (cursorRow >= scrollBottom) {
-            // スクロール領域が画面全体 (DECSTBM 未設定 = scrollTop 0 かつ scrollBottom 最下行)
-            // のときだけ、最上行を scrollback に送る通常スクロール。
-            // vim 等は下のステータス/コマンド行 (行番号・ルーラ表示) を固定するため DECSTBM で
-            // 領域を画面途中までに狭める。その場合は領域内だけをスクロールし、領域外の固定行は
-            // 動かさず scrollback にも送らない。これを怠ると固定行が一緒に押し上げられ、毎行に
-            // 行番号が焼き付いて見える (報告された不具合)。
-            if (scrollTop == 0 && scrollBottom == buffer.rows - 1) {
-                buffer.scrollUp(currentFg, currentBg)
-            } else {
-                buffer.scrollUpRegion(scrollTop, scrollBottom, currentFg, currentBg)
-            }
+        if (cursorRow == scrollBottom) {
+            // Keep fixed rows outside the region in place. On the primary screen, rows
+            // leaving its top still belong in history even when an input/footer row is fixed.
+            buffer.scrollUpRegion(scrollTop, scrollBottom, currentFg, currentBg, saveToScrollback = true)
             cursorRow = scrollBottom
         } else {
-            cursorRow++
+            cursorRow = (cursorRow + 1).coerceAtMost(buffer.rows - 1)
         }
     }
 

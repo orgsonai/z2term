@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_discard_title">捨棄未儲存的變更？</string>
+    <string name="edge_discard_message">未儲存的編輯內容將遺失。</string>
+    <string name="edge_discard">捨棄</string>
+    <string name="edge_keep_editing">繼續編輯</string>
+    <string name="edge_select_tab">選擇分頁</string>
+</resources>

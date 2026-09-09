@@ -566,35 +566,45 @@ internal class Z2ApiMsg(lang: String, private val d: String) {
         |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# Fire any Android Intent (startActivity by default). A leading non-flag argument is the ACTION.
-        |# With --window freeform: --reuse-task, --os-bounds, --bounds-only (last two cannot be combined).
+        |# Freeform defaults to task reuse and OS bounds. --reuse-task / --os-bounds remain accepted.
+        |# --bounds-only requests 80% bounds without a mode key; cannot combine with --os-bounds.
         |# -p PKG alone launches that app. --window full|freeform|split|ask selects the launch request (OS support required).
     """.trimMargin(),
         ja = """
         |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# 任意の Android Intent を発火 (既定は startActivity)。先頭の非フラグ引数は ACTION。
-        |# --window freeform 専用: --reuse-task（タスク再利用）、--os-bounds（OSに寸法を任せる）、--bounds-only（寸法だけ要求）。後二者は併用不可。
+        |# フリーフォームはタスク再利用・OS任せの寸法が既定。--reuse-task / --os-bounds は互換用。
+        |# --bounds-only は窓モードを指定せず80%の寸法だけ要求。--os-bounds との併用不可。
         |# -p PKG だけでアプリを起動。--window full|freeform|split|ask で開き方を指定（OS対応が必要）。
     """.trimMargin(),
         "zh-CN" to """
         |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# 触发任意 Android Intent (默认是 startActivity)。开头的非选项参数即 ACTION。
+        |# --window full|freeform|split|ask 指定窗口模式。freeform 默认复用任务，由系统决定大小。
+        |# --reuse-task / --os-bounds 保持兼容；--bounds-only 只请求80%大小，不可与 --os-bounds 同用。
     """.trimMargin(),
         "zh-TW" to """
         |# z2-intent [-a ACTION] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# 觸發任意 Android Intent (預設是 startActivity)。開頭的非選項參數即 ACTION。
+        |# --window full|freeform|split|ask 指定視窗模式。freeform 預設重用工作，由系統決定大小。
+        |# --reuse-task / --os-bounds 保持相容；--bounds-only 只要求80%大小，不可與 --os-bounds 同用。
     """.trimMargin(),
         "es" to """
         |# z2-intent [-a ACCIÓN] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# Lanza cualquier Intent de Android (startActivity por omisión). El primer argumento que no sea una opción es la ACCIÓN.
-    """,
+        |# --window full|freeform|split|ask elige el modo. Freeform reutiliza tareas y deja el tamaño al sistema.
+        |# --reuse-task / --os-bounds siguen aceptándose; --bounds-only pide un tamaño del 80% y excluye --os-bounds.
+    """.trimMargin(),
         "ko" to """
         |# z2-intent [-a 액션] [-d URI] [-t MIME] [-p PKG] [-n PKG/CLS] [-f FLAGS]
         |#           [--es K V] [--ez K true|false] [--ei K N] [--broadcast|--service]
         |# 어떤 Android Intent든 띄웁니다 (기본값은 startActivity). 옵션이 아닌 첫 인수가 액션입니다.
+        |# --window full|freeform|split|ask로 창 모드를 선택합니다. freeform은 작업을 재사용하고 크기를 OS에 맡깁니다.
+        |# --reuse-task / --os-bounds는 호환용입니다. --bounds-only는 80% 크기만 요청하며 --os-bounds와 함께 쓸 수 없습니다.
     """.trimMargin()
     )
 

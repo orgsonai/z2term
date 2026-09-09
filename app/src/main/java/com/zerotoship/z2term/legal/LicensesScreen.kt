@@ -6,7 +6,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,7 +13,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -61,7 +60,7 @@ fun LicensesDialog(
 ) {
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Surface(
             color = background,
@@ -75,7 +74,7 @@ fun LicensesDialog(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.systemBars),
+                    .windowInsetsPadding(WindowInsets.safeDrawing),
             ) {
                 Row(
                     modifier = Modifier
@@ -89,8 +88,8 @@ fun LicensesDialog(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.weight(1f),
                     )
-                    Box(modifier = Modifier.weight(1f))
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close_dialog), color = textPrimary) }
                 }
                 LicensesSection(
@@ -99,7 +98,7 @@ fun LicensesDialog(
                     accent = accent,
                     border = border,
                     background = background,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                 )
             }
         }
@@ -129,7 +128,7 @@ fun LicensesSection(
 
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
@@ -272,7 +271,7 @@ private fun LicenseFullTextDialog(
     val body = remember(component.licenseAsset) { readLicenseText(context, component) }
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Surface(
             color = background,
@@ -283,7 +282,7 @@ private fun LicenseFullTextDialog(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.systemBars),
+                    .windowInsetsPadding(WindowInsets.safeDrawing),
             ) {
                 Row(
                     modifier = Modifier
@@ -304,9 +303,10 @@ private fun LicenseFullTextDialog(
                 }
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .weight(1f)
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Surface(

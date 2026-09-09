@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_edit_panel">編輯：%1$s</string>
+    <string name="edge_page_items">項目</string>
+    <string name="edge_page_appearance">外觀</string>
+    <string name="edge_page_manage">管理</string>
+    <string name="edge_items_help">點選項目進行編輯。使用上下箭頭調整順序。</string>
+    <string name="edge_move_up">上移%1$s</string>
+    <string name="edge_move_down">下移%1$s</string>
+    <string name="edge_advanced">進階設定</string>
+    <string name="edge_section_size">大小與位置</string>
+    <string name="edge_section_items">圖示與排列</string>
+    <string name="edge_section_controls">標題、分頁與按鈕</string>
+    <string name="edge_section_handle">把手</string>
+    <string name="edge_delete_item_warning">從面板移除「%1$s」？筆記檔案將保留。</string>
+    <string name="edge_create_panel">建立另一個面板</string>
+    <string name="edge_remove_panel">刪除面板或分頁</string>
+</resources>

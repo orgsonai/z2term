@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_edit_panel">%1$s 편집</string>
+    <string name="edge_page_items">항목</string>
+    <string name="edge_page_appearance">모양</string>
+    <string name="edge_page_manage">관리</string>
+    <string name="edge_items_help">항목을 눌러 편집하세요. 화살표로 순서를 바꿀 수 있습니다.</string>
+    <string name="edge_move_up">%1$s 위로 이동</string>
+    <string name="edge_move_down">%1$s 아래로 이동</string>
+    <string name="edge_advanced">고급 설정</string>
+    <string name="edge_section_size">크기와 위치</string>
+    <string name="edge_section_items">아이콘과 배치</string>
+    <string name="edge_section_controls">제목, 탭과 버튼</string>
+    <string name="edge_section_handle">핸들</string>
+    <string name="edge_delete_item_warning">패널에서 “%1$s”을(를) 삭제할까요? 메모 파일은 유지됩니다.</string>
+    <string name="edge_create_panel">다른 패널 만들기</string>
+    <string name="edge_remove_panel">패널 또는 탭 삭제</string>
+</resources>

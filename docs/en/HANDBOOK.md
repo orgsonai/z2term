@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.565-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.566-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -224,6 +224,8 @@ Under Settings › **Keyboard style**:
 > - **"Mask keys and tokens" is on by default.** It replaces name=value pairs such as `TOKEN=…`, the body of a pasted private key, and fixed-shape tokens like `ghp_` / `AKIA` with `[z2term:masked]`. ⚠ **It is not complete.** Only clearly recognisable shapes are covered; a secret in your own format stays in. **Always read a log before handing it to someone.**
 > - `~/z2term-log/` is **visible to other apps** (it is treated like the rest of your home). As with any other file under home, don't keep there what you don't want seen.
 > - Full-screen apps (the ones that paint by redrawing the screen) are not recorded by default, because flattening them does not produce readable text.
+
+0.8.567 also fixes terminal history for TUIs that scroll text above a fixed input row. Text pushed off the screen top is retained and can be read with the existing swipe gesture. Rows already discarded before this fix are not recovered.
 
 ### Hints for common stumbles
 
@@ -851,9 +853,14 @@ when a `z2-when` rule fired **without opening the app**.
 ## 9.6. Floating edge panels
 
 From 0.8.562, panels show only their items by default. Empty panels have no message or controls. Existing definitions are retained and use the new defaults.
-**Hold panel whitespace to open settings. Hold a handle for 300ms, then release without moving to open settings; drag to move it as before. A tap-to-open button moves as soon as you drag it (0.8.565).** Done or Back returns to the panel.
+**Hold panel whitespace to open settings. Hold a handle for 300ms, then release without moving to open settings; drag to move it as before. A tap-to-open button moves as soon as you drag it (0.8.565).** Done or Back returns to the panel, asking before discarding unsaved edits (0.8.567). If the keyboard is visible, Back hides only the keyboard and keeps settings open.
 Settings use a separate screen independent of panel width. Opening settings does not execute item commands or periodic readers.
-Adjust appearance previews requested dimensions/placement in a display diagram and handle changes on the actual handles. Only Save writes definitions; Cancel, close, tab changes, screen-off and reload discard the draft.
+From 0.8.566, the editor has Items, Appearance and Manage pages. Items show icons and names; tap a row or Edit to change it. Move items with the up/down arrows or hold and drag. App launch mode and label are in the basic form; commands and polling options are under Advanced settings. Removing an item requires confirmation in its editor and preserves note files.
+Appearance groups size/position, icons/layout, title/controls and handles into collapsible sections. The size diagram and Save/Cancel buttons stay visible while the form scrolls; handle changes preview on the actual handles. While the IME is visible, the diagram collapses and fields scroll in the remaining space above the keyboard. Only Save writes definitions. Cancel, close and page/tab changes ask before discarding unsaved edits; screen-off and external reload still discard drafts. Items/Appearance/Manage and panel tabs replace content within the same overlay window, without exposing the app behind it (0.8.567). Manage contains names, panel/tab creation and deletion.
+
+Enable “Show + app button” under Appearance → Title, tabs and buttons to add apps directly from the normal menu. Cancelling app selection returns to that menu. Hold and drag a run item to reorder it; drop into the first/second half of a target to place it before/after (vertical halves in a column, horizontal halves in a row or grid). Targets are outlined and dragging at an edge scrolls. Dropping outside leaves order unchanged. Whitespace long-press still opens settings (0.8.567).
+
+Menus with child tabs allow direct selection in normal use. When the tab strip is hidden, tap the current tab name at the top to choose a tab (0.8.567).
 
 Presentation fields belong to the parent panel and apply to all its tabs. Settings have no separate persistent state.
 Every presentation setting below is also writable with `z2-edge panel ID key=value ...`; `z2-edge get ID` reads saved fields.
@@ -875,7 +882,7 @@ Every presentation setting below is also writable with `z2-edge panel ID key=val
 | Add/edit/delete/reorder items | `set ID:item key=value ...` / `remove ID:item` / `set ID:item order=N` |
 | App launch mode / add note | Item `run=z2-intent -p PACKAGE --window MODE` / `type=note` |
 
-Optional add/settings controls are icons at the end. Tab/note addition, item editing and reordering live in settings.
+Optional add/settings controls are icons at the end. Tab/note addition and item editing live in settings. Run items can also be reordered directly in the menu.
 Vertical, horizontal and grid layouts are available; horizontal rows scroll sideways. Automatic grid columns follow icon size; an explicit flow applies to all item types.
 `layout=grid|list` remains the per-tab default. With flow omitted, grid arranges run items only and leaves other types in rows below.
 
@@ -904,7 +911,7 @@ An open deleted panel closes and its handle disappears. Use `remove ID:item` to 
 App addition offers Full screen (normal launch), Freeform, Split screen, and Ask every time.
 The choice is saved in `run=z2-intent -p PACKAGE --window full|freeform|split|ask` and can also be edited through the CLI.
 
-Add item and Edit item support all six item types. Blank optional fields clear their settings. Cancel discards input; saving an item changed externally is rejected.
+Add item and Edit support all six item types. Blank optional fields clear their settings. Cancel discards input; saving an item changed externally is rejected.
 Screen off hides panels and handles. Wake and unlock notifications trigger another check of unlock state before restoring handles. Screen off and service shutdown cancel waiting. Transient drawing failures no longer unregister wake notifications.
 
 Panel and tab deletion requires confirmation within Settings. Notes are saved before deletion; local note files are removed with the panel, while external note files and child tabs are retained. Deleting the last panel disables panels.
@@ -916,15 +923,16 @@ Freeform launch behavior can be adjusted with options after `z2-intent --window 
 
 | Option | Launch behavior |
 |---|---|
-| `--reuse-task` | Clear the multiple-task flag to allow existing-task reuse |
-| `--os-bounds` | Let the OS choose window position and size |
-| `--bounds-only` | Send the public bounds request without the private window-mode key |
+| `--reuse-task` | Allow task reuse (the default since 0.8.566; kept for saved commands) |
+| `--os-bounds` | Let the OS choose position and size (the default since 0.8.566; kept for compatibility) |
+| `--bounds-only` | For comparison, request inner 80% bounds without the private window-mode key |
 
-Defaults retain the multiple-task flag, inner 80% bounds and window-mode key. `--reuse-task --os-bounds` can be combined. Combining `--bounds-only` with `--os-bounds`, or using these options outside freeform mode, is rejected.
+Since 0.8.566, the default clears the multiple-task flag and requests only the window mode, leaving existing tasks and remembered bounds to Android. Launches no longer submit inner 80% bounds every time. `--reuse-task --os-bounds` can be combined. Combining `--bounds-only` with `--os-bounds`, or using these options outside freeform mode, is rejected.
 These switches allow comparison with the device’s standard launch path. Whether they resolve layout changes during navigation or restore window decoration still requires device verification. They do not change OS settings.
 
-By default, freeform requests bounds for a new task. Split brings the terminal to the foreground and launches a new task beside it. Apps that enforce a single task remain subject to OS restrictions.
-No external app or root is used. Freeform requests `ActivityOptions.setLaunchBounds` and the non-public AOSP Bundle key `android.activity.windowingMode=5`, whose support depends on the OS. Split requests `FLAG_ACTIVITY_LAUNCH_ADJACENT`.
+Freeform position, size, movement, resizing and decoration belong to the OS. Navigation and resize/maximize rendering problems remain unresolved. OS-standard launches can behave correctly, so launch-request differences must be compared before attributing the issue to the target app. No overlay is added to track external window borders. Split brings the terminal to the foreground and launches a new task beside it.
+Reported differences include OS-standard windows scaling the entire content while this launch path only narrows the viewport, followed by full-size content returning inside the window when moving it after navigation. Bounds-only launches can show the same problem; adjusting initial bounds is not considered a fix.
+No external app or root is used. Freeform requests the non-public AOSP Bundle key `android.activity.windowingMode=5`, whose support depends on the OS. `ActivityOptions.setLaunchBounds` is used only for explicit `--bounds-only` requests. Split requests `FLAG_ACTIVITY_LAUNCH_ADJACENT`.
 Freeform fails if not enabled on the device. Entering split screen is supported from Android 12L; earlier versions require an existing split session.
 The OS controls the final mode and reuse of existing tasks. Full screen means ordinary launch, not forced maximization of an existing window.
 

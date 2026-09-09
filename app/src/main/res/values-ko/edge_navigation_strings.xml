@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_discard_title">저장하지 않은 변경사항을 버릴까요?</string>
+    <string name="edge_discard_message">저장하지 않은 편집 내용이 사라집니다.</string>
+    <string name="edge_discard">버리기</string>
+    <string name="edge_keep_editing">계속 편집</string>
+    <string name="edge_select_tab">탭 선택</string>
+</resources>

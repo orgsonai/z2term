@@ -83,7 +83,7 @@
     <string name="edge_show_title">板名を表示</string>
     <string name="edge_show_close">閉じるボタンを表示</string>
     <string name="edge_show_tabs">タブ列を表示</string>
-    <string name="edge_show_add">追加アイコンを表示</string>
+    <string name="edge_show_add">＋アプリ追加ボタンを表示</string>
     <string name="edge_show_settings">設定アイコンを表示</string>
     <string name="edge_show_labels">項目名を表示</string>
     <string name="edge_fit">高さの扱い</string>
@@ -96,7 +96,7 @@
     <string name="edge_place_top">上</string>
     <string name="edge_place_bottom">下</string>
     <string name="edge_place_center">中央</string>
-    <string name="edge_at">自由配置 X%,Y%（空欄で解除）</string>
+    <string name="edge_at" formatted="false">自由配置 X%,Y%（空欄で解除）</string>
     <string name="edge_flow">項目の並べ方</string>
     <string name="edge_flow_vertical">縦一列</string>
     <string name="edge_flow_horizontal">横一列</string>
@@ -117,4 +117,19 @@
     <string name="edge_size_preview">板の寸法と配置のプレビュー</string>
     <string name="edge_size_preview_fixed">固定サイズと配置</string>
     <string name="edge_size_preview_limit">高さ上限と配置（内容が少なければ縮みます）</string>
+    <string name="edge_edit_panel">%1$s を編集</string>
+    <string name="edge_page_items">項目</string>
+    <string name="edge_page_appearance">見た目</string>
+    <string name="edge_page_manage">管理</string>
+    <string name="edge_items_help">項目をタップして編集。上下の矢印で順番を変更できます。</string>
+    <string name="edge_move_up">%1$s を上へ移動</string>
+    <string name="edge_move_down">%1$s を下へ移動</string>
+    <string name="edge_advanced">詳細設定</string>
+    <string name="edge_section_size">大きさと配置</string>
+    <string name="edge_section_items">アイコンと並べ方</string>
+    <string name="edge_section_controls">見出し・タブ・操作ボタン</string>
+    <string name="edge_section_handle">取っ手</string>
+    <string name="edge_delete_item_warning">「%1$s」をパネルから削除しますか？ メモの本文ファイルは残ります。</string>
+    <string name="edge_create_panel">別のパネルを作る</string>
+    <string name="edge_remove_panel">パネル・タブを削除</string>
 </resources>

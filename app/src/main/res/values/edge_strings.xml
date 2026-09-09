@@ -83,7 +83,7 @@
     <string name="edge_show_title">Show panel title</string>
     <string name="edge_show_close">Show close button</string>
     <string name="edge_show_tabs">Show tabs</string>
-    <string name="edge_show_add">Show add icon</string>
+    <string name="edge_show_add">Show + app button</string>
     <string name="edge_show_settings">Show settings icon</string>
     <string name="edge_show_labels">Show item labels</string>
     <string name="edge_fit">Panel height</string>
@@ -96,7 +96,7 @@
     <string name="edge_place_top">Top</string>
     <string name="edge_place_bottom">Bottom</string>
     <string name="edge_place_center">Center</string>
-    <string name="edge_at">Custom position X%,Y% (empty to clear)</string>
+    <string name="edge_at" formatted="false">Custom position X%,Y% (empty to clear)</string>
     <string name="edge_flow">Item arrangement</string>
     <string name="edge_flow_vertical">Vertical</string>
     <string name="edge_flow_horizontal">Horizontal</string>
@@ -117,4 +117,19 @@
     <string name="edge_size_preview">Panel size and placement preview</string>
     <string name="edge_size_preview_fixed">Fixed size and placement</string>
     <string name="edge_size_preview_limit">Height limit and placement (short content shrinks)</string>
+    <string name="edge_edit_panel">Edit: %1$s</string>
+    <string name="edge_page_items">Items</string>
+    <string name="edge_page_appearance">Appearance</string>
+    <string name="edge_page_manage">Manage</string>
+    <string name="edge_items_help">Tap an item to edit it. Use the arrows to change its position.</string>
+    <string name="edge_move_up">Move %1$s up</string>
+    <string name="edge_move_down">Move %1$s down</string>
+    <string name="edge_advanced">Advanced settings</string>
+    <string name="edge_section_size">Size and position</string>
+    <string name="edge_section_items">Icons and layout</string>
+    <string name="edge_section_controls">Title, tabs and buttons</string>
+    <string name="edge_section_handle">Handle</string>
+    <string name="edge_delete_item_warning">Remove “%1$s” from this panel? Note files are kept.</string>
+    <string name="edge_create_panel">Create another panel</string>
+    <string name="edge_remove_panel">Remove panel or tab</string>
 </resources>

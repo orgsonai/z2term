@@ -4,10 +4,11 @@ import android.content.Context
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
-import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.SeekBar
+import android.widget.ScrollView
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import com.zerotoship.z2term.R
@@ -15,14 +16,17 @@ import com.zerotoship.z2term.R
 /** The draft is local to this view; only Save writes definitions. */
 object EdgeAppearanceEditor {
     fun create(context: Context, panel: EdgeStore.Panel, store: EdgeStore, screenWidth: Int, screenHeight: Int,
-        preview: (Map<String, String>) -> Unit, finish: () -> Unit): View {
+        preview: (Map<String, String>) -> Unit, finish: () -> Unit, session: EdgeEditorSession): View {
         val outer = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        val content = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
-        outer.addView(Button(context).apply {
-            text = context.getString(R.string.edge_adjust)
-            setOnClickListener { content.visibility = View.VISIBLE }
-        })
-        outer.addView(content)
+        val diagram = EdgePanelPreview(context, panel.fields, screenWidth, screenHeight)
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(outer) { _, insets ->
+            diagram.visibility = if (insets.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())) View.GONE else View.VISIBLE
+            insets
+        }
+        outer.addView(diagram, LinearLayout.LayoutParams(-1, minOf(EdgeEditorUi.dp(context, 140), screenHeight / 5)))
+        val sections = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+        outer.addView(ScrollView(context).apply { addView(sections) }, LinearLayout.LayoutParams(-1, 0, 1f))
+        var content = sections
         val entries = linkedMapOf<String, EditText>()
         val defaults = mapOf("size" to if (panel.handle == "button") "48" else "6",
             "length" to "6", "alpha" to "1", "width" to "360", "height" to "72%",
@@ -30,7 +34,7 @@ object EdgeAppearanceEditor {
             "labels" to "", "fit" to "content", "place" to "handle", "at" to "", "flow" to "",
             "columns" to "auto", "icon-size" to "40", "handle" to "off", "side" to "right", "open" to "",
             "offset" to "30", "x" to "85", "y" to "30")
-        val save = Button(context).apply { text = context.getString(R.string.edge_save) }
+        val save = EdgeEditorUi.button(context, context.getString(R.string.edge_save), selected = true) {}
         fun values(): Map<String, String> = entries.mapValues { it.value.text.toString().trim() }
         fun update() {
             val draft = values()
@@ -38,19 +42,21 @@ object EdgeAppearanceEditor {
                 EdgeStore.validatePanel(panel.fields + draft)
             }.isSuccess
             save.isEnabled = valid
-            if (valid) runCatching { preview(draft) }.onFailure {
+            if (valid) runCatching { diagram.update(panel.fields + draft); preview(draft) }.onFailure {
                 save.isEnabled = false
                 Toast.makeText(context, it.message, Toast.LENGTH_LONG).show()
             }
         }
         fun control(key: String, label: Int, low: Int, high: Int, convert: (Int) -> String) {
-            content.addView(TextView(context).apply { text = context.getString(label) })
+            val line = LinearLayout(context).apply { gravity = android.view.Gravity.CENTER_VERTICAL }
+            line.addView(EdgeEditorUi.label(context, context.getString(label)), LinearLayout.LayoutParams(0, -2, 1f))
             val entry = EditText(context).apply {
                 setSingleLine(true); setText(panel.fields[key] ?: defaults.getValue(key))
                 contentDescription = context.getString(label)
             }
             entries[key] = entry
-            content.addView(entry)
+            line.addView(entry, LinearLayout.LayoutParams(EdgeEditorUi.dp(context, 96), -2))
+            content.addView(line)
             fun sliderValue(raw: String): Int {
                 val number = raw.removeSuffix("%").toFloatOrNull() ?: return low
                 if (!number.isFinite()) return low
@@ -100,6 +106,17 @@ object EdgeAppearanceEditor {
             })
         }
         fun choice(key: String, label: Int, options: List<String>, names: List<Int>) {
+            if (options == listOf("off", "on")) {
+                val input = EditText(context).apply { setText(panel.fields[key] ?: defaults.getValue(key)) }
+                entries[key] = input
+                content.addView(Switch(context).apply {
+                    text = context.getString(label); setTextColor(EdgeEditorUi.foreground(context))
+                    minHeight = EdgeEditorUi.dp(context, 48)
+                    isChecked = input.text.toString() == "on"
+                    setOnCheckedChangeListener { _, checked -> input.setText(if (checked) "on" else "off"); update() }
+                }, LinearLayout.LayoutParams(-1, -2))
+                return
+            }
             content.addView(TextView(context).apply { text = context.getString(label) })
             val input = EditText(context).apply { setText(panel.fields[key] ?: defaults.getValue(key)) }
             entries[key] = input
@@ -117,20 +134,26 @@ object EdgeAppearanceEditor {
             content.addView(picker)
         }
         val onOff = listOf(R.string.edge_option_off, R.string.edge_option_on)
+        content = EdgeEditorUi.section(context, sections, R.string.edge_section_controls)
         choice("title", R.string.edge_show_title, listOf("off", "on"), onOff)
         choice("close", R.string.edge_show_close, listOf("off", "on"), onOff)
         choice("tabbar", R.string.edge_show_tabs, listOf("off", "on", "auto"), onOff + R.string.edge_option_auto)
         choice("add", R.string.edge_show_add, listOf("off", "on"), onOff)
         choice("settings", R.string.edge_show_settings, listOf("off", "on"), onOff)
-        choice("labels", R.string.edge_show_labels, listOf("", "on", "off"), listOf(R.string.edge_option_auto, R.string.edge_option_on, R.string.edge_option_off))
+        content = EdgeEditorUi.section(context, sections, R.string.edge_section_size, expanded = true)
+        control("width", R.string.edge_adjust_width, 1, 100) { "$it%" }
+        control("height", R.string.edge_adjust_height, 1, 100) { "$it%" }
         choice("fit", R.string.edge_fit, listOf("content", "fixed"), listOf(R.string.edge_fit_content, R.string.edge_fit_fixed))
         choice("place", R.string.edge_place, listOf("handle", "left", "right", "top", "bottom", "center"),
             listOf(R.string.edge_place_handle, R.string.edge_place_left, R.string.edge_place_right, R.string.edge_place_top, R.string.edge_place_bottom, R.string.edge_place_center))
         entry("at", R.string.edge_at)
+        content = EdgeEditorUi.section(context, sections, R.string.edge_section_items)
+        choice("labels", R.string.edge_show_labels, listOf("", "on", "off"), listOf(R.string.edge_option_auto, R.string.edge_option_on, R.string.edge_option_off))
         choice("flow", R.string.edge_flow, listOf("", "vertical", "horizontal", "grid"),
             listOf(R.string.edge_option_auto, R.string.edge_flow_vertical, R.string.edge_flow_horizontal, R.string.edge_flow_grid))
         entry("columns", R.string.edge_columns)
         control("icon-size", R.string.edge_icon_size, 16, 192) { it.toString() }
+        content = EdgeEditorUi.section(context, sections, R.string.edge_section_handle)
         choice("handle", R.string.edge_handle_kind, listOf("off", "bar", "button"),
             listOf(R.string.edge_option_off, R.string.edge_handle_bar, R.string.edge_handle_button))
         choice("side", R.string.edge_handle_side, listOf("left", "right"), listOf(R.string.edge_place_left, R.string.edge_place_right))
@@ -142,9 +165,10 @@ object EdgeAppearanceEditor {
         control("offset", R.string.edge_handle_offset, 0, 100) { it.toString() }
         control("x", R.string.edge_handle_x, 0, 100) { it.toString() }
         control("y", R.string.edge_handle_y, 0, 100) { it.toString() }
-        control("width", R.string.edge_adjust_width, 1, 100) { "$it%" }
-        control("height", R.string.edge_adjust_height, 1, 100) { "$it%" }
-        content.addView(TextView(context).apply { text = context.getString(R.string.edge_preview_help) })
+        sections.addView(EdgeEditorUi.label(context, context.getString(R.string.edge_preview_help), secondary = true))
+        session.track(outer) {
+            values().any { (key, value) -> value != (panel.fields[key] ?: defaults[key]) }
+        }
         save.setOnClickListener {
             runCatching {
                 val draft = values()
@@ -158,9 +182,12 @@ object EdgeAppearanceEditor {
                 finish()
             }.onFailure { Toast.makeText(context, it.message, Toast.LENGTH_LONG).show() }
         }
-        content.addView(save)
-        content.addView(Button(context).apply {
-            text = context.getString(android.R.string.cancel); setOnClickListener { finish() }
+        outer.addView(EdgeEditorUi.divider(context))
+        outer.addView(LinearLayout(context).apply {
+            addView(EdgeEditorUi.button(context, context.getString(android.R.string.cancel)) {
+                session.discard(outer, finish)
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(save, LinearLayout.LayoutParams(0, -2, 1f))
         })
         return outer
     }

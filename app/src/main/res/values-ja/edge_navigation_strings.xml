@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_discard_title">未保存の変更を破棄しますか？</string>
+    <string name="edge_discard_message">保存していない編集内容は失われます。</string>
+    <string name="edge_discard">破棄する</string>
+    <string name="edge_keep_editing">編集を続ける</string>
+    <string name="edge_select_tab">タブを選択</string>
+</resources>

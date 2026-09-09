@@ -48,10 +48,19 @@ object AppLaunch {
     }
 
     data class FreeformOptions(val reuseTask: Boolean = false, val osBounds: Boolean = false, val boundsOnly: Boolean = false) {
+        // Standard launches leave the existing task and remembered bounds to Android.
+        // The legacy switches remain accepted for saved commands. Only bounds-only opts into sizing.
+        val requestsBounds: Boolean get() = boundsOnly
         fun validate(mode: String) {
             require(this == FreeformOptions() || mode == "freeform") { "Freeform options require --window freeform" }
             require(!(osBounds && boundsOnly)) { "--os-bounds and --bounds-only cannot be combined" }
         }
+    }
+
+    internal fun activityFlags(flags: Int, mode: String): Int {
+        val removed = Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT or
+            if (mode == "freeform") Intent.FLAG_ACTIVITY_MULTIPLE_TASK else 0
+        return (flags and removed.inv()) or Intent.FLAG_ACTIVITY_NEW_TASK
     }
 
     fun launch(context: Context, target: Intent, mode: String, freeform: FreeformOptions = FreeformOptions()) {
@@ -76,17 +85,14 @@ object AppLaunch {
             }
             return
         }
-        val intent = Intent(target).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        intent.flags = intent.flags and Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT.inv()
+        val intent = Intent(target).apply { flags = activityFlags(target.flags, mode) }
         val options = ActivityOptions.makeBasic()
         when (mode) {
             "freeform" -> {
                 val supported = context.packageManager.hasSystemFeature(PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT) ||
                     runCatching { Settings.Global.getInt(context.contentResolver, "enable_freeform_support", 0) == 1 }.getOrDefault(false)
                 check(supported) { context.getString(R.string.edge_freeform_unavailable) }
-                if (freeform.reuseTask) intent.flags = intent.flags and Intent.FLAG_ACTIVITY_MULTIPLE_TASK.inv()
-                else intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-                if (!freeform.osBounds) {
+                if (freeform.requestsBounds) {
                     val wm = context.getSystemService(WindowManager::class.java)
                     @Suppress("DEPRECATION")
                     val screen = if (Build.VERSION.SDK_INT >= 30) wm.maximumWindowMetrics.bounds else {
@@ -98,7 +104,6 @@ object AppLaunch {
                 }
             }
             "full" -> {
-                intent.flags = intent.flags and Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT.inv()
                 options.setLaunchBounds(null)
             }
         }

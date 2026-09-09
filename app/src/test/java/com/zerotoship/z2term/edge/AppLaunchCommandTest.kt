@@ -2,8 +2,21 @@ package com.zerotoship.z2term.edge
 
 import org.junit.Assert.*
 import org.junit.Test
+import android.content.Intent
 
 class AppLaunchCommandTest {
+    @Test fun standardFreeformLeavesBoundsToAndroidAndReusesTheTask() {
+        assertFalse(AppLaunch.FreeformOptions().requestsBounds)
+        assertFalse(AppLaunch.FreeformOptions(reuseTask = true, osBounds = true).requestsBounds)
+        assertTrue(AppLaunch.FreeformOptions(boundsOnly = true).requestsBounds)
+        val input = Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        assertEquals(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP,
+            AppLaunch.activityFlags(input, "freeform"))
+        assertEquals(Intent.FLAG_ACTIVITY_NEW_TASK, AppLaunch.activityFlags(0, "freeform"))
+        assertEquals(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP,
+            AppLaunch.activityFlags(input, "full"))
+    }
+
     @Test fun optionsRetainTheIconAndModeChangesRemoveIncompatibleOptions() {
         val command = "z2-intent -p org.example.app --reuse-task --window freeform --os-bounds"
         assertEquals("org.example.app", AppLaunchCommand.packageFrom(command))

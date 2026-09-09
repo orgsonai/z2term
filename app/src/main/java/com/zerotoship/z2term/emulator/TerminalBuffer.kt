@@ -6,7 +6,7 @@ package com.zerotoship.z2term.emulator
  * 構造:
  *   - スクロールバック領域 (リングバッファ、Primary スクリーンと連動)
  *   - Primary スクリーン (通常表示、rows × columns)
- *   - Alternate スクリーン (vim/htop 等の全画面アプリ用、rows × columns)
+ *   - Alternate スクリーン (全画面 TUI 用、rows × columns)
  *
  * スクロールバックは Primary がアクティブな間のみ更新される。
  * Alternate がアクティブな間にスクロールしても履歴には残らない。
@@ -96,18 +96,13 @@ class TerminalBuffer(
      * Alternate 時は履歴に残さず捨てる。
      */
     fun scrollUp(fg: Int = SgrAttribute.DEFAULT, bg: Int = SgrAttribute.DEFAULT) {
-        val firstRow = screen[0]
-        if (primaryActive) {
-            if (scrollback.size >= scrollbackCapacity) {
-                scrollback.removeFirst()
-            }
-            scrollback.addLast(firstRow)
-        }
+        scrollUpRegion(0, rows - 1, fg, bg, saveToScrollback = true)
+    }
 
-        for (i in 0 until rows - 1) {
-            screen[i] = screen[i + 1]
-        }
-        screen[rows - 1] = TerminalRow(columns).apply { clear(fg = fg, bg = bg) }
+    private fun appendScrollback(row: TerminalRow) {
+        if (!primaryActive || scrollbackCapacity <= 0) return
+        if (scrollback.size >= scrollbackCapacity) scrollback.removeFirst()
+        scrollback.addLast(row)
     }
 
     /** 1 行スクロールダウン (逆方向) — スクリーン最下行を捨て最上行に空行 */
@@ -118,9 +113,11 @@ class TerminalBuffer(
         screen[0] = TerminalRow(columns).apply { clear(fg = fg, bg = bg) }
     }
 
-    /** 指定範囲 [top, bottom] でスクロールアップ — スクロールバックには入らない */
-    fun scrollUpRegion(top: Int, bottom: Int, fg: Int = SgrAttribute.DEFAULT, bg: Int = SgrAttribute.DEFAULT) {
-        if (top < 0 || bottom >= rows || top >= bottom) return
+    /** Scroll only the region. LF/IND/SU can retain rows leaving the screen top; DL cannot. */
+    fun scrollUpRegion(top: Int, bottom: Int, fg: Int = SgrAttribute.DEFAULT, bg: Int = SgrAttribute.DEFAULT,
+        saveToScrollback: Boolean = false) {
+        if (top < 0 || bottom >= rows || top > bottom) return
+        if (saveToScrollback && top == 0) appendScrollback(screen[top])
         for (i in top until bottom) {
             screen[i] = screen[i + 1]
         }
@@ -129,7 +126,7 @@ class TerminalBuffer(
 
     /** 指定範囲でスクロールダウン (逆方向) */
     fun scrollDownRegion(top: Int, bottom: Int, fg: Int = SgrAttribute.DEFAULT, bg: Int = SgrAttribute.DEFAULT) {
-        if (top < 0 || bottom >= rows || top >= bottom) return
+        if (top < 0 || bottom >= rows || top > bottom) return
         for (i in bottom downTo top + 1) {
             screen[i] = screen[i - 1]
         }
@@ -211,8 +208,7 @@ class TerminalBuffer(
         val topDrop = removed - bottomDrop
         if (primaryActive && topDrop > 0) {
             for (i in 0 until topDrop) {
-                if (scrollback.size >= scrollbackCapacity) scrollback.removeFirst()
-                scrollback.addLast(old[i])
+                appendScrollback(old[i])
             }
         }
         primary = Array(newRows) { i -> old[i + topDrop] }
@@ -223,7 +219,7 @@ class TerminalBuffer(
      * Alternate スクリーン用 resize (scrollback には影響しない)。
      *
      * 拡大時は下に空行を追加。
-     * 縮小時は **下行 (カーソル付近) を残して上行を捨てる**。vim/htop 等は
+     * 縮小時は **下行 (カーソル付近) を残して上行を捨てる**。全画面 TUI は
      * SIGWINCH 受信後すぐ全再描画するが、その redraw が到着するまでの数フレームで
      * カーソル付近が消えると「画面下半分が無くなる」崩れに見える。下を残すことで
      * 再描画到着までの見た目の崩れを最小限にする (旧実装は上を残して下を捨てていた)。

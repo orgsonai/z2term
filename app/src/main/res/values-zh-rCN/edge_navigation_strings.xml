@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_discard_title">放弃未保存的更改？</string>
+    <string name="edge_discard_message">未保存的编辑内容将丢失。</string>
+    <string name="edge_discard">放弃</string>
+    <string name="edge_keep_editing">继续编辑</string>
+    <string name="edge_select_tab">选择标签页</string>
+</resources>

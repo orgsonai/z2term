@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edge_edit_panel">Editar: %1$s</string>
+    <string name="edge_page_items">Elementos</string>
+    <string name="edge_page_appearance">Aspecto</string>
+    <string name="edge_page_manage">Gestionar</string>
+    <string name="edge_items_help">Toca un elemento para editarlo. Usa las flechas para cambiar su posición.</string>
+    <string name="edge_move_up">Subir %1$s</string>
+    <string name="edge_move_down">Bajar %1$s</string>
+    <string name="edge_advanced">Ajustes avanzados</string>
+    <string name="edge_section_size">Tamaño y posición</string>
+    <string name="edge_section_items">Iconos y distribución</string>
+    <string name="edge_section_controls">Título, pestañas y botones</string>
+    <string name="edge_section_handle">Asa</string>
+    <string name="edge_delete_item_warning">¿Quitar «%1$s» de este panel? Se conservan los archivos de notas.</string>
+    <string name="edge_create_panel">Crear otro panel</string>
+    <string name="edge_remove_panel">Eliminar panel o pestaña</string>
+</resources>
