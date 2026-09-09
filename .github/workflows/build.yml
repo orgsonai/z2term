@@ -63,13 +63,22 @@ jobs:
         run: bash scripts/fetch-fonts.sh
 
       - name: Lint
-        run: ./gradlew lintDebug --stacktrace
+        run: bash scripts/gw.sh lintDebug --stacktrace
+
+      - name: Upload lint reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: z2term-lint-reports
+          path: app/build/reports/lint-results-debug.*
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: bash scripts/gw.sh assembleDebug --stacktrace
 
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest --stacktrace
+        run: bash scripts/gw.sh testDebugUnitTest --stacktrace
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
@@ -138,7 +147,7 @@ jobs:
         run: bash scripts/fetch-fonts.sh
 
       - name: Build release APK
-        run: ./gradlew assembleRelease --stacktrace
+        run: bash scripts/gw.sh assembleRelease --stacktrace
 
       - name: Publish to GitHub Release
         env:

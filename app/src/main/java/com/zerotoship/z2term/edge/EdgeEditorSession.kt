@@ -13,6 +13,8 @@ class EdgeEditorSession(private val context: Context) {
 
     fun track(view: View, dirty: () -> Boolean) { drafts[view] = dirty }
 
+    fun hasUnsavedChanges() = drafts.any { (view, dirty) -> view.isAttachedToWindow && dirty() }
+
     fun leave(except: View? = null, action: () -> Unit) {
         confirm(drafts.any { (view, dirty) -> view !== except && view.isAttachedToWindow && dirty() }, action)
     }

@@ -107,6 +107,11 @@
         android:requestLegacyExternalStorage="true"
         tools:targetApi="35">
 
+        <service android:name=".automation.ActionService"
+            android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-requested Android action macro with completion tracking and an explicit stop notification" />
+        </service>
         <service android:name=".edge.EdgeService"
             android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"

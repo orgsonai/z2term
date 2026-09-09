@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="action_macro_title">Android 동작 매크로</string>
+    <string name="action_macro_running">실행 중: %1$s</string>
+    <string name="action_macro_stop">매크로 중지</string>
+</resources>

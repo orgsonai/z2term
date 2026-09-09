@@ -85,7 +85,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.570-alpha (versionCode 578).** エッジのジェスチャーに連続動作と可変速オートスクロールを追加。最高速度と最高速度までのスライド距離をGUI・コマンドで設定できます。タブのスワイプ切替、マクロ用の自由な枠、細いバーのボタン配置、大量出力時の安定性、ライセンス画面の下端表示も改善しました。最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.571-alpha (versionCode 579)、作業版・ビルド未検証。** 名前付きAndroid操作マクロを追加。CLIで保存した座標操作・待機・アプリ起動・シェル実行・時間指定スクロールを、パネルやタイル、既存マクロから共通実行できます。停止・完了待ち・タイムアウト・履歴を備えます。GitHub CIで検出されたエッジパネルの4言語の翻訳不足も補いました。[操作マクロの使い方](docs/ja/ACTION-MACROS.md)。公開済みAPKとリリース履歴は[GitHub Releases](https://github.com/orgsonai/z2term/releases)にあります。
 
 ## 機能
 

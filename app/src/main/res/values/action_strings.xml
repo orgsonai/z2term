@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="action_macro_title">Android action macros</string>
+    <string name="action_macro_running">Running: %1$s</string>
+    <string name="action_macro_stop">Stop macro</string>
+</resources>

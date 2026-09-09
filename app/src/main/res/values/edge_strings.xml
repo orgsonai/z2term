@@ -13,7 +13,7 @@
     <string name="edge_no_command">No command assigned.</string>
     <string name="edge_overlay_help">Allow z2term to display over other apps using z2-edge permission, then run z2-edge on.</string>
     <string name="edge_accessibility_label">z2term Android actions</string>
-    <string name="edge_accessibility_description">Performs Android global actions and auto-scroll when requested by your commands or configured gestures. Detects window changes to stop scrolling. Reads window bounds and focus to identify the target; does not read UI nodes or typed text.</string>
+    <string name="edge_accessibility_description">Performs Android global actions, coordinate gestures and auto-scroll when requested by your commands, macros or configured gestures. Detects window changes to stop scrolling. Uses window bounds, focus and package metadata to identify the target; does not read UI nodes or typed text.</string>
     <string name="edge_accessibility_help">This action requires Accessibility, a separate permission from display over other apps. Use z2-key permission to enable z2term Android actions. If restricted, use z2-key app-info and allow restricted settings in its menu.</string>
     <string name="edge_add_app">+ App</string>
     <string name="edge_pick_app">Choose an app</string>

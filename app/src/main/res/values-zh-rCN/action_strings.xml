@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="action_macro_title">Android操作宏</string>
+    <string name="action_macro_running">正在运行：%1$s</string>
+    <string name="action_macro_stop">停止宏</string>
+</resources>

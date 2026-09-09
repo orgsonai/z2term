@@ -17,6 +17,8 @@ import org.json.JSONObject
 /** Global actions and scroll gestures. Reads window bounds/focus, never nodes or typed text. */
 class AndroidActions : AccessibilityService() {
     private val autoScroll by lazy { AndroidAutoScroll(this) }
+    private val coordinateStroke by lazy { AndroidStroke(this) }
+    private val windowPackages = linkedMapOf<Int, String>()
     private data class ScrollTarget(val id: Int, val bounds: Rect)
     private var scrollTarget: ScrollTarget? = null
 
@@ -49,6 +51,10 @@ class AndroidActions : AccessibilityService() {
 
     override fun onServiceConnected() { active = this }
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && event.windowId >= 0) {
+            event.packageName?.toString()?.let { windowPackages[event.windowId] = it }
+            while (windowPackages.size > 64) windowPackages.remove(windowPackages.keys.first())
+        }
         if (autoScroll.running && (event?.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED ||
                 event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)) {
             if (runCatching { focusedTarget() }.getOrNull() != scrollTarget) autoScroll.stop()
@@ -89,9 +95,13 @@ class AndroidActions : AccessibilityService() {
                     val details = Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS")
                         .putExtra(Intent.EXTRA_COMPONENT_NAME, ComponentName(context, AndroidActions::class.java))
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    try { context.startActivity(details) }
-                    catch (_: android.content.ActivityNotFoundException) { context.startActivity(fallback) }
-                    catch (_: SecurityException) { context.startActivity(fallback) }
+                    try {
+                        context.startActivity(details)
+                    } catch (_: android.content.ActivityNotFoundException) {
+                        context.startActivity(fallback)
+                    } catch (_: SecurityException) {
+                        context.startActivity(fallback)
+                    }
                 } else context.startActivity(fallback)
                 return context.getString(com.zerotoship.z2term.R.string.edge_accessibility_help)
             }
@@ -118,6 +128,7 @@ class AndroidActions : AccessibilityService() {
         fun startAutoScroll(speedDp: Float, bounds: android.graphics.Rect, xPercent: Float = 50f,
             yPercent: Float = 50f, once: Boolean = false, requirePreviousTarget: Boolean = false, done: (String?) -> Unit) {
             val service = active ?: error("Enable z2term Android actions in Accessibility settings")
+            check(!service.coordinateStroke.inFlight) { "Wait for the previous coordinate gesture to finish" }
             val target = service.focusedTarget()
                 ?: error(service.getString(com.zerotoship.z2term.R.string.edge_scroll_no_window))
             check(!requirePreviousTarget || target == service.scrollTarget) {
@@ -146,6 +157,28 @@ class AndroidActions : AccessibilityService() {
         fun outsideTouch(event: android.view.MotionEvent) { active?.autoScroll?.outsideTouch(event) }
 
         fun connected() = active != null
+
+        /** Uses package metadata from window events without retrieving UI nodes. */
+        internal fun targetMatches(packageName: String): Boolean {
+            val service = active ?: return false
+            val target = service.focusedTarget() ?: return false
+            return service.windowPackages[target.id] == packageName
+        }
+
+        internal fun gesturesInFlight(): Boolean = active?.let { it.coordinateStroke.inFlight || it.autoScroll.inFlight } == true
+
+        internal fun stroke(step: com.zerotoship.z2term.automation.ActionDefinition.Step.Stroke,
+            screen: com.zerotoship.z2term.automation.ActionDefinition.Screen, done: (String?) -> Unit): () -> Unit {
+            val service = active ?: error("Enable z2term Android actions in Accessibility settings")
+            check(!service.autoScroll.running && !service.autoScroll.inFlight) { "Wait for scrolling to finish" }
+            val target = service.focusedTarget() ?: error("No focused application window")
+            check(service.windowPackages[target.id] == step.target) { "Target app is not focused; switch to ${step.target}" }
+            val p = step.points(screen)
+            check(target.bounds.contains(p[0].toInt(), p[1].toInt()) && target.bounds.contains(p[2].toInt(), p[3].toInt())) {
+                "Coordinates must be inside the visible target window, above the keyboard"
+            }
+            return service.coordinateStroke.dispatch(step, screen, done)
+        }
 
         fun enabled(context: Context): Boolean = context.getSystemService(AccessibilityManager::class.java)
             .getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK).any {

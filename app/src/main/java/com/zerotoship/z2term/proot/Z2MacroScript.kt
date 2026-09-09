@@ -1492,6 +1492,7 @@ fun z2MacroScript(lang: String): String {
                 "  show <name>         print the script",
                 "  run <name>          run it here (Ctrl-C to stop)",
                 "  dir                 print where macros live",
+                "  actions ...         Android action macros (z2-action --help)",
             ),
         ja = listOf(
             "usage: z2-macro <サブコマンド>",
@@ -1501,6 +1502,7 @@ fun z2MacroScript(lang: String): String {
                 "  show <名前>         中身を表示",
                 "  run <名前>          その場で実行 (Ctrl-C で止める)",
                 "  dir                 マクロの置き場所を表示",
+                "  actions ...         Android操作マクロ (z2-action --help)",
             ),
         "zh-CN" to listOf(
                 "usage: z2-macro <子命令>",
@@ -1510,6 +1512,7 @@ fun z2MacroScript(lang: String): String {
                 "  show <名字>         显示脚本内容",
                 "  run <名字>          就地运行 (Ctrl-C 停止)",
                 "  dir                 显示宏放在哪里",
+                "  actions ...         Android操作宏 (z2-action --help)",
             ),
         "zh-TW" to listOf(
                 "usage: z2-macro <子指令>",
@@ -1519,6 +1522,7 @@ fun z2MacroScript(lang: String): String {
                 "  show <名字>         顯示指令碼內容",
                 "  run <名字>          就地執行 (Ctrl-C 停止)",
                 "  dir                 顯示巨集放在哪裡",
+                "  actions ...         Android操作巨集 (z2-action --help)",
             ),
         "es" to listOf(
             "uso: z2-macro <subcomando>",
@@ -1528,6 +1532,7 @@ fun z2MacroScript(lang: String): String {
             "  show <nombre>         imprime el script",
             "  run <nombre>          lo ejecuta aquí (Ctrl-C para pararlo)",
             "  dir                   imprime dónde viven las macros",
+                "  actions ...           Macros de acciones Android (z2-action --help)",
         ),
         "ko" to listOf(
             "사용법: z2-macro <하위 명령>",
@@ -1537,6 +1542,7 @@ fun z2MacroScript(lang: String): String {
             "  show <이름>        스크립트를 출력합니다",
             "  run <이름>         여기서 실행합니다 (멈추려면 Ctrl-C)",
             "  dir                매크로가 있는 곳을 출력합니다",
+                "  actions ...        Android 동작 매크로 (z2-action --help)",
         )
     )
 
@@ -1635,6 +1641,8 @@ fun z2MacroScript(lang: String): String {
         |  a=${d}(cksum < "${d}1" 2>/dev/null); b=${d}(cksum < "${d}2" 2>/dev/null)
         |  [ -n "${d}a" ] && [ "${d}a" = "${d}b" ]
         |}
+        |# Delegate before sample-name normalization so file paths retain spaces.
+        |if [ "${d}{1:-}" = actions ]; then shift; exec z2-action "${d}@"; fi
         |# -f/--force はどこに書かれていてもよいよう、先に引数列から抜き出す
         |# (`install -f all` と `install all -f` のどちらでも同じ意味になる)。
         |force=0

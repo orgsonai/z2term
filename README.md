@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.570-alpha (versionCode 578).** Edge gestures now support action sequences and variable-speed auto-scroll, with maximum speed and slide distance configurable through the GUI and CLI. This update also improves swipe tab switching, custom macro slots, narrow-bar button layout, stability during large terminal output, and the bottom of license screens. The latest published APKs and release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.571-alpha (versionCode 579), working version; build not yet verified.** Named Android action macros share coordinate gestures, waits, app launches, shell commands and timed scrolling across the CLI, panels, tiles and existing macros, with cancellation, completion tracking, deadlines and history. This update also fills four languages of missing edge-panel translations reported by GitHub CI. See [action macro usage](docs/en/ACTION-MACROS.md). Published APKs and release history are on [GitHub Releases](https://github.com/orgsonai/z2term/releases).
 
 ## Features
 

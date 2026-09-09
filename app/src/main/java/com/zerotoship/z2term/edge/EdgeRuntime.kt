@@ -73,9 +73,19 @@ object EdgeRuntime {
     private var receiver: BroadcastReceiver? = null
     private var generation = 0
     private var serviceRequested = false
+    private var actionsSuspended = false
     private val iconCache = android.util.LruCache<String, android.graphics.drawable.Drawable>(128)
 
     fun store(context: Context) = EdgeStore(File(context.filesDir, "shared_home/.z2term/edge"))
+
+    /** Release overlay input without cancelling the shell command which invoked the macro. */
+    internal fun suspendForActions(suspended: Boolean): Unit = onMain {
+        if (suspended) check(editorSession?.hasUnsavedChanges() != true) { "Save or cancel panel edits before running a macro" }
+        actionsSuspended = suspended
+        if (suspended) { close(); stopHandleScroll() }
+        handles.values.forEach { it.visibility = if (suspended || !unlocked()) View.GONE else View.VISIBLE }
+        if (!suspended && app != null && unlocked() && handles.isEmpty()) showHandles()
+    }
 
     fun <T> onMain(block: () -> T): T {
         if (Looper.myLooper() == Looper.getMainLooper()) return block()
@@ -312,7 +322,7 @@ object EdgeRuntime {
     }
 
     private fun showHandles() {
-        if (!unlocked()) return
+        if (!unlocked() || actionsSuspended) return
         removeHandles()
         panels.filter { it.handle != "off" && panels.none { parent -> it.id in parent.tabs } }.forEach { panel ->
             val (width, height) = screenSize()
@@ -531,7 +541,7 @@ object EdgeRuntime {
     }
 
     private fun runHandleActions(panel: EdgeStore.Panel, trigger: EdgeActions.Trigger, view: View, displacement: Float) {
-        if (!unlocked() || editingItems || cancelAppearance != null) return
+        if (!unlocked() || actionsSuspended || editingItems || cancelAppearance != null) return
         val actions = EdgeActions.binding(panel.fields, trigger)
         if (actions.isEmpty()) return
         cancelHandleActions()
@@ -561,6 +571,7 @@ object EdgeRuntime {
 
     private fun executeHandleAction(panel: EdgeStore.Panel, trigger: EdgeActions.Trigger, view: View,
         displacement: Float, action: EdgeActions.Action, done: (String?) -> Unit): (() -> Unit)? {
+        check(!actionsSuspended) { "An action macro is running" }
         val type = action.type
         if (type !in setOf(EdgeActions.Type.PANEL, EdgeActions.Type.WAIT)) close()
         when (type) {
@@ -661,6 +672,7 @@ object EdgeRuntime {
 
     fun open(id: String, toggle: Boolean = false, tabId: String? = null, settings: Boolean = false,
         page: Int = editorPage): Unit = onMain {
+        check(!actionsSuspended) { "An action macro is running; stop it before opening the panel" }
         if (toggle && openRootId == id) { close(); return@onMain }
         require(app != null && store(app!!).enabled()) { "Enable the panel first: z2-edge on" }
         require(unlocked()) { "Unlock the screen before opening the panel" }

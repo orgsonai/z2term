@@ -18,8 +18,12 @@ import com.zerotoship.z2term.widget.WidgetStore
 /** Pick into the draft; selecting a value never saves or executes it. */
 internal object EdgeItemPickers {
     fun macros(context: Context, group: LinearLayout, entry: EditText) {
-        val names = WidgetStore.availableMacros(context)
-        picker(context, group, entry, R.string.edge_pick_macro, names) { it }
+        val commands = linkedMapOf<String, String>()
+        WidgetStore.availableMacros(context).forEach { commands[it] = it }
+        com.zerotoship.z2term.automation.ActionRuntime.store(context).names().forEach { name ->
+            commands["${context.getString(R.string.action_macro_title)}: $name"] = "z2-action start $name"
+        }
+        picker(context, group, entry, R.string.edge_pick_macro, commands.keys.toList()) { commands.getValue(it) }
     }
 
     fun icons(context: Context, group: LinearLayout, entry: EditText) {

@@ -14,7 +14,7 @@ internal class AndroidAutoScroll(private val service: AccessibilityService) {
     private val main = Handler(Looper.getMainLooper())
     private var generation = 0
     private var flightToken: Int? = null
-    private val inFlight get() = flightToken != null
+    val inFlight get() = flightToken != null
     var running = false
         private set
     private var next: Runnable? = null

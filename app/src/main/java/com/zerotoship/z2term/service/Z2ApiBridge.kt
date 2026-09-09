@@ -241,6 +241,13 @@ object Z2ApiBridge {
                 }.apply { isDaemon = true; name = "z2-app-picker"; start() }
                 return
             }
+            if (cmd == "action" && args.firstOrNull() == "wait") {
+                require(needResp && args.size == 2) { "action wait RUN_ID requires a response" }
+                com.zerotoship.z2term.automation.ActionRuntime.waitFor(args[1]) { result ->
+                    writeResponse(id, ok = result.optString("state") == "completed", data = result.toString())
+                }
+                return // Leave the request worker free for stop and for commands within the macro.
+            }
             val result = dispatch(context, cmd, args)
             if (needResp) writeResponse(id, ok = true, data = result ?: "")
         } catch (e: Exception) {
@@ -279,6 +286,7 @@ object Z2ApiBridge {
             "volume" -> volumeSet(context, args.getOrNull(0).orEmpty())
             "intent" -> { doIntent(context, args); null }
             "edge" -> com.zerotoship.z2term.edge.EdgeCommands.command(context, args)
+            "action" -> com.zerotoship.z2term.automation.ActionCommands.command(context, args)
             "key" -> {
                 // Release the overlay focus before Android decides which window receives Back.
                 if (args.firstOrNull() !in setOf("status", "permission")) com.zerotoship.z2term.edge.EdgeRuntime.close()

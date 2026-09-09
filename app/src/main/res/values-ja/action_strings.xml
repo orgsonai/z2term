@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="action_macro_title">Android操作マクロ</string>
+    <string name="action_macro_running">実行中: %1$s</string>
+    <string name="action_macro_stop">マクロを停止</string>
+</resources>

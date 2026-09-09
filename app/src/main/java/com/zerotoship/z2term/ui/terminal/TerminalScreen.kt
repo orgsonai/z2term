@@ -1074,6 +1074,7 @@ private fun runGuideCommand(
  * 設定 (`systemEventCaptureEnabled`) は触らないので、次にアプリを開けば検知は再開する。
  */
 internal fun stopEverythingAndQuit(context: Context) {
+    com.zerotoship.z2term.automation.ActionRuntime.stop(reason = "App shutdown")
     ServerDaemonService.stop(context)
     SystemEventService.stop(context)
     SessionManager.shutdown()

@@ -26,6 +26,7 @@ ROSTER = ROOT / "app/src/main/java/com/zerotoship/z2term/settings/AppLanguages.k
 CLI_FILES = [
     "Z2ApiMessages.kt", "Z2MacroScript.kt", "Z2DoctorScript.kt", "Z2ScanScript.kt",
     "Z2AdbScript.kt", "Z2HelpScript.kt", "Z2RunScript.kt", "PacmanKeyringScript.kt",
+    "Z2ActionScript.kt",
 ]
 # ja()/en() の組で持っているもの（数え方が違うので別扱い）。
 CLI_BUNDLES = ["GuiScript.kt", "SshdScript.kt"]

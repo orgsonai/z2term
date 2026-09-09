@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-10 / Target version: 0.8.570-alpha (versionCode 578)
+Last updated: 2026-09-10 / Target version: 0.8.571-alpha (versionCode 579)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2197,6 +2197,8 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
 ### 4.14 Edge panels (`edge/`, 0.8.549)
 
 **Adding items and switching tabs (unreleased)**: “+” opens item editing with choices to add an app or a custom macro/command slot. Custom slots can select saved macros like tiles or accept commands directly. The icon field offers a preview list of bundled and saved z2-icon images. Add and settings controls remain 48dp tall and adapt to 24–32dp widths so both fit side by side in narrow panels. Swipe across a normal menu to switch tabs: left/right for vertical and grid layouts, up/down for horizontal layouts (left/up advances, right/down goes back). No initial tab tap is required; the first and last tabs do not wrap. Input editing, long presses and scrolling along the item layout retain their behavior. Tap the bar to open its menu, then **long-press outside the menu** to open bar editing; Settings → Tips also describes this shortcut.
+
+**Named Android action macros (0.8.571)**: Save text definitions through the CLI and run coordinate taps, holds, swipes, waits, app launches, shell commands and timed scrolling through one runtime. Execution provides one active run, completion tracking, cancellation, deadlines and history. Panels, tiles, existing macros and z2-when call the same definitions. See [Android action macros](ACTION-MACROS.md) for syntax, limits and examples. Build and device behavior not yet verified.
 
 **Shared actions and gestures (unreleased)**: Appearance → Gestures assigns an ordered action list to tap, double tap, swipe up/down/inward/outward. Add, remove and move actions in the GUI; an empty list disables a gesture. Hold remains reserved for editing/relocation. Assigned directions take precedence over immediate button dragging; hold to relocate instead. Appearance previews never execute actions.
 
