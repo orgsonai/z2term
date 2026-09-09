@@ -18,8 +18,8 @@ import java.util.concurrent.TimeUnit
  * 食わせた**直後**に [append] へ渡す。alt screen かどうかはエミュレータに食わせた後でないと
  * 正しく判定できないため、この順にしている (タブに出るものは必ずここを通る)。
  *
- * **スレッド**: [append] は呼び出し元 (エミュレータのシリアルスレッド) をブロックしない。
- * バイト列を単一スレッドの executor へ積むだけで、変換とファイル書き込みはそちらで行う。
+ * **スレッド**: 変換と書き込みは単一スレッドで処理する。待ち行列は約1MiBまでとし、
+ * 上限に達したらPTY読込側を待たせて、出力を落とさずメモリの増加を抑える。
  * 端末描画の 60fps コアレッシングに I/O が割り込まないようにするため。
  * flush は [FLUSH_INTERVAL_MS] 周期。アプリが OS に殺されても失うのは末尾のこの分だけ。
  *
@@ -47,6 +47,10 @@ class SessionLogger(
     private val executor = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "z2term-log").apply { isDaemon = true }
     }
+    // At most 1 MiB of 8 KiB PTY chunks can wait for disk/filtering. Backpressure
+    // reaches the PTY reader instead of accumulating an unbounded executor queue.
+    private val pending = java.util.concurrent.Semaphore(128)
+    private val submissionLock = Any()
     private val out = BufferedOutputStream(FileOutputStream(file, append), BUFFER_BYTES)
     private val plain = if (raw) null else PlainTextFilter()
     private val masker = if (mask) SecretMasker() else null
@@ -94,42 +98,50 @@ class SessionLogger(
         )
     }
 
-    /**
-     * 端末に出た塊を記録する。呼び出し元はブロックされない。
-     *
-     * @param chunk PTY から読んだ生バイト (呼び出し側で複製済みのものを渡すこと)。
-     */
-    fun append(chunk: ByteArray) {
-        if (closed) return
-        runCatching {
-            executor.execute {
-                if (closed) return@execute
-                runCatching {
-                    val bytes = stampIfNeeded(maskIfNeeded(plain?.filter(chunk) ?: chunk))
-                    if (bytes.isNotEmpty()) {
-                        out.write(bytes)
-                        bytesWritten += bytes.size
-                    }
-                }.onFailure { Log.w(TAG, "write failed: ${it.message}") }
-            }
+    /** Record output in order; slow storage applies bounded backpressure to the PTY reader. */
+    fun append(chunk: ByteArray) = enqueue(chunk, filter = true)
+
+    /** Seed the log with existing history, which is already plain text. */
+    fun appendText(text: String) {
+        var offset = 0
+        while (offset < text.length && !closed) {
+            var end = minOf(offset + 2048, text.length)
+            if (end < text.length && text[end - 1].isHighSurrogate()) end--
+            enqueue(text.substring(offset, end).toByteArray(maskCharset), filter = false)
+            offset = end
         }
     }
 
-    /** 既に画面に出ていた分 (スクロールバック) を先頭に書く。記録開始直後に 1 回だけ呼ぶ。 */
-    fun appendText(text: String) {
-        if (closed || text.isEmpty()) return
-        val raw = text.toByteArray(maskCharset)
-        runCatching {
-            executor.execute {
-                if (closed) return@execute
-                runCatching {
-                    val bytes = stampIfNeeded(maskIfNeeded(raw))
-                    if (bytes.isNotEmpty()) {
-                        out.write(bytes)
-                        bytesWritten += bytes.size
+    private fun enqueue(bytes: ByteArray, filter: Boolean) {
+        var offset = 0
+        while (offset < bytes.size && !closed) {
+            pending.acquire()
+            val end = minOf(offset + 8192, bytes.size)
+            val chunk = if (offset == 0 && end == bytes.size) bytes else bytes.copyOfRange(offset, end)
+            try {
+                synchronized(submissionLock) {
+                    if (closed) {
+                        pending.release()
+                        return
                     }
-                }.onFailure { Log.w(TAG, "write failed: ${it.message}") }
+                    executor.execute {
+                        try {
+                            val decoded = if (filter) plain?.filter(chunk) ?: chunk else chunk
+                            val output = stampIfNeeded(maskIfNeeded(decoded))
+                            if (output.isNotEmpty()) {
+                                out.write(output)
+                                bytesWritten += output.size
+                            }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "write failed: ${e.message}")
+                        } finally { pending.release() }
+                    }
+                }
+            } catch (e: Exception) {
+                pending.release()
+                throw e
             }
+            offset = end
         }
     }
 
@@ -196,7 +208,7 @@ class SessionLogger(
     }
 
     /** 記録を止めてファイルを閉じる。書き残しは必ず吐き出す (タブを閉じるときも呼ぶこと)。 */
-    fun close() {
+    fun close(): Unit = synchronized(submissionLock) {
         if (closed) return
         closed = true
         runCatching {

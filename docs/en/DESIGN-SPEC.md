@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-09 / Target version: 0.8.569-alpha (versionCode 577)
+Last updated: 2026-09-10 / Target version: 0.8.570-alpha (versionCode 578)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1037,7 +1037,7 @@ The footer now shows **the macro that finished last**, since start times moved o
 - **Insets**: `enableEdgeToEdge()` plus `windowInsetsPadding(WindowInsets.systemBars)` on the root. targetSdk 35 (Android 15) forces edge-to-edge, and without this the screen **slid under the status bar and the 3-button navigation bar, where it was neither visible nor tappable** (hit on a real device). Any new `Activity` must follow the same pattern as the existing screens. ⚠ **The same applies to full-screen `Dialog`s (`DialogProperties(usePlatformDefaultWidth = false)`)** — the OSS licenses screen hit this in 0.8.560, where **the "Open source" action on the last row of the list sat behind the navigation bar, unreadable and untappable** (user report). ⇒ **Apply the same `windowInsetsPadding` to the contents of any full-screen `Dialog`, not just to activities.** Keep the `Surface` at `fillMaxSize()` so the background still paints edge to edge, and put the padding on the `Column` inside it (the same shape as the full-screen preview in `SftpSheet`).
 - **Macro descriptions**: a list of file names says nothing about what each macro does, so the name (minus `.sh`) now carries a one-line description taken from **the comment at the top of the script** (`WidgetStore.describe`, Android-independent and covered by `WidgetStoreTest`). It skips the shebang and blank lines, and skips a self-referencing line such as `# ~/.z2term/macros/<self>.sh`. For `# <file name> — <description>` the leading file name is dropped (separator `—` / `–` / ` - ` / `:`, and **only when the part before it matches the file's own name** — a prefix like `z2term: …` is kept as part of the description). Truncated at 60 characters.
 
-**OSS license bottom edge (0.8.566)**: Both the list and full-text dialogs use `decorFitsSystemWindows=false` with `WindowInsets.safeDrawing`, avoiding system bars, cutouts, window captions and the IME. Scrollable content uses `weight(1f)` for the height remaining below the header, with 24dp of trailing padding. A weighted title wraps without pushing the Close button off screen.
+**OSS license scroll end (unreleased)**: List and full-text dialogs use `decorFitsSystemWindows=false` and read clearance from their own Android window insets and visible bounds. The scroll viewport uses `weight(1f)` below the header; its content includes the obscured bottom height plus 24dp of trailing space so the final full-license and source actions can scroll into view. This replaces the safeDrawing and fixed-padding handling from 0.8.566, which was still reported to leave the last row obscured.
 
 #### Notification button replies (`NotifyActionReceiver` / `z2-notify -b`, 0.8.169)
 
@@ -1204,6 +1204,10 @@ to be compared against `qrencode` module by module).
 **Presentation fix (0.8.173)**: the first cut (0.8.172) used the same 10–11sp secondary styling as the surrounding help text and "did not read as a warning", so it now sits in a **box with a 1px warning-coloured border and a faint warning-coloured background**, with the heading at 14sp bold and the body at 12sp in the primary text colour.
 
 ---
+
+
+
+Bulk output stability (unreleased): Processing a PTY chunk, resizing and rendering share the buffer lock so drawing cannot observe history eviction/insertion halfway through. History retains its configured line limit. Pending terminal log writes are bounded to about 1MiB; slower storage backpressures the PTY reader. Stopping recording drains accepted output in order.
 
 ## 4. Per-layer detailed design
 
@@ -2192,6 +2196,24 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
 
 ### 4.14 Edge panels (`edge/`, 0.8.549)
 
+**Adding items and switching tabs (unreleased)**: “+” opens item editing with choices to add an app or a custom macro/command slot. Custom slots can select saved macros like tiles or accept commands directly. The icon field offers a preview list of bundled and saved z2-icon images. Add and settings controls remain 48dp tall and adapt to 24–32dp widths so both fit side by side in narrow panels. Swipe across a normal menu to switch tabs: left/right for vertical and grid layouts, up/down for horizontal layouts (left/up advances, right/down goes back). No initial tab tap is required; the first and last tabs do not wrap. Input editing, long presses and scrolling along the item layout retain their behavior. Tap the bar to open its menu, then **long-press outside the menu** to open bar editing; Settings → Tips also describes this shortcut.
+
+**Shared actions and gestures (unreleased)**: Appearance → Gestures assigns an ordered action list to tap, double tap, swipe up/down/inward/outward. Add, remove and move actions in the GUI; an empty list disables a gesture. Hold remains reserved for editing/relocation. Assigned directions take precedence over immediate button dragging; hold to relocate instead. Appearance previews never execute actions.
+
+Actions include toggling this panel, Back, Home, Recents, notifications, launching an installed app selected from a list, waiting, commands, single up/down swipes, variable/fixed auto-scroll, stop, faster, slower and reverse. For example, compose “Launch app → Wait → Swipe up once”. Commands wait for exit and single swipes wait for Android completion before advancing. Failure/cancellation stops the remaining actions. Launch completion means the launch request was accepted; add an explicit delay for screen readiness. Waiting for UI elements is not implemented.
+
+Limits: 16 actions, 0–30000ms per wait, 60000ms total waits, 30 seconds per command and three minutes per sequence. A new handle touch, screen-off, rotation, reload or service shutdown cancels the sequence. A new sequence cancels its predecessor; late callbacks cannot restart cancelled work. Starting continuous auto-scroll advances to the next action once started; scrolling may continue after the sequence finishes.
+
+For left-edge variable scrolling, select a left-side bar and assign “Speed follows displacement” to up/down swipes. Release to start: up advances and down goes back. Set the slide distance to maximum speed with `gesture-range`, 32–2000dp (default 160), also available in appearance gesture settings. Speed increases linearly with displacement beyond touch slop, without a 5% minimum, reaching maximum at the configured distance. For example, `z2-edge panel ID gesture-range=640` with maximum 40000 gives 10000 at 160dp and 40000 at 640dp. A trigger without displacement starts forward at the configured speed. Maximum/fixed speed is 50–40000dp/s (default 600, nominal injected speed). Faster/slower multiply/divide speed by 1.5 and reverse changes its sign; adjusted speed is bounded to 2.5–40000dp/s. Touching a running handle pauses scrolling; releasing a bound swipe applies the adjustment. Taps always stop, so assign adjustment actions to swipes.
+
+Scroll X/Y positions are percentages within the focused app window (10–90, default 50). Paths are shifted to stay inside the window. Single swipes use the same position. Only window ID, bounds and focus are read; UI nodes are not searched. Missing targets prevent startup; focus/size changes stop subsequent strokes, and adjustments must retain the original target. Accessibility is required.
+
+With a keyboard open, scrolling is restricted to the terminal viewport excluding the built-in keyboard, and to window bounds above the Android IME. A change in that area stops playback. `z2-key permission` opens the service details or falls back to general Accessibility settings if the device denies that screen.
+
+A stop tap does not open the handle. Touches outside the handle stop scrolling both during and between strokes. Only synthetic gesture events are ignored; physical touch notifications are processed immediately. Outside taps may reach the underlying app. A dispatched stroke (normally up to 120ms; up to 301ms with legacy 100ms sampling) and target-app inertia may remain. Higher speeds shorten strokes but retain at least three intermediate MOVE samples based on Android’s sampling interval, avoiding DOWN/UP-only gestures that behave like taps. Configured speed is a target; actual speed is constrained by viewport height, display refresh and the target app.
+
+Fields: `actions-tap`, `actions-double-tap`, `actions-up`, `actions-down`, `actions-inward`, `actions-outward`. Separate actions with `|`; arguments use `type:UTF-8-form-encoded-value`. Examples: `actions-double-tap=launch:org.example.app|wait:500|swipe-up`, `actions-up=scroll-variable`. Encoding preserves pipes, plus signs and newlines in commands. The GUI handles encoding automatically; each list is limited to 16KiB. Unknown actions and invalid arguments are rejected. Empty explicitly disables a binding; absent keys inherit legacy `open`/`run`/`gesture-*` behavior. `gesture-speed` remains the speed setting and `scroll-x`/`scroll-y` set position. CLI and GUI share `panel.conf`.
+
 Since 0.8.568, the edge-panel ongoing notification does not contribute to the app icon count or notification dot. The next service start after updating migrates to a new channel with badging disabled, preserving the old channel’s notification preferences, including blocked status and importance. The running indicator and stop action remain available in the notification shade.
 
 From 0.8.562, panels show only their items by default. Empty panels have no message or controls. Existing definitions are retained and use the new defaults.
@@ -2349,8 +2371,7 @@ reload clears the cache. `z2-app list` returns package/label JSON for MAIN/LAUNC
 exports PNG. Manifest visibility is restricted to MAIN/LAUNCHER; no `QUERY_ALL_PACKAGES` permission.
 
 `z2-key` exposes back/home/recents/shade/quicksettings/screenshot/split through an explicitly enabled
-AccessibilityService and reports OS rejection. It does not retrieve screen contents, typed text or accessibility
-events. `status` lists available actions and `permission` opens the OS settings. Home also works through a
+AccessibilityService and reports OS rejection. It retrieves window IDs, bounds and focus and observes window-change events for auto-scroll, but does not read UI nodes or typed text. `status` lists available actions and `permission` opens the OS settings. Home also works through a
 HOME Intent without the service. Split requests OS docking only, not application launch into split screen.
 `z2-intent -p package` resolves its launcher activity. `--window full` aliases ordinary launch; it cannot force
 fullscreen. Meter/graph/slider/image/log/term types are unsupported.

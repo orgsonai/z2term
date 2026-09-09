@@ -9,12 +9,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
@@ -27,6 +24,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -62,19 +62,22 @@ fun LicensesDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
+        val windowPadding = licenseWindowPadding()
         Surface(
             color = background,
             modifier = Modifier
                 .fillMaxSize()
                 .border(width = 1.dp, color = border),
         ) {
-            // 全画面 Dialog は targetSdk 35 では画面の端まで広がる。中身をシステムバー
-            // (上=ステータス / 下=ナビゲーション) の内側へ寄せないと、一覧の最後の行にある
-            // 「ソースを開く」がナビゲーションバーの裏に隠れて読めない・押せない。
+            // Read this dialog's actual window geometry. Parent Compose inset consumption must
+            // not erase its bottom clearance. Keep that clearance inside the scrollable content
+            // so the final row can travel completely above the navigation bar / IME.
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.safeDrawing),
+                    .padding(start = windowPadding.calculateLeftPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
+                        top = windowPadding.calculateTopPadding(),
+                        end = windowPadding.calculateRightPadding(androidx.compose.ui.unit.LayoutDirection.Ltr)),
             ) {
                 Row(
                     modifier = Modifier
@@ -99,6 +102,7 @@ fun LicensesDialog(
                     border = border,
                     background = background,
                     modifier = Modifier.fillMaxWidth().weight(1f),
+                    bottomPadding = windowPadding.calculateBottomPadding(),
                 )
             }
         }
@@ -121,6 +125,7 @@ fun LicensesSection(
     border: Color,
     background: Color,
     modifier: Modifier = Modifier,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     val context = LocalContext.current
     val components = remember { OssComponents.list() }
@@ -128,7 +133,7 @@ fun LicensesSection(
 
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 24.dp),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 24.dp + bottomPadding),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
@@ -273,6 +278,7 @@ private fun LicenseFullTextDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
+        val windowPadding = licenseWindowPadding()
         Surface(
             color = background,
             modifier = Modifier
@@ -282,7 +288,9 @@ private fun LicenseFullTextDialog(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .windowInsetsPadding(WindowInsets.safeDrawing),
+                    .padding(start = windowPadding.calculateLeftPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
+                        top = windowPadding.calculateTopPadding(),
+                        end = windowPadding.calculateRightPadding(androidx.compose.ui.unit.LayoutDirection.Ltr)),
             ) {
                 Row(
                     modifier = Modifier
@@ -306,7 +314,7 @@ private fun LicenseFullTextDialog(
                         .fillMaxWidth()
                         .weight(1f)
                         .verticalScroll(rememberScrollState())
-                        .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+                        .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp + windowPadding.calculateBottomPadding()),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Surface(
@@ -389,4 +397,39 @@ private fun openUrl(context: Context, url: String) {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }
+}
+
+/** Dialog insets are independent from the settings page that opened it. */
+@Composable
+private fun licenseWindowPadding(): PaddingValues {
+    val view = LocalView.current
+    val density = LocalDensity.current
+    var padding by remember(view) { mutableStateOf(android.graphics.Rect()) }
+    DisposableEffect(view) {
+        fun update() {
+            if (view.height == 0) return
+            val insets = androidx.core.view.ViewCompat.getRootWindowInsets(view)?.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.systemBars() or
+                    androidx.core.view.WindowInsetsCompat.Type.displayCutout() or
+                    androidx.core.view.WindowInsetsCompat.Type.ime())
+            val visible = android.graphics.Rect()
+            view.getWindowVisibleDisplayFrame(visible)
+            val origin = IntArray(2)
+            view.getLocationOnScreen(origin)
+            val next = android.graphics.Rect(
+                maxOf(insets?.left ?: 0, visible.left - origin[0], 0),
+                maxOf(insets?.top ?: 0, visible.top - origin[1], 0),
+                maxOf(insets?.right ?: 0, origin[0] + view.width - visible.right, 0),
+                maxOf(insets?.bottom ?: 0, origin[1] + view.height - visible.bottom, 0))
+            if (padding != next) padding = next
+        }
+        val observer = view.viewTreeObserver
+        val listener = android.view.ViewTreeObserver.OnGlobalLayoutListener { update() }
+        observer.addOnGlobalLayoutListener(listener)
+        update()
+        onDispose {
+            if (observer.isAlive) observer.removeOnGlobalLayoutListener(listener)
+        }
+    }
+    return with(density) { PaddingValues(padding.left.toDp(), padding.top.toDp(), padding.right.toDp(), padding.bottom.toDp()) }
 }

@@ -332,7 +332,11 @@ fun z2helpScript(lang: String = "ja"): String {
 
     val edge = t(
         en = "[Floating panels]\nz2-edge --help   Define panels and update their contents\nz2-key --help    Android global actions\nz2-app --help    List applications and export icons",
-        ja = "[画面に浮かべるパネル]\nz2-edge --help   パネルの定義・表示の更新\nz2-key --help    戻る・ホーム・履歴などのAndroid操作\nz2-app --help    アプリ一覧・アイコンの取得"
+        ja = "[画面に浮かべるパネル]\nz2-edge --help   パネルの定義・表示の更新\nz2-key --help    戻る・ホーム・履歴などのAndroid操作\nz2-app --help    アプリ一覧・アイコンの取得",
+        "zh-CN" to "[悬浮面板]\nz2-edge --help   定义面板并更新内容\nz2-key --help    Android 全局操作\nz2-app --help    列出应用并导出图标",
+        "zh-TW" to "[浮動面板]\nz2-edge --help   定義面板並更新內容\nz2-key --help    Android 全域操作\nz2-app --help    列出應用程式並匯出圖示",
+        "es" to "[Paneles flotantes]\nz2-edge --help   Definir paneles y actualizar su contenido\nz2-key --help    Acciones globales de Android\nz2-app --help    Listar aplicaciones y exportar iconos",
+        "ko" to "[플로팅 패널]\nz2-edge --help   패널 정의 및 내용 업데이트\nz2-key --help    Android 전역 동작\nz2-app --help    앱 목록 및 아이콘 내보내기"
     )
 
     return """

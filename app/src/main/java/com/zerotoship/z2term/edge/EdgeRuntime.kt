@@ -62,6 +62,12 @@ object EdgeRuntime {
     private var editorPage = 0
     private var cancelAppearance: (() -> Unit)? = null
     private var wakeRestore: Runnable? = null
+    private var pendingScrollStart: Runnable? = null
+    private var pendingActionStart: Runnable? = null
+    private val actionSequence = EdgeActionSequence()
+    private var actionDeadline: Runnable? = null
+    private var lastScrollSpeed = 600f
+    private var scrollSessionAvailable = false
     private data class ItemDrag(val panel: String, val item: String)
     private val selectedTabs = mutableMapOf<String, String>()
     private var receiver: BroadcastReceiver? = null
@@ -296,6 +302,9 @@ object EdgeRuntime {
     }
 
     private fun removeHandles() {
+        cancelHandleActions()
+        scrollSessionAvailable = false
+        stopHandleScroll()
         removeSnapPreview()
         handleCallbacks.forEach { main.removeCallbacks(it) }; handleCallbacks.clear()
         handles.values.forEach { runCatching { wm().removeView(it) } }
@@ -347,11 +356,23 @@ object EdgeRuntime {
                 setPadding(0, 0, 0, 0); maxLines = 2
                 contentDescription = f["label"] ?: panel.id
                 isClickable = true
-                setOnClickListener { activateHandle(panel) }
+                setOnClickListener { runHandleActions(panel, EdgeActions.Trigger.TAP, this, 0f) }
             }
             val dragMoves = button && opening == "tap"
             var startX = 0f; var startY = 0f; var originalX = 0; var originalY = 0; var moved = false
             val slop = ViewConfiguration.get(windowContext!!).scaledTouchSlop
+            val gesture = EdgeHandleGesture(slop.toFloat())
+            var cancelled = false
+            var stopTouch = false
+            var pendingTap = false
+            var secondTap = false
+            var tapX = 0f; var tapY = 0f
+            val singleTap = Runnable {
+                pendingTap = false
+                view.performClick()
+            }
+            handleCallbacks.add(singleTap)
+            val hasDoubleTap = EdgeActions.binding(f, EdgeActions.Trigger.DOUBLE_TAP).isNotEmpty()
             fun releaseAppearance() {
                 relocating = false
                 view.text = badges[panel.id] ?: if (button) "≡" else ""
@@ -372,18 +393,46 @@ object EdgeRuntime {
             }
             handleCallbacks.add(longPress)
             view.setOnTouchListener { _, event ->
+                if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) {
+                    if (pendingActionStart != null) cancelHandleActions()
+                    pendingScrollStart?.let { stopHandleScroll() }
+                    AndroidActions.outsideTouch(event)
+                    return@setOnTouchListener true
+                }
+                if (event.actionMasked == MotionEvent.ACTION_POINTER_DOWN) {
+                    cancelled = true
+                    pendingTap = false
+                    main.removeCallbacks(singleTap)
+                    main.removeCallbacks(longPress)
+                }
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         startX = event.rawX; startY = event.rawY; originalX = p.x; originalY = p.y; moved = false; relocating = false
-                        main.postDelayed(longPress, 300)
+                        gesture.reset(); cancelled = false
+                        scrollSessionAvailable = scrollSessionAvailable && AndroidActions.recentlyAutoScrolling()
+                        cancelHandleActions()
+                        stopTouch = stopHandleScroll()
+                        secondTap = pendingTap && kotlin.math.abs(event.rawX - tapX) <= slop * 2 &&
+                            kotlin.math.abs(event.rawY - tapY) <= slop * 2
+                        if (pendingTap) {
+                            main.removeCallbacks(singleTap)
+                            if (!secondTap) singleTap.run()
+                            pendingTap = false
+                        }
+                        if (!stopTouch) main.postDelayed(longPress, 300)
                         true
                     }
                     MotionEvent.ACTION_MOVE -> {
+                        if (cancelled) return@setOnTouchListener true
                         val dx = event.rawX - startX; val dy = event.rawY - startY
+                        if (!relocating) gesture.move(dx, dy, right)
                         if (kotlin.math.abs(dx) > slop || kotlin.math.abs(dy) > slop) {
                             moved = true; main.removeCallbacks(longPress)
                             // A tap-only handle has no swipe to protect, so dragging moves it at once.
-                            if (dragMoves && !relocating) { relocating = true; view.alpha = 1f; view.invalidate() }
+                            if (dragMoves && !relocating && !stopTouch &&
+                                    EdgeActions.binding(f, actionTrigger(gesture.kind)).isEmpty()) {
+                                relocating = true; view.alpha = 1f; view.invalidate()
+                            }
                         }
                         if (relocating) {
                             p.x = (originalX + dx.toInt()).coerceIn(0, (width - w).coerceAtLeast(0))
@@ -400,6 +449,13 @@ object EdgeRuntime {
                     }
                     MotionEvent.ACTION_UP -> {
                         main.removeCallbacks(longPress)
+                        if (cancelled || (stopTouch && !moved)) {
+                            scrollSessionAvailable = false
+                            p.x = originalX; p.y = originalY
+                            runCatching { wm().updateViewLayout(view, p) }
+                            releaseAppearance()
+                            return@setOnTouchListener true
+                        }
                         if (relocating && !moved) {
                             releaseAppearance()
                             leaveEditor { open(panel.id, settings = true) }
@@ -420,12 +476,29 @@ object EdgeRuntime {
                             }.onFailure { fail(it) }
                         } else {
                             val dx = event.rawX - startX; val dy = event.rawY - startY
-                            if (EdgeHandleActivation.opens(opening, right, moved, dx, dy, slop)) view.performClick()
+                            val kind = gesture.move(dx, dy, right)
+                            if (kind == EdgeHandleGesture.Kind.TAP && hasDoubleTap && !editingItems && cancelAppearance == null) {
+                                if (secondTap) runHandleActions(panel, EdgeActions.Trigger.DOUBLE_TAP, view, 0f)
+                                else {
+                                    tapX = event.rawX; tapY = event.rawY; pendingTap = true
+                                    main.postDelayed(singleTap, ViewConfiguration.getDoubleTapTimeout().toLong())
+                                }
+                            } else if (kind == EdgeHandleGesture.Kind.TAP) view.performClick()
+                            else {
+                                val density = windowContext!!.resources.displayMetrics.density
+                                val displacement = if (kind in setOf(EdgeHandleGesture.Kind.INWARD, EdgeHandleGesture.Kind.OUTWARD))
+                                    -kotlin.math.abs(dx) / density else dy / density
+                                val speedDistance = if (kotlin.math.abs(displacement) > slop / density)
+                                    displacement - kotlin.math.sign(displacement) * slop / density else 0f
+                                runHandleActions(panel, actionTrigger(kind), view, speedDistance)
+                            }
                         }
                         releaseAppearance()
                         true
                     }
-                    MotionEvent.ACTION_CANCEL -> { main.removeCallbacks(longPress); if (moved || relocating) {
+                    MotionEvent.ACTION_CANCEL -> { main.removeCallbacks(longPress)
+                        main.removeCallbacks(singleTap); pendingTap = false
+                        if (moved || relocating) {
                         p.x = originalX; p.y = originalY
                         runCatching { wm().updateViewLayout(view, p) }
                     }; releaseAppearance(); true }
@@ -443,16 +516,147 @@ object EdgeRuntime {
         if (session != null) session.leave(action = guarded) else guarded()
     }
 
-    private fun activateHandle(panel: EdgeStore.Panel) {
-        if (!unlocked()) return
-        leaveEditor {
-            val command = panel.fields["run"].orEmpty()
-            if (command.isNotBlank()) {
-                close()
-                val accepted = runner!!.run("handle:${panel.id}", command, 30) { if (it.error != null) fail(IllegalStateException(it.error)) }
-                if (!accepted) fail(IllegalStateException(app!!.getString(R.string.edge_busy)))
-            } else if (openRootId == panel.id) close() else open(panel.id)
+    private fun actionTrigger(kind: EdgeHandleGesture.Kind): EdgeActions.Trigger = when (kind) {
+        EdgeHandleGesture.Kind.TAP -> EdgeActions.Trigger.TAP
+        EdgeHandleGesture.Kind.UP -> EdgeActions.Trigger.UP
+        EdgeHandleGesture.Kind.DOWN -> EdgeActions.Trigger.DOWN
+        EdgeHandleGesture.Kind.INWARD -> EdgeActions.Trigger.INWARD
+        EdgeHandleGesture.Kind.OUTWARD -> EdgeActions.Trigger.OUTWARD
+    }
+
+    private fun cancelHandleActions() {
+        pendingActionStart?.let(main::removeCallbacks); pendingActionStart = null
+        actionDeadline?.let(main::removeCallbacks); actionDeadline = null
+        actionSequence.cancel()
+    }
+
+    private fun runHandleActions(panel: EdgeStore.Panel, trigger: EdgeActions.Trigger, view: View, displacement: Float) {
+        if (!unlocked() || editingItems || cancelAppearance != null) return
+        val actions = EdgeActions.binding(panel.fields, trigger)
+        if (actions.isEmpty()) return
+        cancelHandleActions()
+        val task = Runnable {
+            pendingActionStart = null
+            if (!unlocked() || view !in handles.values) return@Runnable
+            val deadline = Runnable {
+                if (actionSequence.running) {
+                    cancelHandleActions()
+                    stopHandleScroll(); scrollSessionAvailable = false
+                    fail(IllegalStateException(app!!.getString(R.string.edge_action_timeout)))
+                }
+            }
+            actionDeadline = deadline
+            main.postDelayed(deadline, 180000)
+            actionSequence.start(actions, { action, done ->
+                check(unlocked()) { "Unlock the screen before running actions" }
+                executeHandleAction(panel, trigger, view, displacement, action, done)
+            }, { error ->
+                stopHandleScroll(); scrollSessionAvailable = false
+                fail(IllegalStateException(error))
+            })
         }
+        pendingActionStart = task
+        main.postDelayed(task, 80)
+    }
+
+    private fun executeHandleAction(panel: EdgeStore.Panel, trigger: EdgeActions.Trigger, view: View,
+        displacement: Float, action: EdgeActions.Action, done: (String?) -> Unit): (() -> Unit)? {
+        val type = action.type
+        if (type !in setOf(EdgeActions.Type.PANEL, EdgeActions.Type.WAIT)) close()
+        when (type) {
+            EdgeActions.Type.PANEL -> { open(panel.id, toggle = true); done(null) }
+            EdgeActions.Type.WAIT -> {
+                val wait = Runnable { done(null) }
+                main.postDelayed(wait, action.argument.toLong())
+                return { main.removeCallbacks(wait) }
+            }
+            EdgeActions.Type.COMMAND -> {
+                val key = "handle:${panel.id}"
+                check(runner!!.run(key, action.argument, 30) { done(it.error) }) {
+                    app!!.getString(R.string.edge_busy)
+                }
+                return { runner?.cancelJob(key) }
+            }
+            EdgeActions.Type.LAUNCH -> {
+                val intent = app!!.packageManager.getLaunchIntentForPackage(action.argument)
+                    ?: error(app!!.getString(R.string.edge_action_no_app))
+                app!!.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); done(null)
+            }
+            EdgeActions.Type.BACK, EdgeActions.Type.HOME, EdgeActions.Type.RECENTS, EdgeActions.Type.SHADE -> {
+                AndroidActions.command(app!!, listOf(type.id)); done(null)
+            }
+            EdgeActions.Type.SCROLL_STOP -> { stopHandleScroll(); scrollSessionAvailable = false; done(null) }
+            else -> {
+                if (type == EdgeActions.Type.SCROLL_VARIABLE && displacement == 0f &&
+                    trigger !in setOf(EdgeActions.Trigger.TAP, EdgeActions.Trigger.DOUBLE_TAP)) {
+                    done(null); return null
+                }
+                val maximum = panel.fields["gesture-speed"]?.toIntOrNull() ?: 600
+                val sign = if (trigger == EdgeActions.Trigger.DOWN) 1f else -1f
+                val speed = when (type) {
+                    EdgeActions.Type.SCROLL_FASTER -> lastScrollSpeed * 1.5f
+                    EdgeActions.Type.SCROLL_SLOWER -> lastScrollSpeed / 1.5f
+                    EdgeActions.Type.SCROLL_REVERSE -> -lastScrollSpeed
+                    EdgeActions.Type.SCROLL_VARIABLE -> if (displacement != 0f)
+                        EdgeHandleGesture.scrollSpeed(displacement, 0f, maximum, true,
+                            panel.fields["gesture-range"]?.toFloatOrNull() ?: 160f) else sign * maximum
+                    EdgeActions.Type.SWIPE_DOWN -> maximum.toFloat()
+                    EdgeActions.Type.SWIPE_UP -> -maximum.toFloat()
+                    else -> sign * maximum
+                }
+                if (type in setOf(EdgeActions.Type.SCROLL_FASTER, EdgeActions.Type.SCROLL_SLOWER,
+                        EdgeActions.Type.SCROLL_REVERSE) && !scrollSessionAvailable) { done(null); return null }
+                val bounded = kotlin.math.sign(speed) * kotlin.math.abs(speed).coerceIn(2.5f, 40000f)
+                startHandleScroll(view, bounded, panel.fields,
+                    once = type in setOf(EdgeActions.Type.SWIPE_UP, EdgeActions.Type.SWIPE_DOWN),
+                    requirePreviousTarget = type in setOf(EdgeActions.Type.SCROLL_FASTER,
+                        EdgeActions.Type.SCROLL_SLOWER, EdgeActions.Type.SCROLL_REVERSE), completed = done)
+                return { stopHandleScroll() }
+            }
+        }
+        return null
+    }
+
+    private fun stopHandleScroll(): Boolean {
+        val pending = pendingScrollStart != null
+        pendingScrollStart?.let(main::removeCallbacks)
+        pendingScrollStart = null
+        return AndroidActions.stopAutoScroll() || pending
+    }
+
+    private fun startHandleScroll(view: View, speed: Float, fields: Map<String, String> = emptyMap(),
+        once: Boolean = false, requirePreviousTarget: Boolean = false, completed: (String?) -> Unit = {}) {
+        stopHandleScroll()
+        val task = Runnable {
+            pendingScrollStart = null
+            if (!unlocked() || view !in handles.values || editingItems || cancelAppearance != null) {
+                completed("Scroll target is no longer available"); return@Runnable
+            }
+            runCatching {
+                check(AndroidActions.connected()) { app!!.getString(R.string.edge_accessibility_help) }
+                val (width, height) = screenSize()
+                val location = IntArray(2)
+                view.getLocationOnScreen(location)
+                val layout = view.layoutParams as WindowManager.LayoutParams
+                val originX = location[0] - layout.x
+                val originY = location[1] - layout.y
+                AndroidActions.startAutoScroll(speed,
+                    android.graphics.Rect(originX, originY, originX + width, originY + height),
+                    fields["scroll-x"]?.toFloatOrNull() ?: 50f,
+                    fields["scroll-y"]?.toFloatOrNull() ?: 50f, once, requirePreviousTarget) { error ->
+                    if (once) completed(error)
+                    else if (error != null) fail(IllegalStateException(error))
+                }
+                lastScrollSpeed = speed
+                scrollSessionAvailable = !once
+                if (!once) completed(null)
+                if (!once) Toast.makeText(ui(), app!!.getString(R.string.edge_scroll_started,
+                    kotlin.math.abs(speed).toInt()), Toast.LENGTH_LONG).show()
+            }.onFailure { completed(it.message ?: "Scroll failed") }
+        }
+        pendingScrollStart = task
+        // Release the physical touch before dispatchGesture, which otherwise cancels it.
+        main.postDelayed(task, 80)
     }
 
     fun open(id: String, toggle: Boolean = false, tabId: String? = null, settings: Boolean = false,
@@ -460,6 +664,7 @@ object EdgeRuntime {
         if (toggle && openRootId == id) { close(); return@onMain }
         require(app != null && store(app!!).enabled()) { "Enable the panel first: z2-edge on" }
         require(unlocked()) { "Unlock the screen before opening the panel" }
+        stopHandleScroll()
         val requested = panels.firstOrNull { it.id == id } ?: throw IllegalArgumentException("No panel: $id")
         val root = panels.firstOrNull { id in it.tabs } ?: requested
         val active = tabId ?: if (root.id != id) id else selectedTabs[root.id]
@@ -477,6 +682,7 @@ object EdgeRuntime {
             val (width, height) = screenSize()
             val density = windowContext!!.resources.displayMetrics.density
             val panelWidth = if (settings) width else EdgeStore.dimensionPixels(root.fields["width"] ?: "360", width, density)
+                .coerceAtLeast(if (root.fields["add"] == "on" || root.fields["settings"] == "on") minOf(width, dp(48)) else 1)
             val panelHeight = if (settings) height else EdgeStore.dimensionPixels(root.fields["height"] ?: "72%", height, density)
             val body = object : LinearLayout(ui()) {
                 override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -555,12 +761,16 @@ object EdgeRuntime {
                 body.addView(navigation)
                 body.addView(EdgeEditorUi.divider(ui()))
             }
-            val tools = LinearLayout(ui()).apply { gravity = Gravity.END }
+            val tools = EdgeToolRow(ui(), compact = !settings).apply { gravity = Gravity.END }
             if (settings || root.fields["add"] == "on") tools.addView(EdgeEditorUi.button(ui(), "") {}.apply {
                 text = if (settings) app!!.getString(R.string.edge_add_app) else "+"
-                contentDescription = app!!.getString(R.string.edge_add_app)
-                if (!settings) { minWidth = 0; minimumWidth = 0; setPadding(0, 0, 0, 0); layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)) }
+                contentDescription = app!!.getString(if (settings) R.string.edge_add_app else R.string.edge_add_entry)
+                if (!settings) { minWidth = 0; minimumWidth = 0; setPadding(0, 0, 0, 0); layoutParams = LinearLayout.LayoutParams(dp(32), dp(48)) }
                 setOnClickListener { session.leave {
+                    if (!settings) {
+                        open(root.id, tabId = panel.id, settings = true, page = 0)
+                        return@leave
+                    }
                     val context = app!!
                     close()
                     runCatching { context.startActivity(Intent(context, AppPickerActivity::class.java)
@@ -570,7 +780,7 @@ object EdgeRuntime {
             })
             if (!settings && root.fields["settings"] == "on") tools.addView(EdgeEditorUi.button(ui(), "") {}.apply {
                 text = "⚙"; contentDescription = app!!.getString(R.string.edge_settings)
-                minWidth = 0; minimumWidth = 0; setPadding(0, 0, 0, 0); layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
+                minWidth = 0; minimumWidth = 0; setPadding(0, 0, 0, 0); layoutParams = LinearLayout.LayoutParams(dp(32), dp(48))
                 setOnClickListener { open(root.id, tabId = panel.id, settings = true) }
             })
             if (settings) tools.addView(EdgeEditorUi.button(ui(), "") {}.apply {
@@ -674,6 +884,15 @@ object EdgeRuntime {
             }
             val overlay = (existingWindow ?: EdgePanelWindow(ui())).apply {
                 back = { session.leave { if (settings) open(root.id, tabId = panel.id) else close() } }
+                swipeArea = if (settings || root.tabs.isEmpty()) null else body
+                horizontalTabSwipe = flow != "horizontal"
+                changeTab = { forward ->
+                    val ids = listOf(root.id) + root.tabs
+                    val index = ids.indexOf(panel.id) + if (forward) 1 else -1
+                    if (index in ids.indices) session.leave {
+                        runCatching { open(root.id, tabId = ids[index]) }.onFailure { fail(it) }
+                    }
+                }
                 setOnClickListener { session.leave { close() } }
                 setOnLongClickListener(if (settings) null else View.OnLongClickListener {
                     runCatching { open(root.id, tabId = panel.id, settings = true) }.onFailure { fail(it) }
@@ -1041,7 +1260,8 @@ object EdgeRuntime {
         val gen = generation
         val revision = revisions[target] ?: 0
         val owner = runner!!
-        val accepted = owner.run((if (refresh) "read:" else "action:") + target, command, item.timeout, input, value) { result ->
+        val script = EdgeMacroCommand.resolve(command, com.zerotoship.z2term.widget.WidgetStore.availableMacros(app!!))
+        val accepted = owner.run((if (refresh) "read:" else "action:") + target, script, item.timeout, input, value) { result ->
             if (app == null || runner !== owner) return@run
             val visible = gen == generation && openId == panel
             if (refresh && item.type == "toggle" && result.error == null &&

@@ -11,16 +11,25 @@ import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 
 object AppCatalog {
+    data class LaunchableApp(val packageName: String, val label: String)
+
+    @Suppress("DEPRECATION")
+    fun launchableApps(context: Context): List<LaunchableApp> {
+        val pm = context.packageManager
+        return pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
+            .distinctBy { it.activityInfo.packageName }
+            .map { LaunchableApp(it.activityInfo.packageName, it.loadLabel(pm).toString()) }
+            .sortedWith(compareBy<LaunchableApp> { it.label }.thenBy { it.packageName })
+    }
+
     @Suppress("DEPRECATION")
     fun command(context: Context, args: List<String>): String {
         val pm = context.packageManager
         return when {
             args == listOf("pick") -> AppPickerActivity.pick(context)
             args == listOf("list") -> {
-                val entries = pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
-                    .distinctBy { it.activityInfo.packageName }.sortedBy { it.loadLabel(pm).toString() }
-                JSONArray(entries.map {
-                    JSONObject().put("package", it.activityInfo.packageName).put("label", it.loadLabel(pm).toString())
+                JSONArray(launchableApps(context).map {
+                    JSONObject().put("package", it.packageName).put("label", it.label)
                 }).toString()
             }
             args.size == 2 && args[0] == "icon" -> {

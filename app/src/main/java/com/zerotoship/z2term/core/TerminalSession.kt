@@ -145,8 +145,8 @@ class TerminalSession(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     // PTY 読込 + emulator 状態更新を 1 本のシリアル executor 上で実行する。
-    // Compose 側は emulator buffer を Main で読むため、書き手側の競合を 1 スレッドに
-    // 寄せつつ、StateFlow 通知経由でメモリ可視性を確保する。
+    // 書き手は1スレッドに直列化し、Mainの描画とはbufferの同じロックで排他する。
+    // StateFlowの通知だけでは、次のPTY更新と描画の同時実行を防げない。
     private val emulatorExecutor = Executors.newSingleThreadExecutor { r ->
         Thread(r, "z2term-emu-${id.take(8)}").apply { isDaemon = true }
     }
@@ -925,7 +925,7 @@ class TerminalSession(
         }
         // PTY blocking read は IO で行い、emulator 処理は専用シリアルスレッドに hand off。
         // これで clearOutput / restart など他経路の emulator 操作も同じスレッド上で
-        // 直列化でき、UI スレッドとのレースを完全に排除できる。
+        // 直列化する。UI描画との排他はprocessBytesと描画側が共有するbufferロックで行う。
         readJob = scope.launch(Dispatchers.IO) {
             val buffer = ByteArray(8192)
             try {
@@ -945,7 +945,7 @@ class TerminalSession(
                             // エミュレータに食わせた「後」に渡すのは、alt screen に入ったかどうかが
                             // この塊を処理した後でないと正しく判定できないため。
                             // 書き込み自体は SessionLogger 側の専用スレッドへ積むだけで、
-                            // ここ (描画を直列化しているスレッド) はブロックしない。
+                            // 待ち行列が上限に達したときだけ、書き込みが追いつくまでPTY読込を待たせる。
                             logger?.let { lg ->
                                 if (emulator.buffer.primaryActive || settingsFlow.value.sessionLogAltScreen) {
                                     lg.append(chunk)

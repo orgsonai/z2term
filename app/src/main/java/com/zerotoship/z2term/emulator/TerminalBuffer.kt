@@ -17,6 +17,7 @@ class TerminalBuffer(
     scrollbackCapacity: Int = 5000
 ) {
     /** スクロールバック上限行数 (実行時変更可) */
+    @set:Synchronized
     var scrollbackCapacity: Int = scrollbackCapacity
         set(value) {
             field = value.coerceAtLeast(0)
@@ -44,9 +45,11 @@ class TerminalBuffer(
     private val scrollback = ArrayDeque<TerminalRow>(scrollbackCapacity)
 
     /** スクロールバック行数 */
+    @get:Synchronized
     val scrollbackSize: Int get() = if (primaryActive) scrollback.size else 0
 
     /** 全行数 (スクロールバック + スクリーン) */
+    @get:Synchronized
     val totalRows: Int get() = scrollbackSize + rows
 
     /**
@@ -54,6 +57,7 @@ class TerminalBuffer(
      * index 0 がスクロールバック最古行、totalRows-1 がスクリーン最下行。
      * Alternate アクティブ時はスクロールバックは存在しない。
      */
+    @Synchronized
     fun getRow(index: Int): TerminalRow {
         return if (primaryActive && index < scrollback.size) {
             scrollback[index]
@@ -63,6 +67,7 @@ class TerminalBuffer(
     }
 
     /** スクリーン上の行を取得 (0 = 最上行) */
+    @Synchronized
     fun getScreenRow(row: Int): TerminalRow {
         require(row in 0 until rows) { "row=$row out of range [0,$rows)" }
         return screen[row]
@@ -72,6 +77,7 @@ class TerminalBuffer(
      * Alternate スクリーンに切替。
      * @param clear true なら alternate を消去してから使う (DECSET 1049/1047 相当)
      */
+    @Synchronized
     fun switchToAlternate(clear: Boolean, fg: Int = SgrAttribute.DEFAULT, bg: Int = SgrAttribute.DEFAULT) {
         if (!primaryActive) return
         if (clear) {
@@ -83,6 +89,7 @@ class TerminalBuffer(
     }
 
     /** Primary スクリーンに復帰 */
+    @Synchronized
     fun switchToPrimary() {
         if (primaryActive) return
         screen = primary
@@ -95,6 +102,7 @@ class TerminalBuffer(
      * Primary 時はスクリーン最上行をスクロールバックに移し、最下行に空行を追加。
      * Alternate 時は履歴に残さず捨てる。
      */
+    @Synchronized
     fun scrollUp(fg: Int = SgrAttribute.DEFAULT, bg: Int = SgrAttribute.DEFAULT) {
         scrollUpRegion(0, rows - 1, fg, bg, saveToScrollback = true)
     }
@@ -106,6 +114,7 @@ class TerminalBuffer(
     }
 
     /** 1 行スクロールダウン (逆方向) — スクリーン最下行を捨て最上行に空行 */
+    @Synchronized
     fun scrollDown(fg: Int = SgrAttribute.DEFAULT, bg: Int = SgrAttribute.DEFAULT) {
         for (i in rows - 1 downTo 1) {
             screen[i] = screen[i - 1]
@@ -114,6 +123,7 @@ class TerminalBuffer(
     }
 
     /** Scroll only the region. LF/IND/SU can retain rows leaving the screen top; DL cannot. */
+    @Synchronized
     fun scrollUpRegion(top: Int, bottom: Int, fg: Int = SgrAttribute.DEFAULT, bg: Int = SgrAttribute.DEFAULT,
         saveToScrollback: Boolean = false) {
         if (top < 0 || bottom >= rows || top > bottom) return
@@ -125,6 +135,7 @@ class TerminalBuffer(
     }
 
     /** 指定範囲でスクロールダウン (逆方向) */
+    @Synchronized
     fun scrollDownRegion(top: Int, bottom: Int, fg: Int = SgrAttribute.DEFAULT, bg: Int = SgrAttribute.DEFAULT) {
         if (top < 0 || bottom >= rows || top > bottom) return
         for (i in bottom downTo top + 1) {
@@ -134,6 +145,7 @@ class TerminalBuffer(
     }
 
     /** アクティブスクリーン全消去 */
+    @Synchronized
     fun clearScreen(fg: Int = SgrAttribute.DEFAULT, bg: Int = SgrAttribute.DEFAULT) {
         for (row in screen) row.clear(fg = fg, bg = bg)
     }
@@ -152,6 +164,7 @@ class TerminalBuffer(
      *         scrollback から pull した行数は負で返す。emulator はこれを引いて
      *         画面上のカーソル位置を保つ。変化なしは 0。
      */
+    @Synchronized
     fun resize(newRows: Int, newColumns: Int, cursorRow: Int = 0): Int {
         if (newRows == rows && newColumns == columns) return 0
 
@@ -241,11 +254,13 @@ class TerminalBuffer(
     }
 
     /** 全行をダーティに */
+    @Synchronized
     fun markAllDirty() {
         for (row in screen) row.dirty = true
     }
 
     /** 全行のテキストを文字列で取得 (コピー用) */
+    @Synchronized
     fun getAllText(includeScrollback: Boolean = true): String {
         val sb = StringBuilder()
         if (includeScrollback && primaryActive) {
@@ -262,6 +277,7 @@ class TerminalBuffer(
     }
 
     /** 指定範囲 (行・列、両端含む) のテキストを取得 (wide-cont セルはスキップ) */
+    @Synchronized
     fun getRangeText(startRow: Int, startCol: Int, endRow: Int, endCol: Int): String {
         if (startRow > endRow || startRow !in 0 until totalRows) return ""
         val sb = StringBuilder()
@@ -294,6 +310,7 @@ class TerminalBuffer(
     }
 
     /** スクロールバッククリア */
+    @Synchronized
     fun clearScrollback() {
         scrollback.clear()
     }
@@ -304,6 +321,7 @@ class TerminalBuffer(
      * virtual placement 登録 ([virtualPlacements])、 animation frame ([animations])
      * もクリア。
      */
+    @Synchronized
     fun clearAllImages() {
         for (row in primary) row.images.clear()
         for (row in alternate) row.images.clear()
@@ -319,6 +337,7 @@ class TerminalBuffer(
      * 画像キャッシュ・ virtual placement 登録からも該当エントリを消す。
      * Kitty graphics の `a=d,d=I,I=N`/`d=i,i=N` 相当。
      */
+    @Synchronized
     fun deleteImageById(imageId: Int) {
         if (imageId == 0) return  // id=0 は未指定扱いなので一括削除には使わない
         for (row in primary) row.images.removeAll { it.imageId == imageId }
@@ -334,6 +353,7 @@ class TerminalBuffer(
      * 指定 [imageId] / [placementId] の placement だけを除く。 画像本体 (キャッシュ) は残す。
      * Kitty graphics の `a=d,d=p,i=N,p=N` 相当。 該当 virtual placement があれば併せて消す。
      */
+    @Synchronized
     fun deletePlacement(imageId: Int, placementId: Int) {
         for (row in primary) row.images.removeAll { it.imageId == imageId && it.placementId == placementId }
         for (row in alternate) row.images.removeAll { it.imageId == imageId && it.placementId == placementId }
@@ -350,10 +370,12 @@ class TerminalBuffer(
     private val imageCache: MutableMap<Int, android.graphics.Bitmap> = HashMap()
 
     /** 画像キャッシュを取得 (存在しなければ null)。 */
+    @Synchronized
     fun getCachedImage(imageId: Int): android.graphics.Bitmap? =
         if (imageId == 0) null else imageCache[imageId]
 
     /** 画像キャッシュへ登録 (`a=T` / `a=t` で呼ぶ)。 imageId=0 は登録しない。 */
+    @Synchronized
     fun cacheImage(imageId: Int, bitmap: android.graphics.Bitmap) {
         if (imageId == 0) return
         imageCache[imageId] = bitmap
@@ -368,12 +390,14 @@ class TerminalBuffer(
     private val virtualPlacements: MutableMap<Int, VirtualPlacementSpec> = HashMap()
 
     /** Virtual placement を登録 (imageId=0 は無視)。 */
+    @Synchronized
     fun registerVirtualPlacement(imageId: Int, spec: VirtualPlacementSpec) {
         if (imageId == 0) return
         virtualPlacements[imageId] = spec
     }
 
     /** Virtual placement を引く (未登録なら null)。 imageId=0 は常に null。 */
+    @Synchronized
     fun getVirtualPlacement(imageId: Int): VirtualPlacementSpec? =
         if (imageId == 0) null else virtualPlacements[imageId]
 
@@ -391,6 +415,7 @@ class TerminalBuffer(
      * 新しい frame を追加した時点で再生状態を frame 0 から振り直す ([animationStates] を
      * 該当 imageId だけリセット) ことで「最初の frame から正しく再生される」挙動にする。
      */
+    @Synchronized
     fun addAnimationFrame(imageId: Int, frame: AnimationFrame) {
         if (imageId == 0) return
         val list = animations.getOrPut(imageId) { ArrayList() }
@@ -399,6 +424,7 @@ class TerminalBuffer(
     }
 
     /** Animation frame リストを取得 (未登録なら null)。 imageId=0 は常に null。 */
+    @Synchronized
     fun getAnimationFrames(imageId: Int): List<AnimationFrame>? =
         if (imageId == 0) null else animations[imageId]
 
@@ -414,6 +440,7 @@ class TerminalBuffer(
     private val animationStates: MutableMap<Int, AnimationPlaybackState> = HashMap()
 
     /** 動かす対象の animation が 1 件以上あるか (frame 1 以降が登録されているか)。 */
+    @Synchronized
     fun hasActiveAnimations(): Boolean {
         for ((_, frames) in animations) if (frames.isNotEmpty()) return true
         return false
@@ -429,6 +456,7 @@ class TerminalBuffer(
      *
      * @return 状態が 1 つでも変わったら true (UI 側は invalidate を促す)。
      */
+    @Synchronized
     fun advanceAnimations(nowMs: Long): Boolean {
         if (animations.isEmpty()) return false
         var anyChanged = false
@@ -458,6 +486,7 @@ class TerminalBuffer(
      *  - frame 1 以降 → `animations[imageId][currentFrame - 1].bitmap`
      *  - `imageId == 0` は常に null
      */
+    @Synchronized
     fun currentBitmap(imageId: Int): android.graphics.Bitmap? {
         if (imageId == 0) return null
         val state = animationStates[imageId] ?: return imageCache[imageId]

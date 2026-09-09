@@ -21,6 +21,13 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# title=on|off close=on|off tabbar=off|on|auto add=on|off settings=on|off
         |# labels=on|off flow=vertical|horizontal|grid columns=auto|1..16 icon-size=16..192
         |# place=handle|left|right|top|bottom|center at=X%,Y%
+        |# z2-edge panel ID 'actions-double-tap=launch:org.example.app|wait:500|swipe-up'
+        |# actions-tap / actions-up / actions-down / actions-inward / actions-outward
+        |# actions-up=scroll-variable  scroll-x=50 scroll-y=50
+        |# z2-edge panel ID gesture-up="command" gesture-down="command" gesture-double-tap="command"
+        |# z2-edge panel ID gesture-scroll=off|variable|fixed gesture-speed=600
+        |# z2-edge panel ID gesture-range=640    最高速度までの距離32〜2000dp（既定160）。大きいほど緩やか。
+        |# 上下スライドで可変速/固定速スクロール。速度は50〜40000dp/秒。タップで停止。
         |# z2-edge panel ID label=名前            パネルの定義を追加・更新
         |# z2-edge set ID:項目 type=text 'run=date' label=時計 every=30
         |# z2-edge get ID                        板の保存済み定義を取得（key=value）
@@ -57,6 +64,13 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge set ID:memo type=note file=~/memo.txt
         |# z2-edge tab PARENT ID [LABEL]
         |# z2-edge delete ID
+        |# z2-edge panel ID 'actions-double-tap=launch:org.example.app|wait:500|swipe-up'
+        |# actions-tap / actions-up / actions-down / actions-inward / actions-outward
+        |# actions-up=scroll-variable  scroll-x=50 scroll-y=50
+        |# z2-edge panel ID gesture-up="command" gesture-down="command" gesture-double-tap="command"
+        |# z2-edge panel ID gesture-scroll=off|variable|fixed gesture-speed=600
+        |# z2-edge panel ID gesture-range=640    Distance to maximum: 32–2000dp (default 160); larger is gentler.
+        |# Vertical slides set variable/fixed auto-scroll (50–40000 dp/s). Tap to stop.
         |# z2-edge panel ID width=80% height=60% fit=content|fixed
         |# title=on|off close=on|off tabbar=off|on|auto add=on|off settings=on|off
         |# labels=on|off flow=vertical|horizontal|grid columns=auto|1..16 icon-size=16..192

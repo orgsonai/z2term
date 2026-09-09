@@ -5,9 +5,32 @@ import org.junit.Test
 import java.nio.file.Files
 
 class EdgeStoreTest {
+    @Test fun gestureRangeAcceptsOnlyWholeDistancesWithinBounds() {
+        for (range in listOf("32", "160", "640", "2000")) {
+            EdgeStore.validatePanel(mapOf("gesture-range" to range))
+        }
+        for (range in listOf("", "0", "31", "2001", "640.5", "NaN", "Infinity")) {
+            rejects { EdgeStore.validatePanel(mapOf("gesture-range" to range)) }
+        }
+    }
+
     private fun rejects(block: () -> Unit) {
         try { block(); fail("Expected invalid definition to be rejected") }
         catch (_: IllegalArgumentException) { }
+    }
+
+    @Test fun gestureBindingsRoundTripAndRejectInvalidScrollSettings() {
+        val fields = mapOf("gesture-up" to "printf '%s' a=b", "gesture-down" to "echo down",
+            "gesture-double-tap" to "echo double", "gesture-scroll" to "variable", "gesture-speed" to "600", "gesture-range" to "640")
+        EdgeStore.validatePanel(fields)
+        assertEquals(fields, EdgeStore.parse(EdgeStore.encode(fields)))
+        EdgeStore.validatePanel(mapOf("gesture-scroll" to "fixed", "gesture-speed" to "50"))
+        EdgeStore.validatePanel(mapOf("gesture-scroll" to "off", "gesture-speed" to "40000"))
+        rejects { EdgeStore.validatePanel(mapOf("gesture-scroll" to "unknown")) }
+        for (bad in listOf("0", "49", "40001", "NaN", "1.5", "")) {
+            rejects { EdgeStore.validatePanel(mapOf("gesture-speed" to bad)) }
+        }
+        rejects { EdgeStore.validatePanel(mapOf("gesture-up" to "echo one\necho two")) }
     }
 
     @Test fun initialPanelDoesNotOverwriteExistingDefinitions() {

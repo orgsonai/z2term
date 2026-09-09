@@ -1,5 +1,18 @@
 # Android action macro proposal
 
+Core direction (confirmed 2026-09-10): Recording, repetition and coordinate actions are examples, not the limit of the automation scope. Commands and text are the source of truth: triggers, conditions and actions must be creatable, editable, storable and executable through the CLI. GUI controls assist coordinate picking and inspection; no feature should require GUI-only configuration. Integrate with shell macros and `z2-when`, with bars, tiles and gestures invoking shared macros. New automation features remain outside this delivery.
+
+
+2026-09-10 delivery scope: Operation capture, finite/infinite replay, coordinate-based step editing, and picking coordinates over any app for pasting are recorded requirements. At the user’s request, they are deferred; this round covers fixes and verification of the existing implementation only.
+
+
+
+2026-09-10 scope correction: The goal is reusable Android operation macros combining triggers, conditions and multiple actions. Handle gesture bindings are one entry point; the current action lists do not complete that goal. Integrate with existing automation and shell macros, with auto-scroll as one shared action.
+
+Major missing pieces include shared storage/invocation of named operation macros, arbitrary coordinate taps/holds/swipes, GUI editing of waits/repeats/branches, and execution history. A “Pick coordinates” control should capture the next point over any app for pasting into an editor, while retaining direct numeric input. Picking must consume the touch, record screen size/orientation, and offer cancellation. These remain implementation work.
+
+2026-09-09 update: implemented shared action sequences, six handle gestures, launch/wait/single-swipe sequencing, and auto-scroll speed/reversal/position controls (unreleased; action lists built and unit-tested, with partial device verification). Arbitrary coordinate recording and UI-element waits remain unimplemented.
+
 2026-09-08. These extensions and new commands are proposals, not implemented features.
 Reuse existing z2-when triggers/guards, shell macros and edge panels as entry points.
 

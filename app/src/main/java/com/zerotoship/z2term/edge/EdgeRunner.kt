@@ -92,6 +92,7 @@ class EdgeRunner(private val context: Context) {
     fun cancelReads() = cancel { it.startsWith("read:") }
     fun cancelRead(target: String) = cancel { it == "read:$target" }
     fun cancelAll() = cancel { true }
+    fun cancelJob(key: String) = cancel { it == key }
 
     private fun cancel(matches: (String) -> Boolean) {
         jobs.entries.filter { matches(it.key) }.forEach { (key, job) ->

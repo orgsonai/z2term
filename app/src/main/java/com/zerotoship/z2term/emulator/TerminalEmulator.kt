@@ -213,7 +213,7 @@ class TerminalEmulator(
     /**
      * 入力バイト列を処理する。
      */
-    fun processBytes(bytes: ByteArray, length: Int = bytes.size) {
+    fun processBytes(bytes: ByteArray, length: Int = bytes.size): Unit = synchronized(buffer) {
         var i = 0
         while (i < length) {
             val b = bytes[i].toInt() and 0xFF
@@ -1540,7 +1540,7 @@ class TerminalEmulator(
         buffer.clearScrollback()
     }
 
-    fun resize(rows: Int, columns: Int) {
+    fun resize(rows: Int, columns: Int): Unit = synchronized(buffer) {
         // buffer 側でカーソル行を残すよう下方の空行を先に捨て、足りなければ
         // 上方を scrollback に押し出す。拡大時は逆に scrollback から行を戻す。
         // その補正量 (push は正・pull は負) を cursorRow に反映し、画面上の

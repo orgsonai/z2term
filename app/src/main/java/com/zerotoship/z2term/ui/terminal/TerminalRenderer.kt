@@ -4,6 +4,11 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import com.zerotoship.z2term.core.TerminalScrollViewport
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -52,6 +57,11 @@ fun TerminalRenderer(
     currentMatch: SearchMatch? = null,
     modifier: Modifier = Modifier
 ) {
+    val hostView = LocalView.current
+    val viewportOwner = remember(session.id, hostView) { Any() }
+    DisposableEffect(viewportOwner) {
+        onDispose { TerminalScrollViewport.remove(viewportOwner) }
+    }
     val redrawTick by session.redrawTick.collectAsState()
     val scrollOffset by session.scrollOffset.collectAsState()
     val settings by session.settingsFlow.collectAsState()
@@ -154,7 +164,18 @@ fun TerminalRenderer(
             session.emulator.setCellMetricsHint(cellW, lineHeight)
         }
 
-        Canvas(modifier = Modifier.matchParentSize()) {
+        Canvas(modifier = Modifier.matchParentSize().onGloballyPositioned { layout ->
+            val bounds = layout.boundsInWindow()
+            val screen = IntArray(2)
+            val window = IntArray(2)
+            hostView.getLocationOnScreen(screen)
+            hostView.getLocationInWindow(window)
+            val dx = screen[0] - window[0]
+            val dy = screen[1] - window[1]
+            TerminalScrollViewport.update(viewportOwner, session.id, hostView, android.graphics.Rect(
+                kotlin.math.ceil(bounds.left + dx).toInt(), kotlin.math.ceil(bounds.top + dy).toInt(),
+                kotlin.math.floor(bounds.right + dx).toInt(), kotlin.math.floor(bounds.bottom + dy).toInt()))
+        }) {
             @Suppress("UNUSED_VARIABLE")
             val tick = redrawTick
             @Suppress("UNUSED_VARIABLE")
@@ -230,7 +251,10 @@ private fun drawBuffer(
     composingText: String = "",
     searchMatches: List<SearchMatch> = emptyList(),
     currentMatch: SearchMatch? = null
-) {
+): Unit = synchronized(session.emulator.buffer) {
+    // The reader must see one complete update: scrollback eviction/insertion and screen
+    // shifting are a single transaction shared with processBytes and resize.
+
     val emu = session.emulator
     val buf = emu.buffer
     val colors = emu.colors

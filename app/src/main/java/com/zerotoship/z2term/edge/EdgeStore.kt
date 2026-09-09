@@ -200,7 +200,11 @@ class EdgeStore(val root: File) {
         }
 
         fun validatePanel(values: Map<String, String>) {
-            val allowed = setOf("label", "handle", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open", "width", "height", "tabs", "layout", "title", "close", "tabbar", "add", "settings", "labels", "fit", "place", "at", "flow", "columns", "icon-size")
+            val allowed = setOf("label", "handle", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open", "width", "height", "tabs", "layout", "title", "close", "tabbar", "add", "settings", "labels", "fit", "place", "at", "flow", "columns", "icon-size", "gesture-up", "gesture-down", "gesture-double-tap", "gesture-scroll", "gesture-speed", "gesture-range", "scroll-x", "scroll-y") + EdgeActions.Trigger.entries.map { it.key }
+            EdgeActions.Trigger.entries.forEach { trigger -> values[trigger.key]?.let { EdgeActions.decode(it) } }
+            listOf("scroll-x", "scroll-y").forEach { key -> values[key]?.let { raw ->
+                require(raw.toFloatOrNull()?.let { it.isFinite() && it in 10f..90f } == true) { "$key: 10–90 percent" }
+            } }
             require(values.keys.all { it in allowed }) { "Unknown panel field: ${values.keys - allowed}" }
             require(values["handle"].orEmpty() in setOf("", "off", "bar", "button")) { "handle: bar, button or off" }
             require(values["side"].orEmpty() in setOf("", "left", "right")) { "side: left or right" }
@@ -208,6 +212,15 @@ class EdgeStore(val root: File) {
                 require(it.toFloatOrNull()?.let { n -> n.isFinite() && n in 0f..100f } == true) { "$key: 0–100 percent" }
             } }
             values["size"]?.let { require(it.toIntOrNull()?.let { n -> n in 2..96 } == true) { "size: 2–96 dp" } }
+            require(values["gesture-scroll"].orEmpty() in setOf("", "off", "variable", "fixed")) {
+                "gesture-scroll: off|variable|fixed"
+            }
+            values["gesture-range"]?.let {
+                require(it.toIntOrNull()?.let { n -> n in 32..2000 } == true) { "gesture-range: 32–2000 dp" }
+            }
+            values["gesture-speed"]?.let {
+                require(it.toIntOrNull()?.let { n -> n in 50..40000 } == true) { "gesture-speed: 50–40000 dp/s" }
+            }
             require(values["open"].orEmpty() in setOf("", "tap", "swipe", "both")) { "open: tap, swipe or both" }
             values["alpha"]?.let { require(it.toFloatOrNull()?.let { n -> n.isFinite() && n in 0.05f..1f } == true) { "alpha: 0.05–1" } }
             require(values["layout"].orEmpty() in setOf("", "list", "grid")) { "layout: list|grid" }

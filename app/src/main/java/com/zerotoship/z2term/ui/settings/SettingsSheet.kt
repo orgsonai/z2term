@@ -3230,6 +3230,7 @@ private fun TipsSection() {
         TipItem(R.string.tip_gui_clean_title, R.string.tip_gui_clean_body)
         TipItem(R.string.tip_z2_commands_title, R.string.tip_z2_commands_body)
         TipItem(R.string.tip_macro_title, R.string.tip_macro_body)
+        TipItem(R.string.tip_edge_edit_title, R.string.tip_edge_edit_body)
     }
 }
 

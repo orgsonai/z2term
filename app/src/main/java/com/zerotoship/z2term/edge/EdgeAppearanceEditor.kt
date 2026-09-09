@@ -33,7 +33,9 @@ object EdgeAppearanceEditor {
             "title" to "off", "close" to "off", "tabbar" to "off", "add" to "off", "settings" to "off",
             "labels" to "", "fit" to "content", "place" to "handle", "at" to "", "flow" to "",
             "columns" to "auto", "icon-size" to "40", "handle" to "off", "side" to "right", "open" to "",
-            "offset" to "30", "x" to "85", "y" to "30")
+            "offset" to "30", "x" to "85", "y" to "30",
+            "gesture-up" to "", "gesture-down" to "", "gesture-double-tap" to "",
+            "gesture-scroll" to "off", "gesture-speed" to "600", "gesture-range" to "160", "scroll-x" to "50", "scroll-y" to "50").toMutableMap()
         val save = EdgeEditorUi.button(context, context.getString(R.string.edge_save), selected = true) {}
         fun values(): Map<String, String> = entries.mapValues { it.value.text.toString().trim() }
         fun update() {
@@ -157,14 +159,42 @@ object EdgeAppearanceEditor {
         choice("handle", R.string.edge_handle_kind, listOf("off", "bar", "button"),
             listOf(R.string.edge_option_off, R.string.edge_handle_bar, R.string.edge_handle_button))
         choice("side", R.string.edge_handle_side, listOf("left", "right"), listOf(R.string.edge_place_left, R.string.edge_place_right))
-        choice("open", R.string.edge_handle_open, listOf("", "tap", "swipe", "both"),
-            listOf(R.string.edge_option_auto, R.string.edge_open_tap, R.string.edge_open_swipe, R.string.edge_open_both))
         control("size", R.string.edge_adjust_size, 2, 96) { it.toString() }
         control("length", R.string.edge_adjust_length, 1, 100) { it.toString() }
         control("alpha", R.string.edge_adjust_alpha, 5, 100) { (it / 100f).toString() }
         control("offset", R.string.edge_handle_offset, 0, 100) { it.toString() }
         control("x", R.string.edge_handle_x, 0, 100) { it.toString() }
         control("y", R.string.edge_handle_y, 0, 100) { it.toString() }
+        content = EdgeEditorUi.section(context, sections, R.string.edge_section_gestures)
+        content.addView(EdgeEditorUi.label(context, context.getString(R.string.edge_gestures_help), secondary = true))
+        EdgeActions.Trigger.entries.forEach { trigger ->
+            val initial = EdgeActions.binding(panel.fields, trigger)
+            val encoded = EdgeActions.encode(initial)
+            defaults[trigger.key] = encoded
+            val value = EditText(context).apply { setText(encoded) }
+            entries[trigger.key] = value
+            val label = when (trigger) {
+                EdgeActions.Trigger.TAP -> R.string.edge_trigger_tap
+                EdgeActions.Trigger.DOUBLE_TAP -> R.string.edge_trigger_double_tap
+                EdgeActions.Trigger.UP -> R.string.edge_trigger_up
+                EdgeActions.Trigger.DOWN -> R.string.edge_trigger_down
+                EdgeActions.Trigger.INWARD -> R.string.edge_trigger_inward
+                EdgeActions.Trigger.OUTWARD -> R.string.edge_trigger_outward
+            }
+            val section = EdgeEditorUi.section(context, content, label)
+            section.addView(EdgeActionEditor.create(context, initial) { draft ->
+                value.setText(draft); update()
+            })
+        }
+        control("gesture-speed", R.string.edge_scroll_speed, 50, 40000) { it.toString() }
+        control("gesture-range", R.string.edge_scroll_range, 32, 2000) { it.toString() }
+        content.addView(EdgeEditorUi.label(context, context.getString(R.string.edge_scroll_range_help), secondary = true))
+        control("scroll-x", R.string.edge_scroll_x, 10, 90) { it.toString() }
+        control("scroll-y", R.string.edge_scroll_y, 10, 90) { it.toString() }
+        content.addView(EdgeEditorUi.button(context, context.getString(R.string.edge_accessibility_setup)) {
+            runCatching { AndroidActions.command(context, listOf("permission")) }
+                .onFailure { Toast.makeText(context, it.message, Toast.LENGTH_LONG).show() }
+        })
         sections.addView(EdgeEditorUi.label(context, context.getString(R.string.edge_preview_help), secondary = true))
         session.track(outer) {
             values().any { (key, value) -> value != (panel.fields[key] ?: defaults[key]) }

@@ -852,6 +852,24 @@ when a `z2-when` rule fired **without opening the app**.
 
 ## 9.6. Floating edge panels
 
+**Adding items and switching tabs (unreleased)**: “+” opens item editing with choices to add an app or a custom macro/command slot. Custom slots can select saved macros like tiles or accept commands directly. The icon field offers a preview list of bundled and saved z2-icon images. Add and settings controls remain 48dp tall and adapt to 24–32dp widths so both fit side by side in narrow panels. Swipe across a normal menu to switch tabs: left/right for vertical and grid layouts, up/down for horizontal layouts (left/up advances, right/down goes back). No initial tab tap is required; the first and last tabs do not wrap. Input editing, long presses and scrolling along the item layout retain their behavior. Tap the bar to open its menu, then **long-press outside the menu** to open bar editing; Settings → Tips also describes this shortcut.
+
+**Shared actions and gestures (unreleased)**: Appearance → Gestures assigns an ordered action list to tap, double tap, swipe up/down/inward/outward. Add, remove and move actions in the GUI; an empty list disables a gesture. Hold remains reserved for editing/relocation. Assigned directions take precedence over immediate button dragging; hold to relocate instead. Appearance previews never execute actions.
+
+Actions include toggling this panel, Back, Home, Recents, notifications, launching an installed app selected from a list, waiting, commands, single up/down swipes, variable/fixed auto-scroll, stop, faster, slower and reverse. For example, compose “Launch app → Wait → Swipe up once”. Commands wait for exit and single swipes wait for Android completion before advancing. Failure/cancellation stops the remaining actions. Launch completion means the launch request was accepted; add an explicit delay for screen readiness. Waiting for UI elements is not implemented.
+
+Limits: 16 actions, 0–30000ms per wait, 60000ms total waits, 30 seconds per command and three minutes per sequence. A new handle touch, screen-off, rotation, reload or service shutdown cancels the sequence. A new sequence cancels its predecessor; late callbacks cannot restart cancelled work. Starting continuous auto-scroll advances to the next action once started; scrolling may continue after the sequence finishes.
+
+For left-edge variable scrolling, select a left-side bar and assign “Speed follows displacement” to up/down swipes. Release to start: up advances and down goes back. Set the slide distance to maximum speed with `gesture-range`, 32–2000dp (default 160), also available in appearance gesture settings. Speed increases linearly with displacement beyond touch slop, without a 5% minimum, reaching maximum at the configured distance. For example, `z2-edge panel ID gesture-range=640` with maximum 40000 gives 10000 at 160dp and 40000 at 640dp. A trigger without displacement starts forward at the configured speed. Maximum/fixed speed is 50–40000dp/s (default 600, nominal injected speed). Faster/slower multiply/divide speed by 1.5 and reverse changes its sign; adjusted speed is bounded to 2.5–40000dp/s. Touching a running handle pauses scrolling; releasing a bound swipe applies the adjustment. Taps always stop, so assign adjustment actions to swipes.
+
+Scroll X/Y positions are percentages within the focused app window (10–90, default 50). Paths are shifted to stay inside the window. Single swipes use the same position. Only window ID, bounds and focus are read; UI nodes are not searched. Missing targets prevent startup; focus/size changes stop subsequent strokes, and adjustments must retain the original target. Accessibility is required.
+
+With a keyboard open, scrolling is restricted to the terminal viewport excluding the built-in keyboard, and to window bounds above the Android IME. A change in that area stops playback. `z2-key permission` opens the service details or falls back to general Accessibility settings if the device denies that screen.
+
+A stop tap does not open the handle. Touches outside the handle stop scrolling both during and between strokes. Only synthetic gesture events are ignored; physical touch notifications are processed immediately. Outside taps may reach the underlying app. A dispatched stroke (normally up to 120ms; up to 301ms with legacy 100ms sampling) and target-app inertia may remain. Higher speeds shorten strokes but retain at least three intermediate MOVE samples based on Android’s sampling interval, avoiding DOWN/UP-only gestures that behave like taps. Configured speed is a target; actual speed is constrained by viewport height, display refresh and the target app.
+
+Fields: `actions-tap`, `actions-double-tap`, `actions-up`, `actions-down`, `actions-inward`, `actions-outward`. Separate actions with `|`; arguments use `type:UTF-8-form-encoded-value`. Examples: `actions-double-tap=launch:org.example.app|wait:500|swipe-up`, `actions-up=scroll-variable`. Encoding preserves pipes, plus signs and newlines in commands. The GUI handles encoding automatically; each list is limited to 16KiB. Unknown actions and invalid arguments are rejected. Empty explicitly disables a binding; absent keys inherit legacy `open`/`run`/`gesture-*` behavior. `gesture-speed` remains the speed setting and `scroll-x`/`scroll-y` set position. CLI and GUI share `panel.conf`.
+
 Since 0.8.568, the edge-panel ongoing notification does not contribute to the app icon count or notification dot. The next service start after updating migrates to a new channel with badging disabled, preserving the old channel’s notification preferences, including blocked status and importance. The running indicator and stop action remain available in the notification shade.
 
 From 0.8.562, panels show only their items by default. Empty panels have no message or controls. Existing definitions are retained and use the new defaults.
@@ -987,7 +1005,7 @@ Close with an outside tap, Back, or the optional Close button. Stop everything w
 
 For Back, Recents and other global actions, run `z2-key permission` and enable “z2term Android actions”.
 If Android restricts the switch, allow restricted settings from z2term App info first. `z2-key status`
-lists the actions the device provides. The service does not request screen contents or typed text.
+lists the actions the device provides. The service retrieves focused-window bounds for auto-scroll, but does not read UI nodes or typed text.
 
 Use `z2-app list` to find an application package, then set an item to `run=z2-intent -p PACKAGE`.
 It automatically uses the application label and full-color icon; explicit `label=` and `icon=` override them.

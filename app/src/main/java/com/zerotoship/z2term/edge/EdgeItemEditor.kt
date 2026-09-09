@@ -88,7 +88,9 @@ object EdgeItemEditor {
             }
             entries[key] = entry; groups[key] = group
             group.addView(entry)
-            val optional = key in listOf("icon", "every", "timeout", "out", "file") || (appCommand != null && key == "run")
+            if (key == "icon") EdgeItemPickers.icons(context, group, entry)
+            if (key == "run" && appCommand == null) EdgeItemPickers.macros(context, group, entry)
+            val optional = key in listOf("every", "timeout", "out", "file") || (appCommand != null && key == "run")
             (if (optional) advanced else basic).addView(group)
         }
         fun showFields() {
@@ -134,6 +136,8 @@ object EdgeItemEditor {
                         values["run"] = if (launchMode == "freeform")
                             AppLaunchCommand.withFreeformScale(modeCommand, scaleFreeform) else modeCommand
                     }
+                    if (item == null && values["label"].isNullOrBlank())
+                        values["label"] = context.getString(R.string.edge_custom_slot)
                     EdgeStore.validateItem(values)
                     session.leave(except = outer) {
                         runCatching {
