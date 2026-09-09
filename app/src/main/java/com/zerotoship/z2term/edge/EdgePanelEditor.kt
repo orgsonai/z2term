@@ -11,7 +11,7 @@ import android.widget.Toast
 import com.zerotoship.z2term.R
 import java.util.UUID
 
-/** Inline editing writes the same definitions used by the CLI. */
+/** Settings editing writes the same definitions used by the CLI. */
 object EdgePanelEditor {
     fun create(context: Context, root: EdgeStore.Panel, panel: EdgeStore.Panel,
         store: EdgeStore, remove: (String) -> Unit, reopen: (String) -> Unit): View {

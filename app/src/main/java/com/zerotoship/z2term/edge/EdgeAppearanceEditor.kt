@@ -25,16 +25,17 @@ object EdgeAppearanceEditor {
         outer.addView(content)
         val entries = linkedMapOf<String, EditText>()
         val defaults = mapOf("size" to if (panel.handle == "button") "48" else "6",
-            "length" to "6", "alpha" to "1", "width" to "360", "height" to "72%")
+            "length" to "6", "alpha" to "1", "width" to "360", "height" to "72%",
+            "title" to "off", "close" to "off", "tabbar" to "off", "add" to "off", "settings" to "off",
+            "labels" to "", "fit" to "content", "place" to "handle", "at" to "", "flow" to "",
+            "columns" to "auto", "icon-size" to "40", "handle" to "off", "side" to "right", "open" to "",
+            "offset" to "30", "x" to "85", "y" to "30")
         val save = Button(context).apply { text = context.getString(R.string.edge_save) }
         fun values(): Map<String, String> = entries.mapValues { it.value.text.toString().trim() }
         fun update() {
             val draft = values()
             val valid = runCatching {
                 EdgeStore.validatePanel(panel.fields + draft)
-                draft["size"]?.let {
-                    require(it.toInt() in if (panel.handle == "button") 32..96 else 2..48)
-                }
             }.isSuccess
             save.isEnabled = valid
             if (valid) runCatching { preview(draft) }.onFailure {
@@ -84,12 +85,63 @@ object EdgeAppearanceEditor {
             })
             content.addView(slider)
         }
-        if (panel.handle != "off") {
-            control("size", R.string.edge_adjust_size, if (panel.handle == "button") 32 else 2,
-                if (panel.handle == "button") 96 else 48) { it.toString() }
-            if (panel.handle == "bar") control("length", R.string.edge_adjust_length, 1, 100) { it.toString() }
-            control("alpha", R.string.edge_adjust_alpha, 5, 100) { (it / 100f).toString() }
+        fun entry(key: String, label: Int) {
+            content.addView(TextView(context).apply { text = context.getString(label) })
+            val input = EditText(context).apply {
+                setSingleLine(true); setText(panel.fields[key] ?: defaults.getValue(key))
+                contentDescription = context.getString(label)
+            }
+            entries[key] = input
+            content.addView(input)
+            input.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+                override fun afterTextChanged(s: Editable?) { update() }
+            })
         }
+        fun choice(key: String, label: Int, options: List<String>, names: List<Int>) {
+            content.addView(TextView(context).apply { text = context.getString(label) })
+            val input = EditText(context).apply { setText(panel.fields[key] ?: defaults.getValue(key)) }
+            entries[key] = input
+            val picker = android.widget.Spinner(context)
+            picker.contentDescription = context.getString(label)
+            picker.adapter = android.widget.ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
+                names.map { context.getString(it) })
+            picker.setSelection(options.indexOf(input.text.toString()).coerceAtLeast(0))
+            picker.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                    if (input.text.toString() != options[position]) { input.setText(options[position]); update() }
+                }
+            }
+            content.addView(picker)
+        }
+        val onOff = listOf(R.string.edge_option_off, R.string.edge_option_on)
+        choice("title", R.string.edge_show_title, listOf("off", "on"), onOff)
+        choice("close", R.string.edge_show_close, listOf("off", "on"), onOff)
+        choice("tabbar", R.string.edge_show_tabs, listOf("off", "on", "auto"), onOff + R.string.edge_option_auto)
+        choice("add", R.string.edge_show_add, listOf("off", "on"), onOff)
+        choice("settings", R.string.edge_show_settings, listOf("off", "on"), onOff)
+        choice("labels", R.string.edge_show_labels, listOf("", "on", "off"), listOf(R.string.edge_option_auto, R.string.edge_option_on, R.string.edge_option_off))
+        choice("fit", R.string.edge_fit, listOf("content", "fixed"), listOf(R.string.edge_fit_content, R.string.edge_fit_fixed))
+        choice("place", R.string.edge_place, listOf("handle", "left", "right", "top", "bottom", "center"),
+            listOf(R.string.edge_place_handle, R.string.edge_place_left, R.string.edge_place_right, R.string.edge_place_top, R.string.edge_place_bottom, R.string.edge_place_center))
+        entry("at", R.string.edge_at)
+        choice("flow", R.string.edge_flow, listOf("", "vertical", "horizontal", "grid"),
+            listOf(R.string.edge_option_auto, R.string.edge_flow_vertical, R.string.edge_flow_horizontal, R.string.edge_flow_grid))
+        entry("columns", R.string.edge_columns)
+        control("icon-size", R.string.edge_icon_size, 16, 192) { it.toString() }
+        choice("handle", R.string.edge_handle_kind, listOf("off", "bar", "button"),
+            listOf(R.string.edge_option_off, R.string.edge_handle_bar, R.string.edge_handle_button))
+        choice("side", R.string.edge_handle_side, listOf("left", "right"), listOf(R.string.edge_place_left, R.string.edge_place_right))
+        choice("open", R.string.edge_handle_open, listOf("", "tap", "swipe", "both"),
+            listOf(R.string.edge_option_auto, R.string.edge_open_tap, R.string.edge_open_swipe, R.string.edge_open_both))
+        control("size", R.string.edge_adjust_size, 2, 96) { it.toString() }
+        control("length", R.string.edge_adjust_length, 1, 100) { it.toString() }
+        control("alpha", R.string.edge_adjust_alpha, 5, 100) { (it / 100f).toString() }
+        control("offset", R.string.edge_handle_offset, 0, 100) { it.toString() }
+        control("x", R.string.edge_handle_x, 0, 100) { it.toString() }
+        control("y", R.string.edge_handle_y, 0, 100) { it.toString() }
         control("width", R.string.edge_adjust_width, 1, 100) { "$it%" }
         control("height", R.string.edge_adjust_height, 1, 100) { "$it%" }
         content.addView(TextView(context).apply { text = context.getString(R.string.edge_preview_help) })
@@ -97,9 +149,6 @@ object EdgeAppearanceEditor {
             runCatching {
                 val draft = values()
                 EdgeStore.validatePanel(panel.fields + draft)
-                draft["size"]?.let {
-                    require(it.toInt() in (if (panel.handle == "button") 32..96 else 2..48))
-                }
                 val changed = draft.filter { (key, value) -> value != (panel.fields[key] ?: defaults[key]) }
                 val current = store.panel(panel.id)
                 check(changed.keys.all { current.fields[it] == panel.fields[it] }) {

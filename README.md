@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.561-alpha (versionCode 569).** `z2-edge get ID` reads a panel’s saved settings as `key=value` lines. The OSS license screen keeps its content inside the system bars, so the source links at the bottom of the list stay readable and tappable. Floating panels support tabs, icon grids, drag ordering, searchable app selection with per-item launch modes, and editable notes. Panel size and handle gestures are configurable. The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.562-alpha (versionCode 570).** Floating panels show only items by default. Hold panel whitespace or hold/release a handle to open settings; drag a held handle to move it. Choose fixed or content-sized panels, placement, vertical/horizontal/grid arrangement, icon size, labels and optional controls. Every setting also uses the plain-text definitions and CLI. The latest APKs and the full release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 

@@ -200,7 +200,7 @@ class EdgeStore(val root: File) {
         }
 
         fun validatePanel(values: Map<String, String>) {
-            val allowed = setOf("label", "handle", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open", "width", "height", "tabs", "layout")
+            val allowed = setOf("label", "handle", "side", "offset", "length", "x", "y", "size", "run", "alpha", "open", "width", "height", "tabs", "layout", "title", "close", "tabbar", "add", "settings", "labels", "fit", "place", "at", "flow", "columns", "icon-size")
             require(values.keys.all { it in allowed }) { "Unknown panel field: ${values.keys - allowed}" }
             require(values["handle"].orEmpty() in setOf("", "off", "bar", "button")) { "handle: bar, button or off" }
             require(values["side"].orEmpty() in setOf("", "left", "right")) { "side: left or right" }
@@ -211,6 +211,21 @@ class EdgeStore(val root: File) {
             require(values["open"].orEmpty() in setOf("", "tap", "swipe", "both")) { "open: tap, swipe or both" }
             values["alpha"]?.let { require(it.toFloatOrNull()?.let { n -> n.isFinite() && n in 0.05f..1f } == true) { "alpha: 0.05–1" } }
             require(values["layout"].orEmpty() in setOf("", "list", "grid")) { "layout: list|grid" }
+            listOf("title", "close", "add", "settings", "labels").forEach { key ->
+                require(values[key].orEmpty() in setOf("", "on", "off")) { "$key: on|off" }
+            }
+            require(values["tabbar"].orEmpty() in setOf("", "on", "off", "auto")) { "tabbar: on|off|auto" }
+            require(values["fit"].orEmpty() in setOf("", "content", "fixed")) { "fit: content|fixed" }
+            require(values["place"].orEmpty() in setOf("", "handle", "left", "right", "top", "bottom", "center")) { "place: handle|left|right|top|bottom|center" }
+            require(values["flow"].orEmpty() in setOf("", "vertical", "horizontal", "grid")) { "flow: vertical|horizontal|grid" }
+            values["columns"]?.let { require(it == "auto" || it.toIntOrNull()?.let { n -> n in 1..16 } == true) { "columns: auto|1–16" } }
+            values["icon-size"]?.let { require(it.toIntOrNull()?.let { n -> n in 16..192 } == true) { "icon-size: 16–192 dp" } }
+            values["at"]?.takeIf { it.isNotBlank() }?.let { point ->
+                val parts = point.split(',')
+                require(parts.size == 2 && parts.all { part ->
+                    part.endsWith('%') && part.removeSuffix("%").toFloatOrNull()?.let { it.isFinite() && it in 0f..100f } == true
+                }) { "at: X%,Y% (0–100)" }
+            }
             values["tabs"]?.takeIf { it.isNotEmpty() }?.let { raw ->
                 val ids = raw.split(',')
                 require(ids.all(::validId) && ids.distinct().size == ids.size) { "tabs: distinct panel IDs separated by commas" }

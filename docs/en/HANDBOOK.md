@@ -22,7 +22,7 @@ The deeper technical details live separately in `docs/en/DESIGN-SPEC.md`.
 
 ## 2. Installing
 
-1. Put the APK file (`z2term-0.8.561-alpha.apk`) on your phone.
+1. Put the APK file (`z2term-0.8.562-alpha.apk`) on your phone.
 2. Allow "Install from unknown sources" and install it.
 3. Open the app.
 
@@ -850,8 +850,45 @@ when a `z2-when` rule fired **without opening the app**.
 
 ## 9.6. Floating edge panels
 
+From 0.8.562, panels show only their items by default. Empty panels have no message or controls. Existing definitions are retained and use the new defaults.
+**Hold panel whitespace to open settings. Hold a handle for 300ms, then release without moving to open settings; drag to move it as before.** Done or Back returns to the panel.
+Settings use a separate screen independent of panel width. Opening settings does not execute item commands or periodic readers.
+Adjust appearance previews requested dimensions/placement in a display diagram and handle changes on the actual handles. Only Save writes definitions; Cancel, close, tab changes, screen-off and reload discard the draft.
+
+Presentation fields belong to the parent panel and apply to all its tabs. Settings have no separate persistent state.
+Every presentation setting below is also writable with `z2-edge panel ID key=value ...`; `z2-edge get ID` reads saved fields.
+
+| Setting | Field / command |
+|---|---|
+| Title, close, add and settings controls | `title` / `close` / `add` / `settings` = `on\|off` (default off) |
+| Tab bar | `tabbar=off\|on\|auto` (default off; auto shows it when child tabs exist) |
+| Item labels | `labels=on\|off` (omitted/empty follows tab layout; body text and results remain visible) |
+| Width and height | `width` / `height` (dp or %, default 360dp / 72%) |
+| Height sizing | `fit=content\|fixed` (default content; an empty panel keeps a 48dp touch area within its height limit) |
+| Placement | `place=handle\|left\|right\|top\|bottom\|center` (default handle) |
+| Custom position | `at=X%,Y%` (0–100, overrides place; empty clears it; percentage of space remaining after panel size) |
+| Arrangement | `flow=vertical\|horizontal\|grid` (omitted/empty follows tab layout) |
+| Grid columns and icon size | `columns=auto` or 1–16; `icon-size=16..192` dp (default 40) |
+| Handle shape, position, activation | `handle` / `side` / `offset` / `x` / `y` / `size` / `length` / `alpha` / `open` (also via `z2-edge handle`) |
+| Add, name and order tabs | `z2-edge tab PARENT ID LABEL`, `panel ID label=Name`, `panel PARENT tabs=a,b` |
+| Add/delete panels | `panel ID label=Name handle=bar side=right` / `delete ID` |
+| Add/edit/delete/reorder items | `set ID:item key=value ...` / `remove ID:item` / `set ID:item order=N` |
+| App launch mode / add note | Item `run=z2-intent -p PACKAGE --window MODE` / `type=note` |
+
+Optional add/settings controls are icons at the end. Tab/note addition, item editing and reordering live in settings.
+Vertical, horizontal and grid layouts are available; horizontal rows scroll sideways. Automatic grid columns follow icon size; an explicit flow applies to all item types.
+`layout=grid|list` remains the per-tab default. With flow omitted, grid arranges run items only and leaves other types in rows below.
+
+An icon-only vertical bar can be configured with these commands or the corresponding settings:
+
+```sh
+z2-edge panel apps width=64 height=60% fit=fixed place=right flow=vertical labels=off
+z2-edge set apps:a1 type=run 'run=z2-intent -p PACKAGE --window full'
+z2-edge handle apps bar --side right --size 4 --length 20
+```
+
 Set panel size with `z2-edge panel main width=80% height=60%`. A `%` suffix means display percentage; plain numbers mean dp.
-Height is a maximum: short content shrinks the panel and overflow scrolls vertically. Tapping outside closes it without tapping the app behind it.
+With fit=content, height is a maximum: short content shrinks the panel and overflow scrolls vertically. Tapping outside closes it without tapping the app behind it.
 
 Bars default to 6dp wide and 6% of screen height. `--size` is clamped to 2–48dp for bars and 32–96dp for buttons.
 The minimum rendered length is 8dp. `--alpha 0.05..1` controls opacity.
@@ -866,13 +903,13 @@ An open deleted panel closes and its handle disappears. Use `remove ID:item` to 
 
 App addition offers Full screen (normal launch), Freeform, Split screen, and Ask every time.
 The choice is saved in `run=z2-intent -p PACKAGE --window full|freeform|split|ask` and can also be edited through the CLI.
-Edit → Adjust appearance previews handle size, length and opacity, plus panel width and maximum height, using numeric fields and sliders. Width and height accept dp or percentages; sliders use screen percentages. Only Save writes definitions. Cancel, close, tab changes, screen off and reload discard the preview. Handle drag persistence is disabled during preview.
+
 Add item and Edit item support all six item types. Blank optional fields clear their settings. Cancel discards input; saving an item changed externally is rejected.
 Screen off hides panels and handles. Wake and unlock notifications trigger another check of unlock state before restoring handles. Screen off and service shutdown cancel waiting. Transient drawing failures no longer unregister wake notifications.
 
-Panel and tab deletion requires confirmation within Edit. Notes are saved before deletion; local note files are removed with the panel, while external note files and child tabs are retained. Deleting the last panel disables panels.
+Panel and tab deletion requires confirmation within Settings. Notes are saved before deletion; local note files are removed with the panel, while external note files and child tabs are retained. Deleting the last panel disables panels.
 Enabling panels when none exist creates a Main bar on the right and opens its empty panel. Existing panels are preserved.
-Edit on the panel supports renaming the current panel or tab, adding a parent panel, moving child tabs earlier or later, and opening another parent panel. Explicit save and move actions write names and tab order to the definitions.
+Panel settings supports renaming the current panel or tab, adding a parent panel, moving child tabs earlier or later, and opening another parent panel. Explicit save and move actions write names and tab order to the definitions.
 
 Thin bars draw their entire background at the configured width while retaining a touch target of at least 24dp.
 Freeform requests bounds for a new task. Split brings the terminal to the foreground and launches a new task beside it. Apps that enforce a single task remain subject to OS restrictions.
@@ -880,16 +917,14 @@ No external app or root is used. Freeform requests `ActivityOptions.setLaunchBou
 Freeform fails if not enabled on the device. Entering split screen is supported from Android 12L; earlier versions require an existing split session.
 The OS controls the final mode and reuse of existing tasks. Full screen means ordinary launch, not forced maximization of an existing window.
 
-Use “+ Tab” on the panel or `z2-edge tab main work Work`. Each tab is a panel referenced by the parent’s `tabs=work,home`.
+Use “+ Tab” in settings or `z2-edge tab main work Work`. Each tab is a panel referenced by the parent’s `tabs=work,home`.
 The parent’s own items form the first tab; child handles are hidden. Up to 64 panels, 64 items each.
 Nested, cyclic, and multiple-parent references are rejected. `list` marks children as `tab:parentID`.
 Deleting a child detaches its reference; deleting a parent preserves child panels.
 
-Each tab offers Icons only or Names and icons (`layout=grid|list`). Grid applies to run items; other types remain normal rows below.
-Hold an item icon/name and drag before or after another item to save every item’s `order`. Dropping outside leaves the order unchanged.
-Edit exposes item deletion and launch-mode selection for existing app items; Done returns to the normal view.
+In settings, hold an item name and drag before/after another item to save every item’s `order`. Dropping outside leaves the order unchanged. Settings also expose item deletion and app launch-mode selection.
 
-“+ Note” adds a note to the active tab. `type=note` shows its contents; tap to edit with Undo and Redo.
+“+ Note” in settings adds a note to the active tab. `type=note` shows its contents; tap to edit with Undo and Redo.
 Text defaults to `~/.z2term/edge/panelID/itemID.txt`; `file=~/memo.txt` selects another shared-home file.
 Relative paths use the shared home; absolute paths must be accessible to the Android app and are not translated from guest-only paths.
 UTF-8, up to 64 KiB. Closing, Back, tab switching, screen-off, close/off save edits; changes also save every 10 seconds while open.
@@ -899,7 +934,7 @@ Notes do not accept live-value `push`; edit the file and reopen the panel.
 
 `z2-edge toggle` toggles the service; `z2-edge open main --toggle` toggles the panel.
 A tile assigned the single command `z2-edge toggle` displays the actual enabled state. Enabling requires an unlocked screen.
-“+ App” shows an icon/name list with a search field matching names and packages. Selecting saves the app; rotation preserves the query. `z2-app pick` returns the selected package on stdout;
+“+ App” in settings or the optional “+” on the panel shows an icon/name list with a search field matching names and packages. Selecting saves the app; rotation preserves the query. `z2-app pick` returns the selected package on stdout;
 cancellation or a 120-second timeout fails. Other APIs remain available while selecting. When calling it from a panel command, set `timeout=130` or longer.
 
 Accessibility is separate from overlay permission. `z2-key permission` opens service details with a fallback
@@ -924,7 +959,7 @@ z2-edge on
 
 Drag the floating button to move it; its position is saved. Switch to a bar with
 `z2-edge handle main bar --side right --offset 30% --length 6% --size 6 --open swipe` and swipe inward to open it.
-Close with Close, an outside tap or Back. Stop everything with `z2-edge off` or Stop panels in the notification.
+Close with an outside tap, Back, or the optional Close button. Stop everything with `z2-edge off` or Stop panels in the notification.
 
 For Back, Recents and other global actions, run `z2-key permission` and enable “z2term Android actions”.
 If Android restricts the switch, allow restricted settings from z2term App info first. `z2-key status`

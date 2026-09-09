@@ -11,12 +11,16 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge handle ID bar --side right --offset 30% --length 6% --size 6 --open swipe
         |# z2-edge handle ID button --run 'z2-key back'  直接実行するボタン
         |# --open swipe|tap|both  --alpha 0.05..1  --label TEXT
+        |# 板は項目だけを表示。余白長押しで設定。取っ手長押し後、動かさず離すと設定。
         |# バー幅: --size 2〜48dp、ボタン: 32〜96dp。バーは300ms長押し後に移動。
         |# z2-edge handle ID off                  取っ手を隠す
         |# z2-edge set ID:memo type=note file=~/memo.txt
         |# z2-edge tab PARENT ID [LABEL]
         |# z2-edge delete ID
-        |# z2-edge panel ID width=80% height=60%
+        |# z2-edge panel ID width=80% height=60% fit=content|fixed
+        |# title=on|off close=on|off tabbar=off|on|auto add=on|off settings=on|off
+        |# labels=on|off flow=vertical|horizontal|grid columns=auto|1..16 icon-size=16..192
+        |# place=handle|left|right|top|bottom|center at=X%,Y%
         |# z2-edge panel ID label=名前            パネルの定義を追加・更新
         |# z2-edge set ID:項目 type=text 'run=date' label=時計 every=30
         |# z2-edge get ID                        板の保存済み定義を取得（key=value）
@@ -47,12 +51,16 @@ fun z2EdgeScripts(lang: String): Map<String, String> {
         |# z2-edge handle ID button --at 85%,60% [--size 48] [--run 'command']
         |# z2-edge handle ID bar --side right --offset 30% --length 6% --size 6 --open swipe
         |# --open swipe|tap|both  --alpha 0.05..1  --label TEXT
+        |# Panels show items only by default. Hold whitespace, or hold/release a handle without moving, for settings.
         |# Bar: --size 2..48 dp; button: 32..96 dp. Hold 300ms to move a handle; bar hit area is at least 24dp.
         |# z2-edge handle ID off
         |# z2-edge set ID:memo type=note file=~/memo.txt
         |# z2-edge tab PARENT ID [LABEL]
         |# z2-edge delete ID
-        |# z2-edge panel ID width=80% height=60%
+        |# z2-edge panel ID width=80% height=60% fit=content|fixed
+        |# title=on|off close=on|off tabbar=off|on|auto add=on|off settings=on|off
+        |# labels=on|off flow=vertical|horizontal|grid columns=auto|1..16 icon-size=16..192
+        |# place=handle|left|right|top|bottom|center at=X%,Y%
         |# z2-edge panel ID label=Name
         |# z2-edge set ID:item type=text 'run=date' label=Clock every=30
         |# z2-edge get ID                        Read saved panel fields (key=value)

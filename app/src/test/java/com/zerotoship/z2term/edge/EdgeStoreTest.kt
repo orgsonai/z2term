@@ -187,4 +187,24 @@ class EdgeStoreTest {
             assertEquals(2, store.panel("main").items.size)
         } finally { dir.deleteRecursively() }
     }
+    @Test fun presentationChangesPreserveItemsAndRejectInvalidPositions() {
+        val dir = Files.createTempDirectory("edge-presentation-test").toFile()
+        try {
+            val store = EdgeStore(dir)
+            store.setPanel("apps", mapOf("width" to "64", "height" to "60%", "fit" to "fixed",
+                "place" to "right", "flow" to "vertical", "labels" to "off", "tabbar" to "auto"))
+            store.setItem("apps:launch", mapOf("run" to "echo unchanged"))
+            val original = store.panel("apps").fields
+            for ((key, value) in listOf("at" to "NaN%,0%", "at" to "101%,0%", "at" to "0,0",
+                "columns" to "0", "icon-size" to "193", "fit" to "unknown", "title" to "yes")) {
+                rejects { store.setPanel("apps", mapOf(key to value)) }
+                assertEquals(original, store.panel("apps").fields)
+            }
+            store.setPanel("apps", mapOf("at" to "0%,100%", "columns" to "auto"))
+            store.setPanel("apps", mapOf("at" to ""))
+            assertEquals("echo unchanged", EdgeStore(dir).item("apps:launch").command)
+            assertEquals(1f to 0.5f, EdgePanelPosition.fractions(store.panel("apps").fields))
+        } finally { dir.deleteRecursively() }
+    }
+
 }
