@@ -83,7 +83,7 @@ Android 端末で APK をタップ → 「提供元不明のアプリ」のイ�
 
 ## 現在のバージョン
 
-**0.8.565-alpha (versionCode 573).** 最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
+**0.8.568-alpha (versionCode 576).** エッジパネルの常駐通知を、アプリアイコンの通知数に含めないようにしました。既存の通知設定を引き継いで、バッジを無効にした通知チャネルへ移行します。0.8.567のメニュー設定と端末履歴の修正も含みます。MotorolaのAndroid 16以降では、フリーフォーム起動に標準の縮小窓と画面遷移時の継承を要求する指定を追加しました。表示崩れの解消は実機未確認です。最新の APK と全リリース履歴は **[GitHub Releases](https://github.com/orgsonai/z2term/releases)** にあります。
 
 ## 機能
 

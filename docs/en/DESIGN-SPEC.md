@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-09 / Target version: 0.8.567-alpha (versionCode 575)
+Last updated: 2026-09-09 / Target version: 0.8.568-alpha (versionCode 576)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2192,6 +2192,8 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
 
 ### 4.14 Edge panels (`edge/`, 0.8.549)
 
+Since 0.8.568, the edge-panel ongoing notification does not contribute to the app icon count or notification dot. The next service start after updating migrates to a new channel with badging disabled, preserving the old channel’s notification preferences, including blocked status and importance. The running indicator and stop action remain available in the notification shade.
+
 From 0.8.562, panels show only their items by default. Empty panels have no message or controls. Existing definitions are retained and use the new defaults.
 **Hold panel whitespace to open settings. Hold a handle for 300ms, then release without moving to open settings; drag to move it as before. A tap-to-open button moves as soon as you drag it (0.8.565).** Done or Back returns to the panel, asking before discarding unsaved edits (0.8.567). If the keyboard is visible, Back hides only the keyboard and keeps settings open.
 Settings use a separate screen independent of panel width. Opening settings does not execute item commands or periodic readers.
@@ -2267,9 +2269,10 @@ Freeform launch behavior can be adjusted with options after `z2-intent --window 
 Since 0.8.566, the default clears the multiple-task flag and requests only the window mode, leaving existing tasks and remembered bounds to Android. Launches no longer submit inner 80% bounds every time. `--reuse-task --os-bounds` can be combined. Combining `--bounds-only` with `--os-bounds`, or using these options outside freeform mode, is rejected.
 These switches allow comparison with the device’s standard launch path. Whether they resolve layout changes during navigation or restore window decoration still requires device verification. They do not change OS settings.
 
-Freeform position, size, movement, resizing and decoration belong to the OS. Navigation and resize/maximize rendering problems remain unresolved. OS-standard launches can behave correctly, so launch-request differences must be compared before attributing the issue to the target app. No overlay is added to track external window borders. Split brings the terminal to the foreground and launches a new task beside it.
+Freeform position, size, movement, resizing and decoration belong to the OS. Since 0.8.568, Motorola devices running Android 16 or later receive a vendor flag requesting the standard scaled window with inheritance across activity/task launches. The inspected framework excludes tasks with only the window mode from its standard scaled-window path. The flag applies only to normal freeform requests, not `--bounds-only`; no size or scale is fixed by the app. Resolution of navigation and resize/maximize rendering problems still needs verification on a device with the updated app. No overlay is added to track external window borders. Split brings the terminal to the foreground and launches a new task beside it.
 Reported differences include OS-standard windows scaling the entire content while this launch path only narrows the viewport, followed by full-size content returning inside the window when moving it after navigation. Bounds-only launches can show the same problem; adjusting initial bounds is not considered a fix.
 No external app or root is used. Freeform requests the non-public AOSP Bundle key `android.activity.windowingMode=5`, whose support depends on the OS. `ActivityOptions.setLaunchBounds` is used only for explicit `--bounds-only` requests. Split requests `FLAG_ACTIVITY_LAUNCH_ADJACENT`.
+The Motorola extension is the non-public Bundle key `key_moto_flags` with `0x100000` (inheritable global freeform). Its value, task classification and inheritance were checked in the Android 16 framework implementation; support on future OS versions or other models is not guaranteed. No external service, signature permission or hidden method invocation is used.
 Freeform fails if not enabled on the device. Entering split screen is supported from Android 12L; earlier versions require an existing split session.
 The OS controls the final mode and reuse of existing tasks. Full screen means ordinary launch, not forced maximization of an existing window.
 

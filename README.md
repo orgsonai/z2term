@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.567-alpha (versionCode 575).** Floating-panel settings confirm before discarding unsaved edits. Back hides the keyboard first, forms scroll above it, and Items/Appearance/Manage switch within the same window. Menus with child tabs provide a tab picker even when the tab strip is hidden. An optional + button adds apps directly, and run items can be reordered by holding and dragging. Terminal history now retains lines scrolled off the top by partial-region LF/IND and explicit scroll-up commands, while keeping fixed input/footer rows in place. The grouped panel editor, OS-managed freeform launch bounds and license-dialog inset fixes from 0.8.566 remain included. Freeform navigation, resize/maximize rendering and external window borders still need device-specific investigation. The latest published APKs and release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
+**0.8.568-alpha (versionCode 576).** Edge-panel ongoing notifications no longer contribute to the app icon badge. Existing installations migrate to a channel with badging disabled while preserving notification preferences. The panel editor and terminal history fixes from 0.8.567 remain included. Motorola freeform launches on Android 16 or later now request the OS’s scaled-window mode and task inheritance; the rendering fix still needs device verification. The latest published APKs and release history live on **[GitHub Releases](https://github.com/orgsonai/z2term/releases)**.
 
 ## Features
 

@@ -112,6 +112,14 @@ object AppLaunch {
             // AOSP ActivityOptions key. The bounds-only option lets callers compare the public request.
             // This is not a public SDK contract; device implementations may reject the request.
             bundle.putInt("android.activity.windowingMode", 5 /* WINDOWING_MODE_FREEFORM */)
+            if (Build.VERSION.SDK_INT >= 36 && Build.MANUFACTURER.equals("motorola", ignoreCase = true)) {
+                // On the inspected Android 16 framework this inheritable flag identifies
+                // a scaled global freeform task. A bare mode=5 task is excluded from
+                // that path, including scale restoration and child-task inheritance.
+                // Keep this vendor extension separate from Intent flags and bounds-only.
+                val key = "key_moto_flags"
+                bundle.putInt(key, bundle.getInt(key, 0) or 0x100000 /* FLAG_INHERITABLE_MOTO_GLOBAL_FREEFORM */)
+            }
         }
         context.startActivity(intent, bundle)
     }

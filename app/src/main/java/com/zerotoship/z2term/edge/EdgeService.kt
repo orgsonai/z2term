@@ -19,7 +19,7 @@ class EdgeService : Service() {
     override fun onCreate() {
         super.onCreate()
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CHANNEL, getString(R.string.edge_title), NotificationManager.IMPORTANCE_MIN))
+        ensureChannel(nm)
         val stop = PendingIntent.getService(this, 0, Intent(this, EdgeService::class.java).setAction(STOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java),
@@ -27,9 +27,41 @@ class EdgeService : Service() {
         val notification = NotificationCompat.Builder(this, CHANNEL).setZ2SmallIcon(this)
             .setContentTitle(getString(R.string.edge_title)).setContentText(getString(R.string.edge_running))
             .setContentIntent(open).setOngoing(true).setSilent(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setBadgeIconType(NotificationCompat.BADGE_ICON_NONE)
             .addAction(0, getString(R.string.edge_off), stop).build()
         if (Build.VERSION.SDK_INT >= 34) startForeground(7810, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         else startForeground(7810, notification)
+        // Replace the foreground notification before removing its former channel.
+        nm.deleteNotificationChannel(LEGACY_CHANNEL)
+    }
+
+    private fun ensureChannel(nm: NotificationManager) {
+        nm.getNotificationChannel(CHANNEL)?.let { channel ->
+            channel.name = getString(R.string.edge_title)
+            nm.createNotificationChannel(channel)
+            return
+        }
+        // Badge settings cannot be changed after registration, even by deleting and
+        // recreating the same ID. Migrate existing installs to a distinct channel.
+        val previous = nm.getNotificationChannel(LEGACY_CHANNEL)
+        val channel = NotificationChannel(CHANNEL, getString(R.string.edge_title),
+            previous?.importance ?: NotificationManager.IMPORTANCE_MIN).apply {
+            if (previous != null) {
+                // Preserve notification preferences, including a blocked channel.
+                description = previous.description
+                group = previous.group
+                setSound(previous.sound, previous.audioAttributes)
+                vibrationPattern = previous.vibrationPattern
+                enableVibration(previous.shouldVibrate())
+                lightColor = previous.lightColor
+                enableLights(previous.shouldShowLights())
+                lockscreenVisibility = previous.lockscreenVisibility
+                setBypassDnd(previous.canBypassDnd())
+            }
+            setShowBadge(false)
+        }
+        nm.createNotificationChannel(channel)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -49,6 +81,7 @@ class EdgeService : Service() {
 
     companion object {
         const val STOP = "com.zerotoship.z2term.EDGE_STOP"
-        private const val CHANNEL = "z2term_edge"
+        private const val LEGACY_CHANNEL = "z2term_edge"
+        private const val CHANNEL = "z2term_edge_v2"
     }
 }
