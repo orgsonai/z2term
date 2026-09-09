@@ -10,9 +10,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
@@ -66,7 +69,14 @@ fun LicensesDialog(
                 .fillMaxSize()
                 .border(width = 1.dp, color = border),
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            // 全画面 Dialog は targetSdk 35 では画面の端まで広がる。中身をシステムバー
+            // (上=ステータス / 下=ナビゲーション) の内側へ寄せないと、一覧の最後の行にある
+            // 「ソースを開く」がナビゲーションバーの裏に隠れて読めない・押せない。
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.systemBars),
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -271,7 +281,9 @@ private fun LicenseFullTextDialog(
                 .border(width = 1.dp, color = border),
         ) {
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.systemBars),
             ) {
                 Row(
                     modifier = Modifier

@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-09 / Target version: 0.8.559-alpha (versionCode 567)
+Last updated: 2026-09-09 / Target version: 0.8.560-alpha (versionCode 568)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -1034,7 +1034,7 @@ The footer now shows **the macro that finished last**, since start times moved o
 **Tap again to stop while running (0.8.215)**: `RemoteViews` has no long-press, so this is a **toggle on the same button rather than a new mode**. While running, the label becomes `■ name` in the accent colour (`widget_accent`) and a tap sends `ACTION_STOP_MACRO` → `HeadlessRun.stop`. "Running" is decided from an **in-process map** in `HeadlessRun` (`name` → `PtyProcess`). If the app process dies its child processes die with it, so **starting from an empty map is correct** (never "shows running when nothing is"). Stopping goes through `PtyProcess.close` (SIGHUP, then SIGKILL after up to 1s), so it must never be called on the broadcast thread — the receiver hands it to a background thread. On exit, `HeadlessRun.launch(onExit = …)` re-renders to clear the `■`.
 
 **Config screen (two fixes in 0.8.215)**:
-- **Insets**: `enableEdgeToEdge()` plus `windowInsetsPadding(WindowInsets.systemBars)` on the root. targetSdk 35 (Android 15) forces edge-to-edge, and without this the screen **slid under the status bar and the 3-button navigation bar, where it was neither visible nor tappable** (hit on a real device). Any new `Activity` must follow the same pattern as the existing screens.
+- **Insets**: `enableEdgeToEdge()` plus `windowInsetsPadding(WindowInsets.systemBars)` on the root. targetSdk 35 (Android 15) forces edge-to-edge, and without this the screen **slid under the status bar and the 3-button navigation bar, where it was neither visible nor tappable** (hit on a real device). Any new `Activity` must follow the same pattern as the existing screens. ⚠ **The same applies to full-screen `Dialog`s (`DialogProperties(usePlatformDefaultWidth = false)`)** — the OSS licenses screen hit this in 0.8.560, where **the "Open source" action on the last row of the list sat behind the navigation bar, unreadable and untappable** (user report). ⇒ **Apply the same `windowInsetsPadding` to the contents of any full-screen `Dialog`, not just to activities.** Keep the `Surface` at `fillMaxSize()` so the background still paints edge to edge, and put the padding on the `Column` inside it (the same shape as the full-screen preview in `SftpSheet`).
 - **Macro descriptions**: a list of file names says nothing about what each macro does, so the name (minus `.sh`) now carries a one-line description taken from **the comment at the top of the script** (`WidgetStore.describe`, Android-independent and covered by `WidgetStoreTest`). It skips the shebang and blank lines, and skips a self-referencing line such as `# ~/.z2term/macros/<self>.sh`. For `# <file name> — <description>` the leading file name is dropped (separator `—` / `–` / ` - ` / `:`, and **only when the part before it matches the file's own name** — a prefix like `z2term: …` is kept as part of the description). Truncated at 60 characters.
 
 #### Notification button replies (`NotifyActionReceiver` / `z2-notify -b`, 0.8.169)

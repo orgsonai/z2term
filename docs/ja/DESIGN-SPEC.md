@@ -1,6 +1,6 @@
 # Z2Term 設計書 兼 仕様書
 
-最終更新: 2026-09-09 / 対象バージョン: 0.8.559-alpha (versionCode 567)
+最終更新: 2026-09-09 / 対象バージョン: 0.8.560-alpha (versionCode 568)
 
 > 本書は Z2Term の **詳細設計 + 仕様** をまとめた技術文書。実装担当・レビュー担当向け。
 > 利用者向けのやさしい説明は `docs/ja/HANDBOOK.md` を参照。
@@ -1021,7 +1021,7 @@ Android のアプリ UID は `/dev/bus/usb/...` を直接 `open` できないが
 **実行中はもう一度タップで停止（0.8.215）**: `RemoteViews` に長押しは無いので、**モードを増やさず同じボタンのトグル**にした。実行中はラベルが `■ 名前` になりアクセント色（`widget_accent`）で、タップすると `ACTION_STOP_MACRO` → `HeadlessRun.stop`。実行中かどうかは `HeadlessRun` が持つ**プロセス内のマップ**（`name` → `PtyProcess`）で判定する。アプリのプロセスが死ねば起動した子プロセスも道連れなので、**マップが空から始まるのは正しい**（「動いていないのに動いている表示」にならない）。停止は `PtyProcess.close`（SIGHUP → 最大 1 秒待って SIGKILL）なのでブロードキャスト受信スレッドから直接呼ばず、必ず別スレッドへ逃がす。終了時は `HeadlessRun.launch(onExit = …)` から再描画して `■` を戻す。
 
 **設定画面（0.8.215 で 2 件修正）**:
-- **インセット**: `enableEdgeToEdge()` ＋ ルートに `windowInsetsPadding(WindowInsets.systemBars)`。targetSdk 35（Android 15）は edge-to-edge が強制なので、これが無いと**ステータスバーと 3 ボタンナビの下に潜り込んで見えず、操作もできない**（実機で発生）。新しい `Activity` を足すときは既存画面と同じこの書き方に必ず揃えること。
+- **インセット**: `enableEdgeToEdge()` ＋ ルートに `windowInsetsPadding(WindowInsets.systemBars)`。targetSdk 35（Android 15）は edge-to-edge が強制なので、これが無いと**ステータスバーと 3 ボタンナビの下に潜り込んで見えず、操作もできない**（実機で発生）。新しい `Activity` を足すときは既存画面と同じこの書き方に必ず揃えること。 ⚠ **同じことは全画面の `Dialog`（`DialogProperties(usePlatformDefaultWidth = false)`）でも起きる** — 0.8.560 で OSS ライセンス画面が該当し、**一覧の最後の行の「ソースを開く」がナビゲーションバーの裏に隠れて読めず押せなかった**（利用者報告）。⇒ **`Activity` だけでなく、画面いっぱいに広げる `Dialog` の中身にも同じ `windowInsetsPadding` を必ず入れる。** 背景を端まで塗りたいので `Surface` は `fillMaxSize()` のままにし、**その中の `Column` 側に付ける**（`SftpSheet` の全画面プレビューと同じ形）。
 - **マクロの説明**: ファイル名だけ並べても何のマクロか分からないので、`.sh` を落とした名前の下に**スクリプト先頭のコメント**を 1 行説明として出す（`WidgetStore.describe`・Android 非依存で `WidgetStoreTest` が押さえる）。シェバンと空行は飛ばし、`# ~/.z2term/macros/<自分>.sh` のような自己言及行も飛ばす。`# <ファイル名> — <説明>` の形なら頭のファイル名を落とす（区切りが `—` / `–` / ` - ` / `:` のとき、かつ**その手前が自分のファイル名と一致するときだけ**。`z2term: …` のような接頭辞は説明の一部として残す）。60 文字で切り詰め。
 
 #### 通知ボタンによる応答（`NotifyActionReceiver` / `z2-notify -b`、0.8.169）
