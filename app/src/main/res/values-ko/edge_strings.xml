@@ -169,4 +169,7 @@
     <string name="edge_pick_icon">z2-icon에서 선택</string>
     <string name="tip_edge_edit_title">z2-edge 바 편집</string>
     <string name="tip_edge_edit_body">바를 눌러 메뉴를 연 뒤 메뉴 바깥을 길게 누르면 바 편집기가 열립니다.</string>
+    <string name="edge_note_lines">줄 표시</string>
+    <string name="edge_note_smaller">메모 글자 크기 줄이기</string>
+    <string name="edge_note_larger">메모 글자 크기 키우기</string>
 </resources>

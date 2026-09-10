@@ -675,7 +675,9 @@ Settings are split into **9 groups** (Display / Keyboard and input / Linux envir
 
 > **How to use (Tips)** (0.8.399): double taps, long presses, flicks — the gestures that **show nothing on screen** are collected here. That toolbar buttons have a second function, how to close and reorder tabs, the ESC and ⌫ flicks, scrolling inside a GUI app, that `z2gui clean` reinstalls the GUI when the desktop stops coming up (0.8.519), that typing `z2term` lists the built-in commands, and that an AI can write your macros. These are things you would never run into by accident, so open it once.
 
-**Management consolidation (0.8.581; build unverified)**: Manage resident servers and automation in the Command list tool. Servers contains definitions, start/stop, startup on boot, low-power mode and the data limit. Automation switches between Action automation and Automation rules. Action automation opens the existing manager for creation, editing, execution, stopping and history; rules are edited in the tool.
+**Command list tabs (0.8.583, 0.8.584)**: Top tabs return to equal-width rounded buttons, with a green border and tinted background when selected and 12sp monospace labels on one line. The Action automation / Automation rules subtabs retain the newer underline design. The fixed top position and restored tab selection remain available.
+
+**Management consolidation (0.8.581)**: Manage resident servers and automation in the Command list tool. Servers contains definitions, start/stop, startup on boot, low-power mode and the data limit. Automation switches between Action automation and Automation rules. Action automation opens the existing manager for creation, editing, execution, stopping and history; rules are edited in the tool.
 
 The former settings group is now Permissions and notifications, with Permissions and Notifications and logs tabs. Permissions includes notification posting and reading, Accessibility, overlays, shared storage, SMS, battery exemption, system settings, usage access, APK installation, device administration, IME and attached USB devices. Root rechecking is available after unlocking the developer engine controls. Folder-specific grants remain with the feature that selects the folder.
 
@@ -986,7 +988,10 @@ Deleting a child detaches its reference; deleting a parent preserves child panel
 In settings, hold an item name and drag before/after another item to save every item’s `order`. Dropping outside leaves the order unchanged. Settings also expose item deletion and app launch-mode selection.
 
 “+ Note” in settings adds a note to the active tab. `type=note` shows its contents; tap to edit with Undo and Redo.
-With neither a name nor an icon shown (`labels=off` and an empty `icon=`), no heading row is drawn and the text starts at the top of the panel (0.8.565).
+A blank note label (including whitespace only) hides the internal ID, icon and heading row so the body starts at the top (0.8.582).
+The note item settings include Ruled lines (off by default, `note-lines=on|off`), including wrapped lines.
+While editing, icon buttons for Undo, Redo, smaller text and larger text appear below the body. Text size is 10–32sp (default 16sp, `note-size`), saved per note item and applied to both reading and editing.
+Undo and redo history is saved across saves, panel closure and app restarts: up to 100 history entries per text file, with a combined 256 KiB budget for past and future text (fewer entries for long notes). History lives in the panel's `.note-history/` directory (the shared home's `.z2term/edge/.note-history/` for external text files). External text changes or damaged history prevent stale history from being used. A history-only save failure keeps the already saved document intact.
 Text defaults to `~/.z2term/edge/panelID/itemID.txt`; `file=~/memo.txt` selects another shared-home file.
 Relative paths use the shared home; absolute paths must be accessible to the Android app and are not translated from guest-only paths.
 UTF-8, up to 64 KiB. Closing, Back, tab switching, screen-off, close/off save edits; changes also save every 10 seconds while open.

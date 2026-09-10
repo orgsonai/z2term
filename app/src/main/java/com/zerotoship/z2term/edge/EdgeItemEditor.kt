@@ -73,6 +73,11 @@ object EdgeItemEditor {
         val groups = linkedMapOf<String, LinearLayout>()
         val basic = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         draft.addView(basic)
+        val noteLines = EdgeSettingsUi.switchOf(context, item?.fields?.get("note-lines") == "on").apply {
+            text = context.getString(R.string.edge_note_lines)
+            setTextColor(EdgeSettingsUi.foreground(context))
+            minHeight = EdgeEditorUi.dp(context, 48)
+        }
         val advanced = EdgeSettingsUi.section(context, draft, context.getString(R.string.edge_advanced), sub = true)
         val fields = linkedMapOf("label" to R.string.edge_item_label, "icon" to R.string.edge_item_icon,
             "run" to R.string.edge_item_run, "state" to R.string.edge_item_state,
@@ -93,8 +98,10 @@ object EdgeItemEditor {
             val optional = key in listOf("every", "timeout", "out", "file") || (appCommand != null && key == "run")
             (if (optional) advanced else basic).addView(group)
         }
+        basic.addView(noteLines, LinearLayout.LayoutParams(-1, -2))
         fun showFields() {
             val selected = types[type.selectedItemPosition]
+            noteLines.visibility = if (selected == "note") View.VISIBLE else View.GONE
             groups.forEach { (key, group) ->
                 val visible = when (key) {
                     "state" -> selected == "toggle"
@@ -116,6 +123,7 @@ object EdgeItemEditor {
             types[type.selectedItemPosition] != (item?.type ?: "run") ||
                 launchMode != AppLaunchCommand.modeFrom(appCommand.orEmpty()) ||
                 scaleFreeform != AppLaunchCommand.scalesFreeform(appCommand.orEmpty()) ||
+                noteLines.isChecked != (item?.fields?.get("note-lines") == "on") ||
                 entries.any { (key, entry) -> entry.text.toString() != item?.fields?.get(key).orEmpty() }
         }
         // Cancel and Save close the draft, so they share one line at its foot.
@@ -124,6 +132,7 @@ object EdgeItemEditor {
             session.discard(outer) {
                 entries.forEach { (key, entry) -> entry.setText(item?.fields?.get(key).orEmpty()) }
                 type.setSelection(types.indexOf(item?.type ?: "run"))
+                noteLines.isChecked = item?.fields?.get("note-lines") == "on"
                 if (cancelled != null) cancelled() else draft.visibility = View.GONE
             }
         }, LinearLayout.LayoutParams(0, -2, 1f))
@@ -131,6 +140,7 @@ object EdgeItemEditor {
             runCatching {
                 val values = item?.fields.orEmpty().toMutableMap()
                 values["type"] = types[type.selectedItemPosition]
+                if (values["type"] == "note") values["note-lines"] = if (noteLines.isChecked) "on" else "off"
                 entries.forEach { (key, entry) ->
                     // Preserve hidden values; only visible fields are edited.
                     if (groups.getValue(key).visibility == View.VISIBLE) {
@@ -143,7 +153,7 @@ object EdgeItemEditor {
                     values["run"] = if (launchMode == "freeform")
                         AppLaunchCommand.withFreeformScale(modeCommand, scaleFreeform) else modeCommand
                 }
-                if (item == null && values["label"].isNullOrBlank())
+                if (item == null && values["type"] != "note" && values["label"].isNullOrBlank())
                     values["label"] = context.getString(R.string.edge_custom_slot)
                 EdgeStore.validateItem(values)
                 session.leave(except = outer) {

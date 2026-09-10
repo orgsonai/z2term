@@ -169,4 +169,7 @@
     <string name="edge_pick_icon">從z2-icon選擇</string>
     <string name="tip_edge_edit_title">編輯z2-edge邊條</string>
     <string name="tip_edge_edit_body">輕觸邊條開啟選單，再長按選單外部開啟邊條編輯器。</string>
+    <string name="edge_note_lines">橫線</string>
+    <string name="edge_note_smaller">縮小筆記字級</string>
+    <string name="edge_note_larger">放大筆記字級</string>
 </resources>

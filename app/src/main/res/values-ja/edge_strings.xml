@@ -184,4 +184,7 @@
     <string name="edge_pick_icon">z2-iconから選ぶ</string>
     <string name="tip_edge_edit_title">z2-edgeのバーを編集する</string>
     <string name="tip_edge_edit_body">バーをタップしてメニューを開き、メニューの外側を長押しするとバーの編集画面を開けます。</string>
+    <string name="edge_note_lines">罫線</string>
+    <string name="edge_note_smaller">メモの文字を小さく</string>
+    <string name="edge_note_larger">メモの文字を大きく</string>
 </resources>

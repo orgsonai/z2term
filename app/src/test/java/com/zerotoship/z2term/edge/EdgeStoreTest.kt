@@ -5,6 +5,54 @@ import org.junit.Test
 import java.nio.file.Files
 
 class EdgeStoreTest {
+    @Test fun noteAppearanceAndEmptyLabelPersistWithoutChangingOtherFields() {
+        val dir = Files.createTempDirectory("edge-note-appearance-test").toFile()
+        try {
+            val store = EdgeStore(dir)
+            store.setPanel("main", emptyMap())
+            store.setItem("main:note", mapOf("type" to "note", "label" to "", "note-lines" to "on", "note-size" to "20"))
+            store.setItem("main:note", mapOf("note-size" to "21"))
+            val note = EdgeStore(dir).item("main:note")
+            assertEquals("", note.fields["label"])
+            assertEquals("on", note.fields["note-lines"])
+            assertEquals("21", note.fields["note-size"])
+            for (bad in listOf("", "9", "33", "16.5", "NaN"))
+                rejects { store.setItem("main:note", mapOf("note-size" to bad)) }
+            rejects { store.setItem("main:note", mapOf("note-lines" to "yes")) }
+            assertEquals(note, store.item("main:note"))
+        } finally { dir.deleteRecursively() }
+    }
+
+    @Test fun notesSharingTheSameFileAlsoShareHistory() {
+        val dir = Files.createTempDirectory("edge-note-path-test").toFile()
+        try {
+            val store = EdgeStore(dir)
+            val file = java.io.File(dir, "note.txt")
+            assertEquals(store.noteHistoryFile(file), store.noteHistoryFile(java.io.File(dir, "./note.txt")))
+            assertNotEquals(store.noteHistoryFile(file), store.noteHistoryFile(java.io.File(dir, "other.txt")))
+            assertEquals(".note-history", store.noteHistoryFile(file).parentFile!!.name)
+        } finally { dir.deleteRecursively() }
+    }
+
+    @Test fun panelDeletionRemovesInternalHistoryAndPreservesExternalNotes() {
+        val dir = Files.createTempDirectory("edge-note-delete-test").toFile()
+        try {
+            val store = EdgeStore(java.io.File(dir, "edge"))
+            store.setPanel("main", emptyMap())
+            val internal = java.io.File(store.directory("main"), "note.txt")
+            val external = java.io.File(dir, "external.txt")
+            for (file in listOf(internal, external)) {
+                EdgeNote(file, store.noteHistoryFile(file)).apply { edit("saved"); save() }
+            }
+            val internalHistory = store.noteHistoryFile(internal)
+            val externalHistory = store.noteHistoryFile(external)
+            store.removePanel("main")
+            assertFalse(internal.exists()); assertFalse(internalHistory.exists())
+            assertTrue(external.exists()); assertTrue(externalHistory.exists())
+            assertEquals("", EdgeNote(external, externalHistory).undo())
+        } finally { dir.deleteRecursively() }
+    }
+
     @Test fun gestureRangeAcceptsOnlyWholeDistancesWithinBounds() {
         for (range in listOf("32", "160", "640", "2000")) {
             EdgeStore.validatePanel(mapOf("gesture-range" to range))

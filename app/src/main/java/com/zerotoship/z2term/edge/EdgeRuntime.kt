@@ -1020,8 +1020,8 @@ object EdgeRuntime {
 
     private fun saveNotes() {
         notes.values.forEach { note ->
-            if (note.dirty) runCatching { note.save() }.onFailure { error ->
-                runCatching {
+            if (note.needsSave) runCatching { note.save() }.onFailure { error ->
+                if (!note.dirty) fail(error) else runCatching {
                     val backup = note.recover(File(store(app!!).root, ".recovery"))
                     fail(IllegalStateException("${error.message}. Saved: ~/.z2term/edge/.recovery/${backup.name}"))
                 }.onFailure { fail(it) }
@@ -1039,7 +1039,7 @@ object EdgeRuntime {
         cancelAppearance = null
         runCatching { cancel?.invoke() }.onFailure { fail(it) }
         saveNotes()
-        notes.entries.removeAll { !it.value.dirty }
+        notes.entries.removeAll { !it.value.needsSave }
         generation++
         scheduled.forEach { main.removeCallbacks(it) }; scheduled.clear()
         retries.values.forEach { main.removeCallbacks(it) }; retries.clear()
@@ -1178,15 +1178,16 @@ object EdgeRuntime {
         }
         val title = LinearLayout(ui()).apply { gravity = Gravity.CENTER_VERTICAL }
         val pkg = packageFrom(item.command)
-        val label = item.fields["label"] ?: pkg?.let { runCatching {
+        val label = if (item.type == "note") item.fields["label"].orEmpty() else item.fields["label"] ?: pkg?.let { runCatching {
             val pm = app!!.packageManager; pm.getApplicationLabel(pm.getApplicationInfo(it, 0)).toString()
         }.getOrNull() } ?: item.id
-        addIcon(title, item.fields["icon"] ?: pkg?.let { "@app:$it" } ?: if (iconOnly) label.take(1) else null, iconSize)
+        val showNoteTitle = item.type != "note" || label.isNotBlank()
+        if (showNoteTitle) addIcon(title, item.fields["icon"] ?: pkg?.let { "@app:$it" } ?: if (iconOnly) label.take(1) else null, iconSize)
         title.minimumHeight = dp(48)
         title.contentDescription = label
         title.tooltipText = label
         if (iconOnly) title.gravity = Gravity.CENTER
-        else title.addView(text(label, 15f), LinearLayout.LayoutParams(0, -2, 1f))
+        else if (showNoteTitle) title.addView(text(label, 15f), LinearLayout.LayoutParams(0, -2, 1f))
         row.addView(title)
         enableMenuDrop(row, panelId, item.id, horizontalOrder)
         if (Regex("^z2-key\\s+(back|recents|shade|quicksettings|screenshot|split)\\s*$")
@@ -1245,11 +1246,19 @@ object EdgeRuntime {
             }
             "note" -> {
                 runCatching {
-                    val file = store(app!!).noteFile(panelId, item)
-                    val note = notes.getOrPut(file.path) { EdgeNote(file) }
-                    val preview = text(note.text.ifEmpty { app!!.getString(R.string.edge_note_empty) }, 16f)
-                    val editor = EditText(ui()).apply {
+                    val noteStore = store(app!!)
+                    val file = noteStore.noteFile(panelId, item)
+                    val note = notes.getOrPut(file.path) { EdgeNote(file, noteStore.noteHistoryFile(file)) }
+                    val ruled = item.fields["note-lines"] == "on"
+                    var fontSize = item.fields["note-size"]?.toIntOrNull() ?: 16
+                    val preview = EdgeNoteUi.preview(ui(), ruled).apply {
+                        text = note.text.ifEmpty { app!!.getString(R.string.edge_note_empty) }
+                        textSize = fontSize.toFloat()
+                    }
+                    val editor = EdgeNoteUi.editor(ui(), ruled).apply {
                         setText(note.text); minLines = 3; maxLines = 12
+                        textSize = fontSize.toFloat()
+                        contentDescription = label.ifBlank { app!!.getString(R.string.edge_note) }
                         inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
                         visibility = View.GONE
                         filters = arrayOf(android.text.InputFilter { source, start, end, dest, dstart, dend ->
@@ -1257,9 +1266,26 @@ object EdgeRuntime {
                             if (proposed.toByteArray(Charsets.UTF_8).size <= EdgeNote.LIMIT) null else dest.subSequence(dstart, dend)
                         })
                     }
-                    val history = LinearLayout(ui()).apply { visibility = View.GONE }
-                    val undo = Button(ui()).apply { text = app!!.getString(R.string.edge_undo) }
-                    val redo = Button(ui()).apply { text = app!!.getString(R.string.edge_redo) }
+                    val history = EdgeToolRow(ui()).apply { visibility = View.GONE }
+                    val undo = EdgeNoteUi.button(ui(), R.drawable.ic_edge_undo, R.string.edge_undo)
+                    val redo = EdgeNoteUi.button(ui(), R.drawable.ic_edge_redo, R.string.edge_redo)
+                    val smaller = EdgeNoteUi.button(ui(), R.drawable.ic_edge_text_smaller, R.string.edge_note_smaller)
+                    val larger = EdgeNoteUi.button(ui(), R.drawable.ic_edge_text_larger, R.string.edge_note_larger)
+                    fun updateSize() {
+                        preview.textSize = fontSize.toFloat(); editor.textSize = fontSize.toFloat()
+                        smaller.isEnabled = fontSize > 10; larger.isEnabled = fontSize < 32
+                    }
+                    fun resize(delta: Int) {
+                        runCatching {
+                            val size = (fontSize + delta).coerceIn(10, 32)
+                            noteStore.setItem(target, mapOf("note-size" to size.toString()))
+                            val updated = noteStore.panel(panelId)
+                            panels = panels.map { if (it.id == panelId) updated else it }
+                            fontSize = size; updateSize()
+                        }.onFailure { fail(it) }
+                    }
+                    smaller.setOnClickListener { resize(-1) }
+                    larger.setOnClickListener { resize(1) }
                     fun updateHistory() { undo.isEnabled = note.canUndo; redo.isEnabled = note.canRedo }
                     var restoring = false
                     fun restore(value: String) {
@@ -1269,6 +1295,7 @@ object EdgeRuntime {
                     undo.setOnClickListener { restore(note.undo()) }
                     redo.setOnClickListener { restore(note.redo()) }
                     history.addView(undo); history.addView(redo)
+                    history.addView(smaller); history.addView(larger)
                     editor.addTextChangedListener(object : android.text.TextWatcher {
                         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
                         override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -1282,8 +1309,8 @@ object EdgeRuntime {
                         editor.post { app?.getSystemService(android.view.inputmethod.InputMethodManager::class.java)
                             ?.showSoftInput(editor, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT) }
                     }
-                    updateHistory()
-                    row.addView(preview); row.addView(history); row.addView(editor)
+                    updateHistory(); updateSize()
+                    row.addView(preview); row.addView(editor); row.addView(history)
                 }.onFailure { row.addView(text(it.message ?: "Cannot open note")) }
             }
             "input" -> {

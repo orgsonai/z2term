@@ -184,4 +184,7 @@
     <string name="edge_pick_icon">Choose from z2-icon</string>
     <string name="tip_edge_edit_title">Edit a z2-edge bar</string>
     <string name="tip_edge_edit_body">Tap the bar to open its menu, then long-press outside the menu to open the bar editor.</string>
+    <string name="edge_note_lines">Ruled lines</string>
+    <string name="edge_note_smaller">Decrease note text size</string>
+    <string name="edge_note_larger">Increase note text size</string>
 </resources>

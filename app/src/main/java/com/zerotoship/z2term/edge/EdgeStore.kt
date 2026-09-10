@@ -105,6 +105,18 @@ class EdgeStore(val root: File) {
         }).canonicalFile
     }
 
+    fun noteHistoryFile(file: File): File {
+        val path = file.canonicalFile
+        val key = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(path.path.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+        // Internal histories are deleted with their panel; external notes keep theirs.
+        val relative = path.relativeToOrNull(root.canonicalFile)?.path.orEmpty()
+        val panelId = relative.substringBefore(File.separatorChar)
+        val parent = if (validId(panelId) && File(root, panelId).isDirectory) File(root, panelId) else root
+        return File(parent, ".note-history/$key")
+    }
+
     @Synchronized fun moveItem(panelId: String, itemId: String, beforeId: String, after: Boolean = false) {
         val items = panel(panelId).items
         require(items.any { it.id == itemId } && items.any { it.id == beforeId }) { "No item to move" }
@@ -188,10 +200,14 @@ class EdgeStore(val root: File) {
         }
 
         fun validateItem(values: Map<String, String>) {
-            val allowed = setOf("type", "label", "icon", "run", "state", "on-select", "order", "every", "timeout", "out", "file")
+            val allowed = setOf("type", "label", "icon", "run", "state", "on-select", "order", "every", "timeout", "out", "file", "note-lines", "note-size")
             require(values.keys.all { it in allowed }) { "Unknown item field: ${values.keys - allowed}" }
             val type = values["type"] ?: "run"
             require(type in setOf("run", "text", "toggle", "list", "input", "note")) { "Unsupported type: $type" }
+            values["note-lines"]?.let { require(it in setOf("on", "off")) { "note-lines: on|off" } }
+            values["note-size"]?.let {
+                require(it.toIntOrNull()?.let { n -> n in 10..32 } == true) { "note-size: 10–32 sp" }
+            }
             require(values["out"].orEmpty() in setOf("", "none", "panel", "toast", "notify")) { "Unknown out" }
             values["every"]?.let { require(it.toLongOrNull()?.let { n -> n == 0L || n in 5..86400 } == true) { "every: 0 or 5–86400 seconds" } }
             values["timeout"]?.let { require(it.toLongOrNull()?.let { n -> n in 1L..300L } == true) { "timeout: 1–300 seconds" } }

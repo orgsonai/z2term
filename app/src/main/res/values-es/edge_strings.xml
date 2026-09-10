@@ -169,4 +169,7 @@
     <string name="edge_pick_icon">Elegir de z2-icon</string>
     <string name="tip_edge_edit_title">Editar una barra z2-edge</string>
     <string name="tip_edge_edit_body">Toca la barra para abrir su menú y mantén pulsado fuera del menú para abrir el editor de la barra.</string>
+    <string name="edge_note_lines">Renglones</string>
+    <string name="edge_note_smaller">Reducir el tamaño del texto de la nota</string>
+    <string name="edge_note_larger">Aumentar el tamaño del texto de la nota</string>
 </resources>

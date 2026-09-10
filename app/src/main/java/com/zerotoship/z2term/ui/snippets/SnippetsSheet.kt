@@ -16,7 +16,6 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -160,7 +159,7 @@ fun SnippetsSheet(
             if (tab == ToolsTab.WHEN) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AutomationTab.entries.forEach { option ->
-                        TabChip(
+                        AutomationTabChip(
                             label = stringResource(if (option == AutomationTab.ACTIONS) R.string.tools_automation_actions else R.string.tools_automation_rules),
                             selected = automationTab == option, modifier = Modifier.weight(1f),
                             onSelect = { automationTab = option; scope.launch { scrollState.scrollTo(0) } }
@@ -203,26 +202,26 @@ private fun ToolsTabBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         TabChip(
             label = stringResource(R.string.tools_tab_snippets),
             selected = selected == ToolsTab.SNIPPETS,
-            modifier = Modifier.widthIn(min = 64.dp),
+            modifier = Modifier.weight(1f),
             onSelect = { onSelect(ToolsTab.SNIPPETS) }
         )
         TabChip(
             label = stringResource(R.string.tools_tab_history),
             selected = selected == ToolsTab.HISTORY,
-            modifier = Modifier.widthIn(min = 64.dp),
+            modifier = Modifier.weight(1f),
             onSelect = { onSelect(ToolsTab.HISTORY) }
         )
         if (showSsh) {
             TabChip(
                 label = stringResource(R.string.tools_tab_ssh),
                 selected = selected == ToolsTab.SSH,
-                modifier = Modifier.widthIn(min = 64.dp),
+                modifier = Modifier.weight(1f),
                 onSelect = { onSelect(ToolsTab.SSH) }
             )
         }
@@ -230,7 +229,7 @@ private fun ToolsTabBar(
             TabChip(
                 label = stringResource(R.string.tools_tab_servers),
                 selected = selected == ToolsTab.SERVERS,
-                modifier = Modifier.widthIn(min = 64.dp),
+                modifier = Modifier.weight(1f),
                 onSelect = { onSelect(ToolsTab.SERVERS) }
             )
         }
@@ -238,7 +237,7 @@ private fun ToolsTabBar(
         TabChip(
             label = stringResource(R.string.tools_tab_when),
             selected = selected == ToolsTab.WHEN,
-            modifier = Modifier.widthIn(min = 64.dp),
+            modifier = Modifier.weight(1f),
             onSelect = { onSelect(ToolsTab.WHEN) }
         )
     }
@@ -246,6 +245,32 @@ private fun ToolsTabBar(
 
 @Composable
 private fun TabChip(label: String, selected: Boolean, modifier: Modifier = Modifier, onSelect: () -> Unit) {
+    val bg = if (selected) ZtsGreen.copy(alpha = 0.18f) else ZtsBgCard
+    val border = if (selected) ZtsGreen else ZtsBorder
+    val fg = if (selected) ZtsGreen else ZtsTextPrimary
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(bg)
+            .border(1.dp, border, RoundedCornerShape(8.dp))
+            .selectable(selected = selected, role = Role.Tab, onClick = onSelect)
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = fg,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            fontFamily = FontFamily.Monospace,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun AutomationTabChip(label: String, selected: Boolean, modifier: Modifier = Modifier, onSelect: () -> Unit) {
     Column(
         modifier.width(IntrinsicSize.Max).selectable(selected = selected, role = Role.Tab, onClick = onSelect),
         horizontalAlignment = Alignment.CenterHorizontally

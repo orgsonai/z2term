@@ -95,9 +95,12 @@ class NotificationLogService : NotificationListenerService() {
             n.`when`.takeIf { it > 0L } ?: sbn.postTime else 0L
         val ctx = applicationContext
         val receivedAt = SystemClock.elapsedRealtime()
+        // UserHandle.getIdentifier() is not in the public SDK; this accessor is public.
+        @Suppress("DEPRECATION")
+        val userId = sbn.userId
         writer.execute {
             val text = history.fresh(key, body, title, eventTime, group,
-                app = sbn.packageName + ":" + sbn.user.identifier, now = receivedAt) ?: return@execute
+                app = sbn.packageName + ":" + userId, now = receivedAt) ?: return@execute
             val app = runCatching {
                 val pm = packageManager
                 pm.getApplicationLabel(pm.getApplicationInfo(sbn.packageName, 0)).toString()
