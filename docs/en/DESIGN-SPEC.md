@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-10 / Target version: 0.8.574-alpha (versionCode 582)
+Last updated: 2026-09-10 / Target version: 0.8.575-alpha (versionCode 583)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2229,6 +2229,13 @@ From 0.8.562, panels show only their items by default. Empty panels have no mess
 Settings use a separate screen independent of panel width. Opening settings does not execute item commands or periodic readers.
 From 0.8.566, the editor has Items, Appearance and Manage pages. Items show icons and names; tap a row or Edit to change it. Move items with the up/down arrows or hold and drag. App launch mode and label are in the basic form; commands and polling options are under Advanced settings. Removing an item requires confirmation in its editor and preserves note files.
 Appearance groups size/position, icons/layout, title/controls and handles into collapsible sections. The size diagram and Save/Cancel buttons stay visible while the form scrolls; handle changes preview on the actual handles. While the IME is visible, the diagram collapses and fields scroll in the remaining space above the keyboard. Only Save writes definitions. Cancel, close and page/tab changes ask before discarding unsaved edits; screen-off and external reload still discard drafts. Items/Appearance/Manage and panel tabs replace content within the same overlay window, without exposing the app behind it (0.8.567). Manage contains names, panel/tab creation and deletion.
+**Editor presentation rebuilt (`EdgeSettingsUi`, 0.8.575)**: what the editor can do, where it saves, how it maps to the CLI and how unsaved drafts are handled are unchanged; only the presentation moved, and it moved into one place. Overlays carry no Activity theme, so a control that styles itself locally drifts from the rest of the screen: ground, hairline, accent, danger and every text size are decided by `EdgeSettingsUi` alone.
+- **Two levels of navigation, two different shapes**: Items/Appearance/Manage sit under the title and Done as underlined tabs (the active page is named by an accent rule), with panels and tabs below them as outlined chips. Two rows of the same shape leave no way to tell a page from a tab.
+- **Collapsible groups use a heading row with `▾`/`▸`.** A nested group (each gesture, an item's advanced fields) states its depth with a left rule and an indent rather than a second border.
+- **Four button weights only**: primary (filled), normal (outlined), quiet and delete (red outline). ⚠ A disabled button dims (its `StateListDrawable` carries the disabled border and label colour) so that whether it can be pressed is visible, not guessed.
+- **Fields, pickers, sliders and switches share that palette.** ⚠ **A switch colours its OFF side too** - left to the platform it vanishes into a dark ground. Pickers (`Spinner`) keep the platform arrow and take only the colours.
+- **Items is one row per item**: icon, name, kind, Edit and the move arrows on one line. Long explanations become a bordered footnote below the list, so they no longer stand between the reader and the controls.
+- ⚠ **The normal menu (outside settings) is unchanged.** `EdgeEditorUi` still serves the panel and the automation screens.
 
 Enable “Show + app button” under Appearance → Title, tabs and buttons to add apps directly from the normal menu. Cancelling app selection returns to that menu. Hold and drag a run item to reorder it; drop into the first/second half of a target to place it before/after (vertical halves in a column, horizontal halves in a row or grid). Targets are outlined and dragging at an edge scrolls. Dropping outside leaves order unchanged. Whitespace long-press still opens settings (0.8.567).
 

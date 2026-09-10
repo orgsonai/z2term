@@ -56,7 +56,7 @@ internal object EdgeItemPickers {
                 return text
             }
         }
-        group.addView(Spinner(context).apply {
+        group.addView(EdgeSettingsUi.dress(context, Spinner(context)).apply {
             adapter = choicesAdapter
             contentDescription = context.getString(label)
             isEnabled = names.isNotEmpty()
@@ -69,6 +69,6 @@ internal object EdgeItemPickers {
                     }
                 }
             }
-        }, LinearLayout.LayoutParams(-1, -2))
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = EdgeEditorUi.dp(context, 6) })
     }
 }

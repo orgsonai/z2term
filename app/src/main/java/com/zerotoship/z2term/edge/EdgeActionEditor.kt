@@ -24,17 +24,21 @@ internal object EdgeActionEditor {
             add.isEnabled = actions.size < EdgeActions.MAX_ACTIONS
             rows.removeAllViews()
             actions.forEachIndexed { index, action ->
-                val row = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-                val controls = LinearLayout(context)
-                val picker = Spinner(context).apply {
-                    contentDescription = context.getString(R.string.edge_action_step, index + 1)
-                    adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
-                        types.map { context.getString(label(it)) })
-                    setSelection(types.indexOf(action.type))
+                // One step is one bordered block: the order is the reading order, top to bottom.
+                val row = LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    background = EdgeSettingsUi.frame(context)
+                    setPadding(EdgeEditorUi.dp(context, 10), EdgeEditorUi.dp(context, 8),
+                        EdgeEditorUi.dp(context, 10), EdgeEditorUi.dp(context, 10))
                 }
-                controls.addView(picker, LinearLayout.LayoutParams(0, -2, 1f))
-                fun button(label: String, enabled: Boolean, click: () -> Unit) {
-                    controls.addView(EdgeEditorUi.button(context, label, action = click).apply { isEnabled = enabled })
+                val controls = EdgeSettingsUi.row(context)
+                controls.addView(EdgeSettingsUi.caption(context,
+                    context.getString(R.string.edge_action_step, index + 1)).apply { setPadding(0, 0, 0, 0) },
+                    LinearLayout.LayoutParams(0, -2, 1f))
+                fun button(glyph: String, enabled: Boolean, click: () -> Unit) {
+                    controls.addView(EdgeSettingsUi.iconButton(context, glyph, click).apply {
+                        isEnabled = enabled; alpha = if (enabled) 1f else 0.3f
+                    }, LinearLayout.LayoutParams(EdgeEditorUi.dp(context, 36), EdgeEditorUi.dp(context, 36)))
                 }
                 button("↑", index > 0) {
                     val previous = actions[index - 1]; actions[index - 1] = actions[index]; actions[index] = previous
@@ -45,13 +49,20 @@ internal object EdgeActionEditor {
                     publish(); render()
                 }
                 button("×", true) { actions.removeAt(index); publish(); render() }
-                row.addView(controls)
+                row.addView(controls, LinearLayout.LayoutParams(-1, -2))
+                val picker = EdgeSettingsUi.dress(context, Spinner(context)).apply {
+                    contentDescription = context.getString(R.string.edge_action_step, index + 1)
+                    adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item,
+                        types.map { context.getString(label(it)) })
+                    setSelection(types.indexOf(action.type))
+                }
+                row.addView(picker, LinearLayout.LayoutParams(-1, -2))
                 if (action.type == EdgeActions.Type.LAUNCH) {
                     val choices = listOf("" to context.getString(R.string.edge_action_choose_app)) +
                         apps.map { it.packageName to it.label } +
                         if (action.argument.isNotEmpty() && apps.none { it.packageName == action.argument })
                             listOf(action.argument to action.argument) else emptyList()
-                    row.addView(Spinner(context).apply {
+                    row.addView(EdgeSettingsUi.dress(context, Spinner(context)).apply {
                         contentDescription = context.getString(R.string.edge_action_choose_app)
                         adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item, choices.map { it.second })
                         setSelection(choices.indexOfFirst { it.first == action.argument }.coerceAtLeast(0))
@@ -64,10 +75,9 @@ internal object EdgeActionEditor {
                                 }
                             }
                         }
-                    })
+                    }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = EdgeEditorUi.dp(context, 6) })
                 } else if (action.type.parameter) {
-                    row.addView(EditText(context).apply {
-                        setSingleLine(true)
+                    row.addView(EdgeSettingsUi.field(context).apply {
                         if (action.type == EdgeActions.Type.WAIT) inputType = android.text.InputType.TYPE_CLASS_NUMBER
                         hint = context.getString(when (action.type) {
                             EdgeActions.Type.WAIT -> R.string.edge_action_wait_hint
@@ -84,7 +94,7 @@ internal object EdgeActionEditor {
                                 actions[index] = actions[index].copy(argument = s.toString()); publish()
                             }
                         })
-                    })
+                    }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = EdgeEditorUi.dp(context, 6) })
                 }
                 picker.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                     override fun onNothingSelected(parent: AdapterView<*>?) = Unit
@@ -96,15 +106,19 @@ internal object EdgeActionEditor {
                         }
                     }
                 }
-                rows.addView(row)
+                rows.addView(row, LinearLayout.LayoutParams(-1, -2).apply {
+                    bottomMargin = EdgeEditorUi.dp(context, 8)
+                })
             }
         }
-        add = EdgeEditorUi.button(context, context.getString(R.string.edge_action_add)) {
+        add = EdgeSettingsUi.button(context, context.getString(R.string.edge_action_add)) {
             if (actions.size < EdgeActions.MAX_ACTIONS) {
                 actions.add(EdgeActions.Action(EdgeActions.Type.PANEL)); publish(); render()
             }
         }
-        root.addView(add)
+        root.addView(add, LinearLayout.LayoutParams(-1, -2).apply {
+            bottomMargin = EdgeEditorUi.dp(context, 4)
+        })
         render()
         return root
     }

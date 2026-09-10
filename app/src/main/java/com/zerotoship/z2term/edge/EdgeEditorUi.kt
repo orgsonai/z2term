@@ -7,7 +7,6 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
-import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
@@ -43,18 +42,5 @@ internal object EdgeEditorUi {
         }
         background = RippleDrawable(ColorStateList.valueOf((accent(context) and 0x00ffffff) or 0x30000000), fill, null)
         isSelected = selected; setOnClickListener { action() }
-    }
-    fun section(context: Context, parent: LinearLayout, title: Int, expanded: Boolean = false): LinearLayout {
-        parent.addView(divider(context))
-        val body = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(context, 16), 0, dp(context, 16), dp(context, 16))
-            visibility = if (expanded) View.VISIBLE else View.GONE
-        }
-        val heading = button(context, context.getString(title)) {}.apply { gravity = Gravity.START or Gravity.CENTER_VERTICAL }
-        fun update() { heading.text = "${if (body.visibility == View.VISIBLE) "−" else "+"}  ${context.getString(title)}" }
-        heading.setOnClickListener { body.visibility = if (body.visibility == View.VISIBLE) View.GONE else View.VISIBLE; update() }
-        update(); parent.addView(heading, LinearLayout.LayoutParams(-1, -2)); parent.addView(body, LinearLayout.LayoutParams(-1, -2))
-        return body
     }
 }
