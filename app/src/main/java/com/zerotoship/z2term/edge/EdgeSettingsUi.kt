@@ -2,7 +2,6 @@ package com.zerotoship.z2term.edge
 
 import android.content.Context
 import android.content.res.ColorStateList
-import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
@@ -19,7 +18,10 @@ import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
+import androidx.compose.ui.graphics.toArgb
+import androidx.core.graphics.ColorUtils
 import com.zerotoship.z2term.R
+import com.zerotoship.z2term.ui.theme.AppColors
 
 /**
  * Every surface of the full-screen panel editor is declared here: overlays carry no Activity theme,
@@ -42,18 +44,21 @@ internal object EdgeSettingsUi {
     }
 
     fun dp(context: Context, value: Int): Int = EdgeEditorUi.dp(context, value)
-    private fun dark(context: Context): Boolean = context.resources.configuration.uiMode and
-        Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
 
-    fun canvas(context: Context): Int = if (dark(context)) Color.rgb(18, 22, 27) else Color.rgb(255, 255, 255)
-    fun surface(context: Context): Int = if (dark(context)) Color.rgb(26, 32, 39) else Color.rgb(243, 246, 249)
-    fun line(context: Context): Int = if (dark(context)) Color.rgb(45, 54, 64) else Color.rgb(220, 226, 232)
-    fun strong(context: Context): Int = if (dark(context)) Color.rgb(80, 93, 106) else Color.rgb(172, 183, 193)
-    fun foreground(context: Context): Int = if (dark(context)) Color.rgb(232, 237, 242) else Color.rgb(23, 32, 42)
-    fun muted(context: Context): Int = if (dark(context)) Color.rgb(147, 160, 173) else Color.rgb(90, 104, 117)
-    fun accent(context: Context): Int = if (dark(context)) Color.rgb(127, 182, 232) else Color.rgb(21, 98, 154)
-    fun danger(context: Context): Int = if (dark(context)) Color.rgb(230, 138, 126) else Color.rgb(176, 54, 40)
-    private fun onAccent(context: Context): Int = if (dark(context)) Color.rgb(12, 18, 24) else Color.WHITE
+    // The editor does not invent colours: it reads the app palette, which is derived from the
+    // selected terminal theme (ground and text straight from it, surfaces and borders lifted off
+    // the ground, one accent - the ZTS green). Nothing here to keep in step with a second palette.
+    fun canvas(context: Context): Int = AppColors.bgPrimary.toArgb()
+    fun surface(context: Context): Int = AppColors.bgCard.toArgb()
+    fun line(context: Context): Int = AppColors.border.toArgb()
+    fun strong(context: Context): Int = AppColors.textTertiary.toArgb()
+    fun foreground(context: Context): Int = AppColors.textPrimary.toArgb()
+    fun muted(context: Context): Int = AppColors.textSecondary.toArgb()
+    fun accent(context: Context): Int = AppColors.accent.toArgb()
+    fun danger(context: Context): Int = AppColors.error.toArgb()
+    /** A theme may hand us any accent, so the label on a filled button is chosen by luminance. */
+    private fun onAccent(context: Context): Int =
+        if (ColorUtils.calculateLuminance(accent(context)) > 0.4) Color.rgb(10, 12, 14) else Color.WHITE
     fun tint(color: Int, alpha: Int): Int = (color and 0x00ffffff) or (alpha shl 24)
 
     private fun box(fill: Int, stroke: Int, width: Int, radius: Int): GradientDrawable = GradientDrawable().apply {
@@ -258,8 +263,7 @@ internal object EdgeSettingsUi {
     fun switchOf(context: Context, checked: Boolean): Switch = Switch(context).apply {
         isChecked = checked
         val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
-        thumbTintList = ColorStateList(states,
-            intArrayOf(accent(context), if (dark(context)) strong(context) else Color.WHITE))
+        thumbTintList = ColorStateList(states, intArrayOf(accent(context), strong(context)))
         trackTintList = ColorStateList(states, intArrayOf(tint(accent(context), 0x70), line(context)))
     }
 

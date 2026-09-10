@@ -164,7 +164,6 @@
     <string name="edge_scroll_x">滚动位置X（窗口%）</string>
     <string name="edge_scroll_y">滚动位置Y（窗口%）</string>
     <string name="edge_action_choose_app">选择应用</string>
-    <string name="edge_add_entry">添加应用或自定义槽位</string>
     <string name="edge_custom_slot">自定义槽位</string>
     <string name="edge_pick_macro">选择宏</string>
     <string name="edge_pick_icon">从z2-icon选择</string>

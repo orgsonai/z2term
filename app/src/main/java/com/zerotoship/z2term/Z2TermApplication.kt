@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.Context
 import android.util.Log
 import com.zerotoship.z2term.clipboard.ClipboardHistoryStore
+import com.zerotoship.z2term.emulator.AvailableThemes
+import com.zerotoship.z2term.emulator.resolveTheme
 import com.zerotoship.z2term.gui.GuiEventWatcher
 import com.zerotoship.z2term.service.ExitReasons
 import com.zerotoship.z2term.service.ScreenTimeout
@@ -11,7 +13,9 @@ import com.zerotoship.z2term.service.SystemEventService
 import com.zerotoship.z2term.service.WhenManager
 import com.zerotoship.z2term.service.Z2ApiBridge
 import com.zerotoship.z2term.settings.AppSettings
+import com.zerotoship.z2term.settings.CustomThemeStore
 import com.zerotoship.z2term.settings.LocaleHelper
+import com.zerotoship.z2term.ui.theme.AppColors
 import com.zerotoship.z2term.tile.TileStore
 import com.zerotoship.z2term.usb.UsbFdBroker
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Z2Term アプリケーション本体。
@@ -51,6 +56,21 @@ class Z2TermApplication : Application() {
         appScope.launch {
             runCatching { com.zerotoship.z2term.edge.EdgeRuntime.restore(this@Z2TermApplication) }
                 .onFailure { Log.w(TAG, "edge panel restore skipped: ${it.message}") }
+        }
+        // 選択中テーマからアプリ配色を確定させる (0.8.577)。⚠ **これまで [AppColors] を適用して
+        // いたのは端末画面と IME だけ**だったので、再起動直後のようにアプリ画面を一度も出して
+        // いない状態では、エッジパネルやその設定画面が既定の配色のまま描かれていた。
+        // 画面を持たない入口 (オーバーレイ / ウィジェット / タイル) も同じ配色で出るよう、
+        // プロセス開始の時点で 1 回入れておく (端末画面はテーマ変更のたびに上書きする)。
+        appScope.launch {
+            runCatching {
+                val name = AppSettings(this@Z2TermApplication).flow.first().themeName
+                CustomThemeStore.ensureLoaded(this@Z2TermApplication)
+                // 独自テーマは別 DataStore を非同期で読むので、組み込みに無い名前のときだけ待つ。
+                val custom = if (AvailableThemes.none { it.name == name })
+                    withTimeoutOrNull(3000) { CustomThemeStore.theme.first { it != null } } else null
+                AppColors.applyFrom(resolveTheme(name, custom))
+            }.onFailure { Log.w(TAG, "app palette not applied: ${it.message}") }
         }
         // 繋ぎっぱなしの受付 (z2-session attach)。z2api と違い常時 listen しておく必要がある。
         com.zerotoship.z2term.service.AttachServer.start(this)

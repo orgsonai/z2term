@@ -811,30 +811,34 @@ object EdgeRuntime {
                 if (settings) setPadding(dp(EdgeSettingsUi.GUTTER), dp(12), dp(EdgeSettingsUi.GUTTER), dp(2))
             }
             if (settings || root.fields["add"] == "on") {
+                // + picks an app and nothing else. Sending it through settings first made it a
+                // second way into the same screen as the gear, so neither button said what it did.
                 val pick = {
                     session.leave {
-                        if (!settings) open(root.id, tabId = panel.id, settings = true, page = 0)
-                        else {
-                            val context = app!!
-                            close()
-                            runCatching { context.startActivity(Intent(context, AppPickerActivity::class.java)
-                                .putExtra("panel", panel.id).putExtra("editPanel", settings)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { fail(it) }
-                        }
+                        val context = app!!
+                        close()
+                        runCatching { context.startActivity(Intent(context, AppPickerActivity::class.java)
+                            .putExtra("panel", panel.id).putExtra("editPanel", settings)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { fail(it) }
                     }
                 }
                 tools.addView(if (settings)
                     EdgeSettingsUi.button(ui(), app!!.getString(R.string.edge_add_app), action = pick).apply {
                         layoutParams = LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dp(8) }
                     }
-                else EdgeEditorUi.button(ui(), "+", action = pick).apply {
-                    contentDescription = app!!.getString(R.string.edge_add_entry)
+                else EdgeEditorUi.button(ui(), "＋", action = pick).apply {
+                    // The two glyph tools sit side by side: + is the accented action, the gear the
+                    // quiet way out. Weight and colour carry that, since neither can carry a label.
+                    contentDescription = app!!.getString(R.string.edge_pick_app)
+                    textSize = 17f; setTypeface(null, Typeface.BOLD)
+                    setTextColor(EdgeEditorUi.accent(ui()))
                     minWidth = 0; minimumWidth = 0; setPadding(0, 0, 0, 0)
                     layoutParams = LinearLayout.LayoutParams(dp(32), dp(48))
                 })
             }
             if (!settings && root.fields["settings"] == "on") tools.addView(EdgeEditorUi.button(ui(), "") {}.apply {
                 text = "⚙"; contentDescription = app!!.getString(R.string.edge_settings)
+                textSize = 15f; setTextColor(EdgeEditorUi.muted(ui()))
                 minWidth = 0; minimumWidth = 0; setPadding(0, 0, 0, 0); layoutParams = LinearLayout.LayoutParams(dp(32), dp(48))
                 setOnClickListener { open(root.id, tabId = panel.id, settings = true) }
             })

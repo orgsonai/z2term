@@ -179,7 +179,6 @@
     <string name="edge_scroll_x">スクロール位置・横（ウィンドウ内％）</string>
     <string name="edge_scroll_y">スクロール位置・縦（ウィンドウ内％）</string>
     <string name="edge_action_choose_app">アプリを選択</string>
-    <string name="edge_add_entry">アプリ・自由な枠を追加</string>
     <string name="edge_custom_slot">自由な枠</string>
     <string name="edge_pick_macro">マクロから選ぶ</string>
     <string name="edge_pick_icon">z2-iconから選ぶ</string>

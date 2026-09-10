@@ -179,7 +179,6 @@
     <string name="edge_scroll_x">Scroll position X (window %)</string>
     <string name="edge_scroll_y">Scroll position Y (window %)</string>
     <string name="edge_action_choose_app">Choose app</string>
-    <string name="edge_add_entry">Add app or custom slot</string>
     <string name="edge_custom_slot">Custom slot</string>
     <string name="edge_pick_macro">Choose a macro</string>
     <string name="edge_pick_icon">Choose from z2-icon</string>

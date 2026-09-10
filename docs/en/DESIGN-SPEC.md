@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-10 / Target version: 0.8.576-alpha (versionCode 584)
+Last updated: 2026-09-10 / Target version: 0.8.577-alpha (versionCode 585)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2236,9 +2236,12 @@ Appearance groups size/position, icons/layout, title/controls and handles into c
 - **Four button weights only**: primary (filled), normal (outlined), quiet and delete (red outline). ⚠ A disabled button dims (its `StateListDrawable` carries the disabled border and label colour) so that whether it can be pressed is visible, not guessed.
 - **Fields, pickers, sliders and switches share that palette.** ⚠ **A switch colours its OFF side too** - left to the platform it vanishes into a dark ground. Pickers (`Spinner`) keep the platform arrow and take only the colours.
 - **Items is one row per item**: icon, name, kind, Edit and the move arrows on one line. Long explanations become a bordered footnote below the list, so they no longer stand between the reader and the controls.
-- ⚠ **The normal menu (outside settings) is unchanged.** `EdgeEditorUi` still serves the panel and the automation screens.
+- **Colours come from the app palette (`AppColors`, 0.8.577)**: the editor owns no colours of its own. Ground, card, hairline and text are the ones derived from the selected terminal theme, and the accent is the brand green with `error` as danger. The panel and the automation screens (`EdgeEditorUi`) read the same source, so settings can never be the one screen with a different palette, and changing the theme moves the panel with it.
+  - ⚠ **`AppColors.applyFrom` was only ever called by the terminal screen and the IME**, so a process that had never shown the app UI - right after a reboot, say - drew its overlays in the default palette. `Z2TermApplication.onCreate` now applies it once at process start, for the entries that have no screen of their own (overlays, widgets, tiles). A custom theme is read asynchronously from its own DataStore, so we wait for it (up to 3s) **only when the name is not a built-in**. The terminal screen still overwrites on every theme change, so applying twice is harmless.
+- ⚠ **The normal menu's layout (outside settings) is unchanged.** `EdgeEditorUi` still serves the panel and the automation screens.
 
-Enable “Show + app button” under Appearance → Title, tabs and buttons to add apps directly from the normal menu. Cancelling app selection returns to that menu. Hold and drag a run item to reorder it; drop into the first/second half of a target to place it before/after (vertical halves in a column, horizontal halves in a row or grid). Targets are outlined and dragging at an edge scrolls. Dropping outside leaves order unchanged. Whitespace long-press still opens settings (0.8.567).
+Enable “Show + app button” under Appearance → Title, tabs and buttons to add apps directly from the normal menu. Cancelling app selection returns to that menu.
+⛔ **From 0.8.562 to 0.8.576 the + button opened the Items page of settings instead (fixed in 0.8.577).** It landed on the same screen as the gear beside it, so two adjacent buttons did the same thing and neither said which was which (reported from the device), and it contradicted the sentence above. + now opens `AppPickerActivity` directly; `editPanel` is true only when pressed from settings, which is what decides where selection or cancellation returns to. ⚠ **The glyphs alone cannot carry the difference** - both are a single character in 32dp - so + is accented and bold while the gear stays quiet. ⚠ Adding a custom slot still lives under settings → Items: what + lost is a detour, not a feature. Hold and drag a run item to reorder it; drop into the first/second half of a target to place it before/after (vertical halves in a column, horizontal halves in a row or grid). Targets are outlined and dragging at an edge scrolls. Dropping outside leaves order unchanged. Whitespace long-press still opens settings (0.8.567).
 
 Menus with child tabs allow direct selection in normal use. When the tab strip is hidden, tap the current tab name at the top to choose a tab (0.8.567).
 

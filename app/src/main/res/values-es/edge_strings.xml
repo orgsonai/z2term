@@ -164,7 +164,6 @@
     <string name="edge_scroll_x">Posición X del desplazamiento (% de ventana)</string>
     <string name="edge_scroll_y">Posición Y del desplazamiento (% de ventana)</string>
     <string name="edge_action_choose_app">Elegir aplicación</string>
-    <string name="edge_add_entry">Añadir aplicación o espacio personalizado</string>
     <string name="edge_custom_slot">Espacio personalizado</string>
     <string name="edge_pick_macro">Elegir macro</string>
     <string name="edge_pick_icon">Elegir de z2-icon</string>

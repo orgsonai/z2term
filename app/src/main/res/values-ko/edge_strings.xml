@@ -164,7 +164,6 @@
     <string name="edge_scroll_x">스크롤 X 위치 (창 %)</string>
     <string name="edge_scroll_y">스크롤 Y 위치 (창 %)</string>
     <string name="edge_action_choose_app">앱 선택</string>
-    <string name="edge_add_entry">앱 또는 사용자 슬롯 추가</string>
     <string name="edge_custom_slot">사용자 슬롯</string>
     <string name="edge_pick_macro">매크로 선택</string>
     <string name="edge_pick_icon">z2-icon에서 선택</string>
