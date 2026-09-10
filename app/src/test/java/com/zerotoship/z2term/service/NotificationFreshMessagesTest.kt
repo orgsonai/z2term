@@ -122,7 +122,7 @@ class NotificationFreshMessagesTest {
         assertEquals("status", tracker.fresh("other", ordinary, "title"))
         assertNull(tracker.fresh("other", ordinary, "title"))
         tracker.removed("other")
-        assertEquals("status", tracker.fresh("other", ordinary, "title"))
+        assertEquals("status", tracker.fresh("other", ordinary, "title", now = 20_000L))
     }
 
     @Test fun ordinaryCrossKeyRepostsAreDeduplicatedWithoutDroppingTimedNewMessages() {
@@ -131,17 +131,70 @@ class NotificationFreshMessagesTest {
         assertEquals("same", tracker.fresh("one", text, "title", app = "app", now = 100L))
         assertNull(tracker.fresh("two", text, "title", app = "app", now = 200L))
         assertEquals("same", tracker.fresh("three", text, "title", app = "app", now = 20_000L))
-        assertEquals("same", tracker.fresh("chat", text, "title", eventTime = 1L, app = "app"))
-        assertNull(tracker.fresh("chat", text, "title", eventTime = 1L, app = "app"))
-        assertEquals("same", tracker.fresh("chat", text, "title", eventTime = 2L, app = "app"))
+        assertEquals("same", tracker.fresh("chat", body(Message(1L, "same")), "chat title", app = "app"))
+        assertNull(tracker.fresh("chat", body(Message(1L, "same")), "chat title", app = "app"))
+        assertEquals("same", tracker.fresh("chat", body(Message(2L, "same")), "chat title", app = "app"))
     }
 
-    @Test fun plainGroupRepostsUseTheEventTimeAndDistinctKeys() {
+    @Test fun plainGroupRepostsDoNotNeedMatchingNotificationTimes() {
         val tracker = NotificationText.History()
         val text = NotificationText.Body("same")
-        assertEquals("same", tracker.fresh("child", text, "title", 1L, "app:group"))
-        assertNull(tracker.fresh("summary", text, "title", 1L, "app:group"))
-        assertEquals("same", tracker.fresh("child", text, "title", 2L, "app:group"))
-        assertNull(tracker.fresh("summary", text, "title", 2L, "app:group"))
+        assertEquals("same", tracker.fresh("child", text, "title", group = "app:group", app = "app", now = 100L))
+        assertNull(tracker.fresh("summary", text, "title", group = "app:group", app = "app", now = 101L))
+        assertNull(tracker.fresh("child", text, "title", group = "app:group", app = "app", now = 21_000L))
+        assertNull(tracker.fresh("summary", text, "title", group = "app:group", app = "app", now = 21_001L))
+    }
+
+    @Test fun plainAndConversationCopiesDeduplicateInEitherOrder() {
+        for (plainFirst in listOf(true, false)) {
+            val tracker = NotificationText.History()
+            val plain = NotificationText.Body("same")
+            val conversation = body(Message(1L, "same", "sender"))
+            val first = if (plainFirst) plain else conversation
+            val second = if (plainFirst) conversation else plain
+            assertEquals("same", tracker.fresh("one", first, "title", app = "app", now = 100L))
+            assertNull(tracker.fresh("two", second, "title", app = "app", now = 101L))
+            assertEquals("same", tracker.fresh("two", body(Message(2L, "same", "sender")),
+                "title", app = "app", now = 102L))
+        }
+    }
+
+    @Test fun aPlainCopyDoesNotEraseTheIdentityOfAnActualMessage() {
+        val tracker = NotificationText.History()
+        assertEquals("same", tracker.fresh("key", body(Message(1L, "same", "sender")),
+            "title", app = "app", now = 100L))
+        assertNull(tracker.fresh("key", NotificationText.Body("same"), "title", app = "app", now = 101L))
+        assertEquals("same", tracker.fresh("key", body(Message(2L, "same", "sender")),
+            "title", app = "app", now = 102L))
+    }
+
+    @Test fun untimedInboxCopiesKeepRepeatedOccurrencesAndDifferentConversations() {
+        val tracker = NotificationText.History()
+        val inbox = content(lines = listOf("same"))
+        assertEquals("same", tracker.fresh("one", inbox, "title", group = "group-a", app = "app", now = 100L))
+        assertNull(tracker.fresh("two", inbox, "title", group = "group-a", app = "app", now = 101L))
+        assertEquals("same", tracker.fresh("two", content(lines = listOf("same", "same")),
+            "title", group = "group-a", app = "app", now = 102L))
+        assertEquals("same", tracker.fresh("three", inbox, "title", group = "group-b", app = "app", now = 103L))
+    }
+
+    @Test fun immediateCancellationAndRepostDoesNotDuplicateOrdinaryText() {
+        val tracker = NotificationText.History()
+        val plain = NotificationText.Body("same")
+        assertEquals("same", tracker.fresh("key", plain, "title", now = 100L))
+        tracker.removed("key")
+        assertNull(tracker.fresh("key", plain, "title", now = 101L))
+        tracker.removed("key")
+        assertEquals("same", tracker.fresh("key", plain, "title", now = 20_000L))
+    }
+
+    @Test fun copiesOfAnUntimedBatchKeepTheLargestOccurrenceCount() {
+        val tracker = NotificationText.History()
+        val batch = content(lines = listOf("same", "same"))
+        assertEquals("same\nsame", tracker.fresh("one", batch, "title", app = "app", now = 100L))
+        assertNull(tracker.fresh("two", batch, "title", app = "app", now = 101L))
+        assertNull(tracker.fresh("one", batch, "title", app = "app", now = 102L))
+        assertEquals("same", tracker.fresh("two", content(lines = listOf("same", "same", "same")),
+            "title", app = "app", now = 103L))
     }
 }

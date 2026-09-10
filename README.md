@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.584-alpha (versionCode 592), release build and lint verified; 1,091 unit tests passed (2 skipped).** Command list top tabs use equal-width rounded buttons; the Action automation / Automation rules subtabs retain the newer underline design. Edge notes hide blank headings, offer ruled lines and bottom icon controls for history and text size, and retain bounded undo/redo history across saves and restarts. Resident servers and automation are consolidated in Command list. Automation separates actions from rules; Permissions and notifications separates permissions from notification logs. Permission state and settings entries are centralized and refreshed on return. The notification text/deduplication improvements and coordinate-only picking are also included. See [design spec](docs/en/DESIGN-SPEC.md). Published APKs are on [GitHub Releases](https://github.com/orgsonai/z2term/releases).
+**0.8.585-alpha (versionCode 593), release build and lint verified; all 28 notification unit tests passed.** Notification message Bundles are read directly to avoid the platform decoder truncating delivered text to 1,024 UTF-16 units. Notification timestamp changes and copies across plain and conversation notifications no longer cause the same reposts. Content already omitted by the sender or OS cannot be recovered. The previous edge-note and tab improvements, management consolidation and coordinate-only picking remain included. See [design spec](docs/en/DESIGN-SPEC.md). Published APKs are on [GitHub Releases](https://github.com/orgsonai/z2term/releases).
 
 ## Features
 

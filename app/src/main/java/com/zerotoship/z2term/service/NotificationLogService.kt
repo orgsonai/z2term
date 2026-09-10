@@ -4,7 +4,6 @@ import android.app.Notification
 import android.app.Person
 import android.content.ComponentName
 import android.content.Context
-import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import android.service.notification.NotificationListenerService
@@ -28,7 +27,7 @@ import java.util.concurrent.Executors
 /**
  * Captures notification payloads, including silent updates, without app-specific extraction rules.
  * Conversation/history and InboxStyle entries use occurrence-aware deduplication. Plain reposts
- * are deduplicated separately, so fresh messages with unchanged text are retained.
+ * also match copies in conversation payloads; actual message identities preserve new identical text.
  * Only text supplied by Android can be saved: redacted or unpublished content cannot be recovered.
  */
 class NotificationLogService : NotificationListenerService() {
@@ -91,15 +90,13 @@ class NotificationLogService : NotificationListenerService() {
         val key = sbn.key ?: sbn.packageName
         val category = n.category.orEmpty()
         val group = if (sbn.isGroup) sbn.groupKey.orEmpty() else ""
-        val eventTime = if (category == Notification.CATEGORY_MESSAGE)
-            n.`when`.takeIf { it > 0L } ?: sbn.postTime else 0L
         val ctx = applicationContext
         val receivedAt = SystemClock.elapsedRealtime()
         // UserHandle.getIdentifier() is not in the public SDK; this accessor is public.
         @Suppress("DEPRECATION")
         val userId = sbn.userId
         writer.execute {
-            val text = history.fresh(key, body, title, eventTime, group,
+            val text = history.fresh(key, body, title, group = group,
                 app = sbn.packageName + ":" + userId, now = receivedAt) ?: return@execute
             val app = runCatching {
                 val pm = packageManager
@@ -132,29 +129,6 @@ class NotificationLogService : NotificationListenerService() {
         )
     }
 
-    /** Android 11+ supplies the platform decoder; Android 10 uses the same Bundle fields. */
-    @Suppress("DEPRECATION")
-    private fun messages(ex: Bundle, field: String): List<NotificationText.Message> {
-        val array = ex.getParcelableArray(field) ?: return emptyList()
-        if (Build.VERSION.SDK_INT >= 30) {
-            return Notification.MessagingStyle.Message.getMessagesFromBundleArray(array).mapNotNull {
-                val text = stripBidi(it.text?.toString().orEmpty())
-                if (text.isBlank()) null else NotificationText.Message(it.timestamp, text,
-                    it.senderPerson?.let(::senderIdentity) ?: it.sender?.toString().orEmpty())
-            }
-        }
-        return array.mapNotNull {
-            val bundle = it as? Bundle ?: return@mapNotNull null
-            val text = stripBidi(bundle.getCharSequence("text")?.toString().orEmpty())
-            val person = bundle.getParcelable<Person>("sender_person")
-            if (text.isBlank()) null else NotificationText.Message(bundle.getLong("time"), text,
-                person?.let(::senderIdentity) ?: bundle.getCharSequence("sender")?.toString().orEmpty())
-        }
-    }
-
-    private fun senderIdentity(person: Person): String =
-        person.key ?: person.uri ?: person.name?.toString().orEmpty()
-
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         val key = sbn?.key ?: return
         writer.execute { history.removed(key) }
@@ -172,6 +146,22 @@ class NotificationLogService : NotificationListenerService() {
 
     companion object {
         private const val TAG = "NotificationLog"
+
+        /** Read delivered Bundles directly: the platform Message decoder truncates text to 1024. */
+        @Suppress("DEPRECATION")
+        internal fun messages(ex: Bundle, field: String): List<NotificationText.Message> {
+            val array = ex.getParcelableArray(field) ?: return emptyList()
+            return array.mapNotNull {
+                val bundle = it as? Bundle ?: return@mapNotNull null
+                val text = stripBidi(bundle.getCharSequence("text")?.toString().orEmpty())
+                val person = runCatching { bundle.getParcelable<Person>("sender_person") }.getOrNull()
+                if (text.isBlank()) null else NotificationText.Message(bundle.getLong("time"), text,
+                    person?.let(::senderIdentity) ?: bundle.getCharSequence("sender")?.toString().orEmpty())
+            }
+        }
+
+        private fun senderIdentity(person: Person): String =
+            listOf(person.key, person.uri, person.name?.toString()).firstOrNull { !it.isNullOrBlank() }.orEmpty()
 
         /**
          * 稼働中インスタンス。`z2-noti list` が**いま出ている通知**を読むために要る

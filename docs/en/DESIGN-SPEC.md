@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-10 / Target version: 0.8.584-alpha (versionCode 592)
+Last updated: 2026-09-11 / Target version: 0.8.585-alpha (versionCode 593)
 
 **Release verification (0.8.584)**: Release build and lint pass. Unit tests: 1,091 passed, 2 skipped. The signed APK was installed on a device while retaining data; version and startup were verified.
 
@@ -300,9 +300,11 @@ With notification access, capture and logging enabled, Android notification post
 
 **Capture limits (0.8.580)**: Content never posted as a notification, omitted by the sender, or redacted by Android cannot be reconstructed through notification logging. Android 15+ can redact OTP-bearing notifications for listeners. Cooldown reduces sound and popup interruptions and is a separate mechanism. No universal OS setting workaround is assumed. See [listener API](https://developer.android.com/reference/android/service/notification/NotificationListenerService), [sensitive notifications](https://developer.android.com/about/versions/15/behavior-changes-all#otp-redaction) and [cooldown](https://support.google.com/android/answer/9079661).
 
-**Body extraction (NotificationText, 0.8.580)**: title uses EXTRA_TITLE. EXTRA_MESSAGES and EXTRA_HISTORIC_MESSAGES are merged with overlap counts preserved. Messages include sender identity alongside time and text, using the platform decoder on Android 11+ and matching Bundle fields on Android 10. If expanded or ordinary text extends the last message prefix, including an ellipsis, the longer body is retained. A longer generic summary cannot replace an actual message.
+**Body extraction (NotificationText, 0.8.585)**: title uses EXTRA_TITLE. EXTRA_MESSAGES and EXTRA_HISTORIC_MESSAGES are merged with overlap counts preserved. Messages include sender identity alongside time and text, reading text/time/sender_person/sender directly from delivered Bundles on every supported OS. The platform Message decoder is avoided because reconstructing a Message truncates text at 1,024 UTF-16 units. If expanded or ordinary text extends the last message prefix, including an ellipsis, the longer body is retained. A longer generic summary cannot replace an actual message.
 
 InboxStyle EXTRA_TEXT_LINES precedes ordinary text, preserving intermediate lines; a single line can also be expanded. Fallbacks are EXTRA_BIG_TEXT (expanded by matching ordinary text), EXTRA_TEXT, EXTRA_SUB_TEXT / EXTRA_INFO_TEXT, then tickerText. No local character limit is applied. Everything feeds the existing text field; JSON and template fields remain unchanged. z2-noti list uses the same extraction without taking a delta.
+
+Delivered text is not length-limited by z2term, but text already shortened by the sender or OS cannot be recovered. See [Android Message reconstruction and length handling](https://android.googlesource.com/platform/frameworks/base/+/android16-qpr2-release/core/java/android/app/Notification.java). A generic new-message notice is saved when that is the only supplied content. No app-specific text filter or replacement of past log entries with a later body is applied.
 
 **Stripping bidirectional controls (`stripBidi`, 0.8.356)**: the Unicode bidi control characters (`U+200E`, `U+200F`, `U+061C`, the embeddings and overrides `U+202A`–`U+202E`, and the isolates `U+2066`–`U+2069`) are removed from `title` / `text` before anything else sees them — triggers and the log alike. **Why it is needed**: a phone app wraps the caller's number with `BidiFormatter` before putting it in the notification, so what arrives is `U+202A` + number + `U+202C` even though the screen reads `0120-355-565`. Those characters show up **neither on screen nor in the log**, so a macro that checks whether the caller looks like a number (the bundled `unknown-call.sh` strips `0-9+() -` and expects nothing to be left) **decides it is a name and silently does nothing**. On-device this meant not a single incoming call was ever caught, and because `z2-when fired` still records `run`, it failed in the hardest way to read: the rule fires, nothing happens (confirmed from the device log on 2026-08-17). ⚠ **It has to apply to both the trigger path and the log** — doing only one produces "the log shows a number but the rule does not match". ⚠ This is **the one exception to logging notifications verbatim**, and it only drops characters that never render, so nothing readable changes. ⚠ `z2-noti list` goes through the same filter. **Why not fix it in the macro**: `z2-macro install` never overwrites, so an old copy on the device keeps running (the same shape has caused two incidents already). Fixing it in the app means existing macros start working without being reinstalled.
 
@@ -314,17 +316,17 @@ InboxStyle EXTRA_TEXT_LINES precedes ordinary text, preserving intermediate line
 
 **Newest at the top (`notificationLogPrepend`)**: when on, each new line is **prepended** to the head of the file (newest first) instead of appended. Since a file has no OS primitive to insert at the head, `LogWriter` reads the existing content and rewrites it. No line cap = all lines kept (0.8.163).
 
-**Deduplication (NotificationText.History, 0.8.580)**
+**Deduplication (NotificationText.History, 0.8.585)**
 
-- Per notification key, keep hashes of timestamp, sender and text plus occurrence counts. Reposted history is not saved again, while extra occurrences within an array are retained even when time and text match.
-- No second body-only deduplication runs after fresh messages are selected. Different message times or senders remain separate. Identical timestamped messages shared by different keys in the same notification group are deduplicated.
-- Expanded messages retain both short and full fingerprints, so the short form returning in history does not repeat. If only a short body arrived first, a later full body is saved once as a correction.
-- Plain message notifications include their event timestamp, falling back to postTime. Ordinary same-key reposts and same-app, same-content cross-key reposts within 10 seconds still deduplicate.
-- Dismissal clears ordinary repost state but retains conversation history. Caches hold 256 notification/group keys and 128 fingerprints per key. Deduplication is bounded to retained process-local state; process termination or LRU eviction can allow repeats.
+- Per key, retain hashes of each message's own time, sender and text, plus occurrence counts. Reposted history is suppressed; new message times, senders and additional occurrences are retained. Identical timestamped messages in the same group also deduplicate across keys.
+- Notifications without message arrays compare title and body. Notification-level when/postTime changes do not identify new messages. Consecutive identical content under the same key is not saved again.
+- Copies with the same app, user, title and body deduplicate within 10 seconds across plain notifications, conversations and untimed inbox entries. Distinct explicit groups remain separate. If both copies carry actual message times or senders, different messages remain separate. Without identifying metadata, new identical text cannot always be distinguished from a repost.
+- Expanded messages retain both short and full fingerprints. A full body first arriving after a short one is appended once as a correction.
+- Dismissal clears the previous plain body but retains conversation history and the 10-second recreation check. LRU limits are 256 notification/group keys, 128 fingerprints per key, and 256 cross-format content fingerprints. Process termination or eviction can allow repeats.
 
 **Saving on/off (`notificationLogEnabled`, default on, 0.8.165)**: turning it off keeps detection (the resident listener) running but writes nothing to `notifications.jsonl` — for users who only want detection, or who care about storage/privacy.
 
-**Implementation notes (0.8.580)**: Events arriving before the initial settings read wait for it. Payload and settings snapshots feed serialized delta calculation, timestamp formatting and file writes. Triggers use a separate executor after persistence, so slow rules do not block log writes. When capture is enabled, disconnection requests a rebind. No replay of historical notifications is added. Fourteen regression cases were updated or added. Build, tests and device behavior remain unverified.
+**Implementation notes (0.8.580)**: Events arriving before the initial settings read wait for it. Payload and settings snapshots feed serialized delta calculation, timestamp formatting and file writes. Triggers use a separate executor after persistence, so slow rules do not block log writes. When capture is enabled, disconnection requests a rebind. No replay of historical notifications is added. Nineteen unit cases cover message and cross-format deduplication; two device tests cover long Bundles through body output. Release build and lint pass. All 28 notification unit tests pass; the APK for two device tests compiles, but those tests have not run. Actual notification reception remains unverified.
 
 #### SMS detection (`SmsLogReceiver`, 0.8.186)
 
