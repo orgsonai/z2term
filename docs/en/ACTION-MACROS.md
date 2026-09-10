@@ -1,6 +1,6 @@
 # Android action macros
 
-Working version 0.8.575-alpha / versionCode 583. **Build and device behavior not yet verified.**
+Working version 0.8.576-alpha / versionCode 584. **Build and device behavior not yet verified.**
 
 `z2-action` stores named text definitions and runs them through one shared runtime from the CLI, shell macros, panels, tiles and `z2-when`. `z2-macro actions` is an alias. Panels need not be enabled. Execution requires enabling z2term Android actions through `z2-key permission`.
 

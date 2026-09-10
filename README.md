@@ -85,7 +85,7 @@ Pick whichever fits:
 
 ## Current version
 
-**0.8.575-alpha (versionCode 583), working version; build not yet verified.** The edge-panel editor keeps every capability and gains a rebuilt presentation: Items/Appearance/Manage as underlined tabs, panel tabs as outlined chips, collapsible groups with a heading row and a `▾`/`▸` mark, one palette for fields, pickers, sliders and switches, and four button weights that show at a glance what can be pressed. Items lists one row per entry - icon, name, kind, Edit and the move arrows. The panel itself is unchanged. See [design spec](docs/en/DESIGN-SPEC.md). Published APKs and release history are on [GitHub Releases](https://github.com/orgsonai/z2term/releases).
+**0.8.576-alpha (versionCode 584), working version; build not yet verified.** The edge-panel editor keeps every capability and gains a rebuilt presentation: Items/Appearance/Manage as underlined tabs, panel tabs as outlined chips, collapsible groups with a heading row and a `▾`/`▸` mark, one palette for fields, pickers, sliders and switches, and four button weights that show at a glance what can be pressed. Items lists one row per entry - icon, name, kind, Edit and the move arrows. The panel itself is unchanged. See [design spec](docs/en/DESIGN-SPEC.md). This also fixes the build error introduced in 0.8.574, where the coordinate picker read the View’s own `bottom`. Published APKs and release history are on [GitHub Releases](https://github.com/orgsonai/z2term/releases).
 
 ## Features
 

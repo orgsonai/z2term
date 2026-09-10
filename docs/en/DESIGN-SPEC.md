@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-10 / Target version: 0.8.575-alpha (versionCode 583)
+Last updated: 2026-09-10 / Target version: 0.8.576-alpha (versionCode 584)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2205,6 +2205,7 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
 **Action macro repetition, branching and reuse (0.8.573)**: version=2 adds counted/infinite loops, conditions based on device state or the focused package, and calls to saved macros. The complete call graph is validated and frozen before execution; cycles are rejected. Root and child deadlines, cancellation and a 10000-instruction run limit remain shared. The GUI offers loop/branch templates and a saved-macro picker; hierarchical block forms are added in 0.8.574. Progress includes location, iteration and branch outcomes. See [Android action macros](ACTION-MACROS.md). Build and device behavior not yet verified.
 
 **UI elements and block editing (0.8.574)**: Click/long-click by visible text, description or resource ID, and wait for elements with deadlines. Choose selectors over the target app or inspect through the CLI. Explicit element requests read only the target window, excluding editable/password fields. The hierarchical GUI adds children, moves across groups, duplicates/removes complete blocks and manages else branches. Text, comments and line endings are retained, with shared cancellation and deadlines. See [usage](ACTION-MACROS.md). Build and device behavior not verified; added tests not run.
+**`bottom` resolved to the View's own property in the picker (0.8.576)**: `ActionCoordinatePicker` referred to `Session.bottom` (which edge the controls sit on) bare inside `FrameLayout(service).apply { ... }`. The innermost implicit receiver wins, so the name resolved to **`View.getBottom()` (an Int)** and `if (bottom)` failed to compile; 0.8.574 shipped without a build. The fix qualifies it as `this@Session.bottom`. ⚠ **Inside an `apply` that builds a View, qualify any outer property whose name a View already owns** (`bottom`, `top`, `left`, `right`, `alpha`, `visibility`, `id`). A type clash at least fails loudly; when the types also match, the code silently reads the wrong value, so treat the name collision itself as the warning.
 
 **Shared actions and gestures (unreleased)**: Appearance → Gestures assigns an ordered action list to tap, double tap, swipe up/down/inward/outward. Add, remove and move actions in the GUI; an empty list disables a gesture. Hold remains reserved for editing/relocation. Assigned directions take precedence over immediate button dragging; hold to relocate instead. Appearance previews never execute actions.
 

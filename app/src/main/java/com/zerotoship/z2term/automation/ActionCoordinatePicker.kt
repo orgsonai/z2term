@@ -186,9 +186,11 @@ internal object ActionCoordinatePicker {
                         return true
                     }
                 }, FrameLayout.LayoutParams(-1, -1))
-                addView(controls, FrameLayout.LayoutParams(-1, -2, if (bottom) Gravity.BOTTOM else Gravity.TOP).apply {
+                // Qualify the side: inside this apply the FrameLayout's own View.bottom (an Int) wins.
+                addView(controls, FrameLayout.LayoutParams(-1, -2,
+                    if (this@Session.bottom) Gravity.BOTTOM else Gravity.TOP).apply {
                     val inset = EdgeEditorUi.dp(service, 36)
-                    if (bottom) bottomMargin = inset else topMargin = inset
+                    if (this@Session.bottom) bottomMargin = inset else topMargin = inset
                 })
             } else controls
             val params = WindowManager.LayoutParams(

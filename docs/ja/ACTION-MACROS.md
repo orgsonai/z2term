@@ -1,6 +1,6 @@
 # Android操作マクロ
 
-作業版 0.8.575-alpha / versionCode 583。**ビルド未検証・実機未確認**。
+作業版 0.8.576-alpha / versionCode 584。**ビルド未検証・実機未確認**。
 
 `z2-action` は、名前付きの操作手順をテキストで保存し、CLI・シェルマクロ・パネル・タイル・`z2-when` から共通実行します。`z2-macro actions` も同じ入口です。パネルの有効化は不要ですが、実行には `z2-key permission` から「z2term Android操作」を有効にする必要があります。
 
