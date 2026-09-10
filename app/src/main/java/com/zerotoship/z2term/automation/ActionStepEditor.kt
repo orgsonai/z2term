@@ -9,7 +9,7 @@ import android.widget.*
 import androidx.core.widget.doAfterTextChanged
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.edge.AppCatalog
-import com.zerotoship.z2term.edge.EdgeEditorUi
+import com.zerotoship.z2term.edge.EdgeSettingsUi
 
 /** A single source line is replaced only after Apply. The activity retains the form draft. */
 internal object ActionStepEditor {
@@ -41,9 +41,16 @@ internal object ActionStepEditor {
     fun show(context: Context, initial: String, screen: ActionDefinition.Screen,
         apps: () -> List<AppCatalog.LaunchableApp>, draft: (String) -> Unit, apply: (String) -> Unit,
         cancel: () -> Unit, pick: (String) -> Unit, macros: () -> List<String> = { emptyList() }, pickElement: ((String) -> Unit)? = null): AlertDialog {
-        val body = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        val fields = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        val error = EdgeEditorUi.label(context, "", secondary = true)
+        // The dialog frame stays the platform's; its content takes this app's ground and palette.
+        val body = EdgeSettingsUi.column(context).apply {
+            setBackgroundColor(EdgeSettingsUi.canvas(context))
+            setPadding(EdgeSettingsUi.dp(context, EdgeSettingsUi.GUTTER), EdgeSettingsUi.dp(context, 12),
+                EdgeSettingsUi.dp(context, EdgeSettingsUi.GUTTER), EdgeSettingsUi.dp(context, 12))
+        }
+        val fields = EdgeSettingsUi.column(context)
+        val error = EdgeSettingsUi.body(context, "").apply {
+            textSize = 13f; setTextColor(EdgeSettingsUi.danger(context))
+        }
         val trimmed = initial.trim()
         val initialVerb = trimmed.split(Regex("\\s+")).first()
         val available = if (initialVerb in listOf("repeat", "if")) kinds.filter { it.verb == initialVerb }
@@ -57,12 +64,18 @@ internal object ActionStepEditor {
         var current = initial
         var rendering = false
         var revision = 0
-        val picker = Spinner(context).apply {
+        val picker = EdgeSettingsUi.dress(context, Spinner(context)).apply {
             contentDescription = context.getString(R.string.action_edit_type)
             adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item, available.map { context.getString(it.label) })
             setSelection(available.indexOf(kind))
         }
-        body.addView(picker); body.addView(fields); body.addView(error)
+        body.addView(EdgeSettingsUi.caption(context, context.getString(R.string.action_edit_type)))
+        body.addView(picker, LinearLayout.LayoutParams(-1, -2).apply {
+            bottomMargin = EdgeSettingsUi.dp(context, 14)
+        })
+        body.addView(fields); body.addView(error, LinearLayout.LayoutParams(-1, -2).apply {
+            topMargin = EdgeSettingsUi.dp(context, 8)
+        })
         lateinit var dialog: AlertDialog
         var appDialog: AlertDialog? = null
         fun publish() {
@@ -75,7 +88,7 @@ internal object ActionStepEditor {
             val renderedRevision = ++revision
             fields.removeAllViews()
             kind.fields.forEachIndexed { index, label ->
-                fields.addView(EdgeEditorUi.label(context, context.getString(label), secondary = true))
+                fields.addView(EdgeSettingsUi.caption(context, context.getString(label)))
                 val choices = when (label) {
                     R.string.action_edit_unit -> listOf("px", "percent")
                     R.string.action_edit_key -> listOf("back", "home", "recents", "shade", "quicksettings", "screenshot", "split")
@@ -84,7 +97,7 @@ internal object ActionStepEditor {
                 if (choices.isNotEmpty()) {
                     // Keep an invalid existing value visible until the user deliberately fixes it.
                     val options = if (values[index] in choices) choices else choices + values[index]
-                    fields.addView(Spinner(context).apply {
+                    fields.addView(EdgeSettingsUi.dress(context, Spinner(context)).apply {
                         contentDescription = context.getString(label)
                         adapter = ArrayAdapter(context, android.R.layout.simple_spinner_dropdown_item, options)
                         setSelection(options.indexOf(values[index]))
@@ -95,10 +108,9 @@ internal object ActionStepEditor {
                                 values = values.toMutableList().apply { this[index] = options[position] }; publish()
                             }
                         }
-                    })
+                    }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = EdgeSettingsUi.dp(context, 14) })
                 } else {
-                    val input = EditText(context).apply {
-                        setSingleLine(true)
+                    val input = EdgeSettingsUi.field(context).apply {
                         contentDescription = context.getString(label)
                         inputType = if (label in listOf(R.string.action_edit_package, R.string.action_edit_command, R.string.action_edit_macro_name,
                             R.string.action_ui_selector, R.string.action_block_count, R.string.action_block_condition))
@@ -112,20 +124,25 @@ internal object ActionStepEditor {
                             }
                         }
                     }
-                    fields.addView(input)
-                    if (label == R.string.action_block_count) fields.addView(EdgeEditorUi.label(context,
-                        context.getString(R.string.action_block_count_hint), secondary = true))
-                    if (label == R.string.action_block_condition) fields.addView(EdgeEditorUi.label(context,
-                        context.getString(R.string.action_block_condition_hint), secondary = true))
+                    fields.addView(input, LinearLayout.LayoutParams(-1, -2))
+                    fun hint(text: Int) = fields.addView(EdgeSettingsUi.note(context, context.getString(text)),
+                        LinearLayout.LayoutParams(-1, -2).apply {
+                            topMargin = EdgeSettingsUi.dp(context, 6)
+                        })
+                    fun below(view: android.view.View) = fields.addView(view, LinearLayout.LayoutParams(-1, -2).apply {
+                        topMargin = EdgeSettingsUi.dp(context, 8); bottomMargin = EdgeSettingsUi.dp(context, 6)
+                    })
+                    if (label == R.string.action_block_count) hint(R.string.action_block_count_hint)
+                    if (label == R.string.action_block_condition) hint(R.string.action_block_condition_hint)
                     if (label == R.string.action_ui_selector) {
-                        fields.addView(EdgeEditorUi.label(context, context.getString(R.string.action_ui_hint), secondary = true))
-                        if (pickElement != null) fields.addView(EdgeEditorUi.button(context, context.getString(R.string.action_ui_pick)) {
+                        hint(R.string.action_ui_hint)
+                        if (pickElement != null) below(EdgeSettingsUi.button(context, context.getString(R.string.action_ui_pick)) {
                             try { pickElement(current); dialog.dismiss() }
                             catch (e: Exception) { error.text = e.message }
                         })
                     }
                     if (label == R.string.action_edit_macro_name) {
-                        fields.addView(EdgeEditorUi.button(context, context.getString(R.string.action_edit_pick_macro)) {
+                        below(EdgeSettingsUi.button(context, context.getString(R.string.action_edit_pick_macro)) {
                             val names = macros()
                             val selectionDialog = AlertDialog.Builder(context).setTitle(R.string.action_edit_pick_macro)
                                 .setItems(names.toTypedArray()) { _, position -> input.setText(names[position]) }
@@ -135,13 +152,15 @@ internal object ActionStepEditor {
                         })
                     }
                     if (label == R.string.action_edit_package) {
-                        fields.addView(EdgeEditorUi.button(context, context.getString(R.string.edge_pick_app)) {
+                        below(EdgeSettingsUi.button(context, context.getString(R.string.edge_pick_app)) {
                             val entries = apps()
-                            val search = EditText(context).apply { hint = context.getString(R.string.edge_search_apps); setSingleLine(true) }
+                            val search = EdgeSettingsUi.field(context).apply { hint = context.getString(R.string.edge_search_apps) }
                             val list = ListView(context)
-                            val contents = LinearLayout(context).apply {
-                                orientation = LinearLayout.VERTICAL
-                                addView(search); addView(list, LinearLayout.LayoutParams(-1, EdgeEditorUi.dp(context, 300)))
+                            val contents = EdgeSettingsUi.column(context).apply {
+                                setBackgroundColor(EdgeSettingsUi.canvas(context))
+                                setPadding(EdgeSettingsUi.dp(context, 12), EdgeSettingsUi.dp(context, 12),
+                                    EdgeSettingsUi.dp(context, 12), EdgeSettingsUi.dp(context, 12))
+                                addView(search); addView(list, LinearLayout.LayoutParams(-1, EdgeSettingsUi.dp(context, 300)))
                             }
                             var visible = entries
                             val adapter = ArrayAdapter(context, android.R.layout.simple_list_item_1, mutableListOf<String>())
@@ -159,13 +178,15 @@ internal object ActionStepEditor {
                             selectionDialog.show()
                         })
                     }
+                    fields.addView(EdgeSettingsUi.spacer(context, 14))
                 }
             }
             if (kind.verb in listOf("tap", "long-press", "swipe")) {
-                fields.addView(EdgeEditorUi.button(context, context.getString(R.string.action_edit_pick)) {
+                fields.addView(EdgeSettingsUi.button(context, context.getString(R.string.action_edit_pick),
+                    EdgeSettingsUi.Kind.OUTLINE) {
                     try { pick(current); dialog.dismiss() }
                     catch (e: Exception) { error.text = e.message }
-                })
+                }, LinearLayout.LayoutParams(-1, -2))
             }
             rendering = false
         }

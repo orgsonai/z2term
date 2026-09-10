@@ -9,7 +9,6 @@ import android.graphics.drawable.RippleDrawable
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.TextView
 import androidx.compose.ui.graphics.toArgb
 import com.zerotoship.z2term.ui.theme.AppColors
 
@@ -25,11 +24,6 @@ internal object EdgeEditorUi {
     fun accent(context: Context): Int = AppColors.accent.toArgb()
     fun divider(context: Context): View = View(context).apply {
         setBackgroundColor(line(context)); layoutParams = LinearLayout.LayoutParams(-1, dp(context, 1))
-    }
-    fun label(context: Context, value: String, secondary: Boolean = false): TextView = TextView(context).apply {
-        text = value; textSize = if (secondary) 13f else 16f
-        setTextColor(if (secondary) muted(context) else foreground(context))
-        setPadding(dp(context, 16), dp(context, 10), dp(context, 16), dp(context, 10))
     }
     fun button(context: Context, label: String, selected: Boolean = false, action: () -> Unit): Button = Button(context).apply {
         text = label; textSize = 14f; isAllCaps = false

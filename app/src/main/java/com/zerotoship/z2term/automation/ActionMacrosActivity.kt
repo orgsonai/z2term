@@ -7,7 +7,6 @@ import android.content.Context
 import android.os.Bundle
 import android.text.InputFilter
 import android.text.InputType
-import android.view.Gravity
 import android.view.WindowManager
 import android.widget.*
 import androidx.activity.ComponentActivity
@@ -24,7 +23,7 @@ import kotlinx.coroutines.flow.collect
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.edge.AndroidActions
 import com.zerotoship.z2term.edge.AppCatalog
-import com.zerotoship.z2term.edge.EdgeEditorUi
+import com.zerotoship.z2term.edge.EdgeSettingsUi
 import com.zerotoship.z2term.settings.LocaleHelper
 import kotlinx.coroutines.*
 import org.json.JSONArray
@@ -182,24 +181,45 @@ class ActionMacrosActivity : ComponentActivity() {
     private fun message(text: String) { Toast.makeText(this, text, Toast.LENGTH_LONG).show() }
     private fun failure(error: Exception) = message(if (error is ActionStore.EditConflict)
         getString(R.string.action_edit_conflict) else error.message ?: getString(R.string.action_edit_error))
+    private fun dp(value: Int) = EdgeSettingsUi.dp(this, value)
     private fun column() = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-    private fun label(text: String, secondary: Boolean = false) = EdgeEditorUi.label(this, text, secondary)
-    private fun button(label: Int, action: () -> Unit) = EdgeEditorUi.button(this, getString(label), action = action)
-    private fun buttons(parent: LinearLayout, vararg actions: Pair<Int, () -> Unit>) {
-        parent.addView(LinearLayout(this).apply {
-            actions.forEach { (label, action) -> addView(button(label, action).apply {
-                if (label == R.string.action_edit_form && runCatching { ActionBlockDocument(raw) }.isFailure) isEnabled = false
-            }, LinearLayout.LayoutParams(0, -2, 1f)) }
-        })
+    private fun note(text: String) = EdgeSettingsUi.note(this, text)
+    private fun button(label: Int, kind: EdgeSettingsUi.Kind = EdgeSettingsUi.Kind.OUTLINE, action: () -> Unit) =
+        EdgeSettingsUi.button(this, getString(label), kind, action).apply {
+            // The form view cannot open a document whose block structure does not parse.
+            if (label == R.string.action_edit_form && runCatching { ActionBlockDocument(raw) }.isFailure) isEnabled = false
+        }
+    private class Choice(val label: Int, val kind: EdgeSettingsUi.Kind, val run: () -> Unit)
+    private fun act(label: Int, kind: EdgeSettingsUi.Kind = EdgeSettingsUi.Kind.OUTLINE, run: () -> Unit) =
+        Choice(label, kind, run)
+    /** One line of equal actions, gutter to gutter. */
+    private fun buttons(parent: LinearLayout, vararg actions: Choice) {
+        parent.addView(EdgeSettingsUi.row(this).apply {
+            setPadding(dp(EdgeSettingsUi.GUTTER), dp(6), dp(EdgeSettingsUi.GUTTER), dp(6))
+            actions.forEachIndexed { index, choice ->
+                addView(button(choice.label, choice.kind, choice.run), LinearLayout.LayoutParams(0, -2, 1f).apply {
+                    if (index > 0) leftMargin = dp(8)
+                })
+            }
+        }, LinearLayout.LayoutParams(-1, -2))
     }
+    private fun gutter(view: android.view.View, top: Int = 8, bottom: Int = 8) =
+        body.addView(view, LinearLayout.LayoutParams(-1, -2).apply {
+            setMargins(dp(EdgeSettingsUi.GUTTER), dp(top), dp(EdgeSettingsUi.GUTTER), dp(bottom))
+        })
     private fun render() {
         if (editing && renderedEditing && scrollView?.isLaidOut == true) editorScrollY = scrollView?.scrollY ?: editorScrollY
         renderedEditing = editing
-        val root = column().apply { setBackgroundColor(EdgeEditorUi.surface(this@ActionMacrosActivity)) }
-        val toolbar = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        toolbar.addView(label(getString(if (editing) R.string.action_edit_title else R.string.action_macro_title)), LinearLayout.LayoutParams(0, -2, 1f))
-        toolbar.addView(button(R.string.action_edit_close) { leave() })
-        root.addView(toolbar); root.addView(EdgeEditorUi.divider(this))
+        val root = column().apply { setBackgroundColor(EdgeSettingsUi.canvas(this@ActionMacrosActivity)) }
+        val toolbar = EdgeSettingsUi.row(this).apply {
+            setPadding(dp(EdgeSettingsUi.GUTTER), dp(10), dp(10), dp(10))
+        }
+        toolbar.addView(EdgeSettingsUi.title(this,
+            getString(if (editing) R.string.action_edit_title else R.string.action_macro_title)),
+            LinearLayout.LayoutParams(0, -2, 1f))
+        toolbar.addView(button(R.string.action_edit_close) { leave() },
+            LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(10) })
+        root.addView(toolbar); root.addView(EdgeSettingsUi.hairline(this))
         body = column()
         root.addView(ScrollView(this).apply { isFillViewport = true; addView(body); scrollView = this }, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
@@ -211,36 +231,75 @@ class ActionMacrosActivity : ComponentActivity() {
         statusView = null; stopButton = null
         if (AppLock.state.value != AppLock.State.UNLOCKED) {
             stepDialog?.dismiss(); dialogs.toList().forEach { it.dismiss() }
-            if (AppLock.state.value == AppLock.State.LOCKED) body.addView(button(R.string.lock_prompt_title) { promptUnlock() })
+            if (AppLock.state.value == AppLock.State.LOCKED)
+                gutter(button(R.string.lock_prompt_title, EdgeSettingsUi.Kind.PRIMARY) { promptUnlock() }, top = 16)
         } else if (editing) renderEditor() else renderList()
         if (editing) scrollView?.post { scrollView?.scrollTo(0, editorScrollY) }
     }
+    /**
+     * Platform dialogs keep their own chrome, but their content is ours: give it this app's ground
+     * so a light system dialog never wraps text coloured for a dark theme (or the other way round).
+     */
+    private fun dialogBody(content: android.view.View) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setBackgroundColor(EdgeSettingsUi.canvas(this@ActionMacrosActivity))
+        setPadding(dp(EdgeSettingsUi.GUTTER), dp(12), dp(EdgeSettingsUi.GUTTER), dp(12))
+        addView(content, LinearLayout.LayoutParams(-1, -2))
+    }
     private fun refresh() = io({ store.names() }) { names = it; if (!editing) render() }
     private fun renderList() {
-        body.addView(label(getString(R.string.action_edit_intro), true))
-        buttons(body, R.string.action_edit_new to { openEditor("", null) },
-            R.string.action_edit_refresh to { refresh() }, R.string.action_edit_history to { showHistory() })
-        body.addView(button(R.string.action_edit_permission) {
-            runCatching { AndroidActions.command(this, listOf("permission")) }.onFailure { message(it.message.orEmpty()) }
-        })
-        statusView = label("").also { body.addView(it) }
-        stopButton = button(R.string.action_macro_stop) {
+        buttons(body, act(R.string.action_edit_new, EdgeSettingsUi.Kind.PRIMARY) { openEditor("", null) },
+            act(R.string.action_edit_history) { showHistory() },
+            act(R.string.action_edit_refresh, EdgeSettingsUi.Kind.QUIET) { refresh() })
+        // What is running now, and the only way to stop it: one block, never mixed into the list.
+        val running = EdgeSettingsUi.column(this).apply {
+            background = EdgeSettingsUi.frame(this@ActionMacrosActivity)
+            setPadding(dp(12), dp(10), dp(12), dp(12))
+        }
+        statusView = TextView(this).apply {
+            textSize = 13f; setTextColor(EdgeSettingsUi.muted(this@ActionMacrosActivity))
+            setLineSpacing(dp(3).toFloat(), 1f)
+        }.also { running.addView(it, LinearLayout.LayoutParams(-1, -2)) }
+        stopButton = button(R.string.action_macro_stop, EdgeSettingsUi.Kind.DANGER) {
             // Use the displayed ID so a late tap cannot stop a replacement run.
             val id = stopButton?.tag as? String
             if (id != null) runCatching { ActionRuntime.stop(id) }.onFailure { message(it.message.orEmpty()) }
             updateStatus()
-        }.also { body.addView(it) }
+        }.also { running.addView(it, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(10) }) }
+        gutter(running, top = 6)
         updateStatus()
-        if (names.isEmpty()) body.addView(label(getString(R.string.action_edit_empty), true))
+        // Nothing here runs without it, so the permission stays above the list rather than under it.
+        gutter(button(R.string.action_edit_permission) {
+            runCatching { AndroidActions.command(this, listOf("permission")) }.onFailure { message(it.message.orEmpty()) }
+        }, top = 4, bottom = 12)
+        if (names.isEmpty()) gutter(note(getString(R.string.action_edit_empty)), top = 4, bottom = 12)
         names.forEach { savedName ->
-            body.addView(EdgeEditorUi.divider(this))
-            body.addView(EdgeEditorUi.button(this, savedName) {
-                io({ store.readText(savedName) }) { if (!editing) openEditor(savedName, it) }
-            })
-            buttons(body, R.string.action_edit_run to { runSaved(savedName) },
-                R.string.action_edit_duplicate to { io({ store.readText(savedName) }) { if (!editing) openEditor("", null, it) } },
-                R.string.action_edit_delete to { deleteSaved(savedName) })
+            body.addView(EdgeSettingsUi.hairline(this))
+            val row = EdgeSettingsUi.row(this).apply {
+                minimumHeight = dp(58)
+                setPadding(dp(EdgeSettingsUi.GUTTER), dp(6), dp(6), dp(6))
+                background = EdgeSettingsUi.ripple(this@ActionMacrosActivity, null)
+                isClickable = true
+                contentDescription = savedName
+                setOnClickListener { io({ store.readText(savedName) }) { if (!editing) openEditor(savedName, it) } }
+            }
+            // A saved name is an identifier, so it is set like one; the row itself opens the editor.
+            row.addView(EdgeSettingsUi.mono(this, savedName).apply {
+                setTypeface(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
+                textSize = 15f; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            fun compact(label: Int, kind: EdgeSettingsUi.Kind, action: () -> Unit) =
+                row.addView(button(label, kind, action).apply { setPadding(dp(10), dp(6), dp(10), dp(6)) },
+                    LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(4) })
+            compact(R.string.action_edit_run, EdgeSettingsUi.Kind.OUTLINE) { runSaved(savedName) }
+            compact(R.string.action_edit_duplicate, EdgeSettingsUi.Kind.QUIET) {
+                io({ store.readText(savedName) }) { if (!editing) openEditor("", null, it) }
+            }
+            compact(R.string.action_edit_delete, EdgeSettingsUi.Kind.QUIET) { deleteSaved(savedName) }
+            body.addView(row)
         }
+        body.addView(EdgeSettingsUi.hairline(this))
+        gutter(note(getString(R.string.action_edit_intro)), top = 14, bottom = 16)
     }
     private fun openEditor(savedName: String, saved: String?, source: String = ActionEditorDocument.EMPTY) {
         editorScrollY = 0; renderedEditing = false
@@ -256,39 +315,53 @@ class ActionMacrosActivity : ComponentActivity() {
     private fun renderEditor() {
         val structure = runCatching { ActionBlockDocument(raw) }
         if (structure.isFailure) textMode = true
-        body.addView(label(getString(R.string.action_edit_name), true))
-        body.addView(EditText(this).apply {
-            setSingleLine(true); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        val head = EdgeSettingsUi.column(this, gutter = true)
+        head.addView(EdgeSettingsUi.caption(this, getString(R.string.action_edit_name)))
+        head.addView(EdgeSettingsUi.field(this).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
             filters = arrayOf(InputFilter.LengthFilter(64))
+            typeface = android.graphics.Typeface.MONOSPACE
             contentDescription = getString(R.string.action_edit_name); setText(name)
             doAfterTextChanged { name = it.toString() }
-        })
-        buttons(body, R.string.action_edit_save to { save() },
-            (if (textMode) R.string.action_edit_form else R.string.action_edit_text) to { textMode = !textMode; render() },
-            R.string.action_edit_copy_text to {
+        }, LinearLayout.LayoutParams(-1, -2))
+        body.addView(head)
+        buttons(body, act(R.string.action_edit_save, EdgeSettingsUi.Kind.PRIMARY) { save() },
+            act(if (textMode) R.string.action_edit_form else R.string.action_edit_text) { textMode = !textMode; render() },
+            act(R.string.action_edit_copy_text, EdgeSettingsUi.Kind.QUIET) {
                 getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(name, raw))
                 message(getString(R.string.action_edit_copied))
             })
         if (textMode) buttons(body,
-            R.string.action_edit_add_repeat to { addControl(false) },
-            R.string.action_edit_add_branch to { addControl(true) })
-        if (!textMode && ActionEditorDocument(raw).hasBlocks) body.addView(label(getString(R.string.action_edit_blocks_hint), true))
-        structure.exceptionOrNull()?.let { body.addView(label(getString(R.string.action_block_invalid, it.message.orEmpty()), true)) }
+            act(R.string.action_edit_add_repeat) { addControl(false) },
+            act(R.string.action_edit_add_branch) { addControl(true) })
+        if (!textMode && ActionEditorDocument(raw).hasBlocks)
+            gutter(note(getString(R.string.action_edit_blocks_hint)), top = 4, bottom = 4)
+        // A structure error stops the form from opening at all, so it is stated in the danger colour.
+        structure.exceptionOrNull()?.let {
+            gutter(note(getString(R.string.action_block_invalid, it.message.orEmpty())).apply {
+                setTextColor(EdgeSettingsUi.danger(this@ActionMacrosActivity))
+                background = EdgeSettingsUi.frame(this@ActionMacrosActivity,
+                    stroke = EdgeSettingsUi.danger(this@ActionMacrosActivity))
+            }, top = 4, bottom = 4)
+        }
         if (textMode) {
-            body.addView(EditText(this).apply {
-                gravity = Gravity.TOP or Gravity.START
+            gutter(EdgeSettingsUi.field(this, lines = 12).apply {
                 inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
                 filters = arrayOf(InputFilter.LengthFilter(ActionDefinition.MAX_BYTES))
-                typeface = android.graphics.Typeface.MONOSPACE; textSize = 14f; minLines = 12
+                typeface = android.graphics.Typeface.MONOSPACE; textSize = 13.5f
                 contentDescription = getString(R.string.action_edit_text)
                 setText(raw); doAfterTextChanged { raw = it.toString() }
-            })
+            }, top = 6, bottom = 6)
         } else {
             val document = ActionEditorDocument(raw)
-            body.addView(EdgeEditorUi.button(this, getString(R.string.action_edit_timeout) + ": " + (document.header("timeout") ?: "30")) {
+            body.addView(EdgeSettingsUi.hairline(this))
+            body.addView(EdgeSettingsUi.valueRow(this, getString(R.string.action_edit_timeout),
+                document.header("timeout") ?: "30") {
                 editHeader("timeout", R.string.action_edit_timeout, document.header("timeout") ?: "30")
             })
-            body.addView(EdgeEditorUi.button(this, getString(R.string.action_edit_screen) + ": " + (document.header("screen") ?: "—")) {
+            body.addView(EdgeSettingsUi.hairline(this))
+            body.addView(EdgeSettingsUi.valueRow(this, getString(R.string.action_edit_screen),
+                document.header("screen") ?: "—") {
                 editHeader("screen", R.string.action_edit_screen, document.header("screen") ?: "current")
             })
             ActionBlockEditor.render(this, body, structure.getOrThrow(),
@@ -297,14 +370,16 @@ class ActionMacrosActivity : ComponentActivity() {
                 change = { source -> ActionBlockDocument(source); raw = source; render() },
                 show = { showManaged(it) }, failure = { failure(it) })
         }
-        body.addView(label(getString(R.string.action_edit_save_hint), true))
+        body.addView(EdgeSettingsUi.hairline(this))
+        gutter(note(getString(R.string.action_edit_save_hint)), top = 14, bottom = 16)
     }
     private fun editHeader(key: String, title: Int, initial: String) {
-        val field = EditText(this).apply {
-            setSingleLine(true); setText(initial)
+        val field = EdgeSettingsUi.field(this).apply {
+            setText(initial)
+            contentDescription = getString(title)
             if (key == "screen") hint = getString(R.string.action_edit_screen_hint)
         }
-        val dialog = AlertDialog.Builder(this).setTitle(title).setView(field)
+        val dialog = AlertDialog.Builder(this).setTitle(title).setView(dialogBody(field))
             .setPositiveButton(R.string.action_edit_apply, null).setNegativeButton(android.R.string.cancel, null).create()
         dialog.setOnShowListener { dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             try { raw = if (key == "screen" && field.text.isBlank()) ActionEditorDocument(raw).withoutScreen()
@@ -434,12 +509,19 @@ class ActionMacrosActivity : ComponentActivity() {
         val records = (0 until history.length()).map { history.getJSONObject(it) }
             .filter { it.optString("state") != "step" }.takeLast(32).asReversed()
         val contents = column()
-        if (records.isEmpty()) contents.addView(label(getString(R.string.action_edit_no_history)))
-        records.forEach {
-            contents.addView(label(DateFormat.getDateTimeInstance().format(Date(it.optLong("time"))) + "\n" + formatStatus(it), true))
-            contents.addView(EdgeEditorUi.divider(this))
+        if (records.isEmpty()) contents.addView(EdgeSettingsUi.body(this, getString(R.string.action_edit_no_history)))
+        records.forEachIndexed { index, record ->
+            if (index > 0) contents.addView(EdgeSettingsUi.hairline(this))
+            val entry = EdgeSettingsUi.column(this).apply { setPadding(0, dp(10), 0, dp(10)) }
+            entry.addView(EdgeSettingsUi.caption(this,
+                DateFormat.getDateTimeInstance().format(Date(record.optLong("time")))))
+            entry.addView(EdgeSettingsUi.body(this, formatStatus(record)).apply {
+                textSize = 13f; setLineSpacing(dp(3).toFloat(), 1f)
+            })
+            contents.addView(entry)
         }
         AlertDialog.Builder(this).setTitle(R.string.action_edit_history)
-            .setView(ScrollView(this).apply { addView(contents) }).setPositiveButton(android.R.string.ok, null).showManaged()
+            .setView(ScrollView(this).apply { addView(dialogBody(contents)) })
+            .setPositiveButton(android.R.string.ok, null).showManaged()
     }
 }

@@ -2,10 +2,9 @@ package com.zerotoship.z2term.automation
 
 import android.app.AlertDialog
 import android.content.Context
-import android.view.Gravity
 import android.widget.LinearLayout
 import com.zerotoship.z2term.R
-import com.zerotoship.z2term.edge.EdgeEditorUi
+import com.zerotoship.z2term.edge.EdgeSettingsUi
 
 /** The source model owns moves; delimiters never appear as independently movable rows. */
 internal object ActionBlockEditor {
@@ -41,37 +40,48 @@ internal object ActionBlockEditor {
                 .setItems(entries.map { context.getString(it.first) }.toTypedArray()) { _, selected -> entries[selected].second() }
                 .setNegativeButton(android.R.string.cancel, null).create())
         }
+        // A macro is a listing: number in its own column, the line itself in a fixed pitch, and the
+        // per-step menu at the right edge. Nesting is a left rule, so depth survives past two levels.
         fun renderGroup(group: ActionBlockDocument.Group, container: LinearLayout) {
             group.items.forEachIndexed { index, item ->
-                container.addView(EdgeEditorUi.divider(context))
-                val row = LinearLayout(context)
-                row.addView(EdgeEditorUi.button(context, item.path + ". " + source[item.line].trim()) {
-                    edit(item.line, source[item.line])
-                }.apply {
-                    gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                container.addView(EdgeSettingsUi.hairline(context))
+                val row = EdgeSettingsUi.row(context).apply {
+                    minimumHeight = EdgeSettingsUi.dp(context, 48)
+                    setPadding(EdgeSettingsUi.dp(context, 12), EdgeSettingsUi.dp(context, 6),
+                        EdgeSettingsUi.dp(context, 4), EdgeSettingsUi.dp(context, 6))
+                    background = EdgeSettingsUi.ripple(context, null)
+                    isClickable = true
+                    contentDescription = item.path + ". " + source[item.line].trim()
+                    setOnClickListener { edit(item.line, source[item.line]) }
+                }
+                row.addView(EdgeSettingsUi.index(context, item.path).apply {
+                    setPadding(0, 0, EdgeSettingsUi.dp(context, 10), 0)
+                }, LinearLayout.LayoutParams(EdgeSettingsUi.dp(context, 34), -2))
+                row.addView(EdgeSettingsUi.mono(context, source[item.line].trim()).apply {
                     maxLines = 3
                     ellipsize = android.text.TextUtils.TruncateAt.END
                 }, LinearLayout.LayoutParams(0, -2, 1f))
-                row.addView(EdgeEditorUi.button(context, "⋮") { options(item, index, group.items.size) }.apply {
+                row.addView(EdgeSettingsUi.iconButton(context, "⋮") { options(item, index, group.items.size) }.apply {
                     contentDescription = context.getString(R.string.action_block_options, item.path)
-                }, LinearLayout.LayoutParams(EdgeEditorUi.dp(context, 48), -2))
+                }, LinearLayout.LayoutParams(EdgeSettingsUi.dp(context, 40), EdgeSettingsUi.dp(context, 40)))
                 container.addView(row)
                 listOfNotNull(item.body, item.otherwise).forEach { child ->
-                    val nested = LinearLayout(context).apply {
-                        orientation = LinearLayout.VERTICAL
-                        setPadding(EdgeEditorUi.dp(context, 12), 0, 0, 0)
-                    }
-                    if (child.branch != "repeat") nested.addView(EdgeEditorUi.label(context, groupName(child), secondary = true))
+                    val nested = EdgeSettingsUi.indent(context, container)
+                    if (child.branch != "repeat") nested.addView(EdgeSettingsUi.caption(context, groupName(child)).apply {
+                        setPadding(EdgeSettingsUi.dp(context, 12), EdgeSettingsUi.dp(context, 8), 0, 0)
+                    })
                     renderGroup(child, nested)
-                    container.addView(nested)
                 }
             }
-            container.addView(EdgeEditorUi.button(context, context.getString(R.string.action_edit_add)) {
+            container.addView(EdgeSettingsUi.button(context, context.getString(R.string.action_edit_add)) {
                 val labels = intArrayOf(R.string.action_edit_add, R.string.action_edit_add_repeat, R.string.action_edit_add_branch)
                 val drafts = listOf("wait 800", "repeat 3", "if charging")
                 show(AlertDialog.Builder(context).setTitle(groupName(group))
                     .setItems(labels.map { context.getString(it) }.toTypedArray()) { _, position -> add(group.start, drafts[position]) }
                     .setNegativeButton(android.R.string.cancel, null).create())
+            }, LinearLayout.LayoutParams(-1, -2).apply {
+                setMargins(EdgeSettingsUi.dp(context, 12), EdgeSettingsUi.dp(context, 10),
+                    EdgeSettingsUi.dp(context, 12), EdgeSettingsUi.dp(context, 10))
             })
         }
         renderGroup(document.root, parent)

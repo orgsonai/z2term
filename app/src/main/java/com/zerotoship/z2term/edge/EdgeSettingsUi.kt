@@ -24,9 +24,11 @@ import com.zerotoship.z2term.R
 import com.zerotoship.z2term.ui.theme.AppColors
 
 /**
- * Every surface of the full-screen panel editor is declared here: overlays carry no Activity theme,
- * so a control that styles itself locally is a control that drifts from the rest of the screen.
- * The vocabulary is deliberately small - one ground, one hairline, one accent, four button weights.
+ * Every surface of the hand-built editors is declared here - the panel editor and the action-macro
+ * screens. Overlays carry no Activity theme, so a control that styles itself locally is a control
+ * that drifts from the rest of the screen, and two screens that style themselves separately drift
+ * from each other. The vocabulary is deliberately small: one ground, one hairline, one accent,
+ * four button weights.
  */
 internal object EdgeSettingsUi {
     /** One gutter for the whole editor; every heading, field and row starts on this line. */
@@ -89,6 +91,17 @@ internal object EdgeSettingsUi {
         setPadding(0, 0, 0, dp(context, 5))
     }
 
+    /** A saved definition is source, so it is set in a fixed pitch and its arguments line up. */
+    fun mono(context: Context, value: String): TextView = TextView(context).apply {
+        text = value; textSize = 13.5f; setTextColor(foreground(context)); typeface = Typeface.MONOSPACE
+    }
+
+    /** The step number lives in its own column so the lines beneath it stay aligned. */
+    fun index(context: Context, value: String): TextView = TextView(context).apply {
+        text = value; textSize = 12f; setTextColor(muted(context)); typeface = Typeface.MONOSPACE
+        gravity = Gravity.END
+    }
+
     /** Explanations are read once and then skipped, so they sit on their own tinted ground. */
     fun note(context: Context, value: String): TextView = TextView(context).apply {
         text = value; textSize = 12.5f; setTextColor(muted(context))
@@ -122,6 +135,46 @@ internal object EdgeSettingsUi {
         parent.addView(caption(context, label))
         parent.addView(control, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(context, gap) })
     }
+
+    /**
+     * Depth is drawn with a left rule and a margin, never with a second box: nesting boxes inside
+     * boxes stops being readable at the second level, and macro blocks nest further than that.
+     * Returns the container the caller fills; the wrapper is already attached to [parent].
+     */
+    fun indent(context: Context, parent: LinearLayout): LinearLayout {
+        val inner = column(context)
+        parent.addView(LinearLayout(context).apply {
+            setPadding(dp(context, 12), 0, 0, 0)
+            addView(View(context).apply { setBackgroundColor(line(context)) },
+                LinearLayout.LayoutParams(dp(context, 1), -1))
+            addView(inner, LinearLayout.LayoutParams(0, -2, 1f))
+        }, LinearLayout.LayoutParams(-1, -2))
+        return inner
+    }
+
+    /**
+     * A setting whose value is edited elsewhere: name above, current value below, one row.
+     * Baking the value into a button's label made the label change length every time it was set.
+     */
+    fun valueRow(context: Context, label: String, value: String, action: () -> Unit): View =
+        row(context).apply {
+            minimumHeight = dp(context, 56)
+            setPadding(dp(context, GUTTER), dp(context, 8), dp(context, GUTTER), dp(context, 8))
+            background = ripple(context, null)
+            isClickable = true
+            contentDescription = "$label: $value"
+            addView(column(context).apply {
+                addView(caption(context, label).apply { setPadding(0, 0, 0, dp(context, 2)) })
+                addView(body(context, value).apply {
+                    maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+                })
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(TextView(context).apply {
+                text = "›"; textSize = 16f; setTextColor(muted(context))
+                setPadding(dp(context, 10), 0, 0, 0)
+            })
+            setOnClickListener { action() }
+        }
 
     /**
      * Collapsible group. [sub] marks a group nested inside another one: it loses the full-width rule
@@ -227,8 +280,11 @@ internal object EdgeSettingsUi {
             intArrayOf(tint(muted(context), 0x80), enabled))
     }
 
-    fun field(context: Context): EditText = EditText(context).apply {
-        setSingleLine(true)
+    fun field(context: Context, lines: Int = 1): EditText = EditText(context).apply {
+        // A single-line field is the norm; a source editor asks for a floor, not a ceiling.
+        if (lines <= 1) setSingleLine(true) else {
+            minLines = lines; gravity = Gravity.TOP or Gravity.START
+        }
         textSize = 15f
         setTextColor(foreground(context)); setHintTextColor(muted(context))
         setPadding(dp(context, 12), dp(context, 10), dp(context, 12), dp(context, 10))

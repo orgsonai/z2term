@@ -3,7 +3,6 @@ package com.zerotoship.z2term.automation
 import android.app.KeyguardManager
 import android.content.Intent
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.os.Handler
@@ -22,7 +21,7 @@ import android.widget.ArrayAdapter
 import kotlinx.coroutines.*
 import com.zerotoship.z2term.R
 import com.zerotoship.z2term.edge.AndroidActions
-import com.zerotoship.z2term.edge.EdgeEditorUi
+import com.zerotoship.z2term.edge.EdgeSettingsUi
 import com.zerotoship.z2term.edge.EdgeRuntime
 
 /** A short-lived selection overlay. Coordinates and UI selectors return to the editor without executing actions. */
@@ -102,20 +101,32 @@ internal object ActionCoordinatePicker {
 
         private fun render() {
             window?.let { wm.removeViewImmediate(it) }; window = null
-            val controls = LinearLayout(service).apply {
-                orientation = LinearLayout.VERTICAL
-                setBackgroundColor(EdgeEditorUi.surface(service))
+            // This bar floats over someone else's app, so it states its own ground and border
+            // rather than borrowing whatever is behind it.
+            val controls = EdgeSettingsUi.column(service).apply {
+                background = EdgeSettingsUi.frame(service, fill = EdgeSettingsUi.canvas(service))
+                setPadding(EdgeSettingsUi.dp(service, 12), EdgeSettingsUi.dp(service, 10),
+                    EdgeSettingsUi.dp(service, 12), EdgeSettingsUi.dp(service, 10))
             }
-            controls.addView(EdgeEditorUi.label(service, service.getString(
-                if (elements) R.string.action_ui_prepare else if (!capturing) R.string.action_pick_prepare else if (swipe) R.string.action_pick_swipe else R.string.action_pick_point), true))
-            val row = LinearLayout(service)
-            controls.addView(row)
-            fun button(label: Int, enabled: Boolean = true, action: () -> Unit) =
-                EdgeEditorUi.button(service, service.getString(label), action = action).apply {
-                    isEnabled = enabled; row.addView(this, LinearLayout.LayoutParams(0, -2, 1f))
+            controls.addView(EdgeSettingsUi.body(service, service.getString(
+                if (elements) R.string.action_ui_prepare else if (!capturing) R.string.action_pick_prepare else if (swipe) R.string.action_pick_swipe else R.string.action_pick_point)).apply {
+                textSize = 13f
+                setLineSpacing(EdgeSettingsUi.dp(service, 3).toFloat(), 1f)
+            }, LinearLayout.LayoutParams(-1, -2))
+            val row = EdgeSettingsUi.row(service)
+            controls.addView(row, LinearLayout.LayoutParams(-1, -2).apply {
+                topMargin = EdgeSettingsUi.dp(service, 10)
+            })
+            fun button(label: Int, kind: EdgeSettingsUi.Kind = EdgeSettingsUi.Kind.OUTLINE,
+                enabled: Boolean = true, action: () -> Unit) =
+                EdgeSettingsUi.button(service, service.getString(label), kind, action).apply {
+                    isEnabled = enabled
+                    row.addView(this, LinearLayout.LayoutParams(0, -2, 1f).apply {
+                        if (row.childCount > 0) leftMargin = EdgeSettingsUi.dp(service, 8)
+                    })
                 }
             val accept = button(if (elements) R.string.action_ui_read else if (capturing) R.string.action_edit_apply else R.string.action_edit_pick,
-                !loading && (!capturing || points != null)) {
+                EdgeSettingsUi.Kind.PRIMARY, !loading && (!capturing || points != null)) {
                 try {
                     check(AndroidActions.targetMatches(target)) { service.getString(R.string.action_pick_target) }
                     if (elements) readElements()
@@ -137,9 +148,14 @@ internal object ActionCoordinatePicker {
                 bottom = !bottom
                 try { render() } catch (e: Exception) { finish(null, e.message) }
             }
-            button(android.R.string.cancel) { finish(null, service.getString(R.string.action_pick_cancelled)) }
+            button(android.R.string.cancel, EdgeSettingsUi.Kind.QUIET) {
+                finish(null, service.getString(R.string.action_pick_cancelled))
+            }
             if (elements && choices.isNotEmpty()) {
+                controls.addView(EdgeSettingsUi.hairline(service), LinearLayout.LayoutParams(-1,
+                    EdgeSettingsUi.dp(service, 1)).apply { topMargin = EdgeSettingsUi.dp(service, 10) })
                 controls.addView(ListView(service).apply {
+                    divider = null
                     adapter = ArrayAdapter(service, android.R.layout.simple_list_item_1, choices.map { it.toString() })
                     setOnItemClickListener { _, _, index, _ ->
                         try {
@@ -149,11 +165,13 @@ internal object ActionCoordinatePicker {
                             finish(null, null, selector = choices[index])
                         } catch (e: Exception) { Toast.makeText(service, e.message, Toast.LENGTH_LONG).show() }
                     }
-                }, LinearLayout.LayoutParams(-1, minOf(screen.height / 3, EdgeEditorUi.dp(service, 300))))
+                }, LinearLayout.LayoutParams(-1, minOf(screen.height / 3, EdgeSettingsUi.dp(service, 300))))
             }
             val content = if (capturing) FrameLayout(service).apply {
                 addView(object : View(service) {
-                    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(255, 180, 45); strokeWidth = 4f }
+                    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = EdgeSettingsUi.accent(service); strokeWidth = 4f
+                    }
                     private var tracking = false
                     private var startX = 0f
                     private var startY = 0f
@@ -189,7 +207,9 @@ internal object ActionCoordinatePicker {
                 // Qualify the side: inside this apply the FrameLayout's own View.bottom (an Int) wins.
                 addView(controls, FrameLayout.LayoutParams(-1, -2,
                     if (this@Session.bottom) Gravity.BOTTOM else Gravity.TOP).apply {
-                    val inset = EdgeEditorUi.dp(service, 36)
+                    val inset = EdgeSettingsUi.dp(service, 36)
+                    val side = EdgeSettingsUi.dp(service, 12)
+                    leftMargin = side; rightMargin = side
                     if (this@Session.bottom) bottomMargin = inset else topMargin = inset
                 })
             } else controls
@@ -201,7 +221,7 @@ internal object ActionCoordinatePicker {
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = (if (bottom && !capturing) Gravity.BOTTOM else Gravity.TOP) or Gravity.LEFT
-                if (!capturing) y = EdgeEditorUi.dp(service, 36)
+                if (!capturing) y = EdgeSettingsUi.dp(service, 36)
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
             wm.addView(content, params)

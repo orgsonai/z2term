@@ -1,6 +1,6 @@
 # Z2Term — Design & Specification
 
-Last updated: 2026-09-10 / Target version: 0.8.577-alpha (versionCode 585)
+Last updated: 2026-09-10 / Target version: 0.8.578-alpha (versionCode 586)
 
 > This is the technical document covering Z2Term's **detailed design + specification**, aimed at implementers and reviewers.
 > For a friendly user-facing guide, see `docs/en/HANDBOOK.md`.
@@ -2206,6 +2206,12 @@ LF/IND and explicit scroll-up (SU) move only rows inside the specified region. O
 
 **UI elements and block editing (0.8.574)**: Click/long-click by visible text, description or resource ID, and wait for elements with deadlines. Choose selectors over the target app or inspect through the CLI. Explicit element requests read only the target window, excluding editable/password fields. The hierarchical GUI adds children, moves across groups, duplicates/removes complete blocks and manages else branches. Text, comments and line endings are retained, with shared cancellation and deadlines. See [usage](ACTION-MACROS.md). Build and device behavior not verified; added tests not run.
 **`bottom` resolved to the View's own property in the picker (0.8.576)**: `ActionCoordinatePicker` referred to `Session.bottom` (which edge the controls sit on) bare inside `FrameLayout(service).apply { ... }`. The innermost implicit receiver wins, so the name resolved to **`View.getBottom()` (an Int)** and `if (bottom)` failed to compile; 0.8.574 shipped without a build. The fix qualifies it as `this@Session.bottom`. ⚠ **Inside an `apply` that builds a View, qualify any outer property whose name a View already owns** (`bottom`, `top`, `left`, `right`, `alpha`, `visibility`, `id`). A type clash at least fails loudly; when the types also match, the code silently reads the wrong value, so treat the name collision itself as the warning.
+**Action-macro GUI rebuilt on the editor's parts (0.8.578)**: it drops its own colours and its column of plain buttons for `EdgeSettingsUi` - one ground, one hairline, one accent, four button weights. ⚠ **0.8.577 moved only its colours onto the theme and left its shapes behind**; two ways of doing the same thing inside one app leave no way to decide which is right.
+- **The list is one row per macro**: the name in a fixed pitch (it is an identifier), the row itself opens the editor, and run/duplicate/delete sit at its right edge. What is running, and the only way to stop it, is **one bordered block** rather than something in the middle of the list. ⚠ The accessibility permission is a **precondition**, so it stays above the list: put it below and the reason nothing runs is the furthest thing from the reader.
+- **Steps carry their number in its own column and the line itself in a fixed pitch.** A macro is a listing, not prose: `tap percent 50 40` only reads once the columns line up. Nesting (repeat, branch) is a left rule and an indent (`EdgeSettingsUi.indent`), which survives past the second level.
+- **Timeout and screen became name-over-value rows.** Baking the value into a button's label changed the button's width every time it was set.
+- ⚠ **A platform dialog keeps its frame, but its content takes our ground.** With a light theme under a dark system (or the reverse), text coloured for one lands on the other and **stops being readable**. Applied to the step editor, the app picker, the history and the header dialogs alike.
+- **The coordinate overlay** takes the same ground and border, inset from both edges so it reads as floating over someone else's app, and the stroke it draws follows the accent instead of a hard-coded orange.
 
 **Shared actions and gestures (unreleased)**: Appearance → Gestures assigns an ordered action list to tap, double tap, swipe up/down/inward/outward. Add, remove and move actions in the GUI; an empty list disables a gesture. Hold remains reserved for editing/relocation. Assigned directions take precedence over immediate button dragging; hold to relocate instead. Appearance previews never execute actions.
 
